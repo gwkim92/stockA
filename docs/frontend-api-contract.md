@@ -192,8 +192,12 @@ Live read adapter pilot:
   - `GET /api/events?asOfDate=2024-11-01`
   - `GET /api/themes/ANNUAL_REPORTING?asOfDate=2024-11-01`
   - `GET /api/performance/Long%20Term%20Paper/outcomes?measurementEndDate=2024-12-02`
+  - `GET /api/recommendations/AAPL-2024-11-01`
+  - `GET /api/theses/AAPL-bootstrap-v1`
+  - `GET /api/ai-evidence/sec-event-aapl-10k-20240928`
+  - `GET /api/source-documents/aapl-2024-10k-20240928`
   - `GET /api/remediation-tickets?status=open`
   - `GET /api/portfolio/Long%20Term%20Paper/coverage?asOfDate=2024-11-01`
 - source mode: `--source auto` uses live only when `STOCKANALYSIS_PSQL_COMMAND` is configured; otherwise it falls back to fixture examples.
 
-Next, expand live DTO support to recommendation/thesis detail, AI evidence, and source document endpoints, then wire live/auto mode into a production API server boundary.
+Next, expand live DTO support to cycle list, then wire live/auto mode into a production API server boundary.
