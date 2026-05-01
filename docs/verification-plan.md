@@ -251,6 +251,10 @@ task마다 흔들리게 두지 않는 편이 좋다.
 - 수행 경로: `bash scripts/verify_frontend_fixture_server.sh`가 fixture server runtime smoke를 수행하고, `bash scripts/verify_apps_web_scaffold.sh`와 `bash scripts/verify_frontend_detail_routes.sh`가 Next production server route smoke를 수행한다.
 - 확인할 증거: health payload, endpoint index, daily cockpit fixture payload, event/theme/performance fixture payload, remediation ticket query-string fixture payload, 404/405 error payload, web route HTML content가 검증된다.
 
+- URL, route, job, endpoint: `http://127.0.0.1:3006/`, `http://127.0.0.1:3006/events`, `http://127.0.0.1:3006/themes/ANNUAL_REPORTING`, `http://127.0.0.1:3006/performance`, `http://127.0.0.1:3006/portfolio/coverage`
+- 수행 경로: `agent-browser`로 production Next server를 열고 screenshot, console, errors를 확인한다.
+- 확인할 증거: `docs/tasks/frontend-browser-visual-qa/report.md`와 `output/playwright/frontend-browser-visual-qa/screenshots/`의 local browser evidence가 존재한다. 모바일 `/performance`는 `clientWidth=390`, `scrollWidth=390`으로 horizontal overflow가 없어야 한다.
+
 ## Metrics Or Logs
 
 - metric 또는 로그 소스: 하네스 검증 명령 출력, 향후 백테스트 결과 로그, 추천/리뷰 이력

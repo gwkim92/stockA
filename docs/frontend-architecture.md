@@ -196,16 +196,17 @@ Phase 5: thesis and performance review
 
 Phase 6: operational hardening
 
-- auth, RBAC, audit logs, alert destination, deployment, browser smoke tests, accessibility checks.
+- status: local browser visual QA exists for the expanded fixture-backed frontend.
+- next: auth, RBAC, audit logs, alert destination, deployment, accessibility checks.
 
 ## Next Task
 
-Start with browser QA, performance route expansion, or live read-adapter planning because `apps-web-scaffold` now exists.
+Start with live read-adapter planning because the fixture-backed route shell and local browser QA now exist.
 
-The next task can expand `apps/web` against remaining fixture server payloads:
+The next task can expand the frontend/backend boundary:
 
-- browser visual QA for the expanded frontend.
 - live DB read adapter behind the existing DTO contract.
 - broader performance history and filtering after live read adapter shape is stable.
+- full accessibility audit for the expanded frontend.
 
 Keep the first web scaffold fixture-only until live DB read adapter and auth boundary are ready.
