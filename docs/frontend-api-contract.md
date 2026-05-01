@@ -147,6 +147,7 @@ Rules:
 - event/theme explorer responses must preserve provenance links instead of presenting cycle state as a standalone buy signal.
 - performance responses must distinguish deterministic outcome math from AI narrative and must not hide coverage exclusions.
 - raw source documents are not browser-downloadable until auth/RBAC and access policy are implemented.
+- live read adapter pilot may serve a subset of read endpoints, but unsupported endpoints must keep fixture fallback or explicit unsupported-path errors rather than exposing raw table-shaped data.
 
 ## Write Boundary
 
@@ -177,6 +178,17 @@ Rules:
 - paginated lists should later use `limit`, `cursor`, and `next_cursor`, not page numbers, because pipeline data is time ordered.
 - errors should use stable shape: `error.code`, `error.message`, `error.details`, `request_id`.
 
-## Next Implementation Step
+## Implementation Status
 
-The read-only Python fixture adapter exists in `src/stockanalysis/frontend/api_adapter.py`, local HTTP fixture serving exists in `src/stockanalysis/frontend/fixture_server.py`, and `apps/web` consumes fixture payloads. Next, run browser visual QA for the expanded frontend or add a live DB read adapter behind the same contract.
+The read-only Python fixture adapter exists in `src/stockanalysis/frontend/api_adapter.py`, local HTTP fixture serving exists in `src/stockanalysis/frontend/fixture_server.py`, and `apps/web` consumes fixture payloads.
+
+Live read adapter pilot:
+
+- module: `src/stockanalysis/frontend/live_adapter.py`
+- CLI: `PYTHONPATH=src python3 -m stockanalysis.frontend.api_adapter get --source live --path "..."`
+- supported live endpoints:
+  - `GET /api/remediation-tickets?status=open`
+  - `GET /api/portfolio/Long%20Term%20Paper/coverage?asOfDate=2024-11-01`
+- source mode: `--source auto` uses live only when `STOCKANALYSIS_PSQL_COMMAND` is configured; otherwise it falls back to fixture examples.
+
+Next, either wire live/auto mode into a local API server boundary or expand live DTO support to daily cockpit, data health, event/theme, and performance endpoints.

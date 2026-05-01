@@ -1,6 +1,6 @@
 # Frontend API Adapter
 
-이 문서는 frontend API contract examples를 반환하는 read-only Python adapter를 정의한다.
+이 문서는 frontend API contract examples와 일부 live Postgres read model을 반환하는 read-only Python adapter를 정의한다.
 
 ## Current Status
 
@@ -9,7 +9,8 @@
 - exact API path를 linked example JSON으로 resolve한다.
 - local HTTP fixture server는 `docs/frontend-fixture-server.md`와 `src/stockanalysis/frontend/fixture_server.py`에 추가됐다.
 - `apps/web` scaffold는 fixture server를 통해 adapter output을 소비한다.
-- live DB query adapter는 아직 없다.
+- live DB read adapter pilot은 `src/stockanalysis/frontend/live_adapter.py`에 추가됐다.
+- live source는 현재 remediation tickets와 portfolio coverage endpoint만 지원한다.
 
 ## CLI
 
@@ -24,6 +25,23 @@ Get a fixture response:
 ```bash
 PYTHONPATH=src python3 -m stockanalysis.frontend.api_adapter get \
   --path "/api/dashboard/today"
+```
+
+Get a live DB response:
+
+```bash
+STOCKANALYSIS_PSQL_COMMAND='psql postgresql://...' \
+PYTHONPATH=src python3 -m stockanalysis.frontend.api_adapter get \
+  --source live \
+  --path "/api/remediation-tickets?status=open"
+```
+
+Use live when configured, otherwise fixture fallback:
+
+```bash
+PYTHONPATH=src python3 -m stockanalysis.frontend.api_adapter get \
+  --source auto \
+  --path "/api/portfolio/Long%20Term%20Paper/coverage?asOfDate=2024-11-01"
 ```
 
 Unknown path returns non-zero exit code and stable error JSON:
@@ -46,10 +64,21 @@ from stockanalysis.frontend.api_adapter import resolve_frontend_response
 payload = resolve_frontend_response("/api/dashboard/today")
 ```
 
+Live read pilot:
+
+```python
+from stockanalysis.frontend.live_adapter import resolve_live_frontend_response
+
+payload = resolve_live_frontend_response("/api/remediation-tickets?status=open")
+```
+
+`resolve_frontend_response(..., source="auto")` only attempts live reads when the path is supported and `STOCKANALYSIS_PSQL_COMMAND` is configured.
+
 ## Verification
 
 ```bash
 bash scripts/verify_frontend_api_adapter.sh
+bash scripts/verify_frontend_live_read_adapter.sh
 ```
 
 검증은 아래를 확인한다.
@@ -60,19 +89,25 @@ bash scripts/verify_frontend_api_adapter.sh
 - CLI `list` smoke
 - CLI `get --path /api/dashboard/today` smoke
 - unknown path stable error
+- live adapter unit tests
+- live source missing-config stable error
+- auto source fixture fallback when DB config is absent
 - root-level `app` scaffold가 없는 boundary
 
 ## Boundaries
 
-- fixture adapter는 live DB freshness를 보장하지 않는다.
+- fixture source는 live DB freshness를 보장하지 않는다.
+- live source는 `STOCKANALYSIS_PSQL_COMMAND`가 필요하다.
+- live source 지원 endpoint는 현재 `GET /api/remediation-tickets?status=open`과 `GET /api/portfolio/:portfolioName/coverage?asOfDate=...`다.
 - exact path matching만 지원한다.
-- query parameter normalization은 아직 없다.
+- query parameter normalization은 live pilot에서 필요한 최소 범위만 지원한다.
 - HTTP server는 `src/stockanalysis/frontend/fixture_server.py`에 있다.
 - browser fetch 대상은 fixture server다.
 - write command는 아직 없다.
+- production API server, connection pooling, auth/RBAC는 아직 없다.
 
 ## Next Steps
 
-1. adapter output과 contract examples의 drift를 계속 검증한다.
-2. `apps/web` detail routes를 fixture server payload로 확장한다.
-3. live DB read adapter를 별도 boundary로 추가한다.
+1. fixture server에 optional live/auto source mode를 붙일지 별도 production API server로 갈지 결정한다.
+2. live support를 daily cockpit, data health, event/theme, performance endpoint로 확장한다.
+3. auth/RBAC와 audit trail이 준비된 뒤에만 write endpoint를 추가한다.

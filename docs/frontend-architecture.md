@@ -9,6 +9,7 @@ frontend는 단순 종목 추천 화면이 아니라 **investment cockpit**이�
 - frontend scaffold는 `apps/web`에 만들었다.
 - 첫 frontend task는 `apps/web` 생성이 아니라 API contract와 read model 정의였고, 현재 `docs/frontend-api-contract.md`와 `docs/api/frontend/` examples로 초안이 고정됐다.
 - local fixture HTTP server가 있고 `apps/web`은 browser-facing route shell에서 fixture payload를 읽는다.
+- live Postgres read adapter pilot이 있고 remediation tickets와 portfolio coverage DTO를 canonical reports에서 변환한다.
 - frontend는 Python/Postgres pipeline을 대체하지 않는다.
 - browser는 DB에 직접 연결하지 않는다.
 - LLM은 frontend에서 추천을 직접 결정하지 않는다.
@@ -170,6 +171,14 @@ Phase 1.6: Fixture server foundation
 - module: `src/stockanalysis/frontend/fixture_server.py`.
 - verification: `scripts/verify_frontend_fixture_server.sh`.
 
+Phase 1.7: Live read adapter pilot
+
+- status: remediation tickets and portfolio coverage can be resolved from canonical Postgres reports behind the frontend DTO contract.
+- module: `src/stockanalysis/frontend/live_adapter.py`.
+- source mode: `stockanalysis.frontend.api_adapter get --source fixture|live|auto`.
+- verification: `scripts/verify_frontend_live_read_adapter.sh`.
+- boundary: no production API server, no browser DB access, no write endpoint.
+
 Phase 2: frontend scaffold
 
 - status: fixture-only scaffold documented as `docs/apps-web-scaffold.md`.
@@ -201,12 +210,12 @@ Phase 6: operational hardening
 
 ## Next Task
 
-Start with live read-adapter planning because the fixture-backed route shell and local browser QA now exist.
+Start with API runtime integration because the fixture-backed route shell, local browser QA, and first live read adapter pilot now exist.
 
 The next task can expand the frontend/backend boundary:
 
-- live DB read adapter behind the existing DTO contract.
+- optional live/auto source mode in a local API server boundary.
 - broader performance history and filtering after live read adapter shape is stable.
 - full accessibility audit for the expanded frontend.
 
-Keep the first web scaffold fixture-only until live DB read adapter and auth boundary are ready.
+Keep the browser-facing app fixture-backed by default until auth boundary and production API runtime are ready.
