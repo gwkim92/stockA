@@ -66,6 +66,13 @@ def resolve_live_frontend_response(
             executor=executor,
             generated_at=generated_at_text,
         )
+    if parsed.path == "/api/cycles":
+        return build_live_cycle_state_list_response(
+            parsed,
+            config=runtime_config,
+            executor=executor,
+            generated_at=generated_at_text,
+        )
     if parsed.path == "/api/events":
         return build_live_event_list_response(
             parsed,
@@ -227,6 +234,35 @@ def build_live_data_health_response(
             "scheduler_env_readiness": "/settings/scheduler",
             "dashboard": "/api/dashboard/today",
         },
+    }
+
+
+def build_live_cycle_state_list_response(
+    parsed: ParsedApiPath,
+    *,
+    config: RuntimeConfig,
+    executor: PsqlCommandExecutor | None,
+    generated_at: str,
+) -> dict[str, Any]:
+    as_of_date = _parse_required_date(parsed.query, "asOfDate")
+    state = load_frontend_cycle_state_list_state(
+        config=config,
+        executor=executor,
+        as_of_date=as_of_date,
+    )
+    cycle_states = [_build_cycle_state_item_payload(item) for item in _as_list(state.get("cycle_states"))]
+
+    return {
+        "contract_version": CONTRACT_VERSION,
+        "generated_at": generated_at,
+        "data": {
+            "as_of_date": str(state.get("as_of_date") or as_of_date.isoformat()),
+            "strategy_name": str(state.get("strategy_name") or DEFAULT_STRATEGY_NAME),
+            "horizon_type": str(state.get("horizon_type") or "long_term"),
+            "universe_version": str(state.get("universe_version") or "unknown"),
+            "cycle_states": cycle_states,
+        },
+        "links": _cycle_state_list_links(cycle_states, as_of_date=as_of_date),
     }
 
 
@@ -676,7 +712,8 @@ def build_live_portfolio_coverage_response(
 def is_live_supported_path(api_path: str) -> bool:
     parsed = parse_api_path(api_path)
     return (
-        parsed.path in {"/api/dashboard/today", "/api/data-health", "/api/events", "/api/remediation-tickets"}
+        parsed.path
+        in {"/api/dashboard/today", "/api/data-health", "/api/cycles", "/api/events", "/api/remediation-tickets"}
         or parsed.path.startswith("/api/themes/")
         or (parsed.path.startswith("/api/performance/") and parsed.path.endswith("/outcomes"))
         or parsed.path.startswith("/api/recommendations/")
@@ -707,6 +744,17 @@ def load_frontend_data_health_state(
     payload = sql_executor.execute_scalar(render_frontend_data_health_state_sql())
     data = json_loads_object(payload, "Frontend data health state lookup")
     return data
+
+
+def load_frontend_cycle_state_list_state(
+    *,
+    config: RuntimeConfig,
+    executor: PsqlCommandExecutor | None,
+    as_of_date: date,
+) -> dict[str, Any]:
+    sql_executor = executor or PsqlCommandExecutor.from_config(config)
+    payload = sql_executor.execute_scalar(render_frontend_cycle_state_list_sql(as_of_date=as_of_date))
+    return json_loads_object(payload, "Frontend cycle state list lookup")
 
 
 def load_frontend_event_list_state(
@@ -980,6 +1028,102 @@ select json_build_object(
         'auth_rbac',
         'alert_destination',
         'actual_db_backed_frontend_live_smoke'
+    )
+)::text;"""
+
+
+def render_frontend_cycle_state_list_sql(*, as_of_date: date) -> str:
+    return f"""-- frontend cycle state list lookup
+with selected_universe as (
+    select batch.*
+    from signal.strategy_universe_batch batch
+    where batch.as_of_date <= {sql_date(as_of_date)}
+      and batch.strategy_name = {sql_literal(DEFAULT_STRATEGY_NAME)}
+    order by batch.as_of_date desc, batch.universe_batch_id desc
+    limit 1
+),
+latest_cycle as (
+    select distinct on (snapshot.node_id)
+        snapshot.*,
+        node.code as theme_key,
+        node.name as theme_name
+    from signal.cycle_state_snapshot snapshot
+    join ref.classification_node node on node.node_id = snapshot.node_id
+    where node.taxonomy_family = 'internal_theme'
+      and snapshot.as_of_date <= {sql_date(as_of_date)}
+    order by snapshot.node_id, snapshot.as_of_date desc
+),
+previous_cycle as (
+    select distinct on (snapshot.node_id)
+        snapshot.node_id,
+        snapshot.cycle_state
+    from signal.cycle_state_snapshot snapshot
+    join latest_cycle current_cycle on current_cycle.node_id = snapshot.node_id
+    where snapshot.as_of_date < current_cycle.as_of_date
+    order by snapshot.node_id, snapshot.as_of_date desc
+),
+instrument_rollup as (
+    select
+        current_cycle.node_id,
+        count(distinct instrument.instrument_id)::integer as instrument_count,
+        array_remove((array_agg(distinct instrument.primary_symbol order by instrument.primary_symbol))[1:5], null::text) as top_symbols
+    from latest_cycle current_cycle
+    left join ref.instrument_classification_membership membership
+      on membership.node_id = current_cycle.node_id
+     and membership.membership_type = 'derived_theme'
+     and membership.valid_from <= {sql_date(as_of_date)}
+     and (membership.valid_to is null or membership.valid_to >= {sql_date(as_of_date)})
+    left join ref.instrument instrument on instrument.instrument_id = membership.instrument_id
+    group by current_cycle.node_id
+)
+select json_build_object(
+    'as_of_date', {sql_literal(as_of_date.isoformat())},
+    'strategy_name', coalesce((select strategy_name from selected_universe), {sql_literal(DEFAULT_STRATEGY_NAME)}),
+    'horizon_type', coalesce((select horizon_type from selected_universe), 'long_term'),
+    'universe_version', coalesce((select universe_version from selected_universe), 'unknown'),
+    'cycle_states',
+    coalesce(
+        (
+            select json_agg(
+                json_build_object(
+                    'theme_key', current_cycle.theme_key,
+                    'theme_name', current_cycle.theme_name,
+                    'state', current_cycle.cycle_state,
+                    'previous_state', coalesce(previous_cycle.cycle_state, 'unknown'),
+                    'confidence',
+                    coalesce(
+                        nullif(current_cycle.evidence_json ->> 'average_event_confidence', '')::numeric,
+                        current_cycle.cycle_score
+                    ),
+                    'instrument_count', coalesce(instrument_rollup.instrument_count, 0),
+                    'top_symbols', coalesce(instrument_rollup.top_symbols, array[]::text[]),
+                    'features',
+                    json_build_object(
+                        'event_intensity',
+                        coalesce(
+                            current_cycle.event_heat_score,
+                            nullif(current_cycle.evidence_json ->> 'event_heat_score', '')::numeric
+                        ),
+                        'price_momentum',
+                        coalesce(
+                            current_cycle.trend_score,
+                            nullif(current_cycle.evidence_json ->> 'trend_score', '')::numeric
+                        ),
+                        'fundamental_quality',
+                        coalesce(
+                            current_cycle.valuation_score,
+                            current_cycle.breadth_score,
+                            nullif(current_cycle.evidence_json ->> 'breadth_score', '')::numeric
+                        )
+                    )
+                )
+                order by current_cycle.cycle_score desc nulls last, current_cycle.theme_key
+            )
+            from latest_cycle current_cycle
+            left join previous_cycle on previous_cycle.node_id = current_cycle.node_id
+            left join instrument_rollup on instrument_rollup.node_id = current_cycle.node_id
+        ),
+        '[]'::json
     )
 )::text;"""
 
@@ -1969,6 +2113,26 @@ def _build_event_payload(event: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _build_cycle_state_item_payload(item: dict[str, Any]) -> dict[str, Any]:
+    features = _as_dict(item.get("features"))
+    raw_symbols = item.get("top_symbols")
+    top_symbols = [str(symbol).upper() for symbol in raw_symbols if symbol] if isinstance(raw_symbols, list) else []
+    return {
+        "theme_key": str(item.get("theme_key") or "UNCLASSIFIED"),
+        "theme_name": str(item.get("theme_name") or "Unclassified"),
+        "state": str(item.get("state") or item.get("cycle_state") or "unknown"),
+        "previous_state": str(item.get("previous_state") or "unknown"),
+        "confidence": _number(item.get("confidence") or item.get("cycle_score")),
+        "instrument_count": int(item.get("instrument_count") or len(top_symbols)),
+        "top_symbols": top_symbols,
+        "features": {
+            "event_intensity": _number(features.get("event_intensity")),
+            "price_momentum": _number(features.get("price_momentum")),
+            "fundamental_quality": _number(features.get("fundamental_quality")),
+        },
+    }
+
+
 def _build_cycle_history_payload(item: dict[str, Any]) -> dict[str, Any]:
     return {
         "as_of_date": str(item.get("as_of_date") or ""),
@@ -2102,6 +2266,14 @@ def _event_list_links(events: list[dict[str, Any]], *, as_of_date: date) -> dict
     if first_event.get("source_document_id"):
         links["source_document"] = f"/api/source-documents/{first_event['source_document_id']}"
     return links
+
+
+def _cycle_state_list_links(cycle_states: list[dict[str, Any]], *, as_of_date: date) -> dict[str, str]:
+    first_cycle = cycle_states[0] if cycle_states else {}
+    return {
+        "theme_detail": f"/api/themes/{first_cycle.get('theme_key', 'UNCLASSIFIED')}?asOfDate={as_of_date}",
+        "recommendations": f"/api/recommendations?batchDate={as_of_date}",
+    }
 
 
 def _theme_detail_links(

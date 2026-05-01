@@ -8,6 +8,7 @@ from stockanalysis.frontend.live_adapter import (
     FrontendLiveUnavailableError,
     FrontendLiveUnsupportedPathError,
     render_frontend_ai_evidence_detail_state_sql,
+    render_frontend_cycle_state_list_sql,
     render_frontend_thesis_detail_state_sql,
     resolve_live_frontend_response,
 )
@@ -79,6 +80,45 @@ class FakeLiveExecutor:
                         "auth_rbac",
                         "alert_destination",
                         "actual_db_backed_frontend_live_smoke",
+                    ],
+                }
+            )
+        if sql.startswith("-- frontend cycle state list lookup"):
+            return json.dumps(
+                {
+                    "as_of_date": "2024-11-01",
+                    "strategy_name": "long_term_core",
+                    "horizon_type": "long_term",
+                    "universe_version": "bootstrap-v1",
+                    "cycle_states": [
+                        {
+                            "theme_key": "ANNUAL_REPORTING",
+                            "theme_name": "Annual reporting quality",
+                            "state": "constructive",
+                            "previous_state": "neutral",
+                            "confidence": "0.7200",
+                            "instrument_count": 1,
+                            "top_symbols": ["AAPL"],
+                            "features": {
+                                "event_intensity": "0.8000",
+                                "price_momentum": "0.6100",
+                                "fundamental_quality": "0.7400",
+                            },
+                        },
+                        {
+                            "theme_key": "CHINA_ADR_COVERAGE",
+                            "theme_name": "China ADR coverage",
+                            "state": "incomplete_coverage",
+                            "previous_state": "unknown",
+                            "confidence": "0.4100",
+                            "instrument_count": 1,
+                            "top_symbols": ["BABA"],
+                            "features": {
+                                "event_intensity": "0.2000",
+                                "price_momentum": "0.4800",
+                                "fundamental_quality": None,
+                            },
+                        },
                     ],
                 }
             )
@@ -517,6 +557,32 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertIn("auth_rbac", payload["data"]["open_gates"])
         self.assertEqual(payload["links"]["dashboard"], "/api/dashboard/today")
 
+    def test_live_cycle_state_list_response_matches_frontend_contract_shape(self) -> None:
+        payload = resolve_live_frontend_response(
+            "/api/cycles?asOfDate=2024-11-01",
+            config=type("Config", (), {"psql_command": "psql"})(),
+            executor=FakeLiveExecutor(),
+            generated_at=datetime(2026, 5, 1, tzinfo=timezone.utc),
+        )
+
+        self.assertEqual(payload["contract_version"], "frontend-api-v0.1")
+        self.assertEqual(payload["data"]["as_of_date"], "2024-11-01")
+        self.assertEqual(payload["data"]["strategy_name"], "long_term_core")
+        self.assertEqual(payload["data"]["horizon_type"], "long_term")
+        self.assertEqual(payload["data"]["universe_version"], "bootstrap-v1")
+        first_cycle = payload["data"]["cycle_states"][0]
+        self.assertEqual(first_cycle["theme_key"], "ANNUAL_REPORTING")
+        self.assertEqual(first_cycle["state"], "constructive")
+        self.assertEqual(first_cycle["previous_state"], "neutral")
+        self.assertEqual(first_cycle["confidence"], 0.72)
+        self.assertEqual(first_cycle["instrument_count"], 1)
+        self.assertEqual(first_cycle["top_symbols"], ["AAPL"])
+        self.assertEqual(first_cycle["features"]["event_intensity"], 0.8)
+        self.assertEqual(
+            payload["links"]["theme_detail"],
+            "/api/themes/ANNUAL_REPORTING?asOfDate=2024-11-01",
+        )
+
     def test_live_event_list_response_matches_frontend_contract_shape(self) -> None:
         payload = resolve_live_frontend_response(
             "/api/events?asOfDate=2024-11-01",
@@ -685,9 +751,12 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertEqual(payload["links"]["ai_evidence"], "/api/ai-evidence/ai-evidence-8801")
 
     def test_detail_live_sql_uses_current_schema_columns(self) -> None:
+        cycle_sql = render_frontend_cycle_state_list_sql(as_of_date=datetime(2024, 11, 1).date())
         thesis_sql = render_frontend_thesis_detail_state_sql(identifier="thesis-7001")
         ai_evidence_sql = render_frontend_ai_evidence_detail_state_sql(identifier="ai-evidence-8801")
 
+        self.assertIn("signal.cycle_state_snapshot", cycle_sql)
+        self.assertIn("ref.instrument_classification_membership", cycle_sql)
         self.assertIn("outcome.success_grade", thesis_sql)
         self.assertNotIn("outcome.outcome_label", thesis_sql)
         self.assertIn("event.event_document_link", ai_evidence_sql)
@@ -754,7 +823,7 @@ class FrontendLiveAdapterTests(unittest.TestCase):
     def test_live_adapter_rejects_unsupported_path(self) -> None:
         with self.assertRaises(FrontendLiveUnsupportedPathError):
             resolve_live_frontend_response(
-                "/api/cycles?asOfDate=2024-11-01",
+                "/api/scheduler/runs",
                 config=type("Config", (), {"psql_command": "psql"})(),
                 executor=FakeLiveExecutor(),
             )

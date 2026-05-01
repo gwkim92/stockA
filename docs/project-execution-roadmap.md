@@ -51,7 +51,8 @@ Initial scope:
 - Expand live reads for `/api/themes/:themeKey?asOfDate=...`. Second slice implemented in `frontend-live-read-event-theme-performance`.
 - Expand live reads for `/api/performance/:portfolio/outcomes?...`. Second slice implemented in `frontend-live-read-event-theme-performance`.
 - Expand live reads for recommendation/thesis/AI evidence/source document detail. Third slice implemented in `frontend-live-read-detail-endpoints`.
-- Remaining live read gap: `/api/cycles?asOfDate=...`.
+- Expand live reads for `/api/cycles?asOfDate=...`. Fourth slice implemented in `frontend-live-read-cycle-list`.
+- Remaining live read gap: none for the initial frontend contract endpoints.
 
 Guardrail:
 
@@ -167,9 +168,9 @@ Guardrail:
 
 ## Immediate Next Task
 
-Current task: `frontend-live-read-detail-endpoints`.
+Current task: `frontend-api-runtime-boundary`.
 
-The first implementation expanded live read support, not new frontend pages. It started with `dashboard` and `data-health`, then event/theme/performance, then recommendation/thesis/AI evidence/source document detail. The only remaining contract endpoint without live read support is cycle list; after that, move to production API runtime boundary.
+The first implementation expanded live read support, not new frontend pages. It started with `dashboard` and `data-health`, then event/theme/performance, then recommendation/thesis/AI evidence/source document detail, then cycle list. Initial frontend contract live read completeness is now covered; next work should define the production API runtime boundary, connection handling, and auth/RBAC seams without adding write endpoints yet.
 
 ## Focus Rules
 
