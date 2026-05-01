@@ -39,6 +39,8 @@ const navItems = [
   { href: "/remediation", label: "Remediation" },
   { href: "/data-health", label: "Data Health" },
   { href: "/cycles", label: "Cycles" },
+  { href: "/events", label: "Events" },
+  { href: "/themes/ANNUAL_REPORTING", label: "Themes" },
   { href: "/recommendations/AAPL-2024-11-01", label: "Recs" },
   { href: "/theses/AAPL-bootstrap-v1", label: "Thesis" },
   { href: "/portfolio/coverage", label: "Coverage" },

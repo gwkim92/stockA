@@ -44,7 +44,7 @@ class FrontendFixtureServerTests(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertEqual(payload["status"], "ok")
         self.assertEqual(payload["contract_version"], "frontend-api-v0.1")
-        self.assertEqual(payload["endpoint_count"], 9)
+        self.assertEqual(payload["endpoint_count"], 11)
         self.assertTrue(payload["read_only"])
 
     def test_endpoints_returns_fixture_index(self) -> None:
@@ -55,6 +55,8 @@ class FrontendFixtureServerTests(unittest.TestCase):
         self.assertIn("/api/remediation-tickets?status=open", paths)
         self.assertIn("/api/ai-evidence/sec-event-aapl-10k-20240928", paths)
         self.assertIn("/api/source-documents/aapl-2024-10k-20240928", paths)
+        self.assertIn("/api/events?asOfDate=2024-11-01", paths)
+        self.assertIn("/api/themes/ANNUAL_REPORTING?asOfDate=2024-11-01", paths)
 
     def test_known_api_path_returns_fixture_response(self) -> None:
         status, payload = self.fetch_json("/api/dashboard/today")
@@ -68,6 +70,17 @@ class FrontendFixtureServerTests(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertEqual(payload["data"]["tickets"][0]["symbol"], "BABA")
         self.assertEqual(payload["data"]["status_filter"], "open")
+
+    def test_event_and_theme_paths_return_fixture_responses(self) -> None:
+        status, events = self.fetch_json("/api/events?asOfDate=2024-11-01")
+        self.assertEqual(status, 200)
+        self.assertEqual(events["data"]["summary"]["event_count"], 2)
+        self.assertEqual(events["data"]["events"][0]["ai_evidence_id"], "sec-event-aapl-10k-20240928")
+
+        status, theme = self.fetch_json("/api/themes/ANNUAL_REPORTING?asOfDate=2024-11-01")
+        self.assertEqual(status, 200)
+        self.assertEqual(theme["data"]["theme_key"], "ANNUAL_REPORTING")
+        self.assertEqual(theme["data"]["linked_instruments"][0]["symbol"], "AAPL")
 
     def test_unknown_path_returns_stable_404_json(self) -> None:
         status, payload = self.fetch_error_json("/api/not-found")

@@ -59,11 +59,11 @@ try:
     status, health = fetch_json("/__health")
     assert status == 200, health
     assert health["contract_version"] == "frontend-api-v0.1", health
-    assert health["endpoint_count"] == 9, health
+    assert health["endpoint_count"] == 11, health
 
     status, endpoints = fetch_json("/__endpoints")
     assert status == 200, endpoints
-    assert len(endpoints["data"]["endpoints"]) == 9, endpoints
+    assert len(endpoints["data"]["endpoints"]) == 11, endpoints
 
     status, dashboard = fetch_json("/api/dashboard/today")
     assert status == 200, dashboard
@@ -81,6 +81,16 @@ try:
     status, source_document = fetch_json("/api/source-documents/aapl-2024-10k-20240928")
     assert status == 200, source_document
     assert source_document["data"]["linked_evidence"][0]["evidence_id"] == "sec-event-aapl-10k-20240928", source_document
+
+    status, events = fetch_json("/api/events?asOfDate=2024-11-01")
+    assert status == 200, events
+    assert events["data"]["summary"]["event_count"] == 2, events
+    assert events["data"]["events"][0]["ai_evidence_id"] == "sec-event-aapl-10k-20240928", events
+
+    status, theme = fetch_json("/api/themes/ANNUAL_REPORTING?asOfDate=2024-11-01")
+    assert status == 200, theme
+    assert theme["data"]["theme_key"] == "ANNUAL_REPORTING", theme
+    assert theme["data"]["linked_instruments"][0]["symbol"] == "AAPL", theme
 
     status, not_found = fetch_error_json("/api/not-found")
     assert status == 404, not_found
@@ -101,6 +111,8 @@ try:
             "/api/remediation-tickets?status=open",
             "/api/ai-evidence/sec-event-aapl-10k-20240928",
             "/api/source-documents/aapl-2024-10k-20240928",
+            "/api/events?asOfDate=2024-11-01",
+            "/api/themes/ANNUAL_REPORTING?asOfDate=2024-11-01",
             "/api/not-found",
         ],
     }

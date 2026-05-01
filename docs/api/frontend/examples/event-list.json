@@ -1,0 +1,55 @@
+{
+  "contract_version": "frontend-api-v0.1",
+  "generated_at": "2026-05-01T00:00:00Z",
+  "data": {
+    "as_of_date": "2024-11-01",
+    "filters": {
+      "theme_key": null,
+      "symbol": null,
+      "event_type": "all"
+    },
+    "summary": {
+      "event_count": 2,
+      "ai_extracted_count": 1,
+      "source_document_count": 1,
+      "themes_represented": 2
+    },
+    "events": [
+      {
+        "event_id": "sec-event-aapl-10k-20240928",
+        "title": "AAPL 2024 10-K annual reporting event",
+        "event_type": "source_document_event",
+        "event_at": "2024-09-28T00:00:00Z",
+        "symbol": "AAPL",
+        "instrument_id": "instrument-aapl",
+        "theme_key": "ANNUAL_REPORTING",
+        "theme_name": "Annual reporting quality",
+        "impact_direction": "supportive",
+        "impact_score": 0.82,
+        "source_document_id": "aapl-2024-10k-20240928",
+        "ai_evidence_id": "sec-event-aapl-10k-20240928",
+        "quality_gate": "human_review_required"
+      },
+      {
+        "event_id": "coverage-gap-baba-20241101",
+        "title": "BABA requires thesis coverage before attribution can be trusted",
+        "event_type": "portfolio_coverage_gap",
+        "event_at": "2024-11-01T23:30:00Z",
+        "symbol": "BABA",
+        "instrument_id": "instrument-baba",
+        "theme_key": "CHINA_ADR_COVERAGE",
+        "theme_name": "China ADR coverage",
+        "impact_direction": "attention_required",
+        "impact_score": 0.41,
+        "source_document_id": null,
+        "ai_evidence_id": null,
+        "quality_gate": "deterministic_review_required"
+      }
+    ]
+  },
+  "links": {
+    "theme_detail": "/api/themes/ANNUAL_REPORTING?asOfDate=2024-11-01",
+    "ai_evidence": "/api/ai-evidence/sec-event-aapl-10k-20240928",
+    "source_document": "/api/source-documents/aapl-2024-10k-20240928"
+  }
+}
