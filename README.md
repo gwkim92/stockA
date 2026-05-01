@@ -15,6 +15,7 @@ AI를 이용해 거시경제, 정치, 기술, 산업, 기업 흐름을 계속 �
 현재 기준 문서:
 
 - `docs/project-foundation.md`
+- `docs/project-execution-roadmap.md`
 - `docs/agent-work-harness-evaluation.md`
 - `docs/ai-role-map.md`
 - `docs/ai-intelligence-architecture.md`
@@ -78,6 +79,7 @@ AI를 이용해 거시경제, 정치, 기술, 산업, 기업 흐름을 계속 �
 - `scripts/verify_migrations.sh`
 - `scripts/verify_seed_bootstrap.sh`
 - `scripts/verify_ingest_bootstrap.sh`
+- `scripts/verify_project_execution_roadmap.sh`
 - `scripts/verify_frontend_architecture.sh`
 - `scripts/verify_frontend_api_contract.sh`
 - `scripts/verify_frontend_api_adapter.sh`
