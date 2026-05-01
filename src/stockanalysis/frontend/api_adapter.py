@@ -6,12 +6,18 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Sequence
 
+from stockanalysis.ingest.config import RuntimeConfig
+
 
 CONTRACT_INDEX_PATH = Path("docs/api/frontend/contract-index.json")
 
 
 class FrontendApiAdapterError(RuntimeError):
     """Raised when a frontend API fixture contract cannot be resolved."""
+
+    def __init__(self, message: str, *, code: str = "FrontendApiPathNotFound") -> None:
+        super().__init__(message)
+        self.code = code
 
 
 @dataclass(frozen=True)
@@ -61,7 +67,21 @@ def list_frontend_endpoints(repo_root: Path | None = None) -> list[FrontendEndpo
     return endpoints
 
 
-def resolve_frontend_response(api_path: str, repo_root: Path | None = None) -> dict[str, Any]:
+def resolve_frontend_response(
+    api_path: str,
+    repo_root: Path | None = None,
+    *,
+    source: str = "fixture",
+    config: RuntimeConfig | None = None,
+    executor: Any | None = None,
+) -> dict[str, Any]:
+    if source not in {"fixture", "live", "auto"}:
+        raise FrontendApiAdapterError(f"Unsupported frontend API source: {source}", code="FrontendApiSourceInvalid")
+    if source == "live":
+        return _resolve_live_frontend_response(api_path, config=config, executor=executor)
+    if source == "auto" and _should_try_live_source(api_path, config=config, executor=executor):
+        return _resolve_live_frontend_response(api_path, config=config, executor=executor)
+
     root = repo_root or resolve_repo_root()
     for endpoint in list_frontend_endpoints(root):
         if endpoint.path == api_path:
@@ -72,10 +92,40 @@ def resolve_frontend_response(api_path: str, repo_root: Path | None = None) -> d
     raise FrontendApiAdapterError(f"Unknown frontend API path: {api_path}")
 
 
-def build_error_payload(message: str) -> dict[str, Any]:
+def _resolve_live_frontend_response(
+    api_path: str,
+    *,
+    config: RuntimeConfig | None,
+    executor: Any | None,
+) -> dict[str, Any]:
+    from stockanalysis.frontend.live_adapter import FrontendLiveAdapterError, resolve_live_frontend_response
+
+    try:
+        return resolve_live_frontend_response(api_path, config=config, executor=executor)
+    except FrontendLiveAdapterError as exc:
+        raise FrontendApiAdapterError(str(exc), code=exc.code) from exc
+
+
+def _should_try_live_source(
+    api_path: str,
+    *,
+    config: RuntimeConfig | None,
+    executor: Any | None,
+) -> bool:
+    from stockanalysis.frontend.live_adapter import is_live_supported_path
+
+    if not is_live_supported_path(api_path):
+        return False
+    if executor is not None:
+        return True
+    runtime_config = config or RuntimeConfig.from_env()
+    return bool(runtime_config.psql_command)
+
+
+def build_error_payload(message: str, *, code: str = "FrontendApiPathNotFound") -> dict[str, Any]:
     return {
         "error": {
-            "code": "FrontendApiPathNotFound",
+            "code": code,
             "message": message,
             "details": {},
         }
@@ -95,8 +145,14 @@ def build_parser() -> argparse.ArgumentParser:
 
     subparsers.add_parser("list", help="List frontend API fixture endpoints.")
 
-    get_parser = subparsers.add_parser("get", help="Return the fixture payload for an exact API path.")
+    get_parser = subparsers.add_parser("get", help="Return the payload for an exact API path.")
     get_parser.add_argument("--path", required=True, help="Exact API path from docs/api/frontend/contract-index.json.")
+    get_parser.add_argument(
+        "--source",
+        choices=("fixture", "live", "auto"),
+        default="fixture",
+        help="Read source. `auto` uses live only when STOCKANALYSIS_PSQL_COMMAND is configured.",
+    )
 
     return parser
 
@@ -119,10 +175,10 @@ def main(argv: Sequence[str] | None = None) -> int:
             _print_json({"contract_version": load_contract_index()["contract_version"], "endpoints": endpoints})
             return 0
         if args.command == "get":
-            _print_json(resolve_frontend_response(args.path))
+            _print_json(resolve_frontend_response(args.path, source=args.source))
             return 0
     except FrontendApiAdapterError as exc:
-        _print_json(build_error_payload(str(exc)))
+        _print_json(build_error_payload(str(exc), code=exc.code))
         return 1
     raise FrontendApiAdapterError(f"Unhandled command: {args.command!r}")
 

@@ -34,6 +34,10 @@ task마다 흔들리게 두지 않는 편이 좋다.
 - 무엇을 증명하는가: frontend API contract examples를 반환하는 read-only Python adapter와 CLI가 동작하는지 확인한다.
 - 통과 조건: `compileall`, adapter unit tests, frontend API contract verification, CLI `list`, CLI `get --path /api/dashboard/today`, unknown path stable error, root-level `app` scaffold 부재 확인이 모두 통과한다.
 
+- 명령: `bash scripts/verify_frontend_live_read_adapter.sh`
+- 무엇을 증명하는가: frontend API adapter가 fixture contract를 유지하면서 일부 endpoint를 canonical Postgres read report 기반 live DTO로 변환할 수 있는지 확인한다.
+- 통과 조건: `compileall`, live adapter unit tests, adapter regression tests, frontend API adapter verification, `--source auto` fixture fallback, `--source live` missing-config stable error, root-level `app` scaffold 부재 확인이 모두 통과한다.
+
 - 명령: `bash scripts/verify_frontend_fixture_server.sh`
 - 무엇을 증명하는가: frontend API fixture adapter가 local read-only HTTP server로 노출되고 browser fetch 준비가 되었는지 확인한다.
 - 통과 조건: `compileall`, fixture server unit tests, frontend API adapter verification, CLI help smoke, in-process HTTP runtime smoke, known path response, query-string path response, unknown path 404, write method 405, root-level `app` scaffold 부재 확인이 모두 통과한다.

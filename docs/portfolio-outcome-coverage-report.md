@@ -39,7 +39,7 @@ CLI는 JSON summary를 stdout으로 출력한다.
 - `cash_weight`: `1 - total_position_weight`; weight 누락이 있으면 `null`
 - `coverage_ratio_by_count`: covered count / position count
 - `coverage_ratio_by_weight`: covered weight / known position weight
-- `positions`: position별 status와 thesis/outcome metadata
+- `positions`: position별 instrument id, status와 thesis/outcome metadata
 
 ## CLI
 
@@ -85,3 +85,4 @@ bash scripts/verify_portfolio_outcome_coverage_report.sh
 - scheduled outcome runner와 연결해 `missing_outcome`을 줄이는 운영 리포트를 만든다.
 - portfolio review coverage gate는 `portfolio-review-bootstrap --coverage-measurement-end-date`로 추가되었다.
 - dashboard가 생기면 attribution result와 coverage report를 같은 화면에서 확인하게 한다.
+- frontend live read adapter가 이 report를 `PortfolioCoverageResponse` DTO로 변환한다.

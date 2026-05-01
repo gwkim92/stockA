@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import io
 import json
+import os
 import unittest
 from contextlib import redirect_stdout
+from unittest.mock import patch
 
 from stockanalysis.frontend.api_adapter import (
     FrontendApiAdapterError,
@@ -68,6 +70,22 @@ class FrontendApiAdapterTests(unittest.TestCase):
         self.assertEqual(exit_code, 0)
         payload = json.loads(stdout.getvalue())
         self.assertEqual(payload["data"]["tickets"][0]["symbol"], "BABA")
+
+    def test_cli_get_auto_source_falls_back_to_fixture_without_live_config(self) -> None:
+        stdout = io.StringIO()
+        with patch.dict(os.environ, {"STOCKANALYSIS_PSQL_COMMAND": ""}), redirect_stdout(stdout):
+            exit_code = main(["get", "--source", "auto", "--path", "/api/remediation-tickets?status=open"])
+        self.assertEqual(exit_code, 0)
+        payload = json.loads(stdout.getvalue())
+        self.assertEqual(payload["data"]["tickets"][0]["symbol"], "BABA")
+
+    def test_cli_get_live_source_without_config_prints_stable_error(self) -> None:
+        stdout = io.StringIO()
+        with patch.dict(os.environ, {"STOCKANALYSIS_PSQL_COMMAND": ""}), redirect_stdout(stdout):
+            exit_code = main(["get", "--source", "live", "--path", "/api/remediation-tickets?status=open"])
+        self.assertEqual(exit_code, 1)
+        payload = json.loads(stdout.getvalue())
+        self.assertEqual(payload["error"]["code"], "FrontendLiveReadUnavailable")
 
     def test_cli_get_unknown_path_prints_stable_error(self) -> None:
         stdout = io.StringIO()

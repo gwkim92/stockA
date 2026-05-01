@@ -235,6 +235,7 @@ def load_portfolio_outcome_coverage_report(
 def _render_position(row: PortfolioOutcomeCoverageRow) -> dict[str, object]:
     return {
         "symbol": row.primary_symbol,
+        "instrument_id": row.instrument_id,
         "coverage_status": row.coverage_status,
         "weight": str(_quantize_weight(row.position_weight)) if row.position_weight is not None else None,
         "market_value": str(row.market_value),

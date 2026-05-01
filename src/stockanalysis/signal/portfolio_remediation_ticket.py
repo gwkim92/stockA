@@ -163,6 +163,7 @@ with selected_tickets as (
     select
         ticket.remediation_ticket_id,
         ticket.portfolio_review_id,
+        ticket.instrument_id,
         portfolio.portfolio_name,
         review.review_date,
         review.review_source,
@@ -246,6 +247,7 @@ select json_build_object(
                 json_build_object(
                     'remediation_ticket_id', remediation_ticket_id,
                     'portfolio_review_id', portfolio_review_id,
+                    'instrument_id', instrument_id,
                     'portfolio_name', portfolio_name,
                     'review_date', review_date,
                     'review_source', review_source,

@@ -35,7 +35,7 @@
 - `action_counts`
 - `tickets`
 
-각 ticket은 review metadata, `symbol`, `action`, `remediation_type`, `suggested_runner`, `suggested_next_step`, `status`, priority/score/weight fields, `reason`, `source_run_status`, `opened_at`, `updated_at`, `last_seen_at`, `resolved_at`을 포함한다.
+각 ticket은 review metadata, `instrument_id`, `symbol`, `action`, `remediation_type`, `suggested_runner`, `suggested_next_step`, `status`, priority/score/weight fields, `reason`, `source_run_status`, `opened_at`, `updated_at`, `last_seen_at`, `resolved_at`을 포함한다.
 
 ## CLI
 
@@ -96,3 +96,4 @@ bash scripts/verify_portfolio_remediation_ticket_report.sh
 
 - daily automation으로 ticket report를 생성해 open remediation backlog를 추적한다.
 - dashboard가 생기면 open ticket count와 oldest open ticket을 첫 화면에 노출한다.
+- frontend live read adapter가 이 report를 `RemediationTicketsResponse` DTO로 변환한다.

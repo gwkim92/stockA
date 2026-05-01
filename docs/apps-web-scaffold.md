@@ -19,7 +19,8 @@
   - `/performance`
   - `/ai-evidence/sec-event-aapl-10k-20240928`
   - `/source-documents/aapl-2024-10k-20240928`
-- live DB adapter, write endpoint, auth/RBAC, production deployment는 아직 없다.
+- live DB read adapter pilot은 Python boundary에 존재하지만, `apps/web`은 아직 fixture server를 기본 source로 사용한다.
+- write endpoint, auth/RBAC, production deployment는 아직 없다.
 
 ## Stack
 
@@ -109,6 +110,6 @@ Browser visual QA:
 
 ## Next Steps
 
-1. Add live DB read adapter behind the same frontend DTO contract.
+1. Add local API runtime source mode so `apps/web` can switch between fixture/live/auto safely.
 2. Add full accessibility audit for the expanded frontend.
 3. Add auth/RBAC before any write endpoint.
