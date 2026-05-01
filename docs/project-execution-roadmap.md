@@ -45,8 +45,8 @@ Why first:
 
 Initial scope:
 
-- Expand live reads for `/api/dashboard/today`.
-- Expand live reads for `/api/data-health`.
+- Expand live reads for `/api/dashboard/today`. First slice implemented in `frontend-live-read-expansion`.
+- Expand live reads for `/api/data-health`. First slice implemented in `frontend-live-read-expansion`.
 - Expand live reads for `/api/events?asOfDate=...`.
 - Expand live reads for `/api/themes/:themeKey?asOfDate=...`.
 - Expand live reads for `/api/performance/:portfolio/outcomes?...`.
@@ -165,9 +165,9 @@ Guardrail:
 
 ## Immediate Next Task
 
-Next task: `frontend-live-read-expansion`.
+Current task: `frontend-live-read-expansion`.
 
-The first implementation should expand live read support, not add new frontend pages. Start with `dashboard` and `data-health` because they show whether the whole system is operating correctly. Then expand event/theme/performance reads.
+The first implementation expands live read support, not new frontend pages. It starts with `dashboard` and `data-health` because they show whether the whole system is operating correctly. Then expand event/theme/performance reads.
 
 ## Focus Rules
 

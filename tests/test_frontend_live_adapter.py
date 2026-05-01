@@ -17,6 +17,69 @@ class FakeLiveExecutor:
 
     def execute_scalar(self, sql: str) -> str:
         self.scalar_sql.append(sql)
+        if sql.startswith("-- frontend dashboard state lookup"):
+            return json.dumps(
+                {
+                    "portfolio_name": "Long Term Paper",
+                    "as_of_date": "2024-11-01",
+                    "daily_automation": "succeeded",
+                    "latest_run_id": 9101,
+                    "failed_pipeline_count": 0,
+                    "open_ticket_count": 1,
+                    "critical_blind_spot_count": 1,
+                    "missing_thesis_count": 1,
+                    "missing_outcome_count": 0,
+                    "top_actions": [
+                        {
+                            "symbol": "BABA",
+                            "action": "needs_thesis_review",
+                            "reason": "coverage status missing_thesis",
+                            "suggested_runner": "thesis_or_position_link_review",
+                            "risk_level": "high",
+                        }
+                    ],
+                    "latest_metrics": {
+                        "covered_weight": "0.0500",
+                        "missing_thesis_weight": "0.0300",
+                        "cash_weight": "0.9200",
+                        "weight_coverage_ratio": "0.6250",
+                    },
+                }
+            )
+        if sql.startswith("-- frontend data health state lookup"):
+            return json.dumps(
+                {
+                    "overall_status": "attention_required",
+                    "as_of_date": "2024-11-01",
+                    "pipeline_runs": [
+                        {
+                            "pipeline_name": "portfolio_remediation_daily_automation",
+                            "latest_status": "succeeded",
+                            "latest_run_id": 9101,
+                            "finished_at": "2024-11-01T23:30:00+00:00",
+                        }
+                    ],
+                    "latest_artifact_root": "",
+                    "freshness": [
+                        {
+                            "dataset": "market.daily_price_bar",
+                            "status": "observed",
+                            "latest_observation_date": "2024-12-02",
+                        },
+                        {
+                            "dataset": "portfolio.position_snapshot",
+                            "status": "observed",
+                            "latest_observation_date": "2024-11-01",
+                        },
+                    ],
+                    "open_gates": [
+                        "production_api_server",
+                        "auth_rbac",
+                        "alert_destination",
+                        "actual_db_backed_frontend_live_smoke",
+                    ],
+                }
+            )
         if sql.startswith("-- portfolio remediation ticket report"):
             return json.dumps(
                 {
@@ -99,6 +162,59 @@ class FakeLiveExecutor:
 
 
 class FrontendLiveAdapterTests(unittest.TestCase):
+    def test_live_dashboard_response_matches_frontend_contract_shape(self) -> None:
+        payload = resolve_live_frontend_response(
+            "/api/dashboard/today",
+            config=type("Config", (), {"psql_command": "psql"})(),
+            executor=FakeLiveExecutor(),
+            generated_at=datetime(2026, 5, 1, tzinfo=timezone.utc),
+        )
+
+        self.assertEqual(payload["contract_version"], "frontend-api-v0.1")
+        self.assertEqual(payload["generated_at"], "2026-05-01T00:00:00Z")
+        self.assertEqual(payload["data"]["as_of_date"], "2024-11-01")
+        self.assertEqual(payload["data"]["run_status"]["daily_automation"], "succeeded")
+        self.assertEqual(payload["data"]["run_status"]["latest_run_id"], "pipeline-run-9101")
+        self.assertEqual(payload["data"]["run_status"]["scheduler"], "not_installed")
+        self.assertFalse(payload["data"]["run_status"]["holiday_skip"]["would_skip_today"])
+        self.assertEqual(payload["data"]["attention_summary"]["open_ticket_count"], 1)
+        self.assertEqual(payload["data"]["attention_summary"]["critical_blind_spot_count"], 1)
+        self.assertEqual(payload["data"]["top_actions"][0]["rank"], 1)
+        self.assertEqual(payload["data"]["top_actions"][0]["symbol"], "BABA")
+        self.assertEqual(payload["data"]["top_actions"][0]["action"], "needs_thesis_review")
+        self.assertEqual(payload["data"]["latest_metrics"]["covered_weight"], 0.05)
+        self.assertEqual(payload["data"]["latest_metrics"]["missing_thesis_weight"], 0.03)
+        self.assertEqual(payload["data"]["latest_metrics"]["cash_weight"], 0.92)
+        self.assertEqual(payload["data"]["latest_metrics"]["weight_coverage_ratio"], 0.625)
+        self.assertEqual(
+            payload["links"]["portfolio_coverage"],
+            "/api/portfolio/Long%20Term%20Paper/coverage?asOfDate=2024-11-01",
+        )
+
+    def test_live_data_health_response_matches_frontend_contract_shape(self) -> None:
+        payload = resolve_live_frontend_response(
+            "/api/data-health",
+            config=type("Config", (), {"psql_command": "psql"})(),
+            executor=FakeLiveExecutor(),
+            generated_at=datetime(2026, 5, 1, tzinfo=timezone.utc),
+        )
+
+        self.assertEqual(payload["contract_version"], "frontend-api-v0.1")
+        self.assertEqual(payload["generated_at"], "2026-05-01T00:00:00Z")
+        self.assertEqual(payload["data"]["overall_status"], "attention_required")
+        self.assertEqual(payload["data"]["as_of_date"], "2024-11-01")
+        self.assertEqual(payload["data"]["pipeline_runs"][0]["latest_run_id"], "pipeline-run-9101")
+        self.assertEqual(payload["data"]["pipeline_runs"][0]["finished_at"], "2024-11-01T23:30:00Z")
+        self.assertEqual(payload["data"]["scheduler"]["install_status"], "not_installed")
+        self.assertEqual(
+            payload["data"]["scheduler"]["runtime_env_readiness"],
+            "template_rendered_placeholder_pending",
+        )
+        self.assertEqual(payload["data"]["freshness"][0]["dataset"], "market.daily_price_bar")
+        self.assertEqual(payload["data"]["freshness"][0]["latest_observation_date"], "2024-12-02")
+        self.assertIn("auth_rbac", payload["data"]["open_gates"])
+        self.assertEqual(payload["links"]["dashboard"], "/api/dashboard/today")
+
     def test_live_remediation_tickets_response_matches_frontend_contract_shape(self) -> None:
         payload = resolve_live_frontend_response(
             "/api/remediation-tickets?status=open",
@@ -160,7 +276,7 @@ class FrontendLiveAdapterTests(unittest.TestCase):
     def test_live_adapter_rejects_unsupported_path(self) -> None:
         with self.assertRaises(FrontendLiveUnsupportedPathError):
             resolve_live_frontend_response(
-                "/api/dashboard/today",
+                "/api/events?asOfDate=2024-11-01",
                 config=type("Config", (), {"psql_command": "psql"})(),
                 executor=FakeLiveExecutor(),
             )

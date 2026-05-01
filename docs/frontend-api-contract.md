@@ -187,8 +187,10 @@ Live read adapter pilot:
 - module: `src/stockanalysis/frontend/live_adapter.py`
 - CLI: `PYTHONPATH=src python3 -m stockanalysis.frontend.api_adapter get --source live --path "..."`
 - supported live endpoints:
+  - `GET /api/dashboard/today`
+  - `GET /api/data-health`
   - `GET /api/remediation-tickets?status=open`
   - `GET /api/portfolio/Long%20Term%20Paper/coverage?asOfDate=2024-11-01`
 - source mode: `--source auto` uses live only when `STOCKANALYSIS_PSQL_COMMAND` is configured; otherwise it falls back to fixture examples.
 
-Next, either wire live/auto mode into a local API server boundary or expand live DTO support to daily cockpit, data health, event/theme, and performance endpoints.
+Next, expand live DTO support to event/theme and performance endpoints, then wire live/auto mode into a production API server boundary.
