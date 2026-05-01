@@ -12,20 +12,28 @@
 
 ## Repository Map
 
-- 앱 코드: 아직 없음. 초기 구현 후 `src/` 또는 `app/` 아래에 확정한다.
-- 테스트: 아직 없음. 구현 후 `tests/` 아래에 확정한다.
-- 문서와 설계 노트: `README.md`, `docs/project-foundation.md`, `docs/agent-work-harness-evaluation.md`, `docs/verification-plan.md`, `docs/tasks/`
-- 스크립트와 툴링: 아직 repo-local 스크립트 없음. 필요 시 `scripts/` 디렉터리를 도입한다.
-- 민감하거나 고위험인 경로: 향후 추가될 실거래 연동, API 키, 배포 설정, 데이터 소스 자격증명 파일
+- Python backend/runtime: `src/stockanalysis/`
+- Data/API ingest: `src/stockanalysis/ingest/`
+- Signal, thesis, portfolio review: `src/stockanalysis/signal/`
+- Performance and attribution: `src/stockanalysis/performance/`
+- Frontend read adapters and local runtime: `src/stockanalysis/frontend/`
+- Next.js cockpit shell: `apps/web/`
+- Postgres schema and seed: `db/migrations/`, `db/seeds/`
+- Tests and fixtures: `tests/`
+- Verification and scheduler scripts: `scripts/`
+- 문서와 설계 노트: `README.md`, `docs/project-foundation.md`, `docs/project-execution-roadmap.md`, `docs/agent-work-harness-evaluation.md`, `docs/verification-plan.md`, `docs/tasks/`
+- 민감하거나 고위험인 경로: API 키, DB connection env, scheduler env files, 배포 설정, 향후 실거래 연동 파일
 
 ## Core Commands
 
-- 설치: 현재 없음. 초기 Python 프로젝트 골격을 만들 때 확정한다.
-- 개발 서버 또는 실행: 현재 없음. 현재 단계는 설계와 작업 하네스 정리 단계다.
-- 테스트: `PYTHONPATH=/Users/woody/ai/agent-work-harness/src python3 -m awh verify --repo . --task foundation-architecture`
-- 린트: 현재 없음.
-- 타입체크 또는 빌드: 현재 없음.
-- E2E 또는 스모크: 현재 없음.
+- Python 단위 검증: `PYTHONPATH=src python3 -m unittest`
+- 전체 기능별 검증: `bash scripts/verify_<task>.sh`
+- 하네스 검증: `PYTHONPATH=/Users/woody/ai/agent-work-harness/src python3 -m awh verify --repo . --task <task-slug>`
+- 프로젝트 순서 검증: `bash scripts/verify_project_execution_roadmap.sh`
+- frontend contract 검증: `bash scripts/verify_frontend_api_contract.sh`
+- frontend local runtime 검증: `bash scripts/verify_frontend_fixture_server.sh`
+- frontend detail route 검증: `bash scripts/verify_frontend_detail_routes.sh`
+- Next.js 타입/빌드: `cd apps/web && npm run typecheck && npm run build`
 
 ## Boundaries
 
@@ -49,6 +57,8 @@
 - LLM은 추천을 직접 결정하는 존재가 아니라 문서 해석, 이벤트 구조화, 리포트 생성 역할을 우선한다.
 - 추천 또는 보유 판단은 당시 입력 데이터, 점수, thesis, 무효화 조건을 함께 저장하는 방향으로 설계한다.
 - 문서 단계에서도 다음 구현 단계가 바로 이어질 수 있을 정도로 결정 사항을 명확히 남긴다.
+- 진행 순서가 흔들릴 때는 `docs/project-execution-roadmap.md`를 우선 기준으로 삼고, 변경하려면 별도 task contract에 근거를 남긴다.
+- 현재 고정된 immediate next task는 `frontend-live-read-expansion`이다. 새 프론트 기능보다 live read completeness를 먼저 진행한다.
 
 ## Definition Of Done
 

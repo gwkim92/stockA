@@ -22,6 +22,10 @@ task마다 흔들리게 두지 않는 편이 좋다.
 - 무엇을 증명하는가: repo/task 수준 핵심 문서가 기대 경로에 존재하는지 확인한다.
 - 통과 조건: `docs/project-foundation.md`, `docs/agent-work-harness-evaluation.md`, `docs/verification-plan.md`, `docs/tasks/foundation-architecture/contract.md`, `docs/tasks/foundation-architecture/handoff.md`가 목록에 보인다.
 
+- 명령: `bash scripts/verify_project_execution_roadmap.sh`
+- 무엇을 증명하는가: 현재 진행상황, 미완료 영역, 고정 실행 순서, immediate next task가 repo-local roadmap과 하네스에 기록되어 있는지 확인한다.
+- 통과 조건: `docs/project-execution-roadmap.md`, `docs/tasks/project-execution-roadmap/` 문서, AGENTS repo map, immediate next task `frontend-live-read-expansion`, live read first guardrail이 모두 확인된다.
+
 - 명령: `bash scripts/verify_frontend_architecture.sh`
 - 무엇을 증명하는가: investment cockpit 방향, route map, API boundary, AI boundary, security boundary, phased implementation, fixture-only `apps/web` scaffold가 문서와 파일로 정렬되어 있는지 확인한다.
 - 통과 조건: `docs/frontend-architecture.md`와 task docs가 존재하고, frontend doc에 cockpit, route map, data boundary, AI boundary, security boundary, implementation phases가 포함되며, `apps/web` scaffold가 존재하고 root-level `app` scaffold는 없는 것이 확인된다.
