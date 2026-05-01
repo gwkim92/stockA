@@ -10,7 +10,7 @@
 - local HTTP fixture server는 `docs/frontend-fixture-server.md`와 `src/stockanalysis/frontend/fixture_server.py`에 추가됐다.
 - `apps/web` scaffold는 fixture server를 통해 adapter output을 소비한다.
 - live DB read adapter pilot은 `src/stockanalysis/frontend/live_adapter.py`에 추가됐다.
-- live source는 현재 dashboard, data health, events, theme detail, performance outcomes, recommendation detail, thesis detail, AI evidence detail, source document detail, remediation tickets, portfolio coverage endpoint를 지원한다.
+- live source는 현재 dashboard, data health, cycle list, events, theme detail, performance outcomes, recommendation detail, thesis detail, AI evidence detail, source document detail, remediation tickets, portfolio coverage endpoint를 지원한다.
 
 ## CLI
 
@@ -98,7 +98,7 @@ bash scripts/verify_frontend_live_read_adapter.sh
 
 - fixture source는 live DB freshness를 보장하지 않는다.
 - live source는 `STOCKANALYSIS_PSQL_COMMAND`가 필요하다.
-- live source 지원 endpoint는 현재 `GET /api/dashboard/today`, `GET /api/data-health`, `GET /api/events?asOfDate=...`, `GET /api/themes/:themeKey?asOfDate=...`, `GET /api/performance/:portfolio/outcomes?measurementEndDate=...`, `GET /api/recommendations/:id`, `GET /api/theses/:id`, `GET /api/ai-evidence/:id`, `GET /api/source-documents/:id`, `GET /api/remediation-tickets?status=open`, `GET /api/portfolio/:portfolioName/coverage?asOfDate=...`다.
+- live source 지원 endpoint는 현재 `GET /api/dashboard/today`, `GET /api/data-health`, `GET /api/cycles?asOfDate=...`, `GET /api/events?asOfDate=...`, `GET /api/themes/:themeKey?asOfDate=...`, `GET /api/performance/:portfolio/outcomes?measurementEndDate=...`, `GET /api/recommendations/:id`, `GET /api/theses/:id`, `GET /api/ai-evidence/:id`, `GET /api/source-documents/:id`, `GET /api/remediation-tickets?status=open`, `GET /api/portfolio/:portfolioName/coverage?asOfDate=...`다.
 - exact path matching만 지원한다.
 - query parameter normalization은 live pilot에서 필요한 최소 범위만 지원한다.
 - HTTP local runtime은 `src/stockanalysis/frontend/fixture_server.py`에 있고 `--source fixture|live|auto`를 지원한다.
@@ -108,6 +108,5 @@ bash scripts/verify_frontend_live_read_adapter.sh
 
 ## Next Steps
 
-1. live support를 cycle list endpoint로 확장한다.
-2. production API server, connection pooling, auth/RBAC boundary를 설계한다.
-3. auth/RBAC와 audit trail이 준비된 뒤에만 write endpoint를 추가한다.
+1. production API server, connection pooling, auth/RBAC boundary를 설계한다.
+2. auth/RBAC와 audit trail이 준비된 뒤에만 write endpoint를 추가한다.

@@ -189,6 +189,7 @@ Live read adapter pilot:
 - supported live endpoints:
   - `GET /api/dashboard/today`
   - `GET /api/data-health`
+  - `GET /api/cycles?asOfDate=2024-11-01`
   - `GET /api/events?asOfDate=2024-11-01`
   - `GET /api/themes/ANNUAL_REPORTING?asOfDate=2024-11-01`
   - `GET /api/performance/Long%20Term%20Paper/outcomes?measurementEndDate=2024-12-02`
@@ -200,4 +201,4 @@ Live read adapter pilot:
   - `GET /api/portfolio/Long%20Term%20Paper/coverage?asOfDate=2024-11-01`
 - source mode: `--source auto` uses live only when `STOCKANALYSIS_PSQL_COMMAND` is configured; otherwise it falls back to fixture examples.
 
-Next, expand live DTO support to cycle list, then wire live/auto mode into a production API server boundary.
+Next, wire live/auto mode into a production API server boundary.
