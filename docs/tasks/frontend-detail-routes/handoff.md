@@ -12,6 +12,7 @@
   - recommendation/thesis/portfolio coverage detail route를 추가했다.
   - fixture API client와 DTO types를 확장했다.
   - detail route production smoke 검증 스크립트를 추가했다.
+  - 후속 `frontend-browser-qa` 작업에서 in-browser visual smoke를 수행하고 static icon/action row 문제를 수정했다.
 - 막힌 점:
   - 현재 없음.
 
@@ -51,14 +52,13 @@
 
 ## Still Unverified
 
-- in-app browser visual QA
 - AI evidence route
 
 ## Exact Next Step
 
-- 다음 세션은 이것부터 시작: in-app browser visual QA를 수행하고 AI evidence/source document route 확장 여부를 결정한다.
+- 다음 세션은 이것부터 시작: AI evidence/source document route 확장 여부를 결정한다.
 
 ## Risks
 
 - fixture ids outside current contract examples return 404 from fixture server.
-- browser visual QA는 별도 작업이다.
+- browser visual QA는 `docs/tasks/frontend-browser-qa/`에 별도 기록했다.

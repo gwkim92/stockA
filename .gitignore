@@ -24,4 +24,6 @@ apps/web/tsconfig.tsbuildinfo
 # Local runtime artifacts
 artifacts/
 tmp/
+output/
+.playwright-cli/
 *.log

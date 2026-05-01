@@ -24,6 +24,9 @@ export const metadata: Metadata = {
     template: "%s | Stockanalysis Cockpit",
   },
   description: "Read-only investment cockpit for cycle, thesis, remediation, and data-health review.",
+  icons: {
+    icon: "/icon.svg",
+  },
 };
 
 export const viewport: Viewport = {

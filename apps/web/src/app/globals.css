@@ -397,7 +397,28 @@ button {
 }
 
 .actionRow {
-  grid-template-columns: auto 80px minmax(120px, 0.55fr) 1fr;
+  grid-template-areas:
+    "risk symbol action"
+    "risk symbol reason";
+  grid-template-columns: auto minmax(64px, 92px) minmax(0, 1fr);
+}
+
+.actionRow .riskPill {
+  grid-area: risk;
+}
+
+.actionRow strong {
+  grid-area: symbol;
+}
+
+.actionRow > span:not(.riskPill) {
+  grid-area: action;
+  overflow-wrap: anywhere;
+}
+
+.actionRow small {
+  grid-area: reason;
+  overflow-wrap: anywhere;
 }
 
 .compactRow {
