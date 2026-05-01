@@ -1,0 +1,63 @@
+{
+  "contract_version": "frontend-api-v0.1",
+  "generated_at": "2026-05-01T00:00:00Z",
+  "data": {
+    "theme_key": "ANNUAL_REPORTING",
+    "theme_name": "Annual reporting quality",
+    "as_of_date": "2024-11-01",
+    "strategy_name": "long_term_core",
+    "horizon_type": "long_term",
+    "state": "constructive",
+    "previous_state": "neutral",
+    "confidence": 0.72,
+    "cycle_score": 0.74,
+    "cycle_history": [
+      {
+        "as_of_date": "2024-10-01",
+        "state": "neutral",
+        "confidence": 0.58
+      },
+      {
+        "as_of_date": "2024-11-01",
+        "state": "constructive",
+        "confidence": 0.72
+      }
+    ],
+    "features": {
+      "event_intensity": 0.8,
+      "price_momentum": 0.61,
+      "fundamental_quality": 0.74
+    },
+    "linked_instruments": [
+      {
+        "symbol": "AAPL",
+        "instrument_id": "instrument-aapl",
+        "membership_strength": 0.86,
+        "active_thesis_id": "AAPL-bootstrap-v1",
+        "latest_recommendation_id": "AAPL-2024-11-01"
+      }
+    ],
+    "supporting_events": [
+      {
+        "event_id": "sec-event-aapl-10k-20240928",
+        "title": "AAPL 2024 10-K annual reporting event",
+        "event_at": "2024-09-28T00:00:00Z",
+        "symbol": "AAPL",
+        "impact_direction": "supportive",
+        "impact_score": 0.82,
+        "ai_evidence_id": "sec-event-aapl-10k-20240928",
+        "source_document_id": "aapl-2024-10k-20240928"
+      }
+    ],
+    "operator_notes": [
+      "Constructive cycle state is context for thesis quality, not an automatic buy signal.",
+      "Supporting event still carries human review gate before it can justify thesis mutation."
+    ]
+  },
+  "links": {
+    "events": "/api/events?asOfDate=2024-11-01",
+    "ai_evidence": "/api/ai-evidence/sec-event-aapl-10k-20240928",
+    "recommendation": "/api/recommendations/AAPL-2024-11-01",
+    "thesis": "/api/theses/AAPL-bootstrap-v1"
+  }
+}

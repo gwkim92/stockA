@@ -4,10 +4,12 @@ import type {
   CycleStateListData,
   DailyCockpitData,
   DataHealthData,
+  EventListData,
   PortfolioCoverageData,
   RecommendationDetailData,
   RemediationTicketsData,
   SourceDocumentDetailData,
+  ThemeDetailData,
   ThesisDetailData,
 } from "./types";
 
@@ -90,4 +92,12 @@ export function getAiEvidenceDetail(evidenceId: string) {
 
 export function getSourceDocumentDetail(documentId: string) {
   return fetchFrontendPayload<SourceDocumentDetailData>(`/api/source-documents/${documentId}`);
+}
+
+export function getEvents() {
+  return fetchFrontendPayload<EventListData>("/api/events?asOfDate=2024-11-01");
+}
+
+export function getThemeDetail(themeKey: string) {
+  return fetchFrontendPayload<ThemeDetailData>(`/api/themes/${themeKey}?asOfDate=2024-11-01`);
 }

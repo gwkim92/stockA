@@ -49,6 +49,8 @@ Initial endpoints:
 - `GET /api/portfolio/Long%20Term%20Paper/coverage?asOfDate=2024-11-01`: `PortfolioCoverageResponse`
 - `GET /api/ai-evidence/sec-event-aapl-10k-20240928`: `AiEvidenceDetailResponse`
 - `GET /api/source-documents/aapl-2024-10k-20240928`: `SourceDocumentDetailResponse`
+- `GET /api/events?asOfDate=2024-11-01`: `EventListResponse`
+- `GET /api/themes/ANNUAL_REPORTING?asOfDate=2024-11-01`: `ThemeDetailResponse`
 
 Deferred write endpoint:
 
@@ -112,6 +114,18 @@ Source document detail:
 - source concepts: SEC filing metadata, raw artifact storage URI, retrieval run provenance, reviewed excerpts, linked evidence.
 - example: `docs/api/frontend/examples/source-document-detail.json`
 
+Event list:
+
+- owner route: `/events`
+- source concepts: structured events, theme classification impact, instrument impact, source document linkage, AI evidence linkage.
+- example: `docs/api/frontend/examples/event-list.json`
+
+Theme detail:
+
+- owner route: `/themes`
+- source concepts: theme cycle state, cycle feature snapshot, linked instruments, supporting events, thesis/recommendation links.
+- example: `docs/api/frontend/examples/theme-detail.json`
+
 ## Read Boundary
 
 Read APIs should be denormalized for frontend needs.
@@ -123,6 +137,7 @@ Rules:
 - every risk or action must include a human-readable reason.
 - every score-like value must have component or evidence drilldown in detail routes.
 - every AI extraction response must expose prompt/model/run metadata and source chunk ids.
+- event/theme explorer responses must preserve provenance links instead of presenting cycle state as a standalone buy signal.
 - raw source documents are not browser-downloadable until auth/RBAC and access policy are implemented.
 
 ## Write Boundary

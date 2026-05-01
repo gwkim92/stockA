@@ -82,6 +82,22 @@
       "example": "docs/api/frontend/examples/source-document-detail.json",
       "route_owner": "/source-documents",
       "description": "Source document metadata and excerpts linked to AI evidence without exposing raw document download."
+    },
+    {
+      "method": "GET",
+      "path": "/api/events?asOfDate=2024-11-01",
+      "response_dto": "EventListResponse",
+      "example": "docs/api/frontend/examples/event-list.json",
+      "route_owner": "/events",
+      "description": "Read-only event explorer list linking cycle themes, instruments, source documents, and AI evidence."
+    },
+    {
+      "method": "GET",
+      "path": "/api/themes/ANNUAL_REPORTING?asOfDate=2024-11-01",
+      "response_dto": "ThemeDetailResponse",
+      "example": "docs/api/frontend/examples/theme-detail.json",
+      "route_owner": "/themes",
+      "description": "Single theme detail with cycle state, linked instruments, supporting events, and operator guardrails."
     }
   ],
   "write_commands_deferred": [

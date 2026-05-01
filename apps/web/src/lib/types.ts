@@ -270,3 +270,73 @@ export type SourceDocumentDetailData = {
     reason: string;
   };
 };
+
+export type EventListData = {
+  as_of_date: string;
+  filters: {
+    theme_key: string | null;
+    symbol: string | null;
+    event_type: string;
+  };
+  summary: {
+    event_count: number;
+    ai_extracted_count: number;
+    source_document_count: number;
+    themes_represented: number;
+  };
+  events: Array<{
+    event_id: string;
+    title: string;
+    event_type: string;
+    event_at: string;
+    symbol: string;
+    instrument_id: string;
+    theme_key: string;
+    theme_name: string;
+    impact_direction: string;
+    impact_score: number;
+    source_document_id: string | null;
+    ai_evidence_id: string | null;
+    quality_gate: string;
+  }>;
+};
+
+export type ThemeDetailData = {
+  theme_key: string;
+  theme_name: string;
+  as_of_date: string;
+  strategy_name: string;
+  horizon_type: string;
+  state: string;
+  previous_state: string;
+  confidence: number;
+  cycle_score: number;
+  cycle_history: Array<{
+    as_of_date: string;
+    state: string;
+    confidence: number;
+  }>;
+  features: {
+    event_intensity: number | null;
+    price_momentum: number | null;
+    fundamental_quality: number | null;
+  };
+  linked_instruments: Array<{
+    symbol: string;
+    instrument_id: string;
+    membership_strength: number;
+    active_thesis_id: string | null;
+    latest_recommendation_id: string | null;
+  }>;
+  supporting_events: Array<{
+    event_id: string;
+    title: string;
+    event_at: string;
+    symbol: string;
+    impact_direction: string;
+    impact_score: number;
+    ai_evidence_id: string | null;
+    source_document_id: string | null;
+  }>;
+  operator_notes: string[];
+};

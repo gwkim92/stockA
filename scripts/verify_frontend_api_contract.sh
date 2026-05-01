@@ -39,6 +39,8 @@ require_file "docs/api/frontend/examples/thesis-detail.json"
 require_file "docs/api/frontend/examples/portfolio-coverage.json"
 require_file "docs/api/frontend/examples/ai-evidence-detail.json"
 require_file "docs/api/frontend/examples/source-document-detail.json"
+require_file "docs/api/frontend/examples/event-list.json"
+require_file "docs/api/frontend/examples/theme-detail.json"
 require_file "docs/tasks/frontend-api-contract-foundation/contract.md"
 require_file "docs/tasks/frontend-api-contract-foundation/plan.md"
 require_file "docs/tasks/frontend-api-contract-foundation/handoff.md"
@@ -54,6 +56,8 @@ require_text "docs/frontend-api-contract.md" "ThesisDetailResponse"
 require_text "docs/frontend-api-contract.md" "PortfolioCoverageResponse"
 require_text "docs/frontend-api-contract.md" "AiEvidenceDetailResponse"
 require_text "docs/frontend-api-contract.md" "SourceDocumentDetailResponse"
+require_text "docs/frontend-api-contract.md" "EventListResponse"
+require_text "docs/frontend-api-contract.md" "ThemeDetailResponse"
 require_text "docs/frontend-api-contract.md" "Initial frontend release is read-only"
 require_text "docs/frontend-api-contract.md" "system of record: Python/Postgres pipeline"
 
@@ -71,7 +75,7 @@ with open(index_path, "r", encoding="utf-8") as handle:
 assert index["contract_version"] == "frontend-api-v0.1", index
 assert index["status"] == "draft", index
 endpoints = index["endpoints"]
-assert len(endpoints) == 9, endpoints
+assert len(endpoints) == 11, endpoints
 
 expected_dtos = {
     "DailyCockpitResponse",
@@ -83,8 +87,14 @@ expected_dtos = {
     "PortfolioCoverageResponse",
     "AiEvidenceDetailResponse",
     "SourceDocumentDetailResponse",
+    "EventListResponse",
+    "ThemeDetailResponse",
 }
 assert {endpoint["response_dto"] for endpoint in endpoints} == expected_dtos, endpoints
+
+paths = {endpoint["path"] for endpoint in endpoints}
+assert "/api/events?asOfDate=2024-11-01" in paths, endpoints
+assert "/api/themes/ANNUAL_REPORTING?asOfDate=2024-11-01" in paths, endpoints
 
 for endpoint in endpoints:
     assert endpoint["method"] == "GET", endpoint
@@ -108,6 +118,8 @@ examples = {
     "coverage": "docs/api/frontend/examples/portfolio-coverage.json",
     "ai_evidence": "docs/api/frontend/examples/ai-evidence-detail.json",
     "source_document": "docs/api/frontend/examples/source-document-detail.json",
+    "events": "docs/api/frontend/examples/event-list.json",
+    "theme": "docs/api/frontend/examples/theme-detail.json",
 }
 
 loaded = {}
@@ -126,6 +138,10 @@ assert loaded["ai_evidence"]["source_document_id"] == "aapl-2024-10k-20240928", 
 assert loaded["ai_evidence"]["extraction_run"]["quality_gate"] == "human_review_required", loaded["ai_evidence"]
 assert loaded["source_document"]["linked_evidence"][0]["evidence_id"] == "sec-event-aapl-10k-20240928", loaded["source_document"]
 assert loaded["source_document"]["access_policy"]["browser_download_enabled"] is False, loaded["source_document"]
+assert loaded["events"]["summary"]["event_count"] == 2, loaded["events"]
+assert loaded["events"]["events"][0]["theme_key"] == "ANNUAL_REPORTING", loaded["events"]
+assert loaded["theme"]["theme_key"] == "ANNUAL_REPORTING", loaded["theme"]
+assert loaded["theme"]["supporting_events"][0]["event_id"] == "sec-event-aapl-10k-20240928", loaded["theme"]
 PY
 
 require_absent_path "app"
