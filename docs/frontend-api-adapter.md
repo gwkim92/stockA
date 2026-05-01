@@ -101,13 +101,13 @@ bash scripts/verify_frontend_live_read_adapter.sh
 - live source 지원 endpoint는 현재 `GET /api/remediation-tickets?status=open`과 `GET /api/portfolio/:portfolioName/coverage?asOfDate=...`다.
 - exact path matching만 지원한다.
 - query parameter normalization은 live pilot에서 필요한 최소 범위만 지원한다.
-- HTTP server는 `src/stockanalysis/frontend/fixture_server.py`에 있다.
-- browser fetch 대상은 fixture server다.
+- HTTP local runtime은 `src/stockanalysis/frontend/fixture_server.py`에 있고 `--source fixture|live|auto`를 지원한다.
+- browser fetch 대상은 기본적으로 fixture server이며, local run에서는 `--source auto`로 live-supported endpoint만 DB를 읽게 할 수 있다.
 - write command는 아직 없다.
 - production API server, connection pooling, auth/RBAC는 아직 없다.
 
 ## Next Steps
 
-1. fixture server에 optional live/auto source mode를 붙일지 별도 production API server로 갈지 결정한다.
-2. live support를 daily cockpit, data health, event/theme, performance endpoint로 확장한다.
+1. live support를 daily cockpit, data health, event/theme, performance endpoint로 확장한다.
+2. production API server, connection pooling, auth/RBAC boundary를 설계한다.
 3. auth/RBAC와 audit trail이 준비된 뒤에만 write endpoint를 추가한다.

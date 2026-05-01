@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import json
+import os
 import threading
 import unittest
 from typing import Any
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
+from unittest.mock import patch
 
 from stockanalysis.frontend.fixture_server import create_frontend_fixture_server
 
@@ -46,10 +48,12 @@ class FrontendFixtureServerTests(unittest.TestCase):
         self.assertEqual(payload["contract_version"], "frontend-api-v0.1")
         self.assertEqual(payload["endpoint_count"], 12)
         self.assertTrue(payload["read_only"])
+        self.assertEqual(payload["source_mode"], "fixture")
 
     def test_endpoints_returns_fixture_index(self) -> None:
         status, payload = self.fetch_json("/__endpoints")
         self.assertEqual(status, 200)
+        self.assertEqual(payload["source_mode"], "fixture")
         paths = {endpoint["path"] for endpoint in payload["data"]["endpoints"]}
         self.assertIn("/api/dashboard/today", paths)
         self.assertIn("/api/remediation-tickets?status=open", paths)
@@ -103,6 +107,68 @@ class FrontendFixtureServerTests(unittest.TestCase):
         self.assertEqual(status, 405)
         self.assertEqual(payload["error"]["code"], "MethodNotAllowed")
         self.assertEqual(payload["error"]["details"]["method"], "POST")
+
+
+class FrontendFixtureServerSourceModeTests(unittest.TestCase):
+    def fetch_json_from_server(self, *, source: str, path: str) -> tuple[int, dict[str, Any]]:
+        server = create_frontend_fixture_server(port=0, source=source)
+        host, port = server.server_address
+        base_url = f"http://{host}:{port}"
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            with urlopen(f"{base_url}{path}", timeout=5) as response:
+                return response.status, json.loads(response.read().decode("utf-8"))
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=5)
+
+    def fetch_error_from_server(self, *, source: str, path: str) -> tuple[int, dict[str, Any]]:
+        server = create_frontend_fixture_server(port=0, source=source)
+        host, port = server.server_address
+        base_url = f"http://{host}:{port}"
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            try:
+                urlopen(f"{base_url}{path}", timeout=5)
+            except HTTPError as exc:
+                return exc.code, json.loads(exc.read().decode("utf-8"))
+            raise AssertionError("request unexpectedly succeeded")
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=5)
+
+    def test_auto_source_falls_back_to_fixture_without_live_config(self) -> None:
+        with patch.dict(os.environ, {"STOCKANALYSIS_PSQL_COMMAND": ""}):
+            status, health = self.fetch_json_from_server(source="auto", path="/__health")
+            self.assertEqual(status, 200)
+            self.assertEqual(health["source_mode"], "auto")
+
+            status, payload = self.fetch_json_from_server(
+                source="auto",
+                path="/api/remediation-tickets?status=open",
+            )
+
+        self.assertEqual(status, 200)
+        self.assertEqual(payload["data"]["tickets"][0]["symbol"], "BABA")
+
+    def test_live_source_without_config_returns_stable_503_json(self) -> None:
+        with patch.dict(os.environ, {"STOCKANALYSIS_PSQL_COMMAND": ""}):
+            status, payload = self.fetch_error_from_server(
+                source="live",
+                path="/api/remediation-tickets?status=open",
+            )
+
+        self.assertEqual(status, 503)
+        self.assertEqual(payload["error"]["code"], "FrontendLiveReadUnavailable")
+        self.assertEqual(payload["error"]["details"]["source_mode"], "live")
+
+    def test_invalid_source_is_rejected(self) -> None:
+        with self.assertRaises(ValueError):
+            create_frontend_fixture_server(port=0, source="invalid")
 
 
 if __name__ == "__main__":

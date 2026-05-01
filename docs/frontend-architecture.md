@@ -10,6 +10,7 @@ frontend는 단순 종목 추천 화면이 아니라 **investment cockpit**이�
 - 첫 frontend task는 `apps/web` 생성이 아니라 API contract와 read model 정의였고, 현재 `docs/frontend-api-contract.md`와 `docs/api/frontend/` examples로 초안이 고정됐다.
 - local fixture HTTP server가 있고 `apps/web`은 browser-facing route shell에서 fixture payload를 읽는다.
 - live Postgres read adapter pilot이 있고 remediation tickets와 portfolio coverage DTO를 canonical reports에서 변환한다.
+- local frontend API runtime은 `--source fixture|live|auto`로 시작할 수 있다.
 - frontend는 Python/Postgres pipeline을 대체하지 않는다.
 - browser는 DB에 직접 연결하지 않는다.
 - LLM은 frontend에서 추천을 직접 결정하지 않는다.
@@ -179,6 +180,14 @@ Phase 1.7: Live read adapter pilot
 - verification: `scripts/verify_frontend_live_read_adapter.sh`.
 - boundary: no production API server, no browser DB access, no write endpoint.
 
+Phase 1.8: Runtime source mode
+
+- status: local read-only HTTP runtime supports `--source fixture|live|auto`.
+- default: `fixture`, preserving existing frontend smoke behavior.
+- auto behavior: live-supported endpoints use DB only when `STOCKANALYSIS_PSQL_COMMAND` is configured; otherwise fixture fallback.
+- verification: `scripts/verify_frontend_fixture_server.sh`.
+- boundary: still local-only, no auth/RBAC, no write endpoint.
+
 Phase 2: frontend scaffold
 
 - status: fixture-only scaffold documented as `docs/apps-web-scaffold.md`.
@@ -210,11 +219,11 @@ Phase 6: operational hardening
 
 ## Next Task
 
-Start with API runtime integration because the fixture-backed route shell, local browser QA, and first live read adapter pilot now exist.
+Start with live endpoint expansion because runtime source switching now exists.
 
 The next task can expand the frontend/backend boundary:
 
-- optional live/auto source mode in a local API server boundary.
+- live support for daily cockpit, data health, event/theme, and performance endpoints.
 - broader performance history and filtering after live read adapter shape is stable.
 - full accessibility audit for the expanded frontend.
 

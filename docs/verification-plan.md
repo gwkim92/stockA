@@ -40,7 +40,7 @@ task마다 흔들리게 두지 않는 편이 좋다.
 
 - 명령: `bash scripts/verify_frontend_fixture_server.sh`
 - 무엇을 증명하는가: frontend API fixture adapter가 local read-only HTTP server로 노출되고 browser fetch 준비가 되었는지 확인한다.
-- 통과 조건: `compileall`, fixture server unit tests, frontend API adapter verification, CLI help smoke, in-process HTTP runtime smoke, known path response, query-string path response, unknown path 404, write method 405, root-level `app` scaffold 부재 확인이 모두 통과한다.
+- 통과 조건: `compileall`, fixture server unit tests, frontend API adapter verification, CLI help smoke, in-process HTTP runtime smoke, known path response, query-string path response, `--source auto` fixture fallback, `--source live` missing-config 503, unknown path 404, write method 405, root-level `app` scaffold 부재 확인이 모두 통과한다.
 
 - 명령: `bash scripts/verify_apps_web_scaffold.sh`
 - 무엇을 증명하는가: `apps/web` Next.js App Router scaffold가 fixture server payload를 읽는 read-only investment cockpit shell로 동작하는지 확인한다.
