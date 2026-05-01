@@ -109,3 +109,164 @@ export type CycleStateListData = {
     };
   }>;
 };
+
+export type RecommendationDetailData = {
+  recommendation_id: string;
+  symbol: string;
+  instrument_id: string;
+  as_of_date: string;
+  strategy_name: string;
+  horizon_type: string;
+  recommendation: string;
+  score: number;
+  score_version: string;
+  score_components: Array<{
+    component: string;
+    value: number;
+    weight: number;
+    evidence_id: string;
+  }>;
+  linked_thesis_id: string;
+  outcome: {
+    measurement_end_date: string;
+    absolute_return: number;
+    benchmark_return: number;
+    alpha: number;
+    label: string;
+  };
+};
+
+export type ThesisDetailData = {
+  thesis_id: string;
+  symbol: string;
+  instrument_id: string;
+  status: string;
+  thesis_version: string;
+  created_from_recommendation_id: string;
+  summary: string;
+  core_claims: string[];
+  invalidation_conditions: Array<{
+    condition: string;
+    current_status: string;
+  }>;
+  latest_review: {
+    review_id: string;
+    action: string;
+    risk_level: RiskLevel;
+    reviewed_at: string;
+  };
+  evidence: Array<{
+    evidence_id: string;
+    type: string;
+    title: string;
+  }>;
+};
+
+export type PortfolioCoverageData = {
+  portfolio_name: string;
+  as_of_date: string;
+  strategy_name: string;
+  coverage_measurement_end_date: string;
+  summary: {
+    position_count: number;
+    covered_position_count: number;
+    missing_thesis_count: number;
+    missing_outcome_count: number;
+    covered_weight: number;
+    missing_thesis_weight: number;
+    cash_weight: number;
+    weight_coverage_ratio: number;
+  };
+  positions: Array<{
+    symbol: string;
+    instrument_id: string;
+    weight: number;
+    coverage_status: string;
+    active_thesis_id: string | null;
+    outcome_status: string;
+    action: string;
+  }>;
+  attribution_readiness: {
+    is_ready: boolean;
+    blocking_reasons: string[];
+  };
+};
+
+export type AiEvidenceDetailData = {
+  evidence_id: string;
+  title: string;
+  evidence_type: string;
+  event_at: string;
+  instrument: {
+    symbol: string;
+    instrument_id: string;
+  };
+  source_document_id: string;
+  classification: {
+    theme_key: string;
+    theme_name: string;
+    impact_direction: string;
+    impact_score: number;
+  };
+  extraction_run: {
+    run_id: string;
+    status: string;
+    provider: string;
+    model_id: string;
+    prompt_version: string;
+    finished_at: string;
+    input_tokens: number;
+    output_tokens: number;
+    estimated_cost_usd: number;
+    quality_gate: string;
+  };
+  extracted_fields: Array<{
+    field: string;
+    value: string;
+    confidence: number;
+    source_chunk_id: string;
+  }>;
+  source_chunks: Array<{
+    chunk_id: string;
+    section: string;
+    locator: string;
+    summary: string;
+    relevance: string;
+  }>;
+  audit_notes: string[];
+};
+
+export type SourceDocumentDetailData = {
+  document_id: string;
+  title: string;
+  source_type: string;
+  publisher: string;
+  symbol: string;
+  cik: string;
+  form_type: string;
+  period_end: string;
+  filed_at: string;
+  accession_id: string;
+  storage_uri: string;
+  checksum: string;
+  retrieval: {
+    source_run_id: string;
+    fetched_at: string;
+    parser_version: string;
+  };
+  excerpts: Array<{
+    chunk_id: string;
+    section: string;
+    locator: string;
+    summary: string;
+  }>;
+  linked_evidence: Array<{
+    evidence_id: string;
+    evidence_type: string;
+    title: string;
+  }>;
+  access_policy: {
+    browser_download_enabled: boolean;
+    reason: string;
+  };
+};

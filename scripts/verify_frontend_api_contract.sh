@@ -37,6 +37,8 @@ require_file "docs/api/frontend/examples/cycle-state-list.json"
 require_file "docs/api/frontend/examples/recommendation-detail.json"
 require_file "docs/api/frontend/examples/thesis-detail.json"
 require_file "docs/api/frontend/examples/portfolio-coverage.json"
+require_file "docs/api/frontend/examples/ai-evidence-detail.json"
+require_file "docs/api/frontend/examples/source-document-detail.json"
 require_file "docs/tasks/frontend-api-contract-foundation/contract.md"
 require_file "docs/tasks/frontend-api-contract-foundation/plan.md"
 require_file "docs/tasks/frontend-api-contract-foundation/handoff.md"
@@ -50,6 +52,8 @@ require_text "docs/frontend-api-contract.md" "CycleStateListResponse"
 require_text "docs/frontend-api-contract.md" "RecommendationDetailResponse"
 require_text "docs/frontend-api-contract.md" "ThesisDetailResponse"
 require_text "docs/frontend-api-contract.md" "PortfolioCoverageResponse"
+require_text "docs/frontend-api-contract.md" "AiEvidenceDetailResponse"
+require_text "docs/frontend-api-contract.md" "SourceDocumentDetailResponse"
 require_text "docs/frontend-api-contract.md" "Initial frontend release is read-only"
 require_text "docs/frontend-api-contract.md" "system of record: Python/Postgres pipeline"
 
@@ -67,7 +71,7 @@ with open(index_path, "r", encoding="utf-8") as handle:
 assert index["contract_version"] == "frontend-api-v0.1", index
 assert index["status"] == "draft", index
 endpoints = index["endpoints"]
-assert len(endpoints) == 7, endpoints
+assert len(endpoints) == 9, endpoints
 
 expected_dtos = {
     "DailyCockpitResponse",
@@ -77,6 +81,8 @@ expected_dtos = {
     "RecommendationDetailResponse",
     "ThesisDetailResponse",
     "PortfolioCoverageResponse",
+    "AiEvidenceDetailResponse",
+    "SourceDocumentDetailResponse",
 }
 assert {endpoint["response_dto"] for endpoint in endpoints} == expected_dtos, endpoints
 
@@ -100,6 +106,8 @@ examples = {
     "recommendation": "docs/api/frontend/examples/recommendation-detail.json",
     "thesis": "docs/api/frontend/examples/thesis-detail.json",
     "coverage": "docs/api/frontend/examples/portfolio-coverage.json",
+    "ai_evidence": "docs/api/frontend/examples/ai-evidence-detail.json",
+    "source_document": "docs/api/frontend/examples/source-document-detail.json",
 }
 
 loaded = {}
@@ -114,6 +122,10 @@ assert loaded["cycles"]["cycle_states"][0]["theme_key"] == "ANNUAL_REPORTING", l
 assert loaded["recommendation"]["linked_thesis_id"] == "AAPL-bootstrap-v1", loaded["recommendation"]
 assert loaded["thesis"]["status"] == "active", loaded["thesis"]
 assert loaded["coverage"]["summary"]["missing_thesis_count"] == 1, loaded["coverage"]
+assert loaded["ai_evidence"]["source_document_id"] == "aapl-2024-10k-20240928", loaded["ai_evidence"]
+assert loaded["ai_evidence"]["extraction_run"]["quality_gate"] == "human_review_required", loaded["ai_evidence"]
+assert loaded["source_document"]["linked_evidence"][0]["evidence_id"] == "sec-event-aapl-10k-20240928", loaded["source_document"]
+assert loaded["source_document"]["access_policy"]["browser_download_enabled"] is False, loaded["source_document"]
 PY
 
 require_absent_path "app"

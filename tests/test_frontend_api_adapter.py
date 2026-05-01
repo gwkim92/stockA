@@ -17,9 +17,11 @@ class FrontendApiAdapterTests(unittest.TestCase):
     def test_list_frontend_endpoints_loads_contract_index(self) -> None:
         endpoints = list_frontend_endpoints()
         paths = {endpoint.path for endpoint in endpoints}
-        self.assertEqual(len(endpoints), 7)
+        self.assertEqual(len(endpoints), 9)
         self.assertIn("/api/dashboard/today", paths)
         self.assertIn("/api/remediation-tickets?status=open", paths)
+        self.assertIn("/api/ai-evidence/sec-event-aapl-10k-20240928", paths)
+        self.assertIn("/api/source-documents/aapl-2024-10k-20240928", paths)
 
     def test_resolve_frontend_response_returns_linked_example(self) -> None:
         payload = resolve_frontend_response("/api/dashboard/today")
@@ -38,7 +40,7 @@ class FrontendApiAdapterTests(unittest.TestCase):
         self.assertEqual(exit_code, 0)
         payload = json.loads(stdout.getvalue())
         self.assertEqual(payload["contract_version"], "frontend-api-v0.1")
-        self.assertEqual(len(payload["endpoints"]), 7)
+        self.assertEqual(len(payload["endpoints"]), 9)
 
     def test_cli_get_prints_response_payload(self) -> None:
         stdout = io.StringIO()

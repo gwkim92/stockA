@@ -66,6 +66,22 @@
       "example": "docs/api/frontend/examples/portfolio-coverage.json",
       "route_owner": "/portfolio",
       "description": "Portfolio thesis/outcome coverage and attribution readiness."
+    },
+    {
+      "method": "GET",
+      "path": "/api/ai-evidence/sec-event-aapl-10k-20240928",
+      "response_dto": "AiEvidenceDetailResponse",
+      "example": "docs/api/frontend/examples/ai-evidence-detail.json",
+      "route_owner": "/ai-evidence",
+      "description": "Stored AI extraction evidence with source chunks, provenance, token usage, and quality gate metadata."
+    },
+    {
+      "method": "GET",
+      "path": "/api/source-documents/aapl-2024-10k-20240928",
+      "response_dto": "SourceDocumentDetailResponse",
+      "example": "docs/api/frontend/examples/source-document-detail.json",
+      "route_owner": "/source-documents",
+      "description": "Source document metadata and excerpts linked to AI evidence without exposing raw document download."
     }
   ],
   "write_commands_deferred": [

@@ -9,39 +9,60 @@ export default async function DataHealthPage() {
 
   return (
     <div className="pageStack">
-      <section className="sectionHeading reveal">
-        <p className="eyebrow">runtime gates / {data.as_of_date}</p>
-        <h1>Data health before conviction</h1>
-        <p className="lede narrow">
+      <section className="reveal">
+        <div className="bento-badge">System Health • {data.as_of_date}</div>
+        <h1 style={{ fontSize: "clamp(2.5rem, 4vw, 4rem)", marginBottom: "16px" }}>Data health before conviction.</h1>
+        <p style={{ color: "var(--text-secondary)", fontSize: "1.1rem", maxWidth: "700px" }}>
           The UI treats scheduler readiness, pipeline provenance, and stale datasets as first-class investment risk.
         </p>
       </section>
 
-      <section className="splitGrid reveal delay1">
-        <article className="panel">
-          <div className="sectionHeading">
-            <p className="eyebrow">pipeline runs</p>
-            <h2>{data.overall_status}</h2>
+      <section className="bento-grid reveal delay-1">
+        <article className="bento-card span-2">
+          <div style={{ marginBottom: "24px" }}>
+            <span className="metric-sub">Pipeline Runs</span>
+            <h2 style={{ fontSize: "1.75rem", display: "flex", alignItems: "center", gap: "12px" }}>
+              {data.overall_status}
+              <span className={`status-dot ${data.overall_status === 'healthy' ? 'green' : 'red'}`} style={{ width: "12px", height: "12px" }} />
+            </h2>
           </div>
-          <div className="stackList">
+          
+          <div className="bento-list">
             {data.pipeline_runs.map((run) => (
-              <div className="compactRow" key={run.latest_run_id}>
-                <span>{run.pipeline_name}</span>
-                <strong>{run.latest_status}</strong>
-                <small>{run.finished_at}</small>
+              <div className="bento-list-item" key={run.latest_run_id}>
+                <div>
+                  <strong>{run.pipeline_name}</strong>
+                  <span style={{ fontFamily: "monospace", fontSize: "0.75rem" }}>{run.latest_run_id}</span>
+                </div>
+                <div style={{ alignItems: "flex-end" }}>
+                  <strong style={{ color: run.latest_status === "succeeded" ? "var(--accent-green)" : "var(--accent-red)" }}>
+                    {run.latest_status}
+                  </strong>
+                  <span>{run.finished_at}</span>
+                </div>
               </div>
             ))}
           </div>
         </article>
 
-        <article className="panel">
-          <div className="sectionHeading">
-            <p className="eyebrow">open gates</p>
-            <h2>{data.open_gates.length} gates remain</h2>
+        <article className="bento-card span-2">
+          <div style={{ marginBottom: "24px" }}>
+            <span className="metric-sub">Open Gates</span>
+            <h2 style={{ fontSize: "1.75rem" }}>{data.open_gates.length} gates remain</h2>
           </div>
-          <div className="gateCloud">
+          
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "12px" }}>
             {data.open_gates.map((gate) => (
-              <span key={gate}>{gate}</span>
+              <div key={gate} style={{ 
+                padding: "8px 16px", 
+                background: "rgba(255, 255, 255, 0.05)", 
+                border: "1px solid var(--border-light)",
+                borderRadius: "var(--radius-sm)",
+                fontSize: "0.85rem",
+                fontWeight: 500
+              }}>
+                {gate}
+              </div>
             ))}
           </div>
         </article>

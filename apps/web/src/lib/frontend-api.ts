@@ -1,9 +1,14 @@
 import type {
   ApiResponse,
+  AiEvidenceDetailData,
   CycleStateListData,
   DailyCockpitData,
   DataHealthData,
+  PortfolioCoverageData,
+  RecommendationDetailData,
   RemediationTicketsData,
+  SourceDocumentDetailData,
+  ThesisDetailData,
 } from "./types";
 
 const DEFAULT_FIXTURE_BASE_URL = "http://127.0.0.1:8765";
@@ -63,4 +68,26 @@ export function getDataHealth() {
 
 export function getCycleStates() {
   return fetchFrontendPayload<CycleStateListData>("/api/cycles?asOfDate=2024-11-01");
+}
+
+export function getRecommendationDetail(recommendationId: string) {
+  return fetchFrontendPayload<RecommendationDetailData>(`/api/recommendations/${recommendationId}`);
+}
+
+export function getThesisDetail(thesisId: string) {
+  return fetchFrontendPayload<ThesisDetailData>(`/api/theses/${thesisId}`);
+}
+
+export function getPortfolioCoverage() {
+  return fetchFrontendPayload<PortfolioCoverageData>(
+    "/api/portfolio/Long%20Term%20Paper/coverage?asOfDate=2024-11-01",
+  );
+}
+
+export function getAiEvidenceDetail(evidenceId: string) {
+  return fetchFrontendPayload<AiEvidenceDetailData>(`/api/ai-evidence/${evidenceId}`);
+}
+
+export function getSourceDocumentDetail(documentId: string) {
+  return fetchFrontendPayload<SourceDocumentDetailData>(`/api/source-documents/${documentId}`);
 }

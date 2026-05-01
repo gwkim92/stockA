@@ -11,6 +11,11 @@
   - `/remediation`
   - `/data-health`
   - `/cycles`
+  - `/recommendations/AAPL-2024-11-01`
+  - `/theses/AAPL-bootstrap-v1`
+  - `/portfolio/coverage`
+  - `/ai-evidence/sec-event-aapl-10k-20240928`
+  - `/source-documents/aapl-2024-10k-20240928`
 - live DB adapter, write endpoint, auth/RBAC, production deployment는 아직 없다.
 
 ## Stack
@@ -93,6 +98,6 @@ The verification script checks:
 ## Next Steps
 
 1. Browser QA in the in-app browser with fixture server and Next dev server.
-2. Add detail routes for recommendation, thesis, portfolio coverage, and AI evidence.
+2. Add broader event/theme explorer routes.
 3. Add live DB read adapter behind the same frontend DTO contract.
 4. Add auth/RBAC before any write endpoint.

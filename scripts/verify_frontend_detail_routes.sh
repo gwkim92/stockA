@@ -3,7 +3,7 @@ set -euo pipefail
 
 ROOT_DIR=$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)
 WEB_DIR="$ROOT_DIR/apps/web"
-ARTIFACT_ROOT=$(mktemp -d /tmp/stockanalysis-apps-web.XXXXXX)
+ARTIFACT_ROOT=$(mktemp -d /tmp/stockanalysis-frontend-detail-routes.XXXXXX)
 FIXTURE_PID=""
 WEB_PID=""
 
@@ -55,18 +55,14 @@ trap cleanup EXIT
 
 cd "$ROOT_DIR"
 
-bash -n scripts/verify_apps_web_scaffold.sh
-test -f "$WEB_DIR/package.json"
-test -f "$WEB_DIR/src/app/page.tsx"
-test -f "$WEB_DIR/src/app/remediation/page.tsx"
-test -f "$WEB_DIR/src/app/data-health/page.tsx"
-test -f "$WEB_DIR/src/app/cycles/page.tsx"
+bash -n scripts/verify_frontend_detail_routes.sh
+test -f "$WEB_DIR/src/app/recommendations/[recommendationId]/page.tsx"
+test -f "$WEB_DIR/src/app/theses/[thesisId]/page.tsx"
+test -f "$WEB_DIR/src/app/portfolio/coverage/page.tsx"
+test -f "$WEB_DIR/src/app/ai-evidence/[evidenceId]/page.tsx"
+test -f "$WEB_DIR/src/app/source-documents/[documentId]/page.tsx"
 test -f "$WEB_DIR/src/lib/frontend-api.ts"
-
-if [ -e "$ROOT_DIR/app" ]; then
-  echo "root-level app scaffold should not exist; use apps/web instead" >&2
-  exit 1
-fi
+test -f "$WEB_DIR/src/lib/types.ts"
 
 FIXTURE_PORT=$(free_port)
 WEB_PORT=$(free_port)
@@ -99,10 +95,11 @@ from urllib.request import urlopen
 
 base_url = sys.argv[1]
 checks = {
-    "/": "Long-term portfolio review starts",
-    "/remediation": "Persistent remediation backlog",
-    "/data-health": "Data health before conviction",
-    "/cycles": "Theme Cycle Board",
+    "/recommendations/AAPL-2024-11-01": "Recommendation Dossier",
+    "/theses/AAPL-bootstrap-v1": "Thesis evidence ledger",
+    "/portfolio/coverage": "Portfolio coverage gate",
+    "/ai-evidence/sec-event-aapl-10k-20240928": "AI Extraction Evidence",
+    "/source-documents/aapl-2024-10k-20240928": "Source Document Dossier",
 }
 
 for path, expected in checks.items():
@@ -113,9 +110,6 @@ for path, expected in checks.items():
 PY
 
 cd "$ROOT_DIR"
-bash scripts/verify_frontend_architecture.sh
-bash scripts/verify_frontend_api_contract.sh
-bash scripts/verify_frontend_api_adapter.sh
 bash scripts/verify_frontend_fixture_server.sh
 
-echo "apps web scaffold verification passed"
+echo "frontend detail routes verification passed"
