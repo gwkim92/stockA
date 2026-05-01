@@ -8,7 +8,7 @@ from typing import Any
 from urllib.parse import parse_qs, quote, unquote, urlsplit
 
 from stockanalysis.ingest.config import RuntimeConfig
-from stockanalysis.ingest.macro.sql import sql_literal
+from stockanalysis.ingest.macro.sql import sql_date, sql_literal
 from stockanalysis.ingest.psql import PsqlCommandExecutor
 from stockanalysis.performance.coverage import load_portfolio_outcome_coverage_report
 from stockanalysis.signal.portfolio_remediation_ticket import load_portfolio_remediation_ticket_report
@@ -62,6 +62,27 @@ def resolve_live_frontend_response(
         )
     if parsed.path == "/api/data-health":
         return build_live_data_health_response(
+            config=runtime_config,
+            executor=executor,
+            generated_at=generated_at_text,
+        )
+    if parsed.path == "/api/events":
+        return build_live_event_list_response(
+            parsed,
+            config=runtime_config,
+            executor=executor,
+            generated_at=generated_at_text,
+        )
+    if parsed.path.startswith("/api/themes/"):
+        return build_live_theme_detail_response(
+            parsed,
+            config=runtime_config,
+            executor=executor,
+            generated_at=generated_at_text,
+        )
+    if parsed.path.startswith("/api/performance/") and parsed.path.endswith("/outcomes"):
+        return build_live_performance_outcomes_response(
+            parsed,
             config=runtime_config,
             executor=executor,
             generated_at=generated_at_text,
@@ -181,6 +202,150 @@ def build_live_data_health_response(
     }
 
 
+def build_live_event_list_response(
+    parsed: ParsedApiPath,
+    *,
+    config: RuntimeConfig,
+    executor: PsqlCommandExecutor | None,
+    generated_at: str,
+) -> dict[str, Any]:
+    as_of_date = _parse_required_date(parsed.query, "asOfDate")
+    theme_key = parsed.query.get("themeKey") or None
+    symbol = parsed.query.get("symbol") or None
+    event_type = parsed.query.get("eventType") or "all"
+    state = load_frontend_event_list_state(
+        config=config,
+        executor=executor,
+        as_of_date=as_of_date,
+        theme_key=theme_key,
+        symbol=symbol,
+        event_type=event_type,
+    )
+    events = [_build_event_payload(item) for item in _as_list(state.get("events"))]
+    summary = _as_dict(state.get("summary"))
+
+    return {
+        "contract_version": CONTRACT_VERSION,
+        "generated_at": generated_at,
+        "data": {
+            "as_of_date": str(state.get("as_of_date") or as_of_date.isoformat()),
+            "filters": {
+                "theme_key": theme_key,
+                "symbol": symbol.upper() if symbol else None,
+                "event_type": event_type,
+            },
+            "summary": {
+                "event_count": int(summary.get("event_count") or len(events)),
+                "ai_extracted_count": int(summary.get("ai_extracted_count") or 0),
+                "source_document_count": int(summary.get("source_document_count") or 0),
+                "themes_represented": int(summary.get("themes_represented") or 0),
+            },
+            "events": events,
+        },
+        "links": _event_list_links(events, as_of_date=as_of_date),
+    }
+
+
+def build_live_theme_detail_response(
+    parsed: ParsedApiPath,
+    *,
+    config: RuntimeConfig,
+    executor: PsqlCommandExecutor | None,
+    generated_at: str,
+) -> dict[str, Any]:
+    as_of_date = _parse_required_date(parsed.query, "asOfDate")
+    theme_key = _parse_theme_key(parsed.path)
+    state = load_frontend_theme_detail_state(
+        config=config,
+        executor=executor,
+        theme_key=theme_key,
+        as_of_date=as_of_date,
+    )
+    features = _as_dict(state.get("features"))
+    linked_instruments = [
+        _build_theme_linked_instrument_payload(item) for item in _as_list(state.get("linked_instruments"))
+    ]
+    supporting_events = [_build_theme_supporting_event_payload(item) for item in _as_list(state.get("supporting_events"))]
+
+    return {
+        "contract_version": CONTRACT_VERSION,
+        "generated_at": generated_at,
+        "data": {
+            "theme_key": str(state.get("theme_key") or theme_key),
+            "theme_name": str(state.get("theme_name") or theme_key),
+            "as_of_date": str(state.get("as_of_date") or as_of_date.isoformat()),
+            "strategy_name": DEFAULT_STRATEGY_NAME,
+            "horizon_type": "long_term",
+            "state": str(state.get("state") or "unknown"),
+            "previous_state": str(state.get("previous_state") or "unknown"),
+            "confidence": _number(state.get("confidence")),
+            "cycle_score": _number(state.get("cycle_score")),
+            "cycle_history": [_build_cycle_history_payload(item) for item in _as_list(state.get("cycle_history"))],
+            "features": {
+                "event_intensity": _number(features.get("event_intensity")),
+                "price_momentum": _number(features.get("price_momentum")),
+                "fundamental_quality": _number(features.get("fundamental_quality")),
+            },
+            "linked_instruments": linked_instruments,
+            "supporting_events": supporting_events,
+            "operator_notes": [
+                "Cycle state is context for thesis quality, not an automatic buy signal.",
+                "Supporting events require evidence review before they justify thesis mutation.",
+            ],
+        },
+        "links": _theme_detail_links(theme_key=theme_key, as_of_date=as_of_date, linked_instruments=linked_instruments, supporting_events=supporting_events),
+    }
+
+
+def build_live_performance_outcomes_response(
+    parsed: ParsedApiPath,
+    *,
+    config: RuntimeConfig,
+    executor: PsqlCommandExecutor | None,
+    generated_at: str,
+) -> dict[str, Any]:
+    portfolio_name = _parse_performance_portfolio_name(parsed.path)
+    measurement_end_date = _parse_required_date(parsed.query, "measurementEndDate")
+    state = load_frontend_performance_outcomes_state(
+        config=config,
+        executor=executor,
+        portfolio_name=portfolio_name,
+        measurement_end_date=measurement_end_date,
+    )
+    summary = _as_dict(state.get("summary"))
+    outcomes = [_build_performance_outcome_payload(item) for item in _as_list(state.get("outcomes"))]
+    attribution_components = [
+        _build_attribution_component_payload(item) for item in _as_list(state.get("attribution_components"))
+    ]
+    coverage_exclusions = [_build_coverage_exclusion_payload(item) for item in _as_list(state.get("coverage_exclusions"))]
+    quality_gates = [_build_quality_gate_payload(item) for item in _as_list(state.get("quality_gates"))]
+
+    return {
+        "contract_version": CONTRACT_VERSION,
+        "generated_at": generated_at,
+        "data": {
+            "portfolio_name": str(state.get("portfolio_name") or portfolio_name),
+            "strategy_name": str(state.get("strategy_name") or DEFAULT_STRATEGY_NAME),
+            "snapshot_date": str(state.get("snapshot_date") or ""),
+            "measurement_start_date": str(state.get("measurement_start_date") or ""),
+            "measurement_end_date": str(state.get("measurement_end_date") or measurement_end_date.isoformat()),
+            "benchmark_code": str(state.get("benchmark_code") or "SPY"),
+            "methodology": str(state.get("methodology") or "position_weighted_alpha_v1"),
+            "summary": _build_performance_summary(summary, outcomes, attribution_components, coverage_exclusions),
+            "outcomes": outcomes,
+            "attribution_components": attribution_components,
+            "coverage_exclusions": coverage_exclusions,
+            "quality_gates": quality_gates,
+        },
+        "links": _performance_links(
+            portfolio_name=str(state.get("portfolio_name") or portfolio_name),
+            snapshot_date=str(state.get("snapshot_date") or ""),
+            outcomes=outcomes,
+            attribution_components=attribution_components,
+        ),
+    }
+
+
 def build_live_remediation_tickets_response(
     parsed: ParsedApiPath,
     *,
@@ -290,8 +455,11 @@ def build_live_portfolio_coverage_response(
 
 def is_live_supported_path(api_path: str) -> bool:
     parsed = parse_api_path(api_path)
-    return parsed.path in {"/api/dashboard/today", "/api/data-health", "/api/remediation-tickets"} or (
-        parsed.path.startswith("/api/portfolio/") and parsed.path.endswith("/coverage")
+    return (
+        parsed.path in {"/api/dashboard/today", "/api/data-health", "/api/events", "/api/remediation-tickets"}
+        or parsed.path.startswith("/api/themes/")
+        or (parsed.path.startswith("/api/performance/") and parsed.path.endswith("/outcomes"))
+        or (parsed.path.startswith("/api/portfolio/") and parsed.path.endswith("/coverage"))
     )
 
 
@@ -315,6 +483,58 @@ def load_frontend_data_health_state(
     payload = sql_executor.execute_scalar(render_frontend_data_health_state_sql())
     data = json_loads_object(payload, "Frontend data health state lookup")
     return data
+
+
+def load_frontend_event_list_state(
+    *,
+    config: RuntimeConfig,
+    executor: PsqlCommandExecutor | None,
+    as_of_date: date,
+    theme_key: str | None,
+    symbol: str | None,
+    event_type: str,
+) -> dict[str, Any]:
+    sql_executor = executor or PsqlCommandExecutor.from_config(config)
+    payload = sql_executor.execute_scalar(
+        render_frontend_event_list_state_sql(
+            as_of_date=as_of_date,
+            theme_key=theme_key,
+            symbol=symbol,
+            event_type=event_type,
+        )
+    )
+    return json_loads_object(payload, "Frontend event list state lookup")
+
+
+def load_frontend_theme_detail_state(
+    *,
+    config: RuntimeConfig,
+    executor: PsqlCommandExecutor | None,
+    theme_key: str,
+    as_of_date: date,
+) -> dict[str, Any]:
+    sql_executor = executor or PsqlCommandExecutor.from_config(config)
+    payload = sql_executor.execute_scalar(
+        render_frontend_theme_detail_state_sql(theme_key=theme_key, as_of_date=as_of_date)
+    )
+    return json_loads_object(payload, "Frontend theme detail state lookup")
+
+
+def load_frontend_performance_outcomes_state(
+    *,
+    config: RuntimeConfig,
+    executor: PsqlCommandExecutor | None,
+    portfolio_name: str,
+    measurement_end_date: date,
+) -> dict[str, Any]:
+    sql_executor = executor or PsqlCommandExecutor.from_config(config)
+    payload = sql_executor.execute_scalar(
+        render_frontend_performance_outcomes_state_sql(
+            portfolio_name=portfolio_name,
+            measurement_end_date=measurement_end_date,
+        )
+    )
+    return json_loads_object(payload, "Frontend performance outcomes state lookup")
 
 
 def render_frontend_dashboard_state_sql(*, portfolio_name: str) -> str:
@@ -496,6 +716,479 @@ select json_build_object(
 )::text;"""
 
 
+def render_frontend_event_list_state_sql(
+    *,
+    as_of_date: date,
+    theme_key: str | None,
+    symbol: str | None,
+    event_type: str,
+) -> str:
+    filters = _event_list_sql_filters(theme_key=theme_key, symbol=symbol, event_type=event_type)
+    return f"""-- frontend event list state lookup
+with event_rows as (
+    select
+        event_row.event_id,
+        event_row.title,
+        event_row.event_type,
+        event_row.event_at,
+        instrument.instrument_id,
+        instrument.primary_symbol,
+        theme.code as theme_key,
+        theme.name as theme_name,
+        coalesce(instrument_impact.impact_direction, classification_impact.impact_direction, event_row.impact_polarity, 'unknown') as impact_direction,
+        coalesce(instrument_impact.impact_strength, classification_impact.impact_strength, event_row.significance_score) as impact_score,
+        source_document.external_document_id as source_document_id,
+        source_document.document_id as raw_source_document_id,
+        evidence.artifact_id as ai_evidence_id,
+        case
+            when evidence.artifact_id is not null then 'human_review_required'
+            when source_document.document_id is not null then 'source_document_review_required'
+            else 'deterministic_review_required'
+        end as quality_gate
+    from event.event event_row
+    left join event.event_instrument_impact instrument_impact on instrument_impact.event_id = event_row.event_id
+    left join ref.instrument instrument on instrument.instrument_id = instrument_impact.instrument_id
+    left join event.event_classification_impact classification_impact on classification_impact.event_id = event_row.event_id
+    left join ref.classification_node theme
+      on theme.node_id = classification_impact.node_id
+     and theme.taxonomy_family = 'internal_theme'
+    left join event.event_document_link document_link
+      on document_link.event_id = event_row.event_id
+     and document_link.link_type = 'source'
+    left join ingest.source_document source_document on source_document.document_id = document_link.document_id
+    left join lateral (
+        select artifact_id
+        from ai.extraction_artifact artifact
+        where artifact.event_id = event_row.event_id
+        order by artifact.artifact_id desc
+        limit 1
+    ) evidence on true
+    where event_row.event_at < ({sql_date(as_of_date)} + interval '1 day')
+{filters}
+    order by event_row.event_at desc, event_row.event_id desc
+    limit 100
+)
+select json_build_object(
+    'as_of_date', {sql_literal(as_of_date.isoformat())},
+    'summary',
+    json_build_object(
+        'event_count', (select count(*)::int from event_rows),
+        'ai_extracted_count', (select count(*) filter (where ai_evidence_id is not null)::int from event_rows),
+        'source_document_count', (select count(distinct raw_source_document_id)::int from event_rows where raw_source_document_id is not null),
+        'themes_represented', (select count(distinct theme_key)::int from event_rows where theme_key is not null)
+    ),
+    'events',
+    coalesce(
+        (
+            select json_agg(
+                json_build_object(
+                    'event_id', event_id,
+                    'title', title,
+                    'event_type', event_type,
+                    'event_at', event_at,
+                    'instrument_id', instrument_id,
+                    'symbol', primary_symbol,
+                    'theme_key', theme_key,
+                    'theme_name', theme_name,
+                    'impact_direction', impact_direction,
+                    'impact_score', impact_score,
+                    'source_document_id', source_document_id,
+                    'raw_source_document_id', raw_source_document_id,
+                    'ai_evidence_id', ai_evidence_id,
+                    'quality_gate', quality_gate
+                )
+                order by event_at desc, event_id desc
+            )
+            from event_rows
+        ),
+        '[]'::json
+    )
+)::text;"""
+
+
+def render_frontend_theme_detail_state_sql(*, theme_key: str, as_of_date: date) -> str:
+    return f"""-- frontend theme detail state lookup
+with target_theme as (
+    select node_id, code, name
+    from ref.classification_node
+    where taxonomy_family = 'internal_theme'
+      and code = {sql_literal(theme_key)}
+    limit 1
+),
+current_cycle as (
+    select snapshot.*
+    from signal.cycle_state_snapshot snapshot
+    join target_theme theme on theme.node_id = snapshot.node_id
+    where snapshot.as_of_date <= {sql_date(as_of_date)}
+    order by snapshot.as_of_date desc
+    limit 1
+),
+previous_cycle as (
+    select snapshot.*
+    from signal.cycle_state_snapshot snapshot
+    join target_theme theme on theme.node_id = snapshot.node_id
+    where snapshot.as_of_date < (select as_of_date from current_cycle)
+    order by snapshot.as_of_date desc
+    limit 1
+),
+cycle_history as (
+    select snapshot.as_of_date, snapshot.cycle_state, snapshot.cycle_score
+    from signal.cycle_state_snapshot snapshot
+    join target_theme theme on theme.node_id = snapshot.node_id
+    where snapshot.as_of_date <= {sql_date(as_of_date)}
+    order by snapshot.as_of_date desc
+    limit 6
+),
+linked_instruments as (
+    select
+        instrument.instrument_id,
+        instrument.primary_symbol,
+        membership.confidence as membership_strength,
+        thesis.thesis_id as active_thesis_id,
+        recommendation.recommendation_id as latest_recommendation_id
+    from ref.instrument_classification_membership membership
+    join target_theme theme on theme.node_id = membership.node_id
+    join ref.instrument instrument on instrument.instrument_id = membership.instrument_id
+    left join lateral (
+        select thesis_id
+        from signal.investment_thesis thesis
+        where thesis.instrument_id = instrument.instrument_id
+          and thesis.status = 'active'
+        order by thesis.thesis_id desc
+        limit 1
+    ) thesis on true
+    left join lateral (
+        select recommendation.recommendation_id
+        from signal.recommendation recommendation
+        join signal.recommendation_batch batch on batch.batch_id = recommendation.batch_id
+        where recommendation.instrument_id = instrument.instrument_id
+          and batch.as_of_date <= {sql_date(as_of_date)}
+        order by batch.as_of_date desc, recommendation.recommendation_id desc
+        limit 1
+    ) recommendation on true
+    where membership.valid_from <= {sql_date(as_of_date)}
+      and (membership.valid_to is null or membership.valid_to >= {sql_date(as_of_date)})
+    order by membership.confidence desc nulls last, instrument.primary_symbol
+    limit 25
+),
+supporting_events as (
+    select
+        event_row.event_id,
+        event_row.title,
+        event_row.event_at,
+        instrument.primary_symbol,
+        coalesce(instrument_impact.impact_direction, classification_impact.impact_direction, event_row.impact_polarity, 'unknown') as impact_direction,
+        coalesce(instrument_impact.impact_strength, classification_impact.impact_strength, event_row.significance_score) as impact_score,
+        source_document.external_document_id as source_document_id,
+        source_document.document_id as raw_source_document_id,
+        evidence.artifact_id as ai_evidence_id
+    from target_theme theme
+    join event.event_classification_impact classification_impact on classification_impact.node_id = theme.node_id
+    join event.event event_row on event_row.event_id = classification_impact.event_id
+    left join event.event_instrument_impact instrument_impact on instrument_impact.event_id = event_row.event_id
+    left join ref.instrument instrument on instrument.instrument_id = instrument_impact.instrument_id
+    left join event.event_document_link document_link
+      on document_link.event_id = event_row.event_id
+     and document_link.link_type = 'source'
+    left join ingest.source_document source_document on source_document.document_id = document_link.document_id
+    left join lateral (
+        select artifact_id
+        from ai.extraction_artifact artifact
+        where artifact.event_id = event_row.event_id
+        order by artifact.artifact_id desc
+        limit 1
+    ) evidence on true
+    where event_row.event_at < ({sql_date(as_of_date)} + interval '1 day')
+    order by event_row.event_at desc, event_row.event_id desc
+    limit 25
+)
+select json_build_object(
+    'theme_key', coalesce((select code from target_theme), {sql_literal(theme_key)}),
+    'theme_name', coalesce((select name from target_theme), {sql_literal(theme_key)}),
+    'as_of_date', {sql_literal(as_of_date.isoformat())},
+    'state', coalesce((select cycle_state from current_cycle), 'unknown'),
+    'previous_state', coalesce((select cycle_state from previous_cycle), 'unknown'),
+    'confidence', coalesce((select (evidence_json ->> 'average_event_confidence')::numeric from current_cycle), (select cycle_score from current_cycle)),
+    'cycle_score', (select cycle_score from current_cycle),
+    'cycle_history',
+    coalesce(
+        (
+            select json_agg(
+                json_build_object(
+                    'as_of_date', as_of_date,
+                    'state', cycle_state,
+                    'confidence', cycle_score
+                )
+                order by as_of_date
+            )
+            from cycle_history
+        ),
+        '[]'::json
+    ),
+    'features',
+    json_build_object(
+        'event_intensity', (select event_heat_score from current_cycle),
+        'price_momentum', (select trend_score from current_cycle),
+        'fundamental_quality', coalesce((select valuation_score from current_cycle), (select breadth_score from current_cycle))
+    ),
+    'linked_instruments',
+    coalesce(
+        (
+            select json_agg(
+                json_build_object(
+                    'symbol', primary_symbol,
+                    'instrument_id', instrument_id,
+                    'membership_strength', membership_strength,
+                    'active_thesis_id', active_thesis_id,
+                    'latest_recommendation_id', latest_recommendation_id
+                )
+                order by membership_strength desc nulls last, primary_symbol
+            )
+            from linked_instruments
+        ),
+        '[]'::json
+    ),
+    'supporting_events',
+    coalesce(
+        (
+            select json_agg(
+                json_build_object(
+                    'event_id', event_id,
+                    'title', title,
+                    'event_at', event_at,
+                    'symbol', primary_symbol,
+                    'impact_direction', impact_direction,
+                    'impact_score', impact_score,
+                    'ai_evidence_id', ai_evidence_id,
+                    'source_document_id', source_document_id,
+                    'raw_source_document_id', raw_source_document_id
+                )
+                order by event_at desc, event_id desc
+            )
+            from supporting_events
+        ),
+        '[]'::json
+    )
+)::text;"""
+
+
+def render_frontend_performance_outcomes_state_sql(
+    *,
+    portfolio_name: str,
+    measurement_end_date: date,
+) -> str:
+    return f"""-- frontend performance outcomes state lookup
+with selected_portfolio as (
+    select portfolio_id, portfolio_name, strategy_name
+    from portfolio.portfolio
+    where portfolio_name = {sql_literal(portfolio_name)}
+    limit 1
+),
+selected_run as (
+    select run.*
+    from performance.attribution_run run
+    join selected_portfolio portfolio on portfolio.portfolio_id = run.portfolio_id
+    where run.measurement_end_date = {sql_date(measurement_end_date)}
+    order by run.snapshot_date desc, run.attribution_run_id desc
+    limit 1
+),
+outcome_rows as (
+    select
+        outcome.outcome_id,
+        outcome.recommendation_id,
+        recommendation.thesis_id,
+        instrument.instrument_id,
+        instrument.primary_symbol,
+        recommendation.action as recommendation_action,
+        outcome.horizon_days,
+        outcome.absolute_return_pct,
+        outcome.benchmark_code,
+        outcome.benchmark_return_pct,
+        outcome.alpha_pct,
+        outcome.outcome_label,
+        position.weight as position_weight,
+        outcome.source_run_id
+    from selected_run run
+    join performance.recommendation_outcome outcome
+      on outcome.measurement_start_date = run.measurement_start_date
+     and outcome.measurement_end_date = run.measurement_end_date
+    join signal.recommendation recommendation on recommendation.recommendation_id = outcome.recommendation_id
+    join ref.instrument instrument on instrument.instrument_id = recommendation.instrument_id
+    join portfolio.position_snapshot position
+      on position.portfolio_id = run.portfolio_id
+     and position.snapshot_date = run.snapshot_date
+     and position.instrument_id = recommendation.instrument_id
+     and position.quantity <> 0
+    order by outcome.alpha_pct desc nulls last, instrument.primary_symbol
+),
+component_rows as (
+    select
+        component.attribution_component_id,
+        component.component_type,
+        component.component_key,
+        component.instrument_id,
+        instrument.primary_symbol,
+        node.code as theme_key,
+        component.weight,
+        component.return_pct,
+        component.benchmark_return_pct,
+        component.alpha_pct,
+        component.contribution_bps,
+        component.summary
+    from selected_run run
+    join performance.attribution_component component on component.attribution_run_id = run.attribution_run_id
+    left join ref.instrument instrument on instrument.instrument_id = component.instrument_id
+    left join signal.investment_thesis thesis on thesis.thesis_id = component.thesis_id
+    left join ref.classification_node node on node.node_id = thesis.primary_node_id
+    order by component.attribution_component_id
+),
+coverage_exclusions as (
+    select
+        instrument.primary_symbol,
+        instrument.instrument_id,
+        position.weight,
+        case
+            when position.linked_thesis_id is null then 'missing_thesis'
+            when thesis_outcome.outcome_id is null then 'missing_outcome'
+            when position.weight is null then 'missing_weight'
+            else 'covered'
+        end as reason
+    from selected_run run
+    join portfolio.position_snapshot position
+      on position.portfolio_id = run.portfolio_id
+     and position.snapshot_date = run.snapshot_date
+    join ref.instrument instrument on instrument.instrument_id = position.instrument_id
+    left join performance.thesis_outcome thesis_outcome
+      on thesis_outcome.thesis_id = position.linked_thesis_id
+     and thesis_outcome.measurement_start_date = run.measurement_start_date
+     and thesis_outcome.measurement_end_date = run.measurement_end_date
+    where position.quantity <> 0
+      and (
+          position.linked_thesis_id is null
+          or thesis_outcome.outcome_id is null
+          or position.weight is null
+      )
+)
+select json_build_object(
+    'portfolio_name', coalesce((select portfolio_name from selected_portfolio), {sql_literal(portfolio_name)}),
+    'strategy_name', coalesce((select strategy_name from selected_portfolio), {sql_literal(DEFAULT_STRATEGY_NAME)}),
+    'snapshot_date', (select snapshot_date from selected_run),
+    'measurement_start_date', (select measurement_start_date from selected_run),
+    'measurement_end_date', coalesce((select measurement_end_date from selected_run), {sql_date(measurement_end_date)}),
+    'benchmark_code', coalesce((select benchmark_code from outcome_rows where benchmark_code is not null limit 1), 'SPY'),
+    'methodology', coalesce((select methodology from selected_run), 'position_weighted_alpha_v1'),
+    'summary',
+    json_build_object(
+        'measured_recommendation_count', (select count(*)::int from outcome_rows),
+        'measured_thesis_count', (select count(distinct thesis_id)::int from outcome_rows where thesis_id is not null),
+        'outperform_count', (select count(*) filter (where outcome_label = 'outperform')::int from outcome_rows),
+        'underperform_count', (select count(*) filter (where outcome_label = 'underperform')::int from outcome_rows),
+        'hit_rate',
+        case
+            when (select count(*) from outcome_rows) = 0 then null
+            else ((select count(*) filter (where outcome_label in ('outperform', 'positive')) from outcome_rows)::numeric / (select count(*) from outcome_rows)::numeric)
+        end,
+        'average_alpha', (select avg(alpha_pct) from outcome_rows),
+        'security_lens_contribution_bps', coalesce((select sum(contribution_bps) from component_rows where component_type = 'security_selection'), 0),
+        'theme_lens_contribution_bps', coalesce((select sum(contribution_bps) from component_rows where component_type = 'theme_exposure'), 0),
+        'cash_timing_contribution_bps', coalesce((select sum(contribution_bps) from component_rows where component_type = 'cash_timing'), 0),
+        'attribution_component_count', (select count(*)::int from component_rows),
+        'excluded_position_count', (select count(*)::int from coverage_exclusions),
+        'excluded_weight', coalesce((select sum(weight) from coverage_exclusions), 0),
+        'cash_weight', coalesce((select weight from component_rows where component_type = 'cash_timing' limit 1), 0)
+    ),
+    'outcomes',
+    coalesce(
+        (
+            select json_agg(
+                json_build_object(
+                    'outcome_id', outcome_id,
+                    'recommendation_id', recommendation_id,
+                    'thesis_id', thesis_id,
+                    'symbol', primary_symbol,
+                    'instrument_id', instrument_id,
+                    'recommendation', recommendation_action,
+                    'horizon_days', horizon_days,
+                    'absolute_return', absolute_return_pct,
+                    'benchmark_return', benchmark_return_pct,
+                    'alpha', alpha_pct,
+                    'label', outcome_label,
+                    'position_weight', position_weight,
+                    'security_contribution_bps', coalesce(position_weight * alpha_pct * 10000, 0),
+                    'source_run_id', source_run_id
+                )
+                order by alpha_pct desc nulls last, primary_symbol
+            )
+            from outcome_rows
+        ),
+        '[]'::json
+    ),
+    'attribution_components',
+    coalesce(
+        (
+            select json_agg(
+                json_build_object(
+                    'component_id', attribution_component_id,
+                    'component_type', component_type,
+                    'label', coalesce(summary, component_key),
+                    'symbol', primary_symbol,
+                    'theme_key', theme_key,
+                    'weight', weight,
+                    'absolute_return', return_pct,
+                    'benchmark_return', benchmark_return_pct,
+                    'alpha', alpha_pct,
+                    'contribution_bps', contribution_bps,
+                    'interpretation', coalesce(summary, component_key)
+                )
+                order by attribution_component_id
+            )
+            from component_rows
+        ),
+        '[]'::json
+    ),
+    'coverage_exclusions',
+    coalesce(
+        (
+            select json_agg(
+                json_build_object(
+                    'symbol', primary_symbol,
+                    'instrument_id', instrument_id,
+                    'weight', weight,
+                    'reason', reason,
+                    'required_action',
+                    case
+                        when reason = 'missing_outcome' then 'needs_outcome_review'
+                        when reason = 'missing_weight' then 'needs_weight_review'
+                        else 'needs_thesis_review'
+                    end
+                )
+                order by primary_symbol
+            )
+            from coverage_exclusions
+        ),
+        '[]'::json
+    ),
+    'quality_gates',
+    json_build_array(
+        json_build_object(
+            'gate', 'coverage_ready',
+            'status', case when (select count(*) from coverage_exclusions) = 0 then 'passed' else 'blocked' end,
+            'reason', case when (select count(*) from coverage_exclusions) = 0 then 'Portfolio positions have thesis/outcome coverage.' else 'Some positions are excluded from attribution coverage.' end
+        ),
+        json_build_object(
+            'gate', 'outcome_run',
+            'status', case when (select count(*) from outcome_rows) > 0 then 'passed' else 'blocked' end,
+            'reason', case when (select count(*) from outcome_rows) > 0 then 'Recommendation outcomes exist for the measurement window.' else 'No recommendation outcomes exist for the measurement window.' end
+        ),
+        json_build_object(
+            'gate', 'methodology_boundary',
+            'status', 'passed',
+            'reason', 'Security and theme components are explanatory lenses, not additive totals.'
+        )
+    )
+)::text;"""
+
+
 def _build_dashboard_action_payload(action: dict[str, Any], *, index: int) -> dict[str, Any]:
     symbol = str(action.get("symbol") or "UNKNOWN").upper()
     return {
@@ -534,6 +1227,219 @@ def _dashboard_coverage_link(state: dict[str, Any]) -> str:
     if as_of_date:
         coverage_link = f"{coverage_link}?asOfDate={as_of_date}"
     return coverage_link
+
+
+def _event_list_sql_filters(*, theme_key: str | None, symbol: str | None, event_type: str) -> str:
+    lines: list[str] = []
+    if theme_key:
+        lines.append(f"      and theme.code = {sql_literal(theme_key)}")
+    if symbol:
+        lines.append(f"      and upper(instrument.primary_symbol) = {sql_literal(symbol.upper())}")
+    if event_type and event_type != "all":
+        lines.append(f"      and event_row.event_type = {sql_literal(event_type)}")
+    return "\n".join(lines)
+
+
+def _build_event_payload(event: dict[str, Any]) -> dict[str, Any]:
+    symbol = str(event.get("symbol") or "UNKNOWN").upper()
+    source_document_id = event.get("source_document_id") or event.get("raw_source_document_id")
+    ai_evidence_id = event.get("ai_evidence_id")
+    return {
+        "event_id": _opaque_id("event", event.get("event_id"), "unknown"),
+        "title": str(event.get("title") or ""),
+        "event_type": str(event.get("event_type") or "unknown"),
+        "event_at": _timestamp(event.get("event_at")),
+        "symbol": symbol,
+        "instrument_id": _opaque_id("instrument", event.get("instrument_id"), symbol.lower()),
+        "theme_key": str(event.get("theme_key") or "UNCLASSIFIED"),
+        "theme_name": str(event.get("theme_name") or "Unclassified"),
+        "impact_direction": str(event.get("impact_direction") or "unknown"),
+        "impact_score": _number(event.get("impact_score")),
+        "source_document_id": _opaque_id("source-document", source_document_id, None)
+        if source_document_id is not None
+        else None,
+        "ai_evidence_id": _opaque_id("ai-evidence", ai_evidence_id, None) if ai_evidence_id is not None else None,
+        "quality_gate": str(event.get("quality_gate") or "deterministic_review_required"),
+    }
+
+
+def _build_cycle_history_payload(item: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "as_of_date": str(item.get("as_of_date") or ""),
+        "state": str(item.get("state") or item.get("cycle_state") or "unknown"),
+        "confidence": _number(item.get("confidence") or item.get("cycle_score")),
+    }
+
+
+def _build_theme_linked_instrument_payload(item: dict[str, Any]) -> dict[str, Any]:
+    symbol = str(item.get("symbol") or "UNKNOWN").upper()
+    return {
+        "symbol": symbol,
+        "instrument_id": _opaque_id("instrument", item.get("instrument_id"), symbol.lower()),
+        "membership_strength": _number(item.get("membership_strength")),
+        "active_thesis_id": _opaque_id("thesis", item.get("active_thesis_id"), None)
+        if item.get("active_thesis_id") is not None
+        else None,
+        "latest_recommendation_id": _opaque_id("recommendation", item.get("latest_recommendation_id"), None)
+        if item.get("latest_recommendation_id") is not None
+        else None,
+    }
+
+
+def _build_theme_supporting_event_payload(event: dict[str, Any]) -> dict[str, Any]:
+    symbol = str(event.get("symbol") or "UNKNOWN").upper()
+    source_document_id = event.get("source_document_id") or event.get("raw_source_document_id")
+    ai_evidence_id = event.get("ai_evidence_id")
+    return {
+        "event_id": _opaque_id("event", event.get("event_id"), "unknown"),
+        "title": str(event.get("title") or ""),
+        "event_at": _timestamp(event.get("event_at")),
+        "symbol": symbol,
+        "impact_direction": str(event.get("impact_direction") or "unknown"),
+        "impact_score": _number(event.get("impact_score")),
+        "ai_evidence_id": _opaque_id("ai-evidence", ai_evidence_id, None) if ai_evidence_id is not None else None,
+        "source_document_id": _opaque_id("source-document", source_document_id, None)
+        if source_document_id is not None
+        else None,
+    }
+
+
+def _build_performance_outcome_payload(outcome: dict[str, Any]) -> dict[str, Any]:
+    symbol = str(outcome.get("symbol") or "UNKNOWN").upper()
+    return {
+        "outcome_id": _opaque_id("outcome", outcome.get("outcome_id"), "unknown"),
+        "recommendation_id": _opaque_id("recommendation", outcome.get("recommendation_id"), None)
+        if outcome.get("recommendation_id") is not None
+        else None,
+        "thesis_id": _opaque_id("thesis", outcome.get("thesis_id"), None) if outcome.get("thesis_id") is not None else None,
+        "symbol": symbol,
+        "instrument_id": _opaque_id("instrument", outcome.get("instrument_id"), symbol.lower()),
+        "recommendation": str(outcome.get("recommendation") or outcome.get("recommendation_action") or "monitor"),
+        "horizon_days": int(outcome.get("horizon_days") or 0),
+        "absolute_return": _number(outcome.get("absolute_return")),
+        "benchmark_return": _number(outcome.get("benchmark_return")),
+        "alpha": _number(outcome.get("alpha")),
+        "label": str(outcome.get("label") or outcome.get("outcome_label") or "unknown"),
+        "position_weight": _number(outcome.get("position_weight")),
+        "security_contribution_bps": _number(outcome.get("security_contribution_bps")),
+        "source_run_id": _opaque_id("pipeline-run", outcome.get("source_run_id"), None)
+        if outcome.get("source_run_id") is not None
+        else None,
+    }
+
+
+def _build_attribution_component_payload(component: dict[str, Any]) -> dict[str, Any]:
+    symbol = component.get("symbol")
+    return {
+        "component_id": _opaque_id("attribution-component", component.get("component_id"), "unknown"),
+        "component_type": str(component.get("component_type") or "unknown"),
+        "label": str(component.get("label") or ""),
+        "symbol": str(symbol).upper() if symbol else None,
+        "theme_key": str(component.get("theme_key")) if component.get("theme_key") is not None else None,
+        "weight": _number(component.get("weight")),
+        "absolute_return": _number(component.get("absolute_return")),
+        "benchmark_return": _number(component.get("benchmark_return")),
+        "alpha": _number(component.get("alpha")),
+        "contribution_bps": _number(component.get("contribution_bps")),
+        "interpretation": str(component.get("interpretation") or ""),
+    }
+
+
+def _build_coverage_exclusion_payload(exclusion: dict[str, Any]) -> dict[str, Any]:
+    symbol = str(exclusion.get("symbol") or "UNKNOWN").upper()
+    reason = str(exclusion.get("reason") or "missing_thesis")
+    return {
+        "symbol": symbol,
+        "instrument_id": _opaque_id("instrument", exclusion.get("instrument_id"), symbol.lower()),
+        "weight": _number(exclusion.get("weight")),
+        "reason": reason,
+        "required_action": str(exclusion.get("required_action") or _coverage_action(reason)),
+    }
+
+
+def _build_quality_gate_payload(gate: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "gate": str(gate.get("gate") or "unknown"),
+        "status": str(gate.get("status") or "unknown"),
+        "reason": str(gate.get("reason") or ""),
+    }
+
+
+def _build_performance_summary(
+    summary: dict[str, Any],
+    outcomes: list[dict[str, Any]],
+    attribution_components: list[dict[str, Any]],
+    coverage_exclusions: list[dict[str, Any]],
+) -> dict[str, Any]:
+    return {
+        "measured_recommendation_count": int(summary.get("measured_recommendation_count") or len(outcomes)),
+        "measured_thesis_count": int(summary.get("measured_thesis_count") or 0),
+        "outperform_count": int(summary.get("outperform_count") or 0),
+        "underperform_count": int(summary.get("underperform_count") or 0),
+        "hit_rate": _number(summary.get("hit_rate")),
+        "average_alpha": _number(summary.get("average_alpha")),
+        "security_lens_contribution_bps": _number(summary.get("security_lens_contribution_bps")),
+        "theme_lens_contribution_bps": _number(summary.get("theme_lens_contribution_bps")),
+        "cash_timing_contribution_bps": _number(summary.get("cash_timing_contribution_bps")),
+        "attribution_component_count": int(summary.get("attribution_component_count") or len(attribution_components)),
+        "excluded_position_count": int(summary.get("excluded_position_count") or len(coverage_exclusions)),
+        "excluded_weight": _number(summary.get("excluded_weight")),
+        "cash_weight": _number(summary.get("cash_weight")),
+    }
+
+
+def _event_list_links(events: list[dict[str, Any]], *, as_of_date: date) -> dict[str, str]:
+    first_event = events[0] if events else {}
+    links = {"theme_detail": f"/api/themes/{first_event.get('theme_key', 'UNCLASSIFIED')}?asOfDate={as_of_date}"}
+    if first_event.get("ai_evidence_id"):
+        links["ai_evidence"] = f"/api/ai-evidence/{first_event['ai_evidence_id']}"
+    if first_event.get("source_document_id"):
+        links["source_document"] = f"/api/source-documents/{first_event['source_document_id']}"
+    return links
+
+
+def _theme_detail_links(
+    *,
+    theme_key: str,
+    as_of_date: date,
+    linked_instruments: list[dict[str, Any]],
+    supporting_events: list[dict[str, Any]],
+) -> dict[str, str]:
+    links = {"events": f"/api/events?asOfDate={as_of_date}"}
+    first_event = supporting_events[0] if supporting_events else {}
+    first_instrument = linked_instruments[0] if linked_instruments else {}
+    if first_event.get("ai_evidence_id"):
+        links["ai_evidence"] = f"/api/ai-evidence/{first_event['ai_evidence_id']}"
+    if first_instrument.get("latest_recommendation_id"):
+        links["recommendation"] = f"/api/recommendations/{first_instrument['latest_recommendation_id']}"
+    if first_instrument.get("active_thesis_id"):
+        links["thesis"] = f"/api/theses/{first_instrument['active_thesis_id']}"
+    if not first_event.get("ai_evidence_id"):
+        links["theme"] = f"/api/themes/{theme_key}?asOfDate={as_of_date}"
+    return links
+
+
+def _performance_links(
+    *,
+    portfolio_name: str,
+    snapshot_date: str,
+    outcomes: list[dict[str, Any]],
+    attribution_components: list[dict[str, Any]],
+) -> dict[str, str]:
+    encoded_portfolio_name = quote(portfolio_name, safe="")
+    links = {
+        "coverage": f"/api/portfolio/{encoded_portfolio_name}/coverage?asOfDate={snapshot_date}",
+        "dashboard": "/api/dashboard/today",
+    }
+    first_outcome = outcomes[0] if outcomes else {}
+    first_theme_component = next((item for item in attribution_components if item.get("theme_key")), {})
+    if first_outcome.get("recommendation_id"):
+        links["recommendation"] = f"/api/recommendations/{first_outcome['recommendation_id']}"
+    if first_outcome.get("thesis_id"):
+        links["thesis"] = f"/api/theses/{first_outcome['thesis_id']}"
+    if first_theme_component.get("theme_key") and snapshot_date:
+        links["theme"] = f"/api/themes/{first_theme_component['theme_key']}?asOfDate={snapshot_date}"
+    return links
 
 
 def _build_ticket_payload(ticket: dict[str, Any]) -> dict[str, Any]:
@@ -584,6 +1490,27 @@ def _parse_coverage_portfolio_name(path: str) -> str:
     encoded_name = path[len(prefix) : -len(suffix)]
     if not encoded_name:
         raise FrontendLiveUnsupportedPathError("Portfolio coverage path is missing portfolio name.")
+    return unquote(encoded_name)
+
+
+def _parse_theme_key(path: str) -> str:
+    prefix = "/api/themes/"
+    if not path.startswith(prefix):
+        raise FrontendLiveUnsupportedPathError(f"Invalid theme detail path: {path}")
+    encoded_key = path[len(prefix) :]
+    if not encoded_key:
+        raise FrontendLiveUnsupportedPathError("Theme detail path is missing theme key.")
+    return unquote(encoded_key)
+
+
+def _parse_performance_portfolio_name(path: str) -> str:
+    prefix = "/api/performance/"
+    suffix = "/outcomes"
+    if not path.startswith(prefix) or not path.endswith(suffix):
+        raise FrontendLiveUnsupportedPathError(f"Invalid performance outcomes path: {path}")
+    encoded_name = path[len(prefix) : -len(suffix)]
+    if not encoded_name:
+        raise FrontendLiveUnsupportedPathError("Performance outcomes path is missing portfolio name.")
     return unquote(encoded_name)
 
 

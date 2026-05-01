@@ -189,8 +189,11 @@ Live read adapter pilot:
 - supported live endpoints:
   - `GET /api/dashboard/today`
   - `GET /api/data-health`
+  - `GET /api/events?asOfDate=2024-11-01`
+  - `GET /api/themes/ANNUAL_REPORTING?asOfDate=2024-11-01`
+  - `GET /api/performance/Long%20Term%20Paper/outcomes?measurementEndDate=2024-12-02`
   - `GET /api/remediation-tickets?status=open`
   - `GET /api/portfolio/Long%20Term%20Paper/coverage?asOfDate=2024-11-01`
 - source mode: `--source auto` uses live only when `STOCKANALYSIS_PSQL_COMMAND` is configured; otherwise it falls back to fixture examples.
 
-Next, expand live DTO support to event/theme and performance endpoints, then wire live/auto mode into a production API server boundary.
+Next, expand live DTO support to recommendation/thesis detail, AI evidence, and source document endpoints, then wire live/auto mode into a production API server boundary.
