@@ -87,6 +87,34 @@ def resolve_live_frontend_response(
             executor=executor,
             generated_at=generated_at_text,
         )
+    if parsed.path.startswith("/api/recommendations/"):
+        return build_live_recommendation_detail_response(
+            parsed,
+            config=runtime_config,
+            executor=executor,
+            generated_at=generated_at_text,
+        )
+    if parsed.path.startswith("/api/theses/"):
+        return build_live_thesis_detail_response(
+            parsed,
+            config=runtime_config,
+            executor=executor,
+            generated_at=generated_at_text,
+        )
+    if parsed.path.startswith("/api/ai-evidence/"):
+        return build_live_ai_evidence_detail_response(
+            parsed,
+            config=runtime_config,
+            executor=executor,
+            generated_at=generated_at_text,
+        )
+    if parsed.path.startswith("/api/source-documents/"):
+        return build_live_source_document_detail_response(
+            parsed,
+            config=runtime_config,
+            executor=executor,
+            generated_at=generated_at_text,
+        )
     if parsed.path == "/api/remediation-tickets":
         return build_live_remediation_tickets_response(
             parsed,
@@ -346,6 +374,198 @@ def build_live_performance_outcomes_response(
     }
 
 
+def build_live_recommendation_detail_response(
+    parsed: ParsedApiPath,
+    *,
+    config: RuntimeConfig,
+    executor: PsqlCommandExecutor | None,
+    generated_at: str,
+) -> dict[str, Any]:
+    identifier = _parse_detail_identifier(parsed.path, "/api/recommendations/")
+    state = load_frontend_recommendation_detail_state(config=config, executor=executor, identifier=identifier)
+    score_components = [
+        _build_recommendation_score_component_payload(item) for item in _as_list(state.get("score_components"))
+    ]
+    linked_thesis_id = state.get("linked_thesis_id")
+    outcome = _as_dict(state.get("outcome"))
+    symbol = str(state.get("symbol") or "UNKNOWN").upper()
+
+    return {
+        "contract_version": CONTRACT_VERSION,
+        "generated_at": generated_at,
+        "data": {
+            "recommendation_id": _recommendation_detail_id(state, identifier),
+            "symbol": symbol,
+            "instrument_id": _opaque_id("instrument", state.get("instrument_id"), symbol.lower()),
+            "as_of_date": str(state.get("as_of_date") or ""),
+            "strategy_name": str(state.get("strategy_name") or DEFAULT_STRATEGY_NAME),
+            "horizon_type": str(state.get("horizon_type") or "long_term"),
+            "recommendation": str(state.get("recommendation") or "monitor"),
+            "score": _number(state.get("score")),
+            "score_version": str(state.get("score_version") or "unknown"),
+            "score_components": score_components,
+            "linked_thesis_id": _opaque_id("thesis", linked_thesis_id, None) if linked_thesis_id is not None else None,
+            "outcome": {
+                "measurement_end_date": str(outcome.get("measurement_end_date") or ""),
+                "absolute_return": _number(outcome.get("absolute_return")),
+                "benchmark_return": _number(outcome.get("benchmark_return")),
+                "alpha": _number(outcome.get("alpha")),
+                "label": str(outcome.get("label") or "unmeasured"),
+            },
+        },
+        "links": _recommendation_detail_links(state, identifier=identifier),
+    }
+
+
+def build_live_thesis_detail_response(
+    parsed: ParsedApiPath,
+    *,
+    config: RuntimeConfig,
+    executor: PsqlCommandExecutor | None,
+    generated_at: str,
+) -> dict[str, Any]:
+    identifier = _parse_detail_identifier(parsed.path, "/api/theses/")
+    state = load_frontend_thesis_detail_state(config=config, executor=executor, identifier=identifier)
+    symbol = str(state.get("symbol") or "UNKNOWN").upper()
+    latest_review = _as_dict(state.get("latest_review"))
+    evidence = [_build_thesis_evidence_payload(item) for item in _as_list(state.get("evidence"))]
+
+    return {
+        "contract_version": CONTRACT_VERSION,
+        "generated_at": generated_at,
+        "data": {
+            "thesis_id": _thesis_detail_id(state, identifier),
+            "symbol": symbol,
+            "instrument_id": _opaque_id("instrument", state.get("instrument_id"), symbol.lower()),
+            "status": str(state.get("status") or "unknown"),
+            "thesis_version": str(state.get("thesis_version") or "bootstrap-v1"),
+            "created_from_recommendation_id": _opaque_id(
+                "recommendation",
+                state.get("created_from_recommendation_id"),
+                None,
+            )
+            if state.get("created_from_recommendation_id") is not None
+            else None,
+            "summary": str(state.get("summary") or ""),
+            "core_claims": [str(item) for item in state.get("core_claims", [])]
+            if isinstance(state.get("core_claims"), list)
+            else [],
+            "invalidation_conditions": [
+                _build_invalidation_condition_payload(item)
+                for item in _as_list(state.get("invalidation_conditions"))
+            ],
+            "latest_review": {
+                "review_id": _opaque_id("thesis-review", latest_review.get("review_id"), None)
+                if latest_review.get("review_id") is not None
+                else None,
+                "action": str(latest_review.get("action") or "unreviewed"),
+                "risk_level": str(latest_review.get("risk_level") or "unknown"),
+                "reviewed_at": _timestamp(latest_review.get("reviewed_at")),
+            },
+            "evidence": evidence,
+        },
+        "links": _thesis_detail_links(state, identifier=identifier),
+    }
+
+
+def build_live_ai_evidence_detail_response(
+    parsed: ParsedApiPath,
+    *,
+    config: RuntimeConfig,
+    executor: PsqlCommandExecutor | None,
+    generated_at: str,
+) -> dict[str, Any]:
+    identifier = _parse_detail_identifier(parsed.path, "/api/ai-evidence/")
+    state = load_frontend_ai_evidence_detail_state(config=config, executor=executor, identifier=identifier)
+    instrument = _as_dict(state.get("instrument"))
+    classification = _as_dict(state.get("classification"))
+    extraction_run = _as_dict(state.get("extraction_run"))
+
+    return {
+        "contract_version": CONTRACT_VERSION,
+        "generated_at": generated_at,
+        "data": {
+            "evidence_id": _ai_evidence_detail_id(state, identifier),
+            "title": str(state.get("title") or ""),
+            "evidence_type": str(state.get("evidence_type") or "source_document_event"),
+            "event_at": _timestamp(state.get("event_at")),
+            "instrument": {
+                "symbol": str(instrument.get("symbol") or "UNKNOWN").upper(),
+                "instrument_id": _opaque_id("instrument", instrument.get("instrument_id"), "unknown"),
+            },
+            "source_document_id": _source_document_detail_id_from_raw(state.get("source_document_id")),
+            "classification": {
+                "theme_key": str(classification.get("theme_key") or "UNCLASSIFIED"),
+                "theme_name": str(classification.get("theme_name") or "Unclassified"),
+                "impact_direction": str(classification.get("impact_direction") or "unknown"),
+                "impact_score": _number(classification.get("impact_score")),
+            },
+            "extraction_run": {
+                "run_id": _opaque_id("pipeline-run", extraction_run.get("run_id"), "unknown"),
+                "status": str(extraction_run.get("status") or "unknown"),
+                "provider": str(extraction_run.get("provider") or "unknown"),
+                "model_id": str(extraction_run.get("model_id") or "unknown"),
+                "prompt_version": str(extraction_run.get("prompt_version") or "unknown"),
+                "finished_at": _timestamp(extraction_run.get("finished_at")),
+                "input_tokens": int(extraction_run.get("input_tokens") or 0),
+                "output_tokens": int(extraction_run.get("output_tokens") or 0),
+                "estimated_cost_usd": _number(extraction_run.get("estimated_cost_usd")),
+                "quality_gate": str(extraction_run.get("quality_gate") or "human_review_required"),
+            },
+            "extracted_fields": [_build_extracted_field_payload(item) for item in _as_list(state.get("extracted_fields"))],
+            "source_chunks": [_build_source_chunk_payload(item) for item in _as_list(state.get("source_chunks"))],
+            "audit_notes": [
+                "AI output is stored as evidence metadata only; it does not place trades or mutate thesis state.",
+                "quality_gate requires human review before this event can justify a thesis change.",
+            ],
+        },
+        "links": _ai_evidence_links(state, identifier=identifier),
+    }
+
+
+def build_live_source_document_detail_response(
+    parsed: ParsedApiPath,
+    *,
+    config: RuntimeConfig,
+    executor: PsqlCommandExecutor | None,
+    generated_at: str,
+) -> dict[str, Any]:
+    identifier = _parse_detail_identifier(parsed.path, "/api/source-documents/")
+    state = load_frontend_source_document_detail_state(config=config, executor=executor, identifier=identifier)
+    retrieval = _as_dict(state.get("retrieval"))
+
+    return {
+        "contract_version": CONTRACT_VERSION,
+        "generated_at": generated_at,
+        "data": {
+            "document_id": _source_document_detail_id(state, identifier),
+            "title": str(state.get("title") or ""),
+            "source_type": str(state.get("source_type") or "source_document"),
+            "publisher": str(state.get("publisher") or "unknown"),
+            "symbol": str(state.get("symbol") or "UNKNOWN").upper(),
+            "cik": str(state.get("cik") or ""),
+            "form_type": str(state.get("form_type") or ""),
+            "period_end": str(state.get("period_end") or ""),
+            "filed_at": _timestamp(state.get("filed_at")),
+            "accession_id": str(state.get("accession_id") or ""),
+            "storage_uri": str(state.get("storage_uri") or ""),
+            "checksum": str(state.get("checksum") or ""),
+            "retrieval": {
+                "source_run_id": _opaque_id("pipeline-run", retrieval.get("source_run_id"), "unknown"),
+                "fetched_at": _timestamp(retrieval.get("fetched_at")),
+                "parser_version": str(retrieval.get("parser_version") or "unknown"),
+            },
+            "excerpts": [_build_source_chunk_payload(item) for item in _as_list(state.get("excerpts"))],
+            "linked_evidence": [_build_linked_evidence_payload(item) for item in _as_list(state.get("linked_evidence"))],
+            "access_policy": {
+                "browser_download_enabled": False,
+                "reason": "raw document delivery and access control are deferred until auth/RBAC exists",
+            },
+        },
+        "links": _source_document_links(state, identifier=identifier),
+    }
+
+
 def build_live_remediation_tickets_response(
     parsed: ParsedApiPath,
     *,
@@ -459,6 +679,10 @@ def is_live_supported_path(api_path: str) -> bool:
         parsed.path in {"/api/dashboard/today", "/api/data-health", "/api/events", "/api/remediation-tickets"}
         or parsed.path.startswith("/api/themes/")
         or (parsed.path.startswith("/api/performance/") and parsed.path.endswith("/outcomes"))
+        or parsed.path.startswith("/api/recommendations/")
+        or parsed.path.startswith("/api/theses/")
+        or parsed.path.startswith("/api/ai-evidence/")
+        or parsed.path.startswith("/api/source-documents/")
         or (parsed.path.startswith("/api/portfolio/") and parsed.path.endswith("/coverage"))
     )
 
@@ -535,6 +759,50 @@ def load_frontend_performance_outcomes_state(
         )
     )
     return json_loads_object(payload, "Frontend performance outcomes state lookup")
+
+
+def load_frontend_recommendation_detail_state(
+    *,
+    config: RuntimeConfig,
+    executor: PsqlCommandExecutor | None,
+    identifier: str,
+) -> dict[str, Any]:
+    sql_executor = executor or PsqlCommandExecutor.from_config(config)
+    payload = sql_executor.execute_scalar(render_frontend_recommendation_detail_state_sql(identifier=identifier))
+    return json_loads_object(payload, "Frontend recommendation detail state lookup")
+
+
+def load_frontend_thesis_detail_state(
+    *,
+    config: RuntimeConfig,
+    executor: PsqlCommandExecutor | None,
+    identifier: str,
+) -> dict[str, Any]:
+    sql_executor = executor or PsqlCommandExecutor.from_config(config)
+    payload = sql_executor.execute_scalar(render_frontend_thesis_detail_state_sql(identifier=identifier))
+    return json_loads_object(payload, "Frontend thesis detail state lookup")
+
+
+def load_frontend_ai_evidence_detail_state(
+    *,
+    config: RuntimeConfig,
+    executor: PsqlCommandExecutor | None,
+    identifier: str,
+) -> dict[str, Any]:
+    sql_executor = executor or PsqlCommandExecutor.from_config(config)
+    payload = sql_executor.execute_scalar(render_frontend_ai_evidence_detail_state_sql(identifier=identifier))
+    return json_loads_object(payload, "Frontend AI evidence detail state lookup")
+
+
+def load_frontend_source_document_detail_state(
+    *,
+    config: RuntimeConfig,
+    executor: PsqlCommandExecutor | None,
+    identifier: str,
+) -> dict[str, Any]:
+    sql_executor = executor or PsqlCommandExecutor.from_config(config)
+    payload = sql_executor.execute_scalar(render_frontend_source_document_detail_state_sql(identifier=identifier))
+    return json_loads_object(payload, "Frontend source document detail state lookup")
 
 
 def render_frontend_dashboard_state_sql(*, portfolio_name: str) -> str:
@@ -1189,6 +1457,444 @@ select json_build_object(
 )::text;"""
 
 
+def render_frontend_recommendation_detail_state_sql(*, identifier: str) -> str:
+    identifier_literal = sql_literal(identifier)
+    return f"""-- frontend recommendation detail state lookup
+with selected_recommendation as (
+    select
+        recommendation.recommendation_id,
+        recommendation.instrument_id,
+        instrument.primary_symbol,
+        batch.as_of_date,
+        batch.strategy_name,
+        batch.horizon_type,
+        batch.universe_version,
+        recommendation.action,
+        recommendation.total_score,
+        recommendation.thesis_id
+    from signal.recommendation recommendation
+    join signal.recommendation_batch batch on batch.batch_id = recommendation.batch_id
+    join ref.instrument instrument on instrument.instrument_id = recommendation.instrument_id
+    where recommendation.recommendation_id::text = regexp_replace({identifier_literal}, '^recommendation-', '')
+       or ('recommendation-' || recommendation.recommendation_id::text) = {identifier_literal}
+       or (instrument.primary_symbol || '-' || batch.as_of_date::text) = {identifier_literal}
+    order by batch.as_of_date desc, recommendation.recommendation_id desc
+    limit 1
+),
+latest_outcome as (
+    select outcome.*
+    from performance.recommendation_outcome outcome
+    join selected_recommendation recommendation
+      on recommendation.recommendation_id = outcome.recommendation_id
+    order by outcome.measurement_end_date desc, outcome.outcome_id desc
+    limit 1
+)
+select json_build_object(
+    'recommendation_id', (select recommendation_id from selected_recommendation),
+    'symbol', (select primary_symbol from selected_recommendation),
+    'instrument_id', (select instrument_id from selected_recommendation),
+    'as_of_date', (select as_of_date from selected_recommendation),
+    'strategy_name', (select strategy_name from selected_recommendation),
+    'horizon_type', (select horizon_type from selected_recommendation),
+    'recommendation', (select action from selected_recommendation),
+    'score', (select total_score from selected_recommendation),
+    'score_version', coalesce((select universe_version from selected_recommendation), 'bootstrap-v1'),
+    'score_components',
+    coalesce(
+        (
+            select json_agg(
+                json_build_object(
+                    'component', component.component_name,
+                    'value', component.component_score,
+                    'weight', component.component_weight,
+                    'evidence_id',
+                    case
+                        when component.component_name = 'cycle_score'
+                            then 'cycle-state-' || recommendation.primary_symbol || '-' || recommendation.as_of_date::text
+                        when component.component_name in ('momentum_score', 'short_term_score', 'rank_score')
+                            then 'market-feature-' || lower(recommendation.primary_symbol) || '-' || recommendation.as_of_date::text
+                        else component.component_name
+                    end
+                )
+                order by component.component_name
+            )
+            from signal.recommendation_score_component component
+            join selected_recommendation recommendation
+              on recommendation.recommendation_id = component.recommendation_id
+        ),
+        '[]'::json
+    ),
+    'linked_thesis_id', (select thesis_id from selected_recommendation),
+    'outcome',
+    json_build_object(
+        'measurement_end_date', (select measurement_end_date from latest_outcome),
+        'absolute_return', (select absolute_return_pct from latest_outcome),
+        'benchmark_return', (select benchmark_return_pct from latest_outcome),
+        'alpha', (select alpha_pct from latest_outcome),
+        'label', coalesce((select outcome_label from latest_outcome), 'unmeasured')
+    )
+)::text;"""
+
+
+def render_frontend_thesis_detail_state_sql(*, identifier: str) -> str:
+    identifier_literal = sql_literal(identifier)
+    return f"""-- frontend thesis detail state lookup
+with selected_thesis as (
+    select
+        thesis.thesis_id,
+        thesis.instrument_id,
+        instrument.primary_symbol,
+        thesis.status,
+        thesis.thesis_type,
+        thesis.title,
+        thesis.summary,
+        thesis.entry_conditions,
+        thesis.invalidation_conditions,
+        thesis.created_at,
+        thesis.primary_node_id
+    from signal.investment_thesis thesis
+    join ref.instrument instrument on instrument.instrument_id = thesis.instrument_id
+    where thesis.thesis_id::text = regexp_replace({identifier_literal}, '^thesis-', '')
+       or ('thesis-' || thesis.thesis_id::text) = {identifier_literal}
+       or (instrument.primary_symbol || '-bootstrap-v1') = {identifier_literal}
+    order by thesis.created_at desc, thesis.thesis_id desc
+    limit 1
+),
+latest_recommendation as (
+    select recommendation.recommendation_id
+    from signal.recommendation recommendation
+    join signal.recommendation_batch batch on batch.batch_id = recommendation.batch_id
+    join selected_thesis thesis on thesis.thesis_id = recommendation.thesis_id
+    order by batch.as_of_date desc, recommendation.recommendation_id desc
+    limit 1
+),
+latest_review as (
+    select review.*
+    from signal.thesis_review review
+    join selected_thesis thesis on thesis.thesis_id = review.thesis_id
+    order by review.review_date desc, review.review_id desc
+    limit 1
+),
+event_evidence as (
+    select
+        event_row.event_id::text as evidence_id,
+        event_row.event_type as evidence_type,
+        event_row.title
+    from selected_thesis thesis
+    join event.event_instrument_impact instrument_impact on instrument_impact.instrument_id = thesis.instrument_id
+    join event.event event_row on event_row.event_id = instrument_impact.event_id
+    left join event.event_classification_impact classification_impact
+      on classification_impact.event_id = event_row.event_id
+     and classification_impact.node_id = thesis.primary_node_id
+    order by event_row.event_at desc, event_row.event_id desc
+    limit 5
+),
+outcome_evidence as (
+    select
+        outcome.outcome_id::text as evidence_id,
+        'performance_outcome' as evidence_type,
+        selected_thesis.primary_symbol || ' thesis outcome ' || outcome.success_grade as title
+    from selected_thesis
+    join performance.thesis_outcome outcome on outcome.thesis_id = selected_thesis.thesis_id
+    order by outcome.measurement_end_date desc, outcome.outcome_id desc
+    limit 3
+),
+evidence_rows as (
+    select * from event_evidence
+    union all
+    select * from outcome_evidence
+)
+select json_build_object(
+    'thesis_id', (select thesis_id from selected_thesis),
+    'symbol', (select primary_symbol from selected_thesis),
+    'instrument_id', (select instrument_id from selected_thesis),
+    'status', (select status from selected_thesis),
+    'thesis_version', coalesce((select thesis_type from selected_thesis), 'bootstrap-v1'),
+    'created_from_recommendation_id', (select recommendation_id from latest_recommendation),
+    'summary', coalesce((select summary from selected_thesis), ''),
+    'core_claims',
+    json_build_array(
+        coalesce((select title from selected_thesis), ''),
+        coalesce((select entry_conditions from selected_thesis), ''),
+        coalesce((select summary from selected_thesis), '')
+    ),
+    'invalidation_conditions',
+    json_build_array(
+        json_build_object(
+            'condition', coalesce((select invalidation_conditions from selected_thesis), 'not_defined'),
+            'current_status', 'not_triggered'
+        )
+    ),
+    'latest_review',
+    json_build_object(
+        'review_id', (select review_id from latest_review),
+        'action', coalesce((select action from latest_review), 'unreviewed'),
+        'risk_level',
+        case
+            when (select action from latest_review) in ('exit', 'reduce') then 'high'
+            when (select action from latest_review) = 'watch' then 'medium'
+            when (select action from latest_review) = 'keep' then 'low'
+            else 'unknown'
+        end,
+        'reviewed_at', (select review_date from latest_review)
+    ),
+    'evidence',
+    coalesce(
+        (
+            select json_agg(
+                json_build_object(
+                    'evidence_id', evidence_id,
+                    'type', evidence_type,
+                    'title', title
+                )
+                order by evidence_type, evidence_id
+            )
+            from evidence_rows
+        ),
+        '[]'::json
+    )
+)::text;"""
+
+
+def render_frontend_ai_evidence_detail_state_sql(*, identifier: str) -> str:
+    identifier_literal = sql_literal(identifier)
+    return f"""-- frontend ai evidence detail state lookup
+with selected_artifact as (
+    select artifact.*
+    from ai.extraction_artifact artifact
+    left join ingest.source_document document on document.document_id = artifact.document_id
+    left join event.event_document_link document_link
+      on document_link.document_id = artifact.document_id
+     and document_link.link_type = 'source'
+    left join event.event event_row
+      on event_row.event_id = coalesce(artifact.event_id, document_link.event_id)
+    where artifact.artifact_id::text = regexp_replace({identifier_literal}, '^ai-evidence-', '')
+       or ('ai-evidence-' || artifact.artifact_id::text) = {identifier_literal}
+       or event_row.dedupe_key = {identifier_literal}
+       or document.external_document_id = {identifier_literal}
+    order by artifact.artifact_id desc
+    limit 1
+),
+selected_event_candidates as (
+    select event_row.*
+    from event.event event_row
+    join selected_artifact artifact on artifact.event_id = event_row.event_id
+    union all
+    select event_row.*
+    from selected_artifact artifact
+    join event.event_document_link document_link
+      on document_link.document_id = artifact.document_id
+     and document_link.link_type = 'source'
+    join event.event event_row on event_row.event_id = document_link.event_id
+    where artifact.event_id is null
+),
+selected_event as (
+    select *
+    from selected_event_candidates
+    order by event_at desc, event_id desc
+    limit 1
+),
+selected_document as (
+    select document.*
+    from ingest.source_document document
+    join selected_artifact artifact on artifact.document_id = document.document_id
+),
+instrument_row as (
+    select instrument.instrument_id, instrument.primary_symbol
+    from selected_event event_row
+    join event.event_instrument_impact impact on impact.event_id = event_row.event_id
+    join ref.instrument instrument on instrument.instrument_id = impact.instrument_id
+    order by impact.impact_strength desc nulls last, instrument.primary_symbol
+    limit 1
+),
+classification_row as (
+    select
+        node.code as theme_key,
+        node.name as theme_name,
+        impact.impact_direction,
+        impact.impact_strength as impact_score
+    from selected_event event_row
+    join event.event_classification_impact impact on impact.event_id = event_row.event_id
+    join ref.classification_node node on node.node_id = impact.node_id
+    where node.taxonomy_family = 'internal_theme'
+    order by impact.impact_strength desc nulls last, node.code
+    limit 1
+),
+invocation_row as (
+    select invocation.*, template.template_name, template.template_version
+    from ai.model_invocation invocation
+    join selected_artifact artifact on artifact.invocation_id = invocation.invocation_id
+    left join ai.prompt_template template on template.template_id = invocation.prompt_template_id
+),
+chunk_rows as (
+    select chunk.*
+    from ai.document_chunk chunk
+    join selected_document document on document.document_id = chunk.document_id
+    order by chunk.chunk_index
+    limit 10
+)
+select json_build_object(
+    'evidence_id', (select artifact_id from selected_artifact),
+    'title',
+    coalesce(
+        (select title from selected_event),
+        (select output_json #>> '{{event,title}}' from selected_artifact),
+        (select artifact_type from selected_artifact),
+        ''
+    ),
+    'evidence_type',
+    coalesce(
+        (select event_type from selected_event),
+        (select output_json #>> '{{event,event_type}}' from selected_artifact),
+        (select artifact_type from selected_artifact),
+        'source_document_event'
+    ),
+    'event_at', coalesce((select event_at::text from selected_event), (select output_json #>> '{{event,event_at}}' from selected_artifact)),
+    'instrument',
+    json_build_object(
+        'symbol', (select primary_symbol from instrument_row),
+        'instrument_id', (select instrument_id from instrument_row)
+    ),
+    'source_document_id', coalesce((select external_document_id from selected_document), (select document_id::text from selected_document)),
+    'classification',
+    json_build_object(
+        'theme_key', (select theme_key from classification_row),
+        'theme_name', (select theme_name from classification_row),
+        'impact_direction', (select impact_direction from classification_row),
+        'impact_score', (select impact_score from classification_row)
+    ),
+    'extraction_run',
+    json_build_object(
+        'run_id', (select run_id from invocation_row),
+        'status', (select status from invocation_row),
+        'provider', (select provider from invocation_row),
+        'model_id', (select model_name from invocation_row),
+        'prompt_version', coalesce((select template_version from invocation_row), (select template_name from invocation_row)),
+        'finished_at', (select created_at from invocation_row),
+        'input_tokens', (select input_token_count from invocation_row),
+        'output_tokens', (select output_token_count from invocation_row),
+        'estimated_cost_usd', (select estimated_cost_usd from invocation_row),
+        'quality_gate', 'human_review_required'
+    ),
+    'extracted_fields', coalesce((select output_json -> 'extracted_fields' from selected_artifact), '[]'::jsonb),
+    'source_chunks',
+    coalesce(
+        (
+            select json_agg(
+                json_build_object(
+                    'chunk_id', chunk_id,
+                    'section', coalesce(chunk_metadata ->> 'section', 'source'),
+                    'locator', coalesce(chunk_metadata ->> 'locator', 'document chunk ' || chunk_index::text),
+                    'summary', text_preview,
+                    'relevance', coalesce(chunk_metadata ->> 'relevance', 'supporting_context')
+                )
+                order by chunk_index
+            )
+            from chunk_rows
+        ),
+        '[]'::json
+    )
+)::text;"""
+
+
+def render_frontend_source_document_detail_state_sql(*, identifier: str) -> str:
+    identifier_literal = sql_literal(identifier)
+    return f"""-- frontend source document detail state lookup
+with selected_document as (
+    select document.*, data_source.source_name, data_source.source_kind
+    from ingest.source_document document
+    join ingest.data_source data_source on data_source.data_source_id = document.data_source_id
+    where document.document_id::text = regexp_replace({identifier_literal}, '^source-document-', '')
+       or ('source-document-' || document.document_id::text) = {identifier_literal}
+       or document.external_document_id = {identifier_literal}
+    order by document.document_id desc
+    limit 1
+),
+retrieval_run as (
+    select run.*
+    from ops.pipeline_run run
+    join selected_document document on document.ingested_by_run_id = run.run_id
+),
+instrument_row as (
+    select instrument.instrument_id, instrument.primary_symbol
+    from selected_document document
+    join event.event_document_link link on link.document_id = document.document_id
+    join event.event_instrument_impact impact on impact.event_id = link.event_id
+    join ref.instrument instrument on instrument.instrument_id = impact.instrument_id
+    order by impact.impact_strength desc nulls last, instrument.primary_symbol
+    limit 1
+),
+chunk_rows as (
+    select chunk.*
+    from ai.document_chunk chunk
+    join selected_document document on document.document_id = chunk.document_id
+    order by chunk.chunk_index
+    limit 10
+),
+linked_evidence as (
+    select
+        artifact.artifact_id,
+        coalesce(event_row.event_type, artifact.artifact_type) as evidence_type,
+        coalesce(event_row.title, artifact.artifact_type) as title
+    from selected_document document
+    join ai.extraction_artifact artifact on artifact.document_id = document.document_id
+    left join event.event event_row on event_row.event_id = artifact.event_id
+    order by artifact.artifact_id desc
+    limit 10
+)
+select json_build_object(
+    'document_id', coalesce((select external_document_id from selected_document), (select document_id::text from selected_document)),
+    'title', (select title from selected_document),
+    'source_type', (select document_type from selected_document),
+    'publisher', (select source_name from selected_document),
+    'symbol', (select primary_symbol from instrument_row),
+    'cik', '',
+    'form_type', (select document_type from selected_document),
+    'period_end', (select published_at::date from selected_document),
+    'filed_at', (select published_at from selected_document),
+    'accession_id', coalesce((select external_document_id from selected_document), ''),
+    'storage_uri', coalesce((select raw_storage_uri from selected_document), ''),
+    'checksum', coalesce((select checksum from selected_document), ''),
+    'retrieval',
+    json_build_object(
+        'source_run_id', (select run_id from retrieval_run),
+        'fetched_at', (select ended_at from retrieval_run),
+        'parser_version', coalesce((select code_version from retrieval_run), 'unknown')
+    ),
+    'excerpts',
+    coalesce(
+        (
+            select json_agg(
+                json_build_object(
+                    'chunk_id', chunk_id,
+                    'section', coalesce(chunk_metadata ->> 'section', 'source'),
+                    'locator', coalesce(chunk_metadata ->> 'locator', 'document chunk ' || chunk_index::text),
+                    'summary', text_preview
+                )
+                order by chunk_index
+            )
+            from chunk_rows
+        ),
+        '[]'::json
+    ),
+    'linked_evidence',
+    coalesce(
+        (
+            select json_agg(
+                json_build_object(
+                    'evidence_id', artifact_id,
+                    'evidence_type', evidence_type,
+                    'title', title
+                )
+                order by artifact_id desc
+            )
+            from linked_evidence
+        ),
+        '[]'::json
+    )
+)::text;"""
+
+
 def _build_dashboard_action_payload(action: dict[str, Any], *, index: int) -> dict[str, Any]:
     symbol = str(action.get("symbol") or "UNKNOWN").upper()
     return {
@@ -1442,6 +2148,151 @@ def _performance_links(
     return links
 
 
+def _build_recommendation_score_component_payload(component: dict[str, Any]) -> dict[str, Any]:
+    component_name = str(component.get("component") or component.get("component_name") or "unknown")
+    return {
+        "component": component_name,
+        "value": _number(component.get("value") or component.get("component_score")),
+        "weight": _number(component.get("weight") or component.get("component_weight")),
+        "evidence_id": str(component.get("evidence_id") or component.get("explanation") or component_name),
+    }
+
+
+def _build_thesis_evidence_payload(evidence: dict[str, Any]) -> dict[str, Any]:
+    evidence_type = str(evidence.get("type") or evidence.get("evidence_type") or "evidence")
+    raw_id = evidence.get("evidence_id")
+    if evidence_type == "performance_outcome":
+        evidence_id = _opaque_id("performance-outcome", raw_id, "unknown")
+    else:
+        evidence_id = _opaque_id("event", raw_id, "unknown")
+    return {
+        "evidence_id": evidence_id,
+        "type": evidence_type,
+        "title": str(evidence.get("title") or ""),
+    }
+
+
+def _build_invalidation_condition_payload(condition: dict[str, Any]) -> dict[str, str]:
+    return {
+        "condition": str(condition.get("condition") or "not_defined"),
+        "current_status": str(condition.get("current_status") or "unknown"),
+    }
+
+
+def _build_extracted_field_payload(field: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "field": str(field.get("field") or "unknown"),
+        "value": str(field.get("value") or ""),
+        "confidence": _number(field.get("confidence")),
+        "source_chunk_id": _opaque_id("chunk", field.get("source_chunk_id"), None)
+        if field.get("source_chunk_id") is not None
+        else None,
+    }
+
+
+def _build_source_chunk_payload(chunk: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "chunk_id": _opaque_id("chunk", chunk.get("chunk_id"), "unknown"),
+        "section": str(chunk.get("section") or "source"),
+        "locator": str(chunk.get("locator") or ""),
+        "summary": str(chunk.get("summary") or ""),
+        **({"relevance": str(chunk.get("relevance"))} if chunk.get("relevance") is not None else {}),
+    }
+
+
+def _build_linked_evidence_payload(evidence: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "evidence_id": _opaque_id("ai-evidence", evidence.get("evidence_id"), "unknown"),
+        "evidence_type": str(evidence.get("evidence_type") or "unknown"),
+        "title": str(evidence.get("title") or ""),
+    }
+
+
+def _recommendation_detail_id(state: dict[str, Any], identifier: str) -> str:
+    if identifier.startswith("recommendation-") or not state.get("recommendation_id"):
+        return identifier
+    return _opaque_id("recommendation", state.get("recommendation_id"), identifier)
+
+
+def _thesis_detail_id(state: dict[str, Any], identifier: str) -> str:
+    if identifier.startswith("thesis-") or not state.get("thesis_id"):
+        return identifier
+    return _opaque_id("thesis", state.get("thesis_id"), identifier)
+
+
+def _ai_evidence_detail_id(state: dict[str, Any], identifier: str) -> str:
+    if identifier.startswith("ai-evidence-") or not state.get("evidence_id"):
+        return identifier
+    return _opaque_id("ai-evidence", state.get("evidence_id"), identifier)
+
+
+def _source_document_detail_id(state: dict[str, Any], identifier: str) -> str:
+    return _source_document_detail_id_from_raw(state.get("document_id") or identifier)
+
+
+def _source_document_detail_id_from_raw(raw_value: object) -> str:
+    if raw_value is None:
+        return "source-document-unknown"
+    raw_text = str(raw_value)
+    if raw_text.startswith("source-document-"):
+        return raw_text
+    return raw_text if not raw_text.isdigit() else f"source-document-{raw_text}"
+
+
+def _recommendation_detail_links(state: dict[str, Any], *, identifier: str) -> dict[str, str]:
+    links = {"cycle_state": f"/api/cycles?asOfDate={state.get('as_of_date') or ''}"}
+    if state.get("linked_thesis_id") is not None:
+        links["thesis"] = f"/api/theses/{_opaque_id('thesis', state.get('linked_thesis_id'), None)}"
+    source_event_id = _first_score_component_event_id(state)
+    if source_event_id:
+        links["source_event"] = f"/api/events/{source_event_id}"
+    if "thesis" not in links:
+        links["recommendation"] = f"/api/recommendations/{identifier}"
+    return links
+
+
+def _thesis_detail_links(state: dict[str, Any], *, identifier: str) -> dict[str, str]:
+    latest_review = _as_dict(state.get("latest_review"))
+    reviewed_at = str(latest_review.get("reviewed_at") or "")
+    coverage_path = "/api/portfolio/Long%20Term%20Paper/coverage"
+    if reviewed_at:
+        coverage_path = f"{coverage_path}?asOfDate={reviewed_at[:10]}"
+    links = {"portfolio_coverage": coverage_path}
+    recommendation_id = state.get("created_from_recommendation_id")
+    if recommendation_id is not None:
+        links["recommendation"] = f"/api/recommendations/{_opaque_id('recommendation', recommendation_id, None)}"
+    else:
+        links["thesis"] = f"/api/theses/{identifier}"
+    return links
+
+
+def _ai_evidence_links(state: dict[str, Any], *, identifier: str) -> dict[str, str]:
+    links = {"ai_evidence": f"/api/ai-evidence/{identifier}"}
+    source_document_id = state.get("source_document_id")
+    if source_document_id is not None:
+        links["source_document"] = f"/api/source-documents/{_source_document_detail_id_from_raw(source_document_id)}"
+    return links
+
+
+def _source_document_links(state: dict[str, Any], *, identifier: str) -> dict[str, str]:
+    links = {"source_document": f"/api/source-documents/{identifier}"}
+    linked_evidence = _as_list(state.get("linked_evidence"))
+    if linked_evidence:
+        links["ai_evidence"] = f"/api/ai-evidence/{_opaque_id('ai-evidence', linked_evidence[0].get('evidence_id'), 'unknown')}"
+    return links
+
+
+def _first_score_component_event_id(state: dict[str, Any]) -> str | None:
+    for component in _as_list(state.get("score_components")):
+        evidence_id = component.get("evidence_id")
+        evidence_text = str(evidence_id or "")
+        if evidence_text.startswith(("event-", "sec-event-")):
+            return evidence_text
+        if evidence_text.isdigit():
+            return _opaque_id("event", evidence_text, None)
+    return None
+
+
 def _build_ticket_payload(ticket: dict[str, Any]) -> dict[str, Any]:
     symbol = str(ticket.get("symbol") or "UNKNOWN").upper()
     ticket_id = ticket.get("remediation_ticket_id")
@@ -1512,6 +2363,15 @@ def _parse_performance_portfolio_name(path: str) -> str:
     if not encoded_name:
         raise FrontendLiveUnsupportedPathError("Performance outcomes path is missing portfolio name.")
     return unquote(encoded_name)
+
+
+def _parse_detail_identifier(path: str, prefix: str) -> str:
+    if not path.startswith(prefix):
+        raise FrontendLiveUnsupportedPathError(f"Invalid detail path: {path}")
+    encoded_identifier = path[len(prefix) :]
+    if not encoded_identifier:
+        raise FrontendLiveUnsupportedPathError("Detail path is missing identifier.")
+    return unquote(encoded_identifier)
 
 
 def _parse_required_date(query: dict[str, str], key: str) -> date:
