@@ -101,9 +101,14 @@ The verification script checks:
 - Detail route smoke for `/events`, `/themes/ANNUAL_REPORTING`, `/performance`, recommendation, thesis, coverage, AI evidence, and source document routes is covered by `scripts/verify_frontend_detail_routes.sh`.
 - frontend architecture/API/adapter/fixture server regression checks.
 
+Browser visual QA:
+
+- report: `docs/tasks/frontend-browser-visual-qa/report.md`
+- checked: desktop dashboard/events/theme/performance/coverage and mobile performance route.
+- fixed: mobile horizontal overflow in global bento/nav layout.
+
 ## Next Steps
 
-1. Browser QA in the in-app browser with fixture server and Next dev server.
-2. Add live DB read adapter behind the same frontend DTO contract.
-3. Add browser visual QA for the expanded frontend.
-4. Add auth/RBAC before any write endpoint.
+1. Add live DB read adapter behind the same frontend DTO contract.
+2. Add full accessibility audit for the expanded frontend.
+3. Add auth/RBAC before any write endpoint.
