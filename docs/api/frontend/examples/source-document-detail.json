@@ -1,0 +1,52 @@
+{
+  "contract_version": "frontend-api-v0.1",
+  "generated_at": "2026-05-01T00:00:00Z",
+  "data": {
+    "document_id": "aapl-2024-10k-20240928",
+    "title": "AAPL 2024 Form 10-K source document",
+    "source_type": "sec_filing",
+    "publisher": "SEC EDGAR",
+    "symbol": "AAPL",
+    "cik": "0000320193",
+    "form_type": "10-K",
+    "period_end": "2024-09-28",
+    "filed_at": "2024-11-01T00:00:00Z",
+    "accession_id": "aapl-2024-10k-fixture",
+    "storage_uri": "artifact://sec/aapl/2024/10-k/raw.txt",
+    "checksum": "sha256:fixture-aapl-2024-10k",
+    "retrieval": {
+      "source_run_id": "sec-filing-raw-fetch-aapl-20240928",
+      "fetched_at": "2024-11-01T01:10:00Z",
+      "parser_version": "sec-raw-fetch-v0.1"
+    },
+    "excerpts": [
+      {
+        "chunk_id": "chunk-business-overview",
+        "section": "Business overview",
+        "locator": "10-K item 1",
+        "summary": "Entity, segment, and product context used to confirm that the source document maps to AAPL."
+      },
+      {
+        "chunk_id": "chunk-mdna-services",
+        "section": "Management discussion",
+        "locator": "10-K item 7",
+        "summary": "Operating context used by the event extractor as a qualitative annual reporting signal."
+      }
+    ],
+    "linked_evidence": [
+      {
+        "evidence_id": "sec-event-aapl-10k-20240928",
+        "evidence_type": "source_document_event",
+        "title": "AAPL 2024 10-K annual reporting event"
+      }
+    ],
+    "access_policy": {
+      "browser_download_enabled": false,
+      "reason": "raw document delivery and access control are deferred until auth/RBAC exists"
+    }
+  },
+  "links": {
+    "ai_evidence": "/api/ai-evidence/sec-event-aapl-10k-20240928",
+    "thesis": "/api/theses/AAPL-bootstrap-v1"
+  }
+}

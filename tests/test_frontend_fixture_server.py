@@ -44,7 +44,7 @@ class FrontendFixtureServerTests(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertEqual(payload["status"], "ok")
         self.assertEqual(payload["contract_version"], "frontend-api-v0.1")
-        self.assertEqual(payload["endpoint_count"], 7)
+        self.assertEqual(payload["endpoint_count"], 9)
         self.assertTrue(payload["read_only"])
 
     def test_endpoints_returns_fixture_index(self) -> None:
@@ -53,6 +53,8 @@ class FrontendFixtureServerTests(unittest.TestCase):
         paths = {endpoint["path"] for endpoint in payload["data"]["endpoints"]}
         self.assertIn("/api/dashboard/today", paths)
         self.assertIn("/api/remediation-tickets?status=open", paths)
+        self.assertIn("/api/ai-evidence/sec-event-aapl-10k-20240928", paths)
+        self.assertIn("/api/source-documents/aapl-2024-10k-20240928", paths)
 
     def test_known_api_path_returns_fixture_response(self) -> None:
         status, payload = self.fetch_json("/api/dashboard/today")

@@ -191,3 +191,82 @@ export type PortfolioCoverageData = {
     blocking_reasons: string[];
   };
 };
+
+export type AiEvidenceDetailData = {
+  evidence_id: string;
+  title: string;
+  evidence_type: string;
+  event_at: string;
+  instrument: {
+    symbol: string;
+    instrument_id: string;
+  };
+  source_document_id: string;
+  classification: {
+    theme_key: string;
+    theme_name: string;
+    impact_direction: string;
+    impact_score: number;
+  };
+  extraction_run: {
+    run_id: string;
+    status: string;
+    provider: string;
+    model_id: string;
+    prompt_version: string;
+    finished_at: string;
+    input_tokens: number;
+    output_tokens: number;
+    estimated_cost_usd: number;
+    quality_gate: string;
+  };
+  extracted_fields: Array<{
+    field: string;
+    value: string;
+    confidence: number;
+    source_chunk_id: string;
+  }>;
+  source_chunks: Array<{
+    chunk_id: string;
+    section: string;
+    locator: string;
+    summary: string;
+    relevance: string;
+  }>;
+  audit_notes: string[];
+};
+
+export type SourceDocumentDetailData = {
+  document_id: string;
+  title: string;
+  source_type: string;
+  publisher: string;
+  symbol: string;
+  cik: string;
+  form_type: string;
+  period_end: string;
+  filed_at: string;
+  accession_id: string;
+  storage_uri: string;
+  checksum: string;
+  retrieval: {
+    source_run_id: string;
+    fetched_at: string;
+    parser_version: string;
+  };
+  excerpts: Array<{
+    chunk_id: string;
+    section: string;
+    locator: string;
+    summary: string;
+  }>;
+  linked_evidence: Array<{
+    evidence_id: string;
+    evidence_type: string;
+    title: string;
+  }>;
+  access_policy: {
+    browser_download_enabled: boolean;
+    reason: string;
+  };
+};

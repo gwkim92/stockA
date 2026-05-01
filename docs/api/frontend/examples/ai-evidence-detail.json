@@ -1,0 +1,78 @@
+{
+  "contract_version": "frontend-api-v0.1",
+  "generated_at": "2026-05-01T00:00:00Z",
+  "data": {
+    "evidence_id": "sec-event-aapl-10k-20240928",
+    "title": "AAPL 2024 10-K annual reporting event",
+    "evidence_type": "source_document_event",
+    "event_at": "2024-09-28T00:00:00Z",
+    "instrument": {
+      "symbol": "AAPL",
+      "instrument_id": "instrument-aapl"
+    },
+    "source_document_id": "aapl-2024-10k-20240928",
+    "classification": {
+      "theme_key": "ANNUAL_REPORTING",
+      "theme_name": "Annual Reporting",
+      "impact_direction": "supportive",
+      "impact_score": 0.82
+    },
+    "extraction_run": {
+      "run_id": "event-intelligence-llm-extract-aapl-20240928",
+      "status": "succeeded",
+      "provider": "openai",
+      "model_id": "responses-frontier-placeholder",
+      "prompt_version": "event-extraction-v0.1",
+      "finished_at": "2024-10-01T02:15:00Z",
+      "input_tokens": 4218,
+      "output_tokens": 642,
+      "estimated_cost_usd": 0.0184,
+      "quality_gate": "human_review_required"
+    },
+    "extracted_fields": [
+      {
+        "field": "event_title",
+        "value": "Annual filing confirms continued services and installed-base revenue mix.",
+        "confidence": 0.86,
+        "source_chunk_id": "chunk-mdna-services"
+      },
+      {
+        "field": "theme_mapping",
+        "value": "ANNUAL_REPORTING",
+        "confidence": 0.91,
+        "source_chunk_id": "chunk-business-overview"
+      },
+      {
+        "field": "impact_direction",
+        "value": "supportive",
+        "confidence": 0.78,
+        "source_chunk_id": "chunk-mdna-services"
+      }
+    ],
+    "source_chunks": [
+      {
+        "chunk_id": "chunk-business-overview",
+        "section": "Business overview",
+        "locator": "10-K item 1",
+        "summary": "Company overview and segment framing used to anchor the filing event to AAPL.",
+        "relevance": "entity_and_theme_anchor"
+      },
+      {
+        "chunk_id": "chunk-mdna-services",
+        "section": "Management discussion",
+        "locator": "10-K item 7",
+        "summary": "Operating discussion used by the extractor to identify supportive annual reporting evidence.",
+        "relevance": "event_quality_signal"
+      }
+    ],
+    "audit_notes": [
+      "AI output is stored as evidence metadata only; it does not place trades or mutate thesis state.",
+      "quality_gate requires human review before this event can justify a thesis change."
+    ]
+  },
+  "links": {
+    "source_document": "/api/source-documents/aapl-2024-10k-20240928",
+    "thesis": "/api/theses/AAPL-bootstrap-v1",
+    "recommendation": "/api/recommendations/AAPL-2024-11-01"
+  }
+}

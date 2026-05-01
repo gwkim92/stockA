@@ -102,7 +102,7 @@ checks = {
     "/": "Long-term portfolio review starts",
     "/remediation": "Persistent remediation backlog",
     "/data-health": "Data health before conviction",
-    "/cycles": "Theme cycle board",
+    "/cycles": "Theme Cycle Board",
 }
 
 for path, expected in checks.items():

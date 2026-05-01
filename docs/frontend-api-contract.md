@@ -47,6 +47,8 @@ Initial endpoints:
 - `GET /api/recommendations/AAPL-2024-11-01`: `RecommendationDetailResponse`
 - `GET /api/theses/AAPL-bootstrap-v1`: `ThesisDetailResponse`
 - `GET /api/portfolio/Long%20Term%20Paper/coverage?asOfDate=2024-11-01`: `PortfolioCoverageResponse`
+- `GET /api/ai-evidence/sec-event-aapl-10k-20240928`: `AiEvidenceDetailResponse`
+- `GET /api/source-documents/aapl-2024-10k-20240928`: `SourceDocumentDetailResponse`
 
 Deferred write endpoint:
 
@@ -98,6 +100,18 @@ Portfolio coverage:
 - source concepts: position snapshot, active thesis coverage, outcome coverage, attribution readiness.
 - example: `docs/api/frontend/examples/portfolio-coverage.json`
 
+AI evidence detail:
+
+- owner route: `/ai-evidence`
+- source concepts: model invocation, prompt version, extraction artifact, source chunks, token/cost metadata, quality gate.
+- example: `docs/api/frontend/examples/ai-evidence-detail.json`
+
+Source document detail:
+
+- owner route: `/source-documents`
+- source concepts: SEC filing metadata, raw artifact storage URI, retrieval run provenance, reviewed excerpts, linked evidence.
+- example: `docs/api/frontend/examples/source-document-detail.json`
+
 ## Read Boundary
 
 Read APIs should be denormalized for frontend needs.
@@ -108,6 +122,8 @@ Rules:
 - every response includes the minimum evidence links needed for drilldown.
 - every risk or action must include a human-readable reason.
 - every score-like value must have component or evidence drilldown in detail routes.
+- every AI extraction response must expose prompt/model/run metadata and source chunk ids.
+- raw source documents are not browser-downloadable until auth/RBAC and access policy are implemented.
 
 ## Write Boundary
 
@@ -140,4 +156,4 @@ Rules:
 
 ## Next Implementation Step
 
-The read-only Python fixture adapter exists in `src/stockanalysis/frontend/api_adapter.py`, local HTTP fixture serving exists in `src/stockanalysis/frontend/fixture_server.py`, and `apps/web` consumes fixture payloads. Next, add detail routes or a live DB read adapter behind the same contract.
+The read-only Python fixture adapter exists in `src/stockanalysis/frontend/api_adapter.py`, local HTTP fixture serving exists in `src/stockanalysis/frontend/fixture_server.py`, and `apps/web` consumes fixture payloads. Next, add broader evidence/performance route coverage or a live DB read adapter behind the same contract.

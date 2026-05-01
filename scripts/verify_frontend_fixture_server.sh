@@ -59,11 +59,11 @@ try:
     status, health = fetch_json("/__health")
     assert status == 200, health
     assert health["contract_version"] == "frontend-api-v0.1", health
-    assert health["endpoint_count"] == 7, health
+    assert health["endpoint_count"] == 9, health
 
     status, endpoints = fetch_json("/__endpoints")
     assert status == 200, endpoints
-    assert len(endpoints["data"]["endpoints"]) == 7, endpoints
+    assert len(endpoints["data"]["endpoints"]) == 9, endpoints
 
     status, dashboard = fetch_json("/api/dashboard/today")
     assert status == 200, dashboard
@@ -73,6 +73,14 @@ try:
     status, tickets = fetch_json("/api/remediation-tickets?status=open")
     assert status == 200, tickets
     assert tickets["data"]["tickets"][0]["symbol"] == "BABA", tickets
+
+    status, ai_evidence = fetch_json("/api/ai-evidence/sec-event-aapl-10k-20240928")
+    assert status == 200, ai_evidence
+    assert ai_evidence["data"]["source_document_id"] == "aapl-2024-10k-20240928", ai_evidence
+
+    status, source_document = fetch_json("/api/source-documents/aapl-2024-10k-20240928")
+    assert status == 200, source_document
+    assert source_document["data"]["linked_evidence"][0]["evidence_id"] == "sec-event-aapl-10k-20240928", source_document
 
     status, not_found = fetch_error_json("/api/not-found")
     assert status == 404, not_found
@@ -91,6 +99,8 @@ try:
             "/__endpoints",
             "/api/dashboard/today",
             "/api/remediation-tickets?status=open",
+            "/api/ai-evidence/sec-event-aapl-10k-20240928",
+            "/api/source-documents/aapl-2024-10k-20240928",
             "/api/not-found",
         ],
     }

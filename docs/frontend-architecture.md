@@ -174,7 +174,7 @@ Phase 2: frontend scaffold
 
 - status: fixture-only scaffold documented as `docs/apps-web-scaffold.md`.
 - app: `apps/web`.
-- routes: `/`, `/remediation`, `/data-health`, `/cycles`, `/recommendations/AAPL-2024-11-01`, `/theses/AAPL-bootstrap-v1`, `/portfolio/coverage`.
+- routes: `/`, `/remediation`, `/data-health`, `/cycles`, `/recommendations/AAPL-2024-11-01`, `/theses/AAPL-bootstrap-v1`, `/portfolio/coverage`, `/ai-evidence/sec-event-aapl-10k-20240928`, `/source-documents/aapl-2024-10k-20240928`.
 - verification: `scripts/verify_apps_web_scaffold.sh`.
 
 Phase 3: daily cockpit and remediation UI
@@ -185,8 +185,9 @@ Phase 3: daily cockpit and remediation UI
 
 Phase 4: research explorer
 
-- implement `/cycles`, `/themes/[themeKey]`, `/events`, `/ai-evidence`.
-- link event evidence, classifications, instrument impacts, and cycle snapshots.
+- status: initial AI evidence/source document drilldown exists for one SEC fixture pair.
+- next implement `/themes/[themeKey]` and broader `/events` lists.
+- link event evidence, classifications, instrument impacts, source documents, and cycle snapshots.
 
 Phase 5: thesis and performance review
 
@@ -203,8 +204,8 @@ Start with browser QA or detail route expansion because `apps-web-scaffold` now 
 
 The next task can expand `apps/web` against remaining fixture server payloads:
 
-- AI evidence.
-- source document evidence.
-- browser visual QA.
+- broader event/theme explorer.
+- performance outcome route.
+- production browser visual QA.
 
 Keep the first web scaffold fixture-only until live DB read adapter and auth boundary are ready.

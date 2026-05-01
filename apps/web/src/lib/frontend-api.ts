@@ -1,11 +1,13 @@
 import type {
   ApiResponse,
+  AiEvidenceDetailData,
   CycleStateListData,
   DailyCockpitData,
   DataHealthData,
   PortfolioCoverageData,
   RecommendationDetailData,
   RemediationTicketsData,
+  SourceDocumentDetailData,
   ThesisDetailData,
 } from "./types";
 
@@ -80,4 +82,12 @@ export function getPortfolioCoverage() {
   return fetchFrontendPayload<PortfolioCoverageData>(
     "/api/portfolio/Long%20Term%20Paper/coverage?asOfDate=2024-11-01",
   );
+}
+
+export function getAiEvidenceDetail(evidenceId: string) {
+  return fetchFrontendPayload<AiEvidenceDetailData>(`/api/ai-evidence/${evidenceId}`);
+}
+
+export function getSourceDocumentDetail(documentId: string) {
+  return fetchFrontendPayload<SourceDocumentDetailData>(`/api/source-documents/${documentId}`);
 }

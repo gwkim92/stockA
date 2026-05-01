@@ -59,6 +59,8 @@ bash -n scripts/verify_frontend_detail_routes.sh
 test -f "$WEB_DIR/src/app/recommendations/[recommendationId]/page.tsx"
 test -f "$WEB_DIR/src/app/theses/[thesisId]/page.tsx"
 test -f "$WEB_DIR/src/app/portfolio/coverage/page.tsx"
+test -f "$WEB_DIR/src/app/ai-evidence/[evidenceId]/page.tsx"
+test -f "$WEB_DIR/src/app/source-documents/[documentId]/page.tsx"
 test -f "$WEB_DIR/src/lib/frontend-api.ts"
 test -f "$WEB_DIR/src/lib/types.ts"
 
@@ -93,9 +95,11 @@ from urllib.request import urlopen
 
 base_url = sys.argv[1]
 checks = {
-    "/recommendations/AAPL-2024-11-01": "recommendation dossier",
+    "/recommendations/AAPL-2024-11-01": "Recommendation Dossier",
     "/theses/AAPL-bootstrap-v1": "Thesis evidence ledger",
     "/portfolio/coverage": "Portfolio coverage gate",
+    "/ai-evidence/sec-event-aapl-10k-20240928": "AI Extraction Evidence",
+    "/source-documents/aapl-2024-10k-20240928": "Source Document Dossier",
 }
 
 for path, expected in checks.items():
