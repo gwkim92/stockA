@@ -1,0 +1,134 @@
+# Stock Analysis
+
+AI를 이용해 거시경제, 정치, 기술, 산업, 기업 흐름을 계속 해석하고, 섹터/테마 사이클을 추적하면서 중장기 투자 판단을 지원하는 프로젝트다.
+
+핵심 목표는 단순 종목 추천이 아니라 아래를 모두 수행하는 투자 운영 시스템을 만드는 것이다.
+
+- 시장 변화의 지속 관찰
+- 섹터/테마 사이클 추적
+- 중장기 투자 thesis 생성
+- 추천 이후 보유 검토와 성과 추적
+- 판단 근거와 실패 원인의 기록
+
+현재 performance outcome 경로는 단일 측정일, batch 측정일, due horizon schedule 실행을 지원한다. `performance-outcome-schedule-bootstrap`은 outcome이 비어 있는 due batch/horizon을 찾아 장기 성과를 저장한다. `portfolio-attribution-bootstrap`은 보유 snapshot과 thesis outcome을 연결해 security/theme/cash attribution을 저장한다. `portfolio-outcome-coverage-report`는 attribution에서 제외되는 missing thesis/outcome/weight position을 read-only JSON으로 보고하고, `portfolio-review-bootstrap --coverage-measurement-end-date`는 같은 blind spot을 보유 검토 action/risk에 반영한다. `portfolio-review-run-history`는 최근 review run, risk/action counts, attention items를 운영 리포트로 출력한다. `portfolio-remediation-queue`는 attention item을 remediation type과 suggested runner로 분류해 다음 조치 큐로 보여주고, `portfolio-remediation-ticket-bootstrap`은 이 조치 큐를 persistent open ticket으로 저장한다. `portfolio-remediation-ticket-report`는 open/in-progress/resolved/ignored ticket backlog를 조회하고, `portfolio-remediation-ticket-update`는 ticket lifecycle status를 변경한다. `portfolio-remediation-daily-run`은 review bootstrap, ticket bootstrap, open ticket report를 daily 운영 순서로 묶고, scheduler contract/activation/holiday skip/install dry-run/runtime smoke/env readiness/env smoke는 실제 scheduler 설치 전 실행 경계, 휴장일 skip, artifact 저장, DB runtime 동작, env file gate를 검증한다.
+
+현재 기준 문서:
+
+- `docs/project-foundation.md`
+- `docs/agent-work-harness-evaluation.md`
+- `docs/ai-role-map.md`
+- `docs/ai-intelligence-architecture.md`
+- `docs/frontend-architecture.md`
+- `docs/frontend-api-contract.md`
+- `docs/frontend-api-adapter.md`
+- `docs/frontend-fixture-server.md`
+- `docs/apps-web-scaffold.md`
+- `docs/repository-publication.md`
+- `docs/event-intelligence-llm-extract.md`
+- `docs/market-feature-snapshot.md`
+- `docs/instrument-theme-enrichment.md`
+- `docs/cycle-state-snapshot.md`
+- `docs/recommendation-bootstrap.md`
+- `docs/recommendation-score-component.md`
+- `docs/thesis-bootstrap.md`
+- `docs/thesis-review-bootstrap.md`
+- `docs/position-snapshot-ingest.md`
+- `docs/portfolio-review-bootstrap.md`
+- `docs/portfolio-review-run-history-report.md`
+- `docs/portfolio-remediation-queue-report.md`
+- `docs/portfolio-remediation-ticket-bootstrap.md`
+- `docs/portfolio-remediation-ticket-report.md`
+- `docs/portfolio-remediation-ticket-update.md`
+- `docs/portfolio-remediation-daily-automation.md`
+- `docs/portfolio-remediation-scheduler-contract.md`
+- `docs/portfolio-remediation-scheduler-activation.md`
+- `docs/portfolio-remediation-scheduler-holiday-skip.md`
+- `docs/portfolio-remediation-scheduler-install.md`
+- `docs/portfolio-remediation-scheduler-runtime-smoke.md`
+- `docs/portfolio-remediation-scheduler-env-readiness.md`
+- `docs/portfolio-remediation-scheduler-runtime-env-smoke.md`
+- `docs/performance-outcome-bootstrap.md`
+- `docs/scheduled-outcome-runner.md`
+- `docs/portfolio-attribution-bootstrap.md`
+- `docs/portfolio-outcome-coverage-report.md`
+- `docs/db-schema-design.md`
+- `docs/ingest-bootstrap.md`
+- `docs/macro-ingest.md`
+- `docs/macro-upsert-runner.md`
+- `docs/macro-batch-upsert.md`
+- `docs/macro-run-history-report.md`
+- `docs/sec-filings-ingest.md`
+- `docs/sec-filing-raw-fetch.md`
+- `docs/sec-filings-event-extraction.md`
+- `docs/sec-filings-event-batch-extract.md`
+- `docs/event-classification-impact-bootstrap.md`
+- `docs/event-instrument-impact-bootstrap.md`
+- `docs/sec-companyfacts-ingest.md`
+- `docs/market-price-ingest.md`
+- `docs/market-price-batch-ingest.md`
+- `docs/market-universe-bootstrap.md`
+- `docs/market-price-universe-backfill.md`
+- `docs/strategy-universe-slicing.md`
+
+현재 구현 초안:
+
+- `db/migrations/`
+- `db/seeds/`
+- `src/stockanalysis/ingest/`
+- `scripts/verify_migrations.sh`
+- `scripts/verify_seed_bootstrap.sh`
+- `scripts/verify_ingest_bootstrap.sh`
+- `scripts/verify_frontend_architecture.sh`
+- `scripts/verify_frontend_api_contract.sh`
+- `scripts/verify_frontend_api_adapter.sh`
+- `scripts/verify_frontend_fixture_server.sh`
+- `scripts/verify_apps_web_scaffold.sh`
+- `scripts/verify_macro_ingest.sh`
+- `scripts/verify_macro_upsert_runner.sh`
+- `scripts/verify_macro_batch_upsert.sh`
+- `scripts/verify_macro_run_history_report.sh`
+- `scripts/verify_sec_filings_ingest.sh`
+- `scripts/verify_sec_filing_raw_fetch.sh`
+- `scripts/verify_sec_filings_event_extract.sh`
+- `scripts/verify_sec_filings_event_batch_extract.sh`
+- `scripts/verify_event_classification_impact_bootstrap.sh`
+- `scripts/verify_event_instrument_impact_bootstrap.sh`
+- `scripts/verify_sec_companyfacts_ingest.sh`
+- `scripts/verify_market_price_ingest.sh`
+- `scripts/verify_market_price_batch_ingest.sh`
+- `scripts/verify_market_universe_bootstrap.sh`
+- `scripts/verify_market_price_universe_backfill.sh`
+- `scripts/verify_strategy_universe_slicing.sh`
+- `scripts/verify_ai_intelligence_architecture.sh`
+- `scripts/verify_event_intelligence_llm_extract.sh`
+- `scripts/verify_market_feature_snapshot.sh`
+- `scripts/verify_instrument_theme_enrichment.sh`
+- `scripts/verify_cycle_state_snapshot.sh`
+- `scripts/verify_recommendation_bootstrap.sh`
+- `scripts/verify_recommendation_score_component.sh`
+- `scripts/verify_thesis_bootstrap.sh`
+- `scripts/verify_thesis_review_bootstrap.sh`
+- `scripts/verify_position_snapshot_ingest.sh`
+- `scripts/verify_portfolio_review_bootstrap.sh`
+- `scripts/verify_portfolio_review_run_history_report.sh`
+- `scripts/verify_portfolio_remediation_queue_report.sh`
+- `scripts/verify_portfolio_remediation_ticket_bootstrap.sh`
+- `scripts/verify_portfolio_remediation_ticket_report.sh`
+- `scripts/verify_portfolio_remediation_ticket_update.sh`
+- `scripts/verify_portfolio_remediation_daily_automation.sh`
+- `scripts/verify_portfolio_remediation_scheduler_contract.sh`
+- `scripts/run_portfolio_remediation_daily_scheduler.sh`
+- `scripts/verify_portfolio_remediation_scheduler_activation.sh`
+- `scripts/verify_portfolio_remediation_scheduler_holiday_skip.sh`
+- `scripts/install_portfolio_remediation_scheduler.sh`
+- `scripts/verify_portfolio_remediation_scheduler_install.sh`
+- `scripts/verify_portfolio_remediation_scheduler_runtime_smoke.sh`
+- `scripts/render_portfolio_remediation_scheduler_env_template.sh`
+- `scripts/check_portfolio_remediation_scheduler_runtime_env.sh`
+- `scripts/verify_portfolio_remediation_scheduler_env_readiness.sh`
+- `scripts/smoke_portfolio_remediation_scheduler_runtime_env.sh`
+- `scripts/verify_portfolio_remediation_scheduler_runtime_env_smoke.sh`
+- `scripts/verify_performance_outcome_bootstrap.sh`
+- `scripts/verify_scheduled_outcome_runner.sh`
+- `scripts/verify_portfolio_attribution_bootstrap.sh`
+- `scripts/verify_portfolio_outcome_coverage_report.sh`

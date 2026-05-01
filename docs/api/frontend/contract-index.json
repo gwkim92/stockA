@@ -1,0 +1,79 @@
+{
+  "contract_version": "frontend-api-v0.1",
+  "status": "draft",
+  "owner": "stockanalysis",
+  "generated_at": "2026-05-01T00:00:00Z",
+  "principles": [
+    "read-model-first",
+    "stable-dto-names",
+    "no-browser-db-access",
+    "ai-narrative-after-deterministic-evidence",
+    "audited-writes-only"
+  ],
+  "endpoints": [
+    {
+      "method": "GET",
+      "path": "/api/dashboard/today",
+      "response_dto": "DailyCockpitResponse",
+      "example": "docs/api/frontend/examples/daily-cockpit.json",
+      "route_owner": "/",
+      "description": "Daily operating cockpit summary for the current portfolio review cycle."
+    },
+    {
+      "method": "GET",
+      "path": "/api/remediation-tickets?status=open",
+      "response_dto": "RemediationTicketsResponse",
+      "example": "docs/api/frontend/examples/remediation-tickets.json",
+      "route_owner": "/remediation",
+      "description": "Persistent remediation ticket backlog with suggested next runner metadata."
+    },
+    {
+      "method": "GET",
+      "path": "/api/data-health",
+      "response_dto": "DataHealthResponse",
+      "example": "docs/api/frontend/examples/data-health.json",
+      "route_owner": "/data-health",
+      "description": "Pipeline, scheduler, artifact, and data freshness health summary."
+    },
+    {
+      "method": "GET",
+      "path": "/api/cycles?asOfDate=2024-11-01",
+      "response_dto": "CycleStateListResponse",
+      "example": "docs/api/frontend/examples/cycle-state-list.json",
+      "route_owner": "/cycles",
+      "description": "Theme and sector cycle states with transitions and confidence."
+    },
+    {
+      "method": "GET",
+      "path": "/api/recommendations/AAPL-2024-11-01",
+      "response_dto": "RecommendationDetailResponse",
+      "example": "docs/api/frontend/examples/recommendation-detail.json",
+      "route_owner": "/recommendations",
+      "description": "Single recommendation detail with score components and linked evidence."
+    },
+    {
+      "method": "GET",
+      "path": "/api/theses/AAPL-bootstrap-v1",
+      "response_dto": "ThesisDetailResponse",
+      "example": "docs/api/frontend/examples/thesis-detail.json",
+      "route_owner": "/theses",
+      "description": "Active thesis detail with invalidation, review status, and evidence links."
+    },
+    {
+      "method": "GET",
+      "path": "/api/portfolio/Long%20Term%20Paper/coverage?asOfDate=2024-11-01",
+      "response_dto": "PortfolioCoverageResponse",
+      "example": "docs/api/frontend/examples/portfolio-coverage.json",
+      "route_owner": "/portfolio",
+      "description": "Portfolio thesis/outcome coverage and attribution readiness."
+    }
+  ],
+  "write_commands_deferred": [
+    {
+      "method": "POST",
+      "path": "/api/remediation-tickets/:id/status",
+      "status": "deferred-until-auth-and-audit",
+      "reason": "Status changes require actor, reason, audit trail, and permission model."
+    }
+  ]
+}

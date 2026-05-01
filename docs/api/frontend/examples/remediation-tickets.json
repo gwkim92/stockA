@@ -1,0 +1,37 @@
+{
+  "contract_version": "frontend-api-v0.1",
+  "generated_at": "2026-05-01T00:00:00Z",
+  "data": {
+    "portfolio_name": "Long Term Paper",
+    "status_filter": "open",
+    "ticket_count": 1,
+    "status_counts": {
+      "open": 1,
+      "in_progress": 0,
+      "resolved": 0,
+      "ignored": 0
+    },
+    "tickets": [
+      {
+        "ticket_id": "remediation-ticket-baba-20241101",
+        "symbol": "BABA",
+        "instrument_id": "instrument-baba",
+        "status": "open",
+        "action": "needs_thesis_review",
+        "remediation_type": "thesis_remediation",
+        "suggested_runner": "thesis_or_position_link_review",
+        "reason": "coverage status missing_thesis",
+        "risk_level": "high",
+        "source_review_item_id": "portfolio-review-item-baba-20241101",
+        "source_run_id": "portfolio-remediation-daily-run-20241101",
+        "created_at": "2024-11-01T23:30:00Z",
+        "updated_at": "2024-11-01T23:30:00Z",
+        "required_human_decision": "Create or link an active long-term thesis before attribution can be trusted."
+      }
+    ]
+  },
+  "links": {
+    "dashboard": "/api/dashboard/today",
+    "portfolio_coverage": "/api/portfolio/Long%20Term%20Paper/coverage?asOfDate=2024-11-01"
+  }
+}

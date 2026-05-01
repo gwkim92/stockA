@@ -1,0 +1,48 @@
+{
+  "contract_version": "frontend-api-v0.1",
+  "generated_at": "2026-05-01T00:00:00Z",
+  "data": {
+    "recommendation_id": "AAPL-2024-11-01",
+    "symbol": "AAPL",
+    "instrument_id": "instrument-aapl",
+    "as_of_date": "2024-11-01",
+    "strategy_name": "long_term_core",
+    "horizon_type": "long_term",
+    "recommendation": "monitor_or_accumulate",
+    "score": 0.78,
+    "score_version": "bootstrap-v1",
+    "score_components": [
+      {
+        "component": "cycle_state",
+        "value": 0.74,
+        "weight": 0.35,
+        "evidence_id": "cycle-state-ANNUAL_REPORTING-20241101"
+      },
+      {
+        "component": "event_quality",
+        "value": 0.82,
+        "weight": 0.25,
+        "evidence_id": "sec-event-aapl-10k-20240928"
+      },
+      {
+        "component": "price_momentum",
+        "value": 0.69,
+        "weight": 0.2,
+        "evidence_id": "market-feature-aapl-20241101"
+      }
+    ],
+    "linked_thesis_id": "AAPL-bootstrap-v1",
+    "outcome": {
+      "measurement_end_date": "2024-12-02",
+      "absolute_return": 0.1,
+      "benchmark_return": 0.04,
+      "alpha": 0.06,
+      "label": "outperform"
+    }
+  },
+  "links": {
+    "thesis": "/api/theses/AAPL-bootstrap-v1",
+    "cycle_state": "/api/cycles?asOfDate=2024-11-01",
+    "source_event": "/api/events/sec-event-aapl-10k-20240928"
+  }
+}

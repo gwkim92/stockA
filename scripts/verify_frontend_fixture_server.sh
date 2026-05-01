@@ -1,0 +1,109 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT_DIR=$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)
+ARTIFACT_ROOT=$(mktemp -d /tmp/stockanalysis-frontend-fixture-server.XXXXXX)
+
+cleanup() {
+  rm -rf "$ARTIFACT_ROOT"
+}
+
+trap cleanup EXIT
+
+cd "$ROOT_DIR"
+
+bash -n scripts/verify_frontend_fixture_server.sh
+python3 -m compileall src tests >/dev/null
+PYTHONPATH=src python3 -m unittest tests.test_frontend_fixture_server -v
+bash scripts/verify_frontend_api_adapter.sh
+PYTHONPATH=src python3 -m stockanalysis.frontend.fixture_server --help >/dev/null
+
+PYTHONPATH=src python3 - "$ARTIFACT_ROOT" <<'PY'
+from __future__ import annotations
+
+import json
+import sys
+import threading
+from pathlib import Path
+from typing import Any
+from urllib.error import HTTPError
+from urllib.request import Request, urlopen
+
+from stockanalysis.frontend.fixture_server import create_frontend_fixture_server
+
+artifact_root = Path(sys.argv[1])
+server = create_frontend_fixture_server(port=0)
+host, port = server.server_address
+base_url = f"http://{host}:{port}"
+thread = threading.Thread(target=server.serve_forever, daemon=True)
+thread.start()
+
+
+def fetch_json(path: str) -> tuple[int, dict[str, Any]]:
+    with urlopen(f"{base_url}{path}", timeout=5) as response:
+        return response.status, json.loads(response.read().decode("utf-8"))
+
+
+def fetch_error_json(path: str, method: str = "GET") -> tuple[int, dict[str, Any]]:
+    request = Request(f"{base_url}{path}", method=method)
+    if method not in {"GET", "HEAD"}:
+        request.data = b"{}"
+    try:
+        urlopen(request, timeout=5)
+    except HTTPError as exc:
+        return exc.code, json.loads(exc.read().decode("utf-8"))
+    raise AssertionError(f"{method} {path} unexpectedly succeeded")
+
+
+try:
+    status, health = fetch_json("/__health")
+    assert status == 200, health
+    assert health["contract_version"] == "frontend-api-v0.1", health
+    assert health["endpoint_count"] == 7, health
+
+    status, endpoints = fetch_json("/__endpoints")
+    assert status == 200, endpoints
+    assert len(endpoints["data"]["endpoints"]) == 7, endpoints
+
+    status, dashboard = fetch_json("/api/dashboard/today")
+    assert status == 200, dashboard
+    assert dashboard["data"]["portfolio_name"] == "Long Term Paper", dashboard
+    assert dashboard["data"]["attention_summary"]["open_ticket_count"] == 1, dashboard
+
+    status, tickets = fetch_json("/api/remediation-tickets?status=open")
+    assert status == 200, tickets
+    assert tickets["data"]["tickets"][0]["symbol"] == "BABA", tickets
+
+    status, not_found = fetch_error_json("/api/not-found")
+    assert status == 404, not_found
+    assert not_found["error"]["code"] == "FrontendApiPathNotFound", not_found
+
+    status, method_not_allowed = fetch_error_json("/api/remediation-tickets/ticket/status", method="POST")
+    assert status == 405, method_not_allowed
+    assert method_not_allowed["error"]["code"] == "MethodNotAllowed", method_not_allowed
+
+    summary = {
+        "status": "passed",
+        "base_url": base_url,
+        "health": health,
+        "checked_paths": [
+            "/__health",
+            "/__endpoints",
+            "/api/dashboard/today",
+            "/api/remediation-tickets?status=open",
+            "/api/not-found",
+        ],
+    }
+    (artifact_root / "runtime-smoke.json").write_text(json.dumps(summary, indent=2, sort_keys=True), encoding="utf-8")
+finally:
+    server.shutdown()
+    server.server_close()
+    thread.join(timeout=5)
+PY
+
+if [ -e app ]; then
+  echo "root-level app scaffold should not exist; use apps/web instead" >&2
+  exit 1
+fi
+
+echo "frontend fixture server verification passed"

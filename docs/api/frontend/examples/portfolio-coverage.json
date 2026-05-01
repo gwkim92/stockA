@@ -1,0 +1,48 @@
+{
+  "contract_version": "frontend-api-v0.1",
+  "generated_at": "2026-05-01T00:00:00Z",
+  "data": {
+    "portfolio_name": "Long Term Paper",
+    "as_of_date": "2024-11-01",
+    "strategy_name": "long_term_core",
+    "coverage_measurement_end_date": "2024-12-02",
+    "summary": {
+      "position_count": 2,
+      "covered_position_count": 1,
+      "missing_thesis_count": 1,
+      "missing_outcome_count": 0,
+      "covered_weight": 0.05,
+      "missing_thesis_weight": 0.03,
+      "cash_weight": 0.92,
+      "weight_coverage_ratio": 0.625
+    },
+    "positions": [
+      {
+        "symbol": "AAPL",
+        "instrument_id": "instrument-aapl",
+        "weight": 0.05,
+        "coverage_status": "covered",
+        "active_thesis_id": "AAPL-bootstrap-v1",
+        "outcome_status": "measured",
+        "action": "monitor"
+      },
+      {
+        "symbol": "BABA",
+        "instrument_id": "instrument-baba",
+        "weight": 0.03,
+        "coverage_status": "missing_thesis",
+        "active_thesis_id": null,
+        "outcome_status": "not_applicable",
+        "action": "needs_thesis_review"
+      }
+    ],
+    "attribution_readiness": {
+      "is_ready": false,
+      "blocking_reasons": ["missing_thesis:BABA"]
+    }
+  },
+  "links": {
+    "remediation_tickets": "/api/remediation-tickets?status=open",
+    "dashboard": "/api/dashboard/today"
+  }
+}

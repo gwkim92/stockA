@@ -1,0 +1,111 @@
+export type ApiResponse<TData> = {
+  contract_version: string;
+  generated_at: string;
+  data: TData;
+  links: Record<string, string>;
+};
+
+export type RiskLevel = "low" | "medium" | "high";
+
+export type DailyCockpitData = {
+  as_of_date: string;
+  portfolio_name: string;
+  run_status: {
+    daily_automation: string;
+    latest_run_id: string;
+    scheduler: string;
+    holiday_skip: {
+      enabled: boolean;
+      source: string;
+      would_skip_today: boolean;
+    };
+  };
+  attention_summary: {
+    open_ticket_count: number;
+    critical_blind_spot_count: number;
+    failed_pipeline_count: number;
+    missing_thesis_count: number;
+    missing_outcome_count: number;
+  };
+  top_actions: Array<{
+    rank: number;
+    symbol: string;
+    action: string;
+    reason: string;
+    suggested_runner: string;
+    risk_level: RiskLevel;
+  }>;
+  latest_metrics: {
+    covered_weight: number;
+    missing_thesis_weight: number;
+    cash_weight: number;
+    weight_coverage_ratio: number;
+  };
+};
+
+export type RemediationTicketsData = {
+  portfolio_name: string;
+  status_filter: string;
+  ticket_count: number;
+  status_counts: Record<string, number>;
+  tickets: Array<{
+    ticket_id: string;
+    symbol: string;
+    instrument_id: string;
+    status: string;
+    action: string;
+    remediation_type: string;
+    suggested_runner: string;
+    reason: string;
+    risk_level: RiskLevel;
+    source_review_item_id: string;
+    source_run_id: string;
+    created_at: string;
+    updated_at: string;
+    required_human_decision: string;
+  }>;
+};
+
+export type DataHealthData = {
+  overall_status: string;
+  as_of_date: string;
+  pipeline_runs: Array<{
+    pipeline_name: string;
+    latest_status: string;
+    latest_run_id: string;
+    finished_at: string;
+  }>;
+  scheduler: {
+    install_status: string;
+    runtime_env_readiness: string;
+    holiday_skip_mode: string;
+    latest_artifact_root: string;
+  };
+  freshness: Array<{
+    dataset: string;
+    status: string;
+    latest_observation_date: string;
+  }>;
+  open_gates: string[];
+};
+
+export type CycleStateListData = {
+  as_of_date: string;
+  strategy_name: string;
+  horizon_type: string;
+  universe_version: string;
+  cycle_states: Array<{
+    theme_key: string;
+    theme_name: string;
+    state: string;
+    previous_state: string;
+    confidence: number;
+    instrument_count: number;
+    top_symbols: string[];
+    features: {
+      event_intensity: number | null;
+      price_momentum: number | null;
+      fundamental_quality: number | null;
+    };
+  }>;
+};

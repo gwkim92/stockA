@@ -1,0 +1,27 @@
+.DS_Store
+
+# Local env / secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+id_*
+*id_rsa*
+*id_ed25519*
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Node / Next.js
+node_modules/
+apps/web/node_modules/
+apps/web/.next/
+apps/web/tsconfig.tsbuildinfo
+
+# Local runtime artifacts
+artifacts/
+tmp/
+*.log

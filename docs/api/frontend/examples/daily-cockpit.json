@@ -1,0 +1,54 @@
+{
+  "contract_version": "frontend-api-v0.1",
+  "generated_at": "2026-05-01T00:00:00Z",
+  "data": {
+    "as_of_date": "2024-11-01",
+    "portfolio_name": "Long Term Paper",
+    "run_status": {
+      "daily_automation": "succeeded",
+      "latest_run_id": "portfolio-remediation-daily-run-20241101",
+      "scheduler": "not_installed",
+      "holiday_skip": {
+        "enabled": true,
+        "source": "PORTFOLIO_REMEDIATION_SKIP_DATES",
+        "would_skip_today": false
+      }
+    },
+    "attention_summary": {
+      "open_ticket_count": 1,
+      "critical_blind_spot_count": 1,
+      "failed_pipeline_count": 0,
+      "missing_thesis_count": 1,
+      "missing_outcome_count": 0
+    },
+    "top_actions": [
+      {
+        "rank": 1,
+        "symbol": "BABA",
+        "action": "needs_thesis_review",
+        "reason": "coverage status missing_thesis",
+        "suggested_runner": "thesis_or_position_link_review",
+        "risk_level": "high"
+      },
+      {
+        "rank": 2,
+        "symbol": "AAPL",
+        "action": "monitor",
+        "reason": "covered thesis and outcome remain valid",
+        "suggested_runner": "none",
+        "risk_level": "low"
+      }
+    ],
+    "latest_metrics": {
+      "covered_weight": 0.05,
+      "missing_thesis_weight": 0.03,
+      "cash_weight": 0.92,
+      "weight_coverage_ratio": 0.625
+    }
+  },
+  "links": {
+    "remediation_tickets": "/api/remediation-tickets?status=open",
+    "portfolio_coverage": "/api/portfolio/Long%20Term%20Paper/coverage?asOfDate=2024-11-01",
+    "data_health": "/api/data-health"
+  }
+}

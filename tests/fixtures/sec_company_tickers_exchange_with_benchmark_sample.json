@@ -1,0 +1,9 @@
+{
+  "fields": ["cik", "name", "ticker", "exchange"],
+  "data": [
+    [320193, "Apple Inc.", "AAPL", "Nasdaq"],
+    [1577552, "Alibaba Group Holding Ltd", "BABA", "NYSE"],
+    [884394, "SPDR S&P 500 ETF Trust", "SPY", "NYSE"],
+    [895564, "BAE SYSTEMS PLC /FI/", "BAESY", "OTC"]
+  ]
+}

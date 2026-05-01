@@ -1,0 +1,2 @@
+"""Frontend read-model adapters."""
+

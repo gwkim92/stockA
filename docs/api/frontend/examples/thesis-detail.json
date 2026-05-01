@@ -1,0 +1,50 @@
+{
+  "contract_version": "frontend-api-v0.1",
+  "generated_at": "2026-05-01T00:00:00Z",
+  "data": {
+    "thesis_id": "AAPL-bootstrap-v1",
+    "symbol": "AAPL",
+    "instrument_id": "instrument-aapl",
+    "status": "active",
+    "thesis_version": "bootstrap-v1",
+    "created_from_recommendation_id": "AAPL-2024-11-01",
+    "summary": "AAPL remains covered by the annual reporting quality theme with constructive cycle evidence and positive benchmark-relative outcome.",
+    "core_claims": [
+      "Annual reporting event quality remains supportive.",
+      "Cycle state is constructive for the long-term horizon.",
+      "Outcome measurement shows positive alpha versus benchmark."
+    ],
+    "invalidation_conditions": [
+      {
+        "condition": "cycle_state_breaks_to_negative",
+        "current_status": "not_triggered"
+      },
+      {
+        "condition": "alpha_turns_negative_at_next_measurement",
+        "current_status": "not_triggered"
+      }
+    ],
+    "latest_review": {
+      "review_id": "thesis-review-aapl-20241101",
+      "action": "monitor",
+      "risk_level": "low",
+      "reviewed_at": "2024-11-01T23:00:00Z"
+    },
+    "evidence": [
+      {
+        "evidence_id": "sec-event-aapl-10k-20240928",
+        "type": "source_document_event",
+        "title": "AAPL 2024 10-K annual reporting event"
+      },
+      {
+        "evidence_id": "performance-outcome-aapl-20241202",
+        "type": "performance_outcome",
+        "title": "AAPL outperformed SPY over measurement window"
+      }
+    ]
+  },
+  "links": {
+    "recommendation": "/api/recommendations/AAPL-2024-11-01",
+    "portfolio_coverage": "/api/portfolio/Long%20Term%20Paper/coverage?asOfDate=2024-11-01"
+  }
+}

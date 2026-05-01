@@ -1,0 +1,24 @@
+{
+  "provider": "fixture",
+  "model_name": "gpt-5.4-nano",
+  "reasoning_effort": "low",
+  "usage": {
+    "input_tokens": 1450,
+    "output_tokens": 180,
+    "cached_input_tokens": 900,
+    "estimated_cost_usd": "0.000500",
+    "latency_ms": 0
+  },
+  "event": {
+    "event_type": "sec_annual_report_filed",
+    "title": "Annual report filed: Apple Inc.",
+    "summary": "Apple Inc. filed its annual report. The filing should be treated as long-term evidence for business quality, risk, capital allocation, and thesis review rather than as an automatic recommendation.",
+    "event_at": "2024-11-01T00:00:00+00:00",
+    "time_horizon": "long_term",
+    "impact_polarity": "neutral",
+    "significance_score": 0.7800,
+    "confidence": 0.9300,
+    "evidence_summary": "The source filing is an Apple Inc. Form 10-K annual report artifact.",
+    "uncertainty_notes": "Fixture output validates schema and persistence only; live provider quality is not evaluated here."
+  }
+}

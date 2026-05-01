@@ -1,0 +1,44 @@
+{
+  "contract_version": "frontend-api-v0.1",
+  "generated_at": "2026-05-01T00:00:00Z",
+  "data": {
+    "as_of_date": "2024-11-01",
+    "strategy_name": "long_term_core",
+    "horizon_type": "long_term",
+    "universe_version": "fixture-v1",
+    "cycle_states": [
+      {
+        "theme_key": "ANNUAL_REPORTING",
+        "theme_name": "Annual reporting quality",
+        "state": "constructive",
+        "previous_state": "neutral",
+        "confidence": 0.72,
+        "instrument_count": 1,
+        "top_symbols": ["AAPL"],
+        "features": {
+          "event_intensity": 0.8,
+          "price_momentum": 0.61,
+          "fundamental_quality": 0.74
+        }
+      },
+      {
+        "theme_key": "CHINA_ADR_COVERAGE",
+        "theme_name": "China ADR coverage",
+        "state": "incomplete_coverage",
+        "previous_state": "unknown",
+        "confidence": 0.41,
+        "instrument_count": 1,
+        "top_symbols": ["BABA"],
+        "features": {
+          "event_intensity": 0.2,
+          "price_momentum": 0.48,
+          "fundamental_quality": null
+        }
+      }
+    ]
+  },
+  "links": {
+    "theme_detail": "/api/themes/ANNUAL_REPORTING",
+    "recommendations": "/api/recommendations?batchDate=2024-11-01"
+  }
+}

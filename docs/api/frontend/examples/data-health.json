@@ -1,0 +1,50 @@
+{
+  "contract_version": "frontend-api-v0.1",
+  "generated_at": "2026-05-01T00:00:00Z",
+  "data": {
+    "overall_status": "attention_required",
+    "as_of_date": "2024-11-01",
+    "pipeline_runs": [
+      {
+        "pipeline_name": "portfolio_remediation_daily_automation",
+        "latest_status": "succeeded",
+        "latest_run_id": "portfolio-remediation-daily-run-20241101",
+        "finished_at": "2024-11-01T23:30:00Z"
+      },
+      {
+        "pipeline_name": "performance_outcome_bootstrap",
+        "latest_status": "succeeded",
+        "latest_run_id": "performance-outcome-bootstrap-20241202",
+        "finished_at": "2024-12-02T23:30:00Z"
+      }
+    ],
+    "scheduler": {
+      "install_status": "not_installed",
+      "runtime_env_readiness": "template_rendered_placeholder_pending",
+      "holiday_skip_mode": "explicit_skip_dates",
+      "latest_artifact_root": "/absolute/path/to/portfolio-remediation-scheduler-artifacts"
+    },
+    "freshness": [
+      {
+        "dataset": "market.daily_price_bar",
+        "status": "fresh_for_fixture",
+        "latest_observation_date": "2024-12-02"
+      },
+      {
+        "dataset": "portfolio.position_snapshot",
+        "status": "fresh_for_fixture",
+        "latest_observation_date": "2024-11-01"
+      }
+    ],
+    "open_gates": [
+      "actual_runtime_db_smoke",
+      "launchd_bootstrap",
+      "alert_destination",
+      "external_holiday_calendar_sync"
+    ]
+  },
+  "links": {
+    "scheduler_env_readiness": "/settings/scheduler",
+    "dashboard": "/api/dashboard/today"
+  }
+}

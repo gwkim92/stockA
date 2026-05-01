@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "stockanalysis"
+version = "0.1.0"
+description = "Cycle-based investment operating system bootstrap."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = []
+
+[project.scripts]
+stockanalysis-ingest = "stockanalysis.ingest.cli:main_entry"
+stockanalysis-frontend-api = "stockanalysis.frontend.api_adapter:main_entry"
+stockanalysis-frontend-fixture-server = "stockanalysis.frontend.fixture_server:main_entry"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
