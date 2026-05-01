@@ -135,6 +135,13 @@ button {
   align-items: stretch;
 }
 
+.detailHero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 320px);
+  gap: clamp(22px, 4vw, 46px);
+  align-items: end;
+}
+
 .heroCopy h1,
 .sectionHeading h1,
 .errorPanel h1,
@@ -278,6 +285,49 @@ button {
   background: linear-gradient(160deg, color-mix(in oklch, var(--amber-soft) 82%, white), var(--paper));
 }
 
+.scoreSeal {
+  display: grid;
+  min-height: 260px;
+  align-content: center;
+  gap: 8px;
+  padding: 26px;
+  border: 1px solid var(--ink);
+  border-radius: 50% 50% 46% 54%;
+  background:
+    radial-gradient(circle at 50% 35%, color-mix(in oklch, var(--blue) 12%, white), transparent 58%),
+    color-mix(in oklch, var(--paper) 84%, white);
+  box-shadow: var(--shadow);
+  text-align: center;
+}
+
+.scoreSeal span,
+.scoreSeal small {
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.scoreSeal strong {
+  font-family: var(--font-display), Georgia, serif;
+  font-size: clamp(2rem, 4vw, 3.5rem);
+  font-weight: 600;
+  letter-spacing: -0.05em;
+}
+
+.thesisSeal {
+  background:
+    radial-gradient(circle at 50% 35%, color-mix(in oklch, var(--green) 12%, white), transparent 58%),
+    color-mix(in oklch, var(--paper) 84%, white);
+}
+
+.coverageSeal {
+  background:
+    radial-gradient(circle at 50% 35%, color-mix(in oklch, var(--amber) 16%, white), transparent 58%),
+    color-mix(in oklch, var(--paper) 84%, white);
+}
+
 .splitGrid,
 .cycleGrid {
   display: grid;
@@ -412,6 +462,70 @@ button {
   gap: 24px;
 }
 
+.componentStack {
+  display: grid;
+  gap: 10px;
+  margin-top: 24px;
+}
+
+.componentRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 14px;
+  align-items: center;
+  padding: 16px 0;
+  border-top: 1px solid color-mix(in oklch, var(--ink) 12%, transparent);
+}
+
+.componentRow div {
+  display: grid;
+  gap: 4px;
+}
+
+.componentRow small,
+.evidenceGrid small,
+.evidenceGrid span {
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.claimList {
+  display: grid;
+  gap: 14px;
+  margin: 24px 0 0;
+  padding-left: 1.25rem;
+}
+
+.claimList li {
+  line-height: 1.6;
+}
+
+.evidenceGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 24px;
+}
+
+.evidenceGrid article {
+  display: grid;
+  gap: 8px;
+  padding: 18px;
+  border: 1px solid color-mix(in oklch, var(--ink) 14%, transparent);
+  background: color-mix(in oklch, var(--blue) 6%, white);
+}
+
+.detailButton {
+  margin-top: 24px;
+}
+
+.coverageRow {
+  grid-template-columns: 100px 100px minmax(120px, 1fr) minmax(120px, 1fr) minmax(160px, 1fr);
+}
+
 .cycleState {
   display: grid;
   gap: 4px;
@@ -473,6 +587,7 @@ button {
 @media (max-width: 920px) {
   .topbar,
   .heroGrid,
+  .detailHero,
   .splitGrid,
   .cycleGrid {
     grid-template-columns: 1fr;
@@ -489,7 +604,10 @@ button {
 
   .actionRow,
   .compactRow,
-  .ticketRow {
+  .ticketRow,
+  .componentRow,
+  .coverageRow,
+  .evidenceGrid {
     grid-template-columns: 1fr;
   }
 }

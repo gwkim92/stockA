@@ -174,7 +174,7 @@ Phase 2: frontend scaffold
 
 - status: fixture-only scaffold documented as `docs/apps-web-scaffold.md`.
 - app: `apps/web`.
-- routes: `/`, `/remediation`, `/data-health`, `/cycles`.
+- routes: `/`, `/remediation`, `/data-health`, `/cycles`, `/recommendations/AAPL-2024-11-01`, `/theses/AAPL-bootstrap-v1`, `/portfolio/coverage`.
 - verification: `scripts/verify_apps_web_scaffold.sh`.
 
 Phase 3: daily cockpit and remediation UI
@@ -201,11 +201,10 @@ Phase 6: operational hardening
 
 Start with browser QA or detail route expansion because `apps-web-scaffold` now exists.
 
-The next task can expand `apps/web` against existing fixture server payloads:
+The next task can expand `apps/web` against remaining fixture server payloads:
 
-- recommendation detail.
-- thesis detail.
-- portfolio coverage.
 - AI evidence.
+- source document evidence.
+- browser visual QA.
 
 Keep the first web scaffold fixture-only until live DB read adapter and auth boundary are ready.

@@ -109,3 +109,85 @@ export type CycleStateListData = {
     };
   }>;
 };
+
+export type RecommendationDetailData = {
+  recommendation_id: string;
+  symbol: string;
+  instrument_id: string;
+  as_of_date: string;
+  strategy_name: string;
+  horizon_type: string;
+  recommendation: string;
+  score: number;
+  score_version: string;
+  score_components: Array<{
+    component: string;
+    value: number;
+    weight: number;
+    evidence_id: string;
+  }>;
+  linked_thesis_id: string;
+  outcome: {
+    measurement_end_date: string;
+    absolute_return: number;
+    benchmark_return: number;
+    alpha: number;
+    label: string;
+  };
+};
+
+export type ThesisDetailData = {
+  thesis_id: string;
+  symbol: string;
+  instrument_id: string;
+  status: string;
+  thesis_version: string;
+  created_from_recommendation_id: string;
+  summary: string;
+  core_claims: string[];
+  invalidation_conditions: Array<{
+    condition: string;
+    current_status: string;
+  }>;
+  latest_review: {
+    review_id: string;
+    action: string;
+    risk_level: RiskLevel;
+    reviewed_at: string;
+  };
+  evidence: Array<{
+    evidence_id: string;
+    type: string;
+    title: string;
+  }>;
+};
+
+export type PortfolioCoverageData = {
+  portfolio_name: string;
+  as_of_date: string;
+  strategy_name: string;
+  coverage_measurement_end_date: string;
+  summary: {
+    position_count: number;
+    covered_position_count: number;
+    missing_thesis_count: number;
+    missing_outcome_count: number;
+    covered_weight: number;
+    missing_thesis_weight: number;
+    cash_weight: number;
+    weight_coverage_ratio: number;
+  };
+  positions: Array<{
+    symbol: string;
+    instrument_id: string;
+    weight: number;
+    coverage_status: string;
+    active_thesis_id: string | null;
+    outcome_status: string;
+    action: string;
+  }>;
+  attribution_readiness: {
+    is_ready: boolean;
+    blocking_reasons: string[];
+  };
+};

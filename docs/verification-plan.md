@@ -42,6 +42,10 @@ task마다 흔들리게 두지 않는 편이 좋다.
 - 무엇을 증명하는가: `apps/web` Next.js App Router scaffold가 fixture server payload를 읽는 read-only investment cockpit shell로 동작하는지 확인한다.
 - 통과 조건: web scaffold files, npm install, TypeScript check, Next production build, fixture server runtime, Next production server route smoke for `/`, `/remediation`, `/data-health`, `/cycles`, frontend architecture/API/adapter/fixture server regression checks가 모두 통과한다.
 
+- 명령: `bash scripts/verify_frontend_detail_routes.sh`
+- 무엇을 증명하는가: recommendation, thesis, portfolio coverage detail routes가 fixture server payload를 읽고 read-only Server Component로 렌더링되는지 확인한다.
+- 통과 조건: detail route files, npm install, TypeScript check, Next production build, fixture server runtime, Next production server route smoke for `/recommendations/AAPL-2024-11-01`, `/theses/AAPL-bootstrap-v1`, `/portfolio/coverage`, frontend fixture server regression check가 모두 통과한다.
+
 - 명령: `bash scripts/verify_migrations.sh`
 - 무엇을 증명하는가: 현재 작성된 Postgres migration skeleton이 실제 임시 Postgres 인스턴스에 순서대로 적용되는지 검증한다.
 - 통과 조건: 모든 migration이 에러 없이 적용되고, 기대 schema의 테이블 목록이 출력된다.
@@ -243,8 +247,8 @@ task마다 흔들리게 두지 않는 편이 좋다.
 
 ## Browser Or Runtime Checks
 
-- URL, route, job, endpoint: `http://127.0.0.1:8765/__health`, `http://127.0.0.1:8765/__endpoints`, `http://127.0.0.1:8765/api/dashboard/today`, `http://127.0.0.1:3000/`, `http://127.0.0.1:3000/remediation`, `http://127.0.0.1:3000/data-health`, `http://127.0.0.1:3000/cycles`
-- 수행 경로: `bash scripts/verify_frontend_fixture_server.sh`가 fixture server runtime smoke를 수행하고, `bash scripts/verify_apps_web_scaffold.sh`가 Next production server route smoke를 수행한다.
+- URL, route, job, endpoint: `http://127.0.0.1:8765/__health`, `http://127.0.0.1:8765/__endpoints`, `http://127.0.0.1:8765/api/dashboard/today`, `http://127.0.0.1:3000/`, `http://127.0.0.1:3000/remediation`, `http://127.0.0.1:3000/data-health`, `http://127.0.0.1:3000/cycles`, `http://127.0.0.1:3000/recommendations/AAPL-2024-11-01`, `http://127.0.0.1:3000/theses/AAPL-bootstrap-v1`, `http://127.0.0.1:3000/portfolio/coverage`
+- 수행 경로: `bash scripts/verify_frontend_fixture_server.sh`가 fixture server runtime smoke를 수행하고, `bash scripts/verify_apps_web_scaffold.sh`와 `bash scripts/verify_frontend_detail_routes.sh`가 Next production server route smoke를 수행한다.
 - 확인할 증거: health payload, endpoint index, daily cockpit fixture payload, remediation ticket query-string fixture payload, 404/405 error payload, web route HTML content가 검증된다.
 
 ## Metrics Or Logs

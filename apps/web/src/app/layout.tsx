@@ -37,6 +37,9 @@ const navItems = [
   { href: "/remediation", label: "Remediation" },
   { href: "/data-health", label: "Data Health" },
   { href: "/cycles", label: "Cycles" },
+  { href: "/recommendations/AAPL-2024-11-01", label: "Recommendation" },
+  { href: "/theses/AAPL-bootstrap-v1", label: "Thesis" },
+  { href: "/portfolio/coverage", label: "Coverage" },
 ] as const;
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
