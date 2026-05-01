@@ -60,10 +60,12 @@ try:
     assert status == 200, health
     assert health["contract_version"] == "frontend-api-v0.1", health
     assert health["endpoint_count"] == 12, health
+    assert health["source_mode"] == "fixture", health
 
     status, endpoints = fetch_json("/__endpoints")
     assert status == 200, endpoints
     assert len(endpoints["data"]["endpoints"]) == 12, endpoints
+    assert endpoints["source_mode"] == "fixture", endpoints
 
     status, dashboard = fetch_json("/api/dashboard/today")
     assert status == 200, dashboard
@@ -128,6 +130,78 @@ finally:
     server.shutdown()
     server.server_close()
     thread.join(timeout=5)
+PY
+
+env -u STOCKANALYSIS_PSQL_COMMAND PYTHONPATH=src python3 - "$ARTIFACT_ROOT" <<'PY'
+from __future__ import annotations
+
+import json
+import sys
+import threading
+from pathlib import Path
+from typing import Any
+from urllib.error import HTTPError
+from urllib.request import urlopen
+
+from stockanalysis.frontend.fixture_server import create_frontend_fixture_server
+
+artifact_root = Path(sys.argv[1])
+
+
+def start_server(source: str):
+    server = create_frontend_fixture_server(port=0, source=source)
+    host, port = server.server_address
+    base_url = f"http://{host}:{port}"
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    return server, thread, base_url
+
+
+def fetch_json(base_url: str, path: str) -> tuple[int, dict[str, Any]]:
+    with urlopen(f"{base_url}{path}", timeout=5) as response:
+        return response.status, json.loads(response.read().decode("utf-8"))
+
+
+def fetch_error_json(base_url: str, path: str) -> tuple[int, dict[str, Any]]:
+    try:
+        urlopen(f"{base_url}{path}", timeout=5)
+    except HTTPError as exc:
+        return exc.code, json.loads(exc.read().decode("utf-8"))
+    raise AssertionError(f"{path} unexpectedly succeeded")
+
+
+auto_server, auto_thread, auto_base_url = start_server("auto")
+try:
+    status, health = fetch_json(auto_base_url, "/__health")
+    assert status == 200, health
+    assert health["source_mode"] == "auto", health
+
+    status, auto_tickets = fetch_json(auto_base_url, "/api/remediation-tickets?status=open")
+    assert status == 200, auto_tickets
+    assert auto_tickets["data"]["tickets"][0]["symbol"] == "BABA", auto_tickets
+finally:
+    auto_server.shutdown()
+    auto_server.server_close()
+    auto_thread.join(timeout=5)
+
+live_server, live_thread, live_base_url = start_server("live")
+try:
+    status, live_error = fetch_error_json(live_base_url, "/api/remediation-tickets?status=open")
+    assert status == 503, live_error
+    assert live_error["error"]["code"] == "FrontendLiveReadUnavailable", live_error
+    assert live_error["error"]["details"]["source_mode"] == "live", live_error
+finally:
+    live_server.shutdown()
+    live_server.server_close()
+    live_thread.join(timeout=5)
+
+summary = {
+    "status": "passed",
+    "checked_source_modes": ["fixture", "auto", "live"],
+    "auto_source_mode": "fixture_fallback_without_db_config",
+    "live_missing_config_status": 503,
+}
+(artifact_root / "source-mode-smoke.json").write_text(json.dumps(summary, indent=2, sort_keys=True), encoding="utf-8")
 PY
 
 if [ -e app ]; then

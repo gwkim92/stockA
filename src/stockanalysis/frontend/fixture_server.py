@@ -18,6 +18,7 @@ from stockanalysis.frontend.api_adapter import (
 
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 8765
+SOURCE_CHOICES = ("fixture", "live", "auto")
 
 
 class FrontendFixtureHTTPServer(ThreadingHTTPServer):
@@ -27,6 +28,7 @@ class FrontendFixtureHTTPServer(ThreadingHTTPServer):
 class FrontendFixtureRequestHandler(BaseHTTPRequestHandler):
     server_version = "StockanalysisFrontendFixtureServer/0.1"
     repo_root: Path | None = None
+    source = "fixture"
     verbose_logs = False
 
     def log_message(self, format: str, *args: Any) -> None:
@@ -67,15 +69,18 @@ class FrontendFixtureRequestHandler(BaseHTTPRequestHandler):
             return
 
         try:
-            self._send_json(resolve_frontend_response(request_path, self.repo_root), HTTPStatus.OK)
+            self._send_json(
+                resolve_frontend_response(request_path, self.repo_root, source=self.source),
+                HTTPStatus.OK,
+            )
         except FrontendApiAdapterError as exc:
             self._send_json(
                 build_server_error_payload(
-                    code="FrontendApiPathNotFound",
+                    code=exc.code,
                     message=str(exc),
-                    details={"path": request_path, "method": self.command},
+                    details={"path": request_path, "method": self.command, "source_mode": self.source},
                 ),
-                HTTPStatus.NOT_FOUND,
+                _status_for_adapter_error(exc),
             )
 
     def _handle_method_not_allowed(self) -> None:
@@ -103,6 +108,7 @@ class FrontendFixtureRequestHandler(BaseHTTPRequestHandler):
             "endpoint_count": len(index["endpoints"]),
             "read_only": True,
             "source": "docs/api/frontend/contract-index.json",
+            "source_mode": self.source,
         }
 
     def _build_endpoint_payload(self) -> dict[str, Any]:
@@ -118,7 +124,11 @@ class FrontendFixtureRequestHandler(BaseHTTPRequestHandler):
             }
             for endpoint in list_frontend_endpoints(self.repo_root)
         ]
-        return {"contract_version": index["contract_version"], "data": {"endpoints": endpoints}}
+        return {
+            "contract_version": index["contract_version"],
+            "source_mode": self.source,
+            "data": {"endpoints": endpoints},
+        }
 
     def _send_json(self, payload: dict[str, Any], status: HTTPStatus) -> None:
         body = json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True).encode("utf-8")
@@ -135,24 +145,36 @@ class FrontendFixtureRequestHandler(BaseHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS")
         self.send_header("Access-Control-Allow-Headers", "Content-Type")
         self.send_header("Cache-Control", "no-store")
-        self.send_header("X-Stockanalysis-Source", "frontend-fixture-server")
+        self.send_header("X-Stockanalysis-Source", f"frontend-fixture-server; mode={self.source}")
 
 
 def build_server_error_payload(code: str, message: str, details: dict[str, Any] | None = None) -> dict[str, Any]:
     return {"error": {"code": code, "message": message, "details": details or {}}}
 
 
+def _status_for_adapter_error(exc: FrontendApiAdapterError) -> HTTPStatus:
+    if exc.code == "FrontendLiveReadUnavailable":
+        return HTTPStatus.SERVICE_UNAVAILABLE
+    if exc.code == "FrontendLiveReadUnsupportedPath":
+        return HTTPStatus.NOT_IMPLEMENTED
+    return HTTPStatus.NOT_FOUND
+
+
 def create_frontend_fixture_handler(
     repo_root: Path | str | None = None,
     *,
+    source: str = "fixture",
     verbose_logs: bool = False,
 ) -> type[FrontendFixtureRequestHandler]:
+    if source not in SOURCE_CHOICES:
+        raise ValueError(f"Unsupported frontend fixture server source: {source}")
     resolved_repo_root = Path(repo_root).resolve() if repo_root is not None else None
 
     class ConfiguredFrontendFixtureRequestHandler(FrontendFixtureRequestHandler):
         pass
 
     ConfiguredFrontendFixtureRequestHandler.repo_root = resolved_repo_root
+    ConfiguredFrontendFixtureRequestHandler.source = source
     ConfiguredFrontendFixtureRequestHandler.verbose_logs = verbose_logs
     return ConfiguredFrontendFixtureRequestHandler
 
@@ -162,9 +184,10 @@ def create_frontend_fixture_server(
     port: int = DEFAULT_PORT,
     repo_root: Path | str | None = None,
     *,
+    source: str = "fixture",
     verbose_logs: bool = False,
 ) -> FrontendFixtureHTTPServer:
-    handler = create_frontend_fixture_handler(repo_root, verbose_logs=verbose_logs)
+    handler = create_frontend_fixture_handler(repo_root, source=source, verbose_logs=verbose_logs)
     return FrontendFixtureHTTPServer((host, port), handler)
 
 
@@ -176,6 +199,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--host", default=DEFAULT_HOST, help=f"Bind host. Defaults to {DEFAULT_HOST}.")
     parser.add_argument("--port", type=int, default=DEFAULT_PORT, help=f"Bind port. Defaults to {DEFAULT_PORT}.")
     parser.add_argument("--repo-root", default=None, help="Repository root containing docs/api/frontend.")
+    parser.add_argument(
+        "--source",
+        choices=SOURCE_CHOICES,
+        default="fixture",
+        help="Read source. `auto` uses live only when STOCKANALYSIS_PSQL_COMMAND is configured.",
+    )
     parser.add_argument("--verbose", action="store_true", help="Enable HTTP request logging.")
     return parser
 
@@ -186,6 +215,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         host=args.host,
         port=args.port,
         repo_root=args.repo_root,
+        source=args.source,
         verbose_logs=args.verbose,
     )
     host, port = server.server_address
@@ -197,6 +227,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 "base_url": f"http://{host}:{port}",
                 "health": f"http://{host}:{port}/__health",
                 "read_only": True,
+                "source_mode": args.source,
             },
             ensure_ascii=False,
             sort_keys=True,

@@ -19,7 +19,7 @@
   - `/performance`
   - `/ai-evidence/sec-event-aapl-10k-20240928`
   - `/source-documents/aapl-2024-10k-20240928`
-- live DB read adapter pilot은 Python boundary에 존재하지만, `apps/web`은 아직 fixture server를 기본 source로 사용한다.
+- local API runtime은 `--source fixture|live|auto`를 지원한다. `apps/web`은 같은 base URL을 바라보며, 서버 실행 source mode에 따라 fixture 또는 live-supported DTO를 받는다.
 - write endpoint, auth/RBAC, production deployment는 아직 없다.
 
 ## Stack
@@ -42,6 +42,15 @@ PYTHONPATH=src python3 -m stockanalysis.frontend.fixture_server \
   --port 8765
 ```
 
+Start local runtime with auto live fallback:
+
+```bash
+PYTHONPATH=src python3 -m stockanalysis.frontend.fixture_server \
+  --host 127.0.0.1 \
+  --port 8765 \
+  --source auto
+```
+
 Start web app:
 
 ```bash
@@ -58,10 +67,11 @@ http://127.0.0.1:3000
 
 ## Data Boundary
 
-- Server Components fetch fixture DTOs through `apps/web/src/lib/frontend-api.ts`.
+- Server Components fetch read-only DTOs through `apps/web/src/lib/frontend-api.ts`.
 - Default API base URL is `http://127.0.0.1:8765`.
 - Override with `STOCKANALYSIS_FRONTEND_API_BASE_URL`.
 - Browser code does not receive database credentials or model API keys.
+- DB credentials, when used, stay in the Python local runtime process via `STOCKANALYSIS_PSQL_COMMAND`.
 - Pages are marked dynamic because fixture server data is runtime data.
 
 ## UX Boundary
@@ -110,6 +120,6 @@ Browser visual QA:
 
 ## Next Steps
 
-1. Add local API runtime source mode so `apps/web` can switch between fixture/live/auto safely.
+1. Expand live support to daily cockpit, data health, event/theme, and performance endpoints.
 2. Add full accessibility audit for the expanded frontend.
 3. Add auth/RBAC before any write endpoint.
