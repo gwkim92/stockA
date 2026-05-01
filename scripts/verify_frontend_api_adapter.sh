@@ -32,7 +32,7 @@ with open(dashboard_path, "r", encoding="utf-8") as handle:
     dashboard_payload = json.load(handle)
 
 assert endpoint_payload["contract_version"] == "frontend-api-v0.1", endpoint_payload
-assert len(endpoint_payload["endpoints"]) == 11, endpoint_payload
+assert len(endpoint_payload["endpoints"]) == 12, endpoint_payload
 assert dashboard_payload["data"]["portfolio_name"] == "Long Term Paper", dashboard_payload
 assert dashboard_payload["data"]["attention_summary"]["open_ticket_count"] == 1, dashboard_payload
 PY

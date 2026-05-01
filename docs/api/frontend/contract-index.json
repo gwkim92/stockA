@@ -98,6 +98,14 @@
       "example": "docs/api/frontend/examples/theme-detail.json",
       "route_owner": "/themes",
       "description": "Single theme detail with cycle state, linked instruments, supporting events, and operator guardrails."
+    },
+    {
+      "method": "GET",
+      "path": "/api/performance/Long%20Term%20Paper/outcomes?measurementEndDate=2024-12-02",
+      "response_dto": "PerformanceOutcomesResponse",
+      "example": "docs/api/frontend/examples/performance-outcomes.json",
+      "route_owner": "/performance",
+      "description": "Read-only performance outcome and attribution lens for measured recommendations, thesis outcomes, and coverage exclusions."
     }
   ],
   "write_commands_deferred": [

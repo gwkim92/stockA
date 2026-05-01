@@ -17,13 +17,14 @@ class FrontendApiAdapterTests(unittest.TestCase):
     def test_list_frontend_endpoints_loads_contract_index(self) -> None:
         endpoints = list_frontend_endpoints()
         paths = {endpoint.path for endpoint in endpoints}
-        self.assertEqual(len(endpoints), 11)
+        self.assertEqual(len(endpoints), 12)
         self.assertIn("/api/dashboard/today", paths)
         self.assertIn("/api/remediation-tickets?status=open", paths)
         self.assertIn("/api/ai-evidence/sec-event-aapl-10k-20240928", paths)
         self.assertIn("/api/source-documents/aapl-2024-10k-20240928", paths)
         self.assertIn("/api/events?asOfDate=2024-11-01", paths)
         self.assertIn("/api/themes/ANNUAL_REPORTING?asOfDate=2024-11-01", paths)
+        self.assertIn("/api/performance/Long%20Term%20Paper/outcomes?measurementEndDate=2024-12-02", paths)
 
     def test_resolve_frontend_response_returns_linked_example(self) -> None:
         payload = resolve_frontend_response("/api/dashboard/today")
@@ -39,6 +40,14 @@ class FrontendApiAdapterTests(unittest.TestCase):
         self.assertEqual(theme["data"]["theme_key"], "ANNUAL_REPORTING")
         self.assertEqual(theme["data"]["supporting_events"][0]["event_id"], "sec-event-aapl-10k-20240928")
 
+    def test_resolve_frontend_response_returns_performance_example(self) -> None:
+        performance = resolve_frontend_response(
+            "/api/performance/Long%20Term%20Paper/outcomes?measurementEndDate=2024-12-02"
+        )
+        self.assertEqual(performance["data"]["summary"]["measured_recommendation_count"], 1)
+        self.assertEqual(performance["data"]["outcomes"][0]["recommendation_id"], "AAPL-2024-11-01")
+        self.assertEqual(performance["data"]["coverage_exclusions"][0]["symbol"], "BABA")
+
     def test_resolve_frontend_response_rejects_unknown_path(self) -> None:
         with self.assertRaises(FrontendApiAdapterError):
             resolve_frontend_response("/api/unknown")
@@ -50,7 +59,7 @@ class FrontendApiAdapterTests(unittest.TestCase):
         self.assertEqual(exit_code, 0)
         payload = json.loads(stdout.getvalue())
         self.assertEqual(payload["contract_version"], "frontend-api-v0.1")
-        self.assertEqual(len(payload["endpoints"]), 11)
+        self.assertEqual(len(payload["endpoints"]), 12)
 
     def test_cli_get_prints_response_payload(self) -> None:
         stdout = io.StringIO()

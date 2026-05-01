@@ -5,6 +5,7 @@ import type {
   DailyCockpitData,
   DataHealthData,
   EventListData,
+  PerformanceOutcomesData,
   PortfolioCoverageData,
   RecommendationDetailData,
   RemediationTicketsData,
@@ -100,4 +101,10 @@ export function getEvents() {
 
 export function getThemeDetail(themeKey: string) {
   return fetchFrontendPayload<ThemeDetailData>(`/api/themes/${themeKey}?asOfDate=2024-11-01`);
+}
+
+export function getPerformanceOutcomes() {
+  return fetchFrontendPayload<PerformanceOutcomesData>(
+    "/api/performance/Long%20Term%20Paper/outcomes?measurementEndDate=2024-12-02",
+  );
 }

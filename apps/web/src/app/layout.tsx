@@ -44,6 +44,7 @@ const navItems = [
   { href: "/recommendations/AAPL-2024-11-01", label: "Recs" },
   { href: "/theses/AAPL-bootstrap-v1", label: "Thesis" },
   { href: "/portfolio/coverage", label: "Coverage" },
+  { href: "/performance", label: "Performance" },
   { href: "/ai-evidence/sec-event-aapl-10k-20240928", label: "Evidence" },
 ] as const;
 

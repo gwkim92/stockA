@@ -340,3 +340,69 @@ export type ThemeDetailData = {
   }>;
   operator_notes: string[];
 };
+
+export type PerformanceOutcomesData = {
+  portfolio_name: string;
+  strategy_name: string;
+  snapshot_date: string;
+  measurement_start_date: string;
+  measurement_end_date: string;
+  benchmark_code: string;
+  methodology: string;
+  summary: {
+    measured_recommendation_count: number;
+    measured_thesis_count: number;
+    outperform_count: number;
+    underperform_count: number;
+    hit_rate: number;
+    average_alpha: number;
+    security_lens_contribution_bps: number;
+    theme_lens_contribution_bps: number;
+    cash_timing_contribution_bps: number;
+    attribution_component_count: number;
+    excluded_position_count: number;
+    excluded_weight: number;
+    cash_weight: number;
+  };
+  outcomes: Array<{
+    outcome_id: string;
+    recommendation_id: string;
+    thesis_id: string;
+    symbol: string;
+    instrument_id: string;
+    recommendation: string;
+    horizon_days: number;
+    absolute_return: number;
+    benchmark_return: number;
+    alpha: number;
+    label: string;
+    position_weight: number;
+    security_contribution_bps: number;
+    source_run_id: string;
+  }>;
+  attribution_components: Array<{
+    component_id: string;
+    component_type: string;
+    label: string;
+    symbol: string;
+    theme_key: string | null;
+    weight: number;
+    absolute_return: number;
+    benchmark_return: number;
+    alpha: number;
+    contribution_bps: number;
+    interpretation: string;
+  }>;
+  coverage_exclusions: Array<{
+    symbol: string;
+    instrument_id: string;
+    weight: number;
+    reason: string;
+    required_action: string;
+  }>;
+  quality_gates: Array<{
+    gate: string;
+    status: string;
+    reason: string;
+  }>;
+};

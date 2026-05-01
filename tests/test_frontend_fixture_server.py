@@ -44,7 +44,7 @@ class FrontendFixtureServerTests(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertEqual(payload["status"], "ok")
         self.assertEqual(payload["contract_version"], "frontend-api-v0.1")
-        self.assertEqual(payload["endpoint_count"], 11)
+        self.assertEqual(payload["endpoint_count"], 12)
         self.assertTrue(payload["read_only"])
 
     def test_endpoints_returns_fixture_index(self) -> None:
@@ -57,6 +57,7 @@ class FrontendFixtureServerTests(unittest.TestCase):
         self.assertIn("/api/source-documents/aapl-2024-10k-20240928", paths)
         self.assertIn("/api/events?asOfDate=2024-11-01", paths)
         self.assertIn("/api/themes/ANNUAL_REPORTING?asOfDate=2024-11-01", paths)
+        self.assertIn("/api/performance/Long%20Term%20Paper/outcomes?measurementEndDate=2024-12-02", paths)
 
     def test_known_api_path_returns_fixture_response(self) -> None:
         status, payload = self.fetch_json("/api/dashboard/today")
@@ -81,6 +82,15 @@ class FrontendFixtureServerTests(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertEqual(theme["data"]["theme_key"], "ANNUAL_REPORTING")
         self.assertEqual(theme["data"]["linked_instruments"][0]["symbol"], "AAPL")
+
+    def test_performance_path_returns_fixture_response(self) -> None:
+        status, payload = self.fetch_json(
+            "/api/performance/Long%20Term%20Paper/outcomes?measurementEndDate=2024-12-02"
+        )
+        self.assertEqual(status, 200)
+        self.assertEqual(payload["data"]["summary"]["measured_recommendation_count"], 1)
+        self.assertEqual(payload["data"]["outcomes"][0]["recommendation_id"], "AAPL-2024-11-01")
+        self.assertEqual(payload["data"]["coverage_exclusions"][0]["symbol"], "BABA")
 
     def test_unknown_path_returns_stable_404_json(self) -> None:
         status, payload = self.fetch_error_json("/api/not-found")

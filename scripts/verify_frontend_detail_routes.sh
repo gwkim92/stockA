@@ -63,6 +63,7 @@ test -f "$WEB_DIR/src/app/ai-evidence/[evidenceId]/page.tsx"
 test -f "$WEB_DIR/src/app/source-documents/[documentId]/page.tsx"
 test -f "$WEB_DIR/src/app/events/page.tsx"
 test -f "$WEB_DIR/src/app/themes/[themeKey]/page.tsx"
+test -f "$WEB_DIR/src/app/performance/page.tsx"
 test -f "$WEB_DIR/src/lib/frontend-api.ts"
 test -f "$WEB_DIR/src/lib/types.ts"
 
@@ -104,6 +105,7 @@ checks = {
     "/source-documents/aapl-2024-10k-20240928": "Source Document Dossier",
     "/events": "Event Evidence Map",
     "/themes/ANNUAL_REPORTING": "Annual reporting quality",
+    "/performance": "Performance outcome review",
 }
 
 for path, expected in checks.items():

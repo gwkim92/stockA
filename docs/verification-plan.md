@@ -27,8 +27,8 @@ task마다 흔들리게 두지 않는 편이 좋다.
 - 통과 조건: `docs/frontend-architecture.md`와 task docs가 존재하고, frontend doc에 cockpit, route map, data boundary, AI boundary, security boundary, implementation phases가 포함되며, `apps/web` scaffold가 존재하고 root-level `app` scaffold는 없는 것이 확인된다.
 
 - 명령: `bash scripts/verify_frontend_api_contract.sh`
-- 무엇을 증명하는가: daily cockpit, remediation tickets, data health, cycle state, recommendation detail, thesis detail, portfolio coverage, AI evidence, source document, event list, theme detail read DTO contract와 example JSON이 고정되었는지 확인한다.
-- 통과 조건: `docs/frontend-api-contract.md`, `docs/api/frontend/contract-index.json`, eleven example JSON이 존재하고, contract version과 endpoint/example mapping, common response shape, 핵심 field assertions가 모두 통과하며, root-level `app` scaffold가 없는 것이 확인된다.
+- 무엇을 증명하는가: daily cockpit, remediation tickets, data health, cycle state, recommendation detail, thesis detail, portfolio coverage, performance outcomes, AI evidence, source document, event list, theme detail read DTO contract와 example JSON이 고정되었는지 확인한다.
+- 통과 조건: `docs/frontend-api-contract.md`, `docs/api/frontend/contract-index.json`, twelve example JSON이 존재하고, contract version과 endpoint/example mapping, common response shape, 핵심 field assertions가 모두 통과하며, root-level `app` scaffold가 없는 것이 확인된다.
 
 - 명령: `bash scripts/verify_frontend_api_adapter.sh`
 - 무엇을 증명하는가: frontend API contract examples를 반환하는 read-only Python adapter와 CLI가 동작하는지 확인한다.
@@ -43,8 +43,8 @@ task마다 흔들리게 두지 않는 편이 좋다.
 - 통과 조건: web scaffold files, npm install, TypeScript check, Next production build, fixture server runtime, Next production server route smoke for `/`, `/remediation`, `/data-health`, `/cycles`, frontend architecture/API/adapter/fixture server regression checks가 모두 통과한다.
 
 - 명령: `bash scripts/verify_frontend_detail_routes.sh`
-- 무엇을 증명하는가: event, theme, recommendation, thesis, portfolio coverage, AI evidence, source document detail routes가 fixture server payload를 읽고 read-only Server Component로 렌더링되는지 확인한다.
-- 통과 조건: detail route files, npm install, TypeScript check, Next production build, fixture server runtime, Next production server route smoke for `/events`, `/themes/ANNUAL_REPORTING`, `/recommendations/AAPL-2024-11-01`, `/theses/AAPL-bootstrap-v1`, `/portfolio/coverage`, `/ai-evidence/sec-event-aapl-10k-20240928`, `/source-documents/aapl-2024-10k-20240928`, frontend fixture server regression check가 모두 통과한다.
+- 무엇을 증명하는가: event, theme, performance, recommendation, thesis, portfolio coverage, AI evidence, source document detail routes가 fixture server payload를 읽고 read-only Server Component로 렌더링되는지 확인한다.
+- 통과 조건: detail route files, npm install, TypeScript check, Next production build, fixture server runtime, Next production server route smoke for `/events`, `/themes/ANNUAL_REPORTING`, `/performance`, `/recommendations/AAPL-2024-11-01`, `/theses/AAPL-bootstrap-v1`, `/portfolio/coverage`, `/ai-evidence/sec-event-aapl-10k-20240928`, `/source-documents/aapl-2024-10k-20240928`, frontend fixture server regression check가 모두 통과한다.
 
 - 명령: `bash scripts/verify_migrations.sh`
 - 무엇을 증명하는가: 현재 작성된 Postgres migration skeleton이 실제 임시 Postgres 인스턴스에 순서대로 적용되는지 검증한다.
@@ -247,9 +247,9 @@ task마다 흔들리게 두지 않는 편이 좋다.
 
 ## Browser Or Runtime Checks
 
-- URL, route, job, endpoint: `http://127.0.0.1:8765/__health`, `http://127.0.0.1:8765/__endpoints`, `http://127.0.0.1:8765/api/dashboard/today`, `http://127.0.0.1:8765/api/events?asOfDate=2024-11-01`, `http://127.0.0.1:8765/api/themes/ANNUAL_REPORTING?asOfDate=2024-11-01`, `http://127.0.0.1:3000/`, `http://127.0.0.1:3000/remediation`, `http://127.0.0.1:3000/data-health`, `http://127.0.0.1:3000/cycles`, `http://127.0.0.1:3000/events`, `http://127.0.0.1:3000/themes/ANNUAL_REPORTING`, `http://127.0.0.1:3000/recommendations/AAPL-2024-11-01`, `http://127.0.0.1:3000/theses/AAPL-bootstrap-v1`, `http://127.0.0.1:3000/portfolio/coverage`, `http://127.0.0.1:3000/ai-evidence/sec-event-aapl-10k-20240928`, `http://127.0.0.1:3000/source-documents/aapl-2024-10k-20240928`
+- URL, route, job, endpoint: `http://127.0.0.1:8765/__health`, `http://127.0.0.1:8765/__endpoints`, `http://127.0.0.1:8765/api/dashboard/today`, `http://127.0.0.1:8765/api/events?asOfDate=2024-11-01`, `http://127.0.0.1:8765/api/themes/ANNUAL_REPORTING?asOfDate=2024-11-01`, `http://127.0.0.1:8765/api/performance/Long%20Term%20Paper/outcomes?measurementEndDate=2024-12-02`, `http://127.0.0.1:3000/`, `http://127.0.0.1:3000/remediation`, `http://127.0.0.1:3000/data-health`, `http://127.0.0.1:3000/cycles`, `http://127.0.0.1:3000/events`, `http://127.0.0.1:3000/themes/ANNUAL_REPORTING`, `http://127.0.0.1:3000/performance`, `http://127.0.0.1:3000/recommendations/AAPL-2024-11-01`, `http://127.0.0.1:3000/theses/AAPL-bootstrap-v1`, `http://127.0.0.1:3000/portfolio/coverage`, `http://127.0.0.1:3000/ai-evidence/sec-event-aapl-10k-20240928`, `http://127.0.0.1:3000/source-documents/aapl-2024-10k-20240928`
 - 수행 경로: `bash scripts/verify_frontend_fixture_server.sh`가 fixture server runtime smoke를 수행하고, `bash scripts/verify_apps_web_scaffold.sh`와 `bash scripts/verify_frontend_detail_routes.sh`가 Next production server route smoke를 수행한다.
-- 확인할 증거: health payload, endpoint index, daily cockpit fixture payload, event/theme fixture payload, remediation ticket query-string fixture payload, 404/405 error payload, web route HTML content가 검증된다.
+- 확인할 증거: health payload, endpoint index, daily cockpit fixture payload, event/theme/performance fixture payload, remediation ticket query-string fixture payload, 404/405 error payload, web route HTML content가 검증된다.
 
 ## Metrics Or Logs
 

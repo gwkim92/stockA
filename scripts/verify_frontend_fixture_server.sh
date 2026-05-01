@@ -59,11 +59,11 @@ try:
     status, health = fetch_json("/__health")
     assert status == 200, health
     assert health["contract_version"] == "frontend-api-v0.1", health
-    assert health["endpoint_count"] == 11, health
+    assert health["endpoint_count"] == 12, health
 
     status, endpoints = fetch_json("/__endpoints")
     assert status == 200, endpoints
-    assert len(endpoints["data"]["endpoints"]) == 11, endpoints
+    assert len(endpoints["data"]["endpoints"]) == 12, endpoints
 
     status, dashboard = fetch_json("/api/dashboard/today")
     assert status == 200, dashboard
@@ -92,6 +92,12 @@ try:
     assert theme["data"]["theme_key"] == "ANNUAL_REPORTING", theme
     assert theme["data"]["linked_instruments"][0]["symbol"] == "AAPL", theme
 
+    status, performance = fetch_json("/api/performance/Long%20Term%20Paper/outcomes?measurementEndDate=2024-12-02")
+    assert status == 200, performance
+    assert performance["data"]["summary"]["measured_recommendation_count"] == 1, performance
+    assert performance["data"]["outcomes"][0]["recommendation_id"] == "AAPL-2024-11-01", performance
+    assert performance["data"]["coverage_exclusions"][0]["symbol"] == "BABA", performance
+
     status, not_found = fetch_error_json("/api/not-found")
     assert status == 404, not_found
     assert not_found["error"]["code"] == "FrontendApiPathNotFound", not_found
@@ -113,6 +119,7 @@ try:
             "/api/source-documents/aapl-2024-10k-20240928",
             "/api/events?asOfDate=2024-11-01",
             "/api/themes/ANNUAL_REPORTING?asOfDate=2024-11-01",
+            "/api/performance/Long%20Term%20Paper/outcomes?measurementEndDate=2024-12-02",
             "/api/not-found",
         ],
     }
