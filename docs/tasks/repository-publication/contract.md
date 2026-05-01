@@ -56,15 +56,15 @@
 
 ## Completion Criteria
 
-- [ ] `pusan` public key fingerprint이 확인된다.
-- [ ] secret/generated artifact scan이 수행된다.
-- [ ] `.gitignore`가 public repo 기준으로 보강된다.
-- [ ] branch strategy 문서가 존재한다.
-- [ ] Git repo가 초기화되고 remote가 설정된다.
-- [ ] safe initial commit이 생성된다.
-- [ ] `main` branch가 remote에 push된다.
-- [ ] `develop` branch가 remote에 push된다.
-- [ ] handoff/review가 갱신된다.
+- [x] `pusan` public key fingerprint이 확인된다.
+- [x] secret/generated artifact scan이 수행된다.
+- [x] `.gitignore`가 public repo 기준으로 보강된다.
+- [x] branch strategy 문서가 존재한다.
+- [x] Git repo가 초기화되고 remote가 설정된다.
+- [x] safe initial commit이 생성된다.
+- [x] `main` branch가 remote에 push된다.
+- [x] `develop` branch가 remote에 push된다.
+- [x] handoff/review가 갱신된다.
 
 ## Risks
 
