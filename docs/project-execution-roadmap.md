@@ -47,9 +47,9 @@ Initial scope:
 
 - Expand live reads for `/api/dashboard/today`. First slice implemented in `frontend-live-read-expansion`.
 - Expand live reads for `/api/data-health`. First slice implemented in `frontend-live-read-expansion`.
-- Expand live reads for `/api/events?asOfDate=...`.
-- Expand live reads for `/api/themes/:themeKey?asOfDate=...`.
-- Expand live reads for `/api/performance/:portfolio/outcomes?...`.
+- Expand live reads for `/api/events?asOfDate=...`. Second slice implemented in `frontend-live-read-event-theme-performance`.
+- Expand live reads for `/api/themes/:themeKey?asOfDate=...`. Second slice implemented in `frontend-live-read-event-theme-performance`.
+- Expand live reads for `/api/performance/:portfolio/outcomes?...`. Second slice implemented in `frontend-live-read-event-theme-performance`.
 
 Guardrail:
 
@@ -165,9 +165,9 @@ Guardrail:
 
 ## Immediate Next Task
 
-Current task: `frontend-live-read-expansion`.
+Current task: `frontend-live-read-event-theme-performance`.
 
-The first implementation expands live read support, not new frontend pages. It starts with `dashboard` and `data-health` because they show whether the whole system is operating correctly. Then expand event/theme/performance reads.
+The first implementation expanded live read support, not new frontend pages. It started with `dashboard` and `data-health`, then event/theme/performance. Next live read work should cover recommendation/thesis detail, AI evidence, and source document endpoints before production API runtime expansion.
 
 ## Focus Rules
 

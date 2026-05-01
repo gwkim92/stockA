@@ -80,6 +80,153 @@ class FakeLiveExecutor:
                     ],
                 }
             )
+        if sql.startswith("-- frontend event list state lookup"):
+            return json.dumps(
+                {
+                    "as_of_date": "2024-11-01",
+                    "summary": {
+                        "event_count": 1,
+                        "ai_extracted_count": 1,
+                        "source_document_count": 1,
+                        "themes_represented": 1,
+                    },
+                    "events": [
+                        {
+                            "event_id": 9001,
+                            "title": "AAPL 2024 10-K annual reporting event",
+                            "event_type": "source_document_event",
+                            "event_at": "2024-09-28T00:00:00+00:00",
+                            "symbol": "AAPL",
+                            "instrument_id": 501,
+                            "theme_key": "ANNUAL_REPORTING",
+                            "theme_name": "Annual reporting quality",
+                            "impact_direction": "supportive",
+                            "impact_score": "0.8200",
+                            "source_document_id": "aapl-2024-10k-20240928",
+                            "ai_evidence_id": 8801,
+                            "quality_gate": "human_review_required",
+                        }
+                    ],
+                }
+            )
+        if sql.startswith("-- frontend theme detail state lookup"):
+            return json.dumps(
+                {
+                    "theme_key": "ANNUAL_REPORTING",
+                    "theme_name": "Annual reporting quality",
+                    "as_of_date": "2024-11-01",
+                    "state": "constructive",
+                    "previous_state": "neutral",
+                    "confidence": "0.7200",
+                    "cycle_score": "0.7400",
+                    "cycle_history": [
+                        {"as_of_date": "2024-10-01", "state": "neutral", "confidence": "0.5800"},
+                        {"as_of_date": "2024-11-01", "state": "constructive", "confidence": "0.7200"},
+                    ],
+                    "features": {
+                        "event_intensity": "0.8000",
+                        "price_momentum": "0.6100",
+                        "fundamental_quality": "0.7400",
+                    },
+                    "linked_instruments": [
+                        {
+                            "symbol": "AAPL",
+                            "instrument_id": 501,
+                            "membership_strength": "0.8600",
+                            "active_thesis_id": 7001,
+                            "latest_recommendation_id": 7101,
+                        }
+                    ],
+                    "supporting_events": [
+                        {
+                            "event_id": 9001,
+                            "title": "AAPL 2024 10-K annual reporting event",
+                            "event_at": "2024-09-28T00:00:00+00:00",
+                            "symbol": "AAPL",
+                            "impact_direction": "supportive",
+                            "impact_score": "0.8200",
+                            "ai_evidence_id": 8801,
+                            "source_document_id": "aapl-2024-10k-20240928",
+                        }
+                    ],
+                }
+            )
+        if sql.startswith("-- frontend performance outcomes state lookup"):
+            return json.dumps(
+                {
+                    "portfolio_name": "Long Term Paper",
+                    "strategy_name": "long_term_core",
+                    "snapshot_date": "2024-11-01",
+                    "measurement_start_date": "2024-11-01",
+                    "measurement_end_date": "2024-12-02",
+                    "benchmark_code": "SPY",
+                    "methodology": "position_weighted_alpha_v1",
+                    "summary": {
+                        "measured_recommendation_count": 1,
+                        "measured_thesis_count": 1,
+                        "outperform_count": 1,
+                        "underperform_count": 0,
+                        "hit_rate": "1.0000",
+                        "average_alpha": "0.0600",
+                        "security_lens_contribution_bps": "30.0000",
+                        "theme_lens_contribution_bps": "30.0000",
+                        "cash_timing_contribution_bps": "0.0000",
+                        "attribution_component_count": 3,
+                        "excluded_position_count": 1,
+                        "excluded_weight": "0.0300",
+                        "cash_weight": "0.9200",
+                    },
+                    "outcomes": [
+                        {
+                            "outcome_id": 8101,
+                            "recommendation_id": 7101,
+                            "thesis_id": 7001,
+                            "symbol": "AAPL",
+                            "instrument_id": 501,
+                            "recommendation": "accumulate",
+                            "horizon_days": 31,
+                            "absolute_return": "0.1000",
+                            "benchmark_return": "0.0400",
+                            "alpha": "0.0600",
+                            "label": "outperform",
+                            "position_weight": "0.0500",
+                            "security_contribution_bps": "30.0000",
+                            "source_run_id": 9102,
+                        }
+                    ],
+                    "attribution_components": [
+                        {
+                            "component_id": 8201,
+                            "component_type": "security_selection",
+                            "label": "AAPL security selection",
+                            "symbol": "AAPL",
+                            "theme_key": "ANNUAL_REPORTING",
+                            "weight": "0.0500",
+                            "absolute_return": "0.1000",
+                            "benchmark_return": "0.0400",
+                            "alpha": "0.0600",
+                            "contribution_bps": "30.0000",
+                            "interpretation": "Position-weighted alpha contribution.",
+                        }
+                    ],
+                    "coverage_exclusions": [
+                        {
+                            "symbol": "BABA",
+                            "instrument_id": 502,
+                            "weight": "0.0300",
+                            "reason": "missing_thesis",
+                            "required_action": "needs_thesis_review",
+                        }
+                    ],
+                    "quality_gates": [
+                        {
+                            "gate": "coverage_ready",
+                            "status": "blocked",
+                            "reason": "Some positions are excluded from attribution coverage.",
+                        }
+                    ],
+                }
+            )
         if sql.startswith("-- portfolio remediation ticket report"):
             return json.dumps(
                 {
@@ -215,6 +362,84 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertIn("auth_rbac", payload["data"]["open_gates"])
         self.assertEqual(payload["links"]["dashboard"], "/api/dashboard/today")
 
+    def test_live_event_list_response_matches_frontend_contract_shape(self) -> None:
+        payload = resolve_live_frontend_response(
+            "/api/events?asOfDate=2024-11-01",
+            config=type("Config", (), {"psql_command": "psql"})(),
+            executor=FakeLiveExecutor(),
+            generated_at=datetime(2026, 5, 1, tzinfo=timezone.utc),
+        )
+
+        self.assertEqual(payload["contract_version"], "frontend-api-v0.1")
+        self.assertEqual(payload["data"]["as_of_date"], "2024-11-01")
+        self.assertEqual(payload["data"]["filters"]["event_type"], "all")
+        self.assertEqual(payload["data"]["summary"]["event_count"], 1)
+        self.assertEqual(payload["data"]["summary"]["ai_extracted_count"], 1)
+        event = payload["data"]["events"][0]
+        self.assertEqual(event["event_id"], "event-9001")
+        self.assertEqual(event["symbol"], "AAPL")
+        self.assertEqual(event["instrument_id"], "instrument-501")
+        self.assertEqual(event["theme_key"], "ANNUAL_REPORTING")
+        self.assertEqual(event["impact_score"], 0.82)
+        self.assertEqual(event["source_document_id"], "source-document-aapl-2024-10k-20240928")
+        self.assertEqual(event["ai_evidence_id"], "ai-evidence-8801")
+        self.assertEqual(payload["links"]["theme_detail"], "/api/themes/ANNUAL_REPORTING?asOfDate=2024-11-01")
+
+    def test_live_theme_detail_response_matches_frontend_contract_shape(self) -> None:
+        payload = resolve_live_frontend_response(
+            "/api/themes/ANNUAL_REPORTING?asOfDate=2024-11-01",
+            config=type("Config", (), {"psql_command": "psql"})(),
+            executor=FakeLiveExecutor(),
+            generated_at=datetime(2026, 5, 1, tzinfo=timezone.utc),
+        )
+
+        self.assertEqual(payload["contract_version"], "frontend-api-v0.1")
+        self.assertEqual(payload["data"]["theme_key"], "ANNUAL_REPORTING")
+        self.assertEqual(payload["data"]["state"], "constructive")
+        self.assertEqual(payload["data"]["previous_state"], "neutral")
+        self.assertEqual(payload["data"]["confidence"], 0.72)
+        self.assertEqual(payload["data"]["cycle_score"], 0.74)
+        self.assertEqual(payload["data"]["features"]["event_intensity"], 0.8)
+        self.assertEqual(payload["data"]["cycle_history"][0]["state"], "neutral")
+        linked_instrument = payload["data"]["linked_instruments"][0]
+        self.assertEqual(linked_instrument["instrument_id"], "instrument-501")
+        self.assertEqual(linked_instrument["active_thesis_id"], "thesis-7001")
+        self.assertEqual(linked_instrument["latest_recommendation_id"], "recommendation-7101")
+        supporting_event = payload["data"]["supporting_events"][0]
+        self.assertEqual(supporting_event["event_id"], "event-9001")
+        self.assertEqual(supporting_event["ai_evidence_id"], "ai-evidence-8801")
+        self.assertEqual(payload["links"]["recommendation"], "/api/recommendations/recommendation-7101")
+
+    def test_live_performance_outcomes_response_matches_frontend_contract_shape(self) -> None:
+        payload = resolve_live_frontend_response(
+            "/api/performance/Long%20Term%20Paper/outcomes?measurementEndDate=2024-12-02",
+            config=type("Config", (), {"psql_command": "psql"})(),
+            executor=FakeLiveExecutor(),
+            generated_at=datetime(2026, 5, 1, tzinfo=timezone.utc),
+        )
+
+        self.assertEqual(payload["contract_version"], "frontend-api-v0.1")
+        self.assertEqual(payload["data"]["portfolio_name"], "Long Term Paper")
+        self.assertEqual(payload["data"]["measurement_end_date"], "2024-12-02")
+        self.assertEqual(payload["data"]["summary"]["measured_recommendation_count"], 1)
+        self.assertEqual(payload["data"]["summary"]["hit_rate"], 1.0)
+        self.assertEqual(payload["data"]["summary"]["average_alpha"], 0.06)
+        outcome = payload["data"]["outcomes"][0]
+        self.assertEqual(outcome["outcome_id"], "outcome-8101")
+        self.assertEqual(outcome["recommendation_id"], "recommendation-7101")
+        self.assertEqual(outcome["thesis_id"], "thesis-7001")
+        self.assertEqual(outcome["alpha"], 0.06)
+        self.assertEqual(outcome["source_run_id"], "pipeline-run-9102")
+        component = payload["data"]["attribution_components"][0]
+        self.assertEqual(component["component_id"], "attribution-component-8201")
+        self.assertEqual(component["theme_key"], "ANNUAL_REPORTING")
+        self.assertEqual(payload["data"]["coverage_exclusions"][0]["symbol"], "BABA")
+        self.assertEqual(payload["data"]["quality_gates"][0]["status"], "blocked")
+        self.assertEqual(
+            payload["links"]["coverage"],
+            "/api/portfolio/Long%20Term%20Paper/coverage?asOfDate=2024-11-01",
+        )
+
     def test_live_remediation_tickets_response_matches_frontend_contract_shape(self) -> None:
         payload = resolve_live_frontend_response(
             "/api/remediation-tickets?status=open",
@@ -276,7 +501,7 @@ class FrontendLiveAdapterTests(unittest.TestCase):
     def test_live_adapter_rejects_unsupported_path(self) -> None:
         with self.assertRaises(FrontendLiveUnsupportedPathError):
             resolve_live_frontend_response(
-                "/api/events?asOfDate=2024-11-01",
+                "/api/ai-evidence/sec-event-aapl-10k-20240928",
                 config=type("Config", (), {"psql_command": "psql"})(),
                 executor=FakeLiveExecutor(),
             )
