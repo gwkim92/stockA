@@ -174,7 +174,7 @@ Phase 2: frontend scaffold
 
 - status: fixture-only scaffold documented as `docs/apps-web-scaffold.md`.
 - app: `apps/web`.
-- routes: `/`, `/remediation`, `/data-health`, `/cycles`, `/events`, `/themes/ANNUAL_REPORTING`, `/recommendations/AAPL-2024-11-01`, `/theses/AAPL-bootstrap-v1`, `/portfolio/coverage`, `/ai-evidence/sec-event-aapl-10k-20240928`, `/source-documents/aapl-2024-10k-20240928`.
+- routes: `/`, `/remediation`, `/data-health`, `/cycles`, `/events`, `/themes/ANNUAL_REPORTING`, `/recommendations/AAPL-2024-11-01`, `/theses/AAPL-bootstrap-v1`, `/portfolio/coverage`, `/performance`, `/ai-evidence/sec-event-aapl-10k-20240928`, `/source-documents/aapl-2024-10k-20240928`.
 - verification: `scripts/verify_apps_web_scaffold.sh`.
 
 Phase 3: daily cockpit and remediation UI
@@ -191,8 +191,8 @@ Phase 4: research explorer
 
 Phase 5: thesis and performance review
 
-- implement `/recommendations`, `/theses`, `/portfolio`, `/performance`.
-- show score components, invalidation conditions, outcome labels, attribution.
+- status: `/recommendations`, `/theses`, `/portfolio/coverage`, and `/performance` fixture-backed routes exist for one bootstrap portfolio/recommendation path.
+- show score components, invalidation conditions, outcome labels, attribution lenses, and coverage exclusions.
 
 Phase 6: operational hardening
 
@@ -204,8 +204,8 @@ Start with browser QA, performance route expansion, or live read-adapter plannin
 
 The next task can expand `apps/web` against remaining fixture server payloads:
 
-- performance outcome route.
 - browser visual QA for the expanded frontend.
 - live DB read adapter behind the existing DTO contract.
+- broader performance history and filtering after live read adapter shape is stable.
 
 Keep the first web scaffold fixture-only until live DB read adapter and auth boundary are ready.

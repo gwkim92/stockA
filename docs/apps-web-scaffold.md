@@ -16,6 +16,7 @@
   - `/recommendations/AAPL-2024-11-01`
   - `/theses/AAPL-bootstrap-v1`
   - `/portfolio/coverage`
+  - `/performance`
   - `/ai-evidence/sec-event-aapl-10k-20240928`
   - `/source-documents/aapl-2024-10k-20240928`
 - live DB adapter, write endpoint, auth/RBAC, production deployment는 아직 없다.
@@ -74,6 +75,7 @@ It prioritizes:
 - cycle state context.
 - source run provenance.
 - event/theme evidence chains.
+- performance outcome accountability.
 
 It intentionally does not implement:
 
@@ -96,12 +98,12 @@ The verification script checks:
 - Next production build.
 - fixture server runtime.
 - Next production server route smoke for `/`, `/remediation`, `/data-health`, `/cycles`.
-- Detail route smoke for `/events`, `/themes/ANNUAL_REPORTING`, recommendation, thesis, coverage, AI evidence, and source document routes is covered by `scripts/verify_frontend_detail_routes.sh`.
+- Detail route smoke for `/events`, `/themes/ANNUAL_REPORTING`, `/performance`, recommendation, thesis, coverage, AI evidence, and source document routes is covered by `scripts/verify_frontend_detail_routes.sh`.
 - frontend architecture/API/adapter/fixture server regression checks.
 
 ## Next Steps
 
 1. Browser QA in the in-app browser with fixture server and Next dev server.
-2. Add performance outcome route.
-3. Add live DB read adapter behind the same frontend DTO contract.
+2. Add live DB read adapter behind the same frontend DTO contract.
+3. Add browser visual QA for the expanded frontend.
 4. Add auth/RBAC before any write endpoint.

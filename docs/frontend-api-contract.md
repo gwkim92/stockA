@@ -51,6 +51,7 @@ Initial endpoints:
 - `GET /api/source-documents/aapl-2024-10k-20240928`: `SourceDocumentDetailResponse`
 - `GET /api/events?asOfDate=2024-11-01`: `EventListResponse`
 - `GET /api/themes/ANNUAL_REPORTING?asOfDate=2024-11-01`: `ThemeDetailResponse`
+- `GET /api/performance/Long%20Term%20Paper/outcomes?measurementEndDate=2024-12-02`: `PerformanceOutcomesResponse`
 
 Deferred write endpoint:
 
@@ -126,6 +127,12 @@ Theme detail:
 - source concepts: theme cycle state, cycle feature snapshot, linked instruments, supporting events, thesis/recommendation links.
 - example: `docs/api/frontend/examples/theme-detail.json`
 
+Performance outcomes:
+
+- owner route: `/performance`
+- source concepts: recommendation outcome, thesis outcome, benchmark-relative alpha, attribution component, coverage exclusion.
+- example: `docs/api/frontend/examples/performance-outcomes.json`
+
 ## Read Boundary
 
 Read APIs should be denormalized for frontend needs.
@@ -138,6 +145,7 @@ Rules:
 - every score-like value must have component or evidence drilldown in detail routes.
 - every AI extraction response must expose prompt/model/run metadata and source chunk ids.
 - event/theme explorer responses must preserve provenance links instead of presenting cycle state as a standalone buy signal.
+- performance responses must distinguish deterministic outcome math from AI narrative and must not hide coverage exclusions.
 - raw source documents are not browser-downloadable until auth/RBAC and access policy are implemented.
 
 ## Write Boundary
@@ -171,4 +179,4 @@ Rules:
 
 ## Next Implementation Step
 
-The read-only Python fixture adapter exists in `src/stockanalysis/frontend/api_adapter.py`, local HTTP fixture serving exists in `src/stockanalysis/frontend/fixture_server.py`, and `apps/web` consumes fixture payloads. Next, add broader evidence/performance route coverage or a live DB read adapter behind the same contract.
+The read-only Python fixture adapter exists in `src/stockanalysis/frontend/api_adapter.py`, local HTTP fixture serving exists in `src/stockanalysis/frontend/fixture_server.py`, and `apps/web` consumes fixture payloads. Next, run browser visual QA for the expanded frontend or add a live DB read adapter behind the same contract.

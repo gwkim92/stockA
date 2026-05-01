@@ -1,0 +1,120 @@
+{
+  "contract_version": "frontend-api-v0.1",
+  "generated_at": "2026-05-01T00:00:00Z",
+  "data": {
+    "portfolio_name": "Long Term Paper",
+    "strategy_name": "long_term_core",
+    "snapshot_date": "2024-11-01",
+    "measurement_start_date": "2024-11-01",
+    "measurement_end_date": "2024-12-02",
+    "benchmark_code": "SPY",
+    "methodology": "position_weighted_alpha_v1",
+    "summary": {
+      "measured_recommendation_count": 1,
+      "measured_thesis_count": 1,
+      "outperform_count": 1,
+      "underperform_count": 0,
+      "hit_rate": 1.0,
+      "average_alpha": 0.06,
+      "security_lens_contribution_bps": 30.0,
+      "theme_lens_contribution_bps": 30.0,
+      "cash_timing_contribution_bps": 0.0,
+      "attribution_component_count": 3,
+      "excluded_position_count": 1,
+      "excluded_weight": 0.03,
+      "cash_weight": 0.92
+    },
+    "outcomes": [
+      {
+        "outcome_id": "AAPL-2024-11-01-2024-12-02",
+        "recommendation_id": "AAPL-2024-11-01",
+        "thesis_id": "AAPL-bootstrap-v1",
+        "symbol": "AAPL",
+        "instrument_id": "instrument-aapl",
+        "recommendation": "accumulate",
+        "horizon_days": 31,
+        "absolute_return": 0.1,
+        "benchmark_return": 0.04,
+        "alpha": 0.06,
+        "label": "outperform",
+        "position_weight": 0.05,
+        "security_contribution_bps": 30.0,
+        "source_run_id": "run-performance-outcome-bootstrap-20241202"
+      }
+    ],
+    "attribution_components": [
+      {
+        "component_id": "attr-security-aapl",
+        "component_type": "security_selection",
+        "label": "AAPL security selection",
+        "symbol": "AAPL",
+        "theme_key": "ANNUAL_REPORTING",
+        "weight": 0.05,
+        "absolute_return": 0.1,
+        "benchmark_return": 0.04,
+        "alpha": 0.06,
+        "contribution_bps": 30.0,
+        "interpretation": "Position-weighted alpha contribution for the covered AAPL thesis."
+      },
+      {
+        "component_id": "attr-theme-annual-reporting",
+        "component_type": "theme_exposure",
+        "label": "Annual reporting quality",
+        "symbol": "AAPL",
+        "theme_key": "ANNUAL_REPORTING",
+        "weight": 0.05,
+        "absolute_return": 0.1,
+        "benchmark_return": 0.04,
+        "alpha": 0.06,
+        "contribution_bps": 30.0,
+        "interpretation": "Theme lens mirrors the covered thesis exposure; do not add this to security lens as total P&L."
+      },
+      {
+        "component_id": "attr-cash-timing",
+        "component_type": "cash_timing",
+        "label": "Cash timing",
+        "symbol": "CASH",
+        "theme_key": null,
+        "weight": 0.92,
+        "absolute_return": 0.0,
+        "benchmark_return": 0.0,
+        "alpha": 0.0,
+        "contribution_bps": 0.0,
+        "interpretation": "Cash is visible so uninvested weight is not hidden inside attribution math."
+      }
+    ],
+    "coverage_exclusions": [
+      {
+        "symbol": "BABA",
+        "instrument_id": "instrument-baba",
+        "weight": 0.03,
+        "reason": "missing_thesis",
+        "required_action": "needs_thesis_review"
+      }
+    ],
+    "quality_gates": [
+      {
+        "gate": "coverage_ready",
+        "status": "blocked",
+        "reason": "BABA has no active thesis, so attribution coverage is incomplete."
+      },
+      {
+        "gate": "outcome_run",
+        "status": "passed",
+        "reason": "AAPL recommendation and thesis outcome are measured through 2024-12-02."
+      },
+      {
+        "gate": "methodology_boundary",
+        "status": "passed",
+        "reason": "Security and theme components are explanatory lenses, not additive totals."
+      }
+    ]
+  },
+  "links": {
+    "recommendation": "/api/recommendations/AAPL-2024-11-01",
+    "thesis": "/api/theses/AAPL-bootstrap-v1",
+    "coverage": "/api/portfolio/Long%20Term%20Paper/coverage?asOfDate=2024-11-01",
+    "theme": "/api/themes/ANNUAL_REPORTING?asOfDate=2024-11-01",
+    "dashboard": "/api/dashboard/today"
+  }
+}
