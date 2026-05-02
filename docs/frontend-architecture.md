@@ -228,11 +228,11 @@ Phase 6: operational hardening
 
 ## Next Task
 
-Start with actual DB-backed HTTP live success smoke because live read completeness and runtime policy now exist.
+Actual DB-backed HTTP live smoke now exists. The next task should decide the API server framework and connection boundary before write APIs or frontend product expansion.
 
-The next task can prove the frontend/backend boundary against a configured DB command:
+The completed smoke proves the frontend/backend boundary against a configured DB command:
 
-- start runtime with `--source auto` or `--source live`.
+- start runtime with `--source live`.
 - fetch representative live-supported endpoints over HTTP.
-- capture failure modes without leaking DB details.
+- capture unauthorized read failure without leaking DB details.
 - keep write endpoints disabled until full auth/RBAC and audit trail exist.
