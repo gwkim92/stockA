@@ -14,11 +14,18 @@ from stockanalysis.frontend.api_adapter import (
     load_contract_index,
     resolve_frontend_response,
 )
+from stockanalysis.frontend.runtime_policy import (
+    DEFAULT_ALLOWED_ORIGIN,
+    DEFAULT_READ_TOKEN_ENV,
+    AUTH_MODE_CHOICES,
+    PROFILE_CHOICES,
+    SOURCE_CHOICES,
+    FrontendRuntimePolicy,
+)
 
 
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 8765
-SOURCE_CHOICES = ("fixture", "live", "auto")
 
 
 class FrontendFixtureHTTPServer(ThreadingHTTPServer):
@@ -29,6 +36,7 @@ class FrontendFixtureRequestHandler(BaseHTTPRequestHandler):
     server_version = "StockanalysisFrontendFixtureServer/0.1"
     repo_root: Path | None = None
     source = "fixture"
+    runtime_policy = FrontendRuntimePolicy()
     verbose_logs = False
 
     def log_message(self, format: str, *args: Any) -> None:
@@ -64,6 +72,16 @@ class FrontendFixtureRequestHandler(BaseHTTPRequestHandler):
         if request_path == "/__health":
             self._send_json(self._build_health_payload(), HTTPStatus.OK)
             return
+        if not self._is_authorized_request():
+            self._send_json(
+                build_server_error_payload(
+                    code="Unauthorized",
+                    message="A valid bearer token is required for this frontend API runtime.",
+                    details={"required_role": "viewer", "auth_mode": self.runtime_policy.auth_mode},
+                ),
+                HTTPStatus.UNAUTHORIZED,
+            )
+            return
         if request_path == "/__endpoints":
             self._send_json(self._build_endpoint_payload(), HTTPStatus.OK)
             return
@@ -74,11 +92,16 @@ class FrontendFixtureRequestHandler(BaseHTTPRequestHandler):
                 HTTPStatus.OK,
             )
         except FrontendApiAdapterError as exc:
+            details = {"path": request_path, "method": self.command, "source_mode": self.source}
+            message = str(exc)
+            if not self.runtime_policy.exposes_detailed_errors:
+                details = {"path": request_path, "method": self.command}
+                message = "Frontend API request could not be resolved."
             self._send_json(
                 build_server_error_payload(
                     code=exc.code,
-                    message=str(exc),
-                    details={"path": request_path, "method": self.command, "source_mode": self.source},
+                    message=message,
+                    details=details,
                 ),
                 _status_for_adapter_error(exc),
             )
@@ -99,6 +122,9 @@ class FrontendFixtureRequestHandler(BaseHTTPRequestHandler):
             return f"{parsed.path}?{parsed.query}"
         return parsed.path
 
+    def _is_authorized_request(self) -> bool:
+        return self.runtime_policy.is_authorized(self.headers.get("Authorization"))
+
     def _build_health_payload(self) -> dict[str, Any]:
         index = load_contract_index(self.repo_root)
         return {
@@ -109,6 +135,7 @@ class FrontendFixtureRequestHandler(BaseHTTPRequestHandler):
             "read_only": True,
             "source": "docs/api/frontend/contract-index.json",
             "source_mode": self.source,
+            "runtime": self.runtime_policy.public_metadata(),
         }
 
     def _build_endpoint_payload(self) -> dict[str, Any]:
@@ -127,6 +154,7 @@ class FrontendFixtureRequestHandler(BaseHTTPRequestHandler):
         return {
             "contract_version": index["contract_version"],
             "source_mode": self.source,
+            "runtime": self.runtime_policy.public_metadata(),
             "data": {"endpoints": endpoints},
         }
 
@@ -141,10 +169,12 @@ class FrontendFixtureRequestHandler(BaseHTTPRequestHandler):
             self.wfile.write(body)
 
     def _send_common_headers(self) -> None:
-        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Origin", self.runtime_policy.allowed_origin)
         self.send_header("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self.send_header("Access-Control-Allow-Headers", "Authorization, Content-Type")
         self.send_header("Cache-Control", "no-store")
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.send_header("X-Stockanalysis-Runtime-Profile", self.runtime_policy.profile)
         self.send_header("X-Stockanalysis-Source", f"frontend-fixture-server; mode={self.source}")
 
 
@@ -164,17 +194,30 @@ def create_frontend_fixture_handler(
     repo_root: Path | str | None = None,
     *,
     source: str = "fixture",
+    runtime_profile: str | None = None,
+    allowed_origin: str | None = None,
+    auth_mode: str | None = None,
+    read_token_env: str = DEFAULT_READ_TOKEN_ENV,
+    runtime_policy: FrontendRuntimePolicy | None = None,
+    host: str = DEFAULT_HOST,
     verbose_logs: bool = False,
 ) -> type[FrontendFixtureRequestHandler]:
-    if source not in SOURCE_CHOICES:
-        raise ValueError(f"Unsupported frontend fixture server source: {source}")
+    selected_policy = runtime_policy or FrontendRuntimePolicy.from_env(
+        source=source,
+        profile=runtime_profile,
+        allowed_origin=allowed_origin,
+        auth_mode=auth_mode,
+        read_token_env=read_token_env,
+    )
+    selected_policy.validate_for_startup(host=host)
     resolved_repo_root = Path(repo_root).resolve() if repo_root is not None else None
 
     class ConfiguredFrontendFixtureRequestHandler(FrontendFixtureRequestHandler):
         pass
 
     ConfiguredFrontendFixtureRequestHandler.repo_root = resolved_repo_root
-    ConfiguredFrontendFixtureRequestHandler.source = source
+    ConfiguredFrontendFixtureRequestHandler.source = selected_policy.source
+    ConfiguredFrontendFixtureRequestHandler.runtime_policy = selected_policy
     ConfiguredFrontendFixtureRequestHandler.verbose_logs = verbose_logs
     return ConfiguredFrontendFixtureRequestHandler
 
@@ -185,9 +228,24 @@ def create_frontend_fixture_server(
     repo_root: Path | str | None = None,
     *,
     source: str = "fixture",
+    runtime_profile: str | None = None,
+    allowed_origin: str | None = None,
+    auth_mode: str | None = None,
+    read_token_env: str = DEFAULT_READ_TOKEN_ENV,
+    runtime_policy: FrontendRuntimePolicy | None = None,
     verbose_logs: bool = False,
 ) -> FrontendFixtureHTTPServer:
-    handler = create_frontend_fixture_handler(repo_root, source=source, verbose_logs=verbose_logs)
+    handler = create_frontend_fixture_handler(
+        repo_root,
+        source=source,
+        runtime_profile=runtime_profile,
+        allowed_origin=allowed_origin,
+        auth_mode=auth_mode,
+        read_token_env=read_token_env,
+        runtime_policy=runtime_policy,
+        host=host,
+        verbose_logs=verbose_logs,
+    )
     return FrontendFixtureHTTPServer((host, port), handler)
 
 
@@ -205,6 +263,28 @@ def build_parser() -> argparse.ArgumentParser:
         default="fixture",
         help="Read source. `auto` uses live only when STOCKANALYSIS_PSQL_COMMAND is configured.",
     )
+    parser.add_argument(
+        "--runtime-profile",
+        choices=PROFILE_CHOICES,
+        default=None,
+        help="Runtime safety profile. Defaults to STOCKANALYSIS_FRONTEND_RUNTIME_PROFILE or local.",
+    )
+    parser.add_argument(
+        "--allowed-origin",
+        default=None,
+        help=f"CORS allowed origin. Defaults to STOCKANALYSIS_FRONTEND_API_ALLOWED_ORIGIN or {DEFAULT_ALLOWED_ORIGIN}.",
+    )
+    parser.add_argument(
+        "--auth-mode",
+        choices=AUTH_MODE_CHOICES,
+        default=None,
+        help="Read auth mode. Defaults to STOCKANALYSIS_FRONTEND_API_AUTH_MODE or disabled.",
+    )
+    parser.add_argument(
+        "--read-token-env",
+        default=DEFAULT_READ_TOKEN_ENV,
+        help=f"Environment variable containing the read bearer token. Defaults to {DEFAULT_READ_TOKEN_ENV}.",
+    )
     parser.add_argument("--verbose", action="store_true", help="Enable HTTP request logging.")
     return parser
 
@@ -216,8 +296,13 @@ def main(argv: Sequence[str] | None = None) -> int:
         port=args.port,
         repo_root=args.repo_root,
         source=args.source,
+        runtime_profile=args.runtime_profile,
+        allowed_origin=args.allowed_origin,
+        auth_mode=args.auth_mode,
+        read_token_env=args.read_token_env,
         verbose_logs=args.verbose,
     )
+    handler = server.RequestHandlerClass
     host, port = server.server_address
     print(
         json.dumps(
@@ -227,7 +312,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                 "base_url": f"http://{host}:{port}",
                 "health": f"http://{host}:{port}/__health",
                 "read_only": True,
-                "source_mode": args.source,
+                "source_mode": handler.source,
+                "runtime": handler.runtime_policy.public_metadata(),
             },
             ensure_ascii=False,
             sort_keys=True,

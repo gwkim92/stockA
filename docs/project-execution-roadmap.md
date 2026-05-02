@@ -16,16 +16,16 @@
 - portfolio pipeline: position snapshot, portfolio review, remediation queue/ticket/update/daily runner, scheduler wrapper.
 - performance pipeline: recommendation/thesis outcome, scheduled outcome runner, attribution, outcome coverage.
 - AI foundation: `ai` schema, model invocation/chunk/embedding/extraction/eval metadata, SEC event structured extraction fixture path.
-- frontend contract/runtime: 12개 DTO contract, fixture server, live read adapter pilot, `--source fixture|live|auto`, Next.js read-only cockpit routes.
+- frontend contract/runtime: 12개 DTO contract, fixture server, initial live read adapter completeness, `--source fixture|live|auto`, runtime boundary policy, Next.js read-only cockpit routes.
 - harness: task contract/plan/handoff/review directories and verification scripts.
 
 ## Not Done
 
 아래는 아직 끝나지 않았다.
 
-- production API server, connection pooling, deployment boundary.
+- production API server framework or managed deployment boundary, connection pooling.
 - auth/RBAC, actor identity, audit-enforced write APIs.
-- all 12 frontend DTO endpoints backed by live Postgres read models.
+- actual DB-backed HTTP live success smoke in a configured external DB environment.
 - actual recurring production data jobs with real credentials and alerting.
 - broad AI provider gateway, model routing, vector/RAG runtime, eval pipeline.
 - recommendation quality evaluation beyond deterministic bootstrap fixtures.
@@ -71,10 +71,11 @@ Why second:
 
 Initial scope:
 
-- decide Python API server shape.
-- add stable request id and error shape.
-- add pagination/filter conventions for list endpoints.
-- add OpenAPI or machine-readable route index if framework is introduced.
+- Add local/production runtime profile and startup guard. Implemented in `frontend-api-runtime-boundary`.
+- Add read-token auth seam and explicit CORS boundary. Implemented in `frontend-api-runtime-boundary`.
+- Keep write endpoints blocked until full auth/RBAC exists.
+- Next: actual DB-backed HTTP live success smoke.
+- Later: decide Python API server framework, connection pooling, stable request id, pagination conventions, and OpenAPI/route index.
 
 Guardrail:
 
@@ -168,9 +169,9 @@ Guardrail:
 
 ## Immediate Next Task
 
-Current task: `frontend-api-runtime-boundary`.
+Current task: `frontend-runtime-db-smoke`.
 
-The first implementation expanded live read support, not new frontend pages. It started with `dashboard` and `data-health`, then event/theme/performance, then recommendation/thesis/AI evidence/source document detail, then cycle list. Initial frontend contract live read completeness is now covered; next work should define the production API runtime boundary, connection handling, and auth/RBAC seams without adding write endpoints yet.
+The first implementation expanded live read support, not new frontend pages. It started with `dashboard` and `data-health`, then event/theme/performance, then recommendation/thesis/AI evidence/source document detail, then cycle list. Initial frontend contract live read completeness is covered. Runtime boundary policy is now in place; next work should add an actual DB-backed HTTP live success smoke before connection pooling or write APIs.
 
 ## Focus Rules
 

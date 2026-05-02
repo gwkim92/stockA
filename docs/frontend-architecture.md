@@ -11,6 +11,7 @@ frontend는 단순 종목 추천 화면이 아니라 **investment cockpit**이�
 - local fixture HTTP server가 있고 `apps/web`은 browser-facing route shell에서 fixture payload를 읽는다.
 - live Postgres read adapter pilot이 있고 remediation tickets와 portfolio coverage DTO를 canonical reports에서 변환한다.
 - local frontend API runtime은 `--source fixture|live|auto`로 시작할 수 있다.
+- runtime boundary policy는 local/prod profile, CORS, read-token auth seam, non-loopback startup guard를 적용한다.
 - frontend는 Python/Postgres pipeline을 대체하지 않는다.
 - browser는 DB에 직접 연결하지 않는다.
 - LLM은 frontend에서 추천을 직접 결정하지 않는다.
@@ -188,6 +189,14 @@ Phase 1.8: Runtime source mode
 - verification: `scripts/verify_frontend_fixture_server.sh`.
 - boundary: still local-only, no auth/RBAC, no write endpoint.
 
+Phase 1.9: API runtime boundary
+
+- status: runtime policy documented as `docs/frontend-api-runtime-boundary.md`.
+- module: `src/stockanalysis/frontend/runtime_policy.py`.
+- behavior: local unauthenticated runtime is loopback-only; production profile requires read-token auth, explicit CORS origin, and DB command for `live`/`auto`.
+- verification: `scripts/verify_frontend_api_runtime_boundary.sh`.
+- boundary: read-token is a deployment safety seam, not full user/role RBAC.
+
 Phase 2: frontend scaffold
 
 - status: fixture-only scaffold documented as `docs/apps-web-scaffold.md`.
@@ -219,12 +228,11 @@ Phase 6: operational hardening
 
 ## Next Task
 
-Start with live endpoint expansion because runtime source switching now exists.
+Start with actual DB-backed HTTP live success smoke because live read completeness and runtime policy now exist.
 
-The next task can expand the frontend/backend boundary:
+The next task can prove the frontend/backend boundary against a configured DB command:
 
-- live support for daily cockpit, data health, event/theme, and performance endpoints.
-- broader performance history and filtering after live read adapter shape is stable.
-- full accessibility audit for the expanded frontend.
-
-Keep the browser-facing app fixture-backed by default until auth boundary and production API runtime are ready.
+- start runtime with `--source auto` or `--source live`.
+- fetch representative live-supported endpoints over HTTP.
+- capture failure modes without leaking DB details.
+- keep write endpoints disabled until full auth/RBAC and audit trail exist.
