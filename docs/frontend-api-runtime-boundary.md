@@ -112,6 +112,7 @@ This is not full RBAC. It is a deployment safety seam until real identity, role 
 
 ```bash
 bash scripts/verify_frontend_api_runtime_boundary.sh
+bash scripts/verify_frontend_runtime_db_smoke.sh
 ```
 
 검증은 아래를 확인한다.
@@ -122,10 +123,11 @@ bash scripts/verify_frontend_api_runtime_boundary.sh
 - health remains public and exposes safe runtime metadata.
 - production profile rejects unguarded startup.
 - production profile accepts guarded `auto` runtime metadata when DB command and token are configured.
+- disposable Postgres-backed `source=live` HTTP runtime returns representative frontend DTOs with bearer-token auth.
 
 ## Remaining Work
 
-- actual DB-backed HTTP live success smoke.
 - connection pooling or managed DB connection adapter.
+- production API server framework decision.
 - real auth/RBAC with viewer, analyst, operator, admin roles.
 - audited write command boundary after auth/RBAC.

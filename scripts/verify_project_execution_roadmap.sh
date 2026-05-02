@@ -22,8 +22,9 @@ grep -q "Data Operations Loop" docs/project-execution-roadmap.md
 grep -q "AI Runtime" docs/project-execution-roadmap.md
 grep -q "Recommendation And Cycle Quality" docs/project-execution-roadmap.md
 grep -q "Frontend Productization" docs/project-execution-roadmap.md
-grep -q "frontend-live-read-expansion" docs/project-execution-roadmap.md
-grep -q "새 프론트 기능보다 live read completeness를 먼저 진행한다" AGENTS.md
+grep -q "frontend-runtime-db-smoke" docs/project-execution-roadmap.md
+grep -q "frontend-api-server-framework-decision" docs/project-execution-roadmap.md
+grep -q '현재 고정된 immediate next task는 `frontend-api-server-framework-decision`' AGENTS.md
 grep -q "docs/project-execution-roadmap.md" README.md
 grep -q "verify_project_execution_roadmap.sh" docs/verification-plan.md
 

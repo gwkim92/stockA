@@ -24,7 +24,7 @@ task마다 흔들리게 두지 않는 편이 좋다.
 
 - 명령: `bash scripts/verify_project_execution_roadmap.sh`
 - 무엇을 증명하는가: 현재 진행상황, 미완료 영역, 고정 실행 순서, immediate next task가 repo-local roadmap과 하네스에 기록되어 있는지 확인한다.
-- 통과 조건: `docs/project-execution-roadmap.md`, `docs/tasks/project-execution-roadmap/` 문서, AGENTS repo map, immediate next task `frontend-live-read-expansion`, live read first guardrail이 모두 확인된다.
+- 통과 조건: `docs/project-execution-roadmap.md`, `docs/tasks/project-execution-roadmap/` 문서, AGENTS repo map, 완료된 `frontend-runtime-db-smoke`, immediate next task `frontend-api-server-framework-decision`, API runtime guardrail이 모두 확인된다.
 
 - 명령: `bash scripts/verify_frontend_architecture.sh`
 - 무엇을 증명하는가: investment cockpit 방향, route map, API boundary, AI boundary, security boundary, phased implementation, fixture-only `apps/web` scaffold가 문서와 파일로 정렬되어 있는지 확인한다.
@@ -45,6 +45,14 @@ task마다 흔들리게 두지 않는 편이 좋다.
 - 명령: `bash scripts/verify_frontend_fixture_server.sh`
 - 무엇을 증명하는가: frontend API fixture adapter가 local read-only HTTP server로 노출되고 browser fetch 준비가 되었는지 확인한다.
 - 통과 조건: `compileall`, fixture server unit tests, frontend API adapter verification, CLI help smoke, in-process HTTP runtime smoke, known path response, query-string path response, `--source auto` fixture fallback, `--source live` missing-config 503, unknown path 404, write method 405, root-level `app` scaffold 부재 확인이 모두 통과한다.
+
+- 명령: `bash scripts/verify_frontend_api_runtime_boundary.sh`
+- 무엇을 증명하는가: frontend read-only HTTP runtime이 local/production profile, CORS, read-token auth seam, startup guard를 적용하는지 확인한다.
+- 통과 조건: `compileall`, fixture server regression, local non-loopback unauthenticated startup rejection, read-token protected API paths, public health, production profile startup guard, guarded production metadata smoke가 모두 통과한다.
+
+- 명령: `bash scripts/verify_frontend_runtime_db_smoke.sh`
+- 무엇을 증명하는가: frontend read-only HTTP runtime이 fixture JSON이 아니라 disposable Postgres에 적재된 canonical state를 `source=live`로 읽어 production-profile HTTP DTO를 반환하는지 확인한다.
+- 통과 조건: Docker Postgres migration/seed/pipeline bootstrap, production-profile live runtime startup, public health, unauthorized read rejection, authorized dashboard/data-health/cycle/event/theme/ticket/recommendation/thesis/performance/source-document HTTP reads가 모두 통과한다.
 
 - 명령: `bash scripts/verify_apps_web_scaffold.sh`
 - 무엇을 증명하는가: `apps/web` Next.js App Router scaffold가 fixture server payload를 읽는 read-only investment cockpit shell로 동작하는지 확인한다.

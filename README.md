@@ -24,6 +24,7 @@ AI를 이용해 거시경제, 정치, 기술, 산업, 기업 흐름을 계속 �
 - `docs/frontend-api-adapter.md`
 - `docs/frontend-fixture-server.md`
 - `docs/frontend-api-runtime-boundary.md`
+- `docs/frontend-runtime-db-smoke.md`
 - `docs/apps-web-scaffold.md`
 - `docs/repository-publication.md`
 - `docs/event-intelligence-llm-extract.md`
@@ -87,6 +88,7 @@ AI를 이용해 거시경제, 정치, 기술, 산업, 기업 흐름을 계속 �
 - `scripts/verify_frontend_live_read_adapter.sh`
 - `scripts/verify_frontend_fixture_server.sh`
 - `scripts/verify_frontend_api_runtime_boundary.sh`
+- `scripts/verify_frontend_runtime_db_smoke.sh`
 - `scripts/verify_apps_web_scaffold.sh`
 - `scripts/verify_macro_ingest.sh`
 - `scripts/verify_macro_upsert_runner.sh`

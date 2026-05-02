@@ -58,7 +58,7 @@
 - 추천 또는 보유 판단은 당시 입력 데이터, 점수, thesis, 무효화 조건을 함께 저장하는 방향으로 설계한다.
 - 문서 단계에서도 다음 구현 단계가 바로 이어질 수 있을 정도로 결정 사항을 명확히 남긴다.
 - 진행 순서가 흔들릴 때는 `docs/project-execution-roadmap.md`를 우선 기준으로 삼고, 변경하려면 별도 task contract에 근거를 남긴다.
-- 현재 고정된 immediate next task는 `frontend-live-read-expansion`이다. 새 프론트 기능보다 live read completeness를 먼저 진행한다.
+- 현재 고정된 immediate next task는 `frontend-api-server-framework-decision`이다. live read completeness, runtime boundary, DB-backed HTTP smoke 이후에는 새 프론트 기능보다 API server framework와 connection boundary 결정을 먼저 진행한다.
 
 ## Definition Of Done
 
