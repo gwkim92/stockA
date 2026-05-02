@@ -14,6 +14,7 @@ dependencies = []
 stockanalysis-ingest = "stockanalysis.ingest.cli:main_entry"
 stockanalysis-frontend-api = "stockanalysis.frontend.api_adapter:main_entry"
 stockanalysis-frontend-fixture-server = "stockanalysis.frontend.fixture_server:main_entry"
+stockanalysis-frontend-runtime-server = "stockanalysis.frontend.fixture_server:main_entry"
 
 [tool.setuptools]
 package-dir = {"" = "src"}

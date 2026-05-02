@@ -103,10 +103,12 @@ bash scripts/verify_frontend_live_read_adapter.sh
 - query parameter normalization은 live pilot에서 필요한 최소 범위만 지원한다.
 - HTTP local runtime은 `src/stockanalysis/frontend/fixture_server.py`에 있고 `--source fixture|live|auto`를 지원한다.
 - browser fetch 대상은 기본적으로 fixture server이며, local run에서는 `--source auto`로 live-supported endpoint만 DB를 읽게 할 수 있다.
+- runtime boundary policy는 `docs/frontend-api-runtime-boundary.md`에 있고 local/prod profile, CORS, read-token auth seam을 정의한다.
 - write command는 아직 없다.
-- production API server, connection pooling, auth/RBAC는 아직 없다.
+- production API server framework, connection pooling, full auth/RBAC는 아직 없다.
 
 ## Next Steps
 
-1. production API server, connection pooling, auth/RBAC boundary를 설계한다.
-2. auth/RBAC와 audit trail이 준비된 뒤에만 write endpoint를 추가한다.
+1. actual DB-backed HTTP live success smoke를 추가한다.
+2. production API server framework와 connection pooling을 설계한다.
+3. auth/RBAC와 audit trail이 준비된 뒤에만 write endpoint를 추가한다.

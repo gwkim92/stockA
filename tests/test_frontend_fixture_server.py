@@ -15,7 +15,12 @@ from stockanalysis.frontend.fixture_server import create_frontend_fixture_server
 class FrontendFixtureServerTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        cls.server = create_frontend_fixture_server(port=0)
+        cls.server = create_frontend_fixture_server(
+            port=0,
+            runtime_profile="local",
+            auth_mode="disabled",
+            allowed_origin="*",
+        )
         host, port = cls.server.server_address
         cls.base_url = f"http://{host}:{port}"
         cls.thread = threading.Thread(target=cls.server.serve_forever, daemon=True)
@@ -49,6 +54,8 @@ class FrontendFixtureServerTests(unittest.TestCase):
         self.assertEqual(payload["endpoint_count"], 12)
         self.assertTrue(payload["read_only"])
         self.assertEqual(payload["source_mode"], "fixture")
+        self.assertEqual(payload["runtime"]["runtime_profile"], "local")
+        self.assertFalse(payload["runtime"]["read_auth_required"])
 
     def test_endpoints_returns_fixture_index(self) -> None:
         status, payload = self.fetch_json("/__endpoints")
@@ -110,29 +117,51 @@ class FrontendFixtureServerTests(unittest.TestCase):
 
 
 class FrontendFixtureServerSourceModeTests(unittest.TestCase):
-    def fetch_json_from_server(self, *, source: str, path: str) -> tuple[int, dict[str, Any]]:
-        server = create_frontend_fixture_server(port=0, source=source)
+    def fetch_json_from_server(
+        self,
+        *,
+        source: str,
+        path: str,
+        headers: dict[str, str] | None = None,
+        **server_kwargs: Any,
+    ) -> tuple[int, dict[str, Any]]:
+        server_kwargs.setdefault("runtime_profile", "local")
+        server_kwargs.setdefault("auth_mode", "disabled")
+        server_kwargs.setdefault("allowed_origin", "*")
+        server = create_frontend_fixture_server(port=0, source=source, **server_kwargs)
         host, port = server.server_address
         base_url = f"http://{host}:{port}"
         thread = threading.Thread(target=server.serve_forever, daemon=True)
         thread.start()
         try:
-            with urlopen(f"{base_url}{path}", timeout=5) as response:
+            request = Request(f"{base_url}{path}", headers=headers or {})
+            with urlopen(request, timeout=5) as response:
                 return response.status, json.loads(response.read().decode("utf-8"))
         finally:
             server.shutdown()
             server.server_close()
             thread.join(timeout=5)
 
-    def fetch_error_from_server(self, *, source: str, path: str) -> tuple[int, dict[str, Any]]:
-        server = create_frontend_fixture_server(port=0, source=source)
+    def fetch_error_from_server(
+        self,
+        *,
+        source: str,
+        path: str,
+        headers: dict[str, str] | None = None,
+        **server_kwargs: Any,
+    ) -> tuple[int, dict[str, Any]]:
+        server_kwargs.setdefault("runtime_profile", "local")
+        server_kwargs.setdefault("auth_mode", "disabled")
+        server_kwargs.setdefault("allowed_origin", "*")
+        server = create_frontend_fixture_server(port=0, source=source, **server_kwargs)
         host, port = server.server_address
         base_url = f"http://{host}:{port}"
         thread = threading.Thread(target=server.serve_forever, daemon=True)
         thread.start()
         try:
             try:
-                urlopen(f"{base_url}{path}", timeout=5)
+                request = Request(f"{base_url}{path}", headers=headers or {})
+                urlopen(request, timeout=5)
             except HTTPError as exc:
                 return exc.code, json.loads(exc.read().decode("utf-8"))
             raise AssertionError("request unexpectedly succeeded")
@@ -169,6 +198,74 @@ class FrontendFixtureServerSourceModeTests(unittest.TestCase):
     def test_invalid_source_is_rejected(self) -> None:
         with self.assertRaises(ValueError):
             create_frontend_fixture_server(port=0, source="invalid")
+
+    def test_local_non_loopback_without_auth_is_rejected(self) -> None:
+        with self.assertRaises(ValueError):
+            create_frontend_fixture_server(host="0.0.0.0", port=0, source="fixture")
+
+    def test_read_token_auth_protects_api_paths_but_not_health(self) -> None:
+        with patch.dict(os.environ, {"STOCKANALYSIS_FRONTEND_API_READ_TOKEN": "fixture-secret"}):
+            status, health = self.fetch_json_from_server(
+                source="fixture",
+                path="/__health",
+                auth_mode="read-token",
+            )
+            self.assertEqual(status, 200)
+            self.assertTrue(health["runtime"]["read_auth_required"])
+
+            status, error_payload = self.fetch_error_from_server(
+                source="fixture",
+                path="/api/dashboard/today",
+                auth_mode="read-token",
+            )
+            self.assertEqual(status, 401)
+            self.assertEqual(error_payload["error"]["code"], "Unauthorized")
+
+            status, payload = self.fetch_json_from_server(
+                source="fixture",
+                path="/api/dashboard/today",
+                auth_mode="read-token",
+                headers={"Authorization": "Bearer fixture-secret"},
+            )
+            self.assertEqual(status, 200)
+            self.assertEqual(payload["data"]["portfolio_name"], "Long Term Paper")
+
+    def test_production_profile_requires_boundary_guards(self) -> None:
+        with patch.dict(
+            os.environ,
+            {
+                "STOCKANALYSIS_FRONTEND_API_READ_TOKEN": "",
+                "STOCKANALYSIS_PSQL_COMMAND": "",
+            },
+        ):
+            with self.assertRaises(ValueError):
+                create_frontend_fixture_server(
+                    port=0,
+                    source="fixture",
+                    runtime_profile="production",
+                )
+
+    def test_production_profile_accepts_explicit_guarded_runtime(self) -> None:
+        with patch.dict(
+            os.environ,
+            {
+                "STOCKANALYSIS_FRONTEND_API_READ_TOKEN": "prod-secret",
+                "STOCKANALYSIS_PSQL_COMMAND": "psql postgresql://example.invalid/db",
+            },
+        ):
+            status, health = self.fetch_json_from_server(
+                source="auto",
+                path="/__health",
+                runtime_profile="production",
+                allowed_origin="https://cockpit.example",
+                auth_mode="read-token",
+            )
+
+        self.assertEqual(status, 200)
+        self.assertEqual(health["runtime"]["runtime_profile"], "production")
+        self.assertEqual(health["runtime"]["source_mode"], "auto")
+        self.assertEqual(health["runtime"]["allowed_origin"], "https://cockpit.example")
+        self.assertTrue(health["runtime"]["read_auth_required"])
 
 
 if __name__ == "__main__":
