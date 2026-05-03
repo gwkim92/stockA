@@ -349,6 +349,8 @@ def _unexpected_error_response(
 
 
 def _status_for_adapter_error(exc: FrontendApiAdapterError) -> HTTPStatus:
+    if exc.code == "FrontendPaginationInvalid":
+        return HTTPStatus.BAD_REQUEST
     if exc.code == "FrontendLiveReadUnavailable":
         return HTTPStatus.SERVICE_UNAVAILABLE
     if exc.code == "FrontendLiveReadUnsupportedPath":

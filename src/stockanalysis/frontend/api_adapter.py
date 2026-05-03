@@ -7,6 +7,11 @@ from pathlib import Path
 from typing import Any, Sequence
 
 from stockanalysis.ingest.config import RuntimeConfig
+from stockanalysis.frontend.pagination import (
+    FrontendPaginationError,
+    apply_frontend_pagination,
+    canonical_frontend_path_for_pagination,
+)
 
 
 CONTRACT_INDEX_PATH = Path("docs/api/frontend/contract-index.json")
@@ -75,20 +80,24 @@ def resolve_frontend_response(
     config: RuntimeConfig | None = None,
     executor: Any | None = None,
 ) -> dict[str, Any]:
-    if source not in {"fixture", "live", "auto"}:
-        raise FrontendApiAdapterError(f"Unsupported frontend API source: {source}", code="FrontendApiSourceInvalid")
-    if source == "live":
-        return _resolve_live_frontend_response(api_path, config=config, executor=executor)
-    if source == "auto" and _should_try_live_source(api_path, config=config, executor=executor):
-        return _resolve_live_frontend_response(api_path, config=config, executor=executor)
+    try:
+        if source not in {"fixture", "live", "auto"}:
+            raise FrontendApiAdapterError(f"Unsupported frontend API source: {source}", code="FrontendApiSourceInvalid")
+        if source == "live":
+            return _resolve_live_frontend_response(api_path, config=config, executor=executor)
+        if source == "auto" and _should_try_live_source(api_path, config=config, executor=executor):
+            return _resolve_live_frontend_response(api_path, config=config, executor=executor)
 
-    root = repo_root or resolve_repo_root()
-    for endpoint in list_frontend_endpoints(root):
-        if endpoint.path == api_path:
-            example_path = root / endpoint.example
-            with example_path.open("r", encoding="utf-8") as handle:
-                payload = json.load(handle)
-            return payload
+        root = repo_root or resolve_repo_root()
+        canonical_path = canonical_frontend_path_for_pagination(api_path)
+        for endpoint in list_frontend_endpoints(root):
+            if endpoint.path in {api_path, canonical_path}:
+                example_path = root / endpoint.example
+                with example_path.open("r", encoding="utf-8") as handle:
+                    payload = json.load(handle)
+                return apply_frontend_pagination(api_path, payload)
+    except FrontendPaginationError as exc:
+        raise FrontendApiAdapterError(str(exc), code=exc.code) from exc
     raise FrontendApiAdapterError(f"Unknown frontend API path: {api_path}")
 
 
@@ -103,6 +112,8 @@ def _resolve_live_frontend_response(
     try:
         return resolve_live_frontend_response(api_path, config=config, executor=executor)
     except FrontendLiveAdapterError as exc:
+        raise FrontendApiAdapterError(str(exc), code=exc.code) from exc
+    except FrontendPaginationError as exc:
         raise FrontendApiAdapterError(str(exc), code=exc.code) from exc
 
 

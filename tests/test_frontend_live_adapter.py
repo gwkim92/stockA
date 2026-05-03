@@ -570,6 +570,8 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertEqual(payload["data"]["strategy_name"], "long_term_core")
         self.assertEqual(payload["data"]["horizon_type"], "long_term")
         self.assertEqual(payload["data"]["universe_version"], "bootstrap-v1")
+        self.assertEqual(payload["pagination"]["limit"], 50)
+        self.assertEqual(payload["pagination"]["item_count"], 2)
         first_cycle = payload["data"]["cycle_states"][0]
         self.assertEqual(first_cycle["theme_key"], "ANNUAL_REPORTING")
         self.assertEqual(first_cycle["state"], "constructive")
@@ -582,6 +584,20 @@ class FrontendLiveAdapterTests(unittest.TestCase):
             payload["links"]["theme_detail"],
             "/api/themes/ANNUAL_REPORTING?asOfDate=2024-11-01",
         )
+
+    def test_live_cycle_state_list_applies_limit(self) -> None:
+        payload = resolve_live_frontend_response(
+            "/api/cycles?asOfDate=2024-11-01&limit=1",
+            config=type("Config", (), {"psql_command": "psql"})(),
+            executor=FakeLiveExecutor(),
+            generated_at=datetime(2026, 5, 1, tzinfo=timezone.utc),
+        )
+
+        self.assertEqual(len(payload["data"]["cycle_states"]), 1)
+        self.assertEqual(payload["data"]["cycle_states"][0]["theme_key"], "ANNUAL_REPORTING")
+        self.assertEqual(payload["pagination"]["limit"], 1)
+        self.assertTrue(payload["pagination"]["has_more"])
+        self.assertIsNotNone(payload["pagination"]["next_cursor"])
 
     def test_live_event_list_response_matches_frontend_contract_shape(self) -> None:
         payload = resolve_live_frontend_response(

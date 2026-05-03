@@ -211,6 +211,18 @@ class FrontendApiServerTests(unittest.TestCase):
         self.assertEqual(payload["error"]["message"], "Frontend API request could not be resolved.")
         self.assertNotIn("source_mode", payload["error"]["details"])
 
+    def test_invalid_pagination_returns_bad_request_error(self) -> None:
+        policy = FrontendRuntimePolicy(profile="local", source="live", auth_mode="disabled")
+        app = create_app(runtime_policy=policy, executor=FakeLiveExecutor())
+
+        with TestClient(app) as client:
+            response = client.get("/api/dashboard/today?limit=1")
+
+        self.assertEqual(response.status_code, 400)
+        payload = response.json()
+        self.assertEqual(payload["error"]["code"], "FrontendPaginationInvalid")
+        self.assertEqual(payload["error"]["details"]["path"], "/api/dashboard/today?limit=1")
+
     def test_write_methods_are_blocked_with_stable_error(self) -> None:
         policy = FrontendRuntimePolicy(profile="local", source="live", auth_mode="disabled")
         app = create_app(runtime_policy=policy, executor=FakeLiveExecutor())

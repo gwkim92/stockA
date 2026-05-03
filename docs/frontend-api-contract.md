@@ -12,7 +12,7 @@
 
 ## Common Response Shape
 
-All read responses use:
+All read responses use this base shape:
 
 ```json
 {
@@ -31,6 +31,7 @@ Conventions:
 - ids are opaque strings for frontend use.
 - `links` contains API paths or UI-adjacent API paths only.
 - frontend must not infer raw table names from ids.
+- collection responses include top-level `pagination`; detail responses omit it.
 
 ## Endpoint Index
 
@@ -175,8 +176,30 @@ Rules:
 - resources are nouns.
 - `GET` endpoints are safe/read-only.
 - status mutation uses `POST` or `PATCH` only after audit model exists.
-- paginated lists should later use `limit`, `cursor`, and `next_cursor`, not page numbers, because pipeline data is time ordered.
+- paginated lists use `limit`, opaque `cursor`, and `next_cursor`, not page numbers, because pipeline data is time ordered.
+- invalid pagination returns `FrontendPaginationInvalid`.
 - errors should use stable shape: `error.code`, `error.message`, `error.details`, `request_id`.
+
+## Pagination
+
+See `docs/frontend-api-pagination-conventions.md`.
+
+Initial collection endpoints:
+
+- `/api/remediation-tickets?status=open`: `tickets`
+- `/api/cycles?asOfDate=...`: `cycle_states`
+- `/api/events?asOfDate=...`: `events`
+- `/api/portfolio/:portfolio/coverage?asOfDate=...`: `positions`
+- `/api/performance/:portfolio/outcomes?measurementEndDate=...`: `outcomes`
+
+Rules:
+
+- default `limit`: `50`
+- max `limit`: `100`
+- `cursor` is opaque and client must not parse it.
+- clients pass `pagination.next_cursor` as the next request's `cursor`.
+- detail endpoints reject `limit` or `cursor`.
+- collection responses add top-level `pagination` beside `data` and `links`.
 
 ## Implementation Status
 
@@ -201,4 +224,4 @@ Live read adapter pilot:
   - `GET /api/portfolio/Long%20Term%20Paper/coverage?asOfDate=2024-11-01`
 - source mode: `--source auto` uses live only when `STOCKANALYSIS_PSQL_COMMAND` is configured; otherwise it falls back to fixture examples.
 
-Next, wire live/auto mode into a production API server boundary.
+FastAPI read-only server, deployment boundary, and pagination conventions are now defined. SQL-level cursor seek optimization remains a later scaling task.

@@ -47,6 +47,13 @@
       }
     ]
   },
+  "pagination": {
+    "limit": 50,
+    "cursor": null,
+    "next_cursor": null,
+    "has_more": false,
+    "item_count": 2
+  },
   "links": {
     "theme_detail": "/api/themes/ANNUAL_REPORTING?asOfDate=2024-11-01",
     "ai_evidence": "/api/ai-evidence/sec-event-aapl-10k-20240928",

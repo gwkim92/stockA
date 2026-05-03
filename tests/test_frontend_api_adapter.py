@@ -39,8 +39,24 @@ class FrontendApiAdapterTests(unittest.TestCase):
         theme = resolve_frontend_response("/api/themes/ANNUAL_REPORTING?asOfDate=2024-11-01")
         self.assertEqual(events["data"]["summary"]["event_count"], 2)
         self.assertEqual(events["data"]["events"][0]["theme_key"], "ANNUAL_REPORTING")
+        self.assertEqual(events["pagination"]["limit"], 50)
+        self.assertEqual(events["pagination"]["item_count"], 2)
         self.assertEqual(theme["data"]["theme_key"], "ANNUAL_REPORTING")
         self.assertEqual(theme["data"]["supporting_events"][0]["event_id"], "sec-event-aapl-10k-20240928")
+
+    def test_resolve_frontend_response_applies_limit_to_fixture_collection(self) -> None:
+        events = resolve_frontend_response("/api/events?asOfDate=2024-11-01&limit=1")
+
+        self.assertEqual(len(events["data"]["events"]), 1)
+        self.assertEqual(events["pagination"]["limit"], 1)
+        self.assertTrue(events["pagination"]["has_more"])
+        self.assertIsNotNone(events["pagination"]["next_cursor"])
+
+    def test_resolve_frontend_response_rejects_pagination_on_detail_path(self) -> None:
+        with self.assertRaises(FrontendApiAdapterError) as ctx:
+            resolve_frontend_response("/api/dashboard/today?limit=1")
+
+        self.assertEqual(ctx.exception.code, "FrontendPaginationInvalid")
 
     def test_resolve_frontend_response_returns_performance_example(self) -> None:
         performance = resolve_frontend_response(
@@ -94,6 +110,14 @@ class FrontendApiAdapterTests(unittest.TestCase):
         self.assertEqual(exit_code, 1)
         payload = json.loads(stdout.getvalue())
         self.assertEqual(payload["error"]["code"], "FrontendApiPathNotFound")
+
+    def test_cli_get_invalid_pagination_prints_stable_error(self) -> None:
+        stdout = io.StringIO()
+        with redirect_stdout(stdout):
+            exit_code = main(["get", "--path", "/api/events?asOfDate=2024-11-01&limit=0"])
+        self.assertEqual(exit_code, 1)
+        payload = json.loads(stdout.getvalue())
+        self.assertEqual(payload["error"]["code"], "FrontendPaginationInvalid")
 
 
 if __name__ == "__main__":
