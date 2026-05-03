@@ -1,7 +1,13 @@
 from __future__ import annotations
 
 import argparse
+import asyncio
 import json
+import logging
+import os
+import re
+import time
+import uuid
 from contextlib import asynccontextmanager
 from http import HTTPStatus
 from pathlib import Path
@@ -38,7 +44,12 @@ DEFAULT_PORT = 8787
 DEFAULT_POOL_MIN_SIZE = 1
 DEFAULT_POOL_MAX_SIZE = 4
 DEFAULT_POOL_TIMEOUT_SECONDS = 10.0
+DEFAULT_REQUEST_TIMEOUT_SECONDS = 30.0
+REQUEST_TIMEOUT_ENV = "STOCKANALYSIS_FRONTEND_API_REQUEST_TIMEOUT_SECONDS"
+REQUEST_ID_HEADER = "X-Request-ID"
 WRITE_METHODS = ("POST", "PUT", "PATCH", "DELETE")
+REQUEST_ID_PATTERN = re.compile(r"^[A-Za-z0-9._:-]{1,128}$")
+ACCESS_LOGGER = logging.getLogger("stockanalysis.frontend.api_server")
 
 
 def create_app(
@@ -55,6 +66,7 @@ def create_app(
     pool_min_size: int = DEFAULT_POOL_MIN_SIZE,
     pool_max_size: int = DEFAULT_POOL_MAX_SIZE,
     pool_timeout_seconds: float = DEFAULT_POOL_TIMEOUT_SECONDS,
+    request_timeout_seconds: float | None = None,
 ) -> FastAPI:
     selected_policy = runtime_policy or FrontendRuntimePolicy.from_env(
         source=source,
@@ -64,6 +76,7 @@ def create_app(
         read_token_env=read_token_env,
     )
     selected_policy.validate_for_startup(host=host)
+    selected_request_timeout_seconds = _resolve_request_timeout_seconds(request_timeout_seconds)
     resolved_repo_root = Path(repo_root).resolve() if repo_root is not None else None
     openapi_url = "/openapi.json" if selected_policy.profile == "local" else None
     docs_url = "/docs" if selected_policy.profile == "local" else None
@@ -75,6 +88,7 @@ def create_app(
         app.state.frontend_repo_root = resolved_repo_root
         app.state.frontend_source = selected_policy.source
         app.state.frontend_executor = executor
+        app.state.frontend_pool = None
         app.state.frontend_connection_boundary = "injected_executor" if executor is not None else "psql_command"
 
         if executor is None and selected_policy.source in {"live", "auto"} and selected_policy.database_url:
@@ -88,6 +102,7 @@ def create_app(
             pool.open()
             pool.wait(timeout=pool_timeout_seconds)
             app.state.frontend_executor = PsycopgPoolExecutor(pool)
+            app.state.frontend_pool = pool
             app.state.frontend_connection_boundary = "psycopg_pool"
 
         try:
@@ -109,17 +124,59 @@ def create_app(
         CORSMiddleware,
         allow_origins=[selected_policy.allowed_origin] if selected_policy.allowed_origin != "*" else ["*"],
         allow_methods=["GET", "HEAD", "OPTIONS"],
-        allow_headers=["Authorization", "Content-Type"],
+        allow_headers=["Authorization", "Content-Type", REQUEST_ID_HEADER],
+        expose_headers=[REQUEST_ID_HEADER],
     )
 
     @app.middleware("http")
-    async def add_runtime_headers(request: Request, call_next: Any) -> Response:
-        response = await call_next(request)
+    async def add_runtime_boundary(request: Request, call_next: Any) -> Response:
+        request_id = _request_id_from_header(request.headers.get(REQUEST_ID_HEADER))
+        request.state.request_id = request_id
+        started = time.perf_counter()
+        status_code = HTTPStatus.INTERNAL_SERVER_ERROR
+        try:
+            response = await asyncio.wait_for(call_next(request), timeout=selected_request_timeout_seconds)
+            status_code = HTTPStatus(response.status_code)
+        except asyncio.TimeoutError:
+            status_code = HTTPStatus.GATEWAY_TIMEOUT
+            response = _json_response(
+                _server_error_payload(
+                    code="FrontendApiRequestTimeout",
+                    message="Frontend API request timed out.",
+                    details={
+                        "path": request.url.path,
+                        "method": request.method,
+                        "timeout_seconds": selected_request_timeout_seconds,
+                    },
+                    request_id=request_id,
+                ),
+                status_code,
+            )
+        finally:
+            duration_ms = round((time.perf_counter() - started) * 1000, 3)
+            _log_access(
+                request=request,
+                request_id=request_id,
+                status_code=int(status_code),
+                duration_ms=duration_ms,
+                policy=selected_policy,
+            )
         response.headers["Cache-Control"] = "no-store"
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-Stockanalysis-Runtime-Profile"] = selected_policy.profile
         response.headers["X-Stockanalysis-Source"] = f"frontend-api-server; mode={selected_policy.source}"
+        response.headers[REQUEST_ID_HEADER] = request_id
         return response
+
+    @app.get("/__live")
+    async def live() -> JSONResponse:
+        return _json_response(
+            {
+                "status": "ok",
+                "service": "frontend-api-server",
+                "read_only": True,
+            }
+        )
 
     @app.get("/__health")
     async def health() -> JSONResponse:
@@ -135,8 +192,18 @@ def create_app(
                 "source_mode": selected_policy.source,
                 "runtime": selected_policy.public_metadata(),
                 "connection_boundary": getattr(app.state, "frontend_connection_boundary", "not_started"),
+                "request_timeout_seconds": selected_request_timeout_seconds,
             }
         )
+
+    @app.get("/__ready")
+    async def ready() -> JSONResponse:
+        payload, status = await _readiness_payload(
+            app=app,
+            repo_root=resolved_repo_root,
+            policy=selected_policy,
+        )
+        return _json_response(payload, status)
 
     @app.get("/__endpoints")
     async def endpoints(request: Request) -> JSONResponse:
@@ -180,17 +247,27 @@ def create_app(
             )
             return _json_response(payload)
         except FrontendApiAdapterError as exc:
-            return _adapter_error_response(exc, request_path=request_path, policy=selected_policy)
+            return _adapter_error_response(
+                exc,
+                request_path=request_path,
+                policy=selected_policy,
+                request_id=_request_id_for_request(request),
+            )
         except Exception:
-            return _unexpected_error_response(request_path=request_path, policy=selected_policy)
+            return _unexpected_error_response(
+                request_path=request_path,
+                policy=selected_policy,
+                request_id=_request_id_for_request(request),
+            )
 
     @app.api_route("/{path:path}", methods=list(WRITE_METHODS))
     async def write_method_not_allowed(path: str, request: Request) -> JSONResponse:
         return _json_response(
-            build_server_error_payload(
+            _server_error_payload(
                 code="MethodNotAllowed",
                 message=f"Method {request.method} is not allowed for the frontend API server.",
                 details={"method": request.method, "allowed_methods": ["GET", "HEAD", "OPTIONS"]},
+                request_id=_request_id_for_request(request),
             ),
             HTTPStatus.METHOD_NOT_ALLOWED,
         )
@@ -202,6 +279,19 @@ def _json_response(payload: dict[str, Any], status: HTTPStatus = HTTPStatus.OK) 
     return JSONResponse(content=payload, status_code=int(status))
 
 
+def _server_error_payload(
+    code: str,
+    message: str,
+    details: dict[str, Any] | None = None,
+    *,
+    request_id: str | None = None,
+) -> dict[str, Any]:
+    payload = build_server_error_payload(code=code, message=message, details=details)
+    if request_id:
+        payload["request_id"] = request_id
+    return payload
+
+
 def _unauthorized_response_if_needed(
     request: Request,
     policy: FrontendRuntimePolicy,
@@ -209,10 +299,11 @@ def _unauthorized_response_if_needed(
     if policy.is_authorized(request.headers.get("Authorization")):
         return None
     return _json_response(
-        build_server_error_payload(
+        _server_error_payload(
             code="Unauthorized",
             message="A valid bearer token is required for this frontend API runtime.",
             details={"required_role": "viewer", "auth_mode": policy.auth_mode},
+            request_id=_request_id_for_request(request),
         ),
         HTTPStatus.UNAUTHORIZED,
     )
@@ -223,6 +314,7 @@ def _adapter_error_response(
     *,
     request_path: str,
     policy: FrontendRuntimePolicy,
+    request_id: str | None = None,
 ) -> JSONResponse:
     details = {"path": request_path, "method": "GET", "source_mode": policy.source}
     message = str(exc)
@@ -230,18 +322,28 @@ def _adapter_error_response(
         details = {"path": request_path, "method": "GET"}
         message = "Frontend API request could not be resolved."
     return _json_response(
-        build_server_error_payload(code=exc.code, message=message, details=details),
+        _server_error_payload(code=exc.code, message=message, details=details, request_id=request_id),
         _status_for_adapter_error(exc),
     )
 
 
-def _unexpected_error_response(*, request_path: str, policy: FrontendRuntimePolicy) -> JSONResponse:
+def _unexpected_error_response(
+    *,
+    request_path: str,
+    policy: FrontendRuntimePolicy,
+    request_id: str | None = None,
+) -> JSONResponse:
     message = "Frontend API server request failed."
     details: dict[str, Any] = {"path": request_path, "method": "GET"}
     if policy.exposes_detailed_errors:
         details["source_mode"] = policy.source
     return _json_response(
-        build_server_error_payload(code="FrontendApiServerError", message=message, details=details),
+        _server_error_payload(
+            code="FrontendApiServerError",
+            message=message,
+            details=details,
+            request_id=request_id,
+        ),
         HTTPStatus.INTERNAL_SERVER_ERROR,
     )
 
@@ -252,6 +354,105 @@ def _status_for_adapter_error(exc: FrontendApiAdapterError) -> HTTPStatus:
     if exc.code == "FrontendLiveReadUnsupportedPath":
         return HTTPStatus.NOT_IMPLEMENTED
     return HTTPStatus.NOT_FOUND
+
+
+async def _readiness_payload(
+    *,
+    app: FastAPI,
+    repo_root: Path | None,
+    policy: FrontendRuntimePolicy,
+) -> tuple[dict[str, Any], HTTPStatus]:
+    checks: list[dict[str, Any]] = []
+    ready = True
+
+    try:
+        index = load_contract_index(repo_root)
+        checks.append(
+            {
+                "name": "frontend_contract",
+                "status": "ok",
+                "contract_version": index["contract_version"],
+                "endpoint_count": len(index["endpoints"]),
+            }
+        )
+    except Exception:
+        ready = False
+        checks.append({"name": "frontend_contract", "status": "failed"})
+
+    connection_boundary = getattr(app.state, "frontend_connection_boundary", "not_started")
+    pool = getattr(app.state, "frontend_pool", None)
+    if connection_boundary == "psycopg_pool" and pool is not None:
+        try:
+            await run_in_threadpool(pool.check)
+            checks.append({"name": "database_pool", "status": "ok", "connection_boundary": connection_boundary})
+        except Exception:
+            ready = False
+            checks.append({"name": "database_pool", "status": "failed", "connection_boundary": connection_boundary})
+    elif connection_boundary == "not_started":
+        ready = False
+        checks.append({"name": "runtime_lifespan", "status": "failed", "connection_boundary": connection_boundary})
+    else:
+        checks.append({"name": "database_pool", "status": "not_applicable", "connection_boundary": connection_boundary})
+
+    payload = {
+        "status": "ok" if ready else "not_ready",
+        "service": "frontend-api-server",
+        "read_only": True,
+        "source_mode": policy.source,
+        "runtime": policy.public_metadata(),
+        "connection_boundary": connection_boundary,
+        "checks": checks,
+    }
+    return payload, HTTPStatus.OK if ready else HTTPStatus.SERVICE_UNAVAILABLE
+
+
+def _request_id_from_header(raw_request_id: str | None) -> str:
+    if raw_request_id and REQUEST_ID_PATTERN.fullmatch(raw_request_id):
+        return raw_request_id
+    return uuid.uuid4().hex
+
+
+def _request_id_for_request(request: Request) -> str | None:
+    request_id = getattr(request.state, "request_id", None)
+    if isinstance(request_id, str) and request_id:
+        return request_id
+    return None
+
+
+def _resolve_request_timeout_seconds(value: float | None) -> float:
+    raw_value = value if value is not None else os.environ.get(REQUEST_TIMEOUT_ENV)
+    if raw_value is None:
+        return DEFAULT_REQUEST_TIMEOUT_SECONDS
+    timeout_seconds = float(raw_value)
+    if timeout_seconds <= 0:
+        raise ValueError("request timeout seconds must be greater than 0")
+    return timeout_seconds
+
+
+def _log_access(
+    *,
+    request: Request,
+    request_id: str,
+    status_code: int,
+    duration_ms: float,
+    policy: FrontendRuntimePolicy,
+) -> None:
+    ACCESS_LOGGER.info(
+        json.dumps(
+            {
+                "event": "frontend_api_access",
+                "request_id": request_id,
+                "method": request.method,
+                "path": request.url.path,
+                "status_code": status_code,
+                "duration_ms": duration_ms,
+                "runtime_profile": policy.profile,
+                "source_mode": policy.source,
+            },
+            ensure_ascii=False,
+            sort_keys=True,
+        )
+    )
 
 
 def _request_path_from_scope(request: Request) -> str:
@@ -305,6 +506,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--pool-min-size", type=int, default=DEFAULT_POOL_MIN_SIZE)
     parser.add_argument("--pool-max-size", type=int, default=DEFAULT_POOL_MAX_SIZE)
     parser.add_argument("--pool-timeout-seconds", type=float, default=DEFAULT_POOL_TIMEOUT_SECONDS)
+    parser.add_argument(
+        "--request-timeout-seconds",
+        type=float,
+        default=None,
+        help=f"HTTP request timeout. Defaults to {REQUEST_TIMEOUT_ENV} or {DEFAULT_REQUEST_TIMEOUT_SECONDS}.",
+    )
     parser.add_argument("--log-level", default="info", help="Uvicorn log level.")
     return parser
 
@@ -322,6 +529,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         pool_min_size=args.pool_min_size,
         pool_max_size=args.pool_max_size,
         pool_timeout_seconds=args.pool_timeout_seconds,
+        request_timeout_seconds=args.request_timeout_seconds,
     )
     print(
         json.dumps(
@@ -330,7 +538,10 @@ def main(argv: Sequence[str] | None = None) -> int:
                 "service": "frontend-api-server",
                 "base_url": f"http://{args.host}:{args.port}",
                 "health": f"http://{args.host}:{args.port}/__health",
+                "live": f"http://{args.host}:{args.port}/__live",
+                "ready": f"http://{args.host}:{args.port}/__ready",
                 "read_only": True,
+                "request_timeout_seconds": _resolve_request_timeout_seconds(args.request_timeout_seconds),
                 "source_mode": app.state.frontend_source if hasattr(app.state, "frontend_source") else args.source,
                 "database_env": DATABASE_URL_ENV,
             },

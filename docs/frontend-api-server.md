@@ -16,12 +16,15 @@
 - `STOCKANALYSIS_FRONTEND_API_ALLOWED_ORIGIN`: CORS origin. Required and non-wildcard in production.
 - `STOCKANALYSIS_FRONTEND_API_AUTH_MODE`: `disabled` or `read-token`.
 - `STOCKANALYSIS_FRONTEND_API_READ_TOKEN`: bearer token for read API access.
+- `STOCKANALYSIS_FRONTEND_API_REQUEST_TIMEOUT_SECONDS`: HTTP request timeout. Defaults to `30.0`.
 
 `STOCKANALYSIS_PSQL_COMMAND` remains supported for legacy CLI and stdlib runtime smoke paths. The FastAPI server uses `STOCKANALYSIS_DATABASE_URL` for pooled DB reads.
 
 ## Routes
 
+- public: `/__live`
 - public: `/__health`
+- public: `/__ready`
 - protected in `read-token` mode: `/__endpoints`
 - protected in `read-token` mode: `/api/{path:path}`
 - local profile only: `/openapi.json`, `/docs`
@@ -47,18 +50,26 @@ stockanalysis-frontend-api-server \
 
 Do not expose this token through `NEXT_PUBLIC_*`.
 
+## Observability And Probes
+
+- Every response includes `X-Request-ID`.
+- A safe inbound `X-Request-ID` is propagated; invalid or missing values are replaced with generated IDs.
+- Access logs are one JSON object per request through `stockanalysis.frontend.api_server`.
+- Timeout failures return `FrontendApiRequestTimeout` with the same stable error envelope and request id.
+- `/__live` proves process liveness only.
+- `/__ready` proves frontend contract readability and checks the psycopg pool when that boundary is active.
+- Probe payloads expose public runtime metadata only; DB URL and read token are never included.
+
 ## Verification
 
 ```bash
 bash scripts/verify_frontend_api_server.sh
 ```
 
-The verification starts disposable Postgres, loads deterministic fixture state, starts Uvicorn/FastAPI in production profile, checks unauthorized and authorized live DTO reads, then points Next.js at the FastAPI server for a production route smoke.
+The verification starts disposable Postgres, loads deterministic fixture state, starts Uvicorn/FastAPI in production profile, checks probes, request id propagation, unauthorized and authorized live DTO reads, then points Next.js at the FastAPI server for a production route smoke.
 
 ## Remaining Work
 
-- request id and structured logs.
-- timeout and cancellation policy.
-- readiness and liveness probes.
-- deployment manifests.
+- deployment topology, reverse proxy/TLS assumptions, and runtime env template.
+- external metrics/log sink and alerting.
 - full auth/RBAC and audited write boundary.
