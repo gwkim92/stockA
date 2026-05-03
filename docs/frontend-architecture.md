@@ -236,7 +236,7 @@ Phase 6: operational hardening
 
 ## Next Task
 
-FastAPI read-only API server now exists and API operations have basic request id, timeout, structured log, liveness, and readiness hardening. The next task should define deployment boundary before write APIs or frontend product expansion.
+FastAPI read-only API server now exists and API operations have basic request id, timeout, structured log, liveness, readiness, and deployment boundary hardening.
 
 Implemented in `frontend-api-server-observability-hardening`:
 
@@ -244,9 +244,13 @@ Implemented in `frontend-api-server-observability-hardening`:
 - timeout and cancellation policy.
 - readiness and liveness probes.
 
-The next task should add:
+Implemented in `frontend-api-server-deployment-boundary`:
 
 - deployment boundary documentation.
 - runtime env template.
 - reverse proxy/TLS assumptions.
+
+The next task should add:
+
+- pagination conventions for list endpoints.
 - keep write endpoints disabled until full auth/RBAC and audit trail exist.

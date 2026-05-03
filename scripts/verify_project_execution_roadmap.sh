@@ -26,7 +26,8 @@ grep -q "frontend-runtime-db-smoke" docs/project-execution-roadmap.md
 grep -q "frontend-api-server-framework-decision" docs/project-execution-roadmap.md
 grep -q "frontend-api-server-observability-hardening" docs/project-execution-roadmap.md
 grep -q "frontend-api-server-deployment-boundary" docs/project-execution-roadmap.md
-grep -q '현재 고정된 immediate next task는 `frontend-api-server-deployment-boundary`' AGENTS.md
+grep -q "frontend-api-pagination-conventions" docs/project-execution-roadmap.md
+grep -q '현재 고정된 immediate next task는 `frontend-api-pagination-conventions`' AGENTS.md
 grep -q "docs/project-execution-roadmap.md" README.md
 grep -q "verify_project_execution_roadmap.sh" docs/verification-plan.md
 

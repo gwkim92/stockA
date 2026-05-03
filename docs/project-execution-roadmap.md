@@ -16,14 +16,14 @@
 - portfolio pipeline: position snapshot, portfolio review, remediation queue/ticket/update/daily runner, scheduler wrapper.
 - performance pipeline: recommendation/thesis outcome, scheduled outcome runner, attribution, outcome coverage.
 - AI foundation: `ai` schema, model invocation/chunk/embedding/extraction/eval metadata, SEC event structured extraction fixture path.
-- frontend contract/runtime: 12개 DTO contract, fixture server, initial live read adapter completeness, `--source fixture|live|auto`, runtime boundary policy, actual DB-backed HTTP live smoke, FastAPI read-only API server with psycopg pool, request id/timeout/structured log/readiness hardening, Next.js read-only cockpit routes.
+- frontend contract/runtime: 12개 DTO contract, fixture server, initial live read adapter completeness, `--source fixture|live|auto`, runtime boundary policy, actual DB-backed HTTP live smoke, FastAPI read-only API server with psycopg pool, request id/timeout/structured log/readiness hardening, deployment boundary/env preflight, Next.js read-only cockpit routes.
 - harness: task contract/plan/handoff/review directories and verification scripts.
 
 ## Not Done
 
 아래는 아직 끝나지 않았다.
 
-- managed deployment boundary, reverse proxy/TLS assumptions, runtime env template, pagination conventions.
+- actual managed deployment install, reverse proxy config, external metrics/log sink, pagination conventions.
 - full auth/RBAC, actor identity, audit-enforced write APIs.
 - actual recurring production data jobs with real credentials and alerting.
 - broad AI provider gateway, model routing, vector/RAG runtime, eval pipeline.
@@ -76,7 +76,8 @@ Initial scope:
 - Add actual DB-backed HTTP live success smoke. Implemented in `frontend-runtime-db-smoke`.
 - Decide Python API server framework and connection pooling. Implemented in `frontend-api-server-framework-decision`.
 - Add stable request id, timeouts, readiness probes, and structured logs. Implemented in `frontend-api-server-observability-hardening`.
-- Later: pagination conventions and deployment boundary.
+- Add deployment topology, loopback process boundary, reverse proxy/TLS assumptions, and repo-outside runtime env preflight. Implemented in `frontend-api-server-deployment-boundary`.
+- Later: pagination conventions.
 
 Guardrail:
 
@@ -170,9 +171,9 @@ Guardrail:
 
 ## Immediate Next Task
 
-Current task: `frontend-api-server-deployment-boundary`.
+Current task: `frontend-api-pagination-conventions`.
 
-The first implementation expanded live read support, not new frontend pages. It started with `dashboard` and `data-health`, then event/theme/performance, then recommendation/thesis/AI evidence/source document detail, then cycle list. Initial frontend contract live read completeness is covered. Runtime boundary policy, DB-backed HTTP live smoke, FastAPI read-only server, and API observability hardening are now in place; next work should define deployment/process boundary before write APIs or frontend product expansion.
+The first implementation expanded live read support, not new frontend pages. It started with `dashboard` and `data-health`, then event/theme/performance, then recommendation/thesis/AI evidence/source document detail, then cycle list. Initial frontend contract live read completeness is covered. Runtime boundary policy, DB-backed HTTP live smoke, FastAPI read-only server, API observability hardening, and deployment boundary are now in place; next work should define pagination conventions before write APIs or frontend product expansion.
 
 ## Focus Rules
 

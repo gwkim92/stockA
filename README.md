@@ -10,7 +10,7 @@ AI를 이용해 거시경제, 정치, 기술, 산업, 기업 흐름을 계속 �
 - 추천 이후 보유 검토와 성과 추적
 - 판단 근거와 실패 원인의 기록
 
-현재 performance outcome 경로는 단일 측정일, batch 측정일, due horizon schedule 실행을 지원한다. `performance-outcome-schedule-bootstrap`은 outcome이 비어 있는 due batch/horizon을 찾아 장기 성과를 저장한다. `portfolio-attribution-bootstrap`은 보유 snapshot과 thesis outcome을 연결해 security/theme/cash attribution을 저장한다. `portfolio-outcome-coverage-report`는 attribution에서 제외되는 missing thesis/outcome/weight position을 read-only JSON으로 보고하고, `portfolio-review-bootstrap --coverage-measurement-end-date`는 같은 blind spot을 보유 검토 action/risk에 반영한다. `portfolio-review-run-history`는 최근 review run, risk/action counts, attention items를 운영 리포트로 출력한다. `portfolio-remediation-queue`는 attention item을 remediation type과 suggested runner로 분류해 다음 조치 큐로 보여주고, `portfolio-remediation-ticket-bootstrap`은 이 조치 큐를 persistent open ticket으로 저장한다. `portfolio-remediation-ticket-report`는 open/in-progress/resolved/ignored ticket backlog를 조회하고, `portfolio-remediation-ticket-update`는 ticket lifecycle status를 변경한다. `portfolio-remediation-daily-run`은 review bootstrap, ticket bootstrap, open ticket report를 daily 운영 순서로 묶고, scheduler contract/activation/holiday skip/install dry-run/runtime smoke/env readiness/env smoke는 실제 scheduler 설치 전 실행 경계, 휴장일 skip, artifact 저장, DB runtime 동작, env file gate를 검증한다. Frontend는 fixture server 기반 route shell이 있고, initial frontend contract endpoint는 live read adapter로 canonical Postgres state에서 DTO 변환할 수 있다. Local frontend API runtime은 `--source fixture|live|auto`와 local/production runtime boundary policy를 지원하며, production 후보 read-only API server는 FastAPI/Uvicorn/psycopg pool, request id, timeout, structured log, liveness/readiness probe로 제공된다.
+현재 performance outcome 경로는 단일 측정일, batch 측정일, due horizon schedule 실행을 지원한다. `performance-outcome-schedule-bootstrap`은 outcome이 비어 있는 due batch/horizon을 찾아 장기 성과를 저장한다. `portfolio-attribution-bootstrap`은 보유 snapshot과 thesis outcome을 연결해 security/theme/cash attribution을 저장한다. `portfolio-outcome-coverage-report`는 attribution에서 제외되는 missing thesis/outcome/weight position을 read-only JSON으로 보고하고, `portfolio-review-bootstrap --coverage-measurement-end-date`는 같은 blind spot을 보유 검토 action/risk에 반영한다. `portfolio-review-run-history`는 최근 review run, risk/action counts, attention items를 운영 리포트로 출력한다. `portfolio-remediation-queue`는 attention item을 remediation type과 suggested runner로 분류해 다음 조치 큐로 보여주고, `portfolio-remediation-ticket-bootstrap`은 이 조치 큐를 persistent open ticket으로 저장한다. `portfolio-remediation-ticket-report`는 open/in-progress/resolved/ignored ticket backlog를 조회하고, `portfolio-remediation-ticket-update`는 ticket lifecycle status를 변경한다. `portfolio-remediation-daily-run`은 review bootstrap, ticket bootstrap, open ticket report를 daily 운영 순서로 묶고, scheduler contract/activation/holiday skip/install dry-run/runtime smoke/env readiness/env smoke는 실제 scheduler 설치 전 실행 경계, 휴장일 skip, artifact 저장, DB runtime 동작, env file gate를 검증한다. Frontend는 fixture server 기반 route shell이 있고, initial frontend contract endpoint는 live read adapter로 canonical Postgres state에서 DTO 변환할 수 있다. Local frontend API runtime은 `--source fixture|live|auto`와 local/production runtime boundary policy를 지원하며, production 후보 read-only API server는 FastAPI/Uvicorn/psycopg pool, request id, timeout, structured log, liveness/readiness probe, repo-outside runtime env preflight로 제공된다.
 
 현재 기준 문서:
 
@@ -26,6 +26,7 @@ AI를 이용해 거시경제, 정치, 기술, 산업, 기업 흐름을 계속 �
 - `docs/frontend-api-runtime-boundary.md`
 - `docs/frontend-runtime-db-smoke.md`
 - `docs/frontend-api-server.md`
+- `docs/frontend-api-server-deployment-boundary.md`
 - `docs/apps-web-scaffold.md`
 - `docs/repository-publication.md`
 - `docs/event-intelligence-llm-extract.md`
@@ -91,6 +92,10 @@ AI를 이용해 거시경제, 정치, 기술, 산업, 기업 흐름을 계속 �
 - `scripts/verify_frontend_api_runtime_boundary.sh`
 - `scripts/verify_frontend_runtime_db_smoke.sh`
 - `scripts/verify_frontend_api_server.sh`
+- `scripts/render_frontend_api_server_env_template.sh`
+- `scripts/check_frontend_api_server_runtime_env.sh`
+- `scripts/run_frontend_api_server.sh`
+- `scripts/verify_frontend_api_server_deployment_boundary.sh`
 - `scripts/verify_apps_web_scaffold.sh`
 - `scripts/verify_macro_ingest.sh`
 - `scripts/verify_macro_upsert_runner.sh`
