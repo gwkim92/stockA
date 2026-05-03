@@ -32,9 +32,15 @@ function fixtureBaseUrl(): string {
 }
 
 export async function fetchFrontendPayload<TData>(path: string): Promise<ApiResponse<TData>> {
+  const headers: Record<string, string> = { Accept: "application/json" };
+  const readToken = process.env.STOCKANALYSIS_FRONTEND_API_READ_TOKEN;
+  if (readToken) {
+    headers.Authorization = `Bearer ${readToken}`;
+  }
+
   const response = await fetch(`${fixtureBaseUrl()}${path}`, {
     cache: "no-store",
-    headers: { Accept: "application/json" },
+    headers,
   });
 
   if (!response.ok) {

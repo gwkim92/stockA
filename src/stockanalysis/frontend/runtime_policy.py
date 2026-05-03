@@ -9,6 +9,7 @@ PROFILE_CHOICES = ("local", "production")
 AUTH_MODE_CHOICES = ("disabled", "read-token")
 DEFAULT_ALLOWED_ORIGIN = "*"
 DEFAULT_READ_TOKEN_ENV = "STOCKANALYSIS_FRONTEND_API_READ_TOKEN"
+DATABASE_URL_ENV = "STOCKANALYSIS_DATABASE_URL"
 PRODUCTION_DB_ENV = "STOCKANALYSIS_PSQL_COMMAND"
 LOOPBACK_HOSTS = {"127.0.0.1", "localhost", "::1"}
 SOURCE_CHOICES = ("fixture", "live", "auto")
@@ -22,6 +23,7 @@ class FrontendRuntimePolicy:
     auth_mode: str = "disabled"
     read_token_env: str = DEFAULT_READ_TOKEN_ENV
     read_token: str | None = None
+    database_url: str | None = None
     psql_command: str | None = None
 
     @classmethod
@@ -44,6 +46,7 @@ class FrontendRuntimePolicy:
             auth_mode=selected_auth_mode,
             read_token_env=read_token_env,
             read_token=os.environ.get(read_token_env) or None,
+            database_url=os.environ.get(DATABASE_URL_ENV) or None,
             psql_command=os.environ.get(PRODUCTION_DB_ENV) or None,
         )
 
@@ -54,6 +57,10 @@ class FrontendRuntimePolicy:
     @property
     def exposes_detailed_errors(self) -> bool:
         return self.profile == "local"
+
+    @property
+    def has_live_database_config(self) -> bool:
+        return bool(self.database_url or self.psql_command)
 
     def validate_for_startup(self, *, host: str) -> None:
         issues = self.validation_issues(host=host)
@@ -81,8 +88,10 @@ class FrontendRuntimePolicy:
                 issues.append("production profile requires auth_mode=read-token")
             if self.allowed_origin in {"", "*"}:
                 issues.append("production profile requires an explicit allowed origin")
-            if self.source in {"live", "auto"} and not self.psql_command:
-                issues.append(f"production profile requires {PRODUCTION_DB_ENV} for live/auto source")
+            if self.source in {"live", "auto"} and not self.has_live_database_config:
+                issues.append(
+                    f"production profile requires {DATABASE_URL_ENV} or {PRODUCTION_DB_ENV} for live/auto source"
+                )
 
         return issues
 
