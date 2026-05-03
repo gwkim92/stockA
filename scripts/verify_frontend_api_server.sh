@@ -273,10 +273,28 @@ assert health["service"] == "frontend-api-server", health
 assert health["runtime"]["runtime_profile"] == "production", health
 assert health["connection_boundary"] == "psycopg_pool", health
 assert "database_url" not in health["runtime"], health
+assert health["request_timeout_seconds"] > 0, health
+
+status, live = fetch_json("/__live")
+assert status == 200, live
+assert live["status"] == "ok", live
+
+status, ready = fetch_json("/__ready")
+assert status == 200, ready
+assert ready["status"] == "ok", ready
+assert ready["connection_boundary"] == "psycopg_pool", ready
+assert "database_url" not in json.dumps(ready), ready
+
+request_id = "frontend-api-server-smoke-request"
+request = Request(f"{base_url}/__live", headers={"X-Request-ID": request_id})
+with urlopen(request, timeout=10) as response:
+    assert response.status == 200, response.status
+    assert response.headers["X-Request-ID"] == request_id, response.headers
 
 status, unauthorized = fetch_error_json("/api/dashboard/today")
 assert status == 401, unauthorized
 assert unauthorized["error"]["code"] == "Unauthorized", unauthorized
+assert unauthorized["request_id"], unauthorized
 
 headers = {"Authorization": f"Bearer {read_token}"}
 

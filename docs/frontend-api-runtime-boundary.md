@@ -25,7 +25,7 @@
 - `fixture` source is rejected.
 - `auth_mode=read-token` is required.
 - explicit CORS allowed origin is required.
-- `STOCKANALYSIS_PSQL_COMMAND` is required for `live` or `auto` source.
+- `STOCKANALYSIS_DATABASE_URL` or `STOCKANALYSIS_PSQL_COMMAND` is required for `live` or `auto` source.
 - detailed adapter error messages are suppressed.
 
 ## Environment Variables
@@ -34,7 +34,9 @@
 - `STOCKANALYSIS_FRONTEND_API_ALLOWED_ORIGIN`: CORS origin. Required and non-wildcard in production profile.
 - `STOCKANALYSIS_FRONTEND_API_AUTH_MODE`: `disabled` or `read-token`.
 - `STOCKANALYSIS_FRONTEND_API_READ_TOKEN`: bearer token for `read-token` mode.
-- `STOCKANALYSIS_PSQL_COMMAND`: live read DB command. Required for production `live`/`auto` source.
+- `STOCKANALYSIS_FRONTEND_API_REQUEST_TIMEOUT_SECONDS`: FastAPI server request timeout.
+- `STOCKANALYSIS_DATABASE_URL`: FastAPI psycopg pool connection string.
+- `STOCKANALYSIS_PSQL_COMMAND`: legacy live read DB command. It remains valid for production `live`/`auto` source when `STOCKANALYSIS_DATABASE_URL` is not used.
 
 ## CLI
 
@@ -92,7 +94,9 @@ Protected:
 
 Public:
 
+- `/__live`
 - `/__health`
+- `/__ready`
 - `OPTIONS` preflight
 
 This is not full RBAC. It is a deployment safety seam until real identity, role mapping, sessions, and audit trail are implemented.
@@ -126,9 +130,11 @@ bash scripts/verify_frontend_api_server.sh
 - production profile accepts guarded `auto` runtime metadata when DB command and token are configured.
 - disposable Postgres-backed `source=live` HTTP runtime returns representative frontend DTOs with bearer-token auth.
 - FastAPI server uses psycopg pool and preserves the same read-token/API boundary.
+- FastAPI server emits `X-Request-ID`, structured access logs, stable timeout errors, and public liveness/readiness probes.
 
 ## Remaining Work
 
-- request id, timeout, structured logs, readiness probes, and deployment hardening.
+- deployment hardening, reverse proxy/TLS assumptions, and runtime env templates.
+- external metrics/log sink and alerting.
 - real auth/RBAC with viewer, analyst, operator, admin roles.
 - audited write command boundary after auth/RBAC.

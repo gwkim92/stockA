@@ -40,6 +40,7 @@ bash scripts/verify_frontend_runtime_db_smoke.sh
 - This is a smoke, not a production API server.
 - The runtime still shells out through `STOCKANALYSIS_PSQL_COMMAND`.
 - FastAPI server and connection pooling are implemented in `frontend-api-server-framework-decision`.
-- Request id, timeout, readiness probes, and deployment hardening are next.
+- Request id, timeout, structured logs, and readiness probes are implemented in `frontend-api-server-observability-hardening`.
+- Deployment hardening remains next.
 - `read-token` remains a deployment seam, not full user identity or RBAC.
 - No schema, benchmark, scoring, or evaluation split is changed by this smoke.
