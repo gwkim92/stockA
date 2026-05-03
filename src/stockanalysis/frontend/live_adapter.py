@@ -10,6 +10,7 @@ from urllib.parse import parse_qs, quote, unquote, urlsplit
 from stockanalysis.ingest.config import RuntimeConfig
 from stockanalysis.ingest.macro.sql import sql_date, sql_literal
 from stockanalysis.ingest.psql import PsqlCommandExecutor
+from stockanalysis.frontend.pagination import apply_frontend_pagination
 from stockanalysis.performance.coverage import load_portfolio_outcome_coverage_report
 from stockanalysis.signal.portfolio_remediation_ticket import load_portfolio_remediation_ticket_report
 
@@ -55,86 +56,122 @@ def resolve_live_frontend_response(
     generated_at_text = _format_generated_at(generated_at)
 
     if parsed.path == "/api/dashboard/today":
-        return build_live_dashboard_response(
-            config=runtime_config,
-            executor=executor,
-            generated_at=generated_at_text,
+        return apply_frontend_pagination(
+            api_path,
+            build_live_dashboard_response(
+                config=runtime_config,
+                executor=executor,
+                generated_at=generated_at_text,
+            ),
         )
     if parsed.path == "/api/data-health":
-        return build_live_data_health_response(
-            config=runtime_config,
-            executor=executor,
-            generated_at=generated_at_text,
+        return apply_frontend_pagination(
+            api_path,
+            build_live_data_health_response(
+                config=runtime_config,
+                executor=executor,
+                generated_at=generated_at_text,
+            ),
         )
     if parsed.path == "/api/cycles":
-        return build_live_cycle_state_list_response(
-            parsed,
-            config=runtime_config,
-            executor=executor,
-            generated_at=generated_at_text,
+        return apply_frontend_pagination(
+            api_path,
+            build_live_cycle_state_list_response(
+                parsed,
+                config=runtime_config,
+                executor=executor,
+                generated_at=generated_at_text,
+            ),
         )
     if parsed.path == "/api/events":
-        return build_live_event_list_response(
-            parsed,
-            config=runtime_config,
-            executor=executor,
-            generated_at=generated_at_text,
+        return apply_frontend_pagination(
+            api_path,
+            build_live_event_list_response(
+                parsed,
+                config=runtime_config,
+                executor=executor,
+                generated_at=generated_at_text,
+            ),
         )
     if parsed.path.startswith("/api/themes/"):
-        return build_live_theme_detail_response(
-            parsed,
-            config=runtime_config,
-            executor=executor,
-            generated_at=generated_at_text,
+        return apply_frontend_pagination(
+            api_path,
+            build_live_theme_detail_response(
+                parsed,
+                config=runtime_config,
+                executor=executor,
+                generated_at=generated_at_text,
+            ),
         )
     if parsed.path.startswith("/api/performance/") and parsed.path.endswith("/outcomes"):
-        return build_live_performance_outcomes_response(
-            parsed,
-            config=runtime_config,
-            executor=executor,
-            generated_at=generated_at_text,
+        return apply_frontend_pagination(
+            api_path,
+            build_live_performance_outcomes_response(
+                parsed,
+                config=runtime_config,
+                executor=executor,
+                generated_at=generated_at_text,
+            ),
         )
     if parsed.path.startswith("/api/recommendations/"):
-        return build_live_recommendation_detail_response(
-            parsed,
-            config=runtime_config,
-            executor=executor,
-            generated_at=generated_at_text,
+        return apply_frontend_pagination(
+            api_path,
+            build_live_recommendation_detail_response(
+                parsed,
+                config=runtime_config,
+                executor=executor,
+                generated_at=generated_at_text,
+            ),
         )
     if parsed.path.startswith("/api/theses/"):
-        return build_live_thesis_detail_response(
-            parsed,
-            config=runtime_config,
-            executor=executor,
-            generated_at=generated_at_text,
+        return apply_frontend_pagination(
+            api_path,
+            build_live_thesis_detail_response(
+                parsed,
+                config=runtime_config,
+                executor=executor,
+                generated_at=generated_at_text,
+            ),
         )
     if parsed.path.startswith("/api/ai-evidence/"):
-        return build_live_ai_evidence_detail_response(
-            parsed,
-            config=runtime_config,
-            executor=executor,
-            generated_at=generated_at_text,
+        return apply_frontend_pagination(
+            api_path,
+            build_live_ai_evidence_detail_response(
+                parsed,
+                config=runtime_config,
+                executor=executor,
+                generated_at=generated_at_text,
+            ),
         )
     if parsed.path.startswith("/api/source-documents/"):
-        return build_live_source_document_detail_response(
-            parsed,
-            config=runtime_config,
-            executor=executor,
-            generated_at=generated_at_text,
+        return apply_frontend_pagination(
+            api_path,
+            build_live_source_document_detail_response(
+                parsed,
+                config=runtime_config,
+                executor=executor,
+                generated_at=generated_at_text,
+            ),
         )
     if parsed.path == "/api/remediation-tickets":
-        return build_live_remediation_tickets_response(
-            parsed,
-            config=runtime_config,
-            executor=executor,
-            generated_at=generated_at_text,
+        return apply_frontend_pagination(
+            api_path,
+            build_live_remediation_tickets_response(
+                parsed,
+                config=runtime_config,
+                executor=executor,
+                generated_at=generated_at_text,
+            ),
         )
     if parsed.path.startswith("/api/portfolio/") and parsed.path.endswith("/coverage"):
-        return build_live_portfolio_coverage_response(
-            parsed,
-            config=runtime_config,
-            executor=executor,
-            generated_at=generated_at_text,
+        return apply_frontend_pagination(
+            api_path,
+            build_live_portfolio_coverage_response(
+                parsed,
+                config=runtime_config,
+                executor=executor,
+                generated_at=generated_at_text,
+            ),
         )
 
     raise FrontendLiveUnsupportedPathError(f"Live frontend API path is not supported yet: {api_path}")

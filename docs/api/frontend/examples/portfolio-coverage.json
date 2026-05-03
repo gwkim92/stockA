@@ -41,6 +41,13 @@
       "blocking_reasons": ["missing_thesis:BABA"]
     }
   },
+  "pagination": {
+    "limit": 50,
+    "cursor": null,
+    "next_cursor": null,
+    "has_more": false,
+    "item_count": 2
+  },
   "links": {
     "remediation_tickets": "/api/remediation-tickets?status=open",
     "dashboard": "/api/dashboard/today"

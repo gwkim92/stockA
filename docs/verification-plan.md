@@ -62,6 +62,10 @@ task마다 흔들리게 두지 않는 편이 좋다.
 - 무엇을 증명하는가: FastAPI read-only frontend API server의 repo-outside runtime env template, env preflight, run wrapper, secret redaction, loopback-behind-TLS deployment boundary가 동작하는지 확인한다.
 - 통과 조건: renderer/checker/wrapper syntax, repo 내부 env output/file 거부, unedited template failure, valid temp env readiness success, wrapper `--preflight-only`, DB URL/read token redaction이 모두 통과한다.
 
+- 명령: `bash scripts/verify_frontend_api_pagination_conventions.sh`
+- 무엇을 증명하는가: frontend list endpoint의 `limit`, opaque `cursor`, `next_cursor`, invalid pagination error, DTO examples, TypeScript response type이 같은 contract를 따르는지 확인한다.
+- 통과 조건: pagination helper/API adapter/live adapter/FastAPI tests, CLI pagination smoke, collection examples top-level pagination metadata, TypeScript optional pagination type이 모두 통과한다.
+
 - 명령: `bash scripts/verify_apps_web_scaffold.sh`
 - 무엇을 증명하는가: `apps/web` Next.js App Router scaffold가 fixture server payload를 읽는 read-only investment cockpit shell로 동작하는지 확인한다.
 - 통과 조건: web scaffold files, npm install, TypeScript check, Next production build, fixture server runtime, Next production server route smoke for `/`, `/remediation`, `/data-health`, `/cycles`, frontend architecture/API/adapter/fixture server regression checks가 모두 통과한다.

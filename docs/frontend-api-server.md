@@ -32,6 +32,8 @@
 
 All write methods return stable `MethodNotAllowed` JSON. This server does not implement write APIs, thesis mutation, raw document download, or broker/order flow.
 
+Collection endpoints support `limit` and opaque `cursor` parameters. Invalid pagination returns `FrontendPaginationInvalid` with HTTP 400.
+
 ## Command
 
 ```bash
@@ -74,5 +76,6 @@ The deployment boundary verification checks repo-outside env template rendering,
 
 ## Remaining Work
 
+- SQL-level cursor seek optimization for large production lists.
 - external metrics/log sink and alerting.
 - full auth/RBAC and audited write boundary.

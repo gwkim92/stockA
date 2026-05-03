@@ -58,7 +58,7 @@
 - 추천 또는 보유 판단은 당시 입력 데이터, 점수, thesis, 무효화 조건을 함께 저장하는 방향으로 설계한다.
 - 문서 단계에서도 다음 구현 단계가 바로 이어질 수 있을 정도로 결정 사항을 명확히 남긴다.
 - 진행 순서가 흔들릴 때는 `docs/project-execution-roadmap.md`를 우선 기준으로 삼고, 변경하려면 별도 task contract에 근거를 남긴다.
-- 현재 고정된 immediate next task는 `frontend-api-pagination-conventions`이다. FastAPI read-only server의 deployment boundary 이후에는 새 프론트 기능보다 list endpoint pagination/cursor/limit/error contract를 먼저 고정한다.
+- 현재 고정된 immediate next task는 `frontend-api-observability-sink-decision`이다. FastAPI read-only server의 pagination conventions 이후에는 새 프론트 기능보다 외부 metrics/log sink와 alerting boundary를 먼저 결정한다.
 
 ## Definition Of Done
 

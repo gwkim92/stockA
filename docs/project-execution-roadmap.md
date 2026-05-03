@@ -16,14 +16,14 @@
 - portfolio pipeline: position snapshot, portfolio review, remediation queue/ticket/update/daily runner, scheduler wrapper.
 - performance pipeline: recommendation/thesis outcome, scheduled outcome runner, attribution, outcome coverage.
 - AI foundation: `ai` schema, model invocation/chunk/embedding/extraction/eval metadata, SEC event structured extraction fixture path.
-- frontend contract/runtime: 12개 DTO contract, fixture server, initial live read adapter completeness, `--source fixture|live|auto`, runtime boundary policy, actual DB-backed HTTP live smoke, FastAPI read-only API server with psycopg pool, request id/timeout/structured log/readiness hardening, deployment boundary/env preflight, Next.js read-only cockpit routes.
+- frontend contract/runtime: 12개 DTO contract, fixture server, initial live read adapter completeness, `--source fixture|live|auto`, runtime boundary policy, actual DB-backed HTTP live smoke, FastAPI read-only API server with psycopg pool, request id/timeout/structured log/readiness hardening, deployment boundary/env preflight, pagination conventions, Next.js read-only cockpit routes.
 - harness: task contract/plan/handoff/review directories and verification scripts.
 
 ## Not Done
 
 아래는 아직 끝나지 않았다.
 
-- actual managed deployment install, reverse proxy config, external metrics/log sink, pagination conventions.
+- actual managed deployment install, reverse proxy config, external metrics/log sink, SQL-level pagination optimization.
 - full auth/RBAC, actor identity, audit-enforced write APIs.
 - actual recurring production data jobs with real credentials and alerting.
 - broad AI provider gateway, model routing, vector/RAG runtime, eval pipeline.
@@ -77,7 +77,8 @@ Initial scope:
 - Decide Python API server framework and connection pooling. Implemented in `frontend-api-server-framework-decision`.
 - Add stable request id, timeouts, readiness probes, and structured logs. Implemented in `frontend-api-server-observability-hardening`.
 - Add deployment topology, loopback process boundary, reverse proxy/TLS assumptions, and repo-outside runtime env preflight. Implemented in `frontend-api-server-deployment-boundary`.
-- Later: pagination conventions.
+- Add list endpoint `limit`, opaque `cursor`, and `next_cursor` conventions. Implemented in `frontend-api-pagination-conventions`.
+- Later: external metrics/log sink and SQL-level pagination optimization.
 
 Guardrail:
 
@@ -120,12 +121,16 @@ Initial scope:
 - structured output validators.
 - prompt template versioning and model invocation logging.
 - document chunking and embedding adapter.
+- Postgres evidence neighborhood query before graph DB adoption.
+- retrieval adapter boundary before production vector store selection.
 - eval dataset for event extraction and thesis review quality.
 
 Guardrail:
 
 - AI does not directly own buy/sell/rank decisions.
 - deterministic scoring remains source of recommendation action.
+- `ai-retrieval-graph-foundation` captures the handoff for RAG/ontology/graph work; it is a future AI Runtime task and does not replace the current immediate task.
+- Do not add Dagster/Prefect/Airflow, Neo4j/RDF/GraphRAG, or production vector DB until a task contract proves the current adapter/runner approach is insufficient.
 
 ### 5. Recommendation And Cycle Quality
 
@@ -171,9 +176,9 @@ Guardrail:
 
 ## Immediate Next Task
 
-Current task: `frontend-api-pagination-conventions`.
+Current task: `frontend-api-observability-sink-decision`.
 
-The first implementation expanded live read support, not new frontend pages. It started with `dashboard` and `data-health`, then event/theme/performance, then recommendation/thesis/AI evidence/source document detail, then cycle list. Initial frontend contract live read completeness is covered. Runtime boundary policy, DB-backed HTTP live smoke, FastAPI read-only server, API observability hardening, and deployment boundary are now in place; next work should define pagination conventions before write APIs or frontend product expansion.
+The first implementation expanded live read support, not new frontend pages. It started with `dashboard` and `data-health`, then event/theme/performance, then recommendation/thesis/AI evidence/source document detail, then cycle list. Initial frontend contract live read completeness is covered. Runtime boundary policy, DB-backed HTTP live smoke, FastAPI read-only server, API observability hardening, deployment boundary, and pagination conventions are now in place; next work should decide the external metrics/log sink before write APIs or frontend product expansion.
 
 ## Focus Rules
 

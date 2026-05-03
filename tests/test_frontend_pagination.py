@@ -1,0 +1,81 @@
+from __future__ import annotations
+
+import unittest
+
+from stockanalysis.frontend.pagination import (
+    DEFAULT_PAGE_LIMIT,
+    FrontendPaginationError,
+    apply_frontend_pagination,
+    canonical_frontend_path_for_pagination,
+    decode_frontend_cursor,
+    encode_frontend_cursor,
+)
+
+
+def _event_payload(count: int = 3) -> dict[str, object]:
+    return {
+        "contract_version": "frontend-api-v0.1",
+        "generated_at": "2026-05-01T00:00:00Z",
+        "data": {
+            "as_of_date": "2024-11-01",
+            "events": [{"event_id": f"event-{index}"} for index in range(count)],
+        },
+        "links": {},
+    }
+
+
+class FrontendPaginationTests(unittest.TestCase):
+    def test_limit_slices_collection_and_returns_next_cursor(self) -> None:
+        payload = apply_frontend_pagination("/api/events?asOfDate=2024-11-01&limit=2", _event_payload())
+
+        self.assertEqual([item["event_id"] for item in payload["data"]["events"]], ["event-0", "event-1"])
+        self.assertEqual(payload["pagination"]["limit"], 2)
+        self.assertEqual(payload["pagination"]["item_count"], 2)
+        self.assertTrue(payload["pagination"]["has_more"])
+        self.assertEqual(decode_frontend_cursor(payload["pagination"]["next_cursor"]), 2)
+
+    def test_cursor_resumes_collection(self) -> None:
+        cursor = encode_frontend_cursor(2)
+        payload = apply_frontend_pagination(f"/api/events?asOfDate=2024-11-01&limit=2&cursor={cursor}", _event_payload())
+
+        self.assertEqual([item["event_id"] for item in payload["data"]["events"]], ["event-2"])
+        self.assertEqual(payload["pagination"]["cursor"], cursor)
+        self.assertFalse(payload["pagination"]["has_more"])
+        self.assertIsNone(payload["pagination"]["next_cursor"])
+
+    def test_missing_limit_uses_default(self) -> None:
+        payload = apply_frontend_pagination("/api/events?asOfDate=2024-11-01", _event_payload())
+
+        self.assertEqual(payload["pagination"]["limit"], DEFAULT_PAGE_LIMIT)
+        self.assertEqual(payload["pagination"]["item_count"], 3)
+
+    def test_invalid_limit_is_rejected(self) -> None:
+        with self.assertRaisesRegex(FrontendPaginationError, "between 1 and 100"):
+            apply_frontend_pagination("/api/events?asOfDate=2024-11-01&limit=101", _event_payload())
+
+    def test_invalid_cursor_is_rejected(self) -> None:
+        with self.assertRaisesRegex(FrontendPaginationError, "cursor is invalid"):
+            apply_frontend_pagination("/api/events?asOfDate=2024-11-01&cursor=not-a-cursor", _event_payload())
+
+    def test_pagination_on_non_list_path_is_rejected(self) -> None:
+        with self.assertRaisesRegex(FrontendPaginationError, "list endpoints"):
+            apply_frontend_pagination(
+                "/api/dashboard/today?limit=1",
+                {
+                    "contract_version": "frontend-api-v0.1",
+                    "generated_at": "2026-05-01T00:00:00Z",
+                    "data": {},
+                    "links": {},
+                },
+            )
+
+    def test_canonical_path_removes_pagination_params(self) -> None:
+        canonical = canonical_frontend_path_for_pagination(
+            "/api/remediation-tickets?status=open&limit=1&cursor=abc"
+        )
+
+        self.assertEqual(canonical, "/api/remediation-tickets?status=open")
+
+
+if __name__ == "__main__":
+    unittest.main()

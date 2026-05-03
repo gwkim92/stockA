@@ -2,6 +2,13 @@ export type ApiResponse<TData> = {
   contract_version: string;
   generated_at: string;
   data: TData;
+  pagination?: {
+    limit: number;
+    cursor: string | null;
+    next_cursor: string | null;
+    has_more: boolean;
+    item_count: number;
+  };
   links: Record<string, string>;
 };
 
