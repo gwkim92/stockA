@@ -23,7 +23,7 @@
 
 아래는 아직 끝나지 않았다.
 
-- actual managed deployment install, reverse proxy config, optional OTLP exporter runtime, SQL-level pagination optimization.
+- actual managed deployment install, reverse proxy config, local Collector smoke, alert rules, SQL-level pagination optimization.
 - full auth/RBAC, actor identity, audit-enforced write APIs.
 - actual recurring production data jobs with real credentials and alerting.
 - broad AI provider gateway, model routing, vector/RAG runtime, eval pipeline.
@@ -79,7 +79,8 @@ Initial scope:
 - Add deployment topology, loopback process boundary, reverse proxy/TLS assumptions, and repo-outside runtime env preflight. Implemented in `frontend-api-server-deployment-boundary`.
 - Add list endpoint `limit`, opaque `cursor`, and `next_cursor` conventions. Implemented in `frontend-api-pagination-conventions`.
 - Decide external metrics/log sink and alerting boundary. Implemented in `frontend-api-observability-sink-decision`.
-- Later: optional OTLP exporter pilot and SQL-level pagination optimization.
+- Add default-disabled optional OTLP exporter pilot. Implemented in `frontend-api-otel-exporter-pilot`.
+- Later: SQL-level pagination optimization and local Collector smoke.
 
 Guardrail:
 
@@ -177,9 +178,9 @@ Guardrail:
 
 ## Immediate Next Task
 
-Current task: `frontend-api-otel-exporter-pilot`.
+Current task: `frontend-api-sql-pagination-optimization`.
 
-The first implementation expanded live read support, not new frontend pages. It started with `dashboard` and `data-health`, then event/theme/performance, then recommendation/thesis/AI evidence/source document detail, then cycle list. Initial frontend contract live read completeness is covered. Runtime boundary policy, DB-backed HTTP live smoke, FastAPI read-only server, API observability hardening, deployment boundary, pagination conventions, and external observability sink decision are now in place; next work should pilot optional OTLP export before write APIs or frontend product expansion.
+The first implementation expanded live read support, not new frontend pages. It started with `dashboard` and `data-health`, then event/theme/performance, then recommendation/thesis/AI evidence/source document detail, then cycle list. Initial frontend contract live read completeness is covered. Runtime boundary policy, DB-backed HTTP live smoke, FastAPI read-only server, API observability hardening, deployment boundary, pagination conventions, external observability sink decision, and optional OTLP exporter pilot are now in place; next work should move large list pagination from response-boundary slicing toward SQL-level cursor pagination before write APIs or frontend product expansion.
 
 ## Focus Rules
 

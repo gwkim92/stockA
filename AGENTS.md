@@ -58,7 +58,7 @@
 - 추천 또는 보유 판단은 당시 입력 데이터, 점수, thesis, 무효화 조건을 함께 저장하는 방향으로 설계한다.
 - 문서 단계에서도 다음 구현 단계가 바로 이어질 수 있을 정도로 결정 사항을 명확히 남긴다.
 - 진행 순서가 흔들릴 때는 `docs/project-execution-roadmap.md`를 우선 기준으로 삼고, 변경하려면 별도 task contract에 근거를 남긴다.
-- 현재 고정된 immediate next task는 `frontend-api-otel-exporter-pilot`이다. 외부 metrics/log sink decision 이후에는 새 프론트 기능보다 optional OTLP exporter pilot을 먼저 검증한다.
+- 현재 고정된 immediate next task는 `frontend-api-sql-pagination-optimization`이다. optional OTLP exporter pilot 이후에는 새 프론트 기능보다 대량 list endpoint의 SQL-level cursor pagination을 먼저 검증한다.
 
 ## Definition Of Done
 

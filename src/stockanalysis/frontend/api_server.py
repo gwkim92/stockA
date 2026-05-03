@@ -28,6 +28,14 @@ from stockanalysis.frontend.api_adapter import (
 )
 from stockanalysis.frontend.db_pool import PsycopgPoolExecutor
 from stockanalysis.frontend.fixture_server import build_server_error_payload
+from stockanalysis.frontend.observability import (
+    OBSERVABILITY_MODE_CHOICES,
+    OBSERVABILITY_MODE_ENV,
+    OTLP_ENDPOINT_ENV,
+    FrontendObservabilityConfig,
+    access_telemetry_attributes,
+    configure_frontend_observability,
+)
 from stockanalysis.frontend.runtime_policy import (
     DEFAULT_ALLOWED_ORIGIN,
     DEFAULT_READ_TOKEN_ENV,
@@ -67,6 +75,8 @@ def create_app(
     pool_max_size: int = DEFAULT_POOL_MAX_SIZE,
     pool_timeout_seconds: float = DEFAULT_POOL_TIMEOUT_SECONDS,
     request_timeout_seconds: float | None = None,
+    observability_mode: str | None = None,
+    otlp_endpoint: str | None = None,
 ) -> FastAPI:
     selected_policy = runtime_policy or FrontendRuntimePolicy.from_env(
         source=source,
@@ -76,6 +86,11 @@ def create_app(
         read_token_env=read_token_env,
     )
     selected_policy.validate_for_startup(host=host)
+    selected_observability_config = FrontendObservabilityConfig.from_env(
+        mode=observability_mode,
+        otlp_endpoint=otlp_endpoint,
+        deployment_environment=selected_policy.profile,
+    )
     selected_request_timeout_seconds = _resolve_request_timeout_seconds(request_timeout_seconds)
     resolved_repo_root = Path(repo_root).resolve() if repo_root is not None else None
     openapi_url = "/openapi.json" if selected_policy.profile == "local" else None
@@ -191,6 +206,7 @@ def create_app(
                 "source": "docs/api/frontend/contract-index.json",
                 "source_mode": selected_policy.source,
                 "runtime": selected_policy.public_metadata(),
+                "observability": _observability_metadata(app),
                 "connection_boundary": getattr(app.state, "frontend_connection_boundary", "not_started"),
                 "request_timeout_seconds": selected_request_timeout_seconds,
             }
@@ -272,11 +288,27 @@ def create_app(
             HTTPStatus.METHOD_NOT_ALLOWED,
         )
 
+    app.state.frontend_observability_config = selected_observability_config
+    app.state.frontend_observability_runtime = configure_frontend_observability(
+        app=app,
+        config=selected_observability_config,
+    )
     return app
 
 
 def _json_response(payload: dict[str, Any], status: HTTPStatus = HTTPStatus.OK) -> JSONResponse:
     return JSONResponse(content=payload, status_code=int(status))
+
+
+def _observability_metadata(app: FastAPI) -> dict[str, Any]:
+    config = getattr(app.state, "frontend_observability_config", None)
+    runtime = getattr(app.state, "frontend_observability_runtime", None)
+    metadata: dict[str, Any] = {}
+    if config is not None:
+        metadata.update(config.public_metadata())
+    if runtime is not None:
+        metadata.update(runtime.public_metadata())
+    return metadata
 
 
 def _server_error_payload(
@@ -439,6 +471,12 @@ def _log_access(
     duration_ms: float,
     policy: FrontendRuntimePolicy,
 ) -> None:
+    attributes = access_telemetry_attributes(
+        request=request,
+        status_code=status_code,
+        runtime_profile=policy.profile,
+        source_mode=policy.source,
+    )
     ACCESS_LOGGER.info(
         json.dumps(
             {
@@ -446,7 +484,9 @@ def _log_access(
                 "request_id": request_id,
                 "method": request.method,
                 "path": request.url.path,
+                "route_template": attributes["route_template"],
                 "status_code": status_code,
+                "status_class": attributes["status_class"],
                 "duration_ms": duration_ms,
                 "runtime_profile": policy.profile,
                 "source_mode": policy.source,
@@ -514,6 +554,17 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help=f"HTTP request timeout. Defaults to {REQUEST_TIMEOUT_ENV} or {DEFAULT_REQUEST_TIMEOUT_SECONDS}.",
     )
+    parser.add_argument(
+        "--observability-mode",
+        choices=OBSERVABILITY_MODE_CHOICES,
+        default=None,
+        help=f"Observability mode. Defaults to {OBSERVABILITY_MODE_ENV} or disabled.",
+    )
+    parser.add_argument(
+        "--otlp-endpoint",
+        default=None,
+        help=f"OTLP/HTTP Collector base endpoint. Defaults to {OTLP_ENDPOINT_ENV}. Not printed in metadata.",
+    )
     parser.add_argument("--log-level", default="info", help="Uvicorn log level.")
     return parser
 
@@ -532,6 +583,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         pool_max_size=args.pool_max_size,
         pool_timeout_seconds=args.pool_timeout_seconds,
         request_timeout_seconds=args.request_timeout_seconds,
+        observability_mode=args.observability_mode,
+        otlp_endpoint=args.otlp_endpoint,
     )
     print(
         json.dumps(
@@ -546,6 +599,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 "request_timeout_seconds": _resolve_request_timeout_seconds(args.request_timeout_seconds),
                 "source_mode": app.state.frontend_source if hasattr(app.state, "frontend_source") else args.source,
                 "database_env": DATABASE_URL_ENV,
+                "observability": _observability_metadata(app),
             },
             ensure_ascii=False,
             sort_keys=True,
