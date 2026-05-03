@@ -113,6 +113,7 @@ This is not full RBAC. It is a deployment safety seam until real identity, role 
 ```bash
 bash scripts/verify_frontend_api_runtime_boundary.sh
 bash scripts/verify_frontend_runtime_db_smoke.sh
+bash scripts/verify_frontend_api_server.sh
 ```
 
 검증은 아래를 확인한다.
@@ -124,10 +125,10 @@ bash scripts/verify_frontend_runtime_db_smoke.sh
 - production profile rejects unguarded startup.
 - production profile accepts guarded `auto` runtime metadata when DB command and token are configured.
 - disposable Postgres-backed `source=live` HTTP runtime returns representative frontend DTOs with bearer-token auth.
+- FastAPI server uses psycopg pool and preserves the same read-token/API boundary.
 
 ## Remaining Work
 
-- connection pooling or managed DB connection adapter.
-- production API server framework decision.
+- request id, timeout, structured logs, readiness probes, and deployment hardening.
 - real auth/RBAC with viewer, analyst, operator, admin roles.
 - audited write command boundary after auth/RBAC.

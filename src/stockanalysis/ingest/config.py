@@ -13,6 +13,7 @@ class RuntimeConfig:
     sec_user_agent: str | None = None
     fred_api_key: str | None = None
     alpha_vantage_api_key: str | None = None
+    database_url: str | None = None
     psql_command: str | None = None
 
     @classmethod
@@ -21,6 +22,7 @@ class RuntimeConfig:
             sec_user_agent=_read_optional("STOCKANALYSIS_SEC_USER_AGENT"),
             fred_api_key=_read_optional("STOCKANALYSIS_FRED_API_KEY"),
             alpha_vantage_api_key=_read_optional("STOCKANALYSIS_ALPHA_VANTAGE_API_KEY"),
+            database_url=_read_optional("STOCKANALYSIS_DATABASE_URL"),
             psql_command=_read_optional("STOCKANALYSIS_PSQL_COMMAND"),
         )
 
@@ -45,5 +47,6 @@ _ENV_TO_FIELD = {
     "STOCKANALYSIS_SEC_USER_AGENT": "sec_user_agent",
     "STOCKANALYSIS_FRED_API_KEY": "fred_api_key",
     "STOCKANALYSIS_ALPHA_VANTAGE_API_KEY": "alpha_vantage_api_key",
+    "STOCKANALYSIS_DATABASE_URL": "database_url",
     "STOCKANALYSIS_PSQL_COMMAND": "psql_command",
 }

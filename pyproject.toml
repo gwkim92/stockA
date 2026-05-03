@@ -8,11 +8,17 @@ version = "0.1.0"
 description = "Cycle-based investment operating system bootstrap."
 readme = "README.md"
 requires-python = ">=3.11"
-dependencies = []
+dependencies = [
+    "fastapi>=0.115",
+    "httpx>=0.27",
+    "psycopg[binary,pool]>=3.2",
+    "uvicorn[standard]>=0.30",
+]
 
 [project.scripts]
 stockanalysis-ingest = "stockanalysis.ingest.cli:main_entry"
 stockanalysis-frontend-api = "stockanalysis.frontend.api_adapter:main_entry"
+stockanalysis-frontend-api-server = "stockanalysis.frontend.api_server:main_entry"
 stockanalysis-frontend-fixture-server = "stockanalysis.frontend.fixture_server:main_entry"
 stockanalysis-frontend-runtime-server = "stockanalysis.frontend.fixture_server:main_entry"
 

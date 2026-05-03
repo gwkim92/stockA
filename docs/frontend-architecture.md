@@ -193,9 +193,17 @@ Phase 1.9: API runtime boundary
 
 - status: runtime policy documented as `docs/frontend-api-runtime-boundary.md`.
 - module: `src/stockanalysis/frontend/runtime_policy.py`.
-- behavior: local unauthenticated runtime is loopback-only; production profile requires read-token auth, explicit CORS origin, and DB command for `live`/`auto`.
+- behavior: local unauthenticated runtime is loopback-only; production profile requires read-token auth, explicit CORS origin, and DB configuration for `live`/`auto`.
 - verification: `scripts/verify_frontend_api_runtime_boundary.sh`.
 - boundary: read-token is a deployment safety seam, not full user/role RBAC.
+
+Phase 1.10: FastAPI read-only API server
+
+- status: production-candidate read-only API server documented as `docs/frontend-api-server.md`.
+- module: `src/stockanalysis/frontend/api_server.py`.
+- DB boundary: `src/stockanalysis/frontend/db_pool.py` uses psycopg pool with `STOCKANALYSIS_DATABASE_URL`.
+- behavior: `/__health` is public; `/__endpoints` and `/api/{path:path}` are protected in read-token mode.
+- verification: `scripts/verify_frontend_api_server.sh`.
 
 Phase 2: frontend scaffold
 
@@ -228,11 +236,12 @@ Phase 6: operational hardening
 
 ## Next Task
 
-Actual DB-backed HTTP live smoke now exists. The next task should decide the API server framework and connection boundary before write APIs or frontend product expansion.
+FastAPI read-only API server now exists. The next task should harden API operations before write APIs or frontend product expansion.
 
-The completed smoke proves the frontend/backend boundary against a configured DB command:
+The next task should add:
 
-- start runtime with `--source live`.
-- fetch representative live-supported endpoints over HTTP.
-- capture unauthorized read failure without leaking DB details.
+- request id and structured logs.
+- timeout and cancellation policy.
+- readiness and liveness probes.
+- deployment boundary documentation.
 - keep write endpoints disabled until full auth/RBAC and audit trail exist.

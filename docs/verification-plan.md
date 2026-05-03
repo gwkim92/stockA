@@ -54,6 +54,10 @@ task마다 흔들리게 두지 않는 편이 좋다.
 - 무엇을 증명하는가: frontend read-only HTTP runtime이 fixture JSON이 아니라 disposable Postgres에 적재된 canonical state를 `source=live`로 읽어 production-profile HTTP DTO를 반환하는지 확인한다.
 - 통과 조건: Docker Postgres migration/seed/pipeline bootstrap, production-profile live runtime startup, public health, unauthorized read rejection, authorized dashboard/data-health/cycle/event/theme/ticket/recommendation/thesis/performance/source-document HTTP reads가 모두 통과한다.
 
+- 명령: `bash scripts/verify_frontend_api_server.sh`
+- 무엇을 증명하는가: FastAPI read-only frontend API server가 psycopg pool로 disposable Postgres state를 읽고 Next.js server-side token forwarding으로 cockpit route smoke까지 통과하는지 확인한다.
+- 통과 조건: FastAPI/db pool unit tests, Docker Postgres migration/seed/pipeline bootstrap, Uvicorn production-profile startup, public health, unauthorized read rejection, authorized live DTO reads, Next typecheck/build/home route smoke가 모두 통과한다.
+
 - 명령: `bash scripts/verify_apps_web_scaffold.sh`
 - 무엇을 증명하는가: `apps/web` Next.js App Router scaffold가 fixture server payload를 읽는 read-only investment cockpit shell로 동작하는지 확인한다.
 - 통과 조건: web scaffold files, npm install, TypeScript check, Next production build, fixture server runtime, Next production server route smoke for `/`, `/remediation`, `/data-health`, `/cycles`, frontend architecture/API/adapter/fixture server regression checks가 모두 통과한다.
