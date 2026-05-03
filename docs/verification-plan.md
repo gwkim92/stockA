@@ -66,6 +66,10 @@ task마다 흔들리게 두지 않는 편이 좋다.
 - 무엇을 증명하는가: frontend list endpoint의 `limit`, opaque `cursor`, `next_cursor`, invalid pagination error, DTO examples, TypeScript response type이 같은 contract를 따르는지 확인한다.
 - 통과 조건: pagination helper/API adapter/live adapter/FastAPI tests, CLI pagination smoke, collection examples top-level pagination metadata, TypeScript optional pagination type이 모두 통과한다.
 
+- 명령: `bash scripts/verify_frontend_api_observability_sink_decision.sh`
+- 무엇을 증명하는가: FastAPI read-only frontend API server의 외부 telemetry egress boundary가 OpenTelemetry Collector 중심으로 문서화되고, Loki/Prometheus/Alertmanager reference stack, high-cardinality guardrail, 다음 OTLP exporter pilot task가 고정되어 있는지 확인한다.
+- 통과 조건: decision doc, task docs, implementation plan, roadmap, README, AGENTS, verification script reference가 모두 존재하고 핵심 결정 문구가 검색된다.
+
 - 명령: `bash scripts/verify_apps_web_scaffold.sh`
 - 무엇을 증명하는가: `apps/web` Next.js App Router scaffold가 fixture server payload를 읽는 read-only investment cockpit shell로 동작하는지 확인한다.
 - 통과 조건: web scaffold files, npm install, TypeScript check, Next production build, fixture server runtime, Next production server route smoke for `/`, `/remediation`, `/data-health`, `/cycles`, frontend architecture/API/adapter/fixture server regression checks가 모두 통과한다.

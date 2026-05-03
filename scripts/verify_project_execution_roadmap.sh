@@ -28,7 +28,8 @@ grep -q "frontend-api-server-observability-hardening" docs/project-execution-roa
 grep -q "frontend-api-server-deployment-boundary" docs/project-execution-roadmap.md
 grep -q "frontend-api-pagination-conventions" docs/project-execution-roadmap.md
 grep -q "frontend-api-observability-sink-decision" docs/project-execution-roadmap.md
-grep -q '현재 고정된 immediate next task는 `frontend-api-observability-sink-decision`' AGENTS.md
+grep -q "frontend-api-otel-exporter-pilot" docs/project-execution-roadmap.md
+grep -q '현재 고정된 immediate next task는 `frontend-api-otel-exporter-pilot`' AGENTS.md
 grep -q "docs/project-execution-roadmap.md" README.md
 grep -q "verify_project_execution_roadmap.sh" docs/verification-plan.md
 

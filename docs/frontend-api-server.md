@@ -62,12 +62,15 @@ Do not expose this token through `NEXT_PUBLIC_*`.
 - `/__live` proves process liveness only.
 - `/__ready` proves frontend contract readability and checks the psycopg pool when that boundary is active.
 - Probe payloads expose public runtime metadata only; DB URL and read token are never included.
+- External telemetry egress uses the OpenTelemetry Collector boundary defined in `docs/frontend-api-observability-sink-decision.md`.
+- The current application runtime does not yet emit OTLP. The next implementation task is an optional OTLP exporter pilot.
 
 ## Verification
 
 ```bash
 bash scripts/verify_frontend_api_server.sh
 bash scripts/verify_frontend_api_server_deployment_boundary.sh
+bash scripts/verify_frontend_api_observability_sink_decision.sh
 ```
 
 The verification starts disposable Postgres, loads deterministic fixture state, starts Uvicorn/FastAPI in production profile, checks probes, request id propagation, unauthorized and authorized live DTO reads, then points Next.js at the FastAPI server for a production route smoke.
@@ -77,5 +80,5 @@ The deployment boundary verification checks repo-outside env template rendering,
 ## Remaining Work
 
 - SQL-level cursor seek optimization for large production lists.
-- external metrics/log sink and alerting.
+- optional OTLP exporter pilot.
 - full auth/RBAC and audited write boundary.
