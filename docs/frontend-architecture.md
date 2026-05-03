@@ -254,7 +254,13 @@ Implemented in `frontend-api-pagination-conventions`:
 
 - pagination conventions for list endpoints.
 
+Implemented in `frontend-api-observability-sink-decision`:
+
+- OpenTelemetry Collector boundary for external telemetry egress.
+- Loki/Prometheus/Alertmanager/Grafana reference self-host profile.
+- high-cardinality telemetry guardrails.
+
 The next task should add:
 
-- external metrics/log sink decision.
+- optional OTLP exporter pilot.
 - keep write endpoints disabled until full auth/RBAC and audit trail exist.
