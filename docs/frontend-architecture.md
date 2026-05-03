@@ -260,7 +260,13 @@ Implemented in `frontend-api-observability-sink-decision`:
 - Loki/Prometheus/Alertmanager/Grafana reference self-host profile.
 - high-cardinality telemetry guardrails.
 
+Implemented in `frontend-api-otel-exporter-pilot`:
+
+- default-disabled optional OTLP exporter mode.
+- safe OTLP endpoint validation.
+- bounded access telemetry fields.
+
 The next task should add:
 
-- optional OTLP exporter pilot.
+- SQL-level cursor pagination for large list endpoints.
 - keep write endpoints disabled until full auth/RBAC and audit trail exist.

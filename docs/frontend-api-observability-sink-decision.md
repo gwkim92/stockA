@@ -11,7 +11,7 @@ The application keeps its current app-owned observability outputs:
 - `/__live`, `/__health`, and `/__ready` probes.
 - stable error envelopes with request id.
 
-The next implementation task is `frontend-api-otel-exporter-pilot`. It should add optional OTLP export behind an env flag, with default mode disabled.
+The follow-up `frontend-api-otel-exporter-pilot` added optional OTLP export behind an env flag, with default mode disabled.
 
 ## Reference Stack
 
@@ -137,12 +137,12 @@ Trace-first instrumentation:
 
 `frontend-api-otel-exporter-pilot` should:
 
-- add optional OTel dependencies only if tests prove disabled mode has no runtime requirement.
-- support `STOCKANALYSIS_FRONTEND_API_OBSERVABILITY_MODE=disabled|otlp`.
-- support `STOCKANALYSIS_FRONTEND_API_OTLP_ENDPOINT`.
-- preserve existing stdout JSON logs.
-- avoid emitting high-cardinality labels.
-- avoid exposing new public endpoints.
-- include unit tests for disabled mode, OTLP config validation, and safe attribute naming.
+- add optional OTel dependencies only if tests prove disabled mode has no runtime requirement. Implemented.
+- support `STOCKANALYSIS_FRONTEND_API_OBSERVABILITY_MODE=disabled|otlp`. Implemented.
+- support `STOCKANALYSIS_FRONTEND_API_OTLP_ENDPOINT`. Implemented.
+- preserve existing stdout JSON logs. Implemented.
+- avoid emitting high-cardinality labels. Implemented with bounded `route_template` and `status_class` fields.
+- avoid exposing new public endpoints. Implemented.
+- include unit tests for disabled mode, OTLP config validation, and safe attribute naming. Implemented.
 
 It must not add write APIs, RBAC, audit write model, DB schema changes, scoring changes, benchmark/evaluation changes, broker/order flow, or real alert receiver secrets.

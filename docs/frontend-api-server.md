@@ -18,6 +18,8 @@
 - `STOCKANALYSIS_FRONTEND_API_AUTH_MODE`: `disabled` or `read-token`.
 - `STOCKANALYSIS_FRONTEND_API_READ_TOKEN`: bearer token for read API access.
 - `STOCKANALYSIS_FRONTEND_API_REQUEST_TIMEOUT_SECONDS`: HTTP request timeout. Defaults to `30.0`.
+- `STOCKANALYSIS_FRONTEND_API_OBSERVABILITY_MODE`: `disabled` or `otlp`. Defaults to `disabled`.
+- `STOCKANALYSIS_FRONTEND_API_OTLP_ENDPOINT`: OTLP/HTTP Collector base endpoint. Required only when observability mode is `otlp`.
 
 `STOCKANALYSIS_PSQL_COMMAND` remains supported for legacy CLI and stdlib runtime smoke paths. The FastAPI server uses `STOCKANALYSIS_DATABASE_URL` for pooled DB reads.
 
@@ -63,7 +65,9 @@ Do not expose this token through `NEXT_PUBLIC_*`.
 - `/__ready` proves frontend contract readability and checks the psycopg pool when that boundary is active.
 - Probe payloads expose public runtime metadata only; DB URL and read token are never included.
 - External telemetry egress uses the OpenTelemetry Collector boundary defined in `docs/frontend-api-observability-sink-decision.md`.
-- The current application runtime does not yet emit OTLP. The next implementation task is an optional OTLP exporter pilot.
+- Optional OTLP exporter mode is documented in `docs/frontend-api-otel-exporter-pilot.md`.
+- `/__health` exposes observability mode/runtime metadata but never exposes the OTLP endpoint.
+- Access logs include bounded `route_template` and `status_class` fields. Raw query strings are not logged.
 
 ## Verification
 
@@ -71,6 +75,7 @@ Do not expose this token through `NEXT_PUBLIC_*`.
 bash scripts/verify_frontend_api_server.sh
 bash scripts/verify_frontend_api_server_deployment_boundary.sh
 bash scripts/verify_frontend_api_observability_sink_decision.sh
+bash scripts/verify_frontend_api_otel_exporter_pilot.sh
 ```
 
 The verification starts disposable Postgres, loads deterministic fixture state, starts Uvicorn/FastAPI in production profile, checks probes, request id propagation, unauthorized and authorized live DTO reads, then points Next.js at the FastAPI server for a production route smoke.
@@ -80,5 +85,5 @@ The deployment boundary verification checks repo-outside env template rendering,
 ## Remaining Work
 
 - SQL-level cursor seek optimization for large production lists.
-- optional OTLP exporter pilot.
+- local Collector smoke and alert rules after deployment boundary accepts repo-owned sample config.
 - full auth/RBAC and audited write boundary.

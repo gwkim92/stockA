@@ -67,6 +67,9 @@ class FrontendApiServerTests(unittest.TestCase):
         self.assertEqual(payload["service"], "frontend-api-server")
         self.assertEqual(payload["runtime"]["runtime_profile"], "local")
         self.assertEqual(payload["request_timeout_seconds"], 30.0)
+        self.assertEqual(payload["observability"]["observability_mode"], "disabled")
+        self.assertFalse(payload["observability"]["instrumented"])
+        self.assertNotIn("otlp_endpoint", payload["observability"])
         self.assertNotIn("database_url", payload["runtime"])
         self.assertNotIn("read_token", payload["runtime"])
 
@@ -169,7 +172,9 @@ class FrontendApiServerTests(unittest.TestCase):
         self.assertEqual(event["request_id"], "req-log-001")
         self.assertEqual(event["method"], "GET")
         self.assertEqual(event["path"], "/__live")
+        self.assertEqual(event["route_template"], "/__live")
         self.assertEqual(event["status_code"], 200)
+        self.assertEqual(event["status_class"], "2xx")
         self.assertEqual(event["source_mode"], "live")
 
     def test_request_timeout_returns_stable_error_payload(self) -> None:
