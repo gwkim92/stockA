@@ -6,6 +6,8 @@
 
 - runtime policy module: `src/stockanalysis/frontend/runtime_policy.py`
 - HTTP runtime module: `src/stockanalysis/frontend/fixture_server.py`
+- FastAPI runtime module: `src/stockanalysis/frontend/api_server.py`
+- FastAPI deployment boundary doc: `docs/frontend-api-server-deployment-boundary.md`
 - default profile: `local`
 - default source: `fixture`
 - default auth: disabled, loopback host only
@@ -118,6 +120,7 @@ This is not full RBAC. It is a deployment safety seam until real identity, role 
 bash scripts/verify_frontend_api_runtime_boundary.sh
 bash scripts/verify_frontend_runtime_db_smoke.sh
 bash scripts/verify_frontend_api_server.sh
+bash scripts/verify_frontend_api_server_deployment_boundary.sh
 ```
 
 검증은 아래를 확인한다.
@@ -131,10 +134,11 @@ bash scripts/verify_frontend_api_server.sh
 - disposable Postgres-backed `source=live` HTTP runtime returns representative frontend DTOs with bearer-token auth.
 - FastAPI server uses psycopg pool and preserves the same read-token/API boundary.
 - FastAPI server emits `X-Request-ID`, structured access logs, stable timeout errors, and public liveness/readiness probes.
+- FastAPI deployment boundary keeps env files outside repo and validates loopback bind behind TLS reverse proxy.
 
 ## Remaining Work
 
-- deployment hardening, reverse proxy/TLS assumptions, and runtime env templates.
+- actual managed deployment install and reverse proxy config remain separate approval work.
 - external metrics/log sink and alerting.
 - real auth/RBAC with viewer, analyst, operator, admin roles.
 - audited write command boundary after auth/RBAC.

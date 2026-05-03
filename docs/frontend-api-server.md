@@ -8,6 +8,7 @@
 - DB pool executor: `src/stockanalysis/frontend/db_pool.py`
 - console script: `stockanalysis-frontend-api-server`
 - verification: `scripts/verify_frontend_api_server.sh`
+- deployment boundary: `docs/frontend-api-server-deployment-boundary.md`
 
 ## Runtime Environment
 
@@ -64,12 +65,14 @@ Do not expose this token through `NEXT_PUBLIC_*`.
 
 ```bash
 bash scripts/verify_frontend_api_server.sh
+bash scripts/verify_frontend_api_server_deployment_boundary.sh
 ```
 
 The verification starts disposable Postgres, loads deterministic fixture state, starts Uvicorn/FastAPI in production profile, checks probes, request id propagation, unauthorized and authorized live DTO reads, then points Next.js at the FastAPI server for a production route smoke.
 
+The deployment boundary verification checks repo-outside env template rendering, runtime env preflight, redaction, and `--preflight-only` wrapper behavior without connecting to production DB.
+
 ## Remaining Work
 
-- deployment topology, reverse proxy/TLS assumptions, and runtime env template.
 - external metrics/log sink and alerting.
 - full auth/RBAC and audited write boundary.
