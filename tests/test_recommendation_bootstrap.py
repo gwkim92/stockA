@@ -192,6 +192,8 @@ class RecommendationBootstrapTests(unittest.TestCase):
         )
         self.assertIn("insert into signal.recommendation_batch", sql)
         self.assertIn("insert into signal.recommendation", sql)
+        self.assertIn("returning 1", sql)
+        self.assertIn("from delete_existing", sql)
         self.assertIn("insert into signal.recommendation_score_component", sql)
         self.assertIn("source_components", sql)
         self.assertIn("'cycle_score'", sql)

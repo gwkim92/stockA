@@ -330,6 +330,7 @@ with upsert_batch as (
 delete_existing as (
     delete from signal.recommendation
     where batch_id = (select batch_id from upsert_batch)
+    returning 1
 ),
 source_rows (
     instrument_id,
@@ -375,6 +376,7 @@ insert_recommendations as (
         source_rows.recommended_weight,
         'active'
     from upsert_batch
+    cross join (select count(*) from delete_existing) deleted
     join source_rows on true
     returning recommendation_id, instrument_id
 ),
