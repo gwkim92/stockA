@@ -53,7 +53,11 @@
   - 로컬 AWS CLI profile은 AWS Console 계정과 다르므로 AWS CLI로는 이 계정 리소스를 변경하지 않음.
   - HTTP/HTTPS security group은 아직 열지 않았다. 현재 접속은 SSH tunnel 전용이다.
   - 실제 recurring data ingest scheduler/timer는 아직 서버에서 활성화하지 않았다.
-  - `scripts/check_data_operations_runtime_env.sh --env-file /opt/stockanalysis/runtime/data-operations.env` strict readiness는 `STOCKANALYSIS_CODEX_CLI_COMMAND=codex`가 EC2에 없어 실패한다. 무료 OAuth 기반 LLM boundary를 쓰려면 EC2에 Codex CLI 설치와 사용자 로그인이 별도 필요하다.
+  - EC2 Codex OAuth setup completed after user device login:
+    - `/usr/bin/codex`, `codex-cli 0.132.0`
+    - `codex login status`: `Logged in using ChatGPT`
+    - `scripts/check_data_operations_runtime_env.sh --env-file /opt/stockanalysis/runtime/data-operations.env`: passed
+    - `event-intelligence-llm-extract --provider codex_oauth` succeeded for SEC document `0000320193-24-000123`.
   - 브로커/실거래 연결은 아직 연결하지 않았다.
 
 ## Exact Next Step
@@ -101,6 +105,12 @@
   - authorized `/api/stocks`: `stock_count=6`, `priced_stock_count=6`, `latest_price_date=2026-05-19`
   - authorized `/api/ai/news-clusters?asOfDate=2026-05-20&limit=4`: `cluster_count=3`, first evidence `ai-evidence-3`, first theme `AI_SEMICONDUCTOR_CYCLE`
   - local tunnel `/intelligence`: returned `200`
+  - EC2 Codex OAuth:
+    - `codex_oauth_invocations`: `1`
+    - `event_intelligence_runs`: `2`
+    - `structured_artifacts`: `1`
+    - `sec_events`: `1`
+    - authorized `/api/data-health`: latest `event-intelligence-weekly` is `pipeline-run-16`, `succeeded`
 
 ## Cost Notes
 

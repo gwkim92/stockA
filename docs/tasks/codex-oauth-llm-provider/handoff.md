@@ -19,12 +19,19 @@
   - `codex login status` reports `Logged in using ChatGPT`.
   - Real Codex OAuth smoke succeeded for SEC document `0000320193-24-000123`.
   - 2026-05-20 update: current Codex CLI rejects the old `--ask-for-approval never` flag, so the provider now uses `-c approval_policy="never"`, which parses on local `codex-cli 0.130.0` and EC2 `codex-cli 0.132.0`.
+  - 2026-05-20 EC2 update:
+    - EC2 Codex CLI installed at `/usr/bin/codex`, `codex-cli 0.132.0`.
+    - User completed device OAuth login on EC2.
+    - `codex login status`: `Logged in using ChatGPT`.
+    - EC2 data operations readiness passed with `STOCKANALYSIS_LLM_PROVIDER=codex_oauth`.
+    - EC2 real OAuth smoke succeeded for SEC document `0000320193-24-000123`: run `16`, provider `codex_oauth`, event type `sec_10k_filing`, confidence `0.94`, artifact `4`, model invocation `4`.
+    - `/api/data-health` shows `event-intelligence-weekly` latest run `pipeline-run-16` as `succeeded`.
 - 진행 중:
-  - EC2 has Codex CLI installed but is not logged in yet.
+  - none.
 - 막힌 점:
   - Codex CLI still emits local skill/plugin warnings from the user's Codex installation, but the smoke succeeds.
   - This is a local data operations provider boundary, not a production OpenAI API integration.
-  - EC2 `codex login status` currently reports `Not logged in`; an interactive/device OAuth login is required before EC2 can run `provider=codex_oauth`.
+  - none for EC2 OAuth smoke.
 
 ## Verification
 
@@ -35,10 +42,16 @@
   - `PYTHONPATH=src /private/tmp/stockanalysis-runtime/venv/bin/python -m compileall src/stockanalysis/ingest/sec/ai_event_extract.py src/stockanalysis/operations/env_readiness.py tests/test_sec_ai_event_extract.py tests/test_data_operations_env_readiness.py`
   - real smoke: `event-intelligence-llm-extract --provider codex_oauth ...`
   - DB check: `codex_oauth_invocations=1`, `event_intelligence_runs=1`, `codex_oauth_events=2`
+  - EC2 2026-05-20:
+    - `codex login status`: `Logged in using ChatGPT`
+    - `bash scripts/check_data_operations_runtime_env.sh --env-file /opt/stockanalysis/runtime/data-operations.env`: passed
+    - `PYTHONPATH=src /opt/stockanalysis/venv/bin/python -m stockanalysis.ingest.cli event-intelligence-llm-extract --external-document-id 0000320193-24-000123 --provider codex_oauth --model-name codex-cli-default --reasoning-effort low --max-input-chars 1800 --min-confidence 0.5`: passed
+    - DB check: `codex_oauth_invocations=1`, `event_intelligence_runs=2`, `structured_artifacts=1`, `sec_events=1`
+    - authorized `/api/data-health`: `event-intelligence-weekly`, `pipeline-run-16`, `succeeded`
 
 ## Exact Next Step
 
-- exact next step: build a data-operations runner wrapper for scheduled/offline `codex_oauth` extraction batches with per-job artifact capture and retry policy, still keeping LLM calls out of FastAPI request paths.
+- exact next step: build a data-operations runner wrapper or server-side systemd timer for scheduled/offline `codex_oauth` extraction batches with per-job artifact capture and retry policy, still keeping LLM calls out of FastAPI request paths.
 
 ## Risks
 
