@@ -560,7 +560,7 @@ latest_event as (
     from event.event
 ),
 impacted_symbols as (
-    select distinct upper(instrument.symbol) as symbol
+    select distinct upper(instrument.primary_symbol) as symbol
     from event.event event_row
     join event.event_instrument_impact impact on impact.event_id = event_row.event_id
     join ref.instrument instrument on instrument.instrument_id = impact.instrument_id
@@ -569,7 +569,7 @@ impacted_symbols as (
 missing_price_symbols as (
     select impacted.symbol
     from impacted_symbols impacted
-    left join ref.instrument instrument on upper(instrument.symbol) = impacted.symbol
+    left join ref.instrument instrument on upper(instrument.primary_symbol) = impacted.symbol
     left join market.daily_price_bar bar
       on bar.instrument_id = instrument.instrument_id
      and bar.trade_date = (select latest_price_date from latest_price)
@@ -615,7 +615,7 @@ latest_prices as (
         bar.adjusted_close,
         bar.close
     from requested
-    left join ref.instrument instrument on upper(instrument.symbol) = requested.symbol
+    left join ref.instrument instrument on upper(instrument.primary_symbol) = requested.symbol
     left join market.daily_price_bar bar on bar.instrument_id = instrument.instrument_id
     order by requested.symbol, bar.trade_date desc nulls last
 )

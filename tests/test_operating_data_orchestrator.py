@@ -17,6 +17,8 @@ class FakeOperatingDataExecutor:
     def execute_scalar(self, sql: str) -> str:
         self.scalar_sql.append(sql)
         if sql.startswith("-- operating data context lookup"):
+            if "instrument.primary_symbol" not in sql:
+                raise AssertionError(sql)
             return json.dumps(
                 {
                     "latest_price_date": "2026-05-19",
@@ -26,6 +28,8 @@ class FakeOperatingDataExecutor:
                 }
             )
         if sql.startswith("-- operating data latest price lookup"):
+            if "instrument.primary_symbol" not in sql:
+                raise AssertionError(sql)
             return json.dumps(
                 [
                     {
