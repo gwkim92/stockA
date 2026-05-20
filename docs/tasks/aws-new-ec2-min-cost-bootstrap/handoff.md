@@ -38,10 +38,22 @@
     - FastAPI: `stockanalysis-frontend-api.service`, bound to `127.0.0.1:8787`
     - Next.js: `stockanalysis-web.service`, bound to `127.0.0.1:3000`
     - Local SSH tunnel from this workstation: `127.0.0.1:13000 -> EC2 127.0.0.1:3000`, `127.0.0.1:18787 -> EC2 127.0.0.1:8787`
+  - EC2 data ingest smoke:
+    - Data operations env: `/opt/stockanalysis/runtime/data-operations.env`
+    - Provider secret import: `/opt/stockanalysis/runtime/provider-secrets.env`
+    - Watchlist: `/opt/stockanalysis/runtime/market-price-watchlist.csv`
+    - RSS feed config: `/opt/stockanalysis/runtime/news-rss-feeds.json`
+    - Worker report: `/opt/stockanalysis/runtime/local-ingest-worker.json`
+    - Manual smoke report: `/opt/stockanalysis/runtime/manual-local-ingest-smoke.json`
+    - `market-universe-bootstrap`: succeeded, 7,558 instruments selected.
+    - `local-ingest-worker-run --execute`: completed with `market-price-daily`, `news-rss-daily`, `event-intelligence-weekly` all succeeded.
+    - Additional `news-rss-enrich-run`: completed, 20 news events enriched.
+    - Additional `news-rss-cluster-evidence-run`: completed, 3 local-rule AI evidence artifacts inserted.
 - 막힌 점/보류:
   - 로컬 AWS CLI profile은 AWS Console 계정과 다르므로 AWS CLI로는 이 계정 리소스를 변경하지 않음.
   - HTTP/HTTPS security group은 아직 열지 않았다. 현재 접속은 SSH tunnel 전용이다.
-  - 실제 data ingest scheduler/timer는 아직 서버에서 활성화하지 않았다.
+  - 실제 recurring data ingest scheduler/timer는 아직 서버에서 활성화하지 않았다.
+  - `scripts/check_data_operations_runtime_env.sh --env-file /opt/stockanalysis/runtime/data-operations.env` strict readiness는 `STOCKANALYSIS_CODEX_CLI_COMMAND=codex`가 EC2에 없어 실패한다. 무료 OAuth 기반 LLM boundary를 쓰려면 EC2에 Codex CLI 설치와 사용자 로그인이 별도 필요하다.
   - 브로커/실거래 연결은 아직 연결하지 않았다.
 
 ## Exact Next Step
@@ -75,6 +87,20 @@
   - Next routes `/`, `/data-health`, `/cycles`, `/events`, `/stocks`, `/intelligence`, `/paper-trading`, `/trading-readiness`: all returned `200`
   - `stockanalysis-frontend-api.service`: `active`
   - `stockanalysis-web.service`: `active`
+- EC2 data:
+  - `ref.instrument`: `7,558`
+  - `market.daily_price_bar`: `600`
+  - `ingest.source_document`: `20`
+  - `event.event`: `20`
+  - `event.event_classification_impact`: `20`
+  - `event.event_instrument_impact`: `2`
+  - `ai.extraction_artifact`: `3`
+  - `ai.model_invocation`: `3`
+  - `ops.pipeline_run`: `13`
+  - authorized `/api/data-health`: `manual_local_ingest_smoke.status=passed`, `local_ingest_worker.status=completed`
+  - authorized `/api/stocks`: `stock_count=6`, `priced_stock_count=6`, `latest_price_date=2026-05-19`
+  - authorized `/api/ai/news-clusters?asOfDate=2026-05-20&limit=4`: `cluster_count=3`, first evidence `ai-evidence-3`, first theme `AI_SEMICONDUCTOR_CYCLE`
+  - local tunnel `/intelligence`: returned `200`
 
 ## Cost Notes
 
