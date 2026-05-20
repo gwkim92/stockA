@@ -144,6 +144,7 @@ Implemented first slice:
 - Add a secret-free server-side scheduler invocation packet for cron/systemd/Kubernetes/managed scheduler candidates to call `stockanalysis-operations local-ingest-worker-run` without deploying a scheduler or mutating host state. Implemented in `server-scheduler-invocation-boundary`.
 - Add a zero-budget server scheduler deployment target decision gate that marks external scheduler deployment blocked while DB/runtime remain local-only, and recommends GitHub Actions only after hosted DB/runtime exists. Implemented in `server-scheduler-deployment-target-decision`.
 - Add a hosted DB/runtime decision gate that recommends Supabase Free Postgres + GitHub Actions worker setup as the zero-budget path, while keeping provisioning, secrets, migrations, and scheduler deployment out of scope. Implemented in `hosted-database-runtime-decision`.
+- Add an operating-data orchestrator that replaces manual EC2 repair command sequences with a preview-first backend runner for missing price symbols, macro refresh, signal/recommendation/thesis chain, portfolio snapshot/review, performance outcome schedule, and broker-free paper validation audit. Implemented in `operating-data-orchestrator`.
 
 Guardrail:
 

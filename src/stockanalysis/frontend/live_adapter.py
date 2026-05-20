@@ -1805,9 +1805,19 @@ latest_runs as (
         expected.stale_after_hours,
         expected.artifact_policy,
         run.run_id,
-        coalesce(run.status, 'missing') as status,
+        case
+            when run.run_id is null
+             and expected.job_id = 'portfolio-attribution-monthly'
+             and not exists (select 1 from performance.thesis_outcome)
+                then 'not_due'
+            else coalesce(run.status, 'missing')
+        end as status,
         run.ended_at as finished_at,
         case
+            when run.run_id is null
+             and expected.job_id = 'portfolio-attribution-monthly'
+             and not exists (select 1 from performance.thesis_outcome)
+                then 'not_due'
             when run.run_id is null then 'missing'
             when run.status = 'failed' then 'failed'
             when run.status in ('started', 'running') then 'running'

@@ -63,6 +63,7 @@ def run_data_operation_artifact_command(
         completed = subprocess.run(
             command,
             cwd=str(cwd) if cwd is not None else None,
+            env=dict(env) if env is not None else None,
             capture_output=True,
             text=True,
             timeout=timeout_seconds,

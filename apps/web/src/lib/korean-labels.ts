@@ -77,6 +77,7 @@ const KOREAN_LABELS: Record<string, string> = {
   no_quota_available: "무료 한도 소진",
   none: "없음",
   not_configured: "미설정",
+  not_due: "아직 실행 대상 아님",
   not_installed: "미설치",
   not_applicable: "해당 없음",
   "not applicable": "해당 없음",

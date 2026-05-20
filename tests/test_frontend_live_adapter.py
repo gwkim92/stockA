@@ -1544,6 +1544,8 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertIn("'portfolio_remediation_daily_automation'", sql)
         self.assertIn("'performance_outcome_schedule_bootstrap'", sql)
         self.assertIn("health_status in ('missing', 'stale', 'failed')", sql)
+        self.assertIn("expected.job_id = 'portfolio-attribution-monthly'", sql)
+        self.assertIn("then 'not_due'", sql)
         self.assertIn("'data_operations_artifact_runner'", sql)
 
     def test_live_stock_list_response_matches_frontend_contract_shape(self) -> None:

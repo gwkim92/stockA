@@ -38,6 +38,10 @@ task마다 흔들리게 두지 않는 편이 좋다.
 - 무엇을 증명하는가: 무료 hosted DB/runtime 경로가 Supabase Free Postgres + GitHub Actions worker setup으로 정리되고, 실제 DB 생성/secret 작성/workflow 생성 없이 다음 setup packet으로 넘어가는지 확인한다.
 - 통과 조건: compileall, focused unittest, CLI smoke, default setup-required decision, hosted DB ready state, existing host ready state, local-only explicit state, no DB URL/API key/token leak가 모두 통과한다.
 
+- 명령: `bash scripts/verify_operating_data_orchestrator.sh`
+- 무엇을 증명하는가: 실제 화면에 필요한 운영 데이터 순서가 수동 EC2 보정이 아니라 `stockanalysis-operations operating-data-run` backend boundary로 preview/execute 가능하고, attribution이 아직 성과 산출 대상이 아닐 때 `/api/data-health`가 누락으로 오판하지 않는지 확인한다.
+- 통과 조건: operating-data orchestrator/artifact runner/CLI/live adapter focused unittest, preview CLI smoke, repo-outside env/output enforcement, no DB URL/API key/token leak, task docs가 모두 통과한다.
+
 - 명령: `bash scripts/verify_frontend_architecture.sh`
 - 무엇을 증명하는가: investment cockpit 방향, route map, API boundary, AI boundary, security boundary, phased implementation, fixture-only `apps/web` scaffold가 문서와 파일로 정렬되어 있는지 확인한다.
 - 통과 조건: `docs/frontend-architecture.md`와 task docs가 존재하고, frontend doc에 cockpit, route map, data boundary, AI boundary, security boundary, implementation phases가 포함되며, `apps/web` scaffold가 존재하고 root-level `app` scaffold는 없는 것이 확인된다.

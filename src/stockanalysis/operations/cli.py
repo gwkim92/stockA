@@ -46,6 +46,7 @@ from stockanalysis.operations.news_rss_feed_runner import (
     build_news_rss_config_report,
     run_news_rss_configured_feeds,
 )
+from stockanalysis.operations.operating_data_orchestrator import build_operating_data_run_report
 from stockanalysis.operations.path_policy import resolve_existing_file, resolve_output_path
 from stockanalysis.operations.report_io import load_json_object, print_json, write_json_report
 from stockanalysis.operations.scheduler_activation_execution_decision import (
@@ -170,6 +171,32 @@ def build_parser() -> argparse.ArgumentParser:
     local_ingest_worker.add_argument("--continue-on-failure", dest="stop_on_failure", action="store_false")
     local_ingest_worker.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
     local_ingest_worker.set_defaults(handler=_handle_local_ingest_worker_run)
+
+    operating_data_run = subparsers.add_parser(
+        "operating-data-run",
+        help="Preview or execute the full operating-data alignment cycle through backend boundaries.",
+    )
+    operating_data_run.add_argument("--runtime-root", default=str(DEFAULT_LOCAL_RUNTIME_ROOT))
+    operating_data_run.add_argument("--data-operations-env-file", required=True)
+    operating_data_run.add_argument("--artifact-root")
+    operating_data_run.add_argument("--execute", action="store_true")
+    operating_data_run.add_argument("--output")
+    operating_data_run.add_argument("--timeout-seconds", type=int, default=3600)
+    operating_data_run.add_argument("--python-executable")
+    operating_data_run.add_argument("--portfolio-name", default="Long Term Paper")
+    operating_data_run.add_argument("--strategy-name", default="long_term_core")
+    operating_data_run.add_argument("--horizon-type", default="long_term")
+    operating_data_run.add_argument("--market-code", default="US")
+    operating_data_run.add_argument("--universe-version")
+    operating_data_run.add_argument("--as-of-date")
+    operating_data_run.add_argument("--provider")
+    operating_data_run.add_argument("--daily-budget", type=int, default=24)
+    operating_data_run.add_argument("--max-requests-per-run", type=int, default=4)
+    operating_data_run.add_argument("--throttle-seconds", type=float, default=1.0)
+    operating_data_run.add_argument("--outputsize", default="100")
+    operating_data_run.add_argument("--portfolio-notional", default="100000")
+    operating_data_run.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
+    operating_data_run.set_defaults(handler=_handle_operating_data_run)
 
     server_scheduler_invocation = subparsers.add_parser(
         "server-scheduler-invocation-plan",
@@ -550,6 +577,45 @@ def _handle_local_ingest_worker_run(args: argparse.Namespace, *, stdout: TextIO)
     else:
         print_json(report, stdout=stdout, sort_keys=False)
     return 1 if report.get("worker_status") == "failed" else 0
+
+
+def _handle_operating_data_run(args: argparse.Namespace, *, stdout: TextIO) -> int:
+    output_path = (
+        resolve_output_path(
+            args.output,
+            label="operating data run summary output",
+            repo_root=args.repo_root,
+            require_repo_outside=True,
+        )
+        if args.output
+        else None
+    )
+    report = build_operating_data_run_report(
+        repo_root=args.repo_root,
+        runtime_root=args.runtime_root,
+        data_operations_env_file=args.data_operations_env_file,
+        artifact_root=args.artifact_root,
+        execute=bool(args.execute),
+        timeout_seconds=args.timeout_seconds,
+        python_executable=args.python_executable,
+        portfolio_name=args.portfolio_name,
+        strategy_name=args.strategy_name,
+        horizon_type=args.horizon_type,
+        market_code=args.market_code,
+        universe_version=args.universe_version,
+        as_of_date=date.fromisoformat(args.as_of_date) if args.as_of_date else None,
+        provider=args.provider,
+        daily_budget=args.daily_budget,
+        max_requests_per_run=args.max_requests_per_run,
+        throttle_seconds=args.throttle_seconds,
+        outputsize=args.outputsize,
+        portfolio_notional=Decimal(args.portfolio_notional),
+    )
+    if output_path:
+        write_json_report(report, output_path=output_path, stdout=stdout)
+    else:
+        print_json(report, stdout=stdout, sort_keys=False)
+    return 1 if report.get("run_status") == "failed" else 0
 
 
 def _handle_server_scheduler_invocation_plan(args: argparse.Namespace, *, stdout: TextIO) -> int:

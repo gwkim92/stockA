@@ -12,7 +12,7 @@ type ManualIngestSmoke = DataHealthData["manual_local_ingest_smoke"];
 type LocalIngestWorker = DataHealthData["local_ingest_worker"];
 
 function statusRiskClass(value: string) {
-  if (value === "healthy" || value === "succeeded" || value === "configured") {
+  if (value === "healthy" || value === "succeeded" || value === "configured" || value === "not_due") {
     return "risk-low";
   }
   if (value === "attention_required" || value === "stale") {
@@ -249,7 +249,9 @@ export default async function DataHealthPage() {
     providerBudget.daily_budget > 0
       ? Math.round((providerBudget.used_request_count / providerBudget.daily_budget) * 100)
       : 0;
-  const failedPipelines = data.pipeline_runs.filter((run) => run.latest_status !== "succeeded").length;
+  const failedPipelines = data.pipeline_runs.filter((run) =>
+    ["missing", "stale", "failed"].includes(run.health_status),
+  ).length;
   const automationCards = [
     {
       title: "주식 캔들 수집",

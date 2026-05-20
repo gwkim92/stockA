@@ -72,6 +72,24 @@ class DataOperationsArtifactRunnerTests(unittest.TestCase):
             self.assertNotIn("plain-secret", metadata_text)
             self.assertNotIn("user:password", metadata_text)
 
+    def test_runner_passes_env_to_child_process_without_recording_it(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            result = run_data_operation_artifact_command(
+                job_id="macro-weekly",
+                artifact_root=tmpdir,
+                env={"STOCKANALYSIS_CHILD_MARKER": "visible-to-child"},
+                command_argv=[
+                    sys.executable,
+                    "-c",
+                    "import json, os; print(json.dumps({'marker': os.getenv('STOCKANALYSIS_CHILD_MARKER')}))",
+                ],
+            )
+
+            stdout_json = json.loads(Path(str(result["stdout_json_path"])).read_text(encoding="utf-8"))
+            metadata = json.loads(Path(str(result["metadata_path"])).read_text(encoding="utf-8"))
+            self.assertEqual(stdout_json["marker"], "visible-to-child")
+            self.assertNotIn("visible-to-child", json.dumps(metadata))
+
     def test_runner_requires_known_job_and_artifact_root(self) -> None:
         with self.assertRaises(ValueError):
             run_data_operation_artifact_command(

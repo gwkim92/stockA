@@ -222,6 +222,82 @@ class DataOperationsCliTests(unittest.TestCase):
             self.assertEqual(call_kwargs["smoke_output_path"], str(smoke_output_path))
             self.assertFalse(call_kwargs["stop_on_failure"])
 
+    def test_operating_data_run_command_writes_repo_outside_output(self) -> None:
+        with tempfile.TemporaryDirectory() as repo_root, tempfile.TemporaryDirectory() as outside_root:
+            runtime_path = Path(outside_root) / "runtime"
+            env_file = Path(outside_root) / "data-operations.env"
+            output_path = Path(outside_root) / "operating-data.json"
+            stdout = io.StringIO()
+
+            with patch("stockanalysis.operations.cli.build_operating_data_run_report") as run_mock:
+                run_mock.return_value = {
+                    "report_name": "operating_data_run",
+                    "run_status": "completed",
+                    "execute": True,
+                }
+                exit_code = main(
+                    [
+                        "operating-data-run",
+                        "--repo-root",
+                        repo_root,
+                        "--runtime-root",
+                        str(runtime_path),
+                        "--data-operations-env-file",
+                        str(env_file),
+                        "--artifact-root",
+                        str(Path(outside_root) / "artifacts"),
+                        "--execute",
+                        "--as-of-date",
+                        "2026-05-20",
+                        "--python-executable",
+                        "/usr/bin/python3",
+                        "--portfolio-name",
+                        "Long Term Paper",
+                        "--strategy-name",
+                        "long_term_core",
+                        "--horizon-type",
+                        "long_term",
+                        "--market-code",
+                        "US",
+                        "--universe-version",
+                        "live-20260520",
+                        "--output",
+                        str(output_path),
+                    ],
+                    stdout=stdout,
+                )
+
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(stdout.getvalue().strip(), str(output_path.resolve()))
+            payload = json.loads(output_path.read_text(encoding="utf-8"))
+            self.assertEqual(payload["report_name"], "operating_data_run")
+            call_kwargs = run_mock.call_args.kwargs
+            self.assertEqual(call_kwargs["runtime_root"], str(runtime_path))
+            self.assertEqual(str(call_kwargs["data_operations_env_file"]), str(env_file))
+            self.assertTrue(call_kwargs["execute"])
+            self.assertEqual(call_kwargs["as_of_date"], date(2026, 5, 20))
+
+    def test_operating_data_run_output_rejects_repo_inside_path(self) -> None:
+        with tempfile.TemporaryDirectory() as repo_root, tempfile.TemporaryDirectory() as outside_root:
+            stderr = io.StringIO()
+            exit_code = main(
+                [
+                    "operating-data-run",
+                    "--repo-root",
+                    repo_root,
+                    "--runtime-root",
+                    str(Path(outside_root) / "runtime"),
+                    "--data-operations-env-file",
+                    str(Path(outside_root) / "data-operations.env"),
+                    "--output",
+                    str(Path(repo_root) / "operating-data.json"),
+                ],
+                stderr=stderr,
+            )
+
+        self.assertEqual(exit_code, 1)
+        self.assertIn("outside repository", stderr.getvalue())
+
     def test_local_ingest_worker_run_rejects_repo_inside_output(self) -> None:
         with tempfile.TemporaryDirectory() as repo_root:
             stderr = io.StringIO()
