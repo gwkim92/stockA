@@ -121,6 +121,11 @@
     - Services checked on EC2: `stockanalysis-frontend-api.service=active`, `stockanalysis-web.service=active`, Docker `stockanalysis-postgres=Up`.
     - Timers checked on EC2: no stockanalysis systemd timer installed.
     - Data-health checked on EC2: market/news/SEC/AI jobs are `ok`; portfolio-position, portfolio-remediation, performance outcome, attribution, macro, and cycle/recommendation jobs are still `missing`.
+    - Deployed commit `fb6270c` to EC2, rebuilt Next, restarted `stockanalysis-frontend-api.service` and `stockanalysis-web.service`; both returned `active`.
+    - After deploy, authorized EC2 API `GET /api/portfolio/Long%20Term%20Paper/coverage?asOfDate=2026-05-20` returned HTTP `200`, `position_count=0`, and `blocking_reasons=['missing_position_snapshot:Long Term Paper']`.
+    - After deploy, local tunnel routes `/`, `/data-health`, `/cycles`, `/events`, `/stocks`, `/intelligence`, `/paper-trading`, `/trading-readiness`, `/performance`, `/portfolio/coverage`, `/remediation` all returned HTTP `200`.
+    - After deploy, `/intelligence` HTML no longer contained `투자 운영 데이터를 불러오지 못했다`, `Server Components render`, `digest`, or `FrontendApiError`.
+    - Current EC2 DB counts after Codex OAuth smoke and runtime fix: `ref.instrument=7558`, `market.daily_price_bar=600`, `ingest.source_document=22`, `event.event=21`, `event.event_instrument_impact=2`, `ai.extraction_artifact=4`, `ai.model_invocation=4`, `ops.pipeline_run=16`, `portfolio.position_snapshot=0`.
     - Focused local verification after code fix:
       - `PYTHONPATH=src /private/tmp/stockanalysis-runtime/venv/bin/python -m unittest tests.test_frontend_live_adapter tests.test_frontend_api_server -v`: `Ran 54 tests ... OK`
       - `cd apps/web && npm run typecheck`: passed
