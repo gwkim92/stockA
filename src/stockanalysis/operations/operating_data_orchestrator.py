@@ -815,9 +815,15 @@ def _build_executor_if_configured(env: Mapping[str, str]) -> PsqlCommandExecutor
 def _resolve_target_date(*, explicit_date: date | None, context: Mapping[str, Any], generated_at: datetime) -> date:
     if explicit_date is not None:
         return explicit_date
+    candidate_dates: list[date] = []
+    latest_event_date = str(context.get("latest_event_date") or "").strip()
+    if latest_event_date:
+        candidate_dates.append(date.fromisoformat(latest_event_date))
     latest_price_date = str(context.get("latest_price_date") or "").strip()
     if latest_price_date:
-        return date.fromisoformat(latest_price_date)
+        candidate_dates.append(date.fromisoformat(latest_price_date))
+    if candidate_dates:
+        return max(candidate_dates)
     if generated_at.tzinfo is None:
         generated_at = generated_at.replace(tzinfo=timezone.utc)
     return generated_at.astimezone(timezone.utc).date()

@@ -86,6 +86,7 @@ class OperatingDataOrchestratorTests(unittest.TestCase):
         self.assertEqual(report["run_status"], "preview_not_executed")
         self.assertFalse(report["execute"])
         self.assertEqual(runner.calls, [])
+        self.assertEqual(report["derived_inputs"]["as_of_date"], "2026-05-20")
         self.assertIn("TSLA", report["derived_inputs"]["missing_price_symbols"])
         step_ids = [step["step_id"] for step in report["planned_steps"]]
         self.assertEqual(step_ids[0], "missing-symbol-price-backfill")
