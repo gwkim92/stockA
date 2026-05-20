@@ -145,6 +145,7 @@ Implemented first slice:
 - Add a zero-budget server scheduler deployment target decision gate that marks external scheduler deployment blocked while DB/runtime remain local-only, and recommends GitHub Actions only after hosted DB/runtime exists. Implemented in `server-scheduler-deployment-target-decision`.
 - Add a hosted DB/runtime decision gate that recommends Supabase Free Postgres + GitHub Actions worker setup as the zero-budget path, while keeping provisioning, secrets, migrations, and scheduler deployment out of scope. Implemented in `hosted-database-runtime-decision`.
 - Add an operating-data orchestrator that replaces manual EC2 repair command sequences with a preview-first backend runner for missing price symbols, macro refresh, signal/recommendation/thesis chain, portfolio snapshot/review, performance outcome schedule, and broker-free paper validation audit. Implemented in `operating-data-orchestrator`.
+- Split that runner into schedule-appropriate operating profiles so news/AI can run intraday, market candles daily, recommendations/holding review daily, macro weekly, performance monthly, and full recovery only manually. Implemented in `operating-data-profile-scheduler`.
 
 Guardrail:
 

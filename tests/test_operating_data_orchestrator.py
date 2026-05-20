@@ -84,16 +84,73 @@ class OperatingDataOrchestratorTests(unittest.TestCase):
             )
 
         self.assertEqual(report["run_status"], "preview_not_executed")
+        self.assertEqual(report["profile"], "full-recovery")
+        self.assertEqual(report["profile_cadence"], "ad_hoc")
         self.assertFalse(report["execute"])
         self.assertEqual(runner.calls, [])
         self.assertEqual(report["derived_inputs"]["as_of_date"], "2026-05-20")
         self.assertIn("TSLA", report["derived_inputs"]["missing_price_symbols"])
         step_ids = [step["step_id"] for step in report["planned_steps"]]
-        self.assertEqual(step_ids[0], "missing-symbol-price-backfill")
+        self.assertEqual(step_ids[0], "news-rss-ingest")
+        self.assertIn("market-price-daily", step_ids)
         self.assertIn("portfolio-position-snapshot", step_ids)
         self.assertIn("paper-validation-audit", step_ids)
+        self.assertTrue(report["derived_inputs"]["source_positions_required"])
+        self.assertIn("news-intraday", [profile["profile"] for profile in report["profile_catalog"]])
         self.assertNotIn("postgresql://", json.dumps(report))
         self.assertNotIn("secret-token", json.dumps(report))
+
+    def test_news_intraday_profile_does_not_require_portfolio_positions(self) -> None:
+        with tempfile.TemporaryDirectory() as repo_root, tempfile.TemporaryDirectory() as outside_root:
+            runtime_root, env_file = _write_runtime_files_without_positions(Path(outside_root))
+            runner = FakeArtifactRunner()
+
+            report = build_operating_data_run_report(
+                repo_root=repo_root,
+                runtime_root=runtime_root,
+                data_operations_env_file=env_file,
+                profile="news-intraday",
+                execute=False,
+                python_executable="/usr/bin/python3",
+                runner=runner,
+                generated_at=datetime(2026, 5, 20, tzinfo=timezone.utc),
+            )
+
+        self.assertEqual(report["profile"], "news-intraday")
+        self.assertEqual(report["profile_cadence"], "intraday")
+        self.assertFalse(report["derived_inputs"]["source_positions_required"])
+        self.assertEqual(report["derived_inputs"]["source_position_count"], 0)
+        self.assertEqual(report["generated_files"]["missing_price_watchlist"], "")
+        self.assertEqual(report["generated_files"]["position_snapshot_csv"], "")
+        self.assertEqual(
+            [step["step_id"] for step in report["planned_steps"]],
+            ["news-rss-ingest", "news-rss-enrichment", "news-cluster-evidence"],
+        )
+        self.assertEqual(runner.calls, [])
+
+    def test_decision_daily_profile_runs_decision_steps_without_news_or_macro(self) -> None:
+        with tempfile.TemporaryDirectory() as repo_root, tempfile.TemporaryDirectory() as outside_root:
+            runtime_root, env_file = _write_runtime_files(Path(outside_root))
+
+            report = build_operating_data_run_report(
+                repo_root=repo_root,
+                runtime_root=runtime_root,
+                data_operations_env_file=env_file,
+                profile="decision-daily",
+                execute=False,
+                python_executable="/usr/bin/python3",
+                executor=FakeOperatingDataExecutor(),
+                runner=FakeArtifactRunner(),
+                generated_at=datetime(2026, 5, 20, tzinfo=timezone.utc),
+            )
+
+        step_ids = [step["step_id"] for step in report["planned_steps"]]
+        self.assertEqual(report["profile"], "decision-daily")
+        self.assertEqual(step_ids[0], "missing-symbol-price-backfill")
+        self.assertIn("recommendation-bootstrap", step_ids)
+        self.assertIn("paper-validation-audit", step_ids)
+        self.assertNotIn("news-rss-ingest", step_ids)
+        self.assertNotIn("macro-weekly", step_ids)
 
     def test_execute_runs_backfill_before_signal_and_generates_position_csv(self) -> None:
         with tempfile.TemporaryDirectory() as repo_root, tempfile.TemporaryDirectory() as outside_root:
@@ -150,6 +207,25 @@ def _write_runtime_files(root: Path) -> tuple[Path, Path]:
                 f'STOCKANALYSIS_MARKET_PRICE_BUDGET_LEDGER_PATH="{root / "ledger.json"}"',
                 'STOCKANALYSIS_MARKET_PRICE_PROVIDER="twelve_data"',
                 'STOCKANALYSIS_PSQL_COMMAND="psql postgresql://operator:secret-token@db.internal/stockanalysis"',
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    return runtime_root, env_file
+
+
+def _write_runtime_files_without_positions(root: Path) -> tuple[Path, Path]:
+    runtime_root = root / "runtime"
+    runtime_root.mkdir()
+    artifact_root = root / "artifacts"
+    env_file = root / "data-operations.env"
+    env_file.write_text(
+        "\n".join(
+            [
+                f'STOCKANALYSIS_DATA_OPERATIONS_ARTIFACT_ROOT="{artifact_root}"',
+                f'STOCKANALYSIS_MARKET_PRICE_BUDGET_LEDGER_PATH="{root / "ledger.json"}"',
+                'STOCKANALYSIS_MARKET_PRICE_PROVIDER="twelve_data"',
             ]
         )
         + "\n",

@@ -17,6 +17,7 @@ python3 -m compileall \
 
 PYTHONPATH=src python3 -m unittest \
   tests.test_operating_data_orchestrator \
+  tests.test_data_operations_cadence.DataOperationsCadenceTests.test_intraday_cadence_filter_limits_jobs \
   tests.test_data_operations_artifact_runner.DataOperationsArtifactRunnerTests.test_runner_passes_env_to_child_process_without_recording_it \
   tests.test_data_operations_cli.DataOperationsCliTests.test_operating_data_run_command_writes_repo_outside_output \
   tests.test_data_operations_cli.DataOperationsCliTests.test_operating_data_run_output_rejects_repo_inside_path \
@@ -54,11 +55,13 @@ text = open(path, encoding="utf-8").read()
 report = json.loads(text)
 
 assert report["report_name"] == "operating_data_run"
+assert report["profile"] == "full-recovery"
 assert report["run_status"] == "preview_not_executed"
 assert report["execute"] is False
 assert report["broker_submission_allowed"] is False
 assert report["scheduler_mutation_allowed"] is False
-assert "missing-symbol-price-backfill" == report["planned_steps"][0]["step_id"]
+assert "news-rss-ingest" == report["planned_steps"][0]["step_id"]
+assert "market-price-daily" in [step["step_id"] for step in report["planned_steps"]]
 assert "portfolio-position-snapshot" in [step["step_id"] for step in report["planned_steps"]]
 assert "paper-validation-audit" in [step["step_id"] for step in report["planned_steps"]]
 assert "postgresql://" not in text

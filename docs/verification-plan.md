@@ -39,8 +39,8 @@ task마다 흔들리게 두지 않는 편이 좋다.
 - 통과 조건: compileall, focused unittest, CLI smoke, default setup-required decision, hosted DB ready state, existing host ready state, local-only explicit state, no DB URL/API key/token leak가 모두 통과한다.
 
 - 명령: `bash scripts/verify_operating_data_orchestrator.sh`
-- 무엇을 증명하는가: 실제 화면에 필요한 운영 데이터 순서가 수동 EC2 보정이 아니라 `stockanalysis-operations operating-data-run` backend boundary로 preview/execute 가능하고, attribution이 아직 성과 산출 대상이 아닐 때 `/api/data-health`가 누락으로 오판하지 않는지 확인한다.
-- 통과 조건: operating-data orchestrator/artifact runner/CLI/live adapter focused unittest, preview CLI smoke, repo-outside env/output enforcement, no DB URL/API key/token leak, task docs가 모두 통과한다.
+- 무엇을 증명하는가: 실제 화면에 필요한 운영 데이터 순서가 수동 EC2 보정이 아니라 `stockanalysis-operations operating-data-run` backend boundary로 preview/execute 가능하고, 자동 운영 profile이 뉴스/AI intraday, market daily, decision daily, macro weekly, performance monthly, full recovery로 분리되는지 확인한다.
+- 통과 조건: operating-data orchestrator/artifact runner/CLI/cadence/live adapter focused unittest, profile preview CLI smoke, repo-outside env/output enforcement, no DB URL/API key/token leak, task docs가 모두 통과한다.
 
 - 명령: `bash scripts/verify_frontend_architecture.sh`
 - 무엇을 증명하는가: investment cockpit 방향, route map, API boundary, AI boundary, security boundary, phased implementation, fixture-only `apps/web` scaffold가 문서와 파일로 정렬되어 있는지 확인한다.

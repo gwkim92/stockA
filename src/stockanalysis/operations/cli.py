@@ -46,7 +46,10 @@ from stockanalysis.operations.news_rss_feed_runner import (
     build_news_rss_config_report,
     run_news_rss_configured_feeds,
 )
-from stockanalysis.operations.operating_data_orchestrator import build_operating_data_run_report
+from stockanalysis.operations.operating_data_orchestrator import (
+    OPERATING_DATA_RUN_PROFILE_IDS,
+    build_operating_data_run_report,
+)
 from stockanalysis.operations.path_policy import resolve_existing_file, resolve_output_path
 from stockanalysis.operations.report_io import load_json_object, print_json, write_json_report
 from stockanalysis.operations.scheduler_activation_execution_decision import (
@@ -89,7 +92,7 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     cadence = subparsers.add_parser("cadence", help="Print the data operations cadence registry.")
-    cadence.add_argument("--cadence", choices=("daily", "weekly", "monthly"))
+    cadence.add_argument("--cadence", choices=("intraday", "daily", "weekly", "monthly"))
     cadence.set_defaults(handler=_handle_cadence)
 
     run = subparsers.add_parser("run", help="Run a known data operation command with stdout/stderr artifacts.")
@@ -179,6 +182,7 @@ def build_parser() -> argparse.ArgumentParser:
     operating_data_run.add_argument("--runtime-root", default=str(DEFAULT_LOCAL_RUNTIME_ROOT))
     operating_data_run.add_argument("--data-operations-env-file", required=True)
     operating_data_run.add_argument("--artifact-root")
+    operating_data_run.add_argument("--profile", choices=OPERATING_DATA_RUN_PROFILE_IDS, default="full-recovery")
     operating_data_run.add_argument("--execute", action="store_true")
     operating_data_run.add_argument("--output")
     operating_data_run.add_argument("--timeout-seconds", type=int, default=3600)
@@ -595,6 +599,7 @@ def _handle_operating_data_run(args: argparse.Namespace, *, stdout: TextIO) -> i
         runtime_root=args.runtime_root,
         data_operations_env_file=args.data_operations_env_file,
         artifact_root=args.artifact_root,
+        profile=args.profile,
         execute=bool(args.execute),
         timeout_seconds=args.timeout_seconds,
         python_executable=args.python_executable,

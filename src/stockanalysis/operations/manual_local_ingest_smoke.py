@@ -155,7 +155,7 @@ def build_manual_local_ingest_job(
     if job_id == "news-rss-daily":
         return ManualLocalIngestJob(
             job_id=job_id,
-            label="daily free RSS news ingest",
+            label="intraday free RSS news ingest",
             command_argv=(
                 python_bin,
                 "-m",
@@ -168,7 +168,7 @@ def build_manual_local_ingest_job(
     if job_id == "event-intelligence-weekly":
         return ManualLocalIngestJob(
             job_id=job_id,
-            label="local news cluster AI evidence",
+            label="intraday local news cluster AI evidence",
             command_argv=(
                 python_bin,
                 "-m",

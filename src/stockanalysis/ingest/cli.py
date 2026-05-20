@@ -118,7 +118,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     data_operations_cadence.add_argument(
         "--cadence",
-        choices=("daily", "weekly", "monthly"),
+        choices=("intraday", "daily", "weekly", "monthly"),
         help="Optional cadence filter.",
     )
     data_operations_run = subparsers.add_parser(

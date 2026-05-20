@@ -246,6 +246,8 @@ class DataOperationsCliTests(unittest.TestCase):
                         str(env_file),
                         "--artifact-root",
                         str(Path(outside_root) / "artifacts"),
+                        "--profile",
+                        "decision-daily",
                         "--execute",
                         "--as-of-date",
                         "2026-05-20",
@@ -274,6 +276,7 @@ class DataOperationsCliTests(unittest.TestCase):
             call_kwargs = run_mock.call_args.kwargs
             self.assertEqual(call_kwargs["runtime_root"], str(runtime_path))
             self.assertEqual(str(call_kwargs["data_operations_env_file"]), str(env_file))
+            self.assertEqual(call_kwargs["profile"], "decision-daily")
             self.assertTrue(call_kwargs["execute"])
             self.assertEqual(call_kwargs["as_of_date"], date(2026, 5, 20))
 

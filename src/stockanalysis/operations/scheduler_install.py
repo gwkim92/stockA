@@ -138,6 +138,13 @@ def _launchd_schedule_for_job(*, job_id: str) -> list[dict[str, int]]:
 
     parts = job.expected_after_local.split()
     hour, minute = _parse_time(parts[0])
+    if job.cadence == "intraday":
+        end_hour = 17
+        return [
+            {"Weekday": weekday, "Hour": scheduled_hour, "Minute": minute}
+            for weekday in range(2, 7)
+            for scheduled_hour in range(hour, end_hour + 1)
+        ]
     if job.cadence == "daily":
         return [{"Weekday": weekday, "Hour": hour, "Minute": minute} for weekday in range(2, 7)]
     if job.cadence == "weekly":

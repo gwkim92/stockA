@@ -54,12 +54,125 @@ class SourcePosition:
     cost_basis: Decimal | None
 
 
+@dataclass(frozen=True)
+class OperatingDataRunProfile:
+    profile_id: str
+    label: str
+    cadence: str
+    recommended_schedule: str
+    description: str
+    step_ids: tuple[str, ...]
+
+    def as_payload(self) -> dict[str, object]:
+        return {
+            "profile": self.profile_id,
+            "label": self.label,
+            "cadence": self.cadence,
+            "recommended_schedule": self.recommended_schedule,
+            "description": self.description,
+            "step_ids": list(self.step_ids),
+        }
+
+
+NEWS_INTRADAY_STEP_IDS = (
+    "news-rss-ingest",
+    "news-rss-enrichment",
+    "news-cluster-evidence",
+)
+MARKET_DAILY_STEP_IDS = (
+    "market-price-daily",
+)
+DECISION_DAILY_STEP_IDS = (
+    "missing-symbol-price-backfill",
+    "strategy-universe-slice",
+    "market-feature-snapshot",
+    "instrument-theme-enrichment",
+    "cycle-state-snapshot",
+    "recommendation-bootstrap",
+    "thesis-bootstrap",
+    "thesis-review-bootstrap",
+    "portfolio-position-snapshot",
+    "portfolio-remediation-daily",
+    "paper-safety-bootstrap",
+    "paper-validation-audit",
+)
+MACRO_WEEKLY_STEP_IDS = (
+    "macro-weekly",
+)
+PERFORMANCE_MONTHLY_STEP_IDS = (
+    "performance-outcome-monthly",
+)
+FULL_RECOVERY_STEP_IDS = (
+    *NEWS_INTRADAY_STEP_IDS,
+    *MARKET_DAILY_STEP_IDS,
+    *DECISION_DAILY_STEP_IDS,
+    *MACRO_WEEKLY_STEP_IDS,
+    *PERFORMANCE_MONTHLY_STEP_IDS,
+)
+SOURCE_POSITION_STEP_IDS = {
+    "missing-symbol-price-backfill",
+    "portfolio-position-snapshot",
+}
+OPERATING_DATA_RUN_PROFILES: tuple[OperatingDataRunProfile, ...] = (
+    OperatingDataRunProfile(
+        profile_id="news-intraday",
+        label="News and AI event intelligence",
+        cadence="intraday",
+        recommended_schedule="every 30-60 minutes during US market/news hours",
+        description="Collect free RSS news, enrich pending events, and refresh cluster evidence without touching market candles or portfolio rows.",
+        step_ids=NEWS_INTRADAY_STEP_IDS,
+    ),
+    OperatingDataRunProfile(
+        profile_id="market-daily",
+        label="Daily market candle refresh",
+        cadence="daily",
+        recommended_schedule="18:35 America/New_York on US trading days",
+        description="Refresh configured market price watchlist with free-provider budget controls.",
+        step_ids=MARKET_DAILY_STEP_IDS,
+    ),
+    OperatingDataRunProfile(
+        profile_id="decision-daily",
+        label="Daily signal, recommendation, and holding review",
+        cadence="daily",
+        recommended_schedule="19:00 America/New_York after market-daily succeeds",
+        description="Backfill missing decision inputs, refresh cycle/recommendation/thesis rows, update portfolio snapshot, and write paper validation audit.",
+        step_ids=DECISION_DAILY_STEP_IDS,
+    ),
+    OperatingDataRunProfile(
+        profile_id="macro-weekly",
+        label="Weekly macro context",
+        cadence="weekly",
+        recommended_schedule="07:30 America/New_York every Monday",
+        description="Refresh free macro context that changes slower than news and candles.",
+        step_ids=MACRO_WEEKLY_STEP_IDS,
+    ),
+    OperatingDataRunProfile(
+        profile_id="performance-monthly",
+        label="Monthly performance outcome readiness",
+        cadence="monthly",
+        recommended_schedule="09:15 America/New_York on the first business day",
+        description="Create due thesis outcome rows when recommendation horizons have matured.",
+        step_ids=PERFORMANCE_MONTHLY_STEP_IDS,
+    ),
+    OperatingDataRunProfile(
+        profile_id="full-recovery",
+        label="Full recovery and deployment smoke",
+        cadence="ad_hoc",
+        recommended_schedule="manual only after deployment, incident recovery, or explicit backfill",
+        description="Run every operating-data step in dependency order to prove or restore end-to-end data health.",
+        step_ids=FULL_RECOVERY_STEP_IDS,
+    ),
+)
+OPERATING_DATA_RUN_PROFILE_IDS = tuple(profile.profile_id for profile in OPERATING_DATA_RUN_PROFILES)
+
+
 def build_operating_data_run_report(
     *,
     repo_root: str | Path | None = None,
     runtime_root: str | Path = DEFAULT_LOCAL_RUNTIME_ROOT,
     data_operations_env_file: str | Path,
     artifact_root: str | Path | None = None,
+    profile: str = "full-recovery",
     execute: bool = False,
     timeout_seconds: int = 3600,
     python_executable: str | Path | None = None,
@@ -89,6 +202,7 @@ def build_operating_data_run_report(
         raise ValueError("throttle_seconds must not be negative")
 
     generated_at_value = generated_at or datetime.now(timezone.utc)
+    selected_profile = _resolve_profile(profile)
     data_env_path = resolve_existing_file(
         data_operations_env_file,
         label="data operations env file",
@@ -98,8 +212,13 @@ def build_operating_data_run_report(
     env_mapping = merged_env_with_file(data_env_path)
     runtime_path = _resolve_runtime_root(runtime_root, repo_root=repo_root)
     artifact_root_path = _resolve_artifact_root(artifact_root, env=env_mapping, repo_root=repo_root)
-    source_positions_path = _resolve_source_positions_path(env_mapping, repo_root=repo_root)
-    source_positions = _load_source_positions(source_positions_path)
+    source_positions_required = _profile_requires_source_positions(selected_profile)
+    source_positions_path = (
+        _resolve_source_positions_path(env_mapping, repo_root=repo_root)
+        if source_positions_required
+        else None
+    )
+    source_positions = _load_source_positions(source_positions_path) if source_positions_path is not None else []
     resolved_python = str(python_executable or sys.executable)
     resolved_provider = provider or str(env_mapping.get(MARKET_PRICE_PROVIDER_ENV, "alpha_vantage")).strip() or "alpha_vantage"
     ledger_path = _resolve_market_price_ledger(env_mapping, runtime_path=runtime_path, repo_root=repo_root)
@@ -123,6 +242,8 @@ def build_operating_data_run_report(
     generated_dir = _generated_input_dir(runtime_path)
     watchlist_path = generated_dir / f"missing-price-watchlist-{target_date.isoformat()}.csv"
     positions_snapshot_path = generated_dir / f"position-snapshot-{target_date.isoformat()}.csv"
+    missing_watchlist_required = "missing-symbol-price-backfill" in selected_profile.step_ids
+    position_snapshot_required = "portfolio-position-snapshot" in selected_profile.step_ids
 
     planned_steps = _build_planned_steps(
         python_executable=resolved_python,
@@ -143,10 +264,16 @@ def build_operating_data_run_report(
         throttle_seconds=throttle_seconds,
         outputsize=outputsize,
         portfolio_notional=portfolio_notional,
+        profile=selected_profile,
     )
 
     report: dict[str, object] = {
         "report_name": "operating_data_run",
+        "profile": selected_profile.profile_id,
+        "profile_label": selected_profile.label,
+        "profile_cadence": selected_profile.cadence,
+        "profile_recommended_schedule": selected_profile.recommended_schedule,
+        "profile_description": selected_profile.description,
         "generated_at": _format_timestamp(generated_at_value),
         "execute": execute,
         "run_status": "running" if execute else "preview_not_executed",
@@ -168,16 +295,18 @@ def build_operating_data_run_report(
             "horizon_type": horizon_type,
             "market_code": market_code,
             "universe_version": resolved_universe_version,
+            "source_positions_required": source_positions_required,
             "source_position_count": len(source_positions),
             "source_symbols": [position.symbol for position in source_positions],
             "event_impacted_symbols": _symbol_list(context.get("event_impacted_symbols")),
             "missing_price_symbols": missing_price_symbols,
         },
         "generated_files": {
-            "missing_price_watchlist": str(watchlist_path) if missing_price_symbols else "",
-            "position_snapshot_csv": str(positions_snapshot_path),
+            "missing_price_watchlist": str(watchlist_path) if missing_watchlist_required and missing_price_symbols else "",
+            "position_snapshot_csv": str(positions_snapshot_path) if position_snapshot_required else "",
         },
         "planned_steps": [_public_step(step) for step in planned_steps],
+        "profile_catalog": [profile_item.as_payload() for profile_item in _profile_payloads()],
         "artifact_runs": [],
         "failed_step_count": 0,
         "next_actions": ["review planned_steps, then rerun with --execute if DB/provider writes are intended"],
@@ -186,7 +315,8 @@ def build_operating_data_run_report(
         _assert_secret_free_payload(report)
         return report
 
-    _write_missing_price_watchlist(watchlist_path, missing_price_symbols)
+    if missing_watchlist_required:
+        _write_missing_price_watchlist(watchlist_path, missing_price_symbols)
     artifact_runs: list[dict[str, object]] = []
     failed_step_count = 0
 
@@ -234,6 +364,8 @@ def load_operating_data_run_visibility_report(
     selected_path = str(report_path if report_path is not None else (env or os.environ).get(OPERATING_DATA_REPORT_ENV, "")).strip()
     base = {
         "status": "not_configured",
+        "profile": "",
+        "profile_cadence": "",
         "execute": False,
         "generated_at": "",
         "as_of_date": "",
@@ -270,6 +402,8 @@ def load_operating_data_run_visibility_report(
     derived = payload.get("derived_inputs") if isinstance(payload.get("derived_inputs"), dict) else {}
     visibility = {
         "status": str(payload.get("run_status") or "unknown"),
+        "profile": str(payload.get("profile") or ""),
+        "profile_cadence": str(payload.get("profile_cadence") or ""),
         "execute": payload.get("execute") is True,
         "generated_at": str(payload.get("generated_at") or ""),
         "as_of_date": str(derived.get("as_of_date") or ""),
@@ -303,6 +437,7 @@ def _build_planned_steps(
     throttle_seconds: float,
     outputsize: str,
     portfolio_notional: Decimal,
+    profile: OperatingDataRunProfile,
 ) -> list[dict[str, object]]:
     target = target_date.isoformat()
     signal_args = [
@@ -318,6 +453,75 @@ def _build_planned_steps(
         market_code,
     ]
     steps: list[dict[str, object]] = [
+        {
+            "step_id": "news-rss-ingest",
+            "artifact_job_id": "news-rss-daily",
+            "label": "Collect configured free RSS/Atom news feeds",
+            "skip_reason": "",
+            "command_argv": (
+                python_executable,
+                "-m",
+                "stockanalysis.operations.cli",
+                "news-rss-daily-run",
+                "--env-file",
+                str(env_file),
+            ),
+        },
+        {
+            "step_id": "news-rss-enrichment",
+            "artifact_job_id": "news-rss-enrichment-intraday",
+            "label": "Enrich pending RSS news into structured events",
+            "skip_reason": "",
+            "command_argv": (
+                python_executable,
+                "-m",
+                "stockanalysis.operations.cli",
+                "news-rss-enrich-run",
+                "--env-file",
+                str(env_file),
+            ),
+        },
+        {
+            "step_id": "news-cluster-evidence",
+            "artifact_job_id": "event-intelligence-weekly",
+            "label": "Refresh local news cluster evidence for AI analysis visibility",
+            "skip_reason": "",
+            "command_argv": (
+                python_executable,
+                "-m",
+                "stockanalysis.operations.cli",
+                "news-rss-cluster-evidence-run",
+                "--env-file",
+                str(env_file),
+                "--as-of-date",
+                target,
+            ),
+        },
+        {
+            "step_id": "market-price-daily",
+            "artifact_job_id": "market-price-daily",
+            "label": "Refresh configured market candle watchlist with provider budget limits",
+            "skip_reason": "",
+            "command_argv": (
+                python_executable,
+                "-m",
+                "stockanalysis.operations.cli",
+                "market-price-daily-run",
+                "--env-file",
+                str(env_file),
+                "--provider",
+                provider,
+                "--daily-budget",
+                str(daily_budget),
+                "--max-requests-per-run",
+                str(max_requests_per_run),
+                "--throttle-seconds",
+                str(throttle_seconds),
+                "--outputsize",
+                outputsize,
+                "--skip-if-fresh",
+            ),
+        },
         {
             "step_id": "missing-symbol-price-backfill",
             "artifact_job_id": "market-price-daily",
@@ -520,7 +724,7 @@ def _build_planned_steps(
             },
         ]
     )
-    return steps
+    return _select_profile_steps(steps, profile=profile)
 
 
 def _ingest_step(
@@ -538,6 +742,34 @@ def _ingest_step(
         "skip_reason": "",
         "command_argv": (python_executable, "-m", "stockanalysis.ingest.cli", command, *args),
     }
+
+
+def _resolve_profile(profile_id: str) -> OperatingDataRunProfile:
+    normalized = str(profile_id or "").strip()
+    for profile in OPERATING_DATA_RUN_PROFILES:
+        if profile.profile_id == normalized:
+            return profile
+    raise ValueError(f"Unsupported operating data run profile: {profile_id!r}.")
+
+
+def _profile_payloads() -> tuple[OperatingDataRunProfile, ...]:
+    return OPERATING_DATA_RUN_PROFILES
+
+
+def _profile_requires_source_positions(profile: OperatingDataRunProfile) -> bool:
+    return bool(SOURCE_POSITION_STEP_IDS.intersection(profile.step_ids))
+
+
+def _select_profile_steps(
+    steps: Sequence[dict[str, object]],
+    *,
+    profile: OperatingDataRunProfile,
+) -> list[dict[str, object]]:
+    steps_by_id = {str(step["step_id"]): step for step in steps}
+    missing_step_ids = [step_id for step_id in profile.step_ids if step_id not in steps_by_id]
+    if missing_step_ids:
+        raise ValueError(f"Profile {profile.profile_id!r} references unknown steps: {', '.join(missing_step_ids)}")
+    return [steps_by_id[step_id] for step_id in profile.step_ids]
 
 
 def _load_operating_data_context(executor: Any) -> dict[str, Any]:

@@ -8,7 +8,7 @@ from typing import Iterable, Literal
 from stockanalysis.ingest.macro.sql import sql_literal
 
 
-Cadence = Literal["daily", "weekly", "monthly"]
+Cadence = Literal["intraday", "daily", "weekly", "monthly"]
 
 DATA_OPERATIONS_TIMEZONE = "America/New_York"
 DATA_OPERATIONS_ARTIFACT_ROOT_ENV = "STOCKANALYSIS_DATA_OPERATIONS_ARTIFACT_ROOT"
@@ -111,13 +111,25 @@ DATA_OPERATION_CADENCES: tuple[DataOperationCadence, ...] = (
         job_id="news-rss-daily",
         pipeline_name="news_rss_upsert",
         domain="news",
-        cadence="daily",
-        command_template="stockanalysis-ingest news-rss-upsert --feed-name <FEED> --feed-url <RSS_URL> --limit <N>",
-        expected_after_local="08:30",
-        stale_after_hours=36,
+        cadence="intraday",
+        command_template="stockanalysis-operations news-rss-daily-run --env-file <ENV>",
+        expected_after_local="09:00",
+        stale_after_hours=4,
         artifact_policy="stdout_json_and_stderr_log",
         required_env_groups=("database", "news_rss_feed_config"),
         data_health_dataset="ingest.source_document",
+    ),
+    DataOperationCadence(
+        job_id="news-rss-enrichment-intraday",
+        pipeline_name="news_rss_event_enrichment",
+        domain="news",
+        cadence="intraday",
+        command_template="stockanalysis-operations news-rss-enrich-run --env-file <ENV>",
+        expected_after_local="09:05",
+        stale_after_hours=4,
+        artifact_policy="stdout_json_and_stderr_log",
+        required_env_groups=("database",),
+        data_health_dataset="event.event",
     ),
     DataOperationCadence(
         job_id="sec-filings-weekly",
@@ -135,10 +147,10 @@ DATA_OPERATION_CADENCES: tuple[DataOperationCadence, ...] = (
         job_id="event-intelligence-weekly",
         pipeline_name="event_intelligence_llm_extract",
         domain="ai",
-        cadence="weekly",
-        command_template="stockanalysis-ingest event-intelligence-llm-extract --external-document-id <ID>...",
-        expected_after_local="09:00 Monday",
-        stale_after_hours=216,
+        cadence="intraday",
+        command_template="stockanalysis-operations news-rss-cluster-evidence-run --env-file <ENV>",
+        expected_after_local="09:10",
+        stale_after_hours=4,
         artifact_policy="stdout_json_stderr_log_and_ai_artifact_id",
         required_env_groups=("database", "openai_or_llm_provider"),
         data_health_dataset="ai.extraction_artifact",

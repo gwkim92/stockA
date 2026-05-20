@@ -12,7 +12,7 @@ from stockanalysis.operations.cadence import (
 
 
 class DataOperationsCadenceTests(unittest.TestCase):
-    def test_cadence_report_exposes_daily_weekly_monthly_jobs(self) -> None:
+    def test_cadence_report_exposes_intraday_daily_weekly_monthly_jobs(self) -> None:
         report = build_data_operations_cadence_report(
             generated_at=datetime(2026, 5, 3, tzinfo=timezone.utc),
         )
@@ -21,8 +21,9 @@ class DataOperationsCadenceTests(unittest.TestCase):
         self.assertEqual(report["generated_at"], "2026-05-03T00:00:00Z")
         self.assertEqual(report["artifact_root_env"], DATA_OPERATIONS_ARTIFACT_ROOT_ENV)
         self.assertEqual(report["activation_status"], "reference_only_not_scheduled")
+        self.assertGreaterEqual(report["cadence_counts"]["intraday"], 3)
         self.assertGreaterEqual(report["cadence_counts"]["daily"], 3)
-        self.assertGreaterEqual(report["cadence_counts"]["weekly"], 4)
+        self.assertGreaterEqual(report["cadence_counts"]["weekly"], 3)
         self.assertGreaterEqual(report["cadence_counts"]["monthly"], 2)
         universe_job = next(job for job in report["jobs"] if job["job_id"] == "market-universe-weekly")
         self.assertEqual(universe_job["pipeline_name"], "market_universe_bootstrap")
@@ -35,15 +36,25 @@ class DataOperationsCadenceTests(unittest.TestCase):
         news_job = next(job for job in report["jobs"] if job["job_id"] == "news-rss-daily")
         self.assertEqual(news_job["pipeline_name"], "news_rss_upsert")
         self.assertEqual(news_job["domain"], "news")
-        self.assertIn("news-rss-upsert", news_job["command_template"])
+        self.assertEqual(news_job["cadence"], "intraday")
+        self.assertIn("news-rss-daily-run", news_job["command_template"])
         self.assertIn("news_rss_feed_config", news_job["required_env_groups"])
         self.assertEqual(news_job["data_health_dataset"], "ingest.source_document")
+        enrichment_job = next(job for job in report["jobs"] if job["job_id"] == "news-rss-enrichment-intraday")
+        self.assertEqual(enrichment_job["pipeline_name"], "news_rss_event_enrichment")
+        self.assertEqual(enrichment_job["cadence"], "intraday")
 
     def test_cadence_filter_limits_jobs(self) -> None:
         jobs = list_data_operation_cadences(cadence="daily")
 
         self.assertTrue(jobs)
         self.assertTrue(all(job.cadence == "daily" for job in jobs))
+
+    def test_intraday_cadence_filter_limits_jobs(self) -> None:
+        jobs = list_data_operation_cadences(cadence="intraday")
+
+        self.assertTrue(jobs)
+        self.assertTrue(all(job.cadence == "intraday" for job in jobs))
 
     def test_expected_jobs_sql_values_are_safe_static_tuples(self) -> None:
         values_sql = render_data_operations_expected_jobs_sql_values()
