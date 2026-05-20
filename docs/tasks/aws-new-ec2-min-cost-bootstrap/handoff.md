@@ -53,6 +53,14 @@
     - User-facing production Server Components error was traced to authorized FastAPI `GET /api/portfolio/Long%20Term%20Paper/coverage?asOfDate=2024-11-01` returning `500`.
     - Root cause: EC2 DB has no `portfolio.portfolio`/`portfolio.position_snapshot` rows yet, while `/intelligence` was still requesting a fixed historical portfolio coverage date.
     - Fix: live portfolio coverage now returns a stable empty DTO with `missing_position_snapshot:<portfolio>` instead of throwing, and `/intelligence` requests the latest `portfolio.position_snapshot` freshness date from `/api/data-health` when available.
+  - 2026-05-20 operating-data follow-up:
+    - Added a one-symbol TSLA Twelve Data backfill through the existing free provider budget ledger because live news/event impacts were attached to TSLA and the prior watchlist did not include TSLA.
+    - Ran the 2026-05-20 signal chain against live EC2 Postgres: `strategy-universe-slice`, `market-feature-snapshot`, `instrument-theme-enrichment`, `cycle-state-snapshot`, `recommendation-bootstrap`, `thesis-bootstrap`, and `thesis-review-bootstrap`.
+    - Signal state now has `cycle_state_snapshot=2`, `recommendation=1`, `investment_thesis=1`, `thesis_review=1`. The generated recommendation is TSLA with an exclude/exit-style paper action.
+    - Rebuilt `/opt/stockanalysis/runtime/portfolio-positions.csv` from latest DB prices for AAPL, MSFT, NVDA, and TSLA, then ran `portfolio-position-daily` and `portfolio-remediation-daily`.
+    - Portfolio state now has `portfolio.position_snapshot=4`, `portfolio.review=1`, `portfolio.remediation_ticket=4`; tickets are 3 thesis-remediation items for AAPL/MSFT/NVDA and 1 outcome-remediation item for TSLA.
+    - Ran `macro-weekly` for CPIAUCSL/FEDFUNDS from 2025-01-01 and `performance-outcome-monthly`; outcome scheduler succeeded with no due candidates because the newly generated 2026-05-20 long-term recommendation has not reached an outcome horizon yet.
+    - Ran paper safety bootstrap and paper validation audit without broker submission. Trading readiness now has broker/account/order-limit/audit gates passing, but remains blocked by the global kill switch and failed paper validation. `submitted_to_broker_count=0`.
 - 막힌 점/보류:
   - 로컬 AWS CLI profile은 AWS Console 계정과 다르므로 AWS CLI로는 이 계정 리소스를 변경하지 않음.
   - HTTP/HTTPS security group은 아직 열지 않았다. 현재 접속은 SSH tunnel 전용이다.
@@ -126,6 +134,14 @@
     - After deploy, local tunnel routes `/`, `/data-health`, `/cycles`, `/events`, `/stocks`, `/intelligence`, `/paper-trading`, `/trading-readiness`, `/performance`, `/portfolio/coverage`, `/remediation` all returned HTTP `200`.
     - After deploy, `/intelligence` HTML no longer contained `투자 운영 데이터를 불러오지 못했다`, `Server Components render`, `digest`, or `FrontendApiError`.
     - Current EC2 DB counts after Codex OAuth smoke and runtime fix: `ref.instrument=7558`, `market.daily_price_bar=600`, `ingest.source_document=22`, `event.event=21`, `event.event_instrument_impact=2`, `ai.extraction_artifact=4`, `ai.model_invocation=4`, `ops.pipeline_run=16`, `portfolio.position_snapshot=0`.
+    - 2026-05-20 operating-data follow-up:
+      - `/api/data-health`: all jobs except `portfolio-attribution-monthly` are `ok`; remaining overall status is `attention_required`.
+      - `/api/data-health` provider budget: Twelve Data `used_request_count=7`, `remaining_request_count=17` for budget date `2026-05-20`.
+      - DB counts: `macro.observation=31`, `signal.cycle_state_snapshot=2`, `signal.recommendation=1`, `signal.investment_thesis=1`, `signal.thesis_review=1`, `portfolio.position_snapshot=4`, `portfolio.review=1`, `portfolio.remediation_ticket=4`, `trading.paper_validation_run=1`, `trading.order_intent_audit=1`, `performance.thesis_outcome=0`, `performance.attribution_run=0`.
+      - `/api/trading/readiness`: `readiness_status=blocked`, gates `broker_boundary/account_permission/order_limit_policy/audit_log=pass`, `kill_switch/paper_validation=blocked`, `submitted_to_broker_count=0`.
+      - Local tunnel route smoke returned HTTP `200` for `/data-health`, `/intelligence`, `/paper-trading`, `/trading-readiness`, `/portfolio/coverage`, `/remediation`, `/stocks`, `/recommendations/recommendation-1`, and `/theses/thesis-1`.
+      - EC2 logs checked for the last 10 minutes: no FastAPI `500`, `Traceback`, `ERROR`, Next `FrontendApiError`, `digest`, or `500` entries.
+      - Services remain active: `stockanalysis-frontend-api.service=active`, `stockanalysis-web.service=active`; no `stockanalysis` systemd timer is installed.
     - Focused local verification after code fix:
       - `PYTHONPATH=src /private/tmp/stockanalysis-runtime/venv/bin/python -m unittest tests.test_frontend_live_adapter tests.test_frontend_api_server -v`: `Ran 54 tests ... OK`
       - `cd apps/web && npm run typecheck`: passed
@@ -143,4 +159,4 @@
 - Existing `settle` private key is not present in local `~/.ssh`; EC2 Instance Connect should be used first.
 - If EC2 Instance Connect fails, access may require the user's `settle` private key or a new/imported key pair.
 - Single EC2 with local Postgres is the lowest-cost MVP path, not HA/production-grade.
-- The EC2 runtime currently proves read-only cockpit plus partial manual ingest. It does not yet prove full investment-operation automation because scheduler timers and several downstream portfolio/recommendation jobs are missing.
+- The EC2 runtime currently proves read-only cockpit plus manual ingest/signal/portfolio/paper-validation operation. It does not yet prove full recurring automation because scheduler timers are still not installed. Portfolio attribution is not populated yet because no long-term outcome horizon has matured for the new 2026-05-20 recommendation.
