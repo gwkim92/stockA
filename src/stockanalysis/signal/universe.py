@@ -236,7 +236,16 @@ insert_members as (
         sr.observation_count,
         sr.inclusion_reason
     from upsert_batch ub
+    cross join (select count(*) from delete_existing) deleted
     join source_rows sr on true
+    on conflict (universe_batch_id, instrument_id) do update
+    set
+        rank_position = excluded.rank_position,
+        selection_score = excluded.selection_score,
+        latest_trade_date = excluded.latest_trade_date,
+        latest_adjusted_close = excluded.latest_adjusted_close,
+        observation_count = excluded.observation_count,
+        inclusion_reason = excluded.inclusion_reason
 )
 select universe_batch_id from upsert_batch;"""
 
