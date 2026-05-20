@@ -121,6 +121,7 @@ class StrategyUniverseTests(unittest.TestCase):
         self.assertIn("insert into signal.strategy_universe_batch", sql)
         self.assertIn("insert into signal.strategy_universe_member", sql)
         self.assertIn("from delete_existing", sql)
+        self.assertIn("returning 1", sql)
         self.assertIn("on conflict (universe_batch_id, instrument_id) do update", sql)
         self.assertIn("fixture-v1", sql)
         self.assertIn("77::bigint", sql)

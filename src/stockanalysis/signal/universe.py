@@ -202,6 +202,7 @@ def render_strategy_universe_upsert_sql(
 delete_existing as (
     delete from signal.strategy_universe_member
     where universe_batch_id = (select universe_batch_id from upsert_batch)
+    returning 1
 ),
 source_rows (
     instrument_id,
