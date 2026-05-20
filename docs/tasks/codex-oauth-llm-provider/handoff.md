@@ -12,17 +12,19 @@
   - `event-intelligence-llm-extract` now supports `provider=codex_oauth`.
   - Fixture provider remains supported.
   - `--llm-output-json` is only required for fixture mode.
-  - Codex provider calls `codex exec` through a subprocess with `read-only`, `never`, `ephemeral`, `ignore-user-config`, and `ignore-rules`.
+  - Codex provider calls `codex exec` through a subprocess with `approval_policy="never"`, `read-only`, `ephemeral`, `ignore-user-config`, and `ignore-rules`.
   - The provider writes a temporary strict output schema and parses the final JSON output.
   - `STOCKANALYSIS_LLM_PROVIDER=codex_oauth`, `STOCKANALYSIS_CODEX_CLI_COMMAND=codex`, and `STOCKANALYSIS_CODEX_TIMEOUT_SECONDS=300` were set in repo-ignored/root and repo-outside runtime envs.
   - Runtime env readiness passes without `OPENAI_API_KEY`.
   - `codex login status` reports `Logged in using ChatGPT`.
   - Real Codex OAuth smoke succeeded for SEC document `0000320193-24-000123`.
+  - 2026-05-20 update: current Codex CLI rejects the old `--ask-for-approval never` flag, so the provider now uses `-c approval_policy="never"`, which parses on local `codex-cli 0.130.0` and EC2 `codex-cli 0.132.0`.
 - 진행 중:
-  - none.
+  - EC2 has Codex CLI installed but is not logged in yet.
 - 막힌 점:
   - Codex CLI still emits local skill/plugin warnings from the user's Codex installation, but the smoke succeeds.
   - This is a local data operations provider boundary, not a production OpenAI API integration.
+  - EC2 `codex login status` currently reports `Not logged in`; an interactive/device OAuth login is required before EC2 can run `provider=codex_oauth`.
 
 ## Verification
 

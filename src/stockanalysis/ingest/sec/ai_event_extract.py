@@ -367,10 +367,10 @@ def invoke_codex_oauth_structured_event_provider(
         cwd = os.getenv("STOCKANALYSIS_CODEX_WORKDIR") or str(Path.cwd())
         command = [
             *base_command,
+            "-c",
+            'approval_policy="never"',
             "--sandbox",
             "read-only",
-            "--ask-for-approval",
-            "never",
             "--cd",
             cwd,
             "exec",

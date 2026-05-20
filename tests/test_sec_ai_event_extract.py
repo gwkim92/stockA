@@ -113,7 +113,7 @@ class SecAiEventExtractTests(unittest.TestCase):
                         "assert 'exec' in args",
                         "assert '--ephemeral' in args",
                         "assert '--sandbox' in args and 'read-only' in args",
-                        "assert '--ask-for-approval' in args and 'never' in args",
+                        "assert '-c' in args and 'approval_policy=\"never\"' in args",
                         "assert 'auth.json' not in ' '.join(args)",
                         "output = pathlib.Path(args[args.index('--output-last-message') + 1])",
                         f"output.write_text({json.dumps(json.dumps(payload))}, encoding='utf-8')",
