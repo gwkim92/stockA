@@ -50,6 +50,18 @@ PYTHONPATH=src python3 -m stockanalysis.ingest.cli thesis-review-bootstrap \
 
 Health score는 recommendation total score를 기본값으로 쓰고, action이 `exit`이면 최대 `0.2500`, `reduce`이면 최대 `0.4500`으로 제한한다.
 
+Review summary/change notes는 위 action rule을 바꾸지 않는다. 대신 추천 bucket/action/score, cycle state/score,
+market feature, 다음 검토일, action을 유발한 deterministic signal을 사람이 읽을 수 있는 한국어 문장으로
+`signal.thesis_review.summary`와 `signal.thesis_review.change_notes`에 저장한다. 내부 추적을 위해 signal code는
+한국어 설명 뒤 괄호로 보존한다.
+
+예시:
+
+```text
+AAPL 검토 결과: 조치 exit, 건강 점수 0.2500. 현재 추천은 avoid 버킷의 exclude, 추천 점수 0.2579, 순위 1위다. 사이클은 forming 상태, 사이클 점수 0.1796. 가격 맥락은 최신 수정종가 222.9100, 1일 수익률 -1.33%, 관측 구간 수익률 -1.33%다. 다음 검토일은 2024-11-08이다.
+검토 근거: 추천 버킷이 회피 대상 (recommendation_bucket_avoid); 추천 조치가 제외 (recommendation_action_exclude); 추천 점수가 최소 검토 기준 0.3500 미만 (score_below_0.3500). 적용 조치: exit. thesis 상태는 자동 변경하지 않았고, 주문이나 가상 거래도 만들지 않았다.
+```
+
 ## Review Cadence
 
 - `exit`, `reduce`: 7일 뒤 재검토
@@ -60,7 +72,7 @@ Health score는 recommendation total score를 기본값으로 쓰고, action이 
 
 ## Boundary
 
-- AI는 review summary를 생성하지 않는다.
+- AI는 review summary를 생성하지 않는다. 현재 문구는 deterministic rule 기반이다.
 - thesis status는 자동 변경하지 않는다.
 - portfolio execution 또는 실거래는 범위 밖이다.
 - portfolio position 없이 linked recommendation/thesis만 검토한다.

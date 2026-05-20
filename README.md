@@ -10,7 +10,7 @@ AI를 이용해 거시경제, 정치, 기술, 산업, 기업 흐름을 계속 �
 - 추천 이후 보유 검토와 성과 추적
 - 판단 근거와 실패 원인의 기록
 
-현재 performance outcome 경로는 단일 측정일, batch 측정일, due horizon schedule 실행을 지원한다. `performance-outcome-schedule-bootstrap`은 outcome이 비어 있는 due batch/horizon을 찾아 장기 성과를 저장한다. `portfolio-attribution-bootstrap`은 보유 snapshot과 thesis outcome을 연결해 security/theme/cash attribution을 저장한다. `portfolio-outcome-coverage-report`는 attribution에서 제외되는 missing thesis/outcome/weight position을 read-only JSON으로 보고하고, `portfolio-review-bootstrap --coverage-measurement-end-date`는 같은 blind spot을 보유 검토 action/risk에 반영한다. `portfolio-review-run-history`는 최근 review run, risk/action counts, attention items를 운영 리포트로 출력한다. `portfolio-remediation-queue`는 attention item을 remediation type과 suggested runner로 분류해 다음 조치 큐로 보여주고, `portfolio-remediation-ticket-bootstrap`은 이 조치 큐를 persistent open ticket으로 저장한다. `portfolio-remediation-ticket-report`는 open/in-progress/resolved/ignored ticket backlog를 조회하고, `portfolio-remediation-ticket-update`는 ticket lifecycle status를 변경한다. `portfolio-remediation-daily-run`은 review bootstrap, ticket bootstrap, open ticket report를 daily 운영 순서로 묶고, scheduler contract/activation/holiday skip/install dry-run/runtime smoke/env readiness/env smoke는 실제 scheduler 설치 전 실행 경계, 휴장일 skip, artifact 저장, DB runtime 동작, env file gate를 검증한다. Frontend는 fixture server 기반 route shell이 있고, initial frontend contract endpoint는 live read adapter로 canonical Postgres state에서 DTO 변환할 수 있다. Local frontend API runtime은 `--source fixture|live|auto`와 local/production runtime boundary policy를 지원하며, production 후보 read-only API server는 FastAPI/Uvicorn/psycopg pool, request id, timeout, structured log, liveness/readiness probe, repo-outside runtime env preflight, list pagination conventions, OpenTelemetry Collector 기반 외부 observability sink decision, optional OTLP exporter pilot로 제공된다.
+현재 performance outcome 경로는 단일 측정일, batch 측정일, due horizon schedule 실행을 지원한다. `performance-outcome-schedule-bootstrap`은 outcome이 비어 있는 due batch/horizon을 찾아 장기 성과를 저장한다. `portfolio-attribution-bootstrap`은 보유 snapshot과 thesis outcome을 연결해 security/theme/cash attribution을 저장한다. `portfolio-outcome-coverage-report`는 attribution에서 제외되는 missing thesis/outcome/weight position을 read-only JSON으로 보고하고, `portfolio-review-bootstrap --coverage-measurement-end-date`는 같은 blind spot을 보유 검토 action/risk에 반영한다. `portfolio-review-run-history`는 최근 review run, risk/action counts, attention items를 운영 리포트로 출력한다. `portfolio-remediation-queue`는 attention item을 remediation type과 suggested runner로 분류해 다음 조치 큐로 보여주고, `portfolio-remediation-ticket-bootstrap`은 이 조치 큐를 persistent open ticket으로 저장한다. `portfolio-remediation-ticket-report`는 open/in-progress/resolved/ignored ticket backlog를 조회하고, `portfolio-remediation-ticket-update`는 ticket lifecycle status를 변경한다. `portfolio-remediation-daily-run`은 review bootstrap, ticket bootstrap, open ticket report를 daily 운영 순서로 묶고, scheduler contract/activation/holiday skip/install dry-run/runtime smoke/env readiness/env smoke는 실제 scheduler 설치 전 실행 경계, 휴장일 skip, artifact 저장, DB runtime 동작, env file gate를 검증한다. Frontend는 fixture server 기반 route shell이 있고, initial frontend contract endpoint는 live read adapter로 canonical Postgres state에서 DTO 변환할 수 있다. Local frontend API runtime은 `--source fixture|live|auto`와 local/production runtime boundary policy를 지원하며, production 후보 read-only API server는 FastAPI/Uvicorn/psycopg pool, request id, timeout, structured log, liveness/readiness probe, repo-outside runtime env preflight, list pagination conventions, SQL-level bounded pagination optimization, OpenTelemetry Collector 기반 외부 observability sink decision, optional OTLP exporter pilot, local OTLP receiver smoke, secret-free alert rule reference로 제공된다. Data Operations Loop는 daily/weekly/monthly cadence registry, `/api/data-health` expected job health handoff, generic stdout/stderr/metadata artifact runner, repo-outside runtime env readiness gate, disposable/local runtime smoke, generic scheduler activation boundary wrapper, launchd install dry-run renderer, secret-free scheduler alert rule reference, manual activation runbook, operator dry-run evidence bundle, activation approval gate, live activation request packet, user decision gate, final preflight, host activation plan, host activation execution request, host activation execution decision gate, host activation execution final preflight, host activation execution confirmation gate, manual exact-command approval packet, external manual activation preflight, `stockanalysis-operations` backend orchestration CLI first slice를 제공한다.
 
 현재 기준 문서:
 
@@ -28,8 +28,32 @@ AI를 이용해 거시경제, 정치, 기술, 산업, 기업 흐름을 계속 �
 - `docs/frontend-api-server.md`
 - `docs/frontend-api-server-deployment-boundary.md`
 - `docs/frontend-api-pagination-conventions.md`
+- `docs/frontend-api-sql-pagination-optimization.md`
 - `docs/frontend-api-observability-sink-decision.md`
 - `docs/frontend-api-otel-exporter-pilot.md`
+- `docs/frontend-api-local-collector-smoke.md`
+- `docs/frontend-api-alert-rules.md`
+- `docs/data-operations-cadence-foundation.md`
+- `docs/data-operations-artifact-runner.md`
+- `docs/data-operations-runtime-env-readiness.md`
+- `docs/data-operations-runtime-smoke.md`
+- `docs/data-operations-scheduler-activation-boundary.md`
+- `docs/data-operations-scheduler-install-dry-run.md`
+- `docs/data-operations-scheduler-alert-boundary.md`
+- `docs/data-operations-scheduler-activation-runbook.md`
+- `docs/data-operations-scheduler-operator-dry-run.md`
+- `docs/data-operations-scheduler-activation-approval-gate.md`
+- `docs/data-operations-live-scheduler-activation-request.md`
+- `docs/data-operations-live-scheduler-activation-user-decision.md`
+- `docs/data-operations-live-scheduler-activation-final-preflight.md`
+- `docs/data-operations-live-scheduler-host-activation-plan.md`
+- `docs/data-operations-live-scheduler-host-activation-execution-request.md`
+- `docs/data-operations-live-scheduler-host-activation-execution-decision.md`
+- `docs/data-operations-backend-orchestration-boundary.md`
+- `docs/data-operations-live-scheduler-host-activation-execution-final-preflight.md`
+- `docs/data-operations-live-scheduler-host-activation-execution.md`
+- `docs/manual-host-scheduler-activation-explicit-approval.md`
+- `docs/manual-host-scheduler-activation-preflight.md`
 - `docs/apps-web-scaffold.md`
 - `docs/repository-publication.md`
 - `docs/event-intelligence-llm-extract.md`
@@ -100,8 +124,54 @@ AI를 이용해 거시경제, 정치, 기술, 산업, 기업 흐름을 계속 �
 - `scripts/run_frontend_api_server.sh`
 - `scripts/verify_frontend_api_server_deployment_boundary.sh`
 - `scripts/verify_frontend_api_pagination_conventions.sh`
+- `scripts/verify_frontend_api_sql_pagination_optimization.sh`
 - `scripts/verify_frontend_api_observability_sink_decision.sh`
 - `scripts/verify_frontend_api_otel_exporter_pilot.sh`
+- `scripts/verify_frontend_api_local_collector_smoke.sh`
+- `scripts/verify_frontend_api_alert_rules.sh`
+- `scripts/verify_data_operations_cadence_foundation.sh`
+- `scripts/verify_data_operations_artifact_runner.sh`
+- `scripts/render_data_operations_env_template.sh`
+- `scripts/check_data_operations_runtime_env.sh`
+- `scripts/verify_data_operations_runtime_env_readiness.sh`
+- `scripts/smoke_data_operations_runtime.sh`
+- `scripts/verify_data_operations_runtime_smoke.sh`
+- `scripts/run_data_operations_scheduler_job.sh`
+- `scripts/verify_data_operations_scheduler_activation_boundary.sh`
+- `scripts/render_data_operations_scheduler_install.sh`
+- `scripts/verify_data_operations_scheduler_install_dry_run.sh`
+- `scripts/validate_data_operations_alert_rules.py`
+- `scripts/verify_data_operations_scheduler_alert_boundary.sh`
+- `scripts/dry_run_data_operations_scheduler_operator_flow.sh`
+- `scripts/verify_data_operations_scheduler_operator_dry_run.sh`
+- `scripts/check_data_operations_scheduler_activation_approval_gate.sh`
+- `scripts/verify_data_operations_scheduler_activation_approval_gate.sh`
+- `scripts/request_data_operations_live_scheduler_activation.sh`
+- `scripts/verify_data_operations_live_scheduler_activation_request.sh`
+- `scripts/decide_data_operations_live_scheduler_activation.sh`
+- `scripts/verify_data_operations_live_scheduler_activation_user_decision.sh`
+- `scripts/preflight_data_operations_live_scheduler_activation.sh`
+- `scripts/verify_data_operations_live_scheduler_activation_final_preflight.sh`
+- `scripts/plan_data_operations_live_scheduler_host_activation.sh`
+- `scripts/verify_data_operations_live_scheduler_host_activation_plan.sh`
+- `scripts/request_data_operations_live_scheduler_host_activation_execution.sh`
+- `scripts/verify_data_operations_live_scheduler_host_activation_execution_request.sh`
+- `scripts/decide_data_operations_live_scheduler_host_activation_execution.sh`
+- `scripts/verify_data_operations_live_scheduler_host_activation_execution_decision.sh`
+- `scripts/preflight_data_operations_live_scheduler_host_activation_execution.sh`
+- `scripts/verify_data_operations_live_scheduler_host_activation_execution_final_preflight.sh`
+- `scripts/run_data_operations_live_scheduler_host_activation_execution.sh`
+- `scripts/verify_data_operations_live_scheduler_host_activation_execution.sh`
+- `scripts/prepare_manual_host_scheduler_activation_explicit_approval.sh`
+- `scripts/verify_manual_host_scheduler_activation_explicit_approval.sh`
+- `scripts/preflight_manual_host_scheduler_activation.sh`
+- `scripts/verify_manual_host_scheduler_activation_preflight.sh`
+- `src/stockanalysis/operations/cli.py`
+- `src/stockanalysis/operations/env_file.py`
+- `src/stockanalysis/operations/path_policy.py`
+- `src/stockanalysis/operations/report_io.py`
+- `ops/observability/data-operations-alert-rules.yml`
+- `ops/observability/frontend-api-alert-rules.yml`
 - `scripts/verify_apps_web_scaffold.sh`
 - `scripts/verify_macro_ingest.sh`
 - `scripts/verify_macro_upsert_runner.sh`

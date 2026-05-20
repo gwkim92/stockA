@@ -1,0 +1,83 @@
+{
+  "contract_version": "frontend-api-v0.1",
+  "generated_at": "2026-05-19T00:00:00Z",
+  "data": {
+    "as_of_date": "2026-05-18",
+    "stock_count": 2,
+    "summary": {
+      "latest_price_date": "2026-05-18",
+      "priced_stock_count": 2,
+      "recommended_stock_count": 1,
+      "held_stock_count": 1
+    },
+    "stocks": [
+      {
+        "symbol": "AAPL",
+        "name": "Apple Inc.",
+        "instrument_id": "instrument-501",
+        "market_code": "US",
+        "currency_code": "USD",
+        "latest_price": {
+          "trade_date": "2026-05-18",
+          "open": 298.1,
+          "high": 303.5,
+          "low": 296.2,
+          "close": 300.23,
+          "adjusted_close": 300.23,
+          "volume": 51234000,
+          "change_pct": 0.012
+        },
+        "data_coverage": {
+          "bar_count": 101,
+          "first_trade_date": "2025-12-20",
+          "last_trade_date": "2026-05-18"
+        },
+        "recommendation": {
+          "recommendation_id": "recommendation-7101",
+          "linked_thesis_id": "thesis-7001",
+          "action": "monitor_or_accumulate",
+          "score": 0.78,
+          "status": "active",
+          "as_of_date": "2026-05-18"
+        },
+        "position": {
+          "portfolio_name": "Long Term Paper",
+          "snapshot_date": "2026-05-18",
+          "quantity": 8,
+          "weight": 0.05,
+          "market_price": 300.23,
+          "market_value": 2401.84,
+          "linked_thesis_id": "thesis-7001"
+        }
+      },
+      {
+        "symbol": "MSFT",
+        "name": "Microsoft Corporation",
+        "instrument_id": "instrument-503",
+        "market_code": "US",
+        "currency_code": "USD",
+        "latest_price": {
+          "trade_date": "2026-05-18",
+          "open": 422.4,
+          "high": 428.2,
+          "low": 421.1,
+          "close": 426.8,
+          "adjusted_close": 426.8,
+          "volume": 24112000,
+          "change_pct": -0.004
+        },
+        "data_coverage": {
+          "bar_count": 101,
+          "first_trade_date": "2025-12-20",
+          "last_trade_date": "2026-05-18"
+        },
+        "recommendation": null,
+        "position": null
+      }
+    ]
+  },
+  "links": {
+    "dashboard": "/api/dashboard/today",
+    "data_health": "/api/data-health"
+  }
+}

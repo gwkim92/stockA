@@ -23,6 +23,15 @@ class AlphaVantageSource(IngestSource):
                 notes=("Alpha Vantage free key currently allows up to 25 requests per day.",),
             ),
             DatasetDefinition(
+                name="daily",
+                description="Free daily OHLCV series without split/dividend adjustment.",
+                documentation_url=self.documentation_url,
+                required_params=("symbol",),
+                optional_params=("outputsize", "datatype"),
+                required_env_vars=("STOCKANALYSIS_ALPHA_VANTAGE_API_KEY",),
+                notes=("Used as the no-cost fallback when adjusted daily prices are premium-gated.",),
+            ),
+            DatasetDefinition(
                 name="income_statement",
                 description="Income statement fundamentals for a symbol.",
                 documentation_url=self.documentation_url,
@@ -52,6 +61,7 @@ class AlphaVantageSource(IngestSource):
 
         function_map = {
             "daily_adjusted": "TIME_SERIES_DAILY_ADJUSTED",
+            "daily": "TIME_SERIES_DAILY",
             "income_statement": "INCOME_STATEMENT",
             "earnings": "EARNINGS",
         }
@@ -60,7 +70,7 @@ class AlphaVantageSource(IngestSource):
             "apikey": api_key,
             "symbol": params["symbol"],
         }
-        if dataset_name == "daily_adjusted":
+        if dataset_name in {"daily_adjusted", "daily"}:
             query["outputsize"] = params.get("outputsize", "compact")
             query["datatype"] = params.get("datatype", "json")
 

@@ -33,6 +33,10 @@ require_file "docs/api/frontend/contract-index.json"
 require_file "docs/api/frontend/examples/daily-cockpit.json"
 require_file "docs/api/frontend/examples/remediation-tickets.json"
 require_file "docs/api/frontend/examples/data-health.json"
+require_file "docs/api/frontend/examples/stock-list.json"
+require_file "docs/api/frontend/examples/stock-detail.json"
+require_file "docs/api/frontend/examples/paper-trading-preview.json"
+require_file "docs/api/frontend/examples/trading-readiness.json"
 require_file "docs/api/frontend/examples/cycle-state-list.json"
 require_file "docs/api/frontend/examples/recommendation-detail.json"
 require_file "docs/api/frontend/examples/thesis-detail.json"
@@ -51,6 +55,10 @@ require_text "docs/frontend-api-contract.md" "frontend-api-v0.1"
 require_text "docs/frontend-api-contract.md" "DailyCockpitResponse"
 require_text "docs/frontend-api-contract.md" "RemediationTicketsResponse"
 require_text "docs/frontend-api-contract.md" "DataHealthResponse"
+require_text "docs/frontend-api-contract.md" "StockListResponse"
+require_text "docs/frontend-api-contract.md" "StockDetailResponse"
+require_text "docs/frontend-api-contract.md" "PaperTradingPreviewResponse"
+require_text "docs/frontend-api-contract.md" "TradingReadinessResponse"
 require_text "docs/frontend-api-contract.md" "CycleStateListResponse"
 require_text "docs/frontend-api-contract.md" "RecommendationDetailResponse"
 require_text "docs/frontend-api-contract.md" "ThesisDetailResponse"
@@ -77,12 +85,16 @@ with open(index_path, "r", encoding="utf-8") as handle:
 assert index["contract_version"] == "frontend-api-v0.1", index
 assert index["status"] == "draft", index
 endpoints = index["endpoints"]
-assert len(endpoints) == 12, endpoints
+assert len(endpoints) == 16, endpoints
 
 expected_dtos = {
     "DailyCockpitResponse",
     "RemediationTicketsResponse",
     "DataHealthResponse",
+    "StockListResponse",
+    "StockDetailResponse",
+    "PaperTradingPreviewResponse",
+    "TradingReadinessResponse",
     "CycleStateListResponse",
     "RecommendationDetailResponse",
     "ThesisDetailResponse",
@@ -96,6 +108,10 @@ expected_dtos = {
 assert {endpoint["response_dto"] for endpoint in endpoints} == expected_dtos, endpoints
 
 paths = {endpoint["path"] for endpoint in endpoints}
+assert "/api/stocks" in paths, endpoints
+assert "/api/stocks/AAPL" in paths, endpoints
+assert "/api/paper-trading/preview" in paths, endpoints
+assert "/api/trading/readiness" in paths, endpoints
 assert "/api/events?asOfDate=2024-11-01" in paths, endpoints
 assert "/api/themes/ANNUAL_REPORTING?asOfDate=2024-11-01" in paths, endpoints
 assert "/api/performance/Long%20Term%20Paper/outcomes?measurementEndDate=2024-12-02" in paths, endpoints
@@ -116,6 +132,10 @@ examples = {
     "daily": "docs/api/frontend/examples/daily-cockpit.json",
     "tickets": "docs/api/frontend/examples/remediation-tickets.json",
     "health": "docs/api/frontend/examples/data-health.json",
+    "stocks": "docs/api/frontend/examples/stock-list.json",
+    "stock_detail": "docs/api/frontend/examples/stock-detail.json",
+    "paper_trading": "docs/api/frontend/examples/paper-trading-preview.json",
+    "trading_readiness": "docs/api/frontend/examples/trading-readiness.json",
     "cycles": "docs/api/frontend/examples/cycle-state-list.json",
     "recommendation": "docs/api/frontend/examples/recommendation-detail.json",
     "thesis": "docs/api/frontend/examples/thesis-detail.json",
@@ -135,8 +155,15 @@ for key, relative_path in examples.items():
 assert loaded["daily"]["attention_summary"]["open_ticket_count"] == 1, loaded["daily"]
 assert loaded["tickets"]["tickets"][0]["symbol"] == "BABA", loaded["tickets"]
 assert "actual_runtime_db_smoke" in loaded["health"]["open_gates"], loaded["health"]
+assert loaded["stocks"]["stocks"][0]["symbol"] == "AAPL", loaded["stocks"]
+assert loaded["stock_detail"]["price_bars"][-1]["close"] == 300.23, loaded["stock_detail"]
+assert loaded["paper_trading"]["quality_summary"]["position_recommendation_conflict_count"] == 1, loaded["paper_trading"]
+assert loaded["paper_trading"]["paper_actions"][0]["requires_human_approval"] is True, loaded["paper_trading"]
+assert loaded["trading_readiness"]["readiness_status"] == "blocked", loaded["trading_readiness"]
+assert loaded["trading_readiness"]["audit_summary"]["submitted_to_broker_count"] == 0, loaded["trading_readiness"]
+assert "secret_ref" not in json.dumps(loaded["trading_readiness"]), loaded["trading_readiness"]
 assert loaded["cycles"]["cycle_states"][0]["theme_key"] == "ANNUAL_REPORTING", loaded["cycles"]
-assert loaded["recommendation"]["linked_thesis_id"] == "AAPL-bootstrap-v1", loaded["recommendation"]
+assert loaded["recommendation"]["linked_thesis_id"] == "thesis-7001", loaded["recommendation"]
 assert loaded["thesis"]["status"] == "active", loaded["thesis"]
 assert loaded["coverage"]["summary"]["missing_thesis_count"] == 1, loaded["coverage"]
 assert loaded["ai_evidence"]["source_document_id"] == "aapl-2024-10k-20240928", loaded["ai_evidence"]

@@ -241,7 +241,13 @@ def build_thesis_review_rows(
     for candidate in candidates:
         review_action = _review_action(candidate)
         health_score = _health_score(candidate, review_action=review_action)
-        summary = _review_summary(candidate, review_action=review_action)
+        next_review_date = _next_review_date(review_date, review_action=review_action)
+        summary = _review_summary(
+            candidate,
+            review_action=review_action,
+            health_score=health_score,
+            next_review_date=next_review_date,
+        )
         rows.append(
             ThesisReviewRow(
                 thesis_id=candidate.thesis_id,
@@ -251,8 +257,8 @@ def build_thesis_review_rows(
                 action=review_action,
                 health_score=health_score,
                 summary=summary,
-                change_notes="Deterministic bootstrap review from linked recommendation and current cycle evidence.",
-                next_review_date=_next_review_date(review_date, review_action=review_action),
+                change_notes=_review_change_notes(candidate, review_action=review_action),
+                next_review_date=next_review_date,
             )
         )
     return tuple(rows)
@@ -420,15 +426,104 @@ def _health_score(candidate: ThesisReviewCandidate, *, review_action: str) -> De
     return _quantize(score)
 
 
-def _review_summary(candidate: ThesisReviewCandidate, *, review_action: str) -> str:
-    if candidate.cycle_state is None:
-        cycle_text = "cycle state unavailable"
-    else:
-        cycle_text = f"cycle state {candidate.cycle_state} score {candidate.cycle_score}"
+def _review_summary(
+    candidate: ThesisReviewCandidate,
+    *,
+    review_action: str,
+    health_score: Decimal,
+    next_review_date: date,
+) -> str:
     return (
-        f"{candidate.primary_symbol} thesis review action {review_action}. "
-        f"Recommendation bucket {candidate.bucket} score {candidate.total_score}; {cycle_text}."
+        f"{candidate.primary_symbol} 검토 결과: 조치 {review_action}, 건강 점수 {_format_score(health_score)}. "
+        f"현재 추천은 {candidate.bucket} 버킷의 {candidate.action}, 추천 점수 {_format_score(candidate.total_score)}, "
+        f"순위 {candidate.rank_position}위다. "
+        f"사이클은 {_format_cycle(candidate)}. "
+        f"가격 맥락은 최신 수정종가 {_format_price(candidate.latest_adjusted_close)}, "
+        f"1일 수익률 {_format_ratio(candidate.return_1d)}, 관측 구간 수익률 "
+        f"{_format_ratio(candidate.return_since_first)}다. "
+        f"다음 검토일은 {next_review_date.isoformat()}이다."
     )
+
+
+def _review_change_notes(candidate: ThesisReviewCandidate, *, review_action: str) -> str:
+    signals = _review_signal_reasons(candidate)
+    return (
+        f"검토 근거: {_review_signal_explanations(signals)}. "
+        f"적용 조치: {review_action}. thesis 상태는 자동 변경하지 않았고, 주문이나 가상 거래도 만들지 않았다."
+    )
+
+
+def _review_signal_reasons(candidate: ThesisReviewCandidate) -> list[str]:
+    signals: list[str] = []
+    if candidate.cycle_state in _EXIT_STATES:
+        signals.append(f"cycle_{candidate.cycle_state}")
+    if candidate.cycle_state in _REDUCE_STATES:
+        signals.append(f"cycle_{candidate.cycle_state}")
+    if candidate.bucket == "avoid":
+        signals.append("recommendation_bucket_avoid")
+    if candidate.action == "exclude":
+        signals.append("recommendation_action_exclude")
+    if candidate.total_score < Decimal("0.3500"):
+        signals.append("score_below_0.3500")
+    if candidate.bucket == "watch" or candidate.action == "watch":
+        signals.append("watchlist_recommendation")
+    if candidate.cycle_state is None:
+        signals.append("cycle_state_unavailable")
+    if candidate.cycle_score is None:
+        signals.append("cycle_score_unavailable")
+    if candidate.latest_adjusted_close is None:
+        signals.append("latest_adjusted_close_unavailable")
+    if candidate.return_1d is None:
+        signals.append("return_1d_unavailable")
+    if candidate.return_since_first is None:
+        signals.append("observation_window_return_unavailable")
+    return signals or ["no_adverse_signal_keep"]
+
+
+def _review_signal_explanations(signals: list[str]) -> str:
+    label_by_signal = {
+        "cycle_structurally_broken": "사이클이 구조적으로 무너짐",
+        "cycle_correcting": "사이클이 조정 국면",
+        "recommendation_bucket_avoid": "추천 버킷이 회피 대상",
+        "recommendation_action_exclude": "추천 조치가 제외",
+        "score_below_0.3500": "추천 점수가 최소 검토 기준 0.3500 미만",
+        "watchlist_recommendation": "아직 관찰 후보",
+        "cycle_state_unavailable": "사이클 상태 입력 없음",
+        "cycle_score_unavailable": "사이클 점수 입력 없음",
+        "latest_adjusted_close_unavailable": "최신 수정종가 입력 없음",
+        "return_1d_unavailable": "1일 수익률 입력 없음",
+        "observation_window_return_unavailable": "관측 구간 수익률 입력 없음",
+        "no_adverse_signal_keep": "청산 또는 축소를 유발한 신호 없음",
+    }
+    return "; ".join(f"{label_by_signal.get(signal, signal)} ({signal})" for signal in signals)
+
+
+def _format_cycle(candidate: ThesisReviewCandidate) -> str:
+    if candidate.cycle_state is None:
+        return "상태 없음, 사이클 점수 없음"
+    return f"{candidate.cycle_state} 상태, 사이클 점수 {_format_optional_score(candidate.cycle_score)}"
+
+
+def _format_score(value: Decimal) -> str:
+    return str(value.quantize(_DECIMAL_QUANTIZER, rounding=ROUND_HALF_UP))
+
+
+def _format_optional_score(value: Decimal | None) -> str:
+    if value is None:
+        return "없음"
+    return _format_score(value)
+
+
+def _format_price(value: Decimal | None) -> str:
+    if value is None:
+        return "없음"
+    return str(value.quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP))
+
+
+def _format_ratio(value: Decimal | None) -> str:
+    if value is None:
+        return "없음"
+    return f"{(value * Decimal('100')).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)}%"
 
 
 def _next_review_date(review_date: date, *, review_action: str) -> date:

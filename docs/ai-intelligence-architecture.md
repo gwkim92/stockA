@@ -145,6 +145,31 @@ Copilot은 저장된 evidence와 canonical state를 질의한다.
 
 결론: `hybrid RAG + ontology/knowledge graph`를 쓴다.
 
+### Current Implementation Status
+
+2026-05-03 기준 현재 상태는 아래처럼 구분한다.
+
+이미 들어간 것:
+
+- `ref.classification_node`, `ref.classification_edge`는 Postgres 기반 ontology-lite graph다.
+- `ref.instrument_classification_membership`는 instrument와 classification node의 시간/근거 기반 membership을 저장한다.
+- `event.event_classification_impact`와 `event.event_instrument_impact`는 event를 theme/instrument evidence로 연결한다.
+- `ai.document_chunk`와 `ai.embedding_index`는 retrieval metadata와 vector storage pointer를 저장한다.
+- `ops.pipeline_run`은 deterministic runner provenance를 저장한다.
+
+아직 들어가지 않은 것:
+
+- Dagster, Airflow, Prefect 같은 orchestration framework
+- pgvector, OpenAI vector stores, external vector DB 같은 실제 vector retrieval backend
+- Neo4j, RDF triple store, OWL/SHACL runtime 같은 full ontology stack
+- Microsoft GraphRAG indexing/runtime pipeline
+
+다음 구현 기준:
+
+- 먼저 `ai-retrieval-graph-foundation` task의 contract를 기준으로 internal retrieval adapter와 Postgres evidence neighborhood query를 정의한다.
+- production vector DB와 graph DB는 adapter/query 병목이 확인된 뒤 pilot으로 평가한다.
+- orchestration framework는 current runner plus `ops.pipeline_run` 패턴이 retry/backfill/dependency visibility를 감당하지 못하는 증거가 있을 때 별도 task에서 평가한다.
+
 ### Why Not Plain Vector RAG Only
 
 Vector RAG는 특정 문서/문단을 찾는 데 강하다. 하지만 이 프로젝트의 핵심 질문은 단순 문서 검색이 아니다.

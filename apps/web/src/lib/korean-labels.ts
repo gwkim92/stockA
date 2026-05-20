@@ -1,0 +1,549 @@
+const KOREAN_LABELS: Record<string, string> = {
+  ANNUAL_REPORTING: "연간 공시",
+  ALL: "전체",
+  CASH: "현금",
+  EVIDENCE: "증거",
+  EXCLUDE: "제외",
+  REC: "추천",
+  Theme: "테마",
+  Thesis: "투자 논리",
+  DOC: "문서",
+  UNKNOWN: "종목 미분류",
+  UNCLASSIFIED: "테마 미분류",
+  MARKET_NEWS_FLOW: "시장 뉴스 흐름",
+  US_MARKET_BREADTH: "미국 시장 폭",
+  AI_SEMICONDUCTOR_CYCLE: "AI 반도체 사이클",
+  MACRO_RATES_FED: "금리·연준",
+  ENERGY_GEOPOLITICS: "에너지·지정학",
+
+  Long: "장기",
+  "Long Term Paper": "장기 페이퍼 포트폴리오",
+  annual_reporting: "연간 공시",
+  market_news_flow: "시장 뉴스 흐름",
+  us_market_breadth: "미국 시장 폭",
+  ai_semiconductor_cycle: "AI 반도체 사이클",
+  macro_rates_fed: "금리·연준",
+  energy_geopolitics: "에너지·지정학",
+  active: "활성",
+  alert_destination: "알림 목적지",
+  ai: "AI",
+  alpha_vantage: "Alpha Vantage",
+  all: "전체",
+  "attention required": "주의 필요",
+  attention_required: "주의 필요",
+  auth_rbac: "인증/RBAC",
+  twelve_data: "Twelve Data",
+  accumulate: "분할 매수",
+  avoid: "회피",
+  blocked: "차단",
+  broker_boundary: "브로커 경계",
+  buy: "매수",
+  completed: "완료",
+  constructive: "건설적",
+  configured: "설정됨",
+  configure_scheduler_activation_gate_report: "스케줄러 승인 gate report 설정 필요",
+  covered: "커버됨",
+  correcting: "조정 중",
+  daily: "일간",
+  weekly: "주간",
+  monthly: "월간",
+  failed: "실패",
+  forming: "형성 중",
+  healthy: "정상",
+  high: "높음",
+  human_review_required: "사람 검토 필요",
+  human_risk_review: "사람 리스크 검토",
+  in_progress: "진행 중",
+  low: "낮음",
+  long_term: "장기",
+  long_term_core: "장기 핵심 전략",
+  "bootstrap-v1": "초기화 v1",
+  "fixture-v1": "검증용 v1",
+  medium: "중간",
+  measured: "측정됨",
+  missing: "누락",
+  missing_configuration: "설정 누락",
+  missing_outcome: "성과 측정 누락",
+  missing_thesis: "투자 논리 누락",
+  missing_weight: "비중 누락",
+  monitor: "관찰 유지",
+  monitor_or_accumulate: "관찰 또는 분할 매수",
+  no_recommendation: "추천 없음",
+  needs_outcome_review: "성과 검토 필요",
+  needs_evidence_review: "근거 보강 필요",
+  needs_thesis_review: "투자 논리 검토 필요",
+  needs_weight_review: "비중 검토 필요",
+  neutral: "중립",
+  no_quota_available: "무료 한도 소진",
+  none: "없음",
+  not_configured: "미설정",
+  not_installed: "미설치",
+  not_applicable: "해당 없음",
+  "not applicable": "해당 없음",
+  not_triggered: "미발동",
+  open: "열림",
+  openai: "OpenAI",
+  outperform: "벤치마크 상회",
+  passed: "통과",
+  pending: "대기",
+  paper_buy_to_target: "가상 목표 비중 매수 후보",
+  paper_hold: "가상 보유 유지",
+  paper_increase_to_target: "가상 목표 비중 증액 후보",
+  paper_reduce_to_target: "가상 목표 비중 감액 후보",
+  paper_review_no_recommendation: "추천 없는 보유 검토",
+  paper_sell_to_zero: "가상 전량 매도 후보",
+  paper_ready: "가상 거래 준비 완료",
+  ready_for_paper_audit: "가상 감사 준비",
+  ready_for_human_review: "사람 검토 가능",
+  pass: "통과",
+  warning: "주의",
+  paper: "가상 거래",
+  live: "실거래",
+  paper_trade: "가상 거래 권한",
+  live_trade: "실거래 권한",
+  read_only: "읽기 전용",
+  revoked: "철회",
+  inactive: "비활성",
+  disabled: "비활성",
+  enabled: "활성",
+  global: "전체",
+  account_permission: "계좌 권한",
+  order_limit_policy: "주문 한도",
+  order_boundary: "주문 차단",
+  kill_switch: "킬 스위치",
+  paper_validation: "가상 검증",
+  audit_log: "감사 로그",
+  pending_manual_approval: "수동 승인 대기",
+  add: "편입",
+  buy_candidate: "매수 후보",
+  keep: "유지",
+  reduce: "비중 축소",
+  structurally_broken: "구조 훼손",
+  account_daily_notional_limit_exceeded: "계좌 일일 한도 초과",
+  account_order_notional_limit_exceeded: "계좌 단일 주문 한도 초과",
+  account_permission_not_active: "계좌 권한 비활성",
+  account_permission_scope_insufficient: "계좌 권한 범위 부족",
+  broker_boundary_not_enabled: "브로커 경계 비활성",
+  broker_preview_not_supported: "주문 미리보기 미지원",
+  human_approval_required: "사람 승인 필요",
+  kill_switch_engaged: "킬 스위치 작동 중",
+  order_limit_policy_not_active: "주문 한도 정책 비활성",
+  position_recommendation_conflict: "보유와 추천 충돌",
+  single_order_notional_limit_exceeded: "단일 주문 금액 한도 초과",
+  single_order_weight_delta_limit_exceeded: "단일 주문 비중 변화 한도 초과",
+  symbol_not_allowed_for_account: "계좌 허용 종목 아님",
+  production_api_server: "운영 API 서버",
+  risk_review: "리스크 검토",
+  resolved: "해결",
+  news_rss: "뉴스 RSS",
+  news_rss_item: "뉴스 RSS 항목",
+  "news rss item": "뉴스 RSS 항목",
+  news_cluster_summary: "뉴스 묶음 증거",
+  news_cluster_summary_v1: "뉴스 묶음 요약 v1",
+  local_rules: "무료 로컬 규칙",
+  free_local_rules: "무료 로컬 규칙",
+  postgres_sql: "Postgres SQL",
+  postgres_canonical_tables: "Postgres 표준 테이블",
+  read_only_evidence_neighborhood: "읽기 전용 증거 관계망",
+  not_indexed: "임베딩 미생성",
+  indexed: "임베딩 생성됨",
+  contains: "포함",
+  belongs_to: "소속",
+  parent_child: "상하위",
+  analysis_method: "분석 방식",
+  event_count: "이벤트 수",
+  linked_symbols: "연결 종목",
+  sec_filing: "SEC 공시",
+  sec_10k_filing: "SEC 10-K 공시",
+  "sec 10k filing": "SEC 10-K 공시",
+  sec_annual_report_filed: "SEC 연간보고서 제출",
+  "sec annual report filed": "SEC 연간보고서 제출",
+  security_selection: "종목 선택",
+  same_source_document: "같은 원천 문서",
+  same_symbol: "같은 종목",
+  same_theme: "같은 테마",
+  ai_or_event_evidence: "AI/이벤트 근거",
+  event_or_ai_evidence: "원천 이벤트/AI 근거",
+  linked_thesis: "투자 논리 연결",
+  market_feature: "가격 지표",
+  market_feature_provenance: "가격/순위 입력 근거",
+  outcome_measurement: "성과 측정",
+  return_1d: "1일 수익률",
+  return_since_first_observation: "관측 시작 이후 수익률",
+  score_components: "점수 구성요소",
+  strategy_universe_rank: "전략 유니버스 순위",
+  source_events: "원천 이벤트",
+  performance_evidence: "성과 근거",
+  invalidation_conditions: "무효화 조건",
+  latest_human_review: "최근 사람 검토",
+  scheduler_activation_approval_gate_report: "스케줄러 승인 gate report",
+  scheduler_activation_manual_approval: "스케줄러 수동 승인",
+  source_document_event: "원천 문서 이벤트",
+  source_document_review_required: "원천 문서 검토 필요",
+  "source document review required": "원천 문서 검토 필요",
+  succeeded: "성공",
+  supportive: "우호적",
+  theme_exposure: "테마 노출",
+  thesis_or_position_link_review: "투자 논리/포지션 연결 검토",
+  thesis_remediation: "투자 논리 보완",
+  underperform: "벤치마크 하회",
+  invalid_report: "잘못된 report",
+  ok: "정상",
+  observed: "관측됨",
+  market: "시장",
+  macro: "거시",
+  performance: "성과",
+  portfolio: "포트폴리오",
+  sec: "SEC",
+  signal: "신호",
+  market_daily_price_bar: "일간 가격 바",
+  "market.daily_price_bar": "일간 가격 바",
+  macro_weekly: "주간 거시 데이터",
+  market_price_upsert: "시장 가격 적재",
+  market_price_daily: "일간 시장 가격 적재",
+  "market-price-daily": "일간 시장 가격 적재",
+  news_rss_upsert: "뉴스 RSS 적재",
+  news_rss_daily: "일간 뉴스 RSS 적재",
+  "news-rss-daily": "일간 뉴스 RSS 적재",
+  event_intelligence_weekly: "주간 이벤트/AI 분석",
+  "event-intelligence-weekly": "주간 이벤트/AI 분석",
+  preview_not_executed: "미리보기만 생성됨",
+  missing_report: "요약 report 없음",
+  manual_local_ingest_smoke_report: "수동 수집 smoke 요약",
+  local_ingest_worker_report: "로컬 worker 실행 요약",
+  "open /data-health and verify the latest local ingest worker cycle": "데이터 수집 화면에서 최신 로컬 worker cycle을 확인한다",
+  "run local-ingest-worker-run --output outside the repository": "repo 밖 경로로 local-ingest-worker-run --output을 실행한다",
+  market_universe_bootstrap: "시장 유니버스 초기화",
+  macro_upsert: "거시 데이터 적재",
+  sec_filings_upsert: "SEC 공시 적재",
+  event_intelligence_llm_extract: "이벤트 AI 추출",
+  cycle_state_snapshot: "사이클 상태 스냅샷",
+  portfolio_position_snapshot_upsert: "포트폴리오 포지션 적재",
+  portfolio_position_daily: "일간 포트폴리오 포지션",
+  portfolio_attribution_bootstrap: "포트폴리오 성과 귀속 초기화",
+  performance_outcome_schedule_bootstrap: "성과 측정 일정 초기화",
+  portfolio_remediation_daily: "일간 포트폴리오 검토 큐",
+  portfolio_remediation_daily_automation: "포트폴리오 검토 큐 생성",
+  performance_outcome_monthly: "월간 성과 측정",
+  "portfolio.position snapshot": "포트폴리오 포지션 스냅샷",
+  "template rendered placeholder pending": "템플릿 렌더링됨, 실제 값 대기",
+  "explicit skip dates": "명시 휴장일 사용",
+  "data-operations-live-scheduler-activation-request": "스케줄러 활성화 요청 단계",
+  blocked_pending_manual_approval: "수동 승인 대기",
+  approved_for_manual_activation: "수동 활성화 승인됨",
+  data_operations_live_scheduler_activation_request: "스케줄러 활성화 요청 단계",
+  regenerate_scheduler_activation_gate_report: "스케줄러 승인 gate report 재생성 필요",
+
+  alpha_turns_negative_at_next_measurement: "다음 측정에서 알파가 음수로 전환",
+  cash_timing: "현금 타이밍",
+  coverage_ready: "커버리지 준비",
+  cycle_state: "사이클 상태",
+  cycle_state_breaks_to_negative: "사이클 상태가 부정적으로 전환",
+  entity_and_theme_anchor: "기업/테마 기준점",
+  event_intensity: "이벤트 강도",
+  event_quality: "이벤트 품질",
+  event_quality_signal: "이벤트 품질 신호",
+  event_title: "이벤트 제목",
+  fundamental_quality: "펀더멘털 품질",
+  methodology_boundary: "방법론 경계",
+  outcome_run: "성과 측정 실행",
+  performance_outcome: "성과 측정",
+  position_weighted_alpha_v1: "포지션 비중 가중 알파 v1",
+  price_momentum: "가격 모멘텀",
+  "local provider budget ledger": "로컬 제공자 예산 원장",
+  local_provider_budget_ledger: "로컬 제공자 예산 원장",
+  repo_outside_budget_ledger: "repo 밖 예산 원장",
+  theme_mapping: "테마 매핑",
+  unavailable: "미제공",
+  unknown: "알 수 없음",
+  watch: "관찰",
+
+  "AAPL recommendation and thesis outcome are measured through 2024-12-02.":
+    "AAPL 추천과 투자 논리 성과가 2024-12-02까지 측정되었습니다.",
+  "AAPL remains covered by the annual reporting quality theme with constructive cycle evidence and positive benchmark-relative outcome.":
+    "AAPL은 연간 공시 품질 테마, 건설적인 사이클 증거, 벤치마크 대비 양호한 성과로 계속 커버됩니다.",
+  "AAPL is an active avoid recommendation linked to Annual Reporting. Cycle state is forming; recommendation score is 0.2579.":
+    "AAPL은 연간 공시 테마에 연결된 활성 회피 추천입니다. 사이클 상태는 형성 중이고 추천 점수는 25.79%입니다.",
+  "AAPL avoid thesis via Annual Reporting": "연간 공시 테마를 근거로 한 AAPL 회피 투자 논리",
+  "AAPL thesis outcome pass": "AAPL 투자 논리 성과 통과",
+  "Keep active recommendation status, selected universe membership, and direct theme/cycle evidence.":
+    "활성 추천 상태, 선택된 유니버스 편입, 직접적인 테마/사이클 증거가 유지되어야 합니다.",
+  "Invalidate if recommendation score falls below 0.3500, cycle state weakens to correcting or structurally broken, or direct theme evidence is removed.":
+    "추천 점수가 35.00% 아래로 떨어지거나, 사이클 상태가 조정/구조 훼손으로 약화되거나, 직접 테마 증거가 제거되면 투자 논리를 재검토합니다.",
+  "AAPL security selection": "AAPL 종목 선택",
+  "Apple Files Fiscal 2024 Form 10-K Annual Report": "Apple 2024 회계연도 Form 10-K 제출",
+  "Annual report filed: Apple Inc.": "Apple Inc. 연간보고서 제출",
+  "AAPL 2024 10-K annual reporting event": "AAPL 2024 10-K 연간 공시 이벤트",
+  "AAPL 2024 Form 10-K source document": "AAPL 2024 Form 10-K 원천 문서",
+  "AAPL outperformed SPY over measurement window": "AAPL이 측정 기간 동안 SPY를 상회했습니다.",
+  "Access Policy Note": "접근 정책 메모",
+  "Annual filing confirms continued services and installed-base revenue mix.":
+    "연간 보고서가 서비스와 설치 기반 매출 구성이 계속 유지됨을 확인했습니다.",
+  "default locked until explicit operator approval": "명시적 운영자 승인 전까지 기본 차단",
+  "Annual Reporting": "연간 공시",
+  "MARKET NEWS FLOW": "시장 뉴스 흐름",
+  "US MARKET BREADTH": "미국 시장 폭",
+  "AI SEMICONDUCTOR CYCLE": "AI 반도체 사이클",
+  "MACRO RATES FED": "금리·연준",
+  "ENERGY GEOPOLITICS": "에너지·지정학",
+  "Annual reporting cadence driven by Form 10-K filings.": "Form 10-K 공시 주기로 확인하는 연간 공시 테마입니다.",
+  "Annual reporting event quality remains supportive.": "연간 공시 이벤트 품질이 우호적으로 유지됩니다.",
+  "Annual reporting quality": "연간 공시 품질",
+  "AI output is stored as evidence metadata only; it does not place trades or mutate thesis state.":
+    "AI 출력은 증거 메타데이터로만 저장되며, 거래를 실행하거나 투자 논리 상태를 바꾸지 않습니다.",
+  "BABA has no active thesis, so attribution coverage is incomplete.":
+    "BABA에 활성 투자 논리가 없어 성과 귀속 커버리지가 불완전합니다.",
+  "Business overview": "사업 개요",
+  "Cash is visible so uninvested weight is not hidden inside attribution math.":
+    "미투자 비중이 성과 귀속 계산 안에 숨지 않도록 현금을 명시합니다.",
+  "Company overview and segment framing used to anchor the filing event to AAPL.":
+    "공시 이벤트를 AAPL에 연결하기 위해 기업 개요와 사업 부문 맥락을 사용했습니다.",
+  "Constructive cycle state is context for thesis quality, not an automatic buy signal.":
+    "건설적인 사이클 상태는 투자 논리 품질의 맥락이지 자동 매수 신호가 아닙니다.",
+  "Create or link an active long-term thesis before attribution can be trusted.":
+    "성과 귀속을 신뢰하기 전에 활성 장기 투자 논리를 만들거나 연결해야 합니다.",
+  "Create or link an active thesis before the next portfolio review.":
+    "다음 포트폴리오 검토 전에 활성 투자 논리를 만들거나 연결해야 합니다.",
+  data_operations_artifact_runner: "데이터 운영 실행 산출물 관리",
+  exit: "청산",
+  exit_review: "청산 검토",
+  exclude: "제외",
+  sell: "매도",
+  cycle_score: "사이클 점수",
+  "cycle score": "사이클 점수",
+  momentum_score: "모멘텀 점수",
+  "momentum score": "모멘텀 점수",
+  rank_score: "순위 점수",
+  "rank score": "순위 점수",
+  short_term_score: "단기 점수",
+  "short term score": "단기 점수",
+  "Operating context used by the event extractor as a qualitative annual reporting signal.":
+    "이벤트 추출기가 정성적 연간 공시 신호로 사용한 운영 맥락입니다.",
+  "Management discussion": "경영진 논의",
+  "Operating discussion used by the extractor to identify supportive annual reporting evidence.":
+    "추출기가 우호적인 연간 공시 증거를 식별하는 데 사용한 운영 논의입니다.",
+  "Portfolio positions have thesis/outcome coverage.": "포트폴리오 포지션에 투자 논리/성과 커버리지가 있습니다.",
+  "Position-weighted alpha contribution for the covered AAPL thesis.":
+    "커버된 AAPL 투자 논리에 대한 포지션 비중 가중 알파 기여입니다.",
+  "Security and theme components are explanatory lenses, not additive totals.":
+    "종목/테마 구성요소는 설명 관점이며 단순 합산 총액이 아닙니다.",
+  "Some positions are excluded from attribution coverage.": "일부 포지션은 성과 귀속 커버리지에서 제외되었습니다.",
+  "Supporting event still carries human review gate before it can justify thesis mutation.":
+    "보조 이벤트는 투자 논리 변경 근거로 쓰기 전에 사람 검토 gate가 필요합니다.",
+  "Theme lens mirrors the covered thesis exposure; do not add this to security lens as total P&L.":
+    "테마 관점은 커버된 투자 논리 노출을 반영합니다. 이를 종목 관점과 합산해 총손익처럼 읽으면 안 됩니다.",
+  "covered thesis and outcome remain valid": "커버된 투자 논리와 성과 측정이 계속 유효합니다.",
+  "coverage status missing_thesis": "커버리지 상태: 투자 논리 누락",
+  "quality_gate requires human review before this event can justify a thesis change.":
+    "이 이벤트가 투자 논리 변경 근거가 되기 전에 품질 관문에서 사람 검토가 필요합니다.",
+  "Review exit thesis and risk evidence; no trade automation is implied.":
+    "청산 투자 논리와 리스크 증거를 검토해야 합니다. 자동 매매는 포함하지 않습니다.",
+  "raw document delivery and access control are deferred until auth/RBAC exists":
+    "원문 문서 제공과 접근 제어는 인증/RBAC가 준비될 때까지 보류됩니다.",
+};
+
+const EMBEDDED_LABEL_REPLACEMENTS: Array<[RegExp, string]> = [
+  [/\brecommendation score falls below 0\.3500\b/g, "추천 점수가 0.3500 아래로 하락"],
+  [/\brecommendation\b/g, "추천"],
+  [/\bcycle state\b/g, "사이클 상태"],
+  [/\bcycle\b/g, "사이클"],
+  [/\bfeature provenance\b/g, "가격 지표 출처"],
+  [/\bfeature snapshot\b/g, "가격 지표 스냅샷"],
+  [/\bmarket-feature\b/g, "가격 지표"],
+  [/\brank component\b/g, "순위 구성요소"],
+  [/\bsource run\b/g, "원천 실행"],
+  [/\bscore component evidence_id\b/g, "점수 구성요소 근거 ID"],
+  [/\bevidence_id\b/g, "근거 ID"],
+  [/\bsource_run_id\b/g, "원천 실행 ID"],
+  [/\bcomponent\b/g, "구성요소"],
+  [/\bz-score\b/g, "표준화 점수"],
+  [/\brank\b/g, "순위"],
+  [/\bevent\b/g, "이벤트"],
+  [/\bfeature\b/g, "가격 지표"],
+  [/\bevidence\b/g, "근거"],
+  [/\boutcome\b/g, "성과"],
+  [/\breview\b/g, "검토"],
+  [/\bread-only\b/g, "읽기 전용"],
+  [/\bbroker boundary\b/g, "브로커 경계"],
+  [/\bkill switch\b/g, "킬 스위치"],
+  [/\bthesis\b/g, "투자 논리"],
+  [/\baction\b/g, "조치"],
+  [/\blong_term_core\b/g, "장기 핵심 전략"],
+  [/\bANNUAL_REPORTING\b/g, "연간 공시"],
+  [/\bAnnual Reporting\b/g, "연간 공시"],
+  [/\bavoid\b/g, "회피"],
+  [/\bexclude\b/g, "제외"],
+  [/\bexit\b/g, "청산"],
+  [/\breduce\b/g, "비중 축소"],
+  [/\bwatch\b/g, "관찰"],
+  [/\bkeep\b/g, "유지"],
+  [/\bactive\b/g, "활성"],
+  [/\bforming\b/g, "형성 중"],
+  [/\bcorrecting\b/g, "조정 중"],
+  [/\bstructurally_broken\b/g, "구조 훼손"],
+  [/\bstructurally broken\b/g, "구조 훼손"],
+  [/\bunavailable\b/g, "없음"],
+  [/\bmarket feature\b/g, "가격 지표"],
+  [/\bmarket features\b/g, "가격 지표"],
+  [/\bbootstrap-v1\b/g, "초기화 v1"],
+  [/\bfixture-v1\b/g, "검증용 v1"],
+  [/연간 공시\s*\(연간 공시\)/g, "연간 공시"],
+  [/장기 핵심 전략 전략/g, "장기 핵심 전략"],
+  [/가격 가격 지표 출처/g, "가격 지표 출처"],
+  [/성과을/g, "성과를"],
+  [/ai-근거/g, "AI 근거"],
+  [/없음 상태/g, "없는 상태"],
+];
+
+function translateEmbeddedLabels(value: string): string {
+  return EMBEDDED_LABEL_REPLACEMENTS.reduce(
+    (translated, [pattern, replacement]) => translated.replace(pattern, replacement),
+    value,
+  );
+}
+
+export function koLabel(value: string | null | undefined): string {
+  if (!value) {
+    return "없음";
+  }
+  return KOREAN_LABELS[value] ?? translateEmbeddedLabels(value);
+}
+
+export function koCode(value: string | null | undefined): string {
+  if (!value) {
+    return "없음";
+  }
+  const lowerValue = value.toLowerCase();
+  const spacedValue = value.replaceAll("_", " ");
+  return KOREAN_LABELS[value] ?? KOREAN_LABELS[lowerValue] ?? KOREAN_LABELS[spacedValue] ?? spacedValue;
+}
+
+export function koReason(value: string | null | undefined): string {
+  if (!value) {
+    return "없음";
+  }
+  const portfolioReason = value.match(
+    /^([A-Z]+) portfolio review action ([^.]+)\. Thesis review action ([^;]+); current weight ([^;]+); recommended weight ([^;]+); coverage status ([^.]+)\.$/,
+  );
+  if (portfolioReason) {
+    const [, symbol, action, thesisAction, currentWeight, recommendedWeight, coverageStatus] = portfolioReason;
+    return [
+      `${symbol} 포트폴리오 검토 조치: ${koCode(action)}.`,
+      `투자 논리 검토 조치: ${koCode(thesisAction)}.`,
+      `현재 비중: ${currentWeight}.`,
+      `권장 비중: ${koCode(recommendedWeight)}.`,
+      `커버리지 상태: ${koCode(coverageStatus)}.`,
+    ].join(" ");
+  }
+  return koLabel(value);
+}
+
+const BLOCKED_REASON_DETAILS: Record<string, { title: string; description: string; nextStep: string }> = {
+  account_daily_notional_limit_exceeded: {
+    title: "계좌 일일 주문 한도를 넘는다",
+    description: "오늘 누적 주문 후보와 이번 주문 후보를 합치면 계좌의 일일 금액 한도를 초과한다.",
+    nextStep: "오늘 실행 후보를 줄이거나, 별도 승인 절차를 거쳐 paper 한도 정책을 조정한다.",
+  },
+  account_order_notional_limit_exceeded: {
+    title: "계좌 단일 주문 한도를 넘는다",
+    description: "이 후보 한 건의 주문 금액이 paper 계좌에 설정된 단일 주문 한도보다 크다.",
+    nextStep: "목표 비중까지 한 번에 처리하지 말고 여러 paper 단계로 쪼갠다.",
+  },
+  account_permission_not_active: {
+    title: "계좌 권한이 활성 상태가 아니다",
+    description: "paper_trade 권한이 active가 아니면 주문 의도 평가도 통과시킬 수 없다.",
+    nextStep: "simulated paper 계좌 권한을 active로 등록한다.",
+  },
+  account_permission_scope_insufficient: {
+    title: "계좌 권한 범위가 부족하다",
+    description: "현재 권한이 읽기 전용이거나 paper 거래 평가에 필요한 범위보다 낮다.",
+    nextStep: "paper 전용 계좌에 paper_trade scope를 부여한다.",
+  },
+  broker_boundary_not_enabled: {
+    title: "브로커 경계가 활성화되지 않았다",
+    description: "실제 브로커가 아니라도 paper preview용 경계가 enabled 상태여야 한다.",
+    nextStep: "simulated paper broker boundary를 enabled로 등록한다.",
+  },
+  broker_preview_not_supported: {
+    title: "주문 미리보기가 꺼져 있다",
+    description: "paper 단계에서는 실제 제출이 아니라 미리보기 평가 기능만 필요하다.",
+    nextStep: "paper broker boundary에서 supports_order_preview를 켠다.",
+  },
+  human_approval_required: {
+    title: "사람 승인이 아직 없다",
+    description: "이 시스템은 자동 주문 시스템이 아니므로 paper 후보도 명시 승인 없이는 통과하지 않는다.",
+    nextStep: "후보와 근거를 검토한 뒤 별도 승인 기록을 남긴다.",
+  },
+  kill_switch_engaged: {
+    title: "킬 스위치가 차단 중이다",
+    description: "킬 스위치가 켜져 있으면 paper 후보도 주문 의도 승인 상태로 넘어가지 않는다.",
+    nextStep: "실거래 전에는 유지한다. paper 검증만 열 때도 별도 승인 기록이 필요하다.",
+  },
+  order_limit_policy_not_active: {
+    title: "주문 한도 정책이 비활성이다",
+    description: "단일 주문, 일일 주문, 비중 변화, 현금 버퍼 한도가 active로 설정되어야 한다.",
+    nextStep: "장기 paper 포트폴리오용 한도 정책을 active로 등록한다.",
+  },
+  position_recommendation_conflict: {
+    title: "보유와 추천이 충돌한다",
+    description: "현재 보유 중인 종목이 최신 추천에서는 제외/매도 후보로 분류됐다.",
+    nextStep: "투자 논리와 최신 근거를 검토해 유지, 감액, 청산 중 하나를 사람 판단으로 확정한다.",
+  },
+  single_order_notional_limit_exceeded: {
+    title: "단일 주문 금액 한도를 넘는다",
+    description: "목표 비중까지 한 번에 이동하면 paper 주문 한도보다 주문 금액이 커진다.",
+    nextStep: "한도 안에서 1차 감액/증액 후보로 쪼개고 다음 스냅샷에서 재검증한다.",
+  },
+  single_order_weight_delta_limit_exceeded: {
+    title: "한 번에 바꾸는 비중이 너무 크다",
+    description: "현재 비중에서 목표 비중까지의 변화 폭이 단일 주문 비중 변화 한도를 넘는다.",
+    nextStep: "목표 비중으로 바로 가지 말고 허용된 비중 변화 폭 안에서 단계적으로 조정한다.",
+  },
+  symbol_not_allowed_for_account: {
+    title: "계좌에서 허용된 종목이 아니다",
+    description: "paper 계좌의 allowed_symbols 목록이 이 종목을 허용하지 않는다.",
+    nextStep: "허용 종목 목록을 검토하고 paper 계좌 범위에 포함할지 결정한다.",
+  },
+};
+
+export type KoreanBlockedReason = {
+  raw: string;
+  symbol: string | null;
+  code: string;
+  title: string;
+  description: string;
+  nextStep: string;
+};
+
+export function koBlockedReason(value: string): KoreanBlockedReason {
+  const conflictMatch = value.match(/^position_recommendation_conflict:([A-Z0-9.-]+)$/);
+  if (conflictMatch) {
+    const code = "position_recommendation_conflict";
+    const detail = BLOCKED_REASON_DETAILS[code];
+    return {
+      raw: value,
+      symbol: conflictMatch[1],
+      code,
+      title: detail.title,
+      description: detail.description,
+      nextStep: detail.nextStep,
+    };
+  }
+
+  const symbolMatch = value.match(/^([A-Z0-9.-]+):([a-z0-9_:-]+)$/);
+  const symbol = symbolMatch ? symbolMatch[1] : null;
+  const code = symbolMatch ? symbolMatch[2] : value;
+  const detail = BLOCKED_REASON_DETAILS[code];
+  return {
+    raw: value,
+    symbol,
+    code,
+    title: detail?.title ?? koCode(code),
+    description: detail?.description ?? "아직 상세 설명이 없는 차단 사유다. 원문 reason code를 기준으로 검토해야 한다.",
+    nextStep: detail?.nextStep ?? "차단 사유를 운영 문서에 추가하고, 사람 검토 후 다음 조치를 결정한다.",
+  };
+}
+
+export function koBoolean(value: boolean): string {
+  return value ? "예" : "아니오";
+}

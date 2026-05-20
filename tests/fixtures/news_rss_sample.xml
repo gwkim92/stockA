@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Example Market News</title>
+    <link>https://example.com/markets</link>
+    <language>en-US</language>
+    <item>
+      <title>Apple supplier orders point to AI device cycle</title>
+      <link>https://example.com/markets/apple-ai-device-cycle</link>
+      <guid isPermaLink="false">example-news-apple-ai-device-cycle</guid>
+      <pubDate>Tue, 19 May 2026 10:00:00 GMT</pubDate>
+      <description><![CDATA[Apple suppliers reported <b>stronger</b> component orders tied to AI-enabled devices.]]></description>
+    </item>
+    <item>
+      <title>Microsoft cloud backlog expands on enterprise AI demand</title>
+      <link>https://example.com/markets/microsoft-cloud-ai-backlog</link>
+      <guid isPermaLink="false">example-news-microsoft-cloud-ai-backlog</guid>
+      <pubDate>Tue, 19 May 2026 11:30:00 GMT</pubDate>
+      <description>Enterprise AI demand lifted cloud infrastructure backlog.</description>
+    </item>
+  </channel>
+</rss>

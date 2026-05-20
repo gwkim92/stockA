@@ -1,17 +1,23 @@
 import type {
   ApiResponse,
+  AiEvidenceNeighborhoodData,
   AiEvidenceDetailData,
+  AiNewsClusterListData,
   CycleStateListData,
   DailyCockpitData,
   DataHealthData,
   EventListData,
+  PaperTradingPreviewData,
   PerformanceOutcomesData,
   PortfolioCoverageData,
   RecommendationDetailData,
   RemediationTicketsData,
   SourceDocumentDetailData,
+  StockDetailData,
+  StockListData,
   ThemeDetailData,
   ThesisDetailData,
+  TradingReadinessData,
 } from "./types";
 
 const DEFAULT_FIXTURE_BASE_URL = "http://127.0.0.1:8765";
@@ -75,6 +81,52 @@ export function getDataHealth() {
   return fetchFrontendPayload<DataHealthData>("/api/data-health");
 }
 
+export function getStocks() {
+  return fetchFrontendPayload<StockListData>("/api/stocks");
+}
+
+export function getStockDetail(symbol: string) {
+  return fetchFrontendPayload<StockDetailData>(`/api/stocks/${encodeURIComponent(symbol)}`);
+}
+
+export function getAiEvidenceNeighborhood(symbol: string) {
+  return fetchFrontendPayload<AiEvidenceNeighborhoodData>(
+    `/api/ai/evidence-neighborhoods/${encodeURIComponent(symbol)}`,
+  );
+}
+
+export function getAiNewsClusters({
+  asOfDate = currentIsoDate(),
+  themeKey,
+  symbol,
+  limit = 4,
+}: {
+  asOfDate?: string;
+  themeKey?: string;
+  symbol?: string;
+  limit?: number;
+} = {}) {
+  const params = new URLSearchParams({
+    asOfDate,
+    limit: String(limit),
+  });
+  if (themeKey) {
+    params.set("themeKey", themeKey);
+  }
+  if (symbol) {
+    params.set("symbol", symbol);
+  }
+  return fetchFrontendPayload<AiNewsClusterListData>(`/api/ai/news-clusters?${params.toString()}`);
+}
+
+export function getPaperTradingPreview() {
+  return fetchFrontendPayload<PaperTradingPreviewData>("/api/paper-trading/preview");
+}
+
+export function getTradingReadiness() {
+  return fetchFrontendPayload<TradingReadinessData>("/api/trading/readiness");
+}
+
 export function getCycleStates() {
   return fetchFrontendPayload<CycleStateListData>("/api/cycles?asOfDate=2024-11-01");
 }
@@ -101,8 +153,21 @@ export function getSourceDocumentDetail(documentId: string) {
   return fetchFrontendPayload<SourceDocumentDetailData>(`/api/source-documents/${documentId}`);
 }
 
-export function getEvents() {
-  return fetchFrontendPayload<EventListData>("/api/events?asOfDate=2024-11-01");
+export function getEvents({
+  asOfDate = currentIsoDate(),
+  eventType = "all",
+  limit = 20,
+}: {
+  asOfDate?: string;
+  eventType?: string;
+  limit?: number;
+} = {}) {
+  const params = new URLSearchParams({
+    asOfDate,
+    eventType,
+    limit: String(limit),
+  });
+  return fetchFrontendPayload<EventListData>(`/api/events?${params.toString()}`);
 }
 
 export function getThemeDetail(themeKey: string) {
@@ -113,4 +178,8 @@ export function getPerformanceOutcomes() {
   return fetchFrontendPayload<PerformanceOutcomesData>(
     "/api/performance/Long%20Term%20Paper/outcomes?measurementEndDate=2024-12-02",
   );
+}
+
+function currentIsoDate() {
+  return new Date().toISOString().slice(0, 10);
 }

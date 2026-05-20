@@ -70,9 +70,9 @@ This follows the OpenTelemetry HTTP semantic convention that `http.route` must b
 - It does not add a public `/metrics` endpoint.
 - It does not add Collector, Loki, Prometheus, Grafana, or Alertmanager deployment manifests.
 - It does not configure alert receivers or secrets.
-- It does not runtime-smoke a real Collector.
+- It does not runtime-smoke a real Collector. The follow-up `frontend-api-local-collector-smoke` verifies OTLP/HTTP egress against a local receiver.
 - It does not change DB schema, scoring, benchmark/evaluation split, auth/write boundaries, or broker/order flow.
 
 ## Next Step
 
-The next API runtime task is `frontend-api-sql-pagination-optimization`, because response-boundary list pagination still loads full list payloads before slicing.
+`frontend-api-sql-pagination-optimization` moved live list reads to SQL-level bounded windows, `frontend-api-local-collector-smoke` verifies OTLP/HTTP egress against a local receiver, `frontend-api-alert-rules` adds secret-free alert rule references, and `data-operations-cadence-foundation` plus `data-operations-artifact-runner` start the Data Operations Loop. The next fixed task is runtime env readiness for data operations.

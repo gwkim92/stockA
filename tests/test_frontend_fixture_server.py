@@ -51,7 +51,7 @@ class FrontendFixtureServerTests(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertEqual(payload["status"], "ok")
         self.assertEqual(payload["contract_version"], "frontend-api-v0.1")
-        self.assertEqual(payload["endpoint_count"], 12)
+        self.assertEqual(payload["endpoint_count"], 16)
         self.assertTrue(payload["read_only"])
         self.assertEqual(payload["source_mode"], "fixture")
         self.assertEqual(payload["runtime"]["runtime_profile"], "local")
@@ -64,6 +64,10 @@ class FrontendFixtureServerTests(unittest.TestCase):
         paths = {endpoint["path"] for endpoint in payload["data"]["endpoints"]}
         self.assertIn("/api/dashboard/today", paths)
         self.assertIn("/api/remediation-tickets?status=open", paths)
+        self.assertIn("/api/stocks", paths)
+        self.assertIn("/api/stocks/AAPL", paths)
+        self.assertIn("/api/paper-trading/preview", paths)
+        self.assertIn("/api/trading/readiness", paths)
         self.assertIn("/api/ai-evidence/sec-event-aapl-10k-20240928", paths)
         self.assertIn("/api/source-documents/aapl-2024-10k-20240928", paths)
         self.assertIn("/api/events?asOfDate=2024-11-01", paths)
@@ -102,6 +106,25 @@ class FrontendFixtureServerTests(unittest.TestCase):
         self.assertEqual(payload["data"]["summary"]["measured_recommendation_count"], 1)
         self.assertEqual(payload["data"]["outcomes"][0]["recommendation_id"], "AAPL-2024-11-01")
         self.assertEqual(payload["data"]["coverage_exclusions"][0]["symbol"], "BABA")
+
+    def test_paper_trading_preview_path_returns_fixture_response(self) -> None:
+        status, payload = self.fetch_json("/api/paper-trading/preview")
+
+        self.assertEqual(status, 200)
+        self.assertEqual(payload["data"]["portfolio_name"], "Long Term Paper")
+        self.assertEqual(payload["data"]["quality_summary"]["paper_action_count"], 2)
+        self.assertEqual(payload["data"]["paper_actions"][0]["symbol"], "AAPL")
+        self.assertEqual(payload["data"]["paper_actions"][0]["paper_action"], "paper_sell_to_zero")
+        self.assertTrue(payload["data"]["paper_actions"][0]["requires_human_approval"])
+
+    def test_trading_readiness_path_returns_fixture_response(self) -> None:
+        status, payload = self.fetch_json("/api/trading/readiness")
+
+        self.assertEqual(status, 200)
+        self.assertEqual(payload["data"]["portfolio_name"], "Long Term Paper")
+        self.assertEqual(payload["data"]["readiness_status"], "blocked")
+        self.assertEqual(payload["data"]["audit_summary"]["submitted_to_broker_count"], 0)
+        self.assertNotIn("secret_ref", json.dumps(payload))
 
     def test_unknown_path_returns_stable_404_json(self) -> None:
         status, payload = self.fetch_error_json("/api/not-found")

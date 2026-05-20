@@ -28,7 +28,19 @@
         "impact_score": 0.82,
         "source_document_id": "aapl-2024-10k-20240928",
         "ai_evidence_id": "sec-event-aapl-10k-20240928",
-        "quality_gate": "human_review_required"
+        "quality_gate": "human_review_required",
+        "related_events": [
+          {
+            "event_id": "sec-event-aapl-risk-factor-20240928",
+            "title": "AAPL risk factor context came from the same 10-K source document",
+            "relation_type": "same_source_document",
+            "relation_strength": 0.95,
+            "reason": "같은 원천 문서에서 파생된 이벤트다.",
+            "symbol": "AAPL",
+            "theme_key": "ANNUAL_REPORTING",
+            "event_at": "2024-09-28T00:00:00Z"
+          }
+        ]
       },
       {
         "event_id": "coverage-gap-baba-20241101",
@@ -43,7 +55,8 @@
         "impact_score": 0.41,
         "source_document_id": null,
         "ai_evidence_id": null,
-        "quality_gate": "deterministic_review_required"
+        "quality_gate": "deterministic_review_required",
+        "related_events": []
       }
     ]
   },

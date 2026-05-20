@@ -1,0 +1,131 @@
+{
+  "contract_version": "frontend-api-v0.1",
+  "generated_at": "2026-05-19T00:00:00Z",
+  "data": {
+    "portfolio_name": "Long Term Paper",
+    "execution_mode": "paper",
+    "readiness_status": "blocked",
+    "gate_summary": {
+      "pass_count": 1,
+      "warning_count": 1,
+      "missing_count": 3,
+      "blocked_count": 1
+    },
+    "gates": [
+      {
+        "gate_key": "broker_boundary",
+        "label": "브로커 경계",
+        "status": "missing",
+        "detail": "가상 broker preview가 활성화되어야 주문 의도를 평가할 수 있다.",
+        "next_step": "simulated paper broker boundary를 enabled 상태로 등록한다."
+      },
+      {
+        "gate_key": "account_permission",
+        "label": "계좌 권한",
+        "status": "missing",
+        "detail": "계좌는 paper_trade 이상의 scope와 active 상태가 필요하다.",
+        "next_step": "paper 전용 계좌 권한을 승인자와 한도와 함께 등록한다."
+      },
+      {
+        "gate_key": "order_limit_policy",
+        "label": "주문 한도",
+        "status": "missing",
+        "detail": "단일 주문, 일일 주문, 비중 변화, 현금 버퍼 한도가 active여야 한다.",
+        "next_step": "장기 포트폴리오용 paper 주문 한도 정책을 active로 등록한다."
+      },
+      {
+        "gate_key": "kill_switch",
+        "label": "킬 스위치",
+        "status": "blocked",
+        "detail": "engaged 상태의 킬 스위치가 하나라도 있으면 주문 의도는 차단된다.",
+        "next_step": "실거래 전에는 유지한다. paper 검증만 열 때도 명시 승인 기록 후 해제한다."
+      },
+      {
+        "gate_key": "paper_validation",
+        "label": "가상 검증",
+        "status": "missing",
+        "detail": "추천/보유 충돌이 없는 passed paper validation이 필요하다.",
+        "next_step": "paper preview를 기준으로 validation run을 생성하고 남은 충돌을 0으로 만든다."
+      },
+      {
+        "gate_key": "audit_log",
+        "label": "감사 로그",
+        "status": "warning",
+        "detail": "주문 의도는 broker 제출 전에 audit row로 남아야 한다.",
+        "next_step": "paper ledger workflow에서 order intent audit을 먼저 생성한다."
+      }
+    ],
+    "broker_boundary": {
+      "broker_code": "",
+      "environment": "paper",
+      "status": "missing",
+      "supports_order_preview": false,
+      "supports_order_submit": false,
+      "secret_configured": false,
+      "notes": "",
+      "updated_at": ""
+    },
+    "account_permission": {
+      "account_ref": "",
+      "permission_scope": "missing",
+      "status": "missing",
+      "allowed_symbol_count": 0,
+      "allows_all_symbols": false,
+      "max_order_notional": null,
+      "max_daily_notional": null,
+      "approved_by": "",
+      "approved_at": "",
+      "updated_at": ""
+    },
+    "order_limit_policy": {
+      "policy_name": "",
+      "status": "missing",
+      "max_single_order_notional": null,
+      "max_daily_order_notional": null,
+      "max_single_order_weight_delta": null,
+      "max_post_trade_symbol_weight": null,
+      "min_cash_buffer_weight": null,
+      "updated_at": ""
+    },
+    "kill_switches": [
+      {
+        "scope": "global",
+        "scope_ref": "global",
+        "is_engaged": true,
+        "reason": "default locked until explicit operator approval",
+        "changed_by": "migration-0013",
+        "changed_at": "2026-05-19T00:00:00Z"
+      }
+    ],
+    "paper_validation": {
+      "validation_date": "",
+      "status": "missing",
+      "recommendation_count": 0,
+      "conflict_count": 0,
+      "approved_action_count": 0,
+      "validated_symbol_count": 0,
+      "blocked_reasons": [],
+      "created_by": "",
+      "created_at": ""
+    },
+    "audit_summary": {
+      "intent_count": 0,
+      "blocked_count": 0,
+      "approved_for_paper_count": 0,
+      "approved_for_live_count": 0,
+      "submitted_to_broker_count": 0,
+      "latest_created_at": ""
+    },
+    "guardrails": [
+      "이 화면은 주문 화면이 아니라 거래 안전 상태 점검 화면이다.",
+      "FastAPI frontend server는 계속 read-only이며 주문 write endpoint를 제공하지 않는다.",
+      "broker secret 값은 노출하지 않고 설정 여부만 표시한다.",
+      "submitted_to_broker 값은 0이어야 하며, 실제 broker adapter는 아직 연결하지 않는다."
+    ]
+  },
+  "links": {
+    "paper_trading_preview": "/api/paper-trading/preview",
+    "stocks": "/api/stocks",
+    "data_health": "/api/data-health"
+  }
+}

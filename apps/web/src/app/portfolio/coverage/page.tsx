@@ -1,7 +1,8 @@
 import { getPortfolioCoverage } from "@/lib/frontend-api";
+import { koCode, koLabel } from "@/lib/korean-labels";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Portfolio Coverage" };
+export const metadata = { title: "포트폴리오 커버리지" };
 
 function formatPercent(value: number) {
   return `${Math.round(value * 1000) / 10}%`;
@@ -15,13 +16,14 @@ export default async function PortfolioCoveragePage() {
     <div className="pageStack">
       <section className="reveal">
         <div className="bento-badge">
-          Coverage Map • {data.portfolio_name} • {data.strategy_name} • {data.as_of_date}
+          커버리지 지도 • {koLabel(data.portfolio_name)} • {koCode(data.strategy_name)} • {data.as_of_date}
         </div>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "24px", flexWrap: "wrap" }}>
           <div>
-            <h1 style={{ fontSize: "clamp(2.5rem, 4vw, 4rem)", marginBottom: "16px" }}>Portfolio coverage gate.</h1>
+            <h1 style={{ fontSize: "clamp(2.5rem, 4vw, 4rem)", marginBottom: "16px" }}>포트폴리오 커버리지 관문</h1>
             <p style={{ color: "var(--text-secondary)", fontSize: "1.1rem", maxWidth: "700px" }}>
-              Attribution is blocked until every meaningful position has a thesis and measurable outcome path. Cash is shown explicitly instead of disappearing into portfolio math.
+              의미 있는 모든 포지션에 투자 논리와 측정 가능한 성과 경로가 생기기 전까지 성과 귀속은 차단된다.
+              현금은 포트폴리오 계산 안에 숨기지 않고 명시한다.
             </p>
           </div>
           
@@ -32,12 +34,12 @@ export default async function PortfolioCoveragePage() {
             borderRadius: "var(--radius-md)",
             textAlign: "center"
           }}>
-            <span className="metric-sub" style={{ color: data.attribution_readiness.is_ready ? "var(--accent-green)" : "var(--accent-amber)" }}>Weight Coverage</span>
+            <span className="metric-sub" style={{ color: data.attribution_readiness.is_ready ? "var(--accent-green)" : "var(--accent-amber)" }}>비중 커버리지</span>
             <div style={{ fontSize: "2.5rem", fontWeight: 700, color: "var(--text-primary)", margin: "4px 0" }}>
               {formatPercent(data.summary.weight_coverage_ratio)}
             </div>
             <div style={{ fontSize: "0.85rem", color: data.attribution_readiness.is_ready ? "var(--accent-green)" : "var(--accent-amber)", fontWeight: 600, textTransform: "uppercase" }}>
-              {data.attribution_readiness.is_ready ? "Ready" : "Blocked"}
+              {data.attribution_readiness.is_ready ? "준비됨" : "차단"}
             </div>
           </div>
         </div>
@@ -45,45 +47,45 @@ export default async function PortfolioCoveragePage() {
 
       <section className="bento-grid reveal delay-1">
         <article className="bento-card">
-          <span className="metric-label">Positions</span>
+          <span className="metric-label">포지션</span>
           <strong className="metric-value">{data.summary.position_count}</strong>
-          <span className="metric-sub">{data.summary.covered_position_count} covered</span>
+          <span className="metric-sub">{data.summary.covered_position_count}개 커버됨</span>
         </article>
         
         <article className="bento-card" style={{ borderColor: data.summary.missing_thesis_count > 0 ? "var(--accent-red)" : "var(--border-light)" }}>
-          <span className="metric-label">Missing Thesis</span>
+          <span className="metric-label">투자 논리 누락</span>
           <strong className="metric-value" style={{ color: data.summary.missing_thesis_count > 0 ? "var(--accent-red)" : "var(--text-primary)" }}>
             {data.summary.missing_thesis_count}
           </strong>
-          <span className="metric-sub">{formatPercent(data.summary.missing_thesis_weight)} weight</span>
+          <span className="metric-sub">비중 {formatPercent(data.summary.missing_thesis_weight)}</span>
         </article>
 
         <article className="bento-card">
-          <span className="metric-label">Cash Allocation</span>
+          <span className="metric-label">현금 비중</span>
           <strong className="metric-value">{formatPercent(data.summary.cash_weight)}</strong>
-          <span className="metric-sub">explicit allocation</span>
+          <span className="metric-sub">명시적 배분</span>
         </article>
 
         <article className="bento-card">
-          <span className="metric-label">Outcomes Missing</span>
+          <span className="metric-label">성과 측정 누락</span>
           <strong className="metric-value">{data.summary.missing_outcome_count}</strong>
-          <span className="metric-sub">measurement end {data.coverage_measurement_end_date}</span>
+          <span className="metric-sub">측정 종료 {data.coverage_measurement_end_date}</span>
         </article>
 
         <article className="bento-card span-4">
           <div style={{ marginBottom: "24px" }}>
-            <span className="metric-sub">Position Coverage</span>
-            <h2 style={{ fontSize: "1.5rem" }}>Review Map</h2>
+            <span className="metric-sub">포지션 커버리지</span>
+            <h2 style={{ fontSize: "1.5rem" }}>보유 종목 검토 지도</h2>
           </div>
           
           <div className="bento-list" style={{ gap: "8px" }}>
             <div className="bento-list-item" style={{ background: "transparent", borderBottom: "1px solid var(--border-light)", borderRadius: 0, paddingBottom: "16px" }}>
               <div style={{ flexDirection: "row", width: "100%", gap: "24px" }}>
-                <span className="metric-sub" style={{ width: "100px" }}>Symbol</span>
-                <span className="metric-sub" style={{ width: "100px" }}>Weight</span>
-                <span className="metric-sub" style={{ width: "140px" }}>Coverage</span>
-                <span className="metric-sub" style={{ width: "140px" }}>Outcome</span>
-                <span className="metric-sub" style={{ flex: 1 }}>Action</span>
+                <span className="metric-sub" style={{ width: "100px" }}>심볼</span>
+                <span className="metric-sub" style={{ width: "100px" }}>비중</span>
+                <span className="metric-sub" style={{ width: "140px" }}>커버리지</span>
+                <span className="metric-sub" style={{ width: "140px" }}>성과</span>
+                <span className="metric-sub" style={{ flex: 1 }}>필요 조치</span>
               </div>
             </div>
             
@@ -96,16 +98,16 @@ export default async function PortfolioCoveragePage() {
                     width: "140px", 
                     color: position.coverage_status === 'covered' ? 'var(--accent-green)' : 'var(--accent-red)' 
                   }}>
-                    {position.coverage_status}
+                    {koCode(position.coverage_status)}
                   </span>
                   <span style={{ 
                     width: "140px", 
                     color: position.outcome_status === 'measured' ? 'var(--accent-green)' : 'var(--text-secondary)' 
                   }}>
-                    {position.outcome_status}
+                    {koCode(position.outcome_status)}
                   </span>
                   <span style={{ flex: 1, color: "var(--text-primary)", fontWeight: 500 }}>
-                    {position.action}
+                    {koCode(position.action)}
                   </span>
                 </div>
               </div>

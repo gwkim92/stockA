@@ -125,7 +125,17 @@ class ThesisReviewBootstrapTests(unittest.TestCase):
         self.assertEqual(rows[0].action, "watch")
         self.assertEqual(rows[0].health_score, Decimal("0.3610"))
         self.assertEqual(rows[0].next_review_date, date(2024, 12, 1))
-        self.assertIn("Recommendation bucket watch score 0.3610", rows[0].summary)
+        self.assertIn("조치 watch", rows[0].summary)
+        self.assertIn("건강 점수 0.3610", rows[0].summary)
+        self.assertIn("현재 추천은 watch 버킷의 watch", rows[0].summary)
+        self.assertIn("사이클은 forming 상태, 사이클 점수 0.2075", rows[0].summary)
+        self.assertIn("최신 수정종가 222.9100", rows[0].summary)
+        self.assertIn("1일 수익률 -1.33%", rows[0].summary)
+        self.assertIn("관측 구간 수익률 -1.33%", rows[0].summary)
+        self.assertIn("다음 검토일은 2024-12-01", rows[0].summary)
+        self.assertIn("아직 관찰 후보", rows[0].change_notes)
+        self.assertIn("watchlist_recommendation", rows[0].change_notes)
+        self.assertIn("주문이나 가상 거래도 만들지 않았다", rows[0].change_notes)
 
     def test_build_thesis_review_rows_marks_exit_for_broken_cycle(self) -> None:
         rows = build_thesis_review_rows(
@@ -142,6 +152,35 @@ class ThesisReviewBootstrapTests(unittest.TestCase):
         self.assertEqual(rows[0].action, "exit")
         self.assertEqual(rows[0].health_score, Decimal("0.2500"))
         self.assertEqual(rows[0].next_review_date, date(2024, 11, 8))
+        self.assertIn("사이클이 구조적으로 무너짐", rows[0].change_notes)
+        self.assertIn("cycle_structurally_broken", rows[0].change_notes)
+
+    def test_build_thesis_review_rows_marks_missing_inputs_in_rationale(self) -> None:
+        rows = build_thesis_review_rows(
+            (
+                _candidate(
+                    bucket="core",
+                    action="buy_candidate",
+                    total_score=Decimal("0.8200"),
+                    cycle_state=None,
+                    return_1d=None,
+                    return_since_first=None,
+                    latest_adjusted_close=None,
+                ),
+            ),
+            review_date=date(2024, 11, 1),
+        )
+
+        self.assertEqual(rows[0].action, "keep")
+        self.assertIn("사이클은 상태 없음, 사이클 점수 없음", rows[0].summary)
+        self.assertIn("최신 수정종가 없음", rows[0].summary)
+        self.assertIn("1일 수익률 없음", rows[0].summary)
+        self.assertIn("사이클 상태 입력 없음", rows[0].change_notes)
+        self.assertIn("cycle_state_unavailable", rows[0].change_notes)
+        self.assertIn("최신 수정종가 입력 없음", rows[0].change_notes)
+        self.assertIn("latest_adjusted_close_unavailable", rows[0].change_notes)
+        self.assertIn("관측 구간 수익률 입력 없음", rows[0].change_notes)
+        self.assertIn("observation_window_return_unavailable", rows[0].change_notes)
 
     def test_render_thesis_review_upsert_sql(self) -> None:
         rows = build_thesis_review_rows((_candidate(),), review_date=date(2024, 11, 1))
@@ -191,6 +230,9 @@ def _candidate(
     action: str = "watch",
     total_score: Decimal = Decimal("0.3610"),
     cycle_state: str | None = "forming",
+    return_1d: Decimal | None = Decimal("-0.01327962"),
+    return_since_first: Decimal | None = Decimal("-0.01327962"),
+    latest_adjusted_close: Decimal | None = Decimal("222.91000000"),
 ) -> ThesisReviewCandidate:
     return ThesisReviewCandidate(
         batch_id=2001,
@@ -209,7 +251,7 @@ def _candidate(
         node_name="Annual Reporting",
         cycle_state=cycle_state,
         cycle_score=Decimal("0.2075") if cycle_state is not None else None,
-        return_1d=Decimal("-0.01327962"),
-        return_since_first=Decimal("-0.01327962"),
-        latest_adjusted_close=Decimal("222.91000000"),
+        return_1d=return_1d,
+        return_since_first=return_since_first,
+        latest_adjusted_close=latest_adjusted_close,
     )

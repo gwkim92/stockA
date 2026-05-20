@@ -3,7 +3,9 @@ from __future__ import annotations
 from stockanalysis.ingest.sources.alpha_vantage import AlphaVantageSource
 from stockanalysis.ingest.sources.base import IngestSource
 from stockanalysis.ingest.sources.fred import FredSource
+from stockanalysis.ingest.sources.rss_news import RssNewsSource
 from stockanalysis.ingest.sources.sec import SecSource
+from stockanalysis.ingest.sources.twelve_data import TwelveDataSource
 
 
 def build_registry() -> dict[str, IngestSource]:
@@ -12,7 +14,9 @@ def build_registry() -> dict[str, IngestSource]:
         for source in (
             SecSource(),
             FredSource(),
+            RssNewsSource(),
             AlphaVantageSource(),
+            TwelveDataSource(),
         )
     }
 

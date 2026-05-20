@@ -11,6 +11,7 @@ from stockanalysis.performance.coverage import (
     load_portfolio_outcome_coverage_report,
     load_portfolio_outcome_coverage_rows,
     render_portfolio_outcome_coverage_lookup_sql,
+    render_portfolio_outcome_coverage_report_sql,
 )
 
 
@@ -73,6 +74,31 @@ class FakeExecutor:
                     },
                 ]
             )
+        if sql.startswith("-- portfolio outcome coverage report"):
+            return json.dumps(
+                {
+                    "portfolio_id": 3001,
+                    "portfolio_name": "Long Term Paper",
+                    "snapshot_date": "2024-11-01",
+                    "measurement_end_date": "2024-12-02",
+                    "position_count": 3,
+                    "status_counts": {
+                        "covered": 1,
+                        "missing_outcome": 1,
+                        "missing_thesis": 1,
+                        "missing_weight": 0,
+                    },
+                    "weight_by_status": {
+                        "covered": "0.0500",
+                        "missing_outcome": "0.0300",
+                        "missing_thesis": "0.0200",
+                        "missing_weight": "0.0000",
+                    },
+                    "cash_weight": "0.9000",
+                    "coverage_ratio_by_weight": "0.5000",
+                    "positions": [{"symbol": "MSFT", "coverage_status": "missing_outcome"}],
+                }
+            )
         raise AssertionError(f"Unexpected scalar SQL: {sql}")
 
 
@@ -94,6 +120,21 @@ class PortfolioOutcomeCoverageReportTests(unittest.TestCase):
         self.assertIn("missing_outcome", sql)
         self.assertIn("missing_thesis", sql)
         self.assertIn("missing_weight", sql)
+
+    def test_render_portfolio_outcome_coverage_report_sql_pages_positions_only(self) -> None:
+        sql = render_portfolio_outcome_coverage_report_sql(
+            portfolio_name="Long Term Paper",
+            snapshot_date=date(2024, 11, 1),
+            measurement_end_date=date(2024, 12, 2),
+            position_limit=2,
+            position_offset=1,
+        )
+
+        self.assertIn("-- portfolio outcome coverage report", sql)
+        self.assertIn("coverage_summary as", sql)
+        self.assertIn("position_page as", sql)
+        self.assertIn("limit 2", sql)
+        self.assertIn("offset 1", sql)
 
     def test_load_portfolio_outcome_coverage_rows(self) -> None:
         rows = load_portfolio_outcome_coverage_rows(
@@ -163,6 +204,24 @@ class PortfolioOutcomeCoverageReportTests(unittest.TestCase):
         )
         self.assertEqual(report["position_count"], 3)
         self.assertEqual(report["status_counts"]["covered"], 1)
+
+    def test_load_portfolio_outcome_coverage_report_supports_position_window(self) -> None:
+        executor = FakeExecutor()
+
+        report = load_portfolio_outcome_coverage_report(
+            config=type("Config", (), {})(),
+            portfolio_name="Long Term Paper",
+            snapshot_date=date(2024, 11, 1),
+            measurement_end_date=date(2024, 12, 2),
+            position_limit=2,
+            position_offset=1,
+            executor=executor,
+        )
+
+        self.assertEqual(report["position_count"], 3)
+        self.assertEqual(len(report["positions"]), 1)
+        self.assertIn("limit 2", executor.scalar_sql[-1])
+        self.assertIn("offset 1", executor.scalar_sql[-1])
 
 
 def _covered_row() -> PortfolioOutcomeCoverageRow:

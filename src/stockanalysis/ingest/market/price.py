@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import json
+import os
+import time
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 from stockanalysis.ingest.config import RuntimeConfig
 from stockanalysis.ingest.http import execute_request
@@ -29,15 +31,19 @@ class MarketDailyPriceBarRecord:
 class MarketPriceSyncResult:
     symbol: str
     bars: tuple[MarketDailyPriceBarRecord, ...]
+    price_adjustment_mode: str = "adjusted"
+    provider: str = "alpha_vantage"
 
     def summary(self) -> dict[str, object]:
         first_date = self.bars[0].trade_date.isoformat() if self.bars else None
         last_date = self.bars[-1].trade_date.isoformat() if self.bars else None
         return {
             "symbol": self.symbol,
+            "provider": self.provider,
             "bar_count": len(self.bars),
             "oldest_trade_date": first_date,
             "latest_trade_date": last_date,
+            "price_adjustment_mode": self.price_adjustment_mode,
         }
 
 
@@ -54,14 +60,30 @@ def load_market_price_sync_result(
     config: RuntimeConfig,
     prices_json_path: str | None = None,
     outputsize: str | None = None,
+    provider: str | None = None,
 ) -> MarketPriceSyncResult:
+    resolved_provider = resolve_market_price_provider(provider)
     payload = _load_prices_payload(
         symbol,
         config=config,
         json_path=prices_json_path,
         outputsize=outputsize,
+        provider=resolved_provider,
     )
-    return normalize_daily_adjusted_payload(symbol, payload)
+    return normalize_market_price_payload(symbol, payload, provider=resolved_provider)
+
+
+def normalize_market_price_payload(
+    symbol: str,
+    payload: dict[str, Any],
+    *,
+    provider: str,
+) -> MarketPriceSyncResult:
+    if provider == "twelve_data":
+        return normalize_twelve_data_time_series_payload(symbol, payload)
+    if provider == "alpha_vantage":
+        return normalize_daily_adjusted_payload(symbol, payload)
+    raise ValueError(f"Unsupported market price provider `{provider}`.")
 
 
 def normalize_daily_adjusted_payload(symbol: str, payload: dict[str, Any]) -> MarketPriceSyncResult:
@@ -70,24 +92,77 @@ def normalize_daily_adjusted_payload(symbol: str, payload: dict[str, Any]) -> Ma
         raise ValueError(f"Alpha Vantage daily_adjusted payload for `{symbol}` does not contain `Time Series (Daily)`")
 
     bars: list[MarketDailyPriceBarRecord] = []
+    price_adjustment_mode = "adjusted"
     for trade_date_text, raw_item in series.items():
         try:
+            close = _as_decimal(raw_item["4. close"])
+            if "5. adjusted close" in raw_item:
+                adjusted_close = _as_decimal(raw_item["5. adjusted close"])
+                volume = int(str(raw_item["6. volume"]))
+            else:
+                price_adjustment_mode = "unadjusted_fallback"
+                adjusted_close = close
+                volume = int(str(raw_item["5. volume"]))
             bars.append(
                 MarketDailyPriceBarRecord(
                     trade_date=date.fromisoformat(str(trade_date_text)),
                     open=_as_decimal(raw_item["1. open"]),
                     high=_as_decimal(raw_item["2. high"]),
                     low=_as_decimal(raw_item["3. low"]),
-                    close=_as_decimal(raw_item["4. close"]),
-                    adjusted_close=_as_decimal(raw_item["5. adjusted close"]),
-                    volume=int(str(raw_item["6. volume"])),
+                    close=close,
+                    adjusted_close=adjusted_close,
+                    volume=volume,
                 )
             )
         except (KeyError, ValueError, InvalidOperation) as exc:
             raise ValueError(f"Invalid daily price row for `{symbol}` on `{trade_date_text}`") from exc
 
     bars.sort(key=lambda record: record.trade_date)
-    return MarketPriceSyncResult(symbol=symbol.upper(), bars=tuple(bars))
+    return MarketPriceSyncResult(
+        symbol=symbol.upper(),
+        bars=tuple(bars),
+        price_adjustment_mode=price_adjustment_mode,
+        provider="alpha_vantage",
+    )
+
+
+def normalize_twelve_data_time_series_payload(symbol: str, payload: dict[str, Any]) -> MarketPriceSyncResult:
+    status = str(payload.get("status", "")).strip().lower()
+    if status and status != "ok":
+        message = str(payload.get("message") or payload.get("code") or "unknown Twelve Data error")
+        raise ValueError(f"Twelve Data time_series payload for `{symbol}` returned status `{status}`: {message}")
+    values = payload.get("values")
+    if not isinstance(values, list) or not values:
+        raise ValueError(f"Twelve Data time_series payload for `{symbol}` does not contain `values`.")
+
+    bars: list[MarketDailyPriceBarRecord] = []
+    for raw_item in values:
+        if not isinstance(raw_item, dict):
+            raise ValueError(f"Twelve Data time_series payload for `{symbol}` contains a non-object value.")
+        trade_date_text = str(raw_item.get("datetime", "")).strip()
+        try:
+            close = _as_decimal(raw_item["close"])
+            bars.append(
+                MarketDailyPriceBarRecord(
+                    trade_date=date.fromisoformat(trade_date_text),
+                    open=_as_decimal(raw_item["open"]),
+                    high=_as_decimal(raw_item["high"]),
+                    low=_as_decimal(raw_item["low"]),
+                    close=close,
+                    adjusted_close=close,
+                    volume=int(str(raw_item.get("volume", "0") or "0")),
+                )
+            )
+        except (KeyError, ValueError, InvalidOperation) as exc:
+            raise ValueError(f"Invalid Twelve Data daily price row for `{symbol}` on `{trade_date_text}`") from exc
+
+    bars.sort(key=lambda record: record.trade_date)
+    return MarketPriceSyncResult(
+        symbol=symbol.upper(),
+        bars=tuple(bars),
+        price_adjustment_mode="split_adjusted_provider",
+        provider="twelve_data",
+    )
 
 
 def run_market_price_upsert(
@@ -96,13 +171,16 @@ def run_market_price_upsert(
     config: RuntimeConfig,
     prices_json_path: str | None = None,
     outputsize: str | None = None,
+    provider: str | None = None,
     executor: PsqlCommandExecutor | None = None,
 ) -> dict[str, object]:
+    resolved_provider = resolve_market_price_provider(provider)
     result = load_market_price_sync_result(
         symbol,
         config=config,
         prices_json_path=prices_json_path,
         outputsize=outputsize,
+        provider=resolved_provider,
     )
     sql_executor = executor or PsqlCommandExecutor.from_config(config)
     instrument = resolve_instrument_for_symbol(result.symbol, executor=sql_executor)
@@ -113,7 +191,9 @@ def run_market_price_upsert(
             "symbol": result.symbol,
             "prices_fixture_path": prices_json_path,
             "outputsize": outputsize,
+            "provider": resolved_provider,
             "instrument_id": instrument.instrument_id,
+            "price_adjustment_mode": result.price_adjustment_mode,
         },
     )
     try:
@@ -142,26 +222,78 @@ def run_market_price_batch_upsert(
     config: RuntimeConfig,
     fixtures_dir: str | None = None,
     outputsize: str | None = None,
+    provider: str | None = None,
+    throttle_seconds: float = 0.0,
+    max_requests_per_run: int | None = 25,
+    skip_if_fresh: bool = False,
+    freshness_date: date | None = None,
     executor: PsqlCommandExecutor | None = None,
+    sleeper: Callable[[float], None] = time.sleep,
 ) -> dict[str, object]:
+    resolved_provider = resolve_market_price_provider(provider)
     if not symbols:
         raise ValueError("At least one --symbol is required.")
+    if throttle_seconds < 0:
+        raise ValueError("throttle_seconds must be greater than or equal to 0.")
+    if max_requests_per_run is not None and max_requests_per_run < 0:
+        raise ValueError("max_requests_per_run must be greater than or equal to 0.")
 
     sql_executor = executor or PsqlCommandExecutor.from_config(config)
     requested_symbols = tuple(symbol.upper() for symbol in symbols)
     results: list[dict[str, object]] = []
     succeeded = 0
     failed = 0
+    skipped = 0
     total_bars = 0
+    provider_request_count = 0
+    throttle_sleep_count = 0
+    resolved_freshness_date = freshness_date or date.today()
 
     for symbol in requested_symbols:
-        prices_json_path = _resolve_fixture_path(symbol, fixtures_dir)
+        if skip_if_fresh:
+            latest_trade_date = load_latest_market_price_trade_date(symbol, executor=sql_executor)
+            if latest_trade_date is not None and latest_trade_date >= resolved_freshness_date:
+                skipped += 1
+                results.append(
+                    {
+                        "symbol": symbol,
+                        "status": "skipped",
+                        "reason": "fresh_price_data_exists",
+                        "latest_trade_date": latest_trade_date.isoformat(),
+                        "freshness_date": resolved_freshness_date.isoformat(),
+                    }
+                )
+                continue
+
+        prices_json_path = _resolve_fixture_path(symbol, fixtures_dir, provider=resolved_provider)
+        uses_provider_request = prices_json_path is None
+        if (
+            uses_provider_request
+            and max_requests_per_run is not None
+            and provider_request_count >= max_requests_per_run
+        ):
+            skipped += 1
+            results.append(
+                {
+                    "symbol": symbol,
+                    "status": "skipped",
+                    "reason": "request_budget_exhausted",
+                    "request_budget": max_requests_per_run,
+                }
+            )
+            continue
+        if uses_provider_request:
+            if provider_request_count > 0 and throttle_seconds > 0:
+                sleeper(throttle_seconds)
+                throttle_sleep_count += 1
+            provider_request_count += 1
         try:
             summary = run_market_price_upsert(
                 symbol,
                 config=config,
                 prices_json_path=prices_json_path,
                 outputsize=outputsize,
+                provider=resolved_provider,
                 executor=sql_executor,
             )
         except Exception as exc:
@@ -187,11 +319,44 @@ def run_market_price_batch_upsert(
 
     return {
         "requested_symbol_count": len(requested_symbols),
+        "provider": resolved_provider,
         "succeeded_symbol_count": succeeded,
         "failed_symbol_count": failed,
+        "skipped_symbol_count": skipped,
         "total_bar_count": total_bars,
+        "provider_request_count": provider_request_count,
+        "max_requests_per_run": max_requests_per_run,
+        "throttle_seconds": throttle_seconds,
+        "throttle_sleep_count": throttle_sleep_count,
+        "skip_if_fresh": skip_if_fresh,
+        "freshness_date": resolved_freshness_date.isoformat() if skip_if_fresh else None,
         "results": results,
     }
+
+
+def load_latest_market_price_trade_date(
+    symbol: str,
+    *,
+    executor: PsqlCommandExecutor,
+) -> date | None:
+    try:
+        value = executor.execute_scalar(render_latest_market_price_trade_date_sql(symbol))
+    except PsqlExecutionError as exc:
+        if str(exc) == "psql returned no rows for scalar query":
+            return None
+        raise
+    cleaned = value.strip()
+    if not cleaned:
+        return None
+    return date.fromisoformat(cleaned)
+
+
+def render_latest_market_price_trade_date_sql(symbol: str) -> str:
+    return f"""select max(b.trade_date)::text
+from ref.instrument i
+join market.daily_price_bar b on b.instrument_id = i.instrument_id
+where i.is_active = true
+  and lower(i.primary_symbol) = lower({sql_literal(symbol)});"""
 
 
 def resolve_instrument_for_symbol(
@@ -202,7 +367,9 @@ def resolve_instrument_for_symbol(
     try:
         payload_text = executor.execute_scalar(render_instrument_lookup_by_symbol_sql(symbol))
     except PsqlExecutionError as exc:
-        raise ValueError(f"No canonical instrument found for symbol `{symbol}`.") from exc
+        if str(exc) == "psql returned no rows for scalar query":
+            raise ValueError(f"No canonical instrument found for symbol `{symbol}`.") from exc
+        raise
     payload = json.loads(payload_text)
     return _ResolvedInstrument(
         instrument_id=int(payload["instrument_id"]),
@@ -294,15 +461,45 @@ def _load_prices_payload(
     config: RuntimeConfig,
     json_path: str | None,
     outputsize: str | None,
+    provider: str,
 ) -> dict[str, Any]:
     if json_path:
         return json.loads(Path(json_path).read_text(encoding="utf-8"))
+    if provider == "twelve_data":
+        twelve_data = get_source("twelve_data")
+        params = {"symbol": symbol}
+        if outputsize:
+            params["outputsize"] = outputsize
+        request = twelve_data.build_request(
+            "time_series_daily",
+            params,
+            config=config,
+            require_credentials=True,
+        )
+        return execute_request(request).as_json()
     alpha_vantage = get_source("alpha_vantage")
     params = {"symbol": symbol}
     if outputsize:
         params["outputsize"] = outputsize
+    if _alpha_vantage_price_mode() == "adjusted":
+        request = alpha_vantage.build_request(
+            "daily_adjusted",
+            params,
+            config=config,
+            require_credentials=True,
+        )
+        payload = execute_request(request).as_json()
+        if _is_premium_daily_adjusted_response(payload):
+            fallback_request = alpha_vantage.build_request(
+                "daily",
+                params,
+                config=config,
+                require_credentials=True,
+            )
+            return execute_request(fallback_request).as_json()
+        return payload
     request = alpha_vantage.build_request(
-        "daily_adjusted",
+        "daily",
         params,
         config=config,
         require_credentials=True,
@@ -314,14 +511,47 @@ def _as_decimal(value: object) -> Decimal:
     return Decimal(str(value))
 
 
-def _resolve_fixture_path(symbol: str, fixtures_dir: str | None) -> str | None:
+def _resolve_fixture_path(symbol: str, fixtures_dir: str | None, *, provider: str) -> str | None:
     if not fixtures_dir:
         return None
     base_dir = Path(fixtures_dir)
-    fixture_path = base_dir / f"alpha_vantage_daily_adjusted_{symbol.upper()}.json"
-    if not fixture_path.exists():
+    if provider == "twelve_data":
+        fixture_path = base_dir / f"twelve_data_time_series_daily_{symbol.upper()}.json"
+        if fixture_path.exists():
+            return str(fixture_path)
         raise FileNotFoundError(f"Missing fixture file: {fixture_path}")
-    return str(fixture_path)
+    fixture_path = base_dir / f"alpha_vantage_daily_adjusted_{symbol.upper()}.json"
+    if fixture_path.exists():
+        return str(fixture_path)
+    daily_fixture_path = base_dir / f"alpha_vantage_daily_{symbol.upper()}.json"
+    if daily_fixture_path.exists():
+        return str(daily_fixture_path)
+    raise FileNotFoundError(f"Missing fixture file: {fixture_path}")
+
+
+def _is_premium_daily_adjusted_response(payload: dict[str, Any]) -> bool:
+    information = str(payload.get("Information", ""))
+    return "premium endpoint" in information.lower()
+
+
+def _alpha_vantage_price_mode() -> str:
+    value = os.getenv("STOCKANALYSIS_ALPHA_VANTAGE_PRICE_MODE", "daily").strip().lower()
+    if value in {"adjusted", "daily_adjusted", "premium"}:
+        return "adjusted"
+    return "daily"
+
+
+def resolve_market_price_provider(provider: str | None) -> str:
+    value = (provider or os.getenv("STOCKANALYSIS_MARKET_PRICE_PROVIDER", "alpha_vantage")).strip().lower()
+    if value in {"alpha_vantage", "alphavantage", "av"}:
+        return "alpha_vantage"
+    if value in {"twelve_data", "twelvedata", "12data"}:
+        return "twelve_data"
+    raise ValueError(f"Unsupported market price provider `{provider or value}`.")
+
+
+def _resolve_market_price_provider(provider: str | None) -> str:
+    return resolve_market_price_provider(provider)
 
 
 def _create_pipeline_run(

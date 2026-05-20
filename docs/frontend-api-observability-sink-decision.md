@@ -13,6 +13,10 @@ The application keeps its current app-owned observability outputs:
 
 The follow-up `frontend-api-otel-exporter-pilot` added optional OTLP export behind an env flag, with default mode disabled.
 
+The follow-up `frontend-api-local-collector-smoke` verifies that the optional OTLP exporter can send traces to a local OTLP/HTTP receiver without exposing the endpoint in public metadata.
+
+The follow-up `frontend-api-alert-rules` adds a secret-free Prometheus-compatible alert rule reference for the first six frontend API runtime alerts. Receiver destinations remain outside this public repository.
+
 ## Reference Stack
 
 Reference self-host profile:
@@ -144,5 +148,7 @@ Trace-first instrumentation:
 - avoid emitting high-cardinality labels. Implemented with bounded `route_template` and `status_class` fields.
 - avoid exposing new public endpoints. Implemented.
 - include unit tests for disabled mode, OTLP config validation, and safe attribute naming. Implemented.
+- add a local OTLP/HTTP receiver smoke before alert rules. Implemented in `frontend-api-local-collector-smoke`.
+- add secret-free Prometheus-compatible alert rule references for down, not-ready, 5xx, timeout, latency, and adapter-error conditions. Implemented in `frontend-api-alert-rules`.
 
 It must not add write APIs, RBAC, audit write model, DB schema changes, scoring changes, benchmark/evaluation changes, broker/order flow, or real alert receiver secrets.

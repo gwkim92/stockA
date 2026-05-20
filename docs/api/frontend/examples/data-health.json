@@ -7,13 +7,27 @@
     "pipeline_runs": [
       {
         "pipeline_name": "portfolio_remediation_daily_automation",
+        "job_id": "portfolio-remediation-daily",
+        "domain": "portfolio",
+        "cadence": "daily",
+        "expected_after_local": "19:00",
+        "stale_after_hours": 36,
+        "artifact_policy": "stdout_json_stderr_log_and_summary_link",
         "latest_status": "succeeded",
+        "health_status": "ok",
         "latest_run_id": "portfolio-remediation-daily-run-20241101",
         "finished_at": "2024-11-01T23:30:00Z"
       },
       {
-        "pipeline_name": "performance_outcome_bootstrap",
+        "pipeline_name": "performance_outcome_schedule_bootstrap",
+        "job_id": "performance-outcome-monthly",
+        "domain": "performance",
+        "cadence": "monthly",
+        "expected_after_local": "09:00 first-business-day",
+        "stale_after_hours": 840,
+        "artifact_policy": "stdout_json_stderr_log_and_failure_candidates",
         "latest_status": "succeeded",
+        "health_status": "ok",
         "latest_run_id": "performance-outcome-bootstrap-20241202",
         "finished_at": "2024-12-02T23:30:00Z"
       }
@@ -22,7 +36,20 @@
       "install_status": "not_installed",
       "runtime_env_readiness": "template_rendered_placeholder_pending",
       "holiday_skip_mode": "explicit_skip_dates",
-      "latest_artifact_root": "/absolute/path/to/portfolio-remediation-scheduler-artifacts"
+      "latest_artifact_root": "/absolute/path/to/portfolio-remediation-scheduler-artifacts",
+      "activation": {
+        "status": "pending_manual_approval",
+        "job_id": "market-price-daily",
+        "pipeline_name": "market_price_upsert",
+        "domain": "market",
+        "cadence": "daily",
+        "approval_gate": "blocked_pending_manual_approval",
+        "activation_allowed": false,
+        "scheduler_activation": "not_installed",
+        "manual_next_step": "data-operations-live-scheduler-activation-request",
+        "generated_at": "2026-05-18T08:00:00Z",
+        "source": "scheduler_activation_approval_gate_report"
+      }
     },
     "freshness": [
       {
@@ -36,6 +63,73 @@
         "latest_observation_date": "2024-11-01"
       }
     ],
+    "provider_budget": {
+      "provider": "alpha_vantage",
+      "status": "configured",
+      "budget_date": "2024-11-01",
+      "daily_budget": 25,
+      "used_request_count": 4,
+      "remaining_request_count": 21,
+      "latest_run": {
+        "started_at": "2024-11-01T23:30:00Z",
+        "status": "completed",
+        "requested_symbol_count": 6,
+        "provider_request_count": 4,
+        "budget_remaining_after": 21
+      },
+      "source": "local_provider_budget_ledger"
+    },
+    "manual_local_ingest_smoke": {
+      "status": "preview_not_executed",
+      "execute": false,
+      "generated_at": "2026-05-20T08:00:00Z",
+      "runtime_status": "ready",
+      "artifact_root": "/private/tmp/stockanalysis-runtime/artifacts",
+      "job_count": 3,
+      "planned_job_ids": [
+        "market-price-daily",
+        "news-rss-daily",
+        "event-intelligence-weekly"
+      ],
+      "artifact_runs": [],
+      "failed_job_count": 0,
+      "next_actions": [
+        "review planned_jobs, then rerun with --execute if local ingest smoke should write data"
+      ],
+      "source": "manual_local_ingest_smoke_report"
+    },
+    "local_ingest_worker": {
+      "status": "completed",
+      "execute": true,
+      "generated_at": "2026-05-20T09:00:00Z",
+      "completed_cycle_count": 1,
+      "failed_cycle_count": 0,
+      "max_cycles": 1,
+      "interval_seconds": 0,
+      "stop_on_failure": true,
+      "job_ids": [
+        "market-price-daily",
+        "news-rss-daily",
+        "event-intelligence-weekly"
+      ],
+      "latest_smoke_output_path": "/private/tmp/stockanalysis-runtime/manual-local-ingest-smoke.json",
+      "cycles": [
+        {
+          "cycle_number": 1,
+          "started_at": "2026-05-20T09:00:00Z",
+          "smoke_status": "passed",
+          "runtime_status": "ready",
+          "execute": true,
+          "job_count": 3,
+          "failed_job_count": 0,
+          "artifact_run_count": 3
+        }
+      ],
+      "next_actions": [
+        "open /data-health and verify the latest local ingest worker cycle"
+      ],
+      "source": "local_ingest_worker_report"
+    },
     "open_gates": [
       "actual_runtime_db_smoke",
       "launchd_bootstrap",

@@ -1,0 +1,21 @@
+# Review Notes
+
+- Implemented local fixture/live MVP runtime bootstrap.
+- Scheduler exact-command preview was corrected from quoted `~/Library/LaunchAgents/...` to shell-expandable `$HOME/Library/LaunchAgents/...`.
+- Docker Postgres, FastAPI read-only backend, and Next.js cockpit were run as real local processes.
+- Data loaded into the persistent local DB is fixture-backed; this proves the runtime wiring, not production investment quality.
+- FRED macro, SEC filing metadata, and AAPL market price smoke now include real provider records.
+- Twelve Data now covers 25 local MVP symbols through `2026-05-15`; the latest expansion loaded 20 additional diversified large-cap names and verified repeat runs consume zero provider calls when fresh.
+- `/api/data-health` and `/data-health` show the Twelve Data local budget ledger at `20` used and `780/800` remaining for `2026-05-18`.
+- Market prices use no-cost Alpha Vantage `TIME_SERIES_DAILY` fallback by default; adjusted-price quality is not yet available without another free adjusted provider or premium access.
+- Recurring market-price defaults now use the expanded Twelve Data watchlist, repo-outside ledger, and `market-price-daily-run --skip-if-fresh`; real user approval and final activation preflight remain required before any scheduler activation request proceeds.
+- `market-price-daily` activation operator dry-run evidence is now refreshed under `/private/tmp/stockanalysis-runtime/evidence/activation-chain-market-price-daily`; pending approval gate is still blocked and no host scheduler mutation was performed.
+- Data-health API/frontend now shows the sanitized scheduler activation state from that evidence: `market-price-daily` is visible as manual approval pending, while activation remains blocked.
+- Data-health stale/missing items were remediated through scheduler-free artifact runs. The local API moved from `attention_required` to `healthy`; `portfolio-position-daily`, `portfolio-remediation-daily`, and `performance-outcome-monthly` are all `ok`.
+- The `/data-health` page was rechecked in Chrome after restarting Next.js on `127.0.0.1:3001`; it shows `정상`, failure count `0`, and the updated run ids.
+- A scheduler-free `market-price-daily` rollover loaded 20 expanded Twelve Data symbols through `2026-05-18`, recorded `pipeline-run-89`, and changed provider budget from `day_missing` to `780/800` for `2026-05-19`.
+- The `/data-health` budget ratio was hardened so values like `780 / 800` do not wrap inside the summary rail.
+- `market-price-daily-run` now defaults freshness to `latest_completed_us_market_day`; a no-override smoke resolved `2026-05-18` and skipped all 20 already-fresh symbols with `provider_request_count=0`.
+- The local positions fixture was repaired outside the repo with required valuation columns; this keeps local MVP moving but does not replace a real portfolio source integration.
+- Host scheduler activation remains blocked by policy until a separate explicit approval packet is accepted.
+- No production secrets were added to the repository.

@@ -1,0 +1,86 @@
+groups:
+  - name: stockanalysis-frontend-api.readonly
+    interval: 30s
+    rules:
+      - alert: FrontendApiDown
+        expr: |
+          up{job="stockanalysis-frontend-api"} == 0
+          or absent(up{job="stockanalysis-frontend-api"})
+        for: 5m
+        labels:
+          severity: critical
+          service: stockanalysis-frontend-api
+        annotations:
+          summary: "Frontend API scrape target is down"
+          description: "The read-only frontend API target has not been scrapeable for 5 minutes."
+          runbook_url: "https://github.com/gwkim92/stockA/blob/main/docs/frontend-api-alert-rules.md#frontendapidown"
+
+      - alert: FrontendApiNotReady
+        expr: |
+          frontend_api_ready{job="stockanalysis-frontend-api"} == 0
+          or frontend_api_db_pool_ready{job="stockanalysis-frontend-api"} == 0
+        for: 5m
+        labels:
+          severity: critical
+          service: stockanalysis-frontend-api
+        annotations:
+          summary: "Frontend API readiness probe is failing"
+          description: "The read-only frontend API or database pool readiness signal has failed for 5 minutes."
+          runbook_url: "https://github.com/gwkim92/stockA/blob/main/docs/frontend-api-alert-rules.md#frontendapinotready"
+
+      - alert: FrontendApiHigh5xxRate
+        expr: |
+          (
+            sum(rate(frontend_api_requests_total{job="stockanalysis-frontend-api",status_class="5xx"}[10m]))
+          /
+            clamp_min(sum(rate(frontend_api_requests_total{job="stockanalysis-frontend-api"}[10m])), 1)
+          ) > 0.05
+        for: 10m
+        labels:
+          severity: warning
+          service: stockanalysis-frontend-api
+        annotations:
+          summary: "Frontend API 5xx ratio is high"
+          description: "More than 5 percent of read-only frontend API requests have returned 5xx status for 10 minutes."
+          runbook_url: "https://github.com/gwkim92/stockA/blob/main/docs/frontend-api-alert-rules.md#frontendapihigh5xxrate"
+
+      - alert: FrontendApiTimeoutSpike
+        expr: |
+          sum(increase(frontend_api_request_timeouts_total{job="stockanalysis-frontend-api"}[10m])) > 3
+        for: 10m
+        labels:
+          severity: warning
+          service: stockanalysis-frontend-api
+        annotations:
+          summary: "Frontend API timeout count is elevated"
+          description: "Read-only frontend API request timeout count exceeded 3 events over 10 minutes."
+          runbook_url: "https://github.com/gwkim92/stockA/blob/main/docs/frontend-api-alert-rules.md#frontendapitimeoutspike"
+
+      - alert: FrontendApiHighLatency
+        expr: |
+          histogram_quantile(
+            0.95,
+            sum by (le) (
+              rate(frontend_api_request_duration_seconds_bucket{job="stockanalysis-frontend-api"}[10m])
+            )
+          ) > 2
+        for: 10m
+        labels:
+          severity: warning
+          service: stockanalysis-frontend-api
+        annotations:
+          summary: "Frontend API p95 latency is high"
+          description: "Read-only frontend API p95 request latency stayed above 2 seconds for 10 minutes."
+          runbook_url: "https://github.com/gwkim92/stockA/blob/main/docs/frontend-api-alert-rules.md#frontendapihighlatency"
+
+      - alert: FrontendApiAdapterErrorSpike
+        expr: |
+          sum(increase(frontend_api_adapter_errors_total{job="stockanalysis-frontend-api"}[10m])) > 5
+        for: 10m
+        labels:
+          severity: warning
+          service: stockanalysis-frontend-api
+        annotations:
+          summary: "Frontend API adapter errors are elevated"
+          description: "Read-only frontend API adapter error count exceeded 5 events over 10 minutes."
+          runbook_url: "https://github.com/gwkim92/stockA/blob/main/docs/frontend-api-alert-rules.md#frontendapiadaptererrorspike"

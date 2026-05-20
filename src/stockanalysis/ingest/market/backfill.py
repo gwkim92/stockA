@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from collections import Counter
 from dataclasses import dataclass
+from datetime import date
 
 from stockanalysis.ingest.config import RuntimeConfig
 from stockanalysis.ingest.macro.sql import sql_literal
@@ -106,6 +107,11 @@ def run_market_price_universe_backfill(
     limit: int | None = None,
     fixtures_dir: str | None = None,
     outputsize: str | None = None,
+    provider: str | None = None,
+    throttle_seconds: float = 0.0,
+    max_requests_per_run: int | None = 25,
+    skip_if_fresh: bool = False,
+    freshness_date: date | None = None,
     executor: PsqlCommandExecutor | None = None,
 ) -> dict[str, object]:
     sql_executor = executor or PsqlCommandExecutor.from_config(config)
@@ -120,6 +126,11 @@ def run_market_price_universe_backfill(
         config=config,
         fixtures_dir=fixtures_dir,
         outputsize=outputsize,
+        provider=provider,
+        throttle_seconds=throttle_seconds,
+        max_requests_per_run=max_requests_per_run,
+        skip_if_fresh=skip_if_fresh,
+        freshness_date=freshness_date,
         executor=sql_executor,
     )
     exchange_counts = Counter(symbol.exchange_name for symbol in selected_symbols)

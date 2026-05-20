@@ -1,0 +1,73 @@
+{
+  "contract_version": "frontend-api-v0.1",
+  "generated_at": "2026-05-19T00:00:00Z",
+  "data": {
+    "as_of_date": "2026-05-18",
+    "portfolio_name": "Long Term Paper",
+    "strategy_name": "long_term_core",
+    "latest_recommendation_batch": {
+      "as_of_date": "2026-05-18",
+      "horizon_type": "long_term",
+      "universe_version": "bootstrap-v1"
+    },
+    "quality_summary": {
+      "recommendation_count": 2,
+      "measured_recommendation_count": 1,
+      "unmeasured_recommendation_count": 1,
+      "hit_rate": 1.0,
+      "average_alpha": 0.06,
+      "position_recommendation_conflict_count": 1,
+      "paper_action_count": 2,
+      "requires_human_approval_count": 2
+    },
+    "guardrails": [
+      "이 화면은 가상 거래(Paper) 미리보기이며 실제 주문을 만들지 않는다.",
+      "모든 가상 조치는 사람 승인 전까지 실행되지 않는다.",
+      "실거래 증권사 API, 계좌 권한, 주문 전송은 아직 연결하지 않았다."
+    ],
+    "paper_actions": [
+      {
+        "symbol": "AAPL",
+        "instrument_id": "instrument-501",
+        "recommendation_id": "recommendation-7101",
+        "linked_thesis_id": "thesis-7001",
+        "recommendation_action": "exclude",
+        "recommendation_score": 0.2579,
+        "recommendation_as_of_date": "2026-05-18",
+        "latest_price_date": "2026-05-18",
+        "latest_price": 300.23,
+        "current_weight": 0.05,
+        "target_weight": 0,
+        "paper_action": "paper_sell_to_zero",
+        "reason": "추천은 제외인데 현재 보유 중이다. 실제 주문 없이 가상 매도 후보로 표시한다.",
+        "risk_level": "high",
+        "requires_human_approval": true,
+        "conflict": true
+      },
+      {
+        "symbol": "MSFT",
+        "instrument_id": "instrument-503",
+        "recommendation_id": "recommendation-7102",
+        "linked_thesis_id": "thesis-7002",
+        "recommendation_action": "monitor_or_accumulate",
+        "recommendation_score": 0.73,
+        "recommendation_as_of_date": "2026-05-18",
+        "latest_price_date": "2026-05-18",
+        "latest_price": 426.8,
+        "current_weight": 0,
+        "target_weight": 0.03,
+        "paper_action": "paper_buy_to_target",
+        "reason": "추천 목표 비중이 있고 현재 미보유다. 실제 주문 없이 가상 매수 후보로 표시한다.",
+        "risk_level": "medium",
+        "requires_human_approval": true,
+        "conflict": false
+      }
+    ]
+  },
+  "links": {
+    "stocks": "/api/stocks",
+    "portfolio_coverage": "/api/portfolio/Long%20Term%20Paper/coverage",
+    "performance": "/api/performance/Long%20Term%20Paper/outcomes",
+    "data_health": "/api/data-health"
+  }
+}

@@ -241,11 +241,6 @@ def build_thesis_rows(
     rows: list[ThesisRow] = []
     for candidate in candidates:
         title = f"{candidate.primary_symbol} {candidate.bucket} thesis via {candidate.node_name}"
-        summary = (
-            f"{candidate.primary_symbol} is an active {candidate.bucket} recommendation linked to "
-            f"{candidate.node_name}. Cycle state is {candidate.cycle_state}; recommendation score is "
-            f"{candidate.total_score}."
-        )
         rows.append(
             ThesisRow(
                 recommendation_id=candidate.recommendation_id,
@@ -256,19 +251,19 @@ def build_thesis_rows(
                 node_name=candidate.node_name,
                 thesis_type=strategy_name,
                 title=title,
-                summary=summary,
+                summary=_build_thesis_summary(
+                    candidate,
+                    strategy_name=strategy_name,
+                    expected_holding_days=expected_holding_days,
+                    benchmark_code=benchmark_code,
+                ),
                 status="active",
                 conviction_score=candidate.total_score,
                 expected_holding_days=expected_holding_days,
                 benchmark_code=benchmark_code,
-                entry_conditions=(
-                    "Keep active recommendation status, selected universe membership, and direct theme/cycle evidence."
-                ),
-                invalidation_conditions=(
-                    "Invalidate if recommendation score falls below 0.3500, cycle state weakens to correcting "
-                    "or structurally_broken, or direct theme evidence is removed."
-                ),
-                exit_conditions="Reduce or exit if invalidation conditions are triggered during review.",
+                entry_conditions=_build_entry_conditions(candidate),
+                invalidation_conditions=_build_invalidation_conditions(candidate),
+                exit_conditions=_build_exit_conditions(benchmark_code=benchmark_code),
             )
         )
     return tuple(rows)
@@ -503,6 +498,73 @@ def _expected_holding_days(horizon_type: str) -> int:
     if "medium" in normalized:
         return 180
     return 180
+
+
+def _build_thesis_summary(
+    candidate: ThesisCandidate,
+    *,
+    strategy_name: str,
+    expected_holding_days: int,
+    benchmark_code: str | None,
+) -> str:
+    return (
+        f"{candidate.primary_symbol} 투자 논리 초안: {strategy_name} 전략에서 추천은 {candidate.bucket} 버킷의 "
+        f"{candidate.action}, 점수 {_format_score(candidate.total_score)}, 순위 {candidate.rank_position}위다. "
+        f"핵심 테마는 {candidate.node_name} ({candidate.node_code})이고 사이클 상태는 {candidate.cycle_state}, "
+        f"사이클 점수는 {_format_score(candidate.cycle_score)}이다. "
+        f"가격 맥락은 최신 수정종가 {_format_price(candidate.latest_adjusted_close)}, "
+        f"1일 수익률 {_format_ratio(candidate.return_1d)}, 관측 구간 수익률 "
+        f"{_format_ratio(candidate.return_since_first)}다. "
+        f"벤치마크는 {benchmark_code or 'unavailable'}, 예상 보유·검토 기간은 {expected_holding_days}일이다."
+    )
+
+
+def _build_entry_conditions(candidate: ThesisCandidate) -> str:
+    return (
+        f"유지 조건: 추천이 active 상태이고, 선택 유니버스 편입이 유지되며, "
+        f"{candidate.node_name} 직접 테마 근거가 연결되어 있어야 한다. 사이클 상태는 {candidate.cycle_state} 상태를 "
+        f"유지하거나 개선되어야 하고, 가격 맥락은 현재 1일 수익률 {_format_ratio(candidate.return_1d)}와 "
+        f"관측 구간 수익률 {_format_ratio(candidate.return_since_first)}보다 뚜렷하게 약해지지 않아야 한다."
+    )
+
+
+def _build_invalidation_conditions(candidate: ThesisCandidate) -> str:
+    return (
+        "무효화 조건: recommendation score falls below 0.3500, cycle state가 correcting 또는 "
+        "structurally_broken으로 약화되거나, 직접 테마 근거가 제거되거나, 최신 수정종가가 unavailable 상태가 되거나, "
+        f"관측 구간 수익률이 {_invalidation_return_floor(candidate.return_since_first)} 아래로 악화되면 thesis를 재검토한다."
+    )
+
+
+def _build_exit_conditions(*, benchmark_code: str | None) -> str:
+    return (
+        "조치 조건: 검토 중 무효화 조건이 발동되면 비중 축소 또는 청산을 검토한다. "
+        f"벤치마크 {benchmark_code or 'unavailable'} 커버리지, 원천 이벤트 근거, 가격 feature provenance가 "
+        "누락되면 사람 검토로 승격한다."
+    )
+
+
+def _format_score(value: Decimal) -> str:
+    return str(value.quantize(Decimal("0.0001")))
+
+
+def _format_price(value: Decimal | None) -> str:
+    if value is None:
+        return "unavailable"
+    return str(value.quantize(Decimal("0.0001")))
+
+
+def _format_ratio(value: Decimal | None) -> str:
+    if value is None:
+        return "unavailable"
+    return f"{(value * Decimal('100')).quantize(Decimal('0.01'))}%"
+
+
+def _invalidation_return_floor(return_since_first: Decimal | None) -> str:
+    if return_since_first is None:
+        return "-10.00%"
+    floor = min(return_since_first - Decimal("0.10"), Decimal("-0.10"))
+    return _format_ratio(floor)
 
 
 def _sql_text(value: str) -> str:

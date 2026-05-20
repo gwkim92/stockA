@@ -6,9 +6,11 @@ from stockanalysis.frontend.pagination import (
     DEFAULT_PAGE_LIMIT,
     FrontendPaginationError,
     apply_frontend_pagination,
+    apply_frontend_sql_pagination,
     canonical_frontend_path_for_pagination,
     decode_frontend_cursor,
     encode_frontend_cursor,
+    frontend_sql_page_window,
 )
 
 
@@ -42,6 +44,25 @@ class FrontendPaginationTests(unittest.TestCase):
         self.assertEqual(payload["pagination"]["cursor"], cursor)
         self.assertFalse(payload["pagination"]["has_more"])
         self.assertIsNone(payload["pagination"]["next_cursor"])
+
+    def test_sql_pagination_trims_limit_plus_one_page(self) -> None:
+        payload = apply_frontend_sql_pagination("/api/events?asOfDate=2024-11-01&limit=2", _event_payload())
+
+        self.assertEqual([item["event_id"] for item in payload["data"]["events"]], ["event-0", "event-1"])
+        self.assertEqual(payload["pagination"]["limit"], 2)
+        self.assertEqual(payload["pagination"]["item_count"], 2)
+        self.assertTrue(payload["pagination"]["has_more"])
+        self.assertEqual(decode_frontend_cursor(payload["pagination"]["next_cursor"]), 2)
+
+    def test_sql_page_window_uses_limit_plus_one_and_cursor_offset(self) -> None:
+        cursor = encode_frontend_cursor(7)
+
+        page_limit, page_offset = frontend_sql_page_window(
+            f"/api/events?asOfDate=2024-11-01&limit=25&cursor={cursor}"
+        )
+
+        self.assertEqual(page_limit, 26)
+        self.assertEqual(page_offset, 7)
 
     def test_missing_limit_uses_default(self) -> None:
         payload = apply_frontend_pagination("/api/events?asOfDate=2024-11-01", _event_payload())

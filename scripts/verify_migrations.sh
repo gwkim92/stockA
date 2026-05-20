@@ -50,7 +50,7 @@ echo "Created tables:"
 docker exec "$CONTAINER_NAME" psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc "
 select schemaname || '.' || tablename
 from pg_tables
-where schemaname in ('ops', 'ref', 'ingest', 'market', 'macro', 'event', 'signal', 'portfolio', 'performance')
+where schemaname in ('ops', 'ref', 'ingest', 'market', 'macro', 'event', 'signal', 'portfolio', 'performance', 'trading')
 order by schemaname, tablename;
 "
 

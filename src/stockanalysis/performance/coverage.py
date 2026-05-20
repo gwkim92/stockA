@@ -220,8 +220,37 @@ def load_portfolio_outcome_coverage_report(
     portfolio_name: str,
     snapshot_date: date,
     measurement_end_date: date,
+    position_limit: int | None = None,
+    position_offset: int = 0,
     executor: PsqlCommandExecutor | None = None,
 ) -> dict[str, object]:
+    if position_limit is not None:
+        if position_limit <= 0:
+            raise ValueError("position_limit must be greater than 0")
+        if position_offset < 0:
+            raise ValueError("position_offset must be greater than or equal to 0")
+        if measurement_end_date < snapshot_date:
+            raise ValueError("measurement_end_date must be greater than or equal to snapshot_date.")
+        sql_executor = executor or PsqlCommandExecutor.from_config(config)
+        payload = json.loads(
+            sql_executor.execute_scalar(
+                render_portfolio_outcome_coverage_report_sql(
+                    portfolio_name=portfolio_name,
+                    snapshot_date=snapshot_date,
+                    measurement_end_date=measurement_end_date,
+                    position_limit=position_limit,
+                    position_offset=position_offset,
+                )
+            )
+        )
+        if not isinstance(payload, dict):
+            raise ValueError("Portfolio outcome coverage report lookup did not return a JSON object.")
+        if int(payload.get("position_count") or 0) == 0:
+            raise ValueError("No portfolio positions matched the requested coverage report identity.")
+        return payload
+    if position_offset != 0:
+        raise ValueError("position_offset requires position_limit")
+
     rows = load_portfolio_outcome_coverage_rows(
         config=config,
         portfolio_name=portfolio_name,
@@ -230,6 +259,157 @@ def load_portfolio_outcome_coverage_report(
         executor=executor,
     )
     return build_portfolio_outcome_coverage_report(rows)
+
+
+def render_portfolio_outcome_coverage_report_sql(
+    *,
+    portfolio_name: str,
+    snapshot_date: date,
+    measurement_end_date: date,
+    position_limit: int,
+    position_offset: int = 0,
+) -> str:
+    if position_limit <= 0:
+        raise ValueError("position_limit must be greater than 0")
+    if position_offset < 0:
+        raise ValueError("position_offset must be greater than or equal to 0")
+    if measurement_end_date < snapshot_date:
+        raise ValueError("measurement_end_date must be greater than or equal to snapshot_date.")
+
+    return f"""-- portfolio outcome coverage report
+with selected_portfolio as (
+    select portfolio_id, portfolio_name
+    from portfolio.portfolio
+    where portfolio_name = {sql_literal(portfolio_name)}
+    limit 1
+),
+position_rows as (
+    select
+        portfolio.portfolio_id,
+        portfolio.portfolio_name,
+        position.instrument_id,
+        instrument.primary_symbol,
+        position.market_value,
+        position.weight as position_weight,
+        position.linked_thesis_id
+    from selected_portfolio portfolio
+    join portfolio.position_snapshot position on position.portfolio_id = portfolio.portfolio_id
+    join ref.instrument instrument on instrument.instrument_id = position.instrument_id
+    where position.snapshot_date = {sql_date(snapshot_date)}
+      and position.quantity <> 0
+),
+coverage_rows as (
+    select
+        position.portfolio_id,
+        position.portfolio_name,
+        {sql_date(snapshot_date)} as snapshot_date,
+        {sql_date(measurement_end_date)} as measurement_end_date,
+        position.instrument_id,
+        position.primary_symbol,
+        position.market_value,
+        position.position_weight,
+        position.linked_thesis_id,
+        thesis.title as thesis_title,
+        outcome.outcome_id,
+        outcome.status as outcome_status,
+        outcome.success_grade,
+        case
+            when position.linked_thesis_id is null then 'missing_thesis'
+            when position.position_weight is null then 'missing_weight'
+            when outcome.outcome_id is null then 'missing_outcome'
+            else 'covered'
+        end as coverage_status
+    from position_rows position
+    left join signal.investment_thesis thesis on thesis.thesis_id = position.linked_thesis_id
+    left join performance.thesis_outcome outcome
+      on outcome.thesis_id = position.linked_thesis_id
+     and outcome.measurement_start_date = {sql_date(snapshot_date)}
+     and outcome.measurement_end_date = {sql_date(measurement_end_date)}
+),
+coverage_summary as (
+    select
+        count(*)::int as position_count,
+        count(*) filter (where coverage_status = 'covered')::int as covered_count,
+        count(*) filter (where coverage_status = 'missing_outcome')::int as missing_outcome_count,
+        count(*) filter (where coverage_status = 'missing_thesis')::int as missing_thesis_count,
+        count(*) filter (where coverage_status = 'missing_weight')::int as missing_weight_count,
+        coalesce(sum(position_weight) filter (where coverage_status = 'covered'), 0)::numeric as covered_weight,
+        coalesce(sum(position_weight) filter (where coverage_status = 'missing_outcome'), 0)::numeric as missing_outcome_weight,
+        coalesce(sum(position_weight) filter (where coverage_status = 'missing_thesis'), 0)::numeric as missing_thesis_weight,
+        coalesce(sum(position_weight) filter (where coverage_status = 'missing_weight'), 0)::numeric as missing_weight_weight,
+        coalesce(sum(position_weight), 0)::numeric as total_position_weight,
+        coalesce(bool_or(position_weight is null), false) as has_missing_weight_value
+    from coverage_rows
+),
+position_page as (
+    select *
+    from coverage_rows
+    order by coverage_status, primary_symbol
+    limit {position_limit}
+    offset {position_offset}
+)
+select json_build_object(
+    'portfolio_id', (select portfolio_id from selected_portfolio),
+    'portfolio_name', coalesce((select portfolio_name from selected_portfolio), {sql_literal(portfolio_name)}),
+    'snapshot_date', {sql_date(snapshot_date)},
+    'measurement_end_date', {sql_date(measurement_end_date)},
+    'position_limit', {position_limit},
+    'position_offset', {position_offset},
+    'position_count', coalesce((select position_count from coverage_summary), 0),
+    'status_counts',
+    json_build_object(
+        'covered', coalesce((select covered_count from coverage_summary), 0),
+        'missing_outcome', coalesce((select missing_outcome_count from coverage_summary), 0),
+        'missing_thesis', coalesce((select missing_thesis_count from coverage_summary), 0),
+        'missing_weight', coalesce((select missing_weight_count from coverage_summary), 0)
+    ),
+    'weight_by_status',
+    json_build_object(
+        'covered', round(coalesce((select covered_weight from coverage_summary), 0), 4),
+        'missing_outcome', round(coalesce((select missing_outcome_weight from coverage_summary), 0), 4),
+        'missing_thesis', round(coalesce((select missing_thesis_weight from coverage_summary), 0), 4),
+        'missing_weight', round(coalesce((select missing_weight_weight from coverage_summary), 0), 4)
+    ),
+    'total_position_weight', round(coalesce((select total_position_weight from coverage_summary), 0), 4),
+    'covered_weight', round(coalesce((select covered_weight from coverage_summary), 0), 4),
+    'cash_weight',
+    case
+        when coalesce((select has_missing_weight_value from coverage_summary), false) then null
+        else round(greatest(0::numeric, 1::numeric - coalesce((select total_position_weight from coverage_summary), 0)), 4)
+    end,
+    'coverage_ratio_by_count',
+    case
+        when coalesce((select position_count from coverage_summary), 0) = 0 then null
+        else round((select covered_count from coverage_summary)::numeric / (select position_count from coverage_summary)::numeric, 4)
+    end,
+    'coverage_ratio_by_weight',
+    case
+        when coalesce((select total_position_weight from coverage_summary), 0) = 0 then null
+        else round((select covered_weight from coverage_summary) / (select total_position_weight from coverage_summary), 4)
+    end,
+    'positions',
+    coalesce(
+        (
+            select json_agg(
+                json_build_object(
+                    'symbol', primary_symbol,
+                    'instrument_id', instrument_id,
+                    'coverage_status', coverage_status,
+                    'weight', round(position_weight, 4),
+                    'market_value', market_value,
+                    'linked_thesis_id', linked_thesis_id,
+                    'thesis_title', thesis_title,
+                    'outcome_id', outcome_id,
+                    'outcome_status', outcome_status,
+                    'success_grade', success_grade
+                )
+                order by coverage_status, primary_symbol
+            )
+            from position_page
+        ),
+        '[]'::json
+    )
+)::text;"""
 
 
 def _render_position(row: PortfolioOutcomeCoverageRow) -> dict[str, object]:

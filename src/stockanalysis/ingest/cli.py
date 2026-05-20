@@ -22,6 +22,31 @@ from stockanalysis.ingest.macro.upsert import (
 from stockanalysis.ingest.market.backfill import run_market_price_universe_backfill
 from stockanalysis.ingest.market.price import run_market_price_batch_upsert, run_market_price_upsert
 from stockanalysis.ingest.market.universe import run_market_universe_bootstrap
+from stockanalysis.ingest.news.rss import load_news_rss_sync_result
+from stockanalysis.ingest.news.chunk_index import (
+    DEFAULT_RSS_CHUNK_INDEX_DOCUMENT_LIMIT,
+    DEFAULT_RSS_CHUNK_INDEX_EMBEDDING_DIMENSION,
+    DEFAULT_RSS_CHUNK_INDEX_MAX_TEXT_CHARS,
+    DEFAULT_RSS_CHUNK_INDEX_MODEL_NAME,
+    DEFAULT_RSS_CHUNK_INDEX_PROVIDER,
+    run_news_rss_local_chunk_index,
+)
+from stockanalysis.ingest.news.raw_fetch import (
+    DEFAULT_NEWS_RSS_RAW_FETCH_LIMIT,
+    DEFAULT_NEWS_RSS_RAW_MAX_BODY_BYTES,
+    DEFAULT_NEWS_RSS_RAW_USER_AGENT,
+    run_news_rss_raw_fetch,
+)
+from stockanalysis.ingest.news.raw_body_chunk_index import (
+    DEFAULT_RSS_RAW_BODY_CHUNK_INDEX_DOCUMENT_LIMIT,
+    DEFAULT_RSS_RAW_BODY_CHUNK_INDEX_EMBEDDING_DIMENSION,
+    DEFAULT_RSS_RAW_BODY_CHUNK_INDEX_MAX_CHUNKS_PER_DOCUMENT,
+    DEFAULT_RSS_RAW_BODY_CHUNK_INDEX_MAX_TEXT_CHARS,
+    DEFAULT_RSS_RAW_BODY_CHUNK_INDEX_MODEL_NAME,
+    DEFAULT_RSS_RAW_BODY_CHUNK_INDEX_PROVIDER,
+    run_news_rss_raw_body_chunk_index,
+)
+from stockanalysis.ingest.news.upsert import run_news_rss_upsert
 from stockanalysis.ingest.portfolio.position import run_position_snapshot_upsert
 from stockanalysis.ingest.psql import PsqlExecutionError
 from stockanalysis.ingest.registry import get_source, list_sources
@@ -36,6 +61,9 @@ from stockanalysis.ingest.sec.instrument_impact import run_event_instrument_impa
 from stockanalysis.ingest.sec.raw_fetch import run_sec_filing_raw_fetch
 from stockanalysis.ingest.sec.submissions import load_sec_filings_sync_result
 from stockanalysis.ingest.sec.upsert import run_sec_filings_upsert
+from stockanalysis.operations.artifact_runner import run_data_operation_artifact_command
+from stockanalysis.operations.cadence import build_data_operations_cadence_report
+from stockanalysis.operations.env_readiness import check_data_operations_runtime_env
 from stockanalysis.performance.attribution import run_portfolio_attribution_bootstrap
 from stockanalysis.performance.coverage import load_portfolio_outcome_coverage_report
 from stockanalysis.performance.outcome import (
@@ -84,6 +112,44 @@ def build_parser() -> argparse.ArgumentParser:
 
     subparsers.add_parser("macro-default-series", help="List default FRED macro series bootstrap specs.")
 
+    data_operations_cadence = subparsers.add_parser(
+        "data-operations-cadence",
+        help="Print the repo-owned data operations cadence registry.",
+    )
+    data_operations_cadence.add_argument(
+        "--cadence",
+        choices=("daily", "weekly", "monthly"),
+        help="Optional cadence filter.",
+    )
+    data_operations_run = subparsers.add_parser(
+        "data-operations-run",
+        help="Run a command and capture stdout/stderr/metadata under the data operations artifact root.",
+    )
+    data_operations_run.add_argument("--job-id", required=True)
+    data_operations_run.add_argument(
+        "--artifact-root",
+        help="Optional artifact root. Defaults to STOCKANALYSIS_DATA_OPERATIONS_ARTIFACT_ROOT.",
+    )
+    data_operations_run.add_argument("--timeout-seconds", type=int, default=3600)
+    data_operations_run.add_argument(
+        "command_argv",
+        nargs=argparse.REMAINDER,
+        help="Command to run after --.",
+    )
+    data_operations_env_readiness = subparsers.add_parser(
+        "data-operations-env-readiness",
+        help="Validate repo-outside data operations runtime env readiness without exposing secrets.",
+    )
+    data_operations_env_readiness.add_argument(
+        "--env-file",
+        help="Trusted env file path, used for repo-outside validation and report metadata.",
+    )
+    data_operations_env_readiness.add_argument(
+        "--repo-root",
+        default=str(Path(__file__).resolve().parents[3]),
+        help="Repository root used to reject repo-inside env and artifact paths.",
+    )
+
     macro_sync = subparsers.add_parser(
         "macro-sync",
         help="Build a normalized macro series payload from FRED or local fixtures.",
@@ -114,6 +180,96 @@ def build_parser() -> argparse.ArgumentParser:
     macro_batch_upsert.add_argument("--observation-start")
     macro_batch_upsert.add_argument("--observation-end")
 
+    news_rss_sync = subparsers.add_parser(
+        "news-rss-sync",
+        help="Parse a free RSS/Atom news feed from a URL or local XML fixture.",
+    )
+    _add_news_rss_args(news_rss_sync)
+
+    news_rss_upsert = subparsers.add_parser(
+        "news-rss-upsert",
+        help="Upsert free RSS/Atom news feed items into source_document and event tables.",
+    )
+    _add_news_rss_args(news_rss_upsert)
+
+    news_rss_local_chunk_index = subparsers.add_parser(
+        "news-rss-local-chunk-index",
+        help="Create local deterministic document chunks and embedding metadata for RSS source documents.",
+    )
+    news_rss_local_chunk_index.add_argument("--document-limit", type=int, default=DEFAULT_RSS_CHUNK_INDEX_DOCUMENT_LIMIT)
+    news_rss_local_chunk_index.add_argument("--provider", default=DEFAULT_RSS_CHUNK_INDEX_PROVIDER)
+    news_rss_local_chunk_index.add_argument("--model-name", default=DEFAULT_RSS_CHUNK_INDEX_MODEL_NAME)
+    news_rss_local_chunk_index.add_argument(
+        "--embedding-dimension",
+        type=int,
+        default=DEFAULT_RSS_CHUNK_INDEX_EMBEDDING_DIMENSION,
+    )
+    news_rss_local_chunk_index.add_argument("--max-text-chars", type=int, default=DEFAULT_RSS_CHUNK_INDEX_MAX_TEXT_CHARS)
+
+    news_rss_raw_fetch = subparsers.add_parser(
+        "news-rss-raw-fetch",
+        help="Fetch free public RSS article bodies and attach raw artifacts to source_document.",
+    )
+    news_rss_raw_fetch.add_argument("--limit", type=int, default=DEFAULT_NEWS_RSS_RAW_FETCH_LIMIT)
+    news_rss_raw_fetch.add_argument("--external-document-id")
+    news_rss_raw_fetch.add_argument(
+        "--exclude-url-host",
+        action="append",
+        default=[],
+        help="Repeatable URL host to exclude from raw fetch candidate discovery, such as news.google.com.",
+    )
+    news_rss_raw_fetch.add_argument(
+        "--artifact-root",
+        default="artifacts/raw",
+        help="Root directory for persisted raw RSS article artifacts.",
+    )
+    news_rss_raw_fetch.add_argument(
+        "--body-file",
+        help="Optional local article body fixture. Requires --external-document-id.",
+    )
+    news_rss_raw_fetch.add_argument(
+        "--force",
+        action="store_true",
+        help="Overwrite existing raw_storage_uri instead of discovering only pending documents.",
+    )
+    news_rss_raw_fetch.add_argument("--max-body-bytes", type=int, default=DEFAULT_NEWS_RSS_RAW_MAX_BODY_BYTES)
+    news_rss_raw_fetch.add_argument("--user-agent", default=DEFAULT_NEWS_RSS_RAW_USER_AGENT)
+
+    news_rss_raw_body_chunk_index = subparsers.add_parser(
+        "news-rss-raw-body-chunk-index",
+        help="Create local deterministic body-text chunks from stored RSS raw HTML artifacts.",
+    )
+    news_rss_raw_body_chunk_index.add_argument(
+        "--document-limit",
+        type=int,
+        default=DEFAULT_RSS_RAW_BODY_CHUNK_INDEX_DOCUMENT_LIMIT,
+    )
+    news_rss_raw_body_chunk_index.add_argument("--external-document-id")
+    news_rss_raw_body_chunk_index.add_argument(
+        "--artifact-root",
+        default="artifacts/raw",
+        help="Root directory that must contain the file:// raw_storage_uri artifacts.",
+    )
+    news_rss_raw_body_chunk_index.add_argument(
+        "--exclude-url-host",
+        action="append",
+        default=[],
+        help="Repeatable URL host to exclude from raw body chunk candidate discovery, such as news.google.com.",
+    )
+    news_rss_raw_body_chunk_index.add_argument("--provider", default=DEFAULT_RSS_RAW_BODY_CHUNK_INDEX_PROVIDER)
+    news_rss_raw_body_chunk_index.add_argument("--model-name", default=DEFAULT_RSS_RAW_BODY_CHUNK_INDEX_MODEL_NAME)
+    news_rss_raw_body_chunk_index.add_argument(
+        "--embedding-dimension",
+        type=int,
+        default=DEFAULT_RSS_RAW_BODY_CHUNK_INDEX_EMBEDDING_DIMENSION,
+    )
+    news_rss_raw_body_chunk_index.add_argument("--max-text-chars", type=int, default=DEFAULT_RSS_RAW_BODY_CHUNK_INDEX_MAX_TEXT_CHARS)
+    news_rss_raw_body_chunk_index.add_argument(
+        "--max-chunks-per-document",
+        type=int,
+        default=DEFAULT_RSS_RAW_BODY_CHUNK_INDEX_MAX_CHUNKS_PER_DOCUMENT,
+    )
+
     macro_run_history = subparsers.add_parser(
         "macro-run-history",
         help="Report recent macro upsert run history from canonical Postgres.",
@@ -123,19 +279,52 @@ def build_parser() -> argparse.ArgumentParser:
 
     market_price_upsert = subparsers.add_parser(
         "market-price-upsert",
-        help="Upsert Alpha Vantage daily adjusted price bars into canonical Postgres.",
+        help="Upsert provider daily price bars into canonical Postgres.",
     )
     market_price_upsert.add_argument("--symbol", required=True)
-    market_price_upsert.add_argument("--prices-json", help="Optional local Alpha Vantage daily adjusted JSON fixture.")
-    market_price_upsert.add_argument("--outputsize", help="Optional Alpha Vantage outputsize such as compact or full.")
+    market_price_upsert.add_argument("--prices-json", help="Optional local provider daily price JSON fixture.")
+    market_price_upsert.add_argument("--outputsize", help="Optional provider output size such as compact/full or bar count.")
+    market_price_upsert.add_argument(
+        "--provider",
+        choices=("alpha_vantage", "twelve_data"),
+        default="alpha_vantage",
+        help="Market price provider. Defaults to alpha_vantage.",
+    )
 
     market_price_batch_upsert = subparsers.add_parser(
         "market-price-batch-upsert",
-        help="Upsert multiple Alpha Vantage daily adjusted price series into canonical Postgres.",
+        help="Upsert multiple provider daily price series into canonical Postgres.",
     )
     market_price_batch_upsert.add_argument("--symbol", action="append", default=[])
     market_price_batch_upsert.add_argument("--fixtures-dir", help="Optional fixture directory for batch mode.")
-    market_price_batch_upsert.add_argument("--outputsize", help="Optional Alpha Vantage outputsize such as compact or full.")
+    market_price_batch_upsert.add_argument("--outputsize", help="Optional provider output size such as compact/full or bar count.")
+    market_price_batch_upsert.add_argument(
+        "--provider",
+        choices=("alpha_vantage", "twelve_data"),
+        default="alpha_vantage",
+        help="Market price provider. Defaults to alpha_vantage.",
+    )
+    market_price_batch_upsert.add_argument(
+        "--throttle-seconds",
+        type=float,
+        default=0.0,
+        help="Seconds to sleep between provider-backed requests. Fixtures do not sleep.",
+    )
+    market_price_batch_upsert.add_argument(
+        "--max-requests-per-run",
+        type=int,
+        default=25,
+        help="Maximum provider-backed requests in this run. Extra symbols are skipped.",
+    )
+    market_price_batch_upsert.add_argument(
+        "--skip-if-fresh",
+        action="store_true",
+        help="Skip symbols whose canonical latest daily price date is at or after --freshness-date.",
+    )
+    market_price_batch_upsert.add_argument(
+        "--freshness-date",
+        help="Target freshness date in YYYY-MM-DD format. Defaults to the runtime date when --skip-if-fresh is used.",
+    )
 
     market_universe_bootstrap = subparsers.add_parser(
         "market-universe-bootstrap",
@@ -165,7 +354,34 @@ def build_parser() -> argparse.ArgumentParser:
     )
     market_price_universe_backfill.add_argument("--limit", type=int, help="Optional maximum number of selected symbols.")
     market_price_universe_backfill.add_argument("--fixtures-dir", help="Optional fixture directory for batch mode.")
-    market_price_universe_backfill.add_argument("--outputsize", help="Optional Alpha Vantage outputsize such as compact or full.")
+    market_price_universe_backfill.add_argument("--outputsize", help="Optional provider output size such as compact/full or bar count.")
+    market_price_universe_backfill.add_argument(
+        "--provider",
+        choices=("alpha_vantage", "twelve_data"),
+        default="alpha_vantage",
+        help="Market price provider. Defaults to alpha_vantage.",
+    )
+    market_price_universe_backfill.add_argument(
+        "--throttle-seconds",
+        type=float,
+        default=0.0,
+        help="Seconds to sleep between provider-backed requests. Fixtures do not sleep.",
+    )
+    market_price_universe_backfill.add_argument(
+        "--max-requests-per-run",
+        type=int,
+        default=25,
+        help="Maximum provider-backed requests in this run. Extra symbols are skipped.",
+    )
+    market_price_universe_backfill.add_argument(
+        "--skip-if-fresh",
+        action="store_true",
+        help="Skip symbols whose canonical latest daily price date is at or after --freshness-date.",
+    )
+    market_price_universe_backfill.add_argument(
+        "--freshness-date",
+        help="Target freshness date in YYYY-MM-DD format. Defaults to the runtime date when --skip-if-fresh is used.",
+    )
 
     portfolio_position_snapshot_upsert = subparsers.add_parser(
         "portfolio-position-snapshot-upsert",
@@ -530,8 +746,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     event_intelligence_llm_extract.add_argument(
         "--llm-output-json",
-        required=True,
-        help="Local structured output fixture for the current provider boundary.",
+        help="Local structured output fixture. Required only when --provider fixture.",
     )
     event_intelligence_llm_extract.add_argument("--provider", default="fixture")
     event_intelligence_llm_extract.add_argument("--model-name", default="gpt-5.4-nano")
@@ -595,6 +810,14 @@ def _add_sec_filings_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--max-filings", type=int, help="Optional maximum number of filings to ingest.")
 
 
+def _add_news_rss_args(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--feed-name", required=True, help="Stable operator-owned feed name such as wsj-markets.")
+    parser.add_argument("--feed-url", required=True, help="Public RSS/Atom feed URL used as source metadata.")
+    parser.add_argument("--feed-xml", help="Optional local RSS/Atom XML fixture. If omitted, --feed-url is fetched.")
+    parser.add_argument("--limit", type=int, help="Optional maximum number of feed items to process.")
+    parser.add_argument("--default-language", default="en", help="Fallback language code when feed items omit language.")
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
@@ -628,6 +851,14 @@ def main(argv: Sequence[str] | None = None) -> int:
         if args.command == "macro-default-series":
             _handle_macro_default_series()
             return 0
+        if args.command == "data-operations-cadence":
+            _handle_data_operations_cadence(args)
+            return 0
+        if args.command == "data-operations-run":
+            return _handle_data_operations_run(args)
+        if args.command == "data-operations-env-readiness":
+            _handle_data_operations_env_readiness(args)
+            return 0
         if args.command == "macro-sync":
             _handle_macro_sync(args, config=config)
             return 0
@@ -636,6 +867,19 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 0
         if args.command == "macro-batch-upsert":
             return _handle_macro_batch_upsert(args, config=config)
+        if args.command == "news-rss-sync":
+            _handle_news_rss_sync(args, config=config)
+            return 0
+        if args.command == "news-rss-upsert":
+            _handle_news_rss_upsert(args, config=config)
+            return 0
+        if args.command == "news-rss-local-chunk-index":
+            _handle_news_rss_local_chunk_index(args, config=config)
+            return 0
+        if args.command == "news-rss-raw-fetch":
+            return _handle_news_rss_raw_fetch(args, config=config)
+        if args.command == "news-rss-raw-body-chunk-index":
+            return _handle_news_rss_raw_body_chunk_index(args, config=config)
         if args.command == "macro-run-history":
             _handle_macro_run_history(args, config=config)
             return 0
@@ -747,6 +991,33 @@ def main_entry() -> None:
 def _handle_list_sources() -> None:
     for source in list_sources():
         print(f"{source.name}: {source.description}")
+
+
+def _handle_data_operations_cadence(args: argparse.Namespace) -> None:
+    report = build_data_operations_cadence_report(cadence=args.cadence)
+    print(json.dumps(report, indent=2, ensure_ascii=False))
+
+
+def _handle_data_operations_run(args: argparse.Namespace) -> int:
+    command_argv = list(args.command_argv)
+    if command_argv and command_argv[0] == "--":
+        command_argv = command_argv[1:]
+    result = run_data_operation_artifact_command(
+        job_id=args.job_id,
+        artifact_root=args.artifact_root,
+        command_argv=command_argv,
+        timeout_seconds=args.timeout_seconds,
+    )
+    print(json.dumps(result, indent=2, ensure_ascii=False))
+    return int(result["exit_code"])
+
+
+def _handle_data_operations_env_readiness(args: argparse.Namespace) -> None:
+    report = check_data_operations_runtime_env(
+        repo_root=args.repo_root,
+        env_file=args.env_file,
+    )
+    print(json.dumps(report, indent=2, ensure_ascii=False, sort_keys=True))
 
 
 def _handle_describe_source(source_name: str) -> None:
@@ -874,6 +1145,86 @@ def _handle_macro_batch_upsert(args: argparse.Namespace, *, config: RuntimeConfi
     return 0 if summary["failed_series_count"] == 0 else 1
 
 
+def _handle_news_rss_sync(args: argparse.Namespace, *, config: RuntimeConfig) -> None:
+    result = load_news_rss_sync_result(
+        feed_name=args.feed_name,
+        feed_url=args.feed_url,
+        config=config,
+        feed_xml_path=args.feed_xml,
+        limit=args.limit,
+        default_language=args.default_language,
+    )
+    payload = result.summary()
+    payload["items"] = [
+        {
+            "external_document_id": item.external_document_id,
+            "title": item.title,
+            "url": item.url,
+            "published_at": item.published_at.isoformat() if item.published_at else None,
+            "language": item.language,
+        }
+        for item in result.items
+    ]
+    print(json.dumps(payload, indent=2, ensure_ascii=False))
+
+
+def _handle_news_rss_upsert(args: argparse.Namespace, *, config: RuntimeConfig) -> None:
+    summary = run_news_rss_upsert(
+        feed_name=args.feed_name,
+        feed_url=args.feed_url,
+        config=config,
+        feed_xml_path=args.feed_xml,
+        limit=args.limit,
+        default_language=args.default_language,
+    )
+    print(json.dumps(summary, indent=2, ensure_ascii=False))
+
+
+def _handle_news_rss_local_chunk_index(args: argparse.Namespace, *, config: RuntimeConfig) -> None:
+    summary = run_news_rss_local_chunk_index(
+        config=config,
+        document_limit=args.document_limit,
+        provider=args.provider,
+        model_name=args.model_name,
+        embedding_dimension=args.embedding_dimension,
+        max_text_chars=args.max_text_chars,
+    )
+    print(json.dumps(summary, indent=2, ensure_ascii=False))
+
+
+def _handle_news_rss_raw_fetch(args: argparse.Namespace, *, config: RuntimeConfig) -> int:
+    summary = run_news_rss_raw_fetch(
+        config=config,
+        limit=args.limit,
+        external_document_id=args.external_document_id,
+        exclude_url_hosts=tuple(args.exclude_url_host),
+        artifact_root=args.artifact_root,
+        body_path=args.body_file,
+        force=args.force,
+        max_body_bytes=args.max_body_bytes,
+        user_agent=args.user_agent,
+    )
+    print(json.dumps(summary, indent=2, ensure_ascii=False))
+    return 0 if summary["failed_document_count"] == 0 else 1
+
+
+def _handle_news_rss_raw_body_chunk_index(args: argparse.Namespace, *, config: RuntimeConfig) -> int:
+    summary = run_news_rss_raw_body_chunk_index(
+        config=config,
+        document_limit=args.document_limit,
+        external_document_id=args.external_document_id,
+        exclude_url_hosts=tuple(args.exclude_url_host),
+        artifact_root=args.artifact_root,
+        provider=args.provider,
+        model_name=args.model_name,
+        embedding_dimension=args.embedding_dimension,
+        max_text_chars=args.max_text_chars,
+        max_chunks_per_document=args.max_chunks_per_document,
+    )
+    print(json.dumps(summary, indent=2, ensure_ascii=False))
+    return 0 if summary["failed_document_count"] == 0 else 1
+
+
 def _handle_macro_run_history(args: argparse.Namespace, *, config: RuntimeConfig) -> None:
     summary = load_macro_run_history(
         config=config,
@@ -889,6 +1240,7 @@ def _handle_market_price_upsert(args: argparse.Namespace, *, config: RuntimeConf
         config=config,
         prices_json_path=args.prices_json,
         outputsize=args.outputsize,
+        provider=args.provider,
     )
     print(json.dumps(summary, indent=2, ensure_ascii=False))
 
@@ -899,6 +1251,11 @@ def _handle_market_price_batch_upsert(args: argparse.Namespace, *, config: Runti
         config=config,
         fixtures_dir=args.fixtures_dir,
         outputsize=args.outputsize,
+        provider=args.provider,
+        throttle_seconds=args.throttle_seconds,
+        max_requests_per_run=args.max_requests_per_run,
+        skip_if_fresh=args.skip_if_fresh,
+        freshness_date=date.fromisoformat(args.freshness_date) if args.freshness_date else None,
     )
     print(json.dumps(summary, indent=2, ensure_ascii=False))
     return 0 if summary["failed_symbol_count"] == 0 else 1
@@ -921,6 +1278,11 @@ def _handle_market_price_universe_backfill(args: argparse.Namespace, *, config: 
         limit=args.limit,
         fixtures_dir=args.fixtures_dir,
         outputsize=args.outputsize,
+        provider=args.provider,
+        throttle_seconds=args.throttle_seconds,
+        max_requests_per_run=args.max_requests_per_run,
+        skip_if_fresh=args.skip_if_fresh,
+        freshness_date=date.fromisoformat(args.freshness_date) if args.freshness_date else None,
     )
     print(json.dumps(summary, indent=2, ensure_ascii=False))
     return 0 if summary["failed_symbol_count"] == 0 else 1

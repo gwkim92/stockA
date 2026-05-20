@@ -37,7 +37,14 @@ grep -q "route_template" docs/frontend-api-otel-exporter-pilot.md
 grep -q "frontend-api-sql-pagination-optimization" docs/frontend-api-otel-exporter-pilot.md
 grep -q "frontend-api-otel-exporter-pilot" docs/project-execution-roadmap.md
 grep -q "frontend-api-sql-pagination-optimization" docs/project-execution-roadmap.md
-grep -q '현재 고정된 immediate next task는 `frontend-api-sql-pagination-optimization`' AGENTS.md
+grep -q "docs/frontend-api-sql-pagination-optimization.md" README.md
+grep -q "frontend-api-local-collector-smoke" docs/project-execution-roadmap.md
+grep -q "docs/frontend-api-local-collector-smoke.md" README.md
+grep -q "frontend-api-alert-rules" docs/project-execution-roadmap.md
+grep -q "docs/frontend-api-alert-rules.md" README.md
+grep -q "data-operations-cadence-foundation" docs/project-execution-roadmap.md
+grep -q "data-operations-artifact-runner" docs/project-execution-roadmap.md
+grep -q '현재 고정된 immediate next task는 `data-operations-runtime-env-readiness`' AGENTS.md
 grep -q "verify_frontend_api_otel_exporter_pilot.sh" docs/verification-plan.md
 grep -q "docs/frontend-api-otel-exporter-pilot.md" README.md
 

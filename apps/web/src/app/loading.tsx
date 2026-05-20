@@ -16,9 +16,9 @@ export default function Loading() {
           marginBottom: "16px",
           animation: "pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite" 
         }}>
-          Loading Fixture Read Model
+          운영 데이터를 불러오는 중
         </div>
-        <h1 style={{ fontSize: "clamp(2rem, 3vw, 3rem)" }}>Preparing Cockpit Snapshot</h1>
+        <h1 style={{ fontSize: "clamp(2rem, 3vw, 3rem)" }}>투자 운영 스냅샷 준비 중</h1>
         
         <style dangerouslySetInnerHTML={{__html: `
           @keyframes pulse {

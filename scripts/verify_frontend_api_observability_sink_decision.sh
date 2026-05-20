@@ -26,7 +26,11 @@ grep -q "DB URL" docs/frontend-api-observability-sink-decision.md
 grep -q "frontend-api-otel-exporter-pilot" docs/frontend-api-observability-sink-decision.md
 grep -q "frontend-api-observability-sink-decision" docs/project-execution-roadmap.md
 grep -q "frontend-api-otel-exporter-pilot" docs/project-execution-roadmap.md
-grep -q '현재 고정된 immediate next task는 `frontend-api-otel-exporter-pilot`' AGENTS.md
+grep -q "frontend-api-local-collector-smoke" docs/project-execution-roadmap.md
+grep -q "frontend-api-alert-rules" docs/project-execution-roadmap.md
+grep -q "data-operations-cadence-foundation" docs/project-execution-roadmap.md
+grep -q "data-operations-artifact-runner" docs/project-execution-roadmap.md
+grep -q '현재 고정된 immediate next task는 `data-operations-runtime-env-readiness`' AGENTS.md
 grep -q "verify_frontend_api_observability_sink_decision.sh" docs/verification-plan.md
 grep -q "docs/frontend-api-observability-sink-decision.md" README.md
 

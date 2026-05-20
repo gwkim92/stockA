@@ -59,12 +59,12 @@ try:
     status, health = fetch_json("/__health")
     assert status == 200, health
     assert health["contract_version"] == "frontend-api-v0.1", health
-    assert health["endpoint_count"] == 12, health
+    assert health["endpoint_count"] == 16, health
     assert health["source_mode"] == "fixture", health
 
     status, endpoints = fetch_json("/__endpoints")
     assert status == 200, endpoints
-    assert len(endpoints["data"]["endpoints"]) == 12, endpoints
+    assert len(endpoints["data"]["endpoints"]) == 16, endpoints
     assert endpoints["source_mode"] == "fixture", endpoints
 
     status, dashboard = fetch_json("/api/dashboard/today")
@@ -75,6 +75,23 @@ try:
     status, tickets = fetch_json("/api/remediation-tickets?status=open")
     assert status == 200, tickets
     assert tickets["data"]["tickets"][0]["symbol"] == "BABA", tickets
+
+    status, stocks = fetch_json("/api/stocks")
+    assert status == 200, stocks
+    assert stocks["data"]["stocks"][0]["symbol"] == "AAPL", stocks
+
+    status, stock_detail = fetch_json("/api/stocks/AAPL")
+    assert status == 200, stock_detail
+    assert stock_detail["data"]["price_bars"][-1]["close"] == 300.23, stock_detail
+
+    status, paper_trading = fetch_json("/api/paper-trading/preview")
+    assert status == 200, paper_trading
+    assert paper_trading["data"]["paper_actions"][0]["requires_human_approval"] is True, paper_trading
+
+    status, trading_readiness = fetch_json("/api/trading/readiness")
+    assert status == 200, trading_readiness
+    assert trading_readiness["data"]["readiness_status"] == "blocked", trading_readiness
+    assert trading_readiness["data"]["audit_summary"]["submitted_to_broker_count"] == 0, trading_readiness
 
     status, ai_evidence = fetch_json("/api/ai-evidence/sec-event-aapl-10k-20240928")
     assert status == 200, ai_evidence
@@ -117,6 +134,10 @@ try:
             "/__endpoints",
             "/api/dashboard/today",
             "/api/remediation-tickets?status=open",
+            "/api/stocks",
+            "/api/stocks/AAPL",
+            "/api/paper-trading/preview",
+            "/api/trading/readiness",
             "/api/ai-evidence/sec-event-aapl-10k-20240928",
             "/api/source-documents/aapl-2024-10k-20240928",
             "/api/events?asOfDate=2024-11-01",

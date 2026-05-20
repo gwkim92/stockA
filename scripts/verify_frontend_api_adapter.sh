@@ -32,7 +32,12 @@ with open(dashboard_path, "r", encoding="utf-8") as handle:
     dashboard_payload = json.load(handle)
 
 assert endpoint_payload["contract_version"] == "frontend-api-v0.1", endpoint_payload
-assert len(endpoint_payload["endpoints"]) == 12, endpoint_payload
+assert len(endpoint_payload["endpoints"]) == 16, endpoint_payload
+paths = {endpoint["path"] for endpoint in endpoint_payload["endpoints"]}
+assert "/api/stocks" in paths, endpoint_payload
+assert "/api/stocks/AAPL" in paths, endpoint_payload
+assert "/api/paper-trading/preview" in paths, endpoint_payload
+assert "/api/trading/readiness" in paths, endpoint_payload
 assert dashboard_payload["data"]["portfolio_name"] == "Long Term Paper", dashboard_payload
 assert dashboard_payload["data"]["attention_summary"]["open_ticket_count"] == 1, dashboard_payload
 PY

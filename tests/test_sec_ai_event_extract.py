@@ -1,12 +1,19 @@
 from __future__ import annotations
 
 import json
+import sys
+import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from stockanalysis.ingest.sec.ai_event_extract import (
+    CODEX_OAUTH_PROVIDER,
     build_ai_document_chunk,
+    build_codex_oauth_event_prompt,
+    build_codex_oauth_output_schema,
     build_sec_event_candidate_from_structured_output,
+    invoke_codex_oauth_structured_event_provider,
     load_structured_event_provider_response,
     render_ai_document_chunk_upsert_sql,
     render_ai_extraction_artifact_insert_sql,
@@ -73,6 +80,59 @@ class SecAiEventExtractTests(unittest.TestCase):
         self.assertEqual(response.cached_input_token_count, 900)
         self.assertEqual(response.event.event_type, "sec_annual_report_filed")
         self.assertEqual(response.event.confidence, 0.93)
+
+    def test_codex_oauth_prompt_and_schema_do_not_expose_auth_files(self) -> None:
+        record = _source_document_record()
+        chunk = build_ai_document_chunk(record, max_input_chars=700)
+        prompt = build_codex_oauth_event_prompt(record, chunk)
+        schema = build_codex_oauth_output_schema()
+
+        self.assertIn("Do not browse", prompt)
+        self.assertIn("Bounded SEC filing context", prompt)
+        self.assertNotIn("auth.json", prompt)
+        self.assertIn("event", schema["properties"])
+        self.assertIn("event", schema["required"])
+
+    def test_invoke_codex_oauth_provider_uses_cli_boundary(self) -> None:
+        record = _source_document_record()
+        chunk = build_ai_document_chunk(record, max_input_chars=700)
+        payload = {
+            "provider": "codex_oauth",
+            "model_name": "codex-cli-default",
+            "reasoning_effort": "low",
+            "event": json.loads(LLM_FIXTURE.read_text(encoding="utf-8"))["event"],
+            "usage": {"output_tokens": 120},
+        }
+        with tempfile.TemporaryDirectory() as tmpdir:
+            runner = Path(tmpdir) / "fake-codex.py"
+            runner.write_text(
+                "\n".join(
+                    [
+                        "import pathlib, sys",
+                        "args = sys.argv[1:]",
+                        "assert 'exec' in args",
+                        "assert '--ephemeral' in args",
+                        "assert '--sandbox' in args and 'read-only' in args",
+                        "assert '--ask-for-approval' in args and 'never' in args",
+                        "assert 'auth.json' not in ' '.join(args)",
+                        "output = pathlib.Path(args[args.index('--output-last-message') + 1])",
+                        f"output.write_text({json.dumps(json.dumps(payload))}, encoding='utf-8')",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            command = f"{sys.executable} {runner}"
+            with patch.dict("os.environ", {"STOCKANALYSIS_CODEX_CLI_COMMAND": command}):
+                response = invoke_codex_oauth_structured_event_provider(
+                    record,
+                    chunk,
+                    "codex-cli-default",
+                    "low",
+                )
+
+        self.assertEqual(response.provider, CODEX_OAUTH_PROVIDER)
+        self.assertEqual(response.model_name, "codex-cli-default")
+        self.assertEqual(response.output_token_count, 120)
 
     def test_build_ai_document_chunk_limits_and_hashes_text(self) -> None:
         record = _source_document_record()
@@ -152,6 +212,35 @@ class SecAiEventExtractTests(unittest.TestCase):
         self.assertIn("insert into ai.extraction_artifact", executor.scalar_sql[5])
         self.assertIn("insert into event.event", executor.non_query_sql[0])
         self.assertIn("status = 'succeeded'", executor.non_query_sql[1])
+
+    def test_run_event_intelligence_llm_extract_accepts_codex_oauth_provider_runner(self) -> None:
+        executor = FakeAiEventExecutor(run_id=813)
+        fixture_response = load_structured_event_provider_response(
+            str(LLM_FIXTURE),
+            provider=CODEX_OAUTH_PROVIDER,
+            model_name="codex-cli-default",
+            reasoning_effort="low",
+        )
+
+        def fake_runner(source_document, chunk, model_name, reasoning_effort):
+            self.assertEqual(source_document.external_document_id, "0000320193-24-000123")
+            self.assertEqual(model_name, "codex-cli-default")
+            self.assertGreater(chunk.token_count, 0)
+            return fixture_response
+
+        summary = run_event_intelligence_llm_extract(
+            "0000320193-24-000123",
+            config=type("Config", (), {})(),
+            provider=CODEX_OAUTH_PROVIDER,
+            model_name="codex-cli-default",
+            provider_runner=fake_runner,
+            executor=executor,
+            max_input_chars=700,
+        )
+
+        self.assertEqual(summary["provider"], CODEX_OAUTH_PROVIDER)
+        self.assertEqual(summary["model_name"], "gpt-5.4-nano")
+        self.assertEqual(summary["event_type"], "sec_annual_report_filed")
 
     def test_run_event_intelligence_llm_extract_marks_failed_when_event_upsert_fails(self) -> None:
         executor = FakeAiEventExecutor(run_id=812, fail_on_event_upsert=True)

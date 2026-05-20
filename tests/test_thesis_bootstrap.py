@@ -136,7 +136,52 @@ class ThesisBootstrapTests(unittest.TestCase):
         self.assertEqual(rows[0].conviction_score, Decimal("0.3610"))
         self.assertEqual(rows[0].expected_holding_days, 365)
         self.assertEqual(rows[0].benchmark_code, "SPY")
+        self.assertIn("투자 논리 초안", rows[0].summary)
+        self.assertIn("추천은 watch 버킷의 watch", rows[0].summary)
+        self.assertIn("사이클 상태는 forming", rows[0].summary)
+        self.assertIn("최신 수정종가 222.9100", rows[0].summary)
+        self.assertIn("1일 수익률 -1.33%", rows[0].summary)
+        self.assertIn("관측 구간 수익률 -1.33%", rows[0].summary)
+        self.assertIn("벤치마크는 SPY", rows[0].summary)
+        self.assertIn("예상 보유·검토 기간은 365일", rows[0].summary)
+        self.assertIn("선택 유니버스 편입이 유지", rows[0].entry_conditions)
+        self.assertIn("직접 테마 근거가 연결", rows[0].entry_conditions)
         self.assertIn("falls below 0.3500", rows[0].invalidation_conditions)
+        self.assertIn("최신 수정종가가 unavailable", rows[0].invalidation_conditions)
+        self.assertIn("관측 구간 수익률이 -11.33% 아래", rows[0].invalidation_conditions)
+        self.assertIn("벤치마크 SPY 커버리지", rows[0].exit_conditions)
+
+    def test_build_thesis_rows_calls_out_missing_market_features(self) -> None:
+        rows = build_thesis_rows(
+            (
+                ThesisCandidate(
+                    batch_id=2001,
+                    recommendation_id=9001,
+                    instrument_id=501,
+                    primary_symbol="AAPL",
+                    bucket="watch",
+                    action="watch",
+                    rank_position=1,
+                    total_score=Decimal("0.3610"),
+                    node_id=11,
+                    node_code="ANNUAL_REPORTING",
+                    node_name="Annual Reporting",
+                    cycle_state="forming",
+                    cycle_score=Decimal("0.2075"),
+                    return_1d=None,
+                    return_since_first=None,
+                    latest_adjusted_close=None,
+                ),
+            ),
+            strategy_name="long_term_core",
+            horizon_type="long_term",
+        )
+
+        self.assertIn("최신 수정종가 unavailable", rows[0].summary)
+        self.assertIn("1일 수익률 unavailable", rows[0].summary)
+        self.assertIn("관측 구간 수익률 unavailable", rows[0].summary)
+        self.assertIn("관측 구간 수익률이 -10.00% 아래", rows[0].invalidation_conditions)
+        self.assertIn("가격 feature provenance가 누락", rows[0].exit_conditions)
 
     def test_render_thesis_upsert_sql_links_recommendation(self) -> None:
         thesis_rows = build_thesis_rows(

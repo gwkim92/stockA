@@ -44,6 +44,10 @@ Initial endpoints:
 - `GET /api/dashboard/today`: `DailyCockpitResponse`
 - `GET /api/remediation-tickets?status=open`: `RemediationTicketsResponse`
 - `GET /api/data-health`: `DataHealthResponse`
+- `GET /api/stocks`: `StockListResponse`
+- `GET /api/stocks/AAPL`: `StockDetailResponse`
+- `GET /api/paper-trading/preview`: `PaperTradingPreviewResponse`
+- `GET /api/trading/readiness`: `TradingReadinessResponse`
 - `GET /api/cycles?asOfDate=2024-11-01`: `CycleStateListResponse`
 - `GET /api/recommendations/AAPL-2024-11-01`: `RecommendationDetailResponse`
 - `GET /api/theses/AAPL-bootstrap-v1`: `ThesisDetailResponse`
@@ -77,8 +81,34 @@ Remediation tickets:
 Data health:
 
 - owner route: `/data-health`
-- source concepts: pipeline run history, scheduler gates, artifact roots, data freshness.
+- source concepts: pipeline run history, expected operation cadence, job health status, scheduler activation approval gate, manual local ingest smoke summary, local ingest worker summary, artifact roots, data freshness, free-tier provider budget ledger status.
 - example: `docs/api/frontend/examples/data-health.json`
+
+Stock list:
+
+- owner route: `/stocks`
+- source concepts: instrument, daily price bars, latest recommendation, latest position snapshot.
+- example: `docs/api/frontend/examples/stock-list.json`
+
+Stock detail:
+
+- owner route: `/stocks/[symbol]`
+- source concepts: instrument, bounded price bars for charting, latest recommendation, latest position snapshot, recent linked events.
+- example: `docs/api/frontend/examples/stock-detail.json`
+
+Paper trading preview:
+
+- owner route: `/paper-trading`
+- source concepts: latest recommendation batch, latest paper portfolio snapshot, recommendation outcomes, simulated paper action candidates, human approval guardrails.
+- example: `docs/api/frontend/examples/paper-trading-preview.json`
+- boundary: read-only preview only; no broker API, account permission, order transmission, ledger write, or automatic approval.
+
+Trading readiness:
+
+- owner route: `/trading-readiness`
+- source concepts: broker boundary, account permission, order limit policy, kill switch, paper validation run, order intent audit summary.
+- example: `docs/api/frontend/examples/trading-readiness.json`
+- boundary: read-only readiness only; no broker secret value, order write API, fill ingestion, or broker submission.
 
 Cycle state list:
 
@@ -189,6 +219,8 @@ Initial collection endpoints:
 - `/api/remediation-tickets?status=open`: `tickets`
 - `/api/cycles?asOfDate=...`: `cycle_states`
 - `/api/events?asOfDate=...`: `events`
+- `/api/stocks`: `stocks`
+- `/api/paper-trading/preview`: `paper_actions`
 - `/api/portfolio/:portfolio/coverage?asOfDate=...`: `positions`
 - `/api/performance/:portfolio/outcomes?measurementEndDate=...`: `outcomes`
 
@@ -222,6 +254,10 @@ Live read adapter pilot:
   - `GET /api/source-documents/aapl-2024-10k-20240928`
   - `GET /api/remediation-tickets?status=open`
   - `GET /api/portfolio/Long%20Term%20Paper/coverage?asOfDate=2024-11-01`
+  - `GET /api/stocks`
+  - `GET /api/stocks/AAPL`
+  - `GET /api/paper-trading/preview`
+  - `GET /api/trading/readiness`
 - source mode: `--source auto` uses live only when `STOCKANALYSIS_PSQL_COMMAND` is configured; otherwise it falls back to fixture examples.
 
 FastAPI read-only server, deployment boundary, and pagination conventions are now defined. SQL-level cursor seek optimization remains a later scaling task.

@@ -24,15 +24,27 @@ task마다 흔들리게 두지 않는 편이 좋다.
 
 - 명령: `bash scripts/verify_project_execution_roadmap.sh`
 - 무엇을 증명하는가: 현재 진행상황, 미완료 영역, 고정 실행 순서, immediate next task가 repo-local roadmap과 하네스에 기록되어 있는지 확인한다.
-- 통과 조건: `docs/project-execution-roadmap.md`, `docs/tasks/project-execution-roadmap/` 문서, AGENTS repo map, 완료된 `frontend-runtime-db-smoke`, immediate next task `frontend-api-server-framework-decision`, API runtime guardrail이 모두 확인된다.
+- 통과 조건: `docs/project-execution-roadmap.md`, `docs/tasks/project-execution-roadmap/` 문서, AGENTS repo map, completed frontend API live/runtime/observability slices, completed `data-operations-cadence-foundation`, `data-operations-artifact-runner`, `data-operations-runtime-env-readiness`, `data-operations-runtime-smoke`, `data-operations-scheduler-activation-boundary`, `data-operations-scheduler-install-dry-run`, `data-operations-scheduler-alert-boundary`, `data-operations-scheduler-activation-runbook`, `data-operations-scheduler-operator-dry-run`, `data-operations-scheduler-activation-approval-gate`, `data-operations-live-scheduler-activation-request`, `data-operations-live-scheduler-activation-user-decision`, `data-operations-live-scheduler-activation-final-preflight`, `data-operations-live-scheduler-host-activation-plan`, `data-operations-live-scheduler-host-activation-execution-request`, `data-operations-live-scheduler-host-activation-execution-decision`, `data-operations-backend-orchestration-boundary`, `data-operations-live-scheduler-host-activation-execution-final-preflight`, `data-operations-live-scheduler-host-activation-execution`, `manual-host-scheduler-activation-explicit-approval`, `manual-host-scheduler-activation-preflight`, `local-live-mvp-runtime`, `manual-local-ingest-smoke`, `manual-local-ingest-data-health-visibility`, `local-ai-pipeline-run-alignment`, `local-ingest-worker-loop`, `local-ingest-worker-data-health-visibility`, `server-scheduler-invocation-boundary`, `server-scheduler-deployment-target-decision`, `hosted-database-runtime-decision`, immediate next task `supabase-free-postgres-setup-packet`, API runtime guardrail이 모두 확인된다.
+
+- 명령: `bash scripts/verify_server_scheduler_invocation_boundary.sh`
+- 무엇을 증명하는가: 외부 cron/systemd/Kubernetes/managed scheduler가 호출할 `stockanalysis-operations local-ingest-worker-run` invocation packet이 secret 없이 생성되고, 실제 scheduler 배포/host mutation 없이 검증되는지 확인한다.
+- 통과 조건: compileall, focused unittest, CLI smoke, repo-outside env/output enforcement, no `launchctl`, no DB URL/API key/token leak, task docs가 모두 통과한다.
+
+- 명령: `bash scripts/verify_server_scheduler_deployment_target_decision.sh`
+- 무엇을 증명하는가: 무료 조건과 현재 local-only DB/runtime 제약에서 외부 scheduler 배포가 가능한지, GitHub Actions/systemd/Kubernetes/managed/local 후보 중 무엇이 추천/차단되는지 secret 없이 판정하는지 확인한다.
+- 통과 조건: compileall, focused unittest, CLI smoke, local-only state blocked, hosted DB state GitHub Actions candidate, existing host state systemd candidate, no scheduler artifact/no secret leak가 모두 통과한다.
+
+- 명령: `bash scripts/verify_hosted_database_runtime_decision.sh`
+- 무엇을 증명하는가: 무료 hosted DB/runtime 경로가 Supabase Free Postgres + GitHub Actions worker setup으로 정리되고, 실제 DB 생성/secret 작성/workflow 생성 없이 다음 setup packet으로 넘어가는지 확인한다.
+- 통과 조건: compileall, focused unittest, CLI smoke, default setup-required decision, hosted DB ready state, existing host ready state, local-only explicit state, no DB URL/API key/token leak가 모두 통과한다.
 
 - 명령: `bash scripts/verify_frontend_architecture.sh`
 - 무엇을 증명하는가: investment cockpit 방향, route map, API boundary, AI boundary, security boundary, phased implementation, fixture-only `apps/web` scaffold가 문서와 파일로 정렬되어 있는지 확인한다.
 - 통과 조건: `docs/frontend-architecture.md`와 task docs가 존재하고, frontend doc에 cockpit, route map, data boundary, AI boundary, security boundary, implementation phases가 포함되며, `apps/web` scaffold가 존재하고 root-level `app` scaffold는 없는 것이 확인된다.
 
 - 명령: `bash scripts/verify_frontend_api_contract.sh`
-- 무엇을 증명하는가: daily cockpit, remediation tickets, data health, cycle state, recommendation detail, thesis detail, portfolio coverage, performance outcomes, AI evidence, source document, event list, theme detail read DTO contract와 example JSON이 고정되었는지 확인한다.
-- 통과 조건: `docs/frontend-api-contract.md`, `docs/api/frontend/contract-index.json`, twelve example JSON이 존재하고, contract version과 endpoint/example mapping, common response shape, 핵심 field assertions가 모두 통과하며, root-level `app` scaffold가 없는 것이 확인된다.
+- 무엇을 증명하는가: daily cockpit, remediation tickets, data health, stock list/detail, paper trading preview, trading readiness, cycle state, recommendation detail, thesis detail, portfolio coverage, performance outcomes, AI evidence, source document, event list, theme detail read DTO contract와 example JSON이 고정되었는지 확인한다.
+- 통과 조건: `docs/frontend-api-contract.md`, `docs/api/frontend/contract-index.json`, sixteen example JSON이 존재하고, contract version과 endpoint/example mapping, common response shape, 핵심 field assertions가 모두 통과하며, root-level `app` scaffold가 없는 것이 확인된다.
 
 - 명령: `bash scripts/verify_frontend_api_adapter.sh`
 - 무엇을 증명하는가: frontend API contract examples를 반환하는 read-only Python adapter와 CLI가 동작하는지 확인한다.
@@ -73,6 +85,158 @@ task마다 흔들리게 두지 않는 편이 좋다.
 - 명령: `bash scripts/verify_frontend_api_otel_exporter_pilot.sh`
 - 무엇을 증명하는가: FastAPI read-only frontend API server가 기본 disabled mode에서는 OpenTelemetry package 없이 동작하고, opt-in OTLP mode는 safe endpoint validation, optional dependency boundary, bounded access telemetry field를 제공하는지 확인한다.
 - 통과 조건: observability/API server py_compile, targeted unittest, optional dependency extra, env constants, docs, roadmap, AGENTS next task, verification script reference가 모두 통과한다.
+
+- 명령: `bash scripts/verify_frontend_api_sql_pagination_optimization.sh`
+- 무엇을 증명하는가: frontend live list endpoint가 기존 pagination contract를 유지하면서 SQL/report boundary에 `limit + 1`과 cursor offset을 전달하고, summary는 full filtered set 기준으로 유지하는지 확인한다.
+- 통과 조건: pagination/live adapter/remediation/coverage py_compile, targeted unittest, cycle/event/performance/remediation/coverage bounded SQL markers, docs, roadmap, AGENTS next task, verification script reference가 모두 통과한다.
+
+- 명령: `PYTHON_BIN=<python-with-stockanalysis-otel-extra> bash scripts/verify_frontend_api_local_collector_smoke.sh`
+- 무엇을 증명하는가: FastAPI read-only frontend API server의 optional OTLP exporter가 local OTLP/HTTP receiver로 실제 trace payload를 전송하고, public metadata가 endpoint를 노출하지 않는지 확인한다.
+- 통과 조건: smoke helper/API server py_compile, observability/API server targeted unittest, local OTLP receiver smoke에서 `/v1/traces` POST 수신, docs, roadmap, AGENTS next task, verification script reference가 모두 통과한다.
+
+- 명령: `bash scripts/verify_frontend_api_alert_rules.sh`
+- 무엇을 증명하는가: FastAPI read-only frontend API server의 첫 Prometheus-compatible alert rule reference가 secret/receiver 없이 down/not-ready/5xx/timeout/latency/adapter-error 조건을 고정하는지 확인한다.
+- 통과 조건: alert rule YAML, stdlib validator, six alert names, bounded metric labels, docs, roadmap, AGENTS next task, verification script reference가 모두 통과한다.
+
+- 명령: `bash scripts/verify_ai_retrieval_adapter_foundation.sh`
+- 무엇을 증명하는가: RAG/ontology 도입 전 단계로 external vector DB, graph DB, live LLM 호출 없이 내부 retrieval adapter, Postgres evidence neighborhood SQL, ontology-lite validation SQL 경계가 존재하는지 확인한다.
+- 통과 조건: AI retrieval modules py_compile, retrieval/evidence graph/ontology validation targeted unittest, read-only SQL marker, task docs, verification script reference가 모두 통과한다.
+
+- 명령: `bash scripts/verify_ai_retrieval_neighborhood_api.sh`
+- 무엇을 증명하는가: AI evidence neighborhood foundation이 read-only frontend API DTO와 종목 상세 화면에 연결되고, vector storage URI/secret 없이 Postgres canonical graph 관계를 노출하는지 확인한다.
+- 통과 조건: evidence graph/live adapter py_compile, targeted live adapter tests, stock detail reader/type/page markers, task docs, verification script reference가 모두 통과한다.
+
+- 명령: `bash scripts/verify_news_rss_local_chunk_index.sh`
+- 무엇을 증명하는가: RSS source document가 external embedding API/live LLM 없이 local deterministic `ai.document_chunk`와 `ai.embedding_index` metadata로 연결되어 AI 증거 관계망의 RAG 준비 상태가 채워지는지 확인한다.
+- 통과 조건: chunk index runner/CLI py_compile, targeted unittest, local-only/no-cost SQL marker, task docs, verification script reference가 모두 통과한다.
+
+- 명령: `bash scripts/verify_news_rss_raw_body_fetch.sh`
+- 무엇을 증명하는가: RSS source document가 무료 공개 기사 URL의 raw HTML artifact와 연결되고, fetch URL 안전장치/byte limit/pipeline run evidence가 secret 없이 유지되는지 확인한다.
+- 통과 조건: raw fetch runner/CLI py_compile, targeted unittest, public URL guardrail, bounded body marker, no paid API/live LLM marker, task docs, verification script reference가 모두 통과한다.
+
+- 명령: `bash scripts/verify_news_rss_raw_body_chunk_index.sh`
+- 무엇을 증명하는가: 저장된 RSS raw HTML artifact가 `artifact_root` 경계 안에서만 읽혀 본문 텍스트 chunk와 local embedding metadata로 연결되는지 확인한다.
+- 통과 조건: raw body chunk runner/CLI py_compile, targeted unittest, HTML extraction, artifact-root guardrail, local/no-cost chunk and embedding SQL marker, task docs, verification script reference가 모두 통과한다.
+
+- 명령: `bash scripts/verify_ai_news_cluster_map.sh`
+- 무엇을 증명하는가: 저장된 RSS `news_cluster_summary` AI artifact가 read-only API와 `/intelligence` 화면에 노출되고, 원천 문서 chunk/embedding readiness를 vector URI/secret 없이 보여주는지 확인한다.
+- 통과 조건: live adapter/pagination py_compile, targeted live adapter tests, news cluster SQL markers, frontend type/client/page markers, task docs, verification script reference가 모두 통과한다.
+
+- 명령: `bash scripts/verify_data_operations_cadence_foundation.sh`
+- 무엇을 증명하는가: Data Operations Loop의 daily/weekly/monthly cadence registry, read-only CLI report, `/api/data-health` expected job missing/stale/failed handoff가 secret 없이 고정되는지 확인한다.
+
+- 명령: `PYTHONPATH=src /private/tmp/stockanalysis-runtime/venv/bin/python -m unittest tests.test_trading_safety`
+- 무엇을 증명하는가: broker boundary, 계좌 권한, 주문 한도, kill switch, paper validation, human approval, audit-only order intent SQL이 실제 주문 제출 없이 deterministic safety gate로 동작하는지 확인한다.
+- 통과 조건: default blocked, configured paper approval, configured live approval, remaining paper conflicts block live, oversized order block, audit SQL secret-free assertions가 모두 통과한다.
+- 통과 조건: cadence registry py_compile, targeted unittest, CLI JSON smoke, data-health SQL marker, docs, roadmap, AGENTS next task, verification script reference가 모두 통과한다.
+
+- 명령: `PYTHONPATH=src /private/tmp/stockanalysis-runtime/venv/bin/python -m unittest tests.test_frontend_live_adapter tests.test_frontend_api_adapter tests.test_trading_safety`
+- 무엇을 증명하는가: trading readiness DTO가 canonical `trading.*` safety tables를 read-only로 읽고, broker secret 값 없이 broker boundary/account permission/order limit/kill switch/paper validation/audit summary를 노출하는지 확인한다.
+- 통과 조건: `/api/trading/readiness` fixture/live contract shape, read-only SQL markers, secret redaction, existing paper trading and safety evaluator regressions가 모두 통과한다.
+
+- 명령: `PYTHONPATH=src /private/tmp/stockanalysis-runtime/venv/bin/python -m unittest tests.test_trading_paper_validation tests.test_data_operations_cli tests.test_trading_safety`
+- 무엇을 증명하는가: `/api/paper-trading/preview` 결과가 broker-free deterministic safety evaluator를 거쳐 `trading.paper_validation_run`과 `trading.order_intent_audit` write SQL/CLI report로 변환되는지 확인한다.
+- 통과 조건: SQL에 paper validation/audit table이 포함되고 `submitted_to_broker=true`가 없으며, safety config lookup/report가 broker secret을 노출하지 않고, `stockanalysis-operations paper-validation-audit-run` CLI가 repo-outside env policy와 runtime args를 지킨다.
+
+- 명령: `PYTHONPATH=src /private/tmp/stockanalysis-runtime/venv/bin/python -m unittest tests.test_trading_paper_safety_bootstrap tests.test_data_operations_cli tests.test_trading_paper_validation tests.test_trading_safety`
+- 무엇을 증명하는가: simulated paper broker/account/order-limit 설정이 실제 브로커 없이 `trading.broker_boundary`, `trading.account_permission`, `trading.order_limit_policy`로 upsert 가능하고 operations CLI에서 재현 가능한지 확인한다.
+- 통과 조건: SQL이 paper-only safety rows를 upsert하고 `supports_order_submit=false`, `submitted_to_broker_count=0`, `secret_configured=false`, kill switch unchanged를 유지하며, repo-outside env policy와 CLI runtime args가 테스트로 고정된다.
+
+- 명령: `bash scripts/verify_data_operations_artifact_runner.sh`
+- 무엇을 증명하는가: known data operations cadence job을 repo-local wrapper로 실행하면 stdout/stderr/metadata artifact가 저장되고 command argv secret redaction과 child exit-code propagation이 동작하는지 확인한다.
+- 통과 조건: artifact runner py_compile, runner/CLI targeted unittest, temp artifact root CLI smoke, metadata/stdout/stderr file assertions, docs, roadmap, AGENTS next task, verification script reference가 모두 통과한다.
+
+- 명령: `bash scripts/verify_data_operations_runtime_env_readiness.sh`
+- 무엇을 증명하는가: data operations scheduler 활성화 전에 trusted repo-outside env file이 database, FRED, Alpha Vantage, SEC identity, portfolio snapshot source, LLM provider, market price history dependency, artifact root readiness를 secret-free JSON으로 통과/실패 판정하는지 확인한다.
+- 통과 조건: env readiness py_compile, unit/CLI tests, repo-inside template output refusal, unedited template failure, valid temp env readiness success, secret value non-leakage, repo-inside env file refusal, docs, roadmap, AGENTS next task, AWH task verify가 모두 통과한다.
+
+- 명령: `bash scripts/verify_data_operations_runtime_smoke.sh`
+- 무엇을 증명하는가: env readiness를 통과한 trusted repo-outside env로 representative `macro-weekly` job을 artifact runner에 태워 disposable Postgres에 fixture macro batch를 실행하고 stdout/stderr/metadata artifact를 남기는지 확인한다.
+- 통과 조건: runtime smoke py_compile, unit tests, repo-inside env refusal, Docker Postgres migration/seed, fixture macro batch via `smoke_data_operations_runtime.sh`, stdout/stderr/metadata/stdout JSON artifacts, macro row counts, `ops.pipeline_run` success rows, secret non-leakage, docs, roadmap, AGENTS next task, AWH task verify가 모두 통과한다.
+
+- 명령: `bash scripts/verify_data_operations_scheduler_activation_boundary.sh`
+- 무엇을 증명하는가: actual scheduler 설치 전에 generic scheduler wrapper가 env readiness, known cadence job preflight, command redaction, configured skip-date artifact, non-skip artifact runner invocation을 수행하고 host scheduler artifacts를 만들지 않는지 확인한다.
+- 통과 조건: scheduler boundary py_compile, targeted unit tests, missing command refusal, repo-inside env refusal, preflight redaction, skip artifact creation, non-skip `data-operations-run` artifact metadata, no `.github/workflows`/`cron`/`launchd` activation artifacts, docs, roadmap, AGENTS next task, AWH task verify가 모두 통과한다.
+
+- 명령: `bash scripts/verify_data_operations_scheduler_install_dry_run.sh`
+- 무엇을 증명하는가: generic data operations scheduler wrapper를 호출하는 launchd plist와 manifest가 repo-outside dry-run output에 렌더링되고, env/output repo-inside path, sensitive command argv, monthly first-business-day jobs, host scheduler path writes가 거부되는지 확인한다.
+- 통과 조건: scheduler install py_compile, targeted unit tests, repo-inside env/output refusal, sensitive command refusal, monthly job rejection, rendered plist/manifest contents, no secret leakage, no host LaunchAgents path writes, docs, roadmap, AGENTS next task, AWH task verify가 모두 통과한다.
+
+- 명령: `bash scripts/verify_data_operations_scheduler_alert_boundary.sh`
+- 무엇을 증명하는가: Data Operations scheduler health alert rule reference가 missing/failed/stale/timeout/artifact/preflight states를 secret-free Prometheus-compatible rules로 고정하고, receiver/secret/dynamic business labels를 포함하지 않는지 확인한다.
+- 통과 조건: alert rule validator py_compile, expected six alert names, expected metric names, bounded selector labels, no receiver/webhook/secret tokens, docs, roadmap, AGENTS next task, AWH task verify가 모두 통과한다.
+
+- 명령: `bash scripts/verify_data_operations_scheduler_activation_runbook.sh`
+- 무엇을 증명하는가: actual host scheduler activation 전에 manual approval, preflight, install dry-run, rollback, disable, evidence checklist가 문서화되고 검증되며, repo-local scripts가 host launchd state를 변경하지 않는지 확인한다.
+- 통과 조건: runbook docs/task files, preflight/install-dry-run/alert validation markers, `launchctl` reference-only activation/rollback/disable markers, no data operations runtime/render script host scheduler mutation, roadmap, AGENTS next task, AWH task verify가 모두 통과한다.
+
+- 명령: `bash scripts/verify_data_operations_scheduler_operator_dry_run.sh`
+- 무엇을 증명하는가: activation runbook을 실제 host scheduler mutation 없이 repo-outside temporary paths에서 readiness, scheduler preflight, install dry-run, alert validation, evidence bundle 생성까지 리허설하는지 확인한다.
+- 통과 조건: operator dry-run py_compile, unit tests, temp env/output/artifact root, evidence files, secret non-leakage, repo-inside env/output refusal, docs, roadmap, AGENTS next task, AWH task verify가 모두 통과한다.
+
+- 명령: `bash scripts/verify_data_operations_scheduler_activation_approval_gate.sh`
+- 무엇을 증명하는가: operator dry-run evidence가 있어도 명시 approval record 없이는 scheduler activation이 blocked로 남고, approval record가 있어도 code path가 `launchctl`이나 host LaunchAgents write를 실행하지 않는지 확인한다.
+- 통과 조건: approval gate py_compile, unit tests, pending/approved gate reports, secret non-leakage, repo-inside evidence/approval refusal, docs, roadmap, AGENTS next task, AWH task verify가 모두 통과한다.
+
+- 명령: `bash scripts/verify_data_operations_live_scheduler_activation_request.sh`
+- 무엇을 증명하는가: 승인된 activation gate와 operator dry-run evidence가 있어도 live scheduler activation은 `pending_explicit_user_approval` 요청 패킷으로만 남고, code path가 `launchctl`이나 host LaunchAgents write를 실행하지 않는지 확인한다.
+- 통과 조건: activation request py_compile, unit tests, approved request report, pending gate rejection, secret non-leakage, repo-inside evidence refusal, docs, roadmap, AGENTS next task, AWH task verify가 모두 통과한다.
+
+- 명령: `bash scripts/verify_data_operations_live_scheduler_activation_user_decision.sh`
+- 무엇을 증명하는가: activation request packet에 대해 approve/deny decision record를 검증하되, approve도 이 task 안에서는 `launchctl`이나 host LaunchAgents write를 실행하지 않는지 확인한다.
+- 통과 조건: activation decision py_compile, unit tests, missing/approve/deny decision reports, secret non-leakage, repo-inside request/decision refusal, docs, roadmap, AGENTS next task, AWH task verify가 모두 통과한다.
+
+- 명령: `bash scripts/verify_data_operations_live_scheduler_activation_final_preflight.sh`
+- 무엇을 증명하는가: approve decision 이후에도 fresh runtime env readiness와 request/approval/dry-run evidence chain을 다시 검증하고, 통과해도 host activation plan으로만 이동하며 `launchctl`이나 host LaunchAgents write를 실행하지 않는지 확인한다.
+- 통과 조건: final preflight py_compile, unit tests, approve/deny/runtime-readiness reports, secret non-leakage, repo-inside decision/env/output refusal, docs, roadmap, AGENTS next task, AWH task verify가 모두 통과한다.
+
+- 명령: `bash scripts/verify_data_operations_live_scheduler_host_activation_plan.sh`
+- 무엇을 증명하는가: passed final preflight와 activation request evidence를 operator review용 JSON/Markdown host activation plan으로 변환하되 `launchctl`이나 host LaunchAgents write를 실행하지 않는지 확인한다.
+- 통과 조건: host activation plan py_compile, unit tests, repo-outside evidence chain, JSON/Markdown plan output, command/rollback preview, secret non-leakage, denied preflight/repo-inside path refusal, docs, roadmap, AGENTS next task, AWH task verify가 모두 통과한다.
+
+- 명령: `bash scripts/verify_data_operations_live_scheduler_host_activation_execution_request.sh`
+- 무엇을 증명하는가: reviewed host activation plan을 explicit execution approval request packet으로 변환하되 `launchctl`이나 host LaunchAgents write를 실행하지 않는지 확인한다.
+- 통과 조건: execution request py_compile, unit tests, repo-outside evidence chain, pending execution approval request output, command/rollback preview, secret non-leakage, malformed plan/repo-inside path refusal, docs, roadmap, AGENTS next task, AWH task verify가 모두 통과한다.
+
+- 명령: `bash scripts/verify_data_operations_live_scheduler_host_activation_execution_decision.sh`
+- 무엇을 증명하는가: pending execution approval request에 대한 approve/deny decision record를 검증하되 `launchctl`이나 host LaunchAgents write를 실행하지 않는지 확인한다.
+- 통과 조건: execution decision py_compile, operations CLI/path/report IO py_compile, unit tests, repo-outside evidence chain, missing/approve/deny decision reports, secret non-leakage, mismatched request/repo-inside path refusal, thin wrapper delegation to `stockanalysis.operations.cli`, docs, roadmap, AGENTS next task, AWH task verify가 모두 통과한다.
+
+- 명령: `PYTHONPATH=src python3 -m unittest tests.test_data_operations_cli -v`
+- 무엇을 증명하는가: `stockanalysis-operations` backend CLI boundary가 cadence report와 host activation execution decision report를 shell-owned orchestration 없이 처리하고, repo-inside input/output policy를 Python에서 강제하는지 확인한다.
+- 통과 조건: CLI cadence JSON, repo-outside output write, repo-inside execution request refusal, path policy tests가 모두 통과한다.
+
+- 명령: `bash scripts/verify_manual_local_ingest_data_health_visibility.sh`
+- 무엇을 증명하는가: market/news/AI 수동 ingest smoke summary가 repo 밖 파일로 저장되고 `/api/data-health`/`/data-health`가 secret 없이 읽을 수 있는 read model을 제공하는지 확인한다.
+- 통과 조건: `manual-local-ingest-smoke --output` summary 생성, sanitized visibility reader, focused live adapter tests, secret non-leakage가 모두 통과한다.
+
+- 명령: `bash scripts/verify_local_ai_pipeline_run_alignment.sh`
+- 무엇을 증명하는가: 무료 로컬 뉴스 클러스터 evidence runner가 direct call 기본값은 유지하면서 operations CLI에서는 `/api/data-health`가 기대하는 `event_intelligence_llm_extract` run history로 기록되는지 확인한다.
+- 통과 조건: runner/CLI py_compile, focused unit tests, explicit pipeline name override smoke, docs, roadmap, AGENTS current task, verification script reference가 모두 통과한다.
+
+- 명령: `bash scripts/verify_local_ingest_worker_loop.sh`
+- 무엇을 증명하는가: 검증된 market/news/AI manual local ingest smoke를 Mac LaunchAgents 없이 bounded local process worker로 실행하고, repo-outside latest smoke summary를 갱신할 수 있는지 확인한다.
+- 통과 조건: local worker/CLI py_compile, focused unit tests, no-write preview CLI smoke, repo-outside worker/smoke reports, docs, roadmap, AGENTS current task, verification script reference가 모두 통과한다.
+
+- 명령: `bash scripts/verify_local_ingest_worker_data_health_visibility.sh`
+- 무엇을 증명하는가: local ingest worker report가 repo 밖 파일에서 secret-free read model로 로드되고 `/api/data-health`와 `/data-health`가 worker 상태를 manual smoke 및 scheduler activation과 분리해서 보여주는지 확인한다.
+- 통과 조건: local worker/live adapter py_compile, focused unit tests, Next typecheck, DTO example/page markers, docs, roadmap, AGENTS current task, verification script reference가 모두 통과한다.
+
+- 명령: `bash scripts/verify_data_operations_live_scheduler_host_activation_execution_final_preflight.sh`
+- 무엇을 증명하는가: approved host activation execution decision 이후에도 reviewed plan, execution request, command preview consistency, fresh runtime readiness를 다시 검증하고, 통과해도 `launchctl`이나 host LaunchAgents write를 실행하지 않는지 확인한다.
+- 통과 조건: execution final preflight py_compile, operations env parser/CLI tests, approve/deny/runtime-readiness reports, command preview drift rejection, secret non-leakage, repo-inside decision/env/plan/output refusal, thin wrapper delegation to `stockanalysis.operations.cli`, docs, roadmap, AGENTS next task, AWH task verify가 모두 통과한다.
+
+- 명령: `bash scripts/verify_data_operations_live_scheduler_host_activation_execution.sh`
+- 무엇을 증명하는가: execution final preflight 이후 missing/confirm/abort host mutation confirmation record를 검증하되, Codex task 안에서는 `launchctl`이나 host LaunchAgents write를 실행하지 않는지 확인한다.
+- 통과 조건: host activation execution py_compile, unit tests, missing/confirm/abort reports, secret non-leakage, mismatched confirmation/repo-inside path refusal, thin wrapper delegation to `stockanalysis.operations.cli`, docs, roadmap, AGENTS next task, AWH task verify가 모두 통과한다.
+
+- 명령: `bash scripts/verify_manual_host_scheduler_activation_explicit_approval.sh`
+- 무엇을 증명하는가: confirmed host activation execution report 이후 exact execution/rollback command approval packet을 만들고 approve/abort records를 검증하되, Codex task 안에서는 `launchctl`이나 host LaunchAgents write를 실행하지 않는지 확인한다.
+- 통과 조건: manual host scheduler activation approval py_compile, CLI tests, missing/approve/abort reports, exact command drift rejection, secret non-leakage, repo-inside path refusal, thin wrapper delegation to `stockanalysis.operations.cli`, docs, roadmap, AGENTS next task, AWH task verify가 모두 통과한다.
+
+- 명령: `bash scripts/verify_manual_host_scheduler_activation_preflight.sh`
+- 무엇을 증명하는가: approved exact-command packet과 fresh runtime env readiness를 함께 검증하되, Codex task 안에서는 `launchctl`이나 host LaunchAgents write를 실행하지 않는지 확인한다.
+- 통과 조건: manual host scheduler activation preflight py_compile, CLI tests, passed/blocked reports, runtime env failure block, secret non-leakage, repo-inside path refusal, thin wrapper delegation to `stockanalysis.operations.cli`, docs, roadmap, AGENTS next task, AWH task verify가 모두 통과한다.
 
 - 명령: `bash scripts/verify_apps_web_scaffold.sh`
 - 무엇을 증명하는가: `apps/web` Next.js App Router scaffold가 fixture server payload를 읽는 read-only investment cockpit shell로 동작하는지 확인한다.

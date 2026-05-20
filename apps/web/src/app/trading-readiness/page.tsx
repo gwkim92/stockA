@@ -1,0 +1,277 @@
+import Link from "next/link";
+import type { Route } from "next";
+
+import { getTradingReadiness } from "@/lib/frontend-api";
+import { koBlockedReason, koCode, koLabel, koReason } from "@/lib/korean-labels";
+import type { TradingGateStatus } from "@/lib/types";
+
+export const dynamic = "force-dynamic";
+export const metadata = { title: "거래 안전 점검" };
+
+function statusClass(status: TradingGateStatus) {
+  if (status === "pass") {
+    return "risk-low";
+  }
+  if (status === "warning") {
+    return "risk-medium";
+  }
+  return "risk-high";
+}
+
+function formatCurrency(value: number | null | undefined) {
+  if (value === null || value === undefined) {
+    return "미설정";
+  }
+  return new Intl.NumberFormat("ko-KR", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 0,
+  }).format(value);
+}
+
+function formatPercent(value: number | null | undefined) {
+  if (value === null || value === undefined) {
+    return "미설정";
+  }
+  return `${Math.round(value * 1000) / 10}%`;
+}
+
+function yesNo(value: boolean) {
+  return value ? "예" : "아니오";
+}
+
+export default async function TradingReadinessPage() {
+  const response = await getTradingReadiness();
+  const data = response.data;
+  const blockedSwitches = data.kill_switches.filter((item) => item.is_engaged);
+  const blockedReasons = data.paper_validation.blocked_reasons.map((reason) => koBlockedReason(reason));
+
+  return (
+    <div className="pageStack">
+      <section className="page-hero reveal" aria-labelledby="trading-readiness-title">
+        <div className="bento-badge">거래 안전 점검 • 주문 전 차단 상태</div>
+        <h1 id="trading-readiness-title">실제 주문을 넣기 전에 무엇이 막고 있는지 본다.</h1>
+        <p>
+          이 화면은 주문 버튼이 아니다. 브로커 경계, 계좌 권한, 주문 한도, 킬 스위치, 가상 검증,
+          감사 로그가 준비됐는지 읽기 전용으로 보여준다. 현재 서버는 broker로 주문을 보내지 않는다.
+        </p>
+      </section>
+
+      <section className="status-rail compact-rail reveal delay-1" aria-label="거래 안전 요약">
+        <article className="rail-cell">
+          <span>현재 상태</span>
+          <strong>{koCode(data.readiness_status)}</strong>
+          <small>{koLabel(data.portfolio_name)} · {koCode(data.execution_mode)}</small>
+        </article>
+        <article className="rail-cell">
+          <span>통과</span>
+          <strong>{data.gate_summary.pass_count}</strong>
+          <small>안전 gate 통과</small>
+        </article>
+        <article className="rail-cell">
+          <span>누락/주의</span>
+          <strong>{data.gate_summary.missing_count + data.gate_summary.warning_count}</strong>
+          <small>설정 또는 감사 기록 필요</small>
+        </article>
+        <article className="rail-cell rail-critical">
+          <span>차단</span>
+          <strong>{data.gate_summary.blocked_count}</strong>
+          <small>{blockedSwitches.length > 0 ? "킬 스위치 포함" : "차단 gate 수"}</small>
+        </article>
+      </section>
+
+      <section className="split-ledger reveal delay-2">
+        <article className="ledger-panel queue-panel">
+          <div className="section-heading">
+            <div>
+              <span>안전 gate</span>
+              <h2>주문 의도를 막거나 허용하는 조건</h2>
+            </div>
+            <Link className="btn btn-secondary" href={"/paper-trading" as Route}>
+              가상 거래 후보 보기
+            </Link>
+          </div>
+          <div className="readiness-grid">
+            {data.gates.map((gate) => (
+              <article className="readiness-card" key={gate.gate_key}>
+                <div className="readiness-card-top">
+                  <strong>{gate.label}</strong>
+                  <span className={`risk-tag ${statusClass(gate.status)}`}>{koCode(gate.status)}</span>
+                </div>
+                <p>{gate.detail}</p>
+                <small>다음 조치: {gate.next_step}</small>
+              </article>
+            ))}
+          </div>
+        </article>
+
+        <aside className="side-ledger">
+          <article className="ledger-panel">
+            <div className="section-heading stacked-heading">
+              <span>브로커/계좌</span>
+              <h2>권한 경계</h2>
+            </div>
+            <dl className="fact-list">
+              <div>
+                <dt>브로커</dt>
+                <dd>{data.broker_boundary.broker_code || "미등록"}</dd>
+              </div>
+              <div>
+                <dt>브로커 상태</dt>
+                <dd>{koCode(data.broker_boundary.status)}</dd>
+              </div>
+              <div>
+                <dt>주문 미리보기</dt>
+                <dd>{yesNo(data.broker_boundary.supports_order_preview)}</dd>
+              </div>
+              <div>
+                <dt>실제 주문 제출</dt>
+                <dd>{yesNo(data.broker_boundary.supports_order_submit)}</dd>
+              </div>
+              <div>
+                <dt>secret 설정</dt>
+                <dd>{yesNo(data.broker_boundary.secret_configured)}</dd>
+              </div>
+              <div>
+                <dt>계좌 권한</dt>
+                <dd>{koCode(data.account_permission.permission_scope)}</dd>
+              </div>
+              <div>
+                <dt>계좌 상태</dt>
+                <dd>{koCode(data.account_permission.status)}</dd>
+              </div>
+              <div>
+                <dt>허용 종목</dt>
+                <dd>{data.account_permission.allows_all_symbols ? "전체" : `${data.account_permission.allowed_symbol_count}개`}</dd>
+              </div>
+            </dl>
+          </article>
+
+          <article className="ledger-panel">
+            <div className="section-heading stacked-heading">
+              <span>주문 한도</span>
+              <h2>한도 정책</h2>
+            </div>
+            <dl className="fact-list">
+              <div>
+                <dt>정책 상태</dt>
+                <dd>{koCode(data.order_limit_policy.status)}</dd>
+              </div>
+              <div>
+                <dt>단일 주문</dt>
+                <dd>{formatCurrency(data.order_limit_policy.max_single_order_notional)}</dd>
+              </div>
+              <div>
+                <dt>일일 주문</dt>
+                <dd>{formatCurrency(data.order_limit_policy.max_daily_order_notional)}</dd>
+              </div>
+              <div>
+                <dt>비중 변화</dt>
+                <dd>{formatPercent(data.order_limit_policy.max_single_order_weight_delta)}</dd>
+              </div>
+              <div>
+                <dt>종목 최대 비중</dt>
+                <dd>{formatPercent(data.order_limit_policy.max_post_trade_symbol_weight)}</dd>
+              </div>
+              <div>
+                <dt>현금 버퍼</dt>
+                <dd>{formatPercent(data.order_limit_policy.min_cash_buffer_weight)}</dd>
+              </div>
+            </dl>
+          </article>
+        </aside>
+      </section>
+
+      <section className="ledger-grid reveal delay-3">
+        <article className="ledger-panel">
+          <div className="section-heading stacked-heading">
+            <span>킬 스위치와 검증</span>
+            <h2>현재 차단 장치</h2>
+          </div>
+          <div className="ledger-table-wrap">
+            <table className="ledger-table data-health-table">
+              <thead>
+                <tr>
+                  <th scope="col">구분</th>
+                  <th scope="col">상태</th>
+                  <th scope="col">이유</th>
+                  <th scope="col">변경</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.kill_switches.map((item) => (
+                  <tr key={`${item.scope}-${item.scope_ref}`}>
+                    <td>{koCode(item.scope)} · {item.scope_ref}</td>
+                    <td>
+                      <span className={`risk-tag ${item.is_engaged ? "risk-high" : "risk-low"}`}>
+                        {item.is_engaged ? "차단 중" : "열림"}
+                      </span>
+                    </td>
+                    <td>{koReason(item.reason)}</td>
+                    <td>{item.changed_at || "변경 기록 없음"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </article>
+
+        <article className="ledger-panel">
+          <div className="section-heading stacked-heading">
+            <span>가상 검증/감사</span>
+            <h2>paper validation과 audit log</h2>
+          </div>
+          <dl className="fact-list">
+            <div>
+              <dt>가상 검증 상태</dt>
+              <dd>{koCode(data.paper_validation.status)}</dd>
+            </div>
+            <div>
+              <dt>검증일</dt>
+              <dd>{data.paper_validation.validation_date || "없음"}</dd>
+            </div>
+            <div>
+              <dt>충돌 수</dt>
+              <dd>{data.paper_validation.conflict_count.toLocaleString("ko-KR")}</dd>
+            </div>
+            <div>
+              <dt>승인 후보</dt>
+              <dd>{data.paper_validation.approved_action_count.toLocaleString("ko-KR")}</dd>
+            </div>
+            <div>
+              <dt>감사 로그</dt>
+              <dd>{data.audit_summary.intent_count.toLocaleString("ko-KR")}건</dd>
+            </div>
+            <div>
+              <dt>broker 제출</dt>
+              <dd>{data.audit_summary.submitted_to_broker_count.toLocaleString("ko-KR")}건</dd>
+            </div>
+          </dl>
+          {blockedReasons.length > 0 ? (
+            <div className="reason-list" aria-label="가상 검증 차단 사유">
+              {blockedReasons.map((reason) => (
+                <article className="reason-card" key={reason.raw}>
+                  <div>
+                    <span className="reason-symbol">{reason.symbol ?? "공통"}</span>
+                    <strong>{reason.title}</strong>
+                  </div>
+                  <p>{reason.description}</p>
+                  <small>다음 조치: {reason.nextStep}</small>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <p className="empty-copy">현재 기록된 가상 검증 차단 사유가 없다.</p>
+          )}
+          <div className="tag-ledger">
+            {data.guardrails.map((guardrail) => (
+              <span className="risk-tag risk-medium" key={guardrail}>
+                {guardrail}
+              </span>
+            ))}
+          </div>
+        </article>
+      </section>
+    </div>
+  );
+}

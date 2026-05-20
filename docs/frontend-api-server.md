@@ -84,6 +84,6 @@ The deployment boundary verification checks repo-outside env template rendering,
 
 ## Remaining Work
 
-- SQL-level cursor seek optimization for large production lists.
-- local Collector smoke and alert rules after deployment boundary accepts repo-owned sample config.
+- keyset cursor v2 if deep-page query plans require it.
+- managed Collector/Prometheus/Alertmanager installation and receiver routing in operator-owned deployment config.
 - full auth/RBAC and audited write boundary.

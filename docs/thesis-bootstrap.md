@@ -54,13 +54,25 @@ AAPL watch thesis via Annual Reporting
 예시 summary:
 
 ```text
-AAPL is an active watch recommendation linked to Annual Reporting. Cycle state is forming; recommendation score is 0.3610.
+AAPL 투자 논리 초안: long_term_core 전략에서 추천은 watch 버킷의 watch, 점수 0.3610, 순위 1위다. 핵심 테마는 Annual Reporting (ANNUAL_REPORTING)이고 사이클 상태는 forming, 사이클 점수는 0.2075이다. 가격 맥락은 최신 수정종가 222.9100, 1일 수익률 -1.33%, 관측 구간 수익률 -1.33%다. 벤치마크는 SPY, 예상 보유·검토 기간은 365일이다.
+```
+
+예시 entry condition:
+
+```text
+유지 조건: 추천이 active 상태이고, 선택 유니버스 편입이 유지되며, Annual Reporting 직접 테마 근거가 연결되어 있어야 한다. 사이클 상태는 forming 상태를 유지하거나 개선되어야 하고, 가격 맥락은 현재 1일 수익률 -1.33%와 관측 구간 수익률 -1.33%보다 뚜렷하게 약해지지 않아야 한다.
 ```
 
 기본 invalidation rule:
 
 ```text
-Invalidate if recommendation score falls below 0.3500, cycle state weakens to correcting or structurally_broken, or direct theme evidence is removed.
+무효화 조건: recommendation score falls below 0.3500, cycle state가 correcting 또는 structurally_broken으로 약화되거나, 직접 테마 근거가 제거되거나, 최신 수정종가가 unavailable 상태가 되거나, 관측 구간 수익률이 -11.33% 아래로 악화되면 thesis를 재검토한다.
+```
+
+예시 exit condition:
+
+```text
+조치 조건: 검토 중 무효화 조건이 발동되면 비중 축소 또는 청산을 검토한다. 벤치마크 SPY 커버리지, 원천 이벤트 근거, 가격 feature provenance가 누락되면 사람 검토로 승격한다.
 ```
 
 ## Holding Horizon

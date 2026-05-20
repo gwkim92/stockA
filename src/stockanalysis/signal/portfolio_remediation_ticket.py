@@ -20,6 +20,7 @@ def load_portfolio_remediation_ticket_report(
     config: RuntimeConfig,
     portfolio_name: str,
     limit: int = 20,
+    offset: int = 0,
     status: str | None = "open",
     action: str | None = None,
     remediation_type: str | None = None,
@@ -28,6 +29,8 @@ def load_portfolio_remediation_ticket_report(
 ) -> dict[str, object]:
     if limit <= 0:
         raise ValueError("limit must be greater than 0")
+    if offset < 0:
+        raise ValueError("offset must be greater than or equal to 0")
 
     normalized_status = None if status == "all" else status
     sql_executor = executor or PsqlCommandExecutor.from_config(config)
@@ -35,6 +38,7 @@ def load_portfolio_remediation_ticket_report(
         render_portfolio_remediation_ticket_report_sql(
             portfolio_name=portfolio_name,
             limit=limit,
+            offset=offset,
             status=normalized_status,
             action=action,
             remediation_type=remediation_type,
@@ -142,11 +146,17 @@ def render_portfolio_remediation_ticket_report_sql(
     *,
     portfolio_name: str,
     limit: int,
+    offset: int = 0,
     status: str | None = "open",
     action: str | None = None,
     remediation_type: str | None = None,
     suggested_runner: str | None = None,
 ) -> str:
+    if limit <= 0:
+        raise ValueError("limit must be greater than 0")
+    if offset < 0:
+        raise ValueError("offset must be greater than or equal to 0")
+
     ticket_filters = [f"portfolio.portfolio_name = {sql_literal(portfolio_name)}"]
     if status:
         ticket_filters.append(f"ticket.status = {sql_literal(status)}")
@@ -159,7 +169,7 @@ def render_portfolio_remediation_ticket_report_sql(
 
     ticket_where = "\n      and ".join(ticket_filters)
     return f"""-- portfolio remediation ticket report
-with selected_tickets as (
+with filtered_tickets as (
     select
         ticket.remediation_ticket_id,
         ticket.portfolio_review_id,
@@ -191,24 +201,29 @@ with selected_tickets as (
     join ref.instrument instrument on instrument.instrument_id = ticket.instrument_id
     left join ops.pipeline_run run on run.run_id = ticket.source_run_id
     where {ticket_where}
+),
+selected_tickets as (
+    select *
+    from filtered_tickets
     order by
-        case ticket.status
+        case status
             when 'open' then 1
             when 'in_progress' then 2
             when 'resolved' then 3
             when 'ignored' then 4
             else 5
         end,
-        ticket.priority nulls last,
-        ticket.last_seen_at desc,
-        ticket.remediation_ticket_id desc
+        priority nulls last,
+        last_seen_at desc,
+        remediation_ticket_id desc
     limit {limit}
+    offset {offset}
 ),
 status_counts as (
     select coalesce(jsonb_object_agg(status, status_count), '{{}}'::jsonb) as counts
     from (
         select status, count(*)::int as status_count
-        from selected_tickets
+        from filtered_tickets
         group by status
     ) counted
 ),
@@ -216,7 +231,7 @@ remediation_type_counts as (
     select coalesce(jsonb_object_agg(remediation_type, remediation_count), '{{}}'::jsonb) as counts
     from (
         select remediation_type, count(*)::int as remediation_count
-        from selected_tickets
+        from filtered_tickets
         group by remediation_type
     ) counted
 ),
@@ -224,7 +239,7 @@ action_counts as (
     select coalesce(jsonb_object_agg(action, action_count), '{{}}'::jsonb) as counts
     from (
         select action, count(*)::int as action_count
-        from selected_tickets
+        from filtered_tickets
         group by action
     ) counted
 )
@@ -232,11 +247,12 @@ select json_build_object(
     'report_name', 'portfolio_remediation_ticket_report',
     'portfolio_name', {sql_literal(portfolio_name)},
     'limit', {limit},
+    'offset', {offset},
     'status_filter', {sql_literal(status)},
     'action_filter', {sql_literal(action)},
     'remediation_type_filter', {sql_literal(remediation_type)},
     'suggested_runner_filter', {sql_literal(suggested_runner)},
-    'ticket_count', (select count(*) from selected_tickets),
+    'ticket_count', (select count(*) from filtered_tickets),
     'status_counts', (select counts from status_counts),
     'remediation_type_counts', (select counts from remediation_type_counts),
     'action_counts', (select counts from action_counts),

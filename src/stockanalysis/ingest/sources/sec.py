@@ -56,7 +56,6 @@ class SecSource(IngestSource):
     ) -> HttpRequest:
         dataset = self._dataset(dataset_name)
         self._validate_required(dataset, params)
-        cik = params["cik"].zfill(10)
         user_agent = config.resolve("STOCKANALYSIS_SEC_USER_AGENT", required=require_credentials)
         headers = {
             "Accept": "application/json",
@@ -64,12 +63,15 @@ class SecSource(IngestSource):
         }
 
         if dataset_name == "submissions":
+            cik = params["cik"].zfill(10)
             url = f"https://data.sec.gov/submissions/CIK{cik}.json"
         elif dataset_name == "companyfacts":
+            cik = params["cik"].zfill(10)
             url = f"https://data.sec.gov/api/xbrl/companyfacts/CIK{cik}.json"
         elif dataset_name == "company_tickers_exchange":
             url = "https://www.sec.gov/files/company_tickers_exchange.json"
         elif dataset_name == "companyconcept":
+            cik = params["cik"].zfill(10)
             taxonomy = params["taxonomy"]
             concept = params["concept"]
             url = f"https://data.sec.gov/api/xbrl/companyconcept/CIK{cik}/{taxonomy}/{concept}.json"

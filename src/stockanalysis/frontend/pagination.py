@@ -41,9 +41,12 @@ class FrontendPaginationParams:
 
 
 COLLECTION_SPECS = (
+    FrontendCollectionSpec(path="/api/stocks", collection_key="stocks"),
+    FrontendCollectionSpec(path="/api/paper-trading/preview", collection_key="paper_actions"),
     FrontendCollectionSpec(path="/api/remediation-tickets", collection_key="tickets"),
     FrontendCollectionSpec(path="/api/cycles", collection_key="cycle_states", required_query_keys=("asOfDate",)),
     FrontendCollectionSpec(path="/api/events", collection_key="events", required_query_keys=("asOfDate",)),
+    FrontendCollectionSpec(path="/api/ai/news-clusters", collection_key="clusters", required_query_keys=("asOfDate",)),
     FrontendCollectionSpec(
         path="/api/performance/",
         path_suffix="/outcomes",
@@ -93,6 +96,48 @@ def apply_frontend_pagination(api_path: str, payload: dict[str, Any]) -> dict[st
         "item_count": len(items),
     }
     return page_payload
+
+
+def apply_frontend_sql_pagination(api_path: str, payload: dict[str, Any]) -> dict[str, Any]:
+    parsed = urlsplit(api_path)
+    query = _single_value_query(parsed.query)
+    spec = collection_spec_for_path(parsed.path, query)
+    if spec is None:
+        if PAGINATION_QUERY_KEYS.intersection(query):
+            raise FrontendPaginationError("Pagination parameters are only supported on frontend list endpoints.")
+        return payload
+
+    params = parse_frontend_pagination_params(query)
+    data = payload.get("data")
+    if not isinstance(data, dict):
+        return payload
+    raw_items = data.get(spec.collection_key)
+    if not isinstance(raw_items, list):
+        return payload
+
+    items = raw_items[: params.limit]
+    has_more = len(raw_items) > params.limit
+    next_cursor = encode_frontend_cursor(params.offset + params.limit) if has_more else None
+
+    page_data = dict(data)
+    page_data[spec.collection_key] = items
+    page_payload = dict(payload)
+    page_payload["data"] = page_data
+    page_payload["pagination"] = {
+        "limit": params.limit,
+        "cursor": params.cursor,
+        "next_cursor": next_cursor,
+        "has_more": has_more,
+        "item_count": len(items),
+    }
+    return page_payload
+
+
+def frontend_sql_page_window(api_path: str) -> tuple[int, int]:
+    parsed = urlsplit(api_path)
+    query = _single_value_query(parsed.query)
+    params = parse_frontend_pagination_params(query)
+    return params.limit + 1, params.offset
 
 
 def canonical_frontend_path_for_pagination(api_path: str) -> str:

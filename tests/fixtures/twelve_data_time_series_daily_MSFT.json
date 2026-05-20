@@ -1,0 +1,29 @@
+{
+  "meta": {
+    "symbol": "MSFT",
+    "interval": "1day",
+    "currency": "USD",
+    "exchange": "NASDAQ",
+    "mic_code": "XNGS",
+    "type": "Common Stock"
+  },
+  "values": [
+    {
+      "datetime": "2026-05-15",
+      "open": "525.10000",
+      "high": "530.20000",
+      "low": "522.50000",
+      "close": "528.75000",
+      "volume": "21000000"
+    },
+    {
+      "datetime": "2026-05-14",
+      "open": "520.40000",
+      "high": "526.90000",
+      "low": "519.80000",
+      "close": "524.25000",
+      "volume": "23000000"
+    }
+  ],
+  "status": "ok"
+}

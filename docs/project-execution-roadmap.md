@@ -16,19 +16,22 @@
 - portfolio pipeline: position snapshot, portfolio review, remediation queue/ticket/update/daily runner, scheduler wrapper.
 - performance pipeline: recommendation/thesis outcome, scheduled outcome runner, attribution, outcome coverage.
 - AI foundation: `ai` schema, model invocation/chunk/embedding/extraction/eval metadata, SEC event structured extraction fixture path.
-- frontend contract/runtime: 12개 DTO contract, fixture server, initial live read adapter completeness, `--source fixture|live|auto`, runtime boundary policy, actual DB-backed HTTP live smoke, FastAPI read-only API server with psycopg pool, request id/timeout/structured log/readiness hardening, deployment boundary/env preflight, pagination conventions, Next.js read-only cockpit routes.
+- frontend contract/runtime: 16개 DTO contract, fixture server, initial live read adapter completeness, `--source fixture|live|auto`, runtime boundary policy, actual DB-backed HTTP live smoke, FastAPI read-only API server with psycopg pool, request id/timeout/structured log/readiness hardening, deployment boundary/env preflight, pagination conventions, SQL-level bounded pagination optimization, optional OTLP exporter local receiver smoke, secret-free alert rule reference, Next.js read-only cockpit routes including stock list/detail price chart pages, read-only paper trading preview, and trading readiness cockpit.
+- trading safety boundary: broker boundary, account permission, order limit policy, kill switch, paper validation, and order intent audit schema plus deterministic safety evaluator, read-only readiness DTO/page, broker-free paper validation audit writer workflow, and simulated paper safety bootstrap config.
+- data operations foundation: daily/weekly/monthly cadence registry, read-only cadence CLI report, `/api/data-health` expected job health handoff, generic stdout/stderr/metadata artifact runner, repo-outside runtime env readiness gate, disposable/local runtime smoke, generic scheduler activation boundary wrapper, launchd install dry-run renderer, secret-free scheduler alert rule reference, manual exact-command approval packet, external manual activation preflight, first `stockanalysis-operations` backend orchestration CLI boundary.
 - harness: task contract/plan/handoff/review directories and verification scripts.
 
 ## Not Done
 
 아래는 아직 끝나지 않았다.
 
-- actual managed deployment install, reverse proxy config, local Collector smoke, alert rules, SQL-level pagination optimization.
+- actual managed deployment install, reverse proxy config, Alertmanager receiver routing, keyset cursor v2 if deep-page query plans require it.
 - full auth/RBAC, actor identity, audit-enforced write APIs.
-- actual recurring production data jobs with real credentials and alerting.
+- actual recurring production data jobs with real credentials, runtime smoke, scheduler activation, and alerting.
+- full migration of remaining non-verify data operations wrappers into the `stockanalysis-operations` backend boundary.
 - broad AI provider gateway, model routing, vector/RAG runtime, eval pipeline.
-- recommendation quality evaluation beyond deterministic bootstrap fixtures.
-- real brokerage/order integration. This remains out of scope until separately approved.
+- recommendation quality evaluation beyond deterministic bootstrap fixtures, the first read-only paper trading quality gate, and audit-only paper validation writer.
+- real brokerage/order integration. Safety schema/evaluator/readiness screen, paper validation audit writer, and simulated paper safety config exist, but actual broker adapter, account credential setup, write API, execution reports, fills, kill-switch unlock, and live order submission remain out of scope until separately approved.
 
 ## Execution Order
 
@@ -80,7 +83,9 @@ Initial scope:
 - Add list endpoint `limit`, opaque `cursor`, and `next_cursor` conventions. Implemented in `frontend-api-pagination-conventions`.
 - Decide external metrics/log sink and alerting boundary. Implemented in `frontend-api-observability-sink-decision`.
 - Add default-disabled optional OTLP exporter pilot. Implemented in `frontend-api-otel-exporter-pilot`.
-- Later: SQL-level pagination optimization and local Collector smoke.
+- Move live list reads from response-boundary slicing to SQL-level bounded windows. Implemented in `frontend-api-sql-pagination-optimization`.
+- Add local OTLP receiver smoke for optional exporter egress. Implemented in `frontend-api-local-collector-smoke`.
+- Add secret-free Prometheus-compatible alert rule reference. Implemented in `frontend-api-alert-rules`.
 
 Guardrail:
 
@@ -102,6 +107,43 @@ Initial scope:
 - connect failed/stale/missing runs to data-health live read.
 - persist run artifacts and stdout/stderr locations consistently.
 - document runtime env readiness for each data source.
+
+Implemented first slice:
+
+- Define daily/weekly/monthly data operations cadence registry and data-health expected job handoff. Implemented in `data-operations-cadence-foundation`.
+- Add generic repo-local stdout/stderr/metadata artifact runner for known cadence jobs. Implemented in `data-operations-artifact-runner`.
+- Add repo-outside runtime env readiness gate for database, FRED, Alpha Vantage, SEC identity, portfolio snapshot source, LLM provider, market price history dependency, and artifact root. Implemented in `data-operations-runtime-env-readiness`.
+- Add scheduler-free disposable/local runtime smoke for representative `macro-weekly` fixture job through the artifact runner. Implemented in `data-operations-runtime-smoke`.
+- Add generic scheduler activation boundary wrapper with env readiness preflight, command redaction, skip-date artifact, and artifact runner invocation. Implemented in `data-operations-scheduler-activation-boundary`.
+- Add launchd scheduler install dry-run renderer for daily/weekly cadence jobs, repo-outside output, and no host install path writes. Implemented in `data-operations-scheduler-install-dry-run`.
+- Add secret-free scheduler alert rule reference for missing, failed, stale, timeout, artifact missing, and preflight failure states. Implemented in `data-operations-scheduler-alert-boundary`.
+- Add manual activation runbook with approval gate, rollback, disable, and evidence checklist before host scheduler activation. Implemented in `data-operations-scheduler-activation-runbook`.
+- Add operator dry-run evidence bundle that rehearses readiness, scheduler preflight, install rendering, and alert validation without host scheduler mutation. Implemented in `data-operations-scheduler-operator-dry-run`.
+- Add machine-readable activation approval gate that blocks scheduler activation unless repo-outside dry-run evidence and explicit approval record are valid. Implemented in `data-operations-scheduler-activation-approval-gate`.
+- Add live activation request packet that turns approved evidence into `pending_explicit_user_approval` without host scheduler mutation. Implemented in `data-operations-live-scheduler-activation-request`.
+- Add user decision gate that validates approve/deny decision records without host scheduler mutation. Implemented in `data-operations-live-scheduler-activation-user-decision`.
+- Add final preflight that revalidates approved activation evidence and fresh runtime readiness without host scheduler mutation. Implemented in `data-operations-live-scheduler-activation-final-preflight`.
+- Add host activation plan that turns passed final preflight into reviewable command and rollback previews without host scheduler mutation. Implemented in `data-operations-live-scheduler-host-activation-plan`.
+- Add host activation execution request that asks for explicit execution approval from a reviewed host activation plan without host scheduler mutation. Implemented in `data-operations-live-scheduler-host-activation-execution-request`.
+- Add host activation execution decision gate that validates approve/deny execution records without host scheduler mutation. Implemented in `data-operations-live-scheduler-host-activation-execution-decision`.
+- Add backend orchestration boundary that introduces `stockanalysis-operations`, shared repo-outside path/report IO policy, and converts the representative host activation execution decision wrapper to a thin CLI wrapper. Implemented in `data-operations-backend-orchestration-boundary`.
+- Add host activation execution final preflight that revalidates approved execution decision, reviewed host plan, command preview consistency, and fresh runtime readiness without host scheduler mutation. Implemented in `data-operations-live-scheduler-host-activation-execution-final-preflight`.
+- Add host activation execution gate that validates final preflight and optional explicit host mutation confirmation, but still does not execute `launchctl` or write host LaunchAgents inside Codex. Implemented in `data-operations-live-scheduler-host-activation-execution`.
+- Add manual host scheduler activation exact-command approval packet that validates approve/abort records and command drift, but still does not execute `launchctl` or write host LaunchAgents inside Codex. Implemented in `manual-host-scheduler-activation-explicit-approval`.
+- Add external manual host scheduler activation preflight that checks exact-command approval plus fresh runtime env readiness, but still does not execute `launchctl` or write host LaunchAgents inside Codex. Implemented in `manual-host-scheduler-activation-preflight`.
+- Add local live MVP runtime bootstrap that prepares a Python 3.13 venv, repo-outside local env, FastAPI/Next smoke path, and fixes the scheduler exact-command `$HOME` path blocker before any physical scheduler activation. Implemented in `local-live-mvp-runtime`.
+- Add no-cost Alpha Vantage market price operation guardrails: free daily endpoint fallback, per-run throttling/budget skip, repo-outside watchlist plus cross-run daily provider budget ledger, and read-only API/frontend provider budget visibility. Implemented in `free-market-backfill-throttle`, `free-market-backfill-budget-ledger`, and `free-market-budget-frontend-visibility`.
+- Reframe recurring automation target from Mac LaunchAgents to a server-side scheduler + `stockanalysis-operations` worker architecture. Mac launchd remains local MVP/operator-only, not the final service scheduler. Implemented in `server-side-scheduler-architecture`.
+- Correct the immediate direction back to local-first runtime: external server scheduler selection is a future option, while current work should make local Postgres, local operations worker, FastAPI, and Next cockpit reliable first. Implemented in `local-first-runtime-direction`.
+- Add a secret-free read-only local runtime status command that reports local env files, DB/artifact boundaries, FastAPI/Next probes, manual worker commands, and why LaunchAgents remain blocked. Implemented in `local-runtime-status-orchestrator`.
+- Add a preview-first manual local ingest smoke command for market/news/AI jobs that only writes data with explicit `--execute` and records artifact-run metadata. Implemented in `manual-local-ingest-smoke`.
+- Add read-only `/api/data-health` and `/data-health` visibility for the latest repo-outside manual local ingest smoke summary. Implemented in `manual-local-ingest-data-health-visibility`.
+- Align the free local news-cluster AI evidence runner with the `event-intelligence-weekly` data-health cadence run history. Implemented in `local-ai-pipeline-run-alignment`.
+- Add a bounded local process worker that reuses the proven manual local ingest smoke cycle for market/news/AI jobs without Mac LaunchAgents or external scheduler deployment. Implemented in `local-ingest-worker-loop`.
+- Add read-only `/api/data-health` and `/data-health` visibility for the latest repo-outside local ingest worker run summary. Implemented in `local-ingest-worker-data-health-visibility`.
+- Add a secret-free server-side scheduler invocation packet for cron/systemd/Kubernetes/managed scheduler candidates to call `stockanalysis-operations local-ingest-worker-run` without deploying a scheduler or mutating host state. Implemented in `server-scheduler-invocation-boundary`.
+- Add a zero-budget server scheduler deployment target decision gate that marks external scheduler deployment blocked while DB/runtime remain local-only, and recommends GitHub Actions only after hosted DB/runtime exists. Implemented in `server-scheduler-deployment-target-decision`.
+- Add a hosted DB/runtime decision gate that recommends Supabase Free Postgres + GitHub Actions worker setup as the zero-budget path, while keeping provisioning, secrets, migrations, and scheduler deployment out of scope. Implemented in `hosted-database-runtime-decision`.
 
 Guardrail:
 
@@ -178,9 +220,9 @@ Guardrail:
 
 ## Immediate Next Task
 
-Current task: `frontend-api-sql-pagination-optimization`.
+Current task: `supabase-free-postgres-setup-packet`.
 
-The first implementation expanded live read support, not new frontend pages. It started with `dashboard` and `data-health`, then event/theme/performance, then recommendation/thesis/AI evidence/source document detail, then cycle list. Initial frontend contract live read completeness is covered. Runtime boundary policy, DB-backed HTTP live smoke, FastAPI read-only server, API observability hardening, deployment boundary, pagination conventions, external observability sink decision, and optional OTLP exporter pilot are now in place; next work should move large list pagination from response-boundary slicing toward SQL-level cursor pagination before write APIs or frontend product expansion.
+The first implementation expanded live read support, not new frontend pages. It started with `dashboard` and `data-health`, then event/theme/performance, then recommendation/thesis/AI evidence/source document detail, then cycle list. Initial frontend contract live read completeness is covered. Runtime boundary policy, DB-backed HTTP live smoke, FastAPI read-only server, API observability hardening, deployment boundary, pagination conventions, external observability sink decision, optional OTLP exporter pilot, SQL-level bounded list pagination, local OTLP receiver smoke, and secret-free alert rule reference are now in place. Data Operations Loop has a cadence registry, data-health expected job handoff, generic artifact runner, repo-outside runtime env readiness gate, scheduler-free disposable/local runtime smoke, generic scheduler activation boundary wrapper, launchd install dry-run renderer, secret-free scheduler alert rule reference, manual activation runbook, operator dry-run evidence bundle, activation approval gate, pending live activation request packet, user decision gate, final preflight, host activation plan, host activation execution request, host activation execution decision gate, first Python operations backend orchestration CLI boundary, host activation execution final preflight, host activation execution confirmation gate, manual exact-command approval packet, external manual activation preflight, local live MVP runtime bootstrap, no-cost market data fallback, free-tier provider budget ledger, read-only provider budget visibility in API/frontend, a future server-side scheduler architecture decision, a local-first direction correction, a read-only local runtime status command, preview-first `stockanalysis-operations manual-local-ingest-smoke`, data-health visibility for manual local ingest smoke, local AI run-history alignment for `event-intelligence-weekly`, and a bounded local process worker for market/news/AI smoke cycles. Repo-outside local fixture evidence exists at `/private/tmp/stockanalysis-manual-host-activation-kit/evidence/activation-chain`, and local live runtime evidence exists under `/private/tmp/stockanalysis-runtime`, but neither is production env/evidence. Next work is not external server deployment; it is to expose the local worker's own run report in `/data-health` so an operator can distinguish worker health from the underlying smoke cycle. Physical Mac `launchctl`, LaunchAgents mutation, external VPS, or managed scheduler activation remain forbidden unless separately approved.
 
 ## Focus Rules
 

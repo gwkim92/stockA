@@ -19,9 +19,13 @@ class FrontendApiAdapterTests(unittest.TestCase):
     def test_list_frontend_endpoints_loads_contract_index(self) -> None:
         endpoints = list_frontend_endpoints()
         paths = {endpoint.path for endpoint in endpoints}
-        self.assertEqual(len(endpoints), 12)
+        self.assertEqual(len(endpoints), 16)
         self.assertIn("/api/dashboard/today", paths)
         self.assertIn("/api/remediation-tickets?status=open", paths)
+        self.assertIn("/api/stocks", paths)
+        self.assertIn("/api/stocks/AAPL", paths)
+        self.assertIn("/api/paper-trading/preview", paths)
+        self.assertIn("/api/trading/readiness", paths)
         self.assertIn("/api/ai-evidence/sec-event-aapl-10k-20240928", paths)
         self.assertIn("/api/source-documents/aapl-2024-10k-20240928", paths)
         self.assertIn("/api/events?asOfDate=2024-11-01", paths)
@@ -41,8 +45,40 @@ class FrontendApiAdapterTests(unittest.TestCase):
         self.assertEqual(events["data"]["events"][0]["theme_key"], "ANNUAL_REPORTING")
         self.assertEqual(events["pagination"]["limit"], 50)
         self.assertEqual(events["pagination"]["item_count"], 2)
+        self.assertEqual(events["data"]["events"][0]["related_events"][0]["relation_type"], "same_source_document")
         self.assertEqual(theme["data"]["theme_key"], "ANNUAL_REPORTING")
         self.assertEqual(theme["data"]["supporting_events"][0]["event_id"], "sec-event-aapl-10k-20240928")
+
+    def test_resolve_frontend_response_returns_stock_examples(self) -> None:
+        stocks = resolve_frontend_response("/api/stocks")
+        detail = resolve_frontend_response("/api/stocks/AAPL")
+
+        self.assertEqual(stocks["data"]["stock_count"], 2)
+        self.assertEqual(stocks["data"]["stocks"][0]["symbol"], "AAPL")
+        self.assertEqual(stocks["data"]["stocks"][0]["latest_price"]["trade_date"], "2026-05-18")
+        self.assertEqual(stocks["pagination"]["limit"], 50)
+        self.assertEqual(detail["data"]["symbol"], "AAPL")
+        self.assertEqual(detail["data"]["price_bars"][-1]["close"], 300.23)
+
+    def test_resolve_frontend_response_returns_paper_trading_preview_example(self) -> None:
+        payload = resolve_frontend_response("/api/paper-trading/preview")
+
+        self.assertEqual(payload["data"]["portfolio_name"], "Long Term Paper")
+        self.assertEqual(payload["data"]["quality_summary"]["position_recommendation_conflict_count"], 1)
+        self.assertEqual(payload["data"]["paper_actions"][0]["symbol"], "AAPL")
+        self.assertEqual(payload["data"]["paper_actions"][0]["paper_action"], "paper_sell_to_zero")
+        self.assertTrue(payload["data"]["paper_actions"][0]["requires_human_approval"])
+        self.assertEqual(payload["pagination"]["limit"], 50)
+
+    def test_resolve_frontend_response_returns_trading_readiness_example(self) -> None:
+        payload = resolve_frontend_response("/api/trading/readiness")
+
+        self.assertEqual(payload["data"]["portfolio_name"], "Long Term Paper")
+        self.assertEqual(payload["data"]["readiness_status"], "blocked")
+        self.assertEqual(payload["data"]["broker_boundary"]["status"], "missing")
+        self.assertTrue(payload["data"]["kill_switches"][0]["is_engaged"])
+        self.assertEqual(payload["data"]["audit_summary"]["submitted_to_broker_count"], 0)
+        self.assertNotIn("secret_ref", json.dumps(payload))
 
     def test_resolve_frontend_response_applies_limit_to_fixture_collection(self) -> None:
         events = resolve_frontend_response("/api/events?asOfDate=2024-11-01&limit=1")
@@ -77,7 +113,7 @@ class FrontendApiAdapterTests(unittest.TestCase):
         self.assertEqual(exit_code, 0)
         payload = json.loads(stdout.getvalue())
         self.assertEqual(payload["contract_version"], "frontend-api-v0.1")
-        self.assertEqual(len(payload["endpoints"]), 12)
+        self.assertEqual(len(payload["endpoints"]), 16)
 
     def test_cli_get_prints_response_payload(self) -> None:
         stdout = io.StringIO()

@@ -2,9 +2,12 @@ from __future__ import annotations
 
 import io
 import json
+import sys
+import tempfile
 import unittest
 from contextlib import redirect_stdout
 from datetime import date
+from pathlib import Path
 from urllib.parse import unquote
 from unittest.mock import patch
 
@@ -20,7 +23,294 @@ class IngestCliTests(unittest.TestCase):
         output = stdout.getvalue()
         self.assertIn("sec:", output)
         self.assertIn("fred:", output)
+        self.assertIn("rss_news:", output)
         self.assertIn("alpha_vantage:", output)
+        self.assertIn("twelve_data:", output)
+
+    def test_news_rss_sync_cli_prints_fixture_items(self) -> None:
+        stdout = io.StringIO()
+        with redirect_stdout(stdout):
+            exit_code = main(
+                [
+                    "news-rss-sync",
+                    "--feed-name",
+                    "fixture",
+                    "--feed-url",
+                    "https://example.com/rss",
+                    "--feed-xml",
+                    "tests/fixtures/news_rss_sample.xml",
+                    "--limit",
+                    "1",
+                ]
+            )
+
+        self.assertEqual(exit_code, 0)
+        payload = json.loads(stdout.getvalue())
+        self.assertEqual(payload["feed_name"], "fixture")
+        self.assertEqual(payload["item_count"], 1)
+        self.assertEqual(len(payload["items"]), 1)
+        self.assertTrue(payload["items"][0]["external_document_id"].startswith("rss:fixture:"))
+
+    def test_news_rss_upsert_cli_prints_summary(self) -> None:
+        stdout = io.StringIO()
+        with patch("stockanalysis.ingest.cli.run_news_rss_upsert") as upsert_mock:
+            upsert_mock.return_value = {
+                "run_id": 310,
+                "feed_name": "fixture",
+                "requested_item_count": 2,
+                "source_document_count": 2,
+                "event_count": 2,
+                "linked_document_count": 2,
+            }
+            with redirect_stdout(stdout):
+                exit_code = main(
+                    [
+                        "news-rss-upsert",
+                        "--feed-name",
+                        "fixture",
+                        "--feed-url",
+                        "https://example.com/rss",
+                        "--feed-xml",
+                        "tests/fixtures/news_rss_sample.xml",
+                    ]
+                )
+
+        self.assertEqual(exit_code, 0)
+        payload = json.loads(stdout.getvalue())
+        self.assertEqual(payload["run_id"], 310)
+        self.assertEqual(payload["event_count"], 2)
+
+    def test_news_rss_local_chunk_index_cli_prints_summary(self) -> None:
+        stdout = io.StringIO()
+        with patch("stockanalysis.ingest.cli.run_news_rss_local_chunk_index") as chunk_index_mock:
+            chunk_index_mock.return_value = {
+                "report_name": "news_rss_local_chunk_index",
+                "status": "completed",
+                "run_id": 311,
+                "chunk_count": 2,
+                "embedding_count": 2,
+                "external_embedding_api": False,
+                "live_llm_call": False,
+            }
+            with redirect_stdout(stdout):
+                exit_code = main(
+                    [
+                        "news-rss-local-chunk-index",
+                        "--document-limit",
+                        "5",
+                        "--max-text-chars",
+                        "800",
+                    ]
+                )
+
+        self.assertEqual(exit_code, 0)
+        payload = json.loads(stdout.getvalue())
+        self.assertEqual(payload["run_id"], 311)
+        self.assertEqual(payload["chunk_count"], 2)
+        self.assertFalse(payload["external_embedding_api"])
+        self.assertEqual(chunk_index_mock.call_args.kwargs["document_limit"], 5)
+        self.assertEqual(chunk_index_mock.call_args.kwargs["max_text_chars"], 800)
+
+    def test_news_rss_raw_fetch_cli_prints_summary(self) -> None:
+        stdout = io.StringIO()
+        with patch("stockanalysis.ingest.cli.run_news_rss_raw_fetch") as raw_fetch_mock:
+            raw_fetch_mock.return_value = {
+                "report_name": "news_rss_raw_fetch",
+                "status": "completed",
+                "run_id": 312,
+                "requested_document_count": 1,
+                "succeeded_document_count": 1,
+                "skipped_document_count": 0,
+                "failed_document_count": 0,
+                "paid_provider_api": False,
+                "live_llm_call": False,
+                "results": [],
+            }
+            with redirect_stdout(stdout):
+                exit_code = main(
+                    [
+                        "news-rss-raw-fetch",
+                        "--limit",
+                        "2",
+                        "--external-document-id",
+                        "rss:fixture:article-1",
+                        "--artifact-root",
+                        "/tmp/news-raw",
+                        "--exclude-url-host",
+                        "news.google.com",
+                        "--max-body-bytes",
+                        "500",
+                        "--user-agent",
+                        "test-agent@example.com",
+                    ]
+                )
+
+        self.assertEqual(exit_code, 0)
+        payload = json.loads(stdout.getvalue())
+        self.assertEqual(payload["run_id"], 312)
+        self.assertEqual(payload["succeeded_document_count"], 1)
+        self.assertFalse(payload["paid_provider_api"])
+        self.assertFalse(payload["live_llm_call"])
+        self.assertEqual(raw_fetch_mock.call_args.kwargs["limit"], 2)
+        self.assertEqual(raw_fetch_mock.call_args.kwargs["external_document_id"], "rss:fixture:article-1")
+        self.assertEqual(raw_fetch_mock.call_args.kwargs["artifact_root"], "/tmp/news-raw")
+        self.assertEqual(raw_fetch_mock.call_args.kwargs["exclude_url_hosts"], ("news.google.com",))
+        self.assertEqual(raw_fetch_mock.call_args.kwargs["max_body_bytes"], 500)
+        self.assertEqual(raw_fetch_mock.call_args.kwargs["user_agent"], "test-agent@example.com")
+
+    def test_news_rss_raw_body_chunk_index_cli_prints_summary(self) -> None:
+        stdout = io.StringIO()
+        with patch("stockanalysis.ingest.cli.run_news_rss_raw_body_chunk_index") as chunk_index_mock:
+            chunk_index_mock.return_value = {
+                "report_name": "news_rss_raw_body_chunk_index",
+                "status": "completed",
+                "run_id": 313,
+                "requested_document_count": 1,
+                "succeeded_document_count": 1,
+                "failed_document_count": 0,
+                "chunk_count": 2,
+                "embedding_count": 2,
+                "external_embedding_api": False,
+                "live_llm_call": False,
+                "results": [],
+            }
+            with redirect_stdout(stdout):
+                exit_code = main(
+                    [
+                        "news-rss-raw-body-chunk-index",
+                        "--document-limit",
+                        "2",
+                        "--external-document-id",
+                        "rss:fixture:article-1",
+                        "--artifact-root",
+                        "/tmp/news-raw",
+                        "--exclude-url-host",
+                        "news.google.com",
+                        "--max-text-chars",
+                        "700",
+                        "--max-chunks-per-document",
+                        "4",
+                    ]
+                )
+
+        self.assertEqual(exit_code, 0)
+        payload = json.loads(stdout.getvalue())
+        self.assertEqual(payload["run_id"], 313)
+        self.assertEqual(payload["chunk_count"], 2)
+        self.assertFalse(payload["external_embedding_api"])
+        self.assertFalse(payload["live_llm_call"])
+        self.assertEqual(chunk_index_mock.call_args.kwargs["document_limit"], 2)
+        self.assertEqual(chunk_index_mock.call_args.kwargs["external_document_id"], "rss:fixture:article-1")
+        self.assertEqual(chunk_index_mock.call_args.kwargs["artifact_root"], "/tmp/news-raw")
+        self.assertEqual(chunk_index_mock.call_args.kwargs["exclude_url_hosts"], ("news.google.com",))
+        self.assertEqual(chunk_index_mock.call_args.kwargs["max_text_chars"], 700)
+        self.assertEqual(chunk_index_mock.call_args.kwargs["max_chunks_per_document"], 4)
+
+    def test_data_operations_cadence_cli_prints_filtered_report(self) -> None:
+        stdout = io.StringIO()
+        with redirect_stdout(stdout):
+            exit_code = main(["data-operations-cadence", "--cadence", "daily"])
+
+        self.assertEqual(exit_code, 0)
+        payload = json.loads(stdout.getvalue())
+        self.assertEqual(payload["report_name"], "data_operations_cadence_foundation")
+        self.assertEqual(payload["cadence_filter"], "daily")
+        self.assertGreaterEqual(payload["job_count"], 3)
+        self.assertTrue(all(job["cadence"] == "daily" for job in payload["jobs"]))
+        self.assertEqual(payload["activation_status"], "reference_only_not_scheduled")
+
+    def test_data_operations_run_cli_captures_artifacts(self) -> None:
+        stdout = io.StringIO()
+        with tempfile.TemporaryDirectory() as tmpdir, redirect_stdout(stdout):
+            exit_code = main(
+                [
+                    "data-operations-run",
+                    "--job-id",
+                    "macro-weekly",
+                    "--artifact-root",
+                    tmpdir,
+                    "--",
+                    sys.executable,
+                    "-c",
+                    "import json; print(json.dumps({'ok': True}))",
+                ]
+            )
+
+            self.assertEqual(exit_code, 0)
+            payload = json.loads(stdout.getvalue())
+            artifact_dir = Path(payload["artifact_dir"])
+            self.assertEqual(payload["report_name"], "data_operations_artifact_run")
+            self.assertEqual(payload["job_id"], "macro-weekly")
+            self.assertEqual(payload["status"], "succeeded")
+            self.assertTrue((artifact_dir / "stdout.json").exists())
+            self.assertTrue((artifact_dir / "stderr.log").exists())
+            self.assertTrue((artifact_dir / "metadata.json").exists())
+
+    def test_data_operations_env_readiness_cli_prints_redacted_report(self) -> None:
+        stdout = io.StringIO()
+        with tempfile.TemporaryDirectory() as tmpdir, redirect_stdout(stdout):
+            tmp_path = Path(tmpdir)
+            positions_csv = tmp_path / "positions.csv"
+            positions_csv.write_text("symbol,quantity\nAAPL,10\n", encoding="utf-8")
+            market_watchlist_csv = tmp_path / "market-watchlist.csv"
+            market_watchlist_csv.write_text("symbol\nAAPL\n", encoding="utf-8")
+            news_rss_config = tmp_path / "news-rss-feeds.json"
+            news_rss_config.write_text(
+                json.dumps(
+                    {
+                        "version": "news-rss-feed-config-v1",
+                        "feeds": [
+                            {
+                                "feed_name": "free-feed",
+                                "feed_url": "https://example.com/free/rss",
+                                "enabled": True,
+                                "limit": 25,
+                                "default_language": "en",
+                            }
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            env_file = tmp_path / "data-operations.env"
+            env_file.write_text("# trusted temp env for CLI smoke\n", encoding="utf-8")
+            fake_env = {
+                "STOCKANALYSIS_DATABASE_URL": "postgresql://runtime_user:runtime_pass@db.internal:5432/stockanalysis",
+                "STOCKANALYSIS_FRED_API_KEY": "fred-runtime-token-123",
+                "STOCKANALYSIS_MARKET_PRICE_PROVIDER": "twelve_data",
+                "STOCKANALYSIS_TWELVE_DATA_API_KEY": "twelve-runtime-token-123",
+                "STOCKANALYSIS_MARKET_PRICE_WATCHLIST_CSV": str(market_watchlist_csv),
+                "STOCKANALYSIS_MARKET_PRICE_BUDGET_LEDGER_PATH": str(tmp_path / "market-ledger.json"),
+                "STOCKANALYSIS_ALPHA_VANTAGE_API_KEY": "alpha-runtime-token-123",
+                "STOCKANALYSIS_SEC_USER_AGENT": "stockanalysis-test contact@operator.test",
+                "STOCKANALYSIS_NEWS_RSS_FEED_CONFIG_JSON": str(news_rss_config),
+                "STOCKANALYSIS_PORTFOLIO_POSITIONS_CSV": str(positions_csv),
+                "STOCKANALYSIS_LLM_PROVIDER": "openai",
+                "OPENAI_API_KEY": "openai-runtime-key-123456",
+                "STOCKANALYSIS_DATA_OPERATIONS_ARTIFACT_ROOT": str(tmp_path / "artifacts"),
+            }
+
+            with patch.dict("os.environ", fake_env, clear=False):
+                exit_code = main(
+                    [
+                        "data-operations-env-readiness",
+                        "--env-file",
+                        str(env_file),
+                        "--repo-root",
+                        str(Path(__file__).resolve().parents[1]),
+                    ]
+                )
+
+            self.assertEqual(exit_code, 0)
+            payload = json.loads(stdout.getvalue())
+            self.assertEqual(payload["report_name"], "data_operations_runtime_env_readiness")
+            self.assertEqual(payload["runtime_env_readiness"], "passed")
+            output_text = stdout.getvalue()
+            self.assertNotIn(fake_env["STOCKANALYSIS_DATABASE_URL"], output_text)
+            self.assertNotIn(fake_env["STOCKANALYSIS_FRED_API_KEY"], output_text)
+            self.assertNotIn(fake_env["STOCKANALYSIS_TWELVE_DATA_API_KEY"], output_text)
+            self.assertNotIn(fake_env["STOCKANALYSIS_ALPHA_VANTAGE_API_KEY"], output_text)
+            self.assertNotIn(fake_env["OPENAI_API_KEY"], output_text)
 
     def test_build_request_allows_placeholder_credentials(self) -> None:
         stdout = io.StringIO()
@@ -168,9 +458,12 @@ class IngestCliTests(unittest.TestCase):
                         "AAPL",
                         "--prices-json",
                         "tests/fixtures/alpha_vantage_daily_adjusted_AAPL.json",
+                        "--provider",
+                        "twelve_data",
                     ]
                 )
         self.assertEqual(exit_code, 0)
+        self.assertEqual(upsert_mock.call_args.kwargs["provider"], "twelve_data")
         payload = json.loads(stdout.getvalue())
         self.assertEqual(payload["run_id"], 88)
         self.assertEqual(payload["bar_count"], 2)
@@ -194,9 +487,23 @@ class IngestCliTests(unittest.TestCase):
                         "MSFT",
                         "--fixtures-dir",
                         "tests/fixtures",
+                        "--provider",
+                        "twelve_data",
+                        "--throttle-seconds",
+                        "1.5",
+                        "--max-requests-per-run",
+                        "3",
+                        "--skip-if-fresh",
+                        "--freshness-date",
+                        "2026-05-15",
                     ]
                 )
         self.assertEqual(exit_code, 0)
+        self.assertEqual(upsert_mock.call_args.kwargs["provider"], "twelve_data")
+        self.assertEqual(upsert_mock.call_args.kwargs["throttle_seconds"], 1.5)
+        self.assertEqual(upsert_mock.call_args.kwargs["max_requests_per_run"], 3)
+        self.assertTrue(upsert_mock.call_args.kwargs["skip_if_fresh"])
+        self.assertEqual(upsert_mock.call_args.kwargs["freshness_date"], date(2026, 5, 15))
         payload = json.loads(stdout.getvalue())
         self.assertEqual(payload["requested_symbol_count"], 2)
         self.assertEqual(payload["failed_symbol_count"], 0)
@@ -237,9 +544,23 @@ class IngestCliTests(unittest.TestCase):
                         "market-price-universe-backfill",
                         "--fixtures-dir",
                         "tests/fixtures",
+                        "--provider",
+                        "twelve_data",
+                        "--throttle-seconds",
+                        "2",
+                        "--max-requests-per-run",
+                        "4",
+                        "--skip-if-fresh",
+                        "--freshness-date",
+                        "2026-05-15",
                     ]
                 )
         self.assertEqual(exit_code, 0)
+        self.assertEqual(backfill_mock.call_args.kwargs["provider"], "twelve_data")
+        self.assertEqual(backfill_mock.call_args.kwargs["throttle_seconds"], 2.0)
+        self.assertEqual(backfill_mock.call_args.kwargs["max_requests_per_run"], 4)
+        self.assertTrue(backfill_mock.call_args.kwargs["skip_if_fresh"])
+        self.assertEqual(backfill_mock.call_args.kwargs["freshness_date"], date(2026, 5, 15))
         payload = json.loads(stdout.getvalue())
         self.assertEqual(payload["selected_symbol_count"], 2)
         self.assertEqual(payload["failed_symbol_count"], 0)

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import unittest
+from datetime import date
 from unittest.mock import patch
 
 from stockanalysis.ingest.market.backfill import (
@@ -87,6 +88,11 @@ class MarketBackfillTests(unittest.TestCase):
                 exchanges=["Nasdaq", "NYSE"],
                 limit=2,
                 fixtures_dir="tests/fixtures",
+                provider="twelve_data",
+                throttle_seconds=1.0,
+                max_requests_per_run=3,
+                skip_if_fresh=True,
+                freshness_date=date(2026, 5, 15),
                 executor=executor,
             )
         batch_mock.assert_called_once_with(
@@ -94,6 +100,11 @@ class MarketBackfillTests(unittest.TestCase):
             config=unittest.mock.ANY,
             fixtures_dir="tests/fixtures",
             outputsize=None,
+            provider="twelve_data",
+            throttle_seconds=1.0,
+            max_requests_per_run=3,
+            skip_if_fresh=True,
+            freshness_date=date(2026, 5, 15),
             executor=executor,
         )
         self.assertEqual(summary["selected_symbol_count"], 2)

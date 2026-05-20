@@ -17,6 +17,7 @@
 - Signal, thesis, portfolio review: `src/stockanalysis/signal/`
 - Performance and attribution: `src/stockanalysis/performance/`
 - Frontend read adapters and local runtime: `src/stockanalysis/frontend/`
+- Data operations backend orchestration: `src/stockanalysis/operations/`
 - Next.js cockpit shell: `apps/web/`
 - Postgres schema and seed: `db/migrations/`, `db/seeds/`
 - Tests and fixtures: `tests/`
@@ -27,6 +28,7 @@
 ## Core Commands
 
 - Python 단위 검증: `PYTHONPATH=src python3 -m unittest`
+- Data operations backend CLI: `PYTHONPATH=src python3 -m stockanalysis.operations.cli --help`
 - 전체 기능별 검증: `bash scripts/verify_<task>.sh`
 - 하네스 검증: `PYTHONPATH=/Users/woody/ai/agent-work-harness/src python3 -m awh verify --repo . --task <task-slug>`
 - 프로젝트 순서 검증: `bash scripts/verify_project_execution_roadmap.sh`
@@ -58,7 +60,7 @@
 - 추천 또는 보유 판단은 당시 입력 데이터, 점수, thesis, 무효화 조건을 함께 저장하는 방향으로 설계한다.
 - 문서 단계에서도 다음 구현 단계가 바로 이어질 수 있을 정도로 결정 사항을 명확히 남긴다.
 - 진행 순서가 흔들릴 때는 `docs/project-execution-roadmap.md`를 우선 기준으로 삼고, 변경하려면 별도 task contract에 근거를 남긴다.
-- 현재 고정된 immediate next task는 `frontend-api-sql-pagination-optimization`이다. optional OTLP exporter pilot 이후에는 새 프론트 기능보다 대량 list endpoint의 SQL-level cursor pagination을 먼저 검증한다.
+- 현재 고정된 immediate next task는 `supabase-free-postgres-setup-packet`이다. hosted DB/runtime decision 결과, 무료 조건의 현실적 경로는 Supabase Free Postgres를 hosted DB로 준비한 뒤 GitHub Actions worker를 붙이는 것이다. 다음은 사용자가 Supabase에서 무엇을 만들고 어떤 값을 repo-outside env/GitHub Secrets에 넣을지 정확히 정리하는 setup packet이며, Codex가 DB 계정 생성이나 secret 등록을 직접 수행하지 않는다. Mac LaunchAgents/`launchctl`은 local 반복 실행 옵션일 뿐이며, 실제 `launchctl bootstrap` 또는 host LaunchAgents 쓰기, cron/systemd/Kubernetes/GitHub Actions/managed scheduler 배포는 real repo-outside env/evidence와 명시적 사용자 승인 전까지 금지한다. 새 data operations 작업은 shell에 product orchestration을 늘리지 말고 `stockanalysis-operations` backend CLI/service boundary를 우선 사용한다.
 
 ## Definition Of Done
 

@@ -2,12 +2,27 @@ import Link from "next/link";
 import type { Route } from "next";
 
 import { getCycleStates } from "@/lib/frontend-api";
+import { koCode, koLabel } from "@/lib/korean-labels";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Cycles" };
+export const metadata = { title: "사이클" };
 
 function formatConfidence(value: number) {
   return `${Math.round(value * 100)}%`;
+}
+
+function formatFeature(value: number | null) {
+  if (value === null) {
+    return "n/a";
+  }
+  return `${Math.round(value * 100)}%`;
+}
+
+function featureWidth(value: number | null) {
+  if (value === null) {
+    return "0%";
+  }
+  return `${Math.min(100, Math.max(0, Math.round(value * 100)))}%`;
 }
 
 function themeHref(themeKey: string) {
@@ -17,71 +32,100 @@ function themeHref(themeKey: string) {
 export default async function CyclesPage() {
   const response = await getCycleStates();
   const data = response.data;
+  const activeCycleCount = data.cycle_states.filter((cycle) => cycle.state !== cycle.previous_state).length;
+  const instrumentCount = data.cycle_states.reduce((total, cycle) => total + cycle.instrument_count, 0);
+  const averageConfidence =
+    data.cycle_states.length > 0
+      ? data.cycle_states.reduce((total, cycle) => total + cycle.confidence, 0) / data.cycle_states.length
+      : 0;
 
   return (
-    <div className="pageStack">
-      <section className="reveal">
-        <div className="bento-badge">
-          {data.strategy_name} • {data.horizon_type} • v{data.universe_version}
+    <div className="terminal-page">
+      <section className="page-hero reveal" aria-labelledby="cycles-title">
+        <div>
+          <div className="bento-badge">Index 03 — 사이클 보드</div>
+          <h1 className="page-title" id="cycles-title">
+            사이클은 매수 신호가 아니라 투자 맥락이다.
+          </h1>
         </div>
-        <h1 style={{ fontSize: "clamp(2.5rem, 4vw, 4rem)", marginBottom: "16px" }}>Theme Cycle Board</h1>
-        <p style={{ color: "var(--text-secondary)", fontSize: "1.1rem", maxWidth: "700px" }}>
-          Cycle states are not buy signals. They are context for thesis quality, coverage gaps, and evidence review.
+        <p className="page-lede">
+          테마 상태는 매수 지시가 아니다. 투자 논리 품질, 커버리지 공백, 증거 검토를 시작할
+          운영 맥락으로만 사용한다.
         </p>
       </section>
 
-      <section className="bento-grid reveal delay-1">
-        {data.cycle_states.map((cycle) => {
+      <section className="status-rail compact-rail reveal delay-1" aria-label="사이클 요약">
+        <article className="rail-cell">
+          <span>01 전략</span>
+          <strong className="rail-word-value">{koCode(data.strategy_name)}</strong>
+          <small>{koCode(data.strategy_name)} · {koCode(data.horizon_type)}</small>
+        </article>
+        <article className="rail-cell">
+          <span>02 테마 수</span>
+          <strong>{data.cycle_states.length}</strong>
+          <small>v{data.universe_version} 유니버스</small>
+        </article>
+        <article className="rail-cell">
+          <span>03 종목 연결</span>
+          <strong>{instrumentCount}</strong>
+          <small>테마 유니버스 전체</small>
+        </article>
+        <article className="rail-cell">
+          <span>04 평균 신뢰도</span>
+          <strong>{formatConfidence(averageConfidence)}</strong>
+          <small>{activeCycleCount}개 상태 변화</small>
+        </article>
+      </section>
+
+      <section className="cycle-index reveal delay-2" aria-label="테마 사이클 목록">
+        {data.cycle_states.map((cycle, index) => {
           const href = themeHref(cycle.theme_key);
           return (
-            <article className="bento-card span-2" key={cycle.theme_key}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "24px" }}>
-                <div>
-                  <span className="metric-sub" style={{ textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                    {cycle.theme_key}
-                  </span>
-                  <h2 style={{ fontSize: "1.5rem", marginTop: "4px" }}>{cycle.theme_name}</h2>
-                </div>
-                <div className="bento-badge" style={{ margin: 0, background: "rgba(59, 130, 246, 0.1)", color: "var(--accent-blue)", borderColor: "rgba(59, 130, 246, 0.2)" }}>
-                  {formatConfidence(cycle.confidence)} Confidence
-                </div>
+            <article className="cycle-row" key={cycle.theme_key}>
+              <div className="cycle-number">{String(index + 1).padStart(2, "0")}</div>
+              <div className="cycle-main">
+                <span>{koCode(cycle.theme_key)}</span>
+                <h2>{koLabel(cycle.theme_name)}</h2>
+                <p>
+                  현재 {koCode(cycle.state)} · 이전 {koCode(cycle.previous_state)} · 신뢰도{" "}
+                  {formatConfidence(cycle.confidence)}
+                </p>
               </div>
-
-              <div style={{
-                margin: "0 -24px",
-                padding: "20px 24px",
-                background: "rgba(255, 255, 255, 0.02)",
-                borderTop: "1px solid var(--border-light)",
-                borderBottom: "1px solid var(--border-light)"
-              }}>
-                <span className="metric-sub">Current State</span>
-                <div style={{ fontSize: "2rem", fontWeight: 700, fontFamily: "var(--font-display)", color: "var(--text-primary)" }}>
-                  {cycle.state}
-                </div>
-                <div style={{ fontSize: "0.85rem", color: "var(--text-tertiary)", marginTop: "4px" }}>
-                  Transitioned from {cycle.previous_state}
-                </div>
+              <div className="cycle-state">
+                <strong>{koCode(cycle.state)}</strong>
+                <small>{cycle.instrument_count}개 종목</small>
               </div>
-
-              <div style={{ display: "flex", gap: "24px", marginTop: "24px", flexWrap: "wrap" }}>
+              <div className="feature-stack" aria-label={`${cycle.theme_name} 특징`}>
                 <div>
-                  <span className="metric-sub">Instruments</span>
-                  <div style={{ fontSize: "1.1rem", fontWeight: 600 }}>{cycle.instrument_count}</div>
-                </div>
-                <div>
-                  <span className="metric-sub">Top Symbols</span>
-                  <div style={{ fontSize: "1rem", fontWeight: 500, color: "var(--text-secondary)" }}>
-                    {cycle.top_symbols.join(", ")}
+                  <span>이벤트</span>
+                  <div className="feature-bar">
+                    <i style={{ width: featureWidth(cycle.features.event_intensity) }} />
                   </div>
+                  <strong>{formatFeature(cycle.features.event_intensity)}</strong>
                 </div>
+                <div>
+                  <span>모멘텀</span>
+                  <div className="feature-bar">
+                    <i style={{ width: featureWidth(cycle.features.price_momentum) }} />
+                  </div>
+                  <strong>{formatFeature(cycle.features.price_momentum)}</strong>
+                </div>
+                <div>
+                  <span>품질</span>
+                  <div className="feature-bar">
+                    <i style={{ width: featureWidth(cycle.features.fundamental_quality) }} />
+                  </div>
+                  <strong>{formatFeature(cycle.features.fundamental_quality)}</strong>
+                </div>
+              </div>
+              <div className="cycle-actions">
+                <small>{cycle.top_symbols.join(" · ")}</small>
                 {href ? (
-                  <Link className="btn btn-secondary" href={href} style={{ marginLeft: "auto" }}>
-                    Open Theme
+                  <Link className="btn btn-secondary" href={href}>
+                    테마 열기
                   </Link>
                 ) : (
-                  <span className="metric-sub" style={{ marginLeft: "auto", alignSelf: "center" }}>
-                    detail pending
-                  </span>
+                  <span className="metric-sub">상세 화면 준비 중</span>
                 )}
               </div>
             </article>

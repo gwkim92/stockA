@@ -2,9 +2,9 @@
   "contract_version": "frontend-api-v0.1",
   "generated_at": "2026-05-01T00:00:00Z",
   "data": {
-    "recommendation_id": "AAPL-2024-11-01",
+    "recommendation_id": "recommendation-7101",
     "symbol": "AAPL",
-    "instrument_id": "instrument-aapl",
+    "instrument_id": "instrument-501",
     "as_of_date": "2024-11-01",
     "strategy_name": "long_term_core",
     "horizon_type": "long_term",
@@ -13,25 +13,128 @@
     "score_version": "bootstrap-v1",
     "score_components": [
       {
-        "component": "cycle_state",
+        "component": "cycle_score",
         "value": 0.74,
         "weight": 0.35,
-        "evidence_id": "cycle-state-ANNUAL_REPORTING-20241101"
+        "evidence_id": "event-9001",
+        "provenance": {
+          "source_type": "event_or_ai_evidence",
+          "label": "원천 이벤트/AI 근거",
+          "component": "cycle_score",
+          "feature_code": null,
+          "feature_name": null,
+          "description": null,
+          "feature_value": null,
+          "zscore": null,
+          "as_of_date": null,
+          "source_run_id": null,
+          "universe_batch_id": null,
+          "rank_position": null,
+          "universe_member_count": null,
+          "selection_score": null,
+          "selection_rule": null,
+          "latest_trade_date": null,
+          "observation_count": null,
+          "inclusion_reason": null,
+          "evidence": {
+            "feature_set_version": null,
+            "universe_batch_id": null,
+            "rank_position": null,
+            "observation_count": null,
+            "first_trade_date": null,
+            "latest_trade_date": null,
+            "as_of_date": null
+          }
+        }
       },
       {
-        "component": "event_quality",
-        "value": 0.82,
+        "component": "momentum_score",
+        "value": 0.61,
         "weight": 0.25,
-        "evidence_id": "sec-event-aapl-10k-20240928"
+        "evidence_id": "market-feature-aapl-2024-11-01-return_since_first_observation",
+        "provenance": {
+          "source_type": "market_feature",
+          "label": "가격 feature snapshot",
+          "component": "momentum_score",
+          "feature_code": "return_since_first_observation",
+          "feature_name": "Return Since First Observation",
+          "description": "Latest adjusted close divided by first observed adjusted close minus one.",
+          "feature_value": 0.12,
+          "zscore": 0.44,
+          "as_of_date": "2024-11-01",
+          "source_run_id": "pipeline-run-9201",
+          "universe_batch_id": "strategy-universe-batch-6101",
+          "rank_position": null,
+          "universe_member_count": null,
+          "selection_score": null,
+          "selection_rule": null,
+          "latest_trade_date": null,
+          "observation_count": null,
+          "inclusion_reason": null,
+          "evidence": {
+            "feature_set_version": "bootstrap-v1",
+            "universe_batch_id": "strategy-universe-batch-6101",
+            "rank_position": 2,
+            "observation_count": 22,
+            "first_trade_date": "2024-10-01",
+            "latest_trade_date": "2024-11-01",
+            "as_of_date": "2024-11-01"
+          }
+        }
       },
       {
-        "component": "price_momentum",
-        "value": 0.69,
-        "weight": 0.2,
-        "evidence_id": "market-feature-aapl-20241101"
+        "component": "rank_score",
+        "value": 0.88,
+        "weight": 0.15,
+        "evidence_id": "universe-rank-aapl-2024-11-01-6101",
+        "provenance": {
+          "source_type": "strategy_universe_rank",
+          "label": "전략 유니버스 순위",
+          "component": "rank_score",
+          "feature_code": null,
+          "feature_name": null,
+          "description": null,
+          "feature_value": null,
+          "zscore": null,
+          "as_of_date": null,
+          "source_run_id": "pipeline-run-9200",
+          "universe_batch_id": "strategy-universe-batch-6101",
+          "rank_position": 2,
+          "universe_member_count": 10,
+          "selection_score": 0.92,
+          "selection_rule": "liquid_large_cap_bootstrap",
+          "latest_trade_date": "2024-11-01",
+          "observation_count": 22,
+          "inclusion_reason": "liquidity and available price history",
+          "evidence": {
+            "feature_set_version": null,
+            "universe_batch_id": null,
+            "rank_position": null,
+            "observation_count": null,
+            "first_trade_date": null,
+            "latest_trade_date": null,
+            "as_of_date": null
+          }
+        }
       }
     ],
-    "linked_thesis_id": "AAPL-bootstrap-v1",
+    "linked_thesis_id": "thesis-7001",
+    "evidence_review": {
+      "quality_status": "ready_for_human_review",
+      "summary": {
+        "gate_count": 6,
+        "pass_count": 6,
+        "warning_count": 0,
+        "blocked_count": 0,
+        "score_component_count": 3,
+        "ai_evidence_component_count": 1,
+        "market_or_rank_component_count": 2,
+        "market_or_rank_provenance_count": 2,
+        "linked_thesis_present": true,
+        "outcome_measured": true
+      },
+      "gates": []
+    },
     "outcome": {
       "measurement_end_date": "2024-12-02",
       "absolute_return": 0.1,
@@ -41,8 +144,8 @@
     }
   },
   "links": {
-    "thesis": "/api/theses/AAPL-bootstrap-v1",
+    "thesis": "/api/theses/thesis-7001",
     "cycle_state": "/api/cycles?asOfDate=2024-11-01",
-    "source_event": "/api/events/sec-event-aapl-10k-20240928"
+    "source_events": "/api/events?asOfDate=2024-11-01&symbol=AAPL"
   }
 }

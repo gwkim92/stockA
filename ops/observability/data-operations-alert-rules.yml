@@ -1,0 +1,75 @@
+groups:
+  - name: stockanalysis-data-operations.scheduler
+    interval: 60s
+    rules:
+      - alert: DataOperationsJobMissing
+        expr: |
+          data_operations_job_health_status{job="stockanalysis-data-operations",health_status="missing"} == 1
+        for: 5m
+        labels:
+          severity: critical
+          service: stockanalysis-data-operations
+        annotations:
+          summary: "Data operation expected job is missing"
+          description: "A registered data operation has no latest observed run for 5 minutes."
+          runbook_url: "https://github.com/gwkim92/stockA/blob/main/docs/data-operations-scheduler-alert-boundary.md#dataoperationsjobmissing"
+
+      - alert: DataOperationsJobFailed
+        expr: |
+          data_operations_job_health_status{job="stockanalysis-data-operations",health_status="failed"} == 1
+        for: 5m
+        labels:
+          severity: critical
+          service: stockanalysis-data-operations
+        annotations:
+          summary: "Data operation latest run failed"
+          description: "A registered data operation has a failed latest run for 5 minutes."
+          runbook_url: "https://github.com/gwkim92/stockA/blob/main/docs/data-operations-scheduler-alert-boundary.md#dataoperationsjobfailed"
+
+      - alert: DataOperationsJobStale
+        expr: |
+          data_operations_job_health_status{job="stockanalysis-data-operations",health_status="stale"} == 1
+        for: 30m
+        labels:
+          severity: warning
+          service: stockanalysis-data-operations
+        annotations:
+          summary: "Data operation latest success is stale"
+          description: "A registered data operation has exceeded its cadence stale threshold for 30 minutes."
+          runbook_url: "https://github.com/gwkim92/stockA/blob/main/docs/data-operations-scheduler-alert-boundary.md#dataoperationsjobstale"
+
+      - alert: DataOperationsRunTimeout
+        expr: |
+          sum(increase(data_operations_run_timeouts_total{job="stockanalysis-data-operations"}[10m])) > 0
+        for: 10m
+        labels:
+          severity: warning
+          service: stockanalysis-data-operations
+        annotations:
+          summary: "Data operation run timed out"
+          description: "One or more data operation runs timed out over the last 10 minutes."
+          runbook_url: "https://github.com/gwkim92/stockA/blob/main/docs/data-operations-scheduler-alert-boundary.md#dataoperationsruntimeout"
+
+      - alert: DataOperationsArtifactMissing
+        expr: |
+          sum(increase(data_operations_artifact_missing_total{job="stockanalysis-data-operations"}[10m])) > 0
+        for: 10m
+        labels:
+          severity: warning
+          service: stockanalysis-data-operations
+        annotations:
+          summary: "Data operation artifact is missing"
+          description: "A data operation completed without one or more expected stdout, stderr, or metadata artifacts."
+          runbook_url: "https://github.com/gwkim92/stockA/blob/main/docs/data-operations-scheduler-alert-boundary.md#dataoperationsartifactmissing"
+
+      - alert: DataOperationsSchedulerPreflightFailure
+        expr: |
+          sum(increase(data_operations_scheduler_preflight_failures_total{job="stockanalysis-data-operations"}[10m])) > 0
+        for: 10m
+        labels:
+          severity: warning
+          service: stockanalysis-data-operations
+        annotations:
+          summary: "Data operation scheduler preflight failed"
+          description: "One or more data operation scheduler preflight checks failed over the last 10 minutes."
+          runbook_url: "https://github.com/gwkim92/stockA/blob/main/docs/data-operations-scheduler-alert-boundary.md#dataoperationsschedulerpreflightfailure"

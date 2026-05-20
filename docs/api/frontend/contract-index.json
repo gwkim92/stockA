@@ -33,7 +33,39 @@
       "response_dto": "DataHealthResponse",
       "example": "docs/api/frontend/examples/data-health.json",
       "route_owner": "/data-health",
-      "description": "Pipeline, scheduler, artifact, and data freshness health summary."
+      "description": "Pipeline, scheduler, manual ingest smoke, artifact, and data freshness health summary."
+    },
+    {
+      "method": "GET",
+      "path": "/api/stocks",
+      "response_dto": "StockListResponse",
+      "example": "docs/api/frontend/examples/stock-list.json",
+      "route_owner": "/stocks",
+      "description": "Collected stock list with latest price, data coverage, recommendation, and position state."
+    },
+    {
+      "method": "GET",
+      "path": "/api/stocks/AAPL",
+      "response_dto": "StockDetailResponse",
+      "example": "docs/api/frontend/examples/stock-detail.json",
+      "route_owner": "/stocks/[symbol]",
+      "description": "Single stock detail with collected price chart data, recommendation, position, and linked events."
+    },
+    {
+      "method": "GET",
+      "path": "/api/paper-trading/preview",
+      "response_dto": "PaperTradingPreviewResponse",
+      "example": "docs/api/frontend/examples/paper-trading-preview.json",
+      "route_owner": "/paper-trading",
+      "description": "Read-only paper trading preview and recommendation quality gate without order placement."
+    },
+    {
+      "method": "GET",
+      "path": "/api/trading/readiness",
+      "response_dto": "TradingReadinessResponse",
+      "example": "docs/api/frontend/examples/trading-readiness.json",
+      "route_owner": "/trading-readiness",
+      "description": "Read-only broker boundary, account permission, order limit, kill switch, paper validation, and audit readiness state."
     },
     {
       "method": "GET",

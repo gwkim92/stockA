@@ -2,10 +2,16 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
+import shlex
+import subprocess
+import tempfile
+import time
 from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
+from typing import Callable
 
 from stockanalysis.ingest.config import RuntimeConfig
 from stockanalysis.ingest.macro.sql import sql_literal
@@ -24,7 +30,9 @@ DEFAULT_TASK_NAME = "event-intelligence-llm-extract"
 DEFAULT_PIPELINE_NAME = "event_intelligence_llm_extract"
 DEFAULT_TEMPLATE_VERSION = "2026-04-23"
 DEFAULT_PROVIDER = "fixture"
+CODEX_OAUTH_PROVIDER = "codex_oauth"
 DEFAULT_MODEL_NAME = "gpt-5.4-nano"
+DEFAULT_CODEX_MODEL_NAME = "codex-cli-default"
 DEFAULT_REASONING_EFFORT = "low"
 
 EVENT_OUTPUT_SCHEMA: dict[str, object] = {
@@ -109,24 +117,35 @@ class StructuredEventProviderResponse:
     latency_ms: int | None
 
 
+StructuredEventProviderRunner = Callable[
+    [SecEventSourceDocumentRecord, AiDocumentChunk, str, str | None],
+    StructuredEventProviderResponse,
+]
+
+
 def run_event_intelligence_llm_extract(
     external_document_id: str,
     *,
     config: RuntimeConfig,
-    llm_output_json_path: str,
+    llm_output_json_path: str | None = None,
     provider: str = DEFAULT_PROVIDER,
     model_name: str = DEFAULT_MODEL_NAME,
     reasoning_effort: str | None = DEFAULT_REASONING_EFFORT,
     max_input_chars: int = 8000,
     min_confidence: float = 0.8,
     executor: PsqlCommandExecutor | None = None,
+    provider_runner: StructuredEventProviderRunner | None = None,
 ) -> dict[str, object]:
     if max_input_chars <= 0:
         raise ValueError("max_input_chars must be greater than 0")
     if min_confidence < 0 or min_confidence > 1:
         raise ValueError("min_confidence must be between 0 and 1")
-    if provider != DEFAULT_PROVIDER:
-        raise ValueError("Only fixture provider is implemented for event intelligence extraction.")
+    if provider not in {DEFAULT_PROVIDER, CODEX_OAUTH_PROVIDER}:
+        raise ValueError("Supported event intelligence providers are fixture and codex_oauth.")
+    if provider == DEFAULT_PROVIDER and not llm_output_json_path:
+        raise ValueError("--llm-output-json is required when provider=fixture.")
+    if provider == CODEX_OAUTH_PROVIDER and model_name == DEFAULT_MODEL_NAME:
+        model_name = DEFAULT_CODEX_MODEL_NAME
 
     sql_executor = executor or PsqlCommandExecutor.from_config(config)
     source_document = load_sec_event_source_document_record(
@@ -155,12 +174,16 @@ def run_event_intelligence_llm_extract(
         prompt_template_id = int(sql_executor.execute_scalar(render_ai_prompt_template_upsert_sql()))
         chunk = build_ai_document_chunk(source_document, max_input_chars=max_input_chars)
         chunk_id = int(sql_executor.execute_scalar(render_ai_document_chunk_upsert_sql(chunk)))
-        response = load_structured_event_provider_response(
-            llm_output_json_path,
-            provider=provider,
-            model_name=model_name,
-            reasoning_effort=reasoning_effort,
-        )
+        if provider == DEFAULT_PROVIDER:
+            response = load_structured_event_provider_response(
+                llm_output_json_path or "",
+                provider=provider,
+                model_name=model_name,
+                reasoning_effort=reasoning_effort,
+            )
+        else:
+            runner = provider_runner or invoke_codex_oauth_structured_event_provider
+            response = runner(source_document, chunk, model_name, reasoning_effort)
         candidate = build_sec_event_candidate_from_structured_output(
             source_document,
             response.event,
@@ -198,7 +221,7 @@ def run_event_intelligence_llm_extract(
                     invocation_id=model_invocation_id,
                     document_id=source_document.document_id,
                     output_json={
-                        "source": "fixture",
+                        "source": response.provider,
                         "event": response.event.as_artifact_json(),
                     },
                     confidence=response.event.confidence,
@@ -280,12 +303,27 @@ def load_structured_event_provider_response(
     reasoning_effort: str | None,
 ) -> StructuredEventProviderResponse:
     payload = json.loads(Path(llm_output_json_path).read_text(encoding="utf-8"))
+    return build_structured_event_provider_response_from_payload(
+        payload,
+        provider=provider,
+        model_name=model_name,
+        reasoning_effort=reasoning_effort,
+    )
+
+
+def build_structured_event_provider_response_from_payload(
+    payload: dict[str, object],
+    *,
+    provider: str,
+    model_name: str,
+    reasoning_effort: str | None,
+) -> StructuredEventProviderResponse:
     event_payload = payload.get("event")
     if not isinstance(event_payload, dict):
-        raise ValueError("LLM output fixture must contain an object field named `event`.")
+        raise ValueError("LLM output must contain an object field named `event`.")
     usage_payload = payload.get("usage") or {}
     if not isinstance(usage_payload, dict):
-        raise ValueError("LLM output fixture field `usage` must be an object when present.")
+        raise ValueError("LLM output field `usage` must be an object when present.")
     return StructuredEventProviderResponse(
         provider=_optional_text(payload.get("provider")) or provider,
         model_name=_optional_text(payload.get("model_name") or payload.get("model")) or model_name,
@@ -297,6 +335,130 @@ def load_structured_event_provider_response(
         estimated_cost_usd=_optional_decimal(usage_payload.get("estimated_cost_usd")),
         latency_ms=_optional_int(usage_payload.get("latency_ms")),
     )
+
+
+def invoke_codex_oauth_structured_event_provider(
+    source_document: SecEventSourceDocumentRecord,
+    chunk: AiDocumentChunk,
+    model_name: str,
+    reasoning_effort: str | None,
+) -> StructuredEventProviderResponse:
+    command_text = os.getenv("STOCKANALYSIS_CODEX_CLI_COMMAND", "codex").strip() or "codex"
+    try:
+        base_command = shlex.split(command_text)
+    except ValueError as exc:
+        raise ValueError(f"Invalid STOCKANALYSIS_CODEX_CLI_COMMAND: {exc}.") from exc
+    if not base_command:
+        raise ValueError("STOCKANALYSIS_CODEX_CLI_COMMAND must not be empty.")
+
+    prompt = build_codex_oauth_event_prompt(source_document, chunk)
+    output_schema = build_codex_oauth_output_schema()
+    timeout_seconds = int(os.getenv("STOCKANALYSIS_CODEX_TIMEOUT_SECONDS", "300"))
+    if timeout_seconds <= 0:
+        raise ValueError("STOCKANALYSIS_CODEX_TIMEOUT_SECONDS must be greater than 0.")
+
+    started = time.monotonic()
+    with tempfile.TemporaryDirectory(prefix="stockanalysis-codex-oauth.") as tmpdir:
+        tmp_path = Path(tmpdir)
+        schema_path = tmp_path / "event-output.schema.json"
+        output_path = tmp_path / "last-message.json"
+        schema_path.write_text(json.dumps(output_schema, ensure_ascii=False, sort_keys=True), encoding="utf-8")
+
+        cwd = os.getenv("STOCKANALYSIS_CODEX_WORKDIR") or str(Path.cwd())
+        command = [
+            *base_command,
+            "--sandbox",
+            "read-only",
+            "--ask-for-approval",
+            "never",
+            "--cd",
+            cwd,
+            "exec",
+            "--ephemeral",
+            "--ignore-user-config",
+            "--ignore-rules",
+            "--output-schema",
+            str(schema_path),
+            "--output-last-message",
+            str(output_path),
+        ]
+        if model_name and model_name not in {DEFAULT_CODEX_MODEL_NAME, "default"}:
+            command.extend(["--model", model_name])
+        command.append("-")
+
+        completed = subprocess.run(
+            command,
+            input=prompt,
+            text=True,
+            capture_output=True,
+            timeout=timeout_seconds,
+            check=False,
+        )
+        latency_ms = int((time.monotonic() - started) * 1000)
+        if completed.returncode != 0:
+            stderr = (completed.stderr or completed.stdout or "codex exec failed").strip()
+            raise RuntimeError(f"codex_oauth provider failed: {_truncate(stderr, 2000)}")
+        output_text = output_path.read_text(encoding="utf-8") if output_path.exists() else completed.stdout
+
+    payload = _loads_json_object(output_text)
+    response = build_structured_event_provider_response_from_payload(
+        payload,
+        provider=CODEX_OAUTH_PROVIDER,
+        model_name=model_name or DEFAULT_CODEX_MODEL_NAME,
+        reasoning_effort=reasoning_effort,
+    )
+    return StructuredEventProviderResponse(
+        provider=CODEX_OAUTH_PROVIDER,
+        model_name=response.model_name,
+        reasoning_effort=response.reasoning_effort,
+        event=response.event,
+        input_token_count=response.input_token_count or chunk.token_count,
+        output_token_count=response.output_token_count,
+        cached_input_token_count=response.cached_input_token_count,
+        estimated_cost_usd=response.estimated_cost_usd,
+        latency_ms=response.latency_ms or latency_ms,
+    )
+
+
+def build_codex_oauth_event_prompt(source_document: SecEventSourceDocumentRecord, chunk: AiDocumentChunk) -> str:
+    return "\n".join(
+        (
+            "You are an investment evidence extraction engine.",
+            "Use only the SEC filing context provided below.",
+            "Do not browse, do not call tools, do not make buy/sell recommendations.",
+            "Return exactly one JSON object matching the provided output schema.",
+            "The event must be an investment-relevant filing event with explicit uncertainty notes.",
+            "",
+            "Document metadata:",
+            json.dumps(
+                {
+                    "external_document_id": source_document.external_document_id,
+                    "title": source_document.title,
+                    "summary": source_document.summary,
+                    "published_at": source_document.published_at.isoformat()
+                    if source_document.published_at
+                    else None,
+                    "checksum": source_document.checksum,
+                },
+                ensure_ascii=False,
+                sort_keys=True,
+            ),
+            "",
+            "Bounded SEC filing context:",
+            chunk.text,
+        )
+    )
+
+
+def build_codex_oauth_output_schema() -> dict[str, object]:
+    return {
+        "type": "object",
+        "additionalProperties": False,
+        "required": ["event"],
+        "properties": {
+            "event": EVENT_OUTPUT_SCHEMA,
+        },
+    }
 
 
 def parse_structured_event_output(payload: dict[str, object]) -> StructuredEventOutput:
@@ -580,3 +742,18 @@ def _truncate(text: str, max_length: int) -> str:
     if len(text) <= max_length:
         return text
     return f"{text[: max_length - 3].rstrip()}..."
+
+
+def _loads_json_object(text: str) -> dict[str, object]:
+    cleaned = text.strip()
+    if cleaned.startswith("```"):
+        lines = cleaned.splitlines()
+        if lines and lines[0].startswith("```"):
+            lines = lines[1:]
+        if lines and lines[-1].startswith("```"):
+            lines = lines[:-1]
+        cleaned = "\n".join(lines).strip()
+    payload = json.loads(cleaned)
+    if not isinstance(payload, dict):
+        raise ValueError("Codex OAuth provider output must be a JSON object.")
+    return payload

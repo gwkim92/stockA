@@ -160,6 +160,7 @@ class PortfolioRemediationTicketTests(unittest.TestCase):
         self.assertIn("portfolio.remediation_ticket", executor.scalar_sql[0])
         self.assertIn("ticket.status = 'open'", executor.scalar_sql[0])
         self.assertIn("limit 5", executor.scalar_sql[0])
+        self.assertIn("offset 0", executor.scalar_sql[0])
 
     def test_load_portfolio_remediation_ticket_report_all_status_removes_status_filter(self) -> None:
         executor = FakeTicketExecutor(
@@ -193,6 +194,16 @@ class PortfolioRemediationTicketTests(unittest.TestCase):
                 executor=FakeTicketExecutor([]),
             )
 
+    def test_load_portfolio_remediation_ticket_report_rejects_negative_offset(self) -> None:
+        with self.assertRaises(ValueError):
+            load_portfolio_remediation_ticket_report(
+                config=type("Config", (), {})(),
+                portfolio_name="Long Term Paper",
+                limit=5,
+                offset=-1,
+                executor=FakeTicketExecutor([]),
+            )
+
     def test_render_portfolio_remediation_ticket_report_sql_adds_optional_filters(self) -> None:
         sql = render_portfolio_remediation_ticket_report_sql(
             portfolio_name="Long Term Paper",
@@ -212,6 +223,21 @@ class PortfolioRemediationTicketTests(unittest.TestCase):
         self.assertIn("'report_name', 'portfolio_remediation_ticket_report'", sql)
         self.assertIn("'source_run_status', source_run_status", sql)
         self.assertIn("limit 10", sql)
+        self.assertIn("offset 0", sql)
+
+    def test_render_portfolio_remediation_ticket_report_sql_adds_offset(self) -> None:
+        sql = render_portfolio_remediation_ticket_report_sql(
+            portfolio_name="Long Term Paper",
+            limit=5,
+            offset=3,
+            status="open",
+        )
+
+        self.assertIn("filtered_tickets as", sql)
+        self.assertIn("selected_tickets as", sql)
+        self.assertIn("'ticket_count', (select count(*) from filtered_tickets)", sql)
+        self.assertIn("limit 5", sql)
+        self.assertIn("offset 3", sql)
 
     def test_run_portfolio_remediation_ticket_bootstrap_returns_summary(self) -> None:
         executor = FakeTicketExecutor(

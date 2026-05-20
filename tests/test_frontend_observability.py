@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import unittest
+from unittest.mock import patch
 
 from stockanalysis.frontend.observability import (
     FrontendObservabilityConfig,
@@ -78,8 +79,14 @@ class FrontendObservabilityTests(unittest.TestCase):
             otlp_endpoint="https://collector.example:4318",
         )
 
-        with self.assertRaises(FrontendObservabilityError) as ctx:
-            configure_frontend_observability(app=object(), config=config)
+        def missing_optional_module(module_name: str):
+            if module_name.startswith("opentelemetry"):
+                raise ModuleNotFoundError(module_name)
+            return __import__(module_name)
+
+        with patch("stockanalysis.frontend.observability.importlib.import_module", side_effect=missing_optional_module):
+            with self.assertRaises(FrontendObservabilityError) as ctx:
+                configure_frontend_observability(app=object(), config=config)
 
         self.assertIn("stockanalysis[otel]", str(ctx.exception))
         self.assertNotIn("collector.example", str(ctx.exception))
