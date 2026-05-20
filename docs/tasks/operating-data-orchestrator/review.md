@@ -14,9 +14,11 @@
 - Next: `npm run typecheck` and `npm run build` passed in `apps/web`.
 - Roadmap: `bash scripts/verify_project_execution_roadmap.sh` passed.
 - Whitespace: `git diff --check` passed.
+- EC2: `stockanalysis-operations operating-data-run --execute` passed with 13 artifact runs and 0 failed steps.
+- EC2: `/api/data-health` returned `healthy` with no problem runs and `portfolio-attribution-monthly` as `not_due`.
+- EC2: major FastAPI and Next cockpit routes returned HTTP 200.
 
 ## Remaining Risks
 
-- EC2 execute run is still pending for this commit.
 - This does not deploy a recurring scheduler.
 - This does not unlock real brokerage submission or disable kill switches.
