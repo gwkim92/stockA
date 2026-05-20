@@ -49,10 +49,15 @@
     - `local-ingest-worker-run --execute`: completed with `market-price-daily`, `news-rss-daily`, `event-intelligence-weekly` all succeeded.
     - Additional `news-rss-enrich-run`: completed, 20 news events enriched.
     - Additional `news-rss-cluster-evidence-run`: completed, 3 local-rule AI evidence artifacts inserted.
+  - 2026-05-20 runtime health follow-up:
+    - User-facing production Server Components error was traced to authorized FastAPI `GET /api/portfolio/Long%20Term%20Paper/coverage?asOfDate=2024-11-01` returning `500`.
+    - Root cause: EC2 DB has no `portfolio.portfolio`/`portfolio.position_snapshot` rows yet, while `/intelligence` was still requesting a fixed historical portfolio coverage date.
+    - Fix: live portfolio coverage now returns a stable empty DTO with `missing_position_snapshot:<portfolio>` instead of throwing, and `/intelligence` requests the latest `portfolio.position_snapshot` freshness date from `/api/data-health` when available.
 - 막힌 점/보류:
   - 로컬 AWS CLI profile은 AWS Console 계정과 다르므로 AWS CLI로는 이 계정 리소스를 변경하지 않음.
   - HTTP/HTTPS security group은 아직 열지 않았다. 현재 접속은 SSH tunnel 전용이다.
   - 실제 recurring data ingest scheduler/timer는 아직 서버에서 활성화하지 않았다.
+  - EC2 `systemctl list-timers --all | grep -i stockanalysis` returns no stockanalysis timers. Current server state is service runtime plus manual data operations, not recurring automation.
   - EC2 Codex OAuth setup completed after user device login:
     - `/usr/bin/codex`, `codex-cli 0.132.0`
     - `codex login status`: `Logged in using ChatGPT`
@@ -91,7 +96,7 @@
   - Next routes `/`, `/data-health`, `/cycles`, `/events`, `/stocks`, `/intelligence`, `/paper-trading`, `/trading-readiness`: all returned `200`
   - `stockanalysis-frontend-api.service`: `active`
   - `stockanalysis-web.service`: `active`
-- EC2 data:
+  - EC2 data:
   - `ref.instrument`: `7,558`
   - `market.daily_price_bar`: `600`
   - `ingest.source_document`: `20`
@@ -111,6 +116,16 @@
     - `structured_artifacts`: `1`
     - `sec_events`: `1`
     - authorized `/api/data-health`: latest `event-intelligence-weekly` is `pipeline-run-16`, `succeeded`
+  - 2026-05-20 runtime health follow-up:
+    - Before fix, direct authorized API call returned `500` for `/api/portfolio/Long%20Term%20Paper/coverage?asOfDate=2024-11-01`.
+    - Services checked on EC2: `stockanalysis-frontend-api.service=active`, `stockanalysis-web.service=active`, Docker `stockanalysis-postgres=Up`.
+    - Timers checked on EC2: no stockanalysis systemd timer installed.
+    - Data-health checked on EC2: market/news/SEC/AI jobs are `ok`; portfolio-position, portfolio-remediation, performance outcome, attribution, macro, and cycle/recommendation jobs are still `missing`.
+    - Focused local verification after code fix:
+      - `PYTHONPATH=src /private/tmp/stockanalysis-runtime/venv/bin/python -m unittest tests.test_frontend_live_adapter tests.test_frontend_api_server -v`: `Ran 54 tests ... OK`
+      - `cd apps/web && npm run typecheck`: passed
+      - `cd apps/web && npm run build`: passed
+      - `git diff --check`: passed
 
 ## Cost Notes
 
@@ -123,3 +138,4 @@
 - Existing `settle` private key is not present in local `~/.ssh`; EC2 Instance Connect should be used first.
 - If EC2 Instance Connect fails, access may require the user's `settle` private key or a new/imported key pair.
 - Single EC2 with local Postgres is the lowest-cost MVP path, not HA/production-grade.
+- The EC2 runtime currently proves read-only cockpit plus partial manual ingest. It does not yet prove full investment-operation automation because scheduler timers and several downstream portfolio/recommendation jobs are missing.

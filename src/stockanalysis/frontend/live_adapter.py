@@ -36,6 +36,7 @@ CONTRACT_VERSION = "frontend-api-v0.1"
 DEFAULT_PORTFOLIO_NAME = "Long Term Paper"
 DEFAULT_STRATEGY_NAME = "long_term_core"
 DEFAULT_COVERAGE_HORIZON_DAYS = 31
+NO_PORTFOLIO_POSITIONS_MESSAGE = "No portfolio positions matched the requested coverage report identity."
 SCHEDULER_APPROVAL_GATE_REPORT_ENV = "STOCKANALYSIS_DATA_OPERATIONS_SCHEDULER_APPROVAL_GATE_REPORT"
 DEFAULT_REPO_ROOT = Path(__file__).resolve().parents[3]
 _STORY_GROUP_STOP_WORDS = frozenset(
@@ -1276,21 +1277,36 @@ def build_live_portfolio_coverage_response(
     )
     page_limit, page_offset = frontend_sql_page_window(api_path)
 
-    report = load_portfolio_outcome_coverage_report(
-        config=config,
-        portfolio_name=portfolio_name,
-        snapshot_date=as_of_date,
-        measurement_end_date=measurement_end_date,
-        position_limit=page_limit,
-        position_offset=page_offset,
-        executor=executor,
-    )
+    missing_position_snapshot = False
+    try:
+        report = load_portfolio_outcome_coverage_report(
+            config=config,
+            portfolio_name=portfolio_name,
+            snapshot_date=as_of_date,
+            measurement_end_date=measurement_end_date,
+            position_limit=page_limit,
+            position_offset=page_offset,
+            executor=executor,
+        )
+    except ValueError as exc:
+        if str(exc) != NO_PORTFOLIO_POSITIONS_MESSAGE:
+            raise
+        missing_position_snapshot = True
+        report = _empty_portfolio_coverage_report(
+            portfolio_name=portfolio_name,
+            snapshot_date=as_of_date,
+            measurement_end_date=measurement_end_date,
+            position_limit=page_limit,
+            position_offset=page_offset,
+        )
     positions = [_build_position_payload(position) for position in _as_list(report.get("positions"))]
     blocking_reasons = [
         f"{position['coverage_status']}:{position['symbol']}"
         for position in positions
         if position["coverage_status"] != "covered"
     ]
+    if missing_position_snapshot:
+        blocking_reasons.append(f"missing_position_snapshot:{portfolio_name}")
     status_counts = _normalize_count_map(
         report.get("status_counts"),
         keys=("covered", "missing_thesis", "missing_outcome", "missing_weight"),
@@ -1327,6 +1343,40 @@ def build_live_portfolio_coverage_response(
             "remediation_tickets": "/api/remediation-tickets?status=open",
             "dashboard": "/api/dashboard/today",
         },
+    }
+
+
+def _empty_portfolio_coverage_report(
+    *,
+    portfolio_name: str,
+    snapshot_date: date,
+    measurement_end_date: date,
+    position_limit: int,
+    position_offset: int,
+) -> dict[str, Any]:
+    return {
+        "portfolio_id": None,
+        "portfolio_name": portfolio_name,
+        "snapshot_date": snapshot_date.isoformat(),
+        "measurement_end_date": measurement_end_date.isoformat(),
+        "position_limit": position_limit,
+        "position_offset": position_offset,
+        "position_count": 0,
+        "status_counts": {
+            "covered": 0,
+            "missing_outcome": 0,
+            "missing_thesis": 0,
+            "missing_weight": 0,
+        },
+        "weight_by_status": {
+            "covered": None,
+            "missing_outcome": None,
+            "missing_thesis": None,
+            "missing_weight": None,
+        },
+        "cash_weight": None,
+        "coverage_ratio_by_weight": None,
+        "positions": [],
     }
 
 

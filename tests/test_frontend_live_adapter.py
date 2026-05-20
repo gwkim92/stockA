@@ -1171,6 +1171,36 @@ class FakeLiveExecutor:
         raise AssertionError(f"Unexpected SQL: {sql}")
 
 
+class EmptyPortfolioCoverageExecutor(FakeLiveExecutor):
+    def execute_scalar(self, sql: str) -> str:
+        if sql.startswith("-- portfolio outcome coverage report"):
+            return json.dumps(
+                {
+                    "portfolio_id": None,
+                    "portfolio_name": "Long Term Paper",
+                    "snapshot_date": "2026-05-20",
+                    "measurement_end_date": "2026-06-20",
+                    "position_count": 0,
+                    "status_counts": {
+                        "covered": 0,
+                        "missing_outcome": 0,
+                        "missing_thesis": 0,
+                        "missing_weight": 0,
+                    },
+                    "weight_by_status": {
+                        "covered": "0.0000",
+                        "missing_outcome": "0.0000",
+                        "missing_thesis": "0.0000",
+                        "missing_weight": "0.0000",
+                    },
+                    "cash_weight": None,
+                    "coverage_ratio_by_weight": None,
+                    "positions": [],
+                }
+            )
+        return super().execute_scalar(sql)
+
+
 class FrontendLiveAdapterTests(unittest.TestCase):
     def test_live_dashboard_response_matches_frontend_contract_shape(self) -> None:
         payload = resolve_live_frontend_response(
@@ -2198,6 +2228,24 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertEqual(payload["data"]["positions"][0]["outcome_status"], "measured")
         self.assertEqual(payload["data"]["positions"][1]["action"], "needs_thesis_review")
         self.assertEqual(payload["data"]["attribution_readiness"]["blocking_reasons"], ["missing_thesis:BABA"])
+
+    def test_live_portfolio_coverage_returns_empty_state_when_snapshot_is_missing(self) -> None:
+        payload = resolve_live_frontend_response(
+            "/api/portfolio/Long%20Term%20Paper/coverage?asOfDate=2026-05-20",
+            config=type("Config", (), {"psql_command": "psql"})(),
+            executor=EmptyPortfolioCoverageExecutor(),
+            generated_at=datetime(2026, 5, 20, tzinfo=timezone.utc),
+        )
+
+        self.assertEqual(payload["contract_version"], "frontend-api-v0.1")
+        self.assertEqual(payload["data"]["as_of_date"], "2026-05-20")
+        self.assertEqual(payload["data"]["summary"]["position_count"], 0)
+        self.assertEqual(payload["data"]["positions"], [])
+        self.assertFalse(payload["data"]["attribution_readiness"]["is_ready"])
+        self.assertEqual(
+            payload["data"]["attribution_readiness"]["blocking_reasons"],
+            ["missing_position_snapshot:Long Term Paper"],
+        )
 
     def test_live_portfolio_coverage_allows_explicit_measurement_end_date(self) -> None:
         executor = FakeLiveExecutor()

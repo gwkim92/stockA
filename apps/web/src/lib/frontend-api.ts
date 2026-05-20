@@ -139,9 +139,10 @@ export function getThesisDetail(thesisId: string) {
   return fetchFrontendPayload<ThesisDetailData>(`/api/theses/${thesisId}`);
 }
 
-export function getPortfolioCoverage() {
+export function getPortfolioCoverage(asOfDate = "2024-11-01") {
+  const query = new URLSearchParams({ asOfDate });
   return fetchFrontendPayload<PortfolioCoverageData>(
-    "/api/portfolio/Long%20Term%20Paper/coverage?asOfDate=2024-11-01",
+    `/api/portfolio/Long%20Term%20Paper/coverage?${query.toString()}`,
   );
 }
 

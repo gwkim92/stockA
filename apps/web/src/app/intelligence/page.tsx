@@ -195,7 +195,18 @@ function newsRunLabel(newsRun: PipelineRun | null) {
   return koCode(newsRun.job_id);
 }
 
+function latestFreshnessDate(dataHealth: DataHealthData, dataset: string) {
+  return (
+    dataHealth.freshness.find((item) => item.dataset === dataset)?.latest_observation_date ||
+    dataHealth.as_of_date ||
+    "2024-11-01"
+  );
+}
+
 export default async function IntelligencePage() {
+  const dataHealthResponse = await getDataHealth();
+  const dataHealth = dataHealthResponse.data;
+  const portfolioCoverageDate = latestFreshnessDate(dataHealth, "portfolio.position_snapshot");
   const [
     eventsResponse,
     newsClusterResponse,
@@ -203,15 +214,13 @@ export default async function IntelligencePage() {
     themeResponse,
     portfolioResponse,
     paperResponse,
-    dataHealthResponse,
   ] = await Promise.all([
     getEvents(),
     getAiNewsClusters({ limit: 4 }),
     getCycleStates(),
     getThemeDetail("ANNUAL_REPORTING"),
-    getPortfolioCoverage(),
+    getPortfolioCoverage(portfolioCoverageDate),
     getPaperTradingPreview(),
-    getDataHealth(),
   ]);
 
   const events = eventsResponse.data;
@@ -220,7 +229,6 @@ export default async function IntelligencePage() {
   const theme = themeResponse.data;
   const portfolio = portfolioResponse.data;
   const paper = paperResponse.data;
-  const dataHealth = dataHealthResponse.data;
   const newsRun = findNewsPipelineRun(dataHealth);
   const schedulerActivation = dataHealth.scheduler.activation;
 
