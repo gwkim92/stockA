@@ -531,7 +531,7 @@ export function koReason(value: string | null | undefined): string {
     return `${skippedSameWeight[1]}은 현재 비중과 목표 비중이 같아 가상 조치가 생략됐다.`;
   }
   const portfolioReason = value.match(
-    /^([A-Z0-9.-]+) portfolio review action ([^.]+)\. Thesis review action ([^;]+); current weight ([^;]+); recommended weight ([^;]+); coverage status ([^;.]+)(?:; single position review cap ([^.]+))?\.$/,
+    /^([A-Z0-9.-]+) portfolio review action ([^.]+)\. Thesis review action ([^;]+); current weight ([^;]+); recommended weight ([^;]+); coverage status ([^;.]+)(?:; single position review cap ([0-9.]+))?\.$/,
   );
   if (portfolioReason) {
     const [, symbol, action, thesisAction, currentWeight, recommendedWeight, coverageStatus, singlePositionCap] =
