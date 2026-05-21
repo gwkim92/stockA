@@ -556,6 +556,39 @@ upsert_tickets as (
         recommended_weight,
         latest_reason
 ),
+resolved_stale_tickets as (
+    update portfolio.remediation_ticket ticket
+    set
+        status = 'resolved',
+        source_run_id = {source_run_id}::bigint,
+        updated_at = now(),
+        last_seen_at = now(),
+        resolved_at = now(),
+        latest_reason = concat(
+            'Auto-resolved because the latest portfolio review no longer emits this remediation. Previous reason: ',
+            left(coalesce(ticket.latest_reason, ''), 1000)
+        )
+    from selected_reviews review
+    where ticket.portfolio_review_id = review.portfolio_review_id
+      and ticket.status in ('open', 'in_progress')
+      and (
+        {sql_literal(action)} is null
+        or ticket.action = {sql_literal(action)}
+      )
+      and (
+        {sql_literal(remediation_type)} is null
+        or ticket.remediation_type = {sql_literal(remediation_type)}
+      )
+      and not exists (
+        select 1
+        from ticket_items item
+        where item.portfolio_review_id = ticket.portfolio_review_id
+          and item.instrument_id = ticket.instrument_id
+          and item.action = ticket.action
+          and item.remediation_type = ticket.remediation_type
+      )
+    returning ticket.remediation_ticket_id
+),
 remediation_type_counts as (
     select coalesce(jsonb_object_agg(remediation_type, remediation_count), '{{}}'::jsonb) as counts
     from (
@@ -580,6 +613,7 @@ select json_build_object(
     'action_filter', {sql_literal(action)},
     'remediation_type_filter', {sql_literal(remediation_type)},
     'ticket_count', (select count(*) from upsert_tickets),
+    'resolved_stale_ticket_count', (select count(*) from resolved_stale_tickets),
     'remediation_type_counts', (select counts from remediation_type_counts),
     'action_counts', (select counts from action_counts),
     'tickets',

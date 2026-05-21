@@ -248,6 +248,7 @@ class PortfolioRemediationTicketTests(unittest.TestCase):
                         "report_name": "portfolio_remediation_ticket_bootstrap",
                         "portfolio_name": "Long Term Paper",
                         "ticket_count": 1,
+                        "resolved_stale_ticket_count": 2,
                         "remediation_type_counts": {"thesis_remediation": 1},
                         "action_counts": {"needs_thesis_review": 1},
                         "tickets": [
@@ -272,8 +273,10 @@ class PortfolioRemediationTicketTests(unittest.TestCase):
         self.assertEqual(summary["run_id"], 77)
         self.assertEqual(summary["report_name"], "portfolio_remediation_ticket_bootstrap")
         self.assertEqual(summary["ticket_count"], 1)
+        self.assertEqual(summary["resolved_stale_ticket_count"], 2)
         self.assertIn("portfolio_remediation_ticket_bootstrap", executor.scalar_sql[0])
         self.assertIn("insert into portfolio.remediation_ticket", executor.scalar_sql[1])
+        self.assertIn("resolved_stale_tickets as", executor.scalar_sql[1])
         self.assertIn("limit 5", executor.scalar_sql[1])
         self.assertIn("status = 'succeeded'", executor.non_query_sql[0])
 
@@ -304,6 +307,10 @@ class PortfolioRemediationTicketTests(unittest.TestCase):
         self.assertIn("remediation_type = 'thesis_remediation'", sql)
         self.assertIn("on conflict (portfolio_review_id, instrument_id, action, remediation_type)", sql)
         self.assertIn("source_run_id = excluded.source_run_id", sql)
+        self.assertIn("resolved_stale_tickets as", sql)
+        self.assertIn("ticket.status in ('open', 'in_progress')", sql)
+        self.assertIn("'resolved_stale_ticket_count'", sql)
+        self.assertIn("Auto-resolved because the latest portfolio review no longer emits this remediation", sql)
         self.assertIn("88::bigint", sql)
         self.assertIn("limit 10", sql)
 
