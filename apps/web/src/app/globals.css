@@ -89,7 +89,7 @@ h6 {
   display: grid;
   grid-template-columns: minmax(220px, 0.5fr) minmax(0, 2.5fr);
   gap: clamp(16px, 2vw, 28px);
-  align-items: start;
+  align-items: center;
   padding: 18px 0 16px;
   background: color-mix(in srgb, var(--bg-main) 92%, transparent);
   border-bottom: 1px solid var(--border-light);
@@ -184,37 +184,13 @@ h6 {
 }
 
 .nav {
-  display: grid;
+  display: flex;
   min-width: 0;
   max-width: 100%;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 8px;
-  overflow: visible;
-}
-
-.navGroup {
-  min-width: 0;
-  padding: 8px 9px 9px;
-  background: color-mix(in srgb, var(--bg-panel) 52%, transparent);
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-md);
-}
-
-.navGroupTitle {
-  display: block;
-  margin-bottom: 8px;
-  color: var(--text-tertiary);
-  font-size: 0.62rem;
-  font-weight: 900;
-  letter-spacing: 0.06em;
-  line-height: 1;
-  text-transform: uppercase;
-}
-
-.navGroupLinks {
-  display: flex;
   flex-wrap: wrap;
-  gap: 5px;
+  gap: 7px;
+  justify-content: flex-end;
+  overflow: visible;
 }
 
 .nav a {
@@ -222,11 +198,14 @@ h6 {
   flex: 0 0 auto;
   max-width: 100%;
   align-items: center;
-  padding: 7px 8px;
-  border: 1px solid transparent;
+  min-height: 34px;
+  padding: 8px 10px;
+  background: color-mix(in srgb, var(--bg-panel) 52%, transparent);
+  border: 1px solid var(--border-light);
+  border-radius: 999px;
   color: var(--text-primary);
-  font-size: 0.72rem;
-  font-weight: 700;
+  font-size: 0.75rem;
+  font-weight: 800;
   line-height: 1.15;
   overflow-wrap: anywhere;
   transition: background 0.16s ease, border-color 0.16s ease;
@@ -487,6 +466,179 @@ h6 {
   display: flex;
   flex-direction: column;
   gap: clamp(28px, 4vw, 64px);
+}
+
+.operator-hero {
+  display: grid;
+  min-height: min(680px, calc(100vh - 152px));
+  grid-template-columns: minmax(0, 1fr) minmax(340px, 0.55fr);
+  gap: clamp(32px, 5vw, 88px);
+  align-items: center;
+}
+
+.operator-hero-copy {
+  min-width: 0;
+}
+
+.operator-title {
+  max-width: 920px;
+}
+
+.operator-brief {
+  min-width: 0;
+  padding: clamp(22px, 2.8vw, 36px);
+  background:
+    linear-gradient(135deg, rgba(35, 116, 78, 0.11), transparent 42%),
+    var(--bg-panel);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+}
+
+.operator-brief > span {
+  color: var(--text-tertiary);
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.03em;
+}
+
+.operator-brief > strong {
+  display: block;
+  margin-top: 18px;
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: clamp(1.8rem, 3.2vw, 3.35rem);
+  font-weight: 800;
+  line-height: 1.02;
+  word-break: keep-all;
+}
+
+.operator-brief p {
+  margin: 18px 0 0;
+  color: var(--text-secondary);
+  font-size: 0.92rem;
+  font-weight: 750;
+  line-height: 1.65;
+  word-break: keep-all;
+}
+
+.operator-brief dl {
+  display: grid;
+  gap: 0;
+  margin: 26px 0 0;
+  border-top: 1px solid var(--border-light);
+}
+
+.operator-brief dl div {
+  display: grid;
+  grid-template-columns: minmax(92px, 0.45fr) minmax(0, 1fr);
+  gap: 16px;
+  padding: 13px 0;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.operator-brief dt,
+.operator-brief dd {
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 850;
+}
+
+.operator-brief dt {
+  color: var(--text-tertiary);
+}
+
+.operator-brief dd {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--text-primary);
+}
+
+.operator-steps {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: var(--gap);
+}
+
+.operator-step-card {
+  display: flex;
+  min-height: 260px;
+  min-width: 0;
+  flex-direction: column;
+  padding: clamp(18px, 2vw, 26px);
+  background:
+    linear-gradient(180deg, rgba(251, 250, 246, 0.94), rgba(251, 250, 246, 0.7)),
+    radial-gradient(circle at top right, rgba(155, 101, 23, 0.12), transparent 48%);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  transition: background 0.16s ease, border-color 0.16s ease, transform 0.16s ease;
+}
+
+.operator-step-card:hover,
+.operator-step-card:focus-visible {
+  background: var(--bg-panel);
+  border-color: var(--border-strong);
+  outline: none;
+  transform: translateY(-2px);
+}
+
+.operator-step-card > span,
+.operator-step-card small {
+  color: var(--text-tertiary);
+  font-size: 0.72rem;
+  font-weight: 900;
+}
+
+.operator-step-card h2 {
+  margin-top: 28px;
+  color: var(--text-primary);
+  font-size: clamp(1.28rem, 1.8vw, 1.85rem);
+  line-height: 1.08;
+}
+
+.operator-step-card strong {
+  display: inline-flex;
+  width: fit-content;
+  max-width: 100%;
+  margin-top: 16px;
+  color: var(--text-primary);
+  font-size: 0.82rem;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.operator-step-card p {
+  margin: 12px 0 18px;
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  font-weight: 750;
+  line-height: 1.55;
+  word-break: keep-all;
+}
+
+.operator-step-card small {
+  margin-top: auto;
+}
+
+.operator-workbench {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.75fr);
+  gap: var(--gap);
+  align-items: stretch;
+}
+
+.operator-side-stack {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: var(--gap);
+}
+
+.operator-flow-steps {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.operator-secondary {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .manifest-grid {
@@ -1913,6 +2065,19 @@ h6 {
 }
 
 @media (max-width: 1180px) {
+  .operator-hero {
+    min-height: auto;
+    grid-template-columns: 1fr;
+  }
+
+  .operator-brief {
+    max-width: 760px;
+  }
+
+  .operator-workbench {
+    grid-template-columns: 1fr;
+  }
+
   .manifest-grid {
     min-height: auto;
     grid-template-columns: 1fr;
@@ -1958,10 +2123,11 @@ h6 {
 @media (max-width: 1024px) {
   .topbar {
     grid-template-columns: 1fr;
+    align-items: start;
   }
 
   .nav {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    justify-content: flex-start;
   }
 
   .bento-grid {
@@ -1976,6 +2142,8 @@ h6 {
   .status-rail,
   .route-index,
   .where-grid,
+  .operator-steps,
+  .operator-secondary,
   .flow-steps,
   .readiness-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -2012,14 +2180,12 @@ h6 {
   }
 
   .nav {
-    grid-template-columns: 1fr;
-  }
-
-  .navGroup {
-    padding: 9px;
+    gap: 6px;
   }
 
   .nav a {
+    flex: 1 1 auto;
+    justify-content: center;
     padding: 9px 8px;
   }
 
@@ -2045,6 +2211,11 @@ h6 {
     line-height: 0.94;
   }
 
+  .operator-brief dl div {
+    grid-template-columns: 1fr;
+    gap: 5px;
+  }
+
   .signal-graph {
     padding: 14px;
   }
@@ -2063,6 +2234,8 @@ h6 {
   .status-rail,
   .route-index,
   .where-grid,
+  .operator-steps,
+  .operator-secondary,
   .flow-steps,
   .readiness-grid {
     grid-template-columns: 1fr;

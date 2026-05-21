@@ -500,7 +500,14 @@ def load_news_rss_ai_extraction_candidates(
     limit: int,
     executor: PsqlCommandExecutor,
 ) -> tuple[NewsRssAiExtractionCandidate, ...]:
-    payload_text = executor.execute_scalar(render_news_rss_ai_extraction_candidates_sql(as_of_date=as_of_date, limit=limit))
+    payload_text = executor.execute_scalar(
+        render_news_rss_ai_extraction_candidates_sql(
+            as_of_date=as_of_date,
+            limit=limit,
+            prompt_template_name=DEFAULT_TASK_NAME,
+            prompt_template_version=DEFAULT_TEMPLATE_VERSION,
+        )
+    )
     payload = json.loads(payload_text)
     return tuple(
         NewsRssAiExtractionCandidate(

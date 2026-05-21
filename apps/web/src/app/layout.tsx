@@ -35,41 +35,14 @@ export const viewport: Viewport = {
   themeColor: "#f3f4f0",
 };
 
-const navGroups = [
-  {
-    label: "운영",
-    items: [
-      { href: "/", label: "현황" },
-      { href: "/data-health", label: "수집" },
-      { href: "/remediation", label: "할 일" },
-    ],
-  },
-  {
-    label: "분석",
-    items: [
-      { href: "/intelligence", label: "분석 지도" },
-      { href: "/events", label: "뉴스·이벤트" },
-      { href: "/ai-evidence", label: "AI 후보" },
-      { href: "/cycles", label: "사이클" },
-    ],
-  },
-  {
-    label: "투자",
-    items: [
-      { href: "/stocks", label: "종목" },
-      { href: "/recommendations", label: "추천" },
-      { href: "/portfolio/coverage", label: "보유 검토" },
-      { href: "/performance", label: "성과" },
-    ],
-  },
-  {
-    label: "거래",
-    items: [
-      { href: "/paper-trading", label: "가상 거래" },
-      { href: "/trading-readiness", label: "거래 안전" },
-      { href: "/themes/ANNUAL_REPORTING", label: "테마 예시" },
-    ],
-  },
+const navItems = [
+  { href: "/", label: "현황" },
+  { href: "/data-health", label: "수집" },
+  { href: "/intelligence", label: "뉴스·AI" },
+  { href: "/stocks", label: "종목" },
+  { href: "/recommendations", label: "추천·보유" },
+  { href: "/trading-readiness", label: "거래 안전" },
+  { href: "/remediation", label: "할 일" },
 ] as const;
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
@@ -91,17 +64,10 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
               </div>
             </Link>
             <nav className="nav" aria-label="주요 내비게이션">
-              {navGroups.map((group) => (
-                <section className="navGroup" aria-label={`${group.label} 화면`} key={group.label}>
-                  <span className="navGroupTitle">{group.label}</span>
-                  <div className="navGroupLinks">
-                    {group.items.map((item) => (
-                      <Link href={item.href as Route} key={item.href}>
-                        {item.label}
-                      </Link>
-                    ))}
-                  </div>
-                </section>
+              {navItems.map((item) => (
+                <Link href={item.href as Route} key={item.href}>
+                  {item.label}
+                </Link>
               ))}
             </nav>
           </header>

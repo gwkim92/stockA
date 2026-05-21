@@ -261,6 +261,8 @@ export default async function IntelligencePage() {
   const firstEvidenceId = firstEvent?.ai_evidence_id ?? null;
   const aiAttached = events.summary.ai_extracted_count > 0;
   const newsClusters = buildNewsClusters(events.events);
+  const tracedEvents = events.events.slice(0, 5);
+  const hiddenTraceCount = Math.max(0, events.events.length - tracedEvents.length);
 
   const locationCards = [
     {
@@ -299,12 +301,12 @@ export default async function IntelligencePage() {
         <div>
           <div className="bento-badge">분석 지도</div>
           <h1 className="page-title" id="intelligence-title">
-            뉴스, AI 근거, 추천이 어떻게 이어지는지 추적한다.
+            뉴스는 묶어서 보고, 중요한 뉴스만 AI 후보로 확인한다.
           </h1>
         </div>
         <p className="page-lede">
-          이 화면은 “무슨 뉴스가 들어왔고, 어떤 근거로 묶였고, 어떤 개별 뉴스가 AI 후보 분석을 받았고,
-          추천·보유검토 어디로 연결되는지”를 한 흐름으로 보여준다.
+          먼저 저장된 뉴스 묶음으로 시장 흐름을 보고, 다음에 개별 AI 후보의 원천과 신뢰도를 확인한다.
+          마지막으로 종목, 추천, 보유 검토에 연결된 근거만 따라가면 된다.
         </p>
       </section>
 
@@ -333,8 +335,8 @@ export default async function IntelligencePage() {
 
       <section className="flow-panel reveal delay-2" aria-labelledby="news-operation-title">
         <div className="section-heading flow-heading">
-          <span>뉴스 운영 방식</span>
-          <h2 id="news-operation-title">뉴스는 먼저 묶고, 중요한 건 개별 AI 후보로 분석한다</h2>
+          <span>읽는 순서</span>
+          <h2 id="news-operation-title">이 화면에서 볼 것은 세 가지다</h2>
         </div>
 
         <section className="status-rail compact-rail" aria-label="뉴스 수집 자동화 상태">
@@ -363,40 +365,37 @@ export default async function IntelligencePage() {
         <div className="flow-steps" style={{ marginTop: "18px" }}>
           <article className="flow-step">
             <span>01</span>
-            <strong>수집 주기</strong>
+            <strong>뉴스 묶음</strong>
             <p>
-              EC2 systemd timer가 뉴스 수집 프로필을 정해진 주기에 호출한다. 수집 상태는 데이터 수집 화면과
-              파이프라인 실행 이력에 남는다.
+              같은 테마의 뉴스를 묶어 큰 흐름을 본다. 이것은 “무슨 일이 많이 발생했나”를 보는 영역이다.
             </p>
           </article>
           <article className="flow-step">
             <span>02</span>
-            <strong>수집 방법</strong>
+            <strong>개별 AI 후보</strong>
             <p>
-              repo 밖 RSS 설정 파일의 무료 RSS/Atom feed를 읽는다. 원문은 원천 문서에, 시장 사건은 이벤트 원장에 저장한다.
+              중요한 뉴스는 AI가 종목, 테마, 영향 방향, 불확실성을 구조화한다. 원천 없는 해석은 검증에서 막는다.
             </p>
           </article>
           <article className="flow-step">
             <span>03</span>
-            <strong>1차 분석</strong>
+            <strong>투자 입력</strong>
             <p>
-              로컬 규칙이 같은 테마의 뉴스를 묶어 큰 흐름을 만든다. 이 단계는 무료이며 LLM 비용이 없다.
+              통과한 증거만 추천, 보유 검토, 가상 거래 안전 점검의 입력 후보가 된다. 자동 주문은 하지 않는다.
             </p>
           </article>
           <article className="flow-step">
             <span>04</span>
-            <strong>AI/RAG 준비</strong>
+            <strong>자동화 상태</strong>
             <p>
-              중요한 뉴스는 Codex OAuth batch가 테마, 종목, 방향, 불확실성으로 구조화한다.
-              검증기를 통과한 영향만 추천 근거 후보가 된다.
+              수집과 분석은 EC2의 timer가 실행하고, 실행 결과는 데이터 수집 화면과 파이프라인 이력에 남는다.
             </p>
           </article>
           <article className="flow-step">
             <span>05</span>
-            <strong>프로젝트 사용처</strong>
+            <strong>상세 원장</strong>
             <p>
-              뉴스 묶음은 흐름 파악에 쓰고, 개별 AI 후보는 추천·보유검토의 증거로 추적한다.
-              뉴스만으로 매수·매도·주문은 실행하지 않는다.
+              전체 뉴스 목록은 이벤트 원장, 개별 AI 분석은 AI 후보 목록에서 본다. 이 화면은 대표 흐름만 보여준다.
             </p>
           </article>
         </div>
@@ -648,11 +647,11 @@ export default async function IntelligencePage() {
       <section className="intelligence-board reveal delay-2" aria-labelledby="trace-title">
         <div className="section-heading stacked-heading">
           <span>추적 흐름 — 이벤트에서 검토까지</span>
-          <h2 id="trace-title">연관 분석 흐름</h2>
+          <h2 id="trace-title">대표 이벤트 5개만 검토 흐름으로 보여준다</h2>
         </div>
 
         <div className="trace-grid">
-          {events.events.map((event) => {
+          {tracedEvents.map((event) => {
             const cycle = cycleByTheme.get(event.theme_key);
             const themeInstrument = event.theme_key === theme.theme_key ? themeInstrumentBySymbol.get(event.symbol) : null;
             const position = positionBySymbol.get(event.symbol);
@@ -794,6 +793,12 @@ export default async function IntelligencePage() {
             );
           })}
         </div>
+        {hiddenTraceCount > 0 ? (
+          <p className="flow-note">
+            나머지 이벤트 {hiddenTraceCount}개는 반복 설명을 줄이기 위해 여기서 숨겼다. 전체 뉴스와 공시 원장은{" "}
+            <Link href="/events">뉴스 원장</Link>에서 확인한다.
+          </p>
+        ) : null}
       </section>
 
       <section className="flow-panel reveal delay-3" aria-labelledby="ai-boundary-title">

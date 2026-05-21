@@ -473,9 +473,24 @@ values (
 returning artifact_id;"""
 
 
-def render_news_rss_ai_extraction_candidates_sql(*, as_of_date: date, limit: int) -> str:
+def render_news_rss_ai_extraction_candidates_sql(
+    *,
+    as_of_date: date,
+    limit: int,
+    prompt_template_name: str = "news-rss-ai-extract",
+    prompt_template_version: str | None = None,
+) -> str:
     if limit <= 0:
         raise ValueError("limit must be greater than 0")
+    version_filter = (
+        ""
+        if prompt_template_version is None
+        else f"""
+          join ai.prompt_template prompt
+            on prompt.template_id = invocation.prompt_template_id
+           and prompt.template_name = {sql_literal(prompt_template_name)}
+           and prompt.template_version = {sql_literal(prompt_template_version)}"""
+    )
     return f"""select coalesce(
     json_agg(
         json_build_object(
@@ -537,6 +552,7 @@ from (
           from ai.extraction_artifact artifact
           join ai.model_invocation invocation
             on invocation.invocation_id = artifact.invocation_id
+{version_filter}
           where artifact.event_id = e.event_id
             and artifact.artifact_type = 'news_event_candidate'
             and invocation.status = 'succeeded'

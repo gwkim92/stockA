@@ -120,6 +120,18 @@ class NewsRssAiExtractTests(unittest.TestCase):
         self.assertIn("d.document_type = 'news_rss_item'", sql)
         self.assertIn("limit 10", sql)
 
+    def test_render_news_ai_candidate_sql_can_scope_existing_artifacts_to_prompt_version(self) -> None:
+        sql = render_news_rss_ai_extraction_candidates_sql(
+            as_of_date=date(2026, 5, 19),
+            limit=10,
+            prompt_template_name="news-rss-ai-extract",
+            prompt_template_version="2026-05-21-ko-v2",
+        )
+
+        self.assertIn("join ai.prompt_template prompt", sql)
+        self.assertIn("prompt.template_name = 'news-rss-ai-extract'", sql)
+        self.assertIn("prompt.template_version = '2026-05-21-ko-v2'", sql)
+
     def test_render_news_ai_context_sql_uses_ontology_lite_tables(self) -> None:
         sql = render_news_rss_ai_retrieval_context_sql(event_id=101, as_of_date=date(2026, 5, 19))
 
