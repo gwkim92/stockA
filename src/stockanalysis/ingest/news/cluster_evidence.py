@@ -42,7 +42,15 @@ class NewsRssClusterEvidence:
     def request_hash(self) -> str:
         payload = {
             "as_of_date": self.as_of_date.isoformat(),
-            "event_ids": [event.event_id for event in self.events],
+            "events": [
+                {
+                    "event_id": event.event_id,
+                    "impact_direction": event.impact_direction,
+                    "impact_score": event.impact_score,
+                    "symbol": event.symbol,
+                }
+                for event in self.events
+            ],
             "theme_key": self.theme_key,
         }
         encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")

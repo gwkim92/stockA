@@ -5,6 +5,7 @@ import unittest
 from datetime import date
 
 from stockanalysis.ingest.news.cluster_evidence import (
+    NewsRssClusterEvidence,
     build_news_rss_clusters,
     load_news_rss_cluster_evidence_events,
     run_news_rss_cluster_evidence,
@@ -232,6 +233,41 @@ class NewsRssClusterEvidenceTests(unittest.TestCase):
         self.assertEqual(len(clusters), 1)
         self.assertEqual(clusters[0].theme_key, "MACRO_RATES_FED")
         self.assertEqual(clusters[0].events[0].event_id, 101)
+
+    def test_cluster_request_hash_changes_when_symbol_fingerprint_changes(self) -> None:
+        base_event = NewsRssClusterEvidenceEvent(
+            event_id=101,
+            document_id=501,
+            event_type="news_rss_item",
+            title="Treasury yields spike",
+            summary="Rates remain in focus.",
+            event_at="2026-05-19T10:02:40+00:00",
+            source_name="rss_news:macro-rates-fed",
+            external_document_id="rss:macro-rates-fed:abc",
+            theme_key="MACRO_RATES_FED",
+            theme_name="Macro Rates and Fed",
+            impact_direction="watch",
+            impact_score=0.80,
+            symbol=None,
+        )
+        first = NewsRssClusterEvidence(
+            theme_key="MACRO_RATES_FED",
+            theme_name="Macro Rates and Fed",
+            as_of_date=date(2026, 5, 19),
+            events=(base_event,),
+        )
+        second = NewsRssClusterEvidence(
+            theme_key="MACRO_RATES_FED",
+            theme_name="Macro Rates and Fed",
+            as_of_date=date(2026, 5, 19),
+            events=(
+                NewsRssClusterEvidenceEvent(
+                    **{**base_event.__dict__, "symbol": "SPY"},
+                ),
+            ),
+        )
+
+        self.assertNotEqual(first.request_hash, second.request_hash)
 
     def test_run_news_rss_cluster_evidence_dry_run_does_not_write(self) -> None:
         executor = FakeExecutor()
