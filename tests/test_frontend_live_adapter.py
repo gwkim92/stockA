@@ -1317,6 +1317,57 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertNotIn(str(report), json.dumps(activation))
         self.assertNotIn("operator-dry-run.json", json.dumps(activation))
 
+    def test_live_data_health_response_uses_profile_scheduler_status_report(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            report = Path(tmpdir) / "profile-scheduler-status.json"
+            report.write_text(
+                json.dumps(
+                    {
+                        "report_name": "operating_data_profile_scheduler_status",
+                        "status": "installed",
+                        "install_status": "installed",
+                        "scheduler_type": "systemd",
+                        "timer_count": 5,
+                        "active_timer_count": 5,
+                        "generated_at": "2026-05-21T00:40:00Z",
+                        "timers": [
+                            {
+                                "profile_id": "news-intraday",
+                                "service_name": "stockanalysis-operating-data-news-intraday.service",
+                                "timer_name": "stockanalysis-operating-data-news-intraday.timer",
+                                "schedule": "Mon..Fri *-*-* 09..18:00/30 America/New_York",
+                                "active_state": "active",
+                                "next_elapse": "2026-05-21T13:00:00Z",
+                                "last_result": "success",
+                                "unit_path": "/etc/systemd/system/stockanalysis-operating-data-news-intraday.timer",
+                            }
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            with patch.dict(
+                os.environ,
+                {"STOCKANALYSIS_OPERATING_DATA_PROFILE_SCHEDULER_STATUS_REPORT": str(report)},
+            ):
+                payload = resolve_live_frontend_response(
+                    "/api/data-health",
+                    config=type("Config", (), {"psql_command": "psql"})(),
+                    executor=FakeLiveExecutor(),
+                    generated_at=datetime(2026, 5, 1, tzinfo=timezone.utc),
+                )
+
+        scheduler = payload["data"]["scheduler"]
+        self.assertEqual(scheduler["install_status"], "installed")
+        self.assertEqual(scheduler["activation"]["status"], "installed")
+        self.assertEqual(scheduler["profile_scheduler"]["scheduler_type"], "systemd")
+        self.assertEqual(scheduler["profile_scheduler"]["active_timer_count"], 5)
+        self.assertEqual(scheduler["profile_scheduler"]["timers"][0]["profile_id"], "news-intraday")
+        self.assertNotIn(str(report), json.dumps(scheduler))
+        self.assertNotIn("/etc/systemd/system", json.dumps(scheduler))
+        self.assertNotIn("scheduler_activation_manual_approval", payload["data"]["open_gates"])
+
     def test_live_data_health_response_includes_sanitized_manual_ingest_smoke(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             report = Path(tmpdir) / "manual-smoke.json"

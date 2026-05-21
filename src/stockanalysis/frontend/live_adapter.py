@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from pathlib import Path
-from typing import Any
+from typing import Any, Mapping
 from urllib.parse import parse_qs, quote, unquote, urlsplit
 
 from stockanalysis.ai.evidence_graph import render_instrument_evidence_neighborhood_sql
@@ -38,6 +38,7 @@ DEFAULT_STRATEGY_NAME = "long_term_core"
 DEFAULT_COVERAGE_HORIZON_DAYS = 31
 NO_PORTFOLIO_POSITIONS_MESSAGE = "No portfolio positions matched the requested coverage report identity."
 SCHEDULER_APPROVAL_GATE_REPORT_ENV = "STOCKANALYSIS_DATA_OPERATIONS_SCHEDULER_APPROVAL_GATE_REPORT"
+OPERATING_DATA_PROFILE_SCHEDULER_STATUS_REPORT_ENV = "STOCKANALYSIS_OPERATING_DATA_PROFILE_SCHEDULER_STATUS_REPORT"
 DEFAULT_REPO_ROOT = Path(__file__).resolve().parents[3]
 _STORY_GROUP_STOP_WORDS = frozenset(
     {
@@ -375,7 +376,10 @@ def build_live_data_health_response(
     raw_open_gates = state.get("open_gates", [])
     open_gates = [str(item) for item in raw_open_gates] if isinstance(raw_open_gates, list) else []
     provider_budget = _load_provider_budget_for_data_health(state)
+    profile_scheduler_status = _load_operating_data_profile_scheduler_status_for_data_health()
     scheduler_activation = _load_scheduler_activation_for_data_health()
+    if profile_scheduler_status["install_status"] == "installed":
+        scheduler_activation = _installed_profile_scheduler_activation(profile_scheduler_status)
     manual_local_ingest_smoke = load_manual_local_ingest_smoke_visibility_report(
         env=os.environ,
         repo_root=DEFAULT_REPO_ROOT,
@@ -397,11 +401,12 @@ def build_live_data_health_response(
             "as_of_date": str(state.get("as_of_date") or ""),
             "pipeline_runs": pipeline_runs,
             "scheduler": {
-                "install_status": "not_installed",
+                "install_status": profile_scheduler_status["install_status"],
                 "runtime_env_readiness": "template_rendered_placeholder_pending",
                 "holiday_skip_mode": "explicit_skip_dates",
                 "latest_artifact_root": str(state.get("latest_artifact_root") or ""),
                 "activation": scheduler_activation,
+                "profile_scheduler": profile_scheduler_status,
             },
             "freshness": freshness,
             "provider_budget": provider_budget,
@@ -756,6 +761,84 @@ def _scheduler_activation_status(*, approval_gate: str, activation_allowed: bool
     if approval_gate == "approved_for_manual_activation" and activation_allowed:
         return "approved_for_manual_activation"
     return approval_gate or "unknown"
+
+
+def _load_operating_data_profile_scheduler_status_for_data_health() -> dict[str, object]:
+    report_path = os.getenv(OPERATING_DATA_PROFILE_SCHEDULER_STATUS_REPORT_ENV, "").strip()
+    base = {
+        "status": "not_configured",
+        "install_status": "not_installed",
+        "scheduler_type": "",
+        "timer_count": 0,
+        "active_timer_count": 0,
+        "generated_at": "",
+        "source": "not_configured",
+        "timers": [],
+    }
+    if not report_path:
+        return base
+
+    try:
+        payload = json.loads(Path(report_path).read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {
+            **base,
+            "status": "invalid_report",
+            "install_status": "invalid_report",
+            "source": "invalid_report",
+        }
+
+    if payload.get("report_name") != "operating_data_profile_scheduler_status":
+        return {
+            **base,
+            "status": "invalid_report",
+            "install_status": "invalid_report",
+            "source": "invalid_report",
+        }
+
+    timers = []
+    for item in _as_list(payload.get("timers")):
+        if not isinstance(item, Mapping):
+            continue
+        timers.append(
+            {
+                "profile_id": str(item.get("profile_id") or ""),
+                "service_name": str(item.get("service_name") or ""),
+                "timer_name": str(item.get("timer_name") or ""),
+                "schedule": str(item.get("schedule") or ""),
+                "active_state": str(item.get("active_state") or ""),
+                "next_elapse": str(item.get("next_elapse") or ""),
+                "last_result": str(item.get("last_result") or ""),
+            }
+        )
+
+    install_status = str(payload.get("install_status") or "unknown")
+    return {
+        "status": str(payload.get("status") or install_status),
+        "install_status": install_status,
+        "scheduler_type": str(payload.get("scheduler_type") or ""),
+        "timer_count": int(payload.get("timer_count") or len(timers)),
+        "active_timer_count": int(payload.get("active_timer_count") or 0),
+        "generated_at": str(payload.get("generated_at") or ""),
+        "source": "operating_data_profile_scheduler_status_report",
+        "timers": timers,
+    }
+
+
+def _installed_profile_scheduler_activation(profile_scheduler_status: Mapping[str, object]) -> dict[str, object]:
+    return {
+        "status": "installed",
+        "job_id": "operating-data-profile-scheduler",
+        "pipeline_name": "operating_data_profile_scheduler",
+        "domain": "operations",
+        "cadence": "mixed",
+        "approval_gate": "installed_on_ec2_systemd",
+        "activation_allowed": True,
+        "scheduler_activation": "installed",
+        "manual_next_step": "",
+        "generated_at": str(profile_scheduler_status.get("generated_at") or ""),
+        "source": "operating_data_profile_scheduler_status_report",
+    }
 
 
 def build_live_cycle_state_list_response(
