@@ -383,6 +383,73 @@ class DataOperationsCliTests(unittest.TestCase):
             self.assertNotIn("hidden-scheduler-pass", json.dumps(payload) + markdown)
             self.assertNotIn("postgresql://", json.dumps(payload) + markdown)
 
+    def test_operating_data_profile_scheduler_invocation_plan_command_writes_output_and_markdown(self) -> None:
+        with tempfile.TemporaryDirectory() as repo_root, tempfile.TemporaryDirectory() as outside_root:
+            outside_path = Path(outside_root)
+            env_file = outside_path / "data-operations.env"
+            output_path = outside_path / "operating-data-profile-scheduler.json"
+            markdown_path = outside_path / "operating-data-profile-scheduler.md"
+            env_file.write_text(
+                'STOCKANALYSIS_DATABASE_URL="postgresql://user:hidden-profile-pass@localhost/db"\\n'
+                f'STOCKANALYSIS_DATA_OPERATIONS_ARTIFACT_ROOT="{outside_path / "artifacts"}"\\n',
+                encoding="utf-8",
+            )
+            stdout = io.StringIO()
+
+            exit_code = main(
+                [
+                    "operating-data-profile-scheduler-invocation-plan",
+                    "--repo-root",
+                    repo_root,
+                    "--target",
+                    "kubernetes_cronjob",
+                    "--schedule",
+                    "0 8 * * 1-5",
+                    "--runtime-root",
+                    str(outside_path / "runtime"),
+                    "--data-operations-env-file",
+                    str(env_file),
+                    "--profile-output-root",
+                    str(outside_path / "profiles"),
+                    "--profile-id",
+                    "news-intraday",
+                    "--include-full-recovery",
+                    "--profile-id",
+                    "full-recovery",
+                    "--manifest-output-root",
+                    str(outside_path / "manifests"),
+                    "--execute",
+                    "--output",
+                    str(output_path),
+                    "--markdown-output",
+                    str(markdown_path),
+                ],
+                stdout=stdout,
+            )
+
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(stdout.getvalue().strip(), str(output_path.resolve()))
+            payload = json.loads(output_path.read_text(encoding="utf-8"))
+            markdown = markdown_path.read_text(encoding="utf-8")
+            self.assertEqual(payload["report_name"], "operating_data_profile_scheduler_invocation_boundary")
+            self.assertEqual(payload["scheduler_target"], "kubernetes_cronjob")
+            self.assertTrue(payload["include_full_recovery"])
+            self.assertEqual(len(payload["profiles"]), 2)
+            self.assertEqual(payload["profiles"][0]["profile_id"], "news-intraday")
+            self.assertEqual(payload["profiles"][1]["profile_id"], "full-recovery")
+            self.assertTrue(payload["operating_data_run_execute"])
+            self.assertNotIn("hidden-profile-pass", json.dumps(payload) + markdown)
+            self.assertNotIn("postgresql://", json.dumps(payload) + markdown)
+            self.assertIn("Operating Data Profile Scheduler Invocation Boundary", markdown)
+            self.assertIn("kubernetes_cronjob", markdown)
+            self.assertIn(str((outside_path / "manifests").resolve()), payload["manifest_output_root"])
+            self.assertEqual(len(payload["manifest_records"]), 2)
+            for profile in payload["profiles"]:
+                self.assertIn("--execute", profile["command_argv_preview"])
+                self.assertTrue(profile["manifest_file_previews"])
+                for manifest_file_preview in profile["manifest_file_previews"]:
+                    self.assertTrue(Path(manifest_file_preview["path"]).is_file())
+
     def test_server_scheduler_invocation_plan_rejects_repo_inside_env(self) -> None:
         with tempfile.TemporaryDirectory() as repo_root, tempfile.TemporaryDirectory() as outside_root:
             env_file = Path(repo_root) / "data-operations.env"
@@ -402,6 +469,64 @@ class DataOperationsCliTests(unittest.TestCase):
                     str(Path(outside_root) / "worker.json"),
                     "--smoke-output",
                     str(Path(outside_root) / "manual-smoke.json"),
+                ],
+                stderr=stderr,
+            )
+
+            self.assertEqual(exit_code, 1)
+            self.assertIn("outside repository", stderr.getvalue())
+
+    def test_operating_data_profile_scheduler_invocation_plan_rejects_repo_inside_output(self) -> None:
+        with tempfile.TemporaryDirectory() as repo_root, tempfile.TemporaryDirectory() as outside_root:
+            stderr = io.StringIO()
+            env_file = Path(outside_root) / "data-operations.env"
+            env_file.write_text("", encoding="utf-8")
+
+            exit_code = main(
+                [
+                    "operating-data-profile-scheduler-invocation-plan",
+                    "--repo-root",
+                    repo_root,
+                    "--target",
+                    "cron",
+                    "--runtime-root",
+                    str(Path(outside_root) / "runtime"),
+                    "--data-operations-env-file",
+                    str(env_file),
+                    "--output",
+                    str(Path(repo_root) / "operating-data-profile-scheduler.json"),
+                    "--profile-id",
+                    "news-intraday",
+                    "--include-full-recovery",
+                ],
+                stderr=stderr,
+            )
+
+            self.assertEqual(exit_code, 1)
+            self.assertIn("outside repository", stderr.getvalue())
+
+    def test_operating_data_profile_scheduler_invocation_plan_rejects_repo_inside_manifest_output_root(self) -> None:
+        with tempfile.TemporaryDirectory() as repo_root, tempfile.TemporaryDirectory() as outside_root:
+            stderr = io.StringIO()
+            env_file = Path(outside_root) / "data-operations.env"
+            env_file.write_text("", encoding="utf-8")
+
+            exit_code = main(
+                [
+                    "operating-data-profile-scheduler-invocation-plan",
+                    "--repo-root",
+                    repo_root,
+                    "--target",
+                    "cron",
+                    "--runtime-root",
+                    str(Path(outside_root) / "runtime"),
+                    "--data-operations-env-file",
+                    str(env_file),
+                    "--manifest-output-root",
+                    str(Path(repo_root) / "manifests"),
+                    "--profile-id",
+                    "news-intraday",
+                    "--include-full-recovery",
                 ],
                 stderr=stderr,
             )

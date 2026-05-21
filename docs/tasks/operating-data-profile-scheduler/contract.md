@@ -27,6 +27,8 @@
   - 뉴스/AI intraday cadence registry visibility
   - profile별 source position dependency 분리
   - focused tests and verification script updates
+- `operating-data-profile-scheduler-invocation-plan` CLI boundary for target-based invocation packet emission
+- `systemd` 대상일 때 시스템 cron식 변환 제약을 사전 검증해 `*/30` 또는 시간대 범위와 같은 미지원 패턴을 즉시 reject
 - 제외:
   - EC2 systemd timer 실제 설치
   - DB schema 변경
@@ -68,7 +70,10 @@
 
 - 검증에 사용할 명령:
 - `PYTHONPATH=src python3 -m unittest tests.test_operating_data_orchestrator tests.test_data_operations_cli tests.test_data_operations_cadence`
+- `PYTHONPATH=src python3 -m unittest tests.test_operating_data_profile_scheduler`
 - `bash scripts/verify_operating_data_orchestrator.sh`
+- `bash scripts/verify_operating_data_profile_scheduler_invocation.sh`
+- `test_systemd_target_rejects_unsupported_schedule_pattern` in `tests.test_operating_data_profile_scheduler`
 - `PYTHONPATH=src python3 -m compileall src tests`
 - `git diff --check`
 

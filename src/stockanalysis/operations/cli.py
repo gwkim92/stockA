@@ -72,6 +72,10 @@ from stockanalysis.operations.server_scheduler_deployment_decision import (
     build_server_scheduler_deployment_target_decision,
     render_server_scheduler_deployment_target_decision_markdown,
 )
+from stockanalysis.operations.operating_data_profile_scheduler import (
+    build_operating_data_profile_scheduler_invocation_plan,
+    render_operating_data_profile_scheduler_invocation_markdown,
+)
 from stockanalysis.trading.paper_safety_bootstrap import (
     PaperSafetyBootstrapConfig,
     decimal_from_cli,
@@ -229,6 +233,42 @@ def build_parser() -> argparse.ArgumentParser:
     server_scheduler_invocation.add_argument("--markdown-output")
     server_scheduler_invocation.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
     server_scheduler_invocation.set_defaults(handler=_handle_server_scheduler_invocation_plan)
+
+    operating_data_profile_scheduler_invocation = subparsers.add_parser(
+        "operating-data-profile-scheduler-invocation-plan",
+        help="Build a secret-free operating-data profile scheduler invocation packet without deploying a scheduler.",
+    )
+    operating_data_profile_scheduler_invocation.add_argument("--target", choices=SERVER_SCHEDULER_TARGETS, required=True)
+    operating_data_profile_scheduler_invocation.add_argument("--runtime-root", default=str(DEFAULT_LOCAL_RUNTIME_ROOT))
+    operating_data_profile_scheduler_invocation.add_argument("--data-operations-env-file", required=True)
+    operating_data_profile_scheduler_invocation.add_argument("--profile-output-root")
+    operating_data_profile_scheduler_invocation.add_argument(
+        "--manifest-output-root",
+        help="Optional repo-outside directory path to write profile scheduler manifest files.",
+    )
+    operating_data_profile_scheduler_invocation.add_argument(
+        "--profile-id",
+        dest="profile_ids",
+        action="append",
+        help="Limit to one or more profile IDs. Repeat for multiple.",
+    )
+    operating_data_profile_scheduler_invocation.add_argument("--include-full-recovery", action="store_true")
+    operating_data_profile_scheduler_invocation.add_argument("--schedule", help="Override schedule for all selected profiles.")
+    operating_data_profile_scheduler_invocation.add_argument("--timeout-seconds", type=int, default=3600)
+    operating_data_profile_scheduler_invocation.add_argument("--python-executable")
+    operating_data_profile_scheduler_invocation.add_argument(
+        "--execute",
+        action="store_true",
+        help=(
+            "Render child operating-data-run commands with --execute. "
+            "This command still only writes invocation packets and does not deploy or run them."
+        ),
+    )
+    operating_data_profile_scheduler_invocation.add_argument("--job-name", default=DEFAULT_SERVER_SCHEDULER_JOB_NAME)
+    operating_data_profile_scheduler_invocation.add_argument("--output")
+    operating_data_profile_scheduler_invocation.add_argument("--markdown-output")
+    operating_data_profile_scheduler_invocation.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
+    operating_data_profile_scheduler_invocation.set_defaults(handler=_handle_operating_data_profile_scheduler_invocation_plan)
 
     server_scheduler_decision = subparsers.add_parser(
         "server-scheduler-deployment-target-decision",
@@ -663,6 +703,51 @@ def _handle_server_scheduler_invocation_plan(args: argparse.Namespace, *, stdout
     )
     if markdown_output_path is not None:
         markdown_output_path.write_text(render_server_scheduler_invocation_markdown(report), encoding="utf-8")
+    write_json_report(report, output_path=output_path, stdout=stdout)
+    return 0
+
+
+def _handle_operating_data_profile_scheduler_invocation_plan(args: argparse.Namespace, *, stdout: TextIO) -> int:
+    output_path = (
+        resolve_output_path(
+            args.output,
+            label="operating data profile scheduler output",
+            repo_root=args.repo_root,
+            require_repo_outside=True,
+        )
+        if args.output
+        else None
+    )
+    markdown_output_path = (
+        resolve_output_path(
+            args.markdown_output,
+            label="operating data profile scheduler markdown output",
+            repo_root=args.repo_root,
+            require_repo_outside=True,
+        )
+        if args.markdown_output
+        else None
+    )
+    report = build_operating_data_profile_scheduler_invocation_plan(
+        scheduler_target=args.target,
+        repo_root=args.repo_root,
+        runtime_root=args.runtime_root,
+        data_operations_env_file=args.data_operations_env_file,
+        profile_output_root=args.profile_output_root,
+        manifest_output_root=args.manifest_output_root,
+        profile_ids=tuple(args.profile_ids) if args.profile_ids else None,
+        include_full_recovery=bool(args.include_full_recovery),
+        schedule=args.schedule,
+        timeout_seconds=args.timeout_seconds,
+        python_executable=args.python_executable,
+        execute=bool(args.execute),
+        job_name=args.job_name,
+    )
+    if markdown_output_path is not None:
+        markdown_output_path.write_text(
+            render_operating_data_profile_scheduler_invocation_markdown(report),
+            encoding="utf-8",
+        )
     write_json_report(report, output_path=output_path, stdout=stdout)
     return 0
 

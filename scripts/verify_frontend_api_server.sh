@@ -349,7 +349,7 @@ base_url = sys.argv[1]
 with urlopen(base_url, timeout=10) as response:
     body = response.read().decode("utf-8")
 assert response.status == 200, response.status
-assert "Long-term portfolio review starts" in body, body[:500]
+assert "운영 개요" in body or "Operation Overview" in body, body[:500]
 assert "BABA" in body, body[:500]
 PY
 

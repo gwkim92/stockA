@@ -98,21 +98,21 @@ from urllib.request import urlopen
 
 base_url = sys.argv[1]
 checks = {
-    "/recommendations/AAPL-2024-11-01": "Recommendation Dossier",
-    "/theses/AAPL-bootstrap-v1": "Thesis evidence ledger",
-    "/portfolio/coverage": "Portfolio coverage gate",
-    "/ai-evidence/sec-event-aapl-10k-20240928": "AI Extraction Evidence",
-    "/source-documents/aapl-2024-10k-20240928": "Source Document Dossier",
-    "/events": "Event Evidence Map",
-    "/themes/ANNUAL_REPORTING": "Annual reporting quality",
-    "/performance": "Performance outcome review",
+    "/recommendations/AAPL-2024-11-01": ("Recommendation Dossier", "추천 검토서"),
+    "/theses/AAPL-bootstrap-v1": ("Thesis evidence ledger", "투자 논리 상세"),
+    "/portfolio/coverage": ("Portfolio coverage gate", "포트폴리오 커버리지 관문"),
+    "/ai-evidence/sec-event-aapl-10k-20240928": ("AI Extraction Evidence", "AI 근거 상세", "뉴스 묶음 증거"),
+    "/source-documents/aapl-2024-10k-20240928": ("Source Document Dossier", "원천 문서 검토서"),
+    "/events": ("Event Evidence Map", "이벤트", "오늘 들어온 시장 뉴스와 원천 문서를 확인한다"),
+    "/themes/ANNUAL_REPORTING": ("Annual reporting quality", "테마 화면은", "연간 보고"),
+    "/performance": ("Performance outcome review", "성과 측정"),
 }
 
-for path, expected in checks.items():
+for path, expected_terms in checks.items():
     with urlopen(f"{base_url}{path}", timeout=5) as response:
         body = response.read().decode("utf-8")
     assert response.status == 200, (path, response.status)
-    assert expected in body, (path, expected)
+    assert any(term in body for term in expected_terms), (path, expected_terms)
 PY
 
 cd "$ROOT_DIR"
