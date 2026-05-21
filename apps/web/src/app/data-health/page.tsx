@@ -695,7 +695,7 @@ export default async function DataHealthPage() {
           ) : null}
         </article>
 
-        <div className="flow-steps" style={{ marginTop: "18px" }}>
+        <div className="flow-steps data-health-summary-grid" style={{ marginTop: "18px" }}>
           {automationCards.map((card) => (
             <article className="flow-step" key={card.title}>
               <span>{card.title}</span>

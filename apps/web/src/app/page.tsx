@@ -8,6 +8,7 @@ import {
   getTradingReadiness,
 } from "@/lib/frontend-api";
 import { koCode, koLabel, koReason } from "@/lib/korean-labels";
+import type { DataHealthData } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -36,6 +37,23 @@ function readinessTone(status: string) {
     return "risk-medium";
   }
   return "risk-low";
+}
+
+function automationDisplayLabel(scheduler: DataHealthData["scheduler"], fallbackStatus: string) {
+  const activation = scheduler.activation;
+  const profileScheduler = scheduler.profile_scheduler;
+  if (
+    activation.approval_gate === "installed_on_ec2_systemd"
+    || (profileScheduler && profileScheduler.active_timer_count > 0)
+  ) {
+    const active = profileScheduler?.active_timer_count ?? 0;
+    const total = profileScheduler?.timer_count ?? active;
+    return total > 0 ? `EC2 자동 반복 실행 중 (${active}/${total})` : "EC2 자동 반복 실행 중";
+  }
+  if (activation.activation_allowed && activation.scheduler_activation !== "not_installed") {
+    return "자동 반복 실행 가능";
+  }
+  return koCode(fallbackStatus);
 }
 
 export default async function HomePage() {
@@ -185,7 +203,7 @@ export default async function HomePage() {
             </div>
             <div>
               <dt>자동화</dt>
-              <dd>{koCode(data.run_status.scheduler)}</dd>
+              <dd>{automationDisplayLabel(health.data.scheduler, data.run_status.scheduler)}</dd>
             </div>
           </dl>
         </aside>

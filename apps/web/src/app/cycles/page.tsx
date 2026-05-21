@@ -13,7 +13,7 @@ function formatConfidence(value: number) {
 
 function formatFeature(value: number | null) {
   if (value === null) {
-    return "n/a";
+    return "미측정";
   }
   return `${Math.round(value * 100)}%`;
 }
@@ -26,7 +26,17 @@ function featureWidth(value: number | null) {
 }
 
 function themeHref(themeKey: string) {
-  return themeKey === "ANNUAL_REPORTING" ? (`/themes/${themeKey}` as Route) : null;
+  return themeKey ? (`/themes/${themeKey}` as Route) : null;
+}
+
+function universeLabel(version: string | null | undefined) {
+  if (!version || version === "unknown") {
+    return "유니버스 미확인";
+  }
+  if (version.startsWith("live-")) {
+    return "현재 운영 유니버스";
+  }
+  return `${koCode(version)} 유니버스`;
 }
 
 export default async function CyclesPage() {
@@ -63,7 +73,7 @@ export default async function CyclesPage() {
         <article className="rail-cell">
           <span>02 테마 수</span>
           <strong>{data.cycle_states.length}</strong>
-          <small>v{data.universe_version} 유니버스</small>
+          <small>{universeLabel(data.universe_version)}</small>
         </article>
         <article className="rail-cell">
           <span>03 종목 연결</span>
@@ -78,6 +88,12 @@ export default async function CyclesPage() {
       </section>
 
       <section className="cycle-index reveal delay-2" aria-label="테마 사이클 목록">
+        {data.cycle_states.length === 0 ? (
+          <article className="empty-state">
+            아직 이 기준일에 저장된 사이클 스냅샷이 없다. 뉴스·상위 흐름은 계속 수집되지만,
+            테마 사이클은 일간 신호/추천 배치가 스냅샷을 만든 뒤 이 화면에 표시된다.
+          </article>
+        ) : null}
         {data.cycle_states.map((cycle, index) => {
           const href = themeHref(cycle.theme_key);
           return (
@@ -125,7 +141,7 @@ export default async function CyclesPage() {
                     테마 열기
                   </Link>
                 ) : (
-                  <span className="metric-sub">상세 화면 준비 중</span>
+                  <span className="metric-sub">테마 키 없음</span>
                 )}
               </div>
             </article>

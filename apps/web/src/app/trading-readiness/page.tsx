@@ -95,11 +95,11 @@ export default async function TradingReadinessPage() {
             {data.gates.map((gate) => (
               <article className="readiness-card" key={gate.gate_key}>
                 <div className="readiness-card-top">
-                  <strong>{gate.label}</strong>
+                  <strong>{koLabel(gate.label)}</strong>
                   <span className={`risk-tag ${statusClass(gate.status)}`}>{koCode(gate.status)}</span>
                 </div>
-                <p>{gate.detail}</p>
-                <small>다음 조치: {gate.next_step}</small>
+                <p>{koLabel(gate.detail)}</p>
+                <small>다음 조치: {koReason(gate.next_step)}</small>
               </article>
             ))}
           </div>
@@ -217,10 +217,10 @@ export default async function TradingReadinessPage() {
         </article>
 
         <article className="ledger-panel">
-          <div className="section-heading stacked-heading">
-            <span>가상 검증/감사</span>
-            <h2>paper validation과 audit log</h2>
-          </div>
+            <div className="section-heading stacked-heading">
+              <span>가상 검증/감사</span>
+              <h2>가상 검증과 감사 로그</h2>
+            </div>
           <dl className="fact-list">
             <div>
               <dt>가상 검증 상태</dt>
@@ -266,7 +266,7 @@ export default async function TradingReadinessPage() {
           <div className="tag-ledger">
             {data.guardrails.map((guardrail) => (
               <span className="risk-tag risk-medium" key={guardrail}>
-                {guardrail}
+                {koLabel(guardrail)}
               </span>
             ))}
           </div>

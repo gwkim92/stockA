@@ -12,7 +12,7 @@ function formatPercent(value: number) {
 }
 
 function themeHref(themeKey: string) {
-  return themeKey === "ANNUAL_REPORTING" ? (`/themes/${themeKey}` as Route) : null;
+  return themeKey ? (`/themes/${themeKey}` as Route) : null;
 }
 
 function evidenceHref(evidenceId: string | null) {
@@ -94,7 +94,11 @@ export default async function EventsPage() {
               const themeLink = themeHref(event.theme_key);
               const evidenceLink = evidenceHref(event.ai_evidence_id);
               const documentLink = sourceDocumentHref(event.source_document_id);
-              const relatedEvents = event.related_events ?? [];
+              const relatedEventsRaw = event.related_events ?? [];
+              const relatedEvents = relatedEventsRaw
+                .filter((related) => related.relation_type !== "same_theme" || related.relation_strength >= 0.7)
+                .slice(0, 3);
+              const hiddenBroadThemeCount = Math.max(0, relatedEventsRaw.length - relatedEvents.length);
 
               return (
                 <div className="bento-list-item" key={event.event_id} style={{ alignItems: "flex-start" }}>
@@ -134,9 +138,16 @@ export default async function EventsPage() {
                             <small>{koLabel(related.reason)}</small>
                           </div>
                         ))}
+                        {hiddenBroadThemeCount > 0 ? (
+                          <p className="relationship-empty">
+                            넓은 테마만 같은 약한 연결 {hiddenBroadThemeCount}개는 숨겼다.
+                          </p>
+                        ) : null}
                       </div>
                     ) : (
-                      <p className="relationship-empty">아직 같은 종목·테마로 묶인 관련 이벤트가 없다.</p>
+                      <p className="relationship-empty">
+                        직접 같은 종목이거나 충분히 강한 관련 이벤트가 아직 없다.
+                      </p>
                     )}
                   </div>
                   <div style={{ alignItems: "flex-end", minWidth: "190px" }}>

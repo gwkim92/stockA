@@ -242,6 +242,7 @@ export default async function RecommendationPage({ params }: RecommendationPageP
   const evidenceReview = data.evidence_review;
   const qualityDecision = recommendationQualityDecision(data);
   const qualityChecks = recommendationQualityChecks(data);
+  const outcomeMeasured = data.outcome.label !== "unmeasured" && Boolean(data.outcome.measurement_end_date);
 
   return (
     <div className="pageStack">
@@ -269,7 +270,7 @@ export default async function RecommendationPage({ params }: RecommendationPageP
             <div style={{ fontSize: "2.5rem", fontWeight: 700, color: "var(--text-primary)", margin: "4px 0" }}>
               {formatPercent(data.score)}
             </div>
-            <div style={{ fontSize: "0.85rem", color: "var(--accent-blue)", fontWeight: 600, textTransform: "uppercase" }}>
+            <div style={{ fontSize: "0.85rem", color: "var(--accent-blue)", fontWeight: 700 }}>
               {koCode(data.recommendation)}
             </div>
           </div>
@@ -378,7 +379,7 @@ export default async function RecommendationPage({ params }: RecommendationPageP
                           {evidenceLinkLabel(component.evidence_id)}
                         </Link>
                       ) : (
-                        <span>연결 화면 없음</span>
+                        <span>상세 추적은 아래 ID에서 확인</span>
                       )}
                     </div>
                     <AuditMetadata items={provenanceMetadata(component)} summary="추적 ID 보기" />
@@ -399,7 +400,9 @@ export default async function RecommendationPage({ params }: RecommendationPageP
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: "24px" }}>
             <div>
               <span className="metric-sub">성과 측정</span>
-              <h2 style={{ fontSize: "1.5rem" }}>{koCode(data.outcome.label)}</h2>
+              <h2 style={{ fontSize: "1.5rem" }}>
+                {outcomeMeasured ? koCode(data.outcome.label) : "아직 성과 측정 전"}
+              </h2>
             </div>
             <Link className="btn btn-primary" href={`/theses/${data.linked_thesis_id}`}>
               연결된 투자 논리 열기
@@ -409,19 +412,27 @@ export default async function RecommendationPage({ params }: RecommendationPageP
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
             <div style={{ padding: "16px", background: "rgba(255,255,255,0.03)", border: "1px solid var(--border-light)", borderRadius: "var(--radius-sm)" }}>
               <span className="metric-sub">알파</span>
-              <div style={{ fontSize: "1.5rem", fontWeight: 700, color: "var(--text-primary)" }}>{formatPercent(data.outcome.alpha)}</div>
+              <div style={{ fontSize: "1.5rem", fontWeight: 700, color: "var(--text-primary)" }}>
+                {outcomeMeasured ? formatPercent(data.outcome.alpha) : "측정 전"}
+              </div>
             </div>
             <div style={{ padding: "16px", background: "rgba(255,255,255,0.03)", border: "1px solid var(--border-light)", borderRadius: "var(--radius-sm)" }}>
               <span className="metric-sub">절대수익률</span>
-              <div style={{ fontSize: "1.5rem", fontWeight: 700, color: "var(--text-primary)" }}>{formatPercent(data.outcome.absolute_return)}</div>
+              <div style={{ fontSize: "1.5rem", fontWeight: 700, color: "var(--text-primary)" }}>
+                {outcomeMeasured ? formatPercent(data.outcome.absolute_return) : "측정 전"}
+              </div>
             </div>
             <div style={{ padding: "16px", background: "rgba(255,255,255,0.03)", border: "1px solid var(--border-light)", borderRadius: "var(--radius-sm)" }}>
               <span className="metric-sub">벤치마크 수익률</span>
-              <div style={{ fontSize: "1.5rem", fontWeight: 700, color: "var(--text-primary)" }}>{formatPercent(data.outcome.benchmark_return)}</div>
+              <div style={{ fontSize: "1.5rem", fontWeight: 700, color: "var(--text-primary)" }}>
+                {outcomeMeasured ? formatPercent(data.outcome.benchmark_return) : "측정 전"}
+              </div>
             </div>
             <div style={{ padding: "16px", background: "rgba(255,255,255,0.03)", border: "1px solid var(--border-light)", borderRadius: "var(--radius-sm)" }}>
               <span className="metric-sub">측정 종료일</span>
-              <div style={{ fontSize: "1.1rem", fontWeight: 600, color: "var(--text-primary)", marginTop: "4px" }}>{data.outcome.measurement_end_date}</div>
+              <div style={{ fontSize: "1.1rem", fontWeight: 600, color: "var(--text-primary)", marginTop: "4px" }}>
+                {outcomeMeasured ? data.outcome.measurement_end_date : "성과 측정 윈도우 대기"}
+              </div>
             </div>
           </div>
         </article>

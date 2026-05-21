@@ -15,6 +15,10 @@ function formatPercent(value: number) {
   return `${Math.round(value * 1000) / 10}%`;
 }
 
+function formatOptionalPercent(value: number | null | undefined) {
+  return value === null || value === undefined ? "측정 전" : formatPercent(value);
+}
+
 function recommendationHref(recommendationId: string | null) {
   return recommendationId ? (`/recommendations/${recommendationId}` as Route) : null;
 }
@@ -35,6 +39,10 @@ export default async function ThemePage({ params }: ThemePageProps) {
   const { themeKey } = await params;
   const response = await getThemeDetail(themeKey);
   const data = response.data;
+  const hasThemeEvidence =
+    data.linked_instruments.length > 0 || data.supporting_events.length > 0 || data.cycle_history.length > 0;
+  const hasCycleSnapshot =
+    data.cycle_history.length > 0 && data.state !== "unknown" && data.state !== "unavailable";
 
   return (
     <div className="pageStack">
@@ -59,10 +67,10 @@ export default async function ThemePage({ params }: ThemePageProps) {
           }}>
             <span className="metric-sub" style={{ color: "var(--accent-green)" }}>사이클 상태</span>
             <div style={{ fontSize: "2rem", fontWeight: 700, color: "var(--text-primary)", margin: "4px 0", textTransform: "uppercase" }}>
-              {koCode(data.state)}
+              {hasCycleSnapshot ? koCode(data.state) : "측정 전"}
             </div>
             <div style={{ fontSize: "0.8rem", color: "var(--accent-green)", fontWeight: 500 }}>
-              신뢰도 {formatPercent(data.confidence)}
+              {hasCycleSnapshot ? `신뢰도 ${formatPercent(data.confidence)}` : "사이클 스냅샷 대기"}
             </div>
           </div>
         </div>
@@ -71,22 +79,22 @@ export default async function ThemePage({ params }: ThemePageProps) {
       <section className="bento-grid reveal delay-1">
         <article className="bento-card">
           <span className="metric-label">사이클 점수</span>
-          <strong className="metric-value">{formatPercent(data.cycle_score)}</strong>
+          <strong className="metric-value">{hasCycleSnapshot ? formatPercent(data.cycle_score) : "측정 전"}</strong>
           <span className="metric-sub">현재 사이클 모델</span>
         </article>
         <article className="bento-card">
           <span className="metric-label">이벤트 강도</span>
-          <strong className="metric-value">{formatPercent(data.features.event_intensity ?? 0)}</strong>
+          <strong className="metric-value">{formatOptionalPercent(data.features.event_intensity)}</strong>
           <span className="metric-sub">이벤트 강도</span>
         </article>
         <article className="bento-card">
           <span className="metric-label">모멘텀</span>
-          <strong className="metric-value">{formatPercent(data.features.price_momentum ?? 0)}</strong>
+          <strong className="metric-value">{formatOptionalPercent(data.features.price_momentum)}</strong>
           <span className="metric-sub">가격 모멘텀</span>
         </article>
         <article className="bento-card">
           <span className="metric-label">펀더멘털</span>
-          <strong className="metric-value">{formatPercent(data.features.fundamental_quality ?? 0)}</strong>
+          <strong className="metric-value">{formatOptionalPercent(data.features.fundamental_quality)}</strong>
           <span className="metric-sub">펀더멘털 품질</span>
         </article>
       </section>
@@ -98,6 +106,12 @@ export default async function ThemePage({ params }: ThemePageProps) {
             <h2 style={{ fontSize: "1.5rem" }}>상태 전환</h2>
           </div>
           <div className="bento-list">
+            {data.cycle_history.length === 0 ? (
+              <p className="empty-state">
+                아직 이 테마의 사이클 이력이 없다. 상위 흐름이나 뉴스는 먼저 이벤트 화면에 쌓이고,
+                사이클 배치가 완료되면 상태 전환 이력이 생성된다.
+              </p>
+            ) : null}
             {data.cycle_history.map((snapshot) => (
               <div className="bento-list-item" key={snapshot.as_of_date}>
                 <div>
@@ -119,6 +133,12 @@ export default async function ThemePage({ params }: ThemePageProps) {
             <h2 style={{ fontSize: "1.5rem" }}>테마 노출</h2>
           </div>
           <div className="bento-list">
+            {data.linked_instruments.length === 0 ? (
+              <p className="empty-state">
+                이 기준일에 테마와 직접 연결된 종목이 없다. 거시 뉴스라면 개별 종목을 억지로 붙이지 않고
+                상위 흐름으로 먼저 저장한다.
+              </p>
+            ) : null}
             {data.linked_instruments.map((instrument) => {
               const recommendationLink = recommendationHref(instrument.latest_recommendation_id);
               const linkedThesisHref = thesisHref(instrument.active_thesis_id);
@@ -158,6 +178,11 @@ export default async function ThemePage({ params }: ThemePageProps) {
             </Link>
           </div>
           <div className="bento-list">
+            {data.supporting_events.length === 0 ? (
+              <p className="empty-state">
+                아직 이 테마를 뒷받침하는 이벤트가 없다. 뉴스 수집과 AI 후보 검증을 통과한 이벤트만 이 목록에 표시된다.
+              </p>
+            ) : null}
             {data.supporting_events.map((event) => {
               const evidenceLink = evidenceHref(event.ai_evidence_id);
               const documentLink = sourceDocumentHref(event.source_document_id);

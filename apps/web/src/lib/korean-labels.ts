@@ -36,6 +36,8 @@ const KOREAN_LABELS: Record<string, string> = {
   auth_rbac: "인증/RBAC",
   twelve_data: "Twelve Data",
   accumulate: "분할 매수",
+  accumulate_candidate: "분할 매수 검토 후보",
+  "accumulate candidate": "분할 매수 검토 후보",
   avoid: "회피",
   blocked: "차단",
   broker_boundary: "브로커 경계",
@@ -72,6 +74,7 @@ const KOREAN_LABELS: Record<string, string> = {
   monitor: "관찰 유지",
   monitor_or_accumulate: "관찰 또는 분할 매수",
   no_recommendation: "추천 없음",
+  unmeasured: "아직 성과 측정 전",
   needs_outcome_review: "성과 검토 필요",
   needs_evidence_review: "근거 보강 필요",
   needs_thesis_review: "투자 논리 검토 필요",
@@ -82,9 +85,12 @@ const KOREAN_LABELS: Record<string, string> = {
   not_configured: "미설정",
   not_due: "아직 실행 대상 아님",
   not_installed: "미설치",
+  not_requested: "아직 요청되지 않음",
+  "not requested": "아직 요청되지 않음",
   not_applicable: "해당 없음",
   "not applicable": "해당 없음",
   not_triggered: "미발동",
+  ignored: "무시됨",
   open: "열림",
   openai: "OpenAI",
   outperform: "벤치마크 상회",
@@ -254,8 +260,10 @@ const KOREAN_LABELS: Record<string, string> = {
   portfolio_remediation_daily_automation: "포트폴리오 검토 큐 생성",
   performance_outcome_monthly: "월간 성과 측정",
   operations: "운영",
+  "operating-data-profile-scheduler": "운영 데이터 자동 스케줄러",
   mixed: "혼합 주기",
   success: "성공",
+  stale: "지연",
   installed: "설치됨",
   systemd: "systemd",
   installed_on_ec2_systemd: "EC2 systemd 설치 완료",
@@ -318,9 +326,13 @@ const KOREAN_LABELS: Record<string, string> = {
   "Annual Reporting": "연간 공시",
   "MARKET NEWS FLOW": "시장 뉴스 흐름",
   "US MARKET BREADTH": "미국 시장 폭",
+  "US Market Breadth": "미국 시장 참여도",
   "AI SEMICONDUCTOR CYCLE": "AI 반도체 사이클",
+  "AI Semiconductor Cycle": "AI 반도체 사이클",
   "MACRO RATES FED": "금리·연준",
+  "Macro Rates and Fed": "금리·연준",
   "ENERGY GEOPOLITICS": "에너지·지정학",
+  "Energy Geopolitics": "에너지·지정학",
   "Annual reporting cadence driven by Form 10-K filings.": "Form 10-K 공시 주기로 확인하는 연간 공시 테마입니다.",
   "Annual reporting event quality remains supportive.": "연간 공시 이벤트 품질이 우호적으로 유지됩니다.",
   "Annual reporting quality": "연간 공시 품질",
@@ -381,6 +393,50 @@ const KOREAN_LABELS: Record<string, string> = {
 };
 
 const EMBEDDED_LABEL_REPLACEMENTS: Array<[RegExp, string]> = [
+  [
+    /\bUS_MARKET_BREADTH flow propagated to ([A-Z0-9.-]+); sensitivity=positive; exposure=([0-9.]+); 이벤트=/g,
+    "미국 시장 참여도 흐름이 $1에 우호적으로 전파됐다. 노출도 $2. 근거=",
+  ],
+  [
+    /\bUS_MARKET_BREADTH flow propagated to ([A-Z0-9.-]+); sensitivity=negative; exposure=([0-9.]+); 이벤트=/g,
+    "미국 시장 참여도 흐름이 $1에 부정적으로 전파됐다. 노출도 $2. 근거=",
+  ],
+  [
+    /\bMACRO_RATES_FED flow propagated to ([A-Z0-9.-]+); sensitivity=negative; exposure=([0-9.]+); 이벤트=/g,
+    "금리·연준 흐름이 $1에 부정적으로 전파됐다. 노출도 $2. 근거=",
+  ],
+  [
+    /\bMACRO_RATES_FED flow propagated to ([A-Z0-9.-]+); sensitivity=positive; exposure=([0-9.]+); 이벤트=/g,
+    "금리·연준 흐름이 $1에 우호적으로 전파됐다. 노출도 $2. 근거=",
+  ],
+  [
+    /\bENERGY_GEOPOLITICS flow propagated to ([A-Z0-9.-]+); sensitivity=positive; exposure=([0-9.]+); 이벤트=/g,
+    "에너지·지정학 흐름이 $1에 우호적으로 전파됐다. 노출도 $2. 근거=",
+  ],
+  [
+    /\bENERGY_GEOPOLITICS flow propagated to ([A-Z0-9.-]+); sensitivity=negative; exposure=([0-9.]+); 이벤트=/g,
+    "에너지·지정학 흐름이 $1에 부정적으로 전파됐다. 노출도 $2. 근거=",
+  ],
+  [
+    /\bRule-based free RSS enrichment; no paid provider or LLM used\.?;?/g,
+    "무료 RSS 규칙으로 해석했다.",
+  ],
+  [
+    /\bAI-validated RSS news 근거 via offline batch\.?/g,
+    "배치 AI 검증을 통과한 RSS 뉴스 근거.",
+  ],
+  [/\bRationale:/g, "해석:"],
+  [/\bEvidence:/g, "근거:"],
+  [/검색\/RAG에 사용할 문서 청크/g, "근거 검색에 사용할 문서 조각"],
+  [/\bexposure_rationale=/g, "노출 근거: "],
+  [/\bsensitivity=positive;?/g, "민감도: 우호."],
+  [/\bsensitivity=negative;?/g, "민감도: 부정."],
+  [/\bsensitivity=neutral;?/g, "민감도: 중립."],
+  [/\bexposure=([0-9.]+);?/g, "노출도 $1."],
+  [/\bret; /g, ""],
+  [/\bBroad market ETF maps directly to US market breadth\.?/g, "광범위 시장 ETF라 미국 시장 참여도 흐름에 직접 노출된다."],
+  [/\bHigh-beta equity tends to be sensitive to broad market risk appetite\.?/g, "고베타 성장주는 시장 위험선호 변화에 민감하다."],
+  [/\bBroad US equities usually de-rate when rate expectations rise\.?/g, "미국 광범위 주식은 금리 기대가 높아질 때 밸류에이션 압력을 받기 쉽다."],
   [
     /\bAnalysis is limited to the RSS title, metadata, and retrieval context\.?/g,
     "분석은 RSS 제목, 메타데이터, 저장된 검색 맥락만 사용했습니다.",
@@ -465,6 +521,10 @@ export function koCode(value: string | null | undefined): string {
 export function koReason(value: string | null | undefined): string {
   if (!value) {
     return "없음";
+  }
+  const skippedSameWeight = value.match(/^skipped:([A-Z0-9.-]+)\.target weight equals current weight$/);
+  if (skippedSameWeight) {
+    return `${skippedSameWeight[1]}은 현재 비중과 목표 비중이 같아 가상 조치가 생략됐다.`;
   }
   const portfolioReason = value.match(
     /^([A-Z]+) portfolio review action ([^.]+)\. Thesis review action ([^;]+); current weight ([^;]+); recommended weight ([^;]+); coverage status ([^.]+)\.$/,

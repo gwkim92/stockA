@@ -129,7 +129,8 @@ export function getTradingReadiness() {
 }
 
 export function getCycleStates() {
-  return fetchFrontendPayload<CycleStateListData>("/api/cycles?asOfDate=2024-11-01");
+  const query = new URLSearchParams({ asOfDate: currentIsoDate() });
+  return fetchFrontendPayload<CycleStateListData>(`/api/cycles?${query.toString()}`);
 }
 
 export function getRecommendations() {
@@ -144,7 +145,7 @@ export function getThesisDetail(thesisId: string) {
   return fetchFrontendPayload<ThesisDetailData>(`/api/theses/${thesisId}`);
 }
 
-export function getPortfolioCoverage(asOfDate = "2024-11-01") {
+export function getPortfolioCoverage(asOfDate = currentIsoDate()) {
   const query = new URLSearchParams({ asOfDate });
   return fetchFrontendPayload<PortfolioCoverageData>(
     `/api/portfolio/Long%20Term%20Paper/coverage?${query.toString()}`,
@@ -177,12 +178,14 @@ export function getEvents({
 }
 
 export function getThemeDetail(themeKey: string) {
-  return fetchFrontendPayload<ThemeDetailData>(`/api/themes/${themeKey}?asOfDate=2024-11-01`);
+  const query = new URLSearchParams({ asOfDate: currentIsoDate() });
+  return fetchFrontendPayload<ThemeDetailData>(`/api/themes/${themeKey}?${query.toString()}`);
 }
 
 export function getPerformanceOutcomes() {
+  const query = new URLSearchParams({ measurementEndDate: currentIsoDate() });
   return fetchFrontendPayload<PerformanceOutcomesData>(
-    "/api/performance/Long%20Term%20Paper/outcomes?measurementEndDate=2024-12-02",
+    `/api/performance/Long%20Term%20Paper/outcomes?${query.toString()}`,
   );
 }
 

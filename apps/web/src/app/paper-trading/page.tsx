@@ -159,7 +159,7 @@ export default async function PaperTradingPage() {
             <div className="tag-ledger">
               {data.guardrails.map((guardrail) => (
                 <span className="risk-tag risk-medium" key={guardrail}>
-                  {guardrail}
+                  {koLabel(guardrail)}
                 </span>
               ))}
             </div>

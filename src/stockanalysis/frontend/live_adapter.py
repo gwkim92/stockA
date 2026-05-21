@@ -1449,14 +1449,31 @@ def build_live_portfolio_coverage_response(
     except ValueError as exc:
         if str(exc) != NO_PORTFOLIO_POSITIONS_MESSAGE:
             raise
-        missing_position_snapshot = True
-        report = _empty_portfolio_coverage_report(
+        latest_snapshot_date = _load_latest_portfolio_snapshot_date(
+            config=config,
+            executor=executor,
             portfolio_name=portfolio_name,
-            snapshot_date=as_of_date,
-            measurement_end_date=measurement_end_date,
-            position_limit=page_limit,
-            position_offset=page_offset,
+            requested_date=as_of_date,
         )
+        if latest_snapshot_date and latest_snapshot_date != as_of_date:
+            report = load_portfolio_outcome_coverage_report(
+                config=config,
+                portfolio_name=portfolio_name,
+                snapshot_date=latest_snapshot_date,
+                measurement_end_date=max(measurement_end_date, latest_snapshot_date),
+                position_limit=page_limit,
+                position_offset=page_offset,
+                executor=executor,
+            )
+        else:
+            missing_position_snapshot = True
+            report = _empty_portfolio_coverage_report(
+                portfolio_name=portfolio_name,
+                snapshot_date=as_of_date,
+                measurement_end_date=measurement_end_date,
+                position_limit=page_limit,
+                position_offset=page_offset,
+            )
     positions = [_build_position_payload(position) for position in _as_list(report.get("positions"))]
     blocking_reasons = [
         f"{position['coverage_status']}:{position['symbol']}"
@@ -1502,6 +1519,42 @@ def build_live_portfolio_coverage_response(
             "dashboard": "/api/dashboard/today",
         },
     }
+
+
+def _load_latest_portfolio_snapshot_date(
+    *,
+    config: RuntimeConfig,
+    executor: PsqlCommandExecutor | None,
+    portfolio_name: str,
+    requested_date: date,
+) -> date | None:
+    sql_executor = executor or PsqlCommandExecutor.from_config(config)
+    payload = sql_executor.execute_scalar(
+        render_latest_portfolio_snapshot_date_sql(
+            portfolio_name=portfolio_name,
+            requested_date=requested_date,
+        )
+    )
+    snapshot_text = str(payload or "").strip()
+    if not snapshot_text:
+        return None
+    return date.fromisoformat(snapshot_text)
+
+
+def render_latest_portfolio_snapshot_date_sql(*, portfolio_name: str, requested_date: date) -> str:
+    return f"""-- frontend latest portfolio snapshot date lookup
+with selected_portfolio as (
+    select portfolio_id
+    from portfolio.portfolio
+    where portfolio_name = {sql_literal(portfolio_name)}
+    limit 1
+)
+select coalesce(max(position.snapshot_date)::text, '')
+from selected_portfolio portfolio
+join portfolio.position_snapshot position on position.portfolio_id = portfolio.portfolio_id
+where position.snapshot_date <= {sql_date(requested_date)}
+  and position.quantity <> 0
+"""
 
 
 def _empty_portfolio_coverage_report(

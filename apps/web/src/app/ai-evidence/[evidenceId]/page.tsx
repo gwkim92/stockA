@@ -166,7 +166,7 @@ function NeighborhoodPanel({ neighborhood }: { neighborhood: EvidenceNeighborhoo
         <article className="rail-cell">
           <span>테마</span>
           <strong>{neighborhood.summary.theme_count}</strong>
-          <small>온톨로지-lite 연결</small>
+          <small>테마 관계 연결</small>
         </article>
         <article className="rail-cell">
           <span>이벤트</span>
@@ -478,7 +478,7 @@ export default async function AiEvidencePage({ params }: AiEvidencePageProps) {
                 </dd>
               </div>
               <div>
-                <dt>RAG-lite 조회</dt>
+                <dt>저장 문맥 조회</dt>
                 <dd>
                   테마 {formatContextCount(data.retrieval_context_summary.known_themes)}개 · 관계{" "}
                   {formatContextCount(data.retrieval_context_summary.theme_edges)}개 · 유사 뉴스{" "}

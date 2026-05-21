@@ -38,7 +38,7 @@ export default async function RemediationPage() {
       <section className="status-rail compact-rail reveal delay-1" aria-label="보완 큐 요약">
         <article className="rail-cell">
           <span>01 포트폴리오</span>
-          <strong>{koLabel(data.portfolio_name)}</strong>
+          <strong className="rail-word-value">{koLabel(data.portfolio_name)}</strong>
           <small>{koCode(data.status_filter)} 필터</small>
         </article>
         <article className="rail-cell">

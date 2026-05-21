@@ -151,6 +151,11 @@ export default async function RecommendationsPage() {
         </div>
 
         <div className="bento-list">
+          {data.recommendations.length === 0 ? (
+            <p className="empty-state">
+              아직 최신 추천 배치가 없다. 가격·뉴스·사이클 배치가 실행되고 추천 후보가 생성되면 이 목록에 표시된다.
+            </p>
+          ) : null}
           {data.recommendations.map((row) => {
             const thesisLink = thesisHref(row.linked_thesis_id);
             const evidenceLink = evidenceHref(row.evidence.primary_evidence_id);

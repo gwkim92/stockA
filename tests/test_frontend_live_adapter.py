@@ -1364,6 +1364,85 @@ class EmptyPortfolioCoverageExecutor(FakeLiveExecutor):
                     "positions": [],
                 }
             )
+        if sql.startswith("-- frontend latest portfolio snapshot date lookup"):
+            return ""
+        return super().execute_scalar(sql)
+
+
+class LatestPortfolioCoverageExecutor(FakeLiveExecutor):
+    def __init__(self) -> None:
+        super().__init__()
+        self.coverage_lookup_count = 0
+
+    def execute_scalar(self, sql: str) -> str:
+        if sql.startswith("-- frontend latest portfolio snapshot date lookup"):
+            self.scalar_sql.append(sql)
+            return "2026-05-19"
+        if sql.startswith("-- portfolio outcome coverage report"):
+            self.scalar_sql.append(sql)
+            self.coverage_lookup_count += 1
+            if self.coverage_lookup_count == 1:
+                return json.dumps(
+                    {
+                        "portfolio_id": None,
+                        "portfolio_name": "Long Term Paper",
+                        "snapshot_date": "2026-05-20",
+                        "measurement_end_date": "2026-06-20",
+                        "position_count": 0,
+                        "status_counts": {
+                            "covered": 0,
+                            "missing_outcome": 0,
+                            "missing_thesis": 0,
+                            "missing_weight": 0,
+                        },
+                        "weight_by_status": {
+                            "covered": "0.0000",
+                            "missing_outcome": "0.0000",
+                            "missing_thesis": "0.0000",
+                            "missing_weight": "0.0000",
+                        },
+                        "cash_weight": None,
+                        "coverage_ratio_by_weight": None,
+                        "positions": [],
+                    }
+                )
+            return json.dumps(
+                {
+                    "portfolio_id": 3001,
+                    "portfolio_name": "Long Term Paper",
+                    "snapshot_date": "2026-05-19",
+                    "measurement_end_date": "2026-06-20",
+                    "position_count": 1,
+                    "status_counts": {
+                        "covered": 1,
+                        "missing_outcome": 0,
+                        "missing_thesis": 0,
+                        "missing_weight": 0,
+                    },
+                    "weight_by_status": {
+                        "covered": "0.5000",
+                        "missing_outcome": "0.0000",
+                        "missing_thesis": "0.0000",
+                        "missing_weight": "0.0000",
+                    },
+                    "cash_weight": "0.5000",
+                    "coverage_ratio_by_weight": "1.0000",
+                    "positions": [
+                        {
+                            "symbol": "SPY",
+                            "instrument_id": 501,
+                            "coverage_status": "covered",
+                            "weight": "0.5000",
+                            "market_value": "5000.00",
+                            "linked_thesis_id": 7001,
+                            "thesis_title": "SPY thesis",
+                            "outcome_id": 8101,
+                            "outcome_status": "working",
+                            "success_grade": "pass",
+                        },
+                    ],
+                }
+            )
         return super().execute_scalar(sql)
 
 
@@ -2555,6 +2634,23 @@ class FrontendLiveAdapterTests(unittest.TestCase):
             payload["data"]["attribution_readiness"]["blocking_reasons"],
             ["missing_position_snapshot:Long Term Paper"],
         )
+
+    def test_live_portfolio_coverage_falls_back_to_latest_snapshot_before_requested_date(self) -> None:
+        executor = LatestPortfolioCoverageExecutor()
+        payload = resolve_live_frontend_response(
+            "/api/portfolio/Long%20Term%20Paper/coverage?asOfDate=2026-05-20",
+            config=type("Config", (), {"psql_command": "psql"})(),
+            executor=executor,
+            generated_at=datetime(2026, 5, 20, tzinfo=timezone.utc),
+        )
+
+        self.assertEqual(payload["contract_version"], "frontend-api-v0.1")
+        self.assertEqual(payload["data"]["as_of_date"], "2026-05-19")
+        self.assertEqual(payload["data"]["summary"]["position_count"], 1)
+        self.assertEqual(payload["data"]["summary"]["weight_coverage_ratio"], 1.0)
+        self.assertEqual(payload["data"]["positions"][0]["symbol"], "SPY")
+        self.assertEqual(payload["data"]["attribution_readiness"]["blocking_reasons"], [])
+        self.assertTrue(any(sql.startswith("-- frontend latest portfolio snapshot date lookup") for sql in executor.scalar_sql))
 
     def test_live_portfolio_coverage_allows_explicit_measurement_end_date(self) -> None:
         executor = FakeLiveExecutor()

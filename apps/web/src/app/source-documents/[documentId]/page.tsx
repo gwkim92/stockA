@@ -101,9 +101,12 @@ export default async function SourceDocumentPage({ params }: SourceDocumentPageP
         <article className="bento-card span-2 row-span-2">
           <div style={{ marginBottom: "24px" }}>
             <span className="metric-sub">검토된 발췌</span>
-            <h2 style={{ fontSize: "1.5rem" }}>청크 원장</h2>
+            <h2 style={{ fontSize: "1.5rem" }}>검토 발췌 목록</h2>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: "16px", overflowY: "auto" }}>
+            {data.excerpts.length === 0 ? (
+              <p className="empty-state">이 문서에는 아직 화면에 노출할 검토 발췌가 없다.</p>
+            ) : null}
             {data.excerpts.map((excerpt) => (
               <div key={excerpt.chunk_id} style={{
                 padding: "16px",
@@ -128,6 +131,9 @@ export default async function SourceDocumentPage({ params }: SourceDocumentPageP
             <h2 style={{ fontSize: "1.5rem" }}>AI 증거 연결</h2>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginBottom: "24px" }}>
+            {data.linked_evidence.length === 0 ? (
+              <p className="empty-state">이 원천 문서에 연결된 AI 근거가 아직 없다.</p>
+            ) : null}
             {data.linked_evidence.map((evidence) => (
               <div key={evidence.evidence_id} style={{
                 padding: "16px",

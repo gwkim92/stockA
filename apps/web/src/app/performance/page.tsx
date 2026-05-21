@@ -30,7 +30,7 @@ function thesisHref(thesisId: string) {
 }
 
 function themeHref(themeKey: string | null) {
-  return themeKey === "ANNUAL_REPORTING" ? (`/themes/${themeKey}` as Route) : null;
+  return themeKey ? (`/themes/${themeKey}` as Route) : null;
 }
 
 function gateColor(status: string) {
@@ -45,7 +45,7 @@ function gateColor(status: string) {
 
 function evaluationStatusLabel(status: string) {
   const labels: Record<string, string> = {
-    no_outcome_data: "성과 데이터 없음",
+    no_outcome_data: "성과 측정 전",
     insufficient_sample: "표본 부족",
     enough_sample: "표본 충분",
     needs_coverage_review: "커버리지 보완 필요",
@@ -60,10 +60,10 @@ function evaluationStatusColor(status: string) {
   if (status === "positive_alignment") {
     return "var(--accent-green)";
   }
-  if (status === "needs_quality_review" || status === "no_outcome_data") {
+  if (status === "needs_quality_review") {
     return "var(--accent-red)";
   }
-  if (status === "insufficient_sample" || status === "needs_coverage_review") {
+  if (status === "insufficient_sample" || status === "needs_coverage_review" || status === "no_outcome_data") {
     return "var(--accent-amber)";
   }
   return "var(--text-primary)";
@@ -129,6 +129,7 @@ export default async function PerformancePage() {
   const response = await getPerformanceOutcomes();
   const data = response.data;
   const quality = data.quality_evaluation;
+  const hasMeasuredOutcomes = data.summary.measured_recommendation_count > 0 || data.outcomes.length > 0;
 
   return (
     <div className="pageStack">
@@ -149,16 +150,16 @@ export default async function PerformancePage() {
 
           <div style={{
             padding: "20px 32px",
-            background: "rgba(16, 185, 129, 0.1)",
-            border: "1px solid rgba(16, 185, 129, 0.2)",
+            background: hasMeasuredOutcomes ? "rgba(16, 185, 129, 0.1)" : "rgba(245, 158, 11, 0.1)",
+            border: `1px solid ${hasMeasuredOutcomes ? "rgba(16, 185, 129, 0.2)" : "rgba(245, 158, 11, 0.2)"}`,
             borderRadius: "var(--radius-md)",
             textAlign: "center",
           }}>
-            <span className="metric-sub" style={{ color: "var(--accent-green)" }}>평균 알파</span>
+            <span className="metric-sub" style={{ color: hasMeasuredOutcomes ? "var(--accent-green)" : "var(--accent-amber)" }}>평균 알파</span>
             <div style={{ fontSize: "2.5rem", fontWeight: 700, color: "var(--text-primary)", margin: "4px 0" }}>
-              {formatPercent(data.summary.average_alpha)}
+              {hasMeasuredOutcomes ? formatPercent(data.summary.average_alpha) : "측정 전"}
             </div>
-            <div style={{ fontSize: "0.85rem", color: "var(--accent-green)", fontWeight: 600, textTransform: "uppercase" }}>
+            <div style={{ fontSize: "0.85rem", color: hasMeasuredOutcomes ? "var(--accent-green)" : "var(--accent-amber)", fontWeight: 600 }}>
               대비 {data.benchmark_code}
             </div>
           </div>
@@ -168,9 +169,11 @@ export default async function PerformancePage() {
       <section className="bento-grid reveal delay-1">
         <article className="bento-card">
           <span className="metric-label">적중률</span>
-          <strong className="metric-value">{formatPercent(data.summary.hit_rate)}</strong>
+          <strong className="metric-value">{hasMeasuredOutcomes ? formatPercent(data.summary.hit_rate) : "측정 전"}</strong>
           <span className="metric-sub">
-            상회 {data.summary.outperform_count} / 하회 {data.summary.underperform_count}
+            {hasMeasuredOutcomes
+              ? `상회 ${data.summary.outperform_count} / 하회 ${data.summary.underperform_count}`
+              : "측정 종료일이 지난 추천부터 집계"}
           </span>
         </article>
         <article className="bento-card">
@@ -180,7 +183,9 @@ export default async function PerformancePage() {
         </article>
         <article className="bento-card">
           <span className="metric-label">종목 관점</span>
-          <strong className="metric-value">{formatBps(data.summary.security_lens_contribution_bps)}</strong>
+          <strong className="metric-value">
+            {hasMeasuredOutcomes ? formatBps(data.summary.security_lens_contribution_bps) : "측정 전"}
+          </strong>
           <span className="metric-sub">{koCode(data.methodology)}</span>
         </article>
         <article className="bento-card" style={{ borderColor: data.summary.excluded_position_count > 0 ? "rgba(245, 158, 11, 0.45)" : "var(--border-light)" }}>
@@ -236,14 +241,17 @@ export default async function PerformancePage() {
           </div>
 
           <div className="bento-list">
+            {quality.checks.length === 0 ? (
+              <p className="empty-state">아직 실행된 품질 관문이 없다. 성과 측정 배치가 생성되면 여기에 검토 항목이 표시된다.</p>
+            ) : null}
             {quality.checks.map((check) => (
               <div className="bento-list-item" key={check.check_key} style={{ alignItems: "flex-start" }}>
                 <div>
-                  <strong>{check.label}</strong>
-                  <span>{check.detail}</span>
-                  <span>{check.next_step}</span>
+                  <strong>{koLabel(check.label)}</strong>
+                  <span>{koLabel(check.detail)}</span>
+                  <span>{koLabel(check.next_step)}</span>
                 </div>
-                <strong style={{ color: qualityCheckColor(check.status), textTransform: "uppercase" }}>
+                <strong style={{ color: qualityCheckColor(check.status) }}>
                   {koCode(check.status)}
                 </strong>
               </div>
@@ -262,6 +270,12 @@ export default async function PerformancePage() {
             </Link>
           </div>
           <div className="bento-list">
+            {data.outcomes.length === 0 ? (
+              <p className="empty-state">
+                아직 측정 종료일이 지난 추천 성과가 없다. 이 화면은 실패가 아니라 성과 측정 윈도우가
+                도래하기 전 상태를 표시한다.
+              </p>
+            ) : null}
             {data.outcomes.map((outcome) => (
               <div className="bento-list-item" key={outcome.outcome_id} style={{ alignItems: "flex-start" }}>
                 <div style={{ flex: 1 }}>
@@ -298,6 +312,9 @@ export default async function PerformancePage() {
             <h2 style={{ fontSize: "1.5rem" }}>합산값이 아니라 해석 관점</h2>
           </div>
           <div className="bento-list">
+            {data.attribution_components.length === 0 ? (
+              <p className="empty-state">성과 결과가 없어서 아직 귀속 관점이 생성되지 않았다.</p>
+            ) : null}
             {data.attribution_components.map((component) => {
               const href = themeHref(component.theme_key);
               return (
@@ -330,6 +347,9 @@ export default async function PerformancePage() {
             <h2 style={{ fontSize: "1.5rem" }}>커버리지 부족 항목</h2>
           </div>
           <div className="bento-list">
+            {data.coverage_exclusions.length === 0 ? (
+              <p className="empty-state">성과 귀속에서 제외된 포지션이 없다.</p>
+            ) : null}
             {data.coverage_exclusions.map((exclusion) => (
               <div className="bento-list-item" key={exclusion.instrument_id}>
                 <div>

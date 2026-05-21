@@ -11,6 +11,7 @@ function formatPercent(value: number) {
 export default async function PortfolioCoveragePage() {
   const response = await getPortfolioCoverage();
   const data = response.data;
+  const hasPositions = data.positions.length > 0;
 
   return (
     <div className="pageStack">
@@ -49,7 +50,9 @@ export default async function PortfolioCoveragePage() {
         <article className="bento-card">
           <span className="metric-label">포지션</span>
           <strong className="metric-value">{data.summary.position_count}</strong>
-          <span className="metric-sub">{data.summary.covered_position_count}개 커버됨</span>
+          <span className="metric-sub">
+            {hasPositions ? `${data.summary.covered_position_count}개 커버됨` : "해당 기준일 포지션 스냅샷 없음"}
+          </span>
         </article>
         
         <article className="bento-card" style={{ borderColor: data.summary.missing_thesis_count > 0 ? "var(--accent-red)" : "var(--border-light)" }}>
@@ -88,6 +91,13 @@ export default async function PortfolioCoveragePage() {
                 <span className="metric-sub" style={{ flex: 1 }}>필요 조치</span>
               </div>
             </div>
+
+            {!hasPositions ? (
+              <p className="empty-state">
+                이 기준일에 보유 포지션 스냅샷이 없어 커버리지 표를 만들 수 없다. 포트폴리오 포지션 적재 배치가
+                최신 영업일 스냅샷을 저장하면 심볼, 비중, 투자 논리, 성과 측정 상태가 여기에 표시된다.
+              </p>
+            ) : null}
             
             {data.positions.map((position) => (
               <div className="bento-list-item" key={position.instrument_id} style={{ alignItems: "flex-start" }}>
@@ -107,7 +117,7 @@ export default async function PortfolioCoveragePage() {
                     {koCode(position.outcome_status)}
                   </span>
                   <span style={{ flex: 1, color: "var(--text-primary)", fontWeight: 500 }}>
-                    {koCode(position.action)}
+                    {koLabel(position.action)}
                   </span>
                 </div>
               </div>

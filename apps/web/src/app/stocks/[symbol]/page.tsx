@@ -60,6 +60,17 @@ function formatDate(value: string) {
   return value ? value.slice(0, 10) : "날짜 없음";
 }
 
+function evidenceChunkPreview(value: string | null | undefined) {
+  if (!value) {
+    return "문서 미리보기 없음";
+  }
+  const titleMatch = value.match(/Title:\s*(.*?)(?:\s+Summary:|\s+Published\/Event At:|$)/);
+  if (titleMatch?.[1]) {
+    return `원문 제목: ${koLabel(titleMatch[1])}`;
+  }
+  return koLabel(value.split(" Retrieval context:")[0] ?? value);
+}
+
 function recommendationHref(recommendationId: string) {
   return `/recommendations/${recommendationId}` as Route;
 }
@@ -238,7 +249,7 @@ function EvidenceNeighborhoodPanel({ neighborhood }: { neighborhood: AiEvidenceN
                   <strong>{koLabel(group.title)}</strong>
                   <small>
                     이벤트 {group.event_count.toLocaleString("ko-KR")}개 · 원천 {group.source_document_count.toLocaleString("ko-KR")}개 ·
-                    RAG 청크 {group.linked_chunk_count.toLocaleString("ko-KR")}개 · 휴리스틱 신뢰도 {formatPercent(group.confidence)}
+                    문서 검색 청크 {group.linked_chunk_count.toLocaleString("ko-KR")}개 · 규칙 기반 신뢰도 {formatPercent(group.confidence)}
                   </small>
                   {group.relation_reasons.slice(0, 3).map((reason) => (
                     <small key={`${group.story_id}-${reason}`}>{koLabel(reason)}</small>
@@ -261,8 +272,8 @@ function EvidenceNeighborhoodPanel({ neighborhood }: { neighborhood: AiEvidenceN
           </div>
         </div>
 
-        <div className="relationship-panel" aria-label={`${neighborhood.symbol} 저장된 증거 청크`}>
-          <span>검색/RAG 준비 상태</span>
+        <div className="relationship-panel" aria-label={`${neighborhood.symbol} 저장된 증거 문서`}>
+          <span>문서 검색 준비 상태</span>
           <div className="relationship-list">
             {neighborhood.evidence_chunks.slice(0, 4).map((chunk) => {
               const document = sourceDocumentHref(chunk.source_document_id);
@@ -275,7 +286,7 @@ function EvidenceNeighborhoodPanel({ neighborhood }: { neighborhood: AiEvidenceN
               return (
                 <div className="relationship-chip" key={chunk.chunk_id}>
                   <span>{koCode(chunk.embedding_status)}</span>
-                  <strong>{koLabel(chunk.text_preview || "텍스트 미리보기 없음")}</strong>
+                  <strong>{evidenceChunkPreview(chunk.text_preview)}</strong>
                   <small>
                     {chunk.source_url_host || "출처 host 없음"} · {sourceKind} · 토큰{" "}
                     {chunk.token_count.toLocaleString("ko-KR")} · {chunk.embedding_provider || "임베딩 공급자 없음"}{" "}
@@ -286,7 +297,7 @@ function EvidenceNeighborhoodPanel({ neighborhood }: { neighborhood: AiEvidenceN
               );
             })}
             {neighborhood.evidence_chunks.length === 0 ? (
-              <p className="relationship-empty">아직 RAG 검색에 사용할 문서 청크가 없다.</p>
+              <p className="relationship-empty">아직 근거 검색에 사용할 문서 청크가 없다.</p>
             ) : null}
           </div>
         </div>
@@ -309,6 +320,9 @@ export default async function StockDetailPage({ params }: StockDetailPageProps) 
   ]);
   const data = response.data;
   const neighborhood = neighborhoodResponse.data;
+  const hasPriceData = data.summary.bar_count > 0 && data.latest_price.close !== null;
+  const hasEvidenceOnlyData =
+    !hasPriceData && (data.macro_flow_impacts.length > 0 || data.recent_events.length > 0);
 
   return (
     <div className="pageStack">
@@ -316,7 +330,9 @@ export default async function StockDetailPage({ params }: StockDetailPageProps) 
         <div className="bento-badge">
           종목 상세 • {data.market_code} • {data.as_of_date}
         </div>
-        <h1 id="stock-detail-title">{data.symbol} 데이터와 판단 근거</h1>
+        <h1 id="stock-detail-title">
+          {hasEvidenceOnlyData ? `${data.symbol} 시장 흐름과 수집 상태` : `${data.symbol} 데이터와 판단 근거`}
+        </h1>
         <p>
           가격 차트, 추천 상태, 보유 상태, 관련 이벤트를 한 화면에서 확인한다. 이 화면은 주문 버튼이 아니라
           사람이 검토해야 할 근거 묶음이다.
@@ -326,7 +342,7 @@ export default async function StockDetailPage({ params }: StockDetailPageProps) 
       <section className="status-rail compact-rail reveal delay-1" aria-label="종목 요약">
         <div className="rail-cell">
           <span>최신 종가</span>
-          <strong>{formatCurrency(data.latest_price.close, data.currency_code)}</strong>
+          <strong>{hasPriceData ? formatCurrency(data.latest_price.close, data.currency_code) : "가격 미수집"}</strong>
           <small>{data.latest_price.trade_date || "가격일 없음"}</small>
         </div>
         <div className="rail-cell">
@@ -345,6 +361,19 @@ export default async function StockDetailPage({ params }: StockDetailPageProps) 
           <small>{data.position?.snapshot_date || "스냅샷 없음"}</small>
         </div>
       </section>
+
+      {hasEvidenceOnlyData ? (
+        <section className="bento-card reveal delay-1" aria-label="가격 미수집 안내">
+          <div className="section-heading stacked-heading">
+            <span className="metric-sub">데이터 상태 구분</span>
+            <h2>이 화면은 가격 분석이 아니라 시장 흐름 노출을 먼저 보여준다</h2>
+          </div>
+          <p style={{ color: "var(--text-secondary)", marginBottom: 0 }}>
+            {data.symbol}은 현재 뉴스·테마 흐름에는 연결되어 있지만, 이 서버의 가격 캔들 수집 대상에는 아직 충분히
+            포함되지 않았다. 따라서 가격 차트와 수익률은 판단하지 않고, 아래 상위 흐름/원천 뉴스만 검토한다.
+          </p>
+        </section>
+      ) : null}
 
       <section className="bento-grid reveal delay-2">
         <article className="bento-card span-3">
@@ -467,7 +496,7 @@ export default async function StockDetailPage({ params }: StockDetailPageProps) 
                     <span>
                       전파 강도 {formatPercent(flow.impact_score)} · 노출도 {formatPercent(flow.exposure_weight)} · 신뢰도 {formatPercent(flow.confidence)}
                     </span>
-                    {flow.rationale ? <span>{koLabel(flow.rationale)}</span> : null}
+                    {flow.rationale ? <span className="flow-rationale">{koLabel(flow.rationale)}</span> : null}
                   </div>
                   <div className="btn-row" style={{ marginTop: 0 }}>
                     <Link className="btn btn-secondary" href={`/themes/${encodeURIComponent(flow.theme_key)}?asOfDate=${encodeURIComponent(data.as_of_date)}` as Route}>

@@ -383,6 +383,14 @@ h6 {
   overflow-wrap: anywhere;
 }
 
+.bento-list-item .flow-rationale {
+  max-width: 980px;
+  overflow-wrap: break-word;
+  color: var(--text-secondary);
+  line-height: 1.55;
+  word-break: keep-all;
+}
+
 .status-indicator {
   display: inline-flex;
   align-items: center;
@@ -1682,6 +1690,7 @@ h6 {
 }
 
 .relationship-empty {
+  flex-basis: 100%;
   margin: 12px 0 0;
   color: var(--text-tertiary);
 }
@@ -2040,6 +2049,25 @@ h6 {
 
 .data-health-table {
   min-width: 940px;
+}
+
+.data-health-summary-grid {
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
+.data-health-summary-grid .flow-step {
+  border-bottom: 1px solid var(--border-light);
+  border-right: 1px solid var(--border-light);
+}
+
+.data-health-summary-grid .flow-step .fact-list div {
+  grid-template-columns: 1fr;
+  gap: 5px;
+}
+
+.data-health-summary-grid .flow-step .fact-list dd {
+  overflow-wrap: break-word;
+  word-break: keep-all;
 }
 
 .tag-ledger {

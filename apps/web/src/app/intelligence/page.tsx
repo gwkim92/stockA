@@ -269,12 +269,12 @@ export default async function IntelligencePage() {
       <section className="status-rail compact-rail reveal delay-1" aria-label="뉴스 AI 판단 요약">
         <article className="rail-cell">
           <span>뉴스 수집</span>
-          <strong>{formatRunStatus(newsRun)}</strong>
+          <strong className="rail-word-value">{formatRunStatus(newsRun)}</strong>
           <small>{formatNewsRunLabel(newsRun)} · {newsRun?.finished_at ?? "최근 완료 없음"}</small>
         </article>
         <article className="rail-cell">
           <span>AI 후보 분석</span>
-          <strong>{formatRunStatus(aiRun)}</strong>
+          <strong className="rail-word-value">{formatRunStatus(aiRun)}</strong>
           <small>{aiRun?.finished_at ?? "최근 완료 없음"}</small>
         </article>
         <article className="rail-cell">
