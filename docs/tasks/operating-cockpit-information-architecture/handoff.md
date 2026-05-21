@@ -14,10 +14,14 @@
   - `news_event_candidate` 후보 SQL이 하나의 이벤트를 theme/instrument join 곱으로 중복 반환하지 않도록 lateral single-pick 방식으로 보강한다.
   - EC2에 배포했고, `codex_oauth` batch로 2026-05-21 기준 남아 있던 24개 뉴스 후보를 새 한국어 prompt version으로 재생성했다.
   - 분석 지도 상단 보유 커버리지는 빈 coverage endpoint가 아니라 cockpit dashboard 운영 metric을 사용하도록 맞췄다.
+  - `/intelligence`에서 저장 뉴스 묶음과 임시 로컬 묶음 카드가 따로 반복되던 구조를 하나의 `뉴스 판단 보드`로 통합했다.
+  - `/intelligence`의 긴 대표 이벤트 trace는 제거하고, 개별 뉴스 후보는 `개별 뉴스 후보 검토 큐`로 낮춰 상세 화면 진입점만 제공한다.
+  - `/ai-evidence/[evidenceId]`는 모델 실행 기록보다 대상 종목, 영향 방향, 추천 연결, 원천 문서를 먼저 보이도록 재배치했다.
+  - AI 근거 상세는 종목 evidence-neighborhood를 읽어 추천, 투자 논리, 보유, 최근 이벤트 연결을 함께 표시한다.
 
 ## Exact Next Step
 
-- exact next step: 다음 slice에서 `/intelligence`의 저장된 뉴스 묶음 카드와 임시 로컬 뉴스 묶음 카드 중복을 더 줄이고, AI 후보 상세 화면을 종목/추천 연결 중심으로 재배치한다.
+- exact next step: 실제 브라우저에서 `/intelligence`, `/ai-evidence`, 대표 `/ai-evidence/<id>` 화면을 확인하고, 남은 어색한 문구와 줄바꿈을 페이지 단위로 계속 줄인다.
 
 ## Verification
 
@@ -34,3 +38,4 @@
 ## Risks
 
 - 이번 task는 UX 정보 구조와 AI 후보 재생성 boundary 작업이다. 추천 품질 산식, broker/order flow, DB schema는 바꾸지 않는다.
+- 점수 산식과 DB schema를 바꾸지 않았기 때문에, 화면은 더 명확해졌지만 추천 품질 자체가 개선된 것은 아니다.
