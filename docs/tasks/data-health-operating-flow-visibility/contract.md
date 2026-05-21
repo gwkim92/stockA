@@ -56,8 +56,8 @@
 
 ## Done Criteria
 
-- [ ] `/data-health` has a news-after-analysis flow section.
-- [ ] `/data-health` has a profile scheduler timer status section.
-- [ ] TypeScript typecheck and build pass.
-- [ ] Route smoke confirms the new Korean labels render.
-- [ ] Handoff and review are updated.
+- [x] `/data-health` has a news-after-analysis flow section.
+- [x] `/data-health` has a profile scheduler timer status section.
+- [x] TypeScript typecheck and build pass.
+- [x] Route smoke confirms the new Korean labels render.
+- [x] Handoff and review are updated.
