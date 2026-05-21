@@ -211,7 +211,6 @@ function newsRunLabel(newsRun: PipelineRun | null) {
 function latestFreshnessDate(dataHealth: DataHealthData, dataset: string) {
   return (
     dataHealth.freshness.find((item) => item.dataset === dataset)?.latest_observation_date ||
-    dataHealth.as_of_date ||
     "2024-11-01"
   );
 }
