@@ -266,28 +266,28 @@ export default async function IntelligencePage() {
     {
       index: "01",
       title: "신호와 사이클",
-      copy: "테마별 사이클 상태, 이벤트 강도, 가격 모멘텀, 품질 점수를 확인한다.",
+      copy: "테마가 어느 국면에 있는지와 가격·이벤트 입력이 어떻게 변했는지 본다.",
       href: "/cycles",
       cta: "사이클 보드",
     },
     {
       index: "02",
       title: "추천",
-      copy: "추천 점수, 점수 구성요소, 연결된 증거, 측정된 성과를 확인한다.",
+      copy: "장기 후보, 점수 구성요소, 연결 근거, 아직 막힌 사유를 같이 본다.",
       href: firstRecommendationId ? `/recommendations/${firstRecommendationId}` : "/recommendations/AAPL-2024-11-01",
       cta: "추천 검토서",
     },
     {
       index: "03",
       title: "보유검토",
-      copy: "보유 종목마다 투자 논리, 성과 측정, 필요한 조치가 붙었는지 확인한다.",
+      copy: "보유 종목에 투자 논리와 성과 측정이 붙었는지 점검한다.",
       href: "/portfolio/coverage",
       cta: "보유 검토 지도",
     },
     {
       index: "04",
       title: "AI 분석 근거",
-      copy: "AI가 추출한 필드, 원천 청크, 토큰 사용량, 품질 관문을 확인한다.",
+      copy: "개별 뉴스 후보 분석과 뉴스 묶음 증거의 원문, 신뢰도, 검증 상태를 본다.",
       href: firstEvidenceId ? `/ai-evidence/${firstEvidenceId}` : "/ai-evidence/ai-evidence-1",
       cta: "AI 근거",
     },
@@ -297,14 +297,14 @@ export default async function IntelligencePage() {
     <div className="terminal-page intelligence-page">
       <section className="page-hero reveal" aria-labelledby="intelligence-title">
         <div>
-          <div className="bento-badge">분석 지도 02</div>
+          <div className="bento-badge">분석 지도</div>
           <h1 className="page-title" id="intelligence-title">
-            뉴스와 공시가 어떤 판단으로 이어졌는지 추적한다.
+            뉴스, AI 근거, 추천이 어떻게 이어지는지 추적한다.
           </h1>
         </div>
         <p className="page-lede">
-          현재 사이트의 신호, 추천, 보유검토, AI 근거는 개별 화면에 흩어져 있었다. 이 화면은 같은 데이터를
-          하나의 경로로 묶어 “무슨 일이 발생했고, 어떤 분석을 했고, 어떤 판단에 연결됐는지”를 보여준다.
+          이 화면은 “무슨 뉴스가 들어왔고, 어떤 근거로 묶였고, 어떤 개별 뉴스가 AI 후보 분석을 받았고,
+          추천·보유검토 어디로 연결되는지”를 한 흐름으로 보여준다.
         </p>
       </section>
 
@@ -334,7 +334,7 @@ export default async function IntelligencePage() {
       <section className="flow-panel reveal delay-2" aria-labelledby="news-operation-title">
         <div className="section-heading flow-heading">
           <span>뉴스 운영 방식</span>
-          <h2 id="news-operation-title">뉴스는 매일 수집하고, 규칙 분류와 AI 후보 분석으로 추천 근거에 연결한다</h2>
+          <h2 id="news-operation-title">뉴스는 먼저 묶고, 중요한 건 개별 AI 후보로 분석한다</h2>
         </div>
 
         <section className="status-rail compact-rail" aria-label="뉴스 수집 자동화 상태">
@@ -365,40 +365,38 @@ export default async function IntelligencePage() {
             <span>01</span>
             <strong>수집 주기</strong>
             <p>
-              뉴스 RSS 일일 수집은 운영 기준 매일 {newsRun?.expected_after_local ?? "08:30"}에 실행되도록
-              정의되어 있다. 실제 자동 실행은 스케줄러 승인 관문을 통과해야 한다.
+              EC2 systemd timer가 뉴스 수집 프로필을 정해진 주기에 호출한다. 수집 상태는 데이터 수집 화면과
+              파이프라인 실행 이력에 남는다.
             </p>
           </article>
           <article className="flow-step">
             <span>02</span>
             <strong>수집 방법</strong>
             <p>
-              저장소 밖에 둔 RSS 설정 파일의 무료 RSS/Atom feed를 순차 실행한다. 기사 원문은 원천 문서
-              원장에, 발생한 사건은 이벤트 원장에 저장한다.
+              repo 밖 RSS 설정 파일의 무료 RSS/Atom feed를 읽는다. 원문은 원천 문서에, 시장 사건은 이벤트 원장에 저장한다.
             </p>
           </article>
           <article className="flow-step">
             <span>03</span>
             <strong>1차 분석</strong>
             <p>
-              제목, 요약, feed 성격, 명확한 ticker 단서로 1차 종목·테마·영향 방향을 붙이고, 중요 뉴스는 Codex OAuth 후보 분석으로 승격한다.
-              유료 뉴스 API나 실시간 LLM 호출 없이 보수적으로 분류한다.
+              로컬 규칙이 같은 테마의 뉴스를 묶어 큰 흐름을 만든다. 이 단계는 무료이며 LLM 비용이 없다.
             </p>
           </article>
           <article className="flow-step">
             <span>04</span>
             <strong>AI/RAG 준비</strong>
             <p>
-              기사 본문은 작은 검색 단위로 나뉘어 근거가 되고, 관련 뉴스는 저장된 AI 근거 묶음으로 정리된다.
-              현재 화면의 비용 표시는 저장된 실행 기록 기준이다.
+              중요한 뉴스는 Codex OAuth batch가 테마, 종목, 방향, 불확실성으로 구조화한다.
+              검증기를 통과한 영향만 추천 근거 후보가 된다.
             </p>
           </article>
           <article className="flow-step">
             <span>05</span>
             <strong>프로젝트 사용처</strong>
             <p>
-              뉴스는 이벤트 원장, 분석 지도, 종목 상세, 추천 근거 품질 점검, 투자 논리 검토의 입력으로 쓰인다.
-              매수·매도·주문은 뉴스만으로 자동 실행하지 않는다.
+              뉴스 묶음은 흐름 파악에 쓰고, 개별 AI 후보는 추천·보유검토의 증거로 추적한다.
+              뉴스만으로 매수·매도·주문은 실행하지 않는다.
             </p>
           </article>
         </div>
@@ -417,15 +415,15 @@ export default async function IntelligencePage() {
 
       <section className="intelligence-board reveal delay-2" aria-labelledby="stored-news-cluster-title">
         <div className="section-heading stacked-heading">
-          <span>저장된 뉴스 증거 — 로컬 묶음과 AI 후보</span>
-          <h2 id="stored-news-cluster-title">뉴스 묶음이 어떤 증거로 저장됐는지 확인한다</h2>
+          <span>저장된 뉴스 증거</span>
+          <h2 id="stored-news-cluster-title">뉴스 묶음은 흐름을, 개별 AI 후보는 영향 해석을 보여준다</h2>
         </div>
 
         <section className="status-rail compact-rail" aria-label="저장된 AI 뉴스 묶음 요약">
           <article className="rail-cell">
-            <span>AI 뉴스 묶음</span>
+            <span>뉴스 묶음</span>
             <strong>{storedNewsClusters.summary.cluster_count}</strong>
-            <small>저장된 cluster artifact</small>
+            <small>같은 테마로 묶인 증거</small>
           </article>
           <article className="rail-cell">
             <span>묶인 뉴스</span>
@@ -438,7 +436,7 @@ export default async function IntelligencePage() {
             <small>임베딩 {storedNewsClusters.summary.embedded_chunk_count}개</small>
           </article>
           <article className="rail-cell">
-            <span>비용</span>
+            <span>묶음 비용</span>
             <strong>${storedNewsClusters.summary.estimated_cost_usd.toFixed(4)}</strong>
             <small>실시간 LLM 호출 없음</small>
           </article>
@@ -496,7 +494,7 @@ export default async function IntelligencePage() {
                       <strong>
                         청크 {cluster.chunk_count}개 · 임베딩 {cluster.embedded_chunk_count}개
                       </strong>
-                      <p>방금 만든 local chunk/index가 이 묶음의 원천 문서와 연결되어 있다.</p>
+                      <p>저장된 뉴스 원문 조각이 이 묶음의 근거로 연결되어 있다.</p>
                     </div>
 
                     <div className="trace-arrow" aria-hidden="true">→</div>
@@ -548,7 +546,7 @@ export default async function IntelligencePage() {
                 <h3>아직 저장된 AI 뉴스 묶음이 없다.</h3>
               </div>
             </div>
-            <p className="relationship-empty">뉴스 수집, event enrichment, cluster evidence runner가 성공하면 이 영역이 채워진다.</p>
+            <p className="relationship-empty">뉴스 수집, 이벤트 구조화, 뉴스 묶음 생성이 성공하면 이 영역이 채워진다.</p>
           </article>
         )}
       </section>

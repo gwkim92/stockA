@@ -87,7 +87,7 @@ function schedulerReadinessExplanation(scheduler: SchedulerStatus) {
   if (activation.approval_gate === "installed_on_ec2_systemd") {
     const activeCount = profileScheduler?.active_timer_count ?? 0;
     const timerCount = profileScheduler?.timer_count ?? 0;
-    return `EC2 서버의 systemd timer가 데이터 수집과 분석 작업을 주기별로 호출한다. 현재 profile timer는 ${activeCount}/${timerCount}개가 활성 상태이며, 화면은 repo 밖 status report를 읽어 이 상태를 보여준다.`;
+    return `EC2 서버의 systemd timer가 데이터 수집과 분석 작업을 주기별로 호출한다. 현재 반복 실행기는 ${activeCount}/${timerCount}개가 활성 상태다.`;
   }
   if (activation.activation_allowed && activation.scheduler_activation !== "not_installed") {
     return "승인 관문과 실행기 상태가 반복 실행을 허용하는 상태다. 외부 배포가 아니라도 로컬 반복 실행기로 운영할 수 있다.";
@@ -96,23 +96,23 @@ function schedulerReadinessExplanation(scheduler: SchedulerStatus) {
     return "최근 파이프라인 실행은 성공했지만, 자동 반복 실행기는 아직 연결되지 않았다. 현재 목표는 외부 서버 배포가 아니라 로컬에서 수동 실행과 상태 확인을 먼저 안정화하는 것이다.";
   }
   if (activation.status === "not_configured") {
-    return "반복 실행 report가 연결되지 않아 로컬 자동 실행 여부를 판단할 수 없다.";
+    return "반복 실행 결과가 연결되지 않아 자동 실행 여부를 판단할 수 없다.";
   }
   if (activation.status === "invalid_report") {
-    return "반복 실행 report 형식이 맞지 않아 운영 근거로 사용할 수 없다.";
+    return "반복 실행 결과 형식이 맞지 않아 운영 근거로 사용할 수 없다.";
   }
   return "현재 반복 실행 상태는 화면의 승인 관문과 다음 단계 값을 기준으로 다시 확인해야 한다.";
 }
 
 function schedulerNextStepLabel(activation: SchedulerActivation) {
   if (activation.manual_next_step === "data-operations-live-scheduler-activation-request") {
-    return "외부 서버 배포는 보류하고, 로컬 실행 순서와 수동 ingest smoke를 먼저 확정한다.";
+    return "반복 실행 설정 전에 수동 수집 순서와 결과를 먼저 확인한다.";
   }
   if (activation.manual_next_step === "configure_scheduler_activation_gate_report") {
-    return "repo 밖 반복 실행 gate report 경로를 설정한다.";
+    return "저장소 밖 반복 실행 결과 경로를 설정한다.";
   }
   if (activation.manual_next_step === "regenerate_scheduler_activation_gate_report") {
-    return "깨진 scheduler report를 다시 생성한다.";
+    return "깨진 스케줄러 결과 파일을 다시 생성한다.";
   }
   return koCode(activation.manual_next_step);
 }
@@ -133,40 +133,40 @@ function schedulerApprovalGateLabel(value: string) {
 
 function manualSmokeTitle(smoke: ManualIngestSmoke) {
   if (smoke.status === "passed") {
-    return "최근 수동 수집 smoke 성공";
+    return "최근 수동 수집 성공";
   }
   if (smoke.status === "failed") {
-    return "최근 수동 수집 smoke 실패";
+    return "최근 수동 수집 실패";
   }
   if (smoke.status === "preview_not_executed") {
     return "수동 수집 계획만 확인됨";
   }
   if (smoke.status === "not_configured") {
-    return "수동 수집 smoke 요약 미연결";
+    return "최근 수동 수집 결과 미연결";
   }
   if (smoke.status === "missing_report") {
-    return "수동 수집 smoke report 파일 없음";
+    return "최근 수동 수집 결과 파일 없음";
   }
   return koCode(smoke.status);
 }
 
 function manualSmokeExplanation(smoke: ManualIngestSmoke) {
   if (smoke.status === "passed") {
-    return "market/news/AI 단발 작업이 artifact runner를 통해 실행됐고 실패 작업이 없다는 뜻이다. 반복 자동화가 켜졌다는 뜻은 아니다.";
+    return "가격, 뉴스, AI 분석 단발 작업이 실행됐고 실패 작업이 없다는 뜻이다. 반복 자동화 상태는 별도로 확인한다.";
   }
   if (smoke.status === "failed") {
-    return "단발 실행 중 실패한 작업이 있다. artifact 경로의 stderr/metadata를 먼저 확인해야 한다.";
+    return "단발 실행 중 실패한 작업이 있다. 실행 산출물의 오류 로그와 메타데이터를 먼저 확인해야 한다.";
   }
   if (smoke.status === "preview_not_executed") {
     return "실제 DB write나 provider 호출 없이 실행 계획만 생성한 상태다. 무료 API quota를 쓰지 않고 어떤 작업이 돌지 확인한 것이다.";
   }
   if (smoke.status === "not_configured") {
-    return "FastAPI runtime에 STOCKANALYSIS_MANUAL_LOCAL_INGEST_SMOKE_REPORT가 연결되지 않았다. CLI 결과가 아직 화면으로 연결되지 않은 상태다.";
+    return "백엔드에 최근 수동 수집 결과 경로가 연결되지 않아 화면에서 읽을 수 없다.";
   }
   if (smoke.status === "missing_report") {
     return "환경변수는 설정됐지만 해당 요약 파일을 읽을 수 없다. repo 밖 경로에 summary를 다시 생성해야 한다.";
   }
-  return "수동 수집 smoke 상태를 확인하려면 report 형식과 생성 시각을 점검해야 한다.";
+    return "수동 수집 상태를 확인하려면 결과 파일 형식과 생성 시각을 점검해야 한다.";
 }
 
 function manualSmokeNextAction(smoke: ManualIngestSmoke) {
@@ -175,40 +175,40 @@ function manualSmokeNextAction(smoke: ManualIngestSmoke) {
 
 function localWorkerTitle(worker: LocalIngestWorker) {
   if (worker.status === "completed") {
-    return "로컬 worker 최근 실행 성공";
+    return "반복 실행 최근 성공";
   }
   if (worker.status === "failed") {
-    return "로컬 worker 최근 실행 실패";
+    return "반복 실행 최근 실패";
   }
   if (worker.status === "preview_not_executed") {
-    return "로컬 worker 계획만 확인됨";
+    return "반복 실행 계획만 확인됨";
   }
   if (worker.status === "not_configured") {
-    return "로컬 worker report 미연결";
+    return "반복 실행 결과 미연결";
   }
   if (worker.status === "missing_report") {
-    return "로컬 worker report 파일 없음";
+    return "반복 실행 결과 파일 없음";
   }
   return koCode(worker.status);
 }
 
 function localWorkerExplanation(worker: LocalIngestWorker) {
   if (worker.status === "completed") {
-    return "local-ingest-worker-run이 bounded cycle을 끝냈고 실패 cycle이 없다는 뜻이다. 이 증거는 scheduler 설치와 별개로 로컬 반복 실행 가능성을 보여준다.";
+    return "정해진 반복 실행 주기가 끝났고 실패 주기가 없다는 뜻이다. EC2 systemd timer와 함께 자동 운영 상태를 판단한다.";
   }
   if (worker.status === "failed") {
-    return "worker cycle 중 실패가 있었다. 최신 smoke summary와 artifact stderr를 먼저 확인해야 한다.";
+    return "반복 실행 중 실패가 있었다. 최신 실행 요약과 오류 로그를 먼저 확인해야 한다.";
   }
   if (worker.status === "preview_not_executed") {
-    return "실제 DB write나 provider 호출 없이 worker 실행 계획만 확인한 상태다.";
+    return "실제 DB 저장이나 외부 provider 호출 없이 반복 실행 계획만 확인한 상태다.";
   }
   if (worker.status === "not_configured") {
-    return "FastAPI runtime에 STOCKANALYSIS_LOCAL_INGEST_WORKER_REPORT가 연결되지 않아 worker 상태를 화면에서 읽을 수 없다.";
+    return "백엔드에 반복 실행 결과 경로가 연결되지 않아 화면에서 읽을 수 없다.";
   }
   if (worker.status === "missing_report") {
-    return "환경변수는 설정됐지만 worker summary 파일을 읽을 수 없다. repo 밖 output report를 다시 생성해야 한다.";
+    return "환경변수는 설정됐지만 반복 실행 결과 파일을 읽을 수 없다. 저장소 밖 경로에 결과를 다시 생성해야 한다.";
   }
-  return "worker 상태를 판단하려면 report 형식과 생성 시각을 점검해야 한다.";
+  return "반복 실행 상태를 판단하려면 결과 파일 형식과 생성 시각을 점검해야 한다.";
 }
 
 function localWorkerNextAction(worker: LocalIngestWorker) {
@@ -331,7 +331,7 @@ export default async function DataHealthPage() {
       run: aiRun,
       owner: "event-intelligence-weekly",
       output: "중요 뉴스만 Codex OAuth batch로 분석해 종목·테마·방향·근거 후보를 `ai.extraction_artifact`에 남긴다.",
-      next: "validator를 통과한 근거만 canonical impact로 반영한다. 매수·매도·주문 결론은 여기서 만들지 않는다.",
+      next: "검증기를 통과한 근거만 표준 이벤트 영향으로 반영한다. 매수·매도·주문 결론은 여기서 만들지 않는다.",
     },
     {
       index: "04",
@@ -355,15 +355,14 @@ export default async function DataHealthPage() {
     <div className="terminal-page">
       <section className="page-hero reveal" aria-labelledby="data-health-title">
         <div>
-          <div className="bento-badge">Index 01 — 데이터 수집</div>
+          <div className="bento-badge">데이터 수집 상태</div>
           <h1 className="page-title" id="data-health-title">
-            데이터가 언제, 어디서, 얼마나 들어왔는지 확인한다.
+            데이터 수집과 자동 실행이 정상인지 먼저 확인한다.
           </h1>
         </div>
         <p className="page-lede">
-          반복 실행 준비도, 파이프라인 실행 이력, 오래된 데이터셋, 무료 API 호출 예산을
-          투자 운영 리스크로 직접 표시한다. 이 화면이 정상이 아니면 추천과 성과 해석도
-          신뢰하지 않는다.
+          뉴스는 짧은 주기, 주식 캔들은 장 마감 후, 추천·보유검토는 데이터 보강 뒤에 돈다.
+          이 화면이 정상이 아니면 추천과 성과 해석도 신뢰하지 않는다.
         </p>
       </section>
 
@@ -538,7 +537,7 @@ export default async function DataHealthPage() {
 
         <article className="ledger-panel" style={{ marginTop: "18px" }}>
           <div className="section-heading stacked-heading">
-            <span>로컬 worker 실행 증거</span>
+            <span>반복 실행 증거</span>
             <h3>{localWorkerTitle(localWorker)}</h3>
           </div>
           <p style={{ color: "var(--text-secondary)", marginBottom: "16px" }}>
@@ -580,7 +579,7 @@ export default async function DataHealthPage() {
               </dd>
             </div>
             <div>
-              <dt>최신 smoke 요약</dt>
+              <dt>최신 수집 요약</dt>
               <dd>{localWorker.latest_smoke_output_path || "요약 경로 없음"}</dd>
             </div>
             <div>
@@ -728,7 +727,7 @@ export default async function DataHealthPage() {
       <section className="split-ledger reveal delay-2">
         <article className="ledger-panel queue-panel">
           <div className="section-heading">
-            <span>Index 01.A — 파이프라인 실행</span>
+            <span>실행 이력</span>
             <h2>파이프라인 실행 이력</h2>
           </div>
           <div className="ledger-table-wrap">
@@ -769,7 +768,7 @@ export default async function DataHealthPage() {
         <aside className="side-ledger">
           <article className="ledger-panel">
             <div className="section-heading stacked-heading">
-              <span>Index 01.B — 무료 API 호출 예산</span>
+              <span>무료 API 예산</span>
               <h2>데이터 제공자 호출 예산</h2>
             </div>
             <div className="budget-meter" aria-label={`호출 예산 사용률 ${budgetUsage}%`}>
@@ -797,7 +796,7 @@ export default async function DataHealthPage() {
 
           <article className="ledger-panel">
             <div className="section-heading stacked-heading">
-              <span>Index 01.C — 관문 / 최신성</span>
+              <span>관문과 최신성</span>
               <h2>관문과 데이터 최신성</h2>
             </div>
             <div className="tag-ledger">
@@ -821,7 +820,7 @@ export default async function DataHealthPage() {
 
           <article className="ledger-panel">
             <div className="section-heading stacked-heading">
-              <span>Index 01.D — 반복 실행</span>
+              <span>자동 반복 실행</span>
               <h2>반복 실행 준비 상태</h2>
             </div>
             <dl className="fact-list">

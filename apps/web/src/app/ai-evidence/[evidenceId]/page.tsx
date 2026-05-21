@@ -59,10 +59,10 @@ export default async function AiEvidencePage({ params }: AiEvidencePageProps) {
       : koLabel(data.title);
   const pageTitle = isNewsCluster ? "뉴스 묶음 증거" : isNewsCandidate ? "뉴스 AI 후보 근거" : "AI 추출 증거";
   const pageDescription = isNewsCluster
-    ? "무료 RSS 뉴스를 로컬 규칙으로 묶어 저장한 감사 증거다. 유료 API나 LLM 호출 없이 어떤 뉴스들이 같은 테마로 연결됐는지 확인한다."
+    ? "무료 RSS 뉴스를 같은 테마로 묶은 흐름 증거다. 비용이 들지 않는 로컬 규칙으로 만들며, 어떤 뉴스들이 함께 움직이는지 보여준다."
     : isNewsCandidate
-      ? "Codex OAuth batch가 뉴스 한 건을 테마, 종목, 방향, 불확실성으로 구조화한 후보 증거다. validator를 통과한 영향만 canonical event impact로 반영된다."
-      : "저장된 AI 해석을 감사 가능한 증거 객체로 보여준다. 모델 출력은 원천 청크까지 추적 가능하며, 단독으로 투자 논리나 추천을 바꿀 수 없다.";
+      ? "Codex OAuth batch가 뉴스 한 건을 테마, 종목, 방향, 불확실성으로 구조화한 결과다. 통과한 영향만 추천·보유검토의 근거 후보가 된다."
+      : "저장된 AI 해석을 원천과 함께 보여준다. 이 증거 하나만으로 투자 논리나 추천을 바꾸지 않는다.";
 
   return (
     <div className="pageStack">
@@ -230,11 +230,12 @@ export default async function AiEvidencePage({ params }: AiEvidencePageProps) {
         {isNewsCandidate ? (
           <article className="bento-card span-4" style={{ background: "var(--bg-card-hover)", borderColor: "var(--border-focus)" }}>
             <div style={{ marginBottom: "24px" }}>
-              <span className="metric-sub">뉴스 AI 후보</span>
+              <span className="metric-sub">개별 뉴스 AI 후보 분석</span>
               <h2 style={{ fontSize: "1.5rem" }}>{koLabel(candidate.event_summary)}</h2>
               <p style={{ color: "var(--text-secondary)", lineHeight: 1.6, marginTop: "8px" }}>
-                이 결과는 AI가 최종 추천을 만든 것이 아니라, 뉴스가 어떤 테마와 종목에 어떤 방향으로 영향을 줄 수 있는지
-                후보로 구조화한 것이다. confidence, unknown theme/symbol, 영향 방향은 validator가 다시 검사한다.
+                이 화면이 개별 뉴스 후보 분석의 상세 화면이다. AI는 최종 추천을 내리지 않고,
+                이 뉴스가 어떤 테마와 종목에 어떤 방향으로 영향을 줄 수 있는지만 구조화한다.
+                낮은 신뢰도, 알 수 없는 종목/테마, 모호한 방향은 검증기가 차단한다.
               </p>
             </div>
 
@@ -269,8 +270,8 @@ export default async function AiEvidencePage({ params }: AiEvidencePageProps) {
               </div>
               <div className="trace-arrow" aria-hidden="true">→</div>
               <div className="trace-node">
-                <span>RAG-lite</span>
-                <strong>Postgres context</strong>
+                <span>맥락 조회</span>
+                <strong>Postgres RAG-lite</strong>
                 <p>
                   테마 {formatContextCount(data.retrieval_context_summary.known_themes)}개 · 관계{" "}
                   {formatContextCount(data.retrieval_context_summary.theme_edges)}개 · 기존 영향{" "}
@@ -286,7 +287,7 @@ export default async function AiEvidencePage({ params }: AiEvidencePageProps) {
               <div className="trace-arrow" aria-hidden="true">→</div>
               <div className="trace-node trace-node-final">
                 <span>검증</span>
-                <strong>canonical impact 반영</strong>
+                <strong>검증된 영향만 반영</strong>
                 <p>{koLabel(candidate.uncertainty_notes)}</p>
               </div>
             </div>

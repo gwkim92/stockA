@@ -35,22 +35,41 @@ export const viewport: Viewport = {
   themeColor: "#f3f4f0",
 };
 
-const navItems = [
-  { href: "/", index: "00", label: "전체 현황" },
-  { href: "/data-health", index: "01", label: "데이터 수집" },
-  { href: "/intelligence", index: "02", label: "분석 지도" },
-  { href: "/stocks", index: "03", label: "종목" },
-  { href: "/paper-trading", index: "04", label: "가상 거래" },
-  { href: "/trading-readiness", index: "05", label: "거래 안전" },
-  { href: "/remediation", index: "06", label: "해야 할 일" },
-  { href: "/cycles", index: "07", label: "사이클" },
-  { href: "/events", index: "08", label: "이벤트" },
-  { href: "/themes/ANNUAL_REPORTING", index: "09", label: "테마" },
-  { href: "/recommendations", index: "10", label: "추천" },
-  { href: "/theses/AAPL-bootstrap-v1", index: "11", label: "투자 논리" },
-  { href: "/portfolio/coverage", index: "12", label: "보유 검토" },
-  { href: "/performance", index: "13", label: "성과" },
-  { href: "/ai-evidence/ai-evidence-1", index: "14", label: "AI 근거" },
+const navGroups = [
+  {
+    label: "운영",
+    items: [
+      { href: "/", label: "현황" },
+      { href: "/data-health", label: "수집" },
+      { href: "/remediation", label: "할 일" },
+    ],
+  },
+  {
+    label: "분석",
+    items: [
+      { href: "/intelligence", label: "분석 지도" },
+      { href: "/events", label: "뉴스·이벤트" },
+      { href: "/ai-evidence/ai-evidence-15", label: "AI 후보" },
+      { href: "/cycles", label: "사이클" },
+    ],
+  },
+  {
+    label: "투자",
+    items: [
+      { href: "/stocks", label: "종목" },
+      { href: "/recommendations", label: "추천" },
+      { href: "/portfolio/coverage", label: "보유 검토" },
+      { href: "/performance", label: "성과" },
+    ],
+  },
+  {
+    label: "거래",
+    items: [
+      { href: "/paper-trading", label: "가상 거래" },
+      { href: "/trading-readiness", label: "거래 안전" },
+      { href: "/themes/ANNUAL_REPORTING", label: "테마 예시" },
+    ],
+  },
 ] as const;
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
@@ -72,11 +91,17 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
               </div>
             </Link>
             <nav className="nav" aria-label="주요 내비게이션">
-              {navItems.map((item) => (
-                <Link href={item.href as Route} key={item.href}>
-                  <span className="navIndex">{item.index}</span>
-                  <span>{item.label}</span>
-                </Link>
+              {navGroups.map((group) => (
+                <section className="navGroup" aria-label={`${group.label} 화면`} key={group.label}>
+                  <span className="navGroupTitle">{group.label}</span>
+                  <div className="navGroupLinks">
+                    {group.items.map((item) => (
+                      <Link href={item.href as Route} key={item.href}>
+                        {item.label}
+                      </Link>
+                    ))}
+                  </div>
+                </section>
               ))}
             </nav>
           </header>

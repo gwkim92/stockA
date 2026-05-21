@@ -31,7 +31,7 @@ export default async function HomePage() {
     <div className="terminal-home">
       <section className="manifest-grid reveal" aria-labelledby="dashboard-title">
         <div className="manifest-copy">
-          <div className="bento-badge">Index 00 — 운영 개요</div>
+          <div className="bento-badge">운영 개요</div>
           <h1 className="terminal-title" id="dashboard-title">
             <span>데이터를</span>
             <span>모으고</span>
@@ -138,17 +138,17 @@ export default async function HomePage() {
 
       <section className="flow-panel reveal delay-2" aria-labelledby="system-flow-title">
         <div className="section-heading flow-heading">
-          <span>Index 00.A — 시스템 플로우</span>
-          <h2 id="system-flow-title">현재 시스템은 이렇게 돈다</h2>
+          <span>운영 흐름</span>
+          <h2 id="system-flow-title">데이터가 투자 판단까지 가는 길</h2>
         </div>
         <div className="flow-steps">
           {[
-            ["01", "수집", "FRED, SEC 공시, Twelve Data 가격, 포트폴리오 입력을 단발 또는 스케줄러 작업으로 가져온다."],
-            ["02", "적재/정규화", "원천별 데이터를 Postgres의 운영 테이블과 artifact 원장에 저장한다."],
-            ["03", "상태 점검", "데이터 최신성, 제공자 예산, 실패 파이프라인, 스케줄러 승인 상태를 먼저 확인한다."],
-            ["04", "신호 생성", "사이클, 이벤트, 테마, 추천, 투자 논리를 읽기 전용 API로 묶어 보여준다."],
-            ["05", "사람 검토", "논리 누락, 성과 누락, 비중 공백은 검토 큐로 올라오며 자동 매매로 이어지지 않는다."],
-            ["06", "성과 추적", "추천과 보유 thesis가 벤치마크 대비 어떻게 작동했는지 계속 측정한다."],
+            ["01", "수집", "가격, 뉴스, 공시, 거시 데이터를 정해진 주기로 가져와 원천을 남긴다."],
+            ["02", "정리", "Postgres에 표준 형태로 저장하고, 어떤 작업이 언제 돌았는지 기록한다."],
+            ["03", "분석", "뉴스 묶음, 개별 뉴스 AI 후보, 테마·사이클 상태를 근거로 만든다."],
+            ["04", "추천", "장기 투자 후보와 점수 구성요소를 만들되, 주문으로 바로 연결하지 않는다."],
+            ["05", "검토", "투자 논리, 보유 상태, 위험 사유를 사람이 확인할 수 있게 묶는다."],
+            ["06", "성과", "추천 이후 실제 성과와 벤치마크 차이를 추적해 품질을 점검한다."],
           ].map(([index, title, copy]) => (
             <article className="flow-step" key={index}>
               <span>{index}</span>
@@ -166,7 +166,7 @@ export default async function HomePage() {
       <section className="ledger-grid reveal delay-2">
         <article className="ledger-panel queue-panel">
           <div className="section-heading">
-            <span>Index 01 — 검토 큐</span>
+          <span>우선순위</span>
             <h2>운영자가 먼저 볼 항목</h2>
           </div>
           <div className="ledger-table-wrap">
@@ -209,7 +209,7 @@ export default async function HomePage() {
 
         <article className="ledger-panel decision-panel">
           <div className="section-heading">
-            <span>Index 02 — 첫 검토 항목</span>
+            <span>첫 검토 항목</span>
             <h2>{firstTicket ? `${firstTicket.symbol}: 투자 논리 커버리지 누락` : "보완 티켓 없음"}</h2>
           </div>
           {firstTicket ? (
@@ -241,7 +241,7 @@ export default async function HomePage() {
 
         <article className="ledger-panel runtime-panel">
           <div className="section-heading">
-            <span>Index 03 — 실행 상태</span>
+            <span>실행 상태</span>
             <h2>자동화와 데이터 예산</h2>
           </div>
           <dl className="runtime-grid">

@@ -123,7 +123,7 @@ export default async function RecommendationsPage() {
           <article className="flow-step">
             <span>2. 구조화</span>
             <strong>테마·종목·방향</strong>
-            <p>뉴스 AI/RAG-lite 결과는 검증을 통과해야 추천 근거로 연결된다.</p>
+            <p>뉴스 AI 후보와 저장된 맥락 조회 결과는 검증을 통과해야 추천 근거로 연결된다.</p>
           </article>
           <article className="flow-step">
             <span>3. 추천</span>

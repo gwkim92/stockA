@@ -69,6 +69,9 @@ h6 {
   font-family: var(--font-display);
   font-weight: 800;
   letter-spacing: 0;
+  overflow-wrap: anywhere;
+  text-wrap: balance;
+  word-break: keep-all;
 }
 
 /* Shell & Navigation */
@@ -84,10 +87,10 @@ h6 {
   top: 0;
   z-index: 20;
   display: grid;
-  grid-template-columns: minmax(220px, 0.58fr) minmax(0, 2.42fr);
-  gap: clamp(10px, 1.2vw, 18px);
+  grid-template-columns: minmax(220px, 0.5fr) minmax(0, 2.5fr);
+  gap: clamp(16px, 2vw, 28px);
   align-items: start;
-  padding: 24px 0 18px;
+  padding: 18px 0 16px;
   background: color-mix(in srgb, var(--bg-main) 92%, transparent);
   border-bottom: 1px solid var(--border-light);
   backdrop-filter: blur(16px);
@@ -181,26 +184,51 @@ h6 {
 }
 
 .nav {
-  display: flex;
+  display: grid;
   min-width: 0;
   max-width: 100%;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 5px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
   overflow: visible;
+}
+
+.navGroup {
+  min-width: 0;
+  padding: 8px 9px 9px;
+  background: color-mix(in srgb, var(--bg-panel) 52%, transparent);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+}
+
+.navGroupTitle {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--text-tertiary);
+  font-size: 0.62rem;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.navGroupLinks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
 }
 
 .nav a {
   display: inline-flex;
   flex: 0 0 auto;
-  align-items: baseline;
-  gap: 6px;
-  padding: 7px 9px;
+  max-width: 100%;
+  align-items: center;
+  padding: 7px 8px;
   border: 1px solid transparent;
   color: var(--text-primary);
   font-size: 0.72rem;
   font-weight: 700;
-  line-height: 1;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
   transition: background 0.16s ease, border-color 0.16s ease;
 }
 
@@ -209,12 +237,6 @@ h6 {
   background: var(--bg-panel);
   border-color: var(--border-strong);
   outline: none;
-}
-
-.navIndex {
-  color: var(--text-tertiary);
-  font-size: 0.62rem;
-  font-weight: 600;
 }
 
 /* Page Frame */
@@ -229,9 +251,10 @@ h6 {
 }
 
 .pageStack > section:first-child h1 {
-  max-width: 960px;
-  font-size: clamp(2.4rem, 6vw, 5.8rem) !important;
-  line-height: 0.98;
+  max-width: 1040px;
+  font-size: clamp(2.25rem, 4.8vw, 4.8rem);
+  line-height: 1.02;
+  word-break: keep-all;
 }
 
 /* Legacy grid surface, restyled for the research terminal language. */
@@ -244,6 +267,7 @@ h6 {
 .bento-card {
   display: flex;
   min-width: 0;
+  overflow: hidden;
   flex-direction: column;
   padding: clamp(18px, 2vw, 28px);
   background: var(--bg-panel);
@@ -308,6 +332,7 @@ h6 {
   color: var(--text-secondary);
   font-size: 1rem;
   line-height: 1.65;
+  word-break: keep-all;
 }
 
 .metric-value {
@@ -369,11 +394,14 @@ h6 {
   color: var(--text-primary);
   font-size: 0.95rem;
   font-weight: 800;
+  overflow-wrap: anywhere;
+  word-break: keep-all;
 }
 
 .bento-list-item span {
   color: var(--text-secondary);
   font-size: 0.8rem;
+  overflow-wrap: anywhere;
 }
 
 .status-indicator {
@@ -477,8 +505,8 @@ h6 {
   display: flex;
   max-width: 780px;
   flex-direction: column;
-  font-size: clamp(3.7rem, 8vw, 8.4rem);
-  line-height: 0.88;
+  font-size: clamp(3rem, 7vw, 7.2rem);
+  line-height: 0.94;
 }
 
 .terminal-title span {
@@ -495,6 +523,7 @@ h6 {
   color: var(--text-secondary);
   font-size: clamp(1rem, 1.35vw, 1.18rem);
   line-height: 1.7;
+  word-break: keep-all;
 }
 
 .signal-graph {
@@ -677,7 +706,7 @@ h6 {
   max-width: 620px;
   color: var(--text-primary);
   font-size: clamp(1.45rem, 2.4vw, 2.4rem);
-  line-height: 1.05;
+  line-height: 1.12;
   text-align: right;
 }
 
@@ -1529,8 +1558,8 @@ h6 {
 
 .page-title {
   max-width: 1080px;
-  font-size: clamp(3rem, 7.5vw, 8rem);
-  line-height: 0.92;
+  font-size: clamp(2.6rem, 5.6vw, 5.8rem);
+  line-height: 1;
   word-break: keep-all;
 }
 
@@ -1540,6 +1569,7 @@ h6 {
   color: var(--text-secondary);
   font-size: clamp(1rem, 1.35vw, 1.16rem);
   line-height: 1.75;
+  word-break: keep-all;
 }
 
 .compact-rail .rail-cell strong {
@@ -1924,7 +1954,7 @@ h6 {
   }
 
   .nav {
-    justify-content: flex-start;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .bento-grid {
@@ -1972,6 +2002,14 @@ h6 {
 
   .brandText small {
     max-width: 220px;
+  }
+
+  .nav {
+    grid-template-columns: 1fr;
+  }
+
+  .navGroup {
+    padding: 9px;
   }
 
   .nav a {

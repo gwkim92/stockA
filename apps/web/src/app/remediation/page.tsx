@@ -24,14 +24,14 @@ export default async function RemediationPage() {
     <div className="terminal-page">
       <section className="page-hero reveal" aria-labelledby="remediation-title">
         <div>
-          <div className="bento-badge">Index 01 — Remediation Queue</div>
+          <div className="bento-badge">보완 큐</div>
           <h1 className="page-title" id="remediation-title">
-            열린 보완 티켓을 감사 가능한 결정으로 바꾼다.
+            사람이 먼저 확인해야 할 공백을 모은다.
           </h1>
         </div>
         <p className="page-lede">
-          이 화면은 읽기 전용 운영 원장이다. 상태 변경은 행위자 식별, 사유 기록, 감사 추적이
-          준비될 때까지 보류한다.
+          투자 논리 누락, 성과 측정 공백, 비중 검토처럼 자동으로 넘기면 안 되는 항목을 보여준다.
+          실제 상태 변경은 감사 로그와 승인 경로가 준비된 뒤에만 다룬다.
         </p>
       </section>
 
@@ -61,7 +61,7 @@ export default async function RemediationPage() {
       <section className="split-ledger reveal delay-2">
         <article className="ledger-panel queue-panel">
           <div className="section-heading">
-            <span>Index 01.A — Open Ledger</span>
+            <span>열린 항목</span>
             <h2>심볼별 필수 결정</h2>
           </div>
           <div className="ledger-table-wrap">
@@ -102,7 +102,7 @@ export default async function RemediationPage() {
         <aside className="side-ledger">
           <article className="ledger-panel">
             <div className="section-heading stacked-heading">
-              <span>Index 01.B — Status Counts</span>
+              <span>상태 분포</span>
               <h2>큐 분포</h2>
             </div>
             <dl className="fact-list">
@@ -117,7 +117,7 @@ export default async function RemediationPage() {
 
           <article className="ledger-panel">
             <div className="section-heading stacked-heading">
-              <span>Index 01.C — Decision Boundary</span>
+              <span>결정 경계</span>
               <h2>자동 조치 금지</h2>
             </div>
             <p className="decision-copy">

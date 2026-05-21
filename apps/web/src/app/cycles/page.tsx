@@ -43,7 +43,7 @@ export default async function CyclesPage() {
     <div className="terminal-page">
       <section className="page-hero reveal" aria-labelledby="cycles-title">
         <div>
-          <div className="bento-badge">Index 03 — 사이클 보드</div>
+          <div className="bento-badge">테마 사이클</div>
           <h1 className="page-title" id="cycles-title">
             사이클은 매수 신호가 아니라 투자 맥락이다.
           </h1>
