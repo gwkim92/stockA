@@ -1252,6 +1252,7 @@ h6 {
 }
 
 .trace-card {
+  min-width: 0;
   padding: clamp(18px, 2vw, 28px);
   background: color-mix(in srgb, var(--bg-panel) 86%, white);
   border: 1px solid var(--border-light);
@@ -1260,6 +1261,7 @@ h6 {
 
 .trace-card-top {
   display: flex;
+  min-width: 0;
   align-items: flex-start;
   justify-content: space-between;
   gap: 18px;
@@ -1287,6 +1289,7 @@ h6 {
 
 .trace-chain {
   display: grid;
+  min-width: 0;
   grid-template-columns: minmax(180px, 1fr) auto minmax(180px, 1fr) auto minmax(180px, 1fr) auto minmax(180px, 1fr) auto minmax(180px, 1fr);
   gap: 10px;
   align-items: stretch;
@@ -1455,6 +1458,7 @@ h6 {
 
 .evidence-strip {
   display: grid;
+  min-width: 0;
   grid-template-columns: auto auto minmax(0, 1fr);
   gap: 12px;
   align-items: center;
@@ -1467,14 +1471,17 @@ h6 {
 
 .evidence-strip span,
 .evidence-strip p {
+  min-width: 0;
   color: var(--text-secondary);
   font-size: 0.78rem;
   font-weight: 800;
 }
 
 .evidence-strip strong {
+  min-width: 0;
   color: var(--text-primary);
   font-size: 0.86rem;
+  overflow-wrap: anywhere;
 }
 
 .evidence-strip p {
@@ -2020,6 +2027,19 @@ h6 {
     padding-top: 36px;
   }
 
+  .page-hero,
+  .intelligence-page .page-hero {
+    grid-template-columns: 1fr;
+    gap: 18px;
+    align-items: start;
+  }
+
+  .page-title {
+    max-width: 100%;
+    font-size: clamp(2.15rem, 12vw, 4.15rem);
+    line-height: 1.04;
+  }
+
   .terminal-title {
     font-size: clamp(3rem, 17vw, 4.35rem);
     line-height: 0.94;
@@ -2095,12 +2115,30 @@ h6 {
     gap: 6px;
   }
 
-  .page-title {
-    font-size: clamp(2.65rem, 15vw, 4.6rem);
-  }
-
   .feature-stack > div {
     grid-template-columns: 76px minmax(80px, 1fr) 42px;
+  }
+
+  .trace-card {
+    overflow: hidden;
+  }
+
+  .trace-card-top {
+    flex-direction: column;
+  }
+
+  .trace-chain {
+    grid-template-columns: 1fr;
+    overflow-x: visible;
+  }
+
+  .trace-node {
+    min-width: 0;
+  }
+
+  .trace-arrow {
+    justify-self: center;
+    transform: rotate(90deg);
   }
 
   .bento-list-item {
@@ -2113,5 +2151,32 @@ h6 {
 
   .evidence-strip {
     grid-template-columns: 1fr;
+  }
+
+  .stock-table {
+    gap: 12px;
+    overflow-x: visible;
+  }
+
+  .stock-table-head {
+    display: none;
+  }
+
+  .stock-table-row {
+    min-width: 0;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 14px 16px;
+    padding: 16px;
+    background: color-mix(in srgb, var(--bg-panel) 78%, transparent);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-md);
+  }
+
+  .stock-table-row > span:first-child {
+    grid-column: 1 / -1;
+  }
+
+  .stock-table-row small {
+    white-space: normal;
   }
 }

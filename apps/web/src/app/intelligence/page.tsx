@@ -428,7 +428,7 @@ export default async function IntelligencePage() {
           <article className="rail-cell">
             <span>묶인 뉴스</span>
             <strong>{storedNewsClusters.summary.clustered_event_count}</strong>
-            <small>cluster 내부 이벤트</small>
+            <small>뉴스 묶음에 포함된 이벤트</small>
           </article>
           <article className="rail-cell">
             <span>검색 청크</span>
@@ -465,7 +465,7 @@ export default async function IntelligencePage() {
 
                   <div className="evidence-strip">
                     <span>분석 경계</span>
-                    <strong>{koCode(cluster.extraction_run.provider)} · {cluster.extraction_run.model_id}</strong>
+                    <strong>{koCode(cluster.extraction_run.provider)} · {koCode(cluster.extraction_run.model_id)}</strong>
                     <p>
                       저장된 AI 증거 {cluster.evidence_id}는 뉴스 묶음의 구조화 결과다. 비용은 $
                       {cluster.extraction_run.estimated_cost_usd.toFixed(4)}이고, 이 화면은 추천 점수나 주문을 바꾸지 않는다.

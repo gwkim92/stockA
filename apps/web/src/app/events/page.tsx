@@ -54,7 +54,7 @@ export default async function EventsPage() {
         <div className="bento-badge">뉴스·이벤트 원장 • {data.as_of_date} • {koCode(data.filters.event_type)}</div>
         <h1 style={{ fontSize: "clamp(2.25rem, 4vw, 4.2rem)", marginBottom: "16px" }}>뉴스가 어떤 근거로 해석됐는지 확인한다</h1>
         <p style={{ color: "var(--text-secondary)", fontSize: "1.1rem", maxWidth: "760px" }}>
-          무료 RSS 뉴스와 공시는 이벤트 원장에 저장되고, 중요한 뉴스는 `뉴스 AI 후보`로 승격된다.
+          무료 RSS 뉴스와 공시는 이벤트 원장에 저장되고, 중요한 뉴스는 뉴스 AI 후보로 승격된다.
           각 행의 AI 후보 링크를 열면 AI가 판단한 테마, 종목, 방향, 불확실성을 볼 수 있다.
         </p>
       </section>

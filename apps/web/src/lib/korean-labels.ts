@@ -27,6 +27,8 @@ const KOREAN_LABELS: Record<string, string> = {
   active: "활성",
   alert_destination: "알림 목적지",
   ai: "AI",
+  codex_oauth: "Codex OAuth",
+  "codex oauth": "Codex OAuth",
   alpha_vantage: "Alpha Vantage",
   all: "전체",
   "attention required": "주의 필요",
@@ -225,8 +227,11 @@ const KOREAN_LABELS: Record<string, string> = {
   missing_report: "요약 report 없음",
   manual_local_ingest_smoke_report: "수동 수집 요약",
   local_ingest_worker_report: "반복 실행 요약",
+  "run manual-local-ingest-smoke --output outside the repository":
+    "저장소 밖 경로에 수동 수집 결과를 다시 생성한다",
+  "run local-ingest-worker-run --output outside the repository":
+    "저장소 밖 경로에 반복 실행 결과를 다시 생성한다",
   "open /data-health and verify the latest local ingest worker cycle": "데이터 수집 화면에서 최신 반복 실행 결과를 확인한다",
-  "run local-ingest-worker-run --output outside the repository": "저장소 밖 경로에 반복 실행 결과를 생성한다",
   market_universe_bootstrap: "시장 유니버스 초기화",
   macro_upsert: "거시 데이터 적재",
   sec_filings_upsert: "SEC 공시 적재",
@@ -373,6 +378,14 @@ const KOREAN_LABELS: Record<string, string> = {
 };
 
 const EMBEDDED_LABEL_REPLACEMENTS: Array<[RegExp, string]> = [
+  [
+    /\bAnalysis is limited to the RSS title, metadata, and retrieval context\.?/g,
+    "분석은 RSS 제목, 메타데이터, 저장된 검색 맥락만 사용했습니다.",
+  ],
+  [
+    /\bNo article body, yield level, gold price, or fiscal-policy details were provided\.?/g,
+    "기사 본문, 금리 수준, 금 가격, 재정정책 세부 정보는 제공되지 않았습니다.",
+  ],
   [/\brecommendation score falls below 0\.3500\b/g, "추천 점수가 0.3500 아래로 하락"],
   [/\brecommendation\b/g, "추천"],
   [/\bcycle state\b/g, "사이클 상태"],

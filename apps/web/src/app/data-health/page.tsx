@@ -158,13 +158,13 @@ function manualSmokeExplanation(smoke: ManualIngestSmoke) {
     return "단발 실행 중 실패한 작업이 있다. 실행 산출물의 오류 로그와 메타데이터를 먼저 확인해야 한다.";
   }
   if (smoke.status === "preview_not_executed") {
-    return "실제 DB write나 provider 호출 없이 실행 계획만 생성한 상태다. 무료 API quota를 쓰지 않고 어떤 작업이 돌지 확인한 것이다.";
+    return "실제 DB 저장이나 외부 데이터 제공자 호출 없이 실행 계획만 생성한 상태다. 무료 API 한도를 쓰지 않고 어떤 작업이 돌지 확인한 것이다.";
   }
   if (smoke.status === "not_configured") {
     return "백엔드에 최근 수동 수집 결과 경로가 연결되지 않아 화면에서 읽을 수 없다.";
   }
   if (smoke.status === "missing_report") {
-    return "환경변수는 설정됐지만 해당 요약 파일을 읽을 수 없다. repo 밖 경로에 summary를 다시 생성해야 한다.";
+    return "환경변수는 설정됐지만 해당 요약 파일을 읽을 수 없다. 저장소 밖 경로에 요약 파일을 다시 생성해야 한다.";
   }
     return "수동 수집 상태를 확인하려면 결과 파일 형식과 생성 시각을 점검해야 한다.";
 }
@@ -194,13 +194,13 @@ function localWorkerTitle(worker: LocalIngestWorker) {
 
 function localWorkerExplanation(worker: LocalIngestWorker) {
   if (worker.status === "completed") {
-    return "정해진 반복 실행 주기가 끝났고 실패 주기가 없다는 뜻이다. EC2 systemd timer와 함께 자동 운영 상태를 판단한다.";
+    return "정해진 반복 실행 주기가 끝났고 실패 주기가 없다는 뜻이다. EC2의 예약 실행과 함께 자동 운영 상태를 판단한다.";
   }
   if (worker.status === "failed") {
     return "반복 실행 중 실패가 있었다. 최신 실행 요약과 오류 로그를 먼저 확인해야 한다.";
   }
   if (worker.status === "preview_not_executed") {
-    return "실제 DB 저장이나 외부 provider 호출 없이 반복 실행 계획만 확인한 상태다.";
+    return "실제 DB 저장이나 외부 데이터 제공자 호출 없이 반복 실행 계획만 확인한 상태다.";
   }
   if (worker.status === "not_configured") {
     return "백엔드에 반복 실행 결과 경로가 연결되지 않아 화면에서 읽을 수 없다.";
@@ -290,21 +290,21 @@ export default async function DataHealthPage() {
       title: "주식 캔들 수집",
       run: marketPriceRun,
       fallbackCadence: "일간 · 18:30",
-      description: "무료 가격 provider 예산을 확인한 뒤 일봉 캔들을 DB에 저장한다.",
-      detail: `최근 가격 관측일 ${data.freshness.find((item) => item.dataset === "market.daily_price_bar")?.latest_observation_date ?? "미확인"} · provider ${koCode(providerBudget.provider)}`,
+      description: "무료 가격 데이터 제공자의 한도를 확인한 뒤 일봉 캔들을 DB에 저장한다.",
+      detail: `최근 가격 관측일 ${data.freshness.find((item) => item.dataset === "market.daily_price_bar")?.latest_observation_date ?? "미확인"} · 제공자 ${koCode(providerBudget.provider)}`,
     },
     {
       title: "뉴스 수집",
       run: newsRun,
       fallbackCadence: "일간 · 08:30",
-      description: "repo 밖 RSS 설정의 무료 RSS/Atom feed를 읽고 원천 문서와 이벤트 원장에 저장한다.",
+      description: "저장소 밖 RSS 설정의 무료 뉴스 피드를 읽고 원천 문서와 이벤트 원장에 저장한다.",
       detail: "뉴스는 이벤트, 종목 상세, 분석 지도, 추천 근거 점검으로 연결된다.",
     },
     {
       title: "AI 분석",
       run: aiRun,
-      fallbackCadence: "주간 · Monday 09:00",
-      description: "수집 문서를 구조화하고 AI 근거 artifact를 남긴다. 중요 뉴스는 Codex OAuth batch 후보로 분석하고, 뉴스 묶음은 무료 로컬 규칙 보조 증거로 남긴다.",
+      fallbackCadence: "주간 · 월요일 09:00",
+      description: "수집 문서를 구조화하고 AI 근거 기록을 남긴다. 중요 뉴스는 Codex OAuth 배치 후보로 분석하고, 뉴스 묶음은 무료 로컬 규칙 보조 증거로 남긴다.",
       detail: "AI는 근거를 정리하지만 매수·매도·주문 결론을 자동 실행하지 않는다.",
     },
   ];
@@ -314,7 +314,7 @@ export default async function DataHealthPage() {
       title: "뉴스 원문 수집",
       run: newsRun,
       owner: "news-rss-daily",
-      output: "RSS/Atom 문서를 `ingest.source_document`와 artifact에 저장한다.",
+      output: "RSS/Atom 문서를 원천 문서 테이블과 실행 증거 기록에 저장한다.",
       next: "중복과 원천 링크를 남긴 뒤 이벤트 구조화 단계로 넘긴다.",
     },
     {
@@ -327,10 +327,10 @@ export default async function DataHealthPage() {
     },
     {
       index: "03",
-      title: "AI evidence 생성",
+      title: "AI 근거 생성",
       run: aiRun,
       owner: "event-intelligence-weekly",
-      output: "중요 뉴스만 Codex OAuth batch로 분석해 종목·테마·방향·근거 후보를 `ai.extraction_artifact`에 남긴다.",
+      output: "중요 뉴스만 Codex OAuth 배치로 분석해 종목·테마·방향·근거 후보를 AI 추출 기록에 남긴다.",
       next: "검증기를 통과한 근거만 표준 이벤트 영향으로 반영한다. 매수·매도·주문 결론은 여기서 만들지 않는다.",
     },
     {
@@ -338,16 +338,16 @@ export default async function DataHealthPage() {
       title: "신호와 추천 후보 갱신",
       run: decisionRun,
       owner: "decision-daily",
-      output: "가격, 테마 연결, 이벤트 강도, 사이클 상태를 합쳐 추천 후보와 thesis 입력을 만든다.",
-      next: "결정 로직은 deterministic scoring이다. AI evidence는 설명 가능한 근거로 붙는다.",
+      output: "가격, 테마 연결, 이벤트 강도, 사이클 상태를 합쳐 추천 후보와 투자 논리 입력을 만든다.",
+      next: "결정 로직은 재현 가능한 점수 계산이다. AI 근거는 설명 가능한 보조 근거로 붙는다.",
     },
     {
       index: "05",
       title: "보유 검토와 운영 큐",
       run: remediationRun,
       owner: "portfolio-remediation-daily",
-      output: "보유 thesis 유지 여부, 빈 가격/논리/성과 항목, paper validation 문제를 큐로 만든다.",
-      next: "화면은 `/recommendations`, `/theses`, `/portfolio/coverage`, `/paper-trading`에서 사람이 검토한다.",
+      output: "보유 투자 논리 유지 여부, 빈 가격/논리/성과 항목, 가상 거래 검증 문제를 큐로 만든다.",
+      next: "추천, 투자 논리, 보유 검토, 가상 거래 화면에서 사람이 검토한다.",
     },
   ];
 
@@ -445,28 +445,28 @@ export default async function DataHealthPage() {
         <article className="ledger-panel" style={{ marginTop: "18px" }}>
           <div className="section-heading stacked-heading">
             <span>목표 운영 구조</span>
-            <h3>웹 요청 서버가 아니라 operations runner가 수집을 실행한다</h3>
+            <h3>웹 요청 서버가 아니라 백그라운드 작업 실행기가 수집을 실행한다</h3>
           </div>
           <p style={{ color: "var(--text-secondary)", marginBottom: "16px" }}>
             FastAPI와 Next.js는 화면 요청을 처리한다. 데이터 수집·뉴스 분석·성과 측정은
-            EC2 systemd timer가 `stockanalysis-operations` runner를 호출해 수행하고, 결과는 Postgres와 artifact에 남긴다.
+            EC2의 예약 실행이 백그라운드 작업 실행기를 호출해 수행하고, 결과는 Postgres와 증거 파일에 남긴다.
           </p>
           <dl className="fact-list compact-facts">
             <div>
               <dt>화면</dt>
-              <dd>Next.js cockpit</dd>
+              <dd>Next.js 운영 화면</dd>
             </div>
             <div>
               <dt>읽기 API</dt>
-              <dd>FastAPI read-only backend</dd>
+              <dd>FastAPI 읽기 전용 백엔드</dd>
             </div>
             <div>
               <dt>작업 실행</dt>
-              <dd>EC2 systemd timer → stockanalysis-operations runner</dd>
+              <dd>EC2 예약 실행 → 백그라운드 작업 실행기</dd>
             </div>
             <div>
               <dt>상태 저장</dt>
-              <dd>Postgres pipeline run history + artifact storage</dd>
+              <dd>Postgres 실행 이력 + 저장소 밖 증거 파일</dd>
             </div>
           </dl>
         </article>
@@ -506,11 +506,11 @@ export default async function DataHealthPage() {
         <article className="ledger-panel" style={{ marginTop: "18px" }}>
           <div className="section-heading stacked-heading">
             <span>뉴스 분석 이후 운영 흐름</span>
-            <h3>AI evidence 이후에는 추천·투자 논리·보유 검토로 넘어간다</h3>
+            <h3>AI 근거 이후에는 추천·투자 논리·보유 검토로 넘어간다</h3>
           </div>
           <p style={{ color: "var(--text-secondary)", marginBottom: "16px" }}>
-            뉴스 분석은 끝점이 아니다. 수집된 뉴스는 이벤트와 AI evidence가 되고, 이후 가격·테마·사이클 데이터와
-            결합되어 중장기 추천 후보, thesis, 보유 검토 큐를 만든다. 주문은 자동 실행하지 않는다.
+            뉴스 분석은 끝점이 아니다. 수집된 뉴스는 이벤트와 AI 근거가 되고, 이후 가격·테마·사이클 데이터와
+            결합되어 중장기 추천 후보, 투자 논리, 보유 검토 큐를 만든다. 주문은 자동 실행하지 않는다.
           </p>
           <div className="operating-flow-grid">
             {newsAfterAnalysisSteps.map((step) => (
@@ -557,13 +557,13 @@ export default async function DataHealthPage() {
               <dd>{localWorker.generated_at || "기록 없음"}</dd>
             </div>
             <div>
-              <dt>완료 cycle</dt>
+              <dt>완료 회차</dt>
               <dd>
                 {localWorker.completed_cycle_count}/{localWorker.max_cycles || localWorker.completed_cycle_count}회
               </dd>
             </div>
             <div>
-              <dt>실패 cycle</dt>
+              <dt>실패 회차</dt>
               <dd>{localWorker.failed_cycle_count}회</dd>
             </div>
             <div>
@@ -592,10 +592,10 @@ export default async function DataHealthPage() {
               <table className="ledger-table data-health-table">
                 <thead>
                   <tr>
-                    <th scope="col">Cycle</th>
-                    <th scope="col">Smoke 상태</th>
+                    <th scope="col">회차</th>
+                    <th scope="col">실행 검증</th>
                     <th scope="col">작업</th>
-                    <th scope="col">Artifact</th>
+                    <th scope="col">증거 기록</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -652,7 +652,7 @@ export default async function DataHealthPage() {
               </dd>
             </div>
             <div>
-              <dt>실행 artifact</dt>
+              <dt>실행 증거</dt>
               <dd>
                 {manualSmoke.artifact_runs.length}개 기록 · 실패 {manualSmoke.failed_job_count}개
               </dd>

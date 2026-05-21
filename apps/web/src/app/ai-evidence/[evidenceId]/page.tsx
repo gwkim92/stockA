@@ -55,13 +55,13 @@ export default async function AiEvidencePage({ params }: AiEvidencePageProps) {
   const evidenceTitle = isNewsCluster
     ? `${koCode(cluster.theme_key)} 뉴스 묶음 증거`
     : isNewsCandidate
-      ? candidate.event_summary
+      ? koLabel(candidate.event_summary)
       : koLabel(data.title);
   const pageTitle = isNewsCluster ? "뉴스 묶음 증거" : isNewsCandidate ? "뉴스 AI 후보 근거" : "AI 추출 증거";
   const pageDescription = isNewsCluster
     ? "무료 RSS 뉴스를 같은 테마로 묶은 흐름 증거다. 비용이 들지 않는 로컬 규칙으로 만들며, 어떤 뉴스들이 함께 움직이는지 보여준다."
     : isNewsCandidate
-      ? "Codex OAuth batch가 뉴스 한 건을 테마, 종목, 방향, 불확실성으로 구조화한 결과다. 통과한 영향만 추천·보유검토의 근거 후보가 된다."
+      ? "Codex OAuth 배치가 뉴스 한 건을 테마, 종목, 방향, 불확실성으로 구조화한 결과다. 통과한 영향만 추천·보유검토의 근거 후보가 된다."
       : "저장된 AI 해석을 원천과 함께 보여준다. 이 증거 하나만으로 투자 논리나 추천을 바꾸지 않는다.";
 
   return (
@@ -146,7 +146,7 @@ export default async function AiEvidencePage({ params }: AiEvidencePageProps) {
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
             <div style={{ gridColumn: "span 2" }}>
               <span className="metric-sub">모델</span>
-              <div style={{ fontSize: "1rem", fontWeight: 600, fontFamily: "monospace" }}>{data.extraction_run.model_id}</div>
+              <div style={{ fontSize: "1rem", fontWeight: 600 }}>{koCode(data.extraction_run.model_id)}</div>
             </div>
             <div style={{ gridColumn: "span 2" }}>
               <span className="metric-sub">실행 식별자</span>

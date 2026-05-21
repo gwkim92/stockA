@@ -49,7 +49,7 @@ const navGroups = [
     items: [
       { href: "/intelligence", label: "분석 지도" },
       { href: "/events", label: "뉴스·이벤트" },
-      { href: "/ai-evidence/ai-evidence-15", label: "AI 후보" },
+      { href: "/ai-evidence", label: "AI 후보" },
       { href: "/cycles", label: "사이클" },
     ],
   },
