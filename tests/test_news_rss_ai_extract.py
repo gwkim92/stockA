@@ -6,11 +6,14 @@ from datetime import date
 from pathlib import Path
 
 from stockanalysis.ingest.news.ai_extract import (
+    NewsAiDocumentChunk,
+    build_codex_oauth_news_ai_prompt,
     build_news_ai_provider_response_from_payload,
     parse_news_ai_output,
     run_news_rss_ai_extract,
     validate_news_ai_output,
 )
+from stockanalysis.ingest.news.models import NewsRssAiExtractionCandidate
 from stockanalysis.ingest.news.sql import (
     render_classification_node_lookup_by_code_sql,
     render_existing_news_ai_candidate_artifact_lookup_sql,
@@ -123,6 +126,41 @@ class NewsRssAiExtractTests(unittest.TestCase):
         self.assertIn("ref.classification_node", sql)
         self.assertIn("ref.classification_edge", sql)
         self.assertIn("recent_similar_events", sql)
+
+    def test_codex_oauth_prompt_requires_korean_human_readable_fields(self) -> None:
+        prompt = build_codex_oauth_news_ai_prompt(
+            NewsRssAiExtractionCandidate(
+                event_id=101,
+                document_id=501,
+                title="Treasury yields spike",
+                summary="S&P 500 pressure follows rate shock.",
+                event_at="2026-05-19T10:02:40+00:00",
+                source_name="rss_news:macro",
+                external_document_id="rss:macro:abc",
+                source_url="https://example.test/macro",
+                existing_theme_code="MACRO_RATES_FED",
+                existing_instrument_symbol="SPY",
+            ),
+            NewsAiDocumentChunk(
+                document_id=501,
+                chunk_index=9000,
+                content_hash="hash",
+                text_preview="Treasury yields spike",
+                token_count=12,
+                chunk_metadata={"source": "rss"},
+                text="Title: Treasury yields spike\nSummary: S&P 500 pressure follows rate shock.",
+            ),
+            {
+                "known_themes": [{"code": "MACRO_RATES_FED"}],
+                "theme_edges": [],
+                "current_event_impacts": [{"symbol": "SPY", "theme_code": "MACRO_RATES_FED"}],
+                "recent_similar_events": [],
+            },
+        )
+
+        self.assertIn("Write all human-readable natural-language fields in Korean.", prompt)
+        self.assertIn("event_summary, rationale, evidence_summary, uncertainty_notes, and recommendation_relevance", prompt)
+        self.assertIn("Keep machine codes and market identifiers unchanged", prompt)
 
     def test_render_lookup_and_artifact_sql(self) -> None:
         lookup_sql = render_classification_node_lookup_by_code_sql("AI_SEMICONDUCTOR_CYCLE")

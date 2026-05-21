@@ -41,7 +41,7 @@ from stockanalysis.ingest.sec.sql import (
 
 DEFAULT_TASK_NAME = "news-rss-ai-extract"
 DEFAULT_PIPELINE_NAME = "event_intelligence_llm_extract"
-DEFAULT_TEMPLATE_VERSION = "2026-05-21"
+DEFAULT_TEMPLATE_VERSION = "2026-05-21-ko-v2"
 FIXTURE_PROVIDER = "fixture"
 CODEX_OAUTH_PROVIDER = "codex_oauth"
 DEFAULT_MODEL_NAME = "codex-cli-default"
@@ -835,6 +835,9 @@ def build_codex_oauth_news_ai_prompt(
             "Use only the RSS news item and retrieval context below.",
             "Do not browse, do not call tools, and do not make buy/sell/order recommendations.",
             "Return exactly one JSON object matching the provided output schema.",
+            "Write all human-readable natural-language fields in Korean.",
+            "This includes event_summary, rationale, evidence_summary, uncertainty_notes, and recommendation_relevance.",
+            "Keep machine codes and market identifiers unchanged, including theme_code, impact_direction, and ticker symbols.",
             "Use only theme_code values present in known_themes.",
             "Use only exchange symbols directly supported by the text or current_event_impacts.",
             f"Allowed impact_direction values: {', '.join(ALLOWED_IMPACT_DIRECTIONS)}.",
@@ -937,7 +940,7 @@ values (
     {sql_literal(DEFAULT_TASK_NAME)},
     {sql_literal(DEFAULT_TEMPLATE_VERSION)},
     'Extract RSS news into validated investment evidence, not recommendations.',
-    'Use bounded news and Postgres ontology-lite context to return theme/instrument impacts with evidence and uncertainty.',
+    'Use bounded news and Postgres ontology-lite context to return theme/instrument impacts with Korean evidence and uncertainty.',
     {sql_literal(output_schema)}::jsonb,
     true
 )
