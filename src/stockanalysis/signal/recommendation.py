@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal, ROUND_HALF_UP
@@ -27,7 +28,9 @@ _CYCLE_WEIGHT = Decimal("0.45")
 _MOMENTUM_WEIGHT = Decimal("0.25")
 _SHORT_TERM_WEIGHT = Decimal("0.15")
 _RANK_WEIGHT = Decimal("0.15")
-_COMPONENT_ORDER = ("cycle_score", "momentum_score", "short_term_score", "rank_score")
+_MACRO_FLOW_WEIGHT_DEFAULT = Decimal("0.10")
+MACRO_FLOW_WEIGHT_ENV = "STOCKANALYSIS_RECOMMENDATION_MACRO_FLOW_WEIGHT"
+_COMPONENT_ORDER = ("cycle_score", "momentum_score", "short_term_score", "rank_score", "macro_flow_score")
 _COMPONENT_WEIGHTS = {
     "cycle_score": _CYCLE_WEIGHT,
     "momentum_score": _MOMENTUM_WEIGHT,
@@ -39,6 +42,7 @@ _COMPONENT_EXPLANATIONS = {
     "momentum_score": "Medium-term price momentum from return_since_first_observation.",
     "short_term_score": "Short-term price move from return_1d.",
     "rank_score": "Relative rank inside the selected strategy universe.",
+    "macro_flow_score": "Propagated macro/theme news impact for this instrument and linked theme.",
 }
 
 
@@ -58,6 +62,7 @@ class RecommendationCandidate:
     return_since_first: Decimal | None
     return_since_first_zscore: Decimal | None
     latest_adjusted_close: Decimal | None
+    macro_flow_score: Decimal | None
 
 
 @dataclass(frozen=True)
@@ -122,6 +127,7 @@ def load_recommendation_candidates(
                 latest_adjusted_close=Decimal(str(item["latest_adjusted_close"]))
                 if item.get("latest_adjusted_close") is not None
                 else None,
+                macro_flow_score=Decimal(str(item["macro_flow_score"])) if item.get("macro_flow_score") is not None else None,
             )
         )
 
@@ -161,6 +167,31 @@ selected_members as (
     join signal.strategy_universe_member m on m.universe_batch_id = sb.universe_batch_id
     join ref.instrument i on i.instrument_id = m.instrument_id
 ),
+macro_flow_rows as (
+    select
+        selected_members.instrument_id,
+        propagated_impact.node_id,
+        avg(
+            (
+                case propagated_impact.impact_direction
+                    when 'supportive' then 1.0
+                    when 'watch' then 0.5
+                    when 'mixed' then 0.5
+                    when 'risk_review' then 0.0
+                    else 0.25
+                end
+            )
+            * coalesce(propagated_impact.impact_strength, 0.55)
+            * coalesce(propagated_impact.confidence, 0.60)
+        )::numeric(18,8) as macro_flow_score
+    from selected_members
+    join signal.propagated_instrument_impact propagated_impact
+      on propagated_impact.instrument_id = selected_members.instrument_id
+    join event.event event_row on event_row.event_id = propagated_impact.event_id
+    where event_row.event_at >= ({sql_date(as_of_date)} - interval '30 day')
+      and event_row.event_at < ({sql_date(as_of_date)} + interval '1 day')
+    group by selected_members.instrument_id, propagated_impact.node_id
+),
 evidence_rows as (
     select
         selected_members.universe_batch_id,
@@ -176,7 +207,8 @@ evidence_rows as (
         return_1d.feature_value as return_1d,
         return_since_first.feature_value as return_since_first,
         return_since_first.zscore as return_since_first_zscore,
-        latest_close.feature_value as latest_adjusted_close
+        latest_close.feature_value as latest_adjusted_close,
+        coalesce(macro_flow.macro_flow_score, 0)::numeric(18,8) as macro_flow_score
     from selected_members
     join ref.instrument_classification_membership membership
       on membership.instrument_id = selected_members.instrument_id
@@ -196,6 +228,9 @@ evidence_rows as (
       on latest_close.instrument_id = selected_members.instrument_id
      and latest_close.as_of_date = {sql_date(as_of_date)}
      and latest_close.feature_code = 'latest_adjusted_close'
+    left join macro_flow_rows macro_flow
+      on macro_flow.instrument_id = selected_members.instrument_id
+     and macro_flow.node_id = node.node_id
     where node.taxonomy_family = 'internal_theme'
       and membership.membership_type = 'derived_theme'
       and membership.valid_from <= {sql_date(as_of_date)}
@@ -217,7 +252,8 @@ select coalesce(
             'return_1d', return_1d,
             'return_since_first', return_since_first,
             'return_since_first_zscore', return_since_first_zscore,
-            'latest_adjusted_close', latest_adjusted_close
+            'latest_adjusted_close', latest_adjusted_close,
+            'macro_flow_score', macro_flow_score
         )
         order by primary_symbol, node_code
     ),
@@ -240,6 +276,7 @@ def compute_recommendation_rows(
             + (component_scores["momentum_score"] * _MOMENTUM_WEIGHT)
             + (component_scores["short_term_score"] * _SHORT_TERM_WEIGHT)
             + (component_scores["rank_score"] * _RANK_WEIGHT)
+            + (component_scores["macro_flow_score"] * _macro_flow_weight())
         )
         current = best_by_instrument.get(candidate.instrument_id)
         if current is None or total_score > current[1] or (
@@ -294,8 +331,9 @@ def render_recommendation_upsert_sql(
             "momentum_score": str(_MOMENTUM_WEIGHT),
             "short_term_score": str(_SHORT_TERM_WEIGHT),
             "rank_score": str(_RANK_WEIGHT),
+            "macro_flow_score": str(_macro_flow_weight()),
         },
-        "scope": "direct_internal_theme_membership_only",
+        "scope": "direct_internal_theme_membership_plus_macro_flow_propagation",
         "thesis_id": None,
     }
     notes_json = json.dumps(notes, ensure_ascii=False, sort_keys=True)
@@ -495,6 +533,7 @@ def _compute_component_scores(candidate: RecommendationCandidate) -> dict[str, D
             default=Decimal("0.5"),
         ),
         "rank_score": _compute_rank_score(candidate),
+        "macro_flow_score": _clamp_decimal(candidate.macro_flow_score or Decimal("0")),
     }
 
 
@@ -554,7 +593,7 @@ def _render_score_component_value_tuple(row: RecommendationRow) -> str:
                     f"{row.instrument_id}::bigint",
                     sql_literal(component_name),
                     sql_numeric(component_score),
-                    sql_numeric(_COMPONENT_WEIGHTS[component_name]),
+                    sql_numeric(_component_weight(component_name)),
                     sql_literal(_COMPONENT_EXPLANATIONS[component_name]),
                 )
             ) + ")"
@@ -594,3 +633,19 @@ def _clamp_decimal(value: Decimal) -> Decimal:
 
 def _quantize(value: Decimal) -> Decimal:
     return value.quantize(_DECIMAL_QUANTIZER, rounding=ROUND_HALF_UP)
+
+
+def _macro_flow_weight() -> Decimal:
+    raw = os.environ.get(MACRO_FLOW_WEIGHT_ENV, "").strip()
+    if not raw:
+        return _MACRO_FLOW_WEIGHT_DEFAULT
+    try:
+        return _clamp_decimal(Decimal(raw))
+    except Exception:
+        return _MACRO_FLOW_WEIGHT_DEFAULT
+
+
+def _component_weight(component_name: str) -> Decimal:
+    if component_name == "macro_flow_score":
+        return _macro_flow_weight()
+    return _COMPONENT_WEIGHTS[component_name]

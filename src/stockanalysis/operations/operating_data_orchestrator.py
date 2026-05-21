@@ -89,6 +89,7 @@ NEWS_INTRADAY_STEP_IDS = (
     "news-rss-enrichment",
     "news-cluster-evidence",
     "news-ai-evidence",
+    "macro-event-propagation",
 )
 MARKET_DAILY_STEP_IDS = (
     "market-price-daily",
@@ -584,6 +585,25 @@ def _build_planned_steps(
                 "codex_oauth",
                 "--limit",
                 "10",
+                "--execute",
+            ),
+        },
+        {
+            "step_id": "macro-event-propagation",
+            "artifact_job_id": "event-intelligence-weekly",
+            "label": "Propagate market/theme news flows to exposed instruments",
+            "skip_reason": "",
+            "command_argv": (
+                python_executable,
+                "-m",
+                "stockanalysis.operations.cli",
+                "macro-event-propagation-run",
+                "--env-file",
+                str(env_file),
+                "--as-of-date",
+                target,
+                "--limit",
+                "200",
                 "--execute",
             ),
         },

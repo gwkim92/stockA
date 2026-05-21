@@ -391,9 +391,9 @@ export default async function IntelligencePage() {
                       <p>신뢰도 {formatPercent(cluster.confidence)}. 방향이 약하면 투자 입력으로 승격하지 않는다.</p>
                     </div>
                     <div className="cluster-decision-cell">
-                      <span>영향 종목</span>
+                      <span>직접 종목 / 전파 후보</span>
                       <strong>{formatSymbols(cluster.symbols)}</strong>
-                      <p>종목 연결이 없으면 테마 감시만 하고 추천·거래 판단으로 넘기지 않는다.</p>
+                      <p>종목명이 직접 없으면 오류가 아니다. 상위 흐름은 노출도 전파를 거쳐 종목 상세와 추천 근거에 붙는다.</p>
                     </div>
                     <div className="cluster-decision-cell cluster-decision-final">
                       <span>다음 판단</span>

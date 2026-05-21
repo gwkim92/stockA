@@ -1218,7 +1218,45 @@ class DataOperationsCliTests(unittest.TestCase):
 
             self.assertEqual(exit_code, 0)
             payload = json.loads(stdout.getvalue())
+            self.assertEqual(payload["report_name"], "news_rss_ai_extract")
             self.assertEqual(payload["status"], "completed_with_fallback")
+
+    def test_macro_event_propagation_run_command_passes_env_and_execute_flag(self) -> None:
+        with tempfile.TemporaryDirectory() as repo_root, tempfile.TemporaryDirectory() as outside_root:
+            env_file = Path(outside_root) / "data-operations.env"
+            env_file.write_text('STOCKANALYSIS_PSQL_COMMAND="docker exec psql"\n', encoding="utf-8")
+            stdout = io.StringIO()
+
+            with patch("stockanalysis.operations.cli.run_macro_event_propagation") as runner_mock:
+                runner_mock.return_value = {
+                    "report_name": "macro_event_propagation",
+                    "status": "completed",
+                    "propagated_impact_count": 3,
+                }
+                exit_code = main(
+                    [
+                        "macro-event-propagation-run",
+                        "--repo-root",
+                        repo_root,
+                        "--env-file",
+                        str(env_file),
+                        "--as-of-date",
+                        "2026-05-20",
+                        "--limit",
+                        "123",
+                        "--execute",
+                    ],
+                    stdout=stdout,
+                )
+
+            self.assertEqual(exit_code, 0)
+            payload = json.loads(stdout.getvalue())
+            self.assertEqual(payload["report_name"], "macro_event_propagation")
+            call_kwargs = runner_mock.call_args.kwargs
+            self.assertEqual(call_kwargs["config"].psql_command, "docker exec psql")
+            self.assertEqual(call_kwargs["as_of_date"], date(2026, 5, 20))
+            self.assertEqual(call_kwargs["limit"], 123)
+            self.assertTrue(call_kwargs["execute"])
 
     def test_paper_validation_audit_run_command_passes_runtime_args_and_env(self) -> None:
         with tempfile.TemporaryDirectory() as repo_root, tempfile.TemporaryDirectory() as outside_root:

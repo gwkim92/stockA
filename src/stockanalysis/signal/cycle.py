@@ -187,25 +187,16 @@ feature_rows as (
      and medium_term.as_of_date = {sql_date(as_of_date)}
      and medium_term.feature_code = 'return_since_first_observation'
 ),
-event_rows as (
+direct_event_impacts as (
     select
         node_members.node_id,
-        count(distinct event_row.event_id) filter (
-            where event_row.event_at >= ({sql_date(as_of_date)} - interval '30 day')
-              and event_row.event_at < ({sql_date(as_of_date)} + interval '1 day')
-        )::integer as recent_event_count_30d,
-        count(distinct event_row.event_id) filter (
-            where event_row.event_at >= ({sql_date(as_of_date)} - interval '90 day')
-              and event_row.event_at < ({sql_date(as_of_date)} + interval '1 day')
-        )::integer as recent_event_count_90d,
-        avg(
-            least(
-                coalesce(classification_impact.confidence, 1.0),
-                coalesce(instrument_impact.confidence, 1.0),
-                coalesce(event_row.confidence, 1.0)
-            )
-        )::numeric(18,8) as average_event_confidence,
-        max((event_row.event_at at time zone 'UTC')::date) as latest_event_date
+        event_row.event_id,
+        event_row.event_at,
+        least(
+            coalesce(classification_impact.confidence, 1.0),
+            coalesce(instrument_impact.confidence, 1.0),
+            coalesce(event_row.confidence, 1.0)
+        ) as confidence
     from selected_node_members node_members
     join event.event_instrument_impact instrument_impact on instrument_impact.instrument_id = node_members.instrument_id
     join event.event_classification_impact classification_impact
@@ -213,7 +204,43 @@ event_rows as (
      and classification_impact.node_id = node_members.node_id
     join event.event event_row on event_row.event_id = instrument_impact.event_id
     where event_row.event_at < ({sql_date(as_of_date)} + interval '1 day')
-    group by node_members.node_id
+),
+propagated_event_impacts as (
+    select
+        node_members.node_id,
+        event_row.event_id,
+        event_row.event_at,
+        least(
+            coalesce(propagated_impact.confidence, 1.0),
+            coalesce(event_row.confidence, 1.0)
+        ) as confidence
+    from selected_node_members node_members
+    join signal.propagated_instrument_impact propagated_impact
+      on propagated_impact.instrument_id = node_members.instrument_id
+     and propagated_impact.node_id = node_members.node_id
+    join event.event event_row on event_row.event_id = propagated_impact.event_id
+    where event_row.event_at < ({sql_date(as_of_date)} + interval '1 day')
+),
+event_impact_rows as (
+    select * from direct_event_impacts
+    union all
+    select * from propagated_event_impacts
+),
+event_rows as (
+    select
+        node_id,
+        count(distinct event_id) filter (
+            where event_at >= ({sql_date(as_of_date)} - interval '30 day')
+              and event_at < ({sql_date(as_of_date)} + interval '1 day')
+        )::integer as recent_event_count_30d,
+        count(distinct event_id) filter (
+            where event_at >= ({sql_date(as_of_date)} - interval '90 day')
+              and event_at < ({sql_date(as_of_date)} + interval '1 day')
+        )::integer as recent_event_count_90d,
+        avg(confidence)::numeric(18,8) as average_event_confidence,
+        max((event_at at time zone 'UTC')::date) as latest_event_date
+    from event_impact_rows
+    group by node_id
 )
 select coalesce(
     json_agg(

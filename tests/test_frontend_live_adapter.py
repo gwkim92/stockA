@@ -250,6 +250,24 @@ class FakeLiveExecutor:
                         "market_value": "2230.00",
                         "linked_thesis_id": 7001,
                     },
+                    "macro_flow_impacts": [
+                        {
+                            "event_id": 9101,
+                            "title": "Fed signals higher for longer",
+                            "event_type": "rss_news_event",
+                            "event_at": "2024-12-01T12:00:00+00:00",
+                            "theme_key": "MACRO_RATES_FED",
+                            "theme_name": "Fed and rates",
+                            "impact_direction": "risk_review",
+                            "impact_score": "0.5200",
+                            "confidence": "0.7500",
+                            "exposure_weight": "0.6500",
+                            "rationale": "MACRO_RATES_FED flow propagated to AAPL",
+                            "source_document_id": "fed-rates-20241201",
+                            "ai_evidence_id": 8802,
+                            "source_run_id": 7701,
+                        }
+                    ],
                     "recent_events": [
                         {
                             "event_id": 9001,
@@ -1785,6 +1803,8 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertEqual(payload["data"]["price_bars"][-1]["trade_date"], "2024-12-02")
         self.assertEqual(payload["data"]["recommendation"]["linked_thesis_id"], "thesis-7001")
         self.assertEqual(payload["data"]["position"]["weight"], 0.05)
+        self.assertEqual(payload["data"]["macro_flow_impacts"][0]["theme_key"], "MACRO_RATES_FED")
+        self.assertEqual(payload["data"]["macro_flow_impacts"][0]["source_run_id"], "pipeline-run-7701")
         self.assertEqual(payload["data"]["recent_events"][0]["event_id"], "event-9001")
         self.assertEqual(payload["links"]["recommendation"], "/api/recommendations/recommendation-7101")
         self.assertEqual(payload["links"]["events"], "/api/events?asOfDate=2024-12-02&symbol=AAPL")
@@ -1922,6 +1942,8 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertIn("portfolio.position_snapshot", list_sql)
         self.assertIn("limit 51", list_sql)
         self.assertIn("event.event_instrument_impact", detail_sql)
+        self.assertIn("signal.propagated_instrument_impact", detail_sql)
+        self.assertIn("macro_flow_impacts as", detail_sql)
         self.assertIn("raw_recent_events as", detail_sql)
         self.assertIn("distinct on (coalesce(nullif(lower(title), ''), source_checksum, 'event:' || event_id::text))", detail_sql)
         self.assertIn("https://news.google.com/%", detail_sql)
@@ -2277,6 +2299,9 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertIn("recommendation_evidence_anchor as", sql)
         self.assertIn("market_feature_provenance as", sql)
         self.assertIn("strategy_universe_provenance as", sql)
+        self.assertIn("macro_flow_provenance as", sql)
+        self.assertIn("signal.propagated_instrument_impact", sql)
+        self.assertIn("'macro-flow-' || lower(recommendation.primary_symbol)", sql)
         self.assertIn("score_component_rows as", sql)
         self.assertIn("ai.extraction_artifact", sql)
         self.assertIn("'ai-evidence-' || artifact_id::text", sql)

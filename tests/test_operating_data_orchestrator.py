@@ -127,7 +127,13 @@ class OperatingDataOrchestratorTests(unittest.TestCase):
         self.assertEqual(report["generated_files"]["position_snapshot_csv"], "")
         self.assertEqual(
             [step["step_id"] for step in report["planned_steps"]],
-            ["news-rss-ingest", "news-rss-enrichment", "news-cluster-evidence", "news-ai-evidence"],
+            [
+                "news-rss-ingest",
+                "news-rss-enrichment",
+                "news-cluster-evidence",
+                "news-ai-evidence",
+                "macro-event-propagation",
+            ],
         )
         cluster_command = " ".join(report["planned_steps"][2]["command_argv"])
         self.assertIn("news-rss-cluster-evidence-run", cluster_command)
@@ -136,6 +142,10 @@ class OperatingDataOrchestratorTests(unittest.TestCase):
         self.assertIn("news-rss-ai-extract-run", ai_command)
         self.assertIn("--provider codex_oauth", ai_command)
         self.assertIn("--execute", ai_command)
+        propagation_command = " ".join(report["planned_steps"][4]["command_argv"])
+        self.assertIn("macro-event-propagation-run", propagation_command)
+        self.assertIn("--as-of-date 2026-05-20", propagation_command)
+        self.assertIn("--execute", propagation_command)
         self.assertEqual(runner.calls, [])
 
     def test_weekly_reference_profiles_do_not_require_portfolio_positions(self) -> None:

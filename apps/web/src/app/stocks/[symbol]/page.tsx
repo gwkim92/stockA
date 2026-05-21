@@ -442,8 +442,56 @@ export default async function StockDetailPage({ params }: StockDetailPageProps) 
       <section className="bento-card span-4 reveal delay-4">
         <div className="section-heading">
           <div>
-            <span className="metric-sub">관련 이벤트</span>
-            <h2>이 종목에 연결된 근거</h2>
+            <span className="metric-sub">상위 흐름 전파</span>
+            <h2>시장·테마 뉴스가 이 종목에 준 영향</h2>
+          </div>
+          <Link className="btn btn-secondary" href="/intelligence">
+            흐름 분석 보기
+          </Link>
+        </div>
+        <p style={{ color: "var(--text-secondary)", marginTop: 0 }}>
+          회사가 직접 언급되지 않은 뉴스라도 금리, 에너지, AI 반도체 같은 상위 흐름이면 노출도에 따라 이 종목으로 영향이 전파된다.
+        </p>
+        <div className="bento-list">
+          {data.macro_flow_impacts.length > 0 ? (
+            data.macro_flow_impacts.map((flow) => {
+              const evidence = evidenceHref(flow.ai_evidence_id);
+              const sourceDocument = sourceDocumentHref(flow.source_document_id);
+              return (
+                <div className="bento-list-item" key={`${flow.event_id}-${flow.theme_key}`}>
+                  <div>
+                    <span className="metric-sub">
+                      {formatDate(flow.event_at)} • {koCode(flow.theme_key)} • {koCode(flow.impact_direction)}
+                    </span>
+                    <strong>{koLabel(flow.title)}</strong>
+                    <span>
+                      전파 강도 {formatPercent(flow.impact_score)} · 노출도 {formatPercent(flow.exposure_weight)} · 신뢰도 {formatPercent(flow.confidence)}
+                    </span>
+                    {flow.rationale ? <span>{koLabel(flow.rationale)}</span> : null}
+                  </div>
+                  <div className="btn-row" style={{ marginTop: 0 }}>
+                    <Link className="btn btn-secondary" href={`/themes/${encodeURIComponent(flow.theme_key)}?asOfDate=${encodeURIComponent(data.as_of_date)}` as Route}>
+                      흐름 보기
+                    </Link>
+                    {evidence ? <Link className="btn btn-secondary" href={evidence}>AI 증거</Link> : null}
+                    {sourceDocument ? <Link className="btn btn-secondary" href={sourceDocument}>원천 문서</Link> : null}
+                  </div>
+                </div>
+              );
+            })
+          ) : (
+            <div className="empty-state">
+              아직 이 종목으로 전파된 상위 흐름이 없다. 직접 뉴스만 있거나 노출도 테이블에 연결되지 않은 상태다.
+            </div>
+          )}
+        </div>
+      </section>
+
+      <section className="bento-card span-4 reveal delay-4">
+        <div className="section-heading">
+          <div>
+            <span className="metric-sub">직접 뉴스</span>
+            <h2>이 종목이 직접 연결된 이벤트</h2>
           </div>
           <Link className="btn btn-secondary" href={`/events?symbol=${encodeURIComponent(data.symbol)}` as Route}>
             이벤트 화면

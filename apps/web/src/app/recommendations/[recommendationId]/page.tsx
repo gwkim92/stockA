@@ -50,6 +50,9 @@ function provenanceBadges(component: ScoreComponent) {
   } else if (provenance.latest_trade_date) {
     badges.push(`최근 가격일 ${provenance.latest_trade_date}`);
   }
+  if (provenance.source_type === "macro_flow_propagation") {
+    badges.push(`전파 근거 ${provenance.evidence?.propagated_impact_count ?? 0}개`);
+  }
   return badges;
 }
 
@@ -78,6 +81,7 @@ function provenanceMetadata(component: ScoreComponent): AuditMetadataItem[] {
     { label: "관측치 수", value: provenance.observation_count ?? provenance.evidence?.observation_count },
     { label: "첫 가격일", value: provenance.evidence?.first_trade_date },
     { label: "최근 가격일", value: provenance.latest_trade_date ?? provenance.evidence?.latest_trade_date },
+    { label: "전파 근거 수", value: provenance.evidence?.propagated_impact_count },
     { label: "선정 규칙", value: provenance.selection_rule },
     { label: "편입 사유", value: provenance.inclusion_reason },
   ];
@@ -103,6 +107,12 @@ function provenanceDetail(component: ScoreComponent) {
   if (provenance.source_type === "event_or_ai_evidence") {
     return "뉴스, 공시, AI 구조화 결과와 연결된 정성 근거다.";
   }
+  if (provenance.source_type === "macro_flow_propagation") {
+    const count = provenance.evidence?.propagated_impact_count ?? 0;
+    const firstFlow = provenance.evidence?.recent_flows?.[0];
+    const flowText = firstFlow ? `${koCode(firstFlow.theme_key)} ${koCode(firstFlow.impact_direction)}` : "상위 흐름";
+    return `${flowText} 등 ${count}개 전파 근거를 추천 점수 입력으로 사용했다.`;
+  }
   return koLabel(provenance.label);
 }
 
@@ -112,6 +122,9 @@ function evidenceHref(evidenceId: string, symbol: string) {
   }
   if (evidenceId.startsWith("event-") || evidenceId.startsWith("sec-event-")) {
     return `/events?symbol=${encodeURIComponent(symbol)}` as Route;
+  }
+  if (evidenceId.startsWith("macro-flow-")) {
+    return `/stocks/${encodeURIComponent(symbol)}` as Route;
   }
   return null;
 }

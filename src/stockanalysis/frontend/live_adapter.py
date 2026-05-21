@@ -509,6 +509,9 @@ def build_live_stock_detail_response(
             "price_bars": price_bars,
             "recommendation": recommendation,
             "position": _build_stock_position_payload(_as_dict(state.get("position"))),
+            "macro_flow_impacts": [
+                _build_stock_macro_flow_payload(item) for item in _as_list(state.get("macro_flow_impacts"))
+            ],
             "recent_events": [_build_stock_event_payload(item) for item in _as_list(state.get("recent_events"))],
         },
         "links": {
@@ -2417,6 +2420,43 @@ recent_events as (
         event_at desc,
         event_id desc
     limit 8
+),
+macro_flow_impacts as (
+    select
+        propagated_impact.event_id,
+        event_row.title,
+        event_row.event_type,
+        event_row.event_at,
+        node.code as theme_key,
+        node.name as theme_name,
+        propagated_impact.impact_direction,
+        propagated_impact.impact_strength as impact_score,
+        propagated_impact.confidence,
+        propagated_impact.exposure_weight,
+        propagated_impact.rationale,
+        source_document.external_document_id as source_document_id,
+        source_document.document_id as raw_source_document_id,
+        evidence.artifact_id as ai_evidence_id,
+        propagated_impact.source_run_id
+    from signal.propagated_instrument_impact propagated_impact
+    join target_instrument instrument on instrument.instrument_id = propagated_impact.instrument_id
+    join event.event event_row on event_row.event_id = propagated_impact.event_id
+    join ref.classification_node node on node.node_id = propagated_impact.node_id
+    left join event.event_document_link document_link
+      on document_link.event_id = event_row.event_id
+     and document_link.link_type = 'source'
+    left join ingest.source_document source_document on source_document.document_id = document_link.document_id
+    left join lateral (
+        select artifact_id
+        from ai.extraction_artifact artifact
+        where artifact.event_id = event_row.event_id
+           or artifact.document_id = source_document.document_id
+        order by artifact.artifact_id desc
+        limit 1
+    ) evidence on true
+    join target_date target on event_row.event_at < (target.as_of_date + interval '1 day')
+    order by event_row.event_at desc, event_row.event_id desc, node.code
+    limit 8
 )
 select json_build_object(
     'symbol', coalesce((select primary_symbol from target_instrument), {symbol_literal}),
@@ -2491,6 +2531,33 @@ select json_build_object(
             'linked_thesis_id', linked_thesis_id
         )
         from latest_position
+    ),
+    'macro_flow_impacts',
+    coalesce(
+        (
+            select json_agg(
+                json_build_object(
+                    'event_id', event_id,
+                    'title', title,
+                    'event_type', event_type,
+                    'event_at', event_at,
+                    'theme_key', theme_key,
+                    'theme_name', theme_name,
+                    'impact_direction', impact_direction,
+                    'impact_score', impact_score,
+                    'confidence', confidence,
+                    'exposure_weight', exposure_weight,
+                    'rationale', rationale,
+                    'source_document_id', source_document_id,
+                    'raw_source_document_id', raw_source_document_id,
+                    'ai_evidence_id', ai_evidence_id,
+                    'source_run_id', source_run_id
+                )
+                order by event_at desc, event_id desc, theme_key
+            )
+            from macro_flow_impacts
+        ),
+        '[]'::json
     ),
     'recent_events',
     coalesce(
@@ -4110,6 +4177,46 @@ strategy_universe_provenance as (
     order by universe_batch.universe_batch_id desc
     limit 1
 ),
+macro_flow_provenance as (
+    select
+        count(*)::integer as propagated_impact_count,
+        max(source_run_id) as source_run_id,
+        json_agg(
+            json_build_object(
+                'event_id', event_id,
+                'title', title,
+                'event_at', event_at,
+                'theme_key', theme_key,
+                'theme_name', theme_name,
+                'impact_direction', impact_direction,
+                'impact_strength', impact_strength,
+                'confidence', confidence,
+                'exposure_weight', exposure_weight
+            )
+            order by event_at desc, event_id desc, theme_key
+        ) as recent_flows
+    from (
+        select
+            propagated_impact.event_id,
+            event_row.title,
+            event_row.event_at,
+            node.code as theme_key,
+            node.name as theme_name,
+            propagated_impact.impact_direction,
+            propagated_impact.impact_strength,
+            propagated_impact.confidence,
+            propagated_impact.exposure_weight,
+            propagated_impact.source_run_id
+        from selected_recommendation recommendation
+        join signal.propagated_instrument_impact propagated_impact
+          on propagated_impact.instrument_id = recommendation.instrument_id
+        join event.event event_row on event_row.event_id = propagated_impact.event_id
+        join ref.classification_node node on node.node_id = propagated_impact.node_id
+        where event_row.event_at < (recommendation.as_of_date + interval '1 day')
+        order by event_row.event_at desc, event_row.event_id desc, node.code
+        limit 8
+    ) flow_rows
+),
 score_component_rows as (
     select
         component.component_name,
@@ -4125,6 +4232,8 @@ score_component_rows as (
                 then 'market-feature-' || lower(recommendation.primary_symbol) || '-' || recommendation.as_of_date::text || '-' || coalesce(feature.feature_code, feature_map.feature_code)
             when component.component_name = 'rank_score'
                 then 'universe-rank-' || lower(recommendation.primary_symbol) || '-' || recommendation.as_of_date::text || coalesce('-' || (select universe_batch_id::text from strategy_universe_provenance), '')
+            when component.component_name = 'macro_flow_score'
+                then 'macro-flow-' || lower(recommendation.primary_symbol) || '-' || recommendation.as_of_date::text
             else component.component_name
         end as evidence_id,
         case
@@ -4160,6 +4269,17 @@ score_component_rows as (
                     'observation_count', (select observation_count from strategy_universe_provenance),
                     'inclusion_reason', (select inclusion_reason from strategy_universe_provenance),
                     'source_run_id', coalesce((select source_run_id from strategy_universe_provenance), recommendation.recommendation_source_run_id)
+                ))
+            when component.component_name = 'macro_flow_score'
+                then json_strip_nulls(json_build_object(
+                    'source_type', 'macro_flow_propagation',
+                    'label', '상위 흐름 전파 근거',
+                    'source_run_id', (select source_run_id from macro_flow_provenance),
+                    'evidence_json', json_build_object(
+                        'as_of_date', recommendation.as_of_date,
+                        'propagated_impact_count', coalesce((select propagated_impact_count from macro_flow_provenance), 0),
+                        'recent_flows', coalesce((select recent_flows from macro_flow_provenance), '[]'::json)
+                    )
                 ))
             else json_build_object(
                 'source_type', 'score_component',
@@ -5287,6 +5407,30 @@ def _build_stock_event_payload(event: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _build_stock_macro_flow_payload(flow: dict[str, Any]) -> dict[str, Any]:
+    source_document_id = flow.get("source_document_id") or flow.get("raw_source_document_id")
+    ai_evidence_id = flow.get("ai_evidence_id")
+    source_run_id = flow.get("source_run_id")
+    return {
+        "event_id": _opaque_id("event", flow.get("event_id"), "unknown"),
+        "title": str(flow.get("title") or ""),
+        "event_type": str(flow.get("event_type") or "unknown"),
+        "event_at": _timestamp(flow.get("event_at")),
+        "theme_key": str(flow.get("theme_key") or ""),
+        "theme_name": str(flow.get("theme_name") or ""),
+        "impact_direction": str(flow.get("impact_direction") or "unknown"),
+        "impact_score": _number(flow.get("impact_score")),
+        "confidence": _number(flow.get("confidence")),
+        "exposure_weight": _number(flow.get("exposure_weight")),
+        "rationale": str(flow.get("rationale") or ""),
+        "source_document_id": _opaque_id("source-document", source_document_id, None)
+        if source_document_id is not None
+        else None,
+        "ai_evidence_id": _opaque_id("ai-evidence", ai_evidence_id, None) if ai_evidence_id is not None else None,
+        "source_run_id": _opaque_id("pipeline-run", source_run_id, None) if source_run_id is not None else None,
+    }
+
+
 def _build_paper_action_payload(action: dict[str, Any]) -> dict[str, Any]:
     symbol = str(action.get("symbol") or "UNKNOWN").upper()
     recommendation_id = action.get("recommendation_id")
@@ -6077,6 +6221,8 @@ def _build_score_component_evidence_summary(evidence_json: dict[str, Any]) -> di
         "first_trade_date": _optional_text(evidence_json.get("first_trade_date")),
         "latest_trade_date": _optional_text(evidence_json.get("latest_trade_date")),
         "as_of_date": _optional_text(evidence_json.get("as_of_date")),
+        "propagated_impact_count": _integer(evidence_json.get("propagated_impact_count")),
+        "recent_flows": _as_list(evidence_json.get("recent_flows")),
     }
 
 
@@ -6085,6 +6231,8 @@ def _infer_score_component_source_type(evidence_id: str) -> str:
         return "market_feature"
     if evidence_id.startswith("universe-rank-"):
         return "strategy_universe_rank"
+    if evidence_id.startswith("macro-flow-"):
+        return "macro_flow_propagation"
     if _is_ai_or_event_evidence_id(evidence_id):
         return "event_or_ai_evidence"
     return "score_component"
@@ -6097,6 +6245,8 @@ def _default_score_component_provenance_label(source_type: str) -> str:
         return "전략 유니버스 순위"
     if source_type == "event_or_ai_evidence":
         return "원천 이벤트/AI 근거"
+    if source_type == "macro_flow_propagation":
+        return "상위 흐름 전파 근거"
     return "저장된 점수 구성요소"
 
 
@@ -6291,7 +6441,7 @@ def _has_market_or_rank_provenance(component: dict[str, Any]) -> bool:
 
 
 def _is_ai_or_event_evidence_id(evidence_id: str) -> bool:
-    return evidence_id.startswith(("ai-evidence-", "event-", "sec-event-")) or evidence_id.isdigit()
+    return evidence_id.startswith(("ai-evidence-", "event-", "sec-event-", "macro-flow-")) or evidence_id.isdigit()
 
 
 def _build_thesis_evidence_payload(evidence: dict[str, Any]) -> dict[str, Any]:

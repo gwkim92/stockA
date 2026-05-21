@@ -272,6 +272,22 @@ export type StockDetailData = {
   price_bars: StockPrice[];
   recommendation: StockRecommendation | null;
   position: StockPosition | null;
+  macro_flow_impacts: Array<{
+    event_id: string;
+    title: string;
+    event_type: string;
+    event_at: string;
+    theme_key: string;
+    theme_name: string;
+    impact_direction: string;
+    impact_score: number | null;
+    confidence: number | null;
+    exposure_weight: number | null;
+    rationale: string;
+    source_document_id: string | null;
+    ai_evidence_id: string | null;
+    source_run_id: string | null;
+  }>;
   recent_events: Array<{
     event_id: string;
     title: string;
@@ -710,6 +726,18 @@ export type RecommendationDetailData = {
         first_trade_date: string | null;
         latest_trade_date: string | null;
         as_of_date: string | null;
+        propagated_impact_count?: number | null;
+        recent_flows?: Array<{
+          event_id: number | string;
+          title: string;
+          event_at: string;
+          theme_key: string;
+          theme_name: string;
+          impact_direction: string;
+          impact_strength: number | null;
+          confidence: number | null;
+          exposure_weight: number | null;
+        }>;
       };
     };
   }>;

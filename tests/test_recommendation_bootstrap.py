@@ -43,6 +43,7 @@ class FakeExecutor:
                         "return_since_first": "-0.01327962",
                         "return_since_first_zscore": "-1.00000000",
                         "latest_adjusted_close": "222.91000000",
+                        "macro_flow_score": "0.00000000",
                     }
                 ]
             )
@@ -76,6 +77,7 @@ class RecommendationBootstrapTests(unittest.TestCase):
         self.assertIn("ref.instrument_classification_membership", sql)
         self.assertIn("signal.cycle_state_snapshot", sql)
         self.assertIn("signal.instrument_feature_value", sql)
+        self.assertIn("signal.propagated_instrument_impact", sql)
         self.assertIn("return_since_first_observation", sql)
 
     def test_load_recommendation_candidates(self) -> None:
@@ -122,6 +124,7 @@ class RecommendationBootstrapTests(unittest.TestCase):
                     return_since_first=Decimal("-0.01327962"),
                     return_since_first_zscore=Decimal("-1.00000000"),
                     latest_adjusted_close=Decimal("222.91000000"),
+                    macro_flow_score=Decimal("0.00000000"),
                 ),
                 RecommendationCandidate(
                     universe_batch_id=1001,
@@ -138,6 +141,7 @@ class RecommendationBootstrapTests(unittest.TestCase):
                     return_since_first=Decimal("0.18000000"),
                     return_since_first_zscore=Decimal("1.50000000"),
                     latest_adjusted_close=Decimal("150.00000000"),
+                    macro_flow_score=Decimal("0.00000000"),
                 ),
             )
         )
@@ -154,6 +158,7 @@ class RecommendationBootstrapTests(unittest.TestCase):
                 "momentum_score": "0.2500",
                 "short_term_score": "0.3672",
                 "rank_score": "1.0000",
+                "macro_flow_score": "0.0000",
             },
         )
         self.assertEqual(by_symbol["NVDA"].bucket, "cycle")
@@ -177,6 +182,7 @@ class RecommendationBootstrapTests(unittest.TestCase):
                     return_since_first=Decimal("-0.01327962"),
                     return_since_first_zscore=Decimal("-1.00000000"),
                     latest_adjusted_close=Decimal("222.91000000"),
+                    macro_flow_score=Decimal("0.00000000"),
                 ),
             )
         )
@@ -198,6 +204,8 @@ class RecommendationBootstrapTests(unittest.TestCase):
         self.assertIn("source_components", sql)
         self.assertIn("'cycle_score'", sql)
         self.assertIn("0.45::numeric", sql)
+        self.assertIn("'macro_flow_score'", sql)
+        self.assertIn("0.10::numeric", sql)
         self.assertIn("'Normalized current cycle state score from the linked internal theme.'", sql)
         self.assertIn("77::bigint", sql)
         self.assertIn("'watch'", sql)
@@ -218,7 +226,7 @@ class RecommendationBootstrapTests(unittest.TestCase):
         self.assertEqual(summary["universe_batch_id"], 1001)
         self.assertEqual(summary["candidate_count"], 1)
         self.assertEqual(summary["recommendation_count"], 1)
-        self.assertEqual(summary["score_component_count"], 4)
+        self.assertEqual(summary["score_component_count"], 5)
         self.assertEqual(summary["bucket_counts"], {"watch": 1})
         self.assertIn("insert into ops.pipeline_run", executor.scalar_sql[1])
         self.assertIn("insert into signal.recommendation_batch", executor.scalar_sql[2])

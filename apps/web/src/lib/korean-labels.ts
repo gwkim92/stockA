@@ -352,6 +352,9 @@ const KOREAN_LABELS: Record<string, string> = {
   "rank score": "순위 점수",
   short_term_score: "단기 점수",
   "short term score": "단기 점수",
+  macro_flow_score: "상위 흐름 점수",
+  "macro flow score": "상위 흐름 점수",
+  macro_flow_propagation: "상위 흐름 전파",
   "Operating context used by the event extractor as a qualitative annual reporting signal.":
     "이벤트 추출기가 정성적 연간 공시 신호로 사용한 운영 맥락입니다.",
   "Management discussion": "경영진 논의",

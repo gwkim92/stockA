@@ -78,6 +78,7 @@ from stockanalysis.operations.operating_data_profile_scheduler import (
     build_operating_data_profile_scheduler_status_report,
     render_operating_data_profile_scheduler_invocation_markdown,
 )
+from stockanalysis.signal.macro_event_propagation import run_macro_event_propagation
 from stockanalysis.trading.paper_safety_bootstrap import (
     PaperSafetyBootstrapConfig,
     decimal_from_cli,
@@ -451,6 +452,18 @@ def build_parser() -> argparse.ArgumentParser:
     news_rss_ai_extract.add_argument("--dry-run", action="store_true")
     news_rss_ai_extract.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
     news_rss_ai_extract.set_defaults(handler=_handle_news_rss_ai_extract_run)
+
+    macro_event_propagation = subparsers.add_parser(
+        "macro-event-propagation-run",
+        help="Propagate macro/theme news events to instruments through factor exposure rows.",
+    )
+    macro_event_propagation.add_argument("--env-file")
+    macro_event_propagation.add_argument("--as-of-date", required=True)
+    macro_event_propagation.add_argument("--limit", type=int, default=200)
+    macro_event_propagation.add_argument("--execute", action="store_true")
+    macro_event_propagation.add_argument("--dry-run", action="store_true")
+    macro_event_propagation.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
+    macro_event_propagation.set_defaults(handler=_handle_macro_event_propagation_run)
 
     paper_validation_audit = subparsers.add_parser(
         "paper-validation-audit-run",
@@ -1029,6 +1042,22 @@ def _handle_news_rss_ai_extract_run(args: argparse.Namespace, *, stdout: TextIO)
             min_confidence=args.min_confidence,
             execute=bool(args.execute) and not bool(args.dry_run),
             llm_output_json_path=args.llm_output_json,
+        )
+    print_json(report, stdout=stdout, sort_keys=False)
+    return 0
+
+
+def _handle_macro_event_propagation_run(args: argparse.Namespace, *, stdout: TextIO) -> int:
+    if bool(args.execute) and bool(args.dry_run):
+        raise ValueError("--execute and --dry-run cannot be used together.")
+    env_mapping = _load_optional_env_mapping(args.env_file, repo_root=args.repo_root)
+    as_of_date = date.fromisoformat(args.as_of_date)
+    with _temporary_environ(env_mapping):
+        report = run_macro_event_propagation(
+            config=RuntimeConfig.from_env(),
+            as_of_date=as_of_date,
+            limit=args.limit,
+            execute=bool(args.execute) and not bool(args.dry_run),
         )
     print_json(report, stdout=stdout, sort_keys=False)
     return 0

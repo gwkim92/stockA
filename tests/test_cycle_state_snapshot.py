@@ -73,6 +73,8 @@ class CycleStateSnapshotTests(unittest.TestCase):
         self.assertIn("ref.instrument_classification_membership", sql)
         self.assertIn("signal.instrument_feature_value", sql)
         self.assertIn("event.event_classification_impact", sql)
+        self.assertIn("signal.propagated_instrument_impact", sql)
+        self.assertIn("propagated_event_impacts", sql)
         self.assertIn("return_since_first_observation", sql)
 
     def test_load_cycle_snapshot_inputs(self) -> None:
