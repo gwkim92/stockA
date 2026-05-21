@@ -16,11 +16,16 @@
   - EC2 실행 중 `FINANCIAL INSTITUTIONS INC`가 Fed 문장의 일반어 `financial institutions`에 오탐 매칭되는 것을 발견해 alias blocklist를 추가했다.
   - cluster artifact request hash가 `event_id`만 포함해 symbol correction을 반영하지 못하는 구조를 발견했고, event fingerprint에 symbol/direction/score를 포함하도록 바꿨다.
   - `/api/ai/news-clusters`가 과거 cluster artifact까지 모두 반환해 stale cluster가 화면에 섞일 수 있는 것을 발견했고, theme별 최신 artifact만 노출하도록 SQL superseding 기준을 추가했다.
+  - EC2에 최신 커밋 `31c4dc4`를 배포했고 backend/frontend services가 active 상태다.
+  - 잘못 들어간 event `1`/`FISI` instrument impact를 제한 조건으로 1건 삭제했다.
+  - `news_rss_event_enrichment` run `43`, `news_rss_cluster_evidence` run `44`가 성공했다.
+  - 최신 `news_cluster_summary` artifact `50`-`53` 기준으로 duplicate cluster event가 0건임을 확인했다.
+  - `/api/ai/news-clusters?asOfDate=2026-05-21&limit=4`가 cluster 4건, duplicate event ids `[]`를 반환한다.
   - 로컬 관련 테스트와 전체 테스트는 통과했다.
 
 ## Exact Next Step
 
-- exact next step: 최신 API superseding 커밋을 EC2에 배포한 뒤 `/api/ai/news-clusters?asOfDate=2026-05-21&limit=4`가 최신 theme cluster 4건만 반환하고 duplicate event id가 없는지 확인한다.
+- exact next step: UI wording 작업에서 단일 종목이 없는 macro/theme 뉴스가 `종목 미분류`로 오해되지 않도록 `시장/테마 뉴스` 계열 문구로 바꾼다.
 
 ## Root Cause
 
@@ -51,11 +56,16 @@
   - `Analysts lift price target after earnings` -> no match
 - EC2 execution check found and fixed alias false positive:
   - generic `financial institutions` no longer resolves to `FISI`.
+- EC2 DB after correction:
+  - latest 4 cluster artifacts: `50`, `51`, `52`, `53`
+  - duplicate cluster event rows: `0`
+  - canonical news instruments: `ELF`, `TGT`, `EROK`, `TSLA`, `SPY`, `ADI`, `MSFT`, `INTU`
+- EC2 API smoke:
+  - `/api/ai/news-clusters?asOfDate=2026-05-21&limit=4`: cluster_count `4`, duplicate_event_ids `[]`.
 - `PYTHONPATH=src python3 -m unittest tests.test_news_rss_cluster_evidence tests.test_news_rss_enrichment tests.test_frontend_live_adapter tests.test_news_rss_ai_extract`: pass, 80 tests.
 - `PYTHONPATH=src /private/tmp/stockanalysis-runtime/test-venv/bin/python -m unittest discover -s tests`: pass, 700 tests.
 - `git diff --check`: pass.
 
 ## Remaining Work
 
-- EC2 배포 후 `news_rss_event_enrichment`와 `news_rss_cluster_evidence`를 한 번 실행해 최신 artifact를 새 로직으로 재생성해야 한다.
 - 단일 종목이 없는 macro/theme 뉴스는 `종목 미분류`가 아니라 화면에서 `시장/테마 뉴스`로 보여주는 wording 개선이 별도 UI 작업으로 남아 있다.

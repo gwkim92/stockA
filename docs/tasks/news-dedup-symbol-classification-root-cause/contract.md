@@ -63,7 +63,7 @@
 
 ## Done Criteria
 
-- [ ] Frontend event list SQL이 primary impact만 선택한다.
-- [ ] Cluster evidence 후보 SQL과 builder가 event를 한 cluster에만 배치한다.
-- [ ] Company alias lookup이 `Analog Devices`, `Intuit`, `Target` 같은 명확한 회사명 뉴스를 symbol로 연결한다.
-- [ ] EC2 최신 artifact/API에서 event `11`, `19`가 중복 cluster로 보이지 않는다.
+- [x] Frontend event list SQL이 primary impact만 선택한다.
+- [x] Cluster evidence 후보 SQL과 builder가 event를 한 cluster에만 배치한다.
+- [x] Company alias lookup이 `Analog Devices`, `Intuit`, `Target` 같은 명확한 회사명 뉴스를 symbol로 연결한다.
+- [x] EC2 최신 artifact/API에서 event `11`, `19`가 중복 cluster로 보이지 않는다.
