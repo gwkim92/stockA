@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from collections.abc import Iterable
 from datetime import date
 
@@ -468,6 +469,249 @@ values (
     'news_cluster_summary',
     {sql_literal(output_json)}::jsonb,
     {confidence:.4f}
+)
+returning artifact_id;"""
+
+
+def render_news_rss_ai_extraction_candidates_sql(*, as_of_date: date, limit: int) -> str:
+    if limit <= 0:
+        raise ValueError("limit must be greater than 0")
+    return f"""select coalesce(
+    json_agg(
+        json_build_object(
+            'event_id', event_id,
+            'document_id', document_id,
+            'title', title,
+            'summary', summary,
+            'event_at', event_at,
+            'source_name', source_name,
+            'external_document_id', external_document_id,
+            'source_url', source_url,
+            'existing_theme_code', existing_theme_code,
+            'existing_instrument_symbol', existing_instrument_symbol
+        )
+        order by rank_bucket, event_at desc, event_id desc
+    ),
+    '[]'::json
+)::text
+from (
+    select
+        e.event_id,
+        d.document_id,
+        e.title,
+        e.summary,
+        e.event_at,
+        ds.source_name,
+        d.external_document_id,
+        d.url as source_url,
+        theme.code as existing_theme_code,
+        instrument.primary_symbol as existing_instrument_symbol,
+        case
+            when instrument.primary_symbol is not null then 0
+            when theme.code is not null then 1
+            else 2
+        end as rank_bucket
+    from event.event e
+    join event.event_document_link document_link
+      on document_link.event_id = e.event_id
+     and document_link.link_type = 'source'
+    join ingest.source_document d
+      on d.document_id = document_link.document_id
+     and d.document_type = 'news_rss_item'
+    left join ingest.data_source ds
+      on ds.data_source_id = d.data_source_id
+    left join event.event_classification_impact classification_impact
+      on classification_impact.event_id = e.event_id
+    left join ref.classification_node theme
+      on theme.node_id = classification_impact.node_id
+     and theme.taxonomy_family = 'internal_theme'
+    left join event.event_instrument_impact instrument_impact
+      on instrument_impact.event_id = e.event_id
+    left join ref.instrument instrument
+      on instrument.instrument_id = instrument_impact.instrument_id
+    where e.event_type = 'news_rss_item'
+      and e.dedupe_key like 'news_rss:%'
+      and e.event_at < ({sql_literal(as_of_date.isoformat())}::date + interval '1 day')
+      and not exists (
+          select 1
+          from ai.extraction_artifact artifact
+          join ai.model_invocation invocation
+            on invocation.invocation_id = artifact.invocation_id
+          where artifact.event_id = e.event_id
+            and artifact.artifact_type = 'news_event_candidate'
+            and invocation.status = 'succeeded'
+      )
+    order by rank_bucket, e.event_at desc, e.event_id desc
+    limit {limit}
+) candidates;"""
+
+
+def render_news_rss_ai_retrieval_context_sql(*, event_id: int, as_of_date: date, limit: int = 8) -> str:
+    if limit <= 0:
+        raise ValueError("limit must be greater than 0")
+    return f"""select json_build_object(
+    'as_of_date', {sql_literal(as_of_date.isoformat())},
+    'event_id', {event_id},
+    'known_themes',
+    coalesce(
+        (
+            select json_agg(
+                json_build_object(
+                    'code', node.code,
+                    'node_type', node.node_type,
+                    'name', node.name,
+                    'description', node.description
+                )
+                order by node.node_type, node.code
+            )
+            from ref.classification_node node
+            where node.taxonomy_family = 'internal_theme'
+              and node.status = 'active'
+        ),
+        '[]'::json
+    ),
+    'theme_edges',
+    coalesce(
+        (
+            select json_agg(
+                json_build_object(
+                    'parent_code', parent_node.code,
+                    'child_code', child_node.code,
+                    'relation_type', edge.relation_type,
+                    'weight', edge.weight
+                )
+                order by parent_node.code, child_node.code
+            )
+            from ref.classification_edge edge
+            join ref.classification_node parent_node
+              on parent_node.node_id = edge.parent_node_id
+            join ref.classification_node child_node
+              on child_node.node_id = edge.child_node_id
+            where edge.valid_from <= {sql_literal(as_of_date.isoformat())}::date
+              and (edge.valid_to is null or edge.valid_to >= {sql_literal(as_of_date.isoformat())}::date)
+        ),
+        '[]'::json
+    ),
+    'current_event_impacts',
+    coalesce(
+        (
+            select json_agg(row_to_json(current_impacts))
+            from (
+                select
+                    theme.code as theme_code,
+                    classification_impact.impact_direction as theme_direction,
+                    classification_impact.confidence as theme_confidence,
+                    instrument.primary_symbol as symbol,
+                    instrument_impact.impact_direction as instrument_direction,
+                    instrument_impact.confidence as instrument_confidence
+                from event.event current_event
+                left join event.event_classification_impact classification_impact
+                  on classification_impact.event_id = current_event.event_id
+                left join ref.classification_node theme
+                  on theme.node_id = classification_impact.node_id
+                left join event.event_instrument_impact instrument_impact
+                  on instrument_impact.event_id = current_event.event_id
+                left join ref.instrument instrument
+                  on instrument.instrument_id = instrument_impact.instrument_id
+                where current_event.event_id = {event_id}
+            ) current_impacts
+        ),
+        '[]'::json
+    ),
+    'recent_similar_events',
+    coalesce(
+        (
+            select json_agg(row_to_json(recent_rows))
+            from (
+                select distinct on (recent.event_id)
+                    recent.event_id,
+                    recent.title,
+                    recent.event_at,
+                    theme.code as theme_code,
+                    instrument.primary_symbol as symbol,
+                    coalesce(instrument_impact.impact_direction, classification_impact.impact_direction, recent.impact_polarity)
+                        as impact_direction
+                from event.event anchor
+                join event.event recent
+                  on recent.event_type = 'news_rss_item'
+                 and recent.event_id <> anchor.event_id
+                 and recent.event_at < ({sql_literal(as_of_date.isoformat())}::date + interval '1 day')
+                left join event.event_classification_impact anchor_theme
+                  on anchor_theme.event_id = anchor.event_id
+                left join event.event_classification_impact classification_impact
+                  on classification_impact.event_id = recent.event_id
+                 and (
+                     anchor_theme.node_id is null
+                     or classification_impact.node_id = anchor_theme.node_id
+                 )
+                left join ref.classification_node theme
+                  on theme.node_id = classification_impact.node_id
+                left join event.event_instrument_impact instrument_impact
+                  on instrument_impact.event_id = recent.event_id
+                left join ref.instrument instrument
+                  on instrument.instrument_id = instrument_impact.instrument_id
+                where anchor.event_id = {event_id}
+                order by recent.event_id, recent.event_at desc
+                limit {limit}
+            ) recent_rows
+        ),
+        '[]'::json
+    )
+)::text;"""
+
+
+def render_classification_node_lookup_by_code_sql(theme_code: str) -> str:
+    return f"""select json_build_object(
+    'node_id', node.node_id,
+    'code', node.code,
+    'node_type', node.node_type,
+    'name', node.name
+)::text
+from ref.classification_node node
+where node.taxonomy_family = 'internal_theme'
+  and upper(node.code) = upper({sql_literal(theme_code)})
+  and node.status = 'active'
+order by node.node_id
+limit 1;"""
+
+
+def render_existing_news_ai_candidate_artifact_lookup_sql(*, event_id: int, request_hash: str) -> str:
+    return f"""select artifact.artifact_id::text
+from ai.extraction_artifact artifact
+join ai.model_invocation invocation
+  on invocation.invocation_id = artifact.invocation_id
+where artifact.event_id = {event_id}
+  and artifact.artifact_type = 'news_event_candidate'
+  and invocation.request_hash = {sql_literal(request_hash)}
+  and invocation.status = 'succeeded'
+order by artifact.artifact_id desc
+limit 1;"""
+
+
+def render_news_ai_extraction_artifact_insert_sql(
+    *,
+    invocation_id: int,
+    document_id: int,
+    event_id: int,
+    output_json: dict[str, object],
+    confidence: float | None,
+) -> str:
+    output_text = json.dumps(output_json, ensure_ascii=False, sort_keys=True)
+    return f"""insert into ai.extraction_artifact (
+    invocation_id,
+    document_id,
+    event_id,
+    artifact_type,
+    output_json,
+    confidence
+)
+values (
+    {invocation_id},
+    {document_id}::bigint,
+    {event_id},
+    'news_event_candidate',
+    {sql_literal(output_text)}::jsonb,
+    {sql_literal(confidence)}
 )
 returning artifact_id;"""
 

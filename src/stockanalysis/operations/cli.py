@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Iterator, Mapping, Sequence, TextIO
 
 from stockanalysis.ingest.config import RuntimeConfig
+from stockanalysis.ingest.news.ai_extract import CODEX_OAUTH_PROVIDER, run_news_rss_ai_extract
 from stockanalysis.ingest.news.cluster_evidence import run_news_rss_cluster_evidence
 from stockanalysis.ingest.news.enrichment import run_news_rss_event_enrichment
 from stockanalysis.operations.artifact_runner import run_data_operation_artifact_command
@@ -432,6 +433,24 @@ def build_parser() -> argparse.ArgumentParser:
     news_rss_cluster_evidence.add_argument("--dry-run", action="store_true")
     news_rss_cluster_evidence.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
     news_rss_cluster_evidence.set_defaults(handler=_handle_news_rss_cluster_evidence_run)
+
+    news_rss_ai_extract = subparsers.add_parser(
+        "news-rss-ai-extract-run",
+        help="Run offline Codex OAuth RSS news AI extraction with validator-gated canonical impact writes.",
+    )
+    news_rss_ai_extract.add_argument("--env-file")
+    news_rss_ai_extract.add_argument("--as-of-date")
+    news_rss_ai_extract.add_argument("--limit", type=int, default=10)
+    news_rss_ai_extract.add_argument("--provider", choices=("fixture", "codex_oauth"), default=CODEX_OAUTH_PROVIDER)
+    news_rss_ai_extract.add_argument("--model-name", default="codex-cli-default")
+    news_rss_ai_extract.add_argument("--reasoning-effort", default="low")
+    news_rss_ai_extract.add_argument("--max-input-chars", type=int, default=6000)
+    news_rss_ai_extract.add_argument("--min-confidence", type=float, default=0.72)
+    news_rss_ai_extract.add_argument("--llm-output-json")
+    news_rss_ai_extract.add_argument("--execute", action="store_true")
+    news_rss_ai_extract.add_argument("--dry-run", action="store_true")
+    news_rss_ai_extract.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
+    news_rss_ai_extract.set_defaults(handler=_handle_news_rss_ai_extract_run)
 
     paper_validation_audit = subparsers.add_parser(
         "paper-validation-audit-run",
@@ -991,6 +1010,28 @@ def _handle_news_rss_cluster_evidence_run(args: argparse.Namespace, *, stdout: T
         )
     print_json(report, stdout=stdout, sort_keys=False)
     return 0 if int(report.get("failed_cluster_count", 0)) == 0 else 1
+
+
+def _handle_news_rss_ai_extract_run(args: argparse.Namespace, *, stdout: TextIO) -> int:
+    if bool(args.execute) and bool(args.dry_run):
+        raise ValueError("--execute and --dry-run cannot be used together.")
+    env_mapping = _load_optional_env_mapping(args.env_file, repo_root=args.repo_root)
+    as_of_date = date.fromisoformat(args.as_of_date) if args.as_of_date else None
+    with _temporary_environ(env_mapping):
+        report = run_news_rss_ai_extract(
+            config=RuntimeConfig.from_env(),
+            as_of_date=as_of_date,
+            limit=args.limit,
+            provider=args.provider,
+            model_name=args.model_name,
+            reasoning_effort=args.reasoning_effort,
+            max_input_chars=args.max_input_chars,
+            min_confidence=args.min_confidence,
+            execute=bool(args.execute) and not bool(args.dry_run),
+            llm_output_json_path=args.llm_output_json,
+        )
+    print_json(report, stdout=stdout, sort_keys=False)
+    return 0
 
 
 def _handle_paper_validation_audit_run(args: argparse.Namespace, *, stdout: TextIO) -> int:

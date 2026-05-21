@@ -127,8 +127,12 @@ class OperatingDataOrchestratorTests(unittest.TestCase):
         self.assertEqual(report["generated_files"]["position_snapshot_csv"], "")
         self.assertEqual(
             [step["step_id"] for step in report["planned_steps"]],
-            ["news-rss-ingest", "news-rss-enrichment", "news-cluster-evidence"],
+            ["news-rss-ingest", "news-rss-enrichment", "news-ai-evidence"],
         )
+        ai_command = " ".join(report["planned_steps"][-1]["command_argv"])
+        self.assertIn("news-rss-ai-extract-run", ai_command)
+        self.assertIn("--provider codex_oauth", ai_command)
+        self.assertIn("--execute", ai_command)
         self.assertEqual(runner.calls, [])
 
     def test_weekly_reference_profiles_do_not_require_portfolio_positions(self) -> None:

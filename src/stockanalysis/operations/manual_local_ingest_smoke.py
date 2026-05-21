@@ -168,14 +168,19 @@ def build_manual_local_ingest_job(
     if job_id == "event-intelligence-weekly":
         return ManualLocalIngestJob(
             job_id=job_id,
-            label="intraday local news cluster AI evidence",
+            label="intraday Codex OAuth news AI evidence",
             command_argv=(
                 python_bin,
                 "-m",
                 "stockanalysis.operations.cli",
-                "news-rss-cluster-evidence-run",
+                "news-rss-ai-extract-run",
                 "--env-file",
                 env_file,
+                "--provider",
+                "codex_oauth",
+                "--limit",
+                "10",
+                "--execute",
             ),
         )
     raise ValueError(f"Unsupported manual local ingest smoke job_id: {job_id}")

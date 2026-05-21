@@ -1,0 +1,54 @@
+{
+  "provider": "fixture",
+  "model_name": "news-fixture-v1",
+  "reasoning_effort": "none",
+  "candidate": {
+    "analysis_method": "fixture_structured_news",
+    "event_summary": "Nvidia H200 export path remains open, supporting AI semiconductor demand visibility.",
+    "theme_impacts": [
+      {
+        "theme_code": "AI_SEMICONDUCTOR_CYCLE",
+        "impact_direction": "supportive",
+        "impact_strength": 0.74,
+        "confidence": 0.88,
+        "rationale": "The headline and summary directly mention Nvidia H200 GPU export continuity.",
+        "evidence_summary": "Nvidia H200 China deal survived the summit."
+      },
+      {
+        "theme_code": "UNKNOWN_THEME",
+        "impact_direction": "watch",
+        "impact_strength": 0.50,
+        "confidence": 0.90,
+        "rationale": "This should be rejected by ontology validation.",
+        "evidence_summary": "Unknown theme test."
+      }
+    ],
+    "instrument_impacts": [
+      {
+        "symbol": "NVDA",
+        "impact_direction": "supportive",
+        "impact_strength": 0.72,
+        "confidence": 0.86,
+        "rationale": "The article directly names Nvidia and H200 GPUs.",
+        "evidence_summary": "Nvidia H200 export path stays open."
+      },
+      {
+        "symbol": "FAKE",
+        "impact_direction": "watch",
+        "impact_strength": 0.40,
+        "confidence": 0.95,
+        "rationale": "This should be rejected by instrument validation.",
+        "evidence_summary": "Unknown symbol test."
+      }
+    ],
+    "uncertainty_notes": "RSS summary is short, so downstream scoring should treat this as evidence, not a recommendation.",
+    "recommendation_relevance": "watchlist"
+  },
+  "usage": {
+    "input_tokens": 120,
+    "output_tokens": 80,
+    "cached_input_tokens": 0,
+    "estimated_cost_usd": "0.000000",
+    "latency_ms": 1
+  }
+}

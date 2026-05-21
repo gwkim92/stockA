@@ -442,6 +442,10 @@ task마다 흔들리게 두지 않는 편이 좋다.
 - 무엇을 증명하는가: portfolio attribution에서 제외될 수 있는 missing thesis/outcome/weight position을 read-only coverage report로 식별하고 count/weight/cash coverage를 계산하는지 검증한다.
 - 통과 조건: 전체 `unittest`, docker Postgres migration/seed, benchmark 포함 universe/price/event/theme/recommendation/thesis/outcome/position pipeline, `portfolio-outcome-coverage-report`, position count 2건, AAPL `covered`, BABA `missing_thesis`, covered weight `0.0500`, missing thesis weight `0.0300`, total position weight `0.0800`, cash weight `0.9200`, count coverage ratio `0.5000`, weight coverage ratio `0.6250`이 모두 확인된다.
 
+- 명령: `bash scripts/verify_news_ai_evidence_quality_pipeline.sh`
+- 무엇을 증명하는가: RSS 뉴스가 rule-only cluster summary를 넘어 `codex_oauth` 후보 추출, Postgres ontology-lite context, validator-gated canonical impact update 경계로 전환되는지 검증한다.
+- 통과 조건: news AI extractor compile, unit tests, operations CLI routing, news-intraday orchestrator command, manual smoke command, task contract 존재, `news_event_candidate` artifact 저장 경계와 `event_intelligence_llm_extract` pipeline alignment가 모두 확인된다.
+
 ## Manual Checks
 
 - 시나리오: `docs/project-foundation.md`를 읽고 시스템 아키텍처가 데이터, 이벤트, 테마/섹터 그래프, 사이클 엔진, thesis 엔진, 추천 엔진, 포트폴리오 검토, 성과 분석을 모두 포함하는지 검토한다.

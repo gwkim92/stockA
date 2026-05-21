@@ -330,8 +330,8 @@ export default async function DataHealthPage() {
       title: "AI evidence 생성",
       run: aiRun,
       owner: "event-intelligence-weekly",
-      output: "무료 로컬 규칙 기반 cluster evidence 또는 LLM 추출 artifact를 `ai.extraction_artifact`에 남긴다.",
-      next: "AI는 근거를 구조화한다. 매수·매도·주문 결론은 여기서 만들지 않는다.",
+      output: "중요 뉴스만 Codex OAuth batch로 분석해 종목·테마·방향·근거 후보를 `ai.extraction_artifact`에 남긴다.",
+      next: "validator를 통과한 근거만 canonical impact로 반영한다. 매수·매도·주문 결론은 여기서 만들지 않는다.",
     },
     {
       index: "04",

@@ -117,6 +117,20 @@ class ManualLocalIngestSmokeTests(unittest.TestCase):
             command = report["planned_jobs"][0]["command_argv"]
             self.assertEqual(command[0], str(runtime_python))
 
+    def test_event_intelligence_job_uses_news_ai_extract_runner(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            env_file = Path(tmpdir) / "data-operations.env"
+            job = build_manual_local_ingest_job(
+                job_id="event-intelligence-weekly",
+                data_operations_env_file=env_file,
+                python_executable="/usr/bin/python3",
+            )
+
+        command_text = " ".join(job.command_argv)
+        self.assertIn("news-rss-ai-extract-run", command_text)
+        self.assertIn("--provider codex_oauth", command_text)
+        self.assertIn("--execute", command_text)
+
     def test_unsupported_job_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             with self.assertRaises(ValueError):

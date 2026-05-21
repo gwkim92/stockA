@@ -118,3 +118,49 @@ class NewsRssClusterEvidenceResult:
         if self.error:
             payload["error"] = self.error
         return payload
+
+
+@dataclass(frozen=True)
+class NewsRssAiExtractionCandidate:
+    event_id: int
+    document_id: int
+    title: str
+    summary: str
+    event_at: str
+    source_name: str | None
+    external_document_id: str | None
+    source_url: str | None
+    existing_theme_code: str | None
+    existing_instrument_symbol: str | None
+
+
+@dataclass(frozen=True)
+class NewsRssAiExtractionResult:
+    event_id: int
+    status: str
+    document_id: int | None = None
+    artifact_id: int | None = None
+    invocation_id: int | None = None
+    run_id: int | None = None
+    request_hash: str | None = None
+    validated_theme_count: int = 0
+    validated_instrument_count: int = 0
+    rejected_impact_count: int = 0
+    error: str | None = None
+
+    def summary(self) -> dict[str, object]:
+        payload: dict[str, object] = {
+            "event_id": self.event_id,
+            "document_id": self.document_id,
+            "status": self.status,
+            "artifact_id": self.artifact_id,
+            "invocation_id": self.invocation_id,
+            "run_id": self.run_id,
+            "request_hash": self.request_hash,
+            "validated_theme_count": self.validated_theme_count,
+            "validated_instrument_count": self.validated_instrument_count,
+            "rejected_impact_count": self.rejected_impact_count,
+        }
+        if self.error:
+            payload["error"] = self.error
+        return payload
