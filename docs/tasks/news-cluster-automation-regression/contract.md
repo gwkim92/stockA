@@ -56,7 +56,7 @@
 
 ## Done Criteria
 
-- [ ] `news-intraday` planned steps에 `news-cluster-evidence`와 `news-ai-evidence`가 모두 존재한다.
-- [ ] cluster evidence가 AI candidate보다 먼저 실행된다.
-- [ ] EC2 DB에 `news_cluster_summary` artifact가 실제 생성된다.
-- [ ] `/intelligence`에서 뉴스 묶음 section이 다시 데이터를 표시한다.
+- [x] `news-intraday` planned steps에 `news-cluster-evidence`와 `news-ai-evidence`가 모두 존재한다.
+- [x] cluster evidence가 AI candidate보다 먼저 실행된다.
+- [x] EC2 DB에 `news_cluster_summary` artifact가 실제 생성된다.
+- [x] `/intelligence`에서 뉴스 묶음 section이 다시 데이터를 표시한다.
