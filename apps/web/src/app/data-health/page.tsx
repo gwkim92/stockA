@@ -8,6 +8,7 @@ export const metadata = { title: "데이터 수집" };
 type PipelineRun = DataHealthData["pipeline_runs"][number];
 type SchedulerActivation = DataHealthData["scheduler"]["activation"];
 type SchedulerStatus = DataHealthData["scheduler"];
+type ProfileSchedulerStatus = NonNullable<DataHealthData["scheduler"]["profile_scheduler"]>;
 type ManualIngestSmoke = DataHealthData["manual_local_ingest_smoke"];
 type LocalIngestWorker = DataHealthData["local_ingest_worker"];
 
@@ -44,7 +45,7 @@ function runStateLabel(run: PipelineRun | null) {
 
 function automationStateLabel(schedulerActivation: SchedulerActivation) {
   if (schedulerActivation.activation_allowed) {
-    return "반복 실행 설정됨";
+    return schedulerActivation.scheduler_activation === "installed" ? "자동 반복 실행 중" : "반복 실행 설정됨";
   }
   if (schedulerActivation.status === "pending_manual_approval") {
     return "로컬 반복 실행 미설정";
@@ -65,6 +66,9 @@ function finishedAtLabel(run: PipelineRun | null) {
 
 function schedulerReadinessTitle(scheduler: SchedulerStatus) {
   const activation = scheduler.activation;
+  if (activation.approval_gate === "installed_on_ec2_systemd") {
+    return "EC2 systemd 반복 실행기 작동 중";
+  }
   if (activation.activation_allowed && activation.scheduler_activation !== "not_installed") {
     return "반복 실행기 연결 가능";
   }
@@ -79,6 +83,12 @@ function schedulerReadinessTitle(scheduler: SchedulerStatus) {
 
 function schedulerReadinessExplanation(scheduler: SchedulerStatus) {
   const activation = scheduler.activation;
+  const profileScheduler = scheduler.profile_scheduler;
+  if (activation.approval_gate === "installed_on_ec2_systemd") {
+    const activeCount = profileScheduler?.active_timer_count ?? 0;
+    const timerCount = profileScheduler?.timer_count ?? 0;
+    return `EC2 서버의 systemd timer가 데이터 수집과 분석 작업을 주기별로 호출한다. 현재 profile timer는 ${activeCount}/${timerCount}개가 활성 상태이며, 화면은 repo 밖 status report를 읽어 이 상태를 보여준다.`;
+  }
   if (activation.activation_allowed && activation.scheduler_activation !== "not_installed") {
     return "승인 관문과 실행기 상태가 반복 실행을 허용하는 상태다. 외부 배포가 아니라도 로컬 반복 실행기로 운영할 수 있다.";
   }
@@ -235,16 +245,39 @@ const DEFAULT_LOCAL_WORKER: LocalIngestWorker = {
   source: "not_configured",
 };
 
+const DEFAULT_PROFILE_SCHEDULER: ProfileSchedulerStatus = {
+  status: "not_configured",
+  install_status: "not_installed",
+  scheduler_type: "",
+  timer_count: 0,
+  active_timer_count: 0,
+  generated_at: "",
+  source: "not_configured",
+  timers: [],
+};
+
 export default async function DataHealthPage() {
   const response = await getDataHealth();
   const data = response.data;
   const providerBudget = data.provider_budget;
   const schedulerActivation = data.scheduler.activation;
+  const profileScheduler = data.scheduler.profile_scheduler ?? DEFAULT_PROFILE_SCHEDULER;
   const manualSmoke = data.manual_local_ingest_smoke ?? DEFAULT_MANUAL_SMOKE;
   const localWorker = data.local_ingest_worker ?? DEFAULT_LOCAL_WORKER;
   const marketPriceRun = findPipelineRun(data, "market-price-daily", "market_price_upsert");
   const newsRun = findPipelineRun(data, "news-rss-daily", "news_rss_upsert");
+  const newsEnrichmentRun = findPipelineRun(
+    data,
+    "news-rss-enrichment-intraday",
+    "news_rss_event_enrichment",
+  );
   const aiRun = findPipelineRun(data, "event-intelligence-weekly", "event_intelligence_llm_extract");
+  const decisionRun = findPipelineRun(data, "cycle-recommendation-weekly", "cycle_state_snapshot");
+  const remediationRun = findPipelineRun(
+    data,
+    "portfolio-remediation-daily",
+    "portfolio_remediation_daily_automation",
+  );
   const budgetUsage =
     providerBudget.daily_budget > 0
       ? Math.round((providerBudget.used_request_count / providerBudget.daily_budget) * 100)
@@ -273,6 +306,48 @@ export default async function DataHealthPage() {
       fallbackCadence: "주간 · Monday 09:00",
       description: "수집 문서를 구조화하고 AI 근거 artifact를 남긴다. 뉴스 묶음은 무료 로컬 규칙 기반이다.",
       detail: "AI는 근거를 정리하지만 매수·매도·주문 결론을 자동 실행하지 않는다.",
+    },
+  ];
+  const newsAfterAnalysisSteps = [
+    {
+      index: "01",
+      title: "뉴스 원문 수집",
+      run: newsRun,
+      owner: "news-rss-daily",
+      output: "RSS/Atom 문서를 `ingest.source_document`와 artifact에 저장한다.",
+      next: "중복과 원천 링크를 남긴 뒤 이벤트 구조화 단계로 넘긴다.",
+    },
+    {
+      index: "02",
+      title: "이벤트 구조화",
+      run: newsEnrichmentRun,
+      owner: "news-rss-enrichment-intraday",
+      output: "헤드라인과 본문을 종목·테마·영향 방향이 있는 `event.event`로 정리한다.",
+      next: "동일 테마/종목 관계를 만들고 `/events`, `/stocks`, `/intelligence`가 읽는다.",
+    },
+    {
+      index: "03",
+      title: "AI evidence 생성",
+      run: aiRun,
+      owner: "event-intelligence-weekly",
+      output: "무료 로컬 규칙 기반 cluster evidence 또는 LLM 추출 artifact를 `ai.extraction_artifact`에 남긴다.",
+      next: "AI는 근거를 구조화한다. 매수·매도·주문 결론은 여기서 만들지 않는다.",
+    },
+    {
+      index: "04",
+      title: "신호와 추천 후보 갱신",
+      run: decisionRun,
+      owner: "decision-daily",
+      output: "가격, 테마 연결, 이벤트 강도, 사이클 상태를 합쳐 추천 후보와 thesis 입력을 만든다.",
+      next: "결정 로직은 deterministic scoring이다. AI evidence는 설명 가능한 근거로 붙는다.",
+    },
+    {
+      index: "05",
+      title: "보유 검토와 운영 큐",
+      run: remediationRun,
+      owner: "portfolio-remediation-daily",
+      output: "보유 thesis 유지 여부, 빈 가격/논리/성과 항목, paper validation 문제를 큐로 만든다.",
+      next: "화면은 `/recommendations`, `/theses`, `/portfolio/coverage`, `/paper-trading`에서 사람이 검토한다.",
     },
   ];
 
@@ -328,8 +403,8 @@ export default async function DataHealthPage() {
           <h2 id="automation-summary-title">최근 실행과 실제 반복 자동화를 분리해서 본다</h2>
         </div>
         <p className="page-lede" style={{ marginTop: 0, maxWidth: "980px" }}>
-          아래 3개 작업은 최근 실행 이력 기준으로는 성공 상태다. 다만 현재 반복 실행은{" "}
-          {automationStateLabel(schedulerActivation)} 상태라서, 자동 반복 실행이 켜졌다고 보지는 않는다.
+          아래 작업은 최근 실행 이력과 반복 실행 상태를 같이 보여준다. 현재 반복 실행은{" "}
+          {automationStateLabel(schedulerActivation)} 상태이며, 수집 성공과 추천 품질은 별도로 검토한다.
         </p>
 
         <article className="ledger-panel" style={{ marginTop: "18px" }}>
@@ -371,11 +446,11 @@ export default async function DataHealthPage() {
         <article className="ledger-panel" style={{ marginTop: "18px" }}>
           <div className="section-heading stacked-heading">
             <span>목표 운영 구조</span>
-            <h3>웹 요청 서버가 아니라 operations worker가 수집을 실행한다</h3>
+            <h3>웹 요청 서버가 아니라 operations runner가 수집을 실행한다</h3>
           </div>
           <p style={{ color: "var(--text-secondary)", marginBottom: "16px" }}>
             FastAPI와 Next.js는 화면 요청을 처리한다. 데이터 수집·뉴스 분석·성과 측정은
-            로컬에서 수동 실행하거나, 나중에 로컬 반복 실행기가 `stockanalysis-operations` worker를 호출한다.
+            EC2 systemd timer가 `stockanalysis-operations` runner를 호출해 수행하고, 결과는 Postgres와 artifact에 남긴다.
           </p>
           <dl className="fact-list compact-facts">
             <div>
@@ -388,13 +463,77 @@ export default async function DataHealthPage() {
             </div>
             <div>
               <dt>작업 실행</dt>
-              <dd>local manual run / local runner → stockanalysis-operations worker</dd>
+              <dd>EC2 systemd timer → stockanalysis-operations runner</dd>
             </div>
             <div>
               <dt>상태 저장</dt>
               <dd>Postgres pipeline run history + artifact storage</dd>
             </div>
           </dl>
+        </article>
+
+        <article className="ledger-panel" style={{ marginTop: "18px" }}>
+          <div className="section-heading stacked-heading">
+            <span>EC2 systemd 반복 실행기</span>
+            <h3>
+              {profileScheduler.active_timer_count}/{profileScheduler.timer_count}개 profile timer 활성
+            </h3>
+          </div>
+          <p style={{ color: "var(--text-secondary)", marginBottom: "16px" }}>
+            수집기는 하나로 묶여 있지 않다. 뉴스/AI는 짧은 주기, 캔들은 장 마감 후, 신호/추천은 캔들 이후,
+            거시·SEC·성과는 느린 주기로 분리되어 돈을 아끼면서도 필요한 데이터가 갱신되게 한다.
+          </p>
+          <div className="scheduler-timer-grid">
+            {profileScheduler.timers.map((timer) => (
+              <div className="scheduler-timer-card" key={timer.profile_id}>
+                <span>{koCode(timer.profile_id)}</span>
+                <strong>{koCode(timer.active_state)}</strong>
+                <small>{timer.schedule || "스케줄 미확인"}</small>
+                <dl>
+                  <div>
+                    <dt>다음 실행</dt>
+                    <dd>{timer.next_elapse || "미확인"}</dd>
+                  </div>
+                  <div>
+                    <dt>마지막 결과</dt>
+                    <dd>{koCode(timer.last_result || "unknown")}</dd>
+                  </div>
+                </dl>
+              </div>
+            ))}
+          </div>
+        </article>
+
+        <article className="ledger-panel" style={{ marginTop: "18px" }}>
+          <div className="section-heading stacked-heading">
+            <span>뉴스 분석 이후 운영 흐름</span>
+            <h3>AI evidence 이후에는 추천·투자 논리·보유 검토로 넘어간다</h3>
+          </div>
+          <p style={{ color: "var(--text-secondary)", marginBottom: "16px" }}>
+            뉴스 분석은 끝점이 아니다. 수집된 뉴스는 이벤트와 AI evidence가 되고, 이후 가격·테마·사이클 데이터와
+            결합되어 중장기 추천 후보, thesis, 보유 검토 큐를 만든다. 주문은 자동 실행하지 않는다.
+          </p>
+          <div className="operating-flow-grid">
+            {newsAfterAnalysisSteps.map((step) => (
+              <div className="operating-flow-card" key={step.index}>
+                <b>{step.index}</b>
+                <span>{koCode(step.owner)}</span>
+                <strong>{step.title}</strong>
+                <p>{step.output}</p>
+                <small>{step.next}</small>
+                <dl>
+                  <div>
+                    <dt>상태</dt>
+                    <dd>{runStateLabel(step.run)}</dd>
+                  </div>
+                  <div>
+                    <dt>최근 완료</dt>
+                    <dd>{finishedAtLabel(step.run)}</dd>
+                  </div>
+                </dl>
+              </div>
+            ))}
+          </div>
         </article>
 
         <article className="ledger-panel" style={{ marginTop: "18px" }}>

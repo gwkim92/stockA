@@ -107,6 +107,24 @@ export type DataHealthData = {
       generated_at: string;
       source: string;
     };
+    profile_scheduler?: {
+      status: string;
+      install_status: string;
+      scheduler_type: string;
+      timer_count: number;
+      active_timer_count: number;
+      generated_at: string;
+      source: string;
+      timers: Array<{
+        profile_id: string;
+        service_name: string;
+        timer_name: string;
+        schedule: string;
+        active_state: string;
+        next_elapse: string;
+        last_result: string;
+      }>;
+    };
   };
   freshness: Array<{
     dataset: string;

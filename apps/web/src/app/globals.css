@@ -1631,6 +1631,99 @@ h6 {
   background: var(--accent-blue);
 }
 
+.scheduler-timer-grid,
+.operating-flow-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.scheduler-timer-card,
+.operating-flow-card {
+  min-width: 0;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.55);
+  border: 1px solid var(--border-light);
+}
+
+.scheduler-timer-card span,
+.operating-flow-card span {
+  display: block;
+  color: var(--text-tertiary);
+  font-size: 0.7rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+}
+
+.scheduler-timer-card strong,
+.operating-flow-card strong {
+  display: block;
+  margin-top: 7px;
+  color: var(--text-primary);
+  font-size: 1rem;
+  line-height: 1.2;
+}
+
+.scheduler-timer-card small,
+.operating-flow-card small {
+  display: block;
+  margin-top: 8px;
+  color: var(--text-secondary);
+  font-size: 0.74rem;
+  font-weight: 750;
+  line-height: 1.45;
+}
+
+.scheduler-timer-card dl,
+.operating-flow-card dl {
+  display: grid;
+  gap: 8px;
+  margin: 14px 0 0;
+}
+
+.scheduler-timer-card dl div,
+.operating-flow-card dl div {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  gap: 10px;
+}
+
+.scheduler-timer-card dt,
+.operating-flow-card dt {
+  color: var(--text-tertiary);
+  font-size: 0.68rem;
+  font-weight: 900;
+}
+
+.scheduler-timer-card dd,
+.operating-flow-card dd {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 0.73rem;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+.operating-flow-card b {
+  display: inline-grid;
+  width: 30px;
+  height: 30px;
+  margin-bottom: 12px;
+  place-items: center;
+  color: var(--paper);
+  font-size: 0.74rem;
+  background: var(--text-primary);
+  border-radius: 999px;
+}
+
+.operating-flow-card p {
+  margin: 10px 0 0;
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  font-weight: 750;
+  line-height: 1.5;
+}
+
 .cycle-index {
   display: flex;
   flex-direction: column;
