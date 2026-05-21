@@ -82,6 +82,7 @@ const KOREAN_LABELS: Record<string, string> = {
   neutral: "중립",
   no_quota_available: "무료 한도 소진",
   none: "없음",
+  normal: "일반",
   not_configured: "미설정",
   not_due: "아직 실행 대상 아님",
   not_installed: "미설치",
@@ -355,6 +356,10 @@ const KOREAN_LABELS: Record<string, string> = {
     "성과 귀속을 신뢰하기 전에 활성 장기 투자 논리를 만들거나 연결해야 합니다.",
   "Create or link an active thesis before the next portfolio review.":
     "다음 포트폴리오 검토 전에 활성 투자 논리를 만들거나 연결해야 합니다.",
+  "Review overweight exposure before any trade decision.":
+    "거래 판단 전에 단일 종목 비중 초과 여부를 사람이 검토해야 합니다.",
+  "Review target allocation before any trade decision.":
+    "거래 판단 전에 목표 비중과 증액 필요성을 사람이 검토해야 합니다.",
   data_operations_artifact_runner: "데이터 운영 실행 산출물 관리",
   exit: "청산",
   exit_review: "청산 검토",

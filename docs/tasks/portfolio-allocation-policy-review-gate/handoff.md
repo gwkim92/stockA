@@ -40,12 +40,11 @@
 - Passed on EC2: `PYTHONPATH=src /opt/stockanalysis/venv/bin/python -m unittest tests.test_portfolio_review_bootstrap tests.test_portfolio_remediation_ticket`
 - Passed on EC2: `npm run build`
 - Passed on EC2: `stockanalysis-operating-data-decision-daily.service` returned `Result=success`, `ExecMainStatus=0`.
-- Passed on EC2: `/remediation` rendered with MSFT/TSLA only; `/data-health` rendered without the prior server component error; FastAPI `/__health` returned `status=ok`.
+- Passed on EC2: `/remediation` rendered with MSFT/TSLA only and Korean portfolio review reasons; `/data-health` rendered without the prior server component error; FastAPI `/__health` returned `status=ok`.
 
 ## Remaining
 
 - The remaining product question is whether 25% should stay as the default single-name review cap or become a configurable portfolio policy table/env value.
-- The remediation page still contains one English `suggested_next_step` string from backend SQL; this should be localized in a separate wording cleanup if the page copy is being fully polished.
 
 ## Exact Next Step
 
