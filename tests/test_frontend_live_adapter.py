@@ -570,6 +570,9 @@ class FakeLiveExecutor:
                             "impact_score": "0.8200",
                             "source_document_id": "aapl-2024-10k-20240928",
                             "ai_evidence_id": 8801,
+                            "ai_evidence_type": "source_document_event",
+                            "ai_evidence_provider": "openai",
+                            "ai_evidence_confidence": "0.8600",
                             "quality_gate": "human_review_required",
                             "related_events": [
                                 {
@@ -939,6 +942,77 @@ class FakeLiveExecutor:
                 }
             )
         if sql.startswith("-- frontend ai evidence detail state lookup"):
+            if "ai-evidence-3" in sql:
+                return json.dumps(
+                    {
+                        "evidence_id": 3,
+                        "title": "Nvidia H200 export path remains open",
+                        "evidence_type": "news_event_candidate",
+                        "event_at": "2026-05-19T10:02:40+00:00",
+                        "instrument": {"symbol": "NVDA", "instrument_id": 504},
+                        "source_document_id": "rss:ai-semiconductor-cycle:65353569b9948d8593917bae",
+                        "classification": {
+                            "theme_key": "AI_SEMICONDUCTOR_CYCLE",
+                            "theme_name": "AI Semiconductor Cycle",
+                            "impact_direction": "supportive",
+                            "impact_score": "0.7400",
+                        },
+                        "extraction_run": {
+                            "run_id": 96,
+                            "status": "succeeded",
+                            "provider": "codex_oauth",
+                            "model_id": "codex-cli",
+                            "prompt_version": "news_event_candidate_v1",
+                            "finished_at": "2026-05-19T11:30:00+00:00",
+                            "input_tokens": 120,
+                            "output_tokens": 80,
+                            "estimated_cost_usd": "0.0000",
+                            "quality_gate": "human_review_required",
+                        },
+                        "extracted_fields": [
+                            {
+                                "field": "event_summary",
+                                "value": "Nvidia H200 export path remains open.",
+                                "confidence": "0.8600",
+                                "source_chunk_id": "news-ai-candidate",
+                            }
+                        ],
+                        "news_candidate": {
+                            "analysis_method": "fixture_structured_news",
+                            "event_summary": "Nvidia H200 export path remains open, supporting AI semiconductor demand visibility.",
+                            "theme_impacts": [
+                                {
+                                    "theme_code": "AI_SEMICONDUCTOR_CYCLE",
+                                    "impact_direction": "supportive",
+                                    "impact_strength": "0.7400",
+                                    "confidence": "0.8800",
+                                    "rationale": "The headline and summary directly mention Nvidia H200 GPU export continuity.",
+                                    "evidence_summary": "Nvidia H200 China deal survived the summit.",
+                                }
+                            ],
+                            "instrument_impacts": [
+                                {
+                                    "symbol": "NVDA",
+                                    "impact_direction": "supportive",
+                                    "impact_strength": "0.7200",
+                                    "confidence": "0.8600",
+                                    "rationale": "The article directly names Nvidia and H200 GPUs.",
+                                    "evidence_summary": "Nvidia H200 export path stays open.",
+                                }
+                            ],
+                            "uncertainty_notes": "RSS summary is short, so downstream scoring should treat this as evidence, not a recommendation.",
+                            "recommendation_relevance": "watchlist",
+                        },
+                        "retrieval_context_summary": {
+                            "as_of_date": "2026-05-19",
+                            "known_themes": [{"code": "AI_SEMICONDUCTOR_CYCLE"}],
+                            "theme_edges": [{"source": "AI_SEMICONDUCTOR_CYCLE", "target": "SEMICONDUCTOR_CAPEX"}],
+                            "current_event_impacts": [{"event_id": 20}],
+                            "recent_similar_events": [{"event_id": 18}],
+                        },
+                        "source_chunks": [],
+                    }
+                )
             if "ai-evidence-2" in sql:
                 return json.dumps(
                     {
@@ -2023,6 +2097,9 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertEqual(event["impact_score"], 0.82)
         self.assertEqual(event["source_document_id"], "source-document-aapl-2024-10k-20240928")
         self.assertEqual(event["ai_evidence_id"], "ai-evidence-8801")
+        self.assertEqual(event["ai_evidence_type"], "source_document_event")
+        self.assertEqual(event["ai_evidence_provider"], "openai")
+        self.assertEqual(event["ai_evidence_confidence"], 0.86)
         self.assertEqual(event["related_events"][0]["event_id"], "event-9002")
         self.assertEqual(event["related_events"][0]["relation_type"], "same_source_document")
         self.assertEqual(event["related_events"][0]["relation_strength"], 0.95)
@@ -2294,6 +2371,23 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertEqual(payload["data"]["cluster_events"][0]["event_id"], "event-20")
         self.assertEqual(payload["data"]["cluster_events"][0]["source_document_id"], "rss:ai-semiconductor-cycle:65353569b9948d8593917bae")
 
+    def test_live_ai_evidence_detail_response_exposes_news_event_candidate_artifact(self) -> None:
+        payload = resolve_live_frontend_response(
+            "/api/ai-evidence/ai-evidence-3",
+            config=type("Config", (), {"psql_command": "psql"})(),
+            executor=FakeLiveExecutor(),
+            generated_at=datetime(2026, 5, 19, tzinfo=timezone.utc),
+        )
+
+        self.assertEqual(payload["data"]["evidence_type"], "news_event_candidate")
+        self.assertEqual(payload["data"]["extraction_run"]["provider"], "codex_oauth")
+        self.assertEqual(payload["data"]["news_candidate"]["analysis_method"], "fixture_structured_news")
+        self.assertEqual(payload["data"]["news_candidate"]["theme_impacts"][0]["target"], "AI_SEMICONDUCTOR_CYCLE")
+        self.assertEqual(payload["data"]["news_candidate"]["theme_impacts"][0]["impact_strength"], 0.74)
+        self.assertEqual(payload["data"]["news_candidate"]["instrument_impacts"][0]["target"], "NVDA")
+        self.assertEqual(payload["data"]["news_candidate"]["recommendation_relevance"], "watchlist")
+        self.assertEqual(payload["data"]["retrieval_context_summary"]["known_themes"][0]["code"], "AI_SEMICONDUCTOR_CYCLE")
+
     def test_live_source_document_detail_response_matches_frontend_contract_shape(self) -> None:
         payload = resolve_live_frontend_response(
             "/api/source-documents/aapl-2024-10k-20240928",
@@ -2326,6 +2420,9 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertIn("투자 논리는 주문이 아니라 추천, 사이클, 가격 근거", thesis_sql)
         self.assertIn("event.event_document_link", ai_evidence_sql)
         self.assertIn("output_json #>> '{event,title}'", ai_evidence_sql)
+        self.assertIn("then (select artifact_type from selected_artifact)", ai_evidence_sql)
+        self.assertIn("output_json -> 'candidate'", ai_evidence_sql)
+        self.assertIn("output_json -> 'retrieval_context_summary'", ai_evidence_sql)
         self.assertIn("output_json -> 'cluster'", ai_evidence_sql)
         self.assertIn("output_json -> 'events'", ai_evidence_sql)
 
@@ -2348,6 +2445,8 @@ class FrontendLiveAdapterTests(unittest.TestCase):
 
         self.assertIn("artifact.event_id = event_row.event_id", event_sql)
         self.assertIn("artifact.document_id = source_document.document_id", event_sql)
+        self.assertIn("artifact.artifact_type", event_sql)
+        self.assertIn("invocation.provider", event_sql)
         self.assertIn("document_instrument", event_sql)
         self.assertIn("coalesce(instrument.primary_symbol, document_instrument.primary_symbol)", event_sql)
         self.assertIn("artifact.event_id = event_row.event_id", theme_sql)

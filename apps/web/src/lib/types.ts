@@ -830,6 +830,35 @@ export type AiEvidenceDetailData = {
     confidence: number;
     source_chunk_id: string;
   }>;
+  news_candidate: {
+    analysis_method: string;
+    event_summary: string;
+    recommendation_relevance: string;
+    uncertainty_notes: string;
+    theme_impacts: Array<{
+      target: string;
+      impact_direction: string;
+      impact_strength: number | null;
+      confidence: number | null;
+      rationale: string;
+      evidence_summary: string;
+    }>;
+    instrument_impacts: Array<{
+      target: string;
+      impact_direction: string;
+      impact_strength: number | null;
+      confidence: number | null;
+      rationale: string;
+      evidence_summary: string;
+    }>;
+  } | null;
+  retrieval_context_summary: {
+    as_of_date: string;
+    known_themes: Array<Record<string, unknown>>;
+    theme_edges: Array<Record<string, unknown>>;
+    current_event_impacts: Array<Record<string, unknown>>;
+    recent_similar_events: Array<Record<string, unknown>>;
+  };
   cluster_summary: {
     as_of_date: string;
     theme_key: string;
@@ -920,6 +949,9 @@ export type EventListData = {
     impact_score: number;
     source_document_id: string | null;
     ai_evidence_id: string | null;
+    ai_evidence_type: string | null;
+    ai_evidence_provider: string | null;
+    ai_evidence_confidence: number | null;
     quality_gate: string;
     related_events: Array<{
       event_id: string;

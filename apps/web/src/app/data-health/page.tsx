@@ -304,7 +304,7 @@ export default async function DataHealthPage() {
       title: "AI 분석",
       run: aiRun,
       fallbackCadence: "주간 · Monday 09:00",
-      description: "수집 문서를 구조화하고 AI 근거 artifact를 남긴다. 뉴스 묶음은 무료 로컬 규칙 기반이다.",
+      description: "수집 문서를 구조화하고 AI 근거 artifact를 남긴다. 중요 뉴스는 Codex OAuth batch 후보로 분석하고, 뉴스 묶음은 무료 로컬 규칙 보조 증거로 남긴다.",
       detail: "AI는 근거를 정리하지만 매수·매도·주문 결론을 자동 실행하지 않는다.",
     },
   ];

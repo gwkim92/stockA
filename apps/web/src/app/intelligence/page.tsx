@@ -27,6 +27,19 @@ function maybeRoute(path: string | null | undefined) {
   return path ? (path as Route) : null;
 }
 
+function aiEvidenceLabel(type: string | null) {
+  if (type === "news_event_candidate") {
+    return "뉴스 AI 후보";
+  }
+  if (type === "news_cluster_summary") {
+    return "뉴스 묶음 증거";
+  }
+  if (type) {
+    return koCode(type);
+  }
+  return "AI 분석 대기";
+}
+
 type NewsEvent = EventListData["events"][number];
 type StoredAiNewsCluster = AiNewsClusterListData["clusters"][number];
 type PipelineRun = DataHealthData["pipeline_runs"][number];
@@ -321,7 +334,7 @@ export default async function IntelligencePage() {
       <section className="flow-panel reveal delay-2" aria-labelledby="news-operation-title">
         <div className="section-heading flow-heading">
           <span>뉴스 운영 방식</span>
-          <h2 id="news-operation-title">뉴스는 매일 수집하고, 로컬 규칙으로 분석하고, 추천 근거로 연결한다</h2>
+          <h2 id="news-operation-title">뉴스는 매일 수집하고, 규칙 분류와 AI 후보 분석으로 추천 근거에 연결한다</h2>
         </div>
 
         <section className="status-rail compact-rail" aria-label="뉴스 수집 자동화 상태">
@@ -368,7 +381,7 @@ export default async function IntelligencePage() {
             <span>03</span>
             <strong>1차 분석</strong>
             <p>
-              제목, 요약, feed 성격, 명확한 ticker 단서로 종목·테마·영향 방향을 로컬 규칙으로 붙인다.
+              제목, 요약, feed 성격, 명확한 ticker 단서로 1차 종목·테마·영향 방향을 붙이고, 중요 뉴스는 Codex OAuth 후보 분석으로 승격한다.
               유료 뉴스 API나 실시간 LLM 호출 없이 보수적으로 분류한다.
             </p>
           </article>
@@ -404,7 +417,7 @@ export default async function IntelligencePage() {
 
       <section className="intelligence-board reveal delay-2" aria-labelledby="stored-news-cluster-title">
         <div className="section-heading stacked-heading">
-          <span>저장된 AI 분석 — 무료 로컬 규칙</span>
+          <span>저장된 뉴스 증거 — 로컬 묶음과 AI 후보</span>
           <h2 id="stored-news-cluster-title">뉴스 묶음이 어떤 증거로 저장됐는지 확인한다</h2>
         </div>
 
@@ -694,12 +707,14 @@ export default async function IntelligencePage() {
 
                   <div className="trace-node">
                     <span>해석</span>
-                    <strong>{aiAttached && event.ai_evidence_id ? "AI 구조화 분석" : "AI 분석 대기"}</strong>
+                    <strong>{aiAttached && event.ai_evidence_id ? aiEvidenceLabel(event.ai_evidence_type) : "AI 분석 대기"}</strong>
                     <p>
-                      AI는 결론을 내리지 않고 원천 청크, 추출 필드, 신뢰도, 비용을 증거로 저장한다.
+                      {event.ai_evidence_provider
+                        ? `${koCode(event.ai_evidence_provider)}가 원천, 추출 필드, 신뢰도 ${formatPercent(event.ai_evidence_confidence)}를 증거로 저장했다.`
+                        : "AI는 결론을 내리지 않고 원천 청크, 추출 필드, 신뢰도, 비용을 증거로 저장한다."}
                     </p>
                     <div className="mini-link-stack">
-                      {evidenceHref ? <Link href={evidenceHref}>AI 근거 열기</Link> : <span>연결된 AI 근거 없음</span>}
+                      {evidenceHref ? <Link href={evidenceHref}>{aiEvidenceLabel(event.ai_evidence_type)} 열기</Link> : <span>연결된 AI 근거 없음</span>}
                     </div>
                   </div>
 
@@ -797,7 +812,7 @@ export default async function IntelligencePage() {
           <article className="flow-step">
             <span>02</span>
             <strong>AI 역할</strong>
-            <p>AI는 원천 문서를 구조화하고 근거를 남긴다. RSS 묶음은 현재 무료 로컬 규칙이며, 매수/매도 결론이 아니다.</p>
+            <p>AI는 원천 문서를 구조화하고 근거를 남긴다. RSS 묶음은 무료 로컬 규칙 보조 증거이고, 중요 뉴스 후보는 Codex OAuth batch 분석으로 저장된다.</p>
           </article>
           <article className="flow-step">
             <span>03</span>

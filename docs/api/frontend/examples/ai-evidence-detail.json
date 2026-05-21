@@ -49,6 +49,14 @@
         "source_chunk_id": "chunk-mdna-services"
       }
     ],
+    "news_candidate": null,
+    "retrieval_context_summary": {
+      "as_of_date": "",
+      "known_themes": [],
+      "theme_edges": [],
+      "current_event_impacts": [],
+      "recent_similar_events": []
+    },
     "source_chunks": [
       {
         "chunk_id": "chunk-business-overview",

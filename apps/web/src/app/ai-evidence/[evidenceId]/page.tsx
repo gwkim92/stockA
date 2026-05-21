@@ -40,17 +40,29 @@ function formatDirectionCounts(directionCounts: Record<string, number> | null | 
     .join(" · ");
 }
 
+function formatContextCount(value: Array<Record<string, unknown>> | undefined) {
+  return (value?.length ?? 0).toLocaleString("ko-KR");
+}
+
 export default async function AiEvidencePage({ params }: AiEvidencePageProps) {
   const { evidenceId } = await params;
   const response = await getAiEvidenceDetail(evidenceId);
   const data = response.data;
   const cluster = data.cluster_summary;
+  const candidate = data.news_candidate;
   const isNewsCluster = data.evidence_type === "news_cluster_summary" && cluster !== null;
-  const evidenceTitle = isNewsCluster ? `${koCode(cluster.theme_key)} 뉴스 묶음 증거` : koLabel(data.title);
-  const pageTitle = isNewsCluster ? "뉴스 묶음 증거" : "AI 추출 증거";
+  const isNewsCandidate = data.evidence_type === "news_event_candidate" && candidate !== null;
+  const evidenceTitle = isNewsCluster
+    ? `${koCode(cluster.theme_key)} 뉴스 묶음 증거`
+    : isNewsCandidate
+      ? candidate.event_summary
+      : koLabel(data.title);
+  const pageTitle = isNewsCluster ? "뉴스 묶음 증거" : isNewsCandidate ? "뉴스 AI 후보 근거" : "AI 추출 증거";
   const pageDescription = isNewsCluster
     ? "무료 RSS 뉴스를 로컬 규칙으로 묶어 저장한 감사 증거다. 유료 API나 LLM 호출 없이 어떤 뉴스들이 같은 테마로 연결됐는지 확인한다."
-    : "저장된 AI 해석을 감사 가능한 증거 객체로 보여준다. 모델 출력은 원천 청크까지 추적 가능하며, 단독으로 투자 논리나 추천을 바꿀 수 없다.";
+    : isNewsCandidate
+      ? "Codex OAuth batch가 뉴스 한 건을 테마, 종목, 방향, 불확실성으로 구조화한 후보 증거다. validator를 통과한 영향만 canonical event impact로 반영된다."
+      : "저장된 AI 해석을 감사 가능한 증거 객체로 보여준다. 모델 출력은 원천 청크까지 추적 가능하며, 단독으로 투자 논리나 추천을 바꿀 수 없다.";
 
   return (
     <div className="pageStack">
@@ -215,6 +227,98 @@ export default async function AiEvidencePage({ params }: AiEvidencePageProps) {
           </article>
         ) : null}
 
+        {isNewsCandidate ? (
+          <article className="bento-card span-4" style={{ background: "var(--bg-card-hover)", borderColor: "var(--border-focus)" }}>
+            <div style={{ marginBottom: "24px" }}>
+              <span className="metric-sub">뉴스 AI 후보</span>
+              <h2 style={{ fontSize: "1.5rem" }}>{koLabel(candidate.event_summary)}</h2>
+              <p style={{ color: "var(--text-secondary)", lineHeight: 1.6, marginTop: "8px" }}>
+                이 결과는 AI가 최종 추천을 만든 것이 아니라, 뉴스가 어떤 테마와 종목에 어떤 방향으로 영향을 줄 수 있는지
+                후보로 구조화한 것이다. confidence, unknown theme/symbol, 영향 방향은 validator가 다시 검사한다.
+              </p>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "14px", marginBottom: "24px" }}>
+              <div style={{ padding: "16px", border: "1px solid var(--border-light)", borderRadius: "var(--radius-sm)" }}>
+                <span className="metric-sub">분석 방식</span>
+                <strong style={{ display: "block", fontSize: "1rem", lineHeight: 1.5 }}>{koCode(candidate.analysis_method)}</strong>
+              </div>
+              <div style={{ padding: "16px", border: "1px solid var(--border-light)", borderRadius: "var(--radius-sm)" }}>
+                <span className="metric-sub">추천 관련성</span>
+                <strong style={{ display: "block", fontSize: "1rem", lineHeight: 1.5 }}>{koCode(candidate.recommendation_relevance)}</strong>
+              </div>
+              <div style={{ padding: "16px", border: "1px solid var(--border-light)", borderRadius: "var(--radius-sm)" }}>
+                <span className="metric-sub">조회 테마</span>
+                <strong style={{ display: "block", fontSize: "1rem", lineHeight: 1.5 }}>
+                  {formatContextCount(data.retrieval_context_summary.known_themes)}개
+                </strong>
+              </div>
+              <div style={{ padding: "16px", border: "1px solid var(--border-light)", borderRadius: "var(--radius-sm)" }}>
+                <span className="metric-sub">유사 뉴스</span>
+                <strong style={{ display: "block", fontSize: "1rem", lineHeight: 1.5 }}>
+                  {formatContextCount(data.retrieval_context_summary.recent_similar_events)}개
+                </strong>
+              </div>
+            </div>
+
+            <div className="trace-chain" aria-label="뉴스 AI 후보 검증 흐름">
+              <div className="trace-node">
+                <span>수집</span>
+                <strong>RSS 뉴스</strong>
+                <p>{koLabel(data.title)}</p>
+              </div>
+              <div className="trace-arrow" aria-hidden="true">→</div>
+              <div className="trace-node">
+                <span>RAG-lite</span>
+                <strong>Postgres context</strong>
+                <p>
+                  테마 {formatContextCount(data.retrieval_context_summary.known_themes)}개 · 관계{" "}
+                  {formatContextCount(data.retrieval_context_summary.theme_edges)}개 · 기존 영향{" "}
+                  {formatContextCount(data.retrieval_context_summary.current_event_impacts)}개
+                </p>
+              </div>
+              <div className="trace-arrow" aria-hidden="true">→</div>
+              <div className="trace-node">
+                <span>AI 후보</span>
+                <strong>{koCode(data.extraction_run.provider)}</strong>
+                <p>테마 {candidate.theme_impacts.length}개 · 종목 {candidate.instrument_impacts.length}개</p>
+              </div>
+              <div className="trace-arrow" aria-hidden="true">→</div>
+              <div className="trace-node trace-node-final">
+                <span>검증</span>
+                <strong>canonical impact 반영</strong>
+                <p>{koLabel(candidate.uncertainty_notes)}</p>
+              </div>
+            </div>
+
+            <div className="relationship-panel" aria-label="뉴스 AI 후보 영향">
+              <span>테마와 종목 영향 후보</span>
+              <div className="relationship-list">
+                {candidate.theme_impacts.map((impact) => (
+                  <div className="relationship-chip" key={`theme-${impact.target}-${impact.impact_direction}`}>
+                    <span>{koCode(impact.impact_direction)}</span>
+                    <strong>{koCode(impact.target)}</strong>
+                    <small>
+                      강도 {formatPercent(impact.impact_strength)} · 신뢰도 {formatPercent(impact.confidence)}
+                    </small>
+                    <small>{koLabel(impact.evidence_summary || impact.rationale)}</small>
+                  </div>
+                ))}
+                {candidate.instrument_impacts.map((impact) => (
+                  <div className="relationship-chip" key={`instrument-${impact.target}-${impact.impact_direction}`}>
+                    <span>{koCode(impact.impact_direction)}</span>
+                    <strong>{koCode(impact.target)}</strong>
+                    <small>
+                      강도 {formatPercent(impact.impact_strength)} · 신뢰도 {formatPercent(impact.confidence)}
+                    </small>
+                    <small>{koLabel(impact.evidence_summary || impact.rationale)}</small>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </article>
+        ) : null}
+
         <article className="bento-card span-4">
           <div style={{ marginBottom: "24px" }}>
             <span className="metric-sub">구조화 추출</span>
@@ -296,11 +400,11 @@ export default async function AiEvidencePage({ params }: AiEvidencePageProps) {
             ))}
           </ul>
           <div className="btn-row" style={{ marginTop: "auto" }}>
-            <Link className="btn btn-secondary" href={isNewsCluster ? "/intelligence" : "/theses/AAPL-bootstrap-v1"}>
-              {isNewsCluster ? "분석 지도 열기" : "투자 논리 열기"}
+            <Link className="btn btn-secondary" href={isNewsCluster || isNewsCandidate ? "/intelligence" : "/theses/AAPL-bootstrap-v1"}>
+              {isNewsCluster || isNewsCandidate ? "분석 지도 열기" : "투자 논리 열기"}
             </Link>
-            <Link className="btn btn-secondary" href={isNewsCluster ? "/events" : "/recommendations/AAPL-2024-11-01"}>
-              {isNewsCluster ? "이벤트 원장 열기" : "추천 열기"}
+            <Link className="btn btn-secondary" href={isNewsCluster || isNewsCandidate ? "/events" : "/recommendations/AAPL-2024-11-01"}>
+              {isNewsCluster || isNewsCandidate ? "이벤트 원장 열기" : "추천 열기"}
             </Link>
           </div>
         </article>

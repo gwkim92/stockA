@@ -1277,6 +1277,7 @@ def build_live_ai_evidence_detail_response(
     classification = _as_dict(state.get("classification"))
     extraction_run = _as_dict(state.get("extraction_run"))
     cluster_summary = _as_dict(state.get("cluster_summary"))
+    news_candidate = _as_dict(state.get("news_candidate"))
 
     return {
         "contract_version": CONTRACT_VERSION,
@@ -1310,6 +1311,10 @@ def build_live_ai_evidence_detail_response(
                 "quality_gate": str(extraction_run.get("quality_gate") or "human_review_required"),
             },
             "extracted_fields": [_build_extracted_field_payload(item) for item in _as_list(state.get("extracted_fields"))],
+            "news_candidate": _build_ai_evidence_news_candidate_payload(news_candidate),
+            "retrieval_context_summary": _build_ai_evidence_retrieval_context_payload(
+                _as_dict(state.get("retrieval_context_summary"))
+            ),
             "source_chunks": [_build_source_chunk_payload(item) for item in _as_list(state.get("source_chunks"))],
             "cluster_summary": _build_ai_evidence_cluster_summary_payload(cluster_summary),
             "cluster_events": [
@@ -3045,6 +3050,9 @@ with filtered_event_rows as (
         source_document.external_document_id as source_document_id,
         source_document.document_id as raw_source_document_id,
         evidence.artifact_id as ai_evidence_id,
+        evidence.artifact_type as ai_evidence_type,
+        evidence.provider as ai_evidence_provider,
+        evidence.confidence as ai_evidence_confidence,
         case
             when evidence.artifact_id is not null then 'human_review_required'
             when source_document.document_id is not null then 'source_document_review_required'
@@ -3101,8 +3109,9 @@ with filtered_event_rows as (
         limit 1
     ) document_theme on true
     left join lateral (
-        select artifact_id
+        select artifact.artifact_id, artifact.artifact_type, artifact.confidence, invocation.provider
         from ai.extraction_artifact artifact
+        left join ai.model_invocation invocation on invocation.invocation_id = artifact.invocation_id
         where artifact.event_id = event_row.event_id
            or artifact.document_id = source_document.document_id
         order by artifact.artifact_id desc
@@ -3145,6 +3154,9 @@ select json_build_object(
                     'source_document_id', source_document_id,
                     'raw_source_document_id', raw_source_document_id,
                     'ai_evidence_id', ai_evidence_id,
+                    'ai_evidence_type', ai_evidence_type,
+                    'ai_evidence_provider', ai_evidence_provider,
+                    'ai_evidence_confidence', ai_evidence_confidence,
                     'quality_gate', quality_gate,
                     'related_events',
                     coalesce(
@@ -4574,12 +4586,16 @@ select json_build_object(
         ''
     ),
     'evidence_type',
-    coalesce(
-        (select output_json #>> '{{event,event_type}}' from selected_artifact),
-        (select event_type from selected_event),
-        (select artifact_type from selected_artifact),
-        'source_document_event'
-    ),
+    case
+        when (select artifact_type from selected_artifact) in ('news_event_candidate', 'news_cluster_summary')
+            then (select artifact_type from selected_artifact)
+        else coalesce(
+            (select output_json #>> '{{event,event_type}}' from selected_artifact),
+            (select event_type from selected_event),
+            (select artifact_type from selected_artifact),
+            'source_document_event'
+        )
+    end,
     'event_at', coalesce((select output_json #>> '{{event,event_at}}' from selected_artifact), (select event_at::text from selected_event)),
     'instrument',
     json_build_object(
@@ -4608,6 +4624,18 @@ select json_build_object(
         'quality_gate', 'human_review_required'
     ),
     'extracted_fields', coalesce((select output_json -> 'extracted_fields' from selected_artifact), '[]'::jsonb),
+    'news_candidate',
+    case
+        when (select artifact_type from selected_artifact) = 'news_event_candidate'
+            then coalesce((select output_json -> 'candidate' from selected_artifact), '{{}}'::jsonb)
+        else '{{}}'::jsonb
+    end,
+    'retrieval_context_summary',
+    case
+        when (select artifact_type from selected_artifact) = 'news_event_candidate'
+            then coalesce((select output_json -> 'retrieval_context_summary' from selected_artifact), '{{}}'::jsonb)
+        else '{{}}'::jsonb
+    end,
     'cluster_summary', coalesce((select output_json -> 'cluster' from selected_artifact), '{{}}'::jsonb),
     'cluster_events', coalesce((select output_json -> 'events' from selected_artifact), '[]'::jsonb),
     'source_chunks',
@@ -5505,6 +5533,9 @@ def _build_event_payload(event: dict[str, Any]) -> dict[str, Any]:
         if source_document_id is not None
         else None,
         "ai_evidence_id": _opaque_id("ai-evidence", ai_evidence_id, None) if ai_evidence_id is not None else None,
+        "ai_evidence_type": _optional_text(event.get("ai_evidence_type")),
+        "ai_evidence_provider": _optional_text(event.get("ai_evidence_provider")),
+        "ai_evidence_confidence": _number(event.get("ai_evidence_confidence")),
         "quality_gate": str(event.get("quality_gate") or "deterministic_review_required"),
         "related_events": related_events,
     }
@@ -6295,6 +6326,52 @@ def _build_ai_evidence_cluster_event_payload(event: dict[str, Any]) -> dict[str,
         "impact_score": _number(event.get("impact_score")),
         "source_document_id": _source_document_detail_id_from_raw(event.get("source_document_id")),
     }
+
+
+def _build_ai_evidence_news_candidate_payload(candidate: dict[str, Any]) -> dict[str, Any] | None:
+    if not candidate:
+        return None
+    return {
+        "analysis_method": str(candidate.get("analysis_method") or "unknown"),
+        "event_summary": str(candidate.get("event_summary") or ""),
+        "recommendation_relevance": str(candidate.get("recommendation_relevance") or "unknown"),
+        "uncertainty_notes": str(candidate.get("uncertainty_notes") or ""),
+        "theme_impacts": [
+            _build_news_candidate_impact_payload(item, target_key="theme_code")
+            for item in _as_list(candidate.get("theme_impacts"))
+        ],
+        "instrument_impacts": [
+            _build_news_candidate_impact_payload(item, target_key="symbol")
+            for item in _as_list(candidate.get("instrument_impacts"))
+        ],
+    }
+
+
+def _build_news_candidate_impact_payload(impact: dict[str, Any], *, target_key: str) -> dict[str, Any]:
+    return {
+        "target": str(impact.get(target_key) or impact.get("target") or "UNKNOWN"),
+        "impact_direction": str(impact.get("impact_direction") or "unknown"),
+        "impact_strength": _number(impact.get("impact_strength")),
+        "confidence": _number(impact.get("confidence")),
+        "rationale": str(impact.get("rationale") or ""),
+        "evidence_summary": str(impact.get("evidence_summary") or ""),
+    }
+
+
+def _build_ai_evidence_retrieval_context_payload(context: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "as_of_date": _optional_text(context.get("as_of_date")) or "",
+        "known_themes": _as_context_summary_items(context.get("known_themes")),
+        "theme_edges": _as_context_summary_items(context.get("theme_edges")),
+        "current_event_impacts": _as_context_summary_items(context.get("current_event_impacts")),
+        "recent_similar_events": _as_context_summary_items(context.get("recent_similar_events")),
+    }
+
+
+def _as_context_summary_items(value: object) -> list[dict[str, Any]]:
+    if not isinstance(value, list):
+        return []
+    return [item for item in value if isinstance(item, dict)]
 
 
 def _build_linked_evidence_payload(evidence: dict[str, Any]) -> dict[str, Any]:

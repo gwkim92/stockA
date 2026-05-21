@@ -23,6 +23,27 @@ function sourceDocumentHref(documentId: string | null) {
   return documentId ? (`/source-documents/${documentId}` as Route) : null;
 }
 
+function aiEvidenceLabel(type: string | null) {
+  if (type === "news_event_candidate") {
+    return "뉴스 AI 후보";
+  }
+  if (type === "news_cluster_summary") {
+    return "뉴스 묶음 증거";
+  }
+  if (type) {
+    return koCode(type);
+  }
+  return "AI 분석 대기";
+}
+
+function aiEvidenceDetail(event: { ai_evidence_provider: string | null; ai_evidence_confidence: number | null }) {
+  if (!event.ai_evidence_provider) {
+    return "구조화 분석이 아직 연결되지 않았다";
+  }
+  const confidence = event.ai_evidence_confidence === null ? "신뢰도 미제공" : `신뢰도 ${formatPercent(event.ai_evidence_confidence)}`;
+  return `${koCode(event.ai_evidence_provider)} · ${confidence}`;
+}
+
 export default async function EventsPage() {
   const response = await getEvents();
   const data = response.data;
@@ -92,7 +113,7 @@ export default async function EventsPage() {
                       )}
                       {evidenceLink ? (
                         <Link className="btn btn-secondary" href={evidenceLink}>
-                          AI 증거
+                          {aiEvidenceLabel(event.ai_evidence_type)}
                         </Link>
                       ) : null}
                       {documentLink ? (
@@ -125,6 +146,7 @@ export default async function EventsPage() {
                       {koCode(event.impact_direction)}
                     </strong>
                     <span>영향도 {formatPercent(event.impact_score)}</span>
+                    <span>{aiEvidenceDetail(event)}</span>
                     <span>{koCode(event.quality_gate)}</span>
                   </div>
                 </div>

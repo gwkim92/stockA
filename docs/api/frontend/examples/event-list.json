@@ -28,6 +28,9 @@
         "impact_score": 0.82,
         "source_document_id": "aapl-2024-10k-20240928",
         "ai_evidence_id": "sec-event-aapl-10k-20240928",
+        "ai_evidence_type": "source_document_event",
+        "ai_evidence_provider": "openai",
+        "ai_evidence_confidence": 0.86,
         "quality_gate": "human_review_required",
         "related_events": [
           {
@@ -55,6 +58,9 @@
         "impact_score": 0.41,
         "source_document_id": null,
         "ai_evidence_id": null,
+        "ai_evidence_type": null,
+        "ai_evidence_provider": null,
+        "ai_evidence_confidence": null,
         "quality_gate": "deterministic_review_required",
         "related_events": []
       }
