@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import json
 import shlex
+import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Mapping, Sequence
+from typing import Callable, Mapping, Sequence
 
 from stockanalysis.operations.operating_data_orchestrator import (
     OPERATING_DATA_RUN_PROFILE_IDS,
@@ -29,6 +30,8 @@ DEFAULT_PROFILE_CADENCE_SCHEDULES = {
     "monthly": "30 9 1 * *",
 }
 DEFAULT_PROFILE_SCHEDULES = {
+    "market-universe-weekly": "0 7 * * 1",
+    "sec-filings-weekly": "0 8 * * 1",
     "news-intraday": "*/30 9-18 * * 1-5",
     "market-daily": "35 18 * * 1-5",
     "decision-daily": "0 19 * * 1-5",
@@ -45,6 +48,7 @@ FORBIDDEN_PROFILE_SCHEDULER_TOKENS = (
     "password=",
     "sk-",
 )
+SystemCommandRunner = Callable[[Sequence[str]], str]
 
 
 def build_operating_data_profile_scheduler_invocation_plan(
@@ -271,6 +275,64 @@ def render_operating_data_profile_scheduler_invocation_markdown(report: Mapping[
         ]
     )
     return "\n".join(lines)
+
+
+def build_operating_data_profile_scheduler_status_report(
+    *,
+    profile_ids: Sequence[str] | None = None,
+    job_name: str = "stockanalysis-operating-data",
+    generated_at: datetime | None = None,
+    command_runner: SystemCommandRunner | None = None,
+) -> dict[str, object]:
+    if not str(job_name).strip():
+        raise ValueError("job_name must not be empty.")
+    selected_profiles = _select_profiles(profile_ids=profile_ids, include_full_recovery=False)
+    command = command_runner or _run_system_command_text
+    timers: list[dict[str, object]] = []
+    for profile in selected_profiles:
+        profile_id = str(profile["profile_id"])
+        profile_job_name = f"{str(job_name).strip()}-{profile_id}"
+        timer_name = f"{profile_job_name}.timer"
+        service_name = f"{profile_job_name}.service"
+        schedule = DEFAULT_PROFILE_SCHEDULES.get(
+            profile_id,
+            DEFAULT_PROFILE_CADENCE_SCHEDULES[profile["cadence"]],
+        )
+        timers.append(
+            {
+                "profile_id": profile_id,
+                "timer_name": timer_name,
+                "service_name": service_name,
+                "schedule": _cron_schedule_to_systemd_calendar(schedule)[0],
+                "active_state": command(("systemctl", "is-active", timer_name)) or "unknown",
+                "next_elapse": command(("systemctl", "show", timer_name, "-p", "NextElapseUSecRealtime", "--value")),
+                "last_result": command(("systemctl", "show", service_name, "-p", "Result", "--value")),
+            }
+        )
+
+    active_timer_count = sum(1 for timer in timers if timer["active_state"] == "active")
+    timer_count = len(timers)
+    install_status = (
+        "installed"
+        if timer_count > 0 and active_timer_count == timer_count
+        else "partial"
+        if active_timer_count > 0
+        else "not_installed"
+    )
+    report: dict[str, object] = {
+        "report_name": "operating_data_profile_scheduler_status",
+        "generated_at": _format_timestamp(generated_at or datetime.now(timezone.utc)),
+        "status": install_status,
+        "install_status": install_status,
+        "scheduler_type": "systemd",
+        "scheduler_job_name": str(job_name).strip(),
+        "timer_count": timer_count,
+        "active_timer_count": active_timer_count,
+        "timers": timers,
+        "secrets_policy": "systemd_unit_names_and_status_only_no_env_values",
+    }
+    _assert_secret_free(report)
+    return report
 
 
 def _build_profile_scheduler_manifest_payload(
@@ -742,6 +804,19 @@ def _target_manifest_preview(
 
 def _shell_command(*, repo_root: Path, command_argv: Sequence[str]) -> str:
     return f"PYTHONPATH={shlex.quote(str(repo_root / 'src'))} {shlex.join(command_argv)}"
+
+
+def _run_system_command_text(argv: Sequence[str]) -> str:
+    try:
+        result = subprocess.run(
+            [str(item) for item in argv],
+            check=False,
+            text=True,
+            capture_output=True,
+        )
+    except OSError:
+        return ""
+    return result.stdout.strip()
 
 
 def _resolve_python_executable(*, runtime_root: Path, python_executable: str | Path | None) -> str:

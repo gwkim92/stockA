@@ -91,10 +91,13 @@ class OperatingDataOrchestratorTests(unittest.TestCase):
         self.assertEqual(report["derived_inputs"]["as_of_date"], "2026-05-20")
         self.assertIn("TSLA", report["derived_inputs"]["missing_price_symbols"])
         step_ids = [step["step_id"] for step in report["planned_steps"]]
-        self.assertEqual(step_ids[0], "news-rss-ingest")
+        self.assertEqual(step_ids[0], "market-universe-weekly")
+        self.assertEqual(step_ids[1], "sec-filings-weekly")
         self.assertIn("market-price-daily", step_ids)
         self.assertIn("portfolio-position-snapshot", step_ids)
         self.assertIn("paper-validation-audit", step_ids)
+        self.assertEqual(report["derived_inputs"]["sec_filings_cik"], "320193")
+        self.assertEqual(report["derived_inputs"]["sec_filings_max_filings"], 3)
         self.assertTrue(report["derived_inputs"]["source_positions_required"])
         self.assertIn("news-intraday", [profile["profile"] for profile in report["profile_catalog"]])
         self.assertNotIn("postgresql://", json.dumps(report))
@@ -127,6 +130,39 @@ class OperatingDataOrchestratorTests(unittest.TestCase):
             ["news-rss-ingest", "news-rss-enrichment", "news-cluster-evidence"],
         )
         self.assertEqual(runner.calls, [])
+
+    def test_weekly_reference_profiles_do_not_require_portfolio_positions(self) -> None:
+        with tempfile.TemporaryDirectory() as repo_root, tempfile.TemporaryDirectory() as outside_root:
+            runtime_root, env_file = _write_runtime_files_without_positions(Path(outside_root))
+
+            universe_report = build_operating_data_run_report(
+                repo_root=repo_root,
+                runtime_root=runtime_root,
+                data_operations_env_file=env_file,
+                profile="market-universe-weekly",
+                execute=False,
+                python_executable="/usr/bin/python3",
+                runner=FakeArtifactRunner(),
+                generated_at=datetime(2026, 5, 20, tzinfo=timezone.utc),
+            )
+            sec_report = build_operating_data_run_report(
+                repo_root=repo_root,
+                runtime_root=runtime_root,
+                data_operations_env_file=env_file,
+                profile="sec-filings-weekly",
+                execute=False,
+                python_executable="/usr/bin/python3",
+                runner=FakeArtifactRunner(),
+                generated_at=datetime(2026, 5, 20, tzinfo=timezone.utc),
+            )
+
+        self.assertEqual([step["step_id"] for step in universe_report["planned_steps"]], ["market-universe-weekly"])
+        self.assertEqual([step["step_id"] for step in sec_report["planned_steps"]], ["sec-filings-weekly"])
+        self.assertFalse(universe_report["derived_inputs"]["source_positions_required"])
+        self.assertFalse(sec_report["derived_inputs"]["source_positions_required"])
+        sec_command = " ".join(sec_report["planned_steps"][0]["command_argv"])
+        self.assertIn("sec-filings-upsert", sec_command)
+        self.assertIn("--max-filings 3", sec_command)
 
     def test_decision_daily_profile_runs_decision_steps_without_news_or_macro(self) -> None:
         with tempfile.TemporaryDirectory() as repo_root, tempfile.TemporaryDirectory() as outside_root:

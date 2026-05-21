@@ -42,6 +42,10 @@ DEFAULT_REVIEW_VERSION = "bootstrap-v1"
 DEFAULT_REVIEW_SOURCE = "deterministic_bootstrap"
 DEFAULT_MACRO_SERIES = ("CPIAUCSL", "FEDFUNDS")
 DEFAULT_MACRO_OBSERVATION_START = "2025-01-01"
+DEFAULT_SEC_FILINGS_CIK = "320193"
+DEFAULT_SEC_FILINGS_MAX_FILINGS = 3
+SEC_FILINGS_CIK_ENV = "STOCKANALYSIS_SEC_FILINGS_CIK"
+SEC_FILINGS_MAX_FILINGS_ENV = "STOCKANALYSIS_SEC_FILINGS_MAX_FILINGS"
 OPERATING_DATA_REPORT_ENV = "STOCKANALYSIS_OPERATING_DATA_RUN_REPORT"
 
 ArtifactRunner = Callable[..., dict[str, object]]
@@ -74,6 +78,12 @@ class OperatingDataRunProfile:
         }
 
 
+MARKET_UNIVERSE_WEEKLY_STEP_IDS = (
+    "market-universe-weekly",
+)
+SEC_FILINGS_WEEKLY_STEP_IDS = (
+    "sec-filings-weekly",
+)
 NEWS_INTRADAY_STEP_IDS = (
     "news-rss-ingest",
     "news-rss-enrichment",
@@ -103,6 +113,8 @@ PERFORMANCE_MONTHLY_STEP_IDS = (
     "performance-outcome-monthly",
 )
 FULL_RECOVERY_STEP_IDS = (
+    *MARKET_UNIVERSE_WEEKLY_STEP_IDS,
+    *SEC_FILINGS_WEEKLY_STEP_IDS,
     *NEWS_INTRADAY_STEP_IDS,
     *MARKET_DAILY_STEP_IDS,
     *DECISION_DAILY_STEP_IDS,
@@ -114,6 +126,22 @@ SOURCE_POSITION_STEP_IDS = {
     "portfolio-position-snapshot",
 }
 OPERATING_DATA_RUN_PROFILES: tuple[OperatingDataRunProfile, ...] = (
+    OperatingDataRunProfile(
+        profile_id="market-universe-weekly",
+        label="Weekly listed stock universe refresh",
+        cadence="weekly",
+        recommended_schedule="07:00 America/New_York every Monday",
+        description="Refresh the active Nasdaq/NYSE instrument universe used by candles, signals, and stock pages.",
+        step_ids=MARKET_UNIVERSE_WEEKLY_STEP_IDS,
+    ),
+    OperatingDataRunProfile(
+        profile_id="sec-filings-weekly",
+        label="Weekly SEC filing metadata refresh",
+        cadence="weekly",
+        recommended_schedule="08:00 America/New_York every Monday",
+        description="Refresh SEC filing metadata for the configured core filer without touching news, candles, or portfolio rows.",
+        step_ids=SEC_FILINGS_WEEKLY_STEP_IDS,
+    ),
     OperatingDataRunProfile(
         profile_id="news-intraday",
         label="News and AI event intelligence",
@@ -222,6 +250,8 @@ def build_operating_data_run_report(
     resolved_python = str(python_executable or sys.executable)
     resolved_provider = provider or str(env_mapping.get(MARKET_PRICE_PROVIDER_ENV, "alpha_vantage")).strip() or "alpha_vantage"
     ledger_path = _resolve_market_price_ledger(env_mapping, runtime_path=runtime_path, repo_root=repo_root)
+    sec_filings_cik = _resolve_sec_filings_cik(env_mapping)
+    sec_filings_max_filings = _resolve_sec_filings_max_filings(env_mapping)
 
     sql_executor = executor if executor is not None else _build_executor_if_configured(env_mapping)
     if execute and sql_executor is None:
@@ -264,6 +294,8 @@ def build_operating_data_run_report(
         throttle_seconds=throttle_seconds,
         outputsize=outputsize,
         portfolio_notional=portfolio_notional,
+        sec_filings_cik=sec_filings_cik,
+        sec_filings_max_filings=sec_filings_max_filings,
         profile=selected_profile,
     )
 
@@ -300,6 +332,8 @@ def build_operating_data_run_report(
             "source_symbols": [position.symbol for position in source_positions],
             "event_impacted_symbols": _symbol_list(context.get("event_impacted_symbols")),
             "missing_price_symbols": missing_price_symbols,
+            "sec_filings_cik": sec_filings_cik,
+            "sec_filings_max_filings": sec_filings_max_filings,
         },
         "generated_files": {
             "missing_price_watchlist": str(watchlist_path) if missing_watchlist_required and missing_price_symbols else "",
@@ -437,6 +471,8 @@ def _build_planned_steps(
     throttle_seconds: float,
     outputsize: str,
     portfolio_notional: Decimal,
+    sec_filings_cik: str,
+    sec_filings_max_filings: int,
     profile: OperatingDataRunProfile,
 ) -> list[dict[str, object]]:
     target = target_date.isoformat()
@@ -453,6 +489,38 @@ def _build_planned_steps(
         market_code,
     ]
     steps: list[dict[str, object]] = [
+        {
+            "step_id": "market-universe-weekly",
+            "artifact_job_id": "market-universe-weekly",
+            "label": "Refresh active Nasdaq/NYSE instrument universe",
+            "skip_reason": "",
+            "command_argv": (
+                python_executable,
+                "-m",
+                "stockanalysis.ingest.cli",
+                "market-universe-bootstrap",
+                "--exchange",
+                "Nasdaq",
+                "--exchange",
+                "NYSE",
+            ),
+        },
+        {
+            "step_id": "sec-filings-weekly",
+            "artifact_job_id": "sec-filings-weekly",
+            "label": "Refresh configured SEC filing metadata",
+            "skip_reason": "",
+            "command_argv": (
+                python_executable,
+                "-m",
+                "stockanalysis.ingest.cli",
+                "sec-filings-upsert",
+                "--cik",
+                sec_filings_cik,
+                "--max-filings",
+                str(sec_filings_max_filings),
+            ),
+        },
         {
             "step_id": "news-rss-ingest",
             "artifact_job_id": "news-rss-daily",
@@ -758,6 +826,27 @@ def _profile_payloads() -> tuple[OperatingDataRunProfile, ...]:
 
 def _profile_requires_source_positions(profile: OperatingDataRunProfile) -> bool:
     return bool(SOURCE_POSITION_STEP_IDS.intersection(profile.step_ids))
+
+
+def _resolve_sec_filings_cik(env: Mapping[str, str]) -> str:
+    value = str(env.get(SEC_FILINGS_CIK_ENV, DEFAULT_SEC_FILINGS_CIK)).strip()
+    if not value:
+        raise ValueError(f"{SEC_FILINGS_CIK_ENV} must not be empty.")
+    digits = "".join(char for char in value if char.isdigit())
+    if not digits:
+        raise ValueError(f"{SEC_FILINGS_CIK_ENV} must contain a numeric CIK.")
+    return digits
+
+
+def _resolve_sec_filings_max_filings(env: Mapping[str, str]) -> int:
+    value = str(env.get(SEC_FILINGS_MAX_FILINGS_ENV, str(DEFAULT_SEC_FILINGS_MAX_FILINGS))).strip()
+    try:
+        parsed = int(value)
+    except ValueError:
+        raise ValueError(f"{SEC_FILINGS_MAX_FILINGS_ENV} must be an integer.")
+    if parsed <= 0:
+        raise ValueError(f"{SEC_FILINGS_MAX_FILINGS_ENV} must be positive.")
+    return parsed
 
 
 def _select_profile_steps(

@@ -534,6 +534,40 @@ class DataOperationsCliTests(unittest.TestCase):
             self.assertEqual(exit_code, 1)
             self.assertIn("outside repository", stderr.getvalue())
 
+    def test_operating_data_profile_scheduler_status_report_command_writes_output(self) -> None:
+        with tempfile.TemporaryDirectory() as repo_root, tempfile.TemporaryDirectory() as outside_root:
+            output_path = Path(outside_root) / "profile-scheduler-status.json"
+            stdout = io.StringIO()
+
+            with patch("stockanalysis.operations.cli.build_operating_data_profile_scheduler_status_report") as status_mock:
+                status_mock.return_value = {
+                    "report_name": "operating_data_profile_scheduler_status",
+                    "install_status": "installed",
+                    "timer_count": 7,
+                }
+                exit_code = main(
+                    [
+                        "operating-data-profile-scheduler-status-report",
+                        "--repo-root",
+                        repo_root,
+                        "--profile-id",
+                        "news-intraday",
+                        "--job-name",
+                        "stockanalysis-operating-data",
+                        "--output",
+                        str(output_path),
+                    ],
+                    stdout=stdout,
+                )
+
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(stdout.getvalue().strip(), str(output_path.resolve()))
+            payload = json.loads(output_path.read_text(encoding="utf-8"))
+            self.assertEqual(payload["report_name"], "operating_data_profile_scheduler_status")
+            self.assertEqual(payload["timer_count"], 7)
+            status_mock.assert_called_once()
+            self.assertEqual(status_mock.call_args.kwargs["profile_ids"], ("news-intraday",))
+
     def test_server_scheduler_deployment_target_decision_command_writes_output_and_markdown(self) -> None:
         with tempfile.TemporaryDirectory() as repo_root, tempfile.TemporaryDirectory() as outside_root:
             output_path = Path(outside_root) / "scheduler-decision.json"

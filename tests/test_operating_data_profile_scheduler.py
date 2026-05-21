@@ -8,6 +8,7 @@ from pathlib import Path
 
 from stockanalysis.operations.operating_data_profile_scheduler import (
     build_operating_data_profile_scheduler_invocation_plan,
+    build_operating_data_profile_scheduler_status_report,
     render_operating_data_profile_scheduler_invocation_markdown,
 )
 
@@ -31,10 +32,12 @@ class OperatingDataProfileSchedulerTests(unittest.TestCase):
         self.assertEqual(report["report_name"], "operating_data_profile_scheduler_invocation_boundary")
         self.assertEqual(report["scheduler_target"], "cron")
         self.assertFalse(report["include_full_recovery"])
-        self.assertEqual(report["total_profile_count"], 5)
+        self.assertEqual(report["total_profile_count"], 7)
         profile_ids = [profile["profile_id"] for profile in report["profiles"]]
+        self.assertEqual(profile_ids[0], "market-universe-weekly")
+        self.assertEqual(profile_ids[1], "sec-filings-weekly")
         self.assertNotIn("full-recovery", profile_ids)
-        self.assertEqual(report["schedules"][0]["schedule"], "*/30 9-18 * * 1-5")
+        self.assertEqual(report["schedules"][0]["schedule"], "0 7 * * 1")
         self.assertNotIn("hidden-profile-pass", json.dumps(report))
         self.assertNotIn("postgresql://", json.dumps(report))
 
@@ -129,13 +132,15 @@ class OperatingDataProfileSchedulerTests(unittest.TestCase):
                 python_executable="/usr/bin/python3",
             )
 
-            self.assertEqual(report["total_profile_count"], 5)
+            self.assertEqual(report["total_profile_count"], 7)
             calendars = {}
             for profile in report["profiles"]:
                 profile_payload = dict(profile)
                 for item in profile_payload["manifest_file_previews"]:
                     if item["kind"] == "systemd_timer":
                         calendars[profile_payload["profile_id"]] = Path(item["path"]).read_text(encoding="utf-8")
+            self.assertIn("OnCalendar=Mon *-*-* 07:00 America/New_York", calendars["market-universe-weekly"])
+            self.assertIn("OnCalendar=Mon *-*-* 08:00 America/New_York", calendars["sec-filings-weekly"])
             self.assertIn("OnCalendar=Mon..Fri *-*-* 09..18:00/30 America/New_York", calendars["news-intraday"])
             self.assertIn("OnCalendar=Mon..Fri *-*-* 18:35 America/New_York", calendars["market-daily"])
             self.assertIn("OnCalendar=Mon..Fri *-*-* 19:00 America/New_York", calendars["decision-daily"])
@@ -159,6 +164,31 @@ class OperatingDataProfileSchedulerTests(unittest.TestCase):
             self.assertIn("schedule", markdown)
             self.assertIn("news-intraday", markdown)
             self.assertIn("does not deploy any scheduler", markdown)
+
+    def test_status_report_reads_profile_timer_state(self) -> None:
+        def fake_runner(argv):
+            command = tuple(argv)
+            if command[:2] == ("systemctl", "is-active"):
+                return "active"
+            if command[:3] == ("systemctl", "show", "stockanalysis-operating-data-news-intraday.timer"):
+                return "Thu 2026-05-21 13:00:00 UTC"
+            if command[:3] == ("systemctl", "show", "stockanalysis-operating-data-news-intraday.service"):
+                return "success"
+            return ""
+
+        report = build_operating_data_profile_scheduler_status_report(
+            profile_ids=("news-intraday",),
+            generated_at=datetime(2026, 5, 21, tzinfo=timezone.utc),
+            command_runner=fake_runner,
+        )
+
+        self.assertEqual(report["report_name"], "operating_data_profile_scheduler_status")
+        self.assertEqual(report["install_status"], "installed")
+        self.assertEqual(report["timer_count"], 1)
+        self.assertEqual(report["active_timer_count"], 1)
+        self.assertEqual(report["timers"][0]["profile_id"], "news-intraday")
+        self.assertEqual(report["timers"][0]["active_state"], "active")
+        self.assertNotIn("postgresql://", json.dumps(report))
 
 
 def _write_runtime_env(root: Path) -> Path:

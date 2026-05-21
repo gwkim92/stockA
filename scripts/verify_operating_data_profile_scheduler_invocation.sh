@@ -95,17 +95,39 @@ import sys
 payload = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"))
 assert payload["scheduler_target"] == "systemd"
 assert payload["operating_data_run_execute"] is True
-assert payload["total_profile_count"] == 5
+assert payload["total_profile_count"] == 7
 timer_text = "\n".join(
     pathlib.Path(item["path"]).read_text(encoding="utf-8")
     for profile in payload["profiles"]
     for item in profile["manifest_file_previews"]
     if item["kind"] == "systemd_timer"
 )
+assert "OnCalendar=Mon *-*-* 07:00 America/New_York" in timer_text
+assert "OnCalendar=Mon *-*-* 08:00 America/New_York" in timer_text
 assert "OnCalendar=Mon..Fri *-*-* 09..18:00/30 America/New_York" in timer_text
 assert "OnCalendar=Mon..Fri *-*-* 18:35 America/New_York" in timer_text
 assert "OnCalendar=Mon..Fri *-*-* 19:00 America/New_York" in timer_text
 assert "OnCalendar=*-*-01 09:30 America/New_York" in timer_text
 assert "--execute" in json.dumps(payload)
 print("operating data profile systemd manifest verification passed")
+PY
+
+PYTHONPATH=src python3 -m stockanalysis.operations.cli operating-data-profile-scheduler-status-report \
+  --repo-root "$ROOT_DIR" \
+  --job-name definitely-not-installed-stockanalysis \
+  --output "$TMP_ROOT/operating-data-profile-scheduler-status.json" >/dev/null
+
+python3 - "$TMP_ROOT/operating-data-profile-scheduler-status.json" <<'PY'
+import json
+import pathlib
+import sys
+
+payload = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"))
+assert payload["report_name"] == "operating_data_profile_scheduler_status"
+assert payload["scheduler_type"] == "systemd"
+assert payload["timer_count"] == 7
+assert payload["install_status"] in {"not_installed", "partial", "installed"}
+assert payload["timers"][0]["profile_id"] == "market-universe-weekly"
+assert "postgresql://" not in json.dumps(payload)
+print("operating data profile scheduler status report verification passed")
 PY

@@ -74,6 +74,7 @@ from stockanalysis.operations.server_scheduler_deployment_decision import (
 )
 from stockanalysis.operations.operating_data_profile_scheduler import (
     build_operating_data_profile_scheduler_invocation_plan,
+    build_operating_data_profile_scheduler_status_report,
     render_operating_data_profile_scheduler_invocation_markdown,
 )
 from stockanalysis.trading.paper_safety_bootstrap import (
@@ -269,6 +270,21 @@ def build_parser() -> argparse.ArgumentParser:
     operating_data_profile_scheduler_invocation.add_argument("--markdown-output")
     operating_data_profile_scheduler_invocation.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
     operating_data_profile_scheduler_invocation.set_defaults(handler=_handle_operating_data_profile_scheduler_invocation_plan)
+
+    operating_data_profile_scheduler_status = subparsers.add_parser(
+        "operating-data-profile-scheduler-status-report",
+        help="Read systemd profile scheduler status and write a secret-free status report.",
+    )
+    operating_data_profile_scheduler_status.add_argument(
+        "--profile-id",
+        dest="profile_ids",
+        action="append",
+        help="Limit to one or more profile IDs. Repeat for multiple.",
+    )
+    operating_data_profile_scheduler_status.add_argument("--job-name", default="stockanalysis-operating-data")
+    operating_data_profile_scheduler_status.add_argument("--output")
+    operating_data_profile_scheduler_status.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
+    operating_data_profile_scheduler_status.set_defaults(handler=_handle_operating_data_profile_scheduler_status_report)
 
     server_scheduler_decision = subparsers.add_parser(
         "server-scheduler-deployment-target-decision",
@@ -748,6 +764,25 @@ def _handle_operating_data_profile_scheduler_invocation_plan(args: argparse.Name
             render_operating_data_profile_scheduler_invocation_markdown(report),
             encoding="utf-8",
         )
+    write_json_report(report, output_path=output_path, stdout=stdout)
+    return 0
+
+
+def _handle_operating_data_profile_scheduler_status_report(args: argparse.Namespace, *, stdout: TextIO) -> int:
+    output_path = (
+        resolve_output_path(
+            args.output,
+            label="operating data profile scheduler status output",
+            repo_root=args.repo_root,
+            require_repo_outside=True,
+        )
+        if args.output
+        else None
+    )
+    report = build_operating_data_profile_scheduler_status_report(
+        profile_ids=tuple(args.profile_ids) if args.profile_ids else None,
+        job_name=args.job_name,
+    )
     write_json_report(report, output_path=output_path, stdout=stdout)
     return 0
 
