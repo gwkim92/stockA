@@ -62,9 +62,13 @@ function aiEvidenceLabel(type: string | null) {
 function formatSymbols(symbols: string[]) {
   const knownSymbols = symbols.filter(isKnownCode);
   if (knownSymbols.length === 0) {
-    return "연결 종목 대기";
+    return "시장/테마 뉴스";
   }
   return knownSymbols.slice(0, 5).map(koCode).join(", ");
+}
+
+function formatNewsSymbol(symbol: string | null | undefined) {
+  return isKnownCode(symbol) ? koCode(symbol) : "시장/테마 뉴스";
 }
 
 function formatDirectionCounts(counts: Record<string, number>) {
@@ -406,7 +410,7 @@ export default async function IntelligencePage() {
                           <span>{koCode(event.impact_direction)}</span>
                           <strong>{koLabel(event.title)}</strong>
                           <small>
-                            {koCode(event.symbol)} · 영향도 {formatPercent(event.impact_score)}
+                            {formatNewsSymbol(event.symbol)} · 영향도 {formatPercent(event.impact_score)}
                           </small>
                         </div>
                       ))}
@@ -458,7 +462,8 @@ export default async function IntelligencePage() {
                           <span>{koCode(event.impact_direction)}</span>
                           <strong>{koLabel(event.title)}</strong>
                           <small>
-                            {koCode(event.symbol)} · {koCode(event.event_type)} · 영향도 {formatPercent(event.impact_score)}
+                            {formatNewsSymbol(event.symbol)} · {koCode(event.event_type)} · 영향도{" "}
+                            {formatPercent(event.impact_score)}
                           </small>
                         </div>
                       ))}
@@ -502,7 +507,7 @@ export default async function IntelligencePage() {
                 <article className="review-queue-item" key={`${event.event_id}-${event.ai_evidence_id}`}>
                   <div>
                     <span className="metric-sub">
-                      {koCode(event.symbol)} · {koCode(event.theme_key)} · {event.event_at}
+                      {formatNewsSymbol(event.symbol)} · {koCode(event.theme_key)} · {event.event_at}
                     </span>
                     <strong>{koLabel(event.title)}</strong>
                     <p>
@@ -532,7 +537,7 @@ export default async function IntelligencePage() {
                   <span>{koCode(event.event_type)}</span>
                   <strong>{koLabel(event.title)}</strong>
                   <small>
-                    {koCode(event.symbol)} · {koCode(event.theme_key)} · {event.event_at}
+                    {formatNewsSymbol(event.symbol)} · {koCode(event.theme_key)} · {event.event_at}
                   </small>
                 </div>
               ))}

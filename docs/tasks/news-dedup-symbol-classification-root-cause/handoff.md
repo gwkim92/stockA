@@ -21,11 +21,12 @@
   - `news_rss_event_enrichment` run `43`, `news_rss_cluster_evidence` run `44`가 성공했다.
   - 최신 `news_cluster_summary` artifact `50`-`53` 기준으로 duplicate cluster event가 0건임을 확인했다.
   - `/api/ai/news-clusters?asOfDate=2026-05-21&limit=4`가 cluster 4건, duplicate event ids `[]`를 반환한다.
+  - `/intelligence`의 뉴스·AI 문맥에서 단일 종목이 없는 뉴스 label을 `종목 미분류` 대신 `시장/테마 뉴스`로 표시하도록 바꿨다.
   - 로컬 관련 테스트와 전체 테스트는 통과했다.
 
 ## Exact Next Step
 
-- exact next step: UI wording 작업에서 단일 종목이 없는 macro/theme 뉴스가 `종목 미분류`로 오해되지 않도록 `시장/테마 뉴스` 계열 문구로 바꾼다.
+- exact next step: 다음 작업은 `/ai-evidence` 상세와 `/events` 원장에서도 같은 wording 기준을 적용할지 점검한다.
 
 ## Root Cause
 
@@ -62,6 +63,9 @@
   - canonical news instruments: `ELF`, `TGT`, `EROK`, `TSLA`, `SPY`, `ADI`, `MSFT`, `INTU`
 - EC2 API smoke:
   - `/api/ai/news-clusters?asOfDate=2026-05-21&limit=4`: cluster_count `4`, duplicate_event_ids `[]`.
+- Frontend:
+  - `npm run typecheck`: pass.
+  - `npm run build`: pass.
 - `PYTHONPATH=src python3 -m unittest tests.test_news_rss_cluster_evidence tests.test_news_rss_enrichment tests.test_frontend_live_adapter tests.test_news_rss_ai_extract`: pass, 80 tests.
 - `PYTHONPATH=src /private/tmp/stockanalysis-runtime/test-venv/bin/python -m unittest discover -s tests`: pass, 700 tests.
 - `git diff --check`: pass.
