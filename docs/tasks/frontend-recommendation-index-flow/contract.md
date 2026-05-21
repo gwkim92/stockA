@@ -76,8 +76,8 @@
 
 ## Done Criteria
 
-- [ ] `/api/recommendations` appears in frontend contract index.
-- [ ] Fixture payload resolves for `/api/recommendations`.
-- [ ] Live adapter returns a bounded read-only recommendation list from canonical Postgres tables.
-- [ ] `/recommendations` page renders and links to recommendation detail, stock detail, thesis, AI evidence, paper trading, and portfolio coverage.
-- [ ] Focused verification commands pass.
+- [x] `/api/recommendations` appears in frontend contract index.
+- [x] Fixture payload resolves for `/api/recommendations`.
+- [x] Live adapter returns a bounded read-only recommendation list from canonical Postgres tables.
+- [x] `/recommendations` page renders and links to recommendation detail, stock detail, thesis, AI evidence, paper trading, and portfolio coverage.
+- [x] Focused verification commands pass.
