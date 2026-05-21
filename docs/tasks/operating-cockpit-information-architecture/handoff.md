@@ -11,6 +11,7 @@
 - 완료:
   - 홈/헤더/분석 화면을 daily operating flow 기준으로 재정렬한다.
   - 기존 `news_event_candidate` artifact가 새 한국어 prompt template version 재실행을 막지 않도록 후보 선택 SQL을 보강한다.
+  - `news_event_candidate` 후보 SQL이 하나의 이벤트를 theme/instrument join 곱으로 중복 반환하지 않도록 lateral single-pick 방식으로 보강한다.
 - 진행 중:
   - EC2 배포와 실제 AI 후보 재생성 smoke가 남아 있다.
 
@@ -20,7 +21,7 @@
 
 ## Verification
 
-- `PYTHONPATH=src python3 -m unittest tests.test_news_rss_ai_extract`: pass.
+- `PYTHONPATH=src python3 -m unittest tests.test_news_rss_ai_extract`: pass, 11 tests.
 - `cd apps/web && npm run typecheck`: pass.
 - `cd apps/web && npm run build`: pass.
 - `git diff --check`: pass.

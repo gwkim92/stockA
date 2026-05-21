@@ -535,15 +535,29 @@ from (
      and d.document_type = 'news_rss_item'
     left join ingest.data_source ds
       on ds.data_source_id = d.data_source_id
-    left join event.event_classification_impact classification_impact
-      on classification_impact.event_id = e.event_id
-    left join ref.classification_node theme
-      on theme.node_id = classification_impact.node_id
-     and theme.taxonomy_family = 'internal_theme'
-    left join event.event_instrument_impact instrument_impact
-      on instrument_impact.event_id = e.event_id
-    left join ref.instrument instrument
-      on instrument.instrument_id = instrument_impact.instrument_id
+    left join lateral (
+        select theme_node.code
+        from event.event_classification_impact classification_impact
+        join ref.classification_node theme_node
+          on theme_node.node_id = classification_impact.node_id
+         and theme_node.taxonomy_family = 'internal_theme'
+        where classification_impact.event_id = e.event_id
+        order by classification_impact.confidence desc nulls last,
+                 classification_impact.impact_strength desc nulls last,
+                 theme_node.code
+        limit 1
+    ) theme on true
+    left join lateral (
+        select impact_instrument.primary_symbol
+        from event.event_instrument_impact instrument_impact
+        join ref.instrument impact_instrument
+          on impact_instrument.instrument_id = instrument_impact.instrument_id
+        where instrument_impact.event_id = e.event_id
+        order by instrument_impact.confidence desc nulls last,
+                 instrument_impact.impact_strength desc nulls last,
+                 impact_instrument.primary_symbol
+        limit 1
+    ) instrument on true
     where e.event_type = 'news_rss_item'
       and e.dedupe_key like 'news_rss:%'
       and e.event_at < ({sql_literal(as_of_date.isoformat())}::date + interval '1 day')

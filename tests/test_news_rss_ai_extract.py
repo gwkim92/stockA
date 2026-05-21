@@ -132,6 +132,16 @@ class NewsRssAiExtractTests(unittest.TestCase):
         self.assertIn("prompt.template_name = 'news-rss-ai-extract'", sql)
         self.assertIn("prompt.template_version = '2026-05-21-ko-v2'", sql)
 
+    def test_render_news_ai_candidate_sql_picks_one_existing_theme_and_symbol_per_event(self) -> None:
+        sql = render_news_rss_ai_extraction_candidates_sql(as_of_date=date(2026, 5, 19), limit=10)
+
+        self.assertIn("left join lateral", sql)
+        self.assertIn("limit 1", sql)
+        self.assertIn("order by classification_impact.confidence desc nulls last", sql)
+        self.assertIn("order by instrument_impact.confidence desc nulls last", sql)
+        self.assertNotIn("left join event.event_classification_impact classification_impact\n      on", sql)
+        self.assertNotIn("left join event.event_instrument_impact instrument_impact\n      on", sql)
+
     def test_render_news_ai_context_sql_uses_ontology_lite_tables(self) -> None:
         sql = render_news_rss_ai_retrieval_context_sql(event_id=101, as_of_date=date(2026, 5, 19))
 
