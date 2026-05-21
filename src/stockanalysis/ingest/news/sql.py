@@ -368,6 +368,9 @@ select json_build_object(
 from instrument_aliases
 cross join candidate_text
 where length(instrument_aliases.company_alias) >= 4
+  and instrument_aliases.company_alias not in (
+      'financial institutions'
+  )
   and (
       (
           position(' ' in instrument_aliases.company_alias) > 0

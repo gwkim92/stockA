@@ -123,6 +123,7 @@ class NewsRssEnrichmentTests(unittest.TestCase):
         self.assertIn("Analog Devices", sql)
         self.assertIn("regexp_replace(lower(", sql)
         self.assertIn("instrument_type = 'listed_security'", sql)
+        self.assertIn("'financial institutions'", sql)
         self.assertIn("company_alias", sql)
 
     def test_load_pending_news_rss_event_enrichment_candidates(self) -> None:
