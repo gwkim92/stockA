@@ -15,8 +15,10 @@
 - `PYTHONPATH=/Users/woody/ai/agent-work-harness/src python3 -m awh verify --repo . --task frontend-news-ai-evidence-ux`: pass.
 - EC2 DB direct SQL smoke for event list: pass.
 - EC2 DB direct SQL smoke for `ai-evidence-10`: pass.
+- EC2 deploy/build/service restart: pass, `stockanalysis-frontend-api.service` and `stockanalysis-web.service` active.
+- EC2 API smoke for `/api/ai-evidence/ai-evidence-10`: pass, returned `news_event_candidate` with `codex_oauth` provider, candidate impacts, and retrieval context.
+- Tunnel web smoke for `/ai-evidence/ai-evidence-10` and `/events`: pass, key Korean markers rendered.
 
 ## Remaining Risks
 
-- EC2 deploy/service restart and live web smoke are pending.
 - This slice does not change scoring, recommendation generation, scheduler cadence, or broker/order flow.
