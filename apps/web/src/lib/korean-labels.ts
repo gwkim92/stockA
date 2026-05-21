@@ -128,6 +128,10 @@ const KOREAN_LABELS: Record<string, string> = {
   buy_candidate: "매수 후보",
   keep: "유지",
   reduce: "비중 축소",
+  increase_to_target: "목표 비중까지 증액 검토",
+  trim_to_target: "과대 비중 축소 검토",
+  allocation_review: "비중 검토",
+  allocation_policy_review: "비중 정책 검토",
   structurally_broken: "구조 훼손",
   account_daily_notional_limit_exceeded: "계좌 일일 한도 초과",
   account_order_notional_limit_exceeded: "계좌 단일 주문 한도 초과",
@@ -527,17 +531,22 @@ export function koReason(value: string | null | undefined): string {
     return `${skippedSameWeight[1]}은 현재 비중과 목표 비중이 같아 가상 조치가 생략됐다.`;
   }
   const portfolioReason = value.match(
-    /^([A-Z]+) portfolio review action ([^.]+)\. Thesis review action ([^;]+); current weight ([^;]+); recommended weight ([^;]+); coverage status ([^.]+)\.$/,
+    /^([A-Z0-9.-]+) portfolio review action ([^.]+)\. Thesis review action ([^;]+); current weight ([^;]+); recommended weight ([^;]+); coverage status ([^;.]+)(?:; single position review cap ([^.]+))?\.$/,
   );
   if (portfolioReason) {
-    const [, symbol, action, thesisAction, currentWeight, recommendedWeight, coverageStatus] = portfolioReason;
-    return [
+    const [, symbol, action, thesisAction, currentWeight, recommendedWeight, coverageStatus, singlePositionCap] =
+      portfolioReason;
+    const translatedReason = [
       `${symbol} 포트폴리오 검토 조치: ${koCode(action)}.`,
       `투자 논리 검토 조치: ${koCode(thesisAction)}.`,
       `현재 비중: ${currentWeight}.`,
       `권장 비중: ${koCode(recommendedWeight)}.`,
       `커버리지 상태: ${koCode(coverageStatus)}.`,
-    ].join(" ");
+    ];
+    if (singlePositionCap) {
+      translatedReason.push(`단일 종목 검토 기준: ${singlePositionCap}.`);
+    }
+    return translatedReason.join(" ");
   }
   return koLabel(value);
 }

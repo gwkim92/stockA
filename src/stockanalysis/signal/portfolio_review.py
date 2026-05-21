@@ -19,6 +19,8 @@ _DEFAULT_REVIEW_VERSION = "bootstrap-v1"
 _DEFAULT_REVIEW_SOURCE = "deterministic_bootstrap"
 _DECIMAL_QUANTIZER = Decimal("0.0001")
 _TIGHTEN_ACTIONS = {"exit", "reduce"}
+_MAX_SINGLE_POSITION_WEIGHT = Decimal("0.2500")
+_MIN_REBALANCE_TARGET_WEIGHT = Decimal("0.1000")
 
 
 @dataclass(frozen=True)
@@ -570,11 +572,14 @@ def _portfolio_action(candidate: PortfolioReviewCandidate) -> str:
         return "hold"
 
     lower_bound = candidate.recommended_weight * Decimal("0.75")
-    upper_bound = candidate.recommended_weight * Decimal("1.25")
     if candidate.current_weight < lower_bound:
         return "increase_to_target"
-    if candidate.current_weight > upper_bound:
+    if candidate.current_weight > _MAX_SINGLE_POSITION_WEIGHT:
         return "trim_to_target"
+    if candidate.recommended_weight >= _MIN_REBALANCE_TARGET_WEIGHT:
+        upper_bound = candidate.recommended_weight * Decimal("1.25")
+        if candidate.current_weight > upper_bound:
+            return "trim_to_target"
     return "hold"
 
 
@@ -618,7 +623,8 @@ def _reason(candidate: PortfolioReviewCandidate, *, action: str) -> str:
     return (
         f"{candidate.primary_symbol} portfolio review action {action}. "
         f"Thesis review action {thesis_action}; current weight {current_weight}; "
-        f"recommended weight {recommended_weight}; coverage status {candidate.coverage_status}."
+        f"recommended weight {recommended_weight}; coverage status {candidate.coverage_status}; "
+        f"single position review cap {_quantize(_MAX_SINGLE_POSITION_WEIGHT)}."
     )
 
 

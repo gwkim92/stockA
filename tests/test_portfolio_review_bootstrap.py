@@ -175,6 +175,38 @@ class PortfolioReviewBootstrapTests(unittest.TestCase):
         self.assertEqual(items[0].priority, 3)
         self.assertEqual(items[0].weight_gap, Decimal("0.0600"))
 
+    def test_build_portfolio_review_does_not_trim_small_signal_weight_overage(self) -> None:
+        header, items = build_portfolio_review(
+            (
+                _candidate(
+                    thesis_review_action="keep",
+                    current_weight=Decimal("0.1600"),
+                    recommended_weight=Decimal("0.0400"),
+                ),
+            ),
+            review_date=date(2024, 11, 1),
+        )
+        self.assertEqual(header.risk_level, "normal")
+        self.assertEqual(items[0].action, "hold")
+        self.assertEqual(items[0].priority, 4)
+        self.assertEqual(items[0].weight_gap, Decimal("-0.1200"))
+
+    def test_build_portfolio_review_trims_when_single_position_cap_is_exceeded(self) -> None:
+        header, items = build_portfolio_review(
+            (
+                _candidate(
+                    thesis_review_action="keep",
+                    current_weight=Decimal("0.3100"),
+                    recommended_weight=Decimal("0.0400"),
+                ),
+            ),
+            review_date=date(2024, 11, 1),
+        )
+        self.assertEqual(header.risk_level, "normal")
+        self.assertEqual(items[0].action, "trim_to_target")
+        self.assertEqual(items[0].priority, 3)
+        self.assertEqual(items[0].weight_gap, Decimal("-0.2700"))
+
     def test_build_portfolio_review_maps_missing_thesis_coverage_to_review_action(self) -> None:
         header, items = build_portfolio_review(
             (
