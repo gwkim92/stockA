@@ -104,6 +104,7 @@ timer_text = "\n".join(
 )
 assert "OnCalendar=Mon..Fri *-*-* 09..18:00/30 America/New_York" in timer_text
 assert "OnCalendar=Mon..Fri *-*-* 18:35 America/New_York" in timer_text
+assert "OnCalendar=Mon..Fri *-*-* 19:00 America/New_York" in timer_text
 assert "OnCalendar=*-*-01 09:30 America/New_York" in timer_text
 assert "--execute" in json.dumps(payload)
 print("operating data profile systemd manifest verification passed")

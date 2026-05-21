@@ -28,6 +28,13 @@ DEFAULT_PROFILE_CADENCE_SCHEDULES = {
     "weekly": "30 7 * * 1",
     "monthly": "30 9 1 * *",
 }
+DEFAULT_PROFILE_SCHEDULES = {
+    "news-intraday": "*/30 9-18 * * 1-5",
+    "market-daily": "35 18 * * 1-5",
+    "decision-daily": "0 19 * * 1-5",
+    "macro-weekly": "30 7 * * 1",
+    "performance-monthly": "30 9 1 * *",
+}
 PROFILE_OUTPUT_ROOT_DEFAULT_SEGMENT = "operating-data-profile-scheduler-reports"
 PROFILE_SCHEDULER_MANIFEST_ROOT_DEFAULT_SEGMENT = "operating-data-profile-scheduler-manifests"
 FORBIDDEN_PROFILE_SCHEDULER_TOKENS = (
@@ -113,7 +120,10 @@ def build_operating_data_profile_scheduler_invocation_plan(
         profile_schedule = (
             normalized_schedule
             if normalized_schedule is not None
-            else DEFAULT_PROFILE_CADENCE_SCHEDULES.get(profile["cadence"])
+            else DEFAULT_PROFILE_SCHEDULES.get(
+                profile["profile_id"],
+                DEFAULT_PROFILE_CADENCE_SCHEDULES.get(profile["cadence"]),
+            )
         )
         if profile_schedule is None:
             raise ValueError(f"missing default schedule for cadence: {profile['cadence']}")
@@ -196,7 +206,10 @@ def build_operating_data_profile_scheduler_invocation_plan(
                 "schedule": (
                     normalized_schedule
                     if normalized_schedule is not None
-                    else DEFAULT_PROFILE_CADENCE_SCHEDULES[profile["cadence"]]
+                    else DEFAULT_PROFILE_SCHEDULES.get(
+                        profile["profile_id"],
+                        DEFAULT_PROFILE_CADENCE_SCHEDULES[profile["cadence"]],
+                    )
                 ),
             }
             for profile in selected_profiles
