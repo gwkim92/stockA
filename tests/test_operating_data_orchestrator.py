@@ -95,7 +95,16 @@ class OperatingDataOrchestratorTests(unittest.TestCase):
         self.assertEqual(step_ids[1], "sec-filings-weekly")
         self.assertIn("market-price-daily", step_ids)
         self.assertIn("portfolio-position-snapshot", step_ids)
+        self.assertIn("portfolio-holding-thesis-bootstrap", step_ids)
         self.assertIn("paper-validation-audit", step_ids)
+        self.assertLess(
+            step_ids.index("portfolio-position-snapshot"),
+            step_ids.index("portfolio-holding-thesis-bootstrap"),
+        )
+        self.assertLess(
+            step_ids.index("portfolio-holding-thesis-bootstrap"),
+            step_ids.index("portfolio-remediation-daily"),
+        )
         self.assertEqual(report["derived_inputs"]["sec_filings_cik"], "320193")
         self.assertEqual(report["derived_inputs"]["sec_filings_max_filings"], 3)
         self.assertTrue(report["derived_inputs"]["source_positions_required"])
@@ -201,9 +210,18 @@ class OperatingDataOrchestratorTests(unittest.TestCase):
         self.assertEqual(report["profile"], "decision-daily")
         self.assertEqual(step_ids[0], "missing-symbol-price-backfill")
         self.assertIn("recommendation-bootstrap", step_ids)
+        self.assertIn("portfolio-holding-thesis-bootstrap", step_ids)
         self.assertIn("paper-validation-audit", step_ids)
         self.assertNotIn("news-rss-ingest", step_ids)
         self.assertNotIn("macro-weekly", step_ids)
+        self.assertLess(
+            step_ids.index("portfolio-position-snapshot"),
+            step_ids.index("portfolio-holding-thesis-bootstrap"),
+        )
+        self.assertLess(
+            step_ids.index("portfolio-holding-thesis-bootstrap"),
+            step_ids.index("portfolio-remediation-daily"),
+        )
 
     def test_execute_runs_backfill_before_signal_and_generates_position_csv(self) -> None:
         with tempfile.TemporaryDirectory() as repo_root, tempfile.TemporaryDirectory() as outside_root:
@@ -233,7 +251,18 @@ class OperatingDataOrchestratorTests(unittest.TestCase):
         rendered_commands = [" ".join(call["command_argv"]) for call in runner.calls]
         backfill_index = next(index for index, command in enumerate(rendered_commands) if "market-price-free-backfill-run" in command)
         signal_index = next(index for index, command in enumerate(rendered_commands) if "strategy-universe-slice" in command)
+        position_snapshot_index = next(
+            index for index, command in enumerate(rendered_commands) if "portfolio-position-snapshot-upsert" in command
+        )
+        holding_thesis_index = next(
+            index for index, command in enumerate(rendered_commands) if "portfolio-holding-thesis-bootstrap" in command
+        )
+        remediation_index = next(
+            index for index, command in enumerate(rendered_commands) if "portfolio-remediation-daily-run" in command
+        )
         self.assertLess(backfill_index, signal_index)
+        self.assertLess(position_snapshot_index, holding_thesis_index)
+        self.assertLess(holding_thesis_index, remediation_index)
         self.assertEqual(watchlist_rows, [{"symbol": "TSLA"}])
         self.assertEqual([row["symbol"] for row in position_rows], ["AAPL", "TSLA"])
         self.assertEqual(position_rows[0]["market_price"], "200.000000")

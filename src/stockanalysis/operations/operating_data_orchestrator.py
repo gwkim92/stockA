@@ -38,6 +38,7 @@ DEFAULT_HORIZON_TYPE = "long_term"
 DEFAULT_MARKET_CODE = "US"
 DEFAULT_SCORE_VERSION = "bootstrap-v1"
 DEFAULT_THESIS_VERSION = "bootstrap-v1"
+DEFAULT_HOLDING_THESIS_VERSION = "holding-bootstrap-v1"
 DEFAULT_REVIEW_VERSION = "bootstrap-v1"
 DEFAULT_REVIEW_SOURCE = "deterministic_bootstrap"
 DEFAULT_MACRO_SERIES = ("CPIAUCSL", "FEDFUNDS")
@@ -104,6 +105,7 @@ DECISION_DAILY_STEP_IDS = (
     "thesis-bootstrap",
     "thesis-review-bootstrap",
     "portfolio-position-snapshot",
+    "portfolio-holding-thesis-bootstrap",
     "portfolio-remediation-daily",
     "paper-safety-bootstrap",
     "paper-validation-audit",
@@ -759,6 +761,27 @@ def _build_planned_steps(
                     market_code,
                 ),
             },
+            _ingest_step(
+                "portfolio-holding-thesis-bootstrap",
+                "portfolio-remediation-daily",
+                "Create conservative thesis coverage for held positions",
+                python_executable,
+                "portfolio-holding-thesis-bootstrap",
+                (
+                    "--portfolio-name",
+                    portfolio_name,
+                    "--as-of-date",
+                    target,
+                    "--strategy-name",
+                    strategy_name,
+                    "--horizon-type",
+                    horizon_type,
+                    "--market-code",
+                    market_code,
+                    "--thesis-version",
+                    DEFAULT_HOLDING_THESIS_VERSION,
+                ),
+            ),
             _ingest_step(
                 "portfolio-remediation-daily",
                 "portfolio-remediation-daily",

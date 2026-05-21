@@ -792,6 +792,39 @@ class IngestCliTests(unittest.TestCase):
         self.assertEqual(payload["review_count"], 1)
         self.assertEqual(payload["action_counts"], {"watch": 1})
 
+    def test_portfolio_holding_thesis_bootstrap_cli_prints_summary(self) -> None:
+        stdout = io.StringIO()
+        with patch("stockanalysis.ingest.cli.run_portfolio_holding_thesis_bootstrap") as bootstrap_mock:
+            bootstrap_mock.return_value = {
+                "run_id": 189,
+                "portfolio_name": "Long Term Paper",
+                "candidate_count": 2,
+                "thesis_count": 2,
+                "linked_position_count": 2,
+            }
+            with redirect_stdout(stdout):
+                exit_code = main(
+                    [
+                        "portfolio-holding-thesis-bootstrap",
+                        "--portfolio-name",
+                        "Long Term Paper",
+                        "--as-of-date",
+                        "2026-05-21",
+                        "--strategy-name",
+                        "long_term_core",
+                        "--horizon-type",
+                        "long_term",
+                    ]
+                )
+
+        self.assertEqual(exit_code, 0)
+        payload = json.loads(stdout.getvalue())
+        self.assertEqual(payload["run_id"], 189)
+        self.assertEqual(payload["candidate_count"], 2)
+        self.assertEqual(payload["linked_position_count"], 2)
+        self.assertEqual(bootstrap_mock.call_args.kwargs["portfolio_name"], "Long Term Paper")
+        self.assertEqual(bootstrap_mock.call_args.kwargs["as_of_date"], date(2026, 5, 21))
+
     def test_portfolio_review_bootstrap_cli_prints_summary(self) -> None:
         stdout = io.StringIO()
         with patch("stockanalysis.ingest.cli.run_portfolio_review_bootstrap") as bootstrap_mock:

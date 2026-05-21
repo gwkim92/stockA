@@ -73,6 +73,7 @@ from stockanalysis.performance.outcome import (
 )
 from stockanalysis.signal.cycle import run_cycle_state_snapshot
 from stockanalysis.signal.features import run_market_feature_snapshot
+from stockanalysis.signal.portfolio_holding_thesis import run_portfolio_holding_thesis_bootstrap
 from stockanalysis.signal.portfolio_remediation_daily import run_portfolio_remediation_daily_automation
 from stockanalysis.signal.portfolio_review import run_portfolio_review_bootstrap
 from stockanalysis.signal.portfolio_review_report import load_portfolio_review_run_history
@@ -485,6 +486,17 @@ def build_parser() -> argparse.ArgumentParser:
     thesis_review_bootstrap.add_argument("--market-code", default="US")
     thesis_review_bootstrap.add_argument("--review-version", default="bootstrap-v1")
     thesis_review_bootstrap.add_argument("--review-source", default="deterministic_bootstrap")
+
+    portfolio_holding_thesis_bootstrap = subparsers.add_parser(
+        "portfolio-holding-thesis-bootstrap",
+        help="Create conservative coverage thesis rows for held positions without active thesis links.",
+    )
+    portfolio_holding_thesis_bootstrap.add_argument("--portfolio-name", required=True)
+    portfolio_holding_thesis_bootstrap.add_argument("--as-of-date", required=True, help="Snapshot date in YYYY-MM-DD format.")
+    portfolio_holding_thesis_bootstrap.add_argument("--strategy-name", required=True)
+    portfolio_holding_thesis_bootstrap.add_argument("--horizon-type", required=True)
+    portfolio_holding_thesis_bootstrap.add_argument("--market-code", default="US")
+    portfolio_holding_thesis_bootstrap.add_argument("--thesis-version", default="holding-bootstrap-v1")
 
     portfolio_review_bootstrap = subparsers.add_parser(
         "portfolio-review-bootstrap",
@@ -916,6 +928,9 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 0
         if args.command == "thesis-review-bootstrap":
             _handle_thesis_review_bootstrap(args, config=config)
+            return 0
+        if args.command == "portfolio-holding-thesis-bootstrap":
+            _handle_portfolio_holding_thesis_bootstrap(args, config=config)
             return 0
         if args.command == "portfolio-review-bootstrap":
             _handle_portfolio_review_bootstrap(args, config=config)
@@ -1392,6 +1407,19 @@ def _handle_thesis_review_bootstrap(args: argparse.Namespace, *, config: Runtime
         market_code=args.market_code,
         review_version=args.review_version,
         review_source=args.review_source,
+    )
+    print(json.dumps(summary, indent=2, ensure_ascii=False))
+
+
+def _handle_portfolio_holding_thesis_bootstrap(args: argparse.Namespace, *, config: RuntimeConfig) -> None:
+    summary = run_portfolio_holding_thesis_bootstrap(
+        config=config,
+        portfolio_name=args.portfolio_name,
+        as_of_date=date.fromisoformat(args.as_of_date),
+        strategy_name=args.strategy_name,
+        horizon_type=args.horizon_type,
+        market_code=args.market_code,
+        thesis_version=args.thesis_version,
     )
     print(json.dumps(summary, indent=2, ensure_ascii=False))
 
