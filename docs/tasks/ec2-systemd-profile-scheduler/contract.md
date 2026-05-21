@@ -54,9 +54,9 @@
 
 ## Done Criteria
 
-- [ ] EC2 services remain active.
-- [ ] EC2 stockanalysis timers are listed and scheduled.
-- [ ] timer-generated commands include `--execute`.
-- [ ] `/api/data-health` no longer reports scheduler as not installed.
-- [ ] no FastAPI/Next error logs are introduced.
-- [ ] task handoff records exact status and residual risks.
+- [x] EC2 services remain active.
+- [x] EC2 stockanalysis timers are listed and scheduled.
+- [x] timer-generated commands include `--execute`.
+- [x] `/api/data-health` no longer reports scheduler as not installed.
+- [x] no FastAPI/Next error logs are introduced.
+- [x] task handoff records exact status and residual risks.

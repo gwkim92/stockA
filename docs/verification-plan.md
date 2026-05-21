@@ -42,6 +42,10 @@ task마다 흔들리게 두지 않는 편이 좋다.
 - 무엇을 증명하는가: 실제 화면에 필요한 운영 데이터 순서가 수동 EC2 보정이 아니라 `stockanalysis-operations operating-data-run` backend boundary로 preview/execute 가능하고, 자동 운영 profile이 뉴스/AI intraday, market daily, decision daily, macro weekly, performance monthly, full recovery로 분리되는지 확인한다.
 - 통과 조건: operating-data orchestrator/artifact runner/CLI/cadence/live adapter focused unittest, profile preview CLI smoke, repo-outside env/output enforcement, no DB URL/API key/token leak, task docs가 모두 통과한다.
 
+- 명령: `bash scripts/verify_operating_data_profile_scheduler_invocation.sh`
+- 무엇을 증명하는가: EC2/server `systemd` scheduler가 profile별 `operating-data-run --execute` invocation packet과 timer manifest를 secret 없이 생성할 수 있고, intraday/daily/weekly/monthly schedule이 `America/New_York` 기준으로 분리되는지 확인한다.
+- 통과 조건: focused unittest, CLI smoke, systemd manifest rendering, `--execute` child command rendering, repo-outside env/output enforcement, no DB URL/API key/token leak가 모두 통과한다.
+
 - 명령: `bash scripts/verify_frontend_architecture.sh`
 - 무엇을 증명하는가: investment cockpit 방향, route map, API boundary, AI boundary, security boundary, phased implementation, fixture-only `apps/web` scaffold가 문서와 파일로 정렬되어 있는지 확인한다.
 - 통과 조건: `docs/frontend-architecture.md`와 task docs가 존재하고, frontend doc에 cockpit, route map, data boundary, AI boundary, security boundary, implementation phases가 포함되며, `apps/web` scaffold가 존재하고 root-level `app` scaffold는 없는 것이 확인된다.
