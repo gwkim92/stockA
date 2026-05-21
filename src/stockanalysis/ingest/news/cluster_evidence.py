@@ -301,7 +301,11 @@ def build_news_rss_clusters(
 
     grouped: dict[str, list[NewsRssClusterEvidenceEvent]] = {}
     theme_names: dict[str, str] = {}
+    seen_event_ids: set[int] = set()
     for event in events:
+        if event.event_id in seen_event_ids:
+            continue
+        seen_event_ids.add(event.event_id)
         grouped.setdefault(event.theme_key, []).append(event)
         theme_names.setdefault(event.theme_key, event.theme_name)
 

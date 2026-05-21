@@ -103,9 +103,14 @@ class NewsRssClusterEvidenceTests(unittest.TestCase):
         sql = render_news_rss_cluster_evidence_event_candidates_sql(as_of_date=date(2026, 5, 19), limit=25)
 
         self.assertIn("event.event_classification_impact", sql)
+        self.assertIn("join lateral", sql)
+        self.assertIn("classification_impact.confidence desc nulls last", sql)
+        self.assertIn("instrument_impact.confidence desc nulls last", sql)
         self.assertIn("e.event_type = 'news_rss_item'", sql)
         self.assertIn("2026-05-19", sql)
         self.assertIn("limit 25", sql)
+        self.assertNotIn("join event.event_classification_impact classification_impact\n      on", sql)
+        self.assertNotIn("left join event.event_instrument_impact instrument_impact\n      on", sql)
 
     def test_render_existing_artifact_lookup_uses_request_hash(self) -> None:
         sql = render_existing_news_rss_cluster_artifact_lookup_sql(request_hash="abc")
@@ -187,6 +192,46 @@ class NewsRssClusterEvidenceTests(unittest.TestCase):
         artifact = json.loads(clusters[0].output_json())
         self.assertEqual(artifact["source"], "local_rules")
         self.assertEqual(artifact["cluster"]["event_count"], 1)
+
+    def test_build_news_rss_clusters_keeps_one_cluster_per_event(self) -> None:
+        events = (
+            NewsRssClusterEvidenceEvent(
+                event_id=101,
+                document_id=501,
+                event_type="news_rss_item",
+                title="Treasury yields spike",
+                summary="Rates remain in focus.",
+                event_at="2026-05-19T10:02:40+00:00",
+                source_name="rss_news:macro-rates-fed",
+                external_document_id="rss:macro-rates-fed:abc",
+                theme_key="MACRO_RATES_FED",
+                theme_name="Macro Rates and Fed",
+                impact_direction="watch",
+                impact_score=0.80,
+                symbol="SPY",
+            ),
+            NewsRssClusterEvidenceEvent(
+                event_id=101,
+                document_id=501,
+                event_type="news_rss_item",
+                title="Treasury yields spike",
+                summary="Rates remain in focus.",
+                event_at="2026-05-19T10:02:40+00:00",
+                source_name="rss_news:macro-rates-fed",
+                external_document_id="rss:macro-rates-fed:abc",
+                theme_key="MARKET_NEWS_FLOW",
+                theme_name="Market News Flow",
+                impact_direction="watch",
+                impact_score=0.55,
+                symbol="SPY",
+            ),
+        )
+
+        clusters = build_news_rss_clusters(events, as_of_date=date(2026, 5, 19), max_clusters=4)
+
+        self.assertEqual(len(clusters), 1)
+        self.assertEqual(clusters[0].theme_key, "MACRO_RATES_FED")
+        self.assertEqual(clusters[0].events[0].event_id, 101)
 
     def test_run_news_rss_cluster_evidence_dry_run_does_not_write(self) -> None:
         executor = FakeExecutor()

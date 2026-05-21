@@ -329,6 +329,67 @@ order by i.instrument_id
 limit 1;"""
 
 
+def render_instrument_lookup_by_company_alias_sql(*, title: str, summary: str) -> str:
+    candidate_text = f"{title} {summary}".strip()
+    return f"""with candidate_text as (
+    select
+        regexp_replace(lower({sql_literal(title)}), '[^a-z0-9]+', ' ', 'g') as title_text,
+        regexp_replace(lower({sql_literal(candidate_text)}), '[^a-z0-9]+', ' ', 'g') as full_text
+),
+instrument_aliases as (
+    select
+        i.instrument_id,
+        i.primary_symbol,
+        i.name,
+        btrim(
+            regexp_replace(
+                regexp_replace(
+                    lower(i.name),
+                    '\\m(incorporated|inc|corp|corporation|co|company|ltd|limited|plc|sa|ag|nv|common stock|class [a-z]+)\\M\\.?',
+                    '',
+                    'g'
+                ),
+                '[^a-z0-9]+',
+                ' ',
+                'g'
+            )
+        ) as company_alias
+    from ref.instrument i
+    where i.is_active = true
+      and i.instrument_type = 'listed_security'
+      and i.name is not null
+)
+select json_build_object(
+    'instrument_id', instrument_aliases.instrument_id,
+    'primary_symbol', instrument_aliases.primary_symbol,
+    'instrument_name', instrument_aliases.name,
+    'match_source', 'company_alias'
+)::text
+from instrument_aliases
+cross join candidate_text
+where length(instrument_aliases.company_alias) >= 4
+  and (
+      (
+          position(' ' in instrument_aliases.company_alias) > 0
+          and position(' ' || instrument_aliases.company_alias || ' ' in ' ' || candidate_text.full_text || ' ') > 0
+      )
+      or (
+          position(' ' in instrument_aliases.company_alias) = 0
+          and length(instrument_aliases.company_alias) >= 5
+          and (
+              position(instrument_aliases.company_alias || ' ' in candidate_text.title_text || ' ') = 1
+              or position(' ' || instrument_aliases.company_alias || ' stock ' in ' ' || candidate_text.full_text || ' ') > 0
+          )
+          and candidate_text.title_text not like 'price target %'
+      )
+  )
+order by
+    case when position(' ' in instrument_aliases.company_alias) > 0 then 0 else 1 end,
+    length(instrument_aliases.company_alias) desc,
+    instrument_aliases.primary_symbol
+limit 1;"""
+
+
 def render_news_rss_cluster_evidence_event_candidates_sql(*, as_of_date: date, limit: int) -> str:
     if limit <= 0:
         raise ValueError("limit must be greater than 0")
@@ -363,23 +424,46 @@ from (
         e.event_at,
         ds.source_name,
         d.external_document_id,
-        theme.code as theme_key,
-        theme.name as theme_name,
-        coalesce(instrument_impact.impact_direction, classification_impact.impact_direction, e.impact_polarity, 'watch')
+        primary_theme.theme_key,
+        primary_theme.theme_name,
+        coalesce(primary_instrument.impact_direction, primary_theme.impact_direction, e.impact_polarity, 'watch')
             as impact_direction,
-        coalesce(instrument_impact.impact_strength, classification_impact.impact_strength, e.significance_score)
+        coalesce(primary_instrument.impact_strength, primary_theme.impact_strength, e.significance_score)
             as impact_score,
-        instrument.primary_symbol as symbol
+        primary_instrument.primary_symbol as symbol
     from event.event e
-    join event.event_classification_impact classification_impact
-      on classification_impact.event_id = e.event_id
-    join ref.classification_node theme
-      on theme.node_id = classification_impact.node_id
-     and theme.taxonomy_family = 'internal_theme'
-    left join event.event_instrument_impact instrument_impact
-      on instrument_impact.event_id = e.event_id
-    left join ref.instrument instrument
-      on instrument.instrument_id = instrument_impact.instrument_id
+    join lateral (
+        select
+            classification_impact.impact_direction,
+            classification_impact.impact_strength,
+            theme.code as theme_key,
+            theme.name as theme_name
+        from event.event_classification_impact classification_impact
+        join ref.classification_node theme
+          on theme.node_id = classification_impact.node_id
+         and theme.taxonomy_family = 'internal_theme'
+        where classification_impact.event_id = e.event_id
+        order by
+            classification_impact.confidence desc nulls last,
+            classification_impact.impact_strength desc nulls last,
+            theme.code
+        limit 1
+    ) primary_theme on true
+    left join lateral (
+        select
+            instrument_impact.impact_direction,
+            instrument_impact.impact_strength,
+            instrument.primary_symbol
+        from event.event_instrument_impact instrument_impact
+        join ref.instrument instrument
+          on instrument.instrument_id = instrument_impact.instrument_id
+        where instrument_impact.event_id = e.event_id
+        order by
+            instrument_impact.confidence desc nulls last,
+            instrument_impact.impact_strength desc nulls last,
+            instrument.primary_symbol
+        limit 1
+    ) primary_instrument on true
     left join event.event_document_link document_link
       on document_link.event_id = e.event_id
      and document_link.link_type = 'source'

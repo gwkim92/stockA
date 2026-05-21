@@ -8,10 +8,12 @@ from stockanalysis.ingest.news.enrichment import (
     detect_instrument_symbol,
     infer_impact_direction_and_strength,
     load_pending_news_rss_event_enrichment_candidates,
+    resolve_instrument_for_candidate,
     run_news_rss_event_enrichment,
 )
 from stockanalysis.ingest.news.models import NewsRssEventEnrichmentCandidate
 from stockanalysis.ingest.news.sql import (
+    render_instrument_lookup_by_company_alias_sql,
     render_news_rss_classification_bootstrap_sql,
     render_pending_news_rss_event_enrichment_candidates_sql,
 )
@@ -19,13 +21,20 @@ from stockanalysis.ingest.psql import PsqlExecutionError
 
 
 class FakeExecutor:
-    def __init__(self, *, run_id: int = 1201, missing_instrument: bool = False, fail_on_classification: bool = False) -> None:
+    def __init__(
+        self,
+        *,
+        run_id: int = 1201,
+        missing_instrument: bool = False,
+        fail_on_classification: bool = False,
+        pending_candidates: list[dict[str, object]] | None = None,
+    ) -> None:
         self.run_id = run_id
         self.missing_instrument = missing_instrument
         self.fail_on_classification = fail_on_classification
         self.scalar_sql: list[str] = []
         self.non_query_sql: list[str] = []
-        self.pending_candidates = [
+        self.pending_candidates = pending_candidates or [
             {
                 "event_id": 31,
                 "event_type": "news_rss_item",
@@ -50,11 +59,29 @@ class FakeExecutor:
             "primary_symbol": "NVDA",
             "instrument_name": "NVIDIA Corp",
         }
+        self.alias_payloads = {
+            "analog devices": {
+                "instrument_id": 702,
+                "primary_symbol": "ADI",
+                "instrument_name": "ANALOG DEVICES INC",
+            },
+            "intuit": {
+                "instrument_id": 703,
+                "primary_symbol": "INTU",
+                "instrument_name": "INTUIT INC.",
+            },
+        }
 
     def execute_scalar(self, sql: str) -> str:
         self.scalar_sql.append(sql)
         if "from event.event e" in sql:
             return json.dumps(self.pending_candidates)
+        if "instrument_aliases" in sql:
+            lowered_sql = sql.lower()
+            for alias, payload in self.alias_payloads.items():
+                if alias in lowered_sql:
+                    return json.dumps(payload)
+            raise PsqlExecutionError("psql returned no rows for scalar query")
         if "from ref.instrument i" in sql:
             if self.missing_instrument:
                 raise PsqlExecutionError("psql returned no rows for scalar query")
@@ -86,6 +113,18 @@ class NewsRssEnrichmentTests(unittest.TestCase):
         self.assertIn("MACRO_RATES_FED", sql)
         self.assertIn("insert into ref.classification_edge", sql)
 
+    def test_render_company_alias_lookup_matches_instrument_name_not_manual_symbol_list(self) -> None:
+        sql = render_instrument_lookup_by_company_alias_sql(
+            title="Dear Analog Devices Stock Fans, Mark Your Calendars",
+            summary="",
+        )
+
+        self.assertIn("instrument_aliases", sql)
+        self.assertIn("Analog Devices", sql)
+        self.assertIn("regexp_replace(lower(", sql)
+        self.assertIn("instrument_type = 'listed_security'", sql)
+        self.assertIn("company_alias", sql)
+
     def test_load_pending_news_rss_event_enrichment_candidates(self) -> None:
         executor = FakeExecutor()
         candidates = load_pending_news_rss_event_enrichment_candidates(limit=10, executor=executor)
@@ -108,6 +147,40 @@ class NewsRssEnrichmentTests(unittest.TestCase):
         self.assertEqual(classify_theme(candidate).node_code, "AI_SEMICONDUCTOR_CYCLE")
         self.assertEqual(detect_instrument_symbol(candidate), "NVDA")
         self.assertEqual(infer_impact_direction_and_strength(candidate)[0], "supportive")
+
+    def test_company_alias_resolution_links_obvious_named_company(self) -> None:
+        candidate = NewsRssEventEnrichmentCandidate(
+            event_id=33,
+            event_type="news_rss_item",
+            dedupe_key="news_rss:x",
+            title="Dear Analog Devices Stock Fans, Mark Your Calendars for May 20",
+            summary="",
+            source_name="rss_news:yahoo-finance-news",
+            external_document_id="rss:x",
+        )
+
+        symbol, instrument = resolve_instrument_for_candidate(candidate, executor=FakeExecutor())
+
+        self.assertEqual(symbol, "ADI")
+        self.assertIsNotNone(instrument)
+        self.assertEqual(instrument.primary_symbol if instrument else None, "ADI")
+
+    def test_company_alias_resolution_links_single_word_stock_phrase(self) -> None:
+        candidate = NewsRssEventEnrichmentCandidate(
+            event_id=34,
+            event_type="news_rss_item",
+            dedupe_key="news_rss:x",
+            title="Dear Intuit Stock Fans, Mark Your Calendars for May 20",
+            summary="",
+            source_name="rss_news:yahoo-finance-news",
+            external_document_id="rss:x",
+        )
+
+        symbol, instrument = resolve_instrument_for_candidate(candidate, executor=FakeExecutor())
+
+        self.assertEqual(symbol, "INTU")
+        self.assertIsNotNone(instrument)
+        self.assertEqual(instrument.primary_symbol if instrument else None, "INTU")
 
     def test_run_news_rss_event_enrichment_dry_run_does_not_write(self) -> None:
         executor = FakeExecutor(run_id=1202)
@@ -141,6 +214,32 @@ class NewsRssEnrichmentTests(unittest.TestCase):
         self.assertTrue(any("insert into event.event_classification_impact" in sql for sql in executor.non_query_sql))
         self.assertTrue(any("insert into event.event_instrument_impact" in sql for sql in executor.non_query_sql))
         self.assertIn("status = 'succeeded'", executor.non_query_sql[-1])
+
+    def test_run_news_rss_event_enrichment_writes_company_alias_instrument_impacts(self) -> None:
+        executor = FakeExecutor(
+            run_id=1206,
+            pending_candidates=[
+                {
+                    "event_id": 33,
+                    "event_type": "news_rss_item",
+                    "dedupe_key": "news_rss:rss:yahoo-finance-news:adi",
+                    "title": "Dear Analog Devices Stock Fans, Mark Your Calendars for May 20",
+                    "summary": "",
+                    "source_name": "rss_news:yahoo-finance-news",
+                    "external_document_id": "rss:yahoo-finance-news:adi",
+                }
+            ],
+        )
+
+        summary = run_news_rss_event_enrichment(
+            config=type("Config", (), {})(),
+            limit=10,
+            executor=executor,
+        )
+
+        self.assertEqual(summary["instrument_linked_event_count"], 1)
+        self.assertEqual(summary["results"][0]["instrument_symbol"], "ADI")
+        self.assertTrue(any("702" in sql for sql in executor.non_query_sql))
 
     def test_run_news_rss_event_enrichment_missing_instrument_is_not_failure(self) -> None:
         executor = FakeExecutor(run_id=1204, missing_instrument=True)

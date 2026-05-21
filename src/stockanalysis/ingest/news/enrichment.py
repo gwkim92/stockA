@@ -8,6 +8,7 @@ from stockanalysis.ingest.config import RuntimeConfig
 from stockanalysis.ingest.macro.sql import sql_literal
 from stockanalysis.ingest.news.models import NewsRssEventEnrichmentCandidate, NewsRssEventEnrichmentResult
 from stockanalysis.ingest.news.sql import (
+    render_instrument_lookup_by_company_alias_sql,
     render_instrument_lookup_by_symbol_sql,
     render_news_rss_classification_bootstrap_sql,
     render_pending_news_rss_event_enrichment_candidates_sql,
@@ -149,11 +150,13 @@ def run_news_rss_event_enrichment(
         return _empty_summary()
 
     if dry_run:
-        planned_results = [
-            _build_result(candidate, run_id=None, instrument_symbol=detect_instrument_symbol(candidate), status="planned").summary()
-            | {"theme_code": classify_theme(candidate).node_code}
-            for candidate in candidates
-        ]
+        planned_results = []
+        for candidate in candidates:
+            instrument_symbol, _instrument = resolve_instrument_for_candidate(candidate, executor=sql_executor)
+            planned_results.append(
+                _build_result(candidate, run_id=None, instrument_symbol=instrument_symbol, status="planned").summary()
+                | {"theme_code": classify_theme(candidate).node_code}
+            )
         return {
             **_empty_summary(),
             "requested_event_count": len(candidates),
@@ -176,7 +179,7 @@ def run_news_rss_event_enrichment(
         sql_executor.execute_non_query(render_news_rss_classification_bootstrap_sql())
         for candidate in candidates:
             theme_target = classify_theme(candidate)
-            instrument_symbol = detect_instrument_symbol(candidate)
+            instrument_symbol, instrument = resolve_instrument_for_candidate(candidate, executor=sql_executor)
             try:
                 direction, strength = infer_impact_direction_and_strength(candidate)
                 sql_executor.execute_non_query(
@@ -191,27 +194,25 @@ def run_news_rss_event_enrichment(
                     )
                 )
 
-                if instrument_symbol:
-                    instrument = resolve_instrument_by_symbol(instrument_symbol, executor=sql_executor)
-                    if instrument is not None:
-                        sql_executor.execute_non_query(
-                            render_event_instrument_impact_upsert_sql(
-                                event_id=candidate.event_id,
-                                instrument_id=instrument.instrument_id,
-                                impact_direction=direction,
-                                impact_strength=strength,
-                                confidence=0.72,
-                                rationale=(
-                                    f"Rule-based free RSS enrichment matched `{instrument.primary_symbol}` from "
-                                    f"title/summary keywords; no paid provider or LLM used."
-                                ),
-                            )
+                if instrument is not None:
+                    sql_executor.execute_non_query(
+                        render_event_instrument_impact_upsert_sql(
+                            event_id=candidate.event_id,
+                            instrument_id=instrument.instrument_id,
+                            impact_direction=direction,
+                            impact_strength=strength,
+                            confidence=0.72,
+                            rationale=(
+                                f"Rule-based free RSS enrichment matched `{instrument.primary_symbol}` from "
+                                f"title/summary keywords or instrument-name alias; no paid provider or LLM used."
+                            ),
                         )
-                        instrument_linked += 1
-                        status = "succeeded"
-                    else:
-                        instrument_skipped += 1
-                        status = "succeeded_instrument_missing"
+                    )
+                    instrument_linked += 1
+                    status = "succeeded"
+                elif instrument_symbol:
+                    instrument_skipped += 1
+                    status = "succeeded_instrument_missing"
                 else:
                     instrument_skipped += 1
                     status = "succeeded_theme_only"
@@ -303,6 +304,20 @@ def detect_instrument_symbol(candidate: NewsRssEventEnrichmentCandidate) -> str 
     return None
 
 
+def resolve_instrument_for_candidate(
+    candidate: NewsRssEventEnrichmentCandidate,
+    *,
+    executor: PsqlCommandExecutor,
+) -> tuple[str | None, _InstrumentLookup | None]:
+    symbol = detect_instrument_symbol(candidate)
+    if symbol:
+        return symbol, resolve_instrument_by_symbol(symbol, executor=executor)
+    instrument = resolve_instrument_by_company_alias(candidate, executor=executor)
+    if instrument is not None:
+        return instrument.primary_symbol, instrument
+    return None, None
+
+
 def infer_impact_direction_and_strength(candidate: NewsRssEventEnrichmentCandidate) -> tuple[str, float]:
     text = _candidate_text(candidate)
     if any(word in text for word in _RISK_WORDS):
@@ -319,6 +334,25 @@ def resolve_instrument_by_symbol(
 ) -> _InstrumentLookup | None:
     try:
         payload_text = executor.execute_scalar(render_instrument_lookup_by_symbol_sql(symbol))
+    except PsqlExecutionError:
+        return None
+    payload = json.loads(payload_text)
+    return _InstrumentLookup(
+        instrument_id=int(payload["instrument_id"]),
+        primary_symbol=str(payload["primary_symbol"]).upper(),
+        instrument_name=str(payload["instrument_name"]),
+    )
+
+
+def resolve_instrument_by_company_alias(
+    candidate: NewsRssEventEnrichmentCandidate,
+    *,
+    executor: PsqlCommandExecutor,
+) -> _InstrumentLookup | None:
+    try:
+        payload_text = executor.execute_scalar(
+            render_instrument_lookup_by_company_alias_sql(title=candidate.title, summary=candidate.summary)
+        )
     except PsqlExecutionError:
         return None
     payload = json.loads(payload_text)

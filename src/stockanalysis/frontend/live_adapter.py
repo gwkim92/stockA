@@ -3059,9 +3059,38 @@ with filtered_event_rows as (
             else 'deterministic_review_required'
         end as quality_gate
     from event.event event_row
-    left join event.event_instrument_impact instrument_impact on instrument_impact.event_id = event_row.event_id
+    left join lateral (
+        select
+            impact.instrument_id,
+            impact.impact_direction,
+            impact.impact_strength
+        from event.event_instrument_impact impact
+        join ref.instrument impact_instrument
+          on impact_instrument.instrument_id = impact.instrument_id
+        where impact.event_id = event_row.event_id
+        order by
+            impact.confidence desc nulls last,
+            impact.impact_strength desc nulls last,
+            impact_instrument.primary_symbol
+        limit 1
+    ) instrument_impact on true
     left join ref.instrument instrument on instrument.instrument_id = instrument_impact.instrument_id
-    left join event.event_classification_impact classification_impact on classification_impact.event_id = event_row.event_id
+    left join lateral (
+        select
+            impact.node_id,
+            impact.impact_direction,
+            impact.impact_strength
+        from event.event_classification_impact impact
+        join ref.classification_node impact_theme
+          on impact_theme.node_id = impact.node_id
+         and impact_theme.taxonomy_family = 'internal_theme'
+        where impact.event_id = event_row.event_id
+        order by
+            impact.confidence desc nulls last,
+            impact.impact_strength desc nulls last,
+            impact_theme.code
+        limit 1
+    ) classification_impact on true
     left join ref.classification_node theme
       on theme.node_id = classification_impact.node_id
      and theme.taxonomy_family = 'internal_theme'
