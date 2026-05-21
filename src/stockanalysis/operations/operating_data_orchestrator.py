@@ -87,6 +87,7 @@ SEC_FILINGS_WEEKLY_STEP_IDS = (
 NEWS_INTRADAY_STEP_IDS = (
     "news-rss-ingest",
     "news-rss-enrichment",
+    "news-cluster-evidence",
     "news-ai-evidence",
 )
 MARKET_DAILY_STEP_IDS = (
@@ -147,7 +148,7 @@ OPERATING_DATA_RUN_PROFILES: tuple[OperatingDataRunProfile, ...] = (
         label="News and AI event intelligence",
         cadence="intraday",
         recommended_schedule="every 30-60 minutes during US market/news hours",
-        description="Collect free RSS news, enrich pending events, and run validator-gated Codex OAuth news AI evidence without touching market candles or portfolio rows.",
+        description="Collect free RSS news, enrich pending events, refresh local news cluster evidence, and run validator-gated Codex OAuth news AI evidence without touching market candles or portfolio rows.",
         step_ids=NEWS_INTRADAY_STEP_IDS,
     ),
     OperatingDataRunProfile(
@@ -547,6 +548,22 @@ def _build_planned_steps(
                 "news-rss-enrich-run",
                 "--env-file",
                 str(env_file),
+            ),
+        },
+        {
+            "step_id": "news-cluster-evidence",
+            "artifact_job_id": "event-intelligence-weekly",
+            "label": "Refresh local news cluster evidence for AI analysis visibility",
+            "skip_reason": "",
+            "command_argv": (
+                python_executable,
+                "-m",
+                "stockanalysis.operations.cli",
+                "news-rss-cluster-evidence-run",
+                "--env-file",
+                str(env_file),
+                "--as-of-date",
+                target,
             ),
         },
         {

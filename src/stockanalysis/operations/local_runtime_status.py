@@ -306,8 +306,8 @@ def _manual_commands(runtime_root: Path) -> list[dict[str, str]]:
             "command": f"stockanalysis-operations news-rss-daily-run --env-file {data_env}",
         },
         {
-            "name": "run Codex OAuth news AI evidence manually",
-            "command": f"stockanalysis-operations news-rss-ai-extract-run --env-file {data_env} --provider codex_oauth --limit 10 --execute",
+            "name": "run news intelligence manually",
+            "command": f"stockanalysis-operations operating-data-run --runtime-root {runtime_root} --data-operations-env-file {data_env} --profile news-intraday --execute",
         },
         {
             "name": "start local FastAPI read-only backend",

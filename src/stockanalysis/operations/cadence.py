@@ -148,11 +148,11 @@ DATA_OPERATION_CADENCES: tuple[DataOperationCadence, ...] = (
         pipeline_name="event_intelligence_llm_extract",
         domain="ai",
         cadence="intraday",
-        command_template="stockanalysis-operations news-rss-ai-extract-run --env-file <ENV> --provider codex_oauth --limit 10 --execute",
+        command_template="stockanalysis-operations operating-data-run --data-operations-env-file <ENV> --profile news-intraday --execute",
         expected_after_local="09:10",
         stale_after_hours=4,
         artifact_policy="stdout_json_stderr_log_and_ai_artifact_id",
-        required_env_groups=("database", "openai_or_llm_provider"),
+        required_env_groups=("database", "news_rss_feed_config", "openai_or_llm_provider"),
         data_health_dataset="ai.extraction_artifact",
     ),
     DataOperationCadence(

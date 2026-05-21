@@ -127,9 +127,12 @@ class OperatingDataOrchestratorTests(unittest.TestCase):
         self.assertEqual(report["generated_files"]["position_snapshot_csv"], "")
         self.assertEqual(
             [step["step_id"] for step in report["planned_steps"]],
-            ["news-rss-ingest", "news-rss-enrichment", "news-ai-evidence"],
+            ["news-rss-ingest", "news-rss-enrichment", "news-cluster-evidence", "news-ai-evidence"],
         )
-        ai_command = " ".join(report["planned_steps"][-1]["command_argv"])
+        cluster_command = " ".join(report["planned_steps"][2]["command_argv"])
+        self.assertIn("news-rss-cluster-evidence-run", cluster_command)
+        self.assertIn("--as-of-date 2026-05-20", cluster_command)
+        ai_command = " ".join(report["planned_steps"][3]["command_argv"])
         self.assertIn("news-rss-ai-extract-run", ai_command)
         self.assertIn("--provider codex_oauth", ai_command)
         self.assertIn("--execute", ai_command)
