@@ -75,9 +75,9 @@
 
 ## Done Criteria
 
-- [ ] `market-universe-weekly` profile exists and renders a systemd timer.
-- [ ] `sec-filings-weekly` profile exists and renders a systemd timer.
-- [ ] EC2 timer count increases from 5 to 7.
-- [ ] scheduler status report CLI writes installed/active timer state.
-- [ ] `/api/data-health` reports active profile scheduler count from the generated status report.
-- [ ] task handoff records verification and remaining risks.
+- [x] `market-universe-weekly` profile exists and renders a systemd timer.
+- [x] `sec-filings-weekly` profile exists and renders a systemd timer.
+- [x] EC2 timer count increases from 5 to 7.
+- [x] scheduler status report CLI writes installed/active timer state.
+- [x] `/api/data-health` reports active profile scheduler count from the generated status report.
+- [x] task handoff records verification and remaining risks.
