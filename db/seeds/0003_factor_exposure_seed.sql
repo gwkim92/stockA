@@ -1,4 +1,88 @@
-with exposure_seed (symbol, node_code, exposure_weight, sensitivity_direction, confidence, rationale) as (
+with instrument_seed (symbol, name, issuer_display_name, mic_code, instrument_type, currency_code, market_code) as (
+    values
+        ('SPY', 'SPDR S&P 500 ETF Trust', 'SPDR S&P 500 ETF Trust', 'ARCX', 'etf', 'USD', 'US'),
+        ('QQQ', 'Invesco QQQ Trust', 'Invesco QQQ Trust', 'XNAS', 'etf', 'USD', 'US'),
+        ('TLT', 'iShares 20+ Year Treasury Bond ETF', 'iShares 20+ Year Treasury Bond ETF', 'ARCX', 'etf', 'USD', 'US'),
+        ('XLF', 'Financial Select Sector SPDR Fund', 'Financial Select Sector SPDR Fund', 'ARCX', 'etf', 'USD', 'US'),
+        ('XLE', 'Energy Select Sector SPDR Fund', 'Energy Select Sector SPDR Fund', 'ARCX', 'etf', 'USD', 'US'),
+        ('NVDA', 'NVIDIA Corporation', 'NVIDIA Corporation', 'XNAS', 'equity', 'USD', 'US'),
+        ('MSFT', 'Microsoft Corporation', 'Microsoft Corporation', 'XNAS', 'equity', 'USD', 'US'),
+        ('TSLA', 'Tesla, Inc.', 'Tesla, Inc.', 'XNAS', 'equity', 'USD', 'US'),
+        ('XOM', 'Exxon Mobil Corporation', 'Exxon Mobil Corporation', 'XNYS', 'equity', 'USD', 'US')
+),
+inserted_issuers as (
+    insert into ref.issuer (
+        legal_name,
+        display_name,
+        country_code,
+        issuer_type
+    )
+    select
+        seed.issuer_display_name,
+        seed.issuer_display_name,
+        'US',
+        case when seed.instrument_type = 'etf' then 'fund' else 'corporate' end
+    from instrument_seed seed
+    where not exists (
+        select 1
+        from ref.instrument instrument
+        where upper(instrument.primary_symbol) = seed.symbol
+    )
+    returning issuer_id, display_name
+),
+resolved_issuers as (
+    select
+        seed.symbol,
+        seed.name,
+        seed.mic_code,
+        seed.instrument_type,
+        seed.currency_code,
+        seed.market_code,
+        coalesce(inserted.issuer_id, existing_issuer.issuer_id) as issuer_id
+    from instrument_seed seed
+    left join inserted_issuers inserted
+      on inserted.display_name = seed.issuer_display_name
+    left join lateral (
+        select issuer_id
+        from ref.issuer issuer
+        where issuer.display_name = seed.issuer_display_name
+        order by issuer.issuer_id desc
+        limit 1
+    ) existing_issuer on true
+),
+instrument_upsert as (
+    insert into ref.instrument (
+        issuer_id,
+        exchange_id,
+        market_code,
+        primary_symbol,
+        instrument_type,
+        currency_code,
+        name,
+        is_active
+    )
+    select
+        issuer.issuer_id,
+        exchange.exchange_id,
+        issuer.market_code,
+        issuer.symbol,
+        issuer.instrument_type,
+        issuer.currency_code,
+        issuer.name,
+        true
+    from resolved_issuers issuer
+    join ref.exchange exchange on exchange.mic_code = issuer.mic_code
+    where issuer.issuer_id is not null
+    on conflict (exchange_id, primary_symbol) do update
+    set
+        market_code = excluded.market_code,
+        instrument_type = excluded.instrument_type,
+        currency_code = excluded.currency_code,
+        name = excluded.name,
+        is_active = excluded.is_active
+    returning instrument_id, primary_symbol
+),
+exposure_seed (symbol, node_code, exposure_weight, sensitivity_direction, confidence, rationale) as (
     values
         ('SPY', 'MACRO_RATES_FED', 0.6500::numeric, 'negative', 0.7500::numeric, 'Broad US equities usually de-rate when rate expectations rise.'),
         ('QQQ', 'MACRO_RATES_FED', 0.7500::numeric, 'negative', 0.7800::numeric, 'Long-duration growth and technology exposure is sensitive to discount-rate shocks.'),
