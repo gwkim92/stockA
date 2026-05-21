@@ -208,17 +208,10 @@ function newsRunLabel(newsRun: PipelineRun | null) {
   return koCode(newsRun.job_id);
 }
 
-function latestFreshnessDate(dataHealth: DataHealthData, dataset: string) {
-  return (
-    dataHealth.freshness.find((item) => item.dataset === dataset)?.latest_observation_date ||
-    "2024-11-01"
-  );
-}
-
 export default async function IntelligencePage() {
   const dataHealthResponse = await getDataHealth();
   const dataHealth = dataHealthResponse.data;
-  const portfolioCoverageDate = latestFreshnessDate(dataHealth, "portfolio.position_snapshot");
+  const portfolioCoverageDate = "2024-11-01";
   const [
     eventsResponse,
     newsClusterResponse,
