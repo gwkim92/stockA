@@ -221,15 +221,14 @@ export default async function IntelligencePage() {
   const fallbackClusters = buildFallbackClusters(events.events);
   const aiCandidateEvents = events.events.filter((event) => event.ai_evidence_id).slice(0, 6);
   const unstructuredEvents = events.events.filter((event) => !event.ai_evidence_id).slice(0, 3);
-  const primaryEvidenceId =
-    storedNewsClusters.clusters[0]?.evidence_id ?? aiCandidateEvents[0]?.ai_evidence_id ?? null;
+  const firstCandidateEvidenceId = aiCandidateEvents[0]?.ai_evidence_id ?? null;
   const activation = dataHealth.scheduler.activation;
 
   const detailLinks = [
     {
       title: "개별 뉴스 AI 후보",
       copy: "AI가 한 뉴스에서 추출한 종목, 테마, 방향, 불확실성을 확인한다.",
-      href: primaryEvidenceId ? `/ai-evidence/${primaryEvidenceId}` : "/ai-evidence",
+      href: firstCandidateEvidenceId ? `/ai-evidence/${firstCandidateEvidenceId}` : "/ai-evidence",
     },
     {
       title: "뉴스·이벤트 원장",
