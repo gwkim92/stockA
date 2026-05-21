@@ -18,16 +18,19 @@
   - `news_event_candidate` artifact에 `extracted_fields`를 함께 저장해 기존 AI 근거 상세 화면이 뉴스 요약, 테마 영향, 종목 영향, 불확실성을 표시할 수 있게 했다.
   - `/data-health`의 AI evidence 설명 문구를 Codex OAuth batch + validator 흐름으로 바꿨다.
   - Python 3.13 검증 venv에서 전체 unit test와 Next typecheck/build가 통과했다.
+  - GitHub 최신 코드(`bd29893`)를 EC2 `/opt/stockanalysis/app`에 배포했다.
+  - EC2 Postgres의 기존 application schema를 삭제하고 migrations/seeds를 재적용한 뒤 full-recovery profile을 실행했다.
+  - EC2 full-recovery 후 `codex_oauth` provider AI extraction artifact 10건과 canonical event impact가 생성됐다.
+  - EC2 FastAPI/Next.js 서비스와 operating-data systemd timers 8개를 재시작했고, 주요 cockpit route를 로컬 SSH tunnel에서 확인했다.
 - 막힌 점:
   - 없음.
 - 아직 하지 않은 것:
-  - EC2에서 실제 `codex_oauth` dry-run/execute smoke.
-  - EC2 scheduler manifest 재생성 및 service/timer reload.
-  - frontend route에서 개별 뉴스 candidate artifact 상세 표시.
+  - `/recommendations` index route는 아직 없고, 현재 추천은 `/recommendations/<recommendationId>` 상세 또는 `/intelligence`에서 접근한다.
+  - frontend route에서 개별 뉴스 candidate artifact 상세 표시는 기존 AI evidence 상세 화면을 통해 일부 가능하지만, 뉴스 전용 UX는 별도 개선 여지가 있다.
 
 ## Exact Next Step
 
-- 다음 세션은 이것부터 시작: focused local verification과 AWH 검증을 완료한 뒤, EC2에 배포해 `news-rss-ai-extract-run --provider codex_oauth --limit 10 --execute`를 1회 수동 smoke하고 `/api/data-health`와 화면에서 `event-intelligence-weekly` 최신 상태를 확인한다.
+- 다음 세션은 이것부터 시작: 추천 index route와 뉴스 전용 AI evidence UX를 추가해 사용자가 `/recommendations`, `/events`, `/intelligence`, `/stocks/<symbol>` 사이에서 근거 흐름을 끊기지 않고 볼 수 있게 한다.
 
 ## Verification
 
@@ -40,6 +43,14 @@
 - `cd apps/web && npm run typecheck`: pass.
 - `cd apps/web && npm run build`: pass.
   - Local DB dry-run: `news-rss-ai-extract-run --env-file /private/tmp/stockanalysis-runtime/data-operations.env --as-of-date 2026-05-21 --limit 3 --provider codex_oauth --dry-run`: pass, 3 planned candidates, no DB write/provider call.
+- EC2 DB reset and migration/seed: pass, 51 tables after migration/seed.
+- EC2 full recovery: pass, `run_status=completed`, 20/20 artifact steps succeeded.
+- EC2 DB counts after full recovery: `ref.instrument=7575`, `ingest.source_document=23`, `event.event=20`, `event.event_classification_impact=21`, `event.event_instrument_impact=2`, `ai.model_invocation=10`, `ai.extraction_artifact=10`, `market.daily_price_bar=500`, `signal.recommendation=1`, `ops.pipeline_run=30`.
+- EC2 latest pipeline status: `news_rss_upsert`, `news_rss_event_enrichment`, `event_intelligence_llm_extract`, `market_price_upsert` all succeeded on 2026-05-21 UTC.
+- EC2 AI provider smoke: `ai.model_invocation` has `codex_oauth|succeeded|10`.
+- EC2 services: `stockanalysis-frontend-api.service`, `stockanalysis-web.service` active; `stockanalysis-postgres` container up.
+- EC2 timers: 8 `stockanalysis-operating-data-*` systemd timers active.
+- Local tunnel UI smoke: `/`, `/data-health`, `/cycles`, `/events`, `/stocks`, `/intelligence`, `/paper-trading`, `/performance`, `/portfolio/coverage`, `/recommendations/AAPL-2024-11-01`, `/stocks/AAPL` returned 200 via `http://127.0.0.1:13000`.
 
 ## Risks
 
