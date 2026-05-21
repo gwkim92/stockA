@@ -2,13 +2,20 @@
 
 ## Current Status
 
-- 상태: implemented locally, EC2 smoke pending.
+- 상태: implemented and EC2 smoke passed.
 - 기준일: 2026-05-21
 - 완료:
   - Local schema, runner, recommendation, cycle, frontend, and tests are implemented.
   - Python 3.13 venv tests, Next typecheck/build, and Docker migration verification passed.
+  - EC2 deployed commit `5a4b8c1`.
+  - EC2 migration/seed applied. `ref.instrument_factor_exposure` has 11 rows.
+  - EC2 `macro-event-propagation-run --execute` completed as `pipeline-run-45`, creating 47 propagated impact rows from 12 events across 7 instruments.
+  - EC2 cycle/recommendation/thesis refresh completed as `pipeline-run-46` through `pipeline-run-49`.
+  - EC2 recommendation detail includes `macro_flow_score` with `macro_flow_propagation` provenance.
+  - EC2 pages `/intelligence`, `/stocks/TSLA`, `/recommendations/recommendation-2` returned HTTP 200.
+  - EC2 news cluster duplicate event ids check returned `[]`.
 - 막힌 점:
-  - EC2 deploy/smoke has not run yet in this handoff state.
+  - Recommendation evidence review is `needs_evidence_review` because outcome measurement is not due yet; there are no blocked gates.
 
 ## Implemented
 
@@ -41,13 +48,10 @@
 
 ## Remaining
 
-- Apply migration/seed on EC2.
-- Run `macro-event-propagation-run --execute` on EC2.
-- Verify `signal.propagated_instrument_impact` row count.
-- Restart API/web services after deploying code.
-- Smoke `/intelligence`, `/stocks/SPY`, and a recommendation detail page.
-- Confirm `/api/ai/news-clusters` duplicate event ids stay empty.
+- Let the normal performance outcome schedule create outcome rows when the recommendation measurement window matures.
+- Expand factor exposure coverage beyond the starter 11 rows after more instruments/themes are active.
+- Add a dedicated dashboard card for propagated macro/theme flow counts if the current stock/recommendation detail placement is not enough.
 
 ## Exact Next Step
 
-- exact next step: push the implementation branch, deploy it to EC2, apply `db/migrations/0014_macro_event_propagation.sql` and `db/seeds/0003_factor_exposure_seed.sql`, then run `macro-event-propagation-run --execute` against the EC2 database.
+- exact next step: monitor the next scheduled `news-intraday` and `decision-daily` runs and confirm propagated flow counts continue to update without manual intervention.

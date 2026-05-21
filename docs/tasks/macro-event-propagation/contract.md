@@ -56,8 +56,8 @@
 
 ## Done Criteria
 
-- [ ] Macro/theme-only event can produce propagated instrument impacts without direct event instrument impact.
-- [ ] Propagation is idempotent by `(event_id, node_id, instrument_id)`.
-- [ ] Recommendation component rows include `macro_flow_score`.
-- [ ] Frontend exposes `뉴스 → 상위 흐름 → 종목` trace.
-- [ ] EC2 smoke confirms propagated rows and no duplicated news clusters.
+- [x] Macro/theme-only event can produce propagated instrument impacts without direct event instrument impact.
+- [x] Propagation is idempotent by `(event_id, node_id, instrument_id)`.
+- [x] Recommendation component rows include `macro_flow_score`.
+- [x] Frontend exposes `뉴스 → 상위 흐름 → 종목` trace.
+- [x] EC2 smoke confirms propagated rows and no duplicated news clusters.
