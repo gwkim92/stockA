@@ -11,6 +11,7 @@ import type {
   PerformanceOutcomesData,
   PortfolioCoverageData,
   RecommendationDetailData,
+  RecommendationListData,
   RemediationTicketsData,
   SourceDocumentDetailData,
   StockDetailData,
@@ -129,6 +130,10 @@ export function getTradingReadiness() {
 
 export function getCycleStates() {
   return fetchFrontendPayload<CycleStateListData>("/api/cycles?asOfDate=2024-11-01");
+}
+
+export function getRecommendations() {
+  return fetchFrontendPayload<RecommendationListData>("/api/recommendations");
 }
 
 export function getRecommendationDetail(recommendationId: string) {

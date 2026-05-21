@@ -59,12 +59,12 @@ try:
     status, health = fetch_json("/__health")
     assert status == 200, health
     assert health["contract_version"] == "frontend-api-v0.1", health
-    assert health["endpoint_count"] == 16, health
+    assert health["endpoint_count"] == 17, health
     assert health["source_mode"] == "fixture", health
 
     status, endpoints = fetch_json("/__endpoints")
     assert status == 200, endpoints
-    assert len(endpoints["data"]["endpoints"]) == 16, endpoints
+    assert len(endpoints["data"]["endpoints"]) == 17, endpoints
     assert endpoints["source_mode"] == "fixture", endpoints
 
     status, dashboard = fetch_json("/api/dashboard/today")

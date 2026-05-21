@@ -49,6 +49,7 @@ Initial endpoints:
 - `GET /api/paper-trading/preview`: `PaperTradingPreviewResponse`
 - `GET /api/trading/readiness`: `TradingReadinessResponse`
 - `GET /api/cycles?asOfDate=2024-11-01`: `CycleStateListResponse`
+- `GET /api/recommendations`: `RecommendationListResponse`
 - `GET /api/recommendations/AAPL-2024-11-01`: `RecommendationDetailResponse`
 - `GET /api/theses/AAPL-bootstrap-v1`: `ThesisDetailResponse`
 - `GET /api/portfolio/Long%20Term%20Paper/coverage?asOfDate=2024-11-01`: `PortfolioCoverageResponse`

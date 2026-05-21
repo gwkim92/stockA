@@ -77,6 +77,14 @@
     },
     {
       "method": "GET",
+      "path": "/api/recommendations",
+      "response_dto": "RecommendationListResponse",
+      "example": "docs/api/frontend/examples/recommendation-list.json",
+      "route_owner": "/recommendations",
+      "description": "Latest long-term recommendation batch list with score, thesis, evidence, outcome, and review status."
+    },
+    {
+      "method": "GET",
       "path": "/api/recommendations/AAPL-2024-11-01",
       "response_dto": "RecommendationDetailResponse",
       "example": "docs/api/frontend/examples/recommendation-detail.json",

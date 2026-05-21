@@ -183,6 +183,17 @@ def resolve_live_frontend_response(
                 generated_at=generated_at_text,
             ),
         )
+    if parsed.path == "/api/recommendations":
+        return apply_frontend_sql_pagination(
+            api_path,
+            build_live_recommendation_list_response(
+                parsed,
+                api_path=api_path,
+                config=runtime_config,
+                executor=executor,
+                generated_at=generated_at_text,
+            ),
+        )
     if parsed.path == "/api/events":
         return apply_frontend_sql_pagination(
             api_path,
@@ -874,6 +885,62 @@ def build_live_cycle_state_list_response(
     }
 
 
+def build_live_recommendation_list_response(
+    parsed: ParsedApiPath,
+    *,
+    api_path: str,
+    config: RuntimeConfig,
+    executor: PsqlCommandExecutor | None,
+    generated_at: str,
+) -> dict[str, Any]:
+    as_of_date = _parse_optional_date(parsed.query, "asOfDate") or _parse_optional_date(parsed.query, "batchDate")
+    page_limit, page_offset = frontend_sql_page_window(api_path)
+    state = load_frontend_recommendation_list_state(
+        config=config,
+        executor=executor,
+        as_of_date=as_of_date,
+        page_limit=page_limit,
+        page_offset=page_offset,
+    )
+    recommendations = [
+        _build_recommendation_list_item_payload(item) for item in _as_list(state.get("recommendations"))
+    ]
+    summary = _as_dict(state.get("summary"))
+    as_of_text = str(state.get("as_of_date") or (as_of_date.isoformat() if as_of_date else ""))
+
+    return {
+        "contract_version": CONTRACT_VERSION,
+        "generated_at": generated_at,
+        "data": {
+            "as_of_date": as_of_text,
+            "strategy_name": str(state.get("strategy_name") or DEFAULT_STRATEGY_NAME),
+            "horizon_type": str(state.get("horizon_type") or "long_term"),
+            "universe_version": str(state.get("universe_version") or "unknown"),
+            "recommendation_count": int(state.get("recommendation_count") or len(recommendations)),
+            "summary": {
+                "active_count": int(summary.get("active_count") or 0),
+                "reviewable_count": int(summary.get("reviewable_count") or 0),
+                "blocked_count": int(summary.get("blocked_count") or 0),
+                "measured_count": int(summary.get("measured_count") or 0),
+                "linked_thesis_count": int(summary.get("linked_thesis_count") or 0),
+                "ai_or_event_evidence_count": int(summary.get("ai_or_event_evidence_count") or 0),
+                "average_score": _number(summary.get("average_score")),
+            },
+            "recommendations": recommendations,
+        },
+        "links": {
+            "dashboard": "/api/dashboard/today",
+            "stocks": "/api/stocks",
+            "paper_trading": "/api/paper-trading/preview",
+            "portfolio_coverage": (
+                f"/api/portfolio/{quote(DEFAULT_PORTFOLIO_NAME, safe='')}/coverage?asOfDate={quote(as_of_text)}"
+                if as_of_text
+                else f"/api/portfolio/{quote(DEFAULT_PORTFOLIO_NAME, safe='')}/coverage"
+            ),
+        },
+    }
+
+
 def build_live_event_list_response(
     parsed: ParsedApiPath,
     *,
@@ -1474,6 +1541,7 @@ def is_live_supported_path(api_path: str) -> bool:
             "/api/paper-trading/preview",
             "/api/trading/readiness",
             "/api/cycles",
+            "/api/recommendations",
             "/api/events",
             "/api/ai/news-clusters",
             "/api/remediation-tickets",
@@ -1689,6 +1757,25 @@ def load_frontend_performance_outcomes_state(
         )
     )
     return json_loads_object(payload, "Frontend performance outcomes state lookup")
+
+
+def load_frontend_recommendation_list_state(
+    *,
+    config: RuntimeConfig,
+    executor: PsqlCommandExecutor | None,
+    as_of_date: date | None,
+    page_limit: int,
+    page_offset: int,
+) -> dict[str, Any]:
+    sql_executor = executor or PsqlCommandExecutor.from_config(config)
+    payload = sql_executor.execute_scalar(
+        render_frontend_recommendation_list_state_sql(
+            as_of_date=as_of_date,
+            page_limit=page_limit,
+            page_offset=page_offset,
+        )
+    )
+    return json_loads_object(payload, "Frontend recommendation list state lookup")
 
 
 def load_frontend_recommendation_detail_state(
@@ -4075,6 +4162,186 @@ select json_build_object(
 )::text;"""
 
 
+def render_frontend_recommendation_list_state_sql(
+    *,
+    as_of_date: date | None,
+    page_limit: int = 51,
+    page_offset: int = 0,
+) -> str:
+    _validate_sql_pagination_window(page_limit=page_limit, page_offset=page_offset)
+    target_date_sql = sql_date(as_of_date) if as_of_date is not None else "current_date"
+    return f"""-- frontend recommendation list state lookup
+with target_date as (
+    select {target_date_sql}::date as as_of_date
+),
+latest_batch as (
+    select batch.*
+    from signal.recommendation_batch batch
+    join target_date target on batch.as_of_date <= target.as_of_date
+    where batch.strategy_name = {sql_literal(DEFAULT_STRATEGY_NAME)}
+    order by batch.as_of_date desc, batch.batch_id desc
+    limit 1
+),
+recommendation_base as (
+    select
+        recommendation.recommendation_id,
+        recommendation.instrument_id,
+        recommendation.thesis_id,
+        recommendation.bucket,
+        recommendation.action,
+        recommendation.rank_position,
+        recommendation.total_score,
+        recommendation.recommended_weight,
+        recommendation.status,
+        batch.as_of_date,
+        batch.strategy_name,
+        batch.horizon_type,
+        batch.universe_version,
+        instrument.primary_symbol,
+        instrument.name
+    from latest_batch batch
+    join signal.recommendation recommendation on recommendation.batch_id = batch.batch_id
+    join ref.instrument instrument on instrument.instrument_id = recommendation.instrument_id
+),
+latest_outcome as (
+    select distinct on (outcome.recommendation_id)
+        outcome.recommendation_id,
+        outcome.measurement_end_date,
+        outcome.outcome_label,
+        outcome.alpha_pct
+    from performance.recommendation_outcome outcome
+    join recommendation_base recommendation on recommendation.recommendation_id = outcome.recommendation_id
+    order by outcome.recommendation_id, outcome.measurement_end_date desc, outcome.outcome_id desc
+),
+score_component_counts as (
+    select
+        component.recommendation_id,
+        count(*)::int as score_component_count,
+        count(*) filter (
+            where component.component_name in ('cycle_score', 'event_quality', 'event_intensity', 'theme_mapping')
+        )::int as ai_or_event_component_count,
+        count(*) filter (
+            where component.component_name in ('momentum_score', 'short_term_score', 'rank_score')
+        )::int as market_or_rank_component_count
+    from signal.recommendation_score_component component
+    join recommendation_base recommendation on recommendation.recommendation_id = component.recommendation_id
+    group by component.recommendation_id
+),
+recommendation_rows as (
+    select
+        recommendation.*,
+        coalesce(component_count.score_component_count, 0) as score_component_count,
+        coalesce(component_count.ai_or_event_component_count, 0) as ai_or_event_component_count,
+        coalesce(component_count.market_or_rank_component_count, 0) as market_or_rank_component_count,
+        case
+            when evidence.artifact_id is not null then 'ai-evidence-' || evidence.artifact_id::text
+            when evidence.event_id is not null then 'event-' || evidence.event_id::text
+            else null
+        end as primary_evidence_id,
+        outcome.measurement_end_date,
+        coalesce(outcome.outcome_label, 'unmeasured') as outcome_label,
+        outcome.alpha_pct,
+        case
+            when recommendation.thesis_id is null then 'blocked'
+            when coalesce(component_count.score_component_count, 0) = 0 then 'blocked'
+            when coalesce(component_count.ai_or_event_component_count, 0) = 0 then 'needs_evidence'
+            else 'ready_for_human_review'
+        end as quality_status
+    from recommendation_base recommendation
+    left join score_component_counts component_count
+      on component_count.recommendation_id = recommendation.recommendation_id
+    left join latest_outcome outcome
+      on outcome.recommendation_id = recommendation.recommendation_id
+    left join lateral (
+        select
+            event_row.event_id,
+            artifact.artifact_id
+        from event.event_instrument_impact impact
+        join event.event event_row on event_row.event_id = impact.event_id
+        left join event.event_document_link document_link
+          on document_link.event_id = event_row.event_id
+         and document_link.link_type = 'source'
+        left join lateral (
+            select extraction_artifact.artifact_id
+            from ai.extraction_artifact extraction_artifact
+            where extraction_artifact.event_id = event_row.event_id
+               or extraction_artifact.document_id = document_link.document_id
+            order by extraction_artifact.artifact_id desc
+            limit 1
+        ) artifact on true
+        where impact.instrument_id = recommendation.instrument_id
+          and event_row.event_at < (recommendation.as_of_date + interval '1 day')
+        order by
+            case when artifact.artifact_id is not null then 0 else 1 end,
+            event_row.event_at desc,
+            event_row.event_id desc
+        limit 1
+    ) evidence on true
+),
+recommendation_page as (
+    select *
+    from recommendation_rows
+    order by rank_position, recommendation_id
+    limit {page_limit}
+    offset {page_offset}
+)
+select json_build_object(
+    'as_of_date', coalesce((select as_of_date::text from latest_batch), (select as_of_date::text from target_date)),
+    'strategy_name', coalesce((select strategy_name from latest_batch), {sql_literal(DEFAULT_STRATEGY_NAME)}),
+    'horizon_type', coalesce((select horizon_type from latest_batch), 'long_term'),
+    'universe_version', coalesce((select universe_version from latest_batch), 'unknown'),
+    'recommendation_count', (select count(*)::int from recommendation_rows),
+    'summary',
+    json_build_object(
+        'active_count', (select count(*) filter (where status = 'active')::int from recommendation_rows),
+        'reviewable_count', (select count(*) filter (where quality_status = 'ready_for_human_review')::int from recommendation_rows),
+        'blocked_count', (select count(*) filter (where quality_status <> 'ready_for_human_review')::int from recommendation_rows),
+        'measured_count', (select count(*) filter (where outcome_label <> 'unmeasured')::int from recommendation_rows),
+        'linked_thesis_count', (select count(*) filter (where thesis_id is not null)::int from recommendation_rows),
+        'ai_or_event_evidence_count', (select count(*) filter (where ai_or_event_component_count > 0 or primary_evidence_id is not null)::int from recommendation_rows),
+        'average_score', (select avg(total_score) from recommendation_rows)
+    ),
+    'recommendations',
+    coalesce(
+        (
+            select json_agg(
+                json_build_object(
+                    'recommendation_id', recommendation_id,
+                    'symbol', primary_symbol,
+                    'name', name,
+                    'instrument_id', instrument_id,
+                    'as_of_date', as_of_date,
+                    'rank_position', rank_position,
+                    'bucket', bucket,
+                    'action', action,
+                    'status', status,
+                    'score', total_score,
+                    'recommended_weight', recommended_weight,
+                    'linked_thesis_id', thesis_id,
+                    'evidence',
+                    json_build_object(
+                        'score_component_count', score_component_count,
+                        'ai_or_event_component_count', ai_or_event_component_count,
+                        'market_or_rank_component_count', market_or_rank_component_count,
+                        'quality_status', quality_status,
+                        'primary_evidence_id', primary_evidence_id
+                    ),
+                    'outcome',
+                    json_build_object(
+                        'measurement_end_date', measurement_end_date,
+                        'label', outcome_label,
+                        'alpha', alpha_pct
+                    )
+                )
+                order by rank_position, recommendation_id
+            )
+            from recommendation_page
+        ),
+        '[]'::json
+    )
+)::text;"""
+
+
 def render_frontend_thesis_detail_state_sql(*, identifier: str) -> str:
     identifier_literal = sql_literal(identifier)
     return f"""-- frontend thesis detail state lookup
@@ -6035,6 +6302,40 @@ def _build_linked_evidence_payload(evidence: dict[str, Any]) -> dict[str, Any]:
         "evidence_id": _opaque_id("ai-evidence", evidence.get("evidence_id"), "unknown"),
         "evidence_type": str(evidence.get("evidence_type") or "unknown"),
         "title": str(evidence.get("title") or ""),
+    }
+
+
+def _build_recommendation_list_item_payload(item: dict[str, Any]) -> dict[str, Any]:
+    symbol = str(item.get("symbol") or "UNKNOWN").upper()
+    evidence = _as_dict(item.get("evidence"))
+    outcome = _as_dict(item.get("outcome"))
+    linked_thesis_id = item.get("linked_thesis_id")
+    primary_evidence_id = evidence.get("primary_evidence_id")
+    return {
+        "recommendation_id": _opaque_id("recommendation", item.get("recommendation_id"), None),
+        "symbol": symbol,
+        "name": str(item.get("name") or ""),
+        "instrument_id": _opaque_id("instrument", item.get("instrument_id"), symbol.lower()),
+        "as_of_date": str(item.get("as_of_date") or ""),
+        "rank_position": int(item.get("rank_position") or 0),
+        "bucket": str(item.get("bucket") or "unknown"),
+        "action": str(item.get("action") or "monitor"),
+        "status": str(item.get("status") or "unknown"),
+        "score": _number(item.get("score")) or 0.0,
+        "recommended_weight": _number(item.get("recommended_weight")),
+        "linked_thesis_id": _opaque_id("thesis", linked_thesis_id, None) if linked_thesis_id is not None else None,
+        "evidence": {
+            "score_component_count": int(evidence.get("score_component_count") or 0),
+            "ai_or_event_component_count": int(evidence.get("ai_or_event_component_count") or 0),
+            "market_or_rank_component_count": int(evidence.get("market_or_rank_component_count") or 0),
+            "quality_status": str(evidence.get("quality_status") or "unknown"),
+            "primary_evidence_id": str(primary_evidence_id) if primary_evidence_id else None,
+        },
+        "outcome": {
+            "measurement_end_date": str(outcome.get("measurement_end_date") or ""),
+            "label": str(outcome.get("label") or "unmeasured"),
+            "alpha": _number(outcome.get("alpha")),
+        },
     }
 
 

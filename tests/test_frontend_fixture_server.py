@@ -51,7 +51,7 @@ class FrontendFixtureServerTests(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertEqual(payload["status"], "ok")
         self.assertEqual(payload["contract_version"], "frontend-api-v0.1")
-        self.assertEqual(payload["endpoint_count"], 16)
+        self.assertEqual(payload["endpoint_count"], 17)
         self.assertTrue(payload["read_only"])
         self.assertEqual(payload["source_mode"], "fixture")
         self.assertEqual(payload["runtime"]["runtime_profile"], "local")

@@ -45,6 +45,7 @@ COLLECTION_SPECS = (
     FrontendCollectionSpec(path="/api/paper-trading/preview", collection_key="paper_actions"),
     FrontendCollectionSpec(path="/api/remediation-tickets", collection_key="tickets"),
     FrontendCollectionSpec(path="/api/cycles", collection_key="cycle_states", required_query_keys=("asOfDate",)),
+    FrontendCollectionSpec(path="/api/recommendations", collection_key="recommendations"),
     FrontendCollectionSpec(path="/api/events", collection_key="events", required_query_keys=("asOfDate",)),
     FrontendCollectionSpec(path="/api/ai/news-clusters", collection_key="clusters", required_query_keys=("asOfDate",)),
     FrontendCollectionSpec(

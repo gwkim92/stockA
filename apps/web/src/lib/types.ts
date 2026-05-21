@@ -625,6 +625,49 @@ export type CycleStateListData = {
   }>;
 };
 
+export type RecommendationListData = {
+  as_of_date: string;
+  strategy_name: string;
+  horizon_type: string;
+  universe_version: string;
+  recommendation_count: number;
+  summary: {
+    active_count: number;
+    reviewable_count: number;
+    blocked_count: number;
+    measured_count: number;
+    linked_thesis_count: number;
+    ai_or_event_evidence_count: number;
+    average_score: number | null;
+  };
+  recommendations: Array<{
+    recommendation_id: string;
+    symbol: string;
+    name: string;
+    instrument_id: string;
+    as_of_date: string;
+    rank_position: number;
+    bucket: string;
+    action: string;
+    status: string;
+    score: number;
+    recommended_weight: number | null;
+    linked_thesis_id: string | null;
+    evidence: {
+      score_component_count: number;
+      ai_or_event_component_count: number;
+      market_or_rank_component_count: number;
+      quality_status: string;
+      primary_evidence_id: string | null;
+    };
+    outcome: {
+      measurement_end_date: string;
+      label: string;
+      alpha: number | null;
+    };
+  }>;
+};
+
 export type RecommendationDetailData = {
   recommendation_id: string;
   symbol: string;

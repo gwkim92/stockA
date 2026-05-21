@@ -52,7 +52,7 @@ task마다 흔들리게 두지 않는 편이 좋다.
 
 - 명령: `bash scripts/verify_frontend_api_contract.sh`
 - 무엇을 증명하는가: daily cockpit, remediation tickets, data health, stock list/detail, paper trading preview, trading readiness, cycle state, recommendation detail, thesis detail, portfolio coverage, performance outcomes, AI evidence, source document, event list, theme detail read DTO contract와 example JSON이 고정되었는지 확인한다.
-- 통과 조건: `docs/frontend-api-contract.md`, `docs/api/frontend/contract-index.json`, sixteen example JSON이 존재하고, contract version과 endpoint/example mapping, common response shape, 핵심 field assertions가 모두 통과하며, root-level `app` scaffold가 없는 것이 확인된다.
+- 통과 조건: `docs/frontend-api-contract.md`, `docs/api/frontend/contract-index.json`, seventeen example JSON이 존재하고, contract version과 endpoint/example mapping, common response shape, 핵심 field assertions가 모두 통과하며, root-level `app` scaffold가 없는 것이 확인된다.
 
 - 명령: `bash scripts/verify_frontend_api_adapter.sh`
 - 무엇을 증명하는가: frontend API contract examples를 반환하는 read-only Python adapter와 CLI가 동작하는지 확인한다.

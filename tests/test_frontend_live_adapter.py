@@ -17,6 +17,7 @@ from stockanalysis.frontend.live_adapter import (
     render_frontend_cycle_state_list_sql,
     render_frontend_event_list_state_sql,
     render_frontend_paper_trading_preview_state_sql,
+    render_frontend_recommendation_list_state_sql,
     render_frontend_recommendation_detail_state_sql,
     render_frontend_source_document_detail_state_sql,
     render_frontend_stock_detail_state_sql,
@@ -819,6 +820,79 @@ class FakeLiveExecutor:
                         "alpha": "0.0600",
                         "label": "outperform",
                     },
+                }
+            )
+        if sql.startswith("-- frontend recommendation list state lookup"):
+            return json.dumps(
+                {
+                    "as_of_date": "2024-11-01",
+                    "strategy_name": "long_term_core",
+                    "horizon_type": "long_term",
+                    "universe_version": "bootstrap-v1",
+                    "recommendation_count": 2,
+                    "summary": {
+                        "active_count": 2,
+                        "reviewable_count": 1,
+                        "blocked_count": 1,
+                        "measured_count": 1,
+                        "linked_thesis_count": 1,
+                        "ai_or_event_evidence_count": 1,
+                        "average_score": "0.5189",
+                    },
+                    "recommendations": [
+                        {
+                            "recommendation_id": 7101,
+                            "symbol": "AAPL",
+                            "name": "Apple Inc.",
+                            "instrument_id": 501,
+                            "as_of_date": "2024-11-01",
+                            "rank_position": 1,
+                            "bucket": "core",
+                            "action": "monitor_or_accumulate",
+                            "status": "active",
+                            "score": "0.7800",
+                            "recommended_weight": "0.0500",
+                            "linked_thesis_id": 7001,
+                            "evidence": {
+                                "score_component_count": 4,
+                                "ai_or_event_component_count": 1,
+                                "market_or_rank_component_count": 3,
+                                "quality_status": "ready_for_human_review",
+                                "primary_evidence_id": "ai-evidence-8801",
+                            },
+                            "outcome": {
+                                "measurement_end_date": "2024-12-02",
+                                "label": "outperform",
+                                "alpha": "0.0600",
+                            },
+                        },
+                        {
+                            "recommendation_id": 7102,
+                            "symbol": "BABA",
+                            "name": "Alibaba Group Holding Limited",
+                            "instrument_id": 502,
+                            "as_of_date": "2024-11-01",
+                            "rank_position": 2,
+                            "bucket": "avoid",
+                            "action": "exclude",
+                            "status": "active",
+                            "score": "0.2579",
+                            "recommended_weight": "0",
+                            "linked_thesis_id": None,
+                            "evidence": {
+                                "score_component_count": 2,
+                                "ai_or_event_component_count": 0,
+                                "market_or_rank_component_count": 2,
+                                "quality_status": "blocked",
+                                "primary_evidence_id": None,
+                            },
+                            "outcome": {
+                                "measurement_end_date": None,
+                                "label": "unmeasured",
+                                "alpha": None,
+                            },
+                        },
+                    ],
                 }
             )
         if sql.startswith("-- frontend thesis detail state lookup"):
@@ -2063,6 +2137,57 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertEqual(payload["data"]["outcome"]["alpha"], 0.06)
         self.assertEqual(payload["links"]["thesis"], "/api/theses/thesis-7001")
         self.assertEqual(payload["links"]["source_events"], "/api/events?asOfDate=2024-11-01&symbol=AAPL")
+
+    def test_live_recommendation_list_response_matches_frontend_contract_shape(self) -> None:
+        payload = resolve_live_frontend_response(
+            "/api/recommendations?asOfDate=2024-11-01&limit=1",
+            config=type("Config", (), {"psql_command": "psql"})(),
+            executor=FakeLiveExecutor(),
+            generated_at=datetime(2026, 5, 1, tzinfo=timezone.utc),
+        )
+
+        self.assertEqual(payload["contract_version"], "frontend-api-v0.1")
+        self.assertEqual(payload["data"]["as_of_date"], "2024-11-01")
+        self.assertEqual(payload["data"]["recommendation_count"], 2)
+        self.assertEqual(payload["data"]["summary"]["reviewable_count"], 1)
+        self.assertEqual(payload["data"]["summary"]["blocked_count"], 1)
+        self.assertEqual(payload["data"]["summary"]["average_score"], 0.5189)
+        self.assertEqual(payload["pagination"]["limit"], 1)
+        self.assertTrue(payload["pagination"]["has_more"])
+        row = payload["data"]["recommendations"][0]
+        self.assertEqual(row["recommendation_id"], "recommendation-7101")
+        self.assertEqual(row["symbol"], "AAPL")
+        self.assertEqual(row["instrument_id"], "instrument-501")
+        self.assertEqual(row["score"], 0.78)
+        self.assertEqual(row["recommended_weight"], 0.05)
+        self.assertEqual(row["linked_thesis_id"], "thesis-7001")
+        self.assertEqual(row["evidence"]["quality_status"], "ready_for_human_review")
+        self.assertEqual(row["evidence"]["primary_evidence_id"], "ai-evidence-8801")
+        self.assertEqual(row["outcome"]["alpha"], 0.06)
+        self.assertEqual(payload["links"]["paper_trading"], "/api/paper-trading/preview")
+        self.assertTrue(is_live_supported_path("/api/recommendations?asOfDate=2024-11-01"))
+
+    def test_live_recommendation_list_sql_uses_read_only_canonical_tables(self) -> None:
+        sql = render_frontend_recommendation_list_state_sql(
+            as_of_date=datetime(2024, 11, 1).date(),
+            page_limit=6,
+            page_offset=10,
+        )
+        lowered = sql.lower()
+
+        self.assertIn("-- frontend recommendation list state lookup", sql)
+        self.assertIn("signal.recommendation_batch", sql)
+        self.assertIn("signal.recommendation recommendation", sql)
+        self.assertIn("signal.recommendation_score_component", sql)
+        self.assertIn("performance.recommendation_outcome", sql)
+        self.assertIn("event.event_instrument_impact", sql)
+        self.assertIn("ai.extraction_artifact", sql)
+        self.assertIn("'ready_for_human_review'", sql)
+        self.assertIn("limit 6", sql)
+        self.assertIn("offset 10", sql)
+        self.assertNotIn("insert into", lowered)
+        self.assertNotIn("update ", lowered)
+        self.assertNotIn("delete from", lowered)
 
     def test_live_recommendation_detail_sql_links_score_components_to_event_or_ai_evidence(self) -> None:
         sql = render_frontend_recommendation_detail_state_sql(identifier="AAPL-2024-11-01")

@@ -1,0 +1,80 @@
+{
+  "contract_version": "frontend-api-v0.1",
+  "generated_at": "2026-05-01T00:00:00Z",
+  "data": {
+    "as_of_date": "2024-11-01",
+    "strategy_name": "long_term_core",
+    "horizon_type": "long_term",
+    "universe_version": "bootstrap-v1",
+    "recommendation_count": 2,
+    "summary": {
+      "active_count": 2,
+      "reviewable_count": 1,
+      "blocked_count": 1,
+      "measured_count": 1,
+      "linked_thesis_count": 1,
+      "ai_or_event_evidence_count": 1,
+      "average_score": 0.5189
+    },
+    "recommendations": [
+      {
+        "recommendation_id": "recommendation-7101",
+        "symbol": "AAPL",
+        "name": "Apple Inc.",
+        "instrument_id": "instrument-501",
+        "as_of_date": "2024-11-01",
+        "rank_position": 1,
+        "bucket": "core",
+        "action": "monitor_or_accumulate",
+        "status": "active",
+        "score": 0.78,
+        "recommended_weight": 0.05,
+        "linked_thesis_id": "thesis-7001",
+        "evidence": {
+          "score_component_count": 4,
+          "ai_or_event_component_count": 1,
+          "market_or_rank_component_count": 3,
+          "quality_status": "ready_for_human_review",
+          "primary_evidence_id": "ai-evidence-8801"
+        },
+        "outcome": {
+          "measurement_end_date": "2024-12-02",
+          "label": "outperform",
+          "alpha": 0.06
+        }
+      },
+      {
+        "recommendation_id": "recommendation-7102",
+        "symbol": "BABA",
+        "name": "Alibaba Group Holding Limited",
+        "instrument_id": "instrument-502",
+        "as_of_date": "2024-11-01",
+        "rank_position": 2,
+        "bucket": "avoid",
+        "action": "exclude",
+        "status": "active",
+        "score": 0.2579,
+        "recommended_weight": 0,
+        "linked_thesis_id": null,
+        "evidence": {
+          "score_component_count": 2,
+          "ai_or_event_component_count": 0,
+          "market_or_rank_component_count": 2,
+          "quality_status": "blocked",
+          "primary_evidence_id": null
+        },
+        "outcome": {
+          "measurement_end_date": "",
+          "label": "unmeasured",
+          "alpha": null
+        }
+      }
+    ]
+  },
+  "links": {
+    "dashboard": "/api/dashboard/today",
+    "stocks": "/api/stocks",
+    "paper_trading": "/api/paper-trading/preview",
+    "portfolio_coverage": "/api/portfolio/Long%20Term%20Paper/coverage?asOfDate=2024-11-01"
+  }
+}

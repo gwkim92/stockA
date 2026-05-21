@@ -46,7 +46,7 @@ const navItems = [
   { href: "/cycles", index: "07", label: "사이클" },
   { href: "/events", index: "08", label: "이벤트" },
   { href: "/themes/ANNUAL_REPORTING", index: "09", label: "테마" },
-  { href: "/recommendations/AAPL-2024-11-01", index: "10", label: "추천" },
+  { href: "/recommendations", index: "10", label: "추천" },
   { href: "/theses/AAPL-bootstrap-v1", index: "11", label: "투자 논리" },
   { href: "/portfolio/coverage", index: "12", label: "보유 검토" },
   { href: "/performance", index: "13", label: "성과" },

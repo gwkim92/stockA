@@ -60,6 +60,7 @@ require_text "docs/frontend-api-contract.md" "StockDetailResponse"
 require_text "docs/frontend-api-contract.md" "PaperTradingPreviewResponse"
 require_text "docs/frontend-api-contract.md" "TradingReadinessResponse"
 require_text "docs/frontend-api-contract.md" "CycleStateListResponse"
+require_text "docs/frontend-api-contract.md" "RecommendationListResponse"
 require_text "docs/frontend-api-contract.md" "RecommendationDetailResponse"
 require_text "docs/frontend-api-contract.md" "ThesisDetailResponse"
 require_text "docs/frontend-api-contract.md" "PortfolioCoverageResponse"
@@ -85,7 +86,7 @@ with open(index_path, "r", encoding="utf-8") as handle:
 assert index["contract_version"] == "frontend-api-v0.1", index
 assert index["status"] == "draft", index
 endpoints = index["endpoints"]
-assert len(endpoints) == 16, endpoints
+assert len(endpoints) == 17, endpoints
 
 expected_dtos = {
     "DailyCockpitResponse",
@@ -96,6 +97,7 @@ expected_dtos = {
     "PaperTradingPreviewResponse",
     "TradingReadinessResponse",
     "CycleStateListResponse",
+    "RecommendationListResponse",
     "RecommendationDetailResponse",
     "ThesisDetailResponse",
     "PortfolioCoverageResponse",
@@ -113,6 +115,7 @@ assert "/api/stocks/AAPL" in paths, endpoints
 assert "/api/paper-trading/preview" in paths, endpoints
 assert "/api/trading/readiness" in paths, endpoints
 assert "/api/events?asOfDate=2024-11-01" in paths, endpoints
+assert "/api/recommendations" in paths, endpoints
 assert "/api/themes/ANNUAL_REPORTING?asOfDate=2024-11-01" in paths, endpoints
 assert "/api/performance/Long%20Term%20Paper/outcomes?measurementEndDate=2024-12-02" in paths, endpoints
 
@@ -137,6 +140,7 @@ examples = {
     "paper_trading": "docs/api/frontend/examples/paper-trading-preview.json",
     "trading_readiness": "docs/api/frontend/examples/trading-readiness.json",
     "cycles": "docs/api/frontend/examples/cycle-state-list.json",
+    "recommendations": "docs/api/frontend/examples/recommendation-list.json",
     "recommendation": "docs/api/frontend/examples/recommendation-detail.json",
     "thesis": "docs/api/frontend/examples/thesis-detail.json",
     "coverage": "docs/api/frontend/examples/portfolio-coverage.json",
@@ -163,6 +167,8 @@ assert loaded["trading_readiness"]["readiness_status"] == "blocked", loaded["tra
 assert loaded["trading_readiness"]["audit_summary"]["submitted_to_broker_count"] == 0, loaded["trading_readiness"]
 assert "secret_ref" not in json.dumps(loaded["trading_readiness"]), loaded["trading_readiness"]
 assert loaded["cycles"]["cycle_states"][0]["theme_key"] == "ANNUAL_REPORTING", loaded["cycles"]
+assert loaded["recommendations"]["recommendations"][0]["recommendation_id"] == "recommendation-7101", loaded["recommendations"]
+assert loaded["recommendations"]["summary"]["reviewable_count"] == 1, loaded["recommendations"]
 assert loaded["recommendation"]["linked_thesis_id"] == "thesis-7001", loaded["recommendation"]
 assert loaded["thesis"]["status"] == "active", loaded["thesis"]
 assert loaded["coverage"]["summary"]["missing_thesis_count"] == 1, loaded["coverage"]
