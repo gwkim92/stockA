@@ -42,6 +42,7 @@
   - `apps/web/src/app/page.tsx`
   - `apps/web/src/app/intelligence/page.tsx`
   - `apps/web/src/app/globals.css`
+  - `apps/web/src/lib/korean-labels.ts`
   - `src/stockanalysis/ingest/news/ai_extract.py`
   - `src/stockanalysis/ingest/news/sql.py`
   - `tests/test_news_rss_ai_extract.py`
