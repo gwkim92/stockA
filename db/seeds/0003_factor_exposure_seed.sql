@@ -82,6 +82,20 @@ instrument_upsert as (
         is_active = excluded.is_active
     returning instrument_id, primary_symbol
 ),
+available_instruments as (
+    select instrument_id, primary_symbol
+    from instrument_upsert
+    union all
+    select instrument.instrument_id, instrument.primary_symbol
+    from ref.instrument instrument
+    join instrument_seed seed on upper(instrument.primary_symbol) = seed.symbol
+    where instrument.is_active
+      and not exists (
+          select 1
+          from instrument_upsert upserted
+          where upper(upserted.primary_symbol) = upper(instrument.primary_symbol)
+      )
+),
 exposure_seed (symbol, node_code, exposure_weight, sensitivity_direction, confidence, rationale) as (
     values
         ('SPY', 'MACRO_RATES_FED', 0.6500::numeric, 'negative', 0.7500::numeric, 'Broad US equities usually de-rate when rate expectations rise.'),
@@ -105,9 +119,8 @@ resolved as (
         exposure_seed.confidence,
         exposure_seed.rationale
     from exposure_seed
-    join ref.instrument instrument
+    join available_instruments instrument
       on upper(instrument.primary_symbol) = exposure_seed.symbol
-     and instrument.is_active
     join ref.classification_node node
       on node.taxonomy_family = 'internal_theme'
      and node.code = exposure_seed.node_code
