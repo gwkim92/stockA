@@ -12,6 +12,12 @@ export default async function PortfolioCoveragePage() {
   const response = await getPortfolioCoverage();
   const data = response.data;
   const hasPositions = data.positions.length > 0;
+  const investedWeight = Math.max(0, 1 - data.summary.cash_weight);
+  const thesisCoverageRatio = investedWeight > 0
+    ? Math.max(0, Math.min(1, (investedWeight - data.summary.missing_thesis_weight) / investedWeight))
+    : 0;
+  const thesisReady = hasPositions && data.summary.missing_thesis_count === 0;
+  const outcomeCoverageRatio = data.summary.weight_coverage_ratio;
 
   return (
     <div className="pageStack">
@@ -23,24 +29,24 @@ export default async function PortfolioCoveragePage() {
           <div>
             <h1 style={{ fontSize: "clamp(2.5rem, 4vw, 4rem)", marginBottom: "16px" }}>포트폴리오 커버리지 관문</h1>
             <p style={{ color: "var(--text-secondary)", fontSize: "1.1rem", maxWidth: "700px" }}>
-              의미 있는 모든 포지션에 투자 논리와 측정 가능한 성과 경로가 생기기 전까지 성과 귀속은 차단된다.
-              현금은 포트폴리오 계산 안에 숨기지 않고 명시한다.
+              투자 논리 연결과 성과 측정을 분리해서 본다. 투자 논리가 연결되면 보유 검토는 가능하지만,
+              장기 성과 측정 window가 아직 끝나지 않으면 성과 귀속은 계속 대기 상태로 남는다.
             </p>
           </div>
           
           <div style={{ 
             padding: "20px 32px", 
-            background: data.attribution_readiness.is_ready ? "rgba(16, 185, 129, 0.1)" : "rgba(245, 158, 11, 0.1)", 
-            border: `1px solid ${data.attribution_readiness.is_ready ? "rgba(16, 185, 129, 0.2)" : "rgba(245, 158, 11, 0.2)"}`,
+            background: thesisReady ? "rgba(16, 185, 129, 0.1)" : "rgba(245, 158, 11, 0.1)",
+            border: `1px solid ${thesisReady ? "rgba(16, 185, 129, 0.2)" : "rgba(245, 158, 11, 0.2)"}`,
             borderRadius: "var(--radius-md)",
             textAlign: "center"
           }}>
-            <span className="metric-sub" style={{ color: data.attribution_readiness.is_ready ? "var(--accent-green)" : "var(--accent-amber)" }}>비중 커버리지</span>
+            <span className="metric-sub" style={{ color: thesisReady ? "var(--accent-green)" : "var(--accent-amber)" }}>투자 논리 연결률</span>
             <div style={{ fontSize: "2.5rem", fontWeight: 700, color: "var(--text-primary)", margin: "4px 0" }}>
-              {formatPercent(data.summary.weight_coverage_ratio)}
+              {formatPercent(thesisCoverageRatio)}
             </div>
-            <div style={{ fontSize: "0.85rem", color: data.attribution_readiness.is_ready ? "var(--accent-green)" : "var(--accent-amber)", fontWeight: 600, textTransform: "uppercase" }}>
-              {data.attribution_readiness.is_ready ? "준비됨" : "차단"}
+            <div style={{ fontSize: "0.85rem", color: thesisReady ? "var(--accent-green)" : "var(--accent-amber)", fontWeight: 600, textTransform: "uppercase" }}>
+              {thesisReady ? "연결됨" : "보강 필요"}
             </div>
           </div>
         </div>
@@ -51,7 +57,9 @@ export default async function PortfolioCoveragePage() {
           <span className="metric-label">포지션</span>
           <strong className="metric-value">{data.summary.position_count}</strong>
           <span className="metric-sub">
-            {hasPositions ? `${data.summary.covered_position_count}개 커버됨` : "해당 기준일 포지션 스냅샷 없음"}
+            {hasPositions
+              ? `${data.summary.position_count - data.summary.missing_thesis_count}개 투자 논리 연결`
+              : "해당 기준일 포지션 스냅샷 없음"}
           </span>
         </article>
         
@@ -64,15 +72,21 @@ export default async function PortfolioCoveragePage() {
         </article>
 
         <article className="bento-card">
-          <span className="metric-label">현금 비중</span>
-          <strong className="metric-value">{formatPercent(data.summary.cash_weight)}</strong>
-          <span className="metric-sub">명시적 배분</span>
+          <span className="metric-label">성과 측정 커버리지</span>
+          <strong className="metric-value">{formatPercent(outcomeCoverageRatio)}</strong>
+          <span className="metric-sub">장기 outcome 기준</span>
         </article>
 
         <article className="bento-card">
           <span className="metric-label">성과 측정 누락</span>
           <strong className="metric-value">{data.summary.missing_outcome_count}</strong>
           <span className="metric-sub">측정 종료 {data.coverage_measurement_end_date}</span>
+        </article>
+
+        <article className="bento-card">
+          <span className="metric-label">현금 비중</span>
+          <strong className="metric-value">{formatPercent(data.summary.cash_weight)}</strong>
+          <span className="metric-sub">명시적 배분</span>
         </article>
 
         <article className="bento-card span-4">
@@ -86,7 +100,7 @@ export default async function PortfolioCoveragePage() {
               <div style={{ flexDirection: "row", width: "100%", gap: "24px" }}>
                 <span className="metric-sub" style={{ width: "100px" }}>심볼</span>
                 <span className="metric-sub" style={{ width: "100px" }}>비중</span>
-                <span className="metric-sub" style={{ width: "140px" }}>커버리지</span>
+                <span className="metric-sub" style={{ width: "140px" }}>투자 논리</span>
                 <span className="metric-sub" style={{ width: "140px" }}>성과</span>
                 <span className="metric-sub" style={{ flex: 1 }}>필요 조치</span>
               </div>
@@ -106,15 +120,15 @@ export default async function PortfolioCoveragePage() {
                   <span style={{ width: "100px", color: "var(--text-primary)", fontWeight: 500 }}>{formatPercent(position.weight)}</span>
                   <span style={{ 
                     width: "140px", 
-                    color: position.coverage_status === 'covered' ? 'var(--accent-green)' : 'var(--accent-red)' 
+                    color: position.active_thesis_id ? 'var(--accent-green)' : 'var(--accent-red)'
                   }}>
-                    {koCode(position.coverage_status)}
+                    {position.active_thesis_id ? "연결됨" : "논리 누락"}
                   </span>
                   <span style={{ 
                     width: "140px", 
-                    color: position.outcome_status === 'measured' ? 'var(--accent-green)' : 'var(--text-secondary)' 
+                    color: position.coverage_status === 'covered' ? 'var(--accent-green)' : 'var(--text-secondary)'
                   }}>
-                    {koCode(position.outcome_status)}
+                    {position.coverage_status === "missing_outcome" ? "측정 대기" : koCode(position.outcome_status)}
                   </span>
                   <span style={{ flex: 1, color: "var(--text-primary)", fontWeight: 500 }}>
                     {koLabel(position.action)}
