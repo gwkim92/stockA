@@ -3,6 +3,7 @@ import type { Route } from "next";
 
 import {
   getAiNewsClusters,
+  getCockpitSnapshot,
   getCycleStates,
   getDataHealth,
   getEvents,
@@ -213,6 +214,7 @@ export default async function IntelligencePage() {
   const dataHealth = dataHealthResponse.data;
   const portfolioCoverageDate = "2024-11-01";
   const [
+    cockpitSnapshot,
     eventsResponse,
     newsClusterResponse,
     cyclesResponse,
@@ -220,6 +222,7 @@ export default async function IntelligencePage() {
     portfolioResponse,
     paperResponse,
   ] = await Promise.all([
+    getCockpitSnapshot(),
     getEvents(),
     getAiNewsClusters({ limit: 4 }),
     getCycleStates(),
@@ -229,6 +232,7 @@ export default async function IntelligencePage() {
   ]);
 
   const events = eventsResponse.data;
+  const dashboard = cockpitSnapshot.dashboard.data;
   const storedNewsClusters = newsClusterResponse.data;
   const cycles = cyclesResponse.data;
   const theme = themeResponse.data;
@@ -320,7 +324,7 @@ export default async function IntelligencePage() {
         </article>
         <article className="rail-cell">
           <span>04 보유 커버리지</span>
-          <strong className="rail-ratio-value">{formatPercent(portfolio.summary.weight_coverage_ratio)}</strong>
+          <strong className="rail-ratio-value">{formatPercent(dashboard.latest_metrics.weight_coverage_ratio)}</strong>
           <small>투자 논리/성과 연결률</small>
         </article>
       </section>
