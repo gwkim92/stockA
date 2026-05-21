@@ -3309,13 +3309,23 @@ with raw_cluster_artifacts as (
 ),
 filtered_cluster_artifacts as (
     select *
-    from raw_cluster_artifacts
-    where coalesce(nullif(cluster_summary ->> 'as_of_date', '')::date, created_at::date) <= {sql_date(as_of_date)}
+    from (
+        select
+            raw_cluster_artifacts.*,
+            row_number() over (
+                partition by coalesce(nullif(cluster_summary ->> 'theme_key', ''), artifact_id::text)
+                order by created_at desc, artifact_id desc
+            ) as theme_artifact_rank
+        from raw_cluster_artifacts
+        where coalesce(nullif(cluster_summary ->> 'as_of_date', '')::date, created_at::date) <= {sql_date(as_of_date)}
+    ) ranked_cluster_artifacts
+    where theme_artifact_rank = 1
 {filters}
 ),
 cluster_artifacts as (
     select *
-    from filtered_cluster_artifacts
+    from raw_cluster_artifacts
+    where artifact_id in (select artifact_id from filtered_cluster_artifacts)
     order by created_at desc, artifact_id desc
     limit {page_limit}
     offset {page_offset}
