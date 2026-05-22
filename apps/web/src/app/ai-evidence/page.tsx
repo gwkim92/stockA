@@ -35,6 +35,24 @@ function candidateKindLabel(event: NewsCandidateEvent) {
   return hasClassifiedSymbol(event) ? "직접 종목 후보" : "상위 흐름 후보";
 }
 
+function candidateDetailButtonLabel(event: NewsCandidateEvent) {
+  return hasClassifiedSymbol(event) ? "종목 근거 상세" : "흐름 근거 상세";
+}
+
+function candidatePrimaryChip(event: NewsCandidateEvent) {
+  return hasClassifiedSymbol(event)
+    ? {
+        label: "직접 종목",
+        value: koCode(event.symbol),
+        description: "종목 뉴스는 보유검토와 추천 점수의 직접 근거가 될 수 있다.",
+      }
+    : {
+        label: "상위 흐름",
+        value: koCode(event.theme_key),
+        description: "거시·테마 뉴스는 관련 종목군으로 전파되는 상위 입력이다.",
+      };
+}
+
 function candidatePurpose(event: NewsCandidateEvent) {
   if (hasClassifiedSymbol(event)) {
     return "AI가 뉴스 한 건을 특정 종목, 테마, 방향, 불확실성으로 구조화했다.";
@@ -43,6 +61,7 @@ function candidatePurpose(event: NewsCandidateEvent) {
 }
 
 function CandidateCard({ event }: { event: NewsCandidateEvent }) {
+  const primaryChip = candidatePrimaryChip(event);
   const evidenceLink = evidenceHref(event.ai_evidence_id as string);
   const documentLink = sourceDocumentHref(event.source_document_id);
 
@@ -65,16 +84,12 @@ function CandidateCard({ event }: { event: NewsCandidateEvent }) {
       </div>
 
       <div className="relationship-panel" aria-label={`${event.title} AI 후보 연결`}>
-        <span>추천 판단에 들어가기 전 확인할 내용</span>
+        <span>추천 판단에 들어가기 전 확인할 근거 경로</span>
         <div className="relationship-list">
           <div className="relationship-chip">
-            <span>{hasClassifiedSymbol(event) ? "종목" : "흐름"}</span>
-            <strong>{hasClassifiedSymbol(event) ? koCode(event.symbol) : koCode(event.theme_key)}</strong>
-            <small>
-              {hasClassifiedSymbol(event)
-                ? "종목 뉴스는 직접 보유검토 후보가 될 수 있다."
-                : "거시·테마 뉴스는 관련 종목군으로 전파되는 상위 입력이다."}
-            </small>
+            <span>{primaryChip.label}</span>
+            <strong>{primaryChip.value}</strong>
+            <small>{primaryChip.description}</small>
           </div>
           <div className="relationship-chip">
             <span>방향</span>
@@ -84,14 +99,14 @@ function CandidateCard({ event }: { event: NewsCandidateEvent }) {
           <div className="relationship-chip">
             <span>다음 화면</span>
             <strong>상세 근거</strong>
-            <small>추출 필드, 원천 청크, 검증 메모를 확인한다.</small>
+            <small>AI 추출 필드, 원천 문서, 검증 상태를 확인한다.</small>
           </div>
         </div>
       </div>
 
       <div className="btn-row">
         <Link className="btn btn-primary" href={evidenceLink}>
-          AI 후보 상세
+          {candidateDetailButtonLabel(event)}
         </Link>
         <Link className="btn btn-secondary" href="/events">
           이벤트 원장
@@ -124,7 +139,7 @@ export default async function AiEvidenceIndexPage() {
     <div className="pageStack">
       <section className="page-hero reveal" aria-labelledby="ai-evidence-index-title">
         <div>
-          <div className="bento-badge">개별 뉴스 후보 분석 • {data.as_of_date}</div>
+          <div className="bento-badge">뉴스 AI 근거 • {data.as_of_date}</div>
           <h1 className="page-title" id="ai-evidence-index-title">
             AI가 해석한 뉴스 후보를 한 곳에서 본다.
           </h1>
@@ -139,7 +154,7 @@ export default async function AiEvidenceIndexPage() {
         <div className="rail-cell">
           <span>AI 연결 이벤트</span>
           <strong>{allSummary.ai_extracted_count}</strong>
-          <small>개별 후보와 묶음 근거 전체</small>
+          <small>후보와 묶음 근거 전체</small>
         </div>
         <div className="rail-cell">
           <span>직접 종목 후보</span>

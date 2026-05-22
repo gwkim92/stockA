@@ -52,7 +52,7 @@ function isNewsClusterSummary(event: EventRow) {
 
 function evidenceButtonLabel(event: EventRow) {
   if (isNewsCandidate(event)) {
-    return "개별 AI 후보";
+    return hasClassifiedSymbol(event) ? "종목 AI 근거" : "흐름 AI 근거";
   }
   if (isNewsClusterSummary(event)) {
     return "뉴스 묶음 근거";
@@ -62,11 +62,12 @@ function evidenceButtonLabel(event: EventRow) {
 
 function evidenceDetail(event: EventRow) {
   if (!event.ai_evidence_provider) {
-    return "아직 개별 AI 후보나 묶음 근거가 연결되지 않았다";
+    return "아직 AI 근거나 묶음 근거가 연결되지 않았다";
   }
   const confidence = event.ai_evidence_confidence === null ? "신뢰도 미제공" : `신뢰도 ${formatPercent(event.ai_evidence_confidence)}`;
   if (isNewsCandidate(event)) {
-    return `개별 AI 후보 · ${koCode(event.ai_evidence_provider)} · ${confidence}`;
+    const evidenceKind = hasClassifiedSymbol(event) ? "종목 AI 근거" : "흐름 AI 근거";
+    return `${evidenceKind} · ${koCode(event.ai_evidence_provider)} · ${confidence}`;
   }
   if (isNewsClusterSummary(event)) {
     return `뉴스 묶음 근거 · ${koCode(event.ai_evidence_provider)} · ${confidence}`;
@@ -76,7 +77,10 @@ function evidenceDetail(event: EventRow) {
 
 function evidencePurpose(event: EventRow) {
   if (isNewsCandidate(event)) {
-    return "이 뉴스 한 건을 AI가 종목, 테마, 방향, 불확실성으로 구조화했다.";
+    if (hasClassifiedSymbol(event)) {
+      return "AI가 이 뉴스를 특정 종목의 보유검토 근거로 구조화했다.";
+    }
+    return "AI가 이 뉴스를 거시·테마 흐름으로 구조화했다. 관련 종목 전파는 별도 단계에서 확인한다.";
   }
   if (isNewsClusterSummary(event)) {
     return "여러 뉴스를 묶은 보조 근거다. 개별 후보 분석은 아니며 큰 흐름 확인용이다.";
@@ -108,6 +112,13 @@ function isDecisionPriorityCandidate(event: EventRow) {
     return false;
   }
   return true;
+}
+
+function emptyRelationshipText(event: EventRow) {
+  if (isNewsCandidate(event) && !hasClassifiedSymbol(event)) {
+    return "아직 이 상위 흐름에서 전파된 종목 근거나 강한 관련 이벤트가 연결되지 않았다.";
+  }
+  return "직접 같은 종목이거나 충분히 강한 관련 이벤트가 아직 없다.";
 }
 
 function EventLedgerItem({ event, compact = false }: { event: EventRow; compact?: boolean }) {
@@ -167,7 +178,7 @@ function EventLedgerItem({ event, compact = false }: { event: EventRow; compact?
         ) : null}
         {!compact && relatedEvents.length === 0 ? (
           <p className="relationship-empty">
-            직접 같은 종목이거나 충분히 강한 관련 이벤트가 아직 없다.
+            {emptyRelationshipText(event)}
           </p>
         ) : null}
       </div>
