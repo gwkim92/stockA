@@ -2,7 +2,7 @@
 
 ## Current Status
 
-- 상태: local_verified
+- 상태: ec2_verified
 - 기준일: 2026-05-22
 - 완료:
   - task contract를 생성했다.
@@ -10,6 +10,8 @@
   - `/events`에서 상위 흐름 후보의 관련 이벤트 empty text를 별도로 작성했다.
   - `/ai-evidence` 카드의 상세 버튼을 `종목 근거 상세` / `흐름 근거 상세`로 분리했다.
   - `/ai-evidence` 상단 badge를 `뉴스 AI 근거`로 정리했다.
+  - EC2에 `1bcf7b0`를 배포하고 Next.js를 rebuild/restart했다.
+  - 브라우저에서 `/events`, `/ai-evidence`의 후보 종류별 문구를 확인했다.
 - 막힌 점:
   - 없음.
 
@@ -25,12 +27,23 @@
 - PASS: `cd apps/web && npm run build`
 - PASS: `git diff --check`
 - PASS: `PYTHONPATH=/Users/woody/ai/agent-work-harness/src /opt/homebrew/bin/python3.13 -m awh verify --repo . --task candidate-card-wording-cleanup`
-- PENDING: EC2 deploy/browser smoke
+- PASS: EC2 `cd apps/web && npm run build`
+- PASS: EC2 services active: `stockanalysis-frontend-api.service`, `stockanalysis-web.service`
+- PASS: Browser smoke `http://127.0.0.1:13000/events`
+  - shows `종목 AI 근거`
+  - shows `흐름 AI 근거`
+  - shows `아직 이 상위 흐름에서 전파된 종목 근거나 강한 관련 이벤트가 연결되지 않았다`
+  - shows `AI가 이 뉴스를 거시·테마 흐름으로 구조화했다`
+- PASS: Browser smoke `http://127.0.0.1:13000/ai-evidence`
+  - shows `뉴스 AI 근거`
+  - shows `종목 근거 상세`
+  - shows `흐름 근거 상세`
+  - shows `추천 판단에 들어가기 전 확인할 근거 경로`
 
 ## Remaining
 
-- EC2 deploy and browser smoke.
+- 다음 범위는 상위 흐름 후보가 실제 추천/보유검토 근거에서 어떻게 쓰였는지 더 직접적으로 추적하게 만드는 것이다.
 
 ## Exact Next Step
 
-- exact next step: commit, push, deploy to EC2, and verify `/events` plus `/ai-evidence` through the tunnel.
+- exact next step: inspect macro-flow propagation and recommendation detail evidence path, then expose any missing trace from upper-flow candidate to recommendation input.

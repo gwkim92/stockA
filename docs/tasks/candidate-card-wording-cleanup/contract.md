@@ -57,4 +57,4 @@
 - [x] `/ai-evidence` uses candidate-specific detail button labels.
 - [x] Empty relationship text differs for direct stock candidates and macro/theme candidates.
 - [x] Local verification and AWH pass.
-- [ ] EC2 deploy and browser smoke pass.
+- [x] EC2 deploy and browser smoke pass.
