@@ -9,6 +9,8 @@ from stockanalysis.ingest.news.ai_extract import (
     NewsAiDocumentChunk,
     build_codex_oauth_news_ai_prompt,
     build_news_ai_provider_response_from_payload,
+    is_news_ai_candidate_quality_eligible,
+    load_news_rss_ai_extraction_candidates,
     parse_news_ai_output,
     run_news_rss_ai_extract,
     validate_news_ai_output,
@@ -118,6 +120,8 @@ class NewsRssAiExtractTests(unittest.TestCase):
 
         self.assertIn("artifact.artifact_type = 'news_event_candidate'", sql)
         self.assertIn("d.document_type = 'news_rss_item'", sql)
+        self.assertIn("rss_news:marketwatch-topstories", sql)
+        self.assertIn("instrument.primary_symbol is null", sql)
         self.assertIn("limit 10", sql)
 
     def test_render_news_ai_candidate_sql_can_scope_existing_artifacts_to_prompt_version(self) -> None:
@@ -148,6 +152,75 @@ class NewsRssAiExtractTests(unittest.TestCase):
         self.assertIn("ref.classification_node", sql)
         self.assertIn("ref.classification_edge", sql)
         self.assertIn("recent_similar_events", sql)
+
+    def test_candidate_quality_gate_rejects_no_symbol_marketwatch_topstory(self) -> None:
+        candidate = NewsRssAiExtractionCandidate(
+            event_id=102,
+            document_id=502,
+            title="I inherited a house. Should I sell?",
+            summary="Personal finance advice column.",
+            event_at="2026-05-19T10:02:40+00:00",
+            source_name="rss_news:marketwatch-topstories",
+            external_document_id="rss:marketwatch-topstories:abc",
+            source_url="https://www.marketwatch.com/story/personal-finance",
+            existing_theme_code="MARKET_NEWS_FLOW",
+            existing_instrument_symbol=None,
+        )
+
+        self.assertFalse(is_news_ai_candidate_quality_eligible(candidate))
+
+    def test_candidate_quality_gate_allows_official_macro_without_symbol(self) -> None:
+        candidate = NewsRssAiExtractionCandidate(
+            event_id=103,
+            document_id=503,
+            title="Minutes of the Federal Open Market Committee",
+            summary="FOMC minutes summarize inflation and rate risks.",
+            event_at="2026-05-19T10:02:40+00:00",
+            source_name="rss_news:macro-fed-press",
+            external_document_id="rss:macro-fed-press:abc",
+            source_url="https://www.federalreserve.gov/newsevents/pressreleases.htm",
+            existing_theme_code="MACRO_RATES_FED",
+            existing_instrument_symbol=None,
+        )
+
+        self.assertTrue(is_news_ai_candidate_quality_eligible(candidate))
+
+    def test_load_candidates_filters_no_symbol_marketwatch_topstories(self) -> None:
+        executor = FakeExecutor()
+        executor.candidates = [
+            {
+                "event_id": 102,
+                "document_id": 502,
+                "title": "I inherited a house. Should I sell?",
+                "summary": "Personal finance advice column.",
+                "event_at": "2026-05-19T10:02:40+00:00",
+                "source_name": "rss_news:marketwatch-topstories",
+                "external_document_id": "rss:marketwatch-topstories:abc",
+                "source_url": "https://www.marketwatch.com/story/personal-finance",
+                "existing_theme_code": "MARKET_NEWS_FLOW",
+                "existing_instrument_symbol": None,
+            },
+            {
+                "event_id": 103,
+                "document_id": 503,
+                "title": "Minutes of the Federal Open Market Committee",
+                "summary": "FOMC minutes summarize inflation and rate risks.",
+                "event_at": "2026-05-19T10:02:40+00:00",
+                "source_name": "rss_news:macro-fed-press",
+                "external_document_id": "rss:macro-fed-press:abc",
+                "source_url": "https://www.federalreserve.gov/newsevents/pressreleases.htm",
+                "existing_theme_code": "MACRO_RATES_FED",
+                "existing_instrument_symbol": None,
+            },
+        ]
+
+        candidates = load_news_rss_ai_extraction_candidates(
+            as_of_date=date(2026, 5, 19),
+            limit=10,
+            executor=executor,
+        )
+
+        self.assertEqual([candidate.event_id for candidate in candidates], [103])
 
     def test_codex_oauth_prompt_requires_korean_human_readable_fields(self) -> None:
         prompt = build_codex_oauth_news_ai_prompt(

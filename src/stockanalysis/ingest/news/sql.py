@@ -648,6 +648,10 @@ from (
     where e.event_type = 'news_rss_item'
       and e.dedupe_key like 'news_rss:%'
       and e.event_at < ({sql_literal(as_of_date.isoformat())}::date + interval '1 day')
+      and not (
+          coalesce(ds.source_name, '') = 'rss_news:marketwatch-topstories'
+          and instrument.primary_symbol is null
+      )
       and not exists (
           select 1
           from ai.extraction_artifact artifact

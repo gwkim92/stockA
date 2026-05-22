@@ -49,6 +49,9 @@ DEFAULT_REASONING_EFFORT = "low"
 DEFAULT_MIN_CONFIDENCE = 0.72
 NEWS_AI_CHUNK_INDEX = 9000
 ALLOWED_IMPACT_DIRECTIONS = ("risk_review", "supportive", "watch")
+UNCLASSIFIED_SYMBOLS = {"", "UNKNOWN", "UNCLASSIFIED"}
+LOW_SIGNAL_AI_SOURCE_NAMES = {"rss_news:marketwatch-topstories"}
+LOW_SIGNAL_AI_EXTERNAL_DOCUMENT_PREFIXES = ("rss:marketwatch-topstories:",)
 
 NEWS_AI_OUTPUT_SCHEMA: dict[str, object] = {
     "type": "object",
@@ -509,7 +512,7 @@ def load_news_rss_ai_extraction_candidates(
         )
     )
     payload = json.loads(payload_text)
-    return tuple(
+    candidates = tuple(
         NewsRssAiExtractionCandidate(
             event_id=int(item["event_id"]),
             document_id=int(item["document_id"]),
@@ -524,6 +527,29 @@ def load_news_rss_ai_extraction_candidates(
         )
         for item in payload
     )
+    return tuple(candidate for candidate in candidates if is_news_ai_candidate_quality_eligible(candidate))
+
+
+def is_news_ai_candidate_quality_eligible(candidate: NewsRssAiExtractionCandidate) -> bool:
+    """Keep expensive AI extraction for items likely to affect tradable evidence."""
+
+    if _is_low_signal_no_symbol_topstory(candidate):
+        return False
+    return True
+
+
+def _is_low_signal_no_symbol_topstory(candidate: NewsRssAiExtractionCandidate) -> bool:
+    if _has_classified_symbol(candidate.existing_instrument_symbol):
+        return False
+    source_name = (candidate.source_name or "").strip().lower()
+    external_document_id = (candidate.external_document_id or "").strip().lower()
+    return source_name in LOW_SIGNAL_AI_SOURCE_NAMES or external_document_id.startswith(
+        LOW_SIGNAL_AI_EXTERNAL_DOCUMENT_PREFIXES
+    )
+
+
+def _has_classified_symbol(symbol: str | None) -> bool:
+    return bool(symbol and symbol.strip().upper() not in UNCLASSIFIED_SYMBOLS)
 
 
 def load_news_rss_ai_retrieval_context(
