@@ -130,7 +130,7 @@ function formatSourceSummary(summary: string) {
 }
 
 function formatSourceRelevance(relevance: string) {
-  if (relevance === "supporting context") {
+  if (relevance.toLowerCase().includes("supporting")) {
     return "근거 문맥";
   }
   return koCode(relevance);
