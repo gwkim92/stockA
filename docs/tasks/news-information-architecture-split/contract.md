@@ -59,9 +59,9 @@
 
 ## Done Criteria
 
-- [ ] 홈의 뉴스 관련 기능 링크가 서로 다른 전용 화면으로 간다.
-- [ ] `/events`가 원장 화면으로 읽힌다.
-- [ ] `/events/classification`이 1차 태그 화면으로 읽힌다.
-- [ ] `/ai-evidence/results`가 구조화 결과 화면으로 읽힌다.
-- [ ] `/ai-evidence/blocked`가 차단 후보 화면으로 읽힌다.
-- [ ] 로컬 검증과 EC2 smoke가 통과한다.
+- [x] 홈의 뉴스 관련 기능 링크가 서로 다른 전용 화면으로 간다.
+- [x] `/events`가 원장 화면으로 읽힌다.
+- [x] `/events/classification`이 1차 태그 화면으로 읽힌다.
+- [x] `/ai-evidence/results`가 구조화 결과 화면으로 읽힌다.
+- [x] `/ai-evidence/blocked`가 차단 후보 화면으로 읽힌다.
+- [x] 로컬 검증과 EC2 smoke가 통과한다.
