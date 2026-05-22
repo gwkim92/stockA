@@ -84,6 +84,9 @@ PYTHONPATH=src python3 -m stockanalysis.operations.cli operating-data-profile-sc
   --profile-output-root "$TMP_ROOT/reports-systemd" \
   --manifest-output-root "$TMP_ROOT/manifests-systemd" \
   --python-executable "$TMP_ROOT/runtime/venv/bin/python" \
+  --systemd-user ec2-user \
+  --systemd-group ec2-user \
+  --systemd-home /home/ec2-user \
   --execute \
   --output "$TMP_ROOT/operating-data-profile-scheduler-systemd.json" >/dev/null
 
@@ -96,6 +99,19 @@ payload = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"))
 assert payload["scheduler_target"] == "systemd"
 assert payload["operating_data_run_execute"] is True
 assert payload["total_profile_count"] == 7
+assert payload["systemd_user"] == "ec2-user"
+assert payload["systemd_group"] == "ec2-user"
+assert payload["systemd_home"] == "/home/ec2-user"
+service_text = "\n".join(
+    pathlib.Path(item["path"]).read_text(encoding="utf-8")
+    for profile in payload["profiles"]
+    for item in profile["manifest_file_previews"]
+    if item["kind"] == "systemd_service"
+)
+assert "User=ec2-user" in service_text
+assert "Group=ec2-user" in service_text
+assert "Environment=HOME=/home/ec2-user" in service_text
+assert "Environment=CODEX_HOME=/home/ec2-user/.codex" in service_text
 timer_text = "\n".join(
     pathlib.Path(item["path"]).read_text(encoding="utf-8")
     for profile in payload["profiles"]

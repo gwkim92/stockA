@@ -105,6 +105,56 @@ class OperatingDataProfileSchedulerTests(unittest.TestCase):
                 if item["kind"] == "systemd_timer":
                     self.assertIn("OnCalendar=Mon..Fri *-*-* 06:00 America/New_York", path.read_text(encoding="utf-8"))
 
+    def test_systemd_manifest_can_pin_runtime_user_and_home(self) -> None:
+        with tempfile.TemporaryDirectory() as repo_root, tempfile.TemporaryDirectory() as outside_root:
+            env_file = _write_runtime_env(Path(outside_root))
+            manifest_root = Path(outside_root) / "manifests"
+
+            report = build_operating_data_profile_scheduler_invocation_plan(
+                scheduler_target="systemd",
+                repo_root=repo_root,
+                runtime_root=Path(outside_root) / "runtime",
+                data_operations_env_file=env_file,
+                manifest_output_root=manifest_root,
+                profile_ids=("news-intraday",),
+                schedule="0 6 * * 1-5",
+                execute=True,
+                systemd_user="ec2-user",
+                systemd_group="ec2-user",
+                systemd_home="/home/ec2-user",
+            )
+
+            self.assertEqual(report["systemd_user"], "ec2-user")
+            self.assertEqual(report["systemd_group"], "ec2-user")
+            self.assertEqual(report["systemd_home"], "/home/ec2-user")
+            service_paths = [
+                Path(item["path"])
+                for item in report["profiles"][0]["manifest_file_previews"]
+                if item["kind"] == "systemd_service"
+            ]
+            self.assertEqual(len(service_paths), 1)
+            service_text = service_paths[0].read_text(encoding="utf-8")
+            self.assertIn("User=ec2-user\n", service_text)
+            self.assertIn("Group=ec2-user\n", service_text)
+            self.assertIn("Environment=HOME=/home/ec2-user\n", service_text)
+            self.assertIn("Environment=CODEX_HOME=/home/ec2-user/.codex\n", service_text)
+            self.assertIn("Environment=XDG_CONFIG_HOME=/home/ec2-user/.config\n", service_text)
+            preview = report["profiles"][0]["target_manifest_preview"]
+            self.assertEqual(preview["run_user"], "ec2-user")
+            self.assertEqual(preview["run_home"], "/home/ec2-user")
+
+    def test_systemd_user_options_require_systemd_target(self) -> None:
+        with tempfile.TemporaryDirectory() as repo_root, tempfile.TemporaryDirectory() as outside_root:
+            with self.assertRaises(ValueError):
+                build_operating_data_profile_scheduler_invocation_plan(
+                    scheduler_target="cron",
+                    repo_root=repo_root,
+                    runtime_root=Path(outside_root) / "runtime",
+                    data_operations_env_file=_write_runtime_env(Path(outside_root)),
+                    profile_ids=("news-intraday",),
+                    systemd_user="ec2-user",
+                )
+
     def test_systemd_target_rejects_unsupported_schedule_pattern(self) -> None:
         with tempfile.TemporaryDirectory() as repo_root, tempfile.TemporaryDirectory() as outside_root:
             env_file = _write_runtime_env(Path(outside_root))

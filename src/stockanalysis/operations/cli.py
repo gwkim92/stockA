@@ -260,6 +260,21 @@ def build_parser() -> argparse.ArgumentParser:
     operating_data_profile_scheduler_invocation.add_argument("--timeout-seconds", type=int, default=3600)
     operating_data_profile_scheduler_invocation.add_argument("--python-executable")
     operating_data_profile_scheduler_invocation.add_argument(
+        "--systemd-user",
+        help="Optional systemd service User= value for generated systemd profile manifests.",
+    )
+    operating_data_profile_scheduler_invocation.add_argument(
+        "--systemd-group",
+        help="Optional systemd service Group= value for generated systemd profile manifests.",
+    )
+    operating_data_profile_scheduler_invocation.add_argument(
+        "--systemd-home",
+        help=(
+            "Optional absolute home path for generated systemd profile manifests. "
+            "When set, HOME, CODEX_HOME, and XDG_CONFIG_HOME are rendered for the service."
+        ),
+    )
+    operating_data_profile_scheduler_invocation.add_argument(
         "--execute",
         action="store_true",
         help=(
@@ -790,6 +805,9 @@ def _handle_operating_data_profile_scheduler_invocation_plan(args: argparse.Name
         python_executable=args.python_executable,
         execute=bool(args.execute),
         job_name=args.job_name,
+        systemd_user=args.systemd_user,
+        systemd_group=args.systemd_group,
+        systemd_home=args.systemd_home,
     )
     if markdown_output_path is not None:
         markdown_output_path.write_text(

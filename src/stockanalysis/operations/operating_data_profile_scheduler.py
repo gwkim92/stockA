@@ -66,6 +66,9 @@ def build_operating_data_profile_scheduler_invocation_plan(
     python_executable: str | Path | None = None,
     execute: bool = False,
     job_name: str = DEFAULT_SERVER_SCHEDULER_JOB_NAME,
+    systemd_user: str | None = None,
+    systemd_group: str | None = None,
+    systemd_home: str | Path | None = None,
     generated_at: datetime | None = None,
 ) -> dict[str, object]:
     target = _normalize_target(scheduler_target)
@@ -76,6 +79,11 @@ def build_operating_data_profile_scheduler_invocation_plan(
         raise ValueError("schedule must not be empty.")
     if not str(job_name).strip():
         raise ValueError("job_name must not be empty.")
+    normalized_systemd_user = _normalize_optional_systemd_token(systemd_user, label="systemd user")
+    normalized_systemd_group = _normalize_optional_systemd_token(systemd_group, label="systemd group")
+    normalized_systemd_home = _normalize_optional_systemd_home(systemd_home)
+    if target != "systemd" and any((normalized_systemd_user, normalized_systemd_group, normalized_systemd_home)):
+        raise ValueError("systemd user/group/home options require --target systemd.")
 
     repo_root_path = resolve_repo_root(repo_root)
     runtime_root_path = ensure_repo_outside(
@@ -154,6 +162,9 @@ def build_operating_data_profile_scheduler_invocation_plan(
             repo_root=repo_root_path,
             env_file_path=env_file_path,
             execute=execute,
+            systemd_user=normalized_systemd_user,
+            systemd_group=normalized_systemd_group,
+            systemd_home=normalized_systemd_home,
         )
         manifest_output_paths: list[dict[str, str]] = []
         if manifest_output_root_path is not None:
@@ -180,6 +191,9 @@ def build_operating_data_profile_scheduler_invocation_plan(
                     repo_root=repo_root_path,
                     env_file_path=env_file_path,
                     profile_id=profile["profile_id"],
+                    systemd_user=normalized_systemd_user,
+                    systemd_group=normalized_systemd_group,
+                    systemd_home=normalized_systemd_home,
                 ),
                 "manifest_file_previews": manifest_output_paths,
             }
@@ -196,6 +210,9 @@ def build_operating_data_profile_scheduler_invocation_plan(
         "generated_at": _format_timestamp(generated_at or datetime.now(timezone.utc)),
         "scheduler_target": target,
         "scheduler_job_name": str(job_name).strip(),
+        "systemd_user": normalized_systemd_user or "",
+        "systemd_group": normalized_systemd_group or "",
+        "systemd_home": normalized_systemd_home or "",
         "runtime_root": str(runtime_root_path),
         "repo_root": str(repo_root_path),
         "data_operations_env_file": str(env_file_path),
@@ -346,8 +363,11 @@ def _build_profile_scheduler_manifest_payload(
     repo_root: Path,
     env_file_path: Path,
     execute: bool,
+    systemd_user: str | None = None,
+    systemd_group: str | None = None,
+    systemd_home: str | None = None,
 ) -> dict[str, object]:
-    return {
+    payload: dict[str, object] = {
         "kind": "operating_data_profile_scheduler_manifest",
         "target": target,
         "profile_id": str(profile_id),
@@ -368,9 +388,17 @@ def _build_profile_scheduler_manifest_payload(
             repo_root=repo_root,
             env_file_path=env_file_path,
             profile_id=str(profile_id),
+            systemd_user=systemd_user,
+            systemd_group=systemd_group,
+            systemd_home=systemd_home,
         ),
         "secrets_policy": "manifest_paths_and_redacted_references_only",
     }
+    if target == "systemd":
+        payload["systemd_user"] = systemd_user or ""
+        payload["systemd_group"] = systemd_group or ""
+        payload["systemd_home"] = systemd_home or ""
+    return payload
 
 
 def _build_profile_scheduler_manifest_files(
@@ -383,6 +411,9 @@ def _build_profile_scheduler_manifest_files(
     command_argv: Sequence[str],
     repo_root: Path,
     env_file_path: Path,
+    systemd_user: str | None = None,
+    systemd_group: str | None = None,
+    systemd_home: str | None = None,
 ) -> list[tuple[str, str, str]]:
     safe_job_name = _safe_manifest_token(job_name)
     safe_profile_id = _safe_manifest_token(profile_id)
@@ -402,6 +433,11 @@ def _build_profile_scheduler_manifest_files(
         systemd_calendar, conversion_note = _cron_schedule_to_systemd_calendar(schedule)
         timer_note = f"\n# conversion_note={conversion_note}" if conversion_note else ""
         escaped_command = shell_command.replace('"', '\\"')
+        service_identity = _systemd_service_identity_lines(
+            systemd_user=systemd_user,
+            systemd_group=systemd_group,
+            systemd_home=systemd_home,
+        )
         files.append(
             (
                 f"{safe_job_name}.service",
@@ -413,6 +449,7 @@ def _build_profile_scheduler_manifest_files(
                     "\n"
                     "[Service]\n"
                     "Type=oneshot\n"
+                    f"{service_identity}"
                     f"WorkingDirectory={repo_root}\n"
                     f"EnvironmentFile={env_file_path}\n"
                     'ExecStart=/bin/bash -lc "'
@@ -525,6 +562,9 @@ def _write_profile_scheduler_manifests(
         command_argv=tuple(str(item) for item in command_argv),
         repo_root=Path(str(manifest_payload.get("repo_root", ""))),
         env_file_path=Path(str(manifest_payload.get("data_operations_env_file", ""))),
+        systemd_user=str(manifest_payload.get("systemd_user") or "") or None,
+        systemd_group=str(manifest_payload.get("systemd_group") or "") or None,
+        systemd_home=str(manifest_payload.get("systemd_home") or "") or None,
     )
     rendered: list[dict[str, str]] = []
     for filename, kind, contents in manifest_files:
@@ -547,6 +587,52 @@ def _safe_manifest_token(value: str) -> str:
     )
     safe = safe.strip("-_ .")
     return safe or "manifest"
+
+
+def _normalize_optional_systemd_token(value: str | None, *, label: str) -> str | None:
+    if value is None:
+        return None
+    normalized = str(value).strip()
+    if not normalized:
+        return None
+    if any(char.isspace() for char in normalized) or any(char in normalized for char in ('"', "'", "\\")):
+        raise ValueError(f"{label} must be a plain system account token.")
+    if any(ord(char) < 32 for char in normalized):
+        raise ValueError(f"{label} must not contain control characters.")
+    return normalized
+
+
+def _normalize_optional_systemd_home(value: str | Path | None) -> str | None:
+    if value is None:
+        return None
+    normalized = str(value).strip()
+    if not normalized:
+        return None
+    if not normalized.startswith("/"):
+        raise ValueError("systemd home must be an absolute path.")
+    if any(char.isspace() for char in normalized) or any(char in normalized for char in ('"', "'", "\\")):
+        raise ValueError("systemd home must not contain whitespace or quotes.")
+    if any(ord(char) < 32 for char in normalized):
+        raise ValueError("systemd home must not contain control characters.")
+    return normalized.rstrip("/") or "/"
+
+
+def _systemd_service_identity_lines(
+    *,
+    systemd_user: str | None,
+    systemd_group: str | None,
+    systemd_home: str | None,
+) -> str:
+    lines: list[str] = []
+    if systemd_user:
+        lines.append(f"User={systemd_user}")
+    if systemd_group:
+        lines.append(f"Group={systemd_group}")
+    if systemd_home:
+        lines.append(f"Environment=HOME={systemd_home}")
+        lines.append(f"Environment=CODEX_HOME={systemd_home}/.codex")
+        lines.append(f"Environment=XDG_CONFIG_HOME={systemd_home}/.config")
+    return "".join(f"{line}\n" for line in lines)
 
 
 def _cron_schedule_to_systemd_calendar(value: str) -> tuple[str, str]:
@@ -763,6 +849,9 @@ def _target_manifest_preview(
     repo_root: Path,
     env_file_path: Path,
     profile_id: str,
+    systemd_user: str | None = None,
+    systemd_group: str | None = None,
+    systemd_home: str | None = None,
 ) -> dict[str, object]:
     if target == "cron":
         return {
@@ -776,6 +865,9 @@ def _target_manifest_preview(
             "timer_name": f"{job_name}-{profile_id}.timer",
             "working_directory": str(repo_root),
             "environment_file": str(env_file_path),
+            "run_user": systemd_user or "",
+            "run_group": systemd_group or "",
+            "run_home": systemd_home or "",
             "exec_start_preview": shlex.join(command_argv),
             "timer_calendar_preview": schedule,
         }

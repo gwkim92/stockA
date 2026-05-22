@@ -19,6 +19,7 @@
 - 포함:
   - EC2 `codex exec` 최소 재현
   - `news-rss-ai-extract-run` 호출 경로 조사
+  - EC2 systemd 실행 사용자/홈 경계 조사
   - 원인별 최소 수정
   - task handoff와 검증 기록
 - 제외:
@@ -32,13 +33,17 @@
 
 - 수정 가능한 파일:
   - `src/stockanalysis/ingest/news/ai_extract.py`
+  - `src/stockanalysis/operations/operating_data_profile_scheduler.py`
+  - `src/stockanalysis/operations/cli.py`
   - `tests/test_news_rss_ai_extract.py`
+  - `tests/test_operating_data_profile_scheduler.py`
+  - `scripts/verify_operating_data_profile_scheduler_invocation.sh`
   - `docs/tasks/codex-oauth-runtime-failure/*`
 - 수정 금지 파일:
   - `.env` secret values
   - EC2 secret env 파일 내용 출력
   - DB migrations/schema
-  - scheduler units/timers
+  - scheduler cadence 변경
   - broker/order submission code
 
 ## Verification Commands
@@ -47,6 +52,8 @@
   - EC2 safe env/CLI diagnostics without printing secrets
   - EC2 minimal `codex exec` reproduction
   - `PYTHONPATH=src /opt/homebrew/bin/python3.13 -m unittest tests.test_news_rss_ai_extract -v`
+  - `PYTHONPATH=src /opt/homebrew/bin/python3.13 -m unittest tests.test_operating_data_profile_scheduler -v`
+  - `bash scripts/verify_operating_data_profile_scheduler_invocation.sh`
   - `PYTHONPATH=src /opt/homebrew/bin/python3.13 -m compileall src tests`
   - `git diff --check`
   - `PYTHONPATH=/Users/woody/ai/agent-work-harness/src /opt/homebrew/bin/python3.13 -m awh verify --repo . --task codex-oauth-runtime-failure`
