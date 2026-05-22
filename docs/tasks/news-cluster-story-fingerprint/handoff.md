@@ -20,6 +20,7 @@
   - `news_cluster_summary` output JSON에 `story_key`, `story_label`을 저장한다.
 - `src/stockanalysis/frontend/live_adapter.py`
   - `/api/ai/news-clusters` 최신 artifact partition을 `theme_key + story_key` 기준으로 확장했다.
+  - 새 story-split artifact가 존재하는 broad theme에서는 과거 `story_key` 없는 단일 theme artifact를 숨긴다.
   - cluster DTO에 `story_key`, `story_label`을 추가했다.
 - `apps/web`
   - `/intelligence` 카드 제목을 story label로 보여주고 상위 테마를 별도 표기한다.
@@ -33,6 +34,8 @@
 - PASS: `cd apps/web && npm run build`
 - PASS: `git diff --check`
 - PASS: `PYTHONPATH=/Users/woody/ai/agent-work-harness/src /opt/homebrew/bin/python3.13 -m awh verify --repo . --task news-cluster-story-fingerprint`
+- PASS: after stale broad-theme guard, `PYTHONPATH=src /opt/homebrew/bin/python3.13 -m unittest tests.test_frontend_live_adapter tests.test_news_rss_cluster_evidence`
+- PASS: after stale broad-theme guard, `git diff --check`
 
 ## Remaining
 

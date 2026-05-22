@@ -3509,6 +3509,20 @@ filtered_cluster_artifacts as (
             ) as theme_artifact_rank
         from raw_cluster_artifacts
         where coalesce(nullif(cluster_summary ->> 'as_of_date', '')::date, created_at::date) <= {sql_date(as_of_date)}
+          and not (
+              coalesce(nullif(cluster_summary ->> 'story_key', ''), 'theme') = 'theme'
+              and cluster_summary ->> 'theme_key' in ('MARKET_NEWS_FLOW', 'UNCLASSIFIED')
+              and exists (
+                  select 1
+                  from raw_cluster_artifacts story_split_artifact
+                  where story_split_artifact.cluster_summary ->> 'theme_key' = raw_cluster_artifacts.cluster_summary ->> 'theme_key'
+                    and coalesce(nullif(story_split_artifact.cluster_summary ->> 'story_key', ''), 'theme') <> 'theme'
+                    and coalesce(
+                        nullif(story_split_artifact.cluster_summary ->> 'as_of_date', '')::date,
+                        story_split_artifact.created_at::date
+                    ) <= {sql_date(as_of_date)}
+              )
+          )
     ) ranked_cluster_artifacts
     where theme_artifact_rank = 1
 {filters}

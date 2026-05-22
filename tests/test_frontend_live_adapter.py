@@ -2038,6 +2038,8 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertIn("row_number() over", sql)
         self.assertIn("coalesce(nullif(cluster_summary ->> 'theme_key', ''), artifact_id::text)", sql)
         self.assertIn("coalesce(nullif(cluster_summary ->> 'story_key', ''), 'theme')", sql)
+        self.assertIn("cluster_summary ->> 'theme_key' in ('MARKET_NEWS_FLOW', 'UNCLASSIFIED')", sql)
+        self.assertIn("story_split_artifact.cluster_summary ->> 'theme_key'", sql)
         self.assertIn("theme_artifact_rank = 1", sql)
         self.assertIn("cluster_summary ->> 'theme_key' = 'AI_SEMICONDUCTOR_CYCLE'", sql)
         self.assertIn("upper(coalesce(event_item ->> 'symbol', '')) = 'NVDA'", sql)
