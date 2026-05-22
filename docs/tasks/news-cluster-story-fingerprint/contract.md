@@ -62,7 +62,7 @@
 
 ## Done Criteria
 
-- [ ] Broad market-flow news is split by deterministic story fingerprint.
-- [ ] API latest-artifact partition keeps multiple story clusters under the same theme.
-- [ ] Frontend shows story label and parent theme separately.
-- [ ] EC2 has regenerated cluster artifacts with `story_key` and `/intelligence` renders without server component error.
+- [x] Broad market-flow news is split by deterministic story fingerprint.
+- [x] API latest-artifact partition keeps multiple story clusters under the same theme.
+- [x] Frontend shows story label and parent theme separately.
+- [x] EC2 has regenerated cluster artifacts with `story_key` and `/intelligence` renders without server component error.

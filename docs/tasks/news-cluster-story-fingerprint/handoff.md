@@ -2,13 +2,14 @@
 
 ## Current Status
 
-- 상태: local_verified
+- 상태: ec2_verified
 - 기준일: 2026-05-22
 - 완료:
   - 작업 범위와 mutable surface를 `contract.md`에 고정했다.
   - root cause를 확인했다. cluster builder와 API superseding 기준이 모두 `theme_key`만 사용했다.
   - broad theme story fingerprint 구현과 프론트 story label 노출을 추가했다.
   - local unit/type/build 검증을 완료했다.
+  - EC2에 배포했고 `news_rss_cluster_evidence` artifact를 재생성했다.
 - 막힌 점:
   - 없음.
 
@@ -46,15 +47,20 @@
 - PASS: after candidate queue filter, `cd apps/web && npm run typecheck`
 - PASS: after candidate queue filter, `cd apps/web && npm run build`
 - PASS: after candidate queue filter, `git diff --check`
+- PASS: EC2 HEAD `2ff9389`, services `stockanalysis-web.service` and `stockanalysis-frontend-api.service` active.
+- PASS: EC2 `news-rss-cluster-evidence-run --as-of-date 2026-05-22 --event-limit 120 --max-clusters 12` inserted 12 artifacts, failed 0.
+- PASS: EC2 `/api/ai/news-clusters?limit=4` returns top clusters by event count: `MACRO_RATES_FED` 19, `ENERGY_GEOPOLITICS` 11, `US_MARKET_BREADTH` 9, `AI_SEMICONDUCTOR_CYCLE` 7.
+- PASS: EC2 `/api/ai/news-clusters?limit=4` has `broad_theme_without_story=[]`.
+- PASS: local tunnel `/intelligence` HTTP 200, no server component error, macro and energy clusters visible, personal-finance broad-theme noise absent from candidate queue.
+- PASS: Playwright snapshot for `http://127.0.0.1:13000/intelligence` shows major clusters first and candidate queue no longer lists `news_cluster_summary` entries.
 
 ## Remaining
 
-- Commit and push.
-- Deploy to EC2, restart services, regenerate news cluster artifacts, and smoke `/api/ai/news-clusters?limit=10` plus `/intelligence`.
+- Event list still marks many representative events with `ai_evidence_type=news_cluster_summary`. `/intelligence` now filters them out of the candidate queue, but `/events` should be reviewed next so cluster summaries are not presented as individual AI candidate analysis.
 
 ## Exact Next Step
 
-- exact next step: commit and push `news-cluster-story-fingerprint`, then deploy it to EC2.
+- exact next step: audit `/events` and AI evidence list wording so `news_cluster_summary` and `news_event_candidate` are clearly separated everywhere.
 
 ## Remaining Risks
 
