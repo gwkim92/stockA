@@ -55,4 +55,4 @@
 - [x] Direct stock candidates and macro/theme-only candidates are visually separated.
 - [x] Macro/no-symbol candidates are described as upper-level flow candidates, not as broken stock rows.
 - [x] Local verification and AWH pass.
-- [ ] EC2 deploy and browser smoke pass.
+- [x] EC2 deploy and browser smoke pass.
