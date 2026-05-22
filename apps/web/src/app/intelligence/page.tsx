@@ -296,12 +296,54 @@ export default async function IntelligencePage() {
   const unstructuredEvents = events.events.filter((event) => !event.ai_evidence_id).slice(0, 3);
   const firstCandidateEvidenceId = aiCandidateEvents[0]?.ai_evidence_id ?? null;
   const activation = dataHealth.scheduler.activation;
+  const analysisPipeline = [
+    {
+      index: "01",
+      title: "원문 수집",
+      status: formatRunStatus(newsRun),
+      copy: "RSS 원문이 source document와 이벤트 원장으로 저장된다.",
+      href: "/events",
+    },
+    {
+      index: "02",
+      title: "1차 분류",
+      status: `${events.summary.themes_represented}개 테마`,
+      copy: "규칙 기반으로 종목, 테마, 방향 태그를 먼저 붙인다.",
+      href: "/events",
+    },
+    {
+      index: "03",
+      title: "Codex OAuth 분석",
+      status: formatLlmCandidateStatus(clusterSummary),
+      copy: "중요 뉴스만 배치로 LLM 구조화하고 저장된 결과만 화면에서 읽는다.",
+      href: "/ai-evidence",
+    },
+    {
+      index: "04",
+      title: "검증 통과/차단",
+      status: `통과 ${events.summary.ai_extracted_count} · 차단 ${events.summary.suppressed_low_signal_candidate_count}`,
+      copy: "validator가 낮은 신뢰도와 알 수 없는 종목/테마를 추천 입력에서 제외한다.",
+      href: "/ai-evidence#blocked-candidates",
+    },
+    {
+      index: "05",
+      title: "추천 근거 연결",
+      status: `${dashboard.latest_metrics.weight_coverage_ratio ? formatPercent(dashboard.latest_metrics.weight_coverage_ratio) : "미측정"}`,
+      copy: "통과한 이벤트와 AI 근거만 추천·보유검토 상세에 연결된다.",
+      href: "/recommendations",
+    },
+  ];
 
   const detailLinks = [
     {
       title: "개별 뉴스 AI 후보",
       copy: "AI가 한 뉴스에서 추출한 종목, 테마, 방향, 불확실성을 확인한다.",
       href: firstCandidateEvidenceId ? `/ai-evidence/${firstCandidateEvidenceId}` : "/ai-evidence",
+    },
+    {
+      title: "차단 후보",
+      copy: "validator가 추천 입력으로 넘기지 않은 후보와 저신호 보류 항목을 확인한다.",
+      href: "/ai-evidence#blocked-candidates",
     },
     {
       title: "뉴스·이벤트 원장",
@@ -361,6 +403,23 @@ export default async function IntelligencePage() {
           <strong className="rail-ratio-value">{formatPercent(dashboard.latest_metrics.weight_coverage_ratio)}</strong>
           <small>추천·보유 판단 연결률</small>
         </article>
+      </section>
+
+      <section className="feature-map-panel reveal delay-1" aria-labelledby="news-ai-pipeline-title">
+        <div className="section-heading stacked-heading">
+          <span>뉴스 처리 흐름</span>
+          <h2 id="news-ai-pipeline-title">뉴스는 원문, 1차 분류, AI 분석, 검증, 추천 연결 순서로 내려간다</h2>
+        </div>
+        <div className="feature-map-grid collection-map-grid">
+          {analysisPipeline.map((step) => (
+            <Link className="feature-map-card collection-map-card" href={step.href as Route} key={step.index}>
+              <span>{step.index}</span>
+              <strong>{step.title}</strong>
+              <em>{step.status}</em>
+              <small>{step.copy}</small>
+            </Link>
+          ))}
+        </div>
       </section>
 
       <section className="where-grid reveal delay-2" aria-label="상세 화면 역할">

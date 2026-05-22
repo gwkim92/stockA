@@ -2690,6 +2690,8 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertIn("event.event_document_link", ai_evidence_sql)
         self.assertIn("output_json #>> '{event,title}'", ai_evidence_sql)
         self.assertIn("then (select artifact_type from selected_artifact)", ai_evidence_sql)
+        self.assertIn("'news_event_candidate_rejected'", ai_evidence_sql)
+        self.assertIn("then 'validator_blocked'", ai_evidence_sql)
         self.assertIn("output_json -> 'candidate'", ai_evidence_sql)
         self.assertIn("output_json -> 'retrieval_context_summary'", ai_evidence_sql)
         self.assertIn("output_json -> 'cluster'", ai_evidence_sql)
@@ -2758,6 +2760,35 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertIn("and not is_low_signal_candidate", sql)
         self.assertIn("'suppressed_low_signal_candidate_count'", sql)
         self.assertIn("when 'news_event_candidate' then 0", sql)
+        self.assertNotIn("insert into", sql.lower())
+
+    def test_live_event_list_sql_can_show_validator_blocked_candidates(self) -> None:
+        sql = render_frontend_event_list_state_sql(
+            as_of_date=datetime(2026, 5, 22).date(),
+            theme_key=None,
+            symbol=None,
+            event_type="all",
+            evidence_type="news_event_candidate_rejected",
+        )
+
+        self.assertIn("or 'news_event_candidate_rejected' = 'news_event_candidate_rejected'", sql)
+        self.assertIn("and evidence.artifact_type = 'news_event_candidate_rejected'", sql)
+        self.assertIn("when evidence.artifact_type = 'news_event_candidate_rejected' then 'validator_blocked'", sql)
+        self.assertNotIn("and not is_low_signal_candidate", sql)
+        self.assertNotIn("insert into", sql.lower())
+
+    def test_live_event_list_sql_can_show_suppressed_low_signal_candidates(self) -> None:
+        sql = render_frontend_event_list_state_sql(
+            as_of_date=datetime(2026, 5, 22).date(),
+            theme_key=None,
+            symbol=None,
+            event_type="all",
+            evidence_type="news_event_candidate_suppressed",
+        )
+
+        self.assertIn("and evidence.artifact_type = 'news_event_candidate'", sql)
+        self.assertIn("and is_low_signal_candidate", sql)
+        self.assertNotIn("and not is_low_signal_candidate", sql)
         self.assertNotIn("insert into", sql.lower())
 
     def test_live_event_list_sql_keeps_raw_ledger_visible_while_counting_no_suppression(self) -> None:

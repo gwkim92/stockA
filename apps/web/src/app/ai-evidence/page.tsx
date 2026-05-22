@@ -33,10 +33,16 @@ function hasClassifiedSymbol(event: NewsCandidateEvent) {
 }
 
 function candidateKindLabel(event: NewsCandidateEvent) {
+  if (event.ai_evidence_type === "news_event_candidate_rejected" || event.quality_gate === "validator_blocked") {
+    return "차단 후보";
+  }
   return hasClassifiedSymbol(event) ? "직접 종목 후보" : "상위 흐름 후보";
 }
 
 function candidateDetailButtonLabel(event: NewsCandidateEvent) {
+  if (event.ai_evidence_type === "news_event_candidate_rejected" || event.quality_gate === "validator_blocked") {
+    return "차단 근거 상세";
+  }
   return hasClassifiedSymbol(event) ? "종목 근거 상세" : "흐름 근거 상세";
 }
 
@@ -55,15 +61,31 @@ function candidatePrimaryChip(event: NewsCandidateEvent) {
 }
 
 function candidatePurpose(event: NewsCandidateEvent) {
+  if (event.ai_evidence_type === "news_event_candidate_rejected" || event.quality_gate === "validator_blocked") {
+    return "AI가 후보를 만들었지만 validator가 통과 가능한 종목·테마 영향으로 인정하지 않았다.";
+  }
+  if (event.quality_gate === "low_signal_suppressed") {
+    return "AI 후보는 존재하지만 신뢰도나 종목 연결이 약해 기본 추천 입력에서 제외한다.";
+  }
   if (hasClassifiedSymbol(event)) {
     return "AI가 뉴스 한 건을 특정 종목, 테마, 방향, 불확실성으로 구조화했다.";
   }
   return "AI가 종목을 억지로 붙이지 않고 거시·테마 흐름으로 구조화했다. 이후 노출도 규칙으로 관련 종목에 전파된다.";
 }
 
+function validationOutcome(event: NewsCandidateEvent) {
+  if (event.ai_evidence_type === "news_event_candidate_rejected" || event.quality_gate === "validator_blocked") {
+    return "차단";
+  }
+  if (event.quality_gate === "low_signal_suppressed") {
+    return "저신호 보류";
+  }
+  return "통과 후 사람 검토";
+}
+
 function CandidateCard({ event }: { event: NewsCandidateEvent }) {
   const primaryChip = candidatePrimaryChip(event);
-  const evidenceLink = evidenceHref(event.ai_evidence_id as string);
+  const evidenceLink = event.ai_evidence_id ? evidenceHref(event.ai_evidence_id) : null;
   const documentLink = sourceDocumentHref(event.source_document_id);
 
   return (
@@ -85,8 +107,8 @@ function CandidateCard({ event }: { event: NewsCandidateEvent }) {
       </div>
 
       <div className="evidence-strip">
-        <span>분석 상태</span>
-        <strong>{koCode(event.ai_evidence_provider)} · {formatPercent(event.ai_evidence_confidence)}</strong>
+        <span>검증 결과</span>
+        <strong>{validationOutcome(event)} · {koCode(event.ai_evidence_provider)} · {formatPercent(event.ai_evidence_confidence)}</strong>
         <p>{candidatePurpose(event)}</p>
       </div>
 
@@ -112,9 +134,11 @@ function CandidateCard({ event }: { event: NewsCandidateEvent }) {
       </div>
 
       <div className="btn-row">
-        <Link className="btn btn-primary" href={evidenceLink}>
-          {candidateDetailButtonLabel(event)}
-        </Link>
+        {evidenceLink ? (
+          <Link className="btn btn-primary" href={evidenceLink}>
+            {candidateDetailButtonLabel(event)}
+          </Link>
+        ) : null}
         <Link className="btn btn-secondary" href="/events">
           이벤트 원장
         </Link>
@@ -129,16 +153,24 @@ function CandidateCard({ event }: { event: NewsCandidateEvent }) {
 }
 
 export default async function AiEvidenceIndexPage() {
-  const [response, allEventsResponse] = await Promise.all([
+  const [response, allEventsResponse, rejectedResponse, suppressedResponse] = await Promise.all([
     getEvents({ evidenceType: "news_event_candidate", limit: 50 }),
     getEvents({ limit: 1 }),
+    getEvents({ evidenceType: "news_event_candidate_rejected", limit: 30 }),
+    getEvents({ evidenceType: "news_event_candidate_suppressed", limit: 30 }),
   ]);
   const data = response.data;
   const allSummary = allEventsResponse.data.summary;
+  const rejectedData = rejectedResponse.data;
+  const suppressedData = suppressedResponse.data;
   const candidates = data.events.filter((event) => event.ai_evidence_id);
   const newsCandidates = candidates.filter((event) => event.ai_evidence_type === "news_event_candidate");
   const directNewsCandidates = newsCandidates.filter(hasClassifiedSymbol);
   const macroNewsCandidates = newsCandidates.filter((event) => !hasClassifiedSymbol(event));
+  const blockedCandidates = [
+    ...rejectedData.events,
+    ...suppressedData.events.map((event) => ({ ...event, quality_gate: "low_signal_suppressed" })),
+  ];
   const clusterEvidenceCount = allSummary.news_cluster_summary_count;
   const suppressedLowSignalCount = data.summary.suppressed_low_signal_candidate_count;
 
@@ -180,12 +212,12 @@ export default async function AiEvidenceIndexPage() {
         </div>
         <div className="rail-cell">
           <span>품질 필터 숨김</span>
-          <strong>{suppressedLowSignalCount}</strong>
-          <small>종목 없는 저신호 후보는 원장에만 보존</small>
+          <strong>{suppressedLowSignalCount + rejectedData.summary.event_count}</strong>
+          <small>저신호 {suppressedLowSignalCount} · validator 차단 {rejectedData.summary.event_count}</small>
         </div>
       </section>
 
-      <section className="bento-card span-4 reveal delay-2" aria-labelledby="ai-evidence-candidate-list-title">
+      <section className="bento-card span-4 reveal delay-2" id="accepted-candidates" aria-labelledby="ai-evidence-candidate-list-title">
         <div className="section-heading stacked-heading">
           <span>최신 후보</span>
           <h2 id="ai-evidence-candidate-list-title">직접 종목 뉴스 후보</h2>
@@ -225,6 +257,26 @@ export default async function AiEvidenceIndexPage() {
           </div>
         ) : (
           <div className="empty-state">현재 상위 흐름 후보가 없다.</div>
+        )}
+      </section>
+
+      <section className="bento-card span-4 reveal delay-3" id="blocked-candidates" aria-labelledby="ai-evidence-blocked-list-title">
+        <div className="section-heading stacked-heading">
+          <span>차단/보류</span>
+          <h2 id="ai-evidence-blocked-list-title">validator가 추천 입력으로 넘기지 않은 후보</h2>
+        </div>
+        <p className="relationship-empty">
+          이 목록은 삭제된 데이터가 아니다. AI가 만든 후보 중 알 수 없는 종목·테마, 낮은 confidence, 종목 없는 저신호 top story처럼
+          추천·보유검토 근거로 쓰면 위험한 항목을 따로 보관한 것이다.
+        </p>
+        {blockedCandidates.length > 0 ? (
+          <div className="trace-grid">
+            {blockedCandidates.map((event) => (
+              <CandidateCard event={event} key={`blocked-${event.event_id}-${event.ai_evidence_id ?? event.quality_gate}`} />
+            ))}
+          </div>
+        ) : (
+          <div className="empty-state">현재 validator 차단 또는 저신호 보류 후보가 없다.</div>
         )}
       </section>
     </div>

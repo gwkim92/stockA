@@ -92,6 +92,39 @@ export default async function PaperTradingPage() {
         </article>
       </section>
 
+      <section className="feature-map-panel reveal delay-1" aria-labelledby="paper-current-state-title">
+        <div className="section-heading stacked-heading">
+          <span>현재 단계</span>
+          <h2 id="paper-current-state-title">
+            {trading.audit_summary.submitted_to_broker_count > 0
+              ? "브로커 제출 기록이 있다"
+              : "아직 실제 주문은 나가지 않았다"}
+          </h2>
+        </div>
+        <div className="feature-map-grid collection-map-grid">
+          <article className="feature-map-card collection-map-card">
+            <span>01</span>
+            <strong>Paper preview</strong>
+            <em>{koCode(trading.execution_mode)}</em>
+            <small>추천과 보유 비중을 대조해 가상 조치 후보만 만든다.</small>
+          </article>
+          <article className="feature-map-card collection-map-card">
+            <span>02</span>
+            <strong>실제 주문 제출</strong>
+            <em>{trading.audit_summary.submitted_to_broker_count}건</em>
+            <small>이 숫자가 0이면 브로커로 나간 주문이 없다.</small>
+          </article>
+          <article className="feature-map-card collection-map-card">
+            <span>03</span>
+            <strong>안전 관문</strong>
+            <em className={`risk-tag ${trading.gate_summary.blocked_count > 0 ? "risk-high" : "risk-low"}`}>
+              차단 {trading.gate_summary.blocked_count}개
+            </em>
+            <small>브로커 경계, 계좌 권한, 주문 한도, 킬 스위치, 감사 로그를 통과해야 다음 단계로 간다.</small>
+          </article>
+        </div>
+      </section>
+
       <section className="split-ledger reveal delay-2">
         <article className="ledger-panel queue-panel">
           <div className="section-heading">

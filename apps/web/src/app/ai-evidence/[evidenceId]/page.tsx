@@ -127,6 +127,14 @@ async function loadNeighborhood(symbol: string | null): Promise<EvidenceNeighbor
 }
 
 function pageCopy(data: AiEvidenceDetailData, candidate: NewsCandidate | null, cluster: ClusterSummary | null) {
+  if (candidate && data.evidence_type === "news_event_candidate_rejected") {
+    return {
+      badge: `차단된 AI 후보 · ${koCode(data.extraction_run.provider)}`,
+      title: "이 AI 후보가 왜 추천 근거로 통과하지 못했는지 검증한다.",
+      lede:
+        "validator가 통과 가능한 종목·테마 영향으로 인정하지 않은 후보를 보는 화면이다. 원천과 AI 출력은 보존하지만 추천·보유검토 입력으로 쓰지 않는다.",
+    };
+  }
   if (candidate) {
     return {
       badge: `개별 뉴스 AI 후보 · ${koCode(data.extraction_run.provider)}`,
@@ -285,7 +293,8 @@ export default async function AiEvidencePage({ params }: AiEvidencePageProps) {
   const cluster = data.cluster_summary;
   const candidate = data.news_candidate;
   const isNewsCluster = data.evidence_type === "news_cluster_summary" && cluster !== null;
-  const isNewsCandidate = data.evidence_type === "news_event_candidate" && candidate !== null;
+  const isNewsCandidate =
+    ["news_event_candidate", "news_event_candidate_rejected"].includes(data.evidence_type) && candidate !== null;
   const targetSymbol = primarySymbol(data);
   const neighborhood = await loadNeighborhood(targetSymbol);
   const copy = pageCopy(data, isNewsCandidate ? candidate : null, isNewsCluster ? cluster : null);

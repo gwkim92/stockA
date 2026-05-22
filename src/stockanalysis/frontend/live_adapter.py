@@ -3316,6 +3316,7 @@ with event_rows_before_quality_filter as (
             )
         ) as is_low_signal_candidate,
         case
+            when evidence.artifact_type = 'news_event_candidate_rejected' then 'validator_blocked'
             when evidence.artifact_id is not null then 'human_review_required'
             when source_document.document_id is not null then 'source_document_review_required'
             else 'deterministic_review_required'
@@ -3408,7 +3409,10 @@ with event_rows_before_quality_filter as (
             artifact.event_id = event_row.event_id
             or artifact.document_id = source_document.document_id
         )
-          and artifact.artifact_type <> 'news_event_candidate_rejected'
+          and (
+              artifact.artifact_type <> 'news_event_candidate_rejected'
+              or {sql_literal(evidence_type)} = 'news_event_candidate_rejected'
+          )
         order by
             case when artifact.event_id = event_row.event_id then 0 else 1 end,
             case artifact.artifact_type
@@ -5151,7 +5155,11 @@ select json_build_object(
     ),
     'evidence_type',
     case
-        when (select artifact_type from selected_artifact) in ('news_event_candidate', 'news_cluster_summary')
+        when (select artifact_type from selected_artifact) in (
+            'news_event_candidate',
+            'news_event_candidate_rejected',
+            'news_cluster_summary'
+        )
             then (select artifact_type from selected_artifact)
         else coalesce(
             (select output_json #>> '{{event,event_type}}' from selected_artifact),
@@ -5185,18 +5193,23 @@ select json_build_object(
         'input_tokens', (select input_token_count from invocation_row),
         'output_tokens', (select output_token_count from invocation_row),
         'estimated_cost_usd', (select estimated_cost_usd from invocation_row),
-        'quality_gate', 'human_review_required'
+        'quality_gate',
+        case
+            when (select artifact_type from selected_artifact) = 'news_event_candidate_rejected'
+                then 'validator_blocked'
+            else 'human_review_required'
+        end
     ),
     'extracted_fields', coalesce((select output_json -> 'extracted_fields' from selected_artifact), '[]'::jsonb),
     'news_candidate',
     case
-        when (select artifact_type from selected_artifact) = 'news_event_candidate'
+        when (select artifact_type from selected_artifact) in ('news_event_candidate', 'news_event_candidate_rejected')
             then coalesce((select output_json -> 'candidate' from selected_artifact), '{{}}'::jsonb)
         else '{{}}'::jsonb
     end,
     'retrieval_context_summary',
     case
-        when (select artifact_type from selected_artifact) = 'news_event_candidate'
+        when (select artifact_type from selected_artifact) in ('news_event_candidate', 'news_event_candidate_rejected')
             then coalesce((select output_json -> 'retrieval_context_summary' from selected_artifact), '{{}}'::jsonb)
         else '{{}}'::jsonb
     end,
@@ -6091,6 +6104,9 @@ def _event_list_sql_filters(
     evidence_type: str,
 ) -> str:
     lines: list[str] = []
+    evidence_artifact_type = evidence_type
+    if evidence_type in {"news_event_candidate_all", "news_event_candidate_suppressed"}:
+        evidence_artifact_type = "news_event_candidate"
     if theme_key:
         lines.append(f"      and coalesce(theme.code, document_theme.theme_key) = {sql_literal(theme_key)}")
     if symbol:
@@ -6099,14 +6115,16 @@ def _event_list_sql_filters(
         )
     if event_type and event_type != "all":
         lines.append(f"      and event_row.event_type = {sql_literal(event_type)}")
-    if evidence_type and evidence_type != "all":
-        lines.append(f"      and evidence.artifact_type = {sql_literal(evidence_type)}")
+    if evidence_artifact_type and evidence_artifact_type != "all":
+        lines.append(f"      and evidence.artifact_type = {sql_literal(evidence_artifact_type)}")
     return "\n".join(lines)
 
 
 def _event_list_quality_sql_filters(*, evidence_type: str) -> str:
     if evidence_type == "news_event_candidate":
         return "      and not is_low_signal_candidate"
+    if evidence_type == "news_event_candidate_suppressed":
+        return "      and is_low_signal_candidate"
     return ""
 
 

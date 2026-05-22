@@ -1394,6 +1394,88 @@ h6 {
   word-break: keep-all;
 }
 
+.feature-map-panel {
+  padding: clamp(20px, 2.4vw, 34px);
+  background:
+    linear-gradient(135deg, rgba(251, 250, 246, 0.96), rgba(251, 250, 246, 0.76)),
+    repeating-linear-gradient(
+      90deg,
+      rgba(17, 18, 15, 0.045),
+      rgba(17, 18, 15, 0.045) 1px,
+      transparent 1px,
+      transparent 34px
+    );
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+}
+
+.feature-map-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.feature-map-card {
+  display: grid;
+  min-width: 0;
+  min-height: 190px;
+  align-content: space-between;
+  gap: 12px;
+  padding: 16px;
+  background: color-mix(in srgb, var(--bg-panel) 88%, white);
+  border: 1px solid var(--border-light);
+  transition: border-color 0.16s ease, transform 0.16s ease, background 0.16s ease;
+}
+
+.feature-map-card:hover,
+.feature-map-card:focus-visible {
+  background: var(--bg-panel);
+  border-color: var(--border-strong);
+  outline: none;
+  transform: translateY(-2px);
+}
+
+.feature-map-card span {
+  width: fit-content;
+  padding: 5px 8px;
+  background: var(--text-primary);
+  color: var(--bg-panel);
+  font-size: 0.68rem;
+  font-weight: 900;
+}
+
+.feature-map-card strong {
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: clamp(1.15rem, 1.55vw, 1.55rem);
+  line-height: 1.04;
+}
+
+.feature-map-card em {
+  width: fit-content;
+  color: var(--accent-blue);
+  font-size: 0.75rem;
+  font-style: normal;
+  font-weight: 900;
+}
+
+.feature-map-card small {
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  font-weight: 750;
+  line-height: 1.5;
+  word-break: keep-all;
+}
+
+.collection-map-grid {
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+}
+
+.collection-map-card {
+  min-height: 170px;
+}
+
 .intelligence-board {
   min-width: 0;
   padding: clamp(20px, 2.4vw, 34px);
@@ -2481,6 +2563,7 @@ h6 {
   .status-rail,
   .route-index,
   .where-grid,
+  .feature-map-grid,
   .operator-steps,
   .operator-secondary,
   .flow-steps,
@@ -2577,6 +2660,7 @@ h6 {
   .status-rail,
   .route-index,
   .where-grid,
+  .feature-map-grid,
   .operator-steps,
   .operator-secondary,
   .flow-steps,

@@ -371,6 +371,59 @@ export default async function DataHealthPage() {
       next: "추천, 투자 논리, 보유 검토, 가상 거래 화면에서 사람이 검토한다.",
     },
   ];
+  const collectionStatusCards = [
+    {
+      index: "01",
+      title: "주식 캔들",
+      run: marketPriceRun,
+      purpose: "종목 가격과 차트, 모멘텀 feature의 원천이다.",
+      check: `최근 가격일 ${
+        data.freshness.find((item) => item.dataset === "market.daily_price_bar")?.latest_observation_date ?? "미확인"
+      }`,
+    },
+    {
+      index: "02",
+      title: "뉴스 원문",
+      run: newsRun,
+      purpose: "수집된 뉴스 원장과 원천 문서 화면의 원천이다.",
+      check: "뉴스 원장은 /events에서 시간순으로 본다.",
+    },
+    {
+      index: "03",
+      title: "1차 분류 태깅",
+      run: newsEnrichmentRun,
+      purpose: "뉴스를 종목, 테마, 방향 태그로 1차 정리한다.",
+      check: "AI 전 단계이므로 틀릴 수 있고, 이후 AI/validator가 보강한다.",
+    },
+    {
+      index: "04",
+      title: "Codex OAuth 분석",
+      run: aiRun,
+      purpose: "중요 뉴스를 구조화해 근거 후보를 만든다.",
+      check: "화면 요청 중에는 LLM을 호출하지 않고 저장된 결과만 읽는다.",
+    },
+    {
+      index: "05",
+      title: "Validator",
+      run: aiRun,
+      purpose: "낮은 신뢰도, 알 수 없는 종목/테마, 저신호 뉴스를 차단한다.",
+      check: "차단 후보는 /ai-evidence의 차단 섹션에서 본다.",
+    },
+    {
+      index: "06",
+      title: "추천 신호",
+      run: decisionRun,
+      purpose: "가격, 뉴스, 사이클, 상위 흐름을 추천 점수로 합친다.",
+      check: "추천은 주문이 아니라 사람이 볼 검토서다.",
+    },
+    {
+      index: "07",
+      title: "보유 검토",
+      run: remediationRun,
+      purpose: "Thesis 공백, 성과 미측정, 보유 충돌을 운영 큐로 만든다.",
+      check: "보유 검토와 paper 검증으로 이어진다.",
+    },
+  ];
 
   return (
     <div className="terminal-page">
@@ -415,6 +468,30 @@ export default async function DataHealthPage() {
           </strong>
           <small>{koCode(providerBudget.provider)}</small>
         </article>
+      </section>
+
+      <section className="feature-map-panel reveal delay-1" aria-labelledby="collection-status-title">
+        <div className="section-heading stacked-heading">
+          <span>수집/분석별 상태</span>
+          <h2 id="collection-status-title">무엇이 언제 돌았고, 어디에 쓰이는지 한 번에 본다</h2>
+        </div>
+        <p className="board-intro">
+          이 영역만 보면 “어떤 데이터가 최신인지”를 먼저 판단할 수 있다. 아래 상세 증거는 문제가 있을 때만 펼쳐서 본다.
+        </p>
+        <div className="feature-map-grid collection-map-grid">
+          {collectionStatusCards.map((card) => (
+            <article className="feature-map-card collection-map-card" key={card.index}>
+              <span>{card.index}</span>
+              <strong>{card.title}</strong>
+              <em className={`risk-tag ${statusRiskClass(card.run?.health_status ?? "missing")}`}>
+                {runStateLabel(card.run)}
+              </em>
+              <small>{card.purpose}</small>
+              <small>{card.check}</small>
+              <small>최근 완료: {finishedAtLabel(card.run)}</small>
+            </article>
+          ))}
+        </div>
       </section>
 
       {aiRun?.health_status === "degraded" || aiRun?.latest_status === "succeeded_with_fallback" ? (
