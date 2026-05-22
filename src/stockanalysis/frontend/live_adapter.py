@@ -3292,15 +3292,20 @@ with event_rows_before_quality_filter as (
         evidence.confidence as ai_evidence_confidence,
         (
             evidence.artifact_type = 'news_event_candidate'
-            and coalesce(instrument.primary_symbol, document_instrument.primary_symbol) is null
             and (
-                coalesce(source_data_source.source_name, '') = 'rss_news:marketwatch-topstories'
+                coalesce(evidence.confidence, 0) < 0.6500
                 or (
-                    coalesce(source_data_source.source_name, '') in (
-                        'rss_news:marketwatch-topstories',
-                        'rss_news:yahoo-finance-news'
+                    coalesce(instrument.primary_symbol, document_instrument.primary_symbol) is null
+                    and (
+                        coalesce(source_data_source.source_name, '') = 'rss_news:marketwatch-topstories'
+                        or (
+                            coalesce(source_data_source.source_name, '') in (
+                                'rss_news:marketwatch-topstories',
+                                'rss_news:yahoo-finance-news'
+                            )
+                            and coalesce(evidence.confidence, 0) < 0.6500
+                        )
                     )
-                    and coalesce(evidence.confidence, 0) < 0.6500
                 )
             )
         ) as is_low_signal_candidate,
