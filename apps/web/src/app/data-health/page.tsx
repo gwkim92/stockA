@@ -16,7 +16,12 @@ function statusRiskClass(value: string) {
   if (value === "healthy" || value === "succeeded" || value === "configured" || value === "not_due") {
     return "risk-low";
   }
-  if (value === "attention_required" || value === "stale") {
+  if (
+    value === "attention_required"
+    || value === "stale"
+    || value === "degraded"
+    || value === "succeeded_with_fallback"
+  ) {
     return "risk-medium";
   }
   return "risk-high";
@@ -36,6 +41,9 @@ function runStateLabel(run: PipelineRun | null) {
   }
   if (run.latest_status === "succeeded" && run.health_status === "ok") {
     return "최근 실행 성공";
+  }
+  if (run.latest_status === "succeeded_with_fallback" || run.health_status === "degraded") {
+    return "성공했지만 fallback 사용";
   }
   if (run.latest_status === "succeeded") {
     return `성공 · ${koCode(run.health_status)}`;
@@ -62,6 +70,19 @@ function cadenceLabel(run: PipelineRun | null, fallback: string) {
 
 function finishedAtLabel(run: PipelineRun | null) {
   return run?.finished_at ?? "아직 완료 기록 없음";
+}
+
+function runQualityExplanation(run: PipelineRun | null) {
+  if (!run) {
+    return "실행 이력이 없어 품질을 판단할 수 없다.";
+  }
+  if (run.latest_status === "succeeded_with_fallback" || run.health_status === "degraded") {
+    return "작업은 멈추지 않았지만 일부 AI 후보가 실패해 규칙 기반 fallback으로 처리됐다. 추천 근거 품질을 낮게 보고 오류 로그를 확인해야 한다.";
+  }
+  if (run.latest_status === "succeeded" && run.health_status === "ok") {
+    return "최근 실행은 정상 범위다.";
+  }
+  return "상태와 완료 시각을 기준으로 실행 로그를 확인해야 한다.";
 }
 
 function schedulerReadinessTitle(scheduler: SchedulerStatus) {
@@ -396,6 +417,19 @@ export default async function DataHealthPage() {
         </article>
       </section>
 
+      {aiRun?.health_status === "degraded" || aiRun?.latest_status === "succeeded_with_fallback" ? (
+        <section className="flow-panel reveal delay-1" aria-labelledby="ai-fallback-warning-title">
+          <div className="section-heading flow-heading">
+            <span>AI 분석 경고</span>
+            <h2 id="ai-fallback-warning-title">뉴스 AI 분석이 fallback으로 끝난 실행이 있다</h2>
+          </div>
+          <p className="page-lede" style={{ marginTop: 0, maxWidth: "980px" }}>
+            {runQualityExplanation(aiRun)} 이 상태에서는 뉴스 수집과 이벤트 구조화는 계속 진행되지만,
+            LLM이 만든 한국어 근거와 종목·테마 영향 검증 품질은 낮아질 수 있다.
+          </p>
+        </section>
+      ) : null}
+
       <section className="flow-panel reveal delay-2" aria-labelledby="automation-summary-title">
         <div className="section-heading flow-heading">
           <span>자동 수집 / 분석 상태</span>
@@ -514,13 +548,16 @@ export default async function DataHealthPage() {
           </p>
           <div className="operating-flow-grid">
             {newsAfterAnalysisSteps.map((step) => (
-              <div className="operating-flow-card" key={step.index}>
-                <b>{step.index}</b>
-                <span>{koCode(step.owner)}</span>
-                <strong>{step.title}</strong>
-                <p>{step.output}</p>
-                <small>{step.next}</small>
-                <dl>
+            <div className="operating-flow-card" key={step.index}>
+              <b>{step.index}</b>
+              <span>{koCode(step.owner)}</span>
+              <strong>{step.title}</strong>
+              <p>{step.output}</p>
+              <small>{step.next}</small>
+              {step.run?.health_status === "degraded" || step.run?.latest_status === "succeeded_with_fallback" ? (
+                <small>{runQualityExplanation(step.run)}</small>
+              ) : null}
+              <dl>
                   <div>
                     <dt>상태</dt>
                     <dd>{runStateLabel(step.run)}</dd>

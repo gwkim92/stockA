@@ -370,6 +370,31 @@ class NewsRssAiExtractTests(unittest.TestCase):
         self.assertTrue(any("insert into event.event_instrument_impact" in sql for sql in executor.non_query_sql))
         self.assertIn("status = 'succeeded'", executor.non_query_sql[-1])
 
+    def test_run_news_ai_extract_marks_fallback_status_when_provider_fails(self) -> None:
+        executor = FakeExecutor()
+
+        summary = run_news_rss_ai_extract(
+            config=type("Config", (), {})(),
+            as_of_date=date(2026, 5, 19),
+            limit=10,
+            provider="codex_oauth",
+            execute=True,
+            executor=executor,
+            provider_runner=lambda *_args: (_ for _ in ()).throw(RuntimeError("provider unavailable")),
+        )
+
+        self.assertEqual(summary["status"], "completed_with_fallback")
+        self.assertEqual(summary["failed_candidate_count"], 1)
+        self.assertEqual(summary["inserted_artifact_count"], 0)
+        self.assertTrue(
+            any("status = 'succeeded_with_fallback'" in sql for sql in executor.non_query_sql),
+            executor.non_query_sql,
+        )
+        self.assertTrue(
+            any("review ai.model_invocation errors" in sql for sql in executor.non_query_sql),
+            executor.non_query_sql,
+        )
+
     def test_run_news_ai_extract_skips_existing_request_hash(self) -> None:
         executor = FakeExecutor(existing_artifact_id=9901)
         summary = run_news_rss_ai_extract(

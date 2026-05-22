@@ -2145,6 +2145,7 @@ latest_runs as (
             when run.status = 'failed' then 'failed'
             when run.status in ('started', 'running') then 'running'
             when run.ended_at is null then 'missing'
+            when run.status = 'succeeded_with_fallback' then 'degraded'
             when run.ended_at < now() - make_interval(hours => expected.stale_after_hours) then 'stale'
             else 'ok'
         end as health_status
@@ -2166,7 +2167,7 @@ select json_build_object(
         when exists (
             select 1
             from latest_runs
-            where health_status in ('missing', 'stale', 'failed')
+            where health_status in ('missing', 'stale', 'failed', 'degraded')
         ) then 'attention_required'
         else 'healthy'
     end,

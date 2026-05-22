@@ -53,6 +53,8 @@ const KOREAN_LABELS: Record<string, string> = {
   monthly: "월간",
   intraday: "장중",
   failed: "실패",
+  degraded: "품질 저하",
+  succeeded_with_fallback: "성공했지만 fallback 사용",
   forming: "형성 중",
   healthy: "정상",
   high: "높음",

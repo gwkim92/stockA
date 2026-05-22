@@ -473,7 +473,14 @@ def run_news_rss_ai_extract(
                     ).summary()
                 )
 
-        _mark_pipeline_run_succeeded(sql_executor, run_id)
+        if failed == 0:
+            _mark_pipeline_run_succeeded(sql_executor, run_id)
+        else:
+            _mark_pipeline_run_succeeded_with_fallback(
+                sql_executor,
+                run_id,
+                failed_candidate_count=failed,
+            )
     except Exception as exc:
         _mark_pipeline_run_failed(sql_executor, run_id, str(exc))
         raise
@@ -1193,6 +1200,23 @@ set
     status = 'succeeded',
     ended_at = now(),
     error_summary = null
+where run_id = {run_id};"""
+    )
+
+
+def _mark_pipeline_run_succeeded_with_fallback(
+    executor: PsqlCommandExecutor,
+    run_id: int,
+    *,
+    failed_candidate_count: int,
+) -> None:
+    summary = f"{failed_candidate_count} news AI candidate(s) used fallback; review ai.model_invocation errors."
+    executor.execute_non_query(
+        f"""update ops.pipeline_run
+set
+    status = 'succeeded_with_fallback',
+    ended_at = now(),
+    error_summary = {sql_literal(summary)}
 where run_id = {run_id};"""
     )
 
