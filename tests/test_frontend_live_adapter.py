@@ -2606,6 +2606,7 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertIn("when 'news_cluster_summary' then 2", event_sql)
         self.assertIn("'news_event_candidate_count'", event_sql)
         self.assertIn("'news_cluster_summary_count'", event_sql)
+        self.assertIn("'suppressed_low_signal_candidate_count'", event_sql)
         self.assertIn("'unreviewed_event_count'", event_sql)
         self.assertIn("document_instrument", event_sql)
         self.assertIn("left join lateral", event_sql)
@@ -2631,13 +2632,18 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         )
 
         self.assertIn("and evidence.artifact_type = 'news_event_candidate'", sql)
+        self.assertIn("event_rows_before_quality_filter", sql)
+        self.assertIn("filtered_event_rows", sql)
         self.assertIn("source_data_source.source_name", sql)
         self.assertIn("rss_news:marketwatch-topstories", sql)
         self.assertIn("coalesce(instrument.primary_symbol, document_instrument.primary_symbol) is null", sql)
+        self.assertIn("as is_low_signal_candidate", sql)
+        self.assertIn("and not is_low_signal_candidate", sql)
+        self.assertIn("'suppressed_low_signal_candidate_count'", sql)
         self.assertIn("when 'news_event_candidate' then 0", sql)
         self.assertNotIn("insert into", sql.lower())
 
-    def test_live_event_list_sql_keeps_raw_ledger_unfiltered_by_legacy_candidate_gate(self) -> None:
+    def test_live_event_list_sql_keeps_raw_ledger_visible_while_counting_no_suppression(self) -> None:
         sql = render_frontend_event_list_state_sql(
             as_of_date=datetime(2026, 5, 22).date(),
             theme_key=None,
@@ -2646,8 +2652,10 @@ class FrontendLiveAdapterTests(unittest.TestCase):
             evidence_type="all",
         )
 
-        self.assertNotIn("rss_news:marketwatch-topstories", sql)
-        self.assertNotIn("coalesce(instrument.primary_symbol, document_instrument.primary_symbol) is null", sql)
+        self.assertIn("rss_news:marketwatch-topstories", sql)
+        self.assertIn("as is_low_signal_candidate", sql)
+        self.assertNotIn("and not is_low_signal_candidate", sql)
+        self.assertIn("else 0", sql)
 
     def test_live_remediation_tickets_response_matches_frontend_contract_shape(self) -> None:
         payload = resolve_live_frontend_response(

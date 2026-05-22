@@ -195,6 +195,7 @@ export default async function EventsPage() {
   const ledgerData = ledgerResponse.data;
   const decisionCandidates = candidateData.events.filter(isDecisionPriorityCandidate);
   const deferredCandidateCount = Math.max(0, candidateData.events.length - decisionCandidates.length);
+  const suppressedLowSignalCount = candidateData.summary.suppressed_low_signal_candidate_count;
 
   return (
     <div className="pageStack">
@@ -232,6 +233,11 @@ export default async function EventsPage() {
           <strong className="metric-value">{ledgerData.summary.unreviewed_event_count}</strong>
           <span className="metric-sub">AI 근거 미연결</span>
         </article>
+        <article className="bento-card">
+          <span className="metric-label">품질 필터 숨김</span>
+          <strong className="metric-value">{suppressedLowSignalCount}</strong>
+          <span className="metric-sub">종목 없는 저신호 후보</span>
+        </article>
       </section>
 
       <section className="bento-grid reveal delay-2">
@@ -240,7 +246,9 @@ export default async function EventsPage() {
             <span className="metric-sub">기본 판단 목록</span>
             <h2 style={{ fontSize: "1.5rem" }}>AI가 구조화한 개별 뉴스 후보</h2>
             <p className="relationship-empty">
-              이 목록은 추천이나 보유검토에 들어가기 전 사람이 먼저 봐야 하는 후보군이다. 낮은 신뢰도, 종목 미분류 일반 뉴스, 개인 재무성 원문은 기본 목록에서 제외하고 원장 영역에서만 확인한다.
+              이 목록은 추천이나 보유검토에 들어가기 전 사람이 먼저 봐야 하는 후보군이다. 낮은 신뢰도,
+              종목 미분류 일반 뉴스, 개인 재무성 원문은 기본 목록에서 제외하고 원장 영역에서만 확인한다.
+              API 품질 필터가 종목 없는 저신호 top story {suppressedLowSignalCount}개를 숨겼다.
             </p>
             {deferredCandidateCount > 0 ? (
               <p className="relationship-empty">

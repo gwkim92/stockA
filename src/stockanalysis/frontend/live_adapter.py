@@ -988,6 +988,9 @@ def build_live_event_list_response(
                 "ai_extracted_count": int(summary.get("ai_extracted_count") or 0),
                 "news_event_candidate_count": int(summary.get("news_event_candidate_count") or 0),
                 "news_cluster_summary_count": int(summary.get("news_cluster_summary_count") or 0),
+                "suppressed_low_signal_candidate_count": int(
+                    summary.get("suppressed_low_signal_candidate_count") or 0
+                ),
                 "unreviewed_event_count": int(summary.get("unreviewed_event_count") or 0),
                 "source_document_count": int(summary.get("source_document_count") or 0),
                 "themes_represented": int(summary.get("themes_represented") or 0),
@@ -3240,8 +3243,9 @@ def render_frontend_event_list_state_sql(
         event_type=event_type,
         evidence_type=evidence_type,
     )
+    quality_filters = _event_list_quality_sql_filters(evidence_type=evidence_type)
     return f"""-- frontend event list state lookup
-with filtered_event_rows as (
+with event_rows_before_quality_filter as (
     select
         event_row.event_id,
         event_row.title,
@@ -3268,10 +3272,16 @@ with filtered_event_rows as (
         ) as impact_score,
         source_document.external_document_id as source_document_id,
         source_document.document_id as raw_source_document_id,
+        coalesce(source_data_source.source_name, '') as source_name,
         evidence.artifact_id as ai_evidence_id,
         evidence.artifact_type as ai_evidence_type,
         evidence.provider as ai_evidence_provider,
         evidence.confidence as ai_evidence_confidence,
+        (
+            evidence.artifact_type = 'news_event_candidate'
+            and coalesce(source_data_source.source_name, '') = 'rss_news:marketwatch-topstories'
+            and coalesce(instrument.primary_symbol, document_instrument.primary_symbol) is null
+        ) as is_low_signal_candidate,
         case
             when evidence.artifact_id is not null then 'human_review_required'
             when source_document.document_id is not null then 'source_document_review_required'
@@ -3377,6 +3387,12 @@ with filtered_event_rows as (
     where event_row.event_at < ({sql_date(as_of_date)} + interval '1 day')
 {filters}
 ),
+filtered_event_rows as (
+    select *
+    from event_rows_before_quality_filter
+    where true
+{quality_filters}
+),
 event_rows as (
     select *
     from filtered_event_rows
@@ -3392,6 +3408,12 @@ select json_build_object(
         'ai_extracted_count', (select count(*) filter (where ai_evidence_id is not null)::int from filtered_event_rows),
         'news_event_candidate_count', (select count(*) filter (where ai_evidence_type = 'news_event_candidate')::int from filtered_event_rows),
         'news_cluster_summary_count', (select count(*) filter (where ai_evidence_type = 'news_cluster_summary')::int from filtered_event_rows),
+        'suppressed_low_signal_candidate_count',
+            case
+                when {sql_literal(evidence_type)} = 'news_event_candidate'
+                then (select count(*)::int from event_rows_before_quality_filter where is_low_signal_candidate)
+                else 0
+            end,
         'unreviewed_event_count', (select count(*) filter (where ai_evidence_id is null)::int from filtered_event_rows),
         'source_document_count', (select count(distinct raw_source_document_id)::int from filtered_event_rows where raw_source_document_id is not null),
         'themes_represented', (select count(distinct theme_key)::int from filtered_event_rows where theme_key is not null)
@@ -5884,14 +5906,13 @@ def _event_list_sql_filters(
         lines.append(f"      and event_row.event_type = {sql_literal(event_type)}")
     if evidence_type and evidence_type != "all":
         lines.append(f"      and evidence.artifact_type = {sql_literal(evidence_type)}")
-        if evidence_type == "news_event_candidate":
-            lines.append(
-                """      and not (
-          coalesce(source_data_source.source_name, '') = 'rss_news:marketwatch-topstories'
-          and coalesce(instrument.primary_symbol, document_instrument.primary_symbol) is null
-      )"""
-            )
     return "\n".join(lines)
+
+
+def _event_list_quality_sql_filters(*, evidence_type: str) -> str:
+    if evidence_type == "news_event_candidate":
+        return "      and not is_low_signal_candidate"
+    return ""
 
 
 def _build_event_payload(event: dict[str, Any]) -> dict[str, Any]:

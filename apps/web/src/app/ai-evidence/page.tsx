@@ -32,6 +32,7 @@ export default async function AiEvidenceIndexPage() {
   const candidates = data.events.filter((event) => event.ai_evidence_id);
   const newsCandidates = candidates.filter((event) => event.ai_evidence_type === "news_event_candidate");
   const clusterEvidenceCount = allSummary.news_cluster_summary_count;
+  const suppressedLowSignalCount = data.summary.suppressed_low_signal_candidate_count;
 
   return (
     <div className="pageStack">
@@ -43,8 +44,8 @@ export default async function AiEvidenceIndexPage() {
           </h1>
         </div>
         <p className="page-lede">
-          이 화면은 한 뉴스 단위로 AI가 구조화한 후보만 모은다. 여러 뉴스를 묶은 흐름 증거는
-          뉴스·AI 판단 화면에서 따로 확인한다.
+          이 화면은 한 뉴스 단위로 AI가 구조화한 후보만 모은다. 종목이 없는 저신호 일반 top story는
+          기본 후보에서 숨기고, 여러 뉴스를 묶은 흐름 증거는 뉴스·AI 판단 화면에서 따로 확인한다.
         </p>
       </section>
 
@@ -65,9 +66,9 @@ export default async function AiEvidenceIndexPage() {
           <small>목록에서는 제외, 뉴스·AI에서 확인</small>
         </div>
         <div className="rail-cell">
-          <span>품질 기준</span>
-          <strong className="rail-word-value">검토</strong>
-          <small>AI는 근거만 남기고 주문은 하지 않는다</small>
+          <span>품질 필터 숨김</span>
+          <strong>{suppressedLowSignalCount}</strong>
+          <small>종목 없는 저신호 후보는 원장에만 보존</small>
         </div>
       </section>
 
@@ -76,6 +77,10 @@ export default async function AiEvidenceIndexPage() {
           <span>최신 후보</span>
           <h2 id="ai-evidence-candidate-list-title">개별 뉴스 후보 분석 목록</h2>
         </div>
+        <p className="relationship-empty">
+          여기에 보이는 후보는 추천·보유검토 입력으로 넘기기 전에 사람이 확인할 수 있는 최소 품질을 통과한 목록이다.
+          숨긴 후보 {suppressedLowSignalCount}개는 삭제한 것이 아니라, 종목을 특정하지 못한 일반 뉴스라 기본 후보 목록에서 제외했다.
+        </p>
 
         {newsCandidates.length > 0 ? (
           <div className="trace-grid">
@@ -95,11 +100,11 @@ export default async function AiEvidenceIndexPage() {
                     <span className="relation-pill">개별 후보</span>
                   </div>
 
-	                  <div className="evidence-strip">
-	                    <span>분석 상태</span>
-	                    <strong>{koCode(event.ai_evidence_provider)} · {formatPercent(event.ai_evidence_confidence)}</strong>
-	                    <p>AI가 뉴스 한 건을 테마, 종목, 방향, 불확실성으로 구조화했다.</p>
-	                  </div>
+                  <div className="evidence-strip">
+                    <span>분석 상태</span>
+                    <strong>{koCode(event.ai_evidence_provider)} · {formatPercent(event.ai_evidence_confidence)}</strong>
+                    <p>AI가 뉴스 한 건을 테마, 종목, 방향, 불확실성으로 구조화했다.</p>
+                  </div>
 
                   <div className="relationship-panel" aria-label={`${event.title} AI 후보 연결`}>
                     <span>추천 판단에 들어가기 전 확인할 내용</span>
