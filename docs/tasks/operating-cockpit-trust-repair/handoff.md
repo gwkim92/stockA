@@ -2,7 +2,7 @@
 
 ## Current Status
 
-- 상태: local_verification_passed
+- 상태: deployed_and_smoked
 - 기준일: 2026-05-22
 - 완료:
   - 사용자 불만 지점을 데이터 오염, 모니터링 화면, 뉴스 AI 근거, 종목 연결, 페이퍼 거래 가시성으로 분리했다.
@@ -36,9 +36,16 @@
 - PASS: `cd apps/web && npm run typecheck`
 - PASS: `cd apps/web && npm run build`
 - PASS: `git diff --check`
-- TODO: AWH task verify.
-- TODO: commit/push, EC2 pull, service restart, smoke.
+- PASS: `PYTHONPATH=/Users/woody/ai/agent-work-harness/src /opt/homebrew/bin/python3.13 -m awh verify --repo . --task operating-cockpit-trust-repair`
+- PASS: Git commit/push `5fe7cd4`.
+- PASS: EC2 pull to `5fe7cd4`.
+- PASS: EC2 `PYTHONPATH=src /opt/stockanalysis/venv/bin/python -m unittest tests.test_frontend_live_adapter -v`.
+- PASS: EC2 `cd apps/web && npm run typecheck && npm run build`.
+- PASS: EC2 service restart: `stockanalysis-frontend-api.service` and `stockanalysis-web.service` active.
+- PASS: EC2 API smoke confirmed `/api/ai/news-clusters?limit=1` has `llm_candidate_failed_count=0`, latest provider `codex_oauth`, and `relation_reasons`.
+- PASS: EC2 page smoke 200: `/`, `/data-health`, `/intelligence`, `/paper-trading`, `/trading-readiness`, `/stocks/SPY`, `/ai-evidence/ai-evidence-122`, `/recommendations/recommendation-52`.
+- PASS: local tunnel smoke: `http://127.0.0.1:13000/intelligence` returned 200 and contains “왜 이 뉴스들이 같이 묶였나”.
 
 ## Exact Next Step
 
-- exact next step: commit/push, deploy to EC2, restart FastAPI/Next services, and smoke the affected routes.
+- exact next step: use the live site at `http://127.0.0.1:13000` and continue page-by-page UX review; next code pass should focus on remaining English source titles and improving raw ticker/theme labels without changing data contracts.

@@ -64,9 +64,9 @@
 
 ## Done Criteria
 
-- [ ] Failed runtime data is deleted without deleting valid AI artifacts.
-- [ ] UI wording no longer repeats system-internal explanations as primary content.
-- [ ] News cluster cards show grouping basis, representative evidence, and stock/theme relation.
-- [ ] Paper trading and trading readiness expose current test status clearly.
-- [ ] Local verification passes.
-- [ ] EC2 deployment and smoke verification pass.
+- [x] Failed runtime data is deleted without deleting valid AI artifacts.
+- [x] UI wording no longer repeats system-internal explanations as primary content.
+- [x] News cluster cards show grouping basis, representative evidence, and stock/theme relation.
+- [x] Paper trading and trading readiness expose current test status clearly.
+- [x] Local verification passes.
+- [x] EC2 deployment and smoke verification pass.
