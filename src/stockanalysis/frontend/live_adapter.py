@@ -4390,45 +4390,52 @@ strategy_universe_provenance as (
     order by universe_batch.universe_batch_id desc
     limit 1
 ),
+macro_flow_all_rows as (
+    select
+        propagated_impact.event_id,
+        event_row.title,
+        event_row.event_at,
+        node.code as theme_key,
+        node.name as theme_name,
+        propagated_impact.impact_direction,
+        propagated_impact.impact_strength,
+        propagated_impact.confidence,
+        propagated_impact.exposure_weight,
+        propagated_impact.source_run_id
+    from selected_recommendation recommendation
+    join signal.propagated_instrument_impact propagated_impact
+      on propagated_impact.instrument_id = recommendation.instrument_id
+    join event.event event_row on event_row.event_id = propagated_impact.event_id
+    join ref.classification_node node on node.node_id = propagated_impact.node_id
+    where event_row.event_at < (recommendation.as_of_date + interval '1 day')
+),
+macro_flow_recent_rows as (
+    select *
+    from macro_flow_all_rows
+    order by event_at desc, event_id desc, theme_key
+    limit 8
+),
 macro_flow_provenance as (
     select
-        count(*)::integer as propagated_impact_count,
-        max(source_run_id) as source_run_id,
-        json_agg(
-            json_build_object(
-                'event_id', event_id,
-                'title', title,
-                'event_at', event_at,
-                'theme_key', theme_key,
-                'theme_name', theme_name,
-                'impact_direction', impact_direction,
-                'impact_strength', impact_strength,
-                'confidence', confidence,
-                'exposure_weight', exposure_weight
+        (select count(*)::integer from macro_flow_all_rows) as propagated_impact_count,
+        (select max(source_run_id) from macro_flow_all_rows) as source_run_id,
+        (
+            select json_agg(
+                json_build_object(
+                    'event_id', event_id,
+                    'title', title,
+                    'event_at', event_at,
+                    'theme_key', theme_key,
+                    'theme_name', theme_name,
+                    'impact_direction', impact_direction,
+                    'impact_strength', impact_strength,
+                    'confidence', confidence,
+                    'exposure_weight', exposure_weight
+                )
+                order by event_at desc, event_id desc, theme_key
             )
-            order by event_at desc, event_id desc, theme_key
+            from macro_flow_recent_rows
         ) as recent_flows
-    from (
-        select
-            propagated_impact.event_id,
-            event_row.title,
-            event_row.event_at,
-            node.code as theme_key,
-            node.name as theme_name,
-            propagated_impact.impact_direction,
-            propagated_impact.impact_strength,
-            propagated_impact.confidence,
-            propagated_impact.exposure_weight,
-            propagated_impact.source_run_id
-        from selected_recommendation recommendation
-        join signal.propagated_instrument_impact propagated_impact
-          on propagated_impact.instrument_id = recommendation.instrument_id
-        join event.event event_row on event_row.event_id = propagated_impact.event_id
-        join ref.classification_node node on node.node_id = propagated_impact.node_id
-        where event_row.event_at < (recommendation.as_of_date + interval '1 day')
-        order by event_row.event_at desc, event_row.event_id desc, node.code
-        limit 8
-    ) flow_rows
 ),
 score_component_rows as (
     select

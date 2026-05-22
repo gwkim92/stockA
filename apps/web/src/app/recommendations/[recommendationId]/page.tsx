@@ -321,7 +321,8 @@ export default async function RecommendationPage({ params }: RecommendationPageP
             <h2 style={{ fontSize: "1.5rem", marginTop: "6px" }}>시장·테마 뉴스가 {data.symbol} 점수에 들어간 방식</h2>
             <p style={{ color: "var(--text-secondary)", marginTop: "8px", maxWidth: "820px" }}>
               이 패널은 종목을 직접 언급하지 않은 뉴스가 테마와 종목 노출도 규칙을 거쳐 추천 점수의
-              `macro_flow_score`로 들어간 경로다. AI가 주문을 결정한 것이 아니라, 구조화된 흐름이 점수 입력으로만 쓰였다.
+              `macro_flow_score`로 들어간 경로다. 전체 전파 근거 수와 아래 최근 preview는 다를 수 있으며,
+              AI가 주문을 결정한 것이 아니라 구조화된 흐름이 점수 입력으로만 쓰였다.
             </p>
           </div>
 
@@ -336,7 +337,7 @@ export default async function RecommendationPage({ params }: RecommendationPageP
                       <strong>{formatPercent(component.value)} · 가중치 {formatPercent(component.weight)}</strong>
                     </div>
                     <span style={{ color: "var(--text-secondary)" }}>
-                      전파 근거 {component.provenance?.evidence?.propagated_impact_count ?? rows.length}개
+                      전체 전파 근거 {component.provenance?.evidence?.propagated_impact_count ?? rows.length}개 · 최근 표시 {rows.length}개
                     </span>
                   </div>
 
