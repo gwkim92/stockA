@@ -502,8 +502,8 @@ export default async function AiEvidencePage({ params }: AiEvidencePageProps) {
         {isNewsCandidate ? (
           <>
             <p className="board-intro">
-              분석 방식: {koCode(candidate.analysis_method)}. 추천 관련성:{" "}
-              {koCode(candidate.recommendation_relevance)}. 불확실성: {koLabel(candidate.uncertainty_notes)}
+              분석 방식: {koLabel(candidate.analysis_method)}. 추천 관련성:{" "}
+              {koLabel(candidate.recommendation_relevance)}. 불확실성: {koLabel(candidate.uncertainty_notes)}
             </p>
             <CandidateImpactList candidate={candidate} />
           </>
