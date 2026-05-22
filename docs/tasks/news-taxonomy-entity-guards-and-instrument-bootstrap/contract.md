@@ -15,6 +15,7 @@
   - 뉴스 제목/요약의 명시적 티커 패턴을 보수적으로 감지한다.
   - 감지된 티커가 canonical instrument에 없으면 SEC company tickers universe에서 검증된 경우에만 신규 instrument를 bootstrap할 수 있다.
   - AI가 말한 미확인 티커만으로는 instrument를 만들지 않는다.
+  - 거시/시장 뉴스는 비싼 회사명 alias lookup을 수행하지 않아 enrichment가 멈춘 것처럼 느려지지 않는다.
 
 ## Scope
 
@@ -65,5 +66,6 @@
 - [x] AI labor/productivity theme classification test가 통과한다.
 - [x] explicit ticker detection test가 통과한다.
 - [x] SEC-verified missing instrument bootstrap test가 통과한다.
+- [x] macro/news-only item은 company alias lookup을 건너뛰는 test가 통과한다.
 - [x] CLI smoke/test가 통과한다.
 - [ ] EC2 smoke에서 신규/누락 instrument bootstrap이 안전하게 실행된다.

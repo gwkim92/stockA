@@ -191,6 +191,35 @@ _AI_LABOR_CONTEXT_TERMS = (
     "worried",
 )
 
+_COMPANY_ALIAS_CONTEXT_TERMS = (
+    " analyst ",
+    " downgrade",
+    " earnings",
+    " guidance",
+    " price target",
+    " q1 ",
+    " q2 ",
+    " q3 ",
+    " q4 ",
+    " quarterly",
+    " revenue",
+    " shares",
+    " stock ",
+    " upgrade",
+)
+
+_BROAD_MARKET_STOCK_TERMS = (
+    "stock futures",
+    "stock market",
+    "stocks are",
+    "stocks fall",
+    "stocks gain",
+    "stocks move",
+    "stocks rally",
+    "stocks rise",
+    "stocks slip",
+)
+
 _RISK_WORDS = (
     "decline",
     "declines",
@@ -511,10 +540,19 @@ def resolve_instrument_for_candidate(
     symbol = detect_instrument_symbol(candidate)
     if symbol:
         return symbol, resolve_instrument_by_symbol(symbol, executor=executor)
+    if not should_attempt_company_alias_lookup(candidate):
+        return None, None
     instrument = resolve_instrument_by_company_alias(candidate, executor=executor)
     if instrument is not None:
         return instrument.primary_symbol, instrument
     return None, None
+
+
+def should_attempt_company_alias_lookup(candidate: NewsRssEventEnrichmentCandidate) -> bool:
+    text = f" {_candidate_text(candidate)} "
+    if any(term in text for term in _BROAD_MARKET_STOCK_TERMS):
+        return False
+    return any(term in text for term in _COMPANY_ALIAS_CONTEXT_TERMS)
 
 
 def infer_impact_direction_and_strength(candidate: NewsRssEventEnrichmentCandidate) -> tuple[str, float]:

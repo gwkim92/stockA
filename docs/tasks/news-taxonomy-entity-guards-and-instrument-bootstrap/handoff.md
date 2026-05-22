@@ -19,11 +19,13 @@
 - `run_news_missing_instrument_bootstrap()`을 추가했다. pending RSS news에서 감지된 missing ticker를 SEC `company_tickers_exchange` universe와 대조하고, Nasdaq/NYSE에서 검증된 symbol만 `ref.instrument`에 bootstrap한다.
 - `stockanalysis-operations news-missing-instrument-bootstrap-run` CLI를 추가했다.
 - `news-intraday` 자동 프로파일 순서를 `RSS 수집 -> 누락 티커 SEC bootstrap -> rule enrichment -> cluster evidence -> Codex OAuth AI evidence -> macro propagation`으로 보강했다.
+- EC2 smoke 중 `news-rss-enrich-run --limit 100`이 FOMC 같은 거시 뉴스에서도 `ref.instrument` 회사명 alias lookup을 수행해 느려지는 병목을 발견했다. 회사명 alias lookup은 `stock`, `shares`, `earnings`, `revenue`, `upgrade`, `downgrade`, `price target` 같은 종목형 문맥이 있을 때만 수행하도록 가드했다.
 
 ## Verification
 
 - 통과: `PYTHONPATH=src /opt/homebrew/bin/python3.13 -m unittest tests.test_news_rss_enrichment tests.test_data_operations_cli tests.test_operating_data_orchestrator tests.test_data_operations_cadence -v`
+- 통과: `PYTHONPATH=src /private/tmp/stockanalysis-runtime/verify-venv/bin/python -m unittest discover -s tests`
 
 ## Exact Next Step
 
-- exact next step: run full local verification, deploy to EC2, run `news-missing-instrument-bootstrap-run --dry-run` then execute only if SEC-verified missing symbols exist, and re-run `news-intraday` profile smoke.
+- exact next step: commit/push alias lookup guard, deploy to EC2, re-run `news-rss-enrich-run --limit 100`, then complete EC2 task smoke.

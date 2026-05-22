@@ -254,6 +254,24 @@ class NewsRssEnrichmentTests(unittest.TestCase):
         self.assertIsNotNone(instrument)
         self.assertEqual(instrument.primary_symbol if instrument else None, "INTU")
 
+    def test_company_alias_resolution_skips_macro_news_without_stock_context(self) -> None:
+        executor = FakeExecutor()
+        candidate = NewsRssEventEnrichmentCandidate(
+            event_id=35,
+            event_type="news_rss_item",
+            dedupe_key="news_rss:x",
+            title="Minutes of the Federal Open Market Committee, April 28-29, 2026",
+            summary="Officials debated inflation and rate risks.",
+            source_name="rss_news:macro-rates-fed",
+            external_document_id="rss:x",
+        )
+
+        symbol, instrument = resolve_instrument_for_candidate(candidate, executor=executor)
+
+        self.assertIsNone(symbol)
+        self.assertIsNone(instrument)
+        self.assertFalse(any("instrument_aliases" in sql for sql in executor.scalar_sql))
+
     def test_run_news_rss_event_enrichment_dry_run_does_not_write(self) -> None:
         executor = FakeExecutor(run_id=1202)
         summary = run_news_rss_event_enrichment(
