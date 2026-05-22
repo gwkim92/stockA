@@ -238,6 +238,47 @@ class NewsRssClusterEvidenceTests(unittest.TestCase):
         self.assertTrue(all(cluster.story_key.startswith("story-") for cluster in clusters))
         self.assertTrue(all(json.loads(cluster.output_json())["cluster"]["story_label"] for cluster in clusters))
 
+    def test_build_news_rss_clusters_splits_us_market_breadth_by_story(self) -> None:
+        events = (
+            NewsRssClusterEvidenceEvent(
+                event_id=211,
+                document_id=611,
+                event_type="news_rss_item",
+                title="Quantum stocks soar as the Trump administration looks to be buying in",
+                summary="Speculative quantum names rally on policy funding headlines.",
+                event_at="2026-05-21T20:45:00+00:00",
+                source_name="rss_news:marketwatch-topstories",
+                external_document_id="rss:marketwatch-topstories:quantum",
+                theme_key="US_MARKET_BREADTH",
+                theme_name="US Market Breadth",
+                impact_direction="watch",
+                impact_score=0.55,
+                symbol="QUBT",
+            ),
+            NewsRssClusterEvidenceEvent(
+                event_id=212,
+                document_id=612,
+                event_type="news_rss_item",
+                title="Bond market flips as Treasury yields fall",
+                summary="Rates traders reassess duration risk.",
+                event_at="2026-05-21T17:41:00+00:00",
+                source_name="rss_news:marketwatch-topstories",
+                external_document_id="rss:marketwatch-topstories:bonds",
+                theme_key="US_MARKET_BREADTH",
+                theme_name="US Market Breadth",
+                impact_direction="watch",
+                impact_score=0.60,
+                symbol="SPY",
+            ),
+        )
+
+        clusters = build_news_rss_clusters(events, as_of_date=date(2026, 5, 22), max_clusters=4)
+
+        self.assertEqual(len(clusters), 2)
+        self.assertEqual({cluster.theme_key for cluster in clusters}, {"US_MARKET_BREADTH"})
+        self.assertEqual(len({cluster.story_key for cluster in clusters}), 2)
+        self.assertTrue(all(cluster.story_key.startswith("story-") for cluster in clusters))
+
     def test_build_news_rss_clusters_filters_single_broad_market_noise_without_symbol(self) -> None:
         events = (
             NewsRssClusterEvidenceEvent(

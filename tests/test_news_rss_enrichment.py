@@ -109,6 +109,7 @@ class NewsRssEnrichmentTests(unittest.TestCase):
         sql = render_news_rss_classification_bootstrap_sql()
 
         self.assertIn("MARKET_NEWS_FLOW", sql)
+        self.assertIn("QUANTUM_COMPUTING_POLICY", sql)
         self.assertIn("AI_SEMICONDUCTOR_CYCLE", sql)
         self.assertIn("MACRO_RATES_FED", sql)
         self.assertIn("insert into ref.classification_edge", sql)
@@ -147,6 +148,21 @@ class NewsRssEnrichmentTests(unittest.TestCase):
 
         self.assertEqual(classify_theme(candidate).node_code, "AI_SEMICONDUCTOR_CYCLE")
         self.assertEqual(detect_instrument_symbol(candidate), "NVDA")
+        self.assertEqual(infer_impact_direction_and_strength(candidate)[0], "supportive")
+
+    def test_rule_classification_detects_quantum_policy_news(self) -> None:
+        candidate = NewsRssEventEnrichmentCandidate(
+            event_id=55,
+            event_type="news_rss_item",
+            dedupe_key="news_rss:rss:marketwatch-topstories:quantum",
+            title="Quantum stocks soar as the Trump administration looks to be buying in",
+            summary="The administration is considering funding and stakes in quantum computing companies.",
+            source_name="rss_news:marketwatch-topstories",
+            external_document_id="rss:marketwatch-topstories:quantum",
+        )
+
+        self.assertEqual(classify_theme(candidate).node_code, "QUANTUM_COMPUTING_POLICY")
+        self.assertEqual(detect_instrument_symbol(candidate), "QUBT")
         self.assertEqual(infer_impact_direction_and_strength(candidate)[0], "supportive")
 
     def test_company_alias_resolution_links_obvious_named_company(self) -> None:

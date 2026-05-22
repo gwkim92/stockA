@@ -3615,7 +3615,7 @@ filtered_cluster_artifacts as (
         where coalesce(nullif(cluster_summary ->> 'as_of_date', '')::date, created_at::date) <= {sql_date(as_of_date)}
           and not (
               coalesce(nullif(cluster_summary ->> 'story_key', ''), 'theme') = 'theme'
-              and cluster_summary ->> 'theme_key' in ('MARKET_NEWS_FLOW', 'UNCLASSIFIED')
+              and cluster_summary ->> 'theme_key' in ('MARKET_NEWS_FLOW', 'US_MARKET_BREADTH', 'UNCLASSIFIED')
               and exists (
                   select 1
                   from raw_cluster_artifacts story_split_artifact

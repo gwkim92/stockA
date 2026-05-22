@@ -81,7 +81,28 @@ _FEED_THEME_MAP: dict[str, _ThemeTarget] = {
     ),
 }
 
+_QUANTUM_THEME = _ThemeTarget(
+    node_code="QUANTUM_COMPUTING_POLICY",
+    node_type="subtheme",
+    impact_direction="watch",
+    impact_strength=0.64,
+    confidence=0.82,
+    rationale="News mentions quantum computing, quantum stocks, or government policy support for quantum technology.",
+)
+
 _THEME_KEYWORD_TARGETS: tuple[tuple[str, tuple[str, ...]], ...] = (
+    (
+        "QUANTUM_COMPUTING_POLICY",
+        (
+            "quantum",
+            "quantum computing",
+            "quantum computer",
+            "quantum stocks",
+            "qubt",
+            "rigetti",
+            "ionq",
+        ),
+    ),
     ("AI_SEMICONDUCTOR_CYCLE", ("nvidia", "nvda", "gpu", "h200", "semiconductor", "chip", "artificial intelligence")),
     ("MACRO_RATES_FED", ("fed", "federal reserve", "treasury", "yield", "inflation", "interest rate", "rates")),
     ("ENERGY_GEOPOLITICS", ("oil", "energy", "crude", "opec", "geopolitic", "war")),
@@ -89,10 +110,11 @@ _THEME_KEYWORD_TARGETS: tuple[tuple[str, tuple[str, ...]], ...] = (
 )
 
 _THEME_BY_CODE: dict[str, _ThemeTarget] = {
-    target.node_code: target for target in (*_FEED_THEME_MAP.values(), _DEFAULT_THEME)
+    target.node_code: target for target in (*_FEED_THEME_MAP.values(), _QUANTUM_THEME, _DEFAULT_THEME)
 }
 
 _SYMBOL_KEYWORDS: tuple[tuple[str, tuple[str, ...]], ...] = (
+    ("QUBT", ("qubt", "quantum computing inc", "quantum computing stock", "quantum stocks")),
     ("NVDA", ("nvidia", "nvda", "h200", "gpu")),
     ("AAPL", ("apple", "aapl", "iphone")),
     ("MSFT", ("microsoft", "msft", "azure")),
@@ -129,9 +151,12 @@ _SUPPORTIVE_WORDS = (
     "higher",
     "improve",
     "improves",
+    "funding",
     "jump",
     "jumps",
     "rally",
+    "soar",
+    "soars",
     "surge",
     "survived",
 )

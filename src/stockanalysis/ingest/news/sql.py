@@ -267,6 +267,7 @@ insert into ref.classification_node (
 values
     ('internal_theme', 'theme', 'MARKET_NEWS_FLOW', 'Market News Flow', 'Credential-free news flow used as an early warning layer before AI enrichment.', 'active'),
     ('internal_theme', 'subtheme', 'US_MARKET_BREADTH', 'US Market Breadth', 'Broad US equity index, breadth, futures, and risk appetite news.', 'active'),
+    ('internal_theme', 'subtheme', 'QUANTUM_COMPUTING_POLICY', 'Quantum Computing Policy', 'Quantum computing equities, public funding, government stake policy, and quantum technology commercialization news.', 'active'),
     ('internal_theme', 'subtheme', 'AI_SEMICONDUCTOR_CYCLE', 'AI Semiconductor Cycle', 'AI accelerator, semiconductor capex, GPU supply, and compute demand news.', 'active'),
     ('internal_theme', 'subtheme', 'MACRO_RATES_FED', 'Macro Rates and Fed', 'Rates, inflation, Treasury market, Fed credibility, and policy path news.', 'active'),
     ('internal_theme', 'subtheme', 'ENERGY_GEOPOLITICS', 'Energy and Geopolitics', 'Oil, energy supply, commodity shock, and geopolitical risk news.', 'active')
@@ -286,6 +287,7 @@ with parent_node as (
 edge_rows(child_code) as (
     values
         ('US_MARKET_BREADTH'),
+        ('QUANTUM_COMPUTING_POLICY'),
         ('AI_SEMICONDUCTOR_CYCLE'),
         ('MACRO_RATES_FED'),
         ('ENERGY_GEOPOLITICS')

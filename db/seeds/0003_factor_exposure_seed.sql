@@ -105,6 +105,7 @@ exposure_seed (symbol, node_code, exposure_weight, sensitivity_direction, confid
         ('SPY', 'US_MARKET_BREADTH', 0.8000::numeric, 'positive', 0.7500::numeric, 'Broad market ETF maps directly to US market breadth.'),
         ('QQQ', 'US_MARKET_BREADTH', 0.8000::numeric, 'positive', 0.7500::numeric, 'Growth-heavy market ETF tends to follow broad risk appetite.'),
         ('TSLA', 'US_MARKET_BREADTH', 0.5500::numeric, 'positive', 0.6000::numeric, 'High-beta equity tends to be sensitive to broad market risk appetite.'),
+        ('QUBT', 'QUANTUM_COMPUTING_POLICY', 0.9000::numeric, 'positive', 0.7600::numeric, 'Quantum Computing Inc. is directly exposed to quantum computing funding and commercialization headlines.'),
         ('XLE', 'ENERGY_GEOPOLITICS', 0.8000::numeric, 'positive', 0.8000::numeric, 'Energy sector ETF benefits from oil supply/geopolitical shock pricing.'),
         ('XOM', 'ENERGY_GEOPOLITICS', 0.7500::numeric, 'positive', 0.8000::numeric, 'Integrated energy major has positive oil-price and geopolitical risk exposure.'),
         ('NVDA', 'AI_SEMICONDUCTOR_CYCLE', 0.9000::numeric, 'positive', 0.8500::numeric, 'GPU leader is highly exposed to AI semiconductor capex cycles.'),
