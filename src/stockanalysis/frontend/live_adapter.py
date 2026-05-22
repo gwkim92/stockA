@@ -983,6 +983,9 @@ def build_live_event_list_response(
             "summary": {
                 "event_count": int(summary.get("event_count") or len(events)),
                 "ai_extracted_count": int(summary.get("ai_extracted_count") or 0),
+                "news_event_candidate_count": int(summary.get("news_event_candidate_count") or 0),
+                "news_cluster_summary_count": int(summary.get("news_cluster_summary_count") or 0),
+                "unreviewed_event_count": int(summary.get("unreviewed_event_count") or 0),
                 "source_document_count": int(summary.get("source_document_count") or 0),
                 "themes_represented": int(summary.get("themes_represented") or 0),
             },
@@ -2505,14 +2508,22 @@ raw_recent_events as (
       on document_link.event_id = event_row.event_id
      and document_link.link_type = 'source'
     left join ingest.source_document source_document on source_document.document_id = document_link.document_id
-    left join lateral (
-        select artifact_id
-        from ai.extraction_artifact artifact
-        where artifact.event_id = event_row.event_id
-           or artifact.document_id = source_document.document_id
-        order by artifact.artifact_id desc
-        limit 1
-    ) evidence on true
+	    left join lateral (
+	        select artifact_id
+	        from ai.extraction_artifact artifact
+	        where artifact.event_id = event_row.event_id
+	           or artifact.document_id = source_document.document_id
+	        order by
+	            case when artifact.event_id = event_row.event_id then 0 else 1 end,
+	            case artifact.artifact_type
+	                when 'news_event_candidate' then 0
+	                when 'source_document_event' then 1
+	                when 'news_cluster_summary' then 2
+	                else 3
+	            end,
+	            artifact.artifact_id desc
+	        limit 1
+	    ) evidence on true
     join target_date target on event_row.event_at < (target.as_of_date + interval '1 day')
 ),
 recent_events as (
@@ -2571,11 +2582,19 @@ macro_flow_impacts as (
     left join lateral (
         select artifact_id
         from ai.extraction_artifact artifact
-        where artifact.event_id = event_row.event_id
-           or artifact.document_id = source_document.document_id
-        order by artifact.artifact_id desc
-        limit 1
-    ) evidence on true
+	        where artifact.event_id = event_row.event_id
+	           or artifact.document_id = source_document.document_id
+	        order by
+	            case when artifact.event_id = event_row.event_id then 0 else 1 end,
+	            case artifact.artifact_type
+	                when 'news_event_candidate' then 0
+	                when 'source_document_event' then 1
+	                when 'news_cluster_summary' then 2
+	                else 3
+	            end,
+	            artifact.artifact_id desc
+	        limit 1
+	    ) evidence on true
     join target_date target on event_row.event_at < (target.as_of_date + interval '1 day')
     order by event_row.event_at desc, event_row.event_id desc, node.code
     limit 8
@@ -3332,7 +3351,15 @@ with filtered_event_rows as (
         left join ai.model_invocation invocation on invocation.invocation_id = artifact.invocation_id
         where artifact.event_id = event_row.event_id
            or artifact.document_id = source_document.document_id
-        order by artifact.artifact_id desc
+        order by
+            case when artifact.event_id = event_row.event_id then 0 else 1 end,
+            case artifact.artifact_type
+                when 'news_event_candidate' then 0
+                when 'source_document_event' then 1
+                when 'news_cluster_summary' then 2
+                else 3
+            end,
+            artifact.artifact_id desc
         limit 1
     ) evidence on true
     where event_row.event_at < ({sql_date(as_of_date)} + interval '1 day')
@@ -3351,6 +3378,9 @@ select json_build_object(
     json_build_object(
         'event_count', (select count(*)::int from filtered_event_rows),
         'ai_extracted_count', (select count(*) filter (where ai_evidence_id is not null)::int from filtered_event_rows),
+        'news_event_candidate_count', (select count(*) filter (where ai_evidence_type = 'news_event_candidate')::int from filtered_event_rows),
+        'news_cluster_summary_count', (select count(*) filter (where ai_evidence_type = 'news_cluster_summary')::int from filtered_event_rows),
+        'unreviewed_event_count', (select count(*) filter (where ai_evidence_id is null)::int from filtered_event_rows),
         'source_document_count', (select count(distinct raw_source_document_id)::int from filtered_event_rows where raw_source_document_id is not null),
         'themes_represented', (select count(distinct theme_key)::int from filtered_event_rows where theme_key is not null)
     ),

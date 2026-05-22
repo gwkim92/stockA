@@ -1,0 +1,38 @@
+# Session Handoff
+
+## Current Status
+
+- 상태: local_verified
+- 기준일: 2026-05-22
+- 완료:
+  - `/events`와 `/ai-evidence` 화면 코드를 확인했다.
+  - live adapter가 같은 이벤트/문서의 최신 artifact를 고르기 때문에 `news_cluster_summary`가 개별 후보처럼 보이는 root cause를 확인했다.
+  - event list evidence 선택 우선순위를 `news_event_candidate`, `source_document_event`, `news_cluster_summary` 순으로 바꿨다.
+  - event summary에 개별 후보, 뉴스 묶음, 미검토 카운트를 추가했다.
+  - `/events`와 `/ai-evidence` 문구/목록을 개별 후보와 뉴스 묶음 기준으로 분리했다.
+- 막힌 점:
+  - 없음.
+
+## Planned Fix
+
+- `news_event_candidate`를 event list evidence 우선순위 1순위로 둔다.
+- summary count를 개별 후보와 뉴스 묶음 증거로 분리한다.
+- `/events`와 `/ai-evidence` 문구를 “원장”, “개별 후보”, “뉴스 묶음” 기준으로 정리한다.
+
+## Verification Log
+
+- PASS: `PYTHONPATH=src /opt/homebrew/bin/python3.13 -m unittest tests.test_frontend_live_adapter`
+- PASS: `PYTHONPATH=src /opt/homebrew/bin/python3.13 -m compileall src tests`
+- PASS: `cd apps/web && npm run typecheck`
+- PASS: `cd apps/web && npm run build`
+- PASS: `git diff --check`
+- PASS: `PYTHONPATH=/Users/woody/ai/agent-work-harness/src /opt/homebrew/bin/python3.13 -m awh verify --repo . --task event-ai-evidence-boundary`
+
+## Remaining
+
+- Commit, push, deploy to EC2.
+- EC2 API/page smoke for `/api/events`, `/events`, `/ai-evidence`.
+
+## Exact Next Step
+
+- exact next step: commit and push, then deploy to EC2.

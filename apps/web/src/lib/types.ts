@@ -976,6 +976,9 @@ export type EventListData = {
   summary: {
     event_count: number;
     ai_extracted_count: number;
+    news_event_candidate_count: number;
+    news_cluster_summary_count: number;
+    unreviewed_event_count: number;
     source_document_count: number;
     themes_represented: number;
   };

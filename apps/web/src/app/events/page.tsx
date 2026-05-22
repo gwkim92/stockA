@@ -3,6 +3,7 @@ import type { Route } from "next";
 
 import { getEvents } from "@/lib/frontend-api";
 import { koCode, koLabel } from "@/lib/korean-labels";
+import type { EventListData } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "이벤트" };
@@ -36,12 +37,48 @@ function aiEvidenceLabel(type: string | null) {
   return "AI 분석 대기";
 }
 
-function aiEvidenceDetail(event: { ai_evidence_provider: string | null; ai_evidence_confidence: number | null }) {
+type EventRow = EventListData["events"][number];
+
+function isNewsCandidate(event: EventRow) {
+  return event.ai_evidence_type === "news_event_candidate";
+}
+
+function isNewsClusterSummary(event: EventRow) {
+  return event.ai_evidence_type === "news_cluster_summary";
+}
+
+function evidenceButtonLabel(event: EventRow) {
+  if (isNewsCandidate(event)) {
+    return "개별 AI 후보";
+  }
+  if (isNewsClusterSummary(event)) {
+    return "뉴스 묶음 근거";
+  }
+  return aiEvidenceLabel(event.ai_evidence_type);
+}
+
+function evidenceDetail(event: EventRow) {
   if (!event.ai_evidence_provider) {
-    return "구조화 분석이 아직 연결되지 않았다";
+    return "아직 개별 AI 후보나 묶음 근거가 연결되지 않았다";
   }
   const confidence = event.ai_evidence_confidence === null ? "신뢰도 미제공" : `신뢰도 ${formatPercent(event.ai_evidence_confidence)}`;
-  return `${koCode(event.ai_evidence_provider)} · ${confidence}`;
+  if (isNewsCandidate(event)) {
+    return `개별 AI 후보 · ${koCode(event.ai_evidence_provider)} · ${confidence}`;
+  }
+  if (isNewsClusterSummary(event)) {
+    return `뉴스 묶음 근거 · ${koCode(event.ai_evidence_provider)} · ${confidence}`;
+  }
+  return `${koCode(event.ai_evidence_type)} · ${koCode(event.ai_evidence_provider)} · ${confidence}`;
+}
+
+function evidencePurpose(event: EventRow) {
+  if (isNewsCandidate(event)) {
+    return "이 뉴스 한 건을 AI가 종목, 테마, 방향, 불확실성으로 구조화했다.";
+  }
+  if (isNewsClusterSummary(event)) {
+    return "여러 뉴스를 묶은 보조 근거다. 개별 후보 분석은 아니며 큰 흐름 확인용이다.";
+  }
+  return "아직 AI 구조화 전이다. 원천 문서와 규칙 기반 분류만 확인한다.";
 }
 
 export default async function EventsPage() {
@@ -52,10 +89,10 @@ export default async function EventsPage() {
     <div className="pageStack">
       <section className="reveal">
         <div className="bento-badge">뉴스·이벤트 원장 • {data.as_of_date} • {koCode(data.filters.event_type)}</div>
-        <h1 style={{ fontSize: "clamp(2.25rem, 4vw, 4.2rem)", marginBottom: "16px" }}>뉴스가 어떤 근거로 해석됐는지 확인한다</h1>
-        <p style={{ color: "var(--text-secondary)", fontSize: "1.1rem", maxWidth: "760px" }}>
-          무료 RSS 뉴스와 공시는 이벤트 원장에 저장되고, 중요한 뉴스는 뉴스 AI 후보로 승격된다.
-          각 행의 AI 후보 링크를 열면 AI가 판단한 테마, 종목, 방향, 불확실성을 볼 수 있다.
+          <h1 style={{ fontSize: "clamp(2.25rem, 4vw, 4.2rem)", marginBottom: "16px" }}>뉴스가 어떤 근거로 해석됐는지 확인한다</h1>
+          <p style={{ color: "var(--text-secondary)", fontSize: "1.1rem", maxWidth: "760px" }}>
+          이 화면은 모든 뉴스와 공시가 들어오는 원장이다. 개별 AI 후보는 한 뉴스의 추출 결과이고,
+          뉴스 묶음 근거는 여러 뉴스를 같은 흐름으로 묶은 보조 증거다.
         </p>
       </section>
 
@@ -66,19 +103,19 @@ export default async function EventsPage() {
           <span className="metric-sub">DB 이벤트 행</span>
         </article>
         <article className="bento-card">
-          <span className="metric-label">AI 해석 완료</span>
-          <strong className="metric-value">{data.summary.ai_extracted_count}</strong>
-          <span className="metric-sub">구조화 분석으로 승격된 건</span>
+          <span className="metric-label">개별 AI 후보</span>
+          <strong className="metric-value">{data.summary.news_event_candidate_count}</strong>
+          <span className="metric-sub">한 뉴스 단위 구조화</span>
         </article>
         <article className="bento-card">
-          <span className="metric-label">원천 문서</span>
-          <strong className="metric-value">{data.summary.source_document_count}</strong>
-          <span className="metric-sub">증거에 연결됨</span>
+          <span className="metric-label">뉴스 묶음</span>
+          <strong className="metric-value">{data.summary.news_cluster_summary_count}</strong>
+          <span className="metric-sub">흐름 보조 근거</span>
         </article>
         <article className="bento-card">
-          <span className="metric-label">테마</span>
-          <strong className="metric-value">{data.summary.themes_represented}</strong>
-          <span className="metric-sub">연결된 테마</span>
+          <span className="metric-label">미검토</span>
+          <strong className="metric-value">{data.summary.unreviewed_event_count}</strong>
+          <span className="metric-sub">AI 근거 미연결</span>
         </article>
       </section>
 
@@ -87,6 +124,9 @@ export default async function EventsPage() {
           <div style={{ marginBottom: "24px" }}>
             <span className="metric-sub">이벤트 원장</span>
             <h2 style={{ fontSize: "1.5rem" }}>오늘 수집된 뉴스와 이벤트</h2>
+            <p className="relationship-empty">
+              개별 AI 후보는 투자 근거 검토용이고, 뉴스 묶음 근거는 시장 흐름 확인용이다. 두 종류를 같은 결론으로 읽으면 안 된다.
+            </p>
           </div>
 
           <div className="bento-list">
@@ -117,7 +157,7 @@ export default async function EventsPage() {
                       )}
                       {evidenceLink ? (
                         <Link className="btn btn-secondary" href={evidenceLink}>
-                          {aiEvidenceLabel(event.ai_evidence_type)}
+                          {evidenceButtonLabel(event)}
                         </Link>
                       ) : null}
                       {documentLink ? (
@@ -157,7 +197,8 @@ export default async function EventsPage() {
                       {koCode(event.impact_direction)}
                     </strong>
                     <span>영향도 {formatPercent(event.impact_score)}</span>
-                    <span>{aiEvidenceDetail(event)}</span>
+                    <span>{evidenceDetail(event)}</span>
+                    <span>{evidencePurpose(event)}</span>
                     <span>{koCode(event.quality_gate)}</span>
                   </div>
                 </div>

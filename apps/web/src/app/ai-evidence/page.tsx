@@ -27,6 +27,7 @@ export default async function AiEvidenceIndexPage() {
   const data = response.data;
   const candidates = data.events.filter((event) => event.ai_evidence_id);
   const newsCandidates = candidates.filter((event) => event.ai_evidence_type === "news_event_candidate");
+  const clusterEvidenceCount = candidates.filter((event) => event.ai_evidence_type === "news_cluster_summary").length;
 
   return (
     <div className="pageStack">
@@ -38,8 +39,8 @@ export default async function AiEvidenceIndexPage() {
           </h1>
         </div>
         <p className="page-lede">
-          이 화면은 RSS 뉴스 중 AI 구조화가 붙은 항목만 모은 입구다. 각 카드를 열면 AI가 어떤 테마, 종목,
-          영향 방향, 불확실성을 추출했는지 확인할 수 있다.
+          이 화면은 한 뉴스 단위로 AI가 구조화한 후보만 모은다. 여러 뉴스를 묶은 흐름 증거는
+          뉴스·AI 판단 화면에서 따로 확인한다.
         </p>
       </section>
 
@@ -47,7 +48,7 @@ export default async function AiEvidenceIndexPage() {
         <div className="rail-cell">
           <span>AI 연결 이벤트</span>
           <strong>{candidates.length}</strong>
-          <small>상세 근거로 이동 가능한 뉴스</small>
+          <small>개별 후보와 묶음 근거 전체</small>
         </div>
         <div className="rail-cell">
           <span>개별 뉴스 후보</span>
@@ -55,9 +56,9 @@ export default async function AiEvidenceIndexPage() {
           <small>테마·종목·방향 추출 대상</small>
         </div>
         <div className="rail-cell">
-          <span>원천 문서</span>
-          <strong>{data.summary.source_document_count}</strong>
-          <small>뉴스와 공시의 출처</small>
+          <span>뉴스 묶음 근거</span>
+          <strong>{clusterEvidenceCount}</strong>
+          <small>목록에서는 제외, 뉴스·AI에서 확인</small>
         </div>
         <div className="rail-cell">
           <span>품질 기준</span>
@@ -72,12 +73,11 @@ export default async function AiEvidenceIndexPage() {
           <h2 id="ai-evidence-candidate-list-title">개별 뉴스 후보 분석 목록</h2>
         </div>
 
-        {candidates.length > 0 ? (
+        {newsCandidates.length > 0 ? (
           <div className="trace-grid">
-            {candidates.map((event) => {
+            {newsCandidates.map((event) => {
               const evidenceLink = evidenceHref(event.ai_evidence_id as string);
               const documentLink = sourceDocumentHref(event.source_document_id);
-              const isCandidate = event.ai_evidence_type === "news_event_candidate";
 
               return (
                 <article className="trace-card" key={`${event.event_id}-${event.ai_evidence_id}`}>
@@ -88,18 +88,14 @@ export default async function AiEvidenceIndexPage() {
                       </span>
                       <h3>{koLabel(event.title)}</h3>
                     </div>
-                    <span className="relation-pill">{isCandidate ? "개별 후보" : koCode(event.ai_evidence_type)}</span>
+                    <span className="relation-pill">개별 후보</span>
                   </div>
 
-                  <div className="evidence-strip">
-                    <span>분석 상태</span>
-                    <strong>{koCode(event.ai_evidence_provider)} · {formatPercent(event.ai_evidence_confidence)}</strong>
-                    <p>
-                      {isCandidate
-                        ? "AI가 뉴스 한 건을 테마, 종목, 방향, 불확실성으로 구조화했다."
-                        : "여러 뉴스를 같은 테마 흐름으로 묶은 보조 증거다."}
-                    </p>
-                  </div>
+	                  <div className="evidence-strip">
+	                    <span>분석 상태</span>
+	                    <strong>{koCode(event.ai_evidence_provider)} · {formatPercent(event.ai_evidence_confidence)}</strong>
+	                    <p>AI가 뉴스 한 건을 테마, 종목, 방향, 불확실성으로 구조화했다.</p>
+	                  </div>
 
                   <div className="relationship-panel" aria-label={`${event.title} AI 후보 연결`}>
                     <span>추천 판단에 들어가기 전 확인할 내용</span>
@@ -141,7 +137,7 @@ export default async function AiEvidenceIndexPage() {
           </div>
         ) : (
           <div className="empty-state">
-            아직 AI 구조화가 붙은 뉴스 후보가 없다. 뉴스 수집과 뉴스 AI 분석 배치가 실행되면 이 목록에 표시된다.
+            아직 개별 뉴스 AI 후보가 없다. 뉴스 묶음 근거는 <Link href="/intelligence">뉴스·AI 판단</Link>에서 확인한다.
           </div>
         )}
       </section>

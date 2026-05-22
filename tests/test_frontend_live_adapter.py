@@ -571,6 +571,9 @@ class FakeLiveExecutor:
                     "summary": {
                         "event_count": 1,
                         "ai_extracted_count": 1,
+                        "news_event_candidate_count": 1,
+                        "news_cluster_summary_count": 0,
+                        "unreviewed_event_count": 0,
                         "source_document_count": 1,
                         "themes_represented": 1,
                     },
@@ -2232,6 +2235,9 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertEqual(payload["data"]["filters"]["event_type"], "all")
         self.assertEqual(payload["data"]["summary"]["event_count"], 1)
         self.assertEqual(payload["data"]["summary"]["ai_extracted_count"], 1)
+        self.assertEqual(payload["data"]["summary"]["news_event_candidate_count"], 1)
+        self.assertEqual(payload["data"]["summary"]["news_cluster_summary_count"], 0)
+        self.assertEqual(payload["data"]["summary"]["unreviewed_event_count"], 0)
         event = payload["data"]["events"][0]
         self.assertEqual(event["event_id"], "event-9001")
         self.assertEqual(event["symbol"], "AAPL")
@@ -2595,6 +2601,11 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertIn("artifact.document_id = source_document.document_id", event_sql)
         self.assertIn("artifact.artifact_type", event_sql)
         self.assertIn("invocation.provider", event_sql)
+        self.assertIn("when 'news_event_candidate' then 0", event_sql)
+        self.assertIn("when 'news_cluster_summary' then 2", event_sql)
+        self.assertIn("'news_event_candidate_count'", event_sql)
+        self.assertIn("'news_cluster_summary_count'", event_sql)
+        self.assertIn("'unreviewed_event_count'", event_sql)
         self.assertIn("document_instrument", event_sql)
         self.assertIn("left join lateral", event_sql)
         self.assertIn("impact.confidence desc nulls last", event_sql)
