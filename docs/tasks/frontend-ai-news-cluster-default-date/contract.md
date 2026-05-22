@@ -51,6 +51,6 @@
 
 ## Done Criteria
 
-- [ ] `resolve_live_frontend_response("/api/ai/news-clusters?limit=10")` returns data with today/default `as_of_date`.
-- [ ] SQL pagination still uses `limit + 1`.
-- [ ] EC2 API returns 200 for `/api/ai/news-clusters?limit=10`.
+- [x] `resolve_live_frontend_response("/api/ai/news-clusters?limit=10")` returns data with today/default `as_of_date`.
+- [x] SQL pagination still uses `limit + 1`.
+- [x] EC2 API returns 200 for `/api/ai/news-clusters?limit=10`.
