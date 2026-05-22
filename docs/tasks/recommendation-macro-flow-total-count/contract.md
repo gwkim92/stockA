@@ -58,4 +58,4 @@
 - [x] `propagated_impact_count` is not limited by preview row limit.
 - [x] UI explains that visible rows are recent examples.
 - [x] Local verification and AWH pass.
-- [ ] EC2 deploy and browser smoke pass.
+- [x] EC2 deploy and browser smoke pass.
