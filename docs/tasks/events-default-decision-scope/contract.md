@@ -54,8 +54,8 @@
 
 ## Done Criteria
 
-- [ ] `/events` 기본 목록은 개별 AI 후보를 우선 보여준다.
-- [ ] `/events` 기본 목록은 저신뢰 broad/no-symbol 후보를 먼저 보여주지 않는다.
-- [ ] `/events` raw 원장은 접힘 영역에서 확인할 수 있다.
-- [ ] 페이지 문구가 “무엇을 봐야 하는지”를 명확히 설명한다.
-- [ ] local verification과 EC2 render smoke가 통과한다.
+- [x] `/events` 기본 목록은 개별 AI 후보를 우선 보여준다.
+- [x] `/events` 기본 목록은 저신뢰 broad/no-symbol 후보를 먼저 보여주지 않는다.
+- [x] `/events` raw 원장은 접힘 영역에서 확인할 수 있다.
+- [x] 페이지 문구가 “무엇을 봐야 하는지”를 명확히 설명한다.
+- [x] local verification과 EC2 render smoke가 통과한다.
