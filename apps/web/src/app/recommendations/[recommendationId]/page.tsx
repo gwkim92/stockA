@@ -18,6 +18,17 @@ function formatPercent(value: number) {
 
 type ScoreComponent = RecommendationDetailData["score_components"][number];
 
+function macroFlowRows(component: ScoreComponent) {
+  if (component.provenance?.source_type !== "macro_flow_propagation") {
+    return [];
+  }
+  return component.provenance.evidence?.recent_flows ?? [];
+}
+
+function themeHref(themeKey: string | null | undefined) {
+  return themeKey ? (`/themes/${encodeURIComponent(themeKey)}` as Route) : null;
+}
+
 function formatMetricValue(value: number | null | undefined) {
   if (value === null || value === undefined) {
     return "값 없음";
@@ -136,6 +147,9 @@ function evidenceLinkLabel(evidenceId: string) {
   if (evidenceId.startsWith("event-") || evidenceId.startsWith("sec-event-")) {
     return "이벤트 원장 열기";
   }
+  if (evidenceId.startsWith("macro-flow-")) {
+    return "종목 상세에서 흐름 보기";
+  }
   return "근거 화면 열기";
 }
 
@@ -242,6 +256,7 @@ export default async function RecommendationPage({ params }: RecommendationPageP
   const evidenceReview = data.evidence_review;
   const qualityDecision = recommendationQualityDecision(data);
   const qualityChecks = recommendationQualityChecks(data);
+  const macroFlowComponents = data.score_components.filter((component) => macroFlowRows(component).length > 0);
   const outcomeMeasured = data.outcome.label !== "unmeasured" && Boolean(data.outcome.measurement_end_date);
 
   return (
@@ -298,6 +313,57 @@ export default async function RecommendationPage({ params }: RecommendationPageP
           ))}
         </div>
       </section>
+
+      {macroFlowComponents.length > 0 ? (
+        <section className="bento-card reveal delay-1" aria-label="상위 흐름 전파 경로">
+          <div style={{ marginBottom: "22px" }}>
+            <span className="metric-sub">상위 흐름 전파 경로</span>
+            <h2 style={{ fontSize: "1.5rem", marginTop: "6px" }}>시장·테마 뉴스가 {data.symbol} 점수에 들어간 방식</h2>
+            <p style={{ color: "var(--text-secondary)", marginTop: "8px", maxWidth: "820px" }}>
+              이 패널은 종목을 직접 언급하지 않은 뉴스가 테마와 종목 노출도 규칙을 거쳐 추천 점수의
+              `macro_flow_score`로 들어간 경로다. AI가 주문을 결정한 것이 아니라, 구조화된 흐름이 점수 입력으로만 쓰였다.
+            </p>
+          </div>
+
+          <div className="bento-list">
+            {macroFlowComponents.map((component) => {
+              const rows = macroFlowRows(component);
+              return (
+                <div className="bento-list-item" key={component.component} style={{ alignItems: "flex-start", flexDirection: "column" }}>
+                  <div style={{ width: "100%", display: "flex", justifyContent: "space-between", gap: "16px", flexWrap: "wrap" }}>
+                    <div>
+                      <span className="metric-sub">{koCode(component.component)}</span>
+                      <strong>{formatPercent(component.value)} · 가중치 {formatPercent(component.weight)}</strong>
+                    </div>
+                    <span style={{ color: "var(--text-secondary)" }}>
+                      전파 근거 {component.provenance?.evidence?.propagated_impact_count ?? rows.length}개
+                    </span>
+                  </div>
+
+                  <div className="relationship-list" aria-label={`${data.symbol} 상위 흐름 전파 근거`}>
+                    {rows.map((flow) => {
+                      const href = themeHref(flow.theme_key);
+                      return (
+                        <div className="relationship-chip" key={`${component.component}-${flow.event_id}-${flow.theme_key}`}>
+                          <span>{koCode(flow.theme_key)}</span>
+                          <strong>{koLabel(flow.title)}</strong>
+                          <small>
+                            {koCode(flow.impact_direction)} · 강도 {formatMetricValue(flow.impact_strength)} · 신뢰도 {formatMetricValue(flow.confidence)}
+                          </small>
+                          <small>
+                            노출도 {formatMetricValue(flow.exposure_weight)} · 발생 {flow.event_at}
+                          </small>
+                          {href ? <Link href={href}>테마 흐름 보기</Link> : null}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      ) : null}
 
       <section className="bento-card reveal delay-1" aria-label="추천 근거 품질 점검">
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "20px", flexWrap: "wrap", marginBottom: "20px" }}>
