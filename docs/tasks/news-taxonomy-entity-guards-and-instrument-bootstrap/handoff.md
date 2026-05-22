@@ -2,7 +2,7 @@
 
 ## Current Status
 
-- 진행 중: 로컬 구현과 단위 검증 완료. EC2 smoke와 배포 검증 전 단계.
+- 진행 중: 로컬 구현과 단위 검증 완료. EC2 배포 중 data-health 이력 불일치 수정 후 재배포 검증 전 단계.
 - 기준일: 2026-05-22
 
 ## Investigation
@@ -20,6 +20,7 @@
 - `stockanalysis-operations news-missing-instrument-bootstrap-run` CLI를 추가했다.
 - `news-intraday` 자동 프로파일 순서를 `RSS 수집 -> 누락 티커 SEC bootstrap -> rule enrichment -> cluster evidence -> Codex OAuth AI evidence -> macro propagation`으로 보강했다.
 - EC2 smoke 중 `news-rss-enrich-run --limit 100`이 FOMC 같은 거시 뉴스에서도 `ref.instrument` 회사명 alias lookup을 수행해 느려지는 병목을 발견했다. 회사명 alias lookup은 `stock`, `shares`, `earnings`, `revenue`, `upgrade`, `downgrade`, `price target` 같은 종목형 문맥이 있을 때만 수행하도록 가드했다.
+- EC2 배포 중 `news-missing-instrument-bootstrap-intraday` artifact는 성공했지만 `/api/data-health`는 `missing`으로 표시되는 이력 불일치를 확인했다. 원인은 missing ticker가 0개인 정상 실행에서 `ops.pipeline_run`을 남기지 않는 runner 동작이었다. 실제 실행에서는 누락 티커가 0개이거나 SEC matched symbol이 0개여도 pipeline run을 생성하고 succeeded로 마킹하도록 보강했다.
 
 ## Verification
 
@@ -28,4 +29,4 @@
 
 ## Exact Next Step
 
-- exact next step: commit/push alias lookup guard, deploy to EC2, re-run `news-rss-enrich-run --limit 100`, then complete EC2 task smoke.
+- exact next step: commit/push pipeline run tracking fix, deploy to EC2, rerun `news-missing-instrument-bootstrap-run` or `news-intraday`, then confirm `/api/data-health` no longer reports `news-missing-instrument-bootstrap-intraday` as missing.

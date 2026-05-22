@@ -389,6 +389,21 @@ class NewsRssEnrichmentTests(unittest.TestCase):
         self.assertTrue(any("insert into ref.instrument" in sql for sql in executor.non_query_sql))
         self.assertIn("status = 'succeeded'", executor.non_query_sql[-1])
 
+    def test_news_missing_instrument_bootstrap_records_run_when_no_missing_symbols(self) -> None:
+        executor = FakeExecutor(run_id=1209)
+
+        summary = run_news_missing_instrument_bootstrap(
+            config=type("Config", (), {})(),
+            limit=10,
+            executor=executor,
+        )
+
+        self.assertEqual(summary["run_id"], 1209)
+        self.assertEqual(summary["missing_symbol_count"], 0)
+        self.assertEqual(summary["bootstrapped_symbol_count"], 0)
+        self.assertTrue(any("insert into ops.pipeline_run" in sql for sql in executor.scalar_sql))
+        self.assertIn("status = 'succeeded'", executor.non_query_sql[-1])
+
     def test_news_missing_instrument_bootstrap_dry_run_does_not_write(self) -> None:
         executor = FakeExecutor(
             run_id=1208,

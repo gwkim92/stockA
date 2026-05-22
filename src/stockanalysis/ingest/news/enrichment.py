@@ -412,10 +412,25 @@ def run_news_missing_instrument_bootstrap(
         symbol_event_ids[symbol].append(candidate.event_id)
 
     if not missing_symbols:
-        return _empty_missing_instrument_summary(
+        summary = _empty_missing_instrument_summary(
             candidate_event_count=len(candidates),
             dry_run=dry_run,
         )
+        if dry_run:
+            return summary
+        run_id = _create_pipeline_run(
+            sql_executor,
+            pipeline_name="news_missing_instrument_bootstrap",
+            config_json={
+                "limit": limit,
+                "candidate_event_count": len(candidates),
+                "missing_symbols": [],
+                "bootstrapped_symbols": [],
+                "unmatched_symbols": [],
+            },
+        )
+        _mark_pipeline_run_succeeded(sql_executor, run_id)
+        return summary | {"run_id": run_id}
 
     records = load_market_universe_records(
         config=config,
@@ -443,7 +458,22 @@ def run_news_missing_instrument_bootstrap(
         "requested_exchanges": list(selection.requested_exchanges),
     }
     if dry_run or not selected_records:
-        return base_summary
+        if dry_run:
+            return base_summary
+        run_id = _create_pipeline_run(
+            sql_executor,
+            pipeline_name="news_missing_instrument_bootstrap",
+            config_json={
+                "limit": limit,
+                "company_tickers_fixture_path": company_tickers_json_path,
+                "requested_exchanges": list(selection.requested_exchanges),
+                "missing_symbols": missing_symbols,
+                "bootstrapped_symbols": bootstrapped_symbols,
+                "unmatched_symbols": unmatched_symbols,
+            },
+        )
+        _mark_pipeline_run_succeeded(sql_executor, run_id)
+        return base_summary | {"run_id": run_id}
 
     run_id = _create_pipeline_run(
         sql_executor,
