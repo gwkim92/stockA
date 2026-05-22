@@ -54,4 +54,4 @@
 - [x] Recent propagated flow rows are displayed with title/theme/direction/strength/confidence.
 - [x] No API/schema/scoring change is required.
 - [x] Local verification and AWH pass.
-- [ ] EC2 deploy and browser smoke pass.
+- [x] EC2 deploy and browser smoke pass.
