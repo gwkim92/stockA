@@ -25,6 +25,7 @@ DEFAULT_CLUSTER_EVIDENCE_PIPELINE_NAME = "news_rss_cluster_evidence"
 BROAD_STORY_THEME_KEYS = frozenset({"MARKET_NEWS_FLOW", "UNCLASSIFIED"})
 STORY_TOKEN_LIMIT = 8
 STORY_LABEL_TOKEN_LIMIT = 5
+MIN_BROAD_STORY_EVENTS_WITHOUT_SYMBOL = 2
 _STORY_TOKEN_PATTERN = re.compile(r"[a-z0-9][a-z0-9-]{2,}")
 _STORY_STOP_WORDS = frozenset(
     {
@@ -411,6 +412,7 @@ def build_news_rss_clusters(
             story_label=cluster_labels[(theme_key, story_key)],
         )
         for (theme_key, story_key), items in grouped.items()
+        if _should_keep_cluster(theme_key=theme_key, events=items)
     ]
     return tuple(
         sorted(
@@ -455,6 +457,14 @@ def _cluster_story_fingerprint(event: NewsRssClusterEvidenceEvent) -> _StoryFing
         story_key="story-" + "-".join(story_tokens),
         story_label=" ".join(label_tokens).title(),
     )
+
+
+def _should_keep_cluster(*, theme_key: str, events: list[NewsRssClusterEvidenceEvent]) -> bool:
+    if theme_key not in BROAD_STORY_THEME_KEYS:
+        return True
+    if any(event.symbol for event in events):
+        return True
+    return len(events) >= MIN_BROAD_STORY_EVENTS_WITHOUT_SYMBOL
 
 
 def _lookup_existing_artifact(executor: PsqlCommandExecutor, *, request_hash: str) -> int | None:

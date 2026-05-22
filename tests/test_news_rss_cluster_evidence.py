@@ -211,7 +211,7 @@ class NewsRssClusterEvidenceTests(unittest.TestCase):
                 theme_name="Market News Flow",
                 impact_direction="watch",
                 impact_score=0.55,
-                symbol=None,
+                symbol="QUBT",
             ),
             NewsRssClusterEvidenceEvent(
                 event_id=202,
@@ -226,7 +226,7 @@ class NewsRssClusterEvidenceTests(unittest.TestCase):
                 theme_name="Market News Flow",
                 impact_direction="risk_review",
                 impact_score=0.62,
-                symbol=None,
+                symbol="SPY",
             ),
         )
 
@@ -237,6 +237,29 @@ class NewsRssClusterEvidenceTests(unittest.TestCase):
         self.assertEqual(len({cluster.story_key for cluster in clusters}), 2)
         self.assertTrue(all(cluster.story_key.startswith("story-") for cluster in clusters))
         self.assertTrue(all(json.loads(cluster.output_json())["cluster"]["story_label"] for cluster in clusters))
+
+    def test_build_news_rss_clusters_filters_single_broad_market_noise_without_symbol(self) -> None:
+        events = (
+            NewsRssClusterEvidenceEvent(
+                event_id=301,
+                document_id=701,
+                event_type="news_rss_item",
+                title="Travel advice for families before summer vacation",
+                summary="Lifestyle advice has no direct instrument or repeated market story.",
+                event_at="2026-05-19T10:02:40+00:00",
+                source_name="rss_news:market-news-flow",
+                external_document_id="rss:market-news-flow:lifestyle",
+                theme_key="MARKET_NEWS_FLOW",
+                theme_name="Market News Flow",
+                impact_direction="watch",
+                impact_score=0.40,
+                symbol=None,
+            ),
+        )
+
+        clusters = build_news_rss_clusters(events, as_of_date=date(2026, 5, 19), max_clusters=4)
+
+        self.assertEqual(clusters, ())
 
     def test_build_news_rss_clusters_keeps_one_cluster_per_event(self) -> None:
         events = (

@@ -16,6 +16,7 @@
 
 - `src/stockanalysis/ingest/news/cluster_evidence.py`
   - `MARKET_NEWS_FLOW`, `UNCLASSIFIED`는 제목/요약 token fingerprint로 story cluster를 분리한다.
+  - broad theme의 단발·무종목 뉴스는 cluster evidence로 승격하지 않는다.
   - 구체 테마는 기존처럼 `story_key=theme`으로 유지한다.
   - `news_cluster_summary` output JSON에 `story_key`, `story_label`을 저장한다.
 - `src/stockanalysis/frontend/live_adapter.py`
@@ -36,6 +37,8 @@
 - PASS: `PYTHONPATH=/Users/woody/ai/agent-work-harness/src /opt/homebrew/bin/python3.13 -m awh verify --repo . --task news-cluster-story-fingerprint`
 - PASS: after stale broad-theme guard, `PYTHONPATH=src /opt/homebrew/bin/python3.13 -m unittest tests.test_frontend_live_adapter tests.test_news_rss_cluster_evidence`
 - PASS: after stale broad-theme guard, `git diff --check`
+- PASS: after broad single-no-symbol noise filter, `PYTHONPATH=src /opt/homebrew/bin/python3.13 -m unittest tests.test_news_rss_cluster_evidence tests.test_frontend_live_adapter`
+- PASS: after broad single-no-symbol noise filter, `git diff --check`
 
 ## Remaining
 
