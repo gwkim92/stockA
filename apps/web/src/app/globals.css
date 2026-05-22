@@ -1529,6 +1529,103 @@ h6 {
   word-break: keep-all;
 }
 
+.data-decision-card {
+  display: block;
+  min-height: 210px;
+  text-decoration: none;
+  transition: border-color 0.16s ease, transform 0.16s ease, background 0.16s ease;
+}
+
+.data-decision-card:hover,
+.data-decision-card:focus-visible {
+  background: var(--bg-panel);
+  border-color: var(--border-strong);
+  outline: none;
+  transform: translateY(-2px);
+}
+
+.data-decision-card strong.risk-tag {
+  display: inline-flex;
+  width: fit-content;
+  max-width: 100%;
+  margin-top: 16px;
+  font-family: var(--font-sans);
+  font-size: 0.82rem;
+  line-height: 1.2;
+}
+
+.data-decision-card small {
+  display: block;
+  margin-top: 20px;
+  color: var(--text-tertiary);
+  font-size: 0.72rem;
+  font-weight: 900;
+}
+
+.operator-details-panel {
+  min-width: 0;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  background:
+    linear-gradient(135deg, rgba(251, 250, 246, 0.92), rgba(251, 250, 246, 0.72)),
+    repeating-linear-gradient(
+      90deg,
+      rgba(17, 18, 15, 0.035),
+      rgba(17, 18, 15, 0.035) 1px,
+      transparent 1px,
+      transparent 28px
+    );
+  overflow: hidden;
+}
+
+.operator-details-panel > summary {
+  display: grid;
+  grid-template-columns: minmax(0, 0.35fr) minmax(0, 1fr);
+  gap: 16px;
+  align-items: center;
+  padding: clamp(18px, 2vw, 26px);
+  cursor: pointer;
+  list-style: none;
+}
+
+.operator-details-panel > summary::-webkit-details-marker {
+  display: none;
+}
+
+.operator-details-panel > summary::after {
+  content: "펼치기";
+  justify-self: end;
+  padding: 6px 10px;
+  background: var(--text-primary);
+  color: var(--bg-panel);
+  font-size: 0.68rem;
+  font-weight: 900;
+}
+
+.operator-details-panel[open] > summary::after {
+  content: "접기";
+}
+
+.operator-details-panel > summary span {
+  color: var(--text-tertiary);
+  font-size: 0.72rem;
+  font-weight: 900;
+}
+
+.operator-details-panel > summary strong {
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: clamp(1.25rem, 2vw, 2rem);
+  line-height: 1.04;
+}
+
+.details-inner {
+  margin: 0;
+  border: 0;
+  border-top: 1px solid var(--border-light);
+  border-radius: 0;
+}
+
 .screen-switchboard {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -2107,6 +2204,46 @@ h6 {
   font-size: 0.82rem;
   font-weight: 800;
   line-height: 1.4;
+  word-break: keep-all;
+}
+
+.cluster-explain-strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.cluster-explain-cell {
+  min-width: 0;
+  padding: 14px;
+  background:
+    linear-gradient(180deg, rgba(243, 244, 240, 0.78), rgba(243, 244, 240, 0.44)),
+    radial-gradient(circle at top left, rgba(38, 92, 128, 0.1), transparent 46%);
+  border: 1px solid var(--border-light);
+}
+
+.cluster-explain-cell span {
+  color: var(--text-tertiary);
+  font-size: 0.68rem;
+  font-weight: 900;
+}
+
+.cluster-explain-cell strong {
+  display: block;
+  margin-top: 8px;
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  line-height: 1.2;
+  word-break: keep-all;
+}
+
+.cluster-explain-cell p {
+  margin: 8px 0 0;
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  font-weight: 750;
+  line-height: 1.5;
   word-break: keep-all;
 }
 
@@ -2890,6 +3027,14 @@ h6 {
     gap: 5px;
   }
 
+  .operator-details-panel > summary {
+    grid-template-columns: 1fr;
+  }
+
+  .operator-details-panel > summary::after {
+    justify-self: start;
+  }
+
   .signal-graph {
     padding: 14px;
   }
@@ -2988,6 +3133,7 @@ h6 {
     flex-direction: column;
   }
 
+  .cluster-explain-strip,
   .cluster-decision-grid,
   .review-queue-item {
     grid-template-columns: 1fr;

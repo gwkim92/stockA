@@ -117,6 +117,62 @@ function formatClusterRunMode(cluster: StoredAiNewsCluster) {
   return koCode(cluster.extraction_run.provider);
 }
 
+function clusterGroupingBasis(cluster: StoredAiNewsCluster) {
+  if (hasStorySplit(cluster)) {
+    return {
+      label: "묶인 기준",
+      title: "같은 하위 이슈",
+      body: `${koCode(cluster.theme_key)} 안에서 ${formatClusterStory(cluster)} 흐름으로 묶었다.`,
+    };
+  }
+  return {
+    label: "묶인 기준",
+    title: "같은 상위 테마",
+    body: `${koCode(cluster.theme_key)} 테마에 속한 뉴스들을 한 흐름으로 묶었다.`,
+  };
+}
+
+function clusterInstrumentConnection(cluster: StoredAiNewsCluster) {
+  const symbols = cluster.symbols.filter(isKnownCode);
+  if (symbols.length > 0) {
+    return {
+      label: "종목 관계",
+      title: `${symbols.slice(0, 3).map(koCode).join(", ")} 직접 연결`,
+      body:
+        symbols.length > 3
+          ? `직접 언급 종목 ${symbols.length}개가 있다. 종목 상세에서 가격·추천·보유 상태를 이어 본다.`
+          : "회사명이나 티커가 직접 잡힌 뉴스라 종목 상세와 추천 근거 후보에 바로 연결된다.",
+    };
+  }
+  return {
+    label: "종목 관계",
+    title: "시장/테마 흐름",
+    body: "특정 회사를 억지로 붙이지 않는다. 상위 흐름 노출도에 따라 관련 종목 영향이 별도로 전파된다.",
+  };
+}
+
+function clusterRecommendationUse(cluster: StoredAiNewsCluster) {
+  if ((cluster.confidence ?? 0) < 0.55) {
+    return {
+      label: "추천 영향",
+      title: "관찰 전용",
+      body: "신뢰도가 낮아 추천 점수에 강하게 반영하지 않고 원천 문서 검토가 먼저다.",
+    };
+  }
+  if (cluster.event_count < 2) {
+    return {
+      label: "추천 영향",
+      title: "단일 뉴스 근거",
+      body: "뉴스 수가 적어 보조 근거로만 본다. 반복되는 흐름인지 추가 확인이 필요하다.",
+    };
+  }
+  return {
+    label: "추천 영향",
+    title: "근거 후보",
+    body: "추천·보유 검토에 연결될 수 있지만, 최종 판단은 점수·가격·thesis 검토가 결정한다.",
+  };
+}
+
 function formatClusterHeadline(cluster: StoredAiNewsCluster) {
   const storyLabel = formatClusterStory(cluster);
   const isUntranslatedStory = storyLabel === cluster.story_label && storyLabel !== koCode(cluster.theme_key);
@@ -473,6 +529,11 @@ export default async function IntelligencePage() {
               const storyLabel = formatClusterHeadline(cluster);
               const storyKeyword = formatStoryKeyword(cluster);
               const splitByStory = hasStorySplit(cluster);
+              const explainers = [
+                clusterGroupingBasis(cluster),
+                clusterInstrumentConnection(cluster),
+                clusterRecommendationUse(cluster),
+              ];
 
               return (
                 <article className="news-decision-card" key={cluster.evidence_id}>
@@ -488,6 +549,16 @@ export default async function IntelligencePage() {
                       </p>
                     </div>
                     <span className="relation-pill">{formatClusterRagStatus(cluster)}</span>
+                  </div>
+
+                  <div className="cluster-explain-strip" aria-label={`${koCode(cluster.theme_key)} 묶음 핵심 설명`}>
+                    {explainers.map((item) => (
+                      <div className="cluster-explain-cell" key={`${cluster.evidence_id}-${item.label}`}>
+                        <span>{item.label}</span>
+                        <strong>{item.title}</strong>
+                        <p>{item.body}</p>
+                      </div>
+                    ))}
                   </div>
 
                   <div className="cluster-decision-grid" aria-label={`${koCode(cluster.theme_key)} 판단 요약`}>

@@ -306,6 +306,40 @@ export default async function DataHealthPage() {
   const failedPipelines = data.pipeline_runs.filter((run) =>
     ["missing", "stale", "failed"].includes(run.health_status),
   ).length;
+  const decisionCards = [
+    {
+      label: "지금 판단",
+      title:
+        failedPipelines > 0
+          ? "수집 문제 먼저 해결"
+          : data.overall_status === "healthy"
+            ? "수집 상태 정상"
+            : "주의 항목 확인",
+      body:
+        failedPipelines > 0
+          ? "실패 또는 오래된 파이프라인이 있어 추천·보유 판단보다 수집 복구가 먼저다."
+          : "캔들, 뉴스, AI 분석, 추천 갱신이 현재 화면 기준으로 읽을 수 있는 상태다.",
+      href: "#pipeline-log",
+      cta: "실행 이력 보기",
+      tone: failedPipelines > 0 ? "risk-high" : "risk-low",
+    },
+    {
+      label: "자동화",
+      title: `${profileScheduler.active_timer_count}/${profileScheduler.timer_count}개 예약 실행`,
+      body: "뉴스/AI, 장마감 캔들, 추천 갱신, 주간 기준 데이터가 서로 다른 주기로 돈다.",
+      href: "#scheduler-detail",
+      cta: "스케줄 보기",
+      tone: profileScheduler.active_timer_count === profileScheduler.timer_count ? "risk-low" : "risk-medium",
+    },
+    {
+      label: "무료 API 예산",
+      title: `${providerBudget.remaining_request_count}/${providerBudget.daily_budget}회 남음`,
+      body: "가격 데이터는 무료 호출 한도 안에서 보강한다. 예산이 부족하면 캔들 보강을 줄여야 한다.",
+      href: "#provider-budget",
+      cta: "예산 보기",
+      tone: providerBudget.remaining_request_count > 0 ? "risk-low" : "risk-high",
+    },
+  ];
   const automationCards = [
     {
       title: "주식 캔들 수집",
@@ -470,6 +504,17 @@ export default async function DataHealthPage() {
         </article>
       </section>
 
+      <section className="decision-brief-grid reveal delay-1" aria-label="데이터 수집 판단 요약">
+        {decisionCards.map((card) => (
+          <a className="decision-brief-card data-decision-card" href={card.href} key={card.label}>
+            <span>{card.label}</span>
+            <strong className={`risk-tag ${card.tone}`}>{card.title}</strong>
+            <p>{card.body}</p>
+            <small>{card.cta}</small>
+          </a>
+        ))}
+      </section>
+
       <section className="feature-map-panel reveal delay-1" aria-labelledby="collection-status-title">
         <div className="section-heading stacked-heading">
           <span>수집/분석별 상태</span>
@@ -507,7 +552,13 @@ export default async function DataHealthPage() {
         </section>
       ) : null}
 
-      <section className="flow-panel reveal delay-2" aria-labelledby="automation-summary-title">
+      <details className="operator-details-panel reveal delay-2">
+        <summary>
+          <span>운영자용 상세 보기</span>
+          <strong>스케줄, artifact, 수동 smoke, 작업별 실행 구조</strong>
+        </summary>
+
+      <section className="flow-panel details-inner" aria-labelledby="automation-summary-title">
         <div className="section-heading flow-heading">
           <span>자동 수집 / 분석 상태</span>
           <h2 id="automation-summary-title">최근 실행과 실제 반복 자동화를 분리해서 본다</h2>
@@ -517,7 +568,7 @@ export default async function DataHealthPage() {
           {automationStateLabel(schedulerActivation)} 상태이며, 수집 성공과 추천 품질은 별도로 검토한다.
         </p>
 
-        <article className="ledger-panel" style={{ marginTop: "18px" }}>
+        <article className="ledger-panel" id="scheduler-detail" style={{ marginTop: "18px" }}>
           <div className="section-heading stacked-heading">
             <span>자동 반복 실행 상태</span>
             <h3>{schedulerReadinessTitle(data.scheduler)}</h3>
@@ -837,8 +888,15 @@ export default async function DataHealthPage() {
           ))}
         </div>
       </section>
+      </details>
 
-      <section className="split-ledger reveal delay-2">
+      <details className="operator-details-panel reveal delay-2" id="pipeline-log">
+        <summary>
+          <span>실행 로그와 예산 상세</span>
+          <strong>파이프라인 이력, 무료 API 예산, 관문/최신성</strong>
+        </summary>
+
+      <section className="split-ledger details-inner">
         <article className="ledger-panel queue-panel">
           <div className="section-heading">
             <span>실행 이력</span>
@@ -880,7 +938,7 @@ export default async function DataHealthPage() {
         </article>
 
         <aside className="side-ledger">
-          <article className="ledger-panel">
+          <article className="ledger-panel" id="provider-budget">
             <div className="section-heading stacked-heading">
               <span>무료 API 예산</span>
               <h2>데이터 제공자 호출 예산</h2>
@@ -974,6 +1032,7 @@ export default async function DataHealthPage() {
           </article>
         </aside>
       </section>
+      </details>
     </div>
   );
 }
