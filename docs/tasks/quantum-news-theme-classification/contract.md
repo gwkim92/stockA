@@ -59,8 +59,8 @@
 
 ## Done Criteria
 
-- [ ] 양자 뉴스 rule classification test가 통과한다.
-- [ ] `US_MARKET_BREADTH` story split test가 통과한다.
-- [ ] frontend cluster SQL이 `US_MARKET_BREADTH` story split theme cluster를 숨긴다.
-- [ ] EC2 데이터에서 해당 Quantum 뉴스가 양자 테마로 보정된다.
-- [ ] 검증이 통과한다.
+- [x] 양자 뉴스 rule classification test가 통과한다.
+- [x] `US_MARKET_BREADTH` story split test가 통과한다.
+- [x] frontend cluster SQL이 `US_MARKET_BREADTH` story split theme cluster를 숨긴다.
+- [x] EC2 데이터에서 해당 Quantum 뉴스가 양자 테마로 보정된다.
+- [x] 검증이 통과한다.
