@@ -603,18 +603,18 @@ def _portfolio_action(candidate: PortfolioReviewCandidate) -> str:
         return "exit_review"
     if candidate.thesis_review_action == "reduce":
         return "reduce_review"
-    if candidate.thesis_review_action == "watch":
-        return "monitor"
     if candidate.linked_thesis_id is None and candidate.recommendation_id is None:
         return "needs_thesis_review"
+    if candidate.current_weight is not None and candidate.current_weight > candidate.max_single_position_weight:
+        return "trim_to_target"
+    if candidate.thesis_review_action == "watch":
+        return "monitor"
     if candidate.current_weight is None or candidate.recommended_weight is None:
         return "hold"
 
     lower_bound = candidate.recommended_weight * Decimal("0.75")
     if candidate.current_weight < lower_bound:
         return "increase_to_target"
-    if candidate.current_weight > candidate.max_single_position_weight:
-        return "trim_to_target"
     if candidate.recommended_weight >= candidate.min_rebalance_target_weight:
         upper_bound = candidate.recommended_weight * Decimal("1.25")
         if candidate.current_weight > upper_bound:
