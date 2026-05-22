@@ -1196,6 +1196,7 @@ def build_live_recommendation_detail_response(
     linked_thesis_id = state.get("linked_thesis_id")
     outcome = _as_dict(state.get("outcome"))
     symbol = str(state.get("symbol") or "UNKNOWN").upper()
+    as_of_date_text = str(state.get("as_of_date") or "")
 
     return {
         "contract_version": CONTRACT_VERSION,
@@ -1204,7 +1205,7 @@ def build_live_recommendation_detail_response(
             "recommendation_id": _recommendation_detail_id(state, identifier),
             "symbol": symbol,
             "instrument_id": _opaque_id("instrument", state.get("instrument_id"), symbol.lower()),
-            "as_of_date": str(state.get("as_of_date") or ""),
+            "as_of_date": as_of_date_text,
             "strategy_name": str(state.get("strategy_name") or DEFAULT_STRATEGY_NAME),
             "horizon_type": str(state.get("horizon_type") or "long_term"),
             "recommendation": str(state.get("recommendation") or "monitor"),
@@ -1212,6 +1213,11 @@ def build_live_recommendation_detail_response(
             "score_version": str(state.get("score_version") or "unknown"),
             "score_components": score_components,
             "linked_thesis_id": _opaque_id("thesis", linked_thesis_id, None) if linked_thesis_id is not None else None,
+            "evidence_trace": _build_recommendation_evidence_trace_payload(
+                _as_dict(state.get("evidence_trace")),
+                symbol=symbol,
+                as_of_date=as_of_date_text,
+            ),
             "evidence_review": _build_recommendation_evidence_review_payload(
                 score_components=score_components,
                 linked_thesis_id=linked_thesis_id,
@@ -4364,6 +4370,12 @@ latest_outcome as (
 recommendation_event_anchor as (
     select
         event_row.event_id,
+        event_row.title,
+        event_row.event_at,
+        impact.impact_direction,
+        impact.impact_strength,
+        coalesce(impact.confidence, event_row.confidence) as confidence,
+        impact.rationale,
         artifact.artifact_id
     from selected_recommendation recommendation
     join event.event_instrument_impact impact
@@ -4496,6 +4508,55 @@ macro_flow_provenance as (
             from macro_flow_recent_rows
         ) as recent_flows
 ),
+latest_position_trace as (
+    select
+        portfolio.portfolio_name,
+        position.snapshot_date,
+        position.weight,
+        position.market_value,
+        position.linked_thesis_id,
+        position.source_run_id
+    from selected_recommendation recommendation
+    join portfolio.position_snapshot position
+      on position.instrument_id = recommendation.instrument_id
+    join portfolio.portfolio portfolio
+      on portfolio.portfolio_id = position.portfolio_id
+    where portfolio.portfolio_name = {sql_literal(DEFAULT_PORTFOLIO_NAME)}
+    order by position.snapshot_date desc
+    limit 1
+),
+portfolio_review_trace as (
+    select
+        portfolio.portfolio_name,
+        review.portfolio_review_id,
+        review.review_date,
+        review.review_source,
+        review.risk_level,
+        review.source_run_id,
+        item.review_item_id,
+        item.action,
+        item.reason,
+        item.priority,
+        item.health_score,
+        item.current_weight,
+        item.recommended_weight,
+        item.weight_gap,
+        item.market_value
+    from selected_recommendation recommendation
+    join portfolio.review_item item
+      on item.instrument_id = recommendation.instrument_id
+    join portfolio.review review
+      on review.portfolio_review_id = item.portfolio_review_id
+    join portfolio.portfolio portfolio
+      on portfolio.portfolio_id = review.portfolio_id
+    where portfolio.portfolio_name = {sql_literal(DEFAULT_PORTFOLIO_NAME)}
+    order by
+        case when item.recommendation_id = recommendation.recommendation_id then 0 else 1 end,
+        case when review.review_date >= recommendation.as_of_date then 0 else 1 end,
+        review.review_date desc,
+        review.portfolio_review_id desc
+    limit 1
+),
 score_component_rows as (
     select
         component.component_name,
@@ -4601,6 +4662,56 @@ select json_build_object(
         '[]'::json
     ),
     'linked_thesis_id', (select thesis_id from selected_recommendation),
+    'evidence_trace',
+    json_build_object(
+        'direct_news_or_ai',
+        json_strip_nulls(json_build_object(
+            'status', case when exists (select 1 from recommendation_event_anchor) then 'linked' else 'missing' end,
+            'evidence_id', (select evidence_id from recommendation_evidence_anchor),
+            'event_id', (select event_id from recommendation_event_anchor),
+            'artifact_id', (select artifact_id from recommendation_event_anchor),
+            'title', (select title from recommendation_event_anchor),
+            'event_at', (select event_at from recommendation_event_anchor),
+            'impact_direction', (select impact_direction from recommendation_event_anchor),
+            'impact_strength', (select impact_strength from recommendation_event_anchor),
+            'confidence', (select confidence from recommendation_event_anchor),
+            'rationale', (select rationale from recommendation_event_anchor)
+        )),
+        'macro_flow',
+        json_build_object(
+            'status', case when coalesce((select propagated_impact_count from macro_flow_provenance), 0) > 0 then 'linked' else 'missing' end,
+            'propagated_impact_count', coalesce((select propagated_impact_count from macro_flow_provenance), 0),
+            'source_run_id', (select source_run_id from macro_flow_provenance),
+            'recent_flows', coalesce((select recent_flows from macro_flow_provenance), '[]'::json)
+        ),
+        'holding_review',
+        json_strip_nulls(json_build_object(
+            'status',
+            case
+                when exists (select 1 from portfolio_review_trace) then 'review_linked'
+                when exists (select 1 from latest_position_trace) then 'position_without_review'
+                else 'not_in_portfolio'
+            end,
+            'portfolio_name', coalesce((select portfolio_name from portfolio_review_trace), (select portfolio_name from latest_position_trace), {sql_literal(DEFAULT_PORTFOLIO_NAME)}),
+            'portfolio_review_id', (select portfolio_review_id from portfolio_review_trace),
+            'review_item_id', (select review_item_id from portfolio_review_trace),
+            'review_date', (select review_date from portfolio_review_trace),
+            'review_source', (select review_source from portfolio_review_trace),
+            'risk_level', (select risk_level from portfolio_review_trace),
+            'source_run_id', (select source_run_id from portfolio_review_trace),
+            'action', (select action from portfolio_review_trace),
+            'reason', (select reason from portfolio_review_trace),
+            'priority', (select priority from portfolio_review_trace),
+            'health_score', (select health_score from portfolio_review_trace),
+            'current_weight', coalesce((select current_weight from portfolio_review_trace), (select weight from latest_position_trace)),
+            'recommended_weight', (select recommended_weight from portfolio_review_trace),
+            'weight_gap', (select weight_gap from portfolio_review_trace),
+            'market_value', coalesce((select market_value from portfolio_review_trace), (select market_value from latest_position_trace)),
+            'position_snapshot_date', (select snapshot_date from latest_position_trace),
+            'position_source_run_id', (select source_run_id from latest_position_trace),
+            'position_linked_thesis_id', (select linked_thesis_id from latest_position_trace)
+        ))
+    ),
     'outcome',
     json_build_object(
         'measurement_end_date', (select measurement_end_date from latest_outcome),
@@ -6560,6 +6671,103 @@ def _default_score_component_provenance_label(source_type: str) -> str:
     if source_type == "macro_flow_propagation":
         return "상위 흐름 전파 근거"
     return "저장된 점수 구성요소"
+
+
+def _build_recommendation_evidence_trace_payload(
+    trace: dict[str, Any],
+    *,
+    symbol: str,
+    as_of_date: str,
+) -> dict[str, Any]:
+    direct = _as_dict(trace.get("direct_news_or_ai"))
+    macro_flow = _as_dict(trace.get("macro_flow"))
+    holding_review = _as_dict(trace.get("holding_review"))
+    direct_event_id = direct.get("event_id")
+    direct_artifact_id = direct.get("artifact_id")
+    holding_review_id = holding_review.get("portfolio_review_id")
+    review_item_id = holding_review.get("review_item_id")
+    review_source_run_id = holding_review.get("source_run_id")
+    position_source_run_id = holding_review.get("position_source_run_id")
+    linked_thesis_id = holding_review.get("position_linked_thesis_id")
+    macro_source_run_id = macro_flow.get("source_run_id")
+
+    return {
+        "symbol": symbol,
+        "as_of_date": as_of_date,
+        "direct_news_or_ai": {
+            "status": str(direct.get("status") or "missing"),
+            "evidence_id": _optional_text(direct.get("evidence_id")),
+            "event_id": _opaque_id("event", direct_event_id, None) if direct_event_id is not None else None,
+            "ai_evidence_id": _opaque_id("ai-evidence", direct_artifact_id, None)
+            if direct_artifact_id is not None
+            else None,
+            "title": _optional_text(direct.get("title")),
+            "event_at": _timestamp(direct.get("event_at")),
+            "impact_direction": str(direct.get("impact_direction") or "unknown"),
+            "impact_strength": _number(direct.get("impact_strength")),
+            "confidence": _number(direct.get("confidence")),
+            "rationale": _optional_text(direct.get("rationale")),
+        },
+        "macro_flow": {
+            "status": str(macro_flow.get("status") or "missing"),
+            "propagated_impact_count": int(macro_flow.get("propagated_impact_count") or 0),
+            "source_run_id": _opaque_id("pipeline-run", macro_source_run_id, None)
+            if macro_source_run_id is not None
+            else None,
+            "recent_flows": [
+                _build_recommendation_trace_flow_payload(item) for item in _as_list(macro_flow.get("recent_flows"))
+            ],
+        },
+        "holding_review": {
+            "status": str(holding_review.get("status") or "not_in_portfolio"),
+            "portfolio_name": str(holding_review.get("portfolio_name") or DEFAULT_PORTFOLIO_NAME),
+            "portfolio_review_id": _opaque_id("portfolio-review", holding_review_id, None)
+            if holding_review_id is not None
+            else None,
+            "review_item_id": _opaque_id("portfolio-review-item", review_item_id, None)
+            if review_item_id is not None
+            else None,
+            "review_date": _optional_text(holding_review.get("review_date")),
+            "review_source": _optional_text(holding_review.get("review_source")),
+            "risk_level": _optional_text(holding_review.get("risk_level")),
+            "source_run_id": _opaque_id("pipeline-run", review_source_run_id, None)
+            if review_source_run_id is not None
+            else None,
+            "action": str(holding_review.get("action") or "not_reviewed"),
+            "reason": _optional_text(holding_review.get("reason")),
+            "priority": _integer(holding_review.get("priority")),
+            "health_score": _number(holding_review.get("health_score")),
+            "current_weight": _number(holding_review.get("current_weight")),
+            "recommended_weight": _number(holding_review.get("recommended_weight")),
+            "weight_gap": _number(holding_review.get("weight_gap")),
+            "market_value": _number(holding_review.get("market_value")),
+            "position_snapshot_date": _optional_text(holding_review.get("position_snapshot_date")),
+            "position_source_run_id": _opaque_id("pipeline-run", position_source_run_id, None)
+            if position_source_run_id is not None
+            else None,
+            "position_linked_thesis_id": _opaque_id("thesis", linked_thesis_id, None)
+            if linked_thesis_id is not None
+            else None,
+        },
+    }
+
+
+def _build_recommendation_trace_flow_payload(flow: dict[str, Any]) -> dict[str, Any]:
+    event_id = flow.get("event_id")
+    impact_strength = flow.get("impact_strength")
+    if impact_strength is None:
+        impact_strength = flow.get("impact_score")
+    return {
+        "event_id": _opaque_id("event", event_id, "unknown"),
+        "title": str(flow.get("title") or ""),
+        "event_at": _timestamp(flow.get("event_at")),
+        "theme_key": str(flow.get("theme_key") or ""),
+        "theme_name": str(flow.get("theme_name") or ""),
+        "impact_direction": str(flow.get("impact_direction") or "unknown"),
+        "impact_strength": _number(impact_strength),
+        "confidence": _number(flow.get("confidence")),
+        "exposure_weight": _number(flow.get("exposure_weight")),
+    }
 
 
 def _build_recommendation_evidence_review_payload(

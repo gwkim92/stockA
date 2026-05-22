@@ -767,6 +767,59 @@ export type RecommendationDetailData = {
     };
   }>;
   linked_thesis_id: string;
+  evidence_trace: {
+    symbol: string;
+    as_of_date: string;
+    direct_news_or_ai: {
+      status: string;
+      evidence_id: string | null;
+      event_id: string | null;
+      ai_evidence_id: string | null;
+      title: string | null;
+      event_at: string;
+      impact_direction: string;
+      impact_strength: number | null;
+      confidence: number | null;
+      rationale: string | null;
+    };
+    macro_flow: {
+      status: string;
+      propagated_impact_count: number;
+      source_run_id: string | null;
+      recent_flows: Array<{
+        event_id: string;
+        title: string;
+        event_at: string;
+        theme_key: string;
+        theme_name: string;
+        impact_direction: string;
+        impact_strength: number | null;
+        confidence: number | null;
+        exposure_weight: number | null;
+      }>;
+    };
+    holding_review: {
+      status: string;
+      portfolio_name: string;
+      portfolio_review_id: string | null;
+      review_item_id: string | null;
+      review_date: string | null;
+      review_source: string | null;
+      risk_level: string | null;
+      source_run_id: string | null;
+      action: string;
+      reason: string | null;
+      priority: number | null;
+      health_score: number | null;
+      current_weight: number | null;
+      recommended_weight: number | null;
+      weight_gap: number | null;
+      market_value: number | null;
+      position_snapshot_date: string | null;
+      position_source_run_id: string | null;
+      position_linked_thesis_id: string | null;
+    };
+  };
   evidence_review: EvidenceReviewData;
   outcome: {
     measurement_end_date: string;

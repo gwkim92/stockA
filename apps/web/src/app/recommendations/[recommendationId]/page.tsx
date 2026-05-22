@@ -153,6 +153,13 @@ function evidenceLinkLabel(evidenceId: string) {
   return "근거 화면 열기";
 }
 
+function portfolioCoverageHref(reviewDate: string | null | undefined) {
+  if (reviewDate) {
+    return `/portfolio/coverage?asOfDate=${encodeURIComponent(reviewDate)}` as Route;
+  }
+  return "/portfolio/coverage" as Route;
+}
+
 function reviewCount(value: number | boolean | undefined) {
   return typeof value === "number" ? value : value ? 1 : 0;
 }
@@ -249,6 +256,67 @@ function recommendationQualityChecks(data: RecommendationDetailData) {
   ];
 }
 
+function traceStatusLabel(status: string) {
+  if (status === "linked" || status === "review_linked") {
+    return "연결됨";
+  }
+  if (status === "position_without_review") {
+    return "보유만 확인";
+  }
+  if (status === "not_in_portfolio") {
+    return "미보유";
+  }
+  if (status === "missing") {
+    return "직접 근거 없음";
+  }
+  return koCode(status);
+}
+
+function evidenceTraceCards(data: RecommendationDetailData) {
+  const trace = data.evidence_trace;
+  const direct = trace.direct_news_or_ai;
+  const macroFlow = trace.macro_flow;
+  const holding = trace.holding_review;
+  const directHref = direct.evidence_id ? evidenceHref(direct.evidence_id, data.symbol) : null;
+  const holdingHref = portfolioCoverageHref(holding.review_date);
+  const firstFlow = macroFlow.recent_flows[0];
+
+  return [
+    {
+      label: "뉴스/AI 분석",
+      value: traceStatusLabel(direct.status),
+      detail:
+        direct.status === "linked"
+          ? `${direct.title ?? "연결된 이벤트"} · ${koCode(direct.impact_direction)} · 신뢰도 ${formatMetricValue(direct.confidence)}`
+          : "이 추천은 직접 종목 뉴스보다 가격, 유니버스, 또는 상위 흐름 근거가 중심이다.",
+      href: directHref,
+      hrefLabel: direct.evidence_id ? evidenceLinkLabel(direct.evidence_id) : null,
+    },
+    {
+      label: "상위 흐름 전파",
+      value: macroFlow.propagated_impact_count > 0 ? `${macroFlow.propagated_impact_count}개 반영` : "반영 없음",
+      detail:
+        macroFlow.propagated_impact_count > 0
+          ? `${firstFlow ? koCode(firstFlow.theme_key) : "시장/테마 흐름"}이 종목 노출도 규칙을 거쳐 점수 입력으로 들어갔다.`
+          : "거시·테마 뉴스가 이 종목 점수로 전파된 기록은 아직 없다.",
+      href: `/stocks/${encodeURIComponent(data.symbol)}` as Route,
+      hrefLabel: "종목 흐름 보기",
+    },
+    {
+      label: "보유검토 연결",
+      value: traceStatusLabel(holding.status),
+      detail:
+        holding.status === "review_linked"
+          ? `${koCode(holding.action)} · ${holding.reason ?? "보유검토 항목과 연결됨"}`
+          : holding.status === "position_without_review"
+            ? `포지션 ${formatMetricValue(holding.current_weight)}가 있으나 최신 보유검토 항목은 아직 연결되지 않았다.`
+            : "현재 포트폴리오 보유 항목으로 확인되지 않았다.",
+      href: holdingHref,
+      hrefLabel: "보유 검토 보기",
+    },
+  ];
+}
+
 export default async function RecommendationPage({ params }: RecommendationPageProps) {
   const { recommendationId } = await params;
   const response = await getRecommendationDetail(recommendationId);
@@ -256,6 +324,7 @@ export default async function RecommendationPage({ params }: RecommendationPageP
   const evidenceReview = data.evidence_review;
   const qualityDecision = recommendationQualityDecision(data);
   const qualityChecks = recommendationQualityChecks(data);
+  const traceCards = evidenceTraceCards(data);
   const macroFlowComponents = data.score_components.filter((component) => macroFlowRows(component).length > 0);
   const outcomeMeasured = data.outcome.label !== "unmeasured" && Boolean(data.outcome.measurement_end_date);
 
@@ -309,6 +378,28 @@ export default async function RecommendationPage({ params }: RecommendationPageP
               <span>{check.label}</span>
               <strong>{check.value}</strong>
               <p>{check.detail}</p>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="bento-card reveal delay-1" aria-label="추천 근거 흐름 요약">
+        <div style={{ marginBottom: "20px" }}>
+          <span className="metric-sub">근거 흐름 요약</span>
+          <h2 style={{ fontSize: "1.5rem", marginTop: "6px" }}>무엇을 보고 이 추천을 검토해야 하나</h2>
+          <p style={{ color: "var(--text-secondary)", marginTop: "8px", maxWidth: "820px" }}>
+            뉴스와 AI 구조화 결과는 바로 주문으로 이어지지 않는다. 직접 종목 뉴스, 시장·테마 흐름, 보유검토 상태를
+            분리해서 확인한 뒤 사람 검토에서 채택 여부를 결정한다.
+          </p>
+        </div>
+
+        <div className="flow-steps">
+          {traceCards.map((card) => (
+            <article className="flow-step" key={card.label}>
+              <span>{card.label}</span>
+              <strong>{card.value}</strong>
+              <p>{card.detail}</p>
+              {card.href && card.hrefLabel ? <Link href={card.href}>{card.hrefLabel}</Link> : null}
             </article>
           ))}
         </div>

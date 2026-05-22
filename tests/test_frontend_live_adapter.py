@@ -835,9 +835,62 @@ class FakeLiveExecutor:
                                 },
                             },
                         }
-                    ],
-                    "linked_thesis_id": 7001,
-                    "outcome": {
+	                    ],
+	                    "linked_thesis_id": 7001,
+	                    "evidence_trace": {
+	                        "direct_news_or_ai": {
+	                            "status": "linked",
+	                            "evidence_id": "ai-evidence-8801",
+	                            "event_id": 9001,
+	                            "artifact_id": 8801,
+	                            "title": "AAPL annual report event",
+	                            "event_at": "2024-10-31T14:00:00+00:00",
+	                            "impact_direction": "supportive",
+	                            "impact_strength": "0.7000",
+	                            "confidence": "0.8400",
+	                            "rationale": "Annual report event quality remains supportive.",
+	                        },
+	                        "macro_flow": {
+	                            "status": "linked",
+	                            "propagated_impact_count": 2,
+	                            "source_run_id": 9301,
+	                            "recent_flows": [
+	                                {
+	                                    "event_id": 9101,
+	                                    "title": "Fed rate path supports long-duration technology",
+	                                    "event_at": "2024-10-30T12:00:00+00:00",
+	                                    "theme_key": "MACRO_RATES_FED",
+	                                    "theme_name": "Fed rates",
+	                                    "impact_direction": "supportive",
+	                                    "impact_strength": "0.5200",
+	                                    "confidence": "0.7700",
+	                                    "exposure_weight": "0.6500",
+	                                }
+	                            ],
+	                        },
+	                        "holding_review": {
+	                            "status": "review_linked",
+	                            "portfolio_name": "Long Term Paper",
+	                            "portfolio_review_id": 6001,
+	                            "review_item_id": 6101,
+	                            "review_date": "2024-11-01",
+	                            "review_source": "deterministic_bootstrap",
+	                            "risk_level": "moderate",
+	                            "source_run_id": 9401,
+	                            "action": "monitor",
+	                            "reason": "Position is within target range.",
+	                            "priority": 2,
+	                            "health_score": "0.7200",
+	                            "current_weight": "0.0500",
+	                            "recommended_weight": "0.0550",
+	                            "weight_gap": "0.0050",
+	                            "market_value": "2500.00",
+	                            "position_snapshot_date": "2024-11-01",
+	                            "position_source_run_id": 9400,
+	                            "position_linked_thesis_id": 7001,
+	                        },
+	                    },
+	                    "outcome": {
                         "measurement_end_date": "2024-12-02",
                         "absolute_return": "0.1000",
                         "benchmark_return": "0.0400",
@@ -2372,6 +2425,21 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertEqual(payload["data"]["score_components"][2]["provenance"]["universe_batch_id"], "strategy-universe-batch-6101")
         self.assertEqual(payload["data"]["score_components"][2]["provenance"]["rank_position"], 2)
         self.assertEqual(payload["data"]["linked_thesis_id"], "thesis-7001")
+        trace = payload["data"]["evidence_trace"]
+        self.assertEqual(trace["symbol"], "AAPL")
+        self.assertEqual(trace["direct_news_or_ai"]["status"], "linked")
+        self.assertEqual(trace["direct_news_or_ai"]["event_id"], "event-9001")
+        self.assertEqual(trace["direct_news_or_ai"]["ai_evidence_id"], "ai-evidence-8801")
+        self.assertEqual(trace["direct_news_or_ai"]["impact_strength"], 0.7)
+        self.assertEqual(trace["macro_flow"]["propagated_impact_count"], 2)
+        self.assertEqual(trace["macro_flow"]["source_run_id"], "pipeline-run-9301")
+        self.assertEqual(trace["macro_flow"]["recent_flows"][0]["event_id"], "event-9101")
+        self.assertEqual(trace["macro_flow"]["recent_flows"][0]["impact_strength"], 0.52)
+        self.assertEqual(trace["holding_review"]["status"], "review_linked")
+        self.assertEqual(trace["holding_review"]["portfolio_review_id"], "portfolio-review-6001")
+        self.assertEqual(trace["holding_review"]["review_item_id"], "portfolio-review-item-6101")
+        self.assertEqual(trace["holding_review"]["source_run_id"], "pipeline-run-9401")
+        self.assertEqual(trace["holding_review"]["position_linked_thesis_id"], "thesis-7001")
         review = payload["data"]["evidence_review"]
         self.assertEqual(review["quality_status"], "ready_for_human_review")
         self.assertEqual(review["summary"]["score_component_count"], 4)
@@ -2459,7 +2527,11 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertIn("macro_flow_provenance as", sql)
         self.assertIn("macro_flow_all_rows as", sql)
         self.assertIn("macro_flow_recent_rows as", sql)
+        self.assertIn("latest_position_trace as", sql)
+        self.assertIn("portfolio_review_trace as", sql)
         self.assertIn("signal.propagated_instrument_impact", sql)
+        self.assertIn("portfolio.position_snapshot", sql)
+        self.assertIn("portfolio.review_item", sql)
         self.assertIn("(select count(*)::integer from macro_flow_all_rows)", sql)
         self.assertIn("from macro_flow_recent_rows", sql)
         self.assertIn("'macro-flow-' || lower(recommendation.primary_symbol)", sql)
@@ -2471,6 +2543,9 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertIn("'return_1d'", sql)
         self.assertIn("'universe-rank-' || lower(recommendation.primary_symbol)", sql)
         self.assertIn("'provenance', provenance", sql)
+        self.assertIn("'evidence_trace'", sql)
+        self.assertIn("'direct_news_or_ai'", sql)
+        self.assertIn("'holding_review'", sql)
         self.assertIn("component.component_name in ('cycle_score', 'event_quality', 'event_intensity', 'theme_mapping')", sql)
         self.assertNotIn("insert into", lowered)
         self.assertNotIn("update ", lowered)
