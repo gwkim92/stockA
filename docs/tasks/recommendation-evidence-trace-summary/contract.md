@@ -58,8 +58,7 @@
 
 ## Done Criteria
 
-- [ ] API response includes normalized `evidence_trace`.
-- [ ] Recommendation detail page shows a Korean evidence flow summary.
-- [ ] Local verification and AWH pass.
-- [ ] EC2 deploy and smoke pass.
-
+- [x] API response includes normalized `evidence_trace`.
+- [x] Recommendation detail page shows a Korean evidence flow summary.
+- [x] Local verification and AWH pass.
+- [x] EC2 deploy and smoke pass.
