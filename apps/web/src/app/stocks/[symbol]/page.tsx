@@ -147,7 +147,7 @@ function EvidenceNeighborhoodPanel({ neighborhood }: { neighborhood: AiEvidenceN
             <h2>이 종목이 어떤 뉴스·테마 때문에 움직일 수 있는지 본다</h2>
           </div>
           <span className="bento-badge" style={{ margin: 0 }}>
-            {koCode(neighborhood.retrieval_boundary.retrieval_backend)} · 토큰 {neighborhood.retrieval_boundary.token_budget}
+            저장된 근거만 읽음 · 실시간 AI 호출 없음
           </span>
         </div>
 
@@ -168,9 +168,9 @@ function EvidenceNeighborhoodPanel({ neighborhood }: { neighborhood: AiEvidenceN
             <small>저장된 구조화 증거</small>
           </div>
           <div className="rail-cell">
-            <span>문서 청크</span>
+            <span>근거 문서</span>
             <strong>{neighborhood.summary.evidence_chunk_count}</strong>
-            <small>임베딩 {neighborhood.summary.embedded_chunk_count}개</small>
+            <small>검색 준비 {neighborhood.summary.embedded_chunk_count}개</small>
           </div>
           <div className="rail-cell">
             <span>투자 연결</span>
@@ -281,7 +281,7 @@ function EvidenceNeighborhoodPanel({ neighborhood }: { neighborhood: AiEvidenceN
         </div>
 
         <div className="relationship-panel" aria-label={`${neighborhood.symbol} 저장된 증거 문서`}>
-          <span>문서 검색 준비 상태</span>
+          <span>근거 문서 상태</span>
           <div className="relationship-list">
             {neighborhood.evidence_chunks.slice(0, 4).map((chunk) => {
               const document = sourceDocumentHref(chunk.source_document_id);
@@ -293,19 +293,17 @@ function EvidenceNeighborhoodPanel({ neighborhood }: { neighborhood: AiEvidenceN
                     : "추출 상태 미확인";
               return (
                 <div className="relationship-chip" key={chunk.chunk_id}>
-                  <span>{koCode(chunk.embedding_status)}</span>
+                  <span>{chunk.used_metadata_fallback ? "요약 정보" : "원문 근거"}</span>
                   <strong>{evidenceChunkPreview(chunk.text_preview)}</strong>
                   <small>
-                    {chunk.source_url_host || "출처 host 없음"} · {sourceKind} · 토큰{" "}
-                    {chunk.token_count.toLocaleString("ko-KR")} · {chunk.embedding_provider || "임베딩 공급자 없음"}{" "}
-                    {chunk.embedding_model_id || ""}
+                    {chunk.source_url_host || "출처 없음"} · {sourceKind} · 검색 준비 상태 {koCode(chunk.embedding_status)}
                   </small>
                   {document ? <Link href={document}>원천 문서 열기</Link> : null}
                 </div>
               );
             })}
             {neighborhood.evidence_chunks.length === 0 ? (
-              <p className="relationship-empty">아직 근거 검색에 사용할 문서 청크가 없다.</p>
+              <p className="relationship-empty">아직 근거 검색에 사용할 문서 조각이 없다.</p>
             ) : null}
           </div>
         </div>
@@ -331,6 +329,40 @@ export default async function StockDetailPage({ params }: StockDetailPageProps) 
   const hasPriceData = data.summary.bar_count > 0 && data.latest_price.close !== null;
   const hasEvidenceOnlyData =
     !hasPriceData && (data.macro_flow_impacts.length > 0 || data.recent_events.length > 0);
+  const stockReadingCards = [
+    {
+      label: "먼저 볼 것",
+      title: hasPriceData ? "가격 데이터가 있는 종목" : "가격보다 뉴스 흐름 먼저",
+      body: hasPriceData
+        ? `최근 가격일 ${data.latest_price.trade_date || data.summary.last_trade_date || "확인 필요"} 기준으로 차트와 수익률을 볼 수 있다.`
+        : "가격 캔들이 부족하므로 추천 판단보다 뉴스·테마 연결 상태를 먼저 본다.",
+    },
+    {
+      label: "직접 뉴스",
+      title: `${data.recent_events.length}개`,
+      body:
+        data.recent_events.length > 0
+          ? "회사명이나 티커가 직접 잡힌 뉴스다. 종목 판단에 가장 직접적인 근거다."
+          : "아직 이 종목을 직접 언급한 최근 뉴스가 없다.",
+    },
+    {
+      label: "상위 흐름",
+      title: `${data.macro_flow_impacts.length}개`,
+      body:
+        data.macro_flow_impacts.length > 0
+          ? "금리, 에너지, AI, 정책 같은 시장 흐름이 이 종목 노출도에 따라 전파됐다."
+          : "시장·테마 뉴스가 이 종목 점수로 전파된 기록은 아직 없다.",
+    },
+    {
+      label: "최종 확인",
+      title: data.recommendation ? koCode(data.recommendation.action) : data.position ? "보유 상태 확인" : "판단 대기",
+      body: data.recommendation
+        ? "추천 상세에서 점수 재료와 보유검토 연결을 확인한다."
+        : data.position
+          ? "추천은 없지만 포트폴리오 보유 상태가 있으므로 보유검토를 확인한다."
+          : "추천이나 보유 판단으로 연결되기 전 단계다.",
+    },
+  ];
 
   return (
     <div className="pageStack">
@@ -368,6 +400,16 @@ export default async function StockDetailPage({ params }: StockDetailPageProps) 
           <strong>{data.position ? formatPercent(data.position.weight) : "미보유"}</strong>
           <small>{data.position?.snapshot_date || "스냅샷 없음"}</small>
         </div>
+      </section>
+
+      <section className="detail-path-grid reveal delay-1" aria-label="종목 상세 읽는 순서">
+        {stockReadingCards.map((card) => (
+          <article className="detail-path-card" key={card.label}>
+            <span>{card.label}</span>
+            <strong>{card.title}</strong>
+            <p>{card.body}</p>
+          </article>
+        ))}
       </section>
 
       {hasEvidenceOnlyData ? (

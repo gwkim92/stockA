@@ -240,7 +240,7 @@ function recommendationQualityChecks(data: RecommendationDetailData) {
     {
       label: "근거 연결",
       value: data.evidence_review.quality_status === "ready_for_human_review" ? "사람 검토 가능" : koCode(data.evidence_review.quality_status),
-      detail: `AI/이벤트 근거 ${aiEvidenceCount}개 · 가격/순위 provenance ${marketProvenanceCount}개`,
+      detail: `AI/이벤트 근거 ${aiEvidenceCount}개 · 가격/순위 출처 기록 ${marketProvenanceCount}개`,
     },
     {
       label: "성과 확인",
@@ -348,6 +348,34 @@ export default async function RecommendationPage({ params }: RecommendationPageP
   const traceCards = evidenceTraceCards(data);
   const macroFlowComponents = data.score_components.filter((component) => macroFlowRows(component).length > 0);
   const outcomeMeasured = data.outcome.label !== "unmeasured" && Boolean(data.outcome.measurement_end_date);
+  const marketComponentCount = data.score_components.filter((component) =>
+    ["market_feature", "strategy_universe_rank"].includes(component.provenance?.source_type ?? ""),
+  ).length;
+  const aiOrEventComponentCount = data.score_components.filter(
+    (component) => component.provenance?.source_type === "event_or_ai_evidence",
+  ).length;
+  const recommendationReadingCards = [
+    {
+      label: "결론",
+      title: `${koCode(data.recommendation)} · ${formatPercent(data.score)}`,
+      body: "이 값은 자동 주문이 아니라 사람 검토를 시작할지 정하는 읽기 전용 점수다.",
+    },
+    {
+      label: "가격/순위",
+      title: `${marketComponentCount}개 재료`,
+      body: "가격 흐름, 수집 기간, 전략 유니버스 순위처럼 숫자로 검증 가능한 입력이다.",
+    },
+    {
+      label: "뉴스/AI",
+      title: `${aiOrEventComponentCount}개 재료`,
+      body: "회사나 종목을 직접 언급한 뉴스, 공시, AI 구조화 결과가 붙은 경우다.",
+    },
+    {
+      label: "상위 흐름",
+      title: `${macroFlowComponents.length}개 재료`,
+      body: "종목을 직접 언급하지 않은 시장·테마 뉴스가 노출도 규칙으로 점수에 들어간 경우다.",
+    },
+  ];
 
   return (
     <div className="pageStack">
@@ -404,6 +432,16 @@ export default async function RecommendationPage({ params }: RecommendationPageP
         </div>
       </section>
 
+      <section className="detail-path-grid reveal delay-1" aria-label="추천 상세 읽는 순서">
+        {recommendationReadingCards.map((card) => (
+          <article className="detail-path-card" key={card.label}>
+            <span>{card.label}</span>
+            <strong>{card.title}</strong>
+            <p>{card.body}</p>
+          </article>
+        ))}
+      </section>
+
       <section className="bento-card reveal delay-1" aria-label="추천 근거 흐름 요약">
         <div style={{ marginBottom: "20px" }}>
           <span className="metric-sub">근거 흐름 요약</span>
@@ -433,9 +471,9 @@ export default async function RecommendationPage({ params }: RecommendationPageP
             <span className="metric-sub">상위 흐름 전파 경로</span>
             <h2 style={{ fontSize: "1.5rem", marginTop: "6px" }}>시장·테마 뉴스가 {data.symbol} 점수에 들어간 방식</h2>
             <p style={{ color: "var(--text-secondary)", marginTop: "8px", maxWidth: "820px" }}>
-              이 패널은 종목을 직접 언급하지 않은 뉴스가 테마와 종목 노출도 규칙을 거쳐 추천 점수의
-              `macro_flow_score`로 들어간 경로다. 전체 전파 근거 수와 아래 최근 preview는 다를 수 있으며,
-              AI가 주문을 결정한 것이 아니라 구조화된 흐름이 점수 입력으로만 쓰였다.
+              이 패널은 종목을 직접 언급하지 않은 뉴스가 테마와 종목 노출도 규칙을 거쳐 추천 점수에 들어간 경로다.
+              전체 전파 근거 수와 아래에 표시된 최근 사례 수는 다를 수 있다. AI가 주문을 결정한 것이 아니라,
+              구조화된 흐름이 점수 입력으로만 쓰였다.
             </p>
           </div>
 

@@ -305,6 +305,46 @@ export default async function AiEvidencePage({ params }: AiEvidencePageProps) {
       : koLabel(data.title);
   const sourceLink = sourceHref(data.source_document_id);
   const targetStockLink = stockHref(targetSymbol);
+  const evidenceReadingCards = [
+    {
+      label: "AI가 한 일",
+      title: isNewsCluster ? "뉴스 묶음 생성" : isNewsCandidate ? "뉴스 한 건 구조화" : "근거 저장",
+      body: isNewsCluster
+        ? "여러 뉴스가 같은 테마나 하위 이슈인지 묶어서 시장 흐름으로 보이게 했다."
+        : isNewsCandidate
+          ? "뉴스 원문에서 테마, 종목, 방향, 불확실성을 뽑아 후보로 저장했다."
+          : "원천 문서와 품질 상태를 나중에 추적할 수 있게 보존했다.",
+    },
+    {
+      label: "연결 대상",
+      title: targetSymbol ? koCode(targetSymbol) : koCode(data.classification.theme_key),
+      body: targetSymbol
+        ? "명확한 종목 연결이 있어 종목 상세와 추천 근거 후보로 이어질 수 있다."
+        : "종목을 억지로 붙이지 않고 시장·테마 흐름으로 먼저 저장한다.",
+    },
+    {
+      label: "추천 사용",
+      title:
+        data.evidence_type === "news_event_candidate_rejected"
+          ? "차단됨"
+          : data.extraction_run.quality_gate
+            ? koCode(data.extraction_run.quality_gate)
+            : koCode(data.extraction_run.status),
+      body:
+        data.evidence_type === "news_event_candidate_rejected"
+          ? "validator가 추천 입력으로 넘기지 않았다. 원천 확인과 분류 보강 대상으로만 본다."
+          : "통과한 근거라도 바로 주문하지 않는다. 추천 점수와 보유검토가 별도로 판단한다.",
+    },
+    {
+      label: "다음 확인",
+      title: targetStockLink ? "종목 상세" : sourceLink ? "원천 문서" : "뉴스 AI 보드",
+      body: targetStockLink
+        ? "이 종목에 연결된 직접 뉴스, 상위 흐름, 추천/보유 상태를 이어서 확인한다."
+        : sourceLink
+          ? "종목 연결이 없으면 원천 문서와 테마 분류가 맞는지 먼저 확인한다."
+          : "뉴스 AI 판단 화면에서 같은 묶음과 주변 뉴스를 확인한다.",
+    },
+  ];
 
   return (
     <div className="pageStack ai-evidence-detail-page">
@@ -317,7 +357,7 @@ export default async function AiEvidencePage({ params }: AiEvidencePageProps) {
           <p className="page-lede">{copy.lede}</p>
         </div>
         <aside className="quality-decision-card" aria-label="AI 근거 품질">
-          <span>품질 관문</span>
+          <span>추천 입력 상태</span>
           <strong>{koCode(data.extraction_run.quality_gate || data.extraction_run.status)}</strong>
           <p>
             {koCode(data.extraction_run.provider)} · {koCode(data.extraction_run.model_id)} · 비용{" "}
@@ -347,6 +387,16 @@ export default async function AiEvidencePage({ params }: AiEvidencePageProps) {
           <strong>{sourceLink ? "있음" : "없음"}</strong>
           <small>{data.event_at}</small>
         </article>
+      </section>
+
+      <section className="detail-path-grid reveal delay-1" aria-label="AI 근거 상세 읽는 순서">
+        {evidenceReadingCards.map((card) => (
+          <article className="detail-path-card" key={card.label}>
+            <span>{card.label}</span>
+            <strong>{card.title}</strong>
+            <p>{card.body}</p>
+          </article>
+        ))}
       </section>
 
       <section className="flow-panel reveal delay-1" aria-labelledby="evidence-reading-order">
@@ -478,7 +528,7 @@ export default async function AiEvidencePage({ params }: AiEvidencePageProps) {
                   <span>{koCode(field.field)}</span>
                   <strong>{koLabel(field.value)}</strong>
                   <small>
-                    신뢰도 {formatPercent(field.confidence)} · 청크 {field.source_chunk_id}
+                    신뢰도 {formatPercent(field.confidence)} · 근거 {field.source_chunk_id}
                   </small>
                 </div>
               ))}
@@ -490,7 +540,7 @@ export default async function AiEvidencePage({ params }: AiEvidencePageProps) {
 
         <article className="evidence-decision-card">
           <div className="section-heading stacked-heading">
-            <span>원천 청크</span>
+            <span>모델 입력 근거</span>
             <h2>{isNewsCluster ? "묶음 입력" : "모델이 본 내용"}</h2>
           </div>
           {data.source_chunks.length > 0 ? (
@@ -509,8 +559,8 @@ export default async function AiEvidencePage({ params }: AiEvidencePageProps) {
           ) : (
             <div className="empty-state">
               {isNewsCluster
-                ? "이 뉴스 묶음은 로컬 규칙과 저장 이벤트로 만든 증거라 모델 입력 청크가 없다."
-                : "이 증거에 연결된 원천 청크가 아직 저장되지 않았다."}
+                ? "이 뉴스 묶음은 로컬 규칙과 저장 이벤트로 만든 증거라 모델 입력 조각이 없다."
+                : "이 증거에 연결된 모델 입력 근거가 아직 저장되지 않았다."}
             </div>
           )}
         </article>
