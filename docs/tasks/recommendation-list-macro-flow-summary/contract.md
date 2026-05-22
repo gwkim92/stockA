@@ -59,4 +59,4 @@
 - [x] Recommendation row evidence includes `macro_flow_component_count` and `macro_flow_evidence_count`.
 - [x] `/recommendations` shows macro-flow evidence count and links users to detail.
 - [x] Local verification and AWH pass.
-- [ ] EC2 deploy and browser smoke pass.
+- [x] EC2 deploy and browser smoke pass.
