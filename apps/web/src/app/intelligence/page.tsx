@@ -235,7 +235,9 @@ export default async function IntelligencePage() {
   const newsRun = findNewsPipelineRun(dataHealth);
   const aiRun = findAiPipelineRun(dataHealth);
   const fallbackClusters = buildFallbackClusters(events.events);
-  const aiCandidateEvents = events.events.filter((event) => event.ai_evidence_id).slice(0, 6);
+  const aiCandidateEvents = events.events
+    .filter((event) => event.ai_evidence_id && event.ai_evidence_type === "news_event_candidate")
+    .slice(0, 6);
   const unstructuredEvents = events.events.filter((event) => !event.ai_evidence_id).slice(0, 3);
   const firstCandidateEvidenceId = aiCandidateEvents[0]?.ai_evidence_id ?? null;
   const activation = dataHealth.scheduler.activation;

@@ -26,6 +26,7 @@
   - cluster DTO에 `story_key`, `story_label`을 추가했다.
 - `apps/web`
   - `/intelligence` 카드 제목을 story label로 보여주고 상위 테마를 별도 표기한다.
+  - `/intelligence`의 개별 뉴스 후보 큐는 `news_event_candidate`만 보여주고 `news_cluster_summary` 대표 이벤트는 제외한다.
   - `/ai-evidence/...` 뉴스 묶음 상세에서도 story label과 상위 테마를 구분한다.
 
 ## Verification
@@ -42,6 +43,9 @@
 - PASS: after broad single-no-symbol noise filter, `git diff --check`
 - PASS: after cluster ordering fix, `PYTHONPATH=src /opt/homebrew/bin/python3.13 -m unittest tests.test_frontend_live_adapter tests.test_news_rss_cluster_evidence`
 - PASS: after cluster ordering fix, `git diff --check`
+- PASS: after candidate queue filter, `cd apps/web && npm run typecheck`
+- PASS: after candidate queue filter, `cd apps/web && npm run build`
+- PASS: after candidate queue filter, `git diff --check`
 
 ## Remaining
 
