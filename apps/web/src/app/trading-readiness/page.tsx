@@ -52,8 +52,8 @@ export default async function TradingReadinessPage() {
         <div className="bento-badge">거래 안전 점검 • 주문 전 차단 상태</div>
         <h1 id="trading-readiness-title">실제 주문을 넣기 전에 무엇이 막고 있는지 본다.</h1>
         <p>
-          이 화면은 주문 버튼이 아니다. 브로커 경계, 계좌 권한, 주문 한도, 킬 스위치, 가상 검증,
-          감사 로그가 준비됐는지 읽기 전용으로 보여준다. 현재 서버는 broker로 주문을 보내지 않는다.
+          브로커 경계, 계좌 권한, 주문 한도, 킬 스위치, 가상 검증, 감사 로그가 모두 통과해야
+          실거래 후보가 된다. 브로커 제출 건수가 0이면 현재 서버에서 실제 주문은 나가지 않았다.
         </p>
       </section>
 
@@ -78,6 +78,11 @@ export default async function TradingReadinessPage() {
           <strong>{data.gate_summary.blocked_count}</strong>
           <small>{blockedSwitches.length > 0 ? "킬 스위치 포함" : "차단 gate 수"}</small>
         </article>
+        <article className="rail-cell">
+          <span>브로커 제출</span>
+          <strong>{data.audit_summary.submitted_to_broker_count}</strong>
+          <small>실제 주문 전송 기록</small>
+        </article>
       </section>
 
       <section className="split-ledger reveal delay-2">
@@ -85,7 +90,7 @@ export default async function TradingReadinessPage() {
           <div className="section-heading">
             <div>
               <span>안전 gate</span>
-              <h2>주문 의도를 막거나 허용하는 조건</h2>
+              <h2>실제 주문 전에 반드시 통과해야 하는 조건</h2>
             </div>
             <Link className="btn btn-secondary" href={"/paper-trading" as Route}>
               가상 거래 후보 보기
@@ -243,7 +248,7 @@ export default async function TradingReadinessPage() {
               <dd>{data.audit_summary.intent_count.toLocaleString("ko-KR")}건</dd>
             </div>
             <div>
-              <dt>broker 제출</dt>
+              <dt>브로커 제출</dt>
               <dd>{data.audit_summary.submitted_to_broker_count.toLocaleString("ko-KR")}건</dd>
             </div>
           </dl>

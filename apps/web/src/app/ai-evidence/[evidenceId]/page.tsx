@@ -67,6 +67,32 @@ function formatClusterStory(cluster: ClusterSummary) {
   return koLabel(label);
 }
 
+function clusterRelationReasons(data: AiEvidenceDetailData, cluster: ClusterSummary) {
+  const sourceDocumentCount = new Set(
+    data.cluster_events.map((event) => event.source_document_id).filter(Boolean),
+  ).size;
+  const symbols = cluster.symbols.filter(isKnownCode);
+  const reasons = [`같은 상위 테마로 묶임: ${koCode(cluster.theme_key)}`];
+  if (cluster.story_key && cluster.story_key !== "theme") {
+    reasons.push(`같은 하위 이슈로 묶임: ${formatClusterStory(cluster)}`);
+  }
+  reasons.push(
+    symbols.length > 0
+      ? `직접 연결 종목: ${symbols.map(koCode).join(", ")}`
+      : "직접 종목 없음: 시장/테마 흐름으로 저장하고 노출도 전파에서 종목 영향을 계산한다.",
+  );
+  if (cluster.event_count > 0) {
+    reasons.push(`뉴스 이벤트 ${cluster.event_count}개가 같은 묶음에 연결됨`);
+  }
+  if (sourceDocumentCount > 0) {
+    reasons.push(`원천 문서 ${sourceDocumentCount}개로 확인 가능`);
+  }
+  if (data.source_chunks.length > 0) {
+    reasons.push(`검색/RAG 확인용 문서 조각 ${data.source_chunks.length}개 연결`);
+  }
+  return reasons;
+}
+
 function formatContextCount(value: Array<Record<string, unknown>> | undefined) {
   return (value?.length ?? 0).toLocaleString("ko-KR");
 }
@@ -309,8 +335,8 @@ export default async function AiEvidencePage({ params }: AiEvidencePageProps) {
 
       <section className="flow-panel reveal delay-1" aria-labelledby="evidence-reading-order">
         <div className="section-heading flow-heading">
-          <span>읽는 순서</span>
-          <h2 id="evidence-reading-order">이 증거는 네 단계로 검증한다</h2>
+          <span>검증 체크리스트</span>
+          <h2 id="evidence-reading-order">추천 입력으로 쓰기 전에 확인할 것</h2>
         </div>
         <div className="flow-steps">
           <article className="flow-step">
@@ -359,6 +385,17 @@ export default async function AiEvidencePage({ params }: AiEvidencePageProps) {
               상위 테마는 {koCode(cluster.theme_key)}이고, 연결 종목은 {formatSymbols(cluster.symbols)}이다.
               방향 분포는 {formatDirectionCounts(cluster.direction_counts)}이다.
             </p>
+            <div className="relationship-panel">
+              <span>왜 이 뉴스들이 같이 묶였나</span>
+              <div className="relationship-list">
+                {clusterRelationReasons(data, cluster).map((reason) => (
+                  <div className="relationship-chip" key={`${data.evidence_id}-${reason}`}>
+                    <span>근거</span>
+                    <strong>{reason}</strong>
+                  </div>
+                ))}
+              </div>
+            </div>
             <div className="relationship-panel">
               <span>묶음에 포함된 대표 뉴스</span>
               <div className="relationship-list">

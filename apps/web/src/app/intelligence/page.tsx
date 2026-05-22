@@ -325,12 +325,12 @@ export default async function IntelligencePage() {
         <div>
           <div className="bento-badge">뉴스·AI 판단</div>
           <h1 className="page-title" id="intelligence-title">
-            뉴스와 AI는 여기서 한 번만 판단한다.
+            어떤 뉴스가 왜 묶였고, 어떤 종목·테마에 연결됐는지 본다.
           </h1>
         </div>
         <p className="page-lede">
-          이 화면은 뉴스 요약, AI 후보, 이벤트 원장을 반복해서 보여주지 않는다. 먼저 저장된 뉴스 묶음으로
-          “오늘 시장에서 무엇이 움직였는지”를 보고, 필요한 경우에만 개별 AI 후보와 원천 문서로 내려간다.
+          뉴스 묶음의 기준, 직접 연결 종목, 상위 흐름 전파 여부, 원천 문서를 한 카드에서 확인한다.
+          AI는 주문을 내리지 않고 뉴스의 종목·테마·방향·불확실성만 구조화한다.
         </p>
       </section>
 
@@ -348,7 +348,7 @@ export default async function IntelligencePage() {
         <article className="rail-cell">
           <span>뉴스 묶음 방식</span>
           <strong className="rail-word-value">{formatClusterModeStatus(clusterSummary)}</strong>
-          <small>최신 묶음은 화면에서 실시간 LLM을 호출하지 않는다</small>
+          <small>배치 작업이 저장한 결과만 읽음</small>
         </article>
         <article className="rail-cell">
           <span>저장된 뉴스 묶음</span>
@@ -360,35 +360,6 @@ export default async function IntelligencePage() {
           <strong className="rail-ratio-value">{formatPercent(dashboard.latest_metrics.weight_coverage_ratio)}</strong>
           <small>추천·보유 판단 연결률</small>
         </article>
-      </section>
-
-      <section className="flow-panel reveal delay-2" aria-labelledby="intelligence-reading-order">
-        <div className="section-heading flow-heading">
-          <span>읽는 법</span>
-          <h2 id="intelligence-reading-order">카드가 많아도 판단 순서는 세 단계다</h2>
-        </div>
-        <div className="flow-steps">
-          <article className="flow-step">
-            <span>01</span>
-            <strong>뉴스 묶음부터 본다</strong>
-            <p>개별 기사보다 같은 테마로 모인 흐름이 더 중요하다. 이 영역이 오늘의 핵심 신호다.</p>
-          </article>
-          <article className="flow-step">
-            <span>02</span>
-            <strong>AI 후보는 근거 검증용이다</strong>
-            <p>AI는 주문 결론을 내리지 않는다. 종목, 테마, 방향, 신뢰도, 불확실성을 구조화한다.</p>
-          </article>
-          <article className="flow-step">
-            <span>03</span>
-            <strong>추천·보유로 연결된 것만 판단한다</strong>
-            <p>추천 점수나 보유 검토에 연결되지 않은 뉴스는 정보일 뿐이며, 투자 행동으로 승격하지 않는다.</p>
-          </article>
-          <article className="flow-step">
-            <span>04</span>
-            <strong>원장은 상세 화면으로 보낸다</strong>
-            <p>모든 뉴스와 공시를 이 화면에 반복하지 않고 이벤트 원장, AI 후보, 종목 상세에서 확인한다.</p>
-          </article>
-        </div>
       </section>
 
       <section className="where-grid reveal delay-2" aria-label="상세 화면 역할">
@@ -405,7 +376,7 @@ export default async function IntelligencePage() {
       <section className="intelligence-board reveal delay-2" aria-labelledby="news-decision-board-title">
         <div className="section-heading stacked-heading">
           <span>뉴스 판단 보드</span>
-          <h2 id="news-decision-board-title">대표 뉴스 묶음만 남기고 중복 원장은 숨긴다</h2>
+          <h2 id="news-decision-board-title">묶음 기준과 종목 연결 이유를 먼저 보여준다</h2>
         </div>
 
         <section className="status-rail compact-rail" aria-label="뉴스 판단 보드 저장 상태">
@@ -478,12 +449,24 @@ export default async function IntelligencePage() {
                     <div className="cluster-decision-cell">
                       <span>직접 종목 / 전파 후보</span>
                       <strong>{formatSymbols(cluster.symbols)}</strong>
-                      <p>종목명이 직접 없으면 오류가 아니다. 상위 흐름은 노출도 전파를 거쳐 종목 상세와 추천 근거에 붙는다.</p>
+                      <p>직접 종목 뉴스는 종목에 바로 붙고, 거시·테마 뉴스는 상위 흐름 전파로 종목 영향을 계산한다.</p>
                     </div>
                     <div className="cluster-decision-cell cluster-decision-final">
                       <span>다음 판단</span>
                       <strong>추천·보유 검토의 근거 후보</strong>
                       <p>AI 증거 상세에서 원천 문서와 추출 필드가 맞는지 먼저 확인한다.</p>
+                    </div>
+                  </div>
+
+                  <div className="relationship-panel" aria-label={`${koCode(cluster.theme_key)} 묶음 근거`}>
+                    <span>왜 이 뉴스들이 같이 묶였나</span>
+                    <div className="relationship-list">
+                      {cluster.relation_reasons.map((reason) => (
+                        <div className="relationship-chip" key={`${cluster.evidence_id}-${reason}`}>
+                          <span>근거</span>
+                          <strong>{reason}</strong>
+                        </div>
+                      ))}
                     </div>
                   </div>
 
@@ -536,9 +519,29 @@ export default async function IntelligencePage() {
                     <span className="relation-pill">{formatFallbackTone(cluster)}</span>
                   </div>
                   <p className="fallback-note">
-                    저장된 AI 뉴스 묶음이 아직 없어서, 화면은 로컬 규칙 기반 임시 묶음을 대신 보여준다.
-                    AI batch가 성공하면 이 카드는 저장 증거 카드로 대체된다.
+                    저장된 뉴스 묶음 증거가 아직 없어서 로컬 규칙 기반 임시 묶음을 보여준다.
+                    AI 배치가 성공하면 묶음 기준과 원천 문서가 있는 증거 카드로 대체된다.
                   </p>
+                  <div className="relationship-panel" aria-label={`${koCode(cluster.themeKey)} 임시 묶음 근거`}>
+                    <span>왜 묶였나</span>
+                    <div className="relationship-list">
+                      <div className="relationship-chip">
+                        <span>테마</span>
+                        <strong>같은 상위 테마로 임시 묶음: {koCode(cluster.themeKey)}</strong>
+                      </div>
+                      {cluster.symbols.length > 0 ? (
+                        <div className="relationship-chip">
+                          <span>종목</span>
+                          <strong>직접 연결 종목: {cluster.symbols.map(koCode).join(", ")}</strong>
+                        </div>
+                      ) : (
+                        <div className="relationship-chip">
+                          <span>상위 흐름</span>
+                          <strong>직접 종목 없이 시장/테마 흐름으로 표시</strong>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                   <div className="relationship-panel" aria-label={`${koCode(cluster.themeKey)} 임시 대표 뉴스`}>
                     <span>대표 뉴스</span>
                     <div className="relationship-list">
@@ -631,63 +634,6 @@ export default async function IntelligencePage() {
         ) : null}
       </section>
 
-      <section className="flow-panel reveal delay-3" aria-labelledby="news-language-policy-title">
-        <div className="section-heading flow-heading">
-          <span>언어 정책</span>
-          <h2 id="news-language-policy-title">영어 원문과 한국어 판단을 분리해서 본다</h2>
-        </div>
-        <div className="flow-steps">
-          <article className="flow-step">
-            <span>01</span>
-            <strong>원천 뉴스는 대부분 영어다</strong>
-            <p>Yahoo Finance, MarketWatch, Fed, SEC RSS 제목은 원문 추적을 위해 영어 제목을 보존한다.</p>
-          </article>
-          <article className="flow-step">
-            <span>02</span>
-            <strong>LLM 후보는 한국어로 저장한다</strong>
-            <p>Codex OAuth 후보 분석은 요약, 근거, 불확실성을 한국어로 출력하도록 제한한다.</p>
-          </article>
-          <article className="flow-step">
-            <span>03</span>
-            <strong>로컬 규칙 묶음은 키워드가 남을 수 있다</strong>
-            <p>비용 0원 규칙 기반 묶음은 제목 토큰으로 이슈를 나누기 때문에 일부 원문 키워드가 표시된다.</p>
-          </article>
-          <article className="flow-step">
-            <span>04</span>
-            <strong>투자 판단 문장은 한국어를 우선한다</strong>
-            <p>추천·보유 검토에 들어가는 설명은 한국어 라벨과 검증된 근거를 기준으로 계속 정리한다.</p>
-          </article>
-        </div>
-      </section>
-
-      <section className="flow-panel reveal delay-3" aria-labelledby="ai-boundary-title">
-        <div className="section-heading flow-heading">
-          <span>AI 사용 경계</span>
-          <h2 id="ai-boundary-title">AI는 분석 근거를 만들고, 주문은 만들지 않는다</h2>
-        </div>
-        <div className="flow-steps">
-          <article className="flow-step">
-            <span>01</span>
-            <strong>실시간 호출 없음</strong>
-            <p>화면 진입 시 LLM을 부르지 않는다. AI 분석은 배치 작업이 저장한 결과만 읽는다.</p>
-          </article>
-          <article className="flow-step">
-            <span>02</span>
-            <strong>검증 실패 차단</strong>
-            <p>알 수 없는 종목·테마, 낮은 신뢰도, 근거 부족은 추천 입력으로 넘기지 않는다.</p>
-          </article>
-          <article className="flow-step">
-            <span>03</span>
-            <strong>무료 데이터 우선</strong>
-            <p>뉴스는 무료 RSS, 가격은 무료 provider 예산 안에서 수집한다. 유료 뉴스 API는 쓰지 않는다.</p>
-          </article>
-          <article className="flow-step">
-            <span>04</span>
-            <strong>투자 행동은 별도 관문</strong>
-            <p>추천, 보유 검토, 가상 거래 안전장치가 모두 통과해야 다음 행동 후보가 된다.</p>
-          </article>
-        </div>
-      </section>
     </div>
   );
 }

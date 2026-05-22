@@ -5896,8 +5896,8 @@ def _build_trading_readiness_gates(state: dict[str, Any]) -> list[dict[str, Any]
                 missing=not broker_boundary,
                 blocked=broker_status != "enabled" or not broker_preview_supported,
             ),
-            "가상 broker preview가 활성화되어야 주문 의도를 평가할 수 있다.",
-            "simulated paper broker boundary를 enabled 상태로 등록한다.",
+            "가상 거래 브로커 미리보기가 활성화되어야 주문 의도를 평가할 수 있다.",
+            "가상 거래 브로커 경계를 활성 상태로 등록한다.",
         ),
         _trading_gate(
             "account_permission",
@@ -5937,7 +5937,7 @@ def _build_trading_readiness_gates(state: dict[str, Any]) -> list[dict[str, Any]
             "audit_log",
             "감사 로그",
             "warning" if intent_count == 0 else "pass",
-            "주문 의도는 broker 제출 전에 audit row로 남아야 한다.",
+            "주문 의도는 브로커 제출 전에 감사 로그로 남아야 한다.",
             "paper ledger workflow에서 order intent audit을 먼저 생성한다.",
         ),
     ]
@@ -6069,7 +6069,7 @@ def _trading_readiness_guardrails() -> list[str]:
         "이 화면은 주문 화면이 아니라 거래 안전 상태 점검 화면이다.",
         "FastAPI frontend server는 계속 read-only이며 주문 write endpoint를 제공하지 않는다.",
         "broker secret 값은 노출하지 않고 설정 여부만 표시한다.",
-        "submitted_to_broker 값은 0이어야 하며, 실제 broker adapter는 아직 연결하지 않는다.",
+        "브로커 제출 값은 0이어야 하며, 실제 브로커 어댑터는 아직 연결하지 않는다.",
     ]
 
 
@@ -6171,6 +6171,12 @@ def _build_ai_news_cluster_payload(cluster: dict[str, Any]) -> dict[str, Any]:
         "request_hash": "",
     }
     representative_source_document_id = cluster.get("representative_source_document_id")
+    events = [_build_ai_evidence_cluster_event_payload(item) for item in _as_list(cluster.get("cluster_events"))]
+    source_documents = [
+        _build_ai_news_cluster_source_document_payload(item) for item in _as_list(cluster.get("source_documents"))
+    ]
+    chunk_count = int(cluster.get("chunk_count") or 0)
+    source_document_count = int(cluster.get("source_document_count") or len(source_documents))
     return {
         "evidence_id": _opaque_id("ai-evidence", cluster.get("evidence_id"), "unknown"),
         "title": str(cluster.get("title") or "News cluster summary"),
@@ -6187,19 +6193,63 @@ def _build_ai_news_cluster_payload(cluster: dict[str, Any]) -> dict[str, Any]:
         "direction_counts": summary["direction_counts"],
         "representative_event_id": summary["representative_event_id"],
         "request_hash": summary["request_hash"],
-        "source_document_count": int(cluster.get("source_document_count") or 0),
-        "chunk_count": int(cluster.get("chunk_count") or 0),
+        "source_document_count": source_document_count,
+        "chunk_count": chunk_count,
         "embedded_chunk_count": int(cluster.get("embedded_chunk_count") or 0),
         "representative_source_document_id": _source_document_detail_id_from_raw(representative_source_document_id)
         if representative_source_document_id is not None
         else None,
         "extraction_run": _build_ai_news_cluster_run_payload(_as_dict(cluster.get("extraction_run"))),
-        "events": [_build_ai_evidence_cluster_event_payload(item) for item in _as_list(cluster.get("cluster_events"))],
-        "source_documents": [
-            _build_ai_news_cluster_source_document_payload(item) for item in _as_list(cluster.get("source_documents"))
-        ],
+        "events": events,
+        "source_documents": source_documents,
+        "relation_reasons": _build_ai_news_cluster_relation_reasons(
+            summary=summary,
+            events=events,
+            source_documents=source_documents,
+            chunk_count=chunk_count,
+            source_document_count=source_document_count,
+        ),
         "audit_notes": [str(note) for note in _as_scalar_list(cluster.get("audit_notes"))],
     }
+
+
+def _build_ai_news_cluster_relation_reasons(
+    *,
+    summary: dict[str, Any],
+    events: list[dict[str, Any]],
+    source_documents: list[dict[str, Any]],
+    chunk_count: int,
+    source_document_count: int,
+) -> list[str]:
+    theme_key = str(summary.get("theme_key") or "UNCLASSIFIED")
+    story_key = str(summary.get("story_key") or "theme")
+    story_label = str(summary.get("story_label") or theme_key)
+    symbols = [
+        str(symbol).upper()
+        for symbol in _as_scalar_list(summary.get("symbols"))
+        if str(symbol or "").upper() not in {"", "UNKNOWN", "UNCLASSIFIED"}
+    ]
+    event_count = int(summary.get("event_count") or len(events))
+    source_document_count = max(source_document_count, len(source_documents))
+    reasons: list[str] = []
+
+    if theme_key and theme_key != "UNCLASSIFIED":
+        reasons.append(f"같은 상위 테마로 묶임: {theme_key}")
+    else:
+        reasons.append("테마 미분류 뉴스이므로 원천 문서와 제목 유사도만 근거로 표시한다.")
+    if story_key and story_key != "theme":
+        reasons.append(f"같은 하위 이슈로 묶임: {story_label}")
+    if symbols:
+        reasons.append(f"직접 연결 종목: {', '.join(symbols[:6])}")
+    else:
+        reasons.append("직접 종목 없음: 시장/테마 흐름으로 저장하고 노출도 전파에서 종목 영향을 계산한다.")
+    if event_count > 0:
+        reasons.append(f"대표 뉴스 이벤트 {event_count}개가 같은 묶음에 연결됨")
+    if source_document_count > 0:
+        reasons.append(f"원천 문서 {source_document_count}개로 확인 가능")
+    if chunk_count > 0:
+        reasons.append(f"검색/RAG 확인용 문서 조각 {chunk_count}개 연결")
+    return reasons
 
 
 def _build_ai_news_cluster_run_payload(run: dict[str, Any]) -> dict[str, Any]:
@@ -6827,7 +6877,7 @@ def _build_recommendation_evidence_review_payload(
             "주문 차단",
             "pass",
             "이 검토는 실제 주문이나 가상 주문을 만들지 않는 read-only 품질 점검이다.",
-            "주문 전송은 별도 broker boundary와 kill switch 승인 뒤에만 다룬다.",
+            "주문 전송은 별도 브로커 경계와 킬 스위치 승인 뒤에만 다룬다.",
         ),
     ]
     return {
@@ -6892,7 +6942,7 @@ def _build_thesis_evidence_review_payload(
             "주문 차단",
             "pass",
             "이 thesis 검토는 실제 주문이나 가상 주문을 만들지 않는다.",
-            "주문 전송은 별도 broker boundary와 kill switch 승인 뒤에만 다룬다.",
+            "주문 전송은 별도 브로커 경계와 킬 스위치 승인 뒤에만 다룬다.",
         ),
     ]
     return {

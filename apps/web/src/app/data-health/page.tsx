@@ -43,7 +43,7 @@ function runStateLabel(run: PipelineRun | null) {
     return "최근 실행 성공";
   }
   if (run.latest_status === "succeeded_with_fallback" || run.health_status === "degraded") {
-    return "성공했지만 fallback 사용";
+    return "성공했지만 대체 처리 사용";
   }
   if (run.latest_status === "succeeded") {
     return `성공 · ${koCode(run.health_status)}`;
@@ -56,7 +56,7 @@ function automationStateLabel(schedulerActivation: SchedulerActivation) {
     return schedulerActivation.scheduler_activation === "installed" ? "자동 반복 실행 중" : "반복 실행 설정됨";
   }
   if (schedulerActivation.status === "pending_manual_approval") {
-    return "로컬 반복 실행 미설정";
+    return "자동 반복 실행 미설정";
   }
   return koCode(schedulerActivation.status);
 }
@@ -77,7 +77,7 @@ function runQualityExplanation(run: PipelineRun | null) {
     return "실행 이력이 없어 품질을 판단할 수 없다.";
   }
   if (run.latest_status === "succeeded_with_fallback" || run.health_status === "degraded") {
-    return "작업은 멈추지 않았지만 일부 AI 후보가 실패해 규칙 기반 fallback으로 처리됐다. 추천 근거 품질을 낮게 보고 오류 로그를 확인해야 한다.";
+    return "작업은 멈추지 않았지만 일부 AI 후보가 실패해 규칙 기반 대체 처리로 완료됐다. 추천 근거 품질을 낮게 보고 오류 로그를 확인해야 한다.";
   }
   if (run.latest_status === "succeeded" && run.health_status === "ok") {
     return "최근 실행은 정상 범위다.";
@@ -111,10 +111,10 @@ function schedulerReadinessExplanation(scheduler: SchedulerStatus) {
     return `EC2 서버의 systemd timer가 데이터 수집과 분석 작업을 주기별로 호출한다. 현재 반복 실행기는 ${activeCount}/${timerCount}개가 활성 상태다.`;
   }
   if (activation.activation_allowed && activation.scheduler_activation !== "not_installed") {
-    return "승인 관문과 실행기 상태가 반복 실행을 허용하는 상태다. 외부 배포가 아니라도 로컬 반복 실행기로 운영할 수 있다.";
+    return "승인 관문과 실행기 상태가 반복 실행을 허용한다. EC2 예약 실행기가 작업별 주기에 맞춰 수집과 분석을 호출한다.";
   }
   if (activation.status === "pending_manual_approval") {
-    return "최근 파이프라인 실행은 성공했지만, 자동 반복 실행기는 아직 연결되지 않았다. 현재 목표는 외부 서버 배포가 아니라 로컬에서 수동 실행과 상태 확인을 먼저 안정화하는 것이다.";
+    return "최근 파이프라인 실행은 성공했지만 자동 반복 실행기는 아직 연결되지 않았다. 이 상태에서는 사람이 수동으로 실행해야 데이터가 갱신된다.";
   }
   if (activation.status === "not_configured") {
     return "반복 실행 결과가 연결되지 않아 자동 실행 여부를 판단할 수 없다.";
@@ -147,7 +147,7 @@ function schedulerInstallLabel(value: string) {
 
 function schedulerApprovalGateLabel(value: string) {
   if (value === "blocked_pending_manual_approval" || value === "pending_manual_approval") {
-    return "로컬 반복 실행 전 관문 닫힘";
+    return "자동 반복 실행 전 관문 닫힘";
   }
   return koCode(value);
 }
@@ -324,7 +324,7 @@ export default async function DataHealthPage() {
     {
       title: "AI 분석",
       run: aiRun,
-      fallbackCadence: "주간 · 월요일 09:00",
+      fallbackCadence: "장중 · 2시간마다",
       description: "수집 문서를 구조화하고 AI 근거 기록을 남긴다. 중요 뉴스는 Codex OAuth 배치 후보로 분석하고, 뉴스 묶음은 무료 로컬 규칙 보조 증거로 남긴다.",
       detail: "AI는 근거를 정리하지만 매수·매도·주문 결론을 자동 실행하지 않는다.",
     },
@@ -421,7 +421,7 @@ export default async function DataHealthPage() {
         <section className="flow-panel reveal delay-1" aria-labelledby="ai-fallback-warning-title">
           <div className="section-heading flow-heading">
             <span>AI 분석 경고</span>
-            <h2 id="ai-fallback-warning-title">뉴스 AI 분석이 fallback으로 끝난 실행이 있다</h2>
+            <h2 id="ai-fallback-warning-title">뉴스 AI 분석이 대체 처리로 끝난 실행이 있다</h2>
           </div>
           <p className="page-lede" style={{ marginTop: 0, maxWidth: "980px" }}>
             {runQualityExplanation(aiRun)} 이 상태에서는 뉴스 수집과 이벤트 구조화는 계속 진행되지만,
@@ -442,7 +442,7 @@ export default async function DataHealthPage() {
 
         <article className="ledger-panel" style={{ marginTop: "18px" }}>
           <div className="section-heading stacked-heading">
-            <span>로컬 반복 실행 판단</span>
+            <span>자동 반복 실행 상태</span>
             <h3>{schedulerReadinessTitle(data.scheduler)}</h3>
           </div>
           <p style={{ color: "var(--text-secondary)", marginBottom: "16px" }}>
@@ -478,12 +478,12 @@ export default async function DataHealthPage() {
 
         <article className="ledger-panel" style={{ marginTop: "18px" }}>
           <div className="section-heading stacked-heading">
-            <span>목표 운영 구조</span>
-            <h3>웹 요청 서버가 아니라 백그라운드 작업 실행기가 수집을 실행한다</h3>
+            <span>실제 실행 구조</span>
+            <h3>웹 화면은 읽고, EC2 예약 작업이 수집·분석을 실행한다</h3>
           </div>
           <p style={{ color: "var(--text-secondary)", marginBottom: "16px" }}>
-            FastAPI와 Next.js는 화면 요청을 처리한다. 데이터 수집·뉴스 분석·성과 측정은
-            EC2의 예약 실행이 백그라운드 작업 실행기를 호출해 수행하고, 결과는 Postgres와 증거 파일에 남긴다.
+            FastAPI와 Next.js는 저장된 결과를 읽어 보여준다. 뉴스 수집, 캔들 보강, AI 분석, 추천 갱신은
+            EC2 systemd timer가 백그라운드 작업 실행기를 호출해 수행하고, 결과는 Postgres와 증거 파일에 남긴다.
           </p>
           <dl className="fact-list compact-facts">
             <div>
@@ -574,7 +574,7 @@ export default async function DataHealthPage() {
 
         <article className="ledger-panel" style={{ marginTop: "18px" }}>
           <div className="section-heading stacked-heading">
-            <span>반복 실행 증거</span>
+            <span>최근 자동 실행 증거</span>
             <h3>{localWorkerTitle(localWorker)}</h3>
           </div>
           <p style={{ color: "var(--text-secondary)", marginBottom: "16px" }}>
@@ -657,7 +657,7 @@ export default async function DataHealthPage() {
 
         <article className="ledger-panel" style={{ marginTop: "18px" }}>
           <div className="section-heading stacked-heading">
-            <span>수동 단발 실행 증거</span>
+            <span>최근 수동 점검 증거</span>
             <h3>{manualSmokeTitle(manualSmoke)}</h3>
           </div>
           <p style={{ color: "var(--text-secondary)", marginBottom: "16px" }}>

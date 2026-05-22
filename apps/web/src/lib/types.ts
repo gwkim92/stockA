@@ -516,6 +516,7 @@ export type AiNewsClusterListData = {
       chunk_count: number;
       embedded_chunk_count: number;
     }>;
+    relation_reasons: string[];
     audit_notes: string[];
   }>;
   guardrails: string[];

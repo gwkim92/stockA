@@ -2075,6 +2075,9 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertEqual(cluster["extraction_run"]["estimated_cost_usd"], 0.0)
         self.assertEqual(cluster["chunk_count"], 2)
         self.assertEqual(cluster["embedded_chunk_count"], 2)
+        self.assertIn("같은 상위 테마로 묶임: AI_SEMICONDUCTOR_CYCLE", cluster["relation_reasons"])
+        self.assertIn("직접 연결 종목: NVDA", cluster["relation_reasons"])
+        self.assertIn("원천 문서 2개로 확인 가능", cluster["relation_reasons"])
         self.assertEqual(cluster["events"][0]["event_id"], "event-20")
         self.assertEqual(
             cluster["source_documents"][0]["source_document_id"],

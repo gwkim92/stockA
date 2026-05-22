@@ -138,19 +138,19 @@ function EvidenceNeighborhoodPanel({ neighborhood }: { neighborhood: AiEvidenceN
   const storyGroups = neighborhood.story_groups ?? [];
 
   return (
-    <section className="bento-grid reveal delay-4" aria-label="AI 증거 관계망">
+    <section className="bento-grid reveal delay-4" aria-label="이 종목이 뉴스와 엮인 이유">
       <article className="bento-card span-4" style={{ background: "var(--bg-card-hover)", borderColor: "var(--border-focus)" }}>
         <div className="section-heading">
           <div>
-            <span className="metric-sub">AI 증거 관계망</span>
-            <h2>뉴스·공시가 어떤 판단 근거로 연결됐는지 본다</h2>
+            <span className="metric-sub">뉴스와 종목 연결 이유</span>
+            <h2>이 종목이 어떤 뉴스·테마 때문에 움직일 수 있는지 본다</h2>
           </div>
           <span className="bento-badge" style={{ margin: 0 }}>
             {koCode(neighborhood.retrieval_boundary.retrieval_backend)} · 토큰 {neighborhood.retrieval_boundary.token_budget}
           </span>
         </div>
 
-        <div className="status-rail compact-rail" aria-label="AI 증거 관계망 요약">
+        <div className="status-rail compact-rail" aria-label="뉴스와 종목 연결 요약">
           <div className="rail-cell">
             <span>이벤트</span>
             <strong>{neighborhood.summary.event_count}</strong>
@@ -239,7 +239,7 @@ function EvidenceNeighborhoodPanel({ neighborhood }: { neighborhood: AiEvidenceN
         </div>
 
         <div className="relationship-panel" aria-label={`${neighborhood.symbol} 뉴스 이야기 묶음`}>
-          <span>뉴스 이야기 묶음</span>
+          <span>같은 이야기로 묶인 뉴스와 이유</span>
           <div className="relationship-list">
             {storyGroups.slice(0, 4).map((group) => {
               const firstSource = sourceDocumentHref(group.source_document_ids[0] ?? null);
@@ -252,7 +252,7 @@ function EvidenceNeighborhoodPanel({ neighborhood }: { neighborhood: AiEvidenceN
                     문서 검색 청크 {group.linked_chunk_count.toLocaleString("ko-KR")}개 · 규칙 기반 신뢰도 {formatPercent(group.confidence)}
                   </small>
                   {group.relation_reasons.slice(0, 3).map((reason) => (
-                    <small key={`${group.story_id}-${reason}`}>{koLabel(reason)}</small>
+                    <small key={`${group.story_id}-${reason}`}>묶인 이유: {koLabel(reason)}</small>
                   ))}
                   {group.events.slice(0, 2).map((event) => (
                     <small key={`${group.story_id}-${event.event_id}`}>

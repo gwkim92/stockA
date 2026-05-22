@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { Route } from "next";
 
-import { getPaperTradingPreview } from "@/lib/frontend-api";
+import { getPaperTradingPreview, getTradingReadiness } from "@/lib/frontend-api";
 import { koCode, koLabel, koReason } from "@/lib/korean-labels";
 
 export const dynamic = "force-dynamic";
@@ -44,8 +44,9 @@ function thesisHref(thesisId: string | null) {
 }
 
 export default async function PaperTradingPage() {
-  const response = await getPaperTradingPreview();
+  const [response, tradingResponse] = await Promise.all([getPaperTradingPreview(), getTradingReadiness()]);
   const data = response.data;
+  const trading = tradingResponse.data;
   const summary = data.quality_summary;
 
   return (
@@ -58,8 +59,8 @@ export default async function PaperTradingPage() {
           </h1>
         </div>
         <p className="page-lede">
-          이 화면은 거래 실행기가 아니다. 최신 추천과 가상 포트폴리오(Paper) 스냅샷을 대조해서,
-          가상으로 어떤 조치가 필요한지만 보여준다. 모든 조치는 사람 승인 전까지 실행되지 않는다.
+          최신 추천과 가상 포트폴리오(Paper) 스냅샷을 대조한다. 이 단계는 주문 전 테스트이며,
+          브로커 제출 건수가 0이면 실제 주문은 나가지 않았다.
         </p>
       </section>
 
@@ -84,13 +85,18 @@ export default async function PaperTradingPage() {
           <strong>{summary.position_recommendation_conflict_count}</strong>
           <small>사람 승인 필요 {summary.requires_human_approval_count}</small>
         </article>
+        <article className="rail-cell">
+          <span>브로커 제출</span>
+          <strong>{trading.audit_summary.submitted_to_broker_count}</strong>
+          <small>가상 승인 후보 {trading.paper_validation.approved_action_count}</small>
+        </article>
       </section>
 
       <section className="split-ledger reveal delay-2">
         <article className="ledger-panel queue-panel">
           <div className="section-heading">
-            <span>가상 거래 후보</span>
-            <h2>실행하지 않는 가상 거래 후보</h2>
+            <span>가상 거래 테스트 결과</span>
+            <h2>추천과 현재 보유가 충돌하는 후보</h2>
           </div>
           <div className="ledger-table-wrap">
             <table className="ledger-table data-health-table">
@@ -106,7 +112,7 @@ export default async function PaperTradingPage() {
                 </tr>
               </thead>
               <tbody>
-                {data.paper_actions.map((action) => {
+                {data.paper_actions.length > 0 ? data.paper_actions.map((action) => {
                   const recommendationLink = recommendationHref(action.recommendation_id);
                   const thesisLink = thesisHref(action.linked_thesis_id);
                   return (
@@ -144,7 +150,11 @@ export default async function PaperTradingPage() {
                       </td>
                     </tr>
                   );
-                })}
+                }) : (
+                  <tr>
+                    <td colSpan={7}>현재 가상 거래 후보가 없다. 추천 배치나 보유 스냅샷이 갱신되면 다시 표시된다.</td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
@@ -154,8 +164,12 @@ export default async function PaperTradingPage() {
           <article className="ledger-panel">
             <div className="section-heading stacked-heading">
               <span>안전 경계</span>
-              <h2>지금 하지 않는 것</h2>
+              <h2>아직 실제 주문이 아닌 이유</h2>
             </div>
+            <p className="empty-copy">
+              이 화면의 후보는 가상 검증 결과다. 실제 주문은 브로커 경계, 계좌 권한, 주문 한도,
+              킬 스위치, 감사 로그가 모두 통과해야 별도 단계에서만 다룬다.
+            </p>
             <div className="tag-ledger">
               {data.guardrails.map((guardrail) => (
                 <span className="risk-tag risk-medium" key={guardrail}>

@@ -159,9 +159,8 @@ export default async function HomePage() {
             <span className="title-muted">판단한다.</span>
           </h1>
           <p className="manifest-lede">
-            이 프로젝트는 뉴스를 자동 수집하고, AI가 중요한 뉴스 후보를 구조화한 뒤, 종목과 테마에 연결해
-            중장기 추천과 보유 검토의 근거로 남기는 투자 운영 시스템이다. 첫 화면에서는 결론보다
-            “무엇을 먼저 확인해야 하는지”를 고정한다.
+            먼저 자동 수집이 정상인지 보고, 그다음 뉴스 AI 근거와 종목 연결을 확인한다. 마지막으로
+            추천·보유·가상 거래가 안전 관문에서 막혔는지 본다.
           </p>
           <div className="btn-row">
             <Link className="btn btn-primary" href="/data-health">
@@ -327,8 +326,8 @@ export default async function HomePage() {
 
           <article className="ledger-panel runtime-panel">
             <div className="section-heading">
-              <span>추천 입력</span>
-              <h2>뉴스와 추천이 어디서 만나는가</h2>
+              <span>뉴스가 추천에 붙은 증거</span>
+              <h2>AI 근거가 실제 판단 입력으로 연결됐는가</h2>
             </div>
             <dl className="runtime-grid">
               <div>
@@ -349,33 +348,11 @@ export default async function HomePage() {
               </div>
             </dl>
             <div className="mini-link-stack">
-              <Link href="/intelligence">뉴스 AI 흐름</Link>
+              <Link href="/intelligence">뉴스 묶음 근거</Link>
               <Link href={firstRecommendationHref}>대표 추천 열기</Link>
             </div>
           </article>
         </aside>
-      </section>
-
-      <section className="flow-panel reveal delay-3" aria-labelledby="system-flow-title">
-        <div className="section-heading flow-heading">
-          <span>전체 시스템</span>
-          <h2 id="system-flow-title">자동화는 데이터를 쌓고, 화면은 판단 순서를 고정한다</h2>
-        </div>
-        <div className="flow-steps operator-flow-steps">
-          {[
-            ["01", "수집", "뉴스, 가격, 공시, 거시 지표를 정해진 작업으로 저장한다."],
-            ["02", "구조화", "AI와 규칙이 뉴스의 종목, 테마, 방향, 불확실성을 후보로 만든다."],
-            ["03", "검증", "모르는 종목, 낮은 신뢰도, 원천 없는 해석은 추천 입력에서 막는다."],
-            ["04", "추천", "장기 후보는 점수, 근거, 무효화 조건과 함께 검토 대상이 된다."],
-            ["05", "거래 안전", "가상 거래와 실거래는 broker boundary, 한도, kill switch를 통과해야 한다."],
-          ].map(([index, title, copy]) => (
-            <article className="flow-step" key={index}>
-              <span>{index}</span>
-              <strong>{title}</strong>
-              <p>{copy}</p>
-            </article>
-          ))}
-        </div>
       </section>
 
       <section className="route-index operator-secondary reveal delay-3" aria-label="상세 화면 바로가기">

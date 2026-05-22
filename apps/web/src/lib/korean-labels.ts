@@ -54,7 +54,7 @@ const KOREAN_LABELS: Record<string, string> = {
   intraday: "장중",
   failed: "실패",
   degraded: "품질 저하",
-  succeeded_with_fallback: "성공했지만 fallback 사용",
+  succeeded_with_fallback: "성공했지만 대체 처리 사용",
   forming: "형성 중",
   healthy: "정상",
   high: "높음",
@@ -575,7 +575,7 @@ const BLOCKED_REASON_DETAILS: Record<string, { title: string; description: strin
   account_permission_not_active: {
     title: "계좌 권한이 활성 상태가 아니다",
     description: "paper_trade 권한이 active가 아니면 주문 의도 평가도 통과시킬 수 없다.",
-    nextStep: "simulated paper 계좌 권한을 active로 등록한다.",
+    nextStep: "가상 거래 계좌 권한을 활성 상태로 등록한다.",
   },
   account_permission_scope_insufficient: {
     title: "계좌 권한 범위가 부족하다",
@@ -585,12 +585,12 @@ const BLOCKED_REASON_DETAILS: Record<string, { title: string; description: strin
   broker_boundary_not_enabled: {
     title: "브로커 경계가 활성화되지 않았다",
     description: "실제 브로커가 아니라도 paper preview용 경계가 enabled 상태여야 한다.",
-    nextStep: "simulated paper broker boundary를 enabled로 등록한다.",
+    nextStep: "가상 거래 브로커 경계를 활성 상태로 등록한다.",
   },
   broker_preview_not_supported: {
     title: "주문 미리보기가 꺼져 있다",
     description: "paper 단계에서는 실제 제출이 아니라 미리보기 평가 기능만 필요하다.",
-    nextStep: "paper broker boundary에서 supports_order_preview를 켠다.",
+    nextStep: "가상 거래 브로커 경계에서 주문 미리보기를 켠다.",
   },
   human_approval_required: {
     title: "사람 승인이 아직 없다",
