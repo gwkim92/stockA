@@ -2,7 +2,7 @@
 
 ## Current Status
 
-- 상태: ec2_systemd_identity_fix_in_progress
+- 상태: ec2_systemd_identity_fix_verified
 - 기준일: 2026-05-22
 - 완료:
   - task contract를 생성했다.
@@ -21,9 +21,13 @@
   - 실제 로그인된 OAuth context는 `/home/ec2-user/.codex/auth.json`에 있고, 해당 파일 내용은 출력하지 않았다.
   - `operating-data-profile-scheduler-invocation-plan`에 systemd `User=`, `Group=`, `HOME`, `CODEX_HOME`, `XDG_CONFIG_HOME` manifest 옵션을 추가했다.
   - operating-data profile scheduler의 기본 job name이 `stockanalysis-local-ingest-worker`로 엮여 실제 설치 대상인 `stockanalysis-operating-data-*`와 어긋나는 문제도 함께 수정했다.
+  - EC2에 최신 코드 `a2aa070`을 배포했다.
+  - EC2 systemd manifests를 `stockanalysis-operating-data-*` 이름으로 재생성하고 `/etc/systemd/system`에 설치했다.
+  - 설치된 `stockanalysis-operating-data-news-intraday.service`가 `User=ec2-user`, `Group=ec2-user`, `HOME=/home/ec2-user`, `CODEX_HOME=/home/ec2-user/.codex`를 사용함을 확인했다.
+  - 같은 systemd service 경로를 수동 1회 실행했고, run `319`가 `codex_oauth` 10건 호출 모두 성공했다.
 - 막힌 점:
   - 과거 실패의 최종 CLI error line은 기존 저장 방식 때문에 복구할 수 없다.
-  - 현재 같은 SSH 단건 경로의 1건 smoke는 성공하지만, 설치된 EC2 systemd unit은 아직 `ec2-user` 실행자로 재설치/검증이 필요하다.
+  - 없음. 과거 실패 기록은 남아 있으나 최신 systemd 경로는 성공한다.
 
 ## Investigation Plan
 
@@ -51,19 +55,19 @@
 - PASS: `PYTHONPATH=src /opt/homebrew/bin/python3.13 -m compileall src tests`
 - PASS: `git diff --check`
 - PARTIAL: EC2 first redeploy attempt generated `stockanalysis-local-ingest-worker-*` manifests because of the default job-name mismatch; this is now fixed in code and needs redeploy.
+- PASS: EC2 deploy to `/opt/stockanalysis/app` at commit `a2aa070`.
+- PASS: EC2 `tests.test_operating_data_profile_scheduler` passed.
+- PASS: EC2 installed service contains `User=ec2-user`, `Group=ec2-user`, `Environment=HOME=/home/ec2-user`, `Environment=CODEX_HOME=/home/ec2-user/.codex`.
+- PASS: EC2 `sudo systemctl start stockanalysis-operating-data-news-intraday.service` completed with `Result=success`, `ExecMainStatus=0`, `User=ec2-user`, `Group=ec2-user`.
+- PASS: DB run `319` `event_intelligence_llm_extract` status `succeeded`, provider `codex_oauth`, limit `10`.
+- PASS: DB `ai.model_invocation` for run `319`: `invocation_count=10`, `succeeded_count=10`, `failed_count=0`.
+- PASS: API `/api/ai/news-clusters?limit=1` summary: latest provider `codex_oauth`, latest status `succeeded`, latest success at `2026-05-22T06:06:10.555357Z`.
+- PASS: API `/api/data-health` reports `event_intelligence_llm_extract` latest status `succeeded`, health `ok`, latest run `pipeline-run-319`.
 
 ## Remaining
 
-- Commit/push the systemd identity manifest fix.
-- Deploy to EC2.
-- Regenerate profile scheduler manifests with:
-  - `--systemd-user ec2-user`
-  - `--systemd-group ec2-user`
-  - `--systemd-home /home/ec2-user`
-- Install generated `.service` and `.timer` files to `/etc/systemd/system`.
-- `systemctl daemon-reload`, restart timers, then manually start `stockanalysis-operating-data-news-intraday.service` once.
-- Verify latest `event_intelligence_llm_extract` run has `codex_oauth` succeeded invocations instead of 401 fallback.
+- 없음 for this task.
 
 ## Exact Next Step
 
-- exact next step: deploy the systemd identity manifest fix to EC2 and verify the profile scheduler path uses `ec2-user` Codex OAuth context.
+- exact next step: continue from product work; Codex OAuth scheduler runtime is no longer the blocker.
