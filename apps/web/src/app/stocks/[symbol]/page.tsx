@@ -342,8 +342,8 @@ export default async function StockDetailPage({ params }: StockDetailPageProps) 
           {hasEvidenceOnlyData ? `${data.symbol} 시장 흐름과 수집 상태` : `${data.symbol} 데이터와 판단 근거`}
         </h1>
         <p>
-          가격 차트, 추천 상태, 보유 상태, 관련 이벤트를 한 화면에서 확인한다. 이 화면은 주문 버튼이 아니라
-          사람이 검토해야 할 근거 묶음이다.
+          가격 차트, 추천 상태, 보유 상태, 직접 뉴스, 상위 흐름 전파를 함께 확인한다.
+          주문 판단보다 먼저 근거가 충분한지 확인하는 화면이다.
         </p>
       </section>
 
@@ -374,7 +374,7 @@ export default async function StockDetailPage({ params }: StockDetailPageProps) 
         <section className="bento-card reveal delay-1" aria-label="가격 미수집 안내">
           <div className="section-heading stacked-heading">
             <span className="metric-sub">데이터 상태 구분</span>
-            <h2>이 화면은 가격 분석이 아니라 시장 흐름 노출을 먼저 보여준다</h2>
+            <h2>가격 데이터가 부족해 시장 흐름 노출부터 보여준다</h2>
           </div>
           <p style={{ color: "var(--text-secondary)", marginBottom: 0 }}>
             {data.symbol}은 현재 뉴스·테마 흐름에는 연결되어 있지만, 이 서버의 가격 캔들 수집 대상에는 아직 충분히

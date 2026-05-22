@@ -216,7 +216,7 @@ function thesisQualityChecks(data: ThesisDetailData) {
     {
       label: "주문 경계",
       value: "자동 주문 없음",
-      detail: "이 판정은 투자 논리 품질 검토이며 broker/order flow를 실행하지 않는다.",
+      detail: "이 판정은 투자 논리 품질 검토이며 브로커 주문 흐름을 실행하지 않는다.",
     },
   ];
 }

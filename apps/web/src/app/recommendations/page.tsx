@@ -87,8 +87,8 @@ export default async function RecommendationsPage() {
         <div className="bento-badge">추천 상황실 • 중장기 후보 검토</div>
         <h1 id="recommendations-title">지금 시스템이 어떤 종목을 왜 추천 후보로 보는지 확인한다.</h1>
         <p>
-          이 화면은 주문 화면이 아니다. 최신 추천 배치의 점수, 근거, 투자 논리, 성과 측정 상태를 한 번에 보여주고
-          사람이 상세 검토할 항목을 고르는 읽기 전용 관제 화면이다.
+          최신 추천 배치의 점수, 근거, 투자 논리, 성과 측정 상태를 한 번에 보여준다.
+          여기서 사람이 상세 검토할 종목을 고른다.
         </p>
       </section>
 

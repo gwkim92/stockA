@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { NewsTitleBlock } from "@/components/news-title-block";
 import { getSourceDocumentDetail } from "@/lib/frontend-api";
 import { koCode, koLabel } from "@/lib/korean-labels";
 
@@ -51,7 +52,7 @@ export default async function SourceDocumentPage({ params }: SourceDocumentPageP
         <article className="bento-card span-2" style={{ background: "var(--bg-card-hover)", borderColor: "var(--border-focus)" }}>
           <div style={{ marginBottom: "24px" }}>
             <span className="metric-sub">문서</span>
-            <h2 style={{ fontSize: "1.5rem" }}>{koLabel(data.title)}</h2>
+            <NewsTitleBlock title={data.title} symbol={data.symbol} />
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
             <div>
@@ -145,7 +146,7 @@ export default async function SourceDocumentPage({ params }: SourceDocumentPageP
                 gap: "4px"
               }}>
                 <span className="metric-sub">{koCode(evidence.evidence_type)}</span>
-                <strong style={{ fontSize: "1rem" }}>{koLabel(evidence.title)}</strong>
+                <NewsTitleBlock compact title={evidence.title} symbol={data.symbol} />
                 <Link href={`/ai-evidence/${evidence.evidence_id}`} style={{
                   color: "var(--accent-blue)",
                   fontSize: "0.85rem",

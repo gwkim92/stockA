@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Route } from "next";
 import { AuditMetadata, type AuditMetadataItem } from "@/components/audit-metadata";
+import { NewsTitleBlock } from "@/components/news-title-block";
 import { getRecommendationDetail } from "@/lib/frontend-api";
 import { koCode, koLabel } from "@/lib/korean-labels";
 import type { RecommendationDetailData } from "@/lib/types";
@@ -251,7 +252,7 @@ function recommendationQualityChecks(data: RecommendationDetailData) {
     {
       label: "주문 경계",
       value: "자동 주문 없음",
-      detail: "이 판정은 추천 품질 검토이며 broker/order flow를 실행하지 않는다.",
+      detail: "이 판정은 추천 품질 검토이며 브로커 주문 흐름을 실행하지 않는다.",
     },
   ];
 }
@@ -287,10 +288,19 @@ function evidenceTraceCards(data: RecommendationDetailData) {
       value: traceStatusLabel(direct.status),
       detail:
         direct.status === "linked"
-          ? `${direct.title ?? "연결된 이벤트"} · ${koCode(direct.impact_direction)} · 신뢰도 ${formatMetricValue(direct.confidence)}`
+          ? `직접 종목 뉴스나 AI 근거가 추천 입력으로 연결됐다. 신뢰도 ${formatMetricValue(direct.confidence)}.`
           : "이 추천은 직접 종목 뉴스보다 가격, 유니버스, 또는 상위 흐름 근거가 중심이다.",
       href: directHref,
       hrefLabel: direct.evidence_id ? evidenceLinkLabel(direct.evidence_id) : null,
+      newsTitle:
+        direct.title && direct.status === "linked"
+          ? {
+              title: direct.title,
+              symbol: data.symbol,
+              impactDirection: direct.impact_direction,
+              impactScore: direct.impact_strength,
+            }
+          : null,
     },
     {
       label: "상위 흐름 전파",
@@ -301,6 +311,16 @@ function evidenceTraceCards(data: RecommendationDetailData) {
           : "거시·테마 뉴스가 이 종목 점수로 전파된 기록은 아직 없다.",
       href: `/stocks/${encodeURIComponent(data.symbol)}` as Route,
       hrefLabel: "종목 흐름 보기",
+      newsTitle:
+        firstFlow && macroFlow.propagated_impact_count > 0
+          ? {
+              title: firstFlow.title,
+              symbol: data.symbol,
+              themeKey: firstFlow.theme_key,
+              impactDirection: firstFlow.impact_direction,
+              impactScore: firstFlow.impact_strength,
+            }
+          : null,
     },
     {
       label: "보유검토 연결",
@@ -313,6 +333,7 @@ function evidenceTraceCards(data: RecommendationDetailData) {
             : "현재 포트폴리오 보유 항목으로 확인되지 않았다.",
       href: holdingHref,
       hrefLabel: "보유 검토 보기",
+      newsTitle: null,
     },
   ];
 }
@@ -399,6 +420,7 @@ export default async function RecommendationPage({ params }: RecommendationPageP
               <span>{card.label}</span>
               <strong>{card.value}</strong>
               <p>{card.detail}</p>
+              {card.newsTitle ? <NewsTitleBlock compact {...card.newsTitle} /> : null}
               {card.href && card.hrefLabel ? <Link href={card.href}>{card.hrefLabel}</Link> : null}
             </article>
           ))}
@@ -438,7 +460,14 @@ export default async function RecommendationPage({ params }: RecommendationPageP
                       return (
                         <div className="relationship-chip" key={`${component.component}-${flow.event_id}-${flow.theme_key}`}>
                           <span>{koCode(flow.theme_key)}</span>
-                          <strong>{koLabel(flow.title)}</strong>
+                          <NewsTitleBlock
+                            compact
+                            title={flow.title}
+                            symbol={data.symbol}
+                            themeKey={flow.theme_key}
+                            impactDirection={flow.impact_direction}
+                            impactScore={flow.impact_strength}
+                          />
                           <small>
                             {koCode(flow.impact_direction)} · 강도 {formatMetricValue(flow.impact_strength)} · 신뢰도 {formatMetricValue(flow.confidence)}
                           </small>

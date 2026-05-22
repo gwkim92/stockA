@@ -152,8 +152,8 @@ export default async function AiEvidenceIndexPage() {
           </h1>
         </div>
         <p className="page-lede">
-          이 화면은 한 뉴스 단위로 AI가 구조화한 후보만 모은다. 종목이 없는 저신호 일반 top story는
-          기본 후보에서 숨기고, 여러 뉴스를 묶은 흐름 증거는 뉴스·AI 판단 화면에서 따로 확인한다.
+          한 뉴스 단위로 AI가 구조화한 후보를 모았다. 종목이 없는 저신호 일반 top story는
+          기본 후보에서 숨기고, 여러 뉴스를 묶은 흐름 증거는 뉴스·AI 판단 화면에서 확인한다.
         </p>
       </section>
 

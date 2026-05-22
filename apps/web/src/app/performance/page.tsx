@@ -272,8 +272,8 @@ export default async function PerformancePage() {
           <div className="bento-list">
             {data.outcomes.length === 0 ? (
               <p className="empty-state">
-                아직 측정 종료일이 지난 추천 성과가 없다. 이 화면은 실패가 아니라 성과 측정 윈도우가
-                도래하기 전 상태를 표시한다.
+                아직 측정 종료일이 지난 추천 성과가 없다. 성과 측정 윈도우가 도래하면 추천별 알파와
+                벤치마크 대비 결과가 이 영역에 표시된다.
               </p>
             ) : null}
             {data.outcomes.map((outcome) => (

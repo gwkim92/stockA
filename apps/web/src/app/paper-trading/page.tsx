@@ -167,7 +167,7 @@ export default async function PaperTradingPage() {
               <h2>아직 실제 주문이 아닌 이유</h2>
             </div>
             <p className="empty-copy">
-              이 화면의 후보는 가상 검증 결과다. 실제 주문은 브로커 경계, 계좌 권한, 주문 한도,
+              아래 후보는 가상 검증 결과다. 실제 주문은 브로커 경계, 계좌 권한, 주문 한도,
               킬 스위치, 감사 로그가 모두 통과해야 별도 단계에서만 다룬다.
             </p>
             <div className="tag-ledger">
