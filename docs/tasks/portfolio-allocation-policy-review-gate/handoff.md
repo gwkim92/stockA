@@ -10,9 +10,11 @@
   - 새로 열린 remediation ticket은 thesis 누락이 아니라 allocation review였다.
   - 원인 확인: `recommended_weight=0.0400` 같은 추천 신호 비중이 실제 포트폴리오 축소 목표처럼 사용되어 `trim_to_target`이 과도하게 생성됐다.
   - 로컬 코드에서 추천 비중과 포트폴리오 축소 gate를 분리했다.
-  - EC2 배포 후 `decision-daily` systemd service를 재실행했고 `run_status=completed`, `failed_step_count=0`으로 완료됐다.
-  - 최신 review 결과는 `hold=2`, `trim_to_target=2`이며, 열린 티켓은 MSFT/TSLA 단일 종목 25% 상한 초과 2건만 남았다.
-  - 이전에 과도하게 생성됐던 NVDA allocation ticket은 stale ticket으로 resolved 처리됐다.
+  - EC2 배포 후 `decision-daily` systemd service를 수동 재실행했고 `run_status=completed`, `failed_step_count=0`으로 완료됐다.
+  - 수동 재실행 직후 review 결과는 `hold=2`, `trim_to_target=2`였고, 과도하게 생성됐던 NVDA allocation ticket은 stale ticket으로 resolved 처리됐다.
+  - 이후 실제 예약된 `decision-daily` timer가 2026-05-21T23:00:31Z에 자동 실행됐다.
+  - 최신 예약 실행 결과는 `hold=1`, `monitor=3`, `ticket_count=0`, `resolved_stale_ticket_count=2`다.
+  - 현재 open remediation ticket은 0건이다.
 - 막힌 점:
   - 없음.
 
@@ -40,7 +42,8 @@
 - Passed on EC2: `PYTHONPATH=src /opt/stockanalysis/venv/bin/python -m unittest tests.test_portfolio_review_bootstrap tests.test_portfolio_remediation_ticket`
 - Passed on EC2: `npm run build`
 - Passed on EC2: `stockanalysis-operating-data-decision-daily.service` returned `Result=success`, `ExecMainStatus=0`.
-- Passed on EC2: `/remediation` rendered with MSFT/TSLA only and Korean portfolio review reasons; `/data-health` rendered without the prior server component error; FastAPI `/__health` returned `status=ok`.
+- Passed on EC2: `/remediation` rendered without the prior server component error and currently shows 0 open tickets; `/data-health` rendered without the prior server component error; FastAPI `/__health` returned `status=ok`.
+- Passed on EC2 scheduled run: `decision-daily` timer generated 2026-05-21T23:00:31Z report with `run_status=completed`, `failed_step_count=0`, and `portfolio-remediation-daily` `ticket_count=0`.
 
 ## Remaining
 
