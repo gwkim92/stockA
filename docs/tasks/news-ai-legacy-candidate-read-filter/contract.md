@@ -56,4 +56,4 @@
 - [x] Direct-symbol MarketWatch candidates remain eligible.
 - [x] Existing raw ledger behavior is not changed.
 - [x] Local verification and AWH pass.
-- [ ] EC2 API smoke confirms candidate list excludes no-symbol topstory shape.
+- [x] EC2 API smoke confirms candidate list excludes no-symbol topstory shape.
