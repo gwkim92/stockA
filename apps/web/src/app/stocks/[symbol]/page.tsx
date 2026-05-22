@@ -88,9 +88,20 @@ function sourceDocumentHref(documentId: string | null) {
   return documentId ? (`/source-documents/${documentId}` as Route) : null;
 }
 
-function cleanFlowText(value: string | null | undefined) {
+function cleanFlowText(
+  value: string | null | undefined,
+  options: {
+    themeKey: string;
+    symbol: string;
+    impactDirection: string;
+  },
+) {
+  const { themeKey, symbol, impactDirection } = options;
   if (!value) {
-    return null;
+    return `${koCode(themeKey)} 흐름이 ${koCode(symbol)}에 ${koCode(impactDirection)} 방향으로 전파됐다. 노출도와 신뢰도는 위 수치를 기준으로 확인한다.`;
+  }
+  if (/flow propagated to/i.test(value) || /directly exposed/i.test(value)) {
+    return `${koCode(themeKey)} 흐름이 ${koCode(symbol)}에 ${koCode(impactDirection)} 방향으로 전파됐다. 이 문장은 화면용 요약이며, 원문 AI 근거는 상세 버튼에서 확인한다.`;
   }
   const interpretation = value.match(/해석:\s*(.*?)(?:\s*근거:|;\s*노출 근거:|$)/)?.[1]?.trim();
   const evidence = value.match(/근거:\s*(.*?)(?:;\s*노출 근거:|$)/)?.[1]?.trim();
@@ -568,7 +579,11 @@ export default async function StockDetailPage({ params }: StockDetailPageProps) 
             data.macro_flow_impacts.map((flow) => {
               const evidence = evidenceHref(flow.ai_evidence_id);
               const sourceDocument = sourceDocumentHref(flow.source_document_id);
-              const flowRationale = cleanFlowText(flow.rationale);
+              const flowRationale = cleanFlowText(flow.rationale, {
+                themeKey: flow.theme_key,
+                symbol: data.symbol,
+                impactDirection: flow.impact_direction,
+              });
               return (
                 <div className="bento-list-item" key={`${flow.event_id}-${flow.theme_key}`}>
                   <div>
