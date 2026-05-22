@@ -39,6 +39,8 @@ function aiEvidenceLabel(type: string | null) {
 
 type EventRow = EventListData["events"][number];
 
+const BROAD_THEME_KEYS = new Set(["MARKET_NEWS_FLOW", "UNCLASSIFIED", "US_MARKET_BREADTH"]);
+
 function isNewsCandidate(event: EventRow) {
   return event.ai_evidence_type === "news_event_candidate";
 }
@@ -79,6 +81,32 @@ function evidencePurpose(event: EventRow) {
     return "여러 뉴스를 묶은 보조 근거다. 개별 후보 분석은 아니며 큰 흐름 확인용이다.";
   }
   return "아직 AI 구조화 전이다. 원천 문서와 규칙 기반 분류만 확인한다.";
+}
+
+function hasClassifiedSymbol(event: EventRow) {
+  return Boolean(event.symbol && event.symbol !== "UNCLASSIFIED");
+}
+
+function isBroadNoSymbolCandidate(event: EventRow) {
+  return !hasClassifiedSymbol(event) && BROAD_THEME_KEYS.has(event.theme_key);
+}
+
+function isRetailTopStoryNoise(event: EventRow) {
+  return Boolean(event.source_document_id?.includes("marketwatch-topstories")) && isBroadNoSymbolCandidate(event);
+}
+
+function isDecisionPriorityCandidate(event: EventRow) {
+  const confidence = event.ai_evidence_confidence ?? 0;
+  if (isRetailTopStoryNoise(event)) {
+    return false;
+  }
+  if (confidence < 0.55) {
+    return false;
+  }
+  if (isBroadNoSymbolCandidate(event) && confidence < 0.7) {
+    return false;
+  }
+  return true;
 }
 
 function EventLedgerItem({ event, compact = false }: { event: EventRow; compact?: boolean }) {
@@ -159,11 +187,13 @@ function EventLedgerItem({ event, compact = false }: { event: EventRow; compact?
 
 export default async function EventsPage() {
   const [candidateResponse, ledgerResponse] = await Promise.all([
-    getEvents({ evidenceType: "news_event_candidate", limit: 24 }),
+    getEvents({ evidenceType: "news_event_candidate", limit: 60 }),
     getEvents({ limit: 12 }),
   ]);
   const candidateData = candidateResponse.data;
   const ledgerData = ledgerResponse.data;
+  const decisionCandidates = candidateData.events.filter(isDecisionPriorityCandidate);
+  const deferredCandidateCount = Math.max(0, candidateData.events.length - decisionCandidates.length);
 
   return (
     <div className="pageStack">
@@ -182,14 +212,14 @@ export default async function EventsPage() {
 
       <section className="bento-grid reveal delay-1">
         <article className="bento-card">
-          <span className="metric-label">판단 후보</span>
-          <strong className="metric-value">{candidateData.summary.event_count}</strong>
-          <span className="metric-sub">개별 AI 후보 전체</span>
+          <span className="metric-label">표시 후보</span>
+          <strong className="metric-value">{decisionCandidates.length}</strong>
+          <span className="metric-sub">기본 목록 우선 검토</span>
         </article>
         <article className="bento-card">
-          <span className="metric-label">원장 전체</span>
-          <strong className="metric-value">{ledgerData.summary.event_count}</strong>
-          <span className="metric-sub">수집 이벤트 행</span>
+          <span className="metric-label">AI 후보 전체</span>
+          <strong className="metric-value">{candidateData.summary.event_count}</strong>
+          <span className="metric-sub">후순위 포함</span>
         </article>
         <article className="bento-card">
           <span className="metric-label">뉴스 묶음</span>
@@ -209,13 +239,18 @@ export default async function EventsPage() {
             <span className="metric-sub">기본 판단 목록</span>
             <h2 style={{ fontSize: "1.5rem" }}>AI가 구조화한 개별 뉴스 후보</h2>
             <p className="relationship-empty">
-              이 목록은 추천이나 보유검토에 들어가기 전 사람이 먼저 봐야 하는 후보군이다. 뉴스 묶음 근거와 미검토 원장 행은 아래 원장 영역에서 따로 확인한다.
+              이 목록은 추천이나 보유검토에 들어가기 전 사람이 먼저 봐야 하는 후보군이다. 낮은 신뢰도, 종목 미분류 일반 뉴스, 개인 재무성 원문은 기본 목록에서 제외하고 원장 영역에서만 확인한다.
             </p>
+            {deferredCandidateCount > 0 ? (
+              <p className="relationship-empty">
+                후순위 AI 후보 {deferredCandidateCount}개는 숨겼다. 원천 데이터 확인이 필요하면 아래 원장 전체를 펼친다.
+              </p>
+            ) : null}
           </div>
 
-          {candidateData.events.length > 0 ? (
+          {decisionCandidates.length > 0 ? (
             <div className="bento-list">
-              {candidateData.events.map((event) => (
+              {decisionCandidates.map((event) => (
                 <EventLedgerItem event={event} key={event.event_id} />
               ))}
             </div>

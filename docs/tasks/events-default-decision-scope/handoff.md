@@ -9,6 +9,7 @@
   - 작업 범위와 mutable surface를 `contract.md`에 고정했다.
   - `/events` 기본 목록을 `news_event_candidate` 전용 조회로 바꿨다.
   - 전체 raw 원장은 별도 접힘 영역으로 이동했다.
+  - 기본 목록에서 저신뢰, broad theme, 무종목 MarketWatch top story 잡음을 후순위로 내렸다.
   - metric과 문구를 기본 판단 목록, 원장 전체, 뉴스 묶음, 미검토 기준으로 정리했다.
 - 막힌 점:
   - 없음.
@@ -16,6 +17,7 @@
 ## Planned Fix
 
 - `/events`에서 `getEvents({ evidenceType: "news_event_candidate" })`를 기본 판단 목록으로 사용한다.
+- 낮은 신뢰도, 무종목 broad theme, MarketWatch top story 잡음은 기본 목록에서 제외한다.
 - 전체 raw 원장은 `getEvents({ evidenceType: "all" })`로 따로 조회하고 보조 접힘 영역에 둔다.
 - metric과 문구는 전체 원장 수와 기본 후보 수를 분리해서 설명한다.
 
