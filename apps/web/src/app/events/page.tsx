@@ -1,335 +1,136 @@
 import Link from "next/link";
 import type { Route } from "next";
 
-import { NewsTitleBlock } from "@/components/news-title-block";
+import { NewsEventCard, formatNewsPercent } from "@/components/news-event-card";
 import { getEvents } from "@/lib/frontend-api";
-import { koCode, koLabel } from "@/lib/korean-labels";
-import type { EventListData } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "이벤트" };
-
-function formatPercent(value: number) {
-  return `${Math.round(value * 1000) / 10}%`;
-}
-
-function themeHref(themeKey: string) {
-  return themeKey ? (`/themes/${themeKey}` as Route) : null;
-}
-
-function evidenceHref(evidenceId: string | null) {
-  return evidenceId ? (`/ai-evidence/${evidenceId}` as Route) : null;
-}
-
-function sourceDocumentHref(documentId: string | null) {
-  return documentId ? (`/source-documents/${documentId}` as Route) : null;
-}
-
-function aiEvidenceLabel(type: string | null) {
-  if (type === "news_event_candidate") {
-    return "뉴스 AI 후보";
-  }
-  if (type === "news_cluster_summary") {
-    return "뉴스 묶음 증거";
-  }
-  if (type) {
-    return koCode(type);
-  }
-  return "AI 분석 대기";
-}
-
-type EventRow = EventListData["events"][number];
-
-const BROAD_THEME_KEYS = new Set(["MARKET_NEWS_FLOW", "UNCLASSIFIED", "US_MARKET_BREADTH"]);
-const UNCLASSIFIED_SYMBOL_KEYS = new Set(["", "UNKNOWN", "UNCLASSIFIED"]);
-
-function isNewsCandidate(event: EventRow) {
-  return event.ai_evidence_type === "news_event_candidate";
-}
-
-function isNewsClusterSummary(event: EventRow) {
-  return event.ai_evidence_type === "news_cluster_summary";
-}
-
-function evidenceButtonLabel(event: EventRow) {
-  if (isNewsCandidate(event)) {
-    return hasClassifiedSymbol(event) ? "종목 AI 근거" : "흐름 AI 근거";
-  }
-  if (isNewsClusterSummary(event)) {
-    return "뉴스 묶음 근거";
-  }
-  return aiEvidenceLabel(event.ai_evidence_type);
-}
-
-function evidenceDetail(event: EventRow) {
-  if (!event.ai_evidence_provider) {
-    return "아직 AI 근거나 묶음 근거가 연결되지 않았다";
-  }
-  const confidence = event.ai_evidence_confidence === null ? "신뢰도 미제공" : `신뢰도 ${formatPercent(event.ai_evidence_confidence)}`;
-  if (isNewsCandidate(event)) {
-    const evidenceKind = hasClassifiedSymbol(event) ? "종목 AI 근거" : "흐름 AI 근거";
-    return `${evidenceKind} · ${koCode(event.ai_evidence_provider)} · ${confidence}`;
-  }
-  if (isNewsClusterSummary(event)) {
-    return `뉴스 묶음 근거 · ${koCode(event.ai_evidence_provider)} · ${confidence}`;
-  }
-  return `${koCode(event.ai_evidence_type)} · ${koCode(event.ai_evidence_provider)} · ${confidence}`;
-}
-
-function evidencePurpose(event: EventRow) {
-  if (isNewsCandidate(event)) {
-    if (hasClassifiedSymbol(event)) {
-      return "AI가 이 뉴스를 특정 종목의 보유검토 근거로 구조화했다.";
-    }
-    return "AI가 이 뉴스를 거시·테마 흐름으로 구조화했다. 관련 종목 전파는 별도 단계에서 확인한다.";
-  }
-  if (isNewsClusterSummary(event)) {
-    return "여러 뉴스를 묶은 보조 근거다. 개별 후보 분석은 아니며 큰 흐름 확인용이다.";
-  }
-  return "아직 AI 구조화 전이다. 원천 문서와 규칙 기반 분류만 확인한다.";
-}
-
-function hasClassifiedSymbol(event: EventRow) {
-  return Boolean(event.symbol && !UNCLASSIFIED_SYMBOL_KEYS.has(event.symbol));
-}
-
-function isBroadNoSymbolCandidate(event: EventRow) {
-  return !hasClassifiedSymbol(event) && BROAD_THEME_KEYS.has(event.theme_key);
-}
-
-function isRetailTopStoryNoise(event: EventRow) {
-  return Boolean(event.source_document_id?.includes("marketwatch-topstories")) && !hasClassifiedSymbol(event);
-}
-
-function isDecisionPriorityCandidate(event: EventRow) {
-  const confidence = event.ai_evidence_confidence ?? 0;
-  if (isRetailTopStoryNoise(event)) {
-    return false;
-  }
-  if (confidence < 0.55) {
-    return false;
-  }
-  if (isBroadNoSymbolCandidate(event) && confidence < 0.7) {
-    return false;
-  }
-  return true;
-}
-
-function emptyRelationshipText(event: EventRow) {
-  if (isNewsCandidate(event) && !hasClassifiedSymbol(event)) {
-    return "아직 이 상위 흐름에서 전파된 종목 근거나 강한 관련 이벤트가 연결되지 않았다.";
-  }
-  return "직접 같은 종목이거나 충분히 강한 관련 이벤트가 아직 없다.";
-}
-
-function EventLedgerItem({ event, compact = false }: { event: EventRow; compact?: boolean }) {
-  const themeLink = themeHref(event.theme_key);
-  const evidenceLink = evidenceHref(event.ai_evidence_id);
-  const documentLink = sourceDocumentHref(event.source_document_id);
-  const relatedEventsRaw = event.related_events ?? [];
-  const relatedEvents = relatedEventsRaw
-    .filter((related) => related.relation_type !== "same_theme" || related.relation_strength >= 0.7)
-    .slice(0, 3);
-  const hiddenBroadThemeCount = Math.max(0, relatedEventsRaw.length - relatedEvents.length);
-
-  return (
-    <div className="bento-list-item" style={{ alignItems: "flex-start" }}>
-      <div style={{ flex: 1, gap: "8px" }}>
-        <span className="metric-sub">
-          {koCode(event.symbol)} • {koCode(event.event_type)} • {event.event_at}
-        </span>
-        <NewsTitleBlock
-          compact={compact}
-          title={event.title}
-          symbol={event.symbol}
-          themeKey={event.theme_key}
-          impactDirection={event.impact_direction}
-          impactScore={event.impact_score}
-        />
-        <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", marginTop: "6px" }}>
-          {themeLink ? (
-            <Link className="btn btn-secondary" href={themeLink}>
-              {koCode(event.theme_key)}
-            </Link>
-          ) : (
-            <span className="bento-badge" style={{ margin: 0 }}>{koCode(event.theme_key)}</span>
-          )}
-          {evidenceLink ? (
-            <Link className="btn btn-secondary" href={evidenceLink}>
-              {evidenceButtonLabel(event)}
-            </Link>
-          ) : null}
-          {documentLink ? (
-            <Link className="btn btn-secondary" href={documentLink}>
-              원천 문서
-            </Link>
-          ) : null}
-        </div>
-        {!compact && relatedEvents.length > 0 ? (
-          <div className="relationship-list" aria-label={`${event.title} 관련 이벤트`}>
-            {relatedEvents.map((related) => (
-              <div className="relationship-chip" key={`${event.event_id}-${related.event_id}`}>
-                <span>{koCode(related.relation_type)}</span>
-                <NewsTitleBlock
-                  compact
-                  title={related.title}
-                  symbol={related.symbol}
-                  themeKey={related.theme_key}
-                />
-                <small>
-                  {koCode(related.symbol)} · {koCode(related.theme_key)} · 강도 {formatPercent(related.relation_strength)}
-                </small>
-                <small>{koLabel(related.reason)}</small>
-              </div>
-            ))}
-            {hiddenBroadThemeCount > 0 ? (
-              <p className="relationship-empty">
-                넓은 테마만 같은 약한 연결 {hiddenBroadThemeCount}개는 숨겼다.
-              </p>
-            ) : null}
-          </div>
-        ) : null}
-        {!compact && relatedEvents.length === 0 ? (
-          <p className="relationship-empty">
-            {emptyRelationshipText(event)}
-          </p>
-        ) : null}
-      </div>
-      <div style={{ alignItems: "flex-end", minWidth: compact ? "150px" : "190px" }}>
-        <strong style={{
-          color: event.impact_direction === "supportive" ? "var(--accent-green)" : "var(--accent-amber)",
-        }}>
-          {koCode(event.impact_direction)}
-        </strong>
-        <span>영향도 {formatPercent(event.impact_score)}</span>
-        <span>{evidenceDetail(event)}</span>
-        <span>{compact ? "원장 행: 수집 상태 확인용이다." : evidencePurpose(event)}</span>
-        <span>{koCode(event.quality_gate)}</span>
-      </div>
-    </div>
-  );
-}
+export const metadata = { title: "수집 뉴스 원장" };
 
 export default async function EventsPage() {
-  const [candidateResponse, ledgerResponse] = await Promise.all([
-    getEvents({ evidenceType: "news_event_candidate", limit: 60 }),
-    getEvents({ limit: 12 }),
-  ]);
-  const candidateData = candidateResponse.data;
-  const ledgerData = ledgerResponse.data;
-  const decisionCandidates = candidateData.events.filter(isDecisionPriorityCandidate);
-  const directDecisionCandidates = decisionCandidates.filter(hasClassifiedSymbol);
-  const macroDecisionCandidates = decisionCandidates.filter((event) => !hasClassifiedSymbol(event));
-  const deferredCandidateCount = Math.max(0, candidateData.events.length - decisionCandidates.length);
-  const suppressedLowSignalCount = candidateData.summary.suppressed_low_signal_candidate_count;
+  const response = await getEvents({ limit: 80 });
+  const data = response.data;
+  const linkedCount = data.events.filter((event) => event.ai_evidence_id).length;
+  const unlinkedCount = data.events.length - linkedCount;
+  const latestEvent = data.events[0];
 
   return (
-    <div className="pageStack">
-      <section className="reveal">
-        <div className="bento-badge">
-          이벤트 판단판 • {ledgerData.as_of_date} • 기본: {koCode(candidateData.filters.evidence_type)}
+    <div className="pageStack news-ledger-page">
+      <section className="page-hero reveal" aria-labelledby="news-ledger-title">
+        <div>
+          <div className="bento-badge">수집 뉴스 원장 · {data.as_of_date}</div>
+          <h1 className="page-title" id="news-ledger-title">
+            들어온 뉴스와 공시를 시간순으로 확인한다.
+          </h1>
         </div>
-        <h1 style={{ fontSize: "clamp(2.25rem, 4vw, 4.2rem)", marginBottom: "16px" }}>
-          먼저 검토할 뉴스 후보부터 본다
-        </h1>
-        <p style={{ color: "var(--text-secondary)", fontSize: "1.1rem", maxWidth: "800px" }}>
-          첫 목록은 AI가 한 뉴스 단위로 구조화한 후보만 보여준다. 전체 수집 원장은 아래 보조 영역에 남겨,
-          잡음과 원천 데이터까지 필요할 때만 확인한다.
+        <p className="page-lede">
+          이 화면은 판단 화면이 아니라 원장이다. 원천 제목, 수집 시각, 1차 태그, AI 연결 여부를 확인하고
+          분류나 AI 결과가 이상한 뉴스만 다음 화면으로 들어간다.
         </p>
       </section>
 
-      <section className="bento-grid reveal delay-1">
-        <article className="bento-card">
-          <span className="metric-label">직접 종목 후보</span>
-          <strong className="metric-value">{directDecisionCandidates.length}</strong>
-          <span className="metric-sub">보유검토 직접 입력</span>
+      <section className="screen-switchboard reveal delay-1" aria-label="뉴스 처리 단계 바로가기">
+        <Link className="screen-switch-card active" href="/events">
+          <span>01</span>
+          <strong>수집 원장</strong>
+          <small>원문 이벤트가 들어왔는지 확인</small>
+        </Link>
+        <Link className="screen-switch-card" href={"/events/classification" as Route}>
+          <span>02</span>
+          <strong>1차 분류</strong>
+          <small>종목·테마·방향 태그 확인</small>
+        </Link>
+        <Link className="screen-switch-card" href="/ai-evidence">
+          <span>03</span>
+          <strong>AI 분석 목록</strong>
+          <small>Codex OAuth 후보 확인</small>
+        </Link>
+        <Link className="screen-switch-card" href={"/ai-evidence/results" as Route}>
+          <span>04</span>
+          <strong>구조화 결과</strong>
+          <small>통과한 근거만 확인</small>
+        </Link>
+      </section>
+
+      <section className="status-rail compact-rail reveal delay-1" aria-label="수집 뉴스 원장 요약">
+        <article className="rail-cell">
+          <span>원장 행</span>
+          <strong>{data.summary.event_count}</strong>
+          <small>현재 필터 기준</small>
         </article>
-        <article className="bento-card">
-          <span className="metric-label">상위 흐름 후보</span>
-          <strong className="metric-value">{macroDecisionCandidates.length}</strong>
-          <span className="metric-sub">테마·거시 전파 입력</span>
+        <article className="rail-cell">
+          <span>원천 문서</span>
+          <strong>{data.summary.source_document_count}</strong>
+          <small>RSS/공시 문서 수</small>
         </article>
-        <article className="bento-card">
-          <span className="metric-label">AI 후보 전체</span>
-          <strong className="metric-value">{candidateData.summary.event_count}</strong>
-          <span className="metric-sub">후순위 포함</span>
+        <article className="rail-cell">
+          <span>AI 연결</span>
+          <strong>{linkedCount}</strong>
+          <small>현재 목록 내 연결 수</small>
         </article>
-        <article className="bento-card">
-          <span className="metric-label">뉴스 묶음</span>
-          <strong className="metric-value">{ledgerData.summary.news_cluster_summary_count}</strong>
-          <span className="metric-sub">흐름 보조 근거</span>
+        <article className="rail-cell">
+          <span>AI 전</span>
+          <strong>{unlinkedCount}</strong>
+          <small>원장에는 남고 판단 입력은 아님</small>
         </article>
-        <article className="bento-card">
-          <span className="metric-label">미검토</span>
-          <strong className="metric-value">{ledgerData.summary.unreviewed_event_count}</strong>
-          <span className="metric-sub">AI 근거 미연결</span>
-        </article>
-        <article className="bento-card">
-          <span className="metric-label">품질 필터 숨김</span>
-          <strong className="metric-value">{suppressedLowSignalCount}</strong>
-          <span className="metric-sub">종목 없는 저신호 후보</span>
+        <article className="rail-cell">
+          <span>테마 수</span>
+          <strong>{data.summary.themes_represented}</strong>
+          <small>1차 분류 기준</small>
         </article>
       </section>
 
-      <section className="bento-grid reveal delay-2">
-        <article className="bento-card span-4">
-          <div style={{ marginBottom: "24px" }}>
-            <span className="metric-sub">기본 판단 목록</span>
-            <h2 style={{ fontSize: "1.5rem" }}>AI가 구조화한 직접 종목 후보</h2>
-            <p className="relationship-empty">
-              이 목록은 특정 종목에 직접 연결되어 추천이나 보유검토에 들어가기 전 사람이 먼저 봐야 하는 후보군이다. 낮은 신뢰도,
-              종목 미분류 일반 뉴스, 개인 재무성 원문은 기본 목록에서 제외하고 원장 영역에서만 확인한다.
-              API 품질 필터가 종목 없는 저신호 top story {suppressedLowSignalCount}개를 숨겼다.
-            </p>
-            {deferredCandidateCount > 0 ? (
-              <p className="relationship-empty">
-                후순위 AI 후보 {deferredCandidateCount}개는 숨겼다. 원천 데이터 확인이 필요하면 아래 원장 전체를 펼친다.
-              </p>
-            ) : null}
-          </div>
+      <section className="ledger-guide reveal delay-2" aria-labelledby="news-ledger-guide-title">
+        <div>
+          <span>읽는 순서</span>
+          <h2 id="news-ledger-guide-title">원장은 세 가지만 보면 된다</h2>
+        </div>
+        <ol>
+          <li>제목이 실제 투자 관련 뉴스인지 확인한다.</li>
+          <li>종목·테마·방향 태그가 말이 되는지 본다.</li>
+          <li>AI 근거가 있으면 상세로 들어가고, 없으면 아직 분석 전으로 둔다.</li>
+        </ol>
+        <p>
+          최신 원장 기준 첫 이벤트는 {latestEvent ? `"${latestEvent.title}"` : "아직 없다"}이며,
+          영향도는 {latestEvent ? formatNewsPercent(latestEvent.impact_score) : "미측정"}다.
+        </p>
+      </section>
 
-          {directDecisionCandidates.length > 0 ? (
-            <div className="bento-list">
-              {directDecisionCandidates.map((event) => (
-                <EventLedgerItem event={event} key={event.event_id} />
-              ))}
-            </div>
+      <section className="bento-card span-4 reveal delay-2" aria-labelledby="news-ledger-list-title">
+        <div className="section-heading stacked-heading">
+          <span>최신 원장</span>
+          <h2 id="news-ledger-list-title">수집된 뉴스와 이벤트</h2>
+        </div>
+        <div className="news-row-list">
+          {data.events.length > 0 ? (
+            data.events.map((event) => (
+              <NewsEventCard event={event} key={event.event_id} mode="ledger" />
+            ))
           ) : (
-            <div className="empty-state">
-              아직 직접 종목 뉴스 AI 후보가 없다. 수집 원장은 아래에서 확인하고, 뉴스 AI 추출 배치가 다음 실행에서 후보를 만든다.
-            </div>
+            <div className="empty-state">현재 수집된 뉴스 원장이 비어 있다.</div>
           )}
+        </div>
+      </section>
 
-          <div style={{ margin: "30px 0 18px" }}>
-            <span className="metric-sub">상위 흐름 후보</span>
-            <h2 style={{ fontSize: "1.35rem" }}>종목을 억지로 붙이지 않는 거시·테마 뉴스</h2>
-            <p className="relationship-empty">
-              금리, 연준, 유가, 소비 둔화처럼 특정 종목보다 시장 흐름이 먼저인 뉴스다. 이 후보는 테마·사이클과 종목 노출도 규칙을 통해 관련 종목군으로 전파한다.
-            </p>
-          </div>
-
-          {macroDecisionCandidates.length > 0 ? (
-            <div className="bento-list">
-              {macroDecisionCandidates.map((event) => (
-                <EventLedgerItem event={event} key={`macro-${event.event_id}`} />
-              ))}
-            </div>
-          ) : (
-            <div className="empty-state">현재 상위 흐름 후보가 없다.</div>
-          )}
-
-          <details className="secondary-details">
-            <summary>원장 전체 최신 {ledgerData.events.length}개 보기</summary>
-            <p style={{ margin: "14px 0 8px", lineHeight: 1.6 }}>
-              이 영역은 디버깅과 출처 확인용이다. 뉴스 묶음 근거와 미검토 row가 섞여 있으므로 투자 판단은 위 기본 목록을 우선한다.
-            </p>
-            <div className="bento-list">
-              {ledgerData.events.map((event) => (
-                <EventLedgerItem compact event={event} key={`ledger-${event.event_id}`} />
-              ))}
-            </div>
-          </details>
-        </article>
+      <section className="where-grid reveal delay-3" aria-label="다음 확인 화면">
+        <Link className="where-card" href={"/events/classification" as Route}>
+          <span>다음</span>
+          <strong>1차 분류 태그</strong>
+          <p>원장에 붙은 종목·테마·방향이 맞는지 테마별로 확인한다.</p>
+          <small>분류 화면 열기</small>
+        </Link>
+        <Link className="where-card" href="/ai-evidence">
+          <span>다음</span>
+          <strong>AI 분석 목록</strong>
+          <p>Codex OAuth가 구조화한 후보만 따로 확인한다.</p>
+          <small>분석 목록 열기</small>
+        </Link>
+        <Link className="where-card" href={"/ai-evidence/blocked" as Route}>
+          <span>검증</span>
+          <strong>차단 후보</strong>
+          <p>추천 입력으로 쓰면 안 되는 후보가 왜 막혔는지 본다.</p>
+          <small>차단 목록 열기</small>
+        </Link>
       </section>
     </div>
   );

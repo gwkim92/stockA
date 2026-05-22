@@ -309,7 +309,7 @@ export default async function IntelligencePage() {
       title: "1차 분류",
       status: `${events.summary.themes_represented}개 테마`,
       copy: "규칙 기반으로 종목, 테마, 방향 태그를 먼저 붙인다.",
-      href: "/events",
+      href: "/events/classification",
     },
     {
       index: "03",
@@ -323,7 +323,7 @@ export default async function IntelligencePage() {
       title: "검증 통과/차단",
       status: `통과 ${events.summary.ai_extracted_count} · 차단 ${events.summary.suppressed_low_signal_candidate_count}`,
       copy: "validator가 낮은 신뢰도와 알 수 없는 종목/테마를 추천 입력에서 제외한다.",
-      href: "/ai-evidence#blocked-candidates",
+      href: "/ai-evidence/blocked",
     },
     {
       index: "05",
@@ -343,7 +343,7 @@ export default async function IntelligencePage() {
     {
       title: "차단 후보",
       copy: "validator가 추천 입력으로 넘기지 않은 후보와 저신호 보류 항목을 확인한다.",
-      href: "/ai-evidence#blocked-candidates",
+      href: "/ai-evidence/blocked",
     },
     {
       title: "뉴스·이벤트 원장",

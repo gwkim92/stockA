@@ -137,6 +137,11 @@ export default async function HomePage() {
       href: "/events",
     },
     {
+      title: "1차 분류 태그",
+      copy: "AI 분석 전 붙은 종목, 테마, 방향 태그가 맞는지 본다.",
+      href: "/events/classification",
+    },
+    {
       title: "AI 후보 목록",
       copy: "Codex OAuth가 구조화한 개별 뉴스 후보와 신뢰도, 원천 문서를 확인한다.",
       href: "/ai-evidence",
@@ -172,7 +177,7 @@ export default async function HomePage() {
       title: "1차 분류 태그",
       status: `${eventData.summary.themes_represented}개 테마`,
       copy: "뉴스가 어떤 종목, 테마, 방향으로 1차 분류됐는지 본다.",
-      href: "/events",
+      href: "/events/classification",
     },
     {
       step: "04",
@@ -186,21 +191,21 @@ export default async function HomePage() {
       title: "구조화 결과",
       status: `${clusterData.summary.llm_candidate_artifact_count}개 산출물`,
       copy: "종목, 테마, 방향, 근거, 불확실성을 AI 근거 상세에서 본다.",
-      href: firstCandidateEvidenceId(eventData),
+      href: "/ai-evidence/results",
     },
     {
       step: "06",
       title: "차단 후보",
       status: `${eventData.summary.suppressed_low_signal_candidate_count}개 숨김`,
       copy: "validator rejected와 저신호 후보가 왜 통과하지 못했는지 확인한다.",
-      href: "/ai-evidence#blocked-candidates",
+      href: "/ai-evidence/blocked",
     },
     {
       step: "07",
       title: "통과 결과",
       status: `${eventData.summary.ai_extracted_count}개 연결`,
       copy: "품질 필터를 통과해 이벤트/종목/테마 근거로 연결된 결과다.",
-      href: "/ai-evidence#accepted-candidates",
+      href: "/ai-evidence/results#accepted-results",
     },
     {
       step: "08",

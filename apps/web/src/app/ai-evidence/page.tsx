@@ -167,12 +167,9 @@ export default async function AiEvidenceIndexPage() {
   const newsCandidates = candidates.filter((event) => event.ai_evidence_type === "news_event_candidate");
   const directNewsCandidates = newsCandidates.filter(hasClassifiedSymbol);
   const macroNewsCandidates = newsCandidates.filter((event) => !hasClassifiedSymbol(event));
-  const blockedCandidates = [
-    ...rejectedData.events,
-    ...suppressedData.events.map((event) => ({ ...event, quality_gate: "low_signal_suppressed" })),
-  ];
   const clusterEvidenceCount = allSummary.news_cluster_summary_count;
   const suppressedLowSignalCount = data.summary.suppressed_low_signal_candidate_count;
+  const blockedCandidateCount = rejectedData.summary.event_count + suppressedData.summary.event_count;
 
   return (
     <div className="pageStack">
@@ -185,8 +182,31 @@ export default async function AiEvidenceIndexPage() {
         </div>
         <p className="page-lede">
           한 뉴스 단위로 AI가 구조화한 후보를 모았다. 종목이 없는 저신호 일반 top story는
-          기본 후보에서 숨기고, 여러 뉴스를 묶은 흐름 증거는 뉴스·AI 판단 화면에서 확인한다.
+          기본 후보에서 숨기고, 구조화 결과와 차단 후보는 별도 화면에서 확인한다.
         </p>
+      </section>
+
+      <section className="screen-switchboard reveal delay-1" aria-label="뉴스 처리 단계 바로가기">
+        <Link className="screen-switch-card" href="/events">
+          <span>01</span>
+          <strong>수집 원장</strong>
+          <small>원문 이벤트</small>
+        </Link>
+        <Link className="screen-switch-card" href={"/events/classification" as Route}>
+          <span>02</span>
+          <strong>1차 분류</strong>
+          <small>태그 검수</small>
+        </Link>
+        <Link className="screen-switch-card active" href="/ai-evidence">
+          <span>03</span>
+          <strong>AI 분석 목록</strong>
+          <small>후보 목록</small>
+        </Link>
+        <Link className="screen-switch-card" href={"/ai-evidence/results" as Route}>
+          <span>04</span>
+          <strong>구조화 결과</strong>
+          <small>통과 결과</small>
+        </Link>
       </section>
 
       <section className="status-rail compact-rail reveal delay-1" aria-label="뉴스 AI 후보 요약">
@@ -212,7 +232,7 @@ export default async function AiEvidenceIndexPage() {
         </div>
         <div className="rail-cell">
           <span>품질 필터 숨김</span>
-          <strong>{suppressedLowSignalCount + rejectedData.summary.event_count}</strong>
+          <strong>{blockedCandidateCount}</strong>
           <small>저신호 {suppressedLowSignalCount} · validator 차단 {rejectedData.summary.event_count}</small>
         </div>
       </section>
@@ -260,25 +280,27 @@ export default async function AiEvidenceIndexPage() {
         )}
       </section>
 
-      <section className="bento-card span-4 reveal delay-3" id="blocked-candidates" aria-labelledby="ai-evidence-blocked-list-title">
-        <div className="section-heading stacked-heading">
-          <span>차단/보류</span>
-          <h2 id="ai-evidence-blocked-list-title">validator가 추천 입력으로 넘기지 않은 후보</h2>
-        </div>
-        <p className="relationship-empty">
-          이 목록은 삭제된 데이터가 아니다. AI가 만든 후보 중 알 수 없는 종목·테마, 낮은 confidence, 종목 없는 저신호 top story처럼
-          추천·보유검토 근거로 쓰면 위험한 항목을 따로 보관한 것이다.
-        </p>
-        {blockedCandidates.length > 0 ? (
-          <div className="trace-grid">
-            {blockedCandidates.map((event) => (
-              <CandidateCard event={event} key={`blocked-${event.event_id}-${event.ai_evidence_id ?? event.quality_gate}`} />
-            ))}
-          </div>
-        ) : (
-          <div className="empty-state">현재 validator 차단 또는 저신호 보류 후보가 없다.</div>
-        )}
+      <section className="where-grid reveal delay-3" aria-label="AI 분석 후속 화면">
+        <Link className="where-card" href={"/ai-evidence/results" as Route}>
+          <span>결과</span>
+          <strong>구조화 결과</strong>
+          <p>통과한 후보를 종목·테마·방향·영향도 기준으로 확인한다.</p>
+          <small>결과 화면 열기</small>
+        </Link>
+        <Link className="where-card" href={"/ai-evidence/blocked" as Route}>
+          <span>차단</span>
+          <strong>차단 후보 {blockedCandidateCount}개</strong>
+          <p>validator가 추천 입력으로 넘기지 않은 후보와 이유를 확인한다.</p>
+          <small>차단 화면 열기</small>
+        </Link>
+        <Link className="where-card" href="/intelligence">
+          <span>묶음</span>
+          <strong>뉴스 흐름 보드</strong>
+          <p>여러 뉴스가 왜 같은 흐름으로 묶였는지 확인한다.</p>
+          <small>흐름 보드 열기</small>
+        </Link>
       </section>
+
     </div>
   );
 }
