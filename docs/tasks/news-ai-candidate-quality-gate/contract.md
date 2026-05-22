@@ -58,4 +58,4 @@
 - [x] Python loader filters no-symbol MarketWatch topstories even if supplied by an older query/fixture.
 - [x] Tests prove noisy candidates are skipped before provider invocation.
 - [x] Local verification and AWH pass.
-- [ ] EC2 dry-run shows candidate selection still works without generating noisy topstory candidates.
+- [x] EC2 dry-run shows candidate selection still works without generating noisy topstory candidates.
