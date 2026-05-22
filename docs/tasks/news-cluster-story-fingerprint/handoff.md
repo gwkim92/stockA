@@ -22,6 +22,7 @@
 - `src/stockanalysis/frontend/live_adapter.py`
   - `/api/ai/news-clusters` 최신 artifact partition을 `theme_key + story_key` 기준으로 확장했다.
   - 새 story-split artifact가 존재하는 broad theme에서는 과거 `story_key` 없는 단일 theme artifact를 숨긴다.
+  - 목록 정렬은 artifact 생성시간보다 묶인 뉴스 수를 우선한다. `/intelligence`가 단발 뉴스보다 큰 흐름을 먼저 보게 하기 위한 기준이다.
   - cluster DTO에 `story_key`, `story_label`을 추가했다.
 - `apps/web`
   - `/intelligence` 카드 제목을 story label로 보여주고 상위 테마를 별도 표기한다.
@@ -39,6 +40,8 @@
 - PASS: after stale broad-theme guard, `git diff --check`
 - PASS: after broad single-no-symbol noise filter, `PYTHONPATH=src /opt/homebrew/bin/python3.13 -m unittest tests.test_news_rss_cluster_evidence tests.test_frontend_live_adapter`
 - PASS: after broad single-no-symbol noise filter, `git diff --check`
+- PASS: after cluster ordering fix, `PYTHONPATH=src /opt/homebrew/bin/python3.13 -m unittest tests.test_frontend_live_adapter tests.test_news_rss_cluster_evidence`
+- PASS: after cluster ordering fix, `git diff --check`
 
 ## Remaining
 

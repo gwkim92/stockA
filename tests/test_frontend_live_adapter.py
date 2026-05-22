@@ -2041,6 +2041,8 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertIn("cluster_summary ->> 'theme_key' in ('MARKET_NEWS_FLOW', 'UNCLASSIFIED')", sql)
         self.assertIn("story_split_artifact.cluster_summary ->> 'theme_key'", sql)
         self.assertIn("theme_artifact_rank = 1", sql)
+        self.assertIn("as cluster_event_count", sql)
+        self.assertIn("cluster_artifacts.cluster_event_count desc", sql)
         self.assertIn("cluster_summary ->> 'theme_key' = 'AI_SEMICONDUCTOR_CYCLE'", sql)
         self.assertIn("upper(coalesce(event_item ->> 'symbol', '')) = 'NVDA'", sql)
         self.assertIn("limit 11", sql.lower())

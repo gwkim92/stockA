@@ -3528,10 +3528,15 @@ filtered_cluster_artifacts as (
 {filters}
 ),
 cluster_artifacts as (
-    select *
+    select
+        raw_cluster_artifacts.*,
+        coalesce(nullif(cluster_summary ->> 'event_count', '')::int, jsonb_array_length(cluster_events)) as cluster_event_count
     from raw_cluster_artifacts
     where artifact_id in (select artifact_id from filtered_cluster_artifacts)
-    order by created_at desc, artifact_id desc
+    order by
+        coalesce(nullif(cluster_summary ->> 'event_count', '')::int, jsonb_array_length(cluster_events)) desc,
+        created_at desc,
+        artifact_id desc
     limit {page_limit}
     offset {page_offset}
 ),
@@ -3685,7 +3690,10 @@ select json_build_object(
                         '[]'::json
                     )
                 )
-                order by cluster_artifacts.created_at desc, cluster_artifacts.artifact_id desc
+                order by
+                    cluster_artifacts.cluster_event_count desc,
+                    cluster_artifacts.created_at desc,
+                    cluster_artifacts.artifact_id desc
             )
             from cluster_artifacts
             left join cluster_chunk_stats chunk_stats
