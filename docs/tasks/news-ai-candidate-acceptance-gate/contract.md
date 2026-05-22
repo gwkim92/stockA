@@ -12,7 +12,7 @@
 - 이 작업이 끝났을 때 반드시 참이어야 하는 상태:
   - `news-rss-ai-extract-run`은 검증된 theme/instrument impact가 하나도 없으면 accepted `news_event_candidate` artifact를 만들지 않는다.
   - 검증 실패 후보는 감사용 `news_event_candidate_rejected` artifact로 저장되어 재실행 중복 호출을 막는다.
-  - `/events?evidenceType=news_event_candidate`와 `/ai-evidence` 후보 화면은 기존 저신뢰 무종목 일반 뉴스 artifact를 숨긴다.
+  - `/events?evidenceType=news_event_candidate`와 `/ai-evidence` 후보 화면은 기존 저신뢰 accepted artifact와 무종목 일반 뉴스 artifact를 숨긴다.
   - 공식 macro/Fed/SEC 무종목 후보와 검증된 직접 종목 후보는 기존처럼 유지된다.
 
 ## Scope
@@ -20,6 +20,7 @@
 - 포함:
   - news AI runner artifact acceptance gate
   - rejected artifact type 저장과 중복 호출 방지
+  - Codex OAuth batch workdir/trust boundary fix
   - frontend live event list 품질 필터 보강
   - focused tests, task handoff, EC2 smoke
 - 제외:
@@ -59,8 +60,8 @@
 
 ## Done Criteria
 
-- [ ] No validated impacts means `news_event_candidate_rejected`, not accepted `news_event_candidate`.
-- [ ] Existing rejected artifacts prevent repeated LLM calls for the same request hash.
-- [ ] Candidate screens suppress existing no-symbol low-confidence general-news artifacts.
-- [ ] Local verification and AWH pass.
-- [ ] EC2 deploy and smoke pass.
+- [x] No validated impacts means `news_event_candidate_rejected`, not accepted `news_event_candidate`.
+- [x] Existing rejected artifacts prevent repeated LLM calls for the same request hash.
+- [x] Candidate screens suppress existing low-confidence accepted artifacts and no-symbol general-news artifacts.
+- [x] Local verification and AWH pass.
+- [x] EC2 deploy and smoke pass.
