@@ -20,6 +20,7 @@
 - 포함:
   - event list live adapter의 evidence 선택 우선순위 수정
   - event list summary에 `news_event_candidate_count`, `news_cluster_summary_count` 추가
+  - event list API에 `evidenceType` filter 추가
   - `/events` 문구와 metric 카드 정리
   - `/ai-evidence` index가 cluster summary를 후보 목록에 섞지 않도록 수정
   - focused tests와 EC2 smoke
@@ -61,4 +62,5 @@
 - [x] SQL evidence selection prefers `news_event_candidate` over `news_cluster_summary`.
 - [x] `/events` metrics separate individual AI candidates from cluster evidence.
 - [x] `/ai-evidence` list excludes cluster summary cards.
+- [ ] `/ai-evidence` uses `evidenceType=news_event_candidate` and does not depend on the latest unfiltered events page.
 - [ ] EC2 pages render without server component error.

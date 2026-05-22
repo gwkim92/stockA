@@ -2233,6 +2233,7 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertEqual(payload["contract_version"], "frontend-api-v0.1")
         self.assertEqual(payload["data"]["as_of_date"], "2024-11-01")
         self.assertEqual(payload["data"]["filters"]["event_type"], "all")
+        self.assertEqual(payload["data"]["filters"]["evidence_type"], "all")
         self.assertEqual(payload["data"]["summary"]["event_count"], 1)
         self.assertEqual(payload["data"]["summary"]["ai_extracted_count"], 1)
         self.assertEqual(payload["data"]["summary"]["news_event_candidate_count"], 1)
@@ -2619,6 +2620,19 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertIn("from selected_event_candidates candidate", ai_evidence_sql)
         self.assertIn("where impact.event_id = candidate.event_id", ai_evidence_sql)
         self.assertIn("document.external_document_id = regexp_replace", source_document_sql)
+
+    def test_live_event_list_sql_can_filter_by_evidence_type(self) -> None:
+        sql = render_frontend_event_list_state_sql(
+            as_of_date=datetime(2026, 5, 22).date(),
+            theme_key=None,
+            symbol=None,
+            event_type="all",
+            evidence_type="news_event_candidate",
+        )
+
+        self.assertIn("and evidence.artifact_type = 'news_event_candidate'", sql)
+        self.assertIn("when 'news_event_candidate' then 0", sql)
+        self.assertNotIn("insert into", sql.lower())
 
     def test_live_remediation_tickets_response_matches_frontend_contract_shape(self) -> None:
         payload = resolve_live_frontend_response(

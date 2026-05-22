@@ -956,6 +956,7 @@ def build_live_event_list_response(
     theme_key = parsed.query.get("themeKey") or None
     symbol = parsed.query.get("symbol") or None
     event_type = parsed.query.get("eventType") or "all"
+    evidence_type = parsed.query.get("evidenceType") or "all"
     page_limit, page_offset = frontend_sql_page_window(api_path)
     state = load_frontend_event_list_state(
         config=config,
@@ -964,6 +965,7 @@ def build_live_event_list_response(
         theme_key=theme_key,
         symbol=symbol,
         event_type=event_type,
+        evidence_type=evidence_type,
         page_limit=page_limit,
         page_offset=page_offset,
     )
@@ -979,6 +981,7 @@ def build_live_event_list_response(
                 "theme_key": theme_key,
                 "symbol": symbol.upper() if symbol else None,
                 "event_type": event_type,
+                "evidence_type": evidence_type,
             },
             "summary": {
                 "event_count": int(summary.get("event_count") or len(events)),
@@ -1817,6 +1820,7 @@ def load_frontend_event_list_state(
     theme_key: str | None,
     symbol: str | None,
     event_type: str,
+    evidence_type: str,
     page_limit: int,
     page_offset: int,
 ) -> dict[str, Any]:
@@ -1827,6 +1831,7 @@ def load_frontend_event_list_state(
             theme_key=theme_key,
             symbol=symbol,
             event_type=event_type,
+            evidence_type=evidence_type,
             page_limit=page_limit,
             page_offset=page_offset,
         )
@@ -3224,11 +3229,17 @@ def render_frontend_event_list_state_sql(
     theme_key: str | None,
     symbol: str | None,
     event_type: str,
+    evidence_type: str = "all",
     page_limit: int = 51,
     page_offset: int = 0,
 ) -> str:
     _validate_sql_pagination_window(page_limit=page_limit, page_offset=page_offset)
-    filters = _event_list_sql_filters(theme_key=theme_key, symbol=symbol, event_type=event_type)
+    filters = _event_list_sql_filters(
+        theme_key=theme_key,
+        symbol=symbol,
+        event_type=event_type,
+        evidence_type=evidence_type,
+    )
     return f"""-- frontend event list state lookup
 with filtered_event_rows as (
     select
@@ -5854,7 +5865,13 @@ def _dashboard_coverage_link(state: dict[str, Any]) -> str:
     return coverage_link
 
 
-def _event_list_sql_filters(*, theme_key: str | None, symbol: str | None, event_type: str) -> str:
+def _event_list_sql_filters(
+    *,
+    theme_key: str | None,
+    symbol: str | None,
+    event_type: str,
+    evidence_type: str,
+) -> str:
     lines: list[str] = []
     if theme_key:
         lines.append(f"      and coalesce(theme.code, document_theme.theme_key) = {sql_literal(theme_key)}")
@@ -5864,6 +5881,8 @@ def _event_list_sql_filters(*, theme_key: str | None, symbol: str | None, event_
         )
     if event_type and event_type != "all":
         lines.append(f"      and event_row.event_type = {sql_literal(event_type)}")
+    if evidence_type and evidence_type != "all":
+        lines.append(f"      and evidence.artifact_type = {sql_literal(evidence_type)}")
     return "\n".join(lines)
 
 

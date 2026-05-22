@@ -23,11 +23,15 @@ function sourceDocumentHref(documentId: string | null) {
 }
 
 export default async function AiEvidenceIndexPage() {
-  const response = await getEvents({ limit: 50 });
+  const [response, allEventsResponse] = await Promise.all([
+    getEvents({ evidenceType: "news_event_candidate", limit: 50 }),
+    getEvents({ limit: 1 }),
+  ]);
   const data = response.data;
+  const allSummary = allEventsResponse.data.summary;
   const candidates = data.events.filter((event) => event.ai_evidence_id);
   const newsCandidates = candidates.filter((event) => event.ai_evidence_type === "news_event_candidate");
-  const clusterEvidenceCount = candidates.filter((event) => event.ai_evidence_type === "news_cluster_summary").length;
+  const clusterEvidenceCount = allSummary.news_cluster_summary_count;
 
   return (
     <div className="pageStack">
@@ -47,7 +51,7 @@ export default async function AiEvidenceIndexPage() {
       <section className="status-rail compact-rail reveal delay-1" aria-label="뉴스 AI 후보 요약">
         <div className="rail-cell">
           <span>AI 연결 이벤트</span>
-          <strong>{candidates.length}</strong>
+          <strong>{allSummary.ai_extracted_count}</strong>
           <small>개별 후보와 묶음 근거 전체</small>
         </div>
         <div className="rail-cell">

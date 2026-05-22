@@ -972,6 +972,7 @@ export type EventListData = {
     theme_key: string | null;
     symbol: string | null;
     event_type: string;
+    evidence_type: string;
   };
   summary: {
     event_count: number;

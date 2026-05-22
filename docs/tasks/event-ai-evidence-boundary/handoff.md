@@ -8,6 +8,7 @@
   - `/events`와 `/ai-evidence` 화면 코드를 확인했다.
   - live adapter가 같은 이벤트/문서의 최신 artifact를 고르기 때문에 `news_cluster_summary`가 개별 후보처럼 보이는 root cause를 확인했다.
   - event list evidence 선택 우선순위를 `news_event_candidate`, `source_document_event`, `news_cluster_summary` 순으로 바꿨다.
+  - event list API에 `evidenceType` filter를 추가했고 `/ai-evidence`는 `news_event_candidate`만 직접 조회한다.
   - event summary에 개별 후보, 뉴스 묶음, 미검토 카운트를 추가했다.
   - `/events`와 `/ai-evidence` 문구/목록을 개별 후보와 뉴스 묶음 기준으로 분리했다.
 - 막힌 점:
@@ -27,6 +28,12 @@
 - PASS: `cd apps/web && npm run build`
 - PASS: `git diff --check`
 - PASS: `PYTHONPATH=/Users/woody/ai/agent-work-harness/src /opt/homebrew/bin/python3.13 -m awh verify --repo . --task event-ai-evidence-boundary`
+- PASS: after `evidenceType` filter, `PYTHONPATH=src /opt/homebrew/bin/python3.13 -m unittest tests.test_frontend_live_adapter`
+- PASS: after `evidenceType` filter, `cd apps/web && npm run typecheck`
+- PASS: after `evidenceType` filter, `cd apps/web && npm run build`
+- PASS: after `evidenceType` filter, `PYTHONPATH=src /opt/homebrew/bin/python3.13 -m compileall src tests`
+- PASS: after `evidenceType` filter, `git diff --check`
+- PASS: after `evidenceType` filter, `PYTHONPATH=/Users/woody/ai/agent-work-harness/src /opt/homebrew/bin/python3.13 -m awh verify --repo . --task event-ai-evidence-boundary`
 
 ## Remaining
 

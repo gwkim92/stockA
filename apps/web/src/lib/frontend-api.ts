@@ -163,15 +163,18 @@ export function getSourceDocumentDetail(documentId: string) {
 export function getEvents({
   asOfDate = currentIsoDate(),
   eventType = "all",
+  evidenceType = "all",
   limit = 20,
 }: {
   asOfDate?: string;
   eventType?: string;
+  evidenceType?: string;
   limit?: number;
 } = {}) {
   const params = new URLSearchParams({
     asOfDate,
     eventType,
+    evidenceType,
     limit: String(limit),
   });
   return fetchFrontendPayload<EventListData>(`/api/events?${params.toString()}`);
