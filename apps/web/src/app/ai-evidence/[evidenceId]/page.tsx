@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Route } from "next";
 
+import { NewsTitleBlock } from "@/components/news-title-block";
 import { getAiEvidenceDetail, getAiEvidenceNeighborhood } from "@/lib/frontend-api";
 import { koCode, koLabel } from "@/lib/korean-labels";
 import type { AiEvidenceDetailData, AiEvidenceNeighborhoodData } from "@/lib/types";
@@ -258,7 +259,13 @@ function NeighborhoodPanel({ neighborhood }: { neighborhood: EvidenceNeighborhoo
           {neighborhood.events.slice(0, 4).map((event) => (
             <div className="relationship-chip" key={event.event_id}>
               <span>{koCode(event.impact_direction)}</span>
-              <strong>{koLabel(event.title)}</strong>
+              <NewsTitleBlock
+                compact
+                title={event.title}
+                themeKey={event.theme_key}
+                impactDirection={event.impact_direction}
+                impactScore={event.impact_score}
+              />
               <small>
                 {koCode(event.theme_key)} · {event.event_at} · 영향도 {formatPercent(event.impact_score)}
               </small>
@@ -404,7 +411,14 @@ export default async function AiEvidencePage({ params }: AiEvidencePageProps) {
                   return (
                     <div className="relationship-chip" key={event.event_id}>
                       <span>{koCode(event.impact_direction)}</span>
-                      <strong>{koLabel(event.title)}</strong>
+                      <NewsTitleBlock
+                        compact
+                        title={event.title}
+                        symbol={event.symbol}
+                        themeKey={cluster.theme_key}
+                        impactDirection={event.impact_direction}
+                        impactScore={event.impact_score}
+                      />
                       <small>
                         {koCode(event.symbol)} · {event.event_at} · 영향도 {formatPercent(event.impact_score)}
                       </small>

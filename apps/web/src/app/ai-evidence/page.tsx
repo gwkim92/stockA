@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Route } from "next";
 
+import { NewsTitleBlock } from "@/components/news-title-block";
 import { getEvents } from "@/lib/frontend-api";
 import { koCode, koLabel } from "@/lib/korean-labels";
 import type { EventListData } from "@/lib/types";
@@ -72,7 +73,13 @@ function CandidateCard({ event }: { event: NewsCandidateEvent }) {
           <span className="metric-sub">
             {koCode(event.symbol)} • {koCode(event.event_type)} • {event.event_at}
           </span>
-          <h3>{koLabel(event.title)}</h3>
+          <NewsTitleBlock
+            title={event.title}
+            symbol={event.symbol}
+            themeKey={event.theme_key}
+            impactDirection={event.impact_direction}
+            impactScore={event.impact_score}
+          />
         </div>
         <span className="relation-pill">{candidateKindLabel(event)}</span>
       </div>

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Route } from "next";
 
+import { NewsTitleBlock } from "@/components/news-title-block";
 import { getAiEvidenceNeighborhood, getStockDetail } from "@/lib/frontend-api";
 import { koCode, koLabel } from "@/lib/korean-labels";
 import type { AiEvidenceNeighborhoodData, StockPrice } from "@/lib/types";
@@ -246,7 +247,7 @@ function EvidenceNeighborhoodPanel({ neighborhood }: { neighborhood: AiEvidenceN
               return (
                 <div className="relationship-chip" key={group.story_id}>
                   <span>{formatStoryBasis(group.basis)}</span>
-                  <strong>{koLabel(group.title)}</strong>
+                  <NewsTitleBlock compact title={group.title} themeKey={group.theme_keys[0]} />
                   <small>
                     이벤트 {group.event_count.toLocaleString("ko-KR")}개 · 원천 {group.source_document_count.toLocaleString("ko-KR")}개 ·
                     문서 검색 청크 {group.linked_chunk_count.toLocaleString("ko-KR")}개 · 규칙 기반 신뢰도 {formatPercent(group.confidence)}
@@ -255,9 +256,16 @@ function EvidenceNeighborhoodPanel({ neighborhood }: { neighborhood: AiEvidenceN
                     <small key={`${group.story_id}-${reason}`}>묶인 이유: {koLabel(reason)}</small>
                   ))}
                   {group.events.slice(0, 2).map((event) => (
-                    <small key={`${group.story_id}-${event.event_id}`}>
-                      대표 이벤트: {formatDate(event.event_at)} · {koCode(event.impact_direction)} · {koLabel(event.title)}
-                    </small>
+                    <div className="nested-news-title" key={`${group.story_id}-${event.event_id}`}>
+                      <small>대표 이벤트: {formatDate(event.event_at)} · {koCode(event.impact_direction)}</small>
+                      <NewsTitleBlock
+                        compact
+                        title={event.title}
+                        themeKey={event.theme_key}
+                        impactDirection={event.impact_direction}
+                        impactScore={event.impact_score}
+                      />
+                    </div>
                   ))}
                   <div className="mini-link-stack">
                     {firstSource ? <Link href={firstSource}>원천 문서</Link> : null}
@@ -492,7 +500,13 @@ export default async function StockDetailPage({ params }: StockDetailPageProps) 
                     <span className="metric-sub">
                       {formatDate(flow.event_at)} • {koCode(flow.theme_key)} • {koCode(flow.impact_direction)}
                     </span>
-                    <strong>{koLabel(flow.title)}</strong>
+                    <NewsTitleBlock
+                      title={flow.title}
+                      symbol={data.symbol}
+                      themeKey={flow.theme_key}
+                      impactDirection={flow.impact_direction}
+                      impactScore={flow.impact_score}
+                    />
                     <span>
                       전파 강도 {formatPercent(flow.impact_score)} · 노출도 {formatPercent(flow.exposure_weight)} · 신뢰도 {formatPercent(flow.confidence)}
                     </span>
@@ -535,7 +549,12 @@ export default async function StockDetailPage({ params }: StockDetailPageProps) 
                 <div className="bento-list-item" key={event.event_id}>
                   <div>
                     <span className="metric-sub">{formatDate(event.event_at)} • {koCode(event.event_type)}</span>
-                    <strong>{koLabel(event.title)}</strong>
+                    <NewsTitleBlock
+                      title={event.title}
+                      symbol={data.symbol}
+                      impactDirection={event.impact_direction}
+                      impactScore={event.impact_score}
+                    />
                     <span>{koCode(event.impact_direction)} • 영향도 {formatPercent(event.impact_score)}</span>
                   </div>
                   <div className="btn-row" style={{ marginTop: 0 }}>

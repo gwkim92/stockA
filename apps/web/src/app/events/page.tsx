@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Route } from "next";
 
+import { NewsTitleBlock } from "@/components/news-title-block";
 import { getEvents } from "@/lib/frontend-api";
 import { koCode, koLabel } from "@/lib/korean-labels";
 import type { EventListData } from "@/lib/types";
@@ -137,7 +138,14 @@ function EventLedgerItem({ event, compact = false }: { event: EventRow; compact?
         <span className="metric-sub">
           {koCode(event.symbol)} • {koCode(event.event_type)} • {event.event_at}
         </span>
-        <strong style={{ fontSize: compact ? "0.98rem" : "1.05rem" }}>{koLabel(event.title)}</strong>
+        <NewsTitleBlock
+          compact={compact}
+          title={event.title}
+          symbol={event.symbol}
+          themeKey={event.theme_key}
+          impactDirection={event.impact_direction}
+          impactScore={event.impact_score}
+        />
         <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", marginTop: "6px" }}>
           {themeLink ? (
             <Link className="btn btn-secondary" href={themeLink}>
@@ -162,7 +170,12 @@ function EventLedgerItem({ event, compact = false }: { event: EventRow; compact?
             {relatedEvents.map((related) => (
               <div className="relationship-chip" key={`${event.event_id}-${related.event_id}`}>
                 <span>{koCode(related.relation_type)}</span>
-                <strong>{koLabel(related.title)}</strong>
+                <NewsTitleBlock
+                  compact
+                  title={related.title}
+                  symbol={related.symbol}
+                  themeKey={related.theme_key}
+                />
                 <small>
                   {koCode(related.symbol)} · {koCode(related.theme_key)} · 강도 {formatPercent(related.relation_strength)}
                 </small>

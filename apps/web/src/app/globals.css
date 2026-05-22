@@ -1681,6 +1681,51 @@ h6 {
   line-height: 1.35;
 }
 
+.news-title-block {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+
+.news-title-block > span {
+  color: var(--accent-blue);
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.news-title-block strong {
+  color: var(--text-primary);
+  font-size: 1.02rem;
+  font-weight: 850;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.news-title-block small {
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  font-weight: 750;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.news-title-block-compact strong {
+  font-size: 0.84rem;
+}
+
+.relationship-chip .news-title-block {
+  gap: 3px;
+}
+
+.nested-news-title {
+  display: grid;
+  gap: 4px;
+  padding-top: 6px;
+  border-top: 1px solid color-mix(in srgb, var(--accent-blue) 16%, transparent);
+}
+
 .relationship-chip small,
 .relationship-empty {
   color: var(--text-secondary);

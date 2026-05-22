@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Route } from "next";
 
+import { NewsTitleBlock } from "@/components/news-title-block";
 import {
   getAiNewsClusters,
   getCockpitSnapshot,
@@ -476,7 +477,14 @@ export default async function IntelligencePage() {
                       {cluster.events.slice(0, 3).map((event) => (
                         <div className="relationship-chip" key={`${cluster.evidence_id}-${event.event_id}`}>
                           <span>{koCode(event.impact_direction)}</span>
-                          <strong>{koLabel(event.title)}</strong>
+                          <NewsTitleBlock
+                            compact
+                            title={event.title}
+                            symbol={event.symbol}
+                            themeKey={cluster.theme_key}
+                            impactDirection={event.impact_direction}
+                            impactScore={event.impact_score}
+                          />
                           <small>
                             {formatNewsSymbol(event.symbol)} · 영향도 {formatPercent(event.impact_score)}
                           </small>
@@ -548,7 +556,14 @@ export default async function IntelligencePage() {
                       {cluster.examples.map((event) => (
                         <div className="relationship-chip" key={`${cluster.key}-${event.event_id}`}>
                           <span>{koCode(event.impact_direction)}</span>
-                          <strong>{koLabel(event.title)}</strong>
+                          <NewsTitleBlock
+                            compact
+                            title={event.title}
+                            symbol={event.symbol}
+                            themeKey={event.theme_key}
+                            impactDirection={event.impact_direction}
+                            impactScore={event.impact_score}
+                          />
                           <small>
                             {formatNewsSymbol(event.symbol)} · {koCode(event.event_type)} · 영향도{" "}
                             {formatPercent(event.impact_score)}
@@ -597,7 +612,13 @@ export default async function IntelligencePage() {
                     <span className="metric-sub">
                       {formatNewsSymbol(event.symbol)} · {koCode(event.theme_key)} · {event.event_at}
                     </span>
-                    <strong>{koLabel(event.title)}</strong>
+                    <NewsTitleBlock
+                      title={event.title}
+                      symbol={event.symbol}
+                      themeKey={event.theme_key}
+                      impactDirection={event.impact_direction}
+                      impactScore={event.impact_score}
+                    />
                     <p>
                       {aiEvidenceLabel(event.ai_evidence_type)} · {koCode(event.impact_direction)} · 신뢰도{" "}
                       {formatPercent(event.ai_evidence_confidence)}
@@ -623,7 +644,14 @@ export default async function IntelligencePage() {
               {unstructuredEvents.map((event) => (
                 <div className="relationship-chip" key={event.event_id}>
                   <span>{koCode(event.event_type)}</span>
-                  <strong>{koLabel(event.title)}</strong>
+                  <NewsTitleBlock
+                    compact
+                    title={event.title}
+                    symbol={event.symbol}
+                    themeKey={event.theme_key}
+                    impactDirection={event.impact_direction}
+                    impactScore={event.impact_score}
+                  />
                   <small>
                     {formatNewsSymbol(event.symbol)} · {koCode(event.theme_key)} · {event.event_at}
                   </small>
