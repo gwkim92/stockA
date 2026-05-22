@@ -59,4 +59,4 @@
 - [x] UI distinguishes LLM candidate extraction from local rule cluster evidence.
 - [x] UI explains why English source/story text can remain visible.
 - [x] Local verification and AWH pass.
-- [ ] EC2 deploy and browser smoke pass.
+- [x] EC2 deploy and browser smoke pass.
