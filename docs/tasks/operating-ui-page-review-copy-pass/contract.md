@@ -39,6 +39,7 @@
   - `apps/web/src/app/performance/page.tsx`
   - `apps/web/src/app/paper-trading/page.tsx`
   - `apps/web/src/app/theses/[thesisId]/page.tsx`
+  - `src/stockanalysis/frontend/live_adapter.py`
   - `docs/tasks/operating-ui-page-review-copy-pass/*`
 - 수정 금지 파일:
   - DB migrations/schema

@@ -2932,7 +2932,7 @@ select json_build_object(
     ),
     'guardrails',
     json_build_array(
-        '이 화면은 가상 거래(Paper) 미리보기이며 실제 주문을 만들지 않는다.',
+        '가상 거래(Paper) 미리보기 단계이며 실제 주문을 만들지 않는다.',
         '모든 가상 조치는 사람 승인 전까지 실행되지 않는다.',
         '실거래 증권사 API, 계좌 권한, 주문 전송은 아직 연결하지 않았다.'
     ),
@@ -5864,7 +5864,7 @@ def _build_paper_action_payload(action: dict[str, Any]) -> dict[str, Any]:
 
 def _paper_guardrails() -> list[str]:
     return [
-        "이 화면은 가상 거래(Paper) 미리보기이며 실제 주문을 만들지 않는다.",
+        "가상 거래(Paper) 미리보기 단계이며 실제 주문을 만들지 않는다.",
         "모든 가상 조치는 사람 승인 전까지 실행되지 않는다.",
         "실거래 증권사 API, 계좌 권한, 주문 전송은 아직 연결하지 않았다.",
     ]
@@ -6066,7 +6066,7 @@ def _build_trading_audit_summary_payload(summary: dict[str, Any]) -> dict[str, A
 
 def _trading_readiness_guardrails() -> list[str]:
     return [
-        "이 화면은 주문 화면이 아니라 거래 안전 상태 점검 화면이다.",
+        "거래 안전 상태를 점검하는 읽기 전용 단계다.",
         "FastAPI frontend server는 계속 read-only이며 주문 write endpoint를 제공하지 않는다.",
         "broker secret 값은 노출하지 않고 설정 여부만 표시한다.",
         "브로커 제출 값은 0이어야 하며, 실제 브로커 어댑터는 아직 연결하지 않는다.",
