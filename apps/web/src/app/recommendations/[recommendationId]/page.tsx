@@ -297,7 +297,7 @@ function evidenceTraceCards(data: RecommendationDetailData) {
       value: macroFlow.propagated_impact_count > 0 ? `${macroFlow.propagated_impact_count}개 반영` : "반영 없음",
       detail:
         macroFlow.propagated_impact_count > 0
-          ? `${firstFlow ? koCode(firstFlow.theme_key) : "시장/테마 흐름"}이 종목 노출도 규칙을 거쳐 점수 입력으로 들어갔다.`
+          ? `${firstFlow ? `${koCode(firstFlow.theme_key)} 흐름` : "시장/테마 흐름"}이 종목 노출도 규칙을 거쳐 점수 입력으로 들어갔다.`
           : "거시·테마 뉴스가 이 종목 점수로 전파된 기록은 아직 없다.",
       href: `/stocks/${encodeURIComponent(data.symbol)}` as Route,
       hrefLabel: "종목 흐름 보기",
