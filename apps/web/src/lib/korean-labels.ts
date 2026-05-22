@@ -464,6 +464,8 @@ const EMBEDDED_LABEL_REPLACEMENTS: Array<[RegExp, string]> = [
     "에너지·지정학 흐름이 $1에 부정적으로 전파됐다. 노출도 $2. 근거=",
   ],
   [/\bQUANTUM_COMPUTING_POLICY\b/g, "양자컴퓨팅·정책 수혜"],
+  [/\bUS Market Breadth\s+\(미국 시장 참여도\)/g, "미국 시장 참여도"],
+  [/\bUS Market Breadth\b/g, "미국 시장 참여도"],
   [/\bUS_MARKET_BREADTH\b/g, "미국 시장 참여도"],
   [/\bAI_SEMICONDUCTOR_CYCLE\b/g, "AI 반도체 사이클"],
   [/\bAI_LABOR_PRODUCTIVITY\b/g, "AI 도입·노동 영향"],
