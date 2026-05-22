@@ -11,6 +11,17 @@
       "resolved": 0,
       "ignored": 0
     },
+    "allocation_policy": {
+      "policy_id": "allocation-policy-global-default",
+      "policy_name": "global_default_long_term_guardrail",
+      "status": "active",
+      "policy_scope": "global",
+      "max_single_position_weight": 0.25,
+      "min_rebalance_target_weight": 0.1,
+      "valid_from": "2024-01-01",
+      "valid_to": "",
+      "rationale": "장기 포트폴리오에서 단일 종목 과집중을 사람이 먼저 검토하도록 하는 기본 비중 안전장치."
+    },
     "tickets": [
       {
         "ticket_id": "remediation-ticket-baba-20241101",

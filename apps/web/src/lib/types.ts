@@ -55,6 +55,17 @@ export type RemediationTicketsData = {
   status_filter: string;
   ticket_count: number;
   status_counts: Record<string, number>;
+  allocation_policy: {
+    policy_id: string;
+    policy_name: string;
+    status: string;
+    policy_scope: string;
+    max_single_position_weight: number | null;
+    min_rebalance_target_weight: number | null;
+    valid_from: string;
+    valid_to: string;
+    rationale: string;
+  };
   tickets: Array<{
     ticket_id: string;
     symbol: string;

@@ -1395,6 +1395,9 @@ def build_live_remediation_tickets_response(
     )
 
     tickets = [_build_ticket_payload(ticket) for ticket in _as_list(report.get("tickets"))]
+    allocation_policy = _build_allocation_policy_payload(
+        _load_remediation_allocation_policy(config=config, executor=executor)
+    )
     latest_review_date = _latest_review_date(tickets)
     coverage_link = "/api/portfolio/Long%20Term%20Paper/coverage"
     if latest_review_date:
@@ -1411,6 +1414,7 @@ def build_live_remediation_tickets_response(
                 report.get("status_counts"),
                 keys=("open", "in_progress", "resolved", "ignored"),
             ),
+            "allocation_policy": allocation_policy,
             "tickets": tickets,
         },
         "links": {
@@ -1418,6 +1422,71 @@ def build_live_remediation_tickets_response(
             "portfolio_coverage": coverage_link,
         },
     }
+
+
+def _load_remediation_allocation_policy(
+    *,
+    config: RuntimeConfig,
+    executor: PsqlCommandExecutor | None,
+) -> dict[str, Any]:
+    sql_executor = executor or PsqlCommandExecutor.from_config(config)
+    return json_loads_object(
+        sql_executor.execute_scalar(render_frontend_remediation_allocation_policy_sql()),
+        "remediation allocation policy lookup",
+    )
+
+
+def render_frontend_remediation_allocation_policy_sql() -> str:
+    return f"""-- frontend remediation allocation policy lookup
+with target_portfolio as (
+    select portfolio_id, portfolio_name, strategy_name
+    from portfolio.portfolio
+    where portfolio_name = {sql_literal(DEFAULT_PORTFOLIO_NAME)}
+    order by portfolio_id desc
+    limit 1
+),
+selected_policy as (
+    select
+        policy.allocation_policy_id,
+        policy.policy_name,
+        policy.status,
+        policy.max_single_position_weight,
+        policy.min_rebalance_target_weight,
+        policy.valid_from,
+        policy.valid_to,
+        policy.rationale,
+        case
+            when policy.portfolio_id = (select portfolio_id from target_portfolio) then 'portfolio'
+            when policy.strategy_name = (select strategy_name from target_portfolio) then 'strategy'
+            else 'global'
+        end as policy_scope
+    from portfolio.allocation_policy policy
+    where policy.status = 'active'
+      and (policy.portfolio_id = (select portfolio_id from target_portfolio) or policy.portfolio_id is null)
+      and (policy.strategy_name = (select strategy_name from target_portfolio) or policy.strategy_name is null)
+      and policy.valid_from <= current_date
+      and (policy.valid_to is null or policy.valid_to >= current_date)
+    order by
+        case when policy.portfolio_id = (select portfolio_id from target_portfolio) then 0 else 1 end,
+        case when policy.strategy_name = (select strategy_name from target_portfolio) then 0 else 1 end,
+        policy.valid_from desc,
+        policy.allocation_policy_id desc
+    limit 1
+)
+select json_build_object(
+    'allocation_policy_id', (select allocation_policy_id from selected_policy),
+    'policy_name', coalesce((select policy_name from selected_policy), 'default_fallback'),
+    'status', coalesce((select status from selected_policy), 'fallback'),
+    'policy_scope', coalesce((select policy_scope from selected_policy), 'fallback'),
+    'max_single_position_weight', coalesce((select max_single_position_weight from selected_policy), 0.2500::numeric),
+    'min_rebalance_target_weight', coalesce((select min_rebalance_target_weight from selected_policy), 0.1000::numeric),
+    'valid_from', (select valid_from::text from selected_policy),
+    'valid_to', (select valid_to::text from selected_policy),
+    'rationale', coalesce(
+        (select rationale from selected_policy),
+        'Fallback review-only guardrail used when no active allocation policy row is configured.'
+    )
+)::text;"""
 
 
 def build_live_portfolio_coverage_response(
@@ -6771,6 +6840,20 @@ def _build_ticket_payload(ticket: dict[str, Any]) -> dict[str, Any]:
         "updated_at": _timestamp(ticket.get("updated_at")),
         "required_human_decision": str(ticket.get("suggested_next_step") or "Review manually."),
         "_review_date": str(ticket.get("review_date") or ""),
+    }
+
+
+def _build_allocation_policy_payload(policy: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "policy_id": _opaque_id("allocation-policy", policy.get("allocation_policy_id"), None),
+        "policy_name": str(policy.get("policy_name") or "default_fallback"),
+        "status": str(policy.get("status") or "fallback"),
+        "policy_scope": str(policy.get("policy_scope") or "fallback"),
+        "max_single_position_weight": _number(policy.get("max_single_position_weight")),
+        "min_rebalance_target_weight": _number(policy.get("min_rebalance_target_weight")),
+        "valid_from": str(policy.get("valid_from") or ""),
+        "valid_to": str(policy.get("valid_to") or ""),
+        "rationale": str(policy.get("rationale") or ""),
     }
 
 

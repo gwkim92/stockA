@@ -1284,6 +1284,20 @@ class FakeLiveExecutor:
                     ],
                 }
             )
+        if sql.startswith("-- frontend remediation allocation policy lookup"):
+            return json.dumps(
+                {
+                    "allocation_policy_id": 7001,
+                    "policy_name": "global_default_long_term_guardrail",
+                    "status": "active",
+                    "policy_scope": "global",
+                    "max_single_position_weight": "0.2500",
+                    "min_rebalance_target_weight": "0.1000",
+                    "valid_from": "2024-01-01",
+                    "valid_to": None,
+                    "rationale": "Default review-only guardrail.",
+                }
+            )
         if sql.startswith("-- portfolio outcome coverage report"):
             return json.dumps(
                 {
@@ -2584,6 +2598,10 @@ class FrontendLiveAdapterTests(unittest.TestCase):
             payload["data"]["status_counts"],
             {"open": 1, "in_progress": 0, "resolved": 0, "ignored": 0},
         )
+        self.assertEqual(payload["data"]["allocation_policy"]["policy_name"], "global_default_long_term_guardrail")
+        self.assertEqual(payload["data"]["allocation_policy"]["policy_scope"], "global")
+        self.assertEqual(payload["data"]["allocation_policy"]["max_single_position_weight"], 0.25)
+        self.assertEqual(payload["data"]["allocation_policy"]["min_rebalance_target_weight"], 0.1)
         ticket = payload["data"]["tickets"][0]
         self.assertEqual(ticket["ticket_id"], "remediation-ticket-42")
         self.assertEqual(ticket["instrument_id"], "instrument-502")
@@ -2681,9 +2699,10 @@ class FrontendLiveAdapterTests(unittest.TestCase):
                     executor=executor,
                 )
 
-                self.assertIn("limit 6", executor.scalar_sql[-1])
+                page_sql = next((sql for sql in executor.scalar_sql if "limit 6" in sql), "")
+                self.assertIn("limit 6", page_sql)
                 if "cursor=" in path:
-                    self.assertIn("offset 10", executor.scalar_sql[-1])
+                    self.assertIn("offset 10", page_sql)
 
     def test_live_adapter_rejects_unsupported_path(self) -> None:
         with self.assertRaises(FrontendLiveUnsupportedPathError):

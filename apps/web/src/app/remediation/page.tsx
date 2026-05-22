@@ -14,11 +14,18 @@ function riskClass(value: string) {
   return "risk-low";
 }
 
+function formatPercent(value: number | null | undefined) {
+  if (value === null || value === undefined) {
+    return "미설정";
+  }
+  return `${(value * 100).toFixed(1)}%`;
+}
+
 export default async function RemediationPage() {
   const response = await getRemediationTickets();
   const data = response.data;
+  const allocationPolicy = data.allocation_policy;
   const highRiskCount = data.tickets.filter((ticket) => ticket.risk_level === "high").length;
-  const runnerCount = new Set(data.tickets.map((ticket) => ticket.suggested_runner)).size;
 
   return (
     <div className="terminal-page">
@@ -52,9 +59,9 @@ export default async function RemediationPage() {
           <small>우선 확인</small>
         </article>
         <article className="rail-cell">
-          <span>04 실행 경로</span>
-          <strong>{runnerCount}</strong>
-          <small>제안 runner</small>
+          <span>04 비중 정책</span>
+          <strong>{formatPercent(allocationPolicy.max_single_position_weight)}</strong>
+          <small>단일 종목 상한</small>
         </article>
       </section>
 
@@ -100,6 +107,34 @@ export default async function RemediationPage() {
         </article>
 
         <aside className="side-ledger">
+          <article className="ledger-panel">
+            <div className="section-heading stacked-heading">
+              <span>비중 정책</span>
+              <h2>현재 적용 기준</h2>
+            </div>
+            <p className="decision-copy">
+              추천 비중은 신호 크기이고, 보유 비중 축소 여부는 이 정책 기준으로 별도 판단한다.
+            </p>
+            <dl className="fact-list">
+              <div>
+                <dt>정책</dt>
+                <dd>{koCode(allocationPolicy.policy_name)}</dd>
+              </div>
+              <div>
+                <dt>적용 범위</dt>
+                <dd>{koCode(allocationPolicy.policy_scope)}</dd>
+              </div>
+              <div>
+                <dt>단일 종목 상한</dt>
+                <dd>{formatPercent(allocationPolicy.max_single_position_weight)}</dd>
+              </div>
+              <div>
+                <dt>리밸런싱 목표 해석</dt>
+                <dd>{formatPercent(allocationPolicy.min_rebalance_target_weight)} 이상만 목표 비중으로 해석</dd>
+              </div>
+            </dl>
+          </article>
+
           <article className="ledger-panel">
             <div className="section-heading stacked-heading">
               <span>상태 분포</span>
