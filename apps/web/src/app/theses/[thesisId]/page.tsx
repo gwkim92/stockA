@@ -114,10 +114,10 @@ function parseReviewRationale(changeNotes: string | null | undefined): ReviewRat
 
 function reviewRationaleMetadata(rationale: ReviewRationale): AuditMetadataItem[] {
   return [
-    { label: "원문 change notes", value: rationale.rawChangeNotes },
-    { label: "적용 조치 code", value: rationale.action },
+    { label: "원문 검토 기록", value: rationale.rawChangeNotes },
+    { label: "적용 조치 코드", value: rationale.action },
     ...rationale.signals.map((signal, index) => ({
-      label: `rule code ${index + 1}`,
+      label: `검토 기준 ${index + 1}`,
       value: signal.code,
     })),
   ];
@@ -300,7 +300,7 @@ export default async function ThesisPage({ params }: ThesisPageProps) {
         {reviewRationale ? (
           <div className="review-rationale">
             {reviewRationale.signals.length > 0 ? (
-              <div className="review-signal-list" aria-label="검토 rule signal">
+              <div className="review-signal-list" aria-label="검토 기준">
                 {reviewRationale.signals.map((signal) => (
                   <span className="review-signal-chip" key={signal.code}>
                     {signal.label}
@@ -314,7 +314,7 @@ export default async function ThesisPage({ params }: ThesisPageProps) {
               {reviewRationale.action ? `적용 조치: ${koCode(reviewRationale.action)}. ` : ""}
               {reviewRationale.safetyNote ? koLabel(reviewRationale.safetyNote) : "투자 논리 상태와 주문은 자동으로 변경하지 않는다."}
             </p>
-            <AuditMetadata items={reviewRationaleMetadata(reviewRationale)} summary="검토 rule code 보기" />
+            <AuditMetadata items={reviewRationaleMetadata(reviewRationale)} summary="검토 세부 기준 보기" />
           </div>
         ) : (
           <p style={{ color: "var(--text-secondary)", lineHeight: 1.65, margin: 0, fontSize: "0.92rem" }}>

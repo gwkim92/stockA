@@ -32,6 +32,7 @@ const KOREAN_LABELS: Record<string, string> = {
   alert_destination: "알림 목적지",
   ai: "AI",
   codex_oauth: "Codex OAuth",
+  "codex-cli-default": "Codex 기본 모델",
   "codex oauth": "Codex OAuth",
   alpha_vantage: "Alpha Vantage",
   all: "전체",
