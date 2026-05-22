@@ -194,6 +194,8 @@ export default async function EventsPage() {
   const candidateData = candidateResponse.data;
   const ledgerData = ledgerResponse.data;
   const decisionCandidates = candidateData.events.filter(isDecisionPriorityCandidate);
+  const directDecisionCandidates = decisionCandidates.filter(hasClassifiedSymbol);
+  const macroDecisionCandidates = decisionCandidates.filter((event) => !hasClassifiedSymbol(event));
   const deferredCandidateCount = Math.max(0, candidateData.events.length - decisionCandidates.length);
   const suppressedLowSignalCount = candidateData.summary.suppressed_low_signal_candidate_count;
 
@@ -214,9 +216,14 @@ export default async function EventsPage() {
 
       <section className="bento-grid reveal delay-1">
         <article className="bento-card">
-          <span className="metric-label">표시 후보</span>
-          <strong className="metric-value">{decisionCandidates.length}</strong>
-          <span className="metric-sub">기본 목록 우선 검토</span>
+          <span className="metric-label">직접 종목 후보</span>
+          <strong className="metric-value">{directDecisionCandidates.length}</strong>
+          <span className="metric-sub">보유검토 직접 입력</span>
+        </article>
+        <article className="bento-card">
+          <span className="metric-label">상위 흐름 후보</span>
+          <strong className="metric-value">{macroDecisionCandidates.length}</strong>
+          <span className="metric-sub">테마·거시 전파 입력</span>
         </article>
         <article className="bento-card">
           <span className="metric-label">AI 후보 전체</span>
@@ -244,9 +251,9 @@ export default async function EventsPage() {
         <article className="bento-card span-4">
           <div style={{ marginBottom: "24px" }}>
             <span className="metric-sub">기본 판단 목록</span>
-            <h2 style={{ fontSize: "1.5rem" }}>AI가 구조화한 개별 뉴스 후보</h2>
+            <h2 style={{ fontSize: "1.5rem" }}>AI가 구조화한 직접 종목 후보</h2>
             <p className="relationship-empty">
-              이 목록은 추천이나 보유검토에 들어가기 전 사람이 먼저 봐야 하는 후보군이다. 낮은 신뢰도,
+              이 목록은 특정 종목에 직접 연결되어 추천이나 보유검토에 들어가기 전 사람이 먼저 봐야 하는 후보군이다. 낮은 신뢰도,
               종목 미분류 일반 뉴스, 개인 재무성 원문은 기본 목록에서 제외하고 원장 영역에서만 확인한다.
               API 품질 필터가 종목 없는 저신호 top story {suppressedLowSignalCount}개를 숨겼다.
             </p>
@@ -257,16 +264,34 @@ export default async function EventsPage() {
             ) : null}
           </div>
 
-          {decisionCandidates.length > 0 ? (
+          {directDecisionCandidates.length > 0 ? (
             <div className="bento-list">
-              {decisionCandidates.map((event) => (
+              {directDecisionCandidates.map((event) => (
                 <EventLedgerItem event={event} key={event.event_id} />
               ))}
             </div>
           ) : (
             <div className="empty-state">
-              아직 개별 뉴스 AI 후보가 없다. 수집 원장은 아래에서 확인하고, 뉴스 AI 추출 배치가 다음 실행에서 후보를 만든다.
+              아직 직접 종목 뉴스 AI 후보가 없다. 수집 원장은 아래에서 확인하고, 뉴스 AI 추출 배치가 다음 실행에서 후보를 만든다.
             </div>
+          )}
+
+          <div style={{ margin: "30px 0 18px" }}>
+            <span className="metric-sub">상위 흐름 후보</span>
+            <h2 style={{ fontSize: "1.35rem" }}>종목을 억지로 붙이지 않는 거시·테마 뉴스</h2>
+            <p className="relationship-empty">
+              금리, 연준, 유가, 소비 둔화처럼 특정 종목보다 시장 흐름이 먼저인 뉴스다. 이 후보는 테마·사이클과 종목 노출도 규칙을 통해 관련 종목군으로 전파한다.
+            </p>
+          </div>
+
+          {macroDecisionCandidates.length > 0 ? (
+            <div className="bento-list">
+              {macroDecisionCandidates.map((event) => (
+                <EventLedgerItem event={event} key={`macro-${event.event_id}`} />
+              ))}
+            </div>
+          ) : (
+            <div className="empty-state">현재 상위 흐름 후보가 없다.</div>
           )}
 
           <details className="secondary-details">
