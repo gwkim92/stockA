@@ -61,4 +61,4 @@
 - [x] Data-health maps fallback status to `degraded`.
 - [x] Frontend explains fallback status clearly.
 - [x] Local verification and AWH pass.
-- [ ] EC2 deploy and smoke pass.
+- [x] EC2 deploy and smoke pass.
