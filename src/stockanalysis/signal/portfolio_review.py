@@ -19,8 +19,8 @@ _DEFAULT_REVIEW_VERSION = "bootstrap-v1"
 _DEFAULT_REVIEW_SOURCE = "deterministic_bootstrap"
 _DECIMAL_QUANTIZER = Decimal("0.0001")
 _TIGHTEN_ACTIONS = {"exit", "reduce"}
-_MAX_SINGLE_POSITION_WEIGHT = Decimal("0.2500")
-_MIN_REBALANCE_TARGET_WEIGHT = Decimal("0.1000")
+_DEFAULT_MAX_SINGLE_POSITION_WEIGHT = Decimal("0.2500")
+_DEFAULT_MIN_REBALANCE_TARGET_WEIGHT = Decimal("0.1000")
 
 
 @dataclass(frozen=True)
@@ -50,6 +50,9 @@ class PortfolioReviewCandidate:
     outcome_id: int | None
     outcome_status: str | None
     outcome_success_grade: str | None
+    allocation_policy_id: int | None = None
+    max_single_position_weight: Decimal = _DEFAULT_MAX_SINGLE_POSITION_WEIGHT
+    min_rebalance_target_weight: Decimal = _DEFAULT_MIN_REBALANCE_TARGET_WEIGHT
 
 
 @dataclass(frozen=True)
@@ -152,6 +155,13 @@ def load_portfolio_review_candidates(
                 outcome_success_grade=str(item["outcome_success_grade"])
                 if item.get("outcome_success_grade") is not None
                 else None,
+                allocation_policy_id=int(item["allocation_policy_id"])
+                if item.get("allocation_policy_id") is not None
+                else None,
+                max_single_position_weight=_optional_decimal(item.get("max_single_position_weight"))
+                or _DEFAULT_MAX_SINGLE_POSITION_WEIGHT,
+                min_rebalance_target_weight=_optional_decimal(item.get("min_rebalance_target_weight"))
+                or _DEFAULT_MIN_REBALANCE_TARGET_WEIGHT,
             )
         )
 
@@ -214,6 +224,25 @@ selected_batch as (
     order by batch_id desc
     limit 1
 ),
+selected_policy as (
+    select
+        policy.allocation_policy_id,
+        policy.max_single_position_weight,
+        policy.min_rebalance_target_weight
+    from selected_portfolio portfolio
+    join portfolio.allocation_policy policy
+      on (policy.portfolio_id = portfolio.portfolio_id or policy.portfolio_id is null)
+     and (policy.strategy_name = portfolio.strategy_name or policy.strategy_name is null)
+    where policy.status = 'active'
+      and policy.valid_from <= {sql_date(as_of_date)}
+      and (policy.valid_to is null or policy.valid_to >= {sql_date(as_of_date)})
+    order by
+        case when policy.portfolio_id = portfolio.portfolio_id then 0 else 1 end,
+        case when policy.strategy_name = portfolio.strategy_name then 0 else 1 end,
+        policy.valid_from desc,
+        policy.allocation_policy_id desc
+    limit 1
+),
 position_rows as (
     select
         portfolio.portfolio_id,
@@ -225,10 +254,14 @@ position_rows as (
         position.market_value,
         position.weight as current_weight,
         position.unrealized_pnl,
-        position.linked_thesis_id
+        position.linked_thesis_id,
+        policy.allocation_policy_id,
+        coalesce(policy.max_single_position_weight, {sql_numeric(_DEFAULT_MAX_SINGLE_POSITION_WEIGHT)}) as max_single_position_weight,
+        coalesce(policy.min_rebalance_target_weight, {sql_numeric(_DEFAULT_MIN_REBALANCE_TARGET_WEIGHT)}) as min_rebalance_target_weight
     from selected_portfolio portfolio
     join portfolio.position_snapshot position on position.portfolio_id = portfolio.portfolio_id
     join ref.instrument instrument on instrument.instrument_id = position.instrument_id
+    left join selected_policy policy on true
     where position.snapshot_date = {sql_date(as_of_date)}
       and position.quantity <> 0
 ),
@@ -243,6 +276,9 @@ candidate_rows as (
         position.market_value,
         position.current_weight,
         position.unrealized_pnl,
+        position.allocation_policy_id,
+        position.max_single_position_weight,
+        position.min_rebalance_target_weight,
         thesis.thesis_id as linked_thesis_id,
         thesis.title as thesis_title,
         thesis.status as thesis_status,
@@ -282,6 +318,9 @@ select coalesce(
             'market_value', market_value,
             'current_weight', current_weight,
             'unrealized_pnl', unrealized_pnl,
+            'allocation_policy_id', allocation_policy_id,
+            'max_single_position_weight', max_single_position_weight,
+            'min_rebalance_target_weight', min_rebalance_target_weight,
             'linked_thesis_id', linked_thesis_id,
             'thesis_title', thesis_title,
             'thesis_status', thesis_status,
@@ -574,9 +613,9 @@ def _portfolio_action(candidate: PortfolioReviewCandidate) -> str:
     lower_bound = candidate.recommended_weight * Decimal("0.75")
     if candidate.current_weight < lower_bound:
         return "increase_to_target"
-    if candidate.current_weight > _MAX_SINGLE_POSITION_WEIGHT:
+    if candidate.current_weight > candidate.max_single_position_weight:
         return "trim_to_target"
-    if candidate.recommended_weight >= _MIN_REBALANCE_TARGET_WEIGHT:
+    if candidate.recommended_weight >= candidate.min_rebalance_target_weight:
         upper_bound = candidate.recommended_weight * Decimal("1.25")
         if candidate.current_weight > upper_bound:
             return "trim_to_target"
@@ -624,7 +663,7 @@ def _reason(candidate: PortfolioReviewCandidate, *, action: str) -> str:
         f"{candidate.primary_symbol} portfolio review action {action}. "
         f"Thesis review action {thesis_action}; current weight {current_weight}; "
         f"recommended weight {recommended_weight}; coverage status {candidate.coverage_status}; "
-        f"single position review cap {_quantize(_MAX_SINGLE_POSITION_WEIGHT)}."
+        f"single position review cap {_quantize(candidate.max_single_position_weight)}."
     )
 
 

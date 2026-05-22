@@ -49,6 +49,9 @@ class FakeExecutor:
                         "recommendation_action": "watch",
                         "recommendation_total_score": "0.3610",
                         "recommended_weight": None,
+                        "allocation_policy_id": 4001,
+                        "max_single_position_weight": "0.2500",
+                        "min_rebalance_target_weight": "0.1000",
                         "coverage_measurement_end_date": None,
                         "coverage_status": "not_requested",
                         "outcome_id": None,
@@ -96,6 +99,9 @@ class PortfolioReviewBootstrapTests(unittest.TestCase):
         self.assertIn("signal.recommendation", sql)
         self.assertIn("signal.investment_thesis", sql)
         self.assertIn("signal.thesis_review", sql)
+        self.assertIn("portfolio.allocation_policy", sql)
+        self.assertIn("max_single_position_weight", sql)
+        self.assertIn("min_rebalance_target_weight", sql)
         self.assertIn("'not_requested'::text as coverage_status", sql)
         self.assertIn("'Long Term Paper'", sql)
 
@@ -132,6 +138,9 @@ class PortfolioReviewBootstrapTests(unittest.TestCase):
         self.assertEqual(rows[0].linked_thesis_id, 7001)
         self.assertEqual(rows[0].thesis_review_action, "watch")
         self.assertEqual(rows[0].current_weight, Decimal("0.0500"))
+        self.assertEqual(rows[0].allocation_policy_id, 4001)
+        self.assertEqual(rows[0].max_single_position_weight, Decimal("0.2500"))
+        self.assertEqual(rows[0].min_rebalance_target_weight, Decimal("0.1000"))
         self.assertEqual(rows[0].coverage_status, "not_requested")
         self.assertEqual(rows[0].coverage_measurement_end_date, None)
 
@@ -206,6 +215,39 @@ class PortfolioReviewBootstrapTests(unittest.TestCase):
         self.assertEqual(items[0].action, "trim_to_target")
         self.assertEqual(items[0].priority, 3)
         self.assertEqual(items[0].weight_gap, Decimal("-0.2700"))
+
+    def test_build_portfolio_review_respects_portfolio_specific_single_position_cap(self) -> None:
+        header, items = build_portfolio_review(
+            (
+                _candidate(
+                    thesis_review_action="keep",
+                    current_weight=Decimal("0.3100"),
+                    recommended_weight=Decimal("0.0400"),
+                    max_single_position_weight=Decimal("0.3500"),
+                ),
+            ),
+            review_date=date(2024, 11, 1),
+        )
+        self.assertEqual(header.risk_level, "normal")
+        self.assertEqual(items[0].action, "hold")
+        self.assertIn("single position review cap 0.3500", items[0].reason)
+
+    def test_build_portfolio_review_uses_meaningful_rebalance_target_policy(self) -> None:
+        header, items = build_portfolio_review(
+            (
+                _candidate(
+                    thesis_review_action="keep",
+                    current_weight=Decimal("0.1600"),
+                    recommended_weight=Decimal("0.1200"),
+                    max_single_position_weight=Decimal("0.2500"),
+                    min_rebalance_target_weight=Decimal("0.1000"),
+                ),
+            ),
+            review_date=date(2024, 11, 1),
+        )
+        self.assertEqual(header.risk_level, "normal")
+        self.assertEqual(items[0].action, "trim_to_target")
+        self.assertEqual(items[0].weight_gap, Decimal("-0.0400"))
 
     def test_build_portfolio_review_maps_missing_thesis_coverage_to_review_action(self) -> None:
         header, items = build_portfolio_review(
@@ -310,6 +352,9 @@ def _candidate(
     thesis_review_action: str | None = "watch",
     current_weight: Decimal | None = Decimal("0.0500"),
     recommended_weight: Decimal | None = None,
+    allocation_policy_id: int | None = 4001,
+    max_single_position_weight: Decimal = Decimal("0.2500"),
+    min_rebalance_target_weight: Decimal = Decimal("0.1000"),
     linked_thesis_id: int | None = 7001,
     recommendation_id: int | None = 9001,
     coverage_measurement_end_date: date | None = None,
@@ -341,4 +386,7 @@ def _candidate(
         outcome_id=None,
         outcome_status=None,
         outcome_success_grade=None,
+        allocation_policy_id=allocation_policy_id,
+        max_single_position_weight=max_single_position_weight,
+        min_rebalance_target_weight=min_rebalance_target_weight,
     )
