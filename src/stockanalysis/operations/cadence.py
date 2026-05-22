@@ -120,6 +120,18 @@ DATA_OPERATION_CADENCES: tuple[DataOperationCadence, ...] = (
         data_health_dataset="ingest.source_document",
     ),
     DataOperationCadence(
+        job_id="news-missing-instrument-bootstrap-intraday",
+        pipeline_name="news_missing_instrument_bootstrap",
+        domain="news",
+        cadence="intraday",
+        command_template="stockanalysis-operations news-missing-instrument-bootstrap-run --env-file <ENV>",
+        expected_after_local="09:03",
+        stale_after_hours=4,
+        artifact_policy="stdout_json_and_stderr_log",
+        required_env_groups=("database", "sec_identity"),
+        data_health_dataset="ref.instrument",
+    ),
+    DataOperationCadence(
         job_id="news-rss-enrichment-intraday",
         pipeline_name="news_rss_event_enrichment",
         domain="news",

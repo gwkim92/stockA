@@ -1099,6 +1099,50 @@ class DataOperationsCliTests(unittest.TestCase):
             self.assertEqual(call_kwargs["limit"], 7)
             self.assertTrue(call_kwargs["dry_run"])
 
+    def test_news_missing_instrument_bootstrap_run_command_passes_env_and_limits(self) -> None:
+        with tempfile.TemporaryDirectory() as repo_root, tempfile.TemporaryDirectory() as outside_root:
+            env_file = Path(outside_root) / "data-operations.env"
+            env_file.write_text('STOCKANALYSIS_PSQL_COMMAND="docker exec psql"\n', encoding="utf-8")
+            company_tickers_json = Path(outside_root) / "company_tickers_exchange.json"
+            company_tickers_json.write_text("{}", encoding="utf-8")
+            stdout = io.StringIO()
+
+            with patch("stockanalysis.operations.cli.run_news_missing_instrument_bootstrap") as runner_mock:
+                runner_mock.return_value = {
+                    "report_name": "news_missing_instrument_bootstrap",
+                    "status": "planned",
+                    "run_id": None,
+                    "missing_symbol_count": 1,
+                    "bootstrapped_symbol_count": 0,
+                }
+                exit_code = main(
+                    [
+                        "news-missing-instrument-bootstrap-run",
+                        "--repo-root",
+                        repo_root,
+                        "--env-file",
+                        str(env_file),
+                        "--company-tickers-json",
+                        str(company_tickers_json),
+                        "--limit",
+                        "12",
+                        "--exchange",
+                        "Nasdaq",
+                        "--dry-run",
+                    ],
+                    stdout=stdout,
+                )
+
+            self.assertEqual(exit_code, 0)
+            payload = json.loads(stdout.getvalue())
+            self.assertEqual(payload["report_name"], "news_missing_instrument_bootstrap")
+            call_kwargs = runner_mock.call_args.kwargs
+            self.assertEqual(call_kwargs["config"].psql_command, "docker exec psql")
+            self.assertEqual(call_kwargs["limit"], 12)
+            self.assertEqual(call_kwargs["company_tickers_json_path"], str(company_tickers_json.resolve()))
+            self.assertEqual(call_kwargs["exchanges"], ["Nasdaq"])
+            self.assertTrue(call_kwargs["dry_run"])
+
     def test_news_rss_cluster_evidence_run_command_passes_env_and_limits(self) -> None:
         with tempfile.TemporaryDirectory() as repo_root, tempfile.TemporaryDirectory() as outside_root:
             env_file = Path(outside_root) / "data-operations.env"

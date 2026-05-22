@@ -87,6 +87,7 @@ SEC_FILINGS_WEEKLY_STEP_IDS = (
 )
 NEWS_INTRADAY_STEP_IDS = (
     "news-rss-ingest",
+    "news-missing-instrument-bootstrap",
     "news-rss-enrichment",
     "news-cluster-evidence",
     "news-ai-evidence",
@@ -535,6 +536,20 @@ def _build_planned_steps(
                 "-m",
                 "stockanalysis.operations.cli",
                 "news-rss-daily-run",
+                "--env-file",
+                str(env_file),
+            ),
+        },
+        {
+            "step_id": "news-missing-instrument-bootstrap",
+            "artifact_job_id": "news-missing-instrument-bootstrap-intraday",
+            "label": "Bootstrap SEC-verified instruments for explicit missing news tickers",
+            "skip_reason": "",
+            "command_argv": (
+                python_executable,
+                "-m",
+                "stockanalysis.operations.cli",
+                "news-missing-instrument-bootstrap-run",
                 "--env-file",
                 str(env_file),
             ),

@@ -269,6 +269,7 @@ values
     ('internal_theme', 'subtheme', 'US_MARKET_BREADTH', 'US Market Breadth', 'Broad US equity index, breadth, futures, and risk appetite news.', 'active'),
     ('internal_theme', 'subtheme', 'QUANTUM_COMPUTING_POLICY', 'Quantum Computing Policy', 'Quantum computing equities, public funding, government stake policy, and quantum technology commercialization news.', 'active'),
     ('internal_theme', 'subtheme', 'AI_SEMICONDUCTOR_CYCLE', 'AI Semiconductor Cycle', 'AI accelerator, semiconductor capex, GPU supply, and compute demand news.', 'active'),
+    ('internal_theme', 'subtheme', 'AI_LABOR_PRODUCTIVITY', 'AI Labor and Productivity', 'AI adoption, automation, labor displacement, productivity, and workplace impact news.', 'active'),
     ('internal_theme', 'subtheme', 'MACRO_RATES_FED', 'Macro Rates and Fed', 'Rates, inflation, Treasury market, Fed credibility, and policy path news.', 'active'),
     ('internal_theme', 'subtheme', 'ENERGY_GEOPOLITICS', 'Energy and Geopolitics', 'Oil, energy supply, commodity shock, and geopolitical risk news.', 'active')
 on conflict (taxonomy_family, node_type, code) do update
@@ -289,6 +290,7 @@ edge_rows(child_code) as (
         ('US_MARKET_BREADTH'),
         ('QUANTUM_COMPUTING_POLICY'),
         ('AI_SEMICONDUCTOR_CYCLE'),
+        ('AI_LABOR_PRODUCTIVITY'),
         ('MACRO_RATES_FED'),
         ('ENERGY_GEOPOLITICS')
 )

@@ -9,6 +9,7 @@ from stockanalysis.ingest.news.enrichment import (
     infer_impact_direction_and_strength,
     load_pending_news_rss_event_enrichment_candidates,
     resolve_instrument_for_candidate,
+    run_news_missing_instrument_bootstrap,
     run_news_rss_event_enrichment,
 )
 from stockanalysis.ingest.news.models import NewsRssEventEnrichmentCandidate
@@ -165,6 +166,60 @@ class NewsRssEnrichmentTests(unittest.TestCase):
         self.assertEqual(detect_instrument_symbol(candidate), "QUBT")
         self.assertEqual(infer_impact_direction_and_strength(candidate)[0], "supportive")
 
+    def test_rule_classification_detects_ai_labor_productivity_news(self) -> None:
+        candidate = NewsRssEventEnrichmentCandidate(
+            event_id=56,
+            event_type="news_rss_item",
+            dedupe_key="news_rss:rss:ai-semiconductor-cycle:labor",
+            title="Workers worry artificial intelligence will reshape jobs",
+            summary="Executives say AI automation may lift productivity while changing the workforce.",
+            source_name="rss_news:ai-semiconductor-cycle",
+            external_document_id="rss:ai-semiconductor-cycle:labor",
+        )
+
+        self.assertEqual(classify_theme(candidate).node_code, "AI_LABOR_PRODUCTIVITY")
+        self.assertIsNone(detect_instrument_symbol(candidate))
+
+    def test_rule_detection_does_not_link_oil_price_news_to_xom(self) -> None:
+        candidate = NewsRssEventEnrichmentCandidate(
+            event_id=57,
+            event_type="news_rss_item",
+            dedupe_key="news_rss:rss:energy-geopolitics:oil",
+            title="Oil prices reverse as peace talks pressure crude oil futures",
+            summary="Commodity traders reassess supply risk after diplomatic headlines.",
+            source_name="rss_news:energy-geopolitics",
+            external_document_id="rss:energy-geopolitics:oil",
+        )
+
+        self.assertEqual(classify_theme(candidate).node_code, "ENERGY_GEOPOLITICS")
+        self.assertIsNone(detect_instrument_symbol(candidate))
+
+    def test_detect_instrument_symbol_reads_explicit_ticker_parentheses(self) -> None:
+        candidate = NewsRssEventEnrichmentCandidate(
+            event_id=58,
+            event_type="news_rss_item",
+            dedupe_key="news_rss:x",
+            title="Astera Labs (ALAB) soars after analyst upgrade",
+            summary="The ALAB stock move follows a data-center connectivity note.",
+            source_name="rss_news:yahoo-finance-news",
+            external_document_id="rss:x",
+        )
+
+        self.assertEqual(detect_instrument_symbol(candidate), "ALAB")
+
+    def test_detect_instrument_symbol_ignores_blocklisted_uppercase_noise(self) -> None:
+        candidate = NewsRssEventEnrichmentCandidate(
+            event_id=59,
+            event_type="news_rss_item",
+            dedupe_key="news_rss:x",
+            title="AI (CEO) says automation investment will rise",
+            summary="The SEC and ETF flows remain separate market context.",
+            source_name="rss_news:yahoo-finance-news",
+            external_document_id="rss:x",
+        )
+
+        self.assertIsNone(detect_instrument_symbol(candidate))
+
     def test_company_alias_resolution_links_obvious_named_company(self) -> None:
         candidate = NewsRssEventEnrichmentCandidate(
             event_id=33,
@@ -283,6 +338,71 @@ class NewsRssEnrichmentTests(unittest.TestCase):
         self.assertEqual(summary["succeeded_event_count"], 0)
         self.assertEqual(summary["failed_event_count"], 2)
         self.assertIn("status = 'failed'", executor.non_query_sql[-1])
+
+    def test_news_missing_instrument_bootstrap_uses_sec_verified_universe(self) -> None:
+        executor = FakeExecutor(
+            run_id=1207,
+            missing_instrument=True,
+            pending_candidates=[
+                {
+                    "event_id": 58,
+                    "event_type": "news_rss_item",
+                    "dedupe_key": "news_rss:rss:yahoo-finance-news:aapl",
+                    "title": "Apple (AAPL) stock rises after services revenue update",
+                    "summary": "AAPL gains after analysts lift forecasts.",
+                    "source_name": "rss_news:yahoo-finance-news",
+                    "external_document_id": "rss:yahoo-finance-news:aapl",
+                }
+            ],
+        )
+
+        summary = run_news_missing_instrument_bootstrap(
+            config=type("Config", (), {})(),
+            limit=10,
+            company_tickers_json_path="tests/fixtures/sec_company_tickers_exchange_sample.json",
+            exchanges=["Nasdaq"],
+            executor=executor,
+        )
+
+        self.assertEqual(summary["run_id"], 1207)
+        self.assertEqual(summary["missing_symbols"], ["AAPL"])
+        self.assertEqual(summary["bootstrapped_symbols"], ["AAPL"])
+        self.assertEqual(summary["bootstrapped_symbol_count"], 1)
+        self.assertTrue(any("insert into ref.instrument" in sql for sql in executor.non_query_sql))
+        self.assertIn("status = 'succeeded'", executor.non_query_sql[-1])
+
+    def test_news_missing_instrument_bootstrap_dry_run_does_not_write(self) -> None:
+        executor = FakeExecutor(
+            run_id=1208,
+            missing_instrument=True,
+            pending_candidates=[
+                {
+                    "event_id": 58,
+                    "event_type": "news_rss_item",
+                    "dedupe_key": "news_rss:rss:yahoo-finance-news:aapl",
+                    "title": "Apple (AAPL) stock rises after services revenue update",
+                    "summary": "AAPL gains after analysts lift forecasts.",
+                    "source_name": "rss_news:yahoo-finance-news",
+                    "external_document_id": "rss:yahoo-finance-news:aapl",
+                }
+            ],
+        )
+
+        summary = run_news_missing_instrument_bootstrap(
+            config=type("Config", (), {})(),
+            limit=10,
+            company_tickers_json_path="tests/fixtures/sec_company_tickers_exchange_sample.json",
+            exchanges=["Nasdaq"],
+            dry_run=True,
+            executor=executor,
+        )
+
+        self.assertEqual(summary["run_id"], None)
+        self.assertEqual(summary["status"], "planned")
+        self.assertEqual(summary["missing_symbols"], ["AAPL"])
+        self.assertEqual(summary["bootstrapped_symbols"], ["AAPL"])
+        self.assertEqual(summary["bootstrapped_symbol_count"], 0)
+        self.assertEqual(executor.non_query_sql, [])
 
 
 if __name__ == "__main__":

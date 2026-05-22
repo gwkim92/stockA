@@ -6,6 +6,11 @@ from dataclasses import dataclass
 
 from stockanalysis.ingest.config import RuntimeConfig
 from stockanalysis.ingest.macro.sql import sql_literal
+from stockanalysis.ingest.market.universe import (
+    load_market_universe_records,
+    render_market_universe_bootstrap_sql,
+    select_market_universe_records,
+)
 from stockanalysis.ingest.news.models import NewsRssEventEnrichmentCandidate, NewsRssEventEnrichmentResult
 from stockanalysis.ingest.news.sql import (
     render_instrument_lookup_by_company_alias_sql,
@@ -90,6 +95,15 @@ _QUANTUM_THEME = _ThemeTarget(
     rationale="News mentions quantum computing, quantum stocks, or government policy support for quantum technology.",
 )
 
+_AI_LABOR_PRODUCTIVITY_THEME = _ThemeTarget(
+    node_code="AI_LABOR_PRODUCTIVITY",
+    node_type="subtheme",
+    impact_direction="watch",
+    impact_strength=0.58,
+    confidence=0.78,
+    rationale="News focuses on AI adoption, labor displacement, productivity, or workplace impact rather than semiconductor supply.",
+)
+
 _THEME_KEYWORD_TARGETS: tuple[tuple[str, tuple[str, ...]], ...] = (
     (
         "QUANTUM_COMPUTING_POLICY",
@@ -110,7 +124,7 @@ _THEME_KEYWORD_TARGETS: tuple[tuple[str, tuple[str, ...]], ...] = (
 )
 
 _THEME_BY_CODE: dict[str, _ThemeTarget] = {
-    target.node_code: target for target in (*_FEED_THEME_MAP.values(), _QUANTUM_THEME, _DEFAULT_THEME)
+    target.node_code: target for target in (*_FEED_THEME_MAP.values(), _QUANTUM_THEME, _AI_LABOR_PRODUCTIVITY_THEME, _DEFAULT_THEME)
 }
 
 _SYMBOL_KEYWORDS: tuple[tuple[str, tuple[str, ...]], ...] = (
@@ -121,7 +135,60 @@ _SYMBOL_KEYWORDS: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("TSLA", ("tesla", "tsla")),
     ("SPY", ("s&p 500", "spx", "broad market")),
     ("QQQ", ("nasdaq 100", "nasdaq futures", "nasdaq")),
-    ("XOM", ("exxon", "xom", "oil prices", "crude oil")),
+    ("XOM", ("exxon", "exxon mobil", "xom")),
+)
+
+_EXPLICIT_TICKER_PATTERNS = (
+    re.compile(r"\$([A-Z][A-Z0-9.-]{0,5})\b"),
+    re.compile(r"\(([A-Z][A-Z0-9.-]{0,5})\)"),
+    re.compile(r"\b([A-Z][A-Z0-9.-]{0,5})\s+stock\b"),
+)
+
+_TICKER_BLOCKLIST = {
+    "AI",
+    "API",
+    "CEO",
+    "CFO",
+    "CIO",
+    "COO",
+    "CPI",
+    "ETF",
+    "EU",
+    "FDA",
+    "FED",
+    "FOMC",
+    "GDP",
+    "IPO",
+    "LLM",
+    "NASDAQ",
+    "NYSE",
+    "OPEC",
+    "PCE",
+    "SEC",
+    "SPX",
+    "UK",
+    "US",
+    "USA",
+    "USD",
+}
+
+_AI_LABOR_CONTEXT_TERMS = (
+    "automation",
+    "displacement",
+    "employment",
+    "job",
+    "jobs",
+    "labor",
+    "labour",
+    "layoff",
+    "layoffs",
+    "productivity",
+    "worker",
+    "workers",
+    "workforce",
+    "workplace",
+    "worry",
+    "worried",
 )
 
 _RISK_WORDS = (
@@ -288,6 +355,89 @@ def run_news_rss_event_enrichment(
     }
 
 
+def run_news_missing_instrument_bootstrap(
+    *,
+    config: RuntimeConfig,
+    limit: int = 100,
+    company_tickers_json_path: str | None = None,
+    exchanges: list[str] | None = None,
+    dry_run: bool = False,
+    executor: PsqlCommandExecutor | None = None,
+) -> dict[str, object]:
+    if limit <= 0:
+        raise ValueError("limit must be greater than 0")
+
+    sql_executor = executor or PsqlCommandExecutor.from_config(config)
+    candidates = load_pending_news_rss_event_enrichment_candidates(limit=limit, executor=sql_executor)
+    missing_symbols: list[str] = []
+    symbol_event_ids: dict[str, list[int]] = {}
+    for candidate in candidates:
+        symbol = detect_instrument_symbol(candidate)
+        if not symbol or not is_safe_news_ticker_symbol(symbol):
+            continue
+        if resolve_instrument_by_symbol(symbol, executor=sql_executor) is not None:
+            continue
+        if symbol not in symbol_event_ids:
+            missing_symbols.append(symbol)
+            symbol_event_ids[symbol] = []
+        symbol_event_ids[symbol].append(candidate.event_id)
+
+    if not missing_symbols:
+        return _empty_missing_instrument_summary(
+            candidate_event_count=len(candidates),
+            dry_run=dry_run,
+        )
+
+    records = load_market_universe_records(
+        config=config,
+        company_tickers_json_path=company_tickers_json_path,
+    )
+    selection = select_market_universe_records(records, exchanges=exchanges)
+    wanted = set(missing_symbols)
+    selected_records = tuple(record for record in selection.records if record.symbol in wanted)
+    bootstrapped_symbols = sorted({record.symbol for record in selected_records})
+    unmatched_symbols = sorted(wanted - set(bootstrapped_symbols))
+
+    base_summary: dict[str, object] = {
+        "report_name": "news_missing_instrument_bootstrap",
+        "status": "planned" if dry_run else "completed",
+        "run_id": None,
+        "candidate_event_count": len(candidates),
+        "missing_symbol_count": len(missing_symbols),
+        "sec_matched_symbol_count": len(bootstrapped_symbols),
+        "bootstrapped_symbol_count": 0 if dry_run else len(bootstrapped_symbols),
+        "missing_symbols": missing_symbols,
+        "bootstrapped_symbols": bootstrapped_symbols,
+        "unmatched_symbols": unmatched_symbols,
+        "symbol_event_ids": {symbol: symbol_event_ids[symbol] for symbol in missing_symbols},
+        "dry_run": dry_run,
+        "requested_exchanges": list(selection.requested_exchanges),
+    }
+    if dry_run or not selected_records:
+        return base_summary
+
+    run_id = _create_pipeline_run(
+        sql_executor,
+        pipeline_name="news_missing_instrument_bootstrap",
+        config_json={
+            "limit": limit,
+            "company_tickers_fixture_path": company_tickers_json_path,
+            "requested_exchanges": list(selection.requested_exchanges),
+            "missing_symbols": missing_symbols,
+            "bootstrapped_symbols": bootstrapped_symbols,
+            "unmatched_symbols": unmatched_symbols,
+        },
+    )
+    try:
+        sql_executor.execute_non_query(render_market_universe_bootstrap_sql(selected_records))
+        _mark_pipeline_run_succeeded(sql_executor, run_id)
+    except Exception as exc:
+        _mark_pipeline_run_failed(sql_executor, run_id, str(exc))
+        raise
+
+    return base_summary | {"run_id": run_id}
+
+
 def load_pending_news_rss_event_enrichment_candidates(
     *,
     limit: int,
@@ -310,11 +460,14 @@ def load_pending_news_rss_event_enrichment_candidates(
 
 
 def classify_theme(candidate: NewsRssEventEnrichmentCandidate) -> _ThemeTarget:
+    text = _candidate_text(candidate)
+    if _is_ai_labor_productivity_news(text):
+        return _AI_LABOR_PRODUCTIVITY_THEME
+
     feed_name = _feed_name(candidate.source_name)
     if feed_name in _FEED_THEME_MAP:
         return _FEED_THEME_MAP[feed_name]
 
-    text = _candidate_text(candidate)
     for theme_code, keywords in _THEME_KEYWORD_TARGETS:
         if any(keyword in text for keyword in keywords):
             return _THEME_BY_CODE[theme_code]
@@ -326,7 +479,28 @@ def detect_instrument_symbol(candidate: NewsRssEventEnrichmentCandidate) -> str 
     for symbol, keywords in _SYMBOL_KEYWORDS:
         if any(_keyword_matches(text, keyword) for keyword in keywords):
             return symbol
+    return detect_explicit_ticker_symbol(candidate)
+
+
+def detect_explicit_ticker_symbol(candidate: NewsRssEventEnrichmentCandidate) -> str | None:
+    text = f"{candidate.title} {candidate.summary}"
+    for pattern in _EXPLICIT_TICKER_PATTERNS:
+        match = pattern.search(text)
+        if match is None:
+            continue
+        symbol = match.group(1).upper()
+        if is_safe_news_ticker_symbol(symbol):
+            return symbol
     return None
+
+
+def is_safe_news_ticker_symbol(symbol: str) -> bool:
+    cleaned = symbol.strip().upper()
+    if cleaned in _TICKER_BLOCKLIST:
+        return False
+    if not re.fullmatch(r"[A-Z][A-Z0-9.-]{0,5}", cleaned):
+        return False
+    return any(char.isalpha() for char in cleaned)
 
 
 def resolve_instrument_for_candidate(
@@ -404,6 +578,13 @@ def _keyword_matches(text: str, keyword: str) -> bool:
     return keyword in text
 
 
+def _is_ai_labor_productivity_news(text: str) -> bool:
+    mentions_ai = "artificial intelligence" in text or re.search(r"(?<![a-z0-9])ai(?![a-z0-9])", text) is not None
+    if not mentions_ai:
+        return False
+    return any(term in text for term in _AI_LABOR_CONTEXT_TERMS)
+
+
 def _build_result(
     candidate: NewsRssEventEnrichmentCandidate,
     *,
@@ -436,6 +617,24 @@ def _empty_summary() -> dict[str, object]:
         "instrument_linked_event_count": 0,
         "instrument_skipped_event_count": 0,
         "results": [],
+    }
+
+
+def _empty_missing_instrument_summary(*, candidate_event_count: int, dry_run: bool) -> dict[str, object]:
+    return {
+        "report_name": "news_missing_instrument_bootstrap",
+        "status": "planned" if dry_run else "completed",
+        "run_id": None,
+        "candidate_event_count": candidate_event_count,
+        "missing_symbol_count": 0,
+        "sec_matched_symbol_count": 0,
+        "bootstrapped_symbol_count": 0,
+        "missing_symbols": [],
+        "bootstrapped_symbols": [],
+        "unmatched_symbols": [],
+        "symbol_event_ids": {},
+        "dry_run": dry_run,
+        "requested_exchanges": [],
     }
 
 

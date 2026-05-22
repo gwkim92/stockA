@@ -14,6 +14,7 @@ const KOREAN_LABELS: Record<string, string> = {
   US_MARKET_BREADTH: "미국 시장 참여도",
   QUANTUM_COMPUTING_POLICY: "양자컴퓨팅·정책 수혜",
   AI_SEMICONDUCTOR_CYCLE: "AI 반도체 사이클",
+  AI_LABOR_PRODUCTIVITY: "AI 도입·노동 영향",
   MACRO_RATES_FED: "금리·연준",
   ENERGY_GEOPOLITICS: "에너지·지정학",
 
@@ -24,6 +25,7 @@ const KOREAN_LABELS: Record<string, string> = {
   us_market_breadth: "미국 시장 참여도",
   quantum_computing_policy: "양자컴퓨팅·정책 수혜",
   ai_semiconductor_cycle: "AI 반도체 사이클",
+  ai_labor_productivity: "AI 도입·노동 영향",
   macro_rates_fed: "금리·연준",
   energy_geopolitics: "에너지·지정학",
   active: "활성",

@@ -12,7 +12,10 @@ from typing import Iterator, Mapping, Sequence, TextIO
 from stockanalysis.ingest.config import RuntimeConfig
 from stockanalysis.ingest.news.ai_extract import CODEX_OAUTH_PROVIDER, run_news_rss_ai_extract
 from stockanalysis.ingest.news.cluster_evidence import run_news_rss_cluster_evidence
-from stockanalysis.ingest.news.enrichment import run_news_rss_event_enrichment
+from stockanalysis.ingest.news.enrichment import (
+    run_news_missing_instrument_bootstrap,
+    run_news_rss_event_enrichment,
+)
 from stockanalysis.operations.artifact_runner import run_data_operation_artifact_command
 from stockanalysis.operations.cadence import build_data_operations_cadence_report
 from stockanalysis.operations.env_file import merged_env_with_file
@@ -438,6 +441,18 @@ def build_parser() -> argparse.ArgumentParser:
     news_rss_enrich.add_argument("--dry-run", action="store_true")
     news_rss_enrich.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
     news_rss_enrich.set_defaults(handler=_handle_news_rss_enrich_run)
+
+    news_missing_instrument_bootstrap = subparsers.add_parser(
+        "news-missing-instrument-bootstrap-run",
+        help="Bootstrap SEC-verified listed instruments for explicit news tickers missing from ref.instrument.",
+    )
+    news_missing_instrument_bootstrap.add_argument("--env-file")
+    news_missing_instrument_bootstrap.add_argument("--limit", type=int, default=100)
+    news_missing_instrument_bootstrap.add_argument("--company-tickers-json")
+    news_missing_instrument_bootstrap.add_argument("--exchange", action="append", default=[])
+    news_missing_instrument_bootstrap.add_argument("--dry-run", action="store_true")
+    news_missing_instrument_bootstrap.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
+    news_missing_instrument_bootstrap.set_defaults(handler=_handle_news_missing_instrument_bootstrap_run)
 
     news_rss_cluster_evidence = subparsers.add_parser(
         "news-rss-cluster-evidence-run",
@@ -1026,6 +1041,25 @@ def _handle_news_rss_enrich_run(args: argparse.Namespace, *, stdout: TextIO) -> 
         )
     print_json(report, stdout=stdout, sort_keys=False)
     return 0 if int(report.get("failed_event_count", 0)) == 0 else 1
+
+
+def _handle_news_missing_instrument_bootstrap_run(args: argparse.Namespace, *, stdout: TextIO) -> int:
+    env_mapping = _load_optional_env_mapping(args.env_file, repo_root=args.repo_root)
+    company_tickers_json = (
+        str(resolve_existing_file(args.company_tickers_json, label="company tickers JSON", repo_root=args.repo_root))
+        if args.company_tickers_json
+        else None
+    )
+    with _temporary_environ(env_mapping):
+        report = run_news_missing_instrument_bootstrap(
+            config=RuntimeConfig.from_env(),
+            limit=args.limit,
+            company_tickers_json_path=company_tickers_json,
+            exchanges=args.exchange or None,
+            dry_run=bool(args.dry_run),
+        )
+    print_json(report, stdout=stdout, sort_keys=False)
+    return 0
 
 
 def _handle_news_rss_cluster_evidence_run(args: argparse.Namespace, *, stdout: TextIO) -> int:
