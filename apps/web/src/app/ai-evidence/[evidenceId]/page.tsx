@@ -16,6 +16,7 @@ type AiEvidencePageProps = {
 type NewsCandidate = NonNullable<AiEvidenceDetailData["news_candidate"]>;
 type ClusterSummary = NonNullable<AiEvidenceDetailData["cluster_summary"]>;
 type EvidenceNeighborhood = AiEvidenceNeighborhoodData | null;
+type ExtractedField = AiEvidenceDetailData["extracted_fields"][number];
 
 function formatPercent(value: number | null | undefined) {
   if (value == null || !Number.isFinite(value)) {
@@ -134,6 +135,32 @@ function formatSourceRelevance(relevance: string) {
     return "근거 문맥";
   }
   return koCode(relevance);
+}
+
+function formatExtractedFieldValue(field: ExtractedField) {
+  const rawValue = field.value.trim();
+  const slashParts = rawValue.split(" / ").map((part) => part.trim()).filter(Boolean);
+  if (slashParts.length >= 3) {
+    const [target, direction, ...rest] = slashParts;
+    return `${koCode(target)} · ${koCode(direction)}. ${koLabel(rest.join(" / "))}`;
+  }
+  return koLabel(rawValue);
+}
+
+function formatExtractedFieldSource(sourceChunkId: string) {
+  if (sourceChunkId === "chunk-news-ai-candidate") {
+    return "뉴스 후보 근거";
+  }
+  if (sourceChunkId === "chunk-news-ai-theme-impact") {
+    return "테마 영향 근거";
+  }
+  if (sourceChunkId === "chunk-news-ai-instrument-impact") {
+    return "종목 영향 근거";
+  }
+  if (sourceChunkId.startsWith("chunk-news-ai-")) {
+    return "AI 추출 근거";
+  }
+  return koLabel(sourceChunkId);
 }
 
 function stockHref(symbol: string | null | undefined) {
@@ -564,9 +591,9 @@ export default async function AiEvidencePage({ params }: AiEvidencePageProps) {
               {data.extracted_fields.map((field) => (
                 <div className="field-proof-card" key={field.field}>
                   <span>{koCode(field.field)}</span>
-                  <strong>{koLabel(field.value)}</strong>
+                  <strong>{formatExtractedFieldValue(field)}</strong>
                   <small>
-                    신뢰도 {formatPercent(field.confidence)} · 근거 {field.source_chunk_id}
+                    신뢰도 {formatPercent(field.confidence)} · {formatExtractedFieldSource(field.source_chunk_id)}
                   </small>
                 </div>
               ))}

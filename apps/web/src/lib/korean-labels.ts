@@ -343,7 +343,7 @@ const KOREAN_LABELS: Record<string, string> = {
   "default locked until explicit operator approval": "명시적 운영자 승인 전까지 기본 차단",
   "Annual Reporting": "연간 공시",
   "MARKET NEWS FLOW": "시장 뉴스 흐름",
-  "US MARKET BREADTH": "미국 시장 폭",
+  "US MARKET BREADTH": "미국 시장 참여도",
   "US Market Breadth": "미국 시장 참여도",
   "AI SEMICONDUCTOR CYCLE": "AI 반도체 사이클",
   "AI Semiconductor Cycle": "AI 반도체 사이클",
@@ -416,6 +416,30 @@ const KOREAN_LABELS: Record<string, string> = {
 
 const EMBEDDED_LABEL_REPLACEMENTS: Array<[RegExp, string]> = [
   [
+    /\b([A-Z0-9.-]+)\s+watch\s+thesis\s+via\s+US Market Breadth\b/g,
+    "$1 관찰 투자 논리 · 근거 흐름: 미국 시장 참여도",
+  ],
+  [
+    /\b([A-Z0-9.-]+)\s+watch\s+투자 논리\s+via\s+US Market Breadth\b/g,
+    "$1 관찰 투자 논리 · 근거 흐름: 미국 시장 참여도",
+  ],
+  [
+    /\b([A-Z0-9.-]+)\s+watch\s+thesis\s+via\s+Annual Reporting\b/g,
+    "$1 관찰 투자 논리 · 근거 흐름: 연간 공시",
+  ],
+  [
+    /\b([A-Z0-9.-]+)\s+watch\s+투자 논리\s+via\s+Annual Reporting\b/g,
+    "$1 관찰 투자 논리 · 근거 흐름: 연간 공시",
+  ],
+  [
+    /\b([A-Z0-9.-]+)\s+avoid\s+thesis\s+via\s+Annual Reporting\b/g,
+    "$1 회피 투자 논리 · 근거 흐름: 연간 공시",
+  ],
+  [
+    /\b([A-Z0-9.-]+)\s+avoid\s+투자 논리\s+via\s+Annual Reporting\b/g,
+    "$1 회피 투자 논리 · 근거 흐름: 연간 공시",
+  ],
+  [
     /\bUS_MARKET_BREADTH flow propagated to ([A-Z0-9.-]+); sensitivity=positive; exposure=([0-9.]+); 이벤트=/g,
     "미국 시장 참여도 흐름이 $1에 우호적으로 전파됐다. 노출도 $2. 근거=",
   ],
@@ -439,6 +463,13 @@ const EMBEDDED_LABEL_REPLACEMENTS: Array<[RegExp, string]> = [
     /\bENERGY_GEOPOLITICS flow propagated to ([A-Z0-9.-]+); sensitivity=negative; exposure=([0-9.]+); 이벤트=/g,
     "에너지·지정학 흐름이 $1에 부정적으로 전파됐다. 노출도 $2. 근거=",
   ],
+  [/\bQUANTUM_COMPUTING_POLICY\b/g, "양자컴퓨팅·정책 수혜"],
+  [/\bUS_MARKET_BREADTH\b/g, "미국 시장 참여도"],
+  [/\bAI_SEMICONDUCTOR_CYCLE\b/g, "AI 반도체 사이클"],
+  [/\bAI_LABOR_PRODUCTIVITY\b/g, "AI 도입·노동 영향"],
+  [/\bsupportive\b/g, "우호적"],
+  [/\brisk_review\b/g, "리스크 검토"],
+  [/\bwatch\b/g, "관찰"],
   [
     /\bRule-based free RSS enrichment; no paid provider or LLM used\.?;?/g,
     "무료 RSS 규칙으로 해석했다.",
@@ -513,6 +544,7 @@ const EMBEDDED_LABEL_REPLACEMENTS: Array<[RegExp, string]> = [
   [/장기 핵심 전략 전략/g, "장기 핵심 전략"],
   [/가격 가격 지표 출처/g, "가격 지표 출처"],
   [/성과을/g, "성과를"],
+  [/투자 투자 논리/g, "투자 논리"],
   [/ai-근거/g, "AI 근거"],
   [/없음 상태/g, "없는 상태"],
 ];
