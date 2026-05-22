@@ -831,7 +831,7 @@ def invoke_codex_oauth_news_ai_provider(
         schema_path = tmp_path / "news-event-candidate.schema.json"
         output_path = tmp_path / "last-message.json"
         schema_path.write_text(json.dumps(output_schema, ensure_ascii=False, sort_keys=True), encoding="utf-8")
-        cwd = os.getenv("STOCKANALYSIS_CODEX_WORKDIR") or str(Path.cwd())
+        cwd = os.getenv("STOCKANALYSIS_CODEX_WORKDIR") or _default_codex_workdir()
         command = [
             *base_command,
             "-c",
@@ -841,14 +841,20 @@ def invoke_codex_oauth_news_ai_provider(
             "--cd",
             cwd,
             "exec",
-            "--ephemeral",
-            "--ignore-user-config",
-            "--ignore-rules",
-            "--output-schema",
-            str(schema_path),
-            "--output-last-message",
-            str(output_path),
         ]
+        if _bool_env("STOCKANALYSIS_CODEX_SKIP_GIT_REPO_CHECK", default=True):
+            command.append("--skip-git-repo-check")
+        command.extend(
+            [
+                "--ephemeral",
+                "--ignore-user-config",
+                "--ignore-rules",
+                "--output-schema",
+                str(schema_path),
+                "--output-last-message",
+                str(output_path),
+            ]
+        )
         if model_name and model_name not in {DEFAULT_MODEL_NAME, "default"}:
             command.extend(["--model", model_name])
         command.append("-")
@@ -886,6 +892,20 @@ def invoke_codex_oauth_news_ai_provider(
         estimated_cost_usd=response.estimated_cost_usd,
         latency_ms=response.latency_ms or latency_ms,
     )
+
+
+def _default_codex_workdir() -> str:
+    for candidate in (Path(__file__).resolve(), *Path(__file__).resolve().parents):
+        if (candidate / ".git").exists() or (candidate / "pyproject.toml").exists():
+            return str(candidate)
+    return str(Path.cwd())
+
+
+def _bool_env(name: str, *, default: bool) -> bool:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "y", "on"}
 
 
 def build_codex_oauth_news_ai_prompt(

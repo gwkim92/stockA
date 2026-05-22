@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 import json
+import os
+import subprocess
 import unittest
 from datetime import date
 from pathlib import Path
+from unittest.mock import patch
 
 from stockanalysis.ingest.news.ai_extract import (
     NewsAiImpactOutput,
@@ -13,6 +16,7 @@ from stockanalysis.ingest.news.ai_extract import (
     _diagnostic_excerpt,
     build_codex_oauth_news_ai_prompt,
     build_news_ai_provider_response_from_payload,
+    invoke_codex_oauth_news_ai_provider,
     is_news_ai_candidate_quality_eligible,
     load_news_rss_ai_extraction_candidates,
     parse_news_ai_output,
@@ -295,6 +299,65 @@ class NewsRssAiExtractTests(unittest.TestCase):
         self.assertIn("Write all human-readable natural-language fields in Korean.", prompt)
         self.assertIn("event_summary, rationale, evidence_summary, uncertainty_notes, and recommendation_relevance", prompt)
         self.assertIn("Keep machine codes and market identifiers unchanged", prompt)
+
+    def test_codex_oauth_invocation_uses_safe_automation_workdir_and_git_skip(self) -> None:
+        candidate = NewsRssAiExtractionCandidate(
+            event_id=101,
+            document_id=501,
+            title="Nvidia H200 China deal survived the summit",
+            summary="GPU export path stays open.",
+            event_at="2026-05-19T10:02:40+00:00",
+            source_name="rss_news:ai-semiconductor-cycle",
+            external_document_id="rss:ai-semiconductor-cycle:abc",
+            source_url="https://example.test/nvda",
+            existing_theme_code="AI_SEMICONDUCTOR_CYCLE",
+            existing_instrument_symbol="NVDA",
+        )
+        chunk = NewsAiDocumentChunk(
+            document_id=501,
+            chunk_index=9000,
+            content_hash="abc",
+            text_preview="Nvidia H200 China deal survived the summit",
+            token_count=10,
+            chunk_metadata={},
+            text="Nvidia H200 China deal survived the summit",
+        )
+        fixture_output = Path("tests/fixtures/llm_news_event_candidate_nvda.json").read_text(encoding="utf-8")
+
+        with patch.dict(
+            os.environ,
+            {
+                "STOCKANALYSIS_CODEX_CLI_COMMAND": "codex",
+                "STOCKANALYSIS_CODEX_SKIP_GIT_REPO_CHECK": "1",
+            },
+            clear=False,
+        ):
+            with patch("stockanalysis.ingest.news.ai_extract.subprocess.run") as run_mock:
+                run_mock.return_value = subprocess.CompletedProcess(
+                    args=[],
+                    returncode=0,
+                    stdout=fixture_output,
+                    stderr="",
+                )
+                response = invoke_codex_oauth_news_ai_provider(
+                    candidate,
+                    chunk,
+                    {
+                        "known_themes": [],
+                        "theme_edges": [],
+                        "current_event_impacts": [],
+                        "recent_similar_events": [],
+                    },
+                    "codex-cli-default",
+                    "low",
+                )
+
+        command = run_mock.call_args.args[0]
+        self.assertEqual(response.provider, "codex_oauth")
+        self.assertIn("--skip-git-repo-check", command)
+        self.assertIn("--cd", command)
+        self.assertTrue(Path(command[command.index("--cd") + 1]).exists())
+        self.assertLess(command.index("exec"), command.index("--skip-git-repo-check"))
 
     def test_diagnostic_excerpt_preserves_failure_tail(self) -> None:
         diagnostic = _diagnostic_excerpt(
