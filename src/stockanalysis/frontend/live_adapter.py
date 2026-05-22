@@ -1000,7 +1000,7 @@ def build_live_ai_news_cluster_list_response(
     executor: PsqlCommandExecutor | None,
     generated_at: str,
 ) -> dict[str, Any]:
-    as_of_date = _parse_required_date(parsed.query, "asOfDate")
+    as_of_date = _parse_optional_date(parsed.query, "asOfDate") or date.today()
     theme_key = parsed.query.get("themeKey") or None
     symbol = parsed.query.get("symbol") or None
     page_limit, page_offset = frontend_sql_page_window(api_path)

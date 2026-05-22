@@ -2001,6 +2001,20 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertNotIn("secret://", json.dumps(data))
         self.assertTrue(is_live_supported_path("/api/ai/news-clusters?asOfDate=2026-05-19"))
 
+    def test_live_ai_news_cluster_list_allows_default_as_of_date_with_limit(self) -> None:
+        payload = resolve_live_frontend_response(
+            "/api/ai/news-clusters?limit=10",
+            config=type("Config", (), {"psql_command": "psql"})(),
+            executor=FakeLiveExecutor(),
+            generated_at=datetime(2026, 5, 19, tzinfo=timezone.utc),
+        )
+
+        self.assertEqual(payload["contract_version"], "frontend-api-v0.1")
+        self.assertEqual(payload["data"]["summary"]["cluster_count"], 1)
+        self.assertEqual(payload["data"]["clusters"][0]["evidence_id"], "ai-evidence-2")
+        self.assertEqual(payload["pagination"]["limit"], 10)
+        self.assertTrue(is_live_supported_path("/api/ai/news-clusters?limit=10"))
+
     def test_live_ai_news_cluster_list_sql_is_read_only(self) -> None:
         sql = render_frontend_ai_news_cluster_list_state_sql(
             as_of_date=datetime(2026, 5, 19, tzinfo=timezone.utc).date(),

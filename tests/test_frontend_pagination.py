@@ -26,6 +26,18 @@ def _event_payload(count: int = 3) -> dict[str, object]:
     }
 
 
+def _news_cluster_payload(count: int = 3) -> dict[str, object]:
+    return {
+        "contract_version": "frontend-api-v0.1",
+        "generated_at": "2026-05-01T00:00:00Z",
+        "data": {
+            "as_of_date": "2026-05-01",
+            "clusters": [{"evidence_id": f"ai-evidence-{index}"} for index in range(count)],
+        },
+        "links": {},
+    }
+
+
 class FrontendPaginationTests(unittest.TestCase):
     def test_limit_slices_collection_and_returns_next_cursor(self) -> None:
         payload = apply_frontend_pagination("/api/events?asOfDate=2024-11-01&limit=2", _event_payload())
@@ -53,6 +65,13 @@ class FrontendPaginationTests(unittest.TestCase):
         self.assertEqual(payload["pagination"]["item_count"], 2)
         self.assertTrue(payload["pagination"]["has_more"])
         self.assertEqual(decode_frontend_cursor(payload["pagination"]["next_cursor"]), 2)
+
+    def test_ai_news_cluster_sql_pagination_allows_limit_without_as_of_date(self) -> None:
+        payload = apply_frontend_sql_pagination("/api/ai/news-clusters?limit=2", _news_cluster_payload())
+
+        self.assertEqual([item["evidence_id"] for item in payload["data"]["clusters"]], ["ai-evidence-0", "ai-evidence-1"])
+        self.assertEqual(payload["pagination"]["limit"], 2)
+        self.assertTrue(payload["pagination"]["has_more"])
 
     def test_sql_page_window_uses_limit_plus_one_and_cursor_offset(self) -> None:
         cursor = encode_frontend_cursor(7)
