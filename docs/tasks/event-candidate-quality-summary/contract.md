@@ -60,4 +60,4 @@
 - [x] Count is only applied to `news_event_candidate` candidate view, not raw ledger.
 - [x] `/events` and `/ai-evidence` explain hidden low-signal candidates in human-readable Korean.
 - [x] Local verification and AWH pass.
-- [ ] EC2 API smoke confirms the new summary field.
+- [x] EC2 API smoke confirms the new summary field.
