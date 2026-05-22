@@ -53,7 +53,7 @@
 
 ## Done Criteria
 
-- [ ] API response includes `allocation_policy`.
-- [ ] UI shows policy name/source, max single-position weight, min rebalance target weight.
-- [ ] Existing remediation ticket contract remains backward-compatible for ticket rows.
-- [ ] EC2 `/remediation` renders the policy card.
+- [x] API response includes `allocation_policy`.
+- [x] UI shows policy name/source, max single-position weight, min rebalance target weight.
+- [x] Existing remediation ticket contract remains backward-compatible for ticket rows.
+- [x] EC2 `/remediation` renders the policy card.
