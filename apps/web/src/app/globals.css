@@ -1394,6 +1394,25 @@ h6 {
   word-break: keep-all;
 }
 
+.cockpit-route-card {
+  min-height: 300px;
+  justify-content: flex-start;
+}
+
+.cockpit-route-card strong {
+  margin-top: 20px;
+}
+
+.compact-btn-row {
+  gap: 8px;
+  margin-top: auto;
+}
+
+.compact-btn-row .btn {
+  padding: 9px 12px;
+  font-size: 0.72rem;
+}
+
 .feature-map-panel {
   padding: clamp(20px, 2.4vw, 34px);
   background:
@@ -1465,6 +1484,48 @@ h6 {
   font-size: 0.78rem;
   font-weight: 750;
   line-height: 1.5;
+  word-break: keep-all;
+}
+
+.decision-brief-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.decision-brief-card {
+  min-width: 0;
+  padding: clamp(18px, 2vw, 26px);
+  background:
+    linear-gradient(180deg, rgba(251, 250, 246, 0.92), rgba(251, 250, 246, 0.72)),
+    radial-gradient(circle at 18% 0%, rgba(35, 116, 78, 0.12), transparent 44%);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+}
+
+.decision-brief-card span {
+  color: var(--text-tertiary);
+  font-size: 0.72rem;
+  font-weight: 900;
+}
+
+.decision-brief-card strong {
+  display: block;
+  margin-top: 16px;
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: clamp(1.35rem, 2vw, 2.1rem);
+  line-height: 1.02;
+  word-break: keep-all;
+}
+
+.decision-brief-card p {
+  margin: 14px 0 0;
+  color: var(--text-secondary);
+  font-size: 0.86rem;
+  font-weight: 750;
+  line-height: 1.58;
   word-break: keep-all;
 }
 
@@ -2739,6 +2800,7 @@ h6 {
   .route-index,
   .where-grid,
   .feature-map-grid,
+  .decision-brief-grid,
   .screen-switchboard,
   .classification-grid,
   .operator-steps,
@@ -2847,6 +2909,7 @@ h6 {
   .route-index,
   .where-grid,
   .feature-map-grid,
+  .decision-brief-grid,
   .screen-switchboard,
   .classification-grid,
   .operator-steps,

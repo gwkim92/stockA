@@ -3,6 +3,7 @@ import type { Route } from "next";
 
 import { getPaperTradingPreview, getTradingReadiness } from "@/lib/frontend-api";
 import { koCode, koLabel, koReason } from "@/lib/korean-labels";
+import type { TradingReadinessData } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "가상 거래 점검" };
@@ -43,11 +44,41 @@ function thesisHref(thesisId: string | null) {
   return thesisId ? (`/theses/${thesisId}` as Route) : null;
 }
 
+function paperValidationState(trading: TradingReadinessData) {
+  if (trading.audit_summary.submitted_to_broker_count > 0) {
+    return {
+      title: "브로커 제출 기록 있음",
+      tone: "risk-high",
+      detail: "실제 주문 제출 기록이 있으므로 감사 로그와 계좌 내역을 먼저 확인해야 한다.",
+    };
+  }
+  if (trading.gate_summary.blocked_count > 0 || trading.paper_validation.blocked_reasons.length > 0) {
+    return {
+      title: "Paper 검증 중 · 실거래 차단",
+      tone: "risk-high",
+      detail: "가상 후보는 만들 수 있지만 안전 관문이 닫혀 있어 실제 주문으로 넘어가지 않는다.",
+    };
+  }
+  if (trading.paper_validation.approved_action_count > 0) {
+    return {
+      title: "Paper 후보 검토 가능",
+      tone: "risk-medium",
+      detail: "가상 검증 후보가 있지만 실거래는 별도 승인과 브로커 연결 이후에만 가능하다.",
+    };
+  }
+  return {
+    title: "Paper 후보 대기",
+    tone: "risk-medium",
+    detail: "추천 배치와 보유 스냅샷이 맞물릴 때 가상 조치 후보가 생성된다.",
+  };
+}
+
 export default async function PaperTradingPage() {
   const [response, tradingResponse] = await Promise.all([getPaperTradingPreview(), getTradingReadiness()]);
   const data = response.data;
   const trading = tradingResponse.data;
   const summary = data.quality_summary;
+  const validationState = paperValidationState(trading);
 
   return (
     <div className="terminal-page">
@@ -55,12 +86,12 @@ export default async function PaperTradingPage() {
         <div>
           <div className="bento-badge">가상 거래(Paper) • 주문 전 안전 점검</div>
           <h1 className="page-title" id="paper-title">
-            실제 주문 전에 추천과 보유 상태가 맞는지 본다.
+            현재는 실거래가 아니라 Paper 검증 단계다.
           </h1>
         </div>
         <p className="page-lede">
-          최신 추천과 가상 포트폴리오(Paper) 스냅샷을 대조한다. 이 단계는 주문 전 테스트이며,
-          브로커 제출 건수가 0이면 실제 주문은 나가지 않았다.
+          이 화면은 추천을 바로 주문으로 바꾸지 않는다. 최신 추천과 가상 포트폴리오 스냅샷을 대조해
+          “만약 주문한다면 무엇을 해야 하는지”만 만들고, 안전 관문과 감사 로그가 막으면 실거래로 넘어가지 않는다.
         </p>
       </section>
 
@@ -95,16 +126,13 @@ export default async function PaperTradingPage() {
       <section className="feature-map-panel reveal delay-1" aria-labelledby="paper-current-state-title">
         <div className="section-heading stacked-heading">
           <span>현재 단계</span>
-          <h2 id="paper-current-state-title">
-            {trading.audit_summary.submitted_to_broker_count > 0
-              ? "브로커 제출 기록이 있다"
-              : "아직 실제 주문은 나가지 않았다"}
-          </h2>
+          <h2 id="paper-current-state-title">{validationState.title}</h2>
         </div>
+        <p className="board-intro">{validationState.detail}</p>
         <div className="feature-map-grid collection-map-grid">
           <article className="feature-map-card collection-map-card">
             <span>01</span>
-            <strong>Paper preview</strong>
+            <strong>가상 후보 생성</strong>
             <em>{koCode(trading.execution_mode)}</em>
             <small>추천과 보유 비중을 대조해 가상 조치 후보만 만든다.</small>
           </article>
@@ -116,7 +144,13 @@ export default async function PaperTradingPage() {
           </article>
           <article className="feature-map-card collection-map-card">
             <span>03</span>
-            <strong>안전 관문</strong>
+            <strong>Paper 검증</strong>
+            <em className={`risk-tag ${validationState.tone}`}>{validationState.title}</em>
+            <small>충돌 {trading.paper_validation.conflict_count}개 · 승인 후보 {trading.paper_validation.approved_action_count}개</small>
+          </article>
+          <article className="feature-map-card collection-map-card">
+            <span>04</span>
+            <strong>실거래 전환 조건</strong>
             <em className={`risk-tag ${trading.gate_summary.blocked_count > 0 ? "risk-high" : "risk-low"}`}>
               차단 {trading.gate_summary.blocked_count}개
             </em>

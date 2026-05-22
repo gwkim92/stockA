@@ -91,7 +91,7 @@ export function NewsEventCard({ event, mode, compact = false }: NewsEventCardPro
           impactScore={event.impact_score}
         />
         <div className="tag-strip" aria-label={`${event.title} 태그`}>
-          <span>{classifiedSymbol ? `종목 ${koCode(event.symbol)}` : "종목 미분류"}</span>
+          <span>{classifiedSymbol ? `직접 종목 ${koCode(event.symbol)}` : "시장/테마 뉴스"}</span>
           <span>테마 {koCode(event.theme_key)}</span>
           <span>방향 {koCode(event.impact_direction)}</span>
           <span>영향도 {formatNewsPercent(event.impact_score)}</span>
@@ -106,17 +106,17 @@ export function NewsEventCard({ event, mode, compact = false }: NewsEventCardPro
         ) : null}
         {stockLink ? (
           <Link className="btn btn-secondary" href={stockLink}>
-            종목
+            종목 상세
           </Link>
         ) : null}
         {themeLink ? (
           <Link className="btn btn-secondary" href={themeLink}>
-            테마
+            테마 흐름
           </Link>
         ) : null}
         {documentLink ? (
           <Link className="btn btn-secondary" href={documentLink}>
-            원천
+            원문
           </Link>
         ) : null}
       </div>

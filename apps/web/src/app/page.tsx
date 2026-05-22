@@ -8,7 +8,7 @@ import {
   getTradingReadiness,
 } from "@/lib/frontend-api";
 import { koCode, koLabel, koReason } from "@/lib/korean-labels";
-import type { DataHealthData, EventListData } from "@/lib/types";
+import type { DataHealthData } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -54,11 +54,6 @@ function automationDisplayLabel(scheduler: DataHealthData["scheduler"], fallback
     return "자동 반복 실행 가능";
   }
   return koCode(fallbackStatus);
-}
-
-function firstCandidateEvidenceId(eventData: EventListData) {
-  const evidenceId = eventData.events.find((event) => event.ai_evidence_id)?.ai_evidence_id;
-  return evidenceId ? (`/ai-evidence/${evidenceId}` as Route) : ("/ai-evidence" as Route);
 }
 
 export default async function HomePage() {
@@ -130,120 +125,48 @@ export default async function HomePage() {
     },
   ];
 
-  const secondaryScreens = [
+  const navigationGroups = [
     {
-      title: "뉴스 원장",
-      copy: "개별 뉴스와 공시가 어떤 종목, 테마, AI 근거에 연결됐는지 본다.",
-      href: "/events",
+      label: "수집/분석 상태",
+      title: "데이터가 믿을 만한가",
+      copy: "캔들, 뉴스, AI 분석, 추천 갱신이 최근에 성공했는지 먼저 본다.",
+      primaryHref: "/data-health",
+      primaryCta: "수집 상태",
+      links: [
+        { href: "/events", label: "뉴스 원장" },
+        { href: "/events/classification", label: "1차 분류" },
+        { href: "/ai-evidence/blocked", label: "차단 후보" },
+      ],
     },
     {
-      title: "1차 분류 태그",
-      copy: "AI 분석 전 붙은 종목, 테마, 방향 태그가 맞는지 본다.",
-      href: "/events/classification",
+      label: "뉴스/종목 관계",
+      title: "뉴스가 어디에 영향을 주나",
+      copy: "개별 뉴스, 뉴스 묶음, 종목 상세에서 직접 종목과 상위 흐름 전파를 확인한다.",
+      primaryHref: "/intelligence",
+      primaryCta: "뉴스 AI",
+      links: [
+        { href: "/ai-evidence", label: "AI 후보" },
+        { href: "/ai-evidence/results", label: "구조화 결과" },
+        { href: "/stocks", label: "종목" },
+      ],
     },
     {
-      title: "AI 후보 목록",
-      copy: "Codex OAuth가 구조화한 개별 뉴스 후보와 신뢰도, 원천 문서를 확인한다.",
-      href: "/ai-evidence",
-    },
-    {
-      title: "사이클 보드",
-      copy: "테마의 현재 국면과 이전 국면, 점수 구성요소를 비교한다.",
-      href: "/cycles",
-    },
-    {
-      title: "성과 분석",
-      copy: "추천 이후 실제 성과와 벤치마크 대비 차이를 추적한다.",
-      href: "/performance",
-    },
-  ];
-  const featureMap = [
-    {
-      step: "01",
-      title: "데이터 수집 상태",
-      status: koCode(health.data.overall_status),
-      copy: "캔들, 뉴스, AI, 추천 갱신 작업이 최근에 성공했는지 본다.",
-      href: "/data-health",
-    },
-    {
-      step: "02",
-      title: "수집 뉴스 원장",
-      status: `${eventData.summary.event_count}개`,
-      copy: "RSS와 공시에서 들어온 원문 뉴스/이벤트를 시간순으로 확인한다.",
-      href: "/events",
-    },
-    {
-      step: "03",
-      title: "1차 분류 태그",
-      status: `${eventData.summary.themes_represented}개 테마`,
-      copy: "뉴스가 어떤 종목, 테마, 방향으로 1차 분류됐는지 본다.",
-      href: "/events/classification",
-    },
-    {
-      step: "04",
-      title: "Codex OAuth 분석 목록",
-      status: `${eventData.summary.news_event_candidate_count}개 후보`,
-      copy: "LLM이 뉴스 한 건을 구조화한 후보 목록이다.",
-      href: "/ai-evidence",
-    },
-    {
-      step: "05",
-      title: "구조화 결과",
-      status: `${clusterData.summary.llm_candidate_artifact_count}개 산출물`,
-      copy: "종목, 테마, 방향, 근거, 불확실성을 AI 근거 상세에서 본다.",
-      href: "/ai-evidence/results",
-    },
-    {
-      step: "06",
-      title: "차단 후보",
-      status: `${eventData.summary.suppressed_low_signal_candidate_count}개 숨김`,
-      copy: "validator rejected와 저신호 후보가 왜 통과하지 못했는지 확인한다.",
-      href: "/ai-evidence/blocked",
-    },
-    {
-      step: "07",
-      title: "통과 결과",
-      status: `${eventData.summary.ai_extracted_count}개 연결`,
-      copy: "품질 필터를 통과해 이벤트/종목/테마 근거로 연결된 결과다.",
-      href: "/ai-evidence/results#accepted-results",
-    },
-    {
-      step: "08",
-      title: "추천 연결 이유",
-      status: `${recommendationData.summary.ai_or_event_evidence_count}개 근거`,
-      copy: "뉴스와 AI 근거가 추천 점수에 왜 붙었는지 추천 상세에서 추적한다.",
-      href: firstRecommendationHref,
-    },
-    {
-      step: "09",
-      title: "AI 분석 상세",
-      status: koCode(clusterData.summary.latest_llm_invocation_status),
-      copy: "원천 문서, 추출 필드, 검색 맥락, 연결 종목을 한 화면에서 본다.",
-      href: firstCandidateEvidenceId(eventData),
-    },
-    {
-      step: "10",
-      title: "추천 신호",
-      status: `${recommendationData.summary.reviewable_count}개 검토 가능`,
-      copy: "중장기 추천 후보와 점수, 근거 품질을 본다.",
-      href: "/recommendations",
-    },
-    {
-      step: "11",
-      title: "보유 검토 Thesis",
-      status: `${data.attention_summary.missing_thesis_count}개 공백`,
-      copy: "보유 논리, 무효화 조건, 최신 보유 검토 결과를 본다.",
-      href: firstRecommendation?.linked_thesis_id
-        ? (`/theses/${firstRecommendation.linked_thesis_id}` as Route)
-        : ("/portfolio/coverage" as Route),
-    },
-    {
-      step: "12",
-      title: "가상 거래",
-      status: koCode(trading.readiness_status),
-      copy: "추천이 실제 주문 전 paper 후보와 안전 관문을 통과하는지 본다.",
-      href: "/paper-trading",
-      tone: readinessTone(trading.readiness_status),
+      label: "판단/거래 안전",
+      title: "추천을 실행해도 되는가",
+      copy: "추천 신호, 보유 thesis, paper 검증, 거래 안전 관문을 분리해서 본다.",
+      primaryHref: "/recommendations",
+      primaryCta: "추천",
+      links: [
+        {
+          href: firstRecommendation?.linked_thesis_id
+            ? (`/theses/${firstRecommendation.linked_thesis_id}` as Route)
+            : ("/portfolio/coverage" as Route),
+          label: "보유 thesis",
+        },
+        { href: "/paper-trading", label: "가상 거래" },
+        { href: "/trading-readiness", label: "거래 안전" },
+        { href: "/performance", label: "성과" },
+      ],
     },
   ];
 
@@ -342,24 +265,53 @@ export default async function HomePage() {
         </article>
       </section>
 
+      <section className="where-grid reveal delay-2" aria-label="상세 화면 입구">
+        {navigationGroups.map((group) => (
+          <article className="where-card cockpit-route-card" key={group.label}>
+            <span>{group.label}</span>
+            <strong>{group.title}</strong>
+            <p>{group.copy}</p>
+            <div className="btn-row compact-btn-row">
+              <Link className="btn btn-primary" href={group.primaryHref as Route}>
+                {group.primaryCta}
+              </Link>
+              {group.links.map((link) => (
+                <Link className="btn btn-secondary" href={link.href as Route} key={`${group.label}-${link.label}`}>
+                  {link.label}
+                </Link>
+              ))}
+            </div>
+          </article>
+        ))}
+      </section>
+
       <section className="feature-map-panel reveal delay-2" aria-labelledby="feature-map-title">
         <div className="section-heading stacked-heading">
-          <span>서비스 기능 지도</span>
-          <h2 id="feature-map-title">찾아야 할 기능 12개를 이 순서로 고정한다</h2>
+          <span>오늘의 핵심 판단</span>
+          <h2 id="feature-map-title">첫 화면에서는 세 가지 질문만 확인한다</h2>
         </div>
-        <p className="board-intro">
-          이 지도는 사용자가 매일 확인할 화면 입구다. 먼저 수집이 정상인지 보고, 뉴스 원장과 AI 검증을 확인한 뒤,
-          추천·보유검토·가상 거래로 내려간다.
-        </p>
-        <div className="feature-map-grid">
-          {featureMap.map((item) => (
-            <Link className="feature-map-card" href={item.href as Route} key={item.step}>
-              <span>{item.step}</span>
-              <strong>{item.title}</strong>
-              <em className={item.tone ? `risk-tag ${item.tone}` : undefined}>{item.status}</em>
-              <small>{item.copy}</small>
-            </Link>
-          ))}
+        <div className="decision-brief-grid">
+          <article className="decision-brief-card">
+            <span>데이터</span>
+            <strong>{koCode(health.data.overall_status)}</strong>
+            <p>
+              실패 파이프라인 {data.attention_summary.failed_pipeline_count}개. 데이터가 불안정하면 추천보다 수집 상태를 먼저 본다.
+            </p>
+          </article>
+          <article className="decision-brief-card">
+            <span>뉴스 근거</span>
+            <strong>{eventData.summary.ai_extracted_count}개 AI 후보</strong>
+            <p>
+              뉴스 묶음 {clusterData.summary.cluster_count}개. 근거가 약하면 AI 상세와 원천 문서를 먼저 확인한다.
+            </p>
+          </article>
+          <article className="decision-brief-card">
+            <span>거래 안전</span>
+            <strong>{koCode(trading.readiness_status)}</strong>
+            <p>
+              차단 gate {trading.gate_summary.blocked_count}개. 브로커 제출 {trading.audit_summary.submitted_to_broker_count}건.
+            </p>
+          </article>
         </div>
       </section>
 
@@ -475,15 +427,6 @@ export default async function HomePage() {
         </aside>
       </section>
 
-      <section className="route-index operator-secondary reveal delay-3" aria-label="상세 화면 바로가기">
-        {secondaryScreens.map((screen, index) => (
-          <Link className="route-card" href={screen.href as Route} key={screen.href}>
-            <span>{String(index + 1).padStart(2, "0")}</span>
-            <strong>{screen.title}</strong>
-            <small>{screen.copy}</small>
-          </Link>
-        ))}
-      </section>
     </div>
   );
 }
