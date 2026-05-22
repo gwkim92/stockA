@@ -7,6 +7,10 @@ from datetime import date
 from stockanalysis.ingest.macro.sql import sql_literal
 from stockanalysis.ingest.news.models import NewsRssItem, NewsRssSyncResult
 
+ACCEPTED_NEWS_AI_ARTIFACT_TYPE = "news_event_candidate"
+REJECTED_NEWS_AI_ARTIFACT_TYPE = "news_event_candidate_rejected"
+NEWS_AI_DEDUP_ARTIFACT_TYPES = (ACCEPTED_NEWS_AI_ARTIFACT_TYPE, REJECTED_NEWS_AI_ARTIFACT_TYPE)
+
 
 def render_news_rss_upsert_sql(
     result: NewsRssSyncResult,
@@ -649,8 +653,14 @@ from (
       and e.dedupe_key like 'news_rss:%'
       and e.event_at < ({sql_literal(as_of_date.isoformat())}::date + interval '1 day')
       and not (
-          coalesce(ds.source_name, '') = 'rss_news:marketwatch-topstories'
-          and instrument.primary_symbol is null
+          instrument.primary_symbol is null
+          and (
+              coalesce(ds.source_name, '') = 'rss_news:marketwatch-topstories'
+              or (
+                  coalesce(ds.source_name, '') = 'rss_news:yahoo-finance-news'
+                  and coalesce(theme.code, 'UNCLASSIFIED') in ('MARKET_NEWS_FLOW', 'US_MARKET_BREADTH', 'UNCLASSIFIED')
+              )
+          )
       )
       and not exists (
           select 1
@@ -659,7 +669,7 @@ from (
             on invocation.invocation_id = artifact.invocation_id
 {version_filter}
           where artifact.event_id = e.event_id
-            and artifact.artifact_type = 'news_event_candidate'
+            and artifact.artifact_type in {_sql_text_tuple(NEWS_AI_DEDUP_ARTIFACT_TYPES)}
             and invocation.status = 'succeeded'
       )
     order by rank_bucket, e.event_at desc, e.event_id desc
@@ -802,7 +812,7 @@ from ai.extraction_artifact artifact
 join ai.model_invocation invocation
   on invocation.invocation_id = artifact.invocation_id
 where artifact.event_id = {event_id}
-  and artifact.artifact_type = 'news_event_candidate'
+  and artifact.artifact_type in {_sql_text_tuple(NEWS_AI_DEDUP_ARTIFACT_TYPES)}
   and invocation.request_hash = {sql_literal(request_hash)}
   and invocation.status = 'succeeded'
 order by artifact.artifact_id desc
@@ -816,7 +826,10 @@ def render_news_ai_extraction_artifact_insert_sql(
     event_id: int,
     output_json: dict[str, object],
     confidence: float | None,
+    artifact_type: str = ACCEPTED_NEWS_AI_ARTIFACT_TYPE,
 ) -> str:
+    if artifact_type not in NEWS_AI_DEDUP_ARTIFACT_TYPES:
+        raise ValueError(f"Unsupported news AI artifact type: {artifact_type}")
     output_text = json.dumps(output_json, ensure_ascii=False, sort_keys=True)
     return f"""insert into ai.extraction_artifact (
     invocation_id,
@@ -830,11 +843,17 @@ values (
     {invocation_id},
     {document_id}::bigint,
     {event_id},
-    'news_event_candidate',
+    {sql_literal(artifact_type)},
     {sql_literal(output_text)}::jsonb,
     {sql_literal(confidence)}
 )
 returning artifact_id;"""
+
+
+def _sql_text_tuple(values: tuple[str, ...]) -> str:
+    if not values:
+        raise ValueError("values must not be empty")
+    return "(" + ", ".join(sql_literal(value) for value in values) + ")"
 
 
 def _source_name(feed_name: str) -> str:

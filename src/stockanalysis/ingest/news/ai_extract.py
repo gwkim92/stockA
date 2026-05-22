@@ -27,6 +27,8 @@ from stockanalysis.ingest.news.models import (
     NewsRssEventEnrichmentCandidate,
 )
 from stockanalysis.ingest.news.sql import (
+    ACCEPTED_NEWS_AI_ARTIFACT_TYPE,
+    REJECTED_NEWS_AI_ARTIFACT_TYPE,
     render_classification_node_lookup_by_code_sql,
     render_existing_news_ai_candidate_artifact_lookup_sql,
     render_news_ai_extraction_artifact_insert_sql,
@@ -51,7 +53,9 @@ NEWS_AI_CHUNK_INDEX = 9000
 ALLOWED_IMPACT_DIRECTIONS = ("risk_review", "supportive", "watch")
 UNCLASSIFIED_SYMBOLS = {"", "UNKNOWN", "UNCLASSIFIED"}
 LOW_SIGNAL_AI_SOURCE_NAMES = {"rss_news:marketwatch-topstories"}
+LOW_SIGNAL_AI_BROAD_SOURCE_NAMES = {"rss_news:yahoo-finance-news"}
 LOW_SIGNAL_AI_EXTERNAL_DOCUMENT_PREFIXES = ("rss:marketwatch-topstories:",)
+LOW_SIGNAL_AI_BROAD_THEME_CODES = {"", "MARKET_NEWS_FLOW", "US_MARKET_BREADTH", "UNCLASSIFIED"}
 
 NEWS_AI_OUTPUT_SCHEMA: dict[str, object] = {
     "type": "object",
@@ -303,6 +307,7 @@ def run_news_rss_ai_extract(
     inserted = 0
     skipped = 0
     failed = 0
+    rejected_candidate_count = 0
     validated_theme_count = 0
     validated_instrument_count = 0
     rejected_impact_count = 0
@@ -380,6 +385,17 @@ def run_news_rss_ai_extract(
                         )
                     )
                 )
+                validated = validate_news_ai_output(
+                    response.output,
+                    min_confidence=min_confidence,
+                    executor=sql_executor,
+                )
+                accepted_candidate = bool(validated.theme_impacts or validated.instrument_impacts)
+                artifact_type = (
+                    ACCEPTED_NEWS_AI_ARTIFACT_TYPE
+                    if accepted_candidate
+                    else REJECTED_NEWS_AI_ARTIFACT_TYPE
+                )
                 artifact_id = int(
                     sql_executor.execute_scalar(
                         render_news_ai_extraction_artifact_insert_sql(
@@ -393,18 +409,16 @@ def run_news_rss_ai_extract(
                                 "retrieval_context_summary": summarize_retrieval_context(retrieval_context),
                                 "chunk_id": chunk_id,
                                 "validator": {
+                                    "accepted": accepted_candidate,
                                     "min_confidence": min_confidence,
+                                    "rejected_impact_count": validated.rejected_impact_count,
                                     "allowed_impact_directions": list(ALLOWED_IMPACT_DIRECTIONS),
                                 },
                             },
                             confidence=response.output.confidence,
+                            artifact_type=artifact_type,
                         )
                     )
-                )
-                validated = validate_news_ai_output(
-                    response.output,
-                    min_confidence=min_confidence,
-                    executor=sql_executor,
                 )
                 for impact in validated.theme_impacts:
                     sql_executor.execute_non_query(
@@ -430,7 +444,10 @@ def run_news_rss_ai_extract(
                         )
                     )
 
-                inserted += 1
+                if accepted_candidate:
+                    inserted += 1
+                else:
+                    rejected_candidate_count += 1
                 validated_theme_count += len(validated.theme_impacts)
                 validated_instrument_count += len(validated.instrument_impacts)
                 rejected_impact_count += validated.rejected_impact_count
@@ -439,8 +456,8 @@ def run_news_rss_ai_extract(
                         event_id=candidate.event_id,
                         document_id=candidate.document_id,
                         status="inserted_validated"
-                        if validated.theme_impacts or validated.instrument_impacts
-                        else "inserted_no_validated_impacts",
+                        if accepted_candidate
+                        else "rejected_no_validated_impacts",
                         artifact_id=artifact_id,
                         invocation_id=invocation_id,
                         run_id=run_id,
@@ -497,6 +514,7 @@ def run_news_rss_ai_extract(
         "inserted_artifact_count": inserted,
         "skipped_existing_count": skipped,
         "failed_candidate_count": failed,
+        "rejected_candidate_count": rejected_candidate_count,
         "validated_theme_impact_count": validated_theme_count,
         "validated_instrument_impact_count": validated_instrument_count,
         "rejected_impact_count": rejected_impact_count,
@@ -550,9 +568,12 @@ def _is_low_signal_no_symbol_topstory(candidate: NewsRssAiExtractionCandidate) -
         return False
     source_name = (candidate.source_name or "").strip().lower()
     external_document_id = (candidate.external_document_id or "").strip().lower()
-    return source_name in LOW_SIGNAL_AI_SOURCE_NAMES or external_document_id.startswith(
+    if source_name in LOW_SIGNAL_AI_SOURCE_NAMES or external_document_id.startswith(
         LOW_SIGNAL_AI_EXTERNAL_DOCUMENT_PREFIXES
-    )
+    ):
+        return True
+    theme_code = (candidate.existing_theme_code or "").strip().upper()
+    return source_name in LOW_SIGNAL_AI_BROAD_SOURCE_NAMES and theme_code in LOW_SIGNAL_AI_BROAD_THEME_CODES
 
 
 def _has_classified_symbol(symbol: str | None) -> bool:
@@ -1257,6 +1278,7 @@ def _empty_summary(*, as_of_date: date, provider: str, model_name: str) -> dict[
         "inserted_artifact_count": 0,
         "skipped_existing_count": 0,
         "failed_candidate_count": 0,
+        "rejected_candidate_count": 0,
         "validated_theme_impact_count": 0,
         "validated_instrument_impact_count": 0,
         "rejected_impact_count": 0,

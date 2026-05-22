@@ -6,6 +6,9 @@ from datetime import date
 from pathlib import Path
 
 from stockanalysis.ingest.news.ai_extract import (
+    NewsAiImpactOutput,
+    NewsAiOutput,
+    NewsAiProviderResponse,
     NewsAiDocumentChunk,
     _diagnostic_excerpt,
     build_codex_oauth_news_ai_prompt,
@@ -18,6 +21,7 @@ from stockanalysis.ingest.news.ai_extract import (
 )
 from stockanalysis.ingest.news.models import NewsRssAiExtractionCandidate
 from stockanalysis.ingest.news.sql import (
+    REJECTED_NEWS_AI_ARTIFACT_TYPE,
     render_classification_node_lookup_by_code_sql,
     render_existing_news_ai_candidate_artifact_lookup_sql,
     render_news_ai_extraction_artifact_insert_sql,
@@ -119,9 +123,11 @@ class NewsRssAiExtractTests(unittest.TestCase):
     def test_render_news_ai_candidate_sql_excludes_existing_artifacts(self) -> None:
         sql = render_news_rss_ai_extraction_candidates_sql(as_of_date=date(2026, 5, 19), limit=10)
 
-        self.assertIn("artifact.artifact_type = 'news_event_candidate'", sql)
+        self.assertIn("artifact.artifact_type in ('news_event_candidate', 'news_event_candidate_rejected')", sql)
         self.assertIn("d.document_type = 'news_rss_item'", sql)
         self.assertIn("rss_news:marketwatch-topstories", sql)
+        self.assertIn("rss_news:yahoo-finance-news", sql)
+        self.assertIn("US_MARKET_BREADTH", sql)
         self.assertIn("instrument.primary_symbol is null", sql)
         self.assertIn("limit 10", sql)
 
@@ -182,6 +188,38 @@ class NewsRssAiExtractTests(unittest.TestCase):
             source_url="https://www.federalreserve.gov/newsevents/pressreleases.htm",
             existing_theme_code="MACRO_RATES_FED",
             existing_instrument_symbol=None,
+        )
+
+        self.assertTrue(is_news_ai_candidate_quality_eligible(candidate))
+
+    def test_candidate_quality_gate_rejects_no_symbol_yahoo_broad_theme(self) -> None:
+        candidate = NewsRssAiExtractionCandidate(
+            event_id=104,
+            document_id=504,
+            title="Trucking safety grants are available",
+            summary="General funding advice for operators.",
+            event_at="2026-05-19T10:02:40+00:00",
+            source_name="rss_news:yahoo-finance-news",
+            external_document_id="rss:yahoo-finance-news:abc",
+            source_url="https://finance.yahoo.com/news/trucking-safety",
+            existing_theme_code="MARKET_NEWS_FLOW",
+            existing_instrument_symbol=None,
+        )
+
+        self.assertFalse(is_news_ai_candidate_quality_eligible(candidate))
+
+    def test_candidate_quality_gate_allows_yahoo_with_symbol(self) -> None:
+        candidate = NewsRssAiExtractionCandidate(
+            event_id=105,
+            document_id=505,
+            title="NVIDIA posts blowout quarter",
+            summary="AI demand lifts guidance.",
+            event_at="2026-05-19T10:02:40+00:00",
+            source_name="rss_news:yahoo-finance-news",
+            external_document_id="rss:yahoo-finance-news:def",
+            source_url="https://finance.yahoo.com/news/nvidia",
+            existing_theme_code="AI_SEMICONDUCTOR_CYCLE",
+            existing_instrument_symbol="NVDA",
         )
 
         self.assertTrue(is_news_ai_candidate_quality_eligible(candidate))
@@ -369,6 +407,57 @@ class NewsRssAiExtractTests(unittest.TestCase):
         self.assertTrue(any("insert into event.event_classification_impact" in sql for sql in executor.non_query_sql))
         self.assertTrue(any("insert into event.event_instrument_impact" in sql for sql in executor.non_query_sql))
         self.assertIn("status = 'succeeded'", executor.non_query_sql[-1])
+
+    def test_run_news_ai_extract_rejects_artifact_without_validated_impacts(self) -> None:
+        executor = FakeExecutor()
+
+        def low_confidence_provider(*_args):
+            return NewsAiProviderResponse(
+                provider="fixture",
+                model_name="news-fixture-v1",
+                reasoning_effort="none",
+                output=NewsAiOutput(
+                    analysis_method="fixture",
+                    event_summary="Low-confidence broad market note.",
+                    theme_impacts=(
+                        NewsAiImpactOutput(
+                            target="AI_SEMICONDUCTOR_CYCLE",
+                            impact_direction="watch",
+                            impact_strength=0.4,
+                            confidence=0.3,
+                            rationale="Weak evidence.",
+                            evidence_summary="No validated impact.",
+                        ),
+                    ),
+                    instrument_impacts=(),
+                    uncertainty_notes="Too weak for accepted candidate.",
+                    recommendation_relevance="low",
+                ),
+                input_token_count=10,
+                output_token_count=20,
+                cached_input_token_count=0,
+                estimated_cost_usd=None,
+                latency_ms=1,
+            )
+
+        summary = run_news_rss_ai_extract(
+            config=type("Config", (), {})(),
+            as_of_date=date(2026, 5, 19),
+            limit=10,
+            provider="fixture",
+            model_name="news-fixture-v1",
+            reasoning_effort="none",
+            execute=True,
+            llm_output_json_path="tests/fixtures/llm_news_event_candidate_nvda.json",
+            executor=executor,
+            provider_runner=low_confidence_provider,
+        )
+
+        self.assertEqual(summary["inserted_artifact_count"], 0)
+        self.assertEqual(summary["rejected_candidate_count"], 1)
+        self.assertEqual(summary["results"][0]["status"], "rejected_no_validated_impacts")
+        self.assertTrue(any(REJECTED_NEWS_AI_ARTIFACT_TYPE in sql for sql in executor.scalar_sql))
+        self.assertFalse(any("insert into event.event_classification_impact" in sql for sql in executor.non_query_sql))
 
     def test_run_news_ai_extract_marks_fallback_status_when_provider_fails(self) -> None:
         executor = FakeExecutor()

@@ -3292,8 +3292,17 @@ with event_rows_before_quality_filter as (
         evidence.confidence as ai_evidence_confidence,
         (
             evidence.artifact_type = 'news_event_candidate'
-            and coalesce(source_data_source.source_name, '') = 'rss_news:marketwatch-topstories'
             and coalesce(instrument.primary_symbol, document_instrument.primary_symbol) is null
+            and (
+                coalesce(source_data_source.source_name, '') = 'rss_news:marketwatch-topstories'
+                or (
+                    coalesce(source_data_source.source_name, '') in (
+                        'rss_news:marketwatch-topstories',
+                        'rss_news:yahoo-finance-news'
+                    )
+                    and coalesce(evidence.confidence, 0) < 0.6500
+                )
+            )
         ) as is_low_signal_candidate,
         case
             when evidence.artifact_id is not null then 'human_review_required'
@@ -3384,8 +3393,11 @@ with event_rows_before_quality_filter as (
         select artifact.artifact_id, artifact.artifact_type, artifact.confidence, invocation.provider
         from ai.extraction_artifact artifact
         left join ai.model_invocation invocation on invocation.invocation_id = artifact.invocation_id
-        where artifact.event_id = event_row.event_id
-           or artifact.document_id = source_document.document_id
+        where (
+            artifact.event_id = event_row.event_id
+            or artifact.document_id = source_document.document_id
+        )
+          and artifact.artifact_type <> 'news_event_candidate_rejected'
         order by
             case when artifact.event_id = event_row.event_id then 0 else 1 end,
             case artifact.artifact_type
