@@ -2631,6 +2631,7 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         )
 
         self.assertIn("and evidence.artifact_type = 'news_event_candidate'", sql)
+        self.assertIn("source_data_source.source_name", sql)
         self.assertIn("rss_news:marketwatch-topstories", sql)
         self.assertIn("coalesce(instrument.primary_symbol, document_instrument.primary_symbol) is null", sql)
         self.assertIn("when 'news_event_candidate' then 0", sql)

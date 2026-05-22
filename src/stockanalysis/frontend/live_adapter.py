@@ -2513,6 +2513,7 @@ raw_recent_events as (
       on document_link.event_id = event_row.event_id
      and document_link.link_type = 'source'
     left join ingest.source_document source_document on source_document.document_id = document_link.document_id
+    left join ingest.data_source source_data_source on source_data_source.data_source_id = source_document.data_source_id
 	    left join lateral (
 	        select artifact_id
 	        from ai.extraction_artifact artifact
@@ -5886,7 +5887,7 @@ def _event_list_sql_filters(
         if evidence_type == "news_event_candidate":
             lines.append(
                 """      and not (
-          coalesce(ds.source_name, '') = 'rss_news:marketwatch-topstories'
+          coalesce(source_data_source.source_name, '') = 'rss_news:marketwatch-topstories'
           and coalesce(instrument.primary_symbol, document_instrument.primary_symbol) is null
       )"""
             )
