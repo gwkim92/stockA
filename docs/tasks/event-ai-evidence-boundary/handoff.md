@@ -2,7 +2,7 @@
 
 ## Current Status
 
-- 상태: local_verified
+- 상태: ec2_verified
 - 기준일: 2026-05-22
 - 완료:
   - `/events`와 `/ai-evidence` 화면 코드를 확인했다.
@@ -34,12 +34,17 @@
 - PASS: after `evidenceType` filter, `PYTHONPATH=src /opt/homebrew/bin/python3.13 -m compileall src tests`
 - PASS: after `evidenceType` filter, `git diff --check`
 - PASS: after `evidenceType` filter, `PYTHONPATH=/Users/woody/ai/agent-work-harness/src /opt/homebrew/bin/python3.13 -m awh verify --repo . --task event-ai-evidence-boundary`
+- PASS: EC2 HEAD `17223cf`, `stockanalysis-frontend-api.service` and `stockanalysis-web.service` active.
+- PASS: EC2 `PYTHONPATH=src /opt/stockanalysis/venv/bin/python -m unittest tests.test_frontend_live_adapter`.
+- PASS: EC2 `cd apps/web && npm run typecheck && npm run build`.
+- PASS: EC2 `/api/events?asOfDate=2026-05-22&eventType=all&evidenceType=news_event_candidate&limit=10` returns only `news_event_candidate` items, `item_count=10`, filtered total `event_count=24`.
+- PASS: local tunnel `/events` HTTP 200 and shows separate metrics: event rows 117, individual AI candidates 24, news clusters 36, unreviewed 57.
+- PASS: local tunnel `/ai-evidence` HTTP 200 and Playwright snapshot shows only `개별 후보` cards.
 
 ## Remaining
 
-- Commit, push, deploy to EC2.
-- EC2 API/page smoke for `/api/events`, `/events`, `/ai-evidence`.
+- `/events` still intentionally shows raw event rows, including broad flow items such as personal-finance or political-news RSS rows. They are now labeled as `뉴스 묶음 근거`, not individual candidate analysis. Next UI/data-quality work should decide whether `/events` needs default filters or source/category controls.
 
 ## Exact Next Step
 
-- exact next step: commit and push, then deploy to EC2.
+- exact next step: continue page-by-page audit with `/events` default filtering and broad RSS source quality controls.

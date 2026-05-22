@@ -62,5 +62,5 @@
 - [x] SQL evidence selection prefers `news_event_candidate` over `news_cluster_summary`.
 - [x] `/events` metrics separate individual AI candidates from cluster evidence.
 - [x] `/ai-evidence` list excludes cluster summary cards.
-- [ ] `/ai-evidence` uses `evidenceType=news_event_candidate` and does not depend on the latest unfiltered events page.
-- [ ] EC2 pages render without server component error.
+- [x] `/ai-evidence` uses `evidenceType=news_event_candidate` and does not depend on the latest unfiltered events page.
+- [x] EC2 pages render without server component error.
