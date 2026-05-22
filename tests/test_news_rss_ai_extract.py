@@ -7,6 +7,7 @@ from pathlib import Path
 
 from stockanalysis.ingest.news.ai_extract import (
     NewsAiDocumentChunk,
+    _diagnostic_excerpt,
     build_codex_oauth_news_ai_prompt,
     build_news_ai_provider_response_from_payload,
     is_news_ai_candidate_quality_eligible,
@@ -256,6 +257,17 @@ class NewsRssAiExtractTests(unittest.TestCase):
         self.assertIn("Write all human-readable natural-language fields in Korean.", prompt)
         self.assertIn("event_summary, rationale, evidence_summary, uncertainty_notes, and recommendation_relevance", prompt)
         self.assertIn("Keep machine codes and market identifiers unchanged", prompt)
+
+    def test_diagnostic_excerpt_preserves_failure_tail(self) -> None:
+        diagnostic = _diagnostic_excerpt(
+            "prompt line\n" * 400 + "FINAL_ERROR: schema validation failed after model output",
+            200,
+        )
+
+        self.assertTrue(diagnostic.startswith("...<truncated; showing diagnostic tail>"))
+        self.assertIn("FINAL_ERROR: schema validation failed", diagnostic)
+        self.assertLessEqual(len(diagnostic), 200)
+        self.assertNotEqual(diagnostic, "prompt line\n" * 400)
 
     def test_render_lookup_and_artifact_sql(self) -> None:
         lookup_sql = render_classification_node_lookup_by_code_sql("AI_SEMICONDUCTOR_CYCLE")

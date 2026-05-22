@@ -835,7 +835,10 @@ def invoke_codex_oauth_news_ai_provider(
         latency_ms = int((time.monotonic() - started) * 1000)
         if completed.returncode != 0:
             stderr = (completed.stderr or completed.stdout or "codex exec failed").strip()
-            raise RuntimeError(f"codex_oauth news provider failed: {_truncate(stderr, 2000)}")
+            diagnostic = _diagnostic_excerpt(stderr, 2000)
+            raise RuntimeError(
+                f"codex_oauth news provider failed (exit_code={completed.returncode}): {diagnostic}"
+            )
         output_text = output_path.read_text(encoding="utf-8") if output_path.exists() else completed.stdout
 
     response = build_news_ai_provider_response_from_payload(
@@ -1152,7 +1155,7 @@ def _record_failed_invocation(
                 estimated_cost_usd=None,
                 latency_ms=None,
                 status="failed",
-                error_summary=error_summary[:2000],
+                error_summary=_diagnostic_excerpt(error_summary, 2000),
                 request_hash=request_hash,
             )
         )
@@ -1195,7 +1198,7 @@ where run_id = {run_id};"""
 
 
 def _mark_pipeline_run_failed(executor: PsqlCommandExecutor, run_id: int, error_summary: str) -> None:
-    truncated = error_summary.strip()[:2000] or "news RSS AI extract failed"
+    truncated = _diagnostic_excerpt(error_summary, 2000) or "news RSS AI extract failed"
     try:
         executor.execute_non_query(
             f"""update ops.pipeline_run
@@ -1349,3 +1352,12 @@ def _truncate(text: str, max_length: int) -> str:
     if len(text) <= max_length:
         return text
     return f"{text[: max_length - 3].rstrip()}..."
+
+
+def _diagnostic_excerpt(text: str, max_length: int) -> str:
+    stripped = text.strip()
+    if len(stripped) <= max_length:
+        return stripped
+    marker = "...<truncated; showing diagnostic tail>\n"
+    tail_length = max(0, max_length - len(marker))
+    return marker + stripped[-tail_length:].lstrip()
