@@ -2,7 +2,7 @@
 
 ## Current Status
 
-- 진행 중: 로컬 구현과 단위 검증 완료. EC2 배포 중 data-health 이력 불일치 수정 후 재배포 검증 전 단계.
+- 완료: 로컬 구현, 단위 검증, EC2 배포, 운영 DB smoke, data-health 검증 완료.
 - 기준일: 2026-05-22
 
 ## Investigation
@@ -21,12 +21,18 @@
 - `news-intraday` 자동 프로파일 순서를 `RSS 수집 -> 누락 티커 SEC bootstrap -> rule enrichment -> cluster evidence -> Codex OAuth AI evidence -> macro propagation`으로 보강했다.
 - EC2 smoke 중 `news-rss-enrich-run --limit 100`이 FOMC 같은 거시 뉴스에서도 `ref.instrument` 회사명 alias lookup을 수행해 느려지는 병목을 발견했다. 회사명 alias lookup은 `stock`, `shares`, `earnings`, `revenue`, `upgrade`, `downgrade`, `price target` 같은 종목형 문맥이 있을 때만 수행하도록 가드했다.
 - EC2 배포 중 `news-missing-instrument-bootstrap-intraday` artifact는 성공했지만 `/api/data-health`는 `missing`으로 표시되는 이력 불일치를 확인했다. 원인은 missing ticker가 0개인 정상 실행에서 `ops.pipeline_run`을 남기지 않는 runner 동작이었다. 실제 실행에서는 누락 티커가 0개이거나 SEC matched symbol이 0개여도 pipeline run을 생성하고 succeeded로 마킹하도록 보강했다.
+- EC2에 commit `197f4c7`까지 배포했다. 수정된 `news-missing-instrument-bootstrap-run`은 운영 DB에서 `run_id=334`, `missing_symbol_count=0`, `status=completed`를 반환했고 `/api/data-health`는 해당 job을 `ok/succeeded`로 표시한다.
 
 ## Verification
 
 - 통과: `PYTHONPATH=src /opt/homebrew/bin/python3.13 -m unittest tests.test_news_rss_enrichment tests.test_data_operations_cli tests.test_operating_data_orchestrator tests.test_data_operations_cadence -v`
 - 통과: `PYTHONPATH=src /private/tmp/stockanalysis-runtime/verify-venv/bin/python -m unittest discover -s tests`
+- 통과: EC2 `PYTHONPATH=src /opt/stockanalysis/venv/bin/python -m unittest tests.test_news_rss_enrichment tests.test_data_operations_cli tests.test_operating_data_orchestrator tests.test_data_operations_cadence -v`
+- 통과: EC2 `news-rss-enrich-run --limit 100` returned `requested_event_count=77`, `succeeded_event_count=77`, `failed_event_count=0`.
+- 통과: EC2 `news-intraday` systemd service completed with `Result=success`, `ExecMainStatus=0`.
+- 통과: EC2 `/api/data-health` returned `overall_status=healthy`; `news-missing-instrument-bootstrap-intraday` returned `health_status=ok`, `latest_status=succeeded`, `latest_run_id=pipeline-run-334`.
+- 통과: EC2 route smoke returned HTTP `200` for `/`, `/data-health`, `/events`, `/ai-evidence`, `/stocks`, `/intelligence`, `/paper-trading`, `/trading-readiness`.
 
 ## Exact Next Step
 
-- exact next step: commit/push pipeline run tracking fix, deploy to EC2, rerun `news-missing-instrument-bootstrap-run` or `news-intraday`, then confirm `/api/data-health` no longer reports `news-missing-instrument-bootstrap-intraday` as missing.
+- exact next step: continue page-by-page product cleanup now that server/runtime health is green; prioritize clearer news AI evidence, news-to-stock relation explanations, and paper trading state visibility.
