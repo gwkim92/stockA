@@ -667,6 +667,7 @@ export type RecommendationListData = {
     measured_count: number;
     linked_thesis_count: number;
     ai_or_event_evidence_count: number;
+    macro_flow_evidence_recommendation_count: number;
     average_score: number | null;
   };
   recommendations: Array<{
@@ -686,6 +687,8 @@ export type RecommendationListData = {
       score_component_count: number;
       ai_or_event_component_count: number;
       market_or_rank_component_count: number;
+      macro_flow_component_count: number;
+      macro_flow_evidence_count: number;
       quality_status: string;
       primary_evidence_id: string | null;
     };

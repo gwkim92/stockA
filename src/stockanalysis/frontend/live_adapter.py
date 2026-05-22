@@ -927,6 +927,9 @@ def build_live_recommendation_list_response(
                 "measured_count": int(summary.get("measured_count") or 0),
                 "linked_thesis_count": int(summary.get("linked_thesis_count") or 0),
                 "ai_or_event_evidence_count": int(summary.get("ai_or_event_evidence_count") or 0),
+                "macro_flow_evidence_recommendation_count": int(
+                    summary.get("macro_flow_evidence_recommendation_count") or 0
+                ),
                 "average_score": _number(summary.get("average_score")),
             },
             "recommendations": recommendations,
@@ -4603,7 +4606,10 @@ score_component_counts as (
         )::int as ai_or_event_component_count,
         count(*) filter (
             where component.component_name in ('momentum_score', 'short_term_score', 'rank_score')
-        )::int as market_or_rank_component_count
+        )::int as market_or_rank_component_count,
+        count(*) filter (
+            where component.component_name = 'macro_flow_score'
+        )::int as macro_flow_component_count
     from signal.recommendation_score_component component
     join recommendation_base recommendation on recommendation.recommendation_id = component.recommendation_id
     group by component.recommendation_id
@@ -4614,6 +4620,8 @@ recommendation_rows as (
         coalesce(component_count.score_component_count, 0) as score_component_count,
         coalesce(component_count.ai_or_event_component_count, 0) as ai_or_event_component_count,
         coalesce(component_count.market_or_rank_component_count, 0) as market_or_rank_component_count,
+        coalesce(component_count.macro_flow_component_count, 0) as macro_flow_component_count,
+        coalesce(macro_flow_evidence.macro_flow_evidence_count, 0) as macro_flow_evidence_count,
         case
             when evidence.artifact_id is not null then 'ai-evidence-' || evidence.artifact_id::text
             when evidence.event_id is not null then 'event-' || evidence.event_id::text
@@ -4658,6 +4666,13 @@ recommendation_rows as (
             event_row.event_id desc
         limit 1
     ) evidence on true
+    left join lateral (
+        select count(*)::int as macro_flow_evidence_count
+        from signal.propagated_instrument_impact propagated_impact
+        join event.event event_row on event_row.event_id = propagated_impact.event_id
+        where propagated_impact.instrument_id = recommendation.instrument_id
+          and event_row.event_at < (recommendation.as_of_date + interval '1 day')
+    ) macro_flow_evidence on true
 ),
 recommendation_page as (
     select *
@@ -4680,6 +4695,7 @@ select json_build_object(
         'measured_count', (select count(*) filter (where outcome_label <> 'unmeasured')::int from recommendation_rows),
         'linked_thesis_count', (select count(*) filter (where thesis_id is not null)::int from recommendation_rows),
         'ai_or_event_evidence_count', (select count(*) filter (where ai_or_event_component_count > 0 or primary_evidence_id is not null)::int from recommendation_rows),
+        'macro_flow_evidence_recommendation_count', (select count(*) filter (where macro_flow_evidence_count > 0)::int from recommendation_rows),
         'average_score', (select avg(total_score) from recommendation_rows)
     ),
     'recommendations',
@@ -4704,6 +4720,8 @@ select json_build_object(
                         'score_component_count', score_component_count,
                         'ai_or_event_component_count', ai_or_event_component_count,
                         'market_or_rank_component_count', market_or_rank_component_count,
+                        'macro_flow_component_count', macro_flow_component_count,
+                        'macro_flow_evidence_count', macro_flow_evidence_count,
                         'quality_status', quality_status,
                         'primary_evidence_id', primary_evidence_id
                     ),
@@ -6824,6 +6842,8 @@ def _build_recommendation_list_item_payload(item: dict[str, Any]) -> dict[str, A
             "score_component_count": int(evidence.get("score_component_count") or 0),
             "ai_or_event_component_count": int(evidence.get("ai_or_event_component_count") or 0),
             "market_or_rank_component_count": int(evidence.get("market_or_rank_component_count") or 0),
+            "macro_flow_component_count": int(evidence.get("macro_flow_component_count") or 0),
+            "macro_flow_evidence_count": int(evidence.get("macro_flow_evidence_count") or 0),
             "quality_status": str(evidence.get("quality_status") or "unknown"),
             "primary_evidence_id": str(primary_evidence_id) if primary_evidence_id else None,
         },

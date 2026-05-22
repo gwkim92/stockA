@@ -861,6 +861,7 @@ class FakeLiveExecutor:
                         "measured_count": 1,
                         "linked_thesis_count": 1,
                         "ai_or_event_evidence_count": 1,
+                        "macro_flow_evidence_recommendation_count": 1,
                         "average_score": "0.5189",
                     },
                     "recommendations": [
@@ -881,6 +882,8 @@ class FakeLiveExecutor:
                                 "score_component_count": 4,
                                 "ai_or_event_component_count": 1,
                                 "market_or_rank_component_count": 3,
+                                "macro_flow_component_count": 1,
+                                "macro_flow_evidence_count": 8,
                                 "quality_status": "ready_for_human_review",
                                 "primary_evidence_id": "ai-evidence-8801",
                             },
@@ -907,6 +910,8 @@ class FakeLiveExecutor:
                                 "score_component_count": 2,
                                 "ai_or_event_component_count": 0,
                                 "market_or_rank_component_count": 2,
+                                "macro_flow_component_count": 0,
+                                "macro_flow_evidence_count": 0,
                                 "quality_status": "blocked",
                                 "primary_evidence_id": None,
                             },
@@ -2379,6 +2384,7 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertEqual(payload["data"]["summary"]["reviewable_count"], 1)
         self.assertEqual(payload["data"]["summary"]["blocked_count"], 1)
         self.assertEqual(payload["data"]["summary"]["average_score"], 0.5189)
+        self.assertEqual(payload["data"]["summary"]["macro_flow_evidence_recommendation_count"], 1)
         self.assertEqual(payload["pagination"]["limit"], 1)
         self.assertTrue(payload["pagination"]["has_more"])
         row = payload["data"]["recommendations"][0]
@@ -2390,6 +2396,8 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertEqual(row["linked_thesis_id"], "thesis-7001")
         self.assertEqual(row["evidence"]["quality_status"], "ready_for_human_review")
         self.assertEqual(row["evidence"]["primary_evidence_id"], "ai-evidence-8801")
+        self.assertEqual(row["evidence"]["macro_flow_component_count"], 1)
+        self.assertEqual(row["evidence"]["macro_flow_evidence_count"], 8)
         self.assertEqual(row["outcome"]["alpha"], 0.06)
         self.assertEqual(payload["links"]["paper_trading"], "/api/paper-trading/preview")
         self.assertTrue(is_live_supported_path("/api/recommendations?asOfDate=2024-11-01"))
@@ -2406,6 +2414,10 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertIn("signal.recommendation_batch", sql)
         self.assertIn("signal.recommendation recommendation", sql)
         self.assertIn("signal.recommendation_score_component", sql)
+        self.assertIn("macro_flow_component_count", sql)
+        self.assertIn("macro_flow_evidence_count", sql)
+        self.assertIn("signal.propagated_instrument_impact", sql)
+        self.assertIn("'macro_flow_evidence_recommendation_count'", sql)
         self.assertIn("performance.recommendation_outcome", sql)
         self.assertIn("event.event_instrument_impact", sql)
         self.assertIn("ai.extraction_artifact", sql)

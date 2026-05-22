@@ -59,11 +59,22 @@ function recommendationSummary(row: RecommendationRow) {
     row.evidence.ai_or_event_component_count > 0
       ? `AI/이벤트 근거 ${row.evidence.ai_or_event_component_count}개`
       : "AI/이벤트 근거 없음";
+  const macroFlowText =
+    row.evidence.macro_flow_evidence_count > 0
+      ? `상위 흐름 전파 ${row.evidence.macro_flow_evidence_count}개`
+      : "상위 흐름 전파 없음";
   const outcomeText =
     row.outcome.label === "unmeasured"
       ? "성과 미측정"
       : `성과 ${koCode(row.outcome.label)} · 알파 ${formatPercent(row.outcome.alpha)}`;
-  return `${thesisText} · ${evidenceText} · ${outcomeText}`;
+  return `${thesisText} · ${evidenceText} · ${macroFlowText} · ${outcomeText}`;
+}
+
+function macroFlowBadge(row: RecommendationRow) {
+  if (row.evidence.macro_flow_evidence_count <= 0) {
+    return "상위 흐름 없음";
+  }
+  return `상위 흐름 ${row.evidence.macro_flow_evidence_count}개`;
 }
 
 export default async function RecommendationsPage() {
@@ -96,6 +107,11 @@ export default async function RecommendationsPage() {
           <span>차단/보강</span>
           <strong>{data.summary.blocked_count.toLocaleString("ko-KR")}</strong>
           <small>근거 부족 또는 논리 미연결</small>
+        </div>
+        <div className="rail-cell">
+          <span>상위 흐름 연결</span>
+          <strong>{data.summary.macro_flow_evidence_recommendation_count.toLocaleString("ko-KR")}</strong>
+          <small>거시·테마 전파 근거 보유</small>
         </div>
         <div className="rail-cell">
           <span>평균 점수</span>
@@ -164,6 +180,9 @@ export default async function RecommendationsPage() {
                 <div style={{ flex: "1 1 420px", minWidth: 0 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap", marginBottom: "8px" }}>
                     <span className={`risk-tag ${qualityTone(row)}`}>{qualityLabel(row)}</span>
+                    <span className={row.evidence.macro_flow_evidence_count > 0 ? "risk-tag risk-medium" : "risk-tag"}>
+                      {macroFlowBadge(row)}
+                    </span>
                     <span className="metric-sub">#{row.rank_position} · {koCode(row.bucket)} · {koCode(row.status)}</span>
                   </div>
                   <Link className="stock-symbol-link" href={recommendationHref(row.recommendation_id)}>
@@ -188,7 +207,9 @@ export default async function RecommendationsPage() {
                 <div style={{ flex: "0 0 120px", textAlign: "right" }}>
                   <span className="metric-sub">점수</span>
                   <strong style={{ display: "block", color: "var(--text-primary)", marginTop: "4px" }}>{formatPercent(row.score)}</strong>
-                  <small style={{ color: "var(--text-secondary)" }}>근거 {row.evidence.score_component_count}개</small>
+                  <small style={{ color: "var(--text-secondary)" }}>
+                    근거 {row.evidence.score_component_count}개 · 흐름 {row.evidence.macro_flow_component_count}개
+                  </small>
                 </div>
               </article>
             );
