@@ -1044,6 +1044,15 @@ def build_live_ai_news_cluster_list_response(
                 "chunk_count": int(summary.get("chunk_count") or 0),
                 "embedded_chunk_count": int(summary.get("embedded_chunk_count") or 0),
                 "local_rule_cluster_count": int(summary.get("local_rule_cluster_count") or 0),
+                "llm_candidate_invocation_count": int(summary.get("llm_candidate_invocation_count") or 0),
+                "llm_candidate_success_count": int(summary.get("llm_candidate_success_count") or 0),
+                "llm_candidate_failed_count": int(summary.get("llm_candidate_failed_count") or 0),
+                "llm_candidate_artifact_count": int(summary.get("llm_candidate_artifact_count") or 0),
+                "latest_llm_invocation_status": str(summary.get("latest_llm_invocation_status") or "missing"),
+                "latest_llm_invocation_at": _timestamp(summary.get("latest_llm_invocation_at")),
+                "latest_llm_success_at": _timestamp(summary.get("latest_llm_success_at")),
+                "latest_llm_failure_at": _timestamp(summary.get("latest_llm_failure_at")),
+                "latest_llm_provider": str(summary.get("latest_llm_provider") or "codex_oauth"),
                 "estimated_cost_usd": _number(summary.get("estimated_cost_usd")) or 0.0,
             },
             "clusters": clusters,
@@ -3660,6 +3669,29 @@ filtered_cluster_document_stats as (
     left join ai.embedding_index embedding
       on embedding.chunk_id = chunk.chunk_id
     group by filtered_cluster_artifacts.artifact_id
+),
+news_ai_candidate_invocation_stats as (
+    select
+        count(*)::int as invocation_count,
+        count(*) filter (where status = 'succeeded')::int as success_count,
+        count(*) filter (where status = 'failed')::int as failed_count,
+        (array_agg(status order by created_at desc, invocation_id desc))[1] as latest_status,
+        (array_agg(provider order by created_at desc, invocation_id desc))[1] as latest_provider,
+        max(created_at) as latest_invocation_at,
+        max(created_at) filter (where status = 'succeeded') as latest_success_at,
+        max(created_at) filter (where status = 'failed') as latest_failure_at
+    from ai.model_invocation
+    where task_name = 'news-rss-ai-extract'
+      and provider = 'codex_oauth'
+),
+news_ai_candidate_artifact_stats as (
+    select count(*)::int as artifact_count
+    from ai.extraction_artifact artifact
+    join ai.model_invocation invocation
+      on invocation.invocation_id = artifact.invocation_id
+    where artifact.artifact_type = 'news_event_candidate'
+      and invocation.provider = 'codex_oauth'
+      and invocation.status = 'succeeded'
 )
 select json_build_object(
     'as_of_date', {sql_literal(as_of_date.isoformat())},
@@ -3681,6 +3713,15 @@ select json_build_object(
             from filtered_cluster_artifacts
             where provider in ('local_rules', 'local_deterministic')
         ),
+        'llm_candidate_invocation_count', coalesce((select invocation_count from news_ai_candidate_invocation_stats), 0),
+        'llm_candidate_success_count', coalesce((select success_count from news_ai_candidate_invocation_stats), 0),
+        'llm_candidate_failed_count', coalesce((select failed_count from news_ai_candidate_invocation_stats), 0),
+        'llm_candidate_artifact_count', coalesce((select artifact_count from news_ai_candidate_artifact_stats), 0),
+        'latest_llm_invocation_status', coalesce((select latest_status from news_ai_candidate_invocation_stats), 'missing'),
+        'latest_llm_invocation_at', (select latest_invocation_at from news_ai_candidate_invocation_stats),
+        'latest_llm_success_at', (select latest_success_at from news_ai_candidate_invocation_stats),
+        'latest_llm_failure_at', (select latest_failure_at from news_ai_candidate_invocation_stats),
+        'latest_llm_provider', coalesce((select latest_provider from news_ai_candidate_invocation_stats), 'codex_oauth'),
         'estimated_cost_usd', coalesce((select sum(coalesce(estimated_cost_usd, 0)) from filtered_cluster_artifacts), 0.0000)
     ),
     'clusters',

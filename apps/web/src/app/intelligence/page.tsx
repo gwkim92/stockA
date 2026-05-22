@@ -15,6 +15,7 @@ export const metadata = { title: "뉴스·AI 판단" };
 
 type NewsEvent = EventListData["events"][number];
 type StoredAiNewsCluster = AiNewsClusterListData["clusters"][number];
+type AiNewsClusterSummary = AiNewsClusterListData["summary"];
 type PipelineRun = DataHealthData["pipeline_runs"][number];
 
 type FallbackNewsCluster = {
@@ -101,6 +102,67 @@ function hasStorySplit(cluster: StoredAiNewsCluster) {
   return Boolean(cluster.story_key && cluster.story_key !== "theme");
 }
 
+function isLocalRuleCluster(cluster: StoredAiNewsCluster) {
+  return ["local_rules", "local_deterministic"].includes(cluster.extraction_run.provider);
+}
+
+function formatClusterRunMode(cluster: StoredAiNewsCluster) {
+  if (isLocalRuleCluster(cluster)) {
+    return "로컬 규칙 묶음";
+  }
+  if (cluster.extraction_run.provider === "codex_oauth") {
+    return "LLM 묶음";
+  }
+  return koCode(cluster.extraction_run.provider);
+}
+
+function formatClusterHeadline(cluster: StoredAiNewsCluster) {
+  const storyLabel = formatClusterStory(cluster);
+  const isUntranslatedStory = storyLabel === cluster.story_label && storyLabel !== koCode(cluster.theme_key);
+  if (isLocalRuleCluster(cluster) && hasStorySplit(cluster) && isUntranslatedStory) {
+    return `${koCode(cluster.theme_key)} 하위 이슈`;
+  }
+  return storyLabel;
+}
+
+function formatStoryKeyword(cluster: StoredAiNewsCluster) {
+  if (!isLocalRuleCluster(cluster) || !hasStorySplit(cluster)) {
+    return null;
+  }
+  const label = cluster.story_label?.trim();
+  if (!label || label === cluster.theme_key || label === cluster.theme_name) {
+    return null;
+  }
+  return `원문 키워드: ${label}`;
+}
+
+function formatLlmCandidateStatus(summary: AiNewsClusterSummary) {
+  if (summary.llm_candidate_invocation_count === 0) {
+    return "LLM 실행 없음";
+  }
+  if (summary.latest_llm_invocation_status === "failed") {
+    return "최근 LLM 실패";
+  }
+  if (summary.latest_llm_invocation_status === "succeeded") {
+    return "최근 LLM 성공";
+  }
+  return koCode(summary.latest_llm_invocation_status);
+}
+
+function formatLlmCandidateDetail(summary: AiNewsClusterSummary) {
+  return `성공 artifact ${summary.llm_candidate_artifact_count}건 · 성공 호출 ${summary.llm_candidate_success_count}건 · 실패 호출 ${summary.llm_candidate_failed_count}건`;
+}
+
+function formatClusterModeStatus(summary: AiNewsClusterSummary) {
+  if (summary.cluster_count === 0) {
+    return "묶음 없음";
+  }
+  if (summary.local_rule_cluster_count === summary.cluster_count) {
+    return "규칙 기반";
+  }
+  return `규칙 ${summary.local_rule_cluster_count}/${summary.cluster_count}`;
+}
+
 function formatFallbackTone(cluster: FallbackNewsCluster) {
   const parts = [
     cluster.supportiveCount > 0 ? `우호 ${cluster.supportiveCount}` : null,
@@ -184,14 +246,6 @@ function findNewsPipelineRun(dataHealth: DataHealthData): PipelineRun | null {
   );
 }
 
-function findAiPipelineRun(dataHealth: DataHealthData): PipelineRun | null {
-  return (
-    dataHealth.pipeline_runs.find((run) => run.pipeline_name === "event_intelligence_llm_extract")
-    ?? dataHealth.pipeline_runs.find((run) => run.job_id === "event-intelligence-llm-extract")
-    ?? null
-  );
-}
-
 function formatRunStatus(run: PipelineRun | null) {
   if (!run) {
     return "실행 이력 없음";
@@ -232,8 +286,8 @@ export default async function IntelligencePage() {
   const dashboard = cockpitSnapshot.dashboard.data;
   const events = eventsResponse.data;
   const storedNewsClusters = newsClusterResponse.data;
+  const clusterSummary = storedNewsClusters.summary;
   const newsRun = findNewsPipelineRun(dataHealth);
-  const aiRun = findAiPipelineRun(dataHealth);
   const fallbackClusters = buildFallbackClusters(events.events);
   const aiCandidateEvents = events.events
     .filter((event) => event.ai_evidence_id && event.ai_evidence_type === "news_event_candidate")
@@ -287,14 +341,19 @@ export default async function IntelligencePage() {
           <small>{formatNewsRunLabel(newsRun)} · {newsRun?.finished_at ?? "최근 완료 없음"}</small>
         </article>
         <article className="rail-cell">
-          <span>AI 후보 분석</span>
-          <strong className="rail-word-value">{formatRunStatus(aiRun)}</strong>
-          <small>{aiRun?.finished_at ?? "최근 완료 없음"}</small>
+          <span>LLM 후보 분석</span>
+          <strong className="rail-word-value">{formatLlmCandidateStatus(clusterSummary)}</strong>
+          <small>{formatLlmCandidateDetail(clusterSummary)}</small>
+        </article>
+        <article className="rail-cell">
+          <span>뉴스 묶음 방식</span>
+          <strong className="rail-word-value">{formatClusterModeStatus(clusterSummary)}</strong>
+          <small>최신 묶음은 화면에서 실시간 LLM을 호출하지 않는다</small>
         </article>
         <article className="rail-cell">
           <span>저장된 뉴스 묶음</span>
-          <strong>{storedNewsClusters.summary.cluster_count}</strong>
-          <small>뉴스 {storedNewsClusters.summary.clustered_event_count}개 연결</small>
+          <strong>{clusterSummary.cluster_count}</strong>
+          <small>뉴스 {clusterSummary.clustered_event_count}개 연결</small>
         </article>
         <article className="rail-cell">
           <span>보유 커버리지</span>
@@ -352,17 +411,17 @@ export default async function IntelligencePage() {
         <section className="status-rail compact-rail" aria-label="뉴스 판단 보드 저장 상태">
           <article className="rail-cell">
             <span>묶음 증거</span>
-            <strong>{storedNewsClusters.summary.cluster_count}</strong>
+            <strong>{clusterSummary.cluster_count}</strong>
             <small>저장된 AI/규칙 증거</small>
           </article>
           <article className="rail-cell">
             <span>검색 조각</span>
-            <strong>{storedNewsClusters.summary.chunk_count}</strong>
-            <small>임베딩 {storedNewsClusters.summary.embedded_chunk_count}개</small>
+            <strong>{clusterSummary.chunk_count}</strong>
+            <small>임베딩 {clusterSummary.embedded_chunk_count}개</small>
           </article>
           <article className="rail-cell">
             <span>분석 비용</span>
-            <strong>${storedNewsClusters.summary.estimated_cost_usd.toFixed(4)}</strong>
+            <strong>${clusterSummary.estimated_cost_usd.toFixed(4)}</strong>
             <small>화면에서 실시간 LLM 호출 없음</small>
           </article>
           <article className="rail-cell">
@@ -380,7 +439,8 @@ export default async function IntelligencePage() {
               const evidenceLink = clusterEvidenceHref(cluster);
               const stockLink = stockHref(firstSymbol);
               const sourceLink = sourceDocumentHref(firstSource?.source_document_id);
-              const storyLabel = formatClusterStory(cluster);
+              const storyLabel = formatClusterHeadline(cluster);
+              const storyKeyword = formatStoryKeyword(cluster);
               const splitByStory = hasStorySplit(cluster);
 
               return (
@@ -388,10 +448,13 @@ export default async function IntelligencePage() {
                   <div className="trace-card-top">
                     <div>
                       <span className="metric-sub">
-                        뉴스 {cluster.event_count}개 · 원천 {cluster.source_document_count}개 · {cluster.created_at}
+                        뉴스 {cluster.event_count}개 · 원천 {cluster.source_document_count}개 · {formatClusterRunMode(cluster)} · {cluster.created_at}
                       </span>
                       <h3>{storyLabel}</h3>
-                      <p className="cluster-story-context">상위 테마: {koCode(cluster.theme_key)}</p>
+                      <p className="cluster-story-context">
+                        상위 테마: {koCode(cluster.theme_key)}
+                        {storyKeyword ? ` · ${storyKeyword}` : ""}
+                      </p>
                     </div>
                     <span className="relation-pill">{formatClusterRagStatus(cluster)}</span>
                   </div>
@@ -402,7 +465,10 @@ export default async function IntelligencePage() {
                       <strong>
                         {cluster.event_count}개 뉴스가 같은 {splitByStory ? "이슈" : "테마"}로 묶였다
                       </strong>
-                      <p>대표 이벤트 {cluster.representative_event_id ?? "대기"} 기준으로 흐름을 추적한다.</p>
+                      <p>
+                        {formatClusterRunMode(cluster)} 기준이다. 대표 이벤트 {cluster.representative_event_id ?? "대기"}를
+                        중심으로 흐름을 추적한다.
+                      </p>
                     </div>
                     <div className="cluster-decision-cell">
                       <span>방향성</span>
@@ -563,6 +629,35 @@ export default async function IntelligencePage() {
             </div>
           </details>
         ) : null}
+      </section>
+
+      <section className="flow-panel reveal delay-3" aria-labelledby="news-language-policy-title">
+        <div className="section-heading flow-heading">
+          <span>언어 정책</span>
+          <h2 id="news-language-policy-title">영어 원문과 한국어 판단을 분리해서 본다</h2>
+        </div>
+        <div className="flow-steps">
+          <article className="flow-step">
+            <span>01</span>
+            <strong>원천 뉴스는 대부분 영어다</strong>
+            <p>Yahoo Finance, MarketWatch, Fed, SEC RSS 제목은 원문 추적을 위해 영어 제목을 보존한다.</p>
+          </article>
+          <article className="flow-step">
+            <span>02</span>
+            <strong>LLM 후보는 한국어로 저장한다</strong>
+            <p>Codex OAuth 후보 분석은 요약, 근거, 불확실성을 한국어로 출력하도록 제한한다.</p>
+          </article>
+          <article className="flow-step">
+            <span>03</span>
+            <strong>로컬 규칙 묶음은 키워드가 남을 수 있다</strong>
+            <p>비용 0원 규칙 기반 묶음은 제목 토큰으로 이슈를 나누기 때문에 일부 원문 키워드가 표시된다.</p>
+          </article>
+          <article className="flow-step">
+            <span>04</span>
+            <strong>투자 판단 문장은 한국어를 우선한다</strong>
+            <p>추천·보유 검토에 들어가는 설명은 한국어 라벨과 검증된 근거를 기준으로 계속 정리한다.</p>
+          </article>
+        </div>
       </section>
 
       <section className="flow-panel reveal delay-3" aria-labelledby="ai-boundary-title">

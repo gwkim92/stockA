@@ -1156,6 +1156,15 @@ class FakeLiveExecutor:
                         "chunk_count": 2,
                         "embedded_chunk_count": 2,
                         "local_rule_cluster_count": 1,
+                        "llm_candidate_invocation_count": 5,
+                        "llm_candidate_success_count": 3,
+                        "llm_candidate_failed_count": 2,
+                        "llm_candidate_artifact_count": 3,
+                        "latest_llm_invocation_status": "failed",
+                        "latest_llm_invocation_at": "2026-05-19T11:30:00+00:00",
+                        "latest_llm_success_at": "2026-05-19T10:30:00+00:00",
+                        "latest_llm_failure_at": "2026-05-19T11:30:00+00:00",
+                        "latest_llm_provider": "codex_oauth",
                         "estimated_cost_usd": "0.0000",
                     },
                     "clusters": [
@@ -1996,6 +2005,12 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertEqual(data["summary"]["clustered_event_count"], 10)
         self.assertEqual(data["summary"]["embedded_chunk_count"], 2)
         self.assertEqual(data["summary"]["local_rule_cluster_count"], 1)
+        self.assertEqual(data["summary"]["llm_candidate_invocation_count"], 5)
+        self.assertEqual(data["summary"]["llm_candidate_success_count"], 3)
+        self.assertEqual(data["summary"]["llm_candidate_failed_count"], 2)
+        self.assertEqual(data["summary"]["llm_candidate_artifact_count"], 3)
+        self.assertEqual(data["summary"]["latest_llm_invocation_status"], "failed")
+        self.assertEqual(data["summary"]["latest_llm_provider"], "codex_oauth")
         self.assertEqual(cluster["evidence_id"], "ai-evidence-2")
         self.assertEqual(cluster["theme_key"], "AI_SEMICONDUCTOR_CYCLE")
         self.assertEqual(cluster["story_key"], "theme")
@@ -2050,6 +2065,10 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertIn("story_split_artifact.cluster_summary ->> 'theme_key'", sql)
         self.assertIn("theme_artifact_rank = 1", sql)
         self.assertIn("as cluster_event_count", sql)
+        self.assertIn("news_ai_candidate_invocation_stats as", sql)
+        self.assertIn("task_name = 'news-rss-ai-extract'", sql)
+        self.assertIn("'llm_candidate_failed_count'", sql)
+        self.assertIn("'latest_llm_invocation_status'", sql)
         self.assertIn("cluster_artifacts.cluster_event_count desc", sql)
         self.assertIn("cluster_summary ->> 'theme_key' = 'AI_SEMICONDUCTOR_CYCLE'", sql)
         self.assertIn("upper(coalesce(event_item ->> 'symbol', '')) = 'NVDA'", sql)

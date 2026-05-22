@@ -457,6 +457,15 @@ export type AiNewsClusterListData = {
     chunk_count: number;
     embedded_chunk_count: number;
     local_rule_cluster_count: number;
+    llm_candidate_invocation_count: number;
+    llm_candidate_success_count: number;
+    llm_candidate_failed_count: number;
+    llm_candidate_artifact_count: number;
+    latest_llm_invocation_status: string;
+    latest_llm_invocation_at: string;
+    latest_llm_success_at: string;
+    latest_llm_failure_at: string;
+    latest_llm_provider: string;
     estimated_cost_usd: number;
   };
   clusters: Array<{
