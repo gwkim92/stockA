@@ -98,6 +98,44 @@ function formatContextCount(value: Array<Record<string, unknown>> | undefined) {
   return (value?.length ?? 0).toLocaleString("ko-KR");
 }
 
+function formatSourceSection(section: string) {
+  if (section === "source") {
+    return "원천 뉴스";
+  }
+  return koLabel(section);
+}
+
+function formatSourceLocator(locator: string) {
+  if (/document chunk/i.test(locator)) {
+    return "모델 입력 문서";
+  }
+  return koLabel(locator);
+}
+
+function formatSourceSummary(summary: string) {
+  const title = summary.match(/Title:\s*(.*?)(?:\s+Summary:|$)/)?.[1]?.trim();
+  const body = summary.match(/Summary:\s*(.*?)(?:\s+Published\/Event At:|$)/)?.[1]?.trim();
+  const eventAt = summary.match(/Published\/Event At:\s*(.*?)(?:\s+Source:|$)/)?.[1]?.trim();
+  const source = summary.match(/Source:\s*(.*?)(?:\s+URL:|$)/)?.[1]?.trim();
+  const parts = [
+    title ? `제목: ${koLabel(title)}` : null,
+    body ? `요약: ${koLabel(body)}` : null,
+    eventAt ? `발행 시각: ${eventAt}` : null,
+    source ? `출처: ${koCode(source)}` : null,
+  ].filter(Boolean);
+  if (parts.length > 0) {
+    return parts.join(" · ");
+  }
+  return koLabel(summary.split(" Retrieval context:")[0] ?? summary);
+}
+
+function formatSourceRelevance(relevance: string) {
+  if (relevance === "supporting context") {
+    return "근거 문맥";
+  }
+  return koCode(relevance);
+}
+
 function stockHref(symbol: string | null | undefined) {
   return isKnownCode(symbol) ? (`/stocks/${encodeURIComponent(symbol as string)}` as Route) : null;
 }
@@ -437,8 +475,8 @@ export default async function AiEvidencePage({ params }: AiEvidencePageProps) {
         {isNewsCandidate ? (
           <>
             <p className="board-intro">
-              분석 방식은 {koCode(candidate.analysis_method)}이고, 추천 관련성은{" "}
-              {koCode(candidate.recommendation_relevance)}로 표시됐다. 불확실성: {koLabel(candidate.uncertainty_notes)}
+              분석 방식: {koCode(candidate.analysis_method)}. 추천 관련성:{" "}
+              {koCode(candidate.recommendation_relevance)}. 불확실성: {koLabel(candidate.uncertainty_notes)}
             </p>
             <CandidateImpactList candidate={candidate} />
           </>
@@ -548,11 +586,11 @@ export default async function AiEvidencePage({ params }: AiEvidencePageProps) {
               {data.source_chunks.map((chunk) => (
                 <div className="source-proof-card" key={chunk.chunk_id}>
                   <div>
-                    <span>{koLabel(chunk.section)}</span>
-                    <strong>{chunk.locator}</strong>
+                    <span>{formatSourceSection(chunk.section)}</span>
+                    <strong>{formatSourceLocator(chunk.locator)}</strong>
                   </div>
-                  <p>{koLabel(chunk.summary)}</p>
-                  <small>관련성 {koCode(chunk.relevance)}</small>
+                  <p>{formatSourceSummary(chunk.summary)}</p>
+                  <small>관련성 {formatSourceRelevance(chunk.relevance)}</small>
                 </div>
               ))}
             </div>
