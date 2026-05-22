@@ -74,6 +74,7 @@ from stockanalysis.operations.server_scheduler_deployment_decision import (
     render_server_scheduler_deployment_target_decision_markdown,
 )
 from stockanalysis.operations.operating_data_profile_scheduler import (
+    DEFAULT_PROFILE_SCHEDULER_JOB_NAME,
     build_operating_data_profile_scheduler_invocation_plan,
     build_operating_data_profile_scheduler_status_report,
     render_operating_data_profile_scheduler_invocation_markdown,
@@ -282,7 +283,7 @@ def build_parser() -> argparse.ArgumentParser:
             "This command still only writes invocation packets and does not deploy or run them."
         ),
     )
-    operating_data_profile_scheduler_invocation.add_argument("--job-name", default=DEFAULT_SERVER_SCHEDULER_JOB_NAME)
+    operating_data_profile_scheduler_invocation.add_argument("--job-name", default=DEFAULT_PROFILE_SCHEDULER_JOB_NAME)
     operating_data_profile_scheduler_invocation.add_argument("--output")
     operating_data_profile_scheduler_invocation.add_argument("--markdown-output")
     operating_data_profile_scheduler_invocation.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))

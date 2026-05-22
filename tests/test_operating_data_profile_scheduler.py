@@ -31,6 +31,7 @@ class OperatingDataProfileSchedulerTests(unittest.TestCase):
 
         self.assertEqual(report["report_name"], "operating_data_profile_scheduler_invocation_boundary")
         self.assertEqual(report["scheduler_target"], "cron")
+        self.assertEqual(report["scheduler_job_name"], "stockanalysis-operating-data")
         self.assertFalse(report["include_full_recovery"])
         self.assertEqual(report["total_profile_count"], 7)
         profile_ids = [profile["profile_id"] for profile in report["profiles"]]

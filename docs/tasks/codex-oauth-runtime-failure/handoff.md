@@ -20,6 +20,7 @@
   - 2026-05-22 재점검에서 단건 SSH 실행은 성공하지만 `stockanalysis-operating-data-news-intraday.service`는 root로 실행되어 `/root/.codex`를 사용하고, root에는 OAuth `auth.json`이 없어 401이 발생하는 것을 확인했다.
   - 실제 로그인된 OAuth context는 `/home/ec2-user/.codex/auth.json`에 있고, 해당 파일 내용은 출력하지 않았다.
   - `operating-data-profile-scheduler-invocation-plan`에 systemd `User=`, `Group=`, `HOME`, `CODEX_HOME`, `XDG_CONFIG_HOME` manifest 옵션을 추가했다.
+  - operating-data profile scheduler의 기본 job name이 `stockanalysis-local-ingest-worker`로 엮여 실제 설치 대상인 `stockanalysis-operating-data-*`와 어긋나는 문제도 함께 수정했다.
 - 막힌 점:
   - 과거 실패의 최종 CLI error line은 기존 저장 방식 때문에 복구할 수 없다.
   - 현재 같은 SSH 단건 경로의 1건 smoke는 성공하지만, 설치된 EC2 systemd unit은 아직 `ec2-user` 실행자로 재설치/검증이 필요하다.
@@ -49,6 +50,7 @@
 - PASS: `bash scripts/verify_operating_data_profile_scheduler_invocation.sh`
 - PASS: `PYTHONPATH=src /opt/homebrew/bin/python3.13 -m compileall src tests`
 - PASS: `git diff --check`
+- PARTIAL: EC2 first redeploy attempt generated `stockanalysis-local-ingest-worker-*` manifests because of the default job-name mismatch; this is now fixed in code and needs redeploy.
 
 ## Remaining
 

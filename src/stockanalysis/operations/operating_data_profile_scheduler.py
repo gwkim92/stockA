@@ -12,7 +12,7 @@ from stockanalysis.operations.operating_data_orchestrator import (
     OPERATING_DATA_RUN_PROFILES,
 )
 from stockanalysis.operations.cadence import DATA_OPERATIONS_TIMEZONE
-from stockanalysis.operations.server_scheduler_invocation import DEFAULT_SERVER_SCHEDULER_JOB_NAME, SERVER_SCHEDULER_TARGETS
+from stockanalysis.operations.server_scheduler_invocation import SERVER_SCHEDULER_TARGETS
 from stockanalysis.operations.path_policy import (
     ensure_repo_outside,
     resolve_existing_file,
@@ -23,6 +23,7 @@ from stockanalysis.operations.local_runtime_status import DEFAULT_LOCAL_RUNTIME_
 from stockanalysis.operations.artifact_runner import redact_command_argv
 
 
+DEFAULT_PROFILE_SCHEDULER_JOB_NAME = "stockanalysis-operating-data"
 DEFAULT_PROFILE_CADENCE_SCHEDULES = {
     "intraday": "*/30 9-18 * * 1-5",
     "daily": "35 18 * * 1-5",
@@ -65,7 +66,7 @@ def build_operating_data_profile_scheduler_invocation_plan(
     timeout_seconds: int = 3600,
     python_executable: str | Path | None = None,
     execute: bool = False,
-    job_name: str = DEFAULT_SERVER_SCHEDULER_JOB_NAME,
+    job_name: str = DEFAULT_PROFILE_SCHEDULER_JOB_NAME,
     systemd_user: str | None = None,
     systemd_group: str | None = None,
     systemd_home: str | Path | None = None,
@@ -297,7 +298,7 @@ def render_operating_data_profile_scheduler_invocation_markdown(report: Mapping[
 def build_operating_data_profile_scheduler_status_report(
     *,
     profile_ids: Sequence[str] | None = None,
-    job_name: str = "stockanalysis-operating-data",
+    job_name: str = DEFAULT_PROFILE_SCHEDULER_JOB_NAME,
     generated_at: datetime | None = None,
     command_runner: SystemCommandRunner | None = None,
 ) -> dict[str, object]:
