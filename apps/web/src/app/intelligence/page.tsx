@@ -89,6 +89,18 @@ function formatClusterRagStatus(cluster: StoredAiNewsCluster) {
   return `부분 준비 ${cluster.embedded_chunk_count}/${cluster.chunk_count}`;
 }
 
+function formatClusterStory(cluster: StoredAiNewsCluster) {
+  const label = cluster.story_label?.trim();
+  if (!label || label === cluster.theme_key || label === cluster.theme_name) {
+    return koCode(cluster.theme_key);
+  }
+  return koLabel(label);
+}
+
+function hasStorySplit(cluster: StoredAiNewsCluster) {
+  return Boolean(cluster.story_key && cluster.story_key !== "theme");
+}
+
 function formatFallbackTone(cluster: FallbackNewsCluster) {
   const parts = [
     cluster.supportiveCount > 0 ? `우호 ${cluster.supportiveCount}` : null,
@@ -366,6 +378,8 @@ export default async function IntelligencePage() {
               const evidenceLink = clusterEvidenceHref(cluster);
               const stockLink = stockHref(firstSymbol);
               const sourceLink = sourceDocumentHref(firstSource?.source_document_id);
+              const storyLabel = formatClusterStory(cluster);
+              const splitByStory = hasStorySplit(cluster);
 
               return (
                 <article className="news-decision-card" key={cluster.evidence_id}>
@@ -374,7 +388,8 @@ export default async function IntelligencePage() {
                       <span className="metric-sub">
                         뉴스 {cluster.event_count}개 · 원천 {cluster.source_document_count}개 · {cluster.created_at}
                       </span>
-                      <h3>{koCode(cluster.theme_key)}</h3>
+                      <h3>{storyLabel}</h3>
+                      <p className="cluster-story-context">상위 테마: {koCode(cluster.theme_key)}</p>
                     </div>
                     <span className="relation-pill">{formatClusterRagStatus(cluster)}</span>
                   </div>
@@ -382,7 +397,9 @@ export default async function IntelligencePage() {
                   <div className="cluster-decision-grid" aria-label={`${koCode(cluster.theme_key)} 판단 요약`}>
                     <div className="cluster-decision-cell">
                       <span>무슨 일이 있었나</span>
-                      <strong>{cluster.event_count}개 뉴스가 같은 테마로 묶였다</strong>
+                      <strong>
+                        {cluster.event_count}개 뉴스가 같은 {splitByStory ? "이슈" : "테마"}로 묶였다
+                      </strong>
                       <p>대표 이벤트 {cluster.representative_event_id ?? "대기"} 기준으로 흐름을 추적한다.</p>
                     </div>
                     <div className="cluster-decision-cell">

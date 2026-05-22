@@ -96,6 +96,8 @@ class NewsRssClusterEvidenceResult:
     event_count: int
     symbols: tuple[str, ...]
     representative_event_id: int | None
+    story_key: str | None = None
+    story_label: str | None = None
     artifact_id: int | None = None
     invocation_id: int | None = None
     run_id: int | None = None
@@ -110,6 +112,8 @@ class NewsRssClusterEvidenceResult:
             "event_count": self.event_count,
             "symbols": list(self.symbols),
             "representative_event_id": self.representative_event_id,
+            "story_key": self.story_key,
+            "story_label": self.story_label,
             "artifact_id": self.artifact_id,
             "invocation_id": self.invocation_id,
             "run_id": self.run_id,

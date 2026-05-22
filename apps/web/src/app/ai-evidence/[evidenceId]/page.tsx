@@ -59,6 +59,14 @@ function formatDirectionCounts(directionCounts: Record<string, number> | null | 
     .join(" · ");
 }
 
+function formatClusterStory(cluster: ClusterSummary) {
+  const label = cluster.story_label?.trim();
+  if (!label || label === cluster.theme_key || label === cluster.theme_name) {
+    return koCode(cluster.theme_key);
+  }
+  return koLabel(label);
+}
+
 function formatContextCount(value: Array<Record<string, unknown>> | undefined) {
   return (value?.length ?? 0).toLocaleString("ko-KR");
 }
@@ -249,7 +257,7 @@ export default async function AiEvidencePage({ params }: AiEvidencePageProps) {
   const neighborhood = await loadNeighborhood(targetSymbol);
   const copy = pageCopy(data, isNewsCandidate ? candidate : null, isNewsCluster ? cluster : null);
   const evidenceTitle = isNewsCluster
-    ? `${koCode(cluster.theme_key)} 뉴스 묶음`
+    ? `${formatClusterStory(cluster)} 뉴스 묶음`
     : isNewsCandidate
       ? koLabel(candidate.event_summary)
       : koLabel(data.title);
@@ -347,8 +355,9 @@ export default async function AiEvidencePage({ params }: AiEvidencePageProps) {
         {isNewsCluster ? (
           <>
             <p className="board-intro">
-              {koCode(cluster.theme_key)} 테마의 뉴스 {cluster.event_count}개를 하나의 흐름으로 묶었다.
-              연결 종목은 {formatSymbols(cluster.symbols)}이고, 방향 분포는 {formatDirectionCounts(cluster.direction_counts)}이다.
+              {formatClusterStory(cluster)} 이슈의 뉴스 {cluster.event_count}개를 하나의 흐름으로 묶었다.
+              상위 테마는 {koCode(cluster.theme_key)}이고, 연결 종목은 {formatSymbols(cluster.symbols)}이다.
+              방향 분포는 {formatDirectionCounts(cluster.direction_counts)}이다.
             </p>
             <div className="relationship-panel">
               <span>묶음에 포함된 대표 뉴스</span>

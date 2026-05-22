@@ -193,6 +193,50 @@ class NewsRssClusterEvidenceTests(unittest.TestCase):
         artifact = json.loads(clusters[0].output_json())
         self.assertEqual(artifact["source"], "local_rules")
         self.assertEqual(artifact["cluster"]["event_count"], 1)
+        self.assertEqual(artifact["cluster"]["story_key"], "theme")
+        self.assertEqual(artifact["cluster"]["story_label"], "AI Semiconductor Cycle")
+
+    def test_build_news_rss_clusters_splits_broad_market_flow_by_story(self) -> None:
+        events = (
+            NewsRssClusterEvidenceEvent(
+                event_id=201,
+                document_id=601,
+                event_type="news_rss_item",
+                title="Quantum stocks soar after new chip breakthrough",
+                summary="Speculative quantum names rally on technology headlines.",
+                event_at="2026-05-19T10:02:40+00:00",
+                source_name="rss_news:market-news-flow",
+                external_document_id="rss:market-news-flow:quantum",
+                theme_key="MARKET_NEWS_FLOW",
+                theme_name="Market News Flow",
+                impact_direction="watch",
+                impact_score=0.55,
+                symbol=None,
+            ),
+            NewsRssClusterEvidenceEvent(
+                event_id=202,
+                document_id=602,
+                event_type="news_rss_item",
+                title="Bond market flips as Treasury yields fall",
+                summary="Rates traders reassess duration risk.",
+                event_at="2026-05-19T09:55:00+00:00",
+                source_name="rss_news:market-news-flow",
+                external_document_id="rss:market-news-flow:bonds",
+                theme_key="MARKET_NEWS_FLOW",
+                theme_name="Market News Flow",
+                impact_direction="risk_review",
+                impact_score=0.62,
+                symbol=None,
+            ),
+        )
+
+        clusters = build_news_rss_clusters(events, as_of_date=date(2026, 5, 19), max_clusters=4)
+
+        self.assertEqual(len(clusters), 2)
+        self.assertEqual({cluster.theme_key for cluster in clusters}, {"MARKET_NEWS_FLOW"})
+        self.assertEqual(len({cluster.story_key for cluster in clusters}), 2)
+        self.assertTrue(all(cluster.story_key.startswith("story-") for cluster in clusters))
+        self.assertTrue(all(json.loads(cluster.output_json())["cluster"]["story_label"] for cluster in clusters))
 
     def test_build_news_rss_clusters_keeps_one_cluster_per_event(self) -> None:
         events = (

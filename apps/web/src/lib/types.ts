@@ -467,6 +467,8 @@ export type AiNewsClusterListData = {
     confidence: number | null;
     theme_key: string;
     theme_name: string;
+    story_key: string;
+    story_label: string;
     as_of_date: string;
     event_count: number;
     symbols: string[];
@@ -902,6 +904,8 @@ export type AiEvidenceDetailData = {
     as_of_date: string;
     theme_key: string;
     theme_name: string;
+    story_key: string;
+    story_label: string;
     event_count: number;
     symbols: string[];
     direction_counts: Record<string, number>;

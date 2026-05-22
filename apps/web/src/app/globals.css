@@ -1738,6 +1738,15 @@ h6 {
   border-style: dashed;
 }
 
+.cluster-story-context {
+  margin: 6px 0 0;
+  color: var(--text-tertiary);
+  font-size: 0.82rem;
+  font-weight: 800;
+  line-height: 1.4;
+  word-break: keep-all;
+}
+
 .cluster-decision-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));

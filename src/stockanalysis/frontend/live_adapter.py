@@ -3502,7 +3502,9 @@ filtered_cluster_artifacts as (
         select
             raw_cluster_artifacts.*,
             row_number() over (
-                partition by coalesce(nullif(cluster_summary ->> 'theme_key', ''), artifact_id::text)
+                partition by
+                    coalesce(nullif(cluster_summary ->> 'theme_key', ''), artifact_id::text),
+                    coalesce(nullif(cluster_summary ->> 'story_key', ''), 'theme')
                 order by created_at desc, artifact_id desc
             ) as theme_artifact_rank
         from raw_cluster_artifacts
@@ -5865,6 +5867,8 @@ def _build_ai_news_cluster_payload(cluster: dict[str, Any]) -> dict[str, Any]:
         "as_of_date": "",
         "theme_key": "UNCLASSIFIED",
         "theme_name": "Unclassified",
+        "story_key": "theme",
+        "story_label": "Unclassified",
         "event_count": 0,
         "symbols": [],
         "direction_counts": {},
@@ -5880,6 +5884,8 @@ def _build_ai_news_cluster_payload(cluster: dict[str, Any]) -> dict[str, Any]:
         "confidence": _number(cluster.get("confidence")),
         "theme_key": summary["theme_key"],
         "theme_name": summary["theme_name"],
+        "story_key": summary["story_key"],
+        "story_label": summary["story_label"],
         "as_of_date": summary["as_of_date"],
         "event_count": summary["event_count"],
         "symbols": summary["symbols"],
@@ -6615,6 +6621,8 @@ def _build_ai_evidence_cluster_summary_payload(summary: dict[str, Any]) -> dict[
         "as_of_date": str(summary.get("as_of_date") or ""),
         "theme_key": str(summary.get("theme_key") or "UNCLASSIFIED"),
         "theme_name": str(summary.get("theme_name") or "Unclassified"),
+        "story_key": str(summary.get("story_key") or "theme"),
+        "story_label": str(summary.get("story_label") or summary.get("theme_name") or "Unclassified"),
         "event_count": int(summary.get("event_count") or 0),
         "symbols": [str(symbol).upper() for symbol in _as_scalar_list(summary.get("symbols")) if str(symbol).strip()],
         "direction_counts": {

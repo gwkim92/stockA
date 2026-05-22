@@ -1070,6 +1070,8 @@ class FakeLiveExecutor:
                             "as_of_date": "2026-05-19",
                             "theme_key": "AI_SEMICONDUCTOR_CYCLE",
                             "theme_name": "AI Semiconductor Cycle",
+                            "story_key": "theme",
+                            "story_label": "AI Semiconductor Cycle",
                             "event_count": 10,
                             "symbols": ["NVDA"],
                             "direction_counts": {"supportive": 1, "watch": 9},
@@ -1159,6 +1161,8 @@ class FakeLiveExecutor:
                                 "as_of_date": "2026-05-19",
                                 "theme_key": "AI_SEMICONDUCTOR_CYCLE",
                                 "theme_name": "AI Semiconductor Cycle",
+                                "story_key": "theme",
+                                "story_label": "AI Semiconductor Cycle",
                                 "event_count": 10,
                                 "symbols": ["NVDA"],
                                 "direction_counts": {"supportive": 1, "watch": 9},
@@ -1986,6 +1990,8 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertEqual(data["summary"]["local_rule_cluster_count"], 1)
         self.assertEqual(cluster["evidence_id"], "ai-evidence-2")
         self.assertEqual(cluster["theme_key"], "AI_SEMICONDUCTOR_CYCLE")
+        self.assertEqual(cluster["story_key"], "theme")
+        self.assertEqual(cluster["story_label"], "AI Semiconductor Cycle")
         self.assertEqual(cluster["symbols"], ["NVDA"])
         self.assertEqual(cluster["event_count"], 10)
         self.assertEqual(cluster["extraction_run"]["provider"], "local_rules")
@@ -2030,7 +2036,8 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertIn("ai.document_chunk", sql)
         self.assertIn("ai.embedding_index", sql)
         self.assertIn("row_number() over", sql)
-        self.assertIn("partition by coalesce(nullif(cluster_summary ->> 'theme_key', '')", sql)
+        self.assertIn("coalesce(nullif(cluster_summary ->> 'theme_key', ''), artifact_id::text)", sql)
+        self.assertIn("coalesce(nullif(cluster_summary ->> 'story_key', ''), 'theme')", sql)
         self.assertIn("theme_artifact_rank = 1", sql)
         self.assertIn("cluster_summary ->> 'theme_key' = 'AI_SEMICONDUCTOR_CYCLE'", sql)
         self.assertIn("upper(coalesce(event_item ->> 'symbol', '')) = 'NVDA'", sql)
@@ -2500,6 +2507,8 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertEqual(payload["data"]["extraction_run"]["input_tokens"], 0)
         self.assertEqual(payload["data"]["extraction_run"]["estimated_cost_usd"], 0.0)
         self.assertEqual(payload["data"]["cluster_summary"]["theme_key"], "AI_SEMICONDUCTOR_CYCLE")
+        self.assertEqual(payload["data"]["cluster_summary"]["story_key"], "theme")
+        self.assertEqual(payload["data"]["cluster_summary"]["story_label"], "AI Semiconductor Cycle")
         self.assertEqual(payload["data"]["cluster_summary"]["event_count"], 10)
         self.assertEqual(payload["data"]["cluster_summary"]["symbols"], ["NVDA"])
         self.assertEqual(payload["data"]["cluster_summary"]["representative_event_id"], "event-20")

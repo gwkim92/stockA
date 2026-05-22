@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from collections import Counter
 from dataclasses import dataclass
 from datetime import date
@@ -21,6 +22,67 @@ from stockanalysis.ingest.psql import PsqlCommandExecutor, PsqlExecutionError
 DEFAULT_CLUSTER_EVIDENCE_EVENT_LIMIT = 100
 DEFAULT_CLUSTER_EVIDENCE_MAX_CLUSTERS = 4
 DEFAULT_CLUSTER_EVIDENCE_PIPELINE_NAME = "news_rss_cluster_evidence"
+BROAD_STORY_THEME_KEYS = frozenset({"MARKET_NEWS_FLOW", "UNCLASSIFIED"})
+STORY_TOKEN_LIMIT = 8
+STORY_LABEL_TOKEN_LIMIT = 5
+_STORY_TOKEN_PATTERN = re.compile(r"[a-z0-9][a-z0-9-]{2,}")
+_STORY_STOP_WORDS = frozenset(
+    {
+        "about",
+        "after",
+        "again",
+        "against",
+        "ahead",
+        "and",
+        "amid",
+        "among",
+        "are",
+        "around",
+        "before",
+        "behind",
+        "being",
+        "between",
+        "but",
+        "could",
+        "for",
+        "from",
+        "have",
+        "into",
+        "its",
+        "latest",
+        "market",
+        "markets",
+        "more",
+        "new",
+        "news",
+        "not",
+        "over",
+        "says",
+        "said",
+        "shares",
+        "stock",
+        "stocks",
+        "that",
+        "the",
+        "their",
+        "this",
+        "through",
+        "under",
+        "wall",
+        "what",
+        "when",
+        "where",
+        "while",
+        "with",
+        "would",
+    }
+)
+
+
+@dataclass(frozen=True)
+class _StoryFingerprint:
+    story_key: str
+    story_label: str
 
 
 @dataclass(frozen=True)
@@ -29,6 +91,8 @@ class NewsRssClusterEvidence:
     theme_name: str
     as_of_date: date
     events: tuple[NewsRssClusterEvidenceEvent, ...]
+    story_key: str = "theme"
+    story_label: str = ""
 
     @property
     def representative_event(self) -> NewsRssClusterEvidenceEvent:
@@ -51,6 +115,7 @@ class NewsRssClusterEvidence:
                 }
                 for event in self.events
             ],
+            "story_key": self.story_key,
             "theme_key": self.theme_key,
         }
         encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
@@ -64,10 +129,11 @@ class NewsRssClusterEvidence:
 
     def output_json(self) -> str:
         direction_counts = Counter(event.impact_direction for event in self.events)
+        story_label = self.story_label or self.theme_name
         payload = {
             "source": "local_rules",
             "event": {
-                "title": f"News cluster summary: {self.theme_key}",
+                "title": f"News cluster summary: {self.theme_key} / {story_label}",
                 "event_type": "news_cluster_summary",
                 "event_at": self.representative_event.event_at,
                 "confidence": self.confidence,
@@ -76,6 +142,8 @@ class NewsRssClusterEvidence:
                 "as_of_date": self.as_of_date.isoformat(),
                 "theme_key": self.theme_key,
                 "theme_name": self.theme_name,
+                "story_key": self.story_key,
+                "story_label": story_label,
                 "event_count": len(self.events),
                 "symbols": list(self.symbols),
                 "direction_counts": dict(sorted(direction_counts.items())),
@@ -94,6 +162,12 @@ class NewsRssClusterEvidence:
                     "value": self.theme_key,
                     "confidence": self.confidence,
                     "source_chunk_id": "news-cluster-theme",
+                },
+                {
+                    "field": "story_mapping",
+                    "value": self.story_key,
+                    "confidence": self.confidence,
+                    "source_chunk_id": "news-cluster-story",
                 },
                 {
                     "field": "event_count",
@@ -188,6 +262,8 @@ def run_news_rss_cluster_evidence(
                             event_count=len(cluster.events),
                             symbols=cluster.symbols,
                             representative_event_id=cluster.representative_event.event_id,
+                            story_key=cluster.story_key,
+                            story_label=cluster.story_label,
                             artifact_id=existing_artifact_id,
                             run_id=run_id,
                             request_hash=cluster.request_hash,
@@ -223,6 +299,8 @@ def run_news_rss_cluster_evidence(
                         event_count=len(cluster.events),
                         symbols=cluster.symbols,
                         representative_event_id=cluster.representative_event.event_id,
+                        story_key=cluster.story_key,
+                        story_label=cluster.story_label,
                         artifact_id=artifact_id,
                         invocation_id=invocation_id,
                         run_id=run_id,
@@ -239,6 +317,8 @@ def run_news_rss_cluster_evidence(
                         event_count=len(cluster.events),
                         symbols=cluster.symbols,
                         representative_event_id=cluster.representative_event.event_id,
+                        story_key=cluster.story_key,
+                        story_label=cluster.story_label,
                         run_id=run_id,
                         request_hash=cluster.request_hash,
                         error=str(exc),
@@ -307,24 +387,30 @@ def build_news_rss_clusters(
     if max_clusters <= 0:
         raise ValueError("max_clusters must be greater than 0")
 
-    grouped: dict[str, list[NewsRssClusterEvidenceEvent]] = {}
-    theme_names: dict[str, str] = {}
+    grouped: dict[tuple[str, str], list[NewsRssClusterEvidenceEvent]] = {}
+    cluster_labels: dict[tuple[str, str], str] = {}
+    theme_names: dict[tuple[str, str], str] = {}
     seen_event_ids: set[int] = set()
     for event in events:
         if event.event_id in seen_event_ids:
             continue
         seen_event_ids.add(event.event_id)
-        grouped.setdefault(event.theme_key, []).append(event)
-        theme_names.setdefault(event.theme_key, event.theme_name)
+        fingerprint = _cluster_story_fingerprint(event)
+        group_key = (event.theme_key, fingerprint.story_key)
+        grouped.setdefault(group_key, []).append(event)
+        theme_names.setdefault(group_key, event.theme_name)
+        cluster_labels.setdefault(group_key, fingerprint.story_label)
 
     clusters = [
         NewsRssClusterEvidence(
             theme_key=theme_key,
-            theme_name=theme_names[theme_key],
+            theme_name=theme_names[(theme_key, story_key)],
             as_of_date=as_of_date,
             events=tuple(sorted(items, key=lambda item: (item.event_at, item.event_id), reverse=True)),
+            story_key=story_key,
+            story_label=cluster_labels[(theme_key, story_key)],
         )
-        for theme_key, items in grouped.items()
+        for (theme_key, story_key), items in grouped.items()
     ]
     return tuple(
         sorted(
@@ -343,7 +429,31 @@ def _planned_result(cluster: NewsRssClusterEvidence) -> NewsRssClusterEvidenceRe
         event_count=len(cluster.events),
         symbols=cluster.symbols,
         representative_event_id=cluster.representative_event.event_id,
+        story_key=cluster.story_key,
+        story_label=cluster.story_label,
         request_hash=cluster.request_hash,
+    )
+
+
+def _cluster_story_fingerprint(event: NewsRssClusterEvidenceEvent) -> _StoryFingerprint:
+    if event.theme_key not in BROAD_STORY_THEME_KEYS:
+        return _StoryFingerprint(story_key="theme", story_label=event.theme_name)
+
+    text = f"{event.title} {event.summary}".lower()
+    tokens = [
+        token.strip("-")
+        for token in _STORY_TOKEN_PATTERN.findall(text)
+        if token.strip("-") and token.strip("-") not in _STORY_STOP_WORDS
+    ]
+    unique_tokens = list(dict.fromkeys(tokens))
+    if len(unique_tokens) < 2:
+        return _StoryFingerprint(story_key=f"event-{event.event_id}", story_label=event.title[:72] or event.theme_name)
+
+    story_tokens = unique_tokens[:STORY_TOKEN_LIMIT]
+    label_tokens = unique_tokens[:STORY_LABEL_TOKEN_LIMIT]
+    return _StoryFingerprint(
+        story_key="story-" + "-".join(story_tokens),
+        story_label=" ".join(label_tokens).title(),
     )
 
 
