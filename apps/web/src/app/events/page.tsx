@@ -40,6 +40,7 @@ function aiEvidenceLabel(type: string | null) {
 type EventRow = EventListData["events"][number];
 
 const BROAD_THEME_KEYS = new Set(["MARKET_NEWS_FLOW", "UNCLASSIFIED", "US_MARKET_BREADTH"]);
+const UNCLASSIFIED_SYMBOL_KEYS = new Set(["", "UNKNOWN", "UNCLASSIFIED"]);
 
 function isNewsCandidate(event: EventRow) {
   return event.ai_evidence_type === "news_event_candidate";
@@ -84,7 +85,7 @@ function evidencePurpose(event: EventRow) {
 }
 
 function hasClassifiedSymbol(event: EventRow) {
-  return Boolean(event.symbol && event.symbol !== "UNCLASSIFIED");
+  return Boolean(event.symbol && !UNCLASSIFIED_SYMBOL_KEYS.has(event.symbol));
 }
 
 function isBroadNoSymbolCandidate(event: EventRow) {
@@ -92,7 +93,7 @@ function isBroadNoSymbolCandidate(event: EventRow) {
 }
 
 function isRetailTopStoryNoise(event: EventRow) {
-  return Boolean(event.source_document_id?.includes("marketwatch-topstories")) && isBroadNoSymbolCandidate(event);
+  return Boolean(event.source_document_id?.includes("marketwatch-topstories")) && !hasClassifiedSymbol(event);
 }
 
 function isDecisionPriorityCandidate(event: EventRow) {
