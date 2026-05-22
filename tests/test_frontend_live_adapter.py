@@ -2631,8 +2631,22 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         )
 
         self.assertIn("and evidence.artifact_type = 'news_event_candidate'", sql)
+        self.assertIn("rss_news:marketwatch-topstories", sql)
+        self.assertIn("coalesce(instrument.primary_symbol, document_instrument.primary_symbol) is null", sql)
         self.assertIn("when 'news_event_candidate' then 0", sql)
         self.assertNotIn("insert into", sql.lower())
+
+    def test_live_event_list_sql_keeps_raw_ledger_unfiltered_by_legacy_candidate_gate(self) -> None:
+        sql = render_frontend_event_list_state_sql(
+            as_of_date=datetime(2026, 5, 22).date(),
+            theme_key=None,
+            symbol=None,
+            event_type="all",
+            evidence_type="all",
+        )
+
+        self.assertNotIn("rss_news:marketwatch-topstories", sql)
+        self.assertNotIn("coalesce(instrument.primary_symbol, document_instrument.primary_symbol) is null", sql)
 
     def test_live_remediation_tickets_response_matches_frontend_contract_shape(self) -> None:
         payload = resolve_live_frontend_response(

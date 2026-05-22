@@ -5883,6 +5883,13 @@ def _event_list_sql_filters(
         lines.append(f"      and event_row.event_type = {sql_literal(event_type)}")
     if evidence_type and evidence_type != "all":
         lines.append(f"      and evidence.artifact_type = {sql_literal(evidence_type)}")
+        if evidence_type == "news_event_candidate":
+            lines.append(
+                """      and not (
+          coalesce(ds.source_name, '') = 'rss_news:marketwatch-topstories'
+          and coalesce(instrument.primary_symbol, document_instrument.primary_symbol) is null
+      )"""
+            )
     return "\n".join(lines)
 
 
