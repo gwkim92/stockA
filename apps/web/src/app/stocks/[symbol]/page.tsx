@@ -88,6 +88,38 @@ function sourceDocumentHref(documentId: string | null) {
   return documentId ? (`/source-documents/${documentId}` as Route) : null;
 }
 
+function cleanFlowText(value: string | null | undefined) {
+  if (!value) {
+    return null;
+  }
+  const interpretation = value.match(/해석:\s*(.*?)(?:\s*근거:|;\s*노출 근거:|$)/)?.[1]?.trim();
+  const evidence = value.match(/근거:\s*(.*?)(?:;\s*노출 근거:|$)/)?.[1]?.trim();
+  const exposure = value.match(/노출 근거:\s*(.*)$/)?.[1]?.trim();
+  const parts = [
+    interpretation ? `해석: ${koLabel(interpretation)}` : null,
+    evidence ? `근거: ${koLabel(evidence)}` : null,
+    exposure
+      ? `노출: ${
+          /directly exposed/i.test(exposure)
+            ? "이 종목은 해당 테마의 자금 지원·상용화 뉴스에 직접 노출된다."
+            : koLabel(exposure)
+        }`
+      : null,
+  ].filter(Boolean);
+  if (parts.length > 0) {
+    return parts.join(" ");
+  }
+  return koLabel(value);
+}
+
+function stockGuardrails() {
+  return [
+    "이 화면은 읽기 전용이다. 추천 점수, 포지션, 주문을 변경하지 않는다.",
+    "민감한 저장소 주소, DB 연결 정보, API 키는 화면에 노출하지 않는다.",
+    "화면을 열 때 AI를 새로 호출하지 않고 배치가 저장한 근거만 보여준다.",
+  ];
+}
+
 function PriceChart({ bars, currencyCode }: { bars: StockPrice[]; currencyCode: string }) {
   const plotted = bars.filter((bar) => typeof bar.adjusted_close === "number" && bar.adjusted_close !== null);
   if (plotted.length < 2) {
@@ -250,7 +282,7 @@ function EvidenceNeighborhoodPanel({ neighborhood }: { neighborhood: AiEvidenceN
                   <NewsTitleBlock compact title={group.title} themeKey={group.theme_keys[0]} />
                   <small>
                     이벤트 {group.event_count.toLocaleString("ko-KR")}개 · 원천 {group.source_document_count.toLocaleString("ko-KR")}개 ·
-                    문서 검색 청크 {group.linked_chunk_count.toLocaleString("ko-KR")}개 · 규칙 기반 신뢰도 {formatPercent(group.confidence)}
+                    근거 문서 조각 {group.linked_chunk_count.toLocaleString("ko-KR")}개 · 규칙 기반 신뢰도 {formatPercent(group.confidence)}
                   </small>
                   {group.relation_reasons.slice(0, 3).map((reason) => (
                     <small key={`${group.story_id}-${reason}`}>묶인 이유: {koLabel(reason)}</small>
@@ -309,7 +341,7 @@ function EvidenceNeighborhoodPanel({ neighborhood }: { neighborhood: AiEvidenceN
         </div>
 
         <ul style={{ margin: "18px 0 0", paddingLeft: "20px", color: "var(--text-secondary)", lineHeight: 1.6 }}>
-          {neighborhood.guardrails.map((guardrail) => (
+          {stockGuardrails().map((guardrail) => (
             <li key={guardrail}>{koLabel(guardrail)}</li>
           ))}
         </ul>
@@ -536,6 +568,7 @@ export default async function StockDetailPage({ params }: StockDetailPageProps) 
             data.macro_flow_impacts.map((flow) => {
               const evidence = evidenceHref(flow.ai_evidence_id);
               const sourceDocument = sourceDocumentHref(flow.source_document_id);
+              const flowRationale = cleanFlowText(flow.rationale);
               return (
                 <div className="bento-list-item" key={`${flow.event_id}-${flow.theme_key}`}>
                   <div>
@@ -552,7 +585,7 @@ export default async function StockDetailPage({ params }: StockDetailPageProps) 
                     <span>
                       전파 강도 {formatPercent(flow.impact_score)} · 노출도 {formatPercent(flow.exposure_weight)} · 신뢰도 {formatPercent(flow.confidence)}
                     </span>
-                    {flow.rationale ? <span className="flow-rationale">{koLabel(flow.rationale)}</span> : null}
+                    {flowRationale ? <span className="flow-rationale">{flowRationale}</span> : null}
                   </div>
                   <div className="btn-row" style={{ marginTop: 0 }}>
                     <Link className="btn btn-secondary" href={`/themes/${encodeURIComponent(flow.theme_key)}?asOfDate=${encodeURIComponent(data.as_of_date)}` as Route}>
