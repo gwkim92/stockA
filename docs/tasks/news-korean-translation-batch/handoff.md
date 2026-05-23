@@ -11,10 +11,17 @@
 - 완료:
   - task contract, handoff, review 문서를 생성했다.
   - 아래 구현 항목을 완료했고 로컬 검증은 통과했다.
+  - GitHub branch `codex/local-mvp-runtime-aws-bootstrap`에 commit `9b8c7d2`를 push했다.
+  - EC2 `/opt/stockanalysis/app`를 `9b8c7d2`로 fast-forward 배포했다.
+  - EC2 Postgres에 `0016_news_document_translation.sql` migration을 적용했다.
+  - EC2에서 `news-rss-translation-run --as-of-date 2026-05-23 --limit 3 --provider codex_oauth --execute`를 실행했고 3건 모두 번역 저장에 성공했다.
+  - EC2에서 `news-rss-cluster-evidence-run --as-of-date 2026-05-23`를 재실행했고 새 cluster artifact 4건을 생성했다.
+  - EC2 system services `stockanalysis-frontend-api.service`, `stockanalysis-web.service`를 system scope에서 재시작했고 둘 다 active 상태다.
+  - 로컬 SSH tunnel `http://127.0.0.1:13000`에서 source document 화면이 persisted Korean translation을 표시하는 것을 Playwright snapshot으로 확인했다.
 - 막힌 점:
   - 없음.
 - 아직 하지 않은 것:
-  - EC2 Postgres migration 적용과 실제 Codex OAuth translation batch 실행은 다음 단계다.
+  - 남은 untranslated RSS 문서를 전량 번역하려면 운영 배치가 다음 주기에서 계속 실행되어야 한다.
 
 ## Implemented
 
@@ -49,12 +56,18 @@
 - `cd apps/web && npm run build`
 - `PYTHONPATH=src /private/tmp/stockanalysis-runtime/verify-venv/bin/python -m unittest discover -s tests`
 
-## Remaining Runtime Work
+## Runtime Evidence
 
-- Apply migration `0016_news_document_translation.sql` to EC2 Postgres.
-- Run a small EC2 Codex OAuth translation batch.
-- Re-run news cluster evidence so `/intelligence` and `/ai-evidence/...` show persisted translations instead of fallback labels.
+- EC2 translation run: `run_id=518`, `updated_document_count=3`, `failed_document_count=0`.
+- Stored DB sample:
+  - document `832`
+  - `korean_title`: `영화관 사업이 쇠퇴하는 가운데 흐름을 거스른 IMAX, 잠재 인수자들에게 매력적인 이유`
+  - `translation_confidence`: `0.8600`
+  - `translation_provider`: `codex_oauth`
+- EC2 cluster regeneration: `run_id=519`, inserted artifacts `252`, `253`, `254`, `255`.
+- `/api/data-health`: `news-korean-translation-intraday succeeded pipeline-run-518 ok`, `event-intelligence-weekly succeeded pipeline-run-519 ok`.
+- Playwright screenshot: `/private/tmp/stockanalysis-runtime/news-korean-translation-source-document.png`.
 
 ## Exact Next Step
 
-- 다음 세션은 이것부터 시작: EC2 `/opt/stockanalysis/app`에 최신 코드를 배포한 뒤 `db/migrations/0016_news_document_translation.sql`을 적용하고, `news-rss-translation-run --limit 3 --provider codex_oauth --execute`를 실행해 `ingest.source_document`에 실제 `korean_title`, `korean_summary`, `translation_confidence`가 저장되는지 확인한다.
+- 다음 세션은 이것부터 시작: `news-rss-translation-run --limit 20 --provider codex_oauth --execute`를 운영 주기에서 반복 실행해 아직 번역되지 않은 RSS 문서 수를 줄이고, `/intelligence`와 `/ai-evidence/...`에서 오래된 artifact가 아닌 최신 번역 포함 artifact가 우선 노출되는지 점검한다.

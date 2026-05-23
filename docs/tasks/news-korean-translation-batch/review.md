@@ -20,9 +20,15 @@
   - cadence registry entry
 - Existing frontend live adapter tests still pass.
 - Next typecheck/build still pass.
+- EC2 smoke passed:
+  - migration `0016_news_document_translation.sql` applied.
+  - `news-rss-translation-run` stored three Codex OAuth Korean translations.
+  - `news-rss-cluster-evidence-run` regenerated four cluster artifacts after translation.
+  - FastAPI and Next.js services restarted and returned 200 for the checked pages.
+  - Data-health reports `news-korean-translation-intraday` and `event-intelligence-weekly` as `ok`.
 
 ## Risks
 
-- Existing EC2 data must receive the new migration before the new fields can be read.
-- Old cluster artifacts will continue to lack embedded translation fields until cluster evidence is rerun after translations are stored.
+- Only the first three EC2 documents were translated in the smoke run. Remaining RSS documents will be translated by subsequent batch runs.
+- Old cluster artifacts will continue to lack embedded translation fields until cluster evidence is rerun after translations are stored; the latest smoke produced new translated artifacts for current top clusters.
 - Translation quality depends on Codex OAuth runtime availability; failure is recorded in `ops.pipeline_run` and `ai.model_invocation`, and the frontend falls back to deterministic labels.
