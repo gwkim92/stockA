@@ -560,7 +560,7 @@ def _build_invalidation_conditions(candidate: PortfolioHoldingThesisCandidate) -
 
 def _build_exit_conditions(*, benchmark_code: str | None) -> str:
     benchmark = benchmark_code or "벤치마크"
-    return f"{benchmark} 대비 성과, thesis 무효화 조건, 포트폴리오 리스크 검토를 함께 확인한 뒤 사람 승인으로만 축소/청산한다."
+    return f"{benchmark} 대비 성과, thesis 무효화 조건, 포트폴리오 리스크 검토를 함께 확인한 뒤 거래 안전 조건이 통과할 때만 축소/청산한다."
 
 
 def _expected_holding_days(horizon_type: str) -> int:

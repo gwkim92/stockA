@@ -420,7 +420,7 @@ class FakeLiveExecutor:
                     },
                     "guardrails": [
                         "이 화면은 가상 거래 미리보기이며 실제 주문을 만들지 않는다.",
-                        "모든 가상 조치는 사람 승인 전까지 실행되지 않는다.",
+                        "모든 가상 조치는 거래 안전 승인 전까지 실행되지 않는다.",
                         "실거래 증권사 API, 계좌 권한, 주문 전송은 아직 연결하지 않았다.",
                     ],
                     "paper_actions": [
@@ -600,7 +600,7 @@ class FakeLiveExecutor:
                             "ai_evidence_type": "source_document_event",
                             "ai_evidence_provider": "openai",
                             "ai_evidence_confidence": "0.8600",
-                            "quality_gate": "human_review_required",
+                            "quality_gate": "ai_review_passed",
                             "related_events": [
                                 {
                                     "event_id": 9002,
@@ -943,7 +943,7 @@ class FakeLiveExecutor:
                                 "market_or_rank_component_count": 3,
                                 "macro_flow_component_count": 1,
                                 "macro_flow_evidence_count": 8,
-                                "quality_status": "ready_for_human_review",
+                                "quality_status": "ai_review_passed",
                                 "primary_evidence_id": "ai-evidence-8801",
                             },
                             "outcome": {
@@ -1052,7 +1052,7 @@ class FakeLiveExecutor:
                             "input_tokens": 120,
                             "output_tokens": 80,
                             "estimated_cost_usd": "0.0000",
-                            "quality_gate": "human_review_required",
+                            "quality_gate": "ai_review_passed",
                         },
                         "extracted_fields": [
                             {
@@ -1123,7 +1123,7 @@ class FakeLiveExecutor:
                             "input_tokens": 0,
                             "output_tokens": 0,
                             "estimated_cost_usd": "0.0000",
-                            "quality_gate": "human_review_required",
+                            "quality_gate": "ai_review_passed",
                         },
                         "extracted_fields": [
                             {
@@ -1183,7 +1183,7 @@ class FakeLiveExecutor:
                         "input_tokens": 4218,
                         "output_tokens": 642,
                         "estimated_cost_usd": "0.0184",
-                        "quality_gate": "human_review_required",
+                        "quality_gate": "ai_review_passed",
                     },
                     "extracted_fields": [
                         {
@@ -2498,7 +2498,7 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertEqual(trace["holding_review"]["source_run_id"], "pipeline-run-9401")
         self.assertEqual(trace["holding_review"]["position_linked_thesis_id"], "thesis-7001")
         review = payload["data"]["evidence_review"]
-        self.assertEqual(review["quality_status"], "ready_for_human_review")
+        self.assertEqual(review["quality_status"], "ai_review_passed")
         self.assertEqual(review["summary"]["score_component_count"], 4)
         self.assertEqual(review["summary"]["ai_evidence_component_count"], 1)
         self.assertEqual(review["summary"]["market_or_rank_component_count"], 3)
@@ -2539,7 +2539,7 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertEqual(row["score"], 0.78)
         self.assertEqual(row["recommended_weight"], 0.05)
         self.assertEqual(row["linked_thesis_id"], "thesis-7001")
-        self.assertEqual(row["evidence"]["quality_status"], "ready_for_human_review")
+        self.assertEqual(row["evidence"]["quality_status"], "ai_review_passed")
         self.assertEqual(row["evidence"]["primary_evidence_id"], "ai-evidence-8801")
         self.assertEqual(row["evidence"]["macro_flow_component_count"], 1)
         self.assertEqual(row["evidence"]["macro_flow_evidence_count"], 8)
@@ -2566,7 +2566,7 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertIn("performance.recommendation_outcome", sql)
         self.assertIn("event.event_instrument_impact", sql)
         self.assertIn("ai.extraction_artifact", sql)
-        self.assertIn("'ready_for_human_review'", sql)
+        self.assertIn("'ai_review_passed'", sql)
         self.assertIn("limit 6", sql)
         self.assertIn("offset 10", sql)
         self.assertNotIn("insert into", lowered)
@@ -2633,7 +2633,7 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertEqual(payload["data"]["evidence"][0]["evidence_id"], "event-9001")
         self.assertEqual(payload["data"]["evidence"][1]["evidence_id"], "performance-outcome-8101")
         review = payload["data"]["evidence_review"]
-        self.assertEqual(review["quality_status"], "ready_for_human_review")
+        self.assertEqual(review["quality_status"], "ai_review_passed")
         self.assertEqual(review["summary"]["source_event_count"], 1)
         self.assertEqual(review["summary"]["performance_evidence_count"], 1)
         self.assertEqual(review["summary"]["invalidation_condition_count"], 1)

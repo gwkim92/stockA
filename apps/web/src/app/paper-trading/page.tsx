@@ -114,7 +114,7 @@ export default async function PaperTradingPage() {
         <article className="rail-cell rail-critical">
           <span>추천/보유 충돌</span>
           <strong>{summary.position_recommendation_conflict_count}</strong>
-          <small>사람 승인 필요 {summary.requires_human_approval_count}</small>
+          <small>거래 안전 승인 필요 {summary.requires_human_approval_count}</small>
         </article>
         <article className="rail-cell">
           <span>실제 주문 제출</span>

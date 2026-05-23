@@ -217,13 +217,13 @@ function recommendationQualityDecision(data: RecommendationDetailData) {
     return {
       status: "보강 후 검토",
       tone: "risk-medium",
-      summary: "핵심 근거는 있으나 성과 측정, 근거 연결, 또는 최근 성과가 충분히 강하지 않아 사람 검토가 먼저다.",
+      summary: "핵심 근거는 있으나 성과 측정, 근거 연결, 또는 최근 성과가 충분히 강하지 않아 AI 보강 검토가 먼저다.",
     };
   }
   return {
-    status: "사람 검토 가능",
+    status: "AI 검토 통과",
     tone: "risk-low",
-    summary: "근거와 성과가 연결되어 있어 중장기 투자 후보로 사람 검토를 진행할 수 있다.",
+    summary: "근거와 성과가 연결되어 있어 중장기 투자 후보로 자동 검토를 통과했다.",
   };
 }
 
@@ -239,7 +239,9 @@ function recommendationQualityChecks(data: RecommendationDetailData) {
     },
     {
       label: "근거 연결",
-      value: data.evidence_review.quality_status === "ready_for_human_review" ? "사람 검토 가능" : koCode(data.evidence_review.quality_status),
+      value: ["ai_review_passed", "ready_for_human_review"].includes(data.evidence_review.quality_status)
+        ? "AI 검토 통과"
+        : koCode(data.evidence_review.quality_status),
       detail: `뉴스·AI 근거 ${aiEvidenceCount}개 · 가격/순위 출처 기록 ${marketProvenanceCount}개`,
     },
     {
@@ -358,7 +360,7 @@ export default async function RecommendationPage({ params }: RecommendationPageP
     {
       label: "결론",
       title: `${koCode(data.recommendation)} · ${formatPercent(data.score)}`,
-      body: "이 값은 자동 주문이 아니라 사람 검토를 시작할지 정하는 읽기 전용 점수다.",
+      body: "이 값은 자동 주문이 아니라 AI 검토와 점수 근거를 함께 보여주는 읽기 전용 판단이다.",
     },
     {
       label: "가격/순위",
@@ -448,7 +450,7 @@ export default async function RecommendationPage({ params }: RecommendationPageP
           <h2 style={{ fontSize: "1.5rem", marginTop: "6px" }}>무엇을 보고 이 추천을 검토해야 하나</h2>
           <p style={{ color: "var(--text-secondary)", marginTop: "8px", maxWidth: "820px" }}>
             뉴스와 AI 구조화 결과는 바로 주문으로 이어지지 않는다. 직접 종목 뉴스, 시장·테마 흐름, 보유검토 상태를
-            분리해서 확인한 뒤 사람 검토에서 채택 여부를 결정한다.
+            분리한 뒤 AI 자동 검토가 추천 입력으로 쓸 수 있는지 판정한다.
           </p>
         </div>
 

@@ -115,7 +115,7 @@ class PortfolioHoldingThesisBootstrapTests(unittest.TestCase):
         self.assertEqual(rows[0].conviction_score, Decimal("0.6200"))
         self.assertIn("자동 매수 신호가 아니라 보유 커버리지 공백", rows[0].summary)
         self.assertIn("최신 추천 조치는 추천 없음", rows[0].summary)
-        self.assertIn("사람 승인으로만 축소/청산", rows[0].exit_conditions)
+        self.assertIn("거래 안전 조건이 통과할 때만 축소/청산", rows[0].exit_conditions)
 
     def test_render_upsert_sql_reuses_existing_thesis_and_links_position(self) -> None:
         rows = build_portfolio_holding_thesis_rows(

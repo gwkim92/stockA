@@ -549,7 +549,7 @@ export default async function AiEvidencePage({ params }: AiEvidencePageProps) {
         </article>
       </section>
 
-      <section className="evidence-review-questions reveal delay-1" aria-label="AI 근거 사람 검토 질문">
+      <section className="evidence-review-questions reveal delay-1" aria-label="AI 근거 자동 검토 질문">
         {reviewQuestions.map((card) => (
           <article className="evidence-review-question" key={card.label}>
             <span>{card.label}</span>

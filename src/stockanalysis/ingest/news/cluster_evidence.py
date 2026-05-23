@@ -203,7 +203,7 @@ class NewsRssClusterEvidence:
             ],
             "audit_notes": [
                 "No paid provider or LLM was called.",
-                "This artifact is evidence for human review, not an automatic recommendation.",
+                "This artifact is evidence for AI validator review, not an automatic recommendation.",
             ],
         }
         return json.dumps(payload, ensure_ascii=False, sort_keys=True)

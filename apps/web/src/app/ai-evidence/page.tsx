@@ -80,7 +80,7 @@ function validationOutcome(event: NewsCandidateEvent) {
   if (event.quality_gate === "low_signal_suppressed") {
     return "저신호 보류";
   }
-  return "통과 후 사람 검토";
+  return "AI 검토 통과";
 }
 
 function CandidateCard({ event }: { event: NewsCandidateEvent }) {

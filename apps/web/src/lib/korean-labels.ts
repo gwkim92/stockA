@@ -65,10 +65,15 @@ const KOREAN_LABELS: Record<string, string> = {
   forming: "형성 중",
   healthy: "정상",
   high: "높음",
-  human_review_required: "사람 검토 필요",
+  human_review_required: "AI 검토 필요",
+  ai_review_required: "AI 검토 필요",
+  ai_review_passed: "AI 검토 통과",
+  ai_review_pending: "AI 검토 대기",
+  deterministic_ai_review_required: "AI 검토 필요",
+  source_document_ai_review_required: "원천 문서 AI 검토 필요",
   low_signal_suppressed: "저신호 보류",
   quality_gate: "검증 조건",
-  human_risk_review: "사람 리스크 검토",
+  human_risk_review: "AI 리스크 검토",
   in_progress: "진행 중",
   low: "낮음",
   long_term: "장기",
@@ -116,7 +121,7 @@ const KOREAN_LABELS: Record<string, string> = {
   paper_sell_to_zero: "가상 전량 매도 후보",
   paper_ready: "가상 거래 준비 완료",
   ready_for_paper_audit: "가상 감사 준비",
-  ready_for_human_review: "사람 검토 가능",
+  ready_for_human_review: "AI 검토 통과",
   pass: "통과",
   warning: "주의",
   paper: "가상 거래",
@@ -154,7 +159,7 @@ const KOREAN_LABELS: Record<string, string> = {
   account_permission_scope_insufficient: "계좌 권한 범위 부족",
   broker_boundary_not_enabled: "증권사 연결 경계 비활성",
   broker_preview_not_supported: "주문 미리보기 미지원",
-  human_approval_required: "사람 승인 필요",
+  human_approval_required: "거래 안전 승인 필요",
   kill_switch_engaged: "킬 스위치 작동 중",
   order_limit_policy_not_active: "주문 한도 정책 비활성",
   position_recommendation_conflict: "보유와 추천 충돌",
@@ -209,12 +214,13 @@ const KOREAN_LABELS: Record<string, string> = {
   source_events: "원천 이벤트",
   performance_evidence: "성과 근거",
   invalidation_conditions: "무효화 조건",
-  latest_human_review: "최근 사람 검토",
+  latest_human_review: "최근 AI 자동 검토",
+  latest_ai_review: "최근 AI 자동 검토",
   scheduler_activation_approval_gate_report: "자동 실행 승인 기록",
   scheduler_activation_manual_approval: "스케줄러 수동 승인",
   source_document_event: "원천 문서 이벤트",
-  source_document_review_required: "원천 문서 검토 필요",
-  "source document review required": "원천 문서 검토 필요",
+  source_document_review_required: "원천 문서 AI 검토 필요",
+  "source document review required": "원천 문서 AI 검토 필요",
   succeeded: "성공",
   supportive: "우호적",
   theme_exposure: "테마 노출",
@@ -413,13 +419,15 @@ const KOREAN_LABELS: Record<string, string> = {
   "이 검토는 실제 주문이나 가상 주문을 만들지 않는 읽기 전용 품질 점검이다.":
     "이 검토는 실제 주문이나 가상 주문을 만들지 않는 읽기 전용 근거 점검입니다.",
   "Supporting event still carries human review gate before it can justify thesis mutation.":
-    "보조 이벤트는 투자 논리 변경 근거로 쓰기 전에 사람 검토 조건을 통과해야 합니다.",
+    "보조 이벤트는 투자 논리 변경 근거로 쓰기 전에 AI 검토 조건을 통과해야 합니다.",
   "Theme lens mirrors the covered thesis exposure; do not add this to security lens as total P&L.":
     "테마 관점은 커버된 투자 논리 노출을 반영합니다. 이를 종목 관점과 합산해 총손익처럼 읽으면 안 됩니다.",
   "covered thesis and outcome remain valid": "커버된 투자 논리와 성과 측정이 계속 유효합니다.",
   "coverage status missing_thesis": "커버리지 상태: 투자 논리 누락",
   "quality_gate requires human review before this event can justify a thesis change.":
-    "이 이벤트가 투자 논리 변경 근거가 되기 전에 검증 조건과 사람 검토를 통과해야 합니다.",
+    "이 이벤트가 투자 논리 변경 근거가 되기 전에 검증 조건과 AI 검토를 통과해야 합니다.",
+  "quality_gate requires AI validator review before this event can justify a thesis change.":
+    "이 이벤트가 투자 논리 변경 근거가 되기 전에 AI 검증 조건을 통과해야 합니다.",
   "Review exit thesis and risk evidence; no trade automation is implied.":
     "청산 투자 논리와 리스크 증거를 검토해야 합니다. 자동 매매는 포함하지 않습니다.",
   "raw document delivery and access control are deferred until auth/RBAC exists":
@@ -654,9 +662,9 @@ const BLOCKED_REASON_DETAILS: Record<string, { title: string; description: strin
     nextStep: "가상 거래용 증권사 연결 경계에서 주문 미리보기를 켠다.",
   },
   human_approval_required: {
-    title: "사람 승인이 아직 없다",
-    description: "이 시스템은 자동 주문 시스템이 아니므로 가상 거래 후보도 명시 승인 없이는 통과하지 않는다.",
-    nextStep: "후보와 근거를 검토한 뒤 별도 승인 기록을 남긴다.",
+    title: "거래 안전 승인이 아직 없다",
+    description: "AI 검토가 통과해도 주문 경계, 한도, 킬 스위치가 통과하지 않으면 거래 후보는 승인되지 않는다.",
+    nextStep: "AI 검토 근거와 안전 조건을 확인한 뒤 거래 안전 승인 기록을 남긴다.",
   },
   kill_switch_engaged: {
     title: "킬 스위치가 차단 중이다",
@@ -671,7 +679,7 @@ const BLOCKED_REASON_DETAILS: Record<string, { title: string; description: strin
   position_recommendation_conflict: {
     title: "보유와 추천이 충돌한다",
     description: "현재 보유 중인 종목이 최신 추천에서는 제외/매도 후보로 분류됐다.",
-    nextStep: "투자 논리와 최신 근거를 검토해 유지, 감액, 청산 중 하나를 사람 판단으로 확정한다.",
+    nextStep: "AI 자동 검토가 투자 논리와 최신 근거를 대조해 유지, 감액, 청산 중 하나의 후보로 분류한다.",
   },
   single_order_notional_limit_exceeded: {
     title: "단일 주문 금액 한도를 넘는다",
@@ -724,7 +732,7 @@ export function koBlockedReason(value: string): KoreanBlockedReason {
     code,
     title: detail?.title ?? koCode(code),
     description: detail?.description ?? "아직 상세 설명이 없는 차단 사유다. 원문 reason code를 기준으로 검토해야 한다.",
-    nextStep: detail?.nextStep ?? "차단 사유를 운영 문서에 추가하고, 사람 검토 후 다음 조치를 결정한다.",
+    nextStep: detail?.nextStep ?? "차단 사유를 운영 문서에 추가하고, AI 자동 검토 후 다음 조치를 결정한다.",
   };
 }
 

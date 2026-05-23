@@ -1342,7 +1342,7 @@ def build_live_ai_evidence_detail_response(
                 "input_tokens": int(extraction_run.get("input_tokens") or 0),
                 "output_tokens": int(extraction_run.get("output_tokens") or 0),
                 "estimated_cost_usd": _number(extraction_run.get("estimated_cost_usd")),
-                "quality_gate": str(extraction_run.get("quality_gate") or "human_review_required"),
+                "quality_gate": str(extraction_run.get("quality_gate") or "ai_review_required"),
             },
             "extracted_fields": [_build_extracted_field_payload(item) for item in _as_list(state.get("extracted_fields"))],
             "news_candidate": _build_ai_evidence_news_candidate_payload(news_candidate),
@@ -1356,7 +1356,7 @@ def build_live_ai_evidence_detail_response(
             ],
             "audit_notes": [
                 "AI output is stored as evidence metadata only; it does not place trades or mutate thesis state.",
-                "quality_gate requires human review before this event can justify a thesis change.",
+                "quality_gate requires AI validator review before this event can justify a thesis change.",
             ],
         },
         "links": _ai_evidence_links(state, identifier=identifier),
@@ -2900,7 +2900,7 @@ classified_rows as (
         true as requires_human_approval,
         case
             when recommendation_id is null and current_weight > 0
-                then '보유 중이지만 최신 추천이 없다. 실제 주문 없이 사람 검토 후보로 표시한다.'
+                then '보유 중이지만 최신 추천이 없다. 실제 주문 없이 AI 자동 검토 후보로 표시한다.'
             when recommendation_action in ('exclude', 'exit', 'sell', 'avoid') and current_weight > 0
                 then '추천은 제외/매도인데 현재 보유 중이다. 실제 주문 없이 가상 매도 후보로 표시한다.'
             when target_weight > current_weight + 0.0001 and current_weight = 0
@@ -2956,7 +2956,7 @@ select json_build_object(
     'guardrails',
     json_build_array(
         '가상 거래 미리보기 단계이며 실제 주문을 만들지 않는다.',
-        '모든 가상 조치는 사람 승인 전까지 실행되지 않는다.',
+        '모든 가상 조치는 거래 안전 승인 전까지 실행되지 않는다.',
         '실거래 증권사 API, 계좌 권한, 주문 전송은 아직 연결하지 않았다.'
     ),
     'paper_actions',
@@ -3343,9 +3343,9 @@ with event_rows_before_quality_filter as (
         ) as is_low_signal_candidate,
         case
             when evidence.artifact_type = 'news_event_candidate_rejected' then 'validator_blocked'
-            when evidence.artifact_id is not null then 'human_review_required'
-            when source_document.document_id is not null then 'source_document_review_required'
-            else 'deterministic_review_required'
+            when evidence.artifact_id is not null then 'ai_review_passed'
+            when source_document.document_id is not null then 'source_document_ai_review_required'
+            else 'deterministic_ai_review_required'
         end as quality_gate
     from event.event event_row
     left join lateral (
@@ -4862,7 +4862,7 @@ recommendation_rows as (
             when recommendation.thesis_id is null then 'blocked'
             when coalesce(component_count.score_component_count, 0) = 0 then 'blocked'
             when coalesce(component_count.ai_or_event_component_count, 0) = 0 then 'needs_evidence'
-            else 'ready_for_human_review'
+            else 'ai_review_passed'
         end as quality_status
     from recommendation_base recommendation
     left join score_component_counts component_count
@@ -4918,8 +4918,8 @@ select json_build_object(
     'summary',
     json_build_object(
         'active_count', (select count(*) filter (where status = 'active')::int from recommendation_rows),
-        'reviewable_count', (select count(*) filter (where quality_status = 'ready_for_human_review')::int from recommendation_rows),
-        'blocked_count', (select count(*) filter (where quality_status <> 'ready_for_human_review')::int from recommendation_rows),
+        'reviewable_count', (select count(*) filter (where quality_status = 'ai_review_passed')::int from recommendation_rows),
+        'blocked_count', (select count(*) filter (where quality_status <> 'ai_review_passed')::int from recommendation_rows),
         'measured_count', (select count(*) filter (where outcome_label <> 'unmeasured')::int from recommendation_rows),
         'linked_thesis_count', (select count(*) filter (where thesis_id is not null)::int from recommendation_rows),
         'ai_or_event_evidence_count', (select count(*) filter (where ai_or_event_component_count > 0 or primary_evidence_id is not null)::int from recommendation_rows),
@@ -5247,7 +5247,7 @@ select json_build_object(
         case
             when (select artifact_type from selected_artifact) = 'news_event_candidate_rejected'
                 then 'validator_blocked'
-            else 'human_review_required'
+            else 'ai_review_passed'
         end
     ),
     'extracted_fields', coalesce((select output_json -> 'extracted_fields' from selected_artifact), '[]'::jsonb),
@@ -5952,7 +5952,7 @@ def _build_paper_action_payload(action: dict[str, Any]) -> dict[str, Any]:
 def _paper_guardrails() -> list[str]:
     return [
         "가상 거래 미리보기 단계이며 실제 주문을 만들지 않는다.",
-        "모든 가상 조치는 사람 승인 전까지 실행되지 않는다.",
+        "모든 가상 조치는 거래 안전 승인 전까지 실행되지 않는다.",
         "실거래 증권사 API, 계좌 권한, 주문 전송은 아직 연결하지 않았다.",
     ]
 
@@ -7032,11 +7032,11 @@ def _build_thesis_evidence_review_payload(
             "가격, 실적, 경쟁, 규제 관련 무효화 조건을 추가한다.",
         ),
         _evidence_review_gate(
-            "latest_human_review",
-            "최근 사람 검토",
+            "latest_ai_review",
+            "최근 AI 자동 검토",
             "pass" if latest_review_present else "warning",
-            "보유 판단은 최신 사람 검토 기록과 함께 유지되어야 한다.",
-            "thesis review를 생성하거나 다음 검토 일정을 잡는다.",
+            "보유 판단은 최신 AI 자동 검토 기록과 함께 유지되어야 한다.",
+            "thesis review를 생성하거나 다음 AI 검토 일정을 잡는다.",
         ),
         _evidence_review_gate(
             "order_boundary",
@@ -7084,7 +7084,7 @@ def _evidence_review_status(gates: list[dict[str, str]]) -> str:
         return "blocked"
     if any(gate["status"] == "warning" for gate in gates):
         return "needs_evidence_review"
-    return "ready_for_human_review"
+    return "ai_review_passed"
 
 
 def _is_market_or_rank_score_component(component: dict[str, Any]) -> bool:

@@ -184,9 +184,9 @@ function thesisQualityDecision(data: ThesisDetailData) {
     };
   }
   return {
-    status: "사람 검토 가능",
+    status: "AI 검토 통과",
     tone: "risk-low",
-    summary: "원천 근거, 성과 근거, 무효화 조건, 최근 검토가 연결되어 있어 사람이 중장기 보유 논리를 검토할 수 있다.",
+    summary: "원천 근거, 성과 근거, 무효화 조건, 최근 검토가 연결되어 있어 AI 자동 검토가 중장기 보유 논리를 통과시켰다.",
   };
 }
 
@@ -200,7 +200,9 @@ function thesisQualityChecks(data: ThesisDetailData) {
   return [
     {
       label: "근거 품질",
-      value: data.evidence_review.quality_status === "ready_for_human_review" ? "사람 검토 가능" : koCode(data.evidence_review.quality_status),
+      value: ["ai_review_passed", "ready_for_human_review"].includes(data.evidence_review.quality_status)
+        ? "AI 검토 통과"
+        : koCode(data.evidence_review.quality_status),
       detail: `원천 이벤트 ${sourceEventCount}개 · 성과 근거 ${performanceEvidenceCount}개`,
     },
     {
@@ -329,7 +331,7 @@ export default async function ThesisPage({ params }: ThesisPageProps) {
             <span className="metric-sub">근거 품질 점검</span>
             <h2 style={{ fontSize: "1.5rem", marginTop: "6px" }}>{koCode(evidenceReview.quality_status)}</h2>
             <p style={{ color: "var(--text-secondary)", marginTop: "8px", maxWidth: "760px" }}>
-              이 점검은 투자 논리를 자동으로 채택하지 않는다. 원천 이벤트, 성과 근거, 무효화 조건, 최근 사람 검토가
+              이 점검은 투자 논리를 주문으로 바꾸지 않는다. 원천 이벤트, 성과 근거, 무효화 조건, 최근 AI 자동 검토가
               붙어 있는지 확인하는 읽기 전용 품질 관리다.
             </p>
           </div>

@@ -512,7 +512,7 @@ def render_news_translation_prompt_template_upsert_sql() -> str:
 values (
     {sql_literal(DEFAULT_TASK_NAME)},
     {sql_literal(DEFAULT_TEMPLATE_VERSION)},
-    'Translate RSS news titles and summaries into Korean for human review.',
+    'Translate RSS news titles and summaries into Korean for AI review and user reading.',
     'Use bounded RSS title/summary text to produce korean_title, korean_summary, and translation_confidence. Do not make investment recommendations.',
     {sql_literal(output_schema)}::jsonb,
     true

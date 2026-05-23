@@ -34,8 +34,8 @@ function evidenceHref(evidenceId: string | null) {
 }
 
 function qualityLabel(row: RecommendationRow) {
-  if (row.evidence.quality_status === "ready_for_human_review") {
-    return "사람 검토 가능";
+  if (row.evidence.quality_status === "ai_review_passed" || row.evidence.quality_status === "ready_for_human_review") {
+    return "AI 검토 통과";
   }
   if (row.evidence.quality_status === "blocked") {
     return "근거 부족";
@@ -44,7 +44,7 @@ function qualityLabel(row: RecommendationRow) {
 }
 
 function qualityTone(row: RecommendationRow) {
-  if (row.evidence.quality_status === "ready_for_human_review") {
+  if (row.evidence.quality_status === "ai_review_passed" || row.evidence.quality_status === "ready_for_human_review") {
     return "risk-low";
   }
   if (row.evidence.quality_status === "blocked") {
@@ -88,7 +88,7 @@ export default async function RecommendationsPage() {
         <h1 id="recommendations-title">지금 시스템이 어떤 종목을 왜 추천 후보로 보는지 확인한다.</h1>
         <p>
           최신 추천 후보의 점수, 근거, 투자 논리, 성과 측정 상태를 한 번에 보여준다.
-          여기서 사람이 상세 검토할 종목을 고른다.
+          AI 자동 검토가 통과한 후보와 보강이 필요한 후보를 분리한다.
         </p>
       </section>
 
@@ -99,7 +99,7 @@ export default async function RecommendationsPage() {
           <small>{data.as_of_date || "기준일 없음"}</small>
         </div>
         <div className="rail-cell">
-          <span>검토 가능</span>
+          <span>AI 검토 통과</span>
           <strong>{data.summary.reviewable_count.toLocaleString("ko-KR")}</strong>
           <small>근거와 논리가 연결됨</small>
         </div>
@@ -124,7 +124,7 @@ export default async function RecommendationsPage() {
         <div className="section-heading">
           <div>
             <span className="metric-sub">판단 흐름</span>
-            <h2 id="recommendation-flow-title">추천은 수집 데이터와 AI 근거를 사람이 검토할 형태로 묶은 결과다</h2>
+            <h2 id="recommendation-flow-title">추천은 수집 데이터와 AI 검토 근거를 묶은 결과다</h2>
           </div>
           <Link className="btn btn-secondary" href="/intelligence">
             분석 지도 보기

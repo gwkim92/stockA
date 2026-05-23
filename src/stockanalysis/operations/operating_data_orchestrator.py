@@ -572,7 +572,7 @@ def _build_planned_steps(
         {
             "step_id": "news-korean-translation",
             "artifact_job_id": "news-korean-translation-intraday",
-            "label": "Translate RSS news titles and summaries into Korean review text",
+            "label": "Translate RSS news titles and summaries into Korean AI review text",
             "skip_reason": "",
             "command_argv": (
                 python_executable,

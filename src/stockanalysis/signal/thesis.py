@@ -540,7 +540,7 @@ def _build_exit_conditions(*, benchmark_code: str | None) -> str:
     return (
         "조치 조건: 검토 중 무효화 조건이 발동되면 비중 축소 또는 청산을 검토한다. "
         f"벤치마크 {benchmark_code or 'unavailable'} 커버리지, 원천 이벤트 근거, 가격 feature provenance가 "
-        "누락되면 사람 검토로 승격한다."
+        "누락되면 AI 보강 검토로 승격한다."
     )
 
 
