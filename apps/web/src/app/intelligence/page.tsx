@@ -357,7 +357,7 @@ export default async function IntelligencePage() {
       index: "01",
       title: "원문 수집",
       status: formatRunStatus(newsRun),
-      copy: "RSS 원문이 원천 문서와 이벤트 원장으로 저장된다.",
+      copy: "RSS 원문이 원천 문서와 수집 뉴스로 저장된다.",
       href: "/events",
     },
     {
@@ -378,7 +378,7 @@ export default async function IntelligencePage() {
       index: "04",
       title: "검증 통과/차단",
       status: `통과 ${events.summary.ai_extracted_count} · 차단 ${events.summary.suppressed_low_signal_candidate_count}`,
-      copy: "검증기가 낮은 신뢰도와 알 수 없는 종목/테마를 추천 입력에서 제외한다.",
+      copy: "검증 단계가 낮은 신뢰도와 알 수 없는 종목/테마를 추천 입력에서 제외한다.",
       href: "/ai-evidence/blocked",
     },
     {
@@ -398,11 +398,11 @@ export default async function IntelligencePage() {
     },
     {
       title: "차단 후보",
-      copy: "검증기가 추천 입력으로 넘기지 않은 후보와 저신호 보류 항목을 확인한다.",
+      copy: "검증 단계에서 추천 입력으로 넘기지 않은 후보와 저신호 보류 항목을 확인한다.",
       href: "/ai-evidence/blocked",
     },
     {
-      title: "뉴스·이벤트 원장",
+      title: "수집 뉴스",
       copy: "수집된 모든 뉴스와 공시, 원천 문서, 관련 이벤트를 확인한다.",
       href: "/events",
     },
@@ -724,7 +724,7 @@ export default async function IntelligencePage() {
           <h2 id="ai-candidate-queue-title">AI가 해석한 뉴스는 상세 화면에서 검증한다</h2>
         </div>
         <p className="board-intro">
-          이 목록은 원장이 아니라 검토 입구다. 제목을 읽고 판단하지 말고, 상세 화면에서 원천 문서, 테마·종목 영향,
+          이 목록은 최종 판단표가 아니라 검토 입구다. 제목만 읽고 판단하지 말고, 상세 화면에서 원천 문서, 테마·종목 영향,
           불확실성, 추천 연결 여부를 확인한다.
         </p>
 

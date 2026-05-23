@@ -197,7 +197,7 @@ function pageCopy(data: AiEvidenceDetailData, candidate: NewsCandidate | null, c
       badge: `차단된 AI 후보 · ${koCode(data.extraction_run.provider)}`,
       title: "이 AI 후보가 왜 추천 근거로 통과하지 못했는지 검증한다.",
       lede:
-        "validator가 통과 가능한 종목·테마 영향으로 인정하지 않은 후보를 보는 화면이다. 원천과 AI 출력은 보존하지만 추천·보유검토 입력으로 쓰지 않는다.",
+        "검증 단계에서 통과 가능한 종목·테마 영향으로 인정하지 않은 후보를 보는 화면이다. 원천과 AI 출력은 보존하지만 추천·보유검토 입력으로 쓰지 않는다.",
     };
   }
   if (candidate) {
@@ -219,7 +219,7 @@ function pageCopy(data: AiEvidenceDetailData, candidate: NewsCandidate | null, c
   return {
     badge: `AI 추출 증거 · ${koCode(data.extraction_run.provider)}`,
     title: "저장된 AI 근거의 원천과 품질을 확인한다.",
-    lede: "이 증거 하나만으로 투자 논리나 추천을 바꾸지 않는다. 반드시 원천과 품질 관문을 함께 확인한다.",
+    lede: "이 증거 하나만으로 투자 논리나 추천을 바꾸지 않는다. 반드시 원천과 품질 조건을 함께 확인한다.",
   };
 }
 
@@ -397,7 +397,7 @@ export default async function AiEvidencePage({ params }: AiEvidencePageProps) {
             : koCode(data.extraction_run.status),
       body:
         data.evidence_type === "news_event_candidate_rejected"
-          ? "validator가 추천 입력으로 넘기지 않았다. 원천 확인과 분류 보강 대상으로만 본다."
+          ? "검증 단계에서 추천 입력으로 넘기지 않았다. 원천 확인과 분류 보강 대상으로만 본다."
           : "통과한 근거라도 바로 주문하지 않는다. 추천 점수와 보유검토가 별도로 판단한다.",
     },
     {
@@ -488,7 +488,7 @@ export default async function AiEvidencePage({ params }: AiEvidencePageProps) {
           <article className="flow-step">
             <span>04</span>
             <strong>투자 입력 여부 결정</strong>
-            <p>품질 관문을 통과한 근거만 추천·보유 검토의 입력 후보가 된다.</p>
+            <p>품질 조건을 통과한 근거만 추천·보유 검토의 입력 후보가 된다.</p>
           </article>
         </div>
       </section>
@@ -557,7 +557,7 @@ export default async function AiEvidencePage({ params }: AiEvidencePageProps) {
 
         {!isNewsCandidate && !isNewsCluster ? (
           <p className="board-intro">
-            {koLabel(data.title)} 증거다. 원천과 품질 관문을 확인한 뒤 추천 또는 보유 검토와 연결해야 한다.
+            {koLabel(data.title)} 증거다. 원천과 품질 조건을 확인한 뒤 추천 또는 보유 검토와 연결해야 한다.
           </p>
         ) : null}
 
@@ -640,8 +640,8 @@ export default async function AiEvidencePage({ params }: AiEvidencePageProps) {
           {data.audit_notes.map((note) => (
             <li key={note}>{koLabel(note)}</li>
           ))}
-          <li>AI는 추천과 주문을 직접 결정하지 않는다. 추천 점수, 보유 검토, 거래 안전 관문이 별도로 통과해야 한다.</li>
-          <li>화면 진입 시 실시간 LLM 호출은 하지 않으며, 배치가 저장한 결과만 읽는다.</li>
+          <li>AI는 추천과 주문을 직접 결정하지 않는다. 추천 점수, 보유 검토, 거래 안전 조건이 별도로 통과해야 한다.</li>
+          <li>화면 진입 시 실시간 AI 호출은 하지 않으며, 배치가 저장한 결과만 읽는다.</li>
         </ul>
         <div className="audit-metadata">
           <details>
