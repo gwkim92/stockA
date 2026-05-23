@@ -54,6 +54,17 @@ function relationCount(data: CycleMapData, nodeCode: string) {
   return data.edges.filter((edge) => edge.parent_code === nodeCode || edge.child_code === nodeCode).length;
 }
 
+function nodeSummary(node: CycleNode) {
+  const name = koCode(node.node_code);
+  const state = koCode(node.cycle_state);
+  const directEvents = node.counts.direct_event_count;
+  const propagatedImpacts = node.counts.propagated_impact_count;
+  const symbolCount = node.top_symbols.length;
+  const recommendationCount = node.counts.recommendation_count;
+
+  return `${name}는 현재 ${state} 상태다. 최근 뉴스 ${directEvents}건, 상위 흐름 전파 ${propagatedImpacts}건, 연결 종목 ${symbolCount}개, 추천 연결 ${recommendationCount}건을 함께 확인한다.`;
+}
+
 function groupedNodes(nodes: CycleNode[]) {
   return LEVEL_ORDER.map((level) => ({
     level,
@@ -164,7 +175,7 @@ export default async function CycleMapPage() {
                   <article className="detail-path-card" key={node.node_code}>
                     <span>{koCode(node.cycle_state)} · {formatPercent(node.cycle_score)}</span>
                     <strong>{koCode(node.node_code)}</strong>
-                    <p>{koLabel(node.summary_text_ko)}</p>
+                    <p>{nodeSummary(node)}</p>
 
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginTop: "14px" }}>
                       <small>뉴스 {node.counts.direct_event_count}</small>
@@ -220,7 +231,7 @@ export default async function CycleMapPage() {
         <div className="section-heading stacked-heading">
           <span>관계선</span>
           <h2>상위 흐름이 아래 흐름으로 이어지는 규칙</h2>
-          <p>관계선은 AI가 즉석에서 만든 것이 아니라 Postgres ontology-lite에 저장된 `classification_edge`를 읽은 것이다.</p>
+          <p>관계선은 AI가 즉석에서 만든 말이 아니라 사전에 정한 시장 분류 지도를 읽어 보여준다.</p>
         </div>
         {data.edges.length > 0 ? (
           <div className="relationship-list">
@@ -228,7 +239,7 @@ export default async function CycleMapPage() {
               <div className="relationship-chip" key={`${edge.parent_code}-${edge.child_code}-${edge.relation_type}`}>
                 <span>{koCode(edge.relation_type)} · {formatPercent(edge.weight)}</span>
                 <strong>{koCode(edge.parent_code)} → {koCode(edge.child_code)}</strong>
-                <small>{koLabel(edge.parent_name)}에서 {koLabel(edge.child_name)}로 영향이 내려간다.</small>
+                <small>{koCode(edge.parent_code)} 흐름이 {koCode(edge.child_code)}로 이어진다.</small>
               </div>
             ))}
           </div>
