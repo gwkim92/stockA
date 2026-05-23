@@ -843,6 +843,9 @@ export type RecommendationDetailData = {
         recent_flows?: Array<{
           event_id: number | string;
           title: string;
+          korean_title?: string | null;
+          korean_summary?: string | null;
+          translation_confidence?: number | null;
           event_at: string;
           theme_key: string;
           theme_name: string;
@@ -864,6 +867,9 @@ export type RecommendationDetailData = {
       event_id: string | null;
       ai_evidence_id: string | null;
       title: string | null;
+      korean_title?: string | null;
+      korean_summary?: string | null;
+      translation_confidence?: number | null;
       event_at: string;
       impact_direction: string;
       impact_strength: number | null;
@@ -877,6 +883,9 @@ export type RecommendationDetailData = {
       recent_flows: Array<{
         event_id: string;
         title: string;
+        korean_title?: string | null;
+        korean_summary?: string | null;
+        translation_confidence?: number | null;
         event_at: string;
         theme_key: string;
         theme_name: string;

@@ -4804,6 +4804,9 @@ recommendation_event_anchor as (
         impact.impact_strength,
         coalesce(impact.confidence, event_row.confidence) as confidence,
         impact.rationale,
+        source_document.korean_title,
+        source_document.korean_summary,
+        source_document.translation_confidence,
         artifact.artifact_id
     from selected_recommendation recommendation
     join event.event_instrument_impact impact
@@ -4813,6 +4816,8 @@ recommendation_event_anchor as (
     left join event.event_document_link document_link
       on document_link.event_id = event_row.event_id
      and document_link.link_type = 'source'
+    left join ingest.source_document source_document
+      on source_document.document_id = document_link.document_id
     left join lateral (
         select extraction_artifact.artifact_id
         from ai.extraction_artifact extraction_artifact
@@ -4900,12 +4905,20 @@ macro_flow_all_rows as (
         propagated_impact.impact_strength,
         propagated_impact.confidence,
         propagated_impact.exposure_weight,
+        source_document.korean_title,
+        source_document.korean_summary,
+        source_document.translation_confidence,
         propagated_impact.source_run_id
     from selected_recommendation recommendation
     join signal.propagated_instrument_impact propagated_impact
       on propagated_impact.instrument_id = recommendation.instrument_id
     join event.event event_row on event_row.event_id = propagated_impact.event_id
     join ref.classification_node node on node.node_id = propagated_impact.node_id
+    left join event.event_document_link document_link
+      on document_link.event_id = event_row.event_id
+     and document_link.link_type = 'source'
+    left join ingest.source_document source_document
+      on source_document.document_id = document_link.document_id
     where event_row.event_at < (recommendation.as_of_date + interval '1 day')
 ),
 macro_flow_recent_rows as (
@@ -4923,6 +4936,9 @@ macro_flow_provenance as (
                 json_build_object(
                     'event_id', event_id,
                     'title', title,
+                    'korean_title', korean_title,
+                    'korean_summary', korean_summary,
+                    'translation_confidence', translation_confidence,
                     'event_at', event_at,
                     'theme_key', theme_key,
                     'theme_name', theme_name,
@@ -5133,6 +5149,9 @@ select json_build_object(
             'event_id', (select event_id from recommendation_event_anchor),
             'artifact_id', (select artifact_id from recommendation_event_anchor),
             'title', (select title from recommendation_event_anchor),
+            'korean_title', (select korean_title from recommendation_event_anchor),
+            'korean_summary', (select korean_summary from recommendation_event_anchor),
+            'translation_confidence', (select translation_confidence from recommendation_event_anchor),
             'event_at', (select event_at from recommendation_event_anchor),
             'impact_direction', (select impact_direction from recommendation_event_anchor),
             'impact_strength', (select impact_strength from recommendation_event_anchor),
@@ -7352,6 +7371,9 @@ def _build_recommendation_evidence_trace_payload(
             if direct_artifact_id is not None
             else None,
             "title": _optional_text(direct.get("title")),
+            "korean_title": _optional_text(direct.get("korean_title")),
+            "korean_summary": _optional_text(direct.get("korean_summary")),
+            "translation_confidence": _number(direct.get("translation_confidence")),
             "event_at": _timestamp(direct.get("event_at")),
             "impact_direction": str(direct.get("impact_direction") or "unknown"),
             "impact_strength": _number(direct.get("impact_strength")),
@@ -7410,6 +7432,9 @@ def _build_recommendation_trace_flow_payload(flow: dict[str, Any]) -> dict[str, 
     return {
         "event_id": _opaque_id("event", event_id, "unknown"),
         "title": str(flow.get("title") or ""),
+        "korean_title": _optional_text(flow.get("korean_title")),
+        "korean_summary": _optional_text(flow.get("korean_summary")),
+        "translation_confidence": _number(flow.get("translation_confidence")),
         "event_at": _timestamp(flow.get("event_at")),
         "theme_key": str(flow.get("theme_key") or ""),
         "theme_name": str(flow.get("theme_name") or ""),

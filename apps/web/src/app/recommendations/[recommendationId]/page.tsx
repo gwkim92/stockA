@@ -383,6 +383,9 @@ function evidenceTraceCards(data: RecommendationDetailData) {
         direct.title && direct.status === "linked"
           ? {
               title: direct.title,
+              koreanTitle: direct.korean_title,
+              koreanSummary: direct.korean_summary,
+              translationConfidence: direct.translation_confidence,
               symbol: data.symbol,
               impactDirection: direct.impact_direction,
               impactScore: direct.impact_strength,
@@ -402,6 +405,9 @@ function evidenceTraceCards(data: RecommendationDetailData) {
         firstFlow && macroFlow.propagated_impact_count > 0
           ? {
               title: firstFlow.title,
+              koreanTitle: firstFlow.korean_title,
+              koreanSummary: firstFlow.korean_summary,
+              translationConfidence: firstFlow.translation_confidence,
               symbol: data.symbol,
               themeKey: firstFlow.theme_key,
               impactDirection: firstFlow.impact_direction,
@@ -642,6 +648,9 @@ export default async function RecommendationPage({ params }: RecommendationPageP
                           <NewsTitleBlock
                             compact
                             title={flow.title}
+                            koreanTitle={flow.korean_title}
+                            koreanSummary={flow.korean_summary}
+                            translationConfidence={flow.translation_confidence}
                             symbol={data.symbol}
                             themeKey={flow.theme_key}
                             impactDirection={flow.impact_direction}

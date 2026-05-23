@@ -1031,6 +1031,9 @@ class FakeLiveExecutor:
 	                            "event_id": 9001,
 	                            "artifact_id": 8801,
 	                            "title": "AAPL annual report event",
+	                            "korean_title": "AAPL 연례 보고서 이벤트",
+	                            "korean_summary": "연례 보고서 이벤트 품질이 우호적으로 유지된다.",
+	                            "translation_confidence": "0.9100",
 	                            "event_at": "2024-10-31T14:00:00+00:00",
 	                            "impact_direction": "supportive",
 	                            "impact_strength": "0.7000",
@@ -1045,6 +1048,9 @@ class FakeLiveExecutor:
 	                                {
 	                                    "event_id": 9101,
 	                                    "title": "Fed rate path supports long-duration technology",
+	                                    "korean_title": "연준 금리 경로가 장기 성장 기술주를 지지한다",
+	                                    "korean_summary": "금리 경로 변화가 기술주 노출도에 우호적으로 전파된다.",
+	                                    "translation_confidence": "0.8900",
 	                                    "event_at": "2024-10-30T12:00:00+00:00",
 	                                    "theme_key": "MACRO_RATES_FED",
 	                                    "theme_name": "Fed rates",
@@ -2726,10 +2732,16 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertEqual(trace["direct_news_or_ai"]["status"], "linked")
         self.assertEqual(trace["direct_news_or_ai"]["event_id"], "event-9001")
         self.assertEqual(trace["direct_news_or_ai"]["ai_evidence_id"], "ai-evidence-8801")
+        self.assertEqual(trace["direct_news_or_ai"]["korean_title"], "AAPL 연례 보고서 이벤트")
+        self.assertEqual(trace["direct_news_or_ai"]["translation_confidence"], 0.91)
         self.assertEqual(trace["direct_news_or_ai"]["impact_strength"], 0.7)
         self.assertEqual(trace["macro_flow"]["propagated_impact_count"], 2)
         self.assertEqual(trace["macro_flow"]["source_run_id"], "pipeline-run-9301")
         self.assertEqual(trace["macro_flow"]["recent_flows"][0]["event_id"], "event-9101")
+        self.assertEqual(
+            trace["macro_flow"]["recent_flows"][0]["korean_title"],
+            "연준 금리 경로가 장기 성장 기술주를 지지한다",
+        )
         self.assertEqual(trace["macro_flow"]["recent_flows"][0]["impact_strength"], 0.52)
         self.assertEqual(trace["holding_review"]["status"], "review_linked")
         self.assertEqual(trace["holding_review"]["portfolio_review_id"], "portfolio-review-6001")
