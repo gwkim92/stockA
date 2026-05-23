@@ -318,6 +318,7 @@ evidence_rows as (
          and macro_snapshot.as_of_date = {sql_date(as_of_date)}
     ) macro_cycle on true
     where node.taxonomy_family = 'internal_theme'
+      and node.code <> 'MARKET_NEWS_FLOW'
       and membership.membership_type = 'derived_theme'
       and membership.valid_from <= {sql_date(as_of_date)}
       and (membership.valid_to is null or membership.valid_to >= {sql_date(as_of_date)})

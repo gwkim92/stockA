@@ -88,6 +88,7 @@ class RecommendationBootstrapTests(unittest.TestCase):
         self.assertIn("cycle_conflict_penalty", sql)
         self.assertIn("signal.instrument_feature_value", sql)
         self.assertIn("signal.propagated_instrument_impact", sql)
+        self.assertIn("node.code <> 'MARKET_NEWS_FLOW'", sql)
         self.assertIn("return_since_first_observation", sql)
 
     def test_load_recommendation_candidates(self) -> None:
