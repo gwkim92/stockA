@@ -15,6 +15,7 @@ from stockanalysis.ingest.news.ai_extract import (
     NewsAiDocumentChunk,
     _diagnostic_excerpt,
     build_codex_oauth_news_ai_prompt,
+    build_codex_oauth_news_ai_output_schema,
     build_news_ai_provider_response_from_payload,
     invoke_codex_oauth_news_ai_provider,
     is_news_ai_candidate_quality_eligible,
@@ -97,16 +98,31 @@ class FakeExecutor:
             self.next_artifact_id += 1
             return str(artifact_id)
         if "from ref.classification_node node" in sql:
-            if "AI_SEMICONDUCTOR_CYCLE" not in sql:
-                raise PsqlExecutionError("psql returned no rows for scalar query")
-            return json.dumps(
-                {
+            node_rows = {
+                "AI_SEMICONDUCTOR_CYCLE": {
                     "node_id": 21,
                     "code": "AI_SEMICONDUCTOR_CYCLE",
                     "node_type": "subtheme",
                     "name": "AI Semiconductor Cycle",
-                }
-            )
+                },
+                "MACRO_RATES_FED": {
+                    "node_id": 22,
+                    "code": "MACRO_RATES_FED",
+                    "node_type": "subtheme",
+                    "name": "Macro Rates and Fed",
+                },
+                "TECH_DOMAIN": {
+                    "node_id": 23,
+                    "code": "TECH_DOMAIN",
+                    "node_type": "domain",
+                    "name": "Technology Domain",
+                },
+            }
+            for code, row in node_rows.items():
+                if code in sql:
+                    return json.dumps(row)
+            else:
+                raise PsqlExecutionError("psql returned no rows for scalar query")
         if "from ref.instrument i" in sql:
             if "NVDA" not in sql:
                 raise PsqlExecutionError("psql returned no rows for scalar query")
@@ -297,8 +313,21 @@ class NewsRssAiExtractTests(unittest.TestCase):
         )
 
         self.assertIn("Write all human-readable natural-language fields in Korean.", prompt)
-        self.assertIn("event_summary, rationale, evidence_summary, uncertainty_notes, and recommendation_relevance", prompt)
+        self.assertIn("event_summary, rationale, evidence_summary, uncertainty_notes, causal_paths rationale", prompt)
+        self.assertIn("Separate impacts into macro_regime_impacts, domain_impacts, theme_impacts", prompt)
+        self.assertIn("Do not force macro or domain news onto a stock", prompt)
         self.assertIn("Keep machine codes and market identifiers unchanged", prompt)
+
+    def test_codex_oauth_output_schema_requires_hierarchical_fields(self) -> None:
+        schema = build_codex_oauth_news_ai_output_schema()
+        candidate_schema = schema["properties"]["candidate"]
+
+        self.assertIn("macro_regime_impacts", candidate_schema["required"])
+        self.assertIn("domain_impacts", candidate_schema["required"])
+        self.assertIn("direct_instrument_impacts", candidate_schema["required"])
+        self.assertIn("causal_paths", candidate_schema["required"])
+        self.assertIn("evidence_spans", candidate_schema["required"])
+        self.assertNotIn("instrument_impacts", candidate_schema["required"])
 
     def test_codex_oauth_invocation_uses_safe_automation_workdir_and_git_skip(self) -> None:
         candidate = NewsRssAiExtractionCandidate(
@@ -401,6 +430,60 @@ class NewsRssAiExtractTests(unittest.TestCase):
         self.assertEqual(validated.rejected_impact_count, 2)
         self.assertEqual(validated.theme_impacts[0].node_code, "AI_SEMICONDUCTOR_CYCLE")
         self.assertEqual(validated.instrument_impacts[0].primary_symbol, "NVDA")
+
+    def test_parse_and_validate_hierarchical_macro_only_output(self) -> None:
+        output = parse_news_ai_output(
+            {
+                "analysis_method": "codex_oauth_hierarchical_v3",
+                "event_summary": "연준 금리 경로가 성장주 할인율 부담을 키운 뉴스다.",
+                "macro_regime_impacts": [
+                    {
+                        "node_code": "MACRO_RATES_FED",
+                        "impact_direction": "risk_review",
+                        "impact_strength": 0.82,
+                        "confidence": 0.88,
+                        "rationale": "금리 경로가 직접 언급됐다.",
+                        "evidence_summary": "연준과 국채금리 상승 압력이 핵심 근거다.",
+                    }
+                ],
+                "domain_impacts": [
+                    {
+                        "node_code": "TECH_DOMAIN",
+                        "impact_direction": "risk_review",
+                        "impact_strength": 0.64,
+                        "confidence": 0.8,
+                        "rationale": "기술주는 할인율 상승에 민감하다.",
+                        "evidence_summary": "성장주 밸류에이션 부담이 연결 근거다.",
+                    }
+                ],
+                "theme_impacts": [],
+                "direct_instrument_impacts": [],
+                "causal_paths": [
+                    {
+                        "path": ["MACRO_RATES_FED", "TECH_DOMAIN"],
+                        "confidence": 0.78,
+                        "rationale": "금리 충격이 기술 도메인으로 전파된다.",
+                    }
+                ],
+                "uncertainty_notes": "개별 기업 뉴스가 아니므로 직접 종목 연결은 제외했다.",
+                "evidence_spans": [
+                    {
+                        "span_text": "Treasury yields spike after Fed comments",
+                        "supports": ["MACRO_RATES_FED"],
+                    }
+                ],
+                "recommendation_relevance": "보유 기술주 리스크 검토 입력으로만 사용한다.",
+            }
+        )
+
+        validated = validate_news_ai_output(output, min_confidence=0.72, executor=FakeExecutor())
+
+        self.assertEqual(len(validated.theme_impacts), 2)
+        self.assertEqual(len(validated.instrument_impacts), 0)
+        self.assertEqual(validated.rejected_impact_count, 0)
+        self.assertEqual(validated.theme_impacts[0].node_code, "MACRO_RATES_FED")
+        self.assertEqual(output.causal_paths[0].path, ("MACRO_RATES_FED", "TECH_DOMAIN"))
+        self.assertEqual(output.evidence_spans[0].supports, ("MACRO_RATES_FED",))
 
     def test_validate_rejects_low_confidence(self) -> None:
         output = parse_news_ai_output(

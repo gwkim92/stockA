@@ -43,7 +43,7 @@ from stockanalysis.ingest.sec.sql import (
 
 DEFAULT_TASK_NAME = "news-rss-ai-extract"
 DEFAULT_PIPELINE_NAME = "event_intelligence_llm_extract"
-DEFAULT_TEMPLATE_VERSION = "2026-05-21-ko-v2"
+DEFAULT_TEMPLATE_VERSION = "2026-05-23-hierarchical-ko-v3"
 FIXTURE_PROVIDER = "fixture"
 CODEX_OAUTH_PROVIDER = "codex_oauth"
 DEFAULT_MODEL_NAME = "codex-cli-default"
@@ -63,21 +63,25 @@ NEWS_AI_OUTPUT_SCHEMA: dict[str, object] = {
     "required": [
         "analysis_method",
         "event_summary",
+        "macro_regime_impacts",
+        "domain_impacts",
         "theme_impacts",
-        "instrument_impacts",
+        "direct_instrument_impacts",
+        "causal_paths",
         "uncertainty_notes",
+        "evidence_spans",
         "recommendation_relevance",
     ],
     "properties": {
         "analysis_method": {"type": "string"},
         "event_summary": {"type": "string"},
-        "theme_impacts": {
+        "macro_regime_impacts": {
             "type": "array",
             "items": {
                 "type": "object",
                 "additionalProperties": False,
                 "required": [
-                    "theme_code",
+                    "node_code",
                     "impact_direction",
                     "impact_strength",
                     "confidence",
@@ -85,7 +89,7 @@ NEWS_AI_OUTPUT_SCHEMA: dict[str, object] = {
                     "evidence_summary",
                 ],
                 "properties": {
-                    "theme_code": {"type": "string"},
+                    "node_code": {"type": "string"},
                     "impact_direction": {"type": "string", "enum": list(ALLOWED_IMPACT_DIRECTIONS)},
                     "impact_strength": {"type": "number", "minimum": 0, "maximum": 1},
                     "confidence": {"type": "number", "minimum": 0, "maximum": 1},
@@ -94,7 +98,53 @@ NEWS_AI_OUTPUT_SCHEMA: dict[str, object] = {
                 },
             },
         },
-        "instrument_impacts": {
+        "domain_impacts": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "additionalProperties": False,
+                "required": [
+                    "node_code",
+                    "impact_direction",
+                    "impact_strength",
+                    "confidence",
+                    "rationale",
+                    "evidence_summary",
+                ],
+                "properties": {
+                    "node_code": {"type": "string"},
+                    "impact_direction": {"type": "string", "enum": list(ALLOWED_IMPACT_DIRECTIONS)},
+                    "impact_strength": {"type": "number", "minimum": 0, "maximum": 1},
+                    "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+                    "rationale": {"type": "string"},
+                    "evidence_summary": {"type": "string"},
+                },
+            },
+        },
+        "theme_impacts": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "additionalProperties": False,
+                "required": [
+                    "node_code",
+                    "impact_direction",
+                    "impact_strength",
+                    "confidence",
+                    "rationale",
+                    "evidence_summary",
+                ],
+                "properties": {
+                    "node_code": {"type": "string"},
+                    "impact_direction": {"type": "string", "enum": list(ALLOWED_IMPACT_DIRECTIONS)},
+                    "impact_strength": {"type": "number", "minimum": 0, "maximum": 1},
+                    "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+                    "rationale": {"type": "string"},
+                    "evidence_summary": {"type": "string"},
+                },
+            },
+        },
+        "direct_instrument_impacts": {
             "type": "array",
             "items": {
                 "type": "object",
@@ -117,7 +167,39 @@ NEWS_AI_OUTPUT_SCHEMA: dict[str, object] = {
                 },
             },
         },
+        "causal_paths": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "additionalProperties": False,
+                "required": ["path", "confidence", "rationale"],
+                "properties": {
+                    "path": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "minItems": 1,
+                    },
+                    "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+                    "rationale": {"type": "string"},
+                },
+            },
+        },
         "uncertainty_notes": {"type": "string"},
+        "evidence_spans": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "additionalProperties": False,
+                "required": ["span_text", "supports"],
+                "properties": {
+                    "span_text": {"type": "string"},
+                    "supports": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                    },
+                },
+            },
+        },
         "recommendation_relevance": {"type": "string"},
     },
 }
@@ -145,6 +227,19 @@ class NewsAiImpactOutput:
 
 
 @dataclass(frozen=True)
+class NewsAiCausalPathOutput:
+    path: tuple[str, ...]
+    confidence: float
+    rationale: str
+
+
+@dataclass(frozen=True)
+class NewsAiEvidenceSpanOutput:
+    span_text: str
+    supports: tuple[str, ...]
+
+
+@dataclass(frozen=True)
 class NewsAiOutput:
     analysis_method: str
     event_summary: str
@@ -152,10 +247,19 @@ class NewsAiOutput:
     instrument_impacts: tuple[NewsAiImpactOutput, ...]
     uncertainty_notes: str
     recommendation_relevance: str
+    macro_regime_impacts: tuple[NewsAiImpactOutput, ...] = ()
+    domain_impacts: tuple[NewsAiImpactOutput, ...] = ()
+    causal_paths: tuple[NewsAiCausalPathOutput, ...] = ()
+    evidence_spans: tuple[NewsAiEvidenceSpanOutput, ...] = ()
 
     @property
     def confidence(self) -> float:
-        impacts = (*self.theme_impacts, *self.instrument_impacts)
+        impacts = (
+            *self.macro_regime_impacts,
+            *self.domain_impacts,
+            *self.theme_impacts,
+            *self.instrument_impacts,
+        )
         if not impacts:
             return 0.0
         return min(1.0, sum(impact.confidence for impact in impacts) / len(impacts))
@@ -164,9 +268,31 @@ class NewsAiOutput:
         return {
             "analysis_method": self.analysis_method,
             "event_summary": self.event_summary,
+            "macro_regime_impacts": [
+                {
+                    "node_code": impact.target,
+                    "impact_direction": impact.impact_direction,
+                    "impact_strength": impact.impact_strength,
+                    "confidence": impact.confidence,
+                    "rationale": impact.rationale,
+                    "evidence_summary": impact.evidence_summary,
+                }
+                for impact in self.macro_regime_impacts
+            ],
+            "domain_impacts": [
+                {
+                    "node_code": impact.target,
+                    "impact_direction": impact.impact_direction,
+                    "impact_strength": impact.impact_strength,
+                    "confidence": impact.confidence,
+                    "rationale": impact.rationale,
+                    "evidence_summary": impact.evidence_summary,
+                }
+                for impact in self.domain_impacts
+            ],
             "theme_impacts": [
                 {
-                    "theme_code": impact.target,
+                    "node_code": impact.target,
                     "impact_direction": impact.impact_direction,
                     "impact_strength": impact.impact_strength,
                     "confidence": impact.confidence,
@@ -174,6 +300,17 @@ class NewsAiOutput:
                     "evidence_summary": impact.evidence_summary,
                 }
                 for impact in self.theme_impacts
+            ],
+            "direct_instrument_impacts": [
+                {
+                    "symbol": impact.target,
+                    "impact_direction": impact.impact_direction,
+                    "impact_strength": impact.impact_strength,
+                    "confidence": impact.confidence,
+                    "rationale": impact.rationale,
+                    "evidence_summary": impact.evidence_summary,
+                }
+                for impact in self.instrument_impacts
             ],
             "instrument_impacts": [
                 {
@@ -186,7 +323,22 @@ class NewsAiOutput:
                 }
                 for impact in self.instrument_impacts
             ],
+            "causal_paths": [
+                {
+                    "path": list(path.path),
+                    "confidence": path.confidence,
+                    "rationale": path.rationale,
+                }
+                for path in self.causal_paths
+            ],
             "uncertainty_notes": self.uncertainty_notes,
+            "evidence_spans": [
+                {
+                    "span_text": span.span_text,
+                    "supports": list(span.supports),
+                }
+                for span in self.evidence_spans
+            ],
             "recommendation_relevance": self.recommendation_relevance,
         }
 
@@ -669,6 +821,24 @@ def build_news_ai_extracted_fields(output: NewsAiOutput) -> list[dict[str, objec
     ]
     fields.extend(
         {
+            "field": "macro_regime_impact",
+            "value": f"{impact.target} / {impact.impact_direction} / {impact.evidence_summary}",
+            "confidence": impact.confidence,
+            "source_chunk_id": "news-ai-macro-regime-impact",
+        }
+        for impact in output.macro_regime_impacts
+    )
+    fields.extend(
+        {
+            "field": "domain_impact",
+            "value": f"{impact.target} / {impact.impact_direction} / {impact.evidence_summary}",
+            "confidence": impact.confidence,
+            "source_chunk_id": "news-ai-domain-impact",
+        }
+        for impact in output.domain_impacts
+    )
+    fields.extend(
+        {
             "field": "theme_impact",
             "value": f"{impact.target} / {impact.impact_direction} / {impact.evidence_summary}",
             "confidence": impact.confidence,
@@ -678,12 +848,30 @@ def build_news_ai_extracted_fields(output: NewsAiOutput) -> list[dict[str, objec
     )
     fields.extend(
         {
-            "field": "instrument_impact",
+            "field": "direct_instrument_impact",
             "value": f"{impact.target} / {impact.impact_direction} / {impact.evidence_summary}",
             "confidence": impact.confidence,
             "source_chunk_id": "news-ai-instrument-impact",
         }
         for impact in output.instrument_impacts
+    )
+    fields.extend(
+        {
+            "field": "causal_path",
+            "value": " -> ".join(path.path) + f" / {path.rationale}",
+            "confidence": path.confidence,
+            "source_chunk_id": "news-ai-causal-path",
+        }
+        for path in output.causal_paths
+    )
+    fields.extend(
+        {
+            "field": "evidence_span",
+            "value": f"{', '.join(span.supports)} / {span.span_text}",
+            "confidence": output.confidence,
+            "source_chunk_id": "news-ai-evidence-span",
+        }
+        for span in output.evidence_spans
     )
     return fields
 
@@ -698,7 +886,7 @@ def validate_news_ai_output(
     validated_instruments: list[ValidatedInstrumentImpact] = []
     rejected = 0
 
-    for impact in output.theme_impacts:
+    for impact in (*output.macro_regime_impacts, *output.domain_impacts, *output.theme_impacts):
         if not _impact_is_valid(impact, min_confidence=min_confidence):
             rejected += 1
             continue
@@ -765,16 +953,32 @@ def parse_news_ai_output(payload: dict[str, object]) -> NewsAiOutput:
     return NewsAiOutput(
         analysis_method=_required_text(payload, "analysis_method"),
         event_summary=_required_text(payload, "event_summary"),
+        macro_regime_impacts=tuple(
+            _parse_impact(item, target_key="node_code")
+            for item in _optional_list(payload, "macro_regime_impacts")
+        ),
+        domain_impacts=tuple(
+            _parse_impact(item, target_key="node_code")
+            for item in _optional_list(payload, "domain_impacts")
+        ),
         theme_impacts=tuple(
-            _parse_impact(item, target_key="theme_code")
+            _parse_impact(item, target_key="node_code", fallback_target_key="theme_code")
             for item in _required_list(payload, "theme_impacts")
         ),
         instrument_impacts=tuple(
             _parse_impact(item, target_key="symbol")
-            for item in _required_list(payload, "instrument_impacts")
+            for item in _optional_list(payload, "direct_instrument_impacts", fallback_key="instrument_impacts")
         ),
         uncertainty_notes=_required_text(payload, "uncertainty_notes"),
         recommendation_relevance=_required_text(payload, "recommendation_relevance"),
+        causal_paths=tuple(
+            _parse_causal_path(item)
+            for item in _optional_list(payload, "causal_paths")
+        ),
+        evidence_spans=tuple(
+            _parse_evidence_span(item)
+            for item in _optional_list(payload, "evidence_spans")
+        ),
     )
 
 
@@ -920,11 +1124,15 @@ def build_codex_oauth_news_ai_prompt(
             "Do not browse, do not call tools, and do not make buy/sell/order recommendations.",
             "Return exactly one JSON object matching the provided output schema.",
             "Write all human-readable natural-language fields in Korean.",
-            "This includes event_summary, rationale, evidence_summary, uncertainty_notes, and recommendation_relevance.",
-            "Keep machine codes and market identifiers unchanged, including theme_code, impact_direction, and ticker symbols.",
-            "Use only theme_code values present in known_themes.",
-            "Use only exchange symbols directly supported by the text or current_event_impacts.",
+            "This includes event_summary, rationale, evidence_summary, uncertainty_notes, causal_paths rationale, evidence_spans span_text, and recommendation_relevance.",
+            "Separate impacts into macro_regime_impacts, domain_impacts, theme_impacts, and direct_instrument_impacts.",
+            "Do not force macro or domain news onto a stock. Use direct_instrument_impacts only when the text clearly names a listed company or ticker.",
+            "Keep machine codes and market identifiers unchanged, including node_code, impact_direction, and ticker symbols.",
+            "Use only node_code values present in known_themes for macro_regime_impacts, domain_impacts, and theme_impacts.",
+            "Use only exchange symbols directly supported by the text or current_event_impacts for direct_instrument_impacts.",
             f"Allowed impact_direction values: {', '.join(ALLOWED_IMPACT_DIRECTIONS)}.",
+            "Use causal_paths to explain the chain, for example MACRO_RATES_FED -> TECH_DOMAIN -> QQQ.",
+            "Use evidence_spans to quote or paraphrase the short source phrase that supports each impact.",
             "If the item is ambiguous, lower confidence and explain uncertainty.",
             "",
             "News metadata:",
@@ -1024,7 +1232,7 @@ values (
     {sql_literal(DEFAULT_TASK_NAME)},
     {sql_literal(DEFAULT_TEMPLATE_VERSION)},
     'Extract RSS news into validated investment evidence, not recommendations.',
-    'Use bounded news and Postgres ontology-lite context to return theme/instrument impacts with Korean evidence and uncertainty.',
+    'Use bounded news and Postgres ontology-lite context to return macro/domain/theme/direct instrument impacts, causal paths, Korean evidence, and uncertainty.',
     {sql_literal(output_schema)}::jsonb,
     true
 )
@@ -1306,7 +1514,12 @@ def _empty_summary(*, as_of_date: date, provider: str, model_name: str) -> dict[
     }
 
 
-def _parse_impact(payload: object, *, target_key: str) -> NewsAiImpactOutput:
+def _parse_impact(
+    payload: object,
+    *,
+    target_key: str,
+    fallback_target_key: str | None = None,
+) -> NewsAiImpactOutput:
     if not isinstance(payload, dict):
         raise ValueError("Impact item must be an object.")
     direction = _required_text(payload, "impact_direction")
@@ -1319,12 +1532,40 @@ def _parse_impact(payload: object, *, target_key: str) -> NewsAiImpactOutput:
     if confidence < 0 or confidence > 1:
         raise ValueError("confidence must be between 0 and 1.")
     return NewsAiImpactOutput(
-        target=_required_text(payload, target_key).upper(),
+        target=_required_text_with_fallback(payload, target_key, fallback_target_key).upper(),
         impact_direction=direction,
         impact_strength=strength,
         confidence=confidence,
         rationale=_required_text(payload, "rationale"),
         evidence_summary=_required_text(payload, "evidence_summary"),
+    )
+
+
+def _parse_causal_path(payload: object) -> NewsAiCausalPathOutput:
+    if not isinstance(payload, dict):
+        raise ValueError("Causal path item must be an object.")
+    raw_path = _required_list(payload, "path")
+    path = tuple(str(item).strip().upper() for item in raw_path if str(item).strip())
+    if not path:
+        raise ValueError("Causal path field `path` must contain at least one item.")
+    confidence = _required_float(payload, "confidence")
+    if confidence < 0 or confidence > 1:
+        raise ValueError("causal path confidence must be between 0 and 1.")
+    return NewsAiCausalPathOutput(
+        path=path,
+        confidence=confidence,
+        rationale=_required_text(payload, "rationale"),
+    )
+
+
+def _parse_evidence_span(payload: object) -> NewsAiEvidenceSpanOutput:
+    if not isinstance(payload, dict):
+        raise ValueError("Evidence span item must be an object.")
+    raw_supports = _required_list(payload, "supports")
+    supports = tuple(str(item).strip() for item in raw_supports if str(item).strip())
+    return NewsAiEvidenceSpanOutput(
+        span_text=_required_text(payload, "span_text"),
+        supports=supports,
     )
 
 
@@ -1356,11 +1597,43 @@ def _required_list(payload: dict[str, object], key: str) -> list[object]:
     return value
 
 
+def _optional_list(
+    payload: dict[str, object],
+    key: str,
+    *,
+    fallback_key: str | None = None,
+) -> list[object]:
+    value = payload.get(key)
+    if value is None and fallback_key is not None:
+        value = payload.get(fallback_key)
+    if value is None:
+        return []
+    if not isinstance(value, list):
+        raise ValueError(f"News AI output field `{key}` must be a list.")
+    return value
+
+
 def _required_text(payload: dict[str, object], key: str) -> str:
     value = payload.get(key)
     text = _optional_text(value)
     if text is None:
         raise ValueError(f"News AI output field `{key}` is required.")
+    return text
+
+
+def _required_text_with_fallback(
+    payload: dict[str, object],
+    key: str,
+    fallback_key: str | None,
+) -> str:
+    value = payload.get(key)
+    if value is None and fallback_key is not None:
+        value = payload.get(fallback_key)
+    text = _optional_text(value)
+    if text is None:
+        if fallback_key is None:
+            raise ValueError(f"News AI output field `{key}` is required.")
+        raise ValueError(f"News AI output field `{key}` or `{fallback_key}` is required.")
     return text
 
 

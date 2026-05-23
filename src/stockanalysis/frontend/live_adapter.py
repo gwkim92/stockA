@@ -7201,20 +7201,45 @@ def _build_ai_evidence_news_candidate_payload(candidate: dict[str, Any]) -> dict
         "event_summary": str(candidate.get("event_summary") or ""),
         "recommendation_relevance": str(candidate.get("recommendation_relevance") or "unknown"),
         "uncertainty_notes": str(candidate.get("uncertainty_notes") or ""),
+        "macro_regime_impacts": [
+            _build_news_candidate_impact_payload(item, target_key="node_code")
+            for item in _as_list(candidate.get("macro_regime_impacts"))
+        ],
+        "domain_impacts": [
+            _build_news_candidate_impact_payload(item, target_key="node_code")
+            for item in _as_list(candidate.get("domain_impacts"))
+        ],
         "theme_impacts": [
-            _build_news_candidate_impact_payload(item, target_key="theme_code")
+            _build_news_candidate_impact_payload(item, target_key="node_code")
             for item in _as_list(candidate.get("theme_impacts"))
         ],
         "instrument_impacts": [
             _build_news_candidate_impact_payload(item, target_key="symbol")
-            for item in _as_list(candidate.get("instrument_impacts"))
+            for item in _as_list(candidate.get("direct_instrument_impacts") or candidate.get("instrument_impacts"))
+        ],
+        "causal_paths": [
+            {
+                "path": [str(path_item) for path_item in _as_list(item.get("path"))],
+                "confidence": _number(item.get("confidence")),
+                "rationale": str(item.get("rationale") or ""),
+            }
+            for item in _as_list(candidate.get("causal_paths"))
+            if isinstance(item, dict)
+        ],
+        "evidence_spans": [
+            {
+                "span_text": str(item.get("span_text") or ""),
+                "supports": [str(support) for support in _as_list(item.get("supports"))],
+            }
+            for item in _as_list(candidate.get("evidence_spans"))
+            if isinstance(item, dict)
         ],
     }
 
 
 def _build_news_candidate_impact_payload(impact: dict[str, Any], *, target_key: str) -> dict[str, Any]:
     return {
-        "target": str(impact.get(target_key) or impact.get("target") or "UNKNOWN"),
+        "target": str(impact.get(target_key) or impact.get("theme_code") or impact.get("node_code") or impact.get("target") or "UNKNOWN"),
         "impact_direction": str(impact.get("impact_direction") or "unknown"),
         "impact_strength": _number(impact.get("impact_strength")),
         "confidence": _number(impact.get("confidence")),
