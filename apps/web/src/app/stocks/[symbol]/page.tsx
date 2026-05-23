@@ -605,6 +605,9 @@ export default async function StockDetailPage({ params }: StockDetailPageProps) 
                     </span>
                     <NewsTitleBlock
                       title={flow.title}
+                      koreanTitle={flow.korean_title}
+                      koreanSummary={flow.korean_summary}
+                      translationConfidence={flow.translation_confidence}
                       symbol={data.symbol}
                       themeKey={flow.theme_key}
                       impactDirection={flow.impact_direction}
@@ -654,6 +657,9 @@ export default async function StockDetailPage({ params }: StockDetailPageProps) 
                     <span className="metric-sub">{formatDate(event.event_at)} • {koCode(event.event_type)}</span>
                     <NewsTitleBlock
                       title={event.title}
+                      koreanTitle={event.korean_title}
+                      koreanSummary={event.korean_summary}
+                      translationConfidence={event.translation_confidence}
                       symbol={data.symbol}
                       impactDirection={event.impact_direction}
                       impactScore={event.impact_score}

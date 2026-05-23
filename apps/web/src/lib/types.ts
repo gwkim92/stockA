@@ -286,6 +286,9 @@ export type StockDetailData = {
   macro_flow_impacts: Array<{
     event_id: string;
     title: string;
+    korean_title?: string | null;
+    korean_summary?: string | null;
+    translation_confidence?: number | null;
     event_type: string;
     event_at: string;
     theme_key: string;
@@ -302,6 +305,9 @@ export type StockDetailData = {
   recent_events: Array<{
     event_id: string;
     title: string;
+    korean_title?: string | null;
+    korean_summary?: string | null;
+    translation_confidence?: number | null;
     event_type: string;
     event_at: string;
     impact_direction: string;
@@ -361,6 +367,9 @@ export type AiEvidenceNeighborhoodData = {
   events: Array<{
     event_id: string;
     title: string;
+    korean_title?: string | null;
+    korean_summary?: string | null;
+    translation_confidence?: number | null;
     event_type: string;
     event_at: string;
     theme_key: string;
@@ -385,6 +394,9 @@ export type AiEvidenceNeighborhoodData = {
     events: Array<{
       event_id: string;
       title: string;
+      korean_title?: string | null;
+      korean_summary?: string | null;
+      translation_confidence?: number | null;
       event_type: string;
       event_at: string;
       theme_key: string;
@@ -502,6 +514,9 @@ export type AiNewsClusterListData = {
     events: Array<{
       event_id: string;
       title: string;
+      korean_title?: string | null;
+      korean_summary?: string | null;
+      translation_confidence?: number | null;
       event_at: string;
       symbol: string;
       impact_direction: string;
@@ -511,6 +526,9 @@ export type AiNewsClusterListData = {
     source_documents: Array<{
       source_document_id: string;
       title: string;
+      korean_title?: string | null;
+      korean_summary?: string | null;
+      translation_confidence?: number | null;
       url: string;
       published_at: string;
       chunk_count: number;
@@ -913,6 +931,9 @@ export type AiEvidenceDetailData = {
     instrument_id: string;
   };
   source_document_id: string;
+  korean_title?: string | null;
+  korean_summary?: string | null;
+  translation_confidence?: number | null;
   classification: {
     theme_key: string;
     theme_name: string;
@@ -981,6 +1002,9 @@ export type AiEvidenceDetailData = {
   cluster_events: Array<{
     event_id: string;
     title: string;
+    korean_title?: string | null;
+    korean_summary?: string | null;
+    translation_confidence?: number | null;
     event_at: string;
     symbol: string;
     impact_direction: string;
@@ -1000,6 +1024,10 @@ export type AiEvidenceDetailData = {
 export type SourceDocumentDetailData = {
   document_id: string;
   title: string;
+  korean_title?: string | null;
+  korean_summary?: string | null;
+  translation_confidence?: number | null;
+  translation_provider?: string | null;
   source_type: string;
   publisher: string;
   symbol: string;
@@ -1053,6 +1081,9 @@ export type EventListData = {
   events: Array<{
     event_id: string;
     title: string;
+    korean_title?: string | null;
+    korean_summary?: string | null;
+    translation_confidence?: number | null;
     event_type: string;
     event_at: string;
     symbol: string;
@@ -1070,6 +1101,9 @@ export type EventListData = {
     related_events: Array<{
       event_id: string;
       title: string;
+      korean_title?: string | null;
+      korean_summary?: string | null;
+      translation_confidence?: number | null;
       relation_type: string;
       relation_strength: number;
       reason: string;

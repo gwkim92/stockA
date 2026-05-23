@@ -50,6 +50,9 @@ function extractSummary(value: string) {
 }
 
 function sourceDocumentDigest(data: SourceDocumentDetailData) {
+  if (data.korean_summary) {
+    return data.korean_summary;
+  }
   const target = isKnownCode(data.symbol) ? `${koCode(data.symbol)} 관련` : `${koCode(data.source_type)} 원천`;
   const topic = inferKoreanTopic(`${data.title} ${data.excerpts.map((excerpt) => excerpt.summary).join(" ")}`);
   return `${target} ${topic} 문서다. 영어 원문을 먼저 읽지 말고, 연결된 AI 근거와 발췌의 한국어 검토 요약으로 테마·종목·방향 해석이 맞는지 확인한다.`;
@@ -121,7 +124,14 @@ export default async function SourceDocumentPage({ params }: SourceDocumentPageP
         <article className="bento-card span-2" style={{ background: "var(--bg-card-hover)", borderColor: "var(--border-focus)" }}>
           <div style={{ marginBottom: "24px" }}>
             <span className="metric-sub">문서</span>
-            <NewsTitleBlock title={data.title} summary={sourceDocumentDigest(data)} symbol={data.symbol} />
+            <NewsTitleBlock
+              title={data.title}
+              summary={sourceDocumentDigest(data)}
+              koreanTitle={data.korean_title}
+              koreanSummary={data.korean_summary}
+              translationConfidence={data.translation_confidence}
+              symbol={data.symbol}
+            />
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
             <div>

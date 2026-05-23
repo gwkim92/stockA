@@ -140,6 +140,7 @@ class OperatingDataOrchestratorTests(unittest.TestCase):
                 "news-rss-ingest",
                 "news-missing-instrument-bootstrap",
                 "news-rss-enrichment",
+                "news-korean-translation",
                 "news-cluster-evidence",
                 "news-ai-evidence",
                 "macro-event-propagation",
@@ -147,14 +148,18 @@ class OperatingDataOrchestratorTests(unittest.TestCase):
         )
         bootstrap_command = " ".join(report["planned_steps"][1]["command_argv"])
         self.assertIn("news-missing-instrument-bootstrap-run", bootstrap_command)
-        cluster_command = " ".join(report["planned_steps"][3]["command_argv"])
+        translation_command = " ".join(report["planned_steps"][3]["command_argv"])
+        self.assertIn("news-rss-translation-run", translation_command)
+        self.assertIn("--provider codex_oauth", translation_command)
+        self.assertIn("--execute", translation_command)
+        cluster_command = " ".join(report["planned_steps"][4]["command_argv"])
         self.assertIn("news-rss-cluster-evidence-run", cluster_command)
         self.assertIn("--as-of-date 2026-05-20", cluster_command)
-        ai_command = " ".join(report["planned_steps"][4]["command_argv"])
+        ai_command = " ".join(report["planned_steps"][5]["command_argv"])
         self.assertIn("news-rss-ai-extract-run", ai_command)
         self.assertIn("--provider codex_oauth", ai_command)
         self.assertIn("--execute", ai_command)
-        propagation_command = " ".join(report["planned_steps"][5]["command_argv"])
+        propagation_command = " ".join(report["planned_steps"][6]["command_argv"])
         self.assertIn("macro-event-propagation-run", propagation_command)
         self.assertIn("--as-of-date 2026-05-20", propagation_command)
         self.assertIn("--execute", propagation_command)

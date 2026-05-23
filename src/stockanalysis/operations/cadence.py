@@ -144,6 +144,18 @@ DATA_OPERATION_CADENCES: tuple[DataOperationCadence, ...] = (
         data_health_dataset="event.event",
     ),
     DataOperationCadence(
+        job_id="news-korean-translation-intraday",
+        pipeline_name="news_rss_korean_translation",
+        domain="ai",
+        cadence="intraday",
+        command_template="stockanalysis-operations news-rss-translation-run --env-file <ENV> --provider codex_oauth --execute",
+        expected_after_local="09:07",
+        stale_after_hours=4,
+        artifact_policy="stdout_json_and_stderr_log",
+        required_env_groups=("database", "openai_or_llm_provider"),
+        data_health_dataset="ingest.source_document",
+    ),
+    DataOperationCadence(
         job_id="sec-filings-weekly",
         pipeline_name="sec_filings_upsert",
         domain="sec",

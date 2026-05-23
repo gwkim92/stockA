@@ -3,6 +3,9 @@ import { koCode, koLabel } from "@/lib/korean-labels";
 type NewsTitleBlockProps = {
   title: string;
   summary?: string | null;
+  koreanTitle?: string | null;
+  koreanSummary?: string | null;
+  translationConfidence?: number | null;
   symbol?: string | null;
   themeKey?: string | null;
   impactDirection?: string | null;
@@ -49,6 +52,12 @@ function interpretationParts(props: NewsTitleBlockProps) {
 }
 
 function koreanDigest(props: NewsTitleBlockProps, rawTitle: string, summary: string | null | undefined) {
+  const storedTitle = props.koreanTitle?.trim();
+  const storedSummary = props.koreanSummary?.trim();
+  if (storedTitle) {
+    return storedSummary && storedSummary !== storedTitle ? `${storedTitle} · ${storedSummary}` : storedTitle;
+  }
+
   const candidate = summary?.trim() || rawTitle;
   const translated = koLabel(candidate);
   if (hasHangul(candidate) && !isLikelyEnglish(candidate)) {
@@ -75,11 +84,14 @@ export function NewsTitleBlock(props: NewsTitleBlockProps) {
   const englishOriginal = isLikelyEnglish(rawTitle);
   const digest = koreanDigest(props, rawTitle, summary);
   const parts = interpretationParts(props);
+  const confidence = formatPercent(props.translationConfidence);
+  const hasStoredTranslation = Boolean(props.koreanTitle?.trim() || props.koreanSummary?.trim());
 
   return (
     <div className={props.compact ? "news-title-block news-title-block-compact" : "news-title-block"}>
-      <span>{englishOriginal || hasSummary ? "한국어 확인" : "제목"}</span>
+      <span>{hasStoredTranslation ? "한국어 번역" : englishOriginal || hasSummary ? "한국어 확인" : "제목"}</span>
       <strong>{digest}</strong>
+      {hasStoredTranslation && confidence ? <small>번역 신뢰도 {confidence}</small> : null}
       {parts.length > 0 ? <small>화면 해석: {parts.join(" · ")}</small> : null}
       {englishOriginal ? (
         <details className="news-original-title">

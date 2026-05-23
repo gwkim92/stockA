@@ -48,6 +48,10 @@ class DataOperationsCadenceTests(unittest.TestCase):
         enrichment_job = next(job for job in report["jobs"] if job["job_id"] == "news-rss-enrichment-intraday")
         self.assertEqual(enrichment_job["pipeline_name"], "news_rss_event_enrichment")
         self.assertEqual(enrichment_job["cadence"], "intraday")
+        translation_job = next(job for job in report["jobs"] if job["job_id"] == "news-korean-translation-intraday")
+        self.assertEqual(translation_job["pipeline_name"], "news_rss_korean_translation")
+        self.assertIn("news-rss-translation-run", translation_job["command_template"])
+        self.assertIn("openai_or_llm_provider", translation_job["required_env_groups"])
 
     def test_cadence_filter_limits_jobs(self) -> None:
         jobs = list_data_operation_cadences(cadence="daily")

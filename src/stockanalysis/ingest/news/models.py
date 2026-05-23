@@ -86,6 +86,9 @@ class NewsRssClusterEvidenceEvent:
     impact_direction: str
     impact_score: float | None
     symbol: str | None
+    korean_title: str | None = None
+    korean_summary: str | None = None
+    translation_confidence: float | None = None
 
 
 @dataclass(frozen=True)

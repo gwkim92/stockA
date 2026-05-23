@@ -97,6 +97,9 @@ function CandidateCard({ event }: { event: NewsCandidateEvent }) {
           </span>
           <NewsTitleBlock
             title={event.title}
+            koreanTitle={event.korean_title}
+            koreanSummary={event.korean_summary}
+            translationConfidence={event.translation_confidence}
             symbol={event.symbol}
             themeKey={event.theme_key}
             impactDirection={event.impact_direction}

@@ -113,11 +113,14 @@ class NewsRssClusterEvidence:
                     "impact_direction": event.impact_direction,
                     "impact_score": event.impact_score,
                     "symbol": event.symbol,
+                    "korean_title": event.korean_title,
+                    "korean_summary": event.korean_summary,
                 }
                 for event in self.events
             ],
             "story_key": self.story_key,
             "theme_key": self.theme_key,
+            "translation_payload_version": "2026-05-23",
         }
         encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
         return hashlib.sha256(encoded).hexdigest()
@@ -192,6 +195,9 @@ class NewsRssClusterEvidence:
                     "impact_direction": event.impact_direction,
                     "impact_score": event.impact_score,
                     "source_document_id": event.external_document_id,
+                    "korean_title": event.korean_title,
+                    "korean_summary": event.korean_summary,
+                    "translation_confidence": event.translation_confidence,
                 }
                 for event in self.events[:10]
             ],
@@ -374,6 +380,11 @@ def load_news_rss_cluster_evidence_events(
             impact_direction=str(item.get("impact_direction") or "watch"),
             impact_score=float(item["impact_score"]) if item.get("impact_score") is not None else None,
             symbol=str(item["symbol"]).upper() if item.get("symbol") else None,
+            korean_title=item.get("korean_title"),
+            korean_summary=item.get("korean_summary"),
+            translation_confidence=float(item["translation_confidence"])
+            if item.get("translation_confidence") is not None
+            else None,
         )
         for item in payload
     )

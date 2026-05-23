@@ -1323,6 +1323,9 @@ def build_live_ai_evidence_detail_response(
                 "instrument_id": _opaque_id("instrument", instrument.get("instrument_id"), "unknown"),
             },
             "source_document_id": _source_document_detail_id_from_raw(state.get("source_document_id")),
+            "korean_title": _optional_text(state.get("korean_title")),
+            "korean_summary": _optional_text(state.get("korean_summary")),
+            "translation_confidence": _number(state.get("translation_confidence")),
             "classification": {
                 "theme_key": str(classification.get("theme_key") or "UNCLASSIFIED"),
                 "theme_name": str(classification.get("theme_name") or "Unclassified"),
@@ -1377,6 +1380,10 @@ def build_live_source_document_detail_response(
         "data": {
             "document_id": _source_document_detail_id(state, identifier),
             "title": str(state.get("title") or ""),
+            "korean_title": _optional_text(state.get("korean_title")),
+            "korean_summary": _optional_text(state.get("korean_summary")),
+            "translation_confidence": _number(state.get("translation_confidence")),
+            "translation_provider": _optional_text(state.get("translation_provider")),
             "source_type": str(state.get("source_type") or "source_document"),
             "publisher": str(state.get("publisher") or "unknown"),
             "symbol": str(state.get("symbol") or "UNKNOWN").upper(),
@@ -2526,6 +2533,9 @@ raw_recent_events as (
         coalesce(impact.impact_strength, event_row.significance_score) as impact_score,
         source_document.external_document_id as source_document_id,
         source_document.document_id as raw_source_document_id,
+        source_document.korean_title,
+        source_document.korean_summary,
+        source_document.translation_confidence,
         source_document.url as source_url,
         source_document.checksum as source_checksum,
         evidence.artifact_id as ai_evidence_id
@@ -2566,6 +2576,9 @@ recent_events as (
             impact_score,
             source_document_id,
             raw_source_document_id,
+            korean_title,
+            korean_summary,
+            translation_confidence,
             source_url,
             source_checksum,
             ai_evidence_id
@@ -2597,6 +2610,9 @@ macro_flow_impacts as (
         propagated_impact.rationale,
         source_document.external_document_id as source_document_id,
         source_document.document_id as raw_source_document_id,
+        source_document.korean_title,
+        source_document.korean_summary,
+        source_document.translation_confidence,
         evidence.artifact_id as ai_evidence_id,
         propagated_impact.source_run_id
     from signal.propagated_instrument_impact propagated_impact
@@ -2708,6 +2724,9 @@ select json_build_object(
                 json_build_object(
                     'event_id', event_id,
                     'title', title,
+                    'korean_title', korean_title,
+                    'korean_summary', korean_summary,
+                    'translation_confidence', translation_confidence,
                     'event_type', event_type,
                     'event_at', event_at,
                     'theme_key', theme_key,
@@ -2735,6 +2754,9 @@ select json_build_object(
                 json_build_object(
                     'event_id', event_id,
                     'title', title,
+                    'korean_title', korean_title,
+                    'korean_summary', korean_summary,
+                    'translation_confidence', translation_confidence,
                     'event_type', event_type,
                     'event_at', event_at,
                     'impact_direction', impact_direction,
@@ -3292,6 +3314,9 @@ with event_rows_before_quality_filter as (
         ) as impact_score,
         source_document.external_document_id as source_document_id,
         source_document.document_id as raw_source_document_id,
+        source_document.korean_title,
+        source_document.korean_summary,
+        source_document.translation_confidence,
         coalesce(source_data_source.source_name, '') as source_name,
         evidence.artifact_id as ai_evidence_id,
         evidence.artifact_type as ai_evidence_type,
@@ -3476,6 +3501,9 @@ select json_build_object(
                     'impact_score', impact_score,
                     'source_document_id', source_document_id,
                     'raw_source_document_id', raw_source_document_id,
+                    'korean_title', korean_title,
+                    'korean_summary', korean_summary,
+                    'translation_confidence', translation_confidence,
                     'ai_evidence_id', ai_evidence_id,
                     'ai_evidence_type', ai_evidence_type,
                     'ai_evidence_provider', ai_evidence_provider,
@@ -3488,6 +3516,9 @@ select json_build_object(
                                 json_build_object(
                                     'event_id', related.event_id,
                                     'title', related.title,
+                                    'korean_title', related.korean_title,
+                                    'korean_summary', related.korean_summary,
+                                    'translation_confidence', related.translation_confidence,
                                     'relation_type', related.relation_type,
                                     'relation_strength', related.relation_strength,
                                     'reason', related.reason,
@@ -3501,6 +3532,9 @@ select json_build_object(
                                 select
                                     candidate.event_id,
                                     candidate.title,
+                                    candidate.korean_title,
+                                    candidate.korean_summary,
+                                    candidate.translation_confidence,
                                     candidate.event_at,
                                     candidate.primary_symbol,
                                     candidate.theme_key,
@@ -3651,6 +3685,9 @@ cluster_event_documents as (
         source_document.document_id,
         source_document.external_document_id,
         source_document.title,
+        source_document.korean_title,
+        source_document.korean_summary,
+        source_document.translation_confidence,
         source_document.url,
         source_document.published_at
     from cluster_artifacts
@@ -3664,6 +3701,9 @@ cluster_event_documents as (
         source_document.document_id,
         source_document.external_document_id,
         source_document.title,
+        source_document.korean_title,
+        source_document.korean_summary,
+        source_document.translation_confidence,
         source_document.url,
         source_document.published_at
     from cluster_artifacts
@@ -3796,6 +3836,9 @@ select json_build_object(
                                 json_build_object(
                                     'source_document_id', source_document.external_document_id,
                                     'title', source_document.title,
+                                    'korean_title', source_document.korean_title,
+                                    'korean_summary', source_document.korean_summary,
+                                    'translation_confidence', source_document.translation_confidence,
                                     'url', source_document.url,
                                     'published_at', source_document.published_at,
                                     'chunk_count', coalesce(document_stats.chunk_count, 0),
@@ -3808,6 +3851,9 @@ select json_build_object(
                                     document_id,
                                     external_document_id,
                                     title,
+                                    korean_title,
+                                    korean_summary,
+                                    translation_confidence,
                                     url,
                                     published_at
                                 from cluster_event_documents
@@ -5176,6 +5222,9 @@ select json_build_object(
         'instrument_id', (select instrument_id from instrument_row)
     ),
     'source_document_id', coalesce((select external_document_id from selected_document), (select document_id::text from selected_document)),
+    'korean_title', (select korean_title from selected_document),
+    'korean_summary', (select korean_summary from selected_document),
+    'translation_confidence', (select translation_confidence from selected_document),
     'classification',
     json_build_object(
         'theme_key', (select theme_key from classification_row),
@@ -5305,6 +5354,10 @@ linked_evidence as (
 select json_build_object(
     'document_id', coalesce((select external_document_id from selected_document), (select document_id::text from selected_document)),
     'title', (select title from selected_document),
+    'korean_title', (select korean_title from selected_document),
+    'korean_summary', (select korean_summary from selected_document),
+    'translation_confidence', (select translation_confidence from selected_document),
+    'translation_provider', (select translation_provider from selected_document),
     'source_type', (select document_type from selected_document),
     'publisher', (select source_name from selected_document),
     'symbol', (select primary_symbol from instrument_row),
@@ -5815,6 +5868,9 @@ def _build_stock_event_payload(event: dict[str, Any]) -> dict[str, Any]:
     return {
         "event_id": _opaque_id("event", event.get("event_id"), "unknown"),
         "title": str(event.get("title") or ""),
+        "korean_title": _optional_text(event.get("korean_title")),
+        "korean_summary": _optional_text(event.get("korean_summary")),
+        "translation_confidence": _number(event.get("translation_confidence")),
         "event_type": str(event.get("event_type") or "unknown"),
         "event_at": _timestamp(event.get("event_at")),
         "impact_direction": str(event.get("impact_direction") or "unknown"),
@@ -5833,6 +5889,9 @@ def _build_stock_macro_flow_payload(flow: dict[str, Any]) -> dict[str, Any]:
     return {
         "event_id": _opaque_id("event", flow.get("event_id"), "unknown"),
         "title": str(flow.get("title") or ""),
+        "korean_title": _optional_text(flow.get("korean_title")),
+        "korean_summary": _optional_text(flow.get("korean_summary")),
+        "translation_confidence": _number(flow.get("translation_confidence")),
         "event_type": str(flow.get("event_type") or "unknown"),
         "event_at": _timestamp(flow.get("event_at")),
         "theme_key": str(flow.get("theme_key") or ""),
@@ -6142,6 +6201,9 @@ def _build_event_payload(event: dict[str, Any]) -> dict[str, Any]:
     return {
         "event_id": _opaque_id("event", event.get("event_id"), "unknown"),
         "title": str(event.get("title") or ""),
+        "korean_title": _optional_text(event.get("korean_title")),
+        "korean_summary": _optional_text(event.get("korean_summary")),
+        "translation_confidence": _number(event.get("translation_confidence")),
         "event_type": str(event.get("event_type") or "unknown"),
         "event_at": _timestamp(event.get("event_at")),
         "symbol": symbol,
@@ -6167,6 +6229,9 @@ def _build_related_event_payload(event: dict[str, Any]) -> dict[str, Any]:
     return {
         "event_id": _opaque_id("event", event.get("event_id"), "unknown"),
         "title": str(event.get("title") or ""),
+        "korean_title": _optional_text(event.get("korean_title")),
+        "korean_summary": _optional_text(event.get("korean_summary")),
+        "translation_confidence": _number(event.get("translation_confidence")),
         "relation_type": str(event.get("relation_type") or "related"),
         "relation_strength": _number(event.get("relation_strength")),
         "reason": str(event.get("reason") or ""),
@@ -6289,6 +6354,9 @@ def _build_ai_news_cluster_source_document_payload(document: dict[str, Any]) -> 
     return {
         "source_document_id": _source_document_detail_id_from_raw(document.get("source_document_id")),
         "title": str(document.get("title") or ""),
+        "korean_title": _optional_text(document.get("korean_title")),
+        "korean_summary": _optional_text(document.get("korean_summary")),
+        "translation_confidence": _number(document.get("translation_confidence")),
         "url": str(document.get("url") or ""),
         "published_at": _timestamp(document.get("published_at")),
         "chunk_count": int(document.get("chunk_count") or 0),
@@ -7100,6 +7168,9 @@ def _build_ai_evidence_cluster_event_payload(event: dict[str, Any]) -> dict[str,
     return {
         "event_id": _opaque_id("event", event.get("event_id"), "unknown"),
         "title": str(event.get("title") or ""),
+        "korean_title": _optional_text(event.get("korean_title")),
+        "korean_summary": _optional_text(event.get("korean_summary")),
+        "translation_confidence": _number(event.get("translation_confidence")),
         "event_at": _timestamp(event.get("event_at")),
         "symbol": str(event.get("symbol") or "UNKNOWN").upper(),
         "impact_direction": str(event.get("impact_direction") or "unknown"),

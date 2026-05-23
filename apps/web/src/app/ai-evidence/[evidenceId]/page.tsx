@@ -376,6 +376,9 @@ function NeighborhoodPanel({ neighborhood }: { neighborhood: EvidenceNeighborhoo
               <NewsTitleBlock
                 compact
                 title={event.title}
+                koreanTitle={event.korean_title}
+                koreanSummary={event.korean_summary}
+                translationConfidence={event.translation_confidence}
                 themeKey={event.theme_key}
                 impactDirection={event.impact_direction}
                 impactScore={event.impact_score}
@@ -601,6 +604,9 @@ export default async function AiEvidencePage({ params }: AiEvidencePageProps) {
                       <NewsTitleBlock
                         compact
                         title={event.title}
+                        koreanTitle={event.korean_title}
+                        koreanSummary={event.korean_summary}
+                        translationConfidence={event.translation_confidence}
                         symbol={event.symbol}
                         themeKey={cluster.theme_key}
                         impactDirection={event.impact_direction}

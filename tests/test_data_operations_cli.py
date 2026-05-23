@@ -1236,6 +1236,55 @@ class DataOperationsCliTests(unittest.TestCase):
             self.assertEqual(call_kwargs["min_confidence"], 0.75)
             self.assertFalse(call_kwargs["execute"])
 
+    def test_news_rss_translation_run_command_passes_env_and_provider_limits(self) -> None:
+        with tempfile.TemporaryDirectory() as repo_root, tempfile.TemporaryDirectory() as outside_root:
+            env_file = Path(outside_root) / "data-operations.env"
+            env_file.write_text('STOCKANALYSIS_PSQL_COMMAND="docker exec psql"\n', encoding="utf-8")
+            stdout = io.StringIO()
+
+            with patch("stockanalysis.operations.cli.run_news_rss_translation") as runner_mock:
+                runner_mock.return_value = {
+                    "report_name": "news_rss_korean_translation",
+                    "status": "planned",
+                    "failed_document_count": 0,
+                }
+                exit_code = main(
+                    [
+                        "news-rss-translation-run",
+                        "--repo-root",
+                        repo_root,
+                        "--env-file",
+                        str(env_file),
+                        "--as-of-date",
+                        "2026-05-23",
+                        "--limit",
+                        "7",
+                        "--provider",
+                        "codex_oauth",
+                        "--model-name",
+                        "codex-cli-default",
+                        "--reasoning-effort",
+                        "low",
+                        "--max-input-chars",
+                        "1800",
+                        "--dry-run",
+                    ],
+                    stdout=stdout,
+                )
+
+            self.assertEqual(exit_code, 0)
+            payload = json.loads(stdout.getvalue())
+            self.assertEqual(payload["report_name"], "news_rss_korean_translation")
+            call_kwargs = runner_mock.call_args.kwargs
+            self.assertEqual(call_kwargs["config"].psql_command, "docker exec psql")
+            self.assertEqual(call_kwargs["as_of_date"], date(2026, 5, 23))
+            self.assertEqual(call_kwargs["limit"], 7)
+            self.assertEqual(call_kwargs["provider"], "codex_oauth")
+            self.assertEqual(call_kwargs["model_name"], "codex-cli-default")
+            self.assertEqual(call_kwargs["reasoning_effort"], "low")
+            self.assertEqual(call_kwargs["max_input_chars"], 1800)
+            self.assertFalse(call_kwargs["execute"])
+
     def test_news_rss_ai_extract_run_does_not_fail_exit_on_candidate_fallback(self) -> None:
         with tempfile.TemporaryDirectory() as repo_root, tempfile.TemporaryDirectory() as outside_root:
             env_file = Path(outside_root) / "data-operations.env"

@@ -419,7 +419,10 @@ def render_news_rss_cluster_evidence_event_candidates_sql(*, as_of_date: date, l
             'theme_name', theme_name,
             'impact_direction', impact_direction,
             'impact_score', impact_score,
-            'symbol', symbol
+            'symbol', symbol,
+            'korean_title', korean_title,
+            'korean_summary', korean_summary,
+            'translation_confidence', translation_confidence
         )
         order by event_at desc, event_id desc
     ),
@@ -432,6 +435,9 @@ from (
         e.event_type,
         e.title,
         e.summary,
+        d.korean_title,
+        d.korean_summary,
+        d.translation_confidence,
         e.event_at,
         ds.source_name,
         d.external_document_id,
@@ -793,6 +799,142 @@ def render_news_rss_ai_retrieval_context_sql(*, event_id: int, as_of_date: date,
         '[]'::json
     )
 )::text;"""
+
+
+def render_news_rss_translation_candidates_sql(
+    *,
+    as_of_date: date,
+    limit: int,
+) -> str:
+    if limit <= 0:
+        raise ValueError("limit must be greater than 0")
+    return f"""select coalesce(
+    json_agg(
+        json_build_object(
+            'event_id', event_id,
+            'document_id', document_id,
+            'title', title,
+            'summary', summary,
+            'korean_title', korean_title,
+            'korean_summary', korean_summary,
+            'translation_confidence', translation_confidence,
+            'published_at', published_at,
+            'source_name', source_name,
+            'external_document_id', external_document_id,
+            'source_url', source_url,
+            'existing_theme_code', existing_theme_code,
+            'existing_instrument_symbol', existing_instrument_symbol,
+            'impact_direction', impact_direction,
+            'impact_score', impact_score
+        )
+        order by rank_bucket, published_at desc nulls last, document_id desc
+    ),
+    '[]'::json
+)::text
+from (
+    select
+        e.event_id,
+        d.document_id,
+        d.title,
+        coalesce(d.summary, e.summary, '') as summary,
+        d.korean_title,
+        d.korean_summary,
+        d.translation_confidence,
+        d.published_at,
+        ds.source_name,
+        d.external_document_id,
+        d.url as source_url,
+        theme.code as existing_theme_code,
+        instrument.primary_symbol as existing_instrument_symbol,
+        coalesce(instrument_impact.impact_direction, classification_impact.impact_direction, e.impact_polarity)
+            as impact_direction,
+        coalesce(instrument_impact.impact_strength, classification_impact.impact_strength, e.significance_score)
+            as impact_score,
+        case
+            when d.korean_title is null then 0
+            when d.korean_summary is null then 1
+            else 2
+        end as rank_bucket
+    from ingest.source_document d
+    left join ingest.data_source ds
+      on ds.data_source_id = d.data_source_id
+    left join event.event_document_link document_link
+      on document_link.document_id = d.document_id
+     and document_link.link_type = 'source'
+    left join event.event e
+      on e.event_id = document_link.event_id
+    left join lateral (
+        select
+            impact.node_id,
+            impact.impact_direction,
+            impact.impact_strength
+        from event.event_classification_impact impact
+        join ref.classification_node impact_theme
+          on impact_theme.node_id = impact.node_id
+         and impact_theme.taxonomy_family = 'internal_theme'
+        where impact.event_id = e.event_id
+        order by
+            impact.confidence desc nulls last,
+            impact.impact_strength desc nulls last,
+            impact_theme.code
+        limit 1
+    ) classification_impact on true
+    left join ref.classification_node theme
+      on theme.node_id = classification_impact.node_id
+     and theme.taxonomy_family = 'internal_theme'
+    left join lateral (
+        select
+            impact.instrument_id,
+            impact.impact_direction,
+            impact.impact_strength
+        from event.event_instrument_impact impact
+        join ref.instrument impact_instrument
+          on impact_instrument.instrument_id = impact.instrument_id
+        where impact.event_id = e.event_id
+        order by
+            impact.confidence desc nulls last,
+            impact.impact_strength desc nulls last,
+            impact_instrument.primary_symbol
+        limit 1
+    ) instrument_impact on true
+    left join ref.instrument instrument
+      on instrument.instrument_id = instrument_impact.instrument_id
+    where d.document_type = 'news_rss_item'
+      and d.title is not null
+      and btrim(d.title) <> ''
+      and coalesce(d.published_at, e.event_at, now()) < ({sql_literal(as_of_date.isoformat())}::date + interval '1 day')
+      and (
+          d.korean_title is null
+          or btrim(coalesce(d.korean_title, '')) = ''
+          or d.korean_summary is null
+          or btrim(coalesce(d.korean_summary, '')) = ''
+      )
+    order by rank_bucket, d.published_at desc nulls last, d.document_id desc
+    limit {limit}
+) candidates;"""
+
+
+def render_source_document_translation_update_sql(
+    *,
+    document_id: int,
+    korean_title: str,
+    korean_summary: str,
+    translation_confidence: float,
+    translation_provider: str,
+    translation_model_name: str,
+    translation_invocation_id: int,
+) -> str:
+    return f"""update ingest.source_document
+set
+    korean_title = {sql_literal(korean_title)},
+    korean_summary = {sql_literal(korean_summary)},
+    translation_confidence = {translation_confidence:.4f}::numeric,
+    translation_provider = {sql_literal(translation_provider)},
+    translation_model_name = {sql_literal(translation_model_name)},
+    translation_invocation_id = {translation_invocation_id}::bigint,
+    translated_at = now()
+where document_id = {document_id}
+returning document_id::text;"""
 
 
 def render_classification_node_lookup_by_code_sql(theme_code: str) -> str:
