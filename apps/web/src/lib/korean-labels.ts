@@ -293,7 +293,7 @@ const KOREAN_LABELS: Record<string, string> = {
   installed_on_ec2_systemd: "EC2 반복 실행기 설치 완료",
   day_missing: "오늘 예산 기록 없음",
   "portfolio.position snapshot": "포트폴리오 포지션 스냅샷",
-  "template rendered placeholder pending": "템플릿 렌더링됨, 실제 값 대기",
+  "template rendered placeholder pending": "화면 구성 완료, 실제 데이터 연결 대기",
   "explicit skip dates": "명시 휴장일 사용",
   "data-operations-live-scheduler-activation-request": "스케줄러 활성화 요청 단계",
   blocked_pending_manual_approval: "수동 승인 대기",

@@ -242,7 +242,7 @@ export default async function PerformancePage() {
 
           <div className="bento-list">
             {quality.checks.length === 0 ? (
-              <p className="empty-state">아직 실행된 품질 관문이 없다. 성과 측정 배치가 생성되면 여기에 검토 항목이 표시된다.</p>
+              <p className="empty-state">아직 성과 검토 기준이 실행되지 않았다. 성과 측정이 생성되면 여기에 확인 항목이 표시된다.</p>
             ) : null}
             {quality.checks.map((check) => (
               <div className="bento-list-item" key={check.check_key} style={{ alignItems: "flex-start" }}>
@@ -266,7 +266,7 @@ export default async function PerformancePage() {
               <h2 style={{ fontSize: "1.5rem" }}>추천 책임 추적</h2>
             </div>
             <Link className="btn btn-secondary" href="/portfolio/coverage">
-              커버리지 관문 열기
+              커버리지 확인 열기
             </Link>
           </div>
           <div className="bento-list">
@@ -372,7 +372,7 @@ export default async function PerformancePage() {
 
         <article className="bento-card span-4">
           <div style={{ marginBottom: "24px" }}>
-            <span className="metric-sub">품질 관문</span>
+            <span className="metric-sub">성과 검토 기준</span>
             <h2 style={{ fontSize: "1.5rem" }}>성과를 과대 해석하지 않기</h2>
           </div>
           <div className="bento-list">

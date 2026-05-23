@@ -33,7 +33,7 @@ function evidenceLinkLabel(evidence: ThesisEvidence) {
     || evidence.evidence_id.startsWith("event-")
     || evidence.evidence_id.startsWith("sec-event-")
   ) {
-    return "이벤트 원장 열기";
+    return "관련 뉴스·공시 보기";
   }
   return "근거 화면 열기";
 }
@@ -444,9 +444,9 @@ export default async function ThesisPage({ params }: ThesisPageProps) {
                       {evidenceLinkLabel(evidence)}
                     </Link>
                   ) : (
-                    <span className="metric-sub">{evidenceLinkLabel(evidence)} 준비 중</span>
+                    <span className="metric-sub">연결된 근거 화면 없음</span>
                   )}
-                  <AuditMetadata items={evidenceMetadata(evidence)} summary="추적 ID 보기" />
+                  <AuditMetadata items={evidenceMetadata(evidence)} summary="근거 연결 정보 보기" />
                 </div>
               );
             })}

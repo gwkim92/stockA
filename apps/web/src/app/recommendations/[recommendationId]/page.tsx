@@ -32,7 +32,7 @@ function themeHref(themeKey: string | null | undefined) {
 
 function formatMetricValue(value: number | null | undefined) {
   if (value === null || value === undefined) {
-    return "값 없음";
+    return "아직 계산되지 않음";
   }
   if (Math.abs(value) < 1) {
     return formatPercent(value);
@@ -604,7 +604,7 @@ export default async function RecommendationPage({ params }: RecommendationPageP
                           {evidenceLinkLabel(component.evidence_id)}
                         </Link>
                       ) : (
-                        <span>상세 화면 준비 중</span>
+                        <span>연결된 상세 근거 없음</span>
                       )}
                     </div>
                     <AuditMetadata items={provenanceMetadata(component)} summary="계산 입력 상세 보기" />

@@ -27,7 +27,7 @@ export default async function PortfolioCoveragePage() {
         </div>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "24px", flexWrap: "wrap" }}>
           <div>
-            <h1 style={{ fontSize: "clamp(2.5rem, 4vw, 4rem)", marginBottom: "16px" }}>포트폴리오 커버리지 관문</h1>
+            <h1 style={{ fontSize: "clamp(2.5rem, 4vw, 4rem)", marginBottom: "16px" }}>포트폴리오 커버리지 확인</h1>
             <p style={{ color: "var(--text-secondary)", fontSize: "1.1rem", maxWidth: "700px" }}>
               투자 논리 연결과 성과 측정을 분리해서 본다. 투자 논리가 연결되면 보유 검토는 가능하지만,
               장기 성과 측정 window가 아직 끝나지 않으면 성과 귀속은 계속 대기 상태로 남는다.
