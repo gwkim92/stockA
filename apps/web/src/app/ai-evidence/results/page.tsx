@@ -7,7 +7,7 @@ import {
   isKnownNewsCode,
 } from "@/components/news-event-card";
 import { getAiNewsClusters, getEvents } from "@/lib/frontend-api";
-import { koCode } from "@/lib/korean-labels";
+import { koCode, koLabel } from "@/lib/korean-labels";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "구조화 결과" };
@@ -36,12 +36,12 @@ export default async function StructuredResultsPage() {
         <div>
           <div className="bento-badge">구조화 결과 · {candidateData.as_of_date}</div>
           <h1 className="page-title" id="structured-results-title">
-            검증을 통과한 AI 결과만 따로 본다.
+            추천 입력으로 넘어갈 수 있는 AI 결과를 따로 본다.
           </h1>
         </div>
         <p className="page-lede">
-          이 화면은 AI가 무엇을 추출했고 어디에 연결했는지 보여준다. 수집 뉴스, 1차 태그 검수,
-          차단 후보는 각각 별도 화면으로 분리했다.
+          이 화면은 AI가 어떤 종목·테마·방향을 추출했고, 추천·보유검토 근거로 넘길 수 있는지 보여준다.
+          수집 뉴스, 1차 태그 검수, 차단 후보는 각각 별도 화면으로 분리했다.
         </p>
       </section>
 
@@ -72,7 +72,7 @@ export default async function StructuredResultsPage() {
         <article className="rail-cell">
           <span>통과 후보</span>
           <strong>{acceptedCandidates.length}</strong>
-          <small>개별 뉴스 AI 결과</small>
+          <small>추천 입력 가능 후보</small>
         </article>
         <article className="rail-cell">
           <span>직접 종목</span>
@@ -165,7 +165,7 @@ export default async function StructuredResultsPage() {
                   <div className="relationship-list">
                     {cluster.relation_reasons.slice(0, 3).map((reason) => (
                       <div className="relationship-chip" key={`${cluster.evidence_id}-${reason}`}>
-                        <strong>{reason}</strong>
+                        <strong>{koLabel(reason)}</strong>
                       </div>
                     ))}
                   </div>

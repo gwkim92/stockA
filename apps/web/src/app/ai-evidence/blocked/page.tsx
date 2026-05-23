@@ -26,12 +26,12 @@ export default async function BlockedAiEvidencePage() {
         <div>
           <div className="bento-badge">차단 후보 · {rejectedData.as_of_date}</div>
           <h1 className="page-title" id="blocked-evidence-title">
-            추천 입력으로 쓰면 위험한 AI 후보를 따로 본다.
+            추천 입력에서 제외된 AI 후보와 이유를 따로 본다.
           </h1>
         </div>
         <p className="page-lede">
           이 화면은 실패 목록이 아니라 안전장치다. 알 수 없는 종목·테마, 낮은 신뢰도, 종목 없는 저신호 뉴스는
-          추천·보유검토 근거로 넘기지 않는다.
+          추천·보유검토 근거로 넘기지 않고, 필요한 경우 분류 체계나 종목 alias를 보강한다.
         </p>
       </section>
 
@@ -60,7 +60,7 @@ export default async function BlockedAiEvidencePage() {
 
       <section className="status-rail compact-rail reveal delay-1" aria-label="차단 후보 요약">
         <article className="rail-cell">
-          <span>검증 차단</span>
+          <span>추천 입력 차단</span>
           <strong>{rejectedData.summary.event_count}</strong>
           <small>형식·분류 체계·신뢰도 기준</small>
         </article>
@@ -77,7 +77,7 @@ export default async function BlockedAiEvidencePage() {
         <article className="rail-cell">
           <span>상태</span>
           <strong className="rail-word-value">{blockedEvents.length > 0 ? "검토 가능" : "차단 없음"}</strong>
-          <small>{koCode(rejectedData.filters.evidence_type)}</small>
+          <small>추천 입력 제외 항목</small>
         </article>
       </section>
 
@@ -96,7 +96,7 @@ export default async function BlockedAiEvidencePage() {
       <section className="bento-card span-4 reveal delay-2" aria-labelledby="blocked-list-title">
         <div className="section-heading stacked-heading">
           <span>차단/보류 목록</span>
-          <h2 id="blocked-list-title">AI가 만들었지만 추천 입력으로 넘기지 않은 후보</h2>
+          <h2 id="blocked-list-title">AI가 만들었지만 추천 근거로 쓰지 않는 후보</h2>
         </div>
         <div className="news-row-list">
           {blockedEvents.length > 0 ? (

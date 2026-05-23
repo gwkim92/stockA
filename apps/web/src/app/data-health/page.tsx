@@ -74,10 +74,10 @@ function finishedAtLabel(run: PipelineRun | null) {
 
 function runQualityExplanation(run: PipelineRun | null) {
   if (!run) {
-    return "실행 이력이 없어 품질을 판단할 수 없다.";
+    return "실행 이력이 없어 근거 신뢰도를 판단할 수 없다.";
   }
   if (run.latest_status === "succeeded_with_fallback" || run.health_status === "degraded") {
-    return "작업은 멈추지 않았지만 일부 AI 분석이 실패해 규칙 기반 대체 처리로 완료됐다. 추천 근거 품질을 낮게 보고 오류 기록을 확인해야 한다.";
+    return "작업은 멈추지 않았지만 일부 AI 분석이 실패해 규칙 기반 대체 처리로 완료됐다. 추천 근거 신뢰도를 낮게 보고 오류 내용을 확인해야 한다.";
   }
   if (run.latest_status === "succeeded" && run.health_status === "ok") {
     return "최근 실행은 정상 범위다.";
@@ -146,6 +146,9 @@ function schedulerInstallLabel(value: string) {
 }
 
 function schedulerApprovalGateLabel(value: string) {
+  if (value === "installed_on_ec2_systemd") {
+    return "EC2 반복 실행 설치 완료";
+  }
   if (value === "blocked_pending_manual_approval" || value === "pending_manual_approval") {
     return "자동 반복 실행 전 조건 닫힘";
   }
@@ -176,13 +179,13 @@ function manualSmokeExplanation(smoke: ManualIngestSmoke) {
     return "가격, 뉴스, AI 분석 단발 작업이 실행됐고 실패 작업이 없다는 뜻이다. 반복 자동화 상태는 별도로 확인한다.";
   }
   if (smoke.status === "failed") {
-    return "단발 실행 중 실패한 작업이 있다. 실행 증거의 오류 로그와 메타데이터를 먼저 확인해야 한다.";
+    return "단발 실행 중 실패한 작업이 있다. 실행 요약의 오류 내용과 작업 정보를 먼저 확인해야 한다.";
   }
   if (smoke.status === "preview_not_executed") {
-    return "실제 DB 저장이나 외부 데이터 제공자 호출 없이 실행 계획만 생성한 상태다. 무료 API 한도를 쓰지 않고 어떤 작업이 돌지 확인한 것이다.";
+    return "실제 저장이나 외부 데이터 제공자 호출 없이 실행 계획만 생성한 상태다. 무료 API 한도를 쓰지 않고 어떤 작업이 돌지 확인한 것이다.";
   }
   if (smoke.status === "not_configured") {
-    return "백엔드에 최근 수동 수집 결과 경로가 연결되지 않아 화면에서 읽을 수 없다.";
+    return "서버에 최근 수동 수집 결과 경로가 연결되지 않아 화면에서 읽을 수 없다.";
   }
   if (smoke.status === "missing_report") {
     return "환경변수는 설정됐지만 해당 요약 파일을 읽을 수 없다. 저장소 밖 경로에 요약 파일을 다시 생성해야 한다.";
@@ -218,13 +221,13 @@ function localWorkerExplanation(worker: LocalIngestWorker) {
     return "정해진 반복 실행 주기가 끝났고 실패 주기가 없다는 뜻이다. EC2의 예약 실행과 함께 자동 운영 상태를 판단한다.";
   }
   if (worker.status === "failed") {
-    return "반복 실행 중 실패가 있었다. 최신 실행 요약과 오류 로그를 먼저 확인해야 한다.";
+    return "반복 실행 중 실패가 있었다. 최신 실행 요약과 오류 내용을 먼저 확인해야 한다.";
   }
   if (worker.status === "preview_not_executed") {
-    return "실제 DB 저장이나 외부 데이터 제공자 호출 없이 반복 실행 계획만 확인한 상태다.";
+    return "실제 저장이나 외부 데이터 제공자 호출 없이 반복 실행 계획만 확인한 상태다.";
   }
   if (worker.status === "not_configured") {
-    return "백엔드에 반복 실행 결과 경로가 연결되지 않아 화면에서 읽을 수 없다.";
+    return "서버에 반복 실행 결과 경로가 연결되지 않아 화면에서 읽을 수 없다.";
   }
   if (worker.status === "missing_report") {
     return "환경변수는 설정됐지만 반복 실행 결과 파일을 읽을 수 없다. 저장소 밖 경로에 결과를 다시 생성해야 한다.";
@@ -247,7 +250,7 @@ function executionIdLabel(value: string | null | undefined) {
 }
 
 function evidenceLocationLabel(value: string | null | undefined) {
-  return value ? "저장소 밖 증거 경로 연결됨" : "증거 경로 없음";
+  return value ? "저장소 밖 결과 경로 연결됨" : "결과 경로 없음";
 }
 
 function summaryLocationLabel(value: string | null | undefined) {
@@ -255,7 +258,7 @@ function summaryLocationLabel(value: string | null | undefined) {
 }
 
 function errorLogLabel(value: string | null | undefined) {
-  return value ? "오류 로그 있음" : "없음";
+  return value ? "오류 내용 있음" : "없음";
 }
 
 const DEFAULT_MANUAL_SMOKE: ManualIngestSmoke = {
@@ -367,7 +370,7 @@ export default async function DataHealthPage() {
       title: "주식 캔들 수집",
       run: marketPriceRun,
       fallbackCadence: "일간 · 18:30",
-      description: "무료 가격 데이터 제공자의 한도를 확인한 뒤 일봉 캔들을 DB에 저장한다.",
+      description: "무료 가격 데이터 제공자의 한도를 확인한 뒤 일봉 캔들을 서버에 저장한다.",
       detail: `최근 가격 관측일 ${data.freshness.find((item) => item.dataset === "market.daily_price_bar")?.latest_observation_date ?? "미확인"} · 제공자 ${koCode(providerBudget.provider)}`,
     },
     {
@@ -569,7 +572,7 @@ export default async function DataHealthPage() {
           </div>
           <p className="page-lede" style={{ marginTop: 0, maxWidth: "980px" }}>
             {runQualityExplanation(aiRun)} 이 상태에서는 뉴스 수집과 이벤트 구조화는 계속 진행되지만,
-            AI가 만든 한국어 근거와 종목·테마 영향 검증 품질은 낮아질 수 있다.
+            AI가 만든 한국어 근거와 종목·테마 영향 검증 신뢰도는 낮아질 수 있다.
           </p>
         </section>
       ) : null}
@@ -577,7 +580,7 @@ export default async function DataHealthPage() {
       <details className="operator-details-panel reveal delay-2">
         <summary>
           <span>운영자용 상세 보기</span>
-          <strong>스케줄, 증거 파일, 수동 점검, 작업별 실행 구조</strong>
+          <strong>스케줄, 실행 요약, 수동 점검, 작업별 실행 구조</strong>
         </summary>
 
       <section className="flow-panel details-inner" aria-labelledby="automation-summary-title">
@@ -587,7 +590,7 @@ export default async function DataHealthPage() {
         </div>
         <p className="page-lede" style={{ marginTop: 0, maxWidth: "980px" }}>
           아래 작업은 최근 실행 이력과 반복 실행 상태를 같이 보여준다. 현재 반복 실행은{" "}
-          {automationStateLabel(schedulerActivation)} 상태이며, 수집 성공과 추천 품질은 별도로 검토한다.
+          {automationStateLabel(schedulerActivation)} 상태이며, 수집 성공과 추천 근거는 별도로 검토한다.
         </p>
 
         <article className="ledger-panel" id="scheduler-detail" style={{ marginTop: "18px" }}>
@@ -616,7 +619,7 @@ export default async function DataHealthPage() {
               <dd>{schedulerActivation.generated_at || "미확인"}</dd>
             </div>
             <div>
-              <dt>증거 위치</dt>
+              <dt>결과 위치</dt>
               <dd>{evidenceLocationLabel(data.scheduler.latest_artifact_root)}</dd>
             </div>
             <div>
@@ -633,7 +636,7 @@ export default async function DataHealthPage() {
           </div>
           <p style={{ color: "var(--text-secondary)", marginBottom: "16px" }}>
             FastAPI와 Next.js는 저장된 결과를 읽어 보여준다. 뉴스 수집, 캔들 보강, AI 분석, 추천 갱신은
-            EC2 예약 실행기가 백그라운드 작업 실행기를 호출해 수행하고, 결과는 DB와 증거 파일에 남긴다.
+            EC2 예약 실행기가 백그라운드 작업 실행기를 호출해 수행하고, 결과는 서버 저장 기록과 실행 요약에 남긴다.
           </p>
           <dl className="fact-list compact-facts">
             <div>
@@ -650,7 +653,7 @@ export default async function DataHealthPage() {
             </div>
             <div>
               <dt>상태 저장</dt>
-              <dd>DB 실행 이력 + 저장소 밖 증거 파일</dd>
+              <dd>서버 저장 기록 + 저장소 밖 실행 요약</dd>
             </div>
           </dl>
         </article>
@@ -724,7 +727,7 @@ export default async function DataHealthPage() {
 
         <article className="ledger-panel" style={{ marginTop: "18px" }}>
           <div className="section-heading stacked-heading">
-            <span>최근 자동 실행 증거</span>
+            <span>최근 자동 실행 결과</span>
             <h3>{localWorkerTitle(localWorker)}</h3>
           </div>
           <p style={{ color: "var(--text-secondary)", marginBottom: "16px" }}>
@@ -782,7 +785,7 @@ export default async function DataHealthPage() {
                     <th scope="col">회차</th>
                     <th scope="col">단발 점검</th>
                     <th scope="col">작업</th>
-                    <th scope="col">증거 기록</th>
+                    <th scope="col">결과 기록</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -827,7 +830,7 @@ export default async function DataHealthPage() {
               <dd>{manualSmoke.generated_at || "기록 없음"}</dd>
             </div>
             <div>
-              <dt>런타임 상태</dt>
+              <dt>실행 환경 상태</dt>
               <dd>{manualSmoke.runtime_status ? koCode(manualSmoke.runtime_status) : "미확인"}</dd>
             </div>
             <div>
@@ -839,13 +842,13 @@ export default async function DataHealthPage() {
               </dd>
             </div>
             <div>
-              <dt>실행 증거</dt>
+              <dt>실행 기록</dt>
               <dd>
                 {manualSmoke.artifact_runs.length}개 기록 · 실패 {manualSmoke.failed_job_count}개
               </dd>
             </div>
             <div>
-              <dt>증거 위치</dt>
+              <dt>결과 위치</dt>
               <dd>{evidenceLocationLabel(manualSmoke.artifact_root)}</dd>
             </div>
             <div>
@@ -861,7 +864,7 @@ export default async function DataHealthPage() {
                     <th scope="col">작업</th>
                     <th scope="col">상태</th>
                     <th scope="col">종료 코드</th>
-                    <th scope="col">오류 로그</th>
+                    <th scope="col">오류 내용</th>
                   </tr>
                 </thead>
                 <tbody>

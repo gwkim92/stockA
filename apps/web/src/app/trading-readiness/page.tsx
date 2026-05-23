@@ -134,7 +134,7 @@ export default async function TradingReadinessPage() {
                 <dd>{yesNo(data.broker_boundary.supports_order_submit)}</dd>
               </div>
               <div>
-                <dt>secret 설정</dt>
+                <dt>접속 정보 설정</dt>
                 <dd>{yesNo(data.broker_boundary.secret_configured)}</dd>
               </div>
               <div>
