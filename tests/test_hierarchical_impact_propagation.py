@@ -117,6 +117,7 @@ class HierarchicalImpactPropagationTests(unittest.TestCase):
         self.assertIn("graph_paths as", sql)
         self.assertIn("ref.classification_edge", sql)
         self.assertIn("ref.instrument_factor_exposure", sql)
+        self.assertIn("source_node.code <> 'MARKET_NEWS_FLOW'", sql)
         self.assertIn("path.path_depth < 3", sql)
         self.assertIn("not child.node_id = any(path.node_path_ids)", sql)
         self.assertIn("array_to_string(path.node_path_codes, '>')", sql)

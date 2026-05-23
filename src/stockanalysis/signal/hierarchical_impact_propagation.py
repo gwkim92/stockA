@@ -164,6 +164,7 @@ with recursive recent_source_events as (
     join event.event event_row on event_row.event_id = classification_impact.event_id
     join ref.classification_node source_node on source_node.node_id = classification_impact.node_id
     where source_node.taxonomy_family = 'internal_theme'
+      and source_node.code <> 'MARKET_NEWS_FLOW'
       and event_row.event_at < ({sql_date(as_of_date)} + interval '1 day')
     order by event_row.event_at desc, event_row.event_id desc, source_node.code
     limit {int(limit)}
