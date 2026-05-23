@@ -40,15 +40,15 @@ export default async function StructuredResultsPage() {
           </h1>
         </div>
         <p className="page-lede">
-          이 화면은 “AI가 무엇을 추출했고, 어디에 연결됐는지”만 보여준다. 원장은 `/events`,
-          1차 태그 검수는 `/events/classification`, 차단 후보는 `/ai-evidence/blocked`로 분리했다.
+          이 화면은 AI가 무엇을 추출했고 어디에 연결했는지 보여준다. 수집 뉴스, 1차 태그 검수,
+          차단 후보는 각각 별도 화면으로 분리했다.
         </p>
       </section>
 
       <section className="screen-switchboard reveal delay-1" aria-label="뉴스 처리 단계 바로가기">
         <Link className="screen-switch-card" href="/events">
           <span>01</span>
-          <strong>수집 원장</strong>
+          <strong>수집 뉴스</strong>
           <small>원문 이벤트</small>
         </Link>
         <Link className="screen-switch-card" href={"/events/classification" as Route}>
@@ -90,9 +90,13 @@ export default async function StructuredResultsPage() {
           <small>흐름 보조 근거</small>
         </article>
         <article className="rail-cell">
-          <span>최근 LLM</span>
+          <span>최근 AI 실행</span>
           <strong className="rail-word-value">{koCode(clusterData.summary.latest_llm_invocation_status)}</strong>
-          <small>{clusterData.summary.latest_llm_provider || "provider 없음"}</small>
+          <small>
+            {clusterData.summary.latest_llm_provider
+              ? koCode(clusterData.summary.latest_llm_provider)
+              : "분석 제공자 없음"}
+          </small>
         </article>
       </section>
 

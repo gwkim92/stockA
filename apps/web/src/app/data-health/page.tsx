@@ -77,7 +77,7 @@ function runQualityExplanation(run: PipelineRun | null) {
     return "실행 이력이 없어 품질을 판단할 수 없다.";
   }
   if (run.latest_status === "succeeded_with_fallback" || run.health_status === "degraded") {
-    return "작업은 멈추지 않았지만 일부 AI 후보가 실패해 규칙 기반 대체 처리로 완료됐다. 추천 근거 품질을 낮게 보고 오류 로그를 확인해야 한다.";
+    return "작업은 멈추지 않았지만 일부 AI 분석이 실패해 규칙 기반 대체 처리로 완료됐다. 추천 근거 품질을 낮게 보고 오류 기록을 확인해야 한다.";
   }
   if (run.latest_status === "succeeded" && run.health_status === "ok") {
     return "최근 실행은 정상 범위다.";
@@ -88,7 +88,7 @@ function runQualityExplanation(run: PipelineRun | null) {
 function schedulerReadinessTitle(scheduler: SchedulerStatus) {
   const activation = scheduler.activation;
   if (activation.approval_gate === "installed_on_ec2_systemd") {
-    return "EC2 systemd 반복 실행기 작동 중";
+    return "EC2 반복 실행기 작동 중";
   }
   if (activation.activation_allowed && activation.scheduler_activation !== "not_installed") {
     return "반복 실행기 연결 가능";
@@ -108,13 +108,13 @@ function schedulerReadinessExplanation(scheduler: SchedulerStatus) {
   if (activation.approval_gate === "installed_on_ec2_systemd") {
     const activeCount = profileScheduler?.active_timer_count ?? 0;
     const timerCount = profileScheduler?.timer_count ?? 0;
-    return `EC2 서버의 systemd timer가 데이터 수집과 분석 작업을 주기별로 호출한다. 현재 반복 실행기는 ${activeCount}/${timerCount}개가 활성 상태다.`;
+    return `EC2 서버의 예약 실행기가 데이터 수집과 분석 작업을 주기별로 호출한다. 현재 반복 실행기는 ${activeCount}/${timerCount}개가 활성 상태다.`;
   }
   if (activation.activation_allowed && activation.scheduler_activation !== "not_installed") {
-    return "승인 관문과 실행기 상태가 반복 실행을 허용한다. EC2 예약 실행기가 작업별 주기에 맞춰 수집과 분석을 호출한다.";
+    return "승인 조건과 실행기 상태가 반복 실행을 허용한다. EC2 예약 실행기가 작업별 주기에 맞춰 수집과 분석을 호출한다.";
   }
   if (activation.status === "pending_manual_approval") {
-    return "최근 파이프라인 실행은 성공했지만 자동 반복 실행기는 아직 연결되지 않았다. 이 상태에서는 사람이 수동으로 실행해야 데이터가 갱신된다.";
+    return "최근 작업 실행은 성공했지만 자동 반복 실행기는 아직 연결되지 않았다. 이 상태에서는 사람이 수동으로 실행해야 데이터가 갱신된다.";
   }
   if (activation.status === "not_configured") {
     return "반복 실행 결과가 연결되지 않아 자동 실행 여부를 판단할 수 없다.";
@@ -122,7 +122,7 @@ function schedulerReadinessExplanation(scheduler: SchedulerStatus) {
   if (activation.status === "invalid_report") {
     return "반복 실행 결과 형식이 맞지 않아 운영 근거로 사용할 수 없다.";
   }
-  return "현재 반복 실행 상태는 화면의 승인 관문과 다음 단계 값을 기준으로 다시 확인해야 한다.";
+  return "현재 반복 실행 상태는 화면의 승인 조건과 다음 단계 값을 기준으로 다시 확인해야 한다.";
 }
 
 function schedulerNextStepLabel(activation: SchedulerActivation) {
@@ -133,7 +133,7 @@ function schedulerNextStepLabel(activation: SchedulerActivation) {
     return "저장소 밖 반복 실행 결과 경로를 설정한다.";
   }
   if (activation.manual_next_step === "regenerate_scheduler_activation_gate_report") {
-    return "깨진 스케줄러 결과 파일을 다시 생성한다.";
+    return "깨진 반복 실행 결과 파일을 다시 생성한다.";
   }
   return koCode(activation.manual_next_step);
 }
@@ -147,7 +147,7 @@ function schedulerInstallLabel(value: string) {
 
 function schedulerApprovalGateLabel(value: string) {
   if (value === "blocked_pending_manual_approval" || value === "pending_manual_approval") {
-    return "자동 반복 실행 전 관문 닫힘";
+    return "자동 반복 실행 전 조건 닫힘";
   }
   return koCode(value);
 }
@@ -176,7 +176,7 @@ function manualSmokeExplanation(smoke: ManualIngestSmoke) {
     return "가격, 뉴스, AI 분석 단발 작업이 실행됐고 실패 작업이 없다는 뜻이다. 반복 자동화 상태는 별도로 확인한다.";
   }
   if (smoke.status === "failed") {
-    return "단발 실행 중 실패한 작업이 있다. 실행 산출물의 오류 로그와 메타데이터를 먼저 확인해야 한다.";
+    return "단발 실행 중 실패한 작업이 있다. 실행 증거의 오류 로그와 메타데이터를 먼저 확인해야 한다.";
   }
   if (smoke.status === "preview_not_executed") {
     return "실제 DB 저장이나 외부 데이터 제공자 호출 없이 실행 계획만 생성한 상태다. 무료 API 한도를 쓰지 않고 어떤 작업이 돌지 확인한 것이다.";
@@ -317,9 +317,9 @@ export default async function DataHealthPage() {
             : "주의 항목 확인",
       body:
         failedPipelines > 0
-          ? "실패 또는 오래된 파이프라인이 있어 추천·보유 판단보다 수집 복구가 먼저다."
+          ? "실패 또는 오래된 작업이 있어 추천·보유 판단보다 수집 복구가 먼저다."
           : "캔들, 뉴스, AI 분석, 추천 갱신이 현재 화면 기준으로 읽을 수 있는 상태다.",
-      href: "#pipeline-log",
+      href: "#execution-log",
       cta: "실행 이력 보기",
       tone: failedPipelines > 0 ? "risk-high" : "risk-low",
     },
@@ -352,7 +352,7 @@ export default async function DataHealthPage() {
       title: "뉴스 수집",
       run: newsRun,
       fallbackCadence: "일간 · 08:30",
-      description: "저장소 밖 RSS 설정의 무료 뉴스 피드를 읽고 원천 문서와 이벤트 원장에 저장한다.",
+      description: "저장소 밖 RSS 설정의 무료 뉴스 피드를 읽고 원문과 뉴스 이벤트로 저장한다.",
       detail: "뉴스는 이벤트, 종목 상세, 분석 지도, 추천 근거 점검으로 연결된다.",
     },
     {
@@ -369,7 +369,7 @@ export default async function DataHealthPage() {
       title: "뉴스 원문 수집",
       run: newsRun,
       owner: "news-rss-daily",
-      output: "RSS/Atom 문서를 원천 문서 테이블과 실행 증거 기록에 저장한다.",
+      output: "RSS/Atom 문서를 원문 저장소와 실행 기록에 저장한다.",
       next: "중복과 원천 링크를 남긴 뒤 이벤트 구조화 단계로 넘긴다.",
     },
     {
@@ -377,16 +377,16 @@ export default async function DataHealthPage() {
       title: "이벤트 구조화",
       run: newsEnrichmentRun,
       owner: "news-rss-enrichment-intraday",
-      output: "헤드라인과 본문을 종목·테마·영향 방향이 있는 `event.event`로 정리한다.",
-      next: "동일 테마/종목 관계를 만들고 `/events`, `/stocks`, `/intelligence`가 읽는다.",
+      output: "헤드라인과 본문을 종목·테마·영향 방향이 있는 뉴스 이벤트로 정리한다.",
+      next: "동일 테마/종목 관계를 만들고 뉴스, 종목, 뉴스·AI 화면이 읽는다.",
     },
     {
       index: "03",
       title: "AI 근거 생성",
       run: aiRun,
       owner: "event-intelligence-weekly",
-      output: "중요 뉴스만 Codex OAuth 배치로 분석해 종목·테마·방향·근거 후보를 AI 추출 기록에 남긴다.",
-      next: "검증기를 통과한 근거만 표준 이벤트 영향으로 반영한다. 매수·매도·주문 결론은 여기서 만들지 않는다.",
+      output: "중요 뉴스만 Codex OAuth 배치로 분석해 종목·테마·방향·근거 후보를 AI 분석 기록에 남긴다.",
+      next: "검증을 통과한 근거만 표준 뉴스 영향으로 반영한다. 매수·매도·주문 결론은 여기서 만들지 않는다.",
     },
     {
       index: "04",
@@ -410,7 +410,7 @@ export default async function DataHealthPage() {
       index: "01",
       title: "주식 캔들",
       run: marketPriceRun,
-      purpose: "종목 가격과 차트, 모멘텀 feature의 원천이다.",
+      purpose: "종목 가격과 차트, 모멘텀 지표의 원천이다.",
       check: `최근 가격일 ${
         data.freshness.find((item) => item.dataset === "market.daily_price_bar")?.latest_observation_date ?? "미확인"
       }`,
@@ -419,29 +419,29 @@ export default async function DataHealthPage() {
       index: "02",
       title: "뉴스 원문",
       run: newsRun,
-      purpose: "수집된 뉴스 원장과 원천 문서 화면의 원천이다.",
-      check: "뉴스 원장은 /events에서 시간순으로 본다.",
+      purpose: "수집된 뉴스와 원문 화면의 원천이다.",
+      check: "수집 뉴스는 뉴스 화면에서 시간순으로 본다.",
     },
     {
       index: "03",
       title: "1차 분류 태깅",
       run: newsEnrichmentRun,
       purpose: "뉴스를 종목, 테마, 방향 태그로 1차 정리한다.",
-      check: "AI 전 단계이므로 틀릴 수 있고, 이후 AI/validator가 보강한다.",
+      check: "AI 전 단계이므로 틀릴 수 있고, 이후 AI 분석과 검증이 보강한다.",
     },
     {
       index: "04",
       title: "Codex OAuth 분석",
       run: aiRun,
       purpose: "중요 뉴스를 구조화해 근거 후보를 만든다.",
-      check: "화면 요청 중에는 LLM을 호출하지 않고 저장된 결과만 읽는다.",
+      check: "화면을 열 때마다 AI를 새로 호출하지 않고 저장된 결과만 읽는다.",
     },
     {
       index: "05",
-      title: "Validator",
+      title: "AI 결과 검증",
       run: aiRun,
       purpose: "낮은 신뢰도, 알 수 없는 종목/테마, 저신호 뉴스를 차단한다.",
-      check: "차단 후보는 /ai-evidence의 차단 섹션에서 본다.",
+      check: "차단 후보는 AI 차단 후보 화면에서 본다.",
     },
     {
       index: "06",
@@ -454,8 +454,8 @@ export default async function DataHealthPage() {
       index: "07",
       title: "보유 검토",
       run: remediationRun,
-      purpose: "Thesis 공백, 성과 미측정, 보유 충돌을 운영 큐로 만든다.",
-      check: "보유 검토와 paper 검증으로 이어진다.",
+      purpose: "투자 논리 공백, 성과 미측정, 보유 충돌을 운영 큐로 만든다.",
+      check: "보유 검토와 가상 거래 검증으로 이어진다.",
     },
   ];
 
@@ -481,17 +481,17 @@ export default async function DataHealthPage() {
           <small>{data.as_of_date}</small>
         </article>
         <article className="rail-cell rail-critical">
-          <span>02 실패 파이프라인</span>
+          <span>02 실패 작업</span>
           <strong>{failedPipelines}</strong>
           <small>{data.pipeline_runs.length}개 중</small>
         </article>
         <article className="rail-cell">
           <span>03 반복 실행</span>
           <strong>{automationStateLabel(schedulerActivation)}</strong>
-          <small>{schedulerActivation.job_id ? koCode(schedulerActivation.job_id) : "gate 미설정"}</small>
+          <small>{schedulerActivation.job_id ? koCode(schedulerActivation.job_id) : "조건 미설정"}</small>
         </article>
         <article className="rail-cell">
-          <span>04 열린 관문</span>
+          <span>04 열린 조건</span>
           <strong>{data.open_gates.length}</strong>
           <small>운영 전제</small>
         </article>
@@ -547,7 +547,7 @@ export default async function DataHealthPage() {
           </div>
           <p className="page-lede" style={{ marginTop: 0, maxWidth: "980px" }}>
             {runQualityExplanation(aiRun)} 이 상태에서는 뉴스 수집과 이벤트 구조화는 계속 진행되지만,
-            LLM이 만든 한국어 근거와 종목·테마 영향 검증 품질은 낮아질 수 있다.
+            AI가 만든 한국어 근거와 종목·테마 영향 검증 품질은 낮아질 수 있다.
           </p>
         </section>
       ) : null}
@@ -555,7 +555,7 @@ export default async function DataHealthPage() {
       <details className="operator-details-panel reveal delay-2">
         <summary>
           <span>운영자용 상세 보기</span>
-          <strong>스케줄, artifact, 수동 smoke, 작업별 실행 구조</strong>
+          <strong>스케줄, 증거 파일, 수동 점검, 작업별 실행 구조</strong>
         </summary>
 
       <section className="flow-panel details-inner" aria-labelledby="automation-summary-title">
@@ -578,7 +578,7 @@ export default async function DataHealthPage() {
           </p>
           <dl className="fact-list compact-facts">
             <div>
-              <dt>승인 관문</dt>
+              <dt>승인 조건</dt>
               <dd>{schedulerApprovalGateLabel(schedulerActivation.approval_gate)}</dd>
             </div>
             <div>
@@ -607,11 +607,11 @@ export default async function DataHealthPage() {
         <article className="ledger-panel" style={{ marginTop: "18px" }}>
           <div className="section-heading stacked-heading">
             <span>실제 실행 구조</span>
-            <h3>웹 화면은 읽고, EC2 예약 작업이 수집·분석을 실행한다</h3>
+            <h3>웹 화면은 저장된 결과를 읽고, EC2 예약 작업이 수집·분석을 실행한다</h3>
           </div>
           <p style={{ color: "var(--text-secondary)", marginBottom: "16px" }}>
             FastAPI와 Next.js는 저장된 결과를 읽어 보여준다. 뉴스 수집, 캔들 보강, AI 분석, 추천 갱신은
-            EC2 systemd timer가 백그라운드 작업 실행기를 호출해 수행하고, 결과는 Postgres와 증거 파일에 남긴다.
+            EC2 예약 실행기가 백그라운드 작업 실행기를 호출해 수행하고, 결과는 DB와 증거 파일에 남긴다.
           </p>
           <dl className="fact-list compact-facts">
             <div>
@@ -628,16 +628,16 @@ export default async function DataHealthPage() {
             </div>
             <div>
               <dt>상태 저장</dt>
-              <dd>Postgres 실행 이력 + 저장소 밖 증거 파일</dd>
+              <dd>DB 실행 이력 + 저장소 밖 증거 파일</dd>
             </div>
           </dl>
         </article>
 
         <article className="ledger-panel" style={{ marginTop: "18px" }}>
           <div className="section-heading stacked-heading">
-            <span>EC2 systemd 반복 실행기</span>
+            <span>EC2 반복 실행기</span>
             <h3>
-              {profileScheduler.active_timer_count}/{profileScheduler.timer_count}개 profile timer 활성
+              {profileScheduler.active_timer_count}/{profileScheduler.timer_count}개 예약 실행 활성
             </h3>
           </div>
           <p style={{ color: "var(--text-secondary)", marginBottom: "16px" }}>
@@ -758,7 +758,7 @@ export default async function DataHealthPage() {
                 <thead>
                   <tr>
                     <th scope="col">회차</th>
-                    <th scope="col">실행 검증</th>
+                    <th scope="col">단발 점검</th>
                     <th scope="col">작업</th>
                     <th scope="col">증거 기록</th>
                   </tr>
@@ -839,7 +839,7 @@ export default async function DataHealthPage() {
                     <th scope="col">작업</th>
                     <th scope="col">상태</th>
                     <th scope="col">종료 코드</th>
-                    <th scope="col">stderr</th>
+                    <th scope="col">오류 로그</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -890,23 +890,23 @@ export default async function DataHealthPage() {
       </section>
       </details>
 
-      <details className="operator-details-panel reveal delay-2" id="pipeline-log">
+      <details className="operator-details-panel reveal delay-2" id="execution-log">
         <summary>
           <span>실행 로그와 예산 상세</span>
-          <strong>파이프라인 이력, 무료 API 예산, 관문/최신성</strong>
+          <strong>작업 이력, 무료 API 예산, 조건/최신성</strong>
         </summary>
 
       <section className="split-ledger details-inner">
         <article className="ledger-panel queue-panel">
           <div className="section-heading">
             <span>실행 이력</span>
-            <h2>파이프라인 실행 이력</h2>
+            <h2>작업 실행 이력</h2>
           </div>
           <div className="ledger-table-wrap">
             <table className="ledger-table data-health-table">
               <thead>
                 <tr>
-                  <th scope="col">파이프라인</th>
+                  <th scope="col">작업</th>
                   <th scope="col">도메인</th>
                   <th scope="col">상태</th>
                   <th scope="col">최신성</th>
@@ -968,8 +968,8 @@ export default async function DataHealthPage() {
 
           <article className="ledger-panel">
             <div className="section-heading stacked-heading">
-              <span>관문과 최신성</span>
-              <h2>관문과 데이터 최신성</h2>
+              <span>조건과 최신성</span>
+              <h2>조건과 데이터 최신성</h2>
             </div>
             <div className="tag-ledger">
               {data.open_gates.map((gate) => (
@@ -1013,7 +1013,7 @@ export default async function DataHealthPage() {
                 <dd>{koCode(schedulerActivation.job_id)}</dd>
               </div>
               <div>
-                <dt>승인 관문</dt>
+                <dt>승인 조건</dt>
                 <dd>{schedulerApprovalGateLabel(schedulerActivation.approval_gate)}</dd>
               </div>
               <div>

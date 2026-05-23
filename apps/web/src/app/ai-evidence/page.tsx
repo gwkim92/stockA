@@ -62,7 +62,7 @@ function candidatePrimaryChip(event: NewsCandidateEvent) {
 
 function candidatePurpose(event: NewsCandidateEvent) {
   if (event.ai_evidence_type === "news_event_candidate_rejected" || event.quality_gate === "validator_blocked") {
-    return "AI가 후보를 만들었지만 validator가 통과 가능한 종목·테마 영향으로 인정하지 않았다.";
+    return "AI가 후보를 만들었지만 검증 단계에서 추천 근거로 쓰기 어렵다고 판단했다.";
   }
   if (event.quality_gate === "low_signal_suppressed") {
     return "AI 후보는 존재하지만 신뢰도나 종목 연결이 약해 기본 추천 입력에서 제외한다.";
@@ -140,7 +140,7 @@ function CandidateCard({ event }: { event: NewsCandidateEvent }) {
           </Link>
         ) : null}
         <Link className="btn btn-secondary" href="/events">
-          이벤트 원장
+          수집 뉴스
         </Link>
         {documentLink ? (
           <Link className="btn btn-secondary" href={documentLink}>
@@ -181,7 +181,7 @@ export default async function AiEvidenceIndexPage() {
           </h1>
         </div>
         <p className="page-lede">
-          한 뉴스 단위로 AI가 구조화한 후보를 모았다. 종목이 없는 저신호 일반 top story는
+          한 뉴스 단위로 AI가 구조화한 후보를 모았다. 종목이 없는 저신호 일반 뉴스는
           기본 후보에서 숨기고, 구조화 결과와 차단 후보는 별도 화면에서 확인한다.
         </p>
       </section>
@@ -189,7 +189,7 @@ export default async function AiEvidenceIndexPage() {
       <section className="screen-switchboard reveal delay-1" aria-label="뉴스 처리 단계 바로가기">
         <Link className="screen-switch-card" href="/events">
           <span>01</span>
-          <strong>수집 원장</strong>
+          <strong>수집 뉴스</strong>
           <small>원문 이벤트</small>
         </Link>
         <Link className="screen-switch-card" href={"/events/classification" as Route}>
@@ -213,7 +213,7 @@ export default async function AiEvidenceIndexPage() {
         <div className="rail-cell">
           <span>AI 연결 이벤트</span>
           <strong>{allSummary.ai_extracted_count}</strong>
-          <small>후보와 묶음 근거 전체</small>
+          <small>AI 분석 후보와 뉴스 묶음 전체</small>
         </div>
         <div className="rail-cell">
           <span>직접 종목 후보</span>
@@ -233,7 +233,7 @@ export default async function AiEvidenceIndexPage() {
         <div className="rail-cell">
           <span>품질 필터 숨김</span>
           <strong>{blockedCandidateCount}</strong>
-          <small>저신호 {suppressedLowSignalCount} · validator 차단 {rejectedData.summary.event_count}</small>
+          <small>저신호 {suppressedLowSignalCount} · 검증 차단 {rejectedData.summary.event_count}</small>
         </div>
       </section>
 
@@ -290,7 +290,7 @@ export default async function AiEvidenceIndexPage() {
         <Link className="where-card" href={"/ai-evidence/blocked" as Route}>
           <span>차단</span>
           <strong>차단 후보 {blockedCandidateCount}개</strong>
-          <p>validator가 추천 입력으로 넘기지 않은 후보와 이유를 확인한다.</p>
+          <p>검증 단계에서 추천 입력으로 넘기지 않은 후보와 이유를 확인한다.</p>
           <small>차단 화면 열기</small>
         </Link>
         <Link className="where-card" href="/intelligence">

@@ -30,7 +30,7 @@ export default async function BlockedAiEvidencePage() {
           </h1>
         </div>
         <p className="page-lede">
-          이 화면은 실패 목록이 아니라 안전장치다. 알 수 없는 종목·테마, 낮은 confidence, 종목 없는 저신호 뉴스는
+          이 화면은 실패 목록이 아니라 안전장치다. 알 수 없는 종목·테마, 낮은 신뢰도, 종목 없는 저신호 뉴스는
           추천·보유검토 근거로 넘기지 않는다.
         </p>
       </section>
@@ -38,7 +38,7 @@ export default async function BlockedAiEvidencePage() {
       <section className="screen-switchboard reveal delay-1" aria-label="뉴스 처리 단계 바로가기">
         <Link className="screen-switch-card" href="/events">
           <span>01</span>
-          <strong>수집 원장</strong>
+          <strong>수집 뉴스</strong>
           <small>원문 이벤트</small>
         </Link>
         <Link className="screen-switch-card" href={"/events/classification" as Route}>
@@ -60,14 +60,14 @@ export default async function BlockedAiEvidencePage() {
 
       <section className="status-rail compact-rail reveal delay-1" aria-label="차단 후보 요약">
         <article className="rail-cell">
-          <span>validator 차단</span>
+          <span>검증 차단</span>
           <strong>{rejectedData.summary.event_count}</strong>
-          <small>schema/ontology/confidence gate</small>
+          <small>형식·분류 체계·신뢰도 기준</small>
         </article>
         <article className="rail-cell">
           <span>저신호 보류</span>
           <strong>{suppressedData.summary.event_count}</strong>
-          <small>종목 없는 일반 top story</small>
+          <small>종목 없는 일반 뉴스</small>
         </article>
         <article className="rail-cell">
           <span>총 차단</span>
@@ -89,7 +89,7 @@ export default async function BlockedAiEvidencePage() {
         <ol>
           <li>정말 차단해야 하는 잡음인지 본다.</li>
           <li>좋은 뉴스인데 taxonomy나 종목 alias가 부족해서 막혔는지 본다.</li>
-          <li>후자라면 분류 체계나 validator 규칙을 고친다.</li>
+          <li>후자라면 분류 체계나 검증 규칙을 고친다.</li>
         </ol>
       </section>
 

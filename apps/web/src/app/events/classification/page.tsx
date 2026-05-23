@@ -85,15 +85,15 @@ export default async function ClassificationPage() {
           </h1>
         </div>
         <p className="page-lede">
-          이 화면은 원장 위에 붙은 1차 해석만 따로 보는 곳이다. 테마가 이상하거나 종목이 잘못 붙은 뉴스는
-          여기서 먼저 발견하고, AI 구조화 결과와 비교한다.
+          이 화면은 수집된 뉴스에 처음 붙은 해석만 따로 보는 곳이다. 테마가 이상하거나 종목이 잘못 붙은
+          뉴스는 여기서 먼저 발견하고, AI 구조화 결과와 비교한다.
         </p>
       </section>
 
       <section className="screen-switchboard reveal delay-1" aria-label="뉴스 처리 단계 바로가기">
         <Link className="screen-switch-card" href="/events">
           <span>01</span>
-          <strong>수집 원장</strong>
+          <strong>수집 뉴스</strong>
           <small>원문 이벤트 확인</small>
         </Link>
         <Link className="screen-switch-card active" href={"/events/classification" as Route}>
@@ -104,7 +104,7 @@ export default async function ClassificationPage() {
         <Link className="screen-switch-card" href="/ai-evidence">
           <span>03</span>
           <strong>AI 분석 목록</strong>
-          <small>LLM 후보 확인</small>
+          <small>AI 후보 확인</small>
         </Link>
         <Link className="screen-switch-card" href={"/ai-evidence/results" as Route}>
           <span>04</span>
@@ -117,7 +117,7 @@ export default async function ClassificationPage() {
         <article className="rail-cell">
           <span>테마</span>
           <strong>{groups.length}</strong>
-          <small>현재 원장 기준</small>
+          <small>현재 수집 뉴스 기준</small>
         </article>
         <article className="rail-cell">
           <span>직접 종목</span>
