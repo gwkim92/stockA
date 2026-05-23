@@ -144,6 +144,7 @@ class OperatingDataOrchestratorTests(unittest.TestCase):
                 "news-cluster-evidence",
                 "news-ai-evidence",
                 "macro-event-propagation",
+                "hierarchical-impact-propagation",
             ],
         )
         bootstrap_command = " ".join(report["planned_steps"][1]["command_argv"])
@@ -163,6 +164,10 @@ class OperatingDataOrchestratorTests(unittest.TestCase):
         self.assertIn("macro-event-propagation-run", propagation_command)
         self.assertIn("--as-of-date 2026-05-20", propagation_command)
         self.assertIn("--execute", propagation_command)
+        hierarchical_command = " ".join(report["planned_steps"][7]["command_argv"])
+        self.assertIn("hierarchical-impact-propagation-run", hierarchical_command)
+        self.assertIn("--max-depth 3", hierarchical_command)
+        self.assertIn("--execute", hierarchical_command)
         self.assertEqual(runner.calls, [])
 
     def test_weekly_reference_profiles_do_not_require_portfolio_positions(self) -> None:
