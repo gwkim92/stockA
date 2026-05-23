@@ -591,8 +591,8 @@ export default async function IntelligencePage() {
                   <div className="relationship-panel" aria-label={`${koCode(cluster.theme_key)} 묶음 근거`}>
                     <span>왜 이 뉴스들이 같이 묶였나</span>
                     <div className="relationship-list">
-                      {cluster.relation_reasons.map((reason) => (
-                        <div className="relationship-chip" key={`${cluster.evidence_id}-${reason}`}>
+                      {cluster.relation_reasons.map((reason, index) => (
+                        <div className="relationship-chip" key={`${cluster.evidence_id}-reason-${index}`}>
                           <span>근거</span>
                           <strong>{koLabel(reason)}</strong>
                         </div>
