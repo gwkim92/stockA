@@ -121,7 +121,7 @@ export default async function SourceDocumentPage({ params }: SourceDocumentPageP
         <article className="bento-card span-2" style={{ background: "var(--bg-card-hover)", borderColor: "var(--border-focus)" }}>
           <div style={{ marginBottom: "24px" }}>
             <span className="metric-sub">문서</span>
-            <NewsTitleBlock title={data.title} symbol={data.symbol} />
+            <NewsTitleBlock title={data.title} summary={sourceDocumentDigest(data)} symbol={data.symbol} />
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
             <div>
@@ -219,7 +219,12 @@ export default async function SourceDocumentPage({ params }: SourceDocumentPageP
                 gap: "4px"
               }}>
                 <span className="metric-sub">{koCode(evidence.evidence_type)}</span>
-                <NewsTitleBlock compact title={evidence.title} symbol={data.symbol} />
+                <NewsTitleBlock
+                  compact
+                  title={evidence.title}
+                  summary={`${koCode(evidence.evidence_type)}로 연결된 원천 근거다. 상세 화면에서 종목·테마·방향 해석을 확인한다.`}
+                  symbol={data.symbol}
+                />
                 <Link href={`/ai-evidence/${evidence.evidence_id}`} style={{
                   color: "var(--accent-blue)",
                   fontSize: "0.85rem",
