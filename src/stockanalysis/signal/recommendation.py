@@ -30,15 +30,36 @@ _SHORT_TERM_WEIGHT = Decimal("0.15")
 _RANK_WEIGHT = Decimal("0.15")
 _MACRO_FLOW_WEIGHT_DEFAULT = Decimal("0.10")
 MACRO_FLOW_WEIGHT_ENV = "STOCKANALYSIS_RECOMMENDATION_MACRO_FLOW_WEIGHT"
-_COMPONENT_ORDER = ("cycle_score", "momentum_score", "short_term_score", "rank_score", "macro_flow_score")
+_COMPONENT_ORDER = (
+    "cycle_score",
+    "macro_regime_score",
+    "domain_cycle_score",
+    "theme_cycle_score",
+    "instrument_cycle_score",
+    "cycle_conflict_penalty",
+    "momentum_score",
+    "short_term_score",
+    "rank_score",
+    "macro_flow_score",
+)
 _COMPONENT_WEIGHTS = {
     "cycle_score": _CYCLE_WEIGHT,
+    "macro_regime_score": Decimal("0.0000"),
+    "domain_cycle_score": Decimal("0.0000"),
+    "theme_cycle_score": Decimal("0.0000"),
+    "instrument_cycle_score": Decimal("0.0000"),
+    "cycle_conflict_penalty": Decimal("0.0000"),
     "momentum_score": _MOMENTUM_WEIGHT,
     "short_term_score": _SHORT_TERM_WEIGHT,
     "rank_score": _RANK_WEIGHT,
 }
 _COMPONENT_EXPLANATIONS = {
     "cycle_score": "Normalized current cycle state score from the linked internal theme.",
+    "macro_regime_score": "Latest hierarchical macro-regime cycle score connected to the theme path.",
+    "domain_cycle_score": "Latest hierarchical domain cycle score above the linked theme.",
+    "theme_cycle_score": "Latest hierarchical theme cycle score for the linked recommendation theme.",
+    "instrument_cycle_score": "Instrument-linked cycle score used for the current deterministic recommendation.",
+    "cycle_conflict_penalty": "Cycle hierarchy quality factor; lower when conflict flags indicate weaker context.",
     "momentum_score": "Medium-term price momentum from return_since_first_observation.",
     "short_term_score": "Short-term price move from return_1d.",
     "rank_score": "Relative rank inside the selected strategy universe.",
@@ -63,6 +84,11 @@ class RecommendationCandidate:
     return_since_first_zscore: Decimal | None
     latest_adjusted_close: Decimal | None
     macro_flow_score: Decimal | None
+    macro_regime_score: Decimal | None = None
+    domain_cycle_score: Decimal | None = None
+    theme_cycle_score: Decimal | None = None
+    instrument_cycle_score: Decimal | None = None
+    cycle_conflict_penalty: Decimal | None = None
 
 
 @dataclass(frozen=True)
@@ -128,6 +154,13 @@ def load_recommendation_candidates(
                 if item.get("latest_adjusted_close") is not None
                 else None,
                 macro_flow_score=Decimal(str(item["macro_flow_score"])) if item.get("macro_flow_score") is not None else None,
+                macro_regime_score=Decimal(str(item["macro_regime_score"])) if item.get("macro_regime_score") is not None else None,
+                domain_cycle_score=Decimal(str(item["domain_cycle_score"])) if item.get("domain_cycle_score") is not None else None,
+                theme_cycle_score=Decimal(str(item["theme_cycle_score"])) if item.get("theme_cycle_score") is not None else None,
+                instrument_cycle_score=Decimal(str(item["instrument_cycle_score"])) if item.get("instrument_cycle_score") is not None else None,
+                cycle_conflict_penalty=Decimal(str(item["cycle_conflict_penalty"]))
+                if item.get("cycle_conflict_penalty") is not None
+                else None,
             )
         )
 
@@ -208,7 +241,17 @@ evidence_rows as (
         return_since_first.feature_value as return_since_first,
         return_since_first.zscore as return_since_first_zscore,
         latest_close.feature_value as latest_adjusted_close,
-        coalesce(macro_flow.macro_flow_score, 0)::numeric(18,8) as macro_flow_score
+        coalesce(macro_flow.macro_flow_score, 0)::numeric(18,8) as macro_flow_score,
+        macro_cycle.macro_regime_score,
+        domain_cycle.domain_cycle_score,
+        theme_cycle.cycle_score as theme_cycle_score,
+        cycle.cycle_score as instrument_cycle_score,
+        case
+            when theme_cycle.node_id is null then null::numeric
+            when jsonb_array_length(coalesce(theme_cycle.conflict_flags, '[]'::jsonb)) = 0 then 1.0000::numeric
+            when theme_cycle.conflict_flags ? 'base_cycle_missing' then 0.8000::numeric
+            else 0.7000::numeric
+        end as cycle_conflict_penalty
     from selected_members
     join ref.instrument_classification_membership membership
       on membership.instrument_id = selected_members.instrument_id
@@ -231,6 +274,49 @@ evidence_rows as (
     left join macro_flow_rows macro_flow
       on macro_flow.instrument_id = selected_members.instrument_id
      and macro_flow.node_id = node.node_id
+    left join signal.cycle_hierarchy_state_snapshot theme_cycle
+      on theme_cycle.node_id = node.node_id
+     and theme_cycle.as_of_date = {sql_date(as_of_date)}
+    left join lateral (
+        select avg(domain_snapshot.cycle_score)::numeric(18,8) as domain_cycle_score
+        from ref.classification_edge edge
+        join ref.classification_node parent_node on parent_node.node_id = edge.parent_node_id
+        join signal.cycle_hierarchy_state_snapshot domain_snapshot
+          on domain_snapshot.node_id = parent_node.node_id
+         and domain_snapshot.as_of_date = {sql_date(as_of_date)}
+        where edge.child_node_id = node.node_id
+          and edge.valid_from <= {sql_date(as_of_date)}
+          and (edge.valid_to is null or edge.valid_to >= {sql_date(as_of_date)})
+          and (parent_node.node_type = 'domain' or parent_node.code like '%_DOMAIN')
+    ) domain_cycle on true
+    left join lateral (
+        select avg(macro_snapshot.cycle_score)::numeric(18,8) as macro_regime_score
+        from (
+            select macro_parent.node_id
+            from ref.classification_edge direct_edge
+            join ref.classification_node macro_parent on macro_parent.node_id = direct_edge.parent_node_id
+            where direct_edge.child_node_id = node.node_id
+              and direct_edge.valid_from <= {sql_date(as_of_date)}
+              and (direct_edge.valid_to is null or direct_edge.valid_to >= {sql_date(as_of_date)})
+              and (macro_parent.node_type = 'macro_regime' or macro_parent.code like 'MACRO_%')
+            union
+            select macro_grandparent.node_id
+            from ref.classification_edge domain_edge
+            join ref.classification_node domain_parent on domain_parent.node_id = domain_edge.parent_node_id
+            join ref.classification_edge macro_edge on macro_edge.child_node_id = domain_parent.node_id
+            join ref.classification_node macro_grandparent on macro_grandparent.node_id = macro_edge.parent_node_id
+            where domain_edge.child_node_id = node.node_id
+              and domain_edge.valid_from <= {sql_date(as_of_date)}
+              and (domain_edge.valid_to is null or domain_edge.valid_to >= {sql_date(as_of_date)})
+              and macro_edge.valid_from <= {sql_date(as_of_date)}
+              and (macro_edge.valid_to is null or macro_edge.valid_to >= {sql_date(as_of_date)})
+              and (domain_parent.node_type = 'domain' or domain_parent.code like '%_DOMAIN')
+              and (macro_grandparent.node_type = 'macro_regime' or macro_grandparent.code like 'MACRO_%')
+        ) macro_nodes
+        join signal.cycle_hierarchy_state_snapshot macro_snapshot
+          on macro_snapshot.node_id = macro_nodes.node_id
+         and macro_snapshot.as_of_date = {sql_date(as_of_date)}
+    ) macro_cycle on true
     where node.taxonomy_family = 'internal_theme'
       and membership.membership_type = 'derived_theme'
       and membership.valid_from <= {sql_date(as_of_date)}
@@ -253,7 +339,12 @@ select coalesce(
             'return_since_first', return_since_first,
             'return_since_first_zscore', return_since_first_zscore,
             'latest_adjusted_close', latest_adjusted_close,
-            'macro_flow_score', macro_flow_score
+            'macro_flow_score', macro_flow_score,
+            'macro_regime_score', macro_regime_score,
+            'domain_cycle_score', domain_cycle_score,
+            'theme_cycle_score', theme_cycle_score,
+            'instrument_cycle_score', instrument_cycle_score,
+            'cycle_conflict_penalty', cycle_conflict_penalty
         )
         order by primary_symbol, node_code
     ),
@@ -326,14 +417,8 @@ def render_recommendation_upsert_sql(
     component_value_rows = ",\n        ".join(_render_score_component_value_tuple(row) for row in recommendation_rows)
     notes = {
         "score_version": score_version,
-        "score_weights": {
-            "cycle_score": str(_CYCLE_WEIGHT),
-            "momentum_score": str(_MOMENTUM_WEIGHT),
-            "short_term_score": str(_SHORT_TERM_WEIGHT),
-            "rank_score": str(_RANK_WEIGHT),
-            "macro_flow_score": str(_macro_flow_weight()),
-        },
-        "scope": "direct_internal_theme_membership_plus_macro_flow_propagation",
+        "score_weights": {component_name: str(_component_weight(component_name)) for component_name in _COMPONENT_ORDER},
+        "scope": "direct_internal_theme_membership_plus_hierarchical_cycle_stack_plus_macro_flow_propagation",
         "thesis_id": None,
     }
     notes_json = json.dumps(notes, ensure_ascii=False, sort_keys=True)
@@ -525,6 +610,11 @@ def run_recommendation_bootstrap(
 def _compute_component_scores(candidate: RecommendationCandidate) -> dict[str, Decimal]:
     return {
         "cycle_score": _clamp_decimal(candidate.cycle_score),
+        "macro_regime_score": _clamp_decimal(candidate.macro_regime_score or Decimal("0.5000")),
+        "domain_cycle_score": _clamp_decimal(candidate.domain_cycle_score or Decimal("0.5000")),
+        "theme_cycle_score": _clamp_decimal(candidate.theme_cycle_score or candidate.cycle_score),
+        "instrument_cycle_score": _clamp_decimal(candidate.instrument_cycle_score or candidate.cycle_score),
+        "cycle_conflict_penalty": _clamp_decimal(candidate.cycle_conflict_penalty or Decimal("1.0000")),
         "momentum_score": _compute_medium_momentum_score(candidate),
         "short_term_score": _normalize_return(
             candidate.return_1d,

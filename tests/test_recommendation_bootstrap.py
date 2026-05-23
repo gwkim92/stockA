@@ -44,6 +44,11 @@ class FakeExecutor:
                         "return_since_first_zscore": "-1.00000000",
                         "latest_adjusted_close": "222.91000000",
                         "macro_flow_score": "0.00000000",
+                        "macro_regime_score": "0.51000000",
+                        "domain_cycle_score": "0.50000000",
+                        "theme_cycle_score": "0.48000000",
+                        "instrument_cycle_score": "0.20750000",
+                        "cycle_conflict_penalty": "0.80000000",
                     }
                 ]
             )
@@ -76,6 +81,11 @@ class RecommendationBootstrapTests(unittest.TestCase):
         self.assertIn("signal.strategy_universe_batch", sql)
         self.assertIn("ref.instrument_classification_membership", sql)
         self.assertIn("signal.cycle_state_snapshot", sql)
+        self.assertIn("signal.cycle_hierarchy_state_snapshot", sql)
+        self.assertIn("macro_regime_score", sql)
+        self.assertIn("domain_cycle_score", sql)
+        self.assertIn("theme_cycle_score", sql)
+        self.assertIn("cycle_conflict_penalty", sql)
         self.assertIn("signal.instrument_feature_value", sql)
         self.assertIn("signal.propagated_instrument_impact", sql)
         self.assertIn("return_since_first_observation", sql)
@@ -94,6 +104,8 @@ class RecommendationBootstrapTests(unittest.TestCase):
         self.assertEqual(rows[0].primary_symbol, "AAPL")
         self.assertEqual(rows[0].node_code, "ANNUAL_REPORTING")
         self.assertEqual(rows[0].cycle_score, Decimal("0.2075"))
+        self.assertEqual(rows[0].macro_regime_score, Decimal("0.51000000"))
+        self.assertEqual(rows[0].cycle_conflict_penalty, Decimal("0.80000000"))
 
     def test_load_recommendation_candidates_fails_when_empty(self) -> None:
         with self.assertRaises(ValueError):
@@ -155,6 +167,11 @@ class RecommendationBootstrapTests(unittest.TestCase):
             by_symbol["AAPL"].component_scores,
             {
                 "cycle_score": "0.2075",
+                "macro_regime_score": "0.5000",
+                "domain_cycle_score": "0.5000",
+                "theme_cycle_score": "0.2075",
+                "instrument_cycle_score": "0.2075",
+                "cycle_conflict_penalty": "1.0000",
                 "momentum_score": "0.2500",
                 "short_term_score": "0.3672",
                 "rank_score": "1.0000",
@@ -204,9 +221,16 @@ class RecommendationBootstrapTests(unittest.TestCase):
         self.assertIn("source_components", sql)
         self.assertIn("'cycle_score'", sql)
         self.assertIn("0.45::numeric", sql)
+        self.assertIn("'macro_regime_score'", sql)
+        self.assertIn("'domain_cycle_score'", sql)
+        self.assertIn("'theme_cycle_score'", sql)
+        self.assertIn("'instrument_cycle_score'", sql)
+        self.assertIn("'cycle_conflict_penalty'", sql)
+        self.assertIn("0.0000::numeric", sql)
         self.assertIn("'macro_flow_score'", sql)
         self.assertIn("0.10::numeric", sql)
         self.assertIn("'Normalized current cycle state score from the linked internal theme.'", sql)
+        self.assertIn("'Latest hierarchical macro-regime cycle score connected to the theme path.'", sql)
         self.assertIn("77::bigint", sql)
         self.assertIn("'watch'", sql)
         self.assertIn("0.3610", sql)
@@ -226,7 +250,7 @@ class RecommendationBootstrapTests(unittest.TestCase):
         self.assertEqual(summary["universe_batch_id"], 1001)
         self.assertEqual(summary["candidate_count"], 1)
         self.assertEqual(summary["recommendation_count"], 1)
-        self.assertEqual(summary["score_component_count"], 5)
+        self.assertEqual(summary["score_component_count"], 10)
         self.assertEqual(summary["bucket_counts"], {"watch": 1})
         self.assertIn("insert into ops.pipeline_run", executor.scalar_sql[1])
         self.assertIn("insert into signal.recommendation_batch", executor.scalar_sql[2])
