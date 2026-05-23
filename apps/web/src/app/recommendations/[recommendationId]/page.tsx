@@ -19,6 +19,10 @@ function formatPercent(value: number) {
 
 type ScoreComponent = RecommendationDetailData["score_components"][number];
 
+function isZeroWeight(value: number) {
+  return Math.abs(Number(value)) < 0.000001;
+}
+
 const CYCLE_STACK_COMPONENT_ORDER = [
   "macro_regime_score",
   "domain_cycle_score",
@@ -130,7 +134,7 @@ function provenanceBadges(component: ScoreComponent) {
   if (provenance.source_type === "cycle_stack_context") {
     const nodeCode = cycleStackNodeCode(component);
     if (nodeCode) {
-      badges.push(`선택 노드 ${koCode(nodeCode)}`);
+      badges.push(`기준 노드 ${koCode(nodeCode)}`);
     }
     if (provenance.evidence?.cycle_stack_level) {
       badges.push(koCode(provenance.evidence.cycle_stack_level));
@@ -204,7 +208,7 @@ function provenanceDetail(component: ScoreComponent) {
     const nodeCode = cycleStackNodeCode(component);
     const nodeText = nodeCode ? koCode(nodeCode) : "선택 노드 미기록";
     const meta = CYCLE_STACK_COMPONENT_META[component.component];
-    return `${meta?.step ?? koCode(cycleStackLevel(component))}: ${nodeText}. ${meta?.body ?? "계층형 사이클 점수의 출처를 설명한다."}`;
+    return `${meta?.step ?? koCode(cycleStackLevel(component))}: 기준 노드 ${nodeText}. ${meta?.body ?? "계층형 사이클 점수의 출처를 설명한다."}`;
   }
   return koLabel(provenance.label);
 }
@@ -562,12 +566,15 @@ export default async function RecommendationPage({ params }: RecommendationPageP
                   }}
                 >
                   <span>{meta?.step ?? koCode(component.component)}</span>
-                  <strong>{nodeCode ? koCode(nodeCode) : koCode(component.component)}</strong>
+                  <strong>{koCode(component.component)}</strong>
                   <p>{meta?.body ?? "계층형 사이클 근거를 설명하는 점수 항목이다."}</p>
+                  <p style={{ marginTop: "8px", color: "var(--text-secondary)", fontSize: "0.78rem", fontWeight: 850 }}>
+                    {nodeCode ? `기준 노드: ${koCode(nodeCode)}` : "기준 노드 미기록"}
+                  </p>
                   <div style={{ marginTop: "14px", display: "grid", gap: "6px", color: "var(--text-secondary)", fontSize: "0.8rem", fontWeight: 800 }}>
                     <span>점수 {formatPercent(component.value)}</span>
                     <span>가중치 {formatPercent(component.weight)}</span>
-                    <span>{component.weight === 0 ? "현재 총점 영향 없음" : "총점에 반영됨"}</span>
+                    <span>{isZeroWeight(component.weight) ? "현재 총점 영향 없음" : "총점에 반영됨"}</span>
                   </div>
                 </article>
               );
