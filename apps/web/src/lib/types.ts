@@ -773,6 +773,10 @@ export type RecommendationDetailData = {
         first_trade_date: string | null;
         latest_trade_date: string | null;
         as_of_date: string | null;
+        cycle_stack_node_code?: string | null;
+        cycle_stack_level?: string | null;
+        cycle_stack_explanation?: string | null;
+        cycle_stack_note?: string | null;
         propagated_impact_count?: number | null;
         recent_flows?: Array<{
           event_id: number | string;

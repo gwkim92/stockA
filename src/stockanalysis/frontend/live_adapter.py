@@ -4625,6 +4625,14 @@ score_component_rows as (
                 then 'universe-rank-' || lower(recommendation.primary_symbol) || '-' || recommendation.as_of_date::text || coalesce('-' || (select universe_batch_id::text from strategy_universe_provenance), '')
             when component.component_name = 'macro_flow_score'
                 then 'macro-flow-' || lower(recommendation.primary_symbol) || '-' || recommendation.as_of_date::text
+            when component.component_name in (
+                'macro_regime_score',
+                'domain_cycle_score',
+                'theme_cycle_score',
+                'instrument_cycle_score',
+                'cycle_conflict_penalty'
+            )
+                then 'cycle-stack-' || lower(recommendation.primary_symbol) || '-' || recommendation.as_of_date::text || '-' || component.component_name
             else component.component_name
         end as evidence_id,
         case
@@ -4670,6 +4678,32 @@ score_component_rows as (
                         'as_of_date', recommendation.as_of_date,
                         'propagated_impact_count', coalesce((select propagated_impact_count from macro_flow_provenance), 0),
                         'recent_flows', coalesce((select recent_flows from macro_flow_provenance), '[]'::json)
+                    )
+                ))
+            when component.component_name in (
+                'macro_regime_score',
+                'domain_cycle_score',
+                'theme_cycle_score',
+                'instrument_cycle_score',
+                'cycle_conflict_penalty'
+            )
+                then json_strip_nulls(json_build_object(
+                    'source_type', 'cycle_stack_context',
+                    'label', '계층형 사이클 근거',
+                    'evidence_json', json_build_object(
+                        'as_of_date', recommendation.as_of_date,
+                        'cycle_stack_node_code', substring(component.explanation from 'Selected recommendation node: ([A-Z0-9_]+)'),
+                        'cycle_stack_level',
+                        case component.component_name
+                            when 'macro_regime_score' then 'macro_regime'
+                            when 'domain_cycle_score' then 'domain'
+                            when 'theme_cycle_score' then 'theme'
+                            when 'instrument_cycle_score' then 'instrument'
+                            when 'cycle_conflict_penalty' then 'conflict'
+                            else 'unknown'
+                        end,
+                        'cycle_stack_explanation', component.explanation,
+                        'cycle_stack_note', '초기 계층형 사이클 점수는 추천 결과를 급격히 바꾸지 않도록 설명용 weight 0으로 저장될 수 있다.'
                     )
                 ))
             else json_build_object(
@@ -6795,6 +6829,10 @@ def _build_score_component_evidence_summary(evidence_json: dict[str, Any]) -> di
         "first_trade_date": _optional_text(evidence_json.get("first_trade_date")),
         "latest_trade_date": _optional_text(evidence_json.get("latest_trade_date")),
         "as_of_date": _optional_text(evidence_json.get("as_of_date")),
+        "cycle_stack_node_code": _optional_text(evidence_json.get("cycle_stack_node_code")),
+        "cycle_stack_level": _optional_text(evidence_json.get("cycle_stack_level")),
+        "cycle_stack_explanation": _optional_text(evidence_json.get("cycle_stack_explanation")),
+        "cycle_stack_note": _optional_text(evidence_json.get("cycle_stack_note")),
         "propagated_impact_count": _integer(evidence_json.get("propagated_impact_count")),
         "recent_flows": _as_list(evidence_json.get("recent_flows")),
     }
@@ -6821,6 +6859,8 @@ def _default_score_component_provenance_label(source_type: str) -> str:
         return "원천 이벤트/AI 근거"
     if source_type == "macro_flow_propagation":
         return "상위 흐름 전파 근거"
+    if source_type == "cycle_stack_context":
+        return "계층형 사이클 근거"
     return "저장된 점수 구성요소"
 
 

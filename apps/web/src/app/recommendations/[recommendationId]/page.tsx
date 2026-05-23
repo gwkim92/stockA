@@ -19,11 +19,73 @@ function formatPercent(value: number) {
 
 type ScoreComponent = RecommendationDetailData["score_components"][number];
 
+const CYCLE_STACK_COMPONENT_ORDER = [
+  "macro_regime_score",
+  "domain_cycle_score",
+  "theme_cycle_score",
+  "instrument_cycle_score",
+  "cycle_conflict_penalty",
+] as const;
+
+const CYCLE_STACK_COMPONENT_META: Record<string, { step: string; body: string }> = {
+  macro_regime_score: {
+    step: "1. 거시",
+    body: "금리, 물가, 유동성, 성장 같은 최상위 환경이 이 종목 검토에 어떤 배경으로 들어왔는지 본다.",
+  },
+  domain_cycle_score: {
+    step: "2. 도메인",
+    body: "기술, 에너지, 금융처럼 더 넓은 사업 영역의 사이클이 종목 후보를 밀어주는지 확인한다.",
+  },
+  theme_cycle_score: {
+    step: "3. 테마",
+    body: "AI 반도체, 양자컴퓨팅, 에너지 지정학 같은 구체 테마 흐름이 연결됐는지 확인한다.",
+  },
+  instrument_cycle_score: {
+    step: "4. 종목",
+    body: "종목 자체의 가격·사이클 상태가 상위 흐름과 같은 방향인지 확인한다.",
+  },
+  cycle_conflict_penalty: {
+    step: "5. 충돌",
+    body: "상위 흐름과 종목 상태가 충돌하면 추천 점수에 감점 후보로 남긴다.",
+  },
+};
+
+const CYCLE_STACK_COMPONENT_SET = new Set<string>(CYCLE_STACK_COMPONENT_ORDER);
+
 function macroFlowRows(component: ScoreComponent) {
   if (component.provenance?.source_type !== "macro_flow_propagation") {
     return [];
   }
   return component.provenance.evidence?.recent_flows ?? [];
+}
+
+function cycleStackNodeCode(component: ScoreComponent) {
+  const explicitNode = component.provenance?.evidence?.cycle_stack_node_code;
+  if (explicitNode) {
+    return explicitNode;
+  }
+  const explanation = component.provenance?.evidence?.cycle_stack_explanation;
+  const match = explanation?.match(/Selected recommendation node: ([A-Z0-9_]+)/);
+  return match?.[1] ?? null;
+}
+
+function cycleStackLevel(component: ScoreComponent) {
+  return component.provenance?.evidence?.cycle_stack_level ?? CYCLE_STACK_COMPONENT_META[component.component]?.step ?? "사이클";
+}
+
+function isCycleStackComponent(component: ScoreComponent) {
+  return component.provenance?.source_type === "cycle_stack_context" || CYCLE_STACK_COMPONENT_SET.has(component.component);
+}
+
+function cycleStackOrder(componentName: string) {
+  const index = CYCLE_STACK_COMPONENT_ORDER.findIndex((item) => item === componentName);
+  return index === -1 ? CYCLE_STACK_COMPONENT_ORDER.length : index;
+}
+
+function cycleStackComponents(components: ScoreComponent[]) {
+  return components
+    .filter(isCycleStackComponent)
+    .sort((left, right) => cycleStackOrder(left.component) - cycleStackOrder(right.component));
 }
 
 function themeHref(themeKey: string | null | undefined) {
@@ -65,6 +127,15 @@ function provenanceBadges(component: ScoreComponent) {
   if (provenance.source_type === "macro_flow_propagation") {
     badges.push(`전파 근거 ${provenance.evidence?.propagated_impact_count ?? 0}개`);
   }
+  if (provenance.source_type === "cycle_stack_context") {
+    const nodeCode = cycleStackNodeCode(component);
+    if (nodeCode) {
+      badges.push(`선택 노드 ${koCode(nodeCode)}`);
+    }
+    if (provenance.evidence?.cycle_stack_level) {
+      badges.push(koCode(provenance.evidence.cycle_stack_level));
+    }
+  }
   return badges;
 }
 
@@ -93,6 +164,10 @@ function provenanceMetadata(component: ScoreComponent): AuditMetadataItem[] {
     { label: "관측치 수", value: provenance.observation_count ?? provenance.evidence?.observation_count },
     { label: "첫 가격일", value: provenance.evidence?.first_trade_date },
     { label: "최근 가격일", value: provenance.latest_trade_date ?? provenance.evidence?.latest_trade_date },
+    { label: "사이클 계층", value: provenance.evidence?.cycle_stack_level ? koCode(provenance.evidence.cycle_stack_level) : null },
+    { label: "선택 사이클 노드", value: provenance.evidence?.cycle_stack_node_code ? koCode(provenance.evidence.cycle_stack_node_code) : null },
+    { label: "사이클 설명", value: provenance.evidence?.cycle_stack_explanation ? koLabel(provenance.evidence.cycle_stack_explanation) : null },
+    { label: "적용 메모", value: provenance.evidence?.cycle_stack_note ? koLabel(provenance.evidence.cycle_stack_note) : null },
     { label: "전파 근거 수", value: provenance.evidence?.propagated_impact_count },
     { label: "선정 규칙", value: provenance.selection_rule },
     { label: "편입 사유", value: provenance.inclusion_reason },
@@ -124,6 +199,12 @@ function provenanceDetail(component: ScoreComponent) {
     const firstFlow = provenance.evidence?.recent_flows?.[0];
     const flowText = firstFlow ? `${koCode(firstFlow.theme_key)} ${koCode(firstFlow.impact_direction)}` : "상위 흐름";
     return `${flowText} 등 ${count}개 전파 근거를 추천 점수 입력으로 사용했다.`;
+  }
+  if (provenance.source_type === "cycle_stack_context") {
+    const nodeCode = cycleStackNodeCode(component);
+    const nodeText = nodeCode ? koCode(nodeCode) : "선택 노드 미기록";
+    const meta = CYCLE_STACK_COMPONENT_META[component.component];
+    return `${meta?.step ?? koCode(cycleStackLevel(component))}: ${nodeText}. ${meta?.body ?? "계층형 사이클 점수의 출처를 설명한다."}`;
   }
   return koLabel(provenance.label);
 }
@@ -349,6 +430,7 @@ export default async function RecommendationPage({ params }: RecommendationPageP
   const qualityChecks = recommendationQualityChecks(data);
   const traceCards = evidenceTraceCards(data);
   const macroFlowComponents = data.score_components.filter((component) => macroFlowRows(component).length > 0);
+  const cycleStack = cycleStackComponents(data.score_components);
   const outcomeMeasured = data.outcome.label !== "unmeasured" && Boolean(data.outcome.measurement_end_date);
   const marketComponentCount = data.score_components.filter((component) =>
     ["market_feature", "strategy_universe_rank"].includes(component.provenance?.source_type ?? ""),
@@ -376,6 +458,11 @@ export default async function RecommendationPage({ params }: RecommendationPageP
       label: "상위 흐름",
       title: `${macroFlowComponents.length}개 재료`,
       body: "종목을 직접 언급하지 않은 시장·테마 뉴스가 노출도 규칙으로 점수에 들어간 경우다.",
+    },
+    {
+      label: "사이클 경로",
+      title: `${cycleStack.length}단계`,
+      body: "거시, 도메인, 테마, 종목, 충돌 여부를 분리해 왜 이 종목인지 추적한다.",
     },
   ];
 
@@ -443,6 +530,51 @@ export default async function RecommendationPage({ params }: RecommendationPageP
           </article>
         ))}
       </section>
+
+      {cycleStack.length > 0 ? (
+        <section className="bento-card reveal delay-1" aria-label="계층형 사이클 추천 경로">
+          <div style={{ marginBottom: "22px" }}>
+            <span className="metric-sub">계층형 사이클 경로</span>
+            <h2 style={{ fontSize: "1.5rem", marginTop: "6px" }}>왜 {data.symbol}을 지금 검토하는가</h2>
+            <p style={{ color: "var(--text-secondary)", marginTop: "8px", maxWidth: "860px" }}>
+              추천 점수를 한 덩어리로 보지 않고 거시 환경, 도메인, 테마, 종목 자체 상태, 충돌 감점을 분리해 보여준다.
+              초기 weight 0 항목은 결과를 흔들지 않기 위한 설명·검증용 항목이며, 품질 검증 후 점수 반영을 키운다.
+            </p>
+          </div>
+
+          <div style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))",
+            gap: "12px",
+          }}>
+            {cycleStack.map((component) => {
+              const meta = CYCLE_STACK_COMPONENT_META[component.component];
+              const nodeCode = cycleStackNodeCode(component);
+              return (
+                <article
+                  className="detail-path-card"
+                  key={`cycle-stack-${component.component}`}
+                  style={{
+                    background:
+                      component.component === "cycle_conflict_penalty"
+                        ? "linear-gradient(180deg, rgba(255,255,255,0.86), rgba(168,59,52,0.08))"
+                        : "linear-gradient(180deg, rgba(251,250,246,0.95), rgba(38,92,128,0.08))",
+                  }}
+                >
+                  <span>{meta?.step ?? koCode(component.component)}</span>
+                  <strong>{nodeCode ? koCode(nodeCode) : koCode(component.component)}</strong>
+                  <p>{meta?.body ?? "계층형 사이클 근거를 설명하는 점수 항목이다."}</p>
+                  <div style={{ marginTop: "14px", display: "grid", gap: "6px", color: "var(--text-secondary)", fontSize: "0.8rem", fontWeight: 800 }}>
+                    <span>점수 {formatPercent(component.value)}</span>
+                    <span>가중치 {formatPercent(component.weight)}</span>
+                    <span>{component.weight === 0 ? "현재 총점 영향 없음" : "총점에 반영됨"}</span>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        </section>
+      ) : null}
 
       <section className="bento-card reveal delay-1" aria-label="추천 근거 흐름 요약">
         <div style={{ marginBottom: "20px" }}>

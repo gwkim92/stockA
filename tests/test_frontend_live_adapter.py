@@ -840,7 +840,88 @@ class FakeLiveExecutor:
                                     "as_of_date": "2024-11-01",
                                 },
                             },
-                        }
+                        },
+                        {
+                            "component": "macro_regime_score",
+                            "value": "0.6700",
+                            "weight": "0.0000",
+                            "evidence_id": "cycle-stack-aapl-2024-11-01-macro_regime_score",
+                            "provenance": {
+                                "source_type": "cycle_stack_context",
+                                "label": "계층형 사이클 근거",
+                                "evidence_json": {
+                                    "as_of_date": "2024-11-01",
+                                    "cycle_stack_node_code": "MACRO_RATES_FED",
+                                    "cycle_stack_level": "macro_regime",
+                                    "cycle_stack_explanation": "Selected recommendation node: MACRO_RATES_FED.",
+                                    "cycle_stack_note": "설명용 weight 0.",
+                                },
+                            },
+                        },
+                        {
+                            "component": "domain_cycle_score",
+                            "value": "0.6300",
+                            "weight": "0.0000",
+                            "evidence_id": "cycle-stack-aapl-2024-11-01-domain_cycle_score",
+                            "provenance": {
+                                "source_type": "cycle_stack_context",
+                                "label": "계층형 사이클 근거",
+                                "evidence_json": {
+                                    "as_of_date": "2024-11-01",
+                                    "cycle_stack_node_code": "TECH_DOMAIN",
+                                    "cycle_stack_level": "domain",
+                                    "cycle_stack_explanation": "Selected recommendation node: TECH_DOMAIN.",
+                                },
+                            },
+                        },
+                        {
+                            "component": "theme_cycle_score",
+                            "value": "0.6500",
+                            "weight": "0.0000",
+                            "evidence_id": "cycle-stack-aapl-2024-11-01-theme_cycle_score",
+                            "provenance": {
+                                "source_type": "cycle_stack_context",
+                                "label": "계층형 사이클 근거",
+                                "evidence_json": {
+                                    "as_of_date": "2024-11-01",
+                                    "cycle_stack_node_code": "AI_SEMICONDUCTOR_CYCLE",
+                                    "cycle_stack_level": "theme",
+                                    "cycle_stack_explanation": "Selected recommendation node: AI_SEMICONDUCTOR_CYCLE.",
+                                },
+                            },
+                        },
+                        {
+                            "component": "instrument_cycle_score",
+                            "value": "0.6200",
+                            "weight": "0.0000",
+                            "evidence_id": "cycle-stack-aapl-2024-11-01-instrument_cycle_score",
+                            "provenance": {
+                                "source_type": "cycle_stack_context",
+                                "label": "계층형 사이클 근거",
+                                "evidence_json": {
+                                    "as_of_date": "2024-11-01",
+                                    "cycle_stack_node_code": "AI_SEMICONDUCTOR_CYCLE",
+                                    "cycle_stack_level": "instrument",
+                                    "cycle_stack_explanation": "Selected recommendation node: AI_SEMICONDUCTOR_CYCLE.",
+                                },
+                            },
+                        },
+                        {
+                            "component": "cycle_conflict_penalty",
+                            "value": "0.0000",
+                            "weight": "0.0000",
+                            "evidence_id": "cycle-stack-aapl-2024-11-01-cycle_conflict_penalty",
+                            "provenance": {
+                                "source_type": "cycle_stack_context",
+                                "label": "계층형 사이클 근거",
+                                "evidence_json": {
+                                    "as_of_date": "2024-11-01",
+                                    "cycle_stack_node_code": "AI_SEMICONDUCTOR_CYCLE",
+                                    "cycle_stack_level": "conflict",
+                                    "cycle_stack_explanation": "Selected recommendation node: AI_SEMICONDUCTOR_CYCLE.",
+                                },
+                            },
+                        },
 	                    ],
 	                    "linked_thesis_id": 7001,
 	                    "evidence_trace": {
@@ -2481,6 +2562,16 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertEqual(payload["data"]["score_components"][2]["provenance"]["source_type"], "strategy_universe_rank")
         self.assertEqual(payload["data"]["score_components"][2]["provenance"]["universe_batch_id"], "strategy-universe-batch-6101")
         self.assertEqual(payload["data"]["score_components"][2]["provenance"]["rank_position"], 2)
+        self.assertEqual(payload["data"]["score_components"][4]["component"], "macro_regime_score")
+        self.assertEqual(payload["data"]["score_components"][4]["provenance"]["source_type"], "cycle_stack_context")
+        self.assertEqual(
+            payload["data"]["score_components"][4]["provenance"]["evidence"]["cycle_stack_node_code"],
+            "MACRO_RATES_FED",
+        )
+        self.assertEqual(
+            payload["data"]["score_components"][4]["provenance"]["evidence"]["cycle_stack_level"],
+            "macro_regime",
+        )
         self.assertEqual(payload["data"]["linked_thesis_id"], "thesis-7001")
         trace = payload["data"]["evidence_trace"]
         self.assertEqual(trace["symbol"], "AAPL")
@@ -2499,7 +2590,7 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertEqual(trace["holding_review"]["position_linked_thesis_id"], "thesis-7001")
         review = payload["data"]["evidence_review"]
         self.assertEqual(review["quality_status"], "ai_review_passed")
-        self.assertEqual(review["summary"]["score_component_count"], 4)
+        self.assertEqual(review["summary"]["score_component_count"], 9)
         self.assertEqual(review["summary"]["ai_evidence_component_count"], 1)
         self.assertEqual(review["summary"]["market_or_rank_component_count"], 3)
         self.assertEqual(review["summary"]["market_or_rank_provenance_count"], 3)
@@ -2599,6 +2690,10 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertIn("'return_since_first_observation'", sql)
         self.assertIn("'return_1d'", sql)
         self.assertIn("'universe-rank-' || lower(recommendation.primary_symbol)", sql)
+        self.assertIn("'cycle-stack-' || lower(recommendation.primary_symbol)", sql)
+        self.assertIn("'cycle_stack_context'", sql)
+        self.assertIn("'cycle_stack_node_code', substring(component.explanation from 'Selected recommendation node: ([A-Z0-9_]+)')", sql)
+        self.assertIn("'cycle_stack_level'", sql)
         self.assertIn("'provenance', provenance", sql)
         self.assertIn("'evidence_trace'", sql)
         self.assertIn("'direct_news_or_ai'", sql)
