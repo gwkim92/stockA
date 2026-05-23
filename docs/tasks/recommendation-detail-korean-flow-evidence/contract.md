@@ -54,4 +54,4 @@
 - [x] Recommendation detail API returns Korean translation fields for direct evidence and macro flow recent flows.
 - [x] Recommendation detail page passes Korean translation fields into `NewsTitleBlock`.
 - [x] Focused local verification passes.
-- [ ] EC2 route smoke passes.
+- [x] EC2 route smoke passes.

@@ -22,3 +22,7 @@
 - `cd apps/web && npm run build` - passed.
 - `git diff --check` - passed.
 - `PYTHONPATH=/Users/woody/ai/agent-work-harness/src /opt/homebrew/bin/python3.13 -m awh verify --repo . --task recommendation-detail-korean-flow-evidence` - passed.
+- EC2 `PYTHONPATH=src /opt/stockanalysis/venv/bin/python -m unittest tests.test_frontend_live_adapter` - passed.
+- EC2 `cd apps/web && npm run build` - passed.
+- EC2 `/api/recommendations/recommendation-140` - macro flow recent flows include stored Korean titles and translation confidence.
+- EC2 `GET http://127.0.0.1:3000/recommendations/recommendation-140` - contains `한국어 번역`, `상위 흐름 전파 경로`, `영어 원문 제목 보기`; no server render error/digest text.
