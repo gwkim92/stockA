@@ -120,7 +120,7 @@ timer_text = "\n".join(
 )
 assert "OnCalendar=Mon *-*-* 07:00 America/New_York" in timer_text
 assert "OnCalendar=Mon *-*-* 08:00 America/New_York" in timer_text
-assert "OnCalendar=Mon..Fri *-*-* 09..18:00/30 America/New_York" in timer_text
+assert "OnCalendar=*-*-* 00,02,04,06,08,10,12,14,16,18,20,22:00 America/New_York" in timer_text
 assert "OnCalendar=Mon..Fri *-*-* 18:35 America/New_York" in timer_text
 assert "OnCalendar=Mon..Fri *-*-* 19:00 America/New_York" in timer_text
 assert "OnCalendar=*-*-01 09:30 America/New_York" in timer_text

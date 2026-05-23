@@ -192,7 +192,10 @@ class OperatingDataProfileSchedulerTests(unittest.TestCase):
                         calendars[profile_payload["profile_id"]] = Path(item["path"]).read_text(encoding="utf-8")
             self.assertIn("OnCalendar=Mon *-*-* 07:00 America/New_York", calendars["market-universe-weekly"])
             self.assertIn("OnCalendar=Mon *-*-* 08:00 America/New_York", calendars["sec-filings-weekly"])
-            self.assertIn("OnCalendar=Mon..Fri *-*-* 09..18:00/30 America/New_York", calendars["news-intraday"])
+            self.assertIn(
+                "OnCalendar=*-*-* 00,02,04,06,08,10,12,14,16,18,20,22:00 America/New_York",
+                calendars["news-intraday"],
+            )
             self.assertIn("OnCalendar=Mon..Fri *-*-* 18:35 America/New_York", calendars["market-daily"])
             self.assertIn("OnCalendar=Mon..Fri *-*-* 19:00 America/New_York", calendars["decision-daily"])
             self.assertIn("OnCalendar=Mon *-*-* 07:30 America/New_York", calendars["macro-weekly"])

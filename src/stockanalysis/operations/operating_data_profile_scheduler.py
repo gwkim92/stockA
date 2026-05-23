@@ -33,7 +33,7 @@ DEFAULT_PROFILE_CADENCE_SCHEDULES = {
 DEFAULT_PROFILE_SCHEDULES = {
     "market-universe-weekly": "0 7 * * 1",
     "sec-filings-weekly": "0 8 * * 1",
-    "news-intraday": "*/30 9-18 * * 1-5",
+    "news-intraday": "0 0,2,4,6,8,10,12,14,16,18,20,22 * * *",
     "market-daily": "35 18 * * 1-5",
     "decision-daily": "0 19 * * 1-5",
     "macro-weekly": "30 7 * * 1",
