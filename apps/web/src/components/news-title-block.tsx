@@ -20,6 +20,10 @@ function isLikelyEnglish(value: string) {
   return latin >= 8 && latin > hangul * 2;
 }
 
+function hasHangul(value: string) {
+  return /[가-힣]/.test(value);
+}
+
 function formatPercent(value: number | null | undefined) {
   if (value === null || value === undefined || !Number.isFinite(value)) {
     return null;
@@ -44,20 +48,45 @@ function interpretationParts(props: NewsTitleBlockProps) {
   return parts;
 }
 
+function koreanDigest(props: NewsTitleBlockProps, rawTitle: string, summary: string | null | undefined) {
+  const candidate = summary?.trim() || rawTitle;
+  const translated = koLabel(candidate);
+  if (hasHangul(candidate) && !isLikelyEnglish(candidate)) {
+    return translated;
+  }
+  if (hasHangul(translated) && translated !== rawTitle) {
+    return translated;
+  }
+
+  const target = isKnownCode(props.symbol)
+    ? `${koCode(props.symbol as string)} 관련 뉴스`
+    : isKnownCode(props.themeKey)
+      ? `${koCode(props.themeKey as string)} 흐름 뉴스`
+      : "시장 뉴스";
+  const direction = props.impactDirection ? `${koCode(props.impactDirection)} 신호` : "방향 확인 필요";
+  const impactScore = formatPercent(props.impactScore);
+  return impactScore ? `${target} · ${direction} · 영향도 ${impactScore}` : `${target} · ${direction}`;
+}
+
 export function NewsTitleBlock(props: NewsTitleBlockProps) {
   const rawTitle = props.title.trim();
-  const translatedTitle = koLabel(rawTitle);
   const summary = props.summary?.trim();
   const hasSummary = Boolean(summary && summary !== rawTitle);
   const englishOriginal = isLikelyEnglish(rawTitle);
+  const digest = koreanDigest(props, rawTitle, summary);
   const parts = interpretationParts(props);
 
   return (
     <div className={props.compact ? "news-title-block news-title-block-compact" : "news-title-block"}>
-      <span>{hasSummary ? "AI 요약" : englishOriginal ? "원문 제목" : "제목"}</span>
-      <strong>{hasSummary ? koLabel(summary as string) : translatedTitle}</strong>
-      {hasSummary ? <small>원문 제목: {translatedTitle}</small> : null}
+      <span>{englishOriginal || hasSummary ? "한국어 확인" : "제목"}</span>
+      <strong>{digest}</strong>
       {parts.length > 0 ? <small>화면 해석: {parts.join(" · ")}</small> : null}
+      {englishOriginal ? (
+        <details className="news-original-title">
+          <summary>영어 원문 제목 보기</summary>
+          <small>{rawTitle}</small>
+        </details>
+      ) : null}
     </div>
   );
 }

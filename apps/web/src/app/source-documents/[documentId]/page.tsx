@@ -2,6 +2,7 @@ import Link from "next/link";
 import { NewsTitleBlock } from "@/components/news-title-block";
 import { getSourceDocumentDetail } from "@/lib/frontend-api";
 import { koCode, koLabel } from "@/lib/korean-labels";
+import type { SourceDocumentDetailData } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "원천 문서" };
@@ -9,6 +10,61 @@ export const metadata = { title: "원천 문서" };
 type SourceDocumentPageProps = {
   params: Promise<{ documentId: string }>;
 };
+
+type SourceExcerpt = SourceDocumentDetailData["excerpts"][number];
+
+function isKnownCode(value: string | null | undefined) {
+  return Boolean(value && value !== "UNKNOWN" && value !== "UNCLASSIFIED");
+}
+
+function hasHangul(value: string) {
+  return /[가-힣]/.test(value);
+}
+
+function inferKoreanTopic(value: string) {
+  const text = value.toLowerCase();
+  if (/(quantum|qubit|rigetti|d-wave|ionq|qbts|qubt|ibm)/.test(text)) {
+    return "양자컴퓨팅·정책 수혜";
+  }
+  if (/(fed|warsh|rate|rates|treasury|bond|yield|inflation|annuity)/.test(text)) {
+    return "금리·연준";
+  }
+  if (/(oil|iran|hormuz|crude|energy|gas|xom|drilling)/.test(text)) {
+    return "에너지·지정학";
+  }
+  if (/(nvidia|semiconductor|chip|qualcomm|skyworks|qorvo|tower semiconductor|tsem)/.test(text)) {
+    return "AI 반도체 사이클";
+  }
+  if (/(s&p|nasdaq|dow|stock market|stocks|buffett indicator)/.test(text)) {
+    return "미국 시장 참여도";
+  }
+  return "시장 뉴스 흐름";
+}
+
+function extractTitle(value: string) {
+  return value.match(/Title:\s*(.*?)(?:\s+Summary:|$)/)?.[1]?.trim();
+}
+
+function extractSummary(value: string) {
+  return value.match(/Summary:\s*(.*?)(?:\s+Published\/Event At:|$)/)?.[1]?.trim();
+}
+
+function sourceDocumentDigest(data: SourceDocumentDetailData) {
+  const target = isKnownCode(data.symbol) ? `${koCode(data.symbol)} 관련` : `${koCode(data.source_type)} 원천`;
+  const topic = inferKoreanTopic(`${data.title} ${data.excerpts.map((excerpt) => excerpt.summary).join(" ")}`);
+  return `${target} ${topic} 문서다. 영어 원문을 먼저 읽지 말고, 연결된 AI 근거와 발췌의 한국어 검토 요약으로 테마·종목·방향 해석이 맞는지 확인한다.`;
+}
+
+function sourceExcerptDigest(excerpt: SourceExcerpt, documentTitle: string) {
+  const title = extractTitle(excerpt.summary) ?? documentTitle;
+  const summary = extractSummary(excerpt.summary);
+  const translated = koLabel(summary ?? title);
+  if (hasHangul(translated) && translated !== summary && translated !== title) {
+    return translated;
+  }
+  const topic = inferKoreanTopic(`${title} ${summary ?? ""}`);
+  return `${topic} 관련 원천 발췌다. 제목과 세부 문장은 영어 원문에 보관되어 있고, 화면에서는 이 발췌가 어떤 테마 흐름으로 쓰였는지 먼저 확인한다.`;
+}
 
 export default async function SourceDocumentPage({ params }: SourceDocumentPageProps) {
   const { documentId } = await params;
@@ -25,8 +81,8 @@ export default async function SourceDocumentPage({ params }: SourceDocumentPageP
           <div>
             <h1 style={{ fontSize: "clamp(2.5rem, 4vw, 4rem)", marginBottom: "16px" }}>원천 문서 검토서</h1>
             <p style={{ color: "var(--text-secondary)", fontSize: "1.1rem", maxWidth: "700px" }}>
-              원문 파일은 화면에서 직접 내려받지 않는다. 이 경로는 저장된 증거 객체를 감사하는 데 필요한
-              메타데이터와 검토된 발췌만 노출한다.
+              한국어 검토 요약을 먼저 보고, 필요할 때만 영어 원문 제목과 발췌를 펼쳐서 대조한다.
+              이 화면은 뉴스가 어떤 AI 근거와 연결됐는지 확인하는 곳이다.
             </p>
           </div>
           
@@ -46,6 +102,19 @@ export default async function SourceDocumentPage({ params }: SourceDocumentPageP
             </div>
           </div>
         </div>
+      </section>
+
+      <section className="source-review-panel reveal delay-1" aria-labelledby="source-review-title">
+        <div>
+          <span>한국어 검토 요약</span>
+          <h2 id="source-review-title">영어 원문을 읽기 전에 이 문서가 무엇에 쓰였는지 먼저 확인한다</h2>
+          <p>{sourceDocumentDigest(data)}</p>
+        </div>
+        <aside>
+          <strong>{data.linked_evidence.length}</strong>
+          <span>연결된 AI 근거</span>
+          <p>근거 상세에서 종목·테마·방향 해석이 맞는지 이어서 확인한다.</p>
+        </aside>
       </section>
 
       <section className="bento-grid reveal delay-1">
@@ -119,7 +188,11 @@ export default async function SourceDocumentPage({ params }: SourceDocumentPageP
                   <strong style={{ fontSize: "1rem", color: "var(--text-primary)" }}>{koLabel(excerpt.section)}</strong>
                   <span className="bento-badge" style={{ margin: 0, padding: "2px 8px", fontSize: "0.65rem" }}>{excerpt.locator}</span>
                 </div>
-                <p style={{ fontSize: "0.9rem", color: "var(--text-secondary)", lineHeight: 1.5, margin: "0 0 12px 0" }}>{koLabel(excerpt.summary)}</p>
+                <p className="source-korean-digest">{sourceExcerptDigest(excerpt, data.title)}</p>
+                <details className="news-original-title source-original-detail">
+                  <summary>영어 원문 발췌 보기</summary>
+                  <p>{excerpt.summary}</p>
+                </details>
                 <span style={{ fontSize: "0.7rem", color: "var(--text-tertiary)", fontFamily: "monospace" }}>ID: {excerpt.chunk_id}</span>
               </div>
             ))}

@@ -124,14 +124,34 @@ function formatSourceLocator(locator: string) {
   return koLabel(locator);
 }
 
+function inferKoreanSourceTopic(value: string) {
+  const text = value.toLowerCase();
+  if (/(quantum|qubit|rigetti|d-wave|ionq|qbts|qubt|ibm)/.test(text)) {
+    return "양자컴퓨팅·정책 수혜";
+  }
+  if (/(fed|warsh|rate|rates|treasury|bond|yield|inflation|annuity)/.test(text)) {
+    return "금리·연준";
+  }
+  if (/(oil|iran|hormuz|crude|energy|gas|xom|drilling)/.test(text)) {
+    return "에너지·지정학";
+  }
+  if (/(nvidia|semiconductor|chip|qualcomm|skyworks|qorvo|tower semiconductor|tsem)/.test(text)) {
+    return "AI 반도체 사이클";
+  }
+  if (/(s&p|nasdaq|dow|stock market|stocks|buffett indicator)/.test(text)) {
+    return "미국 시장 참여도";
+  }
+  return "시장 뉴스 흐름";
+}
+
 function formatSourceSummary(summary: string) {
   const title = summary.match(/Title:\s*(.*?)(?:\s+Summary:|$)/)?.[1]?.trim();
   const body = summary.match(/Summary:\s*(.*?)(?:\s+Published\/Event At:|$)/)?.[1]?.trim();
   const eventAt = summary.match(/Published\/Event At:\s*(.*?)(?:\s+Source:|$)/)?.[1]?.trim();
   const source = summary.match(/Source:\s*(.*?)(?:\s+URL:|$)/)?.[1]?.trim();
+  const topic = inferKoreanSourceTopic(`${title ?? ""} ${body ?? ""}`);
   const parts = [
-    title ? `제목: ${koLabel(title)}` : null,
-    body ? `요약: ${koLabel(body)}` : null,
+    title || body ? `한국어 요약: ${topic} 관련 원천 근거` : null,
     eventAt ? `발행 시각: ${eventAt}` : null,
     source ? `출처: ${koCode(source)}` : null,
   ].filter(Boolean);

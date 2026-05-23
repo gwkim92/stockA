@@ -67,7 +67,20 @@ function evidenceChunkPreview(value: string | null | undefined) {
   }
   const titleMatch = value.match(/Title:\s*(.*?)(?:\s+Summary:|\s+Published\/Event At:|$)/);
   if (titleMatch?.[1]) {
-    return `원문 제목: ${koLabel(titleMatch[1])}`;
+    const text = titleMatch[1].toLowerCase();
+    if (/(fed|warsh|rate|rates|treasury|bond|yield|inflation)/.test(text)) {
+      return "한국어 요약: 금리·연준 관련 원천 근거";
+    }
+    if (/(oil|iran|hormuz|crude|energy|gas|xom|drilling)/.test(text)) {
+      return "한국어 요약: 에너지·지정학 관련 원천 근거";
+    }
+    if (/(quantum|qubit|rigetti|d-wave|ionq|qbts|qubt|ibm)/.test(text)) {
+      return "한국어 요약: 양자컴퓨팅·정책 수혜 관련 원천 근거";
+    }
+    if (/(nvidia|semiconductor|chip|qualcomm|skyworks|qorvo|tower semiconductor|tsem)/.test(text)) {
+      return "한국어 요약: AI 반도체 사이클 관련 원천 근거";
+    }
+    return "한국어 요약: 시장 뉴스 흐름 관련 원천 근거";
   }
   return koLabel(value.split(" Retrieval context:")[0] ?? value);
 }

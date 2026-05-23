@@ -2293,8 +2293,104 @@ h6 {
   overflow-wrap: anywhere;
 }
 
+.news-original-title {
+  margin-top: 5px;
+  color: var(--text-tertiary);
+  font-size: 0.72rem;
+  font-weight: 750;
+  line-height: 1.5;
+}
+
+.news-original-title summary {
+  width: fit-content;
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-weight: 900;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.news-original-title small,
+.news-original-title p {
+  display: block;
+  margin: 6px 0 0;
+  color: var(--text-tertiary);
+  overflow-wrap: anywhere;
+}
+
 .news-title-block-compact strong {
   font-size: 0.84rem;
+}
+
+.source-review-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 0.24fr);
+  gap: 16px;
+  padding: clamp(20px, 2.4vw, 34px);
+  background:
+    linear-gradient(135deg, rgba(251, 250, 246, 0.98), rgba(244, 238, 224, 0.82)),
+    radial-gradient(circle at 0% 0%, rgba(204, 116, 53, 0.15), transparent 32%);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+}
+
+.source-review-panel span,
+.source-review-panel aside span {
+  color: var(--text-tertiary);
+  font-size: 0.72rem;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.source-review-panel h2 {
+  max-width: 860px;
+  margin: 10px 0 0;
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: clamp(1.7rem, 3.2vw, 3.6rem);
+  font-weight: 900;
+  letter-spacing: -0.05em;
+  line-height: 0.98;
+  word-break: keep-all;
+}
+
+.source-review-panel p {
+  margin: 12px 0 0;
+  color: var(--text-secondary);
+  font-size: 0.92rem;
+  font-weight: 750;
+  line-height: 1.65;
+  word-break: keep-all;
+}
+
+.source-review-panel aside {
+  display: grid;
+  align-content: center;
+  padding: 18px;
+  background: color-mix(in srgb, var(--bg-panel) 86%, white);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-md);
+}
+
+.source-review-panel aside strong {
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 4vw, 4rem);
+  font-weight: 900;
+  line-height: 0.9;
+}
+
+.source-korean-digest {
+  margin: 0 0 10px;
+  color: var(--text-primary);
+  font-size: 0.92rem;
+  font-weight: 800;
+  line-height: 1.55;
+  word-break: keep-all;
+}
+
+.source-original-detail {
+  margin-bottom: 10px;
 }
 
 .relationship-chip .news-title-block {
@@ -3218,6 +3314,7 @@ h6 {
 
   .evidence-decision-hero,
   .evidence-review-panel,
+  .source-review-panel,
   .evidence-source-grid {
     grid-template-columns: 1fr;
   }
@@ -3469,6 +3566,7 @@ h6 {
   .cluster-decision-grid,
   .review-boundary-note,
   .evidence-review-panel,
+  .source-review-panel,
   .review-queue-item {
     grid-template-columns: 1fr;
   }
