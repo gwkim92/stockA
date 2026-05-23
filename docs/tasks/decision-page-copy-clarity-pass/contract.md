@@ -12,8 +12,9 @@
 - 이 작업이 끝났을 때 반드시 참이어야 하는 상태:
   - `/recommendations`는 추천 후보를 “왜 봐야 하는지”와 다음 확인 화면 중심으로 설명한다.
   - `/intelligence`는 artifact/LLM/cluster 같은 내부 표현보다 수집, AI 분석, 검증, 추천 연결 상태를 먼저 보여준다.
-  - `/paper-trading`은 paper 후보가 테스트인지, 실제 주문 가능한 상태인지, 무엇이 막고 있는지 명확히 보여준다.
-  - DB/API/추천 산식/scheduler/broker 동작은 변경하지 않는다.
+  - `/paper-trading`은 가상 거래 후보가 테스트인지, 실제 주문 가능한 상태인지, 무엇이 막고 있는지 명확히 보여준다.
+  - 홈, 거래 안전, 사이클의 대표 진입 문구도 같은 사용자 용어로 맞춘다.
+  - DB/API response shape/추천 산식/scheduler/broker 동작은 변경하지 않는다.
 
 ## Scope
 
@@ -35,7 +36,12 @@
   - `apps/web/src/app/recommendations/[recommendationId]/page.tsx`
   - `apps/web/src/app/intelligence/page.tsx`
   - `apps/web/src/app/paper-trading/page.tsx`
+  - `apps/web/src/app/page.tsx`
+  - `apps/web/src/app/trading-readiness/page.tsx`
+  - `apps/web/src/app/cycles/page.tsx`
   - `apps/web/src/lib/korean-labels.ts`
+  - `src/stockanalysis/frontend/live_adapter.py`의 사용자-facing 문구
+  - `tests/test_frontend_live_adapter.py`의 fixture 문구
   - `docs/tasks/decision-page-copy-clarity-pass/*`
 - 수정 금지 파일:
   - `.env`
@@ -49,7 +55,7 @@
 
 - 세 화면 상단과 핵심 카드에 “뭘 봐야 하는지”가 먼저 나온다.
 - `artifact`, `runner`, `rule code`, `source_run_id` 같은 내부 단어가 일반 화면 전면에 나오지 않는다.
-- 가상 거래 화면은 “paper 후보”, “브로커 제출 0건”, “실거래 차단/조건”을 명확히 구분한다.
+- 가상 거래 화면은 “가상 후보”, “실제 주문 전송 0건”, “실거래 차단/조건”을 명확히 구분한다.
 - Next typecheck/build와 route smoke가 통과한다.
 
 ## Verification Commands

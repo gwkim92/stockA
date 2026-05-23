@@ -153,7 +153,7 @@ export default async function HomePage() {
     {
       label: "판단/거래 안전",
       title: "추천을 실행해도 되는가",
-      copy: "추천 신호, 보유 thesis, paper 검증, 거래 안전 관문을 분리해서 본다.",
+      copy: "추천 신호, 보유 투자 논리, 가상 검증, 거래 안전 조건을 분리해서 본다.",
       primaryHref: "/recommendations",
       primaryCta: "추천",
       links: [
@@ -161,7 +161,7 @@ export default async function HomePage() {
           href: firstRecommendation?.linked_thesis_id
             ? (`/theses/${firstRecommendation.linked_thesis_id}` as Route)
             : ("/portfolio/coverage" as Route),
-          label: "보유 thesis",
+          label: "보유 논리",
         },
         { href: "/paper-trading", label: "가상 거래" },
         { href: "/trading-readiness", label: "거래 안전" },
@@ -256,7 +256,7 @@ export default async function HomePage() {
         <article className="rail-cell">
           <span>추천 검토 가능</span>
           <strong>{recommendationData.summary.reviewable_count}</strong>
-          <small>AI/이벤트 근거 {recommendationData.summary.ai_or_event_evidence_count}개</small>
+          <small>뉴스·AI 근거 {recommendationData.summary.ai_or_event_evidence_count}개</small>
         </article>
         <article className="rail-cell">
           <span>거래 안전 차단</span>
@@ -309,7 +309,7 @@ export default async function HomePage() {
             <span>거래 안전</span>
             <strong>{koCode(trading.readiness_status)}</strong>
             <p>
-              차단 gate {trading.gate_summary.blocked_count}개. 브로커 제출 {trading.audit_summary.submitted_to_broker_count}건.
+              차단 조건 {trading.gate_summary.blocked_count}개. 실제 주문 전송 {trading.audit_summary.submitted_to_broker_count}건.
             </p>
           </article>
         </div>

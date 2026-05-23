@@ -413,7 +413,7 @@ class FakeLiveExecutor:
                         "requires_human_approval_count": 2,
                     },
                     "guardrails": [
-                        "이 화면은 가상 거래(Paper) 미리보기이며 실제 주문을 만들지 않는다.",
+                        "이 화면은 가상 거래 미리보기이며 실제 주문을 만들지 않는다.",
                         "모든 가상 조치는 사람 승인 전까지 실행되지 않는다.",
                         "실거래 증권사 API, 계좌 권한, 주문 전송은 아직 연결하지 않았다.",
                     ],

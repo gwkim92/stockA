@@ -47,7 +47,7 @@ function thesisHref(thesisId: string | null) {
 function paperValidationState(trading: TradingReadinessData) {
   if (trading.audit_summary.submitted_to_broker_count > 0) {
     return {
-      title: "브로커 제출 기록 있음",
+      title: "실제 주문 전송 기록 있음",
       tone: "risk-high",
       detail: "실제 주문 제출 기록이 있으므로 감사 로그와 계좌 내역을 먼저 확인해야 한다.",
     };
@@ -63,13 +63,13 @@ function paperValidationState(trading: TradingReadinessData) {
     return {
       title: "가상 후보 검토 가능",
       tone: "risk-medium",
-      detail: "가상 검증 후보가 있지만 실거래는 별도 승인과 브로커 연결 이후에만 가능하다.",
+      detail: "가상 검증 후보가 있지만 실거래는 별도 승인과 증권사 연결 이후에만 가능하다.",
     };
   }
   return {
     title: "가상 후보 대기",
     tone: "risk-medium",
-    detail: "추천 배치와 보유 스냅샷이 맞물릴 때 가상 조치 후보가 생성된다.",
+    detail: "추천 후보와 현재 보유 내역이 맞물릴 때 가상 조치 후보가 생성된다.",
   };
 }
 
@@ -90,7 +90,7 @@ export default async function PaperTradingPage() {
           </h1>
         </div>
         <p className="page-lede">
-          이 화면은 추천을 바로 주문으로 바꾸지 않는다. 최신 추천과 가상 포트폴리오 스냅샷을 대조해
+          이 화면은 추천을 바로 주문으로 바꾸지 않는다. 최신 추천과 현재 가상 포트폴리오 보유 내역을 대조해
           “실제로 주문한다면 어떤 조치가 필요할지”만 계산한다. 안전 관문과 감사 로그가 막으면 실거래로 넘어가지 않는다.
         </p>
       </section>
@@ -140,7 +140,7 @@ export default async function PaperTradingPage() {
             <span>02</span>
             <strong>실제 주문 제출</strong>
             <em>{trading.audit_summary.submitted_to_broker_count}건</em>
-            <small>이 숫자가 0이면 브로커로 나간 주문이 없다.</small>
+            <small>이 숫자가 0이면 증권사로 전송된 주문이 없다.</small>
           </article>
           <article className="feature-map-card collection-map-card">
             <span>03</span>
@@ -154,7 +154,7 @@ export default async function PaperTradingPage() {
             <em className={`risk-tag ${trading.gate_summary.blocked_count > 0 ? "risk-high" : "risk-low"}`}>
               차단 {trading.gate_summary.blocked_count}개
             </em>
-            <small>브로커 경계, 계좌 권한, 주문 한도, 킬 스위치, 감사 로그를 통과해야 다음 단계로 간다.</small>
+            <small>증권사 연결, 계좌 권한, 주문 한도, 킬 스위치, 검토 기록을 통과해야 다음 단계로 간다.</small>
           </article>
         </div>
       </section>
@@ -219,7 +219,7 @@ export default async function PaperTradingPage() {
                   );
                 }) : (
                   <tr>
-                    <td colSpan={7}>현재 가상 거래 후보가 없다. 추천 배치나 보유 스냅샷이 갱신되면 다시 표시된다.</td>
+                    <td colSpan={7}>현재 가상 거래 후보가 없다. 추천 후보나 보유 내역이 갱신되면 다시 표시된다.</td>
                   </tr>
                 )}
               </tbody>
@@ -234,8 +234,8 @@ export default async function PaperTradingPage() {
               <h2>아직 실제 주문이 아닌 이유</h2>
             </div>
             <p className="empty-copy">
-              아래 후보는 가상 검증 결과다. 실제 주문은 브로커 경계, 계좌 권한, 주문 한도,
-              킬 스위치, 감사 로그가 모두 통과해야 별도 단계에서만 다룬다.
+              아래 후보는 가상 검증 결과다. 실제 주문은 증권사 연결, 계좌 권한, 주문 한도,
+              킬 스위치, 검토 기록이 모두 통과해야 별도 단계에서만 다룬다.
             </p>
             <div className="tag-ledger">
               {data.guardrails.map((guardrail) => (

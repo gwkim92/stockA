@@ -53,8 +53,8 @@ function provenanceBadges(component: ScoreComponent) {
   if (provenance.rank_position !== null && provenance.rank_position !== undefined) {
     badges.push(
       provenance.universe_member_count
-        ? `유니버스 ${provenance.rank_position}/${provenance.universe_member_count}위`
-        : `유니버스 ${provenance.rank_position}위`,
+        ? `종목군 ${provenance.rank_position}/${provenance.universe_member_count}위`
+        : `종목군 ${provenance.rank_position}위`,
     );
   }
   if (provenance.evidence?.first_trade_date && provenance.evidence.latest_trade_date) {
@@ -111,8 +111,8 @@ function provenanceDetail(component: ScoreComponent) {
   if (provenance.source_type === "strategy_universe_rank") {
     const rankText =
       provenance.rank_position !== null && provenance.rank_position !== undefined
-        ? `전략 유니버스 ${provenance.rank_position}${provenance.universe_member_count ? `/${provenance.universe_member_count}` : ""}위`
-        : "전략 유니버스 순위";
+        ? `전략 종목군 ${provenance.rank_position}${provenance.universe_member_count ? `/${provenance.universe_member_count}` : ""}위`
+        : "전략 종목군 순위";
     const observationText = provenance.observation_count ? `가격 관측치 ${provenance.observation_count}개` : "저장된 가격 관측치";
     return `${rankText}와 ${observationText}를 점수 입력으로 사용했다.`;
   }
@@ -240,7 +240,7 @@ function recommendationQualityChecks(data: RecommendationDetailData) {
     {
       label: "근거 연결",
       value: data.evidence_review.quality_status === "ready_for_human_review" ? "사람 검토 가능" : koCode(data.evidence_review.quality_status),
-      detail: `AI/이벤트 근거 ${aiEvidenceCount}개 · 가격/순위 출처 기록 ${marketProvenanceCount}개`,
+      detail: `뉴스·AI 근거 ${aiEvidenceCount}개 · 가격/순위 출처 기록 ${marketProvenanceCount}개`,
     },
     {
       label: "성과 확인",
@@ -252,7 +252,7 @@ function recommendationQualityChecks(data: RecommendationDetailData) {
     {
       label: "주문 경계",
       value: "자동 주문 없음",
-      detail: "이 판정은 추천 품질 검토이며 브로커 주문 흐름을 실행하지 않는다.",
+      detail: "이 판정은 추천 품질 검토이며 증권사 주문 흐름을 실행하지 않는다.",
     },
   ];
 }
@@ -289,7 +289,7 @@ function evidenceTraceCards(data: RecommendationDetailData) {
       detail:
         direct.status === "linked"
           ? `직접 종목 뉴스나 AI 근거가 추천 입력으로 연결됐다. 신뢰도 ${formatMetricValue(direct.confidence)}.`
-          : "이 추천은 직접 종목 뉴스보다 가격, 유니버스, 또는 상위 흐름 근거가 중심이다.",
+          : "이 추천은 직접 종목 뉴스보다 가격, 종목군 순위, 또는 상위 흐름 근거가 중심이다.",
       href: directHref,
       hrefLabel: direct.evidence_id ? evidenceLinkLabel(direct.evidence_id) : null,
       newsTitle:
@@ -363,7 +363,7 @@ export default async function RecommendationPage({ params }: RecommendationPageP
     {
       label: "가격/순위",
       title: `${marketComponentCount}개 재료`,
-      body: "가격 흐름, 수집 기간, 전략 유니버스 순위처럼 숫자로 검증 가능한 입력이다.",
+      body: "가격 흐름, 수집 기간, 전략 종목군 순위처럼 숫자로 검증 가능한 입력이다.",
     },
     {
       label: "뉴스/AI",
@@ -530,7 +530,7 @@ export default async function RecommendationPage({ params }: RecommendationPageP
             <span className="metric-sub">근거 품질 점검</span>
             <h2 style={{ fontSize: "1.5rem", marginTop: "6px" }}>{koCode(evidenceReview.quality_status)}</h2>
             <p style={{ color: "var(--text-secondary)", marginTop: "8px", maxWidth: "760px" }}>
-              이 점검은 추천 점수를 새로 만들지 않는다. 추천이 투자 논리, 점수 구성요소, AI/이벤트 근거, 성과 측정과
+              이 점검은 추천 점수를 새로 만들지 않는다. 추천이 투자 논리, 점수 항목, 뉴스·AI 근거, 성과 측정과
               충분히 연결됐는지 확인하는 읽기 전용 검토다.
             </p>
           </div>

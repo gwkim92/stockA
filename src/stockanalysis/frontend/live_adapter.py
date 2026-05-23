@@ -2932,7 +2932,7 @@ select json_build_object(
     ),
     'guardrails',
     json_build_array(
-        '가상 거래(Paper) 미리보기 단계이며 실제 주문을 만들지 않는다.',
+        '가상 거래 미리보기 단계이며 실제 주문을 만들지 않는다.',
         '모든 가상 조치는 사람 승인 전까지 실행되지 않는다.',
         '실거래 증권사 API, 계좌 권한, 주문 전송은 아직 연결하지 않았다.'
     ),
@@ -4603,7 +4603,7 @@ score_component_rows as (
             when component.component_name = 'rank_score'
                 then json_strip_nulls(json_build_object(
                     'source_type', 'strategy_universe_rank',
-                    'label', '전략 유니버스 순위',
+                    'label', '전략 종목군 순위',
                     'universe_batch_id', (select universe_batch_id from strategy_universe_provenance),
                     'rank_position', coalesce((select rank_position from strategy_universe_provenance), recommendation.rank_position),
                     'universe_member_count', (select universe_member_count from strategy_universe_provenance),
@@ -5877,7 +5877,7 @@ def _build_paper_action_payload(action: dict[str, Any]) -> dict[str, Any]:
 
 def _paper_guardrails() -> list[str]:
     return [
-        "가상 거래(Paper) 미리보기 단계이며 실제 주문을 만들지 않는다.",
+        "가상 거래 미리보기 단계이며 실제 주문을 만들지 않는다.",
         "모든 가상 조치는 사람 승인 전까지 실행되지 않는다.",
         "실거래 증권사 API, 계좌 권한, 주문 전송은 아직 연결하지 않았다.",
     ]
@@ -5904,13 +5904,13 @@ def _build_trading_readiness_gates(state: dict[str, Any]) -> list[dict[str, Any]
     return [
         _trading_gate(
             "broker_boundary",
-            "브로커 경계",
+            "증권사 연결 경계",
             _gate_status(
                 missing=not broker_boundary,
                 blocked=broker_status != "enabled" or not broker_preview_supported,
             ),
-            "가상 거래 브로커 미리보기가 활성화되어야 주문 의도를 평가할 수 있다.",
-            "가상 거래 브로커 경계를 활성 상태로 등록한다.",
+            "가상 거래 주문 미리보기가 활성화되어야 주문 의도를 평가할 수 있다.",
+            "가상 거래용 증권사 연결 경계를 활성 상태로 등록한다.",
         ),
         _trading_gate(
             "account_permission",
@@ -5919,15 +5919,15 @@ def _build_trading_readiness_gates(state: dict[str, Any]) -> list[dict[str, Any]
                 missing=not account_permission,
                 blocked=account_status != "active" or permission_scope not in {"paper_trade", "live_trade"},
             ),
-            "계좌는 paper_trade 이상의 scope와 active 상태가 필요하다.",
-            "paper 전용 계좌 권한을 승인자와 한도와 함께 등록한다.",
+            "계좌는 가상 거래 이상의 권한과 활성 상태가 필요하다.",
+            "가상 거래 전용 계좌 권한을 승인자와 한도와 함께 등록한다.",
         ),
         _trading_gate(
             "order_limit_policy",
             "주문 한도",
             _gate_status(missing=not order_limit_policy, blocked=policy_status != "active"),
-            "단일 주문, 일일 주문, 비중 변화, 현금 버퍼 한도가 active여야 한다.",
-            "장기 포트폴리오용 paper 주문 한도 정책을 active로 등록한다.",
+            "단일 주문, 일일 주문, 비중 변화, 현금 버퍼 한도가 활성 상태여야 한다.",
+            "장기 포트폴리오용 가상 거래 주문 한도 정책을 활성 상태로 등록한다.",
         ),
         _trading_gate(
             "kill_switch",
@@ -5943,15 +5943,15 @@ def _build_trading_readiness_gates(state: dict[str, Any]) -> list[dict[str, Any]
                 missing=not paper_validation,
                 blocked=validation_status != "passed" or conflict_count > 0,
             ),
-            "추천/보유 충돌이 없는 passed paper validation이 필요하다.",
-            "paper preview를 기준으로 validation run을 생성하고 남은 충돌을 0으로 만든다.",
+            "추천과 보유가 충돌하지 않는 가상 검증 통과 상태가 필요하다.",
+            "가상 주문 미리보기를 기준으로 검증 실행을 만들고 남은 충돌을 0으로 만든다.",
         ),
         _trading_gate(
             "audit_log",
             "감사 로그",
             "warning" if intent_count == 0 else "pass",
-            "주문 의도는 브로커 제출 전에 감사 로그로 남아야 한다.",
-            "paper ledger workflow에서 order intent audit을 먼저 생성한다.",
+            "주문 의도는 증권사 전송 전에 검토 기록으로 남아야 한다.",
+            "가상 거래 장부에 주문 의도 검토 기록을 먼저 만든다.",
         ),
     ]
 
@@ -6080,9 +6080,9 @@ def _build_trading_audit_summary_payload(summary: dict[str, Any]) -> dict[str, A
 def _trading_readiness_guardrails() -> list[str]:
     return [
         "거래 안전 상태를 점검하는 읽기 전용 단계다.",
-        "FastAPI frontend server는 계속 read-only이며 주문 write endpoint를 제공하지 않는다.",
-        "broker secret 값은 노출하지 않고 설정 여부만 표시한다.",
-        "브로커 제출 값은 0이어야 하며, 실제 브로커 어댑터는 아직 연결하지 않는다.",
+        "웹 화면은 계속 읽기 전용이며 주문 생성 기능을 제공하지 않는다.",
+        "증권사 연결 비밀값은 노출하지 않고 설정 여부만 표시한다.",
+        "실제 주문 전송 값은 0이어야 하며, 실제 증권사 주문 어댑터는 아직 연결하지 않는다.",
     ]
 
 
@@ -6733,7 +6733,7 @@ def _default_score_component_provenance_label(source_type: str) -> str:
     if source_type == "market_feature":
         return "가격 feature snapshot"
     if source_type == "strategy_universe_rank":
-        return "전략 유니버스 순위"
+        return "전략 종목군 순위"
     if source_type == "event_or_ai_evidence":
         return "원천 이벤트/AI 근거"
     if source_type == "macro_flow_propagation":
@@ -6871,7 +6871,7 @@ def _build_recommendation_evidence_review_payload(
         ),
         _evidence_review_gate(
             "ai_or_event_evidence",
-            "AI/이벤트 근거",
+            "뉴스·AI 근거",
             "pass" if ai_evidence_component_count > 0 else "warning",
             "점수 구성요소 중 최소 하나는 원천 이벤트나 AI 근거로 추적되어야 한다.",
             "score component evidence_id를 event 또는 ai-evidence에 연결한다.",
@@ -6880,7 +6880,7 @@ def _build_recommendation_evidence_review_payload(
             "market_feature_provenance",
             "가격/순위 입력 근거",
             "pass" if market_or_rank_component_count == market_or_rank_provenance_count else "warning",
-            "가격 모멘텀과 유니버스 순위 점수는 feature snapshot, rank, source run으로 추적되어야 한다.",
+            "가격 모멘텀과 종목군 순위 점수는 가격 지표, 순위, 수집·계산 실행으로 추적되어야 한다.",
             "market-feature 또는 rank component의 source_run_id와 feature evidence를 보강한다.",
         ),
         _evidence_review_gate(
@@ -6895,7 +6895,7 @@ def _build_recommendation_evidence_review_payload(
             "주문 차단",
             "pass",
             "이 검토는 실제 주문이나 가상 주문을 만들지 않는 read-only 품질 점검이다.",
-            "주문 전송은 별도 브로커 경계와 킬 스위치 승인 뒤에만 다룬다.",
+            "주문 전송은 별도 증권사 연결 경계와 킬 스위치 승인 뒤에만 다룬다.",
         ),
     ]
     return {
@@ -6960,7 +6960,7 @@ def _build_thesis_evidence_review_payload(
             "주문 차단",
             "pass",
             "이 thesis 검토는 실제 주문이나 가상 주문을 만들지 않는다.",
-            "주문 전송은 별도 브로커 경계와 킬 스위치 승인 뒤에만 다룬다.",
+            "주문 전송은 별도 증권사 연결 경계와 킬 스위치 승인 뒤에만 다룬다.",
         ),
     ]
     return {

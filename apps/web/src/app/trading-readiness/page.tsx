@@ -52,8 +52,8 @@ export default async function TradingReadinessPage() {
         <div className="bento-badge">거래 안전 점검 • 주문 전 차단 상태</div>
         <h1 id="trading-readiness-title">실제 주문을 넣기 전에 무엇이 막고 있는지 본다.</h1>
         <p>
-          브로커 경계, 계좌 권한, 주문 한도, 킬 스위치, 가상 검증, 감사 로그가 모두 통과해야
-          실거래 후보가 된다. 브로커 제출 건수가 0이면 현재 서버에서 실제 주문은 나가지 않았다.
+          증권사 연결, 계좌 권한, 주문 한도, 킬 스위치, 가상 검증, 검토 기록이 모두 통과해야
+          실거래 후보가 된다. 실제 주문 전송 건수가 0이면 현재 서버에서 실제 주문은 나가지 않았다.
         </p>
       </section>
 
@@ -66,7 +66,7 @@ export default async function TradingReadinessPage() {
         <article className="rail-cell">
           <span>통과</span>
           <strong>{data.gate_summary.pass_count}</strong>
-          <small>안전 gate 통과</small>
+          <small>안전 조건 통과</small>
         </article>
         <article className="rail-cell">
           <span>누락/주의</span>
@@ -76,10 +76,10 @@ export default async function TradingReadinessPage() {
         <article className="rail-cell rail-critical">
           <span>차단</span>
           <strong>{data.gate_summary.blocked_count}</strong>
-          <small>{blockedSwitches.length > 0 ? "킬 스위치 포함" : "차단 gate 수"}</small>
+          <small>{blockedSwitches.length > 0 ? "킬 스위치 포함" : "차단 조건 수"}</small>
         </article>
         <article className="rail-cell">
-          <span>브로커 제출</span>
+          <span>실제 주문 전송</span>
           <strong>{data.audit_summary.submitted_to_broker_count}</strong>
           <small>실제 주문 전송 기록</small>
         </article>
@@ -89,7 +89,7 @@ export default async function TradingReadinessPage() {
         <article className="ledger-panel queue-panel">
           <div className="section-heading">
             <div>
-              <span>안전 gate</span>
+              <span>안전 조건</span>
               <h2>실제 주문 전에 반드시 통과해야 하는 조건</h2>
             </div>
             <Link className="btn btn-secondary" href={"/paper-trading" as Route}>
@@ -113,16 +113,16 @@ export default async function TradingReadinessPage() {
         <aside className="side-ledger">
           <article className="ledger-panel">
             <div className="section-heading stacked-heading">
-              <span>브로커/계좌</span>
+              <span>증권사/계좌</span>
               <h2>권한 경계</h2>
             </div>
             <dl className="fact-list">
               <div>
-                <dt>브로커</dt>
+                <dt>증권사</dt>
                 <dd>{data.broker_boundary.broker_code || "미등록"}</dd>
               </div>
               <div>
-                <dt>브로커 상태</dt>
+                <dt>증권사 연결 상태</dt>
                 <dd>{koCode(data.broker_boundary.status)}</dd>
               </div>
               <div>
@@ -244,11 +244,11 @@ export default async function TradingReadinessPage() {
               <dd>{data.paper_validation.approved_action_count.toLocaleString("ko-KR")}</dd>
             </div>
             <div>
-              <dt>감사 로그</dt>
+              <dt>검토 기록</dt>
               <dd>{data.audit_summary.intent_count.toLocaleString("ko-KR")}건</dd>
             </div>
             <div>
-              <dt>브로커 제출</dt>
+              <dt>실제 주문 전송</dt>
               <dd>{data.audit_summary.submitted_to_broker_count.toLocaleString("ko-KR")}건</dd>
             </div>
           </dl>

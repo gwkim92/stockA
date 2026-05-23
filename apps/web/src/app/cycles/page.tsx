@@ -31,12 +31,12 @@ function themeHref(themeKey: string) {
 
 function universeLabel(version: string | null | undefined) {
   if (!version || version === "unknown") {
-    return "유니버스 미확인";
+    return "종목군 미확인";
   }
   if (version.startsWith("live-")) {
-    return "현재 운영 유니버스";
+    return "현재 운영 종목군";
   }
-  return `${koCode(version)} 유니버스`;
+  return `${koCode(version)} 종목군`;
 }
 
 export default async function CyclesPage() {
@@ -78,7 +78,7 @@ export default async function CyclesPage() {
         <article className="rail-cell">
           <span>03 종목 연결</span>
           <strong>{instrumentCount}</strong>
-          <small>테마 유니버스 전체</small>
+          <small>테마 종목군 전체</small>
         </article>
         <article className="rail-cell">
           <span>04 평균 신뢰도</span>
@@ -91,7 +91,7 @@ export default async function CyclesPage() {
         {data.cycle_states.length === 0 ? (
           <article className="empty-state">
             아직 이 기준일에 저장된 사이클 스냅샷이 없다. 뉴스·상위 흐름은 계속 수집되지만,
-            테마 사이클은 일간 신호/추천 배치가 스냅샷을 만든 뒤 이 화면에 표시된다.
+            테마 사이클은 일간 신호와 추천 후보가 계산된 뒤 이 화면에 표시된다.
           </article>
         ) : null}
         {data.cycle_states.map((cycle, index) => {
