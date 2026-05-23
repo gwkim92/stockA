@@ -83,12 +83,12 @@ function formatDirectionCounts(counts: Record<string, number>) {
 
 function formatClusterRagStatus(cluster: StoredAiNewsCluster) {
   if (cluster.chunk_count === 0) {
-    return "검색 준비 전";
+    return "원문 근거 없음";
   }
-  if (cluster.embedded_chunk_count === cluster.chunk_count) {
-    return "검색 준비 완료";
+  if (cluster.embedded_chunk_count > 0) {
+    return "원문 근거 검색 가능";
   }
-  return `부분 준비 ${cluster.embedded_chunk_count}/${cluster.chunk_count}`;
+  return "원문 근거 연결";
 }
 
 function formatClusterStory(cluster: StoredAiNewsCluster) {
@@ -455,7 +455,7 @@ export default async function IntelligencePage() {
           <small>뉴스 {clusterSummary.clustered_event_count}개 연결</small>
         </article>
         <article className="rail-cell">
-          <span>보유 커버리지</span>
+          <span>추천·보유 연결</span>
           <strong className="rail-ratio-value">{formatPercent(dashboard.latest_metrics.weight_coverage_ratio)}</strong>
           <small>추천·보유 판단 연결률</small>
         </article>
@@ -504,7 +504,7 @@ export default async function IntelligencePage() {
           <article className="rail-cell">
             <span>근거 문서</span>
             <strong>{clusterSummary.chunk_count}</strong>
-            <small>검색 준비 {clusterSummary.embedded_chunk_count}개</small>
+            <small>뉴스 묶음과 연결된 원문</small>
           </article>
           <article className="rail-cell">
             <span>AI 비용</span>
