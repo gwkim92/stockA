@@ -62,7 +62,7 @@ function nodeSummary(node: CycleNode) {
   const symbolCount = node.top_symbols.length;
   const recommendationCount = node.counts.recommendation_count;
 
-  return `${name}는 현재 ${state} 상태다. 최근 뉴스 ${directEvents}건, 상위 흐름 전파 ${propagatedImpacts}건, 연결 종목 ${symbolCount}개, 추천 연결 ${recommendationCount}건을 함께 확인한다.`;
+  return `${name}. 현재 상태는 ${state}. 최근 뉴스 ${directEvents}건, 상위 흐름 전파 ${propagatedImpacts}건, 연결 종목 ${symbolCount}개, 추천 연결 ${recommendationCount}건을 함께 확인한다.`;
 }
 
 function groupedNodes(nodes: CycleNode[]) {
