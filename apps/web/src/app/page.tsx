@@ -80,20 +80,54 @@ export default async function HomePage() {
   const firstRecommendationHref = firstRecommendation
     ? (`/recommendations/${firstRecommendation.recommendation_id}` as Route)
     : ("/recommendations" as Route);
+  const failedJobCount = data.attention_summary.failed_pipeline_count;
+  const openTicketCount = data.attention_summary.open_ticket_count;
+  const criticalBlindSpotCount = data.attention_summary.critical_blind_spot_count;
+  const budgetLabel = `${providerBudget.remaining_request_count}/${providerBudget.daily_budget}`;
+  const budgetDateLabel =
+    providerBudget.status === "stale" ? `${providerBudget.budget_date} 기준` : `${providerBudget.budget_date} 오늘 기준`;
+  const primaryFocus =
+    failedJobCount > 0
+      ? {
+          title: "수집 문제를 먼저 해결한다.",
+          body: `${failedJobCount}개 작업이 실패했거나 오래됐다. 추천·보유 판단보다 수집 상태 복구가 먼저다.`,
+          href: "/data-health" as Route,
+          cta: "수집 상태 열기",
+        }
+      : openTicketCount > 0
+        ? {
+            title: "보완 큐부터 확인한다.",
+            body: `${openTicketCount}개 검토 항목이 열려 있다. 투자 논리 공백, 보유 충돌, 성과 미측정 항목을 먼저 처리한다.`,
+            href: "/remediation" as Route,
+            cta: "할 일 열기",
+          }
+        : trading.gate_summary.blocked_count > 0
+          ? {
+              title: "거래 안전 조건을 확인한다.",
+              body: `수집과 추천은 읽을 수 있지만 거래 안전 조건 ${trading.gate_summary.blocked_count}개가 닫혀 있다.`,
+              href: "/trading-readiness" as Route,
+              cta: "거래 안전 열기",
+            }
+          : {
+              title: "뉴스와 추천 변화를 점검한다.",
+              body: "수집과 검토 큐가 안정 상태다. 오늘 새 뉴스가 어떤 종목과 추천에 연결됐는지 확인한다.",
+              href: "/intelligence" as Route,
+              cta: "뉴스 AI 열기",
+            };
 
   const operatingSteps = [
     {
       index: "01",
       title: "수집이 정상인가",
       status: koCode(health.data.overall_status),
-      detail: `${health.data.pipeline_runs.length}개 파이프라인, 실패 ${data.attention_summary.failed_pipeline_count}개`,
+      detail: `${health.data.pipeline_runs.length}개 작업 중 실패 ${failedJobCount}개. 데이터가 불안정하면 여기서 멈춘다.`,
       href: "/data-health",
       cta: "수집 상태",
     },
     {
       index: "02",
-      title: "뉴스와 AI가 무엇을 말하나",
-      status: `${eventData.summary.event_count}개 이벤트`,
+      title: "뉴스 AI가 무엇을 말하나",
+      status: `${eventData.summary.event_count}개 뉴스`,
       detail: `AI 후보 ${eventData.summary.ai_extracted_count}개, 뉴스 묶음 ${clusterData.summary.cluster_count}개`,
       href: "/intelligence",
       cta: "뉴스 AI",
@@ -110,7 +144,7 @@ export default async function HomePage() {
       index: "04",
       title: "추천과 보유가 막혔나",
       status: `${recommendationData.summary.reviewable_count}개 검토`,
-      detail: `보유 커버리지 ${formatPercent(coverage.weight_coverage_ratio)}, 열린 티켓 ${ticketData.ticket_count}개`,
+      detail: `보유 커버리지 ${formatPercent(coverage.weight_coverage_ratio)}, 열린 검토 ${ticketData.ticket_count}개`,
       href: "/recommendations",
       cta: "추천 보유",
     },
@@ -133,7 +167,7 @@ export default async function HomePage() {
       primaryHref: "/data-health",
       primaryCta: "수집 상태",
       links: [
-        { href: "/events", label: "뉴스 원장" },
+        { href: "/events", label: "수집 뉴스" },
         { href: "/events/classification", label: "1차 분류" },
         { href: "/ai-evidence/blocked", label: "차단 후보" },
       ],
@@ -174,42 +208,38 @@ export default async function HomePage() {
     <div className="terminal-home">
       <section className="operator-hero reveal" aria-labelledby="dashboard-title">
         <div className="operator-hero-copy">
-          <div className="bento-badge">오늘의 운용 순서</div>
+          <div className="bento-badge">오늘의 판단 지도</div>
           <h1 className="terminal-title operator-title" id="dashboard-title">
-            <span>오늘은</span>
-            <span>이 순서대로</span>
-            <span className="title-muted">판단한다.</span>
+            <span>오늘 볼 것은</span>
+            <span>수집, 근거,</span>
+            <span className="title-muted">안전이다.</span>
           </h1>
           <p className="manifest-lede">
-            먼저 자동 수집이 정상인지 보고, 그다음 뉴스 AI 근거와 종목 연결을 확인한다. 마지막으로
-            추천·보유·가상 거래가 안전 조건에서 막혔는지 본다.
+            이 첫 화면은 기능 목록이 아니라 판단 순서다. 수집이 정상인지 확인하고, 뉴스 AI가 어떤 종목과
+            테마에 연결됐는지 본 뒤, 추천·보유·거래 안전 조건을 검토한다.
           </p>
           <div className="btn-row">
             <Link className="btn btn-primary" href="/data-health">
-              01 수집 정상 여부
+              01 수집 확인
             </Link>
             <Link className="btn btn-secondary" href={"/intelligence" as Route}>
-              02 뉴스 AI 해석
+              02 뉴스 근거
             </Link>
             <Link className="btn btn-secondary" href={"/recommendations" as Route}>
-              03 추천 보유 검토
+              03 추천 검토
             </Link>
           </div>
         </div>
 
         <aside className="operator-brief" aria-label="현재 운영 결론">
-          <span>지금 봐야 할 결론</span>
-          <strong>
-            {data.attention_summary.failed_pipeline_count > 0
-              ? "먼저 수집 실패를 해결해야 한다."
-              : data.attention_summary.open_ticket_count > 0
-                ? "보완 큐부터 확인해야 한다."
-                : "수집과 검토 큐가 안정 상태다."}
-          </strong>
+          <span>지금 할 일</span>
+          <strong>{primaryFocus.title}</strong>
+          <p>{primaryFocus.body}</p>
+          <Link className="btn btn-primary operator-next-link" href={primaryFocus.href}>
+            {primaryFocus.cta}
+          </Link>
           <p>
-            실패 파이프라인 {data.attention_summary.failed_pipeline_count}개, 열린 검토 티켓{" "}
-            {data.attention_summary.open_ticket_count}개, 중요 사각지대{" "}
-            {data.attention_summary.critical_blind_spot_count}개.
+            실패 작업 {failedJobCount}개, 열린 검토 {openTicketCount}개, 중요 사각지대 {criticalBlindSpotCount}개.
           </p>
           <dl>
             <div>
@@ -218,9 +248,7 @@ export default async function HomePage() {
             </div>
             <div>
               <dt>호출 예산</dt>
-              <dd>
-                {providerBudget.remaining_request_count}/{providerBudget.daily_budget}
-              </dd>
+              <dd>{budgetLabel} · {budgetDateLabel}</dd>
             </div>
             <div>
               <dt>자동화</dt>
@@ -287,15 +315,15 @@ export default async function HomePage() {
 
       <section className="feature-map-panel reveal delay-2" aria-labelledby="feature-map-title">
         <div className="section-heading stacked-heading">
-          <span>오늘의 핵심 판단</span>
-          <h2 id="feature-map-title">첫 화면에서는 세 가지 질문만 확인한다</h2>
+          <span>판단 기준</span>
+          <h2 id="feature-map-title">첫 화면에서는 이 세 가지만 통과하면 된다</h2>
         </div>
         <div className="decision-brief-grid">
           <article className="decision-brief-card">
             <span>데이터</span>
             <strong>{koCode(health.data.overall_status)}</strong>
             <p>
-              실패 파이프라인 {data.attention_summary.failed_pipeline_count}개. 데이터가 불안정하면 추천보다 수집 상태를 먼저 본다.
+              실패 작업 {failedJobCount}개. 데이터가 불안정하면 추천보다 수집 상태를 먼저 본다.
             </p>
           </article>
           <article className="decision-brief-card">

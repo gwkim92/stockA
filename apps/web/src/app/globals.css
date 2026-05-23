@@ -529,6 +529,11 @@ h6 {
   word-break: keep-all;
 }
 
+.operator-next-link {
+  width: fit-content;
+  margin-top: 22px;
+}
+
 .operator-brief dl {
   display: grid;
   gap: 0;
