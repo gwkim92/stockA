@@ -687,11 +687,10 @@ export default async function IntelligencePage() {
       <section className="intelligence-board reveal delay-3" aria-labelledby="ai-candidate-queue-title">
         <div className="section-heading stacked-heading">
           <span>개별 뉴스 후보</span>
-          <h2 id="ai-candidate-queue-title">한 건씩 열어 AI 해석과 원문을 대조한다</h2>
+          <h2 id="ai-candidate-queue-title">AI가 구조화한 뉴스 한 건씩 확인한다</h2>
         </div>
         <p className="board-intro">
-          아래 버튼의 “검토 시작”은 승인 버튼이 아니라 확인 화면으로 이동하는 버튼이다. 원문과 종목 관계가 맞으면
-          추천 상세에서 실제 점수 근거로 연결됐는지 이어서 본다.
+          이 목록은 뉴스 한 건에 붙은 종목, 테마, 방향, 신뢰도다. 이상하면 AI 상세와 뉴스 원문을 열어 대조한다.
         </p>
 
         {aiCandidateEvents.length > 0 ? (
@@ -718,19 +717,14 @@ export default async function IntelligencePage() {
                       impactScore={event.impact_score}
                     />
                     <p>
-                      {aiEvidenceLabel(event.ai_evidence_type)} · {koCode(event.impact_direction)} · 신뢰도{" "}
-                      {formatPercent(event.ai_evidence_confidence)}
+                      {aiEvidenceLabel(event.ai_evidence_type)} · 대상 {formatNewsSymbol(event.symbol)} · 방향{" "}
+                      {koCode(event.impact_direction)} · 신뢰도 {formatPercent(event.ai_evidence_confidence)}
                     </p>
-                    <ol className="candidate-review-steps">
-                      <li>AI가 붙인 종목/테마가 원문과 맞는지 본다.</li>
-                      <li>방향이 우호·리스크·관찰 중 무엇인지 대조한다.</li>
-                      <li>종목 또는 추천 화면에서 실제 판단 근거로 연결됐는지 확인한다.</li>
-                    </ol>
                   </div>
                   <div className="review-queue-actions">
-                    {evidenceLink ? <Link className="btn btn-primary" href={evidenceLink}>검토 시작</Link> : null}
-                    {symbolLink ? <Link className="btn btn-secondary" href={symbolLink}>관련 종목</Link> : null}
-                    {documentLink ? <Link className="btn btn-secondary" href={documentLink}>원문 대조</Link> : null}
+                    {evidenceLink ? <Link className="btn btn-primary" href={evidenceLink}>AI 상세</Link> : null}
+                    {symbolLink ? <Link className="btn btn-secondary" href={symbolLink}>종목</Link> : null}
+                    {documentLink ? <Link className="btn btn-secondary" href={documentLink}>뉴스 원문</Link> : null}
                   </div>
                 </article>
               );

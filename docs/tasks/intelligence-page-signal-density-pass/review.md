@@ -13,6 +13,7 @@
 - `/intelligence` no longer fails because `/api/remediation-tickets` is unavailable.
 - Main page text now explains the screen purpose as news flow and recommendation linkage review.
 - Per-cluster cards are shorter and show the direct reason for grouping, stock/theme relationship, recommendation use, and representative translated news blocks.
+- Individual AI candidate cards no longer repeat the same three review steps.
 - Mobile layout stacks correctly.
 
 ## Risks
