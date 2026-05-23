@@ -11,6 +11,7 @@ type SchedulerStatus = DataHealthData["scheduler"];
 type ProfileSchedulerStatus = NonNullable<DataHealthData["scheduler"]["profile_scheduler"]>;
 type ManualIngestSmoke = DataHealthData["manual_local_ingest_smoke"];
 type LocalIngestWorker = DataHealthData["local_ingest_worker"];
+type ProfileTimer = ProfileSchedulerStatus["timers"][number];
 
 function statusRiskClass(value: string) {
   if (value === "healthy" || value === "succeeded" || value === "configured" || value === "not_due") {
@@ -123,6 +124,46 @@ function schedulerReadinessExplanation(scheduler: SchedulerStatus) {
     return "반복 실행 결과 형식이 맞지 않아 운영 근거로 사용할 수 없다.";
   }
   return "현재 반복 실행 상태는 화면의 승인 조건과 다음 단계 값을 기준으로 다시 확인해야 한다.";
+}
+
+function isEc2ProfileSchedulerInstalled(scheduler: SchedulerStatus) {
+  return scheduler.activation.approval_gate === "installed_on_ec2_systemd"
+    && scheduler.profile_scheduler?.status === "installed";
+}
+
+function timerPurpose(profileId: string) {
+  if (profileId === "news-intraday") {
+    return "뉴스 수집, 한국어 번역, AI 구조화, 상위 흐름 전파를 짧은 주기로 갱신한다.";
+  }
+  if (profileId === "market-daily") {
+    return "장 마감 후 무료 가격 데이터 한도 안에서 일봉 캔들을 보강한다.";
+  }
+  if (profileId === "decision-daily") {
+    return "가격, 뉴스, 사이클, 보유 상태를 합쳐 추천과 보유 검토를 갱신한다.";
+  }
+  if (profileId === "market-universe-weekly") {
+    return "감시 종목군과 기본 가격 커버리지를 주간 단위로 정리한다.";
+  }
+  if (profileId === "macro-weekly") {
+    return "거시 지표를 주간 단위로 보강해 큰 시장 사이클 판단에 사용한다.";
+  }
+  if (profileId === "sec-filings-weekly") {
+    return "SEC 공시 기반 기업 이벤트를 주간 단위로 보강한다.";
+  }
+  if (profileId === "performance-monthly") {
+    return "추천과 thesis 성과를 월간 단위로 측정한다.";
+  }
+  return "운영 프로파일에 등록된 데이터 작업을 정해진 주기로 실행한다.";
+}
+
+function timerStatusTone(timer: ProfileTimer) {
+  if (timer.active_state === "active" && timer.last_result === "success") {
+    return "risk-low";
+  }
+  if (timer.active_state === "active") {
+    return "risk-medium";
+  }
+  return "risk-high";
 }
 
 function schedulerNextStepLabel(activation: SchedulerActivation) {
@@ -308,6 +349,7 @@ export default async function DataHealthPage() {
   const providerBudget = data.provider_budget;
   const schedulerActivation = data.scheduler.activation;
   const profileScheduler = data.scheduler.profile_scheduler ?? DEFAULT_PROFILE_SCHEDULER;
+  const ec2SchedulerInstalled = isEc2ProfileSchedulerInstalled(data.scheduler);
   const manualSmoke = data.manual_local_ingest_smoke ?? DEFAULT_MANUAL_SMOKE;
   const localWorker = data.local_ingest_worker ?? DEFAULT_LOCAL_WORKER;
   const marketPriceRun = findPipelineRun(data, "market-price-daily", "market_price_upsert");
@@ -540,6 +582,47 @@ export default async function DataHealthPage() {
         ))}
       </section>
 
+      <section className="feature-map-panel reveal delay-1" aria-labelledby="scheduler-profile-title">
+        <div className="section-heading stacked-heading">
+          <span>자동 실행 주기</span>
+          <h2 id="scheduler-profile-title">
+            {ec2SchedulerInstalled ? "현재 EC2에서 실제로 도는 작업" : "자동 실행 연결 상태"}
+          </h2>
+        </div>
+        <p className="board-intro">
+          웹 화면은 작업을 직접 실행하지 않고 저장된 결과를 읽는다. 실제 수집과 분석은 아래 프로파일들이 각자 다른 주기로 실행한다.
+        </p>
+        {profileScheduler.timers.length > 0 ? (
+          <div className="scheduler-timer-grid">
+            {profileScheduler.timers.map((timer) => (
+              <article className="scheduler-timer-card" key={timer.profile_id}>
+                <span>{koCode(timer.profile_id)}</span>
+                <strong>{timerPurpose(timer.profile_id)}</strong>
+                <small>{timer.schedule || "스케줄 미확인"}</small>
+                <dl>
+                  <div>
+                    <dt>상태</dt>
+                    <dd>
+                      <span className={`risk-tag ${timerStatusTone(timer)}`}>
+                        {koCode(timer.active_state)} · {koCode(timer.last_result || "unknown")}
+                      </span>
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>다음 실행</dt>
+                    <dd>{timer.next_elapse || "미확인"}</dd>
+                  </div>
+                </dl>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <div className="empty-state">
+            아직 화면에 연결된 EC2 프로파일 스케줄이 없다. 수동 실행 결과와 실행 로그만 참고한다.
+          </div>
+        )}
+      </section>
+
       <section className="feature-map-panel reveal delay-1" aria-labelledby="collection-status-title">
         <div className="section-heading stacked-heading">
           <span>수집/분석별 상태</span>
@@ -727,11 +810,13 @@ export default async function DataHealthPage() {
 
         <article className="ledger-panel" style={{ marginTop: "18px" }}>
           <div className="section-heading stacked-heading">
-            <span>최근 자동 실행 결과</span>
-            <h3>{localWorkerTitle(localWorker)}</h3>
+            <span>{ec2SchedulerInstalled ? "과거 로컬 워커 기록" : "최근 자동 실행 결과"}</span>
+            <h3>{ec2SchedulerInstalled ? "현재 EC2 자동화의 주 근거가 아니다" : localWorkerTitle(localWorker)}</h3>
           </div>
           <p style={{ color: "var(--text-secondary)", marginBottom: "16px" }}>
-            {localWorkerExplanation(localWorker)}
+            {ec2SchedulerInstalled
+              ? "이 기록은 EC2 systemd 프로파일 스케줄러를 붙이기 전 로컬 MVP 단계의 점검 결과다. 현재 자동 실행 판단은 위의 EC2 반복 실행기와 작업 실행 이력을 우선한다."
+              : localWorkerExplanation(localWorker)}
           </p>
           <dl className="fact-list compact-facts">
             <div>
@@ -810,11 +895,13 @@ export default async function DataHealthPage() {
 
         <article className="ledger-panel" style={{ marginTop: "18px" }}>
           <div className="section-heading stacked-heading">
-            <span>최근 수동 점검 증거</span>
-            <h3>{manualSmokeTitle(manualSmoke)}</h3>
+            <span>{ec2SchedulerInstalled ? "과거 수동 점검 증거" : "최근 수동 점검 증거"}</span>
+            <h3>{ec2SchedulerInstalled ? "자동 운영 전 수동 검증 기록" : manualSmokeTitle(manualSmoke)}</h3>
           </div>
           <p style={{ color: "var(--text-secondary)", marginBottom: "16px" }}>
-            {manualSmokeExplanation(manualSmoke)}
+            {ec2SchedulerInstalled
+              ? "이 기록은 수동으로 데이터 수집 경로를 검증했던 증거다. 현재 서버 운영 상태를 판단할 때는 EC2 반복 실행기와 최신 pipeline run을 먼저 본다."
+              : manualSmokeExplanation(manualSmoke)}
           </p>
           <dl className="fact-list compact-facts">
             <div>
