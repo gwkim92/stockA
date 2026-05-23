@@ -391,11 +391,11 @@ export default async function IntelligencePage() {
     },
     {
       index: "3",
-      title: "추천 연결 확인",
-      target: `${formatPercent(dashboard.latest_metrics.weight_coverage_ratio)} 연결률`,
-      body: "통과한 근거가 추천 점수와 보유 검토에 붙었는지 확인한다.",
-      cta: "추천 근거 보기",
-      href: "/recommendations" as Route,
+      title: "상위 흐름 지도",
+      target: `${events.summary.themes_represented}개 테마`,
+      body: "거시 뉴스와 테마 뉴스가 어떤 종목군으로 내려가는지 먼저 본다.",
+      cta: "흐름 지도",
+      href: "/cycle-map" as Route,
     },
     {
       index: "4",

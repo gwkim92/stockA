@@ -4,6 +4,7 @@ import type {
   AiEvidenceDetailData,
   AiNewsClusterListData,
   CycleStateListData,
+  CycleMapData,
   DailyCockpitData,
   DataHealthData,
   EventListData,
@@ -135,6 +136,11 @@ export function getTradingReadiness() {
 export function getCycleStates() {
   const query = new URLSearchParams({ asOfDate: currentIsoDate() });
   return fetchFrontendPayload<CycleStateListData>(`/api/cycles?${query.toString()}`);
+}
+
+export function getCycleMap() {
+  const query = new URLSearchParams({ asOfDate: currentIsoDate() });
+  return fetchFrontendPayload<CycleMapData>(`/api/cycle-map?${query.toString()}`);
 }
 
 export function getRecommendations() {

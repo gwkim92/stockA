@@ -14,6 +14,7 @@ from stockanalysis.frontend.live_adapter import (
     is_live_supported_path,
     render_frontend_ai_news_cluster_list_state_sql,
     render_frontend_ai_evidence_detail_state_sql,
+    render_frontend_cycle_map_state_sql,
     render_frontend_cycle_state_list_sql,
     render_frontend_event_list_state_sql,
     render_frontend_paper_trading_preview_state_sql,
@@ -567,6 +568,105 @@ class FakeLiveExecutor:
                                 "fundamental_quality": None,
                             },
                         },
+                    ],
+                }
+            )
+        if sql.startswith("-- frontend cycle map state lookup"):
+            return json.dumps(
+                {
+                    "as_of_date": "2024-11-01",
+                    "summary": {
+                        "node_count": 3,
+                        "macro_count": 1,
+                        "domain_count": 1,
+                        "sector_count": 0,
+                        "theme_count": 1,
+                        "instrument_count": 0,
+                        "conflict_node_count": 1,
+                        "direct_event_count": 4,
+                        "propagated_impact_count": 6,
+                        "recommendation_count": 2,
+                        "thesis_count": 1,
+                        "hot_node_code": "MACRO_RATES_FED",
+                    },
+                    "nodes": [
+                        {
+                            "node_id": 101,
+                            "node_code": "MACRO_RATES_FED",
+                            "node_name": "Macro Rates and Fed",
+                            "node_type": "macro_regime",
+                            "description": "Rates, inflation, and Fed policy path.",
+                            "cycle_level": "macro",
+                            "cycle_state": "forming",
+                            "cycle_score": "0.6200",
+                            "trend_score": "0.5800",
+                            "breadth_score": "0.5200",
+                            "event_heat_score": "0.8100",
+                            "liquidity_score": "0.4900",
+                            "valuation_pressure": "0.5700",
+                            "parent_alignment_score": "0.7100",
+                            "conflict_flags": ["growth_vs_rates"],
+                            "evidence_event_ids": [9001, 9002],
+                            "summary_text_ko": "금리·연준 흐름은 직접 뉴스 2건과 전파 영향 3건이 있다.",
+                            "top_symbols": ["SPY", "QQQ", "TLT"],
+                            "recent_event_titles": ["Fed rates remain in focus"],
+                            "parent_codes": [],
+                            "child_codes": ["TECH_DOMAIN"],
+                            "counts": {
+                                "parent_edge_count": 0,
+                                "child_edge_count": 1,
+                                "direct_event_count": 2,
+                                "propagated_impact_count": 3,
+                                "exposed_instrument_count": 3,
+                                "ai_artifact_count": 1,
+                                "recommendation_count": 1,
+                                "thesis_count": 1,
+                            },
+                            "summary_as_of_date": "2024-11-01",
+                            "source_run_id": 9201,
+                            "updated_at": "2024-11-01T12:00:00+00:00",
+                        },
+                        {
+                            "node_id": 201,
+                            "node_code": "TECH_DOMAIN",
+                            "node_name": "Technology Domain",
+                            "node_type": "domain",
+                            "description": "Technology and AI infrastructure.",
+                            "cycle_level": "domain",
+                            "cycle_state": "expanding",
+                            "cycle_score": "0.7400",
+                            "event_heat_score": "0.6400",
+                            "conflict_flags": [],
+                            "evidence_event_ids": [],
+                            "summary_text_ko": "기술 도메인은 AI 인프라 수요와 연결된다.",
+                            "top_symbols": ["NVDA"],
+                            "recent_event_titles": [],
+                            "parent_codes": ["MACRO_RATES_FED"],
+                            "child_codes": ["AI_SEMICONDUCTOR_CYCLE"],
+                            "counts": {
+                                "parent_edge_count": 1,
+                                "child_edge_count": 1,
+                                "direct_event_count": 1,
+                                "propagated_impact_count": 2,
+                                "exposed_instrument_count": 1,
+                                "ai_artifact_count": 1,
+                                "recommendation_count": 1,
+                                "thesis_count": 0,
+                            },
+                            "summary_as_of_date": "2024-11-01",
+                            "source_run_id": 9201,
+                            "updated_at": "2024-11-01T12:00:00+00:00",
+                        },
+                    ],
+                    "edges": [
+                        {
+                            "parent_code": "MACRO_RATES_FED",
+                            "parent_name": "Macro Rates and Fed",
+                            "child_code": "TECH_DOMAIN",
+                            "child_name": "Technology Domain",
+                            "relation_type": "macro_to_domain",
+                            "weight": "0.7500",
+                        }
                     ],
                 }
             )
@@ -2437,6 +2537,51 @@ class FrontendLiveAdapterTests(unittest.TestCase):
 
         self.assertIn("limit 11", executor.scalar_sql[-1])
         self.assertIn("offset 25", executor.scalar_sql[-1])
+
+    def test_live_cycle_map_response_matches_frontend_contract_shape(self) -> None:
+        payload = resolve_live_frontend_response(
+            "/api/cycle-map?asOfDate=2024-11-01&limit=12",
+            config=type("Config", (), {"psql_command": "psql"})(),
+            executor=FakeLiveExecutor(),
+            generated_at=datetime(2026, 5, 1, tzinfo=timezone.utc),
+        )
+
+        self.assertEqual(payload["contract_version"], "frontend-api-v0.1")
+        self.assertEqual(payload["data"]["as_of_date"], "2024-11-01")
+        self.assertEqual(payload["data"]["summary"]["node_count"], 3)
+        self.assertEqual(payload["data"]["summary"]["hot_node_code"], "MACRO_RATES_FED")
+        first_node = payload["data"]["nodes"][0]
+        self.assertEqual(first_node["node_id"], "classification-node-101")
+        self.assertEqual(first_node["node_code"], "MACRO_RATES_FED")
+        self.assertEqual(first_node["cycle_level"], "macro")
+        self.assertEqual(first_node["cycle_score"], 0.62)
+        self.assertEqual(first_node["event_heat_score"], 0.81)
+        self.assertEqual(first_node["conflict_flags"], ["growth_vs_rates"])
+        self.assertEqual(first_node["top_symbols"], ["SPY", "QQQ", "TLT"])
+        self.assertEqual(first_node["counts"]["propagated_impact_count"], 3)
+        self.assertEqual(first_node["source_run_id"], "pipeline-run-9201")
+        self.assertEqual(payload["data"]["edges"][0]["parent_code"], "MACRO_RATES_FED")
+        self.assertEqual(payload["data"]["edges"][0]["child_code"], "TECH_DOMAIN")
+        self.assertEqual(payload["data"]["edges"][0]["weight"], 0.75)
+        self.assertEqual(payload["links"]["cycles"], "/api/cycles?asOfDate=2024-11-01")
+        self.assertTrue(is_live_supported_path("/api/cycle-map?asOfDate=2024-11-01"))
+
+    def test_live_cycle_map_sql_reads_graph_context_without_writes(self) -> None:
+        sql = render_frontend_cycle_map_state_sql(as_of_date=date(2024, 11, 1), node_limit=12)
+        lowered = sql.lower()
+
+        self.assertIn("-- frontend cycle map state lookup", sql)
+        self.assertIn("signal.cycle_hierarchy_state_snapshot", sql)
+        self.assertIn("ai.cycle_community_summary", sql)
+        self.assertIn("ref.classification_edge", sql)
+        self.assertIn("node.code <> 'MARKET_NEWS_FLOW'", sql)
+        self.assertIn("'cycle_graph_context_v1'", sql)
+        self.assertIn("limit 12", lowered)
+        self.assertIn("'nodes'", sql)
+        self.assertIn("'edges'", sql)
+        self.assertNotIn("insert into", lowered)
+        self.assertNotIn("update ", lowered)
+        self.assertNotIn("delete from", lowered)
 
     def test_live_event_list_response_matches_frontend_contract_shape(self) -> None:
         payload = resolve_live_frontend_response(

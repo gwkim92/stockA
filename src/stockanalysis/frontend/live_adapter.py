@@ -183,6 +183,13 @@ def resolve_live_frontend_response(
                 generated_at=generated_at_text,
             ),
         )
+    if parsed.path == "/api/cycle-map":
+        return build_live_cycle_map_response(
+            parsed,
+            config=runtime_config,
+            executor=executor,
+            generated_at=generated_at_text,
+        )
     if parsed.path == "/api/recommendations":
         return apply_frontend_sql_pagination(
             api_path,
@@ -886,6 +893,36 @@ def build_live_cycle_state_list_response(
             "cycle_states": cycle_states,
         },
         "links": _cycle_state_list_links(cycle_states, as_of_date=as_of_date),
+    }
+
+
+def build_live_cycle_map_response(
+    parsed: ParsedApiPath,
+    *,
+    config: RuntimeConfig,
+    executor: PsqlCommandExecutor | None,
+    generated_at: str,
+) -> dict[str, Any]:
+    as_of_date = _parse_optional_date(parsed.query, "asOfDate") or date.today()
+    node_limit = _parse_optional_int(parsed.query, "limit", default=40, minimum=1, maximum=80)
+    state = load_frontend_cycle_map_state(
+        config=config,
+        executor=executor,
+        as_of_date=as_of_date,
+        node_limit=node_limit,
+    )
+    nodes = [_build_cycle_map_node_payload(item) for item in _as_list(state.get("nodes"))]
+    edges = [_build_cycle_map_edge_payload(item) for item in _as_list(state.get("edges"))]
+    return {
+        "contract_version": CONTRACT_VERSION,
+        "generated_at": generated_at,
+        "data": {
+            "as_of_date": str(state.get("as_of_date") or as_of_date.isoformat()),
+            "summary": _build_cycle_map_summary_payload(_as_dict(state.get("summary"))),
+            "nodes": nodes,
+            "edges": edges,
+        },
+        "links": _cycle_map_links(nodes, as_of_date=as_of_date),
     }
 
 
@@ -1706,6 +1743,7 @@ def is_live_supported_path(api_path: str) -> bool:
             "/api/paper-trading/preview",
             "/api/trading/readiness",
             "/api/cycles",
+            "/api/cycle-map",
             "/api/recommendations",
             "/api/events",
             "/api/ai/news-clusters",
@@ -1839,6 +1877,20 @@ def load_frontend_cycle_state_list_state(
         )
     )
     return json_loads_object(payload, "Frontend cycle state list lookup")
+
+
+def load_frontend_cycle_map_state(
+    *,
+    config: RuntimeConfig,
+    executor: PsqlCommandExecutor | None,
+    as_of_date: date,
+    node_limit: int,
+) -> dict[str, Any]:
+    sql_executor = executor or PsqlCommandExecutor.from_config(config)
+    payload = sql_executor.execute_scalar(
+        render_frontend_cycle_map_state_sql(as_of_date=as_of_date, node_limit=node_limit)
+    )
+    return json_loads_object(payload, "Frontend cycle map state lookup")
 
 
 def load_frontend_event_list_state(
@@ -3262,6 +3314,197 @@ select json_build_object(
             join cycle_page page_cycle on page_cycle.node_id = current_cycle.node_id
             left join previous_cycle on previous_cycle.node_id = current_cycle.node_id
             left join instrument_rollup on instrument_rollup.node_id = current_cycle.node_id
+        ),
+        '[]'::json
+    )
+)::text;"""
+
+
+def render_frontend_cycle_map_state_sql(*, as_of_date: date, node_limit: int = 40) -> str:
+    if node_limit < 1 or node_limit > 80:
+        raise ValueError("node_limit must be between 1 and 80.")
+    target_date = sql_date(as_of_date)
+    return f"""-- frontend cycle map state lookup
+with latest_snapshot as (
+    select distinct on (snapshot.node_id)
+        snapshot.*,
+        node.code,
+        node.name,
+        node.node_type,
+        node.description
+    from signal.cycle_hierarchy_state_snapshot snapshot
+    join ref.classification_node node on node.node_id = snapshot.node_id
+    where snapshot.as_of_date <= {target_date}
+      and node.taxonomy_family = 'internal_theme'
+      and node.status = 'active'
+      and node.code <> 'MARKET_NEWS_FLOW'
+    order by snapshot.node_id, snapshot.as_of_date desc
+),
+latest_summary as (
+    select distinct on (summary.node_id)
+        summary.node_id,
+        summary.as_of_date as summary_as_of_date,
+        summary.summary_json,
+        summary.source_run_id,
+        summary.updated_at
+    from ai.cycle_community_summary summary
+    where summary.summary_type = 'cycle_graph_context_v1'
+      and summary.as_of_date <= {target_date}
+    order by summary.node_id, summary.as_of_date desc
+),
+node_page as (
+    select
+        snapshot.node_id,
+        snapshot.code,
+        snapshot.name,
+        snapshot.node_type,
+        snapshot.description,
+        snapshot.as_of_date as snapshot_as_of_date,
+        snapshot.cycle_level,
+        snapshot.cycle_state,
+        snapshot.cycle_score,
+        snapshot.trend_score,
+        snapshot.breadth_score,
+        snapshot.event_heat_score,
+        snapshot.liquidity_score,
+        snapshot.valuation_pressure,
+        snapshot.parent_alignment_score,
+        snapshot.conflict_flags,
+        snapshot.evidence_event_ids,
+        summary.summary_as_of_date,
+        summary.summary_json,
+        summary.source_run_id,
+        summary.updated_at
+    from latest_snapshot snapshot
+    left join latest_summary summary on summary.node_id = snapshot.node_id
+    order by
+        coalesce(snapshot.event_heat_score, 0) desc,
+        snapshot.cycle_score desc,
+        snapshot.code
+    limit {node_limit}
+),
+edge_rows as (
+    select
+        parent.code as parent_code,
+        parent.name as parent_name,
+        child.code as child_code,
+        child.name as child_name,
+        edge.relation_type,
+        edge.weight
+    from ref.classification_edge edge
+    join ref.classification_node parent on parent.node_id = edge.parent_node_id
+    join ref.classification_node child on child.node_id = edge.child_node_id
+    where edge.valid_from <= {target_date}
+      and (edge.valid_to is null or edge.valid_to >= {target_date})
+      and parent.status = 'active'
+      and child.status = 'active'
+      and parent.code <> 'MARKET_NEWS_FLOW'
+      and child.code <> 'MARKET_NEWS_FLOW'
+      and (
+          edge.parent_node_id in (select node_id from node_page)
+          or edge.child_node_id in (select node_id from node_page)
+      )
+    order by edge.weight desc nulls last, parent.code, child.code
+),
+summary_rollup as (
+    select
+        count(*)::integer as node_count,
+        count(*) filter (where cycle_level = 'macro')::integer as macro_count,
+        count(*) filter (where cycle_level = 'domain')::integer as domain_count,
+        count(*) filter (where cycle_level = 'sector')::integer as sector_count,
+        count(*) filter (where cycle_level = 'theme')::integer as theme_count,
+        count(*) filter (where cycle_level = 'instrument')::integer as instrument_count,
+        count(*) filter (where jsonb_array_length(coalesce(conflict_flags, '[]'::jsonb)) > 0)::integer as conflict_node_count,
+        coalesce(sum(nullif(summary_json #>> '{{counts,direct_event_count}}', '')::integer), 0)::integer as direct_event_count,
+        coalesce(sum(nullif(summary_json #>> '{{counts,propagated_impact_count}}', '')::integer), 0)::integer as propagated_impact_count,
+        coalesce(sum(nullif(summary_json #>> '{{counts,recommendation_count}}', '')::integer), 0)::integer as recommendation_count,
+        coalesce(sum(nullif(summary_json #>> '{{counts,thesis_count}}', '')::integer), 0)::integer as thesis_count
+    from node_page
+),
+hot_node as (
+    select code
+    from node_page
+    order by coalesce(event_heat_score, 0) desc, cycle_score desc, code
+    limit 1
+)
+select json_build_object(
+    'as_of_date', {sql_literal(as_of_date.isoformat())},
+    'summary',
+    json_build_object(
+        'node_count', coalesce((select node_count from summary_rollup), 0),
+        'macro_count', coalesce((select macro_count from summary_rollup), 0),
+        'domain_count', coalesce((select domain_count from summary_rollup), 0),
+        'sector_count', coalesce((select sector_count from summary_rollup), 0),
+        'theme_count', coalesce((select theme_count from summary_rollup), 0),
+        'instrument_count', coalesce((select instrument_count from summary_rollup), 0),
+        'conflict_node_count', coalesce((select conflict_node_count from summary_rollup), 0),
+        'direct_event_count', coalesce((select direct_event_count from summary_rollup), 0),
+        'propagated_impact_count', coalesce((select propagated_impact_count from summary_rollup), 0),
+        'recommendation_count', coalesce((select recommendation_count from summary_rollup), 0),
+        'thesis_count', coalesce((select thesis_count from summary_rollup), 0),
+        'hot_node_code', (select code from hot_node)
+    ),
+    'nodes',
+    coalesce(
+        (
+            select json_agg(
+                json_build_object(
+                    'node_id', node_id,
+                    'node_code', code,
+                    'node_name', name,
+                    'node_type', node_type,
+                    'description', description,
+                    'cycle_level', cycle_level,
+                    'cycle_state', cycle_state,
+                    'cycle_score', cycle_score,
+                    'trend_score', trend_score,
+                    'breadth_score', breadth_score,
+                    'event_heat_score', event_heat_score,
+                    'liquidity_score', liquidity_score,
+                    'valuation_pressure', valuation_pressure,
+                    'parent_alignment_score', parent_alignment_score,
+                    'conflict_flags', conflict_flags,
+                    'evidence_event_ids', evidence_event_ids,
+                    'summary_text_ko', coalesce(summary_json ->> 'summary_text_ko', name || ' 흐름은 아직 요약 대기 상태다.'),
+                    'top_symbols', coalesce(summary_json -> 'top_symbols', '[]'::jsonb),
+                    'recent_event_titles', coalesce(summary_json -> 'recent_event_titles', '[]'::jsonb),
+                    'parent_codes', coalesce(summary_json -> 'parent_codes', '[]'::jsonb),
+                    'child_codes', coalesce(summary_json -> 'child_codes', '[]'::jsonb),
+                    'counts', json_build_object(
+                        'parent_edge_count', coalesce(nullif(summary_json #>> '{{counts,parent_edge_count}}', '')::integer, 0),
+                        'child_edge_count', coalesce(nullif(summary_json #>> '{{counts,child_edge_count}}', '')::integer, 0),
+                        'direct_event_count', coalesce(nullif(summary_json #>> '{{counts,direct_event_count}}', '')::integer, 0),
+                        'propagated_impact_count', coalesce(nullif(summary_json #>> '{{counts,propagated_impact_count}}', '')::integer, 0),
+                        'exposed_instrument_count', coalesce(nullif(summary_json #>> '{{counts,exposed_instrument_count}}', '')::integer, 0),
+                        'ai_artifact_count', coalesce(nullif(summary_json #>> '{{counts,ai_artifact_count}}', '')::integer, 0),
+                        'recommendation_count', coalesce(nullif(summary_json #>> '{{counts,recommendation_count}}', '')::integer, 0),
+                        'thesis_count', coalesce(nullif(summary_json #>> '{{counts,thesis_count}}', '')::integer, 0)
+                    ),
+                    'summary_as_of_date', summary_as_of_date,
+                    'source_run_id', source_run_id,
+                    'updated_at', updated_at
+                )
+                order by coalesce(event_heat_score, 0) desc, cycle_score desc, code
+            )
+            from node_page
+        ),
+        '[]'::json
+    ),
+    'edges',
+    coalesce(
+        (
+            select json_agg(
+                json_build_object(
+                    'parent_code', parent_code,
+                    'parent_name', parent_name,
+                    'child_code', child_code,
+                    'child_name', child_name,
+                    'relation_type', relation_type,
+                    'weight', weight
+                )
+                order by weight desc nulls last, parent_code, child_code
+            )
+            from edge_rows
         ),
         '[]'::json
     )
@@ -6432,6 +6675,75 @@ def _build_cycle_state_item_payload(item: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _build_cycle_map_summary_payload(summary: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "node_count": int(summary.get("node_count") or 0),
+        "macro_count": int(summary.get("macro_count") or 0),
+        "domain_count": int(summary.get("domain_count") or 0),
+        "sector_count": int(summary.get("sector_count") or 0),
+        "theme_count": int(summary.get("theme_count") or 0),
+        "instrument_count": int(summary.get("instrument_count") or 0),
+        "conflict_node_count": int(summary.get("conflict_node_count") or 0),
+        "direct_event_count": int(summary.get("direct_event_count") or 0),
+        "propagated_impact_count": int(summary.get("propagated_impact_count") or 0),
+        "recommendation_count": int(summary.get("recommendation_count") or 0),
+        "thesis_count": int(summary.get("thesis_count") or 0),
+        "hot_node_code": _optional_text(summary.get("hot_node_code")),
+    }
+
+
+def _build_cycle_map_node_payload(item: dict[str, Any]) -> dict[str, Any]:
+    counts = _as_dict(item.get("counts"))
+    source_run_id = item.get("source_run_id")
+    return {
+        "node_id": _opaque_id("classification-node", item.get("node_id"), str(item.get("node_code") or "unknown").lower()),
+        "node_code": str(item.get("node_code") or "UNCLASSIFIED").upper(),
+        "node_name": str(item.get("node_name") or item.get("node_code") or "Unclassified"),
+        "node_type": str(item.get("node_type") or "unknown"),
+        "description": _optional_text(item.get("description")),
+        "cycle_level": str(item.get("cycle_level") or "unknown"),
+        "cycle_state": str(item.get("cycle_state") or "unknown"),
+        "cycle_score": _number(item.get("cycle_score")),
+        "trend_score": _number(item.get("trend_score")),
+        "breadth_score": _number(item.get("breadth_score")),
+        "event_heat_score": _number(item.get("event_heat_score")),
+        "liquidity_score": _number(item.get("liquidity_score")),
+        "valuation_pressure": _number(item.get("valuation_pressure")),
+        "parent_alignment_score": _number(item.get("parent_alignment_score")),
+        "conflict_flags": [str(value) for value in _as_scalar_list(item.get("conflict_flags"))],
+        "evidence_event_ids": [str(value) for value in _as_scalar_list(item.get("evidence_event_ids"))],
+        "summary_text_ko": str(item.get("summary_text_ko") or ""),
+        "top_symbols": [str(value).upper() for value in _as_scalar_list(item.get("top_symbols"))],
+        "recent_event_titles": [str(value) for value in _as_scalar_list(item.get("recent_event_titles"))],
+        "parent_codes": [str(value).upper() for value in _as_scalar_list(item.get("parent_codes"))],
+        "child_codes": [str(value).upper() for value in _as_scalar_list(item.get("child_codes"))],
+        "counts": {
+            "parent_edge_count": int(counts.get("parent_edge_count") or 0),
+            "child_edge_count": int(counts.get("child_edge_count") or 0),
+            "direct_event_count": int(counts.get("direct_event_count") or 0),
+            "propagated_impact_count": int(counts.get("propagated_impact_count") or 0),
+            "exposed_instrument_count": int(counts.get("exposed_instrument_count") or 0),
+            "ai_artifact_count": int(counts.get("ai_artifact_count") or 0),
+            "recommendation_count": int(counts.get("recommendation_count") or 0),
+            "thesis_count": int(counts.get("thesis_count") or 0),
+        },
+        "summary_as_of_date": _optional_text(item.get("summary_as_of_date")),
+        "source_run_id": _opaque_id("pipeline-run", source_run_id, None) if source_run_id is not None else None,
+        "updated_at": _timestamp(item.get("updated_at")),
+    }
+
+
+def _build_cycle_map_edge_payload(item: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "parent_code": str(item.get("parent_code") or "").upper(),
+        "parent_name": str(item.get("parent_name") or ""),
+        "child_code": str(item.get("child_code") or "").upper(),
+        "child_name": str(item.get("child_name") or ""),
+        "relation_type": str(item.get("relation_type") or "unknown"),
+        "weight": _number(item.get("weight")),
+    }
+
+
 def _build_cycle_history_payload(item: dict[str, Any]) -> dict[str, Any]:
     return {
         "as_of_date": str(item.get("as_of_date") or ""),
@@ -6720,6 +7032,19 @@ def _cycle_state_list_links(cycle_states: list[dict[str, Any]], *, as_of_date: d
         "theme_detail": f"/api/themes/{first_cycle.get('theme_key', 'UNCLASSIFIED')}?asOfDate={as_of_date}",
         "recommendations": f"/api/recommendations?batchDate={as_of_date}",
     }
+
+
+def _cycle_map_links(nodes: list[dict[str, Any]], *, as_of_date: date) -> dict[str, str]:
+    first_node = nodes[0] if nodes else {}
+    node_code = str(first_node.get("node_code") or "UNCLASSIFIED")
+    links = {
+        "cycles": f"/api/cycles?asOfDate={as_of_date}",
+        "events": f"/api/events?asOfDate={as_of_date}",
+        "recommendations": f"/api/recommendations?batchDate={as_of_date}",
+    }
+    if node_code != "UNCLASSIFIED":
+        links["theme_detail"] = f"/api/themes/{node_code}?asOfDate={as_of_date}"
+    return links
 
 
 def _theme_detail_links(

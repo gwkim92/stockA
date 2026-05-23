@@ -62,6 +62,9 @@ export default async function CyclesPage() {
           테마 상태는 매수 지시가 아니다. 투자 논리 품질, 커버리지 공백, 증거 검토를 시작할
           운영 맥락으로만 사용한다.
         </p>
+        <Link className="btn btn-primary" href={"/cycle-map" as Route}>
+          상위 흐름 지도 열기
+        </Link>
       </section>
 
       <section className="status-rail compact-rail reveal delay-1" aria-label="사이클 요약">

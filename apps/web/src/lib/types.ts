@@ -685,6 +685,68 @@ export type CycleStateListData = {
   }>;
 };
 
+export type CycleMapData = {
+  as_of_date: string;
+  summary: {
+    node_count: number;
+    macro_count: number;
+    domain_count: number;
+    sector_count: number;
+    theme_count: number;
+    instrument_count: number;
+    conflict_node_count: number;
+    direct_event_count: number;
+    propagated_impact_count: number;
+    recommendation_count: number;
+    thesis_count: number;
+    hot_node_code: string | null;
+  };
+  nodes: Array<{
+    node_id: string;
+    node_code: string;
+    node_name: string;
+    node_type: string;
+    description: string | null;
+    cycle_level: string;
+    cycle_state: string;
+    cycle_score: number | null;
+    trend_score: number | null;
+    breadth_score: number | null;
+    event_heat_score: number | null;
+    liquidity_score: number | null;
+    valuation_pressure: number | null;
+    parent_alignment_score: number | null;
+    conflict_flags: string[];
+    evidence_event_ids: string[];
+    summary_text_ko: string;
+    top_symbols: string[];
+    recent_event_titles: string[];
+    parent_codes: string[];
+    child_codes: string[];
+    counts: {
+      parent_edge_count: number;
+      child_edge_count: number;
+      direct_event_count: number;
+      propagated_impact_count: number;
+      exposed_instrument_count: number;
+      ai_artifact_count: number;
+      recommendation_count: number;
+      thesis_count: number;
+    };
+    summary_as_of_date: string | null;
+    source_run_id: string | null;
+    updated_at: string;
+  }>;
+  edges: Array<{
+    parent_code: string;
+    parent_name: string;
+    child_code: string;
+    child_name: string;
+    relation_type: string;
+    weight: number | null;
+  }>;
+};
+
 export type RecommendationListData = {
   as_of_date: string;
   strategy_name: string;

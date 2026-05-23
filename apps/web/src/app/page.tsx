@@ -150,11 +150,11 @@ export default async function HomePage() {
     },
     {
       index: "03",
-      title: "어떤 종목이 영향 받았나",
+      title: "상위 흐름이 어디로 내려가나",
       status: `${eventData.summary.themes_represented}개 테마`,
-      detail: "종목 상세에서 가격, 뉴스 근거, 추천 연결을 같이 본다.",
-      href: "/stocks",
-      cta: "종목",
+      detail: "거시, 도메인, 테마, 종목 노출도를 흐름 지도에서 먼저 본다.",
+      href: "/cycle-map",
+      cta: "흐름 지도",
     },
     {
       index: "04",
@@ -197,6 +197,7 @@ export default async function HomePage() {
       links: [
         { href: "/ai-evidence", label: "AI 후보" },
         { href: "/ai-evidence/results", label: "구조화 결과" },
+        { href: "/cycle-map", label: "흐름 지도" },
         { href: "/stocks", label: "종목" },
       ],
     },
