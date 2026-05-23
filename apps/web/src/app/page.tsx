@@ -56,6 +56,22 @@ function automationDisplayLabel(scheduler: DataHealthData["scheduler"], fallback
   return koCode(fallbackStatus);
 }
 
+function shortReviewReason(value: string) {
+  if (value.includes("single position review cap")) {
+    return "단일 종목 비중이 검토 기준보다 높다.";
+  }
+  if (value.includes("missing_thesis")) {
+    return "보유 또는 추천에 연결된 투자 논리가 비어 있다.";
+  }
+  if (value.includes("missing_outcome")) {
+    return "성과 측정 기록이 아직 없다.";
+  }
+  if (value.includes("target weight equals current weight")) {
+    return "현재 비중과 목표 비중이 같아 조치가 생략됐다.";
+  }
+  return koReason(value);
+}
+
 export default async function HomePage() {
   const [snapshot, eventsResponse, newsClustersResponse, recommendationsResponse, tradingResponse] =
     await Promise.all([
@@ -374,7 +390,7 @@ export default async function HomePage() {
                         </span>
                       </td>
                       <td>{koCode(action.action)}</td>
-                      <td>{koReason(action.reason)}</td>
+                      <td>{shortReviewReason(action.reason)}</td>
                     </tr>
                   ))
                 ) : (
@@ -391,7 +407,7 @@ export default async function HomePage() {
           <article className="ledger-panel decision-panel">
             <div className="section-heading">
               <span>첫 검토</span>
-              <h2>{firstTicket ? `${firstTicket.symbol}: 투자 논리 공백` : "보완 티켓 없음"}</h2>
+              <h2>{firstTicket ? `${firstTicket.symbol}: ${koCode(firstTicket.action)}` : "보완 티켓 없음"}</h2>
             </div>
             {firstTicket ? (
               <>
@@ -403,7 +419,7 @@ export default async function HomePage() {
                   </div>
                   <div>
                     <dt>사유</dt>
-                    <dd>{koReason(firstTicket.reason)}</dd>
+                    <dd>{shortReviewReason(firstTicket.reason)}</dd>
                   </div>
                   <div>
                     <dt>위험도</dt>
