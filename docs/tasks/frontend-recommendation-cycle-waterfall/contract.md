@@ -58,7 +58,7 @@
 
 ## Done Criteria
 
-- [ ] Recommendation detail DTO exposes cycle stack provenance.
-- [ ] Recommendation detail page shows cycle stack waterfall.
-- [ ] Focused backend/frontend verification passes.
-- [ ] EC2 live route smoke confirms the new section renders with production data.
+- [x] Recommendation detail DTO exposes cycle stack provenance.
+- [x] Recommendation detail page shows cycle stack waterfall.
+- [x] Focused backend/frontend verification passes.
+- [x] EC2 live route smoke confirms the new section renders with production data.
