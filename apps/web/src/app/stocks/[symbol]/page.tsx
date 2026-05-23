@@ -211,7 +211,7 @@ function EvidenceNeighborhoodPanel({ neighborhood }: { neighborhood: AiEvidenceN
             <small>저장된 구조화 증거</small>
           </div>
           <div className="rail-cell">
-            <span>근거 문서</span>
+            <span>원문 근거</span>
             <strong>{neighborhood.summary.evidence_chunk_count}</strong>
             <small>뉴스·공시 원문 연결</small>
           </div>
@@ -323,7 +323,7 @@ function EvidenceNeighborhoodPanel({ neighborhood }: { neighborhood: AiEvidenceN
           </div>
         </div>
 
-        <div className="relationship-panel" aria-label={`${neighborhood.symbol} 저장된 증거 문서`}>
+        <div className="relationship-panel" aria-label={`${neighborhood.symbol} 저장된 원문 근거`}>
           <span>원문 근거 상태</span>
           <div className="relationship-list">
             {neighborhood.evidence_chunks.slice(0, 4).map((chunk) => {
