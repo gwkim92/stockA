@@ -261,6 +261,7 @@ const KOREAN_LABELS: Record<string, string> = {
   "run local-ingest-worker-run --output outside the repository":
     "저장소 밖 경로에 반복 실행 결과를 다시 생성한다",
   "open /data-health and verify the latest local ingest worker cycle": "데이터 수집 화면에서 최신 반복 실행 결과를 확인한다",
+  "open /data-health and verify latest pipeline state": "데이터 수집 화면에서 최신 작업 상태를 확인한다",
   market_universe_bootstrap: "시장 종목군 초기화",
   macro_upsert: "거시 데이터 적재",
   sec_filings_upsert: "SEC 공시 적재",

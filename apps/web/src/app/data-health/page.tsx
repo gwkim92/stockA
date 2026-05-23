@@ -236,6 +236,28 @@ function localWorkerNextAction(worker: LocalIngestWorker) {
   return worker.next_actions[0] ? koCode(worker.next_actions[0]) : "다음 조치 없음";
 }
 
+function executionIdLabel(value: string | null | undefined) {
+  if (!value) {
+    return "실행 기록 없음";
+  }
+  if (value.startsWith("pipeline-run-")) {
+    return `실행 #${value.replace("pipeline-run-", "")}`;
+  }
+  return koCode(value);
+}
+
+function evidenceLocationLabel(value: string | null | undefined) {
+  return value ? "저장소 밖 증거 경로 연결됨" : "증거 경로 없음";
+}
+
+function summaryLocationLabel(value: string | null | undefined) {
+  return value ? "요약 파일 연결됨" : "요약 경로 없음";
+}
+
+function errorLogLabel(value: string | null | undefined) {
+  return value ? "오류 로그 있음" : "없음";
+}
+
 const DEFAULT_MANUAL_SMOKE: ManualIngestSmoke = {
   status: "not_configured",
   execute: false,
@@ -595,7 +617,7 @@ export default async function DataHealthPage() {
             </div>
             <div>
               <dt>증거 위치</dt>
-              <dd>{data.scheduler.latest_artifact_root || "증거 경로 없음"}</dd>
+              <dd>{evidenceLocationLabel(data.scheduler.latest_artifact_root)}</dd>
             </div>
             <div>
               <dt>다음 조치</dt>
@@ -745,7 +767,7 @@ export default async function DataHealthPage() {
             </div>
             <div>
               <dt>최신 수집 요약</dt>
-              <dd>{localWorker.latest_smoke_output_path || "요약 경로 없음"}</dd>
+              <dd>{summaryLocationLabel(localWorker.latest_smoke_output_path)}</dd>
             </div>
             <div>
               <dt>다음 조치</dt>
@@ -824,7 +846,7 @@ export default async function DataHealthPage() {
             </div>
             <div>
               <dt>증거 위치</dt>
-              <dd>{manualSmoke.artifact_root || "증거 경로 없음"}</dd>
+              <dd>{evidenceLocationLabel(manualSmoke.artifact_root)}</dd>
             </div>
             <div>
               <dt>다음 조치</dt>
@@ -851,7 +873,7 @@ export default async function DataHealthPage() {
                       </td>
                       <td>{koCode(run.status)}</td>
                       <td>{run.exit_code}</td>
-                      <td>{run.stderr_path || "없음"}</td>
+                      <td>{errorLogLabel(run.stderr_path)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -928,7 +950,7 @@ export default async function DataHealthPage() {
                       </span>
                     </td>
                     <td>{koCode(run.health_status)}</td>
-                    <td>{run.latest_run_id}</td>
+                    <td>{executionIdLabel(run.latest_run_id)}</td>
                     <td>{run.finished_at}</td>
                   </tr>
                 ))}
