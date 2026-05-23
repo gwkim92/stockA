@@ -362,6 +362,8 @@ const KOREAN_LABELS: Record<string, string> = {
   "Annual reporting quality": "연간 공시 품질",
   "AI output is stored as evidence metadata only; it does not place trades or mutate thesis state.":
     "AI 출력은 증거 메타데이터로만 저장되며, 거래를 실행하거나 투자 논리 상태를 바꾸지 않습니다.",
+  "cycle, 가격, 이벤트, 품질 구성요소를 저장한다.":
+    "사이클, 가격, 이벤트, 검증 항목을 저장합니다.",
   "BABA has no active thesis, so attribution coverage is incomplete.":
     "BABA에 활성 투자 논리가 없어 성과 귀속 커버리지가 불완전합니다.",
   "Business overview": "사업 개요",
@@ -406,6 +408,10 @@ const KOREAN_LABELS: Record<string, string> = {
   "Security and theme components are explanatory lenses, not additive totals.":
     "종목/테마 구성요소는 설명 관점이며 단순 합산 총액이 아닙니다.",
   "Some positions are excluded from attribution coverage.": "일부 포지션은 성과 귀속 커버리지에서 제외되었습니다.",
+  "중장기 추천은 이후 성과 측정과 연결되어야 품질을 검토할 수 있다.":
+    "중장기 추천은 이후 성과 측정과 연결되어야 판단을 검토할 수 있습니다.",
+  "이 검토는 실제 주문이나 가상 주문을 만들지 않는 읽기 전용 품질 점검이다.":
+    "이 검토는 실제 주문이나 가상 주문을 만들지 않는 읽기 전용 근거 점검입니다.",
   "Supporting event still carries human review gate before it can justify thesis mutation.":
     "보조 이벤트는 투자 논리 변경 근거로 쓰기 전에 사람 검토 조건을 통과해야 합니다.",
   "Theme lens mirrors the covered thesis exposure; do not add this to security lens as total P&L.":
