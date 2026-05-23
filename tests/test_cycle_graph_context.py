@@ -88,6 +88,7 @@ class CycleGraphContextTests(unittest.TestCase):
 
         self.assertIn("signal.cycle_hierarchy_state_snapshot", sql)
         self.assertIn("node.taxonomy_family = 'internal_theme'", sql)
+        self.assertIn("node.code <> 'MARKET_NEWS_FLOW'", sql)
         self.assertIn("limit 17", sql.lower())
 
     def test_load_context_and_node_codes(self) -> None:

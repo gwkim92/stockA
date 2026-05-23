@@ -288,6 +288,7 @@ with ranked_nodes as (
      and snapshot.as_of_date = {sql_date(as_of_date)}
     where node.taxonomy_family = 'internal_theme'
       and node.status = 'active'
+      and node.code <> 'MARKET_NEWS_FLOW'
 )
 select coalesce(
     json_agg(code order by cycle_score desc, event_heat_score desc, code),
