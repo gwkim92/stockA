@@ -29,7 +29,7 @@
 
 ## Mutable Surface
 
-- mutable surface: `apps/web/src/app/intelligence/page.tsx`, `apps/web/src/app/events/page.tsx`, `apps/web/src/app/ai-evidence/[evidenceId]/page.tsx`, `docs/tasks/news-ai-flow-clarity-pass/*`.
+- mutable surface: `apps/web/src/app/intelligence/page.tsx`, `apps/web/src/app/events/page.tsx`, `apps/web/src/app/ai-evidence/[evidenceId]/page.tsx`, `apps/web/src/lib/korean-labels.ts`, `docs/tasks/news-ai-flow-clarity-pass/*`.
 - 수정 금지:
   - `.env`
   - backend API contracts

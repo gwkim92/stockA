@@ -90,7 +90,7 @@ function clusterRelationReasons(data: AiEvidenceDetailData, cluster: ClusterSumm
     reasons.push(`원천 문서 ${sourceDocumentCount}개로 확인 가능`);
   }
   if (data.source_chunks.length > 0) {
-    reasons.push(`검색/RAG 확인용 문서 조각 ${data.source_chunks.length}개 연결`);
+    reasons.push(`원문 근거 ${data.source_chunks.length}개 연결`);
   }
   return reasons;
 }
