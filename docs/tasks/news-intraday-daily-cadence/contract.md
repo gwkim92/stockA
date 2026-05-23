@@ -55,7 +55,7 @@
 
 ## Done Criteria
 
-- [ ] 코드 default schedule이 매일 2시간 간격이다.
-- [ ] systemd manifest가 `OnCalendar=*-*-* 00,02,04,06,08,10,12,14,16,18,20,22:00 America/New_York`를 렌더한다.
-- [ ] EC2 installed timer의 next run이 주말에도 잡힌다.
-- [ ] AWH task verify를 통과한다.
+- [x] 코드 default schedule이 매일 2시간 간격이다.
+- [x] systemd manifest가 `OnCalendar=*-*-* 00,02,04,06,08,10,12,14,16,18,20,22:00 America/New_York`를 렌더한다.
+- [x] EC2 installed timer의 next run이 주말에도 잡힌다.
+- [x] AWH task verify를 통과한다.
