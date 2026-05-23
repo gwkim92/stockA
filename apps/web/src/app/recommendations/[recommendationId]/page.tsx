@@ -146,10 +146,10 @@ function evidenceLinkLabel(evidenceId: string) {
     return "AI 근거 열기";
   }
   if (evidenceId.startsWith("event-") || evidenceId.startsWith("sec-event-")) {
-    return "이벤트 원장 열기";
+    return "수집 뉴스 열기";
   }
   if (evidenceId.startsWith("macro-flow-")) {
-    return "종목 상세에서 흐름 보기";
+    return "종목 영향 보기";
   }
   return "근거 화면 열기";
 }
@@ -252,7 +252,7 @@ function recommendationQualityChecks(data: RecommendationDetailData) {
     {
       label: "주문 경계",
       value: "자동 주문 없음",
-      detail: "이 판정은 추천 품질 검토이며 증권사 주문 흐름을 실행하지 않는다.",
+      detail: "이 판정은 추천 검토 결과이며 증권사 주문 흐름을 실행하지 않는다.",
     },
   ];
 }
@@ -310,7 +310,7 @@ function evidenceTraceCards(data: RecommendationDetailData) {
           ? `${firstFlow ? `${koCode(firstFlow.theme_key)} 흐름` : "시장/테마 흐름"}이 종목 노출도 규칙을 거쳐 점수 입력으로 들어갔다.`
           : "거시·테마 뉴스가 이 종목 점수로 전파된 기록은 아직 없다.",
       href: `/stocks/${encodeURIComponent(data.symbol)}` as Route,
-      hrefLabel: "종목 흐름 보기",
+      hrefLabel: "종목 영향 보기",
       newsTitle:
         firstFlow && macroFlow.propagated_impact_count > 0
           ? {
@@ -410,10 +410,10 @@ export default async function RecommendationPage({ params }: RecommendationPageP
         </div>
       </section>
 
-      <section className="bento-card reveal delay-1" aria-label="중장기 추천 품질 판정">
+      <section className="bento-card reveal delay-1" aria-label="중장기 추천 검토 판정">
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "20px", flexWrap: "wrap", marginBottom: "20px" }}>
           <div>
-            <span className="metric-sub">중장기 품질 판정</span>
+            <span className="metric-sub">중장기 검토 판정</span>
             <h2 style={{ fontSize: "1.5rem", marginTop: "6px" }}>{qualityDecision.status}</h2>
             <p style={{ color: "var(--text-secondary)", marginTop: "8px", maxWidth: "820px" }}>
               {qualityDecision.summary}
@@ -524,10 +524,10 @@ export default async function RecommendationPage({ params }: RecommendationPageP
         </section>
       ) : null}
 
-      <section className="bento-card reveal delay-1" aria-label="추천 근거 품질 점검">
+      <section className="bento-card reveal delay-1" aria-label="추천 근거 연결 점검">
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "20px", flexWrap: "wrap", marginBottom: "20px" }}>
           <div>
-            <span className="metric-sub">근거 품질 점검</span>
+            <span className="metric-sub">근거 연결 점검</span>
             <h2 style={{ fontSize: "1.5rem", marginTop: "6px" }}>{koCode(evidenceReview.quality_status)}</h2>
             <p style={{ color: "var(--text-secondary)", marginTop: "8px", maxWidth: "760px" }}>
               이 점검은 추천 점수를 새로 만들지 않는다. 추천이 투자 논리, 점수 항목, 뉴스·AI 근거, 성과 측정과

@@ -213,7 +213,7 @@ function EvidenceNeighborhoodPanel({ neighborhood }: { neighborhood: AiEvidenceN
           <div className="rail-cell">
             <span>근거 문서</span>
             <strong>{neighborhood.summary.evidence_chunk_count}</strong>
-            <small>검색 준비 {neighborhood.summary.embedded_chunk_count}개</small>
+            <small>뉴스·공시 원문 연결</small>
           </div>
           <div className="rail-cell">
             <span>투자 연결</span>
@@ -222,7 +222,7 @@ function EvidenceNeighborhoodPanel({ neighborhood }: { neighborhood: AiEvidenceN
           </div>
         </div>
 
-        <div className="trace-chain" aria-label={`${neighborhood.symbol} AI 증거 관계 흐름`}>
+        <div className="trace-chain" aria-label={`${neighborhood.symbol} 뉴스 근거 관계 흐름`}>
           <div className="trace-node">
             <span>발생</span>
             <strong>이벤트 {neighborhood.summary.event_count}개</strong>
@@ -232,7 +232,7 @@ function EvidenceNeighborhoodPanel({ neighborhood }: { neighborhood: AiEvidenceN
                 : "아직 이 종목에 연결된 이벤트가 없다."}
             </p>
             <div className="mini-link-stack">
-              <Link href={`/events?symbol=${encodeURIComponent(neighborhood.symbol)}` as Route}>이벤트 원장</Link>
+              <Link href={`/events?symbol=${encodeURIComponent(neighborhood.symbol)}` as Route}>수집 뉴스 보기</Link>
             </div>
           </div>
 
@@ -293,7 +293,7 @@ function EvidenceNeighborhoodPanel({ neighborhood }: { neighborhood: AiEvidenceN
                   <NewsTitleBlock compact title={group.title} themeKey={group.theme_keys[0]} />
                   <small>
                     이벤트 {group.event_count.toLocaleString("ko-KR")}개 · 원천 {group.source_document_count.toLocaleString("ko-KR")}개 ·
-                    근거 문서 조각 {group.linked_chunk_count.toLocaleString("ko-KR")}개 · 규칙 기반 신뢰도 {formatPercent(group.confidence)}
+                    원문 근거 {group.linked_chunk_count.toLocaleString("ko-KR")}개 · 규칙 기반 신뢰도 {formatPercent(group.confidence)}
                   </small>
                   {group.relation_reasons.slice(0, 3).map((reason) => (
                     <small key={`${group.story_id}-${reason}`}>묶인 이유: {koLabel(reason)}</small>
@@ -312,7 +312,7 @@ function EvidenceNeighborhoodPanel({ neighborhood }: { neighborhood: AiEvidenceN
                   ))}
                   <div className="mini-link-stack">
                     {firstSource ? <Link href={firstSource}>원천 문서</Link> : null}
-                    <Link href={`/events?symbol=${encodeURIComponent(neighborhood.symbol)}` as Route}>이벤트 원장</Link>
+                    <Link href={`/events?symbol=${encodeURIComponent(neighborhood.symbol)}` as Route}>수집 뉴스</Link>
                   </div>
                 </div>
               );
@@ -324,7 +324,7 @@ function EvidenceNeighborhoodPanel({ neighborhood }: { neighborhood: AiEvidenceN
         </div>
 
         <div className="relationship-panel" aria-label={`${neighborhood.symbol} 저장된 증거 문서`}>
-          <span>근거 문서 상태</span>
+          <span>원문 근거 상태</span>
           <div className="relationship-list">
             {neighborhood.evidence_chunks.slice(0, 4).map((chunk) => {
               const document = sourceDocumentHref(chunk.source_document_id);
@@ -339,14 +339,14 @@ function EvidenceNeighborhoodPanel({ neighborhood }: { neighborhood: AiEvidenceN
                   <span>{chunk.used_metadata_fallback ? "요약 정보" : "원문 근거"}</span>
                   <strong>{evidenceChunkPreview(chunk.text_preview)}</strong>
                   <small>
-                    {chunk.source_url_host || "출처 없음"} · {sourceKind} · 검색 준비 상태 {koCode(chunk.embedding_status)}
+                    {chunk.source_url_host || "출처 없음"} · {sourceKind} · 원문 확인 상태 {koCode(chunk.embedding_status)}
                   </small>
                   {document ? <Link href={document}>원천 문서 열기</Link> : null}
                 </div>
               );
             })}
             {neighborhood.evidence_chunks.length === 0 ? (
-              <p className="relationship-empty">아직 근거 검색에 사용할 문서 조각이 없다.</p>
+              <p className="relationship-empty">아직 이 종목에 연결된 원문 근거가 없다.</p>
             ) : null}
           </div>
         </div>
@@ -606,7 +606,7 @@ export default async function StockDetailPage({ params }: StockDetailPageProps) 
                     <Link className="btn btn-secondary" href={`/themes/${encodeURIComponent(flow.theme_key)}?asOfDate=${encodeURIComponent(data.as_of_date)}` as Route}>
                       흐름 보기
                     </Link>
-                    {evidence ? <Link className="btn btn-secondary" href={evidence}>AI 증거</Link> : null}
+                    {evidence ? <Link className="btn btn-secondary" href={evidence}>AI 근거</Link> : null}
                     {sourceDocument ? <Link className="btn btn-secondary" href={sourceDocument}>원천 문서</Link> : null}
                   </div>
                 </div>
@@ -627,7 +627,7 @@ export default async function StockDetailPage({ params }: StockDetailPageProps) 
             <h2>이 종목이 직접 연결된 이벤트</h2>
           </div>
           <Link className="btn btn-secondary" href={`/events?symbol=${encodeURIComponent(data.symbol)}` as Route}>
-            이벤트 화면
+            수집 뉴스
           </Link>
         </div>
         <div className="bento-list">
@@ -648,7 +648,7 @@ export default async function StockDetailPage({ params }: StockDetailPageProps) 
                     <span>{koCode(event.impact_direction)} • 영향도 {formatPercent(event.impact_score)}</span>
                   </div>
                   <div className="btn-row" style={{ marginTop: 0 }}>
-                    {evidence ? <Link className="btn btn-secondary" href={evidence}>AI 증거</Link> : null}
+                    {evidence ? <Link className="btn btn-secondary" href={evidence}>AI 근거</Link> : null}
                     {sourceDocument ? <Link className="btn btn-secondary" href={sourceDocument}>원천 문서</Link> : null}
                   </div>
                 </div>

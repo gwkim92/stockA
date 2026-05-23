@@ -95,7 +95,7 @@ export default async function PaperTradingPage() {
         </p>
       </section>
 
-      <section className="status-rail compact-rail reveal delay-1" aria-label="가상 거래 품질 요약">
+      <section className="status-rail compact-rail reveal delay-1" aria-label="가상 거래 요약">
         <article className="rail-cell">
           <span>추천 수</span>
           <strong>{summary.recommendation_count}</strong>
@@ -253,8 +253,8 @@ export default async function PaperTradingPage() {
 
           <article className="ledger-panel">
             <div className="section-heading stacked-heading">
-              <span>품질 해석</span>
-              <h2>추천 품질 점검</h2>
+              <span>성과 해석</span>
+              <h2>추천 성과 점검</h2>
             </div>
             <dl className="fact-list">
               <div>
