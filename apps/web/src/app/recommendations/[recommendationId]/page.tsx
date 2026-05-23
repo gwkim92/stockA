@@ -72,24 +72,24 @@ function provenanceMetadata(component: ScoreComponent): AuditMetadataItem[] {
   const provenance = component.provenance;
   if (!provenance) {
     return [
-      { label: "점수 구성요소", value: component.component },
-      { label: "근거 ID", value: component.evidence_id },
+      { label: "점수 항목", value: koCode(component.component) },
+      { label: "근거 연결 번호", value: component.evidence_id },
     ];
   }
 
   return [
-    { label: "점수 구성요소", value: component.component },
-    { label: "근거 ID", value: component.evidence_id },
-    { label: "출처 유형", value: provenance.source_type },
-    { label: "출처 라벨", value: provenance.label },
-    { label: "가격 지표 코드", value: provenance.feature_code },
-    { label: "가격 지표 이름", value: provenance.feature_name },
+    { label: "점수 항목", value: koCode(component.component) },
+    { label: "근거 연결 번호", value: component.evidence_id },
+    { label: "입력 종류", value: koCode(provenance.source_type) },
+    { label: "입력 설명", value: koLabel(provenance.label) },
+    { label: "가격 지표", value: provenance.feature_code ? koCode(provenance.feature_code) : null },
+    { label: "가격 지표 이름", value: provenance.feature_name ? koCode(provenance.feature_name) : null },
     { label: "기준일", value: provenance.as_of_date },
-    { label: "원천 실행 ID", value: provenance.source_run_id },
-    { label: "유니버스 배치", value: provenance.universe_batch_id },
-    { label: "가격 지표 버전", value: provenance.evidence?.feature_set_version },
-    { label: "유니버스 순위", value: provenance.rank_position },
-    { label: "유니버스 종목 수", value: provenance.universe_member_count },
+    { label: "수집·계산 실행 번호", value: provenance.source_run_id },
+    { label: "종목군 계산 묶음", value: provenance.universe_batch_id },
+    { label: "가격 계산 버전", value: provenance.evidence?.feature_set_version },
+    { label: "종목군 순위", value: provenance.rank_position },
+    { label: "종목군 전체 수", value: provenance.universe_member_count },
     { label: "관측치 수", value: provenance.observation_count ?? provenance.evidence?.observation_count },
     { label: "첫 가격일", value: provenance.evidence?.first_trade_date },
     { label: "최근 가격일", value: provenance.latest_trade_date ?? provenance.evidence?.latest_trade_date },
@@ -604,10 +604,10 @@ export default async function RecommendationPage({ params }: RecommendationPageP
                           {evidenceLinkLabel(component.evidence_id)}
                         </Link>
                       ) : (
-                        <span>상세 추적은 아래 ID에서 확인</span>
+                        <span>상세 화면 준비 중</span>
                       )}
                     </div>
-                    <AuditMetadata items={provenanceMetadata(component)} summary="추적 ID 보기" />
+                    <AuditMetadata items={provenanceMetadata(component)} summary="계산 입력 상세 보기" />
                   </div>
                   <div style={{ flex: "0 0 110px", textAlign: "right" }}>
                     <strong style={{ fontSize: "1.1rem", color: "var(--text-primary)" }}>{formatPercent(component.value)}</strong>

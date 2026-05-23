@@ -54,20 +54,20 @@ function paperValidationState(trading: TradingReadinessData) {
   }
   if (trading.gate_summary.blocked_count > 0 || trading.paper_validation.blocked_reasons.length > 0) {
     return {
-      title: "Paper 검증 중 · 실거래 차단",
+      title: "가상 검증 중 · 실거래 차단",
       tone: "risk-high",
       detail: "가상 후보는 만들 수 있지만 안전 관문이 닫혀 있어 실제 주문으로 넘어가지 않는다.",
     };
   }
   if (trading.paper_validation.approved_action_count > 0) {
     return {
-      title: "Paper 후보 검토 가능",
+      title: "가상 후보 검토 가능",
       tone: "risk-medium",
       detail: "가상 검증 후보가 있지만 실거래는 별도 승인과 브로커 연결 이후에만 가능하다.",
     };
   }
   return {
-    title: "Paper 후보 대기",
+    title: "가상 후보 대기",
     tone: "risk-medium",
     detail: "추천 배치와 보유 스냅샷이 맞물릴 때 가상 조치 후보가 생성된다.",
   };
@@ -84,14 +84,14 @@ export default async function PaperTradingPage() {
     <div className="terminal-page">
       <section className="page-hero reveal" aria-labelledby="paper-title">
         <div>
-          <div className="bento-badge">가상 거래(Paper) • 주문 전 안전 점검</div>
+          <div className="bento-badge">가상 거래 • 주문 전 안전 점검</div>
           <h1 className="page-title" id="paper-title">
-            현재는 실거래가 아니라 Paper 검증 단계다.
+            현재는 실거래가 아니라 가상 주문 검증 단계다.
           </h1>
         </div>
         <p className="page-lede">
           이 화면은 추천을 바로 주문으로 바꾸지 않는다. 최신 추천과 가상 포트폴리오 스냅샷을 대조해
-          “만약 주문한다면 무엇을 해야 하는지”만 만들고, 안전 관문과 감사 로그가 막으면 실거래로 넘어가지 않는다.
+          “실제로 주문한다면 어떤 조치가 필요할지”만 계산한다. 안전 관문과 감사 로그가 막으면 실거래로 넘어가지 않는다.
         </p>
       </section>
 
@@ -99,7 +99,7 @@ export default async function PaperTradingPage() {
         <article className="rail-cell">
           <span>추천 수</span>
           <strong>{summary.recommendation_count}</strong>
-          <small>{data.latest_recommendation_batch.as_of_date || "추천 배치 없음"}</small>
+          <small>{data.latest_recommendation_batch.as_of_date || "추천 후보 없음"}</small>
         </article>
         <article className="rail-cell">
           <span>측정 완료</span>
@@ -117,7 +117,7 @@ export default async function PaperTradingPage() {
           <small>사람 승인 필요 {summary.requires_human_approval_count}</small>
         </article>
         <article className="rail-cell">
-          <span>브로커 제출</span>
+          <span>실제 주문 제출</span>
           <strong>{trading.audit_summary.submitted_to_broker_count}</strong>
           <small>가상 승인 후보 {trading.paper_validation.approved_action_count}</small>
         </article>
@@ -144,7 +144,7 @@ export default async function PaperTradingPage() {
           </article>
           <article className="feature-map-card collection-map-card">
             <span>03</span>
-            <strong>Paper 검증</strong>
+            <strong>가상 검증</strong>
             <em className={`risk-tag ${validationState.tone}`}>{validationState.title}</em>
             <small>충돌 {trading.paper_validation.conflict_count}개 · 승인 후보 {trading.paper_validation.approved_action_count}개</small>
           </article>
@@ -270,7 +270,7 @@ export default async function PaperTradingPage() {
                 <dd>{koCode(data.latest_recommendation_batch.horizon_type)}</dd>
               </div>
               <div>
-                <dt>유니버스</dt>
+                <dt>종목군</dt>
                 <dd>{data.latest_recommendation_batch.universe_version}</dd>
               </div>
             </dl>

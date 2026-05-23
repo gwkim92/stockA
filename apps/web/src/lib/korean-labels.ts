@@ -171,6 +171,7 @@ const KOREAN_LABELS: Record<string, string> = {
   news_event_candidate_suppressed: "저신호 뉴스 AI 후보",
   validator_blocked: "검증기 차단",
   local_rules: "무료 로컬 규칙",
+  local_deterministic: "무료 로컬 규칙",
   free_local_rules: "무료 로컬 규칙",
   postgres_sql: "Postgres SQL",
   postgres_canonical_tables: "Postgres 표준 테이블",

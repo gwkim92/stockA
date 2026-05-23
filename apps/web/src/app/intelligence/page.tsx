@@ -109,10 +109,10 @@ function isLocalRuleCluster(cluster: StoredAiNewsCluster) {
 
 function formatClusterRunMode(cluster: StoredAiNewsCluster) {
   if (isLocalRuleCluster(cluster)) {
-    return "로컬 규칙 묶음";
+    return "규칙 기반 묶음";
   }
   if (cluster.extraction_run.provider === "codex_oauth") {
-    return "LLM 묶음";
+    return "AI 분석 묶음";
   }
   return koCode(cluster.extraction_run.provider);
 }
@@ -195,19 +195,19 @@ function formatStoryKeyword(cluster: StoredAiNewsCluster) {
 
 function formatLlmCandidateStatus(summary: AiNewsClusterSummary) {
   if (summary.llm_candidate_invocation_count === 0) {
-    return "LLM 실행 없음";
+    return "AI 분석 이력 없음";
   }
   if (summary.latest_llm_invocation_status === "failed") {
-    return "최근 LLM 실패";
+    return "최근 AI 분석 실패";
   }
   if (summary.latest_llm_invocation_status === "succeeded") {
-    return "최근 LLM 성공";
+    return "최근 AI 분석 성공";
   }
   return koCode(summary.latest_llm_invocation_status);
 }
 
 function formatLlmCandidateDetail(summary: AiNewsClusterSummary) {
-  return `성공 artifact ${summary.llm_candidate_artifact_count}건 · 성공 호출 ${summary.llm_candidate_success_count}건 · 실패 호출 ${summary.llm_candidate_failed_count}건`;
+  return `저장된 분석 ${summary.llm_candidate_artifact_count}건 · 성공 ${summary.llm_candidate_success_count}건 · 실패 ${summary.llm_candidate_failed_count}건`;
 }
 
 function formatClusterModeStatus(summary: AiNewsClusterSummary) {
@@ -371,7 +371,7 @@ export default async function IntelligencePage() {
       index: "03",
       title: "Codex OAuth 분석",
       status: formatLlmCandidateStatus(clusterSummary),
-      copy: "중요 뉴스만 배치로 LLM 구조화하고 저장된 결과만 화면에서 읽는다.",
+      copy: "중요 뉴스만 AI가 구조화하고, 화면은 저장된 분석 결과만 읽는다.",
       href: "/ai-evidence",
     },
     {
@@ -440,14 +440,14 @@ export default async function IntelligencePage() {
           <small>{formatNewsRunLabel(newsRun)} · {newsRun?.finished_at ?? "최근 완료 없음"}</small>
         </article>
         <article className="rail-cell">
-          <span>LLM 후보 분석</span>
+          <span>AI 후보 분석</span>
           <strong className="rail-word-value">{formatLlmCandidateStatus(clusterSummary)}</strong>
           <small>{formatLlmCandidateDetail(clusterSummary)}</small>
         </article>
         <article className="rail-cell">
           <span>뉴스 묶음 방식</span>
           <strong className="rail-word-value">{formatClusterModeStatus(clusterSummary)}</strong>
-          <small>배치 작업이 저장한 결과만 읽음</small>
+          <small>저장된 분석 결과만 표시</small>
         </article>
         <article className="rail-cell">
           <span>저장된 뉴스 묶음</span>
@@ -499,22 +499,22 @@ export default async function IntelligencePage() {
           <article className="rail-cell">
             <span>묶음 증거</span>
             <strong>{clusterSummary.cluster_count}</strong>
-            <small>저장된 AI/규칙 증거</small>
+            <small>저장된 분석 결과</small>
           </article>
           <article className="rail-cell">
-            <span>검색 조각</span>
+            <span>근거 문서</span>
             <strong>{clusterSummary.chunk_count}</strong>
-            <small>임베딩 {clusterSummary.embedded_chunk_count}개</small>
+            <small>검색 준비 {clusterSummary.embedded_chunk_count}개</small>
           </article>
           <article className="rail-cell">
-            <span>분석 비용</span>
+            <span>AI 비용</span>
             <strong>${clusterSummary.estimated_cost_usd.toFixed(4)}</strong>
-            <small>화면에서 실시간 LLM 호출 없음</small>
+            <small>화면 진입 시 추가 분석 없음</small>
           </article>
           <article className="rail-cell">
             <span>자동화 승인</span>
             <strong>{koCode(activation.status)}</strong>
-            <small>{activation.activation_allowed ? "활성화 가능" : "운영 정책 대기"}</small>
+            <small>{activation.activation_allowed ? "자동 실행 가능" : "자동 실행 조건 대기"}</small>
           </article>
         </section>
 
@@ -568,8 +568,7 @@ export default async function IntelligencePage() {
                         {cluster.event_count}개 뉴스가 같은 {splitByStory ? "이슈" : "테마"}로 묶였다
                       </strong>
                       <p>
-                        {formatClusterRunMode(cluster)} 기준이다. 대표 이벤트 {cluster.representative_event_id ?? "대기"}를
-                        중심으로 흐름을 추적한다.
+                        {formatClusterRunMode(cluster)} 기준이다. 대표 뉴스를 중심으로 흐름을 추적한다.
                       </p>
                     </div>
                     <div className="cluster-decision-cell">
@@ -595,7 +594,7 @@ export default async function IntelligencePage() {
                       {cluster.relation_reasons.map((reason) => (
                         <div className="relationship-chip" key={`${cluster.evidence_id}-${reason}`}>
                           <span>근거</span>
-                          <strong>{reason}</strong>
+                          <strong>{koLabel(reason)}</strong>
                         </div>
                       ))}
                     </div>
@@ -658,7 +657,7 @@ export default async function IntelligencePage() {
                   </div>
                   <p className="fallback-note">
                     저장된 뉴스 묶음 증거가 아직 없어서 로컬 규칙 기반 임시 묶음을 보여준다.
-                    AI 배치가 성공하면 묶음 기준과 원천 문서가 있는 증거 카드로 대체된다.
+                    AI 분석이 성공하면 묶음 기준과 원천 문서가 있는 분석 카드로 대체된다.
                   </p>
                   <div className="relationship-panel" aria-label={`${koCode(cluster.themeKey)} 임시 묶음 근거`}>
                     <span>왜 묶였나</span>
@@ -712,7 +711,7 @@ export default async function IntelligencePage() {
                     <h3>오늘 표시할 뉴스 묶음이 아직 없다.</h3>
                   </div>
                 </div>
-                <p className="relationship-empty">뉴스 수집과 AI 분석 batch가 성공하면 이 영역에 대표 흐름이 표시된다.</p>
+                <p className="relationship-empty">뉴스 수집과 AI 분석이 성공하면 이 영역에 대표 흐름이 표시된다.</p>
               </article>
             )}
           </div>

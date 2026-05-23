@@ -57,8 +57,8 @@ function recommendationSummary(row: RecommendationRow) {
   const thesisText = row.linked_thesis_id ? "투자 논리 연결" : "투자 논리 없음";
   const evidenceText =
     row.evidence.ai_or_event_component_count > 0
-      ? `AI/이벤트 근거 ${row.evidence.ai_or_event_component_count}개`
-      : "AI/이벤트 근거 없음";
+      ? `뉴스·공시·AI 근거 ${row.evidence.ai_or_event_component_count}개`
+      : "뉴스·공시·AI 근거 없음";
   const macroFlowText =
     row.evidence.macro_flow_evidence_count > 0
       ? `상위 흐름 전파 ${row.evidence.macro_flow_evidence_count}개`
@@ -123,7 +123,7 @@ export default async function RecommendationsPage() {
       <section className="bento-card reveal delay-2" aria-labelledby="recommendation-flow-title">
         <div className="section-heading">
           <div>
-            <span className="metric-sub">운영 흐름</span>
+            <span className="metric-sub">판단 흐름</span>
             <h2 id="recommendation-flow-title">추천은 수집 데이터와 AI 근거를 사람이 검토할 형태로 묶은 결과다</h2>
           </div>
           <Link className="btn btn-secondary" href="/intelligence">
@@ -134,12 +134,12 @@ export default async function RecommendationsPage() {
           <article className="flow-step">
             <span>1. 수집</span>
             <strong>가격·뉴스·공시</strong>
-            <p>스케줄러가 Postgres에 데이터를 쌓고 상태는 데이터 수집 화면에 남긴다.</p>
+            <p>자동 수집 작업이 가격, 뉴스, 공시를 저장하고 성공·실패 상태를 수집 화면에 남긴다.</p>
           </article>
           <article className="flow-step">
             <span>2. 구조화</span>
             <strong>테마·종목·방향</strong>
-            <p>뉴스 AI 후보와 저장된 맥락 조회 결과는 검증을 통과해야 추천 근거로 연결된다.</p>
+            <p>AI가 중요한 뉴스를 테마, 종목, 방향, 불확실성으로 구조화하고 검증을 통과한 것만 연결한다.</p>
           </article>
           <article className="flow-step">
             <span>3. 추천</span>
@@ -169,7 +169,7 @@ export default async function RecommendationsPage() {
         <div className="bento-list">
           {data.recommendations.length === 0 ? (
             <p className="empty-state">
-              아직 최신 추천 배치가 없다. 가격·뉴스·사이클 배치가 실행되고 추천 후보가 생성되면 이 목록에 표시된다.
+              아직 최신 추천 후보가 없다. 가격·뉴스·사이클 수집이 끝나고 추천 후보가 생성되면 이 목록에 표시된다.
             </p>
           ) : null}
           {data.recommendations.map((row) => {
@@ -196,7 +196,7 @@ export default async function RecommendationsPage() {
                     <Link href={recommendationHref(row.recommendation_id)}>추천 상세</Link>
                     <Link href={stockHref(row.symbol)}>종목 상세</Link>
                     {thesisLink ? <Link href={thesisLink}>투자 논리</Link> : <span>투자 논리 없음</span>}
-                    {evidenceLink ? <Link href={evidenceLink}>AI 근거</Link> : <span>AI 근거 없음</span>}
+                    {evidenceLink ? <Link href={evidenceLink}>뉴스·AI 근거</Link> : <span>뉴스·AI 근거 없음</span>}
                   </div>
                 </div>
                 <div style={{ flex: "0 0 150px", textAlign: "right" }}>
