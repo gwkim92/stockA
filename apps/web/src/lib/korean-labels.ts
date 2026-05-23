@@ -381,7 +381,7 @@ const KOREAN_LABELS: Record<string, string> = {
     "거래 판단 전에 단일 종목 비중 초과 여부를 사람이 검토해야 합니다.",
   "Review target allocation before any trade decision.":
     "거래 판단 전에 목표 비중과 증액 필요성을 사람이 검토해야 합니다.",
-  data_operations_artifact_runner: "데이터 운영 증거 파일 관리",
+  data_operations_artifact_runner: "데이터 운영 결과 관리",
   exit: "청산",
   exit_review: "청산 검토",
   exclude: "제외",
