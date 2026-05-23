@@ -9,9 +9,12 @@
   - EC2 `news-rss-ai-extract-run --provider codex_oauth --execute --limit 1` - completed, run_id `551`, artifact_id `291`
   - EC2 artifact `291` contains `macro_regime_impacts`, `domain_impacts`, `theme_impacts`, `direct_instrument_impacts`, `causal_paths`, `evidence_spans`
   - EC2 `macro-event-propagation-run --execute` after AI smoke - completed, run_id `552`, propagated rows 228
-  - EC2 `/api/data-health` - 200, `overall_status=healthy`
+  - EC2 `/api/data-health` - 200
+  - EC2 `news-intraday` systemd service rerun after propagation fix - completed, 7 artifact steps, failed step count 0
+  - EC2 scheduler status refresh - `news-intraday`, `market-daily`, `decision-daily` last_result `success`, 7 active timers
 
 ## Risks
 
 - 실제 Codex OAuth v3 실행은 성공했지만, 품질 평가는 아직 limit 1 smoke 수준이다. 더 많은 뉴스에서 오탐/누락을 점검해야 한다.
 - 아직 multi-hop propagation v2, cycle snapshot v2, recommendation cycle stack component는 구현되지 않았다.
+- `/api/data-health`의 latest `overall_status`는 `attention_required`다. systemd timers는 정상으로 갱신됐지만, production API/auth/alert/artifact-runner gate와 Twelve Data budget ledger stale 표시가 남아 있다.
