@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import shlex
 import subprocess
 import tempfile
@@ -541,6 +542,7 @@ def run_news_rss_ai_extract(
                     response.output,
                     min_confidence=min_confidence,
                     executor=sql_executor,
+                    source_text=f"{candidate.title}\n{candidate.summary}",
                 )
                 accepted_candidate = bool(validated.theme_impacts or validated.instrument_impacts)
                 artifact_type = (
@@ -881,6 +883,7 @@ def validate_news_ai_output(
     *,
     min_confidence: float,
     executor: PsqlCommandExecutor,
+    source_text: str | None = None,
 ) -> ValidatedNewsAiOutput:
     validated_themes: list[ValidatedThemeImpact] = []
     validated_instruments: list[ValidatedInstrumentImpact] = []
@@ -911,6 +914,9 @@ def validate_news_ai_output(
             continue
         instrument = resolve_instrument_by_symbol(impact.target, executor=executor)
         if instrument is None:
+            rejected += 1
+            continue
+        if not _instrument_impact_is_source_grounded(impact=impact, instrument=instrument, source_text=source_text):
             rejected += 1
             continue
         validated_instruments.append(
@@ -1576,6 +1582,48 @@ def _impact_is_valid(impact: NewsAiImpactOutput, *, min_confidence: float) -> bo
         and bool(impact.rationale.strip())
         and bool(impact.evidence_summary.strip())
     )
+
+
+_COMPANY_NAME_STOPWORDS = {
+    "adr",
+    "class",
+    "co",
+    "company",
+    "corp",
+    "corporation",
+    "group",
+    "holding",
+    "holdings",
+    "inc",
+    "ltd",
+    "plc",
+    "sa",
+    "shares",
+    "stock",
+    "trust",
+}
+
+
+def _instrument_impact_is_source_grounded(
+    *,
+    impact: NewsAiImpactOutput,
+    instrument: object,
+    source_text: str | None,
+) -> bool:
+    if not source_text:
+        return True
+    haystack = source_text.upper()
+    symbol = str(getattr(instrument, "primary_symbol", impact.target) or impact.target).upper()
+    if symbol and re.search(rf"(?<![A-Z0-9.]){re.escape(symbol)}(?![A-Z0-9.])", haystack):
+        return True
+    instrument_name = str(getattr(instrument, "instrument_name", "") or "")
+    for token in re.findall(r"[A-Za-z][A-Za-z0-9&.-]+", instrument_name):
+        normalized = token.strip(".-").lower()
+        if len(normalized) < 4 or normalized in _COMPANY_NAME_STOPWORDS:
+            continue
+        if re.search(rf"(?<![A-Z0-9]){re.escape(token.upper())}(?![A-Z0-9])", haystack):
+            return True
+    return False
 
 
 def _validated_rationale(impact: NewsAiImpactOutput, uncertainty_notes: str) -> str:

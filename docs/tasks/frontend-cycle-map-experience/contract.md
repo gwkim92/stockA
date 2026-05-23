@@ -58,8 +58,13 @@
 
 ## Done Criteria
 
-- [ ] `/api/cycle-map` is supported by the live adapter.
-- [ ] `/cycle-map` renders cycle nodes and edges in Korean.
-- [ ] Existing home/intelligence/cycles routes link to the map.
-- [ ] Focused local verification passes.
-- [ ] EC2 route smoke passes.
+- [x] `/api/cycle-map` is supported by the live adapter.
+- [x] `/cycle-map` renders cycle nodes and edges in Korean.
+- [x] Existing home/intelligence/cycles routes link to the map.
+- [x] Focused local verification passes.
+- [x] EC2 route smoke passes.
+
+## Follow-up Hardening
+
+- 2026-05-23: 화면 대표 종목은 `ai.cycle_community_summary.summary_json.top_symbols`를 신뢰하지 않고 canonical DB(`ref.instrument_factor_exposure`, `signal.propagated_instrument_impact`)에서 다시 계산한다. 이유: AI 요약 artifact가 오염되면 `AI_SEMICONDUCTOR_CYCLE -> XOM` 같은 잘못된 화면 링크가 생길 수 있다.
+- 2026-05-23: 뉴스 AI validator는 직접 종목 영향이 RSS 원문 제목/요약에 티커 또는 회사명으로 근거가 있을 때만 통과시키도록 강화한다.

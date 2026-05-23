@@ -3403,8 +3403,138 @@ edge_rows as (
       and (
           edge.parent_node_id in (select node_id from node_page)
           or edge.child_node_id in (select node_id from node_page)
-      )
+    )
     order by edge.weight desc nulls last, parent.code, child.code
+),
+direct_event_rows as (
+    select
+        impact.node_id,
+        event_row.event_id,
+        event_row.event_at,
+        coalesce(nullif(source_document.korean_title, ''), event_row.title) as event_title
+    from event.event_classification_impact impact
+    join event.event event_row on event_row.event_id = impact.event_id
+    left join event.event_document_link document_link
+      on document_link.event_id = event_row.event_id
+     and document_link.link_type = 'source'
+    left join ingest.source_document source_document on source_document.document_id = document_link.document_id
+    where impact.node_id in (select node_id from node_page)
+      and event_row.event_at::date <= {target_date}
+),
+direct_event_ranked as (
+    select
+        direct_event_rows.*,
+        row_number() over (
+            partition by node_id
+            order by event_at desc nulls last, event_id desc
+        ) as title_rank
+    from direct_event_rows
+),
+direct_event_rollup as (
+    select
+        node_id,
+        count(distinct event_id)::integer as direct_event_count,
+        coalesce(
+            json_agg(event_title order by event_at desc nulls last, event_id desc)
+              filter (where title_rank <= 5 and event_title is not null),
+            '[]'::json
+        ) as recent_event_titles
+    from direct_event_ranked
+    group by node_id
+),
+propagated_rollup as (
+    select
+        node_id,
+        count(*)::integer as propagated_impact_count
+    from signal.propagated_instrument_impact
+    where node_id in (select node_id from node_page)
+    group by node_id
+),
+instrument_candidates as (
+    select
+        exposure.node_id,
+        instrument.primary_symbol,
+        greatest(
+            coalesce(exposure.exposure_weight, 0),
+            coalesce(exposure.confidence, 0)
+        ) as rank_score
+    from ref.instrument_factor_exposure exposure
+    join ref.instrument instrument on instrument.instrument_id = exposure.instrument_id
+    where exposure.node_id in (select node_id from node_page)
+      and exposure.valid_from <= {target_date}
+      and (exposure.valid_to is null or exposure.valid_to >= {target_date})
+      and instrument.is_active
+    union all
+    select
+        propagated.node_id,
+        instrument.primary_symbol,
+        greatest(
+            coalesce(propagated.impact_strength, 0),
+            coalesce(propagated.confidence, 0)
+        ) as rank_score
+    from signal.propagated_instrument_impact propagated
+    join ref.instrument instrument on instrument.instrument_id = propagated.instrument_id
+    where propagated.node_id in (select node_id from node_page)
+      and instrument.is_active
+),
+instrument_ranked as (
+    select
+        node_id,
+        primary_symbol,
+        max(rank_score) as rank_score
+    from instrument_candidates
+    group by node_id, primary_symbol
+),
+instrument_ranked_limited as (
+    select
+        instrument_ranked.*,
+        row_number() over (
+            partition by node_id
+            order by rank_score desc nulls last, primary_symbol
+        ) as symbol_rank
+    from instrument_ranked
+),
+instrument_rollup as (
+    select
+        node_id,
+        count(*)::integer as exposed_instrument_count,
+        coalesce(
+            json_agg(primary_symbol order by rank_score desc nulls last, primary_symbol)
+              filter (where symbol_rank <= 5),
+            '[]'::json
+        ) as top_symbols
+    from instrument_ranked_limited
+    group by node_id
+),
+relation_rollup as (
+    select
+        node.node_id,
+        count(distinct parent_edges.parent_code)::integer as parent_edge_count,
+        count(distinct child_edges.child_code)::integer as child_edge_count,
+        coalesce(json_agg(distinct parent_edges.parent_code) filter (where parent_edges.parent_code is not null), '[]'::json) as parent_codes,
+        coalesce(json_agg(distinct child_edges.child_code) filter (where child_edges.child_code is not null), '[]'::json) as child_codes
+    from node_page node
+    left join edge_rows parent_edges on parent_edges.child_code = node.code
+    left join edge_rows child_edges on child_edges.parent_code = node.code
+    group by node.node_id
+),
+node_context as (
+    select
+        node_page.*,
+        coalesce(direct_event_rollup.direct_event_count, 0) as canonical_direct_event_count,
+        coalesce(direct_event_rollup.recent_event_titles, '[]'::json) as canonical_recent_event_titles,
+        coalesce(propagated_rollup.propagated_impact_count, 0) as canonical_propagated_impact_count,
+        coalesce(instrument_rollup.exposed_instrument_count, 0) as canonical_exposed_instrument_count,
+        coalesce(instrument_rollup.top_symbols, '[]'::json) as canonical_top_symbols,
+        coalesce(relation_rollup.parent_edge_count, 0) as canonical_parent_edge_count,
+        coalesce(relation_rollup.child_edge_count, 0) as canonical_child_edge_count,
+        coalesce(relation_rollup.parent_codes, '[]'::json) as canonical_parent_codes,
+        coalesce(relation_rollup.child_codes, '[]'::json) as canonical_child_codes
+    from node_page
+    left join direct_event_rollup on direct_event_rollup.node_id = node_page.node_id
+    left join propagated_rollup on propagated_rollup.node_id = node_page.node_id
+    left join instrument_rollup on instrument_rollup.node_id = node_page.node_id
+    left join relation_rollup on relation_rollup.node_id = node_page.node_id
 ),
 summary_rollup as (
     select
@@ -3415,15 +3545,15 @@ summary_rollup as (
         count(*) filter (where cycle_level = 'theme')::integer as theme_count,
         count(*) filter (where cycle_level = 'instrument')::integer as instrument_count,
         count(*) filter (where jsonb_array_length(coalesce(conflict_flags, '[]'::jsonb)) > 0)::integer as conflict_node_count,
-        coalesce(sum(nullif(summary_json #>> '{{counts,direct_event_count}}', '')::integer), 0)::integer as direct_event_count,
-        coalesce(sum(nullif(summary_json #>> '{{counts,propagated_impact_count}}', '')::integer), 0)::integer as propagated_impact_count,
+        coalesce(sum(canonical_direct_event_count), 0)::integer as direct_event_count,
+        coalesce(sum(canonical_propagated_impact_count), 0)::integer as propagated_impact_count,
         coalesce(sum(nullif(summary_json #>> '{{counts,recommendation_count}}', '')::integer), 0)::integer as recommendation_count,
         coalesce(sum(nullif(summary_json #>> '{{counts,thesis_count}}', '')::integer), 0)::integer as thesis_count
-    from node_page
+    from node_context
 ),
 hot_node as (
     select code
-    from node_page
+    from node_context
     order by coalesce(event_heat_score, 0) desc, cycle_score desc, code
     limit 1
 )
@@ -3466,16 +3596,20 @@ select json_build_object(
                     'conflict_flags', conflict_flags,
                     'evidence_event_ids', evidence_event_ids,
                     'summary_text_ko', coalesce(summary_json ->> 'summary_text_ko', name || ' 흐름은 아직 요약 대기 상태다.'),
-                    'top_symbols', coalesce(summary_json -> 'top_symbols', '[]'::jsonb),
-                    'recent_event_titles', coalesce(summary_json -> 'recent_event_titles', '[]'::jsonb),
-                    'parent_codes', coalesce(summary_json -> 'parent_codes', '[]'::jsonb),
-                    'child_codes', coalesce(summary_json -> 'child_codes', '[]'::jsonb),
+                    'top_symbols', canonical_top_symbols,
+                    'recent_event_titles',
+                        case
+                            when json_array_length(canonical_recent_event_titles) > 0 then canonical_recent_event_titles
+                            else coalesce(summary_json -> 'recent_event_titles', '[]'::jsonb)::json
+                        end,
+                    'parent_codes', canonical_parent_codes,
+                    'child_codes', canonical_child_codes,
                     'counts', json_build_object(
-                        'parent_edge_count', coalesce(nullif(summary_json #>> '{{counts,parent_edge_count}}', '')::integer, 0),
-                        'child_edge_count', coalesce(nullif(summary_json #>> '{{counts,child_edge_count}}', '')::integer, 0),
-                        'direct_event_count', coalesce(nullif(summary_json #>> '{{counts,direct_event_count}}', '')::integer, 0),
-                        'propagated_impact_count', coalesce(nullif(summary_json #>> '{{counts,propagated_impact_count}}', '')::integer, 0),
-                        'exposed_instrument_count', coalesce(nullif(summary_json #>> '{{counts,exposed_instrument_count}}', '')::integer, 0),
+                        'parent_edge_count', canonical_parent_edge_count,
+                        'child_edge_count', canonical_child_edge_count,
+                        'direct_event_count', canonical_direct_event_count,
+                        'propagated_impact_count', canonical_propagated_impact_count,
+                        'exposed_instrument_count', canonical_exposed_instrument_count,
                         'ai_artifact_count', coalesce(nullif(summary_json #>> '{{counts,ai_artifact_count}}', '')::integer, 0),
                         'recommendation_count', coalesce(nullif(summary_json #>> '{{counts,recommendation_count}}', '')::integer, 0),
                         'thesis_count', coalesce(nullif(summary_json #>> '{{counts,thesis_count}}', '')::integer, 0)
@@ -3486,7 +3620,7 @@ select json_build_object(
                 )
                 order by coalesce(event_heat_score, 0) desc, cycle_score desc, code
             )
-            from node_page
+            from node_context
         ),
         '[]'::json
     ),

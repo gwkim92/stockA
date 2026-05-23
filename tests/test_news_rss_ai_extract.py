@@ -124,15 +124,24 @@ class FakeExecutor:
             else:
                 raise PsqlExecutionError("psql returned no rows for scalar query")
         if "from ref.instrument i" in sql:
-            if "NVDA" not in sql:
+            if "NVDA" in sql:
+                return json.dumps(
+                    {
+                        "instrument_id": 701,
+                        "primary_symbol": "NVDA",
+                        "instrument_name": "NVIDIA Corp",
+                    }
+                )
+            if "XOM" in sql:
+                return json.dumps(
+                    {
+                        "instrument_id": 702,
+                        "primary_symbol": "XOM",
+                        "instrument_name": "Exxon Mobil Corporation",
+                    }
+                )
+            else:
                 raise PsqlExecutionError("psql returned no rows for scalar query")
-            return json.dumps(
-                {
-                    "instrument_id": 701,
-                    "primary_symbol": "NVDA",
-                    "instrument_name": "NVIDIA Corp",
-                }
-            )
         raise AssertionError(f"Unexpected scalar SQL: {sql}")
 
     def execute_non_query(self, sql: str) -> None:
@@ -430,6 +439,51 @@ class NewsRssAiExtractTests(unittest.TestCase):
         self.assertEqual(validated.rejected_impact_count, 2)
         self.assertEqual(validated.theme_impacts[0].node_code, "AI_SEMICONDUCTOR_CYCLE")
         self.assertEqual(validated.instrument_impacts[0].primary_symbol, "NVDA")
+
+    def test_validate_rejects_direct_instrument_not_named_in_source_text(self) -> None:
+        output = parse_news_ai_output(
+            {
+                "analysis_method": "codex_oauth_hierarchical_v3",
+                "event_summary": "AI가 고용시장에 미칠 영향을 다룬 뉴스다.",
+                "macro_regime_impacts": [],
+                "domain_impacts": [],
+                "theme_impacts": [
+                    {
+                        "node_code": "AI_SEMICONDUCTOR_CYCLE",
+                        "impact_direction": "watch",
+                        "impact_strength": 0.58,
+                        "confidence": 0.82,
+                        "rationale": "AI 인프라 논점이 포함됐다.",
+                        "evidence_summary": "AI worries are discussed.",
+                    }
+                ],
+                "direct_instrument_impacts": [
+                    {
+                        "symbol": "XOM",
+                        "impact_direction": "supportive",
+                        "impact_strength": 0.55,
+                        "confidence": 0.86,
+                        "rationale": "모델이 잘못 연결한 직접 종목이다.",
+                        "evidence_summary": "기사 본문에는 Exxon 또는 XOM이 없다.",
+                    }
+                ],
+                "causal_paths": [],
+                "uncertainty_notes": "직접 기업명이 없는 기사다.",
+                "evidence_spans": [],
+                "recommendation_relevance": "watchlist",
+            }
+        )
+
+        validated = validate_news_ai_output(
+            output,
+            min_confidence=0.72,
+            executor=FakeExecutor(),
+            source_text="Artificial intelligence has Americans worried about jobs. Now there is a new AI worry.",
+        )
+
+        self.assertEqual(len(validated.theme_impacts), 1)
+        self.assertEqual(len(validated.instrument_impacts), 0)
+        self.assertEqual(validated.rejected_impact_count, 1)
 
     def test_parse_and_validate_hierarchical_macro_only_output(self) -> None:
         output = parse_news_ai_output(
