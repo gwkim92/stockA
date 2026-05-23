@@ -231,7 +231,10 @@ class RecommendationBootstrapTests(unittest.TestCase):
         self.assertIn("'macro_flow_score'", sql)
         self.assertIn("0.10::numeric", sql)
         self.assertIn("'Normalized current cycle state score from the linked internal theme.'", sql)
-        self.assertIn("'Latest hierarchical macro-regime cycle score connected to the theme path.'", sql)
+        self.assertIn(
+            "'Latest hierarchical macro-regime cycle score connected to the theme path. Selected recommendation node: ANNUAL_REPORTING.'",
+            sql,
+        )
         self.assertIn("77::bigint", sql)
         self.assertIn("'watch'", sql)
         self.assertIn("0.3610", sql)

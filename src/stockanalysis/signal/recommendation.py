@@ -685,7 +685,7 @@ def _render_score_component_value_tuple(row: RecommendationRow) -> str:
                     sql_literal(component_name),
                     sql_numeric(component_score),
                     sql_numeric(_component_weight(component_name)),
-                    sql_literal(_COMPONENT_EXPLANATIONS[component_name]),
+                    sql_literal(_component_explanation(component_name, row)),
                 )
             ) + ")"
         )
@@ -740,3 +740,17 @@ def _component_weight(component_name: str) -> Decimal:
     if component_name == "macro_flow_score":
         return _macro_flow_weight()
     return _COMPONENT_WEIGHTS[component_name]
+
+
+def _component_explanation(component_name: str, row: RecommendationRow) -> str:
+    base = _COMPONENT_EXPLANATIONS[component_name]
+    if component_name in {
+        "macro_regime_score",
+        "domain_cycle_score",
+        "theme_cycle_score",
+        "instrument_cycle_score",
+        "cycle_conflict_penalty",
+        "macro_flow_score",
+    }:
+        return f"{base} Selected recommendation node: {row.node_code}."
+    return base
