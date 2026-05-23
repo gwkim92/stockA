@@ -222,11 +222,20 @@ class OperatingDataOrchestratorTests(unittest.TestCase):
         step_ids = [step["step_id"] for step in report["planned_steps"]]
         self.assertEqual(report["profile"], "decision-daily")
         self.assertEqual(step_ids[0], "missing-symbol-price-backfill")
+        self.assertIn("cycle-hierarchy-snapshot-v2", step_ids)
         self.assertIn("recommendation-bootstrap", step_ids)
         self.assertIn("portfolio-holding-thesis-bootstrap", step_ids)
         self.assertIn("paper-validation-audit", step_ids)
         self.assertNotIn("news-rss-ingest", step_ids)
         self.assertNotIn("macro-weekly", step_ids)
+        self.assertLess(
+            step_ids.index("cycle-state-snapshot"),
+            step_ids.index("cycle-hierarchy-snapshot-v2"),
+        )
+        self.assertLess(
+            step_ids.index("cycle-hierarchy-snapshot-v2"),
+            step_ids.index("recommendation-bootstrap"),
+        )
         self.assertLess(
             step_ids.index("portfolio-position-snapshot"),
             step_ids.index("portfolio-holding-thesis-bootstrap"),

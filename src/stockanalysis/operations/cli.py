@@ -83,6 +83,7 @@ from stockanalysis.operations.operating_data_profile_scheduler import (
     build_operating_data_profile_scheduler_status_report,
     render_operating_data_profile_scheduler_invocation_markdown,
 )
+from stockanalysis.signal.cycle_hierarchy_snapshot_v2 import run_cycle_hierarchy_snapshot_v2
 from stockanalysis.signal.hierarchical_impact_propagation import run_hierarchical_impact_propagation
 from stockanalysis.signal.macro_event_propagation import run_macro_event_propagation
 from stockanalysis.trading.paper_safety_bootstrap import (
@@ -528,6 +529,17 @@ def build_parser() -> argparse.ArgumentParser:
     hierarchical_impact_propagation.add_argument("--dry-run", action="store_true")
     hierarchical_impact_propagation.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
     hierarchical_impact_propagation.set_defaults(handler=_handle_hierarchical_impact_propagation_run)
+
+    cycle_hierarchy_snapshot_v2 = subparsers.add_parser(
+        "cycle-hierarchy-snapshot-v2-run",
+        help="Create node-level hierarchical cycle state snapshots from base cycles and propagated evidence.",
+    )
+    cycle_hierarchy_snapshot_v2.add_argument("--env-file")
+    cycle_hierarchy_snapshot_v2.add_argument("--as-of-date", required=True)
+    cycle_hierarchy_snapshot_v2.add_argument("--execute", action="store_true")
+    cycle_hierarchy_snapshot_v2.add_argument("--dry-run", action="store_true")
+    cycle_hierarchy_snapshot_v2.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
+    cycle_hierarchy_snapshot_v2.set_defaults(handler=_handle_cycle_hierarchy_snapshot_v2_run)
 
     paper_validation_audit = subparsers.add_parser(
         "paper-validation-audit-run",
@@ -1182,6 +1194,21 @@ def _handle_hierarchical_impact_propagation_run(args: argparse.Namespace, *, std
             limit=args.limit,
             max_depth=args.max_depth,
             decay_per_hop=Decimal(args.decay_per_hop),
+            execute=bool(args.execute) and not bool(args.dry_run),
+        )
+    print_json(report, stdout=stdout, sort_keys=False)
+    return 0
+
+
+def _handle_cycle_hierarchy_snapshot_v2_run(args: argparse.Namespace, *, stdout: TextIO) -> int:
+    if bool(args.execute) and bool(args.dry_run):
+        raise ValueError("--execute and --dry-run cannot be used together.")
+    env_mapping = _load_optional_env_mapping(args.env_file, repo_root=args.repo_root)
+    as_of_date = date.fromisoformat(args.as_of_date)
+    with _temporary_environ(env_mapping):
+        report = run_cycle_hierarchy_snapshot_v2(
+            config=RuntimeConfig.from_env(),
+            as_of_date=as_of_date,
             execute=bool(args.execute) and not bool(args.dry_run),
         )
     print_json(report, stdout=stdout, sort_keys=False)
