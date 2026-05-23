@@ -194,6 +194,7 @@ selected_members as (
         m.universe_batch_id,
         m.instrument_id,
         i.primary_symbol,
+        i.instrument_type,
         m.rank_position as universe_rank_position,
         count(*) over ()::integer as universe_member_count
     from selected_batch sb
@@ -319,6 +320,7 @@ evidence_rows as (
     ) macro_cycle on true
     where node.taxonomy_family = 'internal_theme'
       and node.code <> 'MARKET_NEWS_FLOW'
+      and not (node.code = 'US_MARKET_BREADTH' and selected_members.instrument_type <> 'etf')
       and membership.membership_type = 'derived_theme'
       and membership.valid_from <= {sql_date(as_of_date)}
       and (membership.valid_to is null or membership.valid_to >= {sql_date(as_of_date)})

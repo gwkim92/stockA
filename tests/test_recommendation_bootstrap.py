@@ -89,6 +89,7 @@ class RecommendationBootstrapTests(unittest.TestCase):
         self.assertIn("signal.instrument_feature_value", sql)
         self.assertIn("signal.propagated_instrument_impact", sql)
         self.assertIn("node.code <> 'MARKET_NEWS_FLOW'", sql)
+        self.assertIn("not (node.code = 'US_MARKET_BREADTH' and selected_members.instrument_type <> 'etf')", sql)
         self.assertIn("return_since_first_observation", sql)
 
     def test_load_recommendation_candidates(self) -> None:
