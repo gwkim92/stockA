@@ -710,6 +710,7 @@ def _load_provider_budget_for_data_health(state: dict[str, Any]) -> dict[str, ob
         ledger_path=os.getenv(MARKET_PRICE_BUDGET_LEDGER_PATH_ENV),
         budget_date=budget_date,
         provider=os.getenv(MARKET_PRICE_PROVIDER_ENV, "alpha_vantage"),
+        fallback_to_latest_day=True,
     )
 
 

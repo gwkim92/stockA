@@ -89,6 +89,53 @@ class MarketPriceFreeBackfillTests(unittest.TestCase):
         self.assertEqual(status["latest_run"]["provider_request_count"], 3)
         self.assertNotIn("ledger_path", status)
 
+    def test_budget_status_can_fallback_to_latest_previous_ledger_day(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            ledger = Path(tmpdir) / "ledger.json"
+            ledger.write_text(
+                json.dumps(
+                    {
+                        "version": "market-price-provider-budget-v1",
+                        "provider": "alpha_vantage",
+                        "days": {
+                            "2026-05-20": {
+                                "daily_budget": 25,
+                                "used_request_count": 8,
+                                "runs": [
+                                    {
+                                        "started_at": "2026-05-20T23:30:00Z",
+                                        "status": "completed",
+                                        "requested_symbol_count": 12,
+                                        "provider_request_count": 8,
+                                        "budget_remaining_after": 17,
+                                    }
+                                ],
+                            }
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            missing_without_fallback = load_market_price_provider_budget_status(
+                ledger_path=ledger,
+                budget_date=date(2026, 5, 23),
+            )
+            status = load_market_price_provider_budget_status(
+                ledger_path=ledger,
+                budget_date=date(2026, 5, 23),
+                fallback_to_latest_day=True,
+            )
+
+        self.assertEqual(missing_without_fallback["status"], "day_missing")
+        self.assertEqual(missing_without_fallback["daily_budget"], 0)
+        self.assertEqual(status["status"], "stale")
+        self.assertEqual(status["budget_date"], "2026-05-20")
+        self.assertEqual(status["daily_budget"], 25)
+        self.assertEqual(status["used_request_count"], 8)
+        self.assertEqual(status["remaining_request_count"], 17)
+        self.assertEqual(status["latest_run"]["provider_request_count"], 8)
+
     def test_run_market_price_free_backfill_skips_without_calling_batch_when_budget_exhausted(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             tmp_path = Path(tmpdir)

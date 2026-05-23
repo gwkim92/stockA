@@ -387,6 +387,7 @@ def load_market_price_provider_budget_status(
     ledger_path: str | Path | None,
     budget_date: date,
     provider: str = DEFAULT_PROVIDER,
+    fallback_to_latest_day: bool = False,
 ) -> dict[str, object]:
     try:
         resolved_provider = resolve_market_price_provider(provider)
@@ -406,15 +407,23 @@ def load_market_price_provider_budget_status(
         if not isinstance(days, dict):
             raise ValueError("invalid ledger days")
         day_state = days.get(budget_day_key)
+        status = "configured"
         if not isinstance(day_state, dict):
-            return _empty_budget_status(provider=resolved_provider, budget_day_key=budget_day_key, status="day_missing")
+            if not fallback_to_latest_day:
+                return _empty_budget_status(provider=resolved_provider, budget_day_key=budget_day_key, status="day_missing")
+            latest_day_key = _latest_budget_day_on_or_before(days, budget_day_key)
+            if latest_day_key is None:
+                return _empty_budget_status(provider=resolved_provider, budget_day_key=budget_day_key, status="day_missing")
+            day_state = days[latest_day_key]
+            budget_day_key = latest_day_key
+            status = "stale"
         daily_budget = int(day_state.get("daily_budget", 0) or 0)
         used_request_count = int(day_state.get("used_request_count", 0) or 0)
         remaining_request_count = max(0, daily_budget - used_request_count)
         latest_run = _latest_budget_run_summary(day_state.get("runs"))
         return {
             "provider": resolved_provider,
-            "status": "configured",
+            "status": status,
             "budget_date": budget_day_key,
             "daily_budget": daily_budget,
             "used_request_count": used_request_count,
@@ -446,6 +455,22 @@ def load_budget_ledger(path: str | Path, *, provider: str = DEFAULT_PROVIDER) ->
     if not isinstance(days, dict):
         raise ValueError("budget ledger days must be a JSON object.")
     return payload
+
+
+def _latest_budget_day_on_or_before(days: Mapping[str, object], budget_day_key: str) -> str | None:
+    latest_day_key: str | None = None
+    for candidate_key, candidate_state in days.items():
+        if not isinstance(candidate_key, str) or not isinstance(candidate_state, dict):
+            continue
+        try:
+            date.fromisoformat(candidate_key)
+        except ValueError:
+            continue
+        if candidate_key > budget_day_key:
+            continue
+        if latest_day_key is None or candidate_key > latest_day_key:
+            latest_day_key = candidate_key
+    return latest_day_key
 
 
 def _empty_budget_status(*, provider: str, budget_day_key: str, status: str) -> dict[str, object]:

@@ -4,7 +4,7 @@ import json
 import os
 import tempfile
 import unittest
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
 from unittest.mock import patch
 
@@ -1913,6 +1913,48 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertEqual(budget["provider"], "twelve_data")
         self.assertEqual(budget["daily_budget"], 800)
         self.assertEqual(budget["remaining_request_count"], 788)
+
+    def test_live_data_health_response_uses_latest_provider_budget_day_when_current_day_missing(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            ledger = Path(tmpdir) / "twelve-ledger.json"
+            ledger.write_text(
+                json.dumps(
+                    {
+                        "version": "market-price-provider-budget-v1",
+                        "provider": "twelve_data",
+                        "days": {
+                            "2024-10-31": {
+                                "daily_budget": 800,
+                                "used_request_count": 12,
+                                "runs": [],
+                            }
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            with patch.dict(
+                os.environ,
+                {
+                    "STOCKANALYSIS_MARKET_PRICE_BUDGET_LEDGER_PATH": str(ledger),
+                    "STOCKANALYSIS_MARKET_PRICE_PROVIDER": "twelve_data",
+                },
+            ):
+                payload = resolve_live_frontend_response(
+                    "/api/data-health",
+                    config=type("Config", (), {"psql_command": "psql"})(),
+                    executor=FakeLiveExecutor(),
+                    generated_at=datetime(2026, 5, 1, tzinfo=timezone.utc),
+                )
+
+        budget = payload["data"]["provider_budget"]
+        self.assertEqual(budget["status"], "stale")
+        self.assertEqual(budget["provider"], "twelve_data")
+        self.assertEqual(budget["budget_date"], "2024-10-31")
+        self.assertEqual(budget["daily_budget"], 800)
+        self.assertEqual(budget["remaining_request_count"], 788)
+        self.assertNotEqual(date.fromisoformat(budget["budget_date"]), date.fromisoformat(payload["data"]["as_of_date"]))
 
     def test_data_health_sql_uses_operations_cadence_registry(self) -> None:
         executor = FakeLiveExecutor()
