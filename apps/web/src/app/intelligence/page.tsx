@@ -350,71 +350,42 @@ export default async function IntelligencePage() {
     .filter((event) => event.ai_evidence_id && event.ai_evidence_type === "news_event_candidate")
     .slice(0, 6);
   const unstructuredEvents = events.events.filter((event) => !event.ai_evidence_id).slice(0, 3);
-  const firstCandidateEvidenceId = aiCandidateEvents[0]?.ai_evidence_id ?? null;
+  const firstCandidate = aiCandidateEvents[0] ?? null;
+  const firstCandidateEvidenceId = firstCandidate?.ai_evidence_id ?? null;
+  const firstCluster = storedNewsClusters.clusters[0] ?? null;
   const activation = dataHealth.scheduler.activation;
-  const analysisPipeline = [
+  const reviewActions = [
     {
-      index: "01",
-      title: "원문 수집",
-      status: formatRunStatus(newsRun),
-      copy: "RSS 원문이 원천 문서와 수집 뉴스로 저장된다.",
-      href: "/events",
+      index: "1",
+      title: "뉴스 묶음부터 검토",
+      target: firstCluster ? formatClusterHeadline(firstCluster) : "묶음 대기",
+      body: "여러 뉴스가 왜 같은 흐름으로 묶였는지, 직접 종목인지 시장 흐름인지 먼저 확인한다.",
+      cta: "묶음 검토 시작",
+      href: firstCluster ? clusterEvidenceHref(firstCluster) : ("/ai-evidence" as Route),
     },
     {
-      index: "02",
-      title: "1차 분류",
-      status: `${events.summary.themes_represented}개 테마`,
-      copy: "규칙 기반으로 종목, 테마, 방향 태그를 먼저 붙인다.",
-      href: "/events/classification",
+      index: "2",
+      title: "개별 뉴스 후보 확인",
+      target: firstCandidate ? firstCandidate.title : "후보 대기",
+      body: "AI가 붙인 종목, 테마, 방향, 신뢰도가 원문과 맞는지 한 건씩 대조한다.",
+      cta: "후보 검토 시작",
+      href: firstCandidateEvidenceId ? (`/ai-evidence/${firstCandidateEvidenceId}` as Route) : ("/ai-evidence" as Route),
     },
     {
-      index: "03",
-      title: "Codex OAuth 분석",
-      status: formatLlmCandidateStatus(clusterSummary),
-      copy: "중요 뉴스만 AI가 구조화하고, 화면은 저장된 분석 결과만 읽는다.",
-      href: "/ai-evidence",
+      index: "3",
+      title: "추천 연결 확인",
+      target: `${formatPercent(dashboard.latest_metrics.weight_coverage_ratio)} 연결률`,
+      body: "통과한 뉴스 근거가 추천 점수와 보유 검토에 실제로 붙었는지 확인한다.",
+      cta: "추천 근거 보기",
+      href: "/recommendations" as Route,
     },
     {
-      index: "04",
-      title: "검증 통과/차단",
-      status: `통과 ${events.summary.ai_extracted_count} · 차단 ${events.summary.suppressed_low_signal_candidate_count}`,
-      copy: "검증 단계가 낮은 신뢰도와 알 수 없는 종목/테마를 추천 입력에서 제외한다.",
-      href: "/ai-evidence/blocked",
-    },
-    {
-      index: "05",
-      title: "추천 근거 연결",
-      status: `${dashboard.latest_metrics.weight_coverage_ratio ? formatPercent(dashboard.latest_metrics.weight_coverage_ratio) : "미측정"}`,
-      copy: "통과한 이벤트와 AI 근거만 추천·보유검토 상세에 연결된다.",
-      href: "/recommendations",
-    },
-  ];
-
-  const detailLinks = [
-    {
-      title: "개별 뉴스 AI 후보",
-      copy: "AI가 한 뉴스에서 추출한 종목, 테마, 방향, 불확실성을 확인한다.",
-      href: firstCandidateEvidenceId ? `/ai-evidence/${firstCandidateEvidenceId}` : "/ai-evidence",
-    },
-    {
-      title: "차단 후보",
-      copy: "검증 단계에서 추천 입력으로 넘기지 않은 후보와 저신호 보류 항목을 확인한다.",
-      href: "/ai-evidence/blocked",
-    },
-    {
-      title: "수집 뉴스",
-      copy: "수집된 모든 뉴스와 공시, 원천 문서, 관련 이벤트를 확인한다.",
-      href: "/events",
-    },
-    {
-      title: "종목 확인실",
-      copy: "가격 캔들, 보유 여부, 추천 연결, 최근 뉴스를 종목별로 본다.",
-      href: "/stocks",
-    },
-    {
-      title: "추천·보유 검토",
-      copy: "AI 분석 근거가 추천 점수와 보유 검토에 실제로 붙었는지 본다.",
-      href: "/recommendations",
+      index: "4",
+      title: "차단 후보만 따로 확인",
+      target: `${events.summary.suppressed_low_signal_candidate_count}개 차단`,
+      body: "추천 입력에서 제외된 후보가 있다면 왜 빠졌는지 확인한다.",
+      cta: "차단 후보 보기",
+      href: "/ai-evidence/blocked" as Route,
     },
   ];
 
@@ -424,12 +395,12 @@ export default async function IntelligencePage() {
         <div>
           <div className="bento-badge">뉴스·AI 판단</div>
           <h1 className="page-title" id="intelligence-title">
-            어떤 뉴스가 왜 묶였고, 어떤 종목·테마에 연결됐는지 본다.
+            뉴스 검토실: 먼저 묶음, 그 다음 개별 뉴스, 마지막 추천 연결을 본다.
           </h1>
         </div>
         <p className="page-lede">
-          뉴스 묶음의 기준, 직접 연결 종목, 상위 흐름 전파 여부, 원천 문서를 한 카드에서 확인한다.
-          AI는 주문을 내리지 않고 뉴스의 종목·테마·방향·불확실성만 구조화한다.
+          이 화면에서 할 일은 “AI가 맞게 해석했는가”를 확인하는 것이다. 검토는 묶음 기준,
+          원문 대조, 종목 관계, 추천 연결 순서로 진행한다.
         </p>
       </section>
 
@@ -461,38 +432,39 @@ export default async function IntelligencePage() {
         </article>
       </section>
 
-      <section className="feature-map-panel reveal delay-1" aria-labelledby="news-ai-pipeline-title">
+      <section className="review-command-panel reveal delay-1" aria-labelledby="review-command-title">
         <div className="section-heading stacked-heading">
-          <span>뉴스 처리 흐름</span>
-          <h2 id="news-ai-pipeline-title">뉴스는 원문, 1차 분류, AI 분석, 검증, 추천 연결 순서로 내려간다</h2>
+          <span>검토 시작</span>
+          <h2 id="review-command-title">왼쪽부터 누르면 오늘 검토가 시작된다</h2>
+          <p>
+            사람 검토는 지금 “상세 확인” 단계다. 완료/반려를 저장하는 버튼은 아직 없고,
+            저장형 검토는 쓰기 API와 감사 로그가 붙은 뒤 별도 화면으로 열어야 한다.
+          </p>
         </div>
-        <div className="feature-map-grid collection-map-grid">
-          {analysisPipeline.map((step) => (
-            <Link className="feature-map-card collection-map-card" href={step.href as Route} key={step.index}>
+        <div className="review-command-grid">
+          {reviewActions.map((step) => (
+            <Link className="review-command-card" href={step.href} key={step.index}>
               <span>{step.index}</span>
               <strong>{step.title}</strong>
-              <em>{step.status}</em>
-              <small>{step.copy}</small>
+              <em>{step.target}</em>
+              <small>{step.body}</small>
+              <b>{step.cta}</b>
             </Link>
           ))}
         </div>
-      </section>
-
-      <section className="where-grid reveal delay-2" aria-label="상세 화면 역할">
-        {detailLinks.map((link) => (
-          <Link className="where-card" href={link.href as Route} key={link.title}>
-            <span>상세</span>
-            <strong>{link.title}</strong>
-            <p>{link.copy}</p>
-            <small>화면 열기</small>
-          </Link>
-        ))}
+        <div className="review-boundary-note">
+          <strong>검토 저장 상태</strong>
+          <p>
+            현재는 확인 전용이다. “검토 완료”, “반려”, “수정 요청”을 저장하려면 별도 쓰기 경계,
+            승인자, 감사 로그가 필요하다. 지금 버튼들은 검토할 근거 화면으로 이동한다.
+          </p>
+        </div>
       </section>
 
       <section className="intelligence-board reveal delay-2" aria-labelledby="news-decision-board-title">
         <div className="section-heading stacked-heading">
-          <span>뉴스 판단 보드</span>
-          <h2 id="news-decision-board-title">묶음 기준과 종목 연결 이유를 먼저 보여준다</h2>
+          <span>뉴스 묶음 검토</span>
+          <h2 id="news-decision-board-title">왜 묶였고, 어떤 종목과 연결됐는지 확인한다</h2>
         </div>
 
         <section className="status-rail compact-rail" aria-label="뉴스 판단 보드 저장 상태">
@@ -551,14 +523,23 @@ export default async function IntelligencePage() {
                     <span className="relation-pill">{formatClusterRagStatus(cluster)}</span>
                   </div>
 
-                  <div className="cluster-explain-strip" aria-label={`${koCode(cluster.theme_key)} 묶음 핵심 설명`}>
-                    {explainers.map((item) => (
-                      <div className="cluster-explain-cell" key={`${cluster.evidence_id}-${item.label}`}>
-                        <span>{item.label}</span>
-                        <strong>{item.title}</strong>
-                        <p>{item.body}</p>
+                  <div className="review-checklist" aria-label={`${koCode(cluster.theme_key)} 검토 체크리스트`}>
+                    {explainers.map((item, index) => (
+                      <div className="review-check" key={`${cluster.evidence_id}-${item.label}`}>
+                        <span>{index + 1}</span>
+                        <div>
+                          <strong>{item.label}: {item.title}</strong>
+                          <p>{item.body}</p>
+                        </div>
                       </div>
                     ))}
+                    <div className="review-check">
+                      <span>4</span>
+                      <div>
+                        <strong>원문 대조: 대표 뉴스 제목과 방향이 맞는지 확인</strong>
+                        <p>묶음 검토 시작 버튼을 눌러 AI가 저장한 근거와 원천 문서를 대조한다.</p>
+                      </div>
+                    </div>
                   </div>
 
                   <div className="cluster-decision-grid" aria-label={`${koCode(cluster.theme_key)} 판단 요약`}>
@@ -624,16 +605,16 @@ export default async function IntelligencePage() {
 
                   <div className="btn-row decision-actions">
                     <Link className="btn btn-primary" href={evidenceLink}>
-                      AI 근거 상세
+                      묶음 검토 시작
                     </Link>
                     {stockLink ? (
                       <Link className="btn btn-secondary" href={stockLink}>
-                        종목 상세
+                        관련 종목 확인
                       </Link>
                     ) : null}
                     {sourceLink ? (
                       <Link className="btn btn-secondary" href={sourceLink}>
-                        원천 문서
+                        원문 대조
                       </Link>
                     ) : null}
                   </div>
@@ -720,12 +701,12 @@ export default async function IntelligencePage() {
 
       <section className="intelligence-board reveal delay-3" aria-labelledby="ai-candidate-queue-title">
         <div className="section-heading stacked-heading">
-          <span>개별 뉴스 후보 검토 큐</span>
-          <h2 id="ai-candidate-queue-title">AI가 해석한 뉴스는 상세 화면에서 검증한다</h2>
+          <span>개별 뉴스 후보</span>
+          <h2 id="ai-candidate-queue-title">한 건씩 열어 AI 해석과 원문을 대조한다</h2>
         </div>
         <p className="board-intro">
-          이 목록은 최종 판단표가 아니라 검토 입구다. 제목만 읽고 판단하지 말고, 상세 화면에서 원천 문서, 테마·종목 영향,
-          불확실성, 추천 연결 여부를 확인한다.
+          아래 버튼의 “검토 시작”은 승인 버튼이 아니라 확인 화면으로 이동하는 버튼이다. 원문과 종목 관계가 맞으면
+          추천 상세에서 실제 점수 근거로 연결됐는지 이어서 본다.
         </p>
 
         {aiCandidateEvents.length > 0 ? (
@@ -752,11 +733,16 @@ export default async function IntelligencePage() {
                       {aiEvidenceLabel(event.ai_evidence_type)} · {koCode(event.impact_direction)} · 신뢰도{" "}
                       {formatPercent(event.ai_evidence_confidence)}
                     </p>
+                    <ol className="candidate-review-steps">
+                      <li>AI가 붙인 종목/테마가 원문과 맞는지 본다.</li>
+                      <li>방향이 우호·리스크·관찰 중 무엇인지 대조한다.</li>
+                      <li>종목 또는 추천 화면에서 실제 판단 근거로 연결됐는지 확인한다.</li>
+                    </ol>
                   </div>
                   <div className="review-queue-actions">
-                    {evidenceLink ? <Link className="btn btn-primary" href={evidenceLink}>AI 후보 상세</Link> : null}
-                    {symbolLink ? <Link className="btn btn-secondary" href={symbolLink}>종목</Link> : null}
-                    {documentLink ? <Link className="btn btn-secondary" href={documentLink}>원천</Link> : null}
+                    {evidenceLink ? <Link className="btn btn-primary" href={evidenceLink}>검토 시작</Link> : null}
+                    {symbolLink ? <Link className="btn btn-secondary" href={symbolLink}>관련 종목</Link> : null}
+                    {documentLink ? <Link className="btn btn-secondary" href={documentLink}>원문 대조</Link> : null}
                   </div>
                 </article>
               );
