@@ -83,6 +83,7 @@ from stockanalysis.operations.operating_data_profile_scheduler import (
     build_operating_data_profile_scheduler_status_report,
     render_operating_data_profile_scheduler_invocation_markdown,
 )
+from stockanalysis.ai.cycle_graph_context import run_cycle_graph_context_summary
 from stockanalysis.signal.cycle_hierarchy_snapshot_v2 import run_cycle_hierarchy_snapshot_v2
 from stockanalysis.signal.hierarchical_impact_propagation import run_hierarchical_impact_propagation
 from stockanalysis.signal.macro_event_propagation import run_macro_event_propagation
@@ -540,6 +541,20 @@ def build_parser() -> argparse.ArgumentParser:
     cycle_hierarchy_snapshot_v2.add_argument("--dry-run", action="store_true")
     cycle_hierarchy_snapshot_v2.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
     cycle_hierarchy_snapshot_v2.set_defaults(handler=_handle_cycle_hierarchy_snapshot_v2_run)
+
+    cycle_graph_context_summary = subparsers.add_parser(
+        "cycle-graph-context-summary-run",
+        help="Build reusable Postgres graph context summaries for macro/domain/theme cycle nodes.",
+    )
+    cycle_graph_context_summary.add_argument("--env-file")
+    cycle_graph_context_summary.add_argument("--as-of-date", required=True)
+    cycle_graph_context_summary.add_argument("--node-code", action="append")
+    cycle_graph_context_summary.add_argument("--limit", type=int, default=12)
+    cycle_graph_context_summary.add_argument("--max-nodes", type=int, default=50)
+    cycle_graph_context_summary.add_argument("--execute", action="store_true")
+    cycle_graph_context_summary.add_argument("--dry-run", action="store_true")
+    cycle_graph_context_summary.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
+    cycle_graph_context_summary.set_defaults(handler=_handle_cycle_graph_context_summary_run)
 
     paper_validation_audit = subparsers.add_parser(
         "paper-validation-audit-run",
@@ -1209,6 +1224,24 @@ def _handle_cycle_hierarchy_snapshot_v2_run(args: argparse.Namespace, *, stdout:
         report = run_cycle_hierarchy_snapshot_v2(
             config=RuntimeConfig.from_env(),
             as_of_date=as_of_date,
+            execute=bool(args.execute) and not bool(args.dry_run),
+        )
+    print_json(report, stdout=stdout, sort_keys=False)
+    return 0
+
+
+def _handle_cycle_graph_context_summary_run(args: argparse.Namespace, *, stdout: TextIO) -> int:
+    if bool(args.execute) and bool(args.dry_run):
+        raise ValueError("--execute and --dry-run cannot be used together.")
+    env_mapping = _load_optional_env_mapping(args.env_file, repo_root=args.repo_root)
+    as_of_date = date.fromisoformat(args.as_of_date)
+    with _temporary_environ(env_mapping):
+        report = run_cycle_graph_context_summary(
+            config=RuntimeConfig.from_env(),
+            as_of_date=as_of_date,
+            node_codes=tuple(args.node_code or ()),
+            limit=args.limit,
+            max_nodes=args.max_nodes,
             execute=bool(args.execute) and not bool(args.dry_run),
         )
     print_json(report, stdout=stdout, sort_keys=False)
