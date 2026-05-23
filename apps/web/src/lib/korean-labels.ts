@@ -53,6 +53,7 @@ const KOREAN_LABELS: Record<string, string> = {
   configure_scheduler_activation_gate_report: "스케줄러 승인 기록 설정 필요",
   covered: "커버됨",
   correcting: "조정 중",
+  cycle: "사이클",
   daily: "일간",
   weekly: "주간",
   monthly: "월간",

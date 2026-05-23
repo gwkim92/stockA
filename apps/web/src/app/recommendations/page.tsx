@@ -158,7 +158,7 @@ export default async function RecommendationsPage() {
         <div className="section-heading">
           <div>
             <span className="metric-sub">추천 목록</span>
-            <h2 id="recommendation-list-title">최신 추천 배치</h2>
+            <h2 id="recommendation-list-title">최신 추천 후보</h2>
           </div>
           <div className="mini-link-stack">
             <Link href="/paper-trading">가상 거래 검토</Link>
