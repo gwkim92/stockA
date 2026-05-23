@@ -20,3 +20,6 @@
 - `git diff --check` - passed.
 - `cd apps/web && npm run build` - passed.
 - `PYTHONPATH=/Users/woody/ai/agent-work-harness/src /opt/homebrew/bin/python3.13 -m awh verify --repo . --task ai-evidence-detail-source-first-clarity` - passed.
+- EC2 `cd apps/web && npm run build` - passed.
+- EC2 `GET http://127.0.0.1:3000/ai-evidence/ai-evidence-333` - contains `AI 자동 판정`, `원천 뉴스`, `AI가 해석한 원문을 한국어로 먼저 확인한다`, `읽기 전용 근거 화면`, `한국어 번역`.
+- EC2 route smoke confirmed removed text `저장 버튼 없음`, `사람이 더 봐야`; no server render error/digest text.

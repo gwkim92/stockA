@@ -51,4 +51,4 @@
 - [x] `AI 자동 판정` 카드가 근거 상태를 명확히 설명한다.
 - [x] 불필요한 `저장 버튼 없음`, `사람이 봐야 함` 문구가 제거된다.
 - [x] Focused local verification passes.
-- [ ] EC2 route smoke passes.
+- [x] EC2 route smoke passes.
