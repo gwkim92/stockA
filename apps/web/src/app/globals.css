@@ -2618,6 +2618,101 @@ h6 {
   line-height: 1.55;
 }
 
+.evidence-review-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 0.32fr);
+  gap: 16px;
+  padding: clamp(20px, 2.4vw, 34px);
+  background:
+    linear-gradient(135deg, rgba(251, 250, 246, 0.98), rgba(244, 238, 224, 0.82)),
+    radial-gradient(circle at 0% 0%, rgba(204, 116, 53, 0.16), transparent 32%),
+    radial-gradient(circle at 100% 10%, rgba(38, 92, 128, 0.13), transparent 38%);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+}
+
+.evidence-review-command,
+.evidence-review-status {
+  min-width: 0;
+}
+
+.evidence-review-command > span,
+.evidence-review-status > span,
+.evidence-review-question > span {
+  color: var(--text-tertiary);
+  font-size: 0.72rem;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.evidence-review-command h2 {
+  max-width: 940px;
+  margin: 10px 0 0;
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: clamp(1.9rem, 4vw, 4.65rem);
+  font-weight: 900;
+  letter-spacing: -0.055em;
+  line-height: 0.96;
+  word-break: keep-all;
+}
+
+.evidence-review-command p,
+.evidence-review-status p,
+.evidence-review-question p {
+  margin: 12px 0 0;
+  color: var(--text-secondary);
+  font-size: 0.92rem;
+  font-weight: 750;
+  line-height: 1.65;
+  word-break: keep-all;
+}
+
+.evidence-review-status {
+  display: grid;
+  align-content: center;
+  gap: 10px;
+  padding: 18px;
+  background: color-mix(in srgb, var(--bg-panel) 86%, white);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-md);
+}
+
+.evidence-review-status strong {
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: clamp(1.25rem, 2vw, 2rem);
+  font-weight: 900;
+  letter-spacing: -0.035em;
+  line-height: 1.02;
+}
+
+.evidence-review-questions {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.evidence-review-question {
+  min-width: 0;
+  padding: 16px;
+  background: color-mix(in srgb, var(--bg-panel) 88%, white);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+}
+
+.evidence-review-question strong {
+  display: block;
+  margin-top: 10px;
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: clamp(1.05rem, 1.4vw, 1.45rem);
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  line-height: 1.08;
+  word-break: keep-all;
+}
+
 .impact-decision-list {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -3122,6 +3217,7 @@ h6 {
   }
 
   .evidence-decision-hero,
+  .evidence-review-panel,
   .evidence-source-grid {
     grid-template-columns: 1fr;
   }
@@ -3167,6 +3263,7 @@ h6 {
   .feature-map-grid,
   .review-command-grid,
   .review-checklist,
+  .evidence-review-questions,
   .decision-brief-grid,
   .detail-path-grid,
   .screen-switchboard,
@@ -3287,6 +3384,7 @@ h6 {
   .feature-map-grid,
   .review-command-grid,
   .review-checklist,
+  .evidence-review-questions,
   .decision-brief-grid,
   .detail-path-grid,
   .screen-switchboard,
@@ -3370,6 +3468,7 @@ h6 {
   .cluster-explain-strip,
   .cluster-decision-grid,
   .review-boundary-note,
+  .evidence-review-panel,
   .review-queue-item {
     grid-template-columns: 1fr;
   }

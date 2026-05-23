@@ -29,6 +29,9 @@ function formatCost(value: number | null | undefined) {
   if (value == null || !Number.isFinite(value)) {
     return "미제공";
   }
+  if (value === 0) {
+    return "0달러";
+  }
   return `$${value.toFixed(4)}`;
 }
 
@@ -41,6 +44,14 @@ function primarySymbol(data: AiEvidenceDetailData) {
   const clusterSymbol = data.cluster_summary?.symbols.find(isKnownCode);
   const instrumentSymbol = isKnownCode(data.instrument.symbol) ? data.instrument.symbol : null;
   return candidateSymbol ?? clusterSymbol ?? instrumentSymbol ?? null;
+}
+
+function uniqueSourceDocumentCount(data: AiEvidenceDetailData) {
+  return new Set(data.cluster_events.map((event) => event.source_document_id).filter(Boolean)).size;
+}
+
+function firstSourceDocumentId(data: AiEvidenceDetailData) {
+  return data.source_document_id || data.cluster_events.find((event) => event.source_document_id)?.source_document_id || null;
 }
 
 function formatSymbols(symbols: string[] | null | undefined) {
@@ -211,9 +222,9 @@ function pageCopy(data: AiEvidenceDetailData, candidate: NewsCandidate | null, c
   if (cluster) {
     return {
       badge: `뉴스 묶음 증거 · ${koCode(data.extraction_run.provider)}`,
-      title: "여러 뉴스를 하나의 테마 흐름으로 묶은 근거를 검증한다.",
+      title: "이 뉴스 묶음을 추천 입력 후보로 인정해도 되는지 검토한다.",
       lede:
-        "뉴스 묶음은 시장 흐름을 빠르게 읽기 위한 보조 증거다. 추천이나 주문 결론이 아니라, 어떤 뉴스가 함께 움직였는지 확인하는 화면이다.",
+        "이 화면의 핵심은 종목 매수 판단이 아니다. 여러 뉴스가 정말 같은 흐름인지, 연결 종목 후보가 과하지 않은지, 추천 검토서에 넣어도 되는지를 확인한다.",
     };
   }
   return {
@@ -221,6 +232,16 @@ function pageCopy(data: AiEvidenceDetailData, candidate: NewsCandidate | null, c
     title: "저장된 AI 근거의 원천과 품질을 확인한다.",
     lede: "이 증거 하나만으로 투자 논리나 추천을 바꾸지 않는다. 반드시 원천과 품질 조건을 함께 확인한다.",
   };
+}
+
+function providerReviewNote(data: AiEvidenceDetailData) {
+  if (["local_rules", "local_deterministic"].includes(data.extraction_run.provider)) {
+    return "LLM 최종 판단이 아니라 무료 로컬 규칙으로 만든 묶음이다. 그래서 원문 제목과 테마가 맞는지 사람이 더 봐야 한다.";
+  }
+  if (data.extraction_run.provider === "codex_oauth") {
+    return "Codex OAuth 배치가 구조화한 결과다. 그래도 원문과 종목 연결을 대조해야 한다.";
+  }
+  return `${koCode(data.extraction_run.provider)} 결과다. 원천과 연결 대상을 대조해야 한다.`;
 }
 
 function CandidateImpactList({ candidate }: { candidate: NewsCandidate }) {
@@ -360,35 +381,53 @@ export default async function AiEvidencePage({ params }: AiEvidencePageProps) {
   const isNewsCluster = data.evidence_type === "news_cluster_summary" && cluster !== null;
   const isNewsCandidate =
     ["news_event_candidate", "news_event_candidate_rejected"].includes(data.evidence_type) && candidate !== null;
-  const targetSymbol = primarySymbol(data);
-  const neighborhood = await loadNeighborhood(targetSymbol);
+  const linkedSymbol = primarySymbol(data);
+  const neighborhood = await loadNeighborhood(linkedSymbol);
   const copy = pageCopy(data, isNewsCandidate ? candidate : null, isNewsCluster ? cluster : null);
   const evidenceTitle = isNewsCluster
     ? `${formatClusterStory(cluster)} 뉴스 묶음`
     : isNewsCandidate
       ? koLabel(candidate.event_summary)
       : koLabel(data.title);
-  const sourceLink = sourceHref(data.source_document_id);
-  const targetStockLink = stockHref(targetSymbol);
-  const evidenceReadingCards = [
+  const sourceLink = sourceHref(firstSourceDocumentId(data));
+  const targetStockLink = stockHref(linkedSymbol);
+  const firstRecommendationLink = recommendationHref(neighborhood?.recommendations[0]?.recommendation_id);
+  const sourceCount = isNewsCluster ? uniqueSourceDocumentCount(data) : sourceLink ? 1 : 0;
+  const subjectLabel = isNewsCluster
+    ? evidenceTitle
+    : linkedSymbol
+      ? `${koCode(linkedSymbol)} 뉴스 후보`
+      : `${koCode(data.classification.theme_key)} 뉴스 후보`;
+  const linkedSymbolLabel = linkedSymbol ? koCode(linkedSymbol) : "종목 없음";
+  const reviewDecisionTitle = isNewsCluster
+    ? `${evidenceTitle}이 실제로 같은 흐름인지 확인한다.`
+    : `이 뉴스 해석이 원문과 맞는지 확인한다.`;
+  const reviewDecisionBody = isNewsCluster
+    ? `현재 연결 종목은 ${linkedSymbolLabel}이지만, 이것은 매수 대상 확정이 아니라 영향 후보다. 먼저 대표 뉴스 제목들이 ${formatClusterStory(cluster)} 흐름에 맞는지 보고, 그 다음 종목·추천 연결이 과하지 않은지 확인한다.`
+    : `AI가 붙인 테마, 종목, 방향, 불확실성이 원문과 맞는지 확인한다. 맞지 않으면 추천 입력으로 쓰면 안 된다.`;
+  const reviewQuestions = [
     {
-      label: "AI가 한 일",
-      title: isNewsCluster ? "뉴스 묶음 생성" : isNewsCandidate ? "뉴스 한 건 구조화" : "근거 저장",
+      label: "검토 1",
+      title: isNewsCluster ? "이 뉴스들이 정말 같은 흐름인가?" : "원문 제목과 해석이 맞는가?",
       body: isNewsCluster
-        ? "여러 뉴스가 같은 테마나 하위 이슈인지 묶어서 시장 흐름으로 보이게 했다."
+        ? `대표 뉴스 목록에서 ${formatClusterStory(cluster)}와 어긋나는 제목이 섞였는지 확인한다. 섞였으면 데이터 오염 후보다.`
         : isNewsCandidate
-          ? "뉴스 원문에서 테마, 종목, 방향, 불확실성을 뽑아 후보로 저장했다."
-          : "원천 문서와 품질 상태를 나중에 추적할 수 있게 보존했다.",
+          ? "원문 제목과 요약을 보고 AI가 붙인 테마·방향이 과장됐는지 확인한다."
+          : "저장된 근거 제목과 원천 문서가 같은 내용을 말하는지 확인한다.",
     },
     {
-      label: "연결 대상",
-      title: targetSymbol ? koCode(targetSymbol) : koCode(data.classification.theme_key),
-      body: targetSymbol
-        ? "명확한 종목 연결이 있어 종목 상세와 추천 근거 후보로 이어질 수 있다."
-        : "종목을 억지로 붙이지 않고 시장·테마 흐름으로 먼저 저장한다.",
+      label: "검토 2",
+      title: linkedSymbol ? `${koCode(linkedSymbol)} 연결이 타당한가?` : "종목을 붙이지 않는 게 맞는가?",
+      body: isNewsCluster
+        ? linkedSymbol
+          ? `${koCode(linkedSymbol)}는 이 묶음의 영향 후보일 뿐이다. 직접 회사 뉴스인지, 시장 대표 ETF라서 붙은 것인지 구분한다.`
+          : "거시·테마 뉴스라면 종목을 억지로 붙이지 않는 것이 정상이다."
+        : linkedSymbol
+          ? "회사명이나 티커가 원문에 직접 있거나 충분히 명확한지 확인한다."
+          : "원문에 명확한 회사/티커가 없다면 테마 뉴스로만 남겨야 한다.",
     },
     {
-      label: "추천 사용",
+      label: "검토 3",
       title:
         data.evidence_type === "news_event_candidate_rejected"
           ? "차단됨"
@@ -398,13 +437,13 @@ export default async function AiEvidencePage({ params }: AiEvidencePageProps) {
       body:
         data.evidence_type === "news_event_candidate_rejected"
           ? "검증 단계에서 추천 입력으로 넘기지 않았다. 원천 확인과 분류 보강 대상으로만 본다."
-          : "통과한 근거라도 바로 주문하지 않는다. 추천 점수와 보유검토가 별도로 판단한다.",
+          : "현재는 승인 전 근거다. 추천 검토서에 연결되어도 이 근거 하나로 매수나 주문을 결정하지 않는다.",
     },
     {
-      label: "다음 확인",
-      title: targetStockLink ? "종목 상세" : sourceLink ? "원천 문서" : "뉴스 AI 보드",
+      label: "검토 4",
+      title: sourceLink ? "원천 뉴스부터 대조" : "원천 링크 없음",
       body: targetStockLink
-        ? "이 종목에 연결된 직접 뉴스, 상위 흐름, 추천/보유 상태를 이어서 확인한다."
+        ? "원천 문서로 제목과 내용을 확인한 뒤, 종목 상세와 추천 검토서에서 실제 반영 위치를 본다."
         : sourceLink
           ? "종목 연결이 없으면 원천 문서와 테마 분류가 맞는지 먼저 확인한다."
           : "뉴스 AI 판단 화면에서 같은 묶음과 주변 뉴스를 확인한다.",
@@ -422,8 +461,8 @@ export default async function AiEvidencePage({ params }: AiEvidencePageProps) {
           <p className="page-lede">{copy.lede}</p>
         </div>
         <aside className="quality-decision-card" aria-label="AI 근거 품질">
-          <span>추천 입력 상태</span>
-          <strong>{koCode(data.extraction_run.quality_gate || data.extraction_run.status)}</strong>
+          <span>현재 판정</span>
+          <strong>승인 전 · {koCode(data.extraction_run.quality_gate || data.extraction_run.status)}</strong>
           <p>
             {koCode(data.extraction_run.provider)} · {koCode(data.extraction_run.model_id)} · 비용{" "}
             {formatCost(data.extraction_run.estimated_cost_usd)}
@@ -431,11 +470,49 @@ export default async function AiEvidencePage({ params }: AiEvidencePageProps) {
         </aside>
       </section>
 
+      <section className="evidence-review-panel reveal delay-1" aria-labelledby="evidence-review-command-title">
+        <div className="evidence-review-command">
+          <span>이 페이지에서 판단할 것</span>
+          <h2 id="evidence-review-command-title">{reviewDecisionTitle}</h2>
+          <p>{reviewDecisionBody}</p>
+          <div className="btn-row decision-actions">
+            {sourceLink ? (
+              <Link className="btn btn-primary" href={sourceLink}>
+                원천 뉴스부터 대조
+              </Link>
+            ) : null}
+            {targetStockLink ? (
+              <Link className="btn btn-secondary" href={targetStockLink}>
+                {linkedSymbolLabel} 종목 맥락 보기
+              </Link>
+            ) : null}
+            {firstRecommendationLink ? (
+              <Link className="btn btn-secondary" href={firstRecommendationLink}>
+                연결된 추천 검토서 보기
+              </Link>
+            ) : null}
+            <Link className="btn btn-secondary" href="/intelligence">
+              뉴스 묶음으로 돌아가기
+            </Link>
+          </div>
+        </div>
+        <aside className="evidence-review-status">
+          <span>검토 저장</span>
+          <strong>아직 저장 버튼 없음</strong>
+          <p>지금은 원천과 연결을 확인하는 읽기 전용 화면이다. 완료/반려 저장은 write API와 감사 로그가 붙어야 한다.</p>
+        </aside>
+      </section>
+
       <section className="status-rail compact-rail reveal delay-1" aria-label="AI 근거 핵심 요약">
         <article className="rail-cell">
-          <span>대상</span>
-          <strong>{targetSymbol ? koCode(targetSymbol) : koCode(data.classification.theme_key)}</strong>
-          <small>{targetStockLink ? "종목 상세 연결됨" : "테마 중심 증거"}</small>
+          <span>검토 대상</span>
+          <strong>{subjectLabel}</strong>
+          <small>{isNewsCluster ? `뉴스 ${cluster.event_count}개 · 원천 ${sourceCount}개` : data.event_at}</small>
+        </article>
+        <article className="rail-cell">
+          <span>연결 종목 후보</span>
+          <strong>{linkedSymbolLabel}</strong>
+          <small>{targetStockLink ? "종목 맥락 확인 가능" : "테마 중심 증거"}</small>
         </article>
         <article className="rail-cell">
           <span>영향 방향</span>
@@ -445,52 +522,18 @@ export default async function AiEvidencePage({ params }: AiEvidencePageProps) {
         <article className="rail-cell">
           <span>추천 연결</span>
           <strong>{neighborhood?.summary.recommendation_count ?? 0}</strong>
-          <small>이 종목에 연결된 검토서</small>
-        </article>
-        <article className="rail-cell">
-          <span>원천 문서</span>
-          <strong>{sourceLink ? "있음" : "없음"}</strong>
-          <small>{data.event_at}</small>
+          <small>{firstRecommendationLink ? "연결된 검토서 있음" : "추천 연결 없음"}</small>
         </article>
       </section>
 
-      <section className="detail-path-grid reveal delay-1" aria-label="AI 근거 상세 읽는 순서">
-        {evidenceReadingCards.map((card) => (
-          <article className="detail-path-card" key={card.label}>
+      <section className="evidence-review-questions reveal delay-1" aria-label="AI 근거 사람 검토 질문">
+        {reviewQuestions.map((card) => (
+          <article className="evidence-review-question" key={card.label}>
             <span>{card.label}</span>
             <strong>{card.title}</strong>
             <p>{card.body}</p>
           </article>
         ))}
-      </section>
-
-      <section className="flow-panel reveal delay-1" aria-labelledby="evidence-reading-order">
-        <div className="section-heading flow-heading">
-          <span>검증 체크리스트</span>
-          <h2 id="evidence-reading-order">추천 입력으로 쓰기 전에 확인할 것</h2>
-        </div>
-        <div className="flow-steps">
-          <article className="flow-step">
-            <span>01</span>
-            <strong>원천 확인</strong>
-            <p>RSS 뉴스나 공시 원문이 실제로 존재하는지 먼저 본다.</p>
-          </article>
-          <article className="flow-step">
-            <span>02</span>
-            <strong>AI 추출 확인</strong>
-            <p>테마, 종목, 방향, 불확실성이 원문과 맞는지 본다.</p>
-          </article>
-          <article className="flow-step">
-            <span>03</span>
-            <strong>종목 맥락 확인</strong>
-            <p>이미 있는 추천, 투자 논리, 보유 포지션과 연결되는지 본다.</p>
-          </article>
-          <article className="flow-step">
-            <span>04</span>
-            <strong>투자 입력 여부 결정</strong>
-            <p>품질 조건을 통과한 근거만 추천·보유 검토의 입력 후보가 된다.</p>
-          </article>
-        </div>
       </section>
 
       <section className="evidence-decision-card reveal delay-2" aria-labelledby="evidence-main-title">
@@ -513,8 +556,8 @@ export default async function AiEvidencePage({ params }: AiEvidencePageProps) {
           <>
             <p className="board-intro">
               {formatClusterStory(cluster)} 이슈의 뉴스 {cluster.event_count}개를 하나의 흐름으로 묶었다.
-              상위 테마는 {koCode(cluster.theme_key)}이고, 연결 종목은 {formatSymbols(cluster.symbols)}이다.
-              방향 분포는 {formatDirectionCounts(cluster.direction_counts)}이다.
+              상위 테마는 {koCode(cluster.theme_key)}이고, 연결 종목 후보는 {formatSymbols(cluster.symbols)}이다.
+              방향 분포는 {formatDirectionCounts(cluster.direction_counts)}이다. {providerReviewNote(data)}
             </p>
             <div className="relationship-panel">
               <span>왜 이 뉴스들이 같이 묶였나</span>
@@ -564,7 +607,7 @@ export default async function AiEvidencePage({ params }: AiEvidencePageProps) {
         <div className="btn-row decision-actions">
           {targetStockLink ? (
             <Link className="btn btn-primary" href={targetStockLink}>
-              종목 상세 열기
+              {linkedSymbolLabel} 종목 맥락 보기
             </Link>
           ) : null}
           {sourceLink ? (
