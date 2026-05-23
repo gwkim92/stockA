@@ -7,11 +7,18 @@ from stockanalysis.ingest.macro.sql import sql_date, sql_literal
 
 DEFAULT_ALLOWED_RELATION_TYPES = (
     "parent_child",
+    "hierarchy",
     "contains",
     "belongs_to",
     "same_theme",
     "theme_contains_sector",
     "sector_contains_industry",
+    "macro_to_domain",
+    "macro_to_theme",
+    "domain_to_sector",
+    "domain_to_theme",
+    "sector_to_theme",
+    "theme_to_theme",
 )
 
 

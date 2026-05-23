@@ -62,6 +62,12 @@ union all
 select 'ref.exchange=' || count(*) from ref.exchange
 union all
 select 'ingest.data_source=' || count(*) from ingest.data_source
+union all
+select 'ref.classification_node=' || count(*) from ref.classification_node
+union all
+select 'ref.classification_edge=' || count(*) from ref.classification_edge
+union all
+select 'ref.instrument_factor_exposure=' || count(*) from ref.instrument_factor_exposure
 order by 1;
 "
 fi
