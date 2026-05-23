@@ -126,31 +126,52 @@ with recent_macro_events as (
     limit {int(limit)}
 ),
 exposed_rows as (
-    select
-        recent.event_id,
-        recent.event_title,
-        recent.event_at,
-        recent.node_id,
-        recent.node_code,
-        recent.node_name,
-        recent.theme_impact_direction,
-        recent.theme_impact_strength,
-        recent.theme_confidence,
-        recent.theme_rationale,
-        instrument.instrument_id,
-        instrument.primary_symbol,
-        exposure.exposure_weight,
-        exposure.sensitivity_direction,
-        exposure.confidence as exposure_confidence,
-        exposure.rationale as exposure_rationale
-    from recent_macro_events recent
-    join ref.instrument_factor_exposure exposure
-      on exposure.node_id = recent.node_id
-     and exposure.valid_from <= {sql_date(as_of_date)}
-     and (exposure.valid_to is null or exposure.valid_to >= {sql_date(as_of_date)})
-    join ref.instrument instrument
-      on instrument.instrument_id = exposure.instrument_id
-     and instrument.is_active
+    select *
+    from (
+        select
+            recent.event_id,
+            recent.event_title,
+            recent.event_at,
+            recent.node_id,
+            recent.node_code,
+            recent.node_name,
+            recent.theme_impact_direction,
+            recent.theme_impact_strength,
+            recent.theme_confidence,
+            recent.theme_rationale,
+            instrument.instrument_id,
+            instrument.primary_symbol,
+            exposure.exposure_weight,
+            exposure.sensitivity_direction,
+            exposure.confidence as exposure_confidence,
+            exposure.rationale as exposure_rationale,
+            row_number() over (
+                partition by recent.event_id, recent.node_id, instrument.instrument_id
+                order by
+                    case
+                        when recent.node_code like 'MACRO_%'
+                         and exposure.exposure_type = 'macro_sensitivity' then 1
+                        when recent.node_code not like 'MACRO_%'
+                         and exposure.exposure_type = 'theme_membership' then 1
+                        when exposure.exposure_type = 'macro_sensitivity' then 2
+                        when exposure.exposure_type = 'sector_proxy' then 3
+                        when exposure.exposure_type = 'manual_seed' then 4
+                        else 5
+                    end,
+                    exposure.confidence desc nulls last,
+                    exposure.exposure_weight desc,
+                    exposure.valid_from desc
+            ) as exposure_rank
+        from recent_macro_events recent
+        join ref.instrument_factor_exposure exposure
+          on exposure.node_id = recent.node_id
+         and exposure.valid_from <= {sql_date(as_of_date)}
+         and (exposure.valid_to is null or exposure.valid_to >= {sql_date(as_of_date)})
+        join ref.instrument instrument
+          on instrument.instrument_id = exposure.instrument_id
+         and instrument.is_active
+    ) ranked_exposures
+    where exposure_rank = 1
 )
 select coalesce(
     json_agg(
@@ -178,11 +199,10 @@ select coalesce(
 )::text
 from exposed_rows;"""
 
-
 def compute_propagated_instrument_impacts(
     candidates: tuple[MacroEventPropagationCandidate, ...],
 ) -> tuple[PropagatedInstrumentImpact, ...]:
-    rows: list[PropagatedInstrumentImpact] = []
+    rows_by_key: dict[tuple[int, int, int], PropagatedInstrumentImpact] = {}
     for candidate in candidates:
         strength = _quantize(_clamp_decimal((candidate.theme_impact_strength or _DEFAULT_EVENT_STRENGTH) * candidate.exposure_weight))
         confidence = _quantize(
@@ -204,20 +224,22 @@ def compute_propagated_instrument_impacts(
             rationale_parts.append(f"event={candidate.theme_rationale[:240]}")
         if candidate.exposure_rationale:
             rationale_parts.append(f"exposure_rationale={candidate.exposure_rationale[:240]}")
-        rows.append(
-            PropagatedInstrumentImpact(
-                event_id=candidate.event_id,
-                node_id=candidate.node_id,
-                instrument_id=candidate.instrument_id,
-                primary_symbol=candidate.primary_symbol,
-                impact_direction=direction,
-                impact_strength=strength,
-                confidence=confidence,
-                exposure_weight=_quantize(candidate.exposure_weight),
-                rationale="; ".join(rationale_parts),
-            )
+        row = PropagatedInstrumentImpact(
+            event_id=candidate.event_id,
+            node_id=candidate.node_id,
+            instrument_id=candidate.instrument_id,
+            primary_symbol=candidate.primary_symbol,
+            impact_direction=direction,
+            impact_strength=strength,
+            confidence=confidence,
+            exposure_weight=_quantize(candidate.exposure_weight),
+            rationale="; ".join(rationale_parts),
         )
-    return tuple(rows)
+        key = (row.event_id, row.node_id, row.instrument_id)
+        existing = rows_by_key.get(key)
+        if existing is None or (row.confidence, row.impact_strength) > (existing.confidence, existing.impact_strength):
+            rows_by_key[key] = row
+    return tuple(rows_by_key.values())
 
 
 def render_propagated_instrument_impact_upsert_sql(

@@ -32,6 +32,7 @@
 - 수정 가능한 파일:
   - `db/seeds/`
   - `src/stockanalysis/ai/ontology_validation.py`
+  - `src/stockanalysis/signal/macro_event_propagation.py`
   - `scripts/verify_migrations.sh`
   - `tests/`
   - `docs/tasks/cycle-hierarchy-foundation/`
@@ -54,3 +55,4 @@
 - 거시에서 도메인/테마로 이어지는 edge가 idempotent하게 seed된다.
 - `QUBT`, `QQQ`, `TLT`, `NVDA` 등 starter exposure가 후속 propagation 입력으로 쓸 수 있게 seed된다.
 - ontology validation이 새 relation type을 허용한다.
+- 기존 DB에 같은 instrument/node의 legacy exposure가 남아 있어도 propagation candidate가 하나로 정규화된다.

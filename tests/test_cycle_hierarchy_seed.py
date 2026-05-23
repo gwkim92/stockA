@@ -41,6 +41,14 @@ class CycleHierarchySeedTests(unittest.TestCase):
         self.assertIn("'TLT', 'MACRO_INFLATION'", sql)
         self.assertIn("'NVDA', 'TECH_DOMAIN'", sql)
 
+    def test_seed_cleans_legacy_quantum_macro_sensitivity_pollution(self) -> None:
+        sql = SEED_PATH.read_text()
+
+        self.assertIn("delete from ref.instrument_factor_exposure exposure", sql.lower())
+        self.assertIn("upper(instrument.primary_symbol) = 'QUBT'", sql)
+        self.assertIn("node.code = 'QUANTUM_COMPUTING_POLICY'", sql)
+        self.assertIn("exposure.exposure_type = 'macro_sensitivity'", sql)
+
     def test_seed_is_idempotent(self) -> None:
         sql = SEED_PATH.read_text().lower()
 

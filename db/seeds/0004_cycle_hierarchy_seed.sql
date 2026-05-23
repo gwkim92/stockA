@@ -155,6 +155,16 @@ set
     name = excluded.name,
     is_active = excluded.is_active;
 
+delete from ref.instrument_factor_exposure exposure
+using ref.instrument instrument, ref.classification_node node
+where exposure.instrument_id = instrument.instrument_id
+  and exposure.node_id = node.node_id
+  and upper(instrument.primary_symbol) = 'QUBT'
+  and node.taxonomy_family = 'internal_theme'
+  and node.code = 'QUANTUM_COMPUTING_POLICY'
+  and exposure.exposure_type = 'macro_sensitivity'
+  and exposure.source_document_id is null;
+
 with exposure_seed (symbol, node_code, exposure_type, exposure_weight, sensitivity_direction, confidence, rationale) as (
     values
         ('SPY', 'MACRO_RATES_FED', 'macro_sensitivity', 0.6500::numeric, 'negative', 0.7500::numeric, 'Broad US equities usually de-rate when rate expectations rise.'),

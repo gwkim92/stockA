@@ -83,6 +83,8 @@ class MacroEventPropagationTests(unittest.TestCase):
         self.assertIn("ref.instrument_factor_exposure", sql)
         self.assertIn("ref.classification_node", sql)
         self.assertNotIn("event.event_instrument_impact", sql)
+        self.assertIn("row_number() over", sql)
+        self.assertIn("where exposure_rank = 1", sql)
         self.assertIn("limit 25", sql)
 
     def test_load_candidates(self) -> None:
@@ -143,6 +145,53 @@ class MacroEventPropagationTests(unittest.TestCase):
         self.assertEqual(rows[0].impact_strength, Decimal("0.7200"))
         self.assertEqual(rows[0].confidence, Decimal("0.8500"))
         self.assertEqual(rows[1].impact_direction, "supportive")
+
+    def test_compute_propagated_impacts_deduplicates_same_event_node_instrument(self) -> None:
+        rows = compute_propagated_instrument_impacts(
+            (
+                MacroEventPropagationCandidate(
+                    event_id=21,
+                    event_title="Quantum policy",
+                    event_at="2026-05-20T12:00:00Z",
+                    node_id=301,
+                    node_code="QUANTUM_COMPUTING_POLICY",
+                    node_name="Quantum policy",
+                    theme_impact_direction="supportive",
+                    theme_impact_strength=Decimal("0.6000"),
+                    theme_confidence=Decimal("0.6000"),
+                    theme_rationale="Policy support.",
+                    instrument_id=901,
+                    primary_symbol="QUBT",
+                    exposure_weight=Decimal("0.6000"),
+                    sensitivity_direction="positive",
+                    exposure_confidence=Decimal("0.6000"),
+                    exposure_rationale="Legacy duplicate.",
+                ),
+                MacroEventPropagationCandidate(
+                    event_id=21,
+                    event_title="Quantum policy",
+                    event_at="2026-05-20T12:00:00Z",
+                    node_id=301,
+                    node_code="QUANTUM_COMPUTING_POLICY",
+                    node_name="Quantum policy",
+                    theme_impact_direction="supportive",
+                    theme_impact_strength=Decimal("0.6000"),
+                    theme_confidence=Decimal("0.8000"),
+                    theme_rationale="Policy support.",
+                    instrument_id=901,
+                    primary_symbol="QUBT",
+                    exposure_weight=Decimal("0.9000"),
+                    sensitivity_direction="positive",
+                    exposure_confidence=Decimal("0.8000"),
+                    exposure_rationale="Preferred theme membership.",
+                ),
+            )
+        )
+
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0].primary_symbol, "QUBT")
+        self.assertEqual(rows[0].confidence, Decimal("0.8000"))
+        self.assertEqual(rows[0].impact_strength, Decimal("0.5400"))
 
     def test_upsert_sql_is_idempotent(self) -> None:
         impacts = compute_propagated_instrument_impacts(
