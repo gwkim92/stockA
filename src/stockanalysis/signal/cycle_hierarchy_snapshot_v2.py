@@ -234,7 +234,7 @@ def compute_cycle_hierarchy_snapshots(
 ) -> tuple[CycleHierarchySnapshotRow, ...]:
     snapshots: list[CycleHierarchySnapshotRow] = []
     for row in rows:
-        cycle_level = _cycle_level(row.node_type)
+        cycle_level = _cycle_level(row.node_type, row.node_code)
         trend_score = _score_or_default(row.trend_score, Decimal("0.5000"))
         breadth_score = _score_or_default(row.breadth_score, Decimal("0.5000"))
         liquidity_score = _score_or_default(row.liquidity_score, Decimal("0.5000"))
@@ -509,7 +509,9 @@ def _render_transition_value_tuple(
     ) + ")"
 
 
-def _cycle_level(node_type: str) -> str:
+def _cycle_level(node_type: str, node_code: str) -> str:
+    if node_code.strip().upper().startswith("MACRO_"):
+        return "macro"
     normalized = node_type.strip().lower()
     if normalized == "macro_regime":
         return "macro"

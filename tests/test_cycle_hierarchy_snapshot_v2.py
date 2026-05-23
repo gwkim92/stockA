@@ -38,7 +38,7 @@ class FakeExecutor:
                         "node_id": 101,
                         "node_code": "MACRO_RATES_FED",
                         "node_name": "Macro Rates and Fed",
-                        "node_type": "macro_regime",
+                        "node_type": "subtheme",
                         "base_cycle_state": None,
                         "base_cycle_score": None,
                         "trend_score": None,
