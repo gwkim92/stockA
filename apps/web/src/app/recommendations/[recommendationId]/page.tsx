@@ -247,7 +247,7 @@ function recommendationQualityChecks(data: RecommendationDetailData) {
       value: outcomeMeasured ? koCode(data.outcome.label) : "성과 미측정",
       detail: outcomeMeasured
         ? `알파 ${formatPercent(data.outcome.alpha)} · 측정 종료 ${data.outcome.measurement_end_date}`
-        : "성과 측정 윈도우가 끝나면 outcome을 생성해야 한다.",
+        : "성과 측정 기간이 끝나면 성과 기록을 생성해야 한다.",
     },
     {
       label: "주문 경계",

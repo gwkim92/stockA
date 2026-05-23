@@ -4590,7 +4590,7 @@ score_component_rows as (
             when component.component_name in ('momentum_score', 'short_term_score')
                 then json_strip_nulls(json_build_object(
                     'source_type', 'market_feature',
-                    'label', '가격 feature snapshot',
+                    'label', '가격 지표 기록',
                     'feature_code', coalesce(feature.feature_code, feature_map.feature_code),
                     'feature_name', feature.feature_name,
                     'description', feature.description,
@@ -6516,7 +6516,7 @@ def _build_performance_quality_evaluation_payload(
                 "check_key": "review_outcome_consistency",
                 "label": "보유 검토와 성과 일치",
                 "status": "blocked" if review_outcome_mismatch_count > 0 else "passed",
-                "detail": f"최근 thesis review와 성과가 충돌한 항목 {review_outcome_mismatch_count}개.",
+                "detail": f"최근 투자 논리 검토와 성과가 충돌한 항목 {review_outcome_mismatch_count}개.",
                 "next_step": "충돌 항목은 thesis review 근거와 무효화 조건을 다시 확인한다.",
             },
             {
@@ -6524,7 +6524,7 @@ def _build_performance_quality_evaluation_payload(
                 "label": "성과 커버리지",
                 "status": "warning" if coverage_exclusion_count > 0 else "passed",
                 "detail": f"성과 해석에서 제외된 보유 항목 {coverage_exclusion_count}개.",
-                "next_step": "투자 논리나 outcome이 빠진 보유 종목을 먼저 보완한다.",
+                "next_step": "투자 논리나 성과 기록이 빠진 보유 종목을 먼저 보완한다.",
             },
         ],
     }
@@ -6731,7 +6731,7 @@ def _infer_score_component_source_type(evidence_id: str) -> str:
 
 def _default_score_component_provenance_label(source_type: str) -> str:
     if source_type == "market_feature":
-        return "가격 feature snapshot"
+        return "가격 지표 기록"
     if source_type == "strategy_universe_rank":
         return "전략 종목군 순위"
     if source_type == "event_or_ai_evidence":
@@ -6874,27 +6874,27 @@ def _build_recommendation_evidence_review_payload(
             "뉴스·AI 근거",
             "pass" if ai_evidence_component_count > 0 else "warning",
             "점수 구성요소 중 최소 하나는 원천 이벤트나 AI 근거로 추적되어야 한다.",
-            "score component evidence_id를 event 또는 ai-evidence에 연결한다.",
+            "점수 항목 근거를 원천 이벤트 또는 AI 근거에 연결한다.",
         ),
         _evidence_review_gate(
             "market_feature_provenance",
             "가격/순위 입력 근거",
             "pass" if market_or_rank_component_count == market_or_rank_provenance_count else "warning",
             "가격 모멘텀과 종목군 순위 점수는 가격 지표, 순위, 수집·계산 실행으로 추적되어야 한다.",
-            "market-feature 또는 rank component의 source_run_id와 feature evidence를 보강한다.",
+            "가격 지표 또는 종목군 순위 항목의 수집·계산 실행 번호와 근거를 보강한다.",
         ),
         _evidence_review_gate(
             "outcome_measurement",
             "성과 측정",
             "pass" if outcome_measured else "warning",
             "중장기 추천은 이후 성과 측정과 연결되어야 품질을 검토할 수 있다.",
-            "성과 측정 윈도우가 끝나면 recommendation outcome을 생성한다.",
+            "성과 측정 기간이 끝나면 추천 성과 기록을 생성한다.",
         ),
         _evidence_review_gate(
             "order_boundary",
             "주문 차단",
             "pass",
-            "이 검토는 실제 주문이나 가상 주문을 만들지 않는 read-only 품질 점검이다.",
+            "이 검토는 실제 주문이나 가상 주문을 만들지 않는 읽기 전용 품질 점검이다.",
             "주문 전송은 별도 증권사 연결 경계와 킬 스위치 승인 뒤에만 다룬다.",
         ),
     ]
@@ -6939,7 +6939,7 @@ def _build_thesis_evidence_review_payload(
             "성과 근거",
             "pass" if performance_evidence_count > 0 else "warning",
             "투자 논리는 시간이 지나면 성과 측정 근거와 함께 검토되어야 한다.",
-            "측정 가능 시점 이후 thesis outcome을 연결한다.",
+            "측정 가능 시점 이후 투자 논리 성과 기록을 연결한다.",
         ),
         _evidence_review_gate(
             "invalidation_conditions",
