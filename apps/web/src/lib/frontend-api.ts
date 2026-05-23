@@ -74,6 +74,10 @@ export async function getCockpitSnapshot() {
   return { dashboard, tickets, health };
 }
 
+export function getDashboardToday() {
+  return fetchFrontendPayload<DailyCockpitData>("/api/dashboard/today");
+}
+
 export function getRemediationTickets() {
   return fetchFrontendPayload<RemediationTicketsData>("/api/remediation-tickets?status=open");
 }

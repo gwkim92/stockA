@@ -4,7 +4,7 @@ import type { Route } from "next";
 import { NewsTitleBlock } from "@/components/news-title-block";
 import {
   getAiNewsClusters,
-  getCockpitSnapshot,
+  getDashboardToday,
   getDataHealth,
   getEvents,
 } from "@/lib/frontend-api";
@@ -38,16 +38,6 @@ function formatPercent(value: number | null | undefined) {
     return "미측정";
   }
   return `${Math.round(value * 1000) / 10}%`;
-}
-
-function formatCostUsd(value: number | null | undefined) {
-  if (value === null || value === undefined || !Number.isFinite(value)) {
-    return "미측정";
-  }
-  if (value === 0) {
-    return "0달러";
-  }
-  return `$${value.toFixed(4)}`;
 }
 
 function isKnownCode(value: string | null | undefined) {
@@ -205,7 +195,7 @@ function formatStoryKeyword(cluster: StoredAiNewsCluster) {
 
 function formatLlmCandidateStatus(summary: AiNewsClusterSummary) {
   if (summary.llm_candidate_invocation_count === 0) {
-    return "AI 분석 이력 없음";
+    return "개별 AI 후보 없음";
   }
   if (summary.latest_llm_invocation_status === "failed") {
     return "최근 AI 분석 실패";
@@ -217,6 +207,9 @@ function formatLlmCandidateStatus(summary: AiNewsClusterSummary) {
 }
 
 function formatLlmCandidateDetail(summary: AiNewsClusterSummary) {
+  if (summary.llm_candidate_invocation_count === 0) {
+    return "뉴스 묶음은 저장된 규칙 기반 결과를 표시 중";
+  }
   return `저장된 분석 ${summary.llm_candidate_artifact_count}건 · 성공 ${summary.llm_candidate_success_count}건 · 실패 ${summary.llm_candidate_failed_count}건`;
 }
 
@@ -342,15 +335,15 @@ function stockHref(symbol: string | null | undefined) {
 }
 
 export default async function IntelligencePage() {
-  const [dataHealthResponse, cockpitSnapshot, eventsResponse, newsClusterResponse] = await Promise.all([
+  const [dataHealthResponse, dashboardResponse, eventsResponse, newsClusterResponse] = await Promise.all([
     getDataHealth(),
-    getCockpitSnapshot(),
+    getDashboardToday(),
     getEvents({ limit: 40 }),
     getAiNewsClusters({ limit: 4 }),
   ]);
 
   const dataHealth = dataHealthResponse.data;
-  const dashboard = cockpitSnapshot.dashboard.data;
+  const dashboard = dashboardResponse.data;
   const events = eventsResponse.data;
   const storedNewsClusters = newsClusterResponse.data;
   const clusterSummary = storedNewsClusters.summary;
@@ -363,40 +356,53 @@ export default async function IntelligencePage() {
   const firstCandidate = aiCandidateEvents[0] ?? null;
   const firstCandidateEvidenceId = firstCandidate?.ai_evidence_id ?? null;
   const firstCluster = storedNewsClusters.clusters[0] ?? null;
-  const activation = dataHealth.scheduler.activation;
+  const clusterReviewGuide = [
+    {
+      title: "같은 흐름인가",
+      body: "대표 뉴스 제목과 요약이 같은 정책·산업·기업 이슈를 말하는지 본다.",
+    },
+    {
+      title: "종목 연결이 과하지 않은가",
+      body: "회사명·티커가 직접 나오면 종목 뉴스, 그렇지 않으면 시장/테마 흐름으로 본다.",
+    },
+    {
+      title: "추천 근거로 써도 되는가",
+      body: "방향·신뢰도·원천 문서가 맞을 때만 추천과 보유 검토의 입력 후보로 본다.",
+    },
+  ];
   const reviewActions = [
     {
       index: "1",
-      title: "뉴스 묶음부터 검토",
+      title: "뉴스 흐름 보기",
       target: firstCluster ? formatClusterHeadline(firstCluster) : "묶음 대기",
-      body: "여러 뉴스가 왜 같은 흐름으로 묶였는지, 직접 종목인지 시장 흐름인지 먼저 확인한다.",
-      cta: "묶음 검토 시작",
+      body: "오늘 많이 반복된 이슈와 연결 종목을 먼저 본다.",
+      cta: "흐름 열기",
       href: firstCluster ? clusterEvidenceHref(firstCluster) : ("/ai-evidence" as Route),
     },
     {
       index: "2",
-      title: "개별 뉴스 후보 확인",
+      title: "AI 후보 대조",
       target: firstCandidate
         ? `${formatNewsSymbol(firstCandidate.symbol)} · ${koCode(firstCandidate.theme_key)}`
         : "후보 대기",
-      body: "AI가 붙인 종목, 테마, 방향, 신뢰도가 원문과 맞는지 한 건씩 대조한다.",
-      cta: "후보 검토 시작",
+      body: "AI가 붙인 종목, 테마, 방향이 뉴스 원문과 맞는지 본다.",
+      cta: "AI 상세 열기",
       href: firstCandidateEvidenceId ? (`/ai-evidence/${firstCandidateEvidenceId}` as Route) : ("/ai-evidence" as Route),
     },
     {
       index: "3",
       title: "추천 연결 확인",
       target: `${formatPercent(dashboard.latest_metrics.weight_coverage_ratio)} 연결률`,
-      body: "통과한 뉴스 근거가 추천 점수와 보유 검토에 실제로 붙었는지 확인한다.",
+      body: "통과한 근거가 추천 점수와 보유 검토에 붙었는지 확인한다.",
       cta: "추천 근거 보기",
       href: "/recommendations" as Route,
     },
     {
       index: "4",
-      title: "차단 후보만 따로 확인",
+      title: "차단 후보 확인",
       target: `${events.summary.suppressed_low_signal_candidate_count}개 차단`,
-      body: "추천 입력에서 제외된 후보가 있다면 왜 빠졌는지 확인한다.",
-      cta: "차단 후보 보기",
+      body: "추천 입력에서 빠진 뉴스가 왜 차단됐는지 확인한다.",
+      cta: "차단 목록 보기",
       href: "/ai-evidence/blocked" as Route,
     },
   ];
@@ -407,12 +413,12 @@ export default async function IntelligencePage() {
         <div>
           <div className="bento-badge">뉴스·AI 판단</div>
           <h1 className="page-title" id="intelligence-title">
-            뉴스 검토실: 먼저 묶음, 그 다음 개별 뉴스, 마지막 추천 연결을 본다.
+            오늘 볼 뉴스 흐름과 추천 연결을 확인한다.
           </h1>
         </div>
         <p className="page-lede">
-          이 화면에서 할 일은 “AI가 맞게 해석했는가”를 확인하는 것이다. 검토는 묶음 기준,
-          원문 대조, 종목 관계, 추천 연결 순서로 진행한다.
+          이 화면의 목적은 수집된 뉴스를 투자 판단에 쓰기 전에 “같은 흐름으로 묶어도 되는지”,
+          “어떤 종목과 관계가 있는지”, “추천 근거로 연결됐는지”를 확인하는 것이다.
         </p>
       </section>
 
@@ -447,10 +453,10 @@ export default async function IntelligencePage() {
       <section className="review-command-panel reveal delay-1" aria-labelledby="review-command-title">
         <div className="section-heading stacked-heading">
           <span>검토 시작</span>
-          <h2 id="review-command-title">왼쪽부터 누르면 오늘 검토가 시작된다</h2>
+          <h2 id="review-command-title">왼쪽부터 보면 오늘 검토가 끝난다</h2>
           <p>
-            사람 검토는 지금 “상세 확인” 단계다. 완료/반려를 저장하는 버튼은 아직 없고,
-            저장형 검토는 쓰기 API와 감사 로그가 붙은 뒤 별도 화면으로 열어야 한다.
+            지금 가능한 작업은 읽기 전용 대조다. 완료/반려 저장 버튼은 아직 없으며,
+            저장형 검토는 승인자와 감사 로그가 붙은 뒤 별도 화면으로 열어야 한다.
           </p>
         </div>
         <div className="review-command-grid">
@@ -464,43 +470,27 @@ export default async function IntelligencePage() {
             </Link>
           ))}
         </div>
-        <div className="review-boundary-note">
-          <strong>검토 저장 상태</strong>
-          <p>
-            현재는 확인 전용이다. “검토 완료”, “반려”, “수정 요청”을 저장하려면 별도 쓰기 경계,
-            승인자, 감사 로그가 필요하다. 지금 버튼들은 검토할 근거 화면으로 이동한다.
-          </p>
-        </div>
       </section>
 
       <section className="intelligence-board reveal delay-2" aria-labelledby="news-decision-board-title">
         <div className="section-heading stacked-heading">
           <span>뉴스 묶음 검토</span>
-          <h2 id="news-decision-board-title">왜 묶였고, 어떤 종목과 연결됐는지 확인한다</h2>
+          <h2 id="news-decision-board-title">뉴스 흐름마다 세 가지만 본다</h2>
+          <p>
+            같은 흐름인지, 종목 연결이 타당한지, 추천 근거로 쓸 수 있는지만 확인한다.
+            세부 원문과 AI 출력은 각 카드의 상세 화면에서 본다.
+          </p>
         </div>
 
-        <section className="status-rail compact-rail" aria-label="뉴스 판단 보드 저장 상태">
-          <article className="rail-cell">
-            <span>묶음 증거</span>
-            <strong>{clusterSummary.cluster_count}</strong>
-            <small>저장된 분석 결과</small>
-          </article>
-          <article className="rail-cell">
-            <span>근거 문서</span>
-            <strong>{clusterSummary.chunk_count}</strong>
-            <small>뉴스 묶음과 연결된 원문</small>
-          </article>
-          <article className="rail-cell">
-            <span>AI 비용</span>
-            <strong>{formatCostUsd(clusterSummary.estimated_cost_usd)}</strong>
-            <small>화면 진입 시 추가 분석 없음</small>
-          </article>
-          <article className="rail-cell">
-            <span>자동화 승인</span>
-            <strong>{koCode(activation.status)}</strong>
-            <small>{activation.activation_allowed ? "자동 실행 가능" : "자동 실행 조건 대기"}</small>
-          </article>
-        </section>
+        <div className="cluster-review-guide" aria-label="뉴스 흐름 검토 기준">
+          {clusterReviewGuide.map((item, index) => (
+            <article key={item.title}>
+              <span>{index + 1}</span>
+              <strong>{item.title}</strong>
+              <p>{item.body}</p>
+            </article>
+          ))}
+        </div>
 
         {storedNewsClusters.clusters.length > 0 ? (
           <div className="news-decision-grid">
@@ -513,18 +503,17 @@ export default async function IntelligencePage() {
               const storyLabel = formatClusterHeadline(cluster);
               const storyKeyword = formatStoryKeyword(cluster);
               const splitByStory = hasStorySplit(cluster);
-              const explainers = [
-                clusterGroupingBasis(cluster),
-                clusterInstrumentConnection(cluster),
-                clusterRecommendationUse(cluster),
-              ];
+              const groupingBasis = clusterGroupingBasis(cluster);
+              const instrumentConnection = clusterInstrumentConnection(cluster);
+              const recommendationUse = clusterRecommendationUse(cluster);
+              const visibleRelationReasons = cluster.relation_reasons.slice(0, 3);
 
               return (
                 <article className="news-decision-card" key={cluster.evidence_id}>
                   <div className="trace-card-top">
                     <div>
                       <span className="metric-sub">
-                        뉴스 {cluster.event_count}개 · 원천 {cluster.source_document_count}개 · {formatClusterRunMode(cluster)} · {cluster.created_at}
+                        뉴스 {cluster.event_count}개 · 원천 {cluster.source_document_count}개 · {formatClusterRunMode(cluster)}
                       </span>
                       <h3>{storyLabel}</h3>
                       <p className="cluster-story-context">
@@ -535,56 +524,34 @@ export default async function IntelligencePage() {
                     <span className="relation-pill">{formatClusterRagStatus(cluster)}</span>
                   </div>
 
-                  <div className="review-checklist" aria-label={`${koCode(cluster.theme_key)} 검토 체크리스트`}>
-                    {explainers.map((item, index) => (
-                      <div className="review-check" key={`${cluster.evidence_id}-${item.label}`}>
-                        <span>{index + 1}</span>
-                        <div>
-                          <strong>{item.label}: {item.title}</strong>
-                          <p>{item.body}</p>
-                        </div>
-                      </div>
-                    ))}
-                    <div className="review-check">
-                      <span>4</span>
-                      <div>
-                        <strong>원문 대조: 대표 뉴스 제목과 방향이 맞는지 확인</strong>
-                        <p>묶음 검토 시작 버튼을 눌러 AI가 저장한 근거와 원천 문서를 대조한다.</p>
-                      </div>
-                    </div>
-                  </div>
+                  <p className="cluster-plain-summary">
+                    {cluster.event_count}개 뉴스가 같은 {splitByStory ? "하위 이슈" : "상위 테마"}로 묶였다.
+                    방향은 {formatDirectionCounts(cluster.direction_counts)}이고, 대상은 {formatSymbols(cluster.symbols)}이다.
+                    신뢰도는 {formatPercent(cluster.confidence)}다.
+                  </p>
 
-                  <div className="cluster-decision-grid" aria-label={`${koCode(cluster.theme_key)} 판단 요약`}>
-                    <div className="cluster-decision-cell">
-                      <span>무슨 일이 있었나</span>
-                      <strong>
-                        {cluster.event_count}개 뉴스가 같은 {splitByStory ? "이슈" : "테마"}로 묶였다
-                      </strong>
-                      <p>
-                        {formatClusterRunMode(cluster)} 기준이다. 대표 뉴스를 중심으로 흐름을 추적한다.
-                      </p>
-                    </div>
-                    <div className="cluster-decision-cell">
-                      <span>방향성</span>
-                      <strong>{formatDirectionCounts(cluster.direction_counts)}</strong>
-                      <p>신뢰도 {formatPercent(cluster.confidence)}. 방향이 약하면 투자 입력으로 승격하지 않는다.</p>
-                    </div>
-                    <div className="cluster-decision-cell">
-                      <span>직접 종목 / 전파 후보</span>
-                      <strong>{formatSymbols(cluster.symbols)}</strong>
-                      <p>직접 종목 뉴스는 종목에 바로 붙고, 거시·테마 뉴스는 상위 흐름 전파로 종목 영향을 계산한다.</p>
-                    </div>
-                    <div className="cluster-decision-cell cluster-decision-final">
-                      <span>다음 판단</span>
-                      <strong>추천·보유 검토의 근거 후보</strong>
-                      <p>AI 근거 상세에서 원천 문서와 추출 필드가 맞는지 먼저 확인한다.</p>
-                    </div>
+                  <div className="cluster-proof-grid" aria-label={`${koCode(cluster.theme_key)} 핵심 판단`}>
+                    <article>
+                      <span>{groupingBasis.label}</span>
+                      <strong>{groupingBasis.title}</strong>
+                      <p>{groupingBasis.body}</p>
+                    </article>
+                    <article>
+                      <span>{instrumentConnection.label}</span>
+                      <strong>{instrumentConnection.title}</strong>
+                      <p>{instrumentConnection.body}</p>
+                    </article>
+                    <article>
+                      <span>{recommendationUse.label}</span>
+                      <strong>{recommendationUse.title}</strong>
+                      <p>{recommendationUse.body}</p>
+                    </article>
                   </div>
 
                   <div className="relationship-panel" aria-label={`${koCode(cluster.theme_key)} 묶음 근거`}>
-                    <span>왜 이 뉴스들이 같이 묶였나</span>
+                    <span>묶인 근거</span>
                     <div className="relationship-list">
-                      {cluster.relation_reasons.map((reason, index) => (
+                      {visibleRelationReasons.map((reason, index) => (
                         <div className="relationship-chip" key={`${cluster.evidence_id}-reason-${index}`}>
                           <span>근거</span>
                           <strong>{koLabel(reason)}</strong>
@@ -594,9 +561,9 @@ export default async function IntelligencePage() {
                   </div>
 
                   <div className="relationship-panel" aria-label={`${koCode(cluster.theme_key)} 대표 뉴스`}>
-                    <span>대표 뉴스</span>
+                    <span>대표 뉴스 2건</span>
                     <div className="relationship-list">
-                      {cluster.events.slice(0, 3).map((event) => (
+                      {cluster.events.slice(0, 2).map((event) => (
                         <div className="relationship-chip" key={`${cluster.evidence_id}-${event.event_id}`}>
                           <span>{koCode(event.impact_direction)}</span>
                           <NewsTitleBlock
@@ -620,16 +587,16 @@ export default async function IntelligencePage() {
 
                   <div className="btn-row decision-actions">
                     <Link className="btn btn-primary" href={evidenceLink}>
-                      묶음 검토 시작
+                      묶음 상세 열기
                     </Link>
                     {stockLink ? (
                       <Link className="btn btn-secondary" href={stockLink}>
-                        관련 종목 확인
+                        종목 화면
                       </Link>
                     ) : null}
                     {sourceLink ? (
                       <Link className="btn btn-secondary" href={sourceLink}>
-                        원문 대조
+                        뉴스 원문
                       </Link>
                     ) : null}
                   </div>
