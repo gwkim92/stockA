@@ -5559,6 +5559,9 @@ def _build_neighborhood_story_group_payloads(
             current = {
                 "group_key": group_key,
                 "title": str(event.get("title") or "뉴스 이야기"),
+                "korean_title": _optional_text(event.get("korean_title")),
+                "korean_summary": _optional_text(event.get("korean_summary")),
+                "translation_confidence": _number(event.get("translation_confidence")),
                 "events": [],
                 "raw_document_keys": set(),
                 "source_document_ids": set(),
@@ -5568,6 +5571,11 @@ def _build_neighborhood_story_group_payloads(
                 "basis": set(),
             }
             groups[group_key] = current
+
+        if not current.get("korean_title") and event.get("korean_title"):
+            current["korean_title"] = _optional_text(event.get("korean_title"))
+            current["korean_summary"] = _optional_text(event.get("korean_summary"))
+            current["translation_confidence"] = _number(event.get("translation_confidence"))
 
         current["events"].append(event)
         event_time = _timestamp(event.get("event_at"))
@@ -5606,6 +5614,9 @@ def _build_neighborhood_story_group_payloads(
                 "story_id": f"story-{index}",
                 "story_key": str(group["group_key"]),
                 "title": str(group["title"]),
+                "korean_title": _optional_text(group.get("korean_title")),
+                "korean_summary": _optional_text(group.get("korean_summary")),
+                "translation_confidence": _number(group.get("translation_confidence")),
                 "confidence": _story_group_confidence(
                     event_count=event_count,
                     source_document_count=len(source_document_ids),
@@ -5770,6 +5781,9 @@ def _build_neighborhood_event_payload(event: dict[str, Any]) -> dict[str, Any]:
     return {
         "event_id": _opaque_id("event", event.get("event_id"), "unknown"),
         "title": str(event.get("title") or ""),
+        "korean_title": _optional_text(event.get("korean_title")),
+        "korean_summary": _optional_text(event.get("korean_summary")),
+        "translation_confidence": _number(event.get("translation_confidence")),
         "event_type": str(event.get("event_type") or "unknown"),
         "event_at": _timestamp(event.get("event_at")),
         "theme_key": str(event.get("theme_key") or "UNCLASSIFIED"),

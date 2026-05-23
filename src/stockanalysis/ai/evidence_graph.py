@@ -74,6 +74,9 @@ raw_recent_events as (
         theme.code as theme_key,
         document.document_id,
         document.external_document_id,
+        document.korean_title,
+        document.korean_summary,
+        document.translation_confidence,
         document.url as source_url,
         document.checksum as source_checksum
     from target_instrument instrument
@@ -107,6 +110,9 @@ recent_events as (
             theme_key,
             document_id,
             external_document_id,
+            korean_title,
+            korean_summary,
+            translation_confidence,
             source_url,
             source_checksum
         from raw_recent_events

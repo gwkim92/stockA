@@ -381,6 +381,9 @@ export type AiEvidenceNeighborhoodData = {
     story_id: string;
     story_key: string;
     title: string;
+    korean_title?: string | null;
+    korean_summary?: string | null;
+    translation_confidence?: number | null;
     confidence: number;
     event_count: number;
     source_document_count: number;

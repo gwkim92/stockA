@@ -303,7 +303,14 @@ function EvidenceNeighborhoodPanel({ neighborhood }: { neighborhood: AiEvidenceN
               return (
                 <div className="relationship-chip" key={group.story_id}>
                   <span>{formatStoryBasis(group.basis)}</span>
-                  <NewsTitleBlock compact title={group.title} themeKey={group.theme_keys[0]} />
+                  <NewsTitleBlock
+                    compact
+                    title={group.title}
+                    koreanTitle={group.korean_title}
+                    koreanSummary={group.korean_summary}
+                    translationConfidence={group.translation_confidence}
+                    themeKey={group.theme_keys[0]}
+                  />
                   <small>
                     이벤트 {group.event_count.toLocaleString("ko-KR")}개 · 원천 {group.source_document_count.toLocaleString("ko-KR")}개 ·
                     원문 근거 {group.linked_chunk_count.toLocaleString("ko-KR")}개 · 규칙 기반 신뢰도 {formatPercent(group.confidence)}
@@ -317,6 +324,9 @@ function EvidenceNeighborhoodPanel({ neighborhood }: { neighborhood: AiEvidenceN
                       <NewsTitleBlock
                         compact
                         title={event.title}
+                        koreanTitle={event.korean_title}
+                        koreanSummary={event.korean_summary}
+                        translationConfidence={event.translation_confidence}
                         themeKey={event.theme_key}
                         impactDirection={event.impact_direction}
                         impactScore={event.impact_score}

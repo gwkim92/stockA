@@ -272,6 +272,9 @@ class FakeLiveExecutor:
                         {
                             "event_id": 9001,
                             "title": "AAPL 2024 10-K annual reporting event",
+                            "korean_title": "애플 2024년 10-K 연차 보고 이벤트",
+                            "korean_summary": "애플 연차 보고서가 장기 투자 논리 점검 근거로 연결됐다.",
+                            "translation_confidence": "0.9100",
                             "event_type": "source_document_event",
                             "event_at": "2024-09-28T00:00:00+00:00",
                             "impact_direction": "supportive",
@@ -317,6 +320,9 @@ class FakeLiveExecutor:
                         {
                             "event_id": 9001,
                             "title": "AAPL 2024 10-K annual reporting event",
+                            "korean_title": "애플 2024년 10-K 연차 보고 이벤트",
+                            "korean_summary": "애플 연차 보고서가 장기 투자 논리 점검 근거로 연결됐다.",
+                            "translation_confidence": "0.9100",
                             "event_type": "source_document_event",
                             "event_at": "2024-09-28T00:00:00+00:00",
                             "instrument_impact_direction": "supportive",
@@ -2041,7 +2047,12 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertEqual(data["themes"][0]["theme_key"], "ANNUAL_REPORTING")
         self.assertEqual(data["theme_edges"][0]["relation_type"], "contains")
         self.assertEqual(data["events"][0]["event_id"], "event-9001")
+        self.assertEqual(data["events"][0]["korean_title"], "애플 2024년 10-K 연차 보고 이벤트")
+        self.assertEqual(data["events"][0]["korean_summary"], "애플 연차 보고서가 장기 투자 논리 점검 근거로 연결됐다.")
+        self.assertEqual(data["events"][0]["translation_confidence"], 0.91)
         self.assertEqual(data["events"][0]["source_document_id"], "source-document-aapl-2024-10k-20240928")
+        self.assertEqual(data["story_groups"][0]["korean_title"], "애플 2024년 10-K 연차 보고 이벤트")
+        self.assertEqual(data["story_groups"][0]["events"][0]["korean_title"], "애플 2024년 10-K 연차 보고 이벤트")
         self.assertEqual(data["ai_artifacts"][0]["evidence_id"], "ai-evidence-8801")
         self.assertEqual(data["evidence_chunks"][0]["embedding_status"], "indexed")
         self.assertEqual(data["evidence_chunks"][0]["source_url_host"], "www.sec.gov")
@@ -2189,6 +2200,7 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertIn("signal.propagated_instrument_impact", detail_sql)
         self.assertIn("macro_flow_impacts as", detail_sql)
         self.assertIn("raw_recent_events as", detail_sql)
+        self.assertIn("source_document.korean_title", detail_sql)
         self.assertIn("distinct on (coalesce(nullif(lower(title), ''), source_checksum, 'event:' || event_id::text))", detail_sql)
         self.assertIn("https://news.google.com/%", detail_sql)
         self.assertIn("limit 120", detail_sql)
