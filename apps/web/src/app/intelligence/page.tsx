@@ -169,7 +169,7 @@ function clusterRecommendationUse(cluster: StoredAiNewsCluster) {
   return {
     label: "추천 영향",
     title: "근거 후보",
-    body: "추천·보유 검토에 연결될 수 있지만, 최종 판단은 점수·가격·thesis 검토가 결정한다.",
+    body: "추천·보유 검토에 연결될 수 있지만, 최종 판단은 점수·가격·투자 논리 검토가 결정한다.",
   };
 }
 
@@ -357,7 +357,7 @@ export default async function IntelligencePage() {
       index: "01",
       title: "원문 수집",
       status: formatRunStatus(newsRun),
-      copy: "RSS 원문이 source document와 이벤트 원장으로 저장된다.",
+      copy: "RSS 원문이 원천 문서와 이벤트 원장으로 저장된다.",
       href: "/events",
     },
     {
@@ -378,7 +378,7 @@ export default async function IntelligencePage() {
       index: "04",
       title: "검증 통과/차단",
       status: `통과 ${events.summary.ai_extracted_count} · 차단 ${events.summary.suppressed_low_signal_candidate_count}`,
-      copy: "validator가 낮은 신뢰도와 알 수 없는 종목/테마를 추천 입력에서 제외한다.",
+      copy: "검증기가 낮은 신뢰도와 알 수 없는 종목/테마를 추천 입력에서 제외한다.",
       href: "/ai-evidence/blocked",
     },
     {
@@ -398,7 +398,7 @@ export default async function IntelligencePage() {
     },
     {
       title: "차단 후보",
-      copy: "validator가 추천 입력으로 넘기지 않은 후보와 저신호 보류 항목을 확인한다.",
+      copy: "검증기가 추천 입력으로 넘기지 않은 후보와 저신호 보류 항목을 확인한다.",
       href: "/ai-evidence/blocked",
     },
     {
@@ -413,7 +413,7 @@ export default async function IntelligencePage() {
     },
     {
       title: "추천·보유 검토",
-      copy: "AI 증거가 추천 점수와 보유 검토에 실제로 붙었는지 본다.",
+      copy: "AI 분석 근거가 추천 점수와 보유 검토에 실제로 붙었는지 본다.",
       href: "/recommendations",
     },
   ];
@@ -584,7 +584,7 @@ export default async function IntelligencePage() {
                     <div className="cluster-decision-cell cluster-decision-final">
                       <span>다음 판단</span>
                       <strong>추천·보유 검토의 근거 후보</strong>
-                      <p>AI 증거 상세에서 원천 문서와 추출 필드가 맞는지 먼저 확인한다.</p>
+                      <p>AI 근거 상세에서 원천 문서와 추출 필드가 맞는지 먼저 확인한다.</p>
                     </div>
                   </div>
 
