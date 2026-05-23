@@ -5948,7 +5948,7 @@ def _build_trading_readiness_gates(state: dict[str, Any]) -> list[dict[str, Any]
         ),
         _trading_gate(
             "audit_log",
-            "감사 로그",
+            "검토 기록",
             "warning" if intent_count == 0 else "pass",
             "주문 의도는 증권사 전송 전에 검토 기록으로 남아야 한다.",
             "가상 거래 장부에 주문 의도 검토 기록을 먼저 만든다.",

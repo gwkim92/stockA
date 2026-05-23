@@ -39,6 +39,7 @@
   - `apps/web/src/app/page.tsx`
   - `apps/web/src/app/trading-readiness/page.tsx`
   - `apps/web/src/app/cycles/page.tsx`
+  - `apps/web/src/app/theses/[thesisId]/page.tsx`
   - `apps/web/src/lib/korean-labels.ts`
   - `src/stockanalysis/frontend/live_adapter.py`의 사용자-facing 문구
   - `tests/test_frontend_live_adapter.py`의 fixture 문구

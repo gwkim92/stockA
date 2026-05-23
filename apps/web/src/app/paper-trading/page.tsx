@@ -49,14 +49,14 @@ function paperValidationState(trading: TradingReadinessData) {
     return {
       title: "실제 주문 전송 기록 있음",
       tone: "risk-high",
-      detail: "실제 주문 제출 기록이 있으므로 감사 로그와 계좌 내역을 먼저 확인해야 한다.",
+      detail: "실제 주문 전송 기록이 있으므로 검토 기록과 계좌 내역을 먼저 확인해야 한다.",
     };
   }
   if (trading.gate_summary.blocked_count > 0 || trading.paper_validation.blocked_reasons.length > 0) {
     return {
       title: "가상 검증 중 · 실거래 차단",
       tone: "risk-high",
-      detail: "가상 후보는 만들 수 있지만 안전 관문이 닫혀 있어 실제 주문으로 넘어가지 않는다.",
+      detail: "가상 후보는 만들 수 있지만 안전 조건이 닫혀 있어 실제 주문으로 넘어가지 않는다.",
     };
   }
   if (trading.paper_validation.approved_action_count > 0) {
@@ -91,7 +91,7 @@ export default async function PaperTradingPage() {
         </div>
         <p className="page-lede">
           이 화면은 추천을 바로 주문으로 바꾸지 않는다. 최신 추천과 현재 가상 포트폴리오 보유 내역을 대조해
-          “실제로 주문한다면 어떤 조치가 필요할지”만 계산한다. 안전 관문과 감사 로그가 막으면 실거래로 넘어가지 않는다.
+          “실제로 주문한다면 어떤 조치가 필요할지”만 계산한다. 안전 조건과 검토 기록이 막으면 실거래로 넘어가지 않는다.
         </p>
       </section>
 

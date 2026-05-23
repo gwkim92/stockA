@@ -23,6 +23,7 @@
 - `apps/web/src/app/page.tsx`
 - `apps/web/src/app/trading-readiness/page.tsx`
 - `apps/web/src/app/cycles/page.tsx`
+- `apps/web/src/app/theses/[thesisId]/page.tsx`
 - `apps/web/src/lib/korean-labels.ts`
 - `src/stockanalysis/frontend/live_adapter.py`
 - `tests/test_frontend_live_adapter.py`
@@ -34,7 +35,7 @@
 - `/recommendations/[id]`는 점수 항목, 종목군 순위, 뉴스·AI 근거, 실제 주문 전송 차단을 사용자가 읽는 문장으로 바꿨다.
 - `/intelligence`는 “수집 → 1차 분류 → AI 분석 → 검증 → 추천 연결” 흐름을 전면에 두고, 내부 `artifact`/`LLM`/`validator` 표현을 축소했다.
 - `/paper-trading`은 가상 주문 검증 단계, 실제 주문 전송 0건, 실거래 전환 조건을 분리했다.
-- 홈/거래 안전/사이클 대표 문구에서 `paper`, `브로커`, `유니버스`, `gate`를 가상 거래, 증권사 연결, 종목군, 안전 조건으로 바꿨다.
+- 홈/거래 안전/사이클/보유 논리 대표 문구에서 `paper`, `브로커`, `유니버스`, `gate`, `감사 로그`를 가상 거래, 증권사 연결, 종목군, 안전 조건, 검토 기록으로 바꿨다.
 
 ## Verification
 

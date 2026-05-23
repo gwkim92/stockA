@@ -182,7 +182,7 @@ export default async function HomePage() {
           </h1>
           <p className="manifest-lede">
             먼저 자동 수집이 정상인지 보고, 그다음 뉴스 AI 근거와 종목 연결을 확인한다. 마지막으로
-            추천·보유·가상 거래가 안전 관문에서 막혔는지 본다.
+            추천·보유·가상 거래가 안전 조건에서 막혔는지 본다.
           </p>
           <div className="btn-row">
             <Link className="btn btn-primary" href="/data-health">

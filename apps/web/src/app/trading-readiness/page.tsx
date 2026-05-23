@@ -130,7 +130,7 @@ export default async function TradingReadinessPage() {
                 <dd>{yesNo(data.broker_boundary.supports_order_preview)}</dd>
               </div>
               <div>
-                <dt>실제 주문 제출</dt>
+                <dt>실제 주문 전송</dt>
                 <dd>{yesNo(data.broker_boundary.supports_order_submit)}</dd>
               </div>
               <div>
@@ -223,8 +223,8 @@ export default async function TradingReadinessPage() {
 
         <article className="ledger-panel">
             <div className="section-heading stacked-heading">
-              <span>가상 검증/감사</span>
-              <h2>가상 검증과 감사 로그</h2>
+              <span>가상 검증/기록</span>
+              <h2>가상 검증과 검토 기록</h2>
             </div>
           <dl className="fact-list">
             <div>
