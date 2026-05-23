@@ -40,6 +40,16 @@ function formatPercent(value: number | null | undefined) {
   return `${Math.round(value * 1000) / 10}%`;
 }
 
+function formatCostUsd(value: number | null | undefined) {
+  if (value === null || value === undefined || !Number.isFinite(value)) {
+    return "미측정";
+  }
+  if (value === 0) {
+    return "0달러";
+  }
+  return `$${value.toFixed(4)}`;
+}
+
 function isKnownCode(value: string | null | undefined) {
   return Boolean(value && value !== "UNKNOWN" && value !== "UNCLASSIFIED");
 }
@@ -366,7 +376,9 @@ export default async function IntelligencePage() {
     {
       index: "2",
       title: "개별 뉴스 후보 확인",
-      target: firstCandidate ? firstCandidate.title : "후보 대기",
+      target: firstCandidate
+        ? `${formatNewsSymbol(firstCandidate.symbol)} · ${koCode(firstCandidate.theme_key)}`
+        : "후보 대기",
       body: "AI가 붙인 종목, 테마, 방향, 신뢰도가 원문과 맞는지 한 건씩 대조한다.",
       cta: "후보 검토 시작",
       href: firstCandidateEvidenceId ? (`/ai-evidence/${firstCandidateEvidenceId}` as Route) : ("/ai-evidence" as Route),
@@ -480,7 +492,7 @@ export default async function IntelligencePage() {
           </article>
           <article className="rail-cell">
             <span>AI 비용</span>
-            <strong>${clusterSummary.estimated_cost_usd.toFixed(4)}</strong>
+            <strong>{formatCostUsd(clusterSummary.estimated_cost_usd)}</strong>
             <small>화면 진입 시 추가 분석 없음</small>
           </article>
           <article className="rail-cell">
