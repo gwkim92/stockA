@@ -2660,6 +2660,124 @@ h6 {
   border-radius: var(--radius-lg);
 }
 
+.evidence-trace-panel {
+  padding: clamp(20px, 2.4vw, 34px);
+  background:
+    linear-gradient(135deg, rgba(251, 250, 246, 0.98), rgba(243, 244, 240, 0.82)),
+    radial-gradient(circle at 0% 0%, rgba(35, 116, 78, 0.12), transparent 36%),
+    radial-gradient(circle at 100% 0%, rgba(155, 101, 23, 0.12), transparent 34%);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+}
+
+.evidence-trace-panel .section-heading p {
+  max-width: 760px;
+  margin: 10px 0 0;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  font-weight: 760;
+  line-height: 1.65;
+  word-break: keep-all;
+}
+
+.evidence-trace-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.evidence-trace-card {
+  display: grid;
+  min-width: 0;
+  min-height: 238px;
+  align-content: space-between;
+  gap: 9px;
+  padding: 16px;
+  background: color-mix(in srgb, var(--bg-panel) 88%, white);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+}
+
+.evidence-trace-card.risk-medium {
+  border-color: color-mix(in srgb, var(--accent-amber) 44%, var(--border-light));
+}
+
+.evidence-trace-card.risk-high {
+  border-color: color-mix(in srgb, var(--accent-red) 46%, var(--border-light));
+}
+
+.evidence-trace-card > span {
+  display: inline-grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  background: var(--text-primary);
+  color: var(--bg-panel);
+  font-size: 0.72rem;
+  font-weight: 950;
+}
+
+.evidence-trace-card strong {
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: clamp(1.08rem, 1.35vw, 1.45rem);
+  line-height: 1.06;
+}
+
+.evidence-trace-card em,
+.evidence-trace-card b,
+.evidence-trace-card p,
+.evidence-trace-card a {
+  font-style: normal;
+  line-height: 1.45;
+  word-break: keep-all;
+}
+
+.evidence-trace-card em {
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  font-weight: 850;
+}
+
+.evidence-trace-card b {
+  width: fit-content;
+  max-width: 100%;
+  padding: 6px 8px;
+  background: color-mix(in srgb, var(--accent-green) 14%, var(--bg-panel));
+  border: 1px solid color-mix(in srgb, var(--accent-green) 28%, var(--border-light));
+  border-radius: 999px;
+  color: var(--text-primary);
+  font-size: 0.7rem;
+  font-weight: 950;
+}
+
+.evidence-trace-card.risk-medium b {
+  background: color-mix(in srgb, var(--accent-amber) 18%, var(--bg-panel));
+  border-color: color-mix(in srgb, var(--accent-amber) 36%, var(--border-light));
+}
+
+.evidence-trace-card.risk-high b {
+  background: color-mix(in srgb, var(--accent-red) 14%, var(--bg-panel));
+  border-color: color-mix(in srgb, var(--accent-red) 34%, var(--border-light));
+}
+
+.evidence-trace-card p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  font-weight: 740;
+}
+
+.evidence-trace-card a {
+  width: fit-content;
+  color: var(--accent-blue);
+  font-size: 0.72rem;
+  font-weight: 950;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
 .fallback-news-card {
   border-style: dashed;
 }
@@ -3614,6 +3732,7 @@ h6 {
   .route-index,
   .where-grid,
   .decision-strip-grid,
+  .evidence-trace-grid,
   .feature-map-grid,
   .cluster-review-guide,
   .cluster-proof-grid,
@@ -3743,6 +3862,7 @@ h6 {
   .route-index,
   .where-grid,
   .decision-strip-grid,
+  .evidence-trace-grid,
   .feature-map-grid,
   .cluster-review-guide,
   .cluster-proof-grid,

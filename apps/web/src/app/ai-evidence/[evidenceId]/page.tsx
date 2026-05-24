@@ -17,6 +17,16 @@ type NewsCandidate = NonNullable<AiEvidenceDetailData["news_candidate"]>;
 type ClusterSummary = NonNullable<AiEvidenceDetailData["cluster_summary"]>;
 type EvidenceNeighborhood = AiEvidenceNeighborhoodData | null;
 type ExtractedField = AiEvidenceDetailData["extracted_fields"][number];
+type EvidenceTraceStep = {
+  index: string;
+  label: string;
+  title: string;
+  body: string;
+  status: string;
+  href?: Route | null;
+  cta?: string;
+  tone?: "risk-low" | "risk-medium" | "risk-high";
+};
 
 function formatPercent(value: number | null | undefined) {
   if (value == null || !Number.isFinite(value)) {
@@ -319,6 +329,57 @@ function primarySourcePreview(data: AiEvidenceDetailData) {
   };
 }
 
+function translationTraceStatus(preview: ReturnType<typeof primarySourcePreview>) {
+  if (preview.koreanTitle || preview.koreanSummary) {
+    return {
+      title: "한국어 번역 확인",
+      status: preview.translationConfidence != null ? `신뢰도 ${formatPercent(preview.translationConfidence)}` : "번역 있음",
+      body: "원문을 먼저 영어로 읽지 않아도 핵심 제목과 요약을 한국어로 대조할 수 있다.",
+      tone: "risk-low" as const,
+    };
+  }
+  return {
+    title: "한국어 번역 없음",
+    status: "원문 확인 필요",
+    body: "아직 저장된 한국어 제목/요약이 없어 원문 제목과 AI 해석을 직접 대조해야 한다.",
+    tone: "risk-medium" as const,
+  };
+}
+
+function aiStructureTraceStatus({
+  candidate,
+  cluster,
+  isNewsCandidate,
+  isNewsCluster,
+}: {
+  candidate: NewsCandidate | null;
+  cluster: ClusterSummary | null;
+  isNewsCandidate: boolean;
+  isNewsCluster: boolean;
+}) {
+  if (isNewsCandidate && candidate) {
+    const themeCount = candidate.theme_impacts.length;
+    const instrumentCount = candidate.instrument_impacts.length;
+    return {
+      title: "개별 뉴스 구조화",
+      status: `테마 ${themeCount} · 종목 ${instrumentCount}`,
+      body: "AI가 이 뉴스 한 건에서 테마 영향과 직접 종목 영향을 분리했다.",
+    };
+  }
+  if (isNewsCluster && cluster) {
+    return {
+      title: "뉴스 묶음 구조화",
+      status: `뉴스 ${cluster.event_count}개`,
+      body: "여러 뉴스가 같은 상위 테마나 하위 이슈인지 묶어 시장 흐름 후보로 만들었다.",
+    };
+  }
+  return {
+    title: "구조화 결과 제한",
+    status: "세부 필드 확인",
+    body: "저장된 추출 필드와 모델 입력 근거를 아래 상세에서 확인해야 한다.",
+  };
+}
+
 function CandidateImpactList({ candidate }: { candidate: NewsCandidate }) {
   const impacts = [
     ...candidate.theme_impacts.map((impact) => ({ ...impact, kind: "테마" })),
@@ -450,6 +511,30 @@ function NeighborhoodPanel({ neighborhood }: { neighborhood: EvidenceNeighborhoo
   );
 }
 
+function EvidenceTracePath({ steps }: { steps: EvidenceTraceStep[] }) {
+  return (
+    <section className="evidence-trace-panel reveal delay-1" aria-labelledby="evidence-trace-title">
+      <div className="section-heading stacked-heading">
+        <span>근거 추적 경로</span>
+        <h2 id="evidence-trace-title">원천 뉴스에서 추천 연결까지 한 줄로 확인한다</h2>
+        <p>아래 5단계 중 앞 단계가 흔들리면 뒤 단계는 투자 판단 입력으로 쓰지 않는다.</p>
+      </div>
+      <div className="evidence-trace-grid">
+        {steps.map((step) => (
+          <article className={`evidence-trace-card ${step.tone ?? "risk-low"}`} key={`${step.index}-${step.label}`}>
+            <span>{step.index}</span>
+            <strong>{step.label}</strong>
+            <em>{step.title}</em>
+            <b>{step.status}</b>
+            <p>{step.body}</p>
+            {step.href && step.cta ? <Link href={step.href}>{step.cta}</Link> : null}
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 export default async function AiEvidencePage({ params }: AiEvidencePageProps) {
   const { evidenceId } = await params;
   const response = await getAiEvidenceDetail(evidenceId);
@@ -473,6 +558,13 @@ export default async function AiEvidencePage({ params }: AiEvidencePageProps) {
   const decision = evidenceDecision(data);
   const sourcePreview = primarySourcePreview(data);
   const sourceCount = isNewsCluster ? uniqueSourceDocumentCount(data) : sourceLink ? 1 : 0;
+  const translationTrace = translationTraceStatus(sourcePreview);
+  const aiStructureTrace = aiStructureTraceStatus({
+    candidate: isNewsCandidate ? candidate : null,
+    cluster: isNewsCluster ? cluster : null,
+    isNewsCandidate,
+    isNewsCluster,
+  });
   const subjectLabel = isNewsCluster
     ? evidenceTitle
     : linkedSymbol
@@ -529,6 +621,56 @@ export default async function AiEvidencePage({ params }: AiEvidencePageProps) {
           : "뉴스 AI 판단 화면에서 같은 묶음과 주변 뉴스를 확인한다.",
     },
   ];
+  const traceSteps: EvidenceTraceStep[] = [
+    {
+      index: "01",
+      label: "원천 뉴스",
+      title: sourceLink ? "원천 문서 연결" : "원천 문서 없음",
+      status: sourceCount > 0 ? `${sourceCount}개 확인` : "대조 필요",
+      body: sourceLink
+        ? "AI가 해석한 뉴스 또는 묶음의 원천 문서를 열어 제목과 맥락을 대조할 수 있다."
+        : "원천 문서 링크가 없어 이 근거는 추천 입력으로 쓰기 전에 추가 확인이 필요하다.",
+      href: sourceLink,
+      cta: "원천 열기",
+      tone: sourceLink ? "risk-low" : "risk-medium",
+    },
+    {
+      index: "02",
+      label: "한국어 번역",
+      title: translationTrace.title,
+      status: translationTrace.status,
+      body: translationTrace.body,
+      tone: translationTrace.tone,
+    },
+    {
+      index: "03",
+      label: "AI 구조화",
+      title: aiStructureTrace.title,
+      status: aiStructureTrace.status,
+      body: aiStructureTrace.body,
+      tone: "risk-low",
+    },
+    {
+      index: "04",
+      label: "validator 판정",
+      title: decision.label,
+      status: data.evidence_type === "news_event_candidate_rejected" ? "차단" : "입력 후보",
+      body: decision.body,
+      tone: decision.tone as "risk-low" | "risk-medium" | "risk-high",
+    },
+    {
+      index: "05",
+      label: "추천 연결",
+      title: firstRecommendationLink ? "추천 검토서 연결" : "추천 연결 없음",
+      status: `${neighborhood?.summary.recommendation_count ?? 0}개 연결`,
+      body: firstRecommendationLink
+        ? "이 근거가 연결된 추천 검토서에서 가격, 사이클, 보유 논리와 함께 다시 판단한다."
+        : "아직 추천 검토서에 연결되지 않았다. 이는 오류가 아니라 관찰 또는 상위 흐름 근거일 수 있다.",
+      href: firstRecommendationLink,
+      cta: "추천 열기",
+      tone: firstRecommendationLink ? "risk-low" : "risk-medium",
+    },
+  ];
 
   return (
     <div className="pageStack ai-evidence-detail-page">
@@ -583,6 +725,8 @@ export default async function AiEvidencePage({ params }: AiEvidencePageProps) {
           <p>AI 근거를 해석하고 연결 경로를 보여주는 화면이다. 승인/반려 저장과 감사 로그 write API는 별도 작업으로 분리한다.</p>
         </aside>
       </section>
+
+      <EvidenceTracePath steps={traceSteps} />
 
       <section className="evidence-decision-card reveal delay-1" aria-labelledby="source-preview-title">
         <div className="section-heading stacked-heading">
