@@ -16,6 +16,7 @@ from stockanalysis.ingest.news.enrichment import (
     run_news_missing_instrument_bootstrap,
     run_news_rss_event_enrichment,
 )
+from stockanalysis.ingest.news.eval import DEFAULT_DATASET_PATH, run_news_ai_eval
 from stockanalysis.ingest.news.translation import run_news_rss_translation
 from stockanalysis.operations.artifact_runner import run_data_operation_artifact_command
 from stockanalysis.operations.cadence import build_data_operations_cadence_report
@@ -505,6 +506,21 @@ def build_parser() -> argparse.ArgumentParser:
     news_rss_ai_extract.add_argument("--dry-run", action="store_true")
     news_rss_ai_extract.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
     news_rss_ai_extract.set_defaults(handler=_handle_news_rss_ai_extract_run)
+
+    news_ai_eval = subparsers.add_parser(
+        "news-ai-eval-run",
+        help="Score fixture/gold news AI extraction cases and optionally store metrics in ai.eval_run.",
+    )
+    news_ai_eval.add_argument("--env-file")
+    news_ai_eval.add_argument("--dataset-path", default=str(DEFAULT_DATASET_PATH))
+    news_ai_eval.add_argument("--provider", choices=("fixture",), default="fixture")
+    news_ai_eval.add_argument("--model-name", default="news-ai-eval-fixture-v1")
+    news_ai_eval.add_argument("--min-confidence", type=float, default=0.72)
+    news_ai_eval.add_argument("--execute", action="store_true")
+    news_ai_eval.add_argument("--dry-run", action="store_true")
+    news_ai_eval.add_argument("--output")
+    news_ai_eval.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
+    news_ai_eval.set_defaults(handler=_handle_news_ai_eval_run)
 
     macro_event_propagation = subparsers.add_parser(
         "macro-event-propagation-run",
@@ -1192,6 +1208,38 @@ def _handle_news_rss_ai_extract_run(args: argparse.Namespace, *, stdout: TextIO)
             llm_output_json_path=args.llm_output_json,
         )
     print_json(report, stdout=stdout, sort_keys=False)
+    return 0
+
+
+def _handle_news_ai_eval_run(args: argparse.Namespace, *, stdout: TextIO) -> int:
+    if bool(args.execute) and bool(args.dry_run):
+        raise ValueError("--execute and --dry-run cannot be used together.")
+    dataset_path = resolve_existing_file(
+        args.dataset_path,
+        label="news AI eval dataset",
+        repo_root=args.repo_root,
+        require_repo_outside=False,
+    )
+    env_mapping = _load_optional_env_mapping(args.env_file, repo_root=args.repo_root)
+    with _temporary_environ(env_mapping):
+        report = run_news_ai_eval(
+            config=RuntimeConfig.from_env(),
+            dataset_path=dataset_path,
+            provider=args.provider,
+            model_name=args.model_name,
+            min_confidence=args.min_confidence,
+            execute=bool(args.execute) and not bool(args.dry_run),
+        )
+    if args.output:
+        output_path = resolve_output_path(
+            args.output,
+            label="news AI eval output",
+            repo_root=args.repo_root,
+            require_repo_outside=True,
+        )
+        write_json_report(report, output_path=output_path, stdout=stdout)
+    else:
+        print_json(report, stdout=stdout, sort_keys=False)
     return 0
 
 

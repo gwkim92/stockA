@@ -1,0 +1,278 @@
+{
+  "dataset_version": "news-ai-eval-v1",
+  "cases": [
+    {
+      "case_id": "macro_fed_rates_no_direct_ticker",
+      "category": "macro_only",
+      "title": "Treasury yields rise after Fed officials warn inflation remains sticky",
+      "summary": "The story is about Federal Reserve policy, Treasury yields, and inflation pressure. It does not mention any company or exchange-traded fund by name.",
+      "korean_title": "연준 인플레이션 경고 이후 국채금리 상승",
+      "korean_summary": "연준 정책과 국채금리 상승이 핵심인 거시 뉴스이며 개별 종목 뉴스가 아니다.",
+      "expected_theme_codes": ["MACRO_RATES_FED", "TECH_DOMAIN"],
+      "allowed_theme_codes": [],
+      "forbidden_theme_codes": ["ENERGY_GEOPOLITICS", "QUANTUM_COMPUTING_POLICY"],
+      "expected_direct_symbols": [],
+      "forbidden_direct_symbols": ["SPY", "QQQ", "TLT"],
+      "expected_blocked_symbols": ["SPY"],
+      "ai_output": {
+        "analysis_method": "fixture_hierarchical_eval",
+        "event_summary": "금리와 연준 경로가 성장주 할인율 부담을 키우는 뉴스다.",
+        "macro_regime_impacts": [
+          {
+            "node_code": "MACRO_RATES_FED",
+            "impact_direction": "risk_review",
+            "impact_strength": 0.82,
+            "confidence": 0.9,
+            "rationale": "연준과 국채금리 상승이 직접 언급됐다.",
+            "evidence_summary": "Fed officials, inflation, Treasury yields가 핵심 근거다."
+          }
+        ],
+        "domain_impacts": [
+          {
+            "node_code": "TECH_DOMAIN",
+            "impact_direction": "risk_review",
+            "impact_strength": 0.62,
+            "confidence": 0.78,
+            "rationale": "성장주는 할인율 상승에 민감하다.",
+            "evidence_summary": "높은 금리는 장기 성장주 밸류에이션 부담으로 전파된다."
+          }
+        ],
+        "theme_impacts": [],
+        "direct_instrument_impacts": [
+          {
+            "symbol": "SPY",
+            "impact_direction": "risk_review",
+            "impact_strength": 0.5,
+            "confidence": 0.83,
+            "rationale": "거시 뉴스에 잘못 붙은 직접 ETF 영향이다.",
+            "evidence_summary": "원문에는 SPY가 없다."
+          }
+        ],
+        "causal_paths": [
+          {
+            "path": ["MACRO_RATES_FED", "TECH_DOMAIN"],
+            "confidence": 0.79,
+            "rationale": "금리 충격이 성장/기술 도메인으로 전파된다."
+          }
+        ],
+        "uncertainty_notes": "개별 종목명이나 ETF 티커가 없으므로 직접 종목 영향은 차단되어야 한다.",
+        "evidence_spans": [
+          {
+            "span_text": "Fed officials warn inflation remains sticky",
+            "supports": ["MACRO_RATES_FED"]
+          }
+        ],
+        "recommendation_relevance": "보유 기술주 리스크 검토 입력"
+      }
+    },
+    {
+      "case_id": "direct_nvda_ai_chip_news",
+      "category": "direct_stock",
+      "title": "Nvidia shares rise as new AI chip demand expands",
+      "summary": "Nvidia said demand for its AI accelerators remains strong. NVDA customers continue to expand data center orders.",
+      "korean_title": "AI 칩 수요 확대에 엔비디아 주가 상승",
+      "korean_summary": "Nvidia와 NVDA가 직접 언급된 개별 종목 뉴스다.",
+      "expected_theme_codes": ["AI_SEMICONDUCTOR_CYCLE"],
+      "allowed_theme_codes": [],
+      "forbidden_theme_codes": ["ENERGY_GEOPOLITICS"],
+      "expected_direct_symbols": ["NVDA"],
+      "forbidden_direct_symbols": ["XOM"],
+      "expected_blocked_symbols": [],
+      "ai_output": {
+        "analysis_method": "fixture_hierarchical_eval",
+        "event_summary": "AI 가속기 수요가 엔비디아 실적 기대를 지지한다.",
+        "macro_regime_impacts": [],
+        "domain_impacts": [],
+        "theme_impacts": [
+          {
+            "node_code": "AI_SEMICONDUCTOR_CYCLE",
+            "impact_direction": "supportive",
+            "impact_strength": 0.78,
+            "confidence": 0.9,
+            "rationale": "AI 칩 수요 확대가 직접 근거다.",
+            "evidence_summary": "Nvidia AI accelerators and data center orders are mentioned."
+          }
+        ],
+        "direct_instrument_impacts": [
+          {
+            "symbol": "NVDA",
+            "impact_direction": "supportive",
+            "impact_strength": 0.82,
+            "confidence": 0.92,
+            "rationale": "Nvidia와 NVDA가 원문에 직접 등장한다.",
+            "evidence_summary": "Nvidia shares and NVDA customers are explicit source evidence."
+          }
+        ],
+        "causal_paths": [
+          {
+            "path": ["AI_SEMICONDUCTOR_CYCLE", "NVDA"],
+            "confidence": 0.88,
+            "rationale": "AI 칩 수요가 NVDA로 직접 연결된다."
+          }
+        ],
+        "uncertainty_notes": "수요 지속성은 다음 실적에서 확인해야 한다.",
+        "evidence_spans": [
+          {
+            "span_text": "Nvidia shares rise as new AI chip demand expands",
+            "supports": ["NVDA", "AI_SEMICONDUCTOR_CYCLE"]
+          }
+        ],
+        "recommendation_relevance": "추천 근거 후보"
+      }
+    },
+    {
+      "case_id": "quantum_policy_not_energy",
+      "category": "quantum_policy",
+      "title": "Quantum stocks soar as the Trump administration looks to be buying in",
+      "summary": "Quantum Computing Inc and other quantum technology names rose after reports of potential government support. The article does not discuss oil, gas, or energy producers.",
+      "korean_title": "트럼프 행정부 지원 기대에 양자컴퓨팅 종목 급등",
+      "korean_summary": "양자컴퓨팅 정책 수혜 뉴스이며 에너지 뉴스가 아니다.",
+      "expected_theme_codes": ["QUANTUM_COMPUTING_POLICY"],
+      "allowed_theme_codes": [],
+      "forbidden_theme_codes": ["ENERGY_GEOPOLITICS", "ENERGY_DOMAIN"],
+      "expected_direct_symbols": ["QUBT"],
+      "forbidden_direct_symbols": ["XOM", "XLE"],
+      "expected_blocked_symbols": ["XOM"],
+      "ai_output": {
+        "analysis_method": "fixture_hierarchical_eval",
+        "event_summary": "정부 지원 기대가 양자컴퓨팅 테마를 자극했다.",
+        "macro_regime_impacts": [],
+        "domain_impacts": [],
+        "theme_impacts": [
+          {
+            "node_code": "QUANTUM_COMPUTING_POLICY",
+            "impact_direction": "supportive",
+            "impact_strength": 0.84,
+            "confidence": 0.91,
+            "rationale": "양자컴퓨팅 정책 지원이 직접 근거다.",
+            "evidence_summary": "Quantum stocks and government support are explicit."
+          }
+        ],
+        "direct_instrument_impacts": [
+          {
+            "symbol": "QUBT",
+            "impact_direction": "supportive",
+            "impact_strength": 0.76,
+            "confidence": 0.88,
+            "rationale": "Quantum Computing Inc가 원문에 직접 등장한다.",
+            "evidence_summary": "Quantum Computing Inc is source evidence for QUBT."
+          },
+          {
+            "symbol": "XOM",
+            "impact_direction": "supportive",
+            "impact_strength": 0.52,
+            "confidence": 0.83,
+            "rationale": "잘못된 에너지 연결이다.",
+            "evidence_summary": "원문에는 Exxon이나 XOM이 없다."
+          }
+        ],
+        "causal_paths": [
+          {
+            "path": ["QUANTUM_COMPUTING_POLICY", "QUBT"],
+            "confidence": 0.83,
+            "rationale": "정책 기대가 양자컴퓨팅 기업으로 직접 연결된다."
+          }
+        ],
+        "uncertainty_notes": "정부 지원 보도는 실제 정책 집행 여부를 확인해야 한다.",
+        "evidence_spans": [
+          {
+            "span_text": "Quantum Computing Inc and other quantum technology names rose",
+            "supports": ["QUBT", "QUANTUM_COMPUTING_POLICY"]
+          }
+        ],
+        "recommendation_relevance": "양자 테마 감시 강화"
+      }
+    },
+    {
+      "case_id": "energy_shock_exxon_direct",
+      "category": "energy_shock",
+      "title": "Oil prices jump after supply disruption, Exxon shares gain",
+      "summary": "Crude prices rose after a supply disruption. Exxon Mobil benefited as energy producers outperformed.",
+      "korean_title": "공급 차질에 유가 급등, 엑슨 주가 상승",
+      "korean_summary": "유가와 Exxon Mobil이 직접 언급된 에너지 뉴스다.",
+      "expected_theme_codes": ["ENERGY_GEOPOLITICS"],
+      "allowed_theme_codes": [],
+      "forbidden_theme_codes": ["QUANTUM_COMPUTING_POLICY"],
+      "expected_direct_symbols": ["XOM"],
+      "forbidden_direct_symbols": ["QUBT"],
+      "expected_blocked_symbols": [],
+      "ai_output": {
+        "analysis_method": "fixture_hierarchical_eval",
+        "event_summary": "공급 차질이 에너지 가격과 생산업체에 우호적으로 작용했다.",
+        "macro_regime_impacts": [],
+        "domain_impacts": [],
+        "theme_impacts": [
+          {
+            "node_code": "ENERGY_GEOPOLITICS",
+            "impact_direction": "supportive",
+            "impact_strength": 0.82,
+            "confidence": 0.89,
+            "rationale": "공급 차질과 유가 상승이 핵심 근거다.",
+            "evidence_summary": "Oil prices and supply disruption are explicit."
+          }
+        ],
+        "direct_instrument_impacts": [
+          {
+            "symbol": "XOM",
+            "impact_direction": "supportive",
+            "impact_strength": 0.74,
+            "confidence": 0.86,
+            "rationale": "Exxon Mobil이 원문에 직접 등장한다.",
+            "evidence_summary": "Exxon shares and Exxon Mobil are explicit source evidence."
+          }
+        ],
+        "causal_paths": [
+          {
+            "path": ["ENERGY_GEOPOLITICS", "XOM"],
+            "confidence": 0.8,
+            "rationale": "공급 차질이 에너지 생산업체로 연결된다."
+          }
+        ],
+        "uncertainty_notes": "유가 급등 지속성은 공급 회복 여부에 달려 있다.",
+        "evidence_spans": [
+          {
+            "span_text": "Exxon shares gain",
+            "supports": ["XOM"]
+          }
+        ],
+        "recommendation_relevance": "에너지 노출 점검"
+      }
+    },
+    {
+      "case_id": "low_signal_should_block",
+      "category": "low_signal",
+      "title": "I inherited a house and wonder if I should sell it",
+      "summary": "A personal finance advice column discusses an inherited house and family planning. It has no stock, theme, macro, or sector signal.",
+      "korean_title": "상속받은 집을 팔아야 하는지 묻는 개인 재무 상담",
+      "korean_summary": "투자 테마나 종목 신호가 없는 저신호 기사다.",
+      "expected_theme_codes": [],
+      "allowed_theme_codes": [],
+      "forbidden_theme_codes": ["AI_SEMICONDUCTOR_CYCLE", "ENERGY_GEOPOLITICS", "MACRO_RATES_FED"],
+      "expected_direct_symbols": [],
+      "forbidden_direct_symbols": ["NVDA", "XOM", "SPY"],
+      "expected_blocked_symbols": [],
+      "expected_blocked_candidate": true,
+      "ai_output": {
+        "analysis_method": "fixture_hierarchical_eval",
+        "event_summary": "시장 신호가 없는 개인 재무 상담 기사다.",
+        "macro_regime_impacts": [],
+        "domain_impacts": [],
+        "theme_impacts": [
+          {
+            "node_code": "MARKET_NEWS_FLOW",
+            "impact_direction": "watch",
+            "impact_strength": 0.2,
+            "confidence": 0.35,
+            "rationale": "시장 관련성이 낮다.",
+            "evidence_summary": "Personal finance advice column."
+          }
+        ],
+        "direct_instrument_impacts": [],
+        "causal_paths": [],
+        "uncertainty_notes": "저신호 기사이므로 추천 입력에서 제외해야 한다.",
+        "evidence_spans": [],
+        "recommendation_relevance": "none"
+      }
+    }
+  ]
+}

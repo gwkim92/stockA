@@ -1514,6 +1514,49 @@ class DataOperationsCliTests(unittest.TestCase):
             self.assertEqual(call_kwargs["lookback_days"], 21)
             self.assertTrue(call_kwargs["execute"])
 
+    def test_news_ai_eval_run_command_passes_dataset_and_writes_output(self) -> None:
+        with tempfile.TemporaryDirectory() as repo_root, tempfile.TemporaryDirectory() as outside_root:
+            env_file = Path(outside_root) / "data-operations.env"
+            dataset_path = Path(outside_root) / "news-ai-eval.json"
+            output_path = Path(outside_root) / "news-ai-eval-report.json"
+            env_file.write_text('STOCKANALYSIS_PSQL_COMMAND="docker exec psql"\n', encoding="utf-8")
+            dataset_path.write_text(json.dumps({"dataset_version": "test", "cases": [{"case_id": "stub"}]}), encoding="utf-8")
+            stdout = io.StringIO()
+
+            with patch("stockanalysis.operations.cli.run_news_ai_eval") as runner_mock:
+                runner_mock.return_value = {
+                    "report_name": "news_ai_eval_dataset_and_scoring",
+                    "status": "completed",
+                    "dataset_version": "test",
+                }
+                exit_code = main(
+                    [
+                        "news-ai-eval-run",
+                        "--repo-root",
+                        repo_root,
+                        "--env-file",
+                        str(env_file),
+                        "--dataset-path",
+                        str(dataset_path),
+                        "--model-name",
+                        "fixture-model",
+                        "--execute",
+                        "--output",
+                        str(output_path),
+                    ],
+                    stdout=stdout,
+                )
+
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(stdout.getvalue().strip(), str(output_path.resolve()))
+            payload = json.loads(output_path.read_text(encoding="utf-8"))
+            self.assertEqual(payload["report_name"], "news_ai_eval_dataset_and_scoring")
+            call_kwargs = runner_mock.call_args.kwargs
+            self.assertEqual(call_kwargs["config"].psql_command, "docker exec psql")
+            self.assertEqual(call_kwargs["dataset_path"], dataset_path.resolve())
+            self.assertEqual(call_kwargs["model_name"], "fixture-model")
+            self.assertTrue(call_kwargs["execute"])
+
     def test_paper_validation_audit_run_command_passes_runtime_args_and_env(self) -> None:
         with tempfile.TemporaryDirectory() as repo_root, tempfile.TemporaryDirectory() as outside_root:
             env_file = Path(outside_root) / "data-operations.env"
