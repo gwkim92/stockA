@@ -3,7 +3,6 @@ import type { Route } from "next";
 
 import { NewsEventCard } from "@/components/news-event-card";
 import { getEvents } from "@/lib/frontend-api";
-import { koCode } from "@/lib/korean-labels";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "차단 후보" };
@@ -44,12 +43,17 @@ export default async function BlockedAiEvidencePage() {
         <Link className="screen-switch-card" href={"/events/classification" as Route}>
           <span>02</span>
           <strong>1차 분류</strong>
-          <small>태그 검수</small>
+          <small>자동 태그</small>
         </Link>
         <Link className="screen-switch-card" href="/ai-evidence">
           <span>03</span>
           <strong>AI 분석 목록</strong>
           <small>후보 목록</small>
+        </Link>
+        <Link className="screen-switch-card" href={"/ai-evidence/results" as Route}>
+          <span>04</span>
+          <strong>구조화 결과</strong>
+          <small>통과 결과</small>
         </Link>
         <Link className="screen-switch-card active" href={"/ai-evidence/blocked" as Route}>
           <span>차단</span>
@@ -76,20 +80,38 @@ export default async function BlockedAiEvidencePage() {
         </article>
         <article className="rail-cell">
           <span>상태</span>
-          <strong className="rail-word-value">{blockedEvents.length > 0 ? "검토 가능" : "차단 없음"}</strong>
+          <strong className="rail-word-value">{blockedEvents.length > 0 ? "차단 기록 있음" : "차단 없음"}</strong>
           <small>추천 입력 제외 항목</small>
+        </article>
+      </section>
+
+      <section className="cluster-decision-grid reveal delay-2" aria-label="차단 후보 읽는 법">
+        <article className="cluster-decision-cell">
+          <span>왜 제외됐나</span>
+          <strong>추천 품질 방어</strong>
+          <p>알 수 없는 종목, 낮은 신뢰도, 약한 뉴스 신호는 추천 점수와 보유검토에 넣지 않는다.</p>
+        </article>
+        <article className="cluster-decision-cell">
+          <span>복구 가능한가</span>
+          <strong>분류 체계 보강 후보</strong>
+          <p>좋은 뉴스가 taxonomy나 ticker alias 부족으로 막혔다면 규칙을 보강하고 재실행한다.</p>
+        </article>
+        <article className="cluster-decision-cell cluster-decision-final">
+          <span>현재 처리</span>
+          <strong>자동 제외 상태</strong>
+          <p>차단 후보는 원천과 AI 출력만 보존한다. 추천 입력에는 들어가지 않는다.</p>
         </article>
       </section>
 
       <section className="ledger-guide reveal delay-2" aria-labelledby="blocked-guide-title">
         <div>
           <span>읽는 순서</span>
-          <h2 id="blocked-guide-title">차단 후보는 세 가지를 확인한다</h2>
+          <h2 id="blocked-guide-title">차단 후보는 이렇게 처리한다</h2>
         </div>
         <ol>
-          <li>정말 차단해야 하는 잡음인지 본다.</li>
-          <li>좋은 뉴스인데 taxonomy나 종목 alias가 부족해서 막혔는지 본다.</li>
-          <li>후자라면 분류 체계나 검증 규칙을 고친다.</li>
+          <li>잡음으로 판단된 뉴스는 추천·보유검토 입력에서 계속 제외한다.</li>
+          <li>유효한 뉴스가 분류 체계 부족으로 막힌 경우에는 taxonomy, theme, ticker alias를 보강한다.</li>
+          <li>보강 후 같은 배치를 재실행해 차단 후보가 통과 결과로 이동하는지 확인한다.</li>
         </ol>
       </section>
 

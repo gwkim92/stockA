@@ -43,7 +43,7 @@ function candidateDetailButtonLabel(event: NewsCandidateEvent) {
   if (event.ai_evidence_type === "news_event_candidate_rejected" || event.quality_gate === "validator_blocked") {
     return "차단 근거 상세";
   }
-  return hasClassifiedSymbol(event) ? "종목 근거 상세" : "흐름 근거 상세";
+  return hasClassifiedSymbol(event) ? "종목 연결 근거" : "흐름 연결 근거";
 }
 
 function candidatePrimaryChip(event: NewsCandidateEvent) {
@@ -80,7 +80,7 @@ function validationOutcome(event: NewsCandidateEvent) {
   if (event.quality_gate === "low_signal_suppressed") {
     return "저신호 보류";
   }
-  return "AI 검토 통과";
+  return "자동 검증 통과";
 }
 
 function CandidateCard({ event }: { event: NewsCandidateEvent }) {
@@ -116,7 +116,7 @@ function CandidateCard({ event }: { event: NewsCandidateEvent }) {
       </div>
 
       <div className="relationship-panel" aria-label={`${event.title} AI 후보 연결`}>
-        <span>추천 판단에 들어가기 전 확인할 근거 경로</span>
+        <span>추천 입력으로 이동하는 근거 경로</span>
         <div className="relationship-list">
           <div className="relationship-chip">
             <span>{primaryChip.label}</span>
@@ -131,7 +131,7 @@ function CandidateCard({ event }: { event: NewsCandidateEvent }) {
           <div className="relationship-chip">
             <span>다음 화면</span>
             <strong>상세 근거</strong>
-            <small>AI 추출 필드, 원천 문서, 검증 상태를 확인한다.</small>
+            <small>AI 추출값, 한국어 요약, 원천 문서가 함께 보인다.</small>
           </div>
         </div>
       </div>
@@ -198,7 +198,7 @@ export default async function AiEvidenceIndexPage() {
         <Link className="screen-switch-card" href={"/events/classification" as Route}>
           <span>02</span>
           <strong>1차 분류</strong>
-          <small>태그 검수</small>
+          <small>자동 태그</small>
         </Link>
         <Link className="screen-switch-card active" href="/ai-evidence">
           <span>03</span>
@@ -209,6 +209,11 @@ export default async function AiEvidenceIndexPage() {
           <span>04</span>
           <strong>구조화 결과</strong>
           <small>통과 결과</small>
+        </Link>
+        <Link className="screen-switch-card" href={"/ai-evidence/blocked" as Route}>
+          <span>차단</span>
+          <strong>차단 후보</strong>
+          <small>추천 입력 제외</small>
         </Link>
       </section>
 
@@ -240,13 +245,25 @@ export default async function AiEvidenceIndexPage() {
         </div>
       </section>
 
+      <section className="ledger-guide reveal delay-2" aria-labelledby="ai-evidence-lane-guide-title">
+        <div>
+          <span>읽는 순서</span>
+          <h2 id="ai-evidence-lane-guide-title">뉴스 AI 후보는 세 갈래로 나뉜다</h2>
+        </div>
+        <ol>
+          <li>직접 종목 후보는 종목 상세, 보유검토, 추천 점수의 직접 근거 후보가 된다.</li>
+          <li>상위 흐름 후보는 종목을 억지로 붙이지 않고 테마·거시 흐름으로 저장한 뒤 노출도 규칙으로 전파한다.</li>
+          <li>차단 후보는 추천 입력에서 제외하고, 필요하면 taxonomy·종목 alias·검증 규칙을 고친 뒤 다시 처리한다.</li>
+        </ol>
+      </section>
+
       <section className="bento-card span-4 reveal delay-2" id="accepted-candidates" aria-labelledby="ai-evidence-candidate-list-title">
         <div className="section-heading stacked-heading">
           <span>최신 후보</span>
           <h2 id="ai-evidence-candidate-list-title">직접 종목 뉴스 후보</h2>
         </div>
         <p className="relationship-empty">
-          여기에 보이는 후보는 특정 종목에 직접 연결된 뉴스다. 추천·보유검토 입력으로 넘기기 전에 사람이 확인할 수 있는 최소 품질을 통과한 목록이다.
+          여기에 보이는 후보는 특정 종목에 직접 연결된 뉴스다. 자동 검증 기준을 통과해 추천·보유검토 입력 후보로 사용할 수 있다.
           숨긴 후보 {suppressedLowSignalCount}개는 삭제한 것이 아니라, 종목을 특정하지 못한 일반 뉴스라 기본 후보 목록에서 제외했다.
         </p>
 

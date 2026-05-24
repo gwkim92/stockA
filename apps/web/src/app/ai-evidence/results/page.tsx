@@ -17,6 +17,10 @@ function formatClusterSymbols(symbols: string[]) {
   return known.length > 0 ? known.slice(0, 6).map(koCode).join(", ") : "시장/테마 뉴스";
 }
 
+function formatClusterRelationReasons(reasons: string[]) {
+  return reasons.length > 0 ? reasons.slice(0, 3) : ["same_theme"];
+}
+
 export default async function StructuredResultsPage() {
   const [candidateResponse, clusterResponse] = await Promise.all([
     getEvents({ evidenceType: "news_event_candidate", limit: 80 }),
@@ -41,7 +45,7 @@ export default async function StructuredResultsPage() {
         </div>
         <p className="page-lede">
           이 화면은 AI가 어떤 종목·테마·방향을 추출했고, 추천·보유검토 근거로 넘길 수 있는지 보여준다.
-          수집 뉴스, 1차 태그 검수, 차단 후보는 각각 별도 화면으로 분리했다.
+          수집 뉴스, 1차 자동 태그, 차단 후보는 각각 별도 화면으로 분리했다.
         </p>
       </section>
 
@@ -54,7 +58,7 @@ export default async function StructuredResultsPage() {
         <Link className="screen-switch-card" href={"/events/classification" as Route}>
           <span>02</span>
           <strong>1차 분류</strong>
-          <small>태그 검수</small>
+          <small>자동 태그</small>
         </Link>
         <Link className="screen-switch-card" href="/ai-evidence">
           <span>03</span>
@@ -65,6 +69,11 @@ export default async function StructuredResultsPage() {
           <span>04</span>
           <strong>구조화 결과</strong>
           <small>통과 결과</small>
+        </Link>
+        <Link className="screen-switch-card" href={"/ai-evidence/blocked" as Route}>
+          <span>차단</span>
+          <strong>차단 후보</strong>
+          <small>추천 입력 제외</small>
         </Link>
       </section>
 
@@ -100,14 +109,37 @@ export default async function StructuredResultsPage() {
         </article>
       </section>
 
+      <section className="cluster-decision-grid reveal delay-2" aria-label="구조화 결과 읽는 법">
+        <article className="cluster-decision-cell">
+          <span>직접 종목 뉴스</span>
+          <strong>종목에 바로 연결</strong>
+          <p>회사명·티커가 명확한 뉴스다. 종목 상세, 추천 근거, 보유검토 입력으로 이어질 수 있다.</p>
+        </article>
+        <article className="cluster-decision-cell">
+          <span>상위 흐름 뉴스</span>
+          <strong>거시·테마로 먼저 저장</strong>
+          <p>금리, 유가, 정책, 산업 사이클 뉴스다. 종목 미분류가 오류가 아니라 전파 전 단계다.</p>
+        </article>
+        <article className="cluster-decision-cell">
+          <span>뉴스 묶음</span>
+          <strong>같은 이야기의 증거 묶음</strong>
+          <p>여러 기사와 원천 문서가 같은 흐름을 말하는지 보여준다. 하나의 기사보다 흐름 신뢰도를 높인다.</p>
+        </article>
+        <article className="cluster-decision-cell cluster-decision-final">
+          <span>추천 연결</span>
+          <strong>바로 주문하지 않음</strong>
+          <p>통과 결과는 추천 점수와 보유 thesis의 입력이다. 주문은 거래 안전 조건을 따로 통과해야 한다.</p>
+        </article>
+      </section>
+
       <section className="bento-card span-4 reveal delay-2" id="accepted-results" aria-labelledby="structured-direct-title">
         <div className="section-heading stacked-heading">
           <span>직접 연결</span>
           <h2 id="structured-direct-title">종목에 바로 붙은 AI 구조화 결과</h2>
         </div>
         <p className="relationship-empty">
-          이 목록은 추천·보유검토 근거로 바로 연결될 수 있다. 그래도 주문 결정은 하지 않으며,
-          상세 화면에서 근거와 불확실성을 확인해야 한다.
+          이 목록은 자동 검증을 통과해 추천·보유검토 근거 후보로 바로 연결될 수 있다.
+          주문 결정은 만들지 않으며, 상세 화면에서 원천 뉴스와 불확실성을 함께 보여준다.
         </p>
         <div className="news-row-list">
           {directCandidates.length > 0 ? (
@@ -126,7 +158,8 @@ export default async function StructuredResultsPage() {
           <h2 id="structured-macro-title">종목을 억지로 붙이지 않은 AI 구조화 결과</h2>
         </div>
         <p className="relationship-empty">
-          이 목록은 금리, 에너지, 양자컴퓨팅 정책 같은 흐름을 먼저 저장한다. 이후 노출도 테이블을 통해 관련 종목 영향으로 전파한다.
+          이 목록은 금리, 에너지, 양자컴퓨팅 정책 같은 흐름을 먼저 저장한다.
+          특정 종목을 억지로 붙이지 않고, 이후 노출도 테이블을 통해 관련 종목 영향으로 전파한다.
         </p>
         <div className="news-row-list">
           {macroCandidates.length > 0 ? (
@@ -163,11 +196,31 @@ export default async function StructuredResultsPage() {
                 <div className="relationship-panel">
                   <span>묶인 이유</span>
                   <div className="relationship-list">
-                    {cluster.relation_reasons.slice(0, 3).map((reason) => (
+                    {formatClusterRelationReasons(cluster.relation_reasons).map((reason) => (
                       <div className="relationship-chip" key={`${cluster.evidence_id}-${reason}`}>
                         <strong>{koLabel(reason)}</strong>
                       </div>
                     ))}
+                  </div>
+                </div>
+                <div className="relationship-panel">
+                  <span>추천에 연결되는 방식</span>
+                  <div className="relationship-list">
+                    <div className="relationship-chip">
+                      <span>연결 대상</span>
+                      <strong>{formatClusterSymbols(cluster.symbols)}</strong>
+                      <small>종목이 없으면 시장·테마 흐름으로 먼저 남긴다.</small>
+                    </div>
+                    <div className="relationship-chip">
+                      <span>사용 위치</span>
+                      <strong>추천 보조 근거</strong>
+                      <small>직접 뉴스와 상위 흐름 전파가 추천 상세에서 분리 표시된다.</small>
+                    </div>
+                    <div className="relationship-chip">
+                      <span>다음 확인</span>
+                      <strong>묶음 상세</strong>
+                      <small>대표 뉴스, 원천 문서, AI 해석을 한국어로 확인한다.</small>
+                    </div>
                   </div>
                 </div>
                 <div className="btn-row">
