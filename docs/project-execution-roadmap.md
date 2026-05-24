@@ -231,7 +231,7 @@ The project is no longer in the Supabase setup or Mac local-first decision stage
 | --- | --- | --- |
 | Runtime | EC2 FastAPI/Next.js/systemd profile scheduler is the active operating candidate. | Production hardening, auth/RBAC, observability sink, deployment manifest maturity. |
 | Data | RSS news, Korean translation, market price, macro, SEC, event enrichment, hierarchical propagation, cycle snapshot, recommendation, paper validation are connected through backend CLI runners. | Automated quality audit, eval dataset, stronger contamination checks, provider quota resilience. |
-| AI | Codex OAuth batch is used for translation/news extraction; deterministic fallback remains available; AI artifacts and invocations are logged. | Evaluation scoring, batch community summary v2, clearer validator blocked/passed reporting. |
+| AI | Codex OAuth batch is used for translation/news extraction; deterministic fallback remains available; AI artifacts and invocations are logged. News eval scoring and cycle community AI summary v2 runners exist. | EC2 Codex OAuth token is currently invalidated for the new community summary smoke; clearer validator blocked/passed reporting remains. |
 | Cycle Graph | Postgres ontology-lite, multi-hop impact propagation, cycle hierarchy snapshot, cycle map frontend are implemented. | Quantitative quality thresholds and component-level recommendation calibration. |
 | Frontend | Core pages exist and read live backend DTOs. | Home/data-health/intelligence wording and flow need user-facing consolidation around “what to review today.” |
 | Trading | Broker boundary, paper safety, paper validation audit, and order intent audit tables exist. | Live broker submit remains excluded; paper trading state needs clearer status and quality linkage. |
@@ -241,7 +241,7 @@ Next 5 task order:
 1. `project-roadmap-reality-sync`: keep `AGENTS.md`, roadmap, verification scripts, and task handoffs aligned with EC2/systemd reality.
 2. `cycle-ai-e2e-quality-audit`: add a backend CLI and `/data-health` visibility for data/AI/propagation/recommendation/paper quality checks.
 3. `news-ai-eval-dataset-and-scoring`: build fixture/gold cases for macro-only, direct stock, quantum policy, energy shock, Fed/rates, and low-signal news.
-4. `cycle-community-ai-summary-v2`: add Codex OAuth batch summaries over Postgres graph context without request-time AI calls.
+4. `cycle-community-ai-summary-v2`: implemented; EC2 fixture/fallback smoke passed, but real Codex OAuth summary needs EC2 re-login because the token is invalidated.
 5. `recommendation-quality-calibration`: measure cycle component explanatory power before changing any recommendation weights.
 
 Current guardrail: do not change scoring weights, benchmark splits, or live broker submit in this task group. If a task does not improve live data truth, AI evidence quality, recommendation evaluation, or user-facing clarity, it is lower priority.
