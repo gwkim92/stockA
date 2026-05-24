@@ -231,10 +231,10 @@ The project is no longer in the Supabase setup or Mac local-first decision stage
 | --- | --- | --- |
 | Runtime | EC2 FastAPI/Next.js/systemd profile scheduler is the active operating candidate. | Production hardening, auth/RBAC, observability sink, deployment manifest maturity. |
 | Data | RSS news, Korean translation, market price, macro, SEC, event enrichment, hierarchical propagation, cycle snapshot, recommendation, paper validation, quality audit, and eval dataset runners are connected through backend CLI runners. | Provider quota resilience and longer-lived outcome history. |
-| AI | Codex OAuth batch is used for translation/news extraction; deterministic fallback remains available; AI artifacts and invocations are logged. News eval scoring and cycle community AI summary v2 runners exist. | EC2 Codex OAuth token is currently invalidated for the new community summary smoke; clearer validator blocked/passed reporting remains. |
+| AI | Codex OAuth batch is used for translation/news extraction; deterministic fallback remains available; AI artifacts and invocations are logged. News eval scoring and cycle community AI summary v2 runners exist. | EC2 Codex OAuth token is currently invalidated for the new community summary smoke; EC2/AWS access is currently blocked by SSH timeout and AWS account-closed sign-in state. |
 | Cycle Graph | Postgres ontology-lite, multi-hop impact propagation, cycle hierarchy snapshot, cycle map frontend, and recommendation quality calibration runner are implemented. | More outcome samples are needed before any component weight change. |
-| Frontend | Core pages exist and read live backend DTOs. | Home/data-health/intelligence wording and flow need user-facing consolidation around “what to review today.” |
-| Trading | Broker boundary, paper safety, paper validation audit, and order intent audit tables exist. | Live broker submit remains excluded; paper trading state needs clearer status and quality linkage. |
+| Frontend | Core pages exist and read live backend DTOs. Home/data-health/intelligence/cycle-map/paper-trading now share a “what to review today” decision strip; AI evidence detail has a source-to-recommendation trace path. | EC2 visual smoke for the latest UX commits is pending until SSH/AWS access is restored. |
+| Trading | Broker boundary, paper safety, paper validation audit, order intent audit tables, and clearer paper trading status UI exist. | Live broker submit remains excluded; EC2 visual smoke is pending until SSH/AWS access is restored. |
 
 Completed in this task group:
 
@@ -243,14 +243,14 @@ Completed in this task group:
 - `news-ai-eval-dataset-and-scoring`
 - `cycle-community-ai-summary-v2`: EC2 fixture/fallback smoke passed, but real Codex OAuth summary needs EC2 re-login because the token is invalidated.
 - `recommendation-quality-calibration`: implemented and EC2 smoke passed with `run_id=705`, `eval_run_id=3`; outcome sample is still insufficient, so recommendation weights remain unchanged.
+- `decision-cockpit-ux-v2`: implemented locally and pushed in `3fe42a7`; EC2 smoke pending because SSH/AWS access is blocked.
+- `ai-evidence-review-visibility-v2`: implemented locally and pushed in `8aa3943`; EC2 smoke pending because SSH/AWS access is blocked.
+- `paper-trading-status-clarity`: implemented locally and pushed in `6cb1c60`; EC2 smoke pending because SSH/AWS access is blocked.
+- `recommendation-outcome-backfill`: implemented locally and pushed in `2d9c3bd`; EC2 smoke pending because SSH/AWS access is blocked.
 
-Next 5 task order:
+Current remaining task:
 
-1. `decision-cockpit-ux-v2`: reorganize home/data-health/intelligence/cycle-map/paper-trading around "what to review today" and remove operator wording from investor-facing pages.
-2. `ai-evidence-review-visibility-v2`: show raw news, Korean translation, AI structured output, validator blocked/passed reason, and connected recommendations in one traceable path.
-3. `paper-trading-status-clarity`: separate paper test status, safety blocks, validation failures, and executable/non-executable state in the UI and API DTOs.
-4. `recommendation-outcome-backfill`: build enough deterministic outcome rows for evaluation windows without changing scoring weights.
-5. `codex-oauth-ec2-relogin-smoke`: after EC2 token refresh, rerun real Codex OAuth community summary smoke and compare fallback vs LLM artifacts.
+1. `codex-oauth-ec2-relogin-smoke`: restore target AWS/EC2 access, deploy latest branch to EC2, refresh EC2 Codex OAuth login, rerun real Codex OAuth community summary smoke, and compare fallback vs LLM artifacts. Current blocker evidence is recorded in `docs/tasks/codex-oauth-ec2-relogin-smoke/handoff.md`.
 
 Current guardrail: do not change scoring weights, benchmark splits, or live broker submit in this task group. If a task does not improve live data truth, AI evidence quality, recommendation evaluation, or user-facing clarity, it is lower priority.
 
