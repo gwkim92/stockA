@@ -274,6 +274,26 @@ const KOREAN_LABELS: Record<string, string> = {
   missing_report: "요약 report 없음",
   manual_local_ingest_smoke_report: "수동 수집 요약",
   local_ingest_worker_report: "반복 실행 요약",
+  cycle_ai_quality_audit: "사이클·AI 품질 감사",
+  cycle_ai_quality_audit_report: "사이클·AI 품질 감사 요약",
+  cycle_ai_quality_audit_attention: "사이클·AI 품질 감사 주의",
+  "run cycle-ai-quality-audit-run --execute --output outside the repository":
+    "저장소 밖 경로에 사이클·AI 품질 감사 결과를 생성한다",
+  "run news-intraday and decision-daily before trusting recommendations":
+    "추천을 신뢰하기 전에 뉴스/AI와 일간 신호 작업을 다시 실행한다",
+  "inspect quantum news theme grounding and remove energy mislinks":
+    "양자 뉴스가 에너지 테마로 잘못 연결된 항목을 확인해 제거한다",
+  "review direct ticker impacts without source-text grounding":
+    "원문 근거 없이 직접 종목에 연결된 뉴스를 확인한다",
+  "keep macro-only news at macro/theme level until propagation adds instrument impact":
+    "거시 뉴스는 전파 엔진이 종목 영향을 만들 때까지 상위 흐름으로 유지한다",
+  "deduplicate repeated RSS titles before cluster evidence":
+    "뉴스 묶음 근거를 만들기 전에 반복 수집된 같은 제목을 정리한다",
+  "run Korean translation batch before user-facing review":
+    "사용자 화면 검토 전에 한국어 번역 배치를 실행한다",
+  "continue scheduled news, propagation, cycle snapshot, and paper validation runs":
+    "뉴스, 전파, 사이클 스냅샷, 페이퍼 검증 자동 실행을 계속 유지한다",
+  "regenerate cycle AI quality audit report": "사이클·AI 품질 감사 요약 파일을 다시 생성한다",
   "run manual-local-ingest-smoke --output outside the repository":
     "저장소 밖 경로에 수동 수집 결과를 다시 생성한다",
   "run local-ingest-worker-run --output outside the repository":
