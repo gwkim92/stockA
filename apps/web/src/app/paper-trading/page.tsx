@@ -3,7 +3,7 @@ import type { Route } from "next";
 
 import { DecisionReviewStrip } from "@/components/decision-review-strip";
 import { getPaperTradingPreview, getTradingReadiness } from "@/lib/frontend-api";
-import { koCode, koLabel, koReason } from "@/lib/korean-labels";
+import { koBlockedReason, koCode, koLabel, koReason } from "@/lib/korean-labels";
 import type { TradingReadinessData } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -80,6 +80,54 @@ export default async function PaperTradingPage() {
   const trading = tradingResponse.data;
   const summary = data.quality_summary;
   const validationState = paperValidationState(trading);
+  const blockedReasonDetails = trading.paper_validation.blocked_reasons.map((reason) => koBlockedReason(reason));
+  const liveSubmitCount = trading.audit_summary.submitted_to_broker_count;
+  const paperStatusCards = [
+    {
+      index: "01",
+      title: "실제 주문 제출",
+      value: `${liveSubmitCount}건`,
+      tone: liveSubmitCount > 0 ? "risk-high" : "risk-low",
+      body:
+        liveSubmitCount > 0
+          ? "증권사로 전송된 주문 기록이 있다. 감사 로그와 계좌 내역을 먼저 대조해야 한다."
+          : "현재 이 서버에서 증권사로 전송된 실제 주문은 없다.",
+    },
+    {
+      index: "02",
+      title: "가상 검증 상태",
+      value: koCode(trading.paper_validation.status),
+      tone: trading.paper_validation.status === "passed" ? "risk-low" : "risk-medium",
+      body: `추천 ${trading.paper_validation.recommendation_count}개를 검증했고 승인 후보 ${trading.paper_validation.approved_action_count}개, 충돌 ${trading.paper_validation.conflict_count}개가 있다.`,
+    },
+    {
+      index: "03",
+      title: "거래 안전 차단",
+      value: `${trading.gate_summary.blocked_count}개`,
+      tone: trading.gate_summary.blocked_count > 0 ? "risk-high" : "risk-low",
+      body:
+        trading.gate_summary.blocked_count > 0
+          ? "차단 조건이 남아 있어 실거래 후보로 넘어가지 않는다."
+          : "현재 거래 안전 차단 조건은 없지만, 실거래 전 별도 승인이 필요하다.",
+    },
+    {
+      index: "04",
+      title: "다음 확인",
+      value:
+        trading.gate_summary.blocked_count > 0
+          ? "거래 안전"
+          : data.paper_actions.length > 0
+            ? "후보 검토"
+            : "추천 대기",
+      tone: trading.gate_summary.blocked_count > 0 ? "risk-high" : "risk-medium",
+      body:
+        trading.gate_summary.blocked_count > 0
+          ? "차단 사유를 먼저 풀지 않으면 페이퍼 후보를 실거래로 전환하면 안 된다."
+          : data.paper_actions.length > 0
+            ? "가상 후보 표에서 종목별 추천, 현재 비중, 목표 비중을 대조한다."
+            : "추천이나 보유 내역이 갱신되면 가상 후보가 다시 계산된다.",
+    },
+  ];
   const decisionSteps = [
     {
       index: "01",
@@ -183,39 +231,49 @@ export default async function PaperTradingPage() {
         </article>
       </section>
 
-      <section className="feature-map-panel reveal delay-1" aria-labelledby="paper-current-state-title">
+      <section className="paper-state-panel reveal delay-1" aria-labelledby="paper-current-state-title">
         <div className="section-heading stacked-heading">
           <span>현재 단계</span>
           <h2 id="paper-current-state-title">{validationState.title}</h2>
+          <p>이 네 칸만 보면 현재가 테스트 중인지, 차단 중인지, 실제 주문이 나갔는지 바로 알 수 있다.</p>
         </div>
         <p className="board-intro">{validationState.detail}</p>
-        <div className="feature-map-grid collection-map-grid">
-          <article className="feature-map-card collection-map-card">
-            <span>01</span>
-            <strong>가상 후보 생성</strong>
-            <em>{koCode(trading.execution_mode)}</em>
-            <small>추천과 보유 비중을 대조해 가상 조치 후보만 만든다.</small>
-          </article>
-          <article className="feature-map-card collection-map-card">
-            <span>02</span>
-            <strong>실제 주문 제출</strong>
-            <em>{trading.audit_summary.submitted_to_broker_count}건</em>
-            <small>이 숫자가 0이면 증권사로 전송된 주문이 없다.</small>
-          </article>
-          <article className="feature-map-card collection-map-card">
-            <span>03</span>
-            <strong>가상 검증</strong>
-            <em className={`risk-tag ${validationState.tone}`}>{validationState.title}</em>
-            <small>충돌 {trading.paper_validation.conflict_count}개 · 승인 후보 {trading.paper_validation.approved_action_count}개</small>
-          </article>
-          <article className="feature-map-card collection-map-card">
-            <span>04</span>
-            <strong>실거래 전환 조건</strong>
-            <em className={`risk-tag ${trading.gate_summary.blocked_count > 0 ? "risk-high" : "risk-low"}`}>
-              차단 {trading.gate_summary.blocked_count}개
-            </em>
-            <small>증권사 연결, 계좌 권한, 주문 한도, 킬 스위치, 검토 기록을 통과해야 다음 단계로 간다.</small>
-          </article>
+        <div className="paper-state-grid">
+          {paperStatusCards.map((card) => (
+            <article className="paper-state-card" key={card.index}>
+              <span>{card.index}</span>
+              <strong>{card.title}</strong>
+              <em className={`risk-tag ${card.tone}`}>{card.value}</em>
+              <p>{card.body}</p>
+            </article>
+          ))}
+        </div>
+        {blockedReasonDetails.length > 0 ? (
+          <div className="paper-blocked-reasons" aria-label="가상 거래 차단 사유">
+            <span>차단 사유</span>
+            <div className="relationship-list">
+              {blockedReasonDetails.slice(0, 6).map((reason) => (
+                <div className="relationship-chip" key={reason.raw}>
+                  <span>{reason.symbol ? koCode(reason.symbol) : "전체"}</span>
+                  <strong>{reason.title}</strong>
+                  <small>{reason.description}</small>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="paper-blocked-reasons">
+            <span>차단 사유</span>
+            <p>현재 가상 검증 차단 사유는 없다. 그래도 실거래 전환은 별도 승인과 증권사 연결 이후에만 가능하다.</p>
+          </div>
+        )}
+        <div className="btn-row decision-actions">
+          <Link className="btn btn-primary" href={"/trading-readiness" as Route}>
+            거래 안전 상태 보기
+          </Link>
+          <Link className="btn btn-secondary" href={"/recommendations" as Route}>
+            추천 신호 보기
+          </Link>
         </div>
       </section>
 

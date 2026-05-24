@@ -2778,6 +2778,92 @@ h6 {
   text-underline-offset: 3px;
 }
 
+.paper-state-panel {
+  padding: clamp(20px, 2.4vw, 34px);
+  background:
+    linear-gradient(135deg, rgba(251, 250, 246, 0.98), rgba(244, 238, 224, 0.82)),
+    radial-gradient(circle at 0% 0%, rgba(168, 59, 52, 0.09), transparent 34%),
+    radial-gradient(circle at 100% 0%, rgba(38, 92, 128, 0.12), transparent 34%);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+}
+
+.paper-state-panel .section-heading p {
+  max-width: 760px;
+  margin: 10px 0 0;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  font-weight: 760;
+  line-height: 1.65;
+  word-break: keep-all;
+}
+
+.paper-state-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.paper-state-card {
+  min-width: 0;
+  padding: 18px;
+  background: color-mix(in srgb, var(--bg-panel) 88%, white);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+}
+
+.paper-state-card > span {
+  display: inline-grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  background: var(--text-primary);
+  color: var(--bg-panel);
+  font-size: 0.72rem;
+  font-weight: 950;
+}
+
+.paper-state-card strong {
+  display: block;
+  margin-top: 18px;
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: clamp(1.2rem, 1.6vw, 1.7rem);
+  line-height: 1.08;
+  word-break: keep-all;
+}
+
+.paper-state-card em {
+  display: inline-flex;
+  width: fit-content;
+  margin-top: 12px;
+  font-style: normal;
+}
+
+.paper-state-card p,
+.paper-blocked-reasons p {
+  margin: 12px 0 0;
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  font-weight: 740;
+  line-height: 1.58;
+  word-break: keep-all;
+}
+
+.paper-blocked-reasons {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-light);
+}
+
+.paper-blocked-reasons > span {
+  color: var(--text-tertiary);
+  font-size: 0.72rem;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
 .fallback-news-card {
   border-style: dashed;
 }
@@ -3733,6 +3819,7 @@ h6 {
   .where-grid,
   .decision-strip-grid,
   .evidence-trace-grid,
+  .paper-state-grid,
   .feature-map-grid,
   .cluster-review-guide,
   .cluster-proof-grid,
@@ -3863,6 +3950,7 @@ h6 {
   .where-grid,
   .decision-strip-grid,
   .evidence-trace-grid,
+  .paper-state-grid,
   .feature-map-grid,
   .cluster-review-guide,
   .cluster-proof-grid,
