@@ -55,4 +55,4 @@
 - [x] `/ai-evidence/blocked`가 차단 이유와 복구 방향을 실패 로그가 아니라 안전장치로 설명한다.
 - [x] 불필요한 `사람 확인`, `검수`, `검토 가능` 문구가 제거된다.
 - [x] Focused local verification passes.
-- [ ] EC2 route smoke passes.
+- [x] EC2 route smoke passes.

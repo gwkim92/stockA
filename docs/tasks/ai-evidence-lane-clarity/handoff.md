@@ -21,3 +21,10 @@
 - `git diff --check` - passed.
 - `cd apps/web && npm run build` - passed.
 - `PYTHONPATH=/Users/woody/ai/agent-work-harness/src /opt/homebrew/bin/python3.13 -m awh verify --repo . --task ai-evidence-lane-clarity` - passed.
+- EC2 `cd apps/web && npm run build` - passed.
+- EC2 `stockanalysis-web.service` restart - active.
+- EC2 internal route smoke:
+  - `/ai-evidence` contains `뉴스 AI 후보는 세 갈래로 나뉜다`, no server render/digest text.
+  - `/ai-evidence/results` contains `구조화 결과 읽는 법`, `거시·테마로 먼저 저장`, `추천에 연결되는 방식`, no server render/digest text.
+  - `/ai-evidence/blocked` contains `차단 후보는 이렇게 처리한다`, `자동 제외 상태`, `차단 기록 있음`, no server render/digest text.
+- Local SSH tunnel `http://127.0.0.1:13000` route smoke for the same three pages - passed.
