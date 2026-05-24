@@ -223,9 +223,28 @@ Guardrail:
 
 ## Immediate Next Task
 
-Current task: `supabase-free-postgres-setup-packet`.
+Current task group: `quality-and-evaluation-hardening`.
 
-The first implementation expanded live read support, not new frontend pages. It started with `dashboard` and `data-health`, then event/theme/performance, then recommendation/thesis/AI evidence/source document detail, then cycle list. Initial frontend contract live read completeness is covered. Runtime boundary policy, DB-backed HTTP live smoke, FastAPI read-only server, API observability hardening, deployment boundary, pagination conventions, external observability sink decision, optional OTLP exporter pilot, SQL-level bounded list pagination, local OTLP receiver smoke, and secret-free alert rule reference are now in place. Data Operations Loop has a cadence registry, data-health expected job handoff, generic artifact runner, repo-outside runtime env readiness gate, scheduler-free disposable/local runtime smoke, generic scheduler activation boundary wrapper, launchd install dry-run renderer, secret-free scheduler alert rule reference, manual activation runbook, operator dry-run evidence bundle, activation approval gate, pending live activation request packet, user decision gate, final preflight, host activation plan, host activation execution request, host activation execution decision gate, first Python operations backend orchestration CLI boundary, host activation execution final preflight, host activation execution confirmation gate, manual exact-command approval packet, external manual activation preflight, local live MVP runtime bootstrap, no-cost market data fallback, free-tier provider budget ledger, read-only provider budget visibility in API/frontend, a future server-side scheduler architecture decision, a local-first direction correction, a read-only local runtime status command, preview-first `stockanalysis-operations manual-local-ingest-smoke`, data-health visibility for manual local ingest smoke, local AI run-history alignment for `event-intelligence-weekly`, and a bounded local process worker for market/news/AI smoke cycles. Repo-outside local fixture evidence exists at `/private/tmp/stockanalysis-manual-host-activation-kit/evidence/activation-chain`, and local live runtime evidence exists under `/private/tmp/stockanalysis-runtime`, but neither is production env/evidence. Next work is not external server deployment; it is to expose the local worker's own run report in `/data-health` so an operator can distinguish worker health from the underlying smoke cycle. Physical Mac `launchctl`, LaunchAgents mutation, external VPS, or managed scheduler activation remain forbidden unless separately approved.
+The project is no longer in the Supabase setup or Mac local-first decision stage. Current runtime reality is EC2-hosted FastAPI read-only backend, Next.js cockpit, Postgres canonical DB, and profile-based `systemd` scheduler. The implemented product path is now:
+
+| Area | Current State | Not Done |
+| --- | --- | --- |
+| Runtime | EC2 FastAPI/Next.js/systemd profile scheduler is the active operating candidate. | Production hardening, auth/RBAC, observability sink, deployment manifest maturity. |
+| Data | RSS news, Korean translation, market price, macro, SEC, event enrichment, hierarchical propagation, cycle snapshot, recommendation, paper validation are connected through backend CLI runners. | Automated quality audit, eval dataset, stronger contamination checks, provider quota resilience. |
+| AI | Codex OAuth batch is used for translation/news extraction; deterministic fallback remains available; AI artifacts and invocations are logged. | Evaluation scoring, batch community summary v2, clearer validator blocked/passed reporting. |
+| Cycle Graph | Postgres ontology-lite, multi-hop impact propagation, cycle hierarchy snapshot, cycle map frontend are implemented. | Quantitative quality thresholds and component-level recommendation calibration. |
+| Frontend | Core pages exist and read live backend DTOs. | Home/data-health/intelligence wording and flow need user-facing consolidation around “what to review today.” |
+| Trading | Broker boundary, paper safety, paper validation audit, and order intent audit tables exist. | Live broker submit remains excluded; paper trading state needs clearer status and quality linkage. |
+
+Next 5 task order:
+
+1. `project-roadmap-reality-sync`: keep `AGENTS.md`, roadmap, verification scripts, and task handoffs aligned with EC2/systemd reality.
+2. `cycle-ai-e2e-quality-audit`: add a backend CLI and `/data-health` visibility for data/AI/propagation/recommendation/paper quality checks.
+3. `news-ai-eval-dataset-and-scoring`: build fixture/gold cases for macro-only, direct stock, quantum policy, energy shock, Fed/rates, and low-signal news.
+4. `cycle-community-ai-summary-v2`: add Codex OAuth batch summaries over Postgres graph context without request-time AI calls.
+5. `recommendation-quality-calibration`: measure cycle component explanatory power before changing any recommendation weights.
+
+Current guardrail: do not change scoring weights, benchmark splits, or live broker submit in this task group. If a task does not improve live data truth, AI evidence quality, recommendation evaluation, or user-facing clarity, it is lower priority.
 
 ## Focus Rules
 

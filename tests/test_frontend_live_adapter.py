@@ -1758,12 +1758,13 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         )
 
     def test_live_data_health_response_matches_frontend_contract_shape(self) -> None:
-        payload = resolve_live_frontend_response(
-            "/api/data-health",
-            config=type("Config", (), {"psql_command": "psql"})(),
-            executor=FakeLiveExecutor(),
-            generated_at=datetime(2026, 5, 1, tzinfo=timezone.utc),
-        )
+        with patch.dict(os.environ, {"STOCKANALYSIS_CYCLE_AI_QUALITY_AUDIT_REPORT": ""}):
+            payload = resolve_live_frontend_response(
+                "/api/data-health",
+                config=type("Config", (), {"psql_command": "psql"})(),
+                executor=FakeLiveExecutor(),
+                generated_at=datetime(2026, 5, 1, tzinfo=timezone.utc),
+            )
 
         self.assertEqual(payload["contract_version"], "frontend-api-v0.1")
         self.assertEqual(payload["generated_at"], "2026-05-01T00:00:00Z")
@@ -1794,6 +1795,8 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertEqual(payload["data"]["manual_local_ingest_smoke"]["source"], "not_configured")
         self.assertEqual(payload["data"]["local_ingest_worker"]["status"], "not_configured")
         self.assertEqual(payload["data"]["local_ingest_worker"]["source"], "not_configured")
+        self.assertEqual(payload["data"]["cycle_ai_quality_audit"]["status"], "not_configured")
+        self.assertEqual(payload["data"]["cycle_ai_quality_audit"]["source"], "not_configured")
         self.assertEqual(payload["links"]["dashboard"], "/api/dashboard/today")
 
     def test_live_data_health_response_includes_sanitized_scheduler_activation_gate(self) -> None:
@@ -2001,6 +2004,60 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertNotIn(str(report), worker_text)
         self.assertNotIn("data-operations.env", worker_text)
         self.assertNotIn("python_executable", worker_text)
+
+    def test_live_data_health_response_includes_sanitized_cycle_ai_quality_audit(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            report = Path(tmpdir) / "cycle-ai-quality-audit.json"
+            report.write_text(
+                json.dumps(
+                    {
+                        "report_name": "cycle_ai_quality_audit",
+                        "generated_at": "2026-05-24T00:00:00Z",
+                        "execute": True,
+                        "status": "completed",
+                        "as_of_date": "2026-05-24",
+                        "lookback_days": 30,
+                        "audit_status": "attention_required",
+                        "audit_score": 70,
+                        "issue_count": 2,
+                        "readiness_gap_count": 0,
+                        "metrics": {
+                            "rss_document_count": 10,
+                            "translated_document_count": 8,
+                            "paper_validation_passed_count": 1,
+                        },
+                        "checks": {
+                            "duplicate_title_count": 1,
+                            "ungrounded_direct_ticker_count": 1,
+                            "quantum_energy_mislink_count": 0,
+                        },
+                        "samples": {"ungrounded_direct_tickers": [{"event_id": 1, "symbol": "SPY"}]},
+                        "next_actions": ["review direct ticker impacts without source-text grounding"],
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            with patch.dict(
+                os.environ,
+                {"STOCKANALYSIS_CYCLE_AI_QUALITY_AUDIT_REPORT": str(report)},
+            ):
+                payload = resolve_live_frontend_response(
+                    "/api/data-health",
+                    config=type("Config", (), {"psql_command": "psql"})(),
+                    executor=FakeLiveExecutor(),
+                    generated_at=datetime(2026, 5, 1, tzinfo=timezone.utc),
+                )
+
+        audit = payload["data"]["cycle_ai_quality_audit"]
+        self.assertEqual(audit["status"], "attention_required")
+        self.assertEqual(audit["audit_score"], 70)
+        self.assertEqual(audit["issue_count"], 2)
+        self.assertEqual(audit["metrics"]["rss_document_count"], 10)
+        self.assertEqual(audit["checks"]["ungrounded_direct_ticker_count"], 1)
+        self.assertEqual(audit["source"], "cycle_ai_quality_audit_report")
+        self.assertIn("cycle_ai_quality_audit_attention", payload["data"]["open_gates"])
+        self.assertNotIn(str(report), json.dumps(audit))
 
     def test_live_data_health_response_degrades_invalid_scheduler_activation_gate(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:

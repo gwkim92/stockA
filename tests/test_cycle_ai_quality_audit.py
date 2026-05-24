@@ -1,0 +1,148 @@
+from __future__ import annotations
+
+import json
+import tempfile
+import unittest
+from datetime import date, datetime, timezone
+from pathlib import Path
+
+from stockanalysis.ingest.config import RuntimeConfig
+from stockanalysis.operations.cycle_ai_quality_audit import (
+    load_cycle_ai_quality_audit_visibility_report,
+    render_cycle_ai_quality_audit_sql,
+    run_cycle_ai_quality_audit,
+)
+
+
+class FakeExecutor:
+    def __init__(self, state: dict[str, object]) -> None:
+        self.state = state
+        self.scalar_sql: list[str] = []
+        self.non_query_sql: list[str] = []
+
+    def execute_scalar(self, sql: str) -> str:
+        self.scalar_sql.append(sql)
+        if sql.startswith("-- cycle ai quality audit lookup"):
+            return json.dumps(self.state)
+        if sql.startswith("insert into ops.pipeline_run"):
+            return "9401"
+        raise AssertionError(f"Unexpected scalar SQL: {sql[:80]}")
+
+    def execute_non_query(self, sql: str) -> None:
+        self.non_query_sql.append(sql)
+
+
+class CycleAiQualityAuditTests(unittest.TestCase):
+    def test_render_sql_checks_contamination_and_quality_layers(self) -> None:
+        sql = render_cycle_ai_quality_audit_sql(as_of_date=date(2026, 5, 24), lookback_days=14)
+
+        self.assertTrue(sql.startswith("-- cycle ai quality audit lookup"))
+        self.assertIn("quantum_energy_mislinks", sql)
+        self.assertIn("ungrounded_direct_tickers", sql)
+        self.assertIn("normal_macro_flows", sql)
+        self.assertIn("signal.hierarchical_propagated_instrument_impact", sql)
+        self.assertIn("signal.cycle_hierarchy_state_snapshot", sql)
+        self.assertIn("trading.paper_validation_run", sql)
+
+    def test_run_dry_run_returns_secret_free_report_without_pipeline_write(self) -> None:
+        executor = FakeExecutor(_sample_state())
+
+        report = run_cycle_ai_quality_audit(
+            config=RuntimeConfig(psql_command="psql"),
+            as_of_date=date(2026, 5, 24),
+            lookback_days=30,
+            execute=False,
+            executor=executor,
+            generated_at=datetime(2026, 5, 24, tzinfo=timezone.utc),
+        )
+
+        self.assertEqual(report["report_name"], "cycle_ai_quality_audit")
+        self.assertEqual(report["status"], "planned")
+        self.assertEqual(report["audit_status"], "attention_required")
+        self.assertEqual(report["issue_count"], 2)
+        self.assertEqual(len(executor.scalar_sql), 1)
+        self.assertEqual(executor.non_query_sql, [])
+
+    def test_run_execute_records_pipeline_run(self) -> None:
+        executor = FakeExecutor(_sample_state(audit_status="ok", issue_count=0))
+
+        report = run_cycle_ai_quality_audit(
+            config=RuntimeConfig(psql_command="psql"),
+            as_of_date=date(2026, 5, 24),
+            execute=True,
+            executor=executor,
+        )
+
+        self.assertEqual(report["status"], "completed")
+        self.assertEqual(report["run_id"], 9401)
+        self.assertTrue(any("pipeline_name" in sql for sql in executor.scalar_sql))
+        self.assertTrue(any("update ops.pipeline_run" in sql for sql in executor.non_query_sql))
+
+    def test_visibility_report_sanitizes_repo_outside_summary(self) -> None:
+        with tempfile.TemporaryDirectory() as repo_root, tempfile.TemporaryDirectory() as outside_root:
+            report_path = Path(outside_root) / "cycle-ai-quality-audit.json"
+            report_path.write_text(
+                json.dumps(
+                    {
+                        "report_name": "cycle_ai_quality_audit",
+                        "generated_at": "2026-05-24T00:00:00Z",
+                        "execute": True,
+                        "as_of_date": "2026-05-24",
+                        "lookback_days": 30,
+                        "audit_status": "ok",
+                        "audit_score": 100,
+                        "issue_count": 0,
+                        "readiness_gap_count": 0,
+                        "metrics": {"rss_document_count": 10, "translated_document_count": 10},
+                        "checks": {"quantum_energy_mislink_count": 0},
+                        "samples": {},
+                        "next_actions": ["continue scheduled runs"],
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            visibility = load_cycle_ai_quality_audit_visibility_report(
+                report_path=report_path,
+                repo_root=repo_root,
+            )
+
+        self.assertEqual(visibility["status"], "ok")
+        self.assertEqual(visibility["audit_score"], 100)
+        self.assertEqual(visibility["metrics"]["rss_document_count"], 10)
+        self.assertEqual(visibility["source"], "cycle_ai_quality_audit_report")
+
+
+def _sample_state(*, audit_status: str = "attention_required", issue_count: int = 2) -> dict[str, object]:
+    return {
+        "as_of_date": "2026-05-24",
+        "lookback_days": 30,
+        "audit_status": audit_status,
+        "audit_score": 70,
+        "issue_count": issue_count,
+        "readiness_gap_count": 0,
+        "metrics": {
+            "rss_document_count": 12,
+            "translated_document_count": 10,
+            "accepted_artifact_count": 3,
+            "rejected_artifact_count": 1,
+            "codex_succeeded_count": 3,
+            "hierarchical_impact_count": 20,
+            "cycle_snapshot_count": 8,
+            "recommendation_cycle_component_count": 30,
+            "paper_validation_count": 1,
+            "paper_validation_passed_count": 1,
+        },
+        "checks": {
+            "duplicate_title_count": 1,
+            "ungrounded_direct_ticker_count": 1,
+            "macro_false_ticker_count": 0,
+            "quantum_energy_mislink_count": 0,
+            "normal_macro_flow_count": 4,
+        },
+        "samples": {"ungrounded_direct_tickers": [{"event_id": 1, "symbol": "SPY"}]},
+    }
+
+
+if __name__ == "__main__":
+    unittest.main()

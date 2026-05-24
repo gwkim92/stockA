@@ -15,6 +15,7 @@ from stockanalysis.ingest.config import RuntimeConfig
 from stockanalysis.ingest.macro.sql import sql_date, sql_literal
 from stockanalysis.ingest.psql import PsqlCommandExecutor
 from stockanalysis.operations.cadence import render_data_operations_expected_jobs_sql_values
+from stockanalysis.operations.cycle_ai_quality_audit import load_cycle_ai_quality_audit_visibility_report
 from stockanalysis.operations.market_price_free_backfill import (
     MARKET_PRICE_BUDGET_LEDGER_PATH_ENV,
     MARKET_PRICE_PROVIDER_ENV,
@@ -406,8 +407,16 @@ def build_live_data_health_response(
         env=os.environ,
         repo_root=DEFAULT_REPO_ROOT,
     )
+    cycle_ai_quality_audit = load_cycle_ai_quality_audit_visibility_report(
+        env=os.environ,
+        repo_root=DEFAULT_REPO_ROOT,
+    )
     if scheduler_activation["status"] == "pending_manual_approval":
         gate = "scheduler_activation_manual_approval"
+        if gate not in open_gates:
+            open_gates.append(gate)
+    if cycle_ai_quality_audit["status"] in {"attention_required", "not_ready", "invalid_report", "missing_report"}:
+        gate = "cycle_ai_quality_audit_attention"
         if gate not in open_gates:
             open_gates.append(gate)
 
@@ -430,6 +439,7 @@ def build_live_data_health_response(
             "provider_budget": provider_budget,
             "manual_local_ingest_smoke": manual_local_ingest_smoke,
             "local_ingest_worker": local_ingest_worker,
+            "cycle_ai_quality_audit": cycle_ai_quality_audit,
             "open_gates": open_gates,
         },
         "links": {

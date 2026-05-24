@@ -205,6 +205,21 @@ export type DataHealthData = {
     next_actions: string[];
     source: string;
   };
+  cycle_ai_quality_audit: {
+    status: string;
+    execute: boolean;
+    generated_at: string;
+    as_of_date: string;
+    lookback_days: number;
+    audit_score: number;
+    issue_count: number;
+    readiness_gap_count: number;
+    metrics: Record<string, number | string | boolean | null>;
+    checks: Record<string, number | string | boolean | null>;
+    samples: Record<string, unknown>;
+    next_actions: string[];
+    source: string;
+  };
   open_gates: string[];
 };
 

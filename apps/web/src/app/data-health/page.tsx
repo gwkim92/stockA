@@ -11,6 +11,7 @@ type SchedulerStatus = DataHealthData["scheduler"];
 type ProfileSchedulerStatus = NonNullable<DataHealthData["scheduler"]["profile_scheduler"]>;
 type ManualIngestSmoke = DataHealthData["manual_local_ingest_smoke"];
 type LocalIngestWorker = DataHealthData["local_ingest_worker"];
+type CycleAiQualityAudit = DataHealthData["cycle_ai_quality_audit"];
 type ProfileTimer = ProfileSchedulerStatus["timers"][number];
 
 function statusRiskClass(value: string) {
@@ -280,6 +281,59 @@ function localWorkerNextAction(worker: LocalIngestWorker) {
   return worker.next_actions[0] ? koCode(worker.next_actions[0]) : "다음 조치 없음";
 }
 
+function qualityAuditTitle(audit: CycleAiQualityAudit) {
+  if (audit.status === "ok") {
+    return "품질 감사 통과";
+  }
+  if (audit.status === "degraded") {
+    return "품질 감사 일부 부족";
+  }
+  if (audit.status === "attention_required") {
+    return "오염 의심 항목 확인 필요";
+  }
+  if (audit.status === "not_ready") {
+    return "감사할 데이터 부족";
+  }
+  if (audit.status === "not_configured") {
+    return "품질 감사 결과 미연결";
+  }
+  return koCode(audit.status);
+}
+
+function qualityAuditExplanation(audit: CycleAiQualityAudit) {
+  if (audit.status === "ok") {
+    return "중복 뉴스, 잘못된 테마 연결, 원문 근거 없는 종목 연결이 현재 감사 기준에서 발견되지 않았다.";
+  }
+  if (audit.status === "degraded") {
+    return "큰 오염은 없지만 번역, AI 분석, 전파, 사이클 스냅샷 중 일부 근거가 아직 부족하다.";
+  }
+  if (audit.status === "attention_required") {
+    return "추천 판단 전에 중복 뉴스, 종목 근거, 잘못된 테마 연결을 먼저 확인해야 한다.";
+  }
+  if (audit.status === "not_ready") {
+    return "뉴스 수집부터 AI 분석, 전파, 사이클 스냅샷까지 한 번 더 실행한 뒤 판단해야 한다.";
+  }
+  if (audit.status === "not_configured") {
+    return "서버에 최근 품질 감사 요약 파일 경로가 연결되지 않아 화면에서 읽을 수 없다.";
+  }
+  return "품질 감사 결과 파일의 상태와 생성 시각을 다시 확인해야 한다.";
+}
+
+function qualityAuditTone(audit: CycleAiQualityAudit) {
+  if (audit.status === "ok") {
+    return "risk-low";
+  }
+  if (audit.status === "degraded" || audit.status === "not_configured") {
+    return "risk-medium";
+  }
+  return "risk-high";
+}
+
+function qualityMetric(audit: CycleAiQualityAudit, key: string) {
+  const value = audit.metrics[key] ?? audit.checks[key] ?? 0;
+  return typeof value === "number" ? value : Number(value || 0);
+}
+
 function executionIdLabel(value: string | null | undefined) {
   if (!value) {
     return "실행 기록 없음";
@@ -332,6 +386,22 @@ const DEFAULT_LOCAL_WORKER: LocalIngestWorker = {
   source: "not_configured",
 };
 
+const DEFAULT_CYCLE_AI_QUALITY_AUDIT: CycleAiQualityAudit = {
+  status: "not_configured",
+  execute: false,
+  generated_at: "",
+  as_of_date: "",
+  lookback_days: 0,
+  audit_score: 0,
+  issue_count: 0,
+  readiness_gap_count: 0,
+  metrics: {},
+  checks: {},
+  samples: {},
+  next_actions: ["cycle-ai-quality-audit-run 실행 결과를 연결한다."],
+  source: "not_configured",
+};
+
 const DEFAULT_PROFILE_SCHEDULER: ProfileSchedulerStatus = {
   status: "not_configured",
   install_status: "not_installed",
@@ -352,6 +422,7 @@ export default async function DataHealthPage() {
   const ec2SchedulerInstalled = isEc2ProfileSchedulerInstalled(data.scheduler);
   const manualSmoke = data.manual_local_ingest_smoke ?? DEFAULT_MANUAL_SMOKE;
   const localWorker = data.local_ingest_worker ?? DEFAULT_LOCAL_WORKER;
+  const qualityAudit = data.cycle_ai_quality_audit ?? DEFAULT_CYCLE_AI_QUALITY_AUDIT;
   const marketPriceRun = findPipelineRun(data, "market-price-daily", "market_price_upsert");
   const newsRun = findPipelineRun(data, "news-rss-daily", "news_rss_upsert");
   const newsEnrichmentRun = findPipelineRun(
@@ -405,6 +476,14 @@ export default async function DataHealthPage() {
       href: "#provider-budget",
       cta: "예산 보기",
       tone: providerBudget.remaining_request_count > 0 ? "risk-low" : "risk-high",
+    },
+    {
+      label: "품질 감사",
+      title: qualityAuditTitle(qualityAudit),
+      body: qualityAuditExplanation(qualityAudit),
+      href: "#quality-audit",
+      cta: "오염 점검 보기",
+      tone: qualityAuditTone(qualityAudit),
     },
   ];
   const automationCards = [
@@ -580,6 +659,70 @@ export default async function DataHealthPage() {
             <small>{card.cta}</small>
           </a>
         ))}
+      </section>
+
+      <section className="feature-map-panel reveal delay-1" id="quality-audit" aria-labelledby="quality-audit-title">
+        <div className="section-heading stacked-heading">
+          <span>품질 감사</span>
+          <h2 id="quality-audit-title">수집·번역·AI·전파·추천 입력이 오염되지 않았는지 확인한다.</h2>
+        </div>
+        <p className="board-intro">{qualityAuditExplanation(qualityAudit)}</p>
+        <div className="status-rail compact-rail">
+          <article className="rail-cell">
+            <span>감사 결과</span>
+            <strong className={`risk-tag ${qualityAuditTone(qualityAudit)}`}>{qualityAuditTitle(qualityAudit)}</strong>
+            <small>{qualityAudit.generated_at || "최근 결과 없음"}</small>
+          </article>
+          <article className="rail-cell">
+            <span>감사 점수</span>
+            <strong>{qualityAudit.audit_score}</strong>
+            <small>{qualityAudit.lookback_days ? `${qualityAudit.lookback_days}일 기준` : "기간 미확인"}</small>
+          </article>
+          <article className="rail-cell rail-critical">
+            <span>오염 의심</span>
+            <strong>{qualityAudit.issue_count}</strong>
+            <small>중복·오분류·근거 없음</small>
+          </article>
+          <article className="rail-cell">
+            <span>한국어 번역</span>
+            <strong>
+              {qualityMetric(qualityAudit, "translated_document_count")}/
+              {qualityMetric(qualityAudit, "rss_document_count")}
+            </strong>
+            <small>원천 뉴스</small>
+          </article>
+          <article className="rail-cell">
+            <span>페이퍼 검증</span>
+            <strong>{qualityMetric(qualityAudit, "paper_validation_passed_count")}</strong>
+            <small>{qualityMetric(qualityAudit, "paper_validation_count")}회 중 통과</small>
+          </article>
+        </div>
+        <div className="insight-grid">
+          <article className="insight-card">
+            <span>중복 뉴스 묶음</span>
+            <strong>{qualityMetric(qualityAudit, "duplicate_title_count")}</strong>
+            <p>같은 제목이 반복 수집되어 같은 뉴스가 여러 근거처럼 보일 위험이다.</p>
+          </article>
+          <article className="insight-card">
+            <span>근거 없는 종목 연결</span>
+            <strong>{qualityMetric(qualityAudit, "ungrounded_direct_ticker_count")}</strong>
+            <p>원문 제목이나 요약에서 확인되지 않는 직접 종목 영향이다.</p>
+          </article>
+          <article className="insight-card">
+            <span>양자→에너지 오분류</span>
+            <strong>{qualityMetric(qualityAudit, "quantum_energy_mislink_count")}</strong>
+            <p>양자컴퓨팅 뉴스가 에너지 테마나 XOM/XLE로 잘못 묶인 사례다.</p>
+          </article>
+          <article className="insight-card">
+            <span>정상 거시 흐름</span>
+            <strong>{qualityMetric(qualityAudit, "normal_macro_flow_count")}</strong>
+            <p>종목을 억지로 붙이지 않고 상위 흐름으로 남겨둔 뉴스다.</p>
+          </article>
+        </div>
+        <div className="empty-state">
+          <strong>다음 조치</strong>
+          <p>{qualityAudit.next_actions[0] ? koCode(qualityAudit.next_actions[0]) : "현재 추가 조치 없음"}</p>
+        </div>
       </section>
 
       <section className="feature-map-panel reveal delay-1" aria-labelledby="scheduler-profile-title">

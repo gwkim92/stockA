@@ -12,7 +12,7 @@
 
 ## Exact Next Step
 
-- exact next step: EC2에 배포해 `/ai-evidence`, `/ai-evidence/results`, `/ai-evidence/blocked` route smoke를 확인한다.
+- exact next step: `quality-and-evaluation-hardening` 순서에 따라 `cycle-ai-e2e-quality-audit`를 실행해 AI evidence와 추천 입력 품질을 수치로 감사한다.
 
 ## Verification Evidence
 

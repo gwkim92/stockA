@@ -19,6 +19,7 @@ from stockanalysis.ingest.news.enrichment import (
 from stockanalysis.ingest.news.translation import run_news_rss_translation
 from stockanalysis.operations.artifact_runner import run_data_operation_artifact_command
 from stockanalysis.operations.cadence import build_data_operations_cadence_report
+from stockanalysis.operations.cycle_ai_quality_audit import run_cycle_ai_quality_audit
 from stockanalysis.operations.env_file import merged_env_with_file
 from stockanalysis.operations.env_readiness import check_data_operations_runtime_env
 from stockanalysis.operations.hosted_runtime_decision import (
@@ -555,6 +556,19 @@ def build_parser() -> argparse.ArgumentParser:
     cycle_graph_context_summary.add_argument("--dry-run", action="store_true")
     cycle_graph_context_summary.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
     cycle_graph_context_summary.set_defaults(handler=_handle_cycle_graph_context_summary_run)
+
+    cycle_ai_quality_audit = subparsers.add_parser(
+        "cycle-ai-quality-audit-run",
+        help="Audit RSS, Korean translation, AI extraction, propagation, cycle, recommendation, and paper quality.",
+    )
+    cycle_ai_quality_audit.add_argument("--env-file")
+    cycle_ai_quality_audit.add_argument("--as-of-date", required=True)
+    cycle_ai_quality_audit.add_argument("--lookback-days", type=int, default=30)
+    cycle_ai_quality_audit.add_argument("--execute", action="store_true")
+    cycle_ai_quality_audit.add_argument("--dry-run", action="store_true")
+    cycle_ai_quality_audit.add_argument("--output")
+    cycle_ai_quality_audit.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
+    cycle_ai_quality_audit.set_defaults(handler=_handle_cycle_ai_quality_audit_run)
 
     paper_validation_audit = subparsers.add_parser(
         "paper-validation-audit-run",
@@ -1245,6 +1259,31 @@ def _handle_cycle_graph_context_summary_run(args: argparse.Namespace, *, stdout:
             execute=bool(args.execute) and not bool(args.dry_run),
         )
     print_json(report, stdout=stdout, sort_keys=False)
+    return 0
+
+
+def _handle_cycle_ai_quality_audit_run(args: argparse.Namespace, *, stdout: TextIO) -> int:
+    if bool(args.execute) and bool(args.dry_run):
+        raise ValueError("--execute and --dry-run cannot be used together.")
+    env_mapping = _load_optional_env_mapping(args.env_file, repo_root=args.repo_root)
+    as_of_date = date.fromisoformat(args.as_of_date)
+    with _temporary_environ(env_mapping):
+        report = run_cycle_ai_quality_audit(
+            config=RuntimeConfig.from_env(),
+            as_of_date=as_of_date,
+            lookback_days=args.lookback_days,
+            execute=bool(args.execute) and not bool(args.dry_run),
+        )
+    if args.output:
+        output_path = resolve_output_path(
+            args.output,
+            label="cycle AI quality audit output",
+            repo_root=args.repo_root,
+            require_repo_outside=True,
+        )
+        write_json_report(report, output_path=output_path, stdout=stdout)
+    else:
+        print_json(report, stdout=stdout, sort_keys=False)
     return 0
 
 

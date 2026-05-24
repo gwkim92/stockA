@@ -60,7 +60,7 @@
 - 추천 또는 보유 판단은 당시 입력 데이터, 점수, thesis, 무효화 조건을 함께 저장하는 방향으로 설계한다.
 - 문서 단계에서도 다음 구현 단계가 바로 이어질 수 있을 정도로 결정 사항을 명확히 남긴다.
 - 진행 순서가 흔들릴 때는 `docs/project-execution-roadmap.md`를 우선 기준으로 삼고, 변경하려면 별도 task contract에 근거를 남긴다.
-- 현재 고정된 immediate next task는 `supabase-free-postgres-setup-packet`이다. hosted DB/runtime decision 결과, 무료 조건의 현실적 경로는 Supabase Free Postgres를 hosted DB로 준비한 뒤 GitHub Actions worker를 붙이는 것이다. 다음은 사용자가 Supabase에서 무엇을 만들고 어떤 값을 repo-outside env/GitHub Secrets에 넣을지 정확히 정리하는 setup packet이며, Codex가 DB 계정 생성이나 secret 등록을 직접 수행하지 않는다. Mac LaunchAgents/`launchctl`은 local 반복 실행 옵션일 뿐이며, 실제 `launchctl bootstrap` 또는 host LaunchAgents 쓰기, cron/systemd/Kubernetes/GitHub Actions/managed scheduler 배포는 real repo-outside env/evidence와 명시적 사용자 승인 전까지 금지한다. 새 data operations 작업은 shell에 product orchestration을 늘리지 말고 `stockanalysis-operations` backend CLI/service boundary를 우선 사용한다.
+- 현재 고정된 immediate next task는 `quality-and-evaluation-hardening`이다. EC2에서는 FastAPI/Next.js와 profile별 `systemd` scheduler가 운영 후보로 동작 중이며, 이제 새 기능 확장보다 데이터 오염, AI 해석 품질, 추천 입력 품질, 화면 이해도, 운영 자동성 검증을 우선한다. 첫 실행 순서는 `project-roadmap-reality-sync`, `cycle-ai-e2e-quality-audit`, `news-ai-eval-dataset-and-scoring`, `cycle-community-ai-summary-v2`, `recommendation-quality-calibration`이다. Mac LaunchAgents/`launchctl`은 더 이상 현재 운영 경로가 아니며, 새 data operations 작업은 shell orchestration을 늘리지 말고 `stockanalysis-operations` backend CLI/service boundary를 우선 사용한다. 실거래 자동화는 별도 승인 전까지 범위 밖이다.
 
 ## Definition Of Done
 
