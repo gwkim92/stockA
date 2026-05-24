@@ -55,6 +55,7 @@ class RecommendationQualityEvalTests(unittest.TestCase):
         self.assertIn("trading.paper_validation_run", sql)
         self.assertIn("'macro_regime_score'", sql)
         self.assertIn("'cycle_conflict_penalty'", sql)
+        self.assertNotIn("'macro_flow_score'", sql)
         self.assertNotIn("insert into", lowered)
         self.assertNotIn("update ", lowered)
         self.assertNotIn("delete from", lowered)

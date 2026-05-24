@@ -20,13 +20,12 @@ DEFAULT_PIPELINE_NAME = "recommendation_quality_eval"
 DEFAULT_MODEL_NAME = "deterministic-sql-v1"
 DEFAULT_PROVIDER = "postgres"
 DEFAULT_MIN_SAMPLE_SIZE = 20
-CYCLE_STACK_COMPONENTS = (
+PROTECTED_CYCLE_STACK_COMPONENTS = (
     "macro_regime_score",
     "domain_cycle_score",
     "theme_cycle_score",
     "instrument_cycle_score",
     "cycle_conflict_penalty",
-    "macro_flow_score",
 )
 POSITIVE_OUTCOME_LABELS = ("positive", "outperform")
 
@@ -53,7 +52,7 @@ def render_recommendation_quality_eval_sql(*, as_of_date: date, horizon_days: in
         raise ValueError("horizon_days must be between 1 and 3650.")
     target_date = sql_date(as_of_date)
     positive_labels = ", ".join(sql_literal(label) for label in POSITIVE_OUTCOME_LABELS)
-    cycle_components = ", ".join(sql_literal(name) for name in CYCLE_STACK_COMPONENTS)
+    protected_cycle_components = ", ".join(sql_literal(name) for name in PROTECTED_CYCLE_STACK_COMPONENTS)
     return f"""-- recommendation quality eval lookup
 with recommendation_window as (
     select
@@ -128,7 +127,7 @@ component_metrics as (
             - coalesce(avg(component_score) filter (where has_outcome and not is_positive_outcome), 0)
         )::numeric(18,8) as positive_score_spread,
         avg(component_weight)::numeric(18,8) as avg_component_weight,
-        count(*) filter (where component_name in ({cycle_components}) and coalesce(component_weight, 0) = 0)::integer as zero_weight_cycle_component_rows
+        count(*) filter (where component_name in ({protected_cycle_components}) and coalesce(component_weight, 0) = 0)::integer as zero_weight_cycle_component_rows
     from component_rows
     group by component_name
 ),
@@ -164,7 +163,7 @@ cycle_guardrail as (
         count(*) filter (where coalesce(component_weight, 0) = 0)::integer as zero_weight_cycle_component_row_count,
         count(distinct component_name)::integer as observed_cycle_component_count
     from component_rows
-    where component_name in ({cycle_components})
+    where component_name in ({protected_cycle_components})
 )
 select json_build_object(
     'as_of_date', {sql_literal(as_of_date.isoformat())},
