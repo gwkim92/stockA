@@ -1,3 +1,5 @@
+import type { Route } from "next";
+import { DecisionReviewStrip } from "@/components/decision-review-strip";
 import { getDataHealth } from "@/lib/frontend-api";
 import { koCode } from "@/lib/korean-labels";
 import type { DataHealthData } from "@/lib/types";
@@ -604,6 +606,61 @@ export default async function DataHealthPage() {
       check: "보유 검토와 가상 거래 검증으로 이어진다.",
     },
   ];
+  const decisionSteps = [
+    {
+      index: "01",
+      title: "수집 상태",
+      question: "데이터가 믿을 만한가",
+      status: failedPipelines > 0 ? `문제 ${failedPipelines}개` : koCode(data.overall_status),
+      body: "캔들, 뉴스, AI 분석, 추천 갱신이 최근에 성공했는지 확인한다.",
+      href: "/data-health" as Route,
+      cta: "현재 화면",
+      tone: failedPipelines > 0 ? "block" as const : "ok" as const,
+    },
+    {
+      index: "02",
+      title: "뉴스·AI 근거",
+      question: "새 뉴스가 무엇을 말하나",
+      status: runStateLabel(aiRun),
+      body: "원천 뉴스, 한국어 번역, AI 구조화, 차단 후보를 이어서 본다.",
+      href: "/intelligence" as Route,
+      cta: "뉴스 AI 보기",
+      tone:
+        aiRun?.health_status === "degraded" || aiRun?.latest_status === "succeeded_with_fallback"
+          ? "watch" as const
+          : "ok" as const,
+    },
+    {
+      index: "03",
+      title: "상위 흐름",
+      question: "거시 흐름이 어디로 내려가나",
+      status: runStateLabel(decisionRun),
+      body: "거시·도메인·테마 흐름이 어떤 종목군으로 전파되는지 확인한다.",
+      href: "/cycle-map" as Route,
+      cta: "흐름 지도",
+      tone: decisionRun?.health_status === "ok" ? "ok" as const : "watch" as const,
+    },
+    {
+      index: "04",
+      title: "추천·보유",
+      question: "판단 입력이 충분한가",
+      status: runStateLabel(remediationRun),
+      body: "추천 신호와 보유 논리, 미측정 성과, 보완 큐를 확인한다.",
+      href: "/recommendations" as Route,
+      cta: "추천 보기",
+      tone: remediationRun?.health_status === "ok" ? "ok" as const : "watch" as const,
+    },
+    {
+      index: "05",
+      title: "페이퍼 안전",
+      question: "실거래 전 단계가 막혔나",
+      status: `${qualityMetric(qualityAudit, "paper_validation_passed_count")}회 통과`,
+      body: "가상 검증과 거래 안전 조건을 보고 실제 주문과 분리되어 있는지 확인한다.",
+      href: "/paper-trading" as Route,
+      cta: "페이퍼 상태",
+      tone: qualityMetric(qualityAudit, "paper_validation_passed_count") > 0 ? "ok" as const : "watch" as const,
+    },
+  ];
 
   return (
     <div className="terminal-page">
@@ -619,6 +676,13 @@ export default async function DataHealthPage() {
           이 화면이 정상이 아니면 추천과 성과 해석도 신뢰하지 않는다.
         </p>
       </section>
+
+      <DecisionReviewStrip
+        activeIndex="01"
+        title="수집 상태가 통과해야 뒤 판단으로 넘어간다"
+        description="이 화면은 운영 로그가 아니라 판단 게이트다. 문제가 있으면 뉴스·추천·페이퍼 해석보다 수집 복구가 먼저다."
+        steps={decisionSteps}
+      />
 
       <section className="status-rail compact-rail reveal delay-1" aria-label="데이터 상태 요약">
         <article className="rail-cell">

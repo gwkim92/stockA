@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Route } from "next";
 
+import { DecisionReviewStrip } from "@/components/decision-review-strip";
 import { getPaperTradingPreview, getTradingReadiness } from "@/lib/frontend-api";
 import { koCode, koLabel, koReason } from "@/lib/korean-labels";
 import type { TradingReadinessData } from "@/lib/types";
@@ -79,6 +80,58 @@ export default async function PaperTradingPage() {
   const trading = tradingResponse.data;
   const summary = data.quality_summary;
   const validationState = paperValidationState(trading);
+  const decisionSteps = [
+    {
+      index: "01",
+      title: "수집 상태",
+      question: "추천 입력이 최신인가",
+      status: data.latest_recommendation_batch.as_of_date || "추천 없음",
+      body: "페이퍼 검증은 최신 추천과 가격/보유 데이터가 있어야 의미가 있다.",
+      href: "/data-health" as Route,
+      cta: "수집 상태",
+      tone: data.latest_recommendation_batch.as_of_date ? "ok" as const : "watch" as const,
+    },
+    {
+      index: "02",
+      title: "뉴스·AI 근거",
+      question: "추천 근거가 확인됐나",
+      status: `${summary.recommendation_count}개 추천`,
+      body: "AI 근거는 추천의 입력일 뿐이고 주문을 직접 결정하지 않는다.",
+      href: "/intelligence" as Route,
+      cta: "뉴스 AI",
+      tone: summary.recommendation_count > 0 ? "ok" as const : "watch" as const,
+    },
+    {
+      index: "03",
+      title: "상위 흐름",
+      question: "시장 흐름과 충돌하나",
+      status: "흐름 확인 필요",
+      body: "페이퍼 후보가 상위 흐름과 반대로 움직이는지 사이클맵에서 확인한다.",
+      href: "/cycle-map" as Route,
+      cta: "흐름 지도",
+      tone: "watch" as const,
+    },
+    {
+      index: "04",
+      title: "추천·보유",
+      question: "보유와 추천이 충돌하나",
+      status: `${summary.position_recommendation_conflict_count}개 충돌`,
+      body: "추천 액션과 현재 비중이 맞지 않으면 실거래가 아니라 검토 후보로 남긴다.",
+      href: "/recommendations" as Route,
+      cta: "추천 보기",
+      tone: summary.position_recommendation_conflict_count > 0 ? "watch" as const : "ok" as const,
+    },
+    {
+      index: "05",
+      title: "페이퍼 안전",
+      question: "실거래로 넘어갈 수 있나",
+      status: validationState.title,
+      body: "이 화면은 가상 주문 검증이다. 증권사 제출은 안전 조건과 별도 승인 전까지 막힌다.",
+      href: "/paper-trading" as Route,
+      cta: "현재 화면",
+      tone: validationState.tone === "risk-high" ? "block" as const : "watch" as const,
+    },
+  ];
 
   return (
     <div className="terminal-page">
@@ -94,6 +147,13 @@ export default async function PaperTradingPage() {
           “실제로 주문한다면 어떤 조치가 필요할지”만 계산한다. 안전 조건과 검토 기록이 막으면 실거래로 넘어가지 않는다.
         </p>
       </section>
+
+      <DecisionReviewStrip
+        activeIndex="05"
+        title="페이퍼 거래는 실거래 직전이 아니라 안전 검증 단계다"
+        description="추천 후보를 주문으로 바꾸지 않는다. 보유 충돌, 승인 후보, 차단 조건, 실제 주문 제출 여부를 분리해서 본다."
+        steps={decisionSteps}
+      />
 
       <section className="status-rail compact-rail reveal delay-1" aria-label="가상 거래 요약">
         <article className="rail-cell">

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Route } from "next";
 
+import { DecisionReviewStrip } from "@/components/decision-review-strip";
 import { NewsTitleBlock } from "@/components/news-title-block";
 import {
   getAiNewsClusters,
@@ -406,6 +407,58 @@ export default async function IntelligencePage() {
       href: "/ai-evidence/blocked" as Route,
     },
   ];
+  const decisionSteps = [
+    {
+      index: "01",
+      title: "수집 상태",
+      question: "뉴스가 최신인가",
+      status: formatRunStatus(newsRun),
+      body: "뉴스 RSS 수집과 원천 문서 저장이 최근에 성공했는지 확인한다.",
+      href: "/data-health" as Route,
+      cta: "수집 상태",
+      tone: newsRun?.health_status === "ok" ? "ok" as const : "watch" as const,
+    },
+    {
+      index: "02",
+      title: "뉴스·AI 근거",
+      question: "뉴스가 왜 묶였나",
+      status: `${clusterSummary.cluster_count}개 묶음`,
+      body: "한국어 제목, 묶인 기준, 직접 종목/상위 흐름 관계, 차단 후보를 확인한다.",
+      href: "/intelligence" as Route,
+      cta: "현재 화면",
+      tone: clusterSummary.cluster_count > 0 ? "ok" as const : "watch" as const,
+    },
+    {
+      index: "03",
+      title: "상위 흐름",
+      question: "종목에 어떻게 전파되나",
+      status: `${events.summary.themes_represented}개 테마`,
+      body: "거시 뉴스는 억지로 종목에 붙이지 않고 흐름 지도로 내려간다.",
+      href: "/cycle-map" as Route,
+      cta: "흐름 지도",
+      tone: "ok" as const,
+    },
+    {
+      index: "04",
+      title: "추천·보유",
+      question: "근거가 추천에 연결됐나",
+      status: `커버리지 ${formatPercent(dashboard.latest_metrics.weight_coverage_ratio)}`,
+      body: "추천 상세에서 직접 뉴스, 상위 흐름, 가격/사이클 근거를 분리해 본다.",
+      href: "/recommendations" as Route,
+      cta: "추천 보기",
+      tone: dashboard.latest_metrics.weight_coverage_ratio > 0 ? "ok" as const : "watch" as const,
+    },
+    {
+      index: "05",
+      title: "페이퍼 안전",
+      question: "주문으로 넘어가도 되나",
+      status: "실거래 아님",
+      body: "이 화면의 AI 결과는 주문 결론이 아니다. 페이퍼 검증과 안전 조건을 따로 확인한다.",
+      href: "/paper-trading" as Route,
+      cta: "페이퍼 상태",
+      tone: "watch" as const,
+    },
+  ];
 
   return (
     <div className="terminal-page intelligence-page">
@@ -421,6 +474,13 @@ export default async function IntelligencePage() {
           “어떤 종목과 관계가 있는지”, “추천 근거로 연결됐는지”를 확인하는 것이다.
         </p>
       </section>
+
+      <DecisionReviewStrip
+        activeIndex="02"
+        title="뉴스는 원문, AI 해석, 종목 연결을 분리해서 본다"
+        description="같은 뉴스 묶음인지, 직접 종목 뉴스인지, 상위 흐름 뉴스인지 확인한 뒤 추천 화면으로 넘긴다."
+        steps={decisionSteps}
+      />
 
       <section className="status-rail compact-rail reveal delay-1" aria-label="뉴스 AI 판단 요약">
         <article className="rail-cell">

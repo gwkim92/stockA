@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Route } from "next";
 
+import { DecisionReviewStrip } from "@/components/decision-review-strip";
 import { getCycleMap } from "@/lib/frontend-api";
 import { koCode, koLabel } from "@/lib/korean-labels";
 import type { CycleMapData } from "@/lib/types";
@@ -78,6 +79,58 @@ export default async function CycleMapPage() {
   const data = response.data;
   const groups = groupedNodes(data.nodes);
   const hotNode = data.nodes.find((node) => node.node_code === data.summary.hot_node_code) ?? data.nodes[0] ?? null;
+  const decisionSteps = [
+    {
+      index: "01",
+      title: "수집 상태",
+      question: "흐름 지도 입력이 최신인가",
+      status: data.as_of_date,
+      body: "뉴스, 가격, AI 구조화가 실행된 뒤 이 지도에 반영된다.",
+      href: "/data-health" as Route,
+      cta: "수집 상태",
+      tone: "ok" as const,
+    },
+    {
+      index: "02",
+      title: "뉴스·AI 근거",
+      question: "어떤 뉴스가 흐름을 만들었나",
+      status: `${data.summary.direct_event_count}개 뉴스`,
+      body: "개별 뉴스와 AI 근거를 보고 상위 흐름 입력이 타당한지 확인한다.",
+      href: "/intelligence" as Route,
+      cta: "뉴스 AI",
+      tone: data.summary.direct_event_count > 0 ? "ok" as const : "watch" as const,
+    },
+    {
+      index: "03",
+      title: "상위 흐름",
+      question: "거시에서 종목까지 어떻게 내려가나",
+      status: `${data.summary.node_count}개 노드`,
+      body: "거시, 도메인, 테마, 종목 노출을 한 계층으로 묶어 본다.",
+      href: "/cycle-map" as Route,
+      cta: "현재 화면",
+      tone: data.summary.node_count > 0 ? "ok" as const : "watch" as const,
+    },
+    {
+      index: "04",
+      title: "추천·보유",
+      question: "흐름이 판단에 쓰였나",
+      status: `${data.summary.recommendation_count}개 연결`,
+      body: "추천 상세에서 상위 흐름 전파와 직접 뉴스 근거를 분리해 본다.",
+      href: "/recommendations" as Route,
+      cta: "추천 보기",
+      tone: data.summary.recommendation_count > 0 ? "ok" as const : "watch" as const,
+    },
+    {
+      index: "05",
+      title: "페이퍼 안전",
+      question: "거래 검증은 별도인가",
+      status: "별도 확인",
+      body: "흐름 지도는 주문 지시가 아니다. 페이퍼 검증과 거래 안전을 따로 확인한다.",
+      href: "/paper-trading" as Route,
+      cta: "페이퍼 상태",
+      tone: "watch" as const,
+    },
+  ];
 
   return (
     <div className="terminal-page">
@@ -93,6 +146,13 @@ export default async function CycleMapPage() {
           어떤 계층으로 연결되고 추천 근거에 들어가는지 보여주는 지도다.
         </p>
       </section>
+
+      <DecisionReviewStrip
+        activeIndex="03"
+        title="상위 흐름은 종목 추천 전 단계의 지도다"
+        description="거시 뉴스는 바로 종목 추천이 되지 않는다. 흐름 노드와 노출도를 거쳐 어느 종목군에 닿는지 먼저 확인한다."
+        steps={decisionSteps}
+      />
 
       <section className="status-rail compact-rail reveal delay-1" aria-label="흐름 지도 요약">
         <article className="rail-cell">

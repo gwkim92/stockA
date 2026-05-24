@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { Route } from "next";
+import { DecisionReviewStrip } from "@/components/decision-review-strip";
 import {
   getAiNewsClusters,
   getCockpitSnapshot,
@@ -174,6 +175,21 @@ export default async function HomePage() {
       tone: readinessTone(trading.readiness_status),
     },
   ];
+  const decisionSteps = operatingSteps.map((step) => ({
+    index: step.index,
+    title: step.title,
+    question: step.cta,
+    status: step.status,
+    body: step.detail,
+    href: step.href as Route,
+    cta: `${step.cta} 화면 열기`,
+    tone:
+      step.tone === "risk-high"
+        ? "block" as const
+        : step.tone === "risk-medium"
+          ? "watch" as const
+          : "ok" as const,
+  }));
 
   const navigationGroups = [
     {
@@ -275,17 +291,11 @@ export default async function HomePage() {
         </aside>
       </section>
 
-      <section className="operator-steps reveal delay-1" aria-label="오늘의 점검 순서">
-        {operatingSteps.map((step) => (
-          <Link className="operator-step-card" href={step.href as Route} key={step.index}>
-            <span>{step.index}</span>
-            <h2>{step.title}</h2>
-            <strong className={step.tone ? `risk-tag ${step.tone}` : undefined}>{step.status}</strong>
-            <p>{step.detail}</p>
-            <small>{step.cta} 화면 열기</small>
-          </Link>
-        ))}
-      </section>
+      <DecisionReviewStrip
+        activeIndex="01"
+        description="이 순서가 현재 서비스의 기본 동선이다. 수집이 흔들리면 뒤 판단을 멈추고, 뉴스 근거와 흐름이 확인된 뒤 추천·페이퍼 검증으로 넘어간다."
+        steps={decisionSteps}
+      />
 
       <section className="status-rail reveal delay-1" aria-label="오늘의 핵심 숫자">
         <article className="rail-cell rail-critical">
