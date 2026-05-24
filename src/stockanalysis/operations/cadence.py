@@ -204,6 +204,18 @@ DATA_OPERATION_CADENCES: tuple[DataOperationCadence, ...] = (
         data_health_dataset="ai.cycle_community_summary",
     ),
     DataOperationCadence(
+        job_id="recommendation-quality-eval-daily",
+        pipeline_name="recommendation_quality_eval",
+        domain="performance",
+        cadence="daily",
+        command_template="stockanalysis-operations recommendation-quality-eval-run --env-file <ENV> --horizon 30d --execute",
+        expected_after_local="19:40",
+        stale_after_hours=36,
+        artifact_policy="stdout_json_stderr_log_and_eval_run_id",
+        required_env_groups=("database",),
+        data_health_dataset="ai.eval_run",
+    ),
+    DataOperationCadence(
         job_id="performance-outcome-monthly",
         pipeline_name="performance_outcome_schedule_bootstrap",
         domain="performance",

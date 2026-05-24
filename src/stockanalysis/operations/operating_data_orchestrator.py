@@ -115,6 +115,7 @@ DECISION_DAILY_STEP_IDS = (
     "portfolio-remediation-daily",
     "paper-safety-bootstrap",
     "paper-validation-audit",
+    "recommendation-quality-eval",
 )
 MACRO_WEEKLY_STEP_IDS = (
     "macro-weekly",
@@ -970,6 +971,25 @@ def _build_planned_steps(
                     str(portfolio_notional),
                     "--created-by",
                     "operating-data-run",
+                ),
+            },
+            {
+                "step_id": "recommendation-quality-eval",
+                "artifact_job_id": "recommendation-quality-eval-daily",
+                "label": "Evaluate recommendation component quality without changing score weights",
+                "skip_reason": "",
+                "command_argv": (
+                    python_executable,
+                    "-m",
+                    "stockanalysis.operations.cli",
+                    "recommendation-quality-eval-run",
+                    "--env-file",
+                    str(env_file),
+                    "--as-of-date",
+                    target,
+                    "--horizon",
+                    "30d",
+                    "--execute",
                 ),
             },
         ]

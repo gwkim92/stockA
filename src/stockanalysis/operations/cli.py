@@ -59,6 +59,11 @@ from stockanalysis.operations.operating_data_orchestrator import (
 )
 from stockanalysis.operations.path_policy import resolve_existing_file, resolve_output_path
 from stockanalysis.operations.report_io import load_json_object, print_json, write_json_report
+from stockanalysis.operations.recommendation_quality_eval import (
+    DEFAULT_MIN_SAMPLE_SIZE,
+    parse_horizon_days,
+    run_recommendation_quality_eval,
+)
 from stockanalysis.operations.scheduler_activation_execution_decision import (
     build_data_operations_live_scheduler_host_activation_execution_decision_report,
 )
@@ -604,6 +609,20 @@ def build_parser() -> argparse.ArgumentParser:
     cycle_ai_quality_audit.add_argument("--output")
     cycle_ai_quality_audit.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
     cycle_ai_quality_audit.set_defaults(handler=_handle_cycle_ai_quality_audit_run)
+
+    recommendation_quality_eval = subparsers.add_parser(
+        "recommendation-quality-eval-run",
+        help="Evaluate recommendation score component quality against outcomes without changing weights.",
+    )
+    recommendation_quality_eval.add_argument("--env-file")
+    recommendation_quality_eval.add_argument("--as-of-date", required=True)
+    recommendation_quality_eval.add_argument("--horizon", default="30d")
+    recommendation_quality_eval.add_argument("--min-sample-size", type=int, default=DEFAULT_MIN_SAMPLE_SIZE)
+    recommendation_quality_eval.add_argument("--execute", action="store_true")
+    recommendation_quality_eval.add_argument("--dry-run", action="store_true")
+    recommendation_quality_eval.add_argument("--output")
+    recommendation_quality_eval.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
+    recommendation_quality_eval.set_defaults(handler=_handle_recommendation_quality_eval_run)
 
     paper_validation_audit = subparsers.add_parser(
         "paper-validation-audit-run",
@@ -1367,6 +1386,33 @@ def _handle_cycle_ai_quality_audit_run(args: argparse.Namespace, *, stdout: Text
         output_path = resolve_output_path(
             args.output,
             label="cycle AI quality audit output",
+            repo_root=args.repo_root,
+            require_repo_outside=True,
+        )
+        write_json_report(report, output_path=output_path, stdout=stdout)
+    else:
+        print_json(report, stdout=stdout, sort_keys=False)
+    return 0
+
+
+def _handle_recommendation_quality_eval_run(args: argparse.Namespace, *, stdout: TextIO) -> int:
+    if bool(args.execute) and bool(args.dry_run):
+        raise ValueError("--execute and --dry-run cannot be used together.")
+    env_mapping = _load_optional_env_mapping(args.env_file, repo_root=args.repo_root)
+    as_of_date = date.fromisoformat(args.as_of_date)
+    horizon_days = parse_horizon_days(args.horizon)
+    with _temporary_environ(env_mapping):
+        report = run_recommendation_quality_eval(
+            config=RuntimeConfig.from_env(),
+            as_of_date=as_of_date,
+            horizon_days=horizon_days,
+            min_sample_size=args.min_sample_size,
+            execute=bool(args.execute) and not bool(args.dry_run),
+        )
+    if args.output:
+        output_path = resolve_output_path(
+            args.output,
+            label="recommendation quality eval output",
             repo_root=args.repo_root,
             require_repo_outside=True,
         )

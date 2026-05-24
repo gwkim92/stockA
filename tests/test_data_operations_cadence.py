@@ -57,6 +57,10 @@ class DataOperationsCadenceTests(unittest.TestCase):
         self.assertEqual(cycle_ai_job["domain"], "ai")
         self.assertIn("cycle-community-ai-summary-v2-run", cycle_ai_job["command_template"])
         self.assertIn("openai_or_llm_provider", cycle_ai_job["required_env_groups"])
+        recommendation_quality_job = next(job for job in report["jobs"] if job["job_id"] == "recommendation-quality-eval-daily")
+        self.assertEqual(recommendation_quality_job["pipeline_name"], "recommendation_quality_eval")
+        self.assertEqual(recommendation_quality_job["domain"], "performance")
+        self.assertIn("recommendation-quality-eval-run", recommendation_quality_job["command_template"])
 
     def test_cadence_filter_limits_jobs(self) -> None:
         jobs = list_data_operation_cadences(cadence="daily")
@@ -76,6 +80,7 @@ class DataOperationsCadenceTests(unittest.TestCase):
         self.assertIn("'market_universe_bootstrap'", values_sql)
         self.assertIn("'news_rss_upsert'", values_sql)
         self.assertIn("'cycle_community_ai_summary'", values_sql)
+        self.assertIn("'recommendation_quality_eval'", values_sql)
         self.assertIn("'portfolio_remediation_daily_automation'", values_sql)
         self.assertIn("'performance_outcome_schedule_bootstrap'", values_sql)
         self.assertIn("'stdout_json_and_stderr_log'", values_sql)
