@@ -31,8 +31,12 @@
 - 수정 가능한 파일:
   - `src/stockanalysis/operations/recommendation_quality_eval.py`
   - `src/stockanalysis/operations/cli.py`
+  - `src/stockanalysis/operations/cadence.py`
+  - `src/stockanalysis/operations/operating_data_orchestrator.py`
   - `tests/test_recommendation_quality_eval.py`
   - `tests/test_data_operations_cli.py`
+  - `tests/test_data_operations_cadence.py`
+  - `tests/test_operating_data_orchestrator.py`
   - `docs/tasks/recommendation-quality-calibration/*`
 - 수정 금지 파일:
   - `src/stockanalysis/signal/recommendation.py` scoring weights
@@ -52,5 +56,5 @@
 
 - 평가 runner는 추천 산식이나 component weight를 변경하지 않는다.
 - 평가 결과는 sample size가 부족하면 `insufficient_sample`로 표시한다.
-- `macro_regime_score`, `domain_cycle_score`, `theme_cycle_score`, `instrument_cycle_score`, `cycle_conflict_penalty`는 설명력 측정 대상이지만 총점 weight 변경 대상이 아니다.
+- `macro_regime_score`, `domain_cycle_score`, `theme_cycle_score`, `instrument_cycle_score`, `cycle_conflict_penalty`는 설명력 측정 대상이지만 총점 weight 변경 대상이 아니다. 기존 `cycle_score`와 이미 허용된 `macro_flow_score`는 이 zero-weight guardrail에 포함하지 않는다.
 - `--execute`는 `ai.eval_run`과 `ops.pipeline_run`만 기록한다.
