@@ -12,6 +12,7 @@
 - `git log -5 --oneline`: latest local/remote work includes `2d9c3bd feat: add recommendation outcome backfill`.
 - SSH to `98.86.164.57:22`: timeout.
 - AWS console sign-in using stored root passkey for `wooody.public@gmail.com`: account closed message.
+- Recheck from current public IP `14.32.108.166`: SSH timeout and AWS account-closed state persist.
 
 ## Remaining Risk
 

@@ -20,6 +20,9 @@
   - Chrome에서 `us-east-1` EC2 security group bookmark 진입 시 AWS sign-in으로 이동했다.
   - `wooody.public@gmail.com` root login + 저장 passkey를 시도했다.
   - 결과: AWS 화면에 `Your account is closed`가 표시됐다.
+- 재확인:
+  - 같은 공인 IP `14.32.108.166`에서 다시 SSH를 시도했으나 `98.86.164.57:22`는 계속 timeout이었다.
+  - Chrome AWS 콘솔 화면은 여전히 `Your account is closed` 상태였다.
 
 ## Interpretation
 
