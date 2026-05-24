@@ -64,6 +64,10 @@ from stockanalysis.operations.recommendation_quality_eval import (
     parse_horizon_days,
     run_recommendation_quality_eval,
 )
+from stockanalysis.operations.recommendation_outcome_backfill import (
+    DEFAULT_OUTCOME_VERSION as DEFAULT_RECOMMENDATION_OUTCOME_VERSION,
+    run_recommendation_outcome_backfill,
+)
 from stockanalysis.operations.scheduler_activation_execution_decision import (
     build_data_operations_live_scheduler_host_activation_execution_decision_report,
 )
@@ -609,6 +613,31 @@ def build_parser() -> argparse.ArgumentParser:
     cycle_ai_quality_audit.add_argument("--output")
     cycle_ai_quality_audit.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
     cycle_ai_quality_audit.set_defaults(handler=_handle_cycle_ai_quality_audit_run)
+
+    recommendation_outcome_backfill = subparsers.add_parser(
+        "recommendation-outcome-backfill-run",
+        help="Backfill due price-based recommendation outcomes before quality evaluation.",
+    )
+    recommendation_outcome_backfill.add_argument("--env-file")
+    recommendation_outcome_backfill.add_argument("--due-on-date", required=True)
+    recommendation_outcome_backfill.add_argument(
+        "--horizon-day",
+        type=int,
+        action="append",
+        default=[],
+        help="Repeatable calendar-day horizon. Defaults to 30, 90, 180, 365 when omitted.",
+    )
+    recommendation_outcome_backfill.add_argument("--market-code")
+    recommendation_outcome_backfill.add_argument("--strategy-name")
+    recommendation_outcome_backfill.add_argument("--horizon-type")
+    recommendation_outcome_backfill.add_argument("--universe-version")
+    recommendation_outcome_backfill.add_argument("--outcome-version", default=DEFAULT_RECOMMENDATION_OUTCOME_VERSION)
+    recommendation_outcome_backfill.add_argument("--limit", type=int)
+    recommendation_outcome_backfill.add_argument("--execute", action="store_true")
+    recommendation_outcome_backfill.add_argument("--dry-run", action="store_true")
+    recommendation_outcome_backfill.add_argument("--output")
+    recommendation_outcome_backfill.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
+    recommendation_outcome_backfill.set_defaults(handler=_handle_recommendation_outcome_backfill_run)
 
     recommendation_quality_eval = subparsers.add_parser(
         "recommendation-quality-eval-run",
@@ -1413,6 +1442,37 @@ def _handle_recommendation_quality_eval_run(args: argparse.Namespace, *, stdout:
         output_path = resolve_output_path(
             args.output,
             label="recommendation quality eval output",
+            repo_root=args.repo_root,
+            require_repo_outside=True,
+        )
+        write_json_report(report, output_path=output_path, stdout=stdout)
+    else:
+        print_json(report, stdout=stdout, sort_keys=False)
+    return 0
+
+
+def _handle_recommendation_outcome_backfill_run(args: argparse.Namespace, *, stdout: TextIO) -> int:
+    if bool(args.execute) and bool(args.dry_run):
+        raise ValueError("--execute and --dry-run cannot be used together.")
+    env_mapping = _load_optional_env_mapping(args.env_file, repo_root=args.repo_root)
+    due_on_date = date.fromisoformat(args.due_on_date)
+    with _temporary_environ(env_mapping):
+        report = run_recommendation_outcome_backfill(
+            config=RuntimeConfig.from_env(),
+            due_on_date=due_on_date,
+            horizon_days=tuple(args.horizon_day or ()),
+            market_code=args.market_code,
+            strategy_name=args.strategy_name,
+            horizon_type=args.horizon_type,
+            universe_version=args.universe_version,
+            outcome_version=args.outcome_version,
+            limit=args.limit,
+            execute=bool(args.execute) and not bool(args.dry_run),
+        )
+    if args.output:
+        output_path = resolve_output_path(
+            args.output,
+            label="recommendation outcome backfill output",
             repo_root=args.repo_root,
             require_repo_outside=True,
         )

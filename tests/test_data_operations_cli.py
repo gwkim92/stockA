@@ -1613,6 +1613,65 @@ class DataOperationsCliTests(unittest.TestCase):
             self.assertEqual(call_kwargs["min_sample_size"], 7)
             self.assertTrue(call_kwargs["execute"])
 
+    def test_recommendation_outcome_backfill_run_command_passes_env_filters_and_writes_output(self) -> None:
+        with tempfile.TemporaryDirectory() as repo_root, tempfile.TemporaryDirectory() as outside_root:
+            env_file = Path(outside_root) / "data-operations.env"
+            output_path = Path(outside_root) / "recommendation-outcome-backfill.json"
+            env_file.write_text('STOCKANALYSIS_PSQL_COMMAND="docker exec psql"\n', encoding="utf-8")
+            stdout = io.StringIO()
+
+            with patch("stockanalysis.operations.cli.run_recommendation_outcome_backfill") as runner_mock:
+                runner_mock.return_value = {
+                    "report_name": "recommendation_outcome_backfill",
+                    "status": "executed",
+                    "candidate_count": 1,
+                }
+                exit_code = main(
+                    [
+                        "recommendation-outcome-backfill-run",
+                        "--repo-root",
+                        repo_root,
+                        "--env-file",
+                        str(env_file),
+                        "--due-on-date",
+                        "2026-05-24",
+                        "--horizon-day",
+                        "30",
+                        "--strategy-name",
+                        "long_term_core",
+                        "--horizon-type",
+                        "long_term",
+                        "--universe-version",
+                        "live-v1",
+                        "--market-code",
+                        "US",
+                        "--outcome-version",
+                        "bootstrap-v2",
+                        "--limit",
+                        "5",
+                        "--execute",
+                        "--output",
+                        str(output_path),
+                    ],
+                    stdout=stdout,
+                )
+
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(stdout.getvalue().strip(), str(output_path.resolve()))
+            payload = json.loads(output_path.read_text(encoding="utf-8"))
+            self.assertEqual(payload["report_name"], "recommendation_outcome_backfill")
+            call_kwargs = runner_mock.call_args.kwargs
+            self.assertEqual(call_kwargs["config"].psql_command, "docker exec psql")
+            self.assertEqual(call_kwargs["due_on_date"], date(2026, 5, 24))
+            self.assertEqual(call_kwargs["horizon_days"], (30,))
+            self.assertEqual(call_kwargs["strategy_name"], "long_term_core")
+            self.assertEqual(call_kwargs["horizon_type"], "long_term")
+            self.assertEqual(call_kwargs["universe_version"], "live-v1")
+            self.assertEqual(call_kwargs["market_code"], "US")
+            self.assertEqual(call_kwargs["outcome_version"], "bootstrap-v2")
+            self.assertEqual(call_kwargs["limit"], 5)
+            self.assertTrue(call_kwargs["execute"])
+
     def test_news_ai_eval_run_command_passes_dataset_and_writes_output(self) -> None:
         with tempfile.TemporaryDirectory() as repo_root, tempfile.TemporaryDirectory() as outside_root:
             env_file = Path(outside_root) / "data-operations.env"

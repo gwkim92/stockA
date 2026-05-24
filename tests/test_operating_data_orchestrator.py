@@ -97,6 +97,7 @@ class OperatingDataOrchestratorTests(unittest.TestCase):
         self.assertIn("portfolio-position-snapshot", step_ids)
         self.assertIn("portfolio-holding-thesis-bootstrap", step_ids)
         self.assertIn("paper-validation-audit", step_ids)
+        self.assertIn("recommendation-outcome-backfill", step_ids)
         self.assertIn("recommendation-quality-eval", step_ids)
         self.assertLess(
             step_ids.index("portfolio-position-snapshot"),
@@ -108,6 +109,10 @@ class OperatingDataOrchestratorTests(unittest.TestCase):
         )
         self.assertLess(
             step_ids.index("paper-validation-audit"),
+            step_ids.index("recommendation-outcome-backfill"),
+        )
+        self.assertLess(
+            step_ids.index("recommendation-outcome-backfill"),
             step_ids.index("recommendation-quality-eval"),
         )
         self.assertEqual(report["derived_inputs"]["sec_filings_cik"], "320193")

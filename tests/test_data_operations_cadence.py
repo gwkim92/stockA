@@ -61,6 +61,13 @@ class DataOperationsCadenceTests(unittest.TestCase):
         self.assertEqual(recommendation_quality_job["pipeline_name"], "recommendation_quality_eval")
         self.assertEqual(recommendation_quality_job["domain"], "performance")
         self.assertIn("recommendation-quality-eval-run", recommendation_quality_job["command_template"])
+        recommendation_outcome_job = next(job for job in report["jobs"] if job["job_id"] == "recommendation-outcome-backfill-daily")
+        self.assertEqual(recommendation_outcome_job["pipeline_name"], "performance_outcome_schedule_bootstrap")
+        self.assertEqual(recommendation_outcome_job["domain"], "performance")
+        self.assertIn("recommendation-outcome-backfill-run", recommendation_outcome_job["command_template"])
+        self.assertIn("market_price_history", recommendation_outcome_job["required_env_groups"])
+        performance_job = next(job for job in report["jobs"] if job["job_id"] == "performance-outcome-monthly")
+        self.assertIn("recommendation-outcome-backfill-run", performance_job["command_template"])
 
     def test_cadence_filter_limits_jobs(self) -> None:
         jobs = list_data_operation_cadences(cadence="daily")
