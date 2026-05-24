@@ -1472,6 +1472,61 @@ class DataOperationsCliTests(unittest.TestCase):
             self.assertEqual(call_kwargs["max_nodes"], 11)
             self.assertTrue(call_kwargs["execute"])
 
+    def test_cycle_community_ai_summary_v2_run_command_passes_env_provider_and_execute_flag(self) -> None:
+        with tempfile.TemporaryDirectory() as repo_root, tempfile.TemporaryDirectory() as outside_root:
+            env_file = Path(outside_root) / "data-operations.env"
+            env_file.write_text('STOCKANALYSIS_PSQL_COMMAND="docker exec psql"\n', encoding="utf-8")
+            stdout = io.StringIO()
+
+            with patch("stockanalysis.operations.cli.run_cycle_community_ai_summary_v2") as runner_mock:
+                runner_mock.return_value = {
+                    "report_name": "cycle_community_ai_summary_v2",
+                    "status": "completed",
+                    "node_count": 1,
+                }
+                exit_code = main(
+                    [
+                        "cycle-community-ai-summary-v2-run",
+                        "--repo-root",
+                        repo_root,
+                        "--env-file",
+                        str(env_file),
+                        "--as-of-date",
+                        "2026-05-20",
+                        "--node-code",
+                        "MACRO_RATES_FED",
+                        "--limit",
+                        "9",
+                        "--max-nodes",
+                        "11",
+                        "--provider",
+                        "fixture",
+                        "--model-name",
+                        "fixture-model",
+                        "--reasoning-effort",
+                        "minimal",
+                        "--max-context-chars",
+                        "9000",
+                        "--execute",
+                    ],
+                    stdout=stdout,
+                )
+
+            self.assertEqual(exit_code, 0)
+            payload = json.loads(stdout.getvalue())
+            self.assertEqual(payload["report_name"], "cycle_community_ai_summary_v2")
+            call_kwargs = runner_mock.call_args.kwargs
+            self.assertEqual(call_kwargs["config"].psql_command, "docker exec psql")
+            self.assertEqual(call_kwargs["as_of_date"], date(2026, 5, 20))
+            self.assertEqual(call_kwargs["node_codes"], ("MACRO_RATES_FED",))
+            self.assertEqual(call_kwargs["limit"], 9)
+            self.assertEqual(call_kwargs["max_nodes"], 11)
+            self.assertEqual(call_kwargs["provider"], "fixture")
+            self.assertEqual(call_kwargs["model_name"], "fixture-model")
+            self.assertEqual(call_kwargs["reasoning_effort"], "minimal")
+            self.assertEqual(call_kwargs["max_context_chars"], 9000)
+            self.assertTrue(call_kwargs["execute"])
+
     def test_cycle_ai_quality_audit_run_command_passes_env_execute_and_writes_output(self) -> None:
         with tempfile.TemporaryDirectory() as repo_root, tempfile.TemporaryDirectory() as outside_root:
             env_file = Path(outside_root) / "data-operations.env"

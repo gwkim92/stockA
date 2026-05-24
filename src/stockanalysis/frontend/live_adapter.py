@@ -3358,9 +3358,13 @@ latest_summary as (
         summary.source_run_id,
         summary.updated_at
     from ai.cycle_community_summary summary
-    where summary.summary_type = 'cycle_graph_context_v1'
+    where summary.summary_type in ('cycle_community_ai_v2', 'cycle_graph_context_v1')
       and summary.as_of_date <= {target_date}
-    order by summary.node_id, summary.as_of_date desc
+    order by
+        summary.node_id,
+        summary.as_of_date desc,
+        case summary.summary_type when 'cycle_community_ai_v2' then 1 else 2 end,
+        summary.updated_at desc
 ),
 node_page as (
     select
@@ -3605,7 +3609,7 @@ select json_build_object(
                     'parent_alignment_score', parent_alignment_score,
                     'conflict_flags', conflict_flags,
                     'evidence_event_ids', evidence_event_ids,
-                    'summary_text_ko', coalesce(summary_json ->> 'summary_text_ko', name || ' 흐름은 아직 요약 대기 상태다.'),
+                    'summary_text_ko', coalesce(summary_json ->> 'korean_summary', summary_json ->> 'summary_text_ko', name || ' 흐름은 아직 요약 대기 상태다.'),
                     'top_symbols', canonical_top_symbols,
                     'recent_event_titles',
                         case

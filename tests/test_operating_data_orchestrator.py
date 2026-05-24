@@ -224,6 +224,7 @@ class OperatingDataOrchestratorTests(unittest.TestCase):
         self.assertEqual(step_ids[0], "missing-symbol-price-backfill")
         self.assertIn("cycle-hierarchy-snapshot-v2", step_ids)
         self.assertIn("cycle-graph-context-summary", step_ids)
+        self.assertIn("cycle-community-ai-summary-v2", step_ids)
         self.assertIn("recommendation-bootstrap", step_ids)
         self.assertIn("portfolio-holding-thesis-bootstrap", step_ids)
         self.assertIn("paper-validation-audit", step_ids)
@@ -239,6 +240,10 @@ class OperatingDataOrchestratorTests(unittest.TestCase):
         )
         self.assertLess(
             step_ids.index("cycle-graph-context-summary"),
+            step_ids.index("cycle-community-ai-summary-v2"),
+        )
+        self.assertLess(
+            step_ids.index("cycle-community-ai-summary-v2"),
             step_ids.index("recommendation-bootstrap"),
         )
         self.assertLess(

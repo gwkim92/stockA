@@ -52,6 +52,11 @@ class DataOperationsCadenceTests(unittest.TestCase):
         self.assertEqual(translation_job["pipeline_name"], "news_rss_korean_translation")
         self.assertIn("news-rss-translation-run", translation_job["command_template"])
         self.assertIn("openai_or_llm_provider", translation_job["required_env_groups"])
+        cycle_ai_job = next(job for job in report["jobs"] if job["job_id"] == "cycle-community-ai-summary-daily")
+        self.assertEqual(cycle_ai_job["pipeline_name"], "cycle_community_ai_summary")
+        self.assertEqual(cycle_ai_job["domain"], "ai")
+        self.assertIn("cycle-community-ai-summary-v2-run", cycle_ai_job["command_template"])
+        self.assertIn("openai_or_llm_provider", cycle_ai_job["required_env_groups"])
 
     def test_cadence_filter_limits_jobs(self) -> None:
         jobs = list_data_operation_cadences(cadence="daily")
@@ -70,6 +75,7 @@ class DataOperationsCadenceTests(unittest.TestCase):
 
         self.assertIn("'market_universe_bootstrap'", values_sql)
         self.assertIn("'news_rss_upsert'", values_sql)
+        self.assertIn("'cycle_community_ai_summary'", values_sql)
         self.assertIn("'portfolio_remediation_daily_automation'", values_sql)
         self.assertIn("'performance_outcome_schedule_bootstrap'", values_sql)
         self.assertIn("'stdout_json_and_stderr_log'", values_sql)
