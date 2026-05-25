@@ -578,7 +578,7 @@ export default async function StockDetailPage({ params }: StockDetailPageProps) 
 
       <ProfessionalResearchFlow
         eyebrow="전문 리서치 읽는 순서"
-        title={`${data.symbol}을 종목 하나로만 보지 않는다`}
+        title={`${data.symbol} 분석은 종목 하나로 끝나지 않는다`}
         summary="중장기 투자 판단은 뉴스 하나로 끝나지 않는다. 사업, 재무, 비교군, 밸류에이션, 사이클, thesis, 페이퍼 검증을 같은 순서로 확인한다."
         footer="현재 화면은 저장된 데이터만 읽는다. 화면 진입 중 실시간 AI 호출이나 주문 생성은 없다."
         steps={professionalResearchSteps}
