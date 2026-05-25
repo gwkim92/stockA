@@ -820,6 +820,7 @@ def _build_planned_steps(
                 "--skip-if-fresh",
                 "--freshness-date",
                 target,
+                "--allow-symbol-failures",
             ),
         },
         {

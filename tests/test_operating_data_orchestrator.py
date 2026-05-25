@@ -351,6 +351,7 @@ class OperatingDataOrchestratorTests(unittest.TestCase):
             index for index, command in enumerate(rendered_commands) if "portfolio-remediation-daily-run" in command
         )
         self.assertLess(backfill_index, signal_index)
+        self.assertIn("--allow-symbol-failures", rendered_commands[backfill_index])
         self.assertLess(position_snapshot_index, holding_thesis_index)
         self.assertLess(holding_thesis_index, remediation_index)
         self.assertEqual(watchlist_rows, [{"symbol": "TSLA"}])

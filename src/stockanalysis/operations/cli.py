@@ -419,6 +419,14 @@ def build_parser() -> argparse.ArgumentParser:
         "--freshness-date",
         help="Target freshness date in YYYY-MM-DD format. Defaults to runtime date when --skip-if-fresh is used.",
     )
+    market_price_free_backfill.add_argument(
+        "--allow-symbol-failures",
+        action="store_true",
+        help=(
+            "Return exit 0 even when individual symbols fail. Use only for opportunistic "
+            "backfill steps where failures remain visible in the JSON artifact."
+        ),
+    )
     market_price_free_backfill.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
     market_price_free_backfill.set_defaults(handler=_handle_market_price_free_backfill_run)
 
@@ -1242,7 +1250,10 @@ def _handle_market_price_free_backfill_run(args: argparse.Namespace, *, stdout: 
             skip_if_fresh=args.skip_if_fresh,
             freshness_date=freshness_date,
         )
+    report["symbol_failures_allowed"] = bool(args.allow_symbol_failures)
     print_json(report, stdout=stdout, sort_keys=False)
+    if bool(args.allow_symbol_failures):
+        return 0
     return 0 if int(report.get("failed_symbol_count", 0)) == 0 else 1
 
 

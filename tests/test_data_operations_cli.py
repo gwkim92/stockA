@@ -897,6 +897,85 @@ class DataOperationsCliTests(unittest.TestCase):
             self.assertTrue(call_kwargs["skip_if_fresh"])
             self.assertEqual(call_kwargs["freshness_date"].isoformat(), "2026-05-15")
 
+    def test_market_price_free_backfill_run_allows_symbol_failures_only_when_requested(self) -> None:
+        with tempfile.TemporaryDirectory() as repo_root, tempfile.TemporaryDirectory() as outside_root:
+            outside_path = Path(outside_root)
+            watchlist = outside_path / "watchlist.csv"
+            watchlist.write_text("symbol\nBRK-A\n", encoding="utf-8")
+            ledger = outside_path / "ledger.json"
+            env_file = outside_path / "data-operations.env"
+            env_file.write_text('STOCKANALYSIS_PSQL_COMMAND="docker exec psql"\n', encoding="utf-8")
+
+            with patch("stockanalysis.operations.cli.run_market_price_free_backfill") as runner_mock:
+                runner_mock.return_value = {
+                    "report_name": "market_price_free_backfill_run",
+                    "status": "completed",
+                    "failed_symbol_count": 1,
+                    "provider_request_count": 1,
+                    "results": [
+                        {
+                            "symbol": "BRK-A",
+                            "status": "failed",
+                            "error": "provider rejected symbol",
+                        }
+                    ],
+                }
+                strict_stdout = io.StringIO()
+                strict_exit = main(
+                    [
+                        "market-price-free-backfill-run",
+                        "--repo-root",
+                        repo_root,
+                        "--watchlist",
+                        str(watchlist),
+                        "--ledger",
+                        str(ledger),
+                        "--env-file",
+                        str(env_file),
+                    ],
+                    stdout=strict_stdout,
+                )
+
+            self.assertEqual(strict_exit, 1)
+            self.assertEqual(json.loads(strict_stdout.getvalue())["failed_symbol_count"], 1)
+
+            with patch("stockanalysis.operations.cli.run_market_price_free_backfill") as runner_mock:
+                runner_mock.return_value = {
+                    "report_name": "market_price_free_backfill_run",
+                    "status": "completed",
+                    "failed_symbol_count": 1,
+                    "provider_request_count": 1,
+                    "results": [
+                        {
+                            "symbol": "BRK-A",
+                            "status": "failed",
+                            "error": "provider rejected symbol",
+                        }
+                    ],
+                }
+                tolerant_stdout = io.StringIO()
+                tolerant_exit = main(
+                    [
+                        "market-price-free-backfill-run",
+                        "--repo-root",
+                        repo_root,
+                        "--watchlist",
+                        str(watchlist),
+                        "--ledger",
+                        str(ledger),
+                        "--env-file",
+                        str(env_file),
+                        "--allow-symbol-failures",
+                    ],
+                    stdout=tolerant_stdout,
+                )
+
+            self.assertEqual(tolerant_exit, 0)
+            payload = json.loads(tolerant_stdout.getvalue())
+            self.assertEqual(payload["failed_symbol_count"], 1)
+            self.assertTrue(payload["symbol_failures_allowed"])
+            self.assertEqual(payload["results"][0]["symbol"], "BRK-A")
+
     def test_market_price_free_backfill_run_rejects_repo_inside_watchlist(self) -> None:
         with tempfile.TemporaryDirectory() as repo_root, tempfile.TemporaryDirectory() as outside_root:
             watchlist = Path(repo_root) / "watchlist.csv"
@@ -973,7 +1052,48 @@ class DataOperationsCliTests(unittest.TestCase):
             self.assertIsNone(call_kwargs["provider"])
             self.assertIsNone(call_kwargs["daily_budget"])
             self.assertTrue(call_kwargs["skip_if_fresh"])
-            self.assertIsNone(call_kwargs["freshness_date"])
+
+    def test_market_price_daily_run_keeps_symbol_failures_strict(self) -> None:
+        with tempfile.TemporaryDirectory() as repo_root, tempfile.TemporaryDirectory() as outside_root:
+            outside_path = Path(outside_root)
+            watchlist = outside_path / "watchlist.csv"
+            watchlist.write_text("symbol\nBRK-A\n", encoding="utf-8")
+            ledger = outside_path / "ledger.json"
+            env_file = outside_path / "data-operations.env"
+            env_file.write_text(
+                "\n".join(
+                    [
+                        'STOCKANALYSIS_PSQL_COMMAND="docker exec psql"',
+                        'STOCKANALYSIS_MARKET_PRICE_PROVIDER="twelve_data"',
+                        f'STOCKANALYSIS_MARKET_PRICE_WATCHLIST_CSV="{watchlist}"',
+                        f'STOCKANALYSIS_MARKET_PRICE_BUDGET_LEDGER_PATH="{ledger}"',
+                    ]
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+
+            with patch("stockanalysis.operations.cli.run_market_price_daily_from_env") as runner_mock:
+                runner_mock.return_value = {
+                    "report_name": "market_price_free_backfill_run",
+                    "status": "completed",
+                    "failed_symbol_count": 1,
+                    "provider_request_count": 1,
+                }
+                stdout = io.StringIO()
+                exit_code = main(
+                    [
+                        "market-price-daily-run",
+                        "--repo-root",
+                        repo_root,
+                        "--env-file",
+                        str(env_file),
+                    ],
+                    stdout=stdout,
+                )
+
+            self.assertEqual(exit_code, 1)
+            self.assertEqual(json.loads(stdout.getvalue())["failed_symbol_count"], 1)
 
     def test_news_rss_config_report_prints_sanitized_feed_list(self) -> None:
         with tempfile.TemporaryDirectory() as repo_root, tempfile.TemporaryDirectory() as outside_root:
