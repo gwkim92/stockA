@@ -168,6 +168,18 @@ DATA_OPERATION_CADENCES: tuple[DataOperationCadence, ...] = (
         data_health_dataset="ingest.source_document",
     ),
     DataOperationCadence(
+        job_id="sec-companyfacts-weekly",
+        pipeline_name="sec_companyfacts_upsert",
+        domain="sec",
+        cadence="weekly",
+        command_template="stockanalysis-ingest sec-companyfacts-upsert --cik <CIK>",
+        expected_after_local="08:20 Monday",
+        stale_after_hours=216,
+        artifact_policy="stdout_json_stderr_log_and_financial_fact_counts",
+        required_env_groups=("database", "sec_identity"),
+        data_health_dataset="market.financial_statement_period",
+    ),
+    DataOperationCadence(
         job_id="financial-metric-normalization-weekly",
         pipeline_name="financial_metric_normalization",
         domain="fundamentals",

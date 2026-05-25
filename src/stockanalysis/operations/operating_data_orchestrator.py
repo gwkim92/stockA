@@ -84,6 +84,8 @@ MARKET_UNIVERSE_WEEKLY_STEP_IDS = (
 )
 SEC_FILINGS_WEEKLY_STEP_IDS = (
     "sec-filings-weekly",
+    "sec-companyfacts-weekly",
+    "financial-metric-normalization",
 )
 NEWS_INTRADAY_STEP_IDS = (
     "news-rss-ingest",
@@ -531,6 +533,37 @@ def _build_planned_steps(
                 sec_filings_cik,
                 "--max-filings",
                 str(sec_filings_max_filings),
+            ),
+        },
+        {
+            "step_id": "sec-companyfacts-weekly",
+            "artifact_job_id": "sec-companyfacts-weekly",
+            "label": "Refresh SEC companyfacts for the configured core filer",
+            "skip_reason": "",
+            "command_argv": (
+                python_executable,
+                "-m",
+                "stockanalysis.ingest.cli",
+                "sec-companyfacts-upsert",
+                "--cik",
+                sec_filings_cik,
+            ),
+        },
+        {
+            "step_id": "financial-metric-normalization",
+            "artifact_job_id": "financial-metric-normalization-weekly",
+            "label": "Normalize SEC companyfacts into professional financial metrics",
+            "skip_reason": "",
+            "command_argv": (
+                python_executable,
+                "-m",
+                "stockanalysis.operations.cli",
+                "financial-metric-normalization-run",
+                "--env-file",
+                str(env_file),
+                "--as-of-date",
+                target,
+                "--execute",
             ),
         },
         {
