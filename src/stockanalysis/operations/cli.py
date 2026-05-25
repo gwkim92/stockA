@@ -65,6 +65,10 @@ from stockanalysis.operations.recommendation_quality_eval import (
     parse_horizon_days,
     run_recommendation_quality_eval,
 )
+from stockanalysis.operations.recommendation_weight_review_readiness_audit import (
+    DEFAULT_MIN_COMPONENT_OUTCOME_COUNT as DEFAULT_WEIGHT_REVIEW_MIN_COMPONENT_OUTCOME_COUNT,
+    run_recommendation_weight_review_readiness_audit,
+)
 from stockanalysis.operations.recommendation_fundamental_components import (
     DEFAULT_HORIZON_TYPE as DEFAULT_FUNDAMENTAL_COMPONENT_HORIZON_TYPE,
     DEFAULT_MARKET_CODE as DEFAULT_FUNDAMENTAL_COMPONENT_MARKET_CODE,
@@ -730,6 +734,24 @@ def build_parser() -> argparse.ArgumentParser:
     recommendation_quality_eval.add_argument("--output")
     recommendation_quality_eval.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
     recommendation_quality_eval.set_defaults(handler=_handle_recommendation_quality_eval_run)
+
+    recommendation_weight_review_audit = subparsers.add_parser(
+        "recommendation-weight-review-readiness-audit-run",
+        help="Audit whether the latest recommendation quality eval is safe for manual weight review.",
+    )
+    recommendation_weight_review_audit.add_argument("--env-file")
+    recommendation_weight_review_audit.add_argument("--as-of-date", required=True)
+    recommendation_weight_review_audit.add_argument("--eval-run-id", type=int)
+    recommendation_weight_review_audit.add_argument(
+        "--min-component-outcome-count",
+        type=int,
+        default=DEFAULT_WEIGHT_REVIEW_MIN_COMPONENT_OUTCOME_COUNT,
+    )
+    recommendation_weight_review_audit.add_argument("--execute", action="store_true")
+    recommendation_weight_review_audit.add_argument("--dry-run", action="store_true")
+    recommendation_weight_review_audit.add_argument("--output")
+    recommendation_weight_review_audit.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
+    recommendation_weight_review_audit.set_defaults(handler=_handle_recommendation_weight_review_readiness_audit_run)
 
     recommendation_fundamental_components = subparsers.add_parser(
         "recommendation-fundamental-components-run",
@@ -1602,6 +1624,36 @@ def _handle_recommendation_quality_eval_run(args: argparse.Namespace, *, stdout:
         output_path = resolve_output_path(
             args.output,
             label="recommendation quality eval output",
+            repo_root=args.repo_root,
+            require_repo_outside=True,
+        )
+        write_json_report(report, output_path=output_path, stdout=stdout)
+    else:
+        print_json(report, stdout=stdout, sort_keys=False)
+    return 0
+
+
+def _handle_recommendation_weight_review_readiness_audit_run(
+    args: argparse.Namespace,
+    *,
+    stdout: TextIO,
+) -> int:
+    if bool(args.execute) and bool(args.dry_run):
+        raise ValueError("--execute and --dry-run cannot be used together.")
+    env_mapping = _load_optional_env_mapping(args.env_file, repo_root=args.repo_root)
+    as_of_date = date.fromisoformat(args.as_of_date)
+    with _temporary_environ(env_mapping):
+        report = run_recommendation_weight_review_readiness_audit(
+            config=RuntimeConfig.from_env(),
+            as_of_date=as_of_date,
+            eval_run_id=args.eval_run_id,
+            min_component_outcome_count=args.min_component_outcome_count,
+            execute=bool(args.execute) and not bool(args.dry_run),
+        )
+    if args.output:
+        output_path = resolve_output_path(
+            args.output,
+            label="recommendation weight review readiness audit output",
             repo_root=args.repo_root,
             require_repo_outside=True,
         )
