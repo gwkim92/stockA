@@ -34,12 +34,13 @@
 - `git diff --check`: pass
 - `cd apps/web && npm run build`: pass
 - `PYTHONPATH=/Users/woody/ai/agent-work-harness/src /opt/homebrew/bin/python3.13 -m awh verify --repo . --task frontend-equity-research-experience-v2`: pass
-- EC2 `git pull --ff-only origin codex/local-mvp-runtime-aws-bootstrap`: pass, deployed commit `631f3ed`
+- EC2 `git pull --ff-only origin codex/local-mvp-runtime-aws-bootstrap`: pass, deployed commit `b459465`
 - EC2 `cd apps/web && npm run build`: pass
 - EC2 `systemctl is-active stockanalysis-web.service`: active
 - EC2 `systemctl is-active stockanalysis-frontend-api.service`: active
 - EC2 route smoke: `/stocks/NVDA` 200 with `전문 리서치`, `사업 개요`, `재무 품질`, `밸류에이션`, `페이퍼 검증`
 - EC2 route smoke: `/recommendations/recommendation-140` 200 with `전문 리서치`, `사업 개요`, `재무 품질`, `밸류에이션`, `페이퍼 검증`
+- EC2 wording smoke: `/stocks/NVDA` includes `NVDA 분석은 종목 하나로 끝나지 않는다` and does not include `NVDA을`.
 
 ## Exact Next Step
 
