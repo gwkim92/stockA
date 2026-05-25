@@ -15,6 +15,10 @@ from stockanalysis.signal.universe import (
 
 DEFAULT_PIPELINE_NAME = "financial_metric_normalization"
 DEFAULT_MODEL_NAME = "deterministic-financial-sql-v1"
+DEFAULT_PEER_RELATIVE_PIPELINE_NAME = "peer_relative_analysis"
+DEFAULT_PEER_RELATIVE_MODEL_NAME = "deterministic-peer-relative-sql-v1"
+DEFAULT_PEER_GROUP_CODE = "US_CORE_FINANCIAL_DISCLOSURE"
+DEFAULT_PEER_GROUP_NAME = "US Core Financial Disclosure Coverage"
 STANDARD_FINANCIAL_METRICS = (
     "revenue_growth_yoy",
     "gross_margin",
@@ -27,6 +31,7 @@ STANDARD_FINANCIAL_METRICS = (
     "leverage_ratio",
     "roic",
 )
+PEER_RELATIVE_STATEMENT_SCOPES = ("annual", "quarterly", "all")
 
 
 def render_financial_metric_normalization_preview_sql(*, as_of_date: date, limit: int | None = None) -> str:
@@ -501,3 +506,454 @@ def run_financial_metric_normalization(
         "run_id": run_id,
         "upsert": upsert_summary,
     }
+
+
+def render_peer_relative_analysis_preview_sql(
+    *,
+    as_of_date: date,
+    statement_scope: str = "annual",
+    min_peer_count: int = 2,
+) -> str:
+    _validate_peer_relative_args(statement_scope=statement_scope, min_peer_count=min_peer_count)
+    scope_filter = _statement_scope_filter("normalized", statement_scope=statement_scope)
+    return f"""-- peer relative analysis preview
+with latest_metric_rows as (
+    select distinct on (normalized.instrument_id, normalized.metric_code)
+        normalized.instrument_id,
+        normalized.metric_code,
+        normalized.metric_value,
+        normalized.period_end,
+        normalized.statement_scope
+    from market.financial_metric_normalized normalized
+    where normalized.as_of_date <= {sql_date(as_of_date)}
+      and normalized.metric_status = 'computed'{scope_filter}
+    order by
+        normalized.instrument_id,
+        normalized.metric_code,
+        normalized.as_of_date desc,
+        normalized.period_end desc
+),
+coverage_instruments as (
+    select distinct metric.instrument_id
+    from latest_metric_rows metric
+),
+classification_peer_groups as (
+    select
+        node.taxonomy_family,
+        node.node_type,
+        node.code,
+        node.name,
+        count(distinct membership.instrument_id)::integer as member_count
+    from ref.instrument_classification_membership membership
+    join coverage_instruments coverage on coverage.instrument_id = membership.instrument_id
+    join ref.classification_node node on node.node_id = membership.node_id
+    where node.status = 'active'
+      and membership.valid_from <= {sql_date(as_of_date)}
+      and (membership.valid_to is null or membership.valid_to >= {sql_date(as_of_date)})
+    group by node.taxonomy_family, node.node_type, node.code, node.name
+    having count(distinct membership.instrument_id) >= {min_peer_count}
+),
+existing_peer_groups as (
+    select count(*)::integer as count
+    from ref.peer_group
+    where status = 'active'
+)
+select json_build_object(
+    'as_of_date', {sql_literal(as_of_date.isoformat())},
+    'model_name', {sql_literal(DEFAULT_PEER_RELATIVE_MODEL_NAME)},
+    'statement_scope', {sql_literal(statement_scope)},
+    'min_peer_count', {min_peer_count},
+    'standard_metric_codes', {sql_literal(json.dumps(STANDARD_FINANCIAL_METRICS))}::jsonb,
+    'coverage_instrument_count', (select count(*)::integer from coverage_instruments),
+    'latest_metric_count', (select count(*)::integer from latest_metric_rows),
+    'classification_peer_group_count', (select count(*)::integer from classification_peer_groups),
+    'existing_peer_group_count', (select count from existing_peer_groups),
+    'fallback_group_code', {sql_literal(DEFAULT_PEER_GROUP_CODE)}
+)::text;"""
+
+
+def render_peer_relative_analysis_upsert_sql(
+    *,
+    as_of_date: date,
+    source_run_id: int,
+    statement_scope: str = "annual",
+    min_peer_count: int = 2,
+) -> str:
+    _validate_peer_relative_args(statement_scope=statement_scope, min_peer_count=min_peer_count)
+    scope_filter = _statement_scope_filter("normalized", statement_scope=statement_scope)
+    metric_values = ",\n        ".join(f"({sql_literal(metric_code)})" for metric_code in STANDARD_FINANCIAL_METRICS)
+    return f"""-- peer relative analysis upsert
+with metric_universe(metric_code) as (
+    values
+        {metric_values}
+),
+latest_metric_rows as (
+    select distinct on (normalized.instrument_id, normalized.metric_code)
+        normalized.instrument_id,
+        normalized.metric_code,
+        normalized.metric_value,
+        normalized.period_end,
+        normalized.statement_scope
+    from market.financial_metric_normalized normalized
+    where normalized.as_of_date <= {sql_date(as_of_date)}
+      and normalized.metric_status = 'computed'{scope_filter}
+    order by
+        normalized.instrument_id,
+        normalized.metric_code,
+        normalized.as_of_date desc,
+        normalized.period_end desc
+),
+coverage_instruments as (
+    select distinct metric.instrument_id
+    from latest_metric_rows metric
+),
+classification_members as (
+    select distinct
+        (
+            'CLASSIFICATION_'
+            || regexp_replace(
+                upper(node.taxonomy_family || '_' || node.node_type || '_' || node.code),
+                '[^A-Z0-9]+',
+                '_',
+                'g'
+            )
+        ) as group_code,
+        node.name as group_name,
+        (
+            'classification membership: '
+            || node.taxonomy_family
+            || '/'
+            || node.node_type
+            || '/'
+            || node.code
+        ) as methodology,
+        membership.instrument_id
+    from ref.instrument_classification_membership membership
+    join coverage_instruments coverage on coverage.instrument_id = membership.instrument_id
+    join ref.classification_node node on node.node_id = membership.node_id
+    where node.status = 'active'
+      and membership.valid_from <= {sql_date(as_of_date)}
+      and (membership.valid_to is null or membership.valid_to >= {sql_date(as_of_date)})
+),
+classification_groups as (
+    select
+        group_code,
+        group_name,
+        methodology,
+        count(distinct instrument_id)::integer as member_count
+    from classification_members
+    group by group_code, group_name, methodology
+    having count(distinct instrument_id) >= {min_peer_count}
+),
+fallback_group as (
+    select
+        {sql_literal(DEFAULT_PEER_GROUP_CODE)} as group_code,
+        {sql_literal(DEFAULT_PEER_GROUP_NAME)} as group_name,
+        'fallback group: all instruments with computed normalized financial metrics' as methodology,
+        count(*)::integer as member_count
+    from coverage_instruments
+    having count(*) >= {min_peer_count}
+),
+candidate_peer_groups as (
+    select group_code, group_name, methodology from classification_groups
+    union all
+    select group_code, group_name, methodology from fallback_group
+),
+candidate_group_members as (
+    select distinct
+        member.group_code,
+        member.instrument_id
+    from classification_members member
+    join classification_groups candidate on candidate.group_code = member.group_code
+    union
+    select
+        {sql_literal(DEFAULT_PEER_GROUP_CODE)} as group_code,
+        coverage.instrument_id
+    from coverage_instruments coverage
+    where exists (select 1 from fallback_group)
+),
+upsert_groups as (
+    insert into ref.peer_group (
+        group_code,
+        name,
+        methodology,
+        status
+    )
+    select
+        group_code,
+        group_name,
+        methodology,
+        'active'
+    from candidate_peer_groups
+    on conflict (group_code) do update
+    set
+        name = excluded.name,
+        methodology = excluded.methodology,
+        status = excluded.status
+    returning peer_group_id, group_code
+),
+upsert_members as (
+    insert into ref.peer_group_member (
+        peer_group_id,
+        instrument_id,
+        member_role,
+        weight,
+        source,
+        valid_from,
+        valid_to
+    )
+    select
+        peer_group.peer_group_id,
+        member.instrument_id,
+        'constituent',
+        null::numeric,
+        'peer-relative-analysis-run',
+        {sql_date(as_of_date)},
+        null::date
+    from candidate_group_members member
+    join upsert_groups peer_group on peer_group.group_code = member.group_code
+    on conflict (peer_group_id, instrument_id, valid_from) do update
+    set
+        member_role = excluded.member_role,
+        weight = excluded.weight,
+        source = excluded.source,
+        valid_to = excluded.valid_to
+    returning peer_group_id, instrument_id
+),
+member_metric_grid as (
+    select
+        member.peer_group_id,
+        member.instrument_id,
+        metric.metric_code
+    from upsert_members member
+    cross join metric_universe metric
+),
+member_metric_values as (
+    select
+        grid.peer_group_id,
+        grid.instrument_id,
+        grid.metric_code,
+        metric.metric_value
+    from member_metric_grid grid
+    left join latest_metric_rows metric
+      on metric.instrument_id = grid.instrument_id
+     and metric.metric_code = grid.metric_code
+),
+group_metric_stats as (
+    select
+        peer_group_id,
+        metric_code,
+        count(metric_value)::integer as computed_peer_count,
+        percentile_cont(0.5) within group (order by metric_value)::numeric(24,8) as peer_median_value
+    from member_metric_values
+    where metric_value is not null
+    group by peer_group_id, metric_code
+),
+ranked_values as (
+    select
+        value.peer_group_id,
+        value.instrument_id,
+        value.metric_code,
+        value.metric_value,
+        percent_rank() over (
+            partition by value.peer_group_id, value.metric_code
+            order by value.metric_value
+        )::numeric(8,4) as percentile_rank
+    from member_metric_values value
+    where value.metric_value is not null
+),
+snapshot_rows as (
+    select
+        value.peer_group_id,
+        value.instrument_id,
+        value.metric_code,
+        value.metric_value,
+        stats.peer_median_value,
+        ranked.percentile_rank,
+        case
+            when value.metric_value is null then 'insufficient_data'
+            when coalesce(stats.computed_peer_count, 0) < {min_peer_count} then 'insufficient_data'
+            when ranked.percentile_rank >= 0.6600 then 'above_peer'
+            when ranked.percentile_rank <= 0.3400 then 'below_peer'
+            else 'near_peer'
+        end as relative_signal
+    from member_metric_values value
+    left join group_metric_stats stats
+      on stats.peer_group_id = value.peer_group_id
+     and stats.metric_code = value.metric_code
+    left join ranked_values ranked
+      on ranked.peer_group_id = value.peer_group_id
+     and ranked.instrument_id = value.instrument_id
+     and ranked.metric_code = value.metric_code
+),
+upsert_snapshots as (
+    insert into market.peer_relative_snapshot (
+        instrument_id,
+        peer_group_id,
+        as_of_date,
+        metric_code,
+        instrument_value,
+        peer_median_value,
+        percentile_rank,
+        relative_signal,
+        source_run_id
+    )
+    select
+        instrument_id,
+        peer_group_id,
+        {sql_date(as_of_date)},
+        metric_code,
+        metric_value,
+        peer_median_value,
+        percentile_rank,
+        relative_signal,
+        {int(source_run_id)}::bigint
+    from snapshot_rows
+    on conflict (instrument_id, peer_group_id, as_of_date, metric_code) do update
+    set
+        instrument_value = excluded.instrument_value,
+        peer_median_value = excluded.peer_median_value,
+        percentile_rank = excluded.percentile_rank,
+        relative_signal = excluded.relative_signal,
+        source_run_id = excluded.source_run_id
+    returning metric_code, relative_signal
+)
+select json_build_object(
+    'as_of_date', {sql_literal(as_of_date.isoformat())},
+    'source_run_id', {int(source_run_id)},
+    'statement_scope', {sql_literal(statement_scope)},
+    'min_peer_count', {min_peer_count},
+    'peer_group_count', (select count(*)::integer from upsert_groups),
+    'peer_member_count', (select count(*)::integer from upsert_members),
+    'snapshot_count', (select count(*)::integer from upsert_snapshots),
+    'metric_counts',
+        coalesce(
+            (
+                select json_object_agg(metric_code, metric_count order by metric_code)
+                from (
+                    select metric_code, count(*)::integer as metric_count
+                    from upsert_snapshots
+                    group by metric_code
+                ) counts
+            ),
+            '{{}}'::json
+        ),
+    'relative_signal_counts',
+        coalesce(
+            (
+                select json_object_agg(relative_signal, signal_count order by relative_signal)
+                from (
+                    select relative_signal, count(*)::integer as signal_count
+                    from upsert_snapshots
+                    group by relative_signal
+                ) counts
+            ),
+            '{{}}'::json
+        )
+)::text;"""
+
+
+def load_peer_relative_analysis_preview(
+    *,
+    config: RuntimeConfig,
+    as_of_date: date,
+    statement_scope: str = "annual",
+    min_peer_count: int = 2,
+    executor: PsqlCommandExecutor | None = None,
+) -> dict[str, object]:
+    sql_executor = executor or PsqlCommandExecutor.from_config(config)
+    payload = json.loads(
+        sql_executor.execute_scalar(
+            render_peer_relative_analysis_preview_sql(
+                as_of_date=as_of_date,
+                statement_scope=statement_scope,
+                min_peer_count=min_peer_count,
+            )
+        )
+    )
+    if not isinstance(payload, dict):
+        raise ValueError("Peer relative analysis preview did not return a JSON object.")
+    return payload
+
+
+def run_peer_relative_analysis(
+    *,
+    config: RuntimeConfig,
+    as_of_date: date,
+    statement_scope: str = "annual",
+    min_peer_count: int = 2,
+    execute: bool = False,
+    executor: PsqlCommandExecutor | None = None,
+) -> dict[str, object]:
+    sql_executor = executor or PsqlCommandExecutor.from_config(config)
+    preview = load_peer_relative_analysis_preview(
+        config=config,
+        as_of_date=as_of_date,
+        statement_scope=statement_scope,
+        min_peer_count=min_peer_count,
+        executor=sql_executor,
+    )
+    report: dict[str, object] = {
+        "report_name": "peer_relative_analysis",
+        "status": "planned" if not execute else "running",
+        "execute": execute,
+        "pipeline_name": DEFAULT_PEER_RELATIVE_PIPELINE_NAME,
+        "as_of_date": as_of_date.isoformat(),
+        "statement_scope": statement_scope,
+        "min_peer_count": min_peer_count,
+        "model_name": DEFAULT_PEER_RELATIVE_MODEL_NAME,
+        "standard_metric_codes": list(STANDARD_FINANCIAL_METRICS),
+        "preview": preview,
+        "recommendation_scoring_mutated": False,
+    }
+    if not execute:
+        return report
+
+    run_id = _create_pipeline_run(
+        sql_executor,
+        pipeline_name=DEFAULT_PEER_RELATIVE_PIPELINE_NAME,
+        config_json={
+            "as_of_date": as_of_date.isoformat(),
+            "statement_scope": statement_scope,
+            "min_peer_count": min_peer_count,
+            "model_name": DEFAULT_PEER_RELATIVE_MODEL_NAME,
+            "recommendation_scoring_mutated": False,
+        },
+    )
+    try:
+        upsert_summary = json.loads(
+            sql_executor.execute_scalar(
+                render_peer_relative_analysis_upsert_sql(
+                    as_of_date=as_of_date,
+                    source_run_id=run_id,
+                    statement_scope=statement_scope,
+                    min_peer_count=min_peer_count,
+                )
+            )
+        )
+        if not isinstance(upsert_summary, dict):
+            raise ValueError("Peer relative analysis upsert did not return a JSON object.")
+        _mark_pipeline_run_succeeded(sql_executor, run_id)
+    except Exception as exc:
+        _mark_pipeline_run_failed(sql_executor, run_id, str(exc))
+        raise
+
+    return {
+        **report,
+        "status": "completed",
+        "run_id": run_id,
+        "upsert": upsert_summary,
+    }
+
+
+def _validate_peer_relative_args(*, statement_scope: str, min_peer_count: int) -> None:
+    if statement_scope not in PEER_RELATIVE_STATEMENT_SCOPES:
+        raise ValueError(f"statement_scope must be one of: {', '.join(PEER_RELATIVE_STATEMENT_SCOPES)}.")
+    if min_peer_count < 2:
+        raise ValueError("min_peer_count must be at least 2.")
+
+
+def _statement_scope_filter(alias: str, *, statement_scope: str) -> str:
+    if statement_scope == "all":
+        return ""
+    return f"\n      and {alias}.statement_scope = {sql_literal(statement_scope)}"

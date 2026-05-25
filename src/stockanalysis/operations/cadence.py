@@ -192,6 +192,18 @@ DATA_OPERATION_CADENCES: tuple[DataOperationCadence, ...] = (
         data_health_dataset="market.financial_metric_normalized",
     ),
     DataOperationCadence(
+        job_id="peer-relative-analysis-weekly",
+        pipeline_name="peer_relative_analysis",
+        domain="fundamentals",
+        cadence="weekly",
+        command_template="stockanalysis-operations peer-relative-analysis-run --env-file <ENV> --as-of-date <YYYY-MM-DD> --execute",
+        expected_after_local="08:40 Monday",
+        stale_after_hours=216,
+        artifact_policy="stdout_json_stderr_log_and_peer_counts",
+        required_env_groups=("database",),
+        data_health_dataset="market.peer_relative_snapshot",
+    ),
+    DataOperationCadence(
         job_id="event-intelligence-weekly",
         pipeline_name="event_intelligence_llm_extract",
         domain="ai",

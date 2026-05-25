@@ -86,6 +86,7 @@ SEC_FILINGS_WEEKLY_STEP_IDS = (
     "sec-filings-weekly",
     "sec-companyfacts-weekly",
     "financial-metric-normalization",
+    "peer-relative-analysis",
 )
 NEWS_INTRADAY_STEP_IDS = (
     "news-rss-ingest",
@@ -563,6 +564,25 @@ def _build_planned_steps(
                 str(env_file),
                 "--as-of-date",
                 target,
+                "--execute",
+            ),
+        },
+        {
+            "step_id": "peer-relative-analysis",
+            "artifact_job_id": "peer-relative-analysis-weekly",
+            "label": "Build peer groups and relative financial metric snapshots",
+            "skip_reason": "",
+            "command_argv": (
+                python_executable,
+                "-m",
+                "stockanalysis.operations.cli",
+                "peer-relative-analysis-run",
+                "--env-file",
+                str(env_file),
+                "--as-of-date",
+                target,
+                "--statement-scope",
+                "annual",
                 "--execute",
             ),
         },

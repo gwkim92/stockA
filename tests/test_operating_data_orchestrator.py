@@ -95,6 +95,7 @@ class OperatingDataOrchestratorTests(unittest.TestCase):
         self.assertEqual(step_ids[1], "sec-filings-weekly")
         self.assertIn("sec-companyfacts-weekly", step_ids)
         self.assertIn("financial-metric-normalization", step_ids)
+        self.assertIn("peer-relative-analysis", step_ids)
         self.assertIn("market-price-daily", step_ids)
         self.assertIn("portfolio-position-snapshot", step_ids)
         self.assertIn("portfolio-holding-thesis-bootstrap", step_ids)
@@ -210,7 +211,7 @@ class OperatingDataOrchestratorTests(unittest.TestCase):
         self.assertEqual([step["step_id"] for step in universe_report["planned_steps"]], ["market-universe-weekly"])
         self.assertEqual(
             [step["step_id"] for step in sec_report["planned_steps"]],
-            ["sec-filings-weekly", "sec-companyfacts-weekly", "financial-metric-normalization"],
+            ["sec-filings-weekly", "sec-companyfacts-weekly", "financial-metric-normalization", "peer-relative-analysis"],
         )
         self.assertFalse(universe_report["derived_inputs"]["source_positions_required"])
         self.assertFalse(sec_report["derived_inputs"]["source_positions_required"])
@@ -221,6 +222,8 @@ class OperatingDataOrchestratorTests(unittest.TestCase):
         self.assertIn("sec-companyfacts-upsert", companyfacts_command)
         financial_command = " ".join(sec_report["planned_steps"][2]["command_argv"])
         self.assertIn("financial-metric-normalization-run", financial_command)
+        peer_command = " ".join(sec_report["planned_steps"][3]["command_argv"])
+        self.assertIn("peer-relative-analysis-run", peer_command)
 
     def test_decision_daily_profile_runs_decision_steps_without_news_or_macro(self) -> None:
         with tempfile.TemporaryDirectory() as repo_root, tempfile.TemporaryDirectory() as outside_root:

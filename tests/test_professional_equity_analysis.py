@@ -8,10 +8,14 @@ from pathlib import Path
 from stockanalysis.ingest.config import RuntimeConfig
 from stockanalysis.operations.professional_equity_analysis import (
     DEFAULT_MODEL_NAME,
+    DEFAULT_PEER_RELATIVE_MODEL_NAME,
     STANDARD_FINANCIAL_METRICS,
     render_financial_metric_normalization_preview_sql,
     render_financial_metric_normalization_upsert_sql,
+    render_peer_relative_analysis_preview_sql,
+    render_peer_relative_analysis_upsert_sql,
     run_financial_metric_normalization,
+    run_peer_relative_analysis,
 )
 
 
@@ -52,6 +56,40 @@ class FakeFinancialMetricExecutor:
                     },
                     "metric_counts": {"net_margin": 2, "revenue_growth_yoy": 2},
                     "status_counts": {"computed": 3, "unavailable": 15, "insufficient_history": 2},
+                }
+            )
+        if sql.startswith("-- peer relative analysis preview"):
+            return json.dumps(
+                {
+                    "as_of_date": "2026-05-25",
+                    "model_name": DEFAULT_PEER_RELATIVE_MODEL_NAME,
+                    "statement_scope": "annual",
+                    "min_peer_count": 2,
+                    "standard_metric_codes": list(STANDARD_FINANCIAL_METRICS),
+                    "coverage_instrument_count": 3,
+                    "latest_metric_count": 18,
+                    "classification_peer_group_count": 1,
+                    "existing_peer_group_count": 0,
+                    "fallback_group_code": "US_CORE_FINANCIAL_DISCLOSURE",
+                }
+            )
+        if sql.startswith("-- peer relative analysis upsert"):
+            return json.dumps(
+                {
+                    "as_of_date": "2026-05-25",
+                    "source_run_id": self.run_id,
+                    "statement_scope": "annual",
+                    "min_peer_count": 2,
+                    "peer_group_count": 2,
+                    "peer_member_count": 6,
+                    "snapshot_count": 60,
+                    "metric_counts": {"net_margin": 6},
+                    "relative_signal_counts": {
+                        "above_peer": 10,
+                        "below_peer": 10,
+                        "near_peer": 20,
+                        "insufficient_data": 20,
+                    },
                 }
             )
         raise AssertionError(f"Unexpected scalar SQL: {sql[:160]}")
@@ -139,6 +177,79 @@ class ProfessionalEquityAnalysisTests(unittest.TestCase):
         self.assertEqual(report["upsert"]["summary"]["upserted_count"], 20)  # type: ignore[index]
         self.assertIn("insert into ops.pipeline_run", executor.scalar_sql[1])
         self.assertIn("-- financial metric normalization upsert", executor.scalar_sql[2])
+        self.assertIn("status = 'succeeded'", executor.non_query_sql[-1])
+
+    def test_peer_relative_preview_sql_is_read_only_and_uses_classification_and_fallback_groups(self) -> None:
+        sql = render_peer_relative_analysis_preview_sql(
+            as_of_date=date(2026, 5, 25),
+            statement_scope="annual",
+            min_peer_count=2,
+        )
+        lowered = sql.lower()
+
+        self.assertIn("-- peer relative analysis preview", sql)
+        self.assertIn("market.financial_metric_normalized", sql)
+        self.assertIn("ref.instrument_classification_membership", sql)
+        self.assertIn("classification_peer_groups as", sql)
+        self.assertIn("US_CORE_FINANCIAL_DISCLOSURE", sql)
+        self.assertIn("normalized.statement_scope = 'annual'", sql)
+        self.assertNotIn("insert into", lowered)
+        self.assertNotIn("update ", lowered)
+        self.assertNotIn("delete from", lowered)
+
+    def test_peer_relative_upsert_sql_builds_groups_members_and_snapshots(self) -> None:
+        sql = render_peer_relative_analysis_upsert_sql(
+            as_of_date=date(2026, 5, 25),
+            source_run_id=9601,
+            statement_scope="annual",
+            min_peer_count=2,
+        )
+
+        self.assertIn("-- peer relative analysis upsert", sql)
+        self.assertIn("insert into ref.peer_group", sql)
+        self.assertIn("insert into ref.peer_group_member", sql)
+        self.assertIn("insert into market.peer_relative_snapshot", sql)
+        self.assertIn("percentile_cont(0.5)", sql)
+        self.assertIn("percent_rank()", sql)
+        self.assertIn("insufficient_data", sql)
+        self.assertNotIn("signal.recommendation_score_component", sql)
+        self.assertIn("9601::bigint", sql)
+
+    def test_run_peer_relative_analysis_dry_run_reads_preview_without_writes(self) -> None:
+        executor = FakeFinancialMetricExecutor()
+
+        report = run_peer_relative_analysis(
+            config=RuntimeConfig(psql_command="psql"),
+            as_of_date=date(2026, 5, 25),
+            statement_scope="annual",
+            min_peer_count=2,
+            execute=False,
+            executor=executor,  # type: ignore[arg-type]
+        )
+
+        self.assertEqual(report["status"], "planned")
+        self.assertEqual(report["report_name"], "peer_relative_analysis")
+        self.assertFalse(report["recommendation_scoring_mutated"])
+        self.assertEqual(executor.non_query_sql, [])
+        self.assertEqual(len(executor.scalar_sql), 1)
+
+    def test_run_peer_relative_analysis_execute_records_pipeline_and_upsert_summary(self) -> None:
+        executor = FakeFinancialMetricExecutor(run_id=9602)
+
+        report = run_peer_relative_analysis(
+            config=RuntimeConfig(psql_command="psql"),
+            as_of_date=date(2026, 5, 25),
+            statement_scope="annual",
+            min_peer_count=2,
+            execute=True,
+            executor=executor,  # type: ignore[arg-type]
+        )
+
+        self.assertEqual(report["status"], "completed")
+        self.assertEqual(report["run_id"], 9602)
+        self.assertEqual(report["upsert"]["peer_group_count"], 2)  # type: ignore[index]
+        self.assertIn("insert into ops.pipeline_run", executor.scalar_sql[1])
+        self.assertIn("-- peer relative analysis upsert", executor.scalar_sql[2])
         self.assertIn("status = 'succeeded'", executor.non_query_sql[-1])
 
 
