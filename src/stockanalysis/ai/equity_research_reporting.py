@@ -155,7 +155,7 @@ latest_peer_rows as (
         peer_group.group_code as peer_group_code,
         peer_group.name as peer_group_name,
         snapshot.metric_code,
-        snapshot.metric_value,
+        snapshot.instrument_value as metric_value,
         snapshot.percentile_rank,
         snapshot.peer_count,
         snapshot.relative_signal,
