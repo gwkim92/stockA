@@ -29,8 +29,12 @@ STANDARD_FINANCIAL_METRICS = (
     "operating_cash_flow_margin",
     "free_cash_flow_margin",
     "cash_flow_quality",
+    "free_cash_flow_to_net_income",
+    "accrual_ratio",
+    "capex_intensity",
     "roe",
     "leverage_ratio",
+    "liabilities_to_assets",
     "roic",
 )
 PEER_RELATIVE_STATEMENT_SCOPES = ("annual", "quarterly", "all")
@@ -303,6 +307,71 @@ metric_rows as (
                 end
             ),
             (
+                'free_cash_flow_to_net_income',
+                case
+                    when period.operating_cash_flow is not null
+                     and period.capital_expenditure is not null
+                     and period.net_income is not null
+                     and period.net_income <> 0
+                    then ((period.operating_cash_flow - abs(period.capital_expenditure)) / abs(period.net_income))::numeric
+                    else null::numeric
+                end,
+                'ratio',
+                case
+                    when period.operating_cash_flow is null or period.capital_expenditure is null or period.net_income is null then 'unavailable'
+                    when period.net_income = 0 then 'unavailable'
+                    else 'computed'
+                end,
+                case
+                    when period.operating_cash_flow is null then 'Operating cash flow fact is missing from SEC companyfacts.'
+                    when period.capital_expenditure is null then 'Capital expenditure fact is missing from SEC companyfacts.'
+                    when period.net_income is null or period.net_income = 0 then 'Net income denominator is missing or zero.'
+                    else 'Operating cash flow minus absolute capital expenditure, divided by absolute net income.'
+                end
+            ),
+            (
+                'accrual_ratio',
+                case
+                    when period.net_income is not null
+                     and period.operating_cash_flow is not null
+                     and period.total_assets is not null
+                     and period.total_assets <> 0
+                    then ((period.net_income - period.operating_cash_flow) / abs(period.total_assets))::numeric
+                    else null::numeric
+                end,
+                'ratio',
+                case
+                    when period.net_income is null or period.operating_cash_flow is null or period.total_assets is null then 'unavailable'
+                    when period.total_assets = 0 then 'unavailable'
+                    else 'computed'
+                end,
+                case
+                    when period.net_income is null then 'Net income fact is missing from SEC companyfacts.'
+                    when period.operating_cash_flow is null then 'Operating cash flow fact is missing from SEC companyfacts.'
+                    when period.total_assets is null or period.total_assets = 0 then 'Total assets denominator is missing or zero.'
+                    else 'Net income minus operating cash flow, divided by absolute total assets. Lower positive accruals are generally higher earnings quality.'
+                end
+            ),
+            (
+                'capex_intensity',
+                case
+                    when period.capital_expenditure is not null and period.revenue is not null and period.revenue <> 0
+                    then (abs(period.capital_expenditure) / period.revenue)::numeric
+                    else null::numeric
+                end,
+                'ratio',
+                case
+                    when period.capital_expenditure is null or period.revenue is null then 'unavailable'
+                    when period.revenue = 0 then 'unavailable'
+                    else 'computed'
+                end,
+                case
+                    when period.capital_expenditure is null then 'Capital expenditure fact is missing from SEC companyfacts.'
+                    when period.revenue is null or period.revenue = 0 then 'Revenue denominator is missing or zero.'
+                    else 'Absolute capital expenditure divided by revenue.'
+                end
+            ),
+            (
                 'roe',
                 case
                     when period.net_income is not null and period.shareholders_equity is not null and period.shareholders_equity <> 0
@@ -338,6 +407,25 @@ metric_rows as (
                     when period.total_liabilities is null then 'Total liabilities fact is missing from SEC companyfacts.'
                     when period.shareholders_equity is null or period.shareholders_equity = 0 then 'Shareholders equity denominator is missing or zero.'
                     else 'Total liabilities divided by absolute shareholders equity.'
+                end
+            ),
+            (
+                'liabilities_to_assets',
+                case
+                    when period.total_liabilities is not null and period.total_assets is not null and period.total_assets <> 0
+                    then (period.total_liabilities / abs(period.total_assets))::numeric
+                    else null::numeric
+                end,
+                'ratio',
+                case
+                    when period.total_liabilities is null or period.total_assets is null then 'unavailable'
+                    when period.total_assets = 0 then 'unavailable'
+                    else 'computed'
+                end,
+                case
+                    when period.total_liabilities is null then 'Total liabilities fact is missing from SEC companyfacts.'
+                    when period.total_assets is null or period.total_assets = 0 then 'Total assets denominator is missing or zero.'
+                    else 'Total liabilities divided by absolute total assets.'
                 end
             ),
             (

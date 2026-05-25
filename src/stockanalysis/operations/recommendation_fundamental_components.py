@@ -74,8 +74,11 @@ latest_normalized_rows as (
         'operating_margin',
         'free_cash_flow_margin',
         'cash_flow_quality',
+        'free_cash_flow_to_net_income',
+        'accrual_ratio',
         'roe',
-        'leverage_ratio'
+        'leverage_ratio',
+        'liabilities_to_assets'
       )
     order by
         normalized.instrument_id,
@@ -192,8 +195,11 @@ latest_normalized_rows as (
         'operating_margin',
         'free_cash_flow_margin',
         'cash_flow_quality',
+        'free_cash_flow_to_net_income',
+        'accrual_ratio',
         'roe',
-        'leverage_ratio'
+        'leverage_ratio',
+        'liabilities_to_assets'
       )
     order by
         normalized.instrument_id,
@@ -212,6 +218,8 @@ normalized_inputs as (
                 when 'operating_margin' then least(1::numeric, greatest(0::numeric, (metric_value + 0.0500::numeric) / 0.3500::numeric))
                 when 'free_cash_flow_margin' then least(1::numeric, greatest(0::numeric, (metric_value + 0.0500::numeric) / 0.3000::numeric))
                 when 'cash_flow_quality' then least(1::numeric, greatest(0::numeric, metric_value / 1.5000::numeric))
+                when 'free_cash_flow_to_net_income' then least(1::numeric, greatest(0::numeric, metric_value / 1.5000::numeric))
+                when 'accrual_ratio' then 1::numeric - least(1::numeric, greatest(0::numeric, (metric_value + 0.0500::numeric) / 0.3500::numeric))
                 when 'roe' then least(1::numeric, greatest(0::numeric, (metric_value + 0.1000::numeric) / 0.5000::numeric))
                 else null::numeric
             end
@@ -219,6 +227,7 @@ normalized_inputs as (
         avg(
             case
                 when metric_code = 'leverage_ratio' then 1::numeric - least(1::numeric, greatest(0::numeric, metric_value / 3.0000::numeric))
+                when metric_code = 'liabilities_to_assets' then 1::numeric - least(1::numeric, greatest(0::numeric, metric_value / 1.0000::numeric))
                 else null::numeric
             end
         ) as normalized_balance_sheet_score
@@ -245,26 +254,38 @@ peer_inputs as (
     select
         instrument_id,
         max(source_run_id) as source_run_id,
-        avg(percentile_rank) filter (
-            where metric_code in (
-                'net_margin',
-                'operating_margin',
-                'free_cash_flow_margin',
-                'cash_flow_quality',
-                'roe'
-            )
+        avg(
+            case
+                when metric_code in (
+                    'net_margin',
+                    'operating_margin',
+                    'free_cash_flow_margin',
+                    'cash_flow_quality',
+                    'free_cash_flow_to_net_income',
+                    'roe'
+                ) then percentile_rank
+                when metric_code = 'accrual_ratio' then 1::numeric - percentile_rank
+                else null::numeric
+            end
         ) as peer_quality_score,
-        avg(percentile_rank) filter (
-            where metric_code in (
-                'revenue_growth_yoy',
-                'net_margin',
-                'operating_margin',
-                'free_cash_flow_margin',
-                'cash_flow_quality',
-                'roe'
-            )
+        avg(
+            case
+                when metric_code in (
+                    'revenue_growth_yoy',
+                    'net_margin',
+                    'operating_margin',
+                    'free_cash_flow_margin',
+                    'cash_flow_quality',
+                    'free_cash_flow_to_net_income',
+                    'roe'
+                ) then percentile_rank
+                when metric_code = 'accrual_ratio' then 1::numeric - percentile_rank
+                else null::numeric
+            end
         ) as peer_relative_score,
-        avg(1::numeric - percentile_rank) filter (where metric_code = 'leverage_ratio') as peer_balance_sheet_score
+        avg(1::numeric - percentile_rank) filter (
+            where metric_code in ('leverage_ratio', 'liabilities_to_assets')
+        ) as peer_balance_sheet_score
     from latest_peer_rows
     group by instrument_id
 ),
@@ -351,7 +372,7 @@ component_rows as (
             (
                 'fundamental_quality_score',
                 score.fundamental_quality_score,
-                'Zero-weight financial quality component from normalized profitability, cash-flow quality, and peer context. Source runs: financial='
+                'Zero-weight financial quality component from normalized profitability, cash-flow quality, earnings quality/accruals, and peer context. Source runs: financial='
                     || coalesce(score.financial_source_run_id::text, 'none')
                     || ', peer='
                     || coalesce(score.peer_source_run_id::text, 'none')
