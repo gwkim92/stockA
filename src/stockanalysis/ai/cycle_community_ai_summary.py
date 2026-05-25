@@ -166,6 +166,13 @@ def build_codex_oauth_cycle_community_ai_output_schema() -> dict[str, object]:
             "usage": {
                 "type": "object",
                 "additionalProperties": False,
+                "required": [
+                    "input_tokens",
+                    "output_tokens",
+                    "cached_input_tokens",
+                    "estimated_cost_usd",
+                    "latency_ms",
+                ],
                 "properties": {
                     "input_tokens": {"type": ["integer", "null"]},
                     "output_tokens": {"type": ["integer", "null"]},
