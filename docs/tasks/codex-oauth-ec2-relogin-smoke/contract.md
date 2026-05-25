@@ -49,7 +49,7 @@
 ## Smoke Commands
 
 ```bash
-ssh -i /Users/woody/Downloads/settle.pem ec2-user@98.86.164.57 'echo ok && hostname && date'
+ssh -i /Users/woody/Downloads/settle.pem ec2-user@34.206.72.213 'echo ok && hostname && date'
 ```
 
 ```bash
@@ -67,7 +67,7 @@ cd /opt/stockanalysis/app
 PYTHONPATH=src /opt/stockanalysis/venv/bin/python -m stockanalysis.operations.cli \
   cycle-community-ai-summary-v2-run \
   --env-file /opt/stockanalysis/runtime/data-operations.env \
-  --as-of-date 2026-05-24 \
+  --as-of-date 2026-05-25 \
   --node-code TECH_DOMAIN \
   --limit 1 \
   --max-nodes 1 \
@@ -79,7 +79,7 @@ PYTHONPATH=src /opt/stockanalysis/venv/bin/python -m stockanalysis.operations.cl
 ## Verification
 
 - 검증에 사용할 명령:
-  - `ssh -i /Users/woody/Downloads/settle.pem -o ConnectTimeout=8 -o StrictHostKeyChecking=accept-new ec2-user@98.86.164.57 'echo ok && hostname && date'`
+  - `ssh -i /Users/woody/Downloads/settle.pem -o ConnectTimeout=8 -o StrictHostKeyChecking=accept-new ec2-user@34.206.72.213 'echo ok && hostname && date'`
   - `bash scripts/verify_project_execution_roadmap.sh`
   - `git diff --check`
   - `PYTHONPATH=/Users/woody/ai/agent-work-harness/src /opt/homebrew/bin/python3.13 -m awh verify --repo . --task codex-oauth-ec2-relogin-smoke`

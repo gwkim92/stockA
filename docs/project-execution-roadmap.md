@@ -231,26 +231,27 @@ The project is no longer in the Supabase setup or Mac local-first decision stage
 | --- | --- | --- |
 | Runtime | EC2 FastAPI/Next.js/systemd profile scheduler is the active operating candidate. | Production hardening, auth/RBAC, observability sink, deployment manifest maturity. |
 | Data | RSS news, Korean translation, market price, macro, SEC, event enrichment, hierarchical propagation, cycle snapshot, recommendation, paper validation, quality audit, and eval dataset runners are connected through backend CLI runners. | Provider quota resilience and longer-lived outcome history. |
-| AI | Codex OAuth batch is used for translation/news extraction; deterministic fallback remains available; AI artifacts and invocations are logged. News eval scoring and cycle community AI summary v2 runners exist. | EC2 Codex OAuth token is currently invalidated for the new community summary smoke; EC2/AWS access is currently blocked by SSH timeout and AWS account-closed sign-in state. |
+| AI | Codex OAuth batch is used for translation/news extraction and cycle community summaries; deterministic fallback remains available; AI artifacts and invocations are logged. EC2 Codex OAuth re-login and real community summary smoke succeeded on 2026-05-25 with `run_id=712`, `invocation_id=983`, `failed_summary_count=0`. | Longer-running AI quality evaluation and drift monitoring are still needed. |
 | Cycle Graph | Postgres ontology-lite, multi-hop impact propagation, cycle hierarchy snapshot, cycle map frontend, and recommendation quality calibration runner are implemented. | More outcome samples are needed before any component weight change. |
-| Frontend | Core pages exist and read live backend DTOs. Home/data-health/intelligence/cycle-map/paper-trading now share a “what to review today” decision strip; AI evidence detail has a source-to-recommendation trace path. | EC2 visual smoke for the latest UX commits is pending until SSH/AWS access is restored. |
-| Trading | Broker boundary, paper safety, paper validation audit, order intent audit tables, and clearer paper trading status UI exist. | Live broker submit remains excluded; EC2 visual smoke is pending until SSH/AWS access is restored. |
+| Frontend | Core pages exist and read live backend DTOs. Home/data-health/intelligence/cycle-map/paper-trading now share a “what to review today” decision strip; AI evidence detail has a source-to-recommendation trace path. | EC2 visual smoke should be repeated after the latest AI/schema fix and any cost-control decision. |
+| Trading | Broker boundary, paper safety, paper validation audit, order intent audit tables, and clearer paper trading status UI exist. | Live broker submit remains excluded; paper outcome history remains sparse. |
 
 Completed in this task group:
 
 - `project-roadmap-reality-sync`
 - `cycle-ai-e2e-quality-audit`
 - `news-ai-eval-dataset-and-scoring`
-- `cycle-community-ai-summary-v2`: EC2 fixture/fallback smoke passed, but real Codex OAuth summary needs EC2 re-login because the token is invalidated.
+- `cycle-community-ai-summary-v2`: EC2 fixture/fallback smoke passed earlier; real Codex OAuth summary smoke now also passed after EC2 re-login and strict schema fix (`run_id=712`, `invocation_id=983`).
 - `recommendation-quality-calibration`: implemented and EC2 smoke passed with `run_id=705`, `eval_run_id=3`; outcome sample is still insufficient, so recommendation weights remain unchanged.
-- `decision-cockpit-ux-v2`: implemented locally and pushed in `3fe42a7`; EC2 smoke pending because SSH/AWS access is blocked.
-- `ai-evidence-review-visibility-v2`: implemented locally and pushed in `8aa3943`; EC2 smoke pending because SSH/AWS access is blocked.
-- `paper-trading-status-clarity`: implemented locally and pushed in `6cb1c60`; EC2 smoke pending because SSH/AWS access is blocked.
-- `recommendation-outcome-backfill`: implemented locally and pushed in `2d9c3bd`; EC2 smoke pending because SSH/AWS access is blocked.
+- `decision-cockpit-ux-v2`: implemented and pushed in `3fe42a7`.
+- `ai-evidence-review-visibility-v2`: implemented and pushed in `8aa3943`.
+- `paper-trading-status-clarity`: implemented and pushed in `6cb1c60`.
+- `recommendation-outcome-backfill`: implemented and EC2 runner executed with `run_id=706`, status `executed_no_due_candidates`.
+- `codex-oauth-ec2-relogin-smoke`: completed on EC2 after re-login and schema fixes (`882bb1d`, `36922e3`, `c1a83d7`); real Codex OAuth invocation succeeded.
 
 Current remaining task:
 
-1. `codex-oauth-ec2-relogin-smoke`: restore target AWS/EC2 access, deploy latest branch to EC2, refresh EC2 Codex OAuth login, rerun real Codex OAuth community summary smoke, and compare fallback vs LLM artifacts. Current blocker evidence is recorded in `docs/tasks/codex-oauth-ec2-relogin-smoke/handoff.md`.
+1. `ec2-cost-and-runtime-audit`: identify the three EC2 instances now running, estimate/confirm account spend, decide which non-stockanalysis servers should stay running, and then repeat route/data-health smoke on the stockanalysis app.
 
 Current guardrail: do not change scoring weights, benchmark splits, or live broker submit in this task group. If a task does not improve live data truth, AI evidence quality, recommendation evaluation, or user-facing clarity, it is lower priority.
 
