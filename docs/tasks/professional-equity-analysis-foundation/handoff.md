@@ -2,9 +2,9 @@
 
 ## Current Status
 
-- 완료: schema foundation, financial metric normalization runner, CLI, local unit/CLI/compile/diff-check verification are implemented.
-- 진행 중: AWH verification and EC2 migration/runtime smoke are still pending.
-- 첫 수직 슬라이스 구현 완료, 검증 진행 중.
+- 완료: schema foundation, financial metric normalization runner, CLI, local verification, GitHub push, EC2 migration, EC2 SEC companyfacts seed, EC2 financial metric normalization smoke, and data-health visibility are implemented.
+- 진행 중: next task should expand from foundation into peer group and valuation snapshots.
+- 첫 수직 슬라이스 구현 완료.
 - 이 task는 기존 뉴스·AI·사이클 중심 시스템에 전문가식 주식 분석 레이어를 추가하기 위한 foundation이다.
 - 첫 수직 슬라이스는 `financial-metric-normalization-run`이다.
 
@@ -23,9 +23,19 @@
   - execute는 `ops.pipeline_run`을 만들고 `market.financial_metric_normalized`만 upsert한다.
   - 추천 score/weight는 변경하지 않는다.
 - 추가된 cadence:
+  - `sec-companyfacts-weekly`
   - `financial-metric-normalization-weekly`
+  - `pipeline_name=sec_companyfacts_upsert`
   - `pipeline_name=financial_metric_normalization`
+  - data-health dataset: `market.financial_statement_period`
   - data-health dataset: `market.financial_metric_normalized`
+- 추가된 operating-data profile step:
+  - `sec-filings-weekly` now runs `sec-filings-weekly`, `sec-companyfacts-weekly`, and `financial-metric-normalization` in order.
+- EC2 bug fixes made during live smoke:
+  - SEC companyfacts period upsert now dedupes by `instrument_id/statement_scope/period_end`, so point-in-time facts like assets do not conflict with duration facts.
+  - SEC companyfacts metric upsert now dedupes by `period_id/metric_code`, so duplicate SEC concepts mapped to the same internal metric do not conflict.
+  - SEC companyfacts instrument resolution falls back from company name to known CIK→symbol mapping for AAPL/MSFT/NVDA/TSLA/XOM.
+  - financial normalization now selects one prior comparable period via lateral `limit 1`, so restated or duplicate prior periods do not duplicate normalized rows.
 - 산출 지표:
   - `revenue_growth_yoy`
   - `gross_margin`
@@ -68,9 +78,35 @@
   - transaction was rolled back
 - Passed: `PYTHONPATH=src /private/tmp/stockanalysis-runtime/verify-venv/bin/python -m unittest discover -s tests` (`847 tests`)
 - Noted: `/opt/homebrew/bin/python3.13 -m unittest discover -s tests` fails because that interpreter does not have `fastapi`; the project verify venv passes.
+- Passed: pushed commits through `2ce6d5f` to `origin/codex/local-mvp-runtime-aws-bootstrap`.
+- Passed on EC2: code fast-forwarded to `2ce6d5f`.
+- Passed on EC2: `db/migrations/0021_professional_equity_analysis.sql` applied.
+- Passed on EC2: `sec-companyfacts-upsert` for AAPL, MSFT, NVDA, TSLA, XOM.
+  - AAPL run_id `732`, fact_count `1428`, period_count `340`
+  - MSFT run_id `733`, fact_count `1435`, period_count `272`
+  - NVDA run_id `734`, fact_count `1435`, period_count `324`
+  - TSLA run_id `735`, fact_count `1419`, period_count `308`
+  - XOM run_id `736`, fact_count `1099`, period_count `298`
+- Passed on EC2: `financial-metric-normalization-run --execute`.
+  - run_id `738`
+  - source_period_count `593`
+  - source_instrument_count `5`
+  - upserted_count `5930`
+  - computed_count `2706`
+  - unavailable_count `3133`
+  - insufficient_history_count `91`
+- Passed on EC2 DB sample:
+  - AAPL normalized rows `1280`, computed rows `469`, latest period `2026-03-28`
+  - MSFT normalized rows `1280`, computed rows `540`, latest period `2026-03-31`
+  - NVDA normalized rows `1260`, computed rows `667`, latest period `2026-04-26`
+  - TSLA normalized rows `1180`, computed rows `640`, latest period `2026-03-31`
+  - XOM normalized rows `930`, computed rows `390`, latest period `2026-03-31`
+- Passed on EC2 API/data-health after service restart:
+  - `sec_companyfacts_upsert` job_id `sec-companyfacts-weekly`, latest run `pipeline-run-736`, `health_status=ok`
+  - `financial_metric_normalization` job_id `financial-metric-normalization-weekly`, latest run `pipeline-run-738`, `health_status=ok`
+  - overall data-health is still `attention_required` because unrelated older market/portfolio runs are stale.
 
 ## Exact Next Step
 
-- 다음 세션은 이것부터 시작: Run AWH verification for `professional-equity-analysis-foundation`, then apply the migration on EC2 and execute `financial-metric-normalization-run --execute`.
-- Run AWH verification for `professional-equity-analysis-foundation`.
-- Then apply migration on EC2, run `financial-metric-normalization-run --execute`, and verify normalized row counts before building peer and valuation snapshots.
+- 다음 세션은 이것부터 시작: implement `peer-group-and-relative-analysis` using `ref.peer_group`, `ref.peer_group_member`, and `market.peer_relative_snapshot`, then expose peer-relative metrics to stock/recommendation detail DTOs.
+- Do not change recommendation weights yet. Fundamental and valuation components remain evidence-only until outcome/eval samples justify calibration.
