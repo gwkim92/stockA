@@ -19,6 +19,9 @@ seed 순서:
 
 1. `seeds/0001_reference_seed.sql`
 2. `seeds/0002_data_sources_seed.sql`
+3. `seeds/0003_factor_exposure_seed.sql`
+4. `seeds/0004_cycle_hierarchy_seed.sql`
+5. `seeds/0005_sector_classification_seed.sql`
 
 검증:
 

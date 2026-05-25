@@ -7,6 +7,8 @@
 - 시장 기준정보
 - 거래소 기준정보
 - 초기 데이터 소스 목록
+- 거시/테마/섹터 ontology-lite seed
+- 주요 미국 주식/ETF의 초기 sector/theme exposure seed
 
 목적:
 
@@ -16,3 +18,6 @@
 
 현재 seed는 `미국 시장 MVP` 기준이다.
 향후 한국 시장이나 추가 공급자를 붙일 때 별도 seed 파일을 추가한다.
+
+`0005_sector_classification_seed.sql`는 포트폴리오 리스크 화면에서 섹터 집중도를 계산하기 위한 최소 sector membership을 제공한다.
+전체 GICS universe가 아니라 현재 운영 후보와 core smoke 대상 심볼만 포함한다.

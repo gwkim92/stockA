@@ -18,6 +18,7 @@ from stockanalysis.frontend.live_adapter import (
     render_frontend_cycle_state_list_sql,
     render_frontend_event_list_state_sql,
     render_frontend_paper_trading_preview_state_sql,
+    render_frontend_portfolio_concentration_state_sql,
     render_frontend_recommendation_list_state_sql,
     render_frontend_recommendation_detail_state_sql,
     render_frontend_source_document_detail_state_sql,
@@ -3611,6 +3612,19 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         ]
         self.assertEqual(concentration_priority[0]["symbol"], "AAPL")
         self.assertEqual(concentration_priority[0]["order_boundary"], "read_only_no_order")
+
+    def test_live_portfolio_concentration_sql_reads_sector_membership(self) -> None:
+        sql = render_frontend_portfolio_concentration_state_sql(
+            portfolio_name="Long Term Paper",
+            snapshot_date=date(2026, 5, 23),
+        )
+
+        self.assertIn("portfolio.position_snapshot", sql)
+        self.assertIn("ref.instrument_classification_membership", sql)
+        self.assertIn("ref.classification_node", sql)
+        self.assertIn("when node.node_type = 'sector' then 'sector'", sql)
+        self.assertIn("sector_exposure_rows", sql)
+        self.assertIn("'sector_exposures'", sql)
 
     def test_live_portfolio_coverage_falls_back_to_latest_snapshot_before_requested_date(self) -> None:
         executor = LatestPortfolioCoverageExecutor()
