@@ -56,6 +56,44 @@ const CYCLE_STACK_COMPONENT_META: Record<string, { step: string; body: string }>
 
 const CYCLE_STACK_COMPONENT_SET = new Set<string>(CYCLE_STACK_COMPONENT_ORDER);
 
+const FUNDAMENTAL_COMPONENT_ORDER = [
+  "fundamental_quality_score",
+  "valuation_margin_score",
+  "peer_relative_score",
+  "balance_sheet_risk_penalty",
+  "thesis_consistency_score",
+] as const;
+
+const FUNDAMENTAL_COMPONENT_META: Record<string, { lens: string; title: string; body: string }> = {
+  fundamental_quality_score: {
+    lens: "재무 품질",
+    title: "매출·마진·현금흐름이 투자 논리를 받치는가",
+    body: "정규화 재무지표와 현금흐름 품질을 바탕으로 기업 자체 체력이 충분한지 보는 항목이다.",
+  },
+  valuation_margin_score: {
+    lens: "밸류에이션",
+    title: "현재 가격에 안전마진이 있는가",
+    body: "DCF-lite, 상대 배수, 시나리오 범위를 근거로 비싸게 따라사는 후보인지 아닌지 확인한다.",
+  },
+  peer_relative_score: {
+    lens: "피어 비교",
+    title: "같은 그룹 안에서 상대적으로 우수한가",
+    body: "같은 산업·테마 비교군에서 성장성, 수익성, 안정성 위치가 어느 정도인지 보는 항목이다.",
+  },
+  balance_sheet_risk_penalty: {
+    lens: "재무 안정성",
+    title: "부채와 재무 압력이 과하지 않은가",
+    body: "레버리지와 재무 부담이 중장기 보유 리스크를 키우는지 분리해서 확인한다.",
+  },
+  thesis_consistency_score: {
+    lens: "투자 논리",
+    title: "추천과 투자 논리가 서로 맞는가",
+    body: "활성 thesis, 무효화 조건, 보유 검토 맥락이 추천 방향과 충돌하지 않는지 점검한다.",
+  },
+};
+
+const FUNDAMENTAL_COMPONENT_SET = new Set<string>(FUNDAMENTAL_COMPONENT_ORDER);
+
 function macroFlowRows(component: ScoreComponent) {
   if (component.provenance?.source_type !== "macro_flow_propagation") {
     return [];
@@ -90,6 +128,21 @@ function cycleStackComponents(components: ScoreComponent[]) {
   return components
     .filter(isCycleStackComponent)
     .sort((left, right) => cycleStackOrder(left.component) - cycleStackOrder(right.component));
+}
+
+function isFundamentalComponent(component: ScoreComponent) {
+  return component.provenance?.source_type === "fundamental_context" || FUNDAMENTAL_COMPONENT_SET.has(component.component);
+}
+
+function fundamentalOrder(componentName: string) {
+  const index = FUNDAMENTAL_COMPONENT_ORDER.findIndex((item) => item === componentName);
+  return index === -1 ? FUNDAMENTAL_COMPONENT_ORDER.length : index;
+}
+
+function fundamentalComponents(components: ScoreComponent[]) {
+  return components
+    .filter(isFundamentalComponent)
+    .sort((left, right) => fundamentalOrder(left.component) - fundamentalOrder(right.component));
 }
 
 function themeHref(themeKey: string | null | undefined) {
@@ -140,6 +193,12 @@ function provenanceBadges(component: ScoreComponent) {
       badges.push(koCode(provenance.evidence.cycle_stack_level));
     }
   }
+  if (provenance.source_type === "fundamental_context") {
+    badges.push(isZeroWeight(component.weight) ? "현재 총점 미반영" : "총점 반영");
+    if (provenance.evidence?.as_of_date) {
+      badges.push(`기준일 ${provenance.evidence.as_of_date}`);
+    }
+  }
   return badges;
 }
 
@@ -172,6 +231,9 @@ function provenanceMetadata(component: ScoreComponent): AuditMetadataItem[] {
     { label: "선택 사이클 노드", value: provenance.evidence?.cycle_stack_node_code ? koCode(provenance.evidence.cycle_stack_node_code) : null },
     { label: "사이클 설명", value: provenance.evidence?.cycle_stack_explanation ? koLabel(provenance.evidence.cycle_stack_explanation) : null },
     { label: "적용 메모", value: provenance.evidence?.cycle_stack_note ? koLabel(provenance.evidence.cycle_stack_note) : null },
+    { label: "기업 분석 항목", value: provenance.evidence?.fundamental_component_name ? koCode(provenance.evidence.fundamental_component_name) : null },
+    { label: "기업 분석 설명", value: provenance.evidence?.fundamental_explanation ? koLabel(provenance.evidence.fundamental_explanation) : null },
+    { label: "기업 분석 메모", value: provenance.evidence?.fundamental_note ? koLabel(provenance.evidence.fundamental_note) : null },
     { label: "전파 근거 수", value: provenance.evidence?.propagated_impact_count },
     { label: "선정 규칙", value: provenance.selection_rule },
     { label: "편입 사유", value: provenance.inclusion_reason },
@@ -210,6 +272,11 @@ function provenanceDetail(component: ScoreComponent) {
     const meta = CYCLE_STACK_COMPONENT_META[component.component];
     return `${meta?.step ?? koCode(cycleStackLevel(component))}: 기준 노드 ${nodeText}. ${meta?.body ?? "계층형 사이클 점수의 출처를 설명한다."}`;
   }
+  if (provenance.source_type === "fundamental_context") {
+    const meta = FUNDAMENTAL_COMPONENT_META[component.component];
+    const status = isZeroWeight(component.weight) ? "현재 추천 총점에는 반영하지 않는 검증 항목" : "추천 총점에 반영되는 항목";
+    return `${meta?.lens ?? "기업 분석"}: ${meta?.body ?? koLabel(provenance.label)} ${status}이다.`;
+  }
   return koLabel(provenance.label);
 }
 
@@ -221,6 +288,9 @@ function evidenceHref(evidenceId: string, symbol: string) {
     return `/events?symbol=${encodeURIComponent(symbol)}` as Route;
   }
   if (evidenceId.startsWith("macro-flow-")) {
+    return `/stocks/${encodeURIComponent(symbol)}` as Route;
+  }
+  if (evidenceId.startsWith("fundamental-")) {
     return `/stocks/${encodeURIComponent(symbol)}` as Route;
   }
   return null;
@@ -235,6 +305,9 @@ function evidenceLinkLabel(evidenceId: string) {
   }
   if (evidenceId.startsWith("macro-flow-")) {
     return "종목 영향 보기";
+  }
+  if (evidenceId.startsWith("fundamental-")) {
+    return "종목 분석 보기";
   }
   return "근거 화면 열기";
 }
@@ -441,6 +514,7 @@ export default async function RecommendationPage({ params }: RecommendationPageP
   const traceCards = evidenceTraceCards(data);
   const macroFlowComponents = data.score_components.filter((component) => macroFlowRows(component).length > 0);
   const cycleStack = cycleStackComponents(data.score_components);
+  const fundamentalStack = fundamentalComponents(data.score_components);
   const outcomeMeasured = data.outcome.label !== "unmeasured" && Boolean(data.outcome.measurement_end_date);
   const marketComponentCount = data.score_components.filter((component) =>
     ["market_feature", "strategy_universe_rank"].includes(component.provenance?.source_type ?? ""),
@@ -473,6 +547,11 @@ export default async function RecommendationPage({ params }: RecommendationPageP
       label: "사이클 경로",
       title: `${cycleStack.length}단계`,
       body: "거시, 도메인, 테마, 종목, 충돌 여부를 분리해 왜 이 종목인지 추적한다.",
+    },
+    {
+      label: "기업 분석",
+      title: `${fundamentalStack.length}개 검토`,
+      body: "재무 품질, 밸류에이션, 피어 비교, 투자 논리 일관성을 별도로 확인한다.",
     },
   ];
 
@@ -581,6 +660,48 @@ export default async function RecommendationPage({ params }: RecommendationPageP
                     <span>점수 {formatPercent(component.value)}</span>
                     <span>가중치 {formatPercent(component.weight)}</span>
                     <span>{isZeroWeight(component.weight) ? "현재 총점 영향 없음" : "총점에 반영됨"}</span>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        </section>
+      ) : null}
+
+      {fundamentalStack.length > 0 ? (
+        <section className="bento-card reveal delay-1" aria-label="재무와 밸류에이션 추천 근거">
+          <div style={{ marginBottom: "22px" }}>
+            <span className="metric-sub">재무·밸류에이션 근거</span>
+            <h2 style={{ fontSize: "1.5rem", marginTop: "6px" }}>뉴스가 아니라 기업 자체가 받쳐주는가</h2>
+            <p style={{ color: "var(--text-secondary)", marginTop: "8px", maxWidth: "900px" }}>
+              이 영역은 프로 애널리스트식 검토 축이다. 현재는 성과 표본이 부족하므로 추천 총점에는 반영하지 않고,
+              재무 품질과 가격 매력도가 추천 논리를 보강하거나 반박하는지 확인하는 근거로만 쓴다.
+            </p>
+          </div>
+
+          <div style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))",
+            gap: "14px",
+          }}>
+            {fundamentalStack.map((component) => {
+              const meta = FUNDAMENTAL_COMPONENT_META[component.component];
+              return (
+                <article
+                  className="detail-path-card"
+                  key={`fundamental-${component.component}`}
+                  style={{
+                    background: "linear-gradient(180deg, rgba(251,250,246,0.96), rgba(96,70,35,0.08))",
+                    minHeight: "220px",
+                  }}
+                >
+                  <span>{meta?.lens ?? "기업 분석"}</span>
+                  <strong>{meta?.title ?? koCode(component.component)}</strong>
+                  <p>{meta?.body ?? provenanceDetail(component)}</p>
+                  <div style={{ marginTop: "14px", display: "grid", gap: "6px", color: "var(--text-secondary)", fontSize: "0.8rem", fontWeight: 800 }}>
+                    <span>검토 점수 {formatPercent(component.value)}</span>
+                    <span>{isZeroWeight(component.weight) ? "추천 총점에는 아직 미반영" : `가중치 ${formatPercent(component.weight)}`}</span>
+                    <span>{component.provenance?.label ?? "기업 분석 근거"}</span>
                   </div>
                 </article>
               );

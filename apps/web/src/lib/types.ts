@@ -854,6 +854,9 @@ export type RecommendationDetailData = {
         cycle_stack_level?: string | null;
         cycle_stack_explanation?: string | null;
         cycle_stack_note?: string | null;
+        fundamental_component_name?: string | null;
+        fundamental_explanation?: string | null;
+        fundamental_note?: string | null;
         propagated_impact_count?: number | null;
         recent_flows?: Array<{
           event_id: number | string;

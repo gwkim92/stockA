@@ -1022,6 +1022,82 @@ class FakeLiveExecutor:
                                 },
                             },
                         },
+                        {
+                            "component": "fundamental_quality_score",
+                            "value": "0.7200",
+                            "weight": "0.0000",
+                            "evidence_id": "fundamental-aapl-2024-11-01-fundamental_quality_score",
+                            "provenance": {
+                                "source_type": "fundamental_context",
+                                "label": "재무 품질 근거",
+                                "evidence_json": {
+                                    "as_of_date": "2024-11-01",
+                                    "fundamental_component_name": "fundamental_quality_score",
+                                    "fundamental_explanation": "Zero-weight financial quality component from normalized profitability, cash-flow quality, and peer context.",
+                                    "fundamental_note": "전문가식 기업 분석 입력을 추천 상세에 노출하기 위한 zero-weight 검증 항목이다.",
+                                },
+                            },
+                        },
+                        {
+                            "component": "valuation_margin_score",
+                            "value": "0.5800",
+                            "weight": "0.0000",
+                            "evidence_id": "fundamental-aapl-2024-11-01-valuation_margin_score",
+                            "provenance": {
+                                "source_type": "fundamental_context",
+                                "label": "밸류에이션 여유 근거",
+                                "evidence_json": {
+                                    "as_of_date": "2024-11-01",
+                                    "fundamental_component_name": "valuation_margin_score",
+                                    "fundamental_explanation": "Zero-weight valuation margin component from valuation_snapshot margin-of-safety context.",
+                                },
+                            },
+                        },
+                        {
+                            "component": "peer_relative_score",
+                            "value": "0.6400",
+                            "weight": "0.0000",
+                            "evidence_id": "fundamental-aapl-2024-11-01-peer_relative_score",
+                            "provenance": {
+                                "source_type": "fundamental_context",
+                                "label": "피어 비교 근거",
+                                "evidence_json": {
+                                    "as_of_date": "2024-11-01",
+                                    "fundamental_component_name": "peer_relative_score",
+                                    "fundamental_explanation": "Zero-weight peer-relative component from peer percentile ranks.",
+                                },
+                            },
+                        },
+                        {
+                            "component": "balance_sheet_risk_penalty",
+                            "value": "0.7600",
+                            "weight": "0.0000",
+                            "evidence_id": "fundamental-aapl-2024-11-01-balance_sheet_risk_penalty",
+                            "provenance": {
+                                "source_type": "fundamental_context",
+                                "label": "재무 안정성 근거",
+                                "evidence_json": {
+                                    "as_of_date": "2024-11-01",
+                                    "fundamental_component_name": "balance_sheet_risk_penalty",
+                                    "fundamental_explanation": "Zero-weight balance-sheet risk component; higher means lower observed leverage pressure.",
+                                },
+                            },
+                        },
+                        {
+                            "component": "thesis_consistency_score",
+                            "value": "0.8000",
+                            "weight": "0.0000",
+                            "evidence_id": "fundamental-aapl-2024-11-01-thesis_consistency_score",
+                            "provenance": {
+                                "source_type": "fundamental_context",
+                                "label": "투자 논리 일관성 근거",
+                                "evidence_json": {
+                                    "as_of_date": "2024-11-01",
+                                    "fundamental_component_name": "thesis_consistency_score",
+                                    "fundamental_explanation": "Zero-weight thesis consistency component.",
+                                },
+                            },
+                        },
 	                    ],
 	                    "linked_thesis_id": 7001,
 	                    "evidence_trace": {
@@ -2817,6 +2893,20 @@ class FrontendLiveAdapterTests(unittest.TestCase):
             payload["data"]["score_components"][4]["provenance"]["evidence"]["cycle_stack_level"],
             "macro_regime",
         )
+        fundamental_component = payload["data"]["score_components"][9]
+        self.assertEqual(fundamental_component["component"], "fundamental_quality_score")
+        self.assertEqual(fundamental_component["evidence_id"], "fundamental-aapl-2024-11-01-fundamental_quality_score")
+        self.assertEqual(fundamental_component["provenance"]["source_type"], "fundamental_context")
+        self.assertEqual(fundamental_component["provenance"]["label"], "재무 품질 근거")
+        self.assertEqual(
+            fundamental_component["provenance"]["evidence"]["fundamental_component_name"],
+            "fundamental_quality_score",
+        )
+        self.assertIn(
+            "financial quality",
+            fundamental_component["provenance"]["evidence"]["fundamental_explanation"],
+        )
+        self.assertEqual(fundamental_component["weight"], 0.0)
         self.assertEqual(payload["data"]["linked_thesis_id"], "thesis-7001")
         trace = payload["data"]["evidence_trace"]
         self.assertEqual(trace["symbol"], "AAPL")
@@ -2841,7 +2931,7 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertEqual(trace["holding_review"]["position_linked_thesis_id"], "thesis-7001")
         review = payload["data"]["evidence_review"]
         self.assertEqual(review["quality_status"], "ai_review_passed")
-        self.assertEqual(review["summary"]["score_component_count"], 9)
+        self.assertEqual(review["summary"]["score_component_count"], 14)
         self.assertEqual(review["summary"]["ai_evidence_component_count"], 1)
         self.assertEqual(review["summary"]["market_or_rank_component_count"], 3)
         self.assertEqual(review["summary"]["market_or_rank_provenance_count"], 3)
@@ -2945,6 +3035,15 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertIn("'cycle_stack_context'", sql)
         self.assertIn("'cycle_stack_node_code', substring(component.explanation from 'Selected recommendation node: ([A-Z0-9_]+)')", sql)
         self.assertIn("'cycle_stack_level'", sql)
+        self.assertIn("'fundamental-' || lower(recommendation.primary_symbol)", sql)
+        self.assertIn("'fundamental_quality_score'", sql)
+        self.assertIn("'valuation_margin_score'", sql)
+        self.assertIn("'peer_relative_score'", sql)
+        self.assertIn("'balance_sheet_risk_penalty'", sql)
+        self.assertIn("'thesis_consistency_score'", sql)
+        self.assertIn("'fundamental_context'", sql)
+        self.assertIn("'fundamental_component_name', component.component_name", sql)
+        self.assertIn("'fundamental_explanation', component.explanation", sql)
         self.assertIn("'provenance', provenance", sql)
         self.assertIn("'evidence_trace'", sql)
         self.assertIn("'direct_news_or_ai'", sql)

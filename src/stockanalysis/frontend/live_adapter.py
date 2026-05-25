@@ -5046,6 +5046,14 @@ score_component_rows as (
                 'cycle_conflict_penalty'
             )
                 then 'cycle-stack-' || lower(recommendation.primary_symbol) || '-' || recommendation.as_of_date::text || '-' || component.component_name
+            when component.component_name in (
+                'fundamental_quality_score',
+                'valuation_margin_score',
+                'peer_relative_score',
+                'balance_sheet_risk_penalty',
+                'thesis_consistency_score'
+            )
+                then 'fundamental-' || lower(recommendation.primary_symbol) || '-' || recommendation.as_of_date::text || '-' || component.component_name
             else component.component_name
         end as evidence_id,
         case
@@ -5117,6 +5125,31 @@ score_component_rows as (
                         end,
                         'cycle_stack_explanation', component.explanation,
                         'cycle_stack_note', '초기 계층형 사이클 점수는 추천 결과를 급격히 바꾸지 않도록 설명용 weight 0으로 저장될 수 있다.'
+                    )
+                ))
+            when component.component_name in (
+                'fundamental_quality_score',
+                'valuation_margin_score',
+                'peer_relative_score',
+                'balance_sheet_risk_penalty',
+                'thesis_consistency_score'
+            )
+                then json_strip_nulls(json_build_object(
+                    'source_type', 'fundamental_context',
+                    'label',
+                    case component.component_name
+                        when 'fundamental_quality_score' then '재무 품질 근거'
+                        when 'valuation_margin_score' then '밸류에이션 여유 근거'
+                        when 'peer_relative_score' then '피어 비교 근거'
+                        when 'balance_sheet_risk_penalty' then '재무 안정성 근거'
+                        when 'thesis_consistency_score' then '투자 논리 일관성 근거'
+                        else '기업 분석 근거'
+                    end,
+                    'evidence_json', json_build_object(
+                        'as_of_date', recommendation.as_of_date,
+                        'fundamental_component_name', component.component_name,
+                        'fundamental_explanation', component.explanation,
+                        'fundamental_note', '전문가식 기업 분석 입력을 추천 상세에 노출하기 위한 zero-weight 검증 항목이다. 성과 평가 전까지 추천 총점에는 반영하지 않는다.'
                     )
                 ))
             else json_build_object(
@@ -7331,6 +7364,9 @@ def _build_score_component_evidence_summary(evidence_json: dict[str, Any]) -> di
         "cycle_stack_level": _optional_text(evidence_json.get("cycle_stack_level")),
         "cycle_stack_explanation": _optional_text(evidence_json.get("cycle_stack_explanation")),
         "cycle_stack_note": _optional_text(evidence_json.get("cycle_stack_note")),
+        "fundamental_component_name": _optional_text(evidence_json.get("fundamental_component_name")),
+        "fundamental_explanation": _optional_text(evidence_json.get("fundamental_explanation")),
+        "fundamental_note": _optional_text(evidence_json.get("fundamental_note")),
         "propagated_impact_count": _integer(evidence_json.get("propagated_impact_count")),
         "recent_flows": _as_list(evidence_json.get("recent_flows")),
     }
@@ -7343,6 +7379,8 @@ def _infer_score_component_source_type(evidence_id: str) -> str:
         return "strategy_universe_rank"
     if evidence_id.startswith("macro-flow-"):
         return "macro_flow_propagation"
+    if evidence_id.startswith("fundamental-"):
+        return "fundamental_context"
     if _is_ai_or_event_evidence_id(evidence_id):
         return "event_or_ai_evidence"
     return "score_component"
@@ -7359,6 +7397,8 @@ def _default_score_component_provenance_label(source_type: str) -> str:
         return "상위 흐름 전파 근거"
     if source_type == "cycle_stack_context":
         return "계층형 사이클 근거"
+    if source_type == "fundamental_context":
+        return "기업 분석 근거"
     return "저장된 점수 구성요소"
 
 
