@@ -106,7 +106,14 @@
   - `financial_metric_normalization` job_id `financial-metric-normalization-weekly`, latest run `pipeline-run-738`, `health_status=ok`
   - overall data-health is still `attention_required` because unrelated older market/portfolio runs are stale.
 
+## Follow-up Progress
+
+- `peer-group-and-relative-analysis` was implemented after this foundation task.
+  - EC2 run_id `750`
+  - `market.peer_relative_snapshot` rows created for the five SEC companyfacts seed instruments.
+  - `/api/data-health` shows `peer_relative_analysis` as `health_status=ok`.
+
 ## Exact Next Step
 
-- 다음 세션은 이것부터 시작: implement `peer-group-and-relative-analysis` using `ref.peer_group`, `ref.peer_group_member`, and `market.peer_relative_snapshot`, then expose peer-relative metrics to stock/recommendation detail DTOs.
+- 다음 세션은 이것부터 시작: implement `valuation-snapshot-foundation` using normalized financial metrics, peer relative context, and latest market prices.
 - Do not change recommendation weights yet. Fundamental and valuation components remain evidence-only until outcome/eval samples justify calibration.

@@ -2,8 +2,8 @@
 
 ## Current Status
 
-- 완료: peer-relative runner, CLI, cadence, operating-data profile, unit/CLI/orchestrator tests, and local Postgres rollback smoke are implemented.
-- 진행 중: GitHub push and EC2 runtime smoke are still pending.
+- 완료: peer-relative runner, CLI, cadence, operating-data profile, local tests, local Postgres rollback smoke, GitHub push, EC2 execution, and data-health visibility are implemented.
+- 진행 중: next task should expand into valuation snapshot foundation.
 
 ## Implementation Notes
 
@@ -44,7 +44,28 @@
   - `PRB` net margin/revenue growth ranked `near_peer`
   - `PRC` net margin/revenue growth ranked `above_peer`
   - transaction was rolled back
+- Passed: pushed commit `62ae997` to `origin/codex/local-mvp-runtime-aws-bootstrap`.
+- Passed on EC2: code fast-forwarded to `62ae997`.
+- Passed on EC2: `peer-relative-analysis-run --as-of-date 2026-05-25 --statement-scope annual --execute`.
+  - run_id `750`
+  - coverage_instrument_count `5`
+  - latest_metric_count `43`
+  - classification_peer_group_count `1`
+  - peer_group_count `2`
+  - peer_member_count `8`
+  - snapshot_count `80`
+  - relative_signal_counts: `above_peer=27`, `below_peer=27`, `near_peer=16`, `insufficient_data=10`
+- Passed on EC2 DB sample:
+  - `US_CORE_FINANCIAL_DISCLOSURE` has `5` members and `250` snapshots.
+  - `CLASSIFICATION_INTERNAL_THEME_SUBTHEME_US_MARKET_BREADTH` has `3` members and `90` snapshots.
+  - fallback group examples:
+    - `net_margin`: TSLA/XOM below peer, AAPL near peer, MSFT/NVDA above peer.
+    - `revenue_growth_yoy`: AAPL/XOM below peer, MSFT near peer, TSLA/NVDA above peer.
+    - `free_cash_flow_margin`: TSLA/XOM below peer, NVDA near peer, AAPL/MSFT above peer.
+- Passed on EC2 API/data-health after service restart:
+  - `peer_relative_analysis` job_id `peer-relative-analysis-weekly`, latest run `pipeline-run-750`, `health_status=ok`
+  - overall data-health remains `attention_required` because unrelated older market/portfolio jobs are stale.
 
 ## Exact Next Step
 
-- 다음 세션은 이것부터 시작: commit/push, deploy to EC2, run `peer-relative-analysis-run --execute`, then verify `/api/data-health` shows `peer_relative_analysis` with `health_status=ok`.
+- 다음 세션은 이것부터 시작: implement `valuation-snapshot-foundation` using `market.valuation_snapshot`, latest market price, normalized FCF/margins, and peer relative context. Keep recommendation weights unchanged.
