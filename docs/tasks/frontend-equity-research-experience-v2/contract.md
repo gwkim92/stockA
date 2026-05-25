@@ -61,15 +61,14 @@
 
 ## Done Criteria
 
-- [ ] `/stocks/[symbol]`에 전문 리서치 흐름이 표시된다.
-- [ ] `/recommendations/[recommendationId]`에 전문 리서치 흐름이 표시된다.
-- [ ] 리서치 artifact가 없는 경우에도 부족한 근거가 한국어로 설명된다.
-- [ ] 자동 주문 또는 실거래 가능으로 오해될 문구가 없다.
-- [ ] 로컬 검증과 EC2 route smoke가 통과한다.
+- [x] `/stocks/[symbol]`에 전문 리서치 흐름이 표시된다.
+- [x] `/recommendations/[recommendationId]`에 전문 리서치 흐름이 표시된다.
+- [x] 리서치 artifact가 없는 경우에도 부족한 근거가 한국어로 설명된다.
+- [x] 자동 주문 또는 실거래 가능으로 오해될 문구가 없다.
+- [x] 로컬 검증과 EC2 route smoke가 통과한다.
 
 ## Risks
 
 - 화면은 기존 저장 데이터를 재배치할 뿐, 기업 재무 모델 자체의 품질을 새로 높이지 않는다.
 - 피어 비교와 밸류에이션은 현재 component/artifact 품질에 의존한다.
 - outcome/evaluation 표본이 부족하므로 추천 weight는 변경하지 않는다.
-

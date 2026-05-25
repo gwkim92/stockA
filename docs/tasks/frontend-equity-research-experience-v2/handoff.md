@@ -5,8 +5,9 @@
 - 완료:
   - 공통 리서치 흐름 컴포넌트를 추가했다.
   - 종목 상세와 추천 상세 상단을 전문 분석서 순서로 재구성했다.
+  - 로컬 검증, AWH 검증, EC2 배포와 route smoke를 완료했다.
 - 진행 중:
-  - 로컬 검증 후 EC2 route smoke를 남긴다.
+  - 없음.
 - 막힌 점:
   - 없음.
 
@@ -32,11 +33,17 @@
 - `PYTHONPATH=src /opt/homebrew/bin/python3.13 -m compileall -q src tests`: pass
 - `git diff --check`: pass
 - `cd apps/web && npm run build`: pass
-- `awh verify`: first run failed because contract/handoff headings were incomplete; rerun after this update.
+- `PYTHONPATH=/Users/woody/ai/agent-work-harness/src /opt/homebrew/bin/python3.13 -m awh verify --repo . --task frontend-equity-research-experience-v2`: pass
+- EC2 `git pull --ff-only origin codex/local-mvp-runtime-aws-bootstrap`: pass, deployed commit `631f3ed`
+- EC2 `cd apps/web && npm run build`: pass
+- EC2 `systemctl is-active stockanalysis-web.service`: active
+- EC2 `systemctl is-active stockanalysis-frontend-api.service`: active
+- EC2 route smoke: `/stocks/NVDA` 200 with `전문 리서치`, `사업 개요`, `재무 품질`, `밸류에이션`, `페이퍼 검증`
+- EC2 route smoke: `/recommendations/recommendation-140` 200 with `전문 리서치`, `사업 개요`, `재무 품질`, `밸류에이션`, `페이퍼 검증`
 
 ## Exact Next Step
 
-- exact next step: AWH verify를 다시 실행한다. 이후 EC2에 배포해 `/stocks/NVDA`와 `/recommendations/recommendation-140` route smoke를 확인한다.
+- exact next step: `recommendation-quality-calibration`으로 넘어가 추천 outcome/성과 표본을 재현 가능하게 쌓고, 현재 weight 0인 fundamental/valuation/peer component를 언제 반영할지 평가 기준을 만든다.
 
 ## Remaining Risks
 
