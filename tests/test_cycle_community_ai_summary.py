@@ -61,6 +61,7 @@ class CycleCommunityAiSummaryTests(unittest.TestCase):
 
         self.assertIn("Write every human-readable field in Korean", prompt)
         self.assertIn("Do not browse", prompt)
+        self.assertIn("usage", schema["required"])
         self.assertIn("watchlist_symbols", summary_schema["required"])
         self.assertIn("supporting_events", summary_schema["properties"])
         self.assertFalse(schema["properties"]["usage"]["additionalProperties"])

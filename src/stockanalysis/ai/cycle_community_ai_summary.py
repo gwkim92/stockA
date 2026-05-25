@@ -115,7 +115,7 @@ def build_codex_oauth_cycle_community_ai_output_schema() -> dict[str, object]:
     return {
         "type": "object",
         "additionalProperties": False,
-        "required": ["summary"],
+        "required": ["summary", "usage"],
         "properties": {
             "summary": {
                 "type": "object",
