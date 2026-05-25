@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { Route } from "next";
+import { Fragment } from "react";
 import { AuditMetadata, type AuditMetadataItem } from "@/components/audit-metadata";
 import { NewsTitleBlock } from "@/components/news-title-block";
 import { getRecommendationDetail } from "@/lib/frontend-api";
@@ -147,6 +148,54 @@ function fundamentalComponents(components: ScoreComponent[]) {
 
 function themeHref(themeKey: string | null | undefined) {
   return themeKey ? (`/themes/${encodeURIComponent(themeKey)}` as Route) : null;
+}
+
+function stockHref(symbol: string) {
+  return `/stocks/${encodeURIComponent(symbol)}` as Route;
+}
+
+function sourceDocumentHref(documentId: string) {
+  return `/source-documents/${documentId}` as Route;
+}
+
+function providerLabel(provider: string) {
+  if (provider === "codex_oauth") {
+    return "Codex OAuth AI 분석";
+  }
+  if (provider === "fixture") {
+    return "검증용 샘플 분석";
+  }
+  return koCode(provider);
+}
+
+function valuationSensitivityItems(value: Record<string, unknown>) {
+  return Object.entries(value)
+    .map(([key, rawValue]) => {
+      if (rawValue === null || rawValue === undefined || rawValue === "") {
+        return null;
+      }
+      const text =
+        typeof rawValue === "number"
+          ? rawValue.toLocaleString("ko-KR")
+          : typeof rawValue === "string"
+            ? rawValue
+            : JSON.stringify(rawValue);
+      return { key, value: text };
+    })
+    .filter((item): item is { key: string; value: string } => item !== null);
+}
+
+function ResearchList({ title, items, emptyText }: { title: string; items: string[]; emptyText: string }) {
+  return (
+    <article className="detail-path-card" style={{ minHeight: "180px" }}>
+      <span>{title}</span>
+      {items.length > 0 ? (
+        items.map((item) => <p key={item}>{koLabel(item)}</p>)
+      ) : (
+        <p>{emptyText}</p>
+      )}
+    </article>
+  );
 }
 
 function formatMetricValue(value: number | null | undefined) {
@@ -515,6 +564,8 @@ export default async function RecommendationPage({ params }: RecommendationPageP
   const macroFlowComponents = data.score_components.filter((component) => macroFlowRows(component).length > 0);
   const cycleStack = cycleStackComponents(data.score_components);
   const fundamentalStack = fundamentalComponents(data.score_components);
+  const equityResearch = data.equity_research;
+  const valuationItems = equityResearch ? valuationSensitivityItems(equityResearch.valuation_sensitivity) : [];
   const outcomeMeasured = data.outcome.label !== "unmeasured" && Boolean(data.outcome.measurement_end_date);
   const marketComponentCount = data.score_components.filter((component) =>
     ["market_feature", "strategy_universe_rank"].includes(component.provenance?.source_type ?? ""),
@@ -550,8 +601,10 @@ export default async function RecommendationPage({ params }: RecommendationPageP
     },
     {
       label: "기업 분석",
-      title: `${fundamentalStack.length}개 검토`,
-      body: "재무 품질, 밸류에이션, 피어 비교, 투자 논리 일관성을 별도로 확인한다.",
+      title: equityResearch ? "리서치 연결됨" : `${fundamentalStack.length}개 검토`,
+      body: equityResearch
+        ? "AI 기업 리서치가 추천 상세에 연결되어 사업·재무·리스크를 함께 볼 수 있다."
+        : "재무 품질, 밸류에이션, 피어 비교, 투자 논리 일관성을 별도로 확인한다.",
     },
   ];
 
@@ -709,6 +762,111 @@ export default async function RecommendationPage({ params }: RecommendationPageP
           </div>
         </section>
       ) : null}
+
+      <section className="bento-card reveal delay-1" aria-label="기업 리서치 연결">
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "18px", flexWrap: "wrap", marginBottom: "22px" }}>
+          <div>
+            <span className="metric-sub">기업 리서치 연결</span>
+            <h2 style={{ fontSize: "1.5rem", marginTop: "6px" }}>
+              {equityResearch?.title || `${data.symbol} 기업 리서치가 아직 연결되지 않았다`}
+            </h2>
+            <p style={{ color: "var(--text-secondary)", marginTop: "8px", maxWidth: "900px" }}>
+              추천을 뉴스 신호만으로 보지 않기 위해 배치 AI가 만든 기업 분석 artifact를 같이 보여준다.
+              이 리포트는 추천 점수와 주문을 직접 바꾸지 않고, 재무·밸류에이션 component를 해석하는 읽기 전용 근거다.
+            </p>
+          </div>
+          {equityResearch ? (
+            <span className="bento-badge" style={{ margin: 0 }}>
+              {providerLabel(equityResearch.provider)} • {equityResearch.as_of_date}
+            </span>
+          ) : null}
+        </div>
+
+        {equityResearch ? (
+          <>
+            <p style={{ color: "var(--text-secondary)", marginTop: 0 }}>
+              {equityResearch.korean_summary}
+            </p>
+            <div className="status-rail compact-rail" aria-label="기업 리서치 구성">
+              <div className="rail-cell">
+                <span>핵심 변화</span>
+                <strong>{equityResearch.key_points.length}</strong>
+                <small>사업·재무 포인트</small>
+              </div>
+              <div className="rail-cell">
+                <span>촉매</span>
+                <strong>{equityResearch.catalysts.length}</strong>
+                <small>좋아질 조건</small>
+              </div>
+              <div className="rail-cell">
+                <span>리스크</span>
+                <strong>{equityResearch.risks.length}</strong>
+                <small>틀릴 수 있는 이유</small>
+              </div>
+              <div className="rail-cell">
+                <span>무효화 조건</span>
+                <strong>{equityResearch.invalidation_conditions.length}</strong>
+                <small>thesis 재검토 기준</small>
+              </div>
+            </div>
+
+            <div style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))",
+              gap: "14px",
+              marginTop: "18px",
+            }}>
+              <ResearchList
+                title="핵심 포인트"
+                items={equityResearch.key_points}
+                emptyText="핵심 변화가 아직 구조화되지 않았다."
+              />
+              <ResearchList
+                title="촉매"
+                items={equityResearch.catalysts}
+                emptyText="상승 촉매가 아직 구조화되지 않았다."
+              />
+              <ResearchList
+                title="리스크"
+                items={equityResearch.risks}
+                emptyText="리스크가 아직 구조화되지 않았다."
+              />
+              <ResearchList
+                title="무효화 조건"
+                items={equityResearch.invalidation_conditions}
+                emptyText="투자 논리 무효화 조건이 아직 구조화되지 않았다."
+              />
+            </div>
+
+            {valuationItems.length > 0 ? (
+              <div className="stock-meta-grid" style={{ marginTop: "18px" }}>
+                {valuationItems.map((item) => (
+                  <Fragment key={item.key}>
+                    <span>{koCode(item.key)}</span>
+                    <strong>{koLabel(item.value)}</strong>
+                  </Fragment>
+                ))}
+              </div>
+            ) : null}
+
+            <div className="btn-row" style={{ marginTop: "18px" }}>
+              <Link className="btn btn-primary" href={stockHref(data.symbol)}>
+                종목 리서치 전체 보기
+              </Link>
+              {equityResearch.source_document_ids.slice(0, 3).map((documentId, index) => (
+                <Link className="btn btn-secondary" href={sourceDocumentHref(documentId)} key={documentId}>
+                  원천 문서 {index + 1}
+                </Link>
+              ))}
+            </div>
+          </>
+        ) : (
+          <div className="empty-state">
+            아직 이 종목의 기업 리서치 artifact가 없다. `equity-research-reporting-daily`
+            배치가 실행되면 사업 설명, 재무 변화, 촉매, 리스크, 무효화 조건이 이곳에 연결된다.
+          </div>
+        )}
+      </section>
 
       <section className="bento-card reveal delay-1" aria-label="추천 근거 흐름 요약">
         <div style={{ marginBottom: "20px" }}>

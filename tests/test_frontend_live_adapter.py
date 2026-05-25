@@ -1119,6 +1119,23 @@ class FakeLiveExecutor:
                             },
                         },
 	                    ],
+                        "equity_research": {
+                            "artifact_id": 1201,
+                            "as_of_date": "2024-11-01",
+                            "artifact_type": "full_equity_research",
+                            "provider": "fixture",
+                            "model_name": "codex-cli-default",
+                            "title": "AAPL 기업 리서치 요약",
+                            "korean_summary": "서비스 매출과 현금흐름 품질이 추천 근거를 보강한다.",
+                            "key_points": ["서비스 매출 확대", "현금흐름 품질 양호"],
+                            "catalysts": ["신제품 사이클"],
+                            "risks": ["중국 수요 둔화"],
+                            "invalidation_conditions": ["마진 훼손이 두 분기 지속"],
+                            "valuation_sensitivity": {"margin_of_safety": "watch"},
+                            "source_document_ids": ["aapl-2024-10k-20240928"],
+                            "source_run_id": 7711,
+                            "created_at": "2024-11-01T09:00:00+00:00",
+                        },
 	                    "linked_thesis_id": 7001,
 	                    "evidence_trace": {
 	                        "direct_news_or_ai": {
@@ -2938,6 +2955,15 @@ class FrontendLiveAdapterTests(unittest.TestCase):
             fundamental_component["provenance"]["evidence"]["fundamental_explanation"],
         )
         self.assertEqual(fundamental_component["weight"], 0.0)
+        self.assertEqual(payload["data"]["equity_research"]["artifact_id"], "equity-research-artifact-1201")
+        self.assertEqual(payload["data"]["equity_research"]["title"], "AAPL 기업 리서치 요약")
+        self.assertEqual(payload["data"]["equity_research"]["provider"], "fixture")
+        self.assertEqual(payload["data"]["equity_research"]["source_run_id"], "pipeline-run-7711")
+        self.assertEqual(
+            payload["data"]["equity_research"]["source_document_ids"],
+            ["source-document-aapl-2024-10k-20240928"],
+        )
+        self.assertEqual(payload["data"]["equity_research"]["valuation_sensitivity"]["margin_of_safety"], "watch")
         self.assertEqual(payload["data"]["linked_thesis_id"], "thesis-7001")
         trace = payload["data"]["evidence_trace"]
         self.assertEqual(trace["symbol"], "AAPL")
@@ -3049,6 +3075,8 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertIn("macro_flow_recent_rows as", sql)
         self.assertIn("latest_position_trace as", sql)
         self.assertIn("portfolio_review_trace as", sql)
+        self.assertIn("latest_equity_research as", sql)
+        self.assertIn("research.equity_research_artifact", sql)
         self.assertIn("signal.propagated_instrument_impact", sql)
         self.assertIn("portfolio.position_snapshot", sql)
         self.assertIn("portfolio.review_item", sql)
@@ -3075,6 +3103,7 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertIn("'fundamental_context'", sql)
         self.assertIn("'fundamental_component_name', component.component_name", sql)
         self.assertIn("'fundamental_explanation', component.explanation", sql)
+        self.assertIn("'equity_research'", sql)
         self.assertIn("'provenance', provenance", sql)
         self.assertIn("'evidence_trace'", sql)
         self.assertIn("'direct_news_or_ai'", sql)

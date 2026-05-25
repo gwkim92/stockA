@@ -1249,6 +1249,7 @@ def build_live_recommendation_detail_response(
     score_components = [
         _build_recommendation_score_component_payload(item) for item in _as_list(state.get("score_components"))
     ]
+    equity_research = _build_stock_equity_research_payload(_as_dict(state.get("equity_research")))
     linked_thesis_id = state.get("linked_thesis_id")
     outcome = _as_dict(state.get("outcome"))
     symbol = str(state.get("symbol") or "UNKNOWN").upper()
@@ -1268,6 +1269,7 @@ def build_live_recommendation_detail_response(
             "score": _number(state.get("score")),
             "score_version": str(state.get("score_version") or "unknown"),
             "score_components": score_components,
+            "equity_research": equity_research,
             "linked_thesis_id": _opaque_id("thesis", linked_thesis_id, None) if linked_thesis_id is not None else None,
             "evidence_trace": _build_recommendation_evidence_trace_payload(
                 _as_dict(state.get("evidence_trace")),
@@ -5084,6 +5086,32 @@ portfolio_review_trace as (
         review.portfolio_review_id desc
     limit 1
 ),
+latest_equity_research as (
+    select
+        artifact.artifact_id,
+        artifact.as_of_date,
+        artifact.artifact_type,
+        artifact.provider,
+        artifact.model_name,
+        artifact.title,
+        artifact.korean_summary,
+        artifact.key_points_json,
+        artifact.catalysts_json,
+        artifact.risks_json,
+        artifact.invalidation_conditions_json,
+        artifact.valuation_sensitivity_json,
+        artifact.source_document_ids,
+        artifact.source_run_id,
+        artifact.created_at
+    from research.equity_research_artifact artifact
+    join selected_recommendation recommendation on recommendation.instrument_id = artifact.instrument_id
+    where artifact.artifact_type = 'full_equity_research'
+    order by
+        artifact.as_of_date desc,
+        case artifact.provider when 'codex_oauth' then 0 when 'fixture' then 1 else 2 end,
+        artifact.artifact_id desc
+    limit 1
+),
 score_component_rows as (
     select
         component.component_name,
@@ -5254,6 +5282,27 @@ select json_build_object(
             from score_component_rows
         ),
         '[]'::json
+    ),
+    'equity_research',
+    (
+        select json_build_object(
+            'artifact_id', artifact_id,
+            'as_of_date', as_of_date,
+            'artifact_type', artifact_type,
+            'provider', provider,
+            'model_name', model_name,
+            'title', title,
+            'korean_summary', korean_summary,
+            'key_points', key_points_json,
+            'catalysts', catalysts_json,
+            'risks', risks_json,
+            'invalidation_conditions', invalidation_conditions_json,
+            'valuation_sensitivity', valuation_sensitivity_json,
+            'source_document_ids', source_document_ids,
+            'source_run_id', source_run_id,
+            'created_at', created_at
+        )
+        from latest_equity_research
     ),
     'linked_thesis_id', (select thesis_id from selected_recommendation),
     'evidence_trace',

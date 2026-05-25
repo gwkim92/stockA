@@ -892,6 +892,23 @@ export type RecommendationDetailData = {
       };
     };
   }>;
+  equity_research: {
+    artifact_id: string;
+    as_of_date: string;
+    artifact_type: string;
+    provider: string;
+    model_name: string;
+    title: string;
+    korean_summary: string;
+    key_points: string[];
+    catalysts: string[];
+    risks: string[];
+    invalidation_conditions: string[];
+    valuation_sensitivity: Record<string, unknown>;
+    source_document_ids: string[];
+    source_run_id: string | null;
+    created_at: string;
+  } | null;
   linked_thesis_id: string;
   evidence_trace: {
     symbol: string;
