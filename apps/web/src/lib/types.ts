@@ -62,6 +62,9 @@ export type RemediationTicketsData = {
     policy_scope: string;
     max_single_position_weight: number | null;
     min_rebalance_target_weight: number | null;
+    max_sector_weight: number | null;
+    max_theme_weight: number | null;
+    max_unclassified_weight: number | null;
     valid_from: string;
     valid_to: string;
     rationale: string;
@@ -1092,12 +1095,55 @@ export type PortfolioCoverageData = {
     status: string;
     max_single_position_weight: number | null;
     min_rebalance_target_weight: number | null;
+    max_sector_weight: number | null;
+    max_theme_weight: number | null;
+    max_unclassified_weight: number | null;
     largest_position_symbol: string | null;
     largest_position_weight: number | null;
     over_single_position_limit_count: number;
     below_rebalance_floor_count: number;
     cash_weight: number | null;
     invested_weight: number | null;
+    concentration: {
+      status: string;
+      max_sector_weight: number | null;
+      max_theme_weight: number | null;
+      max_unclassified_weight: number | null;
+      sector_exposures: Array<{
+        exposure_type: string;
+        exposure_key: string;
+        exposure_name: string;
+        exposure_weight: number;
+        position_count: number;
+        symbols: string[];
+        limit: number;
+        excess_weight: number;
+        status: string;
+      }>;
+      theme_exposures: Array<{
+        exposure_type: string;
+        exposure_key: string;
+        exposure_name: string;
+        exposure_weight: number;
+        position_count: number;
+        symbols: string[];
+        limit: number;
+        excess_weight: number;
+        status: string;
+      }>;
+      unclassified_weight: number;
+      unclassified_symbols: string[];
+      over_limit_count: number;
+      review_reasons: string[];
+    };
+    rebalance_priorities: Array<{
+      symbol: string;
+      current_weight: number | null;
+      priority: number;
+      action: string;
+      reason: string;
+      order_boundary: string;
+    }>;
     review_reasons: string[];
   };
   positions: Array<{

@@ -1700,6 +1700,48 @@ class FakeLiveExecutor:
                     "rationale": "Default review-only guardrail.",
                 }
             )
+        if sql.startswith("-- frontend portfolio concentration exposure lookup"):
+            return json.dumps(
+                {
+                    "portfolio_name": "Long Term Paper",
+                    "snapshot_date": "2024-11-01",
+                    "position_weight_total": "0.0800",
+                    "sector_exposures": [
+                        {
+                            "exposure_key": "TECHNOLOGY",
+                            "exposure_name": "Technology",
+                            "exposure_weight": "0.0500",
+                            "position_count": 1,
+                            "symbols": ["AAPL"],
+                        },
+                        {
+                            "exposure_key": "CONSUMER_INTERNET",
+                            "exposure_name": "Consumer Internet",
+                            "exposure_weight": "0.0300",
+                            "position_count": 1,
+                            "symbols": ["BABA"],
+                        },
+                    ],
+                    "theme_exposures": [
+                        {
+                            "exposure_key": "ANNUAL_REPORTING",
+                            "exposure_name": "Annual Reporting",
+                            "exposure_weight": "0.0500",
+                            "position_count": 1,
+                            "symbols": ["AAPL"],
+                        },
+                        {
+                            "exposure_key": "CHINA_ADR_COVERAGE",
+                            "exposure_name": "China ADR Coverage",
+                            "exposure_weight": "0.0300",
+                            "position_count": 1,
+                            "symbols": ["BABA"],
+                        },
+                    ],
+                    "unclassified_weight": "0.0000",
+                    "unclassified_symbols": [],
+                }
+            )
         if sql.startswith("-- portfolio outcome coverage report"):
             return json.dumps(
                 {
@@ -1780,8 +1822,53 @@ class EmptyPortfolioCoverageExecutor(FakeLiveExecutor):
                     "positions": [],
                 }
             )
+        if sql.startswith("-- frontend portfolio concentration exposure lookup"):
+            return json.dumps(
+                {
+                    "portfolio_name": "Long Term Paper",
+                    "snapshot_date": "2026-05-20",
+                    "position_weight_total": "0.0000",
+                    "sector_exposures": [],
+                    "theme_exposures": [],
+                    "unclassified_weight": "0.0000",
+                    "unclassified_symbols": [],
+                }
+            )
         if sql.startswith("-- frontend latest portfolio snapshot date lookup"):
             return ""
+        return super().execute_scalar(sql)
+
+
+class ConcentratedPortfolioCoverageExecutor(FakeLiveExecutor):
+    def execute_scalar(self, sql: str) -> str:
+        if sql.startswith("-- frontend portfolio concentration exposure lookup"):
+            return json.dumps(
+                {
+                    "portfolio_name": "Long Term Paper",
+                    "snapshot_date": "2024-11-01",
+                    "position_weight_total": "0.0800",
+                    "sector_exposures": [
+                        {
+                            "exposure_key": "TECHNOLOGY",
+                            "exposure_name": "Technology",
+                            "exposure_weight": "0.5000",
+                            "position_count": 1,
+                            "symbols": ["AAPL"],
+                        }
+                    ],
+                    "theme_exposures": [
+                        {
+                            "exposure_key": "AI_SEMICONDUCTOR_CYCLE",
+                            "exposure_name": "AI Semiconductor Cycle",
+                            "exposure_weight": "0.4500",
+                            "position_count": 1,
+                            "symbols": ["AAPL"],
+                        }
+                    ],
+                    "unclassified_weight": "0.0000",
+                    "unclassified_symbols": [],
+                }
+            )
         return super().execute_scalar(sql)
 
 
@@ -3457,11 +3544,21 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertEqual(payload["data"]["summary"]["weight_coverage_ratio"], 0.625)
         self.assertEqual(payload["data"]["allocation_policy"]["policy_name"], "global_default_long_term_guardrail")
         self.assertEqual(payload["data"]["allocation_policy"]["max_single_position_weight"], 0.25)
+        self.assertEqual(payload["data"]["allocation_policy"]["max_sector_weight"], 0.45)
+        self.assertEqual(payload["data"]["allocation_policy"]["max_theme_weight"], 0.4)
         self.assertEqual(payload["data"]["risk_budget"]["status"], "within_budget")
         self.assertEqual(payload["data"]["risk_budget"]["largest_position_symbol"], "AAPL")
         self.assertEqual(payload["data"]["risk_budget"]["largest_position_weight"], 0.05)
         self.assertEqual(payload["data"]["risk_budget"]["over_single_position_limit_count"], 0)
         self.assertEqual(payload["data"]["risk_budget"]["below_rebalance_floor_count"], 2)
+        self.assertEqual(payload["data"]["risk_budget"]["concentration"]["status"], "within_budget")
+        self.assertEqual(payload["data"]["risk_budget"]["concentration"]["sector_exposures"][0]["exposure_key"], "TECHNOLOGY")
+        self.assertEqual(payload["data"]["risk_budget"]["concentration"]["sector_exposures"][0]["exposure_weight"], 0.05)
+        self.assertEqual(payload["data"]["risk_budget"]["concentration"]["theme_exposures"][0]["exposure_key"], "ANNUAL_REPORTING")
+        self.assertEqual(payload["data"]["risk_budget"]["concentration"]["unclassified_weight"], 0.0)
+        self.assertEqual(payload["data"]["risk_budget"]["rebalance_priorities"][0]["symbol"], "BABA")
+        self.assertEqual(payload["data"]["risk_budget"]["rebalance_priorities"][0]["action"], "needs_thesis_review")
+        self.assertEqual(payload["data"]["risk_budget"]["rebalance_priorities"][0]["order_boundary"], "read_only_no_order")
         self.assertEqual(payload["data"]["positions"][0]["active_thesis_id"], "thesis-7001")
         self.assertEqual(payload["data"]["positions"][0]["outcome_status"], "measured")
         self.assertEqual(payload["data"]["positions"][0]["position_size_status"], "below_rebalance_floor")
@@ -3481,6 +3578,8 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertEqual(payload["data"]["as_of_date"], "2026-05-20")
         self.assertEqual(payload["data"]["summary"]["position_count"], 0)
         self.assertEqual(payload["data"]["risk_budget"]["status"], "missing_position_snapshot")
+        self.assertEqual(payload["data"]["risk_budget"]["concentration"]["status"], "missing_position_snapshot")
+        self.assertEqual(payload["data"]["risk_budget"]["rebalance_priorities"], [])
         self.assertEqual(
             payload["data"]["risk_budget"]["review_reasons"],
             ["position_snapshot_missing"],
@@ -3491,6 +3590,27 @@ class FrontendLiveAdapterTests(unittest.TestCase):
             payload["data"]["attribution_readiness"]["blocking_reasons"],
             ["missing_position_snapshot:Long Term Paper"],
         )
+
+    def test_live_portfolio_coverage_flags_sector_theme_concentration(self) -> None:
+        payload = resolve_live_frontend_response(
+            "/api/portfolio/Long%20Term%20Paper/coverage?asOfDate=2024-11-01",
+            config=type("Config", (), {"psql_command": "psql"})(),
+            executor=ConcentratedPortfolioCoverageExecutor(),
+            generated_at=datetime(2026, 5, 1, tzinfo=timezone.utc),
+        )
+
+        risk_budget = payload["data"]["risk_budget"]
+        self.assertEqual(risk_budget["status"], "needs_position_review")
+        self.assertEqual(risk_budget["concentration"]["status"], "needs_concentration_review")
+        self.assertEqual(risk_budget["concentration"]["over_limit_count"], 2)
+        self.assertIn("sector_over_limit:TECHNOLOGY", risk_budget["review_reasons"])
+        self.assertIn("theme_over_limit:AI_SEMICONDUCTOR_CYCLE", risk_budget["review_reasons"])
+        concentration_priority = [
+            item for item in risk_budget["rebalance_priorities"]
+            if item["action"] == "review_sector_theme_concentration"
+        ]
+        self.assertEqual(concentration_priority[0]["symbol"], "AAPL")
+        self.assertEqual(concentration_priority[0]["order_boundary"], "read_only_no_order")
 
     def test_live_portfolio_coverage_falls_back_to_latest_snapshot_before_requested_date(self) -> None:
         executor = LatestPortfolioCoverageExecutor()

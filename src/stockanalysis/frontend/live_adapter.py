@@ -37,6 +37,9 @@ CONTRACT_VERSION = "frontend-api-v0.1"
 DEFAULT_PORTFOLIO_NAME = "Long Term Paper"
 DEFAULT_STRATEGY_NAME = "long_term_core"
 DEFAULT_COVERAGE_HORIZON_DAYS = 31
+DEFAULT_MAX_SECTOR_WEIGHT = 0.4500
+DEFAULT_MAX_THEME_WEIGHT = 0.4000
+DEFAULT_MAX_UNCLASSIFIED_WEIGHT = 0.1000
 NO_PORTFOLIO_POSITIONS_MESSAGE = "No portfolio positions matched the requested coverage report identity."
 SCHEDULER_APPROVAL_GATE_REPORT_ENV = "STOCKANALYSIS_DATA_OPERATIONS_SCHEDULER_APPROVAL_GATE_REPORT"
 OPERATING_DATA_PROFILE_SCHEDULER_STATUS_REPORT_ENV = "STOCKANALYSIS_OPERATING_DATA_PROFILE_SCHEDULER_STATUS_REPORT"
@@ -1837,6 +1840,17 @@ def build_live_portfolio_coverage_response(
         _build_position_payload(position, allocation_policy=allocation_policy)
         for position in _as_list(report.get("positions"))
     ]
+    effective_snapshot_date = date.fromisoformat(str(report.get("snapshot_date") or as_of_date.isoformat()))
+    concentration_state = (
+        _empty_portfolio_concentration_state(portfolio_name=portfolio_name, snapshot_date=effective_snapshot_date)
+        if missing_position_snapshot or not positions
+        else load_frontend_portfolio_concentration_state(
+            config=config,
+            executor=executor,
+            portfolio_name=portfolio_name,
+            snapshot_date=effective_snapshot_date,
+        )
+    )
     blocking_reasons = [
         f"{position['coverage_status']}:{position['symbol']}"
         for position in positions
@@ -1874,6 +1888,7 @@ def build_live_portfolio_coverage_response(
             "risk_budget": _build_portfolio_risk_budget_payload(
                 positions=positions,
                 allocation_policy=allocation_policy,
+                concentration_state=concentration_state,
                 cash_weight=_number(report.get("cash_weight")),
                 missing_position_snapshot=missing_position_snapshot,
             ),
@@ -1888,6 +1903,157 @@ def build_live_portfolio_coverage_response(
             "dashboard": "/api/dashboard/today",
         },
     }
+
+
+def load_frontend_portfolio_concentration_state(
+    *,
+    config: RuntimeConfig,
+    executor: PsqlCommandExecutor | None,
+    portfolio_name: str,
+    snapshot_date: date,
+) -> dict[str, Any]:
+    sql_executor = executor or PsqlCommandExecutor.from_config(config)
+    return json_loads_object(
+        sql_executor.execute_scalar(
+            render_frontend_portfolio_concentration_state_sql(
+                portfolio_name=portfolio_name,
+                snapshot_date=snapshot_date,
+            )
+        ),
+        "Frontend portfolio concentration lookup",
+    )
+
+
+def render_frontend_portfolio_concentration_state_sql(*, portfolio_name: str, snapshot_date: date) -> str:
+    return f"""-- frontend portfolio concentration exposure lookup
+with selected_portfolio as (
+    select portfolio_id, portfolio_name
+    from portfolio.portfolio
+    where portfolio_name = {sql_literal(portfolio_name)}
+    order by portfolio_id desc
+    limit 1
+),
+position_rows as (
+    select
+        position.instrument_id,
+        instrument.primary_symbol as symbol,
+        position.weight
+    from selected_portfolio portfolio
+    join portfolio.position_snapshot position on position.portfolio_id = portfolio.portfolio_id
+    join ref.instrument instrument on instrument.instrument_id = position.instrument_id
+    where position.snapshot_date = {sql_date(snapshot_date)}
+      and position.quantity <> 0
+      and position.weight is not null
+),
+membership_rows as (
+    select distinct
+        position.instrument_id,
+        position.symbol,
+        position.weight,
+        node.code,
+        node.name,
+        node.node_type,
+        node.taxonomy_family,
+        case
+            when node.node_type = 'sector' then 'sector'
+            when node.node_type in ('macro', 'domain', 'theme') then 'theme'
+            when node.taxonomy_family = 'internal_theme' then 'theme'
+            else 'other'
+        end as exposure_type
+    from position_rows position
+    join ref.instrument_classification_membership membership
+      on membership.instrument_id = position.instrument_id
+     and membership.valid_from <= {sql_date(snapshot_date)}
+     and (membership.valid_to is null or membership.valid_to >= {sql_date(snapshot_date)})
+    join ref.classification_node node on node.node_id = membership.node_id
+    where node.status = 'active'
+),
+classified_positions as (
+    select distinct instrument_id
+    from membership_rows
+    where exposure_type in ('sector', 'theme')
+),
+unclassified_positions as (
+    select position.symbol, position.weight
+    from position_rows position
+    left join classified_positions classified on classified.instrument_id = position.instrument_id
+    where classified.instrument_id is null
+),
+sector_exposure_rows as (
+    select
+        code as exposure_key,
+        name as exposure_name,
+        sum(weight) as exposure_weight,
+        count(distinct instrument_id)::integer as position_count,
+        array_agg(distinct symbol order by symbol) as symbols
+    from membership_rows
+    where exposure_type = 'sector'
+    group by code, name
+),
+theme_exposure_rows as (
+    select
+        code as exposure_key,
+        name as exposure_name,
+        sum(weight) as exposure_weight,
+        count(distinct instrument_id)::integer as position_count,
+        array_agg(distinct symbol order by symbol) as symbols
+    from membership_rows
+    where exposure_type = 'theme'
+    group by code, name
+),
+sector_json_rows as (
+    select *
+    from sector_exposure_rows
+    order by exposure_weight desc, exposure_key
+    limit 8
+),
+theme_json_rows as (
+    select *
+    from theme_exposure_rows
+    order by exposure_weight desc, exposure_key
+    limit 12
+)
+select json_build_object(
+    'portfolio_name', coalesce((select portfolio_name from selected_portfolio), {sql_literal(portfolio_name)}),
+    'snapshot_date', {sql_literal(snapshot_date.isoformat())},
+    'position_weight_total', coalesce((select sum(weight) from position_rows), 0),
+    'sector_exposures',
+    coalesce(
+        (
+            select json_agg(
+                json_build_object(
+                    'exposure_key', exposure_key,
+                    'exposure_name', exposure_name,
+                    'exposure_weight', exposure_weight,
+                    'position_count', position_count,
+                    'symbols', symbols
+                )
+                order by exposure_weight desc, exposure_key
+            )
+            from sector_json_rows
+        ),
+        '[]'::json
+    ),
+    'theme_exposures',
+    coalesce(
+        (
+            select json_agg(
+                json_build_object(
+                    'exposure_key', exposure_key,
+                    'exposure_name', exposure_name,
+                    'exposure_weight', exposure_weight,
+                    'position_count', position_count,
+                    'symbols', symbols
+                )
+                order by exposure_weight desc, exposure_key
+            )
+            from theme_json_rows
+        ),
+        '[]'::json
+    ),
+    'unclassified_weight', coalesce((select sum(weight) from unclassified_positions), 0),
+    'unclassified_symbols', coalesce((select array_agg(symbol order by symbol) from unclassified_positions), array[]::text[])
+)::text;"""
 
 
 def _load_latest_portfolio_snapshot_date(
@@ -1957,6 +2123,18 @@ def _empty_portfolio_coverage_report(
         "cash_weight": None,
         "coverage_ratio_by_weight": None,
         "positions": [],
+    }
+
+
+def _empty_portfolio_concentration_state(*, portfolio_name: str, snapshot_date: date) -> dict[str, Any]:
+    return {
+        "portfolio_name": portfolio_name,
+        "snapshot_date": snapshot_date.isoformat(),
+        "position_weight_total": 0,
+        "sector_exposures": [],
+        "theme_exposures": [],
+        "unclassified_weight": 0,
+        "unclassified_symbols": [],
     }
 
 
@@ -8415,6 +8593,9 @@ def _build_allocation_policy_payload(policy: dict[str, Any]) -> dict[str, Any]:
         "policy_scope": str(policy.get("policy_scope") or "fallback"),
         "max_single_position_weight": _number(policy.get("max_single_position_weight")),
         "min_rebalance_target_weight": _number(policy.get("min_rebalance_target_weight")),
+        "max_sector_weight": DEFAULT_MAX_SECTOR_WEIGHT,
+        "max_theme_weight": DEFAULT_MAX_THEME_WEIGHT,
+        "max_unclassified_weight": DEFAULT_MAX_UNCLASSIFIED_WEIGHT,
         "valid_from": str(policy.get("valid_from") or ""),
         "valid_to": str(policy.get("valid_to") or ""),
         "rationale": str(policy.get("rationale") or ""),
@@ -8465,6 +8646,7 @@ def _build_portfolio_risk_budget_payload(
     *,
     positions: list[dict[str, Any]],
     allocation_policy: dict[str, Any],
+    concentration_state: dict[str, Any],
     cash_weight: float | None,
     missing_position_snapshot: bool,
 ) -> dict[str, Any]:
@@ -8490,10 +8672,15 @@ def _build_portfolio_risk_budget_payload(
         for position in weighted_positions
         if position.get("position_size_status") == "below_rebalance_floor"
     ]
+    concentration = _build_portfolio_concentration_payload(
+        concentration_state=concentration_state,
+        allocation_policy=allocation_policy,
+        missing_position_snapshot=missing_position_snapshot,
+    )
     status = "within_budget"
     if missing_position_snapshot or not positions:
         status = "missing_position_snapshot"
-    elif overweight_positions:
+    elif overweight_positions or concentration["status"] in {"needs_concentration_review", "classification_gap"}:
         status = "needs_position_review"
 
     reasons: list[str] = []
@@ -8503,18 +8690,195 @@ def _build_portfolio_risk_budget_payload(
         reasons.extend(f"over_single_position_limit:{position['symbol']}" for position in overweight_positions)
     if below_floor_positions:
         reasons.extend(f"below_rebalance_floor:{position['symbol']}" for position in below_floor_positions)
+    reasons.extend(concentration["review_reasons"])
 
     return {
         "status": status,
         "max_single_position_weight": max_single_position_weight,
         "min_rebalance_target_weight": min_rebalance_target_weight,
+        "max_sector_weight": _number(allocation_policy.get("max_sector_weight")),
+        "max_theme_weight": _number(allocation_policy.get("max_theme_weight")),
+        "max_unclassified_weight": _number(allocation_policy.get("max_unclassified_weight")),
         "largest_position_symbol": str(largest_position.get("symbol")) if largest_position else None,
         "largest_position_weight": _number(largest_position.get("weight")) if largest_position else None,
         "over_single_position_limit_count": len(overweight_positions),
         "below_rebalance_floor_count": len(below_floor_positions),
         "cash_weight": cash_weight,
         "invested_weight": None if cash_weight is None else max(0.0, 1.0 - cash_weight),
+        "concentration": concentration,
+        "rebalance_priorities": _build_rebalance_priority_payloads(
+            positions=positions,
+            concentration=concentration,
+        ),
         "review_reasons": reasons,
+    }
+
+
+def _build_portfolio_concentration_payload(
+    *,
+    concentration_state: dict[str, Any],
+    allocation_policy: dict[str, Any],
+    missing_position_snapshot: bool,
+) -> dict[str, Any]:
+    max_sector_weight = _number(allocation_policy.get("max_sector_weight")) or DEFAULT_MAX_SECTOR_WEIGHT
+    max_theme_weight = _number(allocation_policy.get("max_theme_weight")) or DEFAULT_MAX_THEME_WEIGHT
+    max_unclassified_weight = (
+        _number(allocation_policy.get("max_unclassified_weight")) or DEFAULT_MAX_UNCLASSIFIED_WEIGHT
+    )
+    sector_exposures = [
+        _build_concentration_exposure_payload(item, limit=max_sector_weight)
+        for item in _as_list(concentration_state.get("sector_exposures"))
+    ]
+    theme_exposures = [
+        _build_concentration_exposure_payload(item, limit=max_theme_weight)
+        for item in _as_list(concentration_state.get("theme_exposures"))
+    ]
+    sector_payloads = [{**exposure, "exposure_type": "sector"} for exposure in sector_exposures]
+    theme_payloads = [{**exposure, "exposure_type": "theme"} for exposure in theme_exposures]
+    unclassified_weight = _number(concentration_state.get("unclassified_weight")) or 0.0
+    unclassified_symbols = [str(item) for item in _as_scalar_list(concentration_state.get("unclassified_symbols"))]
+    if missing_position_snapshot:
+        return {
+            "status": "missing_position_snapshot",
+            "max_sector_weight": max_sector_weight,
+            "max_theme_weight": max_theme_weight,
+            "max_unclassified_weight": max_unclassified_weight,
+            "sector_exposures": [],
+            "theme_exposures": [],
+            "unclassified_weight": unclassified_weight,
+            "unclassified_symbols": unclassified_symbols,
+            "over_limit_count": 0,
+            "review_reasons": [],
+        }
+
+    over_limit_exposures = [
+        exposure
+        for exposure in [*sector_payloads, *theme_payloads]
+        if exposure["status"] == "over_limit"
+    ]
+
+    status = "within_budget"
+    review_reasons: list[str] = []
+    if over_limit_exposures:
+        status = "needs_concentration_review"
+    elif unclassified_weight > max_unclassified_weight or (not sector_exposures and not theme_exposures):
+        status = "classification_gap"
+
+    for exposure in over_limit_exposures:
+        review_reasons.append(f"{exposure['exposure_type']}_over_limit:{exposure['exposure_key']}")
+    if unclassified_weight > max_unclassified_weight:
+        review_reasons.append("classification_gap_weight_over_limit")
+    if not sector_exposures:
+        review_reasons.append("sector_classification_missing")
+    if not theme_exposures:
+        review_reasons.append("theme_classification_missing")
+
+    return {
+        "status": status,
+        "max_sector_weight": max_sector_weight,
+        "max_theme_weight": max_theme_weight,
+        "max_unclassified_weight": max_unclassified_weight,
+        "sector_exposures": sector_payloads,
+        "theme_exposures": theme_payloads,
+        "unclassified_weight": unclassified_weight,
+        "unclassified_symbols": unclassified_symbols,
+        "over_limit_count": len(over_limit_exposures),
+        "review_reasons": review_reasons,
+    }
+
+
+def _build_concentration_exposure_payload(exposure: dict[str, Any], *, limit: float) -> dict[str, Any]:
+    exposure_weight = _number(exposure.get("exposure_weight")) or 0.0
+    status = "over_limit" if exposure_weight > limit else "within_limit"
+    return {
+        "exposure_key": str(exposure.get("exposure_key") or "UNCLASSIFIED"),
+        "exposure_name": str(exposure.get("exposure_name") or exposure.get("exposure_key") or "미분류"),
+        "exposure_weight": exposure_weight,
+        "position_count": int(exposure.get("position_count") or 0),
+        "symbols": [str(item) for item in _as_scalar_list(exposure.get("symbols"))],
+        "limit": limit,
+        "excess_weight": round(max(0.0, exposure_weight - limit), 4),
+        "status": status,
+    }
+
+
+def _build_rebalance_priority_payloads(
+    *,
+    positions: list[dict[str, Any]],
+    concentration: dict[str, Any],
+) -> list[dict[str, Any]]:
+    concentration_symbols: set[str] = set()
+    for exposure in [
+        *_as_list(concentration.get("sector_exposures")),
+        *_as_list(concentration.get("theme_exposures")),
+    ]:
+        if exposure.get("status") == "over_limit":
+            concentration_symbols.update(str(symbol) for symbol in _as_scalar_list(exposure.get("symbols")))
+
+    priorities: list[dict[str, Any]] = []
+    for position in positions:
+        symbol = str(position.get("symbol") or "UNKNOWN")
+        weight = _number(position.get("weight"))
+        if position.get("position_size_status") == "over_single_position_limit":
+            priorities.append(
+                _rebalance_priority(
+                    symbol=symbol,
+                    weight=weight,
+                    priority=1,
+                    action="trim_single_name_exposure",
+                    reason="단일 종목 한도를 넘었다. 자동 매도는 하지 않고 thesis와 세금/비용을 함께 검토한다.",
+                )
+            )
+        if position.get("coverage_status") != "covered":
+            priorities.append(
+                _rebalance_priority(
+                    symbol=symbol,
+                    weight=weight,
+                    priority=2,
+                    action=str(position.get("action") or "needs_review"),
+                    reason="보유 종목에 투자 논리 또는 성과 측정 근거가 부족하다.",
+                )
+            )
+        if symbol in concentration_symbols:
+            priorities.append(
+                _rebalance_priority(
+                    symbol=symbol,
+                    weight=weight,
+                    priority=3,
+                    action="review_sector_theme_concentration",
+                    reason="섹터 또는 테마 노출 한도 초과 그룹에 포함되어 있다.",
+                )
+            )
+        if position.get("position_size_status") == "below_rebalance_floor":
+            priorities.append(
+                _rebalance_priority(
+                    symbol=symbol,
+                    weight=weight,
+                    priority=4,
+                    action="watch_small_position",
+                    reason="리밸런싱 목표로 보기에는 작은 비중이다. 추천과 실제 보유를 분리해서 본다.",
+                )
+            )
+
+    priorities.sort(key=lambda item: (item["priority"], item["symbol"], item["action"]))
+    return priorities[:8]
+
+
+def _rebalance_priority(
+    *,
+    symbol: str,
+    weight: float | None,
+    priority: int,
+    action: str,
+    reason: str,
+) -> dict[str, Any]:
+    return {
+        "symbol": symbol,
+        "current_weight": weight,
+        "priority": priority,
+        "action": action,
+        "reason": reason,
+        "order_boundary": "read_only_no_order",
     }
 
 
