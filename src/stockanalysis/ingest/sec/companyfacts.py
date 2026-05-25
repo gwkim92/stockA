@@ -210,12 +210,25 @@ def resolve_instrument_for_company(
     fallback_symbol: str | None = None,
     executor: PsqlCommandExecutor,
 ) -> _ResolvedInstrument:
+    explicit_fallback_symbol = _normalize_symbol(fallback_symbol)
+    if explicit_fallback_symbol is not None:
+        try:
+            payload_text = executor.execute_scalar(render_instrument_lookup_by_symbol_sql(explicit_fallback_symbol))
+            payload = json.loads(payload_text)
+            return _ResolvedInstrument(
+                instrument_id=int(payload["instrument_id"]),
+                primary_symbol=str(payload["primary_symbol"]),
+                instrument_name=str(payload["instrument_name"]),
+                issuer_display_name=str(payload["issuer_display_name"]),
+                issuer_legal_name=str(payload["issuer_legal_name"]),
+            )
+        except PsqlExecutionError:
+            pass
+
     try:
         payload_text = executor.execute_scalar(render_instrument_lookup_by_company_name_sql(company_name))
     except PsqlExecutionError as exc:
-        resolved_fallback_symbol = _normalize_symbol(fallback_symbol) or _DEFAULT_CIK_SYMBOL_FALLBACKS.get(
-            str(cik or "").zfill(10)
-        )
+        resolved_fallback_symbol = _DEFAULT_CIK_SYMBOL_FALLBACKS.get(str(cik or "").zfill(10))
         if resolved_fallback_symbol is None:
             raise ValueError(f"No canonical instrument found for company `{company_name}`.") from exc
         try:
