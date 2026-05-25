@@ -20,6 +20,25 @@
 - 즉 실제 주문 델타가 있는 trade conflict가 아니라, 보유 중인 종목이 최신 추천/보유검토 coverage와 연결되지 않은 portfolio/thesis lifecycle gap이다.
 - AEIS/ARM/QUBT/SPY는 conflict가 아니라 `kill_switch_engaged`, `human_approval_required` safety interlock에 막혀 있다.
 
+## EC2 Smoke Result
+
+- 배포 커밋: `43351ff`
+- 명령: `stockanalysis-operations paper-validation-conflict-remediation-run --env-file /opt/stockanalysis/runtime/data-operations.env --as-of-date 2026-05-25 --execute`
+- 결과:
+  - `run_id`: 883
+  - source `paper_validation_run_id`: 9
+  - source status: `failed`
+  - decision: `blocked_by_portfolio_recommendation_coverage_gap`
+  - portfolio coverage issue count: 3
+  - non-actionable zero-delta issue count: 3
+  - safety interlock issue count: 4
+  - actionable trade block count: 0
+  - unknown issue count: 0
+- 해석:
+  - AAPL/MSFT/TSLA는 주문 실패가 아니라 보유 종목이 최신 추천/보유 thesis coverage에서 빠진 문제다.
+  - AEIS/ARM/QUBT/SPY는 추천 후보 paper action이 있으나 kill switch/human approval에 막힌 의도된 안전장치다.
+  - 추천 weight 변경은 계속 금지한다.
+
 ## Verification
 
 - Passed: `PYTHONPATH=src /opt/homebrew/bin/python3.13 -m unittest tests.test_paper_validation_conflict_remediation tests.test_data_operations_cli`
@@ -27,8 +46,9 @@
 - Passed: `PYTHONPATH=src /opt/homebrew/bin/python3.13 -m compileall -q src tests`
 - Passed: `git diff --check`
 - Passed: `PYTHONPATH=/Users/woody/ai/agent-work-harness/src /opt/homebrew/bin/python3.13 -m awh verify --repo . --task paper-validation-conflict-remediation`
-- Pending: EC2 smoke.
+- Passed on EC2: `PYTHONPATH=src /opt/stockanalysis/venv/bin/python -m unittest tests.test_paper_validation_conflict_remediation tests.test_data_operations_cli`
+- Passed on EC2: `paper-validation-conflict-remediation-run --env-file /opt/stockanalysis/runtime/data-operations.env --as-of-date 2026-05-25 --execute`
 
 ## Exact Next Step
 
-- exact next step: 로컬 검증 후 EC2에 배포하고 `paper-validation-conflict-remediation-run --env-file /opt/stockanalysis/runtime/data-operations.env --as-of-date 2026-05-25 --execute`를 실행해 AAPL/MSFT/TSLA가 `portfolio_recommendation_coverage_gap`으로 분류되는지 확인한다.
+- exact next step: `portfolio-holding-coverage-remediation` task를 열어 AAPL/MSFT/TSLA처럼 보유 중인데 최신 추천/보유 thesis coverage에서 빠진 종목을 자동 탐지하고, 보유 thesis review 또는 recommendation coverage를 복구한 뒤 paper validation을 재실행한다.
