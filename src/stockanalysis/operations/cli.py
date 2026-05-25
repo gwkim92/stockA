@@ -9,6 +9,7 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Iterator, Mapping, Sequence, TextIO
 
+from stockanalysis.frontend.live_adapter import DEFAULT_PORTFOLIO_NAME
 from stockanalysis.ingest.config import RuntimeConfig
 from stockanalysis.ingest.news.ai_extract import CODEX_OAUTH_PROVIDER, run_news_rss_ai_extract
 from stockanalysis.ingest.news.cluster_evidence import run_news_rss_cluster_evidence
@@ -68,6 +69,9 @@ from stockanalysis.operations.recommendation_quality_eval import (
 from stockanalysis.operations.recommendation_weight_review_readiness_audit import (
     DEFAULT_MIN_COMPONENT_OUTCOME_COUNT as DEFAULT_WEIGHT_REVIEW_MIN_COMPONENT_OUTCOME_COUNT,
     run_recommendation_weight_review_readiness_audit,
+)
+from stockanalysis.operations.paper_validation_conflict_remediation import (
+    run_paper_validation_conflict_remediation,
 )
 from stockanalysis.operations.recommendation_fundamental_components import (
     DEFAULT_HORIZON_TYPE as DEFAULT_FUNDAMENTAL_COMPONENT_HORIZON_TYPE,
@@ -844,6 +848,19 @@ def build_parser() -> argparse.ArgumentParser:
     paper_validation_audit.add_argument("--dry-run", action="store_true")
     paper_validation_audit.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
     paper_validation_audit.set_defaults(handler=_handle_paper_validation_audit_run)
+
+    paper_validation_conflict_remediation = subparsers.add_parser(
+        "paper-validation-conflict-remediation-run",
+        help="Classify latest paper validation blockers and identify remediation steps without changing recommendations.",
+    )
+    paper_validation_conflict_remediation.add_argument("--env-file")
+    paper_validation_conflict_remediation.add_argument("--as-of-date", required=True)
+    paper_validation_conflict_remediation.add_argument("--portfolio-name", default=DEFAULT_PORTFOLIO_NAME)
+    paper_validation_conflict_remediation.add_argument("--execute", action="store_true")
+    paper_validation_conflict_remediation.add_argument("--dry-run", action="store_true")
+    paper_validation_conflict_remediation.add_argument("--output")
+    paper_validation_conflict_remediation.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
+    paper_validation_conflict_remediation.set_defaults(handler=_handle_paper_validation_conflict_remediation_run)
 
     paper_safety_bootstrap = subparsers.add_parser(
         "paper-safety-bootstrap-config",
@@ -1910,6 +1927,31 @@ def _handle_paper_validation_audit_run(args: argparse.Namespace, *, stdout: Text
             dry_run=bool(args.dry_run),
         )
     print_json(report, stdout=stdout, sort_keys=False)
+    return 0
+
+
+def _handle_paper_validation_conflict_remediation_run(args: argparse.Namespace, *, stdout: TextIO) -> int:
+    if bool(args.execute) and bool(args.dry_run):
+        raise ValueError("--execute and --dry-run cannot be used together.")
+    env_mapping = _load_optional_env_mapping(args.env_file, repo_root=args.repo_root)
+    as_of_date = date.fromisoformat(args.as_of_date)
+    with _temporary_environ(env_mapping):
+        report = run_paper_validation_conflict_remediation(
+            config=RuntimeConfig.from_env(),
+            as_of_date=as_of_date,
+            portfolio_name=args.portfolio_name,
+            execute=bool(args.execute) and not bool(args.dry_run),
+        )
+    if args.output:
+        output_path = resolve_output_path(
+            args.output,
+            label="paper validation conflict remediation output",
+            repo_root=args.repo_root,
+            require_repo_outside=True,
+        )
+        write_json_report(report, output_path=output_path, stdout=stdout)
+    else:
+        print_json(report, stdout=stdout, sort_keys=False)
     return 0
 
 
