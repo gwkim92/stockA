@@ -157,7 +157,6 @@ latest_peer_rows as (
         snapshot.metric_code,
         snapshot.instrument_value as metric_value,
         snapshot.percentile_rank,
-        snapshot.peer_count,
         snapshot.relative_signal,
         snapshot.as_of_date,
         snapshot.source_run_id
