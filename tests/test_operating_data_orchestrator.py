@@ -94,6 +94,7 @@ class OperatingDataOrchestratorTests(unittest.TestCase):
         self.assertEqual(step_ids[0], "market-universe-weekly")
         self.assertEqual(step_ids[1], "sec-filings-weekly")
         self.assertIn("sec-companyfacts-weekly", step_ids)
+        self.assertIn("professional-coverage-expansion", step_ids)
         self.assertIn("financial-metric-normalization", step_ids)
         self.assertIn("peer-relative-analysis", step_ids)
         self.assertIn("industry-competitive-positioning", step_ids)
@@ -221,6 +222,7 @@ class OperatingDataOrchestratorTests(unittest.TestCase):
             [
                 "sec-filings-weekly",
                 "sec-companyfacts-weekly",
+                "professional-coverage-expansion",
                 "financial-metric-normalization",
                 "peer-relative-analysis",
                 "valuation-snapshot",
@@ -234,13 +236,16 @@ class OperatingDataOrchestratorTests(unittest.TestCase):
         self.assertIn("--max-filings 3", sec_command)
         companyfacts_command = " ".join(sec_report["planned_steps"][1]["command_argv"])
         self.assertIn("sec-companyfacts-upsert", companyfacts_command)
-        financial_command = " ".join(sec_report["planned_steps"][2]["command_argv"])
+        coverage_command = " ".join(sec_report["planned_steps"][2]["command_argv"])
+        self.assertIn("professional-coverage-expansion-run", coverage_command)
+        self.assertIn("--research-provider fixture", coverage_command)
+        financial_command = " ".join(sec_report["planned_steps"][3]["command_argv"])
         self.assertIn("financial-metric-normalization-run", financial_command)
-        peer_command = " ".join(sec_report["planned_steps"][3]["command_argv"])
+        peer_command = " ".join(sec_report["planned_steps"][4]["command_argv"])
         self.assertIn("peer-relative-analysis-run", peer_command)
-        valuation_command = " ".join(sec_report["planned_steps"][4]["command_argv"])
+        valuation_command = " ".join(sec_report["planned_steps"][5]["command_argv"])
         self.assertIn("valuation-snapshot-run", valuation_command)
-        competitive_command = " ".join(sec_report["planned_steps"][5]["command_argv"])
+        competitive_command = " ".join(sec_report["planned_steps"][6]["command_argv"])
         self.assertIn("industry-competitive-positioning-run", competitive_command)
 
     def test_decision_daily_profile_runs_decision_steps_without_news_or_macro(self) -> None:

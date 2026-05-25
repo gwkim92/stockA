@@ -180,6 +180,21 @@ DATA_OPERATION_CADENCES: tuple[DataOperationCadence, ...] = (
         data_health_dataset="market.financial_statement_period",
     ),
     DataOperationCadence(
+        job_id="professional-coverage-expansion-weekly",
+        pipeline_name="professional_coverage_expansion",
+        domain="fundamentals",
+        cadence="weekly",
+        command_template=(
+            "stockanalysis-operations professional-coverage-expansion-run "
+            "--env-file <ENV> --as-of-date <YYYY-MM-DD> --execute"
+        ),
+        expected_after_local="08:25 Monday",
+        stale_after_hours=216,
+        artifact_policy="stdout_json_stderr_log_and_coverage_targets",
+        required_env_groups=("database", "sec_identity"),
+        data_health_dataset="market.financial_statement_period",
+    ),
+    DataOperationCadence(
         job_id="financial-metric-normalization-weekly",
         pipeline_name="financial_metric_normalization",
         domain="fundamentals",

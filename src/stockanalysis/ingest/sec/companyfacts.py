@@ -156,6 +156,7 @@ def run_sec_companyfacts_upsert(
     *,
     config: RuntimeConfig,
     companyfacts_json_path: str | None = None,
+    fallback_symbol: str | None = None,
     executor: PsqlCommandExecutor | None = None,
 ) -> dict[str, object]:
     result = load_sec_companyfacts_sync_result(
@@ -164,7 +165,12 @@ def run_sec_companyfacts_upsert(
         companyfacts_json_path=companyfacts_json_path,
     )
     sql_executor = executor or PsqlCommandExecutor.from_config(config)
-    instrument = resolve_instrument_for_company(result.company_name, cik=result.cik, executor=sql_executor)
+    instrument = resolve_instrument_for_company(
+        result.company_name,
+        cik=result.cik,
+        fallback_symbol=fallback_symbol,
+        executor=sql_executor,
+    )
     run_id = _create_pipeline_run(
         sql_executor,
         pipeline_name="sec_companyfacts_upsert",
@@ -172,6 +178,7 @@ def run_sec_companyfacts_upsert(
             "cik": result.cik,
             "company_name": result.company_name,
             "companyfacts_fixture_path": companyfacts_json_path,
+            "fallback_symbol": _normalize_symbol(fallback_symbol),
             "instrument_id": instrument.instrument_id,
             "instrument_symbol": instrument.primary_symbol,
         },
@@ -200,19 +207,23 @@ def resolve_instrument_for_company(
     company_name: str,
     *,
     cik: str | None = None,
+    fallback_symbol: str | None = None,
     executor: PsqlCommandExecutor,
 ) -> _ResolvedInstrument:
     try:
         payload_text = executor.execute_scalar(render_instrument_lookup_by_company_name_sql(company_name))
     except PsqlExecutionError as exc:
-        fallback_symbol = _DEFAULT_CIK_SYMBOL_FALLBACKS.get(str(cik or "").zfill(10))
-        if fallback_symbol is None:
+        resolved_fallback_symbol = _normalize_symbol(fallback_symbol) or _DEFAULT_CIK_SYMBOL_FALLBACKS.get(
+            str(cik or "").zfill(10)
+        )
+        if resolved_fallback_symbol is None:
             raise ValueError(f"No canonical instrument found for company `{company_name}`.") from exc
         try:
-            payload_text = executor.execute_scalar(render_instrument_lookup_by_symbol_sql(fallback_symbol))
+            payload_text = executor.execute_scalar(render_instrument_lookup_by_symbol_sql(resolved_fallback_symbol))
         except PsqlExecutionError as symbol_exc:
             raise ValueError(
-                f"No canonical instrument found for company `{company_name}` or CIK fallback symbol `{fallback_symbol}`."
+                f"No canonical instrument found for company `{company_name}` "
+                f"or CIK fallback symbol `{resolved_fallback_symbol}`."
             ) from symbol_exc
     payload = json.loads(payload_text)
     return _ResolvedInstrument(
@@ -222,6 +233,13 @@ def resolve_instrument_for_company(
         issuer_display_name=str(payload["issuer_display_name"]),
         issuer_legal_name=str(payload["issuer_legal_name"]),
     )
+
+
+def _normalize_symbol(value: str | None) -> str | None:
+    if value is None:
+        return None
+    normalized = value.strip().upper()
+    return normalized or None
 
 
 def _normalize_companyfacts_item(

@@ -695,6 +695,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     sec_companyfacts_upsert.add_argument("--cik", required=True, help="10-digit filer CIK or raw numeric CIK.")
     sec_companyfacts_upsert.add_argument("--companyfacts-json", help="Optional local SEC companyfacts JSON fixture.")
+    sec_companyfacts_upsert.add_argument("--fallback-symbol", help="Optional canonical ticker fallback for CIK/name matching.")
 
     sec_filing_raw_fetch = subparsers.add_parser(
         "sec-filing-raw-fetch",
@@ -1620,6 +1621,7 @@ def _handle_sec_companyfacts_upsert(args: argparse.Namespace, *, config: Runtime
         args.cik,
         config=config,
         companyfacts_json_path=args.companyfacts_json,
+        fallback_symbol=args.fallback_symbol,
     )
     print(json.dumps(summary, indent=2, ensure_ascii=False))
 

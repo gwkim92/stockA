@@ -119,6 +119,21 @@ class SecCompanyFactsTests(unittest.TestCase):
         self.assertIn("lower(iss.display_name)", executor.scalar_sql[0])
         self.assertIn("lower(i.primary_symbol) = lower('AAPL')", executor.scalar_sql[1])
 
+    def test_run_sec_companyfacts_upsert_accepts_dynamic_fallback_symbol(self) -> None:
+        executor = FakeExecutor(run_id=81, fail_company_lookup_once=True)
+        executor.instrument_payload["primary_symbol"] = "ADI"
+
+        summary = run_sec_companyfacts_upsert(
+            "999999",
+            config=type("Config", (), {})(),
+            companyfacts_json_path=str(FIXTURES_DIR / "sec_companyfacts_CIK0000320193.json"),
+            fallback_symbol="adi",
+            executor=executor,
+        )
+
+        self.assertEqual(summary["instrument_symbol"], "ADI")
+        self.assertIn("lower(i.primary_symbol) = lower('ADI')", executor.scalar_sql[1])
+
     def test_run_sec_companyfacts_upsert_marks_pipeline_run_failed_when_upsert_errors(self) -> None:
         executor = FakeExecutor(run_id=78, fail_on_upsert=True)
         with self.assertRaises(RuntimeError):

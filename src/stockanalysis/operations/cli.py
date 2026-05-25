@@ -78,6 +78,11 @@ from stockanalysis.operations.professional_equity_analysis import (
     run_peer_relative_analysis,
     run_valuation_snapshot,
 )
+from stockanalysis.operations.professional_coverage_expansion import (
+    DEFAULT_RESEARCH_PROVIDER as DEFAULT_PROFESSIONAL_COVERAGE_RESEARCH_PROVIDER,
+    SUPPORTED_RESEARCH_PROVIDERS as PROFESSIONAL_COVERAGE_RESEARCH_PROVIDERS,
+    run_professional_coverage_expansion,
+)
 from stockanalysis.operations.industry_competitive_positioning import (
     DEFAULT_MIN_METRIC_COVERAGE as DEFAULT_INDUSTRY_COMPETITIVE_MIN_METRIC_COVERAGE,
     run_industry_competitive_positioning,
@@ -645,6 +650,28 @@ def build_parser() -> argparse.ArgumentParser:
     equity_research_reporting.add_argument("--output")
     equity_research_reporting.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
     equity_research_reporting.set_defaults(handler=_handle_equity_research_reporting_run)
+
+    professional_coverage_expansion = subparsers.add_parser(
+        "professional-coverage-expansion-run",
+        help="Expand professional analysis coverage for active recommendation gap symbols.",
+    )
+    professional_coverage_expansion.add_argument("--env-file")
+    professional_coverage_expansion.add_argument("--as-of-date", required=True)
+    professional_coverage_expansion.add_argument("--limit", type=int, default=25)
+    professional_coverage_expansion.add_argument("--companyfacts-limit", type=int, default=5)
+    professional_coverage_expansion.add_argument("--research-limit", type=int, default=5)
+    professional_coverage_expansion.add_argument(
+        "--research-provider",
+        choices=PROFESSIONAL_COVERAGE_RESEARCH_PROVIDERS,
+        default=DEFAULT_PROFESSIONAL_COVERAGE_RESEARCH_PROVIDER,
+    )
+    professional_coverage_expansion.add_argument("--company-tickers-json")
+    professional_coverage_expansion.add_argument("--exchange", action="append", default=[])
+    professional_coverage_expansion.add_argument("--execute", action="store_true")
+    professional_coverage_expansion.add_argument("--dry-run", action="store_true")
+    professional_coverage_expansion.add_argument("--output")
+    professional_coverage_expansion.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
+    professional_coverage_expansion.set_defaults(handler=_handle_professional_coverage_expansion_run)
 
     cycle_ai_quality_audit = subparsers.add_parser(
         "cycle-ai-quality-audit-run",
@@ -1657,6 +1684,41 @@ def _handle_equity_research_reporting_run(args: argparse.Namespace, *, stdout: T
         output_path = resolve_output_path(
             args.output,
             label="equity research reporting output",
+            repo_root=args.repo_root,
+            require_repo_outside=True,
+        )
+        write_json_report(report, output_path=output_path, stdout=stdout)
+    else:
+        print_json(report, stdout=stdout, sort_keys=False)
+    return 0
+
+
+def _handle_professional_coverage_expansion_run(args: argparse.Namespace, *, stdout: TextIO) -> int:
+    if bool(args.execute) and bool(args.dry_run):
+        raise ValueError("--execute and --dry-run cannot be used together.")
+    env_mapping = _load_optional_env_mapping(args.env_file, repo_root=args.repo_root)
+    company_tickers_json = (
+        str(resolve_existing_file(args.company_tickers_json, label="company tickers JSON", repo_root=args.repo_root))
+        if args.company_tickers_json
+        else None
+    )
+    as_of_date = date.fromisoformat(args.as_of_date)
+    with _temporary_environ(env_mapping):
+        report = run_professional_coverage_expansion(
+            config=RuntimeConfig.from_env(),
+            as_of_date=as_of_date,
+            limit=args.limit,
+            companyfacts_limit=args.companyfacts_limit,
+            research_limit=args.research_limit,
+            research_provider=args.research_provider,
+            company_tickers_json_path=company_tickers_json,
+            exchanges=list(args.exchange or ()),
+            execute=bool(args.execute) and not bool(args.dry_run),
+        )
+    if args.output:
+        output_path = resolve_output_path(
+            args.output,
+            label="professional coverage expansion output",
             repo_root=args.repo_root,
             require_repo_outside=True,
         )

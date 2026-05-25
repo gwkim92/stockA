@@ -1303,12 +1303,15 @@ class IngestCliTests(unittest.TestCase):
                         "320193",
                         "--companyfacts-json",
                         "tests/fixtures/sec_companyfacts_CIK0000320193.json",
+                        "--fallback-symbol",
+                        "AAPL",
                     ]
                 )
         self.assertEqual(exit_code, 0)
         payload = json.loads(stdout.getvalue())
         self.assertEqual(payload["run_id"], 92)
         self.assertEqual(payload["fact_count"], 4)
+        self.assertEqual(upsert_mock.call_args.kwargs["fallback_symbol"], "AAPL")
 
     def test_sec_filing_raw_fetch_cli_prints_summary(self) -> None:
         stdout = io.StringIO()

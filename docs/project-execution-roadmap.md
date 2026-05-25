@@ -223,7 +223,7 @@ Guardrail:
 
 ## Immediate Next Task
 
-Current task group: `quality-and-evaluation-hardening`.
+Current task group: `professional-equity-analysis-foundation`.
 
 The project is no longer in the Supabase setup or Mac local-first decision stage. Current runtime reality is EC2-hosted FastAPI read-only backend, Next.js cockpit, Postgres canonical DB, and profile-based `systemd` scheduler. The implemented product path is now:
 
@@ -235,6 +235,7 @@ The project is no longer in the Supabase setup or Mac local-first decision stage
 | Cycle Graph | Postgres ontology-lite, multi-hop impact propagation, cycle hierarchy snapshot, cycle map frontend, and recommendation quality calibration runner are implemented. | More outcome samples are needed before any component weight change. |
 | Frontend | Core pages exist and read live backend DTOs. Home/data-health/intelligence/cycle-map/paper-trading now share a “what to review today” decision strip; AI evidence detail has a source-to-recommendation trace path. | EC2 visual smoke should be repeated after the latest AI/schema fix and any cost-control decision. |
 | Trading | Broker boundary, paper safety, paper validation audit, order intent audit tables, and clearer paper trading status UI exist. | Live broker submit remains excluded; paper outcome history remains sparse. |
+| Professional Analysis | Financial normalization, peer relative snapshots, valuation snapshots, industry competitive positioning, equity research artifacts, zero-weight fundamental components, and coverage guardrails exist. | Active recommendation coverage is still thin; `professional-coverage-expansion-for-active-recommendations` is the current execution focus. |
 
 Completed in this task group:
 
@@ -271,6 +272,8 @@ Initial implementation order:
 6. `recommendation-fundamental-components`: add fundamental/valuation/peer/thesis component rows with initial weight `0`.
 7. `ai-equity-research-reporting`: use Codex OAuth batch to generate Korean structured research artifacts with validators.
 8. `frontend-equity-research-experience`: reorganize stock/recommendation pages into a report-like flow: business, financial quality, peers, valuation, cycle/news, thesis, paper validation.
+9. `recommendation-quality-professional-coverage-guardrail`: keep recommendation weight review blocked until active recommendations have sufficient professional analysis coverage.
+10. `professional-coverage-expansion-for-active-recommendations`: expand active recommendation coverage automatically through SEC ticker→CIK mapping, companyfacts upsert, financial normalization, peer/valuation/industry snapshots, and equity research artifacts.
 
 Current guardrail: do not change scoring weights, benchmark splits, or live broker submit in this task group. If a task does not improve live data truth, AI evidence quality, recommendation evaluation, or user-facing clarity, it is lower priority.
 

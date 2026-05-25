@@ -146,8 +146,9 @@ test -f docs/tasks/hosted-database-runtime-decision/review.md
 test -f docs/plans/2026-05-20-hosted-database-runtime-decision.md
 test -f docs/hosted-database-runtime-decision.md
 test -f scripts/verify_hosted_database_runtime_decision.sh
-grep -q 'Current task group: `quality-and-evaluation-hardening`' docs/project-execution-roadmap.md
-grep -q '현재 고정된 immediate next task는 `quality-and-evaluation-hardening`' AGENTS.md
+grep -q 'Current task group: `professional-equity-analysis-foundation`' docs/project-execution-roadmap.md
+grep -q '현재 고정된 immediate next task는 professional analysis task group의 `professional-coverage-expansion-for-active-recommendations`' AGENTS.md
+grep -q "professional-coverage-expansion-for-active-recommendations" docs/project-execution-roadmap.md
 grep -q "project-roadmap-reality-sync" docs/project-execution-roadmap.md
 grep -q "cycle-ai-e2e-quality-audit" docs/project-execution-roadmap.md
 grep -q "news-ai-eval-dataset-and-scoring" docs/project-execution-roadmap.md
