@@ -96,6 +96,7 @@ class OperatingDataOrchestratorTests(unittest.TestCase):
         self.assertIn("sec-companyfacts-weekly", step_ids)
         self.assertIn("financial-metric-normalization", step_ids)
         self.assertIn("peer-relative-analysis", step_ids)
+        self.assertIn("industry-competitive-positioning", step_ids)
         self.assertIn("market-price-daily", step_ids)
         self.assertIn("portfolio-position-snapshot", step_ids)
         self.assertIn("portfolio-holding-thesis-bootstrap", step_ids)
@@ -115,6 +116,10 @@ class OperatingDataOrchestratorTests(unittest.TestCase):
         self.assertLess(
             step_ids.index("paper-validation-audit"),
             step_ids.index("recommendation-outcome-backfill"),
+        )
+        self.assertLess(
+            step_ids.index("valuation-snapshot"),
+            step_ids.index("industry-competitive-positioning"),
         )
         self.assertLess(
             step_ids.index("recommendation-outcome-backfill"),
@@ -219,6 +224,7 @@ class OperatingDataOrchestratorTests(unittest.TestCase):
                 "financial-metric-normalization",
                 "peer-relative-analysis",
                 "valuation-snapshot",
+                "industry-competitive-positioning",
             ],
         )
         self.assertFalse(universe_report["derived_inputs"]["source_positions_required"])
@@ -234,6 +240,8 @@ class OperatingDataOrchestratorTests(unittest.TestCase):
         self.assertIn("peer-relative-analysis-run", peer_command)
         valuation_command = " ".join(sec_report["planned_steps"][4]["command_argv"])
         self.assertIn("valuation-snapshot-run", valuation_command)
+        competitive_command = " ".join(sec_report["planned_steps"][5]["command_argv"])
+        self.assertIn("industry-competitive-positioning-run", competitive_command)
 
     def test_decision_daily_profile_runs_decision_steps_without_news_or_macro(self) -> None:
         with tempfile.TemporaryDirectory() as repo_root, tempfile.TemporaryDirectory() as outside_root:

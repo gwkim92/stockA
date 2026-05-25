@@ -88,6 +88,7 @@ SEC_FILINGS_WEEKLY_STEP_IDS = (
     "financial-metric-normalization",
     "peer-relative-analysis",
     "valuation-snapshot",
+    "industry-competitive-positioning",
 )
 NEWS_INTRADAY_STEP_IDS = (
     "news-rss-ingest",
@@ -605,6 +606,23 @@ def _build_planned_steps(
                 target,
                 "--statement-scope",
                 "annual",
+                "--execute",
+            ),
+        },
+        {
+            "step_id": "industry-competitive-positioning",
+            "artifact_job_id": "industry-competitive-positioning-weekly",
+            "label": "Create deterministic industry competitive positioning snapshots",
+            "skip_reason": "",
+            "command_argv": (
+                python_executable,
+                "-m",
+                "stockanalysis.operations.cli",
+                "industry-competitive-positioning-run",
+                "--env-file",
+                str(env_file),
+                "--as-of-date",
+                target,
                 "--execute",
             ),
         },

@@ -216,6 +216,18 @@ DATA_OPERATION_CADENCES: tuple[DataOperationCadence, ...] = (
         data_health_dataset="market.valuation_snapshot",
     ),
     DataOperationCadence(
+        job_id="industry-competitive-positioning-weekly",
+        pipeline_name="industry_competitive_positioning",
+        domain="fundamentals",
+        cadence="weekly",
+        command_template="stockanalysis-operations industry-competitive-positioning-run --env-file <ENV> --as-of-date <YYYY-MM-DD> --execute",
+        expected_after_local="09:00 Monday",
+        stale_after_hours=216,
+        artifact_policy="stdout_json_stderr_log_and_competitive_position_counts",
+        required_env_groups=("database",),
+        data_health_dataset="research.industry_competitive_position",
+    ),
+    DataOperationCadence(
         job_id="event-intelligence-weekly",
         pipeline_name="event_intelligence_llm_extract",
         domain="ai",

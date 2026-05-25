@@ -77,6 +77,10 @@ from stockanalysis.operations.professional_equity_analysis import (
     run_peer_relative_analysis,
     run_valuation_snapshot,
 )
+from stockanalysis.operations.industry_competitive_positioning import (
+    DEFAULT_MIN_METRIC_COVERAGE as DEFAULT_INDUSTRY_COMPETITIVE_MIN_METRIC_COVERAGE,
+    run_industry_competitive_positioning,
+)
 from stockanalysis.operations.recommendation_outcome_backfill import (
     DEFAULT_OUTCOME_VERSION as DEFAULT_RECOMMENDATION_OUTCOME_VERSION,
     run_recommendation_outcome_backfill,
@@ -745,6 +749,23 @@ def build_parser() -> argparse.ArgumentParser:
     valuation_snapshot.add_argument("--output")
     valuation_snapshot.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
     valuation_snapshot.set_defaults(handler=_handle_valuation_snapshot_run)
+
+    industry_competitive_positioning = subparsers.add_parser(
+        "industry-competitive-positioning-run",
+        help="Create deterministic industry competitive positioning snapshots without changing recommendation weights.",
+    )
+    industry_competitive_positioning.add_argument("--env-file")
+    industry_competitive_positioning.add_argument("--as-of-date", required=True)
+    industry_competitive_positioning.add_argument(
+        "--min-metric-coverage",
+        type=int,
+        default=DEFAULT_INDUSTRY_COMPETITIVE_MIN_METRIC_COVERAGE,
+    )
+    industry_competitive_positioning.add_argument("--execute", action="store_true")
+    industry_competitive_positioning.add_argument("--dry-run", action="store_true")
+    industry_competitive_positioning.add_argument("--output")
+    industry_competitive_positioning.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
+    industry_competitive_positioning.set_defaults(handler=_handle_industry_competitive_positioning_run)
 
     paper_validation_audit = subparsers.add_parser(
         "paper-validation-audit-run",
@@ -1699,6 +1720,31 @@ def _handle_recommendation_outcome_backfill_run(args: argparse.Namespace, *, std
         output_path = resolve_output_path(
             args.output,
             label="recommendation outcome backfill output",
+            repo_root=args.repo_root,
+            require_repo_outside=True,
+        )
+        write_json_report(report, output_path=output_path, stdout=stdout)
+    else:
+        print_json(report, stdout=stdout, sort_keys=False)
+    return 0
+
+
+def _handle_industry_competitive_positioning_run(args: argparse.Namespace, *, stdout: TextIO) -> int:
+    if bool(args.execute) and bool(args.dry_run):
+        raise ValueError("--execute and --dry-run cannot be used together.")
+    env_mapping = _load_optional_env_mapping(args.env_file, repo_root=args.repo_root)
+    as_of_date = date.fromisoformat(args.as_of_date)
+    with _temporary_environ(env_mapping):
+        report = run_industry_competitive_positioning(
+            config=RuntimeConfig.from_env(),
+            as_of_date=as_of_date,
+            min_metric_coverage=args.min_metric_coverage,
+            execute=bool(args.execute) and not bool(args.dry_run),
+        )
+    if args.output:
+        output_path = resolve_output_path(
+            args.output,
+            label="industry competitive positioning output",
             repo_root=args.repo_root,
             require_repo_outside=True,
         )

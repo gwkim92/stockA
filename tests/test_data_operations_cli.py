@@ -1613,6 +1613,47 @@ class DataOperationsCliTests(unittest.TestCase):
             self.assertEqual(call_kwargs["min_sample_size"], 7)
             self.assertTrue(call_kwargs["execute"])
 
+    def test_industry_competitive_positioning_run_command_passes_env_and_writes_output(self) -> None:
+        with tempfile.TemporaryDirectory() as repo_root, tempfile.TemporaryDirectory() as outside_root:
+            env_file = Path(outside_root) / "data-operations.env"
+            output_path = Path(outside_root) / "industry-competitive-positioning.json"
+            env_file.write_text('STOCKANALYSIS_PSQL_COMMAND="docker exec psql"\n', encoding="utf-8")
+            stdout = io.StringIO()
+
+            with patch("stockanalysis.operations.cli.run_industry_competitive_positioning") as runner_mock:
+                runner_mock.return_value = {
+                    "report_name": "industry_competitive_positioning",
+                    "status": "completed",
+                    "min_metric_coverage": 4,
+                }
+                exit_code = main(
+                    [
+                        "industry-competitive-positioning-run",
+                        "--repo-root",
+                        repo_root,
+                        "--env-file",
+                        str(env_file),
+                        "--as-of-date",
+                        "2026-05-25",
+                        "--min-metric-coverage",
+                        "4",
+                        "--execute",
+                        "--output",
+                        str(output_path),
+                    ],
+                    stdout=stdout,
+                )
+
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(stdout.getvalue().strip(), str(output_path.resolve()))
+            payload = json.loads(output_path.read_text(encoding="utf-8"))
+            self.assertEqual(payload["report_name"], "industry_competitive_positioning")
+            call_kwargs = runner_mock.call_args.kwargs
+            self.assertEqual(call_kwargs["config"].psql_command, "docker exec psql")
+            self.assertEqual(call_kwargs["as_of_date"], date(2026, 5, 25))
+            self.assertEqual(call_kwargs["min_metric_coverage"], 4)
+            self.assertTrue(call_kwargs["execute"])
+
     def test_recommendation_outcome_backfill_run_command_passes_env_filters_and_writes_output(self) -> None:
         with tempfile.TemporaryDirectory() as repo_root, tempfile.TemporaryDirectory() as outside_root:
             env_file = Path(outside_root) / "data-operations.env"

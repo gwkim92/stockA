@@ -92,6 +92,13 @@ class DataOperationsCadenceTests(unittest.TestCase):
         self.assertEqual(valuation_job["domain"], "fundamentals")
         self.assertIn("valuation-snapshot-run", valuation_job["command_template"])
         self.assertEqual(valuation_job["data_health_dataset"], "market.valuation_snapshot")
+        competitive_job = next(
+            job for job in report["jobs"] if job["job_id"] == "industry-competitive-positioning-weekly"
+        )
+        self.assertEqual(competitive_job["pipeline_name"], "industry_competitive_positioning")
+        self.assertEqual(competitive_job["domain"], "fundamentals")
+        self.assertIn("industry-competitive-positioning-run", competitive_job["command_template"])
+        self.assertEqual(competitive_job["data_health_dataset"], "research.industry_competitive_position")
         companyfacts_job = next(job for job in report["jobs"] if job["job_id"] == "sec-companyfacts-weekly")
         self.assertEqual(companyfacts_job["pipeline_name"], "sec_companyfacts_upsert")
         self.assertEqual(companyfacts_job["domain"], "sec")
