@@ -126,13 +126,18 @@ period_metrics as (
 period_with_history as (
     select
         current_period.*,
-        previous_period.revenue as previous_revenue
+        previous_period.previous_revenue
     from period_metrics current_period
-    left join period_metrics previous_period
-      on previous_period.instrument_id = current_period.instrument_id
-     and previous_period.statement_scope = current_period.statement_scope
-     and previous_period.fiscal_year = current_period.fiscal_year - 1
-     and previous_period.fiscal_quarter is not distinct from current_period.fiscal_quarter
+    left join lateral (
+        select previous_period.revenue as previous_revenue
+        from period_metrics previous_period
+        where previous_period.instrument_id = current_period.instrument_id
+          and previous_period.statement_scope = current_period.statement_scope
+          and previous_period.fiscal_year = current_period.fiscal_year - 1
+          and previous_period.fiscal_quarter is not distinct from current_period.fiscal_quarter
+        order by previous_period.period_end desc
+        limit 1
+    ) previous_period on true
 ),
 metric_rows as (
     select

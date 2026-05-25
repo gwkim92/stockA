@@ -100,6 +100,8 @@ class ProfessionalEquityAnalysisTests(unittest.TestCase):
         self.assertIn("gross_margin", sql)
         self.assertIn("free_cash_flow_margin", sql)
         self.assertIn("cash_flow_quality", sql)
+        self.assertIn("left join lateral", sql)
+        self.assertIn("limit 1", sql)
         self.assertIn("insufficient_history", sql)
         self.assertIn("unavailable", sql)
         self.assertIn("9501::bigint", sql)
