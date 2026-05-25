@@ -39,6 +39,12 @@
   - decision: `paper_actions_waiting_for_safety_interlock_release`
   - portfolio coverage issue count: 0
   - safety interlock issue count: 4
+- 후속 weight audit:
+  - 명령: `stockanalysis-operations recommendation-weight-review-readiness-audit-run --env-file /opt/stockanalysis/runtime/data-operations.env --as-of-date 2026-05-25 --eval-run-id 13 --execute`
+  - `run_id`: 891
+  - `audit_eval_run_id`: 14
+  - decision: `blocked_by_paper_validation_failed`
+  - 해석: paper conflict는 해소됐지만 validation status가 failed라서 safety interlock 정책 결정 전까지 weight review는 계속 금지한다.
 - 해석:
   - AAPL/MSFT/TSLA 오탐 conflict는 해소됐다.
   - 남은 차단은 의도된 safety interlock이다.
