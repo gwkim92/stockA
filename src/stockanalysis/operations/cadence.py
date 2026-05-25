@@ -240,6 +240,18 @@ DATA_OPERATION_CADENCES: tuple[DataOperationCadence, ...] = (
         data_health_dataset="signal.cycle_state_snapshot",
     ),
     DataOperationCadence(
+        job_id="recommendation-fundamental-components-daily",
+        pipeline_name="recommendation_fundamental_components",
+        domain="fundamentals",
+        cadence="daily",
+        command_template="stockanalysis-operations recommendation-fundamental-components-run --env-file <ENV> --as-of-date <YYYY-MM-DD> --execute",
+        expected_after_local="19:12",
+        stale_after_hours=36,
+        artifact_policy="stdout_json_stderr_log_and_component_counts",
+        required_env_groups=("database",),
+        data_health_dataset="signal.recommendation_score_component",
+    ),
+    DataOperationCadence(
         job_id="cycle-community-ai-summary-daily",
         pipeline_name="cycle_community_ai_summary",
         domain="ai",

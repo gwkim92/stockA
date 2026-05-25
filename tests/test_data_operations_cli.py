@@ -1984,6 +1984,52 @@ class DataOperationsCliTests(unittest.TestCase):
             self.assertEqual(call_kwargs["statement_scope"], "annual")
             self.assertFalse(call_kwargs["execute"])
 
+    def test_recommendation_fundamental_components_run_command_passes_env_and_guardrails(self) -> None:
+        with tempfile.TemporaryDirectory() as repo_root, tempfile.TemporaryDirectory() as outside_root:
+            env_file = Path(outside_root) / "data-operations.env"
+            env_file.write_text('STOCKANALYSIS_PSQL_COMMAND="docker exec psql"\n', encoding="utf-8")
+            stdout = io.StringIO()
+
+            with patch("stockanalysis.operations.cli.run_recommendation_fundamental_components") as runner_mock:
+                runner_mock.return_value = {
+                    "report_name": "recommendation_fundamental_components",
+                    "status": "planned",
+                    "recommendation_total_score_mutated": False,
+                    "recommendation_weight_mutated": False,
+                }
+                exit_code = main(
+                    [
+                        "recommendation-fundamental-components-run",
+                        "--repo-root",
+                        repo_root,
+                        "--env-file",
+                        str(env_file),
+                        "--as-of-date",
+                        "2026-05-25",
+                        "--market-code",
+                        "US",
+                        "--strategy-name",
+                        "long_term_core",
+                        "--horizon-type",
+                        "long_term",
+                        "--dry-run",
+                    ],
+                    stdout=stdout,
+                )
+
+            self.assertEqual(exit_code, 0)
+            payload = json.loads(stdout.getvalue())
+            self.assertEqual(payload["report_name"], "recommendation_fundamental_components")
+            self.assertFalse(payload["recommendation_total_score_mutated"])
+            self.assertFalse(payload["recommendation_weight_mutated"])
+            call_kwargs = runner_mock.call_args.kwargs
+            self.assertEqual(call_kwargs["config"].psql_command, "docker exec psql")
+            self.assertEqual(call_kwargs["as_of_date"], date(2026, 5, 25))
+            self.assertEqual(call_kwargs["market_code"], "US")
+            self.assertEqual(call_kwargs["strategy_name"], "long_term_core")
+            self.assertEqual(call_kwargs["horizon_type"], "long_term")
+            self.assertFalse(call_kwargs["execute"])
+
 
 class DataOperationsEnvFileTests(unittest.TestCase):
     def test_load_env_file_values_supports_quotes_export_and_comments(self) -> None:

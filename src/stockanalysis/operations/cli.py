@@ -64,6 +64,12 @@ from stockanalysis.operations.recommendation_quality_eval import (
     parse_horizon_days,
     run_recommendation_quality_eval,
 )
+from stockanalysis.operations.recommendation_fundamental_components import (
+    DEFAULT_HORIZON_TYPE as DEFAULT_FUNDAMENTAL_COMPONENT_HORIZON_TYPE,
+    DEFAULT_MARKET_CODE as DEFAULT_FUNDAMENTAL_COMPONENT_MARKET_CODE,
+    DEFAULT_STRATEGY_NAME as DEFAULT_FUNDAMENTAL_COMPONENT_STRATEGY_NAME,
+    run_recommendation_fundamental_components,
+)
 from stockanalysis.operations.professional_equity_analysis import (
     PEER_RELATIVE_STATEMENT_SCOPES,
     VALUATION_STATEMENT_SCOPES,
@@ -659,6 +665,27 @@ def build_parser() -> argparse.ArgumentParser:
     recommendation_quality_eval.add_argument("--output")
     recommendation_quality_eval.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
     recommendation_quality_eval.set_defaults(handler=_handle_recommendation_quality_eval_run)
+
+    recommendation_fundamental_components = subparsers.add_parser(
+        "recommendation-fundamental-components-run",
+        help="Attach zero-weight fundamental, peer, valuation, and thesis consistency components to recommendations.",
+    )
+    recommendation_fundamental_components.add_argument("--env-file")
+    recommendation_fundamental_components.add_argument("--as-of-date", required=True)
+    recommendation_fundamental_components.add_argument("--market-code", default=DEFAULT_FUNDAMENTAL_COMPONENT_MARKET_CODE)
+    recommendation_fundamental_components.add_argument(
+        "--strategy-name",
+        default=DEFAULT_FUNDAMENTAL_COMPONENT_STRATEGY_NAME,
+    )
+    recommendation_fundamental_components.add_argument(
+        "--horizon-type",
+        default=DEFAULT_FUNDAMENTAL_COMPONENT_HORIZON_TYPE,
+    )
+    recommendation_fundamental_components.add_argument("--execute", action="store_true")
+    recommendation_fundamental_components.add_argument("--dry-run", action="store_true")
+    recommendation_fundamental_components.add_argument("--output")
+    recommendation_fundamental_components.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
+    recommendation_fundamental_components.set_defaults(handler=_handle_recommendation_fundamental_components_run)
 
     financial_metric_normalization = subparsers.add_parser(
         "financial-metric-normalization-run",
@@ -1514,6 +1541,33 @@ def _handle_financial_metric_normalization_run(args: argparse.Namespace, *, stdo
         output_path = resolve_output_path(
             args.output,
             label="financial metric normalization output",
+            repo_root=args.repo_root,
+            require_repo_outside=True,
+        )
+        write_json_report(report, output_path=output_path, stdout=stdout)
+    else:
+        print_json(report, stdout=stdout, sort_keys=False)
+    return 0
+
+
+def _handle_recommendation_fundamental_components_run(args: argparse.Namespace, *, stdout: TextIO) -> int:
+    if bool(args.execute) and bool(args.dry_run):
+        raise ValueError("--execute and --dry-run cannot be used together.")
+    env_mapping = _load_optional_env_mapping(args.env_file, repo_root=args.repo_root)
+    as_of_date = date.fromisoformat(args.as_of_date)
+    with _temporary_environ(env_mapping):
+        report = run_recommendation_fundamental_components(
+            config=RuntimeConfig.from_env(),
+            as_of_date=as_of_date,
+            market_code=args.market_code,
+            strategy_name=args.strategy_name,
+            horizon_type=args.horizon_type,
+            execute=bool(args.execute) and not bool(args.dry_run),
+        )
+    if args.output:
+        output_path = resolve_output_path(
+            args.output,
+            label="recommendation fundamental components output",
             repo_root=args.repo_root,
             require_repo_outside=True,
         )

@@ -100,6 +100,7 @@ class OperatingDataOrchestratorTests(unittest.TestCase):
         self.assertIn("portfolio-position-snapshot", step_ids)
         self.assertIn("portfolio-holding-thesis-bootstrap", step_ids)
         self.assertIn("paper-validation-audit", step_ids)
+        self.assertIn("recommendation-fundamental-components", step_ids)
         self.assertIn("recommendation-outcome-backfill", step_ids)
         self.assertIn("recommendation-quality-eval", step_ids)
         self.assertLess(
@@ -256,6 +257,7 @@ class OperatingDataOrchestratorTests(unittest.TestCase):
         self.assertIn("cycle-graph-context-summary", step_ids)
         self.assertIn("cycle-community-ai-summary-v2", step_ids)
         self.assertIn("recommendation-bootstrap", step_ids)
+        self.assertIn("recommendation-fundamental-components", step_ids)
         self.assertIn("portfolio-holding-thesis-bootstrap", step_ids)
         self.assertIn("paper-validation-audit", step_ids)
         self.assertNotIn("news-rss-ingest", step_ids)
@@ -275,6 +277,14 @@ class OperatingDataOrchestratorTests(unittest.TestCase):
         self.assertLess(
             step_ids.index("cycle-community-ai-summary-v2"),
             step_ids.index("recommendation-bootstrap"),
+        )
+        self.assertLess(
+            step_ids.index("recommendation-bootstrap"),
+            step_ids.index("recommendation-fundamental-components"),
+        )
+        self.assertLess(
+            step_ids.index("recommendation-fundamental-components"),
+            step_ids.index("thesis-bootstrap"),
         )
         self.assertLess(
             step_ids.index("portfolio-position-snapshot"),
