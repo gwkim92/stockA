@@ -30,6 +30,28 @@
   - outcome 표본이 아직 없으므로 추천 weight 변경은 금지 상태가 맞다.
   - paper validation conflict가 남아 있어 다음 UX에서 페이퍼 상태를 더 명확히 보여줘야 한다.
 
+## Latest EC2 Recheck
+
+- 실행일: 2026-05-25
+- outcome backfill 명령: `stockanalysis-operations recommendation-outcome-backfill-run --env-file /opt/stockanalysis/runtime/data-operations.env --due-on-date 2026-05-25 --horizon-day 30 --execute`
+- outcome backfill 결과:
+  - `run_id`: 727
+  - `status`: `executed_no_due_candidates`
+  - `candidate_count`: 0
+  - `recommendation_outcome_count`: 0
+  - 해석: 아직 30일 horizon이 도래한 추천 성과 표본이 없다.
+- quality eval 명령: `stockanalysis-operations recommendation-quality-eval-run --env-file /opt/stockanalysis/runtime/data-operations.env --as-of-date 2026-05-25 --horizon 30d --min-sample-size 20 --execute`
+- quality eval 결과:
+  - `run_id`: 728
+  - `eval_run_id`: 4
+  - `quality_status`: `needs_more_data`
+  - `sample_status`: `insufficient_sample`
+  - `recommendation_count`: 30
+  - `outcome_count`: 0
+  - `outcome_coverage_rate`: 0.0
+  - latest paper validation: `failed`, `conflict_count=3`
+  - 해석: 추천 품질 평가 runner는 정상이나 성과 표본이 없으므로 추천 weight 변경은 계속 금지한다.
+
 ## Verification
 
 - `PYTHONPATH=src /opt/homebrew/bin/python3.13 -m unittest tests.test_recommendation_quality_eval tests.test_data_operations_cli tests.test_operating_data_orchestrator tests.test_data_operations_cadence`: passed, 68 tests.
@@ -42,5 +64,4 @@
 
 ## Exact Next Step
 
-- exact next step: `decision-cockpit-ux-v2`를 시작한다. 홈, `/data-health`, `/intelligence`, `/cycle-map`, `/paper-trading`을 "오늘 무엇을 봐야 하는가"와 "수집→AI해석→전파→추천/페이퍼 검증" 흐름으로 재정리한다.
-- 추천 산식 weight 변경은 충분한 `performance.recommendation_outcome` 표본이 쌓이고 별도 calibration 승인 task가 열리기 전까지 하지 않는다.
+- exact next step: 30일 horizon이 도래할 때까지 outcome backfill이 실제 성과 rows를 만들 수 있는지 계속 점검한다. 추천 산식 weight 변경은 충분한 `performance.recommendation_outcome` 표본이 쌓이고 별도 calibration 승인 task가 열리기 전까지 하지 않는다.
