@@ -517,6 +517,9 @@ def build_live_stock_detail_response(
     price_bars = [_build_stock_price_bar_payload(item) for item in _as_list(state.get("price_bars"))]
     recommendation = _build_stock_recommendation_payload(_as_dict(state.get("recommendation")))
     equity_research = _build_stock_equity_research_payload(_as_dict(state.get("equity_research")))
+    industry_competitive_position = _build_industry_competitive_position_payload(
+        _as_dict(state.get("industry_competitive_position"))
+    )
     thesis_id = recommendation.get("linked_thesis_id") if recommendation else None
     recommendation_id = recommendation.get("recommendation_id") if recommendation else None
     as_of_text = str(state.get("as_of_date") or (as_of_date.isoformat() if as_of_date else ""))
@@ -537,6 +540,7 @@ def build_live_stock_detail_response(
             "recommendation": recommendation,
             "position": _build_stock_position_payload(_as_dict(state.get("position"))),
             "equity_research": equity_research,
+            "industry_competitive_position": industry_competitive_position,
             "macro_flow_impacts": [
                 _build_stock_macro_flow_payload(item) for item in _as_list(state.get("macro_flow_impacts"))
             ],
@@ -1253,6 +1257,9 @@ def build_live_recommendation_detail_response(
         _build_recommendation_score_component_payload(item) for item in _as_list(state.get("score_components"))
     ]
     equity_research = _build_stock_equity_research_payload(_as_dict(state.get("equity_research")))
+    industry_competitive_position = _build_industry_competitive_position_payload(
+        _as_dict(state.get("industry_competitive_position"))
+    )
     linked_thesis_id = state.get("linked_thesis_id")
     outcome = _as_dict(state.get("outcome"))
     symbol = str(state.get("symbol") or "UNKNOWN").upper()
@@ -1273,6 +1280,7 @@ def build_live_recommendation_detail_response(
             "score_version": str(state.get("score_version") or "unknown"),
             "score_components": score_components,
             "equity_research": equity_research,
+            "industry_competitive_position": industry_competitive_position,
             "linked_thesis_id": _opaque_id("thesis", linked_thesis_id, None) if linked_thesis_id is not None else None,
             "evidence_trace": _build_recommendation_evidence_trace_payload(
                 _as_dict(state.get("evidence_trace")),
@@ -3127,6 +3135,43 @@ latest_equity_research as (
         case artifact.provider when 'codex_oauth' then 0 when 'fixture' then 1 else 2 end,
         artifact.artifact_id desc
     limit 1
+),
+latest_industry_competitive_position as (
+    select
+        position.competitive_position_id,
+        position.as_of_date,
+        position.methodology,
+        position.competitive_position,
+        position.peer_group_id,
+        peer_group.group_code as peer_group_code,
+        peer_group.name as peer_group_name,
+        sector_node.code as sector_code,
+        sector_node.name as sector_name,
+        position.moat_score,
+        position.pricing_power_score,
+        position.profitability_score,
+        position.growth_position_score,
+        position.financial_strength_score,
+        position.rivalry_risk_score,
+        position.buyer_power_risk_score,
+        position.supplier_power_risk_score,
+        position.substitute_threat_risk_score,
+        position.new_entry_threat_risk_score,
+        position.capacity_cycle_risk_score,
+        position.metric_coverage_count,
+        position.peer_count,
+        position.key_strengths_json,
+        position.key_risks_json,
+        position.peer_context_json,
+        position.rationale,
+        position.source_run_id
+    from research.industry_competitive_position position
+    join ref.peer_group peer_group on peer_group.peer_group_id = position.peer_group_id
+    join target_instrument instrument on instrument.instrument_id = position.instrument_id
+    join target_date target on position.as_of_date <= target.as_of_date
+    left join ref.classification_node sector_node on sector_node.node_id = position.sector_node_id
+    order by position.as_of_date desc, position.competitive_position_id desc
+    limit 1
 )
 select json_build_object(
     'symbol', coalesce((select primary_symbol from target_instrument), {symbol_literal}),
@@ -3222,6 +3267,39 @@ select json_build_object(
             'created_at', created_at
         )
         from latest_equity_research
+    ),
+    'industry_competitive_position',
+    (
+        select json_build_object(
+            'competitive_position_id', competitive_position_id,
+            'as_of_date', as_of_date,
+            'methodology', methodology,
+            'competitive_position', competitive_position,
+            'peer_group_id', peer_group_id,
+            'peer_group_code', peer_group_code,
+            'peer_group_name', peer_group_name,
+            'sector_code', sector_code,
+            'sector_name', sector_name,
+            'moat_score', moat_score,
+            'pricing_power_score', pricing_power_score,
+            'profitability_score', profitability_score,
+            'growth_position_score', growth_position_score,
+            'financial_strength_score', financial_strength_score,
+            'rivalry_risk_score', rivalry_risk_score,
+            'buyer_power_risk_score', buyer_power_risk_score,
+            'supplier_power_risk_score', supplier_power_risk_score,
+            'substitute_threat_risk_score', substitute_threat_risk_score,
+            'new_entry_threat_risk_score', new_entry_threat_risk_score,
+            'capacity_cycle_risk_score', capacity_cycle_risk_score,
+            'metric_coverage_count', metric_coverage_count,
+            'peer_count', peer_count,
+            'key_strengths', key_strengths_json,
+            'key_risks', key_risks_json,
+            'peer_context', peer_context_json,
+            'rationale', rationale,
+            'source_run_id', source_run_id
+        )
+        from latest_industry_competitive_position
     ),
     'macro_flow_impacts',
     coalesce(
@@ -5485,6 +5563,43 @@ latest_equity_research as (
         artifact.artifact_id desc
     limit 1
 ),
+latest_industry_competitive_position as (
+    select
+        position.competitive_position_id,
+        position.as_of_date,
+        position.methodology,
+        position.competitive_position,
+        position.peer_group_id,
+        peer_group.group_code as peer_group_code,
+        peer_group.name as peer_group_name,
+        sector_node.code as sector_code,
+        sector_node.name as sector_name,
+        position.moat_score,
+        position.pricing_power_score,
+        position.profitability_score,
+        position.growth_position_score,
+        position.financial_strength_score,
+        position.rivalry_risk_score,
+        position.buyer_power_risk_score,
+        position.supplier_power_risk_score,
+        position.substitute_threat_risk_score,
+        position.new_entry_threat_risk_score,
+        position.capacity_cycle_risk_score,
+        position.metric_coverage_count,
+        position.peer_count,
+        position.key_strengths_json,
+        position.key_risks_json,
+        position.peer_context_json,
+        position.rationale,
+        position.source_run_id
+    from research.industry_competitive_position position
+    join ref.peer_group peer_group on peer_group.peer_group_id = position.peer_group_id
+    join selected_recommendation recommendation on recommendation.instrument_id = position.instrument_id
+    left join ref.classification_node sector_node on sector_node.node_id = position.sector_node_id
+    where position.as_of_date <= recommendation.as_of_date
+    order by position.as_of_date desc, position.competitive_position_id desc
+    limit 1
+),
 score_component_rows as (
     select
         component.component_name,
@@ -5676,6 +5791,39 @@ select json_build_object(
             'created_at', created_at
         )
         from latest_equity_research
+    ),
+    'industry_competitive_position',
+    (
+        select json_build_object(
+            'competitive_position_id', competitive_position_id,
+            'as_of_date', as_of_date,
+            'methodology', methodology,
+            'competitive_position', competitive_position,
+            'peer_group_id', peer_group_id,
+            'peer_group_code', peer_group_code,
+            'peer_group_name', peer_group_name,
+            'sector_code', sector_code,
+            'sector_name', sector_name,
+            'moat_score', moat_score,
+            'pricing_power_score', pricing_power_score,
+            'profitability_score', profitability_score,
+            'growth_position_score', growth_position_score,
+            'financial_strength_score', financial_strength_score,
+            'rivalry_risk_score', rivalry_risk_score,
+            'buyer_power_risk_score', buyer_power_risk_score,
+            'supplier_power_risk_score', supplier_power_risk_score,
+            'substitute_threat_risk_score', substitute_threat_risk_score,
+            'new_entry_threat_risk_score', new_entry_threat_risk_score,
+            'capacity_cycle_risk_score', capacity_cycle_risk_score,
+            'metric_coverage_count', metric_coverage_count,
+            'peer_count', peer_count,
+            'key_strengths', key_strengths_json,
+            'key_risks', key_risks_json,
+            'peer_context', peer_context_json,
+            'rationale', rationale,
+            'source_run_id', source_run_id
+        )
+        from latest_industry_competitive_position
     ),
     'linked_thesis_id', (select thesis_id from selected_recommendation),
     'evidence_trace',
@@ -6565,6 +6713,44 @@ def _build_stock_equity_research_payload(artifact: dict[str, Any]) -> dict[str, 
         if source_run_id is not None
         else None,
         "created_at": _timestamp(artifact.get("created_at")),
+    }
+
+
+def _build_industry_competitive_position_payload(position: dict[str, Any]) -> dict[str, Any] | None:
+    raw_id = position.get("competitive_position_id")
+    if raw_id is None:
+        return None
+    source_run_id = position.get("source_run_id")
+    return {
+        "position_id": _opaque_id("industry-competitive-position", raw_id, None),
+        "as_of_date": str(position.get("as_of_date") or ""),
+        "methodology": str(position.get("methodology") or "unknown"),
+        "competitive_position": str(position.get("competitive_position") or "insufficient_data"),
+        "peer_group_id": _opaque_id("peer-group", position.get("peer_group_id"), None),
+        "peer_group_code": _optional_text(position.get("peer_group_code")),
+        "peer_group_name": _optional_text(position.get("peer_group_name")),
+        "sector_code": _optional_text(position.get("sector_code")),
+        "sector_name": _optional_text(position.get("sector_name")),
+        "moat_score": _number(position.get("moat_score")),
+        "pricing_power_score": _number(position.get("pricing_power_score")),
+        "profitability_score": _number(position.get("profitability_score")),
+        "growth_position_score": _number(position.get("growth_position_score")),
+        "financial_strength_score": _number(position.get("financial_strength_score")),
+        "rivalry_risk_score": _number(position.get("rivalry_risk_score")),
+        "buyer_power_risk_score": _number(position.get("buyer_power_risk_score")),
+        "supplier_power_risk_score": _number(position.get("supplier_power_risk_score")),
+        "substitute_threat_risk_score": _number(position.get("substitute_threat_risk_score")),
+        "new_entry_threat_risk_score": _number(position.get("new_entry_threat_risk_score")),
+        "capacity_cycle_risk_score": _number(position.get("capacity_cycle_risk_score")),
+        "metric_coverage_count": int(position.get("metric_coverage_count") or 0),
+        "peer_count": int(position.get("peer_count") or 0),
+        "key_strengths": [str(item) for item in _as_scalar_list(position.get("key_strengths"))],
+        "key_risks": [str(item) for item in _as_scalar_list(position.get("key_risks"))],
+        "peer_context": _as_dict(position.get("peer_context")),
+        "rationale": _optional_text(position.get("rationale")),
+        "source_run_id": _opaque_id("pipeline-run", source_run_id, None)
+        if source_run_id is not None
+        else None,
     }
 
 

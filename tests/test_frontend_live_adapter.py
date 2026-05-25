@@ -272,6 +272,35 @@ class FakeLiveExecutor:
                         "source_run_id": 7711,
                         "created_at": "2024-12-02T09:00:00+00:00",
                     },
+                    "industry_competitive_position": {
+                        "competitive_position_id": 4101,
+                        "as_of_date": "2024-12-02",
+                        "methodology": "peer_financial_proxy_v1",
+                        "competitive_position": "leader",
+                        "peer_group_id": 3101,
+                        "peer_group_code": "large_cap_technology",
+                        "peer_group_name": "Large Cap Technology",
+                        "sector_code": "TECH_DOMAIN",
+                        "sector_name": "Technology Domain",
+                        "moat_score": "0.8200",
+                        "pricing_power_score": "0.7800",
+                        "profitability_score": "0.8400",
+                        "growth_position_score": "0.7100",
+                        "financial_strength_score": "0.9000",
+                        "rivalry_risk_score": "0.4200",
+                        "buyer_power_risk_score": "0.3800",
+                        "supplier_power_risk_score": "0.3300",
+                        "substitute_threat_risk_score": "0.2700",
+                        "new_entry_threat_risk_score": "0.2400",
+                        "capacity_cycle_risk_score": "0.3100",
+                        "metric_coverage_count": 9,
+                        "peer_count": 8,
+                        "key_strengths": ["High profitability percentile", "Strong balance sheet"],
+                        "key_risks": ["Large-cap technology rivalry remains material"],
+                        "peer_context": {"profitability_percentile": "0.8400"},
+                        "rationale": "Peer financial proxy ranks AAPL as a leader.",
+                        "source_run_id": 779,
+                    },
                     "macro_flow_impacts": [
                         {
                             "event_id": 9101,
@@ -1133,9 +1162,38 @@ class FakeLiveExecutor:
                             "risks": ["중국 수요 둔화"],
                             "invalidation_conditions": ["마진 훼손이 두 분기 지속"],
                             "valuation_sensitivity": {"margin_of_safety": "watch"},
-                            "source_document_ids": ["aapl-2024-10k-20240928"],
-                            "source_run_id": 7711,
-                            "created_at": "2024-11-01T09:00:00+00:00",
+	                        "source_document_ids": ["aapl-2024-10k-20240928"],
+	                        "source_run_id": 7711,
+	                        "created_at": "2024-11-01T09:00:00+00:00",
+	                    },
+                        "industry_competitive_position": {
+                            "competitive_position_id": 4101,
+                            "as_of_date": "2024-11-01",
+                            "methodology": "peer_financial_proxy_v1",
+                            "competitive_position": "leader",
+                            "peer_group_id": 3101,
+                            "peer_group_code": "large_cap_technology",
+                            "peer_group_name": "Large Cap Technology",
+                            "sector_code": "TECH_DOMAIN",
+                            "sector_name": "Technology Domain",
+                            "moat_score": "0.8200",
+                            "pricing_power_score": "0.7800",
+                            "profitability_score": "0.8400",
+                            "growth_position_score": "0.7100",
+                            "financial_strength_score": "0.9000",
+                            "rivalry_risk_score": "0.4200",
+                            "buyer_power_risk_score": "0.3800",
+                            "supplier_power_risk_score": "0.3300",
+                            "substitute_threat_risk_score": "0.2700",
+                            "new_entry_threat_risk_score": "0.2400",
+                            "capacity_cycle_risk_score": "0.3100",
+                            "metric_coverage_count": 9,
+                            "peer_count": 8,
+                            "key_strengths": ["High profitability percentile", "Strong balance sheet"],
+                            "key_risks": ["Large-cap technology rivalry remains material"],
+                            "peer_context": {"profitability_percentile": "0.8400"},
+                            "rationale": "Peer financial proxy ranks AAPL as a leader.",
+                            "source_run_id": 779,
                         },
 	                    "linked_thesis_id": 7001,
 	                    "evidence_trace": {
@@ -2527,6 +2585,15 @@ class FrontendLiveAdapterTests(unittest.TestCase):
             ["source-document-aapl-2024-10k-20240928"],
         )
         self.assertEqual(payload["data"]["equity_research"]["valuation_sensitivity"]["margin_of_safety"], "watch")
+        competitive_position = payload["data"]["industry_competitive_position"]
+        self.assertEqual(competitive_position["position_id"], "industry-competitive-position-4101")
+        self.assertEqual(competitive_position["competitive_position"], "leader")
+        self.assertEqual(competitive_position["peer_group_id"], "peer-group-3101")
+        self.assertEqual(competitive_position["peer_group_name"], "Large Cap Technology")
+        self.assertEqual(competitive_position["moat_score"], 0.82)
+        self.assertEqual(competitive_position["rivalry_risk_score"], 0.42)
+        self.assertEqual(competitive_position["key_strengths"][0], "High profitability percentile")
+        self.assertEqual(competitive_position["source_run_id"], "pipeline-run-779")
         self.assertEqual(payload["data"]["macro_flow_impacts"][0]["theme_key"], "MACRO_RATES_FED")
         self.assertEqual(payload["data"]["macro_flow_impacts"][0]["source_run_id"], "pipeline-run-7701")
         self.assertEqual(payload["data"]["recent_events"][0]["event_id"], "event-9001")
@@ -2707,7 +2774,9 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertIn("event.event_instrument_impact", detail_sql)
         self.assertIn("signal.propagated_instrument_impact", detail_sql)
         self.assertIn("research.equity_research_artifact", detail_sql)
+        self.assertIn("research.industry_competitive_position", detail_sql)
         self.assertIn("'equity_research'", detail_sql)
+        self.assertIn("'industry_competitive_position'", detail_sql)
         self.assertIn("macro_flow_impacts as", detail_sql)
         self.assertIn("raw_recent_events as", detail_sql)
         self.assertIn("source_document.korean_title", detail_sql)
@@ -3074,6 +3143,15 @@ class FrontendLiveAdapterTests(unittest.TestCase):
             ["source-document-aapl-2024-10k-20240928"],
         )
         self.assertEqual(payload["data"]["equity_research"]["valuation_sensitivity"]["margin_of_safety"], "watch")
+        competitive_position = payload["data"]["industry_competitive_position"]
+        self.assertEqual(competitive_position["position_id"], "industry-competitive-position-4101")
+        self.assertEqual(competitive_position["competitive_position"], "leader")
+        self.assertEqual(competitive_position["peer_group_id"], "peer-group-3101")
+        self.assertEqual(competitive_position["peer_group_name"], "Large Cap Technology")
+        self.assertEqual(competitive_position["moat_score"], 0.82)
+        self.assertEqual(competitive_position["rivalry_risk_score"], 0.42)
+        self.assertEqual(competitive_position["key_risks"][0], "Large-cap technology rivalry remains material")
+        self.assertEqual(competitive_position["source_run_id"], "pipeline-run-779")
         self.assertEqual(payload["data"]["linked_thesis_id"], "thesis-7001")
         trace = payload["data"]["evidence_trace"]
         self.assertEqual(trace["symbol"], "AAPL")
@@ -3187,6 +3265,8 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertIn("portfolio_review_trace as", sql)
         self.assertIn("latest_equity_research as", sql)
         self.assertIn("research.equity_research_artifact", sql)
+        self.assertIn("latest_industry_competitive_position as", sql)
+        self.assertIn("research.industry_competitive_position", sql)
         self.assertIn("signal.propagated_instrument_impact", sql)
         self.assertIn("portfolio.position_snapshot", sql)
         self.assertIn("portfolio.review_item", sql)
@@ -3214,6 +3294,7 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertIn("'fundamental_component_name', component.component_name", sql)
         self.assertIn("'fundamental_explanation', component.explanation", sql)
         self.assertIn("'equity_research'", sql)
+        self.assertIn("'industry_competitive_position'", sql)
         self.assertIn("'provenance', provenance", sql)
         self.assertIn("'evidence_trace'", sql)
         self.assertIn("'direct_news_or_ai'", sql)

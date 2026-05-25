@@ -237,6 +237,36 @@ export type StockPrice = {
   change_pct?: number | null;
 };
 
+export type IndustryCompetitivePosition = {
+  position_id: string;
+  as_of_date: string;
+  methodology: string;
+  competitive_position: string;
+  peer_group_id: string;
+  peer_group_code: string | null;
+  peer_group_name: string | null;
+  sector_code: string | null;
+  sector_name: string | null;
+  moat_score: number | null;
+  pricing_power_score: number | null;
+  profitability_score: number | null;
+  growth_position_score: number | null;
+  financial_strength_score: number | null;
+  rivalry_risk_score: number | null;
+  buyer_power_risk_score: number | null;
+  supplier_power_risk_score: number | null;
+  substitute_threat_risk_score: number | null;
+  new_entry_threat_risk_score: number | null;
+  capacity_cycle_risk_score: number | null;
+  metric_coverage_count: number;
+  peer_count: number;
+  key_strengths: string[];
+  key_risks: string[];
+  peer_context: Record<string, unknown>;
+  rationale: string | null;
+  source_run_id: string | null;
+};
+
 export type StockRecommendation = {
   recommendation_id: string;
   linked_thesis_id: string | null;
@@ -318,6 +348,7 @@ export type StockDetailData = {
     source_run_id: string | null;
     created_at: string;
   } | null;
+  industry_competitive_position: IndustryCompetitivePosition | null;
   macro_flow_impacts: Array<{
     event_id: string;
     title: string;
@@ -912,6 +943,7 @@ export type RecommendationDetailData = {
     source_run_id: string | null;
     created_at: string;
   } | null;
+  industry_competitive_position: IndustryCompetitivePosition | null;
   linked_thesis_id: string;
   evidence_trace: {
     symbol: string;

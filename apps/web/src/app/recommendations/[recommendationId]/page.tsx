@@ -20,6 +20,7 @@ function formatPercent(value: number) {
 }
 
 type ScoreComponent = RecommendationDetailData["score_components"][number];
+type IndustryCompetitivePosition = NonNullable<RecommendationDetailData["industry_competitive_position"]>;
 
 function isZeroWeight(value: number) {
   return Math.abs(Number(value)) < 0.000001;
@@ -207,6 +208,143 @@ function formatMetricValue(value: number | null | undefined) {
     return formatPercent(value);
   }
   return value.toLocaleString("ko-KR", { maximumFractionDigits: 4 });
+}
+
+function formatOptionalPercent(value: number | null | undefined) {
+  if (value === null || value === undefined) {
+    return "미측정";
+  }
+  return formatPercent(value);
+}
+
+function competitivePositionLabel(value: string) {
+  const labels: Record<string, string> = {
+    leader: "경쟁 우위",
+    advantaged: "우위 후보",
+    in_line: "평균권",
+    challenged: "열위 검토",
+    insufficient_data: "데이터 부족",
+  };
+  return labels[value] ?? koCode(value);
+}
+
+function competitivePositionSummary(position: IndustryCompetitivePosition, symbol: string) {
+  const peerGroup = position.peer_group_name ?? position.peer_group_code ?? "비교군";
+  const sector = position.sector_name ?? position.sector_code ?? "섹터 미분류";
+  return `${symbol}은 ${peerGroup} 기준으로 ${competitivePositionLabel(position.competitive_position)} 상태다. ${sector} 안에서 수익성, 성장성, 재무 방어력, 가격 결정력 추정 지표를 함께 본다.`;
+}
+
+function IndustryCompetitivePositionPanel({
+  position,
+  symbol,
+  peerComponent,
+}: {
+  position: IndustryCompetitivePosition | null;
+  symbol: string;
+  peerComponent: ScoreComponent | undefined;
+}) {
+  if (!position) {
+    return (
+      <section className="bento-card reveal delay-1" aria-label="산업 경쟁 위치">
+        <div style={{ marginBottom: "12px" }}>
+          <span className="metric-sub">산업 경쟁 위치</span>
+          <h2 style={{ fontSize: "1.5rem", marginTop: "6px" }}>피어 기반 경쟁 위치가 아직 연결되지 않았다</h2>
+        </div>
+        <p style={{ color: "var(--text-secondary)", marginBottom: 0 }}>
+          산업 경쟁 위치 배치가 실행되면 비교군, 경쟁 위치, 강점, 리스크가 이곳에 표시된다.
+          추천 점수는 이 값만으로 바뀌지 않는다.
+        </p>
+      </section>
+    );
+  }
+
+  const scoreRows = [
+    { label: "종합 경쟁력", value: position.moat_score },
+    { label: "가격 결정력", value: position.pricing_power_score },
+    { label: "수익성 위치", value: position.profitability_score },
+    { label: "성장 위치", value: position.growth_position_score },
+    { label: "재무 방어력", value: position.financial_strength_score },
+  ];
+  const riskRows = [
+    { label: "동종업계 경쟁 강도", value: position.rivalry_risk_score },
+    { label: "고객 협상력 리스크", value: position.buyer_power_risk_score },
+    { label: "공급자 협상력 리스크", value: position.supplier_power_risk_score },
+    { label: "대체재 리스크", value: position.substitute_threat_risk_score },
+    { label: "신규 진입 리스크", value: position.new_entry_threat_risk_score },
+    { label: "공급·설비 사이클 리스크", value: position.capacity_cycle_risk_score },
+  ];
+
+  return (
+    <section className="bento-card reveal delay-1" aria-label="산업 경쟁 위치">
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "18px", flexWrap: "wrap", marginBottom: "20px" }}>
+        <div>
+          <span className="metric-sub">산업 경쟁 위치</span>
+          <h2 style={{ fontSize: "1.5rem", marginTop: "6px" }}>{symbol}이 같은 그룹 안에서 얼마나 강한가</h2>
+          <p style={{ color: "var(--text-secondary)", marginTop: "8px", maxWidth: "900px" }}>
+            {competitivePositionSummary(position, symbol)} 이 값은 무료 공개 재무 데이터와 피어 비교로 만든 추정 지표이며,
+            추천 총점에는 평가 전까지 직접 반영하지 않는다.
+          </p>
+        </div>
+        <span className="bento-badge" style={{ margin: 0 }}>
+          {competitivePositionLabel(position.competitive_position)} • {position.as_of_date}
+        </span>
+      </div>
+
+      <div className="status-rail compact-rail" aria-label="산업 경쟁 위치 요약">
+        <div className="rail-cell">
+          <span>비교군</span>
+          <strong>{position.peer_group_name ?? position.peer_group_code ?? "미분류"}</strong>
+          <small>{position.peer_count.toLocaleString("ko-KR")}개 종목 기준</small>
+        </div>
+        <div className="rail-cell">
+          <span>경쟁 위치</span>
+          <strong>{competitivePositionLabel(position.competitive_position)}</strong>
+          <small>{koCode(position.methodology)}</small>
+        </div>
+        <div className="rail-cell">
+          <span>피어 점수 항목</span>
+          <strong>{peerComponent ? formatPercent(peerComponent.value) : "미연결"}</strong>
+          <small>{peerComponent ? "현재 총점 미반영" : "추천 점수 항목 대기"}</small>
+        </div>
+        <div className="rail-cell">
+          <span>지표 커버리지</span>
+          <strong>{position.metric_coverage_count.toLocaleString("ko-KR")}</strong>
+          <small>{position.source_run_id ?? "실행 번호 없음"}</small>
+        </div>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))", gap: "14px", marginTop: "18px" }}>
+        <article className="detail-path-card" style={{ minHeight: "220px" }}>
+          <span>경쟁력 점수</span>
+          {scoreRows.map((row) => (
+            <p key={row.label}>{row.label}: {formatOptionalPercent(row.value)}</p>
+          ))}
+        </article>
+        <article className="detail-path-card" style={{ minHeight: "220px" }}>
+          <span>경쟁 압력 리스크</span>
+          {riskRows.map((row) => (
+            <p key={row.label}>{row.label}: {formatOptionalPercent(row.value)}</p>
+          ))}
+        </article>
+        <ResearchList
+          title="강점"
+          items={position.key_strengths}
+          emptyText="강점이 아직 구조화되지 않았다."
+        />
+        <ResearchList
+          title="주의할 점"
+          items={position.key_risks}
+          emptyText="경쟁 리스크가 아직 구조화되지 않았다."
+        />
+      </div>
+
+      {position.rationale ? (
+        <p style={{ color: "var(--text-muted)", margin: "16px 0 0" }}>
+          계산 근거: {koLabel(position.rationale)}
+        </p>
+      ) : null}
+    </section>
+  );
 }
 
 function provenanceBadges(component: ScoreComponent) {
@@ -566,6 +704,7 @@ export default async function RecommendationPage({ params }: RecommendationPageP
   const cycleStack = cycleStackComponents(data.score_components);
   const fundamentalStack = fundamentalComponents(data.score_components);
   const equityResearch = data.equity_research;
+  const industryPosition = data.industry_competitive_position;
   const valuationItems = equityResearch ? valuationSensitivityItems(equityResearch.valuation_sensitivity) : [];
   const outcomeMeasured = data.outcome.label !== "unmeasured" && Boolean(data.outcome.measurement_end_date);
   const marketComponentCount = data.score_components.filter((component) =>
@@ -601,7 +740,7 @@ export default async function RecommendationPage({ params }: RecommendationPageP
       id: "financial-quality",
       label: "02",
       title: "재무 품질",
-      status: fundamentalQualityComponent ? "재무 component 연결" : "재무 component 없음",
+      status: fundamentalQualityComponent ? "재무 근거 연결" : "재무 근거 없음",
       tone: fundamentalQualityComponent ? "ready" : "watch",
       body: fundamentalQualityComponent
         ? `${FUNDAMENTAL_COMPONENT_META.fundamental_quality_score.body} 현재 값은 ${formatPercent(fundamentalQualityComponent.value)}이고 성과 검증 전까지 총점 반영은 제한된다.`
@@ -615,13 +754,20 @@ export default async function RecommendationPage({ params }: RecommendationPageP
       id: "peer-position",
       label: "03",
       title: "피어·경쟁 위치",
-      status: peerComponent ? "피어 component 연결" : "비교군 대기",
-      tone: peerComponent ? "ready" : "watch",
-      body: peerComponent
-        ? `${FUNDAMENTAL_COMPONENT_META.peer_relative_score.body} 현재 값은 ${formatPercent(peerComponent.value)}이다.`
-        : "동일 산업·테마 비교군 안에서 성장성, 수익성, 밸류에이션 상대 위치가 아직 추천 입력으로 구조화되지 않았다.",
+      status: industryPosition
+        ? competitivePositionLabel(industryPosition.competitive_position)
+        : peerComponent
+          ? "피어 근거 연결"
+          : "비교군 대기",
+      tone: industryPosition || peerComponent ? "ready" : "watch",
+      body: industryPosition
+        ? `${competitivePositionSummary(industryPosition, data.symbol)} ${peerComponent ? `피어 비교 검토 점수는 ${formatPercent(peerComponent.value)}이다.` : "추천 점수 항목은 아직 연결 대기 상태다."}`
+        : peerComponent
+          ? `${FUNDAMENTAL_COMPONENT_META.peer_relative_score.body} 현재 값은 ${formatPercent(peerComponent.value)}이다.`
+          : "동일 산업·테마 비교군 안에서 성장성, 수익성, 밸류에이션 상대 위치가 아직 추천 입력으로 구조화되지 않았다.",
       facts: [
         { label: "피어 비교", value: peerComponent ? formatPercent(peerComponent.value) : "미연결" },
+        { label: "경쟁 위치", value: industryPosition ? competitivePositionLabel(industryPosition.competitive_position) : "미연결" },
         { label: "가격/순위 재료", value: `${marketComponentCount}개` },
       ],
     },
@@ -629,10 +775,10 @@ export default async function RecommendationPage({ params }: RecommendationPageP
       id: "valuation",
       label: "04",
       title: "밸류에이션",
-      status: valuationComponent ? "밸류에이션 component 연결" : "밸류에이션 대기",
+      status: valuationComponent ? "밸류에이션 근거 연결" : "밸류에이션 대기",
       tone: valuationComponent || valuationItems.length > 0 ? "ready" : "watch",
       body: valuationComponent
-        ? `${FUNDAMENTAL_COMPONENT_META.valuation_margin_score.body} 현재 값은 ${formatPercent(valuationComponent.value)}이며, weight는 평가 전까지 보수적으로 둔다.`
+        ? `${FUNDAMENTAL_COMPONENT_META.valuation_margin_score.body} 현재 값은 ${formatPercent(valuationComponent.value)}이며, 가중치는 평가 전까지 보수적으로 둔다.`
         : "DCF-lite, 상대 배수, 시나리오 범위, 안전마진이 아직 추천 근거로 충분히 연결되지 않았다.",
       facts:
         valuationItems.length > 0
@@ -747,7 +893,7 @@ export default async function RecommendationPage({ params }: RecommendationPageP
         eyebrow="전문 리서치 검토 순서"
         title={`${data.symbol} 추천을 분석서처럼 읽는다`}
         summary="추천은 뉴스 신호 하나가 아니라 사업, 재무, 비교군, 밸류에이션, 사이클, thesis, 페이퍼 검증이 모두 연결될 때 신뢰도가 올라간다."
-        footer="현재 fundamental/cycle 일부 component는 weight 0이다. outcome 검증 전까지 추천 총점을 흔들지 않기 위한 정책이다."
+        footer="현재 기업/사이클 일부 점수 항목은 가중치 0이다. 성과 검증 전까지 추천 총점을 흔들지 않기 위한 정책이다."
         steps={professionalResearchSteps}
       />
 
@@ -758,7 +904,7 @@ export default async function RecommendationPage({ params }: RecommendationPageP
             <h2 style={{ fontSize: "1.5rem", marginTop: "6px" }}>왜 {data.symbol}을 지금 검토하는가</h2>
             <p style={{ color: "var(--text-secondary)", marginTop: "8px", maxWidth: "860px" }}>
               추천 점수를 한 덩어리로 보지 않고 거시 환경, 도메인, 테마, 종목 자체 상태, 충돌 감점을 분리해 보여준다.
-              초기 weight 0 항목은 결과를 흔들지 않기 위한 설명·검증용 항목이며, 품질 검증 후 점수 반영을 키운다.
+              초기 가중치 0 항목은 결과를 흔들지 않기 위한 설명·검증용 항목이며, 품질 검증 후 점수 반영을 키운다.
             </p>
           </div>
 
@@ -841,6 +987,12 @@ export default async function RecommendationPage({ params }: RecommendationPageP
         </section>
       ) : null}
 
+      <IndustryCompetitivePositionPanel
+        position={industryPosition}
+        symbol={data.symbol}
+        peerComponent={peerComponent}
+      />
+
       <section className="bento-card reveal delay-1" aria-label="기업 리서치 연결">
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "18px", flexWrap: "wrap", marginBottom: "22px" }}>
           <div>
@@ -849,8 +1001,8 @@ export default async function RecommendationPage({ params }: RecommendationPageP
               {equityResearch?.title || `${data.symbol} 기업 리서치가 아직 연결되지 않았다`}
             </h2>
             <p style={{ color: "var(--text-secondary)", marginTop: "8px", maxWidth: "900px" }}>
-              추천을 뉴스 신호만으로 보지 않기 위해 배치 AI가 만든 기업 분석 artifact를 같이 보여준다.
-              이 리포트는 추천 점수와 주문을 직접 바꾸지 않고, 재무·밸류에이션 component를 해석하는 읽기 전용 근거다.
+              추천을 뉴스 신호만으로 보지 않기 위해 배치 AI가 만든 기업 분석 결과를 같이 보여준다.
+              이 리포트는 추천 점수와 주문을 직접 바꾸지 않고, 재무·밸류에이션 점수 항목을 해석하는 읽기 전용 근거다.
             </p>
           </div>
           {equityResearch ? (

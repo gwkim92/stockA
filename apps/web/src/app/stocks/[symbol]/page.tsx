@@ -6,7 +6,7 @@ import { NewsTitleBlock } from "@/components/news-title-block";
 import { ProfessionalResearchFlow, type ResearchFlowStep } from "@/components/professional-research-flow";
 import { getAiEvidenceNeighborhood, getStockDetail } from "@/lib/frontend-api";
 import { koCode, koLabel } from "@/lib/korean-labels";
-import type { AiEvidenceNeighborhoodData, StockPrice } from "@/lib/types";
+import type { AiEvidenceNeighborhoodData, StockDetailData, StockPrice } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "종목 상세" };
@@ -14,6 +14,8 @@ export const metadata = { title: "종목 상세" };
 type StockDetailPageProps = {
   params: Promise<{ symbol: string }>;
 };
+
+type IndustryCompetitivePosition = NonNullable<StockDetailData["industry_competitive_position"]>;
 
 function formatCurrency(value: number | null, currencyCode: string) {
   if (value === null) {
@@ -111,6 +113,144 @@ function providerLabel(provider: string) {
     return "검증용 샘플 분석";
   }
   return koCode(provider);
+}
+
+function competitivePositionLabel(value: string) {
+  const labels: Record<string, string> = {
+    leader: "경쟁 우위",
+    advantaged: "우위 후보",
+    in_line: "평균권",
+    challenged: "열위 검토",
+    insufficient_data: "데이터 부족",
+  };
+  return labels[value] ?? koCode(value);
+}
+
+function competitivePositionSummary(position: IndustryCompetitivePosition, symbol: string) {
+  const peerGroup = position.peer_group_name ?? position.peer_group_code ?? "비교군";
+  const sector = position.sector_name ?? position.sector_code ?? "섹터 미분류";
+  return `${symbol}은 ${peerGroup} 기준으로 ${competitivePositionLabel(position.competitive_position)} 상태다. ${sector} 안에서 수익성, 성장성, 재무 방어력, 가격 결정력 추정 지표를 함께 본다.`;
+}
+
+function IndustryCompetitivePositionPanel({
+  position,
+  symbol,
+}: {
+  position: IndustryCompetitivePosition | null;
+  symbol: string;
+}) {
+  if (!position) {
+    return (
+      <section className="bento-card span-4 reveal delay-3" aria-label="산업 경쟁 위치">
+        <div className="section-heading stacked-heading">
+          <span className="metric-sub">산업 경쟁 위치</span>
+          <h2>동종업계 비교가 아직 이 종목에 연결되지 않았다</h2>
+        </div>
+        <p style={{ color: "var(--text-secondary)", marginBottom: 0 }}>
+          산업 경쟁 위치 배치가 실행되면 피어 그룹, 경쟁 위치, 가격 결정력, 재무 방어력, 경쟁 압력 추정 지표가
+          이곳에 표시된다. 추천 점수는 이 값만으로 바뀌지 않는다.
+        </p>
+      </section>
+    );
+  }
+
+  const scoreRows = [
+    { label: "종합 경쟁력", value: position.moat_score },
+    { label: "가격 결정력", value: position.pricing_power_score },
+    { label: "수익성 위치", value: position.profitability_score },
+    { label: "성장 위치", value: position.growth_position_score },
+    { label: "재무 방어력", value: position.financial_strength_score },
+  ];
+  const riskRows = [
+    { label: "동종업계 경쟁 강도", value: position.rivalry_risk_score },
+    { label: "고객 협상력 리스크", value: position.buyer_power_risk_score },
+    { label: "공급자 협상력 리스크", value: position.supplier_power_risk_score },
+    { label: "대체재 리스크", value: position.substitute_threat_risk_score },
+    { label: "신규 진입 리스크", value: position.new_entry_threat_risk_score },
+    { label: "공급·설비 사이클 리스크", value: position.capacity_cycle_risk_score },
+  ];
+
+  return (
+    <section className="bento-card span-4 reveal delay-3" aria-label="산업 경쟁 위치">
+      <div className="section-heading">
+        <div>
+          <span className="metric-sub">산업 경쟁 위치</span>
+          <h2>{symbol}이 같은 그룹 안에서 얼마나 강한가</h2>
+        </div>
+        <span className="bento-badge" style={{ margin: 0 }}>
+          {competitivePositionLabel(position.competitive_position)} • {position.as_of_date}
+        </span>
+      </div>
+      <p style={{ color: "var(--text-secondary)", marginTop: 0 }}>
+        {competitivePositionSummary(position, symbol)} 이 값은 유료 시장점유율 데이터가 아니라 저장된 재무 지표와
+        피어 비교로 만든 추정 지표이며, 추천 총점을 직접 바꾸지 않는다.
+      </p>
+
+      <div className="status-rail compact-rail" aria-label="산업 경쟁 위치 요약">
+        <div className="rail-cell">
+          <span>경쟁 위치</span>
+          <strong>{competitivePositionLabel(position.competitive_position)}</strong>
+          <small>{koCode(position.methodology)}</small>
+        </div>
+        <div className="rail-cell">
+          <span>비교군</span>
+          <strong>{position.peer_group_name ?? position.peer_group_code ?? "미분류"}</strong>
+          <small>{position.peer_count.toLocaleString("ko-KR")}개 종목 기준</small>
+        </div>
+        <div className="rail-cell">
+          <span>섹터</span>
+          <strong>{position.sector_name ?? position.sector_code ?? "미분류"}</strong>
+          <small>산업/테마 분류 기준</small>
+        </div>
+        <div className="rail-cell">
+          <span>지표 커버리지</span>
+          <strong>{position.metric_coverage_count.toLocaleString("ko-KR")}</strong>
+          <small>{position.source_run_id ?? "실행 번호 없음"}</small>
+        </div>
+      </div>
+
+      <div className="bento-grid" style={{ marginTop: "18px" }}>
+        <article className="bento-card">
+          <span className="metric-sub">경쟁력 점수</span>
+          <div className="stock-meta-grid" style={{ marginTop: "12px" }}>
+            {scoreRows.map((row) => (
+              <Fragment key={row.label}>
+                <span>{row.label}</span>
+                <strong>{formatPercent(row.value)}</strong>
+              </Fragment>
+            ))}
+          </div>
+        </article>
+        <article className="bento-card">
+          <span className="metric-sub">경쟁 압력 리스크</span>
+          <div className="stock-meta-grid" style={{ marginTop: "12px" }}>
+            {riskRows.map((row) => (
+              <Fragment key={row.label}>
+                <span>{row.label}</span>
+                <strong>{formatPercent(row.value)}</strong>
+              </Fragment>
+            ))}
+          </div>
+        </article>
+        <ResearchList
+          title="강점"
+          items={position.key_strengths}
+          emptyText="강점이 아직 구조화되지 않았다."
+        />
+        <ResearchList
+          title="주의할 점"
+          items={position.key_risks}
+          emptyText="경쟁 리스크가 아직 구조화되지 않았다."
+        />
+      </div>
+
+      {position.rationale ? (
+        <p style={{ color: "var(--text-muted)", marginBottom: 0 }}>
+          계산 근거: {koLabel(position.rationale)}
+        </p>
+      ) : null}
+    </section>
+  );
 }
 
 function valuationSensitivityItems(value: Record<string, unknown>) {
@@ -440,6 +580,7 @@ export default async function StockDetailPage({ params }: StockDetailPageProps) 
   const neighborhood = neighborhoodResponse.data;
   const hasPriceData = data.summary.bar_count > 0 && data.latest_price.close !== null;
   const equityResearch = data.equity_research;
+  const industryPosition = data.industry_competitive_position;
   const valuationItems = equityResearch ? valuationSensitivityItems(equityResearch.valuation_sensitivity) : [];
   const hasEvidenceOnlyData =
     !hasPriceData && (data.macro_flow_impacts.length > 0 || data.recent_events.length > 0);
@@ -467,7 +608,7 @@ export default async function StockDetailPage({ params }: StockDetailPageProps) 
       tone: equityResearch?.key_points.length ? "ready" : "watch",
       body: equityResearch?.key_points[0]
         ? koLabel(equityResearch.key_points[0])
-        : "매출, 마진, 현금흐름, ROIC 같은 정규화 재무 지표가 종목 상세에 아직 직접 노출되지 않았다. 추천 상세의 기업 분석 component에서 보강 상태를 확인한다.",
+        : "매출, 마진, 현금흐름, ROIC 같은 정규화 재무 지표가 종목 상세에 아직 직접 노출되지 않았다. 추천 상세의 기업 분석 근거에서 보강 상태를 확인한다.",
       href: data.recommendation ? recommendationHref(data.recommendation.recommendation_id) : undefined,
       hrefLabel: data.recommendation ? "추천 상세에서 재무 근거 보기" : undefined,
     },
@@ -475,13 +616,20 @@ export default async function StockDetailPage({ params }: StockDetailPageProps) 
       id: "peer-position",
       label: "03",
       title: "피어·경쟁 위치",
-      status: data.recommendation ? "추천 근거 연결" : "비교군 표시 대기",
-      tone: data.recommendation ? "ready" : "watch",
-      body: data.recommendation
-        ? "피어 비교와 상대 위치는 추천 상세의 peer_relative_score에서 확인한다. 아직 종목 상세에는 비교군 테이블을 직접 펼치지 않는다."
-        : "동일 산업·테마 비교군과 시장 점유율, 가격 결정력, 진입장벽을 보여주는 화면은 다음 고도화 대상이다.",
+      status: industryPosition ? competitivePositionLabel(industryPosition.competitive_position) : "비교군 표시 대기",
+      tone: industryPosition ? "ready" : "watch",
+      body: industryPosition
+        ? competitivePositionSummary(industryPosition, data.symbol)
+        : "동일 산업·테마 비교군 안에서 수익성, 성장성, 재무 안정성, 가격 결정력 추정 지표를 보여주는 데이터가 아직 없다.",
+      facts: industryPosition
+        ? [
+            { label: "비교군", value: industryPosition.peer_group_name ?? industryPosition.peer_group_code ?? "미분류" },
+            { label: "종합 경쟁력", value: formatPercent(industryPosition.moat_score) },
+            { label: "경쟁 강도", value: formatPercent(industryPosition.rivalry_risk_score) },
+          ]
+        : undefined,
       href: data.recommendation ? recommendationHref(data.recommendation.recommendation_id) : undefined,
-      hrefLabel: data.recommendation ? "피어 비교 근거 보기" : undefined,
+      hrefLabel: data.recommendation ? "추천 상세에서 같이 보기" : undefined,
     },
     {
       id: "valuation",
@@ -770,7 +918,7 @@ export default async function StockDetailPage({ params }: StockDetailPageProps) 
             ) : null}
             <p style={{ color: "var(--text-muted)", marginBottom: 0 }}>
               이 리포트는 배치 작업이 저장한 읽기 전용 분석이다. 추천 점수와 주문은 직접 변경하지 않으며,
-              추천 상세의 재무·밸류에이션 component와 성과 평가가 별도로 확인한다.
+              추천 상세의 재무·밸류에이션 근거와 성과 평가가 별도로 확인한다.
             </p>
           </>
         ) : (
@@ -780,6 +928,8 @@ export default async function StockDetailPage({ params }: StockDetailPageProps) 
           </div>
         )}
       </section>
+
+      <IndustryCompetitivePositionPanel position={industryPosition} symbol={data.symbol} />
 
       <EvidenceNeighborhoodPanel neighborhood={neighborhood} />
 
