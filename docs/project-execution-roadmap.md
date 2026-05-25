@@ -266,10 +266,11 @@ Initial implementation order:
 1. `professional-equity-analysis-foundation`: add canonical schema for normalized financial metrics, peer groups, peer relative snapshots, valuation snapshots, and Korean AI equity research artifacts.
 2. `financial-metric-normalization`: normalize SEC companyfacts into standard metrics such as revenue growth, margins, cash-flow quality, ROE, and leverage. Missing inputs remain `unavailable` or `insufficient_history`.
 3. `peer-group-and-relative-analysis`: build peer groups from sector/theme/business similarity and compute relative position.
-4. `valuation-snapshot-foundation`: add DCF-lite, relative multiple, scenario range, and margin-of-safety snapshots without affecting scores.
-5. `recommendation-fundamental-components`: add fundamental/valuation/peer/thesis component rows with initial weight `0`.
-6. `ai-equity-research-reporting`: use Codex OAuth batch to generate Korean structured research artifacts with validators.
-7. `frontend-equity-research-experience`: reorganize stock/recommendation pages into a report-like flow: business, financial quality, peers, valuation, cycle/news, thesis, paper validation.
+4. `industry-competitive-positioning-v1`: store deterministic industry competitive position and Porter-style proxy risks from peer/financial/sector context without affecting scores.
+5. `valuation-snapshot-foundation`: add DCF-lite, relative multiple, scenario range, and margin-of-safety snapshots without affecting scores.
+6. `recommendation-fundamental-components`: add fundamental/valuation/peer/thesis component rows with initial weight `0`.
+7. `ai-equity-research-reporting`: use Codex OAuth batch to generate Korean structured research artifacts with validators.
+8. `frontend-equity-research-experience`: reorganize stock/recommendation pages into a report-like flow: business, financial quality, peers, valuation, cycle/news, thesis, paper validation.
 
 Current guardrail: do not change scoring weights, benchmark splits, or live broker submit in this task group. If a task does not improve live data truth, AI evidence quality, recommendation evaluation, or user-facing clarity, it is lower priority.
 
