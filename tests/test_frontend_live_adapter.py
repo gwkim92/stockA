@@ -251,6 +251,26 @@ class FakeLiveExecutor:
                         "market_value": "2230.00",
                         "linked_thesis_id": 7001,
                     },
+                    "equity_research": {
+                        "artifact_id": 1201,
+                        "as_of_date": "2024-12-02",
+                        "artifact_type": "full_equity_research",
+                        "provider": "fixture",
+                        "model_name": "codex-cli-default",
+                        "title": "AAPL 기업 리서치 요약",
+                        "korean_summary": "애플의 서비스 매출과 현금흐름 품질을 같이 봐야 한다.",
+                        "key_points": ["서비스 매출 비중 확대", "현금흐름 품질 양호"],
+                        "catalysts": ["신제품 사이클", "서비스 가격 결정력"],
+                        "risks": ["중국 수요 둔화"],
+                        "invalidation_conditions": ["마진 훼손이 두 분기 지속"],
+                        "valuation_sensitivity": {
+                            "margin_of_safety": "watch",
+                            "upside_case": "서비스 성장 유지",
+                        },
+                        "source_document_ids": ["aapl-2024-10k-20240928"],
+                        "source_run_id": 7711,
+                        "created_at": "2024-12-02T09:00:00+00:00",
+                    },
                     "macro_flow_impacts": [
                         {
                             "event_id": 9101,
@@ -2371,6 +2391,15 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertEqual(payload["data"]["price_bars"][-1]["trade_date"], "2024-12-02")
         self.assertEqual(payload["data"]["recommendation"]["linked_thesis_id"], "thesis-7001")
         self.assertEqual(payload["data"]["position"]["weight"], 0.05)
+        self.assertEqual(payload["data"]["equity_research"]["artifact_id"], "equity-research-artifact-1201")
+        self.assertEqual(payload["data"]["equity_research"]["title"], "AAPL 기업 리서치 요약")
+        self.assertEqual(payload["data"]["equity_research"]["provider"], "fixture")
+        self.assertEqual(payload["data"]["equity_research"]["source_run_id"], "pipeline-run-7711")
+        self.assertEqual(
+            payload["data"]["equity_research"]["source_document_ids"],
+            ["source-document-aapl-2024-10k-20240928"],
+        )
+        self.assertEqual(payload["data"]["equity_research"]["valuation_sensitivity"]["margin_of_safety"], "watch")
         self.assertEqual(payload["data"]["macro_flow_impacts"][0]["theme_key"], "MACRO_RATES_FED")
         self.assertEqual(payload["data"]["macro_flow_impacts"][0]["source_run_id"], "pipeline-run-7701")
         self.assertEqual(payload["data"]["recent_events"][0]["event_id"], "event-9001")
@@ -2550,6 +2579,8 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertIn("limit 51", list_sql)
         self.assertIn("event.event_instrument_impact", detail_sql)
         self.assertIn("signal.propagated_instrument_impact", detail_sql)
+        self.assertIn("research.equity_research_artifact", detail_sql)
+        self.assertIn("'equity_research'", detail_sql)
         self.assertIn("macro_flow_impacts as", detail_sql)
         self.assertIn("raw_recent_events as", detail_sql)
         self.assertIn("source_document.korean_title", detail_sql)

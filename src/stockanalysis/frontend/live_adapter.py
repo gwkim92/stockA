@@ -513,6 +513,7 @@ def build_live_stock_detail_response(
     )
     price_bars = [_build_stock_price_bar_payload(item) for item in _as_list(state.get("price_bars"))]
     recommendation = _build_stock_recommendation_payload(_as_dict(state.get("recommendation")))
+    equity_research = _build_stock_equity_research_payload(_as_dict(state.get("equity_research")))
     thesis_id = recommendation.get("linked_thesis_id") if recommendation else None
     recommendation_id = recommendation.get("recommendation_id") if recommendation else None
     as_of_text = str(state.get("as_of_date") or (as_of_date.isoformat() if as_of_date else ""))
@@ -532,6 +533,7 @@ def build_live_stock_detail_response(
             "price_bars": price_bars,
             "recommendation": recommendation,
             "position": _build_stock_position_payload(_as_dict(state.get("position"))),
+            "equity_research": equity_research,
             "macro_flow_impacts": [
                 _build_stock_macro_flow_payload(item) for item in _as_list(state.get("macro_flow_impacts"))
             ],
@@ -2710,6 +2712,33 @@ macro_flow_impacts as (
     join target_date target on event_row.event_at < (target.as_of_date + interval '1 day')
     order by event_row.event_at desc, event_row.event_id desc, node.code
     limit 8
+),
+latest_equity_research as (
+    select
+        artifact.artifact_id,
+        artifact.as_of_date,
+        artifact.artifact_type,
+        artifact.provider,
+        artifact.model_name,
+        artifact.title,
+        artifact.korean_summary,
+        artifact.key_points_json,
+        artifact.catalysts_json,
+        artifact.risks_json,
+        artifact.invalidation_conditions_json,
+        artifact.valuation_sensitivity_json,
+        artifact.source_document_ids,
+        artifact.source_run_id,
+        artifact.created_at
+    from research.equity_research_artifact artifact
+    join target_instrument instrument on instrument.instrument_id = artifact.instrument_id
+    join target_date target on artifact.as_of_date <= target.as_of_date
+    where artifact.artifact_type = 'full_equity_research'
+    order by
+        artifact.as_of_date desc,
+        case artifact.provider when 'codex_oauth' then 0 when 'fixture' then 1 else 2 end,
+        artifact.artifact_id desc
+    limit 1
 )
 select json_build_object(
     'symbol', coalesce((select primary_symbol from target_instrument), {symbol_literal}),
@@ -2784,6 +2813,27 @@ select json_build_object(
             'linked_thesis_id', linked_thesis_id
         )
         from latest_position
+    ),
+    'equity_research',
+    (
+        select json_build_object(
+            'artifact_id', artifact_id,
+            'as_of_date', as_of_date,
+            'artifact_type', artifact_type,
+            'provider', provider,
+            'model_name', model_name,
+            'title', title,
+            'korean_summary', korean_summary,
+            'key_points', key_points_json,
+            'catalysts', catalysts_json,
+            'risks', risks_json,
+            'invalidation_conditions', invalidation_conditions_json,
+            'valuation_sensitivity', valuation_sensitivity_json,
+            'source_document_ids', source_document_ids,
+            'source_run_id', source_run_id,
+            'created_at', created_at
+        )
+        from latest_equity_research
     ),
     'macro_flow_impacts',
     coalesce(
@@ -5994,6 +6044,39 @@ def _build_stock_position_payload(position: dict[str, Any]) -> dict[str, Any] | 
         "linked_thesis_id": _opaque_id("thesis", position.get("linked_thesis_id"), None)
         if position.get("linked_thesis_id") is not None
         else None,
+    }
+
+
+def _build_stock_equity_research_payload(artifact: dict[str, Any]) -> dict[str, Any] | None:
+    raw_id = artifact.get("artifact_id")
+    if raw_id is None:
+        return None
+    source_run_id = artifact.get("source_run_id")
+    source_document_ids = [
+        _opaque_id("source-document", item, None)
+        for item in _as_scalar_list(artifact.get("source_document_ids"))
+        if item is not None
+    ]
+    return {
+        "artifact_id": _opaque_id("equity-research-artifact", raw_id, None),
+        "as_of_date": str(artifact.get("as_of_date") or ""),
+        "artifact_type": str(artifact.get("artifact_type") or "full_equity_research"),
+        "provider": str(artifact.get("provider") or "unknown"),
+        "model_name": str(artifact.get("model_name") or "unknown"),
+        "title": str(artifact.get("title") or ""),
+        "korean_summary": str(artifact.get("korean_summary") or ""),
+        "key_points": [str(item) for item in _as_scalar_list(artifact.get("key_points"))],
+        "catalysts": [str(item) for item in _as_scalar_list(artifact.get("catalysts"))],
+        "risks": [str(item) for item in _as_scalar_list(artifact.get("risks"))],
+        "invalidation_conditions": [
+            str(item) for item in _as_scalar_list(artifact.get("invalidation_conditions"))
+        ],
+        "valuation_sensitivity": _as_dict(artifact.get("valuation_sensitivity")),
+        "source_document_ids": source_document_ids,
+        "source_run_id": _opaque_id("pipeline-run", source_run_id, None)
+        if source_run_id is not None
+        else None,
+        "created_at": _timestamp(artifact.get("created_at")),
     }
 
 
