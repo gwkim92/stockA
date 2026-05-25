@@ -7300,10 +7300,16 @@ def _performance_links(
 def _build_recommendation_score_component_payload(component: dict[str, Any]) -> dict[str, Any]:
     component_name = str(component.get("component") or component.get("component_name") or "unknown")
     evidence_id = str(component.get("evidence_id") or component.get("explanation") or component_name)
+    raw_value = component.get("value")
+    if raw_value is None:
+        raw_value = component.get("component_score")
+    raw_weight = component.get("weight")
+    if raw_weight is None:
+        raw_weight = component.get("component_weight")
     return {
         "component": component_name,
-        "value": _number(component.get("value") or component.get("component_score")),
-        "weight": _number(component.get("weight") or component.get("component_weight")),
+        "value": _number(raw_value),
+        "weight": _number(raw_weight),
         "evidence_id": evidence_id,
         "provenance": _build_score_component_provenance_payload(
             _as_dict(component.get("provenance")),

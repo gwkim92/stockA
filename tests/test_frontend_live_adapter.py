@@ -1025,7 +1025,7 @@ class FakeLiveExecutor:
                         {
                             "component": "fundamental_quality_score",
                             "value": "0.7200",
-                            "weight": "0.0000",
+                            "weight": 0.0,
                             "evidence_id": "fundamental-aapl-2024-11-01-fundamental_quality_score",
                             "provenance": {
                                 "source_type": "fundamental_context",
