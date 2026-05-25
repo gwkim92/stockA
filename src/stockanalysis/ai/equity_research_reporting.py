@@ -152,8 +152,8 @@ financial_metric_status_counts as (
 ),
 latest_peer_rows as (
     select distinct on (snapshot.metric_code)
-        peer_group.peer_group_code,
-        peer_group.peer_group_name,
+        peer_group.group_code as peer_group_code,
+        peer_group.name as peer_group_name,
         snapshot.metric_code,
         snapshot.metric_value,
         snapshot.percentile_rank,
@@ -165,7 +165,7 @@ latest_peer_rows as (
     join target on target.instrument_id = snapshot.instrument_id
     join ref.peer_group peer_group on peer_group.peer_group_id = snapshot.peer_group_id
     where snapshot.as_of_date <= {sql_date(as_of_date)}
-    order by snapshot.metric_code, snapshot.as_of_date desc, snapshot.peer_relative_snapshot_id desc
+    order by snapshot.metric_code, snapshot.as_of_date desc, snapshot.peer_snapshot_id desc
 ),
 latest_valuation_rows as (
     select distinct on (valuation.method)
