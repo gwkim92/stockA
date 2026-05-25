@@ -1019,6 +1019,29 @@ export type PortfolioCoverageData = {
     cash_weight: number;
     weight_coverage_ratio: number;
   };
+  allocation_policy: {
+    policy_id: string;
+    policy_name: string;
+    status: string;
+    policy_scope: string;
+    max_single_position_weight: number | null;
+    min_rebalance_target_weight: number | null;
+    valid_from: string;
+    valid_to: string;
+    rationale: string;
+  };
+  risk_budget: {
+    status: string;
+    max_single_position_weight: number | null;
+    min_rebalance_target_weight: number | null;
+    largest_position_symbol: string | null;
+    largest_position_weight: number | null;
+    over_single_position_limit_count: number;
+    below_rebalance_floor_count: number;
+    cash_weight: number | null;
+    invested_weight: number | null;
+    review_reasons: string[];
+  };
   positions: Array<{
     symbol: string;
     instrument_id: string;
@@ -1027,6 +1050,11 @@ export type PortfolioCoverageData = {
     active_thesis_id: string | null;
     outcome_status: string;
     action: string;
+    position_size_status: string;
+    max_single_position_weight: number | null;
+    min_rebalance_target_weight: number | null;
+    weight_to_single_position_limit: number | null;
+    position_size_note: string;
   }>;
   attribution_readiness: {
     is_ready: boolean;

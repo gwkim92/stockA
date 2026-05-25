@@ -1633,7 +1633,13 @@ def build_live_portfolio_coverage_response(
                 position_limit=page_limit,
                 position_offset=page_offset,
             )
-    positions = [_build_position_payload(position) for position in _as_list(report.get("positions"))]
+    allocation_policy = _build_allocation_policy_payload(
+        _load_remediation_allocation_policy(config=config, executor=executor)
+    )
+    positions = [
+        _build_position_payload(position, allocation_policy=allocation_policy)
+        for position in _as_list(report.get("positions"))
+    ]
     blocking_reasons = [
         f"{position['coverage_status']}:{position['symbol']}"
         for position in positions
@@ -1667,6 +1673,13 @@ def build_live_portfolio_coverage_response(
                 "cash_weight": _number(report.get("cash_weight")),
                 "weight_coverage_ratio": _number(report.get("coverage_ratio_by_weight")),
             },
+            "allocation_policy": allocation_policy,
+            "risk_budget": _build_portfolio_risk_budget_payload(
+                positions=positions,
+                allocation_policy=allocation_policy,
+                cash_weight=_number(report.get("cash_weight")),
+                missing_position_snapshot=missing_position_snapshot,
+            ),
             "positions": positions,
             "attribution_readiness": {
                 "is_ready": not blocking_reasons,
@@ -8111,20 +8124,136 @@ def _build_allocation_policy_payload(policy: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _build_position_payload(position: dict[str, Any]) -> dict[str, Any]:
+def _build_position_payload(
+    position: dict[str, Any],
+    *,
+    allocation_policy: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     symbol = str(position.get("symbol") or "UNKNOWN").upper()
     coverage_status = str(position.get("coverage_status") or "missing_thesis")
+    weight = _number(position.get("weight"))
+    max_single_position_weight = _number(
+        (allocation_policy or {}).get("max_single_position_weight")
+    )
+    min_rebalance_target_weight = _number(
+        (allocation_policy or {}).get("min_rebalance_target_weight")
+    )
+    position_size_status = _position_size_status(
+        weight=weight,
+        max_single_position_weight=max_single_position_weight,
+        min_rebalance_target_weight=min_rebalance_target_weight,
+    )
     return {
         "symbol": symbol,
         "instrument_id": _opaque_id("instrument", position.get("instrument_id"), symbol.lower()),
-        "weight": _number(position.get("weight")),
+        "weight": weight,
         "coverage_status": coverage_status,
         "active_thesis_id": _opaque_id("thesis", position.get("linked_thesis_id"), None)
         if position.get("linked_thesis_id") is not None
         else None,
         "outcome_status": _coverage_outcome_status(coverage_status, position.get("outcome_status")),
         "action": _coverage_action(coverage_status),
+        "position_size_status": position_size_status,
+        "max_single_position_weight": max_single_position_weight,
+        "min_rebalance_target_weight": min_rebalance_target_weight,
+        "weight_to_single_position_limit": _weight_to_limit(
+            weight=weight,
+            max_single_position_weight=max_single_position_weight,
+        ),
+        "position_size_note": _position_size_note(position_size_status),
     }
+
+
+def _build_portfolio_risk_budget_payload(
+    *,
+    positions: list[dict[str, Any]],
+    allocation_policy: dict[str, Any],
+    cash_weight: float | None,
+    missing_position_snapshot: bool,
+) -> dict[str, Any]:
+    max_single_position_weight = _number(allocation_policy.get("max_single_position_weight"))
+    min_rebalance_target_weight = _number(allocation_policy.get("min_rebalance_target_weight"))
+    weighted_positions = [
+        position
+        for position in positions
+        if isinstance(position.get("weight"), int | float)
+    ]
+    largest_position = max(
+        weighted_positions,
+        key=lambda position: float(position.get("weight") or 0),
+        default=None,
+    )
+    overweight_positions = [
+        position
+        for position in weighted_positions
+        if position.get("position_size_status") == "over_single_position_limit"
+    ]
+    below_floor_positions = [
+        position
+        for position in weighted_positions
+        if position.get("position_size_status") == "below_rebalance_floor"
+    ]
+    status = "within_budget"
+    if missing_position_snapshot or not positions:
+        status = "missing_position_snapshot"
+    elif overweight_positions:
+        status = "needs_position_review"
+
+    reasons: list[str] = []
+    if status == "missing_position_snapshot":
+        reasons.append("position_snapshot_missing")
+    if overweight_positions:
+        reasons.extend(f"over_single_position_limit:{position['symbol']}" for position in overweight_positions)
+    if below_floor_positions:
+        reasons.extend(f"below_rebalance_floor:{position['symbol']}" for position in below_floor_positions)
+
+    return {
+        "status": status,
+        "max_single_position_weight": max_single_position_weight,
+        "min_rebalance_target_weight": min_rebalance_target_weight,
+        "largest_position_symbol": str(largest_position.get("symbol")) if largest_position else None,
+        "largest_position_weight": _number(largest_position.get("weight")) if largest_position else None,
+        "over_single_position_limit_count": len(overweight_positions),
+        "below_rebalance_floor_count": len(below_floor_positions),
+        "cash_weight": cash_weight,
+        "invested_weight": None if cash_weight is None else max(0.0, 1.0 - cash_weight),
+        "review_reasons": reasons,
+    }
+
+
+def _position_size_status(
+    *,
+    weight: float | None,
+    max_single_position_weight: float | None,
+    min_rebalance_target_weight: float | None,
+) -> str:
+    if weight is None:
+        return "missing_weight"
+    if max_single_position_weight is not None and weight > max_single_position_weight:
+        return "over_single_position_limit"
+    if min_rebalance_target_weight is not None and 0 < weight < min_rebalance_target_weight:
+        return "below_rebalance_floor"
+    return "within_budget"
+
+
+def _weight_to_limit(
+    *,
+    weight: float | None,
+    max_single_position_weight: float | None,
+) -> float | None:
+    if weight is None or max_single_position_weight is None:
+        return None
+    return round(max_single_position_weight - weight, 4)
+
+
+def _position_size_note(status: str) -> str:
+    if status == "over_single_position_limit":
+        return "단일 종목 한도를 초과했다. 축소 또는 thesis 재검토가 필요하다."
+    if status == "below_rebalance_floor":
+        return "리밸런싱 목표로 해석하기에는 작은 비중이다. 추천 비중과 실제 보유 판단을 분리해서 본다."
+    if status == "missing_weight":
+        return "포지션 비중이 없어 위험 예산을 계산할 수 없다."
+    return "현재 allocation policy 기준 안에 있다."
 
 
 def _parse_coverage_portfolio_name(path: str) -> str:

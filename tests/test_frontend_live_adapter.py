@@ -3383,8 +3383,17 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertEqual(payload["data"]["summary"]["missing_thesis_weight"], 0.03)
         self.assertEqual(payload["data"]["summary"]["cash_weight"], 0.92)
         self.assertEqual(payload["data"]["summary"]["weight_coverage_ratio"], 0.625)
+        self.assertEqual(payload["data"]["allocation_policy"]["policy_name"], "global_default_long_term_guardrail")
+        self.assertEqual(payload["data"]["allocation_policy"]["max_single_position_weight"], 0.25)
+        self.assertEqual(payload["data"]["risk_budget"]["status"], "within_budget")
+        self.assertEqual(payload["data"]["risk_budget"]["largest_position_symbol"], "AAPL")
+        self.assertEqual(payload["data"]["risk_budget"]["largest_position_weight"], 0.05)
+        self.assertEqual(payload["data"]["risk_budget"]["over_single_position_limit_count"], 0)
+        self.assertEqual(payload["data"]["risk_budget"]["below_rebalance_floor_count"], 2)
         self.assertEqual(payload["data"]["positions"][0]["active_thesis_id"], "thesis-7001")
         self.assertEqual(payload["data"]["positions"][0]["outcome_status"], "measured")
+        self.assertEqual(payload["data"]["positions"][0]["position_size_status"], "below_rebalance_floor")
+        self.assertEqual(payload["data"]["positions"][0]["weight_to_single_position_limit"], 0.2)
         self.assertEqual(payload["data"]["positions"][1]["action"], "needs_thesis_review")
         self.assertEqual(payload["data"]["attribution_readiness"]["blocking_reasons"], ["missing_thesis:BABA"])
 
@@ -3399,6 +3408,11 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertEqual(payload["contract_version"], "frontend-api-v0.1")
         self.assertEqual(payload["data"]["as_of_date"], "2026-05-20")
         self.assertEqual(payload["data"]["summary"]["position_count"], 0)
+        self.assertEqual(payload["data"]["risk_budget"]["status"], "missing_position_snapshot")
+        self.assertEqual(
+            payload["data"]["risk_budget"]["review_reasons"],
+            ["position_snapshot_missing"],
+        )
         self.assertEqual(payload["data"]["positions"], [])
         self.assertFalse(payload["data"]["attribution_readiness"]["is_ready"])
         self.assertEqual(
@@ -3420,6 +3434,7 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertEqual(payload["data"]["summary"]["position_count"], 1)
         self.assertEqual(payload["data"]["summary"]["weight_coverage_ratio"], 1.0)
         self.assertEqual(payload["data"]["positions"][0]["symbol"], "SPY")
+        self.assertEqual(payload["data"]["risk_budget"]["largest_position_symbol"], "SPY")
         self.assertEqual(payload["data"]["attribution_readiness"]["blocking_reasons"], [])
         self.assertTrue(any(sql.startswith("-- frontend latest portfolio snapshot date lookup") for sql in executor.scalar_sql))
 
@@ -3430,7 +3445,12 @@ class FrontendLiveAdapterTests(unittest.TestCase):
             config=type("Config", (), {"psql_command": "psql"})(),
             executor=executor,
         )
-        self.assertIn("2024-12-02", executor.scalar_sql[-1])
+        self.assertTrue(
+            any(
+                sql.startswith("-- portfolio outcome coverage report") and "2024-12-02" in sql
+                for sql in executor.scalar_sql
+            )
+        )
 
     def test_live_collection_sql_reads_are_bounded_by_page_window(self) -> None:
         cursor = encode_frontend_cursor(10)
