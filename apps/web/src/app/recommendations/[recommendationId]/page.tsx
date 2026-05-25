@@ -3,6 +3,7 @@ import type { Route } from "next";
 import { Fragment } from "react";
 import { AuditMetadata, type AuditMetadataItem } from "@/components/audit-metadata";
 import { NewsTitleBlock } from "@/components/news-title-block";
+import { ProfessionalResearchFlow, type ResearchFlowStep } from "@/components/professional-research-flow";
 import { getRecommendationDetail } from "@/lib/frontend-api";
 import { koCode, koLabel } from "@/lib/korean-labels";
 import type { RecommendationDetailData } from "@/lib/types";
@@ -573,38 +574,117 @@ export default async function RecommendationPage({ params }: RecommendationPageP
   const aiOrEventComponentCount = data.score_components.filter(
     (component) => component.provenance?.source_type === "event_or_ai_evidence",
   ).length;
-  const recommendationReadingCards = [
+  const fundamentalQualityComponent = fundamentalStack.find((component) => component.component === "fundamental_quality_score");
+  const peerComponent = fundamentalStack.find((component) => component.component === "peer_relative_score");
+  const valuationComponent = fundamentalStack.find((component) => component.component === "valuation_margin_score");
+  const balanceSheetComponent = fundamentalStack.find((component) => component.component === "balance_sheet_risk_penalty");
+  const thesisComponent = fundamentalStack.find((component) => component.component === "thesis_consistency_score");
+  const blockedEvidenceCount = reviewCount(evidenceReview.summary.blocked_count);
+  const professionalResearchSteps: ResearchFlowStep[] = [
     {
-      label: "결론",
-      title: `${koCode(data.recommendation)} · ${formatPercent(data.score)}`,
-      body: "이 값은 자동 주문이 아니라 AI 검토와 점수 근거를 함께 보여주는 읽기 전용 판단이다.",
+      id: "business",
+      label: "01",
+      title: "사업 개요",
+      status: equityResearch ? "리서치 연결" : "리서치 대기",
+      tone: equityResearch ? "ready" : "watch",
+      body: equityResearch?.korean_summary
+        ? equityResearch.korean_summary
+        : "추천은 존재하지만 사업 설명 artifact가 아직 연결되지 않았다. 이 상태에서는 가격·뉴스 근거만 보고 판단하면 부족하다.",
+      facts: [
+        { label: "종목", value: data.symbol },
+        { label: "추천", value: `${koCode(data.recommendation)} · ${formatPercent(data.score)}` },
+      ],
+      href: stockHref(data.symbol),
+      hrefLabel: "종목 상세 열기",
     },
     {
-      label: "가격/순위",
-      title: `${marketComponentCount}개 재료`,
-      body: "가격 흐름, 수집 기간, 전략 종목군 순위처럼 숫자로 검증 가능한 입력이다.",
+      id: "financial-quality",
+      label: "02",
+      title: "재무 품질",
+      status: fundamentalQualityComponent ? "재무 component 연결" : "재무 component 없음",
+      tone: fundamentalQualityComponent ? "ready" : "watch",
+      body: fundamentalQualityComponent
+        ? `${FUNDAMENTAL_COMPONENT_META.fundamental_quality_score.body} 현재 값은 ${formatPercent(fundamentalQualityComponent.value)}이고 성과 검증 전까지 총점 반영은 제한된다.`
+        : "매출 성장, 마진, 현금흐름 품질, ROIC 같은 기업 체력 입력이 추천 상세에 아직 연결되지 않았다.",
+      facts: [
+        { label: "재무 품질", value: fundamentalQualityComponent ? formatPercent(fundamentalQualityComponent.value) : "미연결" },
+        { label: "재무 안정성", value: balanceSheetComponent ? formatPercent(balanceSheetComponent.value) : "미연결" },
+      ],
     },
     {
-      label: "뉴스/AI",
-      title: `${aiOrEventComponentCount}개 재료`,
-      body: "회사나 종목을 직접 언급한 뉴스, 공시, AI 구조화 결과가 붙은 경우다.",
+      id: "peer-position",
+      label: "03",
+      title: "피어·경쟁 위치",
+      status: peerComponent ? "피어 component 연결" : "비교군 대기",
+      tone: peerComponent ? "ready" : "watch",
+      body: peerComponent
+        ? `${FUNDAMENTAL_COMPONENT_META.peer_relative_score.body} 현재 값은 ${formatPercent(peerComponent.value)}이다.`
+        : "동일 산업·테마 비교군 안에서 성장성, 수익성, 밸류에이션 상대 위치가 아직 추천 입력으로 구조화되지 않았다.",
+      facts: [
+        { label: "피어 비교", value: peerComponent ? formatPercent(peerComponent.value) : "미연결" },
+        { label: "가격/순위 재료", value: `${marketComponentCount}개` },
+      ],
     },
     {
-      label: "상위 흐름",
-      title: `${macroFlowComponents.length}개 재료`,
-      body: "종목을 직접 언급하지 않은 시장·테마 뉴스가 노출도 규칙으로 점수에 들어간 경우다.",
+      id: "valuation",
+      label: "04",
+      title: "밸류에이션",
+      status: valuationComponent ? "밸류에이션 component 연결" : "밸류에이션 대기",
+      tone: valuationComponent || valuationItems.length > 0 ? "ready" : "watch",
+      body: valuationComponent
+        ? `${FUNDAMENTAL_COMPONENT_META.valuation_margin_score.body} 현재 값은 ${formatPercent(valuationComponent.value)}이며, weight는 평가 전까지 보수적으로 둔다.`
+        : "DCF-lite, 상대 배수, 시나리오 범위, 안전마진이 아직 추천 근거로 충분히 연결되지 않았다.",
+      facts:
+        valuationItems.length > 0
+          ? valuationItems.slice(0, 3).map((item) => ({ label: koCode(item.key), value: koLabel(item.value) }))
+          : [{ label: "밸류에이션 여유", value: valuationComponent ? formatPercent(valuationComponent.value) : "미연결" }],
     },
     {
-      label: "사이클 경로",
-      title: `${cycleStack.length}단계`,
-      body: "거시, 도메인, 테마, 종목, 충돌 여부를 분리해 왜 이 종목인지 추적한다.",
+      id: "news-cycle",
+      label: "05",
+      title: "뉴스·사이클 영향",
+      status: `${aiOrEventComponentCount + macroFlowComponents.length + cycleStack.length}개 근거`,
+      tone: aiOrEventComponentCount + macroFlowComponents.length + cycleStack.length > 0 ? "ready" : "neutral",
+      body: "직접 뉴스, AI 구조화 결과, 상위 흐름 전파, 계층형 사이클을 한꺼번에 섞지 않고 각각의 입력으로 분리해서 본다.",
+      facts: [
+        { label: "직접 뉴스/AI", value: `${aiOrEventComponentCount}개` },
+        { label: "상위 흐름", value: `${macroFlowComponents.length}개` },
+        { label: "사이클 단계", value: `${cycleStack.length}개` },
+      ],
+      href: "/intelligence" as Route,
+      hrefLabel: "뉴스 AI 근거 보기",
     },
     {
-      label: "기업 분석",
-      title: equityResearch ? "리서치 연결됨" : `${fundamentalStack.length}개 검토`,
-      body: equityResearch
-        ? "AI 기업 리서치가 추천 상세에 연결되어 사업·재무·리스크를 함께 볼 수 있다."
-        : "재무 품질, 밸류에이션, 피어 비교, 투자 논리 일관성을 별도로 확인한다.",
+      id: "thesis",
+      label: "06",
+      title: "Thesis 일관성",
+      status: data.linked_thesis_id ? "투자 논리 연결" : "투자 논리 없음",
+      tone: data.linked_thesis_id ? "ready" : "blocked",
+      body: thesisComponent
+        ? `${FUNDAMENTAL_COMPONENT_META.thesis_consistency_score.body} 현재 값은 ${formatPercent(thesisComponent.value)}이다.`
+        : "추천이 장기 thesis, 무효화 조건, 보유 검토와 충돌하지 않는지 아직 충분히 구조화되지 않았다.",
+      facts: [
+        { label: "Thesis", value: data.linked_thesis_id ? data.linked_thesis_id : "없음" },
+        { label: "근거 차단", value: `${blockedEvidenceCount}개` },
+      ],
+      href: data.linked_thesis_id ? (`/theses/${data.linked_thesis_id}` as Route) : undefined,
+      hrefLabel: data.linked_thesis_id ? "투자 논리 열기" : undefined,
+    },
+    {
+      id: "paper-validation",
+      label: "07",
+      title: "페이퍼 검증·거래 경계",
+      status: outcomeMeasured ? "성과 측정됨" : "성과 측정 대기",
+      tone: blockedEvidenceCount > 0 ? "blocked" : "neutral",
+      body: outcomeMeasured
+        ? "이 추천은 성과 측정 구간이 존재한다. 그래도 실거래 주문은 만들지 않고, 페이퍼 검증과 리스크 한도를 먼저 확인한다."
+        : "아직 outcome 표본이 부족하다. 추천 weight를 키우거나 실거래로 넘기기 전에 페이퍼 검증과 성과 평가가 필요하다.",
+      facts: [
+        { label: "성과", value: outcomeMeasured ? koCode(data.outcome.label) : "측정 전" },
+        { label: "실거래", value: "닫힘" },
+      ],
+      href: "/paper-trading" as Route,
+      hrefLabel: "페이퍼 거래 상태 보기",
     },
   ];
 
@@ -663,15 +743,13 @@ export default async function RecommendationPage({ params }: RecommendationPageP
         </div>
       </section>
 
-      <section className="detail-path-grid reveal delay-1" aria-label="추천 상세 읽는 순서">
-        {recommendationReadingCards.map((card) => (
-          <article className="detail-path-card" key={card.label}>
-            <span>{card.label}</span>
-            <strong>{card.title}</strong>
-            <p>{card.body}</p>
-          </article>
-        ))}
-      </section>
+      <ProfessionalResearchFlow
+        eyebrow="전문 리서치 검토 순서"
+        title={`${data.symbol} 추천을 분석서처럼 읽는다`}
+        summary="추천은 뉴스 신호 하나가 아니라 사업, 재무, 비교군, 밸류에이션, 사이클, thesis, 페이퍼 검증이 모두 연결될 때 신뢰도가 올라간다."
+        footer="현재 fundamental/cycle 일부 component는 weight 0이다. outcome 검증 전까지 추천 총점을 흔들지 않기 위한 정책이다."
+        steps={professionalResearchSteps}
+      />
 
       {cycleStack.length > 0 ? (
         <section className="bento-card reveal delay-1" aria-label="계층형 사이클 추천 경로">

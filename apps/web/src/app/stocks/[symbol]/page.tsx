@@ -3,6 +3,7 @@ import type { Route } from "next";
 import { Fragment } from "react";
 
 import { NewsTitleBlock } from "@/components/news-title-block";
+import { ProfessionalResearchFlow, type ResearchFlowStep } from "@/components/professional-research-flow";
 import { getAiEvidenceNeighborhood, getStockDetail } from "@/lib/frontend-api";
 import { koCode, koLabel } from "@/lib/korean-labels";
 import type { AiEvidenceNeighborhoodData, StockPrice } from "@/lib/types";
@@ -442,45 +443,98 @@ export default async function StockDetailPage({ params }: StockDetailPageProps) 
   const valuationItems = equityResearch ? valuationSensitivityItems(equityResearch.valuation_sensitivity) : [];
   const hasEvidenceOnlyData =
     !hasPriceData && (data.macro_flow_impacts.length > 0 || data.recent_events.length > 0);
-  const stockReadingCards = [
+  const linkedThesisId = data.recommendation?.linked_thesis_id ?? neighborhood.theses[0]?.thesis_id ?? null;
+  const professionalResearchSteps: ResearchFlowStep[] = [
     {
-      label: "먼저 볼 것",
-      title: hasPriceData ? "가격 데이터가 있는 종목" : "가격보다 뉴스 흐름 먼저",
-      body: hasPriceData
-        ? `최근 가격일 ${data.latest_price.trade_date || data.summary.last_trade_date || "확인 필요"} 기준으로 차트와 수익률을 볼 수 있다.`
-        : "가격 캔들이 부족하므로 추천 판단보다 뉴스·테마 연결 상태를 먼저 본다.",
+      id: "business",
+      label: "01",
+      title: "사업 개요",
+      status: equityResearch ? "리서치 생성" : "리서치 대기",
+      tone: equityResearch ? "ready" : "watch",
+      body: equityResearch?.korean_summary
+        ? equityResearch.korean_summary
+        : "이 종목의 사업 설명 artifact가 아직 없다. 현재 화면에서는 가격, 뉴스, 상위 흐름까지만 신뢰할 수 있다.",
+      facts: [
+        { label: "종목", value: `${data.symbol} · ${data.name}` },
+        { label: "시장", value: `${data.market_code} · ${data.currency_code}` },
+      ],
     },
     {
-      label: "직접 뉴스",
-      title: `${data.recent_events.length}개`,
-      body:
-        data.recent_events.length > 0
-          ? "회사명이나 티커가 직접 잡힌 뉴스다. 종목 판단에 가장 직접적인 근거다."
-          : "아직 이 종목을 직접 언급한 최근 뉴스가 없다.",
+      id: "financial-quality",
+      label: "02",
+      title: "재무 품질",
+      status: equityResearch?.key_points.length ? `${equityResearch.key_points.length}개 포인트` : "정규화 지표 연결 대기",
+      tone: equityResearch?.key_points.length ? "ready" : "watch",
+      body: equityResearch?.key_points[0]
+        ? koLabel(equityResearch.key_points[0])
+        : "매출, 마진, 현금흐름, ROIC 같은 정규화 재무 지표가 종목 상세에 아직 직접 노출되지 않았다. 추천 상세의 기업 분석 component에서 보강 상태를 확인한다.",
+      href: data.recommendation ? recommendationHref(data.recommendation.recommendation_id) : undefined,
+      hrefLabel: data.recommendation ? "추천 상세에서 재무 근거 보기" : undefined,
     },
     {
-      label: "상위 흐름",
-      title: `${data.macro_flow_impacts.length}개`,
-      body:
-        data.macro_flow_impacts.length > 0
-          ? "금리, 에너지, AI, 정책 같은 시장 흐름이 이 종목 노출도에 따라 전파됐다."
-          : "시장·테마 뉴스가 이 종목 점수로 전파된 기록은 아직 없다.",
-    },
-    {
-      label: "기업 분석",
-      title: equityResearch ? "리서치 생성됨" : "리서치 대기",
-      body: equityResearch
-        ? "사업, 재무 변화, 촉매, 리스크, 밸류에이션 민감도를 한 번에 볼 수 있다."
-        : "아직 이 종목의 AI 기업 리서치 산출물이 없다. 다음 배치 생성 후 표시된다.",
-    },
-    {
-      label: "최종 확인",
-      title: data.recommendation ? koCode(data.recommendation.action) : data.position ? "보유 상태 확인" : "판단 대기",
+      id: "peer-position",
+      label: "03",
+      title: "피어·경쟁 위치",
+      status: data.recommendation ? "추천 근거 연결" : "비교군 표시 대기",
+      tone: data.recommendation ? "ready" : "watch",
       body: data.recommendation
-        ? "추천 상세에서 점수 재료와 보유검토 연결을 확인한다."
-        : data.position
-          ? "추천은 없지만 포트폴리오 보유 상태가 있으므로 보유검토를 확인한다."
-          : "추천이나 보유 판단으로 연결되기 전 단계다.",
+        ? "피어 비교와 상대 위치는 추천 상세의 peer_relative_score에서 확인한다. 아직 종목 상세에는 비교군 테이블을 직접 펼치지 않는다."
+        : "동일 산업·테마 비교군과 시장 점유율, 가격 결정력, 진입장벽을 보여주는 화면은 다음 고도화 대상이다.",
+      href: data.recommendation ? recommendationHref(data.recommendation.recommendation_id) : undefined,
+      hrefLabel: data.recommendation ? "피어 비교 근거 보기" : undefined,
+    },
+    {
+      id: "valuation",
+      label: "04",
+      title: "밸류에이션",
+      status: valuationItems.length ? `${valuationItems.length}개 민감도` : "산출 대기",
+      tone: valuationItems.length ? "ready" : "watch",
+      body: valuationItems.length
+        ? "DCF-lite, 상대 배수, 시나리오 범위가 추천 점수를 바로 바꾸지는 않지만, 비싸게 사는지 여부를 검토하는 핵심 입력이다."
+        : "아직 target range, margin of safety, scenario sensitivity가 충분히 저장되지 않았다.",
+      facts:
+        valuationItems.length > 0
+          ? valuationItems.slice(0, 3).map((item) => ({ label: koCode(item.key), value: koLabel(item.value) }))
+          : [{ label: "상태", value: "밸류에이션 artifact 대기" }],
+    },
+    {
+      id: "news-cycle",
+      label: "05",
+      title: "뉴스·사이클 영향",
+      status: `${data.recent_events.length + data.macro_flow_impacts.length}개 연결`,
+      tone: data.recent_events.length + data.macro_flow_impacts.length > 0 ? "ready" : "neutral",
+      body:
+        data.recent_events.length + data.macro_flow_impacts.length > 0
+          ? "직접 종목 뉴스와 거시·테마 흐름 전파를 분리해서 본다. 상위 흐름은 회사명이 없어도 노출도 규칙으로 종목 영향이 계산된다."
+          : "아직 이 종목에 연결된 직접 뉴스나 상위 흐름 전파가 없다.",
+      facts: [
+        { label: "직접 뉴스", value: `${data.recent_events.length}개` },
+        { label: "상위 흐름", value: `${data.macro_flow_impacts.length}개` },
+      ],
+      href: "/intelligence" as Route,
+      hrefLabel: "뉴스 AI 흐름 보기",
+    },
+    {
+      id: "thesis",
+      label: "06",
+      title: "Thesis 생애주기",
+      status: linkedThesisId ? "투자 논리 연결" : "투자 논리 없음",
+      tone: linkedThesisId ? "ready" : "blocked",
+      body: linkedThesisId
+        ? "왜 사는지, 무엇이 맞아야 하는지, 무엇이 틀리면 나가는지를 thesis 화면에서 확인한다."
+        : "중장기 투자 시스템에서는 thesis 없이 추천이나 보유 판단을 신뢰하면 안 된다.",
+      href: linkedThesisId ? thesisHref(linkedThesisId) : undefined,
+      hrefLabel: linkedThesisId ? "투자 논리 열기" : undefined,
+    },
+    {
+      id: "paper-validation",
+      label: "07",
+      title: "페이퍼 검증·거래 경계",
+      status: data.position ? "보유 상태 있음" : data.recommendation ? "추천 검토 중" : "거래 입력 전",
+      tone: "neutral",
+      body: "이 화면은 주문을 만들지 않는다. 실제 broker submit은 닫혀 있고, 추천이 생겨도 페이퍼 검증과 리스크 경계를 먼저 확인해야 한다.",
+      href: "/paper-trading" as Route,
+      hrefLabel: "페이퍼 거래 상태 보기",
     },
   ];
 
@@ -522,15 +576,13 @@ export default async function StockDetailPage({ params }: StockDetailPageProps) 
         </div>
       </section>
 
-      <section className="detail-path-grid reveal delay-1" aria-label="종목 상세 읽는 순서">
-        {stockReadingCards.map((card) => (
-          <article className="detail-path-card" key={card.label}>
-            <span>{card.label}</span>
-            <strong>{card.title}</strong>
-            <p>{card.body}</p>
-          </article>
-        ))}
-      </section>
+      <ProfessionalResearchFlow
+        eyebrow="전문 리서치 읽는 순서"
+        title={`${data.symbol}을 종목 하나로만 보지 않는다`}
+        summary="중장기 투자 판단은 뉴스 하나로 끝나지 않는다. 사업, 재무, 비교군, 밸류에이션, 사이클, thesis, 페이퍼 검증을 같은 순서로 확인한다."
+        footer="현재 화면은 저장된 데이터만 읽는다. 화면 진입 중 실시간 AI 호출이나 주문 생성은 없다."
+        steps={professionalResearchSteps}
+      />
 
       {hasEvidenceOnlyData ? (
         <section className="bento-card reveal delay-1" aria-label="가격 미수집 안내">
