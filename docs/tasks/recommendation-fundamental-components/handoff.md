@@ -2,7 +2,7 @@
 
 ## Current Status
 
-- 진행 중: local implementation, unit verification, and EC2 rollback SQL smoke are done; commit/push and EC2 execute are next.
+- 완료: backend runner, CLI, cadence, operating-data profile, local verification, GitHub push, EC2 execution, DB sample, and data-health visibility are implemented.
 
 ## Implementation Notes
 
@@ -30,13 +30,33 @@
 - Passed: `PYTHONPATH=src /opt/homebrew/bin/python3.13 -m stockanalysis.operations.cli recommendation-fundamental-components-run --help`
 - Passed: `PYTHONPATH=src /opt/homebrew/bin/python3.13 -m compileall -q src tests`
 - Passed: `git diff --check`
+- Passed: `PYTHONPATH=/Users/woody/ai/agent-work-harness/src /opt/homebrew/bin/python3.13 -m awh verify --repo . --task recommendation-fundamental-components`
 - Passed: EC2 rollback SQL smoke before deployment:
   - preview: selected batch `13`, selected batch date `2026-05-23`, active recommendations `5`
   - coverage: financial `1`, peer `1`, valuation `1`, linked thesis `5`
   - rollback upsert: component_count `25`, non_zero_weight_count `0`, recommendation_total_score_mutated `false`
-- Pending: AWH verify after final doc update.
-- Pending: EC2 execute smoke after commit/push.
+- Passed: pushed commit `1e8bb04` to `origin/codex/local-mvp-runtime-aws-bootstrap`.
+- Passed on EC2: code fast-forwarded to `1e8bb04`.
+- Passed on EC2: `recommendation-fundamental-components-run --as-of-date 2026-05-25 --market-code US --strategy-name long_term_core --horizon-type long_term --execute`.
+  - run_id `760`
+  - selected_batch_id `13`
+  - selected_batch_as_of_date `2026-05-23`
+  - active_recommendation_count `5`
+  - financial_coverage_count `1`
+  - peer_coverage_count `1`
+  - valuation_coverage_count `1`
+  - component_count `25`
+  - non_zero_weight_count `0`
+  - recommendation_total_score_mutated `false`
+- Passed on EC2 DB sample:
+  - `balance_sheet_risk_penalty`: 5 rows, min/max weight `0.0000`, avg score `0.6000`
+  - `fundamental_quality_score`: 5 rows, min/max weight `0.0000`, avg score `0.5350`
+  - `peer_relative_score`: 5 rows, min/max weight `0.0000`, avg score `0.5350`
+  - `thesis_consistency_score`: 5 rows, min/max weight `0.0000`, avg score `0.7500`
+  - `valuation_margin_score`: 5 rows, min/max weight `0.0000`, avg score `0.4798`
+- Passed on EC2 API/data-health after service restart:
+  - `recommendation_fundamental_components` job_id `recommendation-fundamental-components-daily`, latest run `pipeline-run-760`, `health_status=ok`.
 
 ## Exact Next Step
 
-- 다음 세션은 이것부터 시작: run AWH verify, commit/push, pull on EC2, execute `recommendation-fundamental-components-run --as-of-date 2026-05-25 --execute`, restart services, then confirm data-health tracks `recommendation_fundamental_components`.
+- 다음 세션은 이것부터 시작: expand recommendation/detail frontend and API copy so the new zero-weight fundamental components are shown as separate 재무/피어/밸류에이션/thesis evidence, then continue toward `ai-equity-research-reporting` or `portfolio-risk-budget` depending on roadmap priority.
