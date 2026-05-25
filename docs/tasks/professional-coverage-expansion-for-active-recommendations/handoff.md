@@ -10,7 +10,7 @@
   - weekly `sec-filings-weekly` profile에 `professional-coverage-expansion` step을 추가했다.
   - data-health cadence registry에 `professional-coverage-expansion-weekly` job을 추가했다.
 - 진행 중:
-  - EC2 배포와 실제 운영 DB smoke.
+  - 없음.
 - 직전 guardrail 결과 기준 EC2 active recommendation complete professional coverage는 `4/36`이었다.
 
 ## Decisions
@@ -22,7 +22,7 @@
 
 ## Next Step
 
-- exact next step: local compile/AWH 검증 후 EC2에 배포하고, 운영 DB에서 dry-run/execute smoke를 수행한다. smoke 후 `recommendation-quality-eval-run`을 재실행해 professional coverage가 개선됐는지 확인한다.
+- exact next step: 다음 batch에서 `professional-coverage-expansion-run`을 companyfacts target batch 단위로 반복해 remaining gap symbols(`ALAB`, `ARM`, `DIS`, `ELF`, `EROK`, `FANG`, `GILD`, `GOOG`, `INTU`, `LDOS` 등)의 SEC 재무 coverage를 넓힌다. 그 뒤 `recommendation-quality-eval-run`으로 80% 기준 접근 여부를 재확인한다.
 
 ## Verification
 
@@ -35,6 +35,18 @@
 - Passed: `PYTHONPATH=/Users/woody/ai/agent-work-harness/src /opt/homebrew/bin/python3.13 -m awh verify --repo . --task professional-coverage-expansion-for-active-recommendations`
 - Passed: `PYTHONPATH=src /private/tmp/stockanalysis-runtime/verify-venv/bin/python -m unittest discover -s tests` (`892` tests)
 - Note: bare `/opt/homebrew/bin/python3.13 -m unittest discover -s tests` failed because that interpreter does not have `fastapi` installed; the verify venv has FastAPI/Uvicorn/psycopg/httpx and passed the full suite.
+- Passed on EC2: pulled commit `68d1f3b`.
+- Passed on EC2: `PYTHONPATH=src /opt/stockanalysis/venv/bin/python -m unittest tests.test_sec_companyfacts tests.test_professional_coverage_expansion tests.test_data_operations_cli tests.test_operating_data_orchestrator`
+- Passed on EC2 dry-run: `professional-coverage-expansion-run --limit 10 --companyfacts-limit 3 --research-limit 3 --research-provider fixture --dry-run`
+  - candidate symbols: `ADI`, `AEIS`, `ALAB`, `ARM`, `DIS`, `ELF`, `EROK`, `FANG`, `GILD`, `GOOG`
+  - resolved targets: `10/10`
+- Passed on EC2 execute: `professional-coverage-expansion-run --limit 10 --companyfacts-limit 2 --research-limit 3 --research-provider fixture --execute`
+  - parent `run_id=824`
+  - SEC companyfacts: `ADI run_id=825 fact_count=1295`, `AEIS run_id=826 fact_count=1451`
+  - downstream: financial metric normalization `run_id=827`, peer relative `run_id=828`, valuation `run_id=829`, industry competitive positioning `run_id=830`, equity research reporting `run_id=831`, failed artifact count `0`
+- Passed on EC2: services restarted and active: `stockanalysis-frontend-api.service`, `stockanalysis-web.service`.
+- Passed on EC2: `/api/data-health` shows `professional-coverage-expansion-weekly` as `ok/succeeded`, latest `pipeline-run-824`.
+- Passed on EC2: `recommendation-quality-eval-run --execute` returned `eval_run_id=9`; complete professional coverage improved from `4/36 = 0.111111` to `9/36 = 0.25`. It still remains `insufficient_coverage`, so recommendation weight review remains blocked.
 
 ## Residual Risk
 
