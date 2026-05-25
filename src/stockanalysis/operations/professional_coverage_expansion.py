@@ -335,15 +335,27 @@ def run_professional_coverage_expansion(
         },
     )
     try:
-        companyfacts_reports = [
-            run_sec_companyfacts_upsert(
-                target.cik,
-                config=config,
-                fallback_symbol=target.primary_symbol,
-                executor=sql_executor,
-            )
-            for target in companyfacts_targets
-        ]
+        companyfacts_reports: list[dict[str, object]] = []
+        failed_companyfacts_reports: list[dict[str, object]] = []
+        for target in companyfacts_targets:
+            try:
+                companyfacts_reports.append(
+                    run_sec_companyfacts_upsert(
+                        target.cik,
+                        config=config,
+                        fallback_symbol=target.primary_symbol,
+                        executor=sql_executor,
+                    )
+                )
+            except Exception as exc:
+                failed_companyfacts_reports.append(
+                    {
+                        "symbol": target.primary_symbol,
+                        "cik": target.cik,
+                        "company_name": target.company_name,
+                        "error_summary": str(exc)[:1000],
+                    }
+                )
         downstream_reports = {
             "financial_metric_normalization": run_financial_metric_normalization(
                 config=config,
@@ -394,9 +406,12 @@ def run_professional_coverage_expansion(
         raise
 
     return base_report | {
-        "status": "completed",
+        "status": "completed_with_failures" if failed_companyfacts_reports else "completed",
         "run_id": run_id,
         "companyfacts_reports": companyfacts_reports,
+        "failed_companyfacts_reports": failed_companyfacts_reports,
+        "companyfacts_success_count": len(companyfacts_reports),
+        "companyfacts_failed_count": len(failed_companyfacts_reports),
         "downstream_reports": downstream_reports,
     }
 

@@ -150,6 +150,7 @@ class ProfessionalCoverageExpansionTests(unittest.TestCase):
 
         self.assertEqual(report["status"], "completed")
         self.assertEqual(report["run_id"], 9909)
+        self.assertEqual(report["companyfacts_failed_count"], 0)
         companyfacts.assert_called_once()
         self.assertEqual(companyfacts.call_args.args[0], "0000320193")
         self.assertEqual(companyfacts.call_args.kwargs["fallback_symbol"], "AAPL")
@@ -159,6 +160,54 @@ class ProfessionalCoverageExpansionTests(unittest.TestCase):
         positioning.assert_called_once()
         research.assert_called_once()
         self.assertEqual(research.call_args.kwargs["symbols"], ("AAPL", "BABA"))
+        self.assertIn("status = 'succeeded'", executor.non_query_sql[-1])
+
+    def test_execute_keeps_downstream_running_when_one_companyfacts_target_fails(self) -> None:
+        executor = FakeCoverageExpansionExecutor(run_id=9910)
+
+        with (
+            patch("stockanalysis.operations.professional_coverage_expansion.run_sec_companyfacts_upsert") as companyfacts,
+            patch(
+                "stockanalysis.operations.professional_coverage_expansion.run_financial_metric_normalization"
+            ) as normalization,
+            patch("stockanalysis.operations.professional_coverage_expansion.run_peer_relative_analysis") as peer,
+            patch("stockanalysis.operations.professional_coverage_expansion.run_valuation_snapshot") as valuation,
+            patch(
+                "stockanalysis.operations.professional_coverage_expansion.run_industry_competitive_positioning"
+            ) as positioning,
+            patch("stockanalysis.operations.professional_coverage_expansion.run_equity_research_reporting") as research,
+        ):
+            companyfacts.side_effect = [
+                {"instrument_symbol": "AAPL", "fact_count": 6},
+                ValueError("SEC companyfacts payload for `0001577552` does not contain supported facts"),
+            ]
+            normalization.return_value = {"report_name": "financial_metric_normalization"}
+            peer.return_value = {"report_name": "peer_relative_analysis"}
+            valuation.return_value = {"report_name": "valuation_snapshot"}
+            positioning.return_value = {"report_name": "industry_competitive_positioning"}
+            research.return_value = {"report_name": "equity_research_reporting"}
+
+            report = run_professional_coverage_expansion(
+                config=type("Config", (), {})(),
+                as_of_date=date(2026, 5, 25),
+                limit=3,
+                companyfacts_limit=2,
+                research_limit=2,
+                research_provider="fixture",
+                company_tickers_json_path=str(FIXTURES_DIR / "sec_company_tickers_exchange_sample.json"),
+                execute=True,
+                executor=executor,
+            )
+
+        self.assertEqual(report["status"], "completed_with_failures")
+        self.assertEqual(report["companyfacts_success_count"], 1)
+        self.assertEqual(report["companyfacts_failed_count"], 1)
+        self.assertEqual(report["failed_companyfacts_reports"][0]["symbol"], "BABA")
+        normalization.assert_called_once()
+        peer.assert_called_once()
+        valuation.assert_called_once()
+        positioning.assert_called_once()
+        research.assert_called_once()
         self.assertIn("status = 'succeeded'", executor.non_query_sql[-1])
 
 
