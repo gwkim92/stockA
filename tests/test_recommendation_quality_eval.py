@@ -59,6 +59,13 @@ class RecommendationQualityEvalTests(unittest.TestCase):
         self.assertIn("'valuation_margin_score'", sql)
         self.assertIn("'peer_relative_score'", sql)
         self.assertIn("fundamental_guardrail as", sql)
+        self.assertIn("professional_coverage_rows as", sql)
+        self.assertIn("market.financial_metric_normalized", sql)
+        self.assertIn("market.peer_relative_snapshot", sql)
+        self.assertIn("market.valuation_snapshot", sql)
+        self.assertIn("research.industry_competitive_position", sql)
+        self.assertIn("research.equity_research_artifact", sql)
+        self.assertIn("'professional_analysis_coverage'", sql)
         self.assertNotIn("'macro_flow_score'", sql)
         self.assertNotIn("insert into", lowered)
         self.assertNotIn("update ", lowered)
@@ -76,6 +83,12 @@ class RecommendationQualityEvalTests(unittest.TestCase):
         self.assertTrue(score["fundamental_weight_guardrail"]["fundamental_weight_unchanged"])
         self.assertFalse(score["cycle_weight_guardrail"]["recommendation_scoring_mutated"])
         self.assertFalse(score["fundamental_weight_guardrail"]["recommendation_scoring_mutated"])
+        self.assertEqual(score["professional_analysis_coverage"]["status"], "sufficient_coverage")
+        self.assertEqual(score["professional_analysis_coverage"]["complete_professional_coverage_rate"], 1.0)
+        self.assertEqual(
+            score["professional_analysis_coverage"]["layer_coverage"]["valuation_snapshot"]["coverage_rate"],
+            1.0,
+        )
         self.assertEqual(score["paper_validation"]["latest_status"], "passed")
         self.assertEqual(score["component_metrics"][0]["component_name"], "cycle_score")
 
@@ -99,6 +112,37 @@ class RecommendationQualityEvalTests(unittest.TestCase):
         self.assertEqual(score["quality_status"], "needs_more_data")
         self.assertEqual(score["sample_status"], "insufficient_sample")
         self.assertIn("weight를 변경하지", score["next_action"])
+
+    def test_score_payload_blocks_weight_review_when_professional_coverage_is_insufficient(self) -> None:
+        payload = _payload()
+        payload["professional_analysis_coverage"] = {
+            "recommendation_count": 3,
+            "financial_metric_coverage_count": 3,
+            "peer_relative_coverage_count": 2,
+            "valuation_coverage_count": 2,
+            "industry_position_coverage_count": 2,
+            "equity_research_coverage_count": 1,
+            "thesis_coverage_count": 3,
+            "complete_professional_coverage_count": 1,
+        }
+        payload["professional_analysis_gap_examples"] = [
+            {
+                "primary_symbol": "ARM",
+                "missing_layers": ["equity_research_artifact", "valuation_snapshot"],
+            }
+        ]
+
+        score = score_recommendation_quality_eval_payload(
+            payload,
+            min_sample_size=2,
+            min_professional_coverage_rate=0.8,
+        )
+
+        self.assertEqual(score["quality_status"], "needs_more_data")
+        self.assertEqual(score["professional_analysis_coverage"]["status"], "insufficient_coverage")
+        self.assertEqual(score["professional_analysis_coverage"]["complete_professional_coverage_rate"], 0.333333)
+        self.assertEqual(score["professional_analysis_coverage"]["gap_examples"][0]["symbol"], "ARM")
+        self.assertIn("전문가식 분석 coverage", score["next_action"])
 
     def test_render_eval_insert_sql_uses_ai_eval_run(self) -> None:
         sql = render_recommendation_quality_eval_insert_sql(
@@ -196,6 +240,17 @@ def _payload() -> dict[str, object]:
             "zero_weight_fundamental_component_row_count": 10,
             "observed_fundamental_component_count": 5,
         },
+        "professional_analysis_coverage": {
+            "recommendation_count": 3,
+            "financial_metric_coverage_count": 3,
+            "peer_relative_coverage_count": 3,
+            "valuation_coverage_count": 3,
+            "industry_position_coverage_count": 3,
+            "equity_research_coverage_count": 3,
+            "thesis_coverage_count": 3,
+            "complete_professional_coverage_count": 3,
+        },
+        "professional_analysis_gap_examples": [],
         "paper_validation": {
             "paper_validation_run_id": 7,
             "validation_date": "2026-05-24",

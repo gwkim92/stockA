@@ -1715,6 +1715,8 @@ class DataOperationsCliTests(unittest.TestCase):
                         "30d",
                         "--min-sample-size",
                         "7",
+                        "--min-professional-coverage-rate",
+                        "0.75",
                         "--execute",
                         "--output",
                         str(output_path),
@@ -1731,6 +1733,7 @@ class DataOperationsCliTests(unittest.TestCase):
             self.assertEqual(call_kwargs["as_of_date"], date(2026, 5, 24))
             self.assertEqual(call_kwargs["horizon_days"], 30)
             self.assertEqual(call_kwargs["min_sample_size"], 7)
+            self.assertEqual(call_kwargs["min_professional_coverage_rate"], 0.75)
             self.assertTrue(call_kwargs["execute"])
 
     def test_industry_competitive_positioning_run_command_passes_env_and_writes_output(self) -> None:

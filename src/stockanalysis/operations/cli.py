@@ -60,6 +60,7 @@ from stockanalysis.operations.operating_data_orchestrator import (
 from stockanalysis.operations.path_policy import resolve_existing_file, resolve_output_path
 from stockanalysis.operations.report_io import load_json_object, print_json, write_json_report
 from stockanalysis.operations.recommendation_quality_eval import (
+    DEFAULT_MIN_PROFESSIONAL_COVERAGE_RATE,
     DEFAULT_MIN_SAMPLE_SIZE,
     parse_horizon_days,
     run_recommendation_quality_eval,
@@ -691,6 +692,12 @@ def build_parser() -> argparse.ArgumentParser:
     recommendation_quality_eval.add_argument("--as-of-date", required=True)
     recommendation_quality_eval.add_argument("--horizon", default="30d")
     recommendation_quality_eval.add_argument("--min-sample-size", type=int, default=DEFAULT_MIN_SAMPLE_SIZE)
+    recommendation_quality_eval.add_argument(
+        "--min-professional-coverage-rate",
+        type=float,
+        default=DEFAULT_MIN_PROFESSIONAL_COVERAGE_RATE,
+        help="Minimum complete professional-analysis coverage rate required before weight review is allowed.",
+    )
     recommendation_quality_eval.add_argument("--execute", action="store_true")
     recommendation_quality_eval.add_argument("--dry-run", action="store_true")
     recommendation_quality_eval.add_argument("--output")
@@ -1561,6 +1568,7 @@ def _handle_recommendation_quality_eval_run(args: argparse.Namespace, *, stdout:
             as_of_date=as_of_date,
             horizon_days=horizon_days,
             min_sample_size=args.min_sample_size,
+            min_professional_coverage_rate=args.min_professional_coverage_rate,
             execute=bool(args.execute) and not bool(args.dry_run),
         )
     if args.output:
