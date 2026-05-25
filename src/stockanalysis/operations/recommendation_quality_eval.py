@@ -245,7 +245,7 @@ professional_coverage as (
     from professional_coverage_rows
 ),
 professional_coverage_gaps as (
-    select
+    select distinct on (primary_symbol)
         primary_symbol,
         array_remove(
             array[

@@ -65,6 +65,7 @@ class RecommendationQualityEvalTests(unittest.TestCase):
         self.assertIn("market.valuation_snapshot", sql)
         self.assertIn("research.industry_competitive_position", sql)
         self.assertIn("research.equity_research_artifact", sql)
+        self.assertIn("select distinct on (primary_symbol)", sql)
         self.assertIn("'professional_analysis_coverage'", sql)
         self.assertNotIn("'macro_flow_score'", sql)
         self.assertNotIn("insert into", lowered)
