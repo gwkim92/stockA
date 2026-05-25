@@ -531,6 +531,24 @@ resolved_input as (
       on d.data_source_id = s.data_source_id
      and d.external_document_id = i.accession_number
 ),
+source_periods as (
+    select
+        r.instrument_id,
+        r.statement_scope,
+        max(r.fiscal_year)::integer as fiscal_year,
+        max(r.fiscal_quarter)::smallint as fiscal_quarter,
+        min(r.period_start)::date as period_start,
+        r.period_end,
+        max(r.report_date)::date as report_date,
+        max(r.currency_code) as currency_code,
+        bool_or(r.is_audited) as is_audited,
+        max(r.source_document_id) as source_document_id
+    from resolved_input r
+    group by
+        r.instrument_id,
+        r.statement_scope,
+        r.period_end
+),
 upsert_periods as (
     insert into market.financial_statement_period (
         instrument_id,
@@ -545,19 +563,19 @@ upsert_periods as (
         source_document_id,
         source_run_id
     )
-    select distinct
-        r.instrument_id,
-        r.statement_scope,
-        r.fiscal_year,
-        r.fiscal_quarter,
-        r.period_start,
-        r.period_end,
-        r.report_date,
-        r.currency_code,
-        r.is_audited,
-        r.source_document_id,
+    select
+        p.instrument_id,
+        p.statement_scope,
+        p.fiscal_year,
+        p.fiscal_quarter,
+        p.period_start,
+        p.period_end,
+        p.report_date,
+        p.currency_code,
+        p.is_audited,
+        p.source_document_id,
         {run_literal}
-    from resolved_input r
+    from source_periods p
     on conflict (instrument_id, statement_scope, period_end) do update
     set
         fiscal_year = excluded.fiscal_year,
