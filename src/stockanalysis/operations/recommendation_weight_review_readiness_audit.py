@@ -154,11 +154,18 @@ def audit_recommendation_weight_review_readiness(
     paper_approved_action_count = _int(paper_validation.get("approved_action_count"))
     if paper_status == "missing":
         blockers.append(_blocker("blocked_by_missing_paper_validation", "최신 paper validation run이 없다."))
-    elif paper_status != "passed" or paper_conflict_count > 0:
+    elif paper_conflict_count > 0:
         blockers.append(
             _blocker(
                 "blocked_by_paper_validation_conflicts",
                 f"paper validation status={paper_status}, conflict_count={paper_conflict_count}이다.",
+            )
+        )
+    elif paper_status != "passed":
+        blockers.append(
+            _blocker(
+                "blocked_by_paper_validation_failed",
+                f"paper validation status={paper_status}이지만 conflict_count는 0이다. safety interlock 또는 승인 gate를 별도로 확인해야 한다.",
             )
         )
     elif paper_approved_action_count <= 0:
@@ -338,6 +345,8 @@ def _next_action(decision: str) -> str:
         return "자동 weight 변경은 금지한다. component별 spread와 실패 케이스를 사람이 검토한 뒤 별도 pilot-weight task를 열 수 있다."
     if decision == "blocked_by_paper_validation_conflicts":
         return "paper validation conflict를 먼저 해소해야 한다. 추천 weight 변경과 action 확대는 계속 금지한다."
+    if decision == "blocked_by_paper_validation_failed":
+        return "paper validation conflict는 해소됐지만 validation status가 아직 failed다. kill switch/human approval 같은 safety interlock을 별도 task에서 확인해야 한다."
     if decision == "blocked_by_insufficient_sample":
         return "outcome 표본을 더 쌓아야 한다. 30일 이상 중장기 horizon 표본이 충분해질 때까지 weight 변경 금지."
     if decision == "blocked_by_insufficient_professional_coverage":

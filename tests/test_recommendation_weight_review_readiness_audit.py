@@ -93,6 +93,22 @@ class RecommendationWeightReviewReadinessAuditTests(unittest.TestCase):
         self.assertEqual(audit["blockers"], [])
         self.assertEqual(audit["component_reviews"][0]["readiness"], "eligible_for_manual_pilot_review")
 
+    def test_audit_distinguishes_failed_validation_without_conflicts(self) -> None:
+        score = _ready_score_with_paper_conflict()
+        score["paper_validation"] = {
+            "latest_status": "failed",
+            "validation_date": "2026-05-25",
+            "recommendation_count": 6,
+            "conflict_count": 0,
+            "approved_action_count": 0,
+        }
+
+        audit = audit_recommendation_weight_review_readiness(score, source_eval_run_id=13)
+
+        self.assertEqual(audit["decision"], "blocked_by_paper_validation_failed")
+        self.assertEqual(audit["blockers"][0]["code"], "blocked_by_paper_validation_failed")
+        self.assertIn("safety interlock", audit["next_action"])
+
     def test_render_audit_insert_sql_records_audit_as_ai_eval_run(self) -> None:
         sql = render_recommendation_weight_review_audit_insert_sql(
             score_json={"decision": "blocked_by_paper_validation_conflicts"}
