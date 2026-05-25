@@ -72,6 +72,8 @@ class SecCompanyFactsTests(unittest.TestCase):
         self.assertIn("insert into market.financial_metric_value", sql)
         self.assertIn("source_periods as", sql)
         self.assertIn("min(r.period_start)::date as period_start", sql)
+        self.assertIn("source_metrics as", sql)
+        self.assertIn("select distinct on (p.period_id, r.metric_code)", sql)
         self.assertIn("0000320193-24-000123", sql)
         self.assertIn("901::bigint", sql)
 

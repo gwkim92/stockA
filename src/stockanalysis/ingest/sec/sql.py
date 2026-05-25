@@ -587,6 +587,23 @@ upsert_periods as (
         source_document_id = coalesce(excluded.source_document_id, market.financial_statement_period.source_document_id),
         source_run_id = excluded.source_run_id
     returning period_id, instrument_id, statement_scope, period_end
+),
+source_metrics as (
+    select distinct on (p.period_id, r.metric_code)
+        p.period_id,
+        r.metric_code,
+        r.metric_value,
+        r.unit
+    from resolved_input r
+    join upsert_periods p
+      on p.instrument_id = r.instrument_id
+     and p.statement_scope = r.statement_scope
+     and p.period_end = r.period_end
+    order by
+        p.period_id,
+        r.metric_code,
+        r.report_date desc nulls last,
+        r.period_start asc
 )
 insert into market.financial_metric_value (
     period_id,
@@ -596,16 +613,12 @@ insert into market.financial_metric_value (
     source_run_id
 )
 select
-    p.period_id,
-    r.metric_code,
-    r.metric_value,
-    r.unit,
+    m.period_id,
+    m.metric_code,
+    m.metric_value,
+    m.unit,
     {run_literal}
-from resolved_input r
-join upsert_periods p
-  on p.instrument_id = r.instrument_id
- and p.statement_scope = r.statement_scope
- and p.period_end = r.period_end
+from source_metrics m
 on conflict (period_id, metric_code) do update
 set
     metric_value = excluded.metric_value,
