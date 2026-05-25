@@ -1371,8 +1371,8 @@ dcf_lite_rows as (
             'recommendation_scoring_mutated', false
         )::jsonb as assumptions_json,
         case
-            when input.normalized_metric_count >= 3 then 0.5000::numeric
-            else 0.3500::numeric
+            when input.normalized_metric_count >= 3 then 0.3500::numeric
+            else 0.2500::numeric
         end as confidence
     from dcf_inputs input
     cross join lateral (
