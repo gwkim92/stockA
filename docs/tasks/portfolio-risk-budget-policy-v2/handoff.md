@@ -2,7 +2,7 @@
 
 ## Current Status
 
-- 완료: 포트폴리오 위험 예산 v2 로컬 구현과 계약/타입/빌드/AWH 검증을 통과했다.
+- 완료: 포트폴리오 위험 예산 v2 로컬 구현과 계약/타입/빌드/AWH, EC2 API/route smoke를 통과했다.
 
 ## Implementation Notes
 
@@ -36,7 +36,12 @@
 - Passed: `cd apps/web && npm run build`
 - Passed: `git diff --check`
 - Passed: `PYTHONPATH=/Users/woody/ai/agent-work-harness/src /opt/homebrew/bin/python3.13 -m awh verify --repo . --task portfolio-risk-budget-policy-v2`
+- Passed on EC2: pulled `e92c6da`, rebuilt `apps/web`, restarted `stockanalysis-frontend-api.service` and `stockanalysis-web.service`.
+- Passed on EC2 service check: both services returned `active`.
+- Passed on EC2 API: `/api/portfolio/Long%20Term%20Paper/coverage?asOfDate=2026-05-25` returned effective `as_of=2026-05-23`, risk status `needs_position_review`, concentration status `needs_concentration_review`, sector exposure count `0`, theme exposure count `4`, unclassified weight `0.2271`, rebalance priorities `8`.
+- Passed on EC2 API: review reasons included `over_single_position_limit:MSFT`, `over_single_position_limit:TSLA`, `theme_over_limit:US_MARKET_BREADTH`, `classification_gap_weight_over_limit`, `sector_classification_missing`.
+- Passed on EC2 route smoke: `/portfolio/coverage` rendered `섹터·테마 집중도`, `리밸런싱 우선순위`, `한 종목이 아니라 같은 흐름`, `섹터 분류가 아직 없다`, `테마 노출`, `초과 그룹`, `바로 주문하지 않고`.
 
 ## Exact Next Step
 
-- exact next step: Git commit/push 후 EC2에 fast-forward 배포하고, `/api/portfolio/Long%20Term%20Paper/coverage`와 `/portfolio/coverage`에서 집중도와 리밸런싱 우선순위가 보이는지 smoke 검증한다.
+- exact next step: 다음 작업은 `sector-classification-enrichment-v1`로 현재 EC2에서 드러난 sector exposure count `0` 문제를 해소하거나, `frontend-equity-research-experience-v2`로 종목/추천 상세를 전문 리서치 리포트 순서로 더 정리한다.
