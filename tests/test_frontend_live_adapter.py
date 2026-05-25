@@ -1293,6 +1293,8 @@ class FakeLiveExecutor:
                     "thesis_version": "bootstrap-v1",
                     "created_from_recommendation_id": 7101,
                     "summary": "AAPL remains covered by annual reporting quality.",
+                    "entry_conditions": "Service revenue keeps compounding; Free cash flow quality remains durable",
+                    "exit_conditions": "Capital returns weaken materially",
                     "core_claims": [
                         "Annual reporting event quality remains supportive.",
                         "Cycle state is constructive for the long-term horizon.",
@@ -1311,6 +1313,26 @@ class FakeLiveExecutor:
                         "summary": "AAPL 검토 결과: 조치 watch, 건강 점수 0.3610.",
                         "change_notes": "검토 근거: 아직 관찰 후보 (watchlist_recommendation). 적용 조치: watch. thesis 상태는 자동 변경하지 않았고, 주문이나 가상 거래도 만들지 않았다.",
                         "next_review_date": "2024-12-01",
+                    },
+                    "equity_research": {
+                        "artifact_id": 1201,
+                        "as_of_date": "2024-11-01",
+                        "artifact_type": "full_equity_research",
+                        "provider": "fixture",
+                        "model_name": "codex-cli-default",
+                        "title": "AAPL 기업 리서치 요약",
+                        "korean_summary": "서비스 매출과 현금흐름 품질이 장기 투자 논리를 보강한다.",
+                        "key_points": ["서비스 매출 확대", "현금흐름 품질 양호"],
+                        "catalysts": ["신제품 사이클"],
+                        "risks": ["중국 수요 둔화"],
+                        "invalidation_conditions": ["마진 훼손이 두 분기 지속"],
+                        "valuation_sensitivity": {
+                            "margin_of_safety": "watch",
+                            "upside_case": "서비스 성장 유지",
+                        },
+                        "source_document_ids": ["aapl-2024-10k-20240928"],
+                        "source_run_id": 7711,
+                        "created_at": "2024-11-01T09:00:00+00:00",
                     },
                     "evidence": [
                         {
@@ -3135,6 +3157,22 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertIn("watchlist_recommendation", payload["data"]["latest_review"]["change_notes"])
         self.assertIn("주문이나 가상 거래도 만들지 않았다", payload["data"]["latest_review"]["change_notes"])
         self.assertEqual(payload["data"]["latest_review"]["next_review_date"], "2024-12-01")
+        lifecycle = payload["data"]["lifecycle"]
+        self.assertEqual(lifecycle["source"], "equity_research_artifact")
+        self.assertEqual(lifecycle["equity_research_artifact_id"], "equity-research-artifact-1201")
+        self.assertEqual(lifecycle["readiness"]["status"], "complete")
+        self.assertEqual(lifecycle["readiness"]["missing_items"], [])
+        self.assertEqual(lifecycle["buy_case"]["summary"], "서비스 매출과 현금흐름 품질이 장기 투자 논리를 보강한다.")
+        self.assertIn("신제품 사이클", lifecycle["catalysts"])
+        self.assertIn("Service revenue keeps compounding", lifecycle["catalysts"])
+        self.assertIn("중국 수요 둔화", lifecycle["risks"])
+        self.assertIn(
+            "마진 훼손이 두 분기 지속",
+            [condition["condition"] for condition in lifecycle["invalidation_conditions"]],
+        )
+        self.assertEqual(lifecycle["valuation"]["margin_of_safety_view"], "watch")
+        self.assertEqual(lifecycle["valuation"]["upside_case"], "서비스 성장 유지")
+        self.assertEqual(lifecycle["review_cadence"]["next_review_date"], "2024-12-01")
         self.assertEqual(payload["data"]["evidence"][0]["evidence_id"], "event-9001")
         self.assertEqual(payload["data"]["evidence"][1]["evidence_id"], "performance-outcome-8101")
         review = payload["data"]["evidence_review"]
@@ -3245,6 +3283,10 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertIn("outcome.success_grade", thesis_sql)
         self.assertNotIn("outcome.outcome_label", thesis_sql)
         self.assertIn("thesis.exit_conditions", thesis_sql)
+        self.assertIn("research.equity_research_artifact", thesis_sql)
+        self.assertIn("'equity_research'", thesis_sql)
+        self.assertIn("artifact.catalysts_json", thesis_sql)
+        self.assertIn("artifact.valuation_sensitivity_json", thesis_sql)
         self.assertIn("투자 논리는 주문이 아니라 추천, 사이클, 가격 근거", thesis_sql)
         self.assertIn("event.event_document_link", ai_evidence_sql)
         self.assertIn("output_json #>> '{event,title}'", ai_evidence_sql)

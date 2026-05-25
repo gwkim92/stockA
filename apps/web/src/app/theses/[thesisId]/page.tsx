@@ -153,6 +153,101 @@ function gateStatusColor(status: string) {
   return "var(--text-secondary)";
 }
 
+const LIFECYCLE_MISSING_LABELS: Record<string, string> = {
+  catalysts: "촉매/성립 조건",
+  core_claims: "핵심 주장",
+  invalidation_conditions: "무효화 조건",
+  next_review_date: "다음 재검토일",
+  risks: "리스크",
+  valuation_sensitivity: "밸류에이션 민감도",
+};
+
+function lifecycleReadinessLabel(status: string) {
+  if (status === "complete") {
+    return "생애주기 완비";
+  }
+  if (status === "needs_detail") {
+    return "보강 필요";
+  }
+  if (status === "blocked") {
+    return "채택 차단";
+  }
+  return koCode(status);
+}
+
+function lifecycleTone(status: string) {
+  if (status === "complete") {
+    return "risk-low";
+  }
+  if (status === "blocked") {
+    return "risk-high";
+  }
+  return "risk-medium";
+}
+
+function lifecycleSourceLabel(source: string) {
+  if (source === "equity_research_artifact") {
+    return "AI 기업 리서치 연결";
+  }
+  if (source === "thesis_record") {
+    return "투자 논리 원장만 사용";
+  }
+  return koCode(source);
+}
+
+function missingLifecycleItems(items: string[]) {
+  if (items.length === 0) {
+    return "누락 없음";
+  }
+  return items.map((item) => LIFECYCLE_MISSING_LABELS[item] ?? koCode(item)).join(", ");
+}
+
+function formatUnknownValue(value: unknown) {
+  if (value === null || value === undefined || value === "") {
+    return "미정";
+  }
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value.toLocaleString("ko-KR") : "미정";
+  }
+  if (typeof value === "boolean") {
+    return value ? "예" : "아니오";
+  }
+  return koLabel(String(value));
+}
+
+type ThesisLifecycle = ThesisDetailData["lifecycle"];
+
+function valuationItems(valuation: ThesisLifecycle["valuation"]) {
+  const rows = [
+    { label: "기준 시나리오", value: valuation.base_case },
+    { label: "상방 조건", value: valuation.upside_case },
+    { label: "하방 조건", value: valuation.downside_case },
+    { label: "안전마진 관점", value: valuation.margin_of_safety_view },
+  ].filter((item) => item.value);
+
+  if (rows.length > 0) {
+    return rows;
+  }
+
+  return Object.entries(valuation.raw)
+    .slice(0, 4)
+    .map(([label, value]) => ({ label: koCode(label), value: formatUnknownValue(value) }));
+}
+
+function LifecycleList({ empty, items }: { empty: string; items: string[] }) {
+  if (items.length === 0) {
+    return <p style={{ color: "var(--text-secondary)", lineHeight: 1.65, margin: 0 }}>{empty}</p>;
+  }
+
+  return (
+    <ul style={{ margin: 0, paddingLeft: "18px", color: "var(--text-primary)", lineHeight: 1.65 }}>
+      {items.map((item) => (
+        <li key={item}>{koLabel(item)}</li>
+      ))}
+    </ul>
+  );
+}
+
 function thesisQualityDecision(data: ThesisDetailData) {
   const blockedCount = reviewCount(data.evidence_review.summary.blocked_count);
   const warningCount = reviewCount(data.evidence_review.summary.warning_count);
@@ -231,6 +326,8 @@ export default async function ThesisPage({ params }: ThesisPageProps) {
   const reviewRationale = parseReviewRationale(data.latest_review.change_notes);
   const qualityDecision = thesisQualityDecision(data);
   const qualityChecks = thesisQualityChecks(data);
+  const lifecycle = data.lifecycle;
+  const valuationRows = valuationItems(lifecycle.valuation);
 
   return (
     <div className="pageStack">
@@ -261,6 +358,129 @@ export default async function ThesisPage({ params }: ThesisPageProps) {
               위험도 {koCode(data.latest_review.risk_level)}
             </div>
           </div>
+        </div>
+      </section>
+
+      <section className="bento-card reveal delay-1" aria-label="투자 논리 생애주기">
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "20px", flexWrap: "wrap", marginBottom: "20px" }}>
+          <div>
+            <span className="metric-sub">투자 논리 생애주기</span>
+            <h2 style={{ fontSize: "1.5rem", marginTop: "6px" }}>
+              {lifecycleReadinessLabel(lifecycle.readiness.status)}
+            </h2>
+            <p style={{ color: "var(--text-secondary)", marginTop: "8px", maxWidth: "820px" }}>
+              이 섹션은 종목을 볼 때 반드시 확인해야 하는 순서다. AI 리서치와 thesis 원장을 합쳐서 매수 논리, 성립 조건,
+              이탈 조건, 밸류에이션 관점, 다음 재검토일을 분리한다.
+            </p>
+          </div>
+          <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", justifyContent: "flex-end" }}>
+            <span className={`risk-tag ${lifecycleTone(lifecycle.readiness.status)}`}>
+              {lifecycleSourceLabel(lifecycle.source)}
+            </span>
+            <span className="risk-tag risk-medium">자동 주문 없음</span>
+          </div>
+        </div>
+
+        <div className="status-rail compact-rail" style={{ marginBottom: "20px" }}>
+          <div className="rail-cell">
+            <span>핵심 주장</span>
+            <strong>{lifecycle.readiness.core_claim_count}</strong>
+            <small>왜 사는가</small>
+          </div>
+          <div className="rail-cell">
+            <span>성립 조건</span>
+            <strong>{lifecycle.readiness.catalyst_count}</strong>
+            <small>무엇이 맞아야 하나</small>
+          </div>
+          <div className="rail-cell">
+            <span>리스크</span>
+            <strong>{lifecycle.readiness.risk_count}</strong>
+            <small>무엇을 조심하나</small>
+          </div>
+          <div className="rail-cell">
+            <span>무효화</span>
+            <strong>{lifecycle.readiness.invalidation_count}</strong>
+            <small>무엇이 틀리면 나가나</small>
+          </div>
+        </div>
+
+        <div className="bento-grid">
+          <article className="bento-card span-2">
+            <span className="metric-sub">왜 사는가</span>
+            <h3 style={{ fontSize: "1.15rem", margin: "6px 0 12px" }}>{data.symbol} 장기 논리</h3>
+            <p style={{ color: "var(--text-secondary)", lineHeight: 1.65, marginTop: 0 }}>
+              {koLabel(lifecycle.buy_case.summary || data.summary || "아직 투자 논리 요약이 없다.")}
+            </p>
+            <LifecycleList empty="핵심 주장이 아직 분리되어 있지 않다." items={lifecycle.buy_case.core_claims} />
+          </article>
+
+          <article className="bento-card span-2">
+            <span className="metric-sub">무엇이 맞아야 하는가</span>
+            <h3 style={{ fontSize: "1.15rem", margin: "6px 0 12px" }}>촉매와 성립 조건</h3>
+            <LifecycleList empty="AI 리서치나 thesis 원장에 촉매 조건이 없다." items={lifecycle.catalysts} />
+          </article>
+
+          <article className="bento-card span-2">
+            <span className="metric-sub">무엇이 틀리면 나가는가</span>
+            <h3 style={{ fontSize: "1.15rem", margin: "6px 0 12px" }}>리스크와 무효화 조건</h3>
+            <LifecycleList empty="리스크 항목이 아직 없다." items={lifecycle.risks} />
+            <div className="bento-list" style={{ marginTop: "14px" }}>
+              {lifecycle.invalidation_conditions.map((condition) => (
+                <div className="bento-list-item" key={condition.condition} style={{ alignItems: "center" }}>
+                  <span style={{ color: "var(--text-primary)" }}>{koLabel(condition.condition)}</span>
+                  <strong style={{ color: condition.current_status === "not_triggered" ? "var(--accent-green)" : "var(--accent-red)" }}>
+                    {koCode(condition.current_status)}
+                  </strong>
+                </div>
+              ))}
+            </div>
+          </article>
+
+          <article className="bento-card span-2">
+            <span className="metric-sub">밸류에이션 민감도</span>
+            <h3 style={{ fontSize: "1.15rem", margin: "6px 0 12px" }}>가격 판단에 필요한 조건</h3>
+            {valuationRows.length > 0 ? (
+              <div className="bento-list">
+                {valuationRows.map((item) => (
+                  <div className="bento-list-item" key={item.label}>
+                    <strong>{item.label}</strong>
+                    <span>{formatUnknownValue(item.value)}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p style={{ color: "var(--text-secondary)", lineHeight: 1.65, margin: 0 }}>
+                아직 밸류에이션 민감도 입력이 없다. 추천 점수에는 반영하지 않는다.
+              </p>
+            )}
+          </article>
+
+          <article className="bento-card span-4">
+            <div style={{ display: "flex", justifyContent: "space-between", gap: "20px", flexWrap: "wrap" }}>
+              <div>
+                <span className="metric-sub">언제 다시 보는가</span>
+                <h3 style={{ fontSize: "1.15rem", margin: "6px 0 8px" }}>
+                  다음 재검토일 {lifecycle.review_cadence.next_review_date || "미정"}
+                </h3>
+                <p style={{ color: "var(--text-secondary)", lineHeight: 1.65, margin: 0 }}>
+                  최근 조치 {koCode(lifecycle.review_cadence.latest_review_action)} · 위험도 {koCode(lifecycle.review_cadence.risk_level)}
+                  {lifecycle.review_cadence.reviewed_at ? ` · 최근 검토 ${lifecycle.review_cadence.reviewed_at}` : ""}
+                </p>
+              </div>
+              <div style={{ maxWidth: "420px", color: "var(--text-secondary)", lineHeight: 1.65 }}>
+                보강 필요 항목: {missingLifecycleItems(lifecycle.readiness.missing_items)}
+              </div>
+            </div>
+            <AuditMetadata
+              items={[
+                { label: "생애주기 원천", value: lifecycle.source },
+                { label: "기업 리서치 artifact", value: lifecycle.equity_research_artifact_id },
+                { label: "누락 항목", value: lifecycle.readiness.missing_items.join(", ") || "none" },
+                { label: "밸류에이션 입력", value: lifecycle.readiness.has_valuation_view ? "present" : "missing" },
+              ]}
+              summary="생애주기 판정 원천 보기"
+            />
+          </article>
         </div>
       </section>
 
@@ -369,50 +589,11 @@ export default async function ThesisPage({ params }: ThesisPageProps) {
       </section>
 
       <section className="bento-grid reveal delay-1">
-        <article className="bento-card span-2">
-          <div style={{ marginBottom: "24px" }}>
-            <span className="metric-sub">핵심 주장</span>
-            <h2 style={{ fontSize: "1.5rem" }}>계속 참이어야 하는 조건</h2>
-          </div>
-          <ol style={{ 
-            margin: 0, 
-            paddingLeft: "20px", 
-            color: "var(--text-secondary)", 
-            display: "flex", 
-            flexDirection: "column", 
-            gap: "12px",
-            lineHeight: 1.6
-          }}>
-            {data.core_claims.map((claim) => (
-              <li key={claim} style={{ color: "var(--text-primary)" }}>{koLabel(claim)}</li>
-            ))}
-          </ol>
-        </article>
-
-        <article className="bento-card span-2">
-          <div style={{ marginBottom: "24px" }}>
-            <span className="metric-sub">무효화 조건</span>
-            <h2 style={{ fontSize: "1.5rem" }}>발동되면 논리를 재검토할 조건</h2>
-          </div>
-          <div className="bento-list">
-            {data.invalidation_conditions.map((condition) => (
-              <div className="bento-list-item" key={condition.condition} style={{ alignItems: "center" }}>
-                <span style={{ color: "var(--text-primary)" }}>{koLabel(condition.condition)}</span>
-                <strong style={{ 
-                  color: condition.current_status === "not_triggered" ? "var(--accent-green)" : "var(--accent-red)"
-                }}>
-                  {koCode(condition.current_status)}
-                </strong>
-              </div>
-            ))}
-          </div>
-        </article>
-
         <article className="bento-card span-4">
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: "24px" }}>
             <div>
               <span className="metric-sub">근거 자료</span>
-              <h2 style={{ fontSize: "1.5rem" }}>원천까지 추적되는 입력</h2>
+              <h2 style={{ fontSize: "1.5rem" }}>투자 논리를 뒷받침한 원천 입력</h2>
             </div>
             <Link className="btn btn-secondary" href={`/recommendations/${data.created_from_recommendation_id}`}>
               추천으로 돌아가기

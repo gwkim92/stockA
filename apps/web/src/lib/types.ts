@@ -1001,6 +1001,47 @@ export type ThesisDetailData = {
     change_notes: string;
     next_review_date: string;
   };
+  lifecycle: {
+    source: string;
+    equity_research_artifact_id: string | null;
+    buy_case: {
+      symbol: string;
+      summary: string;
+      core_claims: string[];
+    };
+    catalysts: string[];
+    risks: string[];
+    invalidation_conditions: Array<{
+      condition: string;
+      current_status: string;
+    }>;
+    valuation: {
+      base_case: string | null;
+      upside_case: string | null;
+      downside_case: string | null;
+      margin_of_safety_view: string | null;
+      confidence: number | null;
+      raw: Record<string, unknown>;
+      has_view: boolean;
+    };
+    review_cadence: {
+      latest_review_action: string;
+      risk_level: RiskLevel;
+      reviewed_at: string;
+      next_review_date: string;
+      summary: string;
+    };
+    readiness: {
+      status: string;
+      missing_items: string[];
+      core_claim_count: number;
+      catalyst_count: number;
+      risk_count: number;
+      invalidation_count: number;
+      has_valuation_view: boolean;
+      has_next_review_date: boolean;
+    };
+  };
   evidence: Array<{
     evidence_id: string;
     type: string;

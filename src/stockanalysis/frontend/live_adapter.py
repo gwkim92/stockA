@@ -1305,6 +1305,20 @@ def build_live_thesis_detail_response(
     symbol = str(state.get("symbol") or "UNKNOWN").upper()
     latest_review = _as_dict(state.get("latest_review"))
     evidence = [_build_thesis_evidence_payload(item) for item in _as_list(state.get("evidence"))]
+    core_claims = [str(item) for item in state.get("core_claims", [])] if isinstance(state.get("core_claims"), list) else []
+    invalidation_conditions = [
+        _build_invalidation_condition_payload(item)
+        for item in _as_list(state.get("invalidation_conditions"))
+    ]
+    equity_research = _build_stock_equity_research_payload(_as_dict(state.get("equity_research")))
+    lifecycle = _build_thesis_lifecycle_payload(
+        state=state,
+        symbol=symbol,
+        core_claims=core_claims,
+        invalidation_conditions=invalidation_conditions,
+        latest_review=latest_review,
+        equity_research=equity_research,
+    )
 
     return {
         "contract_version": CONTRACT_VERSION,
@@ -1323,13 +1337,8 @@ def build_live_thesis_detail_response(
             if state.get("created_from_recommendation_id") is not None
             else None,
             "summary": str(state.get("summary") or ""),
-            "core_claims": [str(item) for item in state.get("core_claims", [])]
-            if isinstance(state.get("core_claims"), list)
-            else [],
-            "invalidation_conditions": [
-                _build_invalidation_condition_payload(item)
-                for item in _as_list(state.get("invalidation_conditions"))
-            ],
+            "core_claims": core_claims,
+            "invalidation_conditions": invalidation_conditions,
             "latest_review": {
                 "review_id": _opaque_id("thesis-review", latest_review.get("review_id"), None)
                 if latest_review.get("review_id") is not None
@@ -1341,6 +1350,7 @@ def build_live_thesis_detail_response(
                 "change_notes": str(latest_review.get("change_notes") or ""),
                 "next_review_date": _timestamp(latest_review.get("next_review_date")),
             },
+            "lifecycle": lifecycle,
             "evidence": evidence,
             "evidence_review": _build_thesis_evidence_review_payload(
                 evidence=evidence,
@@ -1350,6 +1360,191 @@ def build_live_thesis_detail_response(
         },
         "links": _thesis_detail_links(state, identifier=identifier),
     }
+
+
+def _build_thesis_lifecycle_payload(
+    *,
+    state: dict[str, Any],
+    symbol: str,
+    core_claims: list[str],
+    invalidation_conditions: list[dict[str, str]],
+    latest_review: dict[str, Any],
+    equity_research: dict[str, Any] | None,
+) -> dict[str, Any]:
+    research = equity_research or {}
+    catalysts = _dedupe_lifecycle_items(
+        [*(_as_scalar_list(research.get("catalysts"))), *_split_lifecycle_text(state.get("entry_conditions"))]
+    )
+    risks = _dedupe_lifecycle_items(_as_scalar_list(research.get("risks")))
+    merged_invalidations = _merge_lifecycle_invalidation_conditions(
+        existing=invalidation_conditions,
+        research_conditions=_as_scalar_list(research.get("invalidation_conditions")),
+        exit_conditions=_split_lifecycle_text(state.get("exit_conditions")),
+    )
+    valuation = _build_thesis_lifecycle_valuation(_as_dict(research.get("valuation_sensitivity")))
+    missing_items = _thesis_lifecycle_missing_items(
+        core_claims=core_claims,
+        catalysts=catalysts,
+        risks=risks,
+        invalidation_conditions=merged_invalidations,
+        valuation=valuation,
+        latest_review=latest_review,
+    )
+    if not core_claims or not merged_invalidations:
+        readiness_status = "blocked"
+    elif missing_items:
+        readiness_status = "needs_detail"
+    else:
+        readiness_status = "complete"
+
+    summary = str(research.get("korean_summary") or state.get("summary") or "")
+    return {
+        "source": "equity_research_artifact" if research.get("artifact_id") else "thesis_record",
+        "equity_research_artifact_id": research.get("artifact_id"),
+        "buy_case": {
+            "symbol": symbol,
+            "summary": summary,
+            "core_claims": core_claims,
+        },
+        "catalysts": catalysts,
+        "risks": risks,
+        "invalidation_conditions": merged_invalidations,
+        "valuation": valuation,
+        "review_cadence": {
+            "latest_review_action": str(latest_review.get("action") or "unreviewed"),
+            "risk_level": str(latest_review.get("risk_level") or "unknown"),
+            "reviewed_at": _timestamp(latest_review.get("reviewed_at")),
+            "next_review_date": _timestamp(latest_review.get("next_review_date")),
+            "summary": str(latest_review.get("summary") or ""),
+        },
+        "readiness": {
+            "status": readiness_status,
+            "missing_items": missing_items,
+            "core_claim_count": len(core_claims),
+            "catalyst_count": len(catalysts),
+            "risk_count": len(risks),
+            "invalidation_count": len(merged_invalidations),
+            "has_valuation_view": bool(valuation.get("has_view")),
+            "has_next_review_date": bool(_timestamp(latest_review.get("next_review_date"))),
+        },
+    }
+
+
+def _dedupe_lifecycle_items(values: list[object]) -> list[str]:
+    items: list[str] = []
+    seen: set[str] = set()
+    for value in values:
+        item = str(value or "").strip()
+        if not item:
+            continue
+        key = item.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        items.append(item)
+    return items
+
+
+def _split_lifecycle_text(value: object) -> list[str]:
+    if value is None:
+        return []
+    if isinstance(value, list):
+        return _dedupe_lifecycle_items(value)
+    text = str(value).strip()
+    if not text:
+        return []
+    return _dedupe_lifecycle_items(
+        part.strip(" -\t")
+        for part in re.split(r"(?:\r?\n|;|ㆍ|•|\|)", text)
+    )
+
+
+def _merge_lifecycle_invalidation_conditions(
+    *,
+    existing: list[dict[str, str]],
+    research_conditions: list[object],
+    exit_conditions: list[str],
+) -> list[dict[str, str]]:
+    merged: list[dict[str, str]] = []
+    seen: set[str] = set()
+
+    def add(condition: object, status: object = "not_triggered") -> None:
+        condition_text = str(condition or "").strip()
+        if not condition_text or condition_text == "not_defined":
+            return
+        key = condition_text.lower()
+        if key in seen:
+            return
+        seen.add(key)
+        merged.append(
+            {
+                "condition": condition_text,
+                "current_status": str(status or "not_triggered"),
+            }
+        )
+
+    for item in existing:
+        add(item.get("condition"), item.get("current_status"))
+    for item in research_conditions:
+        add(item)
+    for item in exit_conditions:
+        add(item)
+    return merged
+
+
+def _build_thesis_lifecycle_valuation(valuation: dict[str, Any]) -> dict[str, Any]:
+    base_case = _optional_text(valuation.get("base_case"))
+    upside_case = _optional_text(valuation.get("upside_case"))
+    downside_case = _optional_text(valuation.get("downside_case"))
+    margin_of_safety_view = _optional_text(
+        valuation.get("margin_of_safety_view")
+        or valuation.get("margin_of_safety")
+        or valuation.get("mos_view")
+    )
+    raw = {str(key): value for key, value in valuation.items()}
+    has_view = any(
+        value
+        for value in (
+            base_case,
+            upside_case,
+            downside_case,
+            margin_of_safety_view,
+        )
+    ) or bool(raw)
+    return {
+        "base_case": base_case,
+        "upside_case": upside_case,
+        "downside_case": downside_case,
+        "margin_of_safety_view": margin_of_safety_view,
+        "confidence": _number(valuation.get("confidence")) if valuation.get("confidence") is not None else None,
+        "raw": raw,
+        "has_view": has_view,
+    }
+
+
+def _thesis_lifecycle_missing_items(
+    *,
+    core_claims: list[str],
+    catalysts: list[str],
+    risks: list[str],
+    invalidation_conditions: list[dict[str, str]],
+    valuation: dict[str, Any],
+    latest_review: dict[str, Any],
+) -> list[str]:
+    missing: list[str] = []
+    if not core_claims:
+        missing.append("core_claims")
+    if not catalysts:
+        missing.append("catalysts")
+    if not risks:
+        missing.append("risks")
+    if not invalidation_conditions:
+        missing.append("invalidation_conditions")
+    if not valuation.get("has_view"):
+        missing.append("valuation_sensitivity")
+    if not _timestamp(latest_review.get("next_review_date")):
+        missing.append("next_review_date")
+    return missing
 
 
 def build_live_ai_evidence_detail_response(
@@ -5604,6 +5799,32 @@ latest_review as (
     order by review.review_date desc, review.review_id desc
     limit 1
 ),
+latest_equity_research as (
+    select
+        artifact.artifact_id,
+        artifact.as_of_date,
+        artifact.artifact_type,
+        artifact.provider,
+        artifact.model_name,
+        artifact.title,
+        artifact.korean_summary,
+        artifact.key_points_json,
+        artifact.catalysts_json,
+        artifact.risks_json,
+        artifact.invalidation_conditions_json,
+        artifact.valuation_sensitivity_json,
+        artifact.source_document_ids,
+        artifact.source_run_id,
+        artifact.created_at
+    from research.equity_research_artifact artifact
+    join selected_thesis thesis on thesis.instrument_id = artifact.instrument_id
+    where artifact.artifact_type = 'full_equity_research'
+    order by
+        artifact.as_of_date desc,
+        case artifact.provider when 'codex_oauth' then 0 when 'fixture' then 1 else 2 end,
+        artifact.artifact_id desc
+    limit 1
+),
 event_evidence as (
     select
         event_row.event_id::text as evidence_id,
@@ -5641,6 +5862,8 @@ select json_build_object(
     'thesis_version', coalesce((select thesis_type from selected_thesis), 'bootstrap-v1'),
     'created_from_recommendation_id', (select recommendation_id from latest_recommendation),
     'summary', coalesce((select summary from selected_thesis), ''),
+    'entry_conditions', coalesce((select entry_conditions from selected_thesis), ''),
+    'exit_conditions', coalesce((select exit_conditions from selected_thesis), ''),
     'core_claims',
     json_build_array(
         coalesce(
@@ -5672,6 +5895,27 @@ select json_build_object(
         'summary', coalesce((select summary from latest_review), ''),
         'change_notes', coalesce((select change_notes from latest_review), ''),
         'next_review_date', (select next_review_date from latest_review)
+    ),
+    'equity_research',
+    (
+        select json_build_object(
+            'artifact_id', artifact_id,
+            'as_of_date', as_of_date,
+            'artifact_type', artifact_type,
+            'provider', provider,
+            'model_name', model_name,
+            'title', title,
+            'korean_summary', korean_summary,
+            'key_points', key_points_json,
+            'catalysts', catalysts_json,
+            'risks', risks_json,
+            'invalidation_conditions', invalidation_conditions_json,
+            'valuation_sensitivity', valuation_sensitivity_json,
+            'source_document_ids', source_document_ids,
+            'source_run_id', source_run_id,
+            'created_at', created_at
+        )
+        from latest_equity_research
     ),
     'evidence',
     coalesce(
