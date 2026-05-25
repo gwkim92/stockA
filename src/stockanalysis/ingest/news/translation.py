@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import shlex
 import subprocess
 import tempfile
@@ -28,6 +29,7 @@ FIXTURE_PROVIDER = "fixture"
 CODEX_OAUTH_PROVIDER = "codex_oauth"
 DEFAULT_MODEL_NAME = "codex-cli-default"
 DEFAULT_REASONING_EFFORT = "low"
+_LATIN_TOKEN_PATTERN = re.compile(r"[A-Za-z][A-Za-z0-9&.+/-]*")
 
 NEWS_TRANSLATION_OUTPUT_SCHEMA: dict[str, object] = {
     "type": "object",
@@ -170,6 +172,11 @@ def run_news_rss_translation(
                     reasoning_effort=reasoning_effort,
                     llm_output_json_path=llm_output_json_path,
                     provider_runner=provider_runner,
+                )
+                validate_news_translation_output_grounding(
+                    candidate=candidate,
+                    bounded_text=bounded_text,
+                    output=response.output,
                 )
                 invocation_id = int(
                     sql_executor.execute_scalar(
@@ -323,6 +330,51 @@ def build_news_translation_request_hash(
     return hashlib.sha256(json.dumps(payload, sort_keys=True).encode("utf-8")).hexdigest()
 
 
+def validate_news_translation_output_grounding(
+    *,
+    candidate: NewsRssTranslationCandidate,
+    bounded_text: str,
+    output: NewsTranslationOutput,
+) -> None:
+    """Reject translations that introduce unsupported English entities."""
+
+    allowed_tokens = _latin_tokens(
+        " ".join(
+            (
+                bounded_text,
+                candidate.title,
+                candidate.summary,
+                candidate.source_name or "",
+                candidate.source_url or "",
+                candidate.external_document_id or "",
+                candidate.existing_theme_code or "",
+                candidate.existing_instrument_symbol or "",
+            )
+        )
+    )
+    output_tokens = _latin_tokens(f"{output.korean_title} {output.korean_summary}")
+    novel_tokens = sorted(token for token in output_tokens if token not in allowed_tokens)
+    if novel_tokens:
+        sample = ", ".join(novel_tokens[:8])
+        raise ValueError(
+            "news translation output contains ungrounded latin token(s) "
+            f"for document_id={candidate.document_id}: {sample}"
+        )
+
+
+def _latin_tokens(text: str) -> set[str]:
+    tokens = set()
+    for match in _LATIN_TOKEN_PATTERN.finditer(text):
+        token = _normalize_latin_token(match.group(0))
+        if token:
+            tokens.add(token)
+    return tokens
+
+
+def _normalize_latin_token(token: str) -> str:
+    return token.strip(".,:;!?()[]{}\"'`“”‘’").lower()
+
+
 def parse_news_translation_output(payload: dict[str, object]) -> NewsTranslationOutput:
     title = _required_text(payload, "korean_title")
     summary = _required_text(payload, "korean_summary")
@@ -460,6 +512,7 @@ def build_codex_oauth_news_translation_prompt(candidate: NewsRssTranslationCandi
             "Translate the original title into natural Korean sentence-level wording.",
             "Write korean_summary as one or two Korean sentences explaining what happened and why it matters.",
             "Preserve ticker symbols, company names, policy names, and theme codes when they are important.",
+            "Do not introduce English company names, tickers, acronyms, or product names that are not present in the RSS item or metadata.",
             "Do not replace the title with a generic label such as 'market news' or 'rate news'.",
             "Set translation_confidence lower when the RSS text is ambiguous, truncated, or lacks enough context.",
             "",

@@ -1757,6 +1757,38 @@ class FrontendLiveAdapterTests(unittest.TestCase):
             "/api/portfolio/Long%20Term%20Paper/coverage?asOfDate=2024-11-01",
         )
 
+    def test_live_dashboard_response_uses_profile_scheduler_status_report(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            report = Path(tmpdir) / "profile-scheduler-status.json"
+            report.write_text(
+                json.dumps(
+                    {
+                        "report_name": "operating_data_profile_scheduler_status",
+                        "status": "installed",
+                        "install_status": "installed",
+                        "scheduler_type": "systemd",
+                        "timer_count": 1,
+                        "active_timer_count": 1,
+                        "generated_at": "2026-05-21T00:40:00Z",
+                        "timers": [],
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            with patch.dict(
+                os.environ,
+                {"STOCKANALYSIS_OPERATING_DATA_PROFILE_SCHEDULER_STATUS_REPORT": str(report)},
+            ):
+                payload = resolve_live_frontend_response(
+                    "/api/dashboard/today",
+                    config=type("Config", (), {"psql_command": "psql"})(),
+                    executor=FakeLiveExecutor(),
+                    generated_at=datetime(2026, 5, 1, tzinfo=timezone.utc),
+                )
+
+        self.assertEqual(payload["data"]["run_status"]["scheduler"], "installed")
+
     def test_live_data_health_response_matches_frontend_contract_shape(self) -> None:
         with patch.dict(os.environ, {"STOCKANALYSIS_CYCLE_AI_QUALITY_AUDIT_REPORT": ""}):
             payload = resolve_live_frontend_response(

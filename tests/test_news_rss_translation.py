@@ -17,8 +17,10 @@ from stockanalysis.ingest.news.translation import (
     build_codex_oauth_news_translation_output_schema,
     build_codex_oauth_news_translation_prompt,
     build_news_translation_provider_response_from_payload,
+    build_news_translation_input,
     parse_news_translation_output,
     run_news_rss_translation,
+    validate_news_translation_output_grounding,
 )
 
 
@@ -115,10 +117,53 @@ class NewsRssTranslationTests(unittest.TestCase):
 
         self.assertIn("natural Korean sentence-level wording", prompt)
         self.assertIn("Do not browse", prompt)
+        self.assertIn("Do not introduce English company names", prompt)
         self.assertIn("Do not replace the title with a generic label", prompt)
         self.assertEqual(schema["required"], ["translation"])
         self.assertIn("korean_title", json.dumps(schema))
         self.assertIn("translation_confidence", json.dumps(schema))
+
+    def test_validate_translation_output_rejects_ungrounded_english_entities(self) -> None:
+        candidate = NewsRssTranslationCandidate(
+            event_id=19,
+            document_id=22,
+            title="Dow Jones Futures: Trump Says Iran Deal Announcement 'Shortly' With Hormuz 'Opened'; Tesla, AI Stocks Near Buy Points",
+            summary="RSS item without publisher summary.",
+            published_at="2026-05-23T21:39:29+00:00",
+            source_name="rss_news:yahoo-finance-news",
+            external_document_id="rss:yahoo-finance-news:a9942e6ecc582301998de621",
+            source_url="https://example.test/dow-jones-futures",
+            existing_theme_code="MACRO_RATES_FED",
+            existing_instrument_symbol="SPY",
+            impact_direction="watch",
+            impact_score=0.68,
+        )
+        bounded_text = build_news_translation_input(candidate, max_input_chars=4000)
+
+        with self.assertRaisesRegex(ValueError, "spacex.*starlink"):
+            validate_news_translation_output_grounding(
+                candidate=candidate,
+                bounded_text=bounded_text,
+                output=NewsTranslationOutput(
+                    korean_title="통신주: SpaceX IPO 서류가 드러낸 Starlink의 큰 야심",
+                    korean_summary="SpaceX IPO 관련 공개 자료가 Starlink의 통신 시장 확장 야심을 드러냈다.",
+                    translation_confidence=0.72,
+                ),
+            )
+
+    def test_validate_translation_output_allows_grounded_english_entities(self) -> None:
+        candidate = _candidate()
+        bounded_text = build_news_translation_input(candidate, max_input_chars=4000)
+
+        validate_news_translation_output_grounding(
+            candidate=candidate,
+            bounded_text=bounded_text,
+            output=NewsTranslationOutput(
+                korean_title="Trump 행정부 매입 기대에 Quantum 주식이 급등했다",
+                korean_summary="Quantum-computing 주식이 정책 보고서 이후 상승했다.",
+                translation_confidence=0.91,
+            ),
+        )
 
     def test_build_provider_response_accepts_translation_wrapper(self) -> None:
         response = build_news_translation_provider_response_from_payload(

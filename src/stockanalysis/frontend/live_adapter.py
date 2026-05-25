@@ -343,6 +343,12 @@ def build_live_dashboard_response(
         for index, item in enumerate(_as_list(state.get("top_actions")), start=1)
     ]
     metrics = _as_dict(state.get("latest_metrics"))
+    profile_scheduler_status = _load_operating_data_profile_scheduler_status_for_data_health()
+    dashboard_scheduler_status = (
+        "installed"
+        if profile_scheduler_status["install_status"] == "installed"
+        else str(profile_scheduler_status["install_status"] or "not_installed")
+    )
 
     return {
         "contract_version": CONTRACT_VERSION,
@@ -353,7 +359,7 @@ def build_live_dashboard_response(
             "run_status": {
                 "daily_automation": str(state.get("daily_automation") or "unknown"),
                 "latest_run_id": _opaque_id("pipeline-run", state.get("latest_run_id"), "unknown"),
-                "scheduler": "not_installed",
+                "scheduler": dashboard_scheduler_status,
                 "holiday_skip": {
                     "enabled": True,
                     "source": "PORTFOLIO_REMEDIATION_SKIP_DATES",
