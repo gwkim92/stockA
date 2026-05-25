@@ -2030,6 +2030,52 @@ class DataOperationsCliTests(unittest.TestCase):
             self.assertEqual(call_kwargs["horizon_type"], "long_term")
             self.assertFalse(call_kwargs["execute"])
 
+    def test_equity_research_reporting_run_command_passes_env_and_guardrails(self) -> None:
+        with tempfile.TemporaryDirectory() as repo_root, tempfile.TemporaryDirectory() as outside_root:
+            env_file = Path(outside_root) / "data-operations.env"
+            env_file.write_text('STOCKANALYSIS_PSQL_COMMAND="docker exec psql"\n', encoding="utf-8")
+            stdout = io.StringIO()
+
+            with patch("stockanalysis.operations.cli.run_equity_research_reporting") as runner_mock:
+                runner_mock.return_value = {
+                    "report_name": "equity_research_reporting",
+                    "status": "planned",
+                    "recommendation_scoring_mutated": False,
+                    "broker_order_submit_enabled": False,
+                }
+                exit_code = main(
+                    [
+                        "equity-research-reporting-run",
+                        "--repo-root",
+                        repo_root,
+                        "--env-file",
+                        str(env_file),
+                        "--as-of-date",
+                        "2026-05-25",
+                        "--symbol",
+                        "NVDA",
+                        "--limit",
+                        "1",
+                        "--provider",
+                        "fixture",
+                        "--dry-run",
+                    ],
+                    stdout=stdout,
+                )
+
+            self.assertEqual(exit_code, 0)
+            payload = json.loads(stdout.getvalue())
+            self.assertEqual(payload["report_name"], "equity_research_reporting")
+            self.assertFalse(payload["recommendation_scoring_mutated"])
+            self.assertFalse(payload["broker_order_submit_enabled"])
+            call_kwargs = runner_mock.call_args.kwargs
+            self.assertEqual(call_kwargs["config"].psql_command, "docker exec psql")
+            self.assertEqual(call_kwargs["as_of_date"], date(2026, 5, 25))
+            self.assertEqual(call_kwargs["symbols"], ("NVDA",))
+            self.assertEqual(call_kwargs["limit"], 1)
+            self.assertEqual(call_kwargs["provider"], "fixture")
+            self.assertFalse(call_kwargs["execute"])
+
 
 class DataOperationsEnvFileTests(unittest.TestCase):
     def test_load_env_file_values_supports_quotes_export_and_comments(self) -> None:

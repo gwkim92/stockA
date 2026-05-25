@@ -108,6 +108,7 @@ from stockanalysis.operations.operating_data_profile_scheduler import (
     render_operating_data_profile_scheduler_invocation_markdown,
 )
 from stockanalysis.ai.cycle_community_ai_summary import run_cycle_community_ai_summary_v2
+from stockanalysis.ai.equity_research_reporting import run_equity_research_reporting
 from stockanalysis.ai.cycle_graph_context import run_cycle_graph_context_summary
 from stockanalysis.signal.cycle_hierarchy_snapshot_v2 import run_cycle_hierarchy_snapshot_v2
 from stockanalysis.signal.hierarchical_impact_propagation import run_hierarchical_impact_propagation
@@ -613,6 +614,24 @@ def build_parser() -> argparse.ArgumentParser:
     cycle_community_ai_summary.add_argument("--dry-run", action="store_true")
     cycle_community_ai_summary.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
     cycle_community_ai_summary.set_defaults(handler=_handle_cycle_community_ai_summary_v2_run)
+
+    equity_research_reporting = subparsers.add_parser(
+        "equity-research-reporting-run",
+        help="Run offline batch AI equity research reports from financial, peer, valuation, cycle, and thesis context.",
+    )
+    equity_research_reporting.add_argument("--env-file")
+    equity_research_reporting.add_argument("--as-of-date", required=True)
+    equity_research_reporting.add_argument("--symbol", action="append")
+    equity_research_reporting.add_argument("--limit", type=int, default=5)
+    equity_research_reporting.add_argument("--provider", choices=("fixture", "codex_oauth"), default=CODEX_OAUTH_PROVIDER)
+    equity_research_reporting.add_argument("--model-name", default="codex-cli-default")
+    equity_research_reporting.add_argument("--reasoning-effort", default="low")
+    equity_research_reporting.add_argument("--max-context-chars", type=int, default=16000)
+    equity_research_reporting.add_argument("--execute", action="store_true")
+    equity_research_reporting.add_argument("--dry-run", action="store_true")
+    equity_research_reporting.add_argument("--output")
+    equity_research_reporting.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
+    equity_research_reporting.set_defaults(handler=_handle_equity_research_reporting_run)
 
     cycle_ai_quality_audit = subparsers.add_parser(
         "cycle-ai-quality-audit-run",
@@ -1568,6 +1587,36 @@ def _handle_recommendation_fundamental_components_run(args: argparse.Namespace, 
         output_path = resolve_output_path(
             args.output,
             label="recommendation fundamental components output",
+            repo_root=args.repo_root,
+            require_repo_outside=True,
+        )
+        write_json_report(report, output_path=output_path, stdout=stdout)
+    else:
+        print_json(report, stdout=stdout, sort_keys=False)
+    return 0
+
+
+def _handle_equity_research_reporting_run(args: argparse.Namespace, *, stdout: TextIO) -> int:
+    if bool(args.execute) and bool(args.dry_run):
+        raise ValueError("--execute and --dry-run cannot be used together.")
+    env_mapping = _load_optional_env_mapping(args.env_file, repo_root=args.repo_root)
+    as_of_date = date.fromisoformat(args.as_of_date)
+    with _temporary_environ(env_mapping):
+        report = run_equity_research_reporting(
+            config=RuntimeConfig.from_env(),
+            as_of_date=as_of_date,
+            symbols=tuple(args.symbol or ()),
+            limit=args.limit,
+            provider=args.provider,
+            model_name=args.model_name,
+            reasoning_effort=args.reasoning_effort,
+            max_context_chars=args.max_context_chars,
+            execute=bool(args.execute) and not bool(args.dry_run),
+        )
+    if args.output:
+        output_path = resolve_output_path(
+            args.output,
+            label="equity research reporting output",
             repo_root=args.repo_root,
             require_repo_outside=True,
         )

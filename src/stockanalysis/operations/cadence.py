@@ -264,6 +264,18 @@ DATA_OPERATION_CADENCES: tuple[DataOperationCadence, ...] = (
         data_health_dataset="ai.cycle_community_summary",
     ),
     DataOperationCadence(
+        job_id="equity-research-reporting-daily",
+        pipeline_name="equity_research_reporting",
+        domain="ai",
+        cadence="daily",
+        command_template="stockanalysis-operations equity-research-reporting-run --env-file <ENV> --provider codex_oauth --execute",
+        expected_after_local="19:24",
+        stale_after_hours=36,
+        artifact_policy="stdout_json_stderr_log_and_equity_research_artifacts",
+        required_env_groups=("database", "openai_or_llm_provider"),
+        data_health_dataset="research.equity_research_artifact",
+    ),
+    DataOperationCadence(
         job_id="recommendation-outcome-backfill-daily",
         pipeline_name="performance_outcome_schedule_bootstrap",
         domain="performance",
