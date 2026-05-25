@@ -15,6 +15,7 @@ from stockanalysis.ingest.registry import get_source
 from stockanalysis.ingest.sec.models import SecCompanyFactsSyncResult, SecCompanyFactsValueRecord
 from stockanalysis.ingest.sec.sql import (
     render_instrument_lookup_by_company_name_sql,
+    render_instrument_lookup_by_symbol_sql,
     render_sec_companyfacts_upsert_sql,
 )
 
@@ -41,6 +42,14 @@ _POINT_IN_TIME_METRIC_CODES = {
     "total_assets",
     "total_liabilities",
     "shareholders_equity",
+}
+
+_DEFAULT_CIK_SYMBOL_FALLBACKS = {
+    "0000034088": "XOM",
+    "0000320193": "AAPL",
+    "0000789019": "MSFT",
+    "0001045810": "NVDA",
+    "0001318605": "TSLA",
 }
 
 
@@ -143,7 +152,7 @@ def run_sec_companyfacts_upsert(
         companyfacts_json_path=companyfacts_json_path,
     )
     sql_executor = executor or PsqlCommandExecutor.from_config(config)
-    instrument = resolve_instrument_for_company(result.company_name, executor=sql_executor)
+    instrument = resolve_instrument_for_company(result.company_name, cik=result.cik, executor=sql_executor)
     run_id = _create_pipeline_run(
         sql_executor,
         pipeline_name="sec_companyfacts_upsert",
@@ -178,12 +187,21 @@ def run_sec_companyfacts_upsert(
 def resolve_instrument_for_company(
     company_name: str,
     *,
+    cik: str | None = None,
     executor: PsqlCommandExecutor,
 ) -> _ResolvedInstrument:
     try:
         payload_text = executor.execute_scalar(render_instrument_lookup_by_company_name_sql(company_name))
     except PsqlExecutionError as exc:
-        raise ValueError(f"No canonical instrument found for company `{company_name}`.") from exc
+        fallback_symbol = _DEFAULT_CIK_SYMBOL_FALLBACKS.get(str(cik or "").zfill(10))
+        if fallback_symbol is None:
+            raise ValueError(f"No canonical instrument found for company `{company_name}`.") from exc
+        try:
+            payload_text = executor.execute_scalar(render_instrument_lookup_by_symbol_sql(fallback_symbol))
+        except PsqlExecutionError as symbol_exc:
+            raise ValueError(
+                f"No canonical instrument found for company `{company_name}` or CIK fallback symbol `{fallback_symbol}`."
+            ) from symbol_exc
     payload = json.loads(payload_text)
     return _ResolvedInstrument(
         instrument_id=int(payload["instrument_id"]),

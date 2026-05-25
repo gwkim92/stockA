@@ -362,6 +362,22 @@ order by i.instrument_id
 limit 1;"""
 
 
+def render_instrument_lookup_by_symbol_sql(symbol: str) -> str:
+    return f"""select json_build_object(
+    'instrument_id', i.instrument_id,
+    'primary_symbol', i.primary_symbol,
+    'instrument_name', i.name,
+    'issuer_display_name', iss.display_name,
+    'issuer_legal_name', iss.legal_name
+)::text
+from ref.instrument i
+join ref.issuer iss on iss.issuer_id = i.issuer_id
+where i.is_active = true
+  and lower(i.primary_symbol) = lower({sql_literal(symbol)})
+order by i.instrument_id
+limit 1;"""
+
+
 def render_event_instrument_impact_upsert_sql(
     *,
     event_id: int,

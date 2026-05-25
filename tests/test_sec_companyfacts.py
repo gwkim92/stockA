@@ -13,10 +13,18 @@ FIXTURES_DIR = Path(__file__).parent / "fixtures"
 
 
 class FakeExecutor:
-    def __init__(self, *, run_id: int = 301, fail_on_upsert: bool = False, missing_instrument: bool = False) -> None:
+    def __init__(
+        self,
+        *,
+        run_id: int = 301,
+        fail_on_upsert: bool = False,
+        missing_instrument: bool = False,
+        fail_company_lookup_once: bool = False,
+    ) -> None:
         self.run_id = run_id
         self.fail_on_upsert = fail_on_upsert
         self.missing_instrument = missing_instrument
+        self.fail_company_lookup_once = fail_company_lookup_once
         self.scalar_sql: list[str] = []
         self.non_query_sql: list[str] = []
         self.instrument_payload = {
@@ -31,6 +39,9 @@ class FakeExecutor:
         self.scalar_sql.append(sql)
         if "from ref.instrument i" in sql:
             if self.missing_instrument:
+                raise PsqlExecutionError("no rows")
+            if self.fail_company_lookup_once and "lower(iss.display_name)" in sql:
+                self.fail_company_lookup_once = False
                 raise PsqlExecutionError("no rows")
             return json.dumps(self.instrument_payload)
         if "insert into ops.pipeline_run" in sql:
@@ -91,6 +102,20 @@ class SecCompanyFactsTests(unittest.TestCase):
         self.assertIn("insert into ops.pipeline_run", executor.scalar_sql[1])
         self.assertIn("77::bigint", executor.non_query_sql[0])
         self.assertIn("status = 'succeeded'", executor.non_query_sql[1])
+
+    def test_run_sec_companyfacts_upsert_falls_back_to_known_cik_symbol(self) -> None:
+        executor = FakeExecutor(run_id=80, fail_company_lookup_once=True)
+
+        summary = run_sec_companyfacts_upsert(
+            "320193",
+            config=type("Config", (), {})(),
+            companyfacts_json_path=str(FIXTURES_DIR / "sec_companyfacts_CIK0000320193.json"),
+            executor=executor,
+        )
+
+        self.assertEqual(summary["instrument_symbol"], "AAPL")
+        self.assertIn("lower(iss.display_name)", executor.scalar_sql[0])
+        self.assertIn("lower(i.primary_symbol) = lower('AAPL')", executor.scalar_sql[1])
 
     def test_run_sec_companyfacts_upsert_marks_pipeline_run_failed_when_upsert_errors(self) -> None:
         executor = FakeExecutor(run_id=78, fail_on_upsert=True)
