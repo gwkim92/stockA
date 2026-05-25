@@ -2,7 +2,7 @@
 
 ## Current Status
 
-- 완료: 추천 상세 API와 화면에 `research.equity_research_artifact` 연결을 추가했고, 로컬 계약/타입/빌드/AWH 검증을 통과했다.
+- 완료: 추천 상세 API와 화면에 `research.equity_research_artifact` 연결을 추가했고, 로컬 계약/타입/빌드/AWH와 EC2 API/route smoke를 통과했다.
 
 ## Implementation Notes
 
@@ -23,8 +23,11 @@
 - Passed: `cd apps/web && npm run build`
 - Passed: `git diff --check`
 - Passed: `PYTHONPATH=/Users/woody/ai/agent-work-harness/src /opt/homebrew/bin/python3.13 -m awh verify --repo . --task recommendation-detail-equity-research-link`
-- Pending: EC2 pull/rebuild/restart and `/api/recommendations/{id}`, `/recommendations/{id}` smoke.
+- Passed on EC2: pulled `cae0351`, rebuilt `apps/web`, restarted `stockanalysis-frontend-api.service` and `stockanalysis-web.service`.
+- Passed on EC2 service check: both services returned `active`.
+- Passed on EC2 API: `/api/recommendations/recommendation-140` returned `symbol=NVDA`, `equity_research.title=NVDA 기업 리서치 요약`, provider `fixture`, key points `5`, risks `3`, source run `pipeline-run-761`.
+- Passed on EC2 route smoke: `/recommendations/recommendation-140` rendered `기업 리서치 연결`, `NVDA 기업 리서치 요약`, `핵심 변화`, `무효화 조건`, `종목 리서치 전체 보기`.
 
 ## Exact Next Step
 
-- exact next step: 변경사항을 commit/push한 뒤 EC2에서 pull, `apps/web` rebuild, FastAPI/Next restart를 수행하고 추천 상세 API/route smoke를 확인한다.
+- exact next step: 다음 작업은 `portfolio-risk-budget-policy-v2`로 sector/theme concentration limit을 추가하거나, `thesis-lifecycle-v2`로 catalyst/invalidation/risk/valuation upside-downside를 thesis에 강제한다.
