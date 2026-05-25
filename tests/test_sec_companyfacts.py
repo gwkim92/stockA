@@ -63,9 +63,9 @@ class SecCompanyFactsTests(unittest.TestCase):
         )
         self.assertEqual(result.cik, "0000320193")
         self.assertEqual(result.company_name, "Apple Inc.")
-        self.assertEqual(len(result.values), 5)
+        self.assertEqual(len(result.values), 6)
         self.assertEqual(result.summary()["period_count"], 2)
-        self.assertEqual(result.summary()["metric_codes"], ["net_income", "revenue", "total_assets"])
+        self.assertEqual(result.summary()["metric_codes"], ["net_income", "revenue", "shares_outstanding", "total_assets"])
         self.assertEqual(result.skipped_count, 0)
 
     def test_render_sec_companyfacts_upsert_sql(self) -> None:
@@ -85,6 +85,8 @@ class SecCompanyFactsTests(unittest.TestCase):
         self.assertIn("min(r.period_start)::date as period_start", sql)
         self.assertIn("source_metrics as", sql)
         self.assertIn("select distinct on (p.period_id, r.metric_code)", sql)
+        self.assertIn("shares_outstanding", sql)
+        self.assertIn("'shares'", sql)
         self.assertIn("0000320193-24-000123", sql)
         self.assertIn("901::bigint", sql)
 
@@ -97,7 +99,7 @@ class SecCompanyFactsTests(unittest.TestCase):
             executor=executor,
         )
         self.assertEqual(summary["run_id"], 77)
-        self.assertEqual(summary["fact_count"], 5)
+        self.assertEqual(summary["fact_count"], 6)
         self.assertEqual(summary["instrument_symbol"], "AAPL")
         self.assertIn("insert into ops.pipeline_run", executor.scalar_sql[1])
         self.assertIn("77::bigint", executor.non_query_sql[0])

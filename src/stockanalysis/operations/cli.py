@@ -66,8 +66,10 @@ from stockanalysis.operations.recommendation_quality_eval import (
 )
 from stockanalysis.operations.professional_equity_analysis import (
     PEER_RELATIVE_STATEMENT_SCOPES,
+    VALUATION_STATEMENT_SCOPES,
     run_financial_metric_normalization,
     run_peer_relative_analysis,
+    run_valuation_snapshot,
 )
 from stockanalysis.operations.recommendation_outcome_backfill import (
     DEFAULT_OUTCOME_VERSION as DEFAULT_RECOMMENDATION_OUTCOME_VERSION,
@@ -684,6 +686,19 @@ def build_parser() -> argparse.ArgumentParser:
     peer_relative_analysis.add_argument("--output")
     peer_relative_analysis.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
     peer_relative_analysis.set_defaults(handler=_handle_peer_relative_analysis_run)
+
+    valuation_snapshot = subparsers.add_parser(
+        "valuation-snapshot-run",
+        help="Create conservative valuation snapshots without changing recommendation weights.",
+    )
+    valuation_snapshot.add_argument("--env-file")
+    valuation_snapshot.add_argument("--as-of-date", required=True)
+    valuation_snapshot.add_argument("--statement-scope", choices=VALUATION_STATEMENT_SCOPES, default="annual")
+    valuation_snapshot.add_argument("--execute", action="store_true")
+    valuation_snapshot.add_argument("--dry-run", action="store_true")
+    valuation_snapshot.add_argument("--output")
+    valuation_snapshot.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
+    valuation_snapshot.set_defaults(handler=_handle_valuation_snapshot_run)
 
     paper_validation_audit = subparsers.add_parser(
         "paper-validation-audit-run",
@@ -1525,6 +1540,31 @@ def _handle_peer_relative_analysis_run(args: argparse.Namespace, *, stdout: Text
         output_path = resolve_output_path(
             args.output,
             label="peer relative analysis output",
+            repo_root=args.repo_root,
+            require_repo_outside=True,
+        )
+        write_json_report(report, output_path=output_path, stdout=stdout)
+    else:
+        print_json(report, stdout=stdout, sort_keys=False)
+    return 0
+
+
+def _handle_valuation_snapshot_run(args: argparse.Namespace, *, stdout: TextIO) -> int:
+    if bool(args.execute) and bool(args.dry_run):
+        raise ValueError("--execute and --dry-run cannot be used together.")
+    env_mapping = _load_optional_env_mapping(args.env_file, repo_root=args.repo_root)
+    as_of_date = date.fromisoformat(args.as_of_date)
+    with _temporary_environ(env_mapping):
+        report = run_valuation_snapshot(
+            config=RuntimeConfig.from_env(),
+            as_of_date=as_of_date,
+            statement_scope=args.statement_scope,
+            execute=bool(args.execute) and not bool(args.dry_run),
+        )
+    if args.output:
+        output_path = resolve_output_path(
+            args.output,
+            label="valuation snapshot output",
             repo_root=args.repo_root,
             require_repo_outside=True,
         )

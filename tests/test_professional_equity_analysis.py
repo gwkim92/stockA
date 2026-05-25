@@ -9,13 +9,18 @@ from stockanalysis.ingest.config import RuntimeConfig
 from stockanalysis.operations.professional_equity_analysis import (
     DEFAULT_MODEL_NAME,
     DEFAULT_PEER_RELATIVE_MODEL_NAME,
+    DEFAULT_VALUATION_MODEL_NAME,
     STANDARD_FINANCIAL_METRICS,
+    VALUATION_METHODS,
     render_financial_metric_normalization_preview_sql,
     render_financial_metric_normalization_upsert_sql,
     render_peer_relative_analysis_preview_sql,
     render_peer_relative_analysis_upsert_sql,
+    render_valuation_snapshot_preview_sql,
+    render_valuation_snapshot_upsert_sql,
     run_financial_metric_normalization,
     run_peer_relative_analysis,
+    run_valuation_snapshot,
 )
 
 
@@ -90,6 +95,37 @@ class FakeFinancialMetricExecutor:
                         "near_peer": 20,
                         "insufficient_data": 20,
                     },
+                }
+            )
+        if sql.startswith("-- valuation snapshot preview"):
+            return json.dumps(
+                {
+                    "as_of_date": "2026-05-25",
+                    "model_name": DEFAULT_VALUATION_MODEL_NAME,
+                    "statement_scope": "annual",
+                    "methods": list(VALUATION_METHODS),
+                    "price_coverage_count": 3,
+                    "raw_financial_input_count": 3,
+                    "normalized_input_count": 3,
+                    "peer_context_count": 3,
+                    "valuation_context_count": 3,
+                    "dcf_lite_eligible_count": 2,
+                    "existing_valuation_count": 0,
+                }
+            )
+        if sql.startswith("-- valuation snapshot upsert"):
+            return json.dumps(
+                {
+                    "as_of_date": "2026-05-25",
+                    "source_run_id": self.run_id,
+                    "statement_scope": "annual",
+                    "snapshot_count": 8,
+                    "method_counts": {
+                        "dcf_lite": 2,
+                        "relative_multiple": 3,
+                        "scenario_range": 3,
+                    },
+                    "confidence_summary": {"min": 0.25, "avg": 0.4, "max": 0.5},
                 }
             )
         raise AssertionError(f"Unexpected scalar SQL: {sql[:160]}")
@@ -250,6 +286,73 @@ class ProfessionalEquityAnalysisTests(unittest.TestCase):
         self.assertEqual(report["upsert"]["peer_group_count"], 2)  # type: ignore[index]
         self.assertIn("insert into ops.pipeline_run", executor.scalar_sql[1])
         self.assertIn("-- peer relative analysis upsert", executor.scalar_sql[2])
+        self.assertIn("status = 'succeeded'", executor.non_query_sql[-1])
+
+    def test_valuation_snapshot_preview_sql_is_read_only_and_reports_missing_dcf_coverage(self) -> None:
+        sql = render_valuation_snapshot_preview_sql(as_of_date=date(2026, 5, 25), statement_scope="annual")
+        lowered = sql.lower()
+
+        self.assertIn("-- valuation snapshot preview", sql)
+        self.assertIn("market.daily_price_bar", sql)
+        self.assertIn("market.financial_metric_value", sql)
+        self.assertIn("shares_outstanding", sql)
+        self.assertIn("valuation_context_count", sql)
+        self.assertIn("dcf_lite_eligible_count", sql)
+        self.assertNotIn("insert into", lowered)
+        self.assertNotIn("update ", lowered)
+        self.assertNotIn("delete from", lowered)
+
+    def test_valuation_snapshot_upsert_sql_creates_three_methods_without_recommendation_mutation(self) -> None:
+        sql = render_valuation_snapshot_upsert_sql(
+            as_of_date=date(2026, 5, 25),
+            source_run_id=9701,
+            statement_scope="annual",
+        )
+
+        self.assertIn("-- valuation snapshot upsert", sql)
+        self.assertIn("insert into market.valuation_snapshot", sql)
+        self.assertIn("'relative_multiple' as method", sql)
+        self.assertIn("'scenario_range' as method", sql)
+        self.assertIn("'dcf_lite' as method", sql)
+        self.assertIn("shares_outstanding", sql)
+        self.assertIn("free_cash_flow", sql)
+        self.assertIn("recommendation_scoring_mutated", sql)
+        self.assertNotIn("signal.recommendation_score_component", sql)
+        self.assertIn("9701::bigint", sql)
+
+    def test_run_valuation_snapshot_dry_run_reads_preview_without_writes(self) -> None:
+        executor = FakeFinancialMetricExecutor()
+
+        report = run_valuation_snapshot(
+            config=RuntimeConfig(psql_command="psql"),
+            as_of_date=date(2026, 5, 25),
+            statement_scope="annual",
+            execute=False,
+            executor=executor,  # type: ignore[arg-type]
+        )
+
+        self.assertEqual(report["status"], "planned")
+        self.assertEqual(report["report_name"], "valuation_snapshot")
+        self.assertFalse(report["recommendation_scoring_mutated"])
+        self.assertEqual(executor.non_query_sql, [])
+        self.assertEqual(len(executor.scalar_sql), 1)
+
+    def test_run_valuation_snapshot_execute_records_pipeline_and_upsert_summary(self) -> None:
+        executor = FakeFinancialMetricExecutor(run_id=9702)
+
+        report = run_valuation_snapshot(
+            config=RuntimeConfig(psql_command="psql"),
+            as_of_date=date(2026, 5, 25),
+            statement_scope="annual",
+            execute=True,
+            executor=executor,  # type: ignore[arg-type]
+        )
+
+        self.assertEqual(report["status"], "completed")
+        self.assertEqual(report["run_id"], 9702)
+        self.assertEqual(report["upsert"]["method_counts"]["relative_multiple"], 3)  # type: ignore[index]
+        self.assertIn("insert into ops.pipeline_run", executor.scalar_sql[1])
+        self.assertIn("-- valuation snapshot upsert", executor.scalar_sql[2])
         self.assertIn("status = 'succeeded'", executor.non_query_sql[-1])
 
 

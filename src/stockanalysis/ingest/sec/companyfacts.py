@@ -36,12 +36,18 @@ _CONCEPT_TO_METRIC_CODE = {
     "Liabilities": "total_liabilities",
     "StockholdersEquity": "shareholders_equity",
     "StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest": "shareholders_equity",
+    "EntityCommonStockSharesOutstanding": "shares_outstanding",
 }
 
 _POINT_IN_TIME_METRIC_CODES = {
     "total_assets",
     "total_liabilities",
     "shareholders_equity",
+    "shares_outstanding",
+}
+
+_UNIT_BY_METRIC_CODE = {
+    "shares_outstanding": "shares",
 }
 
 _DEFAULT_CIK_SYMBOL_FALLBACKS = {
@@ -86,40 +92,46 @@ def normalize_companyfacts_payload(payload: dict[str, Any]) -> SecCompanyFactsSy
     us_gaap = facts.get("us-gaap")
     if not isinstance(us_gaap, dict):
         raise ValueError(f"SEC companyfacts payload for `{cik}` does not contain `facts.us-gaap`")
+    fact_namespaces = [us_gaap]
+    dei = facts.get("dei")
+    if isinstance(dei, dict):
+        fact_namespaces.append(dei)
 
     selected: dict[tuple[str, int, int | None, date, str], SecCompanyFactsValueRecord] = {}
     skipped_count = 0
 
-    for concept_name, concept_payload in us_gaap.items():
-        metric_code = _CONCEPT_TO_METRIC_CODE.get(str(concept_name))
-        if metric_code is None:
-            continue
-        units = concept_payload.get("units")
-        if not isinstance(units, dict):
-            skipped_count += 1
-            continue
-        for unit_name, raw_items in units.items():
-            if unit_name != "USD":
-                skipped_count += len(raw_items) if isinstance(raw_items, list) else 1
+    for facts_payload in fact_namespaces:
+        for concept_name, concept_payload in facts_payload.items():
+            metric_code = _CONCEPT_TO_METRIC_CODE.get(str(concept_name))
+            if metric_code is None:
                 continue
-            if not isinstance(raw_items, list):
+            expected_unit = _UNIT_BY_METRIC_CODE.get(metric_code, "USD")
+            units = concept_payload.get("units")
+            if not isinstance(units, dict):
                 skipped_count += 1
                 continue
-            for raw_item in raw_items:
-                record = _normalize_companyfacts_item(metric_code, raw_item)
-                if record is None:
+            for unit_name, raw_items in units.items():
+                if unit_name != expected_unit:
+                    skipped_count += len(raw_items) if isinstance(raw_items, list) else 1
+                    continue
+                if not isinstance(raw_items, list):
                     skipped_count += 1
                     continue
-                key = (
-                    record.statement_scope,
-                    record.fiscal_year,
-                    record.fiscal_quarter,
-                    record.period_end,
-                    record.metric_code,
-                )
-                existing = selected.get(key)
-                if existing is None or _is_newer_record(record, existing):
-                    selected[key] = record
+                for raw_item in raw_items:
+                    record = _normalize_companyfacts_item(metric_code, raw_item, unit=expected_unit)
+                    if record is None:
+                        skipped_count += 1
+                        continue
+                    key = (
+                        record.statement_scope,
+                        record.fiscal_year,
+                        record.fiscal_quarter,
+                        record.period_end,
+                        record.metric_code,
+                    )
+                    existing = selected.get(key)
+                    if existing is None or _is_newer_record(record, existing):
+                        selected[key] = record
 
     values = tuple(
         sorted(
@@ -215,6 +227,8 @@ def resolve_instrument_for_company(
 def _normalize_companyfacts_item(
     metric_code: str,
     payload: dict[str, Any],
+    *,
+    unit: str,
 ) -> SecCompanyFactsValueRecord | None:
     form = str(payload.get("form", "")).upper()
     if form.endswith("/A"):
@@ -250,7 +264,7 @@ def _normalize_companyfacts_item(
         is_audited=is_audited,
         metric_code=metric_code,
         metric_value=value,
-        unit="USD",
+        unit=unit,
     )
 
 

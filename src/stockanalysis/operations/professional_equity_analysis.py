@@ -17,6 +17,8 @@ DEFAULT_PIPELINE_NAME = "financial_metric_normalization"
 DEFAULT_MODEL_NAME = "deterministic-financial-sql-v1"
 DEFAULT_PEER_RELATIVE_PIPELINE_NAME = "peer_relative_analysis"
 DEFAULT_PEER_RELATIVE_MODEL_NAME = "deterministic-peer-relative-sql-v1"
+DEFAULT_VALUATION_PIPELINE_NAME = "valuation_snapshot"
+DEFAULT_VALUATION_MODEL_NAME = "deterministic-valuation-snapshot-sql-v1"
 DEFAULT_PEER_GROUP_CODE = "US_CORE_FINANCIAL_DISCLOSURE"
 DEFAULT_PEER_GROUP_NAME = "US Core Financial Disclosure Coverage"
 STANDARD_FINANCIAL_METRICS = (
@@ -32,6 +34,8 @@ STANDARD_FINANCIAL_METRICS = (
     "roic",
 )
 PEER_RELATIVE_STATEMENT_SCOPES = ("annual", "quarterly", "all")
+VALUATION_STATEMENT_SCOPES = ("annual", "quarterly")
+VALUATION_METHODS = ("dcf_lite", "relative_multiple", "scenario_range")
 
 
 def render_financial_metric_normalization_preview_sql(*, as_of_date: date, limit: int | None = None) -> str:
@@ -946,11 +950,621 @@ def run_peer_relative_analysis(
     }
 
 
+def render_valuation_snapshot_preview_sql(
+    *,
+    as_of_date: date,
+    statement_scope: str = "annual",
+) -> str:
+    _validate_valuation_args(statement_scope=statement_scope)
+    return f"""-- valuation snapshot preview
+with latest_prices as (
+    select distinct on (bar.instrument_id)
+        bar.instrument_id,
+        coalesce(bar.adjusted_close, bar.close) as base_price,
+        bar.trade_date as price_date
+    from market.daily_price_bar bar
+    where bar.trade_date <= {sql_date(as_of_date)}
+      and coalesce(bar.adjusted_close, bar.close) is not null
+    order by bar.instrument_id, bar.trade_date desc
+),
+latest_raw_metric_rows as (
+    select distinct on (period.instrument_id, metric.metric_code)
+        period.instrument_id,
+        metric.metric_code,
+        metric.metric_value,
+        period.period_end
+    from market.financial_statement_period period
+    join market.financial_metric_value metric on metric.period_id = period.period_id
+    where period.period_end <= {sql_date(as_of_date)}
+      and period.statement_scope = {sql_literal(statement_scope)}
+      and metric.metric_code in (
+        'operating_cash_flow',
+        'capital_expenditure',
+        'shares_outstanding',
+        'revenue'
+      )
+    order by period.instrument_id, metric.metric_code, period.period_end desc
+),
+raw_inputs as (
+    select
+        instrument_id,
+        max(metric_value) filter (where metric_code = 'operating_cash_flow') as operating_cash_flow,
+        max(metric_value) filter (where metric_code = 'capital_expenditure') as capital_expenditure,
+        max(metric_value) filter (where metric_code = 'shares_outstanding') as shares_outstanding,
+        max(metric_value) filter (where metric_code = 'revenue') as revenue
+    from latest_raw_metric_rows
+    group by instrument_id
+),
+latest_normalized_rows as (
+    select distinct on (normalized.instrument_id, normalized.metric_code)
+        normalized.instrument_id,
+        normalized.metric_code,
+        normalized.metric_value
+    from market.financial_metric_normalized normalized
+    where normalized.as_of_date <= {sql_date(as_of_date)}
+      and normalized.statement_scope = {sql_literal(statement_scope)}
+      and normalized.metric_status = 'computed'
+      and normalized.metric_code in (
+        'revenue_growth_yoy',
+        'net_margin',
+        'free_cash_flow_margin',
+        'cash_flow_quality',
+        'leverage_ratio'
+      )
+    order by
+        normalized.instrument_id,
+        normalized.metric_code,
+        normalized.as_of_date desc,
+        normalized.period_end desc
+),
+normalized_inputs as (
+    select
+        instrument_id,
+        max(metric_value) filter (where metric_code = 'revenue_growth_yoy') as revenue_growth_yoy,
+        max(metric_value) filter (where metric_code = 'net_margin') as net_margin,
+        max(metric_value) filter (where metric_code = 'free_cash_flow_margin') as free_cash_flow_margin,
+        max(metric_value) filter (where metric_code = 'cash_flow_quality') as cash_flow_quality,
+        max(metric_value) filter (where metric_code = 'leverage_ratio') as leverage_ratio
+    from latest_normalized_rows
+    group by instrument_id
+),
+latest_peer_rows as (
+    select distinct on (snapshot.instrument_id, snapshot.peer_group_id, snapshot.metric_code)
+        snapshot.instrument_id,
+        snapshot.metric_code,
+        snapshot.percentile_rank
+    from market.peer_relative_snapshot snapshot
+    where snapshot.as_of_date <= {sql_date(as_of_date)}
+      and snapshot.relative_signal <> 'insufficient_data'
+    order by
+        snapshot.instrument_id,
+        snapshot.peer_group_id,
+        snapshot.metric_code,
+        snapshot.as_of_date desc
+),
+peer_inputs as (
+    select
+        instrument_id,
+        avg(percentile_rank) filter (
+            where metric_code in (
+                'revenue_growth_yoy',
+                'net_margin',
+                'free_cash_flow_margin',
+                'cash_flow_quality'
+            )
+        ) as quality_percentile,
+        avg(percentile_rank) filter (where metric_code = 'leverage_ratio') as leverage_percentile
+    from latest_peer_rows
+    group by instrument_id
+),
+valuation_inputs as (
+    select
+        price.instrument_id,
+        price.base_price,
+        raw.operating_cash_flow,
+        raw.capital_expenditure,
+        raw.shares_outstanding,
+        raw.revenue,
+        normalized.revenue_growth_yoy,
+        normalized.net_margin,
+        normalized.free_cash_flow_margin,
+        normalized.cash_flow_quality,
+        normalized.leverage_ratio,
+        peer.quality_percentile,
+        peer.leverage_percentile
+    from latest_prices price
+    left join raw_inputs raw on raw.instrument_id = price.instrument_id
+    left join normalized_inputs normalized on normalized.instrument_id = price.instrument_id
+    left join peer_inputs peer on peer.instrument_id = price.instrument_id
+    where raw.instrument_id is not null
+       or normalized.instrument_id is not null
+       or peer.instrument_id is not null
+)
+select json_build_object(
+    'as_of_date', {sql_literal(as_of_date.isoformat())},
+    'model_name', {sql_literal(DEFAULT_VALUATION_MODEL_NAME)},
+    'statement_scope', {sql_literal(statement_scope)},
+    'methods', {sql_literal(json.dumps(VALUATION_METHODS))}::jsonb,
+    'price_coverage_count', (select count(*)::integer from latest_prices),
+    'raw_financial_input_count', (select count(*)::integer from raw_inputs),
+    'normalized_input_count', (select count(*)::integer from normalized_inputs),
+    'peer_context_count', (select count(*)::integer from peer_inputs),
+    'valuation_context_count', (select count(*)::integer from valuation_inputs),
+    'dcf_lite_eligible_count',
+        (
+            select count(*)::integer
+            from valuation_inputs
+            where base_price > 0
+              and operating_cash_flow is not null
+              and capital_expenditure is not null
+              and shares_outstanding is not null
+              and shares_outstanding > 0
+              and (operating_cash_flow - abs(capital_expenditure)) > 0
+        ),
+    'existing_valuation_count',
+        (
+            select count(*)::integer
+            from market.valuation_snapshot
+            where as_of_date = {sql_date(as_of_date)}
+        )
+)::text;"""
+
+
+def render_valuation_snapshot_upsert_sql(
+    *,
+    as_of_date: date,
+    source_run_id: int,
+    statement_scope: str = "annual",
+) -> str:
+    _validate_valuation_args(statement_scope=statement_scope)
+    return f"""-- valuation snapshot upsert
+with latest_prices as (
+    select distinct on (bar.instrument_id)
+        bar.instrument_id,
+        instrument.primary_symbol,
+        coalesce(bar.adjusted_close, bar.close) as base_price,
+        bar.trade_date as price_date
+    from market.daily_price_bar bar
+    join ref.instrument instrument on instrument.instrument_id = bar.instrument_id
+    where bar.trade_date <= {sql_date(as_of_date)}
+      and coalesce(bar.adjusted_close, bar.close) is not null
+    order by bar.instrument_id, bar.trade_date desc
+),
+latest_raw_metric_rows as (
+    select distinct on (period.instrument_id, metric.metric_code)
+        period.instrument_id,
+        metric.metric_code,
+        metric.metric_value,
+        period.period_end
+    from market.financial_statement_period period
+    join market.financial_metric_value metric on metric.period_id = period.period_id
+    where period.period_end <= {sql_date(as_of_date)}
+      and period.statement_scope = {sql_literal(statement_scope)}
+      and metric.metric_code in (
+        'operating_cash_flow',
+        'capital_expenditure',
+        'shares_outstanding',
+        'revenue'
+      )
+    order by period.instrument_id, metric.metric_code, period.period_end desc
+),
+raw_inputs as (
+    select
+        instrument_id,
+        max(metric_value) filter (where metric_code = 'operating_cash_flow') as operating_cash_flow,
+        max(metric_value) filter (where metric_code = 'capital_expenditure') as capital_expenditure,
+        max(metric_value) filter (where metric_code = 'shares_outstanding') as shares_outstanding,
+        max(metric_value) filter (where metric_code = 'revenue') as revenue,
+        max(period_end) as latest_raw_period_end
+    from latest_raw_metric_rows
+    group by instrument_id
+),
+latest_normalized_rows as (
+    select distinct on (normalized.instrument_id, normalized.metric_code)
+        normalized.instrument_id,
+        normalized.metric_code,
+        normalized.metric_value,
+        normalized.period_end
+    from market.financial_metric_normalized normalized
+    where normalized.as_of_date <= {sql_date(as_of_date)}
+      and normalized.statement_scope = {sql_literal(statement_scope)}
+      and normalized.metric_status = 'computed'
+      and normalized.metric_code in (
+        'revenue_growth_yoy',
+        'net_margin',
+        'free_cash_flow_margin',
+        'cash_flow_quality',
+        'leverage_ratio'
+      )
+    order by
+        normalized.instrument_id,
+        normalized.metric_code,
+        normalized.as_of_date desc,
+        normalized.period_end desc
+),
+normalized_inputs as (
+    select
+        instrument_id,
+        max(metric_value) filter (where metric_code = 'revenue_growth_yoy') as revenue_growth_yoy,
+        max(metric_value) filter (where metric_code = 'net_margin') as net_margin,
+        max(metric_value) filter (where metric_code = 'free_cash_flow_margin') as free_cash_flow_margin,
+        max(metric_value) filter (where metric_code = 'cash_flow_quality') as cash_flow_quality,
+        max(metric_value) filter (where metric_code = 'leverage_ratio') as leverage_ratio,
+        max(period_end) as latest_normalized_period_end
+    from latest_normalized_rows
+    group by instrument_id
+),
+latest_peer_rows as (
+    select distinct on (snapshot.instrument_id, snapshot.peer_group_id, snapshot.metric_code)
+        snapshot.instrument_id,
+        snapshot.metric_code,
+        snapshot.percentile_rank
+    from market.peer_relative_snapshot snapshot
+    where snapshot.as_of_date <= {sql_date(as_of_date)}
+      and snapshot.relative_signal <> 'insufficient_data'
+    order by
+        snapshot.instrument_id,
+        snapshot.peer_group_id,
+        snapshot.metric_code,
+        snapshot.as_of_date desc
+),
+peer_inputs as (
+    select
+        instrument_id,
+        avg(percentile_rank) filter (
+            where metric_code in (
+                'revenue_growth_yoy',
+                'net_margin',
+                'free_cash_flow_margin',
+                'cash_flow_quality'
+            )
+        ) as quality_percentile,
+        avg(percentile_rank) filter (where metric_code = 'leverage_ratio') as leverage_percentile
+    from latest_peer_rows
+    group by instrument_id
+),
+valuation_inputs as (
+    select
+        price.instrument_id,
+        price.primary_symbol,
+        price.base_price,
+        price.price_date,
+        raw.latest_raw_period_end,
+        normalized.latest_normalized_period_end,
+        raw.operating_cash_flow,
+        raw.capital_expenditure,
+        raw.shares_outstanding,
+        raw.revenue,
+        case
+            when raw.operating_cash_flow is not null and raw.capital_expenditure is not null
+            then raw.operating_cash_flow - abs(raw.capital_expenditure)
+            else null::numeric
+        end as free_cash_flow,
+        normalized.revenue_growth_yoy,
+        normalized.net_margin,
+        normalized.free_cash_flow_margin,
+        normalized.cash_flow_quality,
+        normalized.leverage_ratio,
+        peer.quality_percentile,
+        peer.leverage_percentile,
+        least(
+            1::numeric,
+            greatest(
+                0::numeric,
+                (
+                    coalesce(peer.quality_percentile, 0.5000)
+                    + coalesce(1::numeric - peer.leverage_percentile, 0.5000)
+                ) / 2
+            )
+        ) as quality_score,
+        least(0.1200::numeric, greatest(-0.0500::numeric, coalesce(normalized.revenue_growth_yoy, 0.0300))) as growth_rate,
+        (
+            (normalized.revenue_growth_yoy is not null)::integer
+            + (normalized.net_margin is not null)::integer
+            + (normalized.free_cash_flow_margin is not null)::integer
+            + (normalized.cash_flow_quality is not null)::integer
+            + (normalized.leverage_ratio is not null)::integer
+        ) as normalized_metric_count
+    from latest_prices price
+    left join raw_inputs raw on raw.instrument_id = price.instrument_id
+    left join normalized_inputs normalized on normalized.instrument_id = price.instrument_id
+    left join peer_inputs peer on peer.instrument_id = price.instrument_id
+    where price.base_price > 0
+      and (
+        raw.instrument_id is not null
+        or normalized.instrument_id is not null
+        or peer.instrument_id is not null
+      )
+),
+relative_multiple_rows as (
+    select
+        input.instrument_id,
+        'relative_multiple' as method,
+        input.base_price,
+        (
+            input.base_price
+            * (1::numeric + ((input.quality_score - 0.5000::numeric) * 0.3000::numeric))
+            * 0.8500::numeric
+        ) as fair_value_low,
+        (
+            input.base_price
+            * (1::numeric + ((input.quality_score - 0.5000::numeric) * 0.3000::numeric))
+        ) as fair_value_base,
+        (
+            input.base_price
+            * (1::numeric + ((input.quality_score - 0.5000::numeric) * 0.3000::numeric))
+            * 1.1500::numeric
+        ) as fair_value_high,
+        json_build_object(
+            'method_description', 'Peer percentile adjusted current-price range. This is not an absolute intrinsic value model.',
+            'pricing_basis', 'latest adjusted close',
+            'statement_scope', {sql_literal(statement_scope)},
+            'price_date', input.price_date,
+            'latest_raw_period_end', input.latest_raw_period_end,
+            'quality_score', round(input.quality_score, 4),
+            'peer_quality_percentile', input.quality_percentile,
+            'leverage_percentile', input.leverage_percentile,
+            'recommendation_scoring_mutated', false
+        )::jsonb as assumptions_json,
+        case
+            when input.quality_percentile is not null then 0.4500::numeric
+            else 0.2500::numeric
+        end as confidence
+    from valuation_inputs input
+),
+scenario_range_rows as (
+    select
+        input.instrument_id,
+        'scenario_range' as method,
+        input.base_price,
+        input.base_price * (0.7500::numeric + input.quality_score * 0.1000::numeric) as fair_value_low,
+        input.base_price * (0.9000::numeric + input.quality_score * 0.2000::numeric) as fair_value_base,
+        input.base_price * (1.0500::numeric + input.quality_score * 0.2500::numeric) as fair_value_high,
+        json_build_object(
+            'method_description', 'Conservative bear/base/bull range anchored to current price and financial-quality context.',
+            'pricing_basis', 'latest adjusted close',
+            'statement_scope', {sql_literal(statement_scope)},
+            'price_date', input.price_date,
+            'latest_normalized_period_end', input.latest_normalized_period_end,
+            'quality_score', round(input.quality_score, 4),
+            'normalized_metric_count', input.normalized_metric_count,
+            'recommendation_scoring_mutated', false
+        )::jsonb as assumptions_json,
+        case
+            when input.normalized_metric_count >= 3 then 0.4000::numeric
+            else 0.2000::numeric
+        end as confidence
+    from valuation_inputs input
+),
+dcf_inputs as (
+    select
+        input.*,
+        (input.free_cash_flow / input.shares_outstanding) as fcf_per_share,
+        0.1000::numeric as discount_rate,
+        0.0250::numeric as terminal_growth_rate
+    from valuation_inputs input
+    where input.free_cash_flow is not null
+      and input.free_cash_flow > 0
+      and input.shares_outstanding is not null
+      and input.shares_outstanding > 0
+),
+dcf_lite_rows as (
+    select
+        input.instrument_id,
+        'dcf_lite' as method,
+        input.base_price,
+        intrinsic.fair_value_base * 0.8500::numeric as fair_value_low,
+        intrinsic.fair_value_base,
+        intrinsic.fair_value_base * 1.1500::numeric as fair_value_high,
+        json_build_object(
+            'method_description', 'Five-year free-cash-flow-per-share DCF-lite with fixed discount and terminal growth assumptions.',
+            'pricing_basis', 'latest adjusted close',
+            'statement_scope', {sql_literal(statement_scope)},
+            'price_date', input.price_date,
+            'latest_raw_period_end', input.latest_raw_period_end,
+            'free_cash_flow', input.free_cash_flow,
+            'shares_outstanding', input.shares_outstanding,
+            'fcf_per_share', round(input.fcf_per_share, 6),
+            'growth_rate', input.growth_rate,
+            'discount_rate', input.discount_rate,
+            'terminal_growth_rate', input.terminal_growth_rate,
+            'recommendation_scoring_mutated', false
+        )::jsonb as assumptions_json,
+        case
+            when input.normalized_metric_count >= 3 then 0.5000::numeric
+            else 0.3500::numeric
+        end as confidence
+    from dcf_inputs input
+    cross join lateral (
+        select (
+            (input.fcf_per_share * power(1 + input.growth_rate, 1) / power(1 + input.discount_rate, 1))
+            + (input.fcf_per_share * power(1 + input.growth_rate, 2) / power(1 + input.discount_rate, 2))
+            + (input.fcf_per_share * power(1 + input.growth_rate, 3) / power(1 + input.discount_rate, 3))
+            + (input.fcf_per_share * power(1 + input.growth_rate, 4) / power(1 + input.discount_rate, 4))
+            + (input.fcf_per_share * power(1 + input.growth_rate, 5) / power(1 + input.discount_rate, 5))
+            + (
+                input.fcf_per_share
+                * power(1 + input.growth_rate, 5)
+                * (1 + input.terminal_growth_rate)
+                / (input.discount_rate - input.terminal_growth_rate)
+                / power(1 + input.discount_rate, 5)
+            )
+        )::numeric as fair_value_base
+    ) intrinsic
+),
+snapshot_rows as (
+    select * from relative_multiple_rows
+    union all
+    select * from scenario_range_rows
+    union all
+    select * from dcf_lite_rows
+),
+upsert_snapshots as (
+    insert into market.valuation_snapshot (
+        instrument_id,
+        as_of_date,
+        method,
+        base_price,
+        fair_value_low,
+        fair_value_base,
+        fair_value_high,
+        margin_of_safety,
+        assumptions_json,
+        confidence,
+        source_run_id
+    )
+    select
+        instrument_id,
+        {sql_date(as_of_date)},
+        method,
+        base_price,
+        fair_value_low,
+        fair_value_base,
+        fair_value_high,
+        case
+            when base_price is not null and base_price <> 0 and fair_value_base is not null
+            then ((fair_value_base - base_price) / base_price)::numeric
+            else null::numeric
+        end,
+        assumptions_json,
+        confidence,
+        {int(source_run_id)}::bigint
+    from snapshot_rows
+    on conflict (instrument_id, as_of_date, method) do update
+    set
+        base_price = excluded.base_price,
+        fair_value_low = excluded.fair_value_low,
+        fair_value_base = excluded.fair_value_base,
+        fair_value_high = excluded.fair_value_high,
+        margin_of_safety = excluded.margin_of_safety,
+        assumptions_json = excluded.assumptions_json,
+        confidence = excluded.confidence,
+        source_run_id = excluded.source_run_id
+    returning method, confidence
+)
+select json_build_object(
+    'as_of_date', {sql_literal(as_of_date.isoformat())},
+    'source_run_id', {int(source_run_id)},
+    'statement_scope', {sql_literal(statement_scope)},
+    'snapshot_count', (select count(*)::integer from upsert_snapshots),
+    'method_counts',
+        coalesce(
+            (
+                select json_object_agg(method, method_count order by method)
+                from (
+                    select method, count(*)::integer as method_count
+                    from upsert_snapshots
+                    group by method
+                ) counts
+            ),
+            '{{}}'::json
+        ),
+    'confidence_summary',
+        (
+            select json_build_object(
+                'min', min(confidence),
+                'avg', avg(confidence),
+                'max', max(confidence)
+            )
+            from upsert_snapshots
+        )
+)::text;"""
+
+
+def load_valuation_snapshot_preview(
+    *,
+    config: RuntimeConfig,
+    as_of_date: date,
+    statement_scope: str = "annual",
+    executor: PsqlCommandExecutor | None = None,
+) -> dict[str, object]:
+    sql_executor = executor or PsqlCommandExecutor.from_config(config)
+    payload = json.loads(
+        sql_executor.execute_scalar(
+            render_valuation_snapshot_preview_sql(as_of_date=as_of_date, statement_scope=statement_scope)
+        )
+    )
+    if not isinstance(payload, dict):
+        raise ValueError("Valuation snapshot preview did not return a JSON object.")
+    return payload
+
+
+def run_valuation_snapshot(
+    *,
+    config: RuntimeConfig,
+    as_of_date: date,
+    statement_scope: str = "annual",
+    execute: bool = False,
+    executor: PsqlCommandExecutor | None = None,
+) -> dict[str, object]:
+    sql_executor = executor or PsqlCommandExecutor.from_config(config)
+    preview = load_valuation_snapshot_preview(
+        config=config,
+        as_of_date=as_of_date,
+        statement_scope=statement_scope,
+        executor=sql_executor,
+    )
+    report: dict[str, object] = {
+        "report_name": "valuation_snapshot",
+        "status": "planned" if not execute else "running",
+        "execute": execute,
+        "pipeline_name": DEFAULT_VALUATION_PIPELINE_NAME,
+        "as_of_date": as_of_date.isoformat(),
+        "statement_scope": statement_scope,
+        "model_name": DEFAULT_VALUATION_MODEL_NAME,
+        "methods": list(VALUATION_METHODS),
+        "preview": preview,
+        "recommendation_scoring_mutated": False,
+    }
+    if not execute:
+        return report
+
+    run_id = _create_pipeline_run(
+        sql_executor,
+        pipeline_name=DEFAULT_VALUATION_PIPELINE_NAME,
+        config_json={
+            "as_of_date": as_of_date.isoformat(),
+            "statement_scope": statement_scope,
+            "model_name": DEFAULT_VALUATION_MODEL_NAME,
+            "methods": list(VALUATION_METHODS),
+            "recommendation_scoring_mutated": False,
+        },
+    )
+    try:
+        upsert_summary = json.loads(
+            sql_executor.execute_scalar(
+                render_valuation_snapshot_upsert_sql(
+                    as_of_date=as_of_date,
+                    source_run_id=run_id,
+                    statement_scope=statement_scope,
+                )
+            )
+        )
+        if not isinstance(upsert_summary, dict):
+            raise ValueError("Valuation snapshot upsert did not return a JSON object.")
+        _mark_pipeline_run_succeeded(sql_executor, run_id)
+    except Exception as exc:
+        _mark_pipeline_run_failed(sql_executor, run_id, str(exc))
+        raise
+
+    return {
+        **report,
+        "status": "completed",
+        "run_id": run_id,
+        "upsert": upsert_summary,
+    }
+
+
 def _validate_peer_relative_args(*, statement_scope: str, min_peer_count: int) -> None:
     if statement_scope not in PEER_RELATIVE_STATEMENT_SCOPES:
         raise ValueError(f"statement_scope must be one of: {', '.join(PEER_RELATIVE_STATEMENT_SCOPES)}.")
     if min_peer_count < 2:
         raise ValueError("min_peer_count must be at least 2.")
+
+
+def _validate_valuation_args(*, statement_scope: str) -> None:
+    if statement_scope not in VALUATION_STATEMENT_SCOPES:
+        raise ValueError(f"statement_scope must be one of: {', '.join(VALUATION_STATEMENT_SCOPES)}.")
 
 
 def _statement_scope_filter(alias: str, *, statement_scope: str) -> str:

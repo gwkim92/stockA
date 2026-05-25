@@ -87,6 +87,7 @@ SEC_FILINGS_WEEKLY_STEP_IDS = (
     "sec-companyfacts-weekly",
     "financial-metric-normalization",
     "peer-relative-analysis",
+    "valuation-snapshot",
 )
 NEWS_INTRADAY_STEP_IDS = (
     "news-rss-ingest",
@@ -577,6 +578,25 @@ def _build_planned_steps(
                 "-m",
                 "stockanalysis.operations.cli",
                 "peer-relative-analysis-run",
+                "--env-file",
+                str(env_file),
+                "--as-of-date",
+                target,
+                "--statement-scope",
+                "annual",
+                "--execute",
+            ),
+        },
+        {
+            "step_id": "valuation-snapshot",
+            "artifact_job_id": "valuation-snapshot-weekly",
+            "label": "Create conservative valuation snapshots without changing recommendation weights",
+            "skip_reason": "",
+            "command_argv": (
+                python_executable,
+                "-m",
+                "stockanalysis.operations.cli",
+                "valuation-snapshot-run",
                 "--env-file",
                 str(env_file),
                 "--as-of-date",

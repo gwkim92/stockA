@@ -211,7 +211,13 @@ class OperatingDataOrchestratorTests(unittest.TestCase):
         self.assertEqual([step["step_id"] for step in universe_report["planned_steps"]], ["market-universe-weekly"])
         self.assertEqual(
             [step["step_id"] for step in sec_report["planned_steps"]],
-            ["sec-filings-weekly", "sec-companyfacts-weekly", "financial-metric-normalization", "peer-relative-analysis"],
+            [
+                "sec-filings-weekly",
+                "sec-companyfacts-weekly",
+                "financial-metric-normalization",
+                "peer-relative-analysis",
+                "valuation-snapshot",
+            ],
         )
         self.assertFalse(universe_report["derived_inputs"]["source_positions_required"])
         self.assertFalse(sec_report["derived_inputs"]["source_positions_required"])
@@ -224,6 +230,8 @@ class OperatingDataOrchestratorTests(unittest.TestCase):
         self.assertIn("financial-metric-normalization-run", financial_command)
         peer_command = " ".join(sec_report["planned_steps"][3]["command_argv"])
         self.assertIn("peer-relative-analysis-run", peer_command)
+        valuation_command = " ".join(sec_report["planned_steps"][4]["command_argv"])
+        self.assertIn("valuation-snapshot-run", valuation_command)
 
     def test_decision_daily_profile_runs_decision_steps_without_news_or_macro(self) -> None:
         with tempfile.TemporaryDirectory() as repo_root, tempfile.TemporaryDirectory() as outside_root:
