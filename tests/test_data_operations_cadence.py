@@ -61,6 +61,14 @@ class DataOperationsCadenceTests(unittest.TestCase):
         self.assertEqual(recommendation_quality_job["pipeline_name"], "recommendation_quality_eval")
         self.assertEqual(recommendation_quality_job["domain"], "performance")
         self.assertIn("recommendation-quality-eval-run", recommendation_quality_job["command_template"])
+        financial_normalization_job = next(
+            job for job in report["jobs"] if job["job_id"] == "financial-metric-normalization-weekly"
+        )
+        self.assertEqual(financial_normalization_job["pipeline_name"], "financial_metric_normalization")
+        self.assertEqual(financial_normalization_job["domain"], "fundamentals")
+        self.assertEqual(financial_normalization_job["cadence"], "weekly")
+        self.assertIn("financial-metric-normalization-run", financial_normalization_job["command_template"])
+        self.assertEqual(financial_normalization_job["data_health_dataset"], "market.financial_metric_normalized")
         recommendation_outcome_job = next(job for job in report["jobs"] if job["job_id"] == "recommendation-outcome-backfill-daily")
         self.assertEqual(recommendation_outcome_job["pipeline_name"], "performance_outcome_schedule_bootstrap")
         self.assertEqual(recommendation_outcome_job["domain"], "performance")
@@ -88,6 +96,7 @@ class DataOperationsCadenceTests(unittest.TestCase):
         self.assertIn("'news_rss_upsert'", values_sql)
         self.assertIn("'cycle_community_ai_summary'", values_sql)
         self.assertIn("'recommendation_quality_eval'", values_sql)
+        self.assertIn("'financial_metric_normalization'", values_sql)
         self.assertIn("'portfolio_remediation_daily_automation'", values_sql)
         self.assertIn("'performance_outcome_schedule_bootstrap'", values_sql)
         self.assertIn("'stdout_json_and_stderr_log'", values_sql)

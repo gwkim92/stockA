@@ -26,9 +26,21 @@ _FORM_TO_SCOPE = {
 _CONCEPT_TO_METRIC_CODE = {
     "Revenues": "revenue",
     "RevenueFromContractWithCustomerExcludingAssessedTax": "revenue",
+    "GrossProfit": "gross_profit",
     "NetIncomeLoss": "net_income",
     "OperatingIncomeLoss": "operating_income",
     "NetCashProvidedByUsedInOperatingActivities": "operating_cash_flow",
+    "PaymentsToAcquirePropertyPlantAndEquipment": "capital_expenditure",
+    "Assets": "total_assets",
+    "Liabilities": "total_liabilities",
+    "StockholdersEquity": "shareholders_equity",
+    "StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest": "shareholders_equity",
+}
+
+_POINT_IN_TIME_METRIC_CODES = {
+    "total_assets",
+    "total_liabilities",
+    "shareholders_equity",
 }
 
 
@@ -195,7 +207,11 @@ def _normalize_companyfacts_item(
     statement_scope, is_audited = scope
     start_text = payload.get("start")
     end_text = payload.get("end")
-    if not start_text or not end_text:
+    if not end_text:
+        return None
+    if not start_text and metric_code in _POINT_IN_TIME_METRIC_CODES:
+        start_text = end_text
+    if not start_text:
         return None
     fy = payload.get("fy")
     if fy is None:

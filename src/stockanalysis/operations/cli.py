@@ -64,6 +64,7 @@ from stockanalysis.operations.recommendation_quality_eval import (
     parse_horizon_days,
     run_recommendation_quality_eval,
 )
+from stockanalysis.operations.professional_equity_analysis import run_financial_metric_normalization
 from stockanalysis.operations.recommendation_outcome_backfill import (
     DEFAULT_OUTCOME_VERSION as DEFAULT_RECOMMENDATION_OUTCOME_VERSION,
     run_recommendation_outcome_backfill,
@@ -652,6 +653,19 @@ def build_parser() -> argparse.ArgumentParser:
     recommendation_quality_eval.add_argument("--output")
     recommendation_quality_eval.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
     recommendation_quality_eval.set_defaults(handler=_handle_recommendation_quality_eval_run)
+
+    financial_metric_normalization = subparsers.add_parser(
+        "financial-metric-normalization-run",
+        help="Normalize SEC companyfacts into standard financial quality metrics without changing recommendation weights.",
+    )
+    financial_metric_normalization.add_argument("--env-file")
+    financial_metric_normalization.add_argument("--as-of-date", required=True)
+    financial_metric_normalization.add_argument("--limit", type=int)
+    financial_metric_normalization.add_argument("--execute", action="store_true")
+    financial_metric_normalization.add_argument("--dry-run", action="store_true")
+    financial_metric_normalization.add_argument("--output")
+    financial_metric_normalization.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
+    financial_metric_normalization.set_defaults(handler=_handle_financial_metric_normalization_run)
 
     paper_validation_audit = subparsers.add_parser(
         "paper-validation-audit-run",
@@ -1442,6 +1456,31 @@ def _handle_recommendation_quality_eval_run(args: argparse.Namespace, *, stdout:
         output_path = resolve_output_path(
             args.output,
             label="recommendation quality eval output",
+            repo_root=args.repo_root,
+            require_repo_outside=True,
+        )
+        write_json_report(report, output_path=output_path, stdout=stdout)
+    else:
+        print_json(report, stdout=stdout, sort_keys=False)
+    return 0
+
+
+def _handle_financial_metric_normalization_run(args: argparse.Namespace, *, stdout: TextIO) -> int:
+    if bool(args.execute) and bool(args.dry_run):
+        raise ValueError("--execute and --dry-run cannot be used together.")
+    env_mapping = _load_optional_env_mapping(args.env_file, repo_root=args.repo_root)
+    as_of_date = date.fromisoformat(args.as_of_date)
+    with _temporary_environ(env_mapping):
+        report = run_financial_metric_normalization(
+            config=RuntimeConfig.from_env(),
+            as_of_date=as_of_date,
+            limit=args.limit,
+            execute=bool(args.execute) and not bool(args.dry_run),
+        )
+    if args.output:
+        output_path = resolve_output_path(
+            args.output,
+            label="financial metric normalization output",
             repo_root=args.repo_root,
             require_repo_outside=True,
         )
