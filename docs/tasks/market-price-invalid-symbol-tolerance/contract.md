@@ -49,8 +49,8 @@
 
 ## Done Criteria
 
-- [ ] `market-price-free-backfill-run`은 기본적으로 symbol failure가 있으면 기존처럼 non-zero exit를 유지한다.
-- [ ] `market-price-free-backfill-run --allow-symbol-failures`는 실패 symbol이 있어도 exit 0을 반환하고 JSON에는 실패 count/results를 보존한다.
-- [ ] `market-price-daily-run`은 기본 실패 감지를 유지한다.
-- [ ] `decision-daily`의 `missing-symbol-price-backfill` command에는 `--allow-symbol-failures`가 포함된다.
-- [ ] EC2에서 `decision-daily --as-of-date 2026-05-25 --execute`가 invalid symbol 한 건 때문에 첫 단계에서 멈추지 않는다.
+- [x] `market-price-free-backfill-run`은 기본적으로 symbol failure가 있으면 기존처럼 non-zero exit를 유지한다.
+- [x] `market-price-free-backfill-run --allow-symbol-failures`는 실패 symbol이 있어도 exit 0을 반환하고 JSON에는 실패 count/results를 보존한다.
+- [x] `market-price-daily-run`은 기본 실패 감지를 유지한다.
+- [x] `decision-daily`의 `missing-symbol-price-backfill` command에는 `--allow-symbol-failures`가 포함된다.
+- [x] EC2에서 `decision-daily --as-of-date 2026-05-25 --execute`가 invalid symbol 한 건 때문에 첫 단계에서 멈추지 않는다.
