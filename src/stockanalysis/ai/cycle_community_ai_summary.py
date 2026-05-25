@@ -165,7 +165,14 @@ def build_codex_oauth_cycle_community_ai_output_schema() -> dict[str, object]:
             },
             "usage": {
                 "type": "object",
-                "additionalProperties": True,
+                "additionalProperties": False,
+                "properties": {
+                    "input_tokens": {"type": ["integer", "null"]},
+                    "output_tokens": {"type": ["integer", "null"]},
+                    "cached_input_tokens": {"type": ["integer", "null"]},
+                    "estimated_cost_usd": {"type": ["number", "null"]},
+                    "latency_ms": {"type": ["integer", "null"]},
+                },
             },
         },
     }
@@ -1033,7 +1040,9 @@ def _bool_env(name: str, *, default: bool) -> bool:
 
 
 def _diagnostic_excerpt(text: str, limit: int) -> str:
-    normalized = " ".join(str(text).split())
-    if len(normalized) <= limit:
-        return normalized
-    return normalized[: max(0, limit - 3)] + "..."
+    stripped = str(text).strip()
+    if len(stripped) <= limit:
+        return stripped
+    marker = "...<truncated; showing diagnostic tail>\n"
+    tail_length = max(0, limit - len(marker))
+    return marker + stripped[-tail_length:].lstrip()

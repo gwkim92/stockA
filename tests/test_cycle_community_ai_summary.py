@@ -63,6 +63,8 @@ class CycleCommunityAiSummaryTests(unittest.TestCase):
         self.assertIn("Do not browse", prompt)
         self.assertIn("watchlist_symbols", summary_schema["required"])
         self.assertIn("supporting_events", summary_schema["properties"])
+        self.assertFalse(schema["properties"]["usage"]["additionalProperties"])
+        self.assertIn("input_tokens", schema["properties"]["usage"]["properties"])
 
     def test_parse_filters_ungrounded_symbols_and_events(self) -> None:
         response = parse_cycle_community_ai_response_payload(
