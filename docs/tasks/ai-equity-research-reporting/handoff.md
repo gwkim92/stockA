@@ -2,7 +2,7 @@
 
 ## Current Status
 
-- 진행 중: backend runner, CLI, cadence, decision-daily profile, and local verification are implemented. EC2 fixture smoke remains.
+- 완료: backend runner, CLI, cadence, decision-daily profile, local verification, GitHub push, EC2 fixture execution, DB sample, and data-health visibility are implemented.
 
 ## Implementation Notes
 
@@ -27,8 +27,21 @@
 - Passed: `PYTHONPATH=src /opt/homebrew/bin/python3.13 -m compileall -q src tests`
 - Passed: `git diff --check`
 - Passed: `PYTHONPATH=/Users/woody/ai/agent-work-harness/src /opt/homebrew/bin/python3.13 -m awh verify --repo . --task ai-equity-research-reporting`
-- Pending: EC2 fixture smoke.
+- Passed on EC2: code fast-forwarded through `c6b2cc3`.
+- Passed on EC2: `equity-research-reporting-run --as-of-date 2026-05-25 --symbol NVDA --limit 1 --provider fixture --execute`.
+  - run_id `761`
+  - inserted_artifact_count `1`
+  - failed_artifact_count `0`
+  - provider `fixture`
+- Passed on EC2 DB sample:
+  - latest artifact id `1`
+  - title `NVDA 기업 리서치 요약`
+  - key_points count `5`
+  - risks count `3`
+  - source_run_id `761`
+- Passed on EC2 API/data-health after service restart:
+  - `equity_research_reporting` job_id `equity-research-reporting-daily`, latest run `pipeline-run-761`, `health_status=ok`.
 
 ## Exact Next Step
 
-- exact next step: commit/push the local implementation, deploy it to EC2, run `equity-research-reporting-run --provider fixture --execute` against the live DB, and verify `research.equity_research_artifact` plus data-health visibility.
+- exact next step: add frontend/API visibility for `research.equity_research_artifact` on stock detail or recommendation detail, then run a small Codex OAuth real-provider smoke only if the user wants real LLM artifact generation now.
