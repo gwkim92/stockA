@@ -10,6 +10,7 @@
 - API 필드: `/api/theses/{id}` payload의 `lifecycle`.
 - SQL 입력: `signal.investment_thesis`, 최신 `signal.thesis_review`, 최신 `research.equity_research_artifact`.
 - 화면 섹션: `투자 논리 생애주기`.
+- Thesis 근거 카드의 뉴스 제목은 `ingest.source_document.korean_title`이 있으면 한국어 번역 제목을 우선 사용한다.
 - 핵심 질문:
   - 왜 사는가
   - 무엇이 맞아야 하는가

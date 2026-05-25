@@ -5829,10 +5829,14 @@ event_evidence as (
     select
         event_row.event_id::text as evidence_id,
         event_row.event_type as evidence_type,
-        event_row.title
+        coalesce(source_document.korean_title, event_row.title) as title
     from selected_thesis thesis
     join event.event_instrument_impact instrument_impact on instrument_impact.instrument_id = thesis.instrument_id
     join event.event event_row on event_row.event_id = instrument_impact.event_id
+    left join event.event_document_link document_link
+      on document_link.event_id = event_row.event_id
+     and document_link.link_type = 'source'
+    left join ingest.source_document source_document on source_document.document_id = document_link.document_id
     left join event.event_classification_impact classification_impact
       on classification_impact.event_id = event_row.event_id
      and classification_impact.node_id = thesis.primary_node_id

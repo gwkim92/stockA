@@ -3287,6 +3287,7 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertIn("'equity_research'", thesis_sql)
         self.assertIn("artifact.catalysts_json", thesis_sql)
         self.assertIn("artifact.valuation_sensitivity_json", thesis_sql)
+        self.assertIn("source_document.korean_title", thesis_sql)
         self.assertIn("투자 논리는 주문이 아니라 추천, 사이클, 가격 근거", thesis_sql)
         self.assertIn("event.event_document_link", ai_evidence_sql)
         self.assertIn("output_json #>> '{event,title}'", ai_evidence_sql)
