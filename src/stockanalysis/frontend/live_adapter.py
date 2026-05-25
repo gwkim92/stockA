@@ -3438,7 +3438,7 @@ preview_rows as (
         instrument.instrument_id,
         instrument.primary_symbol,
         recommendation.recommendation_id,
-        recommendation.thesis_id,
+        coalesce(recommendation.thesis_id, position.linked_thesis_id) as thesis_id,
         recommendation.action as recommendation_action,
         recommendation.total_score,
         recommendation.as_of_date as recommendation_as_of_date,
@@ -3463,7 +3463,7 @@ classified_rows as (
     select
         *,
         case
-            when recommendation_id is null and current_weight > 0 then 'paper_review_no_recommendation'
+            when recommendation_id is null and current_weight > 0 and thesis_id is null then 'paper_review_no_recommendation'
             when recommendation_action in ('exclude', 'exit', 'sell', 'avoid') and current_weight > 0 then 'paper_sell_to_zero'
             when target_weight > current_weight + 0.0001 and current_weight = 0 then 'paper_buy_to_target'
             when target_weight > current_weight + 0.0001 then 'paper_increase_to_target'
@@ -3471,20 +3471,22 @@ classified_rows as (
             else 'paper_hold'
         end as paper_action,
         case
-            when recommendation_id is null and current_weight > 0 then true
+            when recommendation_id is null and current_weight > 0 and thesis_id is null then true
             when recommendation_action in ('exclude', 'exit', 'sell', 'avoid') and current_weight > 0 then true
             else false
         end as conflict,
         case
-            when recommendation_id is null and current_weight > 0 then 'high'
+            when recommendation_id is null and current_weight > 0 and thesis_id is null then 'high'
             when recommendation_action in ('exclude', 'exit', 'sell', 'avoid') and current_weight > 0 then 'high'
             when target_weight <> current_weight then 'medium'
             else 'low'
         end as risk_level,
         true as requires_human_approval,
         case
-            when recommendation_id is null and current_weight > 0
+            when recommendation_id is null and current_weight > 0 and thesis_id is null
                 then '보유 중이지만 최신 추천이 없다. 실제 주문 없이 AI 자동 검토 후보로 표시한다.'
+            when recommendation_id is null and current_weight > 0 and thesis_id is not null
+                then '보유 thesis가 살아 있어 최신 추천 row가 없어도 보유 커버리지는 유지된다. 실제 주문은 만들지 않는다.'
             when recommendation_action in ('exclude', 'exit', 'sell', 'avoid') and current_weight > 0
                 then '추천은 제외/매도인데 현재 보유 중이다. 실제 주문 없이 가상 매도 후보로 표시한다.'
             when target_weight > current_weight + 0.0001 and current_weight = 0
