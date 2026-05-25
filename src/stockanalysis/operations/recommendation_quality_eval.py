@@ -27,6 +27,13 @@ PROTECTED_CYCLE_STACK_COMPONENTS = (
     "instrument_cycle_score",
     "cycle_conflict_penalty",
 )
+PROTECTED_FUNDAMENTAL_COMPONENTS = (
+    "fundamental_quality_score",
+    "valuation_margin_score",
+    "peer_relative_score",
+    "balance_sheet_risk_penalty",
+    "thesis_consistency_score",
+)
 POSITIVE_OUTCOME_LABELS = ("positive", "outperform")
 
 
@@ -53,6 +60,7 @@ def render_recommendation_quality_eval_sql(*, as_of_date: date, horizon_days: in
     target_date = sql_date(as_of_date)
     positive_labels = ", ".join(sql_literal(label) for label in POSITIVE_OUTCOME_LABELS)
     protected_cycle_components = ", ".join(sql_literal(name) for name in PROTECTED_CYCLE_STACK_COMPONENTS)
+    protected_fundamental_components = ", ".join(sql_literal(name) for name in PROTECTED_FUNDAMENTAL_COMPONENTS)
     return f"""-- recommendation quality eval lookup
 with recommendation_window as (
     select
@@ -164,6 +172,14 @@ cycle_guardrail as (
         count(distinct component_name)::integer as observed_cycle_component_count
     from component_rows
     where component_name in ({protected_cycle_components})
+),
+fundamental_guardrail as (
+    select
+        count(*)::integer as fundamental_component_row_count,
+        count(*) filter (where coalesce(component_weight, 0) = 0)::integer as zero_weight_fundamental_component_row_count,
+        count(distinct component_name)::integer as observed_fundamental_component_count
+    from component_rows
+    where component_name in ({protected_fundamental_components})
 )
 select json_build_object(
     'as_of_date', {sql_literal(as_of_date.isoformat())},
@@ -171,6 +187,7 @@ select json_build_object(
     'summary', (select row_to_json(summary) from summary),
     'component_metrics', coalesce((select json_agg(row_to_json(component_metrics) order by component_name) from component_metrics), '[]'::json),
     'cycle_weight_guardrail', (select row_to_json(cycle_guardrail) from cycle_guardrail),
+    'fundamental_weight_guardrail', (select row_to_json(fundamental_guardrail) from fundamental_guardrail),
     'paper_validation',
         coalesce((select row_to_json(latest_paper_validation) from latest_paper_validation), '{{}}'::json),
     'outcome_label_counts',
@@ -243,13 +260,20 @@ def score_recommendation_quality_eval_payload(
     summary = _as_dict(payload.get("summary"))
     component_metrics = _as_list(payload.get("component_metrics"))
     guardrail = _as_dict(payload.get("cycle_weight_guardrail"))
+    fundamental_guardrail = _as_dict(payload.get("fundamental_weight_guardrail"))
     paper_validation = _as_dict(payload.get("paper_validation"))
     recommendation_count = _int(summary.get("recommendation_count"))
     outcome_count = _int(summary.get("outcome_count"))
     positive_count = _int(summary.get("positive_outcome_count"))
     cycle_row_count = _int(guardrail.get("cycle_component_row_count"))
     zero_weight_cycle_count = _int(guardrail.get("zero_weight_cycle_component_row_count"))
+    fundamental_row_count = _int(fundamental_guardrail.get("fundamental_component_row_count"))
+    zero_weight_fundamental_count = _int(
+        fundamental_guardrail.get("zero_weight_fundamental_component_row_count")
+    )
     cycle_weight_unchanged = cycle_row_count == zero_weight_cycle_count
+    fundamental_weight_unchanged = fundamental_row_count == zero_weight_fundamental_count
+    protected_weight_unchanged = cycle_weight_unchanged and fundamental_weight_unchanged
     outcome_coverage_rate = _ratio(outcome_count, recommendation_count)
     positive_outcome_rate = _ratio(positive_count, outcome_count)
     sample_status = "sufficient_sample" if outcome_count >= min_sample_size else "insufficient_sample"
@@ -259,7 +283,11 @@ def score_recommendation_quality_eval_payload(
         key=lambda item: (item["sample_status"] == "sufficient_sample", abs(float(item["positive_score_spread"] or 0))),
         reverse=True,
     )
-    quality_status = "ready_for_weight_review" if sample_status == "sufficient_sample" and cycle_weight_unchanged else "needs_more_data"
+    quality_status = (
+        "ready_for_weight_review"
+        if sample_status == "sufficient_sample" and protected_weight_unchanged
+        else "needs_more_data"
+    )
     return {
         "eval_name": DEFAULT_EVAL_NAME,
         "dataset_version": DEFAULT_DATASET_VERSION,
@@ -284,6 +312,15 @@ def score_recommendation_quality_eval_payload(
             "observed_cycle_component_count": _int(guardrail.get("observed_cycle_component_count")),
             "recommendation_scoring_mutated": False,
         },
+        "fundamental_weight_guardrail": {
+            "fundamental_component_row_count": fundamental_row_count,
+            "zero_weight_fundamental_component_row_count": zero_weight_fundamental_count,
+            "fundamental_weight_unchanged": fundamental_weight_unchanged,
+            "observed_fundamental_component_count": _int(
+                fundamental_guardrail.get("observed_fundamental_component_count")
+            ),
+            "recommendation_scoring_mutated": False,
+        },
         "paper_validation": {
             "latest_status": paper_validation.get("status"),
             "validation_date": paper_validation.get("validation_date"),
@@ -293,7 +330,11 @@ def score_recommendation_quality_eval_payload(
         },
         "component_metrics": component_scores,
         "strongest_component_candidates": strongest_components[:5],
-        "next_action": _next_action(sample_status=sample_status, cycle_weight_unchanged=cycle_weight_unchanged),
+        "next_action": _next_action(
+            sample_status=sample_status,
+            cycle_weight_unchanged=cycle_weight_unchanged,
+            fundamental_weight_unchanged=fundamental_weight_unchanged,
+        ),
     }
 
 
@@ -377,9 +418,16 @@ def _component_score(item: dict[str, object]) -> dict[str, object]:
     }
 
 
-def _next_action(*, sample_status: str, cycle_weight_unchanged: bool) -> str:
+def _next_action(
+    *,
+    sample_status: str,
+    cycle_weight_unchanged: bool,
+    fundamental_weight_unchanged: bool,
+) -> str:
     if not cycle_weight_unchanged:
         return "추천 cycle component weight가 이미 0이 아니다. 산식 변경 이력을 먼저 확인해야 한다."
+    if not fundamental_weight_unchanged:
+        return "추천 fundamental/valuation/peer component weight가 이미 0이 아니다. outcome 표본과 승인 이력 없이 산식에 반영됐는지 먼저 확인해야 한다."
     if sample_status != "sufficient_sample":
         return "outcome 표본이 부족하다. 추천 산식 weight를 변경하지 말고 performance outcome을 더 쌓아야 한다."
     return "표본은 충분하다. component별 spread를 사람이 검토한 뒤 별도 weight 변경 task를 열 수 있다."

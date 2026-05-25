@@ -55,6 +55,10 @@ class RecommendationQualityEvalTests(unittest.TestCase):
         self.assertIn("trading.paper_validation_run", sql)
         self.assertIn("'macro_regime_score'", sql)
         self.assertIn("'cycle_conflict_penalty'", sql)
+        self.assertIn("'fundamental_quality_score'", sql)
+        self.assertIn("'valuation_margin_score'", sql)
+        self.assertIn("'peer_relative_score'", sql)
+        self.assertIn("fundamental_guardrail as", sql)
         self.assertNotIn("'macro_flow_score'", sql)
         self.assertNotIn("insert into", lowered)
         self.assertNotIn("update ", lowered)
@@ -69,9 +73,25 @@ class RecommendationQualityEvalTests(unittest.TestCase):
         self.assertEqual(score["outcome_count"], 2)
         self.assertEqual(score["outcome_coverage_rate"], 0.666667)
         self.assertTrue(score["cycle_weight_guardrail"]["cycle_weight_unchanged"])
+        self.assertTrue(score["fundamental_weight_guardrail"]["fundamental_weight_unchanged"])
         self.assertFalse(score["cycle_weight_guardrail"]["recommendation_scoring_mutated"])
+        self.assertFalse(score["fundamental_weight_guardrail"]["recommendation_scoring_mutated"])
         self.assertEqual(score["paper_validation"]["latest_status"], "passed")
         self.assertEqual(score["component_metrics"][0]["component_name"], "cycle_score")
+
+    def test_score_payload_blocks_weight_review_when_fundamental_weight_changed(self) -> None:
+        payload = _payload()
+        payload["fundamental_weight_guardrail"] = {
+            "fundamental_component_row_count": 5,
+            "zero_weight_fundamental_component_row_count": 4,
+            "observed_fundamental_component_count": 5,
+        }
+
+        score = score_recommendation_quality_eval_payload(payload, min_sample_size=2)
+
+        self.assertEqual(score["quality_status"], "needs_more_data")
+        self.assertFalse(score["fundamental_weight_guardrail"]["fundamental_weight_unchanged"])
+        self.assertIn("fundamental/valuation/peer component weight", score["next_action"])
 
     def test_score_payload_keeps_weight_change_blocked_when_sample_is_small(self) -> None:
         score = score_recommendation_quality_eval_payload(_payload(), min_sample_size=10)
@@ -170,6 +190,11 @@ def _payload() -> dict[str, object]:
             "cycle_component_row_count": 6,
             "zero_weight_cycle_component_row_count": 6,
             "observed_cycle_component_count": 2,
+        },
+        "fundamental_weight_guardrail": {
+            "fundamental_component_row_count": 10,
+            "zero_weight_fundamental_component_row_count": 10,
+            "observed_fundamental_component_count": 5,
         },
         "paper_validation": {
             "paper_validation_run_id": 7,
