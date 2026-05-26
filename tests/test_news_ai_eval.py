@@ -71,6 +71,7 @@ class NewsAiEvalTests(unittest.TestCase):
         self.assertIn("'news_ai_extraction_quality'", sql)
         self.assertIn("'news-ai-eval-v1'", sql)
         self.assertIn("'fixture-model'", sql)
+        self.assertEqual(sql.count("'fixture-model'"), 1)
 
     def test_run_news_ai_eval_execute_stores_eval_run(self) -> None:
         executor = FakeEvalWriteExecutor()

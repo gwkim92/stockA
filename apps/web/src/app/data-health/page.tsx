@@ -14,6 +14,7 @@ type ProfileSchedulerStatus = NonNullable<DataHealthData["scheduler"]["profile_s
 type ManualIngestSmoke = DataHealthData["manual_local_ingest_smoke"];
 type LocalIngestWorker = DataHealthData["local_ingest_worker"];
 type CycleAiQualityAudit = DataHealthData["cycle_ai_quality_audit"];
+type NewsAiEvalQuality = DataHealthData["news_ai_eval_quality"];
 type BenchmarkDriftQuality = DataHealthData["benchmark_drift_quality"];
 type PortfolioReviewDecisionHistory = DataHealthData["portfolio_review_decision_history"];
 type PortfolioReviewDecisionFeedback = DataHealthData["portfolio_review_decision_feedback"];
@@ -353,6 +354,42 @@ function qualityAuditTone(audit: CycleAiQualityAudit) {
 function qualityMetric(audit: CycleAiQualityAudit, key: string) {
   const value = audit.metrics[key] ?? audit.checks[key] ?? 0;
   return typeof value === "number" ? value : Number(value || 0);
+}
+
+function newsAiEvalTitle(evalQuality: NewsAiEvalQuality) {
+  if (evalQuality.status === "passed" || evalQuality.overall_pass) {
+    return "AI 회귀평가 통과";
+  }
+  if (evalQuality.status === "failed_regression") {
+    return "AI 회귀평가 실패";
+  }
+  if (evalQuality.status === "missing") {
+    return "AI 회귀평가 없음";
+  }
+  return koCode(evalQuality.status);
+}
+
+function newsAiEvalExplanation(evalQuality: NewsAiEvalQuality) {
+  if (evalQuality.status === "passed" || evalQuality.overall_pass) {
+    return "기준 정답 뉴스 세트에서 테마 분류, 직접 종목 근거, 거시 뉴스 종목 오부착, 양자→에너지 오분류, 한국어 번역 기준을 통과했다.";
+  }
+  if (evalQuality.status === "failed_regression") {
+    return "AI 구조화나 validator가 기준 세트에서 실패했다. 이 상태에서는 새 AI 근거를 추천 입력으로 신뢰하기 전에 실패 case를 먼저 확인해야 한다.";
+  }
+  if (evalQuality.status === "missing") {
+    return "최근 fixture/gold 회귀평가가 저장되지 않았다. 뉴스 AI 분석이 좋아 보이더라도 기준 세트 통과 여부를 아직 증명하지 못했다.";
+  }
+  return "뉴스 AI 평가 artifact의 상태와 실패 case를 확인해야 한다.";
+}
+
+function newsAiEvalTone(evalQuality: NewsAiEvalQuality) {
+  if (evalQuality.status === "passed" || evalQuality.overall_pass) {
+    return "risk-low";
+  }
+  if (evalQuality.status === "missing") {
+    return "risk-medium";
+  }
+  return "risk-high";
 }
 
 function formatPercent(value: number | null | undefined) {
@@ -729,6 +766,31 @@ const DEFAULT_CYCLE_AI_QUALITY_AUDIT: CycleAiQualityAudit = {
   samples: {},
   next_actions: ["cycle-ai-quality-audit-run 실행 결과를 연결한다."],
   source: "not_configured",
+};
+
+const DEFAULT_NEWS_AI_EVAL_QUALITY: NewsAiEvalQuality = {
+  status: "missing",
+  eval_run_id: "eval-run-unknown",
+  created_at: "",
+  eval_name: "news_ai_extraction_quality",
+  dataset_version: "news-ai-eval-v1",
+  provider: "fixture",
+  model_name: "news-ai-eval-fixture-v1",
+  overall_pass: false,
+  case_count: 0,
+  passed_case_count: 0,
+  failed_case_count: 0,
+  theme_precision: 0,
+  direct_ticker_grounding_precision: 0,
+  macro_only_false_ticker_rate: 0,
+  macro_only_false_ticker_count: 0,
+  quantum_energy_misclassification_count: 0,
+  blocked_candidate_correctness: 0,
+  korean_translation_availability: 0,
+  metrics: {},
+  pass_thresholds: {},
+  case_results: [],
+  next_action: "news-ai-eval-run --provider fixture --execute를 실행해 기준 정답 뉴스 세트 회귀평가를 저장한다.",
 };
 
 const DEFAULT_BENCHMARK_DRIFT_QUALITY: BenchmarkDriftQuality = {
@@ -1184,6 +1246,7 @@ export default async function DataHealthPage() {
   const manualSmoke = data.manual_local_ingest_smoke ?? DEFAULT_MANUAL_SMOKE;
   const localWorker = data.local_ingest_worker ?? DEFAULT_LOCAL_WORKER;
   const qualityAudit = data.cycle_ai_quality_audit ?? DEFAULT_CYCLE_AI_QUALITY_AUDIT;
+  const newsAiEvalQuality = data.news_ai_eval_quality ?? DEFAULT_NEWS_AI_EVAL_QUALITY;
   const benchmarkDriftQuality = data.benchmark_drift_quality ?? DEFAULT_BENCHMARK_DRIFT_QUALITY;
   const portfolioReviewHistory =
     data.portfolio_review_decision_history ?? DEFAULT_PORTFOLIO_REVIEW_DECISION_HISTORY;
@@ -1268,6 +1331,14 @@ export default async function DataHealthPage() {
       href: "#quality-audit",
       cta: "오염 점검 보기",
       tone: qualityAuditTone(qualityAudit),
+    },
+    {
+      label: "AI 회귀평가",
+      title: newsAiEvalTitle(newsAiEvalQuality),
+      body: newsAiEvalExplanation(newsAiEvalQuality),
+      href: "#news-ai-eval-quality",
+      cta: "평가 case 보기",
+      tone: newsAiEvalTone(newsAiEvalQuality),
     },
     {
       label: "벤치마크 drift",
@@ -1677,6 +1748,119 @@ export default async function DataHealthPage() {
         <div className="empty-state">
           <strong>다음 조치</strong>
           <p>{qualityAudit.next_actions[0] ? koCode(qualityAudit.next_actions[0]) : "현재 추가 조치 없음"}</p>
+        </div>
+      </section>
+
+      <section
+        className="feature-map-panel reveal delay-1"
+        id="news-ai-eval-quality"
+        aria-labelledby="news-ai-eval-quality-title"
+      >
+        <div className="section-heading stacked-heading">
+          <span>뉴스 AI 회귀평가</span>
+          <h2 id="news-ai-eval-quality-title">
+            AI가 뉴스에서 테마와 종목을 잘못 뽑기 시작했는지 기준 세트로 확인한다.
+          </h2>
+        </div>
+        <p className="board-intro">{newsAiEvalExplanation(newsAiEvalQuality)}</p>
+        <div className="status-rail compact-rail">
+          <article className="rail-cell">
+            <span>평가 결과</span>
+            <strong className={`risk-tag ${newsAiEvalTone(newsAiEvalQuality)}`}>
+              {newsAiEvalTitle(newsAiEvalQuality)}
+            </strong>
+            <small>{newsAiEvalQuality.created_at || "최근 결과 없음"}</small>
+          </article>
+          <article className="rail-cell">
+            <span>통과 항목</span>
+            <strong>
+              {newsAiEvalQuality.passed_case_count}/{newsAiEvalQuality.case_count}
+            </strong>
+            <small>{executionIdLabel(newsAiEvalQuality.eval_run_id)}</small>
+          </article>
+          <article className="rail-cell">
+            <span>테마 정밀도</span>
+            <strong>{formatPercent(newsAiEvalQuality.theme_precision)}</strong>
+            <small>금리·양자·에너지 등</small>
+          </article>
+          <article className="rail-cell">
+            <span>종목 근거 정밀도</span>
+            <strong>{formatPercent(newsAiEvalQuality.direct_ticker_grounding_precision)}</strong>
+            <small>원문 없는 ticker 차단</small>
+          </article>
+          <article className="rail-cell">
+            <span>한국어 준비</span>
+            <strong>{formatPercent(newsAiEvalQuality.korean_translation_availability)}</strong>
+            <small>title/summary 기준</small>
+          </article>
+        </div>
+        <div className="insight-grid">
+          <article className="insight-card">
+            <span>거시 뉴스 종목 오부착</span>
+            <strong>{newsAiEvalQuality.macro_only_false_ticker_count}</strong>
+            <p>금리·물가 같은 상위 흐름 뉴스를 억지로 개별 종목에 붙이면 추천 근거가 오염된다.</p>
+          </article>
+          <article className="insight-card">
+            <span>양자→에너지 오분류</span>
+            <strong>{newsAiEvalQuality.quantum_energy_misclassification_count}</strong>
+            <p>양자컴퓨팅 정책 뉴스가 XOM/XLE 또는 에너지 테마로 잘못 흐르는지 확인한다.</p>
+          </article>
+          <article className="insight-card">
+            <span>차단 후보 정확도</span>
+            <strong>{formatPercent(newsAiEvalQuality.blocked_candidate_correctness)}</strong>
+            <p>validator가 낮은 confidence, 원문 근거 없는 ticker, unknown theme를 제대로 막는지 본다.</p>
+          </article>
+          <article className="insight-card">
+            <span>평가 방식</span>
+            <strong>{koCode(newsAiEvalQuality.provider)}</strong>
+            <p>기본 평가는 무료 기준 정답 뉴스 세트로 돈다. 실시간 유료 LLM 호출이 아니라 회귀 검증이다.</p>
+          </article>
+        </div>
+        <div className="simple-table-wrap">
+          <table className="simple-table">
+            <thead>
+              <tr>
+                <th>평가 항목</th>
+                <th>결과</th>
+                <th>테마</th>
+                <th>직접 종목</th>
+                <th>차단/오류</th>
+              </tr>
+            </thead>
+            <tbody>
+              {newsAiEvalQuality.case_results.slice(0, 6).map((item) => (
+                <tr key={item.case_id}>
+                  <td>
+                    <strong>{koCode(item.case_id)}</strong>
+                    <small>{koCode(item.category)}</small>
+                  </td>
+                  <td>{item.passed ? "통과" : "실패"}</td>
+                  <td>{item.accepted_theme_codes.map(koCode).join(" · ") || "없음"}</td>
+                  <td>{item.accepted_direct_symbols.join(" · ") || "없음"}</td>
+                  <td>
+                    {[
+                      ...item.missing_theme_codes,
+                      ...item.missing_direct_symbols,
+                      ...item.forbidden_theme_hits,
+                      ...item.forbidden_symbol_hits,
+                      ...item.blocked_symbols_accepted,
+                    ]
+                      .map(koCode)
+                      .join(" · ") || "없음"}
+                  </td>
+                </tr>
+              ))}
+              {newsAiEvalQuality.case_results.length === 0 ? (
+                <tr>
+                  <td colSpan={5}>저장된 평가 case가 없다.</td>
+                </tr>
+              ) : null}
+            </tbody>
+          </table>
+        </div>
+        <div className="empty-state">
+          <strong>다음 조치</strong>
+          <p>{koCode(newsAiEvalQuality.next_action)}</p>
         </div>
       </section>
 

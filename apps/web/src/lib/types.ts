@@ -223,6 +223,43 @@ export type DataHealthData = {
     next_actions: string[];
     source: string;
   };
+  news_ai_eval_quality: {
+    status: string;
+    eval_run_id: string;
+    created_at: string;
+    eval_name: string;
+    dataset_version: string;
+    provider: string;
+    model_name: string;
+    overall_pass: boolean;
+    case_count: number;
+    passed_case_count: number;
+    failed_case_count: number;
+    theme_precision: number;
+    direct_ticker_grounding_precision: number;
+    macro_only_false_ticker_rate: number;
+    macro_only_false_ticker_count: number;
+    quantum_energy_misclassification_count: number;
+    blocked_candidate_correctness: number;
+    korean_translation_availability: number;
+    metrics: Record<string, number | string | boolean | null>;
+    pass_thresholds: Record<string, number | string | boolean | null>;
+    case_results: Array<{
+      case_id: string;
+      category: string;
+      passed: boolean;
+      accepted_theme_codes: string[];
+      accepted_direct_symbols: string[];
+      missing_theme_codes: string[];
+      missing_direct_symbols: string[];
+      forbidden_theme_hits: string[];
+      forbidden_symbol_hits: string[];
+      blocked_symbols_accepted: string[];
+      rejected_impact_count: number;
+      translation_available: boolean;
+    }>;
+    next_action: string;
+  };
   benchmark_drift_quality: {
     status: string;
     guardrail_status: string;

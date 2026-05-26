@@ -318,6 +318,18 @@ DATA_OPERATION_CADENCES: tuple[DataOperationCadence, ...] = (
         data_health_dataset="ai.extraction_artifact",
     ),
     DataOperationCadence(
+        job_id="news-ai-eval-intraday",
+        pipeline_name="news_ai_extraction_quality",
+        domain="ai",
+        cadence="intraday",
+        command_template="stockanalysis-operations news-ai-eval-run --env-file <ENV> --provider fixture --execute",
+        expected_after_local="09:12",
+        stale_after_hours=4,
+        artifact_policy="stdout_json_stderr_log_and_eval_run_id",
+        required_env_groups=("database",),
+        data_health_dataset="ai.eval_run",
+    ),
+    DataOperationCadence(
         job_id="cycle-recommendation-weekly",
         pipeline_name="cycle_state_snapshot",
         domain="signal",

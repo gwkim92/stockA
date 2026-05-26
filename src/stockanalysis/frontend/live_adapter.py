@@ -543,6 +543,9 @@ def build_live_data_health_response(
         env=os.environ,
         repo_root=DEFAULT_REPO_ROOT,
     )
+    news_ai_eval_quality = _build_news_ai_eval_quality_payload(
+        _as_dict(state.get("news_ai_eval_quality"))
+    )
     benchmark_drift_quality = _build_benchmark_drift_quality_payload(
         _as_dict(state.get("portfolio_risk_budget_guardrail"))
     )
@@ -582,6 +585,10 @@ def build_live_data_health_response(
             open_gates.append(gate)
     if cycle_ai_quality_audit["status"] in {"attention_required", "not_ready", "invalid_report", "missing_report"}:
         gate = "cycle_ai_quality_audit_attention"
+        if gate not in open_gates:
+            open_gates.append(gate)
+    if news_ai_eval_quality["status"] in {"missing", "failed_regression", "not_ready"}:
+        gate = "news_ai_eval_quality_attention"
         if gate not in open_gates:
             open_gates.append(gate)
     if benchmark_drift_quality["status"] != "ok":
@@ -662,6 +669,7 @@ def build_live_data_health_response(
             "manual_local_ingest_smoke": manual_local_ingest_smoke,
             "local_ingest_worker": local_ingest_worker,
             "cycle_ai_quality_audit": cycle_ai_quality_audit,
+            "news_ai_eval_quality": news_ai_eval_quality,
             "benchmark_drift_quality": benchmark_drift_quality,
             "portfolio_review_decision_history": portfolio_review_decision_history,
             "portfolio_review_decision_feedback": portfolio_review_decision_feedback,
@@ -3981,6 +3989,16 @@ selected_risk_budget_guardrail as (
         eval_run.eval_run_id desc
     limit 1
 ),
+selected_news_ai_eval_quality as (
+    select eval_run.*
+    from ai.eval_run eval_run
+    where eval_run.eval_name = 'news_ai_extraction_quality'
+      and eval_run.dataset_version = 'news-ai-eval-v1'
+    order by
+        eval_run.created_at desc,
+        eval_run.eval_run_id desc
+    limit 1
+),
 selected_portfolio_review_decision_history as (
     select eval_run.*
     from ai.eval_run eval_run
@@ -4567,6 +4585,73 @@ select json_build_object(
             'dataset', 'portfolio.position_snapshot',
             'status', case when (select latest_observation_date from latest_position_snapshot) is null then 'missing' else 'observed' end,
             'latest_observation_date', (select latest_observation_date from latest_position_snapshot)
+        )
+    ),
+    'news_ai_eval_quality',
+    coalesce(
+        (
+            select json_build_object(
+                'status',
+                    case
+                        when coalesce((score_json->>'overall_pass')::boolean, false) then 'passed'
+                        else 'failed_regression'
+                    end,
+                'eval_run_id', eval_run_id,
+                'created_at', created_at,
+                'eval_name', eval_name,
+                'dataset_version', dataset_version,
+                'provider', provider,
+                'model_name', model_name,
+                'overall_pass', coalesce((score_json->>'overall_pass')::boolean, false),
+                'metrics', coalesce(score_json->'metrics', '{{}}'::jsonb),
+                'pass_thresholds', coalesce(score_json->'pass_thresholds', '{{}}'::jsonb),
+                'case_results', coalesce(score_json->'case_results', '[]'::jsonb),
+                'case_count', coalesce(nullif(score_json#>>'{{metrics,case_count}}', '')::integer, 0),
+                'passed_case_count', coalesce(nullif(score_json#>>'{{metrics,passed_case_count}}', '')::integer, 0),
+                'failed_case_count', coalesce(nullif(score_json#>>'{{metrics,failed_case_count}}', '')::integer, 0),
+                'theme_precision', coalesce(nullif(score_json#>>'{{metrics,theme_precision}}', '')::numeric, 0),
+                'direct_ticker_grounding_precision',
+                    coalesce(nullif(score_json#>>'{{metrics,direct_ticker_grounding_precision}}', '')::numeric, 0),
+                'macro_only_false_ticker_rate',
+                    coalesce(nullif(score_json#>>'{{metrics,macro_only_false_ticker_rate}}', '')::numeric, 0),
+                'macro_only_false_ticker_count',
+                    coalesce(nullif(score_json#>>'{{metrics,macro_only_false_ticker_count}}', '')::integer, 0),
+                'quantum_energy_misclassification_count',
+                    coalesce(nullif(score_json#>>'{{metrics,quantum_energy_misclassification_count}}', '')::integer, 0),
+                'blocked_candidate_correctness',
+                    coalesce(nullif(score_json#>>'{{metrics,blocked_candidate_correctness}}', '')::numeric, 0),
+                'korean_translation_availability',
+                    coalesce(nullif(score_json#>>'{{metrics,korean_translation_availability}}', '')::numeric, 0),
+                'next_action',
+                    case
+                        when coalesce((score_json->>'overall_pass')::boolean, false)
+                            then '뉴스 AI 회귀평가가 통과했다. 다음 뉴스 수집 주기에서도 계속 감시한다.'
+                        else 'news-ai-eval-run 결과의 실패 평가 항목을 확인하고 AI schema, validator, 기준 정답 뉴스 세트를 보정한다.'
+                    end
+            )
+            from selected_news_ai_eval_quality
+        ),
+        json_build_object(
+            'status', 'missing',
+            'eval_name', 'news_ai_extraction_quality',
+            'dataset_version', 'news-ai-eval-v1',
+            'provider', 'fixture',
+            'model_name', 'news-ai-eval-fixture-v1',
+            'overall_pass', false,
+            'metrics', '{{}}'::json,
+            'pass_thresholds', '{{}}'::json,
+            'case_results', '[]'::json,
+            'case_count', 0,
+            'passed_case_count', 0,
+            'failed_case_count', 0,
+            'theme_precision', 0,
+            'direct_ticker_grounding_precision', 0,
+            'macro_only_false_ticker_rate', 0,
+            'macro_only_false_ticker_count', 0,
+            'quantum_energy_misclassification_count', 0,
+            'blocked_candidate_correctness', 0,
+            'korean_translation_availability', 0,
+            'next_action', 'news-ai-eval-run --provider fixture --execute를 실행해 기준 정답 뉴스 세트 회귀평가를 저장한다.'
         )
     ),
     'portfolio_risk_budget_guardrail',
@@ -13206,6 +13291,78 @@ def _build_portfolio_review_feedback_item_payload(item: dict[str, Any]) -> dict[
         "automatic_order_allowed": item.get("automatic_order_allowed") is True,
         "broker_submit_allowed": item.get("broker_submit_allowed") is True,
         "order_boundary": str(item.get("order_boundary") or "read_only_no_order"),
+    }
+
+
+def _build_news_ai_eval_quality_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    metrics = _as_dict(payload.get("metrics"))
+    thresholds = _as_dict(payload.get("pass_thresholds"))
+    cases = []
+    for item in _as_list(payload.get("case_results"))[:12]:
+        cases.append(
+            {
+                "case_id": str(item.get("case_id") or ""),
+                "category": str(item.get("category") or ""),
+                "passed": item.get("passed") is True,
+                "accepted_theme_codes": [str(value) for value in _as_list_or_scalars(item.get("accepted_theme_codes"))],
+                "accepted_direct_symbols": [str(value) for value in _as_list_or_scalars(item.get("accepted_direct_symbols"))],
+                "missing_theme_codes": [str(value) for value in _as_list_or_scalars(item.get("missing_theme_codes"))],
+                "missing_direct_symbols": [str(value) for value in _as_list_or_scalars(item.get("missing_direct_symbols"))],
+                "forbidden_theme_hits": [str(value) for value in _as_list_or_scalars(item.get("forbidden_theme_hits"))],
+                "forbidden_symbol_hits": [str(value) for value in _as_list_or_scalars(item.get("forbidden_symbol_hits"))],
+                "blocked_symbols_accepted": [
+                    str(value) for value in _as_list_or_scalars(item.get("blocked_symbols_accepted"))
+                ],
+                "rejected_impact_count": int(_safe_number(item.get("rejected_impact_count")) or 0),
+                "translation_available": item.get("translation_available") is True,
+            }
+        )
+    return {
+        "status": str(payload.get("status") or "missing"),
+        "eval_run_id": _opaque_id("eval-run", payload.get("eval_run_id"), None),
+        "created_at": _timestamp(payload.get("created_at")),
+        "eval_name": str(payload.get("eval_name") or "news_ai_extraction_quality"),
+        "dataset_version": str(payload.get("dataset_version") or "news-ai-eval-v1"),
+        "provider": str(payload.get("provider") or "fixture"),
+        "model_name": str(payload.get("model_name") or "news-ai-eval-fixture-v1"),
+        "overall_pass": payload.get("overall_pass") is True,
+        "case_count": int(_safe_number(payload.get("case_count") or metrics.get("case_count")) or 0),
+        "passed_case_count": int(_safe_number(payload.get("passed_case_count") or metrics.get("passed_case_count")) or 0),
+        "failed_case_count": int(_safe_number(payload.get("failed_case_count") or metrics.get("failed_case_count")) or 0),
+        "theme_precision": _safe_number(payload.get("theme_precision") or metrics.get("theme_precision")) or 0.0,
+        "direct_ticker_grounding_precision": _safe_number(
+            payload.get("direct_ticker_grounding_precision") or metrics.get("direct_ticker_grounding_precision")
+        )
+        or 0.0,
+        "macro_only_false_ticker_rate": _safe_number(
+            payload.get("macro_only_false_ticker_rate") or metrics.get("macro_only_false_ticker_rate")
+        )
+        or 0.0,
+        "macro_only_false_ticker_count": int(
+            _safe_number(payload.get("macro_only_false_ticker_count") or metrics.get("macro_only_false_ticker_count"))
+            or 0
+        ),
+        "quantum_energy_misclassification_count": int(
+            _safe_number(
+                payload.get("quantum_energy_misclassification_count")
+                or metrics.get("quantum_energy_misclassification_count")
+            )
+            or 0
+        ),
+        "blocked_candidate_correctness": _safe_number(
+            payload.get("blocked_candidate_correctness") or metrics.get("blocked_candidate_correctness")
+        )
+        or 0.0,
+        "korean_translation_availability": _safe_number(
+            payload.get("korean_translation_availability") or metrics.get("korean_translation_availability")
+        )
+        or 0.0,
+        "metrics": {str(key): value for key, value in metrics.items()},
+        "pass_thresholds": {str(key): value for key, value in thresholds.items()},
+        "case_results": cases,
+        "next_action": str(
+            payload.get("next_action") or "news-ai-eval-run --provider fixture --execute를 실행해 기준 정답 뉴스 세트 회귀평가를 저장한다."
+        ),
     }
 
 

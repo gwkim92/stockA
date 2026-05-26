@@ -114,6 +114,53 @@ class FakeLiveExecutor:
                             "latest_observation_date": "2024-11-01",
                         },
                     ],
+                    "news_ai_eval_quality": {
+                        "status": "passed",
+                        "eval_run_id": 72,
+                        "created_at": "2026-05-27T07:00:00+00:00",
+                        "eval_name": "news_ai_extraction_quality",
+                        "dataset_version": "news-ai-eval-v1",
+                        "provider": "fixture",
+                        "model_name": "news-ai-eval-fixture-v1",
+                        "overall_pass": True,
+                        "case_count": 5,
+                        "passed_case_count": 5,
+                        "failed_case_count": 0,
+                        "theme_precision": "1.0",
+                        "direct_ticker_grounding_precision": "1.0",
+                        "macro_only_false_ticker_rate": "0.0",
+                        "macro_only_false_ticker_count": 0,
+                        "quantum_energy_misclassification_count": 0,
+                        "blocked_candidate_correctness": "1.0",
+                        "korean_translation_availability": "1.0",
+                        "metrics": {
+                            "case_count": 5,
+                            "failed_case_count": 0,
+                            "theme_precision": 1.0,
+                            "direct_ticker_grounding_precision": 1.0,
+                            "macro_only_false_ticker_count": 0,
+                            "quantum_energy_misclassification_count": 0,
+                            "korean_translation_availability": 1.0,
+                        },
+                        "pass_thresholds": {"theme_precision_min": 1.0},
+                        "case_results": [
+                            {
+                                "case_id": "quantum_policy_not_energy",
+                                "category": "quantum_policy",
+                                "passed": True,
+                                "accepted_theme_codes": ["QUANTUM_COMPUTING_POLICY"],
+                                "accepted_direct_symbols": ["QUBT"],
+                                "missing_theme_codes": [],
+                                "missing_direct_symbols": [],
+                                "forbidden_theme_hits": [],
+                                "forbidden_symbol_hits": [],
+                                "blocked_symbols_accepted": [],
+                                "rejected_impact_count": 1,
+                                "translation_available": True,
+                            }
+                        ],
+                        "next_action": "뉴스 AI 회귀평가가 통과했다.",
+                    },
                     "portfolio_risk_budget_guardrail": {
                         "status": "loaded",
                         "eval_run_id": 22,
@@ -4235,6 +4282,20 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertEqual(payload["data"]["local_ingest_worker"]["source"], "not_configured")
         self.assertEqual(payload["data"]["cycle_ai_quality_audit"]["status"], "not_configured")
         self.assertEqual(payload["data"]["cycle_ai_quality_audit"]["source"], "not_configured")
+        news_eval = payload["data"]["news_ai_eval_quality"]
+        self.assertEqual(news_eval["status"], "passed")
+        self.assertEqual(news_eval["eval_run_id"], "eval-run-72")
+        self.assertEqual(news_eval["eval_name"], "news_ai_extraction_quality")
+        self.assertEqual(news_eval["dataset_version"], "news-ai-eval-v1")
+        self.assertTrue(news_eval["overall_pass"])
+        self.assertEqual(news_eval["case_count"], 5)
+        self.assertEqual(news_eval["failed_case_count"], 0)
+        self.assertEqual(news_eval["theme_precision"], 1.0)
+        self.assertEqual(news_eval["direct_ticker_grounding_precision"], 1.0)
+        self.assertEqual(news_eval["macro_only_false_ticker_count"], 0)
+        self.assertEqual(news_eval["quantum_energy_misclassification_count"], 0)
+        self.assertEqual(news_eval["case_results"][0]["accepted_theme_codes"], ["QUANTUM_COMPUTING_POLICY"])
+        self.assertNotIn("news_ai_eval_quality_attention", payload["data"]["open_gates"])
         drift_quality = payload["data"]["benchmark_drift_quality"]
         self.assertEqual(drift_quality["status"], "partial_composition")
         self.assertEqual(drift_quality["guardrail_eval_run_id"], "eval-run-22")
@@ -4959,6 +5020,10 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertIn("selected_risk_budget_guardrail", sql)
         self.assertIn("portfolio_risk_budget_guardrail", sql)
         self.assertIn("benchmark_drift", sql)
+        self.assertIn("selected_news_ai_eval_quality", sql)
+        self.assertIn("news_ai_extraction_quality", sql)
+        self.assertIn("news-ai-eval-v1", sql)
+        self.assertIn("news_ai_eval_quality", sql)
         self.assertIn("selected_portfolio_review_decision_history", sql)
         self.assertIn("portfolio_review_decision_history", sql)
         self.assertIn("portfolio-review-decision-history-v1", sql)
