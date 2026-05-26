@@ -48,10 +48,16 @@ class ManualWeightReviewCalibrationReportTests(unittest.TestCase):
 
         self.assertIn("-- manual weight review calibration source audit eval lookup", sql)
         self.assertIn("eval_run.eval_run_id = 16", sql)
-        self.assertIn("'2026-05-25'::date", sql)
+        self.assertNotIn("created_at::date <=", sql)
         self.assertNotIn("insert into", lowered)
         self.assertNotIn("update ", lowered)
         self.assertNotIn("delete from", lowered)
+
+    def test_render_latest_audit_lookup_uses_as_of_date_when_id_is_not_explicit(self) -> None:
+        sql = render_manual_weight_review_audit_eval_lookup_sql(as_of_date=date(2026, 5, 25))
+
+        self.assertIn("created_at::date <= '2026-05-25'::date", sql)
+        self.assertNotIn("eval_run.eval_run_id =", sql)
 
     def test_render_failure_case_lookup_is_read_only_and_bounded(self) -> None:
         sql = render_manual_weight_review_failure_case_lookup_sql(

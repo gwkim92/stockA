@@ -34,10 +34,12 @@ def render_manual_weight_review_audit_eval_lookup_sql(
     audit_eval_run_id: int | None = None,
 ) -> str:
     eval_filter = ""
+    date_filter = f"\n      and eval_run.created_at::date <= {sql_date(as_of_date)}"
     if audit_eval_run_id is not None:
         if audit_eval_run_id <= 0:
             raise ValueError("audit_eval_run_id must be greater than 0.")
         eval_filter = f"\n      and eval_run.eval_run_id = {audit_eval_run_id}"
+        date_filter = ""
     return f"""-- manual weight review calibration source audit eval lookup
 with selected_eval as (
     select
@@ -52,8 +54,7 @@ with selected_eval as (
     where eval_run.eval_name = {sql_literal(SOURCE_AUDIT_EVAL_NAME)}
       and eval_run.dataset_version = {sql_literal(SOURCE_AUDIT_DATASET_VERSION)}
       and nullif(eval_run.score_json->>'source_eval_run_id', '')::bigint is not null
-      and coalesce(nullif(eval_run.score_json->>'source_quality_status', ''), 'unknown') <> 'unknown'
-      and eval_run.created_at::date <= {sql_date(as_of_date)}{eval_filter}
+      and coalesce(nullif(eval_run.score_json->>'source_quality_status', ''), 'unknown') <> 'unknown'{date_filter}{eval_filter}
     order by eval_run.created_at desc, eval_run.eval_run_id desc
     limit 1
 )
