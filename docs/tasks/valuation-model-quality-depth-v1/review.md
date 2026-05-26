@@ -2,7 +2,7 @@
 
 ## Review Status
 
-- status: local_verified_pending_ec2
+- status: complete
 
 ## Implemented
 
@@ -30,6 +30,15 @@
 - Passed: `bash scripts/verify_project_execution_roadmap.sh`
 - Passed: `PYTHONPATH=/Users/woody/ai/agent-work-harness/src /private/tmp/stockanalysis-verify-venv/bin/python -m awh verify --repo . --task valuation-model-quality-depth-v1`
 
-## Pending
+## EC2 Evidence
 
-- EC2 deploy smoke must verify API fields and rendered routes after this local commit is deployed.
+- Deployed commit: `713ae61`.
+- Remote build passed: `cd /opt/stockanalysis/app/apps/web && npm run build`.
+- Restart passed: `stockanalysis-frontend-api.service` and `stockanalysis-web.service` returned `active`.
+- API smoke passed: `/api/stocks/NVDA`, `/api/recommendations/recommendation-151`, and `/api/theses/thesis-5` expose available valuation ranges with method count `3`, method-level assumptions, sensitivity cases, limitations, and `order_boundary=read_only_no_order`.
+- Route smoke passed: `/stocks/NVDA`, `/recommendations/recommendation-151`, and `/theses/thesis-5` returned 200 and rendered `가정 품질` plus `모델 한계와 데이터 경고 보기`.
+- Local tunnel smoke passed: `http://127.0.0.1:13000/` returned HTTP 200.
+
+## Next
+
+- `financial-forecast-and-scenario-inputs-v1`: build explicit forecast inputs behind DCF/scenario valuation before any recommendation weight change.
