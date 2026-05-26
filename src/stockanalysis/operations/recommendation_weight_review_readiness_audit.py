@@ -25,6 +25,7 @@ DEFAULT_MODEL_NAME = "deterministic-guardrail-v1"
 DEFAULT_PROVIDER = "postgres"
 DEFAULT_MIN_COMPONENT_OUTCOME_COUNT = 5
 READY_DECISION = "ready_for_manual_weight_review"
+SAFETY_INTERLOCK_POLICY_DECISION = "paper_actions_waiting_for_safety_interlock_release"
 
 
 def render_recommendation_weight_review_eval_lookup_sql(
@@ -93,6 +94,31 @@ values (
 returning eval_run_id;"""
 
 
+def render_paper_safety_interlock_policy_lookup_sql(*, as_of_date: date) -> str:
+    return f"""-- recommendation weight review paper safety interlock policy lookup
+select coalesce(
+    (
+        select json_build_object(
+            'run_id', run.run_id,
+            'status', run.status,
+            'paper_validation_run_id', nullif(run.config_json->>'paper_validation_run_id', '')::bigint,
+            'decision', run.config_json->>'decision',
+            'weight_review_allowed', coalesce(nullif(run.config_json->>'weight_review_allowed', '')::boolean, false),
+            'automatic_order_allowed', coalesce(nullif(run.config_json->>'automatic_order_allowed', '')::boolean, false),
+            'started_at', run.started_at,
+            'ended_at', run.ended_at
+        )
+        from ops.pipeline_run run
+        where run.pipeline_name = 'paper_validation_conflict_remediation'
+          and run.status = 'succeeded'
+          and run.started_at::date <= {sql_date(as_of_date)}
+        order by run.ended_at desc nulls last, run.run_id desc
+        limit 1
+    ),
+    '{{}}'::json
+)::text;"""
+
+
 def load_recommendation_weight_review_source_eval(
     *,
     config: RuntimeConfig,
@@ -117,11 +143,25 @@ def load_recommendation_weight_review_source_eval(
     return payload
 
 
+def load_paper_safety_interlock_policy(
+    *,
+    config: RuntimeConfig,
+    as_of_date: date,
+    executor: PsqlCommandExecutor | None = None,
+) -> dict[str, object]:
+    sql_executor = executor or PsqlCommandExecutor.from_config(config)
+    payload = json.loads(sql_executor.execute_scalar(render_paper_safety_interlock_policy_lookup_sql(as_of_date=as_of_date)))
+    if not isinstance(payload, dict):
+        raise ValueError("Paper safety interlock policy lookup did not return a JSON object.")
+    return payload
+
+
 def audit_recommendation_weight_review_readiness(
     score: dict[str, object],
     *,
     source_eval_run_id: int,
     min_component_outcome_count: int = DEFAULT_MIN_COMPONENT_OUTCOME_COUNT,
+    paper_safety_policy: dict[str, object] | None = None,
 ) -> dict[str, object]:
     if min_component_outcome_count < 1:
         raise ValueError("min_component_outcome_count must be greater than 0.")
@@ -135,6 +175,7 @@ def audit_recommendation_weight_review_readiness(
     cycle_guardrail = _as_dict(score.get("cycle_weight_guardrail"))
     fundamental_guardrail = _as_dict(score.get("fundamental_weight_guardrail"))
     paper_validation = _as_dict(score.get("paper_validation"))
+    safety_policy = _as_dict(paper_safety_policy)
     outcome_count = _int(score.get("outcome_count"))
     positive_outcome_count = _int(score.get("positive_outcome_count"))
 
@@ -162,12 +203,20 @@ def audit_recommendation_weight_review_readiness(
             )
         )
     elif paper_status != "passed":
-        blockers.append(
-            _blocker(
-                "blocked_by_paper_validation_failed",
-                f"paper validation status={paper_status}이지만 conflict_count는 0이다. safety interlock 또는 승인 gate를 별도로 확인해야 한다.",
+        if safety_policy.get("decision") == SAFETY_INTERLOCK_POLICY_DECISION:
+            warnings.append(
+                _warning(
+                    "paper_actions_blocked_by_intentional_safety_interlock",
+                    "paper validation conflict는 0이지만 kill switch/human approval 안전장치 때문에 order action은 계속 차단된다.",
+                )
             )
-        )
+        else:
+            blockers.append(
+                _blocker(
+                    "blocked_by_paper_validation_failed",
+                    f"paper validation status={paper_status}이지만 conflict_count는 0이다. safety interlock 또는 승인 gate를 별도로 확인해야 한다.",
+                )
+            )
     elif paper_approved_action_count <= 0:
         warnings.append(
             _warning(
@@ -198,6 +247,8 @@ def audit_recommendation_weight_review_readiness(
         "decision": decision,
         "manual_weight_review_allowed": decision == READY_DECISION,
         "automatic_weight_change_allowed": False,
+        "automatic_order_allowed": False,
+        "broker_submit_allowed": False,
         "recommendation_scoring_mutated": False,
         "blockers": blockers,
         "warnings": warnings,
@@ -216,6 +267,15 @@ def audit_recommendation_weight_review_readiness(
             "recommendation_count": _int(paper_validation.get("recommendation_count")),
             "conflict_count": paper_conflict_count,
             "approved_action_count": paper_approved_action_count,
+        },
+        "paper_safety_interlock_policy": {
+            "run_id": _int(safety_policy.get("run_id")),
+            "paper_validation_run_id": _int(safety_policy.get("paper_validation_run_id")),
+            "decision": safety_policy.get("decision"),
+            "is_intentional_safety_interlock": safety_policy.get("decision") == SAFETY_INTERLOCK_POLICY_DECISION,
+            "weight_review_allowed_by_policy": safety_policy.get("decision") == SAFETY_INTERLOCK_POLICY_DECISION,
+            "automatic_order_allowed": False,
+            "broker_submit_allowed": False,
         },
         "guardrails": {
             "cycle_weight_unchanged": bool(cycle_guardrail.get("cycle_weight_unchanged")),
@@ -246,10 +306,16 @@ def run_recommendation_weight_review_readiness_audit(
     if not source_score:
         raise ValueError("Recommendation quality eval score_json is empty.")
     source_eval_run_id = _int(source_eval.get("eval_run_id"))
+    safety_policy = load_paper_safety_interlock_policy(
+        config=config,
+        as_of_date=as_of_date,
+        executor=sql_executor,
+    )
     audit = audit_recommendation_weight_review_readiness(
         source_score,
         source_eval_run_id=source_eval_run_id,
         min_component_outcome_count=min_component_outcome_count,
+        paper_safety_policy=safety_policy,
     )
     report: dict[str, object] = {
         "report_name": DEFAULT_AUDIT_EVAL_NAME,
@@ -279,6 +345,9 @@ def run_recommendation_weight_review_readiness_audit(
             "decision": audit["decision"],
             "manual_weight_review_allowed": audit["manual_weight_review_allowed"],
             "automatic_weight_change_allowed": False,
+            "automatic_order_allowed": False,
+            "broker_submit_allowed": False,
+            "paper_safety_interlock_decision": audit["paper_safety_interlock_policy"]["decision"],
             "recommendation_scoring_mutated": False,
         },
     )

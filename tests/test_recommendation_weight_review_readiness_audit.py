@@ -9,6 +9,7 @@ from stockanalysis.operations.recommendation_weight_review_readiness_audit impor
     DEFAULT_AUDIT_EVAL_NAME,
     READY_DECISION,
     audit_recommendation_weight_review_readiness,
+    render_paper_safety_interlock_policy_lookup_sql,
     render_recommendation_weight_review_audit_insert_sql,
     render_recommendation_weight_review_eval_lookup_sql,
     run_recommendation_weight_review_readiness_audit,
@@ -36,6 +37,8 @@ class FakeWeightReviewAuditExecutor:
                     "created_at": "2026-05-25T12:00:00Z",
                 }
             )
+        if sql.startswith("-- recommendation weight review paper safety interlock policy lookup"):
+            return json.dumps(_safety_interlock_policy())
         if "insert into ops.pipeline_run" in sql:
             return str(self.run_id)
         if "insert into ai.eval_run" in sql:
@@ -58,6 +61,17 @@ class RecommendationWeightReviewReadinessAuditTests(unittest.TestCase):
         self.assertIn("eval_run.eval_run_id = 11", sql)
         self.assertIn("'2026-05-25'::date", sql)
         self.assertIn("'recommendation_quality_calibration'", sql)
+        self.assertNotIn("insert into", lowered)
+        self.assertNotIn("update ", lowered)
+        self.assertNotIn("delete from", lowered)
+
+    def test_render_safety_interlock_policy_lookup_is_read_only(self) -> None:
+        sql = render_paper_safety_interlock_policy_lookup_sql(as_of_date=date(2026, 5, 25))
+        lowered = sql.lower()
+
+        self.assertIn("-- recommendation weight review paper safety interlock policy lookup", sql)
+        self.assertIn("paper_validation_conflict_remediation", sql)
+        self.assertIn("'2026-05-25'::date", sql)
         self.assertNotIn("insert into", lowered)
         self.assertNotIn("update ", lowered)
         self.assertNotIn("delete from", lowered)
@@ -109,6 +123,35 @@ class RecommendationWeightReviewReadinessAuditTests(unittest.TestCase):
         self.assertEqual(audit["blockers"][0]["code"], "blocked_by_paper_validation_failed")
         self.assertIn("safety interlock", audit["next_action"])
 
+    def test_audit_allows_manual_review_when_only_intentional_safety_interlock_remains(self) -> None:
+        score = _ready_score_with_paper_conflict()
+        score["paper_validation"] = {
+            "latest_status": "failed",
+            "validation_date": "2026-05-25",
+            "recommendation_count": 6,
+            "conflict_count": 0,
+            "approved_action_count": 0,
+        }
+
+        audit = audit_recommendation_weight_review_readiness(
+            score,
+            source_eval_run_id=13,
+            paper_safety_policy=_safety_interlock_policy(),
+        )
+
+        self.assertEqual(audit["decision"], READY_DECISION)
+        self.assertTrue(audit["manual_weight_review_allowed"])
+        self.assertFalse(audit["automatic_weight_change_allowed"])
+        self.assertFalse(audit["automatic_order_allowed"])
+        self.assertFalse(audit["broker_submit_allowed"])
+        self.assertEqual(audit["blockers"], [])
+        self.assertEqual(
+            audit["paper_safety_interlock_policy"]["decision"],
+            "paper_actions_waiting_for_safety_interlock_release",
+        )
+        self.assertTrue(audit["paper_safety_interlock_policy"]["is_intentional_safety_interlock"])
+        self.assertIn("paper_actions_blocked_by_intentional_safety_interlock", audit["warnings"][0]["code"])
+
     def test_render_audit_insert_sql_records_audit_as_ai_eval_run(self) -> None:
         sql = render_recommendation_weight_review_audit_insert_sql(
             score_json={"decision": "blocked_by_paper_validation_conflicts"}
@@ -131,7 +174,7 @@ class RecommendationWeightReviewReadinessAuditTests(unittest.TestCase):
 
         self.assertEqual(report["status"], "planned")
         self.assertEqual(report["audit"]["decision"], "blocked_by_paper_validation_conflicts")
-        self.assertEqual(len(executor.scalar_sql), 1)
+        self.assertEqual(len(executor.scalar_sql), 2)
         self.assertEqual(executor.non_query_sql, [])
 
     def test_run_execute_records_pipeline_and_audit_eval_run_without_weight_mutation(self) -> None:
@@ -149,8 +192,9 @@ class RecommendationWeightReviewReadinessAuditTests(unittest.TestCase):
         self.assertEqual(report["run_id"], 9902)
         self.assertEqual(report["audit_eval_run_id"], 602)
         self.assertFalse(report["audit"]["automatic_weight_change_allowed"])
-        self.assertIn("insert into ops.pipeline_run", executor.scalar_sql[1])
-        self.assertIn("insert into ai.eval_run", executor.scalar_sql[2])
+        self.assertIn("-- recommendation weight review paper safety interlock policy lookup", executor.scalar_sql[1])
+        self.assertIn("insert into ops.pipeline_run", executor.scalar_sql[2])
+        self.assertIn("insert into ai.eval_run", executor.scalar_sql[3])
         self.assertIn("status = 'succeeded'", executor.non_query_sql[-1])
 
 
@@ -202,6 +246,17 @@ def _ready_score_with_paper_conflict() -> dict[str, object]:
                 "avg_component_weight": "0.00000000",
             },
         ],
+    }
+
+
+def _safety_interlock_policy() -> dict[str, object]:
+    return {
+        "run_id": 889,
+        "paper_validation_run_id": 10,
+        "decision": "paper_actions_waiting_for_safety_interlock_release",
+        "weight_review_allowed": False,
+        "automatic_order_allowed": False,
+        "status": "succeeded",
     }
 
 
