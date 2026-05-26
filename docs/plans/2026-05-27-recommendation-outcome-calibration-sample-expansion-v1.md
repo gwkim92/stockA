@@ -20,3 +20,11 @@ The professional analysis foundation now has many evidence layers, but recommend
 - No benchmark split changes.
 - No fabricated outcomes.
 - No paid providers.
+
+## Result
+
+- Implemented in commits `5de2ef8` and `8c3cbb1`.
+- Added `recommendation-outcome-calibration-sample-expansion-run`, which combines outcome backfill preview/execute, horizon-grid sample audit, quality eval, and component diagnostics without score or order changes.
+- Added `/api/data-health` and `/data-health` visibility for recommendation outcome calibration readiness.
+- EC2 execute `run_id=1595` wrote `eval_run_id=27`. The result is `no_due_outcome_window`: 45 active recommendations across 30/90/180/365-day horizons produce 180 recommendation-horizon rows, all currently `not_due`, with zero outcome rows and zero backfill candidates.
+- The older quality eval still returned `ready_for_weight_review`, so the next task must make manual weight review readiness depend on this new horizon-grid gate.
