@@ -69,6 +69,8 @@ class ManualWeightReviewCalibrationReportTests(unittest.TestCase):
 
         self.assertIn("-- manual weight review calibration failure case lookup", sql)
         self.assertIn("performance.recommendation_outcome", sql)
+        self.assertIn("outcome.measurement_start_date >= recommendation.recommendation_date", sql)
+        self.assertIn("outcome.measurement_end_date >= outcome.measurement_start_date", sql)
         self.assertIn("limit 7", lowered)
         self.assertNotIn("insert into", lowered)
         self.assertNotIn("update ", lowered)

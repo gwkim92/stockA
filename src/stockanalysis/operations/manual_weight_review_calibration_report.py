@@ -119,6 +119,8 @@ outcome_window as (
     join recommendation_window recommendation on recommendation.recommendation_id = outcome.recommendation_id
     where outcome.measurement_end_date <= {sql_date(as_of_date)}
       and outcome.horizon_days <= {horizon_days}
+      and outcome.measurement_start_date >= recommendation.recommendation_date
+      and outcome.measurement_end_date >= outcome.measurement_start_date
     order by outcome.recommendation_id, outcome.measurement_end_date desc
 ),
 failure_rows as (
