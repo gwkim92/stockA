@@ -9052,7 +9052,7 @@ def _build_recommendation_professional_decision_waterfall_payload(
             href_label="뉴스 AI 근거 보기",
             facts=[
                 _professional_fact("직접 뉴스/AI 점수", f"{ai_or_event_count}개"),
-                _professional_fact("영향 방향", str(direct_evidence.get("impact_direction") or "미확인")),
+                _professional_fact("영향 방향", _professional_code_label(direct_evidence.get("impact_direction"))),
                 _professional_fact("영향도", _format_percent_text(_number(direct_evidence.get("impact_strength")))),
             ],
         ),
@@ -9072,7 +9072,7 @@ def _build_recommendation_professional_decision_waterfall_payload(
             href_label="종목 분석 열기",
             facts=[
                 _professional_fact("기업 리서치", str(research_artifact_id or "미연결")),
-                _professional_fact("경쟁 위치", str(competitive_position or "미연결")),
+                _professional_fact("경쟁 위치", _professional_code_label(competitive_position)),
                 _professional_fact("비교군", str(peer_group_name or "미분류")),
                 _professional_fact("피어 점수", _format_percent_text(_number(peer_relative.get("value") if peer_relative else None))),
             ],
@@ -9157,7 +9157,7 @@ def _build_recommendation_professional_decision_waterfall_payload(
                 _professional_fact("현재 비중", _format_percent_text(_number(holding_review.get("current_weight")))),
                 _professional_fact("검토 비중", _format_percent_text(_number(holding_review.get("recommended_weight")))),
                 _professional_fact("비중 차이", _format_signed_percent_text(_number(holding_review.get("weight_gap")))),
-                _professional_fact("조치", str(holding_review.get("action") or "검토 대기")),
+                _professional_fact("조치", _professional_code_label(holding_review.get("action"))),
             ],
         ),
         _professional_decision_step(
@@ -9176,7 +9176,7 @@ def _build_recommendation_professional_decision_waterfall_payload(
             href="/paper-trading",
             href_label="페이퍼 거래 상태 보기",
             facts=[
-                _professional_fact("성과", str(outcome.get("label") or "unmeasured")),
+                _professional_fact("성과", _professional_code_label(outcome.get("label") or "unmeasured")),
                 _professional_fact("알파", _format_signed_percent_text(_number(outcome.get("alpha")))),
                 _professional_fact("주문", "읽기 전용 차단"),
             ],
@@ -9249,6 +9249,29 @@ def _professional_fact(label: str, value: Any) -> dict[str, str]:
     if value is None or value == "":
         return {"label": label, "value": "미확인"}
     return {"label": label, "value": str(value)}
+
+
+def _professional_code_label(value: Any) -> str:
+    code = str(value or "").strip()
+    labels = {
+        "supportive": "우호적",
+        "risk_review": "리스크 검토",
+        "watch": "관찰",
+        "neutral": "중립",
+        "unknown": "미확인",
+        "monitor": "관찰 유지",
+        "monitor_or_accumulate": "매수 후보",
+        "accumulate": "비중 확대 검토",
+        "exclude": "제외",
+        "leader": "선도",
+        "challenger": "도전자",
+        "laggard": "열위",
+        "outperform": "초과 성과",
+        "underperform": "부진",
+        "inline": "벤치마크 유사",
+        "unmeasured": "성과 측정 전",
+    }
+    return labels.get(code, code or "미확인")
 
 
 def _first_non_empty(*values: Any) -> str:
