@@ -125,6 +125,9 @@ from stockanalysis.operations.portfolio_review_feedback_cadence import (
     DEFAULT_MIN_HORIZON_DAYS as DEFAULT_PORTFOLIO_REVIEW_CADENCE_MIN_HORIZON_DAYS,
     run_portfolio_review_feedback_cadence,
 )
+from stockanalysis.operations.portfolio_review_feedback_action_router import (
+    run_portfolio_review_feedback_action_router,
+)
 from stockanalysis.operations.recommendation_fundamental_components import (
     DEFAULT_HORIZON_TYPE as DEFAULT_FUNDAMENTAL_COMPONENT_HORIZON_TYPE,
     DEFAULT_MARKET_CODE as DEFAULT_FUNDAMENTAL_COMPONENT_MARKET_CODE,
@@ -1052,6 +1055,19 @@ def build_parser() -> argparse.ArgumentParser:
     portfolio_review_feedback_cadence.add_argument("--output")
     portfolio_review_feedback_cadence.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
     portfolio_review_feedback_cadence.set_defaults(handler=_handle_portfolio_review_feedback_cadence_run)
+
+    portfolio_review_feedback_action_router = subparsers.add_parser(
+        "portfolio-review-feedback-action-router-run",
+        help="Execute the safe portfolio review feedback/calibration action selected by the latest cadence artifact.",
+    )
+    portfolio_review_feedback_action_router.add_argument("--env-file")
+    portfolio_review_feedback_action_router.add_argument("--portfolio-name", default=DEFAULT_PORTFOLIO_NAME)
+    portfolio_review_feedback_action_router.add_argument("--as-of-date", required=True)
+    portfolio_review_feedback_action_router.add_argument("--execute", action="store_true")
+    portfolio_review_feedback_action_router.add_argument("--dry-run", action="store_true")
+    portfolio_review_feedback_action_router.add_argument("--output")
+    portfolio_review_feedback_action_router.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
+    portfolio_review_feedback_action_router.set_defaults(handler=_handle_portfolio_review_feedback_action_router_run)
 
     benchmark_composition_import = subparsers.add_parser(
         "benchmark-composition-import-run",
@@ -2402,6 +2418,31 @@ def _handle_portfolio_review_feedback_cadence_run(args: argparse.Namespace, *, s
         output_path = resolve_output_path(
             args.output,
             label="portfolio review feedback cadence output",
+            repo_root=args.repo_root,
+            require_repo_outside=True,
+        )
+        write_json_report(report, output_path=output_path, stdout=stdout)
+    else:
+        print_json(report, stdout=stdout, sort_keys=False)
+    return 0
+
+
+def _handle_portfolio_review_feedback_action_router_run(args: argparse.Namespace, *, stdout: TextIO) -> int:
+    if bool(args.execute) and bool(args.dry_run):
+        raise ValueError("--execute and --dry-run cannot be used together.")
+    env_mapping = _load_optional_env_mapping(args.env_file, repo_root=args.repo_root)
+    as_of_date = date.fromisoformat(args.as_of_date)
+    with _temporary_environ(env_mapping):
+        report = run_portfolio_review_feedback_action_router(
+            config=RuntimeConfig.from_env(),
+            portfolio_name=args.portfolio_name,
+            as_of_date=as_of_date,
+            execute=bool(args.execute) and not bool(args.dry_run),
+        )
+    if args.output:
+        output_path = resolve_output_path(
+            args.output,
+            label="portfolio review feedback action router output",
             repo_root=args.repo_root,
             require_repo_outside=True,
         )

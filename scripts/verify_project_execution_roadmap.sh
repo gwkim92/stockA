@@ -229,6 +229,8 @@ grep -q "portfolio-review-feedback-calibration-run" src/stockanalysis/operations
 grep -q "portfolio_review_feedback_calibration" src/stockanalysis/frontend/live_adapter.py
 grep -q "portfolio-review-feedback-cadence-run" src/stockanalysis/operations/cli.py
 grep -q "portfolio_review_feedback_cadence" src/stockanalysis/frontend/live_adapter.py
+grep -q "portfolio-review-feedback-action-router-run" src/stockanalysis/operations/cli.py
+grep -q "portfolio_review_feedback_action_router" src/stockanalysis/operations/portfolio_review_feedback_action_router.py
 test -f docs/tasks/professional-source-gap-prioritization-v1/contract.md
 test -f docs/tasks/professional-source-gap-prioritization-v1/handoff.md
 test -f docs/tasks/professional-source-gap-prioritization-v1/review.md

@@ -112,6 +112,7 @@ class OperatingDataOrchestratorTests(unittest.TestCase):
         self.assertIn("recommendation-outcome-backfill", step_ids)
         self.assertIn("recommendation-quality-eval", step_ids)
         self.assertIn("portfolio-review-feedback-cadence", step_ids)
+        self.assertIn("portfolio-review-feedback-action-router", step_ids)
         self.assertLess(
             step_ids.index("portfolio-position-snapshot"),
             step_ids.index("portfolio-holding-thesis-bootstrap"),
@@ -159,6 +160,10 @@ class OperatingDataOrchestratorTests(unittest.TestCase):
         self.assertLess(
             step_ids.index("recommendation-quality-eval"),
             step_ids.index("portfolio-review-feedback-cadence"),
+        )
+        self.assertLess(
+            step_ids.index("portfolio-review-feedback-cadence"),
+            step_ids.index("portfolio-review-feedback-action-router"),
         )
         self.assertEqual(report["derived_inputs"]["sec_filings_cik"], "320193")
         self.assertEqual(report["derived_inputs"]["sec_filings_max_filings"], 3)
@@ -329,6 +334,7 @@ class OperatingDataOrchestratorTests(unittest.TestCase):
         self.assertIn("portfolio-holding-thesis-bootstrap", step_ids)
         self.assertIn("paper-validation-audit", step_ids)
         self.assertIn("portfolio-review-feedback-cadence", step_ids)
+        self.assertIn("portfolio-review-feedback-action-router", step_ids)
         self.assertNotIn("news-rss-ingest", step_ids)
         self.assertNotIn("macro-weekly", step_ids)
         self.assertLess(
@@ -374,6 +380,10 @@ class OperatingDataOrchestratorTests(unittest.TestCase):
         self.assertLess(
             step_ids.index("recommendation-quality-eval"),
             step_ids.index("portfolio-review-feedback-cadence"),
+        )
+        self.assertLess(
+            step_ids.index("portfolio-review-feedback-cadence"),
+            step_ids.index("portfolio-review-feedback-action-router"),
         )
 
     def test_execute_runs_backfill_before_signal_and_generates_position_csv(self) -> None:

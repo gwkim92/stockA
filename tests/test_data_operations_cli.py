@@ -2145,6 +2145,48 @@ class DataOperationsCliTests(unittest.TestCase):
             self.assertEqual(call_kwargs["min_horizon_days"], 30)
             self.assertTrue(call_kwargs["execute"])
 
+    def test_portfolio_review_feedback_action_router_run_command_passes_env_and_writes_output(self) -> None:
+        with tempfile.TemporaryDirectory() as repo_root, tempfile.TemporaryDirectory() as outside_root:
+            env_file = Path(outside_root) / "data-operations.env"
+            output_path = Path(outside_root) / "portfolio-review-feedback-action-router.json"
+            env_file.write_text('STOCKANALYSIS_PSQL_COMMAND="docker exec psql"\n', encoding="utf-8")
+            stdout = io.StringIO()
+
+            with patch("stockanalysis.operations.cli.run_portfolio_review_feedback_action_router") as runner_mock:
+                runner_mock.return_value = {
+                    "report_name": "portfolio_review_feedback_action_router",
+                    "status": "completed",
+                    "eval_run_id": 8501,
+                    "action": {"action_status": "no_op_wait_for_outcome_window"},
+                }
+                exit_code = main(
+                    [
+                        "portfolio-review-feedback-action-router-run",
+                        "--repo-root",
+                        repo_root,
+                        "--env-file",
+                        str(env_file),
+                        "--portfolio-name",
+                        "Long Term Paper",
+                        "--as-of-date",
+                        "2026-05-27",
+                        "--execute",
+                        "--output",
+                        str(output_path),
+                    ],
+                    stdout=stdout,
+                )
+
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(stdout.getvalue().strip(), str(output_path.resolve()))
+            payload = json.loads(output_path.read_text(encoding="utf-8"))
+            self.assertEqual(payload["report_name"], "portfolio_review_feedback_action_router")
+            call_kwargs = runner_mock.call_args.kwargs
+            self.assertEqual(call_kwargs["config"].psql_command, "docker exec psql")
+            self.assertEqual(call_kwargs["portfolio_name"], "Long Term Paper")
+            self.assertEqual(call_kwargs["as_of_date"], date(2026, 5, 27))
+            self.assertTrue(call_kwargs["execute"])
+
     def test_benchmark_composition_import_run_command_requires_repo_outside_csv(self) -> None:
         with tempfile.TemporaryDirectory() as repo_root:
             holdings_csv = Path(repo_root) / "holdings.csv"

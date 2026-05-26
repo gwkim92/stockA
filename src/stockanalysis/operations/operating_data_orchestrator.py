@@ -135,6 +135,7 @@ DECISION_DAILY_STEP_IDS = (
     "recommendation-outcome-backfill",
     "recommendation-quality-eval",
     "portfolio-review-feedback-cadence",
+    "portfolio-review-feedback-action-router",
 )
 MACRO_WEEKLY_STEP_IDS = (
     "macro-weekly",
@@ -1317,6 +1318,25 @@ def _build_planned_steps(
                     "-m",
                     "stockanalysis.operations.cli",
                     "portfolio-review-feedback-cadence-run",
+                    "--env-file",
+                    str(env_file),
+                    "--portfolio-name",
+                    portfolio_name,
+                    "--as-of-date",
+                    target,
+                    "--execute",
+                ),
+            },
+            {
+                "step_id": "portfolio-review-feedback-action-router",
+                "artifact_job_id": "portfolio-review-feedback-action-router-daily",
+                "label": "Run the safe portfolio review feedback or calibration action selected by cadence",
+                "skip_reason": "",
+                "command_argv": (
+                    python_executable,
+                    "-m",
+                    "stockanalysis.operations.cli",
+                    "portfolio-review-feedback-action-router-run",
                     "--env-file",
                     str(env_file),
                     "--portfolio-name",
