@@ -10,6 +10,7 @@
 ## Issues Found
 
 - Initial transposed parser logic overparsed year/change/date tables when applied to the real Apple 10-K. The implemented detection now requires a singleton filing-year row before the segment header row, which removes those false positives in the copied EC2 artifact check.
+- Initial EC2 smoke after parser expansion exposed a candidate selection issue: the parser attached rows to a `shares_outstanding` point-in-time period. The candidate query now prioritizes statement periods with revenue, operating income, or net income, and the upsert removes stale reported segment metrics for the same source document when period alignment changes.
 
 ## Residual Risks
 
@@ -25,3 +26,4 @@
 - `bash scripts/verify_project_execution_roadmap.sh`, AWH verify, `git diff --check`, and Python 3.13 full suite passed.
 - Python 3.13 full suite: `PYTHONPATH=src /private/tmp/stockanalysis-verify-venv/bin/python -m unittest discover -s tests` passed with `Ran 971 tests`.
 - Manual local parser check against `/private/tmp/aapl-20250927.htm` returned exactly 10 Apple reportable segment rows and no Corporate/Total rows.
+- After statement-period candidate correction, professional analysis tests, focused regression, `compileall`, roadmap verification, AWH verify, Python 3.13 full suite, and `git diff --check` passed again.

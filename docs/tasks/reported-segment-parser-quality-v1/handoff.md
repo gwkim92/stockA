@@ -10,6 +10,7 @@
 - EC2 Apple 10-K raw artifact exists at `/opt/stockanalysis/runtime/artifacts/raw/sec/filings/0000320193-25-000079/aapl-20250927.htm`.
 - The current parser failed because Apple's segment footnote table is transposed: the year row is followed by segment names as columns, while `Net sales` and `Operating income/(loss)` are metric rows.
 - A naive transposed parser can overparse year/change/date columns, so the implementation requires a singleton filing-year row before the segment header row and excludes `Corporate` and `Total`.
+- First EC2 smoke after parser expansion produced metrics but revealed a period-quality issue: candidate selection chose a `shares_outstanding` point-in-time period (`2025-10-17`) over the fiscal statement period (`2025-09-27`). Candidate selection now prioritizes periods with revenue, operating income, or net income metrics, and upsert removes stale reported segment rows for the same source document when period alignment changes.
 
 ## Decisions
 
@@ -32,9 +33,11 @@
 - Passed: `PYTHONPATH=src /private/tmp/stockanalysis-verify-venv/bin/python -m unittest discover -s tests` (`Ran 971 tests in 5.243s`, `OK`)
 - Passed: `git diff --check`
 - Manual local parser check against copied EC2 Apple 10-K artifact returned 10 rows: Americas, Europe, Greater China, Japan, and Rest of Asia Pacific for revenue and operating income.
+- Re-passed after statement-period candidate correction: professional analysis test (`Ran 34 tests`, `OK`), focused regression (`Ran 122 tests`, `OK`), compileall, roadmap verification, AWH verify, Python 3.13 full suite (`Ran 971 tests in 5.257s`, `OK`), and `git diff --check`.
 
 ## Remaining Risks
 
 - This is not a complete inline XBRL dimensional parser.
 - The parser still targets conservative table shapes and may miss other issuers' custom segment layouts.
 - Unit context can remain `USD_as_reported` when the "dollars in millions" phrase is outside the HTML table.
+- The parser still relies on deterministic table layout detection; broader issuer coverage should be added with fixture-driven parser patterns.

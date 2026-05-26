@@ -1563,14 +1563,24 @@ with latest_periods as (
         period.source_document_id,
         document.title as source_document_title,
         document.raw_storage_uri,
-        document.url as source_document_url
+        document.url as source_document_url,
+        case
+            when exists (
+                select 1
+                from market.financial_metric_value metric
+                where metric.period_id = period.period_id
+                  and metric.metric_code in ('revenue', 'operating_income', 'net_income')
+            )
+            then 0
+            else 1
+        end as statement_metric_priority
     from market.financial_statement_period period
     join ref.instrument instrument on instrument.instrument_id = period.instrument_id
     join ingest.source_document document on document.document_id = period.source_document_id
     where period.period_end <= {sql_date(as_of_date)}
       and period.statement_scope = {sql_literal(statement_scope)}
       and document.raw_storage_uri is not null
-    order by period.instrument_id, period.period_end desc, period.period_id desc
+    order by period.instrument_id, statement_metric_priority, period.period_end desc, period.period_id desc
 ),
 candidate_rows as (
     select *
@@ -1636,6 +1646,28 @@ with input_rows(
 ) as (
     values
         {value_rows}
+),
+removed_stale_reported_metrics as (
+    delete from research.segment_footnote_evidence stale
+    where stale.as_of_date = {sql_date(as_of_date)}
+      and stale.statement_scope = {sql_literal(statement_scope)}
+      and stale.evidence_type = 'reported_segment_metric'
+      and exists (
+          select 1
+          from input_rows input
+          where input.instrument_id = stale.instrument_id
+            and input.source_document_id = stale.source_document_id
+      )
+      and not exists (
+          select 1
+          from input_rows input
+          where input.instrument_id = stale.instrument_id
+            and input.source_document_id = stale.source_document_id
+            and input.segment_key = stale.segment_key
+            and input.metric_code = stale.metric_code
+            and input.period_end = stale.period_end
+      )
+    returning stale.evidence_id
 ),
 upsert_evidence as (
     insert into research.segment_footnote_evidence (
@@ -1711,6 +1743,7 @@ select json_build_object(
     'statement_scope', {sql_literal(statement_scope)},
     'reported_segment_metric_count', (select count(*)::integer from upsert_evidence),
     'parsed_instrument_count', (select count(distinct instrument_id)::integer from upsert_evidence),
+    'removed_stale_metric_count', (select count(*)::integer from removed_stale_reported_metrics),
     'removed_gap_count', (select count(*)::integer from removed_gaps),
     'metric_code_counts',
         coalesce(
