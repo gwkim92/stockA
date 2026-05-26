@@ -17,6 +17,17 @@
 - Run only existing backend CLI/service-boundary remediation commands.
 - Refresh source-gap visibility after the remediation decision.
 
+## Mutable Surface
+
+- mutable surface:
+  - `src/stockanalysis/operations/professional_source_gap_remediation_decision.py`
+  - `src/stockanalysis/operations/cli.py`
+  - `tests/test_professional_source_gap_remediation_decision.py`
+  - `tests/test_data_operations_cli.py`
+  - `docs/tasks/professional-source-gap-remediation-decision-v1/*`
+  - `docs/project-execution-roadmap.md`
+  - `AGENTS.md`
+
 ## Non-Goals
 
 - No synthetic company financial facts.

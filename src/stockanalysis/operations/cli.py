@@ -131,6 +131,9 @@ from stockanalysis.operations.professional_coverage_expansion import (
     SUPPORTED_RESEARCH_PROVIDERS as PROFESSIONAL_COVERAGE_RESEARCH_PROVIDERS,
     run_professional_coverage_expansion,
 )
+from stockanalysis.operations.professional_source_gap_remediation_decision import (
+    run_professional_source_gap_remediation_decision,
+)
 from stockanalysis.operations.industry_competitive_positioning import (
     DEFAULT_MIN_METRIC_COVERAGE as DEFAULT_INDUSTRY_COMPETITIVE_MIN_METRIC_COVERAGE,
     run_industry_competitive_positioning,
@@ -724,6 +727,20 @@ def build_parser() -> argparse.ArgumentParser:
     professional_coverage_expansion.add_argument("--output")
     professional_coverage_expansion.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
     professional_coverage_expansion.set_defaults(handler=_handle_professional_coverage_expansion_run)
+
+    professional_source_gap_remediation_decision = subparsers.add_parser(
+        "professional-source-gap-remediation-decision-run",
+        help="Classify live professional source gaps and select the next safe deterministic remediation.",
+    )
+    professional_source_gap_remediation_decision.add_argument("--env-file")
+    professional_source_gap_remediation_decision.add_argument("--as-of-date", required=True)
+    professional_source_gap_remediation_decision.add_argument("--execute", action="store_true")
+    professional_source_gap_remediation_decision.add_argument("--dry-run", action="store_true")
+    professional_source_gap_remediation_decision.add_argument("--output")
+    professional_source_gap_remediation_decision.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
+    professional_source_gap_remediation_decision.set_defaults(
+        handler=_handle_professional_source_gap_remediation_decision_run
+    )
 
     cycle_ai_quality_audit = subparsers.add_parser(
         "cycle-ai-quality-audit-run",
@@ -2404,6 +2421,34 @@ def _handle_professional_coverage_expansion_run(args: argparse.Namespace, *, std
         output_path = resolve_output_path(
             args.output,
             label="professional coverage expansion output",
+            repo_root=args.repo_root,
+            require_repo_outside=True,
+        )
+        write_json_report(report, output_path=output_path, stdout=stdout)
+    else:
+        print_json(report, stdout=stdout, sort_keys=False)
+    return 0
+
+
+def _handle_professional_source_gap_remediation_decision_run(
+    args: argparse.Namespace,
+    *,
+    stdout: TextIO,
+) -> int:
+    if bool(args.execute) and bool(args.dry_run):
+        raise ValueError("--execute and --dry-run cannot be used together.")
+    env_mapping = _load_optional_env_mapping(args.env_file, repo_root=args.repo_root)
+    as_of_date = date.fromisoformat(args.as_of_date)
+    with _temporary_environ(env_mapping):
+        report = run_professional_source_gap_remediation_decision(
+            config=RuntimeConfig.from_env(),
+            as_of_date=as_of_date,
+            execute=bool(args.execute) and not bool(args.dry_run),
+        )
+    if args.output:
+        output_path = resolve_output_path(
+            args.output,
+            label="professional source gap remediation decision output",
             repo_root=args.repo_root,
             require_repo_outside=True,
         )
