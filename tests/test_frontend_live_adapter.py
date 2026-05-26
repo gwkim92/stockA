@@ -13,6 +13,7 @@ from stockanalysis.frontend.live_adapter import (
     FrontendLiveUnsupportedPathError,
     _build_financial_statement_model_payload,
     _build_fund_instrument_analysis_payload,
+    _build_recommendation_outcome_maturity_payload,
     is_live_supported_path,
     render_frontend_ai_news_cluster_list_state_sql,
     render_frontend_ai_evidence_detail_state_sql,
@@ -3340,6 +3341,12 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertEqual(outcome_maturity["overdue_count"], 1)
         self.assertEqual(outcome_maturity["price_gap_count"], 1)
         self.assertEqual(outcome_maturity["examples"][0]["recommendation_id"], "recommendation-147")
+        self.assertEqual(outcome_maturity["cadence_action"]["status"], "wait_until_next_due_date")
+        self.assertEqual(outcome_maturity["cadence_action"]["wait_until"], "2026-06-01")
+        self.assertFalse(outcome_maturity["cadence_action"]["should_run_now"])
+        self.assertTrue(outcome_maturity["cadence_action"]["should_wait"])
+        self.assertIn("--as-of-date 2026-06-01", outcome_maturity["cadence_action"]["command"])
+        self.assertTrue(outcome_maturity["cadence_action"]["blocks_weight_review"])
         self.assertFalse(outcome_maturity["recommendation_scoring_mutated"])
         weight_review = payload["data"]["recommendation_weight_review_readiness"]
         self.assertEqual(weight_review["status"], "blocked_by_outcome_calibration_no_due_outcome_window")
@@ -3350,6 +3357,68 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertFalse(weight_review["manual_weight_review_allowed"])
         self.assertFalse(weight_review["automatic_weight_change_allowed"])
         self.assertEqual(payload["links"]["dashboard"], "/api/dashboard/today")
+
+    def test_recommendation_outcome_maturity_due_state_requests_calibration_now(self) -> None:
+        payload = _build_recommendation_outcome_maturity_payload(
+            {
+                "status": "due_outcomes_ready",
+                "as_of_date": "2026-06-20",
+                "source_calibration_eval_run_id": 31,
+                "horizon_days": [30, 90, 180, 365],
+                "recommendation_horizon_count": 180,
+                "recommendation_count": 45,
+                "ready_for_backfill_count": 19,
+                "due_today_count": 19,
+                "overdue_count": 0,
+                "price_gap_count": 0,
+            }
+        )
+
+        action = payload["cadence_action"]
+        self.assertEqual(action["status"], "run_outcome_calibration_now")
+        self.assertTrue(action["should_run_now"])
+        self.assertFalse(action["should_wait"])
+        self.assertEqual(action["scheduler_job_id"], "recommendation-outcome-backfill-daily")
+        self.assertIn("recommendation-outcome-calibration-sample-expansion-run", action["command"])
+        self.assertIn("--as-of-date 2026-06-20", action["command"])
+        self.assertTrue(action["blocks_weight_review"])
+        self.assertFalse(action["automatic_weight_change_allowed"])
+
+    def test_recommendation_outcome_maturity_overdue_state_requests_calibration_now(self) -> None:
+        payload = _build_recommendation_outcome_maturity_payload(
+            {
+                "status": "overdue_outcomes_ready",
+                "as_of_date": "2026-06-25",
+                "source_calibration_eval_run_id": 31,
+                "ready_for_backfill_count": 5,
+                "overdue_count": 5,
+            }
+        )
+
+        action = payload["cadence_action"]
+        self.assertEqual(action["status"], "run_outcome_calibration_now")
+        self.assertTrue(action["should_run_now"])
+        self.assertIn("지연 5개", action["reason"])
+        self.assertIn("--as-of-date 2026-06-25", action["command"])
+
+    def test_recommendation_outcome_maturity_price_gap_state_requests_price_repair_first(self) -> None:
+        payload = _build_recommendation_outcome_maturity_payload(
+            {
+                "status": "blocked_by_price_gaps",
+                "as_of_date": "2026-06-20",
+                "price_gap_count": 3,
+                "missing_entry_price_count": 1,
+                "missing_exit_price_count": 2,
+            }
+        )
+
+        action = payload["cadence_action"]
+        self.assertEqual(action["status"], "repair_price_history_then_calibrate")
+        self.assertTrue(action["should_run_now"])
+        self.assertTrue(action["requires_price_backfill"])
+        self.assertIn("market-price-daily-run", action["command"])
+        self.assertIn("recommendation-outcome-calibration-sample-expansion-run", action["follow_up_command"])
+        self.assertTrue(action["blocks_weight_review"])
 
     def test_live_data_health_response_includes_sanitized_scheduler_activation_gate(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:

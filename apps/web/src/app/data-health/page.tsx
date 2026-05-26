@@ -637,6 +637,23 @@ const DEFAULT_RECOMMENDATION_OUTCOME_MATURITY: RecommendationOutcomeMaturity = {
   next_due_date: "",
   next_due_count: 0,
   examples: [],
+  cadence_action: {
+    status: "inspect_outcome_maturity_state",
+    action_type: "inspect",
+    scheduler_job_id: "recommendation-outcome-backfill-daily",
+    pipeline_name: "recommendation_outcome_calibration_sample_expansion",
+    should_run_now: false,
+    should_wait: false,
+    requires_price_backfill: false,
+    wait_until: "",
+    command: "stockanalysis-operations recommendation-outcome-calibration-sample-expansion-run --env-file <ENV> --as-of-date <YYYY-MM-DD> --execute",
+    label: "성과 측정창 상태를 먼저 확인한다.",
+    reason: "maturity monitor 결과가 아직 없다.",
+    blocks_weight_review: true,
+    automatic_weight_change_allowed: false,
+    automatic_order_allowed: false,
+    broker_submit_allowed: false,
+  },
   recommendation_scoring_mutated: false,
   automatic_order_allowed: false,
   broker_submit_allowed: false,
@@ -1133,6 +1150,12 @@ export default async function DataHealthPage() {
             </p>
           </article>
           <article className="insight-card">
+            <span>실행 액션</span>
+            <strong>{koCode(outcomeMaturity.cadence_action.status)}</strong>
+            <p>{outcomeMaturity.cadence_action.reason}</p>
+            <small>{outcomeMaturity.cadence_action.command}</small>
+          </article>
+          <article className="insight-card">
             <span>추천 weight</span>
             <strong>{outcomeCalibration.recommendation_scoring_mutated ? "변경 감지" : "변경 없음"}</strong>
             <p>성과 검증은 추천 산식 변경이 아니다. weight 조정은 별도 승인된 pilot task 전까지 막는다.</p>
@@ -1166,7 +1189,7 @@ export default async function DataHealthPage() {
         </div>
         <div className="empty-state">
           <strong>다음 조치</strong>
-          <p>{outcomeCalibration.next_action ? koCode(outcomeCalibration.next_action) : "현재 추가 조치 없음"}</p>
+          <p>{outcomeMaturity.cadence_action.label}</p>
         </div>
       </section>
 

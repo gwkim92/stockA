@@ -306,6 +306,24 @@ export type DataHealthData = {
       expected_measurement_end_date: string;
       status: string;
     }>;
+    cadence_action: {
+      status: string;
+      action_type: string;
+      scheduler_job_id: string;
+      pipeline_name: string;
+      should_run_now: boolean;
+      should_wait: boolean;
+      requires_price_backfill: boolean;
+      wait_until: string;
+      command: string;
+      follow_up_command?: string;
+      label: string;
+      reason: string;
+      blocks_weight_review: boolean;
+      automatic_weight_change_allowed: boolean;
+      automatic_order_allowed: boolean;
+      broker_submit_allowed: boolean;
+    };
     recommendation_scoring_mutated: boolean;
     automatic_order_allowed: boolean;
     broker_submit_allowed: boolean;

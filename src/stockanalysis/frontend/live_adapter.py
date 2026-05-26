@@ -11192,7 +11192,7 @@ def _build_recommendation_outcome_maturity_payload(payload: dict[str, Any]) -> d
                 "status": str(item.get("maturity_status") or "unknown"),
             }
         )
-    return {
+    maturity = {
         "status": str(payload.get("status") or "missing"),
         "as_of_date": str(payload.get("as_of_date") or ""),
         "source_calibration_eval_run_id": _opaque_id("eval-run", payload.get("source_calibration_eval_run_id"), None),
@@ -11213,6 +11213,120 @@ def _build_recommendation_outcome_maturity_payload(payload: dict[str, Any]) -> d
         "recommendation_scoring_mutated": payload.get("recommendation_scoring_mutated") is True,
         "automatic_order_allowed": payload.get("automatic_order_allowed") is True,
         "broker_submit_allowed": payload.get("broker_submit_allowed") is True,
+    }
+    return {
+        **maturity,
+        "cadence_action": _recommendation_outcome_maturity_cadence_action(maturity),
+    }
+
+
+def _recommendation_outcome_maturity_cadence_action(maturity: dict[str, Any]) -> dict[str, Any]:
+    status = str(maturity.get("status") or "missing")
+    as_of_date = str(maturity.get("as_of_date") or "<YYYY-MM-DD>")
+    next_due_date = str(maturity.get("next_due_date") or "")
+    calibration_date = as_of_date if as_of_date else "<YYYY-MM-DD>"
+    calibration_command = (
+        "stockanalysis-operations recommendation-outcome-calibration-sample-expansion-run "
+        f"--env-file <ENV> --as-of-date {calibration_date} --execute"
+    )
+    if status in {"due_outcomes_ready", "overdue_outcomes_ready"}:
+        overdue_count = int(_safe_number(maturity.get("overdue_count")) or 0)
+        ready_count = int(_safe_number(maturity.get("ready_for_backfill_count")) or 0)
+        return {
+            "status": "run_outcome_calibration_now",
+            "action_type": "execute_calibration",
+            "scheduler_job_id": "recommendation-outcome-backfill-daily",
+            "pipeline_name": "recommendation_outcome_calibration_sample_expansion",
+            "should_run_now": True,
+            "should_wait": False,
+            "requires_price_backfill": False,
+            "wait_until": "",
+            "command": calibration_command,
+            "label": "성과 산출과 calibration을 지금 실행한다.",
+            "reason": f"성과 산출 가능 {ready_count}개, 지연 {overdue_count}개가 있다.",
+            "blocks_weight_review": True,
+            "automatic_weight_change_allowed": False,
+            "automatic_order_allowed": False,
+            "broker_submit_allowed": False,
+        }
+    if status == "blocked_by_price_gaps":
+        price_gap_count = int(_safe_number(maturity.get("price_gap_count")) or 0)
+        return {
+            "status": "repair_price_history_then_calibrate",
+            "action_type": "repair_price_history",
+            "scheduler_job_id": "market-price-daily",
+            "pipeline_name": "market_price_upsert",
+            "should_run_now": True,
+            "should_wait": False,
+            "requires_price_backfill": True,
+            "wait_until": "",
+            "command": "stockanalysis-operations market-price-daily-run --env-file <ENV> --skip-if-fresh",
+            "follow_up_command": calibration_command,
+            "label": "가격 이력을 보강한 뒤 성과 calibration을 다시 실행한다.",
+            "reason": f"가격 이력 부족 {price_gap_count}개 때문에 성과 산출이 막혔다.",
+            "blocks_weight_review": True,
+            "automatic_weight_change_allowed": False,
+            "automatic_order_allowed": False,
+            "broker_submit_allowed": False,
+        }
+    if status == "not_due":
+        wait_until = next_due_date
+        wait_command = (
+            "stockanalysis-operations recommendation-outcome-calibration-sample-expansion-run "
+            f"--env-file <ENV> --as-of-date {wait_until or '<NEXT_DUE_DATE>'} --execute"
+        )
+        next_due_count = int(_safe_number(maturity.get("next_due_count")) or 0)
+        return {
+            "status": "wait_until_next_due_date",
+            "action_type": "wait",
+            "scheduler_job_id": "recommendation-outcome-backfill-daily",
+            "pipeline_name": "recommendation_outcome_calibration_sample_expansion",
+            "should_run_now": False,
+            "should_wait": True,
+            "requires_price_backfill": False,
+            "wait_until": wait_until,
+            "command": wait_command,
+            "label": "다음 성과 측정일까지 기다린다.",
+            "reason": f"{wait_until or '다음 측정일'}에 {next_due_count}개 추천×기간 성과창이 열린다.",
+            "blocks_weight_review": True,
+            "automatic_weight_change_allowed": False,
+            "automatic_order_allowed": False,
+            "broker_submit_allowed": False,
+        }
+    if status == "complete_current_window":
+        return {
+            "status": "no_due_work_keep_monitoring",
+            "action_type": "monitor",
+            "scheduler_job_id": "recommendation-outcome-backfill-daily",
+            "pipeline_name": "recommendation_outcome_calibration_sample_expansion",
+            "should_run_now": False,
+            "should_wait": True,
+            "requires_price_backfill": False,
+            "wait_until": next_due_date,
+            "command": calibration_command,
+            "label": "현재 측정 가능한 성과창은 처리됐다.",
+            "reason": "다음 성과창이 열릴 때까지 추천 weight를 유지한다.",
+            "blocks_weight_review": True,
+            "automatic_weight_change_allowed": False,
+            "automatic_order_allowed": False,
+            "broker_submit_allowed": False,
+        }
+    return {
+        "status": "inspect_outcome_maturity_state",
+        "action_type": "inspect",
+        "scheduler_job_id": "recommendation-outcome-backfill-daily",
+        "pipeline_name": "recommendation_outcome_calibration_sample_expansion",
+        "should_run_now": False,
+        "should_wait": False,
+        "requires_price_backfill": False,
+        "wait_until": next_due_date,
+        "command": calibration_command,
+        "label": "성과 측정창 상태를 먼저 확인한다.",
+        "reason": f"maturity status가 {status}이다.",
+        "blocks_weight_review": True,
+        "automatic_weight_change_allowed": False,
+        "automatic_order_allowed": False,
+        "broker_submit_allowed": False,
     }
 
 
