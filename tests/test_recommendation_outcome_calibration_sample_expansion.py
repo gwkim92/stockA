@@ -90,6 +90,20 @@ class RecommendationOutcomeCalibrationSampleExpansionTests(unittest.TestCase):
         self.assertIn(DEFAULT_EVAL_NAME, sql)
         self.assertIn("recommendation-outcome-calibration-sample-expansion-v1", sql)
 
+    def test_build_score_does_not_allow_weight_review_when_horizon_window_is_not_due(self) -> None:
+        score = build_recommendation_outcome_calibration_score(
+            as_of_date=date(2026, 5, 27),
+            horizon_days=(30, 90),
+            sample_audit_before=_sample_audit_payload(outcome_count=0, ready_count=0),
+            sample_audit_after=_sample_audit_payload(outcome_count=0, ready_count=0),
+            backfill_report={"status": "preview_no_due_candidates"},
+            quality_report={"score": {"quality_status": "ready_for_weight_review", "sample_status": "sufficient_sample"}},
+        )
+
+        self.assertEqual(score["status"], "no_due_outcome_window")
+        self.assertIn("성과 측정일", score["next_action"])
+        self.assertFalse(score["recommendation_scoring_mutated"])
+
     def test_run_dry_run_collects_audit_backfill_preview_and_quality_preview_without_writes(self) -> None:
         executor = FakeOutcomeCalibrationExecutor()
         with (

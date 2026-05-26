@@ -412,6 +412,9 @@ function outcomeCalibrationTitle(calibration: RecommendationOutcomeCalibration) 
   if (calibration.status === "price_history_gaps_remain") {
     return "가격 이력 보강 필요";
   }
+  if (calibration.status === "no_due_outcome_window") {
+    return "성과 측정일 대기";
+  }
   if (calibration.status === "missing") {
     return "성과 보정 결과 없음";
   }
@@ -430,6 +433,9 @@ function outcomeCalibrationExplanation(calibration: RecommendationOutcomeCalibra
   }
   if (calibration.status === "price_history_gaps_remain") {
     return "성과를 계산해야 할 추천은 있지만 entry/exit 가격 이력이 부족하다. 캔들 보강이 먼저다.";
+  }
+  if (calibration.status === "no_due_outcome_window") {
+    return "선택한 중장기 horizon의 성과 측정일이 아직 오지 않았다. 추천 weight는 그대로 두고 표본이 쌓일 때까지 기다린다.";
   }
   if (calibration.status === "missing") {
     return "추천 성과 표본과 컴포넌트 보정 진단이 아직 생성되지 않았다.";

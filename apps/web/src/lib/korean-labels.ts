@@ -336,6 +336,7 @@ const KOREAN_LABELS: Record<string, string> = {
   price_history_gaps_remain: "가격 이력 보강 필요",
   ready_for_manual_weight_review: "수동 weight 검토 가능",
   no_outcome_sample_available: "성과 표본 없음",
+  no_due_outcome_window: "성과 측정일 대기",
   missing_recommendation_outcome_calibration: "추천 성과검증 없음",
   insufficient_sample: "표본 부족",
   sufficient_sample: "표본 충분",

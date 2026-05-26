@@ -604,6 +604,8 @@ def _calibration_status(
         return "backfill_candidates_remain"
     if missing_entry_count > 0 or missing_exit_count > 0:
         return "price_history_gaps_remain"
+    if outcome_count <= 0:
+        return "no_due_outcome_window"
     if quality_status == "ready_for_weight_review":
         return "ready_for_manual_weight_review"
     if outcome_count > 0:
@@ -623,6 +625,8 @@ def _next_action(
         return f"성과 검증 후보 {ready_for_backfill_count}개가 남아 있다. 같은 runner를 --execute로 다시 실행하거나 가격 데이터 누락을 먼저 보강한다."
     if status == "price_history_gaps_remain":
         return f"가격 이력 누락 때문에 성과 산출이 막힌 항목이 있다. entry gap {missing_entry_count}개, exit gap {missing_exit_count}개를 가격 수집으로 보강한다."
+    if status == "no_due_outcome_window":
+        return "현재 선택한 horizon에서는 아직 성과 측정일이 도래하지 않았다. 추천 산식 weight를 유지하고 다음 성과 측정일까지 기다린다."
     if status == "ready_for_manual_weight_review":
         return "표본과 coverage 기준은 충족했다. 그래도 자동 weight 변경은 금지이며 별도 manual/pilot weight task가 필요하다."
     next_action = quality_score.get("next_action")
