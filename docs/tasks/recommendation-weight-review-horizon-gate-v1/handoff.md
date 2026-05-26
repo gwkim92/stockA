@@ -2,7 +2,7 @@
 
 ## Status
 
-- in progress: local implementation is complete; EC2 deployment/smoke is pending.
+- completed: implemented locally, pushed, deployed to EC2, and smoked against the live DB.
 
 ## Context
 
@@ -12,7 +12,7 @@
 
 ## Exact Next Step
 
-- exact next step: deploy to EC2, run `recommendation-weight-review-readiness-audit-run --execute`, and confirm the latest `eval_run_id=27` outcome calibration gate blocks manual weight review with `blocked_by_outcome_calibration_no_due_outcome_window`.
+- exact next step: move to `recommendation-outcome-maturity-monitor-v1` so the system tracks when the currently `not_due` recommendation horizons become measurable and reruns outcome calibration at the right cadence.
 
 ## Local Implementation Notes
 
@@ -28,6 +28,17 @@
 - passed: `PYTHONPATH=src python3 -m compileall -q src tests`
 - passed: `cd apps/web && npm run typecheck`
 - passed: `cd apps/web && npm run build`
+
+## EC2 Verification
+
+- deployed commit: `b3e2915`
+- passed: `PYTHONPATH=src /opt/stockanalysis/venv/bin/python -m unittest tests.test_recommendation_weight_review_readiness_audit tests.test_manual_weight_review_calibration_report tests.test_frontend_live_adapter`
+- passed: `cd apps/web && npm run typecheck && npm run build`
+- passed: `stockanalysis-operations recommendation-weight-review-readiness-audit-run --as-of-date 2026-05-27 --outcome-calibration-eval-run-id 27 --execute`
+- EC2 result: `run_id=1598`, `audit_eval_run_id=28`, `source_eval_run_id=26`, `source_quality_status=ready_for_weight_review`, `outcome_calibration_eval_run_id=27`, `outcome_calibration_status=no_due_outcome_window`, `decision=blocked_by_outcome_calibration_no_due_outcome_window`, `manual_weight_review_allowed=false`, `automatic_weight_change_allowed=false`, `automatic_order_allowed=false`, `broker_submit_allowed=false`, `recommendation_scoring_mutated=false`.
+- passed: `/api/data-health` exposes `recommendation_weight_review_readiness.status=blocked_by_outcome_calibration_no_due_outcome_window`, `manual_weight_review_allowed=false`, `outcome_calibration_status=no_due_outcome_window`, `outcome_calibration_eval_run_id=eval-run-27`.
+- passed: `/data-health` renders `수동 weight 검토`, `성과 측정일 대기`, `추천 성과검증`, and `차단`.
+- passed: `bash scripts/verify_project_execution_roadmap.sh`
 
 ## Guardrails
 
