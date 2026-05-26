@@ -100,6 +100,35 @@ class FakeLiveExecutor:
                             "latest_observation_date": "2024-11-01",
                         },
                     ],
+                    "portfolio_risk_budget_guardrail": {
+                        "status": "loaded",
+                        "eval_run_id": 22,
+                        "as_of_date": "2026-05-25",
+                        "effective_snapshot_date": "2026-05-23",
+                        "risk_gate_decision": "blocked_by_risk_budget_review",
+                        "blocking_reasons": [{"code": "sector_over_limit"}],
+                        "warning_reasons": [{"code": "benchmark_composition_partial"}],
+                        "benchmark_drift": {
+                            "status": "calculated_partial_composition",
+                            "benchmark_code": "SPY",
+                            "benchmark_source": "operator_spy_holdings_2026_05_25",
+                            "source_type": "operator_upload",
+                            "source_as_of_date": "2026-05-25",
+                            "drift_calculated": True,
+                            "component_count": 4,
+                            "composition_coverage_weight": "0.21500000",
+                            "active_share": "0.39250000",
+                            "total_absolute_drift": "0.78500000",
+                            "top_active_positions": [
+                                {
+                                    "symbol": "MSFT",
+                                    "portfolio_weight": "0.30780000",
+                                    "benchmark_weight": "0.06500000",
+                                    "active_weight": "0.24280000",
+                                }
+                            ],
+                        },
+                    },
                     "open_gates": [
                         "production_api_server",
                         "auth_rbac",
@@ -2127,6 +2156,15 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertEqual(payload["data"]["local_ingest_worker"]["source"], "not_configured")
         self.assertEqual(payload["data"]["cycle_ai_quality_audit"]["status"], "not_configured")
         self.assertEqual(payload["data"]["cycle_ai_quality_audit"]["source"], "not_configured")
+        drift_quality = payload["data"]["benchmark_drift_quality"]
+        self.assertEqual(drift_quality["status"], "partial_composition")
+        self.assertEqual(drift_quality["guardrail_eval_run_id"], "eval-run-22")
+        self.assertEqual(drift_quality["benchmark_code"], "SPY")
+        self.assertEqual(drift_quality["benchmark_source"], "operator_spy_holdings_2026_05_25")
+        self.assertEqual(drift_quality["composition_coverage_weight"], 0.215)
+        self.assertEqual(drift_quality["active_share"], 0.3925)
+        self.assertEqual(drift_quality["outlier_positions"][0]["symbol"], "MSFT")
+        self.assertIn("benchmark_drift_quality_attention", payload["data"]["open_gates"])
         self.assertEqual(payload["links"]["dashboard"], "/api/dashboard/today")
 
     def test_live_data_health_response_includes_sanitized_scheduler_activation_gate(self) -> None:
@@ -2554,6 +2592,9 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertIn("expected.job_id = 'portfolio-attribution-monthly'", sql)
         self.assertIn("then 'not_due'", sql)
         self.assertIn("'data_operations_artifact_runner'", sql)
+        self.assertIn("selected_risk_budget_guardrail", sql)
+        self.assertIn("portfolio_risk_budget_guardrail", sql)
+        self.assertIn("benchmark_drift", sql)
 
     def test_live_stock_list_response_matches_frontend_contract_shape(self) -> None:
         payload = resolve_live_frontend_response(

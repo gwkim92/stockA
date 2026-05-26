@@ -223,6 +223,41 @@ export type DataHealthData = {
     next_actions: string[];
     source: string;
   };
+  benchmark_drift_quality: {
+    status: string;
+    guardrail_status: string;
+    guardrail_eval_run_id: string;
+    guardrail_as_of_date: string;
+    drift_status: string;
+    drift_calculated: boolean;
+    benchmark_code: string;
+    benchmark_source: string;
+    source_type: string;
+    source_as_of_date: string;
+    source_age_days: number | null;
+    component_count: number;
+    composition_coverage_weight: number;
+    active_share: number | null;
+    total_absolute_drift: number | null;
+    top_active_positions: Array<{
+      symbol: string;
+      portfolio_weight: number;
+      benchmark_weight: number;
+      active_weight: number;
+    }>;
+    outlier_positions: Array<{
+      symbol: string;
+      portfolio_weight: number;
+      benchmark_weight: number;
+      active_weight: number;
+    }>;
+    checks: Array<{
+      check_key: string;
+      status: string;
+      detail: string;
+    }>;
+    next_actions: string[];
+  };
   open_gates: string[];
 };
 

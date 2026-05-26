@@ -14,6 +14,7 @@ type ProfileSchedulerStatus = NonNullable<DataHealthData["scheduler"]["profile_s
 type ManualIngestSmoke = DataHealthData["manual_local_ingest_smoke"];
 type LocalIngestWorker = DataHealthData["local_ingest_worker"];
 type CycleAiQualityAudit = DataHealthData["cycle_ai_quality_audit"];
+type BenchmarkDriftQuality = DataHealthData["benchmark_drift_quality"];
 type ProfileTimer = ProfileSchedulerStatus["timers"][number];
 
 function statusRiskClass(value: string) {
@@ -336,6 +337,67 @@ function qualityMetric(audit: CycleAiQualityAudit, key: string) {
   return typeof value === "number" ? value : Number(value || 0);
 }
 
+function formatPercent(value: number | null | undefined) {
+  if (typeof value !== "number" || Number.isNaN(value)) {
+    return "미계산";
+  }
+  return `${(value * 100).toFixed(1)}%`;
+}
+
+function benchmarkDriftQualityTitle(quality: BenchmarkDriftQuality) {
+  if (quality.status === "ok") {
+    return "벤치마크 구성 신뢰 가능";
+  }
+  if (quality.status === "partial_composition") {
+    return "부분 구성비로만 계산됨";
+  }
+  if (quality.status === "stale_composition") {
+    return "구성 기준일 오래됨";
+  }
+  if (quality.status === "missing_benchmark_composition") {
+    return "벤치마크 구성비 없음";
+  }
+  if (quality.status === "drift_outlier_review") {
+    return "큰 괴리 종목 확인 필요";
+  }
+  if (quality.status === "missing_guardrail") {
+    return "위험 예산 평가 없음";
+  }
+  return koCode(quality.status);
+}
+
+function benchmarkDriftQualityExplanation(quality: BenchmarkDriftQuality) {
+  if (quality.status === "ok") {
+    return "구성비 커버리지와 기준일이 충분해 active share를 보조 위험 지표로 볼 수 있다. 추천 weight는 자동 변경하지 않는다.";
+  }
+  if (quality.status === "partial_composition") {
+    return "현재 benchmark holdings가 일부만 들어와 있다. active share 숫자는 계산됐지만 전체 SPY 대비 괴리로 해석하면 안 된다.";
+  }
+  if (quality.status === "stale_composition") {
+    return "벤치마크 구성 기준일이 오래되어 최신 지수 구성과 다를 수 있다. holdings 파일을 다시 적재해야 한다.";
+  }
+  if (quality.status === "missing_benchmark_composition") {
+    return "벤치마크 구성비가 없어 포트폴리오가 SPY와 얼마나 다른지 계산하지 못했다.";
+  }
+  if (quality.status === "drift_outlier_review") {
+    return "active share 또는 개별 active weight가 커서 포트폴리오 위험 예산 검토가 필요하다.";
+  }
+  if (quality.status === "missing_guardrail") {
+    return "위험 예산 평가가 아직 없어 벤치마크 drift 품질도 판단할 수 없다.";
+  }
+  return "벤치마크 drift 품질 상태를 확인해야 한다.";
+}
+
+function benchmarkDriftQualityTone(quality: BenchmarkDriftQuality) {
+  if (quality.status === "ok") {
+    return "risk-low";
+  }
+  if (quality.status === "partial_composition" || quality.status === "stale_composition") {
+    return "risk-medium";
+  }
+  return "risk-high";
+}
+
 function executionIdLabel(value: string | null | undefined) {
   if (!value) {
     return "실행 기록 없음";
@@ -404,6 +466,28 @@ const DEFAULT_CYCLE_AI_QUALITY_AUDIT: CycleAiQualityAudit = {
   source: "not_configured",
 };
 
+const DEFAULT_BENCHMARK_DRIFT_QUALITY: BenchmarkDriftQuality = {
+  status: "missing_guardrail",
+  guardrail_status: "missing",
+  guardrail_eval_run_id: "eval-run-unknown",
+  guardrail_as_of_date: "",
+  drift_status: "missing",
+  drift_calculated: false,
+  benchmark_code: "",
+  benchmark_source: "",
+  source_type: "",
+  source_as_of_date: "",
+  source_age_days: null,
+  component_count: 0,
+  composition_coverage_weight: 0,
+  active_share: null,
+  total_absolute_drift: null,
+  top_active_positions: [],
+  outlier_positions: [],
+  checks: [],
+  next_actions: ["portfolio-risk-budget-guardrail-run을 먼저 실행한다."],
+};
+
 const DEFAULT_PROFILE_SCHEDULER: ProfileSchedulerStatus = {
   status: "not_configured",
   install_status: "not_installed",
@@ -425,6 +509,7 @@ export default async function DataHealthPage() {
   const manualSmoke = data.manual_local_ingest_smoke ?? DEFAULT_MANUAL_SMOKE;
   const localWorker = data.local_ingest_worker ?? DEFAULT_LOCAL_WORKER;
   const qualityAudit = data.cycle_ai_quality_audit ?? DEFAULT_CYCLE_AI_QUALITY_AUDIT;
+  const benchmarkDriftQuality = data.benchmark_drift_quality ?? DEFAULT_BENCHMARK_DRIFT_QUALITY;
   const marketPriceRun = findPipelineRun(data, "market-price-daily", "market_price_upsert");
   const newsRun = findPipelineRun(data, "news-rss-daily", "news_rss_upsert");
   const newsEnrichmentRun = findPipelineRun(
@@ -486,6 +571,14 @@ export default async function DataHealthPage() {
       href: "#quality-audit",
       cta: "오염 점검 보기",
       tone: qualityAuditTone(qualityAudit),
+    },
+    {
+      label: "벤치마크 drift",
+      title: benchmarkDriftQualityTitle(benchmarkDriftQuality),
+      body: benchmarkDriftQualityExplanation(benchmarkDriftQuality),
+      href: "#benchmark-drift-quality",
+      cta: "벤치마크 품질 보기",
+      tone: benchmarkDriftQualityTone(benchmarkDriftQuality),
     },
   ];
   const automationCards = [
@@ -786,6 +879,80 @@ export default async function DataHealthPage() {
         <div className="empty-state">
           <strong>다음 조치</strong>
           <p>{qualityAudit.next_actions[0] ? koCode(qualityAudit.next_actions[0]) : "현재 추가 조치 없음"}</p>
+        </div>
+      </section>
+
+      <section
+        className="feature-map-panel reveal delay-1"
+        id="benchmark-drift-quality"
+        aria-labelledby="benchmark-drift-quality-title"
+      >
+        <div className="section-heading stacked-heading">
+          <span>벤치마크 drift 품질</span>
+          <h2 id="benchmark-drift-quality-title">SPY와 얼마나 다른지 보기 전에 구성비 품질을 먼저 확인한다.</h2>
+        </div>
+        <p className="board-intro">{benchmarkDriftQualityExplanation(benchmarkDriftQuality)}</p>
+        <div className="status-rail compact-rail">
+          <article className="rail-cell">
+            <span>판정</span>
+            <strong className={`risk-tag ${benchmarkDriftQualityTone(benchmarkDriftQuality)}`}>
+              {benchmarkDriftQualityTitle(benchmarkDriftQuality)}
+            </strong>
+            <small>{executionIdLabel(benchmarkDriftQuality.guardrail_eval_run_id)}</small>
+          </article>
+          <article className="rail-cell">
+            <span>구성비 커버리지</span>
+            <strong>{formatPercent(benchmarkDriftQuality.composition_coverage_weight)}</strong>
+            <small>{benchmarkDriftQuality.component_count}개 종목 구성비</small>
+          </article>
+          <article className="rail-cell">
+            <span>구성 기준일</span>
+            <strong>{benchmarkDriftQuality.source_as_of_date || "미확인"}</strong>
+            <small>
+              {benchmarkDriftQuality.source_age_days === null
+                ? "나이 미확인"
+                : `${benchmarkDriftQuality.source_age_days}일 전`}
+            </small>
+          </article>
+          <article className="rail-cell">
+            <span>Active share</span>
+            <strong>{formatPercent(benchmarkDriftQuality.active_share)}</strong>
+            <small>{koCode(benchmarkDriftQuality.drift_status)}</small>
+          </article>
+          <article className="rail-cell">
+            <span>큰 괴리 종목</span>
+            <strong>{benchmarkDriftQuality.outlier_positions.length}</strong>
+            <small>active weight 10%p 이상</small>
+          </article>
+        </div>
+        <div className="insight-grid">
+          {benchmarkDriftQuality.checks.map((check) => (
+            <article className="insight-card" key={check.check_key}>
+              <span>{koCode(check.check_key)}</span>
+              <strong>{koCode(check.status)}</strong>
+              <p>{check.detail}</p>
+            </article>
+          ))}
+        </div>
+        {benchmarkDriftQuality.outlier_positions.length > 0 ? (
+          <div className="feature-map-grid collection-map-grid">
+            {benchmarkDriftQuality.outlier_positions.map((position) => (
+              <article className="feature-map-card collection-map-card" key={position.symbol}>
+                <span>{position.symbol}</span>
+                <strong>벤치마크 대비 {formatPercent(position.active_weight)} 차이</strong>
+                <small>포트폴리오 비중 {formatPercent(position.portfolio_weight)}</small>
+                <small>벤치마크 비중 {formatPercent(position.benchmark_weight)}</small>
+              </article>
+            ))}
+          </div>
+        ) : null}
+        <div className="empty-state">
+          <strong>다음 조치</strong>
+          <p>
+            {benchmarkDriftQuality.next_actions[0]
+              ? koCode(benchmarkDriftQuality.next_actions[0])
+              : "현재 추가 조치 없음"}
+          </p>
         </div>
       </section>
 

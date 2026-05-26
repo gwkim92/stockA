@@ -420,12 +420,19 @@ def build_live_data_health_response(
         env=os.environ,
         repo_root=DEFAULT_REPO_ROOT,
     )
+    benchmark_drift_quality = _build_benchmark_drift_quality_payload(
+        _as_dict(state.get("portfolio_risk_budget_guardrail"))
+    )
     if scheduler_activation["status"] == "pending_manual_approval":
         gate = "scheduler_activation_manual_approval"
         if gate not in open_gates:
             open_gates.append(gate)
     if cycle_ai_quality_audit["status"] in {"attention_required", "not_ready", "invalid_report", "missing_report"}:
         gate = "cycle_ai_quality_audit_attention"
+        if gate not in open_gates:
+            open_gates.append(gate)
+    if benchmark_drift_quality["status"] != "ok":
+        gate = "benchmark_drift_quality_attention"
         if gate not in open_gates:
             open_gates.append(gate)
 
@@ -449,6 +456,7 @@ def build_live_data_health_response(
             "manual_local_ingest_smoke": manual_local_ingest_smoke,
             "local_ingest_worker": local_ingest_worker,
             "cycle_ai_quality_audit": cycle_ai_quality_audit,
+            "benchmark_drift_quality": benchmark_drift_quality,
             "open_gates": open_gates,
         },
         "links": {
@@ -2643,6 +2651,18 @@ latest_market_price as (
 latest_position_snapshot as (
     select max(snapshot_date) as latest_observation_date
     from portfolio.position_snapshot
+),
+selected_risk_budget_guardrail as (
+    select eval_run.*
+    from ai.eval_run eval_run
+    where eval_run.eval_name = 'portfolio_risk_budget_guardrail'
+      and eval_run.dataset_version = 'portfolio-risk-budget-guardrail-v1'
+      and coalesce(eval_run.score_json->>'portfolio_name', {sql_literal(DEFAULT_PORTFOLIO_NAME)}) = {sql_literal(DEFAULT_PORTFOLIO_NAME)}
+    order by
+        nullif(eval_run.score_json->>'as_of_date', '')::date desc nulls last,
+        eval_run.created_at desc,
+        eval_run.eval_run_id desc
+    limit 1
 )
 select json_build_object(
     'overall_status',
@@ -2690,6 +2710,30 @@ select json_build_object(
             'dataset', 'portfolio.position_snapshot',
             'status', case when (select latest_observation_date from latest_position_snapshot) is null then 'missing' else 'observed' end,
             'latest_observation_date', (select latest_observation_date from latest_position_snapshot)
+        )
+    ),
+    'portfolio_risk_budget_guardrail',
+    coalesce(
+        (
+            select json_build_object(
+                'status', 'loaded',
+                'eval_run_id', eval_run_id,
+                'created_at', created_at,
+                'as_of_date', score_json->>'as_of_date',
+                'effective_snapshot_date', score_json->>'effective_snapshot_date',
+                'risk_gate_decision', score_json->>'risk_gate_decision',
+                'blocking_reasons', coalesce(score_json->'blocking_reasons', '[]'::jsonb),
+                'warning_reasons', coalesce(score_json->'warning_reasons', '[]'::jsonb),
+                'benchmark_drift', coalesce(score_json->'benchmark_drift', '{{}}'::jsonb)
+            )
+            from selected_risk_budget_guardrail
+        ),
+        json_build_object(
+            'status', 'missing',
+            'risk_gate_decision', 'missing_portfolio_risk_budget_guardrail',
+            'blocking_reasons', '[]'::json,
+            'warning_reasons', '[]'::json,
+            'benchmark_drift', '{{}}'::json
         )
     ),
     'open_gates',
@@ -7458,6 +7502,108 @@ def _build_trading_risk_budget_guardrail_payload(guardrail: dict[str, Any]) -> d
     }
 
 
+def _build_benchmark_drift_quality_payload(guardrail: dict[str, Any]) -> dict[str, Any]:
+    drift = _as_dict(guardrail.get("benchmark_drift"))
+    drift_status = str(drift.get("status") or "missing")
+    drift_calculated = drift.get("drift_calculated") is True
+    coverage_weight = _safe_number(drift.get("composition_coverage_weight")) or 0.0
+    active_share = _safe_number(drift.get("active_share"))
+    source_as_of_date = str(drift.get("source_as_of_date") or "")
+    guardrail_as_of_date = str(guardrail.get("as_of_date") or "")
+    source_age_days = _date_age_days(source_as_of_date, guardrail_as_of_date)
+    stale = source_age_days is not None and source_age_days > 45
+    top_positions = [_build_benchmark_active_position_payload(item) for item in _as_list(drift.get("top_active_positions"))]
+    outliers = [item for item in top_positions if abs(item["active_weight"]) >= 0.10]
+    active_share_outlier = active_share is not None and active_share >= 0.30
+
+    if guardrail.get("status") != "loaded":
+        status = "missing_guardrail"
+    elif not drift_calculated:
+        status = "missing_benchmark_composition"
+    elif stale:
+        status = "stale_composition"
+    elif coverage_weight < 0.95:
+        status = "partial_composition"
+    elif outliers or active_share_outlier:
+        status = "drift_outlier_review"
+    else:
+        status = "ok"
+
+    checks = [
+        {
+            "check_key": "composition_available",
+            "status": "passed" if drift_calculated else "blocked",
+            "detail": "벤치마크 구성비로 active weight를 계산했다." if drift_calculated else "벤치마크 구성비가 없어 drift를 계산하지 않았다.",
+        },
+        {
+            "check_key": "composition_coverage",
+            "status": "passed" if coverage_weight >= 0.95 else "warning",
+            "detail": f"구성비 합계 {coverage_weight:.1%}. 95% 미만이면 전체 벤치마크 drift로 해석하지 않는다.",
+        },
+        {
+            "check_key": "source_freshness",
+            "status": "passed" if source_age_days is not None and source_age_days <= 45 else "warning",
+            "detail": (
+                f"벤치마크 구성 기준일이 {source_age_days}일 전이다."
+                if source_age_days is not None
+                else "벤치마크 구성 기준일을 확인할 수 없다."
+            ),
+        },
+        {
+            "check_key": "drift_outliers",
+            "status": "warning" if outliers or active_share_outlier else "passed",
+            "detail": f"개별 active weight 10%p 이상 {len(outliers)}개, active share {active_share:.1%}." if active_share is not None else "active share가 계산되지 않았다.",
+        },
+    ]
+
+    return {
+        "status": status,
+        "guardrail_status": str(guardrail.get("status") or "missing"),
+        "guardrail_eval_run_id": _opaque_id("eval-run", guardrail.get("eval_run_id"), None),
+        "guardrail_as_of_date": guardrail_as_of_date,
+        "drift_status": drift_status,
+        "drift_calculated": drift_calculated,
+        "benchmark_code": str(drift.get("benchmark_code") or ""),
+        "benchmark_source": str(drift.get("benchmark_source") or ""),
+        "source_type": str(drift.get("source_type") or ""),
+        "source_as_of_date": source_as_of_date,
+        "source_age_days": source_age_days,
+        "component_count": int(_safe_number(drift.get("component_count")) or 0),
+        "composition_coverage_weight": coverage_weight,
+        "active_share": active_share,
+        "total_absolute_drift": _safe_number(drift.get("total_absolute_drift")),
+        "top_active_positions": top_positions,
+        "outlier_positions": outliers[:5],
+        "checks": checks,
+        "next_actions": _benchmark_drift_quality_next_actions(status),
+    }
+
+
+def _build_benchmark_active_position_payload(item: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "symbol": str(item.get("symbol") or ""),
+        "portfolio_weight": _safe_number(item.get("portfolio_weight")) or 0.0,
+        "benchmark_weight": _safe_number(item.get("benchmark_weight")) or 0.0,
+        "active_weight": _safe_number(item.get("active_weight")) or 0.0,
+    }
+
+
+def _benchmark_drift_quality_next_actions(status: str) -> list[str]:
+    if status == "ok":
+        return ["벤치마크 drift를 보조 위험 지표로 볼 수 있다. 그래도 추천 weight는 자동 변경하지 않는다."]
+    if status == "missing_guardrail":
+        return ["portfolio-risk-budget-guardrail-run을 먼저 실행해 최신 위험 예산 평가를 만든다."]
+    if status == "missing_benchmark_composition":
+        return ["benchmark-composition-import-run으로 repo 밖 benchmark holdings CSV를 적재한다."]
+    if status == "stale_composition":
+        return ["benchmark holdings 파일을 최신 기준일로 다시 가져온 뒤 import를 재실행한다."]
+    if status == "partial_composition":
+        return ["부분 구성비이므로 active share를 전체 지수 괴리로 해석하지 말고 full holdings source를 보강한다."]
+    if status == "drift_outlier_review":
+        return ["active share와 큰 active weight 종목을 포트폴리오 위험 예산 검토에서 먼저 확인한다."]
+    return ["benchmark drift 품질 상태를 확인한다."]
+
+
 def _build_trading_audit_summary_payload(summary: dict[str, Any]) -> dict[str, Any]:
     return {
         "intent_count": int(summary.get("intent_count") or 0),
@@ -9305,6 +9451,26 @@ def _number(value: object) -> float | None:
     if value is None:
         return None
     return float(Decimal(str(value)))
+
+
+def _safe_number(value: object) -> float | None:
+    if value is None or value == "":
+        return None
+    try:
+        return float(Decimal(str(value)))
+    except Exception:
+        return None
+
+
+def _date_age_days(source_date: str, as_of_date: str) -> int | None:
+    if not source_date:
+        return None
+    try:
+        source = date.fromisoformat(source_date[:10])
+        anchor = date.fromisoformat(as_of_date[:10]) if as_of_date else date.today()
+    except ValueError:
+        return None
+    return (anchor - source).days
 
 
 def _integer(value: object) -> int | None:
