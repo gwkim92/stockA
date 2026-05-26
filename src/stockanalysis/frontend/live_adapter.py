@@ -662,6 +662,9 @@ def build_live_stock_detail_response(
         as_of_date=str(state.get("as_of_date") or (as_of_date.isoformat() if as_of_date else "")),
         currency_code=str(state.get("currency_code") or "USD"),
     )
+    fund_instrument_analysis = _build_fund_instrument_analysis_payload(
+        _as_dict(state.get("fund_instrument_analysis"))
+    )
     thesis_id = recommendation.get("linked_thesis_id") if recommendation else None
     recommendation_id = recommendation.get("recommendation_id") if recommendation else None
     as_of_text = str(state.get("as_of_date") or (as_of_date.isoformat() if as_of_date else ""))
@@ -685,6 +688,7 @@ def build_live_stock_detail_response(
             "industry_competitive_position": industry_competitive_position,
             "financial_statement_model": financial_statement_model,
             "valuation_target_range": valuation_target_range,
+            "fund_instrument_analysis": fund_instrument_analysis,
             "macro_flow_impacts": [
                 _build_stock_macro_flow_payload(item) for item in _as_list(state.get("macro_flow_impacts"))
             ],
@@ -1418,6 +1422,9 @@ def build_live_recommendation_detail_response(
         as_of_date=str(state.get("as_of_date") or ""),
         currency_code=str(state.get("currency_code") or "USD"),
     )
+    fund_instrument_analysis = _build_fund_instrument_analysis_payload(
+        _as_dict(state.get("fund_instrument_analysis"))
+    )
     linked_thesis_id = state.get("linked_thesis_id")
     outcome = _as_dict(state.get("outcome"))
     symbol = str(state.get("symbol") or "UNKNOWN").upper()
@@ -1452,6 +1459,7 @@ def build_live_recommendation_detail_response(
             "industry_competitive_position": industry_competitive_position,
             "financial_statement_model": financial_statement_model,
             "valuation_target_range": valuation_target_range,
+            "fund_instrument_analysis": fund_instrument_analysis,
             "linked_thesis_id": _opaque_id("thesis", linked_thesis_id, None) if linked_thesis_id is not None else None,
             "evidence_trace": evidence_trace,
             "evidence_review": evidence_review,
@@ -3523,6 +3531,7 @@ latest_recommendation as (
         recommendation.thesis_id,
         recommendation.action,
         recommendation.total_score,
+        recommendation.recommended_weight,
         recommendation.status,
         batch.as_of_date
     from signal.recommendation recommendation
@@ -3765,6 +3774,57 @@ latest_position as (
     where portfolio.portfolio_name = {sql_literal(DEFAULT_PORTFOLIO_NAME)}
       and position.quantity <> 0
     limit 1
+),
+fund_benchmark_source as (
+    select
+        composition.benchmark_code,
+        composition.source_type,
+        composition.source_name,
+        composition.source_as_of_date,
+        composition.valid_from
+    from ref.benchmark_composition composition
+    join target_instrument instrument
+      on upper(composition.benchmark_code) = upper(instrument.primary_symbol)
+    join target_date target
+      on composition.valid_from <= target.as_of_date
+     and (composition.valid_to is null or composition.valid_to >= target.as_of_date)
+    where upper(coalesce(instrument.name, '')) like '%ETF%'
+       or upper(coalesce(instrument.name, '')) like '%TRUST%'
+       or lower(coalesce(instrument.instrument_type, '')) in ('etf', 'fund')
+    order by
+        case composition.source_type
+            when 'provider_file' then 0
+            when 'operator_upload' then 1
+            else 2
+        end,
+        composition.source_as_of_date desc,
+        composition.valid_from desc
+    limit 1
+),
+fund_benchmark_holdings as (
+    select
+        component.primary_symbol,
+        component.name,
+        composition.target_weight,
+        composition.confidence,
+        composition.rationale
+    from ref.benchmark_composition composition
+    join fund_benchmark_source source
+      on source.benchmark_code = composition.benchmark_code
+     and source.source_type = composition.source_type
+     and source.source_name = composition.source_name
+     and source.source_as_of_date = composition.source_as_of_date
+     and source.valid_from = composition.valid_from
+    join ref.instrument component
+      on component.instrument_id = composition.component_instrument_id
+    order by composition.target_weight desc, component.primary_symbol
+),
+fund_benchmark_summary as (
+    select
+        count(*)::int as holding_count,
+        coalesce(sum(target_weight), 0)::numeric as holdings_coverage_weight,
+        avg(confidence) as average_holding_confidence
+    from fund_benchmark_holdings
 ),
 raw_recent_events as (
     select
@@ -4136,6 +4196,86 @@ select json_build_object(
             'linked_thesis_id', linked_thesis_id
         )
         from latest_position
+    ),
+    'fund_instrument_analysis',
+    (
+        select
+            case
+                when upper(coalesce(instrument.name, '')) like '%ETF%'
+                  or upper(coalesce(instrument.name, '')) like '%TRUST%'
+                  or lower(coalesce(instrument.instrument_type, '')) in ('etf', 'fund')
+                then json_build_object(
+                    'status',
+                    case
+                        when coalesce((select holding_count from fund_benchmark_summary), 0) > 0 then 'available'
+                        else 'source_gap'
+                    end,
+                    'analysis_type', 'fund_or_etf',
+                    'symbol', instrument.primary_symbol,
+                    'summary',
+                    case
+                        when coalesce((select holding_count from fund_benchmark_summary), 0) > 0
+                            then instrument.primary_symbol || ': 보유종목 구성과 포트폴리오 노출로 판단해야 하는 ETF·펀드형 상품이다.'
+                        else instrument.primary_symbol || ': 기업 재무제표가 아니라 보유종목·벤치마크·비용·추적오차 데이터를 먼저 확보해야 하는 ETF·펀드형 상품이다.'
+                    end,
+                    'benchmark_code', coalesce((select benchmark_code from fund_benchmark_source), instrument.primary_symbol),
+                    'benchmark_source', coalesce((select source_name from fund_benchmark_source), ''),
+                    'source_type', coalesce((select source_type from fund_benchmark_source), ''),
+                    'source_as_of_date', (select source_as_of_date from fund_benchmark_source),
+                    'holding_count', coalesce((select holding_count from fund_benchmark_summary), 0),
+                    'holdings_coverage_weight', (select holdings_coverage_weight from fund_benchmark_summary),
+                    'average_holding_confidence', (select average_holding_confidence from fund_benchmark_summary),
+                    'top_holdings',
+                    coalesce(
+                        (
+                            select json_agg(
+                                json_build_object(
+                                    'symbol', primary_symbol,
+                                    'name', name,
+                                    'target_weight', target_weight,
+                                    'confidence', confidence,
+                                    'rationale', rationale
+                                )
+                                order by target_weight desc, primary_symbol
+                            )
+                            from (
+                                select *
+                                from fund_benchmark_holdings
+                                limit 10
+                            ) top_holding
+                        ),
+                        '[]'::json
+                    ),
+                    'portfolio_role',
+                    json_build_object(
+                        'portfolio_name', coalesce((select portfolio_name from latest_position), {sql_literal(DEFAULT_PORTFOLIO_NAME)}),
+                        'current_weight', (select weight from latest_position),
+                        'recommended_weight', (select recommended_weight from latest_recommendation),
+                        'role', 'broad_market_or_fund_exposure',
+                        'rationale', '개별 기업 매출·마진보다 보유종목 구성, 벤치마크 노출, 포트폴리오 비중으로 검토한다.'
+                    ),
+                    'tracking_error',
+                    json_build_object(
+                        'status', 'not_collected',
+                        'value', null,
+                        'summary', '추적오차 원천은 아직 수집하지 않았다. 임의 계산값을 표시하지 않는다.'
+                    ),
+                    'expense_ratio',
+                    json_build_object(
+                        'status', 'not_collected',
+                        'value', null,
+                        'summary', '비용률 원천은 아직 수집하지 않았다. 무료 원천 확인 전까지 unknown으로 둔다.'
+                    ),
+                    'limitations',
+                    json_build_array(
+                        '기업 DCF·SOTP·재무제표 모델을 적용하지 않는다.',
+                        '정확한 추적오차와 비용률은 원천 데이터 수집 전까지 unknown이다.',
+                        '추천 점수와 주문 가능 여부는 이 분석으로 자동 변경하지 않는다.'
+                    )
+                )
+                else null
+            end
+        from target_instrument instrument
     ),
     'equity_research',
     (
@@ -6402,6 +6542,7 @@ with selected_recommendation as (
         recommendation.action,
         recommendation.rank_position,
         recommendation.total_score,
+        recommendation.recommended_weight,
         recommendation.thesis_id
     from signal.recommendation recommendation
     join signal.recommendation_batch batch on batch.batch_id = recommendation.batch_id
@@ -6597,6 +6738,60 @@ latest_position_trace as (
     where portfolio.portfolio_name = {sql_literal(DEFAULT_PORTFOLIO_NAME)}
     order by position.snapshot_date desc
     limit 1
+),
+fund_benchmark_source as (
+    select
+        composition.benchmark_code,
+        composition.source_type,
+        composition.source_name,
+        composition.source_as_of_date,
+        composition.valid_from
+    from ref.benchmark_composition composition
+    join selected_recommendation recommendation
+      on upper(composition.benchmark_code) = upper(recommendation.primary_symbol)
+    join ref.instrument instrument
+      on instrument.instrument_id = recommendation.instrument_id
+    where composition.valid_from <= recommendation.as_of_date
+      and (composition.valid_to is null or composition.valid_to >= recommendation.as_of_date)
+      and (
+          upper(coalesce(instrument.name, '')) like '%ETF%'
+          or upper(coalesce(instrument.name, '')) like '%TRUST%'
+          or lower(coalesce(instrument.instrument_type, '')) in ('etf', 'fund')
+      )
+    order by
+        case composition.source_type
+            when 'provider_file' then 0
+            when 'operator_upload' then 1
+            else 2
+        end,
+        composition.source_as_of_date desc,
+        composition.valid_from desc
+    limit 1
+),
+fund_benchmark_holdings as (
+    select
+        component.primary_symbol,
+        component.name,
+        composition.target_weight,
+        composition.confidence,
+        composition.rationale
+    from ref.benchmark_composition composition
+    join fund_benchmark_source source
+      on source.benchmark_code = composition.benchmark_code
+     and source.source_type = composition.source_type
+     and source.source_name = composition.source_name
+     and source.source_as_of_date = composition.source_as_of_date
+     and source.valid_from = composition.valid_from
+    join ref.instrument component
+      on component.instrument_id = composition.component_instrument_id
+    order by composition.target_weight desc, component.primary_symbol
+),
+fund_benchmark_summary as (
+    select
+        count(*)::int as holding_count,
+        coalesce(sum(target_weight), 0)::numeric as holdings_coverage_weight,
+        avg(confidence) as average_holding_confidence
+    from fund_benchmark_holdings
 ),
 portfolio_review_trace as (
     select
@@ -7031,6 +7226,87 @@ select json_build_object(
             'source_run_id', source_run_id
         )
         from latest_industry_competitive_position
+    ),
+    'fund_instrument_analysis',
+    (
+        select
+            case
+                when upper(coalesce(instrument.name, '')) like '%ETF%'
+                  or upper(coalesce(instrument.name, '')) like '%TRUST%'
+                  or lower(coalesce(instrument.instrument_type, '')) in ('etf', 'fund')
+                then json_build_object(
+                    'status',
+                    case
+                        when coalesce((select holding_count from fund_benchmark_summary), 0) > 0 then 'available'
+                        else 'source_gap'
+                    end,
+                    'analysis_type', 'fund_or_etf',
+                    'symbol', recommendation.primary_symbol,
+                    'summary',
+                    case
+                        when coalesce((select holding_count from fund_benchmark_summary), 0) > 0
+                            then recommendation.primary_symbol || ': 보유종목 구성과 포트폴리오 노출로 판단해야 하는 ETF·펀드형 상품이다.'
+                        else recommendation.primary_symbol || ': 기업 재무제표가 아니라 보유종목·벤치마크·비용·추적오차 데이터를 먼저 확보해야 하는 ETF·펀드형 상품이다.'
+                    end,
+                    'benchmark_code', coalesce((select benchmark_code from fund_benchmark_source), recommendation.primary_symbol),
+                    'benchmark_source', coalesce((select source_name from fund_benchmark_source), ''),
+                    'source_type', coalesce((select source_type from fund_benchmark_source), ''),
+                    'source_as_of_date', (select source_as_of_date from fund_benchmark_source),
+                    'holding_count', coalesce((select holding_count from fund_benchmark_summary), 0),
+                    'holdings_coverage_weight', (select holdings_coverage_weight from fund_benchmark_summary),
+                    'average_holding_confidence', (select average_holding_confidence from fund_benchmark_summary),
+                    'top_holdings',
+                    coalesce(
+                        (
+                            select json_agg(
+                                json_build_object(
+                                    'symbol', primary_symbol,
+                                    'name', name,
+                                    'target_weight', target_weight,
+                                    'confidence', confidence,
+                                    'rationale', rationale
+                                )
+                                order by target_weight desc, primary_symbol
+                            )
+                            from (
+                                select *
+                                from fund_benchmark_holdings
+                                limit 10
+                            ) top_holding
+                        ),
+                        '[]'::json
+                    ),
+                    'portfolio_role',
+                    json_build_object(
+                        'portfolio_name', coalesce((select portfolio_name from latest_position_trace), {sql_literal(DEFAULT_PORTFOLIO_NAME)}),
+                        'current_weight', (select weight from latest_position_trace),
+                        'recommended_weight', recommendation.recommended_weight,
+                        'role', 'broad_market_or_fund_exposure',
+                        'rationale', '개별 기업 매출·마진보다 보유종목 구성, 벤치마크 노출, 포트폴리오 비중으로 검토한다.'
+                    ),
+                    'tracking_error',
+                    json_build_object(
+                        'status', 'not_collected',
+                        'value', null,
+                        'summary', '추적오차 원천은 아직 수집하지 않았다. 임의 계산값을 표시하지 않는다.'
+                    ),
+                    'expense_ratio',
+                    json_build_object(
+                        'status', 'not_collected',
+                        'value', null,
+                        'summary', '비용률 원천은 아직 수집하지 않았다. 무료 원천 확인 전까지 unknown으로 둔다.'
+                    ),
+                    'limitations',
+                    json_build_array(
+                        '기업 DCF·SOTP·재무제표 모델을 적용하지 않는다.',
+                        '정확한 추적오차와 비용률은 원천 데이터 수집 전까지 unknown이다.',
+                        '추천 점수와 주문 가능 여부는 이 분석으로 자동 변경하지 않는다.'
+                    )
+                )
+                else null
+            end
+        from selected_recommendation recommendation
+        join ref.instrument instrument on instrument.instrument_id = recommendation.instrument_id
     ),
     'financial_statement_model',
     json_build_object(
@@ -8311,6 +8587,60 @@ def _financial_source_data_blocker_summary(symbol: str, blocker: dict[str, Any])
         f"{prefix}재무 원천 연결이 실패해 정규화 재무 모델을 만들 수 없다. "
         "원천 공시와 수집 파이프라인을 먼저 확인해야 한다."
     )
+
+
+def _build_fund_instrument_analysis_payload(analysis: dict[str, Any]) -> dict[str, Any] | None:
+    status = str(analysis.get("status") or "").strip()
+    if not status:
+        return None
+    portfolio_role = _as_dict(analysis.get("portfolio_role"))
+    tracking_error = _as_dict(analysis.get("tracking_error"))
+    expense_ratio = _as_dict(analysis.get("expense_ratio"))
+    return {
+        "status": status,
+        "analysis_type": str(analysis.get("analysis_type") or "fund_or_etf"),
+        "symbol": str(analysis.get("symbol") or "").upper(),
+        "summary": str(analysis.get("summary") or ""),
+        "benchmark_code": str(analysis.get("benchmark_code") or ""),
+        "benchmark_source": str(analysis.get("benchmark_source") or ""),
+        "source_type": str(analysis.get("source_type") or ""),
+        "source_as_of_date": str(analysis.get("source_as_of_date") or ""),
+        "holding_count": int(analysis.get("holding_count") or 0),
+        "holdings_coverage_weight": _number(analysis.get("holdings_coverage_weight")),
+        "average_holding_confidence": _number(analysis.get("average_holding_confidence")),
+        "top_holdings": [
+            {
+                "symbol": str(item.get("symbol") or "").upper(),
+                "name": str(item.get("name") or ""),
+                "target_weight": _number(item.get("target_weight")),
+                "confidence": _number(item.get("confidence")),
+                "rationale": str(item.get("rationale") or ""),
+            }
+            for item in _as_list(analysis.get("top_holdings"))
+        ],
+        "portfolio_role": {
+            "portfolio_name": str(portfolio_role.get("portfolio_name") or DEFAULT_PORTFOLIO_NAME),
+            "current_weight": _number(portfolio_role.get("current_weight")),
+            "recommended_weight": _number(portfolio_role.get("recommended_weight")),
+            "role": str(portfolio_role.get("role") or "fund_exposure"),
+            "rationale": str(portfolio_role.get("rationale") or ""),
+        },
+        "tracking_error": {
+            "status": str(tracking_error.get("status") or "not_collected"),
+            "value": _number(tracking_error.get("value")),
+            "summary": str(tracking_error.get("summary") or ""),
+        },
+        "expense_ratio": {
+            "status": str(expense_ratio.get("status") or "not_collected"),
+            "value": _number(expense_ratio.get("value")),
+            "summary": str(expense_ratio.get("summary") or ""),
+        },
+        "limitations": _as_scalar_list(analysis.get("limitations")),
+        "score_policy": "recommendation_weights_unchanged",
+        "automatic_order_allowed": False,
+        "broker_submit_allowed": False,
+        "order_boundary": "read_only_no_order",
+    }
 
 
 def _build_financial_metric_payload(metric: dict[str, Any]) -> dict[str, Any]:

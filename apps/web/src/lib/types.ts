@@ -577,6 +577,49 @@ export type FinancialStatementModel = {
   order_boundary: string;
 };
 
+export type FundInstrumentAnalysis = {
+  status: string;
+  analysis_type: string;
+  symbol: string;
+  summary: string;
+  benchmark_code: string;
+  benchmark_source: string;
+  source_type: string;
+  source_as_of_date: string;
+  holding_count: number;
+  holdings_coverage_weight: number | null;
+  average_holding_confidence: number | null;
+  top_holdings: Array<{
+    symbol: string;
+    name: string;
+    target_weight: number | null;
+    confidence: number | null;
+    rationale: string;
+  }>;
+  portfolio_role: {
+    portfolio_name: string;
+    current_weight: number | null;
+    recommended_weight: number | null;
+    role: string;
+    rationale: string;
+  };
+  tracking_error: {
+    status: string;
+    value: number | null;
+    summary: string;
+  };
+  expense_ratio: {
+    status: string;
+    value: number | null;
+    summary: string;
+  };
+  limitations: string[];
+  score_policy: string;
+  automatic_order_allowed: boolean;
+  broker_submit_allowed: boolean;
+  order_boundary: string;
+};
+
 export type StockRecommendation = {
   recommendation_id: string;
   linked_thesis_id: string | null;
@@ -661,6 +704,7 @@ export type StockDetailData = {
   industry_competitive_position: IndustryCompetitivePosition | null;
   financial_statement_model: FinancialStatementModel;
   valuation_target_range: ValuationTargetRange;
+  fund_instrument_analysis: FundInstrumentAnalysis | null;
   macro_flow_impacts: Array<{
     event_id: string;
     title: string;
@@ -1271,6 +1315,7 @@ export type RecommendationDetailData = {
   industry_competitive_position: IndustryCompetitivePosition | null;
   financial_statement_model: FinancialStatementModel;
   valuation_target_range: ValuationTargetRange;
+  fund_instrument_analysis: FundInstrumentAnalysis | null;
   linked_thesis_id: string;
   professional_decision_waterfall: ProfessionalDecisionWaterfall;
   evidence_trace: {

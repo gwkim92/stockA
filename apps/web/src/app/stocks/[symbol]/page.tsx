@@ -19,6 +19,7 @@ type StockDetailPageProps = {
 type IndustryCompetitivePosition = NonNullable<StockDetailData["industry_competitive_position"]>;
 type FinancialStatementModel = StockDetailData["financial_statement_model"];
 type FinancialMetricSnapshot = FinancialStatementModel["metrics"][number];
+type FundInstrumentAnalysis = StockDetailData["fund_instrument_analysis"];
 
 function formatCurrency(value: number | null, currencyCode: string) {
   if (value === null) {
@@ -282,6 +283,82 @@ function FinancialStatementModelPanel({
         원천 실행: {model.source_run_ids.length > 0 ? model.source_run_ids.join(", ") : "실행 기록 없음"} · 이 화면에서는
         주문을 만들지 않는다.
       </p>
+    </section>
+  );
+}
+
+function FundInstrumentAnalysisPanel({ analysis }: { analysis: FundInstrumentAnalysis }) {
+  if (!analysis) {
+    return null;
+  }
+  return (
+    <section className="bento-card span-4 reveal delay-2" aria-label="ETF와 펀드형 상품 분석">
+      <div className="section-heading">
+        <div>
+          <span className="metric-sub">ETF·펀드 분석</span>
+          <h2>{analysis.symbol}은 기업 재무제표가 아니라 보유종목과 노출도로 본다</h2>
+        </div>
+        <span className="bento-badge" style={{ margin: 0 }}>{koCode(analysis.status)}</span>
+      </div>
+      <p style={{ color: "var(--text-secondary)", marginTop: 0 }}>
+        {analysis.summary}
+      </p>
+      <div className="status-rail compact-rail" aria-label="ETF와 펀드형 상품 분석 요약">
+        <div className="rail-cell">
+          <span>벤치마크</span>
+          <strong>{analysis.benchmark_code || analysis.symbol}</strong>
+          <small>{analysis.benchmark_source || "원천 미확인"}</small>
+        </div>
+        <div className="rail-cell">
+          <span>보유종목 커버리지</span>
+          <strong>{formatPercent(analysis.holdings_coverage_weight)}</strong>
+          <small>{analysis.holding_count.toLocaleString("ko-KR")}개 구성종목</small>
+        </div>
+        <div className="rail-cell">
+          <span>현재 포트폴리오 비중</span>
+          <strong>{formatPercent(analysis.portfolio_role.current_weight)}</strong>
+          <small>{analysis.portfolio_role.portfolio_name}</small>
+        </div>
+        <div className="rail-cell">
+          <span>추천 목표 비중</span>
+          <strong>{formatPercent(analysis.portfolio_role.recommended_weight)}</strong>
+          <small>주문 자동 생성 없음</small>
+        </div>
+      </div>
+      <div className="relationship-panel" aria-label="상위 보유종목">
+        <span>상위 보유종목</span>
+        <div className="relationship-list">
+          {analysis.top_holdings.slice(0, 6).map((holding) => (
+            <div className="relationship-chip" key={holding.symbol}>
+              <span>{holding.symbol}</span>
+              <strong>{holding.name || holding.symbol}</strong>
+              <small>
+                목표 비중 {formatPercent(holding.target_weight)} · 신뢰도 {formatPercent(holding.confidence)}
+              </small>
+            </div>
+          ))}
+          {analysis.top_holdings.length === 0 ? (
+            <p className="relationship-empty">보유종목 원천이 아직 연결되지 않았다.</p>
+          ) : null}
+        </div>
+      </div>
+      <div className="flow-steps">
+        <article className="flow-step">
+          <span>추적오차</span>
+          <strong>{koCode(analysis.tracking_error.status)}</strong>
+          <p>{analysis.tracking_error.summary}</p>
+        </article>
+        <article className="flow-step">
+          <span>비용률</span>
+          <strong>{koCode(analysis.expense_ratio.status)}</strong>
+          <p>{analysis.expense_ratio.summary}</p>
+        </article>
+        <article className="flow-step">
+          <span>주문 경계</span>
+          <strong>{koCode(analysis.order_boundary)}</strong>
+          <p>이 분석은 추천 점수와 주문 가능 여부를 자동 변경하지 않는다.</p>
+        </article>
+      </div>
     </section>
   );
 }
@@ -908,6 +985,8 @@ export default async function StockDetailPage({ params }: StockDetailPageProps) 
       />
 
       <FinancialStatementModelPanel model={financialStatementModel} symbol={data.symbol} />
+
+      <FundInstrumentAnalysisPanel analysis={data.fund_instrument_analysis} />
 
       {hasEvidenceOnlyData ? (
         <section className="bento-card reveal delay-1" aria-label="가격 미수집 안내">

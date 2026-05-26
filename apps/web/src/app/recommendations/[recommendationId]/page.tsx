@@ -24,6 +24,7 @@ type ScoreComponent = RecommendationDetailData["score_components"][number];
 type IndustryCompetitivePosition = NonNullable<RecommendationDetailData["industry_competitive_position"]>;
 type FinancialStatementModel = RecommendationDetailData["financial_statement_model"];
 type FinancialMetricSnapshot = FinancialStatementModel["metrics"][number];
+type FundInstrumentAnalysis = RecommendationDetailData["fund_instrument_analysis"];
 
 function isZeroWeight(value: number) {
   return Math.abs(Number(value)) < 0.000001;
@@ -374,6 +375,73 @@ function FinancialStatementModelPanel({
             </div>
           </article>
         ))}
+      </div>
+    </section>
+  );
+}
+
+function FundInstrumentAnalysisPanel({ analysis }: { analysis: FundInstrumentAnalysis }) {
+  if (!analysis) {
+    return null;
+  }
+  return (
+    <section className="bento-card reveal delay-1" aria-label="추천 ETF와 펀드형 상품 분석">
+      <div style={{ marginBottom: "18px" }}>
+        <span className="metric-sub">ETF·펀드 추천 검토</span>
+        <h2 style={{ fontSize: "1.5rem", marginTop: "6px" }}>
+          {analysis.symbol}은 기업 밸류에이션 대신 보유종목과 포트폴리오 역할을 본다
+        </h2>
+        <p style={{ color: "var(--text-secondary)", marginTop: "8px" }}>
+          {analysis.summary}
+        </p>
+      </div>
+      <div className="status-rail compact-rail" aria-label="추천 ETF와 펀드형 상품 분석 요약">
+        <div className="rail-cell">
+          <span>벤치마크</span>
+          <strong>{analysis.benchmark_code || analysis.symbol}</strong>
+          <small>{analysis.benchmark_source || "원천 미확인"}</small>
+        </div>
+        <div className="rail-cell">
+          <span>구성 커버리지</span>
+          <strong>{formatOptionalPercent(analysis.holdings_coverage_weight)}</strong>
+          <small>{analysis.holding_count.toLocaleString("ko-KR")}개 보유종목</small>
+        </div>
+        <div className="rail-cell">
+          <span>현재 비중</span>
+          <strong>{formatOptionalPercent(analysis.portfolio_role.current_weight)}</strong>
+          <small>{analysis.portfolio_role.portfolio_name}</small>
+        </div>
+        <div className="rail-cell">
+          <span>추천 비중</span>
+          <strong>{formatOptionalPercent(analysis.portfolio_role.recommended_weight)}</strong>
+          <small>읽기 전용</small>
+        </div>
+      </div>
+      <div className="detail-grid" style={{ marginTop: "18px" }}>
+        {analysis.top_holdings.slice(0, 6).map((holding) => (
+          <article className="detail-path-card" key={`fund-holding-${holding.symbol}`}>
+            <span>{holding.symbol}</span>
+            <strong>{holding.name || holding.symbol}</strong>
+            <p>보유 비중 {formatOptionalPercent(holding.target_weight)} · 신뢰도 {formatOptionalPercent(holding.confidence)}</p>
+          </article>
+        ))}
+      </div>
+      <div className="flow-steps" style={{ marginTop: "18px" }}>
+        <article className="flow-step">
+          <span>추적오차</span>
+          <strong>{koCode(analysis.tracking_error.status)}</strong>
+          <p>{analysis.tracking_error.summary}</p>
+        </article>
+        <article className="flow-step">
+          <span>비용률</span>
+          <strong>{koCode(analysis.expense_ratio.status)}</strong>
+          <p>{analysis.expense_ratio.summary}</p>
+        </article>
+        <article className="flow-step">
+          <span>주문 경계</span>
+          <strong>{koCode(analysis.order_boundary)}</strong>
+          <p>펀드 분석은 추천 점수와 주문 가능 여부를 자동 변경하지 않는다.</p>
+        </article>
       </div>
     </section>
   );
@@ -940,6 +1008,8 @@ export default async function RecommendationPage({ params }: RecommendationPageP
       />
 
       <FinancialStatementModelPanel model={financialStatementModel} symbol={data.symbol} />
+
+      <FundInstrumentAnalysisPanel analysis={data.fund_instrument_analysis} />
 
       <ValuationTargetRangeCard
         valuation={valuationTargetRange}

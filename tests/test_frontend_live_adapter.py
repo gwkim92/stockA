@@ -12,6 +12,7 @@ from stockanalysis.frontend.live_adapter import (
     FrontendLiveUnavailableError,
     FrontendLiveUnsupportedPathError,
     _build_financial_statement_model_payload,
+    _build_fund_instrument_analysis_payload,
     is_live_supported_path,
     render_frontend_ai_news_cluster_list_state_sql,
     render_frontend_ai_evidence_detail_state_sql,
@@ -3022,6 +3023,52 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertEqual(etf_payload["source_data_blocker"]["label"], "기업 재무 모델 비적용")
         self.assertIn("펀드형 상품", etf_payload["summary"])
 
+    def test_fund_instrument_analysis_payload_preserves_fund_boundaries(self) -> None:
+        payload = _build_fund_instrument_analysis_payload(
+            {
+                "status": "available",
+                "analysis_type": "fund_or_etf",
+                "symbol": "SPY",
+                "summary": "SPY는 보유종목 구성으로 판단한다.",
+                "benchmark_code": "SPY",
+                "benchmark_source": "ssga_spdr_spy_daily_holdings",
+                "source_type": "provider_file",
+                "source_as_of_date": "2026-05-26",
+                "holding_count": 503,
+                "holdings_coverage_weight": 0.9983,
+                "average_holding_confidence": 0.9,
+                "top_holdings": [
+                    {
+                        "symbol": "AAPL",
+                        "name": "Apple Inc.",
+                        "target_weight": 0.07,
+                        "confidence": 0.9,
+                        "rationale": "provider holding",
+                    }
+                ],
+                "portfolio_role": {
+                    "portfolio_name": "Long Term Paper",
+                    "current_weight": 0.0,
+                    "recommended_weight": 0.04,
+                    "role": "broad_market_or_fund_exposure",
+                    "rationale": "portfolio exposure",
+                },
+                "tracking_error": {"status": "not_collected", "summary": "not collected"},
+                "expense_ratio": {"status": "not_collected", "summary": "not collected"},
+                "limitations": ["no company financials"],
+            }
+        )
+
+        self.assertIsNotNone(payload)
+        assert payload is not None
+        self.assertEqual(payload["symbol"], "SPY")
+        self.assertEqual(payload["benchmark_source"], "ssga_spdr_spy_daily_holdings")
+        self.assertEqual(payload["top_holdings"][0]["symbol"], "AAPL")
+        self.assertEqual(payload["score_policy"], "recommendation_weights_unchanged")
+        self.assertFalse(payload["automatic_order_allowed"])
+        self.assertFalse(payload["broker_submit_allowed"])
+        self.assertEqual(payload["order_boundary"], "read_only_no_order")
+
     def test_live_dashboard_response_matches_frontend_contract_shape(self) -> None:
         payload = resolve_live_frontend_response(
             "/api/dashboard/today",
@@ -3914,6 +3961,9 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertIn("market.financial_metric_normalized", detail_sql)
         self.assertIn("latest_financial_source_linkage_run as", detail_sql)
         self.assertIn("'source_data_blocker'", detail_sql)
+        self.assertIn("fund_benchmark_source as", detail_sql)
+        self.assertIn("'fund_instrument_analysis'", detail_sql)
+        self.assertIn("ref.benchmark_composition", detail_sql)
         self.assertIn("financial_metric_universe(metric_code)", detail_sql)
         self.assertIn("latest_financial_metrics as", detail_sql)
         self.assertIn("raw_share_count_rows as", detail_sql)
@@ -4518,6 +4568,9 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertIn("market.financial_metric_normalized", sql)
         self.assertIn("latest_financial_source_linkage_run as", sql)
         self.assertIn("'source_data_blocker'", sql)
+        self.assertIn("fund_benchmark_source as", sql)
+        self.assertIn("'fund_instrument_analysis'", sql)
+        self.assertIn("ref.benchmark_composition", sql)
         self.assertIn("financial_metric_universe(metric_code)", sql)
         self.assertIn("latest_financial_metrics as", sql)
         self.assertIn("financial_metric_history as", sql)
