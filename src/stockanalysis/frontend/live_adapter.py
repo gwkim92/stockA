@@ -546,6 +546,9 @@ def build_live_data_health_response(
     benchmark_drift_quality = _build_benchmark_drift_quality_payload(
         _as_dict(state.get("portfolio_risk_budget_guardrail"))
     )
+    recommendation_outcome_calibration = _build_recommendation_outcome_calibration_payload(
+        _as_dict(state.get("recommendation_outcome_calibration"))
+    )
     if scheduler_activation["status"] == "pending_manual_approval":
         gate = "scheduler_activation_manual_approval"
         if gate not in open_gates:
@@ -556,6 +559,10 @@ def build_live_data_health_response(
             open_gates.append(gate)
     if benchmark_drift_quality["status"] != "ok":
         gate = "benchmark_drift_quality_attention"
+        if gate not in open_gates:
+            open_gates.append(gate)
+    if recommendation_outcome_calibration["status"] in {"missing", "backfill_candidates_remain", "price_history_gaps_remain"}:
+        gate = "recommendation_outcome_calibration_attention"
         if gate not in open_gates:
             open_gates.append(gate)
 
@@ -580,6 +587,7 @@ def build_live_data_health_response(
             "local_ingest_worker": local_ingest_worker,
             "cycle_ai_quality_audit": cycle_ai_quality_audit,
             "benchmark_drift_quality": benchmark_drift_quality,
+            "recommendation_outcome_calibration": recommendation_outcome_calibration,
             "open_gates": open_gates,
         },
         "links": {
@@ -3396,6 +3404,17 @@ selected_risk_budget_guardrail as (
         eval_run.created_at desc,
         eval_run.eval_run_id desc
     limit 1
+),
+selected_recommendation_outcome_calibration as (
+    select eval_run.*
+    from ai.eval_run eval_run
+    where eval_run.eval_name = 'recommendation_outcome_calibration_sample_expansion'
+      and eval_run.dataset_version = 'recommendation-outcome-calibration-sample-expansion-v1'
+    order by
+        nullif(eval_run.score_json->>'as_of_date', '')::date desc nulls last,
+        eval_run.created_at desc,
+        eval_run.eval_run_id desc
+    limit 1
 )
 select json_build_object(
     'overall_status',
@@ -3467,6 +3486,69 @@ select json_build_object(
             'blocking_reasons', '[]'::json,
             'warning_reasons', '[]'::json,
             'benchmark_drift', '{{}}'::json
+        )
+    ),
+    'recommendation_outcome_calibration',
+    coalesce(
+        (
+            select json_build_object(
+                'status', 'loaded',
+                'eval_run_id', eval_run_id,
+                'created_at', created_at,
+                'as_of_date', score_json->>'as_of_date',
+                'horizon_days', coalesce(score_json->'horizon_days', '[]'::jsonb),
+                'calibration_status', score_json->>'status',
+                'quality_status', score_json->>'quality_status',
+                'sample_status', score_json->>'sample_status',
+                'recommendation_horizon_count',
+                    coalesce(nullif(score_json#>>'{{sample_audit_after,summary,recommendation_horizon_count}}', '')::integer, 0),
+                'recommendation_count',
+                    coalesce(nullif(score_json#>>'{{sample_audit_after,summary,recommendation_count}}', '')::integer, 0),
+                'outcome_count',
+                    coalesce(nullif(score_json#>>'{{sample_audit_after,summary,outcome_count}}', '')::integer, 0),
+                'outcome_coverage_rate',
+                    coalesce(nullif(score_json#>>'{{sample_audit_after,summary,outcome_coverage_rate}}', '')::numeric, 0),
+                'ready_for_backfill_count',
+                    coalesce(nullif(score_json#>>'{{sample_audit_after,summary,ready_for_backfill_count}}', '')::integer, 0),
+                'missing_entry_price_count',
+                    coalesce(nullif(score_json#>>'{{sample_audit_after,summary,missing_entry_price_count}}', '')::integer, 0),
+                'missing_exit_price_count',
+                    coalesce(nullif(score_json#>>'{{sample_audit_after,summary,missing_exit_price_count}}', '')::integer, 0),
+                'missing_reason_counts',
+                    coalesce(score_json#>'{{sample_audit_after,missing_reason_counts}}', '{{}}'::jsonb),
+                'component_diagnostic_count',
+                    jsonb_array_length(coalesce(score_json->'component_calibration_diagnostics', '[]'::jsonb)),
+                'next_action', score_json->>'next_action',
+                'recommendation_scoring_mutated',
+                    coalesce((score_json->>'recommendation_scoring_mutated')::boolean, false),
+                'automatic_order_allowed',
+                    coalesce((score_json->>'automatic_order_allowed')::boolean, false),
+                'broker_submit_allowed',
+                    coalesce((score_json->>'broker_submit_allowed')::boolean, false),
+                'order_boundary', coalesce(score_json->>'order_boundary', 'read_only_no_order')
+            )
+            from selected_recommendation_outcome_calibration
+        ),
+        json_build_object(
+            'status', 'missing',
+            'calibration_status', 'missing_recommendation_outcome_calibration',
+            'quality_status', 'unknown',
+            'sample_status', 'unknown',
+            'horizon_days', '[]'::json,
+            'recommendation_horizon_count', 0,
+            'recommendation_count', 0,
+            'outcome_count', 0,
+            'outcome_coverage_rate', 0,
+            'ready_for_backfill_count', 0,
+            'missing_entry_price_count', 0,
+            'missing_exit_price_count', 0,
+            'missing_reason_counts', '{{}}'::json,
+            'component_diagnostic_count', 0,
+            'next_action', 'recommendation-outcome-calibration-sample-expansion-run을 실행한다.',
+            'recommendation_scoring_mutated', false,
+            'automatic_order_allowed', false,
+            'broker_submit_allowed', false,
+            'order_boundary', 'read_only_no_order'
         )
     ),
     'open_gates',
@@ -10807,6 +10889,51 @@ def _build_benchmark_active_position_payload(item: dict[str, Any]) -> dict[str, 
         "benchmark_weight": _safe_number(item.get("benchmark_weight")) or 0.0,
         "active_weight": _safe_number(item.get("active_weight")) or 0.0,
     }
+
+
+def _build_recommendation_outcome_calibration_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    raw_status = str(payload.get("calibration_status") or payload.get("status") or "missing")
+    status = "missing" if payload.get("status") != "loaded" else raw_status
+    missing_reason_counts = _as_dict(payload.get("missing_reason_counts"))
+    return {
+        "status": status,
+        "eval_run_id": _opaque_id("eval-run", payload.get("eval_run_id"), None),
+        "created_at": _timestamp(payload.get("created_at")),
+        "as_of_date": str(payload.get("as_of_date") or ""),
+        "horizon_days": [int(item) for item in _as_list_or_scalars(payload.get("horizon_days")) if _is_int_like(item)],
+        "quality_status": str(payload.get("quality_status") or "unknown"),
+        "sample_status": str(payload.get("sample_status") or "unknown"),
+        "recommendation_horizon_count": int(_safe_number(payload.get("recommendation_horizon_count")) or 0),
+        "recommendation_count": int(_safe_number(payload.get("recommendation_count")) or 0),
+        "outcome_count": int(_safe_number(payload.get("outcome_count")) or 0),
+        "outcome_coverage_rate": _safe_number(payload.get("outcome_coverage_rate")) or 0.0,
+        "ready_for_backfill_count": int(_safe_number(payload.get("ready_for_backfill_count")) or 0),
+        "missing_entry_price_count": int(_safe_number(payload.get("missing_entry_price_count")) or 0),
+        "missing_exit_price_count": int(_safe_number(payload.get("missing_exit_price_count")) or 0),
+        "missing_reason_counts": {str(key): int(_safe_number(value) or 0) for key, value in missing_reason_counts.items()},
+        "component_diagnostic_count": int(_safe_number(payload.get("component_diagnostic_count")) or 0),
+        "next_action": str(payload.get("next_action") or "recommendation-outcome-calibration-sample-expansion-run을 실행한다."),
+        "recommendation_scoring_mutated": payload.get("recommendation_scoring_mutated") is True,
+        "automatic_order_allowed": payload.get("automatic_order_allowed") is True,
+        "broker_submit_allowed": payload.get("broker_submit_allowed") is True,
+        "order_boundary": str(payload.get("order_boundary") or "read_only_no_order"),
+    }
+
+
+def _as_list_or_scalars(value: object) -> list[object]:
+    if isinstance(value, list):
+        return value
+    if value is None:
+        return []
+    return [value]
+
+
+def _is_int_like(value: object) -> bool:
+    try:
+        int(str(value))
+    except (TypeError, ValueError):
+        return False
+    return True
 
 
 def _benchmark_drift_quality_next_actions(status: str) -> list[str]:

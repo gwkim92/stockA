@@ -15,6 +15,7 @@ type ManualIngestSmoke = DataHealthData["manual_local_ingest_smoke"];
 type LocalIngestWorker = DataHealthData["local_ingest_worker"];
 type CycleAiQualityAudit = DataHealthData["cycle_ai_quality_audit"];
 type BenchmarkDriftQuality = DataHealthData["benchmark_drift_quality"];
+type RecommendationOutcomeCalibration = DataHealthData["recommendation_outcome_calibration"];
 type ProfileTimer = ProfileSchedulerStatus["timers"][number];
 
 function statusRiskClass(value: string) {
@@ -398,6 +399,54 @@ function benchmarkDriftQualityTone(quality: BenchmarkDriftQuality) {
   return "risk-high";
 }
 
+function outcomeCalibrationTitle(calibration: RecommendationOutcomeCalibration) {
+  if (calibration.status === "ready_for_manual_weight_review") {
+    return "성과 표본 검토 가능";
+  }
+  if (calibration.status === "collect_more_outcomes_keep_weights") {
+    return "성과 표본 축적 중";
+  }
+  if (calibration.status === "backfill_candidates_remain") {
+    return "성과 산출 후보 남음";
+  }
+  if (calibration.status === "price_history_gaps_remain") {
+    return "가격 이력 보강 필요";
+  }
+  if (calibration.status === "missing") {
+    return "성과 보정 결과 없음";
+  }
+  return koCode(calibration.status);
+}
+
+function outcomeCalibrationExplanation(calibration: RecommendationOutcomeCalibration) {
+  if (calibration.status === "ready_for_manual_weight_review") {
+    return "성과 표본과 전문 분석 coverage 기준을 통과했다. 그래도 자동 weight 변경은 금지이고 별도 검토 task가 필요하다.";
+  }
+  if (calibration.status === "collect_more_outcomes_keep_weights") {
+    return "성과 표본은 있지만 추천 산식 weight를 바꾸기에는 아직 더 많은 outcome과 실패 사례가 필요하다.";
+  }
+  if (calibration.status === "backfill_candidates_remain") {
+    return "이미 수집된 가격 이력으로 성과를 더 산출할 수 있다. 추천 품질 평가 전에 backfill runner를 다시 실행해야 한다.";
+  }
+  if (calibration.status === "price_history_gaps_remain") {
+    return "성과를 계산해야 할 추천은 있지만 entry/exit 가격 이력이 부족하다. 캔들 보강이 먼저다.";
+  }
+  if (calibration.status === "missing") {
+    return "추천 성과 표본과 컴포넌트 보정 진단이 아직 생성되지 않았다.";
+  }
+  return "추천 성과 보정 상태를 확인해야 한다.";
+}
+
+function outcomeCalibrationTone(calibration: RecommendationOutcomeCalibration) {
+  if (calibration.status === "ready_for_manual_weight_review") {
+    return "risk-low";
+  }
+  if (calibration.status === "collect_more_outcomes_keep_weights") {
+    return "risk-medium";
+  }
+  return "risk-high";
+}
+
 function executionIdLabel(value: string | null | undefined) {
   if (!value) {
     return "실행 기록 없음";
@@ -488,6 +537,30 @@ const DEFAULT_BENCHMARK_DRIFT_QUALITY: BenchmarkDriftQuality = {
   next_actions: ["portfolio-risk-budget-guardrail-run을 먼저 실행한다."],
 };
 
+const DEFAULT_RECOMMENDATION_OUTCOME_CALIBRATION: RecommendationOutcomeCalibration = {
+  status: "missing",
+  eval_run_id: "eval-run-unknown",
+  created_at: "",
+  as_of_date: "",
+  horizon_days: [],
+  quality_status: "unknown",
+  sample_status: "unknown",
+  recommendation_horizon_count: 0,
+  recommendation_count: 0,
+  outcome_count: 0,
+  outcome_coverage_rate: 0,
+  ready_for_backfill_count: 0,
+  missing_entry_price_count: 0,
+  missing_exit_price_count: 0,
+  missing_reason_counts: {},
+  component_diagnostic_count: 0,
+  next_action: "recommendation-outcome-calibration-sample-expansion-run을 실행한다.",
+  recommendation_scoring_mutated: false,
+  automatic_order_allowed: false,
+  broker_submit_allowed: false,
+  order_boundary: "read_only_no_order",
+};
+
 const DEFAULT_PROFILE_SCHEDULER: ProfileSchedulerStatus = {
   status: "not_configured",
   install_status: "not_installed",
@@ -510,6 +583,8 @@ export default async function DataHealthPage() {
   const localWorker = data.local_ingest_worker ?? DEFAULT_LOCAL_WORKER;
   const qualityAudit = data.cycle_ai_quality_audit ?? DEFAULT_CYCLE_AI_QUALITY_AUDIT;
   const benchmarkDriftQuality = data.benchmark_drift_quality ?? DEFAULT_BENCHMARK_DRIFT_QUALITY;
+  const outcomeCalibration =
+    data.recommendation_outcome_calibration ?? DEFAULT_RECOMMENDATION_OUTCOME_CALIBRATION;
   const marketPriceRun = findPipelineRun(data, "market-price-daily", "market_price_upsert");
   const newsRun = findPipelineRun(data, "news-rss-daily", "news_rss_upsert");
   const newsEnrichmentRun = findPipelineRun(
@@ -579,6 +654,14 @@ export default async function DataHealthPage() {
       href: "#benchmark-drift-quality",
       cta: "벤치마크 품질 보기",
       tone: benchmarkDriftQualityTone(benchmarkDriftQuality),
+    },
+    {
+      label: "성과검증",
+      title: outcomeCalibrationTitle(outcomeCalibration),
+      body: outcomeCalibrationExplanation(outcomeCalibration),
+      href: "#outcome-calibration",
+      cta: "표본 상태 보기",
+      tone: outcomeCalibrationTone(outcomeCalibration),
     },
   ];
   const automationCards = [
@@ -879,6 +962,77 @@ export default async function DataHealthPage() {
         <div className="empty-state">
           <strong>다음 조치</strong>
           <p>{qualityAudit.next_actions[0] ? koCode(qualityAudit.next_actions[0]) : "현재 추가 조치 없음"}</p>
+        </div>
+      </section>
+
+      <section
+        className="feature-map-panel reveal delay-1"
+        id="outcome-calibration"
+        aria-labelledby="outcome-calibration-title"
+      >
+        <div className="section-heading stacked-heading">
+          <span>추천 성과검증</span>
+          <h2 id="outcome-calibration-title">추천 weight를 바꾸기 전에 outcome 표본과 실패 사례를 먼저 확인한다.</h2>
+        </div>
+        <p className="board-intro">{outcomeCalibrationExplanation(outcomeCalibration)}</p>
+        <div className="status-rail compact-rail">
+          <article className="rail-cell">
+            <span>판정</span>
+            <strong className={`risk-tag ${outcomeCalibrationTone(outcomeCalibration)}`}>
+              {outcomeCalibrationTitle(outcomeCalibration)}
+            </strong>
+            <small>{executionIdLabel(outcomeCalibration.eval_run_id)}</small>
+          </article>
+          <article className="rail-cell">
+            <span>성과 표본</span>
+            <strong>
+              {outcomeCalibration.outcome_count}/{outcomeCalibration.recommendation_horizon_count}
+            </strong>
+            <small>추천×기간 기준</small>
+          </article>
+          <article className="rail-cell">
+            <span>표본 커버리지</span>
+            <strong>{formatPercent(outcomeCalibration.outcome_coverage_rate)}</strong>
+            <small>{outcomeCalibration.horizon_days.join(" · ") || "기간 미확인"}일</small>
+          </article>
+          <article className="rail-cell">
+            <span>추가 산출 후보</span>
+            <strong>{outcomeCalibration.ready_for_backfill_count}</strong>
+            <small>가격 이력으로 계산 가능</small>
+          </article>
+          <article className="rail-cell">
+            <span>컴포넌트 진단</span>
+            <strong>{outcomeCalibration.component_diagnostic_count}</strong>
+            <small>zero-weight 전문 지표</small>
+          </article>
+        </div>
+        <div className="insight-grid">
+          <article className="insight-card">
+            <span>추천 weight</span>
+            <strong>{outcomeCalibration.recommendation_scoring_mutated ? "변경 감지" : "변경 없음"}</strong>
+            <p>성과 검증은 추천 산식 변경이 아니다. weight 조정은 별도 승인된 pilot task 전까지 막는다.</p>
+          </article>
+          <article className="insight-card">
+            <span>가격 이력 부족</span>
+            <strong>
+              {outcomeCalibration.missing_entry_price_count + outcomeCalibration.missing_exit_price_count}
+            </strong>
+            <p>entry 또는 exit 가격이 없어 성과 산출이 막힌 추천×기간 수다.</p>
+          </article>
+          <article className="insight-card">
+            <span>품질 평가</span>
+            <strong>{koCode(outcomeCalibration.quality_status)}</strong>
+            <p>전문 분석 coverage와 outcome 표본이 weight 검토 기준을 충족하는지 본다.</p>
+          </article>
+          <article className="insight-card">
+            <span>주문 경계</span>
+            <strong>{koCode(outcomeCalibration.order_boundary)}</strong>
+            <p>성과검증은 주문 생성이나 증권사 제출을 허용하지 않는다.</p>
+          </article>
+        </div>
+        <div className="empty-state">
+          <strong>다음 조치</strong>
+          <p>{outcomeCalibration.next_action ? koCode(outcomeCalibration.next_action) : "현재 추가 조치 없음"}</p>
         </div>
       </section>
 

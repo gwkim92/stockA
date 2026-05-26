@@ -258,6 +258,29 @@ export type DataHealthData = {
     }>;
     next_actions: string[];
   };
+  recommendation_outcome_calibration: {
+    status: string;
+    eval_run_id: string;
+    created_at: string;
+    as_of_date: string;
+    horizon_days: number[];
+    quality_status: string;
+    sample_status: string;
+    recommendation_horizon_count: number;
+    recommendation_count: number;
+    outcome_count: number;
+    outcome_coverage_rate: number;
+    ready_for_backfill_count: number;
+    missing_entry_price_count: number;
+    missing_exit_price_count: number;
+    missing_reason_counts: Record<string, number>;
+    component_diagnostic_count: number;
+    next_action: string;
+    recommendation_scoring_mutated: boolean;
+    automatic_order_allowed: boolean;
+    broker_submit_allowed: boolean;
+    order_boundary: string;
+  };
   open_gates: string[];
 };
 

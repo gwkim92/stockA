@@ -139,6 +139,10 @@ from stockanalysis.operations.recommendation_outcome_backfill import (
     DEFAULT_OUTCOME_VERSION as DEFAULT_RECOMMENDATION_OUTCOME_VERSION,
     run_recommendation_outcome_backfill,
 )
+from stockanalysis.operations.recommendation_outcome_calibration_sample_expansion import (
+    DEFAULT_EXAMPLE_LIMIT as DEFAULT_OUTCOME_CALIBRATION_EXAMPLE_LIMIT,
+    run_recommendation_outcome_calibration_sample_expansion,
+)
 from stockanalysis.operations.scheduler_activation_execution_decision import (
     build_data_operations_live_scheduler_host_activation_execution_decision_report,
 )
@@ -758,6 +762,44 @@ def build_parser() -> argparse.ArgumentParser:
     recommendation_outcome_backfill.add_argument("--output")
     recommendation_outcome_backfill.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
     recommendation_outcome_backfill.set_defaults(handler=_handle_recommendation_outcome_backfill_run)
+
+    recommendation_outcome_calibration = subparsers.add_parser(
+        "recommendation-outcome-calibration-sample-expansion-run",
+        help="Backfill due outcomes and record calibration sample diagnostics without changing weights.",
+    )
+    recommendation_outcome_calibration.add_argument("--env-file")
+    recommendation_outcome_calibration.add_argument("--as-of-date", required=True)
+    recommendation_outcome_calibration.add_argument(
+        "--horizon-day",
+        type=int,
+        action="append",
+        default=[],
+        help="Repeatable calendar-day horizon. Defaults to 30, 90, 180, 365 when omitted.",
+    )
+    recommendation_outcome_calibration.add_argument("--market-code")
+    recommendation_outcome_calibration.add_argument("--strategy-name")
+    recommendation_outcome_calibration.add_argument("--horizon-type")
+    recommendation_outcome_calibration.add_argument("--universe-version")
+    recommendation_outcome_calibration.add_argument("--outcome-version", default=DEFAULT_RECOMMENDATION_OUTCOME_VERSION)
+    recommendation_outcome_calibration.add_argument("--min-sample-size", type=int, default=DEFAULT_MIN_SAMPLE_SIZE)
+    recommendation_outcome_calibration.add_argument(
+        "--min-professional-coverage-rate",
+        type=float,
+        default=DEFAULT_MIN_PROFESSIONAL_COVERAGE_RATE,
+    )
+    recommendation_outcome_calibration.add_argument("--limit", type=int)
+    recommendation_outcome_calibration.add_argument(
+        "--example-limit",
+        type=int,
+        default=DEFAULT_OUTCOME_CALIBRATION_EXAMPLE_LIMIT,
+    )
+    recommendation_outcome_calibration.add_argument("--execute", action="store_true")
+    recommendation_outcome_calibration.add_argument("--dry-run", action="store_true")
+    recommendation_outcome_calibration.add_argument("--output")
+    recommendation_outcome_calibration.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
+    recommendation_outcome_calibration.set_defaults(
+        handler=_handle_recommendation_outcome_calibration_sample_expansion_run
+    )
 
     recommendation_quality_eval = subparsers.add_parser(
         "recommendation-quality-eval-run",
@@ -2640,6 +2682,44 @@ def _handle_recommendation_outcome_backfill_run(args: argparse.Namespace, *, std
         output_path = resolve_output_path(
             args.output,
             label="recommendation outcome backfill output",
+            repo_root=args.repo_root,
+            require_repo_outside=True,
+        )
+        write_json_report(report, output_path=output_path, stdout=stdout)
+    else:
+        print_json(report, stdout=stdout, sort_keys=False)
+    return 0
+
+
+def _handle_recommendation_outcome_calibration_sample_expansion_run(
+    args: argparse.Namespace,
+    *,
+    stdout: TextIO,
+) -> int:
+    if bool(args.execute) and bool(args.dry_run):
+        raise ValueError("--execute and --dry-run cannot be used together.")
+    env_mapping = _load_optional_env_mapping(args.env_file, repo_root=args.repo_root)
+    as_of_date = date.fromisoformat(args.as_of_date)
+    with _temporary_environ(env_mapping):
+        report = run_recommendation_outcome_calibration_sample_expansion(
+            config=RuntimeConfig.from_env(),
+            as_of_date=as_of_date,
+            horizon_days=tuple(args.horizon_day or ()),
+            market_code=args.market_code,
+            strategy_name=args.strategy_name,
+            horizon_type=args.horizon_type,
+            universe_version=args.universe_version,
+            outcome_version=args.outcome_version,
+            min_sample_size=args.min_sample_size,
+            min_professional_coverage_rate=args.min_professional_coverage_rate,
+            limit=args.limit,
+            example_limit=args.example_limit,
+            execute=bool(args.execute) and not bool(args.dry_run),
+        )
+    if args.output:
+        output_path = resolve_output_path(
+            args.output,
+            label="recommendation outcome calibration sample expansion output",
             repo_root=args.repo_root,
             require_repo_outside=True,
         )

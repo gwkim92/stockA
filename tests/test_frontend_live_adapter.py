@@ -132,6 +132,34 @@ class FakeLiveExecutor:
                             ],
                         },
                     },
+                    "recommendation_outcome_calibration": {
+                        "status": "loaded",
+                        "eval_run_id": 31,
+                        "created_at": "2026-05-27T00:00:00+00:00",
+                        "as_of_date": "2026-05-27",
+                        "horizon_days": [30, 90],
+                        "calibration_status": "collect_more_outcomes_keep_weights",
+                        "quality_status": "needs_more_data",
+                        "sample_status": "insufficient_sample",
+                        "recommendation_horizon_count": 12,
+                        "recommendation_count": 6,
+                        "outcome_count": 4,
+                        "outcome_coverage_rate": "0.333333",
+                        "ready_for_backfill_count": 2,
+                        "missing_entry_price_count": 1,
+                        "missing_exit_price_count": 0,
+                        "missing_reason_counts": {
+                            "outcome_recorded": 4,
+                            "ready_for_backfill": 2,
+                            "missing_entry_price": 1,
+                        },
+                        "component_diagnostic_count": 5,
+                        "next_action": "성과 표본을 더 쌓는다.",
+                        "recommendation_scoring_mutated": False,
+                        "automatic_order_allowed": False,
+                        "broker_submit_allowed": False,
+                        "order_boundary": "read_only_no_order",
+                    },
                     "open_gates": [
                         "production_api_server",
                         "auth_rbac",
@@ -3243,6 +3271,17 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertEqual(drift_quality["active_share"], 0.3925)
         self.assertEqual(drift_quality["outlier_positions"][0]["symbol"], "MSFT")
         self.assertIn("benchmark_drift_quality_attention", payload["data"]["open_gates"])
+        outcome_calibration = payload["data"]["recommendation_outcome_calibration"]
+        self.assertEqual(outcome_calibration["status"], "collect_more_outcomes_keep_weights")
+        self.assertEqual(outcome_calibration["eval_run_id"], "eval-run-31")
+        self.assertEqual(outcome_calibration["horizon_days"], [30, 90])
+        self.assertEqual(outcome_calibration["outcome_count"], 4)
+        self.assertEqual(outcome_calibration["outcome_coverage_rate"], 0.333333)
+        self.assertEqual(outcome_calibration["ready_for_backfill_count"], 2)
+        self.assertEqual(outcome_calibration["missing_reason_counts"]["ready_for_backfill"], 2)
+        self.assertFalse(outcome_calibration["recommendation_scoring_mutated"])
+        self.assertFalse(outcome_calibration["automatic_order_allowed"])
+        self.assertEqual(outcome_calibration["order_boundary"], "read_only_no_order")
         self.assertEqual(payload["links"]["dashboard"], "/api/dashboard/today")
 
     def test_live_data_health_response_includes_sanitized_scheduler_activation_gate(self) -> None:
@@ -3673,6 +3712,9 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertIn("selected_risk_budget_guardrail", sql)
         self.assertIn("portfolio_risk_budget_guardrail", sql)
         self.assertIn("benchmark_drift", sql)
+        self.assertIn("selected_recommendation_outcome_calibration", sql)
+        self.assertIn("recommendation_outcome_calibration", sql)
+        self.assertIn("recommendation-outcome-calibration-sample-expansion-v1", sql)
 
     def test_live_stock_list_response_matches_frontend_contract_shape(self) -> None:
         payload = resolve_live_frontend_response(
