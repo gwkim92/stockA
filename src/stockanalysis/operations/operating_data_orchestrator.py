@@ -47,8 +47,10 @@ DEFAULT_MACRO_OBSERVATION_START = "2025-01-01"
 DEFAULT_SEC_FILINGS_CIK = "320193"
 DEFAULT_SEC_FILINGS_MAX_FILINGS = 3
 DEFAULT_PERIOD_SOURCE_LINKAGE_MAX_FILINGS = DEFAULT_SOURCE_LINKAGE_MAX_FILINGS
+DEFAULT_REPORTED_SEGMENT_HISTORY_PERIODS = 4
 SEC_FILINGS_CIK_ENV = "STOCKANALYSIS_SEC_FILINGS_CIK"
 SEC_FILINGS_MAX_FILINGS_ENV = "STOCKANALYSIS_SEC_FILINGS_MAX_FILINGS"
+REPORTED_SEGMENT_HISTORY_PERIODS_ENV = "STOCKANALYSIS_REPORTED_SEGMENT_HISTORY_PERIODS"
 OPERATING_DATA_REPORT_ENV = "STOCKANALYSIS_OPERATING_DATA_RUN_REPORT"
 
 ArtifactRunner = Callable[..., dict[str, object]]
@@ -279,6 +281,7 @@ def build_operating_data_run_report(
     ledger_path = _resolve_market_price_ledger(env_mapping, runtime_path=runtime_path, repo_root=repo_root)
     sec_filings_cik = _resolve_sec_filings_cik(env_mapping)
     sec_filings_max_filings = _resolve_sec_filings_max_filings(env_mapping)
+    reported_segment_history_periods = _resolve_reported_segment_history_periods(env_mapping)
 
     sql_executor = executor if executor is not None else _build_executor_if_configured(env_mapping)
     if execute and sql_executor is None:
@@ -323,6 +326,7 @@ def build_operating_data_run_report(
         portfolio_notional=portfolio_notional,
         sec_filings_cik=sec_filings_cik,
         sec_filings_max_filings=sec_filings_max_filings,
+        reported_segment_history_periods=reported_segment_history_periods,
         profile=selected_profile,
     )
 
@@ -361,6 +365,7 @@ def build_operating_data_run_report(
             "missing_price_symbols": missing_price_symbols,
             "sec_filings_cik": sec_filings_cik,
             "sec_filings_max_filings": sec_filings_max_filings,
+            "reported_segment_history_periods": reported_segment_history_periods,
         },
         "generated_files": {
             "missing_price_watchlist": str(watchlist_path) if missing_watchlist_required and missing_price_symbols else "",
@@ -500,6 +505,7 @@ def _build_planned_steps(
     portfolio_notional: Decimal,
     sec_filings_cik: str,
     sec_filings_max_filings: int,
+    reported_segment_history_periods: int,
     profile: OperatingDataRunProfile,
 ) -> list[dict[str, object]]:
     target = target_date.isoformat()
@@ -583,7 +589,7 @@ def _build_planned_steps(
                 "--max-filings",
                 str(max(sec_filings_max_filings, DEFAULT_PERIOD_SOURCE_LINKAGE_MAX_FILINGS)),
                 "--raw-fetch-limit",
-                "2",
+                str(reported_segment_history_periods),
                 "--execute",
             ),
         },
@@ -702,6 +708,8 @@ def _build_planned_steps(
                 target,
                 "--statement-scope",
                 "annual",
+                "--periods-per-instrument",
+                str(reported_segment_history_periods),
                 "--execute",
             ),
         },
@@ -1354,6 +1362,17 @@ def _resolve_sec_filings_max_filings(env: Mapping[str, str]) -> int:
         raise ValueError(f"{SEC_FILINGS_MAX_FILINGS_ENV} must be an integer.")
     if parsed <= 0:
         raise ValueError(f"{SEC_FILINGS_MAX_FILINGS_ENV} must be positive.")
+    return parsed
+
+
+def _resolve_reported_segment_history_periods(env: Mapping[str, str]) -> int:
+    value = str(env.get(REPORTED_SEGMENT_HISTORY_PERIODS_ENV, str(DEFAULT_REPORTED_SEGMENT_HISTORY_PERIODS))).strip()
+    try:
+        parsed = int(value)
+    except ValueError:
+        raise ValueError(f"{REPORTED_SEGMENT_HISTORY_PERIODS_ENV} must be an integer.")
+    if parsed <= 0:
+        raise ValueError(f"{REPORTED_SEGMENT_HISTORY_PERIODS_ENV} must be positive.")
     return parsed
 
 

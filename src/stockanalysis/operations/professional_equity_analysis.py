@@ -1554,14 +1554,16 @@ def render_reported_segment_footnote_candidates_sql(
     as_of_date: date,
     statement_scope: str = "annual",
     limit: int | None = None,
+    periods_per_instrument: int = 1,
 ) -> str:
     _validate_valuation_args(statement_scope=statement_scope)
     if limit is not None and limit <= 0:
         raise ValueError("limit must be greater than 0.")
+    _validate_positive_int(periods_per_instrument, field_name="periods_per_instrument")
     limit_clause = "" if limit is None else f"\n    limit {int(limit)}"
     return f"""-- reported segment footnote candidates
-with latest_periods as (
-    select distinct on (period.instrument_id)
+with ranked_periods as (
+    select
         period.period_id,
         period.instrument_id,
         instrument.primary_symbol,
@@ -1579,18 +1581,34 @@ with latest_periods as (
             )
             then 0
             else 1
-        end as statement_metric_priority
+        end as statement_metric_priority,
+        row_number() over (
+            partition by period.instrument_id
+            order by
+                case
+                    when exists (
+                        select 1
+                        from market.financial_metric_value metric
+                        where metric.period_id = period.period_id
+                          and metric.metric_code in ('revenue', 'operating_income', 'net_income')
+                    )
+                    then 0
+                    else 1
+                end,
+                period.period_end desc,
+                period.period_id desc
+        ) as period_rank
     from market.financial_statement_period period
     join ref.instrument instrument on instrument.instrument_id = period.instrument_id
     join ingest.source_document document on document.document_id = period.source_document_id
     where period.period_end <= {sql_date(as_of_date)}
       and period.statement_scope = {sql_literal(statement_scope)}
       and document.raw_storage_uri is not null
-    order by period.instrument_id, statement_metric_priority, period.period_end desc, period.period_id desc
 ),
 candidate_rows as (
     select *
-    from latest_periods
+    from ranked_periods
+    where period_rank <= {int(periods_per_instrument)}
     order by primary_symbol, period_end desc, source_document_id desc{limit_clause}
 )
 select coalesce(
@@ -1773,6 +1791,7 @@ def load_reported_segment_footnote_candidates(
     as_of_date: date,
     statement_scope: str = "annual",
     limit: int | None = None,
+    periods_per_instrument: int = 1,
     executor: PsqlCommandExecutor | None = None,
 ) -> list[dict[str, object]]:
     sql_executor = executor or PsqlCommandExecutor.from_config(config)
@@ -1782,6 +1801,7 @@ def load_reported_segment_footnote_candidates(
                 as_of_date=as_of_date,
                 statement_scope=statement_scope,
                 limit=limit,
+                periods_per_instrument=periods_per_instrument,
             )
         )
     )
@@ -1796,15 +1816,18 @@ def run_reported_segment_footnote_parser(
     as_of_date: date,
     statement_scope: str = "annual",
     limit: int | None = None,
+    periods_per_instrument: int = 1,
     execute: bool = False,
     executor: PsqlCommandExecutor | None = None,
 ) -> dict[str, object]:
+    _validate_positive_int(periods_per_instrument, field_name="periods_per_instrument")
     sql_executor = executor or PsqlCommandExecutor.from_config(config)
     candidates = load_reported_segment_footnote_candidates(
         config=config,
         as_of_date=as_of_date,
         statement_scope=statement_scope,
         limit=limit,
+        periods_per_instrument=periods_per_instrument,
         executor=sql_executor,
     )
     parsed_rows: list[ReportedSegmentMetricEvidence] = []
@@ -1830,6 +1853,7 @@ def run_reported_segment_footnote_parser(
         "as_of_date": as_of_date.isoformat(),
         "statement_scope": statement_scope,
         "candidate_count": len(candidates),
+        "periods_per_instrument": periods_per_instrument,
         "parsed_metric_count": len(parsed_rows),
         "parsed_instrument_count": len({row.instrument_id for row in parsed_rows}),
         "skipped_candidate_count": len(skipped_candidates),
@@ -1844,6 +1868,7 @@ def run_reported_segment_footnote_parser(
         "as_of_date": as_of_date.isoformat(),
         "statement_scope": statement_scope,
         "limit": limit,
+        "periods_per_instrument": periods_per_instrument,
         "model_name": DEFAULT_REPORTED_SEGMENT_MODEL_NAME,
         "supported_metric_codes": list(REPORTED_SEGMENT_METRIC_CODES),
         "preview": preview,
@@ -1859,6 +1884,7 @@ def run_reported_segment_footnote_parser(
             "as_of_date": as_of_date.isoformat(),
             "statement_scope": statement_scope,
             "limit": limit,
+            "periods_per_instrument": periods_per_instrument,
             "model_name": DEFAULT_REPORTED_SEGMENT_MODEL_NAME,
             "supported_metric_codes": list(REPORTED_SEGMENT_METRIC_CODES),
             "recommendation_scoring_mutated": False,
@@ -4859,6 +4885,11 @@ def _validate_peer_relative_args(*, statement_scope: str, min_peer_count: int) -
 def _validate_valuation_args(*, statement_scope: str) -> None:
     if statement_scope not in VALUATION_STATEMENT_SCOPES:
         raise ValueError(f"statement_scope must be one of: {', '.join(VALUATION_STATEMENT_SCOPES)}.")
+
+
+def _validate_positive_int(value: int, *, field_name: str) -> None:
+    if value <= 0:
+        raise ValueError(f"{field_name} must be greater than 0.")
 
 
 def _statement_scope_filter(alias: str, *, statement_scope: str) -> str:

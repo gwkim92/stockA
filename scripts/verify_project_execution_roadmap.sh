@@ -226,6 +226,10 @@ test -f docs/tasks/segment-sotp-driver-calibration-v1/contract.md
 test -f docs/tasks/segment-sotp-driver-calibration-v1/handoff.md
 test -f docs/tasks/segment-sotp-driver-calibration-v1/review.md
 test -f docs/plans/2026-05-26-segment-sotp-driver-calibration-v1.md
+test -f docs/tasks/segment-history-backfill-v1/contract.md
+test -f docs/tasks/segment-history-backfill-v1/handoff.md
+test -f docs/tasks/segment-history-backfill-v1/review.md
+test -f docs/plans/2026-05-26-segment-history-backfill-v1.md
 test -f docs/tasks/financial-forecast-and-scenario-inputs-v1/contract.md
 test -f docs/tasks/financial-forecast-and-scenario-inputs-v1/handoff.md
 test -f docs/tasks/financial-forecast-and-scenario-inputs-v1/review.md

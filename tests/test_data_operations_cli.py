@@ -2649,6 +2649,8 @@ class DataOperationsCliTests(unittest.TestCase):
                         "annual",
                         "--limit",
                         "7",
+                        "--periods-per-instrument",
+                        "4",
                         "--dry-run",
                     ],
                     stdout=stdout,
@@ -2663,6 +2665,62 @@ class DataOperationsCliTests(unittest.TestCase):
             self.assertEqual(call_kwargs["as_of_date"], date(2026, 5, 25))
             self.assertEqual(call_kwargs["statement_scope"], "annual")
             self.assertEqual(call_kwargs["limit"], 7)
+            self.assertEqual(call_kwargs["periods_per_instrument"], 4)
+            self.assertFalse(call_kwargs["execute"])
+
+    def test_segment_history_backfill_run_command_passes_env_and_guardrails(self) -> None:
+        with tempfile.TemporaryDirectory() as repo_root, tempfile.TemporaryDirectory() as outside_root:
+            env_file = Path(outside_root) / "data-operations.env"
+            env_file.write_text('STOCKANALYSIS_PSQL_COMMAND="docker exec psql"\n', encoding="utf-8")
+            stdout = io.StringIO()
+
+            with patch("stockanalysis.operations.cli.run_segment_history_backfill") as runner_mock:
+                runner_mock.return_value = {
+                    "report_name": "segment_history_backfill",
+                    "status": "planned",
+                    "recommendation_scoring_mutated": False,
+                    "order_boundary": "read_only_no_order",
+                }
+                exit_code = main(
+                    [
+                        "segment-history-backfill-run",
+                        "--repo-root",
+                        repo_root,
+                        "--env-file",
+                        str(env_file),
+                        "--as-of-date",
+                        "2026-05-26",
+                        "--statement-scope",
+                        "annual",
+                        "--cik",
+                        "320193",
+                        "--fallback-symbol",
+                        "AAPL",
+                        "--max-filings",
+                        "200",
+                        "--raw-fetch-limit",
+                        "4",
+                        "--periods-per-instrument",
+                        "4",
+                        "--dry-run",
+                    ],
+                    stdout=stdout,
+                )
+
+            self.assertEqual(exit_code, 0)
+            payload = json.loads(stdout.getvalue())
+            self.assertEqual(payload["report_name"], "segment_history_backfill")
+            self.assertFalse(payload["recommendation_scoring_mutated"])
+            self.assertEqual(payload["order_boundary"], "read_only_no_order")
+            call_kwargs = runner_mock.call_args.kwargs
+            self.assertEqual(call_kwargs["config"].psql_command, "docker exec psql")
+            self.assertEqual(call_kwargs["as_of_date"], date(2026, 5, 26))
+            self.assertEqual(call_kwargs["statement_scope"], "annual")
+            self.assertEqual(call_kwargs["cik"], "320193")
+            self.assertEqual(call_kwargs["fallback_symbol"], "AAPL")
+            self.assertEqual(call_kwargs["max_filings"], 200)
+            self.assertEqual(call_kwargs["raw_fetch_limit"], 4)
+            self.assertEqual(call_kwargs["periods_per_instrument"], 4)
             self.assertFalse(call_kwargs["execute"])
 
     def test_recommendation_fundamental_components_run_command_passes_env_and_guardrails(self) -> None:

@@ -530,6 +530,7 @@ class ProfessionalEquityAnalysisTests(unittest.TestCase):
             as_of_date=date(2026, 5, 25),
             statement_scope="annual",
             limit=10,
+            periods_per_instrument=3,
         )
         lowered = sql.lower()
 
@@ -538,6 +539,9 @@ class ProfessionalEquityAnalysisTests(unittest.TestCase):
         self.assertIn("ingest.source_document", sql)
         self.assertIn("raw_storage_uri", sql)
         self.assertIn("statement_metric_priority", sql)
+        self.assertIn("row_number() over", sql)
+        self.assertIn("partition by period.instrument_id", sql)
+        self.assertIn("period_rank <= 3", sql)
         self.assertIn("metric_code in ('revenue', 'operating_income', 'net_income')", sql)
         self.assertIn("limit 10", sql)
         self.assertNotIn("insert into", lowered)
@@ -809,6 +813,7 @@ class ProfessionalEquityAnalysisTests(unittest.TestCase):
             config=RuntimeConfig(psql_command="psql"),
             as_of_date=date(2026, 5, 25),
             statement_scope="annual",
+            periods_per_instrument=3,
             execute=False,
             executor=executor,  # type: ignore[arg-type]
         )
@@ -816,7 +821,10 @@ class ProfessionalEquityAnalysisTests(unittest.TestCase):
         self.assertEqual(report["status"], "planned")
         self.assertEqual(report["report_name"], "reported_segment_footnote_parser")
         self.assertEqual(report["supported_metric_codes"], list(REPORTED_SEGMENT_METRIC_CODES))
+        self.assertEqual(report["periods_per_instrument"], 3)
+        self.assertIn("period_rank <= 3", executor.scalar_sql[0])
         self.assertEqual(report["preview"]["parsed_metric_count"], 4)  # type: ignore[index]
+        self.assertEqual(report["preview"]["periods_per_instrument"], 3)  # type: ignore[index]
         self.assertFalse(report["recommendation_scoring_mutated"])
         self.assertEqual(executor.non_query_sql, [])
         self.assertEqual(len(executor.scalar_sql), 1)

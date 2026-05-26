@@ -112,6 +112,10 @@ from stockanalysis.operations.professional_equity_analysis import (
     run_sum_of_parts_valuation,
     run_valuation_snapshot,
 )
+from stockanalysis.operations.segment_history_backfill import (
+    DEFAULT_SEGMENT_HISTORY_PERIODS_PER_INSTRUMENT,
+    run_segment_history_backfill,
+)
 from stockanalysis.operations.professional_coverage_expansion import (
     DEFAULT_RESEARCH_PROVIDER as DEFAULT_PROFESSIONAL_COVERAGE_RESEARCH_PROVIDER,
     SUPPORTED_RESEARCH_PROVIDERS as PROFESSIONAL_COVERAGE_RESEARCH_PROVIDERS,
@@ -962,11 +966,35 @@ def build_parser() -> argparse.ArgumentParser:
         "--statement-scope", choices=VALUATION_STATEMENT_SCOPES, default="annual"
     )
     reported_segment_footnote_parser.add_argument("--limit", type=int)
+    reported_segment_footnote_parser.add_argument("--periods-per-instrument", type=int, default=1)
     reported_segment_footnote_parser.add_argument("--execute", action="store_true")
     reported_segment_footnote_parser.add_argument("--dry-run", action="store_true")
     reported_segment_footnote_parser.add_argument("--output")
     reported_segment_footnote_parser.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
     reported_segment_footnote_parser.set_defaults(handler=_handle_reported_segment_footnote_parser_run)
+
+    segment_history_backfill = subparsers.add_parser(
+        "segment-history-backfill-run",
+        help="Backfill historical reported segment periods from SEC filings without changing recommendation weights.",
+    )
+    segment_history_backfill.add_argument("--env-file")
+    segment_history_backfill.add_argument("--as-of-date", required=True)
+    segment_history_backfill.add_argument("--statement-scope", choices=VALUATION_STATEMENT_SCOPES, default="annual")
+    segment_history_backfill.add_argument("--cik")
+    segment_history_backfill.add_argument("--fallback-symbol")
+    segment_history_backfill.add_argument("--max-filings", type=int, default=DEFAULT_SOURCE_LINKAGE_MAX_FILINGS)
+    segment_history_backfill.add_argument("--raw-fetch-limit", type=int)
+    segment_history_backfill.add_argument("--raw-artifact-root", default="artifacts/raw")
+    segment_history_backfill.add_argument(
+        "--periods-per-instrument",
+        type=int,
+        default=DEFAULT_SEGMENT_HISTORY_PERIODS_PER_INSTRUMENT,
+    )
+    segment_history_backfill.add_argument("--execute", action="store_true")
+    segment_history_backfill.add_argument("--dry-run", action="store_true")
+    segment_history_backfill.add_argument("--output")
+    segment_history_backfill.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
+    segment_history_backfill.set_defaults(handler=_handle_segment_history_backfill_run)
 
     segment_footnote_evidence = subparsers.add_parser(
         "segment-footnote-evidence-run",
@@ -2235,12 +2263,44 @@ def _handle_reported_segment_footnote_parser_run(args: argparse.Namespace, *, st
             as_of_date=as_of_date,
             statement_scope=args.statement_scope,
             limit=args.limit,
+            periods_per_instrument=args.periods_per_instrument,
             execute=bool(args.execute) and not bool(args.dry_run),
         )
     if args.output:
         output_path = resolve_output_path(
             args.output,
             label="reported segment footnote parser output",
+            repo_root=args.repo_root,
+            require_repo_outside=True,
+        )
+        write_json_report(report, output_path=output_path, stdout=stdout)
+    else:
+        print_json(report, stdout=stdout, sort_keys=False)
+    return 0
+
+
+def _handle_segment_history_backfill_run(args: argparse.Namespace, *, stdout: TextIO) -> int:
+    if bool(args.execute) and bool(args.dry_run):
+        raise ValueError("--execute and --dry-run cannot be used together.")
+    env_mapping = _load_optional_env_mapping(args.env_file, repo_root=args.repo_root)
+    as_of_date = date.fromisoformat(args.as_of_date)
+    with _temporary_environ(env_mapping):
+        report = run_segment_history_backfill(
+            config=RuntimeConfig.from_env(),
+            as_of_date=as_of_date,
+            statement_scope=args.statement_scope,
+            cik=args.cik,
+            fallback_symbol=args.fallback_symbol,
+            max_filings=args.max_filings,
+            raw_fetch_limit=args.raw_fetch_limit,
+            raw_artifact_root=args.raw_artifact_root,
+            periods_per_instrument=args.periods_per_instrument,
+            execute=bool(args.execute) and not bool(args.dry_run),
+        )
+    if args.output:
+        output_path = resolve_output_path(
+            args.output,
+            label="segment history backfill output",
             repo_root=args.repo_root,
             require_repo_outside=True,
         )
