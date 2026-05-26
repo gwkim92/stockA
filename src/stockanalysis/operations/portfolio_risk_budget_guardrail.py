@@ -181,13 +181,13 @@ benchmark_component_source as (
         composition.source_name,
         composition.source_as_of_date
     order by
-        composition.source_as_of_date desc,
         case composition.source_type
             when 'provider_file' then 0
             when 'operator_upload' then 1
             when 'manual_seed' then 2
             else 3
         end,
+        composition.source_as_of_date desc,
         composition.source_name
     limit 1
 ),

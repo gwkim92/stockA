@@ -51,6 +51,7 @@ class PortfolioRiskBudgetGuardrailTests(unittest.TestCase):
         self.assertIn("when 'provider_file' then 0", sql)
         self.assertIn("when 'operator_upload' then 1", sql)
         self.assertIn("when 'manual_seed' then 2", sql)
+        self.assertLess(sql.index("case composition.source_type"), sql.index("composition.source_as_of_date desc"))
         self.assertIn("ref.instrument_classification_membership", sql)
         self.assertIn("ref.classification_node", sql)
         self.assertIn("position.snapshot_date <= '2026-05-25'::date", sql)
