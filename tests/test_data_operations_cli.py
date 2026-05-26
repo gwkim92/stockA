@@ -1824,6 +1824,47 @@ class DataOperationsCliTests(unittest.TestCase):
             self.assertEqual(call_kwargs["failure_case_limit"], 6)
             self.assertTrue(call_kwargs["execute"])
 
+    def test_portfolio_risk_budget_guardrail_run_command_passes_env_and_writes_output(self) -> None:
+        with tempfile.TemporaryDirectory() as repo_root, tempfile.TemporaryDirectory() as outside_root:
+            env_file = Path(outside_root) / "data-operations.env"
+            output_path = Path(outside_root) / "portfolio-risk-budget-guardrail.json"
+            env_file.write_text('STOCKANALYSIS_PSQL_COMMAND="docker exec psql"\n', encoding="utf-8")
+            stdout = io.StringIO()
+
+            with patch("stockanalysis.operations.cli.run_portfolio_risk_budget_guardrail") as runner_mock:
+                runner_mock.return_value = {
+                    "report_name": "portfolio_risk_budget_guardrail",
+                    "status": "completed",
+                    "risk_gate_decision": "blocked_by_risk_budget_review",
+                }
+                exit_code = main(
+                    [
+                        "portfolio-risk-budget-guardrail-run",
+                        "--repo-root",
+                        repo_root,
+                        "--env-file",
+                        str(env_file),
+                        "--portfolio-name",
+                        "Long Term Paper",
+                        "--as-of-date",
+                        "2026-05-25",
+                        "--execute",
+                        "--output",
+                        str(output_path),
+                    ],
+                    stdout=stdout,
+                )
+
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(stdout.getvalue().strip(), str(output_path.resolve()))
+            payload = json.loads(output_path.read_text(encoding="utf-8"))
+            self.assertEqual(payload["report_name"], "portfolio_risk_budget_guardrail")
+            call_kwargs = runner_mock.call_args.kwargs
+            self.assertEqual(call_kwargs["config"].psql_command, "docker exec psql")
+            self.assertEqual(call_kwargs["portfolio_name"], "Long Term Paper")
+            self.assertEqual(call_kwargs["as_of_date"], date(2026, 5, 25))
+            self.assertTrue(call_kwargs["execute"])
+
     def test_industry_competitive_positioning_run_command_passes_env_and_writes_output(self) -> None:
         with tempfile.TemporaryDirectory() as repo_root, tempfile.TemporaryDirectory() as outside_root:
             env_file = Path(outside_root) / "data-operations.env"

@@ -77,6 +77,9 @@ from stockanalysis.operations.manual_weight_review_calibration_report import (
 from stockanalysis.operations.paper_validation_conflict_remediation import (
     run_paper_validation_conflict_remediation,
 )
+from stockanalysis.operations.portfolio_risk_budget_guardrail import (
+    run_portfolio_risk_budget_guardrail,
+)
 from stockanalysis.operations.recommendation_fundamental_components import (
     DEFAULT_HORIZON_TYPE as DEFAULT_FUNDAMENTAL_COMPONENT_HORIZON_TYPE,
     DEFAULT_MARKET_CODE as DEFAULT_FUNDAMENTAL_COMPONENT_MARKET_CODE,
@@ -778,6 +781,19 @@ def build_parser() -> argparse.ArgumentParser:
     manual_weight_review_calibration.add_argument("--output")
     manual_weight_review_calibration.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
     manual_weight_review_calibration.set_defaults(handler=_handle_manual_weight_review_calibration_report_run)
+
+    portfolio_risk_budget_guardrail = subparsers.add_parser(
+        "portfolio-risk-budget-guardrail-run",
+        help="Evaluate portfolio concentration and position-size guardrails without trading or changing weights.",
+    )
+    portfolio_risk_budget_guardrail.add_argument("--env-file")
+    portfolio_risk_budget_guardrail.add_argument("--portfolio-name", default=DEFAULT_PORTFOLIO_NAME)
+    portfolio_risk_budget_guardrail.add_argument("--as-of-date", required=True)
+    portfolio_risk_budget_guardrail.add_argument("--execute", action="store_true")
+    portfolio_risk_budget_guardrail.add_argument("--dry-run", action="store_true")
+    portfolio_risk_budget_guardrail.add_argument("--output")
+    portfolio_risk_budget_guardrail.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
+    portfolio_risk_budget_guardrail.set_defaults(handler=_handle_portfolio_risk_budget_guardrail_run)
 
     recommendation_fundamental_components = subparsers.add_parser(
         "recommendation-fundamental-components-run",
@@ -1719,6 +1735,31 @@ def _handle_manual_weight_review_calibration_report_run(args: argparse.Namespace
         output_path = resolve_output_path(
             args.output,
             label="manual weight review calibration report output",
+            repo_root=args.repo_root,
+            require_repo_outside=True,
+        )
+        write_json_report(report, output_path=output_path, stdout=stdout)
+    else:
+        print_json(report, stdout=stdout, sort_keys=False)
+    return 0
+
+
+def _handle_portfolio_risk_budget_guardrail_run(args: argparse.Namespace, *, stdout: TextIO) -> int:
+    if bool(args.execute) and bool(args.dry_run):
+        raise ValueError("--execute and --dry-run cannot be used together.")
+    env_mapping = _load_optional_env_mapping(args.env_file, repo_root=args.repo_root)
+    as_of_date = date.fromisoformat(args.as_of_date)
+    with _temporary_environ(env_mapping):
+        report = run_portfolio_risk_budget_guardrail(
+            config=RuntimeConfig.from_env(),
+            portfolio_name=args.portfolio_name,
+            as_of_date=as_of_date,
+            execute=bool(args.execute) and not bool(args.dry_run),
+        )
+    if args.output:
+        output_path = resolve_output_path(
+            args.output,
+            label="portfolio risk budget guardrail output",
             repo_root=args.repo_root,
             require_repo_outside=True,
         )
