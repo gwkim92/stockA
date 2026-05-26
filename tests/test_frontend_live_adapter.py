@@ -27,6 +27,7 @@ from stockanalysis.frontend.live_adapter import (
     render_frontend_paper_trading_preview_state_sql,
     render_frontend_portfolio_concentration_state_sql,
     render_frontend_portfolio_position_sizing_context_state_sql,
+    render_frontend_portfolio_review_decision_feedback_state_sql,
     render_frontend_portfolio_review_decision_history_state_sql,
     render_frontend_recommendation_list_state_sql,
     render_frontend_recommendation_detail_state_sql,
@@ -210,6 +211,67 @@ class FakeLiveExecutor:
                             "order_boundary": "read_only_no_order",
                         },
                         "next_action": "최신 포트폴리오 검토 결정을 확인한다.",
+                    },
+                    "portfolio_review_decision_feedback": {
+                        "status": "loaded",
+                        "eval_run_id": 53,
+                        "created_at": "2026-05-27T03:00:00+00:00",
+                        "eval_name": "portfolio_review_decision_outcome_feedback",
+                        "dataset_version": "portfolio-review-decision-outcome-feedback-v1",
+                        "as_of_date": "2026-05-27",
+                        "portfolio_name": "Long Term Paper",
+                        "source_history_eval_run_id": 52,
+                        "source_history_as_of_date": "2026-05-25",
+                        "min_horizon_days": 30,
+                        "history_age_days": 2,
+                        "feedback_status": "too_early",
+                        "decision_count": 1,
+                        "too_early_count": 1,
+                        "validated_count": 0,
+                        "contradicted_count": 0,
+                        "needs_more_data_count": 0,
+                        "status_counts": {"too_early": 1},
+                        "paper_validation": {"status": "missing", "conflict_count": 0},
+                        "top_feedback": {
+                            "decision_index": 1,
+                            "decision_family": "benchmark_drift",
+                            "symbol": "MSFT",
+                            "decision_type": "reduce_watch",
+                            "decision_label": "비중 축소 검토",
+                            "feedback_status": "too_early",
+                            "feedback_reason": "30일 최소 관찰 기간이 아직 끝나지 않았다.",
+                            "source_decision": {
+                                "priority": 1,
+                                "severity": "high",
+                                "current_weight": "0.3078",
+                                "benchmark_weight": "0.0650",
+                                "active_weight": "0.2428",
+                                "related_recommendation_id": "recommendation-7101",
+                                "related_thesis_id": "thesis-7001",
+                                "rationale": "MSFT active weight가 크다.",
+                            },
+                            "evidence": {
+                                "recommendation_outcome": {},
+                                "thesis": {"status": "active"},
+                                "thesis_outcome": {},
+                                "price_evidence": {},
+                                "paper_validation": {"status": "missing", "conflict_count": 0},
+                            },
+                            "automatic_order_allowed": False,
+                            "broker_submit_allowed": False,
+                            "order_boundary": "read_only_no_order",
+                        },
+                        "latest_items": [],
+                        "guardrails": {
+                            "recommendation_scoring_mutated": False,
+                            "benchmark_definition_mutated": False,
+                            "portfolio_position_mutated": False,
+                            "automatic_rebalance_allowed": False,
+                            "automatic_order_allowed": False,
+                            "broker_submit_allowed": False,
+                            "order_boundary": "read_only_no_order",
+                        },
+                        "next_action": "성과 측정 window가 끝날 때까지 기다린다.",
                     },
                     "recommendation_outcome_calibration": {
                         "status": "loaded",
@@ -1578,6 +1640,100 @@ class FakeLiveExecutor:
                         "order_boundary": "read_only_no_order",
                     },
                     "next_action": "최신 포트폴리오 검토 결정을 확인한다.",
+                }
+            )
+        if sql.startswith("-- frontend portfolio review decision outcome feedback lookup"):
+            return json.dumps(
+                {
+                    "status": "loaded",
+                    "eval_run_id": 53,
+                    "created_at": "2026-05-27T03:00:00+00:00",
+                    "eval_name": "portfolio_review_decision_outcome_feedback",
+                    "dataset_version": "portfolio-review-decision-outcome-feedback-v1",
+                    "as_of_date": "2026-05-27",
+                    "portfolio_name": "Long Term Paper",
+                    "source_history_eval_run_id": 52,
+                    "source_history_as_of_date": "2026-05-25",
+                    "min_horizon_days": 30,
+                    "history_age_days": 2,
+                    "feedback_status": "too_early",
+                    "decision_count": 1,
+                    "too_early_count": 1,
+                    "validated_count": 0,
+                    "contradicted_count": 0,
+                    "needs_more_data_count": 0,
+                    "status_counts": {"too_early": 1},
+                    "paper_validation": {"status": "missing", "conflict_count": 0},
+                    "top_feedback": {
+                        "decision_index": 1,
+                        "decision_family": "benchmark_drift",
+                        "symbol": "TSLA",
+                        "decision_type": "reduce_watch",
+                        "decision_label": "비중 축소 검토",
+                        "feedback_status": "too_early",
+                        "feedback_reason": "30일 최소 관찰 기간이 아직 끝나지 않았다.",
+                        "source_decision": {
+                            "priority": 1,
+                            "severity": "high",
+                            "current_weight": "0.3068",
+                            "benchmark_weight": "0.01839095",
+                            "active_weight": "0.28840905",
+                            "related_recommendation_id": "recommendation-61",
+                            "related_thesis_id": "thesis-1",
+                            "rationale": "TSLA active weight가 크다.",
+                        },
+                        "evidence": {
+                            "recommendation_outcome": {},
+                            "thesis": {"status": "active"},
+                            "thesis_outcome": {},
+                            "price_evidence": {},
+                            "paper_validation": {"status": "missing", "conflict_count": 0},
+                        },
+                        "automatic_order_allowed": False,
+                        "broker_submit_allowed": False,
+                        "order_boundary": "read_only_no_order",
+                    },
+                    "latest_items": [
+                        {
+                            "decision_index": 1,
+                            "decision_family": "benchmark_drift",
+                            "symbol": "TSLA",
+                            "decision_type": "reduce_watch",
+                            "decision_label": "비중 축소 검토",
+                            "feedback_status": "too_early",
+                            "feedback_reason": "30일 최소 관찰 기간이 아직 끝나지 않았다.",
+                            "source_decision": {
+                                "priority": 1,
+                                "severity": "high",
+                                "current_weight": "0.3068",
+                                "benchmark_weight": "0.01839095",
+                                "active_weight": "0.28840905",
+                                "related_recommendation_id": "recommendation-61",
+                                "related_thesis_id": "thesis-1",
+                                "rationale": "TSLA active weight가 크다.",
+                            },
+                            "evidence": {
+                                "recommendation_outcome": {},
+                                "thesis": {"status": "active"},
+                                "thesis_outcome": {},
+                                "price_evidence": {},
+                                "paper_validation": {"status": "missing", "conflict_count": 0},
+                            },
+                            "automatic_order_allowed": False,
+                            "broker_submit_allowed": False,
+                            "order_boundary": "read_only_no_order",
+                        }
+                    ],
+                    "guardrails": {
+                        "recommendation_scoring_mutated": False,
+                        "benchmark_definition_mutated": False,
+                        "portfolio_position_mutated": False,
+                        "automatic_rebalance_allowed": False,
+                        "automatic_order_allowed": False,
+                        "broker_submit_allowed": False,
+                        "order_boundary": "read_only_no_order",
+                    },
+                    "next_action": "성과 측정 window가 끝날 때까지 기다린다.",
                 }
             )
         if sql.startswith("-- frontend portfolio position sizing context lookup"):
@@ -3675,6 +3831,18 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertFalse(review_history["guardrails"]["broker_submit_allowed"])
         self.assertEqual(review_history["guardrails"]["order_boundary"], "read_only_no_order")
         self.assertIn("portfolio_review_decision_history_attention", payload["data"]["open_gates"])
+        review_feedback = payload["data"]["portfolio_review_decision_feedback"]
+        self.assertEqual(review_feedback["status"], "loaded")
+        self.assertEqual(review_feedback["eval_run_id"], "eval-run-53")
+        self.assertEqual(review_feedback["source_history_eval_run_id"], "eval-run-52")
+        self.assertEqual(review_feedback["feedback_status"], "too_early")
+        self.assertEqual(review_feedback["decision_count"], 1)
+        self.assertEqual(review_feedback["too_early_count"], 1)
+        self.assertEqual(review_feedback["top_feedback"]["symbol"], "MSFT")
+        self.assertEqual(review_feedback["top_feedback"]["feedback_status"], "too_early")
+        self.assertFalse(review_feedback["guardrails"]["automatic_order_allowed"])
+        self.assertFalse(review_feedback["guardrails"]["broker_submit_allowed"])
+        self.assertEqual(review_feedback["guardrails"]["order_boundary"], "read_only_no_order")
         outcome_calibration = payload["data"]["recommendation_outcome_calibration"]
         self.assertEqual(outcome_calibration["status"], "collect_more_outcomes_keep_weights")
         self.assertEqual(outcome_calibration["eval_run_id"], "eval-run-31")
@@ -4240,6 +4408,9 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertIn("selected_portfolio_review_decision_history", sql)
         self.assertIn("portfolio_review_decision_history", sql)
         self.assertIn("portfolio-review-decision-history-v1", sql)
+        self.assertIn("selected_portfolio_review_decision_feedback", sql)
+        self.assertIn("portfolio_review_decision_outcome_feedback", sql)
+        self.assertIn("portfolio-review-decision-outcome-feedback-v1", sql)
         self.assertIn("selected_recommendation_outcome_calibration", sql)
         self.assertIn("recommendation_outcome_calibration", sql)
         self.assertIn("recommendation-outcome-calibration-sample-expansion-v1", sql)
@@ -4265,6 +4436,20 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertIn("from ai.eval_run", sql)
         self.assertIn("portfolio_review_decision_history", sql)
         self.assertIn("portfolio-review-decision-history-v1", sql)
+        self.assertIn("'automatic_order_allowed', false", sql)
+        self.assertNotIn("insert into", lowered)
+        self.assertNotIn("update ", lowered)
+        self.assertNotIn("delete from", lowered)
+        self.assertNotIn("from broker", lowered)
+        self.assertNotIn("join broker", lowered)
+
+    def test_portfolio_review_decision_feedback_sql_reads_eval_artifact_without_mutation(self) -> None:
+        sql = render_frontend_portfolio_review_decision_feedback_state_sql(portfolio_name="Long Term Paper")
+        lowered = sql.lower()
+
+        self.assertIn("from ai.eval_run", sql)
+        self.assertIn("portfolio_review_decision_outcome_feedback", sql)
+        self.assertIn("portfolio-review-decision-outcome-feedback-v1", sql)
         self.assertIn("'automatic_order_allowed', false", sql)
         self.assertNotIn("insert into", lowered)
         self.assertNotIn("update ", lowered)
@@ -5716,6 +5901,14 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertFalse(history["guardrails"]["automatic_rebalance_allowed"])
         self.assertFalse(history["guardrails"]["broker_submit_allowed"])
         self.assertEqual(history["guardrails"]["order_boundary"], "read_only_no_order")
+        feedback = payload["data"]["risk_budget"]["review_decision_feedback"]
+        self.assertEqual(feedback["status"], "loaded")
+        self.assertEqual(feedback["eval_run_id"], "eval-run-53")
+        self.assertEqual(feedback["feedback_status"], "too_early")
+        self.assertEqual(feedback["top_feedback"]["symbol"], "TSLA")
+        self.assertFalse(feedback["guardrails"]["automatic_rebalance_allowed"])
+        self.assertFalse(feedback["guardrails"]["broker_submit_allowed"])
+        self.assertEqual(feedback["guardrails"]["order_boundary"], "read_only_no_order")
         self.assertEqual(payload["data"]["positions"][0]["active_thesis_id"], "thesis-7001")
         self.assertEqual(payload["data"]["positions"][0]["outcome_status"], "measured")
         self.assertEqual(payload["data"]["positions"][0]["position_size_status"], "below_rebalance_floor")

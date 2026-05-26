@@ -549,6 +549,9 @@ def build_live_data_health_response(
     portfolio_review_decision_history = _build_portfolio_review_decision_history_payload(
         _as_dict(state.get("portfolio_review_decision_history"))
     )
+    portfolio_review_decision_feedback = _build_portfolio_review_decision_feedback_payload(
+        _as_dict(state.get("portfolio_review_decision_feedback"))
+    )
     recommendation_outcome_calibration = _build_recommendation_outcome_calibration_payload(
         _as_dict(state.get("recommendation_outcome_calibration"))
     )
@@ -575,6 +578,10 @@ def build_live_data_health_response(
             open_gates.append(gate)
     if portfolio_review_decision_history["decision_status"] == "review_required":
         gate = "portfolio_review_decision_history_attention"
+        if gate not in open_gates:
+            open_gates.append(gate)
+    if portfolio_review_decision_feedback["feedback_status"] in {"has_contradictions", "needs_more_data", "missing_history"}:
+        gate = "portfolio_review_decision_feedback_attention"
         if gate not in open_gates:
             open_gates.append(gate)
     if recommendation_outcome_calibration["status"] in {"missing", "backfill_candidates_remain", "price_history_gaps_remain"}:
@@ -616,6 +623,7 @@ def build_live_data_health_response(
             "cycle_ai_quality_audit": cycle_ai_quality_audit,
             "benchmark_drift_quality": benchmark_drift_quality,
             "portfolio_review_decision_history": portfolio_review_decision_history,
+            "portfolio_review_decision_feedback": portfolio_review_decision_feedback,
             "recommendation_outcome_calibration": recommendation_outcome_calibration,
             "recommendation_outcome_maturity": recommendation_outcome_maturity,
             "recommendation_weight_review_readiness": recommendation_weight_review_readiness,
@@ -2401,6 +2409,11 @@ def build_live_portfolio_coverage_response(
         executor=executor,
         portfolio_name=portfolio_name,
     )
+    review_decision_feedback = load_frontend_portfolio_review_decision_feedback_state(
+        config=config,
+        executor=executor,
+        portfolio_name=portfolio_name,
+    )
     position_sizing_context = (
         {"positions": []}
         if missing_position_snapshot or not positions
@@ -2454,6 +2467,7 @@ def build_live_portfolio_coverage_response(
                 risk_budget_guardrail=risk_budget_guardrail,
                 position_sizing_context=position_sizing_context,
                 review_decision_history=review_decision_history,
+                review_decision_feedback=review_decision_feedback,
             ),
             "positions": positions,
             "attribution_readiness": {
@@ -2514,6 +2528,21 @@ def load_frontend_portfolio_review_decision_history_state(
             render_frontend_portfolio_review_decision_history_state_sql(portfolio_name=portfolio_name)
         ),
         "Frontend portfolio review decision history lookup",
+    )
+
+
+def load_frontend_portfolio_review_decision_feedback_state(
+    *,
+    config: RuntimeConfig,
+    executor: PsqlCommandExecutor | None,
+    portfolio_name: str,
+) -> dict[str, Any]:
+    sql_executor = executor or PsqlCommandExecutor.from_config(config)
+    return json_loads_object(
+        sql_executor.execute_scalar(
+            render_frontend_portfolio_review_decision_feedback_state_sql(portfolio_name=portfolio_name)
+        ),
+        "Frontend portfolio review decision outcome feedback lookup",
     )
 
 
@@ -2808,6 +2837,75 @@ select
                 'order_boundary', 'read_only_no_order'
             ),
             'next_action', 'portfolio-review-decision-history-run을 실행해 최신 포트폴리오 검토 결정을 이력화한다.'
+        )
+    )::text;"""
+
+
+def render_frontend_portfolio_review_decision_feedback_state_sql(*, portfolio_name: str) -> str:
+    return f"""-- frontend portfolio review decision outcome feedback lookup
+select
+    coalesce(
+        (
+            select json_build_object(
+                'status', 'loaded',
+                'eval_run_id', eval_run_id,
+                'created_at', created_at,
+                'eval_name', eval_name,
+                'dataset_version', dataset_version,
+                'as_of_date', score_json->>'as_of_date',
+                'portfolio_name', score_json->>'portfolio_name',
+                'source_history_eval_run_id', score_json->>'source_history_eval_run_id',
+                'source_history_as_of_date', score_json->>'source_history_as_of_date',
+                'min_horizon_days', coalesce(nullif(score_json->>'min_horizon_days', '')::integer, 30),
+                'history_age_days', coalesce(nullif(score_json->>'history_age_days', '')::integer, 0),
+                'feedback_status', score_json->>'feedback_status',
+                'decision_count', coalesce(nullif(score_json->>'decision_count', '')::integer, 0),
+                'too_early_count', coalesce(nullif(score_json->>'too_early_count', '')::integer, 0),
+                'validated_count', coalesce(nullif(score_json->>'validated_count', '')::integer, 0),
+                'contradicted_count', coalesce(nullif(score_json->>'contradicted_count', '')::integer, 0),
+                'needs_more_data_count', coalesce(nullif(score_json->>'needs_more_data_count', '')::integer, 0),
+                'status_counts', coalesce(score_json->'status_counts', '{{}}'::jsonb),
+                'paper_validation', coalesce(score_json->'paper_validation', '{{}}'::jsonb),
+                'top_feedback', coalesce(score_json->'top_feedback', 'null'::jsonb),
+                'latest_items', coalesce(score_json->'latest_items', '[]'::jsonb),
+                'guardrails', coalesce(score_json->'guardrails', '{{}}'::jsonb),
+                'next_action', score_json->>'next_action'
+            )
+            from ai.eval_run eval_run
+            where eval_run.eval_name = 'portfolio_review_decision_outcome_feedback'
+              and eval_run.dataset_version = 'portfolio-review-decision-outcome-feedback-v1'
+              and coalesce(eval_run.score_json->>'portfolio_name', {sql_literal(portfolio_name)}) = {sql_literal(portfolio_name)}
+            order by
+                nullif(eval_run.score_json->>'as_of_date', '')::date desc nulls last,
+                eval_run.created_at desc,
+                eval_run.eval_run_id desc
+            limit 1
+        ),
+        json_build_object(
+            'status', 'missing',
+            'eval_name', 'portfolio_review_decision_outcome_feedback',
+            'dataset_version', 'portfolio-review-decision-outcome-feedback-v1',
+            'portfolio_name', {sql_literal(portfolio_name)},
+            'feedback_status', 'missing',
+            'decision_count', 0,
+            'too_early_count', 0,
+            'validated_count', 0,
+            'contradicted_count', 0,
+            'needs_more_data_count', 0,
+            'status_counts', '{{}}'::json,
+            'paper_validation', '{{}}'::json,
+            'top_feedback', null,
+            'latest_items', '[]'::json,
+            'guardrails', json_build_object(
+                'recommendation_scoring_mutated', false,
+                'benchmark_definition_mutated', false,
+                'portfolio_position_mutated', false,
+                'automatic_rebalance_allowed', false,
+                'automatic_order_allowed', false,
+                'broker_submit_allowed', false,
+                'order_boundary', 'read_only_no_order'
+            ),
+            'next_action', 'portfolio-review-decision-outcome-feedback-run을 실행해 저장된 검토 결정이 후속 성과와 맞는지 확인한다.'
         )
     )::text;"""
 
@@ -3545,6 +3643,18 @@ selected_portfolio_review_decision_history as (
         eval_run.eval_run_id desc
     limit 1
 ),
+selected_portfolio_review_decision_feedback as (
+    select eval_run.*
+    from ai.eval_run eval_run
+    where eval_run.eval_name = 'portfolio_review_decision_outcome_feedback'
+      and eval_run.dataset_version = 'portfolio-review-decision-outcome-feedback-v1'
+      and coalesce(eval_run.score_json->>'portfolio_name', {sql_literal(DEFAULT_PORTFOLIO_NAME)}) = {sql_literal(DEFAULT_PORTFOLIO_NAME)}
+    order by
+        nullif(eval_run.score_json->>'as_of_date', '')::date desc nulls last,
+        eval_run.created_at desc,
+        eval_run.eval_run_id desc
+    limit 1
+),
 selected_recommendation_outcome_calibration as (
     select eval_run.*
     from ai.eval_run eval_run
@@ -4135,6 +4245,63 @@ select json_build_object(
                 'order_boundary', 'read_only_no_order'
             ),
             'next_action', 'portfolio-review-decision-history-run을 실행해 최신 포트폴리오 검토 결정을 이력화한다.'
+        )
+    ),
+    'portfolio_review_decision_feedback',
+    coalesce(
+        (
+            select json_build_object(
+                'status', 'loaded',
+                'eval_run_id', eval_run_id,
+                'created_at', created_at,
+                'eval_name', eval_name,
+                'dataset_version', dataset_version,
+                'as_of_date', score_json->>'as_of_date',
+                'portfolio_name', score_json->>'portfolio_name',
+                'source_history_eval_run_id', score_json->>'source_history_eval_run_id',
+                'source_history_as_of_date', score_json->>'source_history_as_of_date',
+                'min_horizon_days', coalesce(nullif(score_json->>'min_horizon_days', '')::integer, 30),
+                'history_age_days', coalesce(nullif(score_json->>'history_age_days', '')::integer, 0),
+                'feedback_status', score_json->>'feedback_status',
+                'decision_count', coalesce(nullif(score_json->>'decision_count', '')::integer, 0),
+                'too_early_count', coalesce(nullif(score_json->>'too_early_count', '')::integer, 0),
+                'validated_count', coalesce(nullif(score_json->>'validated_count', '')::integer, 0),
+                'contradicted_count', coalesce(nullif(score_json->>'contradicted_count', '')::integer, 0),
+                'needs_more_data_count', coalesce(nullif(score_json->>'needs_more_data_count', '')::integer, 0),
+                'status_counts', coalesce(score_json->'status_counts', '{{}}'::jsonb),
+                'paper_validation', coalesce(score_json->'paper_validation', '{{}}'::jsonb),
+                'top_feedback', coalesce(score_json->'top_feedback', 'null'::jsonb),
+                'latest_items', coalesce(score_json->'latest_items', '[]'::jsonb),
+                'guardrails', coalesce(score_json->'guardrails', '{{}}'::jsonb),
+                'next_action', score_json->>'next_action'
+            )
+            from selected_portfolio_review_decision_feedback
+        ),
+        json_build_object(
+            'status', 'missing',
+            'eval_name', 'portfolio_review_decision_outcome_feedback',
+            'dataset_version', 'portfolio-review-decision-outcome-feedback-v1',
+            'portfolio_name', {sql_literal(DEFAULT_PORTFOLIO_NAME)},
+            'feedback_status', 'missing',
+            'decision_count', 0,
+            'too_early_count', 0,
+            'validated_count', 0,
+            'contradicted_count', 0,
+            'needs_more_data_count', 0,
+            'status_counts', '{{}}'::json,
+            'paper_validation', '{{}}'::json,
+            'top_feedback', null,
+            'latest_items', '[]'::json,
+            'guardrails', json_build_object(
+                'recommendation_scoring_mutated', false,
+                'benchmark_definition_mutated', false,
+                'portfolio_position_mutated', false,
+                'automatic_rebalance_allowed', false,
+                'automatic_order_allowed', false,
+                'broker_submit_allowed', false,
+                'order_boundary', 'read_only_no_order'
+            ),
+            'next_action', 'portfolio-review-decision-outcome-feedback-run을 실행해 저장된 검토 결정이 후속 성과와 맞는지 확인한다.'
         )
     ),
     'recommendation_outcome_calibration',
@@ -12005,6 +12172,136 @@ def _build_portfolio_review_decision_history_payload(payload: dict[str, Any]) ->
     }
 
 
+def _build_portfolio_review_decision_feedback_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    status = str(payload.get("status") or "missing")
+    feedback_status = str(payload.get("feedback_status") or ("missing" if status == "missing" else "unknown"))
+    guardrails = _as_dict(payload.get("guardrails"))
+    items = [_build_portfolio_review_feedback_item_payload(item) for item in _as_list(payload.get("latest_items"))]
+    top_feedback = _build_portfolio_review_feedback_item_payload(_as_dict(payload.get("top_feedback")))
+    if not top_feedback["symbol"] and items:
+        top_feedback = items[0]
+    if not top_feedback["symbol"]:
+        top_feedback = None
+    paper_validation = _as_dict(payload.get("paper_validation"))
+    return {
+        "status": status,
+        "eval_run_id": _opaque_id("eval-run", payload.get("eval_run_id"), None),
+        "created_at": _timestamp(payload.get("created_at")),
+        "eval_name": str(payload.get("eval_name") or "portfolio_review_decision_outcome_feedback"),
+        "dataset_version": str(payload.get("dataset_version") or "portfolio-review-decision-outcome-feedback-v1"),
+        "as_of_date": str(payload.get("as_of_date") or ""),
+        "portfolio_name": str(payload.get("portfolio_name") or DEFAULT_PORTFOLIO_NAME),
+        "source_history_eval_run_id": _opaque_id("eval-run", payload.get("source_history_eval_run_id"), None),
+        "source_history_as_of_date": str(payload.get("source_history_as_of_date") or ""),
+        "min_horizon_days": int(_safe_number(payload.get("min_horizon_days")) or 30),
+        "history_age_days": int(_safe_number(payload.get("history_age_days")) or 0),
+        "feedback_status": feedback_status,
+        "decision_count": int(_safe_number(payload.get("decision_count")) or 0),
+        "too_early_count": int(_safe_number(payload.get("too_early_count")) or 0),
+        "validated_count": int(_safe_number(payload.get("validated_count")) or 0),
+        "contradicted_count": int(_safe_number(payload.get("contradicted_count")) or 0),
+        "needs_more_data_count": int(_safe_number(payload.get("needs_more_data_count")) or 0),
+        "status_counts": {str(key): int(_safe_number(value) or 0) for key, value in _as_dict(payload.get("status_counts")).items()},
+        "paper_validation": {
+            "paper_validation_run_id": _opaque_id("paper-validation", paper_validation.get("paper_validation_run_id"), None),
+            "validation_date": str(paper_validation.get("validation_date") or ""),
+            "status": str(paper_validation.get("status") or "missing"),
+            "recommendation_count": int(_safe_number(paper_validation.get("recommendation_count")) or 0),
+            "conflict_count": int(_safe_number(paper_validation.get("conflict_count")) or 0),
+            "approved_action_count": int(_safe_number(paper_validation.get("approved_action_count")) or 0),
+        },
+        "top_feedback": top_feedback,
+        "latest_items": items,
+        "guardrails": {
+            "recommendation_scoring_mutated": guardrails.get("recommendation_scoring_mutated") is True,
+            "benchmark_definition_mutated": guardrails.get("benchmark_definition_mutated") is True,
+            "portfolio_position_mutated": guardrails.get("portfolio_position_mutated") is True,
+            "automatic_rebalance_allowed": guardrails.get("automatic_rebalance_allowed") is True,
+            "automatic_order_allowed": guardrails.get("automatic_order_allowed") is True,
+            "broker_submit_allowed": guardrails.get("broker_submit_allowed") is True,
+            "order_boundary": str(guardrails.get("order_boundary") or "read_only_no_order"),
+        },
+        "next_action": str(
+            payload.get("next_action")
+            or "portfolio-review-decision-outcome-feedback-run을 실행해 저장된 검토 결정이 후속 성과와 맞는지 확인한다."
+        ),
+    }
+
+
+def _build_portfolio_review_feedback_item_payload(item: dict[str, Any]) -> dict[str, Any]:
+    source_decision = _as_dict(item.get("source_decision"))
+    evidence = _as_dict(item.get("evidence"))
+    recommendation_outcome = _as_dict(evidence.get("recommendation_outcome"))
+    thesis = _as_dict(evidence.get("thesis"))
+    thesis_outcome = _as_dict(evidence.get("thesis_outcome"))
+    price_evidence = _as_dict(evidence.get("price_evidence"))
+    paper_validation = _as_dict(evidence.get("paper_validation"))
+    return {
+        "decision_index": int(_safe_number(item.get("decision_index")) or 0),
+        "decision_family": str(item.get("decision_family") or ""),
+        "symbol": str(item.get("symbol") or ""),
+        "decision_type": str(item.get("decision_type") or ""),
+        "decision_label": str(item.get("decision_label") or ""),
+        "feedback_status": str(item.get("feedback_status") or ""),
+        "feedback_reason": str(item.get("feedback_reason") or ""),
+        "source_decision": {
+            "priority": int(_safe_number(source_decision.get("priority")) or 0),
+            "severity": str(source_decision.get("severity") or ""),
+            "current_weight": _safe_number(source_decision.get("current_weight")),
+            "benchmark_weight": _safe_number(source_decision.get("benchmark_weight")),
+            "active_weight": _safe_number(source_decision.get("active_weight")),
+            "related_recommendation_id": _optional_text(source_decision.get("related_recommendation_id")),
+            "related_thesis_id": _optional_text(source_decision.get("related_thesis_id")),
+            "rationale": str(source_decision.get("rationale") or ""),
+        },
+        "evidence": {
+            "recommendation_outcome": {
+                "outcome_id": _opaque_id("outcome", recommendation_outcome.get("outcome_id"), None),
+                "recommendation_id": _opaque_id("recommendation", recommendation_outcome.get("recommendation_id"), None),
+                "measurement_end_date": str(recommendation_outcome.get("measurement_end_date") or ""),
+                "horizon_days": int(_safe_number(recommendation_outcome.get("horizon_days")) or 0),
+                "absolute_return_pct": _safe_number(recommendation_outcome.get("absolute_return_pct")),
+                "alpha_pct": _safe_number(recommendation_outcome.get("alpha_pct")),
+                "outcome_label": str(recommendation_outcome.get("outcome_label") or ""),
+            },
+            "thesis": {
+                "thesis_id": _opaque_id("thesis", thesis.get("thesis_id"), None),
+                "status": str(thesis.get("status") or ""),
+                "title": str(thesis.get("title") or ""),
+                "conviction_score": _safe_number(thesis.get("conviction_score")),
+            },
+            "thesis_outcome": {
+                "outcome_id": _opaque_id("outcome", thesis_outcome.get("outcome_id"), None),
+                "thesis_id": _opaque_id("thesis", thesis_outcome.get("thesis_id"), None),
+                "measurement_end_date": str(thesis_outcome.get("measurement_end_date") or ""),
+                "holding_days": int(_safe_number(thesis_outcome.get("holding_days")) or 0),
+                "absolute_return_pct": _safe_number(thesis_outcome.get("absolute_return_pct")),
+                "alpha_pct": _safe_number(thesis_outcome.get("alpha_pct")),
+                "success_grade": str(thesis_outcome.get("success_grade") or ""),
+                "summary": str(thesis_outcome.get("summary") or ""),
+            },
+            "price_evidence": {
+                "baseline_trade_date": str(price_evidence.get("baseline_trade_date") or ""),
+                "baseline_adjusted_close": _safe_number(price_evidence.get("baseline_adjusted_close")),
+                "latest_trade_date": str(price_evidence.get("latest_trade_date") or ""),
+                "latest_adjusted_close": _safe_number(price_evidence.get("latest_adjusted_close")),
+                "price_return_pct": _safe_number(price_evidence.get("price_return_pct")),
+            },
+            "paper_validation": {
+                "paper_validation_run_id": _opaque_id("paper-validation", paper_validation.get("paper_validation_run_id"), None),
+                "validation_date": str(paper_validation.get("validation_date") or ""),
+                "status": str(paper_validation.get("status") or "missing"),
+                "conflict_count": int(_safe_number(paper_validation.get("conflict_count")) or 0),
+                "symbol_blocked": paper_validation.get("symbol_blocked") is True,
+                "symbol_validated": paper_validation.get("symbol_validated") is True,
+            },
+        },
+        "automatic_order_allowed": item.get("automatic_order_allowed") is True,
+        "broker_submit_allowed": item.get("broker_submit_allowed") is True,
+        "order_boundary": str(item.get("order_boundary") or "read_only_no_order"),
+    }
+
+
 def _build_portfolio_review_history_decision_payload(item: dict[str, Any]) -> dict[str, Any]:
     return {
         "decision_family": str(item.get("decision_family") or ""),
@@ -14302,6 +14599,7 @@ def _build_portfolio_risk_budget_payload(
     risk_budget_guardrail: dict[str, Any],
     position_sizing_context: dict[str, Any],
     review_decision_history: dict[str, Any] | None = None,
+    review_decision_feedback: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     max_single_position_weight = _number(allocation_policy.get("max_single_position_weight"))
     min_rebalance_target_weight = _number(allocation_policy.get("min_rebalance_target_weight"))
@@ -14382,6 +14680,9 @@ def _build_portfolio_risk_budget_payload(
         "position_sizing_review": position_sizing_review,
         "review_decision_history": _build_portfolio_review_decision_history_payload(
             _as_dict(review_decision_history)
+        ),
+        "review_decision_feedback": _build_portfolio_review_decision_feedback_payload(
+            _as_dict(review_decision_feedback)
         ),
         "review_reasons": reasons,
     }

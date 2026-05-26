@@ -136,6 +136,16 @@ function sizingBandClass(reviewBand: string) {
   return "risk-low";
 }
 
+function feedbackStatusClass(status: string) {
+  if (status === "has_contradictions" || status === "contradicted") {
+    return "risk-high";
+  }
+  if (status === "needs_more_data" || status === "too_early" || status === "missing" || status === "missing_history") {
+    return "risk-medium";
+  }
+  return "risk-low";
+}
+
 function formatScore(value: number | null | undefined) {
   if (value === null || value === undefined) {
     return "없음";
@@ -199,6 +209,7 @@ export default async function PortfolioCoveragePage() {
   const candidateDecisionCounts = candidateReview.decision_counts ?? {};
   const positionSizingReview = riskBudget.position_sizing_review;
   const reviewHistory = riskBudget.review_decision_history;
+  const reviewFeedback = riskBudget.review_decision_feedback;
   const concentration = riskBudget.concentration;
   const hasPositions = data.positions.length > 0;
   const investedWeight = Math.max(0, 1 - (data.summary.cash_weight ?? 0));
@@ -421,6 +432,69 @@ export default async function PortfolioCoveragePage() {
           ) : (
             <p className="empty-state" style={{ margin: 0 }}>
               아직 durable 검토 이력이 없다. `portfolio-review-decision-history-run` 실행 후 이곳에 최신 결정이 표시된다.
+            </p>
+          )}
+        </article>
+
+        <article className="bento-card span-4" style={{ borderColor: reviewFeedback.feedback_status === "has_contradictions" ? "var(--accent-red)" : "var(--border-light)" }}>
+          <div className="section-heading">
+            <div>
+              <span className="metric-sub">검토 결정 사후평가</span>
+              <h2>저장한 판단이 이후 성과와 맞았는지 본다</h2>
+            </div>
+            <span className={`risk-tag ${feedbackStatusClass(reviewFeedback.feedback_status)}`}>
+              {reviewFeedback.status === "loaded" ? koCode(reviewFeedback.feedback_status) : "평가 없음"}
+            </span>
+          </div>
+          <p style={{ color: "var(--text-secondary)", marginTop: 0 }}>
+            이 평가는 리밸런싱이나 추천 weight를 바꾸지 않는다. 이전 검토 결정을 outcome, paper validation,
+            thesis, 가격 변화와 대조해서 다음 검토의 신뢰도를 높이는 감사 자료다.
+          </p>
+          <div className="status-rail compact-rail" aria-label="검토 결정 사후평가 요약" style={{ marginBottom: "20px" }}>
+            <article className="rail-cell">
+              <span>평가 ID</span>
+              <strong>{reviewFeedback.eval_run_id}</strong>
+              <small>{reviewFeedback.as_of_date || "기준일 없음"}</small>
+            </article>
+            <article className="rail-cell">
+              <span>검증 / 반박</span>
+              <strong>{reviewFeedback.validated_count} / {reviewFeedback.contradicted_count}</strong>
+              <small>전체 {reviewFeedback.decision_count}개</small>
+            </article>
+            <article className="rail-cell">
+              <span>아직 이른 항목</span>
+              <strong>{reviewFeedback.too_early_count}</strong>
+              <small>{reviewFeedback.min_horizon_days}일 관찰 기준</small>
+            </article>
+            <article className="rail-cell rail-critical">
+              <span>주문 경계</span>
+              <strong>{koCode(reviewFeedback.guardrails.order_boundary)}</strong>
+              <small>broker 전송 {reviewFeedback.guardrails.broker_submit_allowed ? "허용" : "금지"}</small>
+            </article>
+          </div>
+          {reviewFeedback.latest_items.length > 0 ? (
+            <div className="bento-list" style={{ gap: "8px" }}>
+              {reviewFeedback.latest_items.slice(0, 5).map((item) => (
+                <div className="bento-list-item" key={`${item.decision_index}-${item.symbol}-${item.feedback_status}`}>
+                  <div>
+                    <span className={`risk-tag ${feedbackStatusClass(item.feedback_status)}`}>
+                      {koCode(item.feedback_status)}
+                    </span>
+                    <strong>{item.symbol} · {item.decision_label || koCode(item.decision_type)}</strong>
+                    <span>{item.feedback_reason}</span>
+                  </div>
+                  <span style={{ color: "var(--text-secondary)", maxWidth: "520px" }}>
+                    outcome {koCode(item.evidence.recommendation_outcome.outcome_label || "미측정")} · alpha{" "}
+                    {formatPercent(item.evidence.recommendation_outcome.alpha_pct)} · 가격{" "}
+                    {formatPercent(item.evidence.price_evidence.price_return_pct)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="empty-state" style={{ margin: 0 }}>
+              아직 사후평가 이력이 없다. outcome window가 끝난 뒤 `portfolio-review-decision-outcome-feedback-run`을 실행하면
+              검토 판단이 맞았는지 여기에 표시된다.
             </p>
           )}
         </article>

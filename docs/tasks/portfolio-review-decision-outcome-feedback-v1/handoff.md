@@ -2,8 +2,8 @@
 
 ## Status
 
-- in progress: this is the next task after `portfolio-review-decision-history-v1`.
-- blockers: outcome windows may still be `not_due` until 2026-06-20; the runner must handle `too_early` cleanly.
+- in progress: local implementation is complete; full verification and EC2 smoke pending.
+- blocker handled: young decision histories classify as `too_early` instead of forcing false validation.
 
 ## Context
 
@@ -12,7 +12,18 @@
 
 ## Exact Next Step
 
-- exact next step: inspect recommendation outcome, paper validation, thesis, and price history joins that can classify saved review decisions as `too_early`, `validated`, `contradicted`, or `needs_more_data`.
+- exact next step: run full local verification, deploy to EC2, execute `portfolio-review-decision-outcome-feedback-run`, and confirm `/api/data-health` plus `/api/portfolio/Long%20Term%20Paper/coverage` expose the feedback artifact.
+
+## Implementation Notes
+
+- Added `src/stockanalysis/operations/portfolio_review_decision_feedback.py`.
+- Added CLI command `portfolio-review-decision-outcome-feedback-run`.
+- Feedback reads latest or selected `portfolio_review_decision_history` eval artifact.
+- Evidence lookup joins recommendation outcomes, thesis outcomes, latest thesis state, latest paper validation, and price evidence.
+- Feedback item states are `too_early`, `validated`, `contradicted`, or `needs_more_data`.
+- Output is stored only as `ai.eval_run` under `portfolio_review_decision_outcome_feedback`.
+- `/api/data-health` and `/api/portfolio/{portfolio}/coverage` expose latest feedback state.
+- `/data-health` and `/portfolio/coverage` show Korean read-only feedback cards.
 
 ## Guardrails
 

@@ -265,6 +265,7 @@ export type DataHealthData = {
     next_actions: string[];
   };
   portfolio_review_decision_history: PortfolioReviewDecisionHistory;
+  portfolio_review_decision_feedback: PortfolioReviewDecisionFeedback;
   recommendation_outcome_calibration: {
     status: string;
     eval_run_id: string;
@@ -1821,6 +1822,7 @@ export type PortfolioCoverageData = {
     rebalance_candidate_review: BenchmarkRebalanceCandidateReview;
     position_sizing_review: PositionSizingReview;
     review_decision_history: PortfolioReviewDecisionHistory;
+    review_decision_feedback: PortfolioReviewDecisionFeedback;
     review_reasons: string[];
   };
   positions: Array<{
@@ -1951,6 +1953,112 @@ export type PortfolioReviewDecisionHistory = {
   decision_counts: Record<string, number>;
   top_decision: PortfolioReviewHistoryDecision | null;
   latest_decisions: PortfolioReviewHistoryDecision[];
+  guardrails: {
+    recommendation_scoring_mutated: boolean;
+    benchmark_definition_mutated: boolean;
+    portfolio_position_mutated: boolean;
+    automatic_rebalance_allowed: boolean;
+    automatic_order_allowed: boolean;
+    broker_submit_allowed: boolean;
+    order_boundary: string;
+  };
+  next_action: string;
+};
+
+export type PortfolioReviewFeedbackItem = {
+  decision_index: number;
+  decision_family: string;
+  symbol: string;
+  decision_type: string;
+  decision_label: string;
+  feedback_status: string;
+  feedback_reason: string;
+  source_decision: {
+    priority: number;
+    severity: string;
+    current_weight: number | null;
+    benchmark_weight: number | null;
+    active_weight: number | null;
+    related_recommendation_id: string | null;
+    related_thesis_id: string | null;
+    rationale: string;
+  };
+  evidence: {
+    recommendation_outcome: {
+      outcome_id: string;
+      recommendation_id: string;
+      measurement_end_date: string;
+      horizon_days: number;
+      absolute_return_pct: number | null;
+      alpha_pct: number | null;
+      outcome_label: string;
+    };
+    thesis: {
+      thesis_id: string;
+      status: string;
+      title: string;
+      conviction_score: number | null;
+    };
+    thesis_outcome: {
+      outcome_id: string;
+      thesis_id: string;
+      measurement_end_date: string;
+      holding_days: number;
+      absolute_return_pct: number | null;
+      alpha_pct: number | null;
+      success_grade: string;
+      summary: string;
+    };
+    price_evidence: {
+      baseline_trade_date: string;
+      baseline_adjusted_close: number | null;
+      latest_trade_date: string;
+      latest_adjusted_close: number | null;
+      price_return_pct: number | null;
+    };
+    paper_validation: {
+      paper_validation_run_id: string;
+      validation_date: string;
+      status: string;
+      conflict_count: number;
+      symbol_blocked: boolean;
+      symbol_validated: boolean;
+    };
+  };
+  automatic_order_allowed: boolean;
+  broker_submit_allowed: boolean;
+  order_boundary: string;
+};
+
+export type PortfolioReviewDecisionFeedback = {
+  status: string;
+  eval_run_id: string;
+  created_at: string;
+  eval_name: string;
+  dataset_version: string;
+  as_of_date: string;
+  portfolio_name: string;
+  source_history_eval_run_id: string;
+  source_history_as_of_date: string;
+  min_horizon_days: number;
+  history_age_days: number;
+  feedback_status: string;
+  decision_count: number;
+  too_early_count: number;
+  validated_count: number;
+  contradicted_count: number;
+  needs_more_data_count: number;
+  status_counts: Record<string, number>;
+  paper_validation: {
+    paper_validation_run_id: string;
+    validation_date: string;
+    status: string;
+    recommendation_count: number;
+    conflict_count: number;
+    approved_action_count: number;
+  };
+  top_feedback: PortfolioReviewFeedbackItem | null;
+  latest_items: PortfolioReviewFeedbackItem[];
   guardrails: {
     recommendation_scoring_mutated: boolean;
     benchmark_definition_mutated: boolean;
