@@ -7831,10 +7831,10 @@ def _benchmark_rebalance_candidate_payload(row: dict[str, Any]) -> dict[str, Any
     )
     rationale = (
         f"{row['symbol']}는 포트폴리오 {row['portfolio_weight']:.1%}, 벤치마크 {row['benchmark_weight']:.1%}, "
-        f"active weight +{active_weight:.1%}이다. thesis, 세금/비용, 섹터 집중도를 확인한 뒤 축소 여부만 검토한다."
+        f"벤치마크 대비 괴리 +{active_weight:.1%}이다. 투자 논리, 세금/비용, 섹터 집중도를 확인한 뒤 축소 여부만 검토한다."
         if direction == "overweight"
         else f"{row['symbol']}는 포트폴리오 {row['portfolio_weight']:.1%}, 벤치마크 {row['benchmark_weight']:.1%}, "
-        f"active weight {active_weight:.1%}이다. 의도적 미보유인지 데이터/투자 논리 공백인지 검토한다."
+        f"벤치마크 대비 괴리 {active_weight:.1%}이다. 의도적 미보유인지 데이터/투자 논리 공백인지 검토한다."
     )
     return {
         "symbol": row["symbol"],
@@ -7852,11 +7852,11 @@ def _benchmark_rebalance_candidate_payload(row: dict[str, Any]) -> dict[str, Any
 def _benchmark_rebalance_candidate_next_actions(status: str) -> list[str]:
     if status == "review_required":
         return [
-            "상위 active weight 후보부터 thesis, 섹터/테마 집중도, 세금/비용을 검토한다.",
-            "검토 후보는 주문 지시가 아니며 broker submit은 계속 금지한다.",
+            "벤치마크 대비 괴리가 큰 후보부터 투자 논리, 섹터/테마 집중도, 세금/비용을 검토한다.",
+            "검토 후보는 주문 지시가 아니며 주문 전송은 계속 금지한다.",
         ]
     if status == "within_review_band":
-        return ["벤치마크 대비 큰 active weight 후보는 없다. 정기 포트폴리오 검토만 유지한다."]
+        return ["벤치마크 대비 큰 괴리 후보는 없다. 정기 포트폴리오 검토만 유지한다."]
     if status == "partial_benchmark_composition":
         return ["부분 benchmark 구성비이므로 리밸런싱 후보로 쓰지 말고 full holdings source를 먼저 보강한다."]
     if status == "missing_benchmark_drift":
@@ -7895,7 +7895,7 @@ def _build_benchmark_drift_quality_payload(guardrail: dict[str, Any]) -> dict[st
         {
             "check_key": "composition_available",
             "status": "passed" if drift_calculated else "blocked",
-            "detail": "벤치마크 구성비로 active weight를 계산했다." if drift_calculated else "벤치마크 구성비가 없어 drift를 계산하지 않았다.",
+            "detail": "벤치마크 구성비로 종목별 괴리를 계산했다." if drift_calculated else "벤치마크 구성비가 없어 drift를 계산하지 않았다.",
         },
         {
             "check_key": "composition_coverage",
@@ -7914,7 +7914,7 @@ def _build_benchmark_drift_quality_payload(guardrail: dict[str, Any]) -> dict[st
         {
             "check_key": "drift_outliers",
             "status": "warning" if outliers or active_share_outlier else "passed",
-            "detail": f"개별 active weight 10%p 이상 {len(outliers)}개, active share {active_share:.1%}." if active_share is not None else "active share가 계산되지 않았다.",
+            "detail": f"개별 벤치마크 괴리 10%p 이상 {len(outliers)}개, 전체 괴리 {active_share:.1%}." if active_share is not None else "전체 괴리가 계산되지 않았다.",
         },
     ]
 
@@ -7960,9 +7960,9 @@ def _benchmark_drift_quality_next_actions(status: str) -> list[str]:
     if status == "stale_composition":
         return ["benchmark holdings 파일을 최신 기준일로 다시 가져온 뒤 import를 재실행한다."]
     if status == "partial_composition":
-        return ["부분 구성비이므로 active share를 전체 지수 괴리로 해석하지 말고 full holdings source를 보강한다."]
+        return ["부분 구성비이므로 전체 괴리로 해석하지 말고 전체 holdings source를 보강한다."]
     if status == "drift_outlier_review":
-        return ["active share와 큰 active weight 종목을 포트폴리오 위험 예산 검토에서 먼저 확인한다."]
+        return ["전체 괴리와 큰 종목별 괴리를 포트폴리오 위험 예산 검토에서 먼저 확인한다."]
     return ["benchmark drift 품질 상태를 확인한다."]
 
 
@@ -9766,11 +9766,11 @@ def _position_sizing_rationale(
 ) -> str:
     current = "미측정" if current_weight is None else f"{current_weight:.1%}"
     benchmark = "벤치마크 없음" if benchmark_weight is None else f"벤치마크 {benchmark_weight:.1%}"
-    active = "active weight 없음" if active_weight is None else f"active weight {active_weight:+.1%}"
+    active = "벤치마크 괴리 없음" if active_weight is None else f"벤치마크 대비 괴리 {active_weight:+.1%}"
     if review_band == "reduce_review":
         return (
             f"{symbol}는 현재 비중 {current}, {benchmark}, {active} 상태다. "
-            "단일 종목 한도와 active risk가 크므로 추가 매수는 막고 축소 여부만 검토한다."
+            "단일 종목 한도와 벤치마크 대비 괴리가 크므로 추가 매수는 막고 축소 여부만 검토한다."
         )
     if review_band == "add_blocked_until_evidence":
         return (

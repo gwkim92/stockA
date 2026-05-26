@@ -371,12 +371,12 @@ export default async function PortfolioCoveragePage() {
             </span>
           </div>
           <p style={{ color: "var(--text-secondary)", marginTop: 0 }}>
-            이 표는 주문 지시가 아니다. {candidateReview.benchmark_code || benchmarkCode} 기준 active weight가 큰 종목을
-            thesis, 세금/비용, 섹터 집중도와 함께 검토하기 위한 읽기 전용 후보 목록이다.
+            이 표는 주문 지시가 아니다. {candidateReview.benchmark_code || benchmarkCode} 기준 벤치마크 대비 괴리가 큰 종목을
+            투자 논리, 세금/비용, 섹터 집중도와 함께 검토하기 위한 읽기 전용 후보 목록이다.
           </p>
           <div className="status-rail compact-rail" aria-label="벤치마크 리밸런싱 검토 요약" style={{ marginBottom: "20px" }}>
             <article className="rail-cell">
-              <span>active share</span>
+              <span>전체 괴리</span>
               <strong>{formatPercent(candidateReview.active_share)}</strong>
               <small>{candidateReview.benchmark_source || benchmarkSource || "source 없음"}</small>
             </article>
@@ -393,7 +393,7 @@ export default async function PortfolioCoveragePage() {
             <article className="rail-cell">
               <span>주문 경계</span>
               <strong>{koCode(candidateReview.order_boundary)}</strong>
-              <small>broker submit {candidateReview.broker_submit_allowed ? "허용" : "금지"}</small>
+              <small>주문 전송 {candidateReview.broker_submit_allowed ? "허용" : "금지"}</small>
             </article>
           </div>
           {candidateReview.candidates.length === 0 ? (
@@ -409,7 +409,7 @@ export default async function PortfolioCoveragePage() {
                     <th scope="col">종목</th>
                     <th scope="col">상태</th>
                     <th scope="col">현재/벤치마크</th>
-                    <th scope="col">active weight</th>
+                    <th scope="col">벤치마크 괴리</th>
                     <th scope="col">검토 이유</th>
                   </tr>
                 </thead>
@@ -462,7 +462,7 @@ export default async function PortfolioCoveragePage() {
             <article className="rail-cell">
               <span>증거 보강 전 증액 금지</span>
               <strong>{positionSizingReview.add_blocked_until_evidence_count}</strong>
-              <small>논리·재무·밸류에이션 gap</small>
+              <small>논리·재무·밸류에이션 공백</small>
             </article>
             <article className="rail-cell">
               <span>작은 비중 관찰</span>
@@ -567,7 +567,7 @@ export default async function PortfolioCoveragePage() {
             <article className="rail-cell">
               <span>미분류 한도</span>
               <strong>{formatPercent(concentration.max_unclassified_weight)}</strong>
-              <small>데이터 품질 gap</small>
+              <small>데이터 품질 공백</small>
             </article>
             <article className="rail-cell">
               <span>미분류 비중</span>
