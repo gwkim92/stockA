@@ -16,6 +16,7 @@ from stockanalysis.frontend.live_adapter import (
     _build_fund_instrument_analysis_payload,
     _build_professional_source_guardrail_payload,
     _build_recommendation_evidence_review_payload,
+    _build_recommendation_outcome_due_action_router_payload,
     _build_recommendation_outcome_maturity_payload,
     _build_recommendation_professional_decision_waterfall_payload,
     is_live_supported_path,
@@ -516,6 +517,55 @@ class FakeLiveExecutor:
                         "recommendation_scoring_mutated": False,
                         "automatic_order_allowed": False,
                         "broker_submit_allowed": False,
+                    },
+                    "recommendation_outcome_due_action_router": {
+                        "status": "loaded",
+                        "eval_run_id": 71,
+                        "created_at": "2026-05-27T02:00:00+00:00",
+                        "eval_name": "recommendation_outcome_due_action_router",
+                        "dataset_version": "recommendation-outcome-due-action-router-v1",
+                        "as_of_date": "2026-05-27",
+                        "source_calibration_status": "loaded",
+                        "source_calibration_eval_run_id": 31,
+                        "source_calibration_created_at": "2026-05-27T00:00:00+00:00",
+                        "source_calibration_summary": {
+                            "status": "collect_more_outcomes_keep_weights",
+                            "quality_status": "needs_more_data",
+                            "sample_status": "insufficient_sample",
+                        },
+                        "route_action": "no_op",
+                        "action_status": "no_op_wait_until_next_due_date",
+                        "reason": "추천 성과 측정창이 아직 열리지 않았다.",
+                        "wait_until": "2026-06-01",
+                        "sample_audit_summary": {
+                            "recommendation_horizon_count": 12,
+                            "recommendation_count": 6,
+                            "outcome_count": 4,
+                            "ready_for_backfill_count": 0,
+                            "not_due_count": 5,
+                            "missing_entry_price_count": 0,
+                            "missing_exit_price_count": 0,
+                            "price_gap_count": 0,
+                            "outcome_coverage_rate": "0.333333",
+                        },
+                        "missing_reason_counts": {"not_due": 5},
+                        "missing_examples": [],
+                        "child_runner": {
+                            "executed": False,
+                            "report_name": "",
+                            "status": "not_run",
+                            "run_id": None,
+                            "eval_run_id": None,
+                        },
+                        "recommendation_scoring_mutated": False,
+                        "benchmark_definition_mutated": False,
+                        "portfolio_position_mutated": False,
+                        "automatic_weight_change_allowed": False,
+                        "automatic_rebalance_allowed": False,
+                        "automatic_order_allowed": False,
+                        "broker_submit_allowed": False,
+                        "order_boundary": "read_only_no_order",
+                        "next_action": "다음 daily cadence까지 outcome maturity를 모니터링한다.",
                     },
                     "recommendation_weight_review_readiness": {
                         "status": "loaded",
@@ -4299,6 +4349,16 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertIn("--as-of-date 2026-06-01", outcome_maturity["cadence_action"]["command"])
         self.assertTrue(outcome_maturity["cadence_action"]["blocks_weight_review"])
         self.assertFalse(outcome_maturity["recommendation_scoring_mutated"])
+        due_router = payload["data"]["recommendation_outcome_due_action_router"]
+        self.assertEqual(due_router["status"], "loaded")
+        self.assertEqual(due_router["eval_run_id"], "eval-run-71")
+        self.assertEqual(due_router["source_calibration_eval_run_id"], "eval-run-31")
+        self.assertEqual(due_router["route_action"], "no_op")
+        self.assertEqual(due_router["action_status"], "no_op_wait_until_next_due_date")
+        self.assertEqual(due_router["wait_until"], "2026-06-01")
+        self.assertFalse(due_router["child_runner"]["executed"])
+        self.assertFalse(due_router["automatic_weight_change_allowed"])
+        self.assertFalse(due_router["broker_submit_allowed"])
         weight_review = payload["data"]["recommendation_weight_review_readiness"]
         self.assertEqual(weight_review["status"], "blocked_by_outcome_calibration_no_due_outcome_window")
         self.assertEqual(weight_review["eval_run_id"], "eval-run-41")
@@ -4404,6 +4464,72 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertIn("market-price-daily-run", action["command"])
         self.assertIn("recommendation-outcome-calibration-sample-expansion-run", action["follow_up_command"])
         self.assertTrue(action["blocks_weight_review"])
+
+    def test_recommendation_outcome_due_action_router_payload_exposes_child_and_guardrails(self) -> None:
+        payload = _build_recommendation_outcome_due_action_router_payload(
+            {
+                "status": "loaded",
+                "eval_run_id": 71,
+                "created_at": "2026-06-20T08:00:00+00:00",
+                "as_of_date": "2026-06-20",
+                "source_calibration_status": "loaded",
+                "source_calibration_eval_run_id": 31,
+                "source_calibration_summary": {
+                    "status": "no_due_outcome_window",
+                    "quality_status": "insufficient_sample",
+                    "sample_status": "not_due",
+                },
+                "route_action": "execute_calibration",
+                "action_status": "outcome_calibration_executed",
+                "reason": "성과 산출 가능한 추천×기간 2개가 있어 outcome calibration을 실행할 수 있다.",
+                "sample_audit_summary": {
+                    "recommendation_horizon_count": 8,
+                    "recommendation_count": 4,
+                    "outcome_count": 2,
+                    "ready_for_backfill_count": 0,
+                    "not_due_count": 6,
+                    "missing_entry_price_count": 0,
+                    "missing_exit_price_count": 0,
+                    "price_gap_count": 0,
+                    "outcome_coverage_rate": 0.25,
+                },
+                "missing_reason_counts": {"not_due": 6},
+                "missing_examples": [
+                    {
+                        "primary_symbol": "AAPL",
+                        "recommendation_id": 147,
+                        "as_of_date": "2026-05-21",
+                        "horizon_day": 30,
+                        "expected_measurement_end_date": "2026-06-20",
+                        "sample_status": "not_due",
+                    }
+                ],
+                "child_runner": {
+                    "executed": True,
+                    "report_name": "recommendation_outcome_calibration_sample_expansion",
+                    "status": "completed",
+                    "run_id": 9801,
+                    "eval_run_id": 8801,
+                    "calibration_status": "collect_more_outcomes_keep_weights",
+                },
+                "recommendation_scoring_mutated": False,
+                "automatic_weight_change_allowed": False,
+                "automatic_order_allowed": False,
+                "broker_submit_allowed": False,
+                "order_boundary": "read_only_no_order",
+                "next_action": "calibration 결과를 확인한다.",
+            }
+        )
+
+        self.assertEqual(payload["status"], "loaded")
+        self.assertEqual(payload["eval_run_id"], "eval-run-71")
+        self.assertEqual(payload["source_calibration_eval_run_id"], "eval-run-31")
+        self.assertEqual(payload["sample_audit_summary"]["outcome_count"], 2)
+        self.assertEqual(payload["missing_examples"][0]["recommendation_id"], "recommendation-147")
+        self.assertTrue(payload["child_runner"]["executed"])
+        self.assertEqual(payload["child_runner"]["run_id"], "pipeline-run-9801")
+        self.assertFalse(payload["automatic_weight_change_allowed"])
+        self.assertFalse(payload["broker_submit_allowed"])
 
     def test_live_data_health_response_includes_sanitized_scheduler_activation_gate(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -4851,6 +4977,9 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertIn("selected_recommendation_outcome_calibration", sql)
         self.assertIn("recommendation_outcome_calibration", sql)
         self.assertIn("recommendation-outcome-calibration-sample-expansion-v1", sql)
+        self.assertIn("selected_recommendation_outcome_due_action_router", sql)
+        self.assertIn("recommendation_outcome_due_action_router", sql)
+        self.assertIn("recommendation-outcome-due-action-router-v1", sql)
         self.assertIn("outcome_maturity_classified", sql)
         self.assertIn("outcome_maturity_summary", sql)
         self.assertIn("recommendation_outcome_maturity", sql)

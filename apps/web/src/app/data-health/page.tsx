@@ -22,6 +22,7 @@ type PortfolioReviewFeedbackCadence = DataHealthData["portfolio_review_feedback_
 type PortfolioReviewFeedbackActionRouter = DataHealthData["portfolio_review_feedback_action_router"];
 type RecommendationOutcomeCalibration = DataHealthData["recommendation_outcome_calibration"];
 type RecommendationOutcomeMaturity = DataHealthData["recommendation_outcome_maturity"];
+type RecommendationOutcomeDueActionRouter = DataHealthData["recommendation_outcome_due_action_router"];
 type RecommendationWeightReviewReadiness = DataHealthData["recommendation_weight_review_readiness"];
 type ProfessionalSourceGapPrioritization = DataHealthData["professional_source_gap_prioritization"];
 type ProfileTimer = ProfileSchedulerStatus["timers"][number];
@@ -589,6 +590,28 @@ function outcomeMaturityTone(maturity: RecommendationOutcomeMaturity) {
   return "risk-high";
 }
 
+function outcomeDueActionRouterTitle(router: RecommendationOutcomeDueActionRouter) {
+  if (router.child_runner.executed) {
+    return "성과 보정 실행됨";
+  }
+  if (router.action_status === "execute_outcome_calibration_ready") {
+    return "성과 보정 실행 대기";
+  }
+  if (router.action_status === "blocked_by_price_gaps") {
+    return "가격 이력 때문에 차단";
+  }
+  if (router.action_status === "no_op_wait_until_next_due_date") {
+    return "다음 측정일까지 대기";
+  }
+  if (router.action_status === "no_op_current_window_complete") {
+    return "현재 측정창 처리 완료";
+  }
+  if (router.action_status.startsWith("blocked_")) {
+    return "가드레일 차단";
+  }
+  return koCode(router.action_status);
+}
+
 function professionalSourceGapTitle(gaps: ProfessionalSourceGapPrioritization) {
   if (gaps.status === "ok") {
     return "전문 분석 소스 정상";
@@ -1043,6 +1066,65 @@ const DEFAULT_RECOMMENDATION_OUTCOME_MATURITY: RecommendationOutcomeMaturity = {
   broker_submit_allowed: false,
 };
 
+const DEFAULT_RECOMMENDATION_OUTCOME_DUE_ACTION_ROUTER: RecommendationOutcomeDueActionRouter = {
+  status: "missing",
+  eval_run_id: "eval-run-unknown",
+  created_at: "",
+  eval_name: "recommendation_outcome_due_action_router",
+  dataset_version: "recommendation-outcome-due-action-router-v1",
+  as_of_date: "",
+  source_calibration_status: "missing",
+  source_calibration_eval_run_id: "eval-run-unknown",
+  source_calibration_created_at: "",
+  source_calibration_summary: {
+    as_of_date: "",
+    status: "missing",
+    quality_status: "unknown",
+    sample_status: "unknown",
+    next_action: "",
+    recommendation_scoring_mutated: false,
+    automatic_order_allowed: false,
+    broker_submit_allowed: false,
+    order_boundary: "read_only_no_order",
+  },
+  route_action: "no_op",
+  action_status: "missing",
+  reason: "아직 recommendation outcome due action router artifact가 없다.",
+  wait_until: "",
+  sample_audit_summary: {
+    recommendation_horizon_count: 0,
+    recommendation_count: 0,
+    outcome_count: 0,
+    ready_for_backfill_count: 0,
+    not_due_count: 0,
+    missing_entry_price_count: 0,
+    missing_exit_price_count: 0,
+    price_gap_count: 0,
+    outcome_coverage_rate: 0,
+  },
+  missing_reason_counts: {},
+  missing_examples: [],
+  child_runner: {
+    executed: false,
+    report_name: "",
+    status: "not_run",
+    run_id: "pipeline-run-unknown",
+    eval_run_id: "eval-run-unknown",
+    calibration_status: "",
+    quality_status: "",
+    sample_status: "",
+  },
+  recommendation_scoring_mutated: false,
+  benchmark_definition_mutated: false,
+  portfolio_position_mutated: false,
+  automatic_weight_change_allowed: false,
+  automatic_rebalance_allowed: false,
+  automatic_order_allowed: false,
+  broker_submit_allowed: false,
+  order_boundary: "read_only_no_order",
+  next_action: "recommendation-outcome-due-action-router-run을 실행한다.",
+};
+
 const DEFAULT_RECOMMENDATION_WEIGHT_REVIEW_READINESS: RecommendationWeightReviewReadiness = {
   status: "missing",
   eval_run_id: "eval-run-unknown",
@@ -1119,6 +1201,8 @@ export default async function DataHealthPage() {
   const outcomeCalibration =
     data.recommendation_outcome_calibration ?? DEFAULT_RECOMMENDATION_OUTCOME_CALIBRATION;
   const outcomeMaturity = data.recommendation_outcome_maturity ?? DEFAULT_RECOMMENDATION_OUTCOME_MATURITY;
+  const outcomeDueActionRouter =
+    data.recommendation_outcome_due_action_router ?? DEFAULT_RECOMMENDATION_OUTCOME_DUE_ACTION_ROUTER;
   const weightReviewReadiness =
     data.recommendation_weight_review_readiness ?? DEFAULT_RECOMMENDATION_WEIGHT_REVIEW_READINESS;
   const professionalSourceGaps =
@@ -1274,6 +1358,17 @@ export default async function DataHealthPage() {
       href: "#outcome-calibration",
       cta: "표본 상태 보기",
       tone: outcomeCalibrationTone(outcomeCalibration),
+    },
+    {
+      label: "성과 실행 라우터",
+      title: outcomeDueActionRouterTitle(outcomeDueActionRouter),
+      body:
+        outcomeDueActionRouter.status === "loaded"
+          ? outcomeDueActionRouter.reason
+          : "성과 측정창 상태를 실제 calibration 실행 또는 대기로 변환한 기록이 아직 없다.",
+      href: "#outcome-calibration",
+      cta: "라우터 보기",
+      tone: actionRouterStatusClass(outcomeDueActionRouter.action_status),
     },
     {
       label: "전문 분석 소스",
@@ -1657,6 +1752,23 @@ export default async function DataHealthPage() {
             <small>{outcomeMaturity.cadence_action.command}</small>
           </article>
           <article className="insight-card">
+            <span>성과 실행 라우터</span>
+            <strong className={`risk-tag ${actionRouterStatusClass(outcomeDueActionRouter.action_status)}`}>
+              {outcomeDueActionRouterTitle(outcomeDueActionRouter)}
+            </strong>
+            <p>{outcomeDueActionRouter.reason || "저장된 라우터 판단이 없다."}</p>
+            <small>{outcomeDueActionRouter.eval_run_id}</small>
+          </article>
+          <article className="insight-card">
+            <span>child 실행</span>
+            <strong>{outcomeDueActionRouter.child_runner.executed ? "실행됨" : "실행 안 함"}</strong>
+            <p>
+              {outcomeDueActionRouter.child_runner.executed
+                ? `${koCode(outcomeDueActionRouter.child_runner.report_name)} · ${outcomeDueActionRouter.child_runner.eval_run_id}`
+                : "측정일 대기, 가격 이력 차단, 또는 가드레일 때문에 calibration runner를 실행하지 않았다."}
+            </p>
+          </article>
+          <article className="insight-card">
             <span>추천 weight</span>
             <strong>{outcomeCalibration.recommendation_scoring_mutated ? "변경 감지" : "변경 없음"}</strong>
             <p>성과 검증은 추천 산식 변경이 아니다. weight 조정은 별도 승인된 pilot task 전까지 막는다.</p>
@@ -1690,7 +1802,7 @@ export default async function DataHealthPage() {
         </div>
         <div className="empty-state">
           <strong>다음 조치</strong>
-          <p>{outcomeMaturity.cadence_action.label}</p>
+          <p>{outcomeDueActionRouter.next_action || outcomeMaturity.cadence_action.label}</p>
         </div>
       </section>
 

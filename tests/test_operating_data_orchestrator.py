@@ -110,6 +110,7 @@ class OperatingDataOrchestratorTests(unittest.TestCase):
         self.assertIn("recommendation-fundamental-components", step_ids)
         self.assertIn("equity-research-reporting", step_ids)
         self.assertIn("recommendation-outcome-backfill", step_ids)
+        self.assertIn("recommendation-outcome-due-action-router", step_ids)
         self.assertIn("recommendation-quality-eval", step_ids)
         self.assertIn("portfolio-review-feedback-cadence", step_ids)
         self.assertIn("portfolio-review-feedback-action-router", step_ids)
@@ -155,6 +156,10 @@ class OperatingDataOrchestratorTests(unittest.TestCase):
         )
         self.assertLess(
             step_ids.index("recommendation-outcome-backfill"),
+            step_ids.index("recommendation-outcome-due-action-router"),
+        )
+        self.assertLess(
+            step_ids.index("recommendation-outcome-due-action-router"),
             step_ids.index("recommendation-quality-eval"),
         )
         self.assertLess(
@@ -333,6 +338,8 @@ class OperatingDataOrchestratorTests(unittest.TestCase):
         self.assertIn("equity-research-reporting", step_ids)
         self.assertIn("portfolio-holding-thesis-bootstrap", step_ids)
         self.assertIn("paper-validation-audit", step_ids)
+        self.assertIn("recommendation-outcome-backfill", step_ids)
+        self.assertIn("recommendation-outcome-due-action-router", step_ids)
         self.assertIn("portfolio-review-feedback-cadence", step_ids)
         self.assertIn("portfolio-review-feedback-action-router", step_ids)
         self.assertNotIn("news-rss-ingest", step_ids)
@@ -376,6 +383,14 @@ class OperatingDataOrchestratorTests(unittest.TestCase):
         self.assertLess(
             step_ids.index("portfolio-holding-thesis-bootstrap"),
             step_ids.index("portfolio-remediation-daily"),
+        )
+        self.assertLess(
+            step_ids.index("recommendation-outcome-backfill"),
+            step_ids.index("recommendation-outcome-due-action-router"),
+        )
+        self.assertLess(
+            step_ids.index("recommendation-outcome-due-action-router"),
+            step_ids.index("recommendation-quality-eval"),
         )
         self.assertLess(
             step_ids.index("recommendation-quality-eval"),

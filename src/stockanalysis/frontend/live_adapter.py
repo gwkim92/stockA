@@ -567,6 +567,9 @@ def build_live_data_health_response(
     recommendation_outcome_maturity = _build_recommendation_outcome_maturity_payload(
         _as_dict(state.get("recommendation_outcome_maturity"))
     )
+    recommendation_outcome_due_action_router = _build_recommendation_outcome_due_action_router_payload(
+        _as_dict(state.get("recommendation_outcome_due_action_router"))
+    )
     recommendation_weight_review_readiness = _build_recommendation_weight_review_readiness_payload(
         _as_dict(state.get("recommendation_weight_review_readiness"))
     )
@@ -621,6 +624,15 @@ def build_live_data_health_response(
         gate = "recommendation_outcome_maturity_attention"
         if gate not in open_gates:
             open_gates.append(gate)
+    if recommendation_outcome_due_action_router["action_status"] in {
+        "missing",
+        "execute_outcome_calibration_ready",
+        "blocked_by_price_gaps",
+        "blocked_guardrail_violation",
+    }:
+        gate = "recommendation_outcome_due_action_router_attention"
+        if gate not in open_gates:
+            open_gates.append(gate)
     if professional_source_gap_prioritization["status"] in {
         "source_blockers_present",
         "high_priority_gaps",
@@ -658,6 +670,7 @@ def build_live_data_health_response(
             "portfolio_review_feedback_action_router": portfolio_review_feedback_action_router,
             "recommendation_outcome_calibration": recommendation_outcome_calibration,
             "recommendation_outcome_maturity": recommendation_outcome_maturity,
+            "recommendation_outcome_due_action_router": recommendation_outcome_due_action_router,
             "recommendation_weight_review_readiness": recommendation_weight_review_readiness,
             "professional_source_gap_prioritization": professional_source_gap_prioritization,
             "open_gates": open_gates,
@@ -4039,6 +4052,17 @@ selected_recommendation_outcome_calibration as (
         eval_run.eval_run_id desc
     limit 1
 ),
+selected_recommendation_outcome_due_action_router as (
+    select eval_run.*
+    from ai.eval_run eval_run
+    where eval_run.eval_name = 'recommendation_outcome_due_action_router'
+      and eval_run.dataset_version = 'recommendation-outcome-due-action-router-v1'
+    order by
+        nullif(eval_run.score_json->>'as_of_date', '')::date desc nulls last,
+        eval_run.created_at desc,
+        eval_run.eval_run_id desc
+    limit 1
+),
 outcome_maturity_horizon_days as (
     select distinct horizon_day
     from (
@@ -5002,6 +5026,72 @@ select json_build_object(
             'recommendation_scoring_mutated', false,
             'automatic_order_allowed', false,
             'broker_submit_allowed', false
+        )
+    ),
+    'recommendation_outcome_due_action_router',
+    coalesce(
+        (
+            select json_build_object(
+                'status', 'loaded',
+                'eval_run_id', eval_run_id,
+                'created_at', created_at,
+                'eval_name', eval_name,
+                'dataset_version', dataset_version,
+                'as_of_date', score_json->>'as_of_date',
+                'source_calibration_status', score_json->>'source_calibration_status',
+                'source_calibration_eval_run_id',
+                    nullif(score_json->>'source_calibration_eval_run_id', '')::integer,
+                'source_calibration_created_at', score_json->>'source_calibration_created_at',
+                'source_calibration_summary', coalesce(score_json->'source_calibration_summary', '{{}}'::jsonb),
+                'route_action', score_json->>'route_action',
+                'action_status', score_json->>'action_status',
+                'reason', score_json->>'reason',
+                'wait_until', score_json->>'wait_until',
+                'sample_audit_summary', coalesce(score_json->'sample_audit_summary', '{{}}'::jsonb),
+                'missing_reason_counts', coalesce(score_json->'missing_reason_counts', '{{}}'::jsonb),
+                'missing_examples', coalesce(score_json->'missing_examples', '[]'::jsonb),
+                'child_runner', coalesce(score_json->'child_runner', '{{}}'::jsonb),
+                'recommendation_scoring_mutated', coalesce((score_json->>'recommendation_scoring_mutated')::boolean, false),
+                'benchmark_definition_mutated', coalesce((score_json->>'benchmark_definition_mutated')::boolean, false),
+                'portfolio_position_mutated', coalesce((score_json->>'portfolio_position_mutated')::boolean, false),
+                'automatic_weight_change_allowed', coalesce((score_json->>'automatic_weight_change_allowed')::boolean, false),
+                'automatic_rebalance_allowed', coalesce((score_json->>'automatic_rebalance_allowed')::boolean, false),
+                'automatic_order_allowed', coalesce((score_json->>'automatic_order_allowed')::boolean, false),
+                'broker_submit_allowed', coalesce((score_json->>'broker_submit_allowed')::boolean, false),
+                'order_boundary', coalesce(score_json->>'order_boundary', 'read_only_no_order'),
+                'next_action', score_json->>'next_action'
+            )
+            from selected_recommendation_outcome_due_action_router
+        ),
+        json_build_object(
+            'status', 'missing',
+            'eval_name', 'recommendation_outcome_due_action_router',
+            'dataset_version', 'recommendation-outcome-due-action-router-v1',
+            'source_calibration_status', 'missing',
+            'route_action', 'no_op',
+            'action_status', 'missing',
+            'reason', '아직 recommendation outcome due action router artifact가 없다.',
+            'wait_until', '',
+            'source_calibration_summary', '{{}}'::json,
+            'sample_audit_summary', '{{}}'::json,
+            'missing_reason_counts', '{{}}'::json,
+            'missing_examples', '[]'::json,
+            'child_runner', json_build_object(
+                'executed', false,
+                'report_name', '',
+                'status', 'not_run',
+                'run_id', null,
+                'eval_run_id', null
+            ),
+            'recommendation_scoring_mutated', false,
+            'benchmark_definition_mutated', false,
+            'portfolio_position_mutated', false,
+            'automatic_weight_change_allowed', false,
+            'automatic_rebalance_allowed', false,
+            'automatic_order_allowed', false,
+            'broker_submit_allowed', false,
+            'order_boundary', 'read_only_no_order',
+            'next_action', 'recommendation-outcome-due-action-router-run을 실행해 due outcome calibration 여부를 안전하게 라우팅한다.'
         )
     ),
     'recommendation_weight_review_readiness',
@@ -13335,6 +13425,84 @@ def _recommendation_outcome_maturity_cadence_action(maturity: dict[str, Any]) ->
         "automatic_weight_change_allowed": False,
         "automatic_order_allowed": False,
         "broker_submit_allowed": False,
+    }
+
+
+def _build_recommendation_outcome_due_action_router_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    child = _as_dict(payload.get("child_runner"))
+    summary = _as_dict(payload.get("sample_audit_summary"))
+    source = _as_dict(payload.get("source_calibration_summary"))
+    missing_reason_counts = _as_dict(payload.get("missing_reason_counts"))
+    examples = []
+    for item in _as_list(payload.get("missing_examples"))[:8]:
+        examples.append(
+            {
+                "symbol": str(item.get("primary_symbol") or ""),
+                "recommendation_id": _opaque_id("recommendation", item.get("recommendation_id"), None),
+                "recommendation_date": str(item.get("as_of_date") or ""),
+                "horizon_days": int(_safe_number(item.get("horizon_day")) or 0),
+                "expected_measurement_end_date": str(item.get("expected_measurement_end_date") or ""),
+                "status": str(item.get("sample_status") or "unknown"),
+                "benchmark_warning": str(item.get("benchmark_warning") or ""),
+            }
+        )
+    return {
+        "status": str(payload.get("status") or "missing"),
+        "eval_run_id": _opaque_id("eval-run", payload.get("eval_run_id"), None),
+        "created_at": _timestamp(payload.get("created_at")),
+        "eval_name": str(payload.get("eval_name") or "recommendation_outcome_due_action_router"),
+        "dataset_version": str(payload.get("dataset_version") or "recommendation-outcome-due-action-router-v1"),
+        "as_of_date": str(payload.get("as_of_date") or ""),
+        "source_calibration_status": str(payload.get("source_calibration_status") or "missing"),
+        "source_calibration_eval_run_id": _opaque_id("eval-run", payload.get("source_calibration_eval_run_id"), None),
+        "source_calibration_created_at": _timestamp(payload.get("source_calibration_created_at")),
+        "source_calibration_summary": {
+            "as_of_date": str(source.get("as_of_date") or ""),
+            "status": str(source.get("status") or "missing"),
+            "quality_status": str(source.get("quality_status") or "unknown"),
+            "sample_status": str(source.get("sample_status") or "unknown"),
+            "next_action": str(source.get("next_action") or ""),
+            "recommendation_scoring_mutated": source.get("recommendation_scoring_mutated") is True,
+            "automatic_order_allowed": source.get("automatic_order_allowed") is True,
+            "broker_submit_allowed": source.get("broker_submit_allowed") is True,
+            "order_boundary": str(source.get("order_boundary") or "read_only_no_order"),
+        },
+        "route_action": str(payload.get("route_action") or "no_op"),
+        "action_status": str(payload.get("action_status") or "missing"),
+        "reason": str(payload.get("reason") or ""),
+        "wait_until": str(payload.get("wait_until") or ""),
+        "sample_audit_summary": {
+            "recommendation_horizon_count": int(_safe_number(summary.get("recommendation_horizon_count")) or 0),
+            "recommendation_count": int(_safe_number(summary.get("recommendation_count")) or 0),
+            "outcome_count": int(_safe_number(summary.get("outcome_count")) or 0),
+            "ready_for_backfill_count": int(_safe_number(summary.get("ready_for_backfill_count")) or 0),
+            "not_due_count": int(_safe_number(summary.get("not_due_count")) or 0),
+            "missing_entry_price_count": int(_safe_number(summary.get("missing_entry_price_count")) or 0),
+            "missing_exit_price_count": int(_safe_number(summary.get("missing_exit_price_count")) or 0),
+            "price_gap_count": int(_safe_number(summary.get("price_gap_count")) or 0),
+            "outcome_coverage_rate": float(_safe_number(summary.get("outcome_coverage_rate")) or 0),
+        },
+        "missing_reason_counts": {str(key): int(_safe_number(value) or 0) for key, value in missing_reason_counts.items()},
+        "missing_examples": examples,
+        "child_runner": {
+            "executed": child.get("executed") is True,
+            "report_name": str(child.get("report_name") or ""),
+            "status": str(child.get("status") or "not_run"),
+            "run_id": _opaque_id("pipeline-run", child.get("run_id"), None),
+            "eval_run_id": _opaque_id("eval-run", child.get("eval_run_id"), None),
+            "calibration_status": str(child.get("calibration_status") or ""),
+            "quality_status": str(child.get("quality_status") or ""),
+            "sample_status": str(child.get("sample_status") or ""),
+        },
+        "recommendation_scoring_mutated": payload.get("recommendation_scoring_mutated") is True,
+        "benchmark_definition_mutated": payload.get("benchmark_definition_mutated") is True,
+        "portfolio_position_mutated": payload.get("portfolio_position_mutated") is True,
+        "automatic_weight_change_allowed": payload.get("automatic_weight_change_allowed") is True,
+        "automatic_rebalance_allowed": payload.get("automatic_rebalance_allowed") is True,
+        "automatic_order_allowed": payload.get("automatic_order_allowed") is True,
+        "broker_submit_allowed": payload.get("broker_submit_allowed") is True,
+        "order_boundary": str(payload.get("order_boundary") or "read_only_no_order"),
+        "next_action": str(payload.get("next_action") or "recommendation-outcome-due-action-router-run을 실행한다."),
     }
 
 

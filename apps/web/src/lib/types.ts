@@ -339,6 +339,7 @@ export type DataHealthData = {
     automatic_order_allowed: boolean;
     broker_submit_allowed: boolean;
   };
+  recommendation_outcome_due_action_router: RecommendationOutcomeDueActionRouter;
   recommendation_weight_review_readiness: {
     status: string;
     eval_run_id: string;
@@ -2263,6 +2264,73 @@ export type PortfolioReviewFeedbackActionRouter = {
     eval_run_id: string;
     feedback_status: string;
     calibration_status: string;
+  };
+  recommendation_scoring_mutated: boolean;
+  benchmark_definition_mutated: boolean;
+  portfolio_position_mutated: boolean;
+  automatic_weight_change_allowed: boolean;
+  automatic_rebalance_allowed: boolean;
+  automatic_order_allowed: boolean;
+  broker_submit_allowed: boolean;
+  order_boundary: string;
+  next_action: string;
+};
+
+export type RecommendationOutcomeDueActionRouter = {
+  status: string;
+  eval_run_id: string;
+  created_at: string;
+  eval_name: string;
+  dataset_version: string;
+  as_of_date: string;
+  source_calibration_status: string;
+  source_calibration_eval_run_id: string;
+  source_calibration_created_at: string;
+  source_calibration_summary: {
+    as_of_date: string;
+    status: string;
+    quality_status: string;
+    sample_status: string;
+    next_action: string;
+    recommendation_scoring_mutated: boolean;
+    automatic_order_allowed: boolean;
+    broker_submit_allowed: boolean;
+    order_boundary: string;
+  };
+  route_action: string;
+  action_status: string;
+  reason: string;
+  wait_until: string;
+  sample_audit_summary: {
+    recommendation_horizon_count: number;
+    recommendation_count: number;
+    outcome_count: number;
+    ready_for_backfill_count: number;
+    not_due_count: number;
+    missing_entry_price_count: number;
+    missing_exit_price_count: number;
+    price_gap_count: number;
+    outcome_coverage_rate: number;
+  };
+  missing_reason_counts: Record<string, number>;
+  missing_examples: Array<{
+    symbol: string;
+    recommendation_id: string;
+    recommendation_date: string;
+    horizon_days: number;
+    expected_measurement_end_date: string;
+    status: string;
+    benchmark_warning: string;
+  }>;
+  child_runner: {
+    executed: boolean;
+    report_name: string;
+    status: string;
+    run_id: string;
+    eval_run_id: string;
+    calibration_status: string;
+    quality_status: string;
+    sample_status: string;
   };
   recommendation_scoring_mutated: boolean;
   benchmark_definition_mutated: boolean;

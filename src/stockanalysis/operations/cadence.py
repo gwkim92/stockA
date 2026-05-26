@@ -378,6 +378,18 @@ DATA_OPERATION_CADENCES: tuple[DataOperationCadence, ...] = (
         data_health_dataset="performance.recommendation_outcome",
     ),
     DataOperationCadence(
+        job_id="recommendation-outcome-due-action-router-daily",
+        pipeline_name="recommendation_outcome_due_action_router",
+        domain="performance",
+        cadence="daily",
+        command_template="stockanalysis-operations recommendation-outcome-due-action-router-run --env-file <ENV> --as-of-date <YYYY-MM-DD> --horizon-day 30 --execute",
+        expected_after_local="19:35",
+        stale_after_hours=36,
+        artifact_policy="stdout_json_stderr_log_and_action_router_audit",
+        required_env_groups=("database", "market_price_history"),
+        data_health_dataset="ai.eval_run",
+    ),
+    DataOperationCadence(
         job_id="recommendation-quality-eval-daily",
         pipeline_name="recommendation_quality_eval",
         domain="performance",

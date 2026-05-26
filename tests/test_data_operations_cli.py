@@ -2655,6 +2655,75 @@ class DataOperationsCliTests(unittest.TestCase):
             self.assertEqual(call_kwargs["example_limit"], 5)
             self.assertTrue(call_kwargs["execute"])
 
+    def test_recommendation_outcome_due_action_router_command_passes_env_and_filters(self) -> None:
+        with tempfile.TemporaryDirectory() as repo_root, tempfile.TemporaryDirectory() as outside_root:
+            env_file = Path(outside_root) / "data-operations.env"
+            output_path = Path(outside_root) / "recommendation-outcome-due-action-router.json"
+            env_file.write_text('STOCKANALYSIS_PSQL_COMMAND="docker exec psql"\n', encoding="utf-8")
+            stdout = io.StringIO()
+
+            with patch("stockanalysis.operations.cli.run_recommendation_outcome_due_action_router") as runner_mock:
+                runner_mock.return_value = {
+                    "report_name": "recommendation_outcome_due_action_router",
+                    "status": "completed",
+                    "eval_run_id": 8701,
+                    "action": {"action_status": "no_op_wait_until_next_due_date"},
+                }
+                exit_code = main(
+                    [
+                        "recommendation-outcome-due-action-router-run",
+                        "--repo-root",
+                        repo_root,
+                        "--env-file",
+                        str(env_file),
+                        "--as-of-date",
+                        "2026-05-27",
+                        "--horizon-day",
+                        "30",
+                        "--market-code",
+                        "US",
+                        "--strategy-name",
+                        "long_term_core",
+                        "--horizon-type",
+                        "long_term",
+                        "--universe-version",
+                        "live-v1",
+                        "--outcome-version",
+                        "bootstrap-v2",
+                        "--min-sample-size",
+                        "25",
+                        "--min-professional-coverage-rate",
+                        "0.85",
+                        "--limit",
+                        "7",
+                        "--example-limit",
+                        "5",
+                        "--execute",
+                        "--output",
+                        str(output_path),
+                    ],
+                    stdout=stdout,
+                )
+
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(stdout.getvalue().strip(), str(output_path.resolve()))
+            payload = json.loads(output_path.read_text(encoding="utf-8"))
+            self.assertEqual(payload["report_name"], "recommendation_outcome_due_action_router")
+            call_kwargs = runner_mock.call_args.kwargs
+            self.assertEqual(call_kwargs["config"].psql_command, "docker exec psql")
+            self.assertEqual(call_kwargs["as_of_date"], date(2026, 5, 27))
+            self.assertEqual(call_kwargs["horizon_days"], (30,))
+            self.assertEqual(call_kwargs["market_code"], "US")
+            self.assertEqual(call_kwargs["strategy_name"], "long_term_core")
+            self.assertEqual(call_kwargs["horizon_type"], "long_term")
+            self.assertEqual(call_kwargs["universe_version"], "live-v1")
+            self.assertEqual(call_kwargs["outcome_version"], "bootstrap-v2")
+            self.assertEqual(call_kwargs["min_sample_size"], 25)
+            self.assertEqual(call_kwargs["min_professional_coverage_rate"], 0.85)
+            self.assertEqual(call_kwargs["limit"], 7)
+            self.assertEqual(call_kwargs["example_limit"], 5)
+            self.assertTrue(call_kwargs["execute"])
+
     def test_news_ai_eval_run_command_passes_dataset_and_writes_output(self) -> None:
         with tempfile.TemporaryDirectory() as repo_root, tempfile.TemporaryDirectory() as outside_root:
             env_file = Path(outside_root) / "data-operations.env"

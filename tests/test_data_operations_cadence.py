@@ -140,6 +140,19 @@ class DataOperationsCadenceTests(unittest.TestCase):
         self.assertEqual(recommendation_outcome_job["domain"], "performance")
         self.assertIn("recommendation-outcome-backfill-run", recommendation_outcome_job["command_template"])
         self.assertIn("market_price_history", recommendation_outcome_job["required_env_groups"])
+        recommendation_outcome_router_job = next(
+            job for job in report["jobs"] if job["job_id"] == "recommendation-outcome-due-action-router-daily"
+        )
+        self.assertEqual(
+            recommendation_outcome_router_job["pipeline_name"],
+            "recommendation_outcome_due_action_router",
+        )
+        self.assertEqual(recommendation_outcome_router_job["domain"], "performance")
+        self.assertIn(
+            "recommendation-outcome-due-action-router-run",
+            recommendation_outcome_router_job["command_template"],
+        )
+        self.assertEqual(recommendation_outcome_router_job["data_health_dataset"], "ai.eval_run")
         review_feedback_cadence_job = next(
             job for job in report["jobs"] if job["job_id"] == "portfolio-review-feedback-cadence-daily"
         )
