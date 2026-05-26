@@ -21,6 +21,8 @@ DEFAULT_VALUATION_PIPELINE_NAME = "valuation_snapshot"
 DEFAULT_VALUATION_MODEL_NAME = "deterministic-valuation-snapshot-sql-v1"
 DEFAULT_FINANCIAL_FORECAST_PIPELINE_NAME = "financial_forecast_inputs"
 DEFAULT_FINANCIAL_FORECAST_MODEL_NAME = "deterministic-financial-forecast-inputs-sql-v1"
+DEFAULT_SOTP_PIPELINE_NAME = "sum_of_parts_valuation"
+DEFAULT_SOTP_MODEL_NAME = "deterministic-sum-of-parts-sql-v1"
 DEFAULT_PEER_GROUP_CODE = "US_CORE_FINANCIAL_DISCLOSURE"
 DEFAULT_PEER_GROUP_NAME = "US Core Financial Disclosure Coverage"
 STANDARD_FINANCIAL_METRICS = (
@@ -41,9 +43,10 @@ STANDARD_FINANCIAL_METRICS = (
 )
 PEER_RELATIVE_STATEMENT_SCOPES = ("annual", "quarterly", "all")
 VALUATION_STATEMENT_SCOPES = ("annual", "quarterly")
-VALUATION_METHODS = ("dcf_lite", "relative_multiple", "scenario_range")
+VALUATION_METHODS = ("dcf_lite", "relative_multiple", "scenario_range", "sum_of_parts")
 FINANCIAL_FORECAST_SCENARIOS = ("bear", "base", "bull")
 FINANCIAL_FORECAST_YEARS = 5
+SOTP_COMPONENT_TYPES = ("operating_business", "balance_sheet_adjustment", "risk_reserve")
 
 
 def render_financial_metric_normalization_preview_sql(*, as_of_date: date, limit: int | None = None) -> str:
@@ -1499,6 +1502,485 @@ def run_financial_forecast_inputs(
     }
 
 
+def render_sum_of_parts_valuation_preview_sql(
+    *,
+    as_of_date: date,
+    statement_scope: str = "annual",
+) -> str:
+    _validate_valuation_args(statement_scope=statement_scope)
+    return f"""-- sum of parts valuation preview
+with latest_prices as (
+    select distinct on (bar.instrument_id)
+        bar.instrument_id,
+        coalesce(bar.adjusted_close, bar.close) as base_price,
+        bar.trade_date as price_date
+    from market.daily_price_bar bar
+    where bar.trade_date <= {sql_date(as_of_date)}
+      and coalesce(bar.adjusted_close, bar.close) is not null
+    order by bar.instrument_id, bar.trade_date desc
+),
+latest_raw_metric_rows as (
+    select distinct on (period.instrument_id, metric.metric_code)
+        period.instrument_id,
+        metric.metric_code,
+        metric.metric_value,
+        period.period_end
+    from market.financial_statement_period period
+    join market.financial_metric_value metric on metric.period_id = period.period_id
+    where period.period_end <= {sql_date(as_of_date)}
+      and period.statement_scope = {sql_literal(statement_scope)}
+      and metric.metric_code in (
+        'operating_cash_flow',
+        'capital_expenditure',
+        'shares_outstanding',
+        'total_assets',
+        'total_liabilities',
+        'revenue'
+      )
+    order by period.instrument_id, metric.metric_code, period.period_end desc
+),
+raw_inputs as (
+    select
+        instrument_id,
+        max(metric_value) filter (where metric_code = 'operating_cash_flow') as operating_cash_flow,
+        max(metric_value) filter (where metric_code = 'capital_expenditure') as capital_expenditure,
+        max(metric_value) filter (where metric_code = 'shares_outstanding') as shares_outstanding,
+        max(metric_value) filter (where metric_code = 'total_assets') as total_assets,
+        max(metric_value) filter (where metric_code = 'total_liabilities') as total_liabilities,
+        max(metric_value) filter (where metric_code = 'revenue') as revenue
+    from latest_raw_metric_rows
+    group by instrument_id
+),
+latest_forecast_rows as (
+    select distinct on (forecast.instrument_id, forecast.scenario_key, forecast.forecast_year)
+        forecast.instrument_id,
+        forecast.as_of_date,
+        forecast.scenario_key,
+        forecast.forecast_year,
+        forecast.free_cash_flow,
+        forecast.confidence
+    from market.financial_forecast_input forecast
+    where forecast.as_of_date <= {sql_date(as_of_date)}
+      and forecast.statement_scope = {sql_literal(statement_scope)}
+    order by
+        forecast.instrument_id,
+        forecast.scenario_key,
+        forecast.forecast_year,
+        forecast.as_of_date desc,
+        forecast.forecast_input_id desc
+),
+forecast_inputs as (
+    select
+        instrument_id,
+        count(*)::integer as forecast_row_count,
+        max(as_of_date) as latest_forecast_as_of_date,
+        max(free_cash_flow) filter (where scenario_key = 'base' and forecast_year = {FINANCIAL_FORECAST_YEARS}) as terminal_base_free_cash_flow,
+        avg(confidence) as forecast_confidence
+    from latest_forecast_rows
+    group by instrument_id
+),
+sotp_context as (
+    select
+        price.instrument_id,
+        price.base_price,
+        raw.shares_outstanding,
+        raw.operating_cash_flow,
+        raw.capital_expenditure,
+        raw.total_assets,
+        raw.total_liabilities,
+        forecast.forecast_row_count
+    from latest_prices price
+    left join raw_inputs raw on raw.instrument_id = price.instrument_id
+    left join forecast_inputs forecast on forecast.instrument_id = price.instrument_id
+    where price.base_price > 0
+      and raw.shares_outstanding is not null
+      and raw.shares_outstanding > 0
+      and (
+        forecast.terminal_base_free_cash_flow is not null
+        or (raw.operating_cash_flow is not null and raw.capital_expenditure is not null)
+        or (raw.total_assets is not null and raw.total_liabilities is not null)
+      )
+)
+select json_build_object(
+    'as_of_date', {sql_literal(as_of_date.isoformat())},
+    'model_name', {sql_literal(DEFAULT_SOTP_MODEL_NAME)},
+    'statement_scope', {sql_literal(statement_scope)},
+    'component_types', {sql_literal(json.dumps(SOTP_COMPONENT_TYPES))}::jsonb,
+    'price_coverage_count', (select count(*)::integer from latest_prices),
+    'raw_input_count', (select count(*)::integer from raw_inputs),
+    'forecast_input_count', (select count(*)::integer from forecast_inputs),
+    'sotp_context_count', (select count(*)::integer from sotp_context),
+    'existing_component_count',
+        (
+            select count(*)::integer
+            from market.sum_of_parts_component
+            where as_of_date = {sql_date(as_of_date)}
+              and statement_scope = {sql_literal(statement_scope)}
+        )
+)::text;"""
+
+
+def render_sum_of_parts_valuation_upsert_sql(
+    *,
+    as_of_date: date,
+    source_run_id: int,
+    statement_scope: str = "annual",
+) -> str:
+    _validate_valuation_args(statement_scope=statement_scope)
+    return f"""-- sum of parts valuation upsert
+with latest_prices as (
+    select distinct on (bar.instrument_id)
+        bar.instrument_id,
+        instrument.primary_symbol,
+        coalesce(bar.adjusted_close, bar.close) as base_price,
+        bar.trade_date as price_date
+    from market.daily_price_bar bar
+    join ref.instrument instrument on instrument.instrument_id = bar.instrument_id
+    where bar.trade_date <= {sql_date(as_of_date)}
+      and coalesce(bar.adjusted_close, bar.close) is not null
+    order by bar.instrument_id, bar.trade_date desc
+),
+latest_raw_metric_rows as (
+    select distinct on (period.instrument_id, metric.metric_code)
+        period.instrument_id,
+        metric.metric_code,
+        metric.metric_value,
+        period.period_end
+    from market.financial_statement_period period
+    join market.financial_metric_value metric on metric.period_id = period.period_id
+    where period.period_end <= {sql_date(as_of_date)}
+      and period.statement_scope = {sql_literal(statement_scope)}
+      and metric.metric_code in (
+        'operating_cash_flow',
+        'capital_expenditure',
+        'shares_outstanding',
+        'total_assets',
+        'total_liabilities',
+        'revenue'
+      )
+    order by period.instrument_id, metric.metric_code, period.period_end desc
+),
+raw_inputs as (
+    select
+        instrument_id,
+        max(metric_value) filter (where metric_code = 'operating_cash_flow') as operating_cash_flow,
+        max(metric_value) filter (where metric_code = 'capital_expenditure') as capital_expenditure,
+        max(metric_value) filter (where metric_code = 'shares_outstanding') as shares_outstanding,
+        max(metric_value) filter (where metric_code = 'total_assets') as total_assets,
+        max(metric_value) filter (where metric_code = 'total_liabilities') as total_liabilities,
+        max(metric_value) filter (where metric_code = 'revenue') as revenue,
+        max(period_end) as latest_raw_period_end
+    from latest_raw_metric_rows
+    group by instrument_id
+),
+latest_forecast_rows as (
+    select distinct on (forecast.instrument_id, forecast.scenario_key, forecast.forecast_year)
+        forecast.instrument_id,
+        forecast.as_of_date,
+        forecast.scenario_key,
+        forecast.forecast_year,
+        forecast.free_cash_flow,
+        forecast.confidence,
+        forecast.source_run_id
+    from market.financial_forecast_input forecast
+    where forecast.as_of_date <= {sql_date(as_of_date)}
+      and forecast.statement_scope = {sql_literal(statement_scope)}
+    order by
+        forecast.instrument_id,
+        forecast.scenario_key,
+        forecast.forecast_year,
+        forecast.as_of_date desc,
+        forecast.forecast_input_id desc
+),
+forecast_inputs as (
+    select
+        instrument_id,
+        count(*)::integer as forecast_row_count,
+        max(as_of_date) as latest_forecast_as_of_date,
+        max(free_cash_flow) filter (where scenario_key = 'base' and forecast_year = {FINANCIAL_FORECAST_YEARS}) as terminal_base_free_cash_flow,
+        avg(confidence) as forecast_confidence,
+        max(source_run_id) as forecast_source_run_id
+    from latest_forecast_rows
+    group by instrument_id
+),
+sotp_inputs as (
+    select
+        price.instrument_id,
+        price.primary_symbol,
+        price.base_price,
+        price.price_date,
+        raw.latest_raw_period_end,
+        raw.operating_cash_flow,
+        raw.capital_expenditure,
+        case
+            when raw.operating_cash_flow is not null and raw.capital_expenditure is not null
+            then raw.operating_cash_flow - abs(raw.capital_expenditure)
+            else null::numeric
+        end as free_cash_flow,
+        raw.shares_outstanding,
+        raw.total_assets,
+        raw.total_liabilities,
+        case
+            when raw.total_assets is not null and raw.total_liabilities is not null
+            then raw.total_assets - raw.total_liabilities
+            else null::numeric
+        end as book_equity,
+        forecast.latest_forecast_as_of_date,
+        forecast.forecast_row_count,
+        forecast.terminal_base_free_cash_flow,
+        forecast.forecast_confidence,
+        forecast.forecast_source_run_id
+    from latest_prices price
+    left join raw_inputs raw on raw.instrument_id = price.instrument_id
+    left join forecast_inputs forecast on forecast.instrument_id = price.instrument_id
+    where price.base_price > 0
+      and raw.shares_outstanding is not null
+      and raw.shares_outstanding > 0
+      and (
+        forecast.terminal_base_free_cash_flow is not null
+        or (raw.operating_cash_flow is not null and raw.capital_expenditure is not null)
+        or (raw.total_assets is not null and raw.total_liabilities is not null)
+      )
+),
+component_rows as (
+    select
+        input.instrument_id,
+        'operating_business_fcf'::text as component_key,
+        '영업사업 가치'::text as component_label,
+        'operating_business'::text as component_type,
+        (
+            coalesce(input.terminal_base_free_cash_flow, input.free_cash_flow)
+            * 14.0000::numeric / input.shares_outstanding
+        ) as fair_value_low,
+        (
+            coalesce(input.terminal_base_free_cash_flow, input.free_cash_flow)
+            * 18.0000::numeric / input.shares_outstanding
+        ) as fair_value_base,
+        (
+            coalesce(input.terminal_base_free_cash_flow, input.free_cash_flow)
+            * 22.0000::numeric / input.shares_outstanding
+        ) as fair_value_high,
+        'forecast_or_latest_fcf_multiple'::text as valuation_basis,
+        jsonb_build_object(
+            'component_description', 'Forecast 또는 최근 FCF에 보수적인 FCF multiple을 적용한 핵심 영업사업 가치다.',
+            'fcf_source', case when input.terminal_base_free_cash_flow is not null then 'market.financial_forecast_input' else 'latest_financial_metric_value' end,
+            'terminal_base_free_cash_flow', input.terminal_base_free_cash_flow,
+            'latest_free_cash_flow', input.free_cash_flow,
+            'shares_outstanding', input.shares_outstanding,
+            'low_multiple', 14.0000,
+            'base_multiple', 18.0000,
+            'high_multiple', 22.0000,
+            'latest_forecast_as_of_date', input.latest_forecast_as_of_date,
+            'forecast_row_count', coalesce(input.forecast_row_count, 0),
+            'latest_raw_period_end', input.latest_raw_period_end
+        ) as assumptions_json,
+        case when coalesce(input.forecast_row_count, 0) >= 15 then 0.4500::numeric else 0.3500::numeric end as confidence
+    from sotp_inputs input
+    where coalesce(input.terminal_base_free_cash_flow, input.free_cash_flow) is not null
+      and coalesce(input.terminal_base_free_cash_flow, input.free_cash_flow) > 0
+    union all
+    select
+        input.instrument_id,
+        'balance_sheet_adjustment'::text as component_key,
+        '재무상태 조정'::text as component_label,
+        'balance_sheet_adjustment'::text as component_type,
+        ((input.book_equity / input.shares_outstanding) * 0.0500::numeric) as fair_value_low,
+        ((input.book_equity / input.shares_outstanding) * 0.1000::numeric) as fair_value_base,
+        ((input.book_equity / input.shares_outstanding) * 0.1500::numeric) as fair_value_high,
+        'book_equity_partial_credit'::text as valuation_basis,
+        jsonb_build_object(
+            'component_description', '현금/부채 세부 분해가 부족하므로 순자산의 일부만 보수적으로 반영한 조정이다.',
+            'total_assets', input.total_assets,
+            'total_liabilities', input.total_liabilities,
+            'book_equity', input.book_equity,
+            'shares_outstanding', input.shares_outstanding,
+            'low_credit_ratio', 0.0500,
+            'base_credit_ratio', 0.1000,
+            'high_credit_ratio', 0.1500,
+            'latest_raw_period_end', input.latest_raw_period_end
+        ) as assumptions_json,
+        0.3500::numeric as confidence
+    from sotp_inputs input
+    where input.book_equity is not null
+    union all
+    select
+        input.instrument_id,
+        'segment_data_gap_reserve'::text as component_key,
+        '세그먼트 데이터 공백 차감'::text as component_label,
+        'risk_reserve'::text as component_type,
+        (input.base_price * -0.0500::numeric) as fair_value_low,
+        (input.base_price * -0.0300::numeric) as fair_value_base,
+        (input.base_price * -0.0100::numeric) as fair_value_high,
+        'segment_data_gap_reserve'::text as valuation_basis,
+        jsonb_build_object(
+            'component_description', '사업부별 매출·마진·자본배분 데이터가 아직 없으므로 SOTP 과신을 막기 위한 reserve다.',
+            'base_price', input.base_price,
+            'price_date', input.price_date,
+            'low_reserve_pct', -0.0500,
+            'base_reserve_pct', -0.0300,
+            'high_reserve_pct', -0.0100,
+            'missing_segment_detail', true
+        ) as assumptions_json,
+        0.5000::numeric as confidence
+    from sotp_inputs input
+),
+upsert_components as (
+    insert into market.sum_of_parts_component (
+        instrument_id,
+        as_of_date,
+        statement_scope,
+        component_key,
+        component_label,
+        component_type,
+        fair_value_low,
+        fair_value_base,
+        fair_value_high,
+        valuation_basis,
+        assumptions_json,
+        confidence,
+        source_run_id
+    )
+    select
+        instrument_id,
+        {sql_date(as_of_date)},
+        {sql_literal(statement_scope)},
+        component_key,
+        component_label,
+        component_type,
+        fair_value_low,
+        fair_value_base,
+        fair_value_high,
+        valuation_basis,
+        assumptions_json,
+        confidence,
+        {int(source_run_id)}::bigint
+    from component_rows
+    on conflict (instrument_id, as_of_date, statement_scope, component_key) do update
+    set
+        component_label = excluded.component_label,
+        component_type = excluded.component_type,
+        fair_value_low = excluded.fair_value_low,
+        fair_value_base = excluded.fair_value_base,
+        fair_value_high = excluded.fair_value_high,
+        valuation_basis = excluded.valuation_basis,
+        assumptions_json = excluded.assumptions_json,
+        confidence = excluded.confidence,
+        source_run_id = excluded.source_run_id
+    returning component_type, component_key, confidence
+)
+select json_build_object(
+    'as_of_date', {sql_literal(as_of_date.isoformat())},
+    'source_run_id', {int(source_run_id)},
+    'statement_scope', {sql_literal(statement_scope)},
+    'component_row_count', (select count(*)::integer from upsert_components),
+    'component_type_counts',
+        coalesce(
+            (
+                select json_object_agg(component_type, component_count order by component_type)
+                from (
+                    select component_type, count(*)::integer as component_count
+                    from upsert_components
+                    group by component_type
+                ) counts
+            ),
+            '{{}}'::json
+        ),
+    'confidence_summary',
+        (
+            select json_build_object(
+                'min', min(confidence),
+                'avg', avg(confidence),
+                'max', max(confidence)
+            )
+            from upsert_components
+        )
+)::text;"""
+
+
+def load_sum_of_parts_valuation_preview(
+    *,
+    config: RuntimeConfig,
+    as_of_date: date,
+    statement_scope: str = "annual",
+    executor: PsqlCommandExecutor | None = None,
+) -> dict[str, object]:
+    sql_executor = executor or PsqlCommandExecutor.from_config(config)
+    payload = json.loads(
+        sql_executor.execute_scalar(
+            render_sum_of_parts_valuation_preview_sql(as_of_date=as_of_date, statement_scope=statement_scope)
+        )
+    )
+    if not isinstance(payload, dict):
+        raise ValueError("Sum-of-the-parts valuation preview did not return a JSON object.")
+    return payload
+
+
+def run_sum_of_parts_valuation(
+    *,
+    config: RuntimeConfig,
+    as_of_date: date,
+    statement_scope: str = "annual",
+    execute: bool = False,
+    executor: PsqlCommandExecutor | None = None,
+) -> dict[str, object]:
+    sql_executor = executor or PsqlCommandExecutor.from_config(config)
+    preview = load_sum_of_parts_valuation_preview(
+        config=config,
+        as_of_date=as_of_date,
+        statement_scope=statement_scope,
+        executor=sql_executor,
+    )
+    report: dict[str, object] = {
+        "report_name": "sum_of_parts_valuation",
+        "status": "planned" if not execute else "running",
+        "execute": execute,
+        "pipeline_name": DEFAULT_SOTP_PIPELINE_NAME,
+        "as_of_date": as_of_date.isoformat(),
+        "statement_scope": statement_scope,
+        "model_name": DEFAULT_SOTP_MODEL_NAME,
+        "component_types": list(SOTP_COMPONENT_TYPES),
+        "preview": preview,
+        "recommendation_scoring_mutated": False,
+    }
+    if not execute:
+        return report
+
+    run_id = _create_pipeline_run(
+        sql_executor,
+        pipeline_name=DEFAULT_SOTP_PIPELINE_NAME,
+        config_json={
+            "as_of_date": as_of_date.isoformat(),
+            "statement_scope": statement_scope,
+            "model_name": DEFAULT_SOTP_MODEL_NAME,
+            "component_types": list(SOTP_COMPONENT_TYPES),
+            "recommendation_scoring_mutated": False,
+        },
+    )
+    try:
+        upsert_summary = json.loads(
+            sql_executor.execute_scalar(
+                render_sum_of_parts_valuation_upsert_sql(
+                    as_of_date=as_of_date,
+                    source_run_id=run_id,
+                    statement_scope=statement_scope,
+                )
+            )
+        )
+        if not isinstance(upsert_summary, dict):
+            raise ValueError("Sum-of-the-parts valuation upsert did not return a JSON object.")
+        _mark_pipeline_run_succeeded(sql_executor, run_id)
+    except Exception as exc:
+        _mark_pipeline_run_failed(sql_executor, run_id, str(exc))
+        raise
+
+    return {
+        **report,
+        "status": "completed",
+        "run_id": run_id,
+        "upsert": upsert_summary,
+    }
+
+
 def render_valuation_snapshot_preview_sql(
     *,
     as_of_date: date,
@@ -1658,6 +2140,34 @@ forecast_inputs as (
     from latest_forecast_rows
     group by instrument_id
 ),
+latest_sotp_components as (
+    select distinct on (component.instrument_id, component.component_key)
+        component.instrument_id,
+        component.as_of_date,
+        component.statement_scope,
+        component.component_key,
+        component.component_type,
+        component.fair_value_low,
+        component.fair_value_base,
+        component.fair_value_high,
+        component.confidence,
+        component.source_run_id
+    from market.sum_of_parts_component component
+    where component.as_of_date <= {sql_date(as_of_date)}
+      and component.statement_scope = {sql_literal(statement_scope)}
+    order by
+        component.instrument_id,
+        component.component_key,
+        component.as_of_date desc,
+        component.component_id desc
+),
+sotp_inputs as (
+    select
+        instrument_id,
+        count(*)::integer as sotp_component_count
+    from latest_sotp_components
+    group by instrument_id
+),
 valuation_inputs as (
     select
         price.instrument_id,
@@ -1673,16 +2183,19 @@ valuation_inputs as (
         normalized.leverage_ratio,
         peer.quality_percentile,
         peer.leverage_percentile,
-        forecast.forecast_row_count
+        forecast.forecast_row_count,
+        sotp.sotp_component_count
     from latest_prices price
     left join raw_inputs raw on raw.instrument_id = price.instrument_id
     left join normalized_inputs normalized on normalized.instrument_id = price.instrument_id
     left join peer_inputs peer on peer.instrument_id = price.instrument_id
     left join forecast_inputs forecast on forecast.instrument_id = price.instrument_id
+    left join sotp_inputs sotp on sotp.instrument_id = price.instrument_id
     where raw.instrument_id is not null
        or normalized.instrument_id is not null
        or peer.instrument_id is not null
        or forecast.instrument_id is not null
+       or sotp.instrument_id is not null
 )
 select json_build_object(
     'as_of_date', {sql_literal(as_of_date.isoformat())},
@@ -1694,6 +2207,7 @@ select json_build_object(
     'normalized_input_count', (select count(*)::integer from normalized_inputs),
     'peer_context_count', (select count(*)::integer from peer_inputs),
     'financial_forecast_input_count', (select count(*)::integer from latest_forecast_rows),
+    'sum_of_parts_component_count', (select count(*)::integer from latest_sotp_components),
     'valuation_context_count', (select count(*)::integer from valuation_inputs),
     'dcf_lite_eligible_count',
         (
@@ -1880,6 +2394,65 @@ forecast_inputs as (
     from latest_forecast_rows
     group by instrument_id
 ),
+latest_sotp_components as (
+    select distinct on (component.instrument_id, component.component_key)
+        component.instrument_id,
+        component.as_of_date,
+        component.statement_scope,
+        component.component_key,
+        component.component_label,
+        component.component_type,
+        component.fair_value_low,
+        component.fair_value_base,
+        component.fair_value_high,
+        component.valuation_basis,
+        component.assumptions_json,
+        component.confidence,
+        component.source_run_id
+    from market.sum_of_parts_component component
+    where component.as_of_date <= {sql_date(as_of_date)}
+      and component.statement_scope = {sql_literal(statement_scope)}
+    order by
+        component.instrument_id,
+        component.component_key,
+        component.as_of_date desc,
+        component.component_id desc
+),
+sotp_inputs as (
+    select
+        instrument_id,
+        count(*)::integer as sotp_component_count,
+        max(as_of_date) as latest_sotp_as_of_date,
+        sum(fair_value_low) as sotp_fair_value_low,
+        sum(fair_value_base) as sotp_fair_value_base,
+        sum(fair_value_high) as sotp_fair_value_high,
+        avg(confidence) as sotp_confidence,
+        bool_or(component_type = 'operating_business') as has_operating_business_component,
+        jsonb_agg(
+            jsonb_build_object(
+                'component_key', component_key,
+                'component_label', component_label,
+                'component_type', component_type,
+                'fair_value_low', fair_value_low,
+                'fair_value_base', fair_value_base,
+                'fair_value_high', fair_value_high,
+                'valuation_basis', valuation_basis,
+                'assumptions', assumptions_json,
+                'confidence', confidence,
+                'source_run_id', source_run_id
+            )
+            order by
+                case component_type
+                    when 'operating_business' then 1
+                    when 'balance_sheet_adjustment' then 2
+                    when 'risk_reserve' then 3
+                    else 9
+                end,
+                component_key
+        ) as components_json
+    from latest_sotp_components
+    group by instrument_id
+),
 valuation_inputs as (
     select
         price.instrument_id,
@@ -1911,6 +2484,14 @@ valuation_inputs as (
         forecast.base_forecast_revenue_growth_rate,
         forecast.base_forecast_free_cash_flow_margin,
         forecast.forecast_rows_json,
+        sotp.latest_sotp_as_of_date,
+        sotp.sotp_component_count,
+        sotp.sotp_fair_value_low,
+        sotp.sotp_fair_value_base,
+        sotp.sotp_fair_value_high,
+        sotp.sotp_confidence,
+        sotp.has_operating_business_component,
+        sotp.components_json,
         least(
             1::numeric,
             greatest(
@@ -1934,12 +2515,14 @@ valuation_inputs as (
     left join normalized_inputs normalized on normalized.instrument_id = price.instrument_id
     left join peer_inputs peer on peer.instrument_id = price.instrument_id
     left join forecast_inputs forecast on forecast.instrument_id = price.instrument_id
+    left join sotp_inputs sotp on sotp.instrument_id = price.instrument_id
     where price.base_price > 0
       and (
         raw.instrument_id is not null
         or normalized.instrument_id is not null
         or peer.instrument_id is not null
         or forecast.instrument_id is not null
+        or sotp.instrument_id is not null
       )
 ),
 relative_multiple_rows as (
@@ -2108,12 +2691,52 @@ dcf_lite_rows as (
         )::numeric as fair_value_base
     ) intrinsic
 ),
+sum_of_parts_rows as (
+    select
+        input.instrument_id,
+        'sum_of_parts' as method,
+        input.base_price,
+        input.sotp_fair_value_low as fair_value_low,
+        input.sotp_fair_value_base as fair_value_base,
+        input.sotp_fair_value_high as fair_value_high,
+        json_build_object(
+            'model_family', 'sum_of_parts',
+            'method_description', 'Conservative SOTP proxy that separates operating business value, balance-sheet adjustment, and segment data-gap reserve.',
+            'pricing_basis', 'latest adjusted close',
+            'sensitivity_basis', 'component low/base/high cases',
+            'statement_scope', {sql_literal(statement_scope)},
+            'price_date', input.price_date,
+            'latest_sotp_as_of_date', input.latest_sotp_as_of_date,
+            'sotp_component_source', 'market.sum_of_parts_component',
+            'sotp_component_count', coalesce(input.sotp_component_count, 0),
+            'sotp_components', coalesce(input.components_json, '[]'::jsonb),
+            'has_operating_business_component', coalesce(input.has_operating_business_component, false),
+            'key_variables', json_build_array('sotp_components', 'operating_business_fcf', 'balance_sheet_adjustment', 'segment_data_gap_reserve'),
+            'data_quality', json_build_object(
+                'component_count', coalesce(input.sotp_component_count, 0),
+                'has_operating_business_component', coalesce(input.has_operating_business_component, false),
+                'latest_sotp_as_of_date', input.latest_sotp_as_of_date
+            ),
+            'limitations', json_build_array(
+                '첫 SOTP foundation은 사업부별 segment forecast가 아니라 FCF와 재무상태 기반 proxy component다.',
+                '세그먼트 데이터 공백 reserve를 차감해 과신을 줄이지만, 완전한 sell-side SOTP를 대체하지 않는다.'
+            ),
+            'recommendation_scoring_mutated', false
+        )::jsonb as assumptions_json,
+        least(0.5000::numeric, greatest(0.2000::numeric, coalesce(input.sotp_confidence, 0.2500::numeric))) as confidence
+    from valuation_inputs input
+    where coalesce(input.sotp_component_count, 0) > 0
+      and coalesce(input.has_operating_business_component, false)
+      and input.sotp_fair_value_base is not null
+),
 snapshot_rows as (
     select * from relative_multiple_rows
     union all
     select * from scenario_range_rows
     union all
     select * from dcf_lite_rows
+    union all
+    select * from sum_of_parts_rows
 ),
 upsert_snapshots as (
     insert into market.valuation_snapshot (

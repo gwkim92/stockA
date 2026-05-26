@@ -60,6 +60,7 @@ class ProfessionalCoverageExpansionTests(unittest.TestCase):
 
         self.assertIn("market.financial_metric_normalized", sql)
         self.assertIn("market.peer_relative_snapshot", sql)
+        self.assertIn("market.sum_of_parts_component", sql)
         self.assertIn("market.valuation_snapshot", sql)
         self.assertIn("research.industry_competitive_position", sql)
         self.assertIn("research.equity_research_artifact", sql)
@@ -124,6 +125,7 @@ class ProfessionalCoverageExpansionTests(unittest.TestCase):
             ) as normalization,
             patch("stockanalysis.operations.professional_coverage_expansion.run_peer_relative_analysis") as peer,
             patch("stockanalysis.operations.professional_coverage_expansion.run_financial_forecast_inputs") as forecast,
+            patch("stockanalysis.operations.professional_coverage_expansion.run_sum_of_parts_valuation") as sotp,
             patch("stockanalysis.operations.professional_coverage_expansion.run_valuation_snapshot") as valuation,
             patch(
                 "stockanalysis.operations.professional_coverage_expansion.run_industry_competitive_positioning"
@@ -134,6 +136,7 @@ class ProfessionalCoverageExpansionTests(unittest.TestCase):
             normalization.return_value = {"report_name": "financial_metric_normalization"}
             peer.return_value = {"report_name": "peer_relative_analysis"}
             forecast.return_value = {"report_name": "financial_forecast_inputs"}
+            sotp.return_value = {"report_name": "sum_of_parts_valuation"}
             valuation.return_value = {"report_name": "valuation_snapshot"}
             positioning.return_value = {"report_name": "industry_competitive_positioning"}
             research.return_value = {"report_name": "equity_research_reporting"}
@@ -159,6 +162,7 @@ class ProfessionalCoverageExpansionTests(unittest.TestCase):
         normalization.assert_called_once()
         peer.assert_called_once()
         forecast.assert_called_once()
+        sotp.assert_called_once()
         valuation.assert_called_once()
         positioning.assert_called_once()
         research.assert_called_once()
@@ -175,6 +179,7 @@ class ProfessionalCoverageExpansionTests(unittest.TestCase):
             ) as normalization,
             patch("stockanalysis.operations.professional_coverage_expansion.run_peer_relative_analysis") as peer,
             patch("stockanalysis.operations.professional_coverage_expansion.run_financial_forecast_inputs") as forecast,
+            patch("stockanalysis.operations.professional_coverage_expansion.run_sum_of_parts_valuation") as sotp,
             patch("stockanalysis.operations.professional_coverage_expansion.run_valuation_snapshot") as valuation,
             patch(
                 "stockanalysis.operations.professional_coverage_expansion.run_industry_competitive_positioning"
@@ -188,6 +193,7 @@ class ProfessionalCoverageExpansionTests(unittest.TestCase):
             normalization.return_value = {"report_name": "financial_metric_normalization"}
             peer.return_value = {"report_name": "peer_relative_analysis"}
             forecast.return_value = {"report_name": "financial_forecast_inputs"}
+            sotp.return_value = {"report_name": "sum_of_parts_valuation"}
             valuation.return_value = {"report_name": "valuation_snapshot"}
             positioning.return_value = {"report_name": "industry_competitive_positioning"}
             research.return_value = {"report_name": "equity_research_reporting"}
@@ -211,6 +217,7 @@ class ProfessionalCoverageExpansionTests(unittest.TestCase):
         normalization.assert_called_once()
         peer.assert_called_once()
         forecast.assert_called_once()
+        sotp.assert_called_once()
         valuation.assert_called_once()
         positioning.assert_called_once()
         research.assert_called_once()

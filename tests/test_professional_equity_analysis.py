@@ -10,8 +10,10 @@ from stockanalysis.operations.professional_equity_analysis import (
     DEFAULT_MODEL_NAME,
     DEFAULT_FINANCIAL_FORECAST_MODEL_NAME,
     DEFAULT_PEER_RELATIVE_MODEL_NAME,
+    DEFAULT_SOTP_MODEL_NAME,
     DEFAULT_VALUATION_MODEL_NAME,
     FINANCIAL_FORECAST_SCENARIOS,
+    SOTP_COMPONENT_TYPES,
     STANDARD_FINANCIAL_METRICS,
     VALUATION_METHODS,
     render_financial_forecast_inputs_preview_sql,
@@ -20,11 +22,14 @@ from stockanalysis.operations.professional_equity_analysis import (
     render_financial_metric_normalization_upsert_sql,
     render_peer_relative_analysis_preview_sql,
     render_peer_relative_analysis_upsert_sql,
+    render_sum_of_parts_valuation_preview_sql,
+    render_sum_of_parts_valuation_upsert_sql,
     render_valuation_snapshot_preview_sql,
     render_valuation_snapshot_upsert_sql,
     run_financial_forecast_inputs,
     run_financial_metric_normalization,
     run_peer_relative_analysis,
+    run_sum_of_parts_valuation,
     run_valuation_snapshot,
 )
 
@@ -113,6 +118,7 @@ class FakeFinancialMetricExecutor:
                     "raw_financial_input_count": 3,
                     "normalized_input_count": 3,
                     "peer_context_count": 3,
+                    "sum_of_parts_component_count": 6,
                     "valuation_context_count": 3,
                     "dcf_lite_eligible_count": 2,
                     "existing_valuation_count": 0,
@@ -129,6 +135,7 @@ class FakeFinancialMetricExecutor:
                         "dcf_lite": 2,
                         "relative_multiple": 3,
                         "scenario_range": 3,
+                        "sum_of_parts": 3,
                     },
                     "confidence_summary": {"min": 0.25, "avg": 0.4, "max": 0.5},
                 }
@@ -157,6 +164,35 @@ class FakeFinancialMetricExecutor:
                     "scenario_counts": {"bear": 15, "base": 15, "bull": 15},
                     "max_forecast_year": 5,
                     "confidence_summary": {"min": 0.25, "avg": 0.4, "max": 0.55},
+                }
+            )
+        if sql.startswith("-- sum of parts valuation preview"):
+            return json.dumps(
+                {
+                    "as_of_date": "2026-05-25",
+                    "model_name": DEFAULT_SOTP_MODEL_NAME,
+                    "statement_scope": "annual",
+                    "component_types": list(SOTP_COMPONENT_TYPES),
+                    "price_coverage_count": 3,
+                    "raw_input_count": 3,
+                    "forecast_input_count": 3,
+                    "sotp_context_count": 3,
+                    "existing_component_count": 0,
+                }
+            )
+        if sql.startswith("-- sum of parts valuation upsert"):
+            return json.dumps(
+                {
+                    "as_of_date": "2026-05-25",
+                    "source_run_id": self.run_id,
+                    "statement_scope": "annual",
+                    "component_row_count": 9,
+                    "component_type_counts": {
+                        "operating_business": 3,
+                        "balance_sheet_adjustment": 3,
+                        "risk_reserve": 3,
+                    },
+                    "confidence_summary": {"min": 0.35, "avg": 0.43, "max": 0.5},
                 }
             )
         raise AssertionError(f"Unexpected scalar SQL: {sql[:160]}")
@@ -189,6 +225,19 @@ class ProfessionalEquityAnalysisTests(unittest.TestCase):
         self.assertIn("free_cash_flow numeric", sql)
         self.assertIn("unique (instrument_id, as_of_date, statement_scope, scenario_key, forecast_year)", sql)
         self.assertIn("check (scenario_key in ('bear', 'base', 'bull'))", sql)
+        self.assertNotIn("signal.recommendation_score_component", sql.lower())
+
+    def test_sum_of_parts_migration_creates_component_table_and_method(self) -> None:
+        sql = Path("db/migrations/0025_sum_of_parts_valuation.sql").read_text(encoding="utf-8")
+
+        self.assertIn("create table if not exists market.sum_of_parts_component", sql)
+        self.assertIn("component_key text not null", sql)
+        self.assertIn("component_type text not null", sql)
+        self.assertIn("fair_value_base numeric", sql)
+        self.assertIn("unique (instrument_id, as_of_date, statement_scope, component_key)", sql)
+        self.assertIn("check (component_type in ('operating_business', 'balance_sheet_adjustment', 'risk_reserve'))", sql)
+        self.assertIn("drop constraint if exists valuation_snapshot_method_check", sql)
+        self.assertIn("'sum_of_parts'", sql)
         self.assertNotIn("signal.recommendation_score_component", sql.lower())
 
     def test_preview_sql_is_read_only_and_reports_standard_metrics(self) -> None:
@@ -389,7 +438,40 @@ class ProfessionalEquityAnalysisTests(unittest.TestCase):
         self.assertNotIn("signal.recommendation_score_component", sql)
         self.assertIn("9651::bigint", sql)
 
-    def test_valuation_snapshot_upsert_sql_creates_three_methods_without_recommendation_mutation(self) -> None:
+    def test_sum_of_parts_valuation_preview_sql_is_read_only(self) -> None:
+        sql = render_sum_of_parts_valuation_preview_sql(as_of_date=date(2026, 5, 25), statement_scope="annual")
+        lowered = sql.lower()
+
+        self.assertIn("-- sum of parts valuation preview", sql)
+        self.assertIn("market.daily_price_bar", sql)
+        self.assertIn("market.financial_metric_value", sql)
+        self.assertIn("market.financial_forecast_input", sql)
+        self.assertIn("market.sum_of_parts_component", sql)
+        self.assertIn("sotp_context_count", sql)
+        self.assertNotIn("insert into", lowered)
+        self.assertNotIn("update ", lowered)
+        self.assertNotIn("delete from", lowered)
+
+    def test_sum_of_parts_valuation_upsert_sql_creates_components_without_recommendation_mutation(self) -> None:
+        sql = render_sum_of_parts_valuation_upsert_sql(
+            as_of_date=date(2026, 5, 25),
+            source_run_id=9661,
+            statement_scope="annual",
+        )
+
+        self.assertIn("-- sum of parts valuation upsert", sql)
+        self.assertIn("insert into market.sum_of_parts_component", sql)
+        self.assertIn("operating_business_fcf", sql)
+        self.assertIn("balance_sheet_adjustment", sql)
+        self.assertIn("segment_data_gap_reserve", sql)
+        self.assertIn("terminal_base_free_cash_flow", sql)
+        self.assertIn("forecast_or_latest_fcf_multiple", sql)
+        self.assertIn("book_equity_partial_credit", sql)
+        self.assertIn("segment_data_gap_reserve", sql)
+        self.assertNotIn("signal.recommendation_score_component", sql)
+        self.assertIn("9661::bigint", sql)
+
+    def test_valuation_snapshot_upsert_sql_creates_methods_without_recommendation_mutation(self) -> None:
         sql = render_valuation_snapshot_upsert_sql(
             as_of_date=date(2026, 5, 25),
             source_run_id=9701,
@@ -407,11 +489,16 @@ class ProfessionalEquityAnalysisTests(unittest.TestCase):
         self.assertIn("'relative_multiple' as method", sql)
         self.assertIn("'scenario_range' as method", sql)
         self.assertIn("'dcf_lite' as method", sql)
+        self.assertIn("'sum_of_parts' as method", sql)
+        self.assertIn("market.sum_of_parts_component", sql)
+        self.assertIn("'sotp_component_source'", sql)
+        self.assertIn("'sotp_components'", sql)
         self.assertIn("shares_outstanding", sql)
         self.assertIn("free_cash_flow", sql)
         self.assertIn("'model_family', 'relative_valuation'", sql)
         self.assertIn("'model_family', 'scenario_range'", sql)
         self.assertIn("'model_family', 'intrinsic_dcf_lite'", sql)
+        self.assertIn("'model_family', 'sum_of_parts'", sql)
         self.assertIn("'forecast_years', 5", sql)
         self.assertIn("'sensitivity_basis', 'growth_rate, discount_rate, terminal_growth_rate'", sql)
         self.assertIn(
@@ -460,6 +547,42 @@ class ProfessionalEquityAnalysisTests(unittest.TestCase):
         self.assertEqual(report["upsert"]["forecast_row_count"], 45)  # type: ignore[index]
         self.assertIn("insert into ops.pipeline_run", executor.scalar_sql[1])
         self.assertIn("-- financial forecast inputs upsert", executor.scalar_sql[2])
+        self.assertIn("status = 'succeeded'", executor.non_query_sql[-1])
+
+    def test_run_sum_of_parts_valuation_dry_run_reads_preview_without_writes(self) -> None:
+        executor = FakeFinancialMetricExecutor()
+
+        report = run_sum_of_parts_valuation(
+            config=RuntimeConfig(psql_command="psql"),
+            as_of_date=date(2026, 5, 25),
+            statement_scope="annual",
+            execute=False,
+            executor=executor,  # type: ignore[arg-type]
+        )
+
+        self.assertEqual(report["status"], "planned")
+        self.assertEqual(report["report_name"], "sum_of_parts_valuation")
+        self.assertEqual(report["component_types"], list(SOTP_COMPONENT_TYPES))
+        self.assertFalse(report["recommendation_scoring_mutated"])
+        self.assertEqual(executor.non_query_sql, [])
+        self.assertEqual(len(executor.scalar_sql), 1)
+
+    def test_run_sum_of_parts_valuation_execute_records_pipeline_and_upsert_summary(self) -> None:
+        executor = FakeFinancialMetricExecutor(run_id=9662)
+
+        report = run_sum_of_parts_valuation(
+            config=RuntimeConfig(psql_command="psql"),
+            as_of_date=date(2026, 5, 25),
+            statement_scope="annual",
+            execute=True,
+            executor=executor,  # type: ignore[arg-type]
+        )
+
+        self.assertEqual(report["status"], "completed")
+        self.assertEqual(report["run_id"], 9662)
+        self.assertEqual(report["upsert"]["component_row_count"], 9)  # type: ignore[index]
+        self.assertIn("insert into ops.pipeline_run", executor.scalar_sql[1])
+        self.assertIn("-- sum of parts valuation upsert", executor.scalar_sql[2])
         self.assertIn("status = 'succeeded'", executor.non_query_sql[-1])
 
     def test_run_valuation_snapshot_dry_run_reads_preview_without_writes(self) -> None:

@@ -353,6 +353,24 @@ export type ValuationMethodSnapshot = {
       confidence: number | null;
     }>;
   };
+  sotp_evidence: {
+    status: string;
+    label: string;
+    latest_sotp_as_of_date: string;
+    component_count: number;
+    source: string;
+    components: Array<{
+      component_key: string;
+      component_label: string;
+      component_type: string;
+      fair_value_low: number | null;
+      fair_value_base: number | null;
+      fair_value_high: number | null;
+      valuation_basis: string;
+      description: string;
+      confidence: number | null;
+    }>;
+  };
   data_quality: {
     status: string;
     label: string;

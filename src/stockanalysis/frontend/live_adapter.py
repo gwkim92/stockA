@@ -8261,6 +8261,7 @@ def _build_valuation_target_range_payload(
                     fair_value_high=fair_value_high,
                 ),
                 "forecast_evidence": _valuation_method_forecast_evidence(assumptions),
+                "sotp_evidence": _valuation_method_sotp_evidence(assumptions),
                 "data_quality": _valuation_method_data_quality(method, assumptions, confidence, margin_of_safety),
                 "limitations": _valuation_method_limitations(method, assumptions),
                 "source_run_id": _opaque_id("pipeline-run", source_run_id, None)
@@ -8323,6 +8324,7 @@ def _valuation_method_label(method: str) -> str:
         "dcf_lite": "DCF-lite",
         "relative_multiple": "상대 배수",
         "scenario_range": "시나리오 범위",
+        "sum_of_parts": "SOTP",
     }
     return labels.get(method, method or "미확인")
 
@@ -8359,6 +8361,12 @@ def _valuation_method_evidence_summary(
             f"시나리오 범위 기준 목표가는 {target_text}이다. 보수·기준·낙관 case를 품질 점수 {quality}와 연결했으며 "
             f"안전마진은 {margin_text}, 신뢰도는 {confidence_text}이다."
         )
+    if method == "sum_of_parts":
+        component_count = _integer(assumptions.get("sotp_component_count")) or 0
+        return (
+            f"SOTP 기준 목표가는 {target_text}이다. 영업사업 가치, 재무상태 조정, 데이터 공백 reserve "
+            f"{component_count}개 구성요소를 합산했으며 안전마진은 {margin_text}, 신뢰도는 {confidence_text}이다."
+        )
     return f"{_valuation_method_label(method)} 기준 목표가는 {target_text}, 안전마진은 {margin_text}, 신뢰도는 {confidence_text}이다."
 
 
@@ -8386,6 +8394,13 @@ def _valuation_method_assumption_items(method: str, assumptions: dict[str, Any])
             ("품질 점수", "quality_score", "보수·기준·낙관 case의 폭을 조정하는 입력이다.", True),
             ("정규화 지표 수", "normalized_metric_count", "사용 가능한 재무 지표의 폭이다.", False),
             ("최근 정규화 재무 기간", "latest_normalized_period_end", "정규화 지표의 기준 기간이다.", False),
+        ]
+    elif method == "sum_of_parts":
+        candidates = [
+            ("가격 기준일", "price_date", "SOTP 결과와 비교하는 현재가 기준일이다.", False),
+            ("구성요소 수", "sotp_component_count", "SOTP에 합산된 사업·재무상태·reserve 항목 수다.", False),
+            ("SOTP 기준일", "latest_sotp_as_of_date", "구성요소 evidence 기준일이다.", False),
+            ("영업사업 포함", "has_operating_business_component", "핵심 영업사업 가치 component가 존재하는지 보여준다.", False),
         ]
     else:
         candidates = [
@@ -8437,6 +8452,11 @@ def _valuation_method_sensitivity_cases(
             "현재 품질 점수를 기준으로 보는 경우",
             "성장성과 수익성 평가가 우호적인 경우",
         ),
+        "sum_of_parts": (
+            "영업가치 multiple과 재무상태 조정을 낮게 보고 reserve를 크게 반영하는 경우",
+            "현재 SOTP 구성요소의 기준 case를 합산하는 경우",
+            "영업가치와 재무상태 조정을 더 우호적으로 인정하는 경우",
+        ),
     }
     low_description, base_description, high_description = descriptions.get(
         method,
@@ -8474,6 +8494,7 @@ def _valuation_method_data_quality(
         "dcf_lite": ["free_cash_flow", "shares_outstanding", "fcf_per_share", "growth_rate", "discount_rate", "terminal_growth_rate"],
         "relative_multiple": ["quality_score", "peer_quality_percentile", "leverage_percentile"],
         "scenario_range": ["quality_score", "normalized_metric_count"],
+        "sum_of_parts": ["sotp_component_count", "sotp_components", "has_operating_business_component"],
     }.get(method, ["method_description"])
     present_count = sum(1 for key in expected_keys if assumptions.get(key) is not None)
     data_gap_count = max(0, len(expected_keys) - present_count)
@@ -8562,6 +8583,57 @@ def _valuation_method_forecast_evidence(assumptions: dict[str, Any]) -> dict[str
     }
 
 
+def _valuation_method_sotp_evidence(assumptions: dict[str, Any]) -> dict[str, Any]:
+    components = [_as_dict(component) for component in _as_list(assumptions.get("sotp_components"))]
+    components = [component for component in components if component]
+    if not components:
+        return {
+            "status": "unavailable",
+            "label": "SOTP 구성요소 없음",
+            "latest_sotp_as_of_date": str(assumptions.get("latest_sotp_as_of_date") or ""),
+            "component_count": _integer(assumptions.get("sotp_component_count")) or 0,
+            "source": str(assumptions.get("sotp_component_source") or ""),
+            "components": [],
+        }
+
+    component_order = {
+        "operating_business": 0,
+        "balance_sheet_adjustment": 1,
+        "risk_reserve": 2,
+    }
+    normalized_components = []
+    for component in sorted(
+        components,
+        key=lambda item: (
+            component_order.get(str(item.get("component_type") or ""), 99),
+            str(item.get("component_key") or ""),
+        ),
+    ):
+        component_assumptions = _as_dict(component.get("assumptions"))
+        normalized_components.append(
+            {
+                "component_key": str(component.get("component_key") or ""),
+                "component_label": str(component.get("component_label") or component.get("component_key") or ""),
+                "component_type": str(component.get("component_type") or ""),
+                "fair_value_low": _number(component.get("fair_value_low")),
+                "fair_value_base": _number(component.get("fair_value_base")),
+                "fair_value_high": _number(component.get("fair_value_high")),
+                "valuation_basis": str(component.get("valuation_basis") or ""),
+                "description": str(component_assumptions.get("component_description") or ""),
+                "confidence": _number(component.get("confidence")),
+            }
+        )
+
+    return {
+        "status": "available",
+        "label": "SOTP 구성요소 연결",
+        "latest_sotp_as_of_date": str(assumptions.get("latest_sotp_as_of_date") or ""),
+        "component_count": _integer(assumptions.get("sotp_component_count")) or len(normalized_components),
+        "source": str(assumptions.get("sotp_component_source") or "market.sum_of_parts_component"),
+        "components": normalized_components,
+    }
+
+
 def _valuation_method_limitations(method: str, assumptions: dict[str, Any]) -> list[str]:
     explicit = [str(value) for value in _as_scalar_list(assumptions.get("limitations")) if str(value).strip()]
     if explicit:
@@ -8581,11 +8653,16 @@ def _valuation_method_limitations(method: str, assumptions: dict[str, Any]) -> l
             "보수·기준·낙관 case를 가격 앵커와 품질 점수로 만든 단순 범위다.",
             "실적 forecast나 확률가중 기대값을 직접 계산한 모델은 아니다.",
         ]
+    if method == "sum_of_parts":
+        return [
+            "첫 SOTP foundation은 사업부별 segment forecast가 아니라 FCF와 재무상태 기반 proxy component다.",
+            "세그먼트 데이터 공백 reserve를 차감해 과신을 줄이지만, 완전한 sell-side SOTP를 대체하지 않는다.",
+        ]
     return ["모델 한계가 구조화되지 않았다. 최신 valuation runner 재실행이 필요하다."]
 
 
 def _valuation_quality_summary(methods: list[dict[str, Any]], target_range_available: bool) -> dict[str, Any]:
-    expected_methods = ("dcf_lite", "relative_multiple", "scenario_range")
+    expected_methods = ("dcf_lite", "relative_multiple", "scenario_range", "sum_of_parts")
     present_methods = {str(method.get("method") or "") for method in methods}
     missing_methods = [method for method in expected_methods if method not in present_methods]
     data_gap_count = sum(int(_as_dict(method.get("data_quality")).get("data_gap_count") or 0) for method in methods)

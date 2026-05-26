@@ -191,6 +191,10 @@ grep -q "sum-of-the-parts-valuation-foundation-v1" docs/project-execution-roadma
 test -f docs/tasks/financial-forecast-and-scenario-inputs-v1/contract.md
 test -f docs/tasks/financial-forecast-and-scenario-inputs-v1/handoff.md
 test -f docs/tasks/financial-forecast-and-scenario-inputs-v1/review.md
+test -f docs/tasks/sum-of-the-parts-valuation-foundation-v1/contract.md
+test -f docs/tasks/sum-of-the-parts-valuation-foundation-v1/handoff.md
+test -f docs/tasks/sum-of-the-parts-valuation-foundation-v1/review.md
+test -f docs/plans/2026-05-26-sum-of-the-parts-valuation-foundation-v1.md
 grep -q "project-roadmap-reality-sync" docs/project-execution-roadmap.md
 grep -q "cycle-ai-e2e-quality-audit" docs/project-execution-roadmap.md
 grep -q "news-ai-eval-dataset-and-scoring" docs/project-execution-roadmap.md

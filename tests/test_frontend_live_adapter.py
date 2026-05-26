@@ -617,6 +617,73 @@ class FakeLiveExecutor:
                             "source_run_id": 7801,
                             "created_at": "2024-12-02T10:00:00+00:00",
                         },
+                        {
+                            "valuation_snapshot_id": 5104,
+                            "as_of_date": "2024-12-02",
+                            "method": "sum_of_parts",
+                            "base_price": "240.0000",
+                            "fair_value_low": "198.0000",
+                            "fair_value_base": "265.0000",
+                            "fair_value_high": "340.0000",
+                            "margin_of_safety": "0.1042",
+                            "assumptions": {
+                                "model_family": "sum_of_parts",
+                                "method_description": "Conservative SOTP proxy",
+                                "pricing_basis": "latest adjusted close",
+                                "price_date": "2024-12-02",
+                                "latest_sotp_as_of_date": "2024-12-02",
+                                "sotp_component_source": "market.sum_of_parts_component",
+                                "sotp_component_count": 3,
+                                "has_operating_business_component": True,
+                                "sotp_components": [
+                                    {
+                                        "component_key": "operating_business_fcf",
+                                        "component_label": "영업사업 가치",
+                                        "component_type": "operating_business",
+                                        "fair_value_low": "210.0000",
+                                        "fair_value_base": "285.0000",
+                                        "fair_value_high": "360.0000",
+                                        "valuation_basis": "forecast_or_latest_fcf_multiple",
+                                        "assumptions": {
+                                            "component_description": "Forecast FCF multiple 기반 핵심 영업사업 가치",
+                                        },
+                                        "confidence": "0.4500",
+                                    },
+                                    {
+                                        "component_key": "balance_sheet_adjustment",
+                                        "component_label": "재무상태 조정",
+                                        "component_type": "balance_sheet_adjustment",
+                                        "fair_value_low": "8.0000",
+                                        "fair_value_base": "15.0000",
+                                        "fair_value_high": "25.0000",
+                                        "valuation_basis": "book_equity_partial_credit",
+                                        "assumptions": {
+                                            "component_description": "순자산 일부만 보수적으로 반영",
+                                        },
+                                        "confidence": "0.3500",
+                                    },
+                                    {
+                                        "component_key": "segment_data_gap_reserve",
+                                        "component_label": "세그먼트 데이터 공백 차감",
+                                        "component_type": "risk_reserve",
+                                        "fair_value_low": "-20.0000",
+                                        "fair_value_base": "-35.0000",
+                                        "fair_value_high": "-45.0000",
+                                        "valuation_basis": "segment_data_gap_reserve",
+                                        "assumptions": {
+                                            "component_description": "세그먼트 데이터 부족을 반영한 reserve",
+                                        },
+                                        "confidence": "0.5000",
+                                    },
+                                ],
+                                "limitations": [
+                                    "첫 SOTP foundation은 사업부별 segment forecast가 아니라 FCF와 재무상태 기반 proxy component다."
+                                ],
+                            },
+                            "confidence": "0.5000",
+                            "source_run_id": 7802,
+                            "created_at": "2024-12-02T10:00:00+00:00",
+                        },
                     ],
                     "macro_flow_impacts": [
                         {
@@ -2706,19 +2773,26 @@ class LatestPortfolioCoverageExecutor(FakeLiveExecutor):
 
 
 class FrontendLiveAdapterTests(unittest.TestCase):
-    def assertValuationTargetRangeQuality(self, target_range: dict[str, object], *, expected_status: str) -> None:
+    def assertValuationTargetRangeQuality(
+        self,
+        target_range: dict[str, object],
+        *,
+        expected_status: str,
+        expected_method_count: int = 4,
+        expected_missing_methods: list[str] | None = None,
+    ) -> None:
         self.assertEqual(target_range["status"], "available")
-        self.assertEqual(target_range["method_count"], 3)
+        self.assertEqual(target_range["method_count"], expected_method_count)
         self.assertEqual(target_range["order_boundary"], "read_only_no_order")
         quality = target_range["valuation_quality"]  # type: ignore[index]
         self.assertEqual(quality["status"], expected_status)
-        self.assertEqual(quality["method_coverage"], 3)
-        self.assertEqual(quality["expected_method_count"], 3)
-        self.assertEqual(quality["missing_methods"], [])
+        self.assertEqual(quality["method_coverage"], expected_method_count)
+        self.assertEqual(quality["expected_method_count"], 4)
+        self.assertEqual(quality["missing_methods"], expected_missing_methods or [])
         self.assertEqual(quality["order_boundary"], "read_only_no_order")
 
         methods = target_range["methods"]  # type: ignore[index]
-        self.assertEqual(len(methods), 3)
+        self.assertEqual(len(methods), expected_method_count)
         for method in methods:
             self.assertIn("evidence_summary", method)
             self.assertIn("목표가", method["evidence_summary"])
@@ -3346,12 +3420,12 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertEqual(financial_model["score_policy"], "recommendation_weights_unchanged")
         target_range = payload["data"]["valuation_target_range"]
         self.assertValuationTargetRangeQuality(target_range, expected_status="usable")
-        self.assertEqual(target_range["method_count"], 3)
+        self.assertEqual(target_range["method_count"], 4)
         self.assertEqual(target_range["base_price"], 240.0)
-        self.assertEqual(target_range["target_low"], 200.0)
-        self.assertAlmostEqual(target_range["target_base"], 261.6666666667)
-        self.assertEqual(target_range["target_high"], 330.0)
-        self.assertAlmostEqual(target_range["upside_base"], 0.0902777778)
+        self.assertEqual(target_range["target_low"], 198.0)
+        self.assertAlmostEqual(target_range["target_base"], 262.5)
+        self.assertEqual(target_range["target_high"], 340.0)
+        self.assertAlmostEqual(target_range["upside_base"], 0.09375)
         self.assertEqual(target_range["methods"][0]["method"], "dcf_lite")
         self.assertEqual(target_range["methods"][0]["data_quality"]["status"], "strong")
         self.assertEqual(target_range["methods"][0]["data_quality"]["data_gap_count"], 0)
@@ -3367,6 +3441,13 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertEqual(target_range["methods"][0]["forecast_evidence"]["scenarios"][1]["terminal_free_cash_flow"], 117000000000.0)
         self.assertIn("상세 매출·마진·CAPEX forecast", target_range["methods"][0]["limitations"][0])
         self.assertEqual(target_range["methods"][0]["source_run_id"], "pipeline-run-7801")
+        sotp_method = next(method for method in target_range["methods"] if method["method"] == "sum_of_parts")
+        self.assertEqual(sotp_method["method_label"], "SOTP")
+        self.assertEqual(sotp_method["sotp_evidence"]["status"], "available")
+        self.assertEqual(sotp_method["sotp_evidence"]["component_count"], 3)
+        self.assertEqual(sotp_method["sotp_evidence"]["components"][0]["component_key"], "operating_business_fcf")
+        self.assertEqual(sotp_method["sotp_evidence"]["components"][0]["fair_value_base"], 285.0)
+        self.assertIn("SOTP", sotp_method["evidence_summary"])
         self.assertFalse(target_range["automatic_order_allowed"])
         self.assertEqual(target_range["score_policy"], "recommendation_weights_unchanged")
         self.assertEqual(payload["data"]["macro_flow_impacts"][0]["theme_key"], "MACRO_RATES_FED")
@@ -3985,7 +4066,12 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertFalse(financial_model["broker_submit_allowed"])
         self.assertEqual(financial_model["order_boundary"], "read_only_no_order")
         target_range = payload["data"]["valuation_target_range"]
-        self.assertValuationTargetRangeQuality(target_range, expected_status="review_required")
+        self.assertValuationTargetRangeQuality(
+            target_range,
+            expected_status="review_required",
+            expected_method_count=3,
+            expected_missing_methods=["sum_of_parts"],
+        )
         self.assertEqual(target_range["method_count"], 3)
         self.assertEqual(target_range["target_low"], 200.0)
         self.assertAlmostEqual(target_range["target_base"], 261.6666666667)
@@ -4232,7 +4318,12 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertEqual(lifecycle["valuation"]["upside_case"], "서비스 성장 유지")
         self.assertEqual(lifecycle["review_cadence"]["next_review_date"], "2024-12-01")
         target_range = payload["data"]["valuation_target_range"]
-        self.assertValuationTargetRangeQuality(target_range, expected_status="review_required")
+        self.assertValuationTargetRangeQuality(
+            target_range,
+            expected_status="review_required",
+            expected_method_count=3,
+            expected_missing_methods=["sum_of_parts"],
+        )
         self.assertEqual(target_range["method_count"], 3)
         self.assertAlmostEqual(target_range["target_base"], 261.6666666667)
         self.assertAlmostEqual(target_range["margin_of_safety"], 0.0902666667)

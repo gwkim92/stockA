@@ -102,6 +102,7 @@ from stockanalysis.operations.professional_equity_analysis import (
     run_financial_forecast_inputs,
     run_financial_metric_normalization,
     run_peer_relative_analysis,
+    run_sum_of_parts_valuation,
     run_valuation_snapshot,
 )
 from stockanalysis.operations.professional_coverage_expansion import (
@@ -923,6 +924,19 @@ def build_parser() -> argparse.ArgumentParser:
     financial_forecast_inputs.add_argument("--output")
     financial_forecast_inputs.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
     financial_forecast_inputs.set_defaults(handler=_handle_financial_forecast_inputs_run)
+
+    sum_of_parts_valuation = subparsers.add_parser(
+        "sum-of-parts-valuation-run",
+        help="Create conservative sum-of-the-parts valuation components without changing recommendation weights.",
+    )
+    sum_of_parts_valuation.add_argument("--env-file")
+    sum_of_parts_valuation.add_argument("--as-of-date", required=True)
+    sum_of_parts_valuation.add_argument("--statement-scope", choices=VALUATION_STATEMENT_SCOPES, default="annual")
+    sum_of_parts_valuation.add_argument("--execute", action="store_true")
+    sum_of_parts_valuation.add_argument("--dry-run", action="store_true")
+    sum_of_parts_valuation.add_argument("--output")
+    sum_of_parts_valuation.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
+    sum_of_parts_valuation.set_defaults(handler=_handle_sum_of_parts_valuation_run)
 
     industry_competitive_positioning = subparsers.add_parser(
         "industry-competitive-positioning-run",
@@ -2115,6 +2129,31 @@ def _handle_financial_forecast_inputs_run(args: argparse.Namespace, *, stdout: T
         output_path = resolve_output_path(
             args.output,
             label="financial forecast inputs output",
+            repo_root=args.repo_root,
+            require_repo_outside=True,
+        )
+        write_json_report(report, output_path=output_path, stdout=stdout)
+    else:
+        print_json(report, stdout=stdout, sort_keys=False)
+    return 0
+
+
+def _handle_sum_of_parts_valuation_run(args: argparse.Namespace, *, stdout: TextIO) -> int:
+    if bool(args.execute) and bool(args.dry_run):
+        raise ValueError("--execute and --dry-run cannot be used together.")
+    env_mapping = _load_optional_env_mapping(args.env_file, repo_root=args.repo_root)
+    as_of_date = date.fromisoformat(args.as_of_date)
+    with _temporary_environ(env_mapping):
+        report = run_sum_of_parts_valuation(
+            config=RuntimeConfig.from_env(),
+            as_of_date=as_of_date,
+            statement_scope=args.statement_scope,
+            execute=bool(args.execute) and not bool(args.dry_run),
+        )
+    if args.output:
+        output_path = resolve_output_path(
+            args.output,
+            label="sum of parts valuation output",
             repo_root=args.repo_root,
             require_repo_outside=True,
         )

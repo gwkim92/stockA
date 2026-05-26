@@ -165,6 +165,28 @@ export function ValuationTargetRangeCard({
                 </div>
               ) : null}
 
+              {method.sotp_evidence.status === "available" ? (
+                <div style={{ borderTop: "1px solid var(--border-light)", marginTop: "14px", paddingTop: "12px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: "10px", alignItems: "baseline" }}>
+                    <span style={{ color: "var(--text-secondary)", fontSize: "0.78rem", fontWeight: 900 }}>SOTP 구성요소</span>
+                    <small style={{ color: "var(--text-muted)" }}>
+                      {method.sotp_evidence.component_count}개 구성 · {method.sotp_evidence.latest_sotp_as_of_date || "기준일 없음"}
+                    </small>
+                  </div>
+                  <div style={{ display: "grid", gap: "8px", marginTop: "10px" }}>
+                    {method.sotp_evidence.components.slice(0, 4).map((component) => (
+                      <div key={`${method.method}-sotp-${component.component_key}`} style={{ display: "grid", gridTemplateColumns: "96px 1fr", gap: "8px", alignItems: "start" }}>
+                        <strong>{component.component_label}</strong>
+                        <small style={{ color: "var(--text-secondary)", lineHeight: 1.45 }}>
+                          기준 {formatCurrency(component.fair_value_base, currency)} · 보수 {formatCurrency(component.fair_value_low, currency)} · 낙관 {formatCurrency(component.fair_value_high, currency)}
+                          {component.description ? ` · ${component.description}` : ""}
+                        </small>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+
               <details className="audit-metadata" style={{ marginTop: "14px" }}>
                 <summary>모델 한계와 데이터 경고 보기</summary>
                 <dl>
