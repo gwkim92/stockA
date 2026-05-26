@@ -4822,11 +4822,11 @@ def _find_multiyear_segment_block_header(rows: list[list[str]]) -> tuple[int | N
             continue
         following_rows = rows[index + 1 : index + 20]
         has_segment_label = any(_segment_block_label(candidate) is not None for candidate in following_rows)
-        has_segment_metric = any(
-            candidate and _metric_code_from_segment_header(candidate[0]) in {"segment_revenue", "segment_operating_income"}
+        has_operating_income_metric = any(
+            candidate and _metric_code_from_segment_header(candidate[0]) == "segment_operating_income"
             for candidate in following_rows
         )
-        if has_segment_label and has_segment_metric:
+        if has_segment_label and has_operating_income_metric:
             return index, years
     return None, []
 
@@ -4923,6 +4923,16 @@ def _clean_segment_label(label: str) -> str | None:
     if normalized in {"corporate", "corporate total"}:
         return None
     if normalized.startswith("corporate and"):
+        return None
+    if normalized in {
+        "net sales",
+        "revenue",
+        "sales",
+        "deferred tax assets",
+        "deferred tax liabilities",
+        "deferred tax assets and liabilities",
+        "deferred revenue",
+    }:
         return None
     if "total net sales" in normalized or "total revenue" in normalized:
         return None

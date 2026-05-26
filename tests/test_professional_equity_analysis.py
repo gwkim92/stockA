@@ -636,6 +636,43 @@ class ProfessionalEquityAnalysisTests(unittest.TestCase):
         self.assertTrue(all(row.metric_unit == "USD_millions_as_reported" for row in rows))
         self.assertTrue(all(row.assumptions_json["parser_layout"] == "multiyear_segment_block_rows" for row in rows))
 
+    def test_extract_reported_segment_metrics_from_html_ignores_non_segment_multiyear_blocks(self) -> None:
+        html = """
+        <p>The following table shows tax balances and total net sales (dollars in millions):</p>
+        <table>
+          <tr><th>2025</th><th>2024</th></tr>
+          <tr><td>Deferred tax assets:</td></tr>
+          <tr><td>Revenue credit carryforwards</td><td>$</td><td>2,953</td><td>$</td><td>3,413</td></tr>
+        </table>
+        <table>
+          <tr><th>2025</th><th>2024</th><th>2023</th></tr>
+          <tr><td>Net sales:</td></tr>
+          <tr><td>Total net sales</td><td>$</td><td>416,161</td><td>$</td><td>391,035</td><td>$</td><td>383,285</td></tr>
+        </table>
+        <table>
+          <tr><th>2025</th><th>2024</th><th>2023</th></tr>
+          <tr><td>Americas:</td></tr>
+          <tr><td>Net sales</td><td>$</td><td>178,353</td><td>$</td><td>167,045</td><td>$</td><td>162,560</td></tr>
+          <tr><td>Operating income</td><td>$</td><td>72,480</td><td>$</td><td>67,656</td><td>$</td><td>60,508</td></tr>
+        </table>
+        """
+
+        rows = extract_reported_segment_metrics_from_html(
+            html,
+            instrument_id=1,
+            primary_symbol="AAPL",
+            as_of_date=date(2026, 5, 26),
+            statement_scope="annual",
+            period_end=date(2025, 9, 27),
+            source_document_id=1493,
+            source_document_title="Apple Inc. 2025 10-K",
+        )
+
+        self.assertEqual(len(rows), 2)
+        self.assertEqual({row.segment_label for row in rows}, {"Americas"})
+        self.assertNotIn("Net sales", {row.segment_label for row in rows})
+        self.assertNotIn("Deferred tax assets", {row.segment_label for row in rows})
+
     def test_reported_segment_footnote_metric_upsert_sql_removes_obsolete_gap_rows(self) -> None:
         html = Path("tests/fixtures/sec_filing_segment_footnote_sample.html").read_text(encoding="utf-8")
         rows = extract_reported_segment_metrics_from_html(
