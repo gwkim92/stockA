@@ -2,8 +2,7 @@
 
 ## Status
 
-- in progress: backend runner, CLI, cadence/profile integration, local verification, roadmap verification, and harness verification are complete.
-- remaining: GitHub push, EC2 deploy, and EC2 linkage/parser smoke.
+- completed: backend runner, CLI, cadence/profile integration, local verification, roadmap verification, harness verification, GitHub push, EC2 deploy, and EC2 linkage/parser smoke are complete.
 
 ## Current Findings
 
@@ -21,7 +20,7 @@
 
 ## Exact Next Step
 
-- exact next step: run the contract verification commands, push the implementation, deploy to EC2, then execute `financial-period-source-linkage-run` followed by `reported-segment-footnote-parser-run` to confirm parser candidates are unblocked.
+- exact next step: start `reported-segment-parser-quality-v1` to expand parsing coverage for real linked SEC raw filings, because EC2 now has a parser candidate but the current simple parser extracted zero metrics from Apple 10-K.
 
 ## Verification Log
 
@@ -34,9 +33,16 @@
 - Passed: `git diff --check`
 - Re-passed after source-linkage lookback correction: focused unittest (`Ran 88 tests`, `OK`), `compileall`, roadmap verification, AWH verify, CLI help grep, Python 3.13 full suite (`Ran 970 tests in 5.227s`, `OK`), and `git diff --check`.
 - EC2 first smoke: `financial-period-source-linkage-run --max-filings 3 --execute` completed with `run_id=1039`, `linked_period_count=0`, `raw_fetch_candidate_count=0`; root cause was insufficient filing lookback.
+- Pushed: `9a97393 Add financial period source linkage` and `a2b45f8 Widen SEC source linkage lookback` to `origin/codex/local-mvp-runtime-aws-bootstrap`.
+- EC2 deployed: `/opt/stockanalysis/app` fast-forwarded to `a2b45f8`.
+- EC2 linkage smoke passed: `financial-period-source-linkage-run --max-filings 200 --execute` completed with `run_id=1042`, `sec_filings_report.filing_count=200`, `raw_fetch_candidate_count=1`, `raw_fetch_success_count=1`, and raw Apple 10-K artifact `file:///opt/stockanalysis/runtime/artifacts/raw/sec/filings/0000320193-25-000079/aapl-20250927.htm`.
+- EC2 DB linkage check passed: `total_periods=2696`, `linked_periods=29`, `raw_sec_docs=1`, `linked_raw_periods=2`, `aapl_periods=195`, `aapl_linked_periods=29`.
+- EC2 parser candidate smoke passed: `reported-segment-footnote-parser-run --execute` completed with `run_id=1046`, `candidate_count=1`, `reported_segment_metric_count=0`, `recommendation_scoring_mutated=false`.
+- EC2 services remained active: `stockanalysis-frontend-api.service` and `stockanalysis-web.service`.
 
 ## Remaining Risks
 
 - The deterministic backfill relies on accession-number linkage first and conservative filing-date/company-text matching second; unusual issuer names or filings may remain unlinked.
 - `--raw-fetch-limit` intentionally prevents unlimited SEC downloads, so full coverage requires repeated scheduled runs.
 - This task unblocks parser input availability; it does not make the parser itself a full inline XBRL taxonomy engine.
+- The first real linked Apple 10-K candidate produced zero parsed metrics, so parser coverage/depth is the next blocker for segment-level SOTP quality.
