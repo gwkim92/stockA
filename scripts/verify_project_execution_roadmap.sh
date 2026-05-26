@@ -147,7 +147,7 @@ test -f docs/plans/2026-05-20-hosted-database-runtime-decision.md
 test -f docs/hosted-database-runtime-decision.md
 test -f scripts/verify_hosted_database_runtime_decision.sh
 grep -q 'Current task group: `professional-equity-analysis-foundation`' docs/project-execution-roadmap.md
-grep -q '현재 고정된 immediate next task는 `segment-sotp-driver-calibration-v1`' AGENTS.md
+grep -q '현재 고정된 immediate next task는 `segment-history-backfill-v1`' AGENTS.md
 test -f docs/tasks/portfolio-risk-budget-drift-quality-audit/contract.md
 test -f docs/tasks/portfolio-risk-budget-drift-quality-audit/handoff.md
 test -f docs/tasks/portfolio-risk-budget-rebalance-candidate-review/contract.md
@@ -197,6 +197,7 @@ grep -q "segment-level-sotp-valuation-allocation-v1" docs/project-execution-road
 grep -q "reported-segment-unit-normalization-v1" docs/project-execution-roadmap.md
 grep -q "segment-specific-sotp-assumptions-v1" docs/project-execution-roadmap.md
 grep -q "segment-sotp-driver-calibration-v1" docs/project-execution-roadmap.md
+grep -q "segment-history-backfill-v1" docs/project-execution-roadmap.md
 test -f docs/tasks/financial-period-source-document-linkage-v1/contract.md
 test -f docs/tasks/financial-period-source-document-linkage-v1/handoff.md
 test -f docs/tasks/financial-period-source-document-linkage-v1/review.md
@@ -221,6 +222,10 @@ test -f docs/tasks/segment-specific-sotp-assumptions-v1/contract.md
 test -f docs/tasks/segment-specific-sotp-assumptions-v1/handoff.md
 test -f docs/tasks/segment-specific-sotp-assumptions-v1/review.md
 test -f docs/plans/2026-05-26-segment-specific-sotp-assumptions-v1.md
+test -f docs/tasks/segment-sotp-driver-calibration-v1/contract.md
+test -f docs/tasks/segment-sotp-driver-calibration-v1/handoff.md
+test -f docs/tasks/segment-sotp-driver-calibration-v1/review.md
+test -f docs/plans/2026-05-26-segment-sotp-driver-calibration-v1.md
 test -f docs/tasks/financial-forecast-and-scenario-inputs-v1/contract.md
 test -f docs/tasks/financial-forecast-and-scenario-inputs-v1/handoff.md
 test -f docs/tasks/financial-forecast-and-scenario-inputs-v1/review.md
