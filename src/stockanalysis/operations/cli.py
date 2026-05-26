@@ -20,6 +20,11 @@ from stockanalysis.ingest.news.enrichment import (
 from stockanalysis.ingest.news.eval import DEFAULT_DATASET_PATH, run_news_ai_eval
 from stockanalysis.ingest.news.translation import run_news_rss_translation
 from stockanalysis.operations.artifact_runner import run_data_operation_artifact_command
+from stockanalysis.operations.benchmark_composition_import import (
+    DEFAULT_MIN_FULL_COVERAGE_WEIGHT,
+    SUPPORTED_SOURCE_TYPES as BENCHMARK_COMPOSITION_SOURCE_TYPES,
+    run_benchmark_composition_import,
+)
 from stockanalysis.operations.cadence import build_data_operations_cadence_report
 from stockanalysis.operations.cycle_ai_quality_audit import run_cycle_ai_quality_audit
 from stockanalysis.operations.env_file import merged_env_with_file
@@ -794,6 +799,27 @@ def build_parser() -> argparse.ArgumentParser:
     portfolio_risk_budget_guardrail.add_argument("--output")
     portfolio_risk_budget_guardrail.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
     portfolio_risk_budget_guardrail.set_defaults(handler=_handle_portfolio_risk_budget_guardrail_run)
+
+    benchmark_composition_import = subparsers.add_parser(
+        "benchmark-composition-import-run",
+        help="Import dated benchmark holdings from a repo-outside CSV without changing recommendation weights.",
+    )
+    benchmark_composition_import.add_argument("--env-file")
+    benchmark_composition_import.add_argument("--holdings-csv", required=True)
+    benchmark_composition_import.add_argument("--benchmark-code", required=True)
+    benchmark_composition_import.add_argument("--source-type", choices=BENCHMARK_COMPOSITION_SOURCE_TYPES, default="operator_upload")
+    benchmark_composition_import.add_argument("--source-name", required=True)
+    benchmark_composition_import.add_argument("--source-as-of-date", required=True)
+    benchmark_composition_import.add_argument("--valid-from")
+    benchmark_composition_import.add_argument(
+        "--min-full-coverage-weight",
+        default=str(DEFAULT_MIN_FULL_COVERAGE_WEIGHT),
+    )
+    benchmark_composition_import.add_argument("--execute", action="store_true")
+    benchmark_composition_import.add_argument("--dry-run", action="store_true")
+    benchmark_composition_import.add_argument("--output")
+    benchmark_composition_import.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
+    benchmark_composition_import.set_defaults(handler=_handle_benchmark_composition_import_run)
 
     recommendation_fundamental_components = subparsers.add_parser(
         "recommendation-fundamental-components-run",
@@ -1760,6 +1786,44 @@ def _handle_portfolio_risk_budget_guardrail_run(args: argparse.Namespace, *, std
         output_path = resolve_output_path(
             args.output,
             label="portfolio risk budget guardrail output",
+            repo_root=args.repo_root,
+            require_repo_outside=True,
+        )
+        write_json_report(report, output_path=output_path, stdout=stdout)
+    else:
+        print_json(report, stdout=stdout, sort_keys=False)
+    return 0
+
+
+def _handle_benchmark_composition_import_run(args: argparse.Namespace, *, stdout: TextIO) -> int:
+    if bool(args.execute) and bool(args.dry_run):
+        raise ValueError("--execute and --dry-run cannot be used together.")
+    env_mapping = _load_optional_env_mapping(args.env_file, repo_root=args.repo_root)
+    holdings_csv = resolve_existing_file(
+        args.holdings_csv,
+        label="benchmark composition holdings CSV",
+        repo_root=args.repo_root,
+        require_repo_outside=True,
+    )
+    source_as_of_date = date.fromisoformat(args.source_as_of_date)
+    valid_from = date.fromisoformat(args.valid_from) if args.valid_from else source_as_of_date
+    min_full_coverage_weight = Decimal(str(args.min_full_coverage_weight))
+    with _temporary_environ(env_mapping):
+        report = run_benchmark_composition_import(
+            config=RuntimeConfig.from_env(),
+            holdings_csv=holdings_csv,
+            benchmark_code=args.benchmark_code,
+            source_type=args.source_type,
+            source_name=args.source_name,
+            source_as_of_date=source_as_of_date,
+            valid_from=valid_from,
+            execute=bool(args.execute) and not bool(args.dry_run),
+            min_full_coverage_weight=min_full_coverage_weight,
+        )
+    if args.output:
+        output_path = resolve_output_path(
+            args.output,
+            label="benchmark composition import output",
             repo_root=args.repo_root,
             require_repo_outside=True,
         )

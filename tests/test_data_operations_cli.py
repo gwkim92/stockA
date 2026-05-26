@@ -1865,6 +1865,87 @@ class DataOperationsCliTests(unittest.TestCase):
             self.assertEqual(call_kwargs["as_of_date"], date(2026, 5, 25))
             self.assertTrue(call_kwargs["execute"])
 
+    def test_benchmark_composition_import_run_command_requires_repo_outside_csv(self) -> None:
+        with tempfile.TemporaryDirectory() as repo_root:
+            holdings_csv = Path(repo_root) / "holdings.csv"
+            holdings_csv.write_text("symbol,target_weight\nAAPL,0.07\n", encoding="utf-8")
+            stderr = io.StringIO()
+
+            exit_code = main(
+                [
+                    "benchmark-composition-import-run",
+                    "--repo-root",
+                    repo_root,
+                    "--holdings-csv",
+                    str(holdings_csv),
+                    "--benchmark-code",
+                    "SPY",
+                    "--source-name",
+                    "operator-spy-2026-05-25",
+                    "--source-as-of-date",
+                    "2026-05-25",
+                ],
+                stdout=io.StringIO(),
+                stderr=stderr,
+            )
+
+            self.assertEqual(exit_code, 1)
+            self.assertIn("must be outside repository", stderr.getvalue())
+
+    def test_benchmark_composition_import_run_command_passes_env_and_writes_output(self) -> None:
+        with tempfile.TemporaryDirectory() as repo_root, tempfile.TemporaryDirectory() as outside_root:
+            env_file = Path(outside_root) / "data-operations.env"
+            holdings_csv = Path(outside_root) / "holdings.csv"
+            output_path = Path(outside_root) / "benchmark-composition-import.json"
+            env_file.write_text('STOCKANALYSIS_PSQL_COMMAND="docker exec psql"\n', encoding="utf-8")
+            holdings_csv.write_text("symbol,target_weight\nAAPL,0.07\nMSFT,0.06\n", encoding="utf-8")
+            stdout = io.StringIO()
+
+            with patch("stockanalysis.operations.cli.run_benchmark_composition_import") as runner_mock:
+                runner_mock.return_value = {
+                    "report_name": "benchmark_composition_import",
+                    "status": "completed",
+                    "coverage_status": "partial_holdings_only",
+                }
+                exit_code = main(
+                    [
+                        "benchmark-composition-import-run",
+                        "--repo-root",
+                        repo_root,
+                        "--env-file",
+                        str(env_file),
+                        "--holdings-csv",
+                        str(holdings_csv),
+                        "--benchmark-code",
+                        "SPY",
+                        "--source-type",
+                        "operator_upload",
+                        "--source-name",
+                        "operator-spy-2026-05-25",
+                        "--source-as-of-date",
+                        "2026-05-25",
+                        "--valid-from",
+                        "2026-05-25",
+                        "--execute",
+                        "--output",
+                        str(output_path),
+                    ],
+                    stdout=stdout,
+                )
+
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(stdout.getvalue().strip(), str(output_path.resolve()))
+            payload = json.loads(output_path.read_text(encoding="utf-8"))
+            self.assertEqual(payload["report_name"], "benchmark_composition_import")
+            call_kwargs = runner_mock.call_args.kwargs
+            self.assertEqual(call_kwargs["config"].psql_command, "docker exec psql")
+            self.assertEqual(call_kwargs["holdings_csv"], holdings_csv.resolve())
+            self.assertEqual(call_kwargs["benchmark_code"], "SPY")
+            self.assertEqual(call_kwargs["source_type"], "operator_upload")
+            self.assertEqual(call_kwargs["source_as_of_date"], date(2026, 5, 25))
+            self.assertEqual(call_kwargs["valid_from"], date(2026, 5, 25))
+            self.assertTrue(call_kwargs["execute"])
+
     def test_industry_competitive_positioning_run_command_passes_env_and_writes_output(self) -> None:
         with tempfile.TemporaryDirectory() as repo_root, tempfile.TemporaryDirectory() as outside_root:
             env_file = Path(outside_root) / "data-operations.env"
