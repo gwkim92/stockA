@@ -2,7 +2,7 @@
 
 ## Current Status
 
-- 완료: thesis detail API/화면에 professional lifecycle gates를 추가했고 로컬 검증을 통과했다. EC2 배포와 route smoke는 아직 남아 있다.
+- 완료: thesis detail API/화면에 professional lifecycle gates를 추가했고 local/EC2 API/route/browser smoke가 통과했다.
 
 ## Intent
 
@@ -43,12 +43,33 @@ Thesis detail should enforce the professional investment lifecycle. A long-term 
   - `cd apps/web && npm run typecheck`
   - `cd apps/web && npm run build`
   - Result: passed
+- Roadmap/harness:
+  - `bash scripts/verify_project_execution_roadmap.sh`
+  - `PYTHONPATH=/Users/woody/ai/agent-work-harness/src /opt/homebrew/bin/python3.13 -m awh verify --repo . --task thesis-lifecycle-professional-gates-v1`
+  - `git diff --check`
+  - Result: passed
+- EC2 deploy:
+  - `/opt/stockanalysis/app` fast-forwarded to commit `b2dba33`.
+  - Focused thesis detail test: `Ran 1 test ... OK`
+  - `apps/web` `npm run typecheck` and `npm run build`: passed
+  - `stockanalysis-frontend-api.service` and `stockanalysis-web.service`: active
+- EC2 API smoke:
+  - `/api/theses/thesis-28`
+  - `professional_lifecycle_gates.status=complete`
+  - gate count `8`
+  - gate keys: `buy_case`, `catalysts`, `risks`, `invalidation`, `valuation`, `review_cadence`, `evidence_freshness`, `order_boundary`
+  - `latest_evidence_at=2026-05-23T21:16:53Z`
+  - `evidence_observed_at_count=1`
+  - `order_boundary=read_only_no_order`, `automatic_order_allowed=false`, `broker_submit_allowed=false`
+- EC2 route/browser smoke through `http://127.0.0.1:13000`:
+  - `/theses/thesis-28`: `200`
+  - contains `전문 Thesis Gate`, `왜 보유하는가`, `무엇이 맞아야 하는가`, `무엇을 조심해야 하는가`, `무엇이 틀리면 나가는가`, `가격이 합리적인가`, `언제 다시 보는가`, `최근 근거가 검토에 반영됐는가`, `읽기 전용·주문 금지`
 
 ## Remaining Work
 
-- Run roadmap verifier, AWH verifier, and `git diff --check`.
-- Deploy to EC2 and smoke `/api/theses/{id}` plus `/theses/{id}` through `127.0.0.1:13000`.
+- The gates are read-only and do not create or update thesis records.
+- The valuation gate still checks valuation context existence only; target price range and scenario math remain next.
 
 ## Exact Next Step
 
-- exact next step: run `bash scripts/verify_project_execution_roadmap.sh` and AWH verification for `thesis-lifecycle-professional-gates-v1`, then deploy and smoke EC2.
+- exact next step: open `valuation-target-range-foundation-v1` and make valuation snapshots expose target range, upside/downside, scenario assumptions, and margin-of-safety evidence without score or order changes.
