@@ -191,6 +191,10 @@ grep -q "sum-of-the-parts-valuation-foundation-v1" docs/project-execution-roadma
 grep -q "segment-footnote-extraction-foundation-v1" docs/project-execution-roadmap.md
 grep -q "reported-segment-footnote-parser-v1" docs/project-execution-roadmap.md
 grep -q "financial-period-source-document-linkage-v1" docs/project-execution-roadmap.md
+test -f docs/tasks/financial-period-source-document-linkage-v1/contract.md
+test -f docs/tasks/financial-period-source-document-linkage-v1/handoff.md
+test -f docs/tasks/financial-period-source-document-linkage-v1/review.md
+test -f docs/plans/2026-05-26-financial-period-source-document-linkage-v1.md
 test -f docs/tasks/financial-forecast-and-scenario-inputs-v1/contract.md
 test -f docs/tasks/financial-forecast-and-scenario-inputs-v1/handoff.md
 test -f docs/tasks/financial-forecast-and-scenario-inputs-v1/review.md

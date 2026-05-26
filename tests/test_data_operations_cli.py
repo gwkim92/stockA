@@ -2495,6 +2495,59 @@ class DataOperationsCliTests(unittest.TestCase):
             self.assertEqual(call_kwargs["statement_scope"], "annual")
             self.assertFalse(call_kwargs["execute"])
 
+    def test_financial_period_source_linkage_run_command_passes_env_and_guardrails(self) -> None:
+        with tempfile.TemporaryDirectory() as repo_root, tempfile.TemporaryDirectory() as outside_root:
+            env_file = Path(outside_root) / "data-operations.env"
+            env_file.write_text('STOCKANALYSIS_PSQL_COMMAND="docker exec psql"\n', encoding="utf-8")
+            stdout = io.StringIO()
+
+            with patch("stockanalysis.operations.cli.run_financial_period_source_linkage") as runner_mock:
+                runner_mock.return_value = {
+                    "report_name": "financial_period_source_linkage",
+                    "status": "planned",
+                    "recommendation_scoring_mutated": False,
+                }
+                exit_code = main(
+                    [
+                        "financial-period-source-linkage-run",
+                        "--repo-root",
+                        repo_root,
+                        "--env-file",
+                        str(env_file),
+                        "--as-of-date",
+                        "2026-05-25",
+                        "--statement-scope",
+                        "annual",
+                        "--cik",
+                        "320193",
+                        "--fallback-symbol",
+                        "AAPL",
+                        "--max-filings",
+                        "3",
+                        "--raw-fetch-limit",
+                        "1",
+                        "--raw-artifact-root",
+                        "/tmp/sec-raw",
+                        "--dry-run",
+                    ],
+                    stdout=stdout,
+                )
+
+            self.assertEqual(exit_code, 0)
+            payload = json.loads(stdout.getvalue())
+            self.assertEqual(payload["report_name"], "financial_period_source_linkage")
+            self.assertFalse(payload["recommendation_scoring_mutated"])
+            call_kwargs = runner_mock.call_args.kwargs
+            self.assertEqual(call_kwargs["config"].psql_command, "docker exec psql")
+            self.assertEqual(call_kwargs["as_of_date"], date(2026, 5, 25))
+            self.assertEqual(call_kwargs["statement_scope"], "annual")
+            self.assertEqual(call_kwargs["cik"], "320193")
+            self.assertEqual(call_kwargs["fallback_symbol"], "AAPL")
+            self.assertEqual(call_kwargs["max_filings"], 3)
+            self.assertEqual(call_kwargs["raw_fetch_limit"], 1)
+            self.assertEqual(call_kwargs["raw_artifact_root"], "/tmp/sec-raw")
+            self.assertFalse(call_kwargs["execute"])
+
     def test_sum_of_parts_valuation_run_command_passes_env_and_guardrails(self) -> None:
         with tempfile.TemporaryDirectory() as repo_root, tempfile.TemporaryDirectory() as outside_root:
             env_file = Path(outside_root) / "data-operations.env"

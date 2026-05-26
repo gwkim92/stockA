@@ -92,6 +92,14 @@ class DataOperationsCadenceTests(unittest.TestCase):
         self.assertEqual(forecast_job["domain"], "fundamentals")
         self.assertIn("financial-forecast-inputs-run", forecast_job["command_template"])
         self.assertEqual(forecast_job["data_health_dataset"], "market.financial_forecast_input")
+        source_linkage_job = next(
+            job for job in report["jobs"] if job["job_id"] == "financial-period-source-linkage-weekly"
+        )
+        self.assertEqual(source_linkage_job["pipeline_name"], "financial_period_source_linkage")
+        self.assertEqual(source_linkage_job["domain"], "sec")
+        self.assertIn("financial-period-source-linkage-run", source_linkage_job["command_template"])
+        self.assertIn("sec_identity", source_linkage_job["required_env_groups"])
+        self.assertEqual(source_linkage_job["data_health_dataset"], "market.financial_statement_period")
         reported_segment_job = next(
             job for job in report["jobs"] if job["job_id"] == "reported-segment-footnote-parser-weekly"
         )
@@ -156,6 +164,7 @@ class DataOperationsCadenceTests(unittest.TestCase):
         self.assertIn("'recommendation_quality_eval'", values_sql)
         self.assertIn("'recommendation_fundamental_components'", values_sql)
         self.assertIn("'sec_companyfacts_upsert'", values_sql)
+        self.assertIn("'financial_period_source_linkage'", values_sql)
         self.assertIn("'financial_metric_normalization'", values_sql)
         self.assertIn("'peer_relative_analysis'", values_sql)
         self.assertIn("'reported_segment_footnote_parser'", values_sql)

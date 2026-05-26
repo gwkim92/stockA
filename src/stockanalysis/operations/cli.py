@@ -34,6 +34,10 @@ from stockanalysis.operations.cadence import build_data_operations_cadence_repor
 from stockanalysis.operations.cycle_ai_quality_audit import run_cycle_ai_quality_audit
 from stockanalysis.operations.env_file import merged_env_with_file
 from stockanalysis.operations.env_readiness import check_data_operations_runtime_env
+from stockanalysis.operations.financial_period_source_linkage import (
+    SOURCE_LINKAGE_STATEMENT_SCOPES,
+    run_financial_period_source_linkage,
+)
 from stockanalysis.operations.hosted_runtime_decision import (
     build_hosted_database_runtime_decision,
     render_hosted_database_runtime_decision_markdown,
@@ -926,6 +930,26 @@ def build_parser() -> argparse.ArgumentParser:
     financial_forecast_inputs.add_argument("--output")
     financial_forecast_inputs.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
     financial_forecast_inputs.set_defaults(handler=_handle_financial_forecast_inputs_run)
+
+    financial_period_source_linkage = subparsers.add_parser(
+        "financial-period-source-linkage-run",
+        help="Link SEC source documents and raw filing artifacts to financial statement periods.",
+    )
+    financial_period_source_linkage.add_argument("--env-file")
+    financial_period_source_linkage.add_argument("--as-of-date", required=True)
+    financial_period_source_linkage.add_argument(
+        "--statement-scope", choices=SOURCE_LINKAGE_STATEMENT_SCOPES, default="annual"
+    )
+    financial_period_source_linkage.add_argument("--cik")
+    financial_period_source_linkage.add_argument("--fallback-symbol")
+    financial_period_source_linkage.add_argument("--max-filings", type=int, default=5)
+    financial_period_source_linkage.add_argument("--raw-fetch-limit", type=int, default=2)
+    financial_period_source_linkage.add_argument("--raw-artifact-root", default="artifacts/raw")
+    financial_period_source_linkage.add_argument("--execute", action="store_true")
+    financial_period_source_linkage.add_argument("--dry-run", action="store_true")
+    financial_period_source_linkage.add_argument("--output")
+    financial_period_source_linkage.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
+    financial_period_source_linkage.set_defaults(handler=_handle_financial_period_source_linkage_run)
 
     reported_segment_footnote_parser = subparsers.add_parser(
         "reported-segment-footnote-parser-run",
@@ -2160,6 +2184,36 @@ def _handle_financial_forecast_inputs_run(args: argparse.Namespace, *, stdout: T
         output_path = resolve_output_path(
             args.output,
             label="financial forecast inputs output",
+            repo_root=args.repo_root,
+            require_repo_outside=True,
+        )
+        write_json_report(report, output_path=output_path, stdout=stdout)
+    else:
+        print_json(report, stdout=stdout, sort_keys=False)
+    return 0
+
+
+def _handle_financial_period_source_linkage_run(args: argparse.Namespace, *, stdout: TextIO) -> int:
+    if bool(args.execute) and bool(args.dry_run):
+        raise ValueError("--execute and --dry-run cannot be used together.")
+    env_mapping = _load_optional_env_mapping(args.env_file, repo_root=args.repo_root)
+    as_of_date = date.fromisoformat(args.as_of_date)
+    with _temporary_environ(env_mapping):
+        report = run_financial_period_source_linkage(
+            config=RuntimeConfig.from_env(),
+            as_of_date=as_of_date,
+            statement_scope=args.statement_scope,
+            cik=args.cik,
+            fallback_symbol=args.fallback_symbol,
+            max_filings=args.max_filings,
+            raw_fetch_limit=args.raw_fetch_limit,
+            raw_artifact_root=args.raw_artifact_root,
+            execute=bool(args.execute) and not bool(args.dry_run),
+        )
+    if args.output:
+        output_path = resolve_output_path(
+            args.output,
+            label="financial period source linkage output",
             repo_root=args.repo_root,
             require_repo_outside=True,
         )
