@@ -18,3 +18,11 @@ SPY fund analysis now has source-backed holdings, liquidity, expense ratio, NAV,
 - No guessed tracking error.
 - No recommendation weight changes.
 - No live broker submit.
+
+## Result
+
+- Implemented in commit `05cdd2a`.
+- The official State Street SPDR product page does not publish a true tracking error metric, so true tracking error remains explicit unknown.
+- The same page publishes month-end fund NAV return and S&P 500 Index benchmark return windows. The implementation imports those windows as `tracking_difference`, not `tracking_error`.
+- EC2 import `run_id=1592` inserted eight SPY tracking difference metrics. The one-year value is `-0.0021`, with fund NAV return `0.3084`, benchmark return `0.3105`, benchmark `S&P 500 Index`, source date `2026-04-30`, and basis `nav_total_return_before_tax`.
+- `/api/stocks/SPY`, `/api/recommendations/recommendation-157`, `/stocks/SPY`, and `/recommendations/recommendation-157` expose the result while preserving `order_boundary=read_only_no_order`.
