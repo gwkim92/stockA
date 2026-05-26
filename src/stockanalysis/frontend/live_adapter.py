@@ -1870,6 +1870,11 @@ def build_live_portfolio_coverage_response(
             snapshot_date=effective_snapshot_date,
         )
     )
+    risk_budget_guardrail = load_frontend_portfolio_risk_budget_guardrail_state(
+        config=config,
+        executor=executor,
+        portfolio_name=portfolio_name,
+    )
     blocking_reasons = [
         f"{position['coverage_status']}:{position['symbol']}"
         for position in positions
@@ -1910,6 +1915,7 @@ def build_live_portfolio_coverage_response(
                 concentration_state=concentration_state,
                 cash_weight=_number(report.get("cash_weight")),
                 missing_position_snapshot=missing_position_snapshot,
+                risk_budget_guardrail=risk_budget_guardrail,
             ),
             "positions": positions,
             "attribution_readiness": {
@@ -1941,6 +1947,59 @@ def load_frontend_portfolio_concentration_state(
         ),
         "Frontend portfolio concentration lookup",
     )
+
+
+def load_frontend_portfolio_risk_budget_guardrail_state(
+    *,
+    config: RuntimeConfig,
+    executor: PsqlCommandExecutor | None,
+    portfolio_name: str,
+) -> dict[str, Any]:
+    sql_executor = executor or PsqlCommandExecutor.from_config(config)
+    return json_loads_object(
+        sql_executor.execute_scalar(
+            render_frontend_portfolio_risk_budget_guardrail_state_sql(portfolio_name=portfolio_name)
+        ),
+        "Frontend portfolio risk budget guardrail lookup",
+    )
+
+
+def render_frontend_portfolio_risk_budget_guardrail_state_sql(*, portfolio_name: str) -> str:
+    return f"""-- frontend portfolio risk budget guardrail lookup
+select
+    coalesce(
+        (
+            select json_build_object(
+                'status', 'loaded',
+                'eval_run_id', eval_run_id,
+                'as_of_date', score_json->>'as_of_date',
+                'effective_snapshot_date', score_json->>'effective_snapshot_date',
+                'risk_gate_decision', score_json->>'risk_gate_decision',
+                'paper_validation_input_allowed',
+                    coalesce(nullif(score_json->>'paper_validation_input_allowed', '')::boolean, false),
+                'blocking_reasons', coalesce(score_json->'blocking_reasons', '[]'::jsonb),
+                'warning_reasons', coalesce(score_json->'warning_reasons', '[]'::jsonb),
+                'benchmark_drift', coalesce(score_json->'benchmark_drift', '{{}}'::jsonb)
+            )
+            from ai.eval_run eval_run
+            where eval_run.eval_name = 'portfolio_risk_budget_guardrail'
+              and eval_run.dataset_version = 'portfolio-risk-budget-guardrail-v1'
+              and coalesce(eval_run.score_json->>'portfolio_name', {sql_literal(portfolio_name)}) = {sql_literal(portfolio_name)}
+            order by
+                nullif(eval_run.score_json->>'as_of_date', '')::date desc nulls last,
+                eval_run.created_at desc,
+                eval_run.eval_run_id desc
+            limit 1
+        ),
+        json_build_object(
+            'status', 'missing',
+            'risk_gate_decision', 'missing_portfolio_risk_budget_guardrail',
+            'paper_validation_input_allowed', false,
+            'blocking_reasons', '[]'::json,
+            'warning_reasons', '[]'::json,
+            'benchmark_drift', '{{}}'::json
+        )
+    )::text;"""
 
 
 def render_frontend_portfolio_concentration_state_sql(*, portfolio_name: str, snapshot_date: date) -> str:
@@ -7483,6 +7542,7 @@ def _build_trading_paper_validation_payload(validation: dict[str, Any]) -> dict[
 def _build_trading_risk_budget_guardrail_payload(guardrail: dict[str, Any]) -> dict[str, Any]:
     blocking_reasons = guardrail.get("blocking_reasons")
     warning_reasons = guardrail.get("warning_reasons")
+    benchmark_drift = _as_dict(guardrail.get("benchmark_drift"))
     return {
         "status": str(guardrail.get("status") or "missing"),
         "eval_run_id": _opaque_id("eval-run", guardrail.get("eval_run_id"), None),
@@ -7498,8 +7558,105 @@ def _build_trading_risk_budget_guardrail_payload(guardrail: dict[str, Any]) -> d
             _reason_code(item)
             for item in warning_reasons
         ] if isinstance(warning_reasons, list) else [],
-        "benchmark_drift": _as_dict(guardrail.get("benchmark_drift")),
+        "benchmark_drift": benchmark_drift,
+        "rebalance_candidate_review": _build_benchmark_rebalance_candidate_review_payload(guardrail),
     }
+
+
+def _build_benchmark_rebalance_candidate_review_payload(guardrail: dict[str, Any]) -> dict[str, Any]:
+    drift = _as_dict(guardrail.get("benchmark_drift"))
+    drift_calculated = drift.get("drift_calculated") is True
+    coverage_weight = _safe_number(drift.get("composition_coverage_weight")) or 0.0
+    active_share = _safe_number(drift.get("active_share"))
+    source_type = str(drift.get("source_type") or "")
+    source_name = str(drift.get("benchmark_source") or "")
+    source_as_of_date = str(drift.get("source_as_of_date") or "")
+    rows = [_build_benchmark_active_position_payload(item) for item in _as_list(drift.get("top_active_positions"))]
+    candidates = [
+        _benchmark_rebalance_candidate_payload(row)
+        for row in rows
+        if abs(row["active_weight"]) >= 0.03
+    ]
+    candidates.sort(key=lambda item: ({"high": 0, "medium": 1, "watch": 2}[item["severity"]], -abs(item["active_weight"]), item["symbol"]))
+    candidates = [{**item, "priority": index + 1} for index, item in enumerate(candidates[:8])]
+
+    if guardrail.get("status") != "loaded":
+        status = "missing_guardrail"
+    elif not drift_calculated:
+        status = "missing_benchmark_drift"
+    elif coverage_weight < 0.95:
+        status = "partial_benchmark_composition"
+    elif candidates:
+        status = "review_required"
+    else:
+        status = "within_review_band"
+
+    return {
+        "status": status,
+        "candidate_count": len(candidates),
+        "benchmark_code": str(drift.get("benchmark_code") or ""),
+        "benchmark_source": source_name,
+        "source_type": source_type,
+        "source_as_of_date": source_as_of_date,
+        "active_share": active_share,
+        "composition_coverage_weight": coverage_weight,
+        "review_threshold_active_weight": 0.03,
+        "automatic_order_allowed": False,
+        "broker_submit_allowed": False,
+        "order_boundary": "read_only_no_order",
+        "candidates": candidates,
+        "next_actions": _benchmark_rebalance_candidate_next_actions(status),
+    }
+
+
+def _benchmark_rebalance_candidate_payload(row: dict[str, Any]) -> dict[str, Any]:
+    active_weight = row["active_weight"]
+    direction = "overweight" if active_weight > 0 else "underweight"
+    abs_active = abs(active_weight)
+    if abs_active >= 0.20:
+        severity = "high"
+    elif abs_active >= 0.10:
+        severity = "medium"
+    else:
+        severity = "watch"
+    suggested_action = (
+        "trim_active_overweight_review"
+        if direction == "overweight"
+        else "review_active_underweight_gap"
+    )
+    rationale = (
+        f"{row['symbol']}는 포트폴리오 {row['portfolio_weight']:.1%}, 벤치마크 {row['benchmark_weight']:.1%}, "
+        f"active weight +{active_weight:.1%}이다. thesis, 세금/비용, 섹터 집중도를 확인한 뒤 축소 여부만 검토한다."
+        if direction == "overweight"
+        else f"{row['symbol']}는 포트폴리오 {row['portfolio_weight']:.1%}, 벤치마크 {row['benchmark_weight']:.1%}, "
+        f"active weight {active_weight:.1%}이다. 의도적 미보유인지 데이터/투자 논리 공백인지 검토한다."
+    )
+    return {
+        "symbol": row["symbol"],
+        "current_weight": row["portfolio_weight"],
+        "benchmark_weight": row["benchmark_weight"],
+        "active_weight": active_weight,
+        "direction": direction,
+        "severity": severity,
+        "suggested_review_action": suggested_action,
+        "rationale": rationale,
+        "order_boundary": "read_only_no_order",
+    }
+
+
+def _benchmark_rebalance_candidate_next_actions(status: str) -> list[str]:
+    if status == "review_required":
+        return [
+            "상위 active weight 후보부터 thesis, 섹터/테마 집중도, 세금/비용을 검토한다.",
+            "검토 후보는 주문 지시가 아니며 broker submit은 계속 금지한다.",
+        ]
+    if status == "within_review_band":
+        return ["벤치마크 대비 큰 active weight 후보는 없다. 정기 포트폴리오 검토만 유지한다."]
+    if status == "partial_benchmark_composition":
+        return ["부분 benchmark 구성비이므로 리밸런싱 후보로 쓰지 말고 full holdings source를 먼저 보강한다."]
+    if status == "missing_benchmark_drift":
+        return ["benchmark drift를 먼저 계산한 뒤 후보를 만든다."]
+    return ["최신 portfolio risk budget guardrail을 먼저 실행한다."]
 
 
 def _build_benchmark_drift_quality_payload(guardrail: dict[str, Any]) -> dict[str, Any]:
@@ -9065,6 +9222,7 @@ def _build_portfolio_risk_budget_payload(
     concentration_state: dict[str, Any],
     cash_weight: float | None,
     missing_position_snapshot: bool,
+    risk_budget_guardrail: dict[str, Any],
 ) -> dict[str, Any]:
     max_single_position_weight = _number(allocation_policy.get("max_single_position_weight"))
     min_rebalance_target_weight = _number(allocation_policy.get("min_rebalance_target_weight"))
@@ -9126,6 +9284,7 @@ def _build_portfolio_risk_budget_payload(
             positions=positions,
             concentration=concentration,
         ),
+        "rebalance_candidate_review": _build_benchmark_rebalance_candidate_review_payload(risk_budget_guardrail),
         "review_reasons": reasons,
     }
 

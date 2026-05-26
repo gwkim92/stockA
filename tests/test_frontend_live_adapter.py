@@ -603,7 +603,7 @@ class FakeLiveExecutor:
                     },
                     "portfolio_risk_budget_guardrail": {
                         "status": "loaded",
-                        "eval_run_id": 19,
+                        "eval_run_id": 23,
                         "as_of_date": "2026-05-25",
                         "effective_snapshot_date": "2026-05-25",
                         "risk_gate_decision": "blocked_by_risk_budget_review",
@@ -614,8 +614,42 @@ class FakeLiveExecutor:
                         ],
                         "warning_reasons": [{"code": "insufficient_benchmark_composition"}],
                         "benchmark_drift": {
-                            "status": "insufficient_benchmark_composition",
-                            "drift_calculated": False,
+                            "status": "calculated",
+                            "benchmark_code": "SPY",
+                            "benchmark_source": "ssga_spdr_spy_daily_holdings",
+                            "source_type": "provider_file",
+                            "source_as_of_date": "2026-05-21",
+                            "drift_calculated": True,
+                            "component_count": 503,
+                            "composition_coverage_weight": "0.99837820",
+                            "active_share": "0.77853213",
+                            "total_absolute_drift": "1.55706426",
+                            "top_active_positions": [
+                                {
+                                    "symbol": "TSLA",
+                                    "portfolio_weight": "0.30680000",
+                                    "benchmark_weight": "0.01839095",
+                                    "active_weight": "0.28840905",
+                                },
+                                {
+                                    "symbol": "MSFT",
+                                    "portfolio_weight": "0.30780000",
+                                    "benchmark_weight": "0.04870486",
+                                    "active_weight": "0.25909514",
+                                },
+                                {
+                                    "symbol": "AAPL",
+                                    "portfolio_weight": "0.22710000",
+                                    "benchmark_weight": "0.07007801",
+                                    "active_weight": "0.15702199",
+                                },
+                                {
+                                    "symbol": "AMZN",
+                                    "portfolio_weight": "0",
+                                    "benchmark_weight": "0.04104394",
+                                    "active_weight": "-0.04104394",
+                                },
+                            ],
                         },
                     },
                     "audit_summary": {
@@ -665,6 +699,45 @@ class FakeLiveExecutor:
                             },
                         },
                     ],
+                }
+            )
+        if sql.startswith("-- frontend portfolio risk budget guardrail lookup"):
+            return json.dumps(
+                {
+                    "status": "loaded",
+                    "eval_run_id": 23,
+                    "as_of_date": "2026-05-25",
+                    "effective_snapshot_date": "2026-05-25",
+                    "risk_gate_decision": "blocked_by_risk_budget_review",
+                    "paper_validation_input_allowed": False,
+                    "blocking_reasons": [{"code": "over_single_position_limit"}],
+                    "warning_reasons": [],
+                    "benchmark_drift": {
+                        "status": "calculated",
+                        "benchmark_code": "SPY",
+                        "benchmark_source": "ssga_spdr_spy_daily_holdings",
+                        "source_type": "provider_file",
+                        "source_as_of_date": "2026-05-21",
+                        "drift_calculated": True,
+                        "component_count": 503,
+                        "composition_coverage_weight": "0.99837820",
+                        "active_share": "0.77853213",
+                        "total_absolute_drift": "1.55706426",
+                        "top_active_positions": [
+                            {
+                                "symbol": "TSLA",
+                                "portfolio_weight": "0.30680000",
+                                "benchmark_weight": "0.01839095",
+                                "active_weight": "0.28840905",
+                            },
+                            {
+                                "symbol": "MSFT",
+                                "portfolio_weight": "0.30780000",
+                                "benchmark_weight": "0.04870486",
+                                "active_weight": "0.25909514",
+                            },
+                        ],
+                    },
                 }
             )
         if sql.startswith("-- frontend cycle map state lookup"):
@@ -2918,7 +2991,7 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertEqual(payload["data"]["order_limit_policy"]["max_single_order_notional"], 50000.0)
         self.assertTrue(payload["data"]["kill_switches"][0]["is_engaged"])
         self.assertEqual(payload["data"]["paper_validation"]["conflict_count"], 1)
-        self.assertEqual(payload["data"]["portfolio_risk_budget_guardrail"]["eval_run_id"], "eval-run-19")
+        self.assertEqual(payload["data"]["portfolio_risk_budget_guardrail"]["eval_run_id"], "eval-run-23")
         self.assertEqual(
             payload["data"]["portfolio_risk_budget_guardrail"]["risk_gate_decision"],
             "blocked_by_risk_budget_review",
@@ -2930,8 +3003,19 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         )
         self.assertEqual(
             payload["data"]["portfolio_risk_budget_guardrail"]["benchmark_drift"]["status"],
-            "insufficient_benchmark_composition",
+            "calculated",
         )
+        review = payload["data"]["portfolio_risk_budget_guardrail"]["rebalance_candidate_review"]
+        self.assertEqual(review["status"], "review_required")
+        self.assertEqual(review["candidate_count"], 4)
+        self.assertEqual(review["candidates"][0]["symbol"], "TSLA")
+        self.assertEqual(review["candidates"][0]["direction"], "overweight")
+        self.assertEqual(review["candidates"][0]["severity"], "high")
+        self.assertEqual(review["candidates"][0]["suggested_review_action"], "trim_active_overweight_review")
+        self.assertEqual(review["candidates"][0]["order_boundary"], "read_only_no_order")
+        self.assertEqual(review["candidates"][-1]["symbol"], "AMZN")
+        self.assertEqual(review["candidates"][-1]["direction"], "underweight")
+        self.assertEqual(review["candidates"][-1]["suggested_review_action"], "review_active_underweight_gap")
         self.assertEqual(payload["data"]["audit_summary"]["submitted_to_broker_count"], 0)
         self.assertEqual(payload["links"]["paper_trading_preview"], "/api/paper-trading/preview")
         self.assertNotIn("secret_ref", json.dumps(payload))
@@ -3720,6 +3804,11 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertEqual(payload["data"]["risk_budget"]["rebalance_priorities"][0]["symbol"], "BABA")
         self.assertEqual(payload["data"]["risk_budget"]["rebalance_priorities"][0]["action"], "needs_thesis_review")
         self.assertEqual(payload["data"]["risk_budget"]["rebalance_priorities"][0]["order_boundary"], "read_only_no_order")
+        review = payload["data"]["risk_budget"]["rebalance_candidate_review"]
+        self.assertEqual(review["status"], "review_required")
+        self.assertEqual(review["candidate_count"], 2)
+        self.assertEqual(review["candidates"][0]["symbol"], "TSLA")
+        self.assertEqual(review["candidates"][0]["order_boundary"], "read_only_no_order")
         self.assertEqual(payload["data"]["positions"][0]["active_thesis_id"], "thesis-7001")
         self.assertEqual(payload["data"]["positions"][0]["outcome_status"], "measured")
         self.assertEqual(payload["data"]["positions"][0]["position_size_status"], "below_rebalance_floor")

@@ -102,6 +102,7 @@ export default async function PaperTradingPage() {
   const benchmarkDriftCalculated = benchmarkDrift?.drift_calculated === true;
   const benchmarkCode = recordString(benchmarkDrift, "benchmark_code") || "벤치마크";
   const benchmarkActiveShare = recordNumber(benchmarkDrift, "active_share");
+  const candidateReview = riskGuardrail.rebalance_candidate_review;
   const blockedReasonDetails = trading.paper_validation.blocked_reasons.map((reason) => koBlockedReason(reason));
   const liveSubmitCount = trading.audit_summary.submitted_to_broker_count;
   const paperStatusCards = [
@@ -288,6 +289,28 @@ export default async function PaperTradingPage() {
               : riskGuardrail.warning_reasons.includes("insufficient_benchmark_composition")
               ? " 벤치마크 구성비가 없어 drift는 아직 계산하지 않는다."
               : " 위험 예산 검증 결과가 페이퍼 검증에 연결되어 있다."}
+          </p>
+        </div>
+        <div className="paper-blocked-reasons" aria-label="벤치마크 리밸런싱 검토 후보">
+          <span>리밸런싱 검토 후보</span>
+          {candidateReview.candidates.length > 0 ? (
+            <div className="relationship-list">
+              {candidateReview.candidates.slice(0, 4).map((candidate) => (
+                <div className="relationship-chip" key={`${candidate.priority}-${candidate.symbol}`}>
+                  <span>{candidate.symbol}</span>
+                  <strong>
+                    {candidate.direction === "overweight" ? "과대 보유" : "과소 보유"} · {formatPercent(candidate.active_weight)}
+                  </strong>
+                  <small>{candidate.rationale}</small>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p>현재 벤치마크 대비 별도 검토 후보가 없다.</p>
+          )}
+          <p>
+            이 후보는 가상 주문 후보가 아니다. 주문 경계는 {koCode(candidateReview.order_boundary)}이고,
+            실제 주문 전송은 계속 금지되어 있다.
           </p>
         </div>
         {blockedReasonDetails.length > 0 ? (

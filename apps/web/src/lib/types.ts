@@ -764,6 +764,7 @@ export type TradingReadinessData = {
     blocking_reasons: string[];
     warning_reasons: string[];
     benchmark_drift?: Record<string, unknown>;
+    rebalance_candidate_review: BenchmarkRebalanceCandidateReview;
   };
   audit_summary: {
     intent_count: number;
@@ -1222,6 +1223,7 @@ export type PortfolioCoverageData = {
       reason: string;
       order_boundary: string;
     }>;
+    rebalance_candidate_review: BenchmarkRebalanceCandidateReview;
     review_reasons: string[];
   };
   positions: Array<{
@@ -1242,6 +1244,36 @@ export type PortfolioCoverageData = {
     is_ready: boolean;
     blocking_reasons: string[];
   };
+};
+
+export type BenchmarkRebalanceCandidateReview = {
+  status: string;
+  candidate_count: number;
+  benchmark_code: string;
+  benchmark_source: string;
+  source_type: string;
+  source_as_of_date: string;
+  active_share: number | null;
+  composition_coverage_weight: number;
+  review_threshold_active_weight: number;
+  automatic_order_allowed: boolean;
+  broker_submit_allowed: boolean;
+  order_boundary: string;
+  candidates: BenchmarkRebalanceCandidate[];
+  next_actions: string[];
+};
+
+export type BenchmarkRebalanceCandidate = {
+  priority: number;
+  symbol: string;
+  current_weight: number;
+  benchmark_weight: number;
+  active_weight: number;
+  direction: "overweight" | "underweight" | string;
+  severity: "high" | "medium" | "watch" | string;
+  suggested_review_action: string;
+  rationale: string;
+  order_boundary: string;
 };
 
 export type AiEvidenceDetailData = {

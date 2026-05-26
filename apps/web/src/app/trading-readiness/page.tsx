@@ -45,6 +45,7 @@ export default async function TradingReadinessPage() {
   const data = response.data;
   const blockedSwitches = data.kill_switches.filter((item) => item.is_engaged);
   const riskGuardrail = data.portfolio_risk_budget_guardrail;
+  const candidateReview = riskGuardrail.rebalance_candidate_review;
   const blockedReasons = data.paper_validation.blocked_reasons.map((reason) => koBlockedReason(reason));
 
   return (
@@ -154,6 +155,49 @@ export default async function TradingReadinessPage() {
               <div>
                 <dt>허용 종목</dt>
                 <dd>{data.account_permission.allows_all_symbols ? "전체" : `${data.account_permission.allowed_symbol_count}개`}</dd>
+              </div>
+            </dl>
+          </article>
+
+          <article className="ledger-panel">
+            <div className="section-heading stacked-heading">
+              <span>리밸런싱 검토 후보</span>
+              <h2>위험 예산이 막는 종목</h2>
+            </div>
+            <p className="empty-copy">
+              SPY 대비 active weight가 큰 종목을 검토 후보로만 보여준다. 이 목록은 주문 목표가 아니며
+              broker submit은 계속 금지된다.
+            </p>
+            {candidateReview.candidates.length > 0 ? (
+              <div className="reason-list" aria-label="벤치마크 active weight 검토 후보">
+                {candidateReview.candidates.slice(0, 5).map((candidate) => (
+                  <article className="reason-card" key={`${candidate.priority}-${candidate.symbol}`}>
+                    <div>
+                      <span className="reason-symbol">{candidate.symbol}</span>
+                      <strong>
+                        {candidate.direction === "overweight" ? "과대 보유" : "과소 보유"} · {formatPercent(candidate.active_weight)}
+                      </strong>
+                    </div>
+                    <p>{candidate.rationale}</p>
+                    <small>주문 경계: {koCode(candidate.order_boundary)}</small>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <p className="empty-copy">현재 벤치마크 대비 리밸런싱 검토 후보가 없다.</p>
+            )}
+            <dl className="fact-list">
+              <div>
+                <dt>후보 수</dt>
+                <dd>{candidateReview.candidate_count.toLocaleString("ko-KR")}개</dd>
+              </div>
+              <div>
+                <dt>active share</dt>
+                <dd>{formatPercent(candidateReview.active_share)}</dd>
+              </div>
+              <div>
+                <dt>source</dt>
+                <dd>{candidateReview.benchmark_source || candidateReview.source_type || "없음"}</dd>
               </div>
             </dl>
           </article>

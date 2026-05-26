@@ -103,6 +103,26 @@ function exposureStatusLabel(status: string) {
   return koCode(status);
 }
 
+function candidateSeverityClass(severity: string) {
+  if (severity === "high") {
+    return "risk-high";
+  }
+  if (severity === "medium") {
+    return "risk-medium";
+  }
+  return "risk-low";
+}
+
+function candidateDirectionLabel(direction: string) {
+  if (direction === "overweight") {
+    return "과대 보유";
+  }
+  if (direction === "underweight") {
+    return "과소 보유";
+  }
+  return koCode(direction);
+}
+
 type ExposureRow = {
   exposure_key: string;
   exposure_name: string;
@@ -155,6 +175,7 @@ export default async function PortfolioCoveragePage() {
   const benchmarkSource = recordString(benchmarkDrift, "benchmark_source") || recordString(benchmarkDrift, "source_type");
   const allocationPolicy = data.allocation_policy;
   const riskBudget = data.risk_budget;
+  const candidateReview = riskBudget.rebalance_candidate_review;
   const concentration = riskBudget.concentration;
   const hasPositions = data.positions.length > 0;
   const investedWeight = Math.max(0, 1 - (data.summary.cash_weight ?? 0));
@@ -319,6 +340,85 @@ export default async function PortfolioCoveragePage() {
               </small>
             </article>
           </div>
+        </article>
+
+        <article className="bento-card span-4" style={{ borderColor: candidateReview.candidate_count > 0 ? "var(--accent-red)" : "var(--border-light)" }}>
+          <div className="section-heading">
+            <div>
+              <span className="metric-sub">벤치마크 대비 리밸런싱 검토</span>
+              <h2>SPY와 비교해 어느 종목 비중이 과하게 다른지 본다</h2>
+            </div>
+            <span className={`risk-tag ${candidateReview.candidate_count > 0 ? "risk-high" : "risk-low"}`}>
+              {candidateReview.candidate_count > 0 ? "검토 후보 있음" : "큰 괴리 없음"}
+            </span>
+          </div>
+          <p style={{ color: "var(--text-secondary)", marginTop: 0 }}>
+            이 표는 주문 지시가 아니다. {candidateReview.benchmark_code || benchmarkCode} 기준 active weight가 큰 종목을
+            thesis, 세금/비용, 섹터 집중도와 함께 검토하기 위한 읽기 전용 후보 목록이다.
+          </p>
+          <div className="status-rail compact-rail" aria-label="벤치마크 리밸런싱 검토 요약" style={{ marginBottom: "20px" }}>
+            <article className="rail-cell">
+              <span>active share</span>
+              <strong>{formatPercent(candidateReview.active_share)}</strong>
+              <small>{candidateReview.benchmark_source || benchmarkSource || "source 없음"}</small>
+            </article>
+            <article className="rail-cell">
+              <span>구성비 커버리지</span>
+              <strong>{formatPercent(candidateReview.composition_coverage_weight)}</strong>
+              <small>{candidateReview.source_as_of_date || "기준일 없음"}</small>
+            </article>
+            <article className="rail-cell rail-critical">
+              <span>검토 후보</span>
+              <strong>{candidateReview.candidate_count}</strong>
+              <small>자동 주문 {candidateReview.automatic_order_allowed ? "허용" : "금지"}</small>
+            </article>
+            <article className="rail-cell">
+              <span>주문 경계</span>
+              <strong>{koCode(candidateReview.order_boundary)}</strong>
+              <small>broker submit {candidateReview.broker_submit_allowed ? "허용" : "금지"}</small>
+            </article>
+          </div>
+          {candidateReview.candidates.length === 0 ? (
+            <p className="empty-state" style={{ margin: 0 }}>
+              현재 threshold 기준에서 별도 리밸런싱 검토 후보가 없다.
+            </p>
+          ) : (
+            <div className="ledger-table-wrap">
+              <table className="ledger-table data-health-table">
+                <thead>
+                  <tr>
+                    <th scope="col">순위</th>
+                    <th scope="col">종목</th>
+                    <th scope="col">상태</th>
+                    <th scope="col">현재/벤치마크</th>
+                    <th scope="col">active weight</th>
+                    <th scope="col">검토 이유</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {candidateReview.candidates.map((candidate) => (
+                    <tr key={`${candidate.priority}-${candidate.symbol}-${candidate.direction}`}>
+                      <td>{candidate.priority.toString().padStart(2, "0")}</td>
+                      <td><strong>{candidate.symbol}</strong></td>
+                      <td>
+                        <span className={`risk-tag ${candidateSeverityClass(candidate.severity)}`}>
+                          {candidateDirectionLabel(candidate.direction)}
+                        </span>
+                      </td>
+                      <td>{formatPercent(candidate.current_weight)} / {formatPercent(candidate.benchmark_weight)}</td>
+                      <td>{formatPercent(candidate.active_weight)}</td>
+                      <td>
+                        {candidate.rationale}
+                        <small style={{ display: "block", color: "var(--text-secondary)", marginTop: "4px" }}>
+                          {koCode(candidate.order_boundary)}
+                        </small>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </article>
 
         <article className="bento-card span-4" style={{ borderColor: concentration.status === "needs_concentration_review" ? "var(--accent-red)" : "var(--border-light)" }}>
