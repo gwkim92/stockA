@@ -114,6 +114,7 @@ class OperatingDataOrchestratorTests(unittest.TestCase):
         self.assertIn("recommendation-quality-eval", step_ids)
         self.assertIn("portfolio-review-feedback-cadence", step_ids)
         self.assertIn("portfolio-review-feedback-action-router", step_ids)
+        self.assertIn("portfolio-attribution-monthly", step_ids)
         self.assertLess(
             step_ids.index("portfolio-position-snapshot"),
             step_ids.index("portfolio-holding-thesis-bootstrap"),
@@ -169,6 +170,10 @@ class OperatingDataOrchestratorTests(unittest.TestCase):
         self.assertLess(
             step_ids.index("portfolio-review-feedback-cadence"),
             step_ids.index("portfolio-review-feedback-action-router"),
+        )
+        self.assertLess(
+            step_ids.index("performance-outcome-monthly"),
+            step_ids.index("portfolio-attribution-monthly"),
         )
         self.assertEqual(report["derived_inputs"]["sec_filings_cik"], "320193")
         self.assertEqual(report["derived_inputs"]["sec_filings_max_filings"], 3)
@@ -405,6 +410,33 @@ class OperatingDataOrchestratorTests(unittest.TestCase):
             step_ids.index("portfolio-review-feedback-cadence"),
             step_ids.index("portfolio-review-feedback-action-router"),
         )
+
+    def test_performance_monthly_profile_runs_outcome_then_attribution_without_positions(self) -> None:
+        with tempfile.TemporaryDirectory() as repo_root, tempfile.TemporaryDirectory() as outside_root:
+            runtime_root, env_file = _write_runtime_files_without_positions(Path(outside_root))
+
+            report = build_operating_data_run_report(
+                repo_root=repo_root,
+                runtime_root=runtime_root,
+                data_operations_env_file=env_file,
+                profile="performance-monthly",
+                execute=False,
+                python_executable="/usr/bin/python3",
+                runner=FakeArtifactRunner(),
+                generated_at=datetime(2026, 5, 20, tzinfo=timezone.utc),
+            )
+
+        step_ids = [step["step_id"] for step in report["planned_steps"]]
+        self.assertEqual(report["profile"], "performance-monthly")
+        self.assertEqual(step_ids, ["performance-outcome-monthly", "portfolio-attribution-monthly"])
+        self.assertFalse(report["derived_inputs"]["source_positions_required"])
+        outcome_command = " ".join(report["planned_steps"][0]["command_argv"])
+        attribution_command = " ".join(report["planned_steps"][1]["command_argv"])
+        self.assertIn("recommendation-outcome-backfill-run", outcome_command)
+        self.assertIn("portfolio-attribution-run", attribution_command)
+        self.assertIn("--portfolio-name Long Term Paper", attribution_command)
+        self.assertIn("--as-of-date 2026-05-20", attribution_command)
+        self.assertIn("--execute", attribution_command)
 
     def test_execute_runs_backfill_before_signal_and_generates_position_csv(self) -> None:
         with tempfile.TemporaryDirectory() as repo_root, tempfile.TemporaryDirectory() as outside_root:

@@ -454,12 +454,12 @@ DATA_OPERATION_CADENCES: tuple[DataOperationCadence, ...] = (
         pipeline_name="portfolio_attribution_bootstrap",
         domain="performance",
         cadence="monthly",
-        command_template="stockanalysis-ingest portfolio-attribution-bootstrap --snapshot-date <YYYY-MM-DD> ...",
+        command_template='stockanalysis-operations portfolio-attribution-run --env-file <ENV> --portfolio-name "Long Term Paper" --as-of-date <YYYY-MM-DD> --execute',
         expected_after_local="10:00 first-business-day",
         stale_after_hours=840,
         artifact_policy="stdout_json_and_stderr_log",
         required_env_groups=("database",),
-        data_health_dataset="performance.portfolio_attribution",
+        data_health_dataset="performance.attribution_run",
     ),
 )
 

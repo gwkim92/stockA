@@ -144,6 +144,7 @@ MACRO_WEEKLY_STEP_IDS = (
 )
 PERFORMANCE_MONTHLY_STEP_IDS = (
     "performance-outcome-monthly",
+    "portfolio-attribution-monthly",
 )
 FULL_RECOVERY_STEP_IDS = (
     *MARKET_UNIVERSE_WEEKLY_STEP_IDS,
@@ -1242,6 +1243,25 @@ def _build_planned_steps(
                     universe_version,
                     "--market-code",
                     market_code,
+                    "--execute",
+                ),
+            },
+            {
+                "step_id": "portfolio-attribution-monthly",
+                "artifact_job_id": "portfolio-attribution-monthly",
+                "label": "Run portfolio attribution for the latest eligible outcome window",
+                "skip_reason": "",
+                "command_argv": (
+                    python_executable,
+                    "-m",
+                    "stockanalysis.operations.cli",
+                    "portfolio-attribution-run",
+                    "--env-file",
+                    str(env_file),
+                    "--portfolio-name",
+                    portfolio_name,
+                    "--as-of-date",
+                    target,
                     "--execute",
                 ),
             },

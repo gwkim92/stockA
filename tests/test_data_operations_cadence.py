@@ -185,6 +185,12 @@ class DataOperationsCadenceTests(unittest.TestCase):
         self.assertEqual(review_feedback_action_router_job["data_health_dataset"], "ai.eval_run")
         performance_job = next(job for job in report["jobs"] if job["job_id"] == "performance-outcome-monthly")
         self.assertIn("recommendation-outcome-backfill-run", performance_job["command_template"])
+        attribution_job = next(job for job in report["jobs"] if job["job_id"] == "portfolio-attribution-monthly")
+        self.assertEqual(attribution_job["pipeline_name"], "portfolio_attribution_bootstrap")
+        self.assertEqual(attribution_job["domain"], "performance")
+        self.assertEqual(attribution_job["cadence"], "monthly")
+        self.assertIn("portfolio-attribution-run", attribution_job["command_template"])
+        self.assertEqual(attribution_job["data_health_dataset"], "performance.attribution_run")
 
     def test_cadence_filter_limits_jobs(self) -> None:
         jobs = list_data_operation_cadences(cadence="daily")
@@ -215,6 +221,7 @@ class DataOperationsCadenceTests(unittest.TestCase):
         self.assertIn("'valuation_snapshot'", values_sql)
         self.assertIn("'portfolio_remediation_daily_automation'", values_sql)
         self.assertIn("'performance_outcome_schedule_bootstrap'", values_sql)
+        self.assertIn("'portfolio_attribution_bootstrap'", values_sql)
         self.assertIn("'portfolio_review_feedback_cadence'", values_sql)
         self.assertIn("'portfolio_review_feedback_action_router'", values_sql)
         self.assertIn("'stdout_json_and_stderr_log'", values_sql)

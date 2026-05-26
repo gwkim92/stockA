@@ -103,6 +103,10 @@ from stockanalysis.operations.manual_weight_review_calibration_report import (
 from stockanalysis.operations.paper_validation_conflict_remediation import (
     run_paper_validation_conflict_remediation,
 )
+from stockanalysis.operations.portfolio_attribution import (
+    DEFAULT_ATTRIBUTION_METHODOLOGY,
+    run_portfolio_attribution_monthly,
+)
 from stockanalysis.operations.portfolio_risk_budget_guardrail import (
     run_portfolio_risk_budget_guardrail,
 )
@@ -858,6 +862,20 @@ def build_parser() -> argparse.ArgumentParser:
     recommendation_outcome_backfill.add_argument("--output")
     recommendation_outcome_backfill.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
     recommendation_outcome_backfill.set_defaults(handler=_handle_recommendation_outcome_backfill_run)
+
+    portfolio_attribution = subparsers.add_parser(
+        "portfolio-attribution-run",
+        help="Run deterministic portfolio attribution for the latest eligible outcome window.",
+    )
+    portfolio_attribution.add_argument("--env-file")
+    portfolio_attribution.add_argument("--portfolio-name", default=DEFAULT_PORTFOLIO_NAME)
+    portfolio_attribution.add_argument("--as-of-date", required=True)
+    portfolio_attribution.add_argument("--methodology", default=DEFAULT_ATTRIBUTION_METHODOLOGY)
+    portfolio_attribution.add_argument("--execute", action="store_true")
+    portfolio_attribution.add_argument("--dry-run", action="store_true")
+    portfolio_attribution.add_argument("--output")
+    portfolio_attribution.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
+    portfolio_attribution.set_defaults(handler=_handle_portfolio_attribution_run)
 
     recommendation_outcome_calibration = subparsers.add_parser(
         "recommendation-outcome-calibration-sample-expansion-run",
@@ -3182,6 +3200,32 @@ def _handle_recommendation_outcome_backfill_run(args: argparse.Namespace, *, std
         output_path = resolve_output_path(
             args.output,
             label="recommendation outcome backfill output",
+            repo_root=args.repo_root,
+            require_repo_outside=True,
+        )
+        write_json_report(report, output_path=output_path, stdout=stdout)
+    else:
+        print_json(report, stdout=stdout, sort_keys=False)
+    return 0
+
+
+def _handle_portfolio_attribution_run(args: argparse.Namespace, *, stdout: TextIO) -> int:
+    if bool(args.execute) and bool(args.dry_run):
+        raise ValueError("--execute and --dry-run cannot be used together.")
+    env_mapping = _load_optional_env_mapping(args.env_file, repo_root=args.repo_root)
+    as_of_date = date.fromisoformat(args.as_of_date)
+    with _temporary_environ(env_mapping):
+        report = run_portfolio_attribution_monthly(
+            config=RuntimeConfig.from_env(),
+            portfolio_name=args.portfolio_name,
+            as_of_date=as_of_date,
+            methodology=args.methodology,
+            execute=bool(args.execute) and not bool(args.dry_run),
+        )
+    if args.output:
+        output_path = resolve_output_path(
+            args.output,
+            label="portfolio attribution output",
             repo_root=args.repo_root,
             require_repo_outside=True,
         )
