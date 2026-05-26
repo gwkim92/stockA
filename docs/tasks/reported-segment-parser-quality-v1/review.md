@@ -1,0 +1,27 @@
+# reported-segment-parser-quality-v1 Review
+
+## Review Summary
+
+- scope check: within bounds. The task expands deterministic parser coverage for a real linked Apple 10-K candidate.
+- schema check: no migration is introduced; existing `research.segment_footnote_evidence` storage is reused.
+- scoring check: no recommendation score, score component weight, benchmark, or broker/order mutation is introduced.
+- parser check: the new path handles transposed reportable segment tables and excludes aggregate/non-operating columns.
+
+## Issues Found
+
+- Initial transposed parser logic overparsed year/change/date tables when applied to the real Apple 10-K. The implemented detection now requires a singleton filing-year row before the segment header row, which removes those false positives in the copied EC2 artifact check.
+
+## Residual Risks
+
+- The parser remains deterministic and conservative rather than a full SEC/iXBRL taxonomy parser.
+- Other issuers may use different segment layouts requiring additional parser patterns.
+- Final EC2 smoke is still required after deployment.
+
+## Verification Evidence
+
+- `PYTHONPATH=src python3 -m unittest tests.test_professional_equity_analysis` passed with `Ran 34 tests`.
+- `PYTHONPATH=src python3 -m unittest tests.test_professional_equity_analysis tests.test_data_operations_cli tests.test_data_operations_cadence tests.test_operating_data_orchestrator tests.test_professional_coverage_expansion` passed with `Ran 122 tests`.
+- `PYTHONPATH=src python3 -m compileall -q src tests` passed.
+- `bash scripts/verify_project_execution_roadmap.sh`, AWH verify, `git diff --check`, and Python 3.13 full suite passed.
+- Python 3.13 full suite: `PYTHONPATH=src /private/tmp/stockanalysis-verify-venv/bin/python -m unittest discover -s tests` passed with `Ran 971 tests`.
+- Manual local parser check against `/private/tmp/aapl-20250927.htm` returned exactly 10 Apple reportable segment rows and no Corporate/Total rows.

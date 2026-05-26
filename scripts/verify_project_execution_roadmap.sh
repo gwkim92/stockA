@@ -196,6 +196,10 @@ test -f docs/tasks/financial-period-source-document-linkage-v1/contract.md
 test -f docs/tasks/financial-period-source-document-linkage-v1/handoff.md
 test -f docs/tasks/financial-period-source-document-linkage-v1/review.md
 test -f docs/plans/2026-05-26-financial-period-source-document-linkage-v1.md
+test -f docs/tasks/reported-segment-parser-quality-v1/contract.md
+test -f docs/tasks/reported-segment-parser-quality-v1/handoff.md
+test -f docs/tasks/reported-segment-parser-quality-v1/review.md
+test -f docs/plans/2026-05-26-reported-segment-parser-quality-v1.md
 test -f docs/tasks/financial-forecast-and-scenario-inputs-v1/contract.md
 test -f docs/tasks/financial-forecast-and-scenario-inputs-v1/handoff.md
 test -f docs/tasks/financial-forecast-and-scenario-inputs-v1/review.md

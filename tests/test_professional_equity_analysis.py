@@ -563,6 +563,37 @@ class ProfessionalEquityAnalysisTests(unittest.TestCase):
         self.assertTrue(all(row.metric_unit == "USD_millions_as_reported" for row in rows))
         self.assertTrue(all(row.assumptions_json["recommendation_scoring_mutated"] is False for row in rows))
 
+    def test_extract_reported_segment_metrics_from_html_parses_transposed_segment_table(self) -> None:
+        html = Path("tests/fixtures/sec_filing_aapl_transposed_segment_sample.html").read_text(encoding="utf-8")
+
+        rows = extract_reported_segment_metrics_from_html(
+            html,
+            instrument_id=1,
+            primary_symbol="AAPL",
+            as_of_date=date(2026, 5, 26),
+            statement_scope="annual",
+            period_end=date(2025, 9, 27),
+            source_document_id=1493,
+            source_document_title="Apple Inc. 2025 10-K",
+            source_document_url="https://www.sec.gov/example/aapl-20250927.htm",
+        )
+
+        self.assertEqual(len(rows), 10)
+        self.assertEqual(
+            {row.segment_label for row in rows},
+            {"Americas", "Europe", "Greater China", "Japan", "Rest of Asia Pacific"},
+        )
+        self.assertNotIn("Corporate", {row.segment_label for row in rows})
+        self.assertNotIn("Total", {row.segment_label for row in rows})
+        self.assertEqual({row.metric_code for row in rows}, {"segment_revenue", "segment_operating_income"})
+        values = {(row.segment_label, row.metric_code): row.metric_value for row in rows}
+        self.assertEqual(str(values[("Americas", "segment_revenue")]), "178353")
+        self.assertEqual(str(values[("Americas", "segment_operating_income")]), "72480")
+        self.assertEqual(str(values[("Rest of Asia Pacific", "segment_revenue")]), "33696")
+        self.assertTrue(all(row.metric_unit in {"USD_as_reported", "USD_millions_as_reported"} for row in rows))
+        self.assertTrue(all(row.assumptions_json["parser_layout"] == "transposed_segment_metric_rows" for row in rows))
+        self.assertTrue(all(row.assumptions_json["recommendation_scoring_mutated"] is False for row in rows))
+
     def test_reported_segment_footnote_metric_upsert_sql_removes_obsolete_gap_rows(self) -> None:
         html = Path("tests/fixtures/sec_filing_segment_footnote_sample.html").read_text(encoding="utf-8")
         rows = extract_reported_segment_metrics_from_html(

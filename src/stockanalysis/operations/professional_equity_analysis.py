@@ -3733,6 +3733,22 @@ def extract_reported_segment_metrics_from_html(
         table_rows = _extract_html_table_rows(table_html)
         if len(table_rows) < 2:
             continue
+        rows.extend(
+            _extract_transposed_reported_segment_metrics(
+                table_rows,
+                table_html,
+                table_index=table_index,
+                seen=seen,
+                instrument_id=instrument_id,
+                primary_symbol=primary_symbol,
+                as_of_date=as_of_date,
+                statement_scope=statement_scope,
+                period_end=period_end,
+                source_document_id=source_document_id,
+                source_document_title=source_document_title,
+                source_document_url=source_document_url,
+            )
+        )
         header_index = _find_segment_table_header_index(table_rows)
         if header_index is None:
             continue
@@ -3767,7 +3783,7 @@ def extract_reported_segment_metrics_from_html(
                     continue
                 seen.add(dedupe_key)
                 rows.append(
-                    ReportedSegmentMetricEvidence(
+                    _reported_segment_metric_evidence(
                         instrument_id=instrument_id,
                         primary_symbol=primary_symbol,
                         as_of_date=as_of_date,
@@ -3779,26 +3795,136 @@ def extract_reported_segment_metrics_from_html(
                         metric_unit=unit,
                         period_end=period_end,
                         source_document_id=source_document_id,
-                        evidence_text=(
-                            f"{primary_symbol} reported {metric_code} for {segment_label} "
-                            f"parsed from SEC segment footnote table {table_index}."
-                        ),
-                        assumptions_json={
-                            "source": "sec_raw_filing_html_table",
-                            "parser_model": DEFAULT_REPORTED_SEGMENT_MODEL_NAME,
-                            "primary_symbol": primary_symbol,
-                            "source_document_title": source_document_title,
-                            "source_document_url": source_document_url,
-                            "table_index": table_index,
-                            "header_cells": headers,
-                            "metric_unit": unit,
-                            "interpretation": "SEC filing의 세그먼트/사업부 표에서 직접 파싱한 reported segment metric이다.",
-                            "recommendation_scoring_mutated": False,
-                        },
-                        confidence=Decimal("0.8200"),
+                        source_document_title=source_document_title,
+                        source_document_url=source_document_url,
+                        table_index=table_index,
+                        header_cells=headers,
+                        parser_layout="segment_label_rows",
                     )
                 )
     return rows
+
+
+def _extract_transposed_reported_segment_metrics(
+    table_rows: list[list[str]],
+    table_html: str,
+    *,
+    table_index: int,
+    seen: set[tuple[str, str]],
+    instrument_id: int,
+    primary_symbol: str,
+    as_of_date: date,
+    statement_scope: str,
+    period_end: date,
+    source_document_id: int,
+    source_document_title: str | None,
+    source_document_url: str | None,
+) -> list[ReportedSegmentMetricEvidence]:
+    header_index = _find_transposed_segment_header_index(table_rows)
+    if header_index is None:
+        return []
+    table_year = _transposed_segment_table_year(table_rows, header_index=header_index)
+    if table_year is None:
+        return []
+    if table_year != period_end.year:
+        return []
+    segment_labels = [_clean_segment_label(cell) for cell in table_rows[header_index]]
+    if sum(1 for label in segment_labels if label is not None) < 2:
+        return []
+
+    unit = _infer_segment_metric_unit(table_html)
+    rows: list[ReportedSegmentMetricEvidence] = []
+    for row in table_rows[header_index + 1 :]:
+        if len(row) < 2:
+            continue
+        metric_code = _metric_code_from_segment_header(row[0])
+        if metric_code is None:
+            continue
+        value_cells = _transposed_metric_value_cells(row[1:])
+        for index, segment_label in enumerate(segment_labels):
+            if segment_label is None or index >= len(value_cells):
+                continue
+            value = _parse_segment_metric_value(value_cells[index])
+            if value is None:
+                continue
+            segment_key = _segment_key(segment_label)
+            dedupe_key = (segment_key, metric_code)
+            if dedupe_key in seen:
+                continue
+            seen.add(dedupe_key)
+            rows.append(
+                _reported_segment_metric_evidence(
+                    instrument_id=instrument_id,
+                    primary_symbol=primary_symbol,
+                    as_of_date=as_of_date,
+                    statement_scope=statement_scope,
+                    segment_key=segment_key,
+                    segment_label=segment_label,
+                    metric_code=metric_code,
+                    metric_value=value,
+                    metric_unit=unit,
+                    period_end=period_end,
+                    source_document_id=source_document_id,
+                    source_document_title=source_document_title,
+                    source_document_url=source_document_url,
+                    table_index=table_index,
+                    header_cells=table_rows[header_index],
+                    parser_layout="transposed_segment_metric_rows",
+                )
+            )
+    return rows
+
+
+def _reported_segment_metric_evidence(
+    *,
+    instrument_id: int,
+    primary_symbol: str,
+    as_of_date: date,
+    statement_scope: str,
+    segment_key: str,
+    segment_label: str,
+    metric_code: str,
+    metric_value: Decimal,
+    metric_unit: str,
+    period_end: date,
+    source_document_id: int,
+    source_document_title: str | None,
+    source_document_url: str | None,
+    table_index: int,
+    header_cells: list[str],
+    parser_layout: str,
+) -> ReportedSegmentMetricEvidence:
+    return ReportedSegmentMetricEvidence(
+        instrument_id=instrument_id,
+        primary_symbol=primary_symbol,
+        as_of_date=as_of_date,
+        statement_scope=statement_scope,
+        segment_key=segment_key,
+        segment_label=segment_label,
+        metric_code=metric_code,
+        metric_value=metric_value,
+        metric_unit=metric_unit,
+        period_end=period_end,
+        source_document_id=source_document_id,
+        evidence_text=(
+            f"{primary_symbol} reported {metric_code} for {segment_label} "
+            f"parsed from SEC segment footnote table {table_index}."
+        ),
+        assumptions_json={
+            "source": "sec_raw_filing_html_table",
+            "parser_model": DEFAULT_REPORTED_SEGMENT_MODEL_NAME,
+            "parser_layout": parser_layout,
+            "primary_symbol": primary_symbol,
+            "source_document_title": source_document_title,
+            "source_document_url": source_document_url,
+            "table_index": table_index,
+            "header_cells": header_cells,
+            "metric_unit": metric_unit,
+            "interpretation": "SEC filing의 세그먼트/사업부 표에서 직접 파싱한 reported segment metric이다.",
+            "recommendation_scoring_mutated": False,
+        },
+        confidence=Decimal("0.8200"),
+    )
 
 
 def _parse_reported_segment_candidate(
@@ -3896,6 +4022,40 @@ def _find_segment_table_header_index(rows: list[list[str]]) -> int | None:
     return None
 
 
+def _find_transposed_segment_header_index(rows: list[list[str]]) -> int | None:
+    for index, row in enumerate(rows[:8]):
+        if len(row) < 2:
+            continue
+        segment_label_count = sum(1 for cell in row if _clean_segment_label(cell) is not None)
+        if segment_label_count < 2:
+            continue
+        if any(_metric_code_from_segment_header(cell) is not None for cell in row):
+            continue
+        following_rows = rows[index + 1 : index + 7]
+        if any(row and _metric_code_from_segment_header(row[0]) is not None for row in following_rows):
+            return index
+    return None
+
+
+def _transposed_segment_table_year(rows: list[list[str]], *, header_index: int) -> int | None:
+    for row in reversed(rows[:header_index]):
+        if len(row) != 1:
+            continue
+        match = re.search(r"\b(20\d{2})\b", row[0])
+        if match is not None:
+            return int(match.group(1))
+    return None
+
+
+def _transposed_metric_value_cells(cells: list[str]) -> list[str]:
+    return [cell for cell in cells if not _is_currency_marker(cell)]
+
+
+def _is_currency_marker(value: str) -> bool:
+    normalized = value.strip()
+    return normalized in {"$", "US$", "USD"}
+
+
 def _metric_code_from_segment_header(header: str) -> str | None:
     normalized = re.sub(r"[^a-z0-9]+", " ", header.lower()).strip()
     if not normalized:
@@ -3927,11 +4087,45 @@ def _clean_segment_label(label: str) -> str | None:
     if not cleaned:
         return None
     normalized = cleaned.lower()
+    if normalized == "change":
+        return None
+    if re.fullmatch(r"20\d{2}", normalized):
+        return None
+    if _looks_like_period_header(normalized):
+        return None
     if normalized in {"total", "totals", "consolidated", "consolidated total", "company total"}:
+        return None
+    if normalized in {"corporate", "corporate total"}:
+        return None
+    if normalized.startswith("corporate and"):
         return None
     if "total net sales" in normalized or "total revenue" in normalized:
         return None
     return cleaned[:120]
+
+
+def _looks_like_period_header(normalized_label: str) -> bool:
+    if any(month in normalized_label for month in _MONTH_NAMES) and re.search(r"\b20\d{2}\b", normalized_label):
+        return True
+    if normalized_label.startswith(("year ended", "years ended", "period ended", "periods ended")):
+        return True
+    return False
+
+
+_MONTH_NAMES = (
+    "january",
+    "february",
+    "march",
+    "april",
+    "may",
+    "june",
+    "july",
+    "august",
+    "september",
+    "october",
+    "november",
+    "december",
+)
 
 
 def _segment_key(label: str) -> str:
