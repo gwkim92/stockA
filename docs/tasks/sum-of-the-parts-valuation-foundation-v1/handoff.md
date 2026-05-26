@@ -2,7 +2,7 @@
 
 ## Status
 
-- in progress: schema, runner, CLI, operations integration, valuation aggregation, DTO/UI, and local verification are complete; commit/push and EC2 migration/run/API/route smoke are pending.
+- completed: schema, runner, CLI, operations integration, valuation aggregation, DTO/UI, local verification, and EC2 migration/run/API/route smoke are complete.
 
 ## Current Findings
 
@@ -20,7 +20,7 @@
 
 ## Exact Next Step
 
-- exact next step: commit/push, deploy to EC2, apply migration, run `sum-of-parts-valuation-run`, rerun `valuation-snapshot-run`, and smoke API/routes.
+- exact next step: begin `segment-footnote-extraction-foundation-v1` with a new task contract so SOTP can move beyond proxy components toward actual business segment evidence.
 
 ## Verification Log
 
@@ -34,7 +34,14 @@
 - Passed: `PYTHONPATH=src /private/tmp/stockanalysis-verify-venv/bin/python -m unittest discover -s tests` (`Ran 952 tests in 5.216s`, `OK`)
 - Passed: `cd apps/web && npm run build`
 - Note: default `python3` maps to Python 3.14 and full unittest fails there due local `pyexpat`/missing `fastapi`; project verification uses `/private/tmp/stockanalysis-verify-venv/bin/python`.
-- Pending: EC2 migration/run/API/route smoke.
+- Passed: commit `788ade2` was pushed to `origin/codex/local-mvp-runtime-aws-bootstrap` and fast-forwarded on EC2 `/opt/stockanalysis/app`.
+- Passed: EC2 migration applied `0025_sum_of_parts_valuation.sql`; `market.sum_of_parts_component` exists.
+- Passed: EC2 Next build and service restart; `stockanalysis-frontend-api.service` and `stockanalysis-web.service` are active, `/__health` returns `status=ok`.
+- Passed: EC2 `sum-of-parts-valuation-run --as-of-date 2026-05-26 --statement-scope annual --execute` completed with `run_id=1031`, `component_row_count=45`, component type counts `operating_business=16`, `balance_sheet_adjustment=12`, `risk_reserve=17`, and `recommendation_scoring_mutated=false`.
+- Passed: EC2 `valuation-snapshot-run --as-of-date 2026-05-26 --statement-scope annual --execute` completed with `run_id=1032`, `snapshot_count=68`, and method counts `dcf_lite=16`, `relative_multiple=18`, `scenario_range=18`, `sum_of_parts=16`.
+- Passed: EC2 same-day recommendation smoke for `recommendation-151` required matching recommendation date `2026-05-25`; SOTP `run_id=1033` and valuation `run_id=1034` completed.
+- Passed: EC2 API smoke showed `/api/stocks/NVDA`, `/api/recommendations/recommendation-151`, and `/api/theses/thesis-5` expose `sum_of_parts` with `sotp_evidence.status=available`, `sotp_component_count=3`, and first component `operating_business_fcf`.
+- Passed: EC2 route smoke for `/stocks/NVDA`, `/recommendations/recommendation-151`, and `/theses/thesis-5` rendered `SOTP 구성요소`, `영업사업 가치`, `세그먼트 데이터 공백`, and `재무 forecast 입력`.
 
 ## Remaining Risks
 
