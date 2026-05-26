@@ -106,6 +106,9 @@ from stockanalysis.operations.paper_validation_conflict_remediation import (
 from stockanalysis.operations.portfolio_risk_budget_guardrail import (
     run_portfolio_risk_budget_guardrail,
 )
+from stockanalysis.operations.portfolio_review_decision_history import (
+    run_portfolio_review_decision_history,
+)
 from stockanalysis.operations.recommendation_fundamental_components import (
     DEFAULT_HORIZON_TYPE as DEFAULT_FUNDAMENTAL_COMPONENT_HORIZON_TYPE,
     DEFAULT_MARKET_CODE as DEFAULT_FUNDAMENTAL_COMPONENT_MARKET_CODE,
@@ -945,6 +948,19 @@ def build_parser() -> argparse.ArgumentParser:
     portfolio_risk_budget_guardrail.add_argument("--output")
     portfolio_risk_budget_guardrail.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
     portfolio_risk_budget_guardrail.set_defaults(handler=_handle_portfolio_risk_budget_guardrail_run)
+
+    portfolio_review_decision_history = subparsers.add_parser(
+        "portfolio-review-decision-history-run",
+        help="Persist read-only portfolio review decision history without rebalancing or broker orders.",
+    )
+    portfolio_review_decision_history.add_argument("--env-file")
+    portfolio_review_decision_history.add_argument("--portfolio-name", default=DEFAULT_PORTFOLIO_NAME)
+    portfolio_review_decision_history.add_argument("--as-of-date", required=True)
+    portfolio_review_decision_history.add_argument("--execute", action="store_true")
+    portfolio_review_decision_history.add_argument("--dry-run", action="store_true")
+    portfolio_review_decision_history.add_argument("--output")
+    portfolio_review_decision_history.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
+    portfolio_review_decision_history.set_defaults(handler=_handle_portfolio_review_decision_history_run)
 
     benchmark_composition_import = subparsers.add_parser(
         "benchmark-composition-import-run",
@@ -2187,6 +2203,31 @@ def _handle_portfolio_risk_budget_guardrail_run(args: argparse.Namespace, *, std
         output_path = resolve_output_path(
             args.output,
             label="portfolio risk budget guardrail output",
+            repo_root=args.repo_root,
+            require_repo_outside=True,
+        )
+        write_json_report(report, output_path=output_path, stdout=stdout)
+    else:
+        print_json(report, stdout=stdout, sort_keys=False)
+    return 0
+
+
+def _handle_portfolio_review_decision_history_run(args: argparse.Namespace, *, stdout: TextIO) -> int:
+    if bool(args.execute) and bool(args.dry_run):
+        raise ValueError("--execute and --dry-run cannot be used together.")
+    env_mapping = _load_optional_env_mapping(args.env_file, repo_root=args.repo_root)
+    as_of_date = date.fromisoformat(args.as_of_date)
+    with _temporary_environ(env_mapping):
+        report = run_portfolio_review_decision_history(
+            config=RuntimeConfig.from_env(),
+            portfolio_name=args.portfolio_name,
+            as_of_date=as_of_date,
+            execute=bool(args.execute) and not bool(args.dry_run),
+        )
+    if args.output:
+        output_path = resolve_output_path(
+            args.output,
+            label="portfolio review decision history output",
             repo_root=args.repo_root,
             require_repo_outside=True,
         )

@@ -546,6 +546,9 @@ def build_live_data_health_response(
     benchmark_drift_quality = _build_benchmark_drift_quality_payload(
         _as_dict(state.get("portfolio_risk_budget_guardrail"))
     )
+    portfolio_review_decision_history = _build_portfolio_review_decision_history_payload(
+        _as_dict(state.get("portfolio_review_decision_history"))
+    )
     recommendation_outcome_calibration = _build_recommendation_outcome_calibration_payload(
         _as_dict(state.get("recommendation_outcome_calibration"))
     )
@@ -568,6 +571,10 @@ def build_live_data_health_response(
             open_gates.append(gate)
     if benchmark_drift_quality["status"] != "ok":
         gate = "benchmark_drift_quality_attention"
+        if gate not in open_gates:
+            open_gates.append(gate)
+    if portfolio_review_decision_history["decision_status"] == "review_required":
+        gate = "portfolio_review_decision_history_attention"
         if gate not in open_gates:
             open_gates.append(gate)
     if recommendation_outcome_calibration["status"] in {"missing", "backfill_candidates_remain", "price_history_gaps_remain"}:
@@ -608,6 +615,7 @@ def build_live_data_health_response(
             "local_ingest_worker": local_ingest_worker,
             "cycle_ai_quality_audit": cycle_ai_quality_audit,
             "benchmark_drift_quality": benchmark_drift_quality,
+            "portfolio_review_decision_history": portfolio_review_decision_history,
             "recommendation_outcome_calibration": recommendation_outcome_calibration,
             "recommendation_outcome_maturity": recommendation_outcome_maturity,
             "recommendation_weight_review_readiness": recommendation_weight_review_readiness,
@@ -2388,6 +2396,11 @@ def build_live_portfolio_coverage_response(
         executor=executor,
         portfolio_name=portfolio_name,
     )
+    review_decision_history = load_frontend_portfolio_review_decision_history_state(
+        config=config,
+        executor=executor,
+        portfolio_name=portfolio_name,
+    )
     position_sizing_context = (
         {"positions": []}
         if missing_position_snapshot or not positions
@@ -2440,6 +2453,7 @@ def build_live_portfolio_coverage_response(
                 missing_position_snapshot=missing_position_snapshot,
                 risk_budget_guardrail=risk_budget_guardrail,
                 position_sizing_context=position_sizing_context,
+                review_decision_history=review_decision_history,
             ),
             "positions": positions,
             "attribution_readiness": {
@@ -2485,6 +2499,21 @@ def load_frontend_portfolio_risk_budget_guardrail_state(
             render_frontend_portfolio_risk_budget_guardrail_state_sql(portfolio_name=portfolio_name)
         ),
         "Frontend portfolio risk budget guardrail lookup",
+    )
+
+
+def load_frontend_portfolio_review_decision_history_state(
+    *,
+    config: RuntimeConfig,
+    executor: PsqlCommandExecutor | None,
+    portfolio_name: str,
+) -> dict[str, Any]:
+    sql_executor = executor or PsqlCommandExecutor.from_config(config)
+    return json_loads_object(
+        sql_executor.execute_scalar(
+            render_frontend_portfolio_review_decision_history_state_sql(portfolio_name=portfolio_name)
+        ),
+        "Frontend portfolio review decision history lookup",
     )
 
 
@@ -2716,6 +2745,69 @@ select
             'blocking_reasons', '[]'::json,
             'warning_reasons', '[]'::json,
             'benchmark_drift', '{{}}'::json
+        )
+    )::text;"""
+
+
+def render_frontend_portfolio_review_decision_history_state_sql(*, portfolio_name: str) -> str:
+    return f"""-- frontend portfolio review decision history lookup
+select
+    coalesce(
+        (
+            select json_build_object(
+                'status', 'loaded',
+                'eval_run_id', eval_run_id,
+                'created_at', created_at,
+                'eval_name', eval_name,
+                'dataset_version', dataset_version,
+                'as_of_date', score_json->>'as_of_date',
+                'portfolio_name', score_json->>'portfolio_name',
+                'source_portfolio_coverage_as_of_date', score_json->>'source_portfolio_coverage_as_of_date',
+                'coverage_measurement_end_date', score_json->>'coverage_measurement_end_date',
+                'decision_status', score_json->>'decision_status',
+                'decision_count', coalesce(nullif(score_json->>'decision_count', '')::integer, 0),
+                'review_required_count', coalesce(nullif(score_json->>'review_required_count', '')::integer, 0),
+                'benchmark_decision_count', coalesce(nullif(score_json->>'benchmark_decision_count', '')::integer, 0),
+                'position_sizing_decision_count', coalesce(nullif(score_json->>'position_sizing_decision_count', '')::integer, 0),
+                'decision_counts', coalesce(score_json->'decision_counts', '{{}}'::jsonb),
+                'top_decision', coalesce(score_json->'top_decision', 'null'::jsonb),
+                'latest_decisions', coalesce(score_json->'latest_decisions', '[]'::jsonb),
+                'guardrails', coalesce(score_json->'guardrails', '{{}}'::jsonb),
+                'next_action', score_json->>'next_action'
+            )
+            from ai.eval_run eval_run
+            where eval_run.eval_name = 'portfolio_review_decision_history'
+              and eval_run.dataset_version = 'portfolio-review-decision-history-v1'
+              and coalesce(eval_run.score_json->>'portfolio_name', {sql_literal(portfolio_name)}) = {sql_literal(portfolio_name)}
+            order by
+                nullif(eval_run.score_json->>'as_of_date', '')::date desc nulls last,
+                eval_run.created_at desc,
+                eval_run.eval_run_id desc
+            limit 1
+        ),
+        json_build_object(
+            'status', 'missing',
+            'eval_name', 'portfolio_review_decision_history',
+            'dataset_version', 'portfolio-review-decision-history-v1',
+            'portfolio_name', {sql_literal(portfolio_name)},
+            'decision_status', 'missing',
+            'decision_count', 0,
+            'review_required_count', 0,
+            'benchmark_decision_count', 0,
+            'position_sizing_decision_count', 0,
+            'decision_counts', '{{}}'::json,
+            'top_decision', null,
+            'latest_decisions', '[]'::json,
+            'guardrails', json_build_object(
+                'recommendation_scoring_mutated', false,
+                'benchmark_definition_mutated', false,
+                'portfolio_position_mutated', false,
+                'automatic_rebalance_allowed', false,
+                'automatic_order_allowed', false,
+                'broker_submit_allowed', false,
+                'order_boundary', 'read_only_no_order'
+            ),
+            'next_action', 'portfolio-review-decision-history-run을 실행해 최신 포트폴리오 검토 결정을 이력화한다.'
         )
     )::text;"""
 
@@ -3441,6 +3533,18 @@ selected_risk_budget_guardrail as (
         eval_run.eval_run_id desc
     limit 1
 ),
+selected_portfolio_review_decision_history as (
+    select eval_run.*
+    from ai.eval_run eval_run
+    where eval_run.eval_name = 'portfolio_review_decision_history'
+      and eval_run.dataset_version = 'portfolio-review-decision-history-v1'
+      and coalesce(eval_run.score_json->>'portfolio_name', {sql_literal(DEFAULT_PORTFOLIO_NAME)}) = {sql_literal(DEFAULT_PORTFOLIO_NAME)}
+    order by
+        nullif(eval_run.score_json->>'as_of_date', '')::date desc nulls last,
+        eval_run.created_at desc,
+        eval_run.eval_run_id desc
+    limit 1
+),
 selected_recommendation_outcome_calibration as (
     select eval_run.*
     from ai.eval_run eval_run
@@ -3980,6 +4084,57 @@ select json_build_object(
             'blocking_reasons', '[]'::json,
             'warning_reasons', '[]'::json,
             'benchmark_drift', '{{}}'::json
+        )
+    ),
+    'portfolio_review_decision_history',
+    coalesce(
+        (
+            select json_build_object(
+                'status', 'loaded',
+                'eval_run_id', eval_run_id,
+                'created_at', created_at,
+                'eval_name', eval_name,
+                'dataset_version', dataset_version,
+                'as_of_date', score_json->>'as_of_date',
+                'portfolio_name', score_json->>'portfolio_name',
+                'source_portfolio_coverage_as_of_date', score_json->>'source_portfolio_coverage_as_of_date',
+                'coverage_measurement_end_date', score_json->>'coverage_measurement_end_date',
+                'decision_status', score_json->>'decision_status',
+                'decision_count', coalesce(nullif(score_json->>'decision_count', '')::integer, 0),
+                'review_required_count', coalesce(nullif(score_json->>'review_required_count', '')::integer, 0),
+                'benchmark_decision_count', coalesce(nullif(score_json->>'benchmark_decision_count', '')::integer, 0),
+                'position_sizing_decision_count', coalesce(nullif(score_json->>'position_sizing_decision_count', '')::integer, 0),
+                'decision_counts', coalesce(score_json->'decision_counts', '{{}}'::jsonb),
+                'top_decision', coalesce(score_json->'top_decision', 'null'::jsonb),
+                'latest_decisions', coalesce(score_json->'latest_decisions', '[]'::jsonb),
+                'guardrails', coalesce(score_json->'guardrails', '{{}}'::jsonb),
+                'next_action', score_json->>'next_action'
+            )
+            from selected_portfolio_review_decision_history
+        ),
+        json_build_object(
+            'status', 'missing',
+            'eval_name', 'portfolio_review_decision_history',
+            'dataset_version', 'portfolio-review-decision-history-v1',
+            'portfolio_name', {sql_literal(DEFAULT_PORTFOLIO_NAME)},
+            'decision_status', 'missing',
+            'decision_count', 0,
+            'review_required_count', 0,
+            'benchmark_decision_count', 0,
+            'position_sizing_decision_count', 0,
+            'decision_counts', '{{}}'::json,
+            'top_decision', null,
+            'latest_decisions', '[]'::json,
+            'guardrails', json_build_object(
+                'recommendation_scoring_mutated', false,
+                'benchmark_definition_mutated', false,
+                'portfolio_position_mutated', false,
+                'automatic_rebalance_allowed', false,
+                'automatic_order_allowed', false,
+                'broker_submit_allowed', false,
+                'order_boundary', 'read_only_no_order'
+            ),
+            'next_action', 'portfolio-review-decision-history-run을 실행해 최신 포트폴리오 검토 결정을 이력화한다.'
         )
     ),
     'recommendation_outcome_calibration',
@@ -11806,6 +11961,80 @@ def _build_benchmark_drift_quality_payload(guardrail: dict[str, Any]) -> dict[st
     }
 
 
+def _build_portfolio_review_decision_history_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    status = str(payload.get("status") or "missing")
+    decision_status = str(payload.get("decision_status") or ("missing" if status == "missing" else "unknown"))
+    guardrails = _as_dict(payload.get("guardrails"))
+    decisions = [_build_portfolio_review_history_decision_payload(item) for item in _as_list(payload.get("latest_decisions"))]
+    top_decision = _build_portfolio_review_history_decision_payload(_as_dict(payload.get("top_decision")))
+    if not top_decision["symbol"] and decisions:
+        top_decision = decisions[0]
+    if not top_decision["symbol"]:
+        top_decision = None
+    return {
+        "status": status,
+        "eval_run_id": _opaque_id("eval-run", payload.get("eval_run_id"), None),
+        "created_at": _timestamp(payload.get("created_at")),
+        "eval_name": str(payload.get("eval_name") or "portfolio_review_decision_history"),
+        "dataset_version": str(payload.get("dataset_version") or "portfolio-review-decision-history-v1"),
+        "as_of_date": str(payload.get("as_of_date") or ""),
+        "portfolio_name": str(payload.get("portfolio_name") or DEFAULT_PORTFOLIO_NAME),
+        "source_portfolio_coverage_as_of_date": str(payload.get("source_portfolio_coverage_as_of_date") or ""),
+        "coverage_measurement_end_date": str(payload.get("coverage_measurement_end_date") or ""),
+        "decision_status": decision_status,
+        "decision_count": int(_safe_number(payload.get("decision_count")) or 0),
+        "review_required_count": int(_safe_number(payload.get("review_required_count")) or 0),
+        "benchmark_decision_count": int(_safe_number(payload.get("benchmark_decision_count")) or 0),
+        "position_sizing_decision_count": int(_safe_number(payload.get("position_sizing_decision_count")) or 0),
+        "decision_counts": _as_dict(payload.get("decision_counts")),
+        "top_decision": top_decision,
+        "latest_decisions": decisions,
+        "guardrails": {
+            "recommendation_scoring_mutated": guardrails.get("recommendation_scoring_mutated") is True,
+            "benchmark_definition_mutated": guardrails.get("benchmark_definition_mutated") is True,
+            "portfolio_position_mutated": guardrails.get("portfolio_position_mutated") is True,
+            "automatic_rebalance_allowed": guardrails.get("automatic_rebalance_allowed") is True,
+            "automatic_order_allowed": guardrails.get("automatic_order_allowed") is True,
+            "broker_submit_allowed": guardrails.get("broker_submit_allowed") is True,
+            "order_boundary": str(guardrails.get("order_boundary") or "read_only_no_order"),
+        },
+        "next_action": str(
+            payload.get("next_action")
+            or "portfolio-review-decision-history-run을 실행해 최신 포트폴리오 검토 결정을 이력화한다."
+        ),
+    }
+
+
+def _build_portfolio_review_history_decision_payload(item: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "decision_family": str(item.get("decision_family") or ""),
+        "symbol": str(item.get("symbol") or ""),
+        "instrument_id": _optional_text(item.get("instrument_id")),
+        "priority": int(_safe_number(item.get("priority")) or 0),
+        "decision_type": str(item.get("decision_type") or ""),
+        "decision_label": str(item.get("decision_label") or ""),
+        "next_review_action": str(item.get("next_review_action") or ""),
+        "severity": str(item.get("severity") or ""),
+        "current_weight": _safe_number(item.get("current_weight")),
+        "benchmark_weight": _safe_number(item.get("benchmark_weight")),
+        "active_weight": _safe_number(item.get("active_weight")),
+        "source_evidence": _as_dict(item.get("source_evidence")),
+        "related_thesis_id": _optional_text(item.get("related_thesis_id")),
+        "related_recommendation_id": _optional_text(item.get("related_recommendation_id")),
+        "related_recommendation_action": _optional_text(item.get("related_recommendation_action")),
+        "related_recommended_weight": _safe_number(item.get("related_recommended_weight")),
+        "links": _as_dict(item.get("links")),
+        "decision_path": _as_list(item.get("decision_path")),
+        "blocking_factors": [str(value) for value in _as_list_or_scalars(item.get("blocking_factors"))],
+        "supporting_factors": [str(value) for value in _as_list_or_scalars(item.get("supporting_factors"))],
+        "rationale": str(item.get("rationale") or ""),
+        "review_required": item.get("review_required") is True,
+        "automatic_order_allowed": item.get("automatic_order_allowed") is True,
+        "broker_submit_allowed": item.get("broker_submit_allowed") is True,
+        "order_boundary": str(item.get("order_boundary") or "read_only_no_order"),
+    }
+
+
 def _build_benchmark_active_position_payload(item: dict[str, Any]) -> dict[str, Any]:
     return {
         "symbol": str(item.get("symbol") or ""),
@@ -14072,6 +14301,7 @@ def _build_portfolio_risk_budget_payload(
     missing_position_snapshot: bool,
     risk_budget_guardrail: dict[str, Any],
     position_sizing_context: dict[str, Any],
+    review_decision_history: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     max_single_position_weight = _number(allocation_policy.get("max_single_position_weight"))
     min_rebalance_target_weight = _number(allocation_policy.get("min_rebalance_target_weight"))
@@ -14150,6 +14380,9 @@ def _build_portfolio_risk_budget_payload(
         ),
         "rebalance_candidate_review": rebalance_candidate_review,
         "position_sizing_review": position_sizing_review,
+        "review_decision_history": _build_portfolio_review_decision_history_payload(
+            _as_dict(review_decision_history)
+        ),
         "review_reasons": reasons,
     }
 
@@ -14338,6 +14571,17 @@ def _build_position_sizing_candidate_payload(
         "watch_small_position": "watch",
         "hold_review": "low",
     }.get(review_band, "watch")
+    related_thesis_id = _optional_text(position.get("active_thesis_id"))
+    if related_thesis_id is None and context.get("linked_thesis_id") is not None:
+        related_thesis_id = _opaque_id("thesis", context.get("linked_thesis_id"), None)
+    related_recommendation_id = _optional_text(context.get("recommendation_id"))
+    if related_recommendation_id is not None and not related_recommendation_id.startswith("recommendation-"):
+        related_recommendation_id = _opaque_id("recommendation", related_recommendation_id, None)
+    links: dict[str, str] = {"stock": f"/stocks/{quote(symbol, safe='')}"}
+    if related_thesis_id:
+        links["thesis"] = f"/theses/{quote(related_thesis_id, safe='')}"
+    if related_recommendation_id:
+        links["recommendation"] = f"/recommendations/{quote(related_recommendation_id, safe='')}"
 
     return {
         "priority": 0,
@@ -14351,6 +14595,11 @@ def _build_position_sizing_candidate_payload(
         "professional_analysis_status": professional_analysis_status,
         "review_band": review_band,
         "severity": severity,
+        "related_thesis_id": related_thesis_id,
+        "related_recommendation_id": related_recommendation_id,
+        "related_recommendation_action": _optional_text(context.get("recommendation_action")),
+        "related_recommended_weight": _number(context.get("recommended_weight")),
+        "links": links,
         "policy_ceiling_weight": max_single_position_weight,
         "review_ceiling_weight": _position_sizing_review_ceiling(
             max_single_position_weight=max_single_position_weight,

@@ -264,6 +264,7 @@ export type DataHealthData = {
     }>;
     next_actions: string[];
   };
+  portfolio_review_decision_history: PortfolioReviewDecisionHistory;
   recommendation_outcome_calibration: {
     status: string;
     eval_run_id: string;
@@ -1819,6 +1820,7 @@ export type PortfolioCoverageData = {
     }>;
     rebalance_candidate_review: BenchmarkRebalanceCandidateReview;
     position_sizing_review: PositionSizingReview;
+    review_decision_history: PortfolioReviewDecisionHistory;
     review_reasons: string[];
   };
   positions: Array<{
@@ -1903,6 +1905,64 @@ export type BenchmarkRebalanceCandidate = {
   order_boundary: string;
 };
 
+export type PortfolioReviewHistoryDecision = {
+  decision_family: string;
+  symbol: string;
+  instrument_id: string | null;
+  priority: number;
+  decision_type: string;
+  decision_label: string;
+  next_review_action: string;
+  severity: string;
+  current_weight: number | null;
+  benchmark_weight: number | null;
+  active_weight: number | null;
+  source_evidence: Record<string, unknown>;
+  related_thesis_id: string | null;
+  related_recommendation_id: string | null;
+  related_recommendation_action: string | null;
+  related_recommended_weight: number | null;
+  links: Record<string, string>;
+  decision_path: BenchmarkRebalanceDecisionPathStep[];
+  blocking_factors: string[];
+  supporting_factors: string[];
+  rationale: string;
+  review_required: boolean;
+  automatic_order_allowed: boolean;
+  broker_submit_allowed: boolean;
+  order_boundary: string;
+};
+
+export type PortfolioReviewDecisionHistory = {
+  status: string;
+  eval_run_id: string;
+  created_at: string;
+  eval_name: string;
+  dataset_version: string;
+  as_of_date: string;
+  portfolio_name: string;
+  source_portfolio_coverage_as_of_date: string;
+  coverage_measurement_end_date: string;
+  decision_status: string;
+  decision_count: number;
+  review_required_count: number;
+  benchmark_decision_count: number;
+  position_sizing_decision_count: number;
+  decision_counts: Record<string, number>;
+  top_decision: PortfolioReviewHistoryDecision | null;
+  latest_decisions: PortfolioReviewHistoryDecision[];
+  guardrails: {
+    recommendation_scoring_mutated: boolean;
+    benchmark_definition_mutated: boolean;
+    portfolio_position_mutated: boolean;
+    automatic_rebalance_allowed: boolean;
+    automatic_order_allowed: boolean;
+    broker_submit_allowed: boolean;
+    order_boundary: string;
+  };
+  next_action: string;
+};
+
 export type PositionSizingReview = {
   status: string;
   policy_name: string;
@@ -1934,6 +1994,11 @@ export type PositionSizingCandidate = {
   professional_analysis_status: string;
   review_band: string;
   severity: "high" | "medium" | "watch" | "low" | string;
+  related_thesis_id: string | null;
+  related_recommendation_id: string | null;
+  related_recommendation_action: string | null;
+  related_recommended_weight: number | null;
+  links: Record<string, string>;
   policy_ceiling_weight: number | null;
   review_ceiling_weight: number | null;
   fundamental_quality_score: number | null;

@@ -27,6 +27,7 @@ from stockanalysis.frontend.live_adapter import (
     render_frontend_paper_trading_preview_state_sql,
     render_frontend_portfolio_concentration_state_sql,
     render_frontend_portfolio_position_sizing_context_state_sql,
+    render_frontend_portfolio_review_decision_history_state_sql,
     render_frontend_recommendation_list_state_sql,
     render_frontend_recommendation_detail_state_sql,
     render_frontend_source_document_detail_state_sql,
@@ -136,6 +137,79 @@ class FakeLiveExecutor:
                                 }
                             ],
                         },
+                    },
+                    "portfolio_review_decision_history": {
+                        "status": "loaded",
+                        "eval_run_id": 52,
+                        "created_at": "2026-05-27T02:00:00+00:00",
+                        "eval_name": "portfolio_review_decision_history",
+                        "dataset_version": "portfolio-review-decision-history-v1",
+                        "as_of_date": "2026-05-25",
+                        "portfolio_name": "Long Term Paper",
+                        "source_portfolio_coverage_as_of_date": "2026-05-25",
+                        "coverage_measurement_end_date": "2026-06-25",
+                        "decision_status": "review_required",
+                        "decision_count": 2,
+                        "review_required_count": 2,
+                        "benchmark_decision_count": 1,
+                        "position_sizing_decision_count": 1,
+                        "decision_counts": {"reduce_watch": 1, "add_blocked_until_evidence": 1},
+                        "top_decision": {
+                            "decision_family": "benchmark_drift",
+                            "symbol": "MSFT",
+                            "priority": 1,
+                            "decision_type": "reduce_watch",
+                            "decision_label": "비중 축소 검토",
+                            "next_review_action": "추가 매수를 막고 축소 여부만 검토한다.",
+                            "severity": "high",
+                            "current_weight": "0.3078",
+                            "benchmark_weight": "0.0650",
+                            "active_weight": "0.2428",
+                            "source_evidence": {"benchmark_code": "SPY"},
+                            "related_thesis_id": "thesis-7001",
+                            "related_recommendation_id": "recommendation-7101",
+                            "links": {"stock": "/stocks/MSFT", "recommendation": "/recommendations/recommendation-7101"},
+                            "decision_path": [],
+                            "rationale": "MSFT active weight가 크다.",
+                            "review_required": True,
+                            "automatic_order_allowed": False,
+                            "broker_submit_allowed": False,
+                            "order_boundary": "read_only_no_order",
+                        },
+                        "latest_decisions": [
+                            {
+                                "decision_family": "benchmark_drift",
+                                "symbol": "MSFT",
+                                "priority": 1,
+                                "decision_type": "reduce_watch",
+                                "decision_label": "비중 축소 검토",
+                                "next_review_action": "추가 매수를 막고 축소 여부만 검토한다.",
+                                "severity": "high",
+                                "current_weight": "0.3078",
+                                "benchmark_weight": "0.0650",
+                                "active_weight": "0.2428",
+                                "source_evidence": {"benchmark_code": "SPY"},
+                                "related_thesis_id": "thesis-7001",
+                                "related_recommendation_id": "recommendation-7101",
+                                "links": {"stock": "/stocks/MSFT", "recommendation": "/recommendations/recommendation-7101"},
+                                "decision_path": [],
+                                "rationale": "MSFT active weight가 크다.",
+                                "review_required": True,
+                                "automatic_order_allowed": False,
+                                "broker_submit_allowed": False,
+                                "order_boundary": "read_only_no_order",
+                            }
+                        ],
+                        "guardrails": {
+                            "recommendation_scoring_mutated": False,
+                            "benchmark_definition_mutated": False,
+                            "portfolio_position_mutated": False,
+                            "automatic_rebalance_allowed": False,
+                            "automatic_order_allowed": False,
+                            "broker_submit_allowed": False,
+                            "order_boundary": "read_only_no_order",
+                        },
+                        "next_action": "최신 포트폴리오 검토 결정을 확인한다.",
                     },
                     "recommendation_outcome_calibration": {
                         "status": "loaded",
@@ -1432,6 +1506,78 @@ class FakeLiveExecutor:
                             },
                         ],
                     },
+                }
+            )
+        if sql.startswith("-- frontend portfolio review decision history lookup"):
+            return json.dumps(
+                {
+                    "status": "loaded",
+                    "eval_run_id": 52,
+                    "created_at": "2026-05-27T02:00:00+00:00",
+                    "eval_name": "portfolio_review_decision_history",
+                    "dataset_version": "portfolio-review-decision-history-v1",
+                    "as_of_date": "2026-05-25",
+                    "portfolio_name": "Long Term Paper",
+                    "source_portfolio_coverage_as_of_date": "2026-05-25",
+                    "coverage_measurement_end_date": "2026-06-25",
+                    "decision_status": "review_required",
+                    "decision_count": 2,
+                    "review_required_count": 2,
+                    "benchmark_decision_count": 1,
+                    "position_sizing_decision_count": 1,
+                    "decision_counts": {"reduce_watch": 1, "add_blocked_until_evidence": 1},
+                    "top_decision": {
+                        "decision_family": "benchmark_drift",
+                        "symbol": "TSLA",
+                        "priority": 1,
+                        "decision_type": "reduce_watch",
+                        "decision_label": "비중 축소 검토",
+                        "next_review_action": "추가 매수를 막고 축소 여부만 검토한다.",
+                        "severity": "high",
+                        "current_weight": "0.3068",
+                        "benchmark_weight": "0.01839095",
+                        "active_weight": "0.28840905",
+                        "source_evidence": {"benchmark_code": "SPY"},
+                        "links": {"stock": "/stocks/TSLA"},
+                        "decision_path": [],
+                        "rationale": "TSLA active weight가 크다.",
+                        "review_required": True,
+                        "automatic_order_allowed": False,
+                        "broker_submit_allowed": False,
+                        "order_boundary": "read_only_no_order",
+                    },
+                    "latest_decisions": [
+                        {
+                            "decision_family": "benchmark_drift",
+                            "symbol": "TSLA",
+                            "priority": 1,
+                            "decision_type": "reduce_watch",
+                            "decision_label": "비중 축소 검토",
+                            "next_review_action": "추가 매수를 막고 축소 여부만 검토한다.",
+                            "severity": "high",
+                            "current_weight": "0.3068",
+                            "benchmark_weight": "0.01839095",
+                            "active_weight": "0.28840905",
+                            "source_evidence": {"benchmark_code": "SPY"},
+                            "links": {"stock": "/stocks/TSLA"},
+                            "decision_path": [],
+                            "rationale": "TSLA active weight가 크다.",
+                            "review_required": True,
+                            "automatic_order_allowed": False,
+                            "broker_submit_allowed": False,
+                            "order_boundary": "read_only_no_order",
+                        }
+                    ],
+                    "guardrails": {
+                        "recommendation_scoring_mutated": False,
+                        "benchmark_definition_mutated": False,
+                        "portfolio_position_mutated": False,
+                        "automatic_rebalance_allowed": False,
+                        "automatic_order_allowed": False,
+                        "broker_submit_allowed": False,
+                        "order_boundary": "read_only_no_order",
+                    },
+                    "next_action": "최신 포트폴리오 검토 결정을 확인한다.",
                 }
             )
         if sql.startswith("-- frontend portfolio position sizing context lookup"):
@@ -3516,6 +3662,19 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertFalse(drift_quality["broker_submit_allowed"])
         self.assertEqual(drift_quality["order_boundary"], "read_only_no_order")
         self.assertIn("benchmark_drift_quality_attention", payload["data"]["open_gates"])
+        review_history = payload["data"]["portfolio_review_decision_history"]
+        self.assertEqual(review_history["status"], "loaded")
+        self.assertEqual(review_history["eval_run_id"], "eval-run-52")
+        self.assertEqual(review_history["decision_status"], "review_required")
+        self.assertEqual(review_history["decision_count"], 2)
+        self.assertEqual(review_history["benchmark_decision_count"], 1)
+        self.assertEqual(review_history["position_sizing_decision_count"], 1)
+        self.assertEqual(review_history["top_decision"]["symbol"], "MSFT")
+        self.assertEqual(review_history["latest_decisions"][0]["decision_label"], "비중 축소 검토")
+        self.assertFalse(review_history["guardrails"]["automatic_rebalance_allowed"])
+        self.assertFalse(review_history["guardrails"]["broker_submit_allowed"])
+        self.assertEqual(review_history["guardrails"]["order_boundary"], "read_only_no_order")
+        self.assertIn("portfolio_review_decision_history_attention", payload["data"]["open_gates"])
         outcome_calibration = payload["data"]["recommendation_outcome_calibration"]
         self.assertEqual(outcome_calibration["status"], "collect_more_outcomes_keep_weights")
         self.assertEqual(outcome_calibration["eval_run_id"], "eval-run-31")
@@ -4078,6 +4237,9 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertIn("selected_risk_budget_guardrail", sql)
         self.assertIn("portfolio_risk_budget_guardrail", sql)
         self.assertIn("benchmark_drift", sql)
+        self.assertIn("selected_portfolio_review_decision_history", sql)
+        self.assertIn("portfolio_review_decision_history", sql)
+        self.assertIn("portfolio-review-decision-history-v1", sql)
         self.assertIn("selected_recommendation_outcome_calibration", sql)
         self.assertIn("recommendation_outcome_calibration", sql)
         self.assertIn("recommendation-outcome-calibration-sample-expansion-v1", sql)
@@ -4095,6 +4257,20 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertIn("fund_company_financial_model_not_applicable", sql)
         self.assertIn("sec_companyfacts_missing_us_gaap_facts", sql)
         self.assertIn("professional-coverage-expansion-run", sql)
+
+    def test_portfolio_review_decision_history_sql_reads_eval_artifact_without_mutation(self) -> None:
+        sql = render_frontend_portfolio_review_decision_history_state_sql(portfolio_name="Long Term Paper")
+        lowered = sql.lower()
+
+        self.assertIn("from ai.eval_run", sql)
+        self.assertIn("portfolio_review_decision_history", sql)
+        self.assertIn("portfolio-review-decision-history-v1", sql)
+        self.assertIn("'automatic_order_allowed', false", sql)
+        self.assertNotIn("insert into", lowered)
+        self.assertNotIn("update ", lowered)
+        self.assertNotIn("delete from", lowered)
+        self.assertNotIn("from broker", lowered)
+        self.assertNotIn("join broker", lowered)
 
     def test_live_stock_list_response_matches_frontend_contract_shape(self) -> None:
         payload = resolve_live_frontend_response(
@@ -5532,6 +5708,14 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertEqual(sizing["candidates"][1]["review_band"], "watch_small_position")
         self.assertEqual(sizing["candidates"][1]["equity_research_artifact_id"], "equity-research-artifact-1201")
         self.assertIn("positive_margin_of_safety", sizing["candidates"][1]["supporting_factors"])
+        history = payload["data"]["risk_budget"]["review_decision_history"]
+        self.assertEqual(history["status"], "loaded")
+        self.assertEqual(history["eval_run_id"], "eval-run-52")
+        self.assertEqual(history["decision_count"], 2)
+        self.assertEqual(history["top_decision"]["symbol"], "TSLA")
+        self.assertFalse(history["guardrails"]["automatic_rebalance_allowed"])
+        self.assertFalse(history["guardrails"]["broker_submit_allowed"])
+        self.assertEqual(history["guardrails"]["order_boundary"], "read_only_no_order")
         self.assertEqual(payload["data"]["positions"][0]["active_thesis_id"], "thesis-7001")
         self.assertEqual(payload["data"]["positions"][0]["outcome_status"], "measured")
         self.assertEqual(payload["data"]["positions"][0]["position_size_status"], "below_rebalance_floor")

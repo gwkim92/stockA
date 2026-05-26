@@ -198,6 +198,7 @@ export default async function PortfolioCoveragePage() {
   const candidateReview = riskBudget.rebalance_candidate_review;
   const candidateDecisionCounts = candidateReview.decision_counts ?? {};
   const positionSizingReview = riskBudget.position_sizing_review;
+  const reviewHistory = riskBudget.review_decision_history;
   const concentration = riskBudget.concentration;
   const hasPositions = data.positions.length > 0;
   const investedWeight = Math.max(0, 1 - (data.summary.cash_weight ?? 0));
@@ -362,6 +363,66 @@ export default async function PortfolioCoveragePage() {
               </small>
             </article>
           </div>
+        </article>
+
+        <article className="bento-card span-4" style={{ borderColor: reviewHistory.decision_status === "review_required" ? "var(--accent-amber)" : "var(--border-light)" }}>
+          <div className="section-heading">
+            <div>
+              <span className="metric-sub">저장된 포트폴리오 검토 이력</span>
+              <h2>오늘 보이는 판단 후보가 감사 이력으로 남았는지 본다</h2>
+            </div>
+            <span className={`risk-tag ${reviewHistory.decision_status === "review_required" ? "risk-medium" : "risk-low"}`}>
+              {reviewHistory.status === "loaded" ? koCode(reviewHistory.decision_status) : "이력 없음"}
+            </span>
+          </div>
+          <p style={{ color: "var(--text-secondary)", marginTop: 0 }}>
+            리밸런싱 후보와 포지션 크기 검토는 주문이 아니라 의사결정 기록이다. 이력이 없으면 같은 화면을 나중에
+            다시 봤을 때 당시 판단 근거를 추적하기 어렵다.
+          </p>
+          <div className="status-rail compact-rail" aria-label="포트폴리오 검토 이력 요약" style={{ marginBottom: "20px" }}>
+            <article className="rail-cell">
+              <span>이력 ID</span>
+              <strong>{reviewHistory.eval_run_id}</strong>
+              <small>{reviewHistory.as_of_date || "기준일 없음"}</small>
+            </article>
+            <article className="rail-cell">
+              <span>저장 결정</span>
+              <strong>{reviewHistory.decision_count}</strong>
+              <small>검토 필요 {reviewHistory.review_required_count}개</small>
+            </article>
+            <article className="rail-cell">
+              <span>벤치마크 / 포지션</span>
+              <strong>{reviewHistory.benchmark_decision_count} / {reviewHistory.position_sizing_decision_count}</strong>
+              <small>결정 family 분리</small>
+            </article>
+            <article className="rail-cell rail-critical">
+              <span>주문 경계</span>
+              <strong>{koCode(reviewHistory.guardrails.order_boundary)}</strong>
+              <small>broker 전송 {reviewHistory.guardrails.broker_submit_allowed ? "허용" : "금지"}</small>
+            </article>
+          </div>
+          {reviewHistory.latest_decisions.length > 0 ? (
+            <div className="bento-list" style={{ gap: "8px" }}>
+              {reviewHistory.latest_decisions.slice(0, 5).map((decision) => (
+                <div className="bento-list-item" key={`${decision.decision_family}-${decision.priority}-${decision.symbol}`}>
+                  <div>
+                    <span className={`risk-tag ${candidateSeverityClass(decision.severity)}`}>
+                      {decision.decision_label || koCode(decision.decision_type)}
+                    </span>
+                    <strong>{decision.symbol} · {koCode(decision.decision_family)}</strong>
+                    <span>{decision.next_review_action}</span>
+                  </div>
+                  <span style={{ color: "var(--text-secondary)", maxWidth: "520px" }}>
+                    {decision.rationale || "저장된 설명 없음"}
+                  </span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="empty-state" style={{ margin: 0 }}>
+              아직 durable 검토 이력이 없다. `portfolio-review-decision-history-run` 실행 후 이곳에 최신 결정이 표시된다.
+            </p>
+          )}
         </article>
 
         <article className="bento-card span-4" style={{ borderColor: candidateReview.candidate_count > 0 ? "var(--accent-red)" : "var(--border-light)" }}>

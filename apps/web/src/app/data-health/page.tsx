@@ -15,6 +15,7 @@ type ManualIngestSmoke = DataHealthData["manual_local_ingest_smoke"];
 type LocalIngestWorker = DataHealthData["local_ingest_worker"];
 type CycleAiQualityAudit = DataHealthData["cycle_ai_quality_audit"];
 type BenchmarkDriftQuality = DataHealthData["benchmark_drift_quality"];
+type PortfolioReviewDecisionHistory = DataHealthData["portfolio_review_decision_history"];
 type RecommendationOutcomeCalibration = DataHealthData["recommendation_outcome_calibration"];
 type RecommendationOutcomeMaturity = DataHealthData["recommendation_outcome_maturity"];
 type RecommendationWeightReviewReadiness = DataHealthData["recommendation_weight_review_readiness"];
@@ -410,6 +411,16 @@ function benchmarkDriftQualityTone(quality: BenchmarkDriftQuality) {
   return "risk-high";
 }
 
+function decisionSeverityClass(severity: string) {
+  if (severity === "high") {
+    return "risk-high";
+  }
+  if (severity === "medium") {
+    return "risk-medium";
+  }
+  return "risk-low";
+}
+
 function outcomeCalibrationTitle(calibration: RecommendationOutcomeCalibration) {
   if (calibration.status === "ready_for_manual_weight_review") {
     return "성과 표본 검토 가능";
@@ -661,6 +672,36 @@ const DEFAULT_BENCHMARK_DRIFT_QUALITY: BenchmarkDriftQuality = {
   next_actions: ["portfolio-risk-budget-guardrail-run을 먼저 실행한다."],
 };
 
+const DEFAULT_PORTFOLIO_REVIEW_DECISION_HISTORY: PortfolioReviewDecisionHistory = {
+  status: "missing",
+  eval_run_id: "eval-run-unknown",
+  created_at: "",
+  eval_name: "portfolio_review_decision_history",
+  dataset_version: "portfolio-review-decision-history-v1",
+  as_of_date: "",
+  portfolio_name: "Long Term Paper",
+  source_portfolio_coverage_as_of_date: "",
+  coverage_measurement_end_date: "",
+  decision_status: "missing",
+  decision_count: 0,
+  review_required_count: 0,
+  benchmark_decision_count: 0,
+  position_sizing_decision_count: 0,
+  decision_counts: {},
+  top_decision: null,
+  latest_decisions: [],
+  guardrails: {
+    recommendation_scoring_mutated: false,
+    benchmark_definition_mutated: false,
+    portfolio_position_mutated: false,
+    automatic_rebalance_allowed: false,
+    automatic_order_allowed: false,
+    broker_submit_allowed: false,
+    order_boundary: "read_only_no_order",
+  },
+  next_action: "portfolio-review-decision-history-run을 실행해 최신 포트폴리오 검토 결정을 이력화한다.",
+};
+
 const DEFAULT_RECOMMENDATION_OUTCOME_CALIBRATION: RecommendationOutcomeCalibration = {
   status: "missing",
   eval_run_id: "eval-run-unknown",
@@ -785,6 +826,8 @@ export default async function DataHealthPage() {
   const localWorker = data.local_ingest_worker ?? DEFAULT_LOCAL_WORKER;
   const qualityAudit = data.cycle_ai_quality_audit ?? DEFAULT_CYCLE_AI_QUALITY_AUDIT;
   const benchmarkDriftQuality = data.benchmark_drift_quality ?? DEFAULT_BENCHMARK_DRIFT_QUALITY;
+  const portfolioReviewHistory =
+    data.portfolio_review_decision_history ?? DEFAULT_PORTFOLIO_REVIEW_DECISION_HISTORY;
   const benchmarkDriftDecisionBySymbol = new Map(
     benchmarkDriftQuality.outlier_decisions.map((decision) => [decision.symbol, decision]),
   );
@@ -864,6 +907,20 @@ export default async function DataHealthPage() {
       href: "#benchmark-drift-quality",
       cta: "벤치마크 품질 보기",
       tone: benchmarkDriftQualityTone(benchmarkDriftQuality),
+    },
+    {
+      label: "포트폴리오 검토 이력",
+      title:
+        portfolioReviewHistory.status === "loaded"
+          ? `${portfolioReviewHistory.decision_count}개 결정 저장됨`
+          : "검토 결정 이력 없음",
+      body:
+        portfolioReviewHistory.status === "loaded"
+          ? `최신 ${portfolioReviewHistory.as_of_date} 기준으로 벤치마크 ${portfolioReviewHistory.benchmark_decision_count}개, 포지션 크기 ${portfolioReviewHistory.position_sizing_decision_count}개 결정을 감사 이력으로 남겼다.`
+          : "현재 화면의 검토 후보는 보이지만 durable audit history로는 아직 저장되지 않았다.",
+      href: "#portfolio-review-history",
+      cta: "검토 이력 보기",
+      tone: portfolioReviewHistory.decision_status === "review_required" ? "risk-medium" : "risk-low",
     },
     {
       label: "성과검증",
@@ -1489,6 +1546,97 @@ export default async function DataHealthPage() {
               ? koCode(benchmarkDriftQuality.next_actions[0])
               : "현재 추가 조치 없음"}
           </p>
+        </div>
+      </section>
+
+      <section
+        className="feature-map-panel reveal delay-1"
+        id="portfolio-review-history"
+        aria-labelledby="portfolio-review-history-title"
+      >
+        <div className="section-heading stacked-heading">
+          <span>포트폴리오 검토 결정 이력</span>
+          <h2 id="portfolio-review-history-title">화면에서 본 판단이 나중에도 추적되는지 확인한다.</h2>
+        </div>
+        <p className="board-intro">
+          벤치마크 괴리와 포지션 크기 검토는 주문 지시가 아니다. 이 섹션은 그 판단 후보가 언제 어떤 근거로
+          저장됐는지 보여주는 감사 이력이다.
+        </p>
+        <div className="status-rail compact-rail">
+          <article className="rail-cell">
+            <span>상태</span>
+            <strong className={`risk-tag ${portfolioReviewHistory.decision_status === "review_required" ? "risk-medium" : "risk-low"}`}>
+              {koCode(portfolioReviewHistory.decision_status)}
+            </strong>
+            <small>{portfolioReviewHistory.eval_run_id}</small>
+          </article>
+          <article className="rail-cell">
+            <span>기준일</span>
+            <strong>{portfolioReviewHistory.as_of_date || "미저장"}</strong>
+            <small>{portfolioReviewHistory.created_at || "생성 시각 없음"}</small>
+          </article>
+          <article className="rail-cell">
+            <span>저장된 결정</span>
+            <strong>{portfolioReviewHistory.decision_count}</strong>
+            <small>검토 필요 {portfolioReviewHistory.review_required_count}개</small>
+          </article>
+          <article className="rail-cell">
+            <span>벤치마크 / 포지션</span>
+            <strong>
+              {portfolioReviewHistory.benchmark_decision_count} / {portfolioReviewHistory.position_sizing_decision_count}
+            </strong>
+            <small>결정 family 분리 저장</small>
+          </article>
+          <article className="rail-cell rail-critical">
+            <span>주문 경계</span>
+            <strong>{koCode(portfolioReviewHistory.guardrails.order_boundary)}</strong>
+            <small>broker 전송 {portfolioReviewHistory.guardrails.broker_submit_allowed ? "허용" : "금지"}</small>
+          </article>
+        </div>
+        {portfolioReviewHistory.latest_decisions.length > 0 ? (
+          <div className="ledger-table-wrap">
+            <table className="ledger-table data-health-table">
+              <thead>
+                <tr>
+                  <th scope="col">순위</th>
+                  <th scope="col">종목</th>
+                  <th scope="col">결정</th>
+                  <th scope="col">가족</th>
+                  <th scope="col">근거</th>
+                </tr>
+              </thead>
+              <tbody>
+                {portfolioReviewHistory.latest_decisions.slice(0, 8).map((decision) => (
+                  <tr key={`${decision.decision_family}-${decision.priority}-${decision.symbol}`}>
+                    <td>{decision.priority.toString().padStart(2, "0")}</td>
+                    <td>
+                      <strong>{decision.symbol}</strong>
+                      <small>{decision.related_recommendation_id || "추천 연결 없음"}</small>
+                    </td>
+                    <td>
+                      <span className={`risk-tag ${decisionSeverityClass(decision.severity)}`}>
+                        {decision.decision_label || koCode(decision.decision_type)}
+                      </span>
+                      <small>{decision.next_review_action}</small>
+                    </td>
+                    <td>{koCode(decision.decision_family)}</td>
+                    <td>
+                      <small>{decision.rationale || "저장된 설명 없음"}</small>
+                      <small>{koCode(decision.order_boundary)} · 주문 전송 {decision.broker_submit_allowed ? "허용" : "금지"}</small>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="empty-state">
+            아직 저장된 포트폴리오 검토 결정 이력이 없다. 최신 후보를 이력화하려면 runner를 실행해야 한다.
+          </div>
+        )}
+        <div className="empty-state">
+          <strong>다음 조치</strong>
+          <p>{portfolioReviewHistory.next_action}</p>
         </div>
       </section>
 
