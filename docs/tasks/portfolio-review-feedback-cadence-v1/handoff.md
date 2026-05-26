@@ -3,7 +3,7 @@
 ## Status
 
 - completed: backend cadence runner, CLI, data-health API payload, portfolio coverage payload, and frontend visibility are wired locally.
-- EC2 deployment smoke remains pending after the local verification batch.
+- EC2 deploy/smoke: completed on commit `77ffb0c`.
 
 ## Context
 
@@ -13,7 +13,7 @@
 
 ## Exact Next Step
 
-- exact next step: commit/push, deploy to EC2, run `portfolio-review-feedback-cadence-run --execute`, and confirm `/api/data-health` plus `/api/portfolio/Long%20Term%20Paper/coverage` expose the persisted cadence state.
+- exact next step: start `portfolio-review-feedback-action-router-v1` so the persisted cadence artifact can safely route the next feedback/calibration runner without ad-hoc manual follow-up.
 
 ## Local Verification
 
@@ -24,6 +24,19 @@
 - `cd apps/web && npm run build`: passed.
 - `bash scripts/verify_project_execution_roadmap.sh`: passed.
 - `PYTHONPATH=/Users/woody/ai/agent-work-harness/src /opt/homebrew/bin/python3.13 -m awh verify --repo . --task portfolio-review-feedback-cadence-v1`: passed.
+
+## EC2 Evidence
+
+- EC2 commit: `77ffb0c`.
+- Services: `stockanalysis-frontend-api.service` and `stockanalysis-web.service` active after restart.
+- EC2 focused tests: `PYTHONPATH=src /opt/stockanalysis/venv/bin/python -m unittest tests.test_portfolio_review_feedback_cadence tests.test_data_operations_cli tests.test_frontend_live_adapter tests.test_data_operations_cadence tests.test_operating_data_orchestrator`: 174 tests passed.
+- EC2 Next build: `npm --prefix apps/web run build` passed.
+- EC2 roadmap verify: `bash scripts/verify_project_execution_roadmap.sh` passed.
+- Runner: `stockanalysis-operations portfolio-review-feedback-cadence-run --portfolio-name "Long Term Paper" --as-of-date 2026-05-27 --execute` completed with `run_id=1637`, `eval_run_id=34`.
+- Runner output: `cadence_status=wait_for_outcome_window`, `history_age_days=2`, `decision_count=11`, `recommendation_link_count=6`, `recommendation_outcome_count=0`, `price_evidence_count=10`, `should_run_now=false`, `automatic_weight_change_allowed=false`, `automatic_rebalance_allowed=false`, `automatic_order_allowed=false`, `broker_submit_allowed=false`, `order_boundary=read_only_no_order`.
+- `/api/data-health`: `portfolio_review_feedback_cadence.status=loaded`, `eval_run_id=eval-run-34`, `cadence_status=wait_for_outcome_window`, `should_run_now=false`, `broker_submit_allowed=false`.
+- `/api/portfolio/Long%20Term%20Paper/coverage?asOfDate=2026-05-25`: `risk_budget.review_feedback_cadence.status=loaded`, `eval_run_id=eval-run-34`, `cadence_status=wait_for_outcome_window`, `should_run_now=false`, `broker_submit_allowed=false`.
+- Route smoke returned `200` for `/`, `/data-health`, and `/portfolio/coverage`.
 
 ## Implemented
 

@@ -11,8 +11,7 @@
 
 ## Residual Risks
 
-- EC2 runtime smoke is still pending.
-- The first live EC2 result is expected to be `wait_for_outcome_window` or equivalent while the latest portfolio review history is younger than the 30-day minimum horizon.
+- The first live EC2 result is `wait_for_outcome_window` while the latest portfolio review history is younger than the 30-day minimum horizon.
 - This task intentionally does not execute the next feedback/calibration command automatically. A follow-up action-router task should decide whether the scheduler may invoke the indicated safe runner.
 
 ## Verification Evidence
@@ -24,3 +23,10 @@
 - `cd apps/web && npm run build`: passed.
 - `bash scripts/verify_project_execution_roadmap.sh`: passed.
 - `PYTHONPATH=/Users/woody/ai/agent-work-harness/src /opt/homebrew/bin/python3.13 -m awh verify --repo . --task portfolio-review-feedback-cadence-v1`: passed.
+- EC2 deploy: commit `77ffb0c` fast-forwarded into `/opt/stockanalysis/app`.
+- EC2 focused tests: 174 tests passed.
+- EC2 Next build: passed.
+- EC2 roadmap verify: passed.
+- EC2 runner: `portfolio-review-feedback-cadence-run --execute` wrote `run_id=1637`, `eval_run_id=34`, `cadence_status=wait_for_outcome_window`.
+- EC2 API smoke: `/api/data-health` and `/api/portfolio/Long%20Term%20Paper/coverage?asOfDate=2026-05-25` both expose `eval-run-34`, `cadence_status=wait_for_outcome_window`, `should_run_now=false`, `order_boundary=read_only_no_order`, `broker_submit_allowed=false`.
+- EC2 route smoke: `/`, `/data-health`, and `/portfolio/coverage` returned `200`.
