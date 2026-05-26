@@ -762,6 +762,18 @@ class ProfessionalEquityAnalysisTests(unittest.TestCase):
 
         self.assertIsNone(_single_reportable_segment_skip_reason(html))
 
+    def test_single_segment_classifier_accepts_operating_and_reportable_phrase(self) -> None:
+        html = """
+        <p>
+          The Company has determined that it operates as a single operating and reportable segment.
+        </p>
+        """
+
+        self.assertEqual(
+            _single_reportable_segment_skip_reason(html),
+            "single_reportable_segment_no_disaggregated_segment_table",
+        )
+
     def test_reported_segment_parser_ignores_single_segment_financial_summary_tables(self) -> None:
         html = Path("tests/fixtures/sec_filing_arm_single_operating_segment_summary_sample.html").read_text(
             encoding="utf-8"

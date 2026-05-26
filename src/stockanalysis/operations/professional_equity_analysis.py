@@ -4903,13 +4903,15 @@ def _contains_company_single_segment_statement(normalized_text: str) -> bool:
             continue
         if re.search(
             r"\b(?:we|company|management|chief executive officer|codm)\b.{0,240}"
-            r"\b(?:one|a single|single)\s+(?:operating|reportable|reporting)\s+segment\b",
+            r"\b(?:one|a single|single)\s+"
+            r"(?:operating|reportable|reporting)(?:\s+and\s+(?:operating|reportable|reporting))?\s+segment\b",
             sentence,
         ):
             return True
         if re.search(
             r"\b(?:we|the company|company)\s+(?:determined\s+)?(?:operate|operates|operated)\s+"
-            r"(?:as|in)?\s*(?:one|a single|single)\s+(?:operating|reportable|reporting)\s+segment\b",
+            r"(?:as|in)?\s*(?:one|a single|single)\s+"
+            r"(?:operating|reportable|reporting)(?:\s+and\s+(?:operating|reportable|reporting))?\s+segment\b",
             sentence,
         ):
             return True
