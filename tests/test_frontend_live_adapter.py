@@ -11,6 +11,7 @@ from unittest.mock import patch
 from stockanalysis.frontend.live_adapter import (
     FrontendLiveUnavailableError,
     FrontendLiveUnsupportedPathError,
+    _build_financial_statement_model_payload,
     is_live_supported_path,
     render_frontend_ai_news_cluster_list_state_sql,
     render_frontend_ai_evidence_detail_state_sql,
@@ -2979,6 +2980,31 @@ class FrontendLiveAdapterTests(unittest.TestCase):
             self.assertIn("limitations", method)
             self.assertGreaterEqual(len(method["limitations"]), 1)
 
+    def test_financial_statement_model_explains_source_data_blocker(self) -> None:
+        payload = _build_financial_statement_model_payload(
+            {
+                "statement_scope": "annual",
+                "metric_count": 0,
+                "computed_metric_count": 0,
+                "source_data_blocker": {
+                    "blocker_code": "sec_companyfacts_missing_us_gaap_facts",
+                    "source_pipeline": "financial_period_source_linkage",
+                    "source_run_id": 1503,
+                    "status": "failed",
+                    "observed_at": "2026-05-26T13:00:00+00:00",
+                    "error_summary": "SEC companyfacts payload does not contain facts.us-gaap",
+                },
+            },
+            symbol="EROK",
+            as_of_date="2026-05-26",
+        )
+
+        self.assertEqual(payload["status"], "unavailable")
+        self.assertEqual(payload["source_data_blocker"]["blocker_code"], "sec_companyfacts_missing_us_gaap_facts")
+        self.assertEqual(payload["source_data_blocker"]["source_run_id"], "pipeline-run-1503")
+        self.assertIn("SEC companyfacts에 us-gaap 재무 facts가 없어", payload["summary"])
+        self.assertEqual(payload["order_boundary"], "read_only_no_order")
+
     def test_live_dashboard_response_matches_frontend_contract_shape(self) -> None:
         payload = resolve_live_frontend_response(
             "/api/dashboard/today",
@@ -3583,6 +3609,7 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertEqual(financial_model["computed_metric_count"], 5)
         self.assertEqual(financial_model["data_gap_count"], 1)
         self.assertEqual(financial_model["source_run_ids"], ["pipeline-run-778"])
+        self.assertIsNone(financial_model["source_data_blocker"])
         self.assertEqual(financial_model["metrics"][0]["label"], "매출 성장률")
         self.assertEqual(financial_model["metrics"][0]["history"][1]["metric_value"], 0.028)
         self.assertEqual(financial_model["sections"][0]["section_key"], "growth")
@@ -3868,6 +3895,8 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertIn("latest_valuation_methods as", detail_sql)
         self.assertIn("'valuation_methods'", detail_sql)
         self.assertIn("market.financial_metric_normalized", detail_sql)
+        self.assertIn("latest_financial_source_linkage_run as", detail_sql)
+        self.assertIn("'source_data_blocker'", detail_sql)
         self.assertIn("financial_metric_universe(metric_code)", detail_sql)
         self.assertIn("latest_financial_metrics as", detail_sql)
         self.assertIn("raw_share_count_rows as", detail_sql)
@@ -4290,6 +4319,7 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertEqual(financial_model["computed_metric_count"], 5)
         self.assertEqual(financial_model["data_gap_count"], 1)
         self.assertEqual(financial_model["source_run_ids"], ["pipeline-run-778"])
+        self.assertIsNone(financial_model["source_data_blocker"])
         self.assertEqual(financial_model["sections"][0]["section_key"], "growth")
         self.assertEqual(financial_model["sections"][0]["metrics"][0]["metric_code"], "revenue_growth_yoy")
         self.assertEqual(financial_model["sections"][2]["section_key"], "cash_flow")
@@ -4469,6 +4499,8 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertIn("'valuation_methods'", sql)
         self.assertIn("valuation.fair_value_base", sql)
         self.assertIn("market.financial_metric_normalized", sql)
+        self.assertIn("latest_financial_source_linkage_run as", sql)
+        self.assertIn("'source_data_blocker'", sql)
         self.assertIn("financial_metric_universe(metric_code)", sql)
         self.assertIn("latest_financial_metrics as", sql)
         self.assertIn("financial_metric_history as", sql)

@@ -4042,6 +4042,26 @@ raw_share_count_rows as (
     join target_date target on period.period_end <= target.as_of_date
     where metric.metric_code = 'shares_outstanding'
       and period.statement_scope = 'annual'
+),
+latest_financial_source_linkage_run as (
+    select
+        run.run_id,
+        run.started_at,
+        run.ended_at,
+        run.status,
+        run.error_summary,
+        case
+            when run.error_summary ilike '%facts.us-gaap%' then 'sec_companyfacts_missing_us_gaap_facts'
+            when run.error_summary ilike '%HTTP Error 404%' then 'sec_companyfacts_not_found'
+            when run.error_summary is not null then 'financial_source_linkage_failed'
+            else null
+        end as blocker_code
+    from ops.pipeline_run run
+    join target_instrument instrument
+      on upper(run.config_json ->> 'fallback_symbol') = upper(instrument.primary_symbol)
+    where run.pipeline_name = 'financial_period_source_linkage'
+    order by run.started_at desc, run.run_id desc
+    limit 1
 )
 select json_build_object(
     'symbol', coalesce((select primary_symbol from target_instrument), {symbol_literal}),
@@ -4220,6 +4240,19 @@ select json_build_object(
                 from financial_metric_status_counts
             ),
             '[]'::json
+        ),
+        'source_data_blocker',
+        (
+            select json_build_object(
+                'blocker_code', blocker_code,
+                'source_pipeline', 'financial_period_source_linkage',
+                'source_run_id', run_id,
+                'status', status,
+                'observed_at', coalesce(ended_at, started_at),
+                'error_summary', error_summary
+            )
+            from latest_financial_source_linkage_run
+            where status = 'failed'
         ),
         'source_run_ids',
         coalesce(
@@ -6737,6 +6770,26 @@ raw_share_count_rows as (
       and period.statement_scope = 'annual'
       and period.period_end <= recommendation.as_of_date
 ),
+latest_financial_source_linkage_run as (
+    select
+        run.run_id,
+        run.started_at,
+        run.ended_at,
+        run.status,
+        run.error_summary,
+        case
+            when run.error_summary ilike '%facts.us-gaap%' then 'sec_companyfacts_missing_us_gaap_facts'
+            when run.error_summary ilike '%HTTP Error 404%' then 'sec_companyfacts_not_found'
+            when run.error_summary is not null then 'financial_source_linkage_failed'
+            else null
+        end as blocker_code
+    from ops.pipeline_run run
+    join selected_recommendation recommendation
+      on upper(run.config_json ->> 'fallback_symbol') = upper(recommendation.primary_symbol)
+    where run.pipeline_name = 'financial_period_source_linkage'
+    order by run.started_at desc, run.run_id desc
+    limit 1
+),
 score_component_rows as (
     select
         component.component_name,
@@ -6988,6 +7041,19 @@ select json_build_object(
                 from financial_metric_status_counts
             ),
             '[]'::json
+        ),
+        'source_data_blocker',
+        (
+            select json_build_object(
+                'blocker_code', blocker_code,
+                'source_pipeline', 'financial_period_source_linkage',
+                'source_run_id', run_id,
+                'status', status,
+                'observed_at', coalesce(ended_at, started_at),
+                'error_summary', error_summary
+            )
+            from latest_financial_source_linkage_run
+            where status = 'failed'
         ),
         'source_run_ids',
         coalesce(
@@ -8100,6 +8166,7 @@ def _build_financial_statement_model_payload(
     computed_metric_count = int(model.get("computed_metric_count") or 0)
     unavailable_metric_count = int(model.get("unavailable_metric_count") or 0)
     insufficient_history_metric_count = int(model.get("insufficient_history_metric_count") or 0)
+    source_data_blocker = _build_financial_source_data_blocker_payload(_as_dict(model.get("source_data_blocker")))
     if computed_metric_count >= 6:
         status = "available"
     elif computed_metric_count > 0:
@@ -8114,6 +8181,8 @@ def _build_financial_statement_model_payload(
             f"{symbol}의 최근 연간 재무 모델은 {computed_metric_count}개 지표가 계산됐고 "
             f"{unavailable_metric_count + insufficient_history_metric_count}개는 원천 데이터 또는 비교 기간이 부족하다."
         )
+    elif source_data_blocker:
+        summary = _financial_source_data_blocker_summary(symbol, source_data_blocker)
     else:
         summary = (
             f"{symbol}의 정규화 재무 모델은 아직 충분하지 않다. 뉴스·사이클 근거가 있어도 "
@@ -8142,6 +8211,7 @@ def _build_financial_statement_model_payload(
             }
             for item in _as_list(model.get("status_counts"))
         ],
+        "source_data_blocker": source_data_blocker,
         "source_run_ids": [
             _opaque_id("pipeline-run", item, None) for item in _as_scalar_list(model.get("source_run_ids")) if item is not None
         ],
@@ -8154,6 +8224,53 @@ def _build_financial_statement_model_payload(
         "broker_submit_allowed": False,
         "order_boundary": "read_only_no_order",
     }
+
+
+def _build_financial_source_data_blocker_payload(blocker: dict[str, Any]) -> dict[str, Any] | None:
+    blocker_code = str(blocker.get("blocker_code") or "").strip()
+    if not blocker_code:
+        return None
+    source_run_id = blocker.get("source_run_id")
+    payload = {
+        "blocker_code": blocker_code,
+        "label": _financial_source_data_blocker_label(blocker_code),
+        "source_pipeline": str(blocker.get("source_pipeline") or "financial_period_source_linkage"),
+        "source_run_id": _opaque_id("pipeline-run", source_run_id, None) if source_run_id is not None else None,
+        "status": str(blocker.get("status") or "failed"),
+        "observed_at": _timestamp(blocker.get("observed_at")),
+        "error_summary": str(blocker.get("error_summary") or ""),
+    }
+    payload["summary"] = _financial_source_data_blocker_summary("", payload)
+    return payload
+
+
+def _financial_source_data_blocker_label(blocker_code: str) -> str:
+    if blocker_code == "sec_companyfacts_missing_us_gaap_facts":
+        return "SEC 재무 facts 없음"
+    if blocker_code == "sec_companyfacts_not_found":
+        return "SEC companyfacts 미제공"
+    if blocker_code == "financial_source_linkage_failed":
+        return "재무 원천 연결 실패"
+    return "재무 원천 데이터 차단"
+
+
+def _financial_source_data_blocker_summary(symbol: str, blocker: dict[str, Any]) -> str:
+    prefix = f"{symbol}의 " if symbol else ""
+    blocker_code = str(blocker.get("blocker_code") or "")
+    if blocker_code == "sec_companyfacts_missing_us_gaap_facts":
+        return (
+            f"{prefix}SEC companyfacts에 us-gaap 재무 facts가 없어 정규화 재무 모델을 만들 수 없다. "
+            "뉴스·사이클 근거가 있어도 재무제표 기반 장기 판단은 보류해야 한다."
+        )
+    if blocker_code == "sec_companyfacts_not_found":
+        return (
+            f"{prefix}SEC companyfacts 원천이 제공되지 않아 정규화 재무 모델을 만들 수 없다. "
+            "ETF·신규 상장·비표준 공시 대상인지 확인해야 한다."
+        )
+    return (
+        f"{prefix}재무 원천 연결이 실패해 정규화 재무 모델을 만들 수 없다. "
+        "원천 공시와 수집 파이프라인을 먼저 확인해야 한다."
+    )
 
 
 def _build_financial_metric_payload(metric: dict[str, Any]) -> dict[str, Any]:
