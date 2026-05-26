@@ -1384,14 +1384,25 @@ relative_multiple_rows as (
             * 1.1500::numeric
         ) as fair_value_high,
         json_build_object(
+            'model_family', 'relative_valuation',
             'method_description', 'Peer percentile adjusted current-price range. This is not an absolute intrinsic value model.',
             'pricing_basis', 'latest adjusted close',
+            'sensitivity_basis', 'quality_score +/- 15% price band',
             'statement_scope', {sql_literal(statement_scope)},
             'price_date', input.price_date,
             'latest_raw_period_end', input.latest_raw_period_end,
             'quality_score', round(input.quality_score, 4),
             'peer_quality_percentile', input.quality_percentile,
             'leverage_percentile', input.leverage_percentile,
+            'key_variables', json_build_array('quality_score', 'peer_quality_percentile', 'leverage_percentile'),
+            'data_quality', json_build_object(
+                'peer_quality_percentile_present', input.quality_percentile is not null,
+                'leverage_percentile_present', input.leverage_percentile is not null
+            ),
+            'limitations', json_build_array(
+                '현재가를 피어 품질 점수로 조정한 상대가치 범위이며 독립적인 내재가치 산정은 아니다.',
+                '피어 그룹 품질과 레버리지 백분위가 부정확하면 목표가 범위도 흔들린다.'
+            ),
             'recommendation_scoring_mutated', false
         )::jsonb as assumptions_json,
         case
@@ -1409,13 +1420,24 @@ scenario_range_rows as (
         input.base_price * (0.9000::numeric + input.quality_score * 0.2000::numeric) as fair_value_base,
         input.base_price * (1.0500::numeric + input.quality_score * 0.2500::numeric) as fair_value_high,
         json_build_object(
+            'model_family', 'scenario_range',
             'method_description', 'Conservative bear/base/bull range anchored to current price and financial-quality context.',
             'pricing_basis', 'latest adjusted close',
+            'sensitivity_basis', 'bear/base/bull band from current price and quality_score',
             'statement_scope', {sql_literal(statement_scope)},
             'price_date', input.price_date,
             'latest_normalized_period_end', input.latest_normalized_period_end,
             'quality_score', round(input.quality_score, 4),
             'normalized_metric_count', input.normalized_metric_count,
+            'key_variables', json_build_array('quality_score', 'normalized_metric_count', 'base_price'),
+            'data_quality', json_build_object(
+                'normalized_metric_count', input.normalized_metric_count,
+                'latest_normalized_period_end', input.latest_normalized_period_end
+            ),
+            'limitations', json_build_array(
+                '보수·기준·낙관 case를 가격 앵커와 품질 점수로 만든 단순 범위다.',
+                '실적 forecast나 확률가중 기대값을 직접 계산한 모델은 아니다.'
+            ),
             'recommendation_scoring_mutated', false
         )::jsonb as assumptions_json,
         case
@@ -1445,8 +1467,11 @@ dcf_lite_rows as (
         intrinsic.fair_value_base,
         intrinsic.fair_value_base * 1.1500::numeric as fair_value_high,
         json_build_object(
+            'model_family', 'intrinsic_dcf_lite',
             'method_description', 'Five-year free-cash-flow-per-share DCF-lite with fixed discount and terminal growth assumptions.',
             'pricing_basis', 'latest adjusted close',
+            'forecast_years', 5,
+            'sensitivity_basis', 'growth_rate, discount_rate, terminal_growth_rate',
             'statement_scope', {sql_literal(statement_scope)},
             'price_date', input.price_date,
             'latest_raw_period_end', input.latest_raw_period_end,
@@ -1456,6 +1481,16 @@ dcf_lite_rows as (
             'growth_rate', input.growth_rate,
             'discount_rate', input.discount_rate,
             'terminal_growth_rate', input.terminal_growth_rate,
+            'key_variables', json_build_array('fcf_per_share', 'growth_rate', 'discount_rate', 'terminal_growth_rate'),
+            'data_quality', json_build_object(
+                'free_cash_flow_present', input.free_cash_flow is not null,
+                'shares_outstanding_present', input.shares_outstanding is not null,
+                'normalized_metric_count', input.normalized_metric_count
+            ),
+            'limitations', json_build_array(
+                '5년 FCF/share를 단순 할인한 모델이며 상세 매출·마진·CAPEX forecast를 대체하지 않는다.',
+                '할인율과 영구성장률은 고정 가정이므로 금리·위험 프리미엄 변화에 민감하다.'
+            ),
             'recommendation_scoring_mutated', false
         )::jsonb as assumptions_json,
         case

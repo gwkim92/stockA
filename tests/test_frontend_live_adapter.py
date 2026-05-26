@@ -481,7 +481,22 @@ class FakeLiveExecutor:
                             "fair_value_base": "270.0000",
                             "fair_value_high": "315.0000",
                             "margin_of_safety": "0.1250",
-                            "assumptions": {"method_description": "Discounted cash flow-lite"},
+                            "assumptions": {
+                                "model_family": "intrinsic_dcf_lite",
+                                "method_description": "Discounted cash flow-lite",
+                                "pricing_basis": "latest adjusted close",
+                                "price_date": "2024-12-02",
+                                "latest_raw_period_end": "2024-09-28",
+                                "free_cash_flow": "108807000000",
+                                "shares_outstanding": "15300000000",
+                                "fcf_per_share": "7.1116",
+                                "growth_rate": "0.0280",
+                                "discount_rate": "0.1000",
+                                "terminal_growth_rate": "0.0250",
+                                "limitations": [
+                                    "5년 FCF/share를 단순 할인한 모델이며 상세 매출·마진·CAPEX forecast를 대체하지 않는다."
+                                ],
+                            },
                             "confidence": "0.6200",
                             "source_run_id": 7801,
                             "created_at": "2024-12-02T10:00:00+00:00",
@@ -495,7 +510,19 @@ class FakeLiveExecutor:
                             "fair_value_base": "255.0000",
                             "fair_value_high": "290.0000",
                             "margin_of_safety": "0.0625",
-                            "assumptions": {"method_description": "Peer multiple comparison"},
+                            "assumptions": {
+                                "model_family": "relative_valuation",
+                                "method_description": "Peer multiple comparison",
+                                "pricing_basis": "latest adjusted close",
+                                "price_date": "2024-12-02",
+                                "latest_raw_period_end": "2024-09-28",
+                                "quality_score": "0.8200",
+                                "peer_quality_percentile": "0.7800",
+                                "leverage_percentile": "0.3100",
+                                "limitations": [
+                                    "현재가를 피어 품질 점수로 조정한 상대가치 범위이며 독립적인 내재가치 산정은 아니다."
+                                ],
+                            },
                             "confidence": "0.5800",
                             "source_run_id": 7801,
                             "created_at": "2024-12-02T10:00:00+00:00",
@@ -509,7 +536,18 @@ class FakeLiveExecutor:
                             "fair_value_base": "260.0000",
                             "fair_value_high": "330.0000",
                             "margin_of_safety": "0.0833",
-                            "assumptions": {"method_description": "Bear/base/bull scenario range"},
+                            "assumptions": {
+                                "model_family": "scenario_range",
+                                "method_description": "Bear/base/bull scenario range",
+                                "pricing_basis": "latest adjusted close",
+                                "price_date": "2024-12-02",
+                                "latest_normalized_period_end": "2024-09-28",
+                                "quality_score": "0.8200",
+                                "normalized_metric_count": 5,
+                                "limitations": [
+                                    "보수·기준·낙관 case를 가격 앵커와 품질 점수로 만든 단순 범위다."
+                                ],
+                            },
                             "confidence": "0.6000",
                             "source_run_id": 7801,
                             "created_at": "2024-12-02T10:00:00+00:00",
@@ -2603,6 +2641,31 @@ class LatestPortfolioCoverageExecutor(FakeLiveExecutor):
 
 
 class FrontendLiveAdapterTests(unittest.TestCase):
+    def assertValuationTargetRangeQuality(self, target_range: dict[str, object], *, expected_status: str) -> None:
+        self.assertEqual(target_range["status"], "available")
+        self.assertEqual(target_range["method_count"], 3)
+        self.assertEqual(target_range["order_boundary"], "read_only_no_order")
+        quality = target_range["valuation_quality"]  # type: ignore[index]
+        self.assertEqual(quality["status"], expected_status)
+        self.assertEqual(quality["method_coverage"], 3)
+        self.assertEqual(quality["expected_method_count"], 3)
+        self.assertEqual(quality["missing_methods"], [])
+        self.assertEqual(quality["order_boundary"], "read_only_no_order")
+
+        methods = target_range["methods"]  # type: ignore[index]
+        self.assertEqual(len(methods), 3)
+        for method in methods:
+            self.assertIn("evidence_summary", method)
+            self.assertIn("목표가", method["evidence_summary"])
+            self.assertIn("assumption_items", method)
+            self.assertGreaterEqual(len(method["assumption_items"]), 1)
+            self.assertIn("sensitivity_cases", method)
+            self.assertEqual([case["case_key"] for case in method["sensitivity_cases"]], ["bear", "base", "bull"])
+            self.assertIn("data_quality", method)
+            self.assertIn(method["data_quality"]["status"], {"strong", "usable", "limited"})
+            self.assertIn("limitations", method)
+            self.assertGreaterEqual(len(method["limitations"]), 1)
+
     def test_live_dashboard_response_matches_frontend_contract_shape(self) -> None:
         payload = resolve_live_frontend_response(
             "/api/dashboard/today",
@@ -3215,7 +3278,7 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertFalse(financial_model["automatic_order_allowed"])
         self.assertEqual(financial_model["score_policy"], "recommendation_weights_unchanged")
         target_range = payload["data"]["valuation_target_range"]
-        self.assertEqual(target_range["status"], "available")
+        self.assertValuationTargetRangeQuality(target_range, expected_status="usable")
         self.assertEqual(target_range["method_count"], 3)
         self.assertEqual(target_range["base_price"], 240.0)
         self.assertEqual(target_range["target_low"], 200.0)
@@ -3223,6 +3286,13 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertEqual(target_range["target_high"], 330.0)
         self.assertAlmostEqual(target_range["upside_base"], 0.0902777778)
         self.assertEqual(target_range["methods"][0]["method"], "dcf_lite")
+        self.assertEqual(target_range["methods"][0]["data_quality"]["status"], "strong")
+        self.assertEqual(target_range["methods"][0]["data_quality"]["data_gap_count"], 0)
+        self.assertEqual(target_range["methods"][0]["assumption_items"][0]["label"], "가격 기준일")
+        self.assertEqual(target_range["methods"][0]["assumption_items"][2]["value"], "2.8%")
+        self.assertEqual(target_range["methods"][0]["sensitivity_cases"][1]["label"], "기준")
+        self.assertAlmostEqual(target_range["methods"][0]["sensitivity_cases"][1]["upside"], 0.125)
+        self.assertIn("상세 매출·마진·CAPEX forecast", target_range["methods"][0]["limitations"][0])
         self.assertEqual(target_range["methods"][0]["source_run_id"], "pipeline-run-7801")
         self.assertFalse(target_range["automatic_order_allowed"])
         self.assertEqual(target_range["score_policy"], "recommendation_weights_unchanged")
@@ -3842,7 +3912,7 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertFalse(financial_model["broker_submit_allowed"])
         self.assertEqual(financial_model["order_boundary"], "read_only_no_order")
         target_range = payload["data"]["valuation_target_range"]
-        self.assertEqual(target_range["status"], "available")
+        self.assertValuationTargetRangeQuality(target_range, expected_status="review_required")
         self.assertEqual(target_range["method_count"], 3)
         self.assertEqual(target_range["target_low"], 200.0)
         self.assertAlmostEqual(target_range["target_base"], 261.6666666667)
@@ -4089,7 +4159,7 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertEqual(lifecycle["valuation"]["upside_case"], "서비스 성장 유지")
         self.assertEqual(lifecycle["review_cadence"]["next_review_date"], "2024-12-01")
         target_range = payload["data"]["valuation_target_range"]
-        self.assertEqual(target_range["status"], "available")
+        self.assertValuationTargetRangeQuality(target_range, expected_status="review_required")
         self.assertEqual(target_range["method_count"], 3)
         self.assertAlmostEqual(target_range["target_base"], 261.6666666667)
         self.assertAlmostEqual(target_range["margin_of_safety"], 0.0902666667)

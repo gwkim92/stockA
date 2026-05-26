@@ -314,6 +314,35 @@ export type ValuationMethodSnapshot = {
   margin_of_safety: number | null;
   confidence: number | null;
   assumptions: Record<string, unknown>;
+  upside_low: number | null;
+  upside_base: number | null;
+  upside_high: number | null;
+  valuation_gap: number | null;
+  evidence_summary: string;
+  assumption_items: Array<{
+    label: string;
+    value: string;
+    interpretation: string;
+  }>;
+  sensitivity_cases: Array<{
+    case_key: string;
+    label: string;
+    fair_value: number | null;
+    upside: number | null;
+    margin_of_safety: number | null;
+    description: string;
+  }>;
+  data_quality: {
+    status: string;
+    label: string;
+    confidence_label: string;
+    input_count: number;
+    expected_input_count: number;
+    data_gap_count: number;
+    warning_count: number;
+    warnings: string[];
+  };
+  limitations: string[];
   source_run_id: string | null;
   created_at: string;
 };
@@ -336,6 +365,18 @@ export type ValuationTargetRange = {
   confidence: number | null;
   summary: string;
   methods: ValuationMethodSnapshot[];
+  valuation_quality: {
+    status: string;
+    label: string;
+    method_coverage: number;
+    expected_method_count: number;
+    missing_methods: string[];
+    data_gap_count: number;
+    warning_count: number;
+    confidence: number | null;
+    confidence_label: string;
+    order_boundary: string;
+  };
   score_policy: string;
   automatic_order_allowed: boolean;
   broker_submit_allowed: boolean;

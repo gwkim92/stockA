@@ -8216,6 +8216,13 @@ def _build_valuation_target_range_payload(
     for row in method_rows:
         method = str(row.get("method") or "unknown")
         source_run_id = row.get("source_run_id")
+        base_price = _number(row.get("base_price"))
+        fair_value_low = _number(row.get("fair_value_low"))
+        fair_value_base = _number(row.get("fair_value_base"))
+        fair_value_high = _number(row.get("fair_value_high"))
+        margin_of_safety = _number(row.get("margin_of_safety"))
+        confidence = _number(row.get("confidence"))
+        assumptions = _as_dict(row.get("assumptions") or row.get("assumptions_json"))
         methods.append(
             {
                 "valuation_snapshot_id": _opaque_id("valuation-snapshot", row.get("valuation_snapshot_id"), None)
@@ -8224,13 +8231,37 @@ def _build_valuation_target_range_payload(
                 "method": method,
                 "method_label": _valuation_method_label(method),
                 "as_of_date": str(row.get("as_of_date") or ""),
-                "base_price": _number(row.get("base_price")),
-                "fair_value_low": _number(row.get("fair_value_low")),
-                "fair_value_base": _number(row.get("fair_value_base")),
-                "fair_value_high": _number(row.get("fair_value_high")),
-                "margin_of_safety": _number(row.get("margin_of_safety")),
-                "confidence": _number(row.get("confidence")),
-                "assumptions": _as_dict(row.get("assumptions") or row.get("assumptions_json")),
+                "base_price": base_price,
+                "fair_value_low": fair_value_low,
+                "fair_value_base": fair_value_base,
+                "fair_value_high": fair_value_high,
+                "margin_of_safety": margin_of_safety,
+                "confidence": confidence,
+                "assumptions": assumptions,
+                "upside_low": _valuation_upside(fair_value_low, base_price),
+                "upside_base": _valuation_upside(fair_value_base, base_price),
+                "upside_high": _valuation_upside(fair_value_high, base_price),
+                "valuation_gap": (fair_value_base - base_price)
+                if fair_value_base is not None and base_price is not None
+                else None,
+                "evidence_summary": _valuation_method_evidence_summary(
+                    method=method,
+                    assumptions=assumptions,
+                    fair_value_base=fair_value_base,
+                    margin_of_safety=margin_of_safety,
+                    confidence=confidence,
+                    currency_code=currency_code,
+                ),
+                "assumption_items": _valuation_method_assumption_items(method, assumptions),
+                "sensitivity_cases": _valuation_method_sensitivity_cases(
+                    method=method,
+                    base_price=base_price,
+                    fair_value_low=fair_value_low,
+                    fair_value_base=fair_value_base,
+                    fair_value_high=fair_value_high,
+                ),
+                "data_quality": _valuation_method_data_quality(method, assumptions, confidence, margin_of_safety),
+                "limitations": _valuation_method_limitations(method, assumptions),
                 "source_run_id": _opaque_id("pipeline-run", source_run_id, None)
                 if source_run_id is not None
                 else None,
@@ -8278,6 +8309,7 @@ def _build_valuation_target_range_payload(
         "confidence": confidence,
         "summary": summary,
         "methods": methods,
+        "valuation_quality": _valuation_quality_summary(methods, target_range_available),
         "score_policy": "recommendation_weights_unchanged",
         "automatic_order_allowed": False,
         "broker_submit_allowed": False,
@@ -8292,6 +8324,266 @@ def _valuation_method_label(method: str) -> str:
         "scenario_range": "시나리오 범위",
     }
     return labels.get(method, method or "미확인")
+
+
+def _valuation_method_evidence_summary(
+    *,
+    method: str,
+    assumptions: dict[str, Any],
+    fair_value_base: float | None,
+    margin_of_safety: float | None,
+    confidence: float | None,
+    currency_code: str,
+) -> str:
+    target_text = _format_currency_text(fair_value_base, currency_code)
+    margin_text = _format_signed_percent_text(margin_of_safety)
+    confidence_text = _valuation_confidence_label(confidence)
+    if method == "dcf_lite":
+        growth = _format_assumption_value(assumptions.get("growth_rate"), prefer_percent=True)
+        discount = _format_assumption_value(assumptions.get("discount_rate"), prefer_percent=True)
+        terminal = _format_assumption_value(assumptions.get("terminal_growth_rate"), prefer_percent=True)
+        return (
+            f"DCF-lite 기준 목표가는 {target_text}이다. FCF/share, 성장률 {growth}, 할인율 {discount}, "
+            f"영구성장률 {terminal}에 민감하며 안전마진은 {margin_text}, 신뢰도는 {confidence_text}이다."
+        )
+    if method == "relative_multiple":
+        quality = _format_assumption_value(assumptions.get("quality_score"), prefer_percent=True)
+        return (
+            f"상대 배수 기준 목표가는 {target_text}이다. 피어 대비 품질 점수 {quality}를 현재가 범위에 반영했으며 "
+            f"안전마진은 {margin_text}, 신뢰도는 {confidence_text}이다."
+        )
+    if method == "scenario_range":
+        quality = _format_assumption_value(assumptions.get("quality_score"), prefer_percent=True)
+        return (
+            f"시나리오 범위 기준 목표가는 {target_text}이다. 보수·기준·낙관 case를 품질 점수 {quality}와 연결했으며 "
+            f"안전마진은 {margin_text}, 신뢰도는 {confidence_text}이다."
+        )
+    return f"{_valuation_method_label(method)} 기준 목표가는 {target_text}, 안전마진은 {margin_text}, 신뢰도는 {confidence_text}이다."
+
+
+def _valuation_method_assumption_items(method: str, assumptions: dict[str, Any]) -> list[dict[str, str]]:
+    if method == "dcf_lite":
+        candidates = [
+            ("가격 기준일", "price_date", "현재가 기준점을 고정한다.", False),
+            ("FCF/share", "fcf_per_share", "DCF의 출발 현금흐름이다.", False),
+            ("성장률", "growth_rate", "향후 5년 현금흐름 증가 가정이다.", True),
+            ("할인율", "discount_rate", "현금흐름 위험을 현재가치로 할인하는 비율이다.", True),
+            ("영구성장률", "terminal_growth_rate", "5년 이후 잔존가치의 장기 성장률이다.", True),
+            ("최근 원천 재무 기간", "latest_raw_period_end", "현금흐름과 주식수 입력의 기준 기간이다.", False),
+        ]
+    elif method == "relative_multiple":
+        candidates = [
+            ("가격 기준일", "price_date", "상대가치 범위가 앵커로 삼은 현재가 기준일이다.", False),
+            ("피어 품질 점수", "quality_score", "성장성·수익성·재무 안정성의 피어 상대 위치다.", True),
+            ("품질 백분위", "peer_quality_percentile", "피어 그룹 내 성장·수익·현금흐름 품질 백분위다.", True),
+            ("레버리지 백분위", "leverage_percentile", "피어 그룹 내 재무 부담 위치다.", True),
+            ("최근 원천 재무 기간", "latest_raw_period_end", "상대 비교에 참고한 재무 입력 기간이다.", False),
+        ]
+    elif method == "scenario_range":
+        candidates = [
+            ("가격 기준일", "price_date", "시나리오 범위가 앵커로 삼은 현재가 기준일이다.", False),
+            ("품질 점수", "quality_score", "보수·기준·낙관 case의 폭을 조정하는 입력이다.", True),
+            ("정규화 지표 수", "normalized_metric_count", "사용 가능한 재무 지표의 폭이다.", False),
+            ("최근 정규화 재무 기간", "latest_normalized_period_end", "정규화 지표의 기준 기간이다.", False),
+        ]
+    else:
+        candidates = [
+            ("가정 설명", "method_description", "모델 산출 방식을 설명한다.", False),
+            ("가격 기준", "pricing_basis", "목표가 범위가 사용하는 가격 기준이다.", False),
+        ]
+
+    items = [
+        {
+            "label": label,
+            "value": _format_assumption_value(assumptions.get(key), prefer_percent=prefer_percent),
+            "interpretation": interpretation,
+        }
+        for label, key, interpretation, prefer_percent in candidates
+        if assumptions.get(key) is not None
+    ]
+    if not items:
+        items.append(
+            {
+                "label": "가정 공백",
+                "value": "미기록",
+                "interpretation": "과거 snapshot이라 구조화 가정이 부족하다. 최신 valuation runner 재실행이 필요하다.",
+            }
+        )
+    return items
+
+
+def _valuation_method_sensitivity_cases(
+    *,
+    method: str,
+    base_price: float | None,
+    fair_value_low: float | None,
+    fair_value_base: float | None,
+    fair_value_high: float | None,
+) -> list[dict[str, Any]]:
+    descriptions = {
+        "dcf_lite": (
+            "성장률·할인율·잔존가치가 불리하게 움직이는 경우",
+            "현재 FCF/share와 기본 성장·할인 가정이 유지되는 경우",
+            "현금흐름 성장과 잔존가치가 우호적으로 유지되는 경우",
+        ),
+        "relative_multiple": (
+            "피어 대비 품질 프리미엄이 낮게 인정되는 경우",
+            "현재 피어 품질 점수를 그대로 반영하는 경우",
+            "피어 대비 품질 프리미엄을 더 높게 인정하는 경우",
+        ),
+        "scenario_range": (
+            "품질 점수와 시장 배수가 보수적으로 반영되는 경우",
+            "현재 품질 점수를 기준으로 보는 경우",
+            "성장성과 수익성 평가가 우호적인 경우",
+        ),
+    }
+    low_description, base_description, high_description = descriptions.get(
+        method,
+        (
+            "보수 case",
+            "기준 case",
+            "낙관 case",
+        ),
+    )
+    raw_cases = [
+        ("bear", "보수", fair_value_low, low_description),
+        ("base", "기준", fair_value_base, base_description),
+        ("bull", "낙관", fair_value_high, high_description),
+    ]
+    return [
+        {
+            "case_key": case_key,
+            "label": label,
+            "fair_value": fair_value,
+            "upside": _valuation_upside(fair_value, base_price),
+            "margin_of_safety": _valuation_upside(fair_value, base_price),
+            "description": description,
+        }
+        for case_key, label, fair_value, description in raw_cases
+    ]
+
+
+def _valuation_method_data_quality(
+    method: str,
+    assumptions: dict[str, Any],
+    confidence: float | None,
+    margin_of_safety: float | None,
+) -> dict[str, Any]:
+    expected_keys = {
+        "dcf_lite": ["free_cash_flow", "shares_outstanding", "fcf_per_share", "growth_rate", "discount_rate", "terminal_growth_rate"],
+        "relative_multiple": ["quality_score", "peer_quality_percentile", "leverage_percentile"],
+        "scenario_range": ["quality_score", "normalized_metric_count"],
+    }.get(method, ["method_description"])
+    present_count = sum(1 for key in expected_keys if assumptions.get(key) is not None)
+    data_gap_count = max(0, len(expected_keys) - present_count)
+    warnings: list[str] = []
+    if data_gap_count > 0:
+        warnings.append(f"핵심 입력 {data_gap_count}개가 assumptions_json에 없다.")
+    if confidence is None:
+        warnings.append("모델 신뢰도가 없다.")
+    elif confidence < 0.35:
+        warnings.append("모델 신뢰도가 낮다.")
+    if margin_of_safety is not None and margin_of_safety < 0:
+        warnings.append("기준 목표가가 현재가보다 낮아 안전마진이 음수다.")
+
+    if confidence is not None and confidence >= 0.55 and data_gap_count == 0:
+        status = "strong"
+    elif confidence is not None and confidence >= 0.35:
+        status = "usable"
+    else:
+        status = "limited"
+
+    return {
+        "status": status,
+        "label": {
+            "strong": "입력 충분",
+            "usable": "검토 가능",
+            "limited": "보수적 해석",
+        }.get(status, "보수적 해석"),
+        "confidence_label": _valuation_confidence_label(confidence),
+        "input_count": present_count,
+        "expected_input_count": len(expected_keys),
+        "data_gap_count": data_gap_count,
+        "warning_count": len(warnings),
+        "warnings": warnings,
+    }
+
+
+def _valuation_method_limitations(method: str, assumptions: dict[str, Any]) -> list[str]:
+    explicit = [str(value) for value in _as_scalar_list(assumptions.get("limitations")) if str(value).strip()]
+    if explicit:
+        return explicit
+    if method == "dcf_lite":
+        return [
+            "5년 FCF/share를 단순 할인한 모델이며 상세 매출·마진·CAPEX forecast를 대체하지 않는다.",
+            "할인율과 영구성장률은 고정 가정이므로 금리·위험 프리미엄 변화에 민감하다.",
+        ]
+    if method == "relative_multiple":
+        return [
+            "현재가를 피어 품질 점수로 조정한 상대가치 범위이며 독립적인 내재가치 산정은 아니다.",
+            "피어 그룹 품질과 레버리지 백분위가 부정확하면 목표가 범위도 흔들린다.",
+        ]
+    if method == "scenario_range":
+        return [
+            "보수·기준·낙관 case를 가격 앵커와 품질 점수로 만든 단순 범위다.",
+            "실적 forecast나 확률가중 기대값을 직접 계산한 모델은 아니다.",
+        ]
+    return ["모델 한계가 구조화되지 않았다. 최신 valuation runner 재실행이 필요하다."]
+
+
+def _valuation_quality_summary(methods: list[dict[str, Any]], target_range_available: bool) -> dict[str, Any]:
+    expected_methods = ("dcf_lite", "relative_multiple", "scenario_range")
+    present_methods = {str(method.get("method") or "") for method in methods}
+    missing_methods = [method for method in expected_methods if method not in present_methods]
+    data_gap_count = sum(int(_as_dict(method.get("data_quality")).get("data_gap_count") or 0) for method in methods)
+    warning_count = sum(int(_as_dict(method.get("data_quality")).get("warning_count") or 0) for method in methods)
+    confidence = _mean_number(method.get("confidence") for method in methods)
+    if not target_range_available:
+        status = "unavailable"
+    elif missing_methods or data_gap_count or warning_count:
+        status = "review_required"
+    else:
+        status = "usable"
+    return {
+        "status": status,
+        "label": {
+            "usable": "밸류에이션 검토 가능",
+            "review_required": "가정 검토 필요",
+            "unavailable": "밸류에이션 대기",
+        }.get(status, "가정 검토 필요"),
+        "method_coverage": len(present_methods),
+        "expected_method_count": len(expected_methods),
+        "missing_methods": missing_methods,
+        "data_gap_count": data_gap_count,
+        "warning_count": warning_count,
+        "confidence": confidence,
+        "confidence_label": _valuation_confidence_label(confidence),
+        "order_boundary": "read_only_no_order",
+    }
+
+
+def _valuation_confidence_label(confidence: object) -> str:
+    value = _number(confidence)
+    if value is None:
+        return "미측정"
+    if value >= 0.55:
+        return "상대적으로 높음"
+    if value >= 0.35:
+        return "보통"
+    return "낮음"
+
+
+def _format_assumption_value(value: object, *, prefer_percent: bool = False) -> str:
+    if value is None:
+        return "미기록"
+    number = _safe_number(value)
+    if number is not None:
+        if prefer_percent:
+            return _format_signed_percent_text(number) if number < 0 else _format_percent_text(number)
+        if abs(number) >= 1_000_000:
+            return f"{number:,.0f}"
+        return f"{number:,.4f}".rstrip("0").rstrip(".")
+    return str(value)
 
 
 def _mean_number(values: Iterable[object]) -> float | None:
