@@ -576,7 +576,8 @@ def _apply_parser_skip_reason_overrides(
             updated["segment_parser_skip_reasons"] = reasons
         if (
             updated.get("coverage_status") == "unsupported_layout"
-            and "single_reportable_segment_no_disaggregated_segment_table" in reasons
+            and reasons
+            and all(reason == "single_reportable_segment_no_disaggregated_segment_table" for reason in reasons)
         ):
             updated["coverage_status"] = "single_reportable_segment_no_disaggregated_segment_table"
         updated_rows.append(updated)

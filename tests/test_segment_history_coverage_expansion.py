@@ -9,6 +9,7 @@ from stockanalysis.ingest.config import RuntimeConfig
 from stockanalysis.ingest.market.universe import MarketUniverseRecord
 from stockanalysis.operations.segment_history_coverage_expansion import (
     DEFAULT_SEGMENT_HISTORY_COVERAGE_MODEL_NAME,
+    _apply_parser_skip_reason_overrides,
     load_active_segment_history_coverage_candidates,
     render_segment_history_coverage_report_sql,
     run_segment_history_coverage_expansion,
@@ -212,6 +213,41 @@ class SegmentHistoryCoverageExpansionTests(unittest.TestCase):
         self.assertEqual(backfill.call_args_list[1].kwargs["fallback_symbol"], "MSFT")
         self.assertTrue(backfill.call_args_list[0].kwargs["execute"])
         self.assertEqual(backfill.call_args_list[0].kwargs["periods_per_instrument"], 4)
+
+    def test_skip_reason_override_does_not_hide_mixed_unsupported_layouts(self) -> None:
+        rows = [
+            {
+                "symbol": "AEIS",
+                "coverage_status": "unsupported_layout",
+                "parsed_period_count": 0,
+            }
+        ]
+        reports = [
+            {
+                "reported_segment_parser": {
+                    "preview": {
+                        "skipped_candidates": [
+                            {
+                                "primary_symbol": "AEIS",
+                                "reason": "unsupported_segment_table_layout",
+                            },
+                            {
+                                "primary_symbol": "AEIS",
+                                "reason": "single_reportable_segment_no_disaggregated_segment_table",
+                            },
+                        ]
+                    }
+                }
+            }
+        ]
+
+        updated = _apply_parser_skip_reason_overrides(rows, reports)
+
+        self.assertEqual(updated[0]["coverage_status"], "unsupported_layout")
+        self.assertEqual(
+            updated[0]["segment_parser_skip_reasons"],
+            ["unsupported_segment_table_layout", "single_reportable_segment_no_disaggregated_segment_table"],
+        )
 
 
 if __name__ == "__main__":
