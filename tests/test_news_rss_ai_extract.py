@@ -140,6 +140,14 @@ class FakeExecutor:
                         "instrument_name": "Exxon Mobil Corporation",
                     }
                 )
+            if "SPY" in sql:
+                return json.dumps(
+                    {
+                        "instrument_id": 703,
+                        "primary_symbol": "SPY",
+                        "instrument_name": "SPDR S&P 500 ETF TRUST",
+                    }
+                )
             else:
                 raise PsqlExecutionError("psql returned no rows for scalar query")
         raise AssertionError(f"Unexpected scalar SQL: {sql}")
@@ -484,6 +492,47 @@ class NewsRssAiExtractTests(unittest.TestCase):
         self.assertEqual(len(validated.theme_impacts), 1)
         self.assertEqual(len(validated.instrument_impacts), 0)
         self.assertEqual(validated.rejected_impact_count, 1)
+
+    def test_validate_allows_curated_index_alias_for_etf_proxy(self) -> None:
+        output = parse_news_ai_output(
+            {
+                "analysis_method": "codex_oauth_hierarchical_v3",
+                "event_summary": "S&P 500 선물 하락은 광범위 미국 주식 베타 점검 신호다.",
+                "macro_regime_impacts": [],
+                "domain_impacts": [],
+                "theme_impacts": [],
+                "direct_instrument_impacts": [
+                    {
+                        "symbol": "SPY",
+                        "impact_direction": "risk_review",
+                        "impact_strength": 0.6,
+                        "confidence": 0.78,
+                        "rationale": "SPY는 S&P 500 익스포저를 대표하는 ETF다.",
+                        "evidence_summary": "제목이 S&P 500 선물 하락을 직접 언급한다.",
+                    }
+                ],
+                "causal_paths": [],
+                "uncertainty_notes": "개별 기업 뉴스가 아니라 지수 ETF proxy로만 연결한다.",
+                "evidence_spans": [
+                    {
+                        "span_text": "S&P 500 futures fall",
+                        "supports": ["SPY"],
+                    }
+                ],
+                "recommendation_relevance": "broad market risk review",
+            }
+        )
+
+        validated = validate_news_ai_output(
+            output,
+            min_confidence=0.72,
+            executor=FakeExecutor(),
+            source_text="Stock market today: Dow, S&P 500, Nasdaq futures fall.",
+        )
+
+        self.assertEqual(len(validated.instrument_impacts), 1)
+        self.assertEqual(validated.instrument_impacts[0].primary_symbol, "SPY")
+        self.assertEqual(validated.rejected_impact_count, 0)
 
     def test_parse_and_validate_hierarchical_macro_only_output(self) -> None:
         output = parse_news_ai_output(

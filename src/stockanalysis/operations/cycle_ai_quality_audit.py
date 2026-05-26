@@ -82,6 +82,15 @@ classification_impacts as (
     join ref.classification_node node on node.node_id = impact.node_id
     left join event_documents document on document.event_id = impact.event_id
 ),
+source_aliases(primary_symbol, alias_text) as (
+    values
+        ('SPY', 's&p 500'),
+        ('SPY', 's&p500'),
+        ('SPY', 'spx'),
+        ('QQQ', 'nasdaq 100'),
+        ('QQQ', 'nasdaq futures'),
+        ('XLE', 'energy sector')
+),
 direct_impacts as (
     select
         impact.event_id,
@@ -91,26 +100,61 @@ direct_impacts as (
         impact.impact_direction,
         impact.impact_strength,
         impact.confidence,
-        upper(
-            coalesce(document.title, event_row.title, '') || ' ' ||
-            coalesce(document.summary, event_row.summary, '')
-        ) as source_text_upper,
+        source_text.source_text_upper,
         case
-            when position(upper(instrument.primary_symbol) in upper(
-                coalesce(document.title, event_row.title, '') || ' ' ||
-                coalesce(document.summary, event_row.summary, '')
-            )) > 0 then true
-            when length(split_part(upper(instrument.name), ' ', 1)) > 2
-             and position(split_part(upper(instrument.name), ' ', 1) in upper(
-                coalesce(document.title, event_row.title, '') || ' ' ||
-                coalesce(document.summary, event_row.summary, '')
-             )) > 0 then true
+            when position(' ' || lower(instrument.primary_symbol) || ' ' in source_text.source_text_normalized) > 0 then true
+            when exists (
+                select 1
+                from source_aliases alias
+                where alias.primary_symbol = upper(instrument.primary_symbol)
+                  and position(
+                      ' ' || btrim(regexp_replace(lower(alias.alias_text), '[^a-z0-9]+', ' ', 'g')) || ' '
+                      in source_text.source_text_normalized
+                  ) > 0
+            ) then true
+            when exists (
+                select 1
+                from regexp_split_to_table(instrument.name, '[^A-Za-z0-9]+') as token(value)
+                where length(lower(token.value)) >= 4
+                  and lower(token.value) not in (
+                      'class',
+                      'company',
+                      'corp',
+                      'corporation',
+                      'group',
+                      'holding',
+                      'holdings',
+                      'inc',
+                      'ltd',
+                      'plc',
+                      'shares',
+                      'stock',
+                      'trust'
+                  )
+                  and position(' ' || lower(token.value) || ' ' in source_text.source_text_normalized) > 0
+            ) then true
             else false
         end as is_grounded
     from event.event_instrument_impact impact
     join windowed_events event_row on event_row.event_id = impact.event_id
     join ref.instrument instrument on instrument.instrument_id = impact.instrument_id
     left join event_documents document on document.event_id = impact.event_id
+    cross join lateral (
+        select
+            upper(
+                coalesce(document.title, event_row.title, '') || ' ' ||
+                coalesce(document.summary, event_row.summary, '')
+            ) as source_text_upper,
+            ' ' || btrim(regexp_replace(
+                lower(
+                    coalesce(document.title, event_row.title, '') || ' ' ||
+                    coalesce(document.summary, event_row.summary, '')
+                ),
+                '[^a-z0-9]+',
+                ' ',
+                'g'
+            )) || ' ' as source_text_normalized
+    ) source_text
 ),
 duplicate_titles as (
     select

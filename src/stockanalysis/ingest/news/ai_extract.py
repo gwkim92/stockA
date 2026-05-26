@@ -1603,6 +1603,12 @@ _COMPANY_NAME_STOPWORDS = {
     "trust",
 }
 
+_DIRECT_INSTRUMENT_SOURCE_ALIASES = {
+    "SPY": ("s&p 500", "s&p500", "spx"),
+    "QQQ": ("nasdaq 100", "nasdaq futures"),
+    "XLE": ("energy sector",),
+}
+
 
 def _instrument_impact_is_source_grounded(
     *,
@@ -1616,6 +1622,8 @@ def _instrument_impact_is_source_grounded(
     symbol = str(getattr(instrument, "primary_symbol", impact.target) or impact.target).upper()
     if symbol and re.search(rf"(?<![A-Z0-9.]){re.escape(symbol)}(?![A-Z0-9.])", haystack):
         return True
+    if any(_grounding_phrase_in_source(source_text, alias) for alias in _DIRECT_INSTRUMENT_SOURCE_ALIASES.get(symbol, ())):
+        return True
     instrument_name = str(getattr(instrument, "instrument_name", "") or "")
     for token in re.findall(r"[A-Za-z][A-Za-z0-9&.-]+", instrument_name):
         normalized = token.strip(".-").lower()
@@ -1624,6 +1632,16 @@ def _instrument_impact_is_source_grounded(
         if re.search(rf"(?<![A-Z0-9]){re.escape(token.upper())}(?![A-Z0-9])", haystack):
             return True
     return False
+
+
+def _grounding_phrase_in_source(source_text: str, phrase: str) -> bool:
+    source_normalized = f" {_normalize_grounding_phrase(source_text)} "
+    phrase_normalized = _normalize_grounding_phrase(phrase)
+    return bool(phrase_normalized) and f" {phrase_normalized} " in source_normalized
+
+
+def _normalize_grounding_phrase(value: str) -> str:
+    return re.sub(r"[^a-z0-9]+", " ", value.lower()).strip()
 
 
 def _validated_rationale(impact: NewsAiImpactOutput, uncertainty_notes: str) -> str:
