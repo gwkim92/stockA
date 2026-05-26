@@ -113,6 +113,14 @@ from stockanalysis.operations.portfolio_review_decision_feedback import (
     DEFAULT_MIN_HORIZON_DAYS as DEFAULT_PORTFOLIO_REVIEW_FEEDBACK_MIN_HORIZON_DAYS,
     run_portfolio_review_decision_feedback,
 )
+from stockanalysis.operations.portfolio_review_feedback_calibration import (
+    DEFAULT_LIMIT as DEFAULT_PORTFOLIO_REVIEW_CALIBRATION_LIMIT,
+    DEFAULT_LOOKBACK_DAYS as DEFAULT_PORTFOLIO_REVIEW_CALIBRATION_LOOKBACK_DAYS,
+    DEFAULT_MAX_CONTRADICTION_RATE as DEFAULT_PORTFOLIO_REVIEW_CALIBRATION_MAX_CONTRADICTION_RATE,
+    DEFAULT_MIN_FEEDBACK_RUNS as DEFAULT_PORTFOLIO_REVIEW_CALIBRATION_MIN_FEEDBACK_RUNS,
+    DEFAULT_MIN_MATURE_DECISIONS as DEFAULT_PORTFOLIO_REVIEW_CALIBRATION_MIN_MATURE_DECISIONS,
+    run_portfolio_review_feedback_calibration,
+)
 from stockanalysis.operations.recommendation_fundamental_components import (
     DEFAULT_HORIZON_TYPE as DEFAULT_FUNDAMENTAL_COMPONENT_HORIZON_TYPE,
     DEFAULT_MARKET_CODE as DEFAULT_FUNDAMENTAL_COMPONENT_MARKET_CODE,
@@ -984,6 +992,44 @@ def build_parser() -> argparse.ArgumentParser:
     portfolio_review_decision_feedback.add_argument("--output")
     portfolio_review_decision_feedback.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
     portfolio_review_decision_feedback.set_defaults(handler=_handle_portfolio_review_decision_feedback_run)
+
+    portfolio_review_feedback_calibration = subparsers.add_parser(
+        "portfolio-review-feedback-calibration-run",
+        help="Aggregate portfolio review feedback artifacts before any manual weight-pilot readiness.",
+    )
+    portfolio_review_feedback_calibration.add_argument("--env-file")
+    portfolio_review_feedback_calibration.add_argument("--portfolio-name", default=DEFAULT_PORTFOLIO_NAME)
+    portfolio_review_feedback_calibration.add_argument("--as-of-date", required=True)
+    portfolio_review_feedback_calibration.add_argument(
+        "--lookback-days",
+        type=int,
+        default=DEFAULT_PORTFOLIO_REVIEW_CALIBRATION_LOOKBACK_DAYS,
+    )
+    portfolio_review_feedback_calibration.add_argument(
+        "--limit",
+        type=int,
+        default=DEFAULT_PORTFOLIO_REVIEW_CALIBRATION_LIMIT,
+    )
+    portfolio_review_feedback_calibration.add_argument(
+        "--min-feedback-runs",
+        type=int,
+        default=DEFAULT_PORTFOLIO_REVIEW_CALIBRATION_MIN_FEEDBACK_RUNS,
+    )
+    portfolio_review_feedback_calibration.add_argument(
+        "--min-mature-decisions",
+        type=int,
+        default=DEFAULT_PORTFOLIO_REVIEW_CALIBRATION_MIN_MATURE_DECISIONS,
+    )
+    portfolio_review_feedback_calibration.add_argument(
+        "--max-contradiction-rate",
+        type=float,
+        default=DEFAULT_PORTFOLIO_REVIEW_CALIBRATION_MAX_CONTRADICTION_RATE,
+    )
+    portfolio_review_feedback_calibration.add_argument("--execute", action="store_true")
+    portfolio_review_feedback_calibration.add_argument("--dry-run", action="store_true")
+    portfolio_review_feedback_calibration.add_argument("--output")
+    portfolio_review_feedback_calibration.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
+    portfolio_review_feedback_calibration.set_defaults(handler=_handle_portfolio_review_feedback_calibration_run)
 
     benchmark_composition_import = subparsers.add_parser(
         "benchmark-composition-import-run",
@@ -2278,6 +2324,36 @@ def _handle_portfolio_review_decision_feedback_run(args: argparse.Namespace, *, 
         output_path = resolve_output_path(
             args.output,
             label="portfolio review decision outcome feedback output",
+            repo_root=args.repo_root,
+            require_repo_outside=True,
+        )
+        write_json_report(report, output_path=output_path, stdout=stdout)
+    else:
+        print_json(report, stdout=stdout, sort_keys=False)
+    return 0
+
+
+def _handle_portfolio_review_feedback_calibration_run(args: argparse.Namespace, *, stdout: TextIO) -> int:
+    if bool(args.execute) and bool(args.dry_run):
+        raise ValueError("--execute and --dry-run cannot be used together.")
+    env_mapping = _load_optional_env_mapping(args.env_file, repo_root=args.repo_root)
+    as_of_date = date.fromisoformat(args.as_of_date)
+    with _temporary_environ(env_mapping):
+        report = run_portfolio_review_feedback_calibration(
+            config=RuntimeConfig.from_env(),
+            portfolio_name=args.portfolio_name,
+            as_of_date=as_of_date,
+            lookback_days=args.lookback_days,
+            limit=args.limit,
+            min_feedback_runs=args.min_feedback_runs,
+            min_mature_decisions=args.min_mature_decisions,
+            max_contradiction_rate=args.max_contradiction_rate,
+            execute=bool(args.execute) and not bool(args.dry_run),
+        )
+    if args.output:
+        output_path = resolve_output_path(
+            args.output,
+            label="portfolio review feedback calibration output",
             repo_root=args.repo_root,
             require_repo_outside=True,
         )

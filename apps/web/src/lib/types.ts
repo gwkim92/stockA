@@ -266,6 +266,7 @@ export type DataHealthData = {
   };
   portfolio_review_decision_history: PortfolioReviewDecisionHistory;
   portfolio_review_decision_feedback: PortfolioReviewDecisionFeedback;
+  portfolio_review_feedback_calibration: PortfolioReviewFeedbackCalibration;
   recommendation_outcome_calibration: {
     status: string;
     eval_run_id: string;
@@ -1823,6 +1824,7 @@ export type PortfolioCoverageData = {
     position_sizing_review: PositionSizingReview;
     review_decision_history: PortfolioReviewDecisionHistory;
     review_decision_feedback: PortfolioReviewDecisionFeedback;
+    review_feedback_calibration: PortfolioReviewFeedbackCalibration;
     review_reasons: string[];
   };
   positions: Array<{
@@ -2059,6 +2061,71 @@ export type PortfolioReviewDecisionFeedback = {
   };
   top_feedback: PortfolioReviewFeedbackItem | null;
   latest_items: PortfolioReviewFeedbackItem[];
+  guardrails: {
+    recommendation_scoring_mutated: boolean;
+    benchmark_definition_mutated: boolean;
+    portfolio_position_mutated: boolean;
+    automatic_rebalance_allowed: boolean;
+    automatic_order_allowed: boolean;
+    broker_submit_allowed: boolean;
+    order_boundary: string;
+  };
+  next_action: string;
+};
+
+export type PortfolioReviewFeedbackGroupSummary = {
+  decision_family?: string;
+  decision_type?: string;
+  symbol?: string;
+  decision_count: number;
+  mature_decision_count: number;
+  too_early_count: number;
+  validated_count: number;
+  contradicted_count: number;
+  needs_more_data_count: number;
+  contradiction_rate: number;
+  status_counts: Record<string, number>;
+};
+
+export type PortfolioReviewFeedbackRunSummary = {
+  eval_run_id: string;
+  created_at: string;
+  as_of_date: string;
+  feedback_status: string;
+  decision_count: number;
+  too_early_count: number;
+  validated_count: number;
+  contradicted_count: number;
+  needs_more_data_count: number;
+};
+
+export type PortfolioReviewFeedbackCalibration = {
+  status: string;
+  eval_run_id: string;
+  created_at: string;
+  eval_name: string;
+  dataset_version: string;
+  as_of_date: string;
+  portfolio_name: string;
+  lookback_days: number;
+  min_feedback_runs: number;
+  min_mature_decisions: number;
+  max_contradiction_rate: number;
+  calibration_status: string;
+  feedback_run_count: number;
+  decision_count: number;
+  mature_decision_count: number;
+  too_early_count: number;
+  validated_count: number;
+  contradicted_count: number;
+  needs_more_data_count: number;
+  contradiction_rate: number;
+  validated_rate: number;
+  status_counts: Record<string, number>;
+  family_summaries: PortfolioReviewFeedbackGroupSummary[];
+  decision_type_summaries: PortfolioReviewFeedbackGroupSummary[];
+  symbol_summaries: PortfolioReviewFeedbackGroupSummary[];
+  latest_feedback_runs: PortfolioReviewFeedbackRunSummary[];
   guardrails: {
     recommendation_scoring_mutated: boolean;
     benchmark_definition_mutated: boolean;

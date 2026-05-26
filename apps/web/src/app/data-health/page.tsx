@@ -17,6 +17,7 @@ type CycleAiQualityAudit = DataHealthData["cycle_ai_quality_audit"];
 type BenchmarkDriftQuality = DataHealthData["benchmark_drift_quality"];
 type PortfolioReviewDecisionHistory = DataHealthData["portfolio_review_decision_history"];
 type PortfolioReviewDecisionFeedback = DataHealthData["portfolio_review_decision_feedback"];
+type PortfolioReviewFeedbackCalibration = DataHealthData["portfolio_review_feedback_calibration"];
 type RecommendationOutcomeCalibration = DataHealthData["recommendation_outcome_calibration"];
 type RecommendationOutcomeMaturity = DataHealthData["recommendation_outcome_maturity"];
 type RecommendationWeightReviewReadiness = DataHealthData["recommendation_weight_review_readiness"];
@@ -432,6 +433,20 @@ function feedbackStatusClass(status: string) {
   return "risk-low";
 }
 
+function calibrationStatusClass(status: string) {
+  if (status === "contradiction_review_required") {
+    return "risk-high";
+  }
+  if (
+    status === "insufficient_history"
+    || status === "collect_more_feedback"
+    || status === "missing"
+  ) {
+    return "risk-medium";
+  }
+  return "risk-low";
+}
+
 function outcomeCalibrationTitle(calibration: RecommendationOutcomeCalibration) {
   if (calibration.status === "ready_for_manual_weight_review") {
     return "성과 표본 검토 가능";
@@ -754,6 +769,45 @@ const DEFAULT_PORTFOLIO_REVIEW_DECISION_FEEDBACK: PortfolioReviewDecisionFeedbac
   next_action: "portfolio-review-decision-outcome-feedback-run을 실행해 저장된 검토 결정이 후속 성과와 맞는지 확인한다.",
 };
 
+const DEFAULT_PORTFOLIO_REVIEW_FEEDBACK_CALIBRATION: PortfolioReviewFeedbackCalibration = {
+  status: "missing",
+  eval_run_id: "eval-run-unknown",
+  created_at: "",
+  eval_name: "portfolio_review_feedback_calibration",
+  dataset_version: "portfolio-review-feedback-calibration-v1",
+  as_of_date: "",
+  portfolio_name: "Long Term Paper",
+  lookback_days: 0,
+  min_feedback_runs: 0,
+  min_mature_decisions: 0,
+  max_contradiction_rate: 0,
+  calibration_status: "missing",
+  feedback_run_count: 0,
+  decision_count: 0,
+  mature_decision_count: 0,
+  too_early_count: 0,
+  validated_count: 0,
+  contradicted_count: 0,
+  needs_more_data_count: 0,
+  contradiction_rate: 0,
+  validated_rate: 0,
+  status_counts: {},
+  family_summaries: [],
+  decision_type_summaries: [],
+  symbol_summaries: [],
+  latest_feedback_runs: [],
+  guardrails: {
+    recommendation_scoring_mutated: false,
+    benchmark_definition_mutated: false,
+    portfolio_position_mutated: false,
+    automatic_rebalance_allowed: false,
+    automatic_order_allowed: false,
+    broker_submit_allowed: false,
+    order_boundary: "read_only_no_order",
+  },
+  next_action: "portfolio-review-feedback-calibration-run을 실행해 누적 검토 feedback 신뢰도를 집계한다.",
+};
+
 const DEFAULT_RECOMMENDATION_OUTCOME_CALIBRATION: RecommendationOutcomeCalibration = {
   status: "missing",
   eval_run_id: "eval-run-unknown",
@@ -882,6 +936,8 @@ export default async function DataHealthPage() {
     data.portfolio_review_decision_history ?? DEFAULT_PORTFOLIO_REVIEW_DECISION_HISTORY;
   const portfolioReviewFeedback =
     data.portfolio_review_decision_feedback ?? DEFAULT_PORTFOLIO_REVIEW_DECISION_FEEDBACK;
+  const portfolioReviewCalibration =
+    data.portfolio_review_feedback_calibration ?? DEFAULT_PORTFOLIO_REVIEW_FEEDBACK_CALIBRATION;
   const benchmarkDriftDecisionBySymbol = new Map(
     benchmarkDriftQuality.outlier_decisions.map((decision) => [decision.symbol, decision]),
   );
@@ -994,6 +1050,20 @@ export default async function DataHealthPage() {
           : portfolioReviewFeedback.feedback_status === "needs_more_data"
             ? "risk-medium"
             : "risk-low",
+    },
+    {
+      label: "검토 신뢰도",
+      title:
+        portfolioReviewCalibration.status === "loaded"
+          ? `${portfolioReviewCalibration.feedback_run_count}회 feedback 누적`
+          : "누적평가 없음",
+      body:
+        portfolioReviewCalibration.status === "loaded"
+          ? `성숙한 판단 ${portfolioReviewCalibration.mature_decision_count}개, 반박률 ${formatPercent(portfolioReviewCalibration.contradiction_rate)} 기준으로 weight 검토 가능성을 막거나 열어둔다.`
+          : "단일 사후평가만으로 추천 weight를 바꾸지 않기 위해 누적 calibration이 필요하다.",
+      href: "#portfolio-review-calibration",
+      cta: "신뢰도 보기",
+      tone: calibrationStatusClass(portfolioReviewCalibration.calibration_status),
     },
     {
       label: "성과검증",
@@ -1814,6 +1884,118 @@ export default async function DataHealthPage() {
         <div className="empty-state">
           <strong>다음 조치</strong>
           <p>{portfolioReviewFeedback.next_action}</p>
+        </div>
+      </section>
+
+      <section
+        className="feature-map-panel reveal delay-1"
+        id="portfolio-review-calibration"
+        aria-labelledby="portfolio-review-calibration-title"
+      >
+        <div className="section-heading stacked-heading">
+          <span>포트폴리오 검토 신뢰도 누적평가</span>
+          <h2 id="portfolio-review-calibration-title">검토 판단이 충분히 쌓이기 전에는 weight를 바꾸지 않는다.</h2>
+        </div>
+        <p className="board-intro">
+          사후평가 한 번으로 추천 산식이나 포트폴리오 비중을 바꾸면 안 된다. 이 섹션은 여러 번의 검토 결정
+          feedback을 모아 반박률, 성숙한 표본 수, 가족별 실패 지점을 보는 읽기 전용 calibration이다.
+        </p>
+        <div className="status-rail compact-rail">
+          <article className="rail-cell">
+            <span>누적 판정</span>
+            <strong className={`risk-tag ${calibrationStatusClass(portfolioReviewCalibration.calibration_status)}`}>
+              {koCode(portfolioReviewCalibration.calibration_status)}
+            </strong>
+            <small>{portfolioReviewCalibration.eval_run_id}</small>
+          </article>
+          <article className="rail-cell">
+            <span>feedback 실행</span>
+            <strong>{portfolioReviewCalibration.feedback_run_count}</strong>
+            <small>{portfolioReviewCalibration.lookback_days || "기간 미확인"}일 lookback</small>
+          </article>
+          <article className="rail-cell">
+            <span>성숙한 판단</span>
+            <strong>
+              {portfolioReviewCalibration.mature_decision_count}/{portfolioReviewCalibration.decision_count}
+            </strong>
+            <small>최소 {portfolioReviewCalibration.min_mature_decisions}개 필요</small>
+          </article>
+          <article className="rail-cell">
+            <span>검증 / 반박률</span>
+            <strong>
+              {portfolioReviewCalibration.validated_count} / {formatPercent(portfolioReviewCalibration.contradiction_rate)}
+            </strong>
+            <small>허용 반박률 {formatPercent(portfolioReviewCalibration.max_contradiction_rate)}</small>
+          </article>
+          <article className="rail-cell rail-critical">
+            <span>주문 경계</span>
+            <strong>{koCode(portfolioReviewCalibration.guardrails.order_boundary)}</strong>
+            <small>broker 전송 {portfolioReviewCalibration.guardrails.broker_submit_allowed ? "허용" : "금지"}</small>
+          </article>
+        </div>
+        <div className="insight-grid">
+          {portfolioReviewCalibration.family_summaries.slice(0, 3).map((summary) => (
+            <article className="insight-card" key={`family-${summary.decision_family}`}>
+              <span>결정 family</span>
+              <strong>{koCode(summary.decision_family || "unknown")}</strong>
+              <p>
+                전체 {summary.decision_count}개 · 성숙 {summary.mature_decision_count}개 · 반박{" "}
+                {summary.contradicted_count}개 · 아직 이른 판단 {summary.too_early_count}개
+              </p>
+            </article>
+          ))}
+          {portfolioReviewCalibration.symbol_summaries.slice(0, 3).map((summary) => (
+            <article className="insight-card" key={`symbol-${summary.symbol}`}>
+              <span>종목별 feedback</span>
+              <strong>{summary.symbol || "미분류"}</strong>
+              <p>
+                성숙 {summary.mature_decision_count}개 · 검증 {summary.validated_count}개 · 반박률{" "}
+                {formatPercent(summary.contradiction_rate)}
+              </p>
+            </article>
+          ))}
+          {portfolioReviewCalibration.family_summaries.length === 0
+            && portfolioReviewCalibration.symbol_summaries.length === 0 ? (
+              <article className="insight-card">
+                <span>누적 자료 없음</span>
+                <strong>feedback을 더 쌓아야 함</strong>
+                <p>검토 이력과 사후평가가 여러 번 쌓여야 manual weight pilot 검토로 넘어갈 수 있다.</p>
+              </article>
+            ) : null}
+        </div>
+        {portfolioReviewCalibration.latest_feedback_runs.length > 0 ? (
+          <div className="ledger-table-wrap">
+            <table className="ledger-table data-health-table">
+              <thead>
+                <tr>
+                  <th scope="col">평가 ID</th>
+                  <th scope="col">기준일</th>
+                  <th scope="col">상태</th>
+                  <th scope="col">검증/반박</th>
+                  <th scope="col">아직 이른 판단</th>
+                </tr>
+              </thead>
+              <tbody>
+                {portfolioReviewCalibration.latest_feedback_runs.map((run) => (
+                  <tr key={`${run.eval_run_id}-${run.as_of_date}`}>
+                    <td>{run.eval_run_id}</td>
+                    <td>{run.as_of_date || "기준일 없음"}</td>
+                    <td>
+                      <span className={`risk-tag ${feedbackStatusClass(run.feedback_status)}`}>
+                        {koCode(run.feedback_status)}
+                      </span>
+                    </td>
+                    <td>{run.validated_count} / {run.contradicted_count}</td>
+                    <td>{run.too_early_count}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : null}
+        <div className="empty-state">
+          <strong>다음 조치</strong>
+          <p>{portfolioReviewCalibration.next_action}</p>
         </div>
       </section>
 

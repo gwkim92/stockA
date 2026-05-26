@@ -27,6 +27,7 @@ from stockanalysis.frontend.live_adapter import (
     render_frontend_paper_trading_preview_state_sql,
     render_frontend_portfolio_concentration_state_sql,
     render_frontend_portfolio_position_sizing_context_state_sql,
+    render_frontend_portfolio_review_feedback_calibration_state_sql,
     render_frontend_portfolio_review_decision_feedback_state_sql,
     render_frontend_portfolio_review_decision_history_state_sql,
     render_frontend_recommendation_list_state_sql,
@@ -272,6 +273,80 @@ class FakeLiveExecutor:
                             "order_boundary": "read_only_no_order",
                         },
                         "next_action": "성과 측정 window가 끝날 때까지 기다린다.",
+                    },
+                    "portfolio_review_feedback_calibration": {
+                        "status": "loaded",
+                        "eval_run_id": 54,
+                        "created_at": "2026-05-27T04:00:00+00:00",
+                        "eval_name": "portfolio_review_feedback_calibration",
+                        "dataset_version": "portfolio-review-feedback-calibration-v1",
+                        "as_of_date": "2026-05-27",
+                        "portfolio_name": "Long Term Paper",
+                        "lookback_days": 365,
+                        "min_feedback_runs": 3,
+                        "min_mature_decisions": 10,
+                        "max_contradiction_rate": "0.15",
+                        "calibration_status": "insufficient_history",
+                        "feedback_run_count": 1,
+                        "decision_count": 1,
+                        "mature_decision_count": 0,
+                        "too_early_count": 1,
+                        "validated_count": 0,
+                        "contradicted_count": 0,
+                        "needs_more_data_count": 0,
+                        "contradiction_rate": "0.0",
+                        "validated_rate": "0.0",
+                        "status_counts": {"too_early": 1},
+                        "family_summaries": [
+                            {
+                                "decision_family": "benchmark_drift",
+                                "decision_count": 1,
+                                "mature_decision_count": 0,
+                                "too_early_count": 1,
+                                "validated_count": 0,
+                                "contradicted_count": 0,
+                                "needs_more_data_count": 0,
+                                "contradiction_rate": "0.0",
+                                "status_counts": {"too_early": 1},
+                            }
+                        ],
+                        "decision_type_summaries": [],
+                        "symbol_summaries": [
+                            {
+                                "symbol": "MSFT",
+                                "decision_count": 1,
+                                "mature_decision_count": 0,
+                                "too_early_count": 1,
+                                "validated_count": 0,
+                                "contradicted_count": 0,
+                                "needs_more_data_count": 0,
+                                "contradiction_rate": "0.0",
+                                "status_counts": {"too_early": 1},
+                            }
+                        ],
+                        "latest_feedback_runs": [
+                            {
+                                "eval_run_id": 53,
+                                "created_at": "2026-05-27T03:00:00+00:00",
+                                "as_of_date": "2026-05-27",
+                                "feedback_status": "too_early",
+                                "decision_count": 1,
+                                "too_early_count": 1,
+                                "validated_count": 0,
+                                "contradicted_count": 0,
+                                "needs_more_data_count": 0,
+                            }
+                        ],
+                        "guardrails": {
+                            "recommendation_scoring_mutated": False,
+                            "benchmark_definition_mutated": False,
+                            "portfolio_position_mutated": False,
+                            "automatic_rebalance_allowed": False,
+                            "automatic_order_allowed": False,
+                            "broker_submit_allowed": False,
+                            "order_boundary": "read_only_no_order",
+                        },
+                        "next_action": "feedback을 더 쌓는다.",
                     },
                     "recommendation_outcome_calibration": {
                         "status": "loaded",
@@ -3206,6 +3281,95 @@ class FakeLiveExecutor:
                     "unclassified_symbols": [],
                 }
             )
+        if sql.startswith("-- frontend portfolio review feedback calibration lookup"):
+            return json.dumps(
+                {
+                    "status": "loaded",
+                    "eval_run_id": 54,
+                    "created_at": "2026-05-27T04:00:00+00:00",
+                    "eval_name": "portfolio_review_feedback_calibration",
+                    "dataset_version": "portfolio-review-feedback-calibration-v1",
+                    "as_of_date": "2026-05-27",
+                    "portfolio_name": "Long Term Paper",
+                    "lookback_days": 365,
+                    "min_feedback_runs": 3,
+                    "min_mature_decisions": 10,
+                    "max_contradiction_rate": "0.15",
+                    "calibration_status": "insufficient_history",
+                    "feedback_run_count": 1,
+                    "decision_count": 1,
+                    "mature_decision_count": 0,
+                    "too_early_count": 1,
+                    "validated_count": 0,
+                    "contradicted_count": 0,
+                    "needs_more_data_count": 0,
+                    "contradiction_rate": "0.0",
+                    "validated_rate": "0.0",
+                    "status_counts": {"too_early": 1},
+                    "family_summaries": [
+                        {
+                            "decision_family": "benchmark_drift",
+                            "decision_count": 1,
+                            "mature_decision_count": 0,
+                            "too_early_count": 1,
+                            "validated_count": 0,
+                            "contradicted_count": 0,
+                            "needs_more_data_count": 0,
+                            "contradiction_rate": "0.0",
+                            "status_counts": {"too_early": 1},
+                        }
+                    ],
+                    "decision_type_summaries": [
+                        {
+                            "decision_type": "reduce_watch",
+                            "decision_count": 1,
+                            "mature_decision_count": 0,
+                            "too_early_count": 1,
+                            "validated_count": 0,
+                            "contradicted_count": 0,
+                            "needs_more_data_count": 0,
+                            "contradiction_rate": "0.0",
+                            "status_counts": {"too_early": 1},
+                        }
+                    ],
+                    "symbol_summaries": [
+                        {
+                            "symbol": "TSLA",
+                            "decision_count": 1,
+                            "mature_decision_count": 0,
+                            "too_early_count": 1,
+                            "validated_count": 0,
+                            "contradicted_count": 0,
+                            "needs_more_data_count": 0,
+                            "contradiction_rate": "0.0",
+                            "status_counts": {"too_early": 1},
+                        }
+                    ],
+                    "latest_feedback_runs": [
+                        {
+                            "eval_run_id": 53,
+                            "created_at": "2026-05-27T03:00:00+00:00",
+                            "as_of_date": "2026-05-27",
+                            "feedback_status": "too_early",
+                            "decision_count": 1,
+                            "too_early_count": 1,
+                            "validated_count": 0,
+                            "contradicted_count": 0,
+                            "needs_more_data_count": 0,
+                        }
+                    ],
+                    "guardrails": {
+                        "recommendation_scoring_mutated": False,
+                        "benchmark_definition_mutated": False,
+                        "portfolio_position_mutated": False,
+                        "automatic_rebalance_allowed": False,
+                        "automatic_order_allowed": False,
+                        "broker_submit_allowed": False,
+                        "order_boundary": "read_only_no_order",
+                    },
+                    "next_action": "feedback을 더 쌓는다.",
+                }
+            )
         if sql.startswith("-- portfolio outcome coverage report"):
             return json.dumps(
                 {
@@ -3843,6 +4007,18 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertFalse(review_feedback["guardrails"]["automatic_order_allowed"])
         self.assertFalse(review_feedback["guardrails"]["broker_submit_allowed"])
         self.assertEqual(review_feedback["guardrails"]["order_boundary"], "read_only_no_order")
+        review_calibration = payload["data"]["portfolio_review_feedback_calibration"]
+        self.assertEqual(review_calibration["status"], "loaded")
+        self.assertEqual(review_calibration["eval_run_id"], "eval-run-54")
+        self.assertEqual(review_calibration["calibration_status"], "insufficient_history")
+        self.assertEqual(review_calibration["feedback_run_count"], 1)
+        self.assertEqual(review_calibration["decision_count"], 1)
+        self.assertEqual(review_calibration["family_summaries"][0]["decision_family"], "benchmark_drift")
+        self.assertEqual(review_calibration["symbol_summaries"][0]["symbol"], "MSFT")
+        self.assertFalse(review_calibration["guardrails"]["automatic_order_allowed"])
+        self.assertFalse(review_calibration["guardrails"]["broker_submit_allowed"])
+        self.assertEqual(review_calibration["guardrails"]["order_boundary"], "read_only_no_order")
+        self.assertIn("portfolio_review_feedback_calibration_attention", payload["data"]["open_gates"])
         outcome_calibration = payload["data"]["recommendation_outcome_calibration"]
         self.assertEqual(outcome_calibration["status"], "collect_more_outcomes_keep_weights")
         self.assertEqual(outcome_calibration["eval_run_id"], "eval-run-31")
@@ -4411,6 +4587,9 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertIn("selected_portfolio_review_decision_feedback", sql)
         self.assertIn("portfolio_review_decision_outcome_feedback", sql)
         self.assertIn("portfolio-review-decision-outcome-feedback-v1", sql)
+        self.assertIn("selected_portfolio_review_feedback_calibration", sql)
+        self.assertIn("portfolio_review_feedback_calibration", sql)
+        self.assertIn("portfolio-review-feedback-calibration-v1", sql)
         self.assertIn("selected_recommendation_outcome_calibration", sql)
         self.assertIn("recommendation_outcome_calibration", sql)
         self.assertIn("recommendation-outcome-calibration-sample-expansion-v1", sql)
@@ -4450,6 +4629,20 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertIn("from ai.eval_run", sql)
         self.assertIn("portfolio_review_decision_outcome_feedback", sql)
         self.assertIn("portfolio-review-decision-outcome-feedback-v1", sql)
+        self.assertIn("'automatic_order_allowed', false", sql)
+        self.assertNotIn("insert into", lowered)
+        self.assertNotIn("update ", lowered)
+        self.assertNotIn("delete from", lowered)
+        self.assertNotIn("from broker", lowered)
+        self.assertNotIn("join broker", lowered)
+
+    def test_portfolio_review_feedback_calibration_sql_reads_eval_artifact_without_mutation(self) -> None:
+        sql = render_frontend_portfolio_review_feedback_calibration_state_sql(portfolio_name="Long Term Paper")
+        lowered = sql.lower()
+
+        self.assertIn("from ai.eval_run", sql)
+        self.assertIn("portfolio_review_feedback_calibration", sql)
+        self.assertIn("portfolio-review-feedback-calibration-v1", sql)
         self.assertIn("'automatic_order_allowed', false", sql)
         self.assertNotIn("insert into", lowered)
         self.assertNotIn("update ", lowered)
@@ -5909,6 +6102,16 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertFalse(feedback["guardrails"]["automatic_rebalance_allowed"])
         self.assertFalse(feedback["guardrails"]["broker_submit_allowed"])
         self.assertEqual(feedback["guardrails"]["order_boundary"], "read_only_no_order")
+        calibration = payload["data"]["risk_budget"]["review_feedback_calibration"]
+        self.assertEqual(calibration["status"], "loaded")
+        self.assertEqual(calibration["eval_run_id"], "eval-run-54")
+        self.assertEqual(calibration["calibration_status"], "insufficient_history")
+        self.assertEqual(calibration["feedback_run_count"], 1)
+        self.assertEqual(calibration["family_summaries"][0]["decision_family"], "benchmark_drift")
+        self.assertEqual(calibration["symbol_summaries"][0]["symbol"], "TSLA")
+        self.assertFalse(calibration["guardrails"]["automatic_rebalance_allowed"])
+        self.assertFalse(calibration["guardrails"]["broker_submit_allowed"])
+        self.assertEqual(calibration["guardrails"]["order_boundary"], "read_only_no_order")
         self.assertEqual(payload["data"]["positions"][0]["active_thesis_id"], "thesis-7001")
         self.assertEqual(payload["data"]["positions"][0]["outcome_status"], "measured")
         self.assertEqual(payload["data"]["positions"][0]["position_size_status"], "below_rebalance_floor")

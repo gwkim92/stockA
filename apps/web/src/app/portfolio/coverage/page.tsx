@@ -146,6 +146,20 @@ function feedbackStatusClass(status: string) {
   return "risk-low";
 }
 
+function calibrationStatusClass(status: string) {
+  if (status === "contradiction_review_required") {
+    return "risk-high";
+  }
+  if (
+    status === "insufficient_history"
+    || status === "collect_more_feedback"
+    || status === "missing"
+  ) {
+    return "risk-medium";
+  }
+  return "risk-low";
+}
+
 function formatScore(value: number | null | undefined) {
   if (value === null || value === undefined) {
     return "없음";
@@ -210,6 +224,7 @@ export default async function PortfolioCoveragePage() {
   const positionSizingReview = riskBudget.position_sizing_review;
   const reviewHistory = riskBudget.review_decision_history;
   const reviewFeedback = riskBudget.review_decision_feedback;
+  const reviewCalibration = riskBudget.review_feedback_calibration;
   const concentration = riskBudget.concentration;
   const hasPositions = data.positions.length > 0;
   const investedWeight = Math.max(0, 1 - (data.summary.cash_weight ?? 0));
@@ -497,6 +512,66 @@ export default async function PortfolioCoveragePage() {
               검토 판단이 맞았는지 여기에 표시된다.
             </p>
           )}
+        </article>
+
+        <article className="bento-card span-4" style={{ borderColor: reviewCalibration.calibration_status === "contradiction_review_required" ? "var(--accent-red)" : "var(--border-light)" }}>
+          <div className="section-heading">
+            <div>
+              <span className="metric-sub">검토 신뢰도 누적평가</span>
+              <h2>한 번의 사후평가로 weight를 바꾸지 않는다</h2>
+            </div>
+            <span className={`risk-tag ${calibrationStatusClass(reviewCalibration.calibration_status)}`}>
+              {reviewCalibration.status === "loaded" ? koCode(reviewCalibration.calibration_status) : "누적평가 없음"}
+            </span>
+          </div>
+          <p style={{ color: "var(--text-secondary)", marginTop: 0 }}>
+            여러 번의 검토 사후평가를 모아 반박률과 성숙 표본 수를 본다. 이 단계가 통과해도 자동 주문이나 자동
+            weight 변경은 여전히 금지된다.
+          </p>
+          <div className="status-rail compact-rail" aria-label="검토 신뢰도 누적평가 요약" style={{ marginBottom: "20px" }}>
+            <article className="rail-cell">
+              <span>feedback 실행</span>
+              <strong>{reviewCalibration.feedback_run_count}</strong>
+              <small>{reviewCalibration.lookback_days || "기간 미확인"}일 기준</small>
+            </article>
+            <article className="rail-cell">
+              <span>성숙 / 전체 판단</span>
+              <strong>{reviewCalibration.mature_decision_count} / {reviewCalibration.decision_count}</strong>
+              <small>최소 {reviewCalibration.min_mature_decisions}개 필요</small>
+            </article>
+            <article className="rail-cell">
+              <span>검증 / 반박</span>
+              <strong>{reviewCalibration.validated_count} / {reviewCalibration.contradicted_count}</strong>
+              <small>반박률 {formatPercent(reviewCalibration.contradiction_rate)}</small>
+            </article>
+            <article className="rail-cell rail-critical">
+              <span>주문 경계</span>
+              <strong>{koCode(reviewCalibration.guardrails.order_boundary)}</strong>
+              <small>broker 전송 {reviewCalibration.guardrails.broker_submit_allowed ? "허용" : "금지"}</small>
+            </article>
+          </div>
+          <div className="bento-list" style={{ gap: "8px" }}>
+            {reviewCalibration.family_summaries.slice(0, 3).map((summary) => (
+              <div className="bento-list-item" key={`calibration-${summary.decision_family}`}>
+                <div>
+                  <span className="risk-tag risk-medium">family</span>
+                  <strong>{koCode(summary.decision_family || "unknown")}</strong>
+                  <span>
+                    전체 {summary.decision_count}개 · 성숙 {summary.mature_decision_count}개 · 반박{" "}
+                    {summary.contradicted_count}개
+                  </span>
+                </div>
+                <span style={{ color: "var(--text-secondary)" }}>
+                  반박률 {formatPercent(summary.contradiction_rate)}
+                </span>
+              </div>
+            ))}
+            {reviewCalibration.family_summaries.length === 0 ? (
+              <p className="empty-state" style={{ margin: 0 }}>
+                아직 누적 calibration 자료가 없다. 여러 사후평가가 쌓인 뒤 이곳에서 판단 family별 신뢰도를 본다.
+              </p>
+            ) : null}
+          </div>
         </article>
 
         <article className="bento-card span-4" style={{ borderColor: candidateReview.candidate_count > 0 ? "var(--accent-red)" : "var(--border-light)" }}>
