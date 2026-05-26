@@ -8589,6 +8589,7 @@ def _valuation_method_sotp_evidence(assumptions: dict[str, Any]) -> dict[str, An
     segment_evidence_rows: list[dict[str, Any]] = []
     reported_segment_inputs: list[dict[str, Any]] = []
     reported_segment_allocations: list[dict[str, Any]] = []
+    reported_segment_assumptions: list[dict[str, Any]] = []
 
     def append_reported_segment_input(row: Any) -> None:
         segment_input = _as_dict(row)
@@ -8647,6 +8648,40 @@ def _valuation_method_sotp_evidence(assumptions: dict[str, Any]) -> dict[str, An
     for row in _as_list(assumptions.get("reported_segment_allocations")):
         append_reported_segment_allocation(row)
 
+    def append_reported_segment_assumption(row: Any) -> None:
+        assumption = _as_dict(row)
+        if not assumption:
+            return
+        reported_segment_assumptions.append(
+            {
+                "segment_key": str(assumption.get("segment_key") or ""),
+                "segment_label": str(assumption.get("segment_label") or assumption.get("segment_key") or ""),
+                "period_end": str(assumption.get("period_end") or ""),
+                "driver_key": str(assumption.get("driver_key") or ""),
+                "driver_label": str(assumption.get("driver_label") or ""),
+                "base_growth_rate": _number(assumption.get("base_growth_rate")),
+                "low_growth_rate": _number(assumption.get("low_growth_rate")),
+                "high_growth_rate": _number(assumption.get("high_growth_rate")),
+                "margin_assumption": _number(assumption.get("margin_assumption")),
+                "low_multiple": _number(assumption.get("low_multiple")),
+                "base_multiple": _number(assumption.get("base_multiple")),
+                "high_multiple": _number(assumption.get("high_multiple")),
+                "allocation_weight": _number(assumption.get("allocation_weight")),
+                "allocation_basis": str(assumption.get("allocation_basis") or ""),
+                "rationale": str(assumption.get("rationale") or ""),
+                "source_document_id": _opaque_id("source-document", assumption.get("source_document_id"), None)
+                if assumption.get("source_document_id") is not None
+                else None,
+                "confidence": _number(assumption.get("confidence")),
+                "source_run_id": _opaque_id("pipeline-run", assumption.get("source_run_id"), None)
+                if assumption.get("source_run_id") is not None
+                else None,
+            }
+        )
+
+    for row in _as_list(assumptions.get("reported_segment_assumptions")):
+        append_reported_segment_assumption(row)
+
     for component in components:
         component_assumptions = _as_dict(component.get("assumptions"))
         if not reported_segment_inputs:
@@ -8655,6 +8690,9 @@ def _valuation_method_sotp_evidence(assumptions: dict[str, Any]) -> dict[str, An
         if not reported_segment_allocations:
             for row in _as_list(component_assumptions.get("reported_segment_allocations")):
                 append_reported_segment_allocation(row)
+        if not reported_segment_assumptions:
+            for row in _as_list(component_assumptions.get("reported_segment_assumptions")):
+                append_reported_segment_assumption(row)
         for row in _as_list(component_assumptions.get("segment_evidence")):
             evidence = _as_dict(row)
             if not evidence:
@@ -8703,6 +8741,7 @@ def _valuation_method_sotp_evidence(assumptions: dict[str, Any]) -> dict[str, An
             "components": [],
             "reported_segment_inputs": reported_segment_inputs,
             "reported_segment_allocations": reported_segment_allocations,
+            "reported_segment_assumptions": reported_segment_assumptions,
             "segment_footnote_evidence": segment_evidence_payload,
         }
 
@@ -8743,6 +8782,7 @@ def _valuation_method_sotp_evidence(assumptions: dict[str, Any]) -> dict[str, An
         "components": normalized_components,
         "reported_segment_inputs": reported_segment_inputs,
         "reported_segment_allocations": reported_segment_allocations,
+        "reported_segment_assumptions": reported_segment_assumptions,
         "segment_footnote_evidence": segment_evidence_payload,
     }
 
@@ -8768,8 +8808,8 @@ def _valuation_method_limitations(method: str, assumptions: dict[str, Any]) -> l
         ]
     if method == "sum_of_parts":
         return [
-            "reported segment 매출·영업이익은 SOTP 입력 근거로 연결하지만 사업부별 growth, CAPEX, multiple은 아직 별도 모델이 아니다.",
-            "세그먼트 forecast·자본배분 공백 reserve를 차감해 과신을 줄이지만, 완전한 sell-side SOTP를 대체하지 않는다.",
+            "사업부별 성장률·마진·밸류에이션 배수는 SEC segment 실적과 allocation share에서 만든 보수적 proxy이며 segment DCF를 대체하지 않는다.",
+            "세그먼트 forecast·CAPEX·자본배분 공백 reserve를 차감해 과신을 줄이지만, 완전한 sell-side SOTP를 대체하지 않는다.",
         ]
     return ["모델 한계가 구조화되지 않았다. 최신 valuation runner 재실행이 필요하다."]
 

@@ -2616,6 +2616,80 @@ reported_segment_allocation_rows as (
     from reported_segment_input_rows row
     join reported_segment_inputs total on total.instrument_id = row.instrument_id
 ),
+reported_segment_assumption_base as (
+    select
+        allocation.*,
+        case
+            when allocation.segment_revenue is not null
+             and allocation.segment_revenue > 0
+             and allocation.segment_operating_income is not null
+            then allocation.segment_operating_income / allocation.segment_revenue
+            else null::numeric
+        end as operating_margin
+    from reported_segment_allocation_rows allocation
+    where allocation.allocation_weight is not null
+),
+reported_segment_assumption_rows as (
+    select
+        base.instrument_id,
+        base.segment_key,
+        base.segment_label,
+        base.period_end,
+        base.allocation_basis,
+        base.allocation_weight,
+        base.revenue_share,
+        base.operating_income_share,
+        base.segment_revenue,
+        base.segment_operating_income,
+        base.operating_margin,
+        case
+            when base.operating_margin is null then 'margin_unknown'
+            when base.operating_margin >= 0.3500::numeric then 'high_margin_cash_engine'
+            when base.operating_margin >= 0.2000::numeric then 'core_cash_generator'
+            when base.operating_margin > 0 then 'lower_margin_scale_segment'
+            else 'loss_or_reinvestment_segment'
+        end as driver_key,
+        case
+            when base.operating_margin is null then '마진 확인 필요'
+            when base.operating_margin >= 0.3500::numeric then '고마진 현금창출 사업부'
+            when base.operating_margin >= 0.2000::numeric then '핵심 현금창출 사업부'
+            when base.operating_margin > 0 then '저마진 규모 사업부'
+            else '손실 또는 재투자 사업부'
+        end as driver_label,
+        case
+            when base.operating_margin is null then 0.0200::numeric
+            when base.operating_margin >= 0.3500::numeric and base.allocation_weight >= 0.2500::numeric then 0.0600::numeric
+            when base.operating_margin >= 0.3500::numeric then 0.0500::numeric
+            when base.operating_margin >= 0.2000::numeric then 0.0400::numeric
+            when base.operating_margin > 0 then 0.0250::numeric
+            else 0.0100::numeric
+        end as base_growth_rate,
+        case
+            when base.operating_margin is null then 10.0000::numeric
+            when base.operating_margin >= 0.3500::numeric then 16.0000::numeric
+            when base.operating_margin >= 0.2000::numeric then 13.0000::numeric
+            when base.operating_margin > 0 then 9.0000::numeric
+            else 7.0000::numeric
+        end as low_multiple,
+        case
+            when base.operating_margin is null then 14.0000::numeric
+            when base.operating_margin >= 0.3500::numeric then 20.0000::numeric
+            when base.operating_margin >= 0.2000::numeric then 17.0000::numeric
+            when base.operating_margin > 0 then 12.0000::numeric
+            else 10.0000::numeric
+        end as base_multiple,
+        case
+            when base.operating_margin is null then 18.0000::numeric
+            when base.operating_margin >= 0.3500::numeric then 24.0000::numeric
+            when base.operating_margin >= 0.2000::numeric then 21.0000::numeric
+            when base.operating_margin > 0 then 15.0000::numeric
+            else 13.0000::numeric
+        end as high_multiple,
+        base.source_document_id,
+        base.confidence,
+        base.source_run_id
+    from reported_segment_assumption_base base
+),
 segment_evidence_inputs as (
     select
         instrument_id,
@@ -2786,6 +2860,61 @@ component_rows as (
                         from reported_segment_allocation_rows allocation
                         where allocation.instrument_id = input.instrument_id
                           and allocation.allocation_weight is not null
+                    ),
+                    '[]'::jsonb
+                )
+            , 'reported_segment_assumption_source', 'research.segment_footnote_evidence'
+            , 'reported_segment_assumption_policy', 'deterministic_margin_share_proxy_no_score_change'
+            , 'reported_segment_assumption_count',
+                coalesce(
+                    (
+                        select count(*)::integer
+                        from reported_segment_assumption_rows assumption
+                        where assumption.instrument_id = input.instrument_id
+                    ),
+                    0
+                )
+            , 'reported_segment_assumptions',
+                coalesce(
+                    (
+                        select jsonb_agg(
+                            jsonb_build_object(
+                                'segment_key', assumption.segment_key,
+                                'segment_label', assumption.segment_label,
+                                'period_end', assumption.period_end,
+                                'driver_key', assumption.driver_key,
+                                'driver_label', assumption.driver_label,
+                                'base_growth_rate', assumption.base_growth_rate,
+                                'low_growth_rate', greatest(-0.0200::numeric, assumption.base_growth_rate - 0.0300::numeric),
+                                'high_growth_rate', least(0.1200::numeric, assumption.base_growth_rate + 0.0300::numeric),
+                                'margin_assumption', assumption.operating_margin,
+                                'low_multiple', assumption.low_multiple,
+                                'base_multiple', assumption.base_multiple,
+                                'high_multiple', assumption.high_multiple,
+                                'allocation_weight', assumption.allocation_weight,
+                                'allocation_basis', assumption.allocation_basis,
+                                'revenue_share', assumption.revenue_share,
+                                'operating_income_share', assumption.operating_income_share,
+                                'revenue', assumption.segment_revenue,
+                                'operating_income', assumption.segment_operating_income,
+                                'rationale',
+                                    concat(
+                                        assumption.driver_label,
+                                        ' · 기준 성장률 ',
+                                        round(assumption.base_growth_rate * 100, 1),
+                                        '% · 기준 multiple ',
+                                        round(assumption.base_multiple, 1),
+                                        'x · ',
+                                        assumption.allocation_basis
+                                    ),
+                                'source_document_id', assumption.source_document_id,
+                                'confidence', assumption.confidence,
+                                'source_run_id', assumption.source_run_id
+                            )
+                            order by assumption.allocation_weight desc nulls last, assumption.segment_key
+                        )
+                        from reported_segment_assumption_rows assumption
+                        where assumption.instrument_id = input.instrument_id
                     ),
                     '[]'::jsonb
                 )
@@ -3487,6 +3616,17 @@ sotp_inputs as (
             )[1],
             '[]'::jsonb
         ) as reported_segment_allocations_json,
+        max(nullif(assumptions_json ->> 'reported_segment_assumption_count', '')::integer) as reported_segment_assumption_count,
+        coalesce(
+            (
+                array_agg(assumptions_json -> 'reported_segment_assumptions' order by as_of_date desc, component_id desc)
+                filter (
+                    where jsonb_typeof(assumptions_json -> 'reported_segment_assumptions') = 'array'
+                      and jsonb_array_length(assumptions_json -> 'reported_segment_assumptions') > 0
+                )
+            )[1],
+            '[]'::jsonb
+        ) as reported_segment_assumptions_json,
         jsonb_agg(
             jsonb_build_object(
                 'component_key', component_key,
@@ -3561,6 +3701,8 @@ valuation_inputs as (
         sotp.reported_segment_inputs_json,
         sotp.reported_segment_allocation_count,
         sotp.reported_segment_allocations_json,
+        sotp.reported_segment_assumption_count,
+        sotp.reported_segment_assumptions_json,
         sotp.components_json,
         least(
             1::numeric,
@@ -3791,9 +3933,11 @@ sum_of_parts_rows as (
             'reported_segment_inputs', coalesce(input.reported_segment_inputs_json, '[]'::jsonb),
             'reported_segment_allocation_count', coalesce(input.reported_segment_allocation_count, 0),
             'reported_segment_allocations', coalesce(input.reported_segment_allocations_json, '[]'::jsonb),
+            'reported_segment_assumption_count', coalesce(input.reported_segment_assumption_count, 0),
+            'reported_segment_assumptions', coalesce(input.reported_segment_assumptions_json, '[]'::jsonb),
             'sotp_components', coalesce(input.components_json, '[]'::jsonb),
             'has_operating_business_component', coalesce(input.has_operating_business_component, false),
-            'key_variables', json_build_array('sotp_components', 'reported_segment_inputs', 'operating_business_fcf', 'balance_sheet_adjustment', 'segment_data_gap_reserve'),
+            'key_variables', json_build_array('sotp_components', 'reported_segment_inputs', 'reported_segment_assumptions', 'operating_business_fcf', 'balance_sheet_adjustment', 'segment_data_gap_reserve'),
             'data_quality', json_build_object(
                 'component_count', coalesce(input.sotp_component_count, 0),
                 'has_operating_business_component', coalesce(input.has_operating_business_component, false),
@@ -3801,12 +3945,13 @@ sum_of_parts_rows as (
                 'reported_segment_metric_count', coalesce(input.reported_segment_metric_count, 0),
                 'reported_segment_input_count', coalesce(input.reported_segment_input_count, 0),
                 'reported_segment_allocation_count', coalesce(input.reported_segment_allocation_count, 0),
+                'reported_segment_assumption_count', coalesce(input.reported_segment_assumption_count, 0),
                 'segment_data_gap_count', coalesce(input.segment_data_gap_count, 0),
                 'latest_sotp_as_of_date', input.latest_sotp_as_of_date
             ),
             'limitations', json_build_array(
-                'reported segment 매출·영업이익은 SOTP 입력 근거로 연결하지만 사업부별 growth, CAPEX, multiple은 아직 별도 모델이 아니다.',
-                '세그먼트 forecast·자본배분 공백 reserve를 차감해 과신을 줄이지만, 완전한 sell-side SOTP를 대체하지 않는다.'
+                '사업부별 성장률·마진·밸류에이션 배수는 SEC segment 실적과 allocation share에서 만든 보수적 proxy이며 segment DCF를 대체하지 않는다.',
+                '세그먼트 forecast·CAPEX·자본배분 공백 reserve를 차감해 과신을 줄이지만, 완전한 sell-side SOTP를 대체하지 않는다.'
             ),
             'recommendation_scoring_mutated', false
         )::jsonb as assumptions_json,

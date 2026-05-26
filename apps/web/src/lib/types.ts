@@ -399,6 +399,26 @@ export type ValuationMethodSnapshot = {
       confidence: number | null;
       source_run_id: string | null;
     }>;
+    reported_segment_assumptions: Array<{
+      segment_key: string;
+      segment_label: string;
+      period_end: string;
+      driver_key: string;
+      driver_label: string;
+      base_growth_rate: number | null;
+      low_growth_rate: number | null;
+      high_growth_rate: number | null;
+      margin_assumption: number | null;
+      low_multiple: number | null;
+      base_multiple: number | null;
+      high_multiple: number | null;
+      allocation_weight: number | null;
+      allocation_basis: string;
+      rationale: string;
+      source_document_id: string | null;
+      confidence: number | null;
+      source_run_id: string | null;
+    }>;
     segment_footnote_evidence: {
       status: string;
       label: string;

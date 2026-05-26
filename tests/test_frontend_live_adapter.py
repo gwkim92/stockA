@@ -706,6 +706,49 @@ class FakeLiveExecutor:
                                         "source_run_id": 7803,
                                     },
                                 ],
+                                "reported_segment_assumption_count": 2,
+                                "reported_segment_assumptions": [
+                                    {
+                                        "segment_key": "products",
+                                        "segment_label": "Products",
+                                        "period_end": "2024-09-28",
+                                        "driver_key": "high_margin_cash_engine",
+                                        "driver_label": "고마진 현금창출 사업부",
+                                        "base_growth_rate": "0.0600",
+                                        "low_growth_rate": "0.0300",
+                                        "high_growth_rate": "0.0900",
+                                        "margin_assumption": "0.3913",
+                                        "low_multiple": "16.0000",
+                                        "base_multiple": "20.0000",
+                                        "high_multiple": "24.0000",
+                                        "allocation_weight": "0.7866",
+                                        "allocation_basis": "operating_income_share",
+                                        "rationale": "고마진 현금창출 사업부 · 기준 성장률 6.0% · 기준 multiple 20.0x · operating_income_share",
+                                        "source_document_id": 8101,
+                                        "confidence": "0.7600",
+                                        "source_run_id": 7803,
+                                    },
+                                    {
+                                        "segment_key": "services",
+                                        "segment_label": "Services",
+                                        "period_end": "2024-09-28",
+                                        "driver_key": "high_margin_cash_engine",
+                                        "driver_label": "고마진 현금창출 사업부",
+                                        "base_growth_rate": "0.0500",
+                                        "low_growth_rate": "0.0200",
+                                        "high_growth_rate": "0.0800",
+                                        "margin_assumption": "0.4415",
+                                        "low_multiple": "16.0000",
+                                        "base_multiple": "20.0000",
+                                        "high_multiple": "24.0000",
+                                        "allocation_weight": "0.2134",
+                                        "allocation_basis": "operating_income_share",
+                                        "rationale": "고마진 현금창출 사업부 · 기준 성장률 5.0% · 기준 multiple 20.0x · operating_income_share",
+                                        "source_document_id": 8101,
+                                        "confidence": "0.7400",
+                                        "source_run_id": 7803,
+                                    },
+                                ],
                                 "has_operating_business_component": True,
                                 "sotp_components": [
                                     {
@@ -3581,6 +3624,19 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertEqual(
             sotp_method["sotp_evidence"]["reported_segment_allocations"][0]["allocated_fair_value_base"],
             224.181,
+        )
+        self.assertEqual(len(sotp_method["sotp_evidence"]["reported_segment_assumptions"]), 2)
+        self.assertEqual(
+            sotp_method["sotp_evidence"]["reported_segment_assumptions"][0]["driver_label"],
+            "고마진 현금창출 사업부",
+        )
+        self.assertAlmostEqual(
+            sotp_method["sotp_evidence"]["reported_segment_assumptions"][0]["base_growth_rate"],
+            0.06,
+        )
+        self.assertEqual(
+            sotp_method["sotp_evidence"]["reported_segment_assumptions"][0]["base_multiple"],
+            20.0,
         )
         self.assertEqual(sotp_method["sotp_evidence"]["segment_footnote_evidence"]["status"], "available")
         self.assertEqual(sotp_method["sotp_evidence"]["segment_footnote_evidence"]["evidence_count"], 3)
