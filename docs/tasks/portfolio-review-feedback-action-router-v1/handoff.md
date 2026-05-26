@@ -3,7 +3,7 @@
 ## Status
 
 - completed: backend action-router runner, CLI command, cadence registry entry, decision-daily orchestrator step, and focused tests are implemented locally.
-- EC2 deploy/smoke remains pending after full local verification.
+- EC2 deploy/smoke: completed on commit `6ffdca7`.
 
 ## Context
 
@@ -21,7 +21,7 @@
 
 ## Exact Next Step
 
-- exact next step: run full local verification, commit/push, deploy to EC2, run `portfolio-review-feedback-action-router-run --execute`, and confirm the router records a read-only audit artifact without changing weights or orders.
+- exact next step: start `portfolio-review-feedback-action-router-visibility-v1` so the latest router decision is first-class API/UI state rather than only pipeline run history.
 
 ## Implemented
 
@@ -40,6 +40,18 @@
 - `cd apps/web && npm run build`: passed.
 - `bash scripts/verify_project_execution_roadmap.sh`: passed.
 - `PYTHONPATH=/Users/woody/ai/agent-work-harness/src /opt/homebrew/bin/python3.13 -m awh verify --repo . --task portfolio-review-feedback-action-router-v1`: passed.
+
+## EC2 Evidence
+
+- EC2 commit: `6ffdca7`.
+- Services: `stockanalysis-frontend-api.service` and `stockanalysis-web.service` active after restart.
+- EC2 focused tests: `PYTHONPATH=src /opt/stockanalysis/venv/bin/python -m unittest tests.test_portfolio_review_feedback_action_router tests.test_data_operations_cli tests.test_data_operations_cadence tests.test_operating_data_orchestrator`: 107 tests passed.
+- EC2 Next build: `npm --prefix apps/web run build` passed.
+- EC2 roadmap verify: `bash scripts/verify_project_execution_roadmap.sh` passed.
+- Runner: `stockanalysis-operations portfolio-review-feedback-action-router-run --portfolio-name "Long Term Paper" --as-of-date 2026-05-27 --execute` completed with `run_id=1638`, `eval_run_id=35`.
+- Runner output: `source_cadence_eval_run_id=34`, `cadence_status=wait_for_outcome_window`, `route_action=no_op`, `action_status=no_op_wait_for_outcome_window`, `child_runner.executed=false`, `automatic_weight_change_allowed=false`, `automatic_rebalance_allowed=false`, `automatic_order_allowed=false`, `broker_submit_allowed=false`, `order_boundary=read_only_no_order`.
+- `/api/data-health`: pipeline `portfolio_review_feedback_action_router` shows `job_id=portfolio-review-feedback-action-router-daily`, `latest_status=succeeded`, `health_status=ok`, `latest_run_id=pipeline-run-1638`.
+- Route smoke returned `200` for `/`, `/data-health`, and `/portfolio/coverage`.
 
 ## Guardrails
 
