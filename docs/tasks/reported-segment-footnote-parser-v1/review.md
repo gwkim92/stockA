@@ -16,6 +16,7 @@
 
 - The parser is intentionally narrow and will miss complex SEC/iXBRL segment disclosures.
 - EC2 effectiveness depends on source-document linkage and raw artifact availability.
+- EC2 currently has no parser candidates because financial periods are not linked to raw SEC source documents.
 - Extracted metrics are not yet used for a true segment-level SOTP valuation model; they are visible evidence and gap suppression only.
 
 ## Verification Evidence
@@ -23,3 +24,4 @@
 - `PYTHONPATH=src python3 -m unittest tests.test_professional_equity_analysis tests.test_data_operations_cli tests.test_data_operations_cadence tests.test_operating_data_orchestrator tests.test_professional_coverage_expansion` passed with `Ran 120 tests`.
 - `PYTHONPATH=src /private/tmp/stockanalysis-verify-venv/bin/python -m unittest discover -s tests` passed with `Ran 964 tests`.
 - `PYTHONPATH=src python3 -m compileall -q src tests`, CLI help grep, roadmap verification, AWH verify, and `git diff --check` passed.
+- EC2 `reported-segment-footnote-parser-run --execute` passed with `run_id=1038`, but parsed zero rows because source-document linkage is absent.

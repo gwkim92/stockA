@@ -2,8 +2,7 @@
 
 ## Status
 
-- completed locally: implementation, task docs, roadmap update, and local verification are complete.
-- pending: optional EC2 deployment/smoke.
+- completed: implementation, task docs, roadmap update, local verification, GitHub push, and EC2 deployment/smoke are complete.
 
 ## Current Findings
 
@@ -33,9 +32,14 @@
 - Passed: `PYTHONPATH=src /private/tmp/stockanalysis-verify-venv/bin/python -m unittest discover -s tests` (`Ran 964 tests in 5.195s`, `OK`)
 - Passed: `git diff --check`
 - Not accepted as code failure: `PYTHONPATH=src python3 -m unittest discover -s tests` failed under Homebrew Python 3.14 because that interpreter has the known local `pyexpat` dynamic-link issue and lacks `fastapi`; the same full suite passed under the project verification Python 3.13 venv.
+- Pushed: `56a43be Add reported segment footnote parser` to `origin/codex/local-mvp-runtime-aws-bootstrap`.
+- EC2 deployed: `/opt/stockanalysis/app` fast-forwarded from `920ab88` to `56a43be`.
+- EC2 smoke passed: `reported-segment-footnote-parser-run --execute` completed with `run_id=1038`, `candidate_count=0`, `reported_segment_metric_count=0`, `recommendation_scoring_mutated=false`.
+- EC2 cadence smoke passed: `reported-segment-footnote-parser-weekly` is present in `stockanalysis-operations cadence`.
+- EC2 services remained active: `stockanalysis-frontend-api.service` and `stockanalysis-web.service`.
 
 ## Remaining Risks
 
 - Real SEC filings often have complex inline XBRL tables, nested headers, or dimensional facts; this first parser only covers straightforward HTML segment tables.
-- EC2 may still have few or zero parser candidates if `market.financial_statement_period.source_document_id` is missing for covered instruments.
+- EC2 currently has zero parser candidates because `market.financial_statement_period.source_document_id` is not populated and no SEC raw filing documents are linked (`periods=2696`, `linked_periods=0`, `raw_sec_docs=0`, `linked_raw_periods=0`).
 - Broader source-document linkage and richer SEC taxonomy parsing remain future work.
