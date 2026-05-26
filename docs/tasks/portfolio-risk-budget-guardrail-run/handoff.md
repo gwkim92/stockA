@@ -13,7 +13,7 @@
 
 ## Exact Next Step
 
-- exact next step: EC2에서 최신 코드를 pull한 뒤 `portfolio-risk-budget-guardrail-run --execute`를 실제 Postgres에 대해 1회 smoke하고 `run_id`, `eval_run_id`, `risk_gate_decision`을 기록한다.
+- exact next step: `portfolio-risk-budget-paper-validation-integration`을 시작해 paper validation이 최신 `portfolio_risk_budget_guardrail` eval을 read-only 안전 입력으로 읽게 한다. 추천 weight와 broker submit은 계속 변경하지 않는다.
 
 ## Implementation Notes
 
@@ -42,3 +42,10 @@
 - Passed: `PYTHONPATH=/Users/woody/ai/agent-work-harness/src /opt/homebrew/bin/python3.13 -m awh verify --repo . --task portfolio-risk-budget-guardrail-run`
 - Passed: `PYTHONPATH=src /private/tmp/stockanalysis-runtime/verify-venv/bin/python -m unittest discover -s tests`
 - Passed: `PYTHONPATH=src /opt/homebrew/bin/python3.13 -m stockanalysis.operations.cli portfolio-risk-budget-guardrail-run --help`
+- Passed on EC2: pulled `788bdcb`.
+- Passed on EC2 focused tests: `PYTHONPATH=src /opt/stockanalysis/venv/bin/python -m unittest tests.test_portfolio_risk_budget_guardrail tests.test_data_operations_cli`
+- Passed on EC2 smoke:
+  - command: `portfolio-risk-budget-guardrail-run --env-file /opt/stockanalysis/runtime/data-operations.env --portfolio-name "Long Term Paper" --as-of-date 2026-05-25 --execute`
+  - result: `run_id=976`, `eval_run_id=19`, `risk_gate_decision=blocked_by_risk_budget_review`
+  - blockers: `over_single_position_limit:MSFT`, `over_single_position_limit:TSLA`, `sector_over_limit:TECHNOLOGY`, `theme_over_limit:US_MARKET_BREADTH`
+  - benchmark drift: `insufficient_benchmark_composition`, `drift_calculated=false`
