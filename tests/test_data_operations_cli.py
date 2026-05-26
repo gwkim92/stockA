@@ -3202,6 +3202,63 @@ class DataOperationsCliTests(unittest.TestCase):
             self.assertEqual(call_kwargs["as_of_date"], date(2026, 5, 26))
             self.assertTrue(call_kwargs["execute"])
 
+    def test_professional_source_blocker_raw_filing_remediation_run_command_passes_env_and_writes_output(self) -> None:
+        with tempfile.TemporaryDirectory() as repo_root, tempfile.TemporaryDirectory() as outside_root:
+            env_file = Path(outside_root) / "data-operations.env"
+            submissions_json = Path(outside_root) / "submissions.json"
+            companyfacts_json = Path(outside_root) / "companyfacts.json"
+            output_path = Path(outside_root) / "professional-source-blocker-raw-filing.json"
+            env_file.write_text('STOCKANALYSIS_PSQL_COMMAND="docker exec psql"\n', encoding="utf-8")
+            submissions_json.write_text("{}", encoding="utf-8")
+            companyfacts_json.write_text("{}", encoding="utf-8")
+            stdout = io.StringIO()
+
+            with patch("stockanalysis.operations.cli.run_professional_source_blocker_raw_filing_remediation") as runner_mock:
+                runner_mock.return_value = {
+                    "report_name": "professional_source_blocker_raw_filing_remediation",
+                    "status": "completed",
+                    "decision": {"decision_status": "durable_exclusion_until_periodic_filing"},
+                }
+                exit_code = main(
+                    [
+                        "professional-source-blocker-raw-filing-remediation-run",
+                        "--repo-root",
+                        repo_root,
+                        "--env-file",
+                        str(env_file),
+                        "--as-of-date",
+                        "2026-05-26",
+                        "--cik",
+                        "0002104882",
+                        "--fallback-symbol",
+                        "EROK",
+                        "--max-filings",
+                        "25",
+                        "--submissions-json",
+                        str(submissions_json),
+                        "--companyfacts-json",
+                        str(companyfacts_json),
+                        "--execute",
+                        "--output",
+                        str(output_path),
+                    ],
+                    stdout=stdout,
+                )
+
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(stdout.getvalue().strip(), str(output_path.resolve()))
+            payload = json.loads(output_path.read_text(encoding="utf-8"))
+            self.assertEqual(payload["report_name"], "professional_source_blocker_raw_filing_remediation")
+            call_kwargs = runner_mock.call_args.kwargs
+            self.assertEqual(call_kwargs["config"].psql_command, "docker exec psql")
+            self.assertEqual(call_kwargs["as_of_date"], date(2026, 5, 26))
+            self.assertEqual(call_kwargs["cik"], "0002104882")
+            self.assertEqual(call_kwargs["fallback_symbol"], "EROK")
+            self.assertEqual(call_kwargs["max_filings"], 25)
+            self.assertEqual(call_kwargs["submissions_json_path"], str(submissions_json.resolve()))
+            self.assertEqual(call_kwargs["companyfacts_json_path"], str(companyfacts_json.resolve()))
+            self.assertTrue(call_kwargs["execute"])
+
 
 class DataOperationsEnvFileTests(unittest.TestCase):
     def test_load_env_file_values_supports_quotes_export_and_comments(self) -> None:

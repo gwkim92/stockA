@@ -246,7 +246,16 @@ class FakeLiveExecutor:
                                 "source_status": "failed",
                                 "source_observed_at": "2026-05-26T12:00:00+00:00",
                                 "source_error_summary": "facts.us-gaap absent",
-                                "remediation_action": "무료 SEC companyfacts에 us-gaap facts가 없다. 합성 재무를 만들지 않는다.",
+                                "raw_filing_decision_eval_run_id": 29,
+                                "raw_filing_decision_created_at": "2026-05-27T00:00:00+00:00",
+                                "raw_filing_decision_status": "durable_exclusion_until_periodic_filing",
+                                "raw_filing_blocker_code": "ipo_prospectus_without_standard_periodic_financials",
+                                "raw_filing_decision_summary": "prospectus 원천은 있지만 표준 periodic financial facts가 없다.",
+                                "raw_filing_next_action": "첫 10-Q/10-K 또는 전용 parser 전까지 제외한다.",
+                                "raw_filing_recheck_trigger": "new_10_q_or_10_k_or_20_f_filing",
+                                "raw_filing_latest_prospectus_form_type": "424B4",
+                                "raw_filing_latest_prospectus_filing_date": "2026-05-14",
+                                "remediation_action": "raw filing 가능성을 확인했다. 첫 periodic filing 전까지 장기 재무 판단에서 제외한다.",
                                 "remediation_command": "",
                                 "detail_href": "/stocks/EROK",
                             },
@@ -3439,6 +3448,17 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertEqual(source_gaps["gaps"][0]["symbol"], "EROK")
         self.assertEqual(source_gaps["gaps"][0]["blocker_label"], "SEC us-gaap facts 없음")
         self.assertEqual(source_gaps["gaps"][0]["source_run_id"], "pipeline-run-1503")
+        self.assertEqual(
+            source_gaps["gaps"][0]["raw_filing_decision"]["status"],
+            "durable_exclusion_until_periodic_filing",
+        )
+        self.assertEqual(source_gaps["gaps"][0]["raw_filing_decision"]["eval_run_id"], "eval-run-29")
+        self.assertEqual(
+            source_gaps["gaps"][0]["raw_filing_decision"]["blocker_code"],
+            "ipo_prospectus_without_standard_periodic_financials",
+        )
+        self.assertEqual(source_gaps["gaps"][0]["raw_filing_decision"]["latest_prospectus_form_type"], "424B4")
+        self.assertIn("periodic filing", source_gaps["gaps"][0]["remediation_action"])
         self.assertIn("재무 지표 정규화", source_gaps["gaps"][0]["missing_layer_labels"])
         self.assertEqual(source_gaps["gaps"][1]["symbol"], "SPY")
         self.assertEqual(source_gaps["gaps"][1]["product_type"], "fund_or_etf")
@@ -3951,6 +3971,9 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertIn("recommendation-weight-review-readiness-v1", sql)
         self.assertIn("professional_gap_active_recommendations", sql)
         self.assertIn("professional_source_gap_prioritization", sql)
+        self.assertIn("professional_gap_raw_filing_decision", sql)
+        self.assertIn("professional_source_blocker_raw_filing_remediation", sql)
+        self.assertIn("professional-source-blocker-raw-filing-remediation-v1", sql)
         self.assertIn("fund_company_financial_model_not_applicable", sql)
         self.assertIn("sec_companyfacts_missing_us_gaap_facts", sql)
         self.assertIn("professional-coverage-expansion-run", sql)

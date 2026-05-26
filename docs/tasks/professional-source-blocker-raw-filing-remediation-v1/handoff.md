@@ -2,7 +2,7 @@
 
 ## Status
 
-- in progress: this task is defined and ready to start as the immediate next task after `professional-source-gap-remediation-decision-v1`.
+- in progress: local implementation is complete and verified; EC2 deploy and live execute smoke are next.
 
 ## Context
 
@@ -13,7 +13,24 @@
 
 ## Exact Next Step
 
-- exact next step: inspect EROK free-public raw SEC filing/XBRL feasibility. If the source has usable financial facts, add a backend parser/runner path; otherwise persist a durable exclusion/blocker decision that prevents fake remediation.
+- exact next step: deploy the local implementation to EC2, run `professional-source-blocker-raw-filing-remediation-run` for `EROK`/CIK `0002104882`, restart read-only services, and confirm `/api/data-health` shows the raw filing durable exclusion metadata.
+
+## Implementation Notes
+
+- Added `src/stockanalysis/operations/professional_source_blocker_raw_filing_remediation.py`.
+- Added CLI: `stockanalysis-operations professional-source-blocker-raw-filing-remediation-run`.
+- The runner reads free SEC submissions and companyfacts, then classifies the blocker as:
+  - `standard_companyfacts_available` when `facts.us-gaap` exists,
+  - `periodic_raw_xbrl_candidate` when supported 10-K/10-Q/20-F/40-F XBRL exists,
+  - `durable_exclusion_until_periodic_filing` when only prospectus/registration sources are available,
+  - `durable_exclusion_no_supported_public_financial_filing` when no usable public filing exists.
+- The runner records the decision in `ai.eval_run` and `ops.pipeline_run`; it does not write financial facts.
+- `/api/data-health` now reads latest `professional_source_blocker_raw_filing_remediation` eval output and exposes `raw_filing_decision` inside each professional source gap row.
+
+## Local Verification So Far
+
+- `PYTHONPATH=src /opt/homebrew/bin/python3.13 -m unittest tests.test_professional_source_blocker_raw_filing_remediation tests.test_data_operations_cli tests.test_frontend_live_adapter`
+- `PYTHONPATH=src /opt/homebrew/bin/python3.13 -m compileall -q src tests`
 
 ## Guardrails
 

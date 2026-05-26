@@ -3625,6 +3625,25 @@ professional_gap_source_linkage as (
       and nullif(run.config_json ->> 'fallback_symbol', '') is not null
     order by upper(run.config_json ->> 'fallback_symbol'), run.started_at desc nulls last, run.run_id desc
 ),
+professional_gap_raw_filing_decision as (
+    select distinct on (upper(eval_run.score_json ->> 'symbol'))
+        upper(eval_run.score_json ->> 'symbol') as primary_symbol,
+        eval_run.eval_run_id,
+        eval_run.created_at,
+        eval_run.score_json,
+        eval_run.score_json ->> 'decision_status' as decision_status,
+        eval_run.score_json ->> 'blocker_code' as blocker_code,
+        eval_run.score_json ->> 'rationale' as rationale,
+        eval_run.score_json ->> 'next_action' as next_action,
+        eval_run.score_json ->> 'recheck_trigger' as recheck_trigger,
+        eval_run.score_json #>> '{{latest_prospectus_filing,form_type}}' as latest_prospectus_form_type,
+        eval_run.score_json #>> '{{latest_prospectus_filing,filing_date}}' as latest_prospectus_filing_date
+    from ai.eval_run eval_run
+    where eval_run.eval_name = 'professional_source_blocker_raw_filing_remediation'
+      and eval_run.dataset_version = 'professional-source-blocker-raw-filing-remediation-v1'
+      and nullif(eval_run.score_json ->> 'symbol', '') is not null
+    order by upper(eval_run.score_json ->> 'symbol'), eval_run.created_at desc, eval_run.eval_run_id desc
+),
 professional_gap_coverage as (
     select
         recommendation.instrument_id,
@@ -3719,11 +3738,22 @@ professional_gap_coverage as (
         max(source_linkage.status) as source_status,
         max(coalesce(source_linkage.ended_at, source_linkage.started_at)) as source_observed_at,
         max(source_linkage.error_summary) as source_error_summary,
-        max(source_linkage.blocker_code) as source_blocker_code
+        max(source_linkage.blocker_code) as source_blocker_code,
+        max(raw_filing_decision.eval_run_id) as raw_filing_decision_eval_run_id,
+        max(raw_filing_decision.created_at) as raw_filing_decision_created_at,
+        max(raw_filing_decision.decision_status) as raw_filing_decision_status,
+        max(raw_filing_decision.blocker_code) as raw_filing_blocker_code,
+        max(raw_filing_decision.rationale) as raw_filing_decision_summary,
+        max(raw_filing_decision.next_action) as raw_filing_next_action,
+        max(raw_filing_decision.recheck_trigger) as raw_filing_recheck_trigger,
+        max(raw_filing_decision.latest_prospectus_form_type) as raw_filing_latest_prospectus_form_type,
+        max(raw_filing_decision.latest_prospectus_filing_date) as raw_filing_latest_prospectus_filing_date
     from professional_gap_active_recommendations recommendation
     left join professional_gap_latest_position position on position.instrument_id = recommendation.instrument_id
     left join professional_gap_source_linkage source_linkage
       on upper(source_linkage.primary_symbol) = upper(recommendation.primary_symbol)
+    left join professional_gap_raw_filing_decision raw_filing_decision
+      on upper(raw_filing_decision.primary_symbol) = upper(recommendation.primary_symbol)
     group by recommendation.instrument_id, recommendation.primary_symbol
 ),
 professional_gap_classified as (
@@ -3803,6 +3833,8 @@ professional_gap_scored as (
                 then 'fund-tracking-difference-ssga-spdr-import-run으로 추적 차이 근거를 적재한다.'
             when is_fund_like
                 then '기업 재무 모델은 적용하지 않고 fund/ETF 분석 표면에서 보유종목, 비용, NAV, 추적차이를 검토한다.'
+            when raw_filing_decision_status = 'durable_exclusion_until_periodic_filing'
+                then 'raw filing 가능성을 확인했다. 424B4/registration 원천은 있지만 10-K/10-Q/20-F 또는 SEC us-gaap companyfacts가 없어 표준 기업 재무 모델에 자동 반영하지 않는다. 첫 periodic filing 또는 전용 prospectus/pro-forma parser 전까지 장기 재무 판단에서 제외한다.'
             when blocker_code = 'sec_companyfacts_missing_us_gaap_facts'
                 then '무료 SEC companyfacts에 us-gaap facts가 없다. 합성 재무를 만들지 말고 raw filing/XBRL 대체 파서 task 전까지 장기 재무 판단에서 제외한다.'
             when blocker_code = 'sec_companyfacts_not_found'
@@ -4153,6 +4185,15 @@ select json_build_object(
                                 'source_status', coalesce(gap.source_status, ''),
                                 'source_observed_at', gap.source_observed_at,
                                 'source_error_summary', coalesce(gap.source_error_summary, ''),
+                                'raw_filing_decision_eval_run_id', gap.raw_filing_decision_eval_run_id,
+                                'raw_filing_decision_created_at', gap.raw_filing_decision_created_at,
+                                'raw_filing_decision_status', coalesce(gap.raw_filing_decision_status, ''),
+                                'raw_filing_blocker_code', coalesce(gap.raw_filing_blocker_code, ''),
+                                'raw_filing_decision_summary', coalesce(gap.raw_filing_decision_summary, ''),
+                                'raw_filing_next_action', coalesce(gap.raw_filing_next_action, ''),
+                                'raw_filing_recheck_trigger', coalesce(gap.raw_filing_recheck_trigger, ''),
+                                'raw_filing_latest_prospectus_form_type', coalesce(gap.raw_filing_latest_prospectus_form_type, ''),
+                                'raw_filing_latest_prospectus_filing_date', coalesce(gap.raw_filing_latest_prospectus_filing_date, ''),
                                 'remediation_action', gap.remediation_action,
                                 'remediation_command', gap.remediation_command,
                                 'detail_href', '/stocks/' || gap.primary_symbol
@@ -11802,6 +11843,19 @@ def _build_professional_source_gap_payload(item: dict[str, Any]) -> dict[str, An
         "source_status": str(item.get("source_status") or ""),
         "source_observed_at": _timestamp(item.get("source_observed_at")),
         "source_error_summary": str(item.get("source_error_summary") or ""),
+        "raw_filing_decision": {
+            "eval_run_id": _opaque_id("eval-run", item.get("raw_filing_decision_eval_run_id"), None)
+            if item.get("raw_filing_decision_eval_run_id")
+            else "",
+            "created_at": _timestamp(item.get("raw_filing_decision_created_at")),
+            "status": str(item.get("raw_filing_decision_status") or ""),
+            "blocker_code": str(item.get("raw_filing_blocker_code") or ""),
+            "summary": str(item.get("raw_filing_decision_summary") or ""),
+            "next_action": str(item.get("raw_filing_next_action") or ""),
+            "recheck_trigger": str(item.get("raw_filing_recheck_trigger") or ""),
+            "latest_prospectus_form_type": str(item.get("raw_filing_latest_prospectus_form_type") or ""),
+            "latest_prospectus_filing_date": str(item.get("raw_filing_latest_prospectus_filing_date") or ""),
+        },
         "remediation_action": str(item.get("remediation_action") or _professional_source_default_action(product_type)),
         "remediation_command": str(item.get("remediation_command") or ""),
         "detail_href": str(item.get("detail_href") or f"/stocks/{str(item.get('symbol') or '').upper()}"),

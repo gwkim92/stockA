@@ -134,6 +134,9 @@ from stockanalysis.operations.professional_coverage_expansion import (
 from stockanalysis.operations.professional_source_gap_remediation_decision import (
     run_professional_source_gap_remediation_decision,
 )
+from stockanalysis.operations.professional_source_blocker_raw_filing_remediation import (
+    run_professional_source_blocker_raw_filing_remediation,
+)
 from stockanalysis.operations.industry_competitive_positioning import (
     DEFAULT_MIN_METRIC_COVERAGE as DEFAULT_INDUSTRY_COMPETITIVE_MIN_METRIC_COVERAGE,
     run_industry_competitive_positioning,
@@ -740,6 +743,25 @@ def build_parser() -> argparse.ArgumentParser:
     professional_source_gap_remediation_decision.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
     professional_source_gap_remediation_decision.set_defaults(
         handler=_handle_professional_source_gap_remediation_decision_run
+    )
+
+    professional_source_blocker_raw_filing_remediation = subparsers.add_parser(
+        "professional-source-blocker-raw-filing-remediation-run",
+        help="Inspect free SEC raw filing feasibility for a true professional source blocker.",
+    )
+    professional_source_blocker_raw_filing_remediation.add_argument("--env-file")
+    professional_source_blocker_raw_filing_remediation.add_argument("--as-of-date", required=True)
+    professional_source_blocker_raw_filing_remediation.add_argument("--cik", required=True)
+    professional_source_blocker_raw_filing_remediation.add_argument("--fallback-symbol", required=True)
+    professional_source_blocker_raw_filing_remediation.add_argument("--max-filings", type=int, default=50)
+    professional_source_blocker_raw_filing_remediation.add_argument("--submissions-json")
+    professional_source_blocker_raw_filing_remediation.add_argument("--companyfacts-json")
+    professional_source_blocker_raw_filing_remediation.add_argument("--execute", action="store_true")
+    professional_source_blocker_raw_filing_remediation.add_argument("--dry-run", action="store_true")
+    professional_source_blocker_raw_filing_remediation.add_argument("--output")
+    professional_source_blocker_raw_filing_remediation.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
+    professional_source_blocker_raw_filing_remediation.set_defaults(
+        handler=_handle_professional_source_blocker_raw_filing_remediation_run
     )
 
     cycle_ai_quality_audit = subparsers.add_parser(
@@ -2449,6 +2471,49 @@ def _handle_professional_source_gap_remediation_decision_run(
         output_path = resolve_output_path(
             args.output,
             label="professional source gap remediation decision output",
+            repo_root=args.repo_root,
+            require_repo_outside=True,
+        )
+        write_json_report(report, output_path=output_path, stdout=stdout)
+    else:
+        print_json(report, stdout=stdout, sort_keys=False)
+    return 0
+
+
+def _handle_professional_source_blocker_raw_filing_remediation_run(
+    args: argparse.Namespace,
+    *,
+    stdout: TextIO,
+) -> int:
+    if bool(args.execute) and bool(args.dry_run):
+        raise ValueError("--execute and --dry-run cannot be used together.")
+    env_mapping = _load_optional_env_mapping(args.env_file, repo_root=args.repo_root)
+    submissions_json_path = (
+        str(resolve_existing_file(args.submissions_json, label="SEC submissions JSON", repo_root=args.repo_root))
+        if args.submissions_json
+        else None
+    )
+    companyfacts_json_path = (
+        str(resolve_existing_file(args.companyfacts_json, label="SEC companyfacts JSON", repo_root=args.repo_root))
+        if args.companyfacts_json
+        else None
+    )
+    as_of_date = date.fromisoformat(args.as_of_date)
+    with _temporary_environ(env_mapping):
+        report = run_professional_source_blocker_raw_filing_remediation(
+            config=RuntimeConfig.from_env(),
+            as_of_date=as_of_date,
+            cik=args.cik,
+            fallback_symbol=args.fallback_symbol,
+            max_filings=int(args.max_filings),
+            execute=bool(args.execute) and not bool(args.dry_run),
+            submissions_json_path=submissions_json_path,
+            companyfacts_json_path=companyfacts_json_path,
+        )
+    if args.output:
+        output_path = resolve_output_path(
+            args.output,
+            label="professional source blocker raw filing remediation output",
             repo_root=args.repo_root,
             require_repo_outside=True,
         )

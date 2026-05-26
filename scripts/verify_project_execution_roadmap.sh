@@ -226,6 +226,10 @@ test -f docs/tasks/professional-source-blocker-raw-filing-remediation-v1/contrac
 test -f docs/tasks/professional-source-blocker-raw-filing-remediation-v1/handoff.md
 test -f docs/tasks/professional-source-blocker-raw-filing-remediation-v1/review.md
 test -f docs/plans/2026-05-27-professional-source-blocker-raw-filing-remediation-v1.md
+test -f src/stockanalysis/operations/professional_source_blocker_raw_filing_remediation.py
+test -f tests/test_professional_source_blocker_raw_filing_remediation.py
+grep -q "professional-source-blocker-raw-filing-remediation-run" src/stockanalysis/operations/cli.py
+grep -q "professional_gap_raw_filing_decision" src/stockanalysis/frontend/live_adapter.py
 test -f docs/plans/2026-05-27-professional-source-gap-prioritization-v1.md
 test -f docs/tasks/professional-source-gap-remediation-decision-v1/contract.md
 test -f docs/tasks/professional-source-gap-remediation-decision-v1/handoff.md
