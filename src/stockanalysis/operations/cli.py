@@ -32,6 +32,7 @@ from stockanalysis.operations.benchmark_composition_provider import (
 )
 from stockanalysis.operations.cadence import build_data_operations_cadence_report
 from stockanalysis.operations.cycle_ai_quality_audit import (
+    run_duplicate_title_cleanup,
     run_cycle_ai_quality_audit,
     run_stale_direct_impact_cleanup,
 )
@@ -793,6 +794,20 @@ def build_parser() -> argparse.ArgumentParser:
     stale_direct_impact_cleanup.add_argument("--output")
     stale_direct_impact_cleanup.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
     stale_direct_impact_cleanup.set_defaults(handler=_handle_stale_direct_impact_cleanup_run)
+
+    duplicate_title_cleanup = subparsers.add_parser(
+        "cycle-ai-duplicate-title-cleanup-run",
+        help="Preview or remove duplicate RSS source documents/events that have no downstream evidence.",
+    )
+    duplicate_title_cleanup.add_argument("--env-file")
+    duplicate_title_cleanup.add_argument("--as-of-date", required=True)
+    duplicate_title_cleanup.add_argument("--lookback-days", type=int, default=30)
+    duplicate_title_cleanup.add_argument("--limit", type=int, default=200)
+    duplicate_title_cleanup.add_argument("--execute", action="store_true")
+    duplicate_title_cleanup.add_argument("--dry-run", action="store_true")
+    duplicate_title_cleanup.add_argument("--output")
+    duplicate_title_cleanup.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
+    duplicate_title_cleanup.set_defaults(handler=_handle_duplicate_title_cleanup_run)
 
     recommendation_outcome_backfill = subparsers.add_parser(
         "recommendation-outcome-backfill-run",
@@ -2036,6 +2051,32 @@ def _handle_stale_direct_impact_cleanup_run(args: argparse.Namespace, *, stdout:
         output_path = resolve_output_path(
             args.output,
             label="cycle AI stale direct impact cleanup output",
+            repo_root=args.repo_root,
+            require_repo_outside=True,
+        )
+        write_json_report(report, output_path=output_path, stdout=stdout)
+    else:
+        print_json(report, stdout=stdout, sort_keys=False)
+    return 0
+
+
+def _handle_duplicate_title_cleanup_run(args: argparse.Namespace, *, stdout: TextIO) -> int:
+    if bool(args.execute) and bool(args.dry_run):
+        raise ValueError("--execute and --dry-run cannot be used together.")
+    env_mapping = _load_optional_env_mapping(args.env_file, repo_root=args.repo_root)
+    as_of_date = date.fromisoformat(args.as_of_date)
+    with _temporary_environ(env_mapping):
+        report = run_duplicate_title_cleanup(
+            config=RuntimeConfig.from_env(),
+            as_of_date=as_of_date,
+            lookback_days=args.lookback_days,
+            execute=bool(args.execute) and not bool(args.dry_run),
+            limit=args.limit,
+        )
+    if args.output:
+        output_path = resolve_output_path(
+            args.output,
+            label="cycle AI duplicate title cleanup output",
             repo_root=args.repo_root,
             require_repo_outside=True,
         )

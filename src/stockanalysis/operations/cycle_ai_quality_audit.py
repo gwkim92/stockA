@@ -19,6 +19,7 @@ from stockanalysis.signal.universe import (
 
 DEFAULT_PIPELINE_NAME = "cycle_ai_quality_audit"
 STALE_DIRECT_IMPACT_CLEANUP_PIPELINE_NAME = "cycle_ai_stale_direct_impact_cleanup"
+DUPLICATE_TITLE_CLEANUP_PIPELINE_NAME = "cycle_ai_duplicate_title_cleanup"
 CYCLE_AI_QUALITY_AUDIT_REPORT_ENV = "STOCKANALYSIS_CYCLE_AI_QUALITY_AUDIT_REPORT"
 
 
@@ -518,6 +519,174 @@ select json_build_object(
 )::text;"""
 
 
+def render_duplicate_title_cleanup_sql(
+    *,
+    as_of_date: date,
+    lookback_days: int = 30,
+    execute: bool = False,
+    limit: int = 200,
+) -> str:
+    if lookback_days < 1 or lookback_days > 120:
+        raise ValueError("lookback_days must be between 1 and 120.")
+    if limit < 1 or limit > 1000:
+        raise ValueError("limit must be between 1 and 1000.")
+    target_date = sql_date(as_of_date)
+    lookback_interval = f"interval '{lookback_days} days'"
+    deletion_ctes = (
+        """deleted_events as (
+    delete from event.event event_row
+    using cleanup_candidates candidate
+    where event_row.event_id = candidate.event_id
+    returning event_row.event_id
+),
+deleted_documents as (
+    delete from ingest.source_document document
+    using cleanup_candidates candidate
+    where document.document_id = candidate.document_id
+    returning document.document_id
+)"""
+        if execute
+        else """deleted_events as (
+    select null::bigint as event_id
+    where false
+),
+deleted_documents as (
+    select null::bigint as document_id
+    where false
+)"""
+    )
+    return f"""-- cycle ai duplicate title cleanup
+with windowed_documents as (
+    select
+        document.document_id,
+        document.data_source_id,
+        lower(regexp_replace(document.title, '\\s+', ' ', 'g')) as normalized_title,
+        document.title,
+        document.url,
+        document.published_at,
+        document.ingested_at,
+        coalesce(document.published_at, document.ingested_at) as observed_at
+    from ingest.source_document document
+    where document.document_type = 'news_rss_item'
+      and coalesce(document.published_at, document.ingested_at) >= ({target_date} - {lookback_interval})
+      and coalesce(document.published_at, document.ingested_at) < ({target_date} + interval '1 day')
+      and document.title is not null
+      and btrim(document.title) <> ''
+),
+document_events as (
+    select
+        document.document_id,
+        event_row.event_id,
+        event_row.title as event_title
+    from windowed_documents document
+    left join event.event_document_link link
+      on link.document_id = document.document_id
+     and link.link_type = 'source'
+    left join event.event event_row
+      on event_row.event_id = link.event_id
+     and event_row.event_type = 'news_rss_item'
+),
+quality as (
+    select
+        document.document_id,
+        coalesce(bool_or(event_row.event_id is not null), false) as has_event,
+        coalesce(bool_or(classification.event_id is not null), false) as has_classification_impact,
+        coalesce(bool_or(instrument.event_id is not null), false) as has_instrument_impact,
+        coalesce(bool_or(propagated.event_id is not null), false) as has_propagated_impact,
+        coalesce(bool_or(hierarchical.event_id is not null), false) as has_hierarchical_impact,
+        coalesce(bool_or(artifact.artifact_id is not null), false) as has_ai_artifact
+    from windowed_documents document
+    left join document_events event_row on event_row.document_id = document.document_id
+    left join event.event_classification_impact classification on classification.event_id = event_row.event_id
+    left join event.event_instrument_impact instrument on instrument.event_id = event_row.event_id
+    left join signal.propagated_instrument_impact propagated on propagated.event_id = event_row.event_id
+    left join signal.hierarchical_propagated_instrument_impact hierarchical on hierarchical.event_id = event_row.event_id
+    left join ai.extraction_artifact artifact
+      on artifact.document_id = document.document_id
+      or artifact.event_id = event_row.event_id
+    group by document.document_id
+),
+ranked_documents as (
+    select
+        document.*,
+        event_row.event_id,
+        coalesce(event_row.event_title, document.title) as event_title,
+        quality.has_classification_impact,
+        quality.has_instrument_impact,
+        quality.has_propagated_impact,
+        quality.has_hierarchical_impact,
+        quality.has_ai_artifact,
+        count(*) over (
+            partition by document.data_source_id, document.normalized_title, coalesce(document.published_at, document.observed_at)
+        ) as duplicate_group_count,
+        row_number() over (
+            partition by document.data_source_id, document.normalized_title, coalesce(document.published_at, document.observed_at)
+            order by
+                quality.has_ai_artifact desc,
+                quality.has_classification_impact desc,
+                quality.has_instrument_impact desc,
+                quality.has_propagated_impact desc,
+                quality.has_hierarchical_impact desc,
+                document.ingested_at desc,
+                document.document_id desc
+        ) as duplicate_rank
+    from windowed_documents document
+    left join document_events event_row on event_row.document_id = document.document_id
+    join quality on quality.document_id = document.document_id
+),
+cleanup_candidates as (
+    select
+        document_id,
+        event_id,
+        normalized_title,
+        title,
+        event_title,
+        url,
+        published_at,
+        duplicate_group_count,
+        duplicate_rank
+    from ranked_documents
+    where duplicate_group_count > 1
+      and duplicate_rank > 1
+      and event_id is not null
+      and has_classification_impact = false
+      and has_instrument_impact = false
+      and has_propagated_impact = false
+      and has_hierarchical_impact = false
+      and has_ai_artifact = false
+    order by duplicate_group_count desc, normalized_title, duplicate_rank
+    limit {limit}
+),
+{deletion_ctes}
+select json_build_object(
+    'as_of_date', {sql_literal(as_of_date.isoformat())},
+    'lookback_days', {lookback_days},
+    'execute', {str(execute).lower()},
+    'candidate_count', (select count(*)::integer from cleanup_candidates),
+    'deleted_event_count', (select count(*)::integer from deleted_events),
+    'deleted_document_count', (select count(*)::integer from deleted_documents),
+    'samples',
+        coalesce(
+            (
+                select json_agg(
+                    json_build_object(
+                        'event_id', event_id,
+                        'document_id', document_id,
+                        'title', title,
+                        'url', url,
+                        'published_at', published_at,
+                        'duplicate_group_count', duplicate_group_count,
+                        'duplicate_rank', duplicate_rank
+                    )
+                    order by normalized_title, duplicate_rank
+                )
+                from (select * from cleanup_candidates order by normalized_title, duplicate_rank limit 10) sample
+            ),
+            '[]'::json
+        )
+)::text;"""
+
+
 def load_cycle_ai_quality_audit_state(
     *,
     config: RuntimeConfig,
@@ -558,6 +727,31 @@ def load_stale_direct_impact_cleanup_state(
     )
     if not isinstance(payload, dict):
         raise ValueError("Stale direct impact cleanup lookup did not return a JSON object.")
+    return payload
+
+
+def load_duplicate_title_cleanup_state(
+    *,
+    config: RuntimeConfig,
+    as_of_date: date,
+    lookback_days: int = 30,
+    execute: bool = False,
+    limit: int = 200,
+    executor: PsqlCommandExecutor | None = None,
+) -> dict[str, object]:
+    sql_executor = executor or PsqlCommandExecutor.from_config(config)
+    payload = json.loads(
+        sql_executor.execute_scalar(
+            render_duplicate_title_cleanup_sql(
+                as_of_date=as_of_date,
+                lookback_days=lookback_days,
+                execute=execute,
+                limit=limit,
+            )
+        )
+    )
+    if not isinstance(payload, dict):
+        raise ValueError("Duplicate title cleanup lookup did not return a JSON object.")
     return payload
 
 
@@ -666,6 +860,66 @@ def run_stale_direct_impact_cleanup(
         "lookback_days": int(state.get("lookback_days") or lookback_days),
         "candidate_count": int(state.get("candidate_count") or 0),
         "removed_count": int(state.get("removed_count") or 0),
+        "samples": _as_scalar_or_mapping_list(state.get("samples")),
+        "order_boundary": "read_only_no_order",
+        "recommendation_scoring_mutated": False,
+        "automatic_order_allowed": False,
+        "broker_submit_allowed": False,
+    }
+    if run_id is not None:
+        report["run_id"] = run_id
+    _assert_secret_free_payload(report)
+    return report
+
+
+def run_duplicate_title_cleanup(
+    *,
+    config: RuntimeConfig,
+    as_of_date: date,
+    lookback_days: int = 30,
+    execute: bool = False,
+    limit: int = 200,
+    executor: PsqlCommandExecutor | None = None,
+    generated_at: datetime | None = None,
+) -> dict[str, object]:
+    sql_executor = executor or PsqlCommandExecutor.from_config(config)
+    run_id: int | None = None
+    if execute:
+        run_id = _create_pipeline_run(
+            sql_executor,
+            pipeline_name=DUPLICATE_TITLE_CLEANUP_PIPELINE_NAME,
+            config_json={
+                "as_of_date": as_of_date.isoformat(),
+                "lookback_days": lookback_days,
+                "limit": limit,
+            },
+        )
+    try:
+        state = load_duplicate_title_cleanup_state(
+            config=config,
+            as_of_date=as_of_date,
+            lookback_days=lookback_days,
+            execute=execute,
+            limit=limit,
+            executor=sql_executor,
+        )
+        if run_id is not None:
+            _mark_pipeline_run_succeeded(sql_executor, run_id)
+    except Exception as exc:
+        if run_id is not None:
+            _mark_pipeline_run_failed(sql_executor, run_id, str(exc))
+        raise
+
+    report: dict[str, object] = {
+        "report_name": DUPLICATE_TITLE_CLEANUP_PIPELINE_NAME,
+        "generated_at": _format_timestamp(generated_at or datetime.now(timezone.utc)),
+        "status": "completed" if execute else "planned",
+        "execute": execute,
+        "as_of_date": str(state.get("as_of_date") or as_of_date.isoformat()),
+        "lookback_days": int(state.get("lookback_days") or lookback_days),
+        "candidate_count": int(state.get("candidate_count") or 0),
+        "deleted_event_count": int(state.get("deleted_event_count") or 0),
+        "deleted_document_count": int(state.get("deleted_document_count") or 0),
         "samples": _as_scalar_or_mapping_list(state.get("samples")),
         "order_boundary": "read_only_no_order",
         "recommendation_scoring_mutated": False,

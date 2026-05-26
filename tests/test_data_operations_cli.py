@@ -1734,6 +1734,52 @@ class DataOperationsCliTests(unittest.TestCase):
             self.assertEqual(call_kwargs["limit"], 50)
             self.assertTrue(call_kwargs["execute"])
 
+    def test_duplicate_title_cleanup_run_command_passes_env_execute_and_writes_output(self) -> None:
+        with tempfile.TemporaryDirectory() as repo_root, tempfile.TemporaryDirectory() as outside_root:
+            env_file = Path(outside_root) / "data-operations.env"
+            output_path = Path(outside_root) / "duplicate-title-cleanup.json"
+            env_file.write_text('STOCKANALYSIS_PSQL_COMMAND="docker exec psql"\n', encoding="utf-8")
+            stdout = io.StringIO()
+
+            with patch("stockanalysis.operations.cli.run_duplicate_title_cleanup") as runner_mock:
+                runner_mock.return_value = {
+                    "report_name": "cycle_ai_duplicate_title_cleanup",
+                    "status": "completed",
+                    "candidate_count": 1,
+                    "deleted_event_count": 1,
+                    "deleted_document_count": 1,
+                }
+                exit_code = main(
+                    [
+                        "cycle-ai-duplicate-title-cleanup-run",
+                        "--repo-root",
+                        repo_root,
+                        "--env-file",
+                        str(env_file),
+                        "--as-of-date",
+                        "2026-05-26",
+                        "--lookback-days",
+                        "30",
+                        "--limit",
+                        "50",
+                        "--execute",
+                        "--output",
+                        str(output_path),
+                    ],
+                    stdout=stdout,
+                )
+
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(stdout.getvalue().strip(), str(output_path.resolve()))
+            payload = json.loads(output_path.read_text(encoding="utf-8"))
+            self.assertEqual(payload["report_name"], "cycle_ai_duplicate_title_cleanup")
+            call_kwargs = runner_mock.call_args.kwargs
+            self.assertEqual(call_kwargs["config"].psql_command, "docker exec psql")
+            self.assertEqual(call_kwargs["as_of_date"], date(2026, 5, 26))
+            self.assertEqual(call_kwargs["lookback_days"], 30)
+            self.assertEqual(call_kwargs["limit"], 50)
+            self.assertTrue(call_kwargs["execute"])
+
     def test_recommendation_quality_eval_run_command_passes_env_horizon_and_writes_output(self) -> None:
         with tempfile.TemporaryDirectory() as repo_root, tempfile.TemporaryDirectory() as outside_root:
             env_file = Path(outside_root) / "data-operations.env"

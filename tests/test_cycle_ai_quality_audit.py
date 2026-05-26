@@ -9,8 +9,10 @@ from pathlib import Path
 from stockanalysis.ingest.config import RuntimeConfig
 from stockanalysis.operations.cycle_ai_quality_audit import (
     load_cycle_ai_quality_audit_visibility_report,
+    render_duplicate_title_cleanup_sql,
     render_cycle_ai_quality_audit_sql,
     render_stale_direct_impact_cleanup_sql,
+    run_duplicate_title_cleanup,
     run_cycle_ai_quality_audit,
     run_stale_direct_impact_cleanup,
 )
@@ -41,6 +43,27 @@ class FakeExecutor:
                             "symbol": "SPY",
                             "instrument_name": "SPDR S&P 500 ETF TRUST",
                             "event_title": "Dow Jones Futures Rise But Pare Gains",
+                        }
+                    ],
+                }
+            )
+        if sql.startswith("-- cycle ai duplicate title cleanup"):
+            execute = "'execute', true" in sql
+            return json.dumps(
+                {
+                    "as_of_date": "2026-05-24",
+                    "lookback_days": 30,
+                    "execute": execute,
+                    "candidate_count": 1,
+                    "deleted_event_count": 1 if execute else 0,
+                    "deleted_document_count": 1 if execute else 0,
+                    "samples": [
+                        {
+                            "event_id": 881,
+                            "document_id": 896,
+                            "title": "SpaceX's road to landmark IPO filing",
+                            "duplicate_group_count": 2,
+                            "duplicate_rank": 2,
                         }
                     ],
                 }
@@ -192,6 +215,64 @@ class CycleAiQualityAuditTests(unittest.TestCase):
         self.assertEqual(report["status"], "completed")
         self.assertEqual(report["run_id"], 9401)
         self.assertEqual(report["removed_count"], 1)
+        self.assertFalse(report["recommendation_scoring_mutated"])
+        self.assertFalse(report["automatic_order_allowed"])
+        self.assertFalse(report["broker_submit_allowed"])
+        self.assertTrue(any("update ops.pipeline_run" in sql for sql in executor.non_query_sql))
+
+    def test_render_duplicate_title_cleanup_sql_previews_safe_duplicate_events_only(self) -> None:
+        sql = render_duplicate_title_cleanup_sql(
+            as_of_date=date(2026, 5, 24),
+            lookback_days=30,
+            execute=False,
+            limit=25,
+        )
+
+        self.assertTrue(sql.startswith("-- cycle ai duplicate title cleanup"))
+        self.assertIn("duplicate_group_count > 1", sql)
+        self.assertIn("has_ai_artifact = false", sql)
+        self.assertIn("has_classification_impact = false", sql)
+        self.assertIn("has_instrument_impact = false", sql)
+        self.assertNotIn("delete from event.event event_row", sql)
+
+    def test_render_duplicate_title_cleanup_sql_execute_deletes_events_and_documents(self) -> None:
+        sql = render_duplicate_title_cleanup_sql(as_of_date=date(2026, 5, 24), execute=True)
+
+        self.assertIn("delete from event.event event_row", sql)
+        self.assertIn("delete from ingest.source_document document", sql)
+        self.assertIn("using cleanup_candidates candidate", sql)
+
+    def test_run_duplicate_title_cleanup_preview_is_secret_free_and_does_not_write_pipeline(self) -> None:
+        executor = FakeExecutor(_sample_state())
+
+        report = run_duplicate_title_cleanup(
+            config=RuntimeConfig(psql_command="psql"),
+            as_of_date=date(2026, 5, 24),
+            execute=False,
+            executor=executor,
+        )
+
+        self.assertEqual(report["report_name"], "cycle_ai_duplicate_title_cleanup")
+        self.assertEqual(report["status"], "planned")
+        self.assertEqual(report["candidate_count"], 1)
+        self.assertEqual(report["deleted_event_count"], 0)
+        self.assertEqual(report["deleted_document_count"], 0)
+        self.assertFalse(any(sql.startswith("insert into ops.pipeline_run") for sql in executor.scalar_sql))
+
+    def test_run_duplicate_title_cleanup_execute_records_pipeline_run(self) -> None:
+        executor = FakeExecutor(_sample_state())
+
+        report = run_duplicate_title_cleanup(
+            config=RuntimeConfig(psql_command="psql"),
+            as_of_date=date(2026, 5, 24),
+            execute=True,
+            executor=executor,
+        )
+
+        self.assertEqual(report["status"], "completed")
+        self.assertEqual(report["run_id"], 9401)
+        self.assertEqual(report["deleted_event_count"], 1)
+        self.assertEqual(report["deleted_document_count"], 1)
         self.assertFalse(report["recommendation_scoring_mutated"])
         self.assertFalse(report["automatic_order_allowed"])
         self.assertFalse(report["broker_submit_allowed"])
