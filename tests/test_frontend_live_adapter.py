@@ -637,8 +637,38 @@ class FakeLiveExecutor:
                                 "segment_footnote_evidence_source": "research.segment_footnote_evidence",
                                 "latest_segment_evidence_as_of_date": "2024-12-02",
                                 "segment_evidence_count": 3,
-                                "reported_segment_metric_count": 0,
+                                "reported_segment_metric_count": 4,
                                 "segment_data_gap_count": 1,
+                                "reported_segment_input_count": 2,
+                                "latest_reported_segment_period_end": "2024-09-28",
+                                "reported_segment_revenue_total": "485035000000.0000",
+                                "reported_segment_operating_income_total": "194500000000.0000",
+                                "reported_segment_inputs": [
+                                    {
+                                        "segment_key": "products",
+                                        "segment_label": "Products",
+                                        "period_end": "2024-09-28",
+                                        "revenue": "391035000000.0000",
+                                        "operating_income": "153000000000.0000",
+                                        "operating_margin": "0.3913",
+                                        "metric_unit": "USD_as_reported",
+                                        "source_document_id": 8101,
+                                        "confidence": "0.7600",
+                                        "source_run_id": 7803,
+                                    },
+                                    {
+                                        "segment_key": "services",
+                                        "segment_label": "Services",
+                                        "period_end": "2024-09-28",
+                                        "revenue": "94000000000.0000",
+                                        "operating_income": "41500000000.0000",
+                                        "operating_margin": "0.4415",
+                                        "metric_unit": "USD_as_reported",
+                                        "source_document_id": 8101,
+                                        "confidence": "0.7400",
+                                        "source_run_id": 7803,
+                                    },
+                                ],
                                 "has_operating_business_component": True,
                                 "sotp_components": [
                                     {
@@ -3493,6 +3523,11 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertEqual(sotp_method["sotp_evidence"]["component_count"], 3)
         self.assertEqual(sotp_method["sotp_evidence"]["components"][0]["component_key"], "operating_business_fcf")
         self.assertEqual(sotp_method["sotp_evidence"]["components"][0]["fair_value_base"], 285.0)
+        self.assertEqual(len(sotp_method["sotp_evidence"]["reported_segment_inputs"]), 2)
+        self.assertEqual(sotp_method["sotp_evidence"]["reported_segment_inputs"][0]["segment_label"], "Products")
+        self.assertEqual(sotp_method["sotp_evidence"]["reported_segment_inputs"][0]["revenue"], 391035000000.0)
+        self.assertEqual(sotp_method["sotp_evidence"]["reported_segment_inputs"][0]["operating_income"], 153000000000.0)
+        self.assertAlmostEqual(sotp_method["sotp_evidence"]["reported_segment_inputs"][0]["operating_margin"], 0.3913)
         self.assertEqual(sotp_method["sotp_evidence"]["segment_footnote_evidence"]["status"], "available")
         self.assertEqual(sotp_method["sotp_evidence"]["segment_footnote_evidence"]["evidence_count"], 3)
         self.assertEqual(

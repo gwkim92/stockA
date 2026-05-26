@@ -2328,8 +2328,11 @@ forecast_inputs as (
 latest_segment_evidence as (
     select distinct on (evidence.instrument_id, evidence.segment_key, evidence.evidence_type, evidence.metric_code)
         evidence.instrument_id,
+        evidence.segment_key,
         evidence.evidence_type,
-        evidence.metric_code
+        evidence.metric_code,
+        evidence.metric_value,
+        evidence.period_end
     from research.segment_footnote_evidence evidence
     where evidence.as_of_date <= {sql_date(as_of_date)}
       and evidence.statement_scope = {sql_literal(statement_scope)}
@@ -2340,6 +2343,15 @@ latest_segment_evidence as (
         evidence.metric_code,
         evidence.as_of_date desc,
         evidence.evidence_id desc
+),
+reported_segment_inputs as (
+    select
+        instrument_id,
+        count(distinct segment_key)::integer as reported_segment_input_count
+    from latest_segment_evidence
+    where evidence_type = 'reported_segment_metric'
+      and metric_code in ('segment_revenue', 'segment_operating_income')
+    group by instrument_id
 ),
 sotp_context as (
     select
@@ -2372,6 +2384,7 @@ select json_build_object(
     'raw_input_count', (select count(*)::integer from raw_inputs),
     'forecast_input_count', (select count(*)::integer from forecast_inputs),
     'segment_footnote_evidence_count', (select count(*)::integer from latest_segment_evidence),
+    'reported_segment_input_count', coalesce((select sum(reported_segment_input_count)::integer from reported_segment_inputs), 0),
     'sotp_context_count', (select count(*)::integer from sotp_context),
     'existing_component_count',
         (
@@ -2492,6 +2505,61 @@ latest_segment_evidence as (
         evidence.as_of_date desc,
         evidence.evidence_id desc
 ),
+reported_segment_input_rows as (
+    select
+        instrument_id,
+        segment_key,
+        max(segment_label) as segment_label,
+        period_end,
+        max(metric_value) filter (where metric_code = 'segment_revenue') as segment_revenue,
+        max(metric_value) filter (where metric_code = 'segment_operating_income') as segment_operating_income,
+        max(metric_unit) filter (where metric_code = 'segment_revenue') as segment_revenue_unit,
+        max(metric_unit) filter (where metric_code = 'segment_operating_income') as segment_operating_income_unit,
+        max(source_document_id) filter (where metric_code = 'segment_revenue') as revenue_source_document_id,
+        max(source_document_id) filter (where metric_code = 'segment_operating_income') as operating_income_source_document_id,
+        avg(confidence) as confidence,
+        max(source_run_id) as source_run_id
+    from latest_segment_evidence
+    where evidence_type = 'reported_segment_metric'
+      and metric_code in ('segment_revenue', 'segment_operating_income')
+    group by instrument_id, segment_key, period_end
+    having
+        max(metric_value) filter (where metric_code = 'segment_revenue') is not null
+        or max(metric_value) filter (where metric_code = 'segment_operating_income') is not null
+),
+reported_segment_inputs as (
+    select
+        instrument_id,
+        count(*)::integer as reported_segment_input_count,
+        max(period_end) as latest_reported_segment_period_end,
+        sum(segment_revenue) as reported_segment_revenue_total,
+        sum(segment_operating_income) as reported_segment_operating_income_total,
+        avg(confidence) as reported_segment_confidence,
+        jsonb_agg(
+            jsonb_build_object(
+                'segment_key', segment_key,
+                'segment_label', segment_label,
+                'period_end', period_end,
+                'revenue', segment_revenue,
+                'operating_income', segment_operating_income,
+                'operating_margin',
+                    case
+                        when segment_revenue is not null
+                         and segment_revenue > 0
+                         and segment_operating_income is not null
+                        then segment_operating_income / segment_revenue
+                        else null::numeric
+                    end,
+                'metric_unit', coalesce(segment_revenue_unit, segment_operating_income_unit, 'USD_as_reported'),
+                'source_document_id', coalesce(revenue_source_document_id, operating_income_source_document_id),
+                'confidence', confidence,
+                'source_run_id', source_run_id
+            )
+            order by segment_revenue desc nulls last, segment_key
+        ) as reported_segment_inputs_json
+    from reported_segment_input_rows
+    group by instrument_id
+),
 segment_evidence_inputs as (
     select
         instrument_id,
@@ -2560,11 +2628,18 @@ sotp_inputs as (
         segment.segment_data_gap_count,
         segment.latest_segment_evidence_as_of_date,
         segment.segment_evidence_confidence,
-        segment.segment_evidence_json
+        segment.segment_evidence_json,
+        reported.reported_segment_input_count,
+        reported.latest_reported_segment_period_end,
+        reported.reported_segment_revenue_total,
+        reported.reported_segment_operating_income_total,
+        reported.reported_segment_confidence,
+        reported.reported_segment_inputs_json
     from latest_prices price
     left join raw_inputs raw on raw.instrument_id = price.instrument_id
     left join forecast_inputs forecast on forecast.instrument_id = price.instrument_id
     left join segment_evidence_inputs segment on segment.instrument_id = price.instrument_id
+    left join reported_segment_inputs reported on reported.instrument_id = price.instrument_id
     where price.base_price > 0
       and raw.shares_outstanding is not null
       and raw.shares_outstanding > 0
@@ -2645,7 +2720,7 @@ component_rows as (
         (input.base_price * -0.0100::numeric) as fair_value_high,
         'segment_data_gap_reserve'::text as valuation_basis,
         jsonb_build_object(
-            'component_description', '사업부별 매출·마진·자본배분 데이터가 아직 없으므로 SOTP 과신을 막기 위한 reserve다.',
+            'component_description', '보고 사업부 실적은 근거로 연결하되 사업부별 forecast·자본배분·multiple이 아직 없으므로 SOTP 과신을 막기 위한 reserve다.',
             'base_price', input.base_price,
             'price_date', input.price_date,
             'low_reserve_pct', -0.0500,
@@ -2657,6 +2732,12 @@ component_rows as (
             'segment_evidence_count', coalesce(input.segment_evidence_count, 0),
             'reported_segment_metric_count', coalesce(input.reported_segment_metric_count, 0),
             'segment_data_gap_count', coalesce(input.segment_data_gap_count, 0),
+            'reported_segment_input_count', coalesce(input.reported_segment_input_count, 0),
+            'latest_reported_segment_period_end', input.latest_reported_segment_period_end,
+            'reported_segment_revenue_total', input.reported_segment_revenue_total,
+            'reported_segment_operating_income_total', input.reported_segment_operating_income_total,
+            'reported_segment_confidence', input.reported_segment_confidence,
+            'reported_segment_inputs', coalesce(input.reported_segment_inputs_json, '[]'::jsonb),
             'segment_evidence', coalesce(input.segment_evidence_json, '[]'::jsonb)
         ) as assumptions_json,
         0.5000::numeric as confidence
@@ -2980,6 +3061,7 @@ forecast_inputs as (
 ),
 latest_sotp_components as (
     select distinct on (component.instrument_id, component.component_key)
+        component.component_id,
         component.instrument_id,
         component.as_of_date,
         component.statement_scope,
@@ -3234,6 +3316,7 @@ forecast_inputs as (
 ),
 latest_sotp_components as (
     select distinct on (component.instrument_id, component.component_key)
+        component.component_id,
         component.instrument_id,
         component.as_of_date,
         component.statement_scope,
@@ -3270,6 +3353,20 @@ sotp_inputs as (
         max(nullif(assumptions_json ->> 'segment_evidence_count', '')::integer) as segment_evidence_count,
         max(nullif(assumptions_json ->> 'reported_segment_metric_count', '')::integer) as reported_segment_metric_count,
         max(nullif(assumptions_json ->> 'segment_data_gap_count', '')::integer) as segment_data_gap_count,
+        max(nullif(assumptions_json ->> 'reported_segment_input_count', '')::integer) as reported_segment_input_count,
+        max(nullif(assumptions_json ->> 'latest_reported_segment_period_end', '')) as latest_reported_segment_period_end,
+        max(nullif(assumptions_json ->> 'reported_segment_revenue_total', '')::numeric) as reported_segment_revenue_total,
+        max(nullif(assumptions_json ->> 'reported_segment_operating_income_total', '')::numeric) as reported_segment_operating_income_total,
+        coalesce(
+            (
+                array_agg(assumptions_json -> 'reported_segment_inputs' order by as_of_date desc, component_id desc)
+                filter (
+                    where jsonb_typeof(assumptions_json -> 'reported_segment_inputs') = 'array'
+                      and jsonb_array_length(assumptions_json -> 'reported_segment_inputs') > 0
+                )
+            )[1],
+            '[]'::jsonb
+        ) as reported_segment_inputs_json,
         jsonb_agg(
             jsonb_build_object(
                 'component_key', component_key,
@@ -3337,6 +3434,11 @@ valuation_inputs as (
         sotp.segment_evidence_count,
         sotp.reported_segment_metric_count,
         sotp.segment_data_gap_count,
+        sotp.reported_segment_input_count,
+        sotp.latest_reported_segment_period_end,
+        sotp.reported_segment_revenue_total,
+        sotp.reported_segment_operating_income_total,
+        sotp.reported_segment_inputs_json,
         sotp.components_json,
         least(
             1::numeric,
@@ -3560,20 +3662,26 @@ sum_of_parts_rows as (
             'segment_evidence_count', coalesce(input.segment_evidence_count, 0),
             'reported_segment_metric_count', coalesce(input.reported_segment_metric_count, 0),
             'segment_data_gap_count', coalesce(input.segment_data_gap_count, 0),
+            'reported_segment_input_count', coalesce(input.reported_segment_input_count, 0),
+            'latest_reported_segment_period_end', input.latest_reported_segment_period_end,
+            'reported_segment_revenue_total', input.reported_segment_revenue_total,
+            'reported_segment_operating_income_total', input.reported_segment_operating_income_total,
+            'reported_segment_inputs', coalesce(input.reported_segment_inputs_json, '[]'::jsonb),
             'sotp_components', coalesce(input.components_json, '[]'::jsonb),
             'has_operating_business_component', coalesce(input.has_operating_business_component, false),
-            'key_variables', json_build_array('sotp_components', 'operating_business_fcf', 'balance_sheet_adjustment', 'segment_data_gap_reserve'),
+            'key_variables', json_build_array('sotp_components', 'reported_segment_inputs', 'operating_business_fcf', 'balance_sheet_adjustment', 'segment_data_gap_reserve'),
             'data_quality', json_build_object(
                 'component_count', coalesce(input.sotp_component_count, 0),
                 'has_operating_business_component', coalesce(input.has_operating_business_component, false),
                 'segment_evidence_count', coalesce(input.segment_evidence_count, 0),
                 'reported_segment_metric_count', coalesce(input.reported_segment_metric_count, 0),
+                'reported_segment_input_count', coalesce(input.reported_segment_input_count, 0),
                 'segment_data_gap_count', coalesce(input.segment_data_gap_count, 0),
                 'latest_sotp_as_of_date', input.latest_sotp_as_of_date
             ),
             'limitations', json_build_array(
-                '첫 SOTP foundation은 사업부별 segment forecast가 아니라 FCF와 재무상태 기반 proxy component다.',
-                '세그먼트 데이터 공백 reserve를 차감해 과신을 줄이지만, 완전한 sell-side SOTP를 대체하지 않는다.'
+                'reported segment 매출·영업이익은 SOTP 입력 근거로 연결하지만 사업부별 growth, CAPEX, multiple은 아직 별도 모델이 아니다.',
+                '세그먼트 forecast·자본배분 공백 reserve를 차감해 과신을 줄이지만, 완전한 sell-side SOTP를 대체하지 않는다.'
             ),
             'recommendation_scoring_mutated', false
         )::jsonb as assumptions_json,

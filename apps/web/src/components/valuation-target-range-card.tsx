@@ -26,6 +26,23 @@ function formatPercent(value: number | null | undefined, signed = false) {
   return signed && value > 0 ? `+${text}` : text;
 }
 
+function formatReportedNumber(value: number | null | undefined) {
+  if (value === null || value === undefined) {
+    return "미측정";
+  }
+  return new Intl.NumberFormat("ko-KR", { maximumFractionDigits: 2 }).format(value);
+}
+
+function reportedUnitLabel(unit: string) {
+  if (!unit) {
+    return "단위 미확인";
+  }
+  if (unit === "USD_as_reported") {
+    return "공시 보고 단위";
+  }
+  return unit;
+}
+
 function assumptionText(value: Record<string, unknown>) {
   const description = value.method_description ?? value.pricing_basis ?? value.scenario_basis;
   return typeof description === "string" && description.trim() ? description : "가정 설명 없음";
@@ -184,6 +201,28 @@ export function ValuationTargetRangeCard({
                       </div>
                     ))}
                   </div>
+                  {method.sotp_evidence.reported_segment_inputs.length > 0 ? (
+                    <div style={{ borderTop: "1px solid var(--border-light)", marginTop: "12px", paddingTop: "10px" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", gap: "10px", alignItems: "baseline" }}>
+                        <span style={{ color: "var(--text-secondary)", fontSize: "0.76rem", fontWeight: 900 }}>사업부별 실적 입력</span>
+                        <small style={{ color: "var(--text-muted)" }}>
+                          {method.sotp_evidence.reported_segment_inputs.length}개 사업부 · SEC 원문 기반
+                        </small>
+                      </div>
+                      <div style={{ display: "grid", gap: "8px", marginTop: "10px" }}>
+                        {method.sotp_evidence.reported_segment_inputs.slice(0, 6).map((segment) => (
+                          <div key={`${method.method}-reported-segment-${segment.segment_key}-${segment.period_end}`} style={{ display: "grid", gridTemplateColumns: "124px 1fr", gap: "8px", alignItems: "start" }}>
+                            <strong>{segment.segment_label}</strong>
+                            <small style={{ color: "var(--text-secondary)", lineHeight: 1.45 }}>
+                              매출 {formatReportedNumber(segment.revenue)} · 영업이익 {formatReportedNumber(segment.operating_income)} · 영업마진 {formatPercent(segment.operating_margin)}
+                              {segment.period_end ? ` · ${segment.period_end}` : ""}
+                              {segment.metric_unit ? ` · ${reportedUnitLabel(segment.metric_unit)}` : ""}
+                            </small>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
                   {method.sotp_evidence.segment_footnote_evidence.status === "available" ? (
                     <div style={{ borderTop: "1px solid var(--border-light)", marginTop: "12px", paddingTop: "10px" }}>
                       <div style={{ display: "flex", justifyContent: "space-between", gap: "10px", alignItems: "baseline" }}>

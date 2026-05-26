@@ -8587,8 +8587,39 @@ def _valuation_method_sotp_evidence(assumptions: dict[str, Any]) -> dict[str, An
     components = [_as_dict(component) for component in _as_list(assumptions.get("sotp_components"))]
     components = [component for component in components if component]
     segment_evidence_rows: list[dict[str, Any]] = []
+    reported_segment_inputs: list[dict[str, Any]] = []
+
+    def append_reported_segment_input(row: Any) -> None:
+        segment_input = _as_dict(row)
+        if not segment_input:
+            return
+        reported_segment_inputs.append(
+            {
+                "segment_key": str(segment_input.get("segment_key") or ""),
+                "segment_label": str(segment_input.get("segment_label") or segment_input.get("segment_key") or ""),
+                "period_end": str(segment_input.get("period_end") or ""),
+                "revenue": _number(segment_input.get("revenue")),
+                "operating_income": _number(segment_input.get("operating_income")),
+                "operating_margin": _number(segment_input.get("operating_margin")),
+                "metric_unit": str(segment_input.get("metric_unit") or ""),
+                "source_document_id": _opaque_id("source-document", segment_input.get("source_document_id"), None)
+                if segment_input.get("source_document_id") is not None
+                else None,
+                "confidence": _number(segment_input.get("confidence")),
+                "source_run_id": _opaque_id("pipeline-run", segment_input.get("source_run_id"), None)
+                if segment_input.get("source_run_id") is not None
+                else None,
+            }
+        )
+
+    for row in _as_list(assumptions.get("reported_segment_inputs")):
+        append_reported_segment_input(row)
+
     for component in components:
         component_assumptions = _as_dict(component.get("assumptions"))
+        if not reported_segment_inputs:
+            for row in _as_list(component_assumptions.get("reported_segment_inputs")):
+                append_reported_segment_input(row)
         for row in _as_list(component_assumptions.get("segment_evidence")):
             evidence = _as_dict(row)
             if not evidence:
@@ -8635,6 +8666,7 @@ def _valuation_method_sotp_evidence(assumptions: dict[str, Any]) -> dict[str, An
             "component_count": _integer(assumptions.get("sotp_component_count")) or 0,
             "source": str(assumptions.get("sotp_component_source") or ""),
             "components": [],
+            "reported_segment_inputs": reported_segment_inputs,
             "segment_footnote_evidence": segment_evidence_payload,
         }
 
@@ -8673,6 +8705,7 @@ def _valuation_method_sotp_evidence(assumptions: dict[str, Any]) -> dict[str, An
         "component_count": _integer(assumptions.get("sotp_component_count")) or len(normalized_components),
         "source": str(assumptions.get("sotp_component_source") or "market.sum_of_parts_component"),
         "components": normalized_components,
+        "reported_segment_inputs": reported_segment_inputs,
         "segment_footnote_evidence": segment_evidence_payload,
     }
 
@@ -8698,8 +8731,8 @@ def _valuation_method_limitations(method: str, assumptions: dict[str, Any]) -> l
         ]
     if method == "sum_of_parts":
         return [
-            "첫 SOTP foundation은 사업부별 segment forecast가 아니라 FCF와 재무상태 기반 proxy component다.",
-            "세그먼트 데이터 공백 reserve를 차감해 과신을 줄이지만, 완전한 sell-side SOTP를 대체하지 않는다.",
+            "reported segment 매출·영업이익은 SOTP 입력 근거로 연결하지만 사업부별 growth, CAPEX, multiple은 아직 별도 모델이 아니다.",
+            "세그먼트 forecast·자본배분 공백 reserve를 차감해 과신을 줄이지만, 완전한 sell-side SOTP를 대체하지 않는다.",
         ]
     return ["모델 한계가 구조화되지 않았다. 최신 valuation runner 재실행이 필요하다."]
 
