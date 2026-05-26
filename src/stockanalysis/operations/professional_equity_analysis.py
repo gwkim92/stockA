@@ -1635,9 +1635,45 @@ def render_reported_segment_footnote_metric_upsert_sql(
     as_of_date: date,
     source_run_id: int,
     statement_scope: str = "annual",
+    stale_candidate_keys: list[tuple[int, int]] | None = None,
 ) -> str:
     _validate_valuation_args(statement_scope=statement_scope)
+    stale_keys = _dedupe_stale_candidate_keys(stale_candidate_keys or [])
     if not evidence_rows:
+        if stale_keys:
+            stale_value_rows = ",\n        ".join(_render_stale_candidate_key_tuple(key) for key in stale_keys)
+            return f"""-- reported segment footnote metric upsert
+with stale_candidate_keys(
+    instrument_id,
+    source_document_id
+) as (
+    values
+        {stale_value_rows}
+),
+removed_stale_reported_metrics as (
+    delete from research.segment_footnote_evidence stale
+    where stale.as_of_date = {sql_date(as_of_date)}
+      and stale.statement_scope = {sql_literal(statement_scope)}
+      and stale.evidence_type = 'reported_segment_metric'
+      and exists (
+          select 1
+          from stale_candidate_keys candidate
+          where candidate.instrument_id = stale.instrument_id
+            and candidate.source_document_id = stale.source_document_id
+      )
+    returning stale.evidence_id
+)
+select json_build_object(
+    'as_of_date', {sql_literal(as_of_date.isoformat())},
+    'source_run_id', {int(source_run_id)},
+    'statement_scope', {sql_literal(statement_scope)},
+    'reported_segment_metric_count', 0,
+    'parsed_instrument_count', 0,
+    'removed_stale_metric_count', (select count(*)::integer from removed_stale_reported_metrics),
+    'removed_gap_count', 0,
+    'metric_code_counts', '{{}}'::json,
+    'recommendation_scoring_mutated', false
+)::text;"""
         return f"""-- reported segment footnote metric upsert
 select json_build_object(
     'as_of_date', {sql_literal(as_of_date.isoformat())},
@@ -1645,12 +1681,33 @@ select json_build_object(
     'statement_scope', {sql_literal(statement_scope)},
     'reported_segment_metric_count', 0,
     'parsed_instrument_count', 0,
+    'removed_stale_metric_count', 0,
     'removed_gap_count', 0,
     'metric_code_counts', '{{}}'::json,
     'recommendation_scoring_mutated', false
 )::text;"""
 
     value_rows = ",\n        ".join(_render_reported_segment_metric_value_tuple(row) for row in evidence_rows)
+    stale_value_rows = ",\n        ".join(_render_stale_candidate_key_tuple(key) for key in stale_keys)
+    stale_candidate_keys_cte = (
+        f""",
+explicit_stale_candidate_keys(
+    instrument_id,
+    source_document_id
+) as (
+    values
+        {stale_value_rows}
+)"""
+        if stale_keys
+        else """,
+explicit_stale_candidate_keys(
+    instrument_id,
+    source_document_id
+) as (
+    select null::bigint, null::bigint
+    where false
+)"""
+    )
     return f"""-- reported segment footnote metric upsert
 with input_rows(
     instrument_id,
@@ -1670,6 +1727,13 @@ with input_rows(
 ) as (
     values
         {value_rows}
+){stale_candidate_keys_cte},
+stale_candidate_keys as (
+    select distinct instrument_id, source_document_id
+    from input_rows
+    union
+    select distinct instrument_id, source_document_id
+    from explicit_stale_candidate_keys
 ),
 removed_stale_reported_metrics as (
     delete from research.segment_footnote_evidence stale
@@ -1678,9 +1742,9 @@ removed_stale_reported_metrics as (
       and stale.evidence_type = 'reported_segment_metric'
       and exists (
           select 1
-          from input_rows input
-          where input.instrument_id = stale.instrument_id
-            and input.source_document_id = stale.source_document_id
+          from stale_candidate_keys candidate
+          where candidate.instrument_id = stale.instrument_id
+            and candidate.source_document_id = stale.source_document_id
       )
       and not exists (
           select 1
@@ -1898,6 +1962,7 @@ def run_reported_segment_footnote_parser(
                     as_of_date=as_of_date,
                     source_run_id=run_id,
                     statement_scope=statement_scope,
+                    stale_candidate_keys=_reported_segment_stale_candidate_keys(candidates),
                 )
             )
         )
@@ -4407,6 +4472,8 @@ def extract_reported_segment_metrics_from_html(
     rows: list[ReportedSegmentMetricEvidence] = []
     seen: set[tuple[str, str]] = set()
     for table_index, table_context in enumerate(_extract_html_table_contexts(html_text), start=1):
+        if _is_single_segment_summary_table(table_context.context_text):
+            continue
         table_html = table_context.table_html
         table_rows = _extract_html_table_rows(table_html)
         if len(table_rows) < 2:
@@ -4755,6 +4822,25 @@ def _render_reported_segment_metric_value_tuple(row: ReportedSegmentMetricEviden
     )
 
 
+def _reported_segment_stale_candidate_keys(candidates: list[dict[str, object]]) -> list[tuple[int, int]]:
+    keys: list[tuple[int, int]] = []
+    for candidate in candidates:
+        try:
+            keys.append((int(candidate["instrument_id"]), int(candidate["source_document_id"])))
+        except (KeyError, TypeError, ValueError):
+            continue
+    return keys
+
+
+def _dedupe_stale_candidate_keys(keys: list[tuple[int, int]]) -> list[tuple[int, int]]:
+    return sorted({(int(instrument_id), int(source_document_id)) for instrument_id, source_document_id in keys})
+
+
+def _render_stale_candidate_key_tuple(key: tuple[int, int]) -> str:
+    instrument_id, source_document_id = key
+    return f"({int(instrument_id)}::bigint, {int(source_document_id)}::bigint)"
+
+
 def _extract_html_tables(html_text: str) -> list[str]:
     return re.findall(r"<table\b[^>]*>.*?</table>", html_text, flags=re.IGNORECASE | re.DOTALL)
 
@@ -4790,6 +4876,15 @@ def _single_reportable_segment_skip_reason(html_text: str) -> str | None:
     if _contains_company_single_segment_statement(normalized_text):
         return "single_reportable_segment_no_disaggregated_segment_table"
     return None
+
+
+def _is_single_segment_summary_table(context_text: str) -> bool:
+    normalized = context_text.lower()
+    if not _contains_company_single_segment_statement(normalized):
+        return False
+    if any(token in normalized for token in ("selected financial information", "single operating segment")):
+        return True
+    return False
 
 
 def _ixbrl_single_count(html_text: str, tag_name: str) -> bool:
@@ -4968,6 +5063,25 @@ def _clean_segment_label(label: str) -> str | None:
         "net sales",
         "revenue",
         "sales",
+        "revenue from external customers",
+        "revenue from related parties",
+        "total revenue",
+        "cost of sales",
+        "gross profit",
+        "gross profit loss",
+        "operating expense",
+        "operating expenses",
+        "total operating expense",
+        "total operating expenses",
+        "less operating costs and expenses",
+        "staff costs",
+        "non staff costs",
+        "non-staff costs",
+        "research and development",
+        "selling general and administrative",
+        "selling, general and administrative",
+        "disposal restructuring and other operating expenses net",
+        "disposal, restructuring and other operating expenses, net",
         "deferred tax assets",
         "deferred tax liabilities",
         "deferred tax assets and liabilities",

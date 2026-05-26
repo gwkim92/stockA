@@ -762,6 +762,27 @@ class ProfessionalEquityAnalysisTests(unittest.TestCase):
 
         self.assertIsNone(_single_reportable_segment_skip_reason(html))
 
+    def test_reported_segment_parser_ignores_single_segment_financial_summary_tables(self) -> None:
+        html = Path("tests/fixtures/sec_filing_arm_single_operating_segment_summary_sample.html").read_text(
+            encoding="utf-8"
+        )
+
+        rows = extract_reported_segment_metrics_from_html(
+            html,
+            instrument_id=50,
+            primary_symbol="ARM",
+            as_of_date=date(2026, 5, 26),
+            statement_scope="annual",
+            period_end=date(2025, 3, 31),
+            source_document_id=1973239,
+        )
+
+        self.assertEqual(rows, [])
+        self.assertEqual(
+            _single_reportable_segment_skip_reason(html),
+            "single_reportable_segment_no_disaggregated_segment_table",
+        )
+
     def test_reported_segment_footnote_metric_upsert_sql_removes_obsolete_gap_rows(self) -> None:
         html = Path("tests/fixtures/sec_filing_segment_footnote_sample.html").read_text(encoding="utf-8")
         rows = extract_reported_segment_metrics_from_html(
@@ -792,6 +813,20 @@ class ProfessionalEquityAnalysisTests(unittest.TestCase):
         self.assertIn("recommendation_scoring_mutated", sql)
         self.assertNotIn("signal.recommendation_score_component", sql)
         self.assertIn("9654::bigint", sql)
+
+    def test_reported_segment_footnote_metric_upsert_sql_cleans_stale_rows_for_skipped_candidates(self) -> None:
+        sql = render_reported_segment_footnote_metric_upsert_sql(
+            [],
+            as_of_date=date(2026, 5, 26),
+            source_run_id=120,
+            stale_candidate_keys=[(50, 4684)],
+        )
+
+        self.assertIn("stale_candidate_keys", sql)
+        self.assertIn("(50::bigint, 4684::bigint)", sql)
+        self.assertIn("delete from research.segment_footnote_evidence stale", sql.lower())
+        self.assertIn("'removed_stale_metric_count'", sql)
+        self.assertIn("'reported_segment_metric_count', 0", sql)
 
     def test_segment_footnote_evidence_preview_sql_is_read_only(self) -> None:
         sql = render_segment_footnote_evidence_preview_sql(as_of_date=date(2026, 5, 25), statement_scope="annual")
