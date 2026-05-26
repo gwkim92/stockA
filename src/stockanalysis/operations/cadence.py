@@ -180,6 +180,21 @@ DATA_OPERATION_CADENCES: tuple[DataOperationCadence, ...] = (
         data_health_dataset="market.financial_statement_period",
     ),
     DataOperationCadence(
+        job_id="financial-period-source-linkage-weekly",
+        pipeline_name="financial_period_source_linkage",
+        domain="sec",
+        cadence="weekly",
+        command_template=(
+            "stockanalysis-operations financial-period-source-linkage-run "
+            "--env-file <ENV> --cik <CIK> --as-of-date <YYYY-MM-DD> --max-filings 200 --execute"
+        ),
+        expected_after_local="08:22 Monday",
+        stale_after_hours=216,
+        artifact_policy="stdout_json_stderr_log_and_sec_source_linkage_counts",
+        required_env_groups=("database", "sec_identity"),
+        data_health_dataset="market.financial_statement_period",
+    ),
+    DataOperationCadence(
         job_id="professional-coverage-expansion-weekly",
         pipeline_name="professional_coverage_expansion",
         domain="fundamentals",
@@ -191,18 +206,6 @@ DATA_OPERATION_CADENCES: tuple[DataOperationCadence, ...] = (
         expected_after_local="08:25 Monday",
         stale_after_hours=216,
         artifact_policy="stdout_json_stderr_log_and_coverage_targets",
-        required_env_groups=("database", "sec_identity"),
-        data_health_dataset="market.financial_statement_period",
-    ),
-    DataOperationCadence(
-        job_id="financial-period-source-linkage-weekly",
-        pipeline_name="financial_period_source_linkage",
-        domain="sec",
-        cadence="weekly",
-        command_template="stockanalysis-operations financial-period-source-linkage-run --env-file <ENV> --cik <CIK> --as-of-date <YYYY-MM-DD> --execute",
-        expected_after_local="08:25 Monday",
-        stale_after_hours=216,
-        artifact_policy="stdout_json_stderr_log_and_sec_source_linkage_counts",
         required_env_groups=("database", "sec_identity"),
         data_health_dataset="market.financial_statement_period",
     ),

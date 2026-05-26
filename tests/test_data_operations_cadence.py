@@ -98,6 +98,7 @@ class DataOperationsCadenceTests(unittest.TestCase):
         self.assertEqual(source_linkage_job["pipeline_name"], "financial_period_source_linkage")
         self.assertEqual(source_linkage_job["domain"], "sec")
         self.assertIn("financial-period-source-linkage-run", source_linkage_job["command_template"])
+        self.assertIn("--max-filings 200", source_linkage_job["command_template"])
         self.assertIn("sec_identity", source_linkage_job["required_env_groups"])
         self.assertEqual(source_linkage_job["data_health_dataset"], "market.financial_statement_period")
         reported_segment_job = next(

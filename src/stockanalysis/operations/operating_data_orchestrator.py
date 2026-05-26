@@ -20,6 +20,7 @@ from stockanalysis.operations.artifact_runner import (
 from stockanalysis.operations.cadence import DATA_OPERATIONS_ARTIFACT_ROOT_ENV
 from stockanalysis.operations.env_file import merged_env_with_file
 from stockanalysis.operations.env_readiness import PORTFOLIO_POSITIONS_CSV_ENV
+from stockanalysis.operations.financial_period_source_linkage import DEFAULT_SOURCE_LINKAGE_MAX_FILINGS
 from stockanalysis.operations.local_runtime_status import DEFAULT_LOCAL_RUNTIME_ROOT
 from stockanalysis.operations.market_price_free_backfill import (
     MARKET_PRICE_BUDGET_LEDGER_PATH_ENV,
@@ -45,6 +46,7 @@ DEFAULT_MACRO_SERIES = ("CPIAUCSL", "FEDFUNDS")
 DEFAULT_MACRO_OBSERVATION_START = "2025-01-01"
 DEFAULT_SEC_FILINGS_CIK = "320193"
 DEFAULT_SEC_FILINGS_MAX_FILINGS = 3
+DEFAULT_PERIOD_SOURCE_LINKAGE_MAX_FILINGS = DEFAULT_SOURCE_LINKAGE_MAX_FILINGS
 SEC_FILINGS_CIK_ENV = "STOCKANALYSIS_SEC_FILINGS_CIK"
 SEC_FILINGS_MAX_FILINGS_ENV = "STOCKANALYSIS_SEC_FILINGS_MAX_FILINGS"
 OPERATING_DATA_REPORT_ENV = "STOCKANALYSIS_OPERATING_DATA_RUN_REPORT"
@@ -579,7 +581,7 @@ def _build_planned_steps(
                 "--cik",
                 sec_filings_cik,
                 "--max-filings",
-                str(sec_filings_max_filings),
+                str(max(sec_filings_max_filings, DEFAULT_PERIOD_SOURCE_LINKAGE_MAX_FILINGS)),
                 "--raw-fetch-limit",
                 "2",
                 "--execute",

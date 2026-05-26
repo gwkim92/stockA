@@ -8,6 +8,7 @@ from unittest.mock import patch
 from stockanalysis.ingest.config import RuntimeConfig
 from stockanalysis.operations.financial_period_source_linkage import (
     DEFAULT_MODEL_NAME,
+    DEFAULT_SOURCE_LINKAGE_MAX_FILINGS,
     render_financial_period_source_linkage_backfill_sql,
     render_financial_period_source_linkage_preview_sql,
     render_financial_period_source_raw_fetch_candidates_sql,
@@ -142,6 +143,7 @@ class FinancialPeriodSourceLinkageTests(unittest.TestCase):
 
         self.assertEqual(report["status"], "planned")
         self.assertEqual(report["report_name"], "financial_period_source_linkage")
+        self.assertEqual(report["max_filings"], DEFAULT_SOURCE_LINKAGE_MAX_FILINGS)
         self.assertEqual(report["preview"]["link_candidate_count"], 2)  # type: ignore[index]
         self.assertFalse(report["recommendation_scoring_mutated"])
         self.assertEqual(executor.non_query_sql, [])

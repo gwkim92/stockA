@@ -273,6 +273,7 @@ class OperatingDataOrchestratorTests(unittest.TestCase):
         source_linkage_command = " ".join(sec_report["planned_steps"][2]["command_argv"])
         self.assertIn("financial-period-source-linkage-run", source_linkage_command)
         self.assertIn("--statement-scope annual", source_linkage_command)
+        self.assertIn("--max-filings 200", source_linkage_command)
         self.assertIn("--raw-fetch-limit 2", source_linkage_command)
         coverage_command = " ".join(sec_report["planned_steps"][3]["command_argv"])
         self.assertIn("professional-coverage-expansion-run", coverage_command)

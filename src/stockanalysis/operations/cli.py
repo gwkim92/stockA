@@ -35,6 +35,7 @@ from stockanalysis.operations.cycle_ai_quality_audit import run_cycle_ai_quality
 from stockanalysis.operations.env_file import merged_env_with_file
 from stockanalysis.operations.env_readiness import check_data_operations_runtime_env
 from stockanalysis.operations.financial_period_source_linkage import (
+    DEFAULT_SOURCE_LINKAGE_MAX_FILINGS,
     SOURCE_LINKAGE_STATEMENT_SCOPES,
     run_financial_period_source_linkage,
 )
@@ -942,7 +943,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     financial_period_source_linkage.add_argument("--cik")
     financial_period_source_linkage.add_argument("--fallback-symbol")
-    financial_period_source_linkage.add_argument("--max-filings", type=int, default=5)
+    financial_period_source_linkage.add_argument("--max-filings", type=int, default=DEFAULT_SOURCE_LINKAGE_MAX_FILINGS)
     financial_period_source_linkage.add_argument("--raw-fetch-limit", type=int, default=2)
     financial_period_source_linkage.add_argument("--raw-artifact-root", default="artifacts/raw")
     financial_period_source_linkage.add_argument("--execute", action="store_true")

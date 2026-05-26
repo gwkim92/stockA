@@ -10,6 +10,7 @@
 - `reported-segment-footnote-parser-v1` works as a bounded parser, but EC2 produced zero candidates because no financial statement periods were linked to SEC source documents and no linked raw SEC filing artifacts existed.
 - `sec_companyfacts_upsert` can link period rows to source documents by accession number when matching `sec_filings_upsert` source documents already exist.
 - Older EC2 data can remain unlinked if companyfacts ran before filings or if existing periods were created without matching source documents.
+- First EC2 linkage smoke with `--max-filings 3` succeeded as a run but linked zero periods because the latest three Apple filings were Form 4/144, not 10-K/10-Q. Source linkage therefore uses a wider bounded default lookback of 200 filings while the normal lightweight SEC filings step stays at 3.
 
 ## Decisions
 
@@ -31,6 +32,8 @@
 - Passed: `PYTHONPATH=/Users/woody/ai/agent-work-harness/src python3 -m awh verify --repo . --task financial-period-source-document-linkage-v1`
 - Passed: `PYTHONPATH=src /private/tmp/stockanalysis-verify-venv/bin/python -m unittest discover -s tests` (`Ran 970 tests in 5.221s`, `OK`)
 - Passed: `git diff --check`
+- Re-passed after source-linkage lookback correction: focused unittest (`Ran 88 tests`, `OK`), `compileall`, roadmap verification, AWH verify, CLI help grep, Python 3.13 full suite (`Ran 970 tests in 5.227s`, `OK`), and `git diff --check`.
+- EC2 first smoke: `financial-period-source-linkage-run --max-filings 3 --execute` completed with `run_id=1039`, `linked_period_count=0`, `raw_fetch_candidate_count=0`; root cause was insufficient filing lookback.
 
 ## Remaining Risks
 

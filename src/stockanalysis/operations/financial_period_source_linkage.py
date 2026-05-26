@@ -19,6 +19,7 @@ from stockanalysis.signal.universe import (
 
 DEFAULT_PIPELINE_NAME = "financial_period_source_linkage"
 DEFAULT_MODEL_NAME = "deterministic-financial-period-source-linkage-sql-v1"
+DEFAULT_SOURCE_LINKAGE_MAX_FILINGS = 200
 SOURCE_LINKAGE_STATEMENT_SCOPES = ("annual", "quarterly", "all")
 
 
@@ -238,7 +239,7 @@ def run_financial_period_source_linkage(
     statement_scope: str = "annual",
     cik: str | None = None,
     fallback_symbol: str | None = None,
-    max_filings: int = 5,
+    max_filings: int = DEFAULT_SOURCE_LINKAGE_MAX_FILINGS,
     raw_fetch_limit: int = 2,
     raw_artifact_root: str = "artifacts/raw",
     execute: bool = False,

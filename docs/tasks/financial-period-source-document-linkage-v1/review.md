@@ -11,6 +11,7 @@
 
 - None found in the focused local verification pass.
 - None found in the Python 3.13 full suite.
+- EC2 first smoke found an operational default issue: `--max-filings 3` did not include 10-K/10-Q filings for Apple because recent submissions were Form 4/144. The fix keeps the normal SEC metadata step lightweight but makes source linkage use a bounded 200-filing lookback.
 
 ## Residual Risks
 
@@ -23,3 +24,5 @@
 - `PYTHONPATH=src python3 -m unittest tests.test_financial_period_source_linkage tests.test_data_operations_cli tests.test_data_operations_cadence tests.test_operating_data_orchestrator` passed with `Ran 88 tests`.
 - `PYTHONPATH=src /private/tmp/stockanalysis-verify-venv/bin/python -m unittest discover -s tests` passed with `Ran 970 tests`.
 - `PYTHONPATH=src python3 -m compileall -q src tests`, CLI help grep, roadmap verification, AWH verify, and `git diff --check` passed.
+- After correcting the source-linkage lookback, focused unittest, `compileall`, CLI help grep, roadmap verification, AWH verify, Python 3.13 full suite, and `git diff --check` all passed again.
+- EC2 first smoke completed with `run_id=1039` but produced `linked_period_count=0` due to insufficient filing lookback; final EC2 smoke is still required after the correction is deployed.
