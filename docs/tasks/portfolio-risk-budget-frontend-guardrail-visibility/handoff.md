@@ -2,7 +2,7 @@
 
 ## Current Status
 
-- 진행 중: persisted portfolio risk budget guardrail을 trading readiness DTO와 주요 화면에 연결했다. focused backend test와 typecheck/compileall은 일부 통과했고, full build/EC2 smoke가 남아 있다.
+- 완료: persisted portfolio risk budget guardrail을 trading readiness DTO와 주요 화면에 연결했고, EC2에서 FastAPI/Next route smoke까지 확인했다.
 
 ## Implementation Notes
 
@@ -37,7 +37,13 @@
 - Passed: `git diff --check`
 - Passed: `PYTHONPATH=/Users/woody/ai/agent-work-harness/src /opt/homebrew/bin/python3.13 -m awh verify --repo . --task portfolio-risk-budget-frontend-guardrail-visibility`
 - Passed: `PYTHONPATH=src /private/tmp/stockanalysis-runtime/verify-venv/bin/python -m unittest discover -s tests`
+- Passed on EC2: pulled `b494474`, `stockanalysis-frontend-api.service` active, `stockanalysis-web.service` active.
+- Passed on EC2: `cd apps/web && npm run build`
+- Passed on EC2: `/paper-trading` contains `포트폴리오 위험 예산` and `입력 차단`.
+- Passed on EC2: `/trading-readiness` contains `포트폴리오 위험 예산` and `위험 예산`.
+- Passed on EC2: `/portfolio/coverage` contains `저장된 위험 예산 검증` and `벤치마크 drift`.
+- Passed on EC2: `/api/trading/readiness` contains `portfolio_risk_budget_guardrail`.
 
 ## Exact Next Step
 
-- exact next step: EC2에 배포한 뒤 `/paper-trading`, `/trading-readiness`, `/portfolio/coverage` route smoke를 확인한다.
+- exact next step: `portfolio-risk-budget-benchmark-composition-v1`을 진행한다. 현재 drift는 벤치마크 구성비가 없어 `insufficient_benchmark_composition`으로 명시적으로 미계산된다. 무료 benchmark composition source 또는 수동 seed를 추가해야 포트폴리오 drift를 계산할 수 있다.

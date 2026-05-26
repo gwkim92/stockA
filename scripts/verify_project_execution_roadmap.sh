@@ -147,7 +147,7 @@ test -f docs/plans/2026-05-20-hosted-database-runtime-decision.md
 test -f docs/hosted-database-runtime-decision.md
 test -f scripts/verify_hosted_database_runtime_decision.sh
 grep -q 'Current task group: `professional-equity-analysis-foundation`' docs/project-execution-roadmap.md
-grep -q '현재 고정된 immediate next task는 `portfolio-risk-budget-frontend-guardrail-visibility`' AGENTS.md
+grep -q '현재 고정된 immediate next task는 `portfolio-risk-budget-benchmark-composition-v1`' AGENTS.md
 grep -q "professional-coverage-expansion-for-active-recommendations" docs/project-execution-roadmap.md
 grep -q "recommendation-weight-review-readiness-audit" docs/project-execution-roadmap.md
 grep -q "paper-validation-conflict-remediation" docs/project-execution-roadmap.md
@@ -158,6 +158,7 @@ grep -q "portfolio-risk-budget-policy-v2" docs/project-execution-roadmap.md
 grep -q "portfolio-risk-budget-guardrail-run" docs/project-execution-roadmap.md
 grep -q "portfolio-risk-budget-paper-validation-integration" docs/project-execution-roadmap.md
 grep -q "portfolio-risk-budget-frontend-guardrail-visibility" docs/project-execution-roadmap.md
+grep -q "portfolio-risk-budget-benchmark-composition-v1" docs/project-execution-roadmap.md
 grep -q "project-roadmap-reality-sync" docs/project-execution-roadmap.md
 grep -q "cycle-ai-e2e-quality-audit" docs/project-execution-roadmap.md
 grep -q "news-ai-eval-dataset-and-scoring" docs/project-execution-roadmap.md
