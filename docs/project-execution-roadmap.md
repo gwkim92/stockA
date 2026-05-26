@@ -237,7 +237,7 @@ The project is no longer in the Supabase setup or Mac local-first decision stage
 | Trading | Broker boundary, paper safety, paper validation audit, order intent audit tables, and clearer paper trading status UI exist. | Live broker submit remains excluded; paper outcome history remains sparse. |
 | Professional Analysis | Financial normalization, financial statement model detail, peer relative snapshots, financial forecast inputs, sum-of-the-parts valuation foundation, segment/footnote evidence, reported segment parsing, valuation target range, valuation quality depth, portfolio risk budget, position sizing, professional decision waterfall, thesis gates, segment history backfill, segment history coverage expansion, breadth expansion, and `aeis-reported-segment-parser-layout-v1` exist. Latest AEIS EC2 smoke `run_id=1317` keeps AAPL `trend_backed`, classifies ADI and AEIS as `single_reportable_segment_no_disaggregated_segment_table`, and reports `unsupported_layout_count=0`, `recommendation_scoring_mutated=false`, `automatic_order_allowed=false`, `broker_submit_allowed=false`, `order_boundary=read_only_no_order`. Latest EC2 quality eval reached `ready_for_weight_review` with professional coverage `30/36 = 0.833333` and outcome count `30`. | Automatic weight changes remain blocked. Live broker submit remains excluded. Current next work is `segment-history-source-linkage-remediation-v1`: inspect ARM/EROK companyfacts/source-document blockers and either remediate them through supported source linkage or record precise deterministic blockers. |
 
-Latest status update: `aeis-reported-segment-parser-layout-v1` is now complete and EC2-smoked with coverage run `1317`; the authoritative next task is `segment-history-source-linkage-remediation-v1`.
+Latest status update: `segment-history-source-linkage-remediation-v1` is in progress. ARM is remediated through `20-F` annual companyfacts support and parser cleanup; EC2 coverage run `1416` classifies ARM as `single_reportable_segment_no_disaggregated_segment_table` with `arm_reported_segment_metric_count=0` and `unsupported_layout_count=0`. The remaining blocker is EROK, whose SEC companyfacts currently exposes only `ffd` facts and no financial statement taxonomy.
 
 Completed in this task group:
 
@@ -286,7 +286,7 @@ Completed in this task group:
 
 Current remaining task:
 
-1. `segment-history-source-linkage-remediation-v1`: inspect ARM/EROK companyfacts and source-document blockers, remediate supported source linkage gaps, or record precise deterministic blockers without fake data.
+1. `segment-history-source-linkage-remediation-v1`: implement precise EROK no-financial-facts/new-listing blocker classification, then re-run 10-symbol breadth coverage to prove ARM stays clean and EROK is no longer ambiguous.
 
 New expansion task group opened on 2026-05-25: `professional-equity-analysis-foundation`.
 

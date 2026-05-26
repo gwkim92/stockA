@@ -66,6 +66,7 @@
 - 최신 reported segment parser layout 증거는 EC2 parent `run_id=1165`이며 AAPL은 `coverage_status=trend_backed`, `parsed_period_count=4`, `parsed_segment_count=5`, skip reason 없음, ADI는 `coverage_status=single_reportable_segment_no_disaggregated_segment_table`, raw document period `3`, generic `unsupported_layout_count=0`이다.
 - 최신 segment coverage breadth 증거는 EC2 parent `run_id=1254`이며 selected symbols `AAPL/ADI/AEIS/ALAB/ARM/DIS/ELF/EROK/FANG/GILD`, status counts `trend_backed=4`, `single_reportable_segment_no_disaggregated_segment_table=3`, `unsupported_layout=1`, `missing_source_document_linkage=2`이다. `AEIS`는 후속 parser task에서 단일 보고 세그먼트로 분류되었고 ARM/EROK는 companyfacts/source linkage blocker로 분리한다.
 - 최신 AEIS segment parser 증거는 EC2 coverage smoke `run_id=1317`이며 AAPL은 `trend_backed`, ADI와 AEIS는 `single_reportable_segment_no_disaggregated_segment_table`, `unsupported_layout_count=0`, `recommendation_scoring_mutated=false`, `automatic_order_allowed=false`, `broker_submit_allowed=false`, `order_boundary=read_only_no_order`이다.
+- 최신 ARM source-linkage 증거는 EC2 source linkage `run_id=1339`, coverage smoke `run_id=1416`이다. ARM은 `20-F` companyfacts support로 54 facts/8 periods가 적재됐고 parser cleanup 후 `coverage_status=single_reportable_segment_no_disaggregated_segment_table`, `arm_reported_segment_metric_count=0`, `unsupported_layout_count=0`이다. 남은 blocker는 EROK이며 SEC companyfacts가 `ffd` only/no financial statement facts 상태라 precise blocker classification이 필요하다.
 
 ## Definition Of Done
 
