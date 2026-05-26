@@ -14,7 +14,13 @@
 - Passed `PYTHONPATH=src /private/tmp/stockanalysis-runtime/verify-venv/bin/python -m unittest discover -s tests`.
 - Passed Next.js `typecheck` and `build`.
 
+## EC2 Result
+
+- EC2 smoke produced `run_id=1654`, `eval_run_id=36`.
+- Current live status is `no_op_wait_until_next_due_date` with `wait_until=2026-06-20`; this is expected because all 45 recommendation×30-day windows are still `not_due`.
+- `/data-health` renders the new Korean router section and keeps `order_boundary=read_only_no_order`.
+
 ## Residual Risk
 
-- EC2 smoke is still pending.
-- Actual live action status depends on current EC2 sample maturity; if windows remain not due, the expected router result is a no-op wait artifact.
+- The router has not yet executed the child calibration runner on EC2 because no due outcome windows exist yet.
+- The next decisive smoke should be repeated on or after `2026-06-20`.

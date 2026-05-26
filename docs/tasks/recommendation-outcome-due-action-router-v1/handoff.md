@@ -2,9 +2,9 @@
 
 ## Status
 
-- completed: local implementation and verification complete.
+- completed: local implementation, verification, push, EC2 deployment, and smoke complete.
 - started: 2026-05-27
-- current state: local implementation and verification complete; EC2 deployment/smoke pending
+- current state: implemented and EC2-smoked on commit `ba1891b`
 
 ## Intent
 
@@ -40,6 +40,15 @@ Move recommendation outcome due handling from a UI-only cadence suggestion into 
 - Passed: `PYTHONPATH=src /private/tmp/stockanalysis-runtime/verify-venv/bin/python -m unittest discover -s tests` with 1095 tests.
 - Expected failure on non-venv Homebrew Python: full unittest cannot import `fastapi`; use the project verify venv for full suite.
 
+## EC2 Evidence
+
+- Deployed commit: `ba1891b`.
+- EC2 focused verification passed: compileall, 178 focused tests, Next.js build, and project roadmap verification.
+- Runner smoke: `recommendation-outcome-due-action-router-run --as-of-date 2026-05-27 --horizon-day 30 --execute`.
+- Runner result: `run_id=1654`, `eval_run_id=36`, `action_status=no_op_wait_until_next_due_date`, `route_action=no_op`, `wait_until=2026-06-20`, `child_runner.executed=false`.
+- API smoke: `/api/data-health` returns `recommendation_outcome_due_action_router.status=loaded`, `eval_run_id=eval-run-36`, `order_boundary=read_only_no_order`, `broker_submit_allowed=false`.
+- Route smoke: `/data-health` returns 200 and renders `성과 실행 라우터`, `다음 측정일까지 대기`, `eval-run-36`, and `주문 경계`.
+
 ## Next Step
 
-- exact next step: commit/push, deploy to EC2, run the new CLI smoke, restart services, and verify `/api/data-health` plus `/data-health` render `성과 실행 라우터`.
+- exact next step: continue the professional analysis roadmap without changing recommendation weights; likely next work is to let the 2026-06-20 outcome window mature, then rerun this router/calibration and only afterwards reassess manual weight review readiness.
