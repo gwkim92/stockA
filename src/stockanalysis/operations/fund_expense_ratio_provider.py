@@ -22,6 +22,18 @@ DEFAULT_SSGA_SPDR_SPY_PRODUCT_URL = "https://www.ssga.com/us/en/intermediary/etf
 DEFAULT_SSGA_FUND_METRIC_SOURCE_NAME = "ssga_spdr_product_page"
 DEFAULT_PIPELINE_NAME = "fund_expense_ratio_ssga_spdr_import"
 DEFAULT_NAV_PREMIUM_DISCOUNT_PIPELINE_NAME = "fund_nav_premium_discount_ssga_spdr_import"
+DEFAULT_TRACKING_DIFFERENCE_PIPELINE_NAME = "fund_tracking_difference_ssga_spdr_import"
+
+TRACKING_DIFFERENCE_WINDOWS: tuple[tuple[str, str], ...] = (
+    ("1_month", "1 Month"),
+    ("qtd", "QTD"),
+    ("ytd", "YTD"),
+    ("1_year", "1 Year"),
+    ("3_year", "3 Year"),
+    ("5_year", "5 Year"),
+    ("10_year", "10 Year"),
+    ("since_inception", "Since Inception Jan 22 1993"),
+)
 
 
 @dataclass(frozen=True)
@@ -35,6 +47,11 @@ class FundMetricSnapshot:
     source_as_of_date: date
     confidence: Decimal
     rationale: str
+    measurement_window: str = ""
+    measurement_basis: str = ""
+    benchmark_name: str = ""
+    fund_return: Decimal | None = None
+    benchmark_return: Decimal | None = None
 
     @property
     def percent_value(self) -> Decimal:
@@ -156,6 +173,64 @@ def parse_ssga_spdr_nav_premium_discount_page(
     )
 
 
+def parse_ssga_spdr_tracking_difference_page(
+    content: str,
+    *,
+    symbol: str = "SPY",
+    source_url: str = DEFAULT_SSGA_SPDR_SPY_PRODUCT_URL,
+    source_name: str = DEFAULT_SSGA_FUND_METRIC_SOURCE_NAME,
+) -> tuple[FundMetricSnapshot, ...]:
+    normalized_symbol = symbol.strip().upper()
+    if not normalized_symbol:
+        raise ValueError("symbol is required")
+    text = html.unescape(content)
+    headers = _extract_fund_performance_headers(text)
+    nav_row = _extract_fund_performance_row(text, "NAV")
+    benchmark_row = _extract_fund_performance_row(text, "Benchmark")
+    benchmark_name = _extract_benchmark_name(benchmark_row["raw_row"])
+    if nav_row["source_as_of_date"] != benchmark_row["source_as_of_date"]:
+        raise ValueError("SSGA product page exposed mismatched NAV and benchmark performance dates.")
+
+    snapshots: list[FundMetricSnapshot] = []
+    for raw_window, fund_return, benchmark_return in zip(
+        headers,
+        nav_row["returns"],
+        benchmark_row["returns"],
+        strict=True,
+    ):
+        if fund_return is None or benchmark_return is None:
+            continue
+        window_code = _tracking_window_code(raw_window)
+        metric_value = fund_return - benchmark_return
+        snapshots.append(
+            FundMetricSnapshot(
+                symbol=normalized_symbol,
+                metric_code=f"tracking_difference_nav_{window_code}",
+                metric_value=metric_value,
+                metric_unit="ratio",
+                source_name=source_name,
+                source_url=source_url,
+                source_as_of_date=nav_row["source_as_of_date"],
+                confidence=Decimal("0.9000"),
+                rationale=(
+                    f"Official State Street SPDR product page reported NAV return "
+                    f"{fund_return * Decimal('100')}% and {benchmark_name} return "
+                    f"{benchmark_return * Decimal('100')}% for {raw_window} as of "
+                    f"{nav_row['source_as_of_date'].isoformat()}. Stored as tracking difference, "
+                    f"not tracking error."
+                ),
+                measurement_window=raw_window,
+                measurement_basis="nav_total_return_before_tax",
+                benchmark_name=benchmark_name,
+                fund_return=fund_return,
+                benchmark_return=benchmark_return,
+            )
+        )
+    if not snapshots:
+        raise ValueError("SSGA product page did not expose comparable NAV and benchmark return windows.")
+    return tuple(snapshots)
+
+
 def render_fund_expense_ratio_upsert_sql(
     snapshot: FundMetricSnapshot,
     *,
@@ -173,7 +248,12 @@ with input_row as (
         {sql_literal(snapshot.source_url)}::text as source_url,
         {sql_date(snapshot.source_as_of_date)} as source_as_of_date,
         {sql_numeric(snapshot.confidence)} as confidence,
-        {sql_literal(snapshot.rationale)}::text as rationale
+        {sql_literal(snapshot.rationale)}::text as rationale,
+        {sql_literal(snapshot.measurement_window)}::text as measurement_window,
+        {sql_literal(snapshot.measurement_basis)}::text as measurement_basis,
+        {sql_literal(snapshot.benchmark_name)}::text as benchmark_name,
+        {sql_numeric(snapshot.fund_return) if snapshot.fund_return is not None else "null::numeric"} as fund_return,
+        {sql_numeric(snapshot.benchmark_return) if snapshot.benchmark_return is not None else "null::numeric"} as benchmark_return
 ),
 resolved_instrument as (
     select instrument.instrument_id
@@ -201,6 +281,11 @@ insert into market.fund_metric_snapshot (
     source_as_of_date,
     confidence,
     rationale,
+    measurement_window,
+    measurement_basis,
+    benchmark_name,
+    fund_return,
+    benchmark_return,
     source_run_id,
     updated_at
 )
@@ -215,6 +300,11 @@ select
     input.source_as_of_date,
     input.confidence,
     input.rationale,
+    input.measurement_window,
+    input.measurement_basis,
+    input.benchmark_name,
+    input.fund_return,
+    input.benchmark_return,
     {source_run_literal},
     now()
 from input_row input
@@ -228,6 +318,11 @@ set
     source_url = excluded.source_url,
     confidence = excluded.confidence,
     rationale = excluded.rationale,
+    measurement_window = excluded.measurement_window,
+    measurement_basis = excluded.measurement_basis,
+    benchmark_name = excluded.benchmark_name,
+    fund_return = excluded.fund_return,
+    benchmark_return = excluded.benchmark_return,
     source_run_id = excluded.source_run_id,
     updated_at = now()
 returning fund_metric_snapshot_id;"""
@@ -386,6 +481,94 @@ def run_ssga_spdr_fund_nav_premium_discount_import(
     }
 
 
+def run_ssga_spdr_fund_tracking_difference_import(
+    *,
+    config: RuntimeConfig,
+    symbol: str = "SPY",
+    source_html: str | Path | None = None,
+    raw_html_output: str | Path | None = None,
+    source_url: str = DEFAULT_SSGA_SPDR_SPY_PRODUCT_URL,
+    source_name: str = DEFAULT_SSGA_FUND_METRIC_SOURCE_NAME,
+    execute: bool = False,
+    executor: PsqlCommandExecutor | None = None,
+) -> dict[str, object]:
+    if source_html:
+        content = Path(source_html).expanduser().resolve().read_text(encoding="utf-8")
+    else:
+        content = download_ssga_spdr_product_page(url=source_url)
+        if execute and raw_html_output is not None:
+            raw_output_path = Path(raw_html_output)
+            raw_output_path.parent.mkdir(parents=True, exist_ok=True)
+            raw_output_path.write_text(content, encoding="utf-8")
+    snapshots = parse_ssga_spdr_tracking_difference_page(
+        content,
+        symbol=symbol,
+        source_url=source_url,
+        source_name=source_name,
+    )
+
+    fund_metric_snapshot_ids: list[int] = []
+    run_id: int | None = None
+    if execute:
+        sql_executor = executor or PsqlCommandExecutor.from_config(config)
+        run_id = _create_pipeline_run(
+            sql_executor,
+            pipeline_name=DEFAULT_TRACKING_DIFFERENCE_PIPELINE_NAME,
+            config_json={
+                "symbol": symbol.strip().upper(),
+                "metric_codes": [snapshot.metric_code for snapshot in snapshots],
+                "source_url": source_url,
+                "source_name": source_name,
+                "source_as_of_dates": sorted({snapshot.source_as_of_date.isoformat() for snapshot in snapshots}),
+                "benchmark_name": snapshots[0].benchmark_name,
+                "measurement_basis": snapshots[0].measurement_basis,
+            },
+        )
+        try:
+            for snapshot in snapshots:
+                fund_metric_snapshot_ids.append(
+                    int(sql_executor.execute_scalar(render_fund_expense_ratio_upsert_sql(snapshot, source_run_id=run_id)))
+                )
+            _mark_pipeline_run_succeeded(sql_executor, run_id)
+        except Exception as exc:
+            _mark_pipeline_run_failed(sql_executor, run_id, str(exc))
+            raise
+
+    metrics_payload = [
+        {
+            "metric_code": snapshot.metric_code,
+            "metric_value": format(snapshot.metric_value, "f"),
+            "metric_unit": snapshot.metric_unit,
+            "source_as_of_date": snapshot.source_as_of_date.isoformat(),
+            "measurement_window": snapshot.measurement_window,
+            "measurement_basis": snapshot.measurement_basis,
+            "benchmark_name": snapshot.benchmark_name,
+            "fund_return": format(snapshot.fund_return, "f") if snapshot.fund_return is not None else None,
+            "benchmark_return": format(snapshot.benchmark_return, "f") if snapshot.benchmark_return is not None else None,
+            "confidence": format(snapshot.confidence, "f"),
+        }
+        for snapshot in snapshots
+    ]
+    return {
+        "report_name": DEFAULT_TRACKING_DIFFERENCE_PIPELINE_NAME,
+        "status": "completed" if execute else "planned",
+        "execute": execute,
+        "run_id": run_id,
+        "fund_metric_snapshot_ids": fund_metric_snapshot_ids,
+        "symbol": symbol.strip().upper(),
+        "source_name": source_name,
+        "source_url": source_url,
+        "metric_count": len(metrics_payload),
+        "metrics": metrics_payload,
+        "raw_html_output": str(raw_html_output or source_html or ""),
+        "metric_interpretation": "tracking_difference_not_tracking_error",
+        "recommendation_scoring_mutated": False,
+        "automatic_order_allowed": False,
+        "broker_submit_allowed": False,
+        "order_boundary": "read_only_no_order",
+    }
+
+
 def _extract_gross_expense_ratio_percent(text: str) -> Decimal:
     patterns = (
         r'"gross-expense-ratio"\s*:\s*\{.*?"originalValue"\s*:\s*"([0-9]+(?:\.[0-9]+)?)"',
@@ -463,6 +646,111 @@ def _extract_table_value(text: str, label: str) -> str:
     return match.group(1).strip()
 
 
+def _extract_fund_performance_headers(text: str) -> tuple[str, ...]:
+    before_tax_index = text.lower().find("fund before tax")
+    if before_tax_index < 0:
+        raise ValueError("SSGA product page did not expose Fund Before Tax performance rows.")
+    table_head = text[:before_tax_index].rfind("<thead")
+    if table_head < 0:
+        raise ValueError("SSGA product page did not expose performance table headers.")
+    table_head_end = text.find("</thead>", table_head)
+    if table_head_end < 0 or table_head_end > before_tax_index:
+        raise ValueError("SSGA product page exposed malformed performance table headers.")
+    header_html = text[table_head:table_head_end]
+    headers = tuple(
+        _clean_html_text(raw_header)
+        for raw_header in re.findall(
+            r"<th[^>]*class=['\"][^'\"]*\bdata\b[^'\"]*['\"][^>]*>(.*?)</th>",
+            header_html,
+            flags=re.IGNORECASE | re.DOTALL,
+        )
+    )
+    if not headers:
+        raise ValueError("SSGA product page did not expose performance table window headers.")
+    return headers
+
+
+def _extract_fund_performance_row(text: str, label: str) -> dict[str, object]:
+    pattern = rf"<tr>\s*<td>{re.escape(label)}\b.*?</tr>"
+    match = re.search(pattern, text, flags=re.IGNORECASE | re.DOTALL)
+    if not match:
+        raise ValueError(f"SSGA product page did not expose {label} performance row.")
+    row_html = match.group(0)
+    date_match = re.search(
+        r"<td[^>]*class=['\"][^'\"]*\bdate-col\b[^'\"]*['\"][^>]*>\s*([^<]+?)\s*</td>",
+        row_html,
+        flags=re.IGNORECASE | re.DOTALL,
+    )
+    if not date_match:
+        raise ValueError(f"SSGA product page did not expose {label} performance date.")
+    raw_values = re.findall(
+        r"<td[^>]*class=['\"][^'\"]*\bdata\b[^'\"]*['\"][^>]*>\s*([^<]*?)\s*</td>",
+        row_html,
+        flags=re.IGNORECASE | re.DOTALL,
+    )
+    return {
+        "raw_row": row_html,
+        "source_as_of_date": _parse_ssga_date(_clean_html_text(date_match.group(1))),
+        "returns": tuple(_parse_optional_percent_ratio(raw_value) for raw_value in raw_values),
+    }
+
+
+def _extract_benchmark_name(row_html: object) -> str:
+    row_text = str(row_html)
+    match = re.search(
+        r"<div[^>]*class=['\"][^'\"]*\binfo-data\b[^'\"]*['\"][^>]*>(.*?)</div>",
+        row_text,
+        flags=re.IGNORECASE | re.DOTALL,
+    )
+    if not match:
+        return "Benchmark"
+    benchmark_name = _clean_html_text(match.group(1))
+    return benchmark_name or "Benchmark"
+
+
+def _tracking_window_code(window_label: str) -> str:
+    normalized = re.sub(r"\s+", " ", window_label.strip()).lower()
+    mapping = {
+        "1 month": "1_month",
+        "qtd": "qtd",
+        "ytd": "ytd",
+        "1 year": "1_year",
+        "3 year": "3_year",
+        "5 year": "5_year",
+        "10 year": "10_year",
+    }
+    if normalized.startswith("since inception"):
+        return "since_inception"
+    if normalized not in mapping:
+        raise ValueError(f"Unsupported SSGA performance window: {window_label}")
+    return mapping[normalized]
+
+
+def _parse_optional_percent_ratio(raw_value: str) -> Decimal | None:
+    cleaned = _clean_html_text(raw_value)
+    if not cleaned or cleaned in {"-", "--", "N/A"}:
+        return None
+    try:
+        return Decimal(cleaned.replace("%", "").replace(",", "").strip()) / Decimal("100")
+    except InvalidOperation as exc:
+        raise ValueError(f"SSGA product page exposed an invalid performance return: {cleaned}") from exc
+
+
+def _clean_html_text(value: str) -> str:
+    without_breaks = re.sub(r"<br\s*/?>", " ", value, flags=re.IGNORECASE)
+    without_tags = re.sub(r"<[^>]+>", " ", without_breaks)
+    return re.sub(r"\s+", " ", html.unescape(without_tags)).strip()
+
+
+def _parse_ssga_date(raw_date: str) -> date:
+    for fmt in ("%B %d %Y", "%b %d %Y"):
+        try:
+            return datetime.strptime(raw_date, fmt).date()
+        except ValueError:
+            continue
+    raise ValueError(f"SSGA product page exposed an invalid date: {raw_date}")
+
+
 def _extract_source_as_of_date(text: str) -> date:
     match = re.search(r"Fund Information.*?as of ([A-Za-z]+ [0-9]{1,2} [0-9]{4})", text, flags=re.IGNORECASE | re.DOTALL)
     if not match:
@@ -471,4 +759,4 @@ def _extract_source_as_of_date(text: str) -> date:
         match = re.search(r"as of ([A-Za-z]+ [0-9]{1,2} [0-9]{4})", text, flags=re.IGNORECASE)
     if not match:
         raise ValueError("SSGA product page did not expose a fund information as-of date.")
-    return datetime.strptime(match.group(1), "%B %d %Y").date()
+    return _parse_ssga_date(match.group(1))

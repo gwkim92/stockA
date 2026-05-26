@@ -3919,6 +3919,38 @@ latest_fund_premium_discount as (
     order by metric.source_as_of_date desc, metric.fund_metric_snapshot_id desc
     limit 1
 ),
+latest_fund_tracking_difference as (
+    select
+        metric.metric_code,
+        metric.metric_value,
+        metric.metric_unit,
+        metric.source_name,
+        metric.source_url,
+        metric.source_as_of_date,
+        metric.confidence,
+        metric.rationale,
+        metric.measurement_window,
+        metric.measurement_basis,
+        metric.benchmark_name,
+        metric.fund_return,
+        metric.benchmark_return
+    from market.fund_metric_snapshot metric
+    join target_instrument instrument on instrument.instrument_id = metric.instrument_id
+    join target_date target on metric.source_as_of_date <= target.as_of_date
+    where metric.metric_code like 'tracking_difference_nav_%'
+    order by
+        metric.source_as_of_date desc,
+        case metric.metric_code
+            when 'tracking_difference_nav_1_year' then 0
+            when 'tracking_difference_nav_ytd' then 1
+            when 'tracking_difference_nav_3_year' then 2
+            when 'tracking_difference_nav_5_year' then 3
+            when 'tracking_difference_nav_10_year' then 4
+            else 5
+        end,
+        metric.fund_metric_snapshot_id desc
+    limit 1
+),
 raw_recent_events as (
     select
         event_row.event_id,
@@ -4349,9 +4381,34 @@ select json_build_object(
                     ),
                     'tracking_error',
                     json_build_object(
-                        'status', 'not_collected',
+                        'status',
+                        case
+                            when (select metric_value from latest_fund_tracking_difference) is not null
+                                then 'tracking_difference_collected'
+                            else 'not_collected'
+                        end,
                         'value', null,
-                        'summary', '추적오차 원천은 아직 수집하지 않았다. 임의 계산값을 표시하지 않는다.'
+                        'metric_type',
+                        case
+                            when (select metric_value from latest_fund_tracking_difference) is not null
+                                then 'tracking_difference'
+                            else 'tracking_error'
+                        end,
+                        'tracking_difference_value', (select metric_value from latest_fund_tracking_difference),
+                        'source_name', coalesce((select source_name from latest_fund_tracking_difference), ''),
+                        'source_as_of_date', (select source_as_of_date from latest_fund_tracking_difference),
+                        'source_url', coalesce((select source_url from latest_fund_tracking_difference), ''),
+                        'measurement_window', coalesce((select measurement_window from latest_fund_tracking_difference), ''),
+                        'measurement_basis', coalesce((select measurement_basis from latest_fund_tracking_difference), ''),
+                        'benchmark_name', coalesce((select benchmark_name from latest_fund_tracking_difference), ''),
+                        'fund_return', (select fund_return from latest_fund_tracking_difference),
+                        'benchmark_return', (select benchmark_return from latest_fund_tracking_difference),
+                        'summary',
+                        case
+                            when (select metric_value from latest_fund_tracking_difference) is not null
+                                then '공식 공개 원천에서 같은 기간 NAV 수익률과 벤치마크 수익률 차이를 수집했다. 이는 추적오차가 아니라 tracking difference이며 추천 점수는 자동 변경하지 않는다.'
+                            else '추적오차 원천은 아직 수집하지 않았다. 임의 계산값을 표시하지 않는다.'
+                        end
                     ),
                     'expense_ratio',
                     json_build_object(
@@ -4438,7 +4495,7 @@ select json_build_object(
                     'limitations',
                     json_build_array(
                         '기업 DCF·SOTP·재무제표 모델을 적용하지 않는다.',
-                        '정확한 추적오차, NAV 괴리, 비용률은 원천 데이터 수집 전까지 unknown이다.',
+                        '정확한 추적오차는 원천 데이터 수집 전까지 unknown이다. 수집된 tracking difference는 추적오차가 아니다.',
                         '추천 점수와 주문 가능 여부는 이 분석으로 자동 변경하지 않는다.'
                     )
                 )
@@ -7080,6 +7137,39 @@ latest_fund_premium_discount as (
     order by metric.source_as_of_date desc, metric.fund_metric_snapshot_id desc
     limit 1
 ),
+latest_fund_tracking_difference as (
+    select
+        metric.metric_code,
+        metric.metric_value,
+        metric.metric_unit,
+        metric.source_name,
+        metric.source_url,
+        metric.source_as_of_date,
+        metric.confidence,
+        metric.rationale,
+        metric.measurement_window,
+        metric.measurement_basis,
+        metric.benchmark_name,
+        metric.fund_return,
+        metric.benchmark_return
+    from market.fund_metric_snapshot metric
+    join selected_recommendation recommendation
+      on recommendation.instrument_id = metric.instrument_id
+    where metric.metric_code like 'tracking_difference_nav_%'
+      and metric.source_as_of_date <= recommendation.as_of_date
+    order by
+        metric.source_as_of_date desc,
+        case metric.metric_code
+            when 'tracking_difference_nav_1_year' then 0
+            when 'tracking_difference_nav_ytd' then 1
+            when 'tracking_difference_nav_3_year' then 2
+            when 'tracking_difference_nav_5_year' then 3
+            when 'tracking_difference_nav_10_year' then 4
+            else 5
+        end,
+        metric.fund_metric_snapshot_id desc
+    limit 1
+),
 portfolio_review_trace as (
     select
         portfolio.portfolio_name,
@@ -7573,9 +7663,34 @@ select json_build_object(
                     ),
                     'tracking_error',
                     json_build_object(
-                        'status', 'not_collected',
+                        'status',
+                        case
+                            when (select metric_value from latest_fund_tracking_difference) is not null
+                                then 'tracking_difference_collected'
+                            else 'not_collected'
+                        end,
                         'value', null,
-                        'summary', '추적오차 원천은 아직 수집하지 않았다. 임의 계산값을 표시하지 않는다.'
+                        'metric_type',
+                        case
+                            when (select metric_value from latest_fund_tracking_difference) is not null
+                                then 'tracking_difference'
+                            else 'tracking_error'
+                        end,
+                        'tracking_difference_value', (select metric_value from latest_fund_tracking_difference),
+                        'source_name', coalesce((select source_name from latest_fund_tracking_difference), ''),
+                        'source_as_of_date', (select source_as_of_date from latest_fund_tracking_difference),
+                        'source_url', coalesce((select source_url from latest_fund_tracking_difference), ''),
+                        'measurement_window', coalesce((select measurement_window from latest_fund_tracking_difference), ''),
+                        'measurement_basis', coalesce((select measurement_basis from latest_fund_tracking_difference), ''),
+                        'benchmark_name', coalesce((select benchmark_name from latest_fund_tracking_difference), ''),
+                        'fund_return', (select fund_return from latest_fund_tracking_difference),
+                        'benchmark_return', (select benchmark_return from latest_fund_tracking_difference),
+                        'summary',
+                        case
+                            when (select metric_value from latest_fund_tracking_difference) is not null
+                                then '공식 공개 원천에서 같은 기간 NAV 수익률과 벤치마크 수익률 차이를 수집했다. 이는 추적오차가 아니라 tracking difference이며 추천 점수는 자동 변경하지 않는다.'
+                            else '추적오차 원천은 아직 수집하지 않았다. 임의 계산값을 표시하지 않는다.'
+                        end
                     ),
                     'expense_ratio',
                     json_build_object(
@@ -7662,7 +7777,7 @@ select json_build_object(
                     'limitations',
                     json_build_array(
                         '기업 DCF·SOTP·재무제표 모델을 적용하지 않는다.',
-                        '정확한 추적오차, NAV 괴리, 비용률은 원천 데이터 수집 전까지 unknown이다.',
+                        '정확한 추적오차는 원천 데이터 수집 전까지 unknown이다. 수집된 tracking difference는 추적오차가 아니다.',
                         '추천 점수와 주문 가능 여부는 이 분석으로 자동 변경하지 않는다.'
                     )
                 )
@@ -8993,6 +9108,16 @@ def _build_fund_instrument_analysis_payload(analysis: dict[str, Any]) -> dict[st
         "tracking_error": {
             "status": str(tracking_error.get("status") or "not_collected"),
             "value": _number(tracking_error.get("value")),
+            "metric_type": str(tracking_error.get("metric_type") or "tracking_error"),
+            "tracking_difference_value": _number(tracking_error.get("tracking_difference_value")),
+            "source_name": str(tracking_error.get("source_name") or ""),
+            "source_as_of_date": str(tracking_error.get("source_as_of_date") or ""),
+            "source_url": str(tracking_error.get("source_url") or ""),
+            "measurement_window": str(tracking_error.get("measurement_window") or ""),
+            "measurement_basis": str(tracking_error.get("measurement_basis") or ""),
+            "benchmark_name": str(tracking_error.get("benchmark_name") or ""),
+            "fund_return": _number(tracking_error.get("fund_return")),
+            "benchmark_return": _number(tracking_error.get("benchmark_return")),
             "summary": str(tracking_error.get("summary") or ""),
         },
         "expense_ratio": {

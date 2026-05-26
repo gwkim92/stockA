@@ -8,11 +8,14 @@ from stockanalysis.ingest.config import RuntimeConfig
 from stockanalysis.operations.fund_expense_ratio_provider import (
     DEFAULT_NAV_PREMIUM_DISCOUNT_PIPELINE_NAME,
     DEFAULT_PIPELINE_NAME,
+    DEFAULT_TRACKING_DIFFERENCE_PIPELINE_NAME,
     parse_ssga_spdr_expense_ratio_page,
     parse_ssga_spdr_nav_premium_discount_page,
+    parse_ssga_spdr_tracking_difference_page,
     render_fund_expense_ratio_upsert_sql,
     run_ssga_spdr_fund_expense_ratio_import,
     run_ssga_spdr_fund_nav_premium_discount_import,
+    run_ssga_spdr_fund_tracking_difference_import,
 )
 
 
@@ -70,6 +73,27 @@ class FundExpenseRatioProviderTests(unittest.TestCase):
         self.assertEqual(str(by_code["closing_price"].metric_value), "745.64")
         self.assertEqual(str(by_code["premium_discount_to_nav"].metric_value), "0.00")
         self.assertEqual(by_code["premium_discount_to_nav"].metric_unit, "ratio")
+
+    def test_parse_ssga_page_extracts_tracking_difference_not_tracking_error(self) -> None:
+        snapshots = parse_ssga_spdr_tracking_difference_page(
+            _ssga_fixture_html(),
+            symbol="spy",
+            source_url="https://www.ssga.com/example/spy",
+            source_name="ssga_spdr_product_page",
+        )
+        by_code = {snapshot.metric_code: snapshot for snapshot in snapshots}
+
+        self.assertIn("tracking_difference_nav_1_year", by_code)
+        one_year = by_code["tracking_difference_nav_1_year"]
+        self.assertEqual(one_year.metric_unit, "ratio")
+        self.assertEqual(str(one_year.metric_value), "-0.0021")
+        self.assertEqual(one_year.source_as_of_date.isoformat(), "2026-04-30")
+        self.assertEqual(one_year.measurement_window, "1 Year")
+        self.assertEqual(one_year.measurement_basis, "nav_total_return_before_tax")
+        self.assertEqual(one_year.benchmark_name, "S&P 500 Index")
+        self.assertEqual(str(one_year.fund_return), "0.3084")
+        self.assertEqual(str(one_year.benchmark_return), "0.3105")
+        self.assertIn("not tracking error", one_year.rationale)
 
     def test_render_upsert_sql_uses_fund_metric_snapshot_without_scoring_mutation(self) -> None:
         snapshot = parse_ssga_spdr_expense_ratio_page(_ssga_fixture_html())
@@ -138,9 +162,44 @@ class FundExpenseRatioProviderTests(unittest.TestCase):
         self.assertEqual(sum("insert into market.fund_metric_snapshot" in sql for sql in executor.scalar_sql), 4)
         self.assertTrue(any("status = 'succeeded'" in sql for sql in executor.non_query_sql))
 
+    def test_run_tracking_difference_execute_records_pipeline_and_all_snapshots(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            fixture_path = Path(tmpdir) / "spy.html"
+            fixture_path.write_text(_ssga_fixture_html(), encoding="utf-8")
+            executor = FakeExecutor()
+            report = run_ssga_spdr_fund_tracking_difference_import(
+                config=RuntimeConfig(),
+                symbol="SPY",
+                source_html=fixture_path,
+                source_url="https://www.ssga.com/example/spy",
+                execute=True,
+                executor=executor,  # type: ignore[arg-type]
+            )
+
+        self.assertEqual(report["report_name"], DEFAULT_TRACKING_DIFFERENCE_PIPELINE_NAME)
+        self.assertEqual(report["status"], "completed")
+        self.assertEqual(report["run_id"], 701)
+        self.assertEqual(report["metric_count"], 8)
+        self.assertEqual(report["fund_metric_snapshot_ids"], [991] * 8)
+        metric_codes = {item["metric_code"] for item in report["metrics"]}  # type: ignore[index]
+        self.assertIn("tracking_difference_nav_1_year", metric_codes)
+        one_year = next(
+            item for item in report["metrics"] if item["metric_code"] == "tracking_difference_nav_1_year"  # type: ignore[index]
+        )
+        self.assertEqual(one_year["metric_value"], "-0.0021")  # type: ignore[index]
+        self.assertEqual(one_year["measurement_window"], "1 Year")  # type: ignore[index]
+        self.assertEqual(one_year["benchmark_name"], "S&P 500 Index")  # type: ignore[index]
+        self.assertEqual(report["metric_interpretation"], "tracking_difference_not_tracking_error")
+        self.assertFalse(report["recommendation_scoring_mutated"])
+        self.assertFalse(report["automatic_order_allowed"])
+        self.assertFalse(report["broker_submit_allowed"])
+        self.assertEqual(sum("insert into market.fund_metric_snapshot" in sql for sql in executor.scalar_sql), 8)
+        self.assertTrue(any("status = 'succeeded'" in sql for sql in executor.non_query_sql))
+
     def test_migration_creates_source_backed_fund_metric_table(self) -> None:
         migration = Path("db/migrations/0027_fund_metric_snapshot.sql").read_text(encoding="utf-8")
         nav_migration = Path("db/migrations/0028_fund_nav_premium_discount_metrics.sql").read_text(encoding="utf-8")
+        tracking_migration = Path("db/migrations/0029_fund_tracking_difference_metrics.sql").read_text(encoding="utf-8")
         self.assertIn("create table if not exists market.fund_metric_snapshot", migration)
         self.assertIn("source_url text not null", migration)
         self.assertIn("source_as_of_date date not null", migration)
@@ -148,6 +207,9 @@ class FundExpenseRatioProviderTests(unittest.TestCase):
         self.assertIn("nav_per_share", nav_migration)
         self.assertIn("premium_discount_to_nav", nav_migration)
         self.assertIn("metric_unit = 'USD'", nav_migration)
+        self.assertIn("tracking_difference_nav_1_year", tracking_migration)
+        self.assertIn("measurement_window", tracking_migration)
+        self.assertIn("benchmark_return", tracking_migration)
 
 
 def _ssga_fixture_html() -> str:
@@ -161,6 +223,42 @@ def _ssga_fixture_html() -> str:
       <tr><th class="label" scope="row">Closing Price</th><td class="data">$745.64</td></tr>
       <tr><th class="label" scope="row">Premium/Discount</th><td class="data">0.00%</td></tr>
     </table>
+    <div id="fund-ann-mon-panel">
+      <table>
+        <thead>
+          <tr>
+            <th class="label" scope="col">Name</th>
+            <th class="date-col" scope="col">Date</th>
+            <th class="data" scope="col">1 Month</th>
+            <th class="data" scope="col">QTD</th>
+            <th class="data" scope="col">YTD</th>
+            <th class="data" scope="col">1 Year</th>
+            <th class="data" scope="col">3 Year</th>
+            <th class="data" scope="col">5 Year</th>
+            <th class="data" scope="col">10 Year</th>
+            <th class="data" scope="col">Since Inception<br />Jan 22 1993</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="sub-head"><th colspan="2" scope="rowgroup">Fund Before Tax</th><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+          <tr>
+            <td>NAV</td><td class="date-col">Apr 30 2026</td>
+            <td class="data">10.48%</td><td class="data">10.48%</td><td class="data">5.65%</td><td class="data">30.84%</td>
+            <td class="data">21.52%</td><td class="data">13.00%</td><td class="data">15.10%</td><td class="data">10.75%</td>
+          </tr>
+          <tr>
+            <td>Market Value</td><td class="date-col">Apr 30 2026</td>
+            <td class="data">10.48%</td><td class="data">10.48%</td><td class="data">5.63%</td><td class="data">31.01%</td>
+            <td class="data">21.51%</td><td class="data">12.98%</td><td class="data">15.10%</td><td class="data">10.75%</td>
+          </tr>
+          <tr>
+            <td>Benchmark <span class="info"><div class="info-data">S&amp;P 500 Index</div></span></td><td class="date-col">Apr 30 2026</td>
+            <td class="data">10.49%</td><td class="data">10.49%</td><td class="data">5.70%</td><td class="data">31.05%</td>
+            <td class="data">21.69%</td><td class="data">13.14%</td><td class="data">15.26%</td><td class="data">10.89%</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
     """
 
 

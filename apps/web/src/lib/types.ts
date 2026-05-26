@@ -606,6 +606,16 @@ export type FundInstrumentAnalysis = {
   tracking_error: {
     status: string;
     value: number | null;
+    metric_type: string;
+    tracking_difference_value: number | null;
+    source_name: string;
+    source_as_of_date: string;
+    source_url: string;
+    measurement_window: string;
+    measurement_basis: string;
+    benchmark_name: string;
+    fund_return: number | null;
+    benchmark_return: number | null;
     summary: string;
   };
   expense_ratio: {

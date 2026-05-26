@@ -460,9 +460,30 @@ function FundInstrumentAnalysisPanel({ analysis }: { analysis: FundInstrumentAna
       </div>
       <div className="flow-steps" style={{ marginTop: "18px" }}>
         <article className="flow-step">
-          <span>추적오차</span>
-          <strong>{koCode(analysis.tracking_error.status)}</strong>
-          <p>{analysis.tracking_error.summary}</p>
+          <span>추적오차/추적차이</span>
+          <strong>
+            {analysis.tracking_error.metric_type === "tracking_difference"
+              ? formatOptionalPercent(analysis.tracking_error.tracking_difference_value)
+              : koCode(analysis.tracking_error.status)}
+          </strong>
+          <p>
+            {analysis.tracking_error.summary}
+            {analysis.tracking_error.measurement_window
+              ? ` 기간 ${analysis.tracking_error.measurement_window}`
+              : ""}
+            {analysis.tracking_error.benchmark_name ? ` · 기준 ${analysis.tracking_error.benchmark_name}` : ""}
+            {analysis.tracking_error.fund_return !== null
+              ? ` · NAV 수익률 ${formatOptionalPercent(analysis.tracking_error.fund_return)}`
+              : ""}
+            {analysis.tracking_error.benchmark_return !== null
+              ? ` · 벤치마크 ${formatOptionalPercent(analysis.tracking_error.benchmark_return)}`
+              : ""}
+          </p>
+          {analysis.tracking_error.source_url ? (
+            <a href={analysis.tracking_error.source_url} target="_blank" rel="noreferrer">
+              추적차이 원천 열기
+            </a>
+          ) : null}
         </article>
         <article className="flow-step">
           <span>비용률</span>

@@ -2110,6 +2110,59 @@ class DataOperationsCliTests(unittest.TestCase):
             self.assertEqual(call_kwargs["symbol"], "SPY")
             self.assertTrue(call_kwargs["execute"])
 
+    def test_fund_tracking_difference_ssga_spdr_import_run_command_passes_source_and_output(self) -> None:
+        with tempfile.TemporaryDirectory() as repo_root, tempfile.TemporaryDirectory() as outside_root:
+            env_file = Path(outside_root) / "data-operations.env"
+            source_html = Path(outside_root) / "spy.html"
+            raw_output = Path(outside_root) / "raw-spy.html"
+            output_path = Path(outside_root) / "fund-tracking-difference.json"
+            env_file.write_text('STOCKANALYSIS_PSQL_COMMAND="docker exec psql"\n', encoding="utf-8")
+            source_html.write_text("<html>fixture</html>", encoding="utf-8")
+            stdout = io.StringIO()
+
+            with patch("stockanalysis.operations.cli.run_ssga_spdr_fund_tracking_difference_import") as runner_mock:
+                runner_mock.return_value = {
+                    "report_name": "fund_tracking_difference_ssga_spdr_import",
+                    "status": "completed",
+                    "metric_count": 8,
+                }
+                exit_code = main(
+                    [
+                        "fund-tracking-difference-ssga-spdr-import-run",
+                        "--repo-root",
+                        repo_root,
+                        "--env-file",
+                        str(env_file),
+                        "--source-html",
+                        str(source_html),
+                        "--raw-html-output",
+                        str(raw_output),
+                        "--source-url",
+                        "https://www.ssga.com/example/spy",
+                        "--source-name",
+                        "ssga_spdr_product_page",
+                        "--symbol",
+                        "SPY",
+                        "--execute",
+                        "--output",
+                        str(output_path),
+                    ],
+                    stdout=stdout,
+                )
+
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(stdout.getvalue().strip(), str(output_path.resolve()))
+            payload = json.loads(output_path.read_text(encoding="utf-8"))
+            self.assertEqual(payload["report_name"], "fund_tracking_difference_ssga_spdr_import")
+            call_kwargs = runner_mock.call_args.kwargs
+            self.assertEqual(call_kwargs["config"].psql_command, "docker exec psql")
+            self.assertEqual(call_kwargs["source_html"], source_html.resolve())
+            self.assertEqual(call_kwargs["raw_html_output"], raw_output.resolve())
+            self.assertEqual(call_kwargs["source_url"], "https://www.ssga.com/example/spy")
+            self.assertEqual(call_kwargs["source_name"], "ssga_spdr_product_page")
+            self.assertEqual(call_kwargs["symbol"], "SPY")
+            self.assertTrue(call_kwargs["execute"])
+
     def test_industry_competitive_positioning_run_command_passes_env_and_writes_output(self) -> None:
         with tempfile.TemporaryDirectory() as repo_root, tempfile.TemporaryDirectory() as outside_root:
             env_file = Path(outside_root) / "data-operations.env"

@@ -3053,7 +3053,21 @@ class FrontendLiveAdapterTests(unittest.TestCase):
                     "role": "broad_market_or_fund_exposure",
                     "rationale": "portfolio exposure",
                 },
-                "tracking_error": {"status": "not_collected", "summary": "not collected"},
+                "tracking_error": {
+                    "status": "tracking_difference_collected",
+                    "value": None,
+                    "metric_type": "tracking_difference",
+                    "tracking_difference_value": -0.0021,
+                    "source_name": "ssga_spdr_product_page",
+                    "source_as_of_date": "2026-04-30",
+                    "source_url": "https://www.ssga.com/us/en/intermediary/etfs/spdr-sp-500-etf-trust-spy",
+                    "measurement_window": "1 Year",
+                    "measurement_basis": "nav_total_return_before_tax",
+                    "benchmark_name": "S&P 500 Index",
+                    "fund_return": 0.3084,
+                    "benchmark_return": 0.3105,
+                    "summary": "tracking difference only",
+                },
                 "expense_ratio": {
                     "status": "collected",
                     "value": 0.000945,
@@ -3094,6 +3108,13 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertEqual(payload["symbol"], "SPY")
         self.assertEqual(payload["benchmark_source"], "ssga_spdr_spy_daily_holdings")
         self.assertEqual(payload["top_holdings"][0]["symbol"], "AAPL")
+        self.assertEqual(payload["tracking_error"]["status"], "tracking_difference_collected")
+        self.assertEqual(payload["tracking_error"]["metric_type"], "tracking_difference")
+        self.assertEqual(payload["tracking_error"]["tracking_difference_value"], -0.0021)
+        self.assertEqual(payload["tracking_error"]["measurement_window"], "1 Year")
+        self.assertEqual(payload["tracking_error"]["benchmark_name"], "S&P 500 Index")
+        self.assertEqual(payload["tracking_error"]["fund_return"], 0.3084)
+        self.assertEqual(payload["tracking_error"]["benchmark_return"], 0.3105)
         self.assertEqual(payload["expense_ratio"]["status"], "collected")
         self.assertEqual(payload["expense_ratio"]["value"], 0.000945)
         self.assertEqual(payload["expense_ratio"]["source_name"], "ssga_spdr_product_page")
@@ -4009,8 +4030,11 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertIn("latest_fund_expense_ratio as", detail_sql)
         self.assertIn("latest_fund_nav as", detail_sql)
         self.assertIn("latest_fund_premium_discount as", detail_sql)
+        self.assertIn("latest_fund_tracking_difference as", detail_sql)
         self.assertIn("'fund_instrument_analysis'", detail_sql)
         self.assertIn("'liquidity'", detail_sql)
+        self.assertIn("tracking_difference_nav_%", detail_sql)
+        self.assertIn("'tracking_difference_value'", detail_sql)
         self.assertIn("'nav_premium_discount'", detail_sql)
         self.assertIn("premium_discount_to_nav", detail_sql)
         self.assertIn("market.fund_metric_snapshot", detail_sql)
@@ -4624,8 +4648,11 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertIn("latest_fund_expense_ratio as", sql)
         self.assertIn("latest_fund_nav as", sql)
         self.assertIn("latest_fund_premium_discount as", sql)
+        self.assertIn("latest_fund_tracking_difference as", sql)
         self.assertIn("'fund_instrument_analysis'", sql)
         self.assertIn("'liquidity'", sql)
+        self.assertIn("tracking_difference_nav_%", sql)
+        self.assertIn("'tracking_difference_value'", sql)
         self.assertIn("'nav_premium_discount'", sql)
         self.assertIn("premium_discount_to_nav", sql)
         self.assertIn("market.fund_metric_snapshot", sql)

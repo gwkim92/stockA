@@ -39,6 +39,7 @@ from stockanalysis.operations.fund_expense_ratio_provider import (
     DEFAULT_SSGA_SPDR_SPY_PRODUCT_URL,
     run_ssga_spdr_fund_expense_ratio_import,
     run_ssga_spdr_fund_nav_premium_discount_import,
+    run_ssga_spdr_fund_tracking_difference_import,
 )
 from stockanalysis.operations.financial_period_source_linkage import (
     DEFAULT_SOURCE_LINKAGE_MAX_FILINGS,
@@ -903,6 +904,24 @@ def build_parser() -> argparse.ArgumentParser:
     fund_nav_premium_discount_ssga_spdr_import.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
     fund_nav_premium_discount_ssga_spdr_import.set_defaults(
         handler=_handle_fund_nav_premium_discount_ssga_spdr_import_run
+    )
+
+    fund_tracking_difference_ssga_spdr_import = subparsers.add_parser(
+        "fund-tracking-difference-ssga-spdr-import-run",
+        help="Download official State Street SPDR product performance and import source-backed tracking-difference metrics.",
+    )
+    fund_tracking_difference_ssga_spdr_import.add_argument("--env-file")
+    fund_tracking_difference_ssga_spdr_import.add_argument("--symbol", default="SPY")
+    fund_tracking_difference_ssga_spdr_import.add_argument("--source-html")
+    fund_tracking_difference_ssga_spdr_import.add_argument("--source-url", default=DEFAULT_SSGA_SPDR_SPY_PRODUCT_URL)
+    fund_tracking_difference_ssga_spdr_import.add_argument("--raw-html-output")
+    fund_tracking_difference_ssga_spdr_import.add_argument("--source-name", default=DEFAULT_SSGA_FUND_METRIC_SOURCE_NAME)
+    fund_tracking_difference_ssga_spdr_import.add_argument("--execute", action="store_true")
+    fund_tracking_difference_ssga_spdr_import.add_argument("--dry-run", action="store_true")
+    fund_tracking_difference_ssga_spdr_import.add_argument("--output")
+    fund_tracking_difference_ssga_spdr_import.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
+    fund_tracking_difference_ssga_spdr_import.set_defaults(
+        handler=_handle_fund_tracking_difference_ssga_spdr_import_run
     )
 
     recommendation_fundamental_components = subparsers.add_parser(
@@ -2177,6 +2196,49 @@ def _handle_fund_nav_premium_discount_ssga_spdr_import_run(args: argparse.Namesp
         output_path = resolve_output_path(
             args.output,
             label="State Street SPDR fund NAV premium-discount import output",
+            repo_root=args.repo_root,
+            require_repo_outside=True,
+        )
+        write_json_report(report, output_path=output_path, stdout=stdout)
+    else:
+        print_json(report, stdout=stdout, sort_keys=False)
+    return 0
+
+
+def _handle_fund_tracking_difference_ssga_spdr_import_run(args: argparse.Namespace, *, stdout: TextIO) -> int:
+    if bool(args.execute) and bool(args.dry_run):
+        raise ValueError("--execute and --dry-run cannot be used together.")
+    env_mapping = _load_optional_env_mapping(args.env_file, repo_root=args.repo_root)
+    source_html = None
+    if args.source_html:
+        source_html = resolve_existing_file(
+            args.source_html,
+            label="State Street SPDR product HTML",
+            repo_root=args.repo_root,
+            require_repo_outside=True,
+        )
+    raw_html_output = None
+    if args.raw_html_output:
+        raw_html_output = resolve_output_path(
+            args.raw_html_output,
+            label="State Street SPDR raw product HTML output",
+            repo_root=args.repo_root,
+            require_repo_outside=True,
+        )
+    with _temporary_environ(env_mapping):
+        report = run_ssga_spdr_fund_tracking_difference_import(
+            config=RuntimeConfig.from_env(),
+            symbol=args.symbol,
+            source_html=source_html,
+            raw_html_output=raw_html_output,
+            source_url=args.source_url,
+            source_name=args.source_name,
+            execute=bool(args.execute) and not bool(args.dry_run),
+        )
+    if args.output:
+        output_path = resolve_output_path(
+            args.output,
+            label="State Street SPDR fund tracking-difference import output",
             repo_root=args.repo_root,
             require_repo_outside=True,
         )
