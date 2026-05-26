@@ -2,8 +2,8 @@
 
 ## Status
 
-- in progress: recommendation/stock DTOs now expose `professional_source_guardrail`, and source-blocked operating-company recommendation detail is hard-blocked in evidence review and professional decision waterfall.
-- in progress: local verification passed; EC2 deploy/smoke is the remaining step.
+- completed: recommendation/stock DTOs now expose `professional_source_guardrail`, and source-blocked operating-company recommendation detail is hard-blocked in evidence review and professional decision waterfall.
+- completed: local verification, EC2 deploy, service restart, API smoke, and route smoke passed.
 - blockers: none known.
 
 ## Context
@@ -15,7 +15,7 @@
 
 ## Exact Next Step
 
-- exact next step: deploy the current branch to EC2, restart FastAPI/Next.js, and verify `/api/recommendations/recommendation-67`, `/api/data-health`, `/recommendations/recommendation-67`, and `/data-health`.
+- exact next step: move to `benchmark-drift-outlier-decision-v1`, because `/api/data-health` still reports `benchmark_drift_quality_attention` after the EROK professional-use guardrail is in place.
 
 ## Implementation Notes
 
@@ -35,6 +35,17 @@
 - Passed: `cd apps/web && npm run build`
 - Passed: `bash scripts/verify_project_execution_roadmap.sh`
 - Passed: `PYTHONPATH=/Users/woody/ai/agent-work-harness/src python3 -m awh verify --repo . --task source-blocked-recommendation-guardrail-v1`
+
+## EC2 Verification
+
+- Deployed commit: `da93536`.
+- EC2 compileall passed.
+- EC2 `PYTHONPATH=src /opt/stockanalysis/venv/bin/python -m unittest tests.test_frontend_live_adapter` passed, 65 tests.
+- EC2 `npm run typecheck` and `npm run build` passed.
+- Services restarted: `stockanalysis-frontend-api.service` and `stockanalysis-web.service` are active.
+- `/api/recommendations/recommendation-67` returns `professional_source_guardrail.status=blocked_by_professional_source_data`, `blocked=true`, `professional_decision_use_allowed=false`, `paper_validation_input_allowed=false`, evidence review `quality_status=blocked`, waterfall `status=source_data_blocked`, and `source_data_guardrail` step.
+- `/api/data-health` returns `professional_source_gap_prioritization.guarded_source_blocked_recommendation_count=1`; first gap `EROK` has `active_recommendation_professional_use_blocked=true` and `paper_validation_input_allowed=false`.
+- Route smoke returned `200`: `/`, `/data-health`, `/stocks/EROK`, `/recommendations/recommendation-67`.
 
 ## Guardrails
 
