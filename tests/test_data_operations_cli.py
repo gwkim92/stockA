@@ -1926,6 +1926,7 @@ class DataOperationsCliTests(unittest.TestCase):
                         "2026-05-25",
                         "--valid-from",
                         "2026-05-25",
+                        "--create-missing-instruments",
                         "--execute",
                         "--output",
                         str(output_path),
@@ -1944,6 +1945,63 @@ class DataOperationsCliTests(unittest.TestCase):
             self.assertEqual(call_kwargs["source_type"], "operator_upload")
             self.assertEqual(call_kwargs["source_as_of_date"], date(2026, 5, 25))
             self.assertEqual(call_kwargs["valid_from"], date(2026, 5, 25))
+            self.assertTrue(call_kwargs["create_missing_instruments"])
+            self.assertTrue(call_kwargs["execute"])
+
+    def test_benchmark_composition_ssga_spdr_import_run_command_passes_outputs_and_flags(self) -> None:
+        with tempfile.TemporaryDirectory() as repo_root, tempfile.TemporaryDirectory() as outside_root:
+            env_file = Path(outside_root) / "data-operations.env"
+            source_xlsx = Path(outside_root) / "spy.xlsx"
+            raw_output = Path(outside_root) / "raw-spy.xlsx"
+            csv_output = Path(outside_root) / "normalized-spy.csv"
+            output_path = Path(outside_root) / "provider-import.json"
+            env_file.write_text('STOCKANALYSIS_PSQL_COMMAND="docker exec psql"\n', encoding="utf-8")
+            source_xlsx.write_bytes(b"fake-xlsx")
+            stdout = io.StringIO()
+
+            with patch("stockanalysis.operations.cli.run_ssga_spdr_benchmark_composition_import") as runner_mock:
+                runner_mock.return_value = {
+                    "report_name": "benchmark_composition_ssga_spdr_import",
+                    "status": "completed",
+                    "coverage_status": "full_enough_for_drift",
+                }
+                exit_code = main(
+                    [
+                        "benchmark-composition-ssga-spdr-import-run",
+                        "--repo-root",
+                        repo_root,
+                        "--env-file",
+                        str(env_file),
+                        "--source-xlsx",
+                        str(source_xlsx),
+                        "--raw-xlsx-output",
+                        str(raw_output),
+                        "--normalized-csv-output",
+                        str(csv_output),
+                        "--benchmark-code",
+                        "SPY",
+                        "--source-name",
+                        "ssga_spdr_spy_daily_holdings",
+                        "--create-missing-instruments",
+                        "--execute",
+                        "--output",
+                        str(output_path),
+                    ],
+                    stdout=stdout,
+                )
+
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(stdout.getvalue().strip(), str(output_path.resolve()))
+            payload = json.loads(output_path.read_text(encoding="utf-8"))
+            self.assertEqual(payload["report_name"], "benchmark_composition_ssga_spdr_import")
+            call_kwargs = runner_mock.call_args.kwargs
+            self.assertEqual(call_kwargs["config"].psql_command, "docker exec psql")
+            self.assertEqual(call_kwargs["source_xlsx"], source_xlsx.resolve())
+            self.assertEqual(call_kwargs["raw_xlsx_output"], raw_output.resolve())
+            self.assertEqual(call_kwargs["normalized_csv_output"], csv_output.resolve())
+            self.assertEqual(call_kwargs["benchmark_code"], "SPY")
+            self.assertEqual(call_kwargs["source_name"], "ssga_spdr_spy_daily_holdings")
+            self.assertTrue(call_kwargs["create_missing_instruments"])
             self.assertTrue(call_kwargs["execute"])
 
     def test_industry_competitive_positioning_run_command_passes_env_and_writes_output(self) -> None:

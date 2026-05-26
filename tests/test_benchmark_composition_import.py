@@ -108,10 +108,32 @@ class BenchmarkCompositionImportTests(unittest.TestCase):
         self.assertIn("-- benchmark composition upsert", sql)
         self.assertIn("insert into ref.benchmark_composition", lowered)
         self.assertIn("join ref.instrument", lowered)
+        self.assertIn("canonical_symbol", lowered)
         self.assertIn("on conflict", lowered)
         self.assertNotIn("signal.recommendation_score_component", lowered)
         self.assertNotIn("trading.order_intent", lowered)
         self.assertNotIn("update signal.", lowered)
+
+    def test_render_upsert_can_explicitly_create_missing_benchmark_instruments(self) -> None:
+        rows = load_benchmark_composition_csv(_fixture_csv("BNY,0.0015\nBRK.B,0.0130\n"))
+
+        sql = render_benchmark_composition_upsert_sql(
+            benchmark_code="SPY",
+            source_type="provider_file",
+            source_name="ssga_spdr_spy_daily_holdings",
+            source_as_of_date=date(2026, 5, 25),
+            valid_from=date(2026, 5, 25),
+            rows=rows,
+            create_missing_instruments=True,
+        )
+        lowered = sql.lower()
+
+        self.assertIn("insert into ref.issuer", lowered)
+        self.assertIn("insert into ref.instrument", lowered)
+        self.assertIn("'BRK-B'", sql)
+        self.assertIn("join ref.exchange exchange on exchange.mic_code = 'XNYS'", sql)
+        self.assertNotIn("then 1 / 0", sql)
+        self.assertNotIn("trading.order_intent", lowered)
 
     def test_run_execute_records_pipeline_and_upserts(self) -> None:
         executor = FakeBenchmarkCompositionExecutor()
@@ -125,11 +147,13 @@ class BenchmarkCompositionImportTests(unittest.TestCase):
             source_as_of_date=date(2026, 5, 25),
             valid_from=date(2026, 5, 25),
             execute=True,
+            create_missing_instruments=True,
             executor=executor,
         )
 
         self.assertEqual(report["status"], "completed")
         self.assertEqual(report["run_id"], 981)
+        self.assertTrue(report["create_missing_instruments"])
         self.assertIn("insert into ops.pipeline_run", executor.scalar_sql[0])
         self.assertIn("insert into ref.benchmark_composition", executor.non_query_sql[0].lower())
         self.assertIn("status = 'succeeded'", executor.non_query_sql[-1])

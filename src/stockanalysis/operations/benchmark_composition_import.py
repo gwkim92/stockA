@@ -119,46 +119,129 @@ def render_benchmark_composition_upsert_sql(
     source_as_of_date: date,
     valid_from: date,
     rows: tuple[BenchmarkCompositionRow, ...],
+    create_missing_instruments: bool = False,
 ) -> str:
     if not rows:
         raise ValueError("rows are required")
     values = ",\n        ".join(
         "("
         f"{sql_literal(row.symbol)}, "
+        f"{sql_literal(_canonical_symbol(row.symbol))}, "
+        f"{sql_literal(row.name or row.symbol)}, "
         f"{sql_numeric(row.target_weight)}, "
         f"{sql_literal(row.rationale or _default_rationale(source_type=source_type, source_name=source_name))}"
         ")"
         for row in rows
     )
-    return f"""-- benchmark composition upsert
-with input_rows(symbol, target_weight, rationale) as (
-    values
-        {values}
-),
-resolved_rows as (
-    select
-        instrument.instrument_id,
-        input_rows.symbol,
-        input_rows.target_weight,
-        input_rows.rationale
-    from input_rows
-    join ref.instrument instrument
-      on upper(instrument.primary_symbol) = input_rows.symbol
-     and instrument.is_active
-),
-missing_rows as (
-    select input_rows.symbol
-    from input_rows
-    left join resolved_rows resolved on resolved.symbol = input_rows.symbol
-    where resolved.instrument_id is null
-),
-guard_missing as (
+    missing_instrument_ctes = ""
+    guard_missing_cte = """guard_missing as (
     select case
         when exists(select 1 from missing_rows)
         then 1 / 0
         else 1
     end as ok
-)
+),
+all_resolved_rows as (
+    select symbol, instrument_id, target_weight, rationale
+    from resolved_rows
+)"""
+    guard_join = "cross join guard_missing"
+    if create_missing_instruments:
+        missing_instrument_ctes = """
+inserted_issuers as (
+    insert into ref.issuer (
+        legal_name,
+        display_name,
+        country_code,
+        issuer_type
+    )
+    select
+        missing.name,
+        missing.name,
+        'US',
+        'company'
+    from missing_rows missing
+    where missing.symbol <> '-'
+      and missing.symbol !~ '^[0-9]'
+    returning issuer_id, display_name
+),
+inserted_instruments as (
+    insert into ref.instrument (
+        issuer_id,
+        exchange_id,
+        market_code,
+        primary_symbol,
+        instrument_type,
+        currency_code,
+        name,
+        is_active
+    )
+    select
+        issuer.issuer_id,
+        exchange.exchange_id,
+        'US',
+        missing.canonical_symbol,
+        'listed_security',
+        'USD',
+        missing.name,
+        true
+    from missing_rows missing
+    join inserted_issuers issuer on issuer.display_name = missing.name
+    join ref.exchange exchange on exchange.mic_code = 'XNYS'
+    where missing.symbol <> '-'
+      and missing.symbol !~ '^[0-9]'
+    on conflict (exchange_id, primary_symbol) do update
+    set
+        name = excluded.name,
+        is_active = true
+    returning instrument_id, primary_symbol
+),
+all_resolved_rows as (
+    select symbol, instrument_id, target_weight, rationale
+    from resolved_rows
+    union all
+    select
+        missing.symbol,
+        instrument.instrument_id,
+        missing.target_weight,
+        missing.rationale
+    from missing_rows missing
+    join inserted_instruments instrument on instrument.primary_symbol = missing.canonical_symbol
+)"""
+        guard_missing_cte = missing_instrument_ctes
+        guard_join = ""
+    return f"""-- benchmark composition upsert
+with input_rows(symbol, canonical_symbol, name, target_weight, rationale) as (
+    values
+        {values}
+),
+resolved_rows as (
+    select distinct on (input_rows.symbol)
+        input_rows.symbol,
+        instrument.instrument_id,
+        input_rows.target_weight,
+        input_rows.rationale
+    from input_rows
+    join ref.instrument instrument
+      on upper(instrument.primary_symbol) in (input_rows.symbol, input_rows.canonical_symbol)
+     and instrument.is_active
+    order by
+        input_rows.symbol,
+        case when upper(instrument.primary_symbol) = input_rows.symbol then 0 else 1 end,
+        instrument.instrument_id
+),
+missing_rows as (
+    select
+        input_rows.symbol,
+        input_rows.canonical_symbol,
+        input_rows.name,
+        input_rows.target_weight,
+        input_rows.rationale
+    from input_rows
+    left join resolved_rows resolved on resolved.symbol = input_rows.symbol
+    where resolved.instrument_id is null
+),
+{guard_missing_cte}
 insert into ref.benchmark_composition (
     benchmark_code,
     component_instrument_id,
@@ -182,8 +265,8 @@ select
     null::date,
     0.8500::numeric,
     resolved.rationale
-from resolved_rows resolved
-cross join guard_missing
+from all_resolved_rows resolved
+{guard_join}
 on conflict (
     benchmark_code,
     component_instrument_id,
@@ -211,9 +294,39 @@ def run_benchmark_composition_import(
     valid_from: date,
     execute: bool = False,
     min_full_coverage_weight: Decimal = DEFAULT_MIN_FULL_COVERAGE_WEIGHT,
+    create_missing_instruments: bool = False,
     executor: PsqlCommandExecutor | None = None,
 ) -> dict[str, object]:
     rows = load_benchmark_composition_csv(holdings_csv)
+    return run_benchmark_composition_import_rows(
+        config=config,
+        benchmark_code=benchmark_code,
+        source_type=source_type,
+        source_name=source_name,
+        source_as_of_date=source_as_of_date,
+        valid_from=valid_from,
+        rows=rows,
+        execute=execute,
+        min_full_coverage_weight=min_full_coverage_weight,
+        create_missing_instruments=create_missing_instruments,
+        executor=executor,
+    )
+
+
+def run_benchmark_composition_import_rows(
+    *,
+    config: RuntimeConfig,
+    benchmark_code: str,
+    source_type: str,
+    source_name: str,
+    source_as_of_date: date,
+    valid_from: date,
+    rows: tuple[BenchmarkCompositionRow, ...],
+    execute: bool = False,
+    min_full_coverage_weight: Decimal = DEFAULT_MIN_FULL_COVERAGE_WEIGHT,
+    create_missing_instruments: bool = False,
+    executor: PsqlCommandExecutor | None = None,
+) -> dict[str, object]:
     report = build_benchmark_composition_import_report(
         benchmark_code=benchmark_code,
         source_type=source_type,
@@ -225,7 +338,7 @@ def run_benchmark_composition_import(
         min_full_coverage_weight=min_full_coverage_weight,
     )
     if not execute:
-        return report
+        return {**report, "create_missing_instruments": create_missing_instruments}
 
     sql_executor = executor or PsqlCommandExecutor.from_config(config)
     run_id = _create_pipeline_run(
@@ -239,6 +352,7 @@ def run_benchmark_composition_import(
             "valid_from": valid_from.isoformat(),
             "component_count": report["component_count"],
             "coverage_status": report["coverage_status"],
+            "create_missing_instruments": create_missing_instruments,
         },
     )
     try:
@@ -250,13 +364,14 @@ def run_benchmark_composition_import(
                 source_as_of_date=source_as_of_date,
                 valid_from=valid_from,
                 rows=rows,
+                create_missing_instruments=create_missing_instruments,
             )
         )
         _mark_pipeline_run_succeeded(sql_executor, run_id)
     except Exception as exc:
         _mark_pipeline_run_failed(sql_executor, run_id, str(exc))
         raise
-    return {**report, "status": "completed", "run_id": run_id}
+    return {**report, "status": "completed", "run_id": run_id, "create_missing_instruments": create_missing_instruments}
 
 
 def _parse_weight(value: object, *, line_number: int, symbol: str) -> Decimal:
@@ -278,6 +393,10 @@ def _optional_text(value: object) -> str | None:
 
 def _decimal_text(value: Decimal) -> str:
     return format(value, "f")
+
+
+def _canonical_symbol(symbol: str) -> str:
+    return symbol.strip().upper().replace(".", "-")
 
 
 def _warnings_for_coverage(status: str) -> list[dict[str, object]]:

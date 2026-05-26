@@ -25,6 +25,11 @@ from stockanalysis.operations.benchmark_composition_import import (
     SUPPORTED_SOURCE_TYPES as BENCHMARK_COMPOSITION_SOURCE_TYPES,
     run_benchmark_composition_import,
 )
+from stockanalysis.operations.benchmark_composition_provider import (
+    DEFAULT_SSGA_SOURCE_NAME,
+    DEFAULT_SSGA_SPDR_SPY_HOLDINGS_URL,
+    run_ssga_spdr_benchmark_composition_import,
+)
 from stockanalysis.operations.cadence import build_data_operations_cadence_report
 from stockanalysis.operations.cycle_ai_quality_audit import run_cycle_ai_quality_audit
 from stockanalysis.operations.env_file import merged_env_with_file
@@ -817,9 +822,32 @@ def build_parser() -> argparse.ArgumentParser:
     )
     benchmark_composition_import.add_argument("--execute", action="store_true")
     benchmark_composition_import.add_argument("--dry-run", action="store_true")
+    benchmark_composition_import.add_argument("--create-missing-instruments", action="store_true")
     benchmark_composition_import.add_argument("--output")
     benchmark_composition_import.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
     benchmark_composition_import.set_defaults(handler=_handle_benchmark_composition_import_run)
+
+    benchmark_composition_ssga_spdr_import = subparsers.add_parser(
+        "benchmark-composition-ssga-spdr-import-run",
+        help="Download/normalize official State Street SPDR holdings and import benchmark composition.",
+    )
+    benchmark_composition_ssga_spdr_import.add_argument("--env-file")
+    benchmark_composition_ssga_spdr_import.add_argument("--benchmark-code", default="SPY")
+    benchmark_composition_ssga_spdr_import.add_argument("--source-xlsx")
+    benchmark_composition_ssga_spdr_import.add_argument("--download-url", default=DEFAULT_SSGA_SPDR_SPY_HOLDINGS_URL)
+    benchmark_composition_ssga_spdr_import.add_argument("--raw-xlsx-output")
+    benchmark_composition_ssga_spdr_import.add_argument("--normalized-csv-output")
+    benchmark_composition_ssga_spdr_import.add_argument("--source-name", default=DEFAULT_SSGA_SOURCE_NAME)
+    benchmark_composition_ssga_spdr_import.add_argument(
+        "--min-full-coverage-weight",
+        default=str(DEFAULT_MIN_FULL_COVERAGE_WEIGHT),
+    )
+    benchmark_composition_ssga_spdr_import.add_argument("--create-missing-instruments", action="store_true")
+    benchmark_composition_ssga_spdr_import.add_argument("--execute", action="store_true")
+    benchmark_composition_ssga_spdr_import.add_argument("--dry-run", action="store_true")
+    benchmark_composition_ssga_spdr_import.add_argument("--output")
+    benchmark_composition_ssga_spdr_import.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
+    benchmark_composition_ssga_spdr_import.set_defaults(handler=_handle_benchmark_composition_ssga_spdr_import_run)
 
     recommendation_fundamental_components = subparsers.add_parser(
         "recommendation-fundamental-components-run",
@@ -1819,11 +1847,67 @@ def _handle_benchmark_composition_import_run(args: argparse.Namespace, *, stdout
             valid_from=valid_from,
             execute=bool(args.execute) and not bool(args.dry_run),
             min_full_coverage_weight=min_full_coverage_weight,
+            create_missing_instruments=bool(args.create_missing_instruments),
         )
     if args.output:
         output_path = resolve_output_path(
             args.output,
             label="benchmark composition import output",
+            repo_root=args.repo_root,
+            require_repo_outside=True,
+        )
+        write_json_report(report, output_path=output_path, stdout=stdout)
+    else:
+        print_json(report, stdout=stdout, sort_keys=False)
+    return 0
+
+
+def _handle_benchmark_composition_ssga_spdr_import_run(args: argparse.Namespace, *, stdout: TextIO) -> int:
+    if bool(args.execute) and bool(args.dry_run):
+        raise ValueError("--execute and --dry-run cannot be used together.")
+    env_mapping = _load_optional_env_mapping(args.env_file, repo_root=args.repo_root)
+    source_xlsx = None
+    if args.source_xlsx:
+        source_xlsx = resolve_existing_file(
+            args.source_xlsx,
+            label="State Street SPDR holdings XLSX",
+            repo_root=args.repo_root,
+            require_repo_outside=True,
+        )
+    raw_xlsx_output = None
+    if args.raw_xlsx_output:
+        raw_xlsx_output = resolve_output_path(
+            args.raw_xlsx_output,
+            label="State Street SPDR raw holdings XLSX output",
+            repo_root=args.repo_root,
+            require_repo_outside=True,
+        )
+    normalized_csv_output = None
+    if args.normalized_csv_output:
+        normalized_csv_output = resolve_output_path(
+            args.normalized_csv_output,
+            label="State Street SPDR normalized holdings CSV output",
+            repo_root=args.repo_root,
+            require_repo_outside=True,
+        )
+    min_full_coverage_weight = Decimal(str(args.min_full_coverage_weight))
+    with _temporary_environ(env_mapping):
+        report = run_ssga_spdr_benchmark_composition_import(
+            config=RuntimeConfig.from_env(),
+            benchmark_code=args.benchmark_code,
+            source_xlsx=source_xlsx,
+            raw_xlsx_output=raw_xlsx_output,
+            normalized_csv_output=normalized_csv_output,
+            download_url=args.download_url,
+            source_name=args.source_name,
+            execute=bool(args.execute) and not bool(args.dry_run),
+            create_missing_instruments=bool(args.create_missing_instruments),
+            min_full_coverage_weight=min_full_coverage_weight,
+        )
+    if args.output:
+        output_path = resolve_output_path(
+            args.output,
+            label="State Street SPDR benchmark import output",
             repo_root=args.repo_root,
             require_repo_outside=True,
         )
