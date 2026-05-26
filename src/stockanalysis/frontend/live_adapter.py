@@ -1356,6 +1356,18 @@ def build_live_thesis_detail_response(
         latest_review=latest_review,
         equity_research=equity_research,
     )
+    evidence_review = _build_thesis_evidence_review_payload(
+        evidence=evidence,
+        invalidation_conditions=_as_list(state.get("invalidation_conditions")),
+        latest_review=latest_review,
+    )
+    professional_lifecycle_gates = _build_thesis_professional_lifecycle_gates_payload(
+        lifecycle=lifecycle,
+        evidence=evidence,
+        evidence_review=evidence_review,
+        latest_review=latest_review,
+        generated_at=generated_at,
+    )
 
     return {
         "contract_version": CONTRACT_VERSION,
@@ -1388,12 +1400,9 @@ def build_live_thesis_detail_response(
                 "next_review_date": _timestamp(latest_review.get("next_review_date")),
             },
             "lifecycle": lifecycle,
+            "professional_lifecycle_gates": professional_lifecycle_gates,
             "evidence": evidence,
-            "evidence_review": _build_thesis_evidence_review_payload(
-                evidence=evidence,
-                invalidation_conditions=_as_list(state.get("invalidation_conditions")),
-                latest_review=latest_review,
-            ),
+            "evidence_review": evidence_review,
         },
         "links": _thesis_detail_links(state, identifier=identifier),
     }
@@ -1582,6 +1591,265 @@ def _thesis_lifecycle_missing_items(
     if not _timestamp(latest_review.get("next_review_date")):
         missing.append("next_review_date")
     return missing
+
+
+def _build_thesis_professional_lifecycle_gates_payload(
+    *,
+    lifecycle: dict[str, Any],
+    evidence: list[dict[str, Any]],
+    evidence_review: dict[str, Any],
+    latest_review: dict[str, Any],
+    generated_at: str,
+) -> dict[str, Any]:
+    readiness = _as_dict(lifecycle.get("readiness"))
+    review_cadence = _as_dict(lifecycle.get("review_cadence"))
+    valuation = _as_dict(lifecycle.get("valuation"))
+    invalidations = _as_list(lifecycle.get("invalidation_conditions"))
+    evidence_summary = _as_dict(evidence_review.get("summary"))
+
+    core_claim_count = _integer(readiness.get("core_claim_count")) or 0
+    catalyst_count = _integer(readiness.get("catalyst_count")) or 0
+    risk_count = _integer(readiness.get("risk_count")) or 0
+    invalidation_count = _integer(readiness.get("invalidation_count")) or 0
+    triggered_invalidation_count = sum(
+        1 for item in invalidations if str(item.get("current_status") or "unknown") != "not_triggered"
+    )
+    source_event_count = _integer(evidence_summary.get("source_event_count")) or 0
+    performance_evidence_count = _integer(evidence_summary.get("performance_evidence_count")) or 0
+    evidence_count = len(evidence)
+    latest_reviewed_at = _timestamp(latest_review.get("reviewed_at") or review_cadence.get("reviewed_at"))
+    next_review_date = _timestamp(latest_review.get("next_review_date") or review_cadence.get("next_review_date"))
+    generated_dt = _parse_frontend_datetime(generated_at)
+    next_review_dt = _parse_frontend_datetime(next_review_date)
+    latest_review_dt = _parse_frontend_datetime(latest_reviewed_at)
+    evidence_times = [
+        parsed
+        for parsed in (_parse_frontend_datetime(item.get("observed_at")) for item in evidence)
+        if parsed is not None
+    ]
+    latest_evidence_dt = max(evidence_times) if evidence_times else None
+    latest_evidence_at = _format_frontend_datetime(latest_evidence_dt)
+    review_overdue = bool(next_review_dt and generated_dt and next_review_dt.date() < generated_dt.date())
+    new_evidence_after_review = bool(
+        latest_evidence_dt
+        and latest_review_dt
+        and latest_evidence_dt.replace(tzinfo=timezone.utc) > latest_review_dt.replace(tzinfo=timezone.utc)
+    )
+
+    gates = [
+        _thesis_lifecycle_gate(
+            gate_key="buy_case",
+            title="왜 보유하는가",
+            status="pass" if core_claim_count else "blocked",
+            decision="핵심 주장이 있어야 장기 thesis로 취급한다",
+            detail=(
+                f"핵심 주장 {core_claim_count}개가 연결되어 있다."
+                if core_claim_count
+                else "핵심 주장이 없어 이 thesis를 장기 투자 판단 입력으로 쓰면 안 된다."
+            ),
+            next_step="핵심 주장과 사업/재무 근거를 보강한다." if not core_claim_count else "핵심 주장이 원천 근거와 계속 맞는지 본다.",
+            facts=[
+                _professional_fact("핵심 주장", f"{core_claim_count}개"),
+                _professional_fact("생애주기 상태", _professional_code_label(readiness.get("status"))),
+            ],
+        ),
+        _thesis_lifecycle_gate(
+            gate_key="catalysts",
+            title="무엇이 맞아야 하는가",
+            status="pass" if catalyst_count else "warning",
+            decision="성립 조건과 촉매가 있어야 기대 경로를 검토할 수 있다",
+            detail=(
+                f"성립 조건/촉매 {catalyst_count}개가 연결되어 있다."
+                if catalyst_count
+                else "성립 조건이나 촉매가 없어 무엇이 맞아야 하는지 불분명하다."
+            ),
+            next_step="매수 논리가 현실화되기 위한 촉매와 확인 지표를 보강한다." if not catalyst_count else "촉매가 실제 데이터로 진행되는지 추적한다.",
+            facts=[_professional_fact("촉매", f"{catalyst_count}개")],
+        ),
+        _thesis_lifecycle_gate(
+            gate_key="risks",
+            title="무엇을 조심해야 하는가",
+            status="pass" if risk_count else "warning",
+            decision="반대 논리와 리스크가 있어야 과신을 줄일 수 있다",
+            detail=(
+                f"리스크 {risk_count}개가 연결되어 있다."
+                if risk_count
+                else "리스크가 분리되어 있지 않아 thesis가 한쪽 방향으로만 쓰일 위험이 있다."
+            ),
+            next_step="사업, 재무, 밸류에이션, 경쟁 리스크를 분리해 보강한다." if not risk_count else "리스크가 커지는 증거를 새 뉴스/실적과 대조한다.",
+            facts=[_professional_fact("리스크", f"{risk_count}개")],
+        ),
+        _thesis_lifecycle_gate(
+            gate_key="invalidation",
+            title="무엇이 틀리면 나가는가",
+            status="blocked" if triggered_invalidation_count or not invalidation_count else "pass",
+            decision="무효화 조건은 반드시 있어야 한다",
+            detail=(
+                f"무효화 조건 {invalidation_count}개 중 {triggered_invalidation_count}개가 발동 상태다."
+                if triggered_invalidation_count
+                else (
+                    f"무효화 조건 {invalidation_count}개가 있고 아직 발동되지 않았다."
+                    if invalidation_count
+                    else "무효화 조건이 없어 thesis가 틀렸을 때 빠지는 기준이 없다."
+                )
+            ),
+            next_step=(
+                "발동된 무효화 조건을 최신 원천 근거와 대조하고 축소/청산 검토를 우선한다."
+                if triggered_invalidation_count
+                else ("무효화 조건을 최소 1개 이상 작성한다." if not invalidation_count else "무효화 조건이 발동되는지 계속 감시한다.")
+            ),
+            facts=[
+                _professional_fact("무효화 조건", f"{invalidation_count}개"),
+                _professional_fact("발동", f"{triggered_invalidation_count}개"),
+            ],
+        ),
+        _thesis_lifecycle_gate(
+            gate_key="valuation",
+            title="가격이 합리적인가",
+            status="pass" if valuation.get("has_view") else "warning",
+            decision="좋은 thesis라도 밸류에이션 맥락 없이는 부족하다",
+            detail=(
+                "밸류에이션 민감도나 안전마진 관점이 연결되어 있다."
+                if valuation.get("has_view")
+                else "밸류에이션 맥락이 없어 좋은 기업을 비싸게 따라사는 위험을 평가하기 어렵다."
+            ),
+            next_step="DCF-lite, 상대 배수, 시나리오 범위, 안전마진 관점을 보강한다." if not valuation.get("has_view") else "밸류에이션 가정이 뉴스/실적 변화와 맞는지 본다.",
+            facts=[
+                _professional_fact("기준 시나리오", valuation.get("base_case") or "미정"),
+                _professional_fact("안전마진", valuation.get("margin_of_safety_view") or "미정"),
+            ],
+        ),
+        _thesis_lifecycle_gate(
+            gate_key="review_cadence",
+            title="언제 다시 보는가",
+            status="warning" if not next_review_date or review_overdue else "pass",
+            decision="재검토일이 있어야 장기 thesis가 방치되지 않는다",
+            detail=(
+                "다음 재검토일이 지났다. 최신 뉴스, 가격, 재무, 포지션 정보를 반영해 다시 검토해야 한다."
+                if review_overdue
+                else (
+                    f"다음 재검토일은 {next_review_date}이다."
+                    if next_review_date
+                    else "다음 재검토일이 없어 thesis가 오래 방치될 수 있다."
+                )
+            ),
+            next_step="thesis review runner를 실행하거나 최신 증거로 수동 검토한다." if not next_review_date or review_overdue else "정해진 재검토일까지 신규 근거를 누적한다.",
+            facts=[
+                _professional_fact("최근 검토", latest_reviewed_at or "미정"),
+                _professional_fact("다음 검토", next_review_date or "미정"),
+            ],
+        ),
+        _thesis_lifecycle_gate(
+            gate_key="evidence_freshness",
+            title="최근 근거가 검토에 반영됐는가",
+            status="blocked" if evidence_count == 0 else ("warning" if new_evidence_after_review or not latest_evidence_at else "pass"),
+            decision="최신 근거가 최신 thesis review보다 늦으면 다시 봐야 한다",
+            detail=(
+                "연결된 원천 근거가 없어 thesis를 검증할 수 없다."
+                if evidence_count == 0
+                else (
+                    "최신 근거가 최근 thesis review 이후에 들어왔다. 이 근거를 반영해 thesis를 다시 검토해야 한다."
+                    if new_evidence_after_review
+                    else (
+                        f"최신 근거 시각은 {latest_evidence_at}이고 현재 review가 이를 덮고 있다."
+                        if latest_evidence_at
+                        else "근거는 있지만 관측 시각이 없어 freshness 판단은 주의로 남긴다."
+                    )
+                )
+            ),
+            next_step=(
+                "원천 뉴스/공시/성과 근거를 thesis evidence에 연결한다."
+                if evidence_count == 0
+                else ("새 근거를 최신 thesis review에 반영한다." if new_evidence_after_review or not latest_evidence_at else "새 근거가 들어오면 review freshness를 다시 계산한다.")
+            ),
+            facts=[
+                _professional_fact("원천 이벤트", f"{source_event_count}개"),
+                _professional_fact("성과 근거", f"{performance_evidence_count}개"),
+                _professional_fact("최신 근거", latest_evidence_at or "미정"),
+            ],
+        ),
+        _thesis_lifecycle_gate(
+            gate_key="order_boundary",
+            title="주문 경계",
+            status="pass",
+            decision="thesis 검토는 주문을 만들지 않는다",
+            detail="이 gate는 보유 논리 품질 점검이며 실거래 주문, 가상 주문, 목표 비중을 생성하지 않는다.",
+            next_step="실거래는 별도 broker boundary, 계좌 권한, kill switch 승인 전까지 계속 닫아둔다.",
+            facts=[
+                _professional_fact("자동 주문", "없음"),
+                _professional_fact("주문 전송", "차단"),
+            ],
+        ),
+    ]
+    blocked_count = sum(1 for gate in gates if gate["status"] == "blocked")
+    warning_count = sum(1 for gate in gates if gate["status"] == "warning")
+    if blocked_count:
+        status = "blocked"
+        summary = "필수 thesis gate가 막혀 있다. 보유/추천 판단 전에 무효화 조건, 원천 근거, 핵심 주장을 먼저 보강해야 한다."
+    elif warning_count:
+        status = "review_required"
+        summary = "핵심 thesis는 존재하지만 보강 또는 재검토가 필요한 gate가 남아 있다. 장기 보유 판단 전에 표시된 주의 항목을 확인한다."
+    else:
+        status = "complete"
+        summary = "핵심 주장, 촉매, 리스크, 무효화 조건, 밸류에이션, 재검토 주기, 근거 freshness가 모두 연결되어 있다."
+
+    return {
+        "status": status,
+        "summary": summary,
+        "gate_count": len(gates),
+        "pass_count": sum(1 for gate in gates if gate["status"] == "pass"),
+        "warning_count": warning_count,
+        "blocked_count": blocked_count,
+        "latest_evidence_at": latest_evidence_at,
+        "latest_reviewed_at": latest_reviewed_at,
+        "next_review_date": next_review_date,
+        "automatic_order_allowed": False,
+        "broker_submit_allowed": False,
+        "order_boundary": "read_only_no_order",
+        "gates": gates,
+    }
+
+
+def _thesis_lifecycle_gate(
+    *,
+    gate_key: str,
+    title: str,
+    status: str,
+    decision: str,
+    detail: str,
+    next_step: str,
+    facts: list[dict[str, str]],
+) -> dict[str, Any]:
+    return {
+        "gate_key": gate_key,
+        "title": title,
+        "status": status,
+        "decision": decision,
+        "detail": detail,
+        "next_step": next_step,
+        "facts": facts,
+        "automatic_order_allowed": False,
+        "broker_submit_allowed": False,
+        "order_boundary": "read_only_no_order",
+    }
+
+
+def _parse_frontend_datetime(value: Any) -> datetime | None:
+    text = str(value or "").strip()
+    if not text:
+        return None
+    try:
+        if len(text) == 10:
+            return datetime.combine(date.fromisoformat(text), datetime.min.time(), tzinfo=timezone.utc)
+        return datetime.fromisoformat(text.replace("Z", "+00:00")).astimezone(timezone.utc)
+    except ValueError:
+        return None
+
+
+def _format_frontend_datetime(value: datetime | None) -> str | None:
+    if value is None:
+        return None
+    return value.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
 def build_live_ai_evidence_detail_response(
@@ -6521,7 +6789,8 @@ event_evidence as (
     select
         event_row.event_id::text as evidence_id,
         event_row.event_type as evidence_type,
-        coalesce(source_document.korean_title, event_row.title) as title
+        coalesce(source_document.korean_title, event_row.title) as title,
+        event_row.event_at as observed_at
     from selected_thesis thesis
     join event.event_instrument_impact instrument_impact on instrument_impact.instrument_id = thesis.instrument_id
     join event.event event_row on event_row.event_id = instrument_impact.event_id
@@ -6539,7 +6808,8 @@ outcome_evidence as (
     select
         outcome.outcome_id::text as evidence_id,
         'performance_outcome' as evidence_type,
-        selected_thesis.primary_symbol || ' thesis outcome ' || outcome.success_grade as title
+        selected_thesis.primary_symbol || ' thesis outcome ' || outcome.success_grade as title,
+        outcome.measurement_end_date as observed_at
     from selected_thesis
     join performance.thesis_outcome outcome on outcome.thesis_id = selected_thesis.thesis_id
     order by outcome.measurement_end_date desc, outcome.outcome_id desc
@@ -6620,7 +6890,8 @@ select json_build_object(
                 json_build_object(
                     'evidence_id', evidence_id,
                     'type', evidence_type,
-                    'title', title
+                    'title', title,
+                    'observed_at', observed_at
                 )
                 order by evidence_type, evidence_id
             )
@@ -9421,6 +9692,7 @@ def _build_thesis_evidence_payload(evidence: dict[str, Any]) -> dict[str, Any]:
         "evidence_id": evidence_id,
         "type": evidence_type,
         "title": str(evidence.get("title") or ""),
+        "observed_at": _format_frontend_datetime(_parse_frontend_datetime(evidence.get("observed_at"))) or "",
     }
 
 

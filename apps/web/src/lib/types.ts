@@ -1160,12 +1160,46 @@ export type ThesisDetailData = {
       has_next_review_date: boolean;
     };
   };
+  professional_lifecycle_gates: ProfessionalLifecycleGates;
   evidence: Array<{
     evidence_id: string;
     type: string;
     title: string;
+    observed_at: string;
   }>;
   evidence_review: EvidenceReviewData;
+};
+
+export type ProfessionalLifecycleGates = {
+  status: string;
+  summary: string;
+  gate_count: number;
+  pass_count: number;
+  warning_count: number;
+  blocked_count: number;
+  latest_evidence_at: string | null;
+  latest_reviewed_at: string | null;
+  next_review_date: string | null;
+  automatic_order_allowed: boolean;
+  broker_submit_allowed: boolean;
+  order_boundary: string;
+  gates: ProfessionalLifecycleGate[];
+};
+
+export type ProfessionalLifecycleGate = {
+  gate_key: string;
+  title: string;
+  status: string;
+  decision: string;
+  detail: string;
+  next_step: string;
+  facts: Array<{
+    label: string;
+    value: string;
+  }>;
+  automatic_order_allowed: boolean;
+  broker_submit_allowed: boolean;
+  order_boundary: string;
 };
 
 export type EvidenceReviewData = {

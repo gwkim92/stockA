@@ -1578,11 +1578,13 @@ class FakeLiveExecutor:
                             "evidence_id": 9001,
                             "type": "source_document_event",
                             "title": "AAPL 2024 10-K annual reporting event",
+                            "observed_at": "2024-10-31T14:00:00+00:00",
                         },
                         {
                             "evidence_id": 8101,
                             "type": "performance_outcome",
                             "title": "AAPL outperformed SPY over measurement window",
+                            "observed_at": "2024-12-02",
                         },
                     ],
                 }
@@ -3593,7 +3595,37 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertEqual(lifecycle["valuation"]["upside_case"], "서비스 성장 유지")
         self.assertEqual(lifecycle["review_cadence"]["next_review_date"], "2024-12-01")
         self.assertEqual(payload["data"]["evidence"][0]["evidence_id"], "event-9001")
+        self.assertEqual(payload["data"]["evidence"][0]["observed_at"], "2024-10-31T14:00:00Z")
         self.assertEqual(payload["data"]["evidence"][1]["evidence_id"], "performance-outcome-8101")
+        self.assertEqual(payload["data"]["evidence"][1]["observed_at"], "2024-12-02T00:00:00Z")
+        professional_gates = payload["data"]["professional_lifecycle_gates"]
+        self.assertEqual(professional_gates["status"], "review_required")
+        self.assertEqual(professional_gates["gate_count"], 8)
+        self.assertEqual(professional_gates["blocked_count"], 0)
+        self.assertGreaterEqual(professional_gates["warning_count"], 1)
+        self.assertEqual(professional_gates["latest_evidence_at"], "2024-12-02T00:00:00Z")
+        self.assertEqual(professional_gates["latest_reviewed_at"], "2024-11-01T23:00:00Z")
+        self.assertEqual(
+            [gate["gate_key"] for gate in professional_gates["gates"]],
+            [
+                "buy_case",
+                "catalysts",
+                "risks",
+                "invalidation",
+                "valuation",
+                "review_cadence",
+                "evidence_freshness",
+                "order_boundary",
+            ],
+        )
+        self.assertEqual(professional_gates["gates"][5]["status"], "warning")
+        self.assertIn("다음 재검토일이 지났다", professional_gates["gates"][5]["detail"])
+        self.assertEqual(professional_gates["gates"][6]["status"], "warning")
+        self.assertIn("최신 근거가 최근 thesis review 이후", professional_gates["gates"][6]["detail"])
+        self.assertFalse(professional_gates["automatic_order_allowed"])
+        self.assertFalse(professional_gates["broker_submit_allowed"])
+        self.assertEqual(professional_gates["order_boundary"], "read_only_no_order")
+        self.assertTrue(all(gate["order_boundary"] == "read_only_no_order" for gate in professional_gates["gates"]))
         review = payload["data"]["evidence_review"]
         self.assertEqual(review["quality_status"], "ai_review_passed")
         self.assertEqual(review["summary"]["source_event_count"], 1)

@@ -195,6 +195,16 @@ function lifecycleSourceLabel(source: string) {
   return koCode(source);
 }
 
+function professionalGateTone(status: string) {
+  if (status === "pass") {
+    return "risk-low";
+  }
+  if (status === "blocked") {
+    return "risk-high";
+  }
+  return "risk-medium";
+}
+
 function missingLifecycleItems(items: string[]) {
   if (items.length === 0) {
     return "누락 없음";
@@ -327,6 +337,7 @@ export default async function ThesisPage({ params }: ThesisPageProps) {
   const qualityDecision = thesisQualityDecision(data);
   const qualityChecks = thesisQualityChecks(data);
   const lifecycle = data.lifecycle;
+  const professionalGates = data.professional_lifecycle_gates;
   const valuationRows = valuationItems(lifecycle.valuation);
 
   return (
@@ -358,6 +369,76 @@ export default async function ThesisPage({ params }: ThesisPageProps) {
               위험도 {koCode(data.latest_review.risk_level)}
             </div>
           </div>
+        </div>
+      </section>
+
+      <section className="bento-card reveal delay-1" aria-label="전문 thesis gate">
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "20px", flexWrap: "wrap", marginBottom: "20px" }}>
+          <div>
+            <span className="metric-sub">전문 Thesis Gate</span>
+            <h2 style={{ fontSize: "1.5rem", marginTop: "6px" }}>
+              {professionalGates.status === "complete" ? "전문 게이트 통과" : professionalGates.status === "blocked" ? "게이트 차단" : "재검토 필요"}
+            </h2>
+            <p style={{ color: "var(--text-secondary)", marginTop: "8px", maxWidth: "860px" }}>
+              {professionalGates.summary}
+            </p>
+          </div>
+          <span className={`risk-tag ${professionalGates.blocked_count > 0 ? "risk-high" : professionalGates.warning_count > 0 ? "risk-medium" : "risk-low"}`}>
+            읽기 전용·주문 금지
+          </span>
+        </div>
+
+        <div className="status-rail compact-rail" style={{ marginBottom: "20px" }}>
+          <div className="rail-cell">
+            <span>통과</span>
+            <strong>{professionalGates.pass_count}</strong>
+            <small>{professionalGates.gate_count}개 gate</small>
+          </div>
+          <div className="rail-cell">
+            <span>주의</span>
+            <strong>{professionalGates.warning_count}</strong>
+            <small>보강/재검토</small>
+          </div>
+          <div className="rail-cell">
+            <span>차단</span>
+            <strong>{professionalGates.blocked_count}</strong>
+            <small>진행 금지</small>
+          </div>
+          <div className="rail-cell">
+            <span>최신 근거</span>
+            <strong>{professionalGates.latest_evidence_at ? professionalGates.latest_evidence_at.slice(0, 10) : "미정"}</strong>
+            <small>최근 검토 {professionalGates.latest_reviewed_at ? professionalGates.latest_reviewed_at.slice(0, 10) : "미정"}</small>
+          </div>
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: "14px" }}>
+          {professionalGates.gates.map((gate) => (
+            <article className="detail-path-card" key={gate.gate_key}>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: "12px", alignItems: "flex-start", marginBottom: "10px" }}>
+                <div>
+                  <span>{gate.title}</span>
+                  <strong style={{ display: "block", fontSize: "1rem", marginTop: "4px" }}>{gate.decision}</strong>
+                </div>
+                <span className={`risk-tag ${professionalGateTone(gate.status)}`}>
+                  {gateStatusLabel(gate.status)}
+                </span>
+              </div>
+              <p style={{ color: "var(--text-secondary)", lineHeight: 1.6, margin: "0 0 12px" }}>
+                {gate.detail}
+              </p>
+              <dl className="research-flow-facts" style={{ marginBottom: "12px" }}>
+                {gate.facts.map((fact) => (
+                  <div key={`${gate.gate_key}-${fact.label}`}>
+                    <dt>{fact.label}</dt>
+                    <dd>{koLabel(fact.value)}</dd>
+                  </div>
+                ))}
+              </dl>
+              <p style={{ color: "var(--text-muted)", lineHeight: 1.55, margin: 0, fontSize: "0.86rem" }}>
+                다음 조치: {gate.next_step}
+              </p>
+            </article>
+          ))}
         </div>
       </section>
 
