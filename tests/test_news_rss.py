@@ -4,6 +4,7 @@ import json
 import unittest
 from pathlib import Path
 
+from stockanalysis.ingest.news.models import NewsRssItem, NewsRssSyncResult
 from stockanalysis.ingest.news.rss import load_news_rss_sync_result, parse_news_rss_feed
 from stockanalysis.ingest.news.sql import render_news_rss_upsert_sql
 from stockanalysis.ingest.news.upsert import run_news_rss_upsert
@@ -114,6 +115,41 @@ class NewsRssTests(unittest.TestCase):
         self.assertIn("501::bigint", sql)
         self.assertIn("on conflict (data_source_id, external_document_id)", sql)
         self.assertIn("on conflict (dedupe_key)", sql)
+
+    def test_render_news_rss_upsert_sql_deduplicates_duplicate_external_document_ids_before_upsert(self) -> None:
+        base = load_news_rss_sync_result(
+            feed_name="fixture",
+            feed_url="https://example.com/rss",
+            config=type("Config", (), {})(),
+            feed_xml_path=str(FIXTURES_DIR / "news_rss_sample.xml"),
+            limit=1,
+        )
+        duplicate = NewsRssItem(
+            feed_name=base.feed_name,
+            feed_url=base.feed_url,
+            external_document_id=base.items[0].external_document_id,
+            title="Duplicate item with same guid",
+            summary="This should not make Postgres update the same row twice.",
+            url=base.items[0].url,
+            language=base.items[0].language,
+            published_at=base.items[0].published_at,
+            guid=base.items[0].guid,
+            checksum="duplicate-checksum",
+        )
+        result = NewsRssSyncResult(
+            feed_name=base.feed_name,
+            feed_url=base.feed_url,
+            items=(base.items[0], duplicate),
+        )
+
+        sql = render_news_rss_upsert_sql(result, ingested_by_run_id=501)
+
+        self.assertIn("input_deduped as", sql)
+        self.assertIn("select distinct on (external_document_id)", sql)
+        self.assertIn("join input_deduped on true", sql)
+        self.assertIn("'deduped_item_count'", sql)
+        self.assertIn("'duplicate_item_count'", sql)
+        self.assertNotIn("join input_rows on true", sql)
 
     def test_run_news_rss_upsert_records_pipeline_run(self) -> None:
         executor = FakeExecutor(run_id=77)

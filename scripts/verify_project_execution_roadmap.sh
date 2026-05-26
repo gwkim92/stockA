@@ -147,7 +147,7 @@ test -f docs/plans/2026-05-20-hosted-database-runtime-decision.md
 test -f docs/hosted-database-runtime-decision.md
 test -f scripts/verify_hosted_database_runtime_decision.sh
 grep -q 'Current task group: `professional-equity-analysis-foundation`' docs/project-execution-roadmap.md
-grep -q '현재 고정된 immediate next task는 `professional-source-blocker-raw-filing-remediation-v1`' AGENTS.md
+grep -q '현재 고정된 immediate next task는 `news-intraday-scheduler-failure-remediation-v1`' AGENTS.md
 test -f docs/tasks/portfolio-risk-budget-drift-quality-audit/contract.md
 test -f docs/tasks/portfolio-risk-budget-drift-quality-audit/handoff.md
 test -f docs/tasks/portfolio-risk-budget-rebalance-candidate-review/contract.md
@@ -216,6 +216,7 @@ grep -q "recommendation-outcome-due-cadence-automation-v1" docs/project-executio
 grep -q "professional-source-gap-prioritization-v1" docs/project-execution-roadmap.md
 grep -q "professional-source-gap-remediation-decision-v1" docs/project-execution-roadmap.md
 grep -q "professional-source-blocker-raw-filing-remediation-v1" docs/project-execution-roadmap.md
+grep -q "news-intraday-scheduler-failure-remediation-v1" docs/project-execution-roadmap.md
 test -f docs/tasks/professional-source-gap-prioritization-v1/contract.md
 test -f docs/tasks/professional-source-gap-prioritization-v1/handoff.md
 test -f docs/tasks/professional-source-gap-prioritization-v1/review.md
@@ -230,6 +231,10 @@ test -f src/stockanalysis/operations/professional_source_blocker_raw_filing_reme
 test -f tests/test_professional_source_blocker_raw_filing_remediation.py
 grep -q "professional-source-blocker-raw-filing-remediation-run" src/stockanalysis/operations/cli.py
 grep -q "professional_gap_raw_filing_decision" src/stockanalysis/frontend/live_adapter.py
+test -f docs/tasks/news-intraday-scheduler-failure-remediation-v1/contract.md
+test -f docs/tasks/news-intraday-scheduler-failure-remediation-v1/handoff.md
+test -f docs/tasks/news-intraday-scheduler-failure-remediation-v1/review.md
+test -f docs/plans/2026-05-27-news-intraday-scheduler-failure-remediation-v1.md
 test -f docs/plans/2026-05-27-professional-source-gap-prioritization-v1.md
 test -f docs/tasks/professional-source-gap-remediation-decision-v1/contract.md
 test -f docs/tasks/professional-source-gap-remediation-decision-v1/handoff.md

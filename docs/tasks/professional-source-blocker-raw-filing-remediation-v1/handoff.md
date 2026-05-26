@@ -2,7 +2,7 @@
 
 ## Status
 
-- in progress: local implementation is complete and verified; EC2 deploy and live execute smoke are next.
+- completed: local implementation, EC2 deploy, live runner execution, and route/data-health smoke passed.
 
 ## Context
 
@@ -10,10 +10,15 @@
 - Decision runner `run_id=1599`, `eval_run_id=29` classified `EROK` as `non_remediable_current_free_public_data`.
 - GOOG was remediated by adding SEC shares concept mappings, rerunning companyfacts `run_id=1601`, and rerunning SOTP `run_id=1602`.
 - Latest EC2 `/api/data-health` source gaps: `gap_count=2`, `source_blocker_count=1`, `coverage_gap_count=0`, `fund_not_applicable_count=1`, symbols `EROK:source_blocker`, `SPY:fund_not_applicable`.
+- EC2 raw filing remediation runner completed on commit `9ff096f` with `run_id=1607`, `eval_run_id=30`.
+- EROK companyfacts namespaces are `ffd` only; `facts.us-gaap` is absent.
+- EROK SEC submissions include `S-8`, `S-1/S-1/A`, and `424B4`; supported periodic filings `10-K/10-Q/20-F/40-F` count is `0`.
+- Latest prospectus source is `424B4`, filed `2026-05-14`.
+- Decision is `durable_exclusion_until_periodic_filing` with blocker `ipo_prospectus_without_standard_periodic_financials`.
 
 ## Exact Next Step
 
-- exact next step: deploy the local implementation to EC2, run `professional-source-blocker-raw-filing-remediation-run` for `EROK`/CIK `0002104882`, restart read-only services, and confirm `/api/data-health` shows the raw filing durable exclusion metadata.
+- exact next step: move to `news-intraday-scheduler-failure-remediation-v1`, because the EC2 profile scheduler is installed but the last `news-intraday` service result is `exit-code`.
 
 ## Implementation Notes
 
@@ -31,6 +36,20 @@
 
 - `PYTHONPATH=src /opt/homebrew/bin/python3.13 -m unittest tests.test_professional_source_blocker_raw_filing_remediation tests.test_data_operations_cli tests.test_frontend_live_adapter`
 - `PYTHONPATH=src /opt/homebrew/bin/python3.13 -m compileall -q src tests`
+- `PYTHONPATH=src /opt/homebrew/bin/python3.13 -m unittest tests.test_sec_companyfacts tests.test_professional_source_gap_remediation_decision tests.test_professional_source_blocker_raw_filing_remediation tests.test_frontend_live_adapter`
+- `cd apps/web && npm run typecheck`
+- `cd apps/web && npm run build`
+- `bash scripts/verify_project_execution_roadmap.sh`
+- `PYTHONPATH=/Users/woody/ai/agent-work-harness/src python3 -m awh verify --repo . --task professional-source-blocker-raw-filing-remediation-v1`
+
+## EC2 Verification
+
+- Deployed commit: `9ff096f`.
+- Runner: `/opt/stockanalysis/venv/bin/python -m stockanalysis.operations.cli professional-source-blocker-raw-filing-remediation-run --env-file /opt/stockanalysis/runtime/data-operations.env --as-of-date 2026-05-26 --cik 0002104882 --fallback-symbol EROK --max-filings 50 --execute`.
+- Output artifact: `/opt/stockanalysis/runtime/professional-source-blocker-raw-filing-remediation-2026-05-26.json`.
+- Result: `run_id=1607`, `eval_run_id=30`, `decision_status=durable_exclusion_until_periodic_filing`, `blocker_code=ipo_prospectus_without_standard_periodic_financials`, `durable_exclusion=true`.
+- `/api/data-health` now exposes `raw_filing_decision.eval_run_id=eval-run-30`, `raw_filing_decision.status=durable_exclusion_until_periodic_filing`, `latest_prospectus_form_type=424B4`, `latest_prospectus_filing_date=2026-05-14`.
+- Route smoke: `/`, `/data-health`, `/stocks/EROK` returned `200`.
 
 ## Guardrails
 

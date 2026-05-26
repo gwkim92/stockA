@@ -70,6 +70,18 @@ input_rows (
     values
         {value_rows}
 ),
+input_deduped as (
+    select distinct on (external_document_id)
+        external_document_id,
+        title,
+        summary,
+        url,
+        language,
+        published_at,
+        checksum
+    from input_rows
+    order by external_document_id, published_at desc nulls last, checksum desc
+),
 upserted_documents as (
     insert into ingest.source_document (
         data_source_id,
@@ -85,17 +97,17 @@ upserted_documents as (
     )
     select
         source_row.data_source_id,
-        input_rows.external_document_id,
+        input_deduped.external_document_id,
         'news_rss_item',
-        input_rows.title,
-        input_rows.summary,
-        input_rows.url,
-        input_rows.language,
-        input_rows.published_at,
-        input_rows.checksum,
+        input_deduped.title,
+        input_deduped.summary,
+        input_deduped.url,
+        input_deduped.language,
+        input_deduped.published_at,
+        input_deduped.checksum,
         {run_literal}
     from source_row
-    join input_rows on true
+    join input_deduped on true
     on conflict (data_source_id, external_document_id) where external_document_id is not null do update
     set
         title = excluded.title,
@@ -177,6 +189,8 @@ linked_documents as (
 )
 select json_build_object(
     'requested_item_count', {len(result.items)},
+    'deduped_item_count', (select count(*)::int from input_deduped),
+    'duplicate_item_count', {len(result.items)} - (select count(*)::int from input_deduped),
     'source_document_count', (select count(*)::int from upserted_documents),
     'event_count', (select count(*)::int from upserted_events),
     'linked_document_count', (select count(*)::int from linked_documents)
