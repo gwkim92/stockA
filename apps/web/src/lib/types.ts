@@ -281,6 +281,35 @@ export type DataHealthData = {
     broker_submit_allowed: boolean;
     order_boundary: string;
   };
+  recommendation_outcome_maturity: {
+    status: string;
+    as_of_date: string;
+    source_calibration_eval_run_id: string;
+    horizon_days: number[];
+    recommendation_horizon_count: number;
+    recommendation_count: number;
+    outcome_count: number;
+    not_due_count: number;
+    ready_for_backfill_count: number;
+    due_today_count: number;
+    overdue_count: number;
+    price_gap_count: number;
+    missing_entry_price_count: number;
+    missing_exit_price_count: number;
+    next_due_date: string;
+    next_due_count: number;
+    examples: Array<{
+      symbol: string;
+      recommendation_id: string;
+      recommendation_date: string;
+      horizon_days: number;
+      expected_measurement_end_date: string;
+      status: string;
+    }>;
+    recommendation_scoring_mutated: boolean;
+    automatic_order_allowed: boolean;
+    broker_submit_allowed: boolean;
+  };
   recommendation_weight_review_readiness: {
     status: string;
     eval_run_id: string;

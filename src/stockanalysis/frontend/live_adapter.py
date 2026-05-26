@@ -549,6 +549,9 @@ def build_live_data_health_response(
     recommendation_outcome_calibration = _build_recommendation_outcome_calibration_payload(
         _as_dict(state.get("recommendation_outcome_calibration"))
     )
+    recommendation_outcome_maturity = _build_recommendation_outcome_maturity_payload(
+        _as_dict(state.get("recommendation_outcome_maturity"))
+    )
     recommendation_weight_review_readiness = _build_recommendation_weight_review_readiness_payload(
         _as_dict(state.get("recommendation_weight_review_readiness"))
     )
@@ -566,6 +569,10 @@ def build_live_data_health_response(
             open_gates.append(gate)
     if recommendation_outcome_calibration["status"] in {"missing", "backfill_candidates_remain", "price_history_gaps_remain"}:
         gate = "recommendation_outcome_calibration_attention"
+        if gate not in open_gates:
+            open_gates.append(gate)
+    if recommendation_outcome_maturity["status"] in {"due_outcomes_ready", "overdue_outcomes_ready", "blocked_by_price_gaps"}:
+        gate = "recommendation_outcome_maturity_attention"
         if gate not in open_gates:
             open_gates.append(gate)
 
@@ -591,6 +598,7 @@ def build_live_data_health_response(
             "cycle_ai_quality_audit": cycle_ai_quality_audit,
             "benchmark_drift_quality": benchmark_drift_quality,
             "recommendation_outcome_calibration": recommendation_outcome_calibration,
+            "recommendation_outcome_maturity": recommendation_outcome_maturity,
             "recommendation_weight_review_readiness": recommendation_weight_review_readiness,
             "open_gates": open_gates,
         },
@@ -3420,6 +3428,138 @@ selected_recommendation_outcome_calibration as (
         eval_run.eval_run_id desc
     limit 1
 ),
+outcome_maturity_horizon_days as (
+    select distinct horizon_day
+    from (
+        select value::integer as horizon_day
+        from selected_recommendation_outcome_calibration calibration,
+             lateral jsonb_array_elements_text(coalesce(calibration.score_json->'horizon_days', '[30,90,180,365]'::jsonb)) value
+        union all
+        select default_horizon.horizon_day
+        from (values (30), (90), (180), (365)) as default_horizon(horizon_day)
+        where not exists (
+            select 1
+            from selected_recommendation_outcome_calibration calibration,
+                 lateral jsonb_array_elements_text(coalesce(calibration.score_json->'horizon_days', '[]'::jsonb)) value
+        )
+    ) horizons
+    where horizon_day > 0
+),
+outcome_maturity_recommendation_window as (
+    select
+        recommendation.recommendation_id,
+        recommendation.instrument_id,
+        instrument.primary_symbol,
+        batch.as_of_date,
+        batch.market_code,
+        batch.strategy_name,
+        batch.horizon_type,
+        batch.universe_version
+    from signal.recommendation recommendation
+    join signal.recommendation_batch batch on batch.batch_id = recommendation.batch_id
+    join ref.instrument instrument on instrument.instrument_id = recommendation.instrument_id
+    where recommendation.status = 'active'
+),
+outcome_maturity_recommendation_horizons as (
+    select
+        recommendation.*,
+        horizon.horizon_day,
+        (recommendation.as_of_date + horizon.horizon_day) as expected_measurement_end_date
+    from outcome_maturity_recommendation_window recommendation
+    join outcome_maturity_horizon_days horizon on true
+),
+outcome_maturity_classified as (
+    select
+        recommendation.recommendation_id,
+        recommendation.primary_symbol,
+        recommendation.as_of_date,
+        recommendation.horizon_day,
+        recommendation.expected_measurement_end_date,
+        outcome.outcome_id,
+        entry_price.trade_date as entry_price_date,
+        exit_price.trade_date as exit_price_date,
+        case
+            when outcome.outcome_id is not null then 'outcome_recorded'
+            when recommendation.expected_measurement_end_date > current_date then 'not_due'
+            when entry_price.trade_date is null then 'missing_entry_price'
+            when exit_price.trade_date is null then 'missing_exit_price'
+            else 'ready_for_backfill'
+        end as maturity_status
+    from outcome_maturity_recommendation_horizons recommendation
+    left join lateral (
+        select trade_date
+        from market.daily_price_bar
+        where instrument_id = recommendation.instrument_id
+          and trade_date <= recommendation.as_of_date
+        order by trade_date desc
+        limit 1
+    ) entry_price on true
+    left join lateral (
+        select trade_date
+        from market.daily_price_bar
+        where instrument_id = recommendation.instrument_id
+          and trade_date <= least(recommendation.expected_measurement_end_date, current_date)
+          and (entry_price.trade_date is null or trade_date >= entry_price.trade_date)
+        order by trade_date desc
+        limit 1
+    ) exit_price on true
+    left join lateral (
+        select outcome_id
+        from performance.recommendation_outcome outcome
+        where outcome.recommendation_id = recommendation.recommendation_id
+          and outcome.measurement_end_date <= least(recommendation.expected_measurement_end_date, current_date)
+          and outcome.measurement_end_date >= recommendation.as_of_date
+          and outcome.horizon_days between greatest(recommendation.horizon_day - 7, 0) and recommendation.horizon_day + 7
+        order by abs(outcome.horizon_days - recommendation.horizon_day), outcome.measurement_end_date desc
+        limit 1
+    ) outcome on true
+),
+outcome_maturity_next_due as (
+    select min(expected_measurement_end_date) as next_due_date
+    from outcome_maturity_classified
+    where maturity_status = 'not_due'
+),
+outcome_maturity_summary as (
+    select
+        count(*)::integer as recommendation_horizon_count,
+        count(distinct recommendation_id)::integer as recommendation_count,
+        count(*) filter (where maturity_status = 'outcome_recorded')::integer as outcome_count,
+        count(*) filter (where maturity_status = 'not_due')::integer as not_due_count,
+        count(*) filter (where maturity_status = 'ready_for_backfill')::integer as ready_for_backfill_count,
+        count(*) filter (where maturity_status = 'ready_for_backfill' and expected_measurement_end_date = current_date)::integer as due_today_count,
+        count(*) filter (where maturity_status = 'ready_for_backfill' and expected_measurement_end_date < current_date)::integer as overdue_count,
+        count(*) filter (where maturity_status in ('missing_entry_price', 'missing_exit_price'))::integer as price_gap_count,
+        count(*) filter (where maturity_status = 'missing_entry_price')::integer as missing_entry_price_count,
+        count(*) filter (where maturity_status = 'missing_exit_price')::integer as missing_exit_price_count,
+        count(*) filter (
+            where maturity_status = 'not_due'
+              and expected_measurement_end_date = (select next_due_date from outcome_maturity_next_due)
+        )::integer as next_due_count,
+        (select next_due_date from outcome_maturity_next_due) as next_due_date
+    from outcome_maturity_classified
+),
+outcome_maturity_examples as (
+    select
+        primary_symbol,
+        recommendation_id,
+        as_of_date,
+        horizon_day,
+        expected_measurement_end_date,
+        maturity_status
+    from outcome_maturity_classified
+    where maturity_status <> 'outcome_recorded'
+    order by
+        case maturity_status
+            when 'ready_for_backfill' then 1
+            when 'missing_exit_price' then 2
+            when 'missing_entry_price' then 3
+            when 'not_due' then 4
+            else 5
+        end,
+        expected_measurement_end_date,
+        primary_symbol
+    limit 8
+),
 selected_recommendation_weight_review_readiness as (
     select eval_run.*
     from ai.eval_run eval_run
@@ -3563,6 +3703,64 @@ select json_build_object(
             'automatic_order_allowed', false,
             'broker_submit_allowed', false,
             'order_boundary', 'read_only_no_order'
+        )
+    ),
+    'recommendation_outcome_maturity',
+    coalesce(
+        (
+            select json_build_object(
+                'status',
+                case
+                    when summary.recommendation_horizon_count = 0 then 'no_active_recommendation_horizons'
+                    when summary.overdue_count > 0 then 'overdue_outcomes_ready'
+                    when summary.due_today_count > 0 or summary.ready_for_backfill_count > 0 then 'due_outcomes_ready'
+                    when summary.price_gap_count > 0 then 'blocked_by_price_gaps'
+                    when summary.not_due_count > 0 then 'not_due'
+                    else 'complete_current_window'
+                end,
+                'as_of_date', current_date::text,
+                'source_calibration_eval_run_id', (select eval_run_id from selected_recommendation_outcome_calibration),
+                'horizon_days', coalesce((select json_agg(horizon_day order by horizon_day) from outcome_maturity_horizon_days), '[]'::json),
+                'recommendation_horizon_count', summary.recommendation_horizon_count,
+                'recommendation_count', summary.recommendation_count,
+                'outcome_count', summary.outcome_count,
+                'not_due_count', summary.not_due_count,
+                'ready_for_backfill_count', summary.ready_for_backfill_count,
+                'due_today_count', summary.due_today_count,
+                'overdue_count', summary.overdue_count,
+                'price_gap_count', summary.price_gap_count,
+                'missing_entry_price_count', summary.missing_entry_price_count,
+                'missing_exit_price_count', summary.missing_exit_price_count,
+                'next_due_date', summary.next_due_date,
+                'next_due_count', summary.next_due_count,
+                'examples', coalesce((select json_agg(row_to_json(outcome_maturity_examples)) from outcome_maturity_examples), '[]'::json),
+                'recommendation_scoring_mutated', false,
+                'automatic_order_allowed', false,
+                'broker_submit_allowed', false
+            )
+            from outcome_maturity_summary summary
+        ),
+        json_build_object(
+            'status', 'missing',
+            'as_of_date', current_date::text,
+            'source_calibration_eval_run_id', null,
+            'horizon_days', '[]'::json,
+            'recommendation_horizon_count', 0,
+            'recommendation_count', 0,
+            'outcome_count', 0,
+            'not_due_count', 0,
+            'ready_for_backfill_count', 0,
+            'due_today_count', 0,
+            'overdue_count', 0,
+            'price_gap_count', 0,
+            'missing_entry_price_count', 0,
+            'missing_exit_price_count', 0,
+            'next_due_date', null,
+            'next_due_count', 0,
+            'examples', '[]'::json,
+            'recommendation_scoring_mutated', false,
+            'automatic_order_allowed', false,
+            'broker_submit_allowed', false
         )
     ),
     'recommendation_weight_review_readiness',
@@ -10978,6 +11176,43 @@ def _build_recommendation_outcome_calibration_payload(payload: dict[str, Any]) -
         "automatic_order_allowed": payload.get("automatic_order_allowed") is True,
         "broker_submit_allowed": payload.get("broker_submit_allowed") is True,
         "order_boundary": str(payload.get("order_boundary") or "read_only_no_order"),
+    }
+
+
+def _build_recommendation_outcome_maturity_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    examples = []
+    for item in _as_list(payload.get("examples"))[:8]:
+        examples.append(
+            {
+                "symbol": str(item.get("primary_symbol") or ""),
+                "recommendation_id": _opaque_id("recommendation", item.get("recommendation_id"), None),
+                "recommendation_date": str(item.get("as_of_date") or ""),
+                "horizon_days": int(_safe_number(item.get("horizon_day")) or 0),
+                "expected_measurement_end_date": str(item.get("expected_measurement_end_date") or ""),
+                "status": str(item.get("maturity_status") or "unknown"),
+            }
+        )
+    return {
+        "status": str(payload.get("status") or "missing"),
+        "as_of_date": str(payload.get("as_of_date") or ""),
+        "source_calibration_eval_run_id": _opaque_id("eval-run", payload.get("source_calibration_eval_run_id"), None),
+        "horizon_days": [int(item) for item in _as_list_or_scalars(payload.get("horizon_days")) if _is_int_like(item)],
+        "recommendation_horizon_count": int(_safe_number(payload.get("recommendation_horizon_count")) or 0),
+        "recommendation_count": int(_safe_number(payload.get("recommendation_count")) or 0),
+        "outcome_count": int(_safe_number(payload.get("outcome_count")) or 0),
+        "not_due_count": int(_safe_number(payload.get("not_due_count")) or 0),
+        "ready_for_backfill_count": int(_safe_number(payload.get("ready_for_backfill_count")) or 0),
+        "due_today_count": int(_safe_number(payload.get("due_today_count")) or 0),
+        "overdue_count": int(_safe_number(payload.get("overdue_count")) or 0),
+        "price_gap_count": int(_safe_number(payload.get("price_gap_count")) or 0),
+        "missing_entry_price_count": int(_safe_number(payload.get("missing_entry_price_count")) or 0),
+        "missing_exit_price_count": int(_safe_number(payload.get("missing_exit_price_count")) or 0),
+        "next_due_date": str(payload.get("next_due_date") or ""),
+        "next_due_count": int(_safe_number(payload.get("next_due_count")) or 0),
+        "examples": examples,
+        "recommendation_scoring_mutated": payload.get("recommendation_scoring_mutated") is True,
+        "automatic_order_allowed": payload.get("automatic_order_allowed") is True,
+        "broker_submit_allowed": payload.get("broker_submit_allowed") is True,
     }
 
 

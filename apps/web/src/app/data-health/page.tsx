@@ -16,6 +16,7 @@ type LocalIngestWorker = DataHealthData["local_ingest_worker"];
 type CycleAiQualityAudit = DataHealthData["cycle_ai_quality_audit"];
 type BenchmarkDriftQuality = DataHealthData["benchmark_drift_quality"];
 type RecommendationOutcomeCalibration = DataHealthData["recommendation_outcome_calibration"];
+type RecommendationOutcomeMaturity = DataHealthData["recommendation_outcome_maturity"];
 type RecommendationWeightReviewReadiness = DataHealthData["recommendation_weight_review_readiness"];
 type ProfileTimer = ProfileSchedulerStatus["timers"][number];
 
@@ -454,6 +455,56 @@ function outcomeCalibrationTone(calibration: RecommendationOutcomeCalibration) {
   return "risk-high";
 }
 
+function outcomeMaturityTitle(maturity: RecommendationOutcomeMaturity) {
+  if (maturity.status === "not_due") {
+    return "성과 측정일 대기";
+  }
+  if (maturity.status === "due_outcomes_ready") {
+    return "성과 산출 가능";
+  }
+  if (maturity.status === "overdue_outcomes_ready") {
+    return "성과 산출 지연";
+  }
+  if (maturity.status === "blocked_by_price_gaps") {
+    return "가격 이력 보강 필요";
+  }
+  if (maturity.status === "complete_current_window") {
+    return "현재 창 측정 완료";
+  }
+  return koCode(maturity.status);
+}
+
+function outcomeMaturityExplanation(maturity: RecommendationOutcomeMaturity) {
+  if (maturity.status === "not_due") {
+    return maturity.next_due_date
+      ? `${maturity.next_due_date}에 ${maturity.next_due_count}개 추천×기간 성과 측정창이 처음 열린다. 그 전까지 weight 검토는 대기한다.`
+      : "아직 성과 측정 가능한 추천×기간이 없다. weight 검토는 대기한다.";
+  }
+  if (maturity.status === "due_outcomes_ready") {
+    return `${maturity.ready_for_backfill_count}개 추천×기간 성과를 산출할 수 있다. outcome backfill과 calibration을 먼저 실행해야 한다.`;
+  }
+  if (maturity.status === "overdue_outcomes_ready") {
+    return `${maturity.overdue_count}개 추천×기간 성과 산출이 지연됐다. 추천 weight 검토 전에 outcome backfill을 실행해야 한다.`;
+  }
+  if (maturity.status === "blocked_by_price_gaps") {
+    return `${maturity.price_gap_count}개 추천×기간은 가격 이력 부족으로 성과 계산이 막혔다. 캔들 보강이 먼저다.`;
+  }
+  if (maturity.status === "complete_current_window") {
+    return "현재 측정 가능한 성과창은 모두 처리됐다. 다음 측정일 전까지 weight 변경은 하지 않는다.";
+  }
+  return "추천 성과 측정창 상태를 확인한다.";
+}
+
+function outcomeMaturityTone(maturity: RecommendationOutcomeMaturity) {
+  if (maturity.status === "not_due" || maturity.status === "complete_current_window") {
+    return "risk-medium";
+  }
+  if (maturity.status === "due_outcomes_ready") {
+    return "risk-medium";
+  }
+  return "risk-high";
+}
+
 function executionIdLabel(value: string | null | undefined) {
   if (!value) {
     return "실행 기록 없음";
@@ -568,6 +619,29 @@ const DEFAULT_RECOMMENDATION_OUTCOME_CALIBRATION: RecommendationOutcomeCalibrati
   order_boundary: "read_only_no_order",
 };
 
+const DEFAULT_RECOMMENDATION_OUTCOME_MATURITY: RecommendationOutcomeMaturity = {
+  status: "missing",
+  as_of_date: "",
+  source_calibration_eval_run_id: "eval-run-unknown",
+  horizon_days: [],
+  recommendation_horizon_count: 0,
+  recommendation_count: 0,
+  outcome_count: 0,
+  not_due_count: 0,
+  ready_for_backfill_count: 0,
+  due_today_count: 0,
+  overdue_count: 0,
+  price_gap_count: 0,
+  missing_entry_price_count: 0,
+  missing_exit_price_count: 0,
+  next_due_date: "",
+  next_due_count: 0,
+  examples: [],
+  recommendation_scoring_mutated: false,
+  automatic_order_allowed: false,
+  broker_submit_allowed: false,
+};
+
 const DEFAULT_RECOMMENDATION_WEIGHT_REVIEW_READINESS: RecommendationWeightReviewReadiness = {
   status: "missing",
   eval_run_id: "eval-run-unknown",
@@ -610,6 +684,7 @@ export default async function DataHealthPage() {
   const benchmarkDriftQuality = data.benchmark_drift_quality ?? DEFAULT_BENCHMARK_DRIFT_QUALITY;
   const outcomeCalibration =
     data.recommendation_outcome_calibration ?? DEFAULT_RECOMMENDATION_OUTCOME_CALIBRATION;
+  const outcomeMaturity = data.recommendation_outcome_maturity ?? DEFAULT_RECOMMENDATION_OUTCOME_MATURITY;
   const weightReviewReadiness =
     data.recommendation_weight_review_readiness ?? DEFAULT_RECOMMENDATION_WEIGHT_REVIEW_READINESS;
   const marketPriceRun = findPipelineRun(data, "market-price-daily", "market_price_upsert");
@@ -1034,6 +1109,29 @@ export default async function DataHealthPage() {
           </article>
         </div>
         <div className="insight-grid">
+          <article className="insight-card">
+            <span>성과 측정창</span>
+            <strong className={`risk-tag ${outcomeMaturityTone(outcomeMaturity)}`}>
+              {outcomeMaturityTitle(outcomeMaturity)}
+            </strong>
+            <p>{outcomeMaturityExplanation(outcomeMaturity)}</p>
+          </article>
+          <article className="insight-card">
+            <span>다음 측정일</span>
+            <strong>{outcomeMaturity.next_due_date || "대기 없음"}</strong>
+            <p>
+              다음에 열릴 추천×기간 {outcomeMaturity.next_due_count}개 · 아직 대기{" "}
+              {outcomeMaturity.not_due_count}개 · 산출 가능 {outcomeMaturity.ready_for_backfill_count}개
+            </p>
+          </article>
+          <article className="insight-card">
+            <span>지연/가격 보강</span>
+            <strong>{outcomeMaturity.overdue_count + outcomeMaturity.price_gap_count}</strong>
+            <p>
+              지연 {outcomeMaturity.overdue_count}개, 가격 이력 부족 {outcomeMaturity.price_gap_count}개다. 이 값이
+              있으면 weight 검토보다 outcome 보강이 먼저다.
+            </p>
+          </article>
           <article className="insight-card">
             <span>추천 weight</span>
             <strong>{outcomeCalibration.recommendation_scoring_mutated ? "변경 감지" : "변경 없음"}</strong>

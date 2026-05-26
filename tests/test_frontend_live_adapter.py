@@ -160,6 +160,37 @@ class FakeLiveExecutor:
                         "broker_submit_allowed": False,
                         "order_boundary": "read_only_no_order",
                     },
+                    "recommendation_outcome_maturity": {
+                        "status": "not_due",
+                        "as_of_date": "2026-05-27",
+                        "source_calibration_eval_run_id": 31,
+                        "horizon_days": [30, 90],
+                        "recommendation_horizon_count": 12,
+                        "recommendation_count": 6,
+                        "outcome_count": 4,
+                        "not_due_count": 5,
+                        "ready_for_backfill_count": 2,
+                        "due_today_count": 1,
+                        "overdue_count": 1,
+                        "price_gap_count": 1,
+                        "missing_entry_price_count": 1,
+                        "missing_exit_price_count": 0,
+                        "next_due_date": "2026-06-01",
+                        "next_due_count": 3,
+                        "examples": [
+                            {
+                                "primary_symbol": "AAPL",
+                                "recommendation_id": 147,
+                                "as_of_date": "2026-05-02",
+                                "horizon_day": 30,
+                                "expected_measurement_end_date": "2026-06-01",
+                                "maturity_status": "not_due",
+                            }
+                        ],
+                        "recommendation_scoring_mutated": False,
+                        "automatic_order_allowed": False,
+                        "broker_submit_allowed": False,
+                    },
                     "recommendation_weight_review_readiness": {
                         "status": "loaded",
                         "eval_run_id": 41,
@@ -3299,6 +3330,17 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertFalse(outcome_calibration["recommendation_scoring_mutated"])
         self.assertFalse(outcome_calibration["automatic_order_allowed"])
         self.assertEqual(outcome_calibration["order_boundary"], "read_only_no_order")
+        outcome_maturity = payload["data"]["recommendation_outcome_maturity"]
+        self.assertEqual(outcome_maturity["status"], "not_due")
+        self.assertEqual(outcome_maturity["source_calibration_eval_run_id"], "eval-run-31")
+        self.assertEqual(outcome_maturity["horizon_days"], [30, 90])
+        self.assertEqual(outcome_maturity["next_due_date"], "2026-06-01")
+        self.assertEqual(outcome_maturity["next_due_count"], 3)
+        self.assertEqual(outcome_maturity["due_today_count"], 1)
+        self.assertEqual(outcome_maturity["overdue_count"], 1)
+        self.assertEqual(outcome_maturity["price_gap_count"], 1)
+        self.assertEqual(outcome_maturity["examples"][0]["recommendation_id"], "recommendation-147")
+        self.assertFalse(outcome_maturity["recommendation_scoring_mutated"])
         weight_review = payload["data"]["recommendation_weight_review_readiness"]
         self.assertEqual(weight_review["status"], "blocked_by_outcome_calibration_no_due_outcome_window")
         self.assertEqual(weight_review["eval_run_id"], "eval-run-41")
@@ -3740,6 +3782,9 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertIn("selected_recommendation_outcome_calibration", sql)
         self.assertIn("recommendation_outcome_calibration", sql)
         self.assertIn("recommendation-outcome-calibration-sample-expansion-v1", sql)
+        self.assertIn("outcome_maturity_classified", sql)
+        self.assertIn("outcome_maturity_summary", sql)
+        self.assertIn("recommendation_outcome_maturity", sql)
         self.assertIn("selected_recommendation_weight_review_readiness", sql)
         self.assertIn("recommendation_weight_review_readiness_audit", sql)
         self.assertIn("recommendation-weight-review-readiness-v1", sql)
