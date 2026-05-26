@@ -3855,6 +3855,70 @@ latest_fund_expense_ratio as (
     order by metric.source_as_of_date desc, metric.fund_metric_snapshot_id desc
     limit 1
 ),
+latest_fund_nav as (
+    select
+        metric.metric_value,
+        metric.metric_unit,
+        metric.source_name,
+        metric.source_url,
+        metric.source_as_of_date,
+        metric.confidence,
+        metric.rationale
+    from market.fund_metric_snapshot metric
+    join target_instrument instrument on instrument.instrument_id = metric.instrument_id
+    join target_date target on metric.source_as_of_date <= target.as_of_date
+    where metric.metric_code = 'nav_per_share'
+    order by metric.source_as_of_date desc, metric.fund_metric_snapshot_id desc
+    limit 1
+),
+latest_fund_bid_ask_midpoint as (
+    select
+        metric.metric_value,
+        metric.metric_unit,
+        metric.source_name,
+        metric.source_url,
+        metric.source_as_of_date,
+        metric.confidence,
+        metric.rationale
+    from market.fund_metric_snapshot metric
+    join target_instrument instrument on instrument.instrument_id = metric.instrument_id
+    join target_date target on metric.source_as_of_date <= target.as_of_date
+    where metric.metric_code = 'bid_ask_midpoint'
+    order by metric.source_as_of_date desc, metric.fund_metric_snapshot_id desc
+    limit 1
+),
+latest_fund_closing_price as (
+    select
+        metric.metric_value,
+        metric.metric_unit,
+        metric.source_name,
+        metric.source_url,
+        metric.source_as_of_date,
+        metric.confidence,
+        metric.rationale
+    from market.fund_metric_snapshot metric
+    join target_instrument instrument on instrument.instrument_id = metric.instrument_id
+    join target_date target on metric.source_as_of_date <= target.as_of_date
+    where metric.metric_code = 'closing_price'
+    order by metric.source_as_of_date desc, metric.fund_metric_snapshot_id desc
+    limit 1
+),
+latest_fund_premium_discount as (
+    select
+        metric.metric_value,
+        metric.metric_unit,
+        metric.source_name,
+        metric.source_url,
+        metric.source_as_of_date,
+        metric.confidence,
+        metric.rationale
+    from market.fund_metric_snapshot metric
+    join target_instrument instrument on instrument.instrument_id = metric.instrument_id
+    join target_date target on metric.source_as_of_date <= target.as_of_date
+    where metric.metric_code = 'premium_discount_to_nav'
+    order by metric.source_as_of_date desc, metric.fund_metric_snapshot_id desc
+    limit 1
+),
 raw_recent_events as (
     select
         event_row.event_id,
@@ -4328,6 +4392,47 @@ select json_build_object(
                             when coalesce((select observation_count from fund_liquidity_summary), 0) > 0
                                 then '가격/거래량 일부만 수집되어 유동성 판단은 제한적이다.'
                             else '가격/거래량 원천이 없어 유동성 판단을 아직 계산하지 않는다.'
+                        end
+                    ),
+                    'nav_premium_discount',
+                    json_build_object(
+                        'status',
+                        case
+                            when (select metric_value from latest_fund_nav) is not null
+                             and (select metric_value from latest_fund_premium_discount) is not null then 'collected'
+                            when (select metric_value from latest_fund_nav) is not null
+                              or (select metric_value from latest_fund_premium_discount) is not null then 'partial'
+                            else 'not_collected'
+                        end,
+                        'nav_per_share', (select metric_value from latest_fund_nav),
+                        'nav_as_of_date', (select source_as_of_date from latest_fund_nav),
+                        'bid_ask_midpoint', (select metric_value from latest_fund_bid_ask_midpoint),
+                        'closing_price', (select metric_value from latest_fund_closing_price),
+                        'market_price_as_of_date', coalesce(
+                            (select source_as_of_date from latest_fund_bid_ask_midpoint),
+                            (select source_as_of_date from latest_fund_closing_price)
+                        ),
+                        'premium_discount_to_nav', (select metric_value from latest_fund_premium_discount),
+                        'premium_discount_as_of_date', (select source_as_of_date from latest_fund_premium_discount),
+                        'source_name', coalesce(
+                            (select source_name from latest_fund_premium_discount),
+                            (select source_name from latest_fund_nav),
+                            ''
+                        ),
+                        'source_url', coalesce(
+                            (select source_url from latest_fund_premium_discount),
+                            (select source_url from latest_fund_nav),
+                            ''
+                        ),
+                        'summary',
+                        case
+                            when (select metric_value from latest_fund_nav) is not null
+                             and (select metric_value from latest_fund_premium_discount) is not null
+                                then '공식 공개 원천에서 NAV와 시장가/NAV 프리미엄·디스카운트를 수집했다. 이는 추적오차가 아니라 하루 기준 괴리 확인 지표다.'
+                            when (select metric_value from latest_fund_nav) is not null
+                              or (select metric_value from latest_fund_premium_discount) is not null
+                                then 'NAV 또는 프리미엄·디스카운트 일부만 수집되어 판단이 제한적이다.'
+                            else 'NAV와 시장가/NAV 프리미엄·디스카운트 원천은 아직 수집하지 않았다.'
                         end
                     ),
                     'limitations',
@@ -6907,6 +7012,74 @@ latest_fund_expense_ratio as (
     order by metric.source_as_of_date desc, metric.fund_metric_snapshot_id desc
     limit 1
 ),
+latest_fund_nav as (
+    select
+        metric.metric_value,
+        metric.metric_unit,
+        metric.source_name,
+        metric.source_url,
+        metric.source_as_of_date,
+        metric.confidence,
+        metric.rationale
+    from market.fund_metric_snapshot metric
+    join selected_recommendation recommendation
+      on recommendation.instrument_id = metric.instrument_id
+    where metric.metric_code = 'nav_per_share'
+      and metric.source_as_of_date <= recommendation.as_of_date
+    order by metric.source_as_of_date desc, metric.fund_metric_snapshot_id desc
+    limit 1
+),
+latest_fund_bid_ask_midpoint as (
+    select
+        metric.metric_value,
+        metric.metric_unit,
+        metric.source_name,
+        metric.source_url,
+        metric.source_as_of_date,
+        metric.confidence,
+        metric.rationale
+    from market.fund_metric_snapshot metric
+    join selected_recommendation recommendation
+      on recommendation.instrument_id = metric.instrument_id
+    where metric.metric_code = 'bid_ask_midpoint'
+      and metric.source_as_of_date <= recommendation.as_of_date
+    order by metric.source_as_of_date desc, metric.fund_metric_snapshot_id desc
+    limit 1
+),
+latest_fund_closing_price as (
+    select
+        metric.metric_value,
+        metric.metric_unit,
+        metric.source_name,
+        metric.source_url,
+        metric.source_as_of_date,
+        metric.confidence,
+        metric.rationale
+    from market.fund_metric_snapshot metric
+    join selected_recommendation recommendation
+      on recommendation.instrument_id = metric.instrument_id
+    where metric.metric_code = 'closing_price'
+      and metric.source_as_of_date <= recommendation.as_of_date
+    order by metric.source_as_of_date desc, metric.fund_metric_snapshot_id desc
+    limit 1
+),
+latest_fund_premium_discount as (
+    select
+        metric.metric_value,
+        metric.metric_unit,
+        metric.source_name,
+        metric.source_url,
+        metric.source_as_of_date,
+        metric.confidence,
+        metric.rationale
+    from market.fund_metric_snapshot metric
+    join selected_recommendation recommendation
+      on recommendation.instrument_id = metric.instrument_id
+    where metric.metric_code = 'premium_discount_to_nav'
+      and metric.source_as_of_date <= recommendation.as_of_date
+    order by metric.source_as_of_date desc, metric.fund_metric_snapshot_id desc
+    limit 1
+),
 portfolio_review_trace as (
     select
         portfolio.portfolio_name,
@@ -7443,6 +7616,47 @@ select json_build_object(
                             when coalesce((select observation_count from fund_liquidity_summary), 0) > 0
                                 then '가격/거래량 일부만 수집되어 유동성 판단은 제한적이다.'
                             else '가격/거래량 원천이 없어 유동성 판단을 아직 계산하지 않는다.'
+                        end
+                    ),
+                    'nav_premium_discount',
+                    json_build_object(
+                        'status',
+                        case
+                            when (select metric_value from latest_fund_nav) is not null
+                             and (select metric_value from latest_fund_premium_discount) is not null then 'collected'
+                            when (select metric_value from latest_fund_nav) is not null
+                              or (select metric_value from latest_fund_premium_discount) is not null then 'partial'
+                            else 'not_collected'
+                        end,
+                        'nav_per_share', (select metric_value from latest_fund_nav),
+                        'nav_as_of_date', (select source_as_of_date from latest_fund_nav),
+                        'bid_ask_midpoint', (select metric_value from latest_fund_bid_ask_midpoint),
+                        'closing_price', (select metric_value from latest_fund_closing_price),
+                        'market_price_as_of_date', coalesce(
+                            (select source_as_of_date from latest_fund_bid_ask_midpoint),
+                            (select source_as_of_date from latest_fund_closing_price)
+                        ),
+                        'premium_discount_to_nav', (select metric_value from latest_fund_premium_discount),
+                        'premium_discount_as_of_date', (select source_as_of_date from latest_fund_premium_discount),
+                        'source_name', coalesce(
+                            (select source_name from latest_fund_premium_discount),
+                            (select source_name from latest_fund_nav),
+                            ''
+                        ),
+                        'source_url', coalesce(
+                            (select source_url from latest_fund_premium_discount),
+                            (select source_url from latest_fund_nav),
+                            ''
+                        ),
+                        'summary',
+                        case
+                            when (select metric_value from latest_fund_nav) is not null
+                             and (select metric_value from latest_fund_premium_discount) is not null
+                                then '공식 공개 원천에서 NAV와 시장가/NAV 프리미엄·디스카운트를 수집했다. 이는 추적오차가 아니라 하루 기준 괴리 확인 지표다.'
+                            when (select metric_value from latest_fund_nav) is not null
+                              or (select metric_value from latest_fund_premium_discount) is not null
+                                then 'NAV 또는 프리미엄·디스카운트 일부만 수집되어 판단이 제한적이다.'
+                            else 'NAV와 시장가/NAV 프리미엄·디스카운트 원천은 아직 수집하지 않았다.'
                         end
                     ),
                     'limitations',
@@ -8746,6 +8960,7 @@ def _build_fund_instrument_analysis_payload(analysis: dict[str, Any]) -> dict[st
     tracking_error = _as_dict(analysis.get("tracking_error"))
     expense_ratio = _as_dict(analysis.get("expense_ratio"))
     liquidity = _as_dict(analysis.get("liquidity"))
+    nav_premium_discount = _as_dict(analysis.get("nav_premium_discount"))
     return {
         "status": status,
         "analysis_type": str(analysis.get("analysis_type") or "fund_or_etf"),
@@ -8797,6 +9012,19 @@ def _build_fund_instrument_analysis_payload(analysis: dict[str, Any]) -> dict[st
             "average_daily_volume": _number(liquidity.get("average_daily_volume")),
             "average_daily_dollar_volume": _number(liquidity.get("average_daily_dollar_volume")),
             "summary": str(liquidity.get("summary") or ""),
+        },
+        "nav_premium_discount": {
+            "status": str(nav_premium_discount.get("status") or "not_collected"),
+            "nav_per_share": _number(nav_premium_discount.get("nav_per_share")),
+            "nav_as_of_date": str(nav_premium_discount.get("nav_as_of_date") or ""),
+            "bid_ask_midpoint": _number(nav_premium_discount.get("bid_ask_midpoint")),
+            "closing_price": _number(nav_premium_discount.get("closing_price")),
+            "market_price_as_of_date": str(nav_premium_discount.get("market_price_as_of_date") or ""),
+            "premium_discount_to_nav": _number(nav_premium_discount.get("premium_discount_to_nav")),
+            "premium_discount_as_of_date": str(nav_premium_discount.get("premium_discount_as_of_date") or ""),
+            "source_name": str(nav_premium_discount.get("source_name") or ""),
+            "source_url": str(nav_premium_discount.get("source_url") or ""),
+            "summary": str(nav_premium_discount.get("summary") or ""),
         },
         "limitations": _as_scalar_list(analysis.get("limitations")),
         "score_policy": "recommendation_weights_unchanged",

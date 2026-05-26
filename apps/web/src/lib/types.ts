@@ -626,6 +626,19 @@ export type FundInstrumentAnalysis = {
     average_daily_dollar_volume: number | null;
     summary: string;
   };
+  nav_premium_discount: {
+    status: string;
+    nav_per_share: number | null;
+    nav_as_of_date: string;
+    bid_ask_midpoint: number | null;
+    closing_price: number | null;
+    market_price_as_of_date: string;
+    premium_discount_to_nav: number | null;
+    premium_discount_as_of_date: string;
+    source_name: string;
+    source_url: string;
+    summary: string;
+  };
   limitations: string[];
   score_policy: string;
   automatic_order_allowed: boolean;

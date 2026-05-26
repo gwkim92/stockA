@@ -6,10 +6,13 @@ from pathlib import Path
 
 from stockanalysis.ingest.config import RuntimeConfig
 from stockanalysis.operations.fund_expense_ratio_provider import (
+    DEFAULT_NAV_PREMIUM_DISCOUNT_PIPELINE_NAME,
     DEFAULT_PIPELINE_NAME,
     parse_ssga_spdr_expense_ratio_page,
+    parse_ssga_spdr_nav_premium_discount_page,
     render_fund_expense_ratio_upsert_sql,
     run_ssga_spdr_fund_expense_ratio_import,
+    run_ssga_spdr_fund_nav_premium_discount_import,
 )
 
 
@@ -49,6 +52,24 @@ class FundExpenseRatioProviderTests(unittest.TestCase):
     def test_parse_ssga_page_rejects_missing_expense_ratio(self) -> None:
         with self.assertRaisesRegex(ValueError, "Gross Expense Ratio"):
             parse_ssga_spdr_expense_ratio_page("<html>Fund Information as of May 26 2026</html>")
+
+    def test_parse_ssga_page_extracts_nav_market_price_and_premium_discount(self) -> None:
+        snapshots = parse_ssga_spdr_nav_premium_discount_page(
+            _ssga_fixture_html(),
+            symbol="spy",
+            source_url="https://www.ssga.com/example/spy",
+            source_name="ssga_spdr_product_page",
+        )
+        by_code = {snapshot.metric_code: snapshot for snapshot in snapshots}
+
+        self.assertEqual(set(by_code), {"nav_per_share", "bid_ask_midpoint", "closing_price", "premium_discount_to_nav"})
+        self.assertEqual(str(by_code["nav_per_share"].metric_value), "745.571145")
+        self.assertEqual(by_code["nav_per_share"].metric_unit, "USD")
+        self.assertEqual(by_code["nav_per_share"].source_as_of_date.isoformat(), "2026-05-22")
+        self.assertEqual(str(by_code["bid_ask_midpoint"].metric_value), "745.60")
+        self.assertEqual(str(by_code["closing_price"].metric_value), "745.64")
+        self.assertEqual(str(by_code["premium_discount_to_nav"].metric_value), "0.00")
+        self.assertEqual(by_code["premium_discount_to_nav"].metric_unit, "ratio")
 
     def test_render_upsert_sql_uses_fund_metric_snapshot_without_scoring_mutation(self) -> None:
         snapshot = parse_ssga_spdr_expense_ratio_page(_ssga_fixture_html())
@@ -90,18 +111,56 @@ class FundExpenseRatioProviderTests(unittest.TestCase):
         self.assertTrue(any("insert into market.fund_metric_snapshot" in sql for sql in executor.scalar_sql))
         self.assertTrue(any("status = 'succeeded'" in sql for sql in executor.non_query_sql))
 
+    def test_run_nav_execute_records_pipeline_and_all_snapshots(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            fixture_path = Path(tmpdir) / "spy.html"
+            fixture_path.write_text(_ssga_fixture_html(), encoding="utf-8")
+            executor = FakeExecutor()
+            report = run_ssga_spdr_fund_nav_premium_discount_import(
+                config=RuntimeConfig(),
+                symbol="SPY",
+                source_html=fixture_path,
+                source_url="https://www.ssga.com/example/spy",
+                execute=True,
+                executor=executor,  # type: ignore[arg-type]
+            )
+
+        self.assertEqual(report["report_name"], DEFAULT_NAV_PREMIUM_DISCOUNT_PIPELINE_NAME)
+        self.assertEqual(report["status"], "completed")
+        self.assertEqual(report["run_id"], 701)
+        self.assertEqual(report["metric_count"], 4)
+        self.assertEqual(report["fund_metric_snapshot_ids"], [991, 991, 991, 991])
+        metric_codes = {item["metric_code"] for item in report["metrics"]}  # type: ignore[index]
+        self.assertEqual(metric_codes, {"nav_per_share", "bid_ask_midpoint", "closing_price", "premium_discount_to_nav"})
+        self.assertFalse(report["recommendation_scoring_mutated"])
+        self.assertFalse(report["automatic_order_allowed"])
+        self.assertFalse(report["broker_submit_allowed"])
+        self.assertEqual(sum("insert into market.fund_metric_snapshot" in sql for sql in executor.scalar_sql), 4)
+        self.assertTrue(any("status = 'succeeded'" in sql for sql in executor.non_query_sql))
+
     def test_migration_creates_source_backed_fund_metric_table(self) -> None:
         migration = Path("db/migrations/0027_fund_metric_snapshot.sql").read_text(encoding="utf-8")
+        nav_migration = Path("db/migrations/0028_fund_nav_premium_discount_metrics.sql").read_text(encoding="utf-8")
         self.assertIn("create table if not exists market.fund_metric_snapshot", migration)
         self.assertIn("source_url text not null", migration)
         self.assertIn("source_as_of_date date not null", migration)
         self.assertIn("gross_expense_ratio", migration)
+        self.assertIn("nav_per_share", nav_migration)
+        self.assertIn("premium_discount_to_nav", nav_migration)
+        self.assertIn("metric_unit = 'USD'", nav_migration)
 
 
 def _ssga_fixture_html() -> str:
     return """
     <input type="hidden" id="fund-quick-info" value="{&#34;asOfDate&#34;:&#34;as of May 26 2026&#34;,&#34;asOfDateSimple&#34;:&#34;May 26 2026&#34;,&#34;attrs&#34;:{&#34;gross-expense-ratio&#34;:{&#34;label&#34;:&#34;Gross Expense Ratio&#34;,&#34;value&#34;:&#34;0.0945%&#34;,&#34;originalValue&#34;:&#34;0.0945&#34;}}}">
+    <input type="hidden" id="fund-quick-info-2" value="{&#34;attrs&#34;:{&#34;nav&#34;:{&#34;label&#34;:&#34;NAV&#34;,&#34;value&#34;:&#34;$745.57&#34;,&#34;asOfDate&#34;:&#34;as of May 22 2026&#34;,&#34;asOfDateSimple&#34;:&#34;May 22 2026&#34;,&#34;originalValue&#34;:&#34;745.571145&#34;}}}">
     <h2>Fund Information <span class="date">as of May 26 2026</span></h2>
+    <h2 class="comp-title">Fund Market Price <span class="date">as of May 22 2026</span></h2>
+    <table>
+      <tr><th class="label" scope="row">Bid/Ask Midpoint</th><td class="data">$745.60</td></tr>
+      <tr><th class="label" scope="row">Closing Price</th><td class="data">$745.64</td></tr>
+      <tr><th class="label" scope="row">Premium/Discount</th><td class="data">0.00%</td></tr>
+    </table>
     """
 
 

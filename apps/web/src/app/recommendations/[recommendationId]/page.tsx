@@ -242,6 +242,17 @@ function formatCurrency(value: number | null | undefined, currencyCode: string) 
   }).format(value);
 }
 
+function formatFundCurrency(value: number | null | undefined, currencyCode: string) {
+  if (value === null || value === undefined) {
+    return "미수집";
+  }
+  return new Intl.NumberFormat("ko-KR", {
+    style: "currency",
+    currency: currencyCode,
+    maximumFractionDigits: 2,
+  }).format(value);
+}
+
 function formatExpenseRatio(value: number | null | undefined) {
   if (value === null || value === undefined) {
     return "미수집";
@@ -464,6 +475,22 @@ function FundInstrumentAnalysisPanel({ analysis }: { analysis: FundInstrumentAna
           {analysis.expense_ratio.source_url ? (
             <a href={analysis.expense_ratio.source_url} target="_blank" rel="noreferrer">
               비용률 원천 열기
+            </a>
+          ) : null}
+        </article>
+        <article className="flow-step">
+          <span>NAV 괴리</span>
+          <strong>{formatOptionalPercent(analysis.nav_premium_discount.premium_discount_to_nav)}</strong>
+          <p>
+            {analysis.nav_premium_discount.summary} NAV {formatFundCurrency(analysis.nav_premium_discount.nav_per_share, "USD")} ·
+            종가 {formatFundCurrency(analysis.nav_premium_discount.closing_price, "USD")}
+            {analysis.nav_premium_discount.premium_discount_as_of_date
+              ? ` · 기준일 ${analysis.nav_premium_discount.premium_discount_as_of_date}`
+              : ""}
+          </p>
+          {analysis.nav_premium_discount.source_url ? (
+            <a href={analysis.nav_premium_discount.source_url} target="_blank" rel="noreferrer">
+              NAV 원천 열기
             </a>
           ) : null}
         </article>

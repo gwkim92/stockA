@@ -3072,6 +3072,19 @@ class FrontendLiveAdapterTests(unittest.TestCase):
                     "average_daily_dollar_volume": 42000000000,
                     "summary": "거래량 수집분으로 계산했다.",
                 },
+                "nav_premium_discount": {
+                    "status": "collected",
+                    "nav_per_share": 745.571145,
+                    "nav_as_of_date": "2026-05-22",
+                    "bid_ask_midpoint": 745.60,
+                    "closing_price": 745.64,
+                    "market_price_as_of_date": "2026-05-22",
+                    "premium_discount_to_nav": 0.0,
+                    "premium_discount_as_of_date": "2026-05-22",
+                    "source_name": "ssga_spdr_product_page",
+                    "source_url": "https://www.ssga.com/us/en/intermediary/etfs/spdr-sp-500-etf-trust-spy",
+                    "summary": "NAV와 프리미엄·디스카운트를 공식 원천에서 수집했다.",
+                },
                 "limitations": ["no company financials"],
             }
         )
@@ -3088,6 +3101,12 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertEqual(payload["liquidity"]["status"], "collected")
         self.assertEqual(payload["liquidity"]["source_name"], "market.daily_price_bar")
         self.assertEqual(payload["liquidity"]["observation_count"], 60)
+        self.assertEqual(payload["nav_premium_discount"]["status"], "collected")
+        self.assertEqual(payload["nav_premium_discount"]["nav_per_share"], 745.571145)
+        self.assertEqual(payload["nav_premium_discount"]["closing_price"], 745.64)
+        self.assertEqual(payload["nav_premium_discount"]["premium_discount_to_nav"], 0.0)
+        self.assertEqual(payload["nav_premium_discount"]["source_name"], "ssga_spdr_product_page")
+        self.assertIn("NAV", payload["nav_premium_discount"]["summary"])
         self.assertEqual(payload["score_policy"], "recommendation_weights_unchanged")
         self.assertFalse(payload["automatic_order_allowed"])
         self.assertFalse(payload["broker_submit_allowed"])
@@ -3988,8 +4007,12 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertIn("fund_benchmark_source as", detail_sql)
         self.assertIn("fund_liquidity_summary as", detail_sql)
         self.assertIn("latest_fund_expense_ratio as", detail_sql)
+        self.assertIn("latest_fund_nav as", detail_sql)
+        self.assertIn("latest_fund_premium_discount as", detail_sql)
         self.assertIn("'fund_instrument_analysis'", detail_sql)
         self.assertIn("'liquidity'", detail_sql)
+        self.assertIn("'nav_premium_discount'", detail_sql)
+        self.assertIn("premium_discount_to_nav", detail_sql)
         self.assertIn("market.fund_metric_snapshot", detail_sql)
         self.assertIn("ref.benchmark_composition", detail_sql)
         self.assertIn("financial_metric_universe(metric_code)", detail_sql)
@@ -4599,8 +4622,12 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertIn("fund_benchmark_source as", sql)
         self.assertIn("fund_liquidity_summary as", sql)
         self.assertIn("latest_fund_expense_ratio as", sql)
+        self.assertIn("latest_fund_nav as", sql)
+        self.assertIn("latest_fund_premium_discount as", sql)
         self.assertIn("'fund_instrument_analysis'", sql)
         self.assertIn("'liquidity'", sql)
+        self.assertIn("'nav_premium_discount'", sql)
+        self.assertIn("premium_discount_to_nav", sql)
         self.assertIn("market.fund_metric_snapshot", sql)
         self.assertIn("ref.benchmark_composition", sql)
         self.assertIn("financial_metric_universe(metric_code)", sql)
