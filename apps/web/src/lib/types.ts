@@ -992,6 +992,7 @@ export type RecommendationDetailData = {
   } | null;
   industry_competitive_position: IndustryCompetitivePosition | null;
   linked_thesis_id: string;
+  professional_decision_waterfall: ProfessionalDecisionWaterfall;
   evidence_trace: {
     symbol: string;
     as_of_date: string;
@@ -1059,6 +1060,41 @@ export type RecommendationDetailData = {
     alpha: number;
     label: string;
   };
+};
+
+export type ProfessionalDecisionWaterfall = {
+  status: string;
+  summary: string;
+  symbol: string;
+  as_of_date: string;
+  recommendation: string;
+  score: number | null;
+  score_component_count: number;
+  automatic_order_allowed: boolean;
+  broker_submit_allowed: boolean;
+  order_boundary: string;
+  score_policy: string;
+  steps: ProfessionalDecisionStep[];
+};
+
+export type ProfessionalDecisionStep = {
+  step_key: string;
+  title: string;
+  status: string;
+  tone: "ready" | "watch" | "blocked" | "neutral" | string;
+  decision: string;
+  detail: string;
+  evidence_count: number;
+  source: string;
+  href: string | null;
+  href_label: string | null;
+  facts: Array<{
+    label: string;
+    value: string;
+  }>;
+  automatic_order_allowed: boolean;
+  broker_submit_allowed: boolean;
+  order_boundary: string;
 };
 
 export type ThesisDetailData = {

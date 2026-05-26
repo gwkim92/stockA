@@ -174,6 +174,7 @@ const KOREAN_LABELS: Record<string, string> = {
   missing_guardrail: "위험 예산 평가 없음",
   drift_outlier_review: "괴리 검토 필요",
   review_required: "검토 필요",
+  recommendation_weights_unchanged: "추천 가중치 변경 없음",
   watch_only: "관찰만 필요",
   within_policy: "정책 범위 내",
   no_positions: "보유 종목 없음",

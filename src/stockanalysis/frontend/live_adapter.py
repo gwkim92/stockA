@@ -1275,6 +1275,16 @@ def build_live_recommendation_detail_response(
     outcome = _as_dict(state.get("outcome"))
     symbol = str(state.get("symbol") or "UNKNOWN").upper()
     as_of_date_text = str(state.get("as_of_date") or "")
+    evidence_trace = _build_recommendation_evidence_trace_payload(
+        _as_dict(state.get("evidence_trace")),
+        symbol=symbol,
+        as_of_date=as_of_date_text,
+    )
+    evidence_review = _build_recommendation_evidence_review_payload(
+        score_components=score_components,
+        linked_thesis_id=linked_thesis_id,
+        outcome=outcome,
+    )
 
     return {
         "contract_version": CONTRACT_VERSION,
@@ -1293,15 +1303,20 @@ def build_live_recommendation_detail_response(
             "equity_research": equity_research,
             "industry_competitive_position": industry_competitive_position,
             "linked_thesis_id": _opaque_id("thesis", linked_thesis_id, None) if linked_thesis_id is not None else None,
-            "evidence_trace": _build_recommendation_evidence_trace_payload(
-                _as_dict(state.get("evidence_trace")),
+            "evidence_trace": evidence_trace,
+            "evidence_review": evidence_review,
+            "professional_decision_waterfall": _build_recommendation_professional_decision_waterfall_payload(
+                score_components=score_components,
+                equity_research=equity_research,
+                industry_competitive_position=industry_competitive_position,
+                linked_thesis_id=linked_thesis_id,
+                evidence_trace=evidence_trace,
+                evidence_review=evidence_review,
+                outcome=outcome,
                 symbol=symbol,
                 as_of_date=as_of_date_text,
-            ),
-            "evidence_review": _build_recommendation_evidence_review_payload(
-                score_components=score_components,
-                linked_thesis_id=linked_thesis_id,
-                outcome=outcome,
+                recommendation=str(state.get("recommendation") or "monitor"),
+                score=_number(state.get("score")),
             ),
             "outcome": {
                 "measurement_end_date": str(outcome.get("measurement_end_date") or ""),
@@ -8936,6 +8951,324 @@ def _build_recommendation_evidence_review_payload(
         },
         "gates": gates,
     }
+
+
+def _build_recommendation_professional_decision_waterfall_payload(
+    *,
+    score_components: list[dict[str, Any]],
+    equity_research: dict[str, Any] | None,
+    industry_competitive_position: dict[str, Any] | None,
+    linked_thesis_id: Any,
+    evidence_trace: dict[str, Any],
+    evidence_review: dict[str, Any],
+    outcome: dict[str, Any],
+    symbol: str,
+    as_of_date: str,
+    recommendation: str,
+    score: float | None,
+) -> dict[str, Any]:
+    direct_evidence = _as_dict(_as_dict(evidence_trace).get("direct_news_or_ai"))
+    macro_flow = _as_dict(_as_dict(evidence_trace).get("macro_flow"))
+    holding_review = _as_dict(_as_dict(evidence_trace).get("holding_review"))
+    review_summary = _as_dict(_as_dict(evidence_review).get("summary"))
+    blocked_count = _integer(review_summary.get("blocked_count")) or 0
+    warning_count = _integer(review_summary.get("warning_count")) or 0
+    score_component_count = len(score_components)
+    ai_or_event_count = sum(
+        1 for component in score_components if _as_dict(component.get("provenance")).get("source_type") == "event_or_ai_evidence"
+    )
+    cycle_component_count = sum(
+        1 for component in score_components if _as_dict(component.get("provenance")).get("source_type") == "cycle_stack_context"
+    )
+    market_component_count = sum(1 for component in score_components if _is_market_or_rank_score_component(component))
+    macro_flow_count = _integer(macro_flow.get("propagated_impact_count")) or 0
+    fundamental_quality = _find_recommendation_score_component(score_components, "fundamental_quality_score")
+    valuation_margin = _find_recommendation_score_component(score_components, "valuation_margin_score")
+    peer_relative = _find_recommendation_score_component(score_components, "peer_relative_score")
+    balance_sheet = _find_recommendation_score_component(score_components, "balance_sheet_risk_penalty")
+    thesis_consistency = _find_recommendation_score_component(score_components, "thesis_consistency_score")
+    outcome_measured = bool(outcome.get("measurement_end_date")) and str(outcome.get("label") or "unmeasured") != "unmeasured"
+    position_linked = holding_review.get("status") in {"review_linked", "position_without_review"}
+
+    if blocked_count > 0 or linked_thesis_id is None:
+        status = "blocked_until_evidence_review"
+        summary = "추천은 존재하지만 투자 논리나 근거 검토에서 막힌 항목이 있어 포트폴리오 조치로 넘기면 안 된다."
+    elif not outcome_measured:
+        status = "paper_validation_required"
+        summary = "추천 근거는 연결됐지만 성과 측정 표본이 부족하다. 페이퍼 검증이 쌓일 때까지 점수 가중치와 주문 경계는 그대로 둔다."
+    elif not position_linked:
+        status = "position_context_missing"
+        summary = "추천 근거와 성과 측정은 있으나 현재 포트폴리오 보유 맥락이 부족하다. 보유 여부와 포지션 크기를 먼저 확인해야 한다."
+    elif warning_count > 0:
+        status = "review_required"
+        summary = "추천 근거는 대체로 연결됐지만 주의 항목이 남아 있다. 투자 논리, 포지션 크기, 페이퍼 검증을 함께 재확인한다."
+    else:
+        status = "decision_review_ready"
+        summary = "거시·뉴스·기업 분석·밸류에이션·투자 논리·포지션·성과 검증이 모두 추천 상세에서 추적된다. 그래도 이 결과는 읽기 전용 검토이며 주문은 만들지 않는다."
+
+    first_flow = (_as_list(macro_flow.get("recent_flows")) or [{}])[0]
+    thesis_public_id = _opaque_id("thesis", linked_thesis_id, None) if linked_thesis_id is not None else None
+    research_artifact_id = equity_research.get("artifact_id") if equity_research else None
+    competitive_position = (
+        industry_competitive_position.get("competitive_position") if industry_competitive_position else None
+    )
+    peer_group_name = industry_competitive_position.get("peer_group_name") if industry_competitive_position else None
+
+    steps = [
+        _professional_decision_step(
+            step_key="macro_cycle",
+            title="거시·사이클 배경",
+            status=f"{cycle_component_count}개 사이클 근거",
+            tone="ready" if cycle_component_count or macro_flow_count else "watch",
+            decision="상위 흐름을 먼저 본다",
+            detail=(
+                "추천을 종목 뉴스 하나로 판단하지 않고 거시 흐름, 도메인, 테마, 종목 사이클을 먼저 분리한다."
+                if cycle_component_count or macro_flow_count
+                else "이 추천에 연결된 계층형 사이클 근거가 부족하다. 흐름 지도와 종목 상세에서 상위 노드 연결을 확인해야 한다."
+            ),
+            evidence_count=cycle_component_count + macro_flow_count,
+            source="cycle_stack_and_macro_flow",
+            href="/cycle-map",
+            href_label="흐름 지도 열기",
+            facts=[
+                _professional_fact("상위 흐름 전파", f"{macro_flow_count}개"),
+                _professional_fact("사이클 항목", f"{cycle_component_count}개"),
+                _professional_fact("대표 흐름", _first_non_empty(first_flow.get("korean_title"), first_flow.get("theme_name"), "미연결")),
+            ],
+        ),
+        _professional_decision_step(
+            step_key="news_ai",
+            title="뉴스·AI 근거",
+            status="근거 연결" if direct_evidence.get("status") == "linked" or ai_or_event_count else "근거 대기",
+            tone="ready" if direct_evidence.get("status") == "linked" or ai_or_event_count else "watch",
+            decision="원천 뉴스와 AI 구조화 결과를 대조한다",
+            detail=(
+                _first_non_empty(direct_evidence.get("korean_summary"), direct_evidence.get("korean_title"), direct_evidence.get("title"))
+                or "추천에 연결된 원천 뉴스나 AI 구조화 근거가 부족하다."
+            ),
+            evidence_count=ai_or_event_count + (1 if direct_evidence.get("status") == "linked" else 0),
+            source="event_or_ai_evidence",
+            href="/intelligence",
+            href_label="뉴스 AI 근거 보기",
+            facts=[
+                _professional_fact("직접 뉴스/AI 점수", f"{ai_or_event_count}개"),
+                _professional_fact("영향 방향", str(direct_evidence.get("impact_direction") or "미확인")),
+                _professional_fact("영향도", _format_percent_text(_number(direct_evidence.get("impact_strength")))),
+            ],
+        ),
+        _professional_decision_step(
+            step_key="business_competition",
+            title="사업·경쟁 위치",
+            status="리서치 연결" if equity_research or industry_competitive_position else "리서치 대기",
+            tone="ready" if equity_research or industry_competitive_position else "watch",
+            decision="스토리와 경쟁력을 확인한다",
+            detail=(
+                _first_non_empty(equity_research.get("korean_summary") if equity_research else None)
+                or "사업 설명, 경쟁 위치, 피어 비교 artifact가 아직 충분히 연결되지 않았다."
+            ),
+            evidence_count=(1 if equity_research else 0) + (1 if industry_competitive_position else 0),
+            source="equity_research_and_industry_position",
+            href=f"/stocks/{quote(symbol, safe='')}",
+            href_label="종목 분석 열기",
+            facts=[
+                _professional_fact("기업 리서치", str(research_artifact_id or "미연결")),
+                _professional_fact("경쟁 위치", str(competitive_position or "미연결")),
+                _professional_fact("비교군", str(peer_group_name or "미분류")),
+                _professional_fact("피어 점수", _format_percent_text(_number(peer_relative.get("value") if peer_relative else None))),
+            ],
+        ),
+        _professional_decision_step(
+            step_key="financial_quality",
+            title="재무 품질",
+            status="재무 근거 연결" if fundamental_quality else "재무 근거 없음",
+            tone="ready" if fundamental_quality else "watch",
+            decision="성장보다 먼저 재무 체력을 확인한다",
+            detail=(
+                "매출 성장, 마진, 현금흐름 품질, 재무 안정성에서 만든 zero-weight 기업 분석 항목이다. 성과 검증 전까지 추천 총점을 흔들지 않는다."
+                if fundamental_quality
+                else "전문 애널리스트식 재무 품질 입력이 추천 상세에 아직 연결되지 않았다."
+            ),
+            evidence_count=(1 if fundamental_quality else 0) + (1 if balance_sheet else 0),
+            source="fundamental_context",
+            href=f"/stocks/{quote(symbol, safe='')}",
+            href_label="재무 맥락 보기",
+            facts=[
+                _professional_fact("재무 품질", _format_percent_text(_number(fundamental_quality.get("value") if fundamental_quality else None))),
+                _professional_fact("재무 안정성", _format_percent_text(_number(balance_sheet.get("value") if balance_sheet else None))),
+                _professional_fact("총점 반영", "보수적 제한" if _zero_weight_component(fundamental_quality) else "반영 가능"),
+            ],
+        ),
+        _professional_decision_step(
+            step_key="valuation",
+            title="밸류에이션",
+            status="밸류에이션 근거 연결" if valuation_margin or (equity_research and equity_research.get("valuation_sensitivity")) else "밸류에이션 대기",
+            tone="ready" if valuation_margin or (equity_research and equity_research.get("valuation_sensitivity")) else "watch",
+            decision="좋은 회사라도 가격을 따로 본다",
+            detail=(
+                "DCF-lite, 상대 배수, 시나리오 범위, 안전마진을 추천과 분리해 검토한다. 평가 표본 전까지 가중치는 보수적으로 유지한다."
+                if valuation_margin or equity_research
+                else "밸류에이션 snapshot과 민감도 분석이 아직 충분히 연결되지 않았다."
+            ),
+            evidence_count=(1 if valuation_margin else 0) + (1 if equity_research and equity_research.get("valuation_sensitivity") else 0),
+            source="valuation_context",
+            href=f"/stocks/{quote(symbol, safe='')}",
+            href_label="밸류에이션 맥락 보기",
+            facts=[
+                _professional_fact("밸류에이션 여유", _format_percent_text(_number(valuation_margin.get("value") if valuation_margin else None))),
+                _professional_fact("민감도 항목", f"{len(_as_dict(equity_research.get('valuation_sensitivity') if equity_research else None))}개"),
+            ],
+        ),
+        _professional_decision_step(
+            step_key="thesis",
+            title="투자 논리",
+            status="투자 논리 연결" if thesis_public_id else "투자 논리 없음",
+            tone="ready" if thesis_public_id else "blocked",
+            decision="왜 보유하는지와 틀렸을 때 나갈 조건을 본다",
+            detail=(
+                "추천은 장기 thesis, catalyst, risk, invalidation condition과 연결되어야 한다."
+                if thesis_public_id
+                else "연결된 thesis가 없으면 중장기 추천으로 쓰면 안 된다."
+            ),
+            evidence_count=1 if thesis_public_id else 0,
+            source="thesis_lifecycle",
+            href=f"/theses/{thesis_public_id}" if thesis_public_id else None,
+            href_label="투자 논리 열기" if thesis_public_id else None,
+            facts=[
+                _professional_fact("Thesis", str(thesis_public_id or "없음")),
+                _professional_fact("일관성 점수", _format_percent_text(_number(thesis_consistency.get("value") if thesis_consistency else None))),
+                _professional_fact("차단 근거", f"{blocked_count}개"),
+            ],
+        ),
+        _professional_decision_step(
+            step_key="position_sizing",
+            title="포지션 크기",
+            status="보유 검토 연결" if position_linked else "보유 맥락 없음",
+            tone="ready" if position_linked else "watch",
+            decision="추천 점수와 보유 비중을 분리한다",
+            detail=(
+                _first_non_empty(holding_review.get("reason"))
+                or "포트폴리오 비중, 권고 비중, 비중 차이를 확인한 뒤에만 포지션 크기를 검토한다. 이 단계는 주문 수량을 만들지 않는다."
+            ),
+            evidence_count=1 if position_linked else 0,
+            source="portfolio_holding_review",
+            href="/portfolio/coverage",
+            href_label="포지션 크기 검토 보기",
+            facts=[
+                _professional_fact("현재 비중", _format_percent_text(_number(holding_review.get("current_weight")))),
+                _professional_fact("검토 비중", _format_percent_text(_number(holding_review.get("recommended_weight")))),
+                _professional_fact("비중 차이", _format_signed_percent_text(_number(holding_review.get("weight_gap")))),
+                _professional_fact("조치", str(holding_review.get("action") or "검토 대기")),
+            ],
+        ),
+        _professional_decision_step(
+            step_key="paper_validation",
+            title="페이퍼 검증·거래 경계",
+            status="성과 측정됨" if outcome_measured else "성과 측정 대기",
+            tone="ready" if outcome_measured else "watch",
+            decision="검증 전까지 실거래로 넘기지 않는다",
+            detail=(
+                "성과 측정 결과가 존재한다. 다만 이 화면은 읽기 전용이며 실거래 주문이나 자동 리밸런싱을 만들지 않는다."
+                if outcome_measured
+                else "중장기 추천은 outcome window가 끝난 뒤 성과 검증이 필요하다."
+            ),
+            evidence_count=1 if outcome_measured else 0,
+            source="paper_validation_and_order_boundary",
+            href="/paper-trading",
+            href_label="페이퍼 거래 상태 보기",
+            facts=[
+                _professional_fact("성과", str(outcome.get("label") or "unmeasured")),
+                _professional_fact("알파", _format_signed_percent_text(_number(outcome.get("alpha")))),
+                _professional_fact("주문", "읽기 전용 차단"),
+            ],
+        ),
+    ]
+
+    return {
+        "status": status,
+        "summary": summary,
+        "symbol": symbol,
+        "as_of_date": as_of_date,
+        "recommendation": recommendation,
+        "score": score,
+        "score_component_count": score_component_count,
+        "automatic_order_allowed": False,
+        "broker_submit_allowed": False,
+        "order_boundary": "read_only_no_order",
+        "score_policy": "recommendation_weights_unchanged",
+        "steps": steps,
+    }
+
+
+def _find_recommendation_score_component(score_components: list[dict[str, Any]], component_name: str) -> dict[str, Any] | None:
+    for component in score_components:
+        if component.get("component") == component_name:
+            return component
+    return None
+
+
+def _zero_weight_component(component: dict[str, Any] | None) -> bool:
+    if not component:
+        return True
+    weight = _number(component.get("weight"))
+    return weight is None or abs(weight) < 0.000001
+
+
+def _professional_decision_step(
+    *,
+    step_key: str,
+    title: str,
+    status: str,
+    tone: str,
+    decision: str,
+    detail: str,
+    evidence_count: int,
+    source: str,
+    facts: list[dict[str, str]],
+    href: str | None = None,
+    href_label: str | None = None,
+) -> dict[str, Any]:
+    return {
+        "step_key": step_key,
+        "title": title,
+        "status": status,
+        "tone": tone,
+        "decision": decision,
+        "detail": detail,
+        "evidence_count": evidence_count,
+        "source": source,
+        "href": href,
+        "href_label": href_label,
+        "facts": facts,
+        "automatic_order_allowed": False,
+        "broker_submit_allowed": False,
+        "order_boundary": "read_only_no_order",
+    }
+
+
+def _professional_fact(label: str, value: Any) -> dict[str, str]:
+    if value is None or value == "":
+        return {"label": label, "value": "미확인"}
+    return {"label": label, "value": str(value)}
+
+
+def _first_non_empty(*values: Any) -> str:
+    for value in values:
+        text = str(value or "").strip()
+        if text:
+            return text
+    return ""
+
+
+def _format_percent_text(value: float | None) -> str:
+    if value is None:
+        return "미측정"
+    return f"{value:.1%}"
+
+
+def _format_signed_percent_text(value: float | None) -> str:
+    if value is None:
+        return "미측정"
+    return f"{value:+.1%}"
 
 
 def _build_thesis_evidence_review_payload(

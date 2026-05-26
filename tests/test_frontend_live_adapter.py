@@ -3412,6 +3412,32 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertEqual(review["gates"][3]["status"], "pass")
         self.assertEqual(review["gates"][-1]["gate_key"], "order_boundary")
         self.assertEqual(review["gates"][-1]["status"], "pass")
+        waterfall = payload["data"]["professional_decision_waterfall"]
+        self.assertEqual(waterfall["status"], "decision_review_ready")
+        self.assertEqual(waterfall["score_policy"], "recommendation_weights_unchanged")
+        self.assertFalse(waterfall["automatic_order_allowed"])
+        self.assertFalse(waterfall["broker_submit_allowed"])
+        self.assertEqual(waterfall["order_boundary"], "read_only_no_order")
+        self.assertEqual(
+            [step["step_key"] for step in waterfall["steps"]],
+            [
+                "macro_cycle",
+                "news_ai",
+                "business_competition",
+                "financial_quality",
+                "valuation",
+                "thesis",
+                "position_sizing",
+                "paper_validation",
+            ],
+        )
+        self.assertEqual(waterfall["steps"][0]["title"], "거시·사이클 배경")
+        self.assertIn("연준 금리 경로", waterfall["steps"][0]["facts"][2]["value"])
+        self.assertEqual(waterfall["steps"][6]["title"], "포지션 크기")
+        self.assertEqual(waterfall["steps"][6]["facts"][0]["value"], "5.0%")
+        self.assertEqual(waterfall["steps"][6]["facts"][2]["value"], "+0.5%")
+        self.assertEqual(waterfall["steps"][7]["facts"][2]["value"], "읽기 전용 차단")
+        self.assertTrue(all(step["order_boundary"] == "read_only_no_order" for step in waterfall["steps"]))
         self.assertEqual(payload["data"]["outcome"]["alpha"], 0.06)
         self.assertEqual(payload["links"]["thesis"], "/api/theses/thesis-7001")
         self.assertEqual(payload["links"]["source_events"], "/api/events?asOfDate=2024-11-01&symbol=AAPL")
