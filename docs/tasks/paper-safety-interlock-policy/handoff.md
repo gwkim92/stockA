@@ -28,8 +28,12 @@
 - Passed: `PYTHONPATH=/Users/woody/ai/agent-work-harness/src /opt/homebrew/bin/python3.13 -m awh verify --repo . --task paper-safety-interlock-policy`
 - Passed: `PYTHONPATH=src /private/tmp/stockanalysis-runtime/verify-venv/bin/python -m unittest discover -s tests` (`Ran 908 tests in 6.406s`, `OK`)
 - Note: `/opt/homebrew/bin/python3.13` and `/private/tmp/stockanalysis-runtime/test-venv` do not currently include a complete FastAPI `testclient` install, so full frontend API tests require `verify-venv`.
-- Pending: EC2 smoke.
+- Passed on EC2:
+  - Deployed commit: `955a079 Separate paper safety interlock from weight review`
+  - Command: `recommendation-weight-review-readiness-audit-run --env-file /opt/stockanalysis/runtime/data-operations.env --as-of-date 2026-05-25 --eval-run-id 13 --execute`
+  - Result: `run_id=973`, `audit_eval_run_id=16`, `decision=ready_for_manual_weight_review`, `manual_weight_review_allowed=true`
+  - Safety boundary: `automatic_weight_change_allowed=false`, `automatic_order_allowed=false`, `broker_submit_allowed=false`
 
 ## Exact Next Step
 
-- exact next step: 로컬 검증 후 EC2에 배포하고 `recommendation-weight-review-readiness-audit-run --env-file /opt/stockanalysis/runtime/data-operations.env --as-of-date 2026-05-25 --eval-run-id 13 --execute`가 manual review만 허용하는지 확인한다.
+- exact next step: `manual-weight-review-calibration-report`를 만들어 `audit_eval_run_id=16`의 component evidence와 실패 케이스를 사람이 읽는 보고서로 고정한다. 추천 weight는 이 보고서만으로 변경하지 않고, 별도 승인된 pilot-weight task 전까지 계속 유지한다.

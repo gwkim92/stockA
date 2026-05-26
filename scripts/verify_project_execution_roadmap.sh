@@ -147,7 +147,7 @@ test -f docs/plans/2026-05-20-hosted-database-runtime-decision.md
 test -f docs/hosted-database-runtime-decision.md
 test -f scripts/verify_hosted_database_runtime_decision.sh
 grep -q 'Current task group: `professional-equity-analysis-foundation`' docs/project-execution-roadmap.md
-grep -q '현재 고정된 immediate next task는 `paper-safety-interlock-policy`' AGENTS.md
+grep -q '현재 고정된 immediate next task는 `manual-weight-review-calibration-report`' AGENTS.md
 grep -q "professional-coverage-expansion-for-active-recommendations" docs/project-execution-roadmap.md
 grep -q "recommendation-weight-review-readiness-audit" docs/project-execution-roadmap.md
 grep -q "paper-validation-conflict-remediation" docs/project-execution-roadmap.md
