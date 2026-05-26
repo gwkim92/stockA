@@ -147,7 +147,7 @@ test -f docs/plans/2026-05-20-hosted-database-runtime-decision.md
 test -f docs/hosted-database-runtime-decision.md
 test -f scripts/verify_hosted_database_runtime_decision.sh
 grep -q 'Current task group: `professional-equity-analysis-foundation`' docs/project-execution-roadmap.md
-grep -q '현재 고정된 immediate next task는 `financial-forecast-and-scenario-inputs-v1`' AGENTS.md
+grep -q '현재 고정된 immediate next task는 `sum-of-the-parts-valuation-foundation-v1`' AGENTS.md
 test -f docs/tasks/portfolio-risk-budget-drift-quality-audit/contract.md
 test -f docs/tasks/portfolio-risk-budget-drift-quality-audit/handoff.md
 test -f docs/tasks/portfolio-risk-budget-rebalance-candidate-review/contract.md
@@ -187,6 +187,10 @@ grep -q "financial-statement-model-detail-v1" docs/project-execution-roadmap.md
 grep -q "recommendation-financial-model-waterfall-integration-v1" docs/project-execution-roadmap.md
 grep -q "valuation-model-quality-depth-v1" docs/project-execution-roadmap.md
 grep -q "financial-forecast-and-scenario-inputs-v1" docs/project-execution-roadmap.md
+grep -q "sum-of-the-parts-valuation-foundation-v1" docs/project-execution-roadmap.md
+test -f docs/tasks/financial-forecast-and-scenario-inputs-v1/contract.md
+test -f docs/tasks/financial-forecast-and-scenario-inputs-v1/handoff.md
+test -f docs/tasks/financial-forecast-and-scenario-inputs-v1/review.md
 grep -q "project-roadmap-reality-sync" docs/project-execution-roadmap.md
 grep -q "cycle-ai-e2e-quality-audit" docs/project-execution-roadmap.md
 grep -q "news-ai-eval-dataset-and-scoring" docs/project-execution-roadmap.md

@@ -493,6 +493,71 @@ class FakeLiveExecutor:
                                 "growth_rate": "0.0280",
                                 "discount_rate": "0.1000",
                                 "terminal_growth_rate": "0.0250",
+                                "forecast_input_source": "market.financial_forecast_input",
+                                "latest_forecast_as_of_date": "2024-12-02",
+                                "forecast_row_count": 6,
+                                "forecast_scenarios": [
+                                    {
+                                        "scenario_key": "bear",
+                                        "forecast_year": 1,
+                                        "revenue": "390000000000",
+                                        "revenue_growth_rate": "-0.0020",
+                                        "free_cash_flow_margin": "0.2400",
+                                        "capex_intensity": "0.0400",
+                                        "free_cash_flow": "93600000000",
+                                        "confidence": "0.4200",
+                                    },
+                                    {
+                                        "scenario_key": "bear",
+                                        "forecast_year": 5,
+                                        "revenue": "386000000000",
+                                        "revenue_growth_rate": "-0.0020",
+                                        "free_cash_flow_margin": "0.2400",
+                                        "capex_intensity": "0.0400",
+                                        "free_cash_flow": "92640000000",
+                                        "confidence": "0.4200",
+                                    },
+                                    {
+                                        "scenario_key": "base",
+                                        "forecast_year": 1,
+                                        "revenue": "402000000000",
+                                        "revenue_growth_rate": "0.0280",
+                                        "free_cash_flow_margin": "0.2600",
+                                        "capex_intensity": "0.0350",
+                                        "free_cash_flow": "104520000000",
+                                        "confidence": "0.5000",
+                                    },
+                                    {
+                                        "scenario_key": "base",
+                                        "forecast_year": 5,
+                                        "revenue": "450000000000",
+                                        "revenue_growth_rate": "0.0280",
+                                        "free_cash_flow_margin": "0.2600",
+                                        "capex_intensity": "0.0350",
+                                        "free_cash_flow": "117000000000",
+                                        "confidence": "0.5000",
+                                    },
+                                    {
+                                        "scenario_key": "bull",
+                                        "forecast_year": 1,
+                                        "revenue": "414000000000",
+                                        "revenue_growth_rate": "0.0580",
+                                        "free_cash_flow_margin": "0.2800",
+                                        "capex_intensity": "0.0300",
+                                        "free_cash_flow": "115920000000",
+                                        "confidence": "0.4500",
+                                    },
+                                    {
+                                        "scenario_key": "bull",
+                                        "forecast_year": 5,
+                                        "revenue": "520000000000",
+                                        "revenue_growth_rate": "0.0580",
+                                        "free_cash_flow_margin": "0.2800",
+                                        "capex_intensity": "0.0300",
+                                        "free_cash_flow": "145600000000",
+                                        "confidence": "0.4500",
+                                    },
+                                ],
                                 "limitations": [
                                     "5년 FCF/share를 단순 할인한 모델이며 상세 매출·마진·CAPEX forecast를 대체하지 않는다."
                                 ],
@@ -2661,6 +2726,8 @@ class FrontendLiveAdapterTests(unittest.TestCase):
             self.assertGreaterEqual(len(method["assumption_items"]), 1)
             self.assertIn("sensitivity_cases", method)
             self.assertEqual([case["case_key"] for case in method["sensitivity_cases"]], ["bear", "base", "bull"])
+            self.assertIn("forecast_evidence", method)
+            self.assertIn(method["forecast_evidence"]["status"], {"available", "unavailable"})
             self.assertIn("data_quality", method)
             self.assertIn(method["data_quality"]["status"], {"strong", "usable", "limited"})
             self.assertIn("limitations", method)
@@ -3292,6 +3359,12 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertEqual(target_range["methods"][0]["assumption_items"][2]["value"], "2.8%")
         self.assertEqual(target_range["methods"][0]["sensitivity_cases"][1]["label"], "기준")
         self.assertAlmostEqual(target_range["methods"][0]["sensitivity_cases"][1]["upside"], 0.125)
+        self.assertEqual(target_range["methods"][0]["forecast_evidence"]["status"], "available")
+        self.assertEqual(target_range["methods"][0]["forecast_evidence"]["forecast_row_count"], 6)
+        self.assertEqual(target_range["methods"][0]["forecast_evidence"]["scenario_count"], 3)
+        self.assertEqual(target_range["methods"][0]["forecast_evidence"]["scenarios"][1]["scenario_key"], "base")
+        self.assertEqual(target_range["methods"][0]["forecast_evidence"]["scenarios"][1]["terminal_revenue"], 450000000000.0)
+        self.assertEqual(target_range["methods"][0]["forecast_evidence"]["scenarios"][1]["terminal_free_cash_flow"], 117000000000.0)
         self.assertIn("상세 매출·마진·CAPEX forecast", target_range["methods"][0]["limitations"][0])
         self.assertEqual(target_range["methods"][0]["source_run_id"], "pipeline-run-7801")
         self.assertFalse(target_range["automatic_order_allowed"])

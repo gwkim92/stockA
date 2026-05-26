@@ -143,6 +143,28 @@ export function ValuationTargetRangeCard({
                 ))}
               </div>
 
+              {method.forecast_evidence.status === "available" ? (
+                <div style={{ borderTop: "1px solid var(--border-light)", marginTop: "14px", paddingTop: "12px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: "10px", alignItems: "baseline" }}>
+                    <span style={{ color: "var(--text-secondary)", fontSize: "0.78rem", fontWeight: 900 }}>재무 forecast 입력</span>
+                    <small style={{ color: "var(--text-muted)" }}>
+                      {method.forecast_evidence.forecast_row_count}개 입력 · {method.forecast_evidence.latest_forecast_as_of_date || "기준일 없음"}
+                    </small>
+                  </div>
+                  <div style={{ display: "grid", gap: "8px", marginTop: "10px" }}>
+                    {method.forecast_evidence.scenarios.slice(0, 3).map((scenario) => (
+                      <div key={`${method.method}-forecast-${scenario.scenario_key}`} style={{ display: "grid", gridTemplateColumns: "72px 1fr", gap: "8px", alignItems: "start" }}>
+                        <strong>{scenario.label}</strong>
+                        <small style={{ color: "var(--text-secondary)", lineHeight: 1.45 }}>
+                          {scenario.last_year ?? "?"}년차 매출 {formatCurrency(scenario.terminal_revenue, currency)} · FCF {formatCurrency(scenario.terminal_free_cash_flow, currency)} ·
+                          성장 {formatPercent(scenario.avg_revenue_growth_rate, true)} · FCF마진 {formatPercent(scenario.avg_free_cash_flow_margin)}
+                        </small>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+
               <details className="audit-metadata" style={{ marginTop: "14px" }}>
                 <summary>모델 한계와 데이터 경고 보기</summary>
                 <dl>

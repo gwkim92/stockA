@@ -332,6 +332,27 @@ export type ValuationMethodSnapshot = {
     margin_of_safety: number | null;
     description: string;
   }>;
+  forecast_evidence: {
+    status: string;
+    label: string;
+    latest_forecast_as_of_date: string;
+    forecast_row_count: number;
+    scenario_count: number;
+    source: string;
+    scenarios: Array<{
+      scenario_key: string;
+      label: string;
+      row_count: number;
+      first_year: number | null;
+      last_year: number | null;
+      terminal_revenue: number | null;
+      terminal_free_cash_flow: number | null;
+      avg_revenue_growth_rate: number | null;
+      avg_free_cash_flow_margin: number | null;
+      avg_capex_intensity: number | null;
+      confidence: number | null;
+    }>;
+  };
   data_quality: {
     status: string;
     label: string;

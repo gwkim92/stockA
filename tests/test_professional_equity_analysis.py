@@ -8,16 +8,21 @@ from pathlib import Path
 from stockanalysis.ingest.config import RuntimeConfig
 from stockanalysis.operations.professional_equity_analysis import (
     DEFAULT_MODEL_NAME,
+    DEFAULT_FINANCIAL_FORECAST_MODEL_NAME,
     DEFAULT_PEER_RELATIVE_MODEL_NAME,
     DEFAULT_VALUATION_MODEL_NAME,
+    FINANCIAL_FORECAST_SCENARIOS,
     STANDARD_FINANCIAL_METRICS,
     VALUATION_METHODS,
+    render_financial_forecast_inputs_preview_sql,
+    render_financial_forecast_inputs_upsert_sql,
     render_financial_metric_normalization_preview_sql,
     render_financial_metric_normalization_upsert_sql,
     render_peer_relative_analysis_preview_sql,
     render_peer_relative_analysis_upsert_sql,
     render_valuation_snapshot_preview_sql,
     render_valuation_snapshot_upsert_sql,
+    run_financial_forecast_inputs,
     run_financial_metric_normalization,
     run_peer_relative_analysis,
     run_valuation_snapshot,
@@ -128,6 +133,32 @@ class FakeFinancialMetricExecutor:
                     "confidence_summary": {"min": 0.25, "avg": 0.4, "max": 0.5},
                 }
             )
+        if sql.startswith("-- financial forecast inputs preview"):
+            return json.dumps(
+                {
+                    "as_of_date": "2026-05-25",
+                    "model_name": DEFAULT_FINANCIAL_FORECAST_MODEL_NAME,
+                    "statement_scope": "annual",
+                    "scenario_keys": list(FINANCIAL_FORECAST_SCENARIOS),
+                    "forecast_years": 5,
+                    "raw_input_count": 3,
+                    "normalized_input_count": 3,
+                    "forecast_context_count": 3,
+                    "existing_forecast_row_count": 0,
+                }
+            )
+        if sql.startswith("-- financial forecast inputs upsert"):
+            return json.dumps(
+                {
+                    "as_of_date": "2026-05-25",
+                    "source_run_id": self.run_id,
+                    "statement_scope": "annual",
+                    "forecast_row_count": 45,
+                    "scenario_counts": {"bear": 15, "base": 15, "bull": 15},
+                    "max_forecast_year": 5,
+                    "confidence_summary": {"min": 0.25, "avg": 0.4, "max": 0.55},
+                }
+            )
         raise AssertionError(f"Unexpected scalar SQL: {sql[:160]}")
 
     def execute_non_query(self, sql: str) -> None:
@@ -145,6 +176,20 @@ class ProfessionalEquityAnalysisTests(unittest.TestCase):
         self.assertIn("create table if not exists research.equity_research_artifact", sql)
         self.assertNotIn("update signal.recommendation_score_component", sql.lower())
         self.assertNotIn("insert into signal.recommendation_score_component", sql.lower())
+
+    def test_financial_forecast_input_migration_creates_read_only_evidence_table(self) -> None:
+        sql = Path("db/migrations/0024_financial_forecast_inputs.sql").read_text(encoding="utf-8")
+
+        self.assertIn("create table if not exists market.financial_forecast_input", sql)
+        self.assertIn("scenario_key text not null", sql)
+        self.assertIn("forecast_year integer not null", sql)
+        self.assertIn("revenue_growth_rate numeric", sql)
+        self.assertIn("free_cash_flow_margin numeric", sql)
+        self.assertIn("capex_intensity numeric", sql)
+        self.assertIn("free_cash_flow numeric", sql)
+        self.assertIn("unique (instrument_id, as_of_date, statement_scope, scenario_key, forecast_year)", sql)
+        self.assertIn("check (scenario_key in ('bear', 'base', 'bull'))", sql)
+        self.assertNotIn("signal.recommendation_score_component", sql.lower())
 
     def test_preview_sql_is_read_only_and_reports_standard_metrics(self) -> None:
         sql = render_financial_metric_normalization_preview_sql(as_of_date=date(2026, 5, 25), limit=10)
@@ -308,6 +353,42 @@ class ProfessionalEquityAnalysisTests(unittest.TestCase):
         self.assertNotIn("update ", lowered)
         self.assertNotIn("delete from", lowered)
 
+    def test_financial_forecast_inputs_preview_sql_is_read_only(self) -> None:
+        sql = render_financial_forecast_inputs_preview_sql(as_of_date=date(2026, 5, 25), statement_scope="annual")
+        lowered = sql.lower()
+
+        self.assertIn("-- financial forecast inputs preview", sql)
+        self.assertIn("market.financial_statement_period", sql)
+        self.assertIn("market.financial_metric_normalized", sql)
+        self.assertIn("market.financial_forecast_input", sql)
+        self.assertIn("forecast_context_count", sql)
+        self.assertIn("existing_forecast_row_count", sql)
+        self.assertIn('"bear"', sql)
+        self.assertIn('"base"', sql)
+        self.assertIn('"bull"', sql)
+        self.assertNotIn("insert into", lowered)
+        self.assertNotIn("update ", lowered)
+        self.assertNotIn("delete from", lowered)
+
+    def test_financial_forecast_inputs_upsert_sql_creates_scenarios_without_recommendation_mutation(self) -> None:
+        sql = render_financial_forecast_inputs_upsert_sql(
+            as_of_date=date(2026, 5, 25),
+            source_run_id=9651,
+            statement_scope="annual",
+        )
+
+        self.assertIn("-- financial forecast inputs upsert", sql)
+        self.assertIn("insert into market.financial_forecast_input", sql)
+        self.assertIn("scenario_adjustments as", sql)
+        self.assertIn("generate_series(1, 5)", sql)
+        self.assertIn("revenue_growth_rate", sql)
+        self.assertIn("operating_margin", sql)
+        self.assertIn("free_cash_flow_margin", sql)
+        self.assertIn("capex_intensity", sql)
+        self.assertIn("recommendation_scoring_mutated", sql)
+        self.assertNotIn("signal.recommendation_score_component", sql)
+        self.assertIn("9651::bigint", sql)
+
     def test_valuation_snapshot_upsert_sql_creates_three_methods_without_recommendation_mutation(self) -> None:
         sql = render_valuation_snapshot_upsert_sql(
             as_of_date=date(2026, 5, 25),
@@ -317,6 +398,12 @@ class ProfessionalEquityAnalysisTests(unittest.TestCase):
 
         self.assertIn("-- valuation snapshot upsert", sql)
         self.assertIn("insert into market.valuation_snapshot", sql)
+        self.assertIn("market.financial_forecast_input", sql)
+        self.assertIn("forecast_inputs as", sql)
+        self.assertIn("'forecast_input_source'", sql)
+        self.assertIn("'forecast_scenarios'", sql)
+        self.assertIn("'forecast_row_count'", sql)
+        self.assertIn("base_forecast_free_cash_flow", sql)
         self.assertIn("'relative_multiple' as method", sql)
         self.assertIn("'scenario_range' as method", sql)
         self.assertIn("'dcf_lite' as method", sql)
@@ -327,7 +414,10 @@ class ProfessionalEquityAnalysisTests(unittest.TestCase):
         self.assertIn("'model_family', 'intrinsic_dcf_lite'", sql)
         self.assertIn("'forecast_years', 5", sql)
         self.assertIn("'sensitivity_basis', 'growth_rate, discount_rate, terminal_growth_rate'", sql)
-        self.assertIn("'key_variables', json_build_array('fcf_per_share', 'growth_rate', 'discount_rate', 'terminal_growth_rate')", sql)
+        self.assertIn(
+            "'key_variables', json_build_array('fcf_per_share', 'growth_rate', 'discount_rate', 'terminal_growth_rate', 'forecast_scenarios')",
+            sql,
+        )
         self.assertIn("'data_quality', json_build_object", sql)
         self.assertIn("'limitations', json_build_array", sql)
         self.assertIn("상세 매출·마진·CAPEX forecast", sql)
@@ -335,6 +425,42 @@ class ProfessionalEquityAnalysisTests(unittest.TestCase):
         self.assertIn("recommendation_scoring_mutated", sql)
         self.assertNotIn("signal.recommendation_score_component", sql)
         self.assertIn("9701::bigint", sql)
+
+    def test_run_financial_forecast_inputs_dry_run_reads_preview_without_writes(self) -> None:
+        executor = FakeFinancialMetricExecutor()
+
+        report = run_financial_forecast_inputs(
+            config=RuntimeConfig(psql_command="psql"),
+            as_of_date=date(2026, 5, 25),
+            statement_scope="annual",
+            execute=False,
+            executor=executor,  # type: ignore[arg-type]
+        )
+
+        self.assertEqual(report["status"], "planned")
+        self.assertEqual(report["report_name"], "financial_forecast_inputs")
+        self.assertEqual(report["scenario_keys"], list(FINANCIAL_FORECAST_SCENARIOS))
+        self.assertFalse(report["recommendation_scoring_mutated"])
+        self.assertEqual(executor.non_query_sql, [])
+        self.assertEqual(len(executor.scalar_sql), 1)
+
+    def test_run_financial_forecast_inputs_execute_records_pipeline_and_upsert_summary(self) -> None:
+        executor = FakeFinancialMetricExecutor(run_id=9652)
+
+        report = run_financial_forecast_inputs(
+            config=RuntimeConfig(psql_command="psql"),
+            as_of_date=date(2026, 5, 25),
+            statement_scope="annual",
+            execute=True,
+            executor=executor,  # type: ignore[arg-type]
+        )
+
+        self.assertEqual(report["status"], "completed")
+        self.assertEqual(report["run_id"], 9652)
+        self.assertEqual(report["upsert"]["forecast_row_count"], 45)  # type: ignore[index]
+        self.assertIn("insert into ops.pipeline_run", executor.scalar_sql[1])
+        self.assertIn("-- financial forecast inputs upsert", executor.scalar_sql[2])
+        self.assertIn("status = 'succeeded'", executor.non_query_sql[-1])
 
     def test_run_valuation_snapshot_dry_run_reads_preview_without_writes(self) -> None:
         executor = FakeFinancialMetricExecutor()

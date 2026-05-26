@@ -219,6 +219,18 @@ DATA_OPERATION_CADENCES: tuple[DataOperationCadence, ...] = (
         data_health_dataset="market.peer_relative_snapshot",
     ),
     DataOperationCadence(
+        job_id="financial-forecast-inputs-weekly",
+        pipeline_name="financial_forecast_inputs",
+        domain="fundamentals",
+        cadence="weekly",
+        command_template="stockanalysis-operations financial-forecast-inputs-run --env-file <ENV> --as-of-date <YYYY-MM-DD> --execute",
+        expected_after_local="08:45 Monday",
+        stale_after_hours=216,
+        artifact_policy="stdout_json_stderr_log_and_forecast_counts",
+        required_env_groups=("database",),
+        data_health_dataset="market.financial_forecast_input",
+    ),
+    DataOperationCadence(
         job_id="valuation-snapshot-weekly",
         pipeline_name="valuation_snapshot",
         domain="fundamentals",

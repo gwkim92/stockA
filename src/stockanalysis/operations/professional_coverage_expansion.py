@@ -22,6 +22,7 @@ from stockanalysis.ingest.psql import PsqlCommandExecutor
 from stockanalysis.ingest.sec.companyfacts import run_sec_companyfacts_upsert
 from stockanalysis.operations.industry_competitive_positioning import run_industry_competitive_positioning
 from stockanalysis.operations.professional_equity_analysis import (
+    run_financial_forecast_inputs,
     run_financial_metric_normalization,
     run_peer_relative_analysis,
     run_valuation_snapshot,
@@ -364,6 +365,13 @@ def run_professional_coverage_expansion(
                 executor=sql_executor,
             ),
             "peer_relative_analysis": run_peer_relative_analysis(
+                config=config,
+                as_of_date=as_of_date,
+                statement_scope="annual",
+                execute=True,
+                executor=sql_executor,
+            ),
+            "financial_forecast_inputs": run_financial_forecast_inputs(
                 config=config,
                 as_of_date=as_of_date,
                 statement_scope="annual",

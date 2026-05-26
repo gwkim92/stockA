@@ -123,6 +123,7 @@ class ProfessionalCoverageExpansionTests(unittest.TestCase):
                 "stockanalysis.operations.professional_coverage_expansion.run_financial_metric_normalization"
             ) as normalization,
             patch("stockanalysis.operations.professional_coverage_expansion.run_peer_relative_analysis") as peer,
+            patch("stockanalysis.operations.professional_coverage_expansion.run_financial_forecast_inputs") as forecast,
             patch("stockanalysis.operations.professional_coverage_expansion.run_valuation_snapshot") as valuation,
             patch(
                 "stockanalysis.operations.professional_coverage_expansion.run_industry_competitive_positioning"
@@ -132,6 +133,7 @@ class ProfessionalCoverageExpansionTests(unittest.TestCase):
             companyfacts.return_value = {"instrument_symbol": "AAPL", "fact_count": 6}
             normalization.return_value = {"report_name": "financial_metric_normalization"}
             peer.return_value = {"report_name": "peer_relative_analysis"}
+            forecast.return_value = {"report_name": "financial_forecast_inputs"}
             valuation.return_value = {"report_name": "valuation_snapshot"}
             positioning.return_value = {"report_name": "industry_competitive_positioning"}
             research.return_value = {"report_name": "equity_research_reporting"}
@@ -156,6 +158,7 @@ class ProfessionalCoverageExpansionTests(unittest.TestCase):
         self.assertEqual(companyfacts.call_args.kwargs["fallback_symbol"], "AAPL")
         normalization.assert_called_once()
         peer.assert_called_once()
+        forecast.assert_called_once()
         valuation.assert_called_once()
         positioning.assert_called_once()
         research.assert_called_once()
@@ -171,6 +174,7 @@ class ProfessionalCoverageExpansionTests(unittest.TestCase):
                 "stockanalysis.operations.professional_coverage_expansion.run_financial_metric_normalization"
             ) as normalization,
             patch("stockanalysis.operations.professional_coverage_expansion.run_peer_relative_analysis") as peer,
+            patch("stockanalysis.operations.professional_coverage_expansion.run_financial_forecast_inputs") as forecast,
             patch("stockanalysis.operations.professional_coverage_expansion.run_valuation_snapshot") as valuation,
             patch(
                 "stockanalysis.operations.professional_coverage_expansion.run_industry_competitive_positioning"
@@ -183,6 +187,7 @@ class ProfessionalCoverageExpansionTests(unittest.TestCase):
             ]
             normalization.return_value = {"report_name": "financial_metric_normalization"}
             peer.return_value = {"report_name": "peer_relative_analysis"}
+            forecast.return_value = {"report_name": "financial_forecast_inputs"}
             valuation.return_value = {"report_name": "valuation_snapshot"}
             positioning.return_value = {"report_name": "industry_competitive_positioning"}
             research.return_value = {"report_name": "equity_research_reporting"}
@@ -205,6 +210,7 @@ class ProfessionalCoverageExpansionTests(unittest.TestCase):
         self.assertEqual(report["failed_companyfacts_reports"][0]["symbol"], "BABA")
         normalization.assert_called_once()
         peer.assert_called_once()
+        forecast.assert_called_once()
         valuation.assert_called_once()
         positioning.assert_called_once()
         research.assert_called_once()

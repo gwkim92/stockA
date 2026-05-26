@@ -8260,6 +8260,7 @@ def _build_valuation_target_range_payload(
                     fair_value_base=fair_value_base,
                     fair_value_high=fair_value_high,
                 ),
+                "forecast_evidence": _valuation_method_forecast_evidence(assumptions),
                 "data_quality": _valuation_method_data_quality(method, assumptions, confidence, margin_of_safety),
                 "limitations": _valuation_method_limitations(method, assumptions),
                 "source_run_id": _opaque_id("pipeline-run", source_run_id, None)
@@ -8506,6 +8507,58 @@ def _valuation_method_data_quality(
         "data_gap_count": data_gap_count,
         "warning_count": len(warnings),
         "warnings": warnings,
+    }
+
+
+def _valuation_method_forecast_evidence(assumptions: dict[str, Any]) -> dict[str, Any]:
+    rows = [_as_dict(row) for row in _as_list(assumptions.get("forecast_scenarios"))]
+    rows = [row for row in rows if row]
+    if not rows:
+        return {
+            "status": "unavailable",
+            "label": "forecast 입력 없음",
+            "latest_forecast_as_of_date": str(assumptions.get("latest_forecast_as_of_date") or ""),
+            "forecast_row_count": _integer(assumptions.get("forecast_row_count")) or 0,
+            "scenario_count": 0,
+            "scenarios": [],
+            "source": str(assumptions.get("forecast_input_source") or ""),
+        }
+
+    scenario_summaries: list[dict[str, Any]] = []
+    scenario_order = {"bear": 0, "base": 1, "bull": 2}
+    scenario_labels = {"bear": "보수", "base": "기준", "bull": "낙관"}
+    scenario_keys = sorted(
+        {str(row.get("scenario_key") or "unknown") for row in rows},
+        key=lambda key: (scenario_order.get(key, 99), key),
+    )
+    for scenario_key in scenario_keys:
+        scenario_rows = [row for row in rows if str(row.get("scenario_key") or "unknown") == scenario_key]
+        scenario_rows.sort(key=lambda row: _integer(row.get("forecast_year")) or 0)
+        terminal = scenario_rows[-1] if scenario_rows else {}
+        scenario_summaries.append(
+            {
+                "scenario_key": scenario_key,
+                "label": scenario_labels.get(scenario_key, scenario_key),
+                "row_count": len(scenario_rows),
+                "first_year": _integer(scenario_rows[0].get("forecast_year")) if scenario_rows else None,
+                "last_year": _integer(terminal.get("forecast_year")) if terminal else None,
+                "terminal_revenue": _number(terminal.get("revenue")) if terminal else None,
+                "terminal_free_cash_flow": _number(terminal.get("free_cash_flow")) if terminal else None,
+                "avg_revenue_growth_rate": _mean_number(row.get("revenue_growth_rate") for row in scenario_rows),
+                "avg_free_cash_flow_margin": _mean_number(row.get("free_cash_flow_margin") for row in scenario_rows),
+                "avg_capex_intensity": _mean_number(row.get("capex_intensity") for row in scenario_rows),
+                "confidence": _mean_number(row.get("confidence") for row in scenario_rows),
+            }
+        )
+
+    return {
+        "status": "available",
+        "label": "forecast 입력 연결",
+        "latest_forecast_as_of_date": str(assumptions.get("latest_forecast_as_of_date") or ""),
+        "forecast_row_count": _integer(assumptions.get("forecast_row_count")) or len(rows),
+        "scenario_count": len(scenario_summaries),
+        "scenarios": scenario_summaries,
+        "source": str(assumptions.get("forecast_input_source") or "market.financial_forecast_input"),
     }
 
 

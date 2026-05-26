@@ -99,6 +99,7 @@ from stockanalysis.operations.recommendation_fundamental_components import (
 from stockanalysis.operations.professional_equity_analysis import (
     PEER_RELATIVE_STATEMENT_SCOPES,
     VALUATION_STATEMENT_SCOPES,
+    run_financial_forecast_inputs,
     run_financial_metric_normalization,
     run_peer_relative_analysis,
     run_valuation_snapshot,
@@ -909,6 +910,19 @@ def build_parser() -> argparse.ArgumentParser:
     valuation_snapshot.add_argument("--output")
     valuation_snapshot.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
     valuation_snapshot.set_defaults(handler=_handle_valuation_snapshot_run)
+
+    financial_forecast_inputs = subparsers.add_parser(
+        "financial-forecast-inputs-run",
+        help="Create deterministic forecast input scenarios for valuation evidence without changing recommendation weights.",
+    )
+    financial_forecast_inputs.add_argument("--env-file")
+    financial_forecast_inputs.add_argument("--as-of-date", required=True)
+    financial_forecast_inputs.add_argument("--statement-scope", choices=VALUATION_STATEMENT_SCOPES, default="annual")
+    financial_forecast_inputs.add_argument("--execute", action="store_true")
+    financial_forecast_inputs.add_argument("--dry-run", action="store_true")
+    financial_forecast_inputs.add_argument("--output")
+    financial_forecast_inputs.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
+    financial_forecast_inputs.set_defaults(handler=_handle_financial_forecast_inputs_run)
 
     industry_competitive_positioning = subparsers.add_parser(
         "industry-competitive-positioning-run",
@@ -2076,6 +2090,31 @@ def _handle_valuation_snapshot_run(args: argparse.Namespace, *, stdout: TextIO) 
         output_path = resolve_output_path(
             args.output,
             label="valuation snapshot output",
+            repo_root=args.repo_root,
+            require_repo_outside=True,
+        )
+        write_json_report(report, output_path=output_path, stdout=stdout)
+    else:
+        print_json(report, stdout=stdout, sort_keys=False)
+    return 0
+
+
+def _handle_financial_forecast_inputs_run(args: argparse.Namespace, *, stdout: TextIO) -> int:
+    if bool(args.execute) and bool(args.dry_run):
+        raise ValueError("--execute and --dry-run cannot be used together.")
+    env_mapping = _load_optional_env_mapping(args.env_file, repo_root=args.repo_root)
+    as_of_date = date.fromisoformat(args.as_of_date)
+    with _temporary_environ(env_mapping):
+        report = run_financial_forecast_inputs(
+            config=RuntimeConfig.from_env(),
+            as_of_date=as_of_date,
+            statement_scope=args.statement_scope,
+            execute=bool(args.execute) and not bool(args.dry_run),
+        )
+    if args.output:
+        output_path = resolve_output_path(
+            args.output,
+            label="financial forecast inputs output",
             repo_root=args.repo_root,
             require_repo_outside=True,
         )

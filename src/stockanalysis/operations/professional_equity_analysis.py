@@ -19,6 +19,8 @@ DEFAULT_PEER_RELATIVE_PIPELINE_NAME = "peer_relative_analysis"
 DEFAULT_PEER_RELATIVE_MODEL_NAME = "deterministic-peer-relative-sql-v1"
 DEFAULT_VALUATION_PIPELINE_NAME = "valuation_snapshot"
 DEFAULT_VALUATION_MODEL_NAME = "deterministic-valuation-snapshot-sql-v1"
+DEFAULT_FINANCIAL_FORECAST_PIPELINE_NAME = "financial_forecast_inputs"
+DEFAULT_FINANCIAL_FORECAST_MODEL_NAME = "deterministic-financial-forecast-inputs-sql-v1"
 DEFAULT_PEER_GROUP_CODE = "US_CORE_FINANCIAL_DISCLOSURE"
 DEFAULT_PEER_GROUP_NAME = "US Core Financial Disclosure Coverage"
 STANDARD_FINANCIAL_METRICS = (
@@ -40,6 +42,8 @@ STANDARD_FINANCIAL_METRICS = (
 PEER_RELATIVE_STATEMENT_SCOPES = ("annual", "quarterly", "all")
 VALUATION_STATEMENT_SCOPES = ("annual", "quarterly")
 VALUATION_METHODS = ("dcf_lite", "relative_multiple", "scenario_range")
+FINANCIAL_FORECAST_SCENARIOS = ("bear", "base", "bull")
+FINANCIAL_FORECAST_YEARS = 5
 
 
 def render_financial_metric_normalization_preview_sql(*, as_of_date: date, limit: int | None = None) -> str:
@@ -1038,6 +1042,463 @@ def run_peer_relative_analysis(
     }
 
 
+def render_financial_forecast_inputs_preview_sql(
+    *,
+    as_of_date: date,
+    statement_scope: str = "annual",
+) -> str:
+    _validate_valuation_args(statement_scope=statement_scope)
+    return f"""-- financial forecast inputs preview
+with latest_raw_metric_rows as (
+    select distinct on (period.instrument_id, metric.metric_code)
+        period.instrument_id,
+        metric.metric_code,
+        metric.metric_value,
+        period.period_end
+    from market.financial_statement_period period
+    join market.financial_metric_value metric on metric.period_id = period.period_id
+    where period.period_end <= {sql_date(as_of_date)}
+      and period.statement_scope = {sql_literal(statement_scope)}
+      and metric.metric_code in (
+        'revenue',
+        'operating_cash_flow',
+        'capital_expenditure'
+      )
+    order by period.instrument_id, metric.metric_code, period.period_end desc
+),
+raw_inputs as (
+    select
+        instrument_id,
+        max(metric_value) filter (where metric_code = 'revenue') as revenue,
+        max(metric_value) filter (where metric_code = 'operating_cash_flow') as operating_cash_flow,
+        max(metric_value) filter (where metric_code = 'capital_expenditure') as capital_expenditure
+    from latest_raw_metric_rows
+    group by instrument_id
+),
+latest_normalized_rows as (
+    select distinct on (normalized.instrument_id, normalized.metric_code)
+        normalized.instrument_id,
+        normalized.metric_code,
+        normalized.metric_value
+    from market.financial_metric_normalized normalized
+    where normalized.as_of_date <= {sql_date(as_of_date)}
+      and normalized.statement_scope = {sql_literal(statement_scope)}
+      and normalized.metric_status = 'computed'
+      and normalized.metric_code in (
+        'revenue_growth_yoy',
+        'operating_margin',
+        'free_cash_flow_margin',
+        'capex_intensity',
+        'cash_flow_quality'
+      )
+    order by
+        normalized.instrument_id,
+        normalized.metric_code,
+        normalized.as_of_date desc,
+        normalized.period_end desc
+),
+normalized_inputs as (
+    select
+        instrument_id,
+        max(metric_value) filter (where metric_code = 'revenue_growth_yoy') as revenue_growth_yoy,
+        max(metric_value) filter (where metric_code = 'operating_margin') as operating_margin,
+        max(metric_value) filter (where metric_code = 'free_cash_flow_margin') as free_cash_flow_margin,
+        max(metric_value) filter (where metric_code = 'capex_intensity') as capex_intensity,
+        max(metric_value) filter (where metric_code = 'cash_flow_quality') as cash_flow_quality
+    from latest_normalized_rows
+    group by instrument_id
+),
+forecast_context as (
+    select
+        raw.instrument_id,
+        raw.revenue,
+        raw.operating_cash_flow,
+        raw.capital_expenditure,
+        normalized.revenue_growth_yoy,
+        normalized.operating_margin,
+        normalized.free_cash_flow_margin,
+        normalized.capex_intensity,
+        normalized.cash_flow_quality
+    from raw_inputs raw
+    left join normalized_inputs normalized on normalized.instrument_id = raw.instrument_id
+    where raw.revenue is not null
+      and raw.revenue > 0
+)
+select json_build_object(
+    'as_of_date', {sql_literal(as_of_date.isoformat())},
+    'model_name', {sql_literal(DEFAULT_FINANCIAL_FORECAST_MODEL_NAME)},
+    'statement_scope', {sql_literal(statement_scope)},
+    'scenario_keys', {sql_literal(json.dumps(FINANCIAL_FORECAST_SCENARIOS))}::jsonb,
+    'forecast_years', {FINANCIAL_FORECAST_YEARS},
+    'raw_input_count', (select count(*)::integer from raw_inputs),
+    'normalized_input_count', (select count(*)::integer from normalized_inputs),
+    'forecast_context_count', (select count(*)::integer from forecast_context),
+    'existing_forecast_row_count',
+        (
+            select count(*)::integer
+            from market.financial_forecast_input
+            where as_of_date = {sql_date(as_of_date)}
+              and statement_scope = {sql_literal(statement_scope)}
+        )
+)::text;"""
+
+
+def render_financial_forecast_inputs_upsert_sql(
+    *,
+    as_of_date: date,
+    source_run_id: int,
+    statement_scope: str = "annual",
+) -> str:
+    _validate_valuation_args(statement_scope=statement_scope)
+    return f"""-- financial forecast inputs upsert
+with latest_raw_metric_rows as (
+    select distinct on (period.instrument_id, metric.metric_code)
+        period.instrument_id,
+        metric.metric_code,
+        metric.metric_value,
+        period.period_end
+    from market.financial_statement_period period
+    join market.financial_metric_value metric on metric.period_id = period.period_id
+    where period.period_end <= {sql_date(as_of_date)}
+      and period.statement_scope = {sql_literal(statement_scope)}
+      and metric.metric_code in (
+        'revenue',
+        'operating_cash_flow',
+        'capital_expenditure'
+      )
+    order by period.instrument_id, metric.metric_code, period.period_end desc
+),
+raw_inputs as (
+    select
+        instrument_id,
+        max(metric_value) filter (where metric_code = 'revenue') as revenue,
+        max(metric_value) filter (where metric_code = 'operating_cash_flow') as operating_cash_flow,
+        max(metric_value) filter (where metric_code = 'capital_expenditure') as capital_expenditure,
+        max(period_end) as latest_raw_period_end
+    from latest_raw_metric_rows
+    group by instrument_id
+),
+latest_normalized_rows as (
+    select distinct on (normalized.instrument_id, normalized.metric_code)
+        normalized.instrument_id,
+        normalized.metric_code,
+        normalized.metric_value,
+        normalized.period_end
+    from market.financial_metric_normalized normalized
+    where normalized.as_of_date <= {sql_date(as_of_date)}
+      and normalized.statement_scope = {sql_literal(statement_scope)}
+      and normalized.metric_status = 'computed'
+      and normalized.metric_code in (
+        'revenue_growth_yoy',
+        'operating_margin',
+        'free_cash_flow_margin',
+        'capex_intensity',
+        'cash_flow_quality'
+      )
+    order by
+        normalized.instrument_id,
+        normalized.metric_code,
+        normalized.as_of_date desc,
+        normalized.period_end desc
+),
+normalized_inputs as (
+    select
+        instrument_id,
+        max(metric_value) filter (where metric_code = 'revenue_growth_yoy') as revenue_growth_yoy,
+        max(metric_value) filter (where metric_code = 'operating_margin') as operating_margin,
+        max(metric_value) filter (where metric_code = 'free_cash_flow_margin') as free_cash_flow_margin,
+        max(metric_value) filter (where metric_code = 'capex_intensity') as capex_intensity,
+        max(metric_value) filter (where metric_code = 'cash_flow_quality') as cash_flow_quality,
+        max(period_end) as latest_normalized_period_end
+    from latest_normalized_rows
+    group by instrument_id
+),
+forecast_context as (
+    select
+        raw.instrument_id,
+        raw.latest_raw_period_end,
+        normalized.latest_normalized_period_end,
+        raw.revenue as base_revenue,
+        raw.operating_cash_flow,
+        raw.capital_expenditure,
+        case
+            when raw.operating_cash_flow is not null and raw.capital_expenditure is not null
+            then raw.operating_cash_flow - abs(raw.capital_expenditure)
+            else null::numeric
+        end as latest_free_cash_flow,
+        least(0.1800::numeric, greatest(-0.1000::numeric, coalesce(normalized.revenue_growth_yoy, 0.0300::numeric))) as base_revenue_growth_rate,
+        least(0.6000::numeric, greatest(-0.2000::numeric, coalesce(normalized.operating_margin, 0.1000::numeric))) as base_operating_margin,
+        least(
+            0.5000::numeric,
+            greatest(
+                -0.2000::numeric,
+                coalesce(
+                    normalized.free_cash_flow_margin,
+                    case
+                        when raw.revenue is not null and raw.revenue <> 0
+                        then (raw.operating_cash_flow - abs(raw.capital_expenditure)) / raw.revenue
+                        else null::numeric
+                    end,
+                    0.0600::numeric
+                )
+            )
+        ) as base_free_cash_flow_margin,
+        least(
+            0.3500::numeric,
+            greatest(
+                0::numeric,
+                coalesce(
+                    normalized.capex_intensity,
+                    case
+                        when raw.revenue is not null and raw.revenue <> 0
+                        then abs(raw.capital_expenditure) / raw.revenue
+                        else null::numeric
+                    end,
+                    0.0500::numeric
+                )
+            )
+        ) as base_capex_intensity,
+        (
+            (normalized.revenue_growth_yoy is not null)::integer
+            + (normalized.operating_margin is not null)::integer
+            + (normalized.free_cash_flow_margin is not null)::integer
+            + (normalized.capex_intensity is not null)::integer
+            + (normalized.cash_flow_quality is not null)::integer
+        ) as normalized_metric_count
+    from raw_inputs raw
+    left join normalized_inputs normalized on normalized.instrument_id = raw.instrument_id
+    where raw.revenue is not null
+      and raw.revenue > 0
+),
+scenario_adjustments as (
+    select *
+    from (
+        values
+            ('bear'::text, -0.0300::numeric, -0.0200::numeric, -0.0200::numeric, 0.0100::numeric, 0.8500::numeric),
+            ('base'::text, 0.0000::numeric, 0.0000::numeric, 0.0000::numeric, 0.0000::numeric, 1.0000::numeric),
+            ('bull'::text, 0.0300::numeric, 0.0200::numeric, 0.0200::numeric, -0.0050::numeric, 0.9000::numeric)
+    ) as scenario(scenario_key, growth_adjustment, operating_margin_adjustment, fcf_margin_adjustment, capex_intensity_adjustment, confidence_multiplier)
+),
+forecast_years as (
+    select generate_series(1, {FINANCIAL_FORECAST_YEARS})::integer as forecast_year
+),
+forecast_rows as (
+    select
+        context.instrument_id,
+        {sql_date(as_of_date)} as as_of_date,
+        {sql_literal(statement_scope)} as statement_scope,
+        scenario.scenario_key,
+        year.forecast_year,
+        context.base_revenue,
+        least(0.2500::numeric, greatest(-0.2000::numeric, context.base_revenue_growth_rate + scenario.growth_adjustment)) as revenue_growth_rate,
+        least(0.6500::numeric, greatest(-0.2500::numeric, context.base_operating_margin + scenario.operating_margin_adjustment)) as operating_margin,
+        least(0.5500::numeric, greatest(-0.2500::numeric, context.base_free_cash_flow_margin + scenario.fcf_margin_adjustment)) as free_cash_flow_margin,
+        least(0.4000::numeric, greatest(0::numeric, context.base_capex_intensity + scenario.capex_intensity_adjustment)) as capex_intensity,
+        context.latest_raw_period_end,
+        context.latest_normalized_period_end,
+        context.latest_free_cash_flow,
+        context.normalized_metric_count,
+        scenario.confidence_multiplier
+    from forecast_context context
+    cross join scenario_adjustments scenario
+    cross join forecast_years year
+),
+computed_forecast_rows as (
+    select
+        row.instrument_id,
+        row.as_of_date,
+        row.statement_scope,
+        row.scenario_key,
+        row.forecast_year,
+        (row.base_revenue * power(1 + row.revenue_growth_rate, row.forecast_year))::numeric as revenue,
+        row.revenue_growth_rate,
+        row.operating_margin,
+        row.free_cash_flow_margin,
+        row.capex_intensity,
+        (row.base_revenue * power(1 + row.revenue_growth_rate, row.forecast_year) * row.free_cash_flow_margin)::numeric as free_cash_flow,
+        json_build_object(
+            'model_family', 'deterministic_financial_forecast_inputs',
+            'scenario_key', row.scenario_key,
+            'forecast_year', row.forecast_year,
+            'forecast_years', {FINANCIAL_FORECAST_YEARS},
+            'source_statement_scope', row.statement_scope,
+            'latest_raw_period_end', row.latest_raw_period_end,
+            'latest_normalized_period_end', row.latest_normalized_period_end,
+            'base_revenue', row.base_revenue,
+            'latest_free_cash_flow', row.latest_free_cash_flow,
+            'normalized_metric_count', row.normalized_metric_count,
+            'key_variables', json_build_array('revenue_growth_rate', 'operating_margin', 'free_cash_flow_margin', 'capex_intensity'),
+            'limitations', json_build_array(
+                '과거 재무제표와 정규화 지표로 만든 deterministic forecast input이며 경영진 가이던스나 상세 segment forecast를 대체하지 않는다.',
+                '추천 점수와 주문을 직접 변경하지 않는 밸류에이션 입력 근거다.'
+            ),
+            'recommendation_scoring_mutated', false
+        )::jsonb as assumptions_json,
+        least(0.6500::numeric, greatest(0.2000::numeric, (0.2500::numeric + row.normalized_metric_count * 0.0500::numeric) * row.confidence_multiplier)) as confidence
+    from forecast_rows row
+),
+upsert_forecasts as (
+    insert into market.financial_forecast_input (
+        instrument_id,
+        as_of_date,
+        statement_scope,
+        scenario_key,
+        forecast_year,
+        revenue,
+        revenue_growth_rate,
+        operating_margin,
+        free_cash_flow_margin,
+        capex_intensity,
+        free_cash_flow,
+        assumptions_json,
+        confidence,
+        source_run_id
+    )
+    select
+        instrument_id,
+        as_of_date,
+        statement_scope,
+        scenario_key,
+        forecast_year,
+        revenue,
+        revenue_growth_rate,
+        operating_margin,
+        free_cash_flow_margin,
+        capex_intensity,
+        free_cash_flow,
+        assumptions_json,
+        confidence,
+        {int(source_run_id)}::bigint
+    from computed_forecast_rows
+    on conflict (instrument_id, as_of_date, statement_scope, scenario_key, forecast_year) do update
+    set
+        revenue = excluded.revenue,
+        revenue_growth_rate = excluded.revenue_growth_rate,
+        operating_margin = excluded.operating_margin,
+        free_cash_flow_margin = excluded.free_cash_flow_margin,
+        capex_intensity = excluded.capex_intensity,
+        free_cash_flow = excluded.free_cash_flow,
+        assumptions_json = excluded.assumptions_json,
+        confidence = excluded.confidence,
+        source_run_id = excluded.source_run_id
+    returning scenario_key, forecast_year, confidence
+)
+select json_build_object(
+    'as_of_date', {sql_literal(as_of_date.isoformat())},
+    'source_run_id', {int(source_run_id)},
+    'statement_scope', {sql_literal(statement_scope)},
+    'forecast_row_count', (select count(*)::integer from upsert_forecasts),
+    'scenario_counts',
+        coalesce(
+            (
+                select json_object_agg(scenario_key, scenario_count order by scenario_key)
+                from (
+                    select scenario_key, count(*)::integer as scenario_count
+                    from upsert_forecasts
+                    group by scenario_key
+                ) counts
+            ),
+            '{{}}'::json
+        ),
+    'max_forecast_year', (select max(forecast_year)::integer from upsert_forecasts),
+    'confidence_summary',
+        (
+            select json_build_object(
+                'min', min(confidence),
+                'avg', avg(confidence),
+                'max', max(confidence)
+            )
+            from upsert_forecasts
+        )
+)::text;"""
+
+
+def load_financial_forecast_inputs_preview(
+    *,
+    config: RuntimeConfig,
+    as_of_date: date,
+    statement_scope: str = "annual",
+    executor: PsqlCommandExecutor | None = None,
+) -> dict[str, object]:
+    sql_executor = executor or PsqlCommandExecutor.from_config(config)
+    payload = json.loads(
+        sql_executor.execute_scalar(
+            render_financial_forecast_inputs_preview_sql(as_of_date=as_of_date, statement_scope=statement_scope)
+        )
+    )
+    if not isinstance(payload, dict):
+        raise ValueError("Financial forecast inputs preview did not return a JSON object.")
+    return payload
+
+
+def run_financial_forecast_inputs(
+    *,
+    config: RuntimeConfig,
+    as_of_date: date,
+    statement_scope: str = "annual",
+    execute: bool = False,
+    executor: PsqlCommandExecutor | None = None,
+) -> dict[str, object]:
+    sql_executor = executor or PsqlCommandExecutor.from_config(config)
+    preview = load_financial_forecast_inputs_preview(
+        config=config,
+        as_of_date=as_of_date,
+        statement_scope=statement_scope,
+        executor=sql_executor,
+    )
+    report: dict[str, object] = {
+        "report_name": "financial_forecast_inputs",
+        "status": "planned" if not execute else "running",
+        "execute": execute,
+        "pipeline_name": DEFAULT_FINANCIAL_FORECAST_PIPELINE_NAME,
+        "as_of_date": as_of_date.isoformat(),
+        "statement_scope": statement_scope,
+        "model_name": DEFAULT_FINANCIAL_FORECAST_MODEL_NAME,
+        "scenario_keys": list(FINANCIAL_FORECAST_SCENARIOS),
+        "forecast_years": FINANCIAL_FORECAST_YEARS,
+        "preview": preview,
+        "recommendation_scoring_mutated": False,
+    }
+    if not execute:
+        return report
+
+    run_id = _create_pipeline_run(
+        sql_executor,
+        pipeline_name=DEFAULT_FINANCIAL_FORECAST_PIPELINE_NAME,
+        config_json={
+            "as_of_date": as_of_date.isoformat(),
+            "statement_scope": statement_scope,
+            "model_name": DEFAULT_FINANCIAL_FORECAST_MODEL_NAME,
+            "scenario_keys": list(FINANCIAL_FORECAST_SCENARIOS),
+            "forecast_years": FINANCIAL_FORECAST_YEARS,
+            "recommendation_scoring_mutated": False,
+        },
+    )
+    try:
+        upsert_summary = json.loads(
+            sql_executor.execute_scalar(
+                render_financial_forecast_inputs_upsert_sql(
+                    as_of_date=as_of_date,
+                    source_run_id=run_id,
+                    statement_scope=statement_scope,
+                )
+            )
+        )
+        if not isinstance(upsert_summary, dict):
+            raise ValueError("Financial forecast inputs upsert did not return a JSON object.")
+        _mark_pipeline_run_succeeded(sql_executor, run_id)
+    except Exception as exc:
+        _mark_pipeline_run_failed(sql_executor, run_id, str(exc))
+        raise
+
+    return {
+        **report,
+        "status": "completed",
+        "run_id": run_id,
+        "upsert": upsert_summary,
+    }
+
+
 def render_valuation_snapshot_preview_sql(
     *,
     as_of_date: date,
@@ -1145,6 +1606,58 @@ peer_inputs as (
     from latest_peer_rows
     group by instrument_id
 ),
+latest_forecast_rows as (
+    select distinct on (forecast.instrument_id, forecast.scenario_key, forecast.forecast_year)
+        forecast.instrument_id,
+        forecast.as_of_date,
+        forecast.statement_scope,
+        forecast.scenario_key,
+        forecast.forecast_year,
+        forecast.revenue,
+        forecast.revenue_growth_rate,
+        forecast.operating_margin,
+        forecast.free_cash_flow_margin,
+        forecast.capex_intensity,
+        forecast.free_cash_flow,
+        forecast.confidence,
+        forecast.source_run_id
+    from market.financial_forecast_input forecast
+    where forecast.as_of_date <= {sql_date(as_of_date)}
+      and forecast.statement_scope = {sql_literal(statement_scope)}
+    order by
+        forecast.instrument_id,
+        forecast.scenario_key,
+        forecast.forecast_year,
+        forecast.as_of_date desc,
+        forecast.forecast_input_id desc
+),
+forecast_inputs as (
+    select
+        instrument_id,
+        count(*)::integer as forecast_row_count,
+        max(as_of_date) as latest_forecast_as_of_date,
+        avg(confidence) as forecast_confidence,
+        avg(free_cash_flow) filter (where scenario_key = 'base') as base_forecast_free_cash_flow,
+        avg(revenue_growth_rate) filter (where scenario_key = 'base') as base_forecast_revenue_growth_rate,
+        avg(free_cash_flow_margin) filter (where scenario_key = 'base') as base_forecast_free_cash_flow_margin,
+        jsonb_agg(
+            jsonb_build_object(
+                'scenario_key', scenario_key,
+                'forecast_year', forecast_year,
+                'revenue', revenue,
+                'revenue_growth_rate', revenue_growth_rate,
+                'operating_margin', operating_margin,
+                'free_cash_flow_margin', free_cash_flow_margin,
+                'capex_intensity', capex_intensity,
+                'free_cash_flow', free_cash_flow,
+                'confidence', confidence,
+                'source_run_id', source_run_id
+            )
+            order by scenario_key, forecast_year
+        ) as forecast_rows_json
+    from latest_forecast_rows
+    group by instrument_id
+),
 valuation_inputs as (
     select
         price.instrument_id,
@@ -1159,14 +1672,17 @@ valuation_inputs as (
         normalized.cash_flow_quality,
         normalized.leverage_ratio,
         peer.quality_percentile,
-        peer.leverage_percentile
+        peer.leverage_percentile,
+        forecast.forecast_row_count
     from latest_prices price
     left join raw_inputs raw on raw.instrument_id = price.instrument_id
     left join normalized_inputs normalized on normalized.instrument_id = price.instrument_id
     left join peer_inputs peer on peer.instrument_id = price.instrument_id
+    left join forecast_inputs forecast on forecast.instrument_id = price.instrument_id
     where raw.instrument_id is not null
        or normalized.instrument_id is not null
        or peer.instrument_id is not null
+       or forecast.instrument_id is not null
 )
 select json_build_object(
     'as_of_date', {sql_literal(as_of_date.isoformat())},
@@ -1177,6 +1693,7 @@ select json_build_object(
     'raw_financial_input_count', (select count(*)::integer from raw_inputs),
     'normalized_input_count', (select count(*)::integer from normalized_inputs),
     'peer_context_count', (select count(*)::integer from peer_inputs),
+    'financial_forecast_input_count', (select count(*)::integer from latest_forecast_rows),
     'valuation_context_count', (select count(*)::integer from valuation_inputs),
     'dcf_lite_eligible_count',
         (
@@ -1311,6 +1828,58 @@ peer_inputs as (
     from latest_peer_rows
     group by instrument_id
 ),
+latest_forecast_rows as (
+    select distinct on (forecast.instrument_id, forecast.scenario_key, forecast.forecast_year)
+        forecast.instrument_id,
+        forecast.as_of_date,
+        forecast.statement_scope,
+        forecast.scenario_key,
+        forecast.forecast_year,
+        forecast.revenue,
+        forecast.revenue_growth_rate,
+        forecast.operating_margin,
+        forecast.free_cash_flow_margin,
+        forecast.capex_intensity,
+        forecast.free_cash_flow,
+        forecast.confidence,
+        forecast.source_run_id
+    from market.financial_forecast_input forecast
+    where forecast.as_of_date <= {sql_date(as_of_date)}
+      and forecast.statement_scope = {sql_literal(statement_scope)}
+    order by
+        forecast.instrument_id,
+        forecast.scenario_key,
+        forecast.forecast_year,
+        forecast.as_of_date desc,
+        forecast.forecast_input_id desc
+),
+forecast_inputs as (
+    select
+        instrument_id,
+        count(*)::integer as forecast_row_count,
+        max(as_of_date) as latest_forecast_as_of_date,
+        avg(confidence) as forecast_confidence,
+        avg(free_cash_flow) filter (where scenario_key = 'base') as base_forecast_free_cash_flow,
+        avg(revenue_growth_rate) filter (where scenario_key = 'base') as base_forecast_revenue_growth_rate,
+        avg(free_cash_flow_margin) filter (where scenario_key = 'base') as base_forecast_free_cash_flow_margin,
+        jsonb_agg(
+            jsonb_build_object(
+                'scenario_key', scenario_key,
+                'forecast_year', forecast_year,
+                'revenue', revenue,
+                'revenue_growth_rate', revenue_growth_rate,
+                'operating_margin', operating_margin,
+                'free_cash_flow_margin', free_cash_flow_margin,
+                'capex_intensity', capex_intensity,
+                'free_cash_flow', free_cash_flow,
+                'confidence', confidence,
+                'source_run_id', source_run_id
+            )
+            order by scenario_key, forecast_year
+        ) as forecast_rows_json
+    from latest_forecast_rows
+    group by instrument_id
+),
 valuation_inputs as (
     select
         price.instrument_id,
@@ -1335,6 +1904,13 @@ valuation_inputs as (
         normalized.leverage_ratio,
         peer.quality_percentile,
         peer.leverage_percentile,
+        forecast.latest_forecast_as_of_date,
+        forecast.forecast_row_count,
+        forecast.forecast_confidence,
+        forecast.base_forecast_free_cash_flow,
+        forecast.base_forecast_revenue_growth_rate,
+        forecast.base_forecast_free_cash_flow_margin,
+        forecast.forecast_rows_json,
         least(
             1::numeric,
             greatest(
@@ -1357,11 +1933,13 @@ valuation_inputs as (
     left join raw_inputs raw on raw.instrument_id = price.instrument_id
     left join normalized_inputs normalized on normalized.instrument_id = price.instrument_id
     left join peer_inputs peer on peer.instrument_id = price.instrument_id
+    left join forecast_inputs forecast on forecast.instrument_id = price.instrument_id
     where price.base_price > 0
       and (
         raw.instrument_id is not null
         or normalized.instrument_id is not null
         or peer.instrument_id is not null
+        or forecast.instrument_id is not null
       )
 ),
 relative_multiple_rows as (
@@ -1429,10 +2007,16 @@ scenario_range_rows as (
             'latest_normalized_period_end', input.latest_normalized_period_end,
             'quality_score', round(input.quality_score, 4),
             'normalized_metric_count', input.normalized_metric_count,
+            'forecast_input_source', case when coalesce(input.forecast_row_count, 0) > 0 then 'market.financial_forecast_input' else null end,
+            'latest_forecast_as_of_date', input.latest_forecast_as_of_date,
+            'forecast_row_count', coalesce(input.forecast_row_count, 0),
+            'forecast_confidence', input.forecast_confidence,
+            'forecast_scenarios', coalesce(input.forecast_rows_json, '[]'::jsonb),
             'key_variables', json_build_array('quality_score', 'normalized_metric_count', 'base_price'),
             'data_quality', json_build_object(
                 'normalized_metric_count', input.normalized_metric_count,
-                'latest_normalized_period_end', input.latest_normalized_period_end
+                'latest_normalized_period_end', input.latest_normalized_period_end,
+                'forecast_row_count', coalesce(input.forecast_row_count, 0)
             ),
             'limitations', json_build_array(
                 '보수·기준·낙관 case를 가격 앵커와 품질 점수로 만든 단순 범위다.',
@@ -1449,12 +2033,13 @@ scenario_range_rows as (
 dcf_inputs as (
     select
         input.*,
-        (input.free_cash_flow / input.shares_outstanding) as fcf_per_share,
+        (coalesce(input.base_forecast_free_cash_flow, input.free_cash_flow) / input.shares_outstanding) as fcf_per_share,
+        least(0.1200::numeric, greatest(-0.0500::numeric, coalesce(input.base_forecast_revenue_growth_rate, input.growth_rate))) as dcf_growth_rate,
         0.1000::numeric as discount_rate,
         0.0250::numeric as terminal_growth_rate
     from valuation_inputs input
-    where input.free_cash_flow is not null
-      and input.free_cash_flow > 0
+    where coalesce(input.base_forecast_free_cash_flow, input.free_cash_flow) is not null
+      and coalesce(input.base_forecast_free_cash_flow, input.free_cash_flow) > 0
       and input.shares_outstanding is not null
       and input.shares_outstanding > 0
 ),
@@ -1476,14 +2061,22 @@ dcf_lite_rows as (
             'price_date', input.price_date,
             'latest_raw_period_end', input.latest_raw_period_end,
             'free_cash_flow', input.free_cash_flow,
+            'forecast_input_source', case when coalesce(input.forecast_row_count, 0) > 0 then 'market.financial_forecast_input' else null end,
+            'latest_forecast_as_of_date', input.latest_forecast_as_of_date,
+            'forecast_row_count', coalesce(input.forecast_row_count, 0),
+            'forecast_confidence', input.forecast_confidence,
+            'forecast_base_free_cash_flow', input.base_forecast_free_cash_flow,
+            'forecast_base_free_cash_flow_margin', input.base_forecast_free_cash_flow_margin,
+            'forecast_scenarios', coalesce(input.forecast_rows_json, '[]'::jsonb),
             'shares_outstanding', input.shares_outstanding,
             'fcf_per_share', round(input.fcf_per_share, 6),
-            'growth_rate', input.growth_rate,
+            'growth_rate', input.dcf_growth_rate,
             'discount_rate', input.discount_rate,
             'terminal_growth_rate', input.terminal_growth_rate,
-            'key_variables', json_build_array('fcf_per_share', 'growth_rate', 'discount_rate', 'terminal_growth_rate'),
+            'key_variables', json_build_array('fcf_per_share', 'growth_rate', 'discount_rate', 'terminal_growth_rate', 'forecast_scenarios'),
             'data_quality', json_build_object(
                 'free_cash_flow_present', input.free_cash_flow is not null,
+                'forecast_row_count', coalesce(input.forecast_row_count, 0),
                 'shares_outstanding_present', input.shares_outstanding is not null,
                 'normalized_metric_count', input.normalized_metric_count
             ),
@@ -1500,14 +2093,14 @@ dcf_lite_rows as (
     from dcf_inputs input
     cross join lateral (
         select (
-            (input.fcf_per_share * power(1 + input.growth_rate, 1) / power(1 + input.discount_rate, 1))
-            + (input.fcf_per_share * power(1 + input.growth_rate, 2) / power(1 + input.discount_rate, 2))
-            + (input.fcf_per_share * power(1 + input.growth_rate, 3) / power(1 + input.discount_rate, 3))
-            + (input.fcf_per_share * power(1 + input.growth_rate, 4) / power(1 + input.discount_rate, 4))
-            + (input.fcf_per_share * power(1 + input.growth_rate, 5) / power(1 + input.discount_rate, 5))
+            (input.fcf_per_share * power(1 + input.dcf_growth_rate, 1) / power(1 + input.discount_rate, 1))
+            + (input.fcf_per_share * power(1 + input.dcf_growth_rate, 2) / power(1 + input.discount_rate, 2))
+            + (input.fcf_per_share * power(1 + input.dcf_growth_rate, 3) / power(1 + input.discount_rate, 3))
+            + (input.fcf_per_share * power(1 + input.dcf_growth_rate, 4) / power(1 + input.discount_rate, 4))
+            + (input.fcf_per_share * power(1 + input.dcf_growth_rate, 5) / power(1 + input.discount_rate, 5))
             + (
                 input.fcf_per_share
-                * power(1 + input.growth_rate, 5)
+                * power(1 + input.dcf_growth_rate, 5)
                 * (1 + input.terminal_growth_rate)
                 / (input.discount_rate - input.terminal_growth_rate)
                 / power(1 + input.discount_rate, 5)
