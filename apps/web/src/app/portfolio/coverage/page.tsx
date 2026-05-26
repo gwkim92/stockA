@@ -123,6 +123,23 @@ function candidateDirectionLabel(direction: string) {
   return koCode(direction);
 }
 
+function sizingBandClass(reviewBand: string) {
+  if (reviewBand === "reduce_review") {
+    return "risk-high";
+  }
+  if (reviewBand === "add_blocked_until_evidence") {
+    return "risk-medium";
+  }
+  return "risk-low";
+}
+
+function formatScore(value: number | null | undefined) {
+  if (value === null || value === undefined) {
+    return "없음";
+  }
+  return `${Math.round(value * 100)}점`;
+}
+
 type ExposureRow = {
   exposure_key: string;
   exposure_name: string;
@@ -176,6 +193,7 @@ export default async function PortfolioCoveragePage() {
   const allocationPolicy = data.allocation_policy;
   const riskBudget = data.risk_budget;
   const candidateReview = riskBudget.rebalance_candidate_review;
+  const positionSizingReview = riskBudget.position_sizing_review;
   const concentration = riskBudget.concentration;
   const hasPositions = data.positions.length > 0;
   const investedWeight = Math.max(0, 1 - (data.summary.cash_weight ?? 0));
@@ -411,6 +429,106 @@ export default async function PortfolioCoveragePage() {
                         {candidate.rationale}
                         <small style={{ display: "block", color: "var(--text-secondary)", marginTop: "4px" }}>
                           {koCode(candidate.order_boundary)}
+                        </small>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </article>
+
+        <article className="bento-card span-4" style={{ borderColor: positionSizingReview.review_required_count > 0 ? "var(--accent-amber)" : "var(--border-light)" }}>
+          <div className="section-heading">
+            <div>
+              <span className="metric-sub">포지션 크기 검토</span>
+              <h2>이 비중을 더 키워도 되는지, 줄여야 하는지 본다</h2>
+            </div>
+            <span className={`risk-tag ${positionSizingReview.review_required_count > 0 ? "risk-medium" : "risk-low"}`}>
+              {koCode(positionSizingReview.status)}
+            </span>
+          </div>
+          <p style={{ color: "var(--text-secondary)", marginTop: 0 }}>
+            현재 보유 비중을 투자 논리, 기업 분석, 밸류에이션, 벤치마크 괴리와 함께 묶어 본다.
+            여기서 나오는 값은 주문 목표가 아니라 증액 금지, 축소 검토, 유지 검토를 구분하는 읽기 전용 검토 범위다.
+          </p>
+          <div className="status-rail compact-rail" aria-label="포지션 크기 검토 요약" style={{ marginBottom: "20px" }}>
+            <article className="rail-cell rail-critical">
+              <span>축소 검토</span>
+              <strong>{positionSizingReview.reduce_review_count}</strong>
+              <small>한도 또는 벤치마크 괴리</small>
+            </article>
+            <article className="rail-cell">
+              <span>증거 보강 전 증액 금지</span>
+              <strong>{positionSizingReview.add_blocked_until_evidence_count}</strong>
+              <small>논리·재무·밸류에이션 gap</small>
+            </article>
+            <article className="rail-cell">
+              <span>작은 비중 관찰</span>
+              <strong>{positionSizingReview.watch_small_position_count}</strong>
+              <small>{formatPercent(positionSizingReview.min_rebalance_target_weight)} 미만</small>
+            </article>
+            <article className="rail-cell">
+              <span>주문 경계</span>
+              <strong>{koCode(positionSizingReview.order_boundary)}</strong>
+              <small>주문 전송 {positionSizingReview.broker_submit_allowed ? "허용" : "금지"}</small>
+            </article>
+          </div>
+          {positionSizingReview.candidates.length === 0 ? (
+            <p className="empty-state" style={{ margin: 0 }}>
+              보유 포지션이 없어 포지션 크기 검토를 만들 수 없다.
+            </p>
+          ) : (
+            <div className="ledger-table-wrap">
+              <table className="ledger-table data-health-table">
+                <thead>
+                  <tr>
+                    <th scope="col">순위</th>
+                    <th scope="col">종목</th>
+                    <th scope="col">판정</th>
+                    <th scope="col">현재/벤치마크</th>
+                    <th scope="col">기업 근거</th>
+                    <th scope="col">판단 이유</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {positionSizingReview.candidates.map((candidate) => (
+                    <tr key={`${candidate.priority}-${candidate.symbol}-${candidate.review_band}`}>
+                      <td>{candidate.priority.toString().padStart(2, "0")}</td>
+                      <td>
+                        <strong>{candidate.symbol}</strong>
+                        <small style={{ display: "block", color: "var(--text-secondary)" }}>
+                          검토 상한 {formatPercent(candidate.review_ceiling_weight)}
+                        </small>
+                      </td>
+                      <td>
+                        <span className={`risk-tag ${sizingBandClass(candidate.review_band)}`}>
+                          {koCode(candidate.review_band)}
+                        </span>
+                        <small style={{ display: "block", color: "var(--text-secondary)", marginTop: "4px" }}>
+                          {koCode(candidate.professional_analysis_status)}
+                        </small>
+                      </td>
+                      <td>
+                        {formatPercent(candidate.current_weight)} / {formatPercent(candidate.benchmark_weight)}
+                        <small style={{ display: "block", color: "var(--text-secondary)", marginTop: "4px" }}>
+                          괴리 {formatPercent(candidate.active_weight)}
+                        </small>
+                      </td>
+                      <td>
+                        재무 {formatScore(candidate.fundamental_quality_score)} · 밸류 {formatScore(candidate.valuation_margin_score)}
+                        <small style={{ display: "block", color: "var(--text-secondary)", marginTop: "4px" }}>
+                          안전마진 {formatPercent(candidate.valuation_margin_of_safety)} · 리서치 {candidate.equity_research_artifact_id ? "있음" : "없음"}
+                        </small>
+                      </td>
+                      <td>
+                        {candidate.rationale}
+                        <small style={{ display: "block", color: "var(--text-secondary)", marginTop: "6px" }}>
+                          막는 이유: {candidate.blocking_factors.map((factor) => koCode(factor)).join(", ") || "없음"}
+                        </small>
+                        <small style={{ display: "block", color: "var(--text-secondary)", marginTop: "2px" }}>
+                          받치는 근거: {candidate.supporting_factors.map((factor) => koCode(factor)).join(", ") || "없음"}
                         </small>
                       </td>
                     </tr>

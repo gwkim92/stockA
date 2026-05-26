@@ -19,6 +19,7 @@ from stockanalysis.frontend.live_adapter import (
     render_frontend_event_list_state_sql,
     render_frontend_paper_trading_preview_state_sql,
     render_frontend_portfolio_concentration_state_sql,
+    render_frontend_portfolio_position_sizing_context_state_sql,
     render_frontend_recommendation_list_state_sql,
     render_frontend_recommendation_detail_state_sql,
     render_frontend_source_document_detail_state_sql,
@@ -738,6 +739,66 @@ class FakeLiveExecutor:
                             },
                         ],
                     },
+                }
+            )
+        if sql.startswith("-- frontend portfolio position sizing context lookup"):
+            return json.dumps(
+                {
+                    "portfolio_name": "Long Term Paper",
+                    "snapshot_date": "2024-11-01",
+                    "positions": [
+                        {
+                            "symbol": "AAPL",
+                            "instrument_id": 501,
+                            "weight": "0.0500",
+                            "linked_thesis_id": 7001,
+                            "recommendation_id": 7101,
+                            "recommendation_action": "monitor_or_accumulate",
+                            "recommendation_score": "0.7300",
+                            "recommended_weight": "0.0500",
+                            "recommendation_as_of_date": "2024-11-01",
+                            "components": {
+                                "fundamental_quality_score": "0.6750",
+                                "valuation_margin_score": "0.3990",
+                                "peer_relative_score": "0.6100",
+                                "balance_sheet_risk_penalty": "0.7200",
+                                "thesis_consistency_score": "0.8000",
+                            },
+                            "valuation": {
+                                "as_of_date": "2024-11-01",
+                                "method_count": 3,
+                                "margin_of_safety": "0.1250",
+                                "confidence": "0.6800",
+                                "methods": [],
+                            },
+                            "equity_research": {
+                                "artifact_id": 1201,
+                                "as_of_date": "2024-11-01",
+                                "provider": "codex_oauth",
+                                "model_name": "codex-oauth",
+                                "title": "AAPL full research",
+                                "korean_summary": "AAPL은 재무 품질과 현금흐름이 안정적이다.",
+                            },
+                        },
+                        {
+                            "symbol": "BABA",
+                            "instrument_id": 502,
+                            "weight": "0.0300",
+                            "linked_thesis_id": None,
+                            "components": {
+                                "fundamental_quality_score": None,
+                                "valuation_margin_score": None,
+                                "peer_relative_score": None,
+                                "balance_sheet_risk_penalty": None,
+                                "thesis_consistency_score": None,
+                            },
+                            "valuation": {
+                                "method_count": 0,
+                                "methods": [],
+                            },
+                            "equity_research": {},
+                        },
+                    ],
                 }
             )
         if sql.startswith("-- frontend cycle map state lookup"):
@@ -3809,12 +3870,42 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertEqual(review["candidate_count"], 2)
         self.assertEqual(review["candidates"][0]["symbol"], "TSLA")
         self.assertEqual(review["candidates"][0]["order_boundary"], "read_only_no_order")
+        sizing = payload["data"]["risk_budget"]["position_sizing_review"]
+        self.assertEqual(sizing["status"], "review_required")
+        self.assertEqual(sizing["candidate_count"], 2)
+        self.assertEqual(sizing["review_required_count"], 1)
+        self.assertFalse(sizing["automatic_order_allowed"])
+        self.assertFalse(sizing["broker_submit_allowed"])
+        self.assertEqual(sizing["order_boundary"], "read_only_no_order")
+        self.assertEqual(sizing["candidates"][0]["symbol"], "BABA")
+        self.assertEqual(sizing["candidates"][0]["review_band"], "add_blocked_until_evidence")
+        self.assertIn("thesis_missing", sizing["candidates"][0]["blocking_factors"])
+        self.assertEqual(sizing["candidates"][1]["symbol"], "AAPL")
+        self.assertEqual(sizing["candidates"][1]["review_band"], "watch_small_position")
+        self.assertEqual(sizing["candidates"][1]["equity_research_artifact_id"], "equity-research-artifact-1201")
+        self.assertIn("positive_margin_of_safety", sizing["candidates"][1]["supporting_factors"])
         self.assertEqual(payload["data"]["positions"][0]["active_thesis_id"], "thesis-7001")
         self.assertEqual(payload["data"]["positions"][0]["outcome_status"], "measured")
         self.assertEqual(payload["data"]["positions"][0]["position_size_status"], "below_rebalance_floor")
         self.assertEqual(payload["data"]["positions"][0]["weight_to_single_position_limit"], 0.2)
         self.assertEqual(payload["data"]["positions"][1]["action"], "needs_thesis_review")
         self.assertEqual(payload["data"]["attribution_readiness"]["blocking_reasons"], ["missing_thesis:BABA"])
+
+    def test_portfolio_position_sizing_context_sql_is_read_only_professional_context(self) -> None:
+        sql = render_frontend_portfolio_position_sizing_context_state_sql(
+            portfolio_name="Long Term Paper",
+            snapshot_date=date(2026, 5, 26),
+        )
+
+        self.assertTrue(sql.startswith("-- frontend portfolio position sizing context lookup"))
+        self.assertIn("market.valuation_snapshot", sql)
+        self.assertIn("research.equity_research_artifact", sql)
+        self.assertIn("signal.recommendation_score_component", sql)
+        self.assertIn("'fundamental_quality_score'", sql)
+        self.assertIn("'valuation_margin_score'", sql)
+        self.assertNotIn("insert into", sql.lower())
+        self.assertNotIn("update ", sql.lower())
+        self.assertNotIn("delete from", sql.lower())
 
     def test_live_portfolio_coverage_returns_empty_state_when_snapshot_is_missing(self) -> None:
         payload = resolve_live_frontend_response(

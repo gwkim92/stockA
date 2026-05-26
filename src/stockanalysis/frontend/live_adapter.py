@@ -1875,6 +1875,16 @@ def build_live_portfolio_coverage_response(
         executor=executor,
         portfolio_name=portfolio_name,
     )
+    position_sizing_context = (
+        {"positions": []}
+        if missing_position_snapshot or not positions
+        else load_frontend_portfolio_position_sizing_context_state(
+            config=config,
+            executor=executor,
+            portfolio_name=portfolio_name,
+            snapshot_date=effective_snapshot_date,
+        )
+    )
     blocking_reasons = [
         f"{position['coverage_status']}:{position['symbol']}"
         for position in positions
@@ -1916,6 +1926,7 @@ def build_live_portfolio_coverage_response(
                 cash_weight=_number(report.get("cash_weight")),
                 missing_position_snapshot=missing_position_snapshot,
                 risk_budget_guardrail=risk_budget_guardrail,
+                position_sizing_context=position_sizing_context,
             ),
             "positions": positions,
             "attribution_readiness": {
@@ -1962,6 +1973,200 @@ def load_frontend_portfolio_risk_budget_guardrail_state(
         ),
         "Frontend portfolio risk budget guardrail lookup",
     )
+
+
+def load_frontend_portfolio_position_sizing_context_state(
+    *,
+    config: RuntimeConfig,
+    executor: PsqlCommandExecutor | None,
+    portfolio_name: str,
+    snapshot_date: date,
+) -> dict[str, Any]:
+    sql_executor = executor or PsqlCommandExecutor.from_config(config)
+    return json_loads_object(
+        sql_executor.execute_scalar(
+            render_frontend_portfolio_position_sizing_context_state_sql(
+                portfolio_name=portfolio_name,
+                snapshot_date=snapshot_date,
+            )
+        ),
+        "Frontend portfolio position sizing context lookup",
+    )
+
+
+def render_frontend_portfolio_position_sizing_context_state_sql(*, portfolio_name: str, snapshot_date: date) -> str:
+    return f"""-- frontend portfolio position sizing context lookup
+with selected_portfolio as (
+    select portfolio_id, portfolio_name
+    from portfolio.portfolio
+    where portfolio_name = {sql_literal(portfolio_name)}
+    limit 1
+),
+position_rows as (
+    select
+        portfolio.portfolio_id,
+        portfolio.portfolio_name,
+        position.instrument_id,
+        instrument.primary_symbol,
+        position.weight as position_weight,
+        position.linked_thesis_id
+    from selected_portfolio portfolio
+    join portfolio.position_snapshot position on position.portfolio_id = portfolio.portfolio_id
+    join ref.instrument instrument on instrument.instrument_id = position.instrument_id
+    where position.snapshot_date = {sql_date(snapshot_date)}
+      and position.quantity <> 0
+),
+latest_recommendation as (
+    select distinct on (recommendation.instrument_id)
+        recommendation.instrument_id,
+        recommendation.recommendation_id,
+        recommendation.action,
+        recommendation.total_score,
+        recommendation.recommended_weight,
+        recommendation.thesis_id,
+        batch.as_of_date as recommendation_as_of_date
+    from signal.recommendation recommendation
+    join signal.recommendation_batch batch on batch.batch_id = recommendation.batch_id
+    join position_rows position on position.instrument_id = recommendation.instrument_id
+    where coalesce(recommendation.status, 'active') = 'active'
+      and batch.as_of_date <= {sql_date(snapshot_date)}
+    order by
+        recommendation.instrument_id,
+        batch.as_of_date desc,
+        recommendation.recommendation_id desc
+),
+component_summary as (
+    select
+        recommendation.instrument_id,
+        max(component.component_score) filter (where component.component_name = 'fundamental_quality_score') as fundamental_quality_score,
+        max(component.component_score) filter (where component.component_name = 'valuation_margin_score') as valuation_margin_score,
+        max(component.component_score) filter (where component.component_name = 'peer_relative_score') as peer_relative_score,
+        max(component.component_score) filter (where component.component_name = 'balance_sheet_risk_penalty') as balance_sheet_risk_penalty,
+        max(component.component_score) filter (where component.component_name = 'thesis_consistency_score') as thesis_consistency_score
+    from latest_recommendation recommendation
+    left join signal.recommendation_score_component component
+      on component.recommendation_id = recommendation.recommendation_id
+    group by recommendation.instrument_id
+),
+latest_valuation_method as (
+    select distinct on (valuation.instrument_id, valuation.method)
+        valuation.instrument_id,
+        valuation.as_of_date,
+        valuation.method,
+        valuation.base_price,
+        valuation.fair_value_low,
+        valuation.fair_value_base,
+        valuation.fair_value_high,
+        valuation.margin_of_safety,
+        valuation.confidence
+    from market.valuation_snapshot valuation
+    join position_rows position on position.instrument_id = valuation.instrument_id
+    where valuation.as_of_date <= {sql_date(snapshot_date)}
+    order by
+        valuation.instrument_id,
+        valuation.method,
+        valuation.as_of_date desc,
+        valuation.valuation_snapshot_id desc
+),
+valuation_summary as (
+    select
+        instrument_id,
+        max(as_of_date) as valuation_as_of_date,
+        count(*)::int as method_count,
+        avg(margin_of_safety) filter (where margin_of_safety is not null) as margin_of_safety,
+        avg(confidence) filter (where confidence is not null) as confidence,
+        json_agg(
+            json_build_object(
+                'method', method,
+                'as_of_date', as_of_date,
+                'base_price', base_price,
+                'fair_value_low', fair_value_low,
+                'fair_value_base', fair_value_base,
+                'fair_value_high', fair_value_high,
+                'margin_of_safety', margin_of_safety,
+                'confidence', confidence
+            )
+            order by method
+        ) as methods
+    from latest_valuation_method
+    group by instrument_id
+),
+latest_equity_research as (
+    select distinct on (artifact.instrument_id)
+        artifact.instrument_id,
+        artifact.artifact_id,
+        artifact.as_of_date,
+        artifact.provider,
+        artifact.model_name,
+        artifact.title,
+        artifact.korean_summary,
+        artifact.created_at
+    from research.equity_research_artifact artifact
+    join position_rows position on position.instrument_id = artifact.instrument_id
+    where artifact.artifact_type = 'full_equity_research'
+      and artifact.as_of_date <= {sql_date(snapshot_date)}
+    order by
+        artifact.instrument_id,
+        artifact.as_of_date desc,
+        case artifact.provider when 'codex_oauth' then 0 when 'fixture' then 1 else 2 end,
+        artifact.artifact_id desc
+)
+select json_build_object(
+    'portfolio_name', coalesce((select portfolio_name from selected_portfolio), {sql_literal(portfolio_name)}),
+    'snapshot_date', {sql_date(snapshot_date)},
+    'positions',
+    coalesce(
+        (
+            select json_agg(
+                json_strip_nulls(json_build_object(
+                    'symbol', position.primary_symbol,
+                    'instrument_id', position.instrument_id,
+                    'weight', position.position_weight,
+                    'linked_thesis_id', position.linked_thesis_id,
+                    'recommendation_id', recommendation.recommendation_id,
+                    'recommendation_action', recommendation.action,
+                    'recommendation_score', recommendation.total_score,
+                    'recommended_weight', recommendation.recommended_weight,
+                    'recommendation_as_of_date', recommendation.recommendation_as_of_date,
+                    'components', json_build_object(
+                        'fundamental_quality_score', component.fundamental_quality_score,
+                        'valuation_margin_score', component.valuation_margin_score,
+                        'peer_relative_score', component.peer_relative_score,
+                        'balance_sheet_risk_penalty', component.balance_sheet_risk_penalty,
+                        'thesis_consistency_score', component.thesis_consistency_score
+                    ),
+                    'valuation', json_build_object(
+                        'as_of_date', valuation.valuation_as_of_date,
+                        'method_count', coalesce(valuation.method_count, 0),
+                        'margin_of_safety', valuation.margin_of_safety,
+                        'confidence', valuation.confidence,
+                        'methods', coalesce(valuation.methods, '[]'::json)
+                    ),
+                    'equity_research', json_build_object(
+                        'artifact_id', research.artifact_id,
+                        'as_of_date', research.as_of_date,
+                        'provider', research.provider,
+                        'model_name', research.model_name,
+                        'title', research.title,
+                        'korean_summary', research.korean_summary,
+                        'created_at', research.created_at
+                    )
+                ))
+                order by position.position_weight desc nulls last, position.primary_symbol
+            )
+            from position_rows position
+            left join latest_recommendation recommendation
+              on recommendation.instrument_id = position.instrument_id
+            left join component_summary component
+              on component.instrument_id = position.instrument_id
+            left join valuation_summary valuation
+              on valuation.instrument_id = position.instrument_id
+            left join latest_equity_research research
+              on research.instrument_id = position.instrument_id
+        ),
+        '[]'::json
+    )
+)::text;"""
 
 
 def render_frontend_portfolio_risk_budget_guardrail_state_sql(*, portfolio_name: str) -> str:
@@ -9223,6 +9428,7 @@ def _build_portfolio_risk_budget_payload(
     cash_weight: float | None,
     missing_position_snapshot: bool,
     risk_budget_guardrail: dict[str, Any],
+    position_sizing_context: dict[str, Any],
 ) -> dict[str, Any]:
     max_single_position_weight = _number(allocation_policy.get("max_single_position_weight"))
     min_rebalance_target_weight = _number(allocation_policy.get("min_rebalance_target_weight"))
@@ -9250,6 +9456,15 @@ def _build_portfolio_risk_budget_payload(
         concentration_state=concentration_state,
         allocation_policy=allocation_policy,
         missing_position_snapshot=missing_position_snapshot,
+    )
+    rebalance_candidate_review = _build_benchmark_rebalance_candidate_review_payload(risk_budget_guardrail)
+    position_sizing_review = _build_position_sizing_review_payload(
+        positions=positions,
+        allocation_policy=allocation_policy,
+        cash_weight=cash_weight,
+        missing_position_snapshot=missing_position_snapshot,
+        rebalance_candidate_review=rebalance_candidate_review,
+        position_sizing_context=position_sizing_context,
     )
     status = "within_budget"
     if missing_position_snapshot or not positions:
@@ -9284,9 +9499,318 @@ def _build_portfolio_risk_budget_payload(
             positions=positions,
             concentration=concentration,
         ),
-        "rebalance_candidate_review": _build_benchmark_rebalance_candidate_review_payload(risk_budget_guardrail),
+        "rebalance_candidate_review": rebalance_candidate_review,
+        "position_sizing_review": position_sizing_review,
         "review_reasons": reasons,
     }
+
+
+def _build_position_sizing_review_payload(
+    *,
+    positions: list[dict[str, Any]],
+    allocation_policy: dict[str, Any],
+    cash_weight: float | None,
+    missing_position_snapshot: bool,
+    rebalance_candidate_review: dict[str, Any],
+    position_sizing_context: dict[str, Any],
+) -> dict[str, Any]:
+    max_single_position_weight = _number(allocation_policy.get("max_single_position_weight"))
+    min_rebalance_target_weight = _number(allocation_policy.get("min_rebalance_target_weight"))
+    context_by_symbol = {
+        str(item.get("symbol") or "").upper(): item
+        for item in _as_list(position_sizing_context.get("positions"))
+        if item.get("symbol")
+    }
+    active_by_symbol = {
+        str(item.get("symbol") or "").upper(): item
+        for item in _as_list(rebalance_candidate_review.get("candidates"))
+        if item.get("symbol")
+    }
+
+    candidates = [
+        _build_position_sizing_candidate_payload(
+            position=position,
+            context=_as_dict(context_by_symbol.get(position["symbol"])),
+            active_candidate=_as_dict(active_by_symbol.get(position["symbol"])),
+            max_single_position_weight=max_single_position_weight,
+            min_rebalance_target_weight=min_rebalance_target_weight,
+        )
+        for position in positions
+    ]
+    candidates.sort(
+        key=lambda item: (
+            {"reduce_review": 0, "add_blocked_until_evidence": 1, "watch_small_position": 2, "hold_review": 3}.get(
+                item["review_band"],
+                4,
+            ),
+            -abs(item.get("active_weight") or 0),
+            -(item.get("current_weight") or 0),
+            item["symbol"],
+        )
+    )
+    candidates = [{**item, "priority": index + 1} for index, item in enumerate(candidates)]
+    band_counts = _normalize_count_map(
+        _count_by(candidates, "review_band"),
+        keys=("reduce_review", "add_blocked_until_evidence", "watch_small_position", "hold_review"),
+    )
+    review_required_count = band_counts["reduce_review"] + band_counts["add_blocked_until_evidence"]
+
+    if missing_position_snapshot:
+        status = "missing_position_snapshot"
+    elif not positions:
+        status = "no_positions"
+    elif review_required_count:
+        status = "review_required"
+    elif band_counts["watch_small_position"]:
+        status = "watch_only"
+    else:
+        status = "within_policy"
+
+    return {
+        "status": status,
+        "policy_name": str(allocation_policy.get("policy_name") or ""),
+        "candidate_count": len(candidates),
+        "review_required_count": review_required_count,
+        "reduce_review_count": band_counts["reduce_review"],
+        "add_blocked_until_evidence_count": band_counts["add_blocked_until_evidence"],
+        "watch_small_position_count": band_counts["watch_small_position"],
+        "hold_review_count": band_counts["hold_review"],
+        "max_single_position_weight": max_single_position_weight,
+        "min_rebalance_target_weight": min_rebalance_target_weight,
+        "cash_weight": cash_weight,
+        "automatic_order_allowed": False,
+        "broker_submit_allowed": False,
+        "order_boundary": "read_only_no_order",
+        "candidates": candidates,
+        "next_actions": _position_sizing_next_actions(status),
+    }
+
+
+def _build_position_sizing_candidate_payload(
+    *,
+    position: dict[str, Any],
+    context: dict[str, Any],
+    active_candidate: dict[str, Any],
+    max_single_position_weight: float | None,
+    min_rebalance_target_weight: float | None,
+) -> dict[str, Any]:
+    symbol = position["symbol"]
+    current_weight = _number(position.get("weight"))
+    benchmark_weight = _number(active_candidate.get("benchmark_weight"))
+    active_weight = _number(active_candidate.get("active_weight"))
+    components = _as_dict(context.get("components"))
+    valuation = _as_dict(context.get("valuation"))
+    equity_research = _as_dict(context.get("equity_research"))
+
+    fundamental_quality_score = _number(components.get("fundamental_quality_score"))
+    valuation_margin_score = _number(components.get("valuation_margin_score"))
+    peer_relative_score = _number(components.get("peer_relative_score"))
+    balance_sheet_risk_penalty = _number(components.get("balance_sheet_risk_penalty"))
+    thesis_consistency_score = _number(components.get("thesis_consistency_score"))
+    margin_of_safety = _number(valuation.get("margin_of_safety"))
+    valuation_method_count = int(valuation.get("method_count") or 0)
+    research_artifact_id = equity_research.get("artifact_id")
+    thesis_status = "connected" if position.get("active_thesis_id") else "missing"
+    professional_analysis_status = _professional_analysis_status(
+        valuation_method_count=valuation_method_count,
+        research_artifact_id=research_artifact_id,
+        fundamental_quality_score=fundamental_quality_score,
+    )
+
+    blocking_factors: list[str] = []
+    supporting_factors: list[str] = []
+    if thesis_status == "missing":
+        blocking_factors.append("thesis_missing")
+    else:
+        supporting_factors.append("thesis_connected")
+    if position.get("position_size_status") == "over_single_position_limit":
+        blocking_factors.append("over_single_position_limit")
+    if active_weight is not None and active_weight >= 0.10:
+        blocking_factors.append("active_overweight_review")
+    if valuation_method_count <= 0:
+        blocking_factors.append("valuation_unavailable")
+    elif margin_of_safety is not None and margin_of_safety < 0:
+        blocking_factors.append("negative_margin_of_safety")
+    elif margin_of_safety is not None and margin_of_safety >= 0.10:
+        supporting_factors.append("positive_margin_of_safety")
+    if fundamental_quality_score is None:
+        blocking_factors.append("fundamental_component_unavailable")
+    elif fundamental_quality_score >= 0.65:
+        supporting_factors.append("fundamental_quality_supportive")
+    if research_artifact_id:
+        supporting_factors.append("equity_research_available")
+    else:
+        blocking_factors.append("equity_research_unavailable")
+
+    review_band = _position_sizing_review_band(
+        position_size_status=str(position.get("position_size_status") or ""),
+        current_weight=current_weight,
+        min_rebalance_target_weight=min_rebalance_target_weight,
+        active_weight=active_weight,
+        thesis_status=thesis_status,
+        valuation_method_count=valuation_method_count,
+        fundamental_quality_score=fundamental_quality_score,
+    )
+    severity = {
+        "reduce_review": "high",
+        "add_blocked_until_evidence": "medium",
+        "watch_small_position": "watch",
+        "hold_review": "low",
+    }.get(review_band, "watch")
+
+    return {
+        "priority": 0,
+        "symbol": symbol,
+        "instrument_id": position.get("instrument_id"),
+        "current_weight": current_weight,
+        "benchmark_weight": benchmark_weight,
+        "active_weight": active_weight,
+        "position_size_status": str(position.get("position_size_status") or ""),
+        "thesis_status": thesis_status,
+        "professional_analysis_status": professional_analysis_status,
+        "review_band": review_band,
+        "severity": severity,
+        "policy_ceiling_weight": max_single_position_weight,
+        "review_ceiling_weight": _position_sizing_review_ceiling(
+            max_single_position_weight=max_single_position_weight,
+            benchmark_weight=benchmark_weight,
+            active_weight=active_weight,
+        ),
+        "fundamental_quality_score": fundamental_quality_score,
+        "valuation_margin_score": valuation_margin_score,
+        "peer_relative_score": peer_relative_score,
+        "balance_sheet_risk_penalty": balance_sheet_risk_penalty,
+        "thesis_consistency_score": thesis_consistency_score,
+        "valuation_margin_of_safety": margin_of_safety,
+        "valuation_method_count": valuation_method_count,
+        "valuation_as_of_date": str(valuation.get("as_of_date") or ""),
+        "equity_research_artifact_id": _opaque_id("equity-research-artifact", research_artifact_id, None),
+        "equity_research_as_of_date": str(equity_research.get("as_of_date") or ""),
+        "blocking_factors": blocking_factors,
+        "supporting_factors": supporting_factors,
+        "rationale": _position_sizing_rationale(
+            symbol=symbol,
+            review_band=review_band,
+            current_weight=current_weight,
+            benchmark_weight=benchmark_weight,
+            active_weight=active_weight,
+            thesis_status=thesis_status,
+            professional_analysis_status=professional_analysis_status,
+        ),
+        "automatic_order_allowed": False,
+        "broker_submit_allowed": False,
+        "order_boundary": "read_only_no_order",
+    }
+
+
+def _professional_analysis_status(
+    *,
+    valuation_method_count: int,
+    research_artifact_id: Any,
+    fundamental_quality_score: float | None,
+) -> str:
+    if valuation_method_count > 0 and research_artifact_id and fundamental_quality_score is not None:
+        return "complete"
+    if valuation_method_count > 0 or research_artifact_id or fundamental_quality_score is not None:
+        return "partial"
+    return "missing"
+
+
+def _position_sizing_review_band(
+    *,
+    position_size_status: str,
+    current_weight: float | None,
+    min_rebalance_target_weight: float | None,
+    active_weight: float | None,
+    thesis_status: str,
+    valuation_method_count: int,
+    fundamental_quality_score: float | None,
+) -> str:
+    if position_size_status == "over_single_position_limit":
+        return "reduce_review"
+    if active_weight is not None and active_weight >= 0.10:
+        return "reduce_review"
+    if thesis_status == "missing" or valuation_method_count <= 0 or fundamental_quality_score is None:
+        return "add_blocked_until_evidence"
+    if (
+        current_weight is not None
+        and min_rebalance_target_weight is not None
+        and current_weight < min_rebalance_target_weight
+    ):
+        return "watch_small_position"
+    return "hold_review"
+
+
+def _position_sizing_review_ceiling(
+    *,
+    max_single_position_weight: float | None,
+    benchmark_weight: float | None,
+    active_weight: float | None,
+) -> float | None:
+    if max_single_position_weight is None:
+        return None
+    if benchmark_weight is not None and active_weight is not None and active_weight > 0:
+        return round(min(max_single_position_weight, benchmark_weight + 0.10), 6)
+    return max_single_position_weight
+
+
+def _position_sizing_rationale(
+    *,
+    symbol: str,
+    review_band: str,
+    current_weight: float | None,
+    benchmark_weight: float | None,
+    active_weight: float | None,
+    thesis_status: str,
+    professional_analysis_status: str,
+) -> str:
+    current = "미측정" if current_weight is None else f"{current_weight:.1%}"
+    benchmark = "벤치마크 없음" if benchmark_weight is None else f"벤치마크 {benchmark_weight:.1%}"
+    active = "active weight 없음" if active_weight is None else f"active weight {active_weight:+.1%}"
+    if review_band == "reduce_review":
+        return (
+            f"{symbol}는 현재 비중 {current}, {benchmark}, {active} 상태다. "
+            "단일 종목 한도와 active risk가 크므로 추가 매수는 막고 축소 여부만 검토한다."
+        )
+    if review_band == "add_blocked_until_evidence":
+        return (
+            f"{symbol}는 현재 비중 {current}이지만 thesis 상태는 {thesis_status}, "
+            f"기업 분석 상태는 {professional_analysis_status}이다. 증거가 채워지기 전에는 비중 확대 후보로 쓰지 않는다."
+        )
+    if review_band == "watch_small_position":
+        return (
+            f"{symbol}는 현재 비중 {current}으로 리밸런싱 기준보다 작다. "
+            "투자 논리와 밸류에이션이 유지되는지 확인한 뒤 관찰 대상으로 둔다."
+        )
+    return (
+        f"{symbol}는 현재 비중 {current}이고 핵심 증거가 연결되어 있다. "
+        "자동 주문 없이 기존 보유 논리와 다음 성과 측정 결과를 계속 확인한다."
+    )
+
+
+def _position_sizing_next_actions(status: str) -> list[str]:
+    if status == "review_required":
+        return [
+            "reduce_review 후보는 추가 매수를 막고 thesis, valuation, 세금/비용, 대체 후보를 먼저 확인한다.",
+            "add_blocked_until_evidence 후보는 재무·밸류에이션·리서치 근거가 채워질 때까지 비중 확대 후보로 쓰지 않는다.",
+        ]
+    if status == "watch_only":
+        return ["큰 차단 항목은 없지만 작은 비중 후보는 thesis 유효성과 성과 측정 window를 계속 본다."]
+    if status == "within_policy":
+        return ["포지션 크기 검토상 큰 차단 항목은 없다. 정기 thesis와 성과 검증을 유지한다."]
+    if status == "missing_position_snapshot":
+        return ["포지션 스냅샷을 먼저 적재해야 포지션 크기 검토가 가능하다."]
+    return ["보유 포지션이 없어 포지션 크기 검토 후보가 없다."]
+
+
+def _count_by(items: list[dict[str, Any]], key: str) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for item in items:
+        value = str(item.get(key) or "")
+        if not value:
+            continue
+        counts[value] = counts.get(value, 0) + 1
+    return counts
 
 
 def _build_portfolio_concentration_payload(

@@ -1224,6 +1224,7 @@ export type PortfolioCoverageData = {
       order_boundary: string;
     }>;
     rebalance_candidate_review: BenchmarkRebalanceCandidateReview;
+    position_sizing_review: PositionSizingReview;
     review_reasons: string[];
   };
   positions: Array<{
@@ -1273,6 +1274,57 @@ export type BenchmarkRebalanceCandidate = {
   severity: "high" | "medium" | "watch" | string;
   suggested_review_action: string;
   rationale: string;
+  order_boundary: string;
+};
+
+export type PositionSizingReview = {
+  status: string;
+  policy_name: string;
+  candidate_count: number;
+  review_required_count: number;
+  reduce_review_count: number;
+  add_blocked_until_evidence_count: number;
+  watch_small_position_count: number;
+  hold_review_count: number;
+  max_single_position_weight: number | null;
+  min_rebalance_target_weight: number | null;
+  cash_weight: number | null;
+  automatic_order_allowed: boolean;
+  broker_submit_allowed: boolean;
+  order_boundary: string;
+  candidates: PositionSizingCandidate[];
+  next_actions: string[];
+};
+
+export type PositionSizingCandidate = {
+  priority: number;
+  symbol: string;
+  instrument_id: string;
+  current_weight: number | null;
+  benchmark_weight: number | null;
+  active_weight: number | null;
+  position_size_status: string;
+  thesis_status: string;
+  professional_analysis_status: string;
+  review_band: string;
+  severity: "high" | "medium" | "watch" | "low" | string;
+  policy_ceiling_weight: number | null;
+  review_ceiling_weight: number | null;
+  fundamental_quality_score: number | null;
+  valuation_margin_score: number | null;
+  peer_relative_score: number | null;
+  balance_sheet_risk_penalty: number | null;
+  thesis_consistency_score: number | null;
+  valuation_margin_of_safety: number | null;
+  valuation_method_count: number;
+  valuation_as_of_date: string;
+  equity_research_artifact_id: string | null;
+  equity_research_as_of_date: string;
+  blocking_factors: string[];
+  supporting_factors: string[];
+  rationale: string;
+  automatic_order_allowed: boolean;
+  broker_submit_allowed: boolean;
   order_boundary: string;
 };
 
