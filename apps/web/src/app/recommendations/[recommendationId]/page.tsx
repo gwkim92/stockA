@@ -22,6 +22,8 @@ function formatPercent(value: number) {
 
 type ScoreComponent = RecommendationDetailData["score_components"][number];
 type IndustryCompetitivePosition = NonNullable<RecommendationDetailData["industry_competitive_position"]>;
+type FinancialStatementModel = RecommendationDetailData["financial_statement_model"];
+type FinancialMetricSnapshot = FinancialStatementModel["metrics"][number];
 
 function isZeroWeight(value: number) {
   return Math.abs(Number(value)) < 0.000001;
@@ -218,6 +220,42 @@ function formatOptionalPercent(value: number | null | undefined) {
   return formatPercent(value);
 }
 
+function formatCompactNumber(value: number | null | undefined) {
+  if (value === null || value === undefined) {
+    return "없음";
+  }
+  return new Intl.NumberFormat("ko-KR", {
+    notation: "compact",
+    maximumFractionDigits: 2,
+  }).format(value);
+}
+
+function formatFinancialMetricValue(metric: FinancialMetricSnapshot) {
+  if (metric.metric_value === null) {
+    if (metric.metric_status === "insufficient_history") {
+      return "비교 기간 부족";
+    }
+    return "원천 데이터 부족";
+  }
+  if (metric.metric_unit === "ratio") {
+    return formatPercent(metric.metric_value);
+  }
+  return formatCompactNumber(metric.metric_value);
+}
+
+function financialMetricTone(metric: FinancialMetricSnapshot) {
+  if (metric.metric_status !== "computed" || metric.metric_value === null) {
+    return "risk-medium";
+  }
+  if (metric.polarity === "lower_is_better") {
+    return metric.metric_value <= 0.35 ? "risk-low" : metric.metric_value <= 0.75 ? "risk-medium" : "risk-high";
+  }
+  if (metric.polarity === "higher_is_better") {
+    return metric.metric_value >= 0.2 ? "risk-low" : metric.metric_value >= 0 ? "risk-medium" : "risk-high";
+  }
+  return "risk-medium";
+}
+
 function competitivePositionLabel(value: string) {
   const labels: Record<string, string> = {
     leader: "경쟁 우위",
@@ -233,6 +271,94 @@ function competitivePositionSummary(position: IndustryCompetitivePosition, symbo
   const peerGroup = position.peer_group_name ?? position.peer_group_code ?? "비교군";
   const sector = position.sector_name ?? position.sector_code ?? "섹터 미분류";
   return `${symbol}은 ${peerGroup} 기준으로 ${competitivePositionLabel(position.competitive_position)} 상태다. ${sector} 안에서 수익성, 성장성, 재무 방어력, 가격 결정력 추정 지표를 함께 본다.`;
+}
+
+function FinancialStatementModelPanel({
+  model,
+  symbol,
+}: {
+  model: FinancialStatementModel;
+  symbol: string;
+}) {
+  const prioritySections = ["growth", "profitability", "cash_flow", "balance_sheet", "earnings_quality", "dilution"];
+  const visibleSections = model.sections
+    .filter((section) => prioritySections.includes(section.section_key) && section.metrics.length > 0)
+    .sort((left, right) => prioritySections.indexOf(left.section_key) - prioritySections.indexOf(right.section_key));
+
+  if (model.status === "unavailable") {
+    return (
+      <section className="bento-card reveal delay-1" aria-label="추천 재무제표 모델">
+        <div style={{ marginBottom: "12px" }}>
+          <span className="metric-sub">추천 재무제표 모델</span>
+          <h2 style={{ fontSize: "1.5rem", marginTop: "6px" }}>재무 모델이 아직 추천에 연결되지 않았다</h2>
+        </div>
+        <p style={{ color: "var(--text-secondary)", marginBottom: 0 }}>
+          추천서에서 매출, 마진, 현금흐름, 부채, 이익 품질을 확인하려면 SEC companyfacts와 재무 정규화가 먼저 필요하다.
+          이 값이 없으면 뉴스나 사이클만으로 중장기 판단을 확정하지 않는다.
+        </p>
+      </section>
+    );
+  }
+
+  return (
+    <section className="bento-card reveal delay-1" aria-label="추천 재무제표 모델">
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "18px", flexWrap: "wrap", marginBottom: "20px" }}>
+        <div>
+          <span className="metric-sub">추천 재무제표 모델</span>
+          <h2 style={{ fontSize: "1.5rem", marginTop: "6px" }}>이 추천의 숫자 근거가 무엇인가</h2>
+          <p style={{ color: "var(--text-secondary)", marginTop: "8px", maxWidth: "900px" }}>
+            {model.summary} 이 영역은 추천 총점을 바꾸지 않는 읽기 전용 근거이며, 재무 모델이 추천 논리를 보강하는지
+            또는 반박하는지 확인하는 데 사용한다.
+          </p>
+        </div>
+        <span className={`risk-tag ${model.status === "available" ? "risk-low" : "risk-medium"}`}>
+          {model.status === "available" ? "재무 모델 연결" : "일부 지표 부족"}
+        </span>
+      </div>
+
+      <div className="status-rail compact-rail" aria-label="추천 재무 모델 요약">
+        <div className="rail-cell">
+          <span>최근 재무 기간</span>
+          <strong>{model.latest_period_end || "기간 없음"}</strong>
+          <small>{model.statement_scope === "annual" ? "연간 기준" : koCode(model.statement_scope)}</small>
+        </div>
+        <div className="rail-cell">
+          <span>계산 완료</span>
+          <strong>{model.computed_metric_count.toLocaleString("ko-KR")}개</strong>
+          <small>전체 {model.metric_count.toLocaleString("ko-KR")}개 지표</small>
+        </div>
+        <div className="rail-cell">
+          <span>데이터 공백</span>
+          <strong>{model.data_gap_count.toLocaleString("ko-KR")}개</strong>
+          <small>원천 부족 또는 비교 기간 부족</small>
+        </div>
+        <div className="rail-cell">
+          <span>주식수 변화</span>
+          <strong>{formatOptionalPercent(model.share_count.share_count_change_pct)}</strong>
+          <small>{model.share_count.latest_period_end || "주식수 데이터 없음"}</small>
+        </div>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "14px", marginTop: "18px" }}>
+        {visibleSections.map((section) => (
+          <article className="detail-path-card" key={section.section_key} style={{ minHeight: "210px" }}>
+            <span>{section.title}</span>
+            <strong>{section.description}</strong>
+            <div style={{ marginTop: "14px", display: "grid", gap: "8px" }}>
+              {section.metrics.slice(0, 3).map((metric) => (
+                <p key={metric.metric_code} style={{ display: "flex", justifyContent: "space-between", gap: "12px", alignItems: "baseline" }}>
+                  <span>{metric.label}</span>
+                  <strong className={`risk-tag ${financialMetricTone(metric)}`}>
+                    {formatFinancialMetricValue(metric)}
+                  </strong>
+                </p>
+              ))}
+            </div>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
 }
 
 function IndustryCompetitivePositionPanel({
@@ -713,6 +839,7 @@ export default async function RecommendationPage({ params }: RecommendationPageP
   const fundamentalStack = fundamentalComponents(data.score_components);
   const equityResearch = data.equity_research;
   const industryPosition = data.industry_competitive_position;
+  const financialStatementModel = data.financial_statement_model;
   const valuationTargetRange = data.valuation_target_range;
   const valuationItems = equityResearch ? valuationSensitivityItems(equityResearch.valuation_sensitivity) : [];
   const outcomeMeasured = data.outcome.label !== "unmeasured" && Boolean(data.outcome.measurement_end_date);
@@ -793,6 +920,8 @@ export default async function RecommendationPage({ params }: RecommendationPageP
         footer={`점수 정책: ${koCode(decisionWaterfall.score_policy)}. 주문 경계: ${koCode(decisionWaterfall.order_boundary)}.`}
         steps={professionalResearchSteps}
       />
+
+      <FinancialStatementModelPanel model={financialStatementModel} symbol={data.symbol} />
 
       <ValuationTargetRangeCard
         valuation={valuationTargetRange}

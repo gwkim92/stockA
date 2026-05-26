@@ -1555,10 +1555,150 @@ class FakeLiveExecutor:
                             "peer_count": 8,
                             "key_strengths": ["High profitability percentile", "Strong balance sheet"],
                             "key_risks": ["Large-cap technology rivalry remains material"],
-                            "peer_context": {"profitability_percentile": "0.8400"},
-                            "rationale": "Peer financial proxy ranks AAPL as a leader.",
-                            "source_run_id": 779,
+                        "peer_context": {"profitability_percentile": "0.8400"},
+                        "rationale": "Peer financial proxy ranks AAPL as a leader.",
+                        "source_run_id": 779,
+                    },
+                    "financial_statement_model": {
+                        "statement_scope": "annual",
+                        "latest_period_end": "2024-09-28",
+                        "latest_as_of_date": "2024-11-01",
+                        "latest_fiscal_year": 2024,
+                        "latest_fiscal_quarter": None,
+                        "period_count": 4,
+                        "metric_count": 6,
+                        "computed_metric_count": 5,
+                        "unavailable_metric_count": 1,
+                        "insufficient_history_metric_count": 0,
+                        "status_counts": [
+                            {"metric_status": "computed", "metric_count": 5},
+                            {"metric_status": "unavailable", "metric_count": 1},
+                        ],
+                        "source_run_ids": [778],
+                        "metrics": [
+                            {
+                                "metric_code": "revenue_growth_yoy",
+                                "metric_value": "0.0610",
+                                "metric_unit": "ratio",
+                                "metric_status": "computed",
+                                "statement_scope": "annual",
+                                "fiscal_year": 2024,
+                                "fiscal_quarter": None,
+                                "period_end": "2024-09-28",
+                                "as_of_date": "2024-11-01",
+                                "rationale": "Current revenue divided by prior comparable annual revenue minus one.",
+                                "source_run_id": 778,
+                                "created_at": "2024-11-01T10:10:00+00:00",
+                            },
+                            {
+                                "metric_code": "operating_margin",
+                                "metric_value": "0.3150",
+                                "metric_unit": "ratio",
+                                "metric_status": "computed",
+                                "statement_scope": "annual",
+                                "fiscal_year": 2024,
+                                "fiscal_quarter": None,
+                                "period_end": "2024-09-28",
+                                "as_of_date": "2024-11-01",
+                                "rationale": "Operating income divided by revenue.",
+                                "source_run_id": 778,
+                                "created_at": "2024-11-01T10:10:00+00:00",
+                            },
+                            {
+                                "metric_code": "free_cash_flow_margin",
+                                "metric_value": "0.2470",
+                                "metric_unit": "ratio",
+                                "metric_status": "computed",
+                                "statement_scope": "annual",
+                                "fiscal_year": 2024,
+                                "fiscal_quarter": None,
+                                "period_end": "2024-09-28",
+                                "as_of_date": "2024-11-01",
+                                "rationale": "Operating cash flow minus capex divided by revenue.",
+                                "source_run_id": 778,
+                                "created_at": "2024-11-01T10:10:00+00:00",
+                            },
+                            {
+                                "metric_code": "free_cash_flow_to_net_income",
+                                "metric_value": "1.1800",
+                                "metric_unit": "ratio",
+                                "metric_status": "computed",
+                                "statement_scope": "annual",
+                                "fiscal_year": 2024,
+                                "fiscal_quarter": None,
+                                "period_end": "2024-09-28",
+                                "as_of_date": "2024-11-01",
+                                "rationale": "Free cash flow divided by net income.",
+                                "source_run_id": 778,
+                                "created_at": "2024-11-01T10:10:00+00:00",
+                            },
+                            {
+                                "metric_code": "liabilities_to_assets",
+                                "metric_value": "0.8200",
+                                "metric_unit": "ratio",
+                                "metric_status": "computed",
+                                "statement_scope": "annual",
+                                "fiscal_year": 2024,
+                                "fiscal_quarter": None,
+                                "period_end": "2024-09-28",
+                                "as_of_date": "2024-11-01",
+                                "rationale": "Total liabilities divided by total assets.",
+                                "source_run_id": 778,
+                                "created_at": "2024-11-01T10:10:00+00:00",
+                            },
+                            {
+                                "metric_code": "roic",
+                                "metric_value": None,
+                                "metric_unit": "ratio",
+                                "metric_status": "unavailable",
+                                "statement_scope": "annual",
+                                "fiscal_year": 2024,
+                                "fiscal_quarter": None,
+                                "period_end": "2024-09-28",
+                                "as_of_date": "2024-11-01",
+                                "rationale": "Invested capital denominator is missing.",
+                                "source_run_id": 778,
+                                "created_at": "2024-11-01T10:10:00+00:00",
+                            },
+                        ],
+                        "history": [
+                            {
+                                "metric_code": "revenue_growth_yoy",
+                                "metric_value": "0.0610",
+                                "metric_unit": "ratio",
+                                "metric_status": "computed",
+                                "statement_scope": "annual",
+                                "fiscal_year": 2024,
+                                "fiscal_quarter": None,
+                                "period_end": "2024-09-28",
+                                "as_of_date": "2024-11-01",
+                                "rationale": "Current revenue divided by prior comparable annual revenue minus one.",
+                                "source_run_id": 778,
+                            },
+                            {
+                                "metric_code": "revenue_growth_yoy",
+                                "metric_value": "0.0280",
+                                "metric_unit": "ratio",
+                                "metric_status": "computed",
+                                "statement_scope": "annual",
+                                "fiscal_year": 2023,
+                                "fiscal_quarter": None,
+                                "period_end": "2023-09-30",
+                                "as_of_date": "2024-11-01",
+                                "rationale": "Current revenue divided by prior comparable annual revenue minus one.",
+                                "source_run_id": 778,
+                            },
+                        ],
+                        "share_count": {
+                            "latest_period_end": "2024-09-28",
+                            "latest_fiscal_year": 2024,
+                            "latest_shares_outstanding": "15300000000",
+                            "previous_period_end": "2023-09-30",
+                            "previous_shares_outstanding": "15800000000",
+                            "share_count_change_pct": "-0.0316",
+                            "source_run_id": 778,
                         },
+                    },
 	                    "valuation_methods": [
 	                        {
 	                            "valuation_snapshot_id": 5101,
@@ -3687,6 +3827,20 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertEqual(competitive_position["rivalry_risk_score"], 0.42)
         self.assertEqual(competitive_position["key_risks"][0], "Large-cap technology rivalry remains material")
         self.assertEqual(competitive_position["source_run_id"], "pipeline-run-779")
+        financial_model = payload["data"]["financial_statement_model"]
+        self.assertEqual(financial_model["status"], "partial")
+        self.assertEqual(financial_model["latest_period_end"], "2024-09-28")
+        self.assertEqual(financial_model["computed_metric_count"], 5)
+        self.assertEqual(financial_model["data_gap_count"], 1)
+        self.assertEqual(financial_model["source_run_ids"], ["pipeline-run-778"])
+        self.assertEqual(financial_model["sections"][0]["section_key"], "growth")
+        self.assertEqual(financial_model["sections"][0]["metrics"][0]["metric_code"], "revenue_growth_yoy")
+        self.assertEqual(financial_model["sections"][2]["section_key"], "cash_flow")
+        self.assertEqual(financial_model["share_count"]["share_count_change_pct"], -0.0316)
+        self.assertEqual(financial_model["score_policy"], "recommendation_weights_unchanged")
+        self.assertFalse(financial_model["automatic_order_allowed"])
+        self.assertFalse(financial_model["broker_submit_allowed"])
+        self.assertEqual(financial_model["order_boundary"], "read_only_no_order")
         target_range = payload["data"]["valuation_target_range"]
         self.assertEqual(target_range["status"], "available")
         self.assertEqual(target_range["method_count"], 3)
@@ -3752,6 +3906,14 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         )
         self.assertEqual(waterfall["steps"][0]["title"], "거시·사이클 배경")
         self.assertIn("연준 금리 경로", waterfall["steps"][0]["facts"][2]["value"])
+        self.assertEqual(waterfall["steps"][3]["title"], "재무 품질")
+        self.assertEqual(waterfall["steps"][3]["status"], "재무 모델 연결")
+        self.assertIn("최근 재무 기간 2024-09-28", waterfall["steps"][3]["detail"])
+        self.assertEqual(waterfall["steps"][3]["facts"][0]["label"], "최근 재무 기간")
+        self.assertEqual(waterfall["steps"][3]["facts"][0]["value"], "2024-09-28")
+        self.assertEqual(waterfall["steps"][3]["facts"][1]["value"], "5개")
+        self.assertEqual(waterfall["steps"][3]["facts"][2]["value"], "1개")
+        self.assertEqual(waterfall["steps"][3]["source"], "financial_statement_model_and_fundamental_context")
         self.assertEqual(waterfall["steps"][4]["title"], "밸류에이션")
         self.assertEqual(waterfall["steps"][4]["status"], "목표가 범위 연결")
         self.assertIn("USD 261.67", waterfall["steps"][4]["facts"][1]["value"])
@@ -3844,6 +4006,13 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertIn("latest_valuation_methods as", sql)
         self.assertIn("'valuation_methods'", sql)
         self.assertIn("valuation.fair_value_base", sql)
+        self.assertIn("market.financial_metric_normalized", sql)
+        self.assertIn("financial_metric_universe(metric_code)", sql)
+        self.assertIn("latest_financial_metrics as", sql)
+        self.assertIn("financial_metric_history as", sql)
+        self.assertIn("raw_share_count_rows as", sql)
+        self.assertIn("'financial_statement_model'", sql)
+        self.assertIn("'share_count'", sql)
         self.assertIn("signal.propagated_instrument_impact", sql)
         self.assertIn("portfolio.position_snapshot", sql)
         self.assertIn("portfolio.review_item", sql)

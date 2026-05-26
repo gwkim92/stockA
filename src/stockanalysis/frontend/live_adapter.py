@@ -1407,6 +1407,11 @@ def build_live_recommendation_detail_response(
     industry_competitive_position = _build_industry_competitive_position_payload(
         _as_dict(state.get("industry_competitive_position"))
     )
+    financial_statement_model = _build_financial_statement_model_payload(
+        _as_dict(state.get("financial_statement_model")),
+        symbol=str(state.get("symbol") or "UNKNOWN").upper(),
+        as_of_date=str(state.get("as_of_date") or ""),
+    )
     valuation_target_range = _build_valuation_target_range_payload(
         _as_list(state.get("valuation_methods")),
         symbol=str(state.get("symbol") or "UNKNOWN").upper(),
@@ -1445,6 +1450,7 @@ def build_live_recommendation_detail_response(
             "score_components": score_components,
             "equity_research": equity_research,
             "industry_competitive_position": industry_competitive_position,
+            "financial_statement_model": financial_statement_model,
             "valuation_target_range": valuation_target_range,
             "linked_thesis_id": _opaque_id("thesis", linked_thesis_id, None) if linked_thesis_id is not None else None,
             "evidence_trace": evidence_trace,
@@ -1453,6 +1459,7 @@ def build_live_recommendation_detail_response(
                 score_components=score_components,
                 equity_research=equity_research,
                 industry_competitive_position=industry_competitive_position,
+                financial_statement_model=financial_statement_model,
                 valuation_target_range=valuation_target_range,
                 linked_thesis_id=linked_thesis_id,
                 evidence_trace=evidence_trace,
@@ -6328,6 +6335,7 @@ select json_build_object(
 
 def render_frontend_recommendation_detail_state_sql(*, identifier: str) -> str:
     identifier_literal = sql_literal(identifier)
+    metric_code_values = ",\n    ".join(f"({sql_literal(metric_code)})" for metric_code in _FINANCIAL_METRIC_DEFINITIONS)
     return f"""-- frontend recommendation detail state lookup
 with selected_recommendation as (
     select
@@ -6354,6 +6362,10 @@ with selected_recommendation as (
        or (instrument.primary_symbol || '-' || batch.as_of_date::text) = {identifier_literal}
     order by batch.as_of_date desc, recommendation.recommendation_id desc
     limit 1
+),
+financial_metric_universe(metric_code) as (
+    values
+    {metric_code_values}
 ),
 latest_outcome as (
     select outcome.*
@@ -6651,6 +6663,80 @@ latest_valuation_methods as (
     where valuation.as_of_date <= recommendation.as_of_date
     order by valuation.method, valuation.as_of_date desc, valuation.valuation_snapshot_id desc
 ),
+financial_metric_ranked as (
+    select
+        normalized.instrument_id,
+        normalized.as_of_date,
+        normalized.period_id,
+        normalized.statement_scope,
+        normalized.fiscal_year,
+        normalized.fiscal_quarter,
+        normalized.period_end,
+        normalized.metric_code,
+        normalized.metric_value,
+        normalized.metric_unit,
+        normalized.metric_status,
+        normalized.rationale,
+        normalized.source_run_id,
+        normalized.created_at,
+        row_number() over (
+            partition by normalized.metric_code, normalized.period_end
+            order by normalized.as_of_date desc, normalized.created_at desc, normalized.source_run_id desc nulls last
+        ) as metric_period_rank
+    from market.financial_metric_normalized normalized
+    join selected_recommendation recommendation on recommendation.instrument_id = normalized.instrument_id
+    join financial_metric_universe metric_universe on metric_universe.metric_code = normalized.metric_code
+    where normalized.as_of_date <= recommendation.as_of_date
+      and normalized.statement_scope = 'annual'
+),
+financial_metric_window as (
+    select *
+    from financial_metric_ranked
+    where metric_period_rank = 1
+),
+latest_financial_metrics as (
+    select distinct on (metric.metric_code)
+        metric.*
+    from financial_metric_window metric
+    order by
+        metric.metric_code,
+        case when metric.metric_status = 'computed' then 0 else 1 end,
+        metric.period_end desc,
+        metric.as_of_date desc,
+        metric.created_at desc
+),
+financial_metric_history as (
+    select *
+    from (
+        select
+            metric.*,
+            row_number() over (partition by metric.metric_code order by metric.period_end desc, metric.as_of_date desc) as metric_history_rank
+        from financial_metric_window metric
+    ) ranked_metric
+    where metric_history_rank <= 4
+),
+financial_metric_status_counts as (
+    select
+        metric_status,
+        count(*)::int as metric_count
+    from latest_financial_metrics
+    group by metric_status
+),
+raw_share_count_rows as (
+    select
+        period.period_end,
+        period.fiscal_year,
+        period.fiscal_quarter,
+        metric.metric_value as shares_outstanding,
+        metric.source_run_id,
+        row_number() over (order by period.period_end desc, period.period_id desc) as share_rank
+    from market.financial_metric_value metric
+    join market.financial_statement_period period on period.period_id = metric.period_id
+    join selected_recommendation recommendation on recommendation.instrument_id = period.instrument_id
+    where metric.metric_code = 'shares_outstanding'
+      and period.statement_scope = 'annual'
+      and period.period_end <= recommendation.as_of_date
+),
 score_component_rows as (
     select
         component.component_name,
@@ -6876,6 +6962,110 @@ select json_build_object(
             'source_run_id', source_run_id
         )
         from latest_industry_competitive_position
+    ),
+    'financial_statement_model',
+    json_build_object(
+        'statement_scope', 'annual',
+        'latest_period_end', (select max(period_end) from financial_metric_window),
+        'latest_as_of_date', (select max(as_of_date) from latest_financial_metrics),
+        'latest_fiscal_year', (select fiscal_year from latest_financial_metrics order by period_end desc, as_of_date desc limit 1),
+        'latest_fiscal_quarter', (select fiscal_quarter from latest_financial_metrics order by period_end desc, as_of_date desc limit 1),
+        'period_count', coalesce((select count(distinct period_end)::int from financial_metric_window), 0),
+        'metric_count', coalesce((select count(*)::int from latest_financial_metrics), 0),
+        'computed_metric_count', coalesce((select count(*)::int from latest_financial_metrics where metric_status = 'computed'), 0),
+        'unavailable_metric_count', coalesce((select count(*)::int from latest_financial_metrics where metric_status = 'unavailable'), 0),
+        'insufficient_history_metric_count', coalesce((select count(*)::int from latest_financial_metrics where metric_status = 'insufficient_history'), 0),
+        'status_counts',
+        coalesce(
+            (
+                select json_agg(
+                    json_build_object(
+                        'metric_status', metric_status,
+                        'metric_count', metric_count
+                    )
+                    order by metric_status
+                )
+                from financial_metric_status_counts
+            ),
+            '[]'::json
+        ),
+        'source_run_ids',
+        coalesce(
+            (
+                select json_agg(distinct source_run_id order by source_run_id)
+                from latest_financial_metrics
+                where source_run_id is not null
+            ),
+            '[]'::json
+        ),
+        'metrics',
+        coalesce(
+            (
+                select json_agg(
+                    json_build_object(
+                        'metric_code', metric_code,
+                        'metric_value', metric_value,
+                        'metric_unit', metric_unit,
+                        'metric_status', metric_status,
+                        'statement_scope', statement_scope,
+                        'fiscal_year', fiscal_year,
+                        'fiscal_quarter', fiscal_quarter,
+                        'period_end', period_end,
+                        'as_of_date', as_of_date,
+                        'rationale', rationale,
+                        'source_run_id', source_run_id,
+                        'created_at', created_at
+                    )
+                    order by metric_code
+                )
+                from latest_financial_metrics
+            ),
+            '[]'::json
+        ),
+        'history',
+        coalesce(
+            (
+                select json_agg(
+                    json_build_object(
+                        'metric_code', metric_code,
+                        'metric_value', metric_value,
+                        'metric_unit', metric_unit,
+                        'metric_status', metric_status,
+                        'fiscal_year', fiscal_year,
+                        'fiscal_quarter', fiscal_quarter,
+                        'period_end', period_end,
+                        'as_of_date', as_of_date,
+                        'rationale', rationale,
+                        'source_run_id', source_run_id
+                    )
+                    order by metric_code, period_end desc
+                )
+                from financial_metric_history
+            ),
+            '[]'::json
+        ),
+        'share_count',
+        coalesce(
+            (
+                select json_build_object(
+                    'latest_period_end', latest.period_end,
+                    'latest_fiscal_year', latest.fiscal_year,
+                    'latest_shares_outstanding', latest.shares_outstanding,
+                    'previous_period_end', previous.period_end,
+                    'previous_shares_outstanding', previous.shares_outstanding,
+                    'share_count_change_pct',
+                    case
+                        when previous.shares_outstanding is null or previous.shares_outstanding = 0 then null
+                        else (latest.shares_outstanding - previous.shares_outstanding) / previous.shares_outstanding
+                    end,
+                    'source_run_id', latest.source_run_id
+                )
+                from raw_share_count_rows latest
+                left join raw_share_count_rows previous on previous.share_rank = 2
+                where latest.share_rank = 1
+            ),
+            '{{}}'::json
+        )
     ),
     'valuation_methods',
     coalesce(
@@ -10026,6 +10216,7 @@ def _build_recommendation_professional_decision_waterfall_payload(
     score_components: list[dict[str, Any]],
     equity_research: dict[str, Any] | None,
     industry_competitive_position: dict[str, Any] | None,
+    financial_statement_model: dict[str, Any] | None,
     valuation_target_range: dict[str, Any] | None,
     linked_thesis_id: Any,
     evidence_trace: dict[str, Any],
@@ -10056,6 +10247,12 @@ def _build_recommendation_professional_decision_waterfall_payload(
     peer_relative = _find_recommendation_score_component(score_components, "peer_relative_score")
     balance_sheet = _find_recommendation_score_component(score_components, "balance_sheet_risk_penalty")
     thesis_consistency = _find_recommendation_score_component(score_components, "thesis_consistency_score")
+    financial_model = _as_dict(financial_statement_model)
+    financial_model_status = str(financial_model.get("status") or "unavailable")
+    financial_model_connected = financial_model_status in {"available", "partial"}
+    financial_computed_metric_count = _integer(financial_model.get("computed_metric_count")) or 0
+    financial_data_gap_count = _integer(financial_model.get("data_gap_count")) or 0
+    financial_latest_period_end = str(financial_model.get("latest_period_end") or "미정")
     target_range = _as_dict(valuation_target_range)
     target_range_available = target_range.get("status") == "available"
     valuation_method_count = _integer(target_range.get("method_count")) or 0
@@ -10152,19 +10349,24 @@ def _build_recommendation_professional_decision_waterfall_payload(
         _professional_decision_step(
             step_key="financial_quality",
             title="재무 품질",
-            status="재무 근거 연결" if fundamental_quality else "재무 근거 없음",
-            tone="ready" if fundamental_quality else "watch",
+            status="재무 모델 연결" if financial_model_connected else ("재무 근거 연결" if fundamental_quality else "재무 근거 없음"),
+            tone="ready" if financial_model_connected or fundamental_quality else "watch",
             decision="성장보다 먼저 재무 체력을 확인한다",
             detail=(
-                "매출 성장, 마진, 현금흐름 품질, 재무 안정성에서 만든 zero-weight 기업 분석 항목이다. 성과 검증 전까지 추천 총점을 흔들지 않는다."
+                f"최근 재무 기간 {financial_latest_period_end} 기준으로 계산된 재무 지표 {financial_computed_metric_count}개와 데이터 공백 {financial_data_gap_count}개를 확인한다. 성과 검증 전까지 추천 총점을 흔들지 않는다."
+                if financial_model_connected
+                else "매출 성장, 마진, 현금흐름 품질, 재무 안정성에서 만든 zero-weight 기업 분석 항목이다. 성과 검증 전까지 추천 총점을 흔들지 않는다."
                 if fundamental_quality
                 else "전문 애널리스트식 재무 품질 입력이 추천 상세에 아직 연결되지 않았다."
             ),
-            evidence_count=(1 if fundamental_quality else 0) + (1 if balance_sheet else 0),
-            source="fundamental_context",
+            evidence_count=financial_computed_metric_count + (1 if fundamental_quality else 0) + (1 if balance_sheet else 0),
+            source="financial_statement_model_and_fundamental_context",
             href=f"/stocks/{quote(symbol, safe='')}",
             href_label="재무 맥락 보기",
             facts=[
+                _professional_fact("최근 재무 기간", financial_latest_period_end),
+                _professional_fact("계산 지표", f"{financial_computed_metric_count}개"),
+                _professional_fact("데이터 공백", f"{financial_data_gap_count}개"),
                 _professional_fact("재무 품질", _format_percent_text(_number(fundamental_quality.get("value") if fundamental_quality else None))),
                 _professional_fact("재무 안정성", _format_percent_text(_number(balance_sheet.get("value") if balance_sheet else None))),
                 _professional_fact("총점 반영", "보수적 제한" if _zero_weight_component(fundamental_quality) else "반영 가능"),

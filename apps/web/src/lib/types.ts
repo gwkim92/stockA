@@ -1100,6 +1100,7 @@ export type RecommendationDetailData = {
     created_at: string;
   } | null;
   industry_competitive_position: IndustryCompetitivePosition | null;
+  financial_statement_model: FinancialStatementModel;
   valuation_target_range: ValuationTargetRange;
   linked_thesis_id: string;
   professional_decision_waterfall: ProfessionalDecisionWaterfall;
