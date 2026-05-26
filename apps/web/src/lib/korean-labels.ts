@@ -159,6 +159,8 @@ const KOREAN_LABELS: Record<string, string> = {
   portfolio_risk_budget_guardrail: "포트폴리오 위험 예산",
   portfolio_risk_budget_guardrail_blocker: "위험 예산 차단 사유",
   blocked_by_risk_budget_review: "위험 예산 검토 필요",
+  blocked_by_professional_source_data: "전문 재무 원천 차단",
+  source_data_blocked: "전문 재무 원천 차단",
   missing_portfolio_risk_budget_guardrail: "위험 예산 검증 없음",
   over_single_position_limit: "단일 종목 한도 초과",
   sector_over_limit: "섹터 집중도 한도 초과",

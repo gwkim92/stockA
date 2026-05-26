@@ -846,11 +846,19 @@ function gateStatusColor(status: string) {
 function recommendationQualityDecision(data: RecommendationDetailData) {
   const blockedCount = reviewCount(data.evidence_review.summary.blocked_count);
   const warningCount = reviewCount(data.evidence_review.summary.warning_count);
+  const sourceDataBlocked = data.professional_decision_waterfall.status === "source_data_blocked";
   const adverseRecommendation = ["avoid", "exclude", "sell", "exit"].includes(data.recommendation);
   const weakScore = data.score < 0.35;
   const outcomeMeasured = data.outcome.label !== "unmeasured" && Boolean(data.outcome.measurement_end_date);
   const negativeAlpha = outcomeMeasured && data.outcome.alpha < 0;
 
+  if (sourceDataBlocked) {
+    return {
+      status: "전문 재무 원천 차단",
+      tone: "risk-high",
+      summary: "정기 재무제표나 검증된 parser가 없어 이 추천은 기록으로만 보존한다. 뉴스·AI·가격 근거가 있어도 전문 투자 판단이나 페이퍼 검증 입력으로 넘기면 안 된다.",
+    };
+  }
   if (blockedCount > 0) {
     return {
       status: "검토 차단",

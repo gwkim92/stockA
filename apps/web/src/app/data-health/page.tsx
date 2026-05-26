@@ -746,6 +746,7 @@ const DEFAULT_PROFESSIONAL_SOURCE_GAP_PRIORITIZATION: ProfessionalSourceGapPrior
   fund_not_applicable_count: 0,
   fund_source_gap_count: 0,
   coverage_gap_count: 0,
+  guarded_source_blocked_recommendation_count: 0,
   top_priority_score: 0,
   gaps: [],
   next_action: "전문 분석 source gap을 먼저 계산한다.",
@@ -1312,6 +1313,11 @@ export default async function DataHealthPage() {
             <strong>{professionalSourceGaps.source_blocker_count}</strong>
             <small>SEC/companyfacts 등</small>
           </article>
+          <article className="rail-cell rail-critical">
+            <span>추천 차단 적용</span>
+            <strong>{professionalSourceGaps.guarded_source_blocked_recommendation_count}</strong>
+            <small>전문 판단·페이퍼 입력 차단</small>
+          </article>
           <article className="rail-cell">
             <span>펀드 비적용</span>
             <strong>{professionalSourceGaps.fund_not_applicable_count}</strong>
@@ -1366,6 +1372,9 @@ export default async function DataHealthPage() {
                       <strong>{gap.blocker_label}</strong>
                       <small>{gap.blocker_code || koCode(gap.blocker_type)}</small>
                       {gap.source_run_id ? <small>{executionIdLabel(gap.source_run_id)}</small> : null}
+                      {gap.active_recommendation_professional_use_blocked ? (
+                        <small className="risk-tag risk-high">추천 전문 판단 차단됨</small>
+                      ) : null}
                     </td>
                     <td>
                       <strong>{gap.remediation_action}</strong>

@@ -697,6 +697,10 @@ def build_live_stock_detail_response(
     fund_instrument_analysis = _build_fund_instrument_analysis_payload(
         _as_dict(state.get("fund_instrument_analysis"))
     )
+    professional_source_guardrail = _build_professional_source_guardrail_payload(
+        financial_statement_model=financial_statement_model,
+        fund_instrument_analysis=fund_instrument_analysis,
+    )
     thesis_id = recommendation.get("linked_thesis_id") if recommendation else None
     recommendation_id = recommendation.get("recommendation_id") if recommendation else None
     as_of_text = str(state.get("as_of_date") or (as_of_date.isoformat() if as_of_date else ""))
@@ -721,6 +725,7 @@ def build_live_stock_detail_response(
             "financial_statement_model": financial_statement_model,
             "valuation_target_range": valuation_target_range,
             "fund_instrument_analysis": fund_instrument_analysis,
+            "professional_source_guardrail": professional_source_guardrail,
             "macro_flow_impacts": [
                 _build_stock_macro_flow_payload(item) for item in _as_list(state.get("macro_flow_impacts"))
             ],
@@ -1466,10 +1471,15 @@ def build_live_recommendation_detail_response(
         symbol=symbol,
         as_of_date=as_of_date_text,
     )
+    professional_source_guardrail = _build_professional_source_guardrail_payload(
+        financial_statement_model=financial_statement_model,
+        fund_instrument_analysis=fund_instrument_analysis,
+    )
     evidence_review = _build_recommendation_evidence_review_payload(
         score_components=score_components,
         linked_thesis_id=linked_thesis_id,
         outcome=outcome,
+        professional_source_guardrail=professional_source_guardrail,
     )
 
     return {
@@ -1494,6 +1504,7 @@ def build_live_recommendation_detail_response(
             "fund_instrument_analysis": fund_instrument_analysis,
             "linked_thesis_id": _opaque_id("thesis", linked_thesis_id, None) if linked_thesis_id is not None else None,
             "evidence_trace": evidence_trace,
+            "professional_source_guardrail": professional_source_guardrail,
             "evidence_review": evidence_review,
             "professional_decision_waterfall": _build_recommendation_professional_decision_waterfall_payload(
                 score_components=score_components,
@@ -1504,6 +1515,7 @@ def build_live_recommendation_detail_response(
                 linked_thesis_id=linked_thesis_id,
                 evidence_trace=evidence_trace,
                 evidence_review=evidence_review,
+                professional_source_guardrail=professional_source_guardrail,
                 outcome=outcome,
                 symbol=symbol,
                 as_of_date=as_of_date_text,
@@ -9841,6 +9853,82 @@ def _financial_source_data_blocker_summary(symbol: str, blocker: dict[str, Any])
     )
 
 
+_PROFESSIONAL_USE_BLOCKER_CODES = {
+    "sec_companyfacts_missing_us_gaap_facts",
+    "sec_companyfacts_not_found",
+    "financial_source_linkage_failed",
+}
+
+
+def _build_professional_source_guardrail_payload(
+    *,
+    financial_statement_model: dict[str, Any] | None,
+    fund_instrument_analysis: dict[str, Any] | None,
+) -> dict[str, Any]:
+    financial_model = _as_dict(financial_statement_model)
+    fund_analysis = _as_dict(fund_instrument_analysis)
+    source_blocker = _as_dict(financial_model.get("source_data_blocker"))
+    blocker_code = str(source_blocker.get("blocker_code") or "")
+    is_fund_boundary = blocker_code == "fund_company_financial_model_not_applicable" or bool(fund_analysis)
+    blocks_professional_use = blocker_code in _PROFESSIONAL_USE_BLOCKER_CODES and not is_fund_boundary
+
+    if blocks_professional_use:
+        return {
+            "status": "blocked_by_professional_source_data",
+            "blocked": True,
+            "professional_decision_use_allowed": False,
+            "paper_validation_input_allowed": False,
+            "blocker_code": blocker_code,
+            "blocker_label": _financial_source_data_blocker_label(blocker_code),
+            "source_data_blocker": source_blocker,
+            "summary": (
+                "표준 재무제표 원천이 차단된 일반 기업 추천이다. 뉴스, AI 요약, 가격 점수가 있어도 "
+                "지원되는 정기 공시 또는 안전한 파서가 생기기 전까지 전문 투자 판단 입력으로 쓰면 안 된다."
+            ),
+            "next_action": (
+                "첫 10-Q/10-K/20-F/40-F, SEC us-gaap companyfacts, 또는 별도 검증된 투자설명서/pro-forma 파서가 "
+                "확보될 때까지 추천은 기록으로만 보존한다."
+            ),
+            "score_policy": "recommendation_weights_unchanged",
+            "automatic_order_allowed": False,
+            "broker_submit_allowed": False,
+            "order_boundary": "read_only_no_order",
+        }
+
+    if is_fund_boundary:
+        return {
+            "status": "fund_or_etf_company_model_not_applicable",
+            "blocked": False,
+            "professional_decision_use_allowed": True,
+            "paper_validation_input_allowed": True,
+            "blocker_code": blocker_code,
+            "blocker_label": _financial_source_data_blocker_label(blocker_code) if blocker_code else "펀드/ETF 분석 경계",
+            "source_data_blocker": source_blocker or None,
+            "summary": "펀드형 상품은 개별 기업 재무 모델이 아니라 보유종목, 비용, NAV, 추적차이로 판단한다.",
+            "next_action": "기업 재무제표 blocker로 보지 말고 fund/ETF source layer를 확인한다.",
+            "score_policy": "recommendation_weights_unchanged",
+            "automatic_order_allowed": False,
+            "broker_submit_allowed": False,
+            "order_boundary": "read_only_no_order",
+        }
+
+    return {
+        "status": "clear",
+        "blocked": False,
+        "professional_decision_use_allowed": True,
+        "paper_validation_input_allowed": True,
+        "blocker_code": "",
+        "blocker_label": "",
+        "source_data_blocker": None,
+        "summary": "추천 전문 판단을 막는 operating-company source blocker가 없다.",
+        "next_action": "기존 evidence review, thesis, valuation, paper validation gate를 계속 확인한다.",
+        "score_policy": "recommendation_weights_unchanged",
+        "automatic_order_allowed": False,
+        "broker_submit_allowed": False,
+        "order_boundary": "read_only_no_order",
+    }
+
+
 def _build_fund_instrument_analysis_payload(analysis: dict[str, Any]) -> dict[str, Any] | None:
     status = str(analysis.get("status") or "").strip()
     if not status:
@@ -11792,6 +11880,9 @@ def _build_recommendation_weight_review_readiness_payload(payload: dict[str, Any
 def _build_professional_source_gap_prioritization_payload(payload: dict[str, Any]) -> dict[str, Any]:
     raw_gaps = _as_list(payload.get("gaps"))
     gaps = [_build_professional_source_gap_payload(item) for item in raw_gaps[:8]]
+    guarded_source_blocked_recommendation_count = sum(
+        1 for gap in gaps if gap.get("active_recommendation_professional_use_blocked") is True
+    )
     raw_status = str(payload.get("status") or "missing")
     if raw_status == "ok" and gaps:
         raw_status = "coverage_gaps_present"
@@ -11804,6 +11895,7 @@ def _build_professional_source_gap_prioritization_payload(payload: dict[str, Any
         "fund_not_applicable_count": int(_safe_number(payload.get("fund_not_applicable_count")) or 0),
         "fund_source_gap_count": int(_safe_number(payload.get("fund_source_gap_count")) or 0),
         "coverage_gap_count": int(_safe_number(payload.get("coverage_gap_count")) or 0),
+        "guarded_source_blocked_recommendation_count": guarded_source_blocked_recommendation_count,
         "top_priority_score": _safe_number(payload.get("top_priority_score")) or 0.0,
         "gaps": gaps,
         "next_action": str(payload.get("next_action") or "전문 분석 source gap을 정기적으로 감시한다."),
@@ -11819,6 +11911,18 @@ def _build_professional_source_gap_payload(item: dict[str, Any]) -> dict[str, An
     missing_layers = [str(value) for value in _as_list_or_scalars(item.get("missing_layers")) if value]
     blocker_code = str(item.get("blocker_code") or "")
     product_type = str(item.get("product_type") or "operating_company")
+    blocker_type = str(item.get("blocker_type") or ("fund_not_applicable" if product_type == "fund_or_etf" else "coverage_gap"))
+    active_recommendation_count = int(_safe_number(item.get("active_recommendation_count")) or 0)
+    raw_filing_status = str(item.get("raw_filing_decision_status") or "")
+    raw_filing_blocker_code = str(item.get("raw_filing_blocker_code") or "")
+    professional_use_allowed = not (
+        blocker_type == "source_blocker"
+        and product_type != "fund_or_etf"
+        and (
+            raw_filing_status == "durable_exclusion_until_periodic_filing"
+            or blocker_code in _PROFESSIONAL_USE_BLOCKER_CODES
+        )
+    )
     return {
         "priority_rank": int(_safe_number(item.get("priority_rank")) or 0),
         "symbol": str(item.get("symbol") or item.get("primary_symbol") or ""),
@@ -11829,16 +11933,20 @@ def _build_professional_source_gap_payload(item: dict[str, Any]) -> dict[str, An
         "gap_status": str(item.get("gap_status") or "coverage_gap"),
         "priority_band": str(item.get("priority_band") or "medium"),
         "priority_score": _safe_number(item.get("priority_score")) or 0.0,
-        "active_recommendation_count": int(_safe_number(item.get("active_recommendation_count")) or 0),
+        "active_recommendation_count": active_recommendation_count,
         "highest_recommendation_score": _safe_number(item.get("highest_recommendation_score")),
         "current_weight": _safe_number(item.get("current_weight")),
         "max_recommended_weight": _safe_number(item.get("max_recommended_weight")),
         "missing_layer_count": int(_safe_number(item.get("missing_layer_count")) or len(missing_layers)),
         "missing_layers": missing_layers,
         "missing_layer_labels": [_professional_source_layer_label(layer) for layer in missing_layers],
-        "blocker_type": str(item.get("blocker_type") or ("fund_not_applicable" if product_type == "fund_or_etf" else "coverage_gap")),
+        "blocker_type": blocker_type,
         "blocker_code": blocker_code,
         "blocker_label": _professional_source_blocker_label(blocker_code, product_type),
+        "professional_decision_use_allowed": professional_use_allowed,
+        "active_recommendation_professional_use_blocked": active_recommendation_count > 0
+        and not professional_use_allowed,
+        "paper_validation_input_allowed": professional_use_allowed,
         "source_run_id": _opaque_id("pipeline-run", item.get("source_run_id"), None) if item.get("source_run_id") else "",
         "source_status": str(item.get("source_status") or ""),
         "source_observed_at": _timestamp(item.get("source_observed_at")),
@@ -11848,8 +11956,8 @@ def _build_professional_source_gap_payload(item: dict[str, Any]) -> dict[str, An
             if item.get("raw_filing_decision_eval_run_id")
             else "",
             "created_at": _timestamp(item.get("raw_filing_decision_created_at")),
-            "status": str(item.get("raw_filing_decision_status") or ""),
-            "blocker_code": str(item.get("raw_filing_blocker_code") or ""),
+            "status": raw_filing_status,
+            "blocker_code": raw_filing_blocker_code,
             "summary": str(item.get("raw_filing_decision_summary") or ""),
             "next_action": str(item.get("raw_filing_next_action") or ""),
             "recheck_trigger": str(item.get("raw_filing_recheck_trigger") or ""),
@@ -12831,6 +12939,7 @@ def _build_recommendation_evidence_review_payload(
     score_components: list[dict[str, Any]],
     linked_thesis_id: Any,
     outcome: dict[str, Any],
+    professional_source_guardrail: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     ai_evidence_component_count = sum(
         1 for component in score_components if _is_ai_or_event_evidence_id(str(component.get("evidence_id") or ""))
@@ -12842,6 +12951,8 @@ def _build_recommendation_evidence_review_payload(
         1 for component in score_components if _is_market_or_rank_score_component(component) and _has_market_or_rank_provenance(component)
     )
     outcome_measured = bool(outcome.get("measurement_end_date")) and str(outcome.get("label") or "unmeasured") != "unmeasured"
+    source_guardrail = _as_dict(professional_source_guardrail)
+    source_blocked = source_guardrail.get("blocked") is True
     gates = [
         _evidence_review_gate(
             "linked_thesis",
@@ -12886,6 +12997,19 @@ def _build_recommendation_evidence_review_payload(
             "주문 전송은 별도 증권사 연결 경계와 킬 스위치 승인 뒤에만 다룬다.",
         ),
     ]
+    if source_blocked:
+        gates.insert(
+            4,
+            _evidence_review_gate(
+                "professional_source_data",
+                "전문 재무 원천",
+                "blocked",
+                source_guardrail.get("summary")
+                or "표준 재무제표 원천이 차단되어 전문 투자 판단 입력으로 쓰면 안 된다.",
+                source_guardrail.get("next_action")
+                or "지원되는 정기 공시나 안전한 parser가 확보된 뒤 다시 검토한다.",
+            ),
+        )
     return {
         "quality_status": _evidence_review_status(gates),
         "summary": {
@@ -12897,6 +13021,7 @@ def _build_recommendation_evidence_review_payload(
             "ai_evidence_component_count": ai_evidence_component_count,
             "market_or_rank_component_count": market_or_rank_component_count,
             "market_or_rank_provenance_count": market_or_rank_provenance_count,
+            "professional_source_blocked": source_blocked,
             "linked_thesis_present": linked_thesis_id is not None,
             "outcome_measured": outcome_measured,
         },
@@ -12914,6 +13039,7 @@ def _build_recommendation_professional_decision_waterfall_payload(
     linked_thesis_id: Any,
     evidence_trace: dict[str, Any],
     evidence_review: dict[str, Any],
+    professional_source_guardrail: dict[str, Any] | None,
     outcome: dict[str, Any],
     symbol: str,
     as_of_date: str,
@@ -12941,6 +13067,9 @@ def _build_recommendation_professional_decision_waterfall_payload(
     balance_sheet = _find_recommendation_score_component(score_components, "balance_sheet_risk_penalty")
     thesis_consistency = _find_recommendation_score_component(score_components, "thesis_consistency_score")
     financial_model = _as_dict(financial_statement_model)
+    source_guardrail = _as_dict(professional_source_guardrail)
+    source_blocked = source_guardrail.get("blocked") is True
+    source_blocker = _as_dict(source_guardrail.get("source_data_blocker"))
     financial_model_status = str(financial_model.get("status") or "unavailable")
     financial_model_connected = financial_model_status in {"available", "partial"}
     financial_computed_metric_count = _integer(financial_model.get("computed_metric_count")) or 0
@@ -12952,7 +13081,13 @@ def _build_recommendation_professional_decision_waterfall_payload(
     outcome_measured = bool(outcome.get("measurement_end_date")) and str(outcome.get("label") or "unmeasured") != "unmeasured"
     position_linked = holding_review.get("status") in {"review_linked", "position_without_review"}
 
-    if blocked_count > 0 or linked_thesis_id is None:
+    if source_blocked:
+        status = "source_data_blocked"
+        summary = (
+            "표준 재무제표 원천이 차단된 일반 기업 추천이다. 추천 기록은 보존하지만 "
+            "지원되는 정기 공시 또는 안전한 파서가 생기기 전까지 전문 판단·페이퍼 검증·주문 입력으로 쓰면 안 된다."
+        )
+    elif blocked_count > 0 or linked_thesis_id is None:
         status = "blocked_until_evidence_review"
         summary = "추천은 존재하지만 투자 논리나 근거 검토에서 막힌 항목이 있어 포트폴리오 조치로 넘기면 안 된다."
     elif not outcome_measured:
@@ -13039,13 +13174,46 @@ def _build_recommendation_professional_decision_waterfall_payload(
                 _professional_fact("피어 점수", _format_percent_text(_number(peer_relative.get("value") if peer_relative else None))),
             ],
         ),
+        *(
+            [
+                _professional_decision_step(
+                    step_key="source_data_guardrail",
+                    title="전문 재무 원천 차단",
+                    status="전문 판단 차단",
+                    tone="blocked",
+                    decision="재무 원천이 확보될 때까지 추천을 기록으로만 보존한다",
+                    detail=str(source_guardrail.get("summary") or ""),
+                    evidence_count=1,
+                    source="professional_source_data_guardrail",
+                    href="/data-health",
+                    href_label="원천 데이터 상태 보기",
+                    facts=[
+                        _professional_fact("차단 사유", source_guardrail.get("blocker_label")),
+                        _professional_fact("차단 코드", source_guardrail.get("blocker_code")),
+                        _professional_fact("원천 실행", source_blocker.get("source_run_id")),
+                        _professional_fact("다음 조치", source_guardrail.get("next_action")),
+                    ],
+                )
+            ]
+            if source_blocked
+            else []
+        ),
         _professional_decision_step(
             step_key="financial_quality",
             title="재무 품질",
-            status="재무 모델 연결" if financial_model_connected else ("재무 근거 연결" if fundamental_quality else "재무 근거 없음"),
-            tone="ready" if financial_model_connected or fundamental_quality else "watch",
+            status=(
+                "전문 판단 차단"
+                if source_blocked
+                else "재무 모델 연결"
+                if financial_model_connected
+                else ("재무 근거 연결" if fundamental_quality else "재무 근거 없음")
+            ),
+            tone="blocked" if source_blocked else ("ready" if financial_model_connected or fundamental_quality else "watch"),
             decision="성장보다 먼저 재무 체력을 확인한다",
             detail=(
+                str(source_guardrail.get("summary") or "")
+                if source_blocked
+                else
                 f"최근 재무 기간 {financial_latest_period_end} 기준으로 계산된 재무 지표 {financial_computed_metric_count}개와 데이터 공백 {financial_data_gap_count}개를 확인한다. 성과 검증 전까지 추천 총점을 흔들지 않는다."
                 if financial_model_connected
                 else "매출 성장, 마진, 현금흐름 품질, 재무 안정성에서 만든 zero-weight 기업 분석 항목이다. 성과 검증 전까지 추천 총점을 흔들지 않는다."
@@ -13133,10 +13301,13 @@ def _build_recommendation_professional_decision_waterfall_payload(
         _professional_decision_step(
             step_key="paper_validation",
             title="페이퍼 검증·거래 경계",
-            status="성과 측정됨" if outcome_measured else "성과 측정 대기",
-            tone="ready" if outcome_measured else "watch",
+            status="전문 원천 차단" if source_blocked else ("성과 측정됨" if outcome_measured else "성과 측정 대기"),
+            tone="blocked" if source_blocked else ("ready" if outcome_measured else "watch"),
             decision="검증 전까지 실거래로 넘기지 않는다",
             detail=(
+                str(source_guardrail.get("next_action") or "")
+                if source_blocked
+                else
                 "성과 측정 결과가 존재한다. 다만 이 화면은 읽기 전용이며 실거래 주문이나 자동 리밸런싱을 만들지 않는다."
                 if outcome_measured
                 else "중장기 추천은 outcome window가 끝난 뒤 성과 검증이 필요하다."
@@ -13161,6 +13332,7 @@ def _build_recommendation_professional_decision_waterfall_payload(
         "recommendation": recommendation,
         "score": score,
         "score_component_count": score_component_count,
+        "paper_validation_input_allowed": False if source_blocked else True,
         "automatic_order_allowed": False,
         "broker_submit_allowed": False,
         "order_boundary": "read_only_no_order",

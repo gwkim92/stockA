@@ -354,6 +354,7 @@ export type DataHealthData = {
     fund_not_applicable_count: number;
     fund_source_gap_count: number;
     coverage_gap_count: number;
+    guarded_source_blocked_recommendation_count: number;
     top_priority_score: number;
     gaps: Array<{
       priority_rank: number;
@@ -375,6 +376,9 @@ export type DataHealthData = {
       blocker_type: string;
       blocker_code: string;
       blocker_label: string;
+      professional_decision_use_allowed: boolean;
+      active_recommendation_professional_use_blocked: boolean;
+      paper_validation_input_allowed: boolean;
       source_run_id: string;
       source_status: string;
       source_observed_at: string;
@@ -709,6 +713,22 @@ export type FinancialStatementModel = {
   order_boundary: string;
 };
 
+export type ProfessionalSourceGuardrail = {
+  status: string;
+  blocked: boolean;
+  professional_decision_use_allowed: boolean;
+  paper_validation_input_allowed: boolean;
+  blocker_code: string;
+  blocker_label: string;
+  source_data_blocker: FinancialStatementModel["source_data_blocker"];
+  summary: string;
+  next_action: string;
+  score_policy: string;
+  automatic_order_allowed: boolean;
+  broker_submit_allowed: boolean;
+  order_boundary: string;
+};
+
 export type FundInstrumentAnalysis = {
   status: string;
   analysis_type: string;
@@ -873,6 +893,7 @@ export type StockDetailData = {
   financial_statement_model: FinancialStatementModel;
   valuation_target_range: ValuationTargetRange;
   fund_instrument_analysis: FundInstrumentAnalysis | null;
+  professional_source_guardrail: ProfessionalSourceGuardrail;
   macro_flow_impacts: Array<{
     event_id: string;
     title: string;
@@ -1485,6 +1506,7 @@ export type RecommendationDetailData = {
   valuation_target_range: ValuationTargetRange;
   fund_instrument_analysis: FundInstrumentAnalysis | null;
   linked_thesis_id: string;
+  professional_source_guardrail: ProfessionalSourceGuardrail;
   professional_decision_waterfall: ProfessionalDecisionWaterfall;
   evidence_trace: {
     symbol: string;
@@ -1563,6 +1585,7 @@ export type ProfessionalDecisionWaterfall = {
   recommendation: string;
   score: number | null;
   score_component_count: number;
+  paper_validation_input_allowed: boolean;
   automatic_order_allowed: boolean;
   broker_submit_allowed: boolean;
   order_boundary: string;

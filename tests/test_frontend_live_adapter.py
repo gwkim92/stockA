@@ -13,7 +13,10 @@ from stockanalysis.frontend.live_adapter import (
     FrontendLiveUnsupportedPathError,
     _build_financial_statement_model_payload,
     _build_fund_instrument_analysis_payload,
+    _build_professional_source_guardrail_payload,
+    _build_recommendation_evidence_review_payload,
     _build_recommendation_outcome_maturity_payload,
+    _build_recommendation_professional_decision_waterfall_payload,
     is_live_supported_path,
     render_frontend_ai_news_cluster_list_state_sql,
     render_frontend_ai_evidence_detail_state_sql,
@@ -3184,6 +3187,102 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertEqual(etf_payload["source_data_blocker"]["label"], "기업 재무 모델 비적용")
         self.assertIn("펀드형 상품", etf_payload["summary"])
 
+    def test_source_blocked_recommendation_guardrail_blocks_professional_use(self) -> None:
+        financial_model = _build_financial_statement_model_payload(
+            {
+                "statement_scope": "annual",
+                "metric_count": 0,
+                "computed_metric_count": 0,
+                "source_data_blocker": {
+                    "blocker_code": "sec_companyfacts_missing_us_gaap_facts",
+                    "source_pipeline": "financial_period_source_linkage",
+                    "source_run_id": 1503,
+                    "status": "failed",
+                    "observed_at": "2026-05-26T13:00:00+00:00",
+                    "error_summary": "SEC companyfacts payload does not contain facts.us-gaap",
+                },
+            },
+            symbol="EROK",
+            as_of_date="2026-05-26",
+        )
+        source_guardrail = _build_professional_source_guardrail_payload(
+            financial_statement_model=financial_model,
+            fund_instrument_analysis=None,
+        )
+        self.assertTrue(source_guardrail["blocked"])
+        self.assertFalse(source_guardrail["professional_decision_use_allowed"])
+        self.assertFalse(source_guardrail["paper_validation_input_allowed"])
+        self.assertEqual(source_guardrail["status"], "blocked_by_professional_source_data")
+        self.assertEqual(source_guardrail["order_boundary"], "read_only_no_order")
+
+        score_components = [
+            {
+                "component": "cycle_score",
+                "value": 0.41,
+                "weight": 0.45,
+                "evidence_id": "event-101",
+                "provenance": {"source_type": "event_or_ai_evidence"},
+            },
+            {
+                "component": "rank_score",
+                "value": 0.30,
+                "weight": 0.15,
+                "evidence_id": "universe-rank-erok-2026-05-26-1",
+                "provenance": {
+                    "source_type": "strategy_universe_rank",
+                    "rank_position": 12,
+                    "source_run_id": 9301,
+                },
+            },
+        ]
+        outcome = {"measurement_end_date": "2026-06-20", "label": "inline", "alpha": 0.0}
+        evidence_review = _build_recommendation_evidence_review_payload(
+            score_components=score_components,
+            linked_thesis_id=8,
+            outcome=outcome,
+            professional_source_guardrail=source_guardrail,
+        )
+        self.assertEqual(evidence_review["quality_status"], "blocked")
+        self.assertTrue(evidence_review["summary"]["professional_source_blocked"])
+        self.assertEqual(evidence_review["summary"]["blocked_count"], 1)
+        self.assertEqual(evidence_review["gates"][4]["gate_key"], "professional_source_data")
+        self.assertEqual(evidence_review["gates"][4]["status"], "blocked")
+
+        waterfall = _build_recommendation_professional_decision_waterfall_payload(
+            score_components=score_components,
+            equity_research=None,
+            industry_competitive_position=None,
+            financial_statement_model=financial_model,
+            valuation_target_range={"status": "unavailable", "method_count": 0},
+            linked_thesis_id=8,
+            evidence_trace={
+                "direct_news_or_ai": {
+                    "status": "linked",
+                    "impact_direction": "risk_review",
+                    "impact_strength": 0.62,
+                },
+                "macro_flow": {"status": "missing", "propagated_impact_count": 0},
+                "holding_review": {"status": "not_in_portfolio"},
+            },
+            evidence_review=evidence_review,
+            professional_source_guardrail=source_guardrail,
+            outcome=outcome,
+            symbol="EROK",
+            as_of_date="2026-05-26",
+            recommendation="exclude",
+            score=0.3486,
+        )
+        self.assertEqual(waterfall["status"], "source_data_blocked")
+        self.assertFalse(waterfall["paper_validation_input_allowed"])
+        self.assertFalse(waterfall["automatic_order_allowed"])
+        self.assertFalse(waterfall["broker_submit_allowed"])
+        self.assertEqual(waterfall["order_boundary"], "read_only_no_order")
+        step_by_key = {step["step_key"]: step for step in waterfall["steps"]}
+        self.assertEqual(step_by_key["source_data_guardrail"]["tone"], "blocked")
+        self.assertEqual(step_by_key["financial_quality"]["tone"], "blocked")
+        self.assertEqual(step_by_key["paper_validation"]["tone"], "blocked")
+        self.assertIn("지원되는 정기 공시", waterfall["summary"])
+
     def test_fund_instrument_analysis_payload_preserves_fund_boundaries(self) -> None:
         payload = _build_fund_instrument_analysis_payload(
             {
@@ -3445,8 +3544,12 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertEqual(source_gaps["gap_count"], 2)
         self.assertEqual(source_gaps["source_blocker_count"], 1)
         self.assertEqual(source_gaps["fund_not_applicable_count"], 1)
+        self.assertEqual(source_gaps["guarded_source_blocked_recommendation_count"], 1)
         self.assertEqual(source_gaps["gaps"][0]["symbol"], "EROK")
         self.assertEqual(source_gaps["gaps"][0]["blocker_label"], "SEC us-gaap facts 없음")
+        self.assertFalse(source_gaps["gaps"][0]["professional_decision_use_allowed"])
+        self.assertTrue(source_gaps["gaps"][0]["active_recommendation_professional_use_blocked"])
+        self.assertFalse(source_gaps["gaps"][0]["paper_validation_input_allowed"])
         self.assertEqual(source_gaps["gaps"][0]["source_run_id"], "pipeline-run-1503")
         self.assertEqual(
             source_gaps["gaps"][0]["raw_filing_decision"]["status"],
@@ -3464,6 +3567,8 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertEqual(source_gaps["gaps"][1]["product_type"], "fund_or_etf")
         self.assertEqual(source_gaps["gaps"][1]["blocker_type"], "fund_not_applicable")
         self.assertEqual(source_gaps["gaps"][1]["blocker_label"], "기업 재무 모델 비적용")
+        self.assertTrue(source_gaps["gaps"][1]["professional_decision_use_allowed"])
+        self.assertFalse(source_gaps["gaps"][1]["active_recommendation_professional_use_blocked"])
         self.assertFalse(source_gaps["recommendation_scoring_mutated"])
         self.assertFalse(source_gaps["automatic_weight_change_allowed"])
         self.assertFalse(source_gaps["broker_submit_allowed"])
