@@ -651,7 +651,7 @@ class FakeLiveExecutor:
                                         "revenue": "391035000000.0000",
                                         "operating_income": "153000000000.0000",
                                         "operating_margin": "0.3913",
-                                        "metric_unit": "USD_as_reported",
+                                        "metric_unit": "USD_millions_as_reported",
                                         "source_document_id": 8101,
                                         "confidence": "0.7600",
                                         "source_run_id": 7803,
@@ -663,7 +663,7 @@ class FakeLiveExecutor:
                                         "revenue": "94000000000.0000",
                                         "operating_income": "41500000000.0000",
                                         "operating_margin": "0.4415",
-                                        "metric_unit": "USD_as_reported",
+                                        "metric_unit": "USD_millions_as_reported",
                                         "source_document_id": 8101,
                                         "confidence": "0.7400",
                                         "source_run_id": 7803,
@@ -3565,6 +3565,10 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertEqual(sotp_method["sotp_evidence"]["reported_segment_inputs"][0]["revenue"], 391035000000.0)
         self.assertEqual(sotp_method["sotp_evidence"]["reported_segment_inputs"][0]["operating_income"], 153000000000.0)
         self.assertAlmostEqual(sotp_method["sotp_evidence"]["reported_segment_inputs"][0]["operating_margin"], 0.3913)
+        self.assertEqual(
+            sotp_method["sotp_evidence"]["reported_segment_inputs"][0]["metric_unit"],
+            "USD_millions_as_reported",
+        )
         self.assertEqual(len(sotp_method["sotp_evidence"]["reported_segment_allocations"]), 2)
         self.assertEqual(
             sotp_method["sotp_evidence"]["reported_segment_allocations"][0]["allocation_basis"],

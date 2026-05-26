@@ -37,6 +37,12 @@ function reportedUnitLabel(unit: string) {
   if (!unit) {
     return "단위 미확인";
   }
+  if (unit === "USD_millions_as_reported") {
+    return "백만 달러 단위";
+  }
+  if (unit === "USD_thousands_as_reported") {
+    return "천 달러 단위";
+  }
   if (unit === "USD_as_reported") {
     return "공시 보고 단위";
   }

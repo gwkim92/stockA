@@ -90,6 +90,12 @@ class ReportedSegmentMetricEvidence:
     confidence: Decimal
 
 
+@dataclass(frozen=True)
+class HtmlTableContext:
+    table_html: str
+    context_text: str
+
+
 def render_financial_metric_normalization_preview_sql(*, as_of_date: date, limit: int | None = None) -> str:
     limit_clause = "" if limit is None else f"\n    limit {int(limit)}"
     if limit is not None and limit <= 0:
@@ -3989,7 +3995,8 @@ def extract_reported_segment_metrics_from_html(
 ) -> list[ReportedSegmentMetricEvidence]:
     rows: list[ReportedSegmentMetricEvidence] = []
     seen: set[tuple[str, str]] = set()
-    for table_index, table_html in enumerate(_extract_html_tables(html_text), start=1):
+    for table_index, table_context in enumerate(_extract_html_table_contexts(html_text), start=1):
+        table_html = table_context.table_html
         table_rows = _extract_html_table_rows(table_html)
         if len(table_rows) < 2:
             continue
@@ -4007,6 +4014,7 @@ def extract_reported_segment_metrics_from_html(
                 source_document_id=source_document_id,
                 source_document_title=source_document_title,
                 source_document_url=source_document_url,
+                unit_context_text=table_context.context_text,
             )
         )
         header_index = _find_segment_table_header_index(table_rows)
@@ -4022,7 +4030,7 @@ def extract_reported_segment_metrics_from_html(
         }
         if not metric_columns:
             continue
-        unit = _infer_segment_metric_unit(table_html)
+        unit = _infer_segment_metric_unit(table_context.context_text)
         for row in table_rows[header_index + 1 :]:
             if len(row) < 2:
                 continue
@@ -4079,6 +4087,7 @@ def _extract_transposed_reported_segment_metrics(
     source_document_id: int,
     source_document_title: str | None,
     source_document_url: str | None,
+    unit_context_text: str,
 ) -> list[ReportedSegmentMetricEvidence]:
     header_index = _find_transposed_segment_header_index(table_rows)
     if header_index is None:
@@ -4092,7 +4101,7 @@ def _extract_transposed_reported_segment_metrics(
     if sum(1 for label in segment_labels if label is not None) < 2:
         return []
 
-    unit = _infer_segment_metric_unit(table_html)
+    unit = _infer_segment_metric_unit(unit_context_text)
     rows: list[ReportedSegmentMetricEvidence] = []
     for row in table_rows[header_index + 1 :]:
         if len(row) < 2:
@@ -4180,6 +4189,8 @@ def _reported_segment_metric_evidence(
             "table_index": table_index,
             "header_cells": header_cells,
             "metric_unit": metric_unit,
+            "metric_unit_label": _segment_metric_unit_label(metric_unit),
+            "metric_unit_scale": _segment_metric_unit_scale(metric_unit),
             "interpretation": "SEC filing의 세그먼트/사업부 표에서 직접 파싱한 reported segment metric이다.",
             "recommendation_scoring_mutated": False,
         },
@@ -4249,6 +4260,16 @@ def _render_reported_segment_metric_value_tuple(row: ReportedSegmentMetricEviden
 
 def _extract_html_tables(html_text: str) -> list[str]:
     return re.findall(r"<table\b[^>]*>.*?</table>", html_text, flags=re.IGNORECASE | re.DOTALL)
+
+
+def _extract_html_table_contexts(html_text: str, *, context_chars: int = 1600) -> list[HtmlTableContext]:
+    contexts: list[HtmlTableContext] = []
+    for match in re.finditer(r"<table\b[^>]*>.*?</table>", html_text, flags=re.IGNORECASE | re.DOTALL):
+        context_start = max(0, match.start() - context_chars)
+        context_end = min(len(html_text), match.end() + context_chars // 4)
+        context_html = html_text[context_start:context_end]
+        contexts.append(HtmlTableContext(table_html=match.group(0), context_text=_html_to_text(context_html)))
+    return contexts
 
 
 def _extract_html_table_rows(table_html: str) -> list[list[str]]:
@@ -4340,6 +4361,24 @@ def _infer_segment_metric_unit(table_html: str) -> str:
     if "in thousands" in normalized or "thousands" in normalized:
         return "USD_thousands_as_reported"
     return "USD_as_reported"
+
+
+def _segment_metric_unit_label(metric_unit: str) -> str:
+    if metric_unit == "USD_millions_as_reported":
+        return "백만 달러 단위"
+    if metric_unit == "USD_thousands_as_reported":
+        return "천 달러 단위"
+    if metric_unit == "USD_as_reported":
+        return "공시 보고 단위"
+    return metric_unit
+
+
+def _segment_metric_unit_scale(metric_unit: str) -> int | None:
+    if metric_unit == "USD_millions_as_reported":
+        return 1_000_000
+    if metric_unit == "USD_thousands_as_reported":
+        return 1_000
+    return None
 
 
 def _clean_segment_label(label: str) -> str | None:

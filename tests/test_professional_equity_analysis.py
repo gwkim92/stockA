@@ -592,7 +592,9 @@ class ProfessionalEquityAnalysisTests(unittest.TestCase):
         self.assertEqual(str(values[("Americas", "segment_revenue")]), "178353")
         self.assertEqual(str(values[("Americas", "segment_operating_income")]), "72480")
         self.assertEqual(str(values[("Rest of Asia Pacific", "segment_revenue")]), "33696")
-        self.assertTrue(all(row.metric_unit in {"USD_as_reported", "USD_millions_as_reported"} for row in rows))
+        self.assertTrue(all(row.metric_unit == "USD_millions_as_reported" for row in rows))
+        self.assertTrue(all(row.assumptions_json["metric_unit_label"] == "백만 달러 단위" for row in rows))
+        self.assertTrue(all(row.assumptions_json["metric_unit_scale"] == 1_000_000 for row in rows))
         self.assertTrue(all(row.assumptions_json["parser_layout"] == "transposed_segment_metric_rows" for row in rows))
         self.assertTrue(all(row.assumptions_json["recommendation_scoring_mutated"] is False for row in rows))
 
