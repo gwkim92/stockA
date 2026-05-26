@@ -31,7 +31,10 @@ from stockanalysis.operations.benchmark_composition_provider import (
     run_ssga_spdr_benchmark_composition_import,
 )
 from stockanalysis.operations.cadence import build_data_operations_cadence_report
-from stockanalysis.operations.cycle_ai_quality_audit import run_cycle_ai_quality_audit
+from stockanalysis.operations.cycle_ai_quality_audit import (
+    run_cycle_ai_quality_audit,
+    run_stale_direct_impact_cleanup,
+)
 from stockanalysis.operations.env_file import merged_env_with_file
 from stockanalysis.operations.env_readiness import check_data_operations_runtime_env
 from stockanalysis.operations.fund_expense_ratio_provider import (
@@ -776,6 +779,20 @@ def build_parser() -> argparse.ArgumentParser:
     cycle_ai_quality_audit.add_argument("--output")
     cycle_ai_quality_audit.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
     cycle_ai_quality_audit.set_defaults(handler=_handle_cycle_ai_quality_audit_run)
+
+    stale_direct_impact_cleanup = subparsers.add_parser(
+        "cycle-ai-stale-direct-impact-cleanup-run",
+        help="Preview or remove stale RSS direct instrument impacts that are no longer source-grounded.",
+    )
+    stale_direct_impact_cleanup.add_argument("--env-file")
+    stale_direct_impact_cleanup.add_argument("--as-of-date", required=True)
+    stale_direct_impact_cleanup.add_argument("--lookback-days", type=int, default=30)
+    stale_direct_impact_cleanup.add_argument("--limit", type=int, default=200)
+    stale_direct_impact_cleanup.add_argument("--execute", action="store_true")
+    stale_direct_impact_cleanup.add_argument("--dry-run", action="store_true")
+    stale_direct_impact_cleanup.add_argument("--output")
+    stale_direct_impact_cleanup.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
+    stale_direct_impact_cleanup.set_defaults(handler=_handle_stale_direct_impact_cleanup_run)
 
     recommendation_outcome_backfill = subparsers.add_parser(
         "recommendation-outcome-backfill-run",
@@ -1993,6 +2010,32 @@ def _handle_cycle_ai_quality_audit_run(args: argparse.Namespace, *, stdout: Text
         output_path = resolve_output_path(
             args.output,
             label="cycle AI quality audit output",
+            repo_root=args.repo_root,
+            require_repo_outside=True,
+        )
+        write_json_report(report, output_path=output_path, stdout=stdout)
+    else:
+        print_json(report, stdout=stdout, sort_keys=False)
+    return 0
+
+
+def _handle_stale_direct_impact_cleanup_run(args: argparse.Namespace, *, stdout: TextIO) -> int:
+    if bool(args.execute) and bool(args.dry_run):
+        raise ValueError("--execute and --dry-run cannot be used together.")
+    env_mapping = _load_optional_env_mapping(args.env_file, repo_root=args.repo_root)
+    as_of_date = date.fromisoformat(args.as_of_date)
+    with _temporary_environ(env_mapping):
+        report = run_stale_direct_impact_cleanup(
+            config=RuntimeConfig.from_env(),
+            as_of_date=as_of_date,
+            lookback_days=args.lookback_days,
+            execute=bool(args.execute) and not bool(args.dry_run),
+            limit=args.limit,
+        )
+    if args.output:
+        output_path = resolve_output_path(
+            args.output,
+            label="cycle AI stale direct impact cleanup output",
             repo_root=args.repo_root,
             require_repo_outside=True,
         )

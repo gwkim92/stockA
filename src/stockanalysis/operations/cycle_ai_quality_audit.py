@@ -18,6 +18,7 @@ from stockanalysis.signal.universe import (
 
 
 DEFAULT_PIPELINE_NAME = "cycle_ai_quality_audit"
+STALE_DIRECT_IMPACT_CLEANUP_PIPELINE_NAME = "cycle_ai_stale_direct_impact_cleanup"
 CYCLE_AI_QUALITY_AUDIT_REPORT_ENV = "STOCKANALYSIS_CYCLE_AI_QUALITY_AUDIT_REPORT"
 
 
@@ -361,6 +362,162 @@ select json_build_object(
 from score_input;"""
 
 
+def render_stale_direct_impact_cleanup_sql(
+    *,
+    as_of_date: date,
+    lookback_days: int = 30,
+    execute: bool = False,
+    limit: int = 200,
+) -> str:
+    if lookback_days < 1 or lookback_days > 120:
+        raise ValueError("lookback_days must be between 1 and 120.")
+    if limit < 1 or limit > 1000:
+        raise ValueError("limit must be between 1 and 1000.")
+    target_date = sql_date(as_of_date)
+    lookback_interval = f"interval '{lookback_days} days'"
+    deletion_cte = (
+        """deleted_impacts as (
+    delete from event.event_instrument_impact impact
+    using stale_direct_impacts stale
+    where impact.event_id = stale.event_id
+      and impact.instrument_id = stale.instrument_id
+    returning impact.event_id, impact.instrument_id
+)"""
+        if execute
+        else """deleted_impacts as (
+    select null::bigint as event_id, null::bigint as instrument_id
+    where false
+)"""
+    )
+    return f"""-- cycle ai stale direct impact cleanup
+with windowed_events as (
+    select event_row.*
+    from event.event event_row
+    where event_row.event_type = 'news_rss_item'
+      and event_row.event_at >= ({target_date} - {lookback_interval})
+      and event_row.event_at < ({target_date} + interval '1 day')
+),
+source_text_by_event as (
+    select
+        event_row.event_id,
+        string_agg(
+            coalesce(document.title, '') || ' ' || coalesce(document.summary, ''),
+            ' '
+            order by document.document_id
+        ) as source_text
+    from windowed_events event_row
+    left join event.event_document_link link
+      on link.event_id = event_row.event_id
+     and link.link_type = 'source'
+    left join ingest.source_document document
+      on document.document_id = link.document_id
+    group by event_row.event_id
+),
+source_aliases(primary_symbol, alias_text) as (
+    values
+        ('SPY', 's&p 500'),
+        ('SPY', 's&p500'),
+        ('SPY', 'spx'),
+        ('QQQ', 'nasdaq 100'),
+        ('QQQ', 'nasdaq futures'),
+        ('XLE', 'energy sector')
+),
+direct_impacts as (
+    select
+        impact.event_id,
+        impact.instrument_id,
+        instrument.primary_symbol,
+        instrument.name as instrument_name,
+        impact.impact_direction,
+        impact.impact_strength,
+        impact.confidence,
+        left(coalesce(event_row.title, ''), 180) as event_title,
+        source_text.source_text_normalized,
+        case
+            when position(' ' || lower(instrument.primary_symbol) || ' ' in source_text.source_text_normalized) > 0 then true
+            when exists (
+                select 1
+                from source_aliases alias
+                where alias.primary_symbol = upper(instrument.primary_symbol)
+                  and position(
+                      ' ' || btrim(regexp_replace(lower(alias.alias_text), '[^a-z0-9]+', ' ', 'g')) || ' '
+                      in source_text.source_text_normalized
+                  ) > 0
+            ) then true
+            when exists (
+                select 1
+                from regexp_split_to_table(instrument.name, '[^A-Za-z0-9]+') as token(value)
+                where length(lower(token.value)) >= 4
+                  and lower(token.value) not in (
+                      'class',
+                      'company',
+                      'corp',
+                      'corporation',
+                      'group',
+                      'holding',
+                      'holdings',
+                      'inc',
+                      'ltd',
+                      'plc',
+                      'shares',
+                      'stock',
+                      'trust'
+                  )
+                  and position(' ' || lower(token.value) || ' ' in source_text.source_text_normalized) > 0
+            ) then true
+            else false
+        end as is_grounded
+    from event.event_instrument_impact impact
+    join windowed_events event_row on event_row.event_id = impact.event_id
+    join ref.instrument instrument on instrument.instrument_id = impact.instrument_id
+    join source_text_by_event source_event on source_event.event_id = impact.event_id
+    cross join lateral (
+        select ' ' || btrim(regexp_replace(lower(coalesce(source_event.source_text, '')), '[^a-z0-9]+', ' ', 'g')) || ' ' as source_text_normalized
+    ) source_text
+),
+stale_direct_impacts as (
+    select
+        event_id,
+        instrument_id,
+        primary_symbol,
+        instrument_name,
+        impact_direction,
+        impact_strength,
+        confidence,
+        event_title
+    from direct_impacts
+    where is_grounded = false
+    order by event_id, primary_symbol
+    limit {limit}
+),
+{deletion_cte}
+select json_build_object(
+    'as_of_date', {sql_literal(as_of_date.isoformat())},
+    'lookback_days', {lookback_days},
+    'execute', {str(execute).lower()},
+    'candidate_count', (select count(*)::integer from stale_direct_impacts),
+    'removed_count', (select count(*)::integer from deleted_impacts),
+    'samples',
+        coalesce(
+            (
+                select json_agg(
+                    json_build_object(
+                        'event_id', event_id,
+                        'symbol', primary_symbol,
+                        'instrument_name', instrument_name,
+                        'impact_direction', impact_direction,
+                        'confidence', confidence,
+                        'event_title', event_title
+                    )
+                    order by event_id, primary_symbol
+                )
+                from (select * from stale_direct_impacts order by event_id, primary_symbol limit 10) sample
+            ),
+            '[]'::json
+        )
+)::text;"""
+
+
 def load_cycle_ai_quality_audit_state(
     *,
     config: RuntimeConfig,
@@ -376,6 +533,31 @@ def load_cycle_ai_quality_audit_state(
     )
     if not isinstance(payload, dict):
         raise ValueError("Cycle AI quality audit lookup did not return a JSON object.")
+    return payload
+
+
+def load_stale_direct_impact_cleanup_state(
+    *,
+    config: RuntimeConfig,
+    as_of_date: date,
+    lookback_days: int = 30,
+    execute: bool = False,
+    limit: int = 200,
+    executor: PsqlCommandExecutor | None = None,
+) -> dict[str, object]:
+    sql_executor = executor or PsqlCommandExecutor.from_config(config)
+    payload = json.loads(
+        sql_executor.execute_scalar(
+            render_stale_direct_impact_cleanup_sql(
+                as_of_date=as_of_date,
+                lookback_days=lookback_days,
+                execute=execute,
+                limit=limit,
+            )
+        )
+    )
+    if not isinstance(payload, dict):
+        raise ValueError("Stale direct impact cleanup lookup did not return a JSON object.")
     return payload
 
 
@@ -433,6 +615,65 @@ def run_cycle_ai_quality_audit(
         raise
     report["status"] = "completed"
     report["run_id"] = run_id
+    _assert_secret_free_payload(report)
+    return report
+
+
+def run_stale_direct_impact_cleanup(
+    *,
+    config: RuntimeConfig,
+    as_of_date: date,
+    lookback_days: int = 30,
+    execute: bool = False,
+    limit: int = 200,
+    executor: PsqlCommandExecutor | None = None,
+    generated_at: datetime | None = None,
+) -> dict[str, object]:
+    sql_executor = executor or PsqlCommandExecutor.from_config(config)
+    run_id: int | None = None
+    if execute:
+        run_id = _create_pipeline_run(
+            sql_executor,
+            pipeline_name=STALE_DIRECT_IMPACT_CLEANUP_PIPELINE_NAME,
+            config_json={
+                "as_of_date": as_of_date.isoformat(),
+                "lookback_days": lookback_days,
+                "limit": limit,
+            },
+        )
+    try:
+        state = load_stale_direct_impact_cleanup_state(
+            config=config,
+            as_of_date=as_of_date,
+            lookback_days=lookback_days,
+            execute=execute,
+            limit=limit,
+            executor=sql_executor,
+        )
+        if run_id is not None:
+            _mark_pipeline_run_succeeded(sql_executor, run_id)
+    except Exception as exc:
+        if run_id is not None:
+            _mark_pipeline_run_failed(sql_executor, run_id, str(exc))
+        raise
+
+    report: dict[str, object] = {
+        "report_name": STALE_DIRECT_IMPACT_CLEANUP_PIPELINE_NAME,
+        "generated_at": _format_timestamp(generated_at or datetime.now(timezone.utc)),
+        "status": "completed" if execute else "planned",
+        "execute": execute,
+        "as_of_date": str(state.get("as_of_date") or as_of_date.isoformat()),
+        "lookback_days": int(state.get("lookback_days") or lookback_days),
+        "candidate_count": int(state.get("candidate_count") or 0),
+        "removed_count": int(state.get("removed_count") or 0),
+        "samples": _as_scalar_or_mapping_list(state.get("samples")),
+        "order_boundary": "read_only_no_order",
+        "recommendation_scoring_mutated": False,
+        "automatic_order_allowed": False,
+        "broker_submit_allowed": False,
+    }
+    if run_id is not None:
+        report["run_id"] = run_id
     _assert_secret_free_payload(report)
     return report
 
@@ -550,6 +791,12 @@ def _as_scalar_list(value: object) -> list[object]:
     if not isinstance(value, list):
         return []
     return [item for item in value if isinstance(item, str | int | float | bool)]
+
+
+def _as_scalar_or_mapping_list(value: object) -> list[object]:
+    if not isinstance(value, list):
+        return []
+    return [item for item in value if isinstance(item, str | int | float | bool | dict)]
 
 
 def _assert_secret_free_payload(payload: Mapping[str, object]) -> None:
