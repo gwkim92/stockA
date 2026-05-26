@@ -160,6 +160,16 @@ function calibrationStatusClass(status: string) {
   return "risk-low";
 }
 
+function cadenceStatusClass(status: string) {
+  if (status === "missing_evidence_review_required") {
+    return "risk-high";
+  }
+  if (status === "run_feedback_now" || status === "run_calibration_now" || status === "missing") {
+    return "risk-medium";
+  }
+  return "risk-low";
+}
+
 function formatScore(value: number | null | undefined) {
   if (value === null || value === undefined) {
     return "없음";
@@ -225,6 +235,7 @@ export default async function PortfolioCoveragePage() {
   const reviewHistory = riskBudget.review_decision_history;
   const reviewFeedback = riskBudget.review_decision_feedback;
   const reviewCalibration = riskBudget.review_feedback_calibration;
+  const reviewCadence = riskBudget.review_feedback_cadence;
   const concentration = riskBudget.concentration;
   const hasPositions = data.positions.length > 0;
   const investedWeight = Math.max(0, 1 - (data.summary.cash_weight ?? 0));
@@ -571,6 +582,48 @@ export default async function PortfolioCoveragePage() {
                 아직 누적 calibration 자료가 없다. 여러 사후평가가 쌓인 뒤 이곳에서 판단 family별 신뢰도를 본다.
               </p>
             ) : null}
+          </div>
+        </article>
+
+        <article className="bento-card span-4" style={{ borderColor: reviewCadence.should_run_now ? "var(--accent-red)" : "var(--border-light)" }}>
+          <div className="section-heading">
+            <div>
+              <span className="metric-sub">검토 실행시점</span>
+              <h2>feedback과 calibration을 언제 다시 돌릴지 본다</h2>
+            </div>
+            <span className={`risk-tag ${cadenceStatusClass(reviewCadence.cadence_status)}`}>
+              {reviewCadence.status === "loaded" ? koCode(reviewCadence.cadence_status) : "cadence 없음"}
+            </span>
+          </div>
+          <p style={{ color: "var(--text-secondary)", marginTop: 0 }}>
+            최신 검토 이력, 사후평가, 누적평가가 서로 연결되어 있는지 확인한다. 실행 필요가 떠도 주문이나 weight 변경은
+            자동으로 허용되지 않는다.
+          </p>
+          <div className="status-rail compact-rail" aria-label="검토 실행시점 요약" style={{ marginBottom: "20px" }}>
+            <article className="rail-cell">
+              <span>실행 판단</span>
+              <strong>{reviewCadence.should_run_now ? "지금 실행" : "즉시 실행 아님"}</strong>
+              <small>{reviewCadence.reason}</small>
+            </article>
+            <article className="rail-cell">
+              <span>검토 이력 나이</span>
+              <strong>{reviewCadence.evidence.history_age_days}일</strong>
+              <small>최소 {reviewCadence.min_horizon_days}일</small>
+            </article>
+            <article className="rail-cell">
+              <span>feedback/calibration</span>
+              <strong>{reviewCadence.feedback.eval_run_id} / {reviewCadence.calibration.eval_run_id}</strong>
+              <small>feedback {koCode(reviewCadence.feedback.feedback_status)}</small>
+            </article>
+            <article className="rail-cell rail-critical">
+              <span>주문 경계</span>
+              <strong>{koCode(reviewCadence.order_boundary)}</strong>
+              <small>broker 전송 {reviewCadence.broker_submit_allowed ? "허용" : "금지"}</small>
+            </article>
+          </div>
+          <div className="empty-state" style={{ margin: 0 }}>
+            <strong>{reviewCadence.label}</strong>
+            <p>{reviewCadence.command}</p>
           </div>
         </article>
 

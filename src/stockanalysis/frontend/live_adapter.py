@@ -555,6 +555,9 @@ def build_live_data_health_response(
     portfolio_review_feedback_calibration = _build_portfolio_review_feedback_calibration_payload(
         _as_dict(state.get("portfolio_review_feedback_calibration"))
     )
+    portfolio_review_feedback_cadence = _build_portfolio_review_feedback_cadence_payload(
+        _as_dict(state.get("portfolio_review_feedback_cadence"))
+    )
     recommendation_outcome_calibration = _build_recommendation_outcome_calibration_payload(
         _as_dict(state.get("recommendation_outcome_calibration"))
     )
@@ -593,6 +596,14 @@ def build_live_data_health_response(
         "contradiction_review_required",
     }:
         gate = "portfolio_review_feedback_calibration_attention"
+        if gate not in open_gates:
+            open_gates.append(gate)
+    if portfolio_review_feedback_cadence["cadence_status"] in {
+        "run_feedback_now",
+        "run_calibration_now",
+        "missing_evidence_review_required",
+    }:
+        gate = "portfolio_review_feedback_cadence_attention"
         if gate not in open_gates:
             open_gates.append(gate)
     if recommendation_outcome_calibration["status"] in {"missing", "backfill_candidates_remain", "price_history_gaps_remain"}:
@@ -636,6 +647,7 @@ def build_live_data_health_response(
             "portfolio_review_decision_history": portfolio_review_decision_history,
             "portfolio_review_decision_feedback": portfolio_review_decision_feedback,
             "portfolio_review_feedback_calibration": portfolio_review_feedback_calibration,
+            "portfolio_review_feedback_cadence": portfolio_review_feedback_cadence,
             "recommendation_outcome_calibration": recommendation_outcome_calibration,
             "recommendation_outcome_maturity": recommendation_outcome_maturity,
             "recommendation_weight_review_readiness": recommendation_weight_review_readiness,
@@ -2431,6 +2443,11 @@ def build_live_portfolio_coverage_response(
         executor=executor,
         portfolio_name=portfolio_name,
     )
+    review_feedback_cadence = load_frontend_portfolio_review_feedback_cadence_state(
+        config=config,
+        executor=executor,
+        portfolio_name=portfolio_name,
+    )
     position_sizing_context = (
         {"positions": []}
         if missing_position_snapshot or not positions
@@ -2486,6 +2503,7 @@ def build_live_portfolio_coverage_response(
                 review_decision_history=review_decision_history,
                 review_decision_feedback=review_decision_feedback,
                 review_feedback_calibration=review_feedback_calibration,
+                review_feedback_cadence=review_feedback_cadence,
             ),
             "positions": positions,
             "attribution_readiness": {
@@ -2576,6 +2594,21 @@ def load_frontend_portfolio_review_feedback_calibration_state(
             render_frontend_portfolio_review_feedback_calibration_state_sql(portfolio_name=portfolio_name)
         ),
         "Frontend portfolio review feedback calibration lookup",
+    )
+
+
+def load_frontend_portfolio_review_feedback_cadence_state(
+    *,
+    config: RuntimeConfig,
+    executor: PsqlCommandExecutor | None,
+    portfolio_name: str,
+) -> dict[str, Any]:
+    sql_executor = executor or PsqlCommandExecutor.from_config(config)
+    return json_loads_object(
+        sql_executor.execute_scalar(
+            render_frontend_portfolio_review_feedback_cadence_state_sql(portfolio_name=portfolio_name)
+        ),
+        "Frontend portfolio review feedback cadence lookup",
     )
 
 
@@ -3018,6 +3051,87 @@ select
                 'order_boundary', 'read_only_no_order'
             ),
             'next_action', 'portfolio-review-feedback-calibration-run을 실행해 누적 검토 feedback 신뢰도를 집계한다.'
+        )
+    )::text;"""
+
+
+def render_frontend_portfolio_review_feedback_cadence_state_sql(*, portfolio_name: str) -> str:
+    return f"""-- frontend portfolio review feedback cadence lookup
+select
+    coalesce(
+        (
+            select json_build_object(
+                'status', 'loaded',
+                'eval_run_id', eval_run_id,
+                'created_at', created_at,
+                'eval_name', eval_name,
+                'dataset_version', dataset_version,
+                'as_of_date', score_json->>'as_of_date',
+                'portfolio_name', score_json->>'portfolio_name',
+                'min_horizon_days', coalesce(nullif(score_json->>'min_horizon_days', '')::integer, 30),
+                'cadence_status', score_json->>'cadence_status',
+                'action_type', score_json->>'action_type',
+                'should_run_now', coalesce((score_json->>'should_run_now')::boolean, false),
+                'should_wait', coalesce((score_json->>'should_wait')::boolean, false),
+                'wait_until', score_json->>'wait_until',
+                'command', score_json->>'command',
+                'follow_up_command', score_json->>'follow_up_command',
+                'label', score_json->>'label',
+                'reason', score_json->>'reason',
+                'history', coalesce(score_json->'history', '{{}}'::jsonb),
+                'feedback', coalesce(score_json->'feedback', '{{}}'::jsonb),
+                'calibration', coalesce(score_json->'calibration', '{{}}'::jsonb),
+                'evidence', coalesce(score_json->'evidence', '{{}}'::jsonb),
+                'blocks_weight_review', coalesce((score_json->>'blocks_weight_review')::boolean, true),
+                'recommendation_scoring_mutated', coalesce((score_json->>'recommendation_scoring_mutated')::boolean, false),
+                'benchmark_definition_mutated', coalesce((score_json->>'benchmark_definition_mutated')::boolean, false),
+                'portfolio_position_mutated', coalesce((score_json->>'portfolio_position_mutated')::boolean, false),
+                'automatic_weight_change_allowed', coalesce((score_json->>'automatic_weight_change_allowed')::boolean, false),
+                'automatic_rebalance_allowed', coalesce((score_json->>'automatic_rebalance_allowed')::boolean, false),
+                'automatic_order_allowed', coalesce((score_json->>'automatic_order_allowed')::boolean, false),
+                'broker_submit_allowed', coalesce((score_json->>'broker_submit_allowed')::boolean, false),
+                'order_boundary', coalesce(score_json->>'order_boundary', 'read_only_no_order'),
+                'next_action', score_json->>'next_action'
+            )
+            from ai.eval_run eval_run
+            where eval_run.eval_name = 'portfolio_review_feedback_cadence'
+              and eval_run.dataset_version = 'portfolio-review-feedback-cadence-v1'
+              and coalesce(eval_run.score_json->>'portfolio_name', {sql_literal(portfolio_name)}) = {sql_literal(portfolio_name)}
+            order by
+                nullif(eval_run.score_json->>'as_of_date', '')::date desc nulls last,
+                eval_run.created_at desc,
+                eval_run.eval_run_id desc
+            limit 1
+        ),
+        json_build_object(
+            'status', 'missing',
+            'eval_name', 'portfolio_review_feedback_cadence',
+            'dataset_version', 'portfolio-review-feedback-cadence-v1',
+            'portfolio_name', {sql_literal(portfolio_name)},
+            'min_horizon_days', 30,
+            'cadence_status', 'missing',
+            'action_type', 'inspect',
+            'should_run_now', false,
+            'should_wait', false,
+            'wait_until', '',
+            'command', 'portfolio-review-feedback-cadence-run을 실행해 다음 feedback/calibration 작업을 판단한다.',
+            'follow_up_command', '',
+            'label', '검토 feedback cadence 상태를 먼저 계산한다.',
+            'reason', '아직 portfolio review feedback cadence artifact가 없다.',
+            'history', '{{}}'::json,
+            'feedback', '{{}}'::json,
+            'calibration', '{{}}'::json,
+            'evidence', '{{}}'::json,
+            'blocks_weight_review', true,
+            'recommendation_scoring_mutated', false,
+            'benchmark_definition_mutated', false,
+            'portfolio_position_mutated', false,
+            'automatic_weight_change_allowed', false,
+            'automatic_rebalance_allowed', false,
+            'automatic_order_allowed', false,
+            'broker_submit_allowed', false,
+            'order_boundary', 'read_only_no_order',
+            'next_action', 'portfolio-review-feedback-cadence-run을 실행해 다음 feedback/calibration 작업을 판단한다.'
         )
     )::text;"""
 
@@ -3779,6 +3893,18 @@ selected_portfolio_review_feedback_calibration as (
         eval_run.eval_run_id desc
     limit 1
 ),
+selected_portfolio_review_feedback_cadence as (
+    select eval_run.*
+    from ai.eval_run eval_run
+    where eval_run.eval_name = 'portfolio_review_feedback_cadence'
+      and eval_run.dataset_version = 'portfolio-review-feedback-cadence-v1'
+      and coalesce(eval_run.score_json->>'portfolio_name', {sql_literal(DEFAULT_PORTFOLIO_NAME)}) = {sql_literal(DEFAULT_PORTFOLIO_NAME)}
+    order by
+        nullif(eval_run.score_json->>'as_of_date', '')::date desc nulls last,
+        eval_run.created_at desc,
+        eval_run.eval_run_id desc
+    limit 1
+),
 selected_recommendation_outcome_calibration as (
     select eval_run.*
     from ai.eval_run eval_run
@@ -4493,6 +4619,75 @@ select json_build_object(
                 'order_boundary', 'read_only_no_order'
             ),
             'next_action', 'portfolio-review-feedback-calibration-run을 실행해 누적 검토 feedback 신뢰도를 집계한다.'
+        )
+    ),
+    'portfolio_review_feedback_cadence',
+    coalesce(
+        (
+            select json_build_object(
+                'status', 'loaded',
+                'eval_run_id', eval_run_id,
+                'created_at', created_at,
+                'eval_name', eval_name,
+                'dataset_version', dataset_version,
+                'as_of_date', score_json->>'as_of_date',
+                'portfolio_name', score_json->>'portfolio_name',
+                'min_horizon_days', coalesce(nullif(score_json->>'min_horizon_days', '')::integer, 30),
+                'cadence_status', score_json->>'cadence_status',
+                'action_type', score_json->>'action_type',
+                'should_run_now', coalesce((score_json->>'should_run_now')::boolean, false),
+                'should_wait', coalesce((score_json->>'should_wait')::boolean, false),
+                'wait_until', score_json->>'wait_until',
+                'command', score_json->>'command',
+                'follow_up_command', score_json->>'follow_up_command',
+                'label', score_json->>'label',
+                'reason', score_json->>'reason',
+                'history', coalesce(score_json->'history', '{{}}'::jsonb),
+                'feedback', coalesce(score_json->'feedback', '{{}}'::jsonb),
+                'calibration', coalesce(score_json->'calibration', '{{}}'::jsonb),
+                'evidence', coalesce(score_json->'evidence', '{{}}'::jsonb),
+                'blocks_weight_review', coalesce((score_json->>'blocks_weight_review')::boolean, true),
+                'recommendation_scoring_mutated', coalesce((score_json->>'recommendation_scoring_mutated')::boolean, false),
+                'benchmark_definition_mutated', coalesce((score_json->>'benchmark_definition_mutated')::boolean, false),
+                'portfolio_position_mutated', coalesce((score_json->>'portfolio_position_mutated')::boolean, false),
+                'automatic_weight_change_allowed', coalesce((score_json->>'automatic_weight_change_allowed')::boolean, false),
+                'automatic_rebalance_allowed', coalesce((score_json->>'automatic_rebalance_allowed')::boolean, false),
+                'automatic_order_allowed', coalesce((score_json->>'automatic_order_allowed')::boolean, false),
+                'broker_submit_allowed', coalesce((score_json->>'broker_submit_allowed')::boolean, false),
+                'order_boundary', coalesce(score_json->>'order_boundary', 'read_only_no_order'),
+                'next_action', score_json->>'next_action'
+            )
+            from selected_portfolio_review_feedback_cadence
+        ),
+        json_build_object(
+            'status', 'missing',
+            'eval_name', 'portfolio_review_feedback_cadence',
+            'dataset_version', 'portfolio-review-feedback-cadence-v1',
+            'portfolio_name', {sql_literal(DEFAULT_PORTFOLIO_NAME)},
+            'min_horizon_days', 30,
+            'cadence_status', 'missing',
+            'action_type', 'inspect',
+            'should_run_now', false,
+            'should_wait', false,
+            'wait_until', '',
+            'command', 'portfolio-review-feedback-cadence-run을 실행해 다음 feedback/calibration 작업을 판단한다.',
+            'follow_up_command', '',
+            'label', '검토 feedback cadence 상태를 먼저 계산한다.',
+            'reason', '아직 portfolio review feedback cadence artifact가 없다.',
+            'history', '{{}}'::json,
+            'feedback', '{{}}'::json,
+            'calibration', '{{}}'::json,
+            'evidence', '{{}}'::json,
+            'blocks_weight_review', true,
+            'recommendation_scoring_mutated', false,
+            'benchmark_definition_mutated', false,
+            'portfolio_position_mutated', false,
+            'automatic_weight_change_allowed', false,
+            'automatic_rebalance_allowed', false,
+            'automatic_order_allowed', false,
+            'broker_submit_allowed', false,
+            'order_boundary', 'read_only_no_order',
+            'next_action', 'portfolio-review-feedback-cadence-run을 실행해 다음 feedback/calibration 작업을 판단한다.'
         )
     ),
     'recommendation_outcome_calibration',
@@ -12502,6 +12697,102 @@ def _build_portfolio_review_feedback_group_summary(item: dict[str, Any], key_nam
     }
 
 
+def _build_portfolio_review_feedback_cadence_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    status = str(payload.get("status") or "missing")
+    cadence_status = str(payload.get("cadence_status") or ("missing" if status == "missing" else "unknown"))
+    history = _as_dict(payload.get("history"))
+    feedback = _as_dict(payload.get("feedback"))
+    calibration = _as_dict(payload.get("calibration"))
+    evidence = _as_dict(payload.get("evidence"))
+    paper_validation = _as_dict(evidence.get("paper_validation"))
+    return {
+        "status": status,
+        "eval_run_id": _opaque_id("eval-run", payload.get("eval_run_id"), None),
+        "created_at": _timestamp(payload.get("created_at")),
+        "eval_name": str(payload.get("eval_name") or "portfolio_review_feedback_cadence"),
+        "dataset_version": str(payload.get("dataset_version") or "portfolio-review-feedback-cadence-v1"),
+        "as_of_date": str(payload.get("as_of_date") or ""),
+        "portfolio_name": str(payload.get("portfolio_name") or DEFAULT_PORTFOLIO_NAME),
+        "min_horizon_days": int(_safe_number(payload.get("min_horizon_days")) or 30),
+        "cadence_status": cadence_status,
+        "action_type": str(payload.get("action_type") or "inspect"),
+        "should_run_now": payload.get("should_run_now") is True,
+        "should_wait": payload.get("should_wait") is True,
+        "wait_until": str(payload.get("wait_until") or ""),
+        "command": str(payload.get("command") or ""),
+        "follow_up_command": str(payload.get("follow_up_command") or ""),
+        "label": str(payload.get("label") or "검토 feedback cadence 상태를 확인한다."),
+        "reason": str(payload.get("reason") or ""),
+        "history": {
+            "status": str(history.get("status") or "missing"),
+            "eval_run_id": _opaque_id("eval-run", history.get("eval_run_id"), None),
+            "created_at": _timestamp(history.get("created_at")),
+            "as_of_date": str(history.get("as_of_date") or ""),
+            "decision_status": str(history.get("decision_status") or "missing"),
+            "decision_count": int(_safe_number(history.get("decision_count")) or 0),
+            "review_required_count": int(_safe_number(history.get("review_required_count")) or 0),
+        },
+        "feedback": {
+            "status": str(feedback.get("status") or "missing"),
+            "eval_run_id": _opaque_id("eval-run", feedback.get("eval_run_id"), None),
+            "created_at": _timestamp(feedback.get("created_at")),
+            "as_of_date": str(feedback.get("as_of_date") or ""),
+            "source_history_eval_run_id": _opaque_id("eval-run", feedback.get("source_history_eval_run_id"), None),
+            "source_history_as_of_date": str(feedback.get("source_history_as_of_date") or ""),
+            "feedback_status": str(feedback.get("feedback_status") or "missing"),
+            "decision_count": int(_safe_number(feedback.get("decision_count")) or 0),
+            "too_early_count": int(_safe_number(feedback.get("too_early_count")) or 0),
+            "validated_count": int(_safe_number(feedback.get("validated_count")) or 0),
+            "contradicted_count": int(_safe_number(feedback.get("contradicted_count")) or 0),
+            "needs_more_data_count": int(_safe_number(feedback.get("needs_more_data_count")) or 0),
+        },
+        "calibration": {
+            "status": str(calibration.get("status") or "missing"),
+            "eval_run_id": _opaque_id("eval-run", calibration.get("eval_run_id"), None),
+            "created_at": _timestamp(calibration.get("created_at")),
+            "as_of_date": str(calibration.get("as_of_date") or ""),
+            "calibration_status": str(calibration.get("calibration_status") or "missing"),
+            "feedback_run_count": int(_safe_number(calibration.get("feedback_run_count")) or 0),
+            "decision_count": int(_safe_number(calibration.get("decision_count")) or 0),
+            "mature_decision_count": int(_safe_number(calibration.get("mature_decision_count")) or 0),
+            "too_early_count": int(_safe_number(calibration.get("too_early_count")) or 0),
+            "validated_count": int(_safe_number(calibration.get("validated_count")) or 0),
+            "contradicted_count": int(_safe_number(calibration.get("contradicted_count")) or 0),
+            "needs_more_data_count": int(_safe_number(calibration.get("needs_more_data_count")) or 0),
+            "latest_feedback_run_ids": [
+                _opaque_id("eval-run", item, None)
+                for item in _as_list_or_scalars(calibration.get("latest_feedback_run_ids"))
+                if item is not None
+            ],
+        },
+        "evidence": {
+            "history_age_days": int(_safe_number(evidence.get("history_age_days")) or 0),
+            "decision_count": int(_safe_number(evidence.get("decision_count")) or 0),
+            "recommendation_link_count": int(_safe_number(evidence.get("recommendation_link_count")) or 0),
+            "recommendation_outcome_count": int(_safe_number(evidence.get("recommendation_outcome_count")) or 0),
+            "price_evidence_count": int(_safe_number(evidence.get("price_evidence_count")) or 0),
+            "paper_validation": {
+                "paper_validation_run_id": _opaque_id("paper-validation", paper_validation.get("paper_validation_run_id"), None),
+                "validation_date": str(paper_validation.get("validation_date") or ""),
+                "status": str(paper_validation.get("status") or "missing"),
+                "recommendation_count": int(_safe_number(paper_validation.get("recommendation_count")) or 0),
+                "conflict_count": int(_safe_number(paper_validation.get("conflict_count")) or 0),
+                "approved_action_count": int(_safe_number(paper_validation.get("approved_action_count")) or 0),
+            },
+        },
+        "blocks_weight_review": payload.get("blocks_weight_review") is not False,
+        "recommendation_scoring_mutated": payload.get("recommendation_scoring_mutated") is True,
+        "benchmark_definition_mutated": payload.get("benchmark_definition_mutated") is True,
+        "portfolio_position_mutated": payload.get("portfolio_position_mutated") is True,
+        "automatic_weight_change_allowed": payload.get("automatic_weight_change_allowed") is True,
+        "automatic_rebalance_allowed": payload.get("automatic_rebalance_allowed") is True,
+        "automatic_order_allowed": payload.get("automatic_order_allowed") is True,
+        "broker_submit_allowed": payload.get("broker_submit_allowed") is True,
+        "order_boundary": str(payload.get("order_boundary") or "read_only_no_order"),
+        "next_action": str(payload.get("next_action") or payload.get("label") or "portfolio-review-feedback-cadence-run을 실행한다."),
+    }
+
+
 def _build_portfolio_review_feedback_item_payload(item: dict[str, Any]) -> dict[str, Any]:
     source_decision = _as_dict(item.get("source_decision"))
     evidence = _as_dict(item.get("evidence"))
@@ -14875,6 +15166,7 @@ def _build_portfolio_risk_budget_payload(
     review_decision_history: dict[str, Any] | None = None,
     review_decision_feedback: dict[str, Any] | None = None,
     review_feedback_calibration: dict[str, Any] | None = None,
+    review_feedback_cadence: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     max_single_position_weight = _number(allocation_policy.get("max_single_position_weight"))
     min_rebalance_target_weight = _number(allocation_policy.get("min_rebalance_target_weight"))
@@ -14961,6 +15253,9 @@ def _build_portfolio_risk_budget_payload(
         ),
         "review_feedback_calibration": _build_portfolio_review_feedback_calibration_payload(
             _as_dict(review_feedback_calibration)
+        ),
+        "review_feedback_cadence": _build_portfolio_review_feedback_cadence_payload(
+            _as_dict(review_feedback_cadence)
         ),
         "review_reasons": reasons,
     }

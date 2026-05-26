@@ -18,6 +18,7 @@ type BenchmarkDriftQuality = DataHealthData["benchmark_drift_quality"];
 type PortfolioReviewDecisionHistory = DataHealthData["portfolio_review_decision_history"];
 type PortfolioReviewDecisionFeedback = DataHealthData["portfolio_review_decision_feedback"];
 type PortfolioReviewFeedbackCalibration = DataHealthData["portfolio_review_feedback_calibration"];
+type PortfolioReviewFeedbackCadence = DataHealthData["portfolio_review_feedback_cadence"];
 type RecommendationOutcomeCalibration = DataHealthData["recommendation_outcome_calibration"];
 type RecommendationOutcomeMaturity = DataHealthData["recommendation_outcome_maturity"];
 type RecommendationWeightReviewReadiness = DataHealthData["recommendation_weight_review_readiness"];
@@ -447,6 +448,16 @@ function calibrationStatusClass(status: string) {
   return "risk-low";
 }
 
+function cadenceStatusClass(status: string) {
+  if (status === "missing_evidence_review_required") {
+    return "risk-high";
+  }
+  if (status === "run_feedback_now" || status === "run_calibration_now" || status === "missing") {
+    return "risk-medium";
+  }
+  return "risk-low";
+}
+
 function outcomeCalibrationTitle(calibration: RecommendationOutcomeCalibration) {
   if (calibration.status === "ready_for_manual_weight_review") {
     return "성과 표본 검토 가능";
@@ -808,6 +819,89 @@ const DEFAULT_PORTFOLIO_REVIEW_FEEDBACK_CALIBRATION: PortfolioReviewFeedbackCali
   next_action: "portfolio-review-feedback-calibration-run을 실행해 누적 검토 feedback 신뢰도를 집계한다.",
 };
 
+const DEFAULT_PORTFOLIO_REVIEW_FEEDBACK_CADENCE: PortfolioReviewFeedbackCadence = {
+  status: "missing",
+  eval_run_id: "eval-run-unknown",
+  created_at: "",
+  eval_name: "portfolio_review_feedback_cadence",
+  dataset_version: "portfolio-review-feedback-cadence-v1",
+  as_of_date: "",
+  portfolio_name: "Long Term Paper",
+  min_horizon_days: 30,
+  cadence_status: "missing",
+  action_type: "inspect",
+  should_run_now: false,
+  should_wait: false,
+  wait_until: "",
+  command: "portfolio-review-feedback-cadence-run을 실행해 다음 feedback/calibration 작업을 판단한다.",
+  follow_up_command: "",
+  label: "검토 feedback cadence 상태를 먼저 계산한다.",
+  reason: "아직 portfolio review feedback cadence artifact가 없다.",
+  history: {
+    status: "missing",
+    eval_run_id: "eval-run-unknown",
+    created_at: "",
+    as_of_date: "",
+    decision_status: "missing",
+    decision_count: 0,
+    review_required_count: 0,
+  },
+  feedback: {
+    status: "missing",
+    eval_run_id: "eval-run-unknown",
+    created_at: "",
+    as_of_date: "",
+    source_history_eval_run_id: "eval-run-unknown",
+    source_history_as_of_date: "",
+    feedback_status: "missing",
+    decision_count: 0,
+    too_early_count: 0,
+    validated_count: 0,
+    contradicted_count: 0,
+    needs_more_data_count: 0,
+  },
+  calibration: {
+    status: "missing",
+    eval_run_id: "eval-run-unknown",
+    created_at: "",
+    as_of_date: "",
+    calibration_status: "missing",
+    feedback_run_count: 0,
+    decision_count: 0,
+    mature_decision_count: 0,
+    too_early_count: 0,
+    validated_count: 0,
+    contradicted_count: 0,
+    needs_more_data_count: 0,
+    latest_feedback_run_ids: [],
+  },
+  evidence: {
+    history_age_days: 0,
+    decision_count: 0,
+    recommendation_link_count: 0,
+    recommendation_outcome_count: 0,
+    price_evidence_count: 0,
+    paper_validation: {
+      paper_validation_run_id: "paper-validation-unknown",
+      validation_date: "",
+      status: "missing",
+      recommendation_count: 0,
+      conflict_count: 0,
+      approved_action_count: 0,
+    },
+  },
+  blocks_weight_review: true,
+  recommendation_scoring_mutated: false,
+  benchmark_definition_mutated: false,
+  portfolio_position_mutated: false,
+  automatic_weight_change_allowed: false,
+  automatic_rebalance_allowed: false,
+  automatic_order_allowed: false,
+  broker_submit_allowed: false,
+  order_boundary: "read_only_no_order",
+  next_action: "portfolio-review-feedback-cadence-run을 실행해 다음 feedback/calibration 작업을 판단한다.",
+};
+
 const DEFAULT_RECOMMENDATION_OUTCOME_CALIBRATION: RecommendationOutcomeCalibration = {
   status: "missing",
   eval_run_id: "eval-run-unknown",
@@ -938,6 +1032,8 @@ export default async function DataHealthPage() {
     data.portfolio_review_decision_feedback ?? DEFAULT_PORTFOLIO_REVIEW_DECISION_FEEDBACK;
   const portfolioReviewCalibration =
     data.portfolio_review_feedback_calibration ?? DEFAULT_PORTFOLIO_REVIEW_FEEDBACK_CALIBRATION;
+  const portfolioReviewCadence =
+    data.portfolio_review_feedback_cadence ?? DEFAULT_PORTFOLIO_REVIEW_FEEDBACK_CADENCE;
   const benchmarkDriftDecisionBySymbol = new Map(
     benchmarkDriftQuality.outlier_decisions.map((decision) => [decision.symbol, decision]),
   );
@@ -1064,6 +1160,22 @@ export default async function DataHealthPage() {
       href: "#portfolio-review-calibration",
       cta: "신뢰도 보기",
       tone: calibrationStatusClass(portfolioReviewCalibration.calibration_status),
+    },
+    {
+      label: "검토 실행시점",
+      title:
+        portfolioReviewCadence.should_run_now
+          ? "지금 실행 필요"
+          : portfolioReviewCadence.should_wait
+            ? "대기"
+            : "상태 확인",
+      body:
+        portfolioReviewCadence.status === "loaded"
+          ? portfolioReviewCadence.reason
+          : "사후평가와 누적평가를 언제 다시 돌릴지 아직 계산되지 않았다.",
+      href: "#portfolio-review-cadence",
+      cta: "실행시점 보기",
+      tone: cadenceStatusClass(portfolioReviewCadence.cadence_status),
     },
     {
       label: "성과검증",
@@ -1996,6 +2108,104 @@ export default async function DataHealthPage() {
         <div className="empty-state">
           <strong>다음 조치</strong>
           <p>{portfolioReviewCalibration.next_action}</p>
+        </div>
+      </section>
+
+      <section
+        className="feature-map-panel reveal delay-1"
+        id="portfolio-review-cadence"
+        aria-labelledby="portfolio-review-cadence-title"
+      >
+        <div className="section-heading stacked-heading">
+          <span>포트폴리오 검토 실행시점</span>
+          <h2 id="portfolio-review-cadence-title">사후평가와 누적평가를 언제 다시 돌릴지 판단한다.</h2>
+        </div>
+        <p className="board-intro">
+          검토 이력, outcome window, 가격·paper validation 근거, 최신 feedback, 최신 calibration의 연결 상태를 보고
+          기다릴지, feedback을 실행할지, calibration을 실행할지 결정한다. 이 판단도 주문이나 weight 변경이 아니다.
+        </p>
+        <div className="status-rail compact-rail">
+          <article className="rail-cell">
+            <span>cadence 상태</span>
+            <strong className={`risk-tag ${cadenceStatusClass(portfolioReviewCadence.cadence_status)}`}>
+              {koCode(portfolioReviewCadence.cadence_status)}
+            </strong>
+            <small>{portfolioReviewCadence.eval_run_id}</small>
+          </article>
+          <article className="rail-cell">
+            <span>실행 여부</span>
+            <strong>{portfolioReviewCadence.should_run_now ? "지금 실행" : "즉시 실행 아님"}</strong>
+            <small>{portfolioReviewCadence.should_wait ? "대기 필요" : "대기 조건 없음"}</small>
+          </article>
+          <article className="rail-cell">
+            <span>검토 이력 나이</span>
+            <strong>{portfolioReviewCadence.evidence.history_age_days}일</strong>
+            <small>최소 {portfolioReviewCadence.min_horizon_days}일 관찰</small>
+          </article>
+          <article className="rail-cell">
+            <span>근거 커버리지</span>
+            <strong>
+              {portfolioReviewCadence.evidence.recommendation_outcome_count}/
+              {portfolioReviewCadence.evidence.recommendation_link_count}
+            </strong>
+            <small>outcome 연결 · 가격 {portfolioReviewCadence.evidence.price_evidence_count}개</small>
+          </article>
+          <article className="rail-cell rail-critical">
+            <span>주문 경계</span>
+            <strong>{koCode(portfolioReviewCadence.order_boundary)}</strong>
+            <small>broker 전송 {portfolioReviewCadence.broker_submit_allowed ? "허용" : "금지"}</small>
+          </article>
+        </div>
+        <div className="insight-grid">
+          <article className="insight-card">
+            <span>다음 명령</span>
+            <strong>{koCode(portfolioReviewCadence.action_type)}</strong>
+            <p>{portfolioReviewCadence.label}</p>
+            <small>{portfolioReviewCadence.command}</small>
+          </article>
+          <article className="insight-card">
+            <span>후속 명령</span>
+            <strong>{portfolioReviewCadence.follow_up_command ? "있음" : "없음"}</strong>
+            <p>{portfolioReviewCadence.follow_up_command || "현재 후속 명령은 없다."}</p>
+          </article>
+          <article className="insight-card">
+            <span>history → feedback</span>
+            <strong>
+              {portfolioReviewCadence.history.eval_run_id} → {portfolioReviewCadence.feedback.eval_run_id}
+            </strong>
+            <p>
+              이력 {portfolioReviewCadence.history.decision_count}개 · feedback{" "}
+              {portfolioReviewCadence.feedback.decision_count}개 · 상태{" "}
+              {koCode(portfolioReviewCadence.feedback.feedback_status)}
+            </p>
+          </article>
+          <article className="insight-card">
+            <span>feedback → calibration</span>
+            <strong>
+              {portfolioReviewCadence.feedback.eval_run_id} → {portfolioReviewCadence.calibration.eval_run_id}
+            </strong>
+            <p>
+              누적 feedback {portfolioReviewCadence.calibration.feedback_run_count}회 · 성숙 판단{" "}
+              {portfolioReviewCadence.calibration.mature_decision_count}개
+            </p>
+          </article>
+          <article className="insight-card">
+            <span>paper validation</span>
+            <strong>{koCode(portfolioReviewCadence.evidence.paper_validation.status)}</strong>
+            <p>
+              검증일 {portfolioReviewCadence.evidence.paper_validation.validation_date || "없음"} · 충돌{" "}
+              {portfolioReviewCadence.evidence.paper_validation.conflict_count}개
+            </p>
+          </article>
+          <article className="insight-card">
+            <span>추천 weight</span>
+            <strong>{portfolioReviewCadence.automatic_weight_change_allowed ? "변경 허용" : "변경 금지"}</strong>
+            <p>cadence 판단은 실행 순서만 정한다. 추천 점수와 포트폴리오 비중은 바꾸지 않는다.</p>
+          </article>
+        </div>
+        <div className="empty-state">
+          <strong>다음 조치</strong>
+          <p>{portfolioReviewCadence.next_action}</p>
         </div>
       </section>
 

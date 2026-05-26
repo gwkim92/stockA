@@ -390,6 +390,18 @@ DATA_OPERATION_CADENCES: tuple[DataOperationCadence, ...] = (
         data_health_dataset="ai.eval_run",
     ),
     DataOperationCadence(
+        job_id="portfolio-review-feedback-cadence-daily",
+        pipeline_name="portfolio_review_feedback_cadence",
+        domain="portfolio",
+        cadence="daily",
+        command_template='stockanalysis-operations portfolio-review-feedback-cadence-run --env-file <ENV> --portfolio-name "Long Term Paper" --as-of-date <YYYY-MM-DD> --execute',
+        expected_after_local="19:45",
+        stale_after_hours=36,
+        artifact_policy="stdout_json_stderr_log_and_cadence_decision",
+        required_env_groups=("database",),
+        data_health_dataset="ai.eval_run",
+    ),
+    DataOperationCadence(
         job_id="performance-outcome-monthly",
         pipeline_name="performance_outcome_schedule_bootstrap",
         domain="performance",

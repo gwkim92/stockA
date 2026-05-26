@@ -267,6 +267,7 @@ export type DataHealthData = {
   portfolio_review_decision_history: PortfolioReviewDecisionHistory;
   portfolio_review_decision_feedback: PortfolioReviewDecisionFeedback;
   portfolio_review_feedback_calibration: PortfolioReviewFeedbackCalibration;
+  portfolio_review_feedback_cadence: PortfolioReviewFeedbackCadence;
   recommendation_outcome_calibration: {
     status: string;
     eval_run_id: string;
@@ -1825,6 +1826,7 @@ export type PortfolioCoverageData = {
     review_decision_history: PortfolioReviewDecisionHistory;
     review_decision_feedback: PortfolioReviewDecisionFeedback;
     review_feedback_calibration: PortfolioReviewFeedbackCalibration;
+    review_feedback_cadence: PortfolioReviewFeedbackCadence;
     review_reasons: string[];
   };
   positions: Array<{
@@ -2135,6 +2137,89 @@ export type PortfolioReviewFeedbackCalibration = {
     broker_submit_allowed: boolean;
     order_boundary: string;
   };
+  next_action: string;
+};
+
+export type PortfolioReviewFeedbackCadence = {
+  status: string;
+  eval_run_id: string;
+  created_at: string;
+  eval_name: string;
+  dataset_version: string;
+  as_of_date: string;
+  portfolio_name: string;
+  min_horizon_days: number;
+  cadence_status: string;
+  action_type: string;
+  should_run_now: boolean;
+  should_wait: boolean;
+  wait_until: string;
+  command: string;
+  follow_up_command: string;
+  label: string;
+  reason: string;
+  history: {
+    status: string;
+    eval_run_id: string;
+    created_at: string;
+    as_of_date: string;
+    decision_status: string;
+    decision_count: number;
+    review_required_count: number;
+  };
+  feedback: {
+    status: string;
+    eval_run_id: string;
+    created_at: string;
+    as_of_date: string;
+    source_history_eval_run_id: string;
+    source_history_as_of_date: string;
+    feedback_status: string;
+    decision_count: number;
+    too_early_count: number;
+    validated_count: number;
+    contradicted_count: number;
+    needs_more_data_count: number;
+  };
+  calibration: {
+    status: string;
+    eval_run_id: string;
+    created_at: string;
+    as_of_date: string;
+    calibration_status: string;
+    feedback_run_count: number;
+    decision_count: number;
+    mature_decision_count: number;
+    too_early_count: number;
+    validated_count: number;
+    contradicted_count: number;
+    needs_more_data_count: number;
+    latest_feedback_run_ids: string[];
+  };
+  evidence: {
+    history_age_days: number;
+    decision_count: number;
+    recommendation_link_count: number;
+    recommendation_outcome_count: number;
+    price_evidence_count: number;
+    paper_validation: {
+      paper_validation_run_id: string;
+      validation_date: string;
+      status: string;
+      recommendation_count: number;
+      conflict_count: number;
+      approved_action_count: number;
+    };
+  };
+  blocks_weight_review: boolean;
+  recommendation_scoring_mutated: boolean;
+  benchmark_definition_mutated: boolean;
+  portfolio_position_mutated: boolean;
+  automatic_weight_change_allowed: boolean;
+  automatic_rebalance_allowed: boolean;
+  automatic_order_allowed: boolean;
+  broker_submit_allowed: boolean;
+  order_boundary: string;
   next_action: string;
 };
 

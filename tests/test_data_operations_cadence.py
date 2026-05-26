@@ -140,6 +140,14 @@ class DataOperationsCadenceTests(unittest.TestCase):
         self.assertEqual(recommendation_outcome_job["domain"], "performance")
         self.assertIn("recommendation-outcome-backfill-run", recommendation_outcome_job["command_template"])
         self.assertIn("market_price_history", recommendation_outcome_job["required_env_groups"])
+        review_feedback_cadence_job = next(
+            job for job in report["jobs"] if job["job_id"] == "portfolio-review-feedback-cadence-daily"
+        )
+        self.assertEqual(review_feedback_cadence_job["pipeline_name"], "portfolio_review_feedback_cadence")
+        self.assertEqual(review_feedback_cadence_job["domain"], "portfolio")
+        self.assertEqual(review_feedback_cadence_job["cadence"], "daily")
+        self.assertIn("portfolio-review-feedback-cadence-run", review_feedback_cadence_job["command_template"])
+        self.assertEqual(review_feedback_cadence_job["data_health_dataset"], "ai.eval_run")
         performance_job = next(job for job in report["jobs"] if job["job_id"] == "performance-outcome-monthly")
         self.assertIn("recommendation-outcome-backfill-run", performance_job["command_template"])
 
@@ -172,6 +180,7 @@ class DataOperationsCadenceTests(unittest.TestCase):
         self.assertIn("'valuation_snapshot'", values_sql)
         self.assertIn("'portfolio_remediation_daily_automation'", values_sql)
         self.assertIn("'performance_outcome_schedule_bootstrap'", values_sql)
+        self.assertIn("'portfolio_review_feedback_cadence'", values_sql)
         self.assertIn("'stdout_json_and_stderr_log'", values_sql)
         self.assertNotIn("STOCKANALYSIS_DATABASE_URL", values_sql)
         self.assertNotIn("Bearer", values_sql)
