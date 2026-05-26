@@ -1,3 +1,6 @@
+import type { Route } from "next";
+import Link from "next/link";
+
 import { getPortfolioCoverage, getTradingReadiness } from "@/lib/frontend-api";
 import { koCode, koLabel } from "@/lib/korean-labels";
 
@@ -193,6 +196,7 @@ export default async function PortfolioCoveragePage() {
   const allocationPolicy = data.allocation_policy;
   const riskBudget = data.risk_budget;
   const candidateReview = riskBudget.rebalance_candidate_review;
+  const candidateDecisionCounts = candidateReview.decision_counts ?? {};
   const positionSizingReview = riskBudget.position_sizing_review;
   const concentration = riskBudget.concentration;
   const hasPositions = data.positions.length > 0;
@@ -388,7 +392,10 @@ export default async function PortfolioCoveragePage() {
             <article className="rail-cell rail-critical">
               <span>검토 후보</span>
               <strong>{candidateReview.candidate_count}</strong>
-              <small>자동 주문 {candidateReview.automatic_order_allowed ? "허용" : "금지"}</small>
+              <small>
+                축소 {candidateDecisionCounts.reduce_watch ?? 0} · 미보유 확인{" "}
+                {candidateDecisionCounts.needs_thesis_update ?? 0}
+              </small>
             </article>
             <article className="rail-cell">
               <span>주문 경계</span>
@@ -407,9 +414,10 @@ export default async function PortfolioCoveragePage() {
                   <tr>
                     <th scope="col">순위</th>
                     <th scope="col">종목</th>
-                    <th scope="col">상태</th>
+                    <th scope="col">판단</th>
                     <th scope="col">현재/벤치마크</th>
                     <th scope="col">벤치마크 괴리</th>
+                    <th scope="col">연결 근거</th>
                     <th scope="col">검토 이유</th>
                   </tr>
                 </thead>
@@ -420,15 +428,31 @@ export default async function PortfolioCoveragePage() {
                       <td><strong>{candidate.symbol}</strong></td>
                       <td>
                         <span className={`risk-tag ${candidateSeverityClass(candidate.severity)}`}>
-                          {candidateDirectionLabel(candidate.direction)}
+                          {candidate.decision_label}
                         </span>
+                        <small style={{ display: "block", color: "var(--text-secondary)", marginTop: "4px" }}>
+                          {candidateDirectionLabel(candidate.direction)}
+                        </small>
                       </td>
                       <td>{formatPercent(candidate.current_weight)} / {formatPercent(candidate.benchmark_weight)}</td>
                       <td>{formatPercent(candidate.active_weight)}</td>
                       <td>
-                        {candidate.rationale}
+                        {candidate.related_recommendation_id && candidate.links.recommendation ? (
+                          <Link href={candidate.links.recommendation as Route}>{candidate.related_recommendation_id}</Link>
+                        ) : (
+                          <span>추천 연결 없음</span>
+                        )}
                         <small style={{ display: "block", color: "var(--text-secondary)", marginTop: "4px" }}>
-                          {koCode(candidate.order_boundary)}
+                          {candidate.related_thesis_id ? `thesis ${candidate.related_thesis_id}` : "thesis 확인 필요"}
+                        </small>
+                      </td>
+                      <td>
+                        {candidate.next_review_action}
+                        <small style={{ display: "block", color: "var(--text-secondary)", marginTop: "4px" }}>
+                          {candidate.rationale}
+                        </small>
+                        <small style={{ display: "block", color: "var(--text-secondary)", marginTop: "4px" }}>
+                          {koCode(candidate.order_boundary)} · 주문 전송 {candidate.broker_submit_allowed ? "허용" : "금지"}
                         </small>
                       </td>
                     </tr>

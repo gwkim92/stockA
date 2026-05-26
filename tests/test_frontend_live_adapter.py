@@ -11,6 +11,7 @@ from unittest.mock import patch
 from stockanalysis.frontend.live_adapter import (
     FrontendLiveUnavailableError,
     FrontendLiveUnsupportedPathError,
+    _build_benchmark_rebalance_candidate_review_payload,
     _build_financial_statement_model_payload,
     _build_fund_instrument_analysis_payload,
     _build_professional_source_guardrail_payload,
@@ -3502,6 +3503,18 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertEqual(drift_quality["composition_coverage_weight"], 0.215)
         self.assertEqual(drift_quality["active_share"], 0.3925)
         self.assertEqual(drift_quality["outlier_positions"][0]["symbol"], "MSFT")
+        self.assertEqual(drift_quality["review_candidate_count"], 1)
+        self.assertEqual(drift_quality["review_decision_counts"]["reduce_watch"], 1)
+        self.assertEqual(drift_quality["outlier_decisions"][0]["symbol"], "MSFT")
+        self.assertEqual(drift_quality["outlier_decisions"][0]["review_decision"], "reduce_watch")
+        self.assertEqual(drift_quality["outlier_decisions"][0]["decision_label"], "비중 축소 검토")
+        self.assertEqual(
+            drift_quality["outlier_decisions"][0]["source_evidence"]["benchmark_source"],
+            "operator_spy_holdings_2026_05_25",
+        )
+        self.assertFalse(drift_quality["automatic_order_allowed"])
+        self.assertFalse(drift_quality["broker_submit_allowed"])
+        self.assertEqual(drift_quality["order_boundary"], "read_only_no_order")
         self.assertIn("benchmark_drift_quality_attention", payload["data"]["open_gates"])
         outcome_calibration = payload["data"]["recommendation_outcome_calibration"]
         self.assertEqual(outcome_calibration["status"], "collect_more_outcomes_keep_weights")
@@ -5493,7 +5506,17 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         review = payload["data"]["risk_budget"]["rebalance_candidate_review"]
         self.assertEqual(review["status"], "review_required")
         self.assertEqual(review["candidate_count"], 2)
+        self.assertEqual(review["decision_counts"]["reduce_watch"], 2)
         self.assertEqual(review["candidates"][0]["symbol"], "TSLA")
+        self.assertEqual(review["candidates"][0]["review_decision"], "reduce_watch")
+        self.assertEqual(review["candidates"][0]["decision_label"], "비중 축소 검토")
+        self.assertTrue(review["candidates"][0]["professional_review_required"])
+        self.assertEqual(review["candidates"][0]["source_evidence"]["benchmark_code"], "SPY")
+        self.assertEqual(review["candidates"][0]["source_evidence"]["source_type"], "provider_file")
+        self.assertEqual(review["candidates"][0]["links"]["stock"], "/stocks/TSLA")
+        self.assertEqual(review["candidates"][0]["decision_path"][-1]["step"], "order_boundary")
+        self.assertFalse(review["candidates"][0]["automatic_order_allowed"])
+        self.assertFalse(review["candidates"][0]["broker_submit_allowed"])
         self.assertEqual(review["candidates"][0]["order_boundary"], "read_only_no_order")
         sizing = payload["data"]["risk_budget"]["position_sizing_review"]
         self.assertEqual(sizing["status"], "review_required")
@@ -5515,6 +5538,52 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertEqual(payload["data"]["positions"][0]["weight_to_single_position_limit"], 0.2)
         self.assertEqual(payload["data"]["positions"][1]["action"], "needs_thesis_review")
         self.assertEqual(payload["data"]["attribution_readiness"]["blocking_reasons"], ["missing_thesis:BABA"])
+
+    def test_benchmark_rebalance_candidate_review_keeps_related_context_read_only(self) -> None:
+        review = _build_benchmark_rebalance_candidate_review_payload(
+            {
+                "status": "loaded",
+                "benchmark_drift": {
+                    "status": "calculated",
+                    "benchmark_code": "SPY",
+                    "benchmark_source": "ssga_spdr_spy_daily_holdings",
+                    "source_type": "provider_file",
+                    "source_as_of_date": "2026-05-21",
+                    "drift_calculated": True,
+                    "component_count": 503,
+                    "composition_coverage_weight": "0.99837820",
+                    "active_share": "0.21000000",
+                    "top_active_positions": [
+                        {
+                            "symbol": "AAPL",
+                            "portfolio_weight": "0.22710000",
+                            "benchmark_weight": "0.07007801",
+                            "active_weight": "0.15702199",
+                        }
+                    ],
+                },
+            },
+            position_context_by_symbol={
+                "AAPL": {
+                    "active_thesis_id": "thesis-7001",
+                    "recommendation_id": 7101,
+                    "recommendation_action": "monitor_or_accumulate",
+                    "recommended_weight": "0.0500",
+                }
+            },
+        )
+
+        candidate = review["candidates"][0]
+        self.assertEqual(candidate["review_decision"], "reduce_watch")
+        self.assertEqual(candidate["related_thesis_id"], "thesis-7001")
+        self.assertEqual(candidate["related_recommendation_id"], "recommendation-7101")
+        self.assertEqual(candidate["related_recommendation_action"], "monitor_or_accumulate")
+        self.assertEqual(candidate["related_recommended_weight"], 0.05)
+        self.assertEqual(candidate["links"]["thesis"], "/theses/thesis-7001")
+        self.assertEqual(candidate["links"]["recommendation"], "/recommendations/recommendation-7101")
+        self.assertFalse(candidate["automatic_order_allowed"])
+        self.assertFalse(candidate["broker_submit_allowed"])
+        self.assertEqual(candidate["order_boundary"], "read_only_no_order")
 
     def test_portfolio_position_sizing_context_sql_is_read_only_professional_context(self) -> None:
         sql = render_frontend_portfolio_position_sizing_context_state_sql(

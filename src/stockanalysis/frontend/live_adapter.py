@@ -11489,7 +11489,11 @@ def _build_trading_risk_budget_guardrail_payload(guardrail: dict[str, Any]) -> d
     }
 
 
-def _build_benchmark_rebalance_candidate_review_payload(guardrail: dict[str, Any]) -> dict[str, Any]:
+def _build_benchmark_rebalance_candidate_review_payload(
+    guardrail: dict[str, Any],
+    *,
+    position_context_by_symbol: Mapping[str, dict[str, Any]] | None = None,
+) -> dict[str, Any]:
     drift = _as_dict(guardrail.get("benchmark_drift"))
     drift_calculated = drift.get("drift_calculated") is True
     coverage_weight = _safe_number(drift.get("composition_coverage_weight")) or 0.0
@@ -11497,14 +11501,30 @@ def _build_benchmark_rebalance_candidate_review_payload(guardrail: dict[str, Any
     source_type = str(drift.get("source_type") or "")
     source_name = str(drift.get("benchmark_source") or "")
     source_as_of_date = str(drift.get("source_as_of_date") or "")
+    benchmark_code = str(drift.get("benchmark_code") or "")
+    context_by_symbol = {
+        str(symbol).upper(): _as_dict(context)
+        for symbol, context in (position_context_by_symbol or {}).items()
+    }
     rows = [_build_benchmark_active_position_payload(item) for item in _as_list(drift.get("top_active_positions"))]
     candidates = [
-        _benchmark_rebalance_candidate_payload(row)
+        _benchmark_rebalance_candidate_payload(
+            row,
+            benchmark_code=benchmark_code,
+            benchmark_source=source_name,
+            source_type=source_type,
+            source_as_of_date=source_as_of_date,
+            context=_as_dict(context_by_symbol.get(row["symbol"].upper())),
+        )
         for row in rows
         if abs(row["active_weight"]) >= 0.03
     ]
     candidates.sort(key=lambda item: ({"high": 0, "medium": 1, "watch": 2}[item["severity"]], -abs(item["active_weight"]), item["symbol"]))
     candidates = [{**item, "priority": index + 1} for index, item in enumerate(candidates[:8])]
+    decision_counts = _normalize_count_map(
+        _count_by(candidates, "review_decision"),
+        keys=("reduce_watch", "needs_thesis_update", "hold_with_thesis", "review_required"),
+    )
 
     if guardrail.get("status") != "loaded":
         status = "missing_guardrail"
@@ -11520,7 +11540,8 @@ def _build_benchmark_rebalance_candidate_review_payload(guardrail: dict[str, Any
     return {
         "status": status,
         "candidate_count": len(candidates),
-        "benchmark_code": str(drift.get("benchmark_code") or ""),
+        "decision_counts": decision_counts,
+        "benchmark_code": benchmark_code,
         "benchmark_source": source_name,
         "source_type": source_type,
         "source_as_of_date": source_as_of_date,
@@ -11535,7 +11556,15 @@ def _build_benchmark_rebalance_candidate_review_payload(guardrail: dict[str, Any
     }
 
 
-def _benchmark_rebalance_candidate_payload(row: dict[str, Any]) -> dict[str, Any]:
+def _benchmark_rebalance_candidate_payload(
+    row: dict[str, Any],
+    *,
+    benchmark_code: str,
+    benchmark_source: str,
+    source_type: str,
+    source_as_of_date: str,
+    context: dict[str, Any],
+) -> dict[str, Any]:
     active_weight = row["active_weight"]
     direction = "overweight" if active_weight > 0 else "underweight"
     abs_active = abs(active_weight)
@@ -11550,6 +11579,14 @@ def _benchmark_rebalance_candidate_payload(row: dict[str, Any]) -> dict[str, Any
         if direction == "overweight"
         else "review_active_underweight_gap"
     )
+    review_decision = _benchmark_rebalance_review_decision(
+        direction=direction,
+        abs_active=abs_active,
+        context=context,
+    )
+    decision_label = _benchmark_rebalance_decision_label(review_decision)
+    next_review_action = _benchmark_rebalance_next_review_action(review_decision)
+    related_links = _benchmark_rebalance_related_links(row["symbol"], context)
     rationale = (
         f"{row['symbol']}는 포트폴리오 {row['portfolio_weight']:.1%}, 벤치마크 {row['benchmark_weight']:.1%}, "
         f"벤치마크 대비 괴리 +{active_weight:.1%}이다. 투자 논리, 세금/비용, 섹터 집중도를 확인한 뒤 축소 여부만 검토한다."
@@ -11565,8 +11602,102 @@ def _benchmark_rebalance_candidate_payload(row: dict[str, Any]) -> dict[str, Any
         "direction": direction,
         "severity": severity,
         "suggested_review_action": suggested_action,
+        "review_decision": review_decision,
+        "decision_label": decision_label,
+        "next_review_action": next_review_action,
+        "professional_review_required": True,
+        "source_evidence": {
+            "benchmark_code": benchmark_code,
+            "benchmark_source": benchmark_source,
+            "source_type": source_type,
+            "source_as_of_date": source_as_of_date,
+            "current_weight": row["portfolio_weight"],
+            "benchmark_weight": row["benchmark_weight"],
+            "active_weight": active_weight,
+            "active_weight_abs": abs_active,
+            "review_threshold_active_weight": 0.03,
+        },
+        "related_thesis_id": related_links["related_thesis_id"],
+        "related_recommendation_id": related_links["related_recommendation_id"],
+        "related_recommendation_action": related_links["related_recommendation_action"],
+        "related_recommended_weight": related_links["related_recommended_weight"],
+        "links": related_links["links"],
+        "decision_path": [
+            {
+                "step": "benchmark_source",
+                "label": "벤치마크 원천",
+                "detail": benchmark_source or source_type or "source 없음",
+            },
+            {
+                "step": "drift_measurement",
+                "label": "비중 차이",
+                "detail": f"포트폴리오 {row['portfolio_weight']:.1%} / 벤치마크 {row['benchmark_weight']:.1%} / 괴리 {active_weight:+.1%}",
+            },
+            {
+                "step": "review_decision",
+                "label": decision_label,
+                "detail": next_review_action,
+            },
+            {
+                "step": "order_boundary",
+                "label": "주문 금지",
+                "detail": "이 결정은 검토 후보이며 자동 주문이나 broker 전송을 허용하지 않는다.",
+            },
+        ],
         "rationale": rationale,
+        "automatic_order_allowed": False,
+        "broker_submit_allowed": False,
         "order_boundary": "read_only_no_order",
+    }
+
+
+def _benchmark_rebalance_review_decision(*, direction: str, abs_active: float, context: dict[str, Any]) -> str:
+    if direction == "overweight" and abs_active >= 0.10:
+        return "reduce_watch"
+    if direction == "underweight":
+        return "needs_thesis_update"
+    if context.get("active_thesis_id") or context.get("linked_thesis_id"):
+        return "hold_with_thesis"
+    return "review_required"
+
+
+def _benchmark_rebalance_decision_label(decision: str) -> str:
+    return {
+        "reduce_watch": "비중 축소 검토",
+        "needs_thesis_update": "미보유 사유 확인",
+        "hold_with_thesis": "투자 논리 유지 검토",
+        "review_required": "포트폴리오 판단 필요",
+    }.get(decision, "포트폴리오 판단 필요")
+
+
+def _benchmark_rebalance_next_review_action(decision: str) -> str:
+    if decision == "reduce_watch":
+        return "추가 매수는 막고 thesis, 밸류에이션, 세금/비용, 섹터 집중도를 확인한 뒤 축소 여부만 검토한다."
+    if decision == "needs_thesis_update":
+        return "의도적으로 보유하지 않는 종목인지, 놓친 핵심 노출인지 thesis와 투자 universe 판단을 갱신한다."
+    if decision == "hold_with_thesis":
+        return "현재 thesis가 벤치마크 괴리를 정당화하는지 확인하고 유지·축소 조건을 갱신한다."
+    return "투자 논리, 추천 상태, 보유 비중 정책을 함께 보고 유지·축소·미보유 사유를 결정한다."
+
+
+def _benchmark_rebalance_related_links(symbol: str, context: dict[str, Any]) -> dict[str, Any]:
+    active_thesis_id = _optional_text(context.get("active_thesis_id"))
+    if active_thesis_id is None and context.get("linked_thesis_id") is not None:
+        active_thesis_id = _opaque_id("thesis", context.get("linked_thesis_id"), None)
+    recommendation_id = _optional_text(context.get("recommendation_id"))
+    if recommendation_id is not None and not recommendation_id.startswith("recommendation-"):
+        recommendation_id = _opaque_id("recommendation", recommendation_id, None)
+    links: dict[str, str] = {"stock": f"/stocks/{quote(symbol, safe='')}"}
+    if active_thesis_id:
+        links["thesis"] = f"/theses/{quote(active_thesis_id, safe='')}"
+    if recommendation_id:
+        links["recommendation"] = f"/recommendations/{quote(recommendation_id, safe='')}"
+    return {
+        "related_thesis_id": active_thesis_id,
+        "related_recommendation_id": recommendation_id,
+        "related_recommendation_action": _optional_text(context.get("recommendation_action")),
+        "related_recommended_weight": _safe_number(context.get("recommended_weight")),
+        "links": links,
     }
 
 
@@ -11597,6 +11728,13 @@ def _build_benchmark_drift_quality_payload(guardrail: dict[str, Any]) -> dict[st
     stale = source_age_days is not None and source_age_days > 45
     top_positions = [_build_benchmark_active_position_payload(item) for item in _as_list(drift.get("top_active_positions"))]
     outliers = [item for item in top_positions if abs(item["active_weight"]) >= 0.10]
+    rebalance_review = _build_benchmark_rebalance_candidate_review_payload(guardrail)
+    outlier_symbols = {item["symbol"] for item in outliers}
+    outlier_decisions = [
+        item
+        for item in _as_list(rebalance_review.get("candidates"))
+        if str(item.get("symbol") or "") in outlier_symbols
+    ]
     active_share_outlier = active_share is not None and active_share >= 0.30
 
     if guardrail.get("status") != "loaded":
@@ -11657,6 +11795,12 @@ def _build_benchmark_drift_quality_payload(guardrail: dict[str, Any]) -> dict[st
         "total_absolute_drift": _safe_number(drift.get("total_absolute_drift")),
         "top_active_positions": top_positions,
         "outlier_positions": outliers[:5],
+        "outlier_decisions": outlier_decisions[:5],
+        "review_candidate_count": int(rebalance_review.get("candidate_count") or 0),
+        "review_decision_counts": _as_dict(rebalance_review.get("decision_counts")),
+        "automatic_order_allowed": False,
+        "broker_submit_allowed": False,
+        "order_boundary": "read_only_no_order",
         "checks": checks,
         "next_actions": _benchmark_drift_quality_next_actions(status),
     }
@@ -13956,7 +14100,13 @@ def _build_portfolio_risk_budget_payload(
         allocation_policy=allocation_policy,
         missing_position_snapshot=missing_position_snapshot,
     )
-    rebalance_candidate_review = _build_benchmark_rebalance_candidate_review_payload(risk_budget_guardrail)
+    rebalance_candidate_review = _build_benchmark_rebalance_candidate_review_payload(
+        risk_budget_guardrail,
+        position_context_by_symbol=_benchmark_rebalance_position_context_by_symbol(
+            positions=positions,
+            position_sizing_context=position_sizing_context,
+        ),
+    )
     position_sizing_review = _build_position_sizing_review_payload(
         positions=positions,
         allocation_policy=allocation_policy,
@@ -14002,6 +14152,38 @@ def _build_portfolio_risk_budget_payload(
         "position_sizing_review": position_sizing_review,
         "review_reasons": reasons,
     }
+
+
+def _benchmark_rebalance_position_context_by_symbol(
+    *,
+    positions: list[dict[str, Any]],
+    position_sizing_context: dict[str, Any],
+) -> dict[str, dict[str, Any]]:
+    context_by_symbol: dict[str, dict[str, Any]] = {
+        str(position.get("symbol") or "").upper(): {
+            "instrument_id": position.get("instrument_id"),
+            "active_thesis_id": position.get("active_thesis_id"),
+            "coverage_status": position.get("coverage_status"),
+            "position_size_status": position.get("position_size_status"),
+        }
+        for position in positions
+        if position.get("symbol")
+    }
+    for raw_context in _as_list(position_sizing_context.get("positions")):
+        symbol = str(raw_context.get("symbol") or "").upper()
+        if not symbol:
+            continue
+        context = context_by_symbol.setdefault(symbol, {})
+        context.update(
+            {
+                "linked_thesis_id": raw_context.get("linked_thesis_id"),
+                "recommendation_id": raw_context.get("recommendation_id"),
+                "recommendation_action": raw_context.get("recommendation_action"),
+                "recommended_weight": raw_context.get("recommended_weight"),
+                "recommendation_as_of_date": raw_context.get("recommendation_as_of_date"),
+            }
+        )
+    return context_by_symbol
 
 
 def _build_position_sizing_review_payload(

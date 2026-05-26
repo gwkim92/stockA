@@ -2,7 +2,8 @@
 
 ## Status
 
-- in progress: task contract and plan are created; implementation has not begun.
+- completed: benchmark drift outliers now produce explicit read-only portfolio review decisions in API payloads and frontend visibility.
+- EC2 deploy/smoke: pending in this handoff until the deployment step runs.
 - blockers: none known.
 
 ## Context
@@ -14,7 +15,15 @@
 
 ## Exact Next Step
 
-- exact next step: inspect live EC2 `/api/data-health` and `/api/portfolio/Long%20Term%20Paper/coverage` benchmark drift/rebalance candidate payloads, then decide where deterministic outlier decisions should be attached.
+- exact next step: deploy the current branch to EC2, restart FastAPI/Next.js, then verify `/api/data-health`, `/api/portfolio/Long%20Term%20Paper/coverage?asOfDate=2026-05-25`, `/data-health`, and `/portfolio/coverage`.
+
+## Implementation Notes
+
+- `/api/data-health` `benchmark_drift_quality` now includes `outlier_decisions`, `review_candidate_count`, `review_decision_counts`, `automatic_order_allowed=false`, `broker_submit_allowed=false`, and `order_boundary=read_only_no_order`.
+- `/api/portfolio/{portfolio}/coverage` `risk_budget.rebalance_candidate_review.candidates` now includes `review_decision`, `decision_label`, `next_review_action`, source evidence, related thesis/recommendation fields when available, `decision_path`, and read-only order boundaries.
+- The frontend data-health drift section now shows the review decision and next action for outlier symbols.
+- The portfolio coverage rebalance table now shows the decision label, next action, linked recommendation/thesis context when available, and explicit broker-submit prohibition.
+- Recommendation scoring weights, benchmark definition, portfolio positions, and broker/order behavior were not changed.
 
 ## Guardrails
 

@@ -251,6 +251,12 @@ export type DataHealthData = {
       benchmark_weight: number;
       active_weight: number;
     }>;
+    outlier_decisions: BenchmarkRebalanceCandidate[];
+    review_candidate_count: number;
+    review_decision_counts: Record<string, number>;
+    automatic_order_allowed: boolean;
+    broker_submit_allowed: boolean;
+    order_boundary: string;
     checks: Array<{
       check_key: string;
       status: string;
@@ -1838,6 +1844,7 @@ export type PortfolioCoverageData = {
 export type BenchmarkRebalanceCandidateReview = {
   status: string;
   candidate_count: number;
+  decision_counts: Record<string, number>;
   benchmark_code: string;
   benchmark_source: string;
   source_type: string;
@@ -1852,6 +1859,24 @@ export type BenchmarkRebalanceCandidateReview = {
   next_actions: string[];
 };
 
+export type BenchmarkRebalanceSourceEvidence = {
+  benchmark_code: string;
+  benchmark_source: string;
+  source_type: string;
+  source_as_of_date: string;
+  current_weight: number;
+  benchmark_weight: number;
+  active_weight: number;
+  active_weight_abs: number;
+  review_threshold_active_weight: number;
+};
+
+export type BenchmarkRebalanceDecisionPathStep = {
+  step: string;
+  label: string;
+  detail: string;
+};
+
 export type BenchmarkRebalanceCandidate = {
   priority: number;
   symbol: string;
@@ -1861,7 +1886,20 @@ export type BenchmarkRebalanceCandidate = {
   direction: "overweight" | "underweight" | string;
   severity: "high" | "medium" | "watch" | string;
   suggested_review_action: string;
+  review_decision: string;
+  decision_label: string;
+  next_review_action: string;
+  professional_review_required: boolean;
+  source_evidence: BenchmarkRebalanceSourceEvidence;
+  related_thesis_id: string | null;
+  related_recommendation_id: string | null;
+  related_recommendation_action: string | null;
+  related_recommended_weight: number | null;
+  links: Record<string, string>;
+  decision_path: BenchmarkRebalanceDecisionPathStep[];
   rationale: string;
+  automatic_order_allowed: boolean;
+  broker_submit_allowed: boolean;
   order_boundary: string;
 };
 

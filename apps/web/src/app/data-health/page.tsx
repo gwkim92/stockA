@@ -651,6 +651,12 @@ const DEFAULT_BENCHMARK_DRIFT_QUALITY: BenchmarkDriftQuality = {
   total_absolute_drift: null,
   top_active_positions: [],
   outlier_positions: [],
+  outlier_decisions: [],
+  review_candidate_count: 0,
+  review_decision_counts: {},
+  automatic_order_allowed: false,
+  broker_submit_allowed: false,
+  order_boundary: "read_only_no_order",
   checks: [],
   next_actions: ["portfolio-risk-budget-guardrail-run을 먼저 실행한다."],
 };
@@ -779,6 +785,9 @@ export default async function DataHealthPage() {
   const localWorker = data.local_ingest_worker ?? DEFAULT_LOCAL_WORKER;
   const qualityAudit = data.cycle_ai_quality_audit ?? DEFAULT_CYCLE_AI_QUALITY_AUDIT;
   const benchmarkDriftQuality = data.benchmark_drift_quality ?? DEFAULT_BENCHMARK_DRIFT_QUALITY;
+  const benchmarkDriftDecisionBySymbol = new Map(
+    benchmarkDriftQuality.outlier_decisions.map((decision) => [decision.symbol, decision]),
+  );
   const outcomeCalibration =
     data.recommendation_outcome_calibration ?? DEFAULT_RECOMMENDATION_OUTCOME_CALIBRATION;
   const outcomeMaturity = data.recommendation_outcome_maturity ?? DEFAULT_RECOMMENDATION_OUTCOME_MATURITY;
@@ -1436,7 +1445,12 @@ export default async function DataHealthPage() {
           <article className="rail-cell">
             <span>큰 괴리 종목</span>
             <strong>{benchmarkDriftQuality.outlier_positions.length}</strong>
-            <small>active weight 10%p 이상</small>
+            <small>검토 후보 {benchmarkDriftQuality.review_candidate_count}개</small>
+          </article>
+          <article className="rail-cell rail-critical">
+            <span>주문 경계</span>
+            <strong>{koCode(benchmarkDriftQuality.order_boundary)}</strong>
+            <small>자동 주문 {benchmarkDriftQuality.automatic_order_allowed ? "허용" : "금지"}</small>
           </article>
         </div>
         <div className="insight-grid">
@@ -1450,14 +1464,22 @@ export default async function DataHealthPage() {
         </div>
         {benchmarkDriftQuality.outlier_positions.length > 0 ? (
           <div className="feature-map-grid collection-map-grid">
-            {benchmarkDriftQuality.outlier_positions.map((position) => (
-              <article className="feature-map-card collection-map-card" key={position.symbol}>
-                <span>{position.symbol}</span>
-                <strong>벤치마크 대비 {formatPercent(position.active_weight)} 차이</strong>
-                <small>포트폴리오 비중 {formatPercent(position.portfolio_weight)}</small>
-                <small>벤치마크 비중 {formatPercent(position.benchmark_weight)}</small>
-              </article>
-            ))}
+            {benchmarkDriftQuality.outlier_positions.map((position) => {
+              const decision = benchmarkDriftDecisionBySymbol.get(position.symbol);
+              return (
+                <article className="feature-map-card collection-map-card" key={position.symbol}>
+                  <span>{position.symbol}</span>
+                  <strong>{decision?.decision_label ?? `벤치마크 대비 ${formatPercent(position.active_weight)} 차이`}</strong>
+                  <small>포트폴리오 비중 {formatPercent(position.portfolio_weight)}</small>
+                  <small>벤치마크 비중 {formatPercent(position.benchmark_weight)}</small>
+                  <small>괴리 {formatPercent(position.active_weight)}</small>
+                  {decision?.next_review_action ? <p>{decision.next_review_action}</p> : null}
+                  {decision?.related_recommendation_id ? (
+                    <small>연결 추천 {decision.related_recommendation_id}</small>
+                  ) : null}
+                </article>
+              );
+            })}
           </div>
         ) : null}
         <div className="empty-state">
