@@ -284,18 +284,36 @@ function FinancialStatementModelPanel({
   const visibleSections = model.sections
     .filter((section) => prioritySections.includes(section.section_key) && section.metrics.length > 0)
     .sort((left, right) => prioritySections.indexOf(left.section_key) - prioritySections.indexOf(right.section_key));
+  const sourceBlocker = model.source_data_blocker;
 
   if (model.status === "unavailable") {
     return (
       <section className="bento-card reveal delay-1" aria-label="추천 재무제표 모델">
         <div style={{ marginBottom: "12px" }}>
           <span className="metric-sub">추천 재무제표 모델</span>
-          <h2 style={{ fontSize: "1.5rem", marginTop: "6px" }}>재무 모델이 아직 추천에 연결되지 않았다</h2>
+          <h2 style={{ fontSize: "1.5rem", marginTop: "6px" }}>
+            {sourceBlocker ? `${symbol} ${sourceBlocker.label}` : "재무 모델이 아직 추천에 연결되지 않았다"}
+          </h2>
         </div>
         <p style={{ color: "var(--text-secondary)", marginBottom: 0 }}>
-          추천서에서 매출, 마진, 현금흐름, 부채, 이익 품질을 확인하려면 SEC companyfacts와 재무 정규화가 먼저 필요하다.
-          이 값이 없으면 뉴스나 사이클만으로 중장기 판단을 확정하지 않는다.
+          {sourceBlocker
+            ? model.summary
+            : "추천서에서 매출, 마진, 현금흐름, 부채, 이익 품질을 확인하려면 SEC companyfacts와 재무 정규화가 먼저 필요하다. 이 값이 없으면 뉴스나 사이클만으로 중장기 판단을 확정하지 않는다."}
         </p>
+        {sourceBlocker ? (
+          <div className="status-rail compact-rail" aria-label="추천 재무 원천 차단 사유" style={{ marginTop: "18px" }}>
+            <div className="rail-cell">
+              <span>차단 사유</span>
+              <strong>{sourceBlocker.label}</strong>
+              <small>{sourceBlocker.blocker_code}</small>
+            </div>
+            <div className="rail-cell">
+              <span>확인 위치</span>
+              <strong>{sourceBlocker.source_pipeline}</strong>
+              <small>{sourceBlocker.source_run_id || "정적 분류"}</small>
+            </div>
+          </div>
+        ) : null}
       </section>
     );
   }

@@ -8290,7 +8290,7 @@ def _financial_source_data_blocker_label(blocker_code: str) -> str:
 
 
 def _financial_source_data_blocker_summary(symbol: str, blocker: dict[str, Any]) -> str:
-    prefix = f"{symbol}의 " if symbol else ""
+    prefix = f"{symbol}: " if symbol else ""
     blocker_code = str(blocker.get("blocker_code") or "")
     if blocker_code == "sec_companyfacts_missing_us_gaap_facts":
         return (

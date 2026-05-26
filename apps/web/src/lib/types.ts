@@ -540,6 +540,16 @@ export type FinancialStatementModel = {
     metric_status: string;
     metric_count: number;
   }>;
+  source_data_blocker: {
+    blocker_code: string;
+    label: string;
+    source_pipeline: string;
+    source_run_id: string | null;
+    status: string;
+    observed_at: string;
+    error_summary: string;
+    summary: string;
+  } | null;
   source_run_ids: string[];
   summary: string;
   sections: Array<{

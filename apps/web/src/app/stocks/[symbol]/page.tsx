@@ -179,18 +179,34 @@ function FinancialStatementModelPanel({
   symbol: string;
 }) {
   const visibleSections = model.sections.filter((section) => section.metrics.length > 0 || section.status !== "missing");
+  const sourceBlocker = model.source_data_blocker;
 
   if (model.status === "unavailable") {
     return (
       <section className="bento-card span-4 reveal delay-3" aria-label="재무제표 모델">
         <div className="section-heading stacked-heading">
           <span className="metric-sub">재무제표 모델</span>
-          <h2>{symbol} 재무 모델이 아직 준비되지 않았다</h2>
+          <h2>{sourceBlocker ? `${symbol} ${sourceBlocker.label}` : `${symbol} 재무 모델이 아직 준비되지 않았다`}</h2>
         </div>
         <p style={{ color: "var(--text-secondary)", marginBottom: 0 }}>
-          SEC companyfacts 수집과 재무 정규화가 완료되면 매출 성장, 마진, 현금흐름, 부채, 이익 품질을 이곳에서
-          확인한다. 이 데이터가 없으면 뉴스나 사이클만으로 장기 투자 판단을 확정하지 않는다.
+          {sourceBlocker
+            ? model.summary
+            : "SEC companyfacts 수집과 재무 정규화가 완료되면 매출 성장, 마진, 현금흐름, 부채, 이익 품질을 이곳에서 확인한다. 이 데이터가 없으면 뉴스나 사이클만으로 장기 투자 판단을 확정하지 않는다."}
         </p>
+        {sourceBlocker ? (
+          <div className="status-rail compact-rail" aria-label="재무 원천 차단 사유" style={{ marginTop: "18px" }}>
+            <div className="rail-cell">
+              <span>차단 사유</span>
+              <strong>{sourceBlocker.label}</strong>
+              <small>{sourceBlocker.blocker_code}</small>
+            </div>
+            <div className="rail-cell">
+              <span>확인 위치</span>
+              <strong>{sourceBlocker.source_pipeline}</strong>
+              <small>{sourceBlocker.source_run_id || "정적 분류"}</small>
+            </div>
+          </div>
+        ) : null}
       </section>
     );
   }
@@ -754,7 +770,7 @@ export default async function StockDetailPage({ params }: StockDetailPageProps) 
           ? "ready"
           : "watch",
       body:
-        financialStatementModel.status === "available" || financialStatementModel.status === "partial"
+        financialStatementModel.status === "available" || financialStatementModel.status === "partial" || financialStatementModel.source_data_blocker
           ? financialStatementModel.summary
           : "매출, 마진, 현금흐름, 부채, 이익 품질을 확인할 정규화 재무 모델이 아직 충분하지 않다.",
       facts: [
