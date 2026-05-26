@@ -4242,17 +4242,33 @@ select json_build_object(
             '[]'::json
         ),
         'source_data_blocker',
-        (
-            select json_build_object(
-                'blocker_code', blocker_code,
-                'source_pipeline', 'financial_period_source_linkage',
-                'source_run_id', run_id,
-                'status', status,
-                'observed_at', coalesce(ended_at, started_at),
-                'error_summary', error_summary
+        coalesce(
+            (
+                select json_build_object(
+                    'blocker_code', blocker_code,
+                    'source_pipeline', 'financial_period_source_linkage',
+                    'source_run_id', run_id,
+                    'status', status,
+                    'observed_at', coalesce(ended_at, started_at),
+                    'error_summary', error_summary
+                )
+                from latest_financial_source_linkage_run
+                where status = 'failed'
+            ),
+            (
+                select json_build_object(
+                    'blocker_code', 'fund_company_financial_model_not_applicable',
+                    'source_pipeline', 'ref.instrument',
+                    'source_run_id', null,
+                    'status', 'not_applicable',
+                    'observed_at', null,
+                    'error_summary', 'Instrument appears to be an ETF/trust rather than an operating company.'
+                )
+                from target_instrument instrument
+                where upper(coalesce(instrument.name, '')) like '%ETF%'
+                   or upper(coalesce(instrument.name, '')) like '%TRUST%'
+                   or lower(coalesce(instrument.instrument_type, '')) in ('etf', 'fund')
             )
-            from latest_financial_source_linkage_run
-            where status = 'failed'
         ),
         'source_run_ids',
         coalesce(
@@ -7043,17 +7059,34 @@ select json_build_object(
             '[]'::json
         ),
         'source_data_blocker',
-        (
-            select json_build_object(
-                'blocker_code', blocker_code,
-                'source_pipeline', 'financial_period_source_linkage',
-                'source_run_id', run_id,
-                'status', status,
-                'observed_at', coalesce(ended_at, started_at),
-                'error_summary', error_summary
+        coalesce(
+            (
+                select json_build_object(
+                    'blocker_code', blocker_code,
+                    'source_pipeline', 'financial_period_source_linkage',
+                    'source_run_id', run_id,
+                    'status', status,
+                    'observed_at', coalesce(ended_at, started_at),
+                    'error_summary', error_summary
+                )
+                from latest_financial_source_linkage_run
+                where status = 'failed'
+            ),
+            (
+                select json_build_object(
+                    'blocker_code', 'fund_company_financial_model_not_applicable',
+                    'source_pipeline', 'ref.instrument',
+                    'source_run_id', null,
+                    'status', 'not_applicable',
+                    'observed_at', null,
+                    'error_summary', 'Instrument appears to be an ETF/trust rather than an operating company.'
+                )
+                from selected_recommendation recommendation
+                join ref.instrument instrument on instrument.instrument_id = recommendation.instrument_id
+                where upper(coalesce(instrument.name, '')) like '%ETF%'
+                   or upper(coalesce(instrument.name, '')) like '%TRUST%'
+                   or lower(coalesce(instrument.instrument_type, '')) in ('etf', 'fund')
             )
-            from latest_financial_source_linkage_run
-            where status = 'failed'
         ),
         'source_run_ids',
         coalesce(
@@ -8249,6 +8282,8 @@ def _financial_source_data_blocker_label(blocker_code: str) -> str:
         return "SEC 재무 facts 없음"
     if blocker_code == "sec_companyfacts_not_found":
         return "SEC companyfacts 미제공"
+    if blocker_code == "fund_company_financial_model_not_applicable":
+        return "기업 재무 모델 비적용"
     if blocker_code == "financial_source_linkage_failed":
         return "재무 원천 연결 실패"
     return "재무 원천 데이터 차단"
@@ -8266,6 +8301,11 @@ def _financial_source_data_blocker_summary(symbol: str, blocker: dict[str, Any])
         return (
             f"{prefix}SEC companyfacts 원천이 제공되지 않아 정규화 재무 모델을 만들 수 없다. "
             "ETF·신규 상장·비표준 공시 대상인지 확인해야 한다."
+        )
+    if blocker_code == "fund_company_financial_model_not_applicable":
+        return (
+            f"{prefix}ETF·Trust 같은 펀드형 상품으로 보여 개별 기업 재무제표 모델을 적용하지 않는다. "
+            "기업 밸류에이션 대신 보유 종목, 벤치마크 구성, 추적오차, 포트폴리오 노출로 판단해야 한다."
         )
     return (
         f"{prefix}재무 원천 연결이 실패해 정규화 재무 모델을 만들 수 없다. "

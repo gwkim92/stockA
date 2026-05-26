@@ -3005,6 +3005,23 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertIn("SEC companyfacts에 us-gaap 재무 facts가 없어", payload["summary"])
         self.assertEqual(payload["order_boundary"], "read_only_no_order")
 
+        etf_payload = _build_financial_statement_model_payload(
+            {
+                "statement_scope": "annual",
+                "metric_count": 0,
+                "computed_metric_count": 0,
+                "source_data_blocker": {
+                    "blocker_code": "fund_company_financial_model_not_applicable",
+                    "source_pipeline": "ref.instrument",
+                    "status": "not_applicable",
+                },
+            },
+            symbol="SPY",
+            as_of_date="2026-05-26",
+        )
+        self.assertEqual(etf_payload["source_data_blocker"]["label"], "기업 재무 모델 비적용")
+        self.assertIn("펀드형 상품", etf_payload["summary"])
+
     def test_live_dashboard_response_matches_frontend_contract_shape(self) -> None:
         payload = resolve_live_frontend_response(
             "/api/dashboard/today",
