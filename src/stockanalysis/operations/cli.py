@@ -116,6 +116,9 @@ from stockanalysis.operations.segment_history_backfill import (
     DEFAULT_SEGMENT_HISTORY_PERIODS_PER_INSTRUMENT,
     run_segment_history_backfill,
 )
+from stockanalysis.operations.segment_history_coverage_expansion import (
+    run_segment_history_coverage_expansion,
+)
 from stockanalysis.operations.professional_coverage_expansion import (
     DEFAULT_RESEARCH_PROVIDER as DEFAULT_PROFESSIONAL_COVERAGE_RESEARCH_PROVIDER,
     SUPPORTED_RESEARCH_PROVIDERS as PROFESSIONAL_COVERAGE_RESEARCH_PROVIDERS,
@@ -995,6 +998,34 @@ def build_parser() -> argparse.ArgumentParser:
     segment_history_backfill.add_argument("--output")
     segment_history_backfill.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
     segment_history_backfill.set_defaults(handler=_handle_segment_history_backfill_run)
+
+    segment_history_coverage_expansion = subparsers.add_parser(
+        "segment-history-coverage-expansion-run",
+        help="Expand reported segment history coverage for active recommendations and portfolio holdings.",
+    )
+    segment_history_coverage_expansion.add_argument("--env-file")
+    segment_history_coverage_expansion.add_argument("--as-of-date", required=True)
+    segment_history_coverage_expansion.add_argument("--portfolio-name", default=DEFAULT_PORTFOLIO_NAME)
+    segment_history_coverage_expansion.add_argument(
+        "--statement-scope", choices=VALUATION_STATEMENT_SCOPES, default="annual"
+    )
+    segment_history_coverage_expansion.add_argument("--limit", type=int, default=25)
+    segment_history_coverage_expansion.add_argument("--target-limit", type=int, default=5)
+    segment_history_coverage_expansion.add_argument("--max-filings", type=int, default=DEFAULT_SOURCE_LINKAGE_MAX_FILINGS)
+    segment_history_coverage_expansion.add_argument("--raw-fetch-limit", type=int)
+    segment_history_coverage_expansion.add_argument("--raw-artifact-root", default="artifacts/raw")
+    segment_history_coverage_expansion.add_argument(
+        "--periods-per-instrument",
+        type=int,
+        default=DEFAULT_SEGMENT_HISTORY_PERIODS_PER_INSTRUMENT,
+    )
+    segment_history_coverage_expansion.add_argument("--company-tickers-json")
+    segment_history_coverage_expansion.add_argument("--exchange", action="append", default=[])
+    segment_history_coverage_expansion.add_argument("--execute", action="store_true")
+    segment_history_coverage_expansion.add_argument("--dry-run", action="store_true")
+    segment_history_coverage_expansion.add_argument("--output")
+    segment_history_coverage_expansion.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
+    segment_history_coverage_expansion.set_defaults(handler=_handle_segment_history_coverage_expansion_run)
 
     segment_footnote_evidence = subparsers.add_parser(
         "segment-footnote-evidence-run",
@@ -2301,6 +2332,45 @@ def _handle_segment_history_backfill_run(args: argparse.Namespace, *, stdout: Te
         output_path = resolve_output_path(
             args.output,
             label="segment history backfill output",
+            repo_root=args.repo_root,
+            require_repo_outside=True,
+        )
+        write_json_report(report, output_path=output_path, stdout=stdout)
+    else:
+        print_json(report, stdout=stdout, sort_keys=False)
+    return 0
+
+
+def _handle_segment_history_coverage_expansion_run(args: argparse.Namespace, *, stdout: TextIO) -> int:
+    if bool(args.execute) and bool(args.dry_run):
+        raise ValueError("--execute and --dry-run cannot be used together.")
+    env_mapping = _load_optional_env_mapping(args.env_file, repo_root=args.repo_root)
+    company_tickers_json = (
+        str(resolve_existing_file(args.company_tickers_json, label="company tickers JSON", repo_root=args.repo_root))
+        if args.company_tickers_json
+        else None
+    )
+    as_of_date = date.fromisoformat(args.as_of_date)
+    with _temporary_environ(env_mapping):
+        report = run_segment_history_coverage_expansion(
+            config=RuntimeConfig.from_env(),
+            as_of_date=as_of_date,
+            portfolio_name=args.portfolio_name,
+            statement_scope=args.statement_scope,
+            limit=args.limit,
+            target_limit=args.target_limit,
+            max_filings=args.max_filings,
+            raw_fetch_limit=args.raw_fetch_limit,
+            raw_artifact_root=args.raw_artifact_root,
+            periods_per_instrument=args.periods_per_instrument,
+            company_tickers_json_path=company_tickers_json,
+            exchanges=list(args.exchange or ()),
+            execute=bool(args.execute) and not bool(args.dry_run),
+        )
+    if args.output:
+        output_path = resolve_output_path(
+            args.output,
+            label="segment history coverage expansion output",
             repo_root=args.repo_root,
             require_repo_outside=True,
         )

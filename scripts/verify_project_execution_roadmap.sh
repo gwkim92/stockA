@@ -199,6 +199,9 @@ grep -q "segment-specific-sotp-assumptions-v1" docs/project-execution-roadmap.md
 grep -q "segment-sotp-driver-calibration-v1" docs/project-execution-roadmap.md
 grep -q "segment-history-backfill-v1" docs/project-execution-roadmap.md
 grep -q "segment-history-coverage-expansion-v1" docs/project-execution-roadmap.md
+grep -q "segment-history-coverage-expansion-run" src/stockanalysis/operations/cli.py
+test -f src/stockanalysis/operations/segment_history_coverage_expansion.py
+test -f tests/test_segment_history_coverage_expansion.py
 test -f docs/tasks/financial-period-source-document-linkage-v1/contract.md
 test -f docs/tasks/financial-period-source-document-linkage-v1/handoff.md
 test -f docs/tasks/financial-period-source-document-linkage-v1/review.md
