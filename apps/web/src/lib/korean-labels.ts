@@ -154,6 +154,15 @@ const KOREAN_LABELS: Record<string, string> = {
   order_boundary: "주문 차단",
   kill_switch: "킬 스위치",
   paper_validation: "가상 검증",
+  portfolio_risk_budget_guardrail: "포트폴리오 위험 예산",
+  portfolio_risk_budget_guardrail_blocker: "위험 예산 차단 사유",
+  blocked_by_risk_budget_review: "위험 예산 검토 필요",
+  missing_portfolio_risk_budget_guardrail: "위험 예산 검증 없음",
+  over_single_position_limit: "단일 종목 한도 초과",
+  sector_over_limit: "섹터 집중도 한도 초과",
+  theme_over_limit: "테마 집중도 한도 초과",
+  unclassified_exposure_over_limit: "미분류 노출 한도 초과",
+  insufficient_benchmark_composition: "벤치마크 구성비 부족",
   audit_log: "검토 기록",
   pending_manual_approval: "수동 승인 대기",
   add: "편입",
@@ -769,6 +778,36 @@ const BLOCKED_REASON_DETAILS: Record<string, { title: string; description: strin
     description: "현재 보유 중인 종목이 최신 추천에서는 제외/매도 후보로 분류됐다.",
     nextStep: "AI 자동 검토가 투자 논리와 최신 근거를 대조해 유지, 감액, 청산 중 하나의 후보로 분류한다.",
   },
+  portfolio_risk_budget_guardrail: {
+    title: "포트폴리오 위험 예산이 막고 있다",
+    description: "단일 종목, 섹터, 테마 집중도 중 하나가 한도를 넘어서 가상 검증 입력으로 쓰지 않는다.",
+    nextStep: "포트폴리오 커버리지 화면에서 초과 종목과 초과 섹터·테마를 먼저 확인한다.",
+  },
+  blocked_by_risk_budget_review: {
+    title: "위험 예산 검토가 필요하다",
+    description: "포트폴리오 위험 예산 runner가 이 포트폴리오를 검토 필요 상태로 판단했다.",
+    nextStep: "초과 비중, 초과 섹터, 초과 테마를 줄일지 또는 투자 논리를 보강할지 검토한다.",
+  },
+  over_single_position_limit: {
+    title: "단일 종목 비중이 너무 크다",
+    description: "한 종목의 포트폴리오 비중이 장기 포트폴리오의 단일 종목 한도를 넘었다.",
+    nextStep: "해당 종목의 thesis, 세금/비용, 대체 후보를 확인한 뒤 축소 여부를 검토한다.",
+  },
+  sector_over_limit: {
+    title: "섹터 집중도가 너무 높다",
+    description: "같은 섹터에 묶인 보유 비중이 위험 예산의 섹터 한도를 넘었다.",
+    nextStep: "같은 섹터 안에서 중복된 베팅인지, 분산이 필요한지 확인한다.",
+  },
+  theme_over_limit: {
+    title: "테마 집중도가 너무 높다",
+    description: "같은 거시·테마 흐름에 묶인 보유 비중이 테마 한도를 넘었다.",
+    nextStep: "해당 테마가 아직 유효한지, 상위 사이클과 충돌하지 않는지 확인한다.",
+  },
+  missing_portfolio_risk_budget_guardrail: {
+    title: "위험 예산 검증이 아직 없다",
+    description: "최신 포트폴리오 위험 예산 runner 결과가 없어 가상 검증 입력으로 쓰기 어렵다.",
+    nextStep: "portfolio-risk-budget-guardrail-run을 실행한 뒤 paper validation을 다시 실행한다.",
+  },
   single_order_notional_limit_exceeded: {
     title: "단일 주문 금액 한도를 넘는다",
     description: "목표 비중까지 한 번에 이동하면 가상 거래 주문 한도보다 주문 금액이 커진다.",
@@ -796,6 +835,34 @@ export type KoreanBlockedReason = {
 };
 
 export function koBlockedReason(value: string): KoreanBlockedReason {
+  const riskGateMatch = value.match(/^portfolio_risk_budget_guardrail:([a-z0-9_:-]+)$/);
+  if (riskGateMatch) {
+    const code = riskGateMatch[1];
+    const detail = BLOCKED_REASON_DETAILS[code] ?? BLOCKED_REASON_DETAILS.portfolio_risk_budget_guardrail;
+    return {
+      raw: value,
+      symbol: null,
+      code,
+      title: detail.title,
+      description: detail.description,
+      nextStep: detail.nextStep,
+    };
+  }
+
+  const riskBlockerMatch = value.match(/^portfolio_risk_budget_guardrail_blocker:([a-z0-9_:-]+)$/);
+  if (riskBlockerMatch) {
+    const code = riskBlockerMatch[1];
+    const detail = BLOCKED_REASON_DETAILS[code];
+    return {
+      raw: value,
+      symbol: null,
+      code,
+      title: detail?.title ?? koCode(code),
+      description: detail?.description ?? "포트폴리오 위험 예산 runner가 남긴 차단 사유다.",
+      nextStep: detail?.nextStep ?? "포트폴리오 커버리지 화면에서 해당 위험 예산 항목을 확인한다.",
+    };
+  }
+
   const conflictMatch = value.match(/^position_recommendation_conflict:([A-Z0-9.-]+)$/);
   if (conflictMatch) {
     const code = "position_recommendation_conflict";

@@ -1,4 +1,4 @@
-import { getPortfolioCoverage } from "@/lib/frontend-api";
+import { getPortfolioCoverage, getTradingReadiness } from "@/lib/frontend-api";
 import { koCode, koLabel } from "@/lib/korean-labels";
 
 export const dynamic = "force-dynamic";
@@ -128,8 +128,9 @@ function ExposureList({ empty, items }: { empty: string; items: ExposureRow[] })
 }
 
 export default async function PortfolioCoveragePage() {
-  const response = await getPortfolioCoverage();
+  const [response, tradingResponse] = await Promise.all([getPortfolioCoverage(), getTradingReadiness()]);
   const data = response.data;
+  const riskGuardrail = tradingResponse.data.portfolio_risk_budget_guardrail;
   const allocationPolicy = data.allocation_policy;
   const riskBudget = data.risk_budget;
   const concentration = riskBudget.concentration;
@@ -250,6 +251,46 @@ export default async function PortfolioCoveragePage() {
               <span>투자 비중</span>
               <strong>{formatPercent(riskBudget.invested_weight)}</strong>
               <small>현금 제외</small>
+            </article>
+          </div>
+        </article>
+
+        <article className="bento-card span-4" style={{ borderColor: riskGuardrail.paper_validation_input_allowed ? "var(--border-light)" : "var(--accent-red)" }}>
+          <div className="section-heading">
+            <div>
+              <span className="metric-sub">저장된 위험 예산 검증</span>
+              <h2>이 검증 결과가 가상 거래를 막고 있는지 본다</h2>
+            </div>
+            <span className={`risk-tag ${riskGuardrail.paper_validation_input_allowed ? "risk-low" : "risk-high"}`}>
+              {riskGuardrail.paper_validation_input_allowed ? "입력 가능" : "입력 차단"}
+            </span>
+          </div>
+          <p style={{ color: "var(--text-secondary)", marginTop: 0 }}>
+            화면에서 계산한 집중도와 별도로, backend guardrail runner가 저장한 최신 결과를 paper validation이 읽는다.
+            이 값이 차단이면 가상 거래 검증은 충돌 수가 0이어도 실패 상태로 남는다.
+          </p>
+          <div className="status-rail compact-rail" aria-label="저장된 위험 예산 검증 요약">
+            <article className="rail-cell">
+              <span>검증 ID</span>
+              <strong>{riskGuardrail.eval_run_id || "없음"}</strong>
+              <small>{riskGuardrail.status}</small>
+            </article>
+            <article className="rail-cell">
+              <span>판정</span>
+              <strong>{koCode(riskGuardrail.risk_gate_decision)}</strong>
+              <small>{riskGuardrail.effective_snapshot_date || "기준일 없음"}</small>
+            </article>
+            <article className="rail-cell rail-critical">
+              <span>차단 사유</span>
+              <strong>{riskGuardrail.blocking_reasons.length}</strong>
+              <small>{riskGuardrail.blocking_reasons.map((reason) => koCode(reason)).join(", ") || "없음"}</small>
+            </article>
+            <article className="rail-cell">
+              <span>벤치마크 drift</span>
+              <strong>
+                {riskGuardrail.warning_reasons.includes("insufficient_benchmark_composition") ? "미계산" : "확인됨"}
+              </strong>
+              <small>구성비 없으면 추정하지 않음</small>
             </article>
           </div>
         </article>

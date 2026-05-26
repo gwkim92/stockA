@@ -80,6 +80,7 @@ export default async function PaperTradingPage() {
   const trading = tradingResponse.data;
   const summary = data.quality_summary;
   const validationState = paperValidationState(trading);
+  const riskGuardrail = trading.portfolio_risk_budget_guardrail;
   const blockedReasonDetails = trading.paper_validation.blocked_reasons.map((reason) => koBlockedReason(reason));
   const liveSubmitCount = trading.audit_summary.submitted_to_broker_count;
   const paperStatusCards = [
@@ -126,6 +127,15 @@ export default async function PaperTradingPage() {
           : data.paper_actions.length > 0
             ? "가상 후보 표에서 종목별 추천, 현재 비중, 목표 비중을 대조한다."
             : "추천이나 보유 내역이 갱신되면 가상 후보가 다시 계산된다.",
+    },
+    {
+      index: "05",
+      title: "포트폴리오 위험 예산",
+      value: riskGuardrail.paper_validation_input_allowed ? "입력 가능" : "입력 차단",
+      tone: riskGuardrail.paper_validation_input_allowed ? "risk-low" : "risk-high",
+      body: riskGuardrail.paper_validation_input_allowed
+        ? "최신 포트폴리오 위험 예산 검증이 가상 검증 입력을 허용했다."
+        : `최신 위험 예산 검증이 ${koCode(riskGuardrail.risk_gate_decision)} 상태라 가상 검증 입력을 막고 있다.`,
     },
   ];
   const decisionSteps = [
@@ -247,6 +257,15 @@ export default async function PaperTradingPage() {
               <p>{card.body}</p>
             </article>
           ))}
+        </div>
+        <div className="paper-blocked-reasons" aria-label="포트폴리오 위험 예산 상태">
+          <span>위험 예산 연결</span>
+          <p>
+            최신 검증 {riskGuardrail.eval_run_id || "없음"} · 기준일 {riskGuardrail.effective_snapshot_date || "미확인"} ·
+            {riskGuardrail.warning_reasons.includes("insufficient_benchmark_composition")
+              ? " 벤치마크 구성비가 없어 drift는 아직 계산하지 않는다."
+              : " 위험 예산 검증 결과가 페이퍼 검증에 연결되어 있다."}
+          </p>
         </div>
         {blockedReasonDetails.length > 0 ? (
           <div className="paper-blocked-reasons" aria-label="가상 거래 차단 사유">

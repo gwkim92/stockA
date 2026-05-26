@@ -572,6 +572,19 @@ class FakeLiveExecutor:
                         "created_by": "paper-validation-smoke",
                         "created_at": "2026-05-19T00:00:00+00:00",
                     },
+                    "portfolio_risk_budget_guardrail": {
+                        "status": "loaded",
+                        "eval_run_id": 19,
+                        "as_of_date": "2026-05-25",
+                        "effective_snapshot_date": "2026-05-25",
+                        "risk_gate_decision": "blocked_by_risk_budget_review",
+                        "paper_validation_input_allowed": False,
+                        "blocking_reasons": [
+                            {"code": "over_single_position_limit"},
+                            {"code": "sector_over_limit"},
+                        ],
+                        "warning_reasons": [{"code": "insufficient_benchmark_composition"}],
+                    },
                     "audit_summary": {
                         "intent_count": 3,
                         "blocked_count": 2,
@@ -2853,13 +2866,23 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertEqual(payload["data"]["execution_mode"], "paper")
         self.assertEqual(payload["data"]["readiness_status"], "blocked")
         self.assertEqual(payload["data"]["gate_summary"]["pass_count"], 4)
-        self.assertEqual(payload["data"]["gate_summary"]["blocked_count"], 2)
+        self.assertEqual(payload["data"]["gate_summary"]["blocked_count"], 3)
         self.assertEqual(payload["data"]["broker_boundary"]["broker_code"], "simulated_paper")
         self.assertFalse(payload["data"]["broker_boundary"]["secret_configured"])
         self.assertEqual(payload["data"]["account_permission"]["permission_scope"], "paper_trade")
         self.assertEqual(payload["data"]["order_limit_policy"]["max_single_order_notional"], 50000.0)
         self.assertTrue(payload["data"]["kill_switches"][0]["is_engaged"])
         self.assertEqual(payload["data"]["paper_validation"]["conflict_count"], 1)
+        self.assertEqual(payload["data"]["portfolio_risk_budget_guardrail"]["eval_run_id"], "eval-run-19")
+        self.assertEqual(
+            payload["data"]["portfolio_risk_budget_guardrail"]["risk_gate_decision"],
+            "blocked_by_risk_budget_review",
+        )
+        self.assertFalse(payload["data"]["portfolio_risk_budget_guardrail"]["paper_validation_input_allowed"])
+        self.assertIn(
+            "over_single_position_limit",
+            payload["data"]["portfolio_risk_budget_guardrail"]["blocking_reasons"],
+        )
         self.assertEqual(payload["data"]["audit_summary"]["submitted_to_broker_count"], 0)
         self.assertEqual(payload["links"]["paper_trading_preview"], "/api/paper-trading/preview")
         self.assertNotIn("secret_ref", json.dumps(payload))
@@ -2874,6 +2897,9 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertIn("trading.kill_switch_state", sql)
         self.assertIn("trading.paper_validation_run", sql)
         self.assertIn("trading.order_intent_audit", sql)
+        self.assertIn("ai.eval_run", sql)
+        self.assertIn("portfolio_risk_budget_guardrail", sql)
+        self.assertIn("portfolio-risk-budget-guardrail-v1", sql)
         self.assertIn("'secret_configured', secret_ref is not null", sql)
         self.assertNotIn("insert into", lowered)
         self.assertNotIn("update ", lowered)

@@ -719,6 +719,16 @@ export type TradingReadinessData = {
     created_by: string;
     created_at: string;
   };
+  portfolio_risk_budget_guardrail: {
+    status: string;
+    eval_run_id: string | null;
+    as_of_date: string;
+    effective_snapshot_date: string;
+    risk_gate_decision: string;
+    paper_validation_input_allowed: boolean;
+    blocking_reasons: string[];
+    warning_reasons: string[];
+  };
   audit_summary: {
     intent_count: number;
     blocked_count: number;

@@ -725,6 +725,9 @@ def build_live_trading_readiness_response(
             "order_limit_policy": _build_trading_order_limit_policy_payload(_as_dict(state.get("order_limit_policy"))),
             "kill_switches": [_build_trading_kill_switch_payload(item) for item in _as_list(state.get("kill_switches"))],
             "paper_validation": _build_trading_paper_validation_payload(_as_dict(state.get("paper_validation"))),
+            "portfolio_risk_budget_guardrail": _build_trading_risk_budget_guardrail_payload(
+                _as_dict(state.get("portfolio_risk_budget_guardrail"))
+            ),
             "audit_summary": _build_trading_audit_summary_payload(_as_dict(state.get("audit_summary"))),
             "guardrails": _trading_readiness_guardrails(),
         },
@@ -3642,6 +3645,18 @@ selected_paper_validation as (
     order by validation.validation_date desc, validation.paper_validation_run_id desc
     limit 1
 ),
+selected_risk_budget_guardrail as (
+    select eval_run.*
+    from ai.eval_run eval_run
+    where eval_run.eval_name = 'portfolio_risk_budget_guardrail'
+      and eval_run.dataset_version = 'portfolio-risk-budget-guardrail-v1'
+      and coalesce(eval_run.score_json->>'portfolio_name', {sql_literal(portfolio_name)}) = {sql_literal(portfolio_name)}
+    order by
+        nullif(eval_run.score_json->>'as_of_date', '')::date desc nulls last,
+        eval_run.created_at desc,
+        eval_run.eval_run_id desc
+    limit 1
+),
 audit_summary as (
     select
         count(*)::integer as intent_count,
@@ -3733,6 +3748,30 @@ select json_build_object(
             'created_at', created_at
         )
         from selected_paper_validation
+    ),
+    'portfolio_risk_budget_guardrail',
+    coalesce(
+        (
+            select json_build_object(
+                'status', 'loaded',
+                'eval_run_id', eval_run_id,
+                'as_of_date', score_json->>'as_of_date',
+                'effective_snapshot_date', score_json->>'effective_snapshot_date',
+                'risk_gate_decision', score_json->>'risk_gate_decision',
+                'paper_validation_input_allowed',
+                    coalesce(nullif(score_json->>'paper_validation_input_allowed', '')::boolean, false),
+                'blocking_reasons', coalesce(score_json->'blocking_reasons', '[]'::jsonb),
+                'warning_reasons', coalesce(score_json->'warning_reasons', '[]'::jsonb)
+            )
+            from selected_risk_budget_guardrail
+        ),
+        json_build_object(
+            'status', 'missing',
+            'risk_gate_decision', 'missing_portfolio_risk_budget_guardrail',
+            'paper_validation_input_allowed', false,
+            'blocking_reasons', '[]'::json,
+            'warning_reasons', '[]'::json
+        )
     ),
     'audit_summary',
     (
@@ -7205,6 +7244,9 @@ def _build_trading_readiness_gates(state: dict[str, Any]) -> list[dict[str, Any]
     order_limit_policy = _as_dict(state.get("order_limit_policy"))
     kill_switches = [_build_trading_kill_switch_payload(item) for item in _as_list(state.get("kill_switches"))]
     paper_validation = _as_dict(state.get("paper_validation"))
+    risk_budget_guardrail = _build_trading_risk_budget_guardrail_payload(
+        _as_dict(state.get("portfolio_risk_budget_guardrail"))
+    )
     audit_summary = _as_dict(state.get("audit_summary"))
 
     broker_status = str(broker_boundary.get("status") or "")
@@ -7251,6 +7293,16 @@ def _build_trading_readiness_gates(state: dict[str, Any]) -> list[dict[str, Any]
             "blocked" if engaged_kill_switches else ("missing" if not kill_switches else "pass"),
             "engaged 상태의 킬 스위치가 하나라도 있으면 주문 의도는 차단된다.",
             "실거래 전에는 유지한다. paper 검증만 열 때도 명시 승인 기록 후 해제한다.",
+        ),
+        _trading_gate(
+            "portfolio_risk_budget_guardrail",
+            "포트폴리오 위험 예산",
+            _gate_status(
+                missing=risk_budget_guardrail["status"] == "missing",
+                blocked=not risk_budget_guardrail["paper_validation_input_allowed"],
+            ),
+            "단일 종목, 섹터, 테마 집중도가 위험 예산 안에 있어야 가상 검증 입력으로 쓸 수 있다.",
+            "포트폴리오 커버리지 화면에서 초과 종목과 초과 섹터·테마를 먼저 검토한다.",
         ),
         _trading_gate(
             "paper_validation",
@@ -7382,6 +7434,27 @@ def _build_trading_paper_validation_payload(validation: dict[str, Any]) -> dict[
     }
 
 
+def _build_trading_risk_budget_guardrail_payload(guardrail: dict[str, Any]) -> dict[str, Any]:
+    blocking_reasons = guardrail.get("blocking_reasons")
+    warning_reasons = guardrail.get("warning_reasons")
+    return {
+        "status": str(guardrail.get("status") or "missing"),
+        "eval_run_id": _opaque_id("eval-run", guardrail.get("eval_run_id"), None),
+        "as_of_date": str(guardrail.get("as_of_date") or ""),
+        "effective_snapshot_date": str(guardrail.get("effective_snapshot_date") or ""),
+        "risk_gate_decision": str(guardrail.get("risk_gate_decision") or "missing_portfolio_risk_budget_guardrail"),
+        "paper_validation_input_allowed": guardrail.get("paper_validation_input_allowed") is True,
+        "blocking_reasons": [
+            _reason_code(item)
+            for item in blocking_reasons
+        ] if isinstance(blocking_reasons, list) else [],
+        "warning_reasons": [
+            _reason_code(item)
+            for item in warning_reasons
+        ] if isinstance(warning_reasons, list) else [],
+    }
+
+
 def _build_trading_audit_summary_payload(summary: dict[str, Any]) -> dict[str, Any]:
     return {
         "intent_count": int(summary.get("intent_count") or 0),
@@ -7400,6 +7473,12 @@ def _trading_readiness_guardrails() -> list[str]:
         "증권사 연결 비밀값은 노출하지 않고 설정 여부만 표시한다.",
         "실제 주문 전송 값은 0이어야 하며, 실제 증권사 주문 어댑터는 아직 연결하지 않는다.",
     ]
+
+
+def _reason_code(value: object) -> str:
+    if isinstance(value, dict):
+        return str(value.get("code") or value.get("message") or "unknown")
+    return str(value)
 
 
 def _dashboard_coverage_link(state: dict[str, Any]) -> str:

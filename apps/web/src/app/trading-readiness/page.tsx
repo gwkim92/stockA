@@ -44,6 +44,7 @@ export default async function TradingReadinessPage() {
   const response = await getTradingReadiness();
   const data = response.data;
   const blockedSwitches = data.kill_switches.filter((item) => item.is_engaged);
+  const riskGuardrail = data.portfolio_risk_budget_guardrail;
   const blockedReasons = data.paper_validation.blocked_reasons.map((reason) => koBlockedReason(reason));
 
   return (
@@ -77,7 +78,11 @@ export default async function TradingReadinessPage() {
         <article className="rail-cell rail-critical">
           <span>차단</span>
           <strong>{data.gate_summary.blocked_count}</strong>
-          <small>{blockedSwitches.length > 0 ? "킬 스위치 포함" : "차단 조건 수"}</small>
+          <small>
+            {riskGuardrail.paper_validation_input_allowed
+              ? blockedSwitches.length > 0 ? "킬 스위치 포함" : "차단 조건 수"
+              : "위험 예산 포함"}
+          </small>
         </article>
         <article className="rail-cell">
           <span>실제 주문 전송</span>
@@ -252,7 +257,38 @@ export default async function TradingReadinessPage() {
               <dt>실제 주문 전송</dt>
               <dd>{data.audit_summary.submitted_to_broker_count.toLocaleString("ko-KR")}건</dd>
             </div>
+            <div>
+              <dt>위험 예산 검증</dt>
+              <dd>{koCode(riskGuardrail.risk_gate_decision)}</dd>
+            </div>
+            <div>
+              <dt>위험 예산 기준일</dt>
+              <dd>{riskGuardrail.effective_snapshot_date || "없음"}</dd>
+            </div>
           </dl>
+          <div className="reason-list" aria-label="포트폴리오 위험 예산 차단 사유">
+            {riskGuardrail.blocking_reasons.length > 0 ? riskGuardrail.blocking_reasons.map((reason) => {
+              const detail = koBlockedReason(`portfolio_risk_budget_guardrail_blocker:${reason}`);
+              return (
+                <article className="reason-card" key={reason}>
+                  <div>
+                    <span className="reason-symbol">위험 예산</span>
+                    <strong>{detail.title}</strong>
+                  </div>
+                  <p>{detail.description}</p>
+                  <small>다음 조치: {detail.nextStep}</small>
+                </article>
+              );
+            }) : (
+              <article className="reason-card">
+                <div>
+                  <span className="reason-symbol">위험 예산</span>
+                  <strong>현재 위험 예산 차단 사유가 없다</strong>
+                </div>
+                <p>최신 guardrail 결과가 가상 검증 입력을 막지 않는다.</p>
+              </article>
+            )}
+          </div>
           {blockedReasons.length > 0 ? (
             <div className="reason-list" aria-label="가상 검증 차단 사유">
               {blockedReasons.map((reason) => (
