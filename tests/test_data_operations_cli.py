@@ -1780,6 +1780,50 @@ class DataOperationsCliTests(unittest.TestCase):
             self.assertEqual(call_kwargs["min_component_outcome_count"], 4)
             self.assertTrue(call_kwargs["execute"])
 
+    def test_manual_weight_review_calibration_report_run_command_passes_env_and_writes_output(self) -> None:
+        with tempfile.TemporaryDirectory() as repo_root, tempfile.TemporaryDirectory() as outside_root:
+            env_file = Path(outside_root) / "data-operations.env"
+            output_path = Path(outside_root) / "manual-weight-review-calibration.json"
+            env_file.write_text('STOCKANALYSIS_PSQL_COMMAND="docker exec psql"\n', encoding="utf-8")
+            stdout = io.StringIO()
+
+            with patch("stockanalysis.operations.cli.run_manual_weight_review_calibration_report") as runner_mock:
+                runner_mock.return_value = {
+                    "report_name": "manual_weight_review_calibration_report",
+                    "status": "completed",
+                    "decision": "manual_review_allowed_keep_weights_collect_more_evidence",
+                }
+                exit_code = main(
+                    [
+                        "recommendation-weight-review-calibration-report-run",
+                        "--repo-root",
+                        repo_root,
+                        "--env-file",
+                        str(env_file),
+                        "--as-of-date",
+                        "2026-05-25",
+                        "--audit-eval-run-id",
+                        "16",
+                        "--failure-case-limit",
+                        "6",
+                        "--execute",
+                        "--output",
+                        str(output_path),
+                    ],
+                    stdout=stdout,
+                )
+
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(stdout.getvalue().strip(), str(output_path.resolve()))
+            payload = json.loads(output_path.read_text(encoding="utf-8"))
+            self.assertEqual(payload["report_name"], "manual_weight_review_calibration_report")
+            call_kwargs = runner_mock.call_args.kwargs
+            self.assertEqual(call_kwargs["config"].psql_command, "docker exec psql")
+            self.assertEqual(call_kwargs["as_of_date"], date(2026, 5, 25))
+            self.assertEqual(call_kwargs["audit_eval_run_id"], 16)
+            self.assertEqual(call_kwargs["failure_case_limit"], 6)
+            self.assertTrue(call_kwargs["execute"])
+
     def test_industry_competitive_positioning_run_command_passes_env_and_writes_output(self) -> None:
         with tempfile.TemporaryDirectory() as repo_root, tempfile.TemporaryDirectory() as outside_root:
             env_file = Path(outside_root) / "data-operations.env"

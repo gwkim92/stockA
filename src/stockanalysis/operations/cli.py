@@ -70,6 +70,10 @@ from stockanalysis.operations.recommendation_weight_review_readiness_audit impor
     DEFAULT_MIN_COMPONENT_OUTCOME_COUNT as DEFAULT_WEIGHT_REVIEW_MIN_COMPONENT_OUTCOME_COUNT,
     run_recommendation_weight_review_readiness_audit,
 )
+from stockanalysis.operations.manual_weight_review_calibration_report import (
+    DEFAULT_FAILURE_CASE_LIMIT as DEFAULT_MANUAL_WEIGHT_REVIEW_FAILURE_CASE_LIMIT,
+    run_manual_weight_review_calibration_report,
+)
 from stockanalysis.operations.paper_validation_conflict_remediation import (
     run_paper_validation_conflict_remediation,
 )
@@ -756,6 +760,24 @@ def build_parser() -> argparse.ArgumentParser:
     recommendation_weight_review_audit.add_argument("--output")
     recommendation_weight_review_audit.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
     recommendation_weight_review_audit.set_defaults(handler=_handle_recommendation_weight_review_readiness_audit_run)
+
+    manual_weight_review_calibration = subparsers.add_parser(
+        "recommendation-weight-review-calibration-report-run",
+        help="Generate a manual weight review calibration report without changing recommendation weights.",
+    )
+    manual_weight_review_calibration.add_argument("--env-file")
+    manual_weight_review_calibration.add_argument("--as-of-date", required=True)
+    manual_weight_review_calibration.add_argument("--audit-eval-run-id", type=int)
+    manual_weight_review_calibration.add_argument(
+        "--failure-case-limit",
+        type=int,
+        default=DEFAULT_MANUAL_WEIGHT_REVIEW_FAILURE_CASE_LIMIT,
+    )
+    manual_weight_review_calibration.add_argument("--execute", action="store_true")
+    manual_weight_review_calibration.add_argument("--dry-run", action="store_true")
+    manual_weight_review_calibration.add_argument("--output")
+    manual_weight_review_calibration.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
+    manual_weight_review_calibration.set_defaults(handler=_handle_manual_weight_review_calibration_report_run)
 
     recommendation_fundamental_components = subparsers.add_parser(
         "recommendation-fundamental-components-run",
@@ -1671,6 +1693,32 @@ def _handle_recommendation_weight_review_readiness_audit_run(
         output_path = resolve_output_path(
             args.output,
             label="recommendation weight review readiness audit output",
+            repo_root=args.repo_root,
+            require_repo_outside=True,
+        )
+        write_json_report(report, output_path=output_path, stdout=stdout)
+    else:
+        print_json(report, stdout=stdout, sort_keys=False)
+    return 0
+
+
+def _handle_manual_weight_review_calibration_report_run(args: argparse.Namespace, *, stdout: TextIO) -> int:
+    if bool(args.execute) and bool(args.dry_run):
+        raise ValueError("--execute and --dry-run cannot be used together.")
+    env_mapping = _load_optional_env_mapping(args.env_file, repo_root=args.repo_root)
+    as_of_date = date.fromisoformat(args.as_of_date)
+    with _temporary_environ(env_mapping):
+        report = run_manual_weight_review_calibration_report(
+            config=RuntimeConfig.from_env(),
+            as_of_date=as_of_date,
+            audit_eval_run_id=args.audit_eval_run_id,
+            failure_case_limit=args.failure_case_limit,
+            execute=bool(args.execute) and not bool(args.dry_run),
+        )
+    if args.output:
+        output_path = resolve_output_path(
+            args.output,
+            label="manual weight review calibration report output",
             repo_root=args.repo_root,
             require_repo_outside=True,
         )
