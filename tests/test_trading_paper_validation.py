@@ -7,12 +7,15 @@ from decimal import Decimal
 
 from stockanalysis.ingest.config import RuntimeConfig
 from stockanalysis.trading.paper_validation import (
+    PortfolioRiskBudgetGuardrailSnapshot,
     SafetyConfigSnapshot,
     build_paper_validation_audit_plan,
     default_blocking_safety_config,
+    render_portfolio_risk_budget_guardrail_snapshot_sql,
     render_paper_validation_audit_sql,
     render_paper_validation_safety_config_sql,
     run_paper_validation_audit,
+    risk_budget_guardrail_from_payload,
     safety_config_from_payload,
 )
 from stockanalysis.trading.safety import (
@@ -69,6 +72,62 @@ class PaperValidationAuditTests(unittest.TestCase):
         self.assertNotIn("secret_ref", lowered)
         self.assertNotIn("api_key", lowered)
         self.assertNotIn("password", lowered)
+
+    def test_plan_blocks_when_portfolio_risk_budget_guardrail_blocks_input(self) -> None:
+        plan = build_paper_validation_audit_plan(
+            preview_payload=_preview_payload(conflict=False),
+            safety_config=_passing_safety_config(),
+            risk_budget_guardrail=PortfolioRiskBudgetGuardrailSnapshot(
+                status="loaded",
+                eval_run_id=19,
+                risk_gate_decision="blocked_by_risk_budget_review",
+                paper_validation_input_allowed=False,
+                blocking_reasons=("over_single_position_limit", "sector_over_limit"),
+                effective_snapshot_date="2026-05-25",
+            ),
+            validation_date=date(2026, 5, 25),
+            portfolio_notional=Decimal("100000"),
+            human_approved=True,
+        )
+
+        self.assertEqual(plan.validation_status, "failed")
+        self.assertIn("portfolio_risk_budget_guardrail:blocked_by_risk_budget_review", plan.blocked_reasons)
+        self.assertIn("portfolio_risk_budget_guardrail_blocker:over_single_position_limit", plan.blocked_reasons)
+
+    def test_risk_budget_guardrail_lookup_is_read_only_and_bounded_by_date(self) -> None:
+        sql = render_portfolio_risk_budget_guardrail_snapshot_sql(
+            portfolio_name="Long Term Paper",
+            as_of_date=date(2026, 5, 25),
+        )
+        lowered = sql.lower()
+
+        self.assertIn("-- paper validation portfolio risk budget guardrail lookup", sql)
+        self.assertIn("ai.eval_run", sql)
+        self.assertIn("portfolio_risk_budget_guardrail", sql)
+        self.assertIn("portfolio-risk-budget-guardrail-v1", sql)
+        self.assertIn("::date <= '2026-05-25'::date", sql)
+        self.assertNotIn("insert into", lowered)
+        self.assertNotIn("update ", lowered)
+        self.assertNotIn("delete from", lowered)
+
+    def test_risk_budget_guardrail_payload_maps_blockers_without_order_unlock(self) -> None:
+        snapshot = risk_budget_guardrail_from_payload(
+            {
+                "status": "loaded",
+                "eval_run_id": 19,
+                "risk_gate_decision": "blocked_by_risk_budget_review",
+                "paper_validation_input_allowed": False,
+                "effective_snapshot_date": "2026-05-25",
+                "blocking_reasons": [{"code": "theme_over_limit"}],
+                "warning_reasons": [{"code": "insufficient_benchmark_composition"}],
+            }
+        )
+
+        self.assertEqual(snapshot.eval_run_id, 19)
+        self.assertEqual(snapshot.risk_gate_decision, "blocked_by_risk_budget_review")
+        self.assertFalse(snapshot.paper_validation_input_allowed)
+        self.assertEqual(snapshot.blocking_reasons, ("theme_over_limit",))
+        self.assertEqual(snapshot.warning_reasons, ("insufficient_benchmark_composition",))
 
     def test_safety_config_lookup_does_not_project_broker_secret(self) -> None:
         sql = render_paper_validation_safety_config_sql(portfolio_name="Long Term Paper")
@@ -152,6 +211,11 @@ class PaperValidationAuditTests(unittest.TestCase):
         self.assertEqual(report["validation_status"], "failed")
         self.assertEqual(report["write_result"]["audit_insert_count"], 2)
         self.assertEqual(report["write_result"]["submitted_to_broker_count"], 0)
+        self.assertEqual(
+            report["portfolio_risk_budget_guardrail"]["risk_gate_decision"],
+            "blocked_by_risk_budget_review",
+        )
+        self.assertIn("portfolio_risk_budget_guardrail", report["blocked_reasons"][0])
         self.assertEqual(len(executor.write_sql), 1)
         self.assertIn("insert into trading.paper_validation_run", executor.write_sql[0])
         self.assertIn("insert into trading.order_intent_audit", executor.write_sql[0])
@@ -261,6 +325,18 @@ class _PaperValidationFakeExecutor:
                         "min_cash_buffer_weight": "0.02",
                     },
                     "kill_switch": {"is_engaged": False, "reason": "paper mode enabled"},
+                }
+            )
+        if sql.startswith("-- paper validation portfolio risk budget guardrail lookup"):
+            return json.dumps(
+                {
+                    "status": "loaded",
+                    "eval_run_id": 19,
+                    "risk_gate_decision": "blocked_by_risk_budget_review",
+                    "paper_validation_input_allowed": False,
+                    "effective_snapshot_date": "2026-05-25",
+                    "blocking_reasons": [{"code": "over_single_position_limit"}],
+                    "warning_reasons": [{"code": "insufficient_benchmark_composition"}],
                 }
             )
         if "insert into trading.paper_validation_run" in sql:

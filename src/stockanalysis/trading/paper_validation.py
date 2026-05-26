@@ -25,6 +25,8 @@ from stockanalysis.trading.safety import (
 
 DEFAULT_CREATED_BY = "paper-validation-audit-run"
 DEFAULT_PAPER_PORTFOLIO_NOTIONAL = Decimal("100000")
+RISK_BUDGET_GUARDRAIL_EVAL_NAME = "portfolio_risk_budget_guardrail"
+RISK_BUDGET_GUARDRAIL_DATASET_VERSION = "portfolio-risk-budget-guardrail-v1"
 ACTIONABLE_PAPER_ACTIONS = frozenset(
     {
         "paper_buy_to_target",
@@ -44,6 +46,17 @@ class SafetyConfigSnapshot:
     kill_switch: KillSwitchState
     broker_boundary_id: int | None = None
     account_permission_id: int | None = None
+
+
+@dataclass(frozen=True)
+class PortfolioRiskBudgetGuardrailSnapshot:
+    status: str
+    eval_run_id: int | None = None
+    risk_gate_decision: str = "missing"
+    paper_validation_input_allowed: bool = False
+    blocking_reasons: tuple[str, ...] = ()
+    warning_reasons: tuple[str, ...] = ()
+    effective_snapshot_date: str | None = None
 
 
 @dataclass(frozen=True)
@@ -104,9 +117,19 @@ def run_paper_validation_audit(
         if sql_executor is not None
         else default_blocking_safety_config()
     )
+    risk_budget_guardrail = (
+        load_portfolio_risk_budget_guardrail_snapshot(
+            executor=sql_executor,
+            portfolio_name=portfolio_name,
+            as_of_date=as_of_date,
+        )
+        if sql_executor is not None and source != "fixture"
+        else None
+    )
     plan = build_paper_validation_audit_plan(
         preview_payload=preview_payload,
         safety_config=safety_config,
+        risk_budget_guardrail=risk_budget_guardrail,
         validation_date=as_of_date,
         portfolio_name=portfolio_name,
         portfolio_notional=portfolio_notional,
@@ -124,6 +147,7 @@ def run_paper_validation_audit(
     return build_paper_validation_audit_report(
         plan,
         safety_config=safety_config,
+        risk_budget_guardrail=risk_budget_guardrail,
         dry_run=dry_run,
         source=source,
         write_result=write_result,
@@ -140,6 +164,94 @@ def load_paper_validation_safety_config(
         "paper validation safety config",
     )
     return safety_config_from_payload(payload)
+
+
+def load_portfolio_risk_budget_guardrail_snapshot(
+    *,
+    executor: Any,
+    portfolio_name: str = DEFAULT_PORTFOLIO_NAME,
+    as_of_date: date | None = None,
+) -> PortfolioRiskBudgetGuardrailSnapshot:
+    payload = _json_object(
+        executor.execute_scalar(
+            render_portfolio_risk_budget_guardrail_snapshot_sql(
+                portfolio_name=portfolio_name,
+                as_of_date=as_of_date,
+            )
+        ),
+        "portfolio risk budget guardrail snapshot",
+    )
+    return risk_budget_guardrail_from_payload(payload)
+
+
+def render_portfolio_risk_budget_guardrail_snapshot_sql(
+    *,
+    portfolio_name: str = DEFAULT_PORTFOLIO_NAME,
+    as_of_date: date | None = None,
+) -> str:
+    date_filter = ""
+    if as_of_date is not None:
+        date_filter = f"\n      and nullif(eval_run.score_json->>'as_of_date', '')::date <= {sql_date(as_of_date)}"
+    return f"""-- paper validation portfolio risk budget guardrail lookup
+with selected_guardrail as (
+    select
+        eval_run.eval_run_id,
+        eval_run.score_json,
+        eval_run.created_at
+    from ai.eval_run eval_run
+    where eval_run.eval_name = {sql_literal(RISK_BUDGET_GUARDRAIL_EVAL_NAME)}
+      and eval_run.dataset_version = {sql_literal(RISK_BUDGET_GUARDRAIL_DATASET_VERSION)}
+      and coalesce(eval_run.score_json->>'portfolio_name', {sql_literal(portfolio_name)}) = {sql_literal(portfolio_name)}{date_filter}
+    order by
+        nullif(eval_run.score_json->>'as_of_date', '')::date desc nulls last,
+        eval_run.created_at desc,
+        eval_run.eval_run_id desc
+    limit 1
+)
+select coalesce(
+    (
+        select json_build_object(
+            'status', 'loaded',
+            'eval_run_id', eval_run_id,
+            'risk_gate_decision', score_json->>'risk_gate_decision',
+            'paper_validation_input_allowed',
+                coalesce(nullif(score_json->>'paper_validation_input_allowed', '')::boolean, false),
+            'effective_snapshot_date', score_json->>'effective_snapshot_date',
+            'blocking_reasons', coalesce(score_json->'blocking_reasons', '[]'::jsonb),
+            'warning_reasons', coalesce(score_json->'warning_reasons', '[]'::jsonb)
+        )
+        from selected_guardrail
+    ),
+    json_build_object(
+        'status', 'missing',
+        'risk_gate_decision', 'missing_portfolio_risk_budget_guardrail',
+        'paper_validation_input_allowed', false,
+        'blocking_reasons', json_build_array(
+            json_build_object(
+                'code', 'missing_portfolio_risk_budget_guardrail',
+                'message', '최신 portfolio risk budget guardrail run이 없다.'
+            )
+        ),
+        'warning_reasons', '[]'::json
+    )
+)::text;"""
+
+
+def risk_budget_guardrail_from_payload(payload: dict[str, Any]) -> PortfolioRiskBudgetGuardrailSnapshot:
+    status = str(payload.get("status") or "missing")
+    blocking_reasons = tuple(_reason_code(item) for item in _as_list(payload.get("blocking_reasons")))
+    warning_reasons = tuple(_reason_code(item) for item in _as_list(payload.get("warning_reasons")))
+    return PortfolioRiskBudgetGuardrailSnapshot(
+        status=status,
+        eval_run_id=_optional_int(payload.get("eval_run_id")),
+        risk_gate_decision=str(payload.get("risk_gate_decision") or status),
+        paper_validation_input_allowed=payload.get("paper_validation_input_allowed") is True,
+        blocking_reasons=blocking_reasons,
+        warning_reasons=warning_reasons,
+        effective_snapshot_date=str(payload.get("effective_snapshot_date"))
+        if payload.get("effective_snapshot_date")
+        else None,
+    )
 
 
 def safety_config_from_payload(payload: dict[str, Any]) -> SafetyConfigSnapshot:
@@ -227,6 +339,7 @@ def build_paper_validation_audit_plan(
     *,
     preview_payload: dict[str, Any],
     safety_config: SafetyConfigSnapshot | None = None,
+    risk_budget_guardrail: PortfolioRiskBudgetGuardrailSnapshot | None = None,
     validation_date: date | None = None,
     portfolio_name: str = DEFAULT_PORTFOLIO_NAME,
     portfolio_notional: Decimal = DEFAULT_PAPER_PORTFOLIO_NOTIONAL,
@@ -247,6 +360,10 @@ def build_paper_validation_audit_plan(
     audit_decisions: list[PaperAuditDecision] = []
     skipped_count = 0
     cumulative_notional = Decimal("0")
+    if risk_budget_guardrail is not None and not risk_budget_guardrail.paper_validation_input_allowed:
+        blocked_reasons.append(f"portfolio_risk_budget_guardrail:{risk_budget_guardrail.risk_gate_decision}")
+        for reason in risk_budget_guardrail.blocking_reasons:
+            blocked_reasons.append(f"portfolio_risk_budget_guardrail_blocker:{reason}")
 
     for index, action in enumerate(paper_actions, start=1):
         paper_action = str(action.get("paper_action") or "paper_hold")
@@ -295,7 +412,12 @@ def build_paper_validation_audit_plan(
     approved_symbols = tuple(decision.symbol for decision in audit_decisions if decision.decision.allowed)
     approved_action_count = len(approved_symbols)
     validation_status = "passed"
-    if conflict_count > 0 or skipped_count > 0 or any(not item.decision.allowed for item in audit_decisions):
+    if (
+        conflict_count > 0
+        or skipped_count > 0
+        or any(not item.decision.allowed for item in audit_decisions)
+        or (risk_budget_guardrail is not None and not risk_budget_guardrail.paper_validation_input_allowed)
+    ):
         validation_status = "failed"
 
     return PaperValidationAuditPlan(
@@ -608,6 +730,7 @@ def build_paper_validation_audit_report(
     plan: PaperValidationAuditPlan,
     *,
     safety_config: SafetyConfigSnapshot,
+    risk_budget_guardrail: PortfolioRiskBudgetGuardrailSnapshot | None,
     dry_run: bool,
     source: str,
     write_result: dict[str, Any] | None,
@@ -637,6 +760,7 @@ def build_paper_validation_audit_report(
             "order_limit_policy_status": safety_config.order_limit_policy.status,
             "kill_switch_engaged": safety_config.kill_switch.is_engaged,
         },
+        "portfolio_risk_budget_guardrail": _risk_budget_guardrail_report_payload(risk_budget_guardrail),
         "write_result": write_result or {},
         "manual_next_step": "review_trading_readiness_before_any_broker_integration",
     }
@@ -720,6 +844,33 @@ def sql_text_array(values: tuple[str, ...]) -> str:
 
 def _jsonb_literal(value: object) -> str:
     return f"{sql_literal(json.dumps(value, ensure_ascii=False, sort_keys=True))}::jsonb"
+
+
+def _risk_budget_guardrail_report_payload(
+    risk_budget_guardrail: PortfolioRiskBudgetGuardrailSnapshot | None,
+) -> dict[str, Any]:
+    if risk_budget_guardrail is None:
+        return {
+            "status": "not_loaded",
+            "paper_validation_input_allowed": None,
+            "risk_gate_decision": None,
+            "eval_run_id": None,
+        }
+    return {
+        "status": risk_budget_guardrail.status,
+        "eval_run_id": risk_budget_guardrail.eval_run_id,
+        "risk_gate_decision": risk_budget_guardrail.risk_gate_decision,
+        "paper_validation_input_allowed": risk_budget_guardrail.paper_validation_input_allowed,
+        "blocking_reasons": list(risk_budget_guardrail.blocking_reasons),
+        "warning_reasons": list(risk_budget_guardrail.warning_reasons),
+        "effective_snapshot_date": risk_budget_guardrail.effective_snapshot_date,
+    }
+
+
+def _reason_code(value: object) -> str:
+    if isinstance(value, dict):
+        return str(value.get("code") or value.get("message") or "unknown")
+    return str(value)
 
 
 def _optional_decimal_sql(value: object) -> str:
