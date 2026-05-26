@@ -2,7 +2,7 @@
 
 ## Status
 
-- completed: local implementation and required verification are complete. EC2 deploy/smoke remains the next operational proof before live remediation.
+- completed: implemented, pushed, deployed to EC2, and smoked against the live DB/UI.
 
 ## Context
 
@@ -20,7 +20,7 @@
 
 ## Exact Next Step
 
-- exact next step: deploy this branch to EC2 and smoke `/api/data-health` plus `/data-health`, then use the ranked list to run only the deterministic remediation command for the top true source gap.
+- exact next step: use the live ranked list to run only the deterministic remediation command for the top true source gap. Current top live source blocker is `EROK`.
 
 ## Guardrails
 
@@ -36,3 +36,6 @@
 - Passed: `PYTHONPATH=src python3 -m compileall -q src tests`
 - Passed: `cd apps/web && npm run typecheck`
 - Passed: `cd apps/web && npm run build`
+- Passed on EC2 commit `44012fb`: focused data-health tests, compileall, Next typecheck/build, service restart.
+- Passed on EC2 `/api/data-health`: `professional_source_gap_prioritization.status=source_blockers_present`, `gap_count=3`, `source_blocker_count=1`, `fund_not_applicable_count=1`, top symbols `EROK:source_blocker`, `GOOG:coverage_gap`, `SPY:fund_not_applicable`, `recommendation_scoring_mutated=false`, `automatic_order_allowed=false`.
+- Passed on EC2 `/data-health`: rendered `전문 분석 소스 공백`, `원천 차단 종목 있음`, `EROK`, `SPY`, and `기업 재무 모델 비적용`.

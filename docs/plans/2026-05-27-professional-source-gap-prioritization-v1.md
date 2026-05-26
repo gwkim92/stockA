@@ -6,8 +6,7 @@ Outcome windows are currently not due, so the next value is to improve professio
 
 ## Status
 
-- local implementation complete: `/api/data-health` exposes `professional_source_gap_prioritization`, and `/data-health` renders the ranked source gap list in Korean.
-- EC2 deployment/smoke remains the next operational proof.
+- complete: `/api/data-health` exposes `professional_source_gap_prioritization`, `/data-health` renders the ranked source gap list in Korean, and EC2 smoke passed on commit `44012fb`.
 
 ## Implementation Order
 
@@ -15,7 +14,7 @@ Outcome windows are currently not due, so the next value is to improve professio
 2. Done: add a source-gap prioritization payload using active recommendation exposure and missing layer count.
 3. Done: surface the ranked gaps in `/data-health`.
 4. Done: add tests for company source blockers, fund not-applicable cases, and remediation actions.
-5. Pending: smoke on EC2 without mutating weights or order state.
+5. Done: smoke on EC2 without mutating weights or order state.
 
 ## Guardrails
 
