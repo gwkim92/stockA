@@ -151,6 +151,72 @@ theme_json_rows as (
     select *
     from theme_exposure_rows
     order by exposure_weight desc, exposure_key
+),
+selected_benchmark as (
+    select
+        case
+            when upper(coalesce(market_code, '')) = 'US' then 'SPY'
+            else null
+        end as benchmark_code
+    from selected_portfolio
+),
+benchmark_component_source as (
+    select
+        composition.benchmark_code,
+        composition.source_type,
+        composition.source_name,
+        composition.source_as_of_date
+    from selected_benchmark benchmark
+    join ref.benchmark_composition composition
+      on composition.benchmark_code = benchmark.benchmark_code
+     and composition.valid_from <= coalesce((select snapshot_date from selected_snapshot), {sql_date(as_of_date)})
+     and (
+        composition.valid_to is null
+        or composition.valid_to >= coalesce((select snapshot_date from selected_snapshot), {sql_date(as_of_date)})
+     )
+    where benchmark.benchmark_code is not null
+    group by
+        composition.benchmark_code,
+        composition.source_type,
+        composition.source_name,
+        composition.source_as_of_date
+    order by composition.source_as_of_date desc, composition.source_name
+    limit 1
+),
+benchmark_component_rows as (
+    select
+        composition.component_instrument_id as instrument_id,
+        instrument.primary_symbol as symbol,
+        composition.target_weight,
+        composition.source_type,
+        composition.source_name,
+        composition.source_as_of_date,
+        composition.confidence,
+        composition.rationale
+    from benchmark_component_source source
+    join ref.benchmark_composition composition
+      on composition.benchmark_code = source.benchmark_code
+     and composition.source_type = source.source_type
+     and composition.source_name = source.source_name
+     and composition.source_as_of_date = source.source_as_of_date
+     and composition.valid_from <= coalesce((select snapshot_date from selected_snapshot), {sql_date(as_of_date)})
+     and (
+        composition.valid_to is null
+        or composition.valid_to >= coalesce((select snapshot_date from selected_snapshot), {sql_date(as_of_date)})
+     )
+    join ref.instrument instrument on instrument.instrument_id = composition.component_instrument_id
+    where instrument.is_active
+),
+benchmark_drift_rows as (
+    select
+        coalesce(position.instrument_id, benchmark.instrument_id) as instrument_id,
+        coalesce(position.symbol, benchmark.symbol) as symbol,
+        coalesce(position.weight, 0) as portfolio_weight,
+        coalesce(benchmark.target_weight, 0) as benchmark_weight,
+        coalesce(position.weight, 0) - coalesce(benchmark.target_weight, 0) as active_weight
+    from position_rows position
+    full join benchmark_component_rows benchmark
+      on benchmark.instrument_id = position.instrument_id
 )
 select json_build_object(
     'portfolio_name', coalesce((select portfolio_name from selected_portfolio), {sql_literal(portfolio_name)}),
@@ -226,7 +292,35 @@ select json_build_object(
         '[]'::json
     ),
     'unclassified_weight', coalesce((select sum(weight) from unclassified_positions), 0),
-    'unclassified_symbols', coalesce((select array_agg(symbol order by symbol) from unclassified_positions), array[]::text[])
+    'unclassified_symbols', coalesce((select array_agg(symbol order by symbol) from unclassified_positions), array[]::text[]),
+    'benchmark_code', (select benchmark_code from selected_benchmark),
+    'benchmark_composition',
+    json_build_object(
+        'status', case when exists(select 1 from benchmark_component_rows) then 'available' else 'missing' end,
+        'benchmark_code', (select benchmark_code from selected_benchmark),
+        'source_type', (select source_type from benchmark_component_source),
+        'source_name', (select source_name from benchmark_component_source),
+        'source_as_of_date', (select source_as_of_date::text from benchmark_component_source),
+        'component_count', (select count(*)::integer from benchmark_component_rows),
+        'target_weight_total', coalesce((select sum(target_weight) from benchmark_component_rows), 0)
+    ),
+    'benchmark_drift_rows',
+    coalesce(
+        (
+            select json_agg(
+                json_build_object(
+                    'instrument_id', instrument_id,
+                    'symbol', symbol,
+                    'portfolio_weight', portfolio_weight,
+                    'benchmark_weight', benchmark_weight,
+                    'active_weight', active_weight
+                )
+                order by abs(active_weight) desc, symbol
+            )
+            from benchmark_drift_rows
+        ),
+        '[]'::json
+    )
 )::text;"""
 
 
@@ -289,6 +383,7 @@ def build_portfolio_risk_budget_guardrail_report(
         _exposure_payload(item, exposure_type="theme", limit=DEFAULT_MAX_THEME_WEIGHT)
         for item in _as_list(state.get("theme_exposures"))
     ]
+    benchmark_drift = _benchmark_drift_payload(state)
     unclassified_weight = _decimal(state.get("unclassified_weight")) or Decimal("0")
     unclassified_symbols = [str(item) for item in _as_list(state.get("unclassified_symbols"))]
     blocking_reasons = _blocking_reasons(
@@ -302,7 +397,7 @@ def build_portfolio_risk_budget_guardrail_report(
     warnings = _warning_reasons(
         sector_exposures=sector_exposures,
         theme_exposures=theme_exposures,
-        benchmark_drift_status="insufficient_benchmark_composition",
+        benchmark_drift=benchmark_drift,
     )
     risk_gate_decision = _risk_gate_decision(blocking_reasons)
     return {
@@ -345,12 +440,7 @@ def build_portfolio_risk_budget_guardrail_report(
             "unclassified_symbols": unclassified_symbols,
             "unclassified_over_limit": unclassified_weight > DEFAULT_MAX_UNCLASSIFIED_WEIGHT,
         },
-        "benchmark_drift": {
-            "status": "insufficient_benchmark_composition",
-            "benchmark_source": None,
-            "drift_calculated": False,
-            "reason": "benchmark 구성비 데이터가 canonical DB에 없으므로 drift를 추정하지 않는다.",
-        },
+        "benchmark_drift": benchmark_drift,
         "positions": positions,
         "sector_exposures": sector_exposures,
         "theme_exposures": theme_exposures,
@@ -486,19 +576,104 @@ def _warning_reasons(
     *,
     sector_exposures: list[dict[str, object]],
     theme_exposures: list[dict[str, object]],
-    benchmark_drift_status: str,
+    benchmark_drift: dict[str, object],
 ) -> list[dict[str, object]]:
-    warnings = [
-        _reason(
-            benchmark_drift_status,
-            "benchmark 구성비가 없어 drift는 아직 계산하지 않았다. 임의 proxy로 대체하지 않는다.",
+    warnings: list[dict[str, object]] = []
+    benchmark_status = str(benchmark_drift.get("status") or "")
+    if benchmark_drift.get("drift_calculated") is not True:
+        warnings.append(
+            _reason(
+                benchmark_status or "insufficient_benchmark_composition",
+                "benchmark 구성비가 없어 drift는 아직 계산하지 않았다. 임의 proxy로 대체하지 않는다.",
+            )
         )
-    ]
+    elif benchmark_status == "calculated_partial_composition":
+        warnings.append(
+            _reason(
+                "benchmark_composition_partial",
+                "benchmark 구성비 seed가 부분 구성비라 drift를 계산하되 전체 지수 복제 drift로 해석하지 않는다.",
+            )
+        )
     if not sector_exposures:
         warnings.append(_reason("sector_classification_missing", "섹터 분류가 없어 섹터 집중도를 계산할 수 없다."))
     if not theme_exposures:
         warnings.append(_reason("theme_classification_missing", "테마 분류가 없어 테마 집중도를 계산할 수 없다."))
     return warnings
+
+
+def _benchmark_drift_payload(state: dict[str, object]) -> dict[str, object]:
+    composition = _as_dict(state.get("benchmark_composition"))
+    rows = [_benchmark_drift_row(item) for item in _as_list(state.get("benchmark_drift_rows"))]
+    rows = [row for row in rows if row is not None]
+    benchmark_code = str(composition.get("benchmark_code") or state.get("benchmark_code") or "")
+    source_name = composition.get("source_name")
+    source_type = composition.get("source_type")
+    target_total = _decimal(composition.get("target_weight_total")) or Decimal("0")
+    component_count = _int(composition.get("component_count"))
+
+    if composition.get("status") != "available" or not rows:
+        return {
+            "status": "insufficient_benchmark_composition",
+            "benchmark_code": benchmark_code or None,
+            "benchmark_source": None,
+            "source_type": None,
+            "source_as_of_date": None,
+            "drift_calculated": False,
+            "reason": "benchmark 구성비 데이터가 canonical DB에 없으므로 drift를 추정하지 않는다.",
+            "component_count": 0,
+            "composition_coverage_weight": _decimal_text(Decimal("0")),
+            "total_absolute_drift": None,
+            "active_share": None,
+            "top_active_positions": [],
+        }
+
+    total_absolute_drift = sum(abs(row["active_weight_decimal"]) for row in rows)
+    active_share = total_absolute_drift / Decimal("2")
+    status = "calculated" if target_total >= Decimal("0.9500") else "calculated_partial_composition"
+    return {
+        "status": status,
+        "benchmark_code": benchmark_code or None,
+        "benchmark_source": source_name,
+        "source_type": source_type,
+        "source_as_of_date": composition.get("source_as_of_date"),
+        "drift_calculated": True,
+        "reason": (
+            "benchmark 구성비가 있어 active weight drift를 계산했다."
+            if status == "calculated"
+            else "부분 benchmark 구성비 seed로 계산했다. 전체 benchmark drift로 과해석하지 않는다."
+        ),
+        "component_count": component_count,
+        "composition_coverage_weight": _decimal_text(target_total),
+        "total_absolute_drift": _decimal_text(total_absolute_drift),
+        "active_share": _decimal_text(active_share),
+        "top_active_positions": [
+            {
+                "symbol": row["symbol"],
+                "portfolio_weight": _decimal_text(row["portfolio_weight_decimal"]),
+                "benchmark_weight": _decimal_text(row["benchmark_weight_decimal"]),
+                "active_weight": _decimal_text(row["active_weight_decimal"]),
+            }
+            for row in sorted(rows, key=lambda item: abs(item["active_weight_decimal"]), reverse=True)[:10]
+        ],
+    }
+
+
+def _benchmark_drift_row(item: object) -> dict[str, object] | None:
+    row = _as_dict(item)
+    symbol = row.get("symbol")
+    if not symbol:
+        return None
+    portfolio_weight = _decimal(row.get("portfolio_weight")) or Decimal("0")
+    benchmark_weight = _decimal(row.get("benchmark_weight")) or Decimal("0")
+    active_weight = _decimal(row.get("active_weight"))
+    if active_weight is None:
+        active_weight = portfolio_weight - benchmark_weight
+    return {
+        "symbol": str(symbol),
+        "portfolio_weight_decimal": portfolio_weight,
+        "benchmark_weight_decimal": benchmark_weight,
+        "active_weight_decimal": active_weight,
+    }
 
 
 def _risk_gate_decision(blocking_reasons: list[dict[str, object]]) -> str:

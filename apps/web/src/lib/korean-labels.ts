@@ -163,6 +163,7 @@ const KOREAN_LABELS: Record<string, string> = {
   theme_over_limit: "테마 집중도 한도 초과",
   unclassified_exposure_over_limit: "미분류 노출 한도 초과",
   insufficient_benchmark_composition: "벤치마크 구성비 부족",
+  benchmark_composition_partial: "부분 벤치마크 구성비",
   audit_log: "검토 기록",
   pending_manual_approval: "수동 승인 대기",
   add: "편입",

@@ -7452,6 +7452,7 @@ def _build_trading_risk_budget_guardrail_payload(guardrail: dict[str, Any]) -> d
             _reason_code(item)
             for item in warning_reasons
         ] if isinstance(warning_reasons, list) else [],
+        "benchmark_drift": _as_dict(guardrail.get("benchmark_drift")),
     }
 
 

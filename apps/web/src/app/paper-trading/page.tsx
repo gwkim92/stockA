@@ -27,6 +27,23 @@ function formatCurrency(value: number | null | undefined) {
   }).format(value);
 }
 
+function recordString(record: Record<string, unknown> | undefined, key: string) {
+  const value = record?.[key];
+  return typeof value === "string" ? value : "";
+}
+
+function recordNumber(record: Record<string, unknown> | undefined, key: string) {
+  const value = record?.[key];
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : null;
+  }
+  if (typeof value === "string") {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
+
 function riskClass(value: string) {
   if (value === "high") {
     return "risk-high";
@@ -81,6 +98,10 @@ export default async function PaperTradingPage() {
   const summary = data.quality_summary;
   const validationState = paperValidationState(trading);
   const riskGuardrail = trading.portfolio_risk_budget_guardrail;
+  const benchmarkDrift = riskGuardrail.benchmark_drift;
+  const benchmarkDriftCalculated = benchmarkDrift?.drift_calculated === true;
+  const benchmarkCode = recordString(benchmarkDrift, "benchmark_code") || "벤치마크";
+  const benchmarkActiveShare = recordNumber(benchmarkDrift, "active_share");
   const blockedReasonDetails = trading.paper_validation.blocked_reasons.map((reason) => koBlockedReason(reason));
   const liveSubmitCount = trading.audit_summary.submitted_to_broker_count;
   const paperStatusCards = [
@@ -262,7 +283,9 @@ export default async function PaperTradingPage() {
           <span>위험 예산 연결</span>
           <p>
             최신 검증 {riskGuardrail.eval_run_id || "없음"} · 기준일 {riskGuardrail.effective_snapshot_date || "미확인"} ·
-            {riskGuardrail.warning_reasons.includes("insufficient_benchmark_composition")
+            {benchmarkDriftCalculated
+              ? ` ${benchmarkCode} 기준 active share ${formatPercent(benchmarkActiveShare)}까지 계산했다.`
+              : riskGuardrail.warning_reasons.includes("insufficient_benchmark_composition")
               ? " 벤치마크 구성비가 없어 drift는 아직 계산하지 않는다."
               : " 위험 예산 검증 결과가 페이퍼 검증에 연결되어 있다."}
           </p>

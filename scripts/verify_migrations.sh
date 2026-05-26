@@ -68,6 +68,8 @@ union all
 select 'ref.classification_edge=' || count(*) from ref.classification_edge
 union all
 select 'ref.instrument_factor_exposure=' || count(*) from ref.instrument_factor_exposure
+union all
+select 'ref.benchmark_composition=' || count(*) from ref.benchmark_composition
 order by 1;
 "
 fi

@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import unittest
 from datetime import date
+from pathlib import Path
 
 from stockanalysis.ingest.config import RuntimeConfig
 from stockanalysis.operations.portfolio_risk_budget_guardrail import (
@@ -46,6 +47,7 @@ class PortfolioRiskBudgetGuardrailTests(unittest.TestCase):
         self.assertIn("-- portfolio risk budget guardrail state lookup", sql)
         self.assertIn("portfolio.position_snapshot", sql)
         self.assertIn("portfolio.allocation_policy", sql)
+        self.assertIn("ref.benchmark_composition", sql)
         self.assertIn("ref.instrument_classification_membership", sql)
         self.assertIn("ref.classification_node", sql)
         self.assertIn("position.snapshot_date <= '2026-05-25'::date", sql)
@@ -73,6 +75,34 @@ class PortfolioRiskBudgetGuardrailTests(unittest.TestCase):
         self.assertFalse(report["benchmark_drift"]["drift_calculated"])
         self.assertIn("over_single_position_limit", {item["code"] for item in report["blocking_reasons"]})
         self.assertIn("sector_over_limit", {item["code"] for item in report["blocking_reasons"]})
+
+    def test_build_report_calculates_benchmark_drift_when_composition_exists(self) -> None:
+        report = build_portfolio_risk_budget_guardrail_report(
+            portfolio_name="Long Term Paper",
+            as_of_date=date(2026, 5, 25),
+            state=_guardrail_state_with_benchmark(),
+        )
+
+        drift = report["benchmark_drift"]
+        self.assertEqual(drift["status"], "calculated_partial_composition")
+        self.assertTrue(drift["drift_calculated"])
+        self.assertEqual(drift["benchmark_code"], "SPY")
+        self.assertEqual(drift["benchmark_source"], "mvp_manual_spy_component_seed")
+        self.assertEqual(drift["composition_coverage_weight"], "0.20000000")
+        self.assertEqual(drift["active_share"], "0.25500000")
+        self.assertEqual(drift["top_active_positions"][0]["symbol"], "MSFT")
+        self.assertIn("benchmark_composition_partial", {item["code"] for item in report["warning_reasons"]})
+        self.assertNotIn("insufficient_benchmark_composition", {item["code"] for item in report["warning_reasons"]})
+
+    def test_benchmark_composition_migration_and_seed_are_explicitly_manual(self) -> None:
+        migration = Path("db/migrations/0023_benchmark_composition.sql").read_text(encoding="utf-8")
+        seed = Path("db/seeds/0006_benchmark_composition_seed.sql").read_text(encoding="utf-8")
+
+        self.assertIn("create table if not exists ref.benchmark_composition", migration)
+        self.assertIn("source_type in ('manual_seed', 'provider_file', 'operator_upload')", migration)
+        self.assertIn("'SPY'", seed)
+        self.assertIn("'manual_seed'", seed)
+        self.assertIn("mvp_manual_spy_component_seed", seed)
 
     def test_build_report_marks_missing_snapshot_as_blocked(self) -> None:
         state = {
@@ -169,6 +199,52 @@ def _guardrail_state() -> dict[str, object]:
         ],
         "unclassified_weight": "0.0400",
         "unclassified_symbols": ["QUBT"],
+    }
+
+
+def _guardrail_state_with_benchmark() -> dict[str, object]:
+    return {
+        **_guardrail_state(),
+        "benchmark_code": "SPY",
+        "benchmark_composition": {
+            "status": "available",
+            "benchmark_code": "SPY",
+            "source_type": "manual_seed",
+            "source_name": "mvp_manual_spy_component_seed",
+            "source_as_of_date": "2026-05-25",
+            "component_count": 3,
+            "target_weight_total": "0.20000000",
+        },
+        "benchmark_drift_rows": [
+            {
+                "instrument_id": 1,
+                "symbol": "MSFT",
+                "portfolio_weight": "0.31000000",
+                "benchmark_weight": "0.06000000",
+                "active_weight": "0.25000000",
+            },
+            {
+                "instrument_id": 2,
+                "symbol": "NVDA",
+                "portfolio_weight": "0.21000000",
+                "benchmark_weight": "0.06500000",
+                "active_weight": "0.14500000",
+            },
+            {
+                "instrument_id": 3,
+                "symbol": "QUBT",
+                "portfolio_weight": "0.04000000",
+                "benchmark_weight": "0.00000000",
+                "active_weight": "0.04000000",
+            },
+            {
+                "instrument_id": 4,
+                "symbol": "AAPL",
+                "portfolio_weight": "0.00000000",
+                "benchmark_weight": "0.07500000",
+                "active_weight": "-0.07500000",
+            },
+        ],
     }
 
 

@@ -11,6 +11,23 @@ function formatPercent(value: number | null | undefined) {
   return `${Math.round(value * 1000) / 10}%`;
 }
 
+function recordString(record: Record<string, unknown> | undefined, key: string) {
+  const value = record?.[key];
+  return typeof value === "string" ? value : "";
+}
+
+function recordNumber(record: Record<string, unknown> | undefined, key: string) {
+  const value = record?.[key];
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : null;
+  }
+  if (typeof value === "string") {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
+
 function riskBudgetLabel(status: string) {
   if (status === "within_budget") {
     return "한도 내";
@@ -131,6 +148,11 @@ export default async function PortfolioCoveragePage() {
   const [response, tradingResponse] = await Promise.all([getPortfolioCoverage(), getTradingReadiness()]);
   const data = response.data;
   const riskGuardrail = tradingResponse.data.portfolio_risk_budget_guardrail;
+  const benchmarkDrift = riskGuardrail.benchmark_drift;
+  const benchmarkDriftCalculated = benchmarkDrift?.drift_calculated === true;
+  const benchmarkCode = recordString(benchmarkDrift, "benchmark_code") || "벤치마크";
+  const benchmarkActiveShare = recordNumber(benchmarkDrift, "active_share");
+  const benchmarkSource = recordString(benchmarkDrift, "benchmark_source") || recordString(benchmarkDrift, "source_type");
   const allocationPolicy = data.allocation_policy;
   const riskBudget = data.risk_budget;
   const concentration = riskBudget.concentration;
@@ -288,9 +310,13 @@ export default async function PortfolioCoveragePage() {
             <article className="rail-cell">
               <span>벤치마크 drift</span>
               <strong>
-                {riskGuardrail.warning_reasons.includes("insufficient_benchmark_composition") ? "미계산" : "확인됨"}
+                {benchmarkDriftCalculated ? formatPercent(benchmarkActiveShare) : "미계산"}
               </strong>
-              <small>구성비 없으면 추정하지 않음</small>
+              <small>
+                {benchmarkDriftCalculated
+                  ? `${benchmarkCode} · ${benchmarkSource || "구성비 저장됨"}`
+                  : "구성비 없으면 추정하지 않음"}
+              </small>
             </article>
           </div>
         </article>

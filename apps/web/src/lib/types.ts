@@ -728,6 +728,7 @@ export type TradingReadinessData = {
     paper_validation_input_allowed: boolean;
     blocking_reasons: string[];
     warning_reasons: string[];
+    benchmark_drift?: Record<string, unknown>;
   };
   audit_summary: {
     intent_count: number;
