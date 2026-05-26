@@ -342,6 +342,72 @@ export type ValuationTargetRange = {
   order_boundary: string;
 };
 
+export type FinancialMetricSnapshot = {
+  metric_code: string;
+  label: string;
+  section_key: string;
+  description: string;
+  polarity: string;
+  metric_value: number | null;
+  metric_unit: string;
+  metric_status: string;
+  statement_scope: string;
+  fiscal_year: number | null;
+  fiscal_quarter: number | null;
+  period_end: string;
+  as_of_date: string;
+  rationale: string;
+  source_run_id: string | null;
+  created_at?: string;
+  history?: FinancialMetricSnapshot[];
+};
+
+export type FinancialStatementModel = {
+  status: string;
+  symbol: string;
+  as_of_date: string;
+  statement_scope: string;
+  latest_period_end: string;
+  latest_as_of_date: string;
+  latest_fiscal_year: number | null;
+  latest_fiscal_quarter: number | null;
+  period_count: number;
+  metric_count: number;
+  computed_metric_count: number;
+  unavailable_metric_count: number;
+  insufficient_history_metric_count: number;
+  data_gap_count: number;
+  status_counts: Array<{
+    metric_status: string;
+    metric_count: number;
+  }>;
+  source_run_ids: string[];
+  summary: string;
+  sections: Array<{
+    section_key: string;
+    title: string;
+    description: string;
+    status: string;
+    computed_metric_count: number;
+    data_gap_count: number;
+    metrics: FinancialMetricSnapshot[];
+  }>;
+  metrics: FinancialMetricSnapshot[];
+  share_count: {
+    latest_period_end: string;
+    latest_fiscal_year: number | null;
+    latest_shares_outstanding: number | null;
+    previous_period_end: string;
+    previous_shares_outstanding: number | null;
+    share_count_change_pct: number | null;
+    source_run_id: string | null;
+  };
+  score_policy: string;
+  automatic_order_allowed: boolean;
+  broker_submit_allowed: boolean;
+  order_boundary: string;
+};
+
 export type StockRecommendation = {
   recommendation_id: string;
   linked_thesis_id: string | null;
@@ -424,6 +490,7 @@ export type StockDetailData = {
     created_at: string;
   } | null;
   industry_competitive_position: IndustryCompetitivePosition | null;
+  financial_statement_model: FinancialStatementModel;
   valuation_target_range: ValuationTargetRange;
   macro_flow_impacts: Array<{
     event_id: string;

@@ -2,13 +2,11 @@
 
 ## Status
 
-- in progress: Implementation is locally complete and under final verification.
-
-In progress.
+- complete: implemented, verified locally, deployed to EC2, and live-smoked through the local tunnel.
 
 ## Current Status
 
-Implementation is locally complete and under verification.
+Implementation is complete for the read-only target range visibility slice. Stock, recommendation, and thesis detail DTOs expose `valuation_target_range`, and the Next.js cockpit renders the Korean target range card without changing recommendation weights or order boundaries.
 
 ## Current Findings
 
@@ -31,16 +29,22 @@ Implementation is locally complete and under verification.
 - `cd apps/web && npm run typecheck` passed.
 - `cd apps/web && npm run build` passed.
 - `bash scripts/verify_project_execution_roadmap.sh` passed.
+- `PYTHONPATH=/Users/woody/ai/agent-work-harness/src python3 -m awh verify --repo . --task valuation-target-range-foundation-v1` passed.
+- Committed and pushed as `511a892 Expose valuation target range evidence`.
+- EC2 `/opt/stockanalysis/app` fast-forwarded to `511a892`; `stockanalysis-frontend-api.service` and `stockanalysis-web.service` restarted and reported `active`.
+- EC2 focused live adapter tests passed for the stock/recommendation/thesis detail contract paths.
+- EC2 `cd apps/web && npm run typecheck`, `npm run build`, and `bash scripts/verify_project_execution_roadmap.sh` passed.
+- EC2 API smoke: `/api/stocks/AAPL` returned `valuation_target_range.status=available`, `method_count=3`, `target_base=224.69056833333335`, `upside_base=-0.2725635575843909`, and `order_boundary=read_only_no_order`.
+- Local tunnel route smoke: `http://127.0.0.1:13000/stocks/AAPL` returned `200 OK` and rendered `목표가 범위`, `안전마진`, and `상승여지`.
+- Local tunnel route smoke: `http://127.0.0.1:13000/recommendations/recommendation-147` returned `200 OK` and rendered `목표가 범위` plus order-blocking copy.
 - Initial `python3 -m unittest discover -s tests` with default Homebrew Python 3.14 failed because that interpreter has a known `pyexpat` dylib issue and lacks FastAPI. The Python 3.13 verify venv is the valid runtime for this project.
 
 ## Exact Next Step
 
-- exact next step: Run AWH verification after the contract/handoff format update, then commit and deploy to EC2 if all local checks remain green.
-
-Run AWH verification after the contract/handoff format update, then commit and deploy to EC2 if all local checks remain green.
+Proceed to `financial-statement-model-detail-v1`: make normalized financial statements and earnings quality visible as a full analyst-style model, not just hidden score components.
 
 ## Remaining Risks
 
 - Valuation snapshot 자체의 산식 품질은 이 task 범위 밖이다.
 - 방법별 base price가 서로 다를 수 있어 집계 기준을 명확히 노출해야 한다.
-- 실제 EC2 데이터에 valuation snapshot이 없는 종목은 `unavailable` 상태로 보여야 한다.
+- 실제 EC2 데이터에 valuation snapshot이 없는 종목은 계속 `unavailable` 상태로 보여야 한다.

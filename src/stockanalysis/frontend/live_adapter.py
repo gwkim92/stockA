@@ -81,6 +81,129 @@ _STORY_GROUP_STOP_WORDS = frozenset(
         "your",
     }
 )
+_FINANCIAL_METRIC_DEFINITIONS: dict[str, dict[str, str]] = {
+    "revenue_growth_yoy": {
+        "section": "growth",
+        "label": "매출 성장률",
+        "description": "전년 대비 매출이 얼마나 커졌는지 본다.",
+        "polarity": "higher_is_better",
+    },
+    "gross_margin": {
+        "section": "profitability",
+        "label": "매출총이익률",
+        "description": "제품·서비스의 기본 가격 결정력과 원가 구조를 본다.",
+        "polarity": "higher_is_better",
+    },
+    "operating_margin": {
+        "section": "profitability",
+        "label": "영업이익률",
+        "description": "본업에서 비용을 빼고 남는 이익률을 본다.",
+        "polarity": "higher_is_better",
+    },
+    "net_margin": {
+        "section": "profitability",
+        "label": "순이익률",
+        "description": "최종 이익이 매출 대비 얼마나 남는지 본다.",
+        "polarity": "higher_is_better",
+    },
+    "operating_cash_flow_margin": {
+        "section": "cash_flow",
+        "label": "영업현금흐름률",
+        "description": "회계상 이익이 실제 현금으로 전환되는지 본다.",
+        "polarity": "higher_is_better",
+    },
+    "free_cash_flow_margin": {
+        "section": "cash_flow",
+        "label": "잉여현금흐름률",
+        "description": "투자 지출 후 주주에게 남는 현금 창출력을 본다.",
+        "polarity": "higher_is_better",
+    },
+    "cash_flow_quality": {
+        "section": "cash_flow",
+        "label": "현금흐름 품질",
+        "description": "순이익 대비 영업현금흐름이 충분한지 본다.",
+        "polarity": "higher_is_better",
+    },
+    "free_cash_flow_to_net_income": {
+        "section": "earnings_quality",
+        "label": "FCF/순이익",
+        "description": "이익이 잉여현금흐름으로 뒷받침되는지 본다.",
+        "polarity": "higher_is_better",
+    },
+    "accrual_ratio": {
+        "section": "earnings_quality",
+        "label": "발생액 비율",
+        "description": "이익 중 현금화되지 않은 부분이 과도한지 본다.",
+        "polarity": "lower_is_better",
+    },
+    "capex_intensity": {
+        "section": "capital_intensity",
+        "label": "CAPEX 부담",
+        "description": "매출을 유지·성장시키기 위해 필요한 투자 지출 부담을 본다.",
+        "polarity": "context_dependent",
+    },
+    "roe": {
+        "section": "profitability",
+        "label": "ROE",
+        "description": "자기자본 대비 이익 창출력을 본다.",
+        "polarity": "higher_is_better",
+    },
+    "roic": {
+        "section": "profitability",
+        "label": "ROIC",
+        "description": "투하자본 대비 본업 수익성을 본다.",
+        "polarity": "higher_is_better",
+    },
+    "leverage_ratio": {
+        "section": "balance_sheet",
+        "label": "부채/자본",
+        "description": "자본 대비 부채 부담이 과도한지 본다.",
+        "polarity": "lower_is_better",
+    },
+    "liabilities_to_assets": {
+        "section": "balance_sheet",
+        "label": "부채/자산",
+        "description": "총자산 중 부채가 차지하는 비중을 본다.",
+        "polarity": "lower_is_better",
+    },
+}
+_FINANCIAL_SECTION_DEFINITIONS: tuple[dict[str, str], ...] = (
+    {
+        "section_key": "growth",
+        "title": "성장",
+        "description": "매출이 사이클과 경쟁 속에서도 커지는지 확인한다.",
+    },
+    {
+        "section_key": "profitability",
+        "title": "수익성",
+        "description": "마진과 자본수익률이 기업 품질을 뒷받침하는지 확인한다.",
+    },
+    {
+        "section_key": "cash_flow",
+        "title": "현금흐름",
+        "description": "이익이 실제 현금 창출로 이어지는지 확인한다.",
+    },
+    {
+        "section_key": "balance_sheet",
+        "title": "재무상태",
+        "description": "부채 부담이 장기 보유 리스크를 키우는지 확인한다.",
+    },
+    {
+        "section_key": "capital_intensity",
+        "title": "투자 부담",
+        "description": "성장을 유지하기 위한 자본 지출 부담을 확인한다.",
+    },
+    {
+        "section_key": "earnings_quality",
+        "title": "이익 품질",
+        "description": "회계 이익이 현금과 낮은 발생액으로 뒷받침되는지 확인한다.",
+    },
+    {
+        "section_key": "dilution",
+        "title": "희석·주식수",
+        "description": "주식수 증가가 주당 가치 판단을 희석하는지 확인한다.",
+    },
+)
 
 
 class FrontendLiveAdapterError(RuntimeError):
@@ -528,6 +651,11 @@ def build_live_stock_detail_response(
     industry_competitive_position = _build_industry_competitive_position_payload(
         _as_dict(state.get("industry_competitive_position"))
     )
+    financial_statement_model = _build_financial_statement_model_payload(
+        _as_dict(state.get("financial_statement_model")),
+        symbol=symbol,
+        as_of_date=str(state.get("as_of_date") or (as_of_date.isoformat() if as_of_date else "")),
+    )
     valuation_target_range = _build_valuation_target_range_payload(
         _as_list(state.get("valuation_methods")),
         symbol=symbol,
@@ -555,6 +683,7 @@ def build_live_stock_detail_response(
             "position": _build_stock_position_payload(_as_dict(state.get("position"))),
             "equity_research": equity_research,
             "industry_competitive_position": industry_competitive_position,
+            "financial_statement_model": financial_statement_model,
             "valuation_target_range": valuation_target_range,
             "macro_flow_impacts": [
                 _build_stock_macro_flow_payload(item) for item in _as_list(state.get("macro_flow_impacts"))
@@ -584,7 +713,7 @@ def build_live_ai_evidence_neighborhood_response(
 ) -> dict[str, Any]:
     symbol = _parse_detail_identifier(parsed.path, "/api/ai/evidence-neighborhoods/").upper()
     as_of_date = _parse_optional_date(parsed.query, "asOfDate") or date.today()
-    limit = _parse_optional_int(parsed.query, "maxItems", default=25, minimum=1, maximum=50)
+    limit = _parse_integer(parsed.query, "maxItems", default=25, minimum=1, maximum=50)
     state = load_frontend_ai_evidence_neighborhood_state(
         config=config,
         executor=executor,
@@ -947,7 +1076,7 @@ def build_live_cycle_map_response(
     generated_at: str,
 ) -> dict[str, Any]:
     as_of_date = _parse_optional_date(parsed.query, "asOfDate") or date.today()
-    node_limit = _parse_optional_int(parsed.query, "limit", default=40, minimum=1, maximum=80)
+    node_limit = _parse_integer(parsed.query, "limit", default=40, minimum=1, maximum=80)
     state = load_frontend_cycle_map_state(
         config=config,
         executor=executor,
@@ -3541,6 +3670,7 @@ select json_build_object(
 def render_frontend_stock_detail_state_sql(*, symbol: str, as_of_date: date | None) -> str:
     target_date_sql = sql_date(as_of_date) if as_of_date is not None else "current_date"
     symbol_literal = sql_literal(symbol.upper())
+    metric_code_values = ",\n    ".join(f"({sql_literal(metric_code)})" for metric_code in _FINANCIAL_METRIC_DEFINITIONS)
     return f"""-- frontend stock detail state lookup
 with target_date as (
     select {target_date_sql}::date as as_of_date
@@ -3552,6 +3682,10 @@ target_instrument as (
       and instrument.is_active
     order by instrument.instrument_id
     limit 1
+),
+financial_metric_universe(metric_code) as (
+    values
+    {metric_code_values}
 ),
 price_rows_desc as (
     select
@@ -3827,6 +3961,80 @@ latest_valuation_methods as (
     join target_instrument instrument on instrument.instrument_id = valuation.instrument_id
     join target_date target on valuation.as_of_date <= target.as_of_date
     order by valuation.method, valuation.as_of_date desc, valuation.valuation_snapshot_id desc
+),
+financial_metric_ranked as (
+    select
+        normalized.instrument_id,
+        normalized.as_of_date,
+        normalized.period_id,
+        normalized.statement_scope,
+        normalized.fiscal_year,
+        normalized.fiscal_quarter,
+        normalized.period_end,
+        normalized.metric_code,
+        normalized.metric_value,
+        normalized.metric_unit,
+        normalized.metric_status,
+        normalized.rationale,
+        normalized.source_run_id,
+        normalized.created_at,
+        row_number() over (
+            partition by normalized.metric_code, normalized.period_end
+            order by normalized.as_of_date desc, normalized.created_at desc, normalized.source_run_id desc nulls last
+        ) as metric_period_rank
+    from market.financial_metric_normalized normalized
+    join target_instrument instrument on instrument.instrument_id = normalized.instrument_id
+    join target_date target on normalized.as_of_date <= target.as_of_date
+    join financial_metric_universe metric_universe on metric_universe.metric_code = normalized.metric_code
+    where normalized.statement_scope = 'annual'
+),
+financial_metric_window as (
+    select *
+    from financial_metric_ranked
+    where metric_period_rank = 1
+),
+latest_financial_metrics as (
+    select distinct on (metric.metric_code)
+        metric.*
+    from financial_metric_window metric
+    order by
+        metric.metric_code,
+        case when metric.metric_status = 'computed' then 0 else 1 end,
+        metric.period_end desc,
+        metric.as_of_date desc,
+        metric.created_at desc
+),
+financial_metric_history as (
+    select *
+    from (
+        select
+            metric.*,
+            row_number() over (partition by metric.metric_code order by metric.period_end desc, metric.as_of_date desc) as metric_history_rank
+        from financial_metric_window metric
+    ) ranked_metric
+    where metric_history_rank <= 4
+),
+financial_metric_status_counts as (
+    select
+        metric_status,
+        count(*)::int as metric_count
+    from latest_financial_metrics
+    group by metric_status
+),
+raw_share_count_rows as (
+    select
+        period.period_end,
+        period.fiscal_year,
+        period.fiscal_quarter,
+        metric.metric_value as shares_outstanding,
+        metric.source_run_id,
+        row_number() over (order by period.period_end desc, period.period_id desc) as share_rank
+    from market.financial_metric_value metric
+    join market.financial_statement_period period on period.period_id = metric.period_id
+    join target_instrument instrument on instrument.instrument_id = period.instrument_id
+    join target_date target on period.period_end <= target.as_of_date
+    where metric.metric_code = 'shares_outstanding'
+      and period.statement_scope = 'annual'
 )
 select json_build_object(
     'symbol', coalesce((select primary_symbol from target_instrument), {symbol_literal}),
@@ -3979,6 +4187,110 @@ select json_build_object(
             from latest_valuation_methods
         ),
         '[]'::json
+    ),
+    'financial_statement_model',
+    json_build_object(
+        'statement_scope', 'annual',
+        'latest_period_end', (select max(period_end) from financial_metric_window),
+        'latest_as_of_date', (select max(as_of_date) from latest_financial_metrics),
+        'latest_fiscal_year', (select fiscal_year from latest_financial_metrics order by period_end desc, as_of_date desc limit 1),
+        'latest_fiscal_quarter', (select fiscal_quarter from latest_financial_metrics order by period_end desc, as_of_date desc limit 1),
+        'period_count', coalesce((select count(distinct period_end)::int from financial_metric_window), 0),
+        'metric_count', coalesce((select count(*)::int from latest_financial_metrics), 0),
+        'computed_metric_count', coalesce((select count(*)::int from latest_financial_metrics where metric_status = 'computed'), 0),
+        'unavailable_metric_count', coalesce((select count(*)::int from latest_financial_metrics where metric_status = 'unavailable'), 0),
+        'insufficient_history_metric_count', coalesce((select count(*)::int from latest_financial_metrics where metric_status = 'insufficient_history'), 0),
+        'status_counts',
+        coalesce(
+            (
+                select json_agg(
+                    json_build_object(
+                        'metric_status', metric_status,
+                        'metric_count', metric_count
+                    )
+                    order by metric_status
+                )
+                from financial_metric_status_counts
+            ),
+            '[]'::json
+        ),
+        'source_run_ids',
+        coalesce(
+            (
+                select json_agg(distinct source_run_id order by source_run_id)
+                from latest_financial_metrics
+                where source_run_id is not null
+            ),
+            '[]'::json
+        ),
+        'metrics',
+        coalesce(
+            (
+                select json_agg(
+                    json_build_object(
+                        'metric_code', metric_code,
+                        'metric_value', metric_value,
+                        'metric_unit', metric_unit,
+                        'metric_status', metric_status,
+                        'statement_scope', statement_scope,
+                        'fiscal_year', fiscal_year,
+                        'fiscal_quarter', fiscal_quarter,
+                        'period_end', period_end,
+                        'as_of_date', as_of_date,
+                        'rationale', rationale,
+                        'source_run_id', source_run_id,
+                        'created_at', created_at
+                    )
+                    order by metric_code
+                )
+                from latest_financial_metrics
+            ),
+            '[]'::json
+        ),
+        'history',
+        coalesce(
+            (
+                select json_agg(
+                    json_build_object(
+                        'metric_code', metric_code,
+                        'metric_value', metric_value,
+                        'metric_unit', metric_unit,
+                        'metric_status', metric_status,
+                        'fiscal_year', fiscal_year,
+                        'fiscal_quarter', fiscal_quarter,
+                        'period_end', period_end,
+                        'as_of_date', as_of_date,
+                        'rationale', rationale,
+                        'source_run_id', source_run_id
+                    )
+                    order by metric_code, period_end desc
+                )
+                from financial_metric_history
+            ),
+            '[]'::json
+        ),
+        'share_count',
+        coalesce(
+            (
+                select json_build_object(
+                    'latest_period_end', latest.period_end,
+                    'latest_fiscal_year', latest.fiscal_year,
+                    'latest_shares_outstanding', latest.shares_outstanding,
+                    'previous_period_end', previous.period_end,
+                    'previous_shares_outstanding', previous.shares_outstanding,
+                    'share_count_change_pct',
+                    case
+                        when previous.shares_outstanding is null or previous.shares_outstanding = 0 then null
+                        else (latest.shares_outstanding - previous.shares_outstanding) / previous.shares_outstanding
+                    end,
+                    'source_run_id', latest.source_run_id
+                )
+                from raw_share_count_rows latest
+                left join raw_share_count_rows previous on previous.share_rank = 2
+                where latest.share_rank = 1
+            ),
+            '{{}}'::json
+        )
     ),
     'macro_flow_impacts',
     coalesce(
@@ -7527,6 +7839,182 @@ def _build_stock_equity_research_payload(artifact: dict[str, Any]) -> dict[str, 
     }
 
 
+def _build_financial_statement_model_payload(
+    model: dict[str, Any],
+    *,
+    symbol: str,
+    as_of_date: str,
+) -> dict[str, Any]:
+    metrics = [_build_financial_metric_payload(item) for item in _as_list(model.get("metrics"))]
+    history_rows = [_build_financial_metric_history_payload(item) for item in _as_list(model.get("history"))]
+    history_by_metric: dict[str, list[dict[str, Any]]] = {}
+    for row in history_rows:
+        history_by_metric.setdefault(str(row.get("metric_code") or ""), []).append(row)
+
+    metrics_by_code = {str(metric.get("metric_code") or ""): metric for metric in metrics}
+    for metric_code, metric in metrics_by_code.items():
+        metric["history"] = history_by_metric.get(metric_code, [])
+
+    share_count = _build_financial_share_count_payload(_as_dict(model.get("share_count")))
+    sections: list[dict[str, Any]] = []
+    for section_definition in _FINANCIAL_SECTION_DEFINITIONS:
+        section_key = section_definition["section_key"]
+        section_metrics = [
+            metric
+            for metric_code, metric in metrics_by_code.items()
+            if _FINANCIAL_METRIC_DEFINITIONS.get(metric_code, {}).get("section") == section_key
+        ]
+        if section_key == "dilution" and share_count.get("latest_shares_outstanding") is not None:
+            section_metrics.append(
+                {
+                    "metric_code": "shares_outstanding_change",
+                    "label": "주식수 변화",
+                    "description": "주식수 증가가 주당 가치와 밸류에이션을 희석하는지 본다.",
+                    "metric_value": share_count.get("share_count_change_pct"),
+                    "metric_unit": "ratio",
+                    "metric_status": "computed"
+                    if share_count.get("share_count_change_pct") is not None
+                    else "insufficient_history",
+                    "polarity": "lower_is_better",
+                    "period_end": share_count.get("latest_period_end") or "",
+                    "fiscal_year": share_count.get("latest_fiscal_year"),
+                    "fiscal_quarter": None,
+                    "as_of_date": "",
+                    "rationale": "Latest and previous annual shares outstanding from raw financial metric values.",
+                    "source_run_id": share_count.get("source_run_id"),
+                    "history": [],
+                }
+            )
+
+        computed_count = sum(1 for metric in section_metrics if metric.get("metric_status") == "computed")
+        gap_count = len(section_metrics) - computed_count
+        if computed_count > 0:
+            section_status = "available"
+        elif section_metrics:
+            section_status = "data_gap"
+        else:
+            section_status = "missing"
+        sections.append(
+            {
+                "section_key": section_key,
+                "title": section_definition["title"],
+                "description": section_definition["description"],
+                "status": section_status,
+                "computed_metric_count": computed_count,
+                "data_gap_count": gap_count,
+                "metrics": section_metrics,
+            }
+        )
+
+    metric_count = int(model.get("metric_count") or len(metrics))
+    computed_metric_count = int(model.get("computed_metric_count") or 0)
+    unavailable_metric_count = int(model.get("unavailable_metric_count") or 0)
+    insufficient_history_metric_count = int(model.get("insufficient_history_metric_count") or 0)
+    if computed_metric_count >= 6:
+        status = "available"
+    elif computed_metric_count > 0:
+        status = "partial"
+    elif metric_count > 0:
+        status = "data_gap"
+    else:
+        status = "unavailable"
+
+    if status in {"available", "partial"}:
+        summary = (
+            f"{symbol}의 최근 연간 재무 모델은 {computed_metric_count}개 지표가 계산됐고 "
+            f"{unavailable_metric_count + insufficient_history_metric_count}개는 원천 데이터 또는 비교 기간이 부족하다."
+        )
+    else:
+        summary = (
+            f"{symbol}의 정규화 재무 모델은 아직 충분하지 않다. 뉴스·사이클 근거가 있어도 "
+            "재무제표 확인 전에는 장기 투자 판단을 보류해야 한다."
+        )
+
+    return {
+        "status": status,
+        "symbol": symbol,
+        "as_of_date": as_of_date,
+        "statement_scope": str(model.get("statement_scope") or "annual"),
+        "latest_period_end": str(model.get("latest_period_end") or ""),
+        "latest_as_of_date": str(model.get("latest_as_of_date") or ""),
+        "latest_fiscal_year": _integer(model.get("latest_fiscal_year")),
+        "latest_fiscal_quarter": _integer(model.get("latest_fiscal_quarter")),
+        "period_count": int(model.get("period_count") or 0),
+        "metric_count": metric_count,
+        "computed_metric_count": computed_metric_count,
+        "unavailable_metric_count": unavailable_metric_count,
+        "insufficient_history_metric_count": insufficient_history_metric_count,
+        "data_gap_count": unavailable_metric_count + insufficient_history_metric_count,
+        "status_counts": [
+            {
+                "metric_status": str(item.get("metric_status") or "unknown"),
+                "metric_count": int(item.get("metric_count") or 0),
+            }
+            for item in _as_list(model.get("status_counts"))
+        ],
+        "source_run_ids": [
+            _opaque_id("pipeline-run", item, None) for item in _as_scalar_list(model.get("source_run_ids")) if item is not None
+        ],
+        "summary": summary,
+        "sections": sections,
+        "metrics": metrics,
+        "share_count": share_count,
+        "score_policy": "recommendation_weights_unchanged",
+        "automatic_order_allowed": False,
+        "broker_submit_allowed": False,
+        "order_boundary": "read_only_no_order",
+    }
+
+
+def _build_financial_metric_payload(metric: dict[str, Any]) -> dict[str, Any]:
+    metric_code = str(metric.get("metric_code") or "unknown")
+    definition = _FINANCIAL_METRIC_DEFINITIONS.get(metric_code, {})
+    source_run_id = metric.get("source_run_id")
+    return {
+        "metric_code": metric_code,
+        "label": str(definition.get("label") or metric_code.replace("_", " ")),
+        "section_key": str(definition.get("section") or "other"),
+        "description": str(definition.get("description") or ""),
+        "polarity": str(definition.get("polarity") or "context_dependent"),
+        "metric_value": _number(metric.get("metric_value")),
+        "metric_unit": str(metric.get("metric_unit") or "ratio"),
+        "metric_status": str(metric.get("metric_status") or "unknown"),
+        "statement_scope": str(metric.get("statement_scope") or "annual"),
+        "fiscal_year": _integer(metric.get("fiscal_year")),
+        "fiscal_quarter": _integer(metric.get("fiscal_quarter")),
+        "period_end": str(metric.get("period_end") or ""),
+        "as_of_date": str(metric.get("as_of_date") or ""),
+        "rationale": str(metric.get("rationale") or ""),
+        "source_run_id": _opaque_id("pipeline-run", source_run_id, None)
+        if source_run_id is not None
+        else None,
+        "created_at": _timestamp(metric.get("created_at")),
+        "history": [],
+    }
+
+
+def _build_financial_metric_history_payload(metric: dict[str, Any]) -> dict[str, Any]:
+    payload = _build_financial_metric_payload(metric)
+    payload.pop("history", None)
+    payload.pop("created_at", None)
+    return payload
+
+
+def _build_financial_share_count_payload(share_count: dict[str, Any]) -> dict[str, Any]:
+    source_run_id = share_count.get("source_run_id")
+    return {
+        "latest_period_end": str(share_count.get("latest_period_end") or ""),
+        "latest_fiscal_year": _integer(share_count.get("latest_fiscal_year")),
+        "latest_shares_outstanding": _number(share_count.get("latest_shares_outstanding")),
+        "previous_period_end": str(share_count.get("previous_period_end") or ""),
+        "previous_shares_outstanding": _number(share_count.get("previous_shares_outstanding")),
+        "share_count_change_pct": _number(share_count.get("share_count_change_pct")),
+        "source_run_id": _opaque_id("pipeline-run", source_run_id, None)
+        if source_run_id is not None
+        else None,
+    }
+
+
 def _build_valuation_target_range_payload(
     method_rows: list[dict[str, Any]],
     *,
@@ -11014,7 +11502,7 @@ def _parse_optional_date(query: dict[str, str], key: str) -> date | None:
     return date.fromisoformat(value)
 
 
-def _parse_optional_int(
+def _parse_integer(
     query: dict[str, str],
     key: str,
     *,

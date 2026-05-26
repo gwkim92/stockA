@@ -17,6 +17,8 @@ type StockDetailPageProps = {
 };
 
 type IndustryCompetitivePosition = NonNullable<StockDetailData["industry_competitive_position"]>;
+type FinancialStatementModel = StockDetailData["financial_statement_model"];
+type FinancialMetricSnapshot = FinancialStatementModel["metrics"][number];
 
 function formatCurrency(value: number | null, currencyCode: string) {
   if (value === null) {
@@ -41,6 +43,42 @@ function formatPercent(value: number | null | undefined) {
     return "미측정";
   }
   return `${Math.round(value * 1000) / 10}%`;
+}
+
+function formatCompactNumber(value: number | null | undefined) {
+  if (value === null || value === undefined) {
+    return "없음";
+  }
+  return new Intl.NumberFormat("ko-KR", {
+    notation: "compact",
+    maximumFractionDigits: 2,
+  }).format(value);
+}
+
+function formatFinancialMetricValue(metric: FinancialMetricSnapshot) {
+  if (metric.metric_value === null) {
+    if (metric.metric_status === "insufficient_history") {
+      return "비교 기간 부족";
+    }
+    return "원천 데이터 부족";
+  }
+  if (metric.metric_unit === "ratio") {
+    return formatPercent(metric.metric_value);
+  }
+  return formatCompactNumber(metric.metric_value);
+}
+
+function financialMetricTone(metric: FinancialMetricSnapshot) {
+  if (metric.metric_status !== "computed" || metric.metric_value === null) {
+    return "risk-medium";
+  }
+  if (metric.polarity === "lower_is_better") {
+    return metric.metric_value <= 0.35 ? "risk-low" : metric.metric_value <= 0.75 ? "risk-medium" : "risk-high";
+  }
+  if (metric.polarity === "higher_is_better") {
+    return metric.metric_value >= 0.2 ? "risk-low" : metric.metric_value >= 0 ? "risk-medium" : "risk-high";
+  }
+  return "risk-medium";
 }
 
 function formatCost(value: number | null | undefined) {
@@ -131,6 +169,105 @@ function competitivePositionSummary(position: IndustryCompetitivePosition, symbo
   const peerGroup = position.peer_group_name ?? position.peer_group_code ?? "비교군";
   const sector = position.sector_name ?? position.sector_code ?? "섹터 미분류";
   return `${symbol}은 ${peerGroup} 기준으로 ${competitivePositionLabel(position.competitive_position)} 상태다. ${sector} 안에서 수익성, 성장성, 재무 방어력, 가격 결정력 추정 지표를 함께 본다.`;
+}
+
+function FinancialStatementModelPanel({
+  model,
+  symbol,
+}: {
+  model: FinancialStatementModel;
+  symbol: string;
+}) {
+  const visibleSections = model.sections.filter((section) => section.metrics.length > 0 || section.status !== "missing");
+
+  if (model.status === "unavailable") {
+    return (
+      <section className="bento-card span-4 reveal delay-3" aria-label="재무제표 모델">
+        <div className="section-heading stacked-heading">
+          <span className="metric-sub">재무제표 모델</span>
+          <h2>{symbol} 재무 모델이 아직 준비되지 않았다</h2>
+        </div>
+        <p style={{ color: "var(--text-secondary)", marginBottom: 0 }}>
+          SEC companyfacts 수집과 재무 정규화가 완료되면 매출 성장, 마진, 현금흐름, 부채, 이익 품질을 이곳에서
+          확인한다. 이 데이터가 없으면 뉴스나 사이클만으로 장기 투자 판단을 확정하지 않는다.
+        </p>
+      </section>
+    );
+  }
+
+  return (
+    <section className="bento-card span-4 reveal delay-3" aria-label="재무제표 모델">
+      <div className="section-heading">
+        <div>
+          <span className="metric-sub">재무제표 모델</span>
+          <h2>{symbol}의 숫자가 투자 논리를 버티는가</h2>
+        </div>
+        <span className={`risk-tag ${model.status === "available" ? "risk-low" : "risk-medium"}`}>
+          {model.status === "available" ? "재무 모델 연결" : "일부 지표 부족"}
+        </span>
+      </div>
+      <p style={{ color: "var(--text-secondary)", marginTop: 0 }}>
+        {model.summary} 이 섹션은 기존 정규화 재무 지표를 읽는 화면이며, 추천 점수와 주문 가능 여부를 바꾸지 않는다.
+      </p>
+
+      <div className="status-rail compact-rail" aria-label="재무 모델 요약">
+        <div className="rail-cell">
+          <span>최근 재무 기간</span>
+          <strong>{model.latest_period_end || "기간 없음"}</strong>
+          <small>{model.statement_scope === "annual" ? "연간 기준" : koCode(model.statement_scope)}</small>
+        </div>
+        <div className="rail-cell">
+          <span>계산 완료</span>
+          <strong>{model.computed_metric_count.toLocaleString("ko-KR")}개</strong>
+          <small>전체 {model.metric_count.toLocaleString("ko-KR")}개 지표</small>
+        </div>
+        <div className="rail-cell">
+          <span>데이터 공백</span>
+          <strong>{model.data_gap_count.toLocaleString("ko-KR")}개</strong>
+          <small>원천 부족 또는 비교 기간 부족</small>
+        </div>
+        <div className="rail-cell">
+          <span>주식수 변화</span>
+          <strong>{formatPercent(model.share_count.share_count_change_pct)}</strong>
+          <small>{model.share_count.latest_period_end || "주식수 데이터 없음"}</small>
+        </div>
+      </div>
+
+      <div className="bento-grid" style={{ marginTop: "18px" }}>
+        {visibleSections.map((section) => (
+          <article className="bento-card" key={section.section_key}>
+            <span className="metric-sub">{section.title}</span>
+            <h3 style={{ margin: "6px 0 8px" }}>{section.description}</h3>
+            <div className="stock-meta-grid">
+              {section.metrics.length > 0 ? (
+                section.metrics.map((metric) => (
+                  <Fragment key={metric.metric_code}>
+                    <span>
+                      {metric.label}
+                      <small style={{ display: "block", color: "var(--text-muted)" }}>{metric.period_end || "기간 없음"}</small>
+                    </span>
+                    <strong className={`risk-tag ${financialMetricTone(metric)}`}>
+                      {formatFinancialMetricValue(metric)}
+                    </strong>
+                  </Fragment>
+                ))
+              ) : (
+                <>
+                  <span>상태</span>
+                  <strong>지표 없음</strong>
+                </>
+              )}
+            </div>
+          </article>
+        ))}
+      </div>
+
+      <p style={{ color: "var(--text-muted)", margin: "18px 0 0" }}>
+        원천 실행: {model.source_run_ids.length > 0 ? model.source_run_ids.join(", ") : "실행 기록 없음"} · 이 화면에서는
+        주문을 만들지 않는다.
+      </p>
+    </section>
+  );
 }
 
 function IndustryCompetitivePositionPanel({
@@ -582,6 +719,7 @@ export default async function StockDetailPage({ params }: StockDetailPageProps) 
   const hasPriceData = data.summary.bar_count > 0 && data.latest_price.close !== null;
   const equityResearch = data.equity_research;
   const industryPosition = data.industry_competitive_position;
+  const financialStatementModel = data.financial_statement_model;
   const valuationTargetRange = data.valuation_target_range;
   const hasTargetRange = valuationTargetRange.status === "available";
   const valuationItems = equityResearch ? valuationSensitivityItems(equityResearch.valuation_sensitivity) : [];
@@ -607,13 +745,23 @@ export default async function StockDetailPage({ params }: StockDetailPageProps) 
       id: "financial-quality",
       label: "02",
       title: "재무 품질",
-      status: equityResearch?.key_points.length ? `${equityResearch.key_points.length}개 포인트` : "정규화 지표 연결 대기",
-      tone: equityResearch?.key_points.length ? "ready" : "watch",
-      body: equityResearch?.key_points[0]
-        ? koLabel(equityResearch.key_points[0])
-        : "매출, 마진, 현금흐름, ROIC 같은 정규화 재무 지표가 종목 상세에 아직 직접 노출되지 않았다. 추천 상세의 기업 분석 근거에서 보강 상태를 확인한다.",
-      href: data.recommendation ? recommendationHref(data.recommendation.recommendation_id) : undefined,
-      hrefLabel: data.recommendation ? "추천 상세에서 재무 근거 보기" : undefined,
+      status:
+        financialStatementModel.status === "available" || financialStatementModel.status === "partial"
+          ? `${financialStatementModel.computed_metric_count}개 지표`
+          : "재무 모델 대기",
+      tone:
+        financialStatementModel.status === "available" || financialStatementModel.status === "partial"
+          ? "ready"
+          : "watch",
+      body:
+        financialStatementModel.status === "available" || financialStatementModel.status === "partial"
+          ? financialStatementModel.summary
+          : "매출, 마진, 현금흐름, 부채, 이익 품질을 확인할 정규화 재무 모델이 아직 충분하지 않다.",
+      facts: [
+        { label: "최근 기간", value: financialStatementModel.latest_period_end || "없음" },
+        { label: "계산 지표", value: `${financialStatementModel.computed_metric_count}개` },
+        { label: "데이터 공백", value: `${financialStatementModel.data_gap_count}개` },
+      ],
     },
     {
       id: "peer-position",
@@ -742,6 +890,8 @@ export default async function StockDetailPage({ params }: StockDetailPageProps) 
         footer="현재 화면은 저장된 데이터만 읽는다. 화면 진입 중 실시간 AI 호출이나 주문 생성은 없다."
         steps={professionalResearchSteps}
       />
+
+      <FinancialStatementModelPanel model={financialStatementModel} symbol={data.symbol} />
 
       {hasEvidenceOnlyData ? (
         <section className="bento-card reveal delay-1" aria-label="가격 미수집 안내">
