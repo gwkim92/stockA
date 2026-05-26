@@ -602,6 +602,40 @@ class ProfessionalEquityAnalysisTests(unittest.TestCase):
         self.assertTrue(all(row.assumptions_json["parser_layout"] == "transposed_segment_metric_rows" for row in rows))
         self.assertTrue(all(row.assumptions_json["recommendation_scoring_mutated"] is False for row in rows))
 
+    def test_extract_reported_segment_metrics_from_html_parses_multiyear_segment_block(self) -> None:
+        html = """
+        <p>The following table shows segment net sales and operating income (dollars in millions):</p>
+        <table>
+          <tr><th>2024</th><th>2023</th><th>2022</th></tr>
+          <tr><td>Americas:</td></tr>
+          <tr><td>Net sales</td><td>$</td><td>167,045</td><td>$</td><td>162,560</td><td>$</td><td>169,658</td></tr>
+          <tr><td>Operating income</td><td>$</td><td>67,656</td><td>$</td><td>60,508</td><td>$</td><td>62,683</td></tr>
+          <tr><td>Europe:</td></tr>
+          <tr><td>Net sales</td><td>$</td><td>101,328</td><td>$</td><td>94,294</td><td>$</td><td>95,118</td></tr>
+          <tr><td>Operating income</td><td>$</td><td>41,790</td><td>$</td><td>36,098</td><td>$</td><td>35,233</td></tr>
+        </table>
+        """
+
+        rows = extract_reported_segment_metrics_from_html(
+            html,
+            instrument_id=1,
+            primary_symbol="AAPL",
+            as_of_date=date(2026, 5, 26),
+            statement_scope="annual",
+            period_end=date(2024, 9, 28),
+            source_document_id=1578,
+            source_document_title="Apple Inc. 2024 10-K",
+        )
+
+        self.assertEqual(len(rows), 4)
+        values = {(row.segment_label, row.metric_code): row.metric_value for row in rows}
+        self.assertEqual(str(values[("Americas", "segment_revenue")]), "167045")
+        self.assertEqual(str(values[("Americas", "segment_operating_income")]), "67656")
+        self.assertEqual(str(values[("Europe", "segment_revenue")]), "101328")
+        self.assertEqual(str(values[("Europe", "segment_operating_income")]), "41790")
+        self.assertTrue(all(row.metric_unit == "USD_millions_as_reported" for row in rows))
+        self.assertTrue(all(row.assumptions_json["parser_layout"] == "multiyear_segment_block_rows" for row in rows))
+
     def test_reported_segment_footnote_metric_upsert_sql_removes_obsolete_gap_rows(self) -> None:
         html = Path("tests/fixtures/sec_filing_segment_footnote_sample.html").read_text(encoding="utf-8")
         rows = extract_reported_segment_metrics_from_html(

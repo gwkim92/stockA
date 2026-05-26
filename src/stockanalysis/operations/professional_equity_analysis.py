@@ -4412,6 +4412,23 @@ def extract_reported_segment_metrics_from_html(
         if len(table_rows) < 2:
             continue
         rows.extend(
+            _extract_multiyear_segment_block_metrics(
+                table_rows,
+                table_html,
+                table_index=table_index,
+                seen=seen,
+                instrument_id=instrument_id,
+                primary_symbol=primary_symbol,
+                as_of_date=as_of_date,
+                statement_scope=statement_scope,
+                period_end=period_end,
+                source_document_id=source_document_id,
+                source_document_title=source_document_title,
+                source_document_url=source_document_url,
+                unit_context_text=table_context.context_text,
+            )
+        )
+        rows.extend(
             _extract_transposed_reported_segment_metrics(
                 table_rows,
                 table_html,
@@ -4481,6 +4498,75 @@ def extract_reported_segment_metrics_from_html(
                         parser_layout="segment_label_rows",
                     )
                 )
+    return rows
+
+
+def _extract_multiyear_segment_block_metrics(
+    table_rows: list[list[str]],
+    table_html: str,
+    *,
+    table_index: int,
+    seen: set[tuple[str, str]],
+    instrument_id: int,
+    primary_symbol: str,
+    as_of_date: date,
+    statement_scope: str,
+    period_end: date,
+    source_document_id: int,
+    source_document_title: str | None,
+    source_document_url: str | None,
+    unit_context_text: str,
+) -> list[ReportedSegmentMetricEvidence]:
+    header_index, years = _find_multiyear_segment_block_header(table_rows)
+    if header_index is None or period_end.year not in years:
+        return []
+    target_year_index = years.index(period_end.year)
+    unit = _infer_segment_metric_unit(unit_context_text or table_html)
+    rows: list[ReportedSegmentMetricEvidence] = []
+    current_segment_label: str | None = None
+    for row in table_rows[header_index + 1 :]:
+        if not row:
+            continue
+        segment_label = _segment_block_label(row)
+        if segment_label is not None:
+            current_segment_label = segment_label
+            continue
+        if current_segment_label is None:
+            continue
+        metric_code = _metric_code_from_segment_header(row[0])
+        if metric_code not in {"segment_revenue", "segment_operating_income"}:
+            continue
+        value_cells = _numeric_metric_cells(row[1:])
+        if target_year_index >= len(value_cells):
+            continue
+        value = _parse_segment_metric_value(value_cells[target_year_index])
+        if value is None:
+            continue
+        segment_key = _segment_key(current_segment_label)
+        dedupe_key = (segment_key, metric_code)
+        if dedupe_key in seen:
+            continue
+        seen.add(dedupe_key)
+        rows.append(
+            _reported_segment_metric_evidence(
+                instrument_id=instrument_id,
+                primary_symbol=primary_symbol,
+                as_of_date=as_of_date,
+                statement_scope=statement_scope,
+                segment_key=segment_key,
+                segment_label=current_segment_label,
+                metric_code=metric_code,
+                metric_value=value,
+                metric_unit=unit,
+                period_end=period_end,
+                source_document_id=source_document_id,
+                source_document_title=source_document_title,
+                source_document_url=source_document_url,
+                table_index=table_index,
+                header_cells=table_rows[header_index],
+                parser_layout="multiyear_segment_block_rows",
+            )
+        )
     return rows
 
 
@@ -4727,6 +4813,35 @@ def _find_transposed_segment_header_index(rows: list[list[str]]) -> int | None:
         if any(row and _metric_code_from_segment_header(row[0]) is not None for row in following_rows):
             return index
     return None
+
+
+def _find_multiyear_segment_block_header(rows: list[list[str]]) -> tuple[int | None, list[int]]:
+    for index, row in enumerate(rows[:10]):
+        years = [int(cell.strip()) for cell in row if re.fullmatch(r"20\d{2}", cell.strip())]
+        if len(years) < 2:
+            continue
+        following_rows = rows[index + 1 : index + 20]
+        has_segment_label = any(_segment_block_label(candidate) is not None for candidate in following_rows)
+        has_segment_metric = any(
+            candidate and _metric_code_from_segment_header(candidate[0]) in {"segment_revenue", "segment_operating_income"}
+            for candidate in following_rows
+        )
+        if has_segment_label and has_segment_metric:
+            return index, years
+    return None, []
+
+
+def _segment_block_label(row: list[str]) -> str | None:
+    if len(row) != 1:
+        return None
+    raw_label = row[0].strip()
+    if not raw_label.endswith(":"):
+        return None
+    return _clean_segment_label(raw_label)
+
+
+def _numeric_metric_cells(cells: list[str]) -> list[str]:
+    return [cell for cell in cells if not _is_currency_marker(cell) and _parse_segment_metric_value(cell) is not None]
 
 
 def _transposed_segment_table_year(rows: list[list[str]], *, header_index: int) -> int | None:

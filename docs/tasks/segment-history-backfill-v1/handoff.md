@@ -2,7 +2,7 @@
 
 ## Status
 
-- in progress: contract, plan, parser history mode, CLI, weekly profile changes, segment history backfill runner, focused tests, CLI help check, and compileall are complete. Roadmap/AWH verification, commit, EC2 deploy, and EC2 smoke are pending.
+- in progress: contract, plan, parser history mode, multi-year segment block parser coverage, CLI, weekly profile changes, segment history backfill runner, focused tests, CLI help check, and compileall are complete. Roadmap/AWH verification, commit, EC2 deploy, and EC2 smoke are pending.
 
 ## Current Findings
 
@@ -21,7 +21,7 @@
 
 ## Verification Log
 
-- Passed: `PYTHONPATH=src python3 -m unittest tests.test_professional_equity_analysis tests.test_segment_history_backfill tests.test_data_operations_cli tests.test_operating_data_orchestrator` (`Ran 117 tests`, `OK`).
+- Passed: `PYTHONPATH=src python3 -m unittest tests.test_professional_equity_analysis tests.test_segment_history_backfill tests.test_data_operations_cli tests.test_operating_data_orchestrator` (`Ran 118 tests`, `OK`).
 - Passed: `PYTHONPATH=src python3 -m stockanalysis.operations.cli --help | rg "segment-history-backfill-run|reported-segment-footnote-parser-run"`.
 - Passed: `PYTHONPATH=src python3 -m compileall -q src tests`.
 
