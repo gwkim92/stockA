@@ -370,6 +370,28 @@ export type ValuationMethodSnapshot = {
       description: string;
       confidence: number | null;
     }>;
+    segment_footnote_evidence: {
+      status: string;
+      label: string;
+      latest_segment_evidence_as_of_date: string;
+      evidence_count: number;
+      reported_segment_metric_count: number;
+      segment_data_gap_count: number;
+      source: string;
+      evidence_rows: Array<{
+        segment_key: string;
+        segment_label: string;
+        evidence_type: string;
+        metric_code: string;
+        metric_value: number | null;
+        metric_unit: string;
+        period_end: string;
+        source_document_id: string | null;
+        evidence_text: string;
+        confidence: number | null;
+        source_run_id: string | null;
+      }>;
+    };
   };
   data_quality: {
     status: string;

@@ -184,6 +184,29 @@ export function ValuationTargetRangeCard({
                       </div>
                     ))}
                   </div>
+                  {method.sotp_evidence.segment_footnote_evidence.status === "available" ? (
+                    <div style={{ borderTop: "1px solid var(--border-light)", marginTop: "12px", paddingTop: "10px" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", gap: "10px", alignItems: "baseline" }}>
+                        <span style={{ color: "var(--text-secondary)", fontSize: "0.76rem", fontWeight: 900 }}>SEC 세그먼트/footnote 근거</span>
+                        <small style={{ color: "var(--text-muted)" }}>
+                          근거 {method.sotp_evidence.segment_footnote_evidence.evidence_count}개 · 실제 segment {method.sotp_evidence.segment_footnote_evidence.reported_segment_metric_count}개 · 공백 {method.sotp_evidence.segment_footnote_evidence.segment_data_gap_count}개
+                        </small>
+                      </div>
+                      <div style={{ display: "grid", gap: "8px", marginTop: "10px" }}>
+                        {method.sotp_evidence.segment_footnote_evidence.evidence_rows.slice(0, 4).map((row) => (
+                          <div key={`${method.method}-segment-${row.evidence_type}-${row.segment_key}-${row.metric_code}`} style={{ display: "grid", gridTemplateColumns: "108px 1fr", gap: "8px", alignItems: "start" }}>
+                            <strong>{row.segment_label}</strong>
+                            <small style={{ color: "var(--text-secondary)", lineHeight: 1.45 }}>
+                              {row.evidence_type === "segment_data_gap" ? "사업부별 데이터 공백" : row.metric_code}
+                              {row.metric_value !== null ? ` · ${new Intl.NumberFormat("ko-KR", { maximumFractionDigits: 2 }).format(row.metric_value)} ${row.metric_unit}` : ""}
+                              {row.period_end ? ` · ${row.period_end}` : ""}
+                              {row.evidence_text ? ` · ${row.evidence_text}` : ""}
+                            </small>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
               ) : null}
 

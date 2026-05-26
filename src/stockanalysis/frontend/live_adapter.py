@@ -8586,6 +8586,47 @@ def _valuation_method_forecast_evidence(assumptions: dict[str, Any]) -> dict[str
 def _valuation_method_sotp_evidence(assumptions: dict[str, Any]) -> dict[str, Any]:
     components = [_as_dict(component) for component in _as_list(assumptions.get("sotp_components"))]
     components = [component for component in components if component]
+    segment_evidence_rows: list[dict[str, Any]] = []
+    for component in components:
+        component_assumptions = _as_dict(component.get("assumptions"))
+        for row in _as_list(component_assumptions.get("segment_evidence")):
+            evidence = _as_dict(row)
+            if not evidence:
+                continue
+            segment_evidence_rows.append(
+                {
+                    "segment_key": str(evidence.get("segment_key") or ""),
+                    "segment_label": str(evidence.get("segment_label") or evidence.get("segment_key") or ""),
+                    "evidence_type": str(evidence.get("evidence_type") or ""),
+                    "metric_code": str(evidence.get("metric_code") or ""),
+                    "metric_value": _number(evidence.get("metric_value")),
+                    "metric_unit": str(evidence.get("metric_unit") or ""),
+                    "period_end": str(evidence.get("period_end") or ""),
+                    "source_document_id": _opaque_id("source-document", evidence.get("source_document_id"), None)
+                    if evidence.get("source_document_id") is not None
+                    else None,
+                    "evidence_text": str(evidence.get("evidence_text") or ""),
+                    "confidence": _number(evidence.get("confidence")),
+                    "source_run_id": _opaque_id("pipeline-run", evidence.get("source_run_id"), None)
+                    if evidence.get("source_run_id") is not None
+                    else None,
+                }
+            )
+    segment_evidence_count = _integer(assumptions.get("segment_evidence_count"))
+    reported_segment_metric_count = _integer(assumptions.get("reported_segment_metric_count"))
+    segment_data_gap_count = _integer(assumptions.get("segment_data_gap_count"))
+    segment_evidence_payload = {
+        "status": "available" if (segment_evidence_count or segment_evidence_rows) else "unavailable",
+        "label": "세그먼트/footnote 근거 연결"
+        if (segment_evidence_count or segment_evidence_rows)
+        else "세그먼트/footnote 근거 없음",
+        "latest_segment_evidence_as_of_date": str(assumptions.get("latest_segment_evidence_as_of_date") or ""),
+        "evidence_count": segment_evidence_count or len(segment_evidence_rows),
+        "reported_segment_metric_count": reported_segment_metric_count or 0,
+        "segment_data_gap_count": segment_data_gap_count or 0,
+        "source": str(assumptions.get("segment_footnote_evidence_source") or "research.segment_footnote_evidence"),
+        "evidence_rows": segment_evidence_rows,
+    }
     if not components:
         return {
             "status": "unavailable",
@@ -8594,6 +8635,7 @@ def _valuation_method_sotp_evidence(assumptions: dict[str, Any]) -> dict[str, An
             "component_count": _integer(assumptions.get("sotp_component_count")) or 0,
             "source": str(assumptions.get("sotp_component_source") or ""),
             "components": [],
+            "segment_footnote_evidence": segment_evidence_payload,
         }
 
     component_order = {
@@ -8631,6 +8673,7 @@ def _valuation_method_sotp_evidence(assumptions: dict[str, Any]) -> dict[str, An
         "component_count": _integer(assumptions.get("sotp_component_count")) or len(normalized_components),
         "source": str(assumptions.get("sotp_component_source") or "market.sum_of_parts_component"),
         "components": normalized_components,
+        "segment_footnote_evidence": segment_evidence_payload,
     }
 
 

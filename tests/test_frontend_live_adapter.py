@@ -634,6 +634,11 @@ class FakeLiveExecutor:
                                 "latest_sotp_as_of_date": "2024-12-02",
                                 "sotp_component_source": "market.sum_of_parts_component",
                                 "sotp_component_count": 3,
+                                "segment_footnote_evidence_source": "research.segment_footnote_evidence",
+                                "latest_segment_evidence_as_of_date": "2024-12-02",
+                                "segment_evidence_count": 3,
+                                "reported_segment_metric_count": 0,
+                                "segment_data_gap_count": 1,
                                 "has_operating_business_component": True,
                                 "sotp_components": [
                                     {
@@ -672,6 +677,47 @@ class FakeLiveExecutor:
                                         "valuation_basis": "segment_data_gap_reserve",
                                         "assumptions": {
                                             "component_description": "세그먼트 데이터 부족을 반영한 reserve",
+                                            "segment_evidence": [
+                                                {
+                                                    "segment_key": "filing_anchor",
+                                                    "segment_label": "SEC 공시 원천 문서",
+                                                    "evidence_type": "filing_anchor",
+                                                    "metric_code": "source_document",
+                                                    "metric_value": None,
+                                                    "metric_unit": "n/a",
+                                                    "period_end": "2024-09-28",
+                                                    "source_document_id": 8101,
+                                                    "evidence_text": "10-K - Apple annual report",
+                                                    "confidence": "0.7000",
+                                                    "source_run_id": 7803,
+                                                },
+                                                {
+                                                    "segment_key": "consolidated_total",
+                                                    "segment_label": "연결 기준 전체 회사",
+                                                    "evidence_type": "consolidated_metric",
+                                                    "metric_code": "revenue",
+                                                    "metric_value": "391035000000.0000",
+                                                    "metric_unit": "USD",
+                                                    "period_end": "2024-09-28",
+                                                    "source_document_id": 8101,
+                                                    "evidence_text": "AAPL consolidated revenue from SEC companyfacts",
+                                                    "confidence": "0.6500",
+                                                    "source_run_id": 7803,
+                                                },
+                                                {
+                                                    "segment_key": "segment_data_gap",
+                                                    "segment_label": "사업부별 세그먼트 데이터 공백",
+                                                    "evidence_type": "segment_data_gap",
+                                                    "metric_code": "segment_detail",
+                                                    "metric_value": None,
+                                                    "metric_unit": "n/a",
+                                                    "period_end": "2024-09-28",
+                                                    "source_document_id": 8101,
+                                                    "evidence_text": "SEC footnote parser has not confirmed reported business segment metrics for AAPL",
+                                                    "confidence": "0.8000",
+                                                    "source_run_id": 7803,
+                                                },
+                                            ],
                                         },
                                         "confidence": "0.5000",
                                     },
@@ -3447,6 +3493,16 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertEqual(sotp_method["sotp_evidence"]["component_count"], 3)
         self.assertEqual(sotp_method["sotp_evidence"]["components"][0]["component_key"], "operating_business_fcf")
         self.assertEqual(sotp_method["sotp_evidence"]["components"][0]["fair_value_base"], 285.0)
+        self.assertEqual(sotp_method["sotp_evidence"]["segment_footnote_evidence"]["status"], "available")
+        self.assertEqual(sotp_method["sotp_evidence"]["segment_footnote_evidence"]["evidence_count"], 3)
+        self.assertEqual(
+            sotp_method["sotp_evidence"]["segment_footnote_evidence"]["evidence_rows"][1]["metric_value"],
+            391035000000.0,
+        )
+        self.assertEqual(
+            sotp_method["sotp_evidence"]["segment_footnote_evidence"]["evidence_rows"][2]["evidence_type"],
+            "segment_data_gap",
+        )
         self.assertIn("SOTP", sotp_method["evidence_summary"])
         self.assertFalse(target_range["automatic_order_allowed"])
         self.assertEqual(target_range["score_policy"], "recommendation_weights_unchanged")

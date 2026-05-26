@@ -2533,6 +2533,44 @@ class DataOperationsCliTests(unittest.TestCase):
             self.assertEqual(call_kwargs["statement_scope"], "annual")
             self.assertFalse(call_kwargs["execute"])
 
+    def test_segment_footnote_evidence_run_command_passes_env_and_guardrails(self) -> None:
+        with tempfile.TemporaryDirectory() as repo_root, tempfile.TemporaryDirectory() as outside_root:
+            env_file = Path(outside_root) / "data-operations.env"
+            env_file.write_text('STOCKANALYSIS_PSQL_COMMAND="docker exec psql"\n', encoding="utf-8")
+            stdout = io.StringIO()
+
+            with patch("stockanalysis.operations.cli.run_segment_footnote_evidence") as runner_mock:
+                runner_mock.return_value = {
+                    "report_name": "segment_footnote_evidence",
+                    "status": "planned",
+                    "recommendation_scoring_mutated": False,
+                }
+                exit_code = main(
+                    [
+                        "segment-footnote-evidence-run",
+                        "--repo-root",
+                        repo_root,
+                        "--env-file",
+                        str(env_file),
+                        "--as-of-date",
+                        "2026-05-25",
+                        "--statement-scope",
+                        "annual",
+                        "--dry-run",
+                    ],
+                    stdout=stdout,
+                )
+
+            self.assertEqual(exit_code, 0)
+            payload = json.loads(stdout.getvalue())
+            self.assertEqual(payload["report_name"], "segment_footnote_evidence")
+            self.assertFalse(payload["recommendation_scoring_mutated"])
+            call_kwargs = runner_mock.call_args.kwargs
+            self.assertEqual(call_kwargs["config"].psql_command, "docker exec psql")
+            self.assertEqual(call_kwargs["as_of_date"], date(2026, 5, 25))
+            self.assertEqual(call_kwargs["statement_scope"], "annual")
+            self.assertFalse(call_kwargs["execute"])
+
     def test_recommendation_fundamental_components_run_command_passes_env_and_guardrails(self) -> None:
         with tempfile.TemporaryDirectory() as repo_root, tempfile.TemporaryDirectory() as outside_root:
             env_file = Path(outside_root) / "data-operations.env"

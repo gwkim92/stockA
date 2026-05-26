@@ -10,9 +10,11 @@ from stockanalysis.operations.professional_equity_analysis import (
     DEFAULT_MODEL_NAME,
     DEFAULT_FINANCIAL_FORECAST_MODEL_NAME,
     DEFAULT_PEER_RELATIVE_MODEL_NAME,
+    DEFAULT_SEGMENT_FOOTNOTE_MODEL_NAME,
     DEFAULT_SOTP_MODEL_NAME,
     DEFAULT_VALUATION_MODEL_NAME,
     FINANCIAL_FORECAST_SCENARIOS,
+    SEGMENT_FOOTNOTE_EVIDENCE_TYPES,
     SOTP_COMPONENT_TYPES,
     STANDARD_FINANCIAL_METRICS,
     VALUATION_METHODS,
@@ -22,6 +24,8 @@ from stockanalysis.operations.professional_equity_analysis import (
     render_financial_metric_normalization_upsert_sql,
     render_peer_relative_analysis_preview_sql,
     render_peer_relative_analysis_upsert_sql,
+    render_segment_footnote_evidence_preview_sql,
+    render_segment_footnote_evidence_upsert_sql,
     render_sum_of_parts_valuation_preview_sql,
     render_sum_of_parts_valuation_upsert_sql,
     render_valuation_snapshot_preview_sql,
@@ -29,6 +33,7 @@ from stockanalysis.operations.professional_equity_analysis import (
     run_financial_forecast_inputs,
     run_financial_metric_normalization,
     run_peer_relative_analysis,
+    run_segment_footnote_evidence,
     run_sum_of_parts_valuation,
     run_valuation_snapshot,
 )
@@ -166,6 +171,37 @@ class FakeFinancialMetricExecutor:
                     "confidence_summary": {"min": 0.25, "avg": 0.4, "max": 0.55},
                 }
             )
+        if sql.startswith("-- segment footnote evidence preview"):
+            return json.dumps(
+                {
+                    "as_of_date": "2026-05-25",
+                    "model_name": DEFAULT_SEGMENT_FOOTNOTE_MODEL_NAME,
+                    "statement_scope": "annual",
+                    "evidence_types": list(SEGMENT_FOOTNOTE_EVIDENCE_TYPES),
+                    "source_period_count": 3,
+                    "source_document_count": 2,
+                    "consolidated_metric_count": 9,
+                    "reported_segment_instrument_count": 0,
+                    "segment_data_gap_candidate_count": 3,
+                    "existing_evidence_count": 0,
+                }
+            )
+        if sql.startswith("-- segment footnote evidence upsert"):
+            return json.dumps(
+                {
+                    "as_of_date": "2026-05-25",
+                    "source_run_id": self.run_id,
+                    "statement_scope": "annual",
+                    "evidence_row_count": 15,
+                    "evidence_type_counts": {
+                        "consolidated_metric": 9,
+                        "filing_anchor": 3,
+                        "segment_data_gap": 3,
+                    },
+                    "confidence_summary": {"min": 0.65, "avg": 0.71, "max": 0.8},
+                    "recommendation_scoring_mutated": False,
+                }
+            )
         if sql.startswith("-- sum of parts valuation preview"):
             return json.dumps(
                 {
@@ -176,6 +212,7 @@ class FakeFinancialMetricExecutor:
                     "price_coverage_count": 3,
                     "raw_input_count": 3,
                     "forecast_input_count": 3,
+                    "segment_footnote_evidence_count": 15,
                     "sotp_context_count": 3,
                     "existing_component_count": 0,
                 }
@@ -238,6 +275,18 @@ class ProfessionalEquityAnalysisTests(unittest.TestCase):
         self.assertIn("check (component_type in ('operating_business', 'balance_sheet_adjustment', 'risk_reserve'))", sql)
         self.assertIn("drop constraint if exists valuation_snapshot_method_check", sql)
         self.assertIn("'sum_of_parts'", sql)
+        self.assertNotIn("signal.recommendation_score_component", sql.lower())
+
+    def test_segment_footnote_migration_creates_read_only_evidence_table(self) -> None:
+        sql = Path("db/migrations/0026_segment_footnote_evidence.sql").read_text(encoding="utf-8")
+
+        self.assertIn("create table if not exists research.segment_footnote_evidence", sql)
+        self.assertIn("source_document_id bigint references ingest.source_document", sql)
+        self.assertIn("evidence_type text not null", sql)
+        self.assertIn("metric_code text not null", sql)
+        self.assertIn("segment_data_gap", sql)
+        self.assertIn("reported_segment_metric", sql)
+        self.assertIn("unique (", sql)
         self.assertNotIn("signal.recommendation_score_component", sql.lower())
 
     def test_preview_sql_is_read_only_and_reports_standard_metrics(self) -> None:
@@ -438,6 +487,36 @@ class ProfessionalEquityAnalysisTests(unittest.TestCase):
         self.assertNotIn("signal.recommendation_score_component", sql)
         self.assertIn("9651::bigint", sql)
 
+    def test_segment_footnote_evidence_preview_sql_is_read_only(self) -> None:
+        sql = render_segment_footnote_evidence_preview_sql(as_of_date=date(2026, 5, 25), statement_scope="annual")
+        lowered = sql.lower()
+
+        self.assertIn("-- segment footnote evidence preview", sql)
+        self.assertIn("market.financial_statement_period", sql)
+        self.assertIn("market.financial_metric_value", sql)
+        self.assertIn("research.segment_footnote_evidence", sql)
+        self.assertIn("segment_data_gap_candidate_count", sql)
+        self.assertNotIn("insert into", lowered)
+        self.assertNotIn("update ", lowered)
+        self.assertNotIn("delete from", lowered)
+
+    def test_segment_footnote_evidence_upsert_sql_creates_evidence_without_recommendation_mutation(self) -> None:
+        sql = render_segment_footnote_evidence_upsert_sql(
+            as_of_date=date(2026, 5, 25),
+            source_run_id=9656,
+            statement_scope="annual",
+        )
+
+        self.assertIn("-- segment footnote evidence upsert", sql)
+        self.assertIn("insert into research.segment_footnote_evidence", sql)
+        self.assertIn("filing_anchor", sql)
+        self.assertIn("consolidated_metric", sql)
+        self.assertIn("segment_data_gap", sql)
+        self.assertIn("market.financial_statement_period.source_document_id", sql)
+        self.assertIn("recommendation_scoring_mutated", sql)
+        self.assertNotIn("signal.recommendation_score_component", sql)
+        self.assertIn("9656::bigint", sql)
+
     def test_sum_of_parts_valuation_preview_sql_is_read_only(self) -> None:
         sql = render_sum_of_parts_valuation_preview_sql(as_of_date=date(2026, 5, 25), statement_scope="annual")
         lowered = sql.lower()
@@ -447,6 +526,8 @@ class ProfessionalEquityAnalysisTests(unittest.TestCase):
         self.assertIn("market.financial_metric_value", sql)
         self.assertIn("market.financial_forecast_input", sql)
         self.assertIn("market.sum_of_parts_component", sql)
+        self.assertIn("research.segment_footnote_evidence", sql)
+        self.assertIn("segment_footnote_evidence_count", sql)
         self.assertIn("sotp_context_count", sql)
         self.assertNotIn("insert into", lowered)
         self.assertNotIn("update ", lowered)
@@ -468,6 +549,8 @@ class ProfessionalEquityAnalysisTests(unittest.TestCase):
         self.assertIn("forecast_or_latest_fcf_multiple", sql)
         self.assertIn("book_equity_partial_credit", sql)
         self.assertIn("segment_data_gap_reserve", sql)
+        self.assertIn("segment_footnote_evidence_source", sql)
+        self.assertIn("research.segment_footnote_evidence", sql)
         self.assertNotIn("signal.recommendation_score_component", sql)
         self.assertIn("9661::bigint", sql)
 
@@ -492,6 +575,8 @@ class ProfessionalEquityAnalysisTests(unittest.TestCase):
         self.assertIn("'sum_of_parts' as method", sql)
         self.assertIn("market.sum_of_parts_component", sql)
         self.assertIn("'sotp_component_source'", sql)
+        self.assertIn("'segment_footnote_evidence_source'", sql)
+        self.assertIn("'segment_evidence_count'", sql)
         self.assertIn("'sotp_components'", sql)
         self.assertIn("shares_outstanding", sql)
         self.assertIn("free_cash_flow", sql)
@@ -547,6 +632,43 @@ class ProfessionalEquityAnalysisTests(unittest.TestCase):
         self.assertEqual(report["upsert"]["forecast_row_count"], 45)  # type: ignore[index]
         self.assertIn("insert into ops.pipeline_run", executor.scalar_sql[1])
         self.assertIn("-- financial forecast inputs upsert", executor.scalar_sql[2])
+        self.assertIn("status = 'succeeded'", executor.non_query_sql[-1])
+
+    def test_run_segment_footnote_evidence_dry_run_reads_preview_without_writes(self) -> None:
+        executor = FakeFinancialMetricExecutor()
+
+        report = run_segment_footnote_evidence(
+            config=RuntimeConfig(psql_command="psql"),
+            as_of_date=date(2026, 5, 25),
+            statement_scope="annual",
+            execute=False,
+            executor=executor,  # type: ignore[arg-type]
+        )
+
+        self.assertEqual(report["status"], "planned")
+        self.assertEqual(report["report_name"], "segment_footnote_evidence")
+        self.assertEqual(report["evidence_types"], list(SEGMENT_FOOTNOTE_EVIDENCE_TYPES))
+        self.assertFalse(report["recommendation_scoring_mutated"])
+        self.assertEqual(executor.non_query_sql, [])
+        self.assertEqual(len(executor.scalar_sql), 1)
+
+    def test_run_segment_footnote_evidence_execute_records_pipeline_and_upsert_summary(self) -> None:
+        executor = FakeFinancialMetricExecutor(run_id=9657)
+
+        report = run_segment_footnote_evidence(
+            config=RuntimeConfig(psql_command="psql"),
+            as_of_date=date(2026, 5, 25),
+            statement_scope="annual",
+            execute=True,
+            executor=executor,  # type: ignore[arg-type]
+        )
+
+        self.assertEqual(report["status"], "completed")
+        self.assertEqual(report["run_id"], 9657)
+        self.assertEqual(report["upsert"]["evidence_row_count"], 15)  # type: ignore[index]
+        self.assertFalse(report["upsert"]["recommendation_scoring_mutated"])  # type: ignore[index]
+        self.assertIn("insert into ops.pipeline_run", executor.scalar_sql[1])
+        self.assertIn("-- segment footnote evidence upsert", executor.scalar_sql[2])
         self.assertIn("status = 'succeeded'", executor.non_query_sql[-1])
 
     def test_run_sum_of_parts_valuation_dry_run_reads_preview_without_writes(self) -> None:

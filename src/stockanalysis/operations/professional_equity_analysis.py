@@ -21,6 +21,8 @@ DEFAULT_VALUATION_PIPELINE_NAME = "valuation_snapshot"
 DEFAULT_VALUATION_MODEL_NAME = "deterministic-valuation-snapshot-sql-v1"
 DEFAULT_FINANCIAL_FORECAST_PIPELINE_NAME = "financial_forecast_inputs"
 DEFAULT_FINANCIAL_FORECAST_MODEL_NAME = "deterministic-financial-forecast-inputs-sql-v1"
+DEFAULT_SEGMENT_FOOTNOTE_PIPELINE_NAME = "segment_footnote_evidence"
+DEFAULT_SEGMENT_FOOTNOTE_MODEL_NAME = "deterministic-segment-footnote-evidence-sql-v1"
 DEFAULT_SOTP_PIPELINE_NAME = "sum_of_parts_valuation"
 DEFAULT_SOTP_MODEL_NAME = "deterministic-sum-of-parts-sql-v1"
 DEFAULT_PEER_GROUP_CODE = "US_CORE_FINANCIAL_DISCLOSURE"
@@ -46,6 +48,12 @@ VALUATION_STATEMENT_SCOPES = ("annual", "quarterly")
 VALUATION_METHODS = ("dcf_lite", "relative_multiple", "scenario_range", "sum_of_parts")
 FINANCIAL_FORECAST_SCENARIOS = ("bear", "base", "bull")
 FINANCIAL_FORECAST_YEARS = 5
+SEGMENT_FOOTNOTE_EVIDENCE_TYPES = (
+    "filing_anchor",
+    "consolidated_metric",
+    "reported_segment_metric",
+    "segment_data_gap",
+)
 SOTP_COMPONENT_TYPES = ("operating_business", "balance_sheet_adjustment", "risk_reserve")
 
 
@@ -1502,6 +1510,370 @@ def run_financial_forecast_inputs(
     }
 
 
+def render_segment_footnote_evidence_preview_sql(
+    *,
+    as_of_date: date,
+    statement_scope: str = "annual",
+) -> str:
+    _validate_valuation_args(statement_scope=statement_scope)
+    return f"""-- segment footnote evidence preview
+with latest_periods as (
+    select distinct on (period.instrument_id)
+        period.period_id,
+        period.instrument_id,
+        period.period_end,
+        period.source_document_id
+    from market.financial_statement_period period
+    where period.period_end <= {sql_date(as_of_date)}
+      and period.statement_scope = {sql_literal(statement_scope)}
+    order by period.instrument_id, period.period_end desc, period.period_id desc
+),
+latest_metric_rows as (
+    select
+        period.instrument_id,
+        metric.metric_code
+    from latest_periods period
+    join market.financial_metric_value metric on metric.period_id = period.period_id
+    where metric.metric_code in ('revenue', 'gross_profit', 'operating_income')
+),
+reported_segment_presence as (
+    select distinct evidence.instrument_id
+    from research.segment_footnote_evidence evidence
+    where evidence.as_of_date <= {sql_date(as_of_date)}
+      and evidence.statement_scope = {sql_literal(statement_scope)}
+      and evidence.evidence_type = 'reported_segment_metric'
+),
+existing_evidence as (
+    select *
+    from research.segment_footnote_evidence evidence
+    where evidence.as_of_date = {sql_date(as_of_date)}
+      and evidence.statement_scope = {sql_literal(statement_scope)}
+)
+select json_build_object(
+    'as_of_date', {sql_literal(as_of_date.isoformat())},
+    'model_name', {sql_literal(DEFAULT_SEGMENT_FOOTNOTE_MODEL_NAME)},
+    'statement_scope', {sql_literal(statement_scope)},
+    'evidence_types', {sql_literal(json.dumps(SEGMENT_FOOTNOTE_EVIDENCE_TYPES))}::jsonb,
+    'source_period_count', (select count(*)::integer from latest_periods),
+    'source_document_count', (select count(distinct source_document_id)::integer from latest_periods where source_document_id is not null),
+    'consolidated_metric_count', (select count(*)::integer from latest_metric_rows),
+    'reported_segment_instrument_count', (select count(*)::integer from reported_segment_presence),
+    'segment_data_gap_candidate_count',
+        (
+            select count(*)::integer
+            from latest_periods period
+            where not exists (
+                select 1
+                from reported_segment_presence presence
+                where presence.instrument_id = period.instrument_id
+            )
+        ),
+    'existing_evidence_count', (select count(*)::integer from existing_evidence)
+)::text;"""
+
+
+def render_segment_footnote_evidence_upsert_sql(
+    *,
+    as_of_date: date,
+    source_run_id: int,
+    statement_scope: str = "annual",
+) -> str:
+    _validate_valuation_args(statement_scope=statement_scope)
+    return f"""-- segment footnote evidence upsert
+with latest_periods as (
+    select distinct on (period.instrument_id)
+        period.period_id,
+        period.instrument_id,
+        instrument.primary_symbol,
+        period.statement_scope,
+        period.period_end,
+        period.source_document_id,
+        document.title as source_document_title,
+        document.summary as source_document_summary,
+        document.url as source_document_url
+    from market.financial_statement_period period
+    join ref.instrument instrument on instrument.instrument_id = period.instrument_id
+    left join ingest.source_document document on document.document_id = period.source_document_id
+    where period.period_end <= {sql_date(as_of_date)}
+      and period.statement_scope = {sql_literal(statement_scope)}
+    order by period.instrument_id, period.period_end desc, period.period_id desc
+),
+latest_metric_rows as (
+    select
+        period.instrument_id,
+        period.primary_symbol,
+        period.period_end,
+        period.source_document_id,
+        period.source_document_title,
+        period.source_document_summary,
+        period.source_document_url,
+        metric.metric_code,
+        metric.metric_value,
+        metric.unit
+    from latest_periods period
+    join market.financial_metric_value metric on metric.period_id = period.period_id
+    where metric.metric_code in ('revenue', 'gross_profit', 'operating_income')
+),
+reported_segment_presence as (
+    select distinct evidence.instrument_id
+    from research.segment_footnote_evidence evidence
+    where evidence.as_of_date <= {sql_date(as_of_date)}
+      and evidence.statement_scope = {sql_literal(statement_scope)}
+      and evidence.evidence_type = 'reported_segment_metric'
+),
+evidence_rows as (
+    select
+        period.instrument_id,
+        {sql_date(as_of_date)} as as_of_date,
+        {sql_literal(statement_scope)}::text as statement_scope,
+        'filing_anchor'::text as segment_key,
+        'SEC 공시 원천 문서'::text as segment_label,
+        'filing_anchor'::text as evidence_type,
+        'source_document'::text as metric_code,
+        null::numeric as metric_value,
+        'n/a'::text as metric_unit,
+        period.period_end,
+        period.source_document_id,
+        coalesce(period.source_document_title, period.primary_symbol || ' SEC filing source') as evidence_text,
+        jsonb_build_object(
+            'source', 'market.financial_statement_period.source_document_id',
+            'primary_symbol', period.primary_symbol,
+            'source_document_title', period.source_document_title,
+            'source_document_summary', period.source_document_summary,
+            'source_document_url', period.source_document_url,
+            'interpretation', 'SOTP와 재무제표 모델이 참조하는 최신 SEC filing anchor다.',
+            'recommendation_scoring_mutated', false
+        ) as assumptions_json,
+        case when period.source_document_id is not null then 0.7000::numeric else 0.4500::numeric end as confidence
+    from latest_periods period
+    union all
+    select
+        metric.instrument_id,
+        {sql_date(as_of_date)} as as_of_date,
+        {sql_literal(statement_scope)}::text as statement_scope,
+        'consolidated_total'::text as segment_key,
+        '연결 기준 전체 회사'::text as segment_label,
+        'consolidated_metric'::text as evidence_type,
+        metric.metric_code,
+        metric.metric_value,
+        metric.unit,
+        metric.period_end,
+        metric.source_document_id,
+        metric.primary_symbol || ' consolidated ' || metric.metric_code || ' from SEC companyfacts' as evidence_text,
+        jsonb_build_object(
+            'source', 'market.financial_metric_value',
+            'primary_symbol', metric.primary_symbol,
+            'source_document_title', metric.source_document_title,
+            'source_document_url', metric.source_document_url,
+            'metric_code', metric.metric_code,
+            'metric_value', metric.metric_value,
+            'metric_unit', metric.unit,
+            'interpretation', '사업부별 segment가 아니라 연결 기준 전체 회사 metric이다.',
+            'reported_segment_metric', false,
+            'recommendation_scoring_mutated', false
+        ) as assumptions_json,
+        0.6500::numeric as confidence
+    from latest_metric_rows metric
+    union all
+    select
+        period.instrument_id,
+        {sql_date(as_of_date)} as as_of_date,
+        {sql_literal(statement_scope)}::text as statement_scope,
+        'segment_data_gap'::text as segment_key,
+        '사업부별 세그먼트 데이터 공백'::text as segment_label,
+        'segment_data_gap'::text as evidence_type,
+        'segment_detail'::text as metric_code,
+        null::numeric as metric_value,
+        'n/a'::text as metric_unit,
+        period.period_end,
+        period.source_document_id,
+        'SEC footnote parser has not confirmed reported business segment metrics for ' || period.primary_symbol as evidence_text,
+        jsonb_build_object(
+            'source', 'deterministic_segment_footnote_gap_detector',
+            'primary_symbol', period.primary_symbol,
+            'source_document_title', period.source_document_title,
+            'source_document_url', period.source_document_url,
+            'interpretation', '현재는 사업부별 매출·마진·자본배분 footnote가 구조화되지 않아 SOTP가 proxy reserve를 유지해야 한다.',
+            'missing_reported_segment_metric', true,
+            'recommendation_scoring_mutated', false
+        ) as assumptions_json,
+        0.8000::numeric as confidence
+    from latest_periods period
+    where not exists (
+        select 1
+        from reported_segment_presence presence
+        where presence.instrument_id = period.instrument_id
+    )
+),
+upsert_evidence as (
+    insert into research.segment_footnote_evidence (
+        instrument_id,
+        as_of_date,
+        statement_scope,
+        segment_key,
+        segment_label,
+        evidence_type,
+        metric_code,
+        metric_value,
+        metric_unit,
+        period_end,
+        source_document_id,
+        evidence_text,
+        assumptions_json,
+        confidence,
+        source_run_id
+    )
+    select
+        instrument_id,
+        as_of_date,
+        statement_scope,
+        segment_key,
+        segment_label,
+        evidence_type,
+        metric_code,
+        metric_value,
+        metric_unit,
+        period_end,
+        source_document_id,
+        evidence_text,
+        assumptions_json,
+        confidence,
+        {int(source_run_id)}::bigint
+    from evidence_rows
+    on conflict (
+        instrument_id,
+        as_of_date,
+        statement_scope,
+        segment_key,
+        evidence_type,
+        metric_code,
+        period_end
+    ) do update
+    set
+        segment_label = excluded.segment_label,
+        metric_value = excluded.metric_value,
+        metric_unit = excluded.metric_unit,
+        source_document_id = excluded.source_document_id,
+        evidence_text = excluded.evidence_text,
+        assumptions_json = excluded.assumptions_json,
+        confidence = excluded.confidence,
+        source_run_id = excluded.source_run_id
+    returning evidence_type, metric_code, confidence
+)
+select json_build_object(
+    'as_of_date', {sql_literal(as_of_date.isoformat())},
+    'source_run_id', {int(source_run_id)},
+    'statement_scope', {sql_literal(statement_scope)},
+    'evidence_row_count', (select count(*)::integer from upsert_evidence),
+    'evidence_type_counts',
+        coalesce(
+            (
+                select json_object_agg(evidence_type, evidence_count order by evidence_type)
+                from (
+                    select evidence_type, count(*)::integer as evidence_count
+                    from upsert_evidence
+                    group by evidence_type
+                ) counts
+            ),
+            '{{}}'::json
+        ),
+    'confidence_summary',
+        (
+            select json_build_object(
+                'min', min(confidence),
+                'avg', avg(confidence),
+                'max', max(confidence)
+            )
+            from upsert_evidence
+        ),
+    'recommendation_scoring_mutated', false
+)::text;"""
+
+
+def load_segment_footnote_evidence_preview(
+    *,
+    config: RuntimeConfig,
+    as_of_date: date,
+    statement_scope: str = "annual",
+    executor: PsqlCommandExecutor | None = None,
+) -> dict[str, object]:
+    sql_executor = executor or PsqlCommandExecutor.from_config(config)
+    payload = json.loads(
+        sql_executor.execute_scalar(
+            render_segment_footnote_evidence_preview_sql(as_of_date=as_of_date, statement_scope=statement_scope)
+        )
+    )
+    if not isinstance(payload, dict):
+        raise ValueError("Segment footnote evidence preview did not return a JSON object.")
+    return payload
+
+
+def run_segment_footnote_evidence(
+    *,
+    config: RuntimeConfig,
+    as_of_date: date,
+    statement_scope: str = "annual",
+    execute: bool = False,
+    executor: PsqlCommandExecutor | None = None,
+) -> dict[str, object]:
+    sql_executor = executor or PsqlCommandExecutor.from_config(config)
+    preview = load_segment_footnote_evidence_preview(
+        config=config,
+        as_of_date=as_of_date,
+        statement_scope=statement_scope,
+        executor=sql_executor,
+    )
+    report: dict[str, object] = {
+        "report_name": "segment_footnote_evidence",
+        "status": "planned" if not execute else "running",
+        "execute": execute,
+        "pipeline_name": DEFAULT_SEGMENT_FOOTNOTE_PIPELINE_NAME,
+        "as_of_date": as_of_date.isoformat(),
+        "statement_scope": statement_scope,
+        "model_name": DEFAULT_SEGMENT_FOOTNOTE_MODEL_NAME,
+        "evidence_types": list(SEGMENT_FOOTNOTE_EVIDENCE_TYPES),
+        "preview": preview,
+        "recommendation_scoring_mutated": False,
+    }
+    if not execute:
+        return report
+
+    run_id = _create_pipeline_run(
+        sql_executor,
+        pipeline_name=DEFAULT_SEGMENT_FOOTNOTE_PIPELINE_NAME,
+        config_json={
+            "as_of_date": as_of_date.isoformat(),
+            "statement_scope": statement_scope,
+            "model_name": DEFAULT_SEGMENT_FOOTNOTE_MODEL_NAME,
+            "evidence_types": list(SEGMENT_FOOTNOTE_EVIDENCE_TYPES),
+            "recommendation_scoring_mutated": False,
+        },
+    )
+    try:
+        upsert_summary = json.loads(
+            sql_executor.execute_scalar(
+                render_segment_footnote_evidence_upsert_sql(
+                    as_of_date=as_of_date,
+                    source_run_id=run_id,
+                    statement_scope=statement_scope,
+                )
+            )
+        )
+        if not isinstance(upsert_summary, dict):
+            raise ValueError("Segment footnote evidence upsert did not return a JSON object.")
+        _mark_pipeline_run_succeeded(sql_executor, run_id)
+    except Exception as exc:
+        _mark_pipeline_run_failed(sql_executor, run_id, str(exc))
+        raise
+
+    return {
+        **report,
+        "status": "completed",
+        "run_id": run_id,
+        "upsert": upsert_summary,
+    }
+
+
 def render_sum_of_parts_valuation_preview_sql(
     *,
     as_of_date: date,
@@ -1579,6 +1951,22 @@ forecast_inputs as (
     from latest_forecast_rows
     group by instrument_id
 ),
+latest_segment_evidence as (
+    select distinct on (evidence.instrument_id, evidence.segment_key, evidence.evidence_type, evidence.metric_code)
+        evidence.instrument_id,
+        evidence.evidence_type,
+        evidence.metric_code
+    from research.segment_footnote_evidence evidence
+    where evidence.as_of_date <= {sql_date(as_of_date)}
+      and evidence.statement_scope = {sql_literal(statement_scope)}
+    order by
+        evidence.instrument_id,
+        evidence.segment_key,
+        evidence.evidence_type,
+        evidence.metric_code,
+        evidence.as_of_date desc,
+        evidence.evidence_id desc
+),
 sotp_context as (
     select
         price.instrument_id,
@@ -1609,6 +1997,7 @@ select json_build_object(
     'price_coverage_count', (select count(*)::integer from latest_prices),
     'raw_input_count', (select count(*)::integer from raw_inputs),
     'forecast_input_count', (select count(*)::integer from forecast_inputs),
+    'segment_footnote_evidence_count', (select count(*)::integer from latest_segment_evidence),
     'sotp_context_count', (select count(*)::integer from sotp_context),
     'existing_component_count',
         (
@@ -1703,6 +2092,68 @@ forecast_inputs as (
     from latest_forecast_rows
     group by instrument_id
 ),
+latest_segment_evidence as (
+    select distinct on (evidence.instrument_id, evidence.segment_key, evidence.evidence_type, evidence.metric_code)
+        evidence.instrument_id,
+        evidence.as_of_date,
+        evidence.segment_key,
+        evidence.segment_label,
+        evidence.evidence_type,
+        evidence.metric_code,
+        evidence.metric_value,
+        evidence.metric_unit,
+        evidence.period_end,
+        evidence.source_document_id,
+        evidence.evidence_text,
+        evidence.confidence,
+        evidence.source_run_id
+    from research.segment_footnote_evidence evidence
+    where evidence.as_of_date <= {sql_date(as_of_date)}
+      and evidence.statement_scope = {sql_literal(statement_scope)}
+    order by
+        evidence.instrument_id,
+        evidence.segment_key,
+        evidence.evidence_type,
+        evidence.metric_code,
+        evidence.as_of_date desc,
+        evidence.evidence_id desc
+),
+segment_evidence_inputs as (
+    select
+        instrument_id,
+        count(*)::integer as segment_evidence_count,
+        count(*) filter (where evidence_type = 'reported_segment_metric')::integer as reported_segment_metric_count,
+        count(*) filter (where evidence_type = 'segment_data_gap')::integer as segment_data_gap_count,
+        max(as_of_date) as latest_segment_evidence_as_of_date,
+        avg(confidence) as segment_evidence_confidence,
+        jsonb_agg(
+            jsonb_build_object(
+                'segment_key', segment_key,
+                'segment_label', segment_label,
+                'evidence_type', evidence_type,
+                'metric_code', metric_code,
+                'metric_value', metric_value,
+                'metric_unit', metric_unit,
+                'period_end', period_end,
+                'source_document_id', source_document_id,
+                'evidence_text', evidence_text,
+                'confidence', confidence,
+                'source_run_id', source_run_id
+            )
+            order by
+                case evidence_type
+                    when 'reported_segment_metric' then 1
+                    when 'consolidated_metric' then 2
+                    when 'filing_anchor' then 3
+                    when 'segment_data_gap' then 4
+                    else 9
+                end,
+                segment_key,
+                metric_code
+        ) as segment_evidence_json
+    from latest_segment_evidence
+    group by instrument_id
+),
 sotp_inputs as (
     select
         price.instrument_id,
@@ -1729,10 +2180,17 @@ sotp_inputs as (
         forecast.forecast_row_count,
         forecast.terminal_base_free_cash_flow,
         forecast.forecast_confidence,
-        forecast.forecast_source_run_id
+        forecast.forecast_source_run_id,
+        segment.segment_evidence_count,
+        segment.reported_segment_metric_count,
+        segment.segment_data_gap_count,
+        segment.latest_segment_evidence_as_of_date,
+        segment.segment_evidence_confidence,
+        segment.segment_evidence_json
     from latest_prices price
     left join raw_inputs raw on raw.instrument_id = price.instrument_id
     left join forecast_inputs forecast on forecast.instrument_id = price.instrument_id
+    left join segment_evidence_inputs segment on segment.instrument_id = price.instrument_id
     where price.base_price > 0
       and raw.shares_outstanding is not null
       and raw.shares_outstanding > 0
@@ -1819,7 +2277,13 @@ component_rows as (
             'low_reserve_pct', -0.0500,
             'base_reserve_pct', -0.0300,
             'high_reserve_pct', -0.0100,
-            'missing_segment_detail', true
+            'missing_segment_detail', coalesce(input.reported_segment_metric_count, 0) = 0,
+            'segment_footnote_evidence_source', 'research.segment_footnote_evidence',
+            'latest_segment_evidence_as_of_date', input.latest_segment_evidence_as_of_date,
+            'segment_evidence_count', coalesce(input.segment_evidence_count, 0),
+            'reported_segment_metric_count', coalesce(input.reported_segment_metric_count, 0),
+            'segment_data_gap_count', coalesce(input.segment_data_gap_count, 0),
+            'segment_evidence', coalesce(input.segment_evidence_json, '[]'::jsonb)
         ) as assumptions_json,
         0.5000::numeric as confidence
     from sotp_inputs input
@@ -2428,6 +2892,10 @@ sotp_inputs as (
         sum(fair_value_high) as sotp_fair_value_high,
         avg(confidence) as sotp_confidence,
         bool_or(component_type = 'operating_business') as has_operating_business_component,
+        max(nullif(assumptions_json ->> 'latest_segment_evidence_as_of_date', '')) as latest_segment_evidence_as_of_date,
+        max(nullif(assumptions_json ->> 'segment_evidence_count', '')::integer) as segment_evidence_count,
+        max(nullif(assumptions_json ->> 'reported_segment_metric_count', '')::integer) as reported_segment_metric_count,
+        max(nullif(assumptions_json ->> 'segment_data_gap_count', '')::integer) as segment_data_gap_count,
         jsonb_agg(
             jsonb_build_object(
                 'component_key', component_key,
@@ -2491,6 +2959,10 @@ valuation_inputs as (
         sotp.sotp_fair_value_high,
         sotp.sotp_confidence,
         sotp.has_operating_business_component,
+        sotp.latest_segment_evidence_as_of_date,
+        sotp.segment_evidence_count,
+        sotp.reported_segment_metric_count,
+        sotp.segment_data_gap_count,
         sotp.components_json,
         least(
             1::numeric,
@@ -2709,12 +3181,20 @@ sum_of_parts_rows as (
             'latest_sotp_as_of_date', input.latest_sotp_as_of_date,
             'sotp_component_source', 'market.sum_of_parts_component',
             'sotp_component_count', coalesce(input.sotp_component_count, 0),
+            'segment_footnote_evidence_source', 'research.segment_footnote_evidence',
+            'latest_segment_evidence_as_of_date', input.latest_segment_evidence_as_of_date,
+            'segment_evidence_count', coalesce(input.segment_evidence_count, 0),
+            'reported_segment_metric_count', coalesce(input.reported_segment_metric_count, 0),
+            'segment_data_gap_count', coalesce(input.segment_data_gap_count, 0),
             'sotp_components', coalesce(input.components_json, '[]'::jsonb),
             'has_operating_business_component', coalesce(input.has_operating_business_component, false),
             'key_variables', json_build_array('sotp_components', 'operating_business_fcf', 'balance_sheet_adjustment', 'segment_data_gap_reserve'),
             'data_quality', json_build_object(
                 'component_count', coalesce(input.sotp_component_count, 0),
                 'has_operating_business_component', coalesce(input.has_operating_business_component, false),
+                'segment_evidence_count', coalesce(input.segment_evidence_count, 0),
+                'reported_segment_metric_count', coalesce(input.reported_segment_metric_count, 0),
+                'segment_data_gap_count', coalesce(input.segment_data_gap_count, 0),
                 'latest_sotp_as_of_date', input.latest_sotp_as_of_date
             ),
             'limitations', json_build_array(

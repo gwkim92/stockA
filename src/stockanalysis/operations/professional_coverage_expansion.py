@@ -25,6 +25,7 @@ from stockanalysis.operations.professional_equity_analysis import (
     run_financial_forecast_inputs,
     run_financial_metric_normalization,
     run_peer_relative_analysis,
+    run_segment_footnote_evidence,
     run_sum_of_parts_valuation,
     run_valuation_snapshot,
 )
@@ -98,6 +99,12 @@ coverage_rows as (
         ) as has_valuation_snapshot,
         exists (
             select 1
+            from research.segment_footnote_evidence evidence
+            where evidence.instrument_id = symbol.instrument_id
+              and evidence.as_of_date <= {target_date}
+        ) as has_segment_footnote_evidence,
+        exists (
+            select 1
             from market.sum_of_parts_component component
             where component.instrument_id = symbol.instrument_id
               and component.as_of_date <= {target_date}
@@ -130,6 +137,7 @@ gap_rows as (
             array[
                 case when not has_financial_metrics then 'financial_metric_normalized' end,
                 case when not has_peer_relative then 'peer_relative_snapshot' end,
+                case when not has_segment_footnote_evidence then 'segment_footnote_evidence' end,
                 case when not has_sum_of_parts_component then 'sum_of_parts_component' end,
                 case when not has_valuation_snapshot then 'valuation_snapshot' end,
                 case when not has_industry_competitive_position then 'industry_competitive_position' end,
@@ -142,6 +150,7 @@ gap_rows as (
     where not (
         has_financial_metrics
         and has_peer_relative
+        and has_segment_footnote_evidence
         and has_sum_of_parts_component
         and has_valuation_snapshot
         and has_industry_competitive_position
@@ -320,6 +329,7 @@ def run_professional_coverage_expansion(
         "downstream_steps": [
             "financial_metric_normalization",
             "peer_relative_analysis",
+            "segment_footnote_evidence",
             "valuation_snapshot",
             "industry_competitive_positioning",
             "equity_research_reporting",
@@ -381,6 +391,13 @@ def run_professional_coverage_expansion(
                 executor=sql_executor,
             ),
             "financial_forecast_inputs": run_financial_forecast_inputs(
+                config=config,
+                as_of_date=as_of_date,
+                statement_scope="annual",
+                execute=True,
+                executor=sql_executor,
+            ),
+            "segment_footnote_evidence": run_segment_footnote_evidence(
                 config=config,
                 as_of_date=as_of_date,
                 statement_scope="annual",

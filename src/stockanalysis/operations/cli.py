@@ -102,6 +102,7 @@ from stockanalysis.operations.professional_equity_analysis import (
     run_financial_forecast_inputs,
     run_financial_metric_normalization,
     run_peer_relative_analysis,
+    run_segment_footnote_evidence,
     run_sum_of_parts_valuation,
     run_valuation_snapshot,
 )
@@ -924,6 +925,19 @@ def build_parser() -> argparse.ArgumentParser:
     financial_forecast_inputs.add_argument("--output")
     financial_forecast_inputs.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
     financial_forecast_inputs.set_defaults(handler=_handle_financial_forecast_inputs_run)
+
+    segment_footnote_evidence = subparsers.add_parser(
+        "segment-footnote-evidence-run",
+        help="Create SEC segment and footnote evidence for SOTP without changing recommendation weights.",
+    )
+    segment_footnote_evidence.add_argument("--env-file")
+    segment_footnote_evidence.add_argument("--as-of-date", required=True)
+    segment_footnote_evidence.add_argument("--statement-scope", choices=VALUATION_STATEMENT_SCOPES, default="annual")
+    segment_footnote_evidence.add_argument("--execute", action="store_true")
+    segment_footnote_evidence.add_argument("--dry-run", action="store_true")
+    segment_footnote_evidence.add_argument("--output")
+    segment_footnote_evidence.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
+    segment_footnote_evidence.set_defaults(handler=_handle_segment_footnote_evidence_run)
 
     sum_of_parts_valuation = subparsers.add_parser(
         "sum-of-parts-valuation-run",
@@ -2129,6 +2143,31 @@ def _handle_financial_forecast_inputs_run(args: argparse.Namespace, *, stdout: T
         output_path = resolve_output_path(
             args.output,
             label="financial forecast inputs output",
+            repo_root=args.repo_root,
+            require_repo_outside=True,
+        )
+        write_json_report(report, output_path=output_path, stdout=stdout)
+    else:
+        print_json(report, stdout=stdout, sort_keys=False)
+    return 0
+
+
+def _handle_segment_footnote_evidence_run(args: argparse.Namespace, *, stdout: TextIO) -> int:
+    if bool(args.execute) and bool(args.dry_run):
+        raise ValueError("--execute and --dry-run cannot be used together.")
+    env_mapping = _load_optional_env_mapping(args.env_file, repo_root=args.repo_root)
+    as_of_date = date.fromisoformat(args.as_of_date)
+    with _temporary_environ(env_mapping):
+        report = run_segment_footnote_evidence(
+            config=RuntimeConfig.from_env(),
+            as_of_date=as_of_date,
+            statement_scope=args.statement_scope,
+            execute=bool(args.execute) and not bool(args.dry_run),
+        )
+    if args.output:
+        output_path = resolve_output_path(
+            args.output,
+            label="segment footnote evidence output",
             repo_root=args.repo_root,
             require_repo_outside=True,
         )
