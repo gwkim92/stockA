@@ -126,6 +126,9 @@ class ProfessionalCoverageExpansionTests(unittest.TestCase):
             ) as normalization,
             patch("stockanalysis.operations.professional_coverage_expansion.run_peer_relative_analysis") as peer,
             patch("stockanalysis.operations.professional_coverage_expansion.run_financial_forecast_inputs") as forecast,
+            patch(
+                "stockanalysis.operations.professional_coverage_expansion.run_reported_segment_footnote_parser"
+            ) as segment_parser,
             patch("stockanalysis.operations.professional_coverage_expansion.run_segment_footnote_evidence") as segment,
             patch("stockanalysis.operations.professional_coverage_expansion.run_sum_of_parts_valuation") as sotp,
             patch("stockanalysis.operations.professional_coverage_expansion.run_valuation_snapshot") as valuation,
@@ -138,6 +141,7 @@ class ProfessionalCoverageExpansionTests(unittest.TestCase):
             normalization.return_value = {"report_name": "financial_metric_normalization"}
             peer.return_value = {"report_name": "peer_relative_analysis"}
             forecast.return_value = {"report_name": "financial_forecast_inputs"}
+            segment_parser.return_value = {"report_name": "reported_segment_footnote_parser"}
             segment.return_value = {"report_name": "segment_footnote_evidence"}
             sotp.return_value = {"report_name": "sum_of_parts_valuation"}
             valuation.return_value = {"report_name": "valuation_snapshot"}
@@ -165,6 +169,7 @@ class ProfessionalCoverageExpansionTests(unittest.TestCase):
         normalization.assert_called_once()
         peer.assert_called_once()
         forecast.assert_called_once()
+        segment_parser.assert_called_once()
         segment.assert_called_once()
         sotp.assert_called_once()
         valuation.assert_called_once()
@@ -183,6 +188,9 @@ class ProfessionalCoverageExpansionTests(unittest.TestCase):
             ) as normalization,
             patch("stockanalysis.operations.professional_coverage_expansion.run_peer_relative_analysis") as peer,
             patch("stockanalysis.operations.professional_coverage_expansion.run_financial_forecast_inputs") as forecast,
+            patch(
+                "stockanalysis.operations.professional_coverage_expansion.run_reported_segment_footnote_parser"
+            ) as segment_parser,
             patch("stockanalysis.operations.professional_coverage_expansion.run_segment_footnote_evidence") as segment,
             patch("stockanalysis.operations.professional_coverage_expansion.run_sum_of_parts_valuation") as sotp,
             patch("stockanalysis.operations.professional_coverage_expansion.run_valuation_snapshot") as valuation,
@@ -198,6 +206,7 @@ class ProfessionalCoverageExpansionTests(unittest.TestCase):
             normalization.return_value = {"report_name": "financial_metric_normalization"}
             peer.return_value = {"report_name": "peer_relative_analysis"}
             forecast.return_value = {"report_name": "financial_forecast_inputs"}
+            segment_parser.return_value = {"report_name": "reported_segment_footnote_parser"}
             segment.return_value = {"report_name": "segment_footnote_evidence"}
             sotp.return_value = {"report_name": "sum_of_parts_valuation"}
             valuation.return_value = {"report_name": "valuation_snapshot"}

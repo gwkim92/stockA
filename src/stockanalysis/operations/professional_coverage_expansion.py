@@ -25,6 +25,7 @@ from stockanalysis.operations.professional_equity_analysis import (
     run_financial_forecast_inputs,
     run_financial_metric_normalization,
     run_peer_relative_analysis,
+    run_reported_segment_footnote_parser,
     run_segment_footnote_evidence,
     run_sum_of_parts_valuation,
     run_valuation_snapshot,
@@ -391,6 +392,13 @@ def run_professional_coverage_expansion(
                 executor=sql_executor,
             ),
             "financial_forecast_inputs": run_financial_forecast_inputs(
+                config=config,
+                as_of_date=as_of_date,
+                statement_scope="annual",
+                execute=True,
+                executor=sql_executor,
+            ),
+            "reported_segment_footnote_parser": run_reported_segment_footnote_parser(
                 config=config,
                 as_of_date=as_of_date,
                 statement_scope="annual",

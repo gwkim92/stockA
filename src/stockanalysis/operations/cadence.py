@@ -231,6 +231,18 @@ DATA_OPERATION_CADENCES: tuple[DataOperationCadence, ...] = (
         data_health_dataset="market.financial_forecast_input",
     ),
     DataOperationCadence(
+        job_id="reported-segment-footnote-parser-weekly",
+        pipeline_name="reported_segment_footnote_parser",
+        domain="fundamentals",
+        cadence="weekly",
+        command_template="stockanalysis-operations reported-segment-footnote-parser-run --env-file <ENV> --as-of-date <YYYY-MM-DD> --execute",
+        expected_after_local="08:46 Monday",
+        stale_after_hours=216,
+        artifact_policy="stdout_json_stderr_log_and_reported_segment_counts",
+        required_env_groups=("database",),
+        data_health_dataset="research.segment_footnote_evidence",
+    ),
+    DataOperationCadence(
         job_id="segment-footnote-evidence-weekly",
         pipeline_name="segment_footnote_evidence",
         domain="fundamentals",

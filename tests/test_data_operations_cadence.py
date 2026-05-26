@@ -92,6 +92,13 @@ class DataOperationsCadenceTests(unittest.TestCase):
         self.assertEqual(forecast_job["domain"], "fundamentals")
         self.assertIn("financial-forecast-inputs-run", forecast_job["command_template"])
         self.assertEqual(forecast_job["data_health_dataset"], "market.financial_forecast_input")
+        reported_segment_job = next(
+            job for job in report["jobs"] if job["job_id"] == "reported-segment-footnote-parser-weekly"
+        )
+        self.assertEqual(reported_segment_job["pipeline_name"], "reported_segment_footnote_parser")
+        self.assertEqual(reported_segment_job["domain"], "fundamentals")
+        self.assertIn("reported-segment-footnote-parser-run", reported_segment_job["command_template"])
+        self.assertEqual(reported_segment_job["data_health_dataset"], "research.segment_footnote_evidence")
         segment_job = next(job for job in report["jobs"] if job["job_id"] == "segment-footnote-evidence-weekly")
         self.assertEqual(segment_job["pipeline_name"], "segment_footnote_evidence")
         self.assertEqual(segment_job["domain"], "fundamentals")
@@ -151,6 +158,7 @@ class DataOperationsCadenceTests(unittest.TestCase):
         self.assertIn("'sec_companyfacts_upsert'", values_sql)
         self.assertIn("'financial_metric_normalization'", values_sql)
         self.assertIn("'peer_relative_analysis'", values_sql)
+        self.assertIn("'reported_segment_footnote_parser'", values_sql)
         self.assertIn("'valuation_snapshot'", values_sql)
         self.assertIn("'portfolio_remediation_daily_automation'", values_sql)
         self.assertIn("'performance_outcome_schedule_bootstrap'", values_sql)

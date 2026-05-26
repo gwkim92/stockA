@@ -1,7 +1,13 @@
 from __future__ import annotations
 
+import html
 import json
+import re
+from dataclasses import dataclass
 from datetime import date
+from decimal import Decimal, InvalidOperation
+from pathlib import Path
+from urllib.parse import unquote, urlparse
 
 from stockanalysis.ingest.config import RuntimeConfig
 from stockanalysis.ingest.macro.sql import sql_date, sql_literal
@@ -21,6 +27,8 @@ DEFAULT_VALUATION_PIPELINE_NAME = "valuation_snapshot"
 DEFAULT_VALUATION_MODEL_NAME = "deterministic-valuation-snapshot-sql-v1"
 DEFAULT_FINANCIAL_FORECAST_PIPELINE_NAME = "financial_forecast_inputs"
 DEFAULT_FINANCIAL_FORECAST_MODEL_NAME = "deterministic-financial-forecast-inputs-sql-v1"
+DEFAULT_REPORTED_SEGMENT_PIPELINE_NAME = "reported_segment_footnote_parser"
+DEFAULT_REPORTED_SEGMENT_MODEL_NAME = "deterministic-reported-segment-footnote-html-v1"
 DEFAULT_SEGMENT_FOOTNOTE_PIPELINE_NAME = "segment_footnote_evidence"
 DEFAULT_SEGMENT_FOOTNOTE_MODEL_NAME = "deterministic-segment-footnote-evidence-sql-v1"
 DEFAULT_SOTP_PIPELINE_NAME = "sum_of_parts_valuation"
@@ -54,7 +62,32 @@ SEGMENT_FOOTNOTE_EVIDENCE_TYPES = (
     "reported_segment_metric",
     "segment_data_gap",
 )
+REPORTED_SEGMENT_METRIC_CODES = (
+    "segment_revenue",
+    "segment_operating_income",
+    "segment_gross_profit",
+    "segment_assets",
+    "segment_capex",
+)
 SOTP_COMPONENT_TYPES = ("operating_business", "balance_sheet_adjustment", "risk_reserve")
+
+
+@dataclass(frozen=True)
+class ReportedSegmentMetricEvidence:
+    instrument_id: int
+    primary_symbol: str
+    as_of_date: date
+    statement_scope: str
+    segment_key: str
+    segment_label: str
+    metric_code: str
+    metric_value: Decimal
+    metric_unit: str
+    period_end: date
+    source_document_id: int
+    evidence_text: str
+    assumptions_json: dict[str, object]
+    confidence: Decimal
 
 
 def render_financial_metric_normalization_preview_sql(*, as_of_date: date, limit: int | None = None) -> str:
@@ -1497,6 +1530,314 @@ def run_financial_forecast_inputs(
         )
         if not isinstance(upsert_summary, dict):
             raise ValueError("Financial forecast inputs upsert did not return a JSON object.")
+        _mark_pipeline_run_succeeded(sql_executor, run_id)
+    except Exception as exc:
+        _mark_pipeline_run_failed(sql_executor, run_id, str(exc))
+        raise
+
+    return {
+        **report,
+        "status": "completed",
+        "run_id": run_id,
+        "upsert": upsert_summary,
+    }
+
+
+def render_reported_segment_footnote_candidates_sql(
+    *,
+    as_of_date: date,
+    statement_scope: str = "annual",
+    limit: int | None = None,
+) -> str:
+    _validate_valuation_args(statement_scope=statement_scope)
+    if limit is not None and limit <= 0:
+        raise ValueError("limit must be greater than 0.")
+    limit_clause = "" if limit is None else f"\n    limit {int(limit)}"
+    return f"""-- reported segment footnote candidates
+with latest_periods as (
+    select distinct on (period.instrument_id)
+        period.period_id,
+        period.instrument_id,
+        instrument.primary_symbol,
+        period.period_end,
+        period.source_document_id,
+        document.title as source_document_title,
+        document.raw_storage_uri,
+        document.url as source_document_url
+    from market.financial_statement_period period
+    join ref.instrument instrument on instrument.instrument_id = period.instrument_id
+    join ingest.source_document document on document.document_id = period.source_document_id
+    where period.period_end <= {sql_date(as_of_date)}
+      and period.statement_scope = {sql_literal(statement_scope)}
+      and document.raw_storage_uri is not null
+    order by period.instrument_id, period.period_end desc, period.period_id desc
+),
+candidate_rows as (
+    select *
+    from latest_periods
+    order by primary_symbol, period_end desc, source_document_id desc{limit_clause}
+)
+select coalesce(
+    json_agg(
+        json_build_object(
+            'instrument_id', instrument_id,
+            'primary_symbol', primary_symbol,
+            'period_end', period_end,
+            'source_document_id', source_document_id,
+            'source_document_title', source_document_title,
+            'raw_storage_uri', raw_storage_uri,
+            'source_document_url', source_document_url
+        )
+        order by primary_symbol, period_end desc, source_document_id desc
+    ),
+    '[]'::json
+)::text
+from candidate_rows;"""
+
+
+def render_reported_segment_footnote_metric_upsert_sql(
+    evidence_rows: list[ReportedSegmentMetricEvidence],
+    *,
+    as_of_date: date,
+    source_run_id: int,
+    statement_scope: str = "annual",
+) -> str:
+    _validate_valuation_args(statement_scope=statement_scope)
+    if not evidence_rows:
+        return f"""-- reported segment footnote metric upsert
+select json_build_object(
+    'as_of_date', {sql_literal(as_of_date.isoformat())},
+    'source_run_id', {int(source_run_id)},
+    'statement_scope', {sql_literal(statement_scope)},
+    'reported_segment_metric_count', 0,
+    'parsed_instrument_count', 0,
+    'removed_gap_count', 0,
+    'metric_code_counts', '{{}}'::json,
+    'recommendation_scoring_mutated', false
+)::text;"""
+
+    value_rows = ",\n        ".join(_render_reported_segment_metric_value_tuple(row) for row in evidence_rows)
+    return f"""-- reported segment footnote metric upsert
+with input_rows(
+    instrument_id,
+    as_of_date,
+    statement_scope,
+    segment_key,
+    segment_label,
+    evidence_type,
+    metric_code,
+    metric_value,
+    metric_unit,
+    period_end,
+    source_document_id,
+    evidence_text,
+    assumptions_json,
+    confidence
+) as (
+    values
+        {value_rows}
+),
+upsert_evidence as (
+    insert into research.segment_footnote_evidence (
+        instrument_id,
+        as_of_date,
+        statement_scope,
+        segment_key,
+        segment_label,
+        evidence_type,
+        metric_code,
+        metric_value,
+        metric_unit,
+        period_end,
+        source_document_id,
+        evidence_text,
+        assumptions_json,
+        confidence,
+        source_run_id
+    )
+    select
+        instrument_id,
+        as_of_date,
+        statement_scope,
+        segment_key,
+        segment_label,
+        evidence_type,
+        metric_code,
+        metric_value,
+        metric_unit,
+        period_end,
+        source_document_id,
+        evidence_text,
+        assumptions_json,
+        confidence,
+        {int(source_run_id)}::bigint
+    from input_rows
+    on conflict (
+        instrument_id,
+        as_of_date,
+        statement_scope,
+        segment_key,
+        evidence_type,
+        metric_code,
+        period_end
+    ) do update
+    set
+        segment_label = excluded.segment_label,
+        metric_value = excluded.metric_value,
+        metric_unit = excluded.metric_unit,
+        source_document_id = excluded.source_document_id,
+        evidence_text = excluded.evidence_text,
+        assumptions_json = excluded.assumptions_json,
+        confidence = excluded.confidence,
+        source_run_id = excluded.source_run_id
+    returning instrument_id, metric_code
+),
+removed_gaps as (
+    delete from research.segment_footnote_evidence gap
+    where gap.as_of_date = {sql_date(as_of_date)}
+      and gap.statement_scope = {sql_literal(statement_scope)}
+      and gap.evidence_type = 'segment_data_gap'
+      and exists (
+          select 1
+          from input_rows input
+          where input.instrument_id = gap.instrument_id
+            and input.period_end = gap.period_end
+      )
+    returning gap.evidence_id
+)
+select json_build_object(
+    'as_of_date', {sql_literal(as_of_date.isoformat())},
+    'source_run_id', {int(source_run_id)},
+    'statement_scope', {sql_literal(statement_scope)},
+    'reported_segment_metric_count', (select count(*)::integer from upsert_evidence),
+    'parsed_instrument_count', (select count(distinct instrument_id)::integer from upsert_evidence),
+    'removed_gap_count', (select count(*)::integer from removed_gaps),
+    'metric_code_counts',
+        coalesce(
+            (
+                select json_object_agg(metric_code, metric_count order by metric_code)
+                from (
+                    select metric_code, count(*)::integer as metric_count
+                    from upsert_evidence
+                    group by metric_code
+                ) counts
+            ),
+            '{{}}'::json
+        ),
+    'recommendation_scoring_mutated', false
+)::text;"""
+
+
+def load_reported_segment_footnote_candidates(
+    *,
+    config: RuntimeConfig,
+    as_of_date: date,
+    statement_scope: str = "annual",
+    limit: int | None = None,
+    executor: PsqlCommandExecutor | None = None,
+) -> list[dict[str, object]]:
+    sql_executor = executor or PsqlCommandExecutor.from_config(config)
+    payload = json.loads(
+        sql_executor.execute_scalar(
+            render_reported_segment_footnote_candidates_sql(
+                as_of_date=as_of_date,
+                statement_scope=statement_scope,
+                limit=limit,
+            )
+        )
+    )
+    if not isinstance(payload, list):
+        raise ValueError("Reported segment footnote candidates query did not return a JSON array.")
+    return [item for item in payload if isinstance(item, dict)]
+
+
+def run_reported_segment_footnote_parser(
+    *,
+    config: RuntimeConfig,
+    as_of_date: date,
+    statement_scope: str = "annual",
+    limit: int | None = None,
+    execute: bool = False,
+    executor: PsqlCommandExecutor | None = None,
+) -> dict[str, object]:
+    sql_executor = executor or PsqlCommandExecutor.from_config(config)
+    candidates = load_reported_segment_footnote_candidates(
+        config=config,
+        as_of_date=as_of_date,
+        statement_scope=statement_scope,
+        limit=limit,
+        executor=sql_executor,
+    )
+    parsed_rows: list[ReportedSegmentMetricEvidence] = []
+    skipped_candidates: list[dict[str, object]] = []
+    for candidate in candidates:
+        rows, skipped_reason = _parse_reported_segment_candidate(
+            candidate,
+            as_of_date=as_of_date,
+            statement_scope=statement_scope,
+        )
+        parsed_rows.extend(rows)
+        if skipped_reason is not None:
+            skipped_candidates.append(
+                {
+                    "instrument_id": candidate.get("instrument_id"),
+                    "primary_symbol": candidate.get("primary_symbol"),
+                    "source_document_id": candidate.get("source_document_id"),
+                    "reason": skipped_reason,
+                }
+            )
+
+    preview = {
+        "as_of_date": as_of_date.isoformat(),
+        "statement_scope": statement_scope,
+        "candidate_count": len(candidates),
+        "parsed_metric_count": len(parsed_rows),
+        "parsed_instrument_count": len({row.instrument_id for row in parsed_rows}),
+        "skipped_candidate_count": len(skipped_candidates),
+        "metric_code_counts": _count_by_metric_code(parsed_rows),
+        "skipped_candidates": skipped_candidates[:20],
+    }
+    report: dict[str, object] = {
+        "report_name": "reported_segment_footnote_parser",
+        "status": "planned" if not execute else "running",
+        "execute": execute,
+        "pipeline_name": DEFAULT_REPORTED_SEGMENT_PIPELINE_NAME,
+        "as_of_date": as_of_date.isoformat(),
+        "statement_scope": statement_scope,
+        "limit": limit,
+        "model_name": DEFAULT_REPORTED_SEGMENT_MODEL_NAME,
+        "supported_metric_codes": list(REPORTED_SEGMENT_METRIC_CODES),
+        "preview": preview,
+        "recommendation_scoring_mutated": False,
+    }
+    if not execute:
+        return report
+
+    run_id = _create_pipeline_run(
+        sql_executor,
+        pipeline_name=DEFAULT_REPORTED_SEGMENT_PIPELINE_NAME,
+        config_json={
+            "as_of_date": as_of_date.isoformat(),
+            "statement_scope": statement_scope,
+            "limit": limit,
+            "model_name": DEFAULT_REPORTED_SEGMENT_MODEL_NAME,
+            "supported_metric_codes": list(REPORTED_SEGMENT_METRIC_CODES),
+            "recommendation_scoring_mutated": False,
+        },
+    )
+    try:
+        upsert_summary = json.loads(
+            sql_executor.execute_scalar(
+                render_reported_segment_footnote_metric_upsert_sql(
+                    parsed_rows,
+                    as_of_date=as_of_date,
+                    source_run_id=run_id,
+                    statement_scope=statement_scope,
+                )
+            )
+        )
+        if not isinstance(upsert_summary, dict):
+            raise ValueError("Reported segment footnote parser upsert did not return a JSON object.")
         _mark_pipeline_run_succeeded(sql_executor, run_id)
     except Exception as exc:
         _mark_pipeline_run_failed(sql_executor, run_id, str(exc))
@@ -3372,6 +3713,262 @@ def run_valuation_snapshot(
         "run_id": run_id,
         "upsert": upsert_summary,
     }
+
+
+def extract_reported_segment_metrics_from_html(
+    html_text: str,
+    *,
+    instrument_id: int,
+    primary_symbol: str,
+    as_of_date: date,
+    statement_scope: str,
+    period_end: date,
+    source_document_id: int,
+    source_document_title: str | None = None,
+    source_document_url: str | None = None,
+) -> list[ReportedSegmentMetricEvidence]:
+    rows: list[ReportedSegmentMetricEvidence] = []
+    seen: set[tuple[str, str]] = set()
+    for table_index, table_html in enumerate(_extract_html_tables(html_text), start=1):
+        table_rows = _extract_html_table_rows(table_html)
+        if len(table_rows) < 2:
+            continue
+        header_index = _find_segment_table_header_index(table_rows)
+        if header_index is None:
+            continue
+        headers = table_rows[header_index]
+        metric_columns = {
+            index: metric_code
+            for index, header in enumerate(headers)
+            if index > 0
+            for metric_code in [_metric_code_from_segment_header(header)]
+            if metric_code is not None
+        }
+        if not metric_columns:
+            continue
+        unit = _infer_segment_metric_unit(table_html)
+        for row in table_rows[header_index + 1 :]:
+            if len(row) < 2:
+                continue
+            segment_label = _clean_segment_label(row[0])
+            if segment_label is None:
+                continue
+            segment_key = _segment_key(segment_label)
+            if not segment_key:
+                continue
+            for index, metric_code in metric_columns.items():
+                if index >= len(row):
+                    continue
+                value = _parse_segment_metric_value(row[index])
+                if value is None:
+                    continue
+                dedupe_key = (segment_key, metric_code)
+                if dedupe_key in seen:
+                    continue
+                seen.add(dedupe_key)
+                rows.append(
+                    ReportedSegmentMetricEvidence(
+                        instrument_id=instrument_id,
+                        primary_symbol=primary_symbol,
+                        as_of_date=as_of_date,
+                        statement_scope=statement_scope,
+                        segment_key=segment_key,
+                        segment_label=segment_label,
+                        metric_code=metric_code,
+                        metric_value=value,
+                        metric_unit=unit,
+                        period_end=period_end,
+                        source_document_id=source_document_id,
+                        evidence_text=(
+                            f"{primary_symbol} reported {metric_code} for {segment_label} "
+                            f"parsed from SEC segment footnote table {table_index}."
+                        ),
+                        assumptions_json={
+                            "source": "sec_raw_filing_html_table",
+                            "parser_model": DEFAULT_REPORTED_SEGMENT_MODEL_NAME,
+                            "primary_symbol": primary_symbol,
+                            "source_document_title": source_document_title,
+                            "source_document_url": source_document_url,
+                            "table_index": table_index,
+                            "header_cells": headers,
+                            "metric_unit": unit,
+                            "interpretation": "SEC filing의 세그먼트/사업부 표에서 직접 파싱한 reported segment metric이다.",
+                            "recommendation_scoring_mutated": False,
+                        },
+                        confidence=Decimal("0.8200"),
+                    )
+                )
+    return rows
+
+
+def _parse_reported_segment_candidate(
+    candidate: dict[str, object],
+    *,
+    as_of_date: date,
+    statement_scope: str,
+) -> tuple[list[ReportedSegmentMetricEvidence], str | None]:
+    raw_storage_uri = str(candidate.get("raw_storage_uri") or "")
+    if not raw_storage_uri:
+        return [], "missing_raw_storage_uri"
+    artifact_path = _file_uri_to_path(raw_storage_uri)
+    if artifact_path is None:
+        return [], "unsupported_raw_storage_uri"
+    if not artifact_path.exists():
+        return [], "raw_artifact_missing"
+    try:
+        html_text = artifact_path.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return [], "raw_artifact_unreadable"
+    try:
+        return (
+            extract_reported_segment_metrics_from_html(
+                html_text,
+                instrument_id=int(candidate["instrument_id"]),
+                primary_symbol=str(candidate["primary_symbol"]),
+                as_of_date=as_of_date,
+                statement_scope=statement_scope,
+                period_end=date.fromisoformat(str(candidate["period_end"])),
+                source_document_id=int(candidate["source_document_id"]),
+                source_document_title=(
+                    str(candidate["source_document_title"]) if candidate.get("source_document_title") is not None else None
+                ),
+                source_document_url=(
+                    str(candidate["source_document_url"]) if candidate.get("source_document_url") is not None else None
+                ),
+            ),
+            None,
+        )
+    except (KeyError, TypeError, ValueError):
+        return [], "candidate_payload_invalid"
+
+
+def _render_reported_segment_metric_value_tuple(row: ReportedSegmentMetricEvidence) -> str:
+    return (
+        f"({int(row.instrument_id)}::bigint, "
+        f"{sql_date(row.as_of_date)}, "
+        f"{sql_literal(row.statement_scope)}::text, "
+        f"{sql_literal(row.segment_key)}::text, "
+        f"{sql_literal(row.segment_label)}::text, "
+        "'reported_segment_metric'::text, "
+        f"{sql_literal(row.metric_code)}::text, "
+        f"{sql_literal(row.metric_value)}::numeric, "
+        f"{sql_literal(row.metric_unit)}::text, "
+        f"{sql_date(row.period_end)}, "
+        f"{int(row.source_document_id)}::bigint, "
+        f"{sql_literal(row.evidence_text)}::text, "
+        f"{sql_literal(json.dumps(row.assumptions_json, ensure_ascii=False, sort_keys=True))}::jsonb, "
+        f"{sql_literal(row.confidence)}::numeric)"
+    )
+
+
+def _extract_html_tables(html_text: str) -> list[str]:
+    return re.findall(r"<table\b[^>]*>.*?</table>", html_text, flags=re.IGNORECASE | re.DOTALL)
+
+
+def _extract_html_table_rows(table_html: str) -> list[list[str]]:
+    rows: list[list[str]] = []
+    for row_html in re.findall(r"<tr\b[^>]*>.*?</tr>", table_html, flags=re.IGNORECASE | re.DOTALL):
+        cells = [
+            _html_to_text(cell_html)
+            for cell_html in re.findall(r"<t[dh]\b[^>]*>.*?</t[dh]>", row_html, flags=re.IGNORECASE | re.DOTALL)
+        ]
+        if any(cells):
+            rows.append(cells)
+    return rows
+
+
+def _html_to_text(fragment: str) -> str:
+    without_tags = re.sub(r"<[^>]+>", " ", fragment)
+    text = html.unescape(without_tags)
+    text = re.sub(r"\s+", " ", text)
+    return text.strip()
+
+
+def _find_segment_table_header_index(rows: list[list[str]]) -> int | None:
+    for index, row in enumerate(rows[:6]):
+        if len(row) < 2:
+            continue
+        first_cell = row[0].strip().lower()
+        has_segment_label = any(token in first_cell for token in ("segment", "business", "product", "category"))
+        has_metric = any(_metric_code_from_segment_header(cell) is not None for cell in row[1:])
+        if has_segment_label and has_metric:
+            return index
+    return None
+
+
+def _metric_code_from_segment_header(header: str) -> str | None:
+    normalized = re.sub(r"[^a-z0-9]+", " ", header.lower()).strip()
+    if not normalized:
+        return None
+    if any(token in normalized for token in ("operating income", "operating profit", "income from operations")):
+        return "segment_operating_income"
+    if "gross profit" in normalized:
+        return "segment_gross_profit"
+    if "capital expenditure" in normalized or normalized in {"capex", "capital expenditures"}:
+        return "segment_capex"
+    if "total assets" in normalized or normalized == "assets":
+        return "segment_assets"
+    if any(token in normalized for token in ("net sales", "revenue", "sales")):
+        return "segment_revenue"
+    return None
+
+
+def _infer_segment_metric_unit(table_html: str) -> str:
+    normalized = _html_to_text(table_html).lower()
+    if "in millions" in normalized or "millions" in normalized:
+        return "USD_millions_as_reported"
+    if "in thousands" in normalized or "thousands" in normalized:
+        return "USD_thousands_as_reported"
+    return "USD_as_reported"
+
+
+def _clean_segment_label(label: str) -> str | None:
+    cleaned = re.sub(r"\s+", " ", label).strip(" :-")
+    if not cleaned:
+        return None
+    normalized = cleaned.lower()
+    if normalized in {"total", "totals", "consolidated", "consolidated total", "company total"}:
+        return None
+    if "total net sales" in normalized or "total revenue" in normalized:
+        return None
+    return cleaned[:120]
+
+
+def _segment_key(label: str) -> str:
+    normalized = re.sub(r"[^a-z0-9]+", "_", label.lower()).strip("_")
+    return f"reported_{normalized}"[:120]
+
+
+def _parse_segment_metric_value(value: str) -> Decimal | None:
+    cleaned = value.replace("$", "").replace(",", "").strip()
+    if not cleaned or cleaned in {"-", "—", "–"}:
+        return None
+    negative = cleaned.startswith("(") and cleaned.endswith(")")
+    cleaned = cleaned.strip("()")
+    match = re.search(r"-?\d+(?:\.\d+)?", cleaned)
+    if match is None:
+        return None
+    try:
+        parsed = Decimal(match.group(0))
+    except InvalidOperation:
+        return None
+    return -parsed if negative else parsed
+
+
+def _file_uri_to_path(raw_storage_uri: str) -> Path | None:
+    parsed = urlparse(raw_storage_uri)
+    if parsed.scheme != "file":
+        return None
+    if parsed.netloc not in {"", "localhost"}:
+        return None
+    return Path(unquote(parsed.path))
+
+
+def _count_by_metric_code(rows: list[ReportedSegmentMetricEvidence]) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for row in rows:
+        counts[row.metric_code] = counts.get(row.metric_code, 0) + 1
+    return dict(sorted(counts.items()))
 
 
 def _validate_peer_relative_args(*, statement_scope: str, min_peer_count: int) -> None:
