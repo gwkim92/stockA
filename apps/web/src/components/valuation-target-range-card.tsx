@@ -284,8 +284,12 @@ export function ValuationTargetRangeCard({
                             <small style={{ color: "var(--text-secondary)", lineHeight: 1.45 }}>
                               {segment.driver_label || "사업부 driver 미확인"} · 기준 성장률 {formatPercent(segment.base_growth_rate)}
                               · 마진 {formatPercent(segment.margin_assumption)}
-                              · multiple {formatMultiple(segment.low_multiple)}~{formatMultiple(segment.high_multiple)}
+                              · 배수 {formatMultiple(segment.low_multiple)}~{formatMultiple(segment.high_multiple)}
                               · 비중 {formatPercent(segment.allocation_weight)}
+                              {segment.driver_template_label ? ` · 동인 ${segment.driver_template_label}` : ""}
+                              {segment.history_period_count > 1
+                                ? ` · ${segment.history_period_count}개 기간 추세: 매출 CAGR ${formatPercent(segment.observed_revenue_cagr, true)}, 마진 변화 ${formatPercent(segment.observed_margin_change, true)}`
+                                : " · 단일 기간 proxy"}
                               {segment.rationale ? ` · ${segment.rationale}` : ""}
                             </small>
                           </div>

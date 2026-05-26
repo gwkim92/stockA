@@ -714,6 +714,14 @@ class FakeLiveExecutor:
                                         "period_end": "2024-09-28",
                                         "driver_key": "high_margin_cash_engine",
                                         "driver_label": "고마진 현금창출 사업부",
+                                        "driver_template_key": "hardware_product_cycle",
+                                        "driver_template_label": "제품 교체 사이클·ASP·공급망",
+                                        "calibration_method": "multi_period_segment_trend_template",
+                                        "history_period_count": 3,
+                                        "first_period_end": "2022-09-24",
+                                        "latest_period_end": "2024-09-28",
+                                        "observed_revenue_cagr": "0.0430",
+                                        "observed_margin_change": "0.0180",
                                         "base_growth_rate": "0.0600",
                                         "low_growth_rate": "0.0300",
                                         "high_growth_rate": "0.0900",
@@ -734,6 +742,14 @@ class FakeLiveExecutor:
                                         "period_end": "2024-09-28",
                                         "driver_key": "high_margin_cash_engine",
                                         "driver_label": "고마진 현금창출 사업부",
+                                        "driver_template_key": "services_installed_base",
+                                        "driver_template_label": "설치 기반·구독·총마진",
+                                        "calibration_method": "multi_period_segment_trend_template",
+                                        "history_period_count": 3,
+                                        "first_period_end": "2022-09-24",
+                                        "latest_period_end": "2024-09-28",
+                                        "observed_revenue_cagr": "0.0810",
+                                        "observed_margin_change": "0.0240",
                                         "base_growth_rate": "0.0500",
                                         "low_growth_rate": "0.0200",
                                         "high_growth_rate": "0.0800",
@@ -3637,6 +3653,22 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertEqual(
             sotp_method["sotp_evidence"]["reported_segment_assumptions"][0]["base_multiple"],
             20.0,
+        )
+        self.assertEqual(
+            sotp_method["sotp_evidence"]["reported_segment_assumptions"][0]["driver_template_label"],
+            "제품 교체 사이클·ASP·공급망",
+        )
+        self.assertEqual(
+            sotp_method["sotp_evidence"]["reported_segment_assumptions"][0]["calibration_method"],
+            "multi_period_segment_trend_template",
+        )
+        self.assertEqual(
+            sotp_method["sotp_evidence"]["reported_segment_assumptions"][0]["history_period_count"],
+            3,
+        )
+        self.assertAlmostEqual(
+            sotp_method["sotp_evidence"]["reported_segment_assumptions"][0]["observed_revenue_cagr"],
+            0.043,
         )
         self.assertEqual(sotp_method["sotp_evidence"]["segment_footnote_evidence"]["status"], "available")
         self.assertEqual(sotp_method["sotp_evidence"]["segment_footnote_evidence"]["evidence_count"], 3)

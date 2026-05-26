@@ -405,6 +405,14 @@ export type ValuationMethodSnapshot = {
       period_end: string;
       driver_key: string;
       driver_label: string;
+      driver_template_key: string;
+      driver_template_label: string;
+      calibration_method: string;
+      history_period_count: number;
+      first_period_end: string;
+      latest_period_end: string;
+      observed_revenue_cagr: number | null;
+      observed_margin_change: number | null;
       base_growth_rate: number | null;
       low_growth_rate: number | null;
       high_growth_rate: number | null;

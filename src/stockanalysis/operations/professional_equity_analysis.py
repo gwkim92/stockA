@@ -2331,6 +2331,79 @@ forecast_inputs as (
     from latest_forecast_rows
     group by instrument_id
 ),
+reported_segment_history_rows as (
+    select
+        evidence.instrument_id,
+        evidence.segment_key,
+        max(evidence.segment_label) as segment_label,
+        evidence.period_end,
+        max(evidence.metric_value) filter (where evidence.metric_code = 'segment_revenue') as segment_revenue,
+        max(evidence.metric_value) filter (where evidence.metric_code = 'segment_operating_income') as segment_operating_income,
+        avg(evidence.confidence) as confidence
+    from research.segment_footnote_evidence evidence
+    where evidence.as_of_date <= {sql_date(as_of_date)}
+      and evidence.statement_scope = {sql_literal(statement_scope)}
+      and evidence.evidence_type = 'reported_segment_metric'
+      and evidence.metric_code in ('segment_revenue', 'segment_operating_income')
+    group by evidence.instrument_id, evidence.segment_key, evidence.period_end
+    having
+        max(evidence.metric_value) filter (where evidence.metric_code = 'segment_revenue') is not null
+        or max(evidence.metric_value) filter (where evidence.metric_code = 'segment_operating_income') is not null
+),
+reported_segment_history_ranked as (
+    select
+        row.*,
+        case
+            when row.segment_revenue is not null
+             and row.segment_revenue > 0
+             and row.segment_operating_income is not null
+            then row.segment_operating_income / row.segment_revenue
+            else null::numeric
+        end as operating_margin,
+        row_number() over (partition by row.instrument_id, row.segment_key order by row.period_end asc) as first_period_rank,
+        row_number() over (partition by row.instrument_id, row.segment_key order by row.period_end desc) as latest_period_rank
+    from reported_segment_history_rows row
+),
+reported_segment_trend_anchors as (
+    select
+        instrument_id,
+        segment_key,
+        count(*)::integer as history_period_count,
+        min(period_end) as first_period_end,
+        max(period_end) as latest_period_end,
+        greatest(1.0000::numeric, ((max(period_end) - min(period_end))::numeric / 365.2500::numeric)) as history_year_span,
+        max(segment_revenue) filter (where first_period_rank = 1) as first_revenue,
+        max(segment_revenue) filter (where latest_period_rank = 1) as latest_revenue,
+        max(operating_margin) filter (where first_period_rank = 1) as first_operating_margin,
+        max(operating_margin) filter (where latest_period_rank = 1) as latest_operating_margin,
+        avg(confidence) as trend_confidence
+    from reported_segment_history_ranked
+    group by instrument_id, segment_key
+),
+reported_segment_trends as (
+    select
+        anchor.*,
+        case
+            when anchor.history_period_count >= 2
+             and anchor.first_revenue is not null
+             and anchor.first_revenue > 0
+             and anchor.latest_revenue is not null
+             and anchor.latest_revenue > 0
+            then power(
+                (anchor.latest_revenue / anchor.first_revenue)::double precision,
+                (1.0000::numeric / anchor.history_year_span)::double precision
+            )::numeric - 1.0000::numeric
+            else null::numeric
+        end as observed_revenue_cagr,
+        case
+            when anchor.history_period_count >= 2
+             and anchor.first_operating_margin is not null
+             and anchor.latest_operating_margin is not null
+            then anchor.latest_operating_margin - anchor.first_operating_margin
+            else null::numeric
+        end as observed_margin_change
+    from reported_segment_trend_anchors anchor
+),
 latest_segment_evidence as (
     select distinct on (evidence.instrument_id, evidence.segment_key, evidence.evidence_type, evidence.metric_code)
         evidence.instrument_id,
@@ -2485,6 +2558,79 @@ forecast_inputs as (
     from latest_forecast_rows
     group by instrument_id
 ),
+reported_segment_history_rows as (
+    select
+        evidence.instrument_id,
+        evidence.segment_key,
+        max(evidence.segment_label) as segment_label,
+        evidence.period_end,
+        max(evidence.metric_value) filter (where evidence.metric_code = 'segment_revenue') as segment_revenue,
+        max(evidence.metric_value) filter (where evidence.metric_code = 'segment_operating_income') as segment_operating_income,
+        avg(evidence.confidence) as confidence
+    from research.segment_footnote_evidence evidence
+    where evidence.as_of_date <= {sql_date(as_of_date)}
+      and evidence.statement_scope = {sql_literal(statement_scope)}
+      and evidence.evidence_type = 'reported_segment_metric'
+      and evidence.metric_code in ('segment_revenue', 'segment_operating_income')
+    group by evidence.instrument_id, evidence.segment_key, evidence.period_end
+    having
+        max(evidence.metric_value) filter (where evidence.metric_code = 'segment_revenue') is not null
+        or max(evidence.metric_value) filter (where evidence.metric_code = 'segment_operating_income') is not null
+),
+reported_segment_history_ranked as (
+    select
+        row.*,
+        case
+            when row.segment_revenue is not null
+             and row.segment_revenue > 0
+             and row.segment_operating_income is not null
+            then row.segment_operating_income / row.segment_revenue
+            else null::numeric
+        end as operating_margin,
+        row_number() over (partition by row.instrument_id, row.segment_key order by row.period_end asc) as first_period_rank,
+        row_number() over (partition by row.instrument_id, row.segment_key order by row.period_end desc) as latest_period_rank
+    from reported_segment_history_rows row
+),
+reported_segment_trend_anchors as (
+    select
+        instrument_id,
+        segment_key,
+        count(*)::integer as history_period_count,
+        min(period_end) as first_period_end,
+        max(period_end) as latest_period_end,
+        greatest(1.0000::numeric, ((max(period_end) - min(period_end))::numeric / 365.2500::numeric)) as history_year_span,
+        max(segment_revenue) filter (where first_period_rank = 1) as first_revenue,
+        max(segment_revenue) filter (where latest_period_rank = 1) as latest_revenue,
+        max(operating_margin) filter (where first_period_rank = 1) as first_operating_margin,
+        max(operating_margin) filter (where latest_period_rank = 1) as latest_operating_margin,
+        avg(confidence) as trend_confidence
+    from reported_segment_history_ranked
+    group by instrument_id, segment_key
+),
+reported_segment_trends as (
+    select
+        anchor.*,
+        case
+            when anchor.history_period_count >= 2
+             and anchor.first_revenue is not null
+             and anchor.first_revenue > 0
+             and anchor.latest_revenue is not null
+             and anchor.latest_revenue > 0
+            then power(
+                (anchor.latest_revenue / anchor.first_revenue)::double precision,
+                (1.0000::numeric / anchor.history_year_span)::double precision
+            )::numeric - 1.0000::numeric
+            else null::numeric
+        end as observed_revenue_cagr,
+        case
+            when anchor.history_period_count >= 2
+             and anchor.first_operating_margin is not null
+             and anchor.latest_operating_margin is not null
+            then anchor.latest_operating_margin - anchor.first_operating_margin
+            else null::numeric
+        end as observed_margin_change
+    from reported_segment_trend_anchors anchor
+),
 latest_segment_evidence as (
     select distinct on (evidence.instrument_id, evidence.segment_key, evidence.evidence_type, evidence.metric_code)
         evidence.instrument_id,
@@ -2619,6 +2765,53 @@ reported_segment_allocation_rows as (
 reported_segment_assumption_base as (
     select
         allocation.*,
+        trend.history_period_count,
+        trend.first_period_end,
+        trend.latest_period_end,
+        trend.history_year_span,
+        trend.observed_revenue_cagr,
+        trend.observed_margin_change,
+        trend.trend_confidence,
+        case
+            when lower(coalesce(allocation.segment_label, '')) like '%service%' then 'services_installed_base'
+            when lower(coalesce(allocation.segment_label, '')) like '%iphone%'
+              or lower(coalesce(allocation.segment_label, '')) like '%ipad%'
+              or lower(coalesce(allocation.segment_label, '')) like '%mac%'
+              or lower(coalesce(allocation.segment_label, '')) like '%wearable%'
+              or lower(coalesce(allocation.segment_label, '')) like '%product%' then 'hardware_product_cycle'
+            when lower(coalesce(allocation.segment_label, '')) like '%data center%'
+              or lower(coalesce(allocation.segment_label, '')) like '%cloud%'
+              or lower(coalesce(allocation.segment_label, '')) like '%ai%' then 'ai_data_center_cycle'
+            when lower(coalesce(allocation.segment_label, '')) like '%energy%'
+              or lower(coalesce(allocation.segment_label, '')) like '%oil%'
+              or lower(coalesce(allocation.segment_label, '')) like '%gas%' then 'energy_cycle'
+            when lower(coalesce(allocation.segment_label, '')) like '%america%'
+              or lower(coalesce(allocation.segment_label, '')) like '%europe%'
+              or lower(coalesce(allocation.segment_label, '')) like '%china%'
+              or lower(coalesce(allocation.segment_label, '')) like '%japan%'
+              or lower(coalesce(allocation.segment_label, '')) like '%asia%' then 'geographic_demand_cycle'
+            else 'generic_business_segment'
+        end as driver_template_key,
+        case
+            when lower(coalesce(allocation.segment_label, '')) like '%service%' then '설치 기반·구독·총마진'
+            when lower(coalesce(allocation.segment_label, '')) like '%iphone%'
+              or lower(coalesce(allocation.segment_label, '')) like '%ipad%'
+              or lower(coalesce(allocation.segment_label, '')) like '%mac%'
+              or lower(coalesce(allocation.segment_label, '')) like '%wearable%'
+              or lower(coalesce(allocation.segment_label, '')) like '%product%' then '제품 교체 사이클·ASP·공급망'
+            when lower(coalesce(allocation.segment_label, '')) like '%data center%'
+              or lower(coalesce(allocation.segment_label, '')) like '%cloud%'
+              or lower(coalesce(allocation.segment_label, '')) like '%ai%' then 'AI/클라우드 투자 사이클'
+            when lower(coalesce(allocation.segment_label, '')) like '%energy%'
+              or lower(coalesce(allocation.segment_label, '')) like '%oil%'
+              or lower(coalesce(allocation.segment_label, '')) like '%gas%' then '원자재 가격·CAPEX 사이클'
+            when lower(coalesce(allocation.segment_label, '')) like '%america%'
+              or lower(coalesce(allocation.segment_label, '')) like '%europe%'
+              or lower(coalesce(allocation.segment_label, '')) like '%china%'
+              or lower(coalesce(allocation.segment_label, '')) like '%japan%'
+              or lower(coalesce(allocation.segment_label, '')) like '%asia%' then '지역 수요·환율·채널 믹스'
+            else '사업부 규모·마진·경쟁 강도'
+        end as driver_template_label,
         case
             when allocation.segment_revenue is not null
              and allocation.segment_revenue > 0
@@ -2627,6 +2820,9 @@ reported_segment_assumption_base as (
             else null::numeric
         end as operating_margin
     from reported_segment_allocation_rows allocation
+    left join reported_segment_trends trend
+        on trend.instrument_id = allocation.instrument_id
+       and trend.segment_key = allocation.segment_key
     where allocation.allocation_weight is not null
 ),
 reported_segment_assumption_rows as (
@@ -2642,6 +2838,21 @@ reported_segment_assumption_rows as (
         base.segment_revenue,
         base.segment_operating_income,
         base.operating_margin,
+        coalesce(base.history_period_count, 1)::integer as history_period_count,
+        base.first_period_end,
+        base.latest_period_end,
+        base.history_year_span,
+        base.observed_revenue_cagr,
+        base.observed_margin_change,
+        base.trend_confidence,
+        base.driver_template_key,
+        base.driver_template_label,
+        case
+            when coalesce(base.history_period_count, 1) >= 2
+             and base.observed_revenue_cagr is not null
+            then 'multi_period_segment_trend_template'
+            else 'single_period_margin_share_template_proxy'
+        end as calibration_method,
         case
             when base.operating_margin is null then 'margin_unknown'
             when base.operating_margin >= 0.3500::numeric then 'high_margin_cash_engine'
@@ -2657,6 +2868,9 @@ reported_segment_assumption_rows as (
             else '손실 또는 재투자 사업부'
         end as driver_label,
         case
+            when coalesce(base.history_period_count, 1) >= 2
+             and base.observed_revenue_cagr is not null
+            then least(0.1200::numeric, greatest(-0.0200::numeric, base.observed_revenue_cagr))
             when base.operating_margin is null then 0.0200::numeric
             when base.operating_margin >= 0.3500::numeric and base.allocation_weight >= 0.2500::numeric then 0.0600::numeric
             when base.operating_margin >= 0.3500::numeric then 0.0500::numeric
@@ -2670,6 +2884,11 @@ reported_segment_assumption_rows as (
             when base.operating_margin >= 0.2000::numeric then 13.0000::numeric
             when base.operating_margin > 0 then 9.0000::numeric
             else 7.0000::numeric
+        end
+        + case
+            when base.observed_margin_change >= 0.0300::numeric then 1.0000::numeric
+            when base.observed_margin_change <= -0.0300::numeric then -1.0000::numeric
+            else 0.0000::numeric
         end as low_multiple,
         case
             when base.operating_margin is null then 14.0000::numeric
@@ -2677,6 +2896,11 @@ reported_segment_assumption_rows as (
             when base.operating_margin >= 0.2000::numeric then 17.0000::numeric
             when base.operating_margin > 0 then 12.0000::numeric
             else 10.0000::numeric
+        end
+        + case
+            when base.observed_margin_change >= 0.0300::numeric then 1.0000::numeric
+            when base.observed_margin_change <= -0.0300::numeric then -1.0000::numeric
+            else 0.0000::numeric
         end as base_multiple,
         case
             when base.operating_margin is null then 18.0000::numeric
@@ -2684,6 +2908,11 @@ reported_segment_assumption_rows as (
             when base.operating_margin >= 0.2000::numeric then 21.0000::numeric
             when base.operating_margin > 0 then 15.0000::numeric
             else 13.0000::numeric
+        end
+        + case
+            when base.observed_margin_change >= 0.0300::numeric then 1.0000::numeric
+            when base.observed_margin_change <= -0.0300::numeric then -1.0000::numeric
+            else 0.0000::numeric
         end as high_multiple,
         base.source_document_id,
         base.confidence,
@@ -2884,6 +3113,15 @@ component_rows as (
                                 'period_end', assumption.period_end,
                                 'driver_key', assumption.driver_key,
                                 'driver_label', assumption.driver_label,
+                                'driver_template_key', assumption.driver_template_key,
+                                'driver_template_label', assumption.driver_template_label,
+                                'calibration_method', assumption.calibration_method,
+                                'history_period_count', assumption.history_period_count,
+                                'first_period_end', assumption.first_period_end,
+                                'latest_period_end', assumption.latest_period_end,
+                                'history_year_span', assumption.history_year_span,
+                                'observed_revenue_cagr', assumption.observed_revenue_cagr,
+                                'observed_margin_change', assumption.observed_margin_change,
                                 'base_growth_rate', assumption.base_growth_rate,
                                 'low_growth_rate', greatest(-0.0200::numeric, assumption.base_growth_rate - 0.0300::numeric),
                                 'high_growth_rate', least(0.1200::numeric, assumption.base_growth_rate + 0.0300::numeric),
@@ -2902,10 +3140,12 @@ component_rows as (
                                         assumption.driver_label,
                                         ' · 기준 성장률 ',
                                         round(assumption.base_growth_rate * 100, 1),
-                                        '% · 기준 multiple ',
+                                        '% · 기준 밸류에이션 배수 ',
                                         round(assumption.base_multiple, 1),
                                         'x · ',
-                                        assumption.allocation_basis
+                                        assumption.driver_template_label,
+                                        ' · ',
+                                        assumption.calibration_method
                                     ),
                                 'source_document_id', assumption.source_document_id,
                                 'confidence', assumption.confidence,
