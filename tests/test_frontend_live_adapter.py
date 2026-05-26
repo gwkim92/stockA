@@ -209,6 +209,81 @@ class FakeLiveExecutor:
                         "automatic_order_allowed": False,
                         "broker_submit_allowed": False,
                     },
+                    "professional_source_gap_prioritization": {
+                        "status": "source_blockers_present",
+                        "as_of_date": "2026-05-27",
+                        "gap_count": 2,
+                        "high_priority_count": 1,
+                        "source_blocker_count": 1,
+                        "fund_not_applicable_count": 1,
+                        "fund_source_gap_count": 0,
+                        "coverage_gap_count": 0,
+                        "top_priority_score": "81.2000",
+                        "gaps": [
+                            {
+                                "priority_rank": 1,
+                                "symbol": "EROK",
+                                "instrument_id": 7001,
+                                "instrument_name": "Ero Copper Corp.",
+                                "instrument_type": "equity",
+                                "product_type": "operating_company",
+                                "gap_status": "source_blockers_present",
+                                "priority_band": "high",
+                                "priority_score": "81.2000",
+                                "active_recommendation_count": 1,
+                                "highest_recommendation_score": "0.6200",
+                                "current_weight": "0.0410",
+                                "max_recommended_weight": "0.0500",
+                                "missing_layer_count": 5,
+                                "missing_layers": [
+                                    "financial_metric_normalized",
+                                    "valuation_snapshot",
+                                    "equity_research_artifact",
+                                ],
+                                "blocker_type": "source_blocker",
+                                "blocker_code": "sec_companyfacts_missing_us_gaap_facts",
+                                "source_run_id": 1503,
+                                "source_status": "failed",
+                                "source_observed_at": "2026-05-26T12:00:00+00:00",
+                                "source_error_summary": "facts.us-gaap absent",
+                                "remediation_action": "무료 SEC companyfacts에 us-gaap facts가 없다. 합성 재무를 만들지 않는다.",
+                                "remediation_command": "",
+                                "detail_href": "/stocks/EROK",
+                            },
+                            {
+                                "priority_rank": 2,
+                                "symbol": "SPY",
+                                "instrument_id": 7002,
+                                "instrument_name": "SPDR S&P 500 ETF Trust",
+                                "instrument_type": "etf",
+                                "product_type": "fund_or_etf",
+                                "gap_status": "fund_company_model_not_applicable",
+                                "priority_band": "watch",
+                                "priority_score": "13.5000",
+                                "active_recommendation_count": 1,
+                                "highest_recommendation_score": "0.8500",
+                                "current_weight": "0.0000",
+                                "max_recommended_weight": "0.1000",
+                                "missing_layer_count": 0,
+                                "missing_layers": [],
+                                "blocker_type": "fund_not_applicable",
+                                "blocker_code": "fund_company_financial_model_not_applicable",
+                                "source_run_id": None,
+                                "source_status": "not_applicable",
+                                "source_observed_at": None,
+                                "source_error_summary": "",
+                                "remediation_action": "기업 재무 모델은 적용하지 않고 fund/ETF 분석 표면에서 검토한다.",
+                                "remediation_command": "",
+                                "detail_href": "/stocks/SPY",
+                            },
+                        ],
+                        "next_action": "source blocker가 있는 종목부터 확인한다.",
+                        "recommendation_scoring_mutated": False,
+                        "automatic_weight_change_allowed": False,
+                        "automatic_order_allowed": False,
+                        "broker_submit_allowed": False,
+                        "order_boundary": "read_only_no_order",
+                    },
                     "open_gates": [
                         "production_api_server",
                         "auth_rbac",
@@ -3356,6 +3431,23 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertEqual(weight_review["outcome_calibration_status"], "no_due_outcome_window")
         self.assertFalse(weight_review["manual_weight_review_allowed"])
         self.assertFalse(weight_review["automatic_weight_change_allowed"])
+        source_gaps = payload["data"]["professional_source_gap_prioritization"]
+        self.assertEqual(source_gaps["status"], "source_blockers_present")
+        self.assertEqual(source_gaps["gap_count"], 2)
+        self.assertEqual(source_gaps["source_blocker_count"], 1)
+        self.assertEqual(source_gaps["fund_not_applicable_count"], 1)
+        self.assertEqual(source_gaps["gaps"][0]["symbol"], "EROK")
+        self.assertEqual(source_gaps["gaps"][0]["blocker_label"], "SEC us-gaap facts 없음")
+        self.assertEqual(source_gaps["gaps"][0]["source_run_id"], "pipeline-run-1503")
+        self.assertIn("재무 지표 정규화", source_gaps["gaps"][0]["missing_layer_labels"])
+        self.assertEqual(source_gaps["gaps"][1]["symbol"], "SPY")
+        self.assertEqual(source_gaps["gaps"][1]["product_type"], "fund_or_etf")
+        self.assertEqual(source_gaps["gaps"][1]["blocker_type"], "fund_not_applicable")
+        self.assertEqual(source_gaps["gaps"][1]["blocker_label"], "기업 재무 모델 비적용")
+        self.assertFalse(source_gaps["recommendation_scoring_mutated"])
+        self.assertFalse(source_gaps["automatic_weight_change_allowed"])
+        self.assertFalse(source_gaps["broker_submit_allowed"])
+        self.assertIn("professional_source_gap_attention", payload["data"]["open_gates"])
         self.assertEqual(payload["links"]["dashboard"], "/api/dashboard/today")
 
     def test_recommendation_outcome_maturity_due_state_requests_calibration_now(self) -> None:
@@ -3857,6 +3949,11 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertIn("selected_recommendation_weight_review_readiness", sql)
         self.assertIn("recommendation_weight_review_readiness_audit", sql)
         self.assertIn("recommendation-weight-review-readiness-v1", sql)
+        self.assertIn("professional_gap_active_recommendations", sql)
+        self.assertIn("professional_source_gap_prioritization", sql)
+        self.assertIn("fund_company_financial_model_not_applicable", sql)
+        self.assertIn("sec_companyfacts_missing_us_gaap_facts", sql)
+        self.assertIn("professional-coverage-expansion-run", sql)
 
     def test_live_stock_list_response_matches_frontend_contract_shape(self) -> None:
         payload = resolve_live_frontend_response(

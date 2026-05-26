@@ -555,6 +555,9 @@ def build_live_data_health_response(
     recommendation_weight_review_readiness = _build_recommendation_weight_review_readiness_payload(
         _as_dict(state.get("recommendation_weight_review_readiness"))
     )
+    professional_source_gap_prioritization = _build_professional_source_gap_prioritization_payload(
+        _as_dict(state.get("professional_source_gap_prioritization"))
+    )
     if scheduler_activation["status"] == "pending_manual_approval":
         gate = "scheduler_activation_manual_approval"
         if gate not in open_gates:
@@ -573,6 +576,14 @@ def build_live_data_health_response(
             open_gates.append(gate)
     if recommendation_outcome_maturity["status"] in {"due_outcomes_ready", "overdue_outcomes_ready", "blocked_by_price_gaps"}:
         gate = "recommendation_outcome_maturity_attention"
+        if gate not in open_gates:
+            open_gates.append(gate)
+    if professional_source_gap_prioritization["status"] in {
+        "source_blockers_present",
+        "high_priority_gaps",
+        "fund_source_gaps",
+    }:
+        gate = "professional_source_gap_attention"
         if gate not in open_gates:
             open_gates.append(gate)
 
@@ -600,6 +611,7 @@ def build_live_data_health_response(
             "recommendation_outcome_calibration": recommendation_outcome_calibration,
             "recommendation_outcome_maturity": recommendation_outcome_maturity,
             "recommendation_weight_review_readiness": recommendation_weight_review_readiness,
+            "professional_source_gap_prioritization": professional_source_gap_prioritization,
             "open_gates": open_gates,
         },
         "links": {
@@ -3560,6 +3572,290 @@ outcome_maturity_examples as (
         primary_symbol
     limit 8
 ),
+professional_gap_active_recommendations as (
+    select
+        recommendation.recommendation_id,
+        recommendation.instrument_id,
+        instrument.primary_symbol,
+        instrument.name,
+        instrument.instrument_type,
+        recommendation.total_score,
+        recommendation.recommended_weight,
+        batch.as_of_date,
+        (
+            lower(coalesce(instrument.instrument_type, '')) in ('etf', 'fund')
+            or upper(coalesce(instrument.name, '')) like '%ETF%'
+            or upper(coalesce(instrument.name, '')) like '%TRUST%'
+        ) as is_fund_like
+    from signal.recommendation recommendation
+    join signal.recommendation_batch batch on batch.batch_id = recommendation.batch_id
+    join ref.instrument instrument on instrument.instrument_id = recommendation.instrument_id
+    where recommendation.status = 'active'
+      and instrument.is_active = true
+),
+professional_gap_latest_position as (
+    select distinct on (position.instrument_id)
+        position.instrument_id,
+        portfolio.portfolio_name,
+        position.snapshot_date,
+        position.weight as current_weight,
+        position.market_value
+    from portfolio.position_snapshot position
+    join portfolio.portfolio portfolio on portfolio.portfolio_id = position.portfolio_id
+    where portfolio.portfolio_name = {sql_literal(DEFAULT_PORTFOLIO_NAME)}
+      and position.quantity <> 0
+    order by position.instrument_id, position.snapshot_date desc
+),
+professional_gap_source_linkage as (
+    select distinct on (upper(run.config_json ->> 'fallback_symbol'))
+        upper(run.config_json ->> 'fallback_symbol') as primary_symbol,
+        run.run_id,
+        run.started_at,
+        run.ended_at,
+        run.status,
+        run.error_summary,
+        case
+            when run.error_summary ilike '%facts.us-gaap%' then 'sec_companyfacts_missing_us_gaap_facts'
+            when run.error_summary ilike '%HTTP Error 404%' then 'sec_companyfacts_not_found'
+            when run.status = 'failed' then 'financial_source_linkage_failed'
+            else null
+        end as blocker_code
+    from ops.pipeline_run run
+    where run.pipeline_name = 'financial_period_source_linkage'
+      and nullif(run.config_json ->> 'fallback_symbol', '') is not null
+    order by upper(run.config_json ->> 'fallback_symbol'), run.started_at desc nulls last, run.run_id desc
+),
+professional_gap_coverage as (
+    select
+        recommendation.instrument_id,
+        recommendation.primary_symbol,
+        max(recommendation.name) as instrument_name,
+        max(recommendation.instrument_type) as instrument_type,
+        bool_or(recommendation.is_fund_like) as is_fund_like,
+        count(distinct recommendation.recommendation_id)::integer as active_recommendation_count,
+        max(recommendation.total_score) as highest_recommendation_score,
+        max(recommendation.recommended_weight) as max_recommended_weight,
+        max(position.current_weight) as current_weight,
+        coalesce(max(position.market_value), 0)::numeric as current_market_value,
+        max(position.snapshot_date) as latest_position_date,
+        exists (
+            select 1
+            from market.financial_metric_normalized metric
+            where metric.instrument_id = recommendation.instrument_id
+              and metric.as_of_date <= current_date
+              and metric.metric_status = 'computed'
+        ) as has_financial_metrics,
+        exists (
+            select 1
+            from market.peer_relative_snapshot peer_snapshot
+            where peer_snapshot.instrument_id = recommendation.instrument_id
+              and peer_snapshot.as_of_date <= current_date
+        ) as has_peer_relative,
+        exists (
+            select 1
+            from research.segment_footnote_evidence evidence
+            where evidence.instrument_id = recommendation.instrument_id
+              and evidence.as_of_date <= current_date
+        ) as has_segment_footnote_evidence,
+        exists (
+            select 1
+            from market.sum_of_parts_component component
+            where component.instrument_id = recommendation.instrument_id
+              and component.as_of_date <= current_date
+        ) as has_sum_of_parts_component,
+        exists (
+            select 1
+            from market.valuation_snapshot valuation
+            where valuation.instrument_id = recommendation.instrument_id
+              and valuation.as_of_date <= current_date
+        ) as has_valuation_snapshot,
+        exists (
+            select 1
+            from research.industry_competitive_position position
+            where position.instrument_id = recommendation.instrument_id
+              and position.as_of_date <= current_date
+        ) as has_industry_competitive_position,
+        exists (
+            select 1
+            from research.equity_research_artifact artifact
+            where artifact.instrument_id = recommendation.instrument_id
+              and artifact.as_of_date <= current_date
+        ) as has_equity_research_artifact,
+        exists (
+            select 1
+            from signal.investment_thesis thesis
+            where thesis.instrument_id = recommendation.instrument_id
+              and thesis.status = 'active'
+        ) as has_active_thesis,
+        exists (
+            select 1
+            from ref.benchmark_composition composition
+            where upper(composition.benchmark_code) = upper(recommendation.primary_symbol)
+              and composition.valid_from <= current_date
+              and (composition.valid_to is null or composition.valid_to >= current_date)
+        ) as has_fund_benchmark_composition,
+        exists (
+            select 1
+            from market.fund_metric_snapshot metric
+            where metric.instrument_id = recommendation.instrument_id
+              and metric.source_as_of_date <= current_date
+              and metric.metric_code in ('gross_expense_ratio', 'net_expense_ratio')
+        ) as has_fund_expense_ratio,
+        exists (
+            select 1
+            from market.fund_metric_snapshot metric
+            where metric.instrument_id = recommendation.instrument_id
+              and metric.source_as_of_date <= current_date
+              and metric.metric_code in ('nav_per_share', 'premium_discount_to_nav')
+        ) as has_fund_nav_premium_discount,
+        exists (
+            select 1
+            from market.fund_metric_snapshot metric
+            where metric.instrument_id = recommendation.instrument_id
+              and metric.source_as_of_date <= current_date
+              and metric.metric_code like 'tracking_difference_nav_%'
+        ) as has_fund_tracking_difference,
+        max(source_linkage.run_id) as source_run_id,
+        max(source_linkage.status) as source_status,
+        max(coalesce(source_linkage.ended_at, source_linkage.started_at)) as source_observed_at,
+        max(source_linkage.error_summary) as source_error_summary,
+        max(source_linkage.blocker_code) as source_blocker_code
+    from professional_gap_active_recommendations recommendation
+    left join professional_gap_latest_position position on position.instrument_id = recommendation.instrument_id
+    left join professional_gap_source_linkage source_linkage
+      on upper(source_linkage.primary_symbol) = upper(recommendation.primary_symbol)
+    group by recommendation.instrument_id, recommendation.primary_symbol
+),
+professional_gap_classified as (
+    select
+        coverage.*,
+        case
+            when is_fund_like then array_remove(
+                array[
+                    case when not has_fund_benchmark_composition then 'fund_benchmark_composition' end,
+                    case when not has_fund_expense_ratio then 'fund_expense_ratio' end,
+                    case when not has_fund_nav_premium_discount then 'fund_nav_premium_discount' end,
+                    case when not has_fund_tracking_difference then 'fund_tracking_difference' end,
+                    case when not has_active_thesis then 'active_thesis' end
+                ],
+                null
+            )
+            else array_remove(
+                array[
+                    case when not has_financial_metrics then 'financial_metric_normalized' end,
+                    case when not has_peer_relative then 'peer_relative_snapshot' end,
+                    case when not has_segment_footnote_evidence then 'segment_footnote_evidence' end,
+                    case when not has_sum_of_parts_component then 'sum_of_parts_component' end,
+                    case when not has_valuation_snapshot then 'valuation_snapshot' end,
+                    case when not has_industry_competitive_position then 'industry_competitive_position' end,
+                    case when not has_equity_research_artifact then 'equity_research_artifact' end,
+                    case when not has_active_thesis then 'active_thesis' end
+                ],
+                null
+            )
+        end as missing_layers,
+        case
+            when is_fund_like then 'fund_company_financial_model_not_applicable'
+            when source_status = 'failed' then coalesce(source_blocker_code, 'financial_source_linkage_failed')
+            else null
+        end as blocker_code
+    from professional_gap_coverage coverage
+),
+professional_gap_scored as (
+    select
+        classified.*,
+        cardinality(missing_layers)::integer as missing_layer_count,
+        (
+            cardinality(missing_layers) * 10
+            + active_recommendation_count * 5
+            + coalesce(highest_recommendation_score, 0) * 10
+            + coalesce(abs(current_weight), 0) * 100
+            + case when blocker_code is not null and not is_fund_like then 25 else 0 end
+        )::numeric(12,4) as priority_score,
+        case
+            when blocker_code is not null and not is_fund_like then 'source_blocker'
+            when is_fund_like then 'fund_not_applicable'
+            when cardinality(missing_layers) > 0 then 'coverage_gap'
+            else 'none'
+        end as blocker_type,
+        case
+            when is_fund_like and cardinality(missing_layers) > 0 then 'fund_source_gaps'
+            when blocker_code is not null and not is_fund_like then 'source_blockers_present'
+            when cardinality(missing_layers) >= 4 or coalesce(abs(current_weight), 0) >= 0.05 then 'high_priority_gaps'
+            when cardinality(missing_layers) > 0 then 'coverage_gaps_present'
+            when is_fund_like then 'fund_company_model_not_applicable'
+            else 'ok'
+        end as gap_status,
+        case
+            when blocker_code is not null and not is_fund_like then 'high'
+            when cardinality(missing_layers) >= 4 or coalesce(abs(current_weight), 0) >= 0.05 then 'high'
+            when cardinality(missing_layers) > 0 then 'medium'
+            else 'watch'
+        end as priority_band,
+        case
+            when is_fund_like and 'fund_benchmark_composition' = any(missing_layers)
+                then 'benchmark-composition-ssga-spdr-import-run으로 무료 공식 holdings/benchmark 구성을 먼저 적재한다.'
+            when is_fund_like and 'fund_expense_ratio' = any(missing_layers)
+                then 'fund-expense-ratio-ssga-spdr-import-run으로 무료 공식 비용 정보를 적재한다.'
+            when is_fund_like and 'fund_nav_premium_discount' = any(missing_layers)
+                then 'fund-nav-premium-discount-ssga-spdr-import-run으로 NAV와 premium/discount 근거를 적재한다.'
+            when is_fund_like and 'fund_tracking_difference' = any(missing_layers)
+                then 'fund-tracking-difference-ssga-spdr-import-run으로 추적 차이 근거를 적재한다.'
+            when is_fund_like
+                then '기업 재무 모델은 적용하지 않고 fund/ETF 분석 표면에서 보유종목, 비용, NAV, 추적차이를 검토한다.'
+            when blocker_code = 'sec_companyfacts_missing_us_gaap_facts'
+                then '무료 SEC companyfacts에 us-gaap facts가 없다. 합성 재무를 만들지 말고 raw filing/XBRL 대체 파서 task 전까지 장기 재무 판단에서 제외한다.'
+            when blocker_code = 'sec_companyfacts_not_found'
+                then 'SEC ticker/CIK 매핑을 확인한 뒤 financial-period-source-linkage-run을 재실행한다. ETF/foreign issuer면 기업 재무 모델에서 제외한다.'
+            when blocker_code = 'financial_source_linkage_failed'
+                then 'financial-period-source-linkage-run으로 원천 공시 연결을 재시도하고 실패 원인을 확인한다.'
+            when 'financial_metric_normalized' = any(missing_layers)
+                then 'professional-coverage-expansion-run으로 SEC companyfacts, 재무 정규화, 피어, 밸류에이션, 리서치 생성을 순서대로 보강한다.'
+            else 'professional-coverage-expansion-run으로 누락된 전문가식 분석 layer를 보강한다.'
+        end as remediation_action,
+        case
+            when is_fund_like and 'fund_benchmark_composition' = any(missing_layers)
+                then 'stockanalysis-operations benchmark-composition-ssga-spdr-import-run --env-file <ENV> --symbol ' || primary_symbol || ' --execute'
+            when is_fund_like and 'fund_expense_ratio' = any(missing_layers)
+                then 'stockanalysis-operations fund-expense-ratio-ssga-spdr-import-run --env-file <ENV> --symbol ' || primary_symbol || ' --execute'
+            when is_fund_like and 'fund_nav_premium_discount' = any(missing_layers)
+                then 'stockanalysis-operations fund-nav-premium-discount-ssga-spdr-import-run --env-file <ENV> --symbol ' || primary_symbol || ' --execute'
+            when is_fund_like and 'fund_tracking_difference' = any(missing_layers)
+                then 'stockanalysis-operations fund-tracking-difference-ssga-spdr-import-run --env-file <ENV> --symbol ' || primary_symbol || ' --execute'
+            when is_fund_like
+                then ''
+            when blocker_code in ('sec_companyfacts_not_found', 'financial_source_linkage_failed')
+                then 'stockanalysis-operations financial-period-source-linkage-run --env-file <ENV> --as-of-date ' || current_date::text || ' --fallback-symbol ' || primary_symbol || ' --cik <CIK> --execute'
+            when blocker_code = 'sec_companyfacts_missing_us_gaap_facts'
+                then ''
+            else 'stockanalysis-operations professional-coverage-expansion-run --env-file <ENV> --as-of-date ' || current_date::text || ' --limit 25 --research-provider codex_oauth --execute'
+        end as remediation_command
+    from professional_gap_classified classified
+),
+professional_source_gap_ranked as (
+    select
+        row_number() over (
+            order by
+                case priority_band when 'high' then 0 when 'medium' then 1 else 2 end,
+                priority_score desc,
+                primary_symbol
+        )::integer as priority_rank,
+        *
+    from professional_gap_scored
+    where missing_layer_count > 0
+       or blocker_code is not null
+),
+professional_source_gap_summary as (
+    select
+        count(*)::integer as gap_count,
+        count(*) filter (where priority_band = 'high')::integer as high_priority_count,
+        count(*) filter (where blocker_type = 'source_blocker')::integer as source_blocker_count,
+        count(*) filter (where blocker_type = 'fund_not_applicable')::integer as fund_not_applicable_count,
+        count(*) filter (where gap_status = 'fund_source_gaps')::integer as fund_source_gap_count,
+        count(*) filter (where blocker_type = 'coverage_gap')::integer as coverage_gap_count,
+        coalesce(max(priority_score), 0)::numeric(12,4) as top_priority_score
+    from professional_source_gap_ranked
+),
 selected_recommendation_weight_review_readiness as (
     select eval_run.*
     from ai.eval_run eval_run
@@ -3808,6 +4104,102 @@ select json_build_object(
             'automatic_weight_change_allowed', false,
             'automatic_order_allowed', false,
             'broker_submit_allowed', false
+        )
+    ),
+    'professional_source_gap_prioritization',
+    coalesce(
+        (
+            select json_build_object(
+                'status',
+                case
+                    when summary.gap_count = 0 then 'ok'
+                    when summary.source_blocker_count > 0 then 'source_blockers_present'
+                    when summary.high_priority_count > 0 then 'high_priority_gaps'
+                    when summary.fund_source_gap_count > 0 then 'fund_source_gaps'
+                    when summary.fund_not_applicable_count > 0 then 'fund_company_model_not_applicable'
+                    else 'coverage_gaps_present'
+                end,
+                'as_of_date', current_date::text,
+                'gap_count', summary.gap_count,
+                'high_priority_count', summary.high_priority_count,
+                'source_blocker_count', summary.source_blocker_count,
+                'fund_not_applicable_count', summary.fund_not_applicable_count,
+                'fund_source_gap_count', summary.fund_source_gap_count,
+                'coverage_gap_count', summary.coverage_gap_count,
+                'top_priority_score', summary.top_priority_score,
+                'gaps',
+                coalesce(
+                    (
+                        select json_agg(
+                            json_build_object(
+                                'priority_rank', gap.priority_rank,
+                                'symbol', gap.primary_symbol,
+                                'instrument_id', gap.instrument_id,
+                                'instrument_name', gap.instrument_name,
+                                'instrument_type', gap.instrument_type,
+                                'product_type', case when gap.is_fund_like then 'fund_or_etf' else 'operating_company' end,
+                                'gap_status', gap.gap_status,
+                                'priority_band', gap.priority_band,
+                                'priority_score', gap.priority_score,
+                                'active_recommendation_count', gap.active_recommendation_count,
+                                'highest_recommendation_score', gap.highest_recommendation_score,
+                                'current_weight', gap.current_weight,
+                                'max_recommended_weight', gap.max_recommended_weight,
+                                'missing_layer_count', gap.missing_layer_count,
+                                'missing_layers', gap.missing_layers,
+                                'blocker_type', gap.blocker_type,
+                                'blocker_code', coalesce(gap.blocker_code, ''),
+                                'source_run_id', gap.source_run_id,
+                                'source_status', coalesce(gap.source_status, ''),
+                                'source_observed_at', gap.source_observed_at,
+                                'source_error_summary', coalesce(gap.source_error_summary, ''),
+                                'remediation_action', gap.remediation_action,
+                                'remediation_command', gap.remediation_command,
+                                'detail_href', '/stocks/' || gap.primary_symbol
+                            )
+                            order by gap.priority_rank
+                        )
+                        from (
+                            select *
+                            from professional_source_gap_ranked
+                            order by priority_rank
+                            limit 8
+                        ) gap
+                    ),
+                    '[]'::json
+                ),
+                'next_action',
+                case
+                    when summary.source_blocker_count > 0 then 'source_blocker_count가 있는 종목부터 원천 공시/CIK/무료 데이터 가능 여부를 확인한다.'
+                    when summary.high_priority_count > 0 then 'active recommendation과 보유 비중이 큰 누락 layer부터 professional-coverage-expansion-run으로 보강한다.'
+                    when summary.fund_not_applicable_count > 0 then 'ETF·펀드형 상품은 기업 재무 모델이 아니라 fund source layer를 기준으로 확인한다.'
+                    else '전문 분석 source gap을 정기적으로 감시한다.'
+                end,
+                'recommendation_scoring_mutated', false,
+                'automatic_weight_change_allowed', false,
+                'automatic_order_allowed', false,
+                'broker_submit_allowed', false,
+                'order_boundary', 'read_only_no_order'
+            )
+            from professional_source_gap_summary summary
+        ),
+        json_build_object(
+            'status', 'missing',
+            'as_of_date', current_date::text,
+            'gap_count', 0,
+            'high_priority_count', 0,
+            'source_blocker_count', 0,
+            'fund_not_applicable_count', 0,
+            'fund_source_gap_count', 0,
+            'coverage_gap_count', 0,
+            'top_priority_score', 0,
+            'gaps', '[]'::json,
+            'next_action', 'active recommendation professional source gap을 먼저 계산한다.',
+            'recommendation_scoring_mutated', false,
+            'automatic_weight_change_allowed', false,
+            'automatic_order_allowed', false,
+            'broker_submit_allowed', false,
+            'order_boundary', 'read_only_no_order'
         )
     ),
     'open_gates',
@@ -11354,6 +11746,104 @@ def _build_recommendation_weight_review_readiness_payload(payload: dict[str, Any
         "automatic_order_allowed": payload.get("automatic_order_allowed") is True,
         "broker_submit_allowed": payload.get("broker_submit_allowed") is True,
     }
+
+
+def _build_professional_source_gap_prioritization_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    raw_gaps = _as_list(payload.get("gaps"))
+    gaps = [_build_professional_source_gap_payload(item) for item in raw_gaps[:8]]
+    raw_status = str(payload.get("status") or "missing")
+    if raw_status == "ok" and gaps:
+        raw_status = "coverage_gaps_present"
+    return {
+        "status": raw_status,
+        "as_of_date": str(payload.get("as_of_date") or ""),
+        "gap_count": int(_safe_number(payload.get("gap_count")) or len(gaps)),
+        "high_priority_count": int(_safe_number(payload.get("high_priority_count")) or 0),
+        "source_blocker_count": int(_safe_number(payload.get("source_blocker_count")) or 0),
+        "fund_not_applicable_count": int(_safe_number(payload.get("fund_not_applicable_count")) or 0),
+        "fund_source_gap_count": int(_safe_number(payload.get("fund_source_gap_count")) or 0),
+        "coverage_gap_count": int(_safe_number(payload.get("coverage_gap_count")) or 0),
+        "top_priority_score": _safe_number(payload.get("top_priority_score")) or 0.0,
+        "gaps": gaps,
+        "next_action": str(payload.get("next_action") or "전문 분석 source gap을 정기적으로 감시한다."),
+        "recommendation_scoring_mutated": payload.get("recommendation_scoring_mutated") is True,
+        "automatic_weight_change_allowed": payload.get("automatic_weight_change_allowed") is True,
+        "automatic_order_allowed": payload.get("automatic_order_allowed") is True,
+        "broker_submit_allowed": payload.get("broker_submit_allowed") is True,
+        "order_boundary": str(payload.get("order_boundary") or "read_only_no_order"),
+    }
+
+
+def _build_professional_source_gap_payload(item: dict[str, Any]) -> dict[str, Any]:
+    missing_layers = [str(value) for value in _as_list_or_scalars(item.get("missing_layers")) if value]
+    blocker_code = str(item.get("blocker_code") or "")
+    product_type = str(item.get("product_type") or "operating_company")
+    return {
+        "priority_rank": int(_safe_number(item.get("priority_rank")) or 0),
+        "symbol": str(item.get("symbol") or item.get("primary_symbol") or ""),
+        "instrument_id": _opaque_id("instrument", item.get("instrument_id"), None),
+        "instrument_name": str(item.get("instrument_name") or ""),
+        "instrument_type": str(item.get("instrument_type") or ""),
+        "product_type": product_type,
+        "gap_status": str(item.get("gap_status") or "coverage_gap"),
+        "priority_band": str(item.get("priority_band") or "medium"),
+        "priority_score": _safe_number(item.get("priority_score")) or 0.0,
+        "active_recommendation_count": int(_safe_number(item.get("active_recommendation_count")) or 0),
+        "highest_recommendation_score": _safe_number(item.get("highest_recommendation_score")),
+        "current_weight": _safe_number(item.get("current_weight")),
+        "max_recommended_weight": _safe_number(item.get("max_recommended_weight")),
+        "missing_layer_count": int(_safe_number(item.get("missing_layer_count")) or len(missing_layers)),
+        "missing_layers": missing_layers,
+        "missing_layer_labels": [_professional_source_layer_label(layer) for layer in missing_layers],
+        "blocker_type": str(item.get("blocker_type") or ("fund_not_applicable" if product_type == "fund_or_etf" else "coverage_gap")),
+        "blocker_code": blocker_code,
+        "blocker_label": _professional_source_blocker_label(blocker_code, product_type),
+        "source_run_id": _opaque_id("pipeline-run", item.get("source_run_id"), None) if item.get("source_run_id") else "",
+        "source_status": str(item.get("source_status") or ""),
+        "source_observed_at": _timestamp(item.get("source_observed_at")),
+        "source_error_summary": str(item.get("source_error_summary") or ""),
+        "remediation_action": str(item.get("remediation_action") or _professional_source_default_action(product_type)),
+        "remediation_command": str(item.get("remediation_command") or ""),
+        "detail_href": str(item.get("detail_href") or f"/stocks/{str(item.get('symbol') or '').upper()}"),
+    }
+
+
+def _professional_source_layer_label(layer: str) -> str:
+    labels = {
+        "financial_metric_normalized": "재무 지표 정규화",
+        "peer_relative_snapshot": "피어 비교",
+        "segment_footnote_evidence": "사업부/주석 근거",
+        "sum_of_parts_component": "SOTP 구성",
+        "valuation_snapshot": "밸류에이션",
+        "industry_competitive_position": "산업 경쟁 포지션",
+        "equity_research_artifact": "AI 리서치 노트",
+        "active_thesis": "활성 투자 논리",
+        "fund_benchmark_composition": "펀드 보유종목/벤치마크 구성",
+        "fund_expense_ratio": "펀드 비용",
+        "fund_nav_premium_discount": "NAV/premium·discount",
+        "fund_tracking_difference": "추적 차이",
+    }
+    return labels.get(layer, layer)
+
+
+def _professional_source_blocker_label(blocker_code: str, product_type: str) -> str:
+    if blocker_code == "fund_company_financial_model_not_applicable" or product_type == "fund_or_etf":
+        return "기업 재무 모델 비적용"
+    if blocker_code == "sec_companyfacts_missing_us_gaap_facts":
+        return "SEC us-gaap facts 없음"
+    if blocker_code == "sec_companyfacts_not_found":
+        return "SEC companyfacts 미제공"
+    if blocker_code == "financial_source_linkage_failed":
+        return "재무 원천 연결 실패"
+    if blocker_code:
+        return blocker_code
+    return "누락 source layer"
+
+
+def _professional_source_default_action(product_type: str) -> str:
+    if product_type == "fund_or_etf":
+        return "기업 재무 모델 대신 fund/ETF source layer를 기준으로 판단한다."
+    return "professional-coverage-expansion-run으로 누락된 전문가식 분석 layer를 보강한다."
 
 
 def _as_list_or_scalars(value: object) -> list[object]:

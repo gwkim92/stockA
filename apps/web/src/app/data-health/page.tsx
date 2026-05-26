@@ -18,10 +18,18 @@ type BenchmarkDriftQuality = DataHealthData["benchmark_drift_quality"];
 type RecommendationOutcomeCalibration = DataHealthData["recommendation_outcome_calibration"];
 type RecommendationOutcomeMaturity = DataHealthData["recommendation_outcome_maturity"];
 type RecommendationWeightReviewReadiness = DataHealthData["recommendation_weight_review_readiness"];
+type ProfessionalSourceGapPrioritization = DataHealthData["professional_source_gap_prioritization"];
 type ProfileTimer = ProfileSchedulerStatus["timers"][number];
 
 function statusRiskClass(value: string) {
-  if (value === "healthy" || value === "succeeded" || value === "configured" || value === "not_due") {
+  if (
+    value === "healthy"
+    || value === "succeeded"
+    || value === "configured"
+    || value === "not_due"
+    || value === "low"
+    || value === "watch"
+  ) {
     return "risk-low";
   }
   if (
@@ -29,6 +37,7 @@ function statusRiskClass(value: string) {
     || value === "stale"
     || value === "degraded"
     || value === "succeeded_with_fallback"
+    || value === "medium"
   ) {
     return "risk-medium";
   }
@@ -505,6 +514,57 @@ function outcomeMaturityTone(maturity: RecommendationOutcomeMaturity) {
   return "risk-high";
 }
 
+function professionalSourceGapTitle(gaps: ProfessionalSourceGapPrioritization) {
+  if (gaps.status === "ok") {
+    return "전문 분석 소스 정상";
+  }
+  if (gaps.status === "source_blockers_present") {
+    return "원천 차단 종목 있음";
+  }
+  if (gaps.status === "high_priority_gaps") {
+    return "우선 보강 소스 있음";
+  }
+  if (gaps.status === "fund_source_gaps") {
+    return "펀드 분석 소스 보강 필요";
+  }
+  if (gaps.status === "fund_company_model_not_applicable") {
+    return "펀드는 기업 재무 모델 제외";
+  }
+  if (gaps.status === "coverage_gaps_present") {
+    return "분석 layer 누락 있음";
+  }
+  return koCode(gaps.status);
+}
+
+function professionalSourceGapExplanation(gaps: ProfessionalSourceGapPrioritization) {
+  if (gaps.status === "ok") {
+    return "active recommendation 기준으로 핵심 재무·밸류에이션·리서치 source gap이 없다.";
+  }
+  if (gaps.status === "source_blockers_present") {
+    return "SEC companyfacts나 원천 공시 연결이 막힌 종목이 있다. 합성 재무를 만들지 말고 원천 가능 여부부터 확인해야 한다.";
+  }
+  if (gaps.status === "high_priority_gaps") {
+    return "추천 또는 보유 노출이 있는 종목의 재무·피어·밸류에이션·리서치 근거가 비어 있다. 이 종목부터 보강한다.";
+  }
+  if (gaps.status === "fund_source_gaps") {
+    return "ETF·펀드형 상품은 기업 재무제표가 아니라 보유종목, 비용, NAV, 추적차이 source가 판단 근거다.";
+  }
+  if (gaps.status === "fund_company_model_not_applicable") {
+    return "ETF·펀드형 상품은 기업 재무 모델 실패가 아니다. 별도 fund analysis 근거로 검토한다.";
+  }
+  return "전문가식 분석에 필요한 source layer 중 일부가 비어 있어 추천 weight 검토 전 보강해야 한다.";
+}
+
+function professionalSourceGapTone(gaps: ProfessionalSourceGapPrioritization) {
+  if (gaps.status === "ok" || gaps.status === "fund_company_model_not_applicable") {
+    return "risk-low";
+  }
+  if (gaps.status === "coverage_gaps_present" || gaps.status === "fund_source_gaps") {
+    return "risk-medium";
+  }
+  return "risk-high";
+}
+
 function executionIdLabel(value: string | null | undefined) {
   if (!value) {
     return "실행 기록 없음";
@@ -677,6 +737,25 @@ const DEFAULT_RECOMMENDATION_WEIGHT_REVIEW_READINESS: RecommendationWeightReview
   broker_submit_allowed: false,
 };
 
+const DEFAULT_PROFESSIONAL_SOURCE_GAP_PRIORITIZATION: ProfessionalSourceGapPrioritization = {
+  status: "missing",
+  as_of_date: "",
+  gap_count: 0,
+  high_priority_count: 0,
+  source_blocker_count: 0,
+  fund_not_applicable_count: 0,
+  fund_source_gap_count: 0,
+  coverage_gap_count: 0,
+  top_priority_score: 0,
+  gaps: [],
+  next_action: "전문 분석 source gap을 먼저 계산한다.",
+  recommendation_scoring_mutated: false,
+  automatic_weight_change_allowed: false,
+  automatic_order_allowed: false,
+  broker_submit_allowed: false,
+  order_boundary: "read_only_no_order",
+};
+
 const DEFAULT_PROFILE_SCHEDULER: ProfileSchedulerStatus = {
   status: "not_configured",
   install_status: "not_installed",
@@ -704,6 +783,8 @@ export default async function DataHealthPage() {
   const outcomeMaturity = data.recommendation_outcome_maturity ?? DEFAULT_RECOMMENDATION_OUTCOME_MATURITY;
   const weightReviewReadiness =
     data.recommendation_weight_review_readiness ?? DEFAULT_RECOMMENDATION_WEIGHT_REVIEW_READINESS;
+  const professionalSourceGaps =
+    data.professional_source_gap_prioritization ?? DEFAULT_PROFESSIONAL_SOURCE_GAP_PRIORITIZATION;
   const marketPriceRun = findPipelineRun(data, "market-price-daily", "market_price_upsert");
   const newsRun = findPipelineRun(data, "news-rss-daily", "news_rss_upsert");
   const newsEnrichmentRun = findPipelineRun(
@@ -781,6 +862,14 @@ export default async function DataHealthPage() {
       href: "#outcome-calibration",
       cta: "표본 상태 보기",
       tone: outcomeCalibrationTone(outcomeCalibration),
+    },
+    {
+      label: "전문 분석 소스",
+      title: professionalSourceGapTitle(professionalSourceGaps),
+      body: professionalSourceGapExplanation(professionalSourceGaps),
+      href: "#professional-source-gaps",
+      cta: "소스 공백 보기",
+      tone: professionalSourceGapTone(professionalSourceGaps),
     },
   ];
   const automationCards = [
@@ -1190,6 +1279,111 @@ export default async function DataHealthPage() {
         <div className="empty-state">
           <strong>다음 조치</strong>
           <p>{outcomeMaturity.cadence_action.label}</p>
+        </div>
+      </section>
+
+      <section
+        className="feature-map-panel reveal delay-1"
+        id="professional-source-gaps"
+        aria-labelledby="professional-source-gaps-title"
+      >
+        <div className="section-heading stacked-heading">
+          <span>전문 분석 소스 공백</span>
+          <h2 id="professional-source-gaps-title">
+            추천·보유 판단에 필요한 재무, 밸류에이션, 펀드 source가 어디서 막혔는지 본다.
+          </h2>
+        </div>
+        <p className="board-intro">{professionalSourceGapExplanation(professionalSourceGaps)}</p>
+        <div className="status-rail compact-rail">
+          <article className="rail-cell">
+            <span>판정</span>
+            <strong className={`risk-tag ${professionalSourceGapTone(professionalSourceGaps)}`}>
+              {professionalSourceGapTitle(professionalSourceGaps)}
+            </strong>
+            <small>{professionalSourceGaps.as_of_date || "기준일 없음"}</small>
+          </article>
+          <article className="rail-cell rail-critical">
+            <span>우선 보강</span>
+            <strong>{professionalSourceGaps.high_priority_count}</strong>
+            <small>추천·보유 노출 큰 공백</small>
+          </article>
+          <article className="rail-cell">
+            <span>원천 차단</span>
+            <strong>{professionalSourceGaps.source_blocker_count}</strong>
+            <small>SEC/companyfacts 등</small>
+          </article>
+          <article className="rail-cell">
+            <span>펀드 비적용</span>
+            <strong>{professionalSourceGaps.fund_not_applicable_count}</strong>
+            <small>기업 재무 모델 제외</small>
+          </article>
+          <article className="rail-cell">
+            <span>전체 공백</span>
+            <strong>{professionalSourceGaps.gap_count}</strong>
+            <small>상위 {professionalSourceGaps.gaps.length}개 표시</small>
+          </article>
+        </div>
+
+        {professionalSourceGaps.gaps.length > 0 ? (
+          <div className="ledger-table-wrap" style={{ marginTop: "18px" }}>
+            <table className="ledger-table data-health-table">
+              <thead>
+                <tr>
+                  <th scope="col">우선순위</th>
+                  <th scope="col">대상</th>
+                  <th scope="col">무엇이 비었나</th>
+                  <th scope="col">왜 막혔나</th>
+                  <th scope="col">다음 조치</th>
+                </tr>
+              </thead>
+              <tbody>
+                {professionalSourceGaps.gaps.map((gap) => (
+                  <tr key={`${gap.priority_rank}-${gap.symbol}`}>
+                    <td>
+                      <strong>#{gap.priority_rank}</strong>
+                      <small className={`risk-tag ${statusRiskClass(gap.priority_band)}`}>
+                        {koCode(gap.priority_band)}
+                      </small>
+                    </td>
+                    <td>
+                      <strong>
+                        <a href={gap.detail_href}>{gap.symbol}</a>
+                      </strong>
+                      <small>{gap.product_type === "fund_or_etf" ? "ETF·펀드형" : "개별 기업"}</small>
+                      <small>
+                        추천 {gap.active_recommendation_count}개 · 보유 {formatPercent(gap.current_weight)}
+                      </small>
+                    </td>
+                    <td>
+                      <strong>{gap.missing_layer_count}개 layer</strong>
+                      <small>
+                        {gap.missing_layer_labels.length > 0
+                          ? gap.missing_layer_labels.join(" · ")
+                          : "기업 재무 모델 비적용만 표시"}
+                      </small>
+                    </td>
+                    <td>
+                      <strong>{gap.blocker_label}</strong>
+                      <small>{gap.blocker_code || koCode(gap.blocker_type)}</small>
+                      {gap.source_run_id ? <small>{executionIdLabel(gap.source_run_id)}</small> : null}
+                    </td>
+                    <td>
+                      <strong>{gap.remediation_action}</strong>
+                      {gap.remediation_command ? <small>{gap.remediation_command}</small> : null}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="empty-state">
+            active recommendation 기준으로 표시할 전문 분석 source 공백이 없다.
+          </div>
+        )}
+        <div className="empty-state">
+          <strong>다음 조치</strong>
+          <p>{professionalSourceGaps.next_action}</p>
         </div>
       </section>
 
