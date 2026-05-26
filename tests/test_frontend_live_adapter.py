@@ -15,6 +15,7 @@ from stockanalysis.frontend.live_adapter import (
     _build_financial_statement_model_payload,
     _build_fund_instrument_analysis_payload,
     _build_professional_source_guardrail_payload,
+    _professional_source_gap_requires_attention,
     _build_recommendation_evidence_review_payload,
     _build_recommendation_outcome_due_action_router_payload,
     _build_recommendation_outcome_maturity_payload,
@@ -4461,7 +4462,8 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertFalse(source_gaps["recommendation_scoring_mutated"])
         self.assertFalse(source_gaps["automatic_weight_change_allowed"])
         self.assertFalse(source_gaps["broker_submit_allowed"])
-        self.assertIn("professional_source_gap_attention", payload["data"]["open_gates"])
+        self.assertFalse(source_gaps["attention_required"])
+        self.assertNotIn("professional_source_gap_attention", payload["data"]["open_gates"])
         gate_details = {item["gate_id"]: item for item in payload["data"]["open_gate_details"]}
         self.assertEqual(gate_details["auth_rbac"]["category"], "operational_blocker")
         self.assertEqual(gate_details["auth_rbac"]["severity"], "high")
@@ -4471,12 +4473,60 @@ class FrontendLiveAdapterTests(unittest.TestCase):
             gate_details["portfolio_review_feedback_calibration_attention"]["category"],
             "outcome_wait",
         )
-        self.assertEqual(
-            gate_details["professional_source_gap_attention"]["category"],
-            "source_limit",
-        )
-        self.assertFalse(gate_details["professional_source_gap_attention"]["automatic_action_allowed"])
+        self.assertNotIn("professional_source_gap_attention", gate_details)
         self.assertEqual(payload["links"]["dashboard"], "/api/dashboard/today")
+
+    def test_professional_source_gap_attention_policy_keeps_unguarded_gaps_open(self) -> None:
+        self.assertTrue(
+            _professional_source_gap_requires_attention(
+                {
+                    "status": "source_blockers_present",
+                    "source_blocker_count": 1,
+                    "guarded_source_blocked_recommendation_count": 0,
+                    "coverage_gap_count": 0,
+                    "fund_source_gap_count": 0,
+                    "gaps": [
+                        {
+                            "product_type": "operating_company",
+                            "blocker_type": "source_blocker",
+                            "missing_layer_count": 3,
+                            "professional_decision_use_allowed": True,
+                            "paper_validation_input_allowed": True,
+                            "active_recommendation_professional_use_blocked": False,
+                        }
+                    ],
+                }
+            )
+        )
+        self.assertFalse(
+            _professional_source_gap_requires_attention(
+                {
+                    "status": "source_blockers_present",
+                    "source_blocker_count": 1,
+                    "guarded_source_blocked_recommendation_count": 1,
+                    "coverage_gap_count": 0,
+                    "fund_source_gap_count": 0,
+                    "gaps": [
+                        {
+                            "product_type": "operating_company",
+                            "blocker_type": "source_blocker",
+                            "missing_layer_count": 6,
+                            "professional_decision_use_allowed": False,
+                            "paper_validation_input_allowed": False,
+                            "active_recommendation_professional_use_blocked": True,
+                        },
+                        {
+                            "product_type": "fund_or_etf",
+                            "blocker_type": "fund_not_applicable",
+                            "missing_layer_count": 0,
+                            "professional_decision_use_allowed": True,
+                            "paper_validation_input_allowed": True,
+                            "active_recommendation_professional_use_blocked": False,
+                        },
+                    ],
+                }
+            )
+        )
 
     def test_recommendation_outcome_maturity_due_state_requests_calibration_now(self) -> None:
         payload = _build_recommendation_outcome_maturity_payload(

@@ -653,6 +653,9 @@ function professionalSourceGapTitle(gaps: ProfessionalSourceGapPrioritization) {
   if (gaps.status === "ok") {
     return "전문 분석 소스 정상";
   }
+  if (!gaps.attention_required && gaps.source_blocker_count > 0) {
+    return "원천 한계 관리 중";
+  }
   if (gaps.status === "source_blockers_present") {
     return "원천 차단 종목 있음";
   }
@@ -675,6 +678,9 @@ function professionalSourceGapExplanation(gaps: ProfessionalSourceGapPrioritizat
   if (gaps.status === "ok") {
     return "active recommendation 기준으로 핵심 재무·밸류에이션·리서치 source gap이 없다.";
   }
+  if (!gaps.attention_required && gaps.source_blocker_count > 0) {
+    return "원천 데이터가 부족한 종목은 남겨두되, 전문 판단과 페이퍼 검증 입력에서는 이미 차단했다. 새 periodic filing이나 전용 parser가 생기면 다시 확인한다.";
+  }
   if (gaps.status === "source_blockers_present") {
     return "SEC companyfacts나 원천 공시 연결이 막힌 종목이 있다. 합성 재무를 만들지 말고 원천 가능 여부부터 확인해야 한다.";
   }
@@ -691,6 +697,9 @@ function professionalSourceGapExplanation(gaps: ProfessionalSourceGapPrioritizat
 }
 
 function professionalSourceGapTone(gaps: ProfessionalSourceGapPrioritization) {
+  if (!gaps.attention_required) {
+    return "risk-low";
+  }
   if (gaps.status === "ok" || gaps.status === "fund_company_model_not_applicable") {
     return "risk-low";
   }
@@ -1215,6 +1224,7 @@ const DEFAULT_PROFESSIONAL_SOURCE_GAP_PRIORITIZATION: ProfessionalSourceGapPrior
   fund_source_gap_count: 0,
   coverage_gap_count: 0,
   guarded_source_blocked_recommendation_count: 0,
+  attention_required: false,
   top_priority_score: 0,
   gaps: [],
   next_action: "전문 분석 source gap을 먼저 계산한다.",

@@ -776,11 +776,7 @@ def build_live_data_health_response(
         gate = "recommendation_outcome_due_action_router_attention"
         if gate not in open_gates:
             open_gates.append(gate)
-    if professional_source_gap_prioritization["status"] in {
-        "source_blockers_present",
-        "high_priority_gaps",
-        "fund_source_gaps",
-    }:
+    if professional_source_gap_prioritization["attention_required"]:
         gate = "professional_source_gap_attention"
         if gate not in open_gates:
             open_gates.append(gate)
@@ -13843,7 +13839,7 @@ def _build_professional_source_gap_prioritization_payload(payload: dict[str, Any
     raw_status = str(payload.get("status") or "missing")
     if raw_status == "ok" and gaps:
         raw_status = "coverage_gaps_present"
-    return {
+    result = {
         "status": raw_status,
         "as_of_date": str(payload.get("as_of_date") or ""),
         "gap_count": int(_safe_number(payload.get("gap_count")) or len(gaps)),
@@ -13862,6 +13858,48 @@ def _build_professional_source_gap_prioritization_payload(payload: dict[str, Any
         "broker_submit_allowed": payload.get("broker_submit_allowed") is True,
         "order_boundary": str(payload.get("order_boundary") or "read_only_no_order"),
     }
+    result["attention_required"] = _professional_source_gap_requires_attention(result)
+    return result
+
+
+def _professional_source_gap_requires_attention(payload: Mapping[str, Any]) -> bool:
+    status = str(payload.get("status") or "missing")
+    gaps = [_as_dict(item) for item in _as_list(payload.get("gaps"))]
+    if status in {"ok", "missing"} and not gaps:
+        return False
+    if status in {"high_priority_gaps", "fund_source_gaps"} and not gaps:
+        return True
+    if int(_safe_number(payload.get("coverage_gap_count")) or 0) > 0:
+        return True
+    if int(_safe_number(payload.get("fund_source_gap_count")) or 0) > 0:
+        return True
+    source_blocker_count = int(_safe_number(payload.get("source_blocker_count")) or 0)
+    guarded_source_blocked_count = int(_safe_number(payload.get("guarded_source_blocked_recommendation_count")) or 0)
+    if source_blocker_count > guarded_source_blocked_count:
+        return True
+    for gap in gaps:
+        product_type = str(gap.get("product_type") or "operating_company")
+        blocker_type = str(gap.get("blocker_type") or "")
+        missing_layer_count = int(_safe_number(gap.get("missing_layer_count")) or 0)
+        professional_use_allowed = gap.get("professional_decision_use_allowed") is True
+        paper_validation_allowed = gap.get("paper_validation_input_allowed") is True
+        active_recommendation_blocked = gap.get("active_recommendation_professional_use_blocked") is True
+        if (
+            product_type == "fund_or_etf"
+            and blocker_type == "fund_not_applicable"
+            and missing_layer_count == 0
+        ):
+            continue
+        if (
+            blocker_type == "source_blocker"
+            and not professional_use_allowed
+            and not paper_validation_allowed
+            and active_recommendation_blocked
+        ):
+            continue
+        if missing_layer_count > 0 or professional_use_allowed or paper_validation_allowed:
+            return True
+    return False
 
 
 def _build_professional_source_gap_payload(item: dict[str, Any]) -> dict[str, Any]:

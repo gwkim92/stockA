@@ -404,6 +404,7 @@ export type DataHealthData = {
     fund_source_gap_count: number;
     coverage_gap_count: number;
     guarded_source_blocked_recommendation_count: number;
+    attention_required: boolean;
     top_priority_score: number;
     gaps: Array<{
       priority_rank: number;
