@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any, Iterable, Mapping
 from urllib.parse import parse_qs, quote, unquote, urlsplit
 
 from stockanalysis.ai.evidence_graph import render_instrument_evidence_neighborhood_sql
@@ -528,6 +528,12 @@ def build_live_stock_detail_response(
     industry_competitive_position = _build_industry_competitive_position_payload(
         _as_dict(state.get("industry_competitive_position"))
     )
+    valuation_target_range = _build_valuation_target_range_payload(
+        _as_list(state.get("valuation_methods")),
+        symbol=symbol,
+        as_of_date=str(state.get("as_of_date") or (as_of_date.isoformat() if as_of_date else "")),
+        currency_code=str(state.get("currency_code") or "USD"),
+    )
     thesis_id = recommendation.get("linked_thesis_id") if recommendation else None
     recommendation_id = recommendation.get("recommendation_id") if recommendation else None
     as_of_text = str(state.get("as_of_date") or (as_of_date.isoformat() if as_of_date else ""))
@@ -549,6 +555,7 @@ def build_live_stock_detail_response(
             "position": _build_stock_position_payload(_as_dict(state.get("position"))),
             "equity_research": equity_research,
             "industry_competitive_position": industry_competitive_position,
+            "valuation_target_range": valuation_target_range,
             "macro_flow_impacts": [
                 _build_stock_macro_flow_payload(item) for item in _as_list(state.get("macro_flow_impacts"))
             ],
@@ -1271,6 +1278,12 @@ def build_live_recommendation_detail_response(
     industry_competitive_position = _build_industry_competitive_position_payload(
         _as_dict(state.get("industry_competitive_position"))
     )
+    valuation_target_range = _build_valuation_target_range_payload(
+        _as_list(state.get("valuation_methods")),
+        symbol=str(state.get("symbol") or "UNKNOWN").upper(),
+        as_of_date=str(state.get("as_of_date") or ""),
+        currency_code=str(state.get("currency_code") or "USD"),
+    )
     linked_thesis_id = state.get("linked_thesis_id")
     outcome = _as_dict(state.get("outcome"))
     symbol = str(state.get("symbol") or "UNKNOWN").upper()
@@ -1293,6 +1306,7 @@ def build_live_recommendation_detail_response(
             "recommendation_id": _recommendation_detail_id(state, identifier),
             "symbol": symbol,
             "instrument_id": _opaque_id("instrument", state.get("instrument_id"), symbol.lower()),
+            "currency_code": str(state.get("currency_code") or "USD"),
             "as_of_date": as_of_date_text,
             "strategy_name": str(state.get("strategy_name") or DEFAULT_STRATEGY_NAME),
             "horizon_type": str(state.get("horizon_type") or "long_term"),
@@ -1302,6 +1316,7 @@ def build_live_recommendation_detail_response(
             "score_components": score_components,
             "equity_research": equity_research,
             "industry_competitive_position": industry_competitive_position,
+            "valuation_target_range": valuation_target_range,
             "linked_thesis_id": _opaque_id("thesis", linked_thesis_id, None) if linked_thesis_id is not None else None,
             "evidence_trace": evidence_trace,
             "evidence_review": evidence_review,
@@ -1309,6 +1324,7 @@ def build_live_recommendation_detail_response(
                 score_components=score_components,
                 equity_research=equity_research,
                 industry_competitive_position=industry_competitive_position,
+                valuation_target_range=valuation_target_range,
                 linked_thesis_id=linked_thesis_id,
                 evidence_trace=evidence_trace,
                 evidence_review=evidence_review,
@@ -1348,6 +1364,12 @@ def build_live_thesis_detail_response(
         for item in _as_list(state.get("invalidation_conditions"))
     ]
     equity_research = _build_stock_equity_research_payload(_as_dict(state.get("equity_research")))
+    valuation_target_range = _build_valuation_target_range_payload(
+        _as_list(state.get("valuation_methods")),
+        symbol=symbol,
+        as_of_date=str(state.get("as_of_date") or ""),
+        currency_code=str(state.get("currency_code") or "USD"),
+    )
     lifecycle = _build_thesis_lifecycle_payload(
         state=state,
         symbol=symbol,
@@ -1355,6 +1377,7 @@ def build_live_thesis_detail_response(
         invalidation_conditions=invalidation_conditions,
         latest_review=latest_review,
         equity_research=equity_research,
+        valuation_target_range=valuation_target_range,
     )
     evidence_review = _build_thesis_evidence_review_payload(
         evidence=evidence,
@@ -1366,6 +1389,7 @@ def build_live_thesis_detail_response(
         evidence=evidence,
         evidence_review=evidence_review,
         latest_review=latest_review,
+        valuation_target_range=valuation_target_range,
         generated_at=generated_at,
     )
 
@@ -1376,6 +1400,7 @@ def build_live_thesis_detail_response(
             "thesis_id": _thesis_detail_id(state, identifier),
             "symbol": symbol,
             "instrument_id": _opaque_id("instrument", state.get("instrument_id"), symbol.lower()),
+            "currency_code": str(state.get("currency_code") or "USD"),
             "status": str(state.get("status") or "unknown"),
             "thesis_version": str(state.get("thesis_version") or "bootstrap-v1"),
             "created_from_recommendation_id": _opaque_id(
@@ -1401,6 +1426,7 @@ def build_live_thesis_detail_response(
             },
             "lifecycle": lifecycle,
             "professional_lifecycle_gates": professional_lifecycle_gates,
+            "valuation_target_range": valuation_target_range,
             "evidence": evidence,
             "evidence_review": evidence_review,
         },
@@ -1416,6 +1442,7 @@ def _build_thesis_lifecycle_payload(
     invalidation_conditions: list[dict[str, str]],
     latest_review: dict[str, Any],
     equity_research: dict[str, Any] | None,
+    valuation_target_range: dict[str, Any] | None,
 ) -> dict[str, Any]:
     research = equity_research or {}
     catalysts = _dedupe_lifecycle_items(
@@ -1428,6 +1455,16 @@ def _build_thesis_lifecycle_payload(
         exit_conditions=_split_lifecycle_text(state.get("exit_conditions")),
     )
     valuation = _build_thesis_lifecycle_valuation(_as_dict(research.get("valuation_sensitivity")))
+    if not valuation.get("has_view") and _as_dict(valuation_target_range).get("status") == "available":
+        valuation = {
+            **valuation,
+            "base_case": _valuation_target_range_case_text(_as_dict(valuation_target_range)),
+            "margin_of_safety_view": _format_signed_percent_text(
+                _number(_as_dict(valuation_target_range).get("margin_of_safety"))
+            ),
+            "confidence": _number(_as_dict(valuation_target_range).get("confidence")),
+            "has_view": True,
+        }
     missing_items = _thesis_lifecycle_missing_items(
         core_claims=core_claims,
         catalysts=catalysts,
@@ -1599,11 +1636,14 @@ def _build_thesis_professional_lifecycle_gates_payload(
     evidence: list[dict[str, Any]],
     evidence_review: dict[str, Any],
     latest_review: dict[str, Any],
+    valuation_target_range: dict[str, Any] | None,
     generated_at: str,
 ) -> dict[str, Any]:
     readiness = _as_dict(lifecycle.get("readiness"))
     review_cadence = _as_dict(lifecycle.get("review_cadence"))
     valuation = _as_dict(lifecycle.get("valuation"))
+    target_range = _as_dict(valuation_target_range)
+    target_range_available = target_range.get("status") == "available"
     invalidations = _as_list(lifecycle.get("invalidation_conditions"))
     evidence_summary = _as_dict(evidence_review.get("summary"))
 
@@ -1706,17 +1746,19 @@ def _build_thesis_professional_lifecycle_gates_payload(
         _thesis_lifecycle_gate(
             gate_key="valuation",
             title="가격이 합리적인가",
-            status="pass" if valuation.get("has_view") else "warning",
+            status="pass" if valuation.get("has_view") or target_range_available else "warning",
             decision="좋은 thesis라도 밸류에이션 맥락 없이는 부족하다",
             detail=(
-                "밸류에이션 민감도나 안전마진 관점이 연결되어 있다."
-                if valuation.get("has_view")
+                "밸류에이션 민감도와 목표가 범위가 연결되어 있다."
+                if valuation.get("has_view") or target_range_available
                 else "밸류에이션 맥락이 없어 좋은 기업을 비싸게 따라사는 위험을 평가하기 어렵다."
             ),
-            next_step="DCF-lite, 상대 배수, 시나리오 범위, 안전마진 관점을 보강한다." if not valuation.get("has_view") else "밸류에이션 가정이 뉴스/실적 변화와 맞는지 본다.",
+            next_step="DCF-lite, 상대 배수, 시나리오 범위, 안전마진 관점을 보강한다." if not valuation.get("has_view") and not target_range_available else "밸류에이션 가정이 뉴스/실적 변화와 맞는지 본다.",
             facts=[
-                _professional_fact("기준 시나리오", valuation.get("base_case") or "미정"),
-                _professional_fact("안전마진", valuation.get("margin_of_safety_view") or "미정"),
+                _professional_fact("기준 시나리오", valuation.get("base_case") or _valuation_target_range_case_text(target_range) or "미정"),
+                _professional_fact("목표가 기준", _format_currency_text(target_range.get("target_base"), target_range.get("currency_code"))),
+                _professional_fact("상승여지", _format_signed_percent_text(_number(target_range.get("upside_base")))),
+                _professional_fact("안전마진", valuation.get("margin_of_safety_view") or _format_signed_percent_text(_number(target_range.get("margin_of_safety")))),
             ],
         ),
         _thesis_lifecycle_gate(
@@ -3766,6 +3808,25 @@ latest_industry_competitive_position as (
     left join ref.classification_node sector_node on sector_node.node_id = position.sector_node_id
     order by position.as_of_date desc, position.competitive_position_id desc
     limit 1
+),
+latest_valuation_methods as (
+    select distinct on (valuation.method)
+        valuation.valuation_snapshot_id,
+        valuation.as_of_date,
+        valuation.method,
+        valuation.base_price,
+        valuation.fair_value_low,
+        valuation.fair_value_base,
+        valuation.fair_value_high,
+        valuation.margin_of_safety,
+        valuation.assumptions_json,
+        valuation.confidence,
+        valuation.source_run_id,
+        valuation.created_at
+    from market.valuation_snapshot valuation
+    join target_instrument instrument on instrument.instrument_id = valuation.instrument_id
+    join target_date target on valuation.as_of_date <= target.as_of_date
+    order by valuation.method, valuation.as_of_date desc, valuation.valuation_snapshot_id desc
 )
 select json_build_object(
     'symbol', coalesce((select primary_symbol from target_instrument), {symbol_literal}),
@@ -3894,6 +3955,30 @@ select json_build_object(
             'source_run_id', source_run_id
         )
         from latest_industry_competitive_position
+    ),
+    'valuation_methods',
+    coalesce(
+        (
+            select json_agg(
+                json_build_object(
+                    'valuation_snapshot_id', valuation_snapshot_id,
+                    'as_of_date', as_of_date,
+                    'method', method,
+                    'base_price', base_price,
+                    'fair_value_low', fair_value_low,
+                    'fair_value_base', fair_value_base,
+                    'fair_value_high', fair_value_high,
+                    'margin_of_safety', margin_of_safety,
+                    'assumptions', assumptions_json,
+                    'confidence', confidence,
+                    'source_run_id', source_run_id,
+                    'created_at', created_at
+                )
+                order by method
+            )
+            from latest_valuation_methods
+        ),
+        '[]'::json
     ),
     'macro_flow_impacts',
     coalesce(
@@ -5938,6 +6023,7 @@ with selected_recommendation as (
         recommendation.batch_id,
         recommendation.instrument_id,
         instrument.primary_symbol,
+        instrument.currency_code,
         batch.as_of_date,
         batch.market_code,
         batch.strategy_name,
@@ -6234,6 +6320,25 @@ latest_industry_competitive_position as (
     order by position.as_of_date desc, position.competitive_position_id desc
     limit 1
 ),
+latest_valuation_methods as (
+    select distinct on (valuation.method)
+        valuation.valuation_snapshot_id,
+        valuation.as_of_date,
+        valuation.method,
+        valuation.base_price,
+        valuation.fair_value_low,
+        valuation.fair_value_base,
+        valuation.fair_value_high,
+        valuation.margin_of_safety,
+        valuation.assumptions_json,
+        valuation.confidence,
+        valuation.source_run_id,
+        valuation.created_at
+    from market.valuation_snapshot valuation
+    join selected_recommendation recommendation on recommendation.instrument_id = valuation.instrument_id
+    where valuation.as_of_date <= recommendation.as_of_date
+    order by valuation.method, valuation.as_of_date desc, valuation.valuation_snapshot_id desc
+),
 score_component_rows as (
     select
         component.component_name,
@@ -6382,6 +6487,7 @@ select json_build_object(
     'recommendation_id', (select recommendation_id from selected_recommendation),
     'symbol', (select primary_symbol from selected_recommendation),
     'instrument_id', (select instrument_id from selected_recommendation),
+    'currency_code', coalesce((select currency_code from selected_recommendation), 'USD'),
     'as_of_date', (select as_of_date from selected_recommendation),
     'strategy_name', (select strategy_name from selected_recommendation),
     'horizon_type', (select horizon_type from selected_recommendation),
@@ -6458,6 +6564,30 @@ select json_build_object(
             'source_run_id', source_run_id
         )
         from latest_industry_competitive_position
+    ),
+    'valuation_methods',
+    coalesce(
+        (
+            select json_agg(
+                json_build_object(
+                    'valuation_snapshot_id', valuation_snapshot_id,
+                    'as_of_date', as_of_date,
+                    'method', method,
+                    'base_price', base_price,
+                    'fair_value_low', fair_value_low,
+                    'fair_value_base', fair_value_base,
+                    'fair_value_high', fair_value_high,
+                    'margin_of_safety', margin_of_safety,
+                    'assumptions', assumptions_json,
+                    'confidence', confidence,
+                    'source_run_id', source_run_id,
+                    'created_at', created_at
+                )
+                order by method
+            )
+            from latest_valuation_methods
+        ),
+        '[]'::json
     ),
     'linked_thesis_id', (select thesis_id from selected_recommendation),
     'evidence_trace',
@@ -6727,6 +6857,7 @@ with selected_thesis as (
         thesis.thesis_id,
         thesis.instrument_id,
         instrument.primary_symbol,
+        instrument.currency_code,
         thesis.status,
         thesis.thesis_type,
         thesis.title,
@@ -6785,6 +6916,24 @@ latest_equity_research as (
         artifact.artifact_id desc
     limit 1
 ),
+latest_valuation_methods as (
+    select distinct on (valuation.method)
+        valuation.valuation_snapshot_id,
+        valuation.as_of_date,
+        valuation.method,
+        valuation.base_price,
+        valuation.fair_value_low,
+        valuation.fair_value_base,
+        valuation.fair_value_high,
+        valuation.margin_of_safety,
+        valuation.assumptions_json,
+        valuation.confidence,
+        valuation.source_run_id,
+        valuation.created_at
+    from market.valuation_snapshot valuation
+    join selected_thesis thesis on thesis.instrument_id = valuation.instrument_id
+    order by valuation.method, valuation.as_of_date desc, valuation.valuation_snapshot_id desc
+),
 event_evidence as (
     select
         event_row.event_id::text as evidence_id,
@@ -6824,6 +6973,7 @@ select json_build_object(
     'thesis_id', (select thesis_id from selected_thesis),
     'symbol', (select primary_symbol from selected_thesis),
     'instrument_id', (select instrument_id from selected_thesis),
+    'currency_code', coalesce((select currency_code from selected_thesis), 'USD'),
     'status', (select status from selected_thesis),
     'thesis_version', coalesce((select thesis_type from selected_thesis), 'bootstrap-v1'),
     'created_from_recommendation_id', (select recommendation_id from latest_recommendation),
@@ -6882,6 +7032,30 @@ select json_build_object(
             'created_at', created_at
         )
         from latest_equity_research
+    ),
+    'valuation_methods',
+    coalesce(
+        (
+            select json_agg(
+                json_build_object(
+                    'valuation_snapshot_id', valuation_snapshot_id,
+                    'as_of_date', as_of_date,
+                    'method', method,
+                    'base_price', base_price,
+                    'fair_value_low', fair_value_low,
+                    'fair_value_base', fair_value_base,
+                    'fair_value_high', fair_value_high,
+                    'margin_of_safety', margin_of_safety,
+                    'assumptions', assumptions_json,
+                    'confidence', confidence,
+                    'source_run_id', source_run_id,
+                    'created_at', created_at
+                )
+                order by method
+            )
+            from latest_valuation_methods
+        ),
+        '[]'::json
     ),
     'evidence',
     coalesce(
@@ -7351,6 +7525,141 @@ def _build_stock_equity_research_payload(artifact: dict[str, Any]) -> dict[str, 
         else None,
         "created_at": _timestamp(artifact.get("created_at")),
     }
+
+
+def _build_valuation_target_range_payload(
+    method_rows: list[dict[str, Any]],
+    *,
+    symbol: str,
+    as_of_date: str,
+    currency_code: str,
+) -> dict[str, Any]:
+    methods: list[dict[str, Any]] = []
+    for row in method_rows:
+        method = str(row.get("method") or "unknown")
+        source_run_id = row.get("source_run_id")
+        methods.append(
+            {
+                "valuation_snapshot_id": _opaque_id("valuation-snapshot", row.get("valuation_snapshot_id"), None)
+                if row.get("valuation_snapshot_id") is not None
+                else None,
+                "method": method,
+                "method_label": _valuation_method_label(method),
+                "as_of_date": str(row.get("as_of_date") or ""),
+                "base_price": _number(row.get("base_price")),
+                "fair_value_low": _number(row.get("fair_value_low")),
+                "fair_value_base": _number(row.get("fair_value_base")),
+                "fair_value_high": _number(row.get("fair_value_high")),
+                "margin_of_safety": _number(row.get("margin_of_safety")),
+                "confidence": _number(row.get("confidence")),
+                "assumptions": _as_dict(row.get("assumptions") or row.get("assumptions_json")),
+                "source_run_id": _opaque_id("pipeline-run", source_run_id, None)
+                if source_run_id is not None
+                else None,
+                "created_at": _timestamp(row.get("created_at")),
+            }
+        )
+
+    base_price = _mean_number(item.get("base_price") for item in methods)
+    target_low_values = [item["fair_value_low"] for item in methods if item.get("fair_value_low") is not None]
+    target_base = _mean_number(item.get("fair_value_base") for item in methods)
+    target_high_values = [item["fair_value_high"] for item in methods if item.get("fair_value_high") is not None]
+    target_low = min(target_low_values) if target_low_values else None
+    target_high = max(target_high_values) if target_high_values else None
+    margin_of_safety = _mean_number(item.get("margin_of_safety") for item in methods)
+    confidence = _mean_number(item.get("confidence") for item in methods)
+    valuation_dates = [str(item.get("as_of_date") or "") for item in methods if item.get("as_of_date")]
+    target_range_available = bool(methods and any(item.get("fair_value_base") is not None for item in methods))
+
+    if target_range_available:
+        summary = (
+            f"{symbol}는 {len(methods)}개 밸류에이션 방법으로 목표가 범위를 계산했다. "
+            "이 값은 추천 점수를 바로 바꾸지 않고 가격 검토 근거로만 사용한다."
+        )
+    else:
+        summary = (
+            f"{symbol}의 valuation snapshot이 아직 부족해 목표가 범위를 계산하지 못했다. "
+            "좋은 뉴스나 사이클 근거가 있어도 가격 판단은 보류해야 한다."
+        )
+
+    return {
+        "status": "available" if target_range_available else "unavailable",
+        "symbol": symbol,
+        "as_of_date": as_of_date,
+        "valuation_as_of_date": max(valuation_dates) if valuation_dates else "",
+        "currency_code": currency_code or "USD",
+        "method_count": len(methods),
+        "base_price": base_price,
+        "target_low": target_low,
+        "target_base": target_base,
+        "target_high": target_high,
+        "upside_low": _valuation_upside(target_low, base_price),
+        "upside_base": _valuation_upside(target_base, base_price),
+        "upside_high": _valuation_upside(target_high, base_price),
+        "margin_of_safety": margin_of_safety if margin_of_safety is not None else _valuation_upside(target_base, base_price),
+        "confidence": confidence,
+        "summary": summary,
+        "methods": methods,
+        "score_policy": "recommendation_weights_unchanged",
+        "automatic_order_allowed": False,
+        "broker_submit_allowed": False,
+        "order_boundary": "read_only_no_order",
+    }
+
+
+def _valuation_method_label(method: str) -> str:
+    labels = {
+        "dcf_lite": "DCF-lite",
+        "relative_multiple": "상대 배수",
+        "scenario_range": "시나리오 범위",
+    }
+    return labels.get(method, method or "미확인")
+
+
+def _mean_number(values: Iterable[object]) -> float | None:
+    numbers = [_number(value) for value in values if value is not None]
+    numbers = [value for value in numbers if value is not None]
+    if not numbers:
+        return None
+    return sum(numbers) / len(numbers)
+
+
+def _valuation_upside(target: object, base_price: object) -> float | None:
+    target_value = _number(target)
+    base_value = _number(base_price)
+    if target_value is None or base_value is None or base_value == 0:
+        return None
+    return (target_value - base_value) / base_value
+
+
+def _format_currency_text(value: object, currency_code: object) -> str:
+    number = _number(value)
+    if number is None:
+        return "미측정"
+    currency = str(currency_code or "USD")
+    return f"{currency} {number:,.2f}"
+
+
+def _valuation_target_range_price_band_text(target_range: dict[str, Any]) -> str:
+    if target_range.get("status") != "available":
+        return "미측정"
+    currency = target_range.get("currency_code")
+    return " / ".join(
+        [
+            _format_currency_text(target_range.get("target_low"), currency),
+            _format_currency_text(target_range.get("target_base"), currency),
+            _format_currency_text(target_range.get("target_high"), currency),
+        ]
+    )
+
+
+def _valuation_target_range_case_text(target_range: dict[str, Any]) -> str:
+    if target_range.get("status") != "available":
+        return ""
+    return (
+        f"기준 목표가 {_format_currency_text(target_range.get('target_base'), target_range.get('currency_code'))}, "
+        f"상승여지 {_format_signed_percent_text(_number(target_range.get('upside_base')))}"
+    )
 
 
 def _build_industry_competitive_position_payload(position: dict[str, Any]) -> dict[str, Any] | None:
@@ -9229,6 +9538,7 @@ def _build_recommendation_professional_decision_waterfall_payload(
     score_components: list[dict[str, Any]],
     equity_research: dict[str, Any] | None,
     industry_competitive_position: dict[str, Any] | None,
+    valuation_target_range: dict[str, Any] | None,
     linked_thesis_id: Any,
     evidence_trace: dict[str, Any],
     evidence_review: dict[str, Any],
@@ -9258,6 +9568,9 @@ def _build_recommendation_professional_decision_waterfall_payload(
     peer_relative = _find_recommendation_score_component(score_components, "peer_relative_score")
     balance_sheet = _find_recommendation_score_component(score_components, "balance_sheet_risk_penalty")
     thesis_consistency = _find_recommendation_score_component(score_components, "thesis_consistency_score")
+    target_range = _as_dict(valuation_target_range)
+    target_range_available = target_range.get("status") == "available"
+    valuation_method_count = _integer(target_range.get("method_count")) or 0
     outcome_measured = bool(outcome.get("measurement_end_date")) and str(outcome.get("label") or "unmeasured") != "unmeasured"
     position_linked = holding_review.get("status") in {"review_linked", "position_without_review"}
 
@@ -9372,21 +9685,24 @@ def _build_recommendation_professional_decision_waterfall_payload(
         _professional_decision_step(
             step_key="valuation",
             title="밸류에이션",
-            status="밸류에이션 근거 연결" if valuation_margin or (equity_research and equity_research.get("valuation_sensitivity")) else "밸류에이션 대기",
-            tone="ready" if valuation_margin or (equity_research and equity_research.get("valuation_sensitivity")) else "watch",
+            status="목표가 범위 연결" if target_range_available else ("밸류에이션 근거 연결" if valuation_margin or (equity_research and equity_research.get("valuation_sensitivity")) else "밸류에이션 대기"),
+            tone="ready" if target_range_available or valuation_margin or (equity_research and equity_research.get("valuation_sensitivity")) else "watch",
             decision="좋은 회사라도 가격을 따로 본다",
             detail=(
-                "DCF-lite, 상대 배수, 시나리오 범위, 안전마진을 추천과 분리해 검토한다. 평가 표본 전까지 가중치는 보수적으로 유지한다."
-                if valuation_margin or equity_research
+                "DCF-lite, 상대 배수, 시나리오 범위가 만든 목표가 범위와 안전마진을 추천과 분리해 검토한다. 평가 표본 전까지 가중치는 보수적으로 유지한다."
+                if target_range_available or valuation_margin or equity_research
                 else "밸류에이션 snapshot과 민감도 분석이 아직 충분히 연결되지 않았다."
             ),
-            evidence_count=(1 if valuation_margin else 0) + (1 if equity_research and equity_research.get("valuation_sensitivity") else 0),
+            evidence_count=valuation_method_count + (1 if valuation_margin else 0) + (1 if equity_research and equity_research.get("valuation_sensitivity") else 0),
             source="valuation_context",
             href=f"/stocks/{quote(symbol, safe='')}",
             href_label="밸류에이션 맥락 보기",
             facts=[
+                _professional_fact("현재가 기준", _format_currency_text(target_range.get("base_price"), target_range.get("currency_code"))),
+                _professional_fact("목표가 범위", _valuation_target_range_price_band_text(target_range)),
+                _professional_fact("기준 상승여지", _format_signed_percent_text(_number(target_range.get("upside_base")))),
                 _professional_fact("밸류에이션 여유", _format_percent_text(_number(valuation_margin.get("value") if valuation_margin else None))),
-                _professional_fact("민감도 항목", f"{len(_as_dict(equity_research.get('valuation_sensitivity') if equity_research else None))}개"),
+                _professional_fact("산출 방법", f"{valuation_method_count}개"),
             ],
         ),
         _professional_decision_step(

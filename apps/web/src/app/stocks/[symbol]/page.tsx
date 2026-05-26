@@ -4,6 +4,7 @@ import { Fragment } from "react";
 
 import { NewsTitleBlock } from "@/components/news-title-block";
 import { ProfessionalResearchFlow, type ResearchFlowStep } from "@/components/professional-research-flow";
+import { ValuationTargetRangeCard } from "@/components/valuation-target-range-card";
 import { getAiEvidenceNeighborhood, getStockDetail } from "@/lib/frontend-api";
 import { koCode, koLabel } from "@/lib/korean-labels";
 import type { AiEvidenceNeighborhoodData, StockDetailData, StockPrice } from "@/lib/types";
@@ -581,6 +582,8 @@ export default async function StockDetailPage({ params }: StockDetailPageProps) 
   const hasPriceData = data.summary.bar_count > 0 && data.latest_price.close !== null;
   const equityResearch = data.equity_research;
   const industryPosition = data.industry_competitive_position;
+  const valuationTargetRange = data.valuation_target_range;
+  const hasTargetRange = valuationTargetRange.status === "available";
   const valuationItems = equityResearch ? valuationSensitivityItems(equityResearch.valuation_sensitivity) : [];
   const hasEvidenceOnlyData =
     !hasPriceData && (data.macro_flow_impacts.length > 0 || data.recent_events.length > 0);
@@ -635,13 +638,21 @@ export default async function StockDetailPage({ params }: StockDetailPageProps) 
       id: "valuation",
       label: "04",
       title: "밸류에이션",
-      status: valuationItems.length ? `${valuationItems.length}개 민감도` : "산출 대기",
-      tone: valuationItems.length ? "ready" : "watch",
-      body: valuationItems.length
-        ? "DCF-lite, 상대 배수, 시나리오 범위가 추천 점수를 바로 바꾸지는 않지만, 비싸게 사는지 여부를 검토하는 핵심 입력이다."
+      status: hasTargetRange ? `${valuationTargetRange.method_count}개 목표가 산출` : (valuationItems.length ? `${valuationItems.length}개 민감도` : "산출 대기"),
+      tone: hasTargetRange || valuationItems.length ? "ready" : "watch",
+      body: hasTargetRange
+        ? "현재가 대비 목표가 하단·기준·상단과 안전마진을 먼저 본다. 이 값은 추천 점수를 바로 바꾸지 않고 가격 검토 근거로만 쓴다."
+        : valuationItems.length
+          ? "DCF-lite, 상대 배수, 시나리오 범위가 추천 점수를 바로 바꾸지는 않지만, 비싸게 사는지 여부를 검토하는 핵심 입력이다."
         : "아직 target range, margin of safety, scenario sensitivity가 충분히 저장되지 않았다.",
       facts:
-        valuationItems.length > 0
+        hasTargetRange
+          ? [
+              { label: "기준 목표가", value: formatCurrency(valuationTargetRange.target_base, valuationTargetRange.currency_code) },
+              { label: "기준 상승여지", value: formatPercent(valuationTargetRange.upside_base) },
+              { label: "산출 방법", value: `${valuationTargetRange.method_count}개` },
+            ]
+          : valuationItems.length > 0
           ? valuationItems.slice(0, 3).map((item) => ({ label: koCode(item.key), value: koLabel(item.value) }))
           : [{ label: "상태", value: "밸류에이션 artifact 대기" }],
     },
@@ -835,6 +846,12 @@ export default async function StockDetailPage({ params }: StockDetailPageProps) 
           )}
         </article>
       </section>
+
+      <ValuationTargetRangeCard
+        valuation={valuationTargetRange}
+        eyebrow="전문 밸류에이션"
+        title={`${data.symbol} 목표가 범위`}
+      />
 
       <section className="bento-card span-4 reveal delay-3" aria-label="AI 기업 분석 리포트">
         <div className="section-heading">

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Route } from "next";
 import { AuditMetadata, type AuditMetadataItem } from "@/components/audit-metadata";
+import { ValuationTargetRangeCard } from "@/components/valuation-target-range-card";
 import { getThesisDetail } from "@/lib/frontend-api";
 import { koCode, koLabel } from "@/lib/korean-labels";
 import type { ThesisDetailData } from "@/lib/types";
@@ -338,6 +339,7 @@ export default async function ThesisPage({ params }: ThesisPageProps) {
   const qualityChecks = thesisQualityChecks(data);
   const lifecycle = data.lifecycle;
   const professionalGates = data.professional_lifecycle_gates;
+  const valuationTargetRange = data.valuation_target_range;
   const valuationRows = valuationItems(lifecycle.valuation);
 
   return (
@@ -441,6 +443,12 @@ export default async function ThesisPage({ params }: ThesisPageProps) {
           ))}
         </div>
       </section>
+
+      <ValuationTargetRangeCard
+        valuation={valuationTargetRange}
+        eyebrow="Thesis 가격 검토"
+        title={`${data.symbol} 목표가 범위와 안전마진`}
+      />
 
       <section className="bento-card reveal delay-1" aria-label="투자 논리 생애주기">
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "20px", flexWrap: "wrap", marginBottom: "20px" }}>

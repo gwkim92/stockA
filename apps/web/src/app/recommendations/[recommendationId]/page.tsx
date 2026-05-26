@@ -4,6 +4,7 @@ import { Fragment } from "react";
 import { AuditMetadata, type AuditMetadataItem } from "@/components/audit-metadata";
 import { NewsTitleBlock } from "@/components/news-title-block";
 import { ProfessionalResearchFlow, type ResearchFlowStep } from "@/components/professional-research-flow";
+import { ValuationTargetRangeCard } from "@/components/valuation-target-range-card";
 import { getRecommendationDetail } from "@/lib/frontend-api";
 import { koCode, koLabel } from "@/lib/korean-labels";
 import type { RecommendationDetailData } from "@/lib/types";
@@ -712,6 +713,7 @@ export default async function RecommendationPage({ params }: RecommendationPageP
   const fundamentalStack = fundamentalComponents(data.score_components);
   const equityResearch = data.equity_research;
   const industryPosition = data.industry_competitive_position;
+  const valuationTargetRange = data.valuation_target_range;
   const valuationItems = equityResearch ? valuationSensitivityItems(equityResearch.valuation_sensitivity) : [];
   const outcomeMeasured = data.outcome.label !== "unmeasured" && Boolean(data.outcome.measurement_end_date);
   const peerComponent = fundamentalStack.find((component) => component.component === "peer_relative_score");
@@ -790,6 +792,12 @@ export default async function RecommendationPage({ params }: RecommendationPageP
         summary={decisionWaterfall.summary}
         footer={`점수 정책: ${koCode(decisionWaterfall.score_policy)}. 주문 경계: ${koCode(decisionWaterfall.order_boundary)}.`}
         steps={professionalResearchSteps}
+      />
+
+      <ValuationTargetRangeCard
+        valuation={valuationTargetRange}
+        eyebrow="추천 가격 검토"
+        title={`${data.symbol} 목표가 범위와 상승여지`}
       />
 
       {cycleStack.length > 0 ? (

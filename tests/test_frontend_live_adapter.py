@@ -331,6 +331,50 @@ class FakeLiveExecutor:
                         "rationale": "Peer financial proxy ranks AAPL as a leader.",
                         "source_run_id": 779,
                     },
+                    "valuation_methods": [
+                        {
+                            "valuation_snapshot_id": 5101,
+                            "as_of_date": "2024-12-02",
+                            "method": "dcf_lite",
+                            "base_price": "240.0000",
+                            "fair_value_low": "210.0000",
+                            "fair_value_base": "270.0000",
+                            "fair_value_high": "315.0000",
+                            "margin_of_safety": "0.1250",
+                            "assumptions": {"method_description": "Discounted cash flow-lite"},
+                            "confidence": "0.6200",
+                            "source_run_id": 7801,
+                            "created_at": "2024-12-02T10:00:00+00:00",
+                        },
+                        {
+                            "valuation_snapshot_id": 5102,
+                            "as_of_date": "2024-12-02",
+                            "method": "relative_multiple",
+                            "base_price": "240.0000",
+                            "fair_value_low": "220.0000",
+                            "fair_value_base": "255.0000",
+                            "fair_value_high": "290.0000",
+                            "margin_of_safety": "0.0625",
+                            "assumptions": {"method_description": "Peer multiple comparison"},
+                            "confidence": "0.5800",
+                            "source_run_id": 7801,
+                            "created_at": "2024-12-02T10:00:00+00:00",
+                        },
+                        {
+                            "valuation_snapshot_id": 5103,
+                            "as_of_date": "2024-12-02",
+                            "method": "scenario_range",
+                            "base_price": "240.0000",
+                            "fair_value_low": "200.0000",
+                            "fair_value_base": "260.0000",
+                            "fair_value_high": "330.0000",
+                            "margin_of_safety": "0.0833",
+                            "assumptions": {"method_description": "Bear/base/bull scenario range"},
+                            "confidence": "0.6000",
+                            "source_run_id": 7801,
+                            "created_at": "2024-12-02T10:00:00+00:00",
+                        },
+                    ],
                     "macro_flow_impacts": [
                         {
                             "event_id": 9101,
@@ -1375,6 +1419,50 @@ class FakeLiveExecutor:
                             "rationale": "Peer financial proxy ranks AAPL as a leader.",
                             "source_run_id": 779,
                         },
+	                    "valuation_methods": [
+	                        {
+	                            "valuation_snapshot_id": 5101,
+	                            "as_of_date": "2024-11-01",
+	                            "method": "dcf_lite",
+	                            "base_price": "240.0000",
+	                            "fair_value_low": "210.0000",
+	                            "fair_value_base": "270.0000",
+	                            "fair_value_high": "315.0000",
+	                            "margin_of_safety": "0.1250",
+	                            "assumptions": {"method_description": "Discounted cash flow-lite"},
+	                            "confidence": "0.6200",
+	                            "source_run_id": 7801,
+	                            "created_at": "2024-11-01T10:00:00+00:00",
+	                        },
+	                        {
+	                            "valuation_snapshot_id": 5102,
+	                            "as_of_date": "2024-11-01",
+	                            "method": "relative_multiple",
+	                            "base_price": "240.0000",
+	                            "fair_value_low": "220.0000",
+	                            "fair_value_base": "255.0000",
+	                            "fair_value_high": "290.0000",
+	                            "margin_of_safety": "0.0625",
+	                            "assumptions": {"method_description": "Peer multiple comparison"},
+	                            "confidence": "0.5800",
+	                            "source_run_id": 7801,
+	                            "created_at": "2024-11-01T10:00:00+00:00",
+	                        },
+	                        {
+	                            "valuation_snapshot_id": 5103,
+	                            "as_of_date": "2024-11-01",
+	                            "method": "scenario_range",
+	                            "base_price": "240.0000",
+	                            "fair_value_low": "200.0000",
+	                            "fair_value_base": "260.0000",
+	                            "fair_value_high": "330.0000",
+	                            "margin_of_safety": "0.0833",
+	                            "assumptions": {"method_description": "Bear/base/bull scenario range"},
+	                            "confidence": "0.6000",
+	                            "source_run_id": 7801,
+	                            "created_at": "2024-11-01T10:00:00+00:00",
+	                        },
+	                    ],
 	                    "linked_thesis_id": 7001,
 	                    "evidence_trace": {
 	                        "direct_news_or_ai": {
@@ -1573,6 +1661,50 @@ class FakeLiveExecutor:
                         "source_run_id": 7711,
                         "created_at": "2024-11-01T09:00:00+00:00",
                     },
+                    "valuation_methods": [
+                        {
+                            "valuation_snapshot_id": 5101,
+                            "as_of_date": "2024-11-01",
+                            "method": "dcf_lite",
+                            "base_price": "240.0000",
+                            "fair_value_low": "210.0000",
+                            "fair_value_base": "270.0000",
+                            "fair_value_high": "315.0000",
+                            "margin_of_safety": "0.1250",
+                            "assumptions": {"method_description": "Discounted cash flow-lite"},
+                            "confidence": "0.6200",
+                            "source_run_id": 7801,
+                            "created_at": "2024-11-01T10:00:00+00:00",
+                        },
+                        {
+                            "valuation_snapshot_id": 5102,
+                            "as_of_date": "2024-11-01",
+                            "method": "relative_multiple",
+                            "base_price": "240.0000",
+                            "fair_value_low": "220.0000",
+                            "fair_value_base": "255.0000",
+                            "fair_value_high": "290.0000",
+                            "margin_of_safety": "0.0625",
+                            "assumptions": {"method_description": "Peer multiple comparison"},
+                            "confidence": "0.5800",
+                            "source_run_id": 7801,
+                            "created_at": "2024-11-01T10:00:00+00:00",
+                        },
+                        {
+                            "valuation_snapshot_id": 5103,
+                            "as_of_date": "2024-11-01",
+                            "method": "scenario_range",
+                            "base_price": "240.0000",
+                            "fair_value_low": "200.0000",
+                            "fair_value_base": "260.0000",
+                            "fair_value_high": "330.0000",
+                            "margin_of_safety": "0.0833",
+                            "assumptions": {"method_description": "Bear/base/bull scenario range"},
+                            "confidence": "0.6000",
+                            "source_run_id": 7801,
+                            "created_at": "2024-11-01T10:00:00+00:00",
+                        },
+                    ],
                     "evidence": [
                         {
                             "evidence_id": 9001,
@@ -2788,6 +2920,18 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertEqual(competitive_position["rivalry_risk_score"], 0.42)
         self.assertEqual(competitive_position["key_strengths"][0], "High profitability percentile")
         self.assertEqual(competitive_position["source_run_id"], "pipeline-run-779")
+        target_range = payload["data"]["valuation_target_range"]
+        self.assertEqual(target_range["status"], "available")
+        self.assertEqual(target_range["method_count"], 3)
+        self.assertEqual(target_range["base_price"], 240.0)
+        self.assertEqual(target_range["target_low"], 200.0)
+        self.assertAlmostEqual(target_range["target_base"], 261.6666666667)
+        self.assertEqual(target_range["target_high"], 330.0)
+        self.assertAlmostEqual(target_range["upside_base"], 0.0902777778)
+        self.assertEqual(target_range["methods"][0]["method"], "dcf_lite")
+        self.assertEqual(target_range["methods"][0]["source_run_id"], "pipeline-run-7801")
+        self.assertFalse(target_range["automatic_order_allowed"])
+        self.assertEqual(target_range["score_policy"], "recommendation_weights_unchanged")
         self.assertEqual(payload["data"]["macro_flow_impacts"][0]["theme_key"], "MACRO_RATES_FED")
         self.assertEqual(payload["data"]["macro_flow_impacts"][0]["source_run_id"], "pipeline-run-7701")
         self.assertEqual(payload["data"]["recent_events"][0]["event_id"], "event-9001")
@@ -2969,6 +3113,11 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertIn("signal.propagated_instrument_impact", detail_sql)
         self.assertIn("research.equity_research_artifact", detail_sql)
         self.assertIn("research.industry_competitive_position", detail_sql)
+        self.assertIn("market.valuation_snapshot", detail_sql)
+        self.assertIn("latest_valuation_methods as", detail_sql)
+        self.assertIn("'valuation_methods'", detail_sql)
+        self.assertIn("valuation.fair_value_low", detail_sql)
+        self.assertIn("valuation.assumptions_json", detail_sql)
         self.assertIn("'equity_research'", detail_sql)
         self.assertIn("'industry_competitive_position'", detail_sql)
         self.assertIn("macro_flow_impacts as", detail_sql)
@@ -3378,6 +3527,14 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertEqual(competitive_position["rivalry_risk_score"], 0.42)
         self.assertEqual(competitive_position["key_risks"][0], "Large-cap technology rivalry remains material")
         self.assertEqual(competitive_position["source_run_id"], "pipeline-run-779")
+        target_range = payload["data"]["valuation_target_range"]
+        self.assertEqual(target_range["status"], "available")
+        self.assertEqual(target_range["method_count"], 3)
+        self.assertEqual(target_range["target_low"], 200.0)
+        self.assertAlmostEqual(target_range["target_base"], 261.6666666667)
+        self.assertEqual(target_range["target_high"], 330.0)
+        self.assertAlmostEqual(target_range["upside_base"], 0.0902777778)
+        self.assertEqual(target_range["order_boundary"], "read_only_no_order")
         self.assertEqual(payload["data"]["linked_thesis_id"], "thesis-7001")
         trace = payload["data"]["evidence_trace"]
         self.assertEqual(trace["symbol"], "AAPL")
@@ -3435,6 +3592,10 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         )
         self.assertEqual(waterfall["steps"][0]["title"], "거시·사이클 배경")
         self.assertIn("연준 금리 경로", waterfall["steps"][0]["facts"][2]["value"])
+        self.assertEqual(waterfall["steps"][4]["title"], "밸류에이션")
+        self.assertEqual(waterfall["steps"][4]["status"], "목표가 범위 연결")
+        self.assertIn("USD 261.67", waterfall["steps"][4]["facts"][1]["value"])
+        self.assertEqual(waterfall["steps"][4]["facts"][4]["value"], "3개")
         self.assertEqual(waterfall["steps"][6]["title"], "포지션 크기")
         self.assertEqual(waterfall["steps"][6]["facts"][0]["value"], "5.0%")
         self.assertEqual(waterfall["steps"][6]["facts"][2]["value"], "+0.5%")
@@ -3519,6 +3680,10 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertIn("research.equity_research_artifact", sql)
         self.assertIn("latest_industry_competitive_position as", sql)
         self.assertIn("research.industry_competitive_position", sql)
+        self.assertIn("market.valuation_snapshot", sql)
+        self.assertIn("latest_valuation_methods as", sql)
+        self.assertIn("'valuation_methods'", sql)
+        self.assertIn("valuation.fair_value_base", sql)
         self.assertIn("signal.propagated_instrument_impact", sql)
         self.assertIn("portfolio.position_snapshot", sql)
         self.assertIn("portfolio.review_item", sql)
@@ -3594,6 +3759,12 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertEqual(lifecycle["valuation"]["margin_of_safety_view"], "watch")
         self.assertEqual(lifecycle["valuation"]["upside_case"], "서비스 성장 유지")
         self.assertEqual(lifecycle["review_cadence"]["next_review_date"], "2024-12-01")
+        target_range = payload["data"]["valuation_target_range"]
+        self.assertEqual(target_range["status"], "available")
+        self.assertEqual(target_range["method_count"], 3)
+        self.assertAlmostEqual(target_range["target_base"], 261.6666666667)
+        self.assertAlmostEqual(target_range["margin_of_safety"], 0.0902666667)
+        self.assertEqual(target_range["order_boundary"], "read_only_no_order")
         self.assertEqual(payload["data"]["evidence"][0]["evidence_id"], "event-9001")
         self.assertEqual(payload["data"]["evidence"][0]["observed_at"], "2024-10-31T14:00:00Z")
         self.assertEqual(payload["data"]["evidence"][1]["evidence_id"], "performance-outcome-8101")
@@ -3735,6 +3906,9 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertNotIn("outcome.outcome_label", thesis_sql)
         self.assertIn("thesis.exit_conditions", thesis_sql)
         self.assertIn("research.equity_research_artifact", thesis_sql)
+        self.assertIn("market.valuation_snapshot", thesis_sql)
+        self.assertIn("latest_valuation_methods as", thesis_sql)
+        self.assertIn("'valuation_methods'", thesis_sql)
         self.assertIn("'equity_research'", thesis_sql)
         self.assertIn("artifact.catalysts_json", thesis_sql)
         self.assertIn("artifact.valuation_sensitivity_json", thesis_sql)

@@ -302,6 +302,46 @@ export type IndustryCompetitivePosition = {
   source_run_id: string | null;
 };
 
+export type ValuationMethodSnapshot = {
+  valuation_snapshot_id: string | null;
+  method: string;
+  method_label: string;
+  as_of_date: string;
+  base_price: number | null;
+  fair_value_low: number | null;
+  fair_value_base: number | null;
+  fair_value_high: number | null;
+  margin_of_safety: number | null;
+  confidence: number | null;
+  assumptions: Record<string, unknown>;
+  source_run_id: string | null;
+  created_at: string;
+};
+
+export type ValuationTargetRange = {
+  status: string;
+  symbol: string;
+  as_of_date: string;
+  valuation_as_of_date: string;
+  currency_code: string;
+  method_count: number;
+  base_price: number | null;
+  target_low: number | null;
+  target_base: number | null;
+  target_high: number | null;
+  upside_low: number | null;
+  upside_base: number | null;
+  upside_high: number | null;
+  margin_of_safety: number | null;
+  confidence: number | null;
+  summary: string;
+  methods: ValuationMethodSnapshot[];
+  score_policy: string;
+  automatic_order_allowed: boolean;
+  broker_submit_allowed: boolean;
+  order_boundary: string;
+};
+
 export type StockRecommendation = {
   recommendation_id: string;
   linked_thesis_id: string | null;
@@ -384,6 +424,7 @@ export type StockDetailData = {
     created_at: string;
   } | null;
   industry_competitive_position: IndustryCompetitivePosition | null;
+  valuation_target_range: ValuationTargetRange;
   macro_flow_impacts: Array<{
     event_id: string;
     title: string;
@@ -910,6 +951,7 @@ export type RecommendationDetailData = {
   recommendation_id: string;
   symbol: string;
   instrument_id: string;
+  currency_code: string;
   as_of_date: string;
   strategy_name: string;
   horizon_type: string;
@@ -991,6 +1033,7 @@ export type RecommendationDetailData = {
     created_at: string;
   } | null;
   industry_competitive_position: IndustryCompetitivePosition | null;
+  valuation_target_range: ValuationTargetRange;
   linked_thesis_id: string;
   professional_decision_waterfall: ProfessionalDecisionWaterfall;
   evidence_trace: {
@@ -1101,6 +1144,7 @@ export type ThesisDetailData = {
   thesis_id: string;
   symbol: string;
   instrument_id: string;
+  currency_code: string;
   status: string;
   thesis_version: string;
   created_from_recommendation_id: string;
@@ -1161,6 +1205,7 @@ export type ThesisDetailData = {
     };
   };
   professional_lifecycle_gates: ProfessionalLifecycleGates;
+  valuation_target_range: ValuationTargetRange;
   evidence: Array<{
     evidence_id: string;
     type: string;
