@@ -15,8 +15,11 @@
 - Passed: `PYTHONPATH=src /opt/homebrew/bin/python3.13 -m compileall -q src tests`.
 - Passed: `bash scripts/verify_project_execution_roadmap.sh`.
 - Passed: `PYTHONPATH=/Users/woody/ai/agent-work-harness/src /opt/homebrew/bin/python3.13 -m awh verify --repo . --task data-health-attention-classification-v1`.
+- Passed on EC2: pulled commit `6dbeeec`, ran `compileall`, `tests.test_frontend_live_adapter`, and `npm run typecheck`.
+- Passed on EC2: rebuilt Next.js with `npm run build`, restarted `stockanalysis-frontend-api.service` and `stockanalysis-web.service`, and both services were `active`.
+- Passed on EC2: `/api/data-health` returned `open_gate_detail_count=8`.
+- Passed on EC2: `/data-health` HTML contains `벤치마크 괴리 검토`, `전문 분석 원천 한계`, `성과 관찰 대기`, `포트폴리오 검토 결정`, and `성숙한 검토 표본 0/10개`.
 
 ## Remaining
 
-- EC2 deploy and route/API smoke are still needed before calling the task fully deployed.
 - The underlying gates remain open until their real conditions are resolved. This task only makes them understandable.
