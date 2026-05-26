@@ -8588,6 +8588,7 @@ def _valuation_method_sotp_evidence(assumptions: dict[str, Any]) -> dict[str, An
     components = [component for component in components if component]
     segment_evidence_rows: list[dict[str, Any]] = []
     reported_segment_inputs: list[dict[str, Any]] = []
+    reported_segment_allocations: list[dict[str, Any]] = []
 
     def append_reported_segment_input(row: Any) -> None:
         segment_input = _as_dict(row)
@@ -8615,11 +8616,45 @@ def _valuation_method_sotp_evidence(assumptions: dict[str, Any]) -> dict[str, An
     for row in _as_list(assumptions.get("reported_segment_inputs")):
         append_reported_segment_input(row)
 
+    def append_reported_segment_allocation(row: Any) -> None:
+        allocation = _as_dict(row)
+        if not allocation:
+            return
+        reported_segment_allocations.append(
+            {
+                "segment_key": str(allocation.get("segment_key") or ""),
+                "segment_label": str(allocation.get("segment_label") or allocation.get("segment_key") or ""),
+                "period_end": str(allocation.get("period_end") or ""),
+                "allocation_basis": str(allocation.get("allocation_basis") or ""),
+                "allocation_weight": _number(allocation.get("allocation_weight")),
+                "revenue_share": _number(allocation.get("revenue_share")),
+                "operating_income_share": _number(allocation.get("operating_income_share")),
+                "allocated_fair_value_low": _number(allocation.get("allocated_fair_value_low")),
+                "allocated_fair_value_base": _number(allocation.get("allocated_fair_value_base")),
+                "allocated_fair_value_high": _number(allocation.get("allocated_fair_value_high")),
+                "revenue": _number(allocation.get("revenue")),
+                "operating_income": _number(allocation.get("operating_income")),
+                "source_document_id": _opaque_id("source-document", allocation.get("source_document_id"), None)
+                if allocation.get("source_document_id") is not None
+                else None,
+                "confidence": _number(allocation.get("confidence")),
+                "source_run_id": _opaque_id("pipeline-run", allocation.get("source_run_id"), None)
+                if allocation.get("source_run_id") is not None
+                else None,
+            }
+        )
+
+    for row in _as_list(assumptions.get("reported_segment_allocations")):
+        append_reported_segment_allocation(row)
+
     for component in components:
         component_assumptions = _as_dict(component.get("assumptions"))
         if not reported_segment_inputs:
             for row in _as_list(component_assumptions.get("reported_segment_inputs")):
                 append_reported_segment_input(row)
+        if not reported_segment_allocations:
+            for row in _as_list(component_assumptions.get("reported_segment_allocations")):
+                append_reported_segment_allocation(row)
         for row in _as_list(component_assumptions.get("segment_evidence")):
             evidence = _as_dict(row)
             if not evidence:
@@ -8667,6 +8702,7 @@ def _valuation_method_sotp_evidence(assumptions: dict[str, Any]) -> dict[str, An
             "source": str(assumptions.get("sotp_component_source") or ""),
             "components": [],
             "reported_segment_inputs": reported_segment_inputs,
+            "reported_segment_allocations": reported_segment_allocations,
             "segment_footnote_evidence": segment_evidence_payload,
         }
 
@@ -8706,6 +8742,7 @@ def _valuation_method_sotp_evidence(assumptions: dict[str, Any]) -> dict[str, An
         "source": str(assumptions.get("sotp_component_source") or "market.sum_of_parts_component"),
         "components": normalized_components,
         "reported_segment_inputs": reported_segment_inputs,
+        "reported_segment_allocations": reported_segment_allocations,
         "segment_footnote_evidence": segment_evidence_payload,
     }
 

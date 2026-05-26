@@ -669,6 +669,43 @@ class FakeLiveExecutor:
                                         "source_run_id": 7803,
                                     },
                                 ],
+                                "reported_segment_allocation_count": 2,
+                                "reported_segment_allocations": [
+                                    {
+                                        "segment_key": "products",
+                                        "segment_label": "Products",
+                                        "period_end": "2024-09-28",
+                                        "allocation_basis": "operating_income_share",
+                                        "allocation_weight": "0.7866",
+                                        "revenue_share": "0.8062",
+                                        "operating_income_share": "0.7866",
+                                        "allocated_fair_value_low": "165.1860",
+                                        "allocated_fair_value_base": "224.1810",
+                                        "allocated_fair_value_high": "283.1760",
+                                        "revenue": "391035000000.0000",
+                                        "operating_income": "153000000000.0000",
+                                        "source_document_id": 8101,
+                                        "confidence": "0.7600",
+                                        "source_run_id": 7803,
+                                    },
+                                    {
+                                        "segment_key": "services",
+                                        "segment_label": "Services",
+                                        "period_end": "2024-09-28",
+                                        "allocation_basis": "operating_income_share",
+                                        "allocation_weight": "0.2134",
+                                        "revenue_share": "0.1938",
+                                        "operating_income_share": "0.2134",
+                                        "allocated_fair_value_low": "44.8140",
+                                        "allocated_fair_value_base": "60.8190",
+                                        "allocated_fair_value_high": "76.8240",
+                                        "revenue": "94000000000.0000",
+                                        "operating_income": "41500000000.0000",
+                                        "source_document_id": 8101,
+                                        "confidence": "0.7400",
+                                        "source_run_id": 7803,
+                                    },
+                                ],
                                 "has_operating_business_component": True,
                                 "sotp_components": [
                                     {
@@ -3528,6 +3565,19 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertEqual(sotp_method["sotp_evidence"]["reported_segment_inputs"][0]["revenue"], 391035000000.0)
         self.assertEqual(sotp_method["sotp_evidence"]["reported_segment_inputs"][0]["operating_income"], 153000000000.0)
         self.assertAlmostEqual(sotp_method["sotp_evidence"]["reported_segment_inputs"][0]["operating_margin"], 0.3913)
+        self.assertEqual(len(sotp_method["sotp_evidence"]["reported_segment_allocations"]), 2)
+        self.assertEqual(
+            sotp_method["sotp_evidence"]["reported_segment_allocations"][0]["allocation_basis"],
+            "operating_income_share",
+        )
+        self.assertAlmostEqual(
+            sotp_method["sotp_evidence"]["reported_segment_allocations"][0]["allocation_weight"],
+            0.7866,
+        )
+        self.assertEqual(
+            sotp_method["sotp_evidence"]["reported_segment_allocations"][0]["allocated_fair_value_base"],
+            224.181,
+        )
         self.assertEqual(sotp_method["sotp_evidence"]["segment_footnote_evidence"]["status"], "available")
         self.assertEqual(sotp_method["sotp_evidence"]["segment_footnote_evidence"]["evidence_count"], 3)
         self.assertEqual(

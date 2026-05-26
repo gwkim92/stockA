@@ -2560,6 +2560,56 @@ reported_segment_inputs as (
     from reported_segment_input_rows
     group by instrument_id
 ),
+reported_segment_allocation_rows as (
+    select
+        row.instrument_id,
+        row.segment_key,
+        row.segment_label,
+        row.period_end,
+        row.segment_revenue,
+        row.segment_operating_income,
+        case
+            when total.reported_segment_revenue_total is not null
+             and total.reported_segment_revenue_total > 0
+             and row.segment_revenue is not null
+            then row.segment_revenue / total.reported_segment_revenue_total
+            else null::numeric
+        end as revenue_share,
+        case
+            when total.reported_segment_operating_income_total is not null
+             and total.reported_segment_operating_income_total > 0
+             and row.segment_operating_income is not null
+            then row.segment_operating_income / total.reported_segment_operating_income_total
+            else null::numeric
+        end as operating_income_share,
+        case
+            when total.reported_segment_operating_income_total is not null
+             and total.reported_segment_operating_income_total > 0
+             and row.segment_operating_income is not null
+            then 'operating_income_share'
+            when total.reported_segment_revenue_total is not null
+             and total.reported_segment_revenue_total > 0
+             and row.segment_revenue is not null
+            then 'revenue_share'
+            else 'unallocated'
+        end as allocation_basis,
+        case
+            when total.reported_segment_operating_income_total is not null
+             and total.reported_segment_operating_income_total > 0
+             and row.segment_operating_income is not null
+            then row.segment_operating_income / total.reported_segment_operating_income_total
+            when total.reported_segment_revenue_total is not null
+             and total.reported_segment_revenue_total > 0
+             and row.segment_revenue is not null
+            then row.segment_revenue / total.reported_segment_revenue_total
+            else null::numeric
+        end as allocation_weight,
+        coalesce(row.revenue_source_document_id, row.operating_income_source_document_id) as source_document_id,
+        row.confidence,
+        row.source_run_id
+    from reported_segment_input_rows row
+    join reported_segment_inputs total on total.instrument_id = row.instrument_id
+),
 segment_evidence_inputs as (
     select
         instrument_id,
@@ -2680,6 +2730,59 @@ component_rows as (
             'latest_forecast_as_of_date', input.latest_forecast_as_of_date,
             'forecast_row_count', coalesce(input.forecast_row_count, 0),
             'latest_raw_period_end', input.latest_raw_period_end
+            , 'reported_segment_allocation_source', 'research.segment_footnote_evidence'
+            , 'reported_segment_allocation_method', 'operating_income_share_then_revenue_share'
+            , 'reported_segment_allocation_count',
+                coalesce(
+                    (
+                        select count(*)::integer
+                        from reported_segment_allocation_rows allocation
+                        where allocation.instrument_id = input.instrument_id
+                          and allocation.allocation_weight is not null
+                    ),
+                    0
+                )
+            , 'reported_segment_allocations',
+                coalesce(
+                    (
+                        select jsonb_agg(
+                            jsonb_build_object(
+                                'segment_key', allocation.segment_key,
+                                'segment_label', allocation.segment_label,
+                                'period_end', allocation.period_end,
+                                'allocation_basis', allocation.allocation_basis,
+                                'allocation_weight', allocation.allocation_weight,
+                                'revenue_share', allocation.revenue_share,
+                                'operating_income_share', allocation.operating_income_share,
+                                'allocated_fair_value_low',
+                                    (
+                                        coalesce(input.terminal_base_free_cash_flow, input.free_cash_flow)
+                                        * 14.0000::numeric / input.shares_outstanding
+                                    ) * allocation.allocation_weight,
+                                'allocated_fair_value_base',
+                                    (
+                                        coalesce(input.terminal_base_free_cash_flow, input.free_cash_flow)
+                                        * 18.0000::numeric / input.shares_outstanding
+                                    ) * allocation.allocation_weight,
+                                'allocated_fair_value_high',
+                                    (
+                                        coalesce(input.terminal_base_free_cash_flow, input.free_cash_flow)
+                                        * 22.0000::numeric / input.shares_outstanding
+                                    ) * allocation.allocation_weight,
+                                'revenue', allocation.segment_revenue,
+                                'operating_income', allocation.segment_operating_income,
+                                'source_document_id', allocation.source_document_id,
+                                'confidence', allocation.confidence,
+                                'source_run_id', allocation.source_run_id
+                            )
+                            order by allocation.allocation_weight desc nulls last, allocation.segment_key
+                        )
+                        from reported_segment_allocation_rows allocation
+                        where allocation.instrument_id = input.instrument_id
+                          and allocation.allocation_weight is not null
+                    ),
+                    '[]'::jsonb
+                )
         ) as assumptions_json,
         case when coalesce(input.forecast_row_count, 0) >= 15 then 0.4500::numeric else 0.3500::numeric end as confidence
     from sotp_inputs input
@@ -3367,6 +3470,17 @@ sotp_inputs as (
             )[1],
             '[]'::jsonb
         ) as reported_segment_inputs_json,
+        max(nullif(assumptions_json ->> 'reported_segment_allocation_count', '')::integer) as reported_segment_allocation_count,
+        coalesce(
+            (
+                array_agg(assumptions_json -> 'reported_segment_allocations' order by as_of_date desc, component_id desc)
+                filter (
+                    where jsonb_typeof(assumptions_json -> 'reported_segment_allocations') = 'array'
+                      and jsonb_array_length(assumptions_json -> 'reported_segment_allocations') > 0
+                )
+            )[1],
+            '[]'::jsonb
+        ) as reported_segment_allocations_json,
         jsonb_agg(
             jsonb_build_object(
                 'component_key', component_key,
@@ -3439,6 +3553,8 @@ valuation_inputs as (
         sotp.reported_segment_revenue_total,
         sotp.reported_segment_operating_income_total,
         sotp.reported_segment_inputs_json,
+        sotp.reported_segment_allocation_count,
+        sotp.reported_segment_allocations_json,
         sotp.components_json,
         least(
             1::numeric,
@@ -3667,6 +3783,8 @@ sum_of_parts_rows as (
             'reported_segment_revenue_total', input.reported_segment_revenue_total,
             'reported_segment_operating_income_total', input.reported_segment_operating_income_total,
             'reported_segment_inputs', coalesce(input.reported_segment_inputs_json, '[]'::jsonb),
+            'reported_segment_allocation_count', coalesce(input.reported_segment_allocation_count, 0),
+            'reported_segment_allocations', coalesce(input.reported_segment_allocations_json, '[]'::jsonb),
             'sotp_components', coalesce(input.components_json, '[]'::jsonb),
             'has_operating_business_component', coalesce(input.has_operating_business_component, false),
             'key_variables', json_build_array('sotp_components', 'reported_segment_inputs', 'operating_business_fcf', 'balance_sheet_adjustment', 'segment_data_gap_reserve'),
@@ -3676,6 +3794,7 @@ sum_of_parts_rows as (
                 'segment_evidence_count', coalesce(input.segment_evidence_count, 0),
                 'reported_segment_metric_count', coalesce(input.reported_segment_metric_count, 0),
                 'reported_segment_input_count', coalesce(input.reported_segment_input_count, 0),
+                'reported_segment_allocation_count', coalesce(input.reported_segment_allocation_count, 0),
                 'segment_data_gap_count', coalesce(input.segment_data_gap_count, 0),
                 'latest_sotp_as_of_date', input.latest_sotp_as_of_date
             ),

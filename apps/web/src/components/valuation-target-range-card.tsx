@@ -43,6 +43,16 @@ function reportedUnitLabel(unit: string) {
   return unit;
 }
 
+function allocationBasisLabel(value: string) {
+  if (value === "operating_income_share") {
+    return "영업이익 비중";
+  }
+  if (value === "revenue_share") {
+    return "매출 비중";
+  }
+  return "배분 기준 미확인";
+}
+
 function assumptionText(value: Record<string, unknown>) {
   const description = value.method_description ?? value.pricing_basis ?? value.scenario_basis;
   return typeof description === "string" && description.trim() ? description : "가정 설명 없음";
@@ -217,6 +227,29 @@ export function ValuationTargetRangeCard({
                               매출 {formatReportedNumber(segment.revenue)} · 영업이익 {formatReportedNumber(segment.operating_income)} · 영업마진 {formatPercent(segment.operating_margin)}
                               {segment.period_end ? ` · ${segment.period_end}` : ""}
                               {segment.metric_unit ? ` · ${reportedUnitLabel(segment.metric_unit)}` : ""}
+                            </small>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+                  {method.sotp_evidence.reported_segment_allocations.length > 0 ? (
+                    <div style={{ borderTop: "1px solid var(--border-light)", marginTop: "12px", paddingTop: "10px" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", gap: "10px", alignItems: "baseline" }}>
+                        <span style={{ color: "var(--text-secondary)", fontSize: "0.76rem", fontWeight: 900 }}>사업부별 가치 배분</span>
+                        <small style={{ color: "var(--text-muted)" }}>
+                          기존 영업사업 SOTP 총액을 바꾸지 않는 설명용 배분
+                        </small>
+                      </div>
+                      <div style={{ display: "grid", gap: "8px", marginTop: "10px" }}>
+                        {method.sotp_evidence.reported_segment_allocations.slice(0, 6).map((segment) => (
+                          <div key={`${method.method}-segment-allocation-${segment.segment_key}-${segment.period_end}`} style={{ display: "grid", gridTemplateColumns: "124px 1fr", gap: "8px", alignItems: "start" }}>
+                            <strong>{segment.segment_label}</strong>
+                            <small style={{ color: "var(--text-secondary)", lineHeight: 1.45 }}>
+                              기준가치 {formatCurrency(segment.allocated_fair_value_base, currency)} · 비중 {formatPercent(segment.allocation_weight)} · {allocationBasisLabel(segment.allocation_basis)}
+                              {segment.allocated_fair_value_low !== null || segment.allocated_fair_value_high !== null
+                                ? ` · 범위 ${formatCurrency(segment.allocated_fair_value_low, currency)}~${formatCurrency(segment.allocated_fair_value_high, currency)}`
+                                : ""}
                             </small>
                           </div>
                         ))}

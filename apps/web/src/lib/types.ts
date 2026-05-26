@@ -382,6 +382,23 @@ export type ValuationMethodSnapshot = {
       confidence: number | null;
       source_run_id: string | null;
     }>;
+    reported_segment_allocations: Array<{
+      segment_key: string;
+      segment_label: string;
+      period_end: string;
+      allocation_basis: string;
+      allocation_weight: number | null;
+      revenue_share: number | null;
+      operating_income_share: number | null;
+      allocated_fair_value_low: number | null;
+      allocated_fair_value_base: number | null;
+      allocated_fair_value_high: number | null;
+      revenue: number | null;
+      operating_income: number | null;
+      source_document_id: string | null;
+      confidence: number | null;
+      source_run_id: string | null;
+    }>;
     segment_footnote_evidence: {
       status: string;
       label: string;
