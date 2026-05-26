@@ -292,20 +292,85 @@ def run_news_ai_eval(
         return report
 
     sql_executor = executor or PsqlCommandExecutor.from_config(config)
-    eval_run_id = int(
-        sql_executor.execute_scalar(
-            render_news_ai_eval_run_insert_sql(
-                eval_name=DEFAULT_EVAL_NAME,
-                dataset_version=dataset.dataset_version,
-                provider=provider,
-                model_name=model_name,
-                score_json=score,
+    run_id = _create_pipeline_run(
+        sql_executor,
+        pipeline_name=DEFAULT_EVAL_NAME,
+        config_json={
+            "dataset_version": dataset.dataset_version,
+            "provider": provider,
+            "model_name": model_name,
+            "min_confidence": min_confidence,
+        },
+    )
+    report["run_id"] = run_id
+    try:
+        eval_run_id = int(
+            sql_executor.execute_scalar(
+                render_news_ai_eval_run_insert_sql(
+                    eval_name=DEFAULT_EVAL_NAME,
+                    dataset_version=dataset.dataset_version,
+                    provider=provider,
+                    model_name=model_name,
+                    score_json=score,
+                )
             )
         )
-    )
+        _mark_pipeline_run_succeeded(sql_executor, run_id)
+    except Exception as exc:
+        _mark_pipeline_run_failed(sql_executor, run_id, str(exc))
+        raise
     report["status"] = "completed"
     report["eval_run_id"] = eval_run_id
     return report
+
+
+def _create_pipeline_run(
+    executor: PsqlCommandExecutor,
+    *,
+    pipeline_name: str,
+    config_json: Mapping[str, object],
+) -> int:
+    payload = json.dumps(config_json, ensure_ascii=False, sort_keys=True)
+    sql = f"""insert into ops.pipeline_run (
+    run_kind,
+    pipeline_name,
+    status,
+    config_json
+)
+values (
+    'ai',
+    {sql_literal(pipeline_name)},
+    'running',
+    {sql_literal(payload)}::jsonb
+)
+returning run_id;"""
+    return int(executor.execute_scalar(sql))
+
+
+def _mark_pipeline_run_succeeded(executor: PsqlCommandExecutor, run_id: int) -> None:
+    executor.execute_non_query(
+        f"""update ops.pipeline_run
+set
+    status = 'succeeded',
+    ended_at = now(),
+    error_summary = null
+where run_id = {run_id};"""
+    )
+
+
+def _mark_pipeline_run_failed(executor: PsqlCommandExecutor, run_id: int, error_summary: str) -> None:
+    truncated = error_summary.strip()[:2000] or "news AI eval failed"
+    try:
+        executor.execute_non_query(
+            f"""update ops.pipeline_run
+set
+    status = 'failed',
+    ended_at = now(),
+    error_summary = {sql_literal(truncated)}
+where run_id = {run_id};"""
+        )
+    except Exception:
+        return
 
 
 def _parse_case(payload: object) -> NewsAiEvalCase:
