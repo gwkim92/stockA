@@ -2,7 +2,8 @@
 
 ## Status
 
-- in progress: planned next task after `portfolio-review-feedback-action-router-v1`; implementation has not started.
+- implemented locally: API/UI visibility for latest action-router artifacts is wired and verified locally.
+- EC2 deploy/smoke: pending.
 
 ## Context
 
@@ -11,7 +12,29 @@
 
 ## Exact Next Step
 
-- exact next step: add live adapter SQL/payload builders and frontend sections that expose the latest `portfolio_review_feedback_action_router` artifact.
+- exact next step: run roadmap/AWH verification, then commit/push and deploy to EC2 for live API/route smoke.
+
+## Implemented
+
+- Added read-only live adapter lookup for latest `portfolio_review_feedback_action_router` `ai.eval_run`.
+- Added `/api/data-health` payload `portfolio_review_feedback_action_router`.
+- Added portfolio coverage payload `risk_budget.review_feedback_action_router`.
+- Added Korean UI sections on `/data-health` and `/portfolio/coverage` showing:
+  - source cadence artifact
+  - route action
+  - action status
+  - child runner execution status
+  - guardrail/order boundary
+  - next action
+- Added frontend contract types and focused live adapter assertions.
+
+## Local Verification
+
+- `PYTHONPATH=src /opt/homebrew/bin/python3.13 -m compileall -q src tests`: passed.
+- `PYTHONPATH=src /opt/homebrew/bin/python3.13 -m unittest tests.test_frontend_live_adapter`: 71 tests passed.
+- `cd apps/web && npm run typecheck`: passed.
+- `cd apps/web && npm run build`: passed.
+- `PYTHONPATH=src /private/tmp/stockanalysis-runtime/verify-venv/bin/python -m unittest discover -s tests`: 1086 tests passed.
 
 ## Guardrails
 

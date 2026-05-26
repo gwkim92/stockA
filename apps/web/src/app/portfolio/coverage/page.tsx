@@ -170,6 +170,29 @@ function cadenceStatusClass(status: string) {
   return "risk-low";
 }
 
+function actionRouterStatusClass(status: string) {
+  if (status.startsWith("blocked_")) {
+    return "risk-high";
+  }
+  if (status === "missing" || status.endsWith("_ready")) {
+    return "risk-medium";
+  }
+  return "risk-low";
+}
+
+function actionRouterLabel(status: string, executed: boolean, routeAction: string) {
+  if (executed) {
+    return routeAction === "execute_calibration" ? "누적평가 실행됨" : "사후평가 실행됨";
+  }
+  if (status === "no_op_wait_for_outcome_window") {
+    return "성과 관찰 기간 대기";
+  }
+  if (status.startsWith("blocked_")) {
+    return "가드레일 차단";
+  }
+  return koCode(status);
+}
+
 function formatScore(value: number | null | undefined) {
   if (value === null || value === undefined) {
     return "없음";
@@ -236,6 +259,7 @@ export default async function PortfolioCoveragePage() {
   const reviewFeedback = riskBudget.review_decision_feedback;
   const reviewCalibration = riskBudget.review_feedback_calibration;
   const reviewCadence = riskBudget.review_feedback_cadence;
+  const reviewActionRouter = riskBudget.review_feedback_action_router;
   const concentration = riskBudget.concentration;
   const hasPositions = data.positions.length > 0;
   const investedWeight = Math.max(0, 1 - (data.summary.cash_weight ?? 0));
@@ -624,6 +648,63 @@ export default async function PortfolioCoveragePage() {
           <div className="empty-state" style={{ margin: 0 }}>
             <strong>{reviewCadence.label}</strong>
             <p>{reviewCadence.command}</p>
+          </div>
+        </article>
+
+        <article
+          className="bento-card span-4"
+          style={{
+            borderColor: reviewActionRouter.action_status.startsWith("blocked_")
+              ? "var(--accent-red)"
+              : "var(--border-light)",
+          }}
+        >
+          <div className="section-heading">
+            <div>
+              <span className="metric-sub">검토 실행 라우터</span>
+              <h2>대기, 사후평가, 누적평가 중 실제로 무엇을 했는지 본다</h2>
+            </div>
+            <span className={`risk-tag ${actionRouterStatusClass(reviewActionRouter.action_status)}`}>
+              {actionRouterLabel(
+                reviewActionRouter.action_status,
+                reviewActionRouter.child_runner.executed,
+                reviewActionRouter.route_action,
+              )}
+            </span>
+          </div>
+          <p style={{ color: "var(--text-secondary)", marginTop: 0 }}>
+            cadence 판단이 실제 안전 작업으로 이어졌는지 확인한다. 실행 기록이 있어도 추천 weight, 보유 비중,
+            broker 주문 전송은 여전히 자동으로 바뀌지 않는다.
+          </p>
+          <div className="status-rail compact-rail" aria-label="검토 실행 라우터 요약" style={{ marginBottom: "20px" }}>
+            <article className="rail-cell">
+              <span>원천 cadence</span>
+              <strong>{koCode(reviewActionRouter.cadence_status)}</strong>
+              <small>{reviewActionRouter.source_cadence_eval_run_id}</small>
+            </article>
+            <article className="rail-cell">
+              <span>라우팅</span>
+              <strong>{koCode(reviewActionRouter.route_action)}</strong>
+              <small>{reviewActionRouter.reason}</small>
+            </article>
+            <article className="rail-cell">
+              <span>실행한 작업</span>
+              <strong>{reviewActionRouter.child_runner.executed ? "있음" : "없음"}</strong>
+              <small>
+                {reviewActionRouter.child_runner.executed
+                  ? `${koCode(reviewActionRouter.child_runner.report_name)} · ${reviewActionRouter.child_runner.eval_run_id}`
+                  : "child runner 미실행"}
+              </small>
+            </article>
+            <article className="rail-cell rail-critical">
+              <span>주문 경계</span>
+              <strong>{koCode(reviewActionRouter.order_boundary)}</strong>
+              <small>broker 전송 {reviewActionRouter.broker_submit_allowed ? "허용" : "금지"}</small>
+            </article>
+          </div>
+          <div className="empty-state" style={{ margin: 0 }}>
+            <strong>{koCode(reviewActionRouter.action_status)}</strong>
+            <p>{reviewActionRouter.next_action}</p>
           </div>
         </article>
 

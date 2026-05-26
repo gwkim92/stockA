@@ -268,6 +268,7 @@ export type DataHealthData = {
   portfolio_review_decision_feedback: PortfolioReviewDecisionFeedback;
   portfolio_review_feedback_calibration: PortfolioReviewFeedbackCalibration;
   portfolio_review_feedback_cadence: PortfolioReviewFeedbackCadence;
+  portfolio_review_feedback_action_router: PortfolioReviewFeedbackActionRouter;
   recommendation_outcome_calibration: {
     status: string;
     eval_run_id: string;
@@ -1827,6 +1828,7 @@ export type PortfolioCoverageData = {
     review_decision_feedback: PortfolioReviewDecisionFeedback;
     review_feedback_calibration: PortfolioReviewFeedbackCalibration;
     review_feedback_cadence: PortfolioReviewFeedbackCadence;
+    review_feedback_action_router: PortfolioReviewFeedbackActionRouter;
     review_reasons: string[];
   };
   positions: Array<{
@@ -2212,6 +2214,56 @@ export type PortfolioReviewFeedbackCadence = {
     };
   };
   blocks_weight_review: boolean;
+  recommendation_scoring_mutated: boolean;
+  benchmark_definition_mutated: boolean;
+  portfolio_position_mutated: boolean;
+  automatic_weight_change_allowed: boolean;
+  automatic_rebalance_allowed: boolean;
+  automatic_order_allowed: boolean;
+  broker_submit_allowed: boolean;
+  order_boundary: string;
+  next_action: string;
+};
+
+export type PortfolioReviewFeedbackActionRouter = {
+  status: string;
+  eval_run_id: string;
+  created_at: string;
+  eval_name: string;
+  dataset_version: string;
+  as_of_date: string;
+  portfolio_name: string;
+  source_cadence_status: string;
+  source_cadence_eval_run_id: string;
+  source_cadence_created_at: string;
+  source_cadence_as_of_date: string;
+  cadence_status: string;
+  source_action_type: string;
+  source_should_run_now: boolean;
+  route_action: string;
+  action_status: string;
+  reason: string;
+  history_eval_run_id: string;
+  feedback_eval_run_id: string;
+  calibration_eval_run_id: string;
+  source_cadence: {
+    as_of_date: string;
+    cadence_status: string;
+    action_type: string;
+    should_run_now: boolean;
+    should_wait: boolean;
+    command: string;
+    follow_up_command: string;
+  };
+  child_runner: {
+    executed: boolean;
+    report_name: string;
+    status: string;
+    run_id: string;
+    eval_run_id: string;
+    feedback_status: string;
+    calibration_status: string;
+  };
   recommendation_scoring_mutated: boolean;
   benchmark_definition_mutated: boolean;
   portfolio_position_mutated: boolean;

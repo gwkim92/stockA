@@ -27,6 +27,7 @@ from stockanalysis.frontend.live_adapter import (
     render_frontend_paper_trading_preview_state_sql,
     render_frontend_portfolio_concentration_state_sql,
     render_frontend_portfolio_position_sizing_context_state_sql,
+    render_frontend_portfolio_review_feedback_action_router_state_sql,
     render_frontend_portfolio_review_feedback_cadence_state_sql,
     render_frontend_portfolio_review_feedback_calibration_state_sql,
     render_frontend_portfolio_review_decision_feedback_state_sql,
@@ -409,6 +410,53 @@ class FakeLiveExecutor:
                         "broker_submit_allowed": False,
                         "order_boundary": "read_only_no_order",
                         "next_action": "성과 관찰 기간이 끝난 뒤 feedback과 calibration을 다시 판단한다.",
+                    },
+                    "portfolio_review_feedback_action_router": {
+                        "status": "loaded",
+                        "eval_run_id": 56,
+                        "created_at": "2026-05-27T06:00:00+00:00",
+                        "eval_name": "portfolio_review_feedback_action_router",
+                        "dataset_version": "portfolio-review-feedback-action-router-v1",
+                        "as_of_date": "2026-05-27",
+                        "portfolio_name": "Long Term Paper",
+                        "source_cadence_status": "loaded",
+                        "source_cadence_eval_run_id": 55,
+                        "source_cadence_created_at": "2026-05-27T05:00:00+00:00",
+                        "source_cadence_as_of_date": "2026-05-27",
+                        "cadence_status": "wait_for_outcome_window",
+                        "source_action_type": "wait",
+                        "source_should_run_now": False,
+                        "route_action": "no_op",
+                        "action_status": "no_op_wait_for_outcome_window",
+                        "reason": "decision history has not reached the minimum outcome observation window.",
+                        "history_eval_run_id": 52,
+                        "feedback_eval_run_id": 53,
+                        "calibration_eval_run_id": 54,
+                        "source_cadence": {
+                            "as_of_date": "2026-05-27",
+                            "cadence_status": "wait_for_outcome_window",
+                            "action_type": "wait",
+                            "should_run_now": False,
+                            "should_wait": True,
+                            "command": "성과 window가 닫힌 뒤 다시 cadence를 계산한다.",
+                            "follow_up_command": "",
+                        },
+                        "child_runner": {
+                            "executed": False,
+                            "report_name": "",
+                            "status": "not_run",
+                            "run_id": None,
+                            "eval_run_id": None,
+                        },
+                        "recommendation_scoring_mutated": False,
+                        "benchmark_definition_mutated": False,
+                        "portfolio_position_mutated": False,
+                        "automatic_weight_change_allowed": False,
+                        "automatic_rebalance_allowed": False,
+                        "automatic_order_allowed": False,
+                        "broker_submit_allowed": False,
+                        "order_boundary": "read_only_no_order",
+                        "next_action": "성과 관찰 기간이 끝날 때까지 기다린다.",
                     },
                     "recommendation_outcome_calibration": {
                         "status": "loaded",
@@ -3496,6 +3544,56 @@ class FakeLiveExecutor:
                     "next_action": "성과 관찰 기간이 끝난 뒤 feedback과 calibration을 다시 판단한다.",
                 }
             )
+        if sql.startswith("-- frontend portfolio review feedback action router lookup"):
+            return json.dumps(
+                {
+                    "status": "loaded",
+                    "eval_run_id": 56,
+                    "created_at": "2026-05-27T06:00:00+00:00",
+                    "eval_name": "portfolio_review_feedback_action_router",
+                    "dataset_version": "portfolio-review-feedback-action-router-v1",
+                    "as_of_date": "2026-05-27",
+                    "portfolio_name": "Long Term Paper",
+                    "source_cadence_status": "loaded",
+                    "source_cadence_eval_run_id": 55,
+                    "source_cadence_created_at": "2026-05-27T05:00:00+00:00",
+                    "source_cadence_as_of_date": "2026-05-27",
+                    "cadence_status": "wait_for_outcome_window",
+                    "source_action_type": "wait",
+                    "source_should_run_now": False,
+                    "route_action": "no_op",
+                    "action_status": "no_op_wait_for_outcome_window",
+                    "reason": "decision history has not reached the minimum outcome observation window.",
+                    "history_eval_run_id": 52,
+                    "feedback_eval_run_id": 53,
+                    "calibration_eval_run_id": 54,
+                    "source_cadence": {
+                        "as_of_date": "2026-05-27",
+                        "cadence_status": "wait_for_outcome_window",
+                        "action_type": "wait",
+                        "should_run_now": False,
+                        "should_wait": True,
+                        "command": "성과 window가 닫힌 뒤 다시 cadence를 계산한다.",
+                        "follow_up_command": "",
+                    },
+                    "child_runner": {
+                        "executed": False,
+                        "report_name": "",
+                        "status": "not_run",
+                        "run_id": None,
+                        "eval_run_id": None,
+                    },
+                    "recommendation_scoring_mutated": False,
+                    "benchmark_definition_mutated": False,
+                    "portfolio_position_mutated": False,
+                    "automatic_weight_change_allowed": False,
+                    "automatic_rebalance_allowed": False,
+                    "automatic_order_allowed": False,
+                    "broker_submit_allowed": False,
+                    "order_boundary": "read_only_no_order",
+                    "next_action": "성과 관찰 기간이 끝날 때까지 기다린다.",
+                }
+            )
         if sql.startswith("-- portfolio outcome coverage report"):
             return json.dumps(
                 {
@@ -4159,6 +4257,20 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertFalse(review_cadence["automatic_order_allowed"])
         self.assertFalse(review_cadence["broker_submit_allowed"])
         self.assertEqual(review_cadence["order_boundary"], "read_only_no_order")
+        action_router = payload["data"]["portfolio_review_feedback_action_router"]
+        self.assertEqual(action_router["status"], "loaded")
+        self.assertEqual(action_router["eval_run_id"], "eval-run-56")
+        self.assertEqual(action_router["source_cadence_eval_run_id"], "eval-run-55")
+        self.assertEqual(action_router["route_action"], "no_op")
+        self.assertEqual(action_router["action_status"], "no_op_wait_for_outcome_window")
+        self.assertFalse(action_router["child_runner"]["executed"])
+        self.assertEqual(action_router["child_runner"]["status"], "not_run")
+        self.assertEqual(action_router["history_eval_run_id"], "eval-run-52")
+        self.assertEqual(action_router["feedback_eval_run_id"], "eval-run-53")
+        self.assertEqual(action_router["calibration_eval_run_id"], "eval-run-54")
+        self.assertFalse(action_router["automatic_order_allowed"])
+        self.assertFalse(action_router["broker_submit_allowed"])
+        self.assertEqual(action_router["order_boundary"], "read_only_no_order")
         outcome_calibration = payload["data"]["recommendation_outcome_calibration"]
         self.assertEqual(outcome_calibration["status"], "collect_more_outcomes_keep_weights")
         self.assertEqual(outcome_calibration["eval_run_id"], "eval-run-31")
@@ -4733,6 +4845,9 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertIn("selected_portfolio_review_feedback_cadence", sql)
         self.assertIn("portfolio_review_feedback_cadence", sql)
         self.assertIn("portfolio-review-feedback-cadence-v1", sql)
+        self.assertIn("selected_portfolio_review_feedback_action_router", sql)
+        self.assertIn("portfolio_review_feedback_action_router", sql)
+        self.assertIn("portfolio-review-feedback-action-router-v1", sql)
         self.assertIn("selected_recommendation_outcome_calibration", sql)
         self.assertIn("recommendation_outcome_calibration", sql)
         self.assertIn("recommendation-outcome-calibration-sample-expansion-v1", sql)
@@ -4800,6 +4915,22 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertIn("from ai.eval_run", sql)
         self.assertIn("portfolio_review_feedback_cadence", sql)
         self.assertIn("portfolio-review-feedback-cadence-v1", sql)
+        self.assertIn("'automatic_order_allowed', coalesce", sql)
+        self.assertIn("'broker_submit_allowed', coalesce", sql)
+        self.assertIn("'order_boundary', coalesce", sql)
+        self.assertNotIn("insert into", lowered)
+        self.assertNotIn("update ", lowered)
+        self.assertNotIn("delete from", lowered)
+        self.assertNotIn("from broker", lowered)
+        self.assertNotIn("join broker", lowered)
+
+    def test_portfolio_review_feedback_action_router_sql_reads_eval_artifact_without_mutation(self) -> None:
+        sql = render_frontend_portfolio_review_feedback_action_router_state_sql(portfolio_name="Long Term Paper")
+        lowered = sql.lower()
+
+        self.assertIn("from ai.eval_run", sql)
+        self.assertIn("portfolio_review_feedback_action_router", sql)
+        self.assertIn("portfolio-review-feedback-action-router-v1", sql)
         self.assertIn("'automatic_order_allowed', coalesce", sql)
         self.assertIn("'broker_submit_allowed', coalesce", sql)
         self.assertIn("'order_boundary', coalesce", sql)
@@ -6285,6 +6416,17 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertFalse(cadence["automatic_order_allowed"])
         self.assertFalse(cadence["broker_submit_allowed"])
         self.assertEqual(cadence["order_boundary"], "read_only_no_order")
+        action_router = payload["data"]["risk_budget"]["review_feedback_action_router"]
+        self.assertEqual(action_router["status"], "loaded")
+        self.assertEqual(action_router["eval_run_id"], "eval-run-56")
+        self.assertEqual(action_router["source_cadence_eval_run_id"], "eval-run-55")
+        self.assertEqual(action_router["route_action"], "no_op")
+        self.assertEqual(action_router["action_status"], "no_op_wait_for_outcome_window")
+        self.assertFalse(action_router["child_runner"]["executed"])
+        self.assertEqual(action_router["child_runner"]["status"], "not_run")
+        self.assertFalse(action_router["automatic_order_allowed"])
+        self.assertFalse(action_router["broker_submit_allowed"])
+        self.assertEqual(action_router["order_boundary"], "read_only_no_order")
         self.assertEqual(payload["data"]["positions"][0]["active_thesis_id"], "thesis-7001")
         self.assertEqual(payload["data"]["positions"][0]["outcome_status"], "measured")
         self.assertEqual(payload["data"]["positions"][0]["position_size_status"], "below_rebalance_floor")

@@ -558,6 +558,9 @@ def build_live_data_health_response(
     portfolio_review_feedback_cadence = _build_portfolio_review_feedback_cadence_payload(
         _as_dict(state.get("portfolio_review_feedback_cadence"))
     )
+    portfolio_review_feedback_action_router = _build_portfolio_review_feedback_action_router_payload(
+        _as_dict(state.get("portfolio_review_feedback_action_router"))
+    )
     recommendation_outcome_calibration = _build_recommendation_outcome_calibration_payload(
         _as_dict(state.get("recommendation_outcome_calibration"))
     )
@@ -606,6 +609,10 @@ def build_live_data_health_response(
         gate = "portfolio_review_feedback_cadence_attention"
         if gate not in open_gates:
             open_gates.append(gate)
+    if str(portfolio_review_feedback_action_router["action_status"]).startswith("blocked_"):
+        gate = "portfolio_review_feedback_action_router_attention"
+        if gate not in open_gates:
+            open_gates.append(gate)
     if recommendation_outcome_calibration["status"] in {"missing", "backfill_candidates_remain", "price_history_gaps_remain"}:
         gate = "recommendation_outcome_calibration_attention"
         if gate not in open_gates:
@@ -648,6 +655,7 @@ def build_live_data_health_response(
             "portfolio_review_decision_feedback": portfolio_review_decision_feedback,
             "portfolio_review_feedback_calibration": portfolio_review_feedback_calibration,
             "portfolio_review_feedback_cadence": portfolio_review_feedback_cadence,
+            "portfolio_review_feedback_action_router": portfolio_review_feedback_action_router,
             "recommendation_outcome_calibration": recommendation_outcome_calibration,
             "recommendation_outcome_maturity": recommendation_outcome_maturity,
             "recommendation_weight_review_readiness": recommendation_weight_review_readiness,
@@ -2448,6 +2456,11 @@ def build_live_portfolio_coverage_response(
         executor=executor,
         portfolio_name=portfolio_name,
     )
+    review_feedback_action_router = load_frontend_portfolio_review_feedback_action_router_state(
+        config=config,
+        executor=executor,
+        portfolio_name=portfolio_name,
+    )
     position_sizing_context = (
         {"positions": []}
         if missing_position_snapshot or not positions
@@ -2504,6 +2517,7 @@ def build_live_portfolio_coverage_response(
                 review_decision_feedback=review_decision_feedback,
                 review_feedback_calibration=review_feedback_calibration,
                 review_feedback_cadence=review_feedback_cadence,
+                review_feedback_action_router=review_feedback_action_router,
             ),
             "positions": positions,
             "attribution_readiness": {
@@ -2609,6 +2623,21 @@ def load_frontend_portfolio_review_feedback_cadence_state(
             render_frontend_portfolio_review_feedback_cadence_state_sql(portfolio_name=portfolio_name)
         ),
         "Frontend portfolio review feedback cadence lookup",
+    )
+
+
+def load_frontend_portfolio_review_feedback_action_router_state(
+    *,
+    config: RuntimeConfig,
+    executor: PsqlCommandExecutor | None,
+    portfolio_name: str,
+) -> dict[str, Any]:
+    sql_executor = executor or PsqlCommandExecutor.from_config(config)
+    return json_loads_object(
+        sql_executor.execute_scalar(
+            render_frontend_portfolio_review_feedback_action_router_state_sql(portfolio_name=portfolio_name)
+        ),
+        "Frontend portfolio review feedback action router lookup",
     )
 
 
@@ -3132,6 +3161,88 @@ select
             'broker_submit_allowed', false,
             'order_boundary', 'read_only_no_order',
             'next_action', 'portfolio-review-feedback-cadence-run을 실행해 다음 feedback/calibration 작업을 판단한다.'
+        )
+    )::text;"""
+
+
+def render_frontend_portfolio_review_feedback_action_router_state_sql(*, portfolio_name: str) -> str:
+    return f"""-- frontend portfolio review feedback action router lookup
+select
+    coalesce(
+        (
+            select json_build_object(
+                'status', 'loaded',
+                'eval_run_id', eval_run_id,
+                'created_at', created_at,
+                'eval_name', eval_name,
+                'dataset_version', dataset_version,
+                'as_of_date', score_json->>'as_of_date',
+                'portfolio_name', score_json->>'portfolio_name',
+                'source_cadence_status', score_json->>'source_cadence_status',
+                'source_cadence_eval_run_id',
+                    nullif(score_json->>'source_cadence_eval_run_id', '')::integer,
+                'source_cadence_created_at', score_json->>'source_cadence_created_at',
+                'source_cadence_as_of_date', score_json->>'source_cadence_as_of_date',
+                'cadence_status', score_json->>'cadence_status',
+                'source_action_type', score_json->>'source_action_type',
+                'source_should_run_now', coalesce((score_json->>'source_should_run_now')::boolean, false),
+                'route_action', score_json->>'route_action',
+                'action_status', score_json->>'action_status',
+                'reason', score_json->>'reason',
+                'history_eval_run_id', nullif(score_json->>'history_eval_run_id', '')::integer,
+                'feedback_eval_run_id', nullif(score_json->>'feedback_eval_run_id', '')::integer,
+                'calibration_eval_run_id', nullif(score_json->>'calibration_eval_run_id', '')::integer,
+                'source_cadence', coalesce(score_json->'source_cadence', '{{}}'::jsonb),
+                'child_runner', coalesce(score_json->'child_runner', '{{}}'::jsonb),
+                'recommendation_scoring_mutated', coalesce((score_json->>'recommendation_scoring_mutated')::boolean, false),
+                'benchmark_definition_mutated', coalesce((score_json->>'benchmark_definition_mutated')::boolean, false),
+                'portfolio_position_mutated', coalesce((score_json->>'portfolio_position_mutated')::boolean, false),
+                'automatic_weight_change_allowed', coalesce((score_json->>'automatic_weight_change_allowed')::boolean, false),
+                'automatic_rebalance_allowed', coalesce((score_json->>'automatic_rebalance_allowed')::boolean, false),
+                'automatic_order_allowed', coalesce((score_json->>'automatic_order_allowed')::boolean, false),
+                'broker_submit_allowed', coalesce((score_json->>'broker_submit_allowed')::boolean, false),
+                'order_boundary', coalesce(score_json->>'order_boundary', 'read_only_no_order'),
+                'next_action', score_json->>'next_action'
+            )
+            from ai.eval_run eval_run
+            where eval_run.eval_name = 'portfolio_review_feedback_action_router'
+              and eval_run.dataset_version = 'portfolio-review-feedback-action-router-v1'
+              and coalesce(eval_run.score_json->>'portfolio_name', {sql_literal(portfolio_name)}) = {sql_literal(portfolio_name)}
+            order by
+                nullif(eval_run.score_json->>'as_of_date', '')::date desc nulls last,
+                eval_run.created_at desc,
+                eval_run.eval_run_id desc
+            limit 1
+        ),
+        json_build_object(
+            'status', 'missing',
+            'eval_name', 'portfolio_review_feedback_action_router',
+            'dataset_version', 'portfolio-review-feedback-action-router-v1',
+            'portfolio_name', {sql_literal(portfolio_name)},
+            'source_cadence_status', 'missing',
+            'cadence_status', 'missing',
+            'source_action_type', 'inspect',
+            'source_should_run_now', false,
+            'route_action', 'no_op',
+            'action_status', 'missing',
+            'reason', '아직 portfolio review feedback action router artifact가 없다.',
+            'source_cadence', '{{}}'::json,
+            'child_runner', json_build_object(
+                'executed', false,
+                'report_name', '',
+                'status', 'not_run',
+                'run_id', null,
+                'eval_run_id', null
+            ),
+            'recommendation_scoring_mutated', false,
+            'benchmark_definition_mutated', false,
+            'portfolio_position_mutated', false,
+            'automatic_weight_change_allowed', false,
+            'automatic_rebalance_allowed', false,
+            'automatic_order_allowed', false,
+            'broker_submit_allowed', false,
+            'order_boundary', 'read_only_no_order',
+            'next_action', 'portfolio-review-feedback-action-router-run을 실행해 cadence 판단을 안전한 후속 작업으로 라우팅한다.'
         )
     )::text;"""
 
@@ -3898,6 +4009,18 @@ selected_portfolio_review_feedback_cadence as (
     from ai.eval_run eval_run
     where eval_run.eval_name = 'portfolio_review_feedback_cadence'
       and eval_run.dataset_version = 'portfolio-review-feedback-cadence-v1'
+      and coalesce(eval_run.score_json->>'portfolio_name', {sql_literal(DEFAULT_PORTFOLIO_NAME)}) = {sql_literal(DEFAULT_PORTFOLIO_NAME)}
+    order by
+        nullif(eval_run.score_json->>'as_of_date', '')::date desc nulls last,
+        eval_run.created_at desc,
+        eval_run.eval_run_id desc
+    limit 1
+),
+selected_portfolio_review_feedback_action_router as (
+    select eval_run.*
+    from ai.eval_run eval_run
+    where eval_run.eval_name = 'portfolio_review_feedback_action_router'
+      and eval_run.dataset_version = 'portfolio-review-feedback-action-router-v1'
       and coalesce(eval_run.score_json->>'portfolio_name', {sql_literal(DEFAULT_PORTFOLIO_NAME)}) = {sql_literal(DEFAULT_PORTFOLIO_NAME)}
     order by
         nullif(eval_run.score_json->>'as_of_date', '')::date desc nulls last,
@@ -4688,6 +4811,76 @@ select json_build_object(
             'broker_submit_allowed', false,
             'order_boundary', 'read_only_no_order',
             'next_action', 'portfolio-review-feedback-cadence-run을 실행해 다음 feedback/calibration 작업을 판단한다.'
+        )
+    ),
+    'portfolio_review_feedback_action_router',
+    coalesce(
+        (
+            select json_build_object(
+                'status', 'loaded',
+                'eval_run_id', eval_run_id,
+                'created_at', created_at,
+                'eval_name', eval_name,
+                'dataset_version', dataset_version,
+                'as_of_date', score_json->>'as_of_date',
+                'portfolio_name', score_json->>'portfolio_name',
+                'source_cadence_status', score_json->>'source_cadence_status',
+                'source_cadence_eval_run_id',
+                    nullif(score_json->>'source_cadence_eval_run_id', '')::integer,
+                'source_cadence_created_at', score_json->>'source_cadence_created_at',
+                'source_cadence_as_of_date', score_json->>'source_cadence_as_of_date',
+                'cadence_status', score_json->>'cadence_status',
+                'source_action_type', score_json->>'source_action_type',
+                'source_should_run_now', coalesce((score_json->>'source_should_run_now')::boolean, false),
+                'route_action', score_json->>'route_action',
+                'action_status', score_json->>'action_status',
+                'reason', score_json->>'reason',
+                'history_eval_run_id', nullif(score_json->>'history_eval_run_id', '')::integer,
+                'feedback_eval_run_id', nullif(score_json->>'feedback_eval_run_id', '')::integer,
+                'calibration_eval_run_id', nullif(score_json->>'calibration_eval_run_id', '')::integer,
+                'source_cadence', coalesce(score_json->'source_cadence', '{{}}'::jsonb),
+                'child_runner', coalesce(score_json->'child_runner', '{{}}'::jsonb),
+                'recommendation_scoring_mutated', coalesce((score_json->>'recommendation_scoring_mutated')::boolean, false),
+                'benchmark_definition_mutated', coalesce((score_json->>'benchmark_definition_mutated')::boolean, false),
+                'portfolio_position_mutated', coalesce((score_json->>'portfolio_position_mutated')::boolean, false),
+                'automatic_weight_change_allowed', coalesce((score_json->>'automatic_weight_change_allowed')::boolean, false),
+                'automatic_rebalance_allowed', coalesce((score_json->>'automatic_rebalance_allowed')::boolean, false),
+                'automatic_order_allowed', coalesce((score_json->>'automatic_order_allowed')::boolean, false),
+                'broker_submit_allowed', coalesce((score_json->>'broker_submit_allowed')::boolean, false),
+                'order_boundary', coalesce(score_json->>'order_boundary', 'read_only_no_order'),
+                'next_action', score_json->>'next_action'
+            )
+            from selected_portfolio_review_feedback_action_router
+        ),
+        json_build_object(
+            'status', 'missing',
+            'eval_name', 'portfolio_review_feedback_action_router',
+            'dataset_version', 'portfolio-review-feedback-action-router-v1',
+            'portfolio_name', {sql_literal(DEFAULT_PORTFOLIO_NAME)},
+            'source_cadence_status', 'missing',
+            'cadence_status', 'missing',
+            'source_action_type', 'inspect',
+            'source_should_run_now', false,
+            'route_action', 'no_op',
+            'action_status', 'missing',
+            'reason', '아직 portfolio review feedback action router artifact가 없다.',
+            'source_cadence', '{{}}'::json,
+            'child_runner', json_build_object(
+                'executed', false,
+                'report_name', '',
+                'status', 'not_run',
+                'run_id', null,
+                'eval_run_id', null
+            ),
+            'recommendation_scoring_mutated', false,
+            'benchmark_definition_mutated', false,
+            'portfolio_position_mutated', false,
+            'automatic_weight_change_allowed', false,
+            'automatic_rebalance_allowed', false,
+            'automatic_order_allowed', false,
+            'broker_submit_allowed', false,
+            'order_boundary', 'read_only_no_order',
+            'next_action', 'portfolio-review-feedback-action-router-run을 실행해 cadence 판단을 안전한 후속 작업으로 라우팅한다.'
         )
     ),
     'recommendation_outcome_calibration',
@@ -12793,6 +12986,65 @@ def _build_portfolio_review_feedback_cadence_payload(payload: dict[str, Any]) ->
     }
 
 
+def _build_portfolio_review_feedback_action_router_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    status = str(payload.get("status") or "missing")
+    action_status = str(payload.get("action_status") or ("missing" if status == "missing" else "unknown"))
+    source_cadence = _as_dict(payload.get("source_cadence"))
+    child_runner = _as_dict(payload.get("child_runner"))
+    return {
+        "status": status,
+        "eval_run_id": _opaque_id("eval-run", payload.get("eval_run_id"), None),
+        "created_at": _timestamp(payload.get("created_at")),
+        "eval_name": str(payload.get("eval_name") or "portfolio_review_feedback_action_router"),
+        "dataset_version": str(payload.get("dataset_version") or "portfolio-review-feedback-action-router-v1"),
+        "as_of_date": str(payload.get("as_of_date") or ""),
+        "portfolio_name": str(payload.get("portfolio_name") or DEFAULT_PORTFOLIO_NAME),
+        "source_cadence_status": str(payload.get("source_cadence_status") or "missing"),
+        "source_cadence_eval_run_id": _opaque_id("eval-run", payload.get("source_cadence_eval_run_id"), None),
+        "source_cadence_created_at": _timestamp(payload.get("source_cadence_created_at")),
+        "source_cadence_as_of_date": str(payload.get("source_cadence_as_of_date") or ""),
+        "cadence_status": str(payload.get("cadence_status") or "missing"),
+        "source_action_type": str(payload.get("source_action_type") or "inspect"),
+        "source_should_run_now": payload.get("source_should_run_now") is True,
+        "route_action": str(payload.get("route_action") or "no_op"),
+        "action_status": action_status,
+        "reason": str(payload.get("reason") or ""),
+        "history_eval_run_id": _opaque_id("eval-run", payload.get("history_eval_run_id"), None),
+        "feedback_eval_run_id": _opaque_id("eval-run", payload.get("feedback_eval_run_id"), None),
+        "calibration_eval_run_id": _opaque_id("eval-run", payload.get("calibration_eval_run_id"), None),
+        "source_cadence": {
+            "as_of_date": str(source_cadence.get("as_of_date") or ""),
+            "cadence_status": str(source_cadence.get("cadence_status") or "missing"),
+            "action_type": str(source_cadence.get("action_type") or "inspect"),
+            "should_run_now": source_cadence.get("should_run_now") is True,
+            "should_wait": source_cadence.get("should_wait") is True,
+            "command": str(source_cadence.get("command") or ""),
+            "follow_up_command": str(source_cadence.get("follow_up_command") or ""),
+        },
+        "child_runner": {
+            "executed": child_runner.get("executed") is True,
+            "report_name": str(child_runner.get("report_name") or ""),
+            "status": str(child_runner.get("status") or "not_run"),
+            "run_id": _opaque_id("pipeline-run", child_runner.get("run_id"), None),
+            "eval_run_id": _opaque_id("eval-run", child_runner.get("eval_run_id"), None),
+            "feedback_status": str(child_runner.get("feedback_status") or ""),
+            "calibration_status": str(child_runner.get("calibration_status") or ""),
+        },
+        "recommendation_scoring_mutated": payload.get("recommendation_scoring_mutated") is True,
+        "benchmark_definition_mutated": payload.get("benchmark_definition_mutated") is True,
+        "portfolio_position_mutated": payload.get("portfolio_position_mutated") is True,
+        "automatic_weight_change_allowed": payload.get("automatic_weight_change_allowed") is True,
+        "automatic_rebalance_allowed": payload.get("automatic_rebalance_allowed") is True,
+        "automatic_order_allowed": payload.get("automatic_order_allowed") is True,
+        "broker_submit_allowed": payload.get("broker_submit_allowed") is True,
+        "order_boundary": str(payload.get("order_boundary") or "read_only_no_order"),
+        "next_action": str(
+            payload.get("next_action")
+            or "portfolio-review-feedback-action-router-run을 실행해 cadence 판단을 안전한 후속 작업으로 라우팅한다."
+        ),
+    }
+
+
 def _build_portfolio_review_feedback_item_payload(item: dict[str, Any]) -> dict[str, Any]:
     source_decision = _as_dict(item.get("source_decision"))
     evidence = _as_dict(item.get("evidence"))
@@ -15167,6 +15419,7 @@ def _build_portfolio_risk_budget_payload(
     review_decision_feedback: dict[str, Any] | None = None,
     review_feedback_calibration: dict[str, Any] | None = None,
     review_feedback_cadence: dict[str, Any] | None = None,
+    review_feedback_action_router: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     max_single_position_weight = _number(allocation_policy.get("max_single_position_weight"))
     min_rebalance_target_weight = _number(allocation_policy.get("min_rebalance_target_weight"))
@@ -15256,6 +15509,9 @@ def _build_portfolio_risk_budget_payload(
         ),
         "review_feedback_cadence": _build_portfolio_review_feedback_cadence_payload(
             _as_dict(review_feedback_cadence)
+        ),
+        "review_feedback_action_router": _build_portfolio_review_feedback_action_router_payload(
+            _as_dict(review_feedback_action_router)
         ),
         "review_reasons": reasons,
     }

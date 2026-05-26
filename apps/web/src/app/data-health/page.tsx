@@ -19,6 +19,7 @@ type PortfolioReviewDecisionHistory = DataHealthData["portfolio_review_decision_
 type PortfolioReviewDecisionFeedback = DataHealthData["portfolio_review_decision_feedback"];
 type PortfolioReviewFeedbackCalibration = DataHealthData["portfolio_review_feedback_calibration"];
 type PortfolioReviewFeedbackCadence = DataHealthData["portfolio_review_feedback_cadence"];
+type PortfolioReviewFeedbackActionRouter = DataHealthData["portfolio_review_feedback_action_router"];
 type RecommendationOutcomeCalibration = DataHealthData["recommendation_outcome_calibration"];
 type RecommendationOutcomeMaturity = DataHealthData["recommendation_outcome_maturity"];
 type RecommendationWeightReviewReadiness = DataHealthData["recommendation_weight_review_readiness"];
@@ -456,6 +457,32 @@ function cadenceStatusClass(status: string) {
     return "risk-medium";
   }
   return "risk-low";
+}
+
+function actionRouterStatusClass(status: string) {
+  if (status.startsWith("blocked_")) {
+    return "risk-high";
+  }
+  if (status === "missing" || status.endsWith("_ready")) {
+    return "risk-medium";
+  }
+  return "risk-low";
+}
+
+function actionRouterTitle(router: PortfolioReviewFeedbackActionRouter) {
+  if (router.child_runner.executed) {
+    return router.route_action === "execute_calibration" ? "누적평가 실행됨" : "사후평가 실행됨";
+  }
+  if (router.action_status.startsWith("blocked_")) {
+    return "가드레일 차단";
+  }
+  if (router.action_status === "no_op_wait_for_outcome_window") {
+    return "성과 관찰 기간 대기";
+  }
+  if (router.action_status === "no_op_calibration_current") {
+    return "최신 평가 유지";
+  }
+  return koCode(router.action_status);
 }
 
 function outcomeCalibrationTitle(calibration: RecommendationOutcomeCalibration) {
@@ -902,6 +929,56 @@ const DEFAULT_PORTFOLIO_REVIEW_FEEDBACK_CADENCE: PortfolioReviewFeedbackCadence 
   next_action: "portfolio-review-feedback-cadence-run을 실행해 다음 feedback/calibration 작업을 판단한다.",
 };
 
+const DEFAULT_PORTFOLIO_REVIEW_FEEDBACK_ACTION_ROUTER: PortfolioReviewFeedbackActionRouter = {
+  status: "missing",
+  eval_run_id: "eval-run-unknown",
+  created_at: "",
+  eval_name: "portfolio_review_feedback_action_router",
+  dataset_version: "portfolio-review-feedback-action-router-v1",
+  as_of_date: "",
+  portfolio_name: "Long Term Paper",
+  source_cadence_status: "missing",
+  source_cadence_eval_run_id: "eval-run-unknown",
+  source_cadence_created_at: "",
+  source_cadence_as_of_date: "",
+  cadence_status: "missing",
+  source_action_type: "inspect",
+  source_should_run_now: false,
+  route_action: "no_op",
+  action_status: "missing",
+  reason: "아직 portfolio review feedback action router artifact가 없다.",
+  history_eval_run_id: "eval-run-unknown",
+  feedback_eval_run_id: "eval-run-unknown",
+  calibration_eval_run_id: "eval-run-unknown",
+  source_cadence: {
+    as_of_date: "",
+    cadence_status: "missing",
+    action_type: "inspect",
+    should_run_now: false,
+    should_wait: false,
+    command: "",
+    follow_up_command: "",
+  },
+  child_runner: {
+    executed: false,
+    report_name: "",
+    status: "not_run",
+    run_id: "pipeline-run-unknown",
+    eval_run_id: "eval-run-unknown",
+    feedback_status: "",
+    calibration_status: "",
+  },
+  recommendation_scoring_mutated: false,
+  benchmark_definition_mutated: false,
+  portfolio_position_mutated: false,
+  automatic_weight_change_allowed: false,
+  automatic_rebalance_allowed: false,
+  automatic_order_allowed: false,
+  broker_submit_allowed: false,
+  order_boundary: "read_only_no_order",
+  next_action: "portfolio-review-feedback-action-router-run을 실행해 cadence 판단을 안전한 후속 작업으로 라우팅한다.",
+};
+
 const DEFAULT_RECOMMENDATION_OUTCOME_CALIBRATION: RecommendationOutcomeCalibration = {
   status: "missing",
   eval_run_id: "eval-run-unknown",
@@ -1034,6 +1111,8 @@ export default async function DataHealthPage() {
     data.portfolio_review_feedback_calibration ?? DEFAULT_PORTFOLIO_REVIEW_FEEDBACK_CALIBRATION;
   const portfolioReviewCadence =
     data.portfolio_review_feedback_cadence ?? DEFAULT_PORTFOLIO_REVIEW_FEEDBACK_CADENCE;
+  const portfolioReviewActionRouter =
+    data.portfolio_review_feedback_action_router ?? DEFAULT_PORTFOLIO_REVIEW_FEEDBACK_ACTION_ROUTER;
   const benchmarkDriftDecisionBySymbol = new Map(
     benchmarkDriftQuality.outlier_decisions.map((decision) => [decision.symbol, decision]),
   );
@@ -1176,6 +1255,17 @@ export default async function DataHealthPage() {
       href: "#portfolio-review-cadence",
       cta: "실행시점 보기",
       tone: cadenceStatusClass(portfolioReviewCadence.cadence_status),
+    },
+    {
+      label: "검토 실행 라우터",
+      title: actionRouterTitle(portfolioReviewActionRouter),
+      body:
+        portfolioReviewActionRouter.status === "loaded"
+          ? portfolioReviewActionRouter.reason
+          : "cadence 판단을 실제 사후평가/누적평가 실행 또는 대기로 변환한 기록이 아직 없다.",
+      href: "#portfolio-review-action-router",
+      cta: "라우터 판단 보기",
+      tone: actionRouterStatusClass(portfolioReviewActionRouter.action_status),
     },
     {
       label: "성과검증",
@@ -2206,6 +2296,94 @@ export default async function DataHealthPage() {
         <div className="empty-state">
           <strong>다음 조치</strong>
           <p>{portfolioReviewCadence.next_action}</p>
+        </div>
+      </section>
+
+      <section
+        className="feature-map-panel reveal delay-1"
+        id="portfolio-review-action-router"
+        aria-labelledby="portfolio-review-action-router-title"
+      >
+        <div className="section-heading stacked-heading">
+          <span>포트폴리오 검토 실행 라우터</span>
+          <h2 id="portfolio-review-action-router-title">대기할지, 사후평가를 돌릴지, 누적평가를 돌릴지 기록한다.</h2>
+        </div>
+        <p className="board-intro">
+          cadence는 “언제 실행해야 하는가”를 판단하고, 라우터는 그 판단을 안전한 후속 작업으로 바꾼다.
+          이 라우터가 실행해도 추천 weight, 보유 비중, 주문 전송은 자동으로 바뀌지 않는다.
+        </p>
+        <div className="status-rail compact-rail">
+          <article className="rail-cell">
+            <span>라우터 결과</span>
+            <strong className={`risk-tag ${actionRouterStatusClass(portfolioReviewActionRouter.action_status)}`}>
+              {actionRouterTitle(portfolioReviewActionRouter)}
+            </strong>
+            <small>{portfolioReviewActionRouter.eval_run_id}</small>
+          </article>
+          <article className="rail-cell">
+            <span>원천 cadence</span>
+            <strong>{koCode(portfolioReviewActionRouter.cadence_status)}</strong>
+            <small>{portfolioReviewActionRouter.source_cadence_eval_run_id}</small>
+          </article>
+          <article className="rail-cell">
+            <span>라우팅</span>
+            <strong>{koCode(portfolioReviewActionRouter.route_action)}</strong>
+            <small>요청 작업 {koCode(portfolioReviewActionRouter.source_action_type)}</small>
+          </article>
+          <article className="rail-cell">
+            <span>실행한 작업</span>
+            <strong>{portfolioReviewActionRouter.child_runner.executed ? "있음" : "없음"}</strong>
+            <small>
+              {portfolioReviewActionRouter.child_runner.executed
+                ? `${koCode(portfolioReviewActionRouter.child_runner.report_name)} · ${portfolioReviewActionRouter.child_runner.eval_run_id}`
+                : "성과 관찰 또는 가드레일 때문에 child runner를 실행하지 않았다."}
+            </small>
+          </article>
+          <article className="rail-cell rail-critical">
+            <span>주문 경계</span>
+            <strong>{koCode(portfolioReviewActionRouter.order_boundary)}</strong>
+            <small>broker 전송 {portfolioReviewActionRouter.broker_submit_allowed ? "허용" : "금지"}</small>
+          </article>
+        </div>
+        <div className="insight-grid">
+          <article className="insight-card">
+            <span>왜 이 결론인가</span>
+            <strong>{koCode(portfolioReviewActionRouter.action_status)}</strong>
+            <p>{portfolioReviewActionRouter.reason || "저장된 설명 없음"}</p>
+          </article>
+          <article className="insight-card">
+            <span>검토 이력 연결</span>
+            <strong>{portfolioReviewActionRouter.history_eval_run_id}</strong>
+            <p>
+              feedback {portfolioReviewActionRouter.feedback_eval_run_id} · calibration{" "}
+              {portfolioReviewActionRouter.calibration_eval_run_id}
+            </p>
+          </article>
+          <article className="insight-card">
+            <span>child runner 상태</span>
+            <strong>{koCode(portfolioReviewActionRouter.child_runner.status)}</strong>
+            <p>
+              실행 기록 {portfolioReviewActionRouter.child_runner.run_id}
+              {portfolioReviewActionRouter.child_runner.feedback_status
+                ? ` · feedback ${koCode(portfolioReviewActionRouter.child_runner.feedback_status)}`
+                : ""}
+              {portfolioReviewActionRouter.child_runner.calibration_status
+                ? ` · calibration ${koCode(portfolioReviewActionRouter.child_runner.calibration_status)}`
+                : ""}
+            </p>
+          </article>
+          <article className="insight-card">
+            <span>안전 장치</span>
+            <strong>{portfolioReviewActionRouter.automatic_weight_change_allowed ? "weight 변경 허용" : "weight 변경 금지"}</strong>
+            <p>
+              리밸런싱 {portfolioReviewActionRouter.automatic_rebalance_allowed ? "허용" : "금지"} · 주문{" "}
+              {portfolioReviewActionRouter.automatic_order_allowed ? "허용" : "금지"}
+            </p>
+          </article>
+        </div>
+        <div className="empty-state">
+          <strong>다음 조치</strong>
+          <p>{portfolioReviewActionRouter.next_action}</p>
         </div>
       </section>
 
