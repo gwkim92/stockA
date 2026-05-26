@@ -22,6 +22,7 @@ from stockanalysis.ingest.sec.sql import (
 _FORM_TO_SCOPE = {
     "10-K": ("annual", True),
     "10-Q": ("quarterly", False),
+    "20-F": ("annual", True),
 }
 
 _CONCEPT_TO_METRIC_CODE = {

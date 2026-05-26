@@ -1,0 +1,76 @@
+{
+  "cik": 1973239,
+  "entityName": "Arm Holdings plc",
+  "facts": {
+    "us-gaap": {
+      "Revenues": {
+        "label": "Revenues",
+        "units": {
+          "USD": [
+            {
+              "start": "2024-04-01",
+              "end": "2025-03-31",
+              "val": 3941000000,
+              "accn": "0001973239-25-000040",
+              "fy": 2025,
+              "fp": "FY",
+              "form": "20-F",
+              "filed": "2025-05-14"
+            }
+          ]
+        }
+      },
+      "NetIncomeLoss": {
+        "label": "Net Income (Loss)",
+        "units": {
+          "USD": [
+            {
+              "start": "2024-04-01",
+              "end": "2025-03-31",
+              "val": 714000000,
+              "accn": "0001973239-25-000040",
+              "fy": 2025,
+              "fp": "FY",
+              "form": "20-F",
+              "filed": "2025-05-14"
+            }
+          ]
+        }
+      },
+      "Assets": {
+        "label": "Assets",
+        "units": {
+          "USD": [
+            {
+              "end": "2025-03-31",
+              "val": 9200000000,
+              "accn": "0001973239-25-000040",
+              "fy": 2025,
+              "fp": "FY",
+              "form": "20-F",
+              "filed": "2025-05-14"
+            }
+          ]
+        }
+      }
+    },
+    "dei": {
+      "EntityCommonStockSharesOutstanding": {
+        "label": "Entity Common Stock, Shares Outstanding",
+        "units": {
+          "shares": [
+            {
+              "end": "2025-03-31",
+              "val": 1025000000,
+              "accn": "0001973239-25-000040",
+              "fy": 2025,
+              "fp": "FY",
+              "form": "20-F",
+              "filed": "2025-05-14"
+            }
+          ]
+        }
+      }
+    }
+  }
+}

@@ -68,6 +68,22 @@ class SecCompanyFactsTests(unittest.TestCase):
         self.assertEqual(result.summary()["metric_codes"], ["net_income", "revenue", "shares_outstanding", "total_assets"])
         self.assertEqual(result.skipped_count, 0)
 
+    def test_load_sec_companyfacts_sync_result_accepts_20f_annual_reports(self) -> None:
+        result = load_sec_companyfacts_sync_result(
+            "1973239",
+            config=type("Config", (), {})(),
+            companyfacts_json_path=str(FIXTURES_DIR / "sec_companyfacts_CIK0001973239_20f_sample.json"),
+        )
+
+        self.assertEqual(result.cik, "0001973239")
+        self.assertEqual(result.company_name, "Arm Holdings plc")
+        self.assertEqual(len(result.values), 4)
+        self.assertEqual(result.summary()["period_count"], 1)
+        self.assertEqual(result.summary()["metric_codes"], ["net_income", "revenue", "shares_outstanding", "total_assets"])
+        self.assertTrue(all(value.statement_scope == "annual" for value in result.values))
+        self.assertTrue(all(value.fiscal_quarter is None for value in result.values))
+        self.assertTrue(all(value.is_audited for value in result.values))
+
     def test_render_sec_companyfacts_upsert_sql(self) -> None:
         result = load_sec_companyfacts_sync_result(
             "320193",
