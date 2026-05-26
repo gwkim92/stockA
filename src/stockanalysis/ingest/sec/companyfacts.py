@@ -38,6 +38,9 @@ _CONCEPT_TO_METRIC_CODE = {
     "StockholdersEquity": "shareholders_equity",
     "StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest": "shareholders_equity",
     "EntityCommonStockSharesOutstanding": "shares_outstanding",
+    "CommonStockSharesOutstanding": "shares_outstanding",
+    "WeightedAverageNumberOfDilutedSharesOutstanding": "shares_outstanding",
+    "WeightedAverageNumberOfSharesOutstandingBasic": "shares_outstanding",
 }
 
 _POINT_IN_TIME_METRIC_CODES = {

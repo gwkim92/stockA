@@ -5,7 +5,11 @@ import unittest
 from pathlib import Path
 
 from stockanalysis.ingest.psql import PsqlExecutionError
-from stockanalysis.ingest.sec.companyfacts import load_sec_companyfacts_sync_result, run_sec_companyfacts_upsert
+from stockanalysis.ingest.sec.companyfacts import (
+    load_sec_companyfacts_sync_result,
+    normalize_companyfacts_payload,
+    run_sec_companyfacts_upsert,
+)
 from stockanalysis.ingest.sec.sql import render_sec_companyfacts_upsert_sql
 
 
@@ -83,6 +87,37 @@ class SecCompanyFactsTests(unittest.TestCase):
         self.assertTrue(all(value.statement_scope == "annual" for value in result.values))
         self.assertTrue(all(value.fiscal_quarter is None for value in result.values))
         self.assertTrue(all(value.is_audited for value in result.values))
+
+    def test_normalize_companyfacts_maps_common_stock_shares_outstanding(self) -> None:
+        result = normalize_companyfacts_payload(
+            {
+                "cik": 1652044,
+                "entityName": "Alphabet Inc.",
+                "facts": {
+                    "us-gaap": {
+                        "CommonStockSharesOutstanding": {
+                            "units": {
+                                "shares": [
+                                    {
+                                        "form": "10-K",
+                                        "fy": 2025,
+                                        "fp": "FY",
+                                        "end": "2025-12-31",
+                                        "filed": "2026-02-04",
+                                        "accn": "0001652044-26-000001",
+                                        "val": 12200000000,
+                                    }
+                                ]
+                            }
+                        }
+                    }
+                },
+            }
+        )
+
+        self.assertEqual(result.summary()["metric_codes"], ["shares_outstanding"])
+        self.assertEqual(result.values[0].metric_code, "shares_outstanding")
+        self.assertEqual(result.values[0].unit, "shares")
 
     def test_render_sec_companyfacts_upsert_sql(self) -> None:
         result = load_sec_companyfacts_sync_result(

@@ -22,8 +22,10 @@
 - mutable surface:
   - `src/stockanalysis/operations/professional_source_gap_remediation_decision.py`
   - `src/stockanalysis/operations/cli.py`
+  - `src/stockanalysis/ingest/sec/companyfacts.py`
   - `tests/test_professional_source_gap_remediation_decision.py`
   - `tests/test_data_operations_cli.py`
+  - `tests/test_sec_companyfacts.py`
   - `docs/tasks/professional-source-gap-remediation-decision-v1/*`
   - `docs/project-execution-roadmap.md`
   - `AGENTS.md`
