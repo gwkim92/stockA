@@ -147,7 +147,7 @@ test -f docs/plans/2026-05-20-hosted-database-runtime-decision.md
 test -f docs/hosted-database-runtime-decision.md
 test -f scripts/verify_hosted_database_runtime_decision.sh
 grep -q 'Current task group: `professional-equity-analysis-foundation`' docs/project-execution-roadmap.md
-grep -q '현재 고정된 immediate next task는 `segment-history-coverage-expansion-v1`' AGENTS.md
+grep -q '현재 고정된 immediate next task는 `reported-segment-parser-layout-expansion-v1`' AGENTS.md
 test -f docs/tasks/portfolio-risk-budget-drift-quality-audit/contract.md
 test -f docs/tasks/portfolio-risk-budget-drift-quality-audit/handoff.md
 test -f docs/tasks/portfolio-risk-budget-rebalance-candidate-review/contract.md
@@ -199,6 +199,7 @@ grep -q "segment-specific-sotp-assumptions-v1" docs/project-execution-roadmap.md
 grep -q "segment-sotp-driver-calibration-v1" docs/project-execution-roadmap.md
 grep -q "segment-history-backfill-v1" docs/project-execution-roadmap.md
 grep -q "segment-history-coverage-expansion-v1" docs/project-execution-roadmap.md
+grep -q "reported-segment-parser-layout-expansion-v1" docs/project-execution-roadmap.md
 grep -q "segment-history-coverage-expansion-run" src/stockanalysis/operations/cli.py
 test -f src/stockanalysis/operations/segment_history_coverage_expansion.py
 test -f tests/test_segment_history_coverage_expansion.py
@@ -238,6 +239,10 @@ test -f docs/tasks/segment-history-coverage-expansion-v1/contract.md
 test -f docs/tasks/segment-history-coverage-expansion-v1/handoff.md
 test -f docs/tasks/segment-history-coverage-expansion-v1/review.md
 test -f docs/plans/2026-05-26-segment-history-coverage-expansion-v1.md
+test -f docs/tasks/reported-segment-parser-layout-expansion-v1/contract.md
+test -f docs/tasks/reported-segment-parser-layout-expansion-v1/handoff.md
+test -f docs/tasks/reported-segment-parser-layout-expansion-v1/review.md
+test -f docs/plans/2026-05-26-reported-segment-parser-layout-expansion-v1.md
 test -f docs/tasks/financial-forecast-and-scenario-inputs-v1/contract.md
 test -f docs/tasks/financial-forecast-and-scenario-inputs-v1/handoff.md
 test -f docs/tasks/financial-forecast-and-scenario-inputs-v1/review.md

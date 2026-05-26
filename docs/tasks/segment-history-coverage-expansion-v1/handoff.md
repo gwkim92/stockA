@@ -2,7 +2,7 @@
 
 ## Status
 
-- in progress: backend coverage runner, CLI command, target resolution, coverage status report, CIK-based source linkage fix, and local unit/CLI tests are implemented. EC2 rerun after the CIK source-linkage fix and final roadmap evidence are pending.
+- completed: backend coverage runner, CLI command, target resolution, coverage status report, CIK-based source linkage fix, local unit/CLI tests, EC2 deployment, and EC2 smoke are complete.
 
 ## Context
 
@@ -11,7 +11,7 @@
 
 ## Exact Next Step
 
-- Deploy the new runner to EC2 and execute `segment-history-coverage-expansion-run --execute` with a small target set that includes AAPL and at least one non-AAPL active symbol.
+- exact next step: start `reported-segment-parser-layout-expansion-v1` to add parser support for the non-AAPL SEC segment table layouts surfaced by ADI, without weakening the existing AAPL bad-label filters.
 
 ## Implemented
 
@@ -29,6 +29,13 @@
 - Passed after CIK source-linkage fix: `PYTHONPATH=src python3 -m unittest tests.test_financial_period_source_linkage tests.test_segment_history_coverage_expansion tests.test_segment_history_backfill tests.test_data_operations_cli` (`Ran 89 tests`, `OK`).
 - Passed: `PYTHONPATH=src python3 -m stockanalysis.operations.cli --help | rg "segment-history-coverage-expansion-run|segment-history-backfill-run"`.
 - Passed: `PYTHONPATH=src python3 -m compileall -q src tests`.
+- EC2 deployed commit `f94502c`; `tests.test_financial_period_source_linkage` and `tests.test_segment_history_coverage_expansion` passed on EC2 (`Ran 10 tests`, `OK`).
+- EC2 dry-run artifact: `/opt/stockanalysis/runtime/artifacts/segment-history-coverage-dry-run.json`; selected targets were AAPL and ADI.
+- EC2 execute artifact after CIK source-linkage fix and `max_filings=200`: `/opt/stockanalysis/runtime/artifacts/segment-history-coverage-execute-cik-200.json`.
+- EC2 execute parent `run_id=1134`; AAPL child `run_id=1135`, parser `run_id=1139`; ADI child `run_id=1142`, source linkage `run_id=1143`, parser `run_id=1147`.
+- EC2 coverage summary: `trend_backed_count=1`, `unsupported_layout_count=1`, `single_period_fallback_count=0`, `contaminated_segment_label_count=0`, `recommendation_scoring_mutated=false`, `automatic_order_allowed=false`, `broker_submit_allowed=false`.
+- EC2 AAPL evidence: `coverage_status=trend_backed`, `parsed_period_count=4`, `parsed_segment_count=5`, `bad_segment_count=0`, `trend_backed_assumption_count=5`.
+- EC2 ADI evidence: `coverage_status=unsupported_layout`, `source_document_period_count=3`, `raw_document_period_count=3`, `parsed_period_count=0`, `unsupported_candidate_count=3`; this proves the next bottleneck is parser layout coverage, not missing source documents.
 
 ## Guardrails
 
@@ -38,6 +45,5 @@
 
 ## Remaining Risks
 
-- EC2 SQL/runtime rerun after CIK source-linkage fix is still pending.
 - Some active holdings such as ETFs may not have useful operating segment filings even when they resolve through `company_tickers_exchange`; these must be reported as explicit quality gaps rather than treated as successful coverage.
-- Non-AAPL issuer segment footnote layouts may remain unsupported; the runner should surface those as `unsupported_layout` or related coverage statuses.
+- Non-AAPL issuer segment footnote layouts remain unsupported in at least one active target (`ADI`); the next parser task should use the raw SEC artifacts fetched by this run as fixtures/evidence.
