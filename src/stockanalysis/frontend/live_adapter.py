@@ -3761,7 +3761,8 @@ select json_build_object(
                 'paper_validation_input_allowed',
                     coalesce(nullif(score_json->>'paper_validation_input_allowed', '')::boolean, false),
                 'blocking_reasons', coalesce(score_json->'blocking_reasons', '[]'::jsonb),
-                'warning_reasons', coalesce(score_json->'warning_reasons', '[]'::jsonb)
+                'warning_reasons', coalesce(score_json->'warning_reasons', '[]'::jsonb),
+                'benchmark_drift', coalesce(score_json->'benchmark_drift', '{{}}'::jsonb)
             )
             from selected_risk_budget_guardrail
         ),
@@ -3770,7 +3771,8 @@ select json_build_object(
             'risk_gate_decision', 'missing_portfolio_risk_budget_guardrail',
             'paper_validation_input_allowed', false,
             'blocking_reasons', '[]'::json,
-            'warning_reasons', '[]'::json
+            'warning_reasons', '[]'::json,
+            'benchmark_drift', '{{}}'::json
         )
     ),
     'audit_summary',

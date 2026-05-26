@@ -584,6 +584,10 @@ class FakeLiveExecutor:
                             {"code": "sector_over_limit"},
                         ],
                         "warning_reasons": [{"code": "insufficient_benchmark_composition"}],
+                        "benchmark_drift": {
+                            "status": "insufficient_benchmark_composition",
+                            "drift_calculated": False,
+                        },
                     },
                     "audit_summary": {
                         "intent_count": 3,
@@ -2883,6 +2887,10 @@ class FrontendLiveAdapterTests(unittest.TestCase):
             "over_single_position_limit",
             payload["data"]["portfolio_risk_budget_guardrail"]["blocking_reasons"],
         )
+        self.assertEqual(
+            payload["data"]["portfolio_risk_budget_guardrail"]["benchmark_drift"]["status"],
+            "insufficient_benchmark_composition",
+        )
         self.assertEqual(payload["data"]["audit_summary"]["submitted_to_broker_count"], 0)
         self.assertEqual(payload["links"]["paper_trading_preview"], "/api/paper-trading/preview")
         self.assertNotIn("secret_ref", json.dumps(payload))
@@ -2900,6 +2908,7 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertIn("ai.eval_run", sql)
         self.assertIn("portfolio_risk_budget_guardrail", sql)
         self.assertIn("portfolio-risk-budget-guardrail-v1", sql)
+        self.assertIn("benchmark_drift", sql)
         self.assertIn("'secret_configured', secret_ref is not null", sql)
         self.assertNotIn("insert into", lowered)
         self.assertNotIn("update ", lowered)
