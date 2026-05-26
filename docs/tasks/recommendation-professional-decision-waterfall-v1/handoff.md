@@ -2,7 +2,7 @@
 
 ## Current Status
 
-- 완료: 로컬 추천 상세 API/화면에 전문 의사결정 waterfall를 추가했고 focused/full backend tests, compileall, Next typecheck/build가 통과했다.
+- 완료: 추천 상세 API/화면에 전문 의사결정 waterfall를 추가했고 local/EC2 검증과 route smoke가 통과했다.
 
 ## Intent
 
@@ -42,12 +42,33 @@ The project should behave like a professional long-term equity research and port
   - `cd apps/web && npm run typecheck`
   - `cd apps/web && npm run build`
   - Result: passed
+- Roadmap/harness:
+  - `bash scripts/verify_project_execution_roadmap.sh`
+  - `PYTHONPATH=/Users/woody/ai/agent-work-harness/src /opt/homebrew/bin/python3.13 -m awh verify --repo . --task recommendation-professional-decision-waterfall-v1`
+  - `git diff --check`
+  - Result: passed
+- EC2 deploy:
+  - `/opt/stockanalysis/app` fast-forwarded to commit `96bc6db`.
+  - Focused recommendation detail test: `Ran 1 test ... OK`
+  - Adapter suite before final localization commit: `Ran 59 tests ... OK`
+  - `apps/web` `npm run typecheck` and `npm run build`: passed
+  - `stockanalysis-frontend-api.service` and `stockanalysis-web.service`: active
+- EC2 API smoke:
+  - `/api/recommendations/recommendation-147`
+  - `professional_decision_waterfall.status=paper_validation_required`
+  - step count `8`
+  - step keys: `macro_cycle`, `news_ai`, `business_competition`, `financial_quality`, `valuation`, `thesis`, `position_sizing`, `paper_validation`
+  - `news_direction=관찰`, `paper_outcome=성과 측정 전`
+  - `order_boundary=read_only_no_order`, `automatic_order_allowed=false`, `broker_submit_allowed=false`
+- EC2 route smoke through `http://127.0.0.1:13000`:
+  - `/recommendations/recommendation-147`: `200`
+  - contains `전문 의사결정 흐름`, `거시·사이클 배경`, `뉴스·AI 근거`, `사업·경쟁 위치`, `재무 품질`, `밸류에이션`, `투자 논리`, `포지션 크기`, `페이퍼 검증`, `추천 가중치 변경 없음`, `읽기 전용·주문 금지`
+  - no remaining `broker submit`, `automatic order`, or `active weight` in the rendered route HTML
 
 ## Remaining Work
 
-- Run roadmap verifier, AWH verify, and diff check after roadmap/handoff update.
-- Commit, push, deploy to EC2, restart FastAPI/Next.js, and smoke API/route through `http://127.0.0.1:13000`.
+- The next professional-analysis gap is thesis lifecycle enforcement, not recommendation detail waterfall rendering.
 
 ## Exact Next Step
 
-- exact next step: run AWH verification for `recommendation-professional-decision-waterfall-v1`, commit/push the verified changes, deploy to EC2, and route-smoke `/api/recommendations/{id}` plus `/recommendations/{id}`.
+- exact next step: open `thesis-lifecycle-professional-gates-v1` and make each thesis expose catalyst, invalidation, risk, valuation context, review cadence, and stale evidence gates without changing recommendation weights or enabling broker orders.
