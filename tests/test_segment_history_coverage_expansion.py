@@ -164,7 +164,21 @@ class SegmentHistoryCoverageExpansionTests(unittest.TestCase):
         ):
             backfill.side_effect = [
                 {"report_name": "segment_history_backfill", "status": "completed", "run_id": 1201},
-                {"report_name": "segment_history_backfill", "status": "completed", "run_id": 1202},
+                {
+                    "report_name": "segment_history_backfill",
+                    "status": "completed",
+                    "run_id": 1202,
+                    "reported_segment_parser": {
+                        "preview": {
+                            "skipped_candidates": [
+                                {
+                                    "primary_symbol": "MSFT",
+                                    "reason": "single_reportable_segment_no_disaggregated_segment_table",
+                                }
+                            ]
+                        }
+                    },
+                },
             ]
             report = run_segment_history_coverage_expansion(
                 config=RuntimeConfig(psql_command="psql"),
@@ -182,7 +196,12 @@ class SegmentHistoryCoverageExpansionTests(unittest.TestCase):
         self.assertEqual(report["target_success_count"], 2)
         self.assertEqual(report["target_failed_count"], 0)
         self.assertEqual(report["coverage_summary"]["trend_backed_count"], 1)
-        self.assertEqual(report["coverage_summary"]["unsupported_layout_count"], 1)
+        self.assertEqual(report["coverage_summary"]["unsupported_layout_count"], 0)
+        self.assertEqual(report["coverage_summary"]["single_reportable_segment_no_detail_count"], 1)
+        self.assertEqual(
+            report["coverage_after"][1]["coverage_status"],
+            "single_reportable_segment_no_disaggregated_segment_table",
+        )
         self.assertIn("insert into ops.pipeline_run", executor.scalar_sql[2])
         self.assertIn("status = 'succeeded'", executor.non_query_sql[-1])
         self.assertEqual(backfill.call_count, 2)

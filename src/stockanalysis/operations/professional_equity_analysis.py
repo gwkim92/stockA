@@ -4714,24 +4714,24 @@ def _parse_reported_segment_candidate(
     except OSError:
         return [], "raw_artifact_unreadable"
     try:
-        return (
-            extract_reported_segment_metrics_from_html(
-                html_text,
-                instrument_id=int(candidate["instrument_id"]),
-                primary_symbol=str(candidate["primary_symbol"]),
-                as_of_date=as_of_date,
-                statement_scope=statement_scope,
-                period_end=date.fromisoformat(str(candidate["period_end"])),
-                source_document_id=int(candidate["source_document_id"]),
-                source_document_title=(
-                    str(candidate["source_document_title"]) if candidate.get("source_document_title") is not None else None
-                ),
-                source_document_url=(
-                    str(candidate["source_document_url"]) if candidate.get("source_document_url") is not None else None
-                ),
+        rows = extract_reported_segment_metrics_from_html(
+            html_text,
+            instrument_id=int(candidate["instrument_id"]),
+            primary_symbol=str(candidate["primary_symbol"]),
+            as_of_date=as_of_date,
+            statement_scope=statement_scope,
+            period_end=date.fromisoformat(str(candidate["period_end"])),
+            source_document_id=int(candidate["source_document_id"]),
+            source_document_title=(
+                str(candidate["source_document_title"]) if candidate.get("source_document_title") is not None else None
             ),
-            None,
+            source_document_url=(
+                str(candidate["source_document_url"]) if candidate.get("source_document_url") is not None else None
+            ),
         )
+        if not rows:
+            return [], _single_reportable_segment_skip_reason(html_text) or "unsupported_segment_table_layout"
+        return rows, None
     except (KeyError, TypeError, ValueError):
         return [], "candidate_payload_invalid"
 
@@ -4779,6 +4779,25 @@ def _extract_html_table_rows(table_html: str) -> list[list[str]]:
         if any(cells):
             rows.append(cells)
     return rows
+
+
+def _single_reportable_segment_skip_reason(html_text: str) -> str | None:
+    if _ixbrl_single_count(html_text, "us-gaap:NumberOfOperatingSegments"):
+        return "single_reportable_segment_no_disaggregated_segment_table"
+    if _ixbrl_single_count(html_text, "us-gaap:NumberOfReportingUnits"):
+        return "single_reportable_segment_no_disaggregated_segment_table"
+    normalized_text = _html_to_text(html_text).lower()
+    if re.search(r"\b(one|single)\s+(operating|reportable)\s+segment\b", normalized_text):
+        return "single_reportable_segment_no_disaggregated_segment_table"
+    if re.search(r"\boperates\s+as\s+(one|a single)\s+reportable\s+segment\b", normalized_text):
+        return "single_reportable_segment_no_disaggregated_segment_table"
+    return None
+
+
+def _ixbrl_single_count(html_text: str, tag_name: str) -> bool:
+    escaped_name = re.escape(tag_name)
+    pattern = rf"<ix:nonFraction\b[^>]*\bname=[\"']{escaped_name}[\"'][^>]*>\s*1\s*</ix:nonFraction>"
+    return re.search(pattern, html_text, flags=re.IGNORECASE | re.DOTALL) is not None
 
 
 def _html_to_text(fragment: str) -> str:

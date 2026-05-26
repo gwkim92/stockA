@@ -276,6 +276,28 @@ class FakeFinancialMetricExecutor:
         self.non_query_sql.append(sql)
 
 
+class FakeSingleSegmentFinancialMetricExecutor(FakeFinancialMetricExecutor):
+    def execute_scalar(self, sql: str) -> str:
+        if sql.startswith("-- reported segment footnote candidates"):
+            self.scalar_sql.append(sql)
+            return json.dumps(
+                [
+                    {
+                        "instrument_id": 66,
+                        "primary_symbol": "ADI",
+                        "period_end": "2025-11-01",
+                        "source_document_id": 6281,
+                        "source_document_title": "Analog Devices Inc. 2025 10-K",
+                        "raw_storage_uri": Path("tests/fixtures/sec_filing_adi_single_segment_sample.html")
+                        .resolve()
+                        .as_uri(),
+                        "source_document_url": "https://www.sec.gov/example/adi-20251101.htm",
+                    }
+                ]
+            )
+        return super().execute_scalar(sql)
+
+
 class ProfessionalEquityAnalysisTests(unittest.TestCase):
     def test_migration_creates_professional_analysis_tables_without_scoring_weight_change(self) -> None:
         sql = Path("db/migrations/0021_professional_equity_analysis.sql").read_text(encoding="utf-8")
@@ -672,6 +694,23 @@ class ProfessionalEquityAnalysisTests(unittest.TestCase):
         self.assertEqual({row.segment_label for row in rows}, {"Americas"})
         self.assertNotIn("Net sales", {row.segment_label for row in rows})
         self.assertNotIn("Deferred tax assets", {row.segment_label for row in rows})
+
+    def test_reported_segment_parser_classifies_single_reportable_segment_without_fake_rows(self) -> None:
+        executor = FakeSingleSegmentFinancialMetricExecutor()
+
+        report = run_reported_segment_footnote_parser(
+            config=RuntimeConfig(psql_command="psql"),
+            as_of_date=date(2026, 5, 26),
+            statement_scope="annual",
+            execute=False,
+            executor=executor,  # type: ignore[arg-type]
+        )
+
+        self.assertEqual(report["preview"]["parsed_metric_count"], 0)  # type: ignore[index]
+        self.assertEqual(report["preview"]["skipped_candidate_count"], 1)  # type: ignore[index]
+        skipped = report["preview"]["skipped_candidates"][0]  # type: ignore[index]
+        self.assertEqual(skipped["primary_symbol"], "ADI")
+        self.assertEqual(skipped["reason"], "single_reportable_segment_no_disaggregated_segment_table")
 
     def test_reported_segment_footnote_metric_upsert_sql_removes_obsolete_gap_rows(self) -> None:
         html = Path("tests/fixtures/sec_filing_segment_footnote_sample.html").read_text(encoding="utf-8")

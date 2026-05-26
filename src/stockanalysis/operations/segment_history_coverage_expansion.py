@@ -520,6 +520,7 @@ def run_segment_history_coverage_expansion(
             periods_per_instrument=periods_per_instrument,
             targets=selected_targets,
         )
+        coverage_after = _apply_parser_skip_reason_overrides(coverage_after, target_reports)
         _mark_pipeline_run_succeeded(sql_executor, run_id)
     except Exception as exc:
         _mark_pipeline_run_failed(sql_executor, run_id, str(exc))
@@ -548,6 +549,9 @@ def _coverage_summary(rows: list[dict[str, object]]) -> dict[str, object]:
         "status_counts": dict(sorted(status_counts.items())),
         "trend_backed_count": status_counts.get("trend_backed", 0),
         "unsupported_layout_count": status_counts.get("unsupported_layout", 0),
+        "single_reportable_segment_no_detail_count": status_counts.get(
+            "single_reportable_segment_no_disaggregated_segment_table", 0
+        ),
         "single_period_fallback_count": status_counts.get("single_period_fallback", 0),
         "contaminated_segment_label_count": status_counts.get("contaminated_segment_labels", 0),
         "recommendation_scoring_mutated": False,
@@ -555,6 +559,55 @@ def _coverage_summary(rows: list[dict[str, object]]) -> dict[str, object]:
         "broker_submit_allowed": False,
         "order_boundary": "read_only_no_order",
     }
+
+
+def _apply_parser_skip_reason_overrides(
+    coverage_rows: list[dict[str, object]], target_reports: list[dict[str, object]]
+) -> list[dict[str, object]]:
+    skip_reasons_by_symbol = _parser_skip_reasons_by_symbol(target_reports)
+    if not skip_reasons_by_symbol:
+        return coverage_rows
+    updated_rows: list[dict[str, object]] = []
+    for row in coverage_rows:
+        symbol = str(row.get("symbol") or "").strip().upper()
+        reasons = skip_reasons_by_symbol.get(symbol, [])
+        updated = dict(row)
+        if reasons:
+            updated["segment_parser_skip_reasons"] = reasons
+        if (
+            updated.get("coverage_status") == "unsupported_layout"
+            and "single_reportable_segment_no_disaggregated_segment_table" in reasons
+        ):
+            updated["coverage_status"] = "single_reportable_segment_no_disaggregated_segment_table"
+        updated_rows.append(updated)
+    return updated_rows
+
+
+def _parser_skip_reasons_by_symbol(target_reports: list[dict[str, object]]) -> dict[str, list[str]]:
+    reasons_by_symbol: dict[str, list[str]] = {}
+    for report in target_reports:
+        symbol = str(report.get("target_symbol") or "").strip().upper()
+        if not symbol:
+            continue
+        parser_report = report.get("reported_segment_parser")
+        if not isinstance(parser_report, dict):
+            continue
+        preview = parser_report.get("preview")
+        if not isinstance(preview, dict):
+            continue
+        skipped_candidates = preview.get("skipped_candidates")
+        if not isinstance(skipped_candidates, list):
+            continue
+        reasons: list[str] = []
+        for skipped in skipped_candidates:
+            if not isinstance(skipped, dict):
+                continue
+            reason = str(skipped.get("reason") or "").strip()
+            if reason and reason not in reasons:
+                reasons.append(reason)
+        if reasons:
+            reasons_by_symbol[symbol] = reasons
+    return reasons_by_symbol
 
 
 def _render_target_value_tuple(target: ResolvedSegmentHistoryCoverageTarget) -> str:
