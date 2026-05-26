@@ -3839,6 +3839,22 @@ fund_liquidity_summary as (
         (select volume from latest_price) as latest_volume
     from price_rows
 ),
+latest_fund_expense_ratio as (
+    select
+        metric.metric_value,
+        metric.metric_unit,
+        metric.source_name,
+        metric.source_url,
+        metric.source_as_of_date,
+        metric.confidence,
+        metric.rationale
+    from market.fund_metric_snapshot metric
+    join target_instrument instrument on instrument.instrument_id = metric.instrument_id
+    join target_date target on metric.source_as_of_date <= target.as_of_date
+    where metric.metric_code = 'gross_expense_ratio'
+    order by metric.source_as_of_date desc, metric.fund_metric_snapshot_id desc
+    limit 1
+),
 raw_recent_events as (
     select
         event_row.event_id,
@@ -4275,9 +4291,21 @@ select json_build_object(
                     ),
                     'expense_ratio',
                     json_build_object(
-                        'status', 'not_collected',
-                        'value', null,
-                        'summary', '비용률 원천은 아직 수집하지 않았다. 무료 원천 확인 전까지 unknown으로 둔다.'
+                        'status',
+                        case
+                            when (select metric_value from latest_fund_expense_ratio) is not null then 'collected'
+                            else 'not_collected'
+                        end,
+                        'value', (select metric_value from latest_fund_expense_ratio),
+                        'source_name', coalesce((select source_name from latest_fund_expense_ratio), ''),
+                        'source_as_of_date', (select source_as_of_date from latest_fund_expense_ratio),
+                        'source_url', coalesce((select source_url from latest_fund_expense_ratio), ''),
+                        'summary',
+                        case
+                            when (select metric_value from latest_fund_expense_ratio) is not null
+                                then '공식 공개 원천에서 Gross Expense Ratio를 수집했다. 펀드 보유 비용 판단에만 사용하며 추천 점수는 자동 변경하지 않는다.'
+                            else '비용률 원천은 아직 수집하지 않았다. 무료 원천 확인 전까지 unknown으로 둔다.'
+                        end
                     ),
                     'liquidity',
                     json_build_object(
@@ -6862,6 +6890,23 @@ fund_liquidity_summary as (
         ) as latest_volume
     from fund_liquidity_window
 ),
+latest_fund_expense_ratio as (
+    select
+        metric.metric_value,
+        metric.metric_unit,
+        metric.source_name,
+        metric.source_url,
+        metric.source_as_of_date,
+        metric.confidence,
+        metric.rationale
+    from market.fund_metric_snapshot metric
+    join selected_recommendation recommendation
+      on recommendation.instrument_id = metric.instrument_id
+    where metric.metric_code = 'gross_expense_ratio'
+      and metric.source_as_of_date <= recommendation.as_of_date
+    order by metric.source_as_of_date desc, metric.fund_metric_snapshot_id desc
+    limit 1
+),
 portfolio_review_trace as (
     select
         portfolio.portfolio_name,
@@ -7361,9 +7406,21 @@ select json_build_object(
                     ),
                     'expense_ratio',
                     json_build_object(
-                        'status', 'not_collected',
-                        'value', null,
-                        'summary', '비용률 원천은 아직 수집하지 않았다. 무료 원천 확인 전까지 unknown으로 둔다.'
+                        'status',
+                        case
+                            when (select metric_value from latest_fund_expense_ratio) is not null then 'collected'
+                            else 'not_collected'
+                        end,
+                        'value', (select metric_value from latest_fund_expense_ratio),
+                        'source_name', coalesce((select source_name from latest_fund_expense_ratio), ''),
+                        'source_as_of_date', (select source_as_of_date from latest_fund_expense_ratio),
+                        'source_url', coalesce((select source_url from latest_fund_expense_ratio), ''),
+                        'summary',
+                        case
+                            when (select metric_value from latest_fund_expense_ratio) is not null
+                                then '공식 공개 원천에서 Gross Expense Ratio를 수집했다. 펀드 보유 비용 판단에만 사용하며 추천 점수는 자동 변경하지 않는다.'
+                            else '비용률 원천은 아직 수집하지 않았다. 무료 원천 확인 전까지 unknown으로 둔다.'
+                        end
                     ),
                     'liquidity',
                     json_build_object(
@@ -8726,6 +8783,9 @@ def _build_fund_instrument_analysis_payload(analysis: dict[str, Any]) -> dict[st
         "expense_ratio": {
             "status": str(expense_ratio.get("status") or "not_collected"),
             "value": _number(expense_ratio.get("value")),
+            "source_name": str(expense_ratio.get("source_name") or ""),
+            "source_as_of_date": str(expense_ratio.get("source_as_of_date") or ""),
+            "source_url": str(expense_ratio.get("source_url") or ""),
             "summary": str(expense_ratio.get("summary") or ""),
         },
         "liquidity": {

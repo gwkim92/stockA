@@ -611,6 +611,9 @@ export type FundInstrumentAnalysis = {
   expense_ratio: {
     status: string;
     value: number | null;
+    source_name: string;
+    source_as_of_date: string;
+    source_url: string;
     summary: string;
   };
   liquidity: {

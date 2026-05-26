@@ -34,6 +34,11 @@ from stockanalysis.operations.cadence import build_data_operations_cadence_repor
 from stockanalysis.operations.cycle_ai_quality_audit import run_cycle_ai_quality_audit
 from stockanalysis.operations.env_file import merged_env_with_file
 from stockanalysis.operations.env_readiness import check_data_operations_runtime_env
+from stockanalysis.operations.fund_expense_ratio_provider import (
+    DEFAULT_SSGA_FUND_METRIC_SOURCE_NAME,
+    DEFAULT_SSGA_SPDR_SPY_PRODUCT_URL,
+    run_ssga_spdr_fund_expense_ratio_import,
+)
 from stockanalysis.operations.financial_period_source_linkage import (
     DEFAULT_SOURCE_LINKAGE_MAX_FILINGS,
     SOURCE_LINKAGE_STATEMENT_SCOPES,
@@ -864,6 +869,22 @@ def build_parser() -> argparse.ArgumentParser:
     benchmark_composition_ssga_spdr_import.add_argument("--output")
     benchmark_composition_ssga_spdr_import.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
     benchmark_composition_ssga_spdr_import.set_defaults(handler=_handle_benchmark_composition_ssga_spdr_import_run)
+
+    fund_expense_ratio_ssga_spdr_import = subparsers.add_parser(
+        "fund-expense-ratio-ssga-spdr-import-run",
+        help="Download official State Street SPDR product data and import source-backed fund expense ratio.",
+    )
+    fund_expense_ratio_ssga_spdr_import.add_argument("--env-file")
+    fund_expense_ratio_ssga_spdr_import.add_argument("--symbol", default="SPY")
+    fund_expense_ratio_ssga_spdr_import.add_argument("--source-html")
+    fund_expense_ratio_ssga_spdr_import.add_argument("--source-url", default=DEFAULT_SSGA_SPDR_SPY_PRODUCT_URL)
+    fund_expense_ratio_ssga_spdr_import.add_argument("--raw-html-output")
+    fund_expense_ratio_ssga_spdr_import.add_argument("--source-name", default=DEFAULT_SSGA_FUND_METRIC_SOURCE_NAME)
+    fund_expense_ratio_ssga_spdr_import.add_argument("--execute", action="store_true")
+    fund_expense_ratio_ssga_spdr_import.add_argument("--dry-run", action="store_true")
+    fund_expense_ratio_ssga_spdr_import.add_argument("--output")
+    fund_expense_ratio_ssga_spdr_import.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
+    fund_expense_ratio_ssga_spdr_import.set_defaults(handler=_handle_fund_expense_ratio_ssga_spdr_import_run)
 
     recommendation_fundamental_components = subparsers.add_parser(
         "recommendation-fundamental-components-run",
@@ -2051,6 +2072,49 @@ def _handle_benchmark_composition_ssga_spdr_import_run(args: argparse.Namespace,
         output_path = resolve_output_path(
             args.output,
             label="State Street SPDR benchmark import output",
+            repo_root=args.repo_root,
+            require_repo_outside=True,
+        )
+        write_json_report(report, output_path=output_path, stdout=stdout)
+    else:
+        print_json(report, stdout=stdout, sort_keys=False)
+    return 0
+
+
+def _handle_fund_expense_ratio_ssga_spdr_import_run(args: argparse.Namespace, *, stdout: TextIO) -> int:
+    if bool(args.execute) and bool(args.dry_run):
+        raise ValueError("--execute and --dry-run cannot be used together.")
+    env_mapping = _load_optional_env_mapping(args.env_file, repo_root=args.repo_root)
+    source_html = None
+    if args.source_html:
+        source_html = resolve_existing_file(
+            args.source_html,
+            label="State Street SPDR product HTML",
+            repo_root=args.repo_root,
+            require_repo_outside=True,
+        )
+    raw_html_output = None
+    if args.raw_html_output:
+        raw_html_output = resolve_output_path(
+            args.raw_html_output,
+            label="State Street SPDR raw product HTML output",
+            repo_root=args.repo_root,
+            require_repo_outside=True,
+        )
+    with _temporary_environ(env_mapping):
+        report = run_ssga_spdr_fund_expense_ratio_import(
+            config=RuntimeConfig.from_env(),
+            symbol=args.symbol,
+            source_html=source_html,
+            raw_html_output=raw_html_output,
+            source_url=args.source_url,
+            source_name=args.source_name,
+            execute=bool(args.execute) and not bool(args.dry_run),
+        )
+    if args.output:
+        output_path = resolve_output_path(
+            args.output,
+            label="State Street SPDR fund expense ratio import output",
             repo_root=args.repo_root,
             require_repo_outside=True,
         )

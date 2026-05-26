@@ -242,6 +242,16 @@ function formatCurrency(value: number | null | undefined, currencyCode: string) 
   }).format(value);
 }
 
+function formatExpenseRatio(value: number | null | undefined) {
+  if (value === null || value === undefined) {
+    return "미수집";
+  }
+  return `${(value * 100).toLocaleString("ko-KR", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 4,
+  })}%`;
+}
+
 function formatFinancialMetricValue(metric: FinancialMetricSnapshot) {
   if (metric.metric_value === null) {
     if (metric.metric_status === "insufficient_history") {
@@ -445,8 +455,17 @@ function FundInstrumentAnalysisPanel({ analysis }: { analysis: FundInstrumentAna
         </article>
         <article className="flow-step">
           <span>비용률</span>
-          <strong>{koCode(analysis.expense_ratio.status)}</strong>
-          <p>{analysis.expense_ratio.summary}</p>
+          <strong>{formatExpenseRatio(analysis.expense_ratio.value)}</strong>
+          <p>
+            {analysis.expense_ratio.summary} 상태 {koCode(analysis.expense_ratio.status)}
+            {analysis.expense_ratio.source_name ? ` · 원천 ${analysis.expense_ratio.source_name}` : ""}
+            {analysis.expense_ratio.source_as_of_date ? ` · 기준일 ${analysis.expense_ratio.source_as_of_date}` : ""}
+          </p>
+          {analysis.expense_ratio.source_url ? (
+            <a href={analysis.expense_ratio.source_url} target="_blank" rel="noreferrer">
+              비용률 원천 열기
+            </a>
+          ) : null}
         </article>
         <article className="flow-step">
           <span>유동성</span>

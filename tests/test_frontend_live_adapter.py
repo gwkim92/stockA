@@ -3054,7 +3054,14 @@ class FrontendLiveAdapterTests(unittest.TestCase):
                     "rationale": "portfolio exposure",
                 },
                 "tracking_error": {"status": "not_collected", "summary": "not collected"},
-                "expense_ratio": {"status": "not_collected", "summary": "not collected"},
+                "expense_ratio": {
+                    "status": "collected",
+                    "value": 0.000945,
+                    "source_name": "ssga_spdr_product_page",
+                    "source_as_of_date": "2026-05-26",
+                    "source_url": "https://www.ssga.com/us/en/intermediary/etfs/spdr-sp-500-etf-trust-spy",
+                    "summary": "official source",
+                },
                 "liquidity": {
                     "status": "collected",
                     "source_name": "market.daily_price_bar",
@@ -3074,6 +3081,10 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertEqual(payload["symbol"], "SPY")
         self.assertEqual(payload["benchmark_source"], "ssga_spdr_spy_daily_holdings")
         self.assertEqual(payload["top_holdings"][0]["symbol"], "AAPL")
+        self.assertEqual(payload["expense_ratio"]["status"], "collected")
+        self.assertEqual(payload["expense_ratio"]["value"], 0.000945)
+        self.assertEqual(payload["expense_ratio"]["source_name"], "ssga_spdr_product_page")
+        self.assertEqual(payload["expense_ratio"]["source_as_of_date"], "2026-05-26")
         self.assertEqual(payload["liquidity"]["status"], "collected")
         self.assertEqual(payload["liquidity"]["source_name"], "market.daily_price_bar")
         self.assertEqual(payload["liquidity"]["observation_count"], 60)
@@ -3976,8 +3987,10 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertIn("'source_data_blocker'", detail_sql)
         self.assertIn("fund_benchmark_source as", detail_sql)
         self.assertIn("fund_liquidity_summary as", detail_sql)
+        self.assertIn("latest_fund_expense_ratio as", detail_sql)
         self.assertIn("'fund_instrument_analysis'", detail_sql)
         self.assertIn("'liquidity'", detail_sql)
+        self.assertIn("market.fund_metric_snapshot", detail_sql)
         self.assertIn("ref.benchmark_composition", detail_sql)
         self.assertIn("financial_metric_universe(metric_code)", detail_sql)
         self.assertIn("latest_financial_metrics as", detail_sql)
@@ -4585,8 +4598,10 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertIn("'source_data_blocker'", sql)
         self.assertIn("fund_benchmark_source as", sql)
         self.assertIn("fund_liquidity_summary as", sql)
+        self.assertIn("latest_fund_expense_ratio as", sql)
         self.assertIn("'fund_instrument_analysis'", sql)
         self.assertIn("'liquidity'", sql)
+        self.assertIn("market.fund_metric_snapshot", sql)
         self.assertIn("ref.benchmark_composition", sql)
         self.assertIn("financial_metric_universe(metric_code)", sql)
         self.assertIn("latest_financial_metrics as", sql)
