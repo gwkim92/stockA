@@ -586,9 +586,6 @@ def _apply_parser_skip_reason_overrides(
 def _parser_skip_reasons_by_symbol(target_reports: list[dict[str, object]]) -> dict[str, list[str]]:
     reasons_by_symbol: dict[str, list[str]] = {}
     for report in target_reports:
-        symbol = str(report.get("target_symbol") or "").strip().upper()
-        if not symbol:
-            continue
         parser_report = report.get("reported_segment_parser")
         if not isinstance(parser_report, dict):
             continue
@@ -598,15 +595,17 @@ def _parser_skip_reasons_by_symbol(target_reports: list[dict[str, object]]) -> d
         skipped_candidates = preview.get("skipped_candidates")
         if not isinstance(skipped_candidates, list):
             continue
-        reasons: list[str] = []
         for skipped in skipped_candidates:
             if not isinstance(skipped, dict):
                 continue
+            symbol = str(skipped.get("primary_symbol") or report.get("target_symbol") or "").strip().upper()
+            if not symbol:
+                continue
             reason = str(skipped.get("reason") or "").strip()
-            if reason and reason not in reasons:
-                reasons.append(reason)
-        if reasons:
-            reasons_by_symbol[symbol] = reasons
+            if reason:
+                existing_reasons = reasons_by_symbol.setdefault(symbol, [])
+                if reason not in existing_reasons:
+                    existing_reasons.append(reason)
     return reasons_by_symbol
 
 

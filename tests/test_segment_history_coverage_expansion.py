@@ -198,6 +198,7 @@ class SegmentHistoryCoverageExpansionTests(unittest.TestCase):
         self.assertEqual(report["coverage_summary"]["trend_backed_count"], 1)
         self.assertEqual(report["coverage_summary"]["unsupported_layout_count"], 0)
         self.assertEqual(report["coverage_summary"]["single_reportable_segment_no_detail_count"], 1)
+        self.assertNotIn("segment_parser_skip_reasons", report["coverage_after"][0])
         self.assertEqual(
             report["coverage_after"][1]["coverage_status"],
             "single_reportable_segment_no_disaggregated_segment_table",
