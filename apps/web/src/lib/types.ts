@@ -444,6 +444,18 @@ export type DataHealthData = {
     order_boundary: string;
   };
   open_gates: string[];
+  open_gate_details?: Array<{
+    gate_id: string;
+    label: string;
+    category: string;
+    category_label: string;
+    severity: "low" | "medium" | "high" | string;
+    status_label: string;
+    summary: string;
+    next_action: string;
+    order_boundary: string;
+    automatic_action_allowed: boolean;
+  }>;
 };
 
 export type StockPrice = {

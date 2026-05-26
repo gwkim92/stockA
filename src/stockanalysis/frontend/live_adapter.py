@@ -515,6 +515,142 @@ def build_live_dashboard_response(
     }
 
 
+def _build_open_gate_details(
+    *,
+    open_gates: list[str],
+    benchmark_drift_quality: Mapping[str, Any],
+    portfolio_review_decision_history: Mapping[str, Any],
+    portfolio_review_feedback_calibration: Mapping[str, Any],
+    professional_source_gap_prioritization: Mapping[str, Any],
+    recommendation_outcome_maturity: Mapping[str, Any],
+) -> list[dict[str, Any]]:
+    details: list[dict[str, Any]] = []
+    for gate in open_gates:
+        if gate == "benchmark_drift_quality_attention":
+            active_share = _number(benchmark_drift_quality.get("active_share"))
+            review_count = int(benchmark_drift_quality.get("review_candidate_count") or 0)
+            details.append(
+                {
+                    "gate_id": gate,
+                    "label": "벤치마크 괴리 검토",
+                    "category": "investment_review",
+                    "category_label": "투자 검토",
+                    "severity": "high" if active_share is not None and active_share >= 0.5 else "medium",
+                    "status_label": "포트폴리오 비중 점검 필요",
+                    "summary": (
+                        f"벤치마크 대비 active share {active_share:.1%}, 검토 후보 {review_count}개."
+                        if active_share is not None
+                        else f"벤치마크 괴리 검토 후보 {review_count}개."
+                    ),
+                    "next_action": "자동 주문하지 말고 thesis, 밸류에이션, 집중도를 확인해 비중 유지/축소 판단을 남긴다.",
+                    "order_boundary": str(benchmark_drift_quality.get("order_boundary") or "read_only_no_order"),
+                    "automatic_action_allowed": False,
+                }
+            )
+            continue
+        if gate == "portfolio_review_decision_history_attention":
+            decision_count = int(portfolio_review_decision_history.get("decision_count") or 0)
+            details.append(
+                {
+                    "gate_id": gate,
+                    "label": "포트폴리오 검토 결정",
+                    "category": "investment_review",
+                    "category_label": "투자 검토",
+                    "severity": "medium",
+                    "status_label": "검토 결정 기록됨",
+                    "summary": f"최근 포트폴리오 검토 결정 {decision_count}개가 성과 대조를 기다린다.",
+                    "next_action": "결정을 지우지 말고 후속 성과와 thesis 변화를 대조한다.",
+                    "order_boundary": str(
+                        _as_dict(portfolio_review_decision_history.get("guardrails")).get("order_boundary")
+                        or "read_only_no_order"
+                    ),
+                    "automatic_action_allowed": False,
+                }
+            )
+            continue
+        if gate == "portfolio_review_feedback_calibration_attention":
+            status = str(portfolio_review_feedback_calibration.get("calibration_status") or "unknown")
+            mature_count = int(portfolio_review_feedback_calibration.get("mature_decision_count") or 0)
+            min_mature = int(portfolio_review_feedback_calibration.get("min_mature_decisions") or 0)
+            details.append(
+                {
+                    "gate_id": gate,
+                    "label": "검토 성과 표본",
+                    "category": "outcome_wait",
+                    "category_label": "성과 관찰 대기",
+                    "severity": "low" if status == "insufficient_history" else "medium",
+                    "status_label": "표본 부족",
+                    "summary": f"성숙한 검토 표본 {mature_count}/{min_mature}개. 아직 weight 조정 근거로 쓰기 어렵다.",
+                    "next_action": "성과 관찰 기간이 찰 때까지 weight 변경을 막고 feedback run을 계속 누적한다.",
+                    "order_boundary": str(
+                        _as_dict(portfolio_review_feedback_calibration.get("guardrails")).get("order_boundary")
+                        or "read_only_no_order"
+                    ),
+                    "automatic_action_allowed": False,
+                }
+            )
+            continue
+        if gate == "professional_source_gap_attention":
+            source_blockers = int(professional_source_gap_prioritization.get("source_blocker_count") or 0)
+            top_score = _number(professional_source_gap_prioritization.get("top_priority_score"))
+            details.append(
+                {
+                    "gate_id": gate,
+                    "label": "전문 분석 원천 한계",
+                    "category": "source_limit",
+                    "category_label": "원천 데이터 한계",
+                    "severity": "high" if source_blockers else "medium",
+                    "status_label": "재무 원천 차단",
+                    "summary": (
+                        f"원천 차단 종목 {source_blockers}개, 최고 우선순위 {top_score:.1f}."
+                        if top_score is not None
+                        else f"원천 차단 종목 {source_blockers}개."
+                    ),
+                    "next_action": str(
+                        professional_source_gap_prioritization.get("next_action")
+                        or "무료 원천 데이터 가능 여부를 확인하고 불가능한 종목은 전문 판단 입력에서 제외한다."
+                    ),
+                    "order_boundary": str(
+                        professional_source_gap_prioritization.get("order_boundary") or "read_only_no_order"
+                    ),
+                    "automatic_action_allowed": False,
+                }
+            )
+            continue
+        if gate == "recommendation_outcome_maturity_attention":
+            next_due_date = str(recommendation_outcome_maturity.get("next_due_date") or "")
+            details.append(
+                {
+                    "gate_id": gate,
+                    "label": "추천 성과 측정창",
+                    "category": "outcome_wait",
+                    "category_label": "성과 관찰 대기",
+                    "severity": "medium",
+                    "status_label": "성과 측정 필요",
+                    "summary": f"다음 성과 측정일은 {next_due_date or '미정'}이다.",
+                    "next_action": "성과창이 열리면 outcome calibration을 실행하고 그 전에는 weight 변경을 막는다.",
+                    "order_boundary": "read_only_no_order",
+                    "automatic_action_allowed": False,
+                }
+            )
+            continue
+        details.append(
+            {
+                "gate_id": gate,
+                "label": gate.replace("_", " "),
+                "category": "operational_blocker",
+                "category_label": "운영 조건",
+                "severity": "high" if gate in {"production_api_server", "auth_rbac"} else "medium",
+                "status_label": "조건 미충족",
+                "summary": "운영 전제 조건이 아직 닫히지 않았다.",
+                "next_action": "관련 설정, 실행 상태, 보안 경계를 확인한다.",
+                "order_boundary": "read_only_no_order",
+                "automatic_action_allowed": False,
+            }
+        )
+    return details
+
+
 def build_live_data_health_response(
     *,
     config: RuntimeConfig,
@@ -648,6 +784,14 @@ def build_live_data_health_response(
         gate = "professional_source_gap_attention"
         if gate not in open_gates:
             open_gates.append(gate)
+    open_gate_details = _build_open_gate_details(
+        open_gates=open_gates,
+        benchmark_drift_quality=benchmark_drift_quality,
+        portfolio_review_decision_history=portfolio_review_decision_history,
+        portfolio_review_feedback_calibration=portfolio_review_feedback_calibration,
+        professional_source_gap_prioritization=professional_source_gap_prioritization,
+        recommendation_outcome_maturity=recommendation_outcome_maturity,
+    )
 
     return {
         "contract_version": CONTRACT_VERSION,
@@ -682,6 +826,7 @@ def build_live_data_health_response(
             "recommendation_weight_review_readiness": recommendation_weight_review_readiness,
             "professional_source_gap_prioritization": professional_source_gap_prioritization,
             "open_gates": open_gates,
+            "open_gate_details": open_gate_details,
         },
         "links": {
             "scheduler_env_readiness": "/settings/scheduler",

@@ -4462,6 +4462,20 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertFalse(source_gaps["automatic_weight_change_allowed"])
         self.assertFalse(source_gaps["broker_submit_allowed"])
         self.assertIn("professional_source_gap_attention", payload["data"]["open_gates"])
+        gate_details = {item["gate_id"]: item for item in payload["data"]["open_gate_details"]}
+        self.assertEqual(gate_details["auth_rbac"]["category"], "operational_blocker")
+        self.assertEqual(gate_details["auth_rbac"]["severity"], "high")
+        self.assertEqual(gate_details["benchmark_drift_quality_attention"]["category"], "investment_review")
+        self.assertEqual(gate_details["benchmark_drift_quality_attention"]["label"], "벤치마크 괴리 검토")
+        self.assertEqual(
+            gate_details["portfolio_review_feedback_calibration_attention"]["category"],
+            "outcome_wait",
+        )
+        self.assertEqual(
+            gate_details["professional_source_gap_attention"]["category"],
+            "source_limit",
+        )
+        self.assertFalse(gate_details["professional_source_gap_attention"]["automatic_action_allowed"])
         self.assertEqual(payload["links"]["dashboard"], "/api/dashboard/today")
 
     def test_recommendation_outcome_maturity_due_state_requests_calibration_now(self) -> None:

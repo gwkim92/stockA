@@ -1270,6 +1270,7 @@ export default async function DataHealthPage() {
     data.recommendation_weight_review_readiness ?? DEFAULT_RECOMMENDATION_WEIGHT_REVIEW_READINESS;
   const professionalSourceGaps =
     data.professional_source_gap_prioritization ?? DEFAULT_PROFESSIONAL_SOURCE_GAP_PRIORITIZATION;
+  const openGateDetails = data.open_gate_details ?? [];
   const marketPriceRun = findPipelineRun(data, "market-price-daily", "market_price_upsert");
   const newsRun = findPipelineRun(data, "news-rss-daily", "news_rss_upsert");
   const newsEnrichmentRun = findPipelineRun(
@@ -3184,6 +3185,33 @@ export default async function DataHealthPage() {
               <span>조건과 최신성</span>
               <h2>조건과 데이터 최신성</h2>
             </div>
+            {openGateDetails.length > 0 ? (
+              <div className="flow-steps data-health-summary-grid" style={{ marginBottom: "18px" }}>
+                {openGateDetails.map((gate) => (
+                  <div className="flow-step" key={gate.gate_id}>
+                    <span>{gate.category_label}</span>
+                    <strong>{gate.label}</strong>
+                    <p>{gate.summary}</p>
+                    <dl className="fact-list compact-facts">
+                      <div>
+                        <dt>상태</dt>
+                        <dd>
+                          <span className={`risk-tag risk-${gate.severity}`}>{gate.status_label}</span>
+                        </dd>
+                      </div>
+                      <div>
+                        <dt>다음 행동</dt>
+                        <dd>{gate.next_action}</dd>
+                      </div>
+                      <div>
+                        <dt>주문 경계</dt>
+                        <dd>{koCode(gate.order_boundary)}</dd>
+                      </div>
+                    </dl>
+                  </div>
+                ))}
+              </div>
+            ) : null}
             <div className="tag-ledger">
               {data.open_gates.map((gate) => (
                 <span className="risk-tag risk-medium" key={gate}>
