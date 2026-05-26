@@ -354,6 +354,14 @@ function FundInstrumentAnalysisPanel({ analysis }: { analysis: FundInstrumentAna
           <p>{analysis.expense_ratio.summary}</p>
         </article>
         <article className="flow-step">
+          <span>유동성</span>
+          <strong>{koCode(analysis.liquidity.status)}</strong>
+          <p>
+            {analysis.liquidity.summary} 평균 거래량 {formatCompactNumber(analysis.liquidity.average_daily_volume)} ·
+            평균 거래대금 {formatCurrency(analysis.liquidity.average_daily_dollar_volume, "USD")}
+          </p>
+        </article>
+        <article className="flow-step">
           <span>주문 경계</span>
           <strong>{koCode(analysis.order_boundary)}</strong>
           <p>이 분석은 추천 점수와 주문 가능 여부를 자동 변경하지 않는다.</p>

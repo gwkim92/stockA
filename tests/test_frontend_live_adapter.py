@@ -3055,6 +3055,16 @@ class FrontendLiveAdapterTests(unittest.TestCase):
                 },
                 "tracking_error": {"status": "not_collected", "summary": "not collected"},
                 "expense_ratio": {"status": "not_collected", "summary": "not collected"},
+                "liquidity": {
+                    "status": "collected",
+                    "source_name": "market.daily_price_bar",
+                    "source_as_of_date": "2026-05-26",
+                    "observation_count": 60,
+                    "latest_volume": 70420000,
+                    "average_daily_volume": 71234567,
+                    "average_daily_dollar_volume": 42000000000,
+                    "summary": "거래량 수집분으로 계산했다.",
+                },
                 "limitations": ["no company financials"],
             }
         )
@@ -3064,6 +3074,9 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertEqual(payload["symbol"], "SPY")
         self.assertEqual(payload["benchmark_source"], "ssga_spdr_spy_daily_holdings")
         self.assertEqual(payload["top_holdings"][0]["symbol"], "AAPL")
+        self.assertEqual(payload["liquidity"]["status"], "collected")
+        self.assertEqual(payload["liquidity"]["source_name"], "market.daily_price_bar")
+        self.assertEqual(payload["liquidity"]["observation_count"], 60)
         self.assertEqual(payload["score_policy"], "recommendation_weights_unchanged")
         self.assertFalse(payload["automatic_order_allowed"])
         self.assertFalse(payload["broker_submit_allowed"])
@@ -3962,7 +3975,9 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertIn("latest_financial_source_linkage_run as", detail_sql)
         self.assertIn("'source_data_blocker'", detail_sql)
         self.assertIn("fund_benchmark_source as", detail_sql)
+        self.assertIn("fund_liquidity_summary as", detail_sql)
         self.assertIn("'fund_instrument_analysis'", detail_sql)
+        self.assertIn("'liquidity'", detail_sql)
         self.assertIn("ref.benchmark_composition", detail_sql)
         self.assertIn("financial_metric_universe(metric_code)", detail_sql)
         self.assertIn("latest_financial_metrics as", detail_sql)
@@ -4569,7 +4584,9 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertIn("latest_financial_source_linkage_run as", sql)
         self.assertIn("'source_data_blocker'", sql)
         self.assertIn("fund_benchmark_source as", sql)
+        self.assertIn("fund_liquidity_summary as", sql)
         self.assertIn("'fund_instrument_analysis'", sql)
+        self.assertIn("'liquidity'", sql)
         self.assertIn("ref.benchmark_composition", sql)
         self.assertIn("financial_metric_universe(metric_code)", sql)
         self.assertIn("latest_financial_metrics as", sql)

@@ -3827,6 +3827,18 @@ fund_benchmark_summary as (
         avg(confidence) as average_holding_confidence
     from fund_benchmark_holdings
 ),
+fund_liquidity_summary as (
+    select
+        count(*)::int as observation_count,
+        max(trade_date) as latest_trade_date,
+        avg(volume) filter (where volume is not null) as average_daily_volume,
+        avg(volume * coalesce(adjusted_close, close)) filter (
+            where volume is not null
+              and coalesce(adjusted_close, close) is not null
+        ) as average_daily_dollar_volume,
+        (select volume from latest_price) as latest_volume
+    from price_rows
+),
 raw_recent_events as (
     select
         event_row.event_id,
@@ -4267,10 +4279,33 @@ select json_build_object(
                         'value', null,
                         'summary', '비용률 원천은 아직 수집하지 않았다. 무료 원천 확인 전까지 unknown으로 둔다.'
                     ),
+                    'liquidity',
+                    json_build_object(
+                        'status',
+                        case
+                            when coalesce((select observation_count from fund_liquidity_summary), 0) >= 20 then 'collected'
+                            when coalesce((select observation_count from fund_liquidity_summary), 0) > 0 then 'partial'
+                            else 'not_collected'
+                        end,
+                        'source_name', 'market.daily_price_bar',
+                        'source_as_of_date', (select latest_trade_date from fund_liquidity_summary),
+                        'observation_count', coalesce((select observation_count from fund_liquidity_summary), 0),
+                        'latest_volume', (select latest_volume from fund_liquidity_summary),
+                        'average_daily_volume', (select average_daily_volume from fund_liquidity_summary),
+                        'average_daily_dollar_volume', (select average_daily_dollar_volume from fund_liquidity_summary),
+                        'summary',
+                        case
+                            when coalesce((select observation_count from fund_liquidity_summary), 0) >= 20
+                                then '최근 가격/거래량 수집분으로 평균 거래량과 달러 거래대금을 계산했다.'
+                            when coalesce((select observation_count from fund_liquidity_summary), 0) > 0
+                                then '가격/거래량 일부만 수집되어 유동성 판단은 제한적이다.'
+                            else '가격/거래량 원천이 없어 유동성 판단을 아직 계산하지 않는다.'
+                        end
+                    ),
                     'limitations',
                     json_build_array(
                         '기업 DCF·SOTP·재무제표 모델을 적용하지 않는다.',
-                        '정확한 추적오차와 비용률은 원천 데이터 수집 전까지 unknown이다.',
+                        '정확한 추적오차, NAV 괴리, 비용률은 원천 데이터 수집 전까지 unknown이다.',
                         '추천 점수와 주문 가능 여부는 이 분석으로 자동 변경하지 않는다.'
                     )
                 )
@@ -6794,6 +6829,39 @@ fund_benchmark_summary as (
         avg(confidence) as average_holding_confidence
     from fund_benchmark_holdings
 ),
+fund_liquidity_window as (
+    select *
+    from (
+        select
+            bar.trade_date,
+            bar.close,
+            bar.adjusted_close,
+            bar.volume
+        from market.daily_price_bar bar
+        join selected_recommendation recommendation
+          on recommendation.instrument_id = bar.instrument_id
+        where bar.trade_date <= recommendation.as_of_date
+        order by bar.trade_date desc
+        limit 120
+    ) rows_desc
+),
+fund_liquidity_summary as (
+    select
+        count(*)::int as observation_count,
+        max(trade_date) as latest_trade_date,
+        avg(volume) filter (where volume is not null) as average_daily_volume,
+        avg(volume * coalesce(adjusted_close, close)) filter (
+            where volume is not null
+              and coalesce(adjusted_close, close) is not null
+        ) as average_daily_dollar_volume,
+        (
+            select volume
+            from fund_liquidity_window
+            order by trade_date desc
+            limit 1
+        ) as latest_volume
+    from fund_liquidity_window
+),
 portfolio_review_trace as (
     select
         portfolio.portfolio_name,
@@ -7297,10 +7365,33 @@ select json_build_object(
                         'value', null,
                         'summary', '비용률 원천은 아직 수집하지 않았다. 무료 원천 확인 전까지 unknown으로 둔다.'
                     ),
+                    'liquidity',
+                    json_build_object(
+                        'status',
+                        case
+                            when coalesce((select observation_count from fund_liquidity_summary), 0) >= 20 then 'collected'
+                            when coalesce((select observation_count from fund_liquidity_summary), 0) > 0 then 'partial'
+                            else 'not_collected'
+                        end,
+                        'source_name', 'market.daily_price_bar',
+                        'source_as_of_date', (select latest_trade_date from fund_liquidity_summary),
+                        'observation_count', coalesce((select observation_count from fund_liquidity_summary), 0),
+                        'latest_volume', (select latest_volume from fund_liquidity_summary),
+                        'average_daily_volume', (select average_daily_volume from fund_liquidity_summary),
+                        'average_daily_dollar_volume', (select average_daily_dollar_volume from fund_liquidity_summary),
+                        'summary',
+                        case
+                            when coalesce((select observation_count from fund_liquidity_summary), 0) >= 20
+                                then '최근 가격/거래량 수집분으로 평균 거래량과 달러 거래대금을 계산했다.'
+                            when coalesce((select observation_count from fund_liquidity_summary), 0) > 0
+                                then '가격/거래량 일부만 수집되어 유동성 판단은 제한적이다.'
+                            else '가격/거래량 원천이 없어 유동성 판단을 아직 계산하지 않는다.'
+                        end
+                    ),
                     'limitations',
                     json_build_array(
                         '기업 DCF·SOTP·재무제표 모델을 적용하지 않는다.',
-                        '정확한 추적오차와 비용률은 원천 데이터 수집 전까지 unknown이다.',
+                        '정확한 추적오차, NAV 괴리, 비용률은 원천 데이터 수집 전까지 unknown이다.',
                         '추천 점수와 주문 가능 여부는 이 분석으로 자동 변경하지 않는다.'
                     )
                 )
@@ -8597,6 +8688,7 @@ def _build_fund_instrument_analysis_payload(analysis: dict[str, Any]) -> dict[st
     portfolio_role = _as_dict(analysis.get("portfolio_role"))
     tracking_error = _as_dict(analysis.get("tracking_error"))
     expense_ratio = _as_dict(analysis.get("expense_ratio"))
+    liquidity = _as_dict(analysis.get("liquidity"))
     return {
         "status": status,
         "analysis_type": str(analysis.get("analysis_type") or "fund_or_etf"),
@@ -8635,6 +8727,16 @@ def _build_fund_instrument_analysis_payload(analysis: dict[str, Any]) -> dict[st
             "status": str(expense_ratio.get("status") or "not_collected"),
             "value": _number(expense_ratio.get("value")),
             "summary": str(expense_ratio.get("summary") or ""),
+        },
+        "liquidity": {
+            "status": str(liquidity.get("status") or "not_collected"),
+            "source_name": str(liquidity.get("source_name") or ""),
+            "source_as_of_date": str(liquidity.get("source_as_of_date") or ""),
+            "observation_count": int(liquidity.get("observation_count") or 0),
+            "latest_volume": _number(liquidity.get("latest_volume")),
+            "average_daily_volume": _number(liquidity.get("average_daily_volume")),
+            "average_daily_dollar_volume": _number(liquidity.get("average_daily_dollar_volume")),
+            "summary": str(liquidity.get("summary") or ""),
         },
         "limitations": _as_scalar_list(analysis.get("limitations")),
         "score_policy": "recommendation_weights_unchanged",

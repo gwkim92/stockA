@@ -613,6 +613,16 @@ export type FundInstrumentAnalysis = {
     value: number | null;
     summary: string;
   };
+  liquidity: {
+    status: string;
+    source_name: string;
+    source_as_of_date: string;
+    observation_count: number;
+    latest_volume: number | null;
+    average_daily_volume: number | null;
+    average_daily_dollar_volume: number | null;
+    summary: string;
+  };
   limitations: string[];
   score_policy: string;
   automatic_order_allowed: boolean;

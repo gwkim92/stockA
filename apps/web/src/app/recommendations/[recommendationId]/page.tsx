@@ -231,6 +231,17 @@ function formatCompactNumber(value: number | null | undefined) {
   }).format(value);
 }
 
+function formatCurrency(value: number | null | undefined, currencyCode: string) {
+  if (value === null || value === undefined) {
+    return "미수집";
+  }
+  return new Intl.NumberFormat("ko-KR", {
+    style: "currency",
+    currency: currencyCode,
+    maximumFractionDigits: 0,
+  }).format(value);
+}
+
 function formatFinancialMetricValue(metric: FinancialMetricSnapshot) {
   if (metric.metric_value === null) {
     if (metric.metric_status === "insufficient_history") {
@@ -436,6 +447,14 @@ function FundInstrumentAnalysisPanel({ analysis }: { analysis: FundInstrumentAna
           <span>비용률</span>
           <strong>{koCode(analysis.expense_ratio.status)}</strong>
           <p>{analysis.expense_ratio.summary}</p>
+        </article>
+        <article className="flow-step">
+          <span>유동성</span>
+          <strong>{koCode(analysis.liquidity.status)}</strong>
+          <p>
+            {analysis.liquidity.summary} 평균 거래량 {formatCompactNumber(analysis.liquidity.average_daily_volume)} ·
+            평균 거래대금 {formatCurrency(analysis.liquidity.average_daily_dollar_volume, "USD")}
+          </p>
         </article>
         <article className="flow-step">
           <span>주문 경계</span>
