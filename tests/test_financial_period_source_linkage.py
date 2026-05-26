@@ -112,6 +112,21 @@ class FinancialPeriodSourceLinkageTests(unittest.TestCase):
         self.assertNotIn("signal.recommendation_score_component", sql)
         self.assertIn("1041", sql)
 
+    def test_backfill_sql_uses_cik_when_available_instead_of_company_text_only(self) -> None:
+        sql = render_financial_period_source_linkage_backfill_sql(
+            as_of_date=date(2026, 5, 26),
+            source_run_id=1041,
+            statement_scope="annual",
+            symbol="ADI",
+            cik="6281",
+        )
+
+        self.assertIn("split_part(doc.external_document_id, '-', 1) as document_cik", sql)
+        self.assertIn("split_part(doc.external_document_id, '-', 1) = '0000006281'", sql)
+        self.assertIn("doc.document_cik = '0000006281'", sql)
+        self.assertIn("period.source_document_id is null", sql)
+        self.assertIn("recommendation_scoring_mutated", sql)
+
     def test_raw_fetch_candidates_sql_is_bounded(self) -> None:
         sql = render_financial_period_source_raw_fetch_candidates_sql(
             as_of_date=date(2026, 5, 26),

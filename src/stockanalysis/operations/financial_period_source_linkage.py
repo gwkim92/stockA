@@ -28,17 +28,19 @@ def render_financial_period_source_linkage_preview_sql(
     as_of_date: date,
     statement_scope: str = "annual",
     symbol: str | None = None,
+    cik: str | None = None,
 ) -> str:
     _validate_args(statement_scope=statement_scope, max_filings=1, raw_fetch_limit=0)
+    normalized_cik = _normalize_cik(cik)
     return f"""-- financial period source linkage preview
 with period_scope as (
     {_period_scope_select(as_of_date=as_of_date, statement_scope=statement_scope, symbol=symbol)}
 ),
 sec_docs as (
-    {_sec_docs_select()}
+    {_sec_docs_select(cik=normalized_cik)}
 ),
 candidate_links as (
-    {_candidate_links_select()}
+    {_candidate_links_select(cik=normalized_cik)}
 ),
 raw_fetch_candidates as (
     select distinct doc.document_id
@@ -74,17 +76,19 @@ def render_financial_period_source_linkage_backfill_sql(
     source_run_id: int,
     statement_scope: str = "annual",
     symbol: str | None = None,
+    cik: str | None = None,
 ) -> str:
     _validate_args(statement_scope=statement_scope, max_filings=1, raw_fetch_limit=0)
+    normalized_cik = _normalize_cik(cik)
     return f"""-- financial period source linkage backfill
 with period_scope as (
     {_period_scope_select(as_of_date=as_of_date, statement_scope=statement_scope, symbol=symbol)}
 ),
 sec_docs as (
-    {_sec_docs_select()}
+    {_sec_docs_select(cik=normalized_cik)}
 ),
 candidate_links as (
-    {_candidate_links_select()}
+    {_candidate_links_select(cik=normalized_cik)}
 ),
 updated_periods as (
     update market.financial_statement_period period
@@ -139,9 +143,11 @@ def render_financial_period_source_raw_fetch_candidates_sql(
     as_of_date: date,
     statement_scope: str = "annual",
     symbol: str | None = None,
+    cik: str | None = None,
     limit: int = 5,
 ) -> str:
     _validate_args(statement_scope=statement_scope, max_filings=1, raw_fetch_limit=limit)
+    normalized_cik = _normalize_cik(cik)
     if limit <= 0:
         return "select '[]'::json::text;"
     return f"""-- financial period source raw fetch candidates
@@ -190,6 +196,7 @@ def load_financial_period_source_linkage_preview(
     as_of_date: date,
     statement_scope: str = "annual",
     symbol: str | None = None,
+    cik: str | None = None,
     executor: PsqlCommandExecutor | None = None,
 ) -> dict[str, object]:
     sql_executor = executor or PsqlCommandExecutor.from_config(config)
@@ -199,6 +206,7 @@ def load_financial_period_source_linkage_preview(
                 as_of_date=as_of_date,
                 statement_scope=statement_scope,
                 symbol=symbol,
+                cik=cik,
             )
         )
     )
@@ -213,6 +221,7 @@ def load_financial_period_source_raw_fetch_candidates(
     as_of_date: date,
     statement_scope: str = "annual",
     symbol: str | None = None,
+    cik: str | None = None,
     limit: int = 5,
     executor: PsqlCommandExecutor | None = None,
 ) -> list[dict[str, object]]:
@@ -223,6 +232,7 @@ def load_financial_period_source_raw_fetch_candidates(
                 as_of_date=as_of_date,
                 statement_scope=statement_scope,
                 symbol=symbol,
+                cik=cik,
                 limit=limit,
             )
         )
@@ -254,6 +264,7 @@ def run_financial_period_source_linkage(
         as_of_date=as_of_date,
         statement_scope=statement_scope,
         symbol=normalized_symbol,
+        cik=normalized_cik,
         executor=sql_executor,
     )
     report: dict[str, object] = {
@@ -313,6 +324,7 @@ def run_financial_period_source_linkage(
                     as_of_date=as_of_date,
                     statement_scope=statement_scope,
                     symbol=normalized_symbol,
+                    cik=normalized_cik,
                     source_run_id=run_id,
                 )
             )
@@ -325,6 +337,7 @@ def run_financial_period_source_linkage(
             as_of_date=as_of_date,
             statement_scope=statement_scope,
             symbol=normalized_symbol,
+            cik=normalized_cik,
             limit=raw_fetch_limit,
             executor=sql_executor,
         )
@@ -392,10 +405,14 @@ def _period_scope_select(*, as_of_date: date, statement_scope: str, symbol: str 
       {_symbol_filter('instrument', symbol)}"""
 
 
-def _sec_docs_select() -> str:
-    return """select
+def _sec_docs_select(*, cik: str | None = None) -> str:
+    cik_filter = ""
+    if cik is not None:
+        cik_filter = f"and split_part(doc.external_document_id, '-', 1) = {sql_literal(cik)}"
+    return f"""select
         doc.document_id,
         doc.external_document_id,
+        split_part(doc.external_document_id, '-', 1) as document_cik,
         doc.title,
         doc.summary,
         doc.url,
@@ -410,11 +427,20 @@ def _sec_docs_select() -> str:
     from ingest.source_document doc
     join ingest.data_source source on source.data_source_id = doc.data_source_id
     where source.source_name = 'sec_edgar'
-      and doc.external_document_id is not null"""
+      and doc.external_document_id is not null
+      {cik_filter}"""
 
 
-def _candidate_links_select() -> str:
-    return """select distinct on (period.period_id)
+def _candidate_links_select(*, cik: str | None = None) -> str:
+    if cik is not None:
+        issuer_match = f"doc.document_cik = {sql_literal(cik)}"
+    else:
+        issuer_match = """(
+         position(lower(period.issuer_display_name) in doc.search_text) > 0
+         or position(lower(period.issuer_legal_name) in doc.search_text) > 0
+         or position(lower(period.instrument_name) in doc.search_text) > 0
+     )"""
+    return f"""select distinct on (period.period_id)
         period.period_id,
         period.instrument_id,
         period.primary_symbol,
@@ -433,11 +459,7 @@ def _candidate_links_select() -> str:
          (period.report_date is not null and doc.filing_date = period.report_date)
          or doc.filing_date between period.period_end and (period.period_end + interval '180 days')::date
      )
-     and (
-         position(lower(period.issuer_display_name) in doc.search_text) > 0
-         or position(lower(period.issuer_legal_name) in doc.search_text) > 0
-         or position(lower(period.instrument_name) in doc.search_text) > 0
-     )
+     and {issuer_match}
     where period.source_document_id is null
     order by
         period.period_id,
