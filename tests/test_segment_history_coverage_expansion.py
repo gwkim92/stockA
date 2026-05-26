@@ -10,6 +10,7 @@ from stockanalysis.ingest.market.universe import MarketUniverseRecord
 from stockanalysis.operations.segment_history_coverage_expansion import (
     DEFAULT_SEGMENT_HISTORY_COVERAGE_MODEL_NAME,
     _apply_parser_skip_reason_overrides,
+    _apply_target_failure_overrides,
     load_active_segment_history_coverage_candidates,
     render_segment_history_coverage_report_sql,
     run_segment_history_coverage_expansion,
@@ -248,6 +249,26 @@ class SegmentHistoryCoverageExpansionTests(unittest.TestCase):
             updated[0]["segment_parser_skip_reasons"],
             ["unsupported_segment_table_layout", "single_reportable_segment_no_disaggregated_segment_table"],
         )
+
+    def test_target_failure_override_classifies_missing_us_gaap_companyfacts(self) -> None:
+        rows = [
+            {
+                "symbol": "EROK",
+                "coverage_status": "missing_source_document_linkage",
+            }
+        ]
+        failed_reports = [
+            {
+                "symbol": "EROK",
+                "error_summary": "SEC companyfacts payload for `0002104882` does not contain `facts.us-gaap`",
+            }
+        ]
+
+        updated = _apply_target_failure_overrides(rows, failed_reports)
+
+        self.assertEqual(updated[0]["coverage_status"], "sec_companyfacts_missing_us_gaap_facts")
+        self.assertEqual(updated[0]["source_linkage_blocker"], "sec_companyfacts_missing_us_gaap_facts")
+        self.assertIn("0002104882", updated[0]["source_linkage_error_summary"])
 
 
 if __name__ == "__main__":

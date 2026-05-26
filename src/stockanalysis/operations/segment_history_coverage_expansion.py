@@ -521,6 +521,7 @@ def run_segment_history_coverage_expansion(
             targets=selected_targets,
         )
         coverage_after = _apply_parser_skip_reason_overrides(coverage_after, target_reports)
+        coverage_after = _apply_target_failure_overrides(coverage_after, failed_target_reports)
         _mark_pipeline_run_succeeded(sql_executor, run_id)
     except Exception as exc:
         _mark_pipeline_run_failed(sql_executor, run_id, str(exc))
@@ -608,6 +609,52 @@ def _parser_skip_reasons_by_symbol(target_reports: list[dict[str, object]]) -> d
                 if reason not in existing_reasons:
                     existing_reasons.append(reason)
     return reasons_by_symbol
+
+
+def _apply_target_failure_overrides(
+    coverage_rows: list[dict[str, object]], failed_target_reports: list[dict[str, object]]
+) -> list[dict[str, object]]:
+    blockers_by_symbol = _source_blockers_by_symbol(failed_target_reports)
+    if not blockers_by_symbol:
+        return coverage_rows
+    updated_rows: list[dict[str, object]] = []
+    for row in coverage_rows:
+        symbol = str(row.get("symbol") or "").strip().upper()
+        blocker = blockers_by_symbol.get(symbol)
+        updated = dict(row)
+        if blocker is not None:
+            updated["coverage_status"] = blocker["coverage_status"]
+            updated["source_linkage_blocker"] = blocker["source_linkage_blocker"]
+            updated["source_linkage_error_summary"] = blocker["source_linkage_error_summary"]
+        updated_rows.append(updated)
+    return updated_rows
+
+
+def _source_blockers_by_symbol(failed_target_reports: list[dict[str, object]]) -> dict[str, dict[str, str]]:
+    blockers: dict[str, dict[str, str]] = {}
+    for report in failed_target_reports:
+        symbol = str(report.get("symbol") or "").strip().upper()
+        if not symbol:
+            continue
+        error_summary = str(report.get("error_summary") or "").strip()
+        coverage_status = _coverage_status_from_target_failure(error_summary)
+        if coverage_status is None:
+            continue
+        blockers[symbol] = {
+            "coverage_status": coverage_status,
+            "source_linkage_blocker": coverage_status,
+            "source_linkage_error_summary": error_summary[:1000],
+        }
+    return blockers
+
+
+def _coverage_status_from_target_failure(error_summary: str) -> str | None:
+    normalized = error_summary.lower()
+    if "does not contain `facts.us-gaap`" in normalized or "does not contain facts.us-gaap" in normalized:
+        return "sec_companyfacts_missing_us_gaap_facts"
+    if "does not contain supported facts" in normalized:
+        return "sec_companyfacts_no_supported_financial_facts"
+    return None
 
 
 def _render_target_value_tuple(target: ResolvedSegmentHistoryCoverageTarget) -> str:
