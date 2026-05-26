@@ -2,8 +2,7 @@
 
 ## Status
 
-- in progress: root cause analysis, fixture, parser expansion, local verification, roadmap verification, harness verification, and Python 3.13 full suite are complete.
-- remaining: GitHub push, EC2 deploy, and EC2 parser smoke.
+- completed: root cause analysis, fixture, parser expansion, local verification, roadmap verification, harness verification, Python 3.13 full suite, GitHub push, EC2 deploy, and EC2 parser smoke are complete.
 
 ## Current Findings
 
@@ -21,7 +20,7 @@
 
 ## Exact Next Step
 
-- exact next step: run roadmap/harness/full verification, commit and push, deploy to EC2, then rerun `reported-segment-footnote-parser-run --execute` to confirm `reported_segment_metric_count > 0`.
+- exact next step: start `segment-level-sotp-inputs-v1` so the reported segment revenue and operating income evidence becomes explicit SOTP input/visibility without changing recommendation weights.
 
 ## Verification Log
 
@@ -34,6 +33,10 @@
 - Passed: `git diff --check`
 - Manual local parser check against copied EC2 Apple 10-K artifact returned 10 rows: Americas, Europe, Greater China, Japan, and Rest of Asia Pacific for revenue and operating income.
 - Re-passed after statement-period candidate correction: professional analysis test (`Ran 34 tests`, `OK`), focused regression (`Ran 122 tests`, `OK`), compileall, roadmap verification, AWH verify, Python 3.13 full suite (`Ran 971 tests in 5.257s`, `OK`), and `git diff --check`.
+- Pushed: `15573ad Parse transposed SEC segment tables` and `cdcc1d5 Prioritize statement periods for segment parsing`.
+- EC2 deployed: `/opt/stockanalysis/app` fast-forwarded to `cdcc1d5`.
+- EC2 parser smoke passed: `reported-segment-footnote-parser-run --execute` completed with `run_id=1059`, `candidate_count=1`, `parsed_metric_count=10`, `reported_segment_metric_count=10`, `segment_revenue=5`, `segment_operating_income=5`, `removed_stale_metric_count=10`, `recommendation_scoring_mutated=false`.
+- EC2 DB sample passed: AAPL reported segment rows for `as_of_date=2026-05-26` now have `row_count=10`, `periods=["2025-09-27"]`, segments `Americas/Europe/Greater China/Japan/Rest of Asia Pacific`, metric codes `segment_operating_income/segment_revenue`, and `stale_2025_10_17_count=0`.
 
 ## Remaining Risks
 
@@ -41,3 +44,4 @@
 - The parser still targets conservative table shapes and may miss other issuers' custom segment layouts.
 - Unit context can remain `USD_as_reported` when the "dollars in millions" phrase is outside the HTML table.
 - The parser still relies on deterministic table layout detection; broader issuer coverage should be added with fixture-driven parser patterns.
+- SOTP math still does not allocate value by reported segment metrics; this task only makes the real reported segment evidence available.

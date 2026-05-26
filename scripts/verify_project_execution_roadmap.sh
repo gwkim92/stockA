@@ -147,7 +147,7 @@ test -f docs/plans/2026-05-20-hosted-database-runtime-decision.md
 test -f docs/hosted-database-runtime-decision.md
 test -f scripts/verify_hosted_database_runtime_decision.sh
 grep -q 'Current task group: `professional-equity-analysis-foundation`' docs/project-execution-roadmap.md
-grep -q '현재 고정된 immediate next task는 `reported-segment-parser-quality-v1`' AGENTS.md
+grep -q '현재 고정된 immediate next task는 `segment-level-sotp-inputs-v1`' AGENTS.md
 test -f docs/tasks/portfolio-risk-budget-drift-quality-audit/contract.md
 test -f docs/tasks/portfolio-risk-budget-drift-quality-audit/handoff.md
 test -f docs/tasks/portfolio-risk-budget-rebalance-candidate-review/contract.md
@@ -192,6 +192,7 @@ grep -q "segment-footnote-extraction-foundation-v1" docs/project-execution-roadm
 grep -q "reported-segment-footnote-parser-v1" docs/project-execution-roadmap.md
 grep -q "financial-period-source-document-linkage-v1" docs/project-execution-roadmap.md
 grep -q "reported-segment-parser-quality-v1" docs/project-execution-roadmap.md
+grep -q "segment-level-sotp-inputs-v1" docs/project-execution-roadmap.md
 test -f docs/tasks/financial-period-source-document-linkage-v1/contract.md
 test -f docs/tasks/financial-period-source-document-linkage-v1/handoff.md
 test -f docs/tasks/financial-period-source-document-linkage-v1/review.md

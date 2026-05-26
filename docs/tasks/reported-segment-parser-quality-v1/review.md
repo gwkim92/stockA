@@ -16,7 +16,7 @@
 
 - The parser remains deterministic and conservative rather than a full SEC/iXBRL taxonomy parser.
 - Other issuers may use different segment layouts requiring additional parser patterns.
-- Final EC2 smoke is still required after deployment.
+- SOTP still needs a follow-up task to consume reported segment metrics as explicit segment-level valuation input.
 
 ## Verification Evidence
 
@@ -27,3 +27,5 @@
 - Python 3.13 full suite: `PYTHONPATH=src /private/tmp/stockanalysis-verify-venv/bin/python -m unittest discover -s tests` passed with `Ran 971 tests`.
 - Manual local parser check against `/private/tmp/aapl-20250927.htm` returned exactly 10 Apple reportable segment rows and no Corporate/Total rows.
 - After statement-period candidate correction, professional analysis tests, focused regression, `compileall`, roadmap verification, AWH verify, Python 3.13 full suite, and `git diff --check` passed again.
+- EC2 parser smoke on commit `cdcc1d5` passed with `run_id=1059`, `reported_segment_metric_count=10`, `removed_stale_metric_count=10`, and `recommendation_scoring_mutated=false`.
+- EC2 DB verification shows exactly 10 AAPL reported segment rows on `period_end=2025-09-27`, with no stale `2025-10-17` rows.
