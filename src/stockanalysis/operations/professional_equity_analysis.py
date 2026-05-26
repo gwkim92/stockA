@@ -4787,9 +4787,7 @@ def _single_reportable_segment_skip_reason(html_text: str) -> str | None:
     if _ixbrl_single_count(html_text, "us-gaap:NumberOfReportingUnits"):
         return "single_reportable_segment_no_disaggregated_segment_table"
     normalized_text = _html_to_text(html_text).lower()
-    if re.search(r"\b(one|single)\s+(operating|reportable)\s+segment\b", normalized_text):
-        return "single_reportable_segment_no_disaggregated_segment_table"
-    if re.search(r"\boperates\s+as\s+(one|a single)\s+reportable\s+segment\b", normalized_text):
+    if _contains_company_single_segment_statement(normalized_text):
         return "single_reportable_segment_no_disaggregated_segment_table"
     return None
 
@@ -4798,6 +4796,29 @@ def _ixbrl_single_count(html_text: str, tag_name: str) -> bool:
     escaped_name = re.escape(tag_name)
     pattern = rf"<ix:nonFraction\b[^>]*\bname=[\"']{escaped_name}[\"'][^>]*>\s*1\s*</ix:nonFraction>"
     return re.search(pattern, html_text, flags=re.IGNORECASE | re.DOTALL) is not None
+
+
+def _contains_company_single_segment_statement(normalized_text: str) -> bool:
+    for sentence in re.split(r"(?<=[.!?])\s+", normalized_text):
+        if not any(token in sentence for token in ("single", "one")):
+            continue
+        if not any(token in sentence for token in ("segment", "segments")):
+            continue
+        if any(token in sentence for token in ("asu ", "fasb", "topic 280", "accounting standards update")):
+            continue
+        if re.search(
+            r"\b(?:we|company|management|chief executive officer|codm)\b.{0,240}"
+            r"\b(?:one|a single|single)\s+(?:operating|reportable|reporting)\s+segment\b",
+            sentence,
+        ):
+            return True
+        if re.search(
+            r"\b(?:we|the company|company)\s+(?:determined\s+)?(?:operate|operates|operated)\s+"
+            r"(?:as|in)?\s*(?:one|a single|single)\s+(?:operating|reportable|reporting)\s+segment\b",
+            sentence,
+        ):
+            return True
+    return False
 
 
 def _html_to_text(fragment: str) -> str:

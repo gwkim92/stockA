@@ -42,6 +42,7 @@ from stockanalysis.operations.professional_equity_analysis import (
     run_segment_footnote_evidence,
     run_sum_of_parts_valuation,
     run_valuation_snapshot,
+    _single_reportable_segment_skip_reason,
 )
 
 
@@ -292,6 +293,28 @@ class FakeSingleSegmentFinancialMetricExecutor(FakeFinancialMetricExecutor):
                         .resolve()
                         .as_uri(),
                         "source_document_url": "https://www.sec.gov/example/adi-20251101.htm",
+                    }
+                ]
+            )
+        return super().execute_scalar(sql)
+
+
+class FakeSingleReportingSegmentFinancialMetricExecutor(FakeFinancialMetricExecutor):
+    def execute_scalar(self, sql: str) -> str:
+        if sql.startswith("-- reported segment footnote candidates"):
+            self.scalar_sql.append(sql)
+            return json.dumps(
+                [
+                    {
+                        "instrument_id": 844,
+                        "primary_symbol": "AEIS",
+                        "period_end": "2025-12-31",
+                        "source_document_id": 927003,
+                        "source_document_title": "Advanced Energy Industries Inc. 2025 10-K",
+                        "raw_storage_uri": Path("tests/fixtures/sec_filing_aeis_single_reporting_segment_sample.html")
+                        .resolve()
+                        .as_uri(),
+                        "source_document_url": "https://www.sec.gov/example/aeis-20251231x10k.htm",
                     }
                 ]
             )
@@ -711,6 +734,33 @@ class ProfessionalEquityAnalysisTests(unittest.TestCase):
         skipped = report["preview"]["skipped_candidates"][0]  # type: ignore[index]
         self.assertEqual(skipped["primary_symbol"], "ADI")
         self.assertEqual(skipped["reason"], "single_reportable_segment_no_disaggregated_segment_table")
+
+    def test_reported_segment_parser_classifies_single_reporting_segment_without_fake_rows(self) -> None:
+        executor = FakeSingleReportingSegmentFinancialMetricExecutor()
+
+        report = run_reported_segment_footnote_parser(
+            config=RuntimeConfig(psql_command="psql"),
+            as_of_date=date(2026, 5, 26),
+            statement_scope="annual",
+            execute=False,
+            executor=executor,  # type: ignore[arg-type]
+        )
+
+        self.assertEqual(report["preview"]["parsed_metric_count"], 0)  # type: ignore[index]
+        self.assertEqual(report["preview"]["skipped_candidate_count"], 1)  # type: ignore[index]
+        skipped = report["preview"]["skipped_candidates"][0]  # type: ignore[index]
+        self.assertEqual(skipped["primary_symbol"], "AEIS")
+        self.assertEqual(skipped["reason"], "single_reportable_segment_no_disaggregated_segment_table")
+
+    def test_single_segment_classifier_ignores_accounting_standard_only_mentions(self) -> None:
+        html = """
+        <p>
+          In November 2023, the FASB issued ASU 2023-07 Segment Reporting improvements.
+          The ASU provides new disclosure requirements for entities with a single reportable segment.
+        </p>
+        """
+
+        self.assertIsNone(_single_reportable_segment_skip_reason(html))
 
     def test_reported_segment_footnote_metric_upsert_sql_removes_obsolete_gap_rows(self) -> None:
         html = Path("tests/fixtures/sec_filing_segment_footnote_sample.html").read_text(encoding="utf-8")
