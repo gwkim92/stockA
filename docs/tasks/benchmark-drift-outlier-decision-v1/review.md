@@ -25,3 +25,10 @@
 - `bash scripts/verify_project_execution_roadmap.sh`
 - `PYTHONPATH=/Users/woody/ai/agent-work-harness/src /opt/homebrew/bin/python3.13 -m awh verify --repo . --task benchmark-drift-outlier-decision-v1`
 - `PYTHONPATH=/Users/woody/ai/agent-work-harness/src /opt/homebrew/bin/python3.13 -m awh verify --repo . --task portfolio-review-decision-history-v1`
+- EC2 `PYTHONPATH=src /opt/stockanalysis/venv/bin/python -m compileall -q src tests`
+- EC2 `PYTHONPATH=src /opt/stockanalysis/venv/bin/python -m unittest tests.test_frontend_live_adapter`
+- EC2 `bash scripts/verify_project_execution_roadmap.sh`
+- EC2 `cd apps/web && npm run typecheck && npm run build`
+- EC2 `/api/data-health` smoke: `review_candidate_count=7`, `review_decision_counts.reduce_watch=3`, `order_boundary=read_only_no_order`
+- EC2 `/api/portfolio/Long%20Term%20Paper/coverage?asOfDate=2026-05-25` smoke: `candidate_count=7`, `decision_counts.hold_with_thesis=1`, first candidate `TSLA`, `broker_submit_allowed=false`
+- Local tunnel route smoke: `/`, `/data-health`, `/portfolio/coverage` all returned `200`

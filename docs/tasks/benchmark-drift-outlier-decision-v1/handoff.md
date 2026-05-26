@@ -3,7 +3,7 @@
 ## Status
 
 - completed: benchmark drift outliers now produce explicit read-only portfolio review decisions in API payloads and frontend visibility.
-- EC2 deploy/smoke: pending in this handoff until the deployment step runs.
+- EC2 deploy/smoke: completed on commit `feefc84`.
 - blockers: none known.
 
 ## Context
@@ -15,7 +15,7 @@
 
 ## Exact Next Step
 
-- exact next step: deploy the current branch to EC2, restart FastAPI/Next.js, then verify `/api/data-health`, `/api/portfolio/Long%20Term%20Paper/coverage?asOfDate=2026-05-25`, `/data-health`, and `/portfolio/coverage`.
+- exact next step: start `portfolio-review-decision-history-v1` by choosing the durable storage boundary for these read-only review decisions.
 
 ## Implementation Notes
 
@@ -24,6 +24,14 @@
 - The frontend data-health drift section now shows the review decision and next action for outlier symbols.
 - The portfolio coverage rebalance table now shows the decision label, next action, linked recommendation/thesis context when available, and explicit broker-submit prohibition.
 - Recommendation scoring weights, benchmark definition, portfolio positions, and broker/order behavior were not changed.
+
+## EC2 Evidence
+
+- EC2 commit: `feefc84`.
+- Services: `stockanalysis-frontend-api.service` and `stockanalysis-web.service` active after restart.
+- `/api/data-health` benchmark drift quality: `status=drift_outlier_review`, `review_candidate_count=7`, decision counts `reduce_watch=3`, `needs_thesis_update=3`, `hold_with_thesis=0`, `review_required=1`, `order_boundary=read_only_no_order`.
+- `/api/portfolio/Long%20Term%20Paper/coverage?asOfDate=2026-05-25` rebalance review: `status=review_required`, `candidate_count=7`, decision counts `reduce_watch=3`, `needs_thesis_update=3`, `hold_with_thesis=1`, `review_required=0`, first candidate `TSLA` linked to `thesis-1` and `recommendation-61`, `broker_submit_allowed=false`.
+- Route smoke through local tunnel returned `200` for `/`, `/data-health`, and `/portfolio/coverage`.
 
 ## Guardrails
 
