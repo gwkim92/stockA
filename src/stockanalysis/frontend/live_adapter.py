@@ -3741,6 +3741,7 @@ latest_recommendation as (
         recommendation.thesis_id,
         recommendation.action,
         recommendation.total_score,
+        recommendation.recommended_weight,
         recommendation.status,
         batch.as_of_date
     from signal.recommendation recommendation
