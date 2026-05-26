@@ -2,7 +2,7 @@
 
 ## Status
 
-- in progress: root cause found and local fix implemented; EC2 deploy/rerun is next.
+- completed: root cause found, local fix implemented, EC2 deployed, `news-intraday` rerun succeeded, and data-health scheduler status now reports success.
 
 ## Context
 
@@ -15,7 +15,7 @@
 
 ## Exact Next Step
 
-- exact next step: deploy the SQL dedupe fix to EC2, start `stockanalysis-operating-data-news-intraday.service`, and verify data-health no longer reports the unexplained `exit-code` state.
+- exact next step: move to `cycle-ai-quality-audit-contamination-remediation-v1`, because data-health still reports AI evidence quality issues such as ungrounded direct tickers and macro false ticker counts.
 
 ## Implementation Notes
 
@@ -28,6 +28,18 @@
 
 - `PYTHONPATH=src /opt/homebrew/bin/python3.13 -m unittest tests.test_news_rss tests.test_news_rss_feed_runner tests.test_data_operations_cli`
 - `PYTHONPATH=src /opt/homebrew/bin/python3.13 -m compileall -q src tests`
+- `bash scripts/verify_project_execution_roadmap.sh`
+- `PYTHONPATH=/Users/woody/ai/agent-work-harness/src python3 -m awh verify --repo . --task news-intraday-scheduler-failure-remediation-v1`
+
+## EC2 Verification
+
+- Deployed commit: `bed027e`.
+- Command: `sudo systemctl start stockanalysis-operating-data-news-intraday.service`.
+- Result: service exited `status=0/SUCCESS`.
+- Output report: `/opt/stockanalysis/runtime/operating-data-profile-scheduler-reports/news-intraday-operating-data-run.json`.
+- Report result: `run_status=completed`, `failed_step_count=0`.
+- Succeeded steps: `news-rss-ingest`, `news-missing-instrument-bootstrap`, `news-rss-enrichment`, `news-korean-translation`, `news-cluster-evidence`, `news-ai-evidence`, `macro-event-propagation`, `hierarchical-impact-propagation`.
+- `/api/data-health` scheduler profile for `news-intraday`: `last_result=success`, `active_state=active`, next elapse `2026-05-26T20:00:00Z`.
 
 ## Guardrails
 
