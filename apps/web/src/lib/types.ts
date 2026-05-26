@@ -281,6 +281,23 @@ export type DataHealthData = {
     broker_submit_allowed: boolean;
     order_boundary: string;
   };
+  recommendation_weight_review_readiness: {
+    status: string;
+    eval_run_id: string;
+    created_at: string;
+    decision: string;
+    manual_weight_review_allowed: boolean;
+    source_quality_status: string;
+    source_eval_run_id: string;
+    outcome_calibration_status: string;
+    outcome_calibration_eval_run_id: string;
+    blocker_code: string;
+    blocker_message: string;
+    next_action: string;
+    automatic_weight_change_allowed: boolean;
+    automatic_order_allowed: boolean;
+    broker_submit_allowed: boolean;
+  };
   open_gates: string[];
 };
 

@@ -16,6 +16,7 @@ type LocalIngestWorker = DataHealthData["local_ingest_worker"];
 type CycleAiQualityAudit = DataHealthData["cycle_ai_quality_audit"];
 type BenchmarkDriftQuality = DataHealthData["benchmark_drift_quality"];
 type RecommendationOutcomeCalibration = DataHealthData["recommendation_outcome_calibration"];
+type RecommendationWeightReviewReadiness = DataHealthData["recommendation_weight_review_readiness"];
 type ProfileTimer = ProfileSchedulerStatus["timers"][number];
 
 function statusRiskClass(value: string) {
@@ -567,6 +568,24 @@ const DEFAULT_RECOMMENDATION_OUTCOME_CALIBRATION: RecommendationOutcomeCalibrati
   order_boundary: "read_only_no_order",
 };
 
+const DEFAULT_RECOMMENDATION_WEIGHT_REVIEW_READINESS: RecommendationWeightReviewReadiness = {
+  status: "missing",
+  eval_run_id: "eval-run-unknown",
+  created_at: "",
+  decision: "missing_recommendation_weight_review_readiness",
+  manual_weight_review_allowed: false,
+  source_quality_status: "unknown",
+  source_eval_run_id: "eval-run-unknown",
+  outcome_calibration_status: "missing",
+  outcome_calibration_eval_run_id: "eval-run-unknown",
+  blocker_code: "missing_recommendation_weight_review_readiness",
+  blocker_message: "recommendation-weight-review-readiness-audit-run을 실행한다.",
+  next_action: "recommendation-weight-review-readiness-audit-run을 실행한다.",
+  automatic_weight_change_allowed: false,
+  automatic_order_allowed: false,
+  broker_submit_allowed: false,
+};
+
 const DEFAULT_PROFILE_SCHEDULER: ProfileSchedulerStatus = {
   status: "not_configured",
   install_status: "not_installed",
@@ -591,6 +610,8 @@ export default async function DataHealthPage() {
   const benchmarkDriftQuality = data.benchmark_drift_quality ?? DEFAULT_BENCHMARK_DRIFT_QUALITY;
   const outcomeCalibration =
     data.recommendation_outcome_calibration ?? DEFAULT_RECOMMENDATION_OUTCOME_CALIBRATION;
+  const weightReviewReadiness =
+    data.recommendation_weight_review_readiness ?? DEFAULT_RECOMMENDATION_WEIGHT_REVIEW_READINESS;
   const marketPriceRun = findPipelineRun(data, "market-price-daily", "market_price_upsert");
   const newsRun = findPipelineRun(data, "news-rss-daily", "news_rss_upsert");
   const newsEnrichmentRun = findPipelineRun(
@@ -1029,6 +1050,15 @@ export default async function DataHealthPage() {
             <span>품질 평가</span>
             <strong>{koCode(outcomeCalibration.quality_status)}</strong>
             <p>전문 분석 coverage와 outcome 표본이 weight 검토 기준을 충족하는지 본다.</p>
+          </article>
+          <article className="insight-card">
+            <span>수동 weight 검토</span>
+            <strong>{weightReviewReadiness.manual_weight_review_allowed ? "검토 가능" : "차단"}</strong>
+            <p>
+              {weightReviewReadiness.blocker_message
+                ? koCode(weightReviewReadiness.blocker_message)
+                : koCode(weightReviewReadiness.next_action)}
+            </p>
           </article>
           <article className="insight-card">
             <span>주문 경계</span>

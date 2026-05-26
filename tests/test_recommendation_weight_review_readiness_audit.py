@@ -9,6 +9,7 @@ from stockanalysis.operations.recommendation_weight_review_readiness_audit impor
     DEFAULT_AUDIT_EVAL_NAME,
     READY_DECISION,
     audit_recommendation_weight_review_readiness,
+    render_recommendation_outcome_calibration_eval_lookup_sql,
     render_paper_safety_interlock_policy_lookup_sql,
     render_recommendation_weight_review_audit_insert_sql,
     render_recommendation_weight_review_eval_lookup_sql,
@@ -39,6 +40,8 @@ class FakeWeightReviewAuditExecutor:
             )
         if sql.startswith("-- recommendation weight review paper safety interlock policy lookup"):
             return json.dumps(_safety_interlock_policy())
+        if sql.startswith("-- recommendation weight review outcome calibration eval lookup"):
+            return json.dumps(_outcome_calibration_eval_payload(status="no_due_outcome_window"))
         if "insert into ops.pipeline_run" in sql:
             return str(self.run_id)
         if "insert into ai.eval_run" in sql:
@@ -76,10 +79,26 @@ class RecommendationWeightReviewReadinessAuditTests(unittest.TestCase):
         self.assertNotIn("update ", lowered)
         self.assertNotIn("delete from", lowered)
 
+    def test_render_outcome_calibration_lookup_is_read_only(self) -> None:
+        sql = render_recommendation_outcome_calibration_eval_lookup_sql(
+            as_of_date=date(2026, 5, 27),
+            eval_run_id=27,
+        )
+        lowered = sql.lower()
+
+        self.assertIn("-- recommendation weight review outcome calibration eval lookup", sql)
+        self.assertIn("eval_run.eval_run_id = 27", sql)
+        self.assertIn("'recommendation_outcome_calibration_sample_expansion'", sql)
+        self.assertIn("'recommendation-outcome-calibration-sample-expansion-v1'", sql)
+        self.assertNotIn("insert into", lowered)
+        self.assertNotIn("update ", lowered)
+        self.assertNotIn("delete from", lowered)
+
     def test_audit_blocks_ready_quality_eval_when_paper_validation_has_conflicts(self) -> None:
         audit = audit_recommendation_weight_review_readiness(
             _ready_score_with_paper_conflict(),
             source_eval_run_id=11,
+            outcome_calibration_eval=_outcome_calibration_eval_payload(status="ready_for_manual_weight_review"),
         )
 
         self.assertEqual(audit["decision"], "blocked_by_paper_validation_conflicts")
@@ -99,7 +118,11 @@ class RecommendationWeightReviewReadinessAuditTests(unittest.TestCase):
             "approved_action_count": 2,
         }
 
-        audit = audit_recommendation_weight_review_readiness(score, source_eval_run_id=11)
+        audit = audit_recommendation_weight_review_readiness(
+            score,
+            source_eval_run_id=11,
+            outcome_calibration_eval=_outcome_calibration_eval_payload(status="ready_for_manual_weight_review"),
+        )
 
         self.assertEqual(audit["decision"], READY_DECISION)
         self.assertTrue(audit["manual_weight_review_allowed"])
@@ -117,7 +140,11 @@ class RecommendationWeightReviewReadinessAuditTests(unittest.TestCase):
             "approved_action_count": 0,
         }
 
-        audit = audit_recommendation_weight_review_readiness(score, source_eval_run_id=13)
+        audit = audit_recommendation_weight_review_readiness(
+            score,
+            source_eval_run_id=13,
+            outcome_calibration_eval=_outcome_calibration_eval_payload(status="ready_for_manual_weight_review"),
+        )
 
         self.assertEqual(audit["decision"], "blocked_by_paper_validation_failed")
         self.assertEqual(audit["blockers"][0]["code"], "blocked_by_paper_validation_failed")
@@ -137,6 +164,7 @@ class RecommendationWeightReviewReadinessAuditTests(unittest.TestCase):
             score,
             source_eval_run_id=13,
             paper_safety_policy=_safety_interlock_policy(),
+            outcome_calibration_eval=_outcome_calibration_eval_payload(status="ready_for_manual_weight_review"),
         )
 
         self.assertEqual(audit["decision"], READY_DECISION)
@@ -151,6 +179,45 @@ class RecommendationWeightReviewReadinessAuditTests(unittest.TestCase):
         )
         self.assertTrue(audit["paper_safety_interlock_policy"]["is_intentional_safety_interlock"])
         self.assertIn("paper_actions_blocked_by_intentional_safety_interlock", audit["warnings"][0]["code"])
+
+    def test_audit_blocks_ready_quality_eval_when_outcome_horizons_are_not_due(self) -> None:
+        score = _ready_score_with_paper_conflict()
+        score["paper_validation"] = {
+            "latest_status": "passed",
+            "validation_date": "2026-05-25",
+            "recommendation_count": 6,
+            "conflict_count": 0,
+            "approved_action_count": 2,
+        }
+
+        audit = audit_recommendation_weight_review_readiness(
+            score,
+            source_eval_run_id=26,
+            outcome_calibration_eval=_outcome_calibration_eval_payload(status="no_due_outcome_window"),
+        )
+
+        self.assertEqual(audit["decision"], "blocked_by_outcome_calibration_no_due_outcome_window")
+        self.assertFalse(audit["manual_weight_review_allowed"])
+        self.assertEqual(audit["outcome_calibration_gate"]["status"], "no_due_outcome_window")
+        self.assertEqual(audit["outcome_calibration_gate"]["outcome_count"], 0)
+        self.assertEqual(audit["outcome_calibration_gate"]["missing_reason_counts"]["not_due"], 180)
+        self.assertIn("quality eval이 ready여도", audit["blockers"][0]["message"])
+
+    def test_audit_blocks_when_outcome_calibration_eval_is_missing(self) -> None:
+        score = _ready_score_with_paper_conflict()
+        score["paper_validation"] = {
+            "latest_status": "passed",
+            "validation_date": "2026-05-25",
+            "recommendation_count": 6,
+            "conflict_count": 0,
+            "approved_action_count": 2,
+        }
+
+        audit = audit_recommendation_weight_review_readiness(score, source_eval_run_id=26)
+
+        self.assertEqual(audit["decision"], "blocked_by_outcome_calibration_missing")
+        self.assertFalse(audit["manual_weight_review_allowed"])
+        self.assertEqual(audit["outcome_calibration_gate"]["status"], "missing")
 
     def test_render_audit_insert_sql_records_audit_as_ai_eval_run(self) -> None:
         sql = render_recommendation_weight_review_audit_insert_sql(
@@ -173,8 +240,9 @@ class RecommendationWeightReviewReadinessAuditTests(unittest.TestCase):
         )
 
         self.assertEqual(report["status"], "planned")
-        self.assertEqual(report["audit"]["decision"], "blocked_by_paper_validation_conflicts")
-        self.assertEqual(len(executor.scalar_sql), 2)
+        self.assertEqual(report["audit"]["decision"], "blocked_by_outcome_calibration_no_due_outcome_window")
+        self.assertEqual(report["outcome_calibration_eval"]["eval_run_id"], 27)
+        self.assertEqual(len(executor.scalar_sql), 3)
         self.assertEqual(executor.non_query_sql, [])
 
     def test_run_execute_records_pipeline_and_audit_eval_run_without_weight_mutation(self) -> None:
@@ -193,8 +261,9 @@ class RecommendationWeightReviewReadinessAuditTests(unittest.TestCase):
         self.assertEqual(report["audit_eval_run_id"], 602)
         self.assertFalse(report["audit"]["automatic_weight_change_allowed"])
         self.assertIn("-- recommendation weight review paper safety interlock policy lookup", executor.scalar_sql[1])
-        self.assertIn("insert into ops.pipeline_run", executor.scalar_sql[2])
-        self.assertIn("insert into ai.eval_run", executor.scalar_sql[3])
+        self.assertIn("-- recommendation weight review outcome calibration eval lookup", executor.scalar_sql[2])
+        self.assertIn("insert into ops.pipeline_run", executor.scalar_sql[3])
+        self.assertIn("insert into ai.eval_run", executor.scalar_sql[4])
         self.assertIn("status = 'succeeded'", executor.non_query_sql[-1])
 
 
@@ -257,6 +326,41 @@ def _safety_interlock_policy() -> dict[str, object]:
         "weight_review_allowed": False,
         "automatic_order_allowed": False,
         "status": "succeeded",
+    }
+
+
+def _outcome_calibration_eval_payload(*, status: str) -> dict[str, object]:
+    return {
+        "eval_run_id": 27,
+        "eval_name": "recommendation_outcome_calibration_sample_expansion",
+        "dataset_version": "recommendation-outcome-calibration-sample-expansion-v1",
+        "provider": "postgres",
+        "model_name": "deterministic-outcome-calibration-v1",
+        "created_at": "2026-05-27T00:00:00Z",
+        "score_json": {
+            "as_of_date": "2026-05-27",
+            "horizon_days": [30, 90, 180, 365],
+            "status": status,
+            "quality_status": "ready_for_weight_review",
+            "sample_status": "sufficient_sample",
+            "sample_audit_after": {
+                "summary": {
+                    "recommendation_horizon_count": 180,
+                    "recommendation_count": 45,
+                    "outcome_count": 0 if status == "no_due_outcome_window" else 30,
+                    "missing_entry_price_count": 0,
+                    "missing_exit_price_count": 0,
+                },
+                "missing_reason_counts": {
+                    "not_due": 180 if status == "no_due_outcome_window" else 0,
+                    "outcome_recorded": 0 if status == "no_due_outcome_window" else 30,
+                },
+            },
+            "outcome_delta": {
+                "ready_for_backfill_count_after": 0,
+            },
+            "next_action": "현재 선택한 horizon에서는 아직 성과 측정일이 도래하지 않았다.",
+        },
     }
 
 

@@ -160,6 +160,23 @@ class FakeLiveExecutor:
                         "broker_submit_allowed": False,
                         "order_boundary": "read_only_no_order",
                     },
+                    "recommendation_weight_review_readiness": {
+                        "status": "loaded",
+                        "eval_run_id": 41,
+                        "created_at": "2026-05-27T01:00:00+00:00",
+                        "decision": "blocked_by_outcome_calibration_no_due_outcome_window",
+                        "manual_weight_review_allowed": False,
+                        "source_quality_status": "ready_for_weight_review",
+                        "source_eval_run_id": 26,
+                        "outcome_calibration_status": "no_due_outcome_window",
+                        "outcome_calibration_eval_run_id": 27,
+                        "blocker_code": "blocked_by_outcome_calibration_no_due_outcome_window",
+                        "blocker_message": "선택한 30/90/180/365일 성과 측정창이 아직 도래하지 않았다.",
+                        "next_action": "horizon-grid 성과 calibration gate를 먼저 통과해야 한다.",
+                        "automatic_weight_change_allowed": False,
+                        "automatic_order_allowed": False,
+                        "broker_submit_allowed": False,
+                    },
                     "open_gates": [
                         "production_api_server",
                         "auth_rbac",
@@ -3282,6 +3299,14 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertFalse(outcome_calibration["recommendation_scoring_mutated"])
         self.assertFalse(outcome_calibration["automatic_order_allowed"])
         self.assertEqual(outcome_calibration["order_boundary"], "read_only_no_order")
+        weight_review = payload["data"]["recommendation_weight_review_readiness"]
+        self.assertEqual(weight_review["status"], "blocked_by_outcome_calibration_no_due_outcome_window")
+        self.assertEqual(weight_review["eval_run_id"], "eval-run-41")
+        self.assertEqual(weight_review["source_eval_run_id"], "eval-run-26")
+        self.assertEqual(weight_review["outcome_calibration_eval_run_id"], "eval-run-27")
+        self.assertEqual(weight_review["outcome_calibration_status"], "no_due_outcome_window")
+        self.assertFalse(weight_review["manual_weight_review_allowed"])
+        self.assertFalse(weight_review["automatic_weight_change_allowed"])
         self.assertEqual(payload["links"]["dashboard"], "/api/dashboard/today")
 
     def test_live_data_health_response_includes_sanitized_scheduler_activation_gate(self) -> None:
@@ -3715,6 +3740,9 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertIn("selected_recommendation_outcome_calibration", sql)
         self.assertIn("recommendation_outcome_calibration", sql)
         self.assertIn("recommendation-outcome-calibration-sample-expansion-v1", sql)
+        self.assertIn("selected_recommendation_weight_review_readiness", sql)
+        self.assertIn("recommendation_weight_review_readiness_audit", sql)
+        self.assertIn("recommendation-weight-review-readiness-v1", sql)
 
     def test_live_stock_list_response_matches_frontend_contract_shape(self) -> None:
         payload = resolve_live_frontend_response(

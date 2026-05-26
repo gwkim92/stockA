@@ -11,6 +11,10 @@ from stockanalysis.operations.recommendation_quality_eval import (
     DEFAULT_DATASET_VERSION as QUALITY_DATASET_VERSION,
     DEFAULT_EVAL_NAME as QUALITY_EVAL_NAME,
 )
+from stockanalysis.operations.recommendation_outcome_calibration_sample_expansion import (
+    DEFAULT_DATASET_VERSION as OUTCOME_CALIBRATION_DATASET_VERSION,
+    DEFAULT_EVAL_NAME as OUTCOME_CALIBRATION_EVAL_NAME,
+)
 from stockanalysis.signal.universe import (
     _create_pipeline_run,
     _mark_pipeline_run_failed,
@@ -26,6 +30,14 @@ DEFAULT_PROVIDER = "postgres"
 DEFAULT_MIN_COMPONENT_OUTCOME_COUNT = 5
 READY_DECISION = "ready_for_manual_weight_review"
 SAFETY_INTERLOCK_POLICY_DECISION = "paper_actions_waiting_for_safety_interlock_release"
+OUTCOME_CALIBRATION_READY_STATUS = "ready_for_manual_weight_review"
+OUTCOME_CALIBRATION_BLOCKING_STATUSES = {
+    "no_due_outcome_window",
+    "backfill_candidates_remain",
+    "price_history_gaps_remain",
+    "no_outcome_sample_available",
+    "missing",
+}
 
 
 def render_recommendation_weight_review_eval_lookup_sql(
@@ -53,6 +65,54 @@ with selected_eval as (
       and eval_run.dataset_version = {sql_literal(QUALITY_DATASET_VERSION)}
       and nullif(eval_run.score_json->>'as_of_date', '')::date <= {sql_date(as_of_date)}{eval_filter}
     order by eval_run.created_at desc, eval_run.eval_run_id desc
+    limit 1
+)
+select coalesce(
+    (
+        select json_build_object(
+            'eval_run_id', selected_eval.eval_run_id,
+            'eval_name', selected_eval.eval_name,
+            'dataset_version', selected_eval.dataset_version,
+            'provider', selected_eval.provider,
+            'model_name', selected_eval.model_name,
+            'score_json', selected_eval.score_json,
+            'created_at', selected_eval.created_at
+        )
+        from selected_eval
+    ),
+    '{{}}'::json
+)::text;"""
+
+
+def render_recommendation_outcome_calibration_eval_lookup_sql(
+    *,
+    as_of_date: date,
+    eval_run_id: int | None = None,
+) -> str:
+    eval_filter = ""
+    date_filter = f"\n      and nullif(eval_run.score_json->>'as_of_date', '')::date <= {sql_date(as_of_date)}"
+    if eval_run_id is not None:
+        if eval_run_id <= 0:
+            raise ValueError("outcome calibration eval_run_id must be greater than 0.")
+        eval_filter = f"\n      and eval_run.eval_run_id = {eval_run_id}"
+        date_filter = ""
+    return f"""-- recommendation weight review outcome calibration eval lookup
+with selected_eval as (
+    select
+        eval_run.eval_run_id,
+        eval_run.eval_name,
+        eval_run.dataset_version,
+        eval_run.provider,
+        eval_run.model_name,
+        eval_run.score_json,
+        eval_run.created_at
+    from ai.eval_run eval_run
+    where eval_run.eval_name = {sql_literal(OUTCOME_CALIBRATION_EVAL_NAME)}
+      and eval_run.dataset_version = {sql_literal(OUTCOME_CALIBRATION_DATASET_VERSION)}{date_filter}{eval_filter}
+    order by
+        nullif(eval_run.score_json->>'as_of_date', '')::date desc nulls last,
+        eval_run.created_at desc,
+        eval_run.eval_run_id desc
     limit 1
 )
 select coalesce(
@@ -143,6 +203,27 @@ def load_recommendation_weight_review_source_eval(
     return payload
 
 
+def load_recommendation_outcome_calibration_eval(
+    *,
+    config: RuntimeConfig,
+    as_of_date: date,
+    eval_run_id: int | None = None,
+    executor: PsqlCommandExecutor | None = None,
+) -> dict[str, object]:
+    sql_executor = executor or PsqlCommandExecutor.from_config(config)
+    payload = json.loads(
+        sql_executor.execute_scalar(
+            render_recommendation_outcome_calibration_eval_lookup_sql(
+                as_of_date=as_of_date,
+                eval_run_id=eval_run_id,
+            )
+        )
+    )
+    if not isinstance(payload, dict):
+        raise ValueError("Recommendation outcome calibration eval lookup did not return a JSON object.")
+    return payload
+
+
 def load_paper_safety_interlock_policy(
     *,
     config: RuntimeConfig,
@@ -162,6 +243,7 @@ def audit_recommendation_weight_review_readiness(
     source_eval_run_id: int,
     min_component_outcome_count: int = DEFAULT_MIN_COMPONENT_OUTCOME_COUNT,
     paper_safety_policy: dict[str, object] | None = None,
+    outcome_calibration_eval: dict[str, object] | None = None,
 ) -> dict[str, object]:
     if min_component_outcome_count < 1:
         raise ValueError("min_component_outcome_count must be greater than 0.")
@@ -176,6 +258,7 @@ def audit_recommendation_weight_review_readiness(
     fundamental_guardrail = _as_dict(score.get("fundamental_weight_guardrail"))
     paper_validation = _as_dict(score.get("paper_validation"))
     safety_policy = _as_dict(paper_safety_policy)
+    outcome_calibration_gate = _outcome_calibration_gate(outcome_calibration_eval)
     outcome_count = _int(score.get("outcome_count"))
     positive_outcome_count = _int(score.get("positive_outcome_count"))
 
@@ -189,6 +272,9 @@ def audit_recommendation_weight_review_readiness(
         blockers.append(_blocker("blocked_by_insufficient_sample", f"outcome sample status가 {sample_status}이다."))
     if professional_coverage.get("status") != "sufficient_coverage":
         blockers.append(_blocker("blocked_by_insufficient_professional_coverage", "active recommendation의 재무·피어·밸류에이션·리서치 coverage가 기준 미만이다."))
+    outcome_calibration_status = str(outcome_calibration_gate.get("status") or "missing")
+    if outcome_calibration_status != OUTCOME_CALIBRATION_READY_STATUS:
+        blockers.append(_outcome_calibration_blocker(outcome_calibration_gate))
 
     paper_status = str(paper_validation.get("latest_status") or "missing")
     paper_conflict_count = _int(paper_validation.get("conflict_count"))
@@ -260,6 +346,7 @@ def audit_recommendation_weight_review_readiness(
             "positive_outcome_rate": score.get("positive_outcome_rate"),
             "horizon_days": score.get("horizon_days"),
         },
+        "outcome_calibration_gate": outcome_calibration_gate,
         "professional_analysis_coverage": professional_coverage,
         "paper_validation": {
             "latest_status": paper_status,
@@ -291,6 +378,7 @@ def run_recommendation_weight_review_readiness_audit(
     config: RuntimeConfig,
     as_of_date: date,
     eval_run_id: int | None = None,
+    outcome_calibration_eval_run_id: int | None = None,
     min_component_outcome_count: int = DEFAULT_MIN_COMPONENT_OUTCOME_COUNT,
     execute: bool = False,
     executor: PsqlCommandExecutor | None = None,
@@ -311,11 +399,18 @@ def run_recommendation_weight_review_readiness_audit(
         as_of_date=as_of_date,
         executor=sql_executor,
     )
+    outcome_calibration_eval = load_recommendation_outcome_calibration_eval(
+        config=config,
+        as_of_date=as_of_date,
+        eval_run_id=outcome_calibration_eval_run_id,
+        executor=sql_executor,
+    )
     audit = audit_recommendation_weight_review_readiness(
         source_score,
         source_eval_run_id=source_eval_run_id,
         min_component_outcome_count=min_component_outcome_count,
         paper_safety_policy=safety_policy,
+        outcome_calibration_eval=outcome_calibration_eval,
     )
     report: dict[str, object] = {
         "report_name": DEFAULT_AUDIT_EVAL_NAME,
@@ -331,6 +426,14 @@ def run_recommendation_weight_review_readiness_audit(
             "model_name": source_eval.get("model_name"),
             "created_at": source_eval.get("created_at"),
         },
+        "outcome_calibration_eval": {
+            "eval_run_id": _int(outcome_calibration_eval.get("eval_run_id")),
+            "eval_name": outcome_calibration_eval.get("eval_name"),
+            "dataset_version": outcome_calibration_eval.get("dataset_version"),
+            "provider": outcome_calibration_eval.get("provider"),
+            "model_name": outcome_calibration_eval.get("model_name"),
+            "created_at": outcome_calibration_eval.get("created_at"),
+        },
         "audit": audit,
     }
     if not execute:
@@ -342,6 +445,8 @@ def run_recommendation_weight_review_readiness_audit(
         config_json={
             "as_of_date": as_of_date.isoformat(),
             "source_eval_run_id": source_eval_run_id,
+            "outcome_calibration_eval_run_id": audit["outcome_calibration_gate"]["eval_run_id"],
+            "outcome_calibration_status": audit["outcome_calibration_gate"]["status"],
             "decision": audit["decision"],
             "manual_weight_review_allowed": audit["manual_weight_review_allowed"],
             "automatic_weight_change_allowed": False,
@@ -366,6 +471,82 @@ def run_recommendation_weight_review_readiness_audit(
         "status": "completed",
         "run_id": run_id,
         "audit_eval_run_id": audit_eval_run_id,
+    }
+
+
+def _outcome_calibration_gate(eval_payload: dict[str, object] | None) -> dict[str, object]:
+    payload = _as_dict(eval_payload)
+    score = _as_dict(payload.get("score_json"))
+    if not payload or not score:
+        return {
+            "status": "missing",
+            "eval_run_id": 0,
+            "eval_name": OUTCOME_CALIBRATION_EVAL_NAME,
+            "dataset_version": OUTCOME_CALIBRATION_DATASET_VERSION,
+            "as_of_date": None,
+            "horizon_days": [],
+            "quality_status": "unknown",
+            "sample_status": "unknown",
+            "recommendation_horizon_count": 0,
+            "recommendation_count": 0,
+            "outcome_count": 0,
+            "ready_for_backfill_count": 0,
+            "missing_entry_price_count": 0,
+            "missing_exit_price_count": 0,
+            "missing_reason_counts": {},
+            "next_action": "recommendation-outcome-calibration-sample-expansion-run을 먼저 실행한다.",
+        }
+    after_summary = _as_dict(_as_dict(score.get("sample_audit_after")).get("summary"))
+    missing_reason_counts = _as_dict(_as_dict(score.get("sample_audit_after")).get("missing_reason_counts"))
+    outcome_delta = _as_dict(score.get("outcome_delta"))
+    return {
+        "status": str(score.get("status") or "unknown"),
+        "eval_run_id": _int(payload.get("eval_run_id")),
+        "eval_name": payload.get("eval_name"),
+        "dataset_version": payload.get("dataset_version"),
+        "as_of_date": score.get("as_of_date"),
+        "horizon_days": _int_list(score.get("horizon_days")),
+        "quality_status": str(score.get("quality_status") or "unknown"),
+        "sample_status": str(score.get("sample_status") or "unknown"),
+        "recommendation_horizon_count": _int(after_summary.get("recommendation_horizon_count")),
+        "recommendation_count": _int(after_summary.get("recommendation_count")),
+        "outcome_count": _int(after_summary.get("outcome_count")),
+        "ready_for_backfill_count": _int(outcome_delta.get("ready_for_backfill_count_after")),
+        "missing_entry_price_count": _int(after_summary.get("missing_entry_price_count")),
+        "missing_exit_price_count": _int(after_summary.get("missing_exit_price_count")),
+        "missing_reason_counts": {
+            str(key): _int(value)
+            for key, value in missing_reason_counts.items()
+        },
+        "next_action": str(score.get("next_action") or "성과 calibration 상태를 확인한다."),
+    }
+
+
+def _outcome_calibration_blocker(gate: dict[str, object]) -> dict[str, object]:
+    status = str(gate.get("status") or "missing")
+    if status in OUTCOME_CALIBRATION_BLOCKING_STATUSES:
+        code = f"blocked_by_outcome_calibration_{status}"
+    else:
+        code = "blocked_by_outcome_calibration_not_ready"
+    next_action = str(gate.get("next_action") or "성과 calibration gate를 먼저 통과시켜야 한다.")
+    if status == "missing":
+        message = "최신 recommendation outcome calibration eval이 없다. quality eval만으로는 weight review를 열 수 없다."
+    elif status == "no_due_outcome_window":
+        message = "선택한 30/90/180/365일 성과 측정창이 아직 도래하지 않았다. quality eval이 ready여도 weight review는 대기해야 한다."
+    elif status == "backfill_candidates_remain":
+        message = "성과 산출 가능한 추천×기간 후보가 남아 있다. backfill을 먼저 완료해야 한다."
+    elif status == "price_history_gaps_remain":
+        message = "성과 산출에 필요한 entry/exit 가격 이력이 부족하다. 캔들 보강이 먼저다."
+    elif status == "no_outcome_sample_available":
+        message = "성과 표본이 없다. 추천 weight 검토를 시작할 근거가 부족하다."
+    else:
+        message = f"outcome calibration status가 {status}이다. ready_for_manual_weight_review 전까지 weight review를 열 수 없다."
+    return {
+        "code": code,
+        "message": message,
+        "outcome_calibration_status": status,
+        "outcome_calibration_eval_run_id": _int(gate.get("eval_run_id")),
+        "next_action": next_action,
     }
 
 
@@ -412,6 +593,8 @@ def _component_reviews(
 def _next_action(decision: str) -> str:
     if decision == READY_DECISION:
         return "자동 weight 변경은 금지한다. component별 spread와 실패 케이스를 사람이 검토한 뒤 별도 pilot-weight task를 열 수 있다."
+    if decision.startswith("blocked_by_outcome_calibration_"):
+        return "horizon-grid 성과 calibration gate를 먼저 통과해야 한다. quality eval이 ready여도 추천 weight는 그대로 둔다."
     if decision == "blocked_by_paper_validation_conflicts":
         return "paper validation conflict를 먼저 해소해야 한다. 추천 weight 변경과 action 확대는 계속 금지한다."
     if decision == "blocked_by_paper_validation_failed":
@@ -441,6 +624,18 @@ def _as_list(value: object) -> list[dict[str, object]]:
     if not isinstance(value, list):
         return []
     return [item for item in value if isinstance(item, dict)]
+
+
+def _int_list(value: object) -> list[int]:
+    if not isinstance(value, list):
+        return []
+    result: list[int] = []
+    for item in value:
+        try:
+            result.append(int(str(item)))
+        except (TypeError, ValueError):
+            continue
+    return result
 
 
 def _int(value: object) -> int:

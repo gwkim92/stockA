@@ -829,6 +829,11 @@ def build_parser() -> argparse.ArgumentParser:
     recommendation_weight_review_audit.add_argument("--as-of-date", required=True)
     recommendation_weight_review_audit.add_argument("--eval-run-id", type=int)
     recommendation_weight_review_audit.add_argument(
+        "--outcome-calibration-eval-run-id",
+        type=int,
+        help="Optional recommendation_outcome_calibration_sample_expansion eval_run_id to use as the horizon gate.",
+    )
+    recommendation_weight_review_audit.add_argument(
         "--min-component-outcome-count",
         type=int,
         default=DEFAULT_WEIGHT_REVIEW_MIN_COMPONENT_OUTCOME_COUNT,
@@ -2000,6 +2005,7 @@ def _handle_recommendation_weight_review_readiness_audit_run(
             config=RuntimeConfig.from_env(),
             as_of_date=as_of_date,
             eval_run_id=args.eval_run_id,
+            outcome_calibration_eval_run_id=args.outcome_calibration_eval_run_id,
             min_component_outcome_count=args.min_component_outcome_count,
             execute=bool(args.execute) and not bool(args.dry_run),
         )

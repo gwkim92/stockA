@@ -252,6 +252,7 @@ def build_manual_weight_review_calibration_report(
     if not audit:
         raise ValueError("Manual weight review source audit score_json is empty.")
     sample = _as_dict(audit.get("sample"))
+    outcome_calibration_gate = _as_dict(audit.get("outcome_calibration_gate"))
     component_reviews = [_as_dict(item) for item in _as_list(audit.get("component_reviews"))]
     component_groups = _group_component_reviews(component_reviews)
     manual_review_allowed = bool(audit.get("manual_weight_review_allowed"))
@@ -274,6 +275,8 @@ def build_manual_weight_review_calibration_report(
             "created_at": audit_eval.get("created_at"),
             "source_quality_eval_run_id": _int(audit.get("source_eval_run_id")),
             "source_quality_status": audit.get("source_quality_status"),
+            "outcome_calibration_eval_run_id": _int(outcome_calibration_gate.get("eval_run_id")),
+            "outcome_calibration_status": outcome_calibration_gate.get("status"),
         },
         "decision": decision,
         "manual_weight_review_allowed": manual_review_allowed,
@@ -294,6 +297,7 @@ def build_manual_weight_review_calibration_report(
             "positive_outcome_rate": sample.get("positive_outcome_rate"),
             "horizon_days": _int(sample.get("horizon_days")),
         },
+        "outcome_calibration_gate": outcome_calibration_gate,
         "component_summary": _component_summary(component_groups, component_reviews),
         "component_groups": component_groups,
         "failure_case_examples": [_failure_case_payload(item) for item in failure_cases],
@@ -450,7 +454,7 @@ def _korean_summary(
 def _next_actions(decision: str, *, eligible_count: int) -> list[str]:
     if decision == "manual_review_not_allowed":
         return [
-            "quality eval, paper validation, professional coverage blocker를 먼저 해소한다.",
+            "outcome calibration, quality eval, paper validation, professional coverage blocker를 먼저 해소한다.",
             "추천 weight와 주문 경계는 그대로 둔다.",
         ]
     actions = [

@@ -549,6 +549,9 @@ def build_live_data_health_response(
     recommendation_outcome_calibration = _build_recommendation_outcome_calibration_payload(
         _as_dict(state.get("recommendation_outcome_calibration"))
     )
+    recommendation_weight_review_readiness = _build_recommendation_weight_review_readiness_payload(
+        _as_dict(state.get("recommendation_weight_review_readiness"))
+    )
     if scheduler_activation["status"] == "pending_manual_approval":
         gate = "scheduler_activation_manual_approval"
         if gate not in open_gates:
@@ -588,6 +591,7 @@ def build_live_data_health_response(
             "cycle_ai_quality_audit": cycle_ai_quality_audit,
             "benchmark_drift_quality": benchmark_drift_quality,
             "recommendation_outcome_calibration": recommendation_outcome_calibration,
+            "recommendation_weight_review_readiness": recommendation_weight_review_readiness,
             "open_gates": open_gates,
         },
         "links": {
@@ -3415,6 +3419,16 @@ selected_recommendation_outcome_calibration as (
         eval_run.created_at desc,
         eval_run.eval_run_id desc
     limit 1
+),
+selected_recommendation_weight_review_readiness as (
+    select eval_run.*
+    from ai.eval_run eval_run
+    where eval_run.eval_name = 'recommendation_weight_review_readiness_audit'
+      and eval_run.dataset_version = 'recommendation-weight-review-readiness-v1'
+    order by
+        eval_run.created_at desc,
+        eval_run.eval_run_id desc
+    limit 1
 )
 select json_build_object(
     'overall_status',
@@ -3549,6 +3563,53 @@ select json_build_object(
             'automatic_order_allowed', false,
             'broker_submit_allowed', false,
             'order_boundary', 'read_only_no_order'
+        )
+    ),
+    'recommendation_weight_review_readiness',
+    coalesce(
+        (
+            select json_build_object(
+                'status', 'loaded',
+                'eval_run_id', eval_run_id,
+                'created_at', created_at,
+                'decision', score_json->>'decision',
+                'manual_weight_review_allowed',
+                    coalesce((score_json->>'manual_weight_review_allowed')::boolean, false),
+                'source_quality_status', score_json->>'source_quality_status',
+                'source_eval_run_id',
+                    coalesce(nullif(score_json->>'source_eval_run_id', '')::integer, 0),
+                'outcome_calibration_status',
+                    coalesce(score_json#>>'{{outcome_calibration_gate,status}}', 'missing'),
+                'outcome_calibration_eval_run_id',
+                    coalesce(nullif(score_json#>>'{{outcome_calibration_gate,eval_run_id}}', '')::integer, 0),
+                'blocker_code',
+                    coalesce(score_json#>>'{{blockers,0,code}}', ''),
+                'blocker_message',
+                    coalesce(score_json#>>'{{blockers,0,message}}', ''),
+                'next_action', score_json->>'next_action',
+                'automatic_weight_change_allowed',
+                    coalesce((score_json->>'automatic_weight_change_allowed')::boolean, false),
+                'automatic_order_allowed',
+                    coalesce((score_json->>'automatic_order_allowed')::boolean, false),
+                'broker_submit_allowed',
+                    coalesce((score_json->>'broker_submit_allowed')::boolean, false)
+            )
+            from selected_recommendation_weight_review_readiness
+        ),
+        json_build_object(
+            'status', 'missing',
+            'decision', 'missing_recommendation_weight_review_readiness',
+            'manual_weight_review_allowed', false,
+            'source_quality_status', 'unknown',
+            'source_eval_run_id', 0,
+            'outcome_calibration_status', 'missing',
+            'outcome_calibration_eval_run_id', 0,
+            'blocker_code', 'missing_recommendation_weight_review_readiness',
+            'blocker_message', 'recommendation-weight-review-readiness-audit-run을 실행한다.',
+            'next_action', 'recommendation-weight-review-readiness-audit-run을 실행한다.',
+            'automatic_weight_change_allowed', false,
+            'automatic_order_allowed', false,
+            'broker_submit_allowed', false
         )
     ),
     'open_gates',
@@ -10917,6 +10978,32 @@ def _build_recommendation_outcome_calibration_payload(payload: dict[str, Any]) -
         "automatic_order_allowed": payload.get("automatic_order_allowed") is True,
         "broker_submit_allowed": payload.get("broker_submit_allowed") is True,
         "order_boundary": str(payload.get("order_boundary") or "read_only_no_order"),
+    }
+
+
+def _build_recommendation_weight_review_readiness_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    loaded = payload.get("status") == "loaded"
+    decision = str(payload.get("decision") or "missing_recommendation_weight_review_readiness")
+    return {
+        "status": decision if loaded else "missing",
+        "eval_run_id": _opaque_id("eval-run", payload.get("eval_run_id"), None),
+        "created_at": _timestamp(payload.get("created_at")),
+        "decision": decision,
+        "manual_weight_review_allowed": payload.get("manual_weight_review_allowed") is True,
+        "source_quality_status": str(payload.get("source_quality_status") or "unknown"),
+        "source_eval_run_id": _opaque_id("eval-run", payload.get("source_eval_run_id"), None),
+        "outcome_calibration_status": str(payload.get("outcome_calibration_status") or "missing"),
+        "outcome_calibration_eval_run_id": _opaque_id(
+            "eval-run",
+            payload.get("outcome_calibration_eval_run_id"),
+            None,
+        ),
+        "blocker_code": str(payload.get("blocker_code") or ""),
+        "blocker_message": str(payload.get("blocker_message") or ""),
+        "next_action": str(payload.get("next_action") or "recommendation-weight-review-readiness-audit-run을 실행한다."),
+        "automatic_weight_change_allowed": payload.get("automatic_weight_change_allowed") is True,
+        "automatic_order_allowed": payload.get("automatic_order_allowed") is True,
+        "broker_submit_allowed": payload.get("broker_submit_allowed") is True,
     }
 
 

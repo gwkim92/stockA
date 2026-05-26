@@ -93,6 +93,9 @@ class ManualWeightReviewCalibrationReportTests(unittest.TestCase):
         self.assertEqual(report["component_summary"]["keep_zero_or_do_not_increase_count"], 2)
         self.assertEqual(report["component_summary"]["already_weighted_review_only_count"], 1)
         self.assertEqual(report["failure_case_examples"][0]["symbol"], "QUBT")
+        self.assertEqual(report["source_audit_eval"]["outcome_calibration_eval_run_id"], 27)
+        self.assertEqual(report["source_audit_eval"]["outcome_calibration_status"], "ready_for_manual_weight_review")
+        self.assertEqual(report["outcome_calibration_gate"]["status"], "ready_for_manual_weight_review")
         self.assertIn("현재 추천 weight를 유지한다.", report["next_actions"])
 
     def test_render_insert_records_eval_run_without_mutating_weights(self) -> None:
@@ -153,6 +156,15 @@ def _audit_eval_payload() -> dict[str, object]:
                 "positive_outcome_count": 3,
                 "positive_outcome_rate": 0.1,
                 "horizon_days": 30,
+            },
+            "outcome_calibration_gate": {
+                "status": "ready_for_manual_weight_review",
+                "eval_run_id": 27,
+                "horizon_days": [30, 90, 180, 365],
+                "outcome_count": 30,
+                "recommendation_horizon_count": 180,
+                "ready_for_backfill_count": 0,
+                "next_action": "표본과 coverage 기준은 충족했다.",
             },
             "component_reviews": [
                 {
