@@ -2173,6 +2173,7 @@ export type PortfolioReviewFeedbackCalibration = {
   min_mature_decisions: number;
   max_contradiction_rate: number;
   calibration_status: string;
+  maturity_status: string;
   feedback_run_count: number;
   decision_count: number;
   mature_decision_count: number;
@@ -2182,6 +2183,13 @@ export type PortfolioReviewFeedbackCalibration = {
   needs_more_data_count: number;
   contradiction_rate: number;
   validated_rate: number;
+  feedback_run_gap: number;
+  mature_decision_gap: number;
+  estimated_maturity_date: string;
+  days_until_maturity: number | null;
+  attention_required: boolean;
+  weight_review_blocked: boolean;
+  weight_review_block_reason: string;
   status_counts: Record<string, number>;
   family_summaries: PortfolioReviewFeedbackGroupSummary[];
   decision_type_summaries: PortfolioReviewFeedbackGroupSummary[];
@@ -2197,6 +2205,7 @@ export type PortfolioReviewFeedbackCalibration = {
     order_boundary: string;
   };
   next_action: string;
+  next_calibration_action: string;
 };
 
 export type PortfolioReviewFeedbackCadence = {

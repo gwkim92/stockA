@@ -929,6 +929,7 @@ const DEFAULT_PORTFOLIO_REVIEW_FEEDBACK_CALIBRATION: PortfolioReviewFeedbackCali
   min_mature_decisions: 0,
   max_contradiction_rate: 0,
   calibration_status: "missing",
+  maturity_status: "missing_calibration",
   feedback_run_count: 0,
   decision_count: 0,
   mature_decision_count: 0,
@@ -938,6 +939,13 @@ const DEFAULT_PORTFOLIO_REVIEW_FEEDBACK_CALIBRATION: PortfolioReviewFeedbackCali
   needs_more_data_count: 0,
   contradiction_rate: 0,
   validated_rate: 0,
+  feedback_run_gap: 0,
+  mature_decision_gap: 0,
+  estimated_maturity_date: "",
+  days_until_maturity: null,
+  attention_required: true,
+  weight_review_blocked: true,
+  weight_review_block_reason: "검토 성과 누적평가 artifact가 없어 추천 weight 검토를 막는다.",
   status_counts: {},
   family_summaries: [],
   decision_type_summaries: [],
@@ -953,6 +961,7 @@ const DEFAULT_PORTFOLIO_REVIEW_FEEDBACK_CALIBRATION: PortfolioReviewFeedbackCali
     order_boundary: "read_only_no_order",
   },
   next_action: "portfolio-review-feedback-calibration-run을 실행해 누적 검토 feedback 신뢰도를 집계한다.",
+  next_calibration_action: "검토 이력과 사후평가를 먼저 누적한다.",
 };
 
 const DEFAULT_PORTFOLIO_REVIEW_FEEDBACK_CADENCE: PortfolioReviewFeedbackCadence = {
@@ -1415,11 +1424,13 @@ export default async function DataHealthPage() {
       label: "검토 신뢰도",
       title:
         portfolioReviewCalibration.status === "loaded"
-          ? `${portfolioReviewCalibration.feedback_run_count}회 feedback 누적`
+          ? portfolioReviewCalibration.weight_review_blocked
+            ? "weight 변경 금지"
+            : "manual 검토 가능"
           : "누적평가 없음",
       body:
         portfolioReviewCalibration.status === "loaded"
-          ? `성숙한 판단 ${portfolioReviewCalibration.mature_decision_count}개, 반박률 ${formatPercent(portfolioReviewCalibration.contradiction_rate)} 기준으로 weight 검토 가능성을 막거나 열어둔다.`
+          ? `성숙 표본 ${portfolioReviewCalibration.mature_decision_count}/${portfolioReviewCalibration.min_mature_decisions}개, feedback ${portfolioReviewCalibration.feedback_run_count}/${portfolioReviewCalibration.min_feedback_runs}회. ${portfolioReviewCalibration.estimated_maturity_date ? `예상 성숙일은 ${portfolioReviewCalibration.estimated_maturity_date}이다.` : portfolioReviewCalibration.weight_review_block_reason}`
           : "단일 사후평가만으로 추천 weight를 바꾸지 않기 위해 누적 calibration이 필요하다.",
       href: "#portfolio-review-calibration",
       cta: "신뢰도 보기",
@@ -2423,31 +2434,44 @@ export default async function DataHealthPage() {
       >
         <div className="section-heading stacked-heading">
           <span>포트폴리오 검토 신뢰도 누적평가</span>
-          <h2 id="portfolio-review-calibration-title">검토 판단이 충분히 쌓이기 전에는 weight를 바꾸지 않는다.</h2>
+          <h2 id="portfolio-review-calibration-title">성과 표본이 성숙하기 전에는 추천 weight를 바꾸지 않는다.</h2>
         </div>
         <p className="board-intro">
-          사후평가 한 번으로 추천 산식이나 포트폴리오 비중을 바꾸면 안 된다. 이 섹션은 여러 번의 검토 결정
-          feedback을 모아 반박률, 성숙한 표본 수, 가족별 실패 지점을 보는 읽기 전용 calibration이다.
+          검토 결정은 최소 관찰 기간을 지난 뒤 실제 outcome과 대조해야 한다. 이 섹션은 지금 weight 변경이 왜
+          막혀 있는지, 어떤 표본이 부족한지, 언제 다시 사후평가를 실행해야 하는지를 보여주는 읽기 전용 안전장치다.
         </p>
         <div className="status-rail compact-rail">
           <article className="rail-cell">
-            <span>누적 판정</span>
-            <strong className={`risk-tag ${calibrationStatusClass(portfolioReviewCalibration.calibration_status)}`}>
-              {koCode(portfolioReviewCalibration.calibration_status)}
+            <span>weight 검토 상태</span>
+            <strong className={`risk-tag ${portfolioReviewCalibration.weight_review_blocked ? "risk-medium" : "risk-low"}`}>
+              {portfolioReviewCalibration.weight_review_blocked ? "변경 금지" : "manual 검토 가능"}
             </strong>
-            <small>{portfolioReviewCalibration.eval_run_id}</small>
+            <small>{koCode(portfolioReviewCalibration.maturity_status)} · {portfolioReviewCalibration.eval_run_id}</small>
           </article>
           <article className="rail-cell">
             <span>feedback 실행</span>
-            <strong>{portfolioReviewCalibration.feedback_run_count}</strong>
-            <small>{portfolioReviewCalibration.lookback_days || "기간 미확인"}일 lookback</small>
+            <strong>
+              {portfolioReviewCalibration.feedback_run_count}/{portfolioReviewCalibration.min_feedback_runs}
+            </strong>
+            <small>부족 {portfolioReviewCalibration.feedback_run_gap}회 · {portfolioReviewCalibration.lookback_days || "기간 미확인"}일 lookback</small>
           </article>
           <article className="rail-cell">
             <span>성숙한 판단</span>
             <strong>
-              {portfolioReviewCalibration.mature_decision_count}/{portfolioReviewCalibration.decision_count}
+              {portfolioReviewCalibration.mature_decision_count}/{portfolioReviewCalibration.min_mature_decisions}
             </strong>
-            <small>최소 {portfolioReviewCalibration.min_mature_decisions}개 필요</small>
+            <small>부족 {portfolioReviewCalibration.mature_decision_gap}개 · 전체 판단 {portfolioReviewCalibration.decision_count}개</small>
+          </article>
+          <article className="rail-cell">
+            <span>예상 성숙일</span>
+            <strong>{portfolioReviewCalibration.estimated_maturity_date || "계산 불가"}</strong>
+            <small>
+              {portfolioReviewCalibration.days_until_maturity === null
+                ? "다음 실행 조건 미확인"
+                : portfolioReviewCalibration.days_until_maturity > 0
+                  ? `${portfolioReviewCalibration.days_until_maturity}일 대기`
+                  : "다시 평가 가능일 도달"}
+            </small>
           </article>
           <article className="rail-cell">
             <span>검증 / 반박률</span>
@@ -2461,6 +2485,10 @@ export default async function DataHealthPage() {
             <strong>{koCode(portfolioReviewCalibration.guardrails.order_boundary)}</strong>
             <small>broker 전송 {portfolioReviewCalibration.guardrails.broker_submit_allowed ? "허용" : "금지"}</small>
           </article>
+        </div>
+        <div className="empty-state">
+          <strong>왜 막혀 있나</strong>
+          <p>{portfolioReviewCalibration.weight_review_block_reason}</p>
         </div>
         <div className="insight-grid">
           {portfolioReviewCalibration.family_summaries.slice(0, 3).map((summary) => (
@@ -2524,7 +2552,7 @@ export default async function DataHealthPage() {
         ) : null}
         <div className="empty-state">
           <strong>다음 조치</strong>
-          <p>{portfolioReviewCalibration.next_action}</p>
+          <p>{portfolioReviewCalibration.next_calibration_action || portfolioReviewCalibration.next_action}</p>
         </div>
       </section>
 

@@ -572,6 +572,17 @@ def _build_open_gate_details(
             status = str(portfolio_review_feedback_calibration.get("calibration_status") or "unknown")
             mature_count = int(portfolio_review_feedback_calibration.get("mature_decision_count") or 0)
             min_mature = int(portfolio_review_feedback_calibration.get("min_mature_decisions") or 0)
+            feedback_runs = int(portfolio_review_feedback_calibration.get("feedback_run_count") or 0)
+            min_feedback_runs = int(portfolio_review_feedback_calibration.get("min_feedback_runs") or 0)
+            maturity_date = str(portfolio_review_feedback_calibration.get("estimated_maturity_date") or "")
+            days_until = portfolio_review_feedback_calibration.get("days_until_maturity")
+            wait_text = (
+                f" 예상 성숙일 {maturity_date}"
+                + (f"(D-{days_until})" if isinstance(days_until, int) and days_until > 0 else "")
+                + "."
+                if maturity_date
+                else ""
+            )
             details.append(
                 {
                     "gate_id": gate,
@@ -579,9 +590,16 @@ def _build_open_gate_details(
                     "category": "outcome_wait",
                     "category_label": "성과 관찰 대기",
                     "severity": "low" if status == "insufficient_history" else "medium",
-                    "status_label": "표본 부족",
-                    "summary": f"성숙한 검토 표본 {mature_count}/{min_mature}개. 아직 weight 조정 근거로 쓰기 어렵다.",
-                    "next_action": "성과 관찰 기간이 찰 때까지 weight 변경을 막고 feedback run을 계속 누적한다.",
+                    "status_label": "weight 변경 차단",
+                    "summary": (
+                        f"성숙한 검토 표본 {mature_count}/{min_mature}개, "
+                        f"feedback {feedback_runs}/{min_feedback_runs}회.{wait_text}"
+                    ),
+                    "next_action": str(
+                        portfolio_review_feedback_calibration.get("weight_review_block_reason")
+                        or portfolio_review_feedback_calibration.get("next_calibration_action")
+                        or "성과 관찰 기간이 찰 때까지 weight 변경을 막고 feedback run을 계속 누적한다."
+                    ),
                     "order_boundary": str(
                         _as_dict(portfolio_review_feedback_calibration.get("guardrails")).get("order_boundary")
                         or "read_only_no_order"
@@ -786,6 +804,10 @@ def build_live_data_health_response(
     portfolio_review_feedback_cadence = _build_portfolio_review_feedback_cadence_payload(
         _as_dict(state.get("portfolio_review_feedback_cadence"))
     )
+    portfolio_review_feedback_calibration = _attach_portfolio_review_feedback_maturity_visibility(
+        portfolio_review_feedback_calibration,
+        portfolio_review_feedback_cadence,
+    )
     portfolio_review_feedback_action_router = _build_portfolio_review_feedback_action_router_payload(
         _as_dict(state.get("portfolio_review_feedback_action_router"))
     )
@@ -845,14 +867,12 @@ def build_live_data_health_response(
         gate = "portfolio_review_decision_feedback_attention"
         if gate not in open_gates:
             open_gates.append(gate)
-    if portfolio_review_feedback_calibration["calibration_status"] in {
-        "insufficient_history",
-        "collect_more_feedback",
-        "contradiction_review_required",
-    }:
-        gate = "portfolio_review_feedback_calibration_attention"
+    gate = "portfolio_review_feedback_calibration_attention"
+    if portfolio_review_feedback_calibration["attention_required"]:
         if gate not in open_gates:
             open_gates.append(gate)
+    else:
+        open_gates = [item for item in open_gates if item != gate]
     if portfolio_review_feedback_cadence["cadence_status"] in {
         "run_feedback_now",
         "run_calibration_now",
@@ -13233,6 +13253,36 @@ def _build_portfolio_review_feedback_calibration_payload(payload: dict[str, Any]
     status = str(payload.get("status") or "missing")
     calibration_status = str(payload.get("calibration_status") or ("missing" if status == "missing" else "unknown"))
     guardrails = _as_dict(payload.get("guardrails"))
+    min_feedback_runs = int(_safe_number(payload.get("min_feedback_runs")) or 0)
+    min_mature_decisions = int(_safe_number(payload.get("min_mature_decisions")) or 0)
+    feedback_run_count = int(_safe_number(payload.get("feedback_run_count")) or 0)
+    mature_decision_count = int(_safe_number(payload.get("mature_decision_count")) or 0)
+    feedback_run_gap = max(0, min_feedback_runs - feedback_run_count)
+    mature_decision_gap = max(0, min_mature_decisions - mature_decision_count)
+    weight_review_blocked = calibration_status != "manual_review_ready" or feedback_run_gap > 0 or mature_decision_gap > 0
+    attention_required = calibration_status in {
+        "insufficient_history",
+        "collect_more_feedback",
+        "contradiction_review_required",
+    } or weight_review_blocked
+    if calibration_status == "contradiction_review_required":
+        maturity_status = "contradiction_review_required"
+        block_reason = "반박된 검토 판단이 허용 기준을 넘어서 추천 weight 검토 전에 실패 원인을 먼저 확인해야 한다."
+    elif feedback_run_gap > 0 or mature_decision_gap > 0:
+        maturity_status = "insufficient_feedback_history"
+        block_reason = (
+            f"성숙한 검토 표본 {mature_decision_count}/{min_mature_decisions}개, "
+            f"feedback 실행 {feedback_run_count}/{min_feedback_runs}회라서 아직 추천 weight 검토 근거로 쓰지 않는다."
+        )
+    elif calibration_status == "manual_review_ready":
+        maturity_status = "manual_review_ready"
+        block_reason = "성과 표본 기준은 통과했지만, 별도 승인된 pilot-weight task 전까지 자동 weight 변경은 금지한다."
+    elif status == "missing":
+        maturity_status = "missing_calibration"
+        block_reason = "검토 성과 누적평가 artifact가 없어 추천 weight 검토를 막는다."
+    else:
+        maturity_status = calibration_status
+        block_reason = "검토 성과 누적평가 상태가 명확히 성숙하지 않아 추천 weight 검토를 막는다."
     return {
         "status": status,
         "eval_run_id": _opaque_id("eval-run", payload.get("eval_run_id"), None),
@@ -13242,19 +13292,27 @@ def _build_portfolio_review_feedback_calibration_payload(payload: dict[str, Any]
         "as_of_date": str(payload.get("as_of_date") or ""),
         "portfolio_name": str(payload.get("portfolio_name") or DEFAULT_PORTFOLIO_NAME),
         "lookback_days": int(_safe_number(payload.get("lookback_days")) or 0),
-        "min_feedback_runs": int(_safe_number(payload.get("min_feedback_runs")) or 0),
-        "min_mature_decisions": int(_safe_number(payload.get("min_mature_decisions")) or 0),
+        "min_feedback_runs": min_feedback_runs,
+        "min_mature_decisions": min_mature_decisions,
         "max_contradiction_rate": _safe_number(payload.get("max_contradiction_rate")) or 0.0,
         "calibration_status": calibration_status,
-        "feedback_run_count": int(_safe_number(payload.get("feedback_run_count")) or 0),
+        "maturity_status": maturity_status,
+        "feedback_run_count": feedback_run_count,
         "decision_count": int(_safe_number(payload.get("decision_count")) or 0),
-        "mature_decision_count": int(_safe_number(payload.get("mature_decision_count")) or 0),
+        "mature_decision_count": mature_decision_count,
         "too_early_count": int(_safe_number(payload.get("too_early_count")) or 0),
         "validated_count": int(_safe_number(payload.get("validated_count")) or 0),
         "contradicted_count": int(_safe_number(payload.get("contradicted_count")) or 0),
         "needs_more_data_count": int(_safe_number(payload.get("needs_more_data_count")) or 0),
         "contradiction_rate": _safe_number(payload.get("contradiction_rate")) or 0.0,
         "validated_rate": _safe_number(payload.get("validated_rate")) or 0.0,
+        "feedback_run_gap": feedback_run_gap,
+        "mature_decision_gap": mature_decision_gap,
+        "estimated_maturity_date": str(payload.get("estimated_maturity_date") or ""),
+        "days_until_maturity": None,
+        "attention_required": attention_required,
+        "weight_review_blocked": weight_review_blocked,
+        "weight_review_block_reason": block_reason,
         "status_counts": {str(key): int(_safe_number(value) or 0) for key, value in _as_dict(payload.get("status_counts")).items()},
         "family_summaries": [
             _build_portfolio_review_feedback_group_summary(item, "decision_family")
@@ -13295,7 +13353,67 @@ def _build_portfolio_review_feedback_calibration_payload(payload: dict[str, Any]
             payload.get("next_action")
             or "portfolio-review-feedback-calibration-run을 실행해 누적 검토 feedback 신뢰도를 집계한다."
         ),
+        "next_calibration_action": str(
+            payload.get("next_calibration_action")
+            or payload.get("next_action")
+            or "성과 관찰 기간이 끝날 때까지 기다리고 feedback/calibration run을 계속 누적한다."
+        ),
     }
+
+
+def _attach_portfolio_review_feedback_maturity_visibility(
+    calibration: dict[str, Any],
+    cadence: Mapping[str, Any],
+) -> dict[str, Any]:
+    cadence_status = str(cadence.get("cadence_status") or "")
+    min_horizon_days = int(_safe_number(cadence.get("min_horizon_days")) or 30)
+    history = _as_dict(cadence.get("history"))
+    history_as_of_date = str(history.get("as_of_date") or "")
+    estimated_maturity_date = str(cadence.get("wait_until") or "") or _date_plus_days(history_as_of_date, min_horizon_days)
+    as_of_date = str(cadence.get("as_of_date") or calibration.get("as_of_date") or "")
+    days_until = _days_between(as_of_date, estimated_maturity_date)
+    if days_until is not None:
+        days_until = max(0, days_until)
+    maturity_status = str(calibration.get("maturity_status") or "")
+    if cadence_status == "wait_for_outcome_window":
+        maturity_status = "waiting_for_outcome_window"
+    elif cadence_status in {"run_feedback_now", "run_calibration_now"}:
+        maturity_status = cadence_status
+    feedback_run_gap = int(calibration.get("feedback_run_gap") or 0)
+    mature_decision_gap = int(calibration.get("mature_decision_gap") or 0)
+    weight_review_blocked = (
+        calibration.get("weight_review_blocked") is True
+        or maturity_status != "manual_review_ready"
+        or feedback_run_gap > 0
+        or mature_decision_gap > 0
+    )
+    if maturity_status == "waiting_for_outcome_window":
+        block_reason = (
+            f"최근 검토 결정이 최소 {min_horizon_days}일 관찰 기간을 아직 채우지 못했다. "
+            f"{estimated_maturity_date or '다음 성숙일'} 이후 feedback을 다시 실행해야 한다."
+        )
+    elif feedback_run_gap > 0 or mature_decision_gap > 0:
+        block_reason = str(calibration.get("weight_review_block_reason") or "")
+    elif maturity_status == "manual_review_ready":
+        block_reason = "성과 표본 기준은 통과했지만, 별도 승인된 pilot-weight task 전까지 자동 weight 변경은 금지한다."
+    else:
+        block_reason = str(calibration.get("weight_review_block_reason") or "검토 성과 표본이 아직 추천 weight 변경 근거로 충분하지 않다.")
+    calibration.update(
+        {
+            "maturity_status": maturity_status,
+            "estimated_maturity_date": estimated_maturity_date,
+            "days_until_maturity": days_until,
+            "attention_required": weight_review_blocked,
+            "weight_review_blocked": weight_review_blocked,
+            "weight_review_block_reason": block_reason,
+            "next_calibration_action": (
+                "성과 관찰 기간이 끝난 뒤 portfolio-review-feedback-action-router-run이 feedback/calibration을 안전하게 라우팅한다."
+                if maturity_status == "waiting_for_outcome_window"
+                else str(calibration.get("next_calibration_action") or calibration.get("next_action") or "")
+            ),
+        }
+    )
+    return calibration
 
 
 def _build_portfolio_review_feedback_group_summary(item: dict[str, Any], key_name: str) -> dict[str, Any]:
@@ -16077,6 +16195,16 @@ def _build_portfolio_risk_budget_payload(
         rebalance_candidate_review=rebalance_candidate_review,
         position_sizing_context=position_sizing_context,
     )
+    review_feedback_calibration_payload = _build_portfolio_review_feedback_calibration_payload(
+        _as_dict(review_feedback_calibration)
+    )
+    review_feedback_cadence_payload = _build_portfolio_review_feedback_cadence_payload(
+        _as_dict(review_feedback_cadence)
+    )
+    review_feedback_calibration_payload = _attach_portfolio_review_feedback_maturity_visibility(
+        review_feedback_calibration_payload,
+        review_feedback_cadence_payload,
+    )
     status = "within_budget"
     if missing_position_snapshot or not positions:
         status = "missing_position_snapshot"
@@ -16118,12 +16246,8 @@ def _build_portfolio_risk_budget_payload(
         "review_decision_feedback": _build_portfolio_review_decision_feedback_payload(
             _as_dict(review_decision_feedback)
         ),
-        "review_feedback_calibration": _build_portfolio_review_feedback_calibration_payload(
-            _as_dict(review_feedback_calibration)
-        ),
-        "review_feedback_cadence": _build_portfolio_review_feedback_cadence_payload(
-            _as_dict(review_feedback_cadence)
-        ),
+        "review_feedback_calibration": review_feedback_calibration_payload,
+        "review_feedback_cadence": review_feedback_cadence_payload,
         "review_feedback_action_router": _build_portfolio_review_feedback_action_router_payload(
             _as_dict(review_feedback_action_router)
         ),
@@ -16828,6 +16952,27 @@ def _date_age_days(source_date: str, as_of_date: str) -> int | None:
     except ValueError:
         return None
     return (anchor - source).days
+
+
+def _date_plus_days(source_date: str, days: int) -> str:
+    if not source_date:
+        return ""
+    try:
+        source = date.fromisoformat(source_date[:10])
+    except ValueError:
+        return ""
+    return (source + timedelta(days=max(0, days))).isoformat()
+
+
+def _days_between(start_date: str, end_date: str) -> int | None:
+    if not start_date or not end_date:
+        return None
+    try:
+        start = date.fromisoformat(start_date[:10])
+        end = date.fromisoformat(end_date[:10])
+    except ValueError:
+        return None
+    return (end - start).days
 
 
 def _integer(value: object) -> int | None:

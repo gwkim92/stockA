@@ -11,9 +11,12 @@ from unittest.mock import patch
 from stockanalysis.frontend.live_adapter import (
     FrontendLiveUnavailableError,
     FrontendLiveUnsupportedPathError,
+    _attach_portfolio_review_feedback_maturity_visibility,
     _build_benchmark_rebalance_candidate_review_payload,
     _build_financial_statement_model_payload,
     _build_fund_instrument_analysis_payload,
+    _build_portfolio_review_feedback_cadence_payload,
+    _build_portfolio_review_feedback_calibration_payload,
     _build_professional_source_guardrail_payload,
     _benchmark_drift_quality_attention_policy,
     _portfolio_review_decision_history_attention_policy,
@@ -4353,8 +4356,18 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertEqual(review_calibration["status"], "loaded")
         self.assertEqual(review_calibration["eval_run_id"], "eval-run-54")
         self.assertEqual(review_calibration["calibration_status"], "insufficient_history")
+        self.assertEqual(review_calibration["maturity_status"], "waiting_for_outcome_window")
         self.assertEqual(review_calibration["feedback_run_count"], 1)
+        self.assertEqual(review_calibration["min_feedback_runs"], 3)
+        self.assertEqual(review_calibration["feedback_run_gap"], 2)
         self.assertEqual(review_calibration["decision_count"], 1)
+        self.assertEqual(review_calibration["min_mature_decisions"], 10)
+        self.assertEqual(review_calibration["mature_decision_gap"], 10)
+        self.assertEqual(review_calibration["estimated_maturity_date"], "2026-06-24")
+        self.assertEqual(review_calibration["days_until_maturity"], 28)
+        self.assertTrue(review_calibration["attention_required"])
+        self.assertTrue(review_calibration["weight_review_blocked"])
+        self.assertIn("최소 30일 관찰 기간", review_calibration["weight_review_block_reason"])
         self.assertEqual(review_calibration["family_summaries"][0]["decision_family"], "benchmark_drift")
         self.assertEqual(review_calibration["symbol_summaries"][0]["symbol"], "MSFT")
         self.assertFalse(review_calibration["guardrails"]["automatic_order_allowed"])
@@ -4479,8 +4492,45 @@ class FrontendLiveAdapterTests(unittest.TestCase):
             gate_details["portfolio_review_feedback_calibration_attention"]["category"],
             "outcome_wait",
         )
+        self.assertIn("2026-06-24", gate_details["portfolio_review_feedback_calibration_attention"]["summary"])
+        self.assertIn("최소 30일 관찰 기간", gate_details["portfolio_review_feedback_calibration_attention"]["next_action"])
         self.assertNotIn("professional_source_gap_attention", gate_details)
         self.assertEqual(payload["links"]["dashboard"], "/api/dashboard/today")
+
+    def test_portfolio_review_feedback_maturity_visibility_computes_wait_until_when_missing(self) -> None:
+        calibration = _build_portfolio_review_feedback_calibration_payload(
+            {
+                "status": "loaded",
+                "as_of_date": "2026-05-27",
+                "calibration_status": "insufficient_history",
+                "min_feedback_runs": 3,
+                "min_mature_decisions": 10,
+                "feedback_run_count": 1,
+                "mature_decision_count": 0,
+            }
+        )
+        cadence = _build_portfolio_review_feedback_cadence_payload(
+            {
+                "status": "loaded",
+                "as_of_date": "2026-05-27",
+                "min_horizon_days": 30,
+                "cadence_status": "wait_for_outcome_window",
+                "should_wait": True,
+                "wait_until": "",
+                "history": {"status": "loaded", "as_of_date": "2026-05-25"},
+            }
+        )
+
+        enriched = _attach_portfolio_review_feedback_maturity_visibility(calibration, cadence)
+
+        self.assertEqual(enriched["maturity_status"], "waiting_for_outcome_window")
+        self.assertEqual(enriched["estimated_maturity_date"], "2026-06-24")
+        self.assertEqual(enriched["days_until_maturity"], 28)
+        self.assertEqual(enriched["feedback_run_gap"], 2)
+        self.assertEqual(enriched["mature_decision_gap"], 10)
+        self.assertTrue(enriched["attention_required"])
+        self.assertTrue(enriched["weight_review_blocked"])
+        self.assertIn("2026-06-24", enriched["weight_review_block_reason"])
 
     def test_professional_source_gap_attention_policy_keeps_unguarded_gaps_open(self) -> None:
         self.assertTrue(
