@@ -58,7 +58,7 @@
 
 ## Done Criteria
 
-- [ ] `/intelligence` 상단에 네 단계 판단 패널이 렌더링된다.
-- [ ] 기존 중복 검토 안내를 제거하고 대표 흐름, AI 후보, 차단 후보, 추천 연결 섹션을 분리한다.
-- [ ] 모바일에서 네 단계 카드와 요약 카드가 1열로 내려간다.
-- [ ] local verification과 EC2 route smoke가 통과한다.
+- [x] `/intelligence` 상단에 네 단계 판단 패널이 렌더링된다.
+- [x] 기존 중복 검토 안내를 제거하고 대표 흐름, AI 후보, 차단 후보, 추천 연결 섹션을 분리한다.
+- [x] 모바일에서 네 단계 카드와 요약 카드가 1열로 내려간다.
+- [x] local verification과 EC2 route smoke가 통과한다.
