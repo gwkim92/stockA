@@ -31,6 +31,7 @@ type RecommendationOutcomeDueActionRouter = DataHealthData["recommendation_outco
 type RecommendationWeightReviewReadiness = DataHealthData["recommendation_weight_review_readiness"];
 type ProfessionalSourceGapPrioritization = DataHealthData["professional_source_gap_prioritization"];
 type ProfessionalAnalysisNextAction = DataHealthData["professional_analysis_next_action"];
+type ProfessionalAnalysisDepth = DataHealthData["professional_analysis_depth"];
 type ProfileTimer = ProfileSchedulerStatus["timers"][number];
 type AuditSampleRecord = Record<string, unknown>;
 
@@ -831,6 +832,64 @@ function professionalNextActionTone(nextAction: ProfessionalAnalysisNextAction) 
   return "risk-high";
 }
 
+function professionalDepthTitle(depth: ProfessionalAnalysisDepth) {
+  if (depth.status === "complete") {
+    return "전문 분석 layer 충족";
+  }
+  if (depth.status === "mostly_covered") {
+    return "대부분 갖춰짐";
+  }
+  if (depth.status === "source_limited") {
+    return "원천 한계 포함";
+  }
+  if (depth.status === "coverage_gaps_present") {
+    return "분석 layer 보강 필요";
+  }
+  if (depth.status === "missing_active_candidates") {
+    return "active 후보 없음";
+  }
+  return koCode(depth.status);
+}
+
+function professionalDepthTone(depth: ProfessionalAnalysisDepth) {
+  if (depth.status === "complete" || depth.status === "mostly_covered") {
+    return "risk-low";
+  }
+  if (depth.status === "source_limited") {
+    return "risk-medium";
+  }
+  return "risk-high";
+}
+
+function professionalDepthStatusLabel(status: string) {
+  if (status === "complete") {
+    return "완비";
+  }
+  if (status === "mostly_covered") {
+    return "대부분 완비";
+  }
+  if (status === "source_blocked") {
+    return "원천 차단";
+  }
+  if (status === "partial") {
+    return "일부 부족";
+  }
+  if (status === "fund_source_ready") {
+    return "펀드 근거 준비";
+  }
+  return koCode(status);
+}
+
+function professionalDepthItemTone(status: string) {
+  if (status === "complete" || status === "fund_source_ready") {
+    return "risk-low";
+  }
+  if (status === "mostly_covered" || status === "partial") {
+    return "risk-medium";
+  }
+  return "risk-high";
+}
+
 function executionIdLabel(value: string | null | undefined) {
   if (!value) {
     return "실행 기록 없음";
@@ -1088,6 +1147,7 @@ const DEFAULT_PROFESSIONAL_ANALYSIS_NEXT_ACTION: ProfessionalAnalysisNextAction 
   as_of_date: "",
   source_gap_count: 0,
   source_blocker_count: 0,
+  average_coverage_ratio: 0,
   guarded_source_blocked_recommendation_count: 0,
   managed_wait: false,
   weight_review_blocked: true,
@@ -1102,6 +1162,26 @@ const DEFAULT_PROFESSIONAL_ANALYSIS_NEXT_ACTION: ProfessionalAnalysisNextAction 
   automatic_weight_change_allowed: false,
   automatic_order_allowed: false,
   broker_submit_allowed: false,
+};
+
+const DEFAULT_PROFESSIONAL_ANALYSIS_DEPTH: ProfessionalAnalysisDepth = {
+  status: "missing",
+  as_of_date: "",
+  active_candidate_count: 0,
+  complete_candidate_count: 0,
+  source_blocked_count: 0,
+  fund_like_candidate_count: 0,
+  operating_company_candidate_count: 0,
+  average_coverage_ratio: 0,
+  weakest_coverage_ratio: 0,
+  layer_coverage: [],
+  items: [],
+  next_action: "active recommendation professional analysis depth를 먼저 계산한다.",
+  recommendation_scoring_mutated: false,
+  automatic_weight_change_allowed: false,
+  automatic_order_allowed: false,
+  broker_submit_allowed: false,
+  order_boundary: "read_only_no_order",
 };
 
 const DEFAULT_PORTFOLIO_REVIEW_FEEDBACK_CADENCE: PortfolioReviewFeedbackCadence = {
@@ -1531,6 +1611,8 @@ export default async function DataHealthPage() {
     data.recommendation_weight_review_readiness ?? DEFAULT_RECOMMENDATION_WEIGHT_REVIEW_READINESS;
   const professionalSourceGaps =
     data.professional_source_gap_prioritization ?? DEFAULT_PROFESSIONAL_SOURCE_GAP_PRIORITIZATION;
+  const professionalDepth =
+    data.professional_analysis_depth ?? DEFAULT_PROFESSIONAL_ANALYSIS_DEPTH;
   const professionalNextAction =
     data.professional_analysis_next_action ?? DEFAULT_PROFESSIONAL_ANALYSIS_NEXT_ACTION;
   const openGateDetails = data.open_gate_details ?? [];
@@ -1762,6 +1844,14 @@ export default async function DataHealthPage() {
       href: "#professional-next-action",
       cta: "다음 행동 보기",
       tone: professionalNextActionTone(professionalNextAction),
+    },
+    {
+      label: "전문 분석 깊이",
+      title: professionalDepthTitle(professionalDepth),
+      body: `active 후보 ${professionalDepth.active_candidate_count}개 중 ${professionalDepth.complete_candidate_count}개가 필요한 professional layer를 채웠고, 평균 coverage는 ${formatPercent(professionalDepth.average_coverage_ratio)}이다.`,
+      href: "#professional-analysis-depth",
+      cta: "깊이 보기",
+      tone: professionalDepthTone(professionalDepth),
     },
   ];
   const automationCards = [
@@ -2352,6 +2442,11 @@ export default async function DataHealthPage() {
             <small>원천 없으면 합성 재무 금지</small>
           </article>
           <article className="rail-cell">
+            <span>평균 coverage</span>
+            <strong>{formatPercent(professionalNextAction.average_coverage_ratio)}</strong>
+            <small>active 후보 기준</small>
+          </article>
+          <article className="rail-cell">
             <span>성과 표본</span>
             <strong>{professionalNextAction.managed_wait ? "관리된 대기" : koCode(professionalNextAction.status)}</strong>
             <small>
@@ -2396,6 +2491,115 @@ export default async function DataHealthPage() {
               {professionalNextAction.next_symbol_reason ? ` · ${professionalNextAction.next_symbol_reason}` : ""}
             </p>
           ) : null}
+        </div>
+      </section>
+
+      <section
+        className="feature-map-panel reveal delay-1"
+        id="professional-analysis-depth"
+        aria-labelledby="professional-analysis-depth-title"
+      >
+        <div className="section-heading stacked-heading">
+          <span>전문 분석 깊이</span>
+          <h2 id="professional-analysis-depth-title">
+            active 후보가 재무·피어·밸류에이션·리서치 근거를 얼마나 갖췄는지 본다.
+          </h2>
+        </div>
+        <p className="board-intro">
+          이 영역은 추천 점수를 바꾸지 않는다. 어떤 종목이 전문 분석서로 충분히 설명 가능한지, 어떤 종목은 원천 데이터 부족으로
+          판단 입력에서 제외해야 하는지만 보여준다.
+        </p>
+        <div className="status-rail compact-rail">
+          <article className="rail-cell">
+            <span>판정</span>
+            <strong className={`risk-tag ${professionalDepthTone(professionalDepth)}`}>
+              {professionalDepthTitle(professionalDepth)}
+            </strong>
+            <small>{professionalDepth.as_of_date || "기준일 없음"}</small>
+          </article>
+          <article className="rail-cell">
+            <span>active 후보</span>
+            <strong>{professionalDepth.active_candidate_count}</strong>
+            <small>개별 기업 {professionalDepth.operating_company_candidate_count} · ETF/펀드 {professionalDepth.fund_like_candidate_count}</small>
+          </article>
+          <article className="rail-cell">
+            <span>완비 후보</span>
+            <strong>{professionalDepth.complete_candidate_count}</strong>
+            <small>필요 layer 충족</small>
+          </article>
+          <article className="rail-cell">
+            <span>평균 coverage</span>
+            <strong>{formatPercent(professionalDepth.average_coverage_ratio)}</strong>
+            <small>최저 {formatPercent(professionalDepth.weakest_coverage_ratio)}</small>
+          </article>
+          <article className="rail-cell rail-critical">
+            <span>원천 차단</span>
+            <strong>{professionalDepth.source_blocked_count}</strong>
+            <small>합성 재무 금지</small>
+          </article>
+          <article className="rail-cell rail-critical">
+            <span>weight/주문 경계</span>
+            <strong>{professionalDepth.automatic_weight_change_allowed ? "weight 변경 허용" : "weight 변경 금지"}</strong>
+            <small>{koCode(professionalDepth.order_boundary)}</small>
+          </article>
+        </div>
+
+        <div className="insight-grid">
+          {professionalDepth.layer_coverage.map((layer) => (
+            <article className="insight-card" key={layer.layer_key}>
+              <span>{layer.label}</span>
+              <strong>{formatPercent(layer.coverage_ratio)}</strong>
+              <p>
+                {layer.available_count}/{layer.expected_count}개 후보가 이 근거를 갖췄다.
+              </p>
+            </article>
+          ))}
+          {professionalDepth.layer_coverage.length === 0 ? (
+            <article className="insight-card">
+              <span>layer 없음</span>
+              <strong>계산 대기</strong>
+              <p>active 후보별 재무·피어·밸류에이션·리서치 coverage를 아직 계산하지 못했다.</p>
+            </article>
+          ) : null}
+        </div>
+
+        {professionalDepth.items.length > 0 ? (
+          <div className="feature-map-grid collection-map-grid">
+            {professionalDepth.items.map((item) => (
+              <article className="feature-map-card collection-map-card" key={`${item.rank}-${item.symbol}`}>
+                <span>
+                  #{item.rank} · {item.product_type === "fund_or_etf" ? "ETF·펀드형" : "개별 기업"}
+                </span>
+                <strong>
+                  <a href={item.detail_href}>{item.symbol}</a> · {professionalDepthStatusLabel(item.depth_status)}
+                </strong>
+                <small>{item.instrument_name || "종목명 미확인"}</small>
+                <small>
+                  coverage {formatPercent(item.coverage_ratio)} · layer {item.available_layer_count}/{item.expected_layer_count}
+                </small>
+                <small>추천 연결 {item.active_recommendation_count}개 · 보유 {formatPercent(item.current_weight)}</small>
+                <small className={`risk-tag ${professionalDepthItemTone(item.depth_status)}`}>
+                  {professionalDepthStatusLabel(item.depth_status)}
+                </small>
+                {item.missing_layer_labels.length > 0 ? (
+                  <p>부족 layer: {item.missing_layer_labels.join(" · ")}</p>
+                ) : (
+                  <p>현재 기준에서 표시할 부족 layer가 없다.</p>
+                )}
+                {item.blocker_code ? <small>차단 사유 {koCode(item.blocker_code)}</small> : null}
+                {item.remediation_action ? <p>{item.remediation_action}</p> : null}
+              </article>
+            ))}
+          </div>
+        ) : (
+          <div className="empty-state">
+            active recommendation 기준으로 표시할 전문 분석 후보가 없다.
+          </div>
+        )}
+
+        <div className="empty-state">
+          <strong>다음 조치</strong>
+          <p>{professionalDepth.next_action}</p>
         </div>
       </section>
 

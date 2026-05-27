@@ -727,6 +727,86 @@ class FakeLiveExecutor:
                         "broker_submit_allowed": False,
                         "order_boundary": "read_only_no_order",
                     },
+                    "professional_analysis_depth": {
+                        "status": "source_limited",
+                        "as_of_date": "2026-05-27",
+                        "active_candidate_count": 2,
+                        "complete_candidate_count": 1,
+                        "source_blocked_count": 1,
+                        "fund_like_candidate_count": 1,
+                        "operating_company_candidate_count": 1,
+                        "average_coverage_ratio": "0.7750",
+                        "weakest_coverage_ratio": "0.5500",
+                        "layer_coverage": [
+                            {
+                                "layer_key": "financial_metric_normalized",
+                                "label": "재무 지표 정규화",
+                                "expected_count": 1,
+                                "available_count": 0,
+                            },
+                            {
+                                "layer_key": "valuation_snapshot",
+                                "label": "밸류에이션 스냅샷",
+                                "expected_count": 1,
+                                "available_count": 1,
+                            },
+                            {
+                                "layer_key": "fund_source_layers",
+                                "label": "ETF·펀드 원천",
+                                "expected_count": 1,
+                                "available_count": 1,
+                            },
+                        ],
+                        "items": [
+                            {
+                                "rank": 1,
+                                "symbol": "EROK",
+                                "instrument_id": 7001,
+                                "instrument_name": "Ero Copper Corp.",
+                                "product_type": "operating_company",
+                                "depth_status": "source_blocked",
+                                "coverage_ratio": "0.5500",
+                                "available_layer_count": 3,
+                                "expected_layer_count": 8,
+                                "missing_layer_count": 5,
+                                "missing_layers": [
+                                    "financial_metric_normalized",
+                                    "valuation_snapshot",
+                                    "equity_research_artifact",
+                                ],
+                                "blocker_type": "source_blocker",
+                                "blocker_code": "sec_companyfacts_missing_us_gaap_facts",
+                                "active_recommendation_count": 1,
+                                "current_weight": "0.0410",
+                                "remediation_action": "첫 periodic filing 전까지 전문 판단 입력에서 제외한다.",
+                                "detail_href": "/stocks/EROK",
+                            },
+                            {
+                                "rank": 2,
+                                "symbol": "SPY",
+                                "instrument_id": 7002,
+                                "instrument_name": "SPDR S&P 500 ETF Trust",
+                                "product_type": "fund_or_etf",
+                                "depth_status": "complete",
+                                "coverage_ratio": "1.0000",
+                                "available_layer_count": 5,
+                                "expected_layer_count": 5,
+                                "missing_layer_count": 0,
+                                "missing_layers": [],
+                                "blocker_type": "fund_not_applicable",
+                                "blocker_code": "fund_company_financial_model_not_applicable",
+                                "active_recommendation_count": 1,
+                                "current_weight": "0.0000",
+                                "remediation_action": "fund/ETF 원천으로 검토한다.",
+                                "detail_href": "/stocks/SPY",
+                            },
+                        ],
+                        "recommendation_scoring_mutated": False,
+                        "automatic_weight_change_allowed": False,
+                        "automatic_order_allowed": False,
+                        "broker_submit_allowed": False,
+                        "order_boundary": "read_only_no_order",
+                    },
                     "open_gates": [
                         "production_api_server",
                         "auth_rbac",
@@ -4515,10 +4595,25 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertFalse(source_gaps["broker_submit_allowed"])
         self.assertFalse(source_gaps["attention_required"])
         self.assertNotIn("professional_source_gap_attention", payload["data"]["open_gates"])
+        professional_depth = payload["data"]["professional_analysis_depth"]
+        self.assertEqual(professional_depth["status"], "source_limited")
+        self.assertEqual(professional_depth["active_candidate_count"], 2)
+        self.assertEqual(professional_depth["complete_candidate_count"], 1)
+        self.assertEqual(professional_depth["source_blocked_count"], 1)
+        self.assertEqual(professional_depth["average_coverage_ratio"], 0.775)
+        self.assertEqual(professional_depth["layer_coverage"][0]["coverage_ratio"], 0.0)
+        self.assertEqual(professional_depth["layer_coverage"][1]["coverage_ratio"], 1.0)
+        self.assertEqual(professional_depth["items"][0]["symbol"], "EROK")
+        self.assertEqual(professional_depth["items"][0]["depth_status"], "source_blocked")
+        self.assertIn("재무 지표 정규화", professional_depth["items"][0]["missing_layer_labels"])
+        self.assertFalse(professional_depth["automatic_weight_change_allowed"])
+        self.assertFalse(professional_depth["broker_submit_allowed"])
+        self.assertEqual(professional_depth["order_boundary"], "read_only_no_order")
         professional_next = payload["data"]["professional_analysis_next_action"]
         self.assertEqual(professional_next["status"], "managed_outcome_wait")
         self.assertTrue(professional_next["managed_wait"])
         self.assertTrue(professional_next["weight_review_blocked"])
+        self.assertEqual(professional_next["average_coverage_ratio"], 0.775)
         self.assertEqual(professional_next["next_symbol"], "EROK")
         self.assertFalse(professional_next["automatic_weight_change_allowed"])
         self.assertFalse(professional_next["broker_submit_allowed"])
@@ -5580,12 +5675,16 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertIn("recommendation-weight-review-readiness-v1", sql)
         self.assertIn("professional_gap_active_recommendations", sql)
         self.assertIn("professional_source_gap_prioritization", sql)
+        self.assertIn("professional_analysis_depth", sql)
+        self.assertIn("professional_analysis_depth_summary", sql)
+        self.assertIn("professional_analysis_depth_ranked", sql)
         self.assertIn("professional_gap_raw_filing_decision", sql)
         self.assertIn("professional_source_blocker_raw_filing_remediation", sql)
         self.assertIn("professional-source-blocker-raw-filing-remediation-v1", sql)
         self.assertIn("fund_company_financial_model_not_applicable", sql)
         self.assertIn("sec_companyfacts_missing_us_gaap_facts", sql)
         self.assertIn("professional-coverage-expansion-run", sql)
+        self.assertIn("coverage_ratio", sql)
 
     def test_portfolio_review_decision_history_sql_reads_eval_artifact_without_mutation(self) -> None:
         sql = render_frontend_portfolio_review_decision_history_state_sql(portfolio_name="Long Term Paper")

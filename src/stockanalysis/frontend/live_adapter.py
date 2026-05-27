@@ -1296,8 +1296,12 @@ def build_live_data_health_response(
     professional_source_gap_prioritization = _build_professional_source_gap_prioritization_payload(
         _as_dict(state.get("professional_source_gap_prioritization"))
     )
+    professional_analysis_depth = _build_professional_analysis_depth_payload(
+        _as_dict(state.get("professional_analysis_depth"))
+    )
     professional_analysis_next_action = _build_professional_analysis_next_action_payload(
         professional_source_gap_prioritization=professional_source_gap_prioritization,
+        professional_analysis_depth=professional_analysis_depth,
         portfolio_review_feedback_calibration=portfolio_review_feedback_calibration,
         recommendation_outcome_maturity=recommendation_outcome_maturity,
         recommendation_weight_review_readiness=recommendation_weight_review_readiness,
@@ -1434,6 +1438,7 @@ def build_live_data_health_response(
             "recommendation_outcome_due_action_router": recommendation_outcome_due_action_router,
             "recommendation_weight_review_readiness": recommendation_weight_review_readiness,
             "professional_source_gap_prioritization": professional_source_gap_prioritization,
+            "professional_analysis_depth": professional_analysis_depth,
             "professional_analysis_next_action": professional_analysis_next_action,
             "open_gates": open_gates,
             "open_gate_details": open_gate_details,
@@ -5382,6 +5387,13 @@ professional_gap_scored as (
     select
         classified.*,
         cardinality(missing_layers)::integer as missing_layer_count,
+        (case when is_fund_like then 5 else 8 end)::integer as expected_layer_count,
+        greatest((case when is_fund_like then 5 else 8 end) - cardinality(missing_layers), 0)::integer
+            as available_layer_count,
+        (
+            greatest((case when is_fund_like then 5 else 8 end) - cardinality(missing_layers), 0)::numeric
+            / nullif((case when is_fund_like then 5 else 8 end)::numeric, 0)
+        )::numeric(8,4) as coverage_ratio,
         (
             cardinality(missing_layers) * 10
             + active_recommendation_count * 5
@@ -5409,6 +5421,13 @@ professional_gap_scored as (
             when cardinality(missing_layers) > 0 then 'medium'
             else 'watch'
         end as priority_band,
+        case
+            when blocker_code is not null and not is_fund_like then 'source_blocked'
+            when cardinality(missing_layers) = 0 then 'complete'
+            when is_fund_like then 'fund_source_gap'
+            when cardinality(missing_layers) >= 4 then 'deep_gap'
+            else 'partial_gap'
+        end as depth_status,
         case
             when is_fund_like and 'fund_benchmark_composition' = any(missing_layers)
                 then 'benchmark-composition-ssga-spdr-import-run으로 무료 공식 holdings/benchmark 구성을 먼저 적재한다.'
@@ -5474,6 +5493,38 @@ professional_source_gap_summary as (
         count(*) filter (where blocker_type = 'coverage_gap')::integer as coverage_gap_count,
         coalesce(max(priority_score), 0)::numeric(12,4) as top_priority_score
     from professional_source_gap_ranked
+),
+professional_analysis_depth_ranked as (
+    select
+        row_number() over (
+            order by
+                case depth_status
+                    when 'source_blocked' then 0
+                    when 'deep_gap' then 1
+                    when 'fund_source_gap' then 2
+                    when 'partial_gap' then 3
+                    else 4
+                end,
+                coverage_ratio asc,
+                priority_score desc,
+                primary_symbol
+        )::integer as depth_rank,
+        *
+    from professional_gap_scored
+),
+professional_analysis_depth_summary as (
+    select
+        count(*)::integer as active_candidate_count,
+        count(*) filter (
+            where missing_layer_count = 0
+              and blocker_type <> 'source_blocker'
+        )::integer as complete_candidate_count,
+        count(*) filter (where blocker_type = 'source_blocker')::integer as source_blocked_count,
+        count(*) filter (where is_fund_like)::integer as fund_like_candidate_count,
+        count(*) filter (where not is_fund_like)::integer as operating_company_candidate_count,
+        coalesce(avg(coverage_ratio), 0)::numeric(8,4) as average_coverage_ratio,
+        coalesce(min(coverage_ratio), 0)::numeric(8,4) as weakest_coverage_ratio
+    from professional_gap_scored
 ),
 selected_recommendation_weight_review_readiness as (
     select eval_run.*
@@ -6170,6 +6221,139 @@ select json_build_object(
             'automatic_weight_change_allowed', false,
             'automatic_order_allowed', false,
             'broker_submit_allowed', false
+        )
+    ),
+    'professional_analysis_depth',
+    coalesce(
+        (
+            select json_build_object(
+                'status',
+                case
+                    when summary.active_candidate_count = 0 then 'missing_active_candidates'
+                    when summary.source_blocked_count > 0 then 'source_limited'
+                    when summary.complete_candidate_count = summary.active_candidate_count then 'complete'
+                    when summary.average_coverage_ratio >= 0.75 then 'mostly_covered'
+                    else 'coverage_gaps_present'
+                end,
+                'as_of_date', current_date::text,
+                'active_candidate_count', summary.active_candidate_count,
+                'complete_candidate_count', summary.complete_candidate_count,
+                'source_blocked_count', summary.source_blocked_count,
+                'fund_like_candidate_count', summary.fund_like_candidate_count,
+                'operating_company_candidate_count', summary.operating_company_candidate_count,
+                'average_coverage_ratio', summary.average_coverage_ratio,
+                'weakest_coverage_ratio', summary.weakest_coverage_ratio,
+                'layer_coverage',
+                json_build_array(
+                    json_build_object(
+                        'layer_key', 'financial_metric_normalized',
+                        'label', '재무 지표',
+                        'expected_count', (select count(*)::integer from professional_gap_scored where not is_fund_like),
+                        'available_count', (select count(*)::integer from professional_gap_scored where not is_fund_like and has_financial_metrics)
+                    ),
+                    json_build_object(
+                        'layer_key', 'peer_relative_snapshot',
+                        'label', '피어 비교',
+                        'expected_count', (select count(*)::integer from professional_gap_scored where not is_fund_like),
+                        'available_count', (select count(*)::integer from professional_gap_scored where not is_fund_like and has_peer_relative)
+                    ),
+                    json_build_object(
+                        'layer_key', 'valuation_snapshot',
+                        'label', '밸류에이션',
+                        'expected_count', (select count(*)::integer from professional_gap_scored where not is_fund_like),
+                        'available_count', (select count(*)::integer from professional_gap_scored where not is_fund_like and has_valuation_snapshot)
+                    ),
+                    json_build_object(
+                        'layer_key', 'industry_competitive_position',
+                        'label', '산업 경쟁 포지션',
+                        'expected_count', (select count(*)::integer from professional_gap_scored where not is_fund_like),
+                        'available_count', (select count(*)::integer from professional_gap_scored where not is_fund_like and has_industry_competitive_position)
+                    ),
+                    json_build_object(
+                        'layer_key', 'equity_research_artifact',
+                        'label', 'AI 리서치 노트',
+                        'expected_count', (select count(*)::integer from professional_gap_scored where not is_fund_like),
+                        'available_count', (select count(*)::integer from professional_gap_scored where not is_fund_like and has_equity_research_artifact)
+                    ),
+                    json_build_object(
+                        'layer_key', 'active_thesis',
+                        'label', '활성 thesis',
+                        'expected_count', (select count(*)::integer from professional_gap_scored),
+                        'available_count', (select count(*)::integer from professional_gap_scored where has_active_thesis)
+                    ),
+                    json_build_object(
+                        'layer_key', 'fund_source_layers',
+                        'label', 'ETF·펀드 source',
+                        'expected_count', (select count(*)::integer from professional_gap_scored where is_fund_like),
+                        'available_count',
+                            (select count(*)::integer
+                             from professional_gap_scored
+                             where is_fund_like
+                               and has_fund_benchmark_composition
+                               and has_fund_expense_ratio
+                               and has_fund_nav_premium_discount
+                               and has_fund_tracking_difference)
+                    )
+                ),
+                'items',
+                coalesce(
+                    (
+                        select json_agg(
+                            json_build_object(
+                                'rank', item.depth_rank,
+                                'symbol', item.primary_symbol,
+                                'instrument_id', item.instrument_id,
+                                'instrument_name', item.instrument_name,
+                                'product_type', case when item.is_fund_like then 'fund_or_etf' else 'operating_company' end,
+                                'depth_status', item.depth_status,
+                                'coverage_ratio', item.coverage_ratio,
+                                'available_layer_count', item.available_layer_count,
+                                'expected_layer_count', item.expected_layer_count,
+                                'missing_layer_count', item.missing_layer_count,
+                                'missing_layers', item.missing_layers,
+                                'blocker_type', item.blocker_type,
+                                'blocker_code', coalesce(item.blocker_code, ''),
+                                'active_recommendation_count', item.active_recommendation_count,
+                                'current_weight', item.current_weight,
+                                'remediation_action', item.remediation_action,
+                                'detail_href', '/stocks/' || item.primary_symbol
+                            )
+                            order by item.depth_rank
+                        )
+                        from (
+                            select *
+                            from professional_analysis_depth_ranked
+                            order by depth_rank
+                            limit 10
+                        ) item
+                    ),
+                    '[]'::json
+                ),
+                'recommendation_scoring_mutated', false,
+                'automatic_weight_change_allowed', false,
+                'automatic_order_allowed', false,
+                'broker_submit_allowed', false,
+                'order_boundary', 'read_only_no_order'
+            )
+            from professional_analysis_depth_summary summary
+        ),
+        json_build_object(
+            'status', 'missing',
+            'as_of_date', current_date::text,
+            'active_candidate_count', 0,
+            'complete_candidate_count', 0,
+            'source_blocked_count', 0,
+            'fund_like_candidate_count', 0,
+            'operating_company_candidate_count', 0,
+            'average_coverage_ratio', 0,
+            'weakest_coverage_ratio', 0,
+            'layer_coverage', '[]'::json,
+            'items', '[]'::json,
+            'recommendation_scoring_mutated', false,
+            'automatic_weight_change_allowed', false,
+            'automatic_order_allowed', false,
+            'broker_submit_allowed', false,
+            'order_boundary', 'read_only_no_order'
         )
     ),
     'professional_source_gap_prioritization',
@@ -14827,6 +15011,7 @@ def _build_professional_source_gap_prioritization_payload(payload: dict[str, Any
 def _build_professional_analysis_next_action_payload(
     *,
     professional_source_gap_prioritization: Mapping[str, Any],
+    professional_analysis_depth: Mapping[str, Any],
     portfolio_review_feedback_calibration: Mapping[str, Any],
     recommendation_outcome_maturity: Mapping[str, Any],
     recommendation_weight_review_readiness: Mapping[str, Any],
@@ -14852,10 +15037,12 @@ def _build_professional_analysis_next_action_payload(
         status = "managed_outcome_wait"
         title = "전문 분석은 관리 중, 성과 표본 대기"
         wait_until = str(portfolio_review_feedback_calibration.get("estimated_maturity_date") or "")
+        average_coverage = _number(professional_analysis_depth.get("average_coverage_ratio"))
         summary = (
-            f"원천 한계는 guardrail로 관리 중이고, 추천 weight 검토는 {wait_until} 이후 성과 표본을 보고 판단한다."
+            f"전문 분석 평균 coverage는 {_format_percent_text(average_coverage)}이고, "
+            f"추천 weight 검토는 {wait_until} 이후 성과 표본을 보고 판단한다."
             if wait_until
-            else "원천 한계는 guardrail로 관리 중이고, 추천 weight 검토는 성과 표본이 성숙할 때까지 기다린다."
+            else f"전문 분석 평균 coverage는 {_format_percent_text(average_coverage)}이고, 추천 weight 검토는 성과 표본이 성숙할 때까지 기다린다."
         )
         next_action = str(
             portfolio_review_feedback_calibration.get("next_calibration_action")
@@ -14900,6 +15087,7 @@ def _build_professional_analysis_next_action_payload(
         ),
         "source_gap_count": int(professional_source_gap_prioritization.get("gap_count") or 0),
         "source_blocker_count": int(professional_source_gap_prioritization.get("source_blocker_count") or 0),
+        "average_coverage_ratio": _number(professional_analysis_depth.get("average_coverage_ratio")) or 0.0,
         "guarded_source_blocked_recommendation_count": int(
             professional_source_gap_prioritization.get("guarded_source_blocked_recommendation_count") or 0
         ),
@@ -14928,11 +15116,12 @@ def _build_professional_analysis_next_action_payload(
             {
                 "key": "valuation_and_research",
                 "label": "재무·밸류에이션·리서치",
-                "status": "source_limited" if source_blocked_gaps else "available_or_not_applicable",
+                "status": str(professional_analysis_depth.get("status") or ("source_limited" if source_blocked_gaps else "available_or_not_applicable")),
                 "detail": (
-                    "원천 차단 종목은 합성 재무를 만들지 않고 제외한다."
+                    f"active 후보 {professional_analysis_depth.get('active_candidate_count') or 0}개 중 "
+                    f"{professional_analysis_depth.get('complete_candidate_count') or 0}개가 필요한 professional layer를 채웠다."
                     if source_blocked_gaps
-                    else "현재 active recommendation 기준 주요 전문 분석 layer가 관리 중이다."
+                    else f"평균 coverage {_format_percent_text(_number(professional_analysis_depth.get('average_coverage_ratio')))}."
                 ),
             },
             {
@@ -14960,6 +15149,97 @@ def _build_professional_analysis_next_action_payload(
         "automatic_order_allowed": False,
         "broker_submit_allowed": False,
     }
+
+
+def _build_professional_analysis_depth_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    raw_items = [_as_dict(item) for item in _as_list(payload.get("items"))]
+    items = [_build_professional_analysis_depth_item_payload(item) for item in raw_items[:10]]
+    active_candidate_count = int(_safe_number(payload.get("active_candidate_count")) or 0)
+    complete_candidate_count = int(_safe_number(payload.get("complete_candidate_count")) or 0)
+    source_blocked_count = int(_safe_number(payload.get("source_blocked_count")) or 0)
+    average_coverage_ratio = _safe_number(payload.get("average_coverage_ratio")) or 0.0
+    status = str(payload.get("status") or "missing")
+    if status == "missing" and active_candidate_count > 0:
+        status = "coverage_gaps_present"
+    return {
+        "status": status,
+        "as_of_date": str(payload.get("as_of_date") or ""),
+        "active_candidate_count": active_candidate_count,
+        "complete_candidate_count": complete_candidate_count,
+        "source_blocked_count": source_blocked_count,
+        "fund_like_candidate_count": int(_safe_number(payload.get("fund_like_candidate_count")) or 0),
+        "operating_company_candidate_count": int(_safe_number(payload.get("operating_company_candidate_count")) or 0),
+        "average_coverage_ratio": average_coverage_ratio,
+        "weakest_coverage_ratio": _safe_number(payload.get("weakest_coverage_ratio")) or 0.0,
+        "layer_coverage": [
+            {
+                "layer_key": str(item.get("layer_key") or ""),
+                "label": str(item.get("label") or _professional_source_layer_label(str(item.get("layer_key") or ""))),
+                "expected_count": int(_safe_number(item.get("expected_count")) or 0),
+                "available_count": int(_safe_number(item.get("available_count")) or 0),
+                "coverage_ratio": (
+                    (int(_safe_number(item.get("available_count")) or 0) / int(_safe_number(item.get("expected_count")) or 1))
+                    if int(_safe_number(item.get("expected_count")) or 0) > 0
+                    else 1.0
+                ),
+            }
+            for item in _as_list(payload.get("layer_coverage"))
+        ],
+        "items": items,
+        "next_action": _professional_analysis_depth_next_action(
+            status=status,
+            source_blocked_count=source_blocked_count,
+            complete_candidate_count=complete_candidate_count,
+            active_candidate_count=active_candidate_count,
+        ),
+        "recommendation_scoring_mutated": payload.get("recommendation_scoring_mutated") is True,
+        "automatic_weight_change_allowed": payload.get("automatic_weight_change_allowed") is True,
+        "automatic_order_allowed": payload.get("automatic_order_allowed") is True,
+        "broker_submit_allowed": payload.get("broker_submit_allowed") is True,
+        "order_boundary": str(payload.get("order_boundary") or "read_only_no_order"),
+    }
+
+
+def _build_professional_analysis_depth_item_payload(item: dict[str, Any]) -> dict[str, Any]:
+    missing_layers = [str(value) for value in _as_list_or_scalars(item.get("missing_layers")) if value]
+    return {
+        "rank": int(_safe_number(item.get("rank")) or 0),
+        "symbol": str(item.get("symbol") or "").upper(),
+        "instrument_id": _opaque_id("instrument", item.get("instrument_id"), None),
+        "instrument_name": str(item.get("instrument_name") or ""),
+        "product_type": str(item.get("product_type") or "operating_company"),
+        "depth_status": str(item.get("depth_status") or "unknown"),
+        "coverage_ratio": _safe_number(item.get("coverage_ratio")) or 0.0,
+        "available_layer_count": int(_safe_number(item.get("available_layer_count")) or 0),
+        "expected_layer_count": int(_safe_number(item.get("expected_layer_count")) or 0),
+        "missing_layer_count": int(_safe_number(item.get("missing_layer_count")) or len(missing_layers)),
+        "missing_layers": missing_layers,
+        "missing_layer_labels": [_professional_source_layer_label(layer) for layer in missing_layers],
+        "blocker_type": str(item.get("blocker_type") or ""),
+        "blocker_code": str(item.get("blocker_code") or ""),
+        "active_recommendation_count": int(_safe_number(item.get("active_recommendation_count")) or 0),
+        "current_weight": _safe_number(item.get("current_weight")),
+        "remediation_action": str(item.get("remediation_action") or ""),
+        "detail_href": str(item.get("detail_href") or f"/stocks/{str(item.get('symbol') or '').upper()}"),
+    }
+
+
+def _professional_analysis_depth_next_action(
+    *,
+    status: str,
+    source_blocked_count: int,
+    complete_candidate_count: int,
+    active_candidate_count: int,
+) -> str:
+    if active_candidate_count == 0:
+        return "active recommendation이 생긴 뒤 professional analysis depth를 계산한다."
+    if source_blocked_count > 0:
+        return "source-blocked 종목은 합성 재무를 만들지 말고 periodic filing 또는 전용 parser가 생길 때까지 전문 판단 입력에서 제외한다."
+    if complete_candidate_count < active_candidate_count:
+        return "coverage가 낮은 active 후보부터 professional-coverage-expansion-run으로 재무·피어·밸류에이션·리서치 layer를 보강한다."
+    if status == "complete":
+        return "professional layer는 충족됐다. 추천 weight는 outcome calibration 기준이 성숙할 때까지 그대로 둔다."
+    return "professional analysis depth를 주기적으로 감시한다."
 
 
 def _professional_source_gap_requires_attention(payload: Mapping[str, Any]) -> bool:

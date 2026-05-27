@@ -526,6 +526,7 @@ export type DataHealthData = {
     order_boundary: string;
   };
   professional_analysis_next_action: ProfessionalAnalysisNextAction;
+  professional_analysis_depth: ProfessionalAnalysisDepth;
   open_gates: string[];
   open_gate_details?: Array<{
     gate_id: string;
@@ -2361,6 +2362,7 @@ export type ProfessionalAnalysisNextAction = {
   as_of_date: string;
   source_gap_count: number;
   source_blocker_count: number;
+  average_coverage_ratio: number;
   guarded_source_blocked_recommendation_count: number;
   managed_wait: boolean;
   weight_review_blocked: boolean;
@@ -2380,6 +2382,51 @@ export type ProfessionalAnalysisNextAction = {
   automatic_weight_change_allowed: boolean;
   automatic_order_allowed: boolean;
   broker_submit_allowed: boolean;
+};
+
+export type ProfessionalAnalysisDepth = {
+  status: string;
+  as_of_date: string;
+  active_candidate_count: number;
+  complete_candidate_count: number;
+  source_blocked_count: number;
+  fund_like_candidate_count: number;
+  operating_company_candidate_count: number;
+  average_coverage_ratio: number;
+  weakest_coverage_ratio: number;
+  layer_coverage: Array<{
+    layer_key: string;
+    label: string;
+    expected_count: number;
+    available_count: number;
+    coverage_ratio: number;
+  }>;
+  items: Array<{
+    rank: number;
+    symbol: string;
+    instrument_id: string;
+    instrument_name: string;
+    product_type: string;
+    depth_status: string;
+    coverage_ratio: number;
+    available_layer_count: number;
+    expected_layer_count: number;
+    missing_layer_count: number;
+    missing_layers: string[];
+    missing_layer_labels: string[];
+    blocker_type: string;
+    blocker_code: string;
+    active_recommendation_count: number;
+    current_weight: number | null;
+    remediation_action: string;
+    detail_href: string;
+  }>;
+  next_action: string;
+  recommendation_scoring_mutated: boolean;
+  automatic_weight_change_allowed: boolean;
+  automatic_order_allowed: boolean;
+  broker_submit_allowed: boolean;
+  order_boundary: string;
 };
 
 export type PortfolioReviewFeedbackCadence = {
