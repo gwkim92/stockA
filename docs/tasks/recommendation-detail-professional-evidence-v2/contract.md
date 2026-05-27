@@ -42,8 +42,8 @@
 
 ## Done Criteria
 
-- [ ] `/api/recommendations/{id}` includes `professional_evidence_audit`.
-- [ ] Audit payload shows layer checks, source blocker, paper validation, scoring boundary, and order boundary.
-- [ ] `/recommendations/{id}` renders the recommendation-level professional audit in Korean.
-- [ ] Local verification passes.
-- [ ] EC2 route smoke confirms live rendering.
+- [x] `/api/recommendations/{id}` includes `professional_evidence_audit`.
+- [x] Audit payload shows layer checks, source blocker, paper validation, scoring boundary, and order boundary.
+- [x] `/recommendations/{id}` renders the recommendation-level professional audit in Korean.
+- [x] Local verification passes.
+- [x] EC2 route smoke confirms live rendering.
