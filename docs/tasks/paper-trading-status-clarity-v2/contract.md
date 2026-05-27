@@ -38,8 +38,8 @@
 
 ## Done Criteria
 
-- [ ] `/paper-trading` clearly labels current state as simulation/blocked/no live order.
-- [ ] Candidate table labels paper actions as simulated actions.
-- [ ] Blocked reasons and next steps are visible before detailed tables.
-- [ ] Local frontend verification passes.
-- [ ] EC2 and local tunnel route smoke pass.
+- [x] `/paper-trading` clearly labels current state as simulation/blocked/no live order.
+- [x] Candidate table labels paper actions as simulated actions.
+- [x] Blocked reasons and next steps are visible before detailed tables.
+- [x] Local frontend verification passes.
+- [x] EC2 and local tunnel route smoke pass.
