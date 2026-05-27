@@ -1689,7 +1689,7 @@ const DEFAULT_DATA_OPERATIONS_ARTIFACT_RUNNER: DataOperationsArtifactRunner = {
   latest_artifact_root: "",
   order_boundary: "read_only_no_order",
   automatic_action_allowed: false,
-  next_action: "artifact runner를 통해 성공한 data operation run evidence를 먼저 생성한다.",
+  next_action: "실행 증거 저장기를 통해 성공한 데이터 작업 기록을 먼저 생성한다.",
 };
 
 export default async function DataHealthPage() {
@@ -1763,7 +1763,7 @@ export default async function DataHealthPage() {
   const failedPipelines = data.pipeline_runs.filter((run) =>
     ["missing", "stale", "failed"].includes(run.health_status),
   ).length;
-  const decisionCards = [
+	  const decisionCards = [
     {
       label: "지금 판단",
       title:
@@ -1813,7 +1813,7 @@ export default async function DataHealthPage() {
         : `${profileScheduler.active_timer_count}/${profileScheduler.timer_count}개 예약 실행`,
       body: artifactRunner.attention_required
         ? artifactRunner.next_action
-        : `artifact runner가 ${artifactRunner.latest_run_count}개 최신 실행 증거와 ${artifactRunner.artifact_policy_count}/${artifactRunner.job_count}개 artifact 정책을 남기고 있다.`,
+        : `실행 증거 저장기가 ${artifactRunner.latest_run_count}개 최신 실행 증거와 ${artifactRunner.artifact_policy_count}/${artifactRunner.job_count}개 저장 정책을 남기고 있다.`,
       href: "#scheduler-detail",
       cta: "스케줄 보기",
       tone: artifactRunner.attention_required
@@ -1988,15 +1988,24 @@ export default async function DataHealthPage() {
       tone: professionalNextActionTone(professionalNextAction),
     },
     {
-      label: "전문 분석 깊이",
-      title: professionalDepthTitle(professionalDepth),
-      body: `active 후보 ${professionalDepth.active_candidate_count}개 중 ${professionalDepth.complete_candidate_count}개가 필요한 professional layer를 채웠고, 평균 coverage는 ${formatPercent(professionalDepth.average_coverage_ratio)}이다.`,
-      href: "#professional-analysis-depth",
-      cta: "깊이 보기",
-      tone: professionalDepthTone(professionalDepth),
-    },
-  ];
-  const automationCards = [
+	      label: "전문 분석 깊이",
+	      title: professionalDepthTitle(professionalDepth),
+	      body: `active 후보 ${professionalDepth.active_candidate_count}개 중 ${professionalDepth.complete_candidate_count}개가 필요한 professional layer를 채웠고, 평균 coverage는 ${formatPercent(professionalDepth.average_coverage_ratio)}이다.`,
+	      href: "#professional-analysis-depth",
+	      cta: "깊이 보기",
+	      tone: professionalDepthTone(professionalDepth),
+	    },
+	  ];
+	  const priorityDecisionLabels = new Set([
+	    "지금 판단",
+	    "자동화",
+	    "무료 API 예산",
+	    "품질 감사",
+	    "AI 회귀평가",
+	  ]);
+	  const priorityDecisionCards = decisionCards.filter((card) => priorityDecisionLabels.has(card.label));
+	  const detailDecisionCards = decisionCards.filter((card) => !priorityDecisionLabels.has(card.label));
+	  const automationCards = [
     {
       title: "주식 캔들 수집",
       run: marketPriceRun,
@@ -2015,7 +2024,7 @@ export default async function DataHealthPage() {
       title: "AI 분석",
       run: aiRun,
       fallbackCadence: "장중 · 2시간마다",
-      description: "수집 문서를 구조화하고 AI 근거 기록을 남긴다. 중요 뉴스는 Codex OAuth 배치 후보로 분석하고, 뉴스 묶음은 무료 로컬 규칙 보조 증거로 남긴다.",
+      description: "수집 문서를 구조화하고 AI 근거 기록을 남긴다. 중요 뉴스는 AI 배치 분석 후보로 처리하고, 뉴스 묶음은 무료 로컬 규칙 보조 증거로 남긴다.",
       detail: "AI는 근거를 정리하지만 매수·매도·주문 결론을 자동 실행하지 않는다.",
     },
   ];
@@ -2041,7 +2050,7 @@ export default async function DataHealthPage() {
       title: "AI 근거 생성",
       run: aiRun,
       owner: "event-intelligence-weekly",
-      output: "중요 뉴스만 Codex OAuth 배치로 분석해 종목·테마·방향·근거 후보를 AI 분석 기록에 남긴다.",
+      output: "중요 뉴스만 AI 배치 분석으로 처리해 종목·테마·방향·근거 후보를 AI 분석 기록에 남긴다.",
       next: "검증을 통과한 근거만 표준 뉴스 영향으로 반영한다. 매수·매도·주문 결론은 여기서 만들지 않는다.",
     },
     {
@@ -2087,7 +2096,7 @@ export default async function DataHealthPage() {
     },
     {
       index: "04",
-      title: "Codex OAuth 분석",
+      title: "AI 배치 분석",
       run: aiRun,
       purpose: "중요 뉴스를 구조화해 근거 후보를 만든다.",
       check: "화면을 열 때마다 AI를 새로 호출하지 않고 저장된 결과만 읽는다.",
@@ -2222,16 +2231,51 @@ export default async function DataHealthPage() {
         </article>
       </section>
 
-      <section className="decision-brief-grid reveal delay-1" aria-label="데이터 수집 판단 요약">
-        {decisionCards.map((card) => (
-          <a className="decision-brief-card data-decision-card" href={card.href} key={card.label}>
-            <span>{card.label}</span>
-            <strong className={`risk-tag ${card.tone}`}>{card.title}</strong>
-            <p>{card.body}</p>
-            <small>{card.cta}</small>
-          </a>
-        ))}
-      </section>
+	      <section className="feature-map-panel reveal delay-1" aria-labelledby="priority-status-title">
+	        <div className="section-heading stacked-heading">
+	          <span>먼저 볼 상태</span>
+	          <h2 id="priority-status-title">이 5개만 먼저 보면 된다</h2>
+	          <p>
+	            운영 로그를 먼저 읽지 않는다. 수집이 정상인지, 자동화가 돌고 있는지, 뉴스 AI 품질과 전문 분석 근거가
+	            추천 판단에 쓸 수 있는 상태인지부터 확인한다. 성과·포트폴리오·전문분석 상세는 접힌 영역에서 이어서 본다.
+	          </p>
+	        </div>
+	        <div className="decision-brief-grid" aria-label="데이터 수집 우선 판단 요약">
+	          {priorityDecisionCards.map((card) => (
+	            <a className="decision-brief-card data-decision-card" href={card.href} key={card.label}>
+	              <span>{card.label}</span>
+	              <strong className={`risk-tag ${card.tone}`}>{card.title}</strong>
+	              <p>{card.body}</p>
+	              <small>{card.cta}</small>
+	            </a>
+	          ))}
+	        </div>
+	      </section>
+
+	      <section className="feature-map-panel reveal delay-1" aria-labelledby="collection-status-title">
+	        <div className="section-heading stacked-heading">
+	          <span>수집/분석별 상태</span>
+	          <h2 id="collection-status-title">무엇이 언제 돌았고, 어디에 쓰이는지 먼저 본다</h2>
+	        </div>
+	        <p className="board-intro">
+	          주식 캔들, 뉴스 원문, 1차 분류, AI 분석, 추천 갱신, 보유 검토가 각각 따로 돈다.
+	          문제가 있는 데이터가 있으면 해당 화면의 판단을 낮게 신뢰해야 한다.
+	        </p>
+	        <div className="feature-map-grid collection-map-grid">
+	          {collectionStatusCards.map((card) => (
+	            <article className="feature-map-card collection-map-card" key={card.index}>
+	              <span>{card.index}</span>
+	              <strong>{card.title}</strong>
+	              <em className={`risk-tag ${statusRiskClass(card.run?.health_status ?? "missing")}`}>
+	                {runStateLabel(card.run)}
+	              </em>
+	              <small>{card.purpose}</small>
+	              <small>{card.check}</small>
+	              <small>최근 완료: {finishedAtLabel(card.run)}</small>
+	            </article>
+	          ))}
+	        </div>
+	      </section>
 
       <section className="feature-map-panel reveal delay-1" id="quality-audit" aria-labelledby="quality-audit-title">
         <div className="section-heading stacked-heading">
@@ -2316,9 +2360,9 @@ export default async function DataHealthPage() {
         </div>
       </section>
 
-      <section
-        className="feature-map-panel reveal delay-1"
-        id="news-ai-eval-quality"
+	      <section
+	        className="feature-map-panel reveal delay-1"
+	        id="news-ai-eval-quality"
         aria-labelledby="news-ai-eval-quality-title"
       >
         <div className="section-heading stacked-heading">
@@ -2426,12 +2470,36 @@ export default async function DataHealthPage() {
         <div className="empty-state">
           <strong>다음 조치</strong>
           <p>{koCode(newsAiEvalQuality.next_action)}</p>
-        </div>
-      </section>
+	        </div>
+	      </section>
 
-      <section
-        className="feature-map-panel reveal delay-1"
-        id="outcome-maturity-wait-monitor"
+	      <details className="operator-details-panel reveal delay-2">
+	        <summary>
+	          <span>세부 판단 카드</span>
+	          <strong>성과, 포트폴리오 검토, 전문 분석 세부 상태 {detailDecisionCards.length}개</strong>
+	        </summary>
+	        <div className="decision-brief-grid details-inner" aria-label="데이터 수집 세부 판단 요약">
+	          {detailDecisionCards.map((card) => (
+	            <a className="decision-brief-card data-decision-card" href={card.href} key={card.label}>
+	              <span>{card.label}</span>
+	              <strong className={`risk-tag ${card.tone}`}>{card.title}</strong>
+	              <p>{card.body}</p>
+	              <small>{card.cta}</small>
+	            </a>
+	          ))}
+	        </div>
+	      </details>
+
+	      <details className="operator-details-panel reveal delay-2" id="investment-quality-details">
+	        <summary>
+	          <span>투자 품질·성과 상세</span>
+	          <strong>성과검증, 전문 분석, 포트폴리오 검토 기록</strong>
+	        </summary>
+	        <div className="details-inner">
+
+	      <section
+	        className="feature-map-panel reveal delay-1"
+	        id="outcome-maturity-wait-monitor"
         aria-labelledby="outcome-maturity-wait-monitor-title"
       >
         <div className="section-heading stacked-heading">
@@ -3709,13 +3777,16 @@ export default async function DataHealthPage() {
             </p>
           </article>
         </div>
-        <div className="empty-state">
-          <strong>다음 조치</strong>
-          <p>{portfolioReviewActionRouter.next_action}</p>
-        </div>
-      </section>
+	        <div className="empty-state">
+	          <strong>다음 조치</strong>
+	          <p>{portfolioReviewActionRouter.next_action}</p>
+	        </div>
+	      </section>
 
-      <section className="feature-map-panel reveal delay-1" aria-labelledby="scheduler-profile-title">
+	        </div>
+	      </details>
+
+	      <section className="feature-map-panel reveal delay-1" aria-labelledby="scheduler-profile-title">
         <div className="section-heading stacked-heading">
           <span>자동 실행 주기</span>
           <h2 id="scheduler-profile-title">
@@ -3756,31 +3827,7 @@ export default async function DataHealthPage() {
         )}
       </section>
 
-      <section className="feature-map-panel reveal delay-1" aria-labelledby="collection-status-title">
-        <div className="section-heading stacked-heading">
-          <span>수집/분석별 상태</span>
-          <h2 id="collection-status-title">무엇이 언제 돌았고, 어디에 쓰이는지 한 번에 본다</h2>
-        </div>
-        <p className="board-intro">
-          이 영역만 보면 “어떤 데이터가 최신인지”를 먼저 판단할 수 있다. 아래 상세 증거는 문제가 있을 때만 펼쳐서 본다.
-        </p>
-        <div className="feature-map-grid collection-map-grid">
-          {collectionStatusCards.map((card) => (
-            <article className="feature-map-card collection-map-card" key={card.index}>
-              <span>{card.index}</span>
-              <strong>{card.title}</strong>
-              <em className={`risk-tag ${statusRiskClass(card.run?.health_status ?? "missing")}`}>
-                {runStateLabel(card.run)}
-              </em>
-              <small>{card.purpose}</small>
-              <small>{card.check}</small>
-              <small>최근 완료: {finishedAtLabel(card.run)}</small>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      {aiRun?.health_status === "degraded" || aiRun?.latest_status === "succeeded_with_fallback" ? (
+	      {aiRun?.health_status === "degraded" || aiRun?.latest_status === "succeeded_with_fallback" ? (
         <section className="flow-panel reveal delay-1" aria-labelledby="ai-fallback-warning-title">
           <div className="section-heading flow-heading">
             <span>AI 분석 경고</span>
