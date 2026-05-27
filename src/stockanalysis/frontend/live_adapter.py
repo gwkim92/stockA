@@ -17357,7 +17357,7 @@ def _build_recommendation_professional_evidence_audit_payload(
     fund_analysis = _as_dict(fund_instrument_analysis)
     product_type = "fund_or_etf" if fund_analysis.get("status") == "available" else "operating_company"
     outcome_measured = bool(outcome.get("measurement_end_date")) and str(outcome.get("label") or "unmeasured") != "unmeasured"
-    paper_status = "measured" if outcome_measured else ("blocked_source" if source_blocked else "pending")
+    paper_status = "blocked_source" if source_blocked else ("measured" if outcome_measured else "pending")
     ai_or_event_count = sum(
         1 for component in score_components if _as_dict(component.get("provenance")).get("source_type") == "event_or_ai_evidence"
     )
@@ -17509,7 +17509,7 @@ def _build_recommendation_professional_evidence_audit_payload(
         _recommendation_evidence_layer_check(
             key="paper_validation",
             label="페이퍼 검증",
-            status="complete" if outcome_measured else ("blocked" if source_blocked else "pending"),
+            status="blocked" if source_blocked else ("complete" if outcome_measured else "pending"),
             detail=(
                 f"성과 측정 완료: {_professional_code_label(outcome.get('label'))}, 알파 {_format_signed_percent_text(_number(outcome.get('alpha')))}."
                 if outcome_measured

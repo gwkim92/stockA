@@ -31,6 +31,7 @@ from stockanalysis.frontend.live_adapter import (
     _build_recommendation_outcome_due_action_router_payload,
     _build_recommendation_outcome_maturity_payload,
     _build_recommendation_professional_decision_waterfall_payload,
+    _build_recommendation_professional_evidence_audit_payload,
     is_live_supported_path,
     render_frontend_ai_news_cluster_list_state_sql,
     render_frontend_ai_evidence_detail_state_sql,
@@ -4236,6 +4237,43 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertEqual(step_by_key["financial_quality"]["tone"], "blocked")
         self.assertEqual(step_by_key["paper_validation"]["tone"], "blocked")
         self.assertIn("지원되는 정기 공시", waterfall["summary"])
+
+        audit = _build_recommendation_professional_evidence_audit_payload(
+            recommendation_id="recommendation-67",
+            symbol="EROK",
+            as_of_date="2026-05-26",
+            recommendation="exclude",
+            score=0.3486,
+            score_components=score_components,
+            equity_research=None,
+            industry_competitive_position=None,
+            financial_statement_model=financial_model,
+            valuation_target_range={"status": "unavailable", "method_count": 0},
+            fund_instrument_analysis=None,
+            linked_thesis_id=8,
+            evidence_trace={
+                "direct_news_or_ai": {
+                    "status": "linked",
+                    "impact_direction": "risk_review",
+                    "impact_strength": 0.62,
+                },
+                "macro_flow": {"status": "missing", "propagated_impact_count": 0},
+                "holding_review": {"status": "not_in_portfolio"},
+            },
+            evidence_review=evidence_review,
+            professional_source_guardrail=source_guardrail,
+            professional_decision_waterfall=waterfall,
+            outcome=outcome,
+        )
+        self.assertEqual(audit["status"], "source_blocked")
+        self.assertTrue(audit["source_blocker"]["blocked"])
+        self.assertEqual(audit["paper_validation_status"], "blocked_source")
+        self.assertFalse(audit["paper_validation_input_allowed"])
+        self.assertFalse(audit["automatic_weight_change_allowed"])
+        layer_status = {layer["key"]: layer["status"] for layer in audit["layer_checks"]}
+        self.assertEqual(layer_status["financial_metric_normalized"], "blocked")
+        self.assertEqual(layer_status["paper_validation"], "blocked")
+        self.assertEqual(audit["order_boundary"], "read_only_no_order")
 
     def test_fund_instrument_analysis_payload_preserves_fund_boundaries(self) -> None:
         payload = _build_fund_instrument_analysis_payload(
