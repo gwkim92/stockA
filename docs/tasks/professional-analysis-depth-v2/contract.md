@@ -46,4 +46,4 @@
 - [x] Data-health API exposes `professional_analysis_depth`.
 - [x] Data-health page shows professional coverage depth and weakest candidates.
 - [x] Tests cover SQL and DTO shape.
-- [ ] EC2 smoke confirms live data renders.
+- [x] EC2 smoke confirms live data renders.

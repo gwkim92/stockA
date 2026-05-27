@@ -2,10 +2,11 @@
 
 ## Status
 
-- status: local_verified
+- status: complete
 - started_at: 2026-05-27
-- current status: local implementation and verification complete.
-- in progress: EC2 deploy and live smoke pending.
+- completed_at: 2026-05-27
+- completed: local implementation, GitHub push, EC2 deploy, service restart, API smoke, and route smoke are complete.
+- current status: local and EC2 verification complete.
 
 ## Current Decision
 
@@ -14,7 +15,7 @@
 
 ## Next Step
 
-- exact next step: deploy to EC2, restart FastAPI/Next services, and smoke `/api/data-health` plus `/data-health`.
+- exact next step: continue with recommendation explanation quality and professional analysis detail pages without changing scoring weights.
 
 ## Verification So Far
 
@@ -24,7 +25,12 @@
 - passed: `cd apps/web && npm run build`
 - passed: `PYTHONPATH=/Users/woody/ai/agent-work-harness/src /private/tmp/stockanalysis-runtime/venv/bin/python -m awh verify --repo . --task professional-analysis-depth-v2`
 - passed: `git diff --check`
-- pending: EC2 smoke.
+- passed on EC2 commit `c5945b6`: `PYTHONPATH=src /opt/stockanalysis/venv/bin/python -m unittest tests.test_frontend_live_adapter`
+- passed on EC2 commit `c5945b6`: `PYTHONPATH=src /opt/stockanalysis/venv/bin/python -m compileall -q src tests`
+- passed on EC2 commit `c5945b6`: `cd apps/web && npm run typecheck && npm run build`
+- passed on EC2 commit `c5945b6`: restarted `stockanalysis-frontend-api.service` and `stockanalysis-web.service`, both active.
+- passed on EC2 commit `c5945b6`: `/api/data-health` returned `professional_analysis_depth.status=source_limited`, `active_candidate_count=23`, `complete_candidate_count=22`, `source_blocked_count=1`, `average_coverage_ratio=0.9674`, first item `EROK`, `open_gates=[]`.
+- passed on EC2 commit `c5945b6`: `/data-health` rendered `전문 분석 깊이`, `평균 coverage`, `부족 layer`, `weight 변경 금지`, `EROK`.
 
 ## Risks
 
