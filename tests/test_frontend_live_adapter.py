@@ -4629,6 +4629,23 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertFalse(professional_depth["automatic_weight_change_allowed"])
         self.assertFalse(professional_depth["broker_submit_allowed"])
         self.assertEqual(professional_depth["order_boundary"], "read_only_no_order")
+        professional_quality = payload["data"]["professional_analysis_quality"]
+        self.assertEqual(professional_quality["status"], "managed_source_limited")
+        self.assertEqual(professional_quality["active_candidate_count"], 2)
+        self.assertEqual(professional_quality["complete_candidate_count"], 1)
+        self.assertEqual(professional_quality["source_blocked_count"], 1)
+        self.assertEqual(professional_quality["average_coverage_ratio"], 0.775)
+        layer_checks = {item["layer_key"]: item for item in professional_quality["layer_checks"]}
+        self.assertEqual(layer_checks["financial_metric_normalized"]["status"], "missing")
+        self.assertEqual(layer_checks["valuation_snapshot"]["status"], "complete")
+        self.assertEqual(layer_checks["fund_source_layers"]["status"], "complete")
+        quality_checks = {item["key"]: item for item in professional_quality["quality_checks"]}
+        self.assertEqual(quality_checks["source_guardrail"]["status"], "managed")
+        self.assertEqual(quality_checks["weight_boundary"]["status"], "blocked")
+        self.assertFalse(professional_quality["automatic_weight_change_allowed"])
+        self.assertFalse(professional_quality["recommendation_scoring_mutated"])
+        self.assertFalse(professional_quality["broker_submit_allowed"])
+        self.assertEqual(professional_quality["order_boundary"], "read_only_no_order")
         professional_next = payload["data"]["professional_analysis_next_action"]
         self.assertEqual(professional_next["status"], "managed_outcome_wait")
         self.assertTrue(professional_next["managed_wait"])

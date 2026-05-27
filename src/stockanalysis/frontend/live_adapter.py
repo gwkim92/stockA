@@ -1306,6 +1306,13 @@ def build_live_data_health_response(
         recommendation_outcome_maturity=recommendation_outcome_maturity,
         recommendation_weight_review_readiness=recommendation_weight_review_readiness,
     )
+    professional_analysis_quality = _build_professional_analysis_quality_payload(
+        professional_source_gap_prioritization=professional_source_gap_prioritization,
+        professional_analysis_depth=professional_analysis_depth,
+        professional_analysis_next_action=professional_analysis_next_action,
+        portfolio_review_feedback_calibration=portfolio_review_feedback_calibration,
+        recommendation_weight_review_readiness=recommendation_weight_review_readiness,
+    )
     if scheduler_activation["status"] == "pending_manual_approval":
         gate = "scheduler_activation_manual_approval"
         if gate not in open_gates:
@@ -1438,6 +1445,7 @@ def build_live_data_health_response(
             "recommendation_outcome_due_action_router": recommendation_outcome_due_action_router,
             "recommendation_weight_review_readiness": recommendation_weight_review_readiness,
             "professional_source_gap_prioritization": professional_source_gap_prioritization,
+            "professional_analysis_quality": professional_analysis_quality,
             "professional_analysis_depth": professional_analysis_depth,
             "professional_analysis_next_action": professional_analysis_next_action,
             "open_gates": open_gates,
@@ -15187,6 +15195,158 @@ def _build_professional_analysis_next_action_payload(
         "automatic_weight_change_allowed": False,
         "automatic_order_allowed": False,
         "broker_submit_allowed": False,
+    }
+
+
+def _build_professional_analysis_quality_payload(
+    *,
+    professional_source_gap_prioritization: Mapping[str, Any],
+    professional_analysis_depth: Mapping[str, Any],
+    professional_analysis_next_action: Mapping[str, Any],
+    portfolio_review_feedback_calibration: Mapping[str, Any],
+    recommendation_weight_review_readiness: Mapping[str, Any],
+) -> dict[str, Any]:
+    layer_by_key = {
+        str(layer.get("layer_key") or ""): _as_dict(layer)
+        for layer in _as_list(professional_analysis_depth.get("layer_coverage"))
+    }
+    layer_specs = [
+        ("financial_metric_normalized", "재무 지표"),
+        ("peer_relative_snapshot", "피어 비교"),
+        ("valuation_snapshot", "밸류에이션"),
+        ("industry_competitive_position", "산업 포지션"),
+        ("equity_research_artifact", "AI 리서치"),
+        ("fund_source_layers", "ETF·펀드 원천"),
+    ]
+    layer_checks = [
+        _build_professional_analysis_quality_layer_check(layer_by_key.get(key, {}), key=key, label=label)
+        for key, label in layer_specs
+    ]
+    active_candidate_count = int(_safe_number(professional_analysis_depth.get("active_candidate_count")) or 0)
+    complete_candidate_count = int(_safe_number(professional_analysis_depth.get("complete_candidate_count")) or 0)
+    source_blocked_count = int(_safe_number(professional_analysis_depth.get("source_blocked_count")) or 0)
+    average_coverage_ratio = _safe_number(professional_analysis_depth.get("average_coverage_ratio")) or 0.0
+    source_attention = professional_source_gap_prioritization.get("attention_required") is True
+    weight_blocked = (
+        professional_analysis_next_action.get("weight_review_blocked") is True
+        or portfolio_review_feedback_calibration.get("weight_review_blocked") is True
+    )
+    manual_weight_review_allowed = recommendation_weight_review_readiness.get("manual_weight_review_allowed") is True
+    if active_candidate_count == 0:
+        status = "no_active_candidates"
+        title = "검토할 active 추천 없음"
+        summary = "전문 분석 품질을 붙일 active 추천 후보가 아직 없다."
+    elif source_attention:
+        status = "attention_required"
+        title = "전문 분석 원천 보강 필요"
+        summary = "active 추천 후보 중 전문 판단 입력에 쓰기 전 보강해야 할 source gap이 남아 있다."
+    elif source_blocked_count > 0:
+        status = "managed_source_limited"
+        title = "원천 한계 관리 중"
+        summary = (
+            f"active 후보 {active_candidate_count}개 중 {complete_candidate_count}개는 필요한 전문 layer를 갖췄고, "
+            f"{source_blocked_count}개는 원천 부족으로 전문 판단·페이퍼 검증 입력에서 차단된다."
+        )
+    elif complete_candidate_count >= active_candidate_count:
+        status = "ready_waiting_outcome" if weight_blocked else "ready_for_manual_review"
+        title = "전문 분석 근거 연결 완료" if weight_blocked else "manual weight 검토 가능"
+        summary = (
+            "재무, 피어, 밸류에이션, 산업, 리서치 근거가 active 후보에 연결됐다. "
+            "추천 weight는 outcome 표본이 성숙할 때까지 바꾸지 않는다."
+            if weight_blocked
+            else "전문 분석 근거와 outcome 기준이 통과됐다. 그래도 별도 승인된 pilot task 전까지 자동 변경은 금지한다."
+        )
+    else:
+        status = "coverage_gaps_present"
+        title = "전문 분석 layer 일부 부족"
+        summary = (
+            f"active 후보 {active_candidate_count}개 중 {complete_candidate_count}개만 필요한 전문 layer를 갖췄다. "
+            "부족 layer를 먼저 보강한다."
+        )
+    return {
+        "status": status,
+        "title": title,
+        "summary": summary,
+        "as_of_date": str(
+            professional_analysis_depth.get("as_of_date")
+            or professional_source_gap_prioritization.get("as_of_date")
+            or portfolio_review_feedback_calibration.get("as_of_date")
+            or ""
+        ),
+        "active_candidate_count": active_candidate_count,
+        "complete_candidate_count": complete_candidate_count,
+        "source_blocked_count": source_blocked_count,
+        "average_coverage_ratio": average_coverage_ratio,
+        "layer_checks": layer_checks,
+        "quality_checks": [
+            {
+                "key": "source_guardrail",
+                "label": "원천 차단 가드레일",
+                "status": "managed" if not source_attention else "attention_required",
+                "detail": (
+                    f"source blocker {professional_source_gap_prioritization.get('source_blocker_count') or 0}개, "
+                    f"전문 판단 입력 차단 {professional_source_gap_prioritization.get('guarded_source_blocked_recommendation_count') or 0}개."
+                ),
+            },
+            {
+                "key": "weight_boundary",
+                "label": "추천 weight 경계",
+                "status": "blocked" if weight_blocked else "manual_review_possible",
+                "detail": str(
+                    portfolio_review_feedback_calibration.get("weight_review_block_reason")
+                    or recommendation_weight_review_readiness.get("blocker_message")
+                    or "자동 weight 변경은 별도 승인 전까지 금지한다."
+                ),
+            },
+            {
+                "key": "order_boundary",
+                "label": "주문 경계",
+                "status": "blocked",
+                "detail": "전문 분석 품질 점검은 주문 생성이나 증권사 제출을 허용하지 않는다.",
+            },
+        ],
+        "next_action": str(
+            professional_analysis_next_action.get("next_action")
+            or professional_analysis_depth.get("next_action")
+            or "전문 분석 품질을 계속 감시한다."
+        ),
+        "manual_weight_review_allowed": manual_weight_review_allowed,
+        "automatic_weight_change_allowed": False,
+        "recommendation_scoring_mutated": False,
+        "automatic_order_allowed": False,
+        "broker_submit_allowed": False,
+        "order_boundary": "read_only_no_order",
+    }
+
+
+def _build_professional_analysis_quality_layer_check(
+    layer: Mapping[str, Any],
+    *,
+    key: str,
+    label: str,
+) -> dict[str, Any]:
+    expected_count = int(_safe_number(layer.get("expected_count")) or 0)
+    available_count = int(_safe_number(layer.get("available_count")) or 0)
+    coverage_ratio = (
+        available_count / expected_count
+        if expected_count > 0
+        else 1.0
+    )
+    if expected_count == 0:
+        status = "not_applicable"
+    elif available_count >= expected_count:
+        status = "complete"
+    elif available_count > 0:
+        status = "partial"
+    else:
+        status = "missing"
+    return {
+        "layer_key": key,
+        "label": str(layer.get("label") or label),
+        "status": status,
+        "expected_count": expected_count,
+        "available_count": available_count,
+        "coverage_ratio": coverage_ratio,
     }
 
 

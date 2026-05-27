@@ -30,6 +30,7 @@ type RecommendationOutcomeMaturity = DataHealthData["recommendation_outcome_matu
 type RecommendationOutcomeDueActionRouter = DataHealthData["recommendation_outcome_due_action_router"];
 type RecommendationWeightReviewReadiness = DataHealthData["recommendation_weight_review_readiness"];
 type ProfessionalSourceGapPrioritization = DataHealthData["professional_source_gap_prioritization"];
+type ProfessionalAnalysisQuality = DataHealthData["professional_analysis_quality"];
 type ProfessionalAnalysisNextAction = DataHealthData["professional_analysis_next_action"];
 type ProfessionalAnalysisDepth = DataHealthData["professional_analysis_depth"];
 type ProfileTimer = ProfileSchedulerStatus["timers"][number];
@@ -832,6 +833,20 @@ function professionalNextActionTone(nextAction: ProfessionalAnalysisNextAction) 
   return "risk-high";
 }
 
+function professionalQualityTone(quality: ProfessionalAnalysisQuality) {
+  if (
+    quality.status === "ready_waiting_outcome"
+    || quality.status === "ready_for_manual_review"
+    || quality.status === "managed_source_limited"
+  ) {
+    return "risk-low";
+  }
+  if (quality.status === "coverage_gaps_present") {
+    return "risk-medium";
+  }
+  return "risk-high";
+}
+
 function professionalDepthTitle(depth: ProfessionalAnalysisDepth) {
   if (depth.status === "complete") {
     return "전문 분석 layer 충족";
@@ -1162,6 +1177,26 @@ const DEFAULT_PROFESSIONAL_ANALYSIS_NEXT_ACTION: ProfessionalAnalysisNextAction 
   automatic_weight_change_allowed: false,
   automatic_order_allowed: false,
   broker_submit_allowed: false,
+};
+
+const DEFAULT_PROFESSIONAL_ANALYSIS_QUALITY: ProfessionalAnalysisQuality = {
+  status: "missing",
+  title: "전문 분석 품질 상태 없음",
+  summary: "재무·피어·밸류에이션·산업·AI 리서치 근거 연결 상태를 아직 읽지 못했다.",
+  as_of_date: "",
+  active_candidate_count: 0,
+  complete_candidate_count: 0,
+  source_blocked_count: 0,
+  average_coverage_ratio: 0,
+  layer_checks: [],
+  quality_checks: [],
+  next_action: "전문 분석 품질 payload를 먼저 생성한다.",
+  manual_weight_review_allowed: false,
+  automatic_weight_change_allowed: false,
+  recommendation_scoring_mutated: false,
+  automatic_order_allowed: false,
+  broker_submit_allowed: false,
+  order_boundary: "read_only_no_order",
 };
 
 const DEFAULT_PROFESSIONAL_ANALYSIS_DEPTH: ProfessionalAnalysisDepth = {
@@ -1611,6 +1646,8 @@ export default async function DataHealthPage() {
     data.recommendation_weight_review_readiness ?? DEFAULT_RECOMMENDATION_WEIGHT_REVIEW_READINESS;
   const professionalSourceGaps =
     data.professional_source_gap_prioritization ?? DEFAULT_PROFESSIONAL_SOURCE_GAP_PRIORITIZATION;
+  const professionalQuality =
+    data.professional_analysis_quality ?? DEFAULT_PROFESSIONAL_ANALYSIS_QUALITY;
   const professionalDepth =
     data.professional_analysis_depth ?? DEFAULT_PROFESSIONAL_ANALYSIS_DEPTH;
   const professionalNextAction =
@@ -1836,6 +1873,14 @@ export default async function DataHealthPage() {
       href: "#professional-source-gaps",
       cta: "소스 공백 보기",
       tone: professionalSourceGapTone(professionalSourceGaps),
+    },
+    {
+      label: "전문 분석 품질",
+      title: professionalQuality.title,
+      body: professionalQuality.summary,
+      href: "#professional-analysis-quality",
+      cta: "품질 판정 보기",
+      tone: professionalQualityTone(professionalQuality),
     },
     {
       label: "전문 분석 다음 행동",
@@ -2410,6 +2455,78 @@ export default async function DataHealthPage() {
         <div className="empty-state">
           <strong>다음 조치</strong>
           <p>{outcomeDueActionRouter.next_action || outcomeMaturity.cadence_action.label}</p>
+        </div>
+      </section>
+
+      <section
+        className="feature-map-panel reveal delay-1"
+        id="professional-analysis-quality"
+        aria-labelledby="professional-analysis-quality-title"
+      >
+        <div className="section-heading stacked-heading">
+          <span>전문 분석 품질</span>
+          <h2 id="professional-analysis-quality-title">
+            재무·피어·밸류에이션·산업·AI 리서치 근거가 추천 판단에 붙었는지 확인한다.
+          </h2>
+        </div>
+        <p className="board-intro">{professionalQuality.summary}</p>
+        <div className="status-rail compact-rail">
+          <article className="rail-cell">
+            <span>품질 판정</span>
+            <strong className={`risk-tag ${professionalQualityTone(professionalQuality)}`}>
+              {professionalQuality.title}
+            </strong>
+            <small>{professionalQuality.as_of_date || "기준일 없음"}</small>
+          </article>
+          <article className="rail-cell">
+            <span>active 후보</span>
+            <strong>{professionalQuality.active_candidate_count}</strong>
+            <small>전문 분석 품질 점검 대상</small>
+          </article>
+          <article className="rail-cell">
+            <span>근거 연결 완료</span>
+            <strong>{professionalQuality.complete_candidate_count}</strong>
+            <small>필수 layer 충족 후보</small>
+          </article>
+          <article className="rail-cell">
+            <span>평균 coverage</span>
+            <strong>{formatPercent(professionalQuality.average_coverage_ratio)}</strong>
+            <small>재무·피어·밸류에이션·산업·리서치</small>
+          </article>
+          <article className="rail-cell rail-critical">
+            <span>원천 차단</span>
+            <strong>{professionalQuality.source_blocked_count}</strong>
+            <small>합성 재무 금지</small>
+          </article>
+          <article className="rail-cell rail-critical">
+            <span>weight/주문 경계</span>
+            <strong>{professionalQuality.automatic_weight_change_allowed ? "weight 변경 허용" : "weight 변경 금지"}</strong>
+            <small>{koCode(professionalQuality.order_boundary)}</small>
+          </article>
+        </div>
+        <div className="insight-grid">
+          {professionalQuality.layer_checks.map((layer) => (
+            <article className="insight-card" key={layer.layer_key}>
+              <span>{layer.label}</span>
+              <strong>{koCode(layer.status)}</strong>
+              <p>
+                {layer.available_count}/{layer.expected_count}개 후보 연결 · coverage {formatPercent(layer.coverage_ratio)}
+              </p>
+            </article>
+          ))}
+        </div>
+        <div className="flow-steps data-health-summary-grid">
+          {professionalQuality.quality_checks.map((check) => (
+            <article className="flow-step" key={check.key}>
+              <span>{check.label}</span>
+              <strong>{koCode(check.status)}</strong>
+              <p>{check.detail}</p>
+            </article>
+          ))}
+        </div>
+        <div className="empty-state">
+          <strong>다음 조치</strong>
+          <p>{professionalQuality.next_action}</p>
         </div>
       </section>
 

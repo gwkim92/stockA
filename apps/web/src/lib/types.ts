@@ -525,6 +525,7 @@ export type DataHealthData = {
     broker_submit_allowed: boolean;
     order_boundary: string;
   };
+  professional_analysis_quality: ProfessionalAnalysisQuality;
   professional_analysis_next_action: ProfessionalAnalysisNextAction;
   professional_analysis_depth: ProfessionalAnalysisDepth;
   open_gates: string[];
@@ -2394,6 +2395,38 @@ export type ProfessionalAnalysisNextAction = {
   automatic_weight_change_allowed: boolean;
   automatic_order_allowed: boolean;
   broker_submit_allowed: boolean;
+};
+
+export type ProfessionalAnalysisQuality = {
+  status: string;
+  title: string;
+  summary: string;
+  as_of_date: string;
+  active_candidate_count: number;
+  complete_candidate_count: number;
+  source_blocked_count: number;
+  average_coverage_ratio: number;
+  layer_checks: Array<{
+    layer_key: string;
+    label: string;
+    status: string;
+    expected_count: number;
+    available_count: number;
+    coverage_ratio: number;
+  }>;
+  quality_checks: Array<{
+    key: string;
+    label: string;
+    status: string;
+    detail: string;
+  }>;
+  next_action: string;
+  manual_weight_review_allowed: boolean;
+  automatic_weight_change_allowed: boolean;
+  recommendation_scoring_mutated: boolean;
+  automatic_order_allowed: boolean;
+  broker_submit_allowed: boolean;
+  order_boundary: string;
 };
 
 export type ProfessionalAnalysisDepth = {
