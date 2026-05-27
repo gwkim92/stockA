@@ -553,26 +553,39 @@ export default async function PortfolioCoveragePage() {
           <div className="section-heading">
             <div>
               <span className="metric-sub">검토 신뢰도 누적평가</span>
-              <h2>한 번의 사후평가로 weight를 바꾸지 않는다</h2>
+              <h2>성과 표본이 성숙하기 전에는 weight를 바꾸지 않는다</h2>
             </div>
-            <span className={`risk-tag ${calibrationStatusClass(reviewCalibration.calibration_status)}`}>
-              {reviewCalibration.status === "loaded" ? koCode(reviewCalibration.calibration_status) : "누적평가 없음"}
+            <span className={`risk-tag ${reviewCalibration.weight_review_blocked ? "risk-medium" : "risk-low"}`}>
+              {reviewCalibration.status === "loaded"
+                ? reviewCalibration.weight_review_blocked ? "weight 변경 금지" : "manual 검토 가능"
+                : "누적평가 없음"}
             </span>
           </div>
           <p style={{ color: "var(--text-secondary)", marginTop: 0 }}>
-            여러 번의 검토 사후평가를 모아 반박률과 성숙 표본 수를 본다. 이 단계가 통과해도 자동 주문이나 자동
-            weight 변경은 여전히 금지된다.
+            포트폴리오 비중 검토는 실제 outcome 관찰 기간이 지난 뒤 평가한다. 이 카드가 보여주는 것은 weight 변경
+            허용이 아니라, 왜 아직 금지인지와 다음 성숙 시점이다.
           </p>
           <div className="status-rail compact-rail" aria-label="검토 신뢰도 누적평가 요약" style={{ marginBottom: "20px" }}>
             <article className="rail-cell">
               <span>feedback 실행</span>
-              <strong>{reviewCalibration.feedback_run_count}</strong>
-              <small>{reviewCalibration.lookback_days || "기간 미확인"}일 기준</small>
+              <strong>{reviewCalibration.feedback_run_count}/{reviewCalibration.min_feedback_runs}</strong>
+              <small>부족 {reviewCalibration.feedback_run_gap}회 · {reviewCalibration.lookback_days || "기간 미확인"}일 기준</small>
             </article>
             <article className="rail-cell">
-              <span>성숙 / 전체 판단</span>
-              <strong>{reviewCalibration.mature_decision_count} / {reviewCalibration.decision_count}</strong>
-              <small>최소 {reviewCalibration.min_mature_decisions}개 필요</small>
+              <span>성숙한 판단</span>
+              <strong>{reviewCalibration.mature_decision_count}/{reviewCalibration.min_mature_decisions}</strong>
+              <small>부족 {reviewCalibration.mature_decision_gap}개 · 전체 {reviewCalibration.decision_count}개</small>
+            </article>
+            <article className="rail-cell">
+              <span>예상 성숙일</span>
+              <strong>{reviewCalibration.estimated_maturity_date || "계산 불가"}</strong>
+              <small>
+                {reviewCalibration.days_until_maturity === null
+                  ? koCode(reviewCalibration.maturity_status)
+                  : reviewCalibration.days_until_maturity > 0
+                    ? `${reviewCalibration.days_until_maturity}일 대기`
+                    : "다시 평가 가능일 도달"}
+              </small>
             </article>
             <article className="rail-cell">
               <span>검증 / 반박</span>
@@ -585,6 +598,10 @@ export default async function PortfolioCoveragePage() {
               <small>broker 전송 {reviewCalibration.guardrails.broker_submit_allowed ? "허용" : "금지"}</small>
             </article>
           </div>
+          <p className="empty-state" style={{ marginTop: 0 }}>
+            <strong>차단 이유</strong>
+            <span>{reviewCalibration.weight_review_block_reason}</span>
+          </p>
           <div className="bento-list" style={{ gap: "8px" }}>
             {reviewCalibration.family_summaries.slice(0, 3).map((summary) => (
               <div className="bento-list-item" key={`calibration-${summary.decision_family}`}>

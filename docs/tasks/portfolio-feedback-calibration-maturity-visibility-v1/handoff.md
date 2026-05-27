@@ -28,12 +28,14 @@
 - Added fallback maturity-date calculation when cadence `wait_until` is blank.
 - Reused the same maturity visibility in portfolio coverage risk-budget payload.
 - Updated `/data-health` to show weight block status, sample gaps, and expected maturity date in Korean.
+- Updated `/portfolio/coverage` to show the same weight block status, sample gaps, expected maturity date, and block reason.
 
 ## Local Verification
 
 - Passed: `PYTHONPATH=src /opt/homebrew/bin/python3.13 -m unittest tests.test_frontend_live_adapter` (`75 tests`).
 - Passed: `cd apps/web && npm run typecheck`.
 - Passed: `PYTHONPATH=src /opt/homebrew/bin/python3.13 -m compileall -q src tests`.
+- Passed: `cd apps/web && npm run build`.
 
 ## Exact Next Step
 
