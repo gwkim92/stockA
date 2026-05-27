@@ -3711,6 +3711,172 @@ h6 {
   line-height: 1.55;
 }
 
+.ai-evidence-brief-panel {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.58fr) minmax(0, 1.52fr);
+  gap: clamp(18px, 2.4vw, 34px);
+  padding: clamp(22px, 3vw, 38px);
+  background:
+    linear-gradient(135deg, rgba(251, 250, 246, 0.98), rgba(241, 238, 228, 0.84)),
+    radial-gradient(circle at 0% 0%, rgba(38, 92, 128, 0.14), transparent 34%),
+    radial-gradient(circle at 100% 8%, rgba(189, 112, 55, 0.15), transparent 32%);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-soft);
+}
+
+.ai-evidence-brief-panel.risk-high {
+  background:
+    linear-gradient(135deg, rgba(251, 250, 246, 0.98), rgba(244, 230, 226, 0.86)),
+    radial-gradient(circle at 0% 0%, rgba(168, 59, 52, 0.14), transparent 36%);
+}
+
+.ai-evidence-brief-panel.risk-medium {
+  background:
+    linear-gradient(135deg, rgba(251, 250, 246, 0.98), rgba(246, 238, 218, 0.86)),
+    radial-gradient(circle at 0% 0%, rgba(189, 112, 55, 0.16), transparent 36%);
+}
+
+.ai-evidence-brief-lead {
+  display: grid;
+  align-content: start;
+  gap: 14px;
+  min-width: 0;
+}
+
+.ai-evidence-brief-lead > span,
+.ai-evidence-brief-card > span {
+  width: fit-content;
+  padding: 5px 8px;
+  background: var(--text-primary);
+  color: var(--bg-panel);
+  font-size: 0.68rem;
+  font-weight: 950;
+  letter-spacing: 0.02em;
+}
+
+.ai-evidence-brief-lead h2 {
+  max-width: 720px;
+  margin: 0;
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 3.8vw, 4.2rem);
+  line-height: 0.9;
+  letter-spacing: -0.055em;
+  word-break: keep-all;
+}
+
+.ai-evidence-brief-lead p {
+  max-width: 760px;
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: clamp(0.96rem, 1.32vw, 1.14rem);
+  font-weight: 780;
+  line-height: 1.58;
+  word-break: keep-all;
+}
+
+.ai-evidence-brief-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.ai-evidence-brief-metrics div {
+  min-width: 0;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.5);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+}
+
+.ai-evidence-brief-metrics span {
+  display: block;
+  color: var(--text-tertiary);
+  font-size: 0.68rem;
+  font-weight: 900;
+}
+
+.ai-evidence-brief-metrics strong {
+  display: block;
+  margin-top: 6px;
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: clamp(1rem, 1.7vw, 1.65rem);
+  line-height: 0.95;
+}
+
+.ai-evidence-brief-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.ai-evidence-brief-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  align-content: stretch;
+}
+
+.ai-evidence-brief-card {
+  display: grid;
+  min-width: 0;
+  align-content: start;
+  gap: 10px;
+  padding: 15px;
+  background: color-mix(in srgb, var(--bg-panel) 88%, white);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+}
+
+.ai-evidence-brief-card.risk-low {
+  border-color: color-mix(in oklch, var(--accent-green), transparent 66%);
+}
+
+.ai-evidence-brief-card.risk-medium {
+  border-color: color-mix(in oklch, var(--accent-amber), transparent 60%);
+}
+
+.ai-evidence-brief-card.risk-high {
+  border-color: color-mix(in oklch, var(--accent-red), transparent 58%);
+}
+
+.ai-evidence-brief-card strong {
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: clamp(1.06rem, 1.45vw, 1.45rem);
+  line-height: 0.98;
+  word-break: keep-all;
+}
+
+.ai-evidence-brief-card em {
+  color: var(--text-tertiary);
+  font-size: 0.74rem;
+  font-style: normal;
+  font-weight: 900;
+}
+
+.ai-evidence-brief-card p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.77rem;
+  font-weight: 740;
+  line-height: 1.55;
+  word-break: keep-all;
+}
+
+.ai-evidence-brief-card a {
+  width: fit-content;
+  margin-top: auto;
+  color: var(--accent-blue);
+  font-size: 0.74rem;
+  font-weight: 950;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
 .evidence-review-panel {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(260px, 0.32fr);
@@ -4315,6 +4481,7 @@ h6 {
   .evidence-source-grid,
   .stock-decision-panel,
   .recommendation-waterfall-panel,
+  .ai-evidence-brief-panel,
   .research-flow {
     grid-template-columns: 1fr;
   }
@@ -4325,6 +4492,10 @@ h6 {
 
   .recommendation-waterfall-track {
     grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .ai-evidence-brief-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .research-flow-intro {
@@ -4387,7 +4558,9 @@ h6 {
   .flow-steps,
   .readiness-grid,
   .stock-decision-grid,
-  .recommendation-waterfall-track {
+  .recommendation-waterfall-track,
+  .ai-evidence-brief-grid,
+  .ai-evidence-brief-metrics {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -4523,12 +4696,16 @@ h6 {
   .stock-decision-grid,
   .recommendation-waterfall-panel,
   .recommendation-waterfall-track,
+  .ai-evidence-brief-panel,
+  .ai-evidence-brief-grid,
+  .ai-evidence-brief-metrics,
   .research-flow {
     grid-template-columns: 1fr;
   }
 
   .stock-decision-actions .btn,
-  .recommendation-waterfall-actions .btn {
+  .recommendation-waterfall-actions .btn,
+  .ai-evidence-brief-actions .btn {
     width: 100%;
   }
 

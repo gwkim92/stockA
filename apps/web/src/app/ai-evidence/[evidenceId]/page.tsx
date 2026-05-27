@@ -555,6 +555,156 @@ function EvidenceTracePath({ steps }: { steps: EvidenceTraceStep[] }) {
   );
 }
 
+function AiEvidenceReviewBrief({
+  data,
+  sourcePreview,
+  sourceLink,
+  targetStockLink,
+  firstRecommendationLink,
+  linkedSymbol,
+  neighborhood,
+  decision,
+  candidate,
+  cluster,
+  isNewsCandidate,
+  isNewsCluster,
+}: {
+  data: AiEvidenceDetailData;
+  sourcePreview: ReturnType<typeof primarySourcePreview>;
+  sourceLink: Route | null;
+  targetStockLink: Route | null;
+  firstRecommendationLink: Route | null;
+  linkedSymbol: string | null;
+  neighborhood: EvidenceNeighborhood;
+  decision: ReturnType<typeof evidenceDecision>;
+  candidate: NewsCandidate | null;
+  cluster: ClusterSummary | null;
+  isNewsCandidate: boolean;
+  isNewsCluster: boolean;
+}) {
+  const translation = translationTraceStatus(sourcePreview);
+  const structure = aiStructureTraceStatus({ candidate, cluster, isNewsCandidate, isNewsCluster });
+  const recommendationCount = neighborhood?.summary.recommendation_count ?? 0;
+  const thesisCount = neighborhood?.summary.thesis_count ?? 0;
+  const readOnlyBoundary = data.visibility_trace.read_only_boundary;
+  const sourceCount = isNewsCluster ? uniqueSourceDocumentCount(data) : sourceLink ? 1 : 0;
+  const cards = [
+    {
+      step: "01",
+      label: "원천·번역",
+      title: translation.title,
+      status: sourceCount > 0 ? `원천 ${sourceCount}개` : "원천 확인 필요",
+      body:
+        sourcePreview.koreanSummary ||
+        sourcePreview.koreanTitle ||
+        "한국어 제목·요약이 없으면 원문과 AI 해석을 직접 대조해야 한다.",
+      href: "#evidence-source-preview",
+      cta: "번역 보기",
+      tone: translation.tone,
+    },
+    {
+      step: "02",
+      label: "AI 구조화",
+      title: structure.title,
+      status: structure.status,
+      body: `${structure.body} 저장된 구조화 필드 ${data.extracted_fields.length}개를 확인한다.`,
+      href: "#evidence-structured-fields",
+      cta: "구조화 결과 보기",
+      tone: "risk-low" as const,
+    },
+    {
+      step: "03",
+      label: "자동 검증",
+      title: decision.label,
+      status: data.evidence_type === "news_event_candidate_rejected" ? "차단" : koCode(data.extraction_run.quality_gate || data.extraction_run.status),
+      body: data.visibility_trace.validator.reasons_ko.join(" ") || decision.body,
+      href: "#evidence-validation",
+      cta: "검증 근거 보기",
+      tone: decision.tone,
+    },
+    {
+      step: "04",
+      label: "종목·추천 연결",
+      title:
+        recommendationCount > 0
+          ? `추천 ${recommendationCount}개 연결`
+          : linkedSymbol
+            ? `${koCode(linkedSymbol)} 종목 맥락`
+            : "상위 흐름 근거",
+      status: `투자 논리 ${thesisCount}개`,
+      body:
+        recommendationCount > 0
+          ? "추천 검토서에서 가격, 사이클, 보유 논리와 함께 다시 판단한다."
+          : linkedSymbol
+            ? "추천 검토서에 바로 연결되지 않았더라도 종목 상세에서 직접 뉴스와 상위 흐름을 확인한다."
+            : "명확한 종목이 없으면 억지로 티커를 붙이지 않고 시장·테마 흐름으로 남긴다.",
+      href: firstRecommendationLink ?? targetStockLink ?? "#evidence-neighborhood",
+      cta: firstRecommendationLink ? "추천 보기" : targetStockLink ? "종목 보기" : "연결 상태 보기",
+      tone: recommendationCount > 0 || linkedSymbol ? "risk-low" : "risk-medium",
+    },
+  ];
+
+  return (
+    <section className={`ai-evidence-brief-panel ${decision.tone} reveal delay-1`} aria-labelledby="ai-evidence-brief-title">
+      <div className="ai-evidence-brief-lead">
+        <span>AI 근거 결론</span>
+        <h2 id="ai-evidence-brief-title">{decision.label}</h2>
+        <p>{decision.body}</p>
+        <div className="ai-evidence-brief-metrics" aria-label="AI 근거 핵심 상태">
+          <div>
+            <span>원천</span>
+            <strong>{sourceCount > 0 ? `${sourceCount}개` : "없음"}</strong>
+          </div>
+          <div>
+            <span>번역</span>
+            <strong>{sourcePreview.koreanTitle || sourcePreview.koreanSummary ? "있음" : "없음"}</strong>
+          </div>
+          <div>
+            <span>추천</span>
+            <strong>{recommendationCount}</strong>
+          </div>
+          <div>
+            <span>주문</span>
+            <strong>{readOnlyBoundary.order_boundary ? koCode(readOnlyBoundary.order_boundary) : "차단"}</strong>
+          </div>
+        </div>
+        <div className="ai-evidence-brief-actions">
+          {sourceLink ? (
+            <Link className="btn btn-primary" href={sourceLink}>
+              원천 문서 열기
+            </Link>
+          ) : null}
+          {firstRecommendationLink ? (
+            <Link className="btn btn-secondary" href={firstRecommendationLink}>
+              추천 상세 보기
+            </Link>
+          ) : null}
+          {targetStockLink ? (
+            <Link className="btn btn-secondary" href={targetStockLink}>
+              종목 상세 보기
+            </Link>
+          ) : null}
+        </div>
+      </div>
+      <div className="ai-evidence-brief-grid">
+        {cards.map((card) => (
+          <article className={`ai-evidence-brief-card ${card.tone}`} key={card.label}>
+            <span>{card.step} · {card.label}</span>
+            <strong>{card.title}</strong>
+            <em>{card.status}</em>
+            <p>{card.body}</p>
+            {card.href.startsWith("#") ? (
+              <a href={card.href}>{card.cta}</a>
+            ) : (
+              <Link href={card.href as Route}>{card.cta}</Link>
+            )}
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function traceStatusLabel(status: string) {
   if (status === "available" || status === "passed" || status === "ready") {
     return "확인됨";
@@ -708,25 +858,12 @@ export default async function AiEvidencePage({ params }: AiEvidencePageProps) {
   const decision = evidenceDecision(data);
   const sourcePreview = primarySourcePreview(data);
   const sourceCount = isNewsCluster ? uniqueSourceDocumentCount(data) : sourceLink ? 1 : 0;
-  const translationTrace = translationTraceStatus(sourcePreview);
-  const aiStructureTrace = aiStructureTraceStatus({
-    candidate: isNewsCandidate ? candidate : null,
-    cluster: isNewsCluster ? cluster : null,
-    isNewsCandidate,
-    isNewsCluster,
-  });
   const subjectLabel = isNewsCluster
     ? evidenceTitle
     : linkedSymbol
       ? `${koCode(linkedSymbol)} 뉴스 후보`
       : `${koCode(data.classification.theme_key)} 뉴스 후보`;
   const linkedSymbolLabel = linkedSymbol ? koCode(linkedSymbol) : "종목 없음";
-  const reviewDecisionTitle = isNewsCluster
-    ? `${evidenceTitle}이 실제로 같은 흐름인지 확인한다.`
-    : `이 뉴스 해석이 원문과 맞는지 확인한다.`;
-  const reviewDecisionBody = isNewsCluster
-    ? `현재 연결 종목은 ${linkedSymbolLabel}이지만, 이것은 매수 대상 확정이 아니라 영향 후보다. 먼저 대표 뉴스 제목들이 ${formatClusterStory(cluster)} 흐름에 맞는지 보고, 그 다음 종목·추천 연결이 과하지 않은지 확인한다.`
-    : `AI가 붙인 테마, 종목, 방향, 불확실성이 원문과 맞는지 확인한다. 맞지 않으면 추천 입력으로 쓰면 안 된다.`;
   const reviewQuestions = [
     {
       label: "점검 1",
@@ -771,56 +908,6 @@ export default async function AiEvidencePage({ params }: AiEvidencePageProps) {
           : "뉴스 AI 판단 화면에서 같은 묶음과 주변 뉴스를 확인한다.",
     },
   ];
-  const traceSteps: EvidenceTraceStep[] = [
-    {
-      index: "01",
-      label: "원천 뉴스",
-      title: sourceLink ? "원천 문서 연결" : "원천 문서 없음",
-      status: sourceCount > 0 ? `${sourceCount}개 확인` : "대조 필요",
-      body: sourceLink
-        ? "AI가 해석한 뉴스 또는 묶음의 원천 문서를 열어 제목과 맥락을 대조할 수 있다."
-        : "원천 문서 링크가 없어 이 근거는 추천 입력으로 쓰기 전에 추가 확인이 필요하다.",
-      href: sourceLink,
-      cta: "원천 열기",
-      tone: sourceLink ? "risk-low" : "risk-medium",
-    },
-    {
-      index: "02",
-      label: "한국어 번역",
-      title: translationTrace.title,
-      status: translationTrace.status,
-      body: translationTrace.body,
-      tone: translationTrace.tone,
-    },
-    {
-      index: "03",
-      label: "AI 구조화",
-      title: aiStructureTrace.title,
-      status: aiStructureTrace.status,
-      body: aiStructureTrace.body,
-      tone: "risk-low",
-    },
-    {
-      index: "04",
-      label: "자동 검증 판정",
-      title: decision.label,
-      status: data.evidence_type === "news_event_candidate_rejected" ? "차단" : "입력 후보",
-      body: decision.body,
-      tone: decision.tone as "risk-low" | "risk-medium" | "risk-high",
-    },
-    {
-      index: "05",
-      label: "추천 연결",
-      title: firstRecommendationLink ? "추천 검토서 연결" : "추천 연결 없음",
-      status: `${neighborhood?.summary.recommendation_count ?? 0}개 연결`,
-      body: firstRecommendationLink
-        ? "이 근거가 연결된 추천 검토서에서 가격, 사이클, 보유 논리와 함께 다시 판단한다."
-        : "아직 추천 검토서에 연결되지 않았다. 이는 오류가 아니라 관찰 또는 상위 흐름 근거일 수 있다.",
-      href: firstRecommendationLink,
-      cta: "추천 열기",
-      tone: firstRecommendationLink ? "risk-low" : "risk-medium",
-    },
-  ];
 
   return (
     <div className="pageStack ai-evidence-detail-page">
@@ -843,50 +930,22 @@ export default async function AiEvidencePage({ params }: AiEvidencePageProps) {
         </aside>
       </section>
 
-      <section className="evidence-review-panel reveal delay-1" aria-labelledby="evidence-review-command-title">
-        <div className="evidence-review-command">
-          <span>이 페이지에서 판단할 것</span>
-          <h2 id="evidence-review-command-title">{reviewDecisionTitle}</h2>
-          <p>{reviewDecisionBody}</p>
-          <div className="btn-row decision-actions">
-            {sourceLink ? (
-              <Link className="btn btn-primary" href={sourceLink}>
-                원천 뉴스부터 대조
-              </Link>
-            ) : null}
-            {targetStockLink ? (
-              <Link className="btn btn-secondary" href={targetStockLink}>
-                {linkedSymbolLabel} 종목 맥락 보기
-              </Link>
-            ) : null}
-            {firstRecommendationLink ? (
-              <Link className="btn btn-secondary" href={firstRecommendationLink}>
-                연결된 추천 검토서 보기
-              </Link>
-            ) : null}
-            <Link className="btn btn-secondary" href="/intelligence">
-              뉴스 묶음으로 돌아가기
-            </Link>
-          </div>
-        </div>
-        <aside className="evidence-review-status">
-          <span>운영 경계</span>
-          <strong>읽기 전용 근거 화면</strong>
-          <p>AI 근거를 해석하고 연결 경로를 보여주는 화면이다. 승인/반려 저장과 감사 로그 write API는 별도 작업으로 분리한다.</p>
-        </aside>
-      </section>
-
-      <EvidenceTracePath steps={traceSteps} />
-
-      <EvidenceVisibilityTraceBoard
+      <AiEvidenceReviewBrief
         data={data}
-        neighborhood={neighborhood}
+        sourcePreview={sourcePreview}
         sourceLink={sourceLink}
         targetStockLink={targetStockLink}
         firstRecommendationLink={firstRecommendationLink}
+        linkedSymbol={linkedSymbol}
+        neighborhood={neighborhood}
+        decision={decision}
+        candidate={isNewsCandidate ? candidate : null}
+        cluster={isNewsCluster ? cluster : null}
+        isNewsCandidate={isNewsCandidate}
+        isNewsCluster={isNewsCluster}
       />
 
-      <section className="evidence-decision-card reveal delay-1" aria-labelledby="source-preview-title">
+      <section className="evidence-decision-card reveal delay-1" id="evidence-source-preview" aria-labelledby="source-preview-title">
         <div className="section-heading stacked-heading">
           <span>원천 뉴스</span>
           <h2 id="source-preview-title">AI가 해석한 원문을 한국어로 먼저 확인한다</h2>
@@ -1039,10 +1098,12 @@ export default async function AiEvidencePage({ params }: AiEvidencePageProps) {
         </div>
       </section>
 
-      <NeighborhoodPanel neighborhood={neighborhood} />
+      <section id="evidence-neighborhood">
+        <NeighborhoodPanel neighborhood={neighborhood} />
+      </section>
 
       <section className="evidence-source-grid reveal delay-3" aria-label="원천과 추출 필드">
-        <article className="evidence-decision-card">
+        <article className="evidence-decision-card" id="evidence-structured-fields">
           <div className="section-heading stacked-heading">
             <span>추출 필드</span>
             <h2>AI가 남긴 구조화 필드</h2>
@@ -1064,7 +1125,7 @@ export default async function AiEvidencePage({ params }: AiEvidencePageProps) {
           )}
         </article>
 
-        <article className="evidence-decision-card">
+        <article className="evidence-decision-card" id="evidence-model-input">
           <div className="section-heading stacked-heading">
             <span>모델 입력 근거</span>
             <h2>{isNewsCluster ? "묶음 입력" : "모델이 본 내용"}</h2>
@@ -1092,7 +1153,7 @@ export default async function AiEvidencePage({ params }: AiEvidencePageProps) {
         </article>
       </section>
 
-      <section className="evidence-decision-card reveal delay-3" aria-labelledby="audit-title">
+      <section className="evidence-decision-card reveal delay-3" id="evidence-validation" aria-labelledby="audit-title">
         <div className="section-heading stacked-heading">
           <span>안전장치</span>
           <h2 id="audit-title">이 근거를 그대로 주문으로 쓰면 안 되는 이유</h2>
