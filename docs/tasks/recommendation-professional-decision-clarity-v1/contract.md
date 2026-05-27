@@ -45,4 +45,4 @@
 - [x] Stock detail shows source guardrail and paper/order boundary clearly.
 - [x] Shared research flow gives ready/watch/blocked counts.
 - [x] Local verification passes.
-- [ ] EC2 route smoke confirms live rendering.
+- [x] EC2 route smoke confirms live rendering.
