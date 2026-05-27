@@ -5807,6 +5807,15 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertEqual(data["summary"]["story_group_count"], 1)
         self.assertEqual(data["summary"]["ai_artifact_count"], 1)
         self.assertEqual(data["summary"]["embedded_chunk_count"], 1)
+        self.assertEqual(data["internal_rag_context"]["status"], "ready")
+        self.assertEqual(
+            data["internal_rag_context"]["retrieval_policy"]["retrieval_backend"],
+            "postgres_sql_graph_context",
+        )
+        self.assertFalse(data["internal_rag_context"]["retrieval_policy"]["live_llm_call_enabled"])
+        self.assertFalse(data["internal_rag_context"]["retrieval_policy"]["write_enabled"])
+        self.assertEqual(data["internal_rag_context"]["context_inventory"]["translated_event_count"], 1)
+        self.assertIn("애플 2024년 10-K", data["internal_rag_context"]["prompt_context"]["context_text"])
         self.assertEqual(data["instrument"]["instrument_id"], "instrument-501")
         self.assertEqual(data["themes"][0]["theme_key"], "ANNUAL_REPORTING")
         self.assertEqual(data["theme_edges"][0]["relation_type"], "contains")

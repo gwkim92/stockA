@@ -446,6 +446,10 @@ task마다 흔들리게 두지 않는 편이 좋다.
 - 무엇을 증명하는가: RSS 뉴스가 rule-only cluster summary를 넘어 `codex_oauth` 후보 추출, Postgres ontology-lite context, validator-gated canonical impact update 경계로 전환되는지 검증한다.
 - 통과 조건: news AI extractor compile, unit tests, operations CLI routing, news-intraday orchestrator command, manual smoke command, task contract 존재, `news_event_candidate` artifact 저장 경계와 `event_intelligence_llm_extract` pipeline alignment가 모두 확인된다.
 
+- 명령: `bash scripts/verify_internal_rag_retrieval_foundation_v1.sh`
+- 무엇을 증명하는가: 외부 유료 RAG/vector/graph 서비스 없이 Postgres evidence graph를 AI 배치 입력용 내부 RAG context package로 정규화하는지 검증한다.
+- 통과 조건: `stockanalysis.ai.internal_rag` builder, `/api/ai/evidence-neighborhoods/{symbol}`의 `internal_rag_context`, `stockanalysis-operations internal-rag-context-run`, TypeScript DTO, 종목 상세 화면의 AI 참고 자료 준비 상태, secret/vector URI 미노출, task 문서가 모두 확인된다.
+
 ## Manual Checks
 
 - 시나리오: `docs/project-foundation.md`를 읽고 시스템 아키텍처가 데이터, 이벤트, 테마/섹터 그래프, 사이클 엔진, thesis 엔진, 추천 엔진, 포트폴리오 검토, 성과 분석을 모두 포함하는지 검토한다.

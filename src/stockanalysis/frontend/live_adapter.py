@@ -11,6 +11,7 @@ from typing import Any, Iterable, Mapping
 from urllib.parse import parse_qs, quote, unquote, urlsplit
 
 from stockanalysis.ai.evidence_graph import render_instrument_evidence_neighborhood_sql
+from stockanalysis.ai.internal_rag import build_internal_rag_context_package
 from stockanalysis.ingest.config import RuntimeConfig
 from stockanalysis.ingest.macro.sql import sql_date, sql_literal
 from stockanalysis.ingest.psql import PsqlCommandExecutor
@@ -1587,6 +1588,21 @@ def build_live_ai_evidence_neighborhood_response(
         _build_neighborhood_recommendation_payload(item) for item in _as_list(state.get("recommendations"))
     ]
     positions = [_build_neighborhood_position_payload(item) for item in _as_list(state.get("positions"))]
+    instrument = _build_neighborhood_instrument_payload(_as_dict(state.get("instrument")), fallback_symbol=symbol)
+    internal_rag_context = build_internal_rag_context_package(
+        symbol=symbol,
+        as_of_date=as_of_date,
+        instrument=instrument,
+        themes=themes,
+        theme_edges=theme_edges,
+        events=events,
+        story_groups=story_groups,
+        ai_artifacts=ai_artifacts,
+        evidence_chunks=evidence_chunks,
+        theses=theses,
+        recommendations=recommendations,
+        positions=positions,
+    )
 
     return {
         "contract_version": CONTRACT_VERSION,
@@ -1603,7 +1619,7 @@ def build_live_ai_evidence_neighborhood_response(
                 "token_budget": 0,
                 "cost_estimate_usd": 0.0,
             },
-            "instrument": _build_neighborhood_instrument_payload(_as_dict(state.get("instrument")), fallback_symbol=symbol),
+            "instrument": instrument,
             "summary": {
                 "theme_count": len(themes),
                 "theme_edge_count": len(theme_edges),
@@ -1625,6 +1641,7 @@ def build_live_ai_evidence_neighborhood_response(
             "theses": theses,
             "recommendations": recommendations,
             "positions": positions,
+            "internal_rag_context": internal_rag_context,
             "guardrails": [
                 "이 응답은 read-only 증거 관계망이며 추천 점수나 주문을 변경하지 않는다.",
                 "vector storage URI, DB URL, secret 값은 노출하지 않는다.",

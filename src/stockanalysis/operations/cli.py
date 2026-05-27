@@ -8,8 +8,9 @@ from datetime import date
 from decimal import Decimal
 from pathlib import Path
 from typing import Iterator, Mapping, Sequence, TextIO
+from urllib.parse import quote
 
-from stockanalysis.frontend.live_adapter import DEFAULT_PORTFOLIO_NAME
+from stockanalysis.frontend.live_adapter import DEFAULT_PORTFOLIO_NAME, resolve_live_frontend_response
 from stockanalysis.ingest.config import RuntimeConfig
 from stockanalysis.ingest.news.ai_extract import CODEX_OAUTH_PROVIDER, run_news_rss_ai_extract
 from stockanalysis.ingest.news.cluster_evidence import run_news_rss_cluster_evidence
@@ -727,6 +728,18 @@ def build_parser() -> argparse.ArgumentParser:
     cycle_graph_context_summary.add_argument("--dry-run", action="store_true")
     cycle_graph_context_summary.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
     cycle_graph_context_summary.set_defaults(handler=_handle_cycle_graph_context_summary_run)
+
+    internal_rag_context = subparsers.add_parser(
+        "internal-rag-context-run",
+        help="Build a read-only Postgres graph/RAG context package for one instrument.",
+    )
+    internal_rag_context.add_argument("--env-file")
+    internal_rag_context.add_argument("--symbol", required=True)
+    internal_rag_context.add_argument("--as-of-date")
+    internal_rag_context.add_argument("--limit", type=int, default=25)
+    internal_rag_context.add_argument("--output")
+    internal_rag_context.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
+    internal_rag_context.set_defaults(handler=_handle_internal_rag_context_run)
 
     cycle_community_ai_summary = subparsers.add_parser(
         "cycle-community-ai-summary-v2-run",
@@ -2216,6 +2229,48 @@ def _handle_cycle_graph_context_summary_run(args: argparse.Namespace, *, stdout:
             execute=bool(args.execute) and not bool(args.dry_run),
         )
     print_json(report, stdout=stdout, sort_keys=False)
+    return 0
+
+
+def _handle_internal_rag_context_run(args: argparse.Namespace, *, stdout: TextIO) -> int:
+    env_mapping = _load_optional_env_mapping(args.env_file, repo_root=args.repo_root)
+    symbol = str(args.symbol).strip().upper()
+    if not symbol:
+        raise ValueError("--symbol must not be empty.")
+    if args.limit < 1 or args.limit > 50:
+        raise ValueError("--limit must be between 1 and 50.")
+    as_of_date = date.fromisoformat(args.as_of_date) if args.as_of_date else date.today()
+    api_path = (
+        f"/api/ai/evidence-neighborhoods/{quote(symbol)}"
+        f"?asOfDate={quote(as_of_date.isoformat())}&maxItems={args.limit}"
+    )
+    with _temporary_environ(env_mapping):
+        payload = resolve_live_frontend_response(api_path, config=RuntimeConfig.from_env())
+
+    data = payload["data"]
+    report = {
+        "report_name": "internal_rag_context",
+        "generated_at": payload["generated_at"],
+        "symbol": data["symbol"],
+        "as_of_date": data["as_of_date"],
+        "retrieval_boundary": data["retrieval_boundary"],
+        "internal_rag_context": data["internal_rag_context"],
+        "guardrails": [
+            "read_only_no_order",
+            "no_external_paid_rag_service",
+            "no_live_llm_call_in_request_path",
+        ],
+    }
+    if args.output:
+        output_path = resolve_output_path(
+            args.output,
+            label="internal RAG context output",
+            repo_root=args.repo_root,
+            require_repo_outside=True,
+        )
+        write_json_report(report, output_path=output_path, stdout=stdout)
+    else:
+        print_json(report, stdout=stdout, sort_keys=False)
     return 0
 
 

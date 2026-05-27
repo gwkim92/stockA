@@ -25,6 +25,105 @@ class DataOperationsCliTests(unittest.TestCase):
         self.assertEqual(payload["report_name"], "data_operations_cadence_foundation")
         self.assertEqual(payload["cadence_filter"], "weekly")
 
+    def test_internal_rag_context_command_prints_read_only_context(self) -> None:
+        with tempfile.TemporaryDirectory() as repo_root, tempfile.TemporaryDirectory() as runtime_root:
+            env_file = Path(runtime_root) / "data-operations.env"
+            env_file.write_text('STOCKANALYSIS_PSQL_COMMAND="psql postgresql://user:hidden@localhost/db"\n', encoding="utf-8")
+            stdout = io.StringIO()
+            with patch("stockanalysis.operations.cli.resolve_live_frontend_response") as resolver:
+                resolver.return_value = {
+                    "generated_at": "2026-05-27T00:00:00Z",
+                    "data": {
+                        "symbol": "AAPL",
+                        "as_of_date": "2026-05-27",
+                        "retrieval_boundary": {
+                            "retrieval_backend": "postgres_sql",
+                            "live_llm_call_enabled": False,
+                        },
+                        "internal_rag_context": {
+                            "status": "ready",
+                            "retrieval_policy": {
+                                "retrieval_backend": "postgres_sql_graph_context",
+                                "external_rag_service": "not_used",
+                                "write_enabled": False,
+                                "broker_submit_allowed": False,
+                                "order_boundary": "read_only_no_order",
+                            },
+                        },
+                    },
+                }
+
+                exit_code = main(
+                    [
+                        "internal-rag-context-run",
+                        "--repo-root",
+                        repo_root,
+                        "--env-file",
+                        str(env_file),
+                        "--symbol",
+                        "aapl",
+                        "--as-of-date",
+                        "2026-05-27",
+                        "--limit",
+                        "12",
+                    ],
+                    stdout=stdout,
+                )
+
+            self.assertEqual(exit_code, 0)
+            payload = json.loads(stdout.getvalue())
+            self.assertEqual(payload["report_name"], "internal_rag_context")
+            self.assertEqual(payload["symbol"], "AAPL")
+            self.assertEqual(
+                payload["internal_rag_context"]["retrieval_policy"]["retrieval_backend"],
+                "postgres_sql_graph_context",
+            )
+            self.assertIn("no_external_paid_rag_service", payload["guardrails"])
+            self.assertNotIn("hidden", stdout.getvalue())
+            resolver.assert_called_once()
+            self.assertEqual(
+                resolver.call_args.args[0],
+                "/api/ai/evidence-neighborhoods/AAPL?asOfDate=2026-05-27&maxItems=12",
+            )
+
+    def test_internal_rag_context_command_writes_repo_outside_output(self) -> None:
+        with tempfile.TemporaryDirectory() as repo_root, tempfile.TemporaryDirectory() as runtime_root:
+            env_file = Path(runtime_root) / "data-operations.env"
+            output_path = Path(runtime_root) / "rag-context.json"
+            env_file.write_text("", encoding="utf-8")
+            stdout = io.StringIO()
+            with patch("stockanalysis.operations.cli.resolve_live_frontend_response") as resolver:
+                resolver.return_value = {
+                    "generated_at": "2026-05-27T00:00:00Z",
+                    "data": {
+                        "symbol": "SPY",
+                        "as_of_date": "2026-05-27",
+                        "retrieval_boundary": {"retrieval_backend": "postgres_sql"},
+                        "internal_rag_context": {"status": "ready"},
+                    },
+                }
+
+                exit_code = main(
+                    [
+                        "internal-rag-context-run",
+                        "--repo-root",
+                        repo_root,
+                        "--env-file",
+                        str(env_file),
+                        "--symbol",
+                        "SPY",
+                        "--output",
+                        str(output_path),
+                    ],
+                    stdout=stdout,
+                )
+
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(stdout.getvalue().strip(), str(output_path.resolve()))
+            payload = json.loads(output_path.read_text(encoding="utf-8"))
+            self.assertEqual(payload["report_name"], "internal_rag_context")
+            self.assertEqual(payload["symbol"], "SPY")
+
     def test_local_runtime_status_command_prints_secret_free_report(self) -> None:
         with tempfile.TemporaryDirectory() as repo_root, tempfile.TemporaryDirectory() as runtime_root:
             runtime_path = Path(runtime_root)

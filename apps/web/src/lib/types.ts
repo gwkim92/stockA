@@ -1210,6 +1210,69 @@ export type AiEvidenceNeighborhoodData = {
     weight: number | null;
     linked_thesis_id: string | null;
   }>;
+  internal_rag_context: {
+    status: string;
+    symbol: string;
+    as_of_date: string;
+    retrieval_policy: {
+      mode: string;
+      retrieval_backend: string;
+      canonical_store: string;
+      vector_backend: string;
+      graph_backend: string;
+      external_rag_service: string;
+      external_vector_db: string;
+      external_graph_db: string;
+      live_llm_call_enabled: boolean;
+      write_enabled: boolean;
+      broker_submit_allowed: boolean;
+      order_boundary: string;
+    };
+    context_inventory: {
+      theme_count: number;
+      theme_edge_count: number;
+      event_count: number;
+      story_group_count: number;
+      ai_artifact_count: number;
+      evidence_chunk_count: number;
+      translated_event_count: number;
+      thesis_count: number;
+      recommendation_count: number;
+      position_count: number;
+      estimated_prompt_chars: number;
+    };
+    quality_gates: Array<{
+      gate: string;
+      status: string;
+      message_ko: string;
+    }>;
+    sections: Array<{
+      section_id: string;
+      title_ko: string;
+      item_count: number;
+      items: Array<{
+        item_id: string;
+        title_ko: string;
+        summary_ko: string;
+        metadata: Record<string, unknown>;
+      }>;
+    }>;
+    evidence_items: Array<{
+      evidence_id: string;
+      evidence_type: string;
+      title_ko: string;
+      linking_reason_ko: string;
+      source_document_ids: string[];
+    }>;
+    prompt_context: {
+      language: string;
+      purpose: string;
+      instruction: string;
+      context_char_budget: number;
+      context_text: string;
+    };
+    guardrails: string[];
+  };
   guardrails: string[];
 };
 

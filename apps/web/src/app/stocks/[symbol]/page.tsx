@@ -685,6 +685,9 @@ function EvidenceNeighborhoodPanel({ neighborhood }: { neighborhood: AiEvidenceN
   const firstThesis = neighborhood.theses[0];
   const firstRecommendation = neighborhood.recommendations[0];
   const storyGroups = neighborhood.story_groups ?? [];
+  const ragContext = neighborhood.internal_rag_context;
+  const ragInventory = ragContext.context_inventory;
+  const ragPassedGateCount = ragContext.quality_gates.filter((gate) => gate.status === "passed").length;
 
   return (
     <section className="bento-grid reveal delay-4" aria-label="이 종목이 뉴스와 엮인 이유">
@@ -725,6 +728,49 @@ function EvidenceNeighborhoodPanel({ neighborhood }: { neighborhood: AiEvidenceN
             <strong>{neighborhood.summary.thesis_count + neighborhood.summary.recommendation_count}</strong>
             <small>논리/추천 연결 수</small>
           </div>
+        </div>
+
+        <div className="relationship-panel" aria-label={`${neighborhood.symbol} AI 참고 자료 준비 상태`}>
+          <span>AI가 이 종목을 다시 분석할 때 참고하는 자료</span>
+          <div className="status-rail compact-rail" aria-label="내부 RAG 컨텍스트 요약">
+            <div className="rail-cell">
+              <span>준비 상태</span>
+              <strong>{ragContext.status === "ready" ? "준비됨" : "부족"}</strong>
+              <small>{koCode(ragContext.retrieval_policy.retrieval_backend)}</small>
+            </div>
+            <div className="rail-cell">
+              <span>한국어 뉴스</span>
+              <strong>
+                {ragInventory.translated_event_count}/{ragInventory.event_count}
+              </strong>
+              <small>번역된 이벤트</small>
+            </div>
+            <div className="rail-cell">
+              <span>원문 근거</span>
+              <strong>{ragInventory.evidence_chunk_count}</strong>
+              <small>뉴스·공시 청크</small>
+            </div>
+            <div className="rail-cell">
+              <span>품질 조건</span>
+              <strong>
+                {ragPassedGateCount}/{ragContext.quality_gates.length}
+              </strong>
+              <small>통과한 검사</small>
+            </div>
+          </div>
+          <div className="relationship-list">
+            {ragContext.quality_gates.map((gate) => (
+              <div className="relationship-chip" key={gate.gate}>
+                <span>{gate.status === "passed" ? "통과" : gate.status === "watch" ? "관찰" : "확인 필요"}</span>
+                <strong>{koCode(gate.gate)}</strong>
+                <small>{gate.message_ko}</small>
+              </div>
+            ))}
+          </div>
+          <p className="board-intro">
+            이 자료 묶음은 EC2 배치 AI가 종목을 재분석할 때 쓰는 내부 근거다. 외부 유료 RAG나 실시간 LLM
+            호출은 쓰지 않고, 주문·추천 점수도 여기서 직접 바꾸지 않는다.
+          </p>
         </div>
 
         <div className="trace-chain" aria-label={`${neighborhood.symbol} 뉴스 근거 관계 흐름`}>
