@@ -6813,6 +6813,22 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertEqual(payload["data"]["news_candidate"]["instrument_impacts"][0]["target"], "NVDA")
         self.assertEqual(payload["data"]["news_candidate"]["recommendation_relevance"], "watchlist")
         self.assertEqual(payload["data"]["retrieval_context_summary"]["known_themes"][0]["code"], "AI_SEMICONDUCTOR_CYCLE")
+        trace = payload["data"]["visibility_trace"]
+        self.assertEqual(trace["source"]["status"], "available")
+        self.assertEqual(trace["translation"]["status"], "missing")
+        self.assertEqual(trace["ai_structure"]["theme_impact_count"], 1)
+        self.assertEqual(trace["ai_structure"]["instrument_impact_count"], 1)
+        self.assertEqual(trace["validator"]["status"], "passed")
+        self.assertFalse(trace["validator"]["blocked"])
+        self.assertEqual(trace["recommendation_linkage"]["target_symbol"], "NVDA")
+        self.assertEqual(trace["read_only_boundary"]["order_boundary"], "read_only_no_order")
+        self.assertEqual([step["step_key"] for step in trace["steps"]], [
+            "source",
+            "translation",
+            "ai_structure",
+            "validator",
+            "recommendation_linkage",
+        ])
 
     def test_live_source_document_detail_response_matches_frontend_contract_shape(self) -> None:
         payload = resolve_live_frontend_response(

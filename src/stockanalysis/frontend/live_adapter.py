@@ -2924,58 +2924,233 @@ def build_live_ai_evidence_detail_response(
     extraction_run = _as_dict(state.get("extraction_run"))
     cluster_summary = _as_dict(state.get("cluster_summary"))
     news_candidate = _as_dict(state.get("news_candidate"))
+    data = {
+        "evidence_id": _ai_evidence_detail_id(state, identifier),
+        "title": str(state.get("title") or ""),
+        "evidence_type": str(state.get("evidence_type") or "source_document_event"),
+        "event_at": _timestamp(state.get("event_at")),
+        "instrument": {
+            "symbol": str(instrument.get("symbol") or "UNKNOWN").upper(),
+            "instrument_id": _opaque_id("instrument", instrument.get("instrument_id"), "unknown"),
+        },
+        "source_document_id": _source_document_detail_id_from_raw(state.get("source_document_id")),
+        "korean_title": _optional_text(state.get("korean_title")),
+        "korean_summary": _optional_text(state.get("korean_summary")),
+        "translation_confidence": _number(state.get("translation_confidence")),
+        "classification": {
+            "theme_key": str(classification.get("theme_key") or "UNCLASSIFIED"),
+            "theme_name": str(classification.get("theme_name") or "Unclassified"),
+            "impact_direction": str(classification.get("impact_direction") or "unknown"),
+            "impact_score": _number(classification.get("impact_score")),
+        },
+        "extraction_run": {
+            "run_id": _opaque_id("pipeline-run", extraction_run.get("run_id"), "unknown"),
+            "status": str(extraction_run.get("status") or "unknown"),
+            "provider": str(extraction_run.get("provider") or "unknown"),
+            "model_id": str(extraction_run.get("model_id") or "unknown"),
+            "prompt_version": str(extraction_run.get("prompt_version") or "unknown"),
+            "finished_at": _timestamp(extraction_run.get("finished_at")),
+            "input_tokens": int(extraction_run.get("input_tokens") or 0),
+            "output_tokens": int(extraction_run.get("output_tokens") or 0),
+            "estimated_cost_usd": _number(extraction_run.get("estimated_cost_usd")),
+            "quality_gate": str(extraction_run.get("quality_gate") or "ai_review_required"),
+        },
+        "extracted_fields": [_build_extracted_field_payload(item) for item in _as_list(state.get("extracted_fields"))],
+        "news_candidate": _build_ai_evidence_news_candidate_payload(news_candidate),
+        "retrieval_context_summary": _build_ai_evidence_retrieval_context_payload(
+            _as_dict(state.get("retrieval_context_summary"))
+        ),
+        "source_chunks": [_build_source_chunk_payload(item) for item in _as_list(state.get("source_chunks"))],
+        "cluster_summary": _build_ai_evidence_cluster_summary_payload(cluster_summary),
+        "cluster_events": [
+            _build_ai_evidence_cluster_event_payload(item) for item in _as_list(state.get("cluster_events"))
+        ],
+        "audit_notes": [
+            "AI output is stored as evidence metadata only; it does not place trades or mutate thesis state.",
+            "quality_gate requires AI validator review before this event can justify a thesis change.",
+        ],
+    }
+    data["visibility_trace"] = _build_ai_evidence_visibility_trace_payload(data)
 
     return {
         "contract_version": CONTRACT_VERSION,
         "generated_at": generated_at,
-        "data": {
-            "evidence_id": _ai_evidence_detail_id(state, identifier),
-            "title": str(state.get("title") or ""),
-            "evidence_type": str(state.get("evidence_type") or "source_document_event"),
-            "event_at": _timestamp(state.get("event_at")),
-            "instrument": {
-                "symbol": str(instrument.get("symbol") or "UNKNOWN").upper(),
-                "instrument_id": _opaque_id("instrument", instrument.get("instrument_id"), "unknown"),
-            },
-            "source_document_id": _source_document_detail_id_from_raw(state.get("source_document_id")),
-            "korean_title": _optional_text(state.get("korean_title")),
-            "korean_summary": _optional_text(state.get("korean_summary")),
-            "translation_confidence": _number(state.get("translation_confidence")),
-            "classification": {
-                "theme_key": str(classification.get("theme_key") or "UNCLASSIFIED"),
-                "theme_name": str(classification.get("theme_name") or "Unclassified"),
-                "impact_direction": str(classification.get("impact_direction") or "unknown"),
-                "impact_score": _number(classification.get("impact_score")),
-            },
-            "extraction_run": {
-                "run_id": _opaque_id("pipeline-run", extraction_run.get("run_id"), "unknown"),
-                "status": str(extraction_run.get("status") or "unknown"),
-                "provider": str(extraction_run.get("provider") or "unknown"),
-                "model_id": str(extraction_run.get("model_id") or "unknown"),
-                "prompt_version": str(extraction_run.get("prompt_version") or "unknown"),
-                "finished_at": _timestamp(extraction_run.get("finished_at")),
-                "input_tokens": int(extraction_run.get("input_tokens") or 0),
-                "output_tokens": int(extraction_run.get("output_tokens") or 0),
-                "estimated_cost_usd": _number(extraction_run.get("estimated_cost_usd")),
-                "quality_gate": str(extraction_run.get("quality_gate") or "ai_review_required"),
-            },
-            "extracted_fields": [_build_extracted_field_payload(item) for item in _as_list(state.get("extracted_fields"))],
-            "news_candidate": _build_ai_evidence_news_candidate_payload(news_candidate),
-            "retrieval_context_summary": _build_ai_evidence_retrieval_context_payload(
-                _as_dict(state.get("retrieval_context_summary"))
-            ),
-            "source_chunks": [_build_source_chunk_payload(item) for item in _as_list(state.get("source_chunks"))],
-            "cluster_summary": _build_ai_evidence_cluster_summary_payload(cluster_summary),
-            "cluster_events": [
-                _build_ai_evidence_cluster_event_payload(item) for item in _as_list(state.get("cluster_events"))
-            ],
-            "audit_notes": [
-                "AI output is stored as evidence metadata only; it does not place trades or mutate thesis state.",
-                "quality_gate requires AI validator review before this event can justify a thesis change.",
-            ],
-        },
+        "data": data,
         "links": _ai_evidence_links(state, identifier=identifier),
     }
+
+
+def _build_ai_evidence_visibility_trace_payload(data: dict[str, Any]) -> dict[str, Any]:
+    candidate = _as_dict(data.get("news_candidate"))
+    cluster = _as_dict(data.get("cluster_summary"))
+    cluster_events = _as_list(data.get("cluster_events"))
+    source_chunks = _as_list(data.get("source_chunks"))
+    extracted_fields = _as_list(data.get("extracted_fields"))
+    extraction_run = _as_dict(data.get("extraction_run"))
+    instrument = _as_dict(data.get("instrument"))
+    classification = _as_dict(data.get("classification"))
+    source_document_id = str(data.get("source_document_id") or "")
+    has_source = bool(source_document_id or any(event.get("source_document_id") for event in cluster_events))
+    translated_event_count = sum(
+        1 for event in cluster_events if event.get("korean_title") or event.get("korean_summary")
+    )
+    has_translation = bool(data.get("korean_title") or data.get("korean_summary") or translated_event_count)
+    theme_impacts = _as_list(candidate.get("theme_impacts"))
+    instrument_impacts = _as_list(candidate.get("instrument_impacts"))
+    evidence_type = str(data.get("evidence_type") or "")
+    quality_gate = str(extraction_run.get("quality_gate") or "ai_review_required")
+    validator_blocked = evidence_type == "news_event_candidate_rejected" or quality_gate == "validator_blocked"
+    validator_status = "blocked" if validator_blocked else ("passed" if quality_gate == "ai_review_passed" else "needs_review")
+    target_symbol = _visibility_target_symbol(instrument=instrument, candidate_impacts=instrument_impacts, cluster=cluster)
+    recommendation_link_status = "needs_neighborhood_lookup" if target_symbol else "macro_or_theme_only"
+
+    return {
+        "summary_ko": _visibility_summary_ko(
+            evidence_type=evidence_type,
+            validator_status=validator_status,
+            target_symbol=target_symbol,
+            theme_key=str(classification.get("theme_key") or "UNCLASSIFIED"),
+        ),
+        "source": {
+            "status": "available" if has_source else "missing",
+            "source_document_id": source_document_id,
+            "source_document_count": len({str(event.get("source_document_id") or "") for event in cluster_events if event.get("source_document_id")})
+            or (1 if source_document_id else 0),
+            "source_chunk_count": len(source_chunks),
+            "message_ko": "원천 문서와 모델 입력 근거를 대조할 수 있다." if has_source else "원천 문서 링크가 부족하다.",
+        },
+        "translation": {
+            "status": "available" if has_translation else "missing",
+            "translated_event_count": translated_event_count or (1 if has_translation else 0),
+            "translation_confidence": _number(data.get("translation_confidence")),
+            "message_ko": "한국어 제목/요약으로 먼저 검토할 수 있다." if has_translation else "한국어 번역이 없어 원문 대조가 필요하다.",
+        },
+        "ai_structure": {
+            "status": "available" if extracted_fields or theme_impacts or instrument_impacts or cluster else "limited",
+            "provider": str(extraction_run.get("provider") or "unknown"),
+            "model_id": str(extraction_run.get("model_id") or "unknown"),
+            "evidence_type": evidence_type,
+            "extracted_field_count": len(extracted_fields),
+            "theme_impact_count": len(theme_impacts),
+            "instrument_impact_count": len(instrument_impacts),
+            "cluster_event_count": int(cluster.get("event_count") or len(cluster_events) or 0),
+            "message_ko": _ai_structure_message_ko(evidence_type, len(theme_impacts), len(instrument_impacts), cluster),
+        },
+        "validator": {
+            "status": validator_status,
+            "quality_gate": quality_gate,
+            "blocked": validator_blocked,
+            "decision_ko": _validator_decision_ko(validator_status, extraction_run),
+            "reasons_ko": _validator_reasons_ko(
+                validator_status=validator_status,
+                evidence_type=evidence_type,
+                quality_gate=quality_gate,
+                source_chunk_count=len(source_chunks),
+            ),
+        },
+        "recommendation_linkage": {
+            "status": recommendation_link_status,
+            "target_symbol": target_symbol,
+            "theme_key": str(classification.get("theme_key") or "UNCLASSIFIED"),
+            "message_ko": (
+                f"{target_symbol} 종목 맥락과 추천 검토서 연결 여부를 이어서 확인한다."
+                if target_symbol
+                else "직접 종목이 없는 시장/테마 흐름이면 추천 연결은 전파/사이클 단계에서 판단한다."
+            ),
+        },
+        "steps": [
+            {"step_key": "source", "label_ko": "원천 뉴스", "status": "available" if has_source else "missing"},
+            {"step_key": "translation", "label_ko": "한국어 번역", "status": "available" if has_translation else "missing"},
+            {
+                "step_key": "ai_structure",
+                "label_ko": "AI 구조화",
+                "status": "available" if extracted_fields or theme_impacts or instrument_impacts or cluster else "limited",
+            },
+            {"step_key": "validator", "label_ko": "validator 판정", "status": validator_status},
+            {"step_key": "recommendation_linkage", "label_ko": "추천 연결", "status": recommendation_link_status},
+        ],
+        "read_only_boundary": {
+            "live_llm_call_enabled": False,
+            "write_enabled": False,
+            "broker_submit_allowed": False,
+            "order_boundary": "read_only_no_order",
+        },
+    }
+
+
+def _visibility_target_symbol(
+    *,
+    instrument: Mapping[str, Any],
+    candidate_impacts: list[Any],
+    cluster: Mapping[str, Any],
+) -> str:
+    for impact in candidate_impacts:
+        impact_dict = _as_dict(impact)
+        symbol = str(impact_dict.get("target") or impact_dict.get("symbol") or "").upper()
+        if symbol and symbol not in {"UNKNOWN", "UNCLASSIFIED"}:
+            return symbol
+    for symbol_value in _as_list_or_scalars(cluster.get("symbols")):
+        symbol = str(symbol_value or "").upper()
+        if symbol and symbol not in {"UNKNOWN", "UNCLASSIFIED"}:
+            return symbol
+    symbol = str(instrument.get("symbol") or "").upper()
+    return "" if symbol in {"UNKNOWN", "UNCLASSIFIED"} else symbol
+
+
+def _visibility_summary_ko(
+    *,
+    evidence_type: str,
+    validator_status: str,
+    target_symbol: str,
+    theme_key: str,
+) -> str:
+    target_text = target_symbol or theme_key or "시장/테마"
+    if validator_status == "blocked":
+        return f"{target_text} 관련 AI 후보지만 validator가 추천 입력 반영을 차단했다."
+    if evidence_type == "news_cluster_summary":
+        return f"{target_text} 관련 뉴스 묶음이다. 같은 흐름인지와 추천 연결이 과하지 않은지 확인한다."
+    return f"{target_text} 관련 AI 근거다. 원천, 번역, 구조화 결과, validator 판정을 순서대로 확인한다."
+
+
+def _ai_structure_message_ko(
+    evidence_type: str,
+    theme_impact_count: int,
+    instrument_impact_count: int,
+    cluster: Mapping[str, Any],
+) -> str:
+    if evidence_type == "news_cluster_summary":
+        return f"뉴스 {int(cluster.get('event_count') or 0)}개를 같은 흐름 후보로 묶었다."
+    if theme_impact_count or instrument_impact_count:
+        return f"테마 영향 {theme_impact_count}개와 직접 종목 영향 {instrument_impact_count}개를 분리했다."
+    return "구조화 필드가 제한적이므로 원천과 추출 필드를 직접 확인해야 한다."
+
+
+def _validator_decision_ko(status: str, extraction_run: Mapping[str, Any]) -> str:
+    if status == "blocked":
+        return "추천·보유검토 입력으로 쓰지 않는다."
+    if status == "passed":
+        return "추천·보유검토의 입력 후보로 사용할 수 있다."
+    return f"{extraction_run.get('quality_gate') or 'quality gate'} 상태라 추가 점검이 필요하다."
+
+
+def _validator_reasons_ko(
+    *,
+    validator_status: str,
+    evidence_type: str,
+    quality_gate: str,
+    source_chunk_count: int,
+) -> list[str]:
+    if validator_status == "blocked":
+        reasons = [f"품질 조건 `{quality_gate}`로 canonical 영향 반영이 차단됐다."]
+        if evidence_type == "news_event_candidate_rejected":
+            reasons.append("저장된 후보는 감사와 분류 보강용으로만 남긴다.")
+        return reasons
+    reasons = [f"품질 조건 `{quality_gate}`가 통과 또는 입력 후보 상태다."]
+    if source_chunk_count == 0:
+        reasons.append("모델 입력 근거 청크가 없으므로 원천 문서 대조가 필요하다.")
+    else:
+        reasons.append(f"모델 입력 근거 청크 {source_chunk_count}개가 연결되어 있다.")
+    return reasons
 
 
 def build_live_source_document_detail_response(

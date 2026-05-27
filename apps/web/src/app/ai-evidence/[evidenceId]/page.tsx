@@ -535,6 +535,136 @@ function EvidenceTracePath({ steps }: { steps: EvidenceTraceStep[] }) {
   );
 }
 
+function traceStatusLabel(status: string) {
+  if (status === "available" || status === "passed" || status === "ready") {
+    return "확인됨";
+  }
+  if (status === "blocked") {
+    return "차단";
+  }
+  if (status === "needs_review" || status === "attention" || status === "limited") {
+    return "추가 확인";
+  }
+  if (status === "missing") {
+    return "부족";
+  }
+  if (status === "needs_neighborhood_lookup") {
+    return "종목 맥락 확인";
+  }
+  if (status === "macro_or_theme_only") {
+    return "상위 흐름";
+  }
+  return koCode(status);
+}
+
+function traceTone(status: string) {
+  if (status === "available" || status === "passed" || status === "ready" || status === "needs_neighborhood_lookup") {
+    return "risk-low";
+  }
+  if (status === "blocked" || status === "missing") {
+    return "risk-high";
+  }
+  return "risk-medium";
+}
+
+function EvidenceVisibilityTraceBoard({
+  data,
+  neighborhood,
+  sourceLink,
+  targetStockLink,
+  firstRecommendationLink,
+}: {
+  data: AiEvidenceDetailData;
+  neighborhood: EvidenceNeighborhood;
+  sourceLink: Route | null;
+  targetStockLink: Route | null;
+  firstRecommendationLink: Route | null;
+}) {
+  const trace = data.visibility_trace;
+  const recommendationCount = neighborhood?.summary.recommendation_count ?? 0;
+  const thesisCount = neighborhood?.summary.thesis_count ?? 0;
+  const stepFacts: Record<string, { title: string; body: string; href?: Route | null; cta?: string }> = {
+    source: {
+      title: `${trace.source.source_document_count}개 원천 · ${trace.source.source_chunk_count}개 입력 근거`,
+      body: trace.source.message_ko,
+      href: sourceLink,
+      cta: "원천 열기",
+    },
+    translation: {
+      title: `${trace.translation.translated_event_count}개 한국어 번역`,
+      body:
+        trace.translation.translation_confidence != null
+          ? `${trace.translation.message_ko} 번역 신뢰도 ${formatPercent(trace.translation.translation_confidence)}.`
+          : trace.translation.message_ko,
+    },
+    ai_structure: {
+      title: `${koCode(trace.ai_structure.provider)} · ${koCode(trace.ai_structure.evidence_type)}`,
+      body: `${trace.ai_structure.message_ko} 구조화 필드 ${trace.ai_structure.extracted_field_count}개.`,
+    },
+    validator: {
+      title: trace.validator.decision_ko,
+      body: trace.validator.reasons_ko.join(" "),
+    },
+    recommendation_linkage: {
+      title:
+        recommendationCount > 0
+          ? `추천 ${recommendationCount}개 · 투자 논리 ${thesisCount}개`
+          : trace.recommendation_linkage.target_symbol
+            ? `${koCode(trace.recommendation_linkage.target_symbol)} 종목 맥락 확인`
+            : "직접 종목 없이 상위 흐름으로 확인",
+      body:
+        recommendationCount > 0
+          ? "연결된 추천 검토서에서 가격, 사이클, 보유 논리와 함께 다시 판단한다."
+          : trace.recommendation_linkage.message_ko,
+      href: firstRecommendationLink ?? targetStockLink,
+      cta: firstRecommendationLink ? "추천 열기" : targetStockLink ? "종목 열기" : undefined,
+    },
+  };
+
+  return (
+    <section className="evidence-decision-card reveal delay-1" aria-labelledby="visibility-trace-title">
+      <div className="section-heading stacked-heading">
+        <span>한눈에 보는 근거 흐름</span>
+        <h2 id="visibility-trace-title">이 근거가 어디서 와서 어디에 쓰이는지 확인한다</h2>
+        <p>{trace.summary_ko}</p>
+      </div>
+      <div className="evidence-trace-grid">
+        {trace.steps.map((step, index) => {
+          const fact = stepFacts[step.step_key] ?? { title: koCode(step.step_key), body: trace.summary_ko };
+          return (
+            <article className={`evidence-trace-card ${traceTone(step.status)}`} key={step.step_key}>
+              <span>{String(index + 1).padStart(2, "0")}</span>
+              <strong>{step.label_ko}</strong>
+              <em>{fact.title}</em>
+              <b>{traceStatusLabel(step.status)}</b>
+              <p>{fact.body}</p>
+              {fact.href && fact.cta ? <Link href={fact.href}>{fact.cta}</Link> : null}
+            </article>
+          );
+        })}
+      </div>
+      <div className="relationship-panel">
+        <span>검증 결과</span>
+        <div className="relationship-list">
+          <div className="relationship-chip">
+            <span>{trace.validator.blocked ? "차단" : "통과 후보"}</span>
+            <strong>{trace.validator.decision_ko}</strong>
+            <small>{trace.validator.reasons_ko.join(" ")}</small>
+          </div>
+          <div className="relationship-chip">
+            <span>운영 경계</span>
+            <strong>실시간 AI 호출 없음 · 주문 없음</strong>
+            <small>
+              live LLM {trace.read_only_boundary.live_llm_call_enabled ? "사용" : "미사용"} · write{" "}
+              {trace.read_only_boundary.write_enabled ? "허용" : "차단"} · {koCode(trace.read_only_boundary.order_boundary)}
+            </small>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export default async function AiEvidencePage({ params }: AiEvidencePageProps) {
   const { evidenceId } = await params;
   const response = await getAiEvidenceDetail(evidenceId);
@@ -727,6 +857,14 @@ export default async function AiEvidencePage({ params }: AiEvidencePageProps) {
       </section>
 
       <EvidenceTracePath steps={traceSteps} />
+
+      <EvidenceVisibilityTraceBoard
+        data={data}
+        neighborhood={neighborhood}
+        sourceLink={sourceLink}
+        targetStockLink={targetStockLink}
+        firstRecommendationLink={firstRecommendationLink}
+      />
 
       <section className="evidence-decision-card reveal delay-1" aria-labelledby="source-preview-title">
         <div className="section-heading stacked-heading">

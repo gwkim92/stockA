@@ -2702,6 +2702,57 @@ export type AiEvidenceDetailData = {
     summary: string;
     relevance: string;
   }>;
+  visibility_trace: {
+    summary_ko: string;
+    source: {
+      status: string;
+      source_document_id: string;
+      source_document_count: number;
+      source_chunk_count: number;
+      message_ko: string;
+    };
+    translation: {
+      status: string;
+      translated_event_count: number;
+      translation_confidence: number | null;
+      message_ko: string;
+    };
+    ai_structure: {
+      status: string;
+      provider: string;
+      model_id: string;
+      evidence_type: string;
+      extracted_field_count: number;
+      theme_impact_count: number;
+      instrument_impact_count: number;
+      cluster_event_count: number;
+      message_ko: string;
+    };
+    validator: {
+      status: string;
+      quality_gate: string;
+      blocked: boolean;
+      decision_ko: string;
+      reasons_ko: string[];
+    };
+    recommendation_linkage: {
+      status: string;
+      target_symbol: string;
+      theme_key: string;
+      message_ko: string;
+    };
+    steps: Array<{
+      step_key: string;
+      label_ko: string;
+      status: string;
+    }>;
+    read_only_boundary: {
+      live_llm_call_enabled: boolean;
+      write_enabled: boolean;
+      broker_submit_allowed: boolean;
+      order_boundary: string;
+    };
+  };
   audit_notes: string[];
 };
 
