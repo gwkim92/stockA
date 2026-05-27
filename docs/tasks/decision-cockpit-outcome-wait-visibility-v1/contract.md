@@ -38,7 +38,7 @@
 
 ## Done Criteria
 
-- [ ] Home page renders an outcome wait section in Korean.
-- [ ] Section includes recommendation due date, portfolio feedback maturity date, weight review boundary, and order boundary.
-- [ ] Local verification passes.
-- [ ] EC2 route smoke confirms live rendering.
+- [x] Home page renders an outcome wait section in Korean.
+- [x] Section includes recommendation due date, portfolio feedback maturity date, weight review boundary, and order boundary.
+- [x] Local verification passes.
+- [x] EC2 route smoke confirms live rendering.
