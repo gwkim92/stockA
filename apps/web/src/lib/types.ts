@@ -475,6 +475,7 @@ export type DataHealthData = {
     automatic_order_allowed: boolean;
     broker_submit_allowed: boolean;
   };
+  outcome_maturity_wait_monitor: OutcomeMaturityWaitMonitor;
   professional_source_gap_prioritization: {
     status: string;
     as_of_date: string;
@@ -2781,6 +2782,48 @@ export type RecommendationOutcomeDueActionRouter = {
   broker_submit_allowed: boolean;
   order_boundary: string;
   next_action: string;
+};
+
+export type OutcomeMaturityWaitMonitor = {
+  status: string;
+  title: string;
+  summary: string;
+  next_action: string;
+  as_of_date: string;
+  recommendation_next_due_date: string;
+  recommendation_next_due_count: number;
+  recommendation_maturity_status: string;
+  recommendation_action_status: string;
+  recommendation_ready_for_backfill_count: number;
+  recommendation_overdue_count: number;
+  recommendation_price_gap_count: number;
+  portfolio_feedback_maturity_date: string;
+  portfolio_feedback_status: string;
+  portfolio_feedback_run_gap: number;
+  portfolio_mature_decision_gap: number;
+  earliest_action_date: string;
+  wait_item_count: number;
+  wait_items: Array<{
+    scope: string;
+    label: string;
+    status: string;
+    action_status: string;
+    wait_until: string;
+    count: number;
+    reason: string;
+    next_action: string;
+  }>;
+  weight_review_blocked: boolean;
+  weight_review_block_reason: string;
+  manual_weight_review_allowed: boolean;
+  recommendation_scoring_mutated: boolean;
+  benchmark_definition_mutated: boolean;
+  portfolio_position_mutated: boolean;
+  automatic_weight_change_allowed: boolean;
+  automatic_rebalance_allowed: boolean;
+  automatic_order_allowed: boolean;
+  broker_submit_allowed: boolean;
+  order_boundary: string;
 };
 
 export type PositionSizingReview = {

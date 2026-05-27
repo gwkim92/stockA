@@ -29,6 +29,7 @@ type RecommendationOutcomeCalibration = DataHealthData["recommendation_outcome_c
 type RecommendationOutcomeMaturity = DataHealthData["recommendation_outcome_maturity"];
 type RecommendationOutcomeDueActionRouter = DataHealthData["recommendation_outcome_due_action_router"];
 type RecommendationWeightReviewReadiness = DataHealthData["recommendation_weight_review_readiness"];
+type OutcomeMaturityWaitMonitor = DataHealthData["outcome_maturity_wait_monitor"];
 type ProfessionalSourceGapPrioritization = DataHealthData["professional_source_gap_prioritization"];
 type ProfessionalAnalysisQuality = DataHealthData["professional_analysis_quality"];
 type ProfessionalRecommendationCoverageAudit = DataHealthData["professional_recommendation_coverage_audit"];
@@ -758,6 +759,16 @@ function outcomeDueActionRouterTitle(router: RecommendationOutcomeDueActionRoute
     return "가드레일 차단";
   }
   return koCode(router.action_status);
+}
+
+function outcomeWaitMonitorTone(monitor: OutcomeMaturityWaitMonitor) {
+  if (monitor.status === "action_due" || monitor.status === "blocked_or_missing_evidence") {
+    return "risk-high";
+  }
+  if (monitor.status === "manual_weight_review_possible") {
+    return "risk-low";
+  }
+  return "risk-medium";
 }
 
 function professionalSourceGapTitle(gaps: ProfessionalSourceGapPrioritization) {
@@ -1534,6 +1545,39 @@ const DEFAULT_RECOMMENDATION_WEIGHT_REVIEW_READINESS: RecommendationWeightReview
   broker_submit_allowed: false,
 };
 
+const DEFAULT_OUTCOME_MATURITY_WAIT_MONITOR: OutcomeMaturityWaitMonitor = {
+  status: "missing",
+  title: "성과 성숙 상태 없음",
+  summary: "추천 outcome과 포트폴리오 feedback 성숙 상태를 아직 읽지 못했다.",
+  next_action: "outcome maturity data-health payload를 먼저 생성한다.",
+  as_of_date: "",
+  recommendation_next_due_date: "",
+  recommendation_next_due_count: 0,
+  recommendation_maturity_status: "missing",
+  recommendation_action_status: "missing",
+  recommendation_ready_for_backfill_count: 0,
+  recommendation_overdue_count: 0,
+  recommendation_price_gap_count: 0,
+  portfolio_feedback_maturity_date: "",
+  portfolio_feedback_status: "missing",
+  portfolio_feedback_run_gap: 0,
+  portfolio_mature_decision_gap: 0,
+  earliest_action_date: "",
+  wait_item_count: 0,
+  wait_items: [],
+  weight_review_blocked: true,
+  weight_review_block_reason: "성과 성숙 상태가 없어 추천 weight 검토를 막는다.",
+  manual_weight_review_allowed: false,
+  recommendation_scoring_mutated: false,
+  benchmark_definition_mutated: false,
+  portfolio_position_mutated: false,
+  automatic_weight_change_allowed: false,
+  automatic_rebalance_allowed: false,
+  automatic_order_allowed: false,
+  broker_submit_allowed: false,
+  order_boundary: "read_only_no_order",
+};
+
 const DEFAULT_PROFESSIONAL_SOURCE_GAP_PRIORITIZATION: ProfessionalSourceGapPrioritization = {
   status: "missing",
   as_of_date: "",
@@ -1685,6 +1729,8 @@ export default async function DataHealthPage() {
     data.recommendation_outcome_due_action_router ?? DEFAULT_RECOMMENDATION_OUTCOME_DUE_ACTION_ROUTER;
   const weightReviewReadiness =
     data.recommendation_weight_review_readiness ?? DEFAULT_RECOMMENDATION_WEIGHT_REVIEW_READINESS;
+  const outcomeWaitMonitor =
+    data.outcome_maturity_wait_monitor ?? DEFAULT_OUTCOME_MATURITY_WAIT_MONITOR;
   const professionalSourceGaps =
     data.professional_source_gap_prioritization ?? DEFAULT_PROFESSIONAL_SOURCE_GAP_PRIORITIZATION;
   const professionalQuality =
@@ -2380,6 +2426,77 @@ export default async function DataHealthPage() {
         <div className="empty-state">
           <strong>다음 조치</strong>
           <p>{koCode(newsAiEvalQuality.next_action)}</p>
+        </div>
+      </section>
+
+      <section
+        className="feature-map-panel reveal delay-1"
+        id="outcome-maturity-wait-monitor"
+        aria-labelledby="outcome-maturity-wait-monitor-title"
+      >
+        <div className="section-heading stacked-heading">
+          <span>성과 성숙 대기 모니터</span>
+          <h2 id="outcome-maturity-wait-monitor-title">
+            추천 outcome과 포트폴리오 feedback이 성숙하기 전에는 weight를 바꾸지 않는다.
+          </h2>
+        </div>
+        <p className="board-intro">
+          {outcomeWaitMonitor.summary} {outcomeWaitMonitor.next_action}
+        </p>
+        <div className="status-rail compact-rail">
+          <article className="rail-cell">
+            <span>현재 결론</span>
+            <strong className={`risk-tag ${outcomeWaitMonitorTone(outcomeWaitMonitor)}`}>
+              {outcomeWaitMonitor.title}
+            </strong>
+            <small>{outcomeWaitMonitor.as_of_date || "기준일 없음"}</small>
+          </article>
+          <article className="rail-cell">
+            <span>추천 outcome</span>
+            <strong>{outcomeWaitMonitor.recommendation_next_due_date || "대기일 없음"}</strong>
+            <small>
+              다음 창 {outcomeWaitMonitor.recommendation_next_due_count}개 · 상태{" "}
+              {koCode(outcomeWaitMonitor.recommendation_maturity_status)}
+            </small>
+          </article>
+          <article className="rail-cell">
+            <span>포트폴리오 feedback</span>
+            <strong>{outcomeWaitMonitor.portfolio_feedback_maturity_date || "성숙일 없음"}</strong>
+            <small>
+              성숙 판단 부족 {outcomeWaitMonitor.portfolio_mature_decision_gap}개 · 실행 부족{" "}
+              {outcomeWaitMonitor.portfolio_feedback_run_gap}회
+            </small>
+          </article>
+          <article className="rail-cell rail-critical">
+            <span>weight 검토</span>
+            <strong>{outcomeWaitMonitor.weight_review_blocked ? "차단" : "manual 검토 가능"}</strong>
+            <small>주문 경계 {koCode(outcomeWaitMonitor.order_boundary)}</small>
+          </article>
+        </div>
+        <div className="insight-grid">
+          {outcomeWaitMonitor.wait_items.map((item) => (
+            <article className="insight-card" key={item.scope}>
+              <span>{item.label}</span>
+              <strong>{item.wait_until || "날짜 미정"}</strong>
+              <p>{item.reason}</p>
+              <small>
+                {koCode(item.status)} · {koCode(item.action_status)} · 대상 {item.count}개
+              </small>
+            </article>
+          ))}
+          <article className="insight-card">
+            <span>weight 차단 이유</span>
+            <strong>{outcomeWaitMonitor.manual_weight_review_allowed ? "검토 가능" : "검토 금지"}</strong>
+            <p>{outcomeWaitMonitor.weight_review_block_reason}</p>
+          </article>
+          <article className="insight-card">
+            <span>안전 경계</span>
+            <strong>{outcomeWaitMonitor.automatic_weight_change_allowed ? "자동 변경 허용" : "자동 변경 금지"}</strong>
+            <p>
+              추천 점수 변경 {outcomeWaitMonitor.recommendation_scoring_mutated ? "감지" : "없음"} ·
+              broker 전송 {outcomeWaitMonitor.broker_submit_allowed ? "허용" : "금지"}
+            </p>
+          </article>
         </div>
       </section>
 

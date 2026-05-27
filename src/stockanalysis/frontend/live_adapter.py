@@ -1293,6 +1293,12 @@ def build_live_data_health_response(
     recommendation_weight_review_readiness = _build_recommendation_weight_review_readiness_payload(
         _as_dict(state.get("recommendation_weight_review_readiness"))
     )
+    outcome_maturity_wait_monitor = _build_outcome_maturity_wait_monitor_payload(
+        portfolio_review_feedback_calibration=portfolio_review_feedback_calibration,
+        recommendation_outcome_maturity=recommendation_outcome_maturity,
+        recommendation_outcome_due_action_router=recommendation_outcome_due_action_router,
+        recommendation_weight_review_readiness=recommendation_weight_review_readiness,
+    )
     professional_source_gap_prioritization = _build_professional_source_gap_prioritization_payload(
         _as_dict(state.get("professional_source_gap_prioritization"))
     )
@@ -1447,6 +1453,7 @@ def build_live_data_health_response(
             "recommendation_outcome_maturity": recommendation_outcome_maturity,
             "recommendation_outcome_due_action_router": recommendation_outcome_due_action_router,
             "recommendation_weight_review_readiness": recommendation_weight_review_readiness,
+            "outcome_maturity_wait_monitor": outcome_maturity_wait_monitor,
             "professional_source_gap_prioritization": professional_source_gap_prioritization,
             "professional_analysis_quality": professional_analysis_quality,
             "professional_recommendation_coverage_audit": professional_recommendation_coverage_audit,
@@ -15282,6 +15289,195 @@ def _build_recommendation_outcome_due_action_router_payload(payload: dict[str, A
         "order_boundary": str(payload.get("order_boundary") or "read_only_no_order"),
         "next_action": str(payload.get("next_action") or "recommendation-outcome-due-action-router-run을 실행한다."),
     }
+
+
+def _build_outcome_maturity_wait_monitor_payload(
+    *,
+    portfolio_review_feedback_calibration: Mapping[str, Any],
+    recommendation_outcome_maturity: Mapping[str, Any],
+    recommendation_outcome_due_action_router: Mapping[str, Any],
+    recommendation_weight_review_readiness: Mapping[str, Any],
+) -> dict[str, Any]:
+    cadence_action = _as_dict(recommendation_outcome_maturity.get("cadence_action"))
+    router_child = _as_dict(recommendation_outcome_due_action_router.get("child_runner"))
+    recommendation_wait_until = _first_non_empty(
+        recommendation_outcome_due_action_router.get("wait_until"),
+        cadence_action.get("wait_until"),
+        recommendation_outcome_maturity.get("next_due_date"),
+    )
+    portfolio_wait_until = str(portfolio_review_feedback_calibration.get("estimated_maturity_date") or "")
+    wait_dates = [date for date in [recommendation_wait_until, portfolio_wait_until] if date]
+    earliest_action_date = min(wait_dates) if wait_dates else ""
+    recommendation_should_run = (
+        cadence_action.get("should_run_now") is True
+        or str(recommendation_outcome_due_action_router.get("action_status") or "")
+        in {"execute_outcome_calibration_ready", "blocked_by_price_gaps"}
+    )
+    portfolio_managed_wait = portfolio_review_feedback_calibration.get("managed_wait") is True
+    manual_weight_allowed = recommendation_weight_review_readiness.get("manual_weight_review_allowed") is True
+    blocks_weight_review = (
+        recommendation_weight_review_readiness.get("manual_weight_review_allowed") is not True
+        or portfolio_review_feedback_calibration.get("weight_review_blocked") is True
+        or cadence_action.get("blocks_weight_review") is not False
+    )
+    if recommendation_should_run:
+        status = "action_due"
+    elif router_child.get("executed") is True:
+        status = "calibration_executed_keep_weights"
+    elif manual_weight_allowed and not blocks_weight_review:
+        status = "manual_weight_review_possible"
+    elif portfolio_managed_wait or cadence_action.get("should_wait") is True or recommendation_wait_until:
+        status = "managed_wait"
+    else:
+        status = "blocked_or_missing_evidence"
+
+    wait_items = [
+        {
+            "scope": "recommendation_outcome",
+            "label": "추천 outcome 측정창",
+            "status": str(recommendation_outcome_maturity.get("status") or "missing"),
+            "action_status": str(recommendation_outcome_due_action_router.get("action_status") or cadence_action.get("status") or "missing"),
+            "wait_until": recommendation_wait_until,
+            "count": int(_safe_number(recommendation_outcome_maturity.get("next_due_count")) or 0),
+            "reason": str(
+                recommendation_outcome_due_action_router.get("reason")
+                or cadence_action.get("reason")
+                or "추천 outcome maturity 상태를 확인한다."
+            ),
+            "next_action": str(
+                recommendation_outcome_due_action_router.get("next_action")
+                or cadence_action.get("label")
+                or "recommendation outcome maturity를 계속 모니터링한다."
+            ),
+        },
+        {
+            "scope": "portfolio_feedback",
+            "label": "포트폴리오 feedback 성숙창",
+            "status": str(portfolio_review_feedback_calibration.get("maturity_status") or "missing"),
+            "action_status": str(portfolio_review_feedback_calibration.get("managed_gate_status") or "unknown"),
+            "wait_until": portfolio_wait_until,
+            "count": int(_safe_number(portfolio_review_feedback_calibration.get("mature_decision_gap")) or 0),
+            "reason": str(
+                portfolio_review_feedback_calibration.get("managed_gate_reason")
+                or portfolio_review_feedback_calibration.get("weight_review_block_reason")
+                or "포트폴리오 검토 feedback 성숙 상태를 확인한다."
+            ),
+            "next_action": str(
+                portfolio_review_feedback_calibration.get("next_calibration_action")
+                or portfolio_review_feedback_calibration.get("next_action")
+                or "portfolio review feedback maturity를 계속 모니터링한다."
+            ),
+        },
+    ]
+    return {
+        "status": status,
+        "title": _outcome_maturity_wait_monitor_title(status),
+        "summary": _outcome_maturity_wait_monitor_summary(
+            status=status,
+            recommendation_wait_until=recommendation_wait_until,
+            recommendation_next_due_count=int(_safe_number(recommendation_outcome_maturity.get("next_due_count")) or 0),
+            portfolio_wait_until=portfolio_wait_until,
+            mature_decision_gap=int(_safe_number(portfolio_review_feedback_calibration.get("mature_decision_gap")) or 0),
+        ),
+        "next_action": _outcome_maturity_wait_monitor_next_action(
+            status=status,
+            recommendation_due_action=recommendation_outcome_due_action_router,
+            portfolio_review_feedback_calibration=portfolio_review_feedback_calibration,
+            earliest_action_date=earliest_action_date,
+        ),
+        "as_of_date": str(
+            recommendation_outcome_maturity.get("as_of_date")
+            or recommendation_outcome_due_action_router.get("as_of_date")
+            or portfolio_review_feedback_calibration.get("as_of_date")
+            or ""
+        ),
+        "recommendation_next_due_date": recommendation_wait_until,
+        "recommendation_next_due_count": int(_safe_number(recommendation_outcome_maturity.get("next_due_count")) or 0),
+        "recommendation_maturity_status": str(recommendation_outcome_maturity.get("status") or "missing"),
+        "recommendation_action_status": str(recommendation_outcome_due_action_router.get("action_status") or cadence_action.get("status") or "missing"),
+        "recommendation_ready_for_backfill_count": int(_safe_number(recommendation_outcome_maturity.get("ready_for_backfill_count")) or 0),
+        "recommendation_overdue_count": int(_safe_number(recommendation_outcome_maturity.get("overdue_count")) or 0),
+        "recommendation_price_gap_count": int(_safe_number(recommendation_outcome_maturity.get("price_gap_count")) or 0),
+        "portfolio_feedback_maturity_date": portfolio_wait_until,
+        "portfolio_feedback_status": str(portfolio_review_feedback_calibration.get("maturity_status") or "missing"),
+        "portfolio_feedback_run_gap": int(_safe_number(portfolio_review_feedback_calibration.get("feedback_run_gap")) or 0),
+        "portfolio_mature_decision_gap": int(_safe_number(portfolio_review_feedback_calibration.get("mature_decision_gap")) or 0),
+        "earliest_action_date": earliest_action_date,
+        "wait_item_count": len(wait_items),
+        "wait_items": wait_items,
+        "weight_review_blocked": blocks_weight_review,
+        "weight_review_block_reason": str(
+            recommendation_weight_review_readiness.get("blocker_message")
+            or portfolio_review_feedback_calibration.get("weight_review_block_reason")
+            or "성과 표본이 아직 추천 weight 변경 근거로 충분하지 않다."
+        ),
+        "manual_weight_review_allowed": manual_weight_allowed and not blocks_weight_review,
+        "recommendation_scoring_mutated": False,
+        "benchmark_definition_mutated": False,
+        "portfolio_position_mutated": False,
+        "automatic_weight_change_allowed": False,
+        "automatic_rebalance_allowed": False,
+        "automatic_order_allowed": False,
+        "broker_submit_allowed": False,
+        "order_boundary": "read_only_no_order",
+    }
+
+
+def _outcome_maturity_wait_monitor_title(status: str) -> str:
+    if status == "action_due":
+        return "성과 측정 실행 조건 도달"
+    if status == "manual_weight_review_possible":
+        return "수동 weight 검토 가능"
+    if status == "calibration_executed_keep_weights":
+        return "성과 보정 실행됨, weight 유지"
+    if status == "managed_wait":
+        return "성과 표본 성숙 대기"
+    return "성과 성숙 상태 확인 필요"
+
+
+def _outcome_maturity_wait_monitor_summary(
+    *,
+    status: str,
+    recommendation_wait_until: str,
+    recommendation_next_due_count: int,
+    portfolio_wait_until: str,
+    mature_decision_gap: int,
+) -> str:
+    if status == "action_due":
+        return "추천 outcome 측정창이 열렸거나 가격 이력 보강이 필요하다. calibration을 실행하되 weight 변경은 계속 막는다."
+    if status == "manual_weight_review_possible":
+        return "성과 표본과 feedback 조건이 충족됐다. 그래도 weight 변경은 별도 승인된 pilot task에서만 검토한다."
+    recommendation_text = (
+        f"추천 outcome은 {recommendation_wait_until}에 {recommendation_next_due_count}개 측정창이 열린다."
+        if recommendation_wait_until
+        else "추천 outcome 다음 측정일은 아직 확정되지 않았다."
+    )
+    portfolio_text = (
+        f"포트폴리오 feedback은 {portfolio_wait_until} 이후 재평가하며 성숙 판단 {mature_decision_gap}개가 더 필요하다."
+        if portfolio_wait_until
+        else "포트폴리오 feedback 성숙 예정일은 아직 없다."
+    )
+    return f"{recommendation_text} {portfolio_text} 그 전까지 추천 weight 검토는 차단한다."
+
+
+def _outcome_maturity_wait_monitor_next_action(
+    *,
+    status: str,
+    recommendation_due_action: Mapping[str, Any],
+    portfolio_review_feedback_calibration: Mapping[str, Any],
+    earliest_action_date: str,
+) -> str:
+    if status == "action_due":
+        return str(recommendation_due_action.get("next_action") or "due outcome calibration 또는 가격 이력 보강을 실행한다.")
+    if status == "manual_weight_review_possible":
+        return "별도 승인된 manual-weight-review-pilot-v1 task를 열고 작은 pilot 변경만 검토한다."
+    if earliest_action_date:
+        return f"{earliest_action_date} 전까지는 모니터링만 하고, 해당 날짜 이후 outcome/feedback calibration을 다시 실행한다."
+    return str(
+        portfolio_review_feedback_calibration.get("next_calibration_action")
+        or recommendation_due_action.get("next_action")
+        or "outcome maturity 상태를 계속 모니터링한다."
+    )
 
 
 def _build_recommendation_weight_review_readiness_payload(payload: dict[str, Any]) -> dict[str, Any]:
