@@ -11,6 +11,7 @@ type PipelineRun = DataHealthData["pipeline_runs"][number];
 type SchedulerActivation = DataHealthData["scheduler"]["activation"];
 type SchedulerStatus = DataHealthData["scheduler"];
 type ProfileSchedulerStatus = NonNullable<DataHealthData["scheduler"]["profile_scheduler"]>;
+type ProductionApiServer = DataHealthData["production_api_server"];
 type ManualIngestSmoke = DataHealthData["manual_local_ingest_smoke"];
 type LocalIngestWorker = DataHealthData["local_ingest_worker"];
 type CycleAiQualityAudit = DataHealthData["cycle_ai_quality_audit"];
@@ -1271,6 +1272,26 @@ const DEFAULT_PROFILE_SCHEDULER: ProfileSchedulerStatus = {
   timers: [],
 };
 
+const DEFAULT_PRODUCTION_API_SERVER: ProductionApiServer = {
+  status: "missing_runtime_evidence",
+  attention_required: true,
+  service: "frontend-api-server",
+  runtime_profile: "unknown",
+  source_mode: "unknown",
+  auth_mode: "unknown",
+  read_auth_required: false,
+  read_token_configured: false,
+  allowed_origin_configured: false,
+  database_configured: false,
+  connection_boundary: "missing_executor",
+  request_timeout_seconds: 30,
+  read_only: true,
+  missing_conditions: ["runtime_profile_production", "read_token_auth", "psycopg_pool_boundary"],
+  order_boundary: "read_only_no_order",
+  automatic_action_allowed: false,
+  next_action: "FastAPI runtime profile, auth, explicit CORS origin, DB config, psycopg pool boundary를 확인한다.",
+};
+
 const DEFAULT_DATA_OPERATIONS_ARTIFACT_RUNNER: DataOperationsArtifactRunner = {
   status: "missing_pipeline_evidence",
   attention_required: true,
@@ -1294,6 +1315,7 @@ export default async function DataHealthPage() {
   const response = await getDataHealth();
   const data = response.data;
   const providerBudget = data.provider_budget;
+  const productionApiServer = data.production_api_server ?? DEFAULT_PRODUCTION_API_SERVER;
   const artifactRunner = data.data_operations_artifact_runner ?? DEFAULT_DATA_OPERATIONS_ARTIFACT_RUNNER;
   const schedulerActivation = data.scheduler.activation;
   const profileScheduler = data.scheduler.profile_scheduler ?? DEFAULT_PROFILE_SCHEDULER;
@@ -1351,18 +1373,22 @@ export default async function DataHealthPage() {
     {
       label: "지금 판단",
       title:
-        failedPipelines > 0
+        productionApiServer.attention_required
+          ? "운영 API 확인 필요"
+          : failedPipelines > 0
           ? "수집 문제 먼저 해결"
           : data.overall_status === "healthy"
             ? "수집 상태 정상"
             : "주의 항목 확인",
       body:
-        failedPipelines > 0
+        productionApiServer.attention_required
+          ? productionApiServer.next_action
+          : failedPipelines > 0
           ? "실패 또는 오래된 작업이 있어 추천·보유 판단보다 수집 복구가 먼저다."
           : "캔들, 뉴스, AI 분석, 추천 갱신이 현재 화면 기준으로 읽을 수 있는 상태다.",
-      href: "#execution-log",
-      cta: "실행 이력 보기",
-      tone: failedPipelines > 0 ? "risk-high" : "risk-low",
+      href: productionApiServer.attention_required ? "#scheduler-detail" : "#execution-log",
+      cta: productionApiServer.attention_required ? "운영 서버 보기" : "실행 이력 보기",
+      tone: productionApiServer.attention_required ? "risk-high" : failedPipelines > 0 ? "risk-high" : "risk-low",
     },
     {
       label: "자동화",
@@ -3322,6 +3348,29 @@ export default async function DataHealthPage() {
               <h2>반복 실행 준비 상태</h2>
             </div>
             <dl className="fact-list">
+              <div>
+                <dt>운영 API</dt>
+                <dd>{productionApiServer.attention_required ? "확인 필요" : "운영 준비 확인"}</dd>
+              </div>
+              <div>
+                <dt>API 런타임</dt>
+                <dd>
+                  {koCode(productionApiServer.runtime_profile)} · {koCode(productionApiServer.source_mode)} ·{" "}
+                  {koCode(productionApiServer.connection_boundary)}
+                </dd>
+              </div>
+              <div>
+                <dt>API 인증</dt>
+                <dd>
+                  {koCode(productionApiServer.auth_mode)} · 토큰{" "}
+                  {productionApiServer.read_token_configured ? "설정됨" : "미설정"} · CORS{" "}
+                  {productionApiServer.allowed_origin_configured ? "명시됨" : "미설정"}
+                </dd>
+              </div>
+              <div>
+                <dt>API 다음 조치</dt>
+                <dd>{productionApiServer.next_action}</dd>
+              </div>
               <div>
                 <dt>자동 실행기</dt>
                 <dd>{schedulerInstallLabel(data.scheduler.install_status)}</dd>

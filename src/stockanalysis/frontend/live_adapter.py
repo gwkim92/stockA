@@ -527,6 +527,22 @@ def _build_open_gate_details(
 ) -> list[dict[str, Any]]:
     details: list[dict[str, Any]] = []
     for gate in open_gates:
+        if gate == "production_api_server":
+            details.append(
+                {
+                    "gate_id": gate,
+                    "label": "운영 API 서버",
+                    "category": "operational_blocker",
+                    "category_label": "운영 조건",
+                    "severity": "high",
+                    "status_label": "운영 서버 확인 필요",
+                    "summary": "FastAPI production runtime, live source, read-token auth, DB pool readiness 증거가 부족하다.",
+                    "next_action": "EC2 FastAPI `/__health`와 `/__ready`가 production/live/read-token/psycopg_pool 상태인지 확인한다.",
+                    "order_boundary": "read_only_no_order",
+                    "automatic_action_allowed": False,
+                }
+            )
+            continue
         if gate == "benchmark_drift_quality_attention":
             active_share = _number(benchmark_drift_quality.get("active_share"))
             review_count = int(benchmark_drift_quality.get("review_candidate_count") or 0)
@@ -860,6 +876,79 @@ def _build_data_operations_artifact_runner_payload(
     }
 
 
+def _frontend_executor_connection_boundary(executor: object | None) -> str:
+    if executor is None:
+        return "missing_executor"
+    if executor.__class__.__name__ == "PsycopgPoolExecutor":
+        return "psycopg_pool"
+    return "injected_executor"
+
+
+def _build_production_api_server_payload(
+    *,
+    config: RuntimeConfig,
+    executor: object | None,
+) -> dict[str, Any]:
+    runtime_profile = os.environ.get("STOCKANALYSIS_FRONTEND_RUNTIME_PROFILE", "")
+    source_mode = os.environ.get("STOCKANALYSIS_FRONTEND_API_SOURCE", "live")
+    auth_mode = os.environ.get("STOCKANALYSIS_FRONTEND_API_AUTH_MODE", "")
+    allowed_origin = os.environ.get("STOCKANALYSIS_FRONTEND_API_ALLOWED_ORIGIN", "")
+    read_token_configured = bool(os.environ.get("STOCKANALYSIS_FRONTEND_API_READ_TOKEN", "").strip())
+    database_configured = bool(
+        getattr(config, "database_url", "")
+        or getattr(config, "psql_command", "")
+        or os.environ.get("STOCKANALYSIS_DATABASE_URL")
+    )
+    connection_boundary = _frontend_executor_connection_boundary(executor)
+    request_timeout_seconds = _safe_number(os.environ.get("STOCKANALYSIS_FRONTEND_API_REQUEST_TIMEOUT_SECONDS")) or 30.0
+    ready = (
+        runtime_profile == "production"
+        and source_mode == "live"
+        and auth_mode == "read-token"
+        and read_token_configured
+        and allowed_origin not in {"", "*"}
+        and database_configured
+        and connection_boundary == "psycopg_pool"
+    )
+    missing_conditions: list[str] = []
+    if runtime_profile != "production":
+        missing_conditions.append("runtime_profile_production")
+    if source_mode != "live":
+        missing_conditions.append("source_mode_live")
+    if auth_mode != "read-token" or not read_token_configured:
+        missing_conditions.append("read_token_auth")
+    if allowed_origin in {"", "*"}:
+        missing_conditions.append("explicit_allowed_origin")
+    if not database_configured:
+        missing_conditions.append("live_database_config")
+    if connection_boundary != "psycopg_pool":
+        missing_conditions.append("psycopg_pool_boundary")
+    status = "production_ready" if ready else "missing_runtime_evidence"
+    return {
+        "status": status,
+        "attention_required": not ready,
+        "service": "frontend-api-server",
+        "runtime_profile": runtime_profile or "unknown",
+        "source_mode": source_mode or "unknown",
+        "auth_mode": auth_mode or "unknown",
+        "read_auth_required": auth_mode == "read-token",
+        "read_token_configured": read_token_configured,
+        "allowed_origin_configured": allowed_origin not in {"", "*"},
+        "database_configured": database_configured,
+        "connection_boundary": connection_boundary,
+        "request_timeout_seconds": request_timeout_seconds,
+        "read_only": True,
+        "missing_conditions": missing_conditions,
+        "order_boundary": "read_only_no_order",
+        "automatic_action_allowed": False,
+        "next_action": (
+            "FastAPI production/live/read-token/psycopg pool readiness가 확인됐다."
+            if ready
+            else "FastAPI runtime profile, auth, explicit CORS origin, DB config, psycopg pool boundary를 확인한다."
+        ),
+    }
+
+
 def build_live_data_health_response(
     *,
     config: RuntimeConfig,
@@ -901,6 +990,10 @@ def build_live_data_health_response(
         scheduler=scheduler_status,
         manual_local_ingest_smoke=manual_local_ingest_smoke,
         local_ingest_worker=local_ingest_worker,
+    )
+    production_api_server = _build_production_api_server_payload(
+        config=config,
+        executor=executor,
     )
     news_ai_eval_quality = _build_news_ai_eval_quality_payload(
         _as_dict(state.get("news_ai_eval_quality"))
@@ -967,6 +1060,12 @@ def build_live_data_health_response(
         gate = "news_ai_eval_quality_attention"
         if gate not in open_gates:
             open_gates.append(gate)
+    gate = "production_api_server"
+    if production_api_server["attention_required"]:
+        if gate not in open_gates:
+            open_gates.append(gate)
+    else:
+        open_gates = [item for item in open_gates if item != gate]
     gate = "data_operations_artifact_runner"
     if data_operations_artifact_runner["attention_required"]:
         if gate not in open_gates:
@@ -1046,6 +1145,7 @@ def build_live_data_health_response(
             "as_of_date": str(state.get("as_of_date") or ""),
             "pipeline_runs": pipeline_runs,
             "scheduler": scheduler_status,
+            "production_api_server": production_api_server,
             "freshness": freshness,
             "provider_budget": provider_budget,
             "data_operations_artifact_runner": data_operations_artifact_runner,

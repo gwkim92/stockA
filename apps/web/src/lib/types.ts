@@ -140,6 +140,25 @@ export type DataHealthData = {
       }>;
     };
   };
+  production_api_server: {
+    status: string;
+    attention_required: boolean;
+    service: string;
+    runtime_profile: string;
+    source_mode: string;
+    auth_mode: string;
+    read_auth_required: boolean;
+    read_token_configured: boolean;
+    allowed_origin_configured: boolean;
+    database_configured: boolean;
+    connection_boundary: string;
+    request_timeout_seconds: number;
+    read_only: boolean;
+    missing_conditions: string[];
+    order_boundary: string;
+    automatic_action_allowed: boolean;
+    next_action: string;
+  };
   freshness: Array<{
     dataset: string;
     status: string;

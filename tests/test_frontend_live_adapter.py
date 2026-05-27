@@ -8,6 +8,7 @@ from datetime import date, datetime, timezone
 from pathlib import Path
 from unittest.mock import patch
 
+from stockanalysis.ingest.config import RuntimeConfig
 from stockanalysis.frontend.live_adapter import (
     FrontendLiveUnavailableError,
     FrontendLiveUnsupportedPathError,
@@ -18,6 +19,7 @@ from stockanalysis.frontend.live_adapter import (
     _build_fund_instrument_analysis_payload,
     _build_portfolio_review_feedback_cadence_payload,
     _build_portfolio_review_feedback_calibration_payload,
+    _build_production_api_server_payload,
     _build_professional_source_guardrail_payload,
     _benchmark_drift_quality_attention_policy,
     _portfolio_review_decision_history_attention_policy,
@@ -4279,6 +4281,11 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         )
         self.assertEqual(payload["data"]["scheduler"]["activation"]["status"], "not_configured")
         self.assertEqual(payload["data"]["scheduler"]["activation"]["source"], "not_configured")
+        production_api = payload["data"]["production_api_server"]
+        self.assertEqual(production_api["status"], "missing_runtime_evidence")
+        self.assertTrue(production_api["attention_required"])
+        self.assertEqual(production_api["connection_boundary"], "injected_executor")
+        self.assertIn("production_api_server", payload["data"]["open_gates"])
         self.assertEqual(payload["data"]["freshness"][0]["dataset"], "market.daily_price_bar")
         self.assertEqual(payload["data"]["freshness"][0]["latest_observation_date"], "2024-12-02")
         self.assertIn("auth_rbac", payload["data"]["open_gates"])
@@ -4592,6 +4599,48 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertEqual(payload["latest_run_count"], 2)
         self.assertEqual(payload["degraded_count"], 1)
         self.assertEqual(payload["latest_artifact_root"], "/opt/stockanalysis/artifacts/data-operations")
+
+    def test_production_api_server_payload_blocks_without_production_runtime_evidence(self) -> None:
+        with patch.dict(os.environ, {}, clear=True):
+            payload = _build_production_api_server_payload(
+                config=RuntimeConfig(psql_command="psql"),
+                executor=FakeLiveExecutor(),
+            )
+
+        self.assertEqual(payload["status"], "missing_runtime_evidence")
+        self.assertTrue(payload["attention_required"])
+        self.assertIn("runtime_profile_production", payload["missing_conditions"])
+        self.assertIn("psycopg_pool_boundary", payload["missing_conditions"])
+
+    def test_production_api_server_payload_closes_with_production_live_pool_runtime(self) -> None:
+        pool_executor = type("PsycopgPoolExecutor", (), {})()
+        with patch.dict(
+            os.environ,
+            {
+                "STOCKANALYSIS_FRONTEND_RUNTIME_PROFILE": "production",
+                "STOCKANALYSIS_FRONTEND_API_SOURCE": "live",
+                "STOCKANALYSIS_FRONTEND_API_AUTH_MODE": "read-token",
+                "STOCKANALYSIS_FRONTEND_API_READ_TOKEN": "secret",
+                "STOCKANALYSIS_FRONTEND_API_ALLOWED_ORIGIN": "https://stockanalysis.local",
+                "STOCKANALYSIS_FRONTEND_API_REQUEST_TIMEOUT_SECONDS": "30",
+            },
+            clear=True,
+        ):
+            payload = _build_production_api_server_payload(
+                config=RuntimeConfig(database_url="postgresql://example.invalid/db"),
+                executor=pool_executor,
+            )
+
+        self.assertEqual(payload["status"], "production_ready")
+        self.assertFalse(payload["attention_required"])
+        self.assertEqual(payload["runtime_profile"], "production")
+        self.assertEqual(payload["source_mode"], "live")
+        self.assertEqual(payload["auth_mode"], "read-token")
+        self.assertTrue(payload["read_token_configured"])
+        self.assertTrue(payload["allowed_origin_configured"])
+        self.assertTrue(payload["database_configured"])
+        self.assertEqual(payload["connection_boundary"], "psycopg_pool")
+        self.assertEqual(payload["missing_conditions"], [])
 
     def test_professional_source_gap_attention_policy_keeps_unguarded_gaps_open(self) -> None:
         self.assertTrue(
@@ -4925,6 +4974,32 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertNotIn(str(report), json.dumps(scheduler))
         self.assertNotIn("/etc/systemd/system", json.dumps(scheduler))
         self.assertNotIn("scheduler_activation_manual_approval", payload["data"]["open_gates"])
+
+    def test_live_data_health_response_closes_production_api_gate_with_production_pool_evidence(self) -> None:
+        pool_executor_type = type("PsycopgPoolExecutor", (FakeLiveExecutor,), {})
+        with patch.dict(
+            os.environ,
+            {
+                "STOCKANALYSIS_FRONTEND_RUNTIME_PROFILE": "production",
+                "STOCKANALYSIS_FRONTEND_API_SOURCE": "live",
+                "STOCKANALYSIS_FRONTEND_API_AUTH_MODE": "read-token",
+                "STOCKANALYSIS_FRONTEND_API_READ_TOKEN": "secret",
+                "STOCKANALYSIS_FRONTEND_API_ALLOWED_ORIGIN": "https://stockanalysis.local",
+            },
+            clear=True,
+        ):
+            payload = resolve_live_frontend_response(
+                "/api/data-health",
+                config=RuntimeConfig(database_url="postgresql://example.invalid/db"),
+                executor=pool_executor_type(),
+                generated_at=datetime(2026, 5, 1, tzinfo=timezone.utc),
+            )
+
+        production_api = payload["data"]["production_api_server"]
+        self.assertEqual(production_api["status"], "production_ready")
+        self.assertFalse(production_api["attention_required"])
+        self.assertEqual(production_api["connection_boundary"], "psycopg_pool")
+        self.assertNotIn("production_api_server", payload["data"]["open_gates"])
 
     def test_live_data_health_response_includes_sanitized_manual_ingest_smoke(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
