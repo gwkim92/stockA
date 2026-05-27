@@ -303,8 +303,16 @@ function evidenceDecision(data: AiEvidenceDetailData) {
   };
 }
 
+function preferredClusterPreviewEvent(data: AiEvidenceDetailData) {
+  return (
+    data.cluster_events.find((event) => Boolean(event.korean_title || event.korean_summary))
+    ?? data.cluster_events[0]
+    ?? null
+  );
+}
+
 function primarySourcePreview(data: AiEvidenceDetailData) {
-  const event = data.cluster_events[0];
+  const event = preferredClusterPreviewEvent(data);
   if (event) {
     return {
       title: event.title,

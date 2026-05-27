@@ -339,8 +339,8 @@ export default async function IntelligencePage() {
   const [dataHealthResponse, dashboardResponse, eventsResponse, newsClusterResponse] = await Promise.all([
     getDataHealth(),
     getDashboardToday(),
-    getEvents({ limit: 40 }),
-    getAiNewsClusters({ limit: 4 }),
+    getEvents({ limit: 24 }),
+    getAiNewsClusters({ limit: 3 }),
   ]);
 
   const dataHealth = dataHealthResponse.data;
@@ -352,25 +352,13 @@ export default async function IntelligencePage() {
   const fallbackClusters = buildFallbackClusters(events.events);
   const aiCandidateEvents = events.events
     .filter((event) => event.ai_evidence_id && event.ai_evidence_type === "news_event_candidate")
-    .slice(0, 6);
-  const unstructuredEvents = events.events.filter((event) => !event.ai_evidence_id).slice(0, 3);
+    .slice(0, 3);
+  const unstructuredEvents = events.events.filter((event) => !event.ai_evidence_id).slice(0, 2);
   const firstCandidate = aiCandidateEvents[0] ?? null;
   const firstCandidateEvidenceId = firstCandidate?.ai_evidence_id ?? null;
   const firstCluster = storedNewsClusters.clusters[0] ?? null;
-  const clusterReviewGuide = [
-    {
-      title: "같은 흐름인가",
-      body: "대표 뉴스 제목과 요약이 같은 정책·산업·기업 이슈를 말하는지 본다.",
-    },
-    {
-      title: "종목 연결이 과하지 않은가",
-      body: "회사명·티커가 직접 나오면 종목 뉴스, 그렇지 않으면 시장/테마 흐름으로 본다.",
-    },
-    {
-      title: "추천 근거로 써도 되는가",
-      body: "방향·신뢰도·원천 문서가 맞을 때만 추천과 보유 검토의 입력 후보로 본다.",
-    },
-  ];
+  const visibleNewsClusters = storedNewsClusters.clusters.slice(0, 2);
+  const hiddenNewsClusterCount = Math.max(storedNewsClusters.clusters.length - visibleNewsClusters.length, 0);
   const reviewActions = [
     {
       index: "1",
@@ -534,42 +522,32 @@ export default async function IntelligencePage() {
 
       <section className="intelligence-board reveal delay-2" aria-labelledby="news-decision-board-title">
         <div className="section-heading stacked-heading">
-          <span>뉴스 묶음 검토</span>
-          <h2 id="news-decision-board-title">뉴스 흐름마다 세 가지만 본다</h2>
+          <span>대표 뉴스 흐름</span>
+          <h2 id="news-decision-board-title">대표 흐름만 먼저 본다</h2>
           <p>
-            같은 흐름인지, 종목 연결이 타당한지, 추천 근거로 쓸 수 있는지만 확인한다.
-            세부 원문과 AI 출력은 각 카드의 상세 화면에서 본다.
+            첫 화면에서는 가장 중요한 뉴스 묶음만 보여준다. 전체 원천, 후보, 통과·차단 결과는 아래 전용 화면에서 이어서 본다.
           </p>
         </div>
 
-        <div className="cluster-review-guide" aria-label="뉴스 흐름 검토 기준">
-          {clusterReviewGuide.map((item, index) => (
-            <article key={item.title}>
-              <span>{index + 1}</span>
-              <strong>{item.title}</strong>
-              <p>{item.body}</p>
-            </article>
-          ))}
-        </div>
-
         {storedNewsClusters.clusters.length > 0 ? (
-          <div className="news-decision-grid">
-            {storedNewsClusters.clusters.map((cluster) => {
-              const firstSymbol = cluster.symbols.find(isKnownCode) ?? null;
-              const firstSource = cluster.source_documents[0];
-              const evidenceLink = clusterEvidenceHref(cluster);
-              const stockLink = stockHref(firstSymbol);
-              const sourceLink = sourceDocumentHref(firstSource?.source_document_id);
-              const storyLabel = formatClusterHeadline(cluster);
-              const storyKeyword = formatStoryKeyword(cluster);
-              const splitByStory = hasStorySplit(cluster);
-              const groupingBasis = clusterGroupingBasis(cluster);
-              const instrumentConnection = clusterInstrumentConnection(cluster);
-              const recommendationUse = clusterRecommendationUse(cluster);
-              const visibleRelationReasons = cluster.relation_reasons.slice(0, 3);
+          <>
+            <div className="news-decision-grid">
+              {visibleNewsClusters.map((cluster) => {
+                const firstSymbol = cluster.symbols.find(isKnownCode) ?? null;
+                const firstSource = cluster.source_documents[0];
+                const evidenceLink = clusterEvidenceHref(cluster);
+                const stockLink = stockHref(firstSymbol);
+                const sourceLink = sourceDocumentHref(firstSource?.source_document_id);
+                const storyLabel = formatClusterHeadline(cluster);
+                const storyKeyword = formatStoryKeyword(cluster);
+                const splitByStory = hasStorySplit(cluster);
+                const groupingBasis = clusterGroupingBasis(cluster);
+                const instrumentConnection = clusterInstrumentConnection(cluster);
+                const recommendationUse = clusterRecommendationUse(cluster);
+                const visibleRelationReasons = cluster.relation_reasons.slice(0, 3);
 
-              return (
-                <article className="news-decision-card" key={cluster.evidence_id}>
+                return (
+                  <article className="news-decision-card" key={cluster.evidence_id}>
                   <div className="trace-card-top">
                     <div>
                       <span className="metric-sub">
@@ -621,9 +599,9 @@ export default async function IntelligencePage() {
                   </div>
 
                   <div className="relationship-panel" aria-label={`${koCode(cluster.theme_key)} 대표 뉴스`}>
-                    <span>대표 뉴스 2건</span>
+                    <span>대표 뉴스 1건</span>
                     <div className="relationship-list">
-                      {cluster.events.slice(0, 2).map((event) => (
+                      {cluster.events.slice(0, 1).map((event) => (
                         <div className="relationship-chip" key={`${cluster.evidence_id}-${event.event_id}`}>
                           <span>{koCode(event.impact_direction)}</span>
                           <NewsTitleBlock
@@ -660,10 +638,27 @@ export default async function IntelligencePage() {
                       </Link>
                     ) : null}
                   </div>
-                </article>
-              );
-            })}
-          </div>
+                  </article>
+                );
+              })}
+            </div>
+            <div className="btn-row decision-actions">
+              <Link className="btn btn-secondary" href={"/events" as Route}>
+                수집 뉴스 원장 전체 보기
+              </Link>
+              <Link className="btn btn-secondary" href={"/ai-evidence" as Route}>
+                AI 후보 전체 보기
+              </Link>
+              <Link className="btn btn-secondary" href={"/ai-evidence/results" as Route}>
+                구조화 결과 전체 보기
+              </Link>
+            </div>
+            {hiddenNewsClusterCount > 0 ? (
+              <p className="board-intro">
+                나머지 뉴스 묶음 {hiddenNewsClusterCount}개는 AI 후보·구조화 결과 화면에서 이어서 확인한다.
+              </p>
+            ) : null}
+          </>
         ) : (
           <div className="news-decision-grid">
             {fallbackClusters.length > 0 ? (
@@ -747,10 +742,10 @@ export default async function IntelligencePage() {
       <section className="intelligence-board reveal delay-3" aria-labelledby="ai-candidate-queue-title">
         <div className="section-heading stacked-heading">
           <span>개별 뉴스 후보</span>
-          <h2 id="ai-candidate-queue-title">AI가 구조화한 뉴스 한 건씩 확인한다</h2>
+          <h2 id="ai-candidate-queue-title">대표 AI 후보 3건만 먼저 본다</h2>
         </div>
         <p className="board-intro">
-          이 목록은 뉴스 한 건에 붙은 종목, 테마, 방향, 신뢰도다. 이상하면 AI 상세와 뉴스 원문을 열어 대조한다.
+          한 건 단위의 테마, 종목, 방향, 신뢰도만 빠르게 확인한다. 전체 후보와 차단 목록은 전용 화면에서 본다.
         </p>
 
         {aiCandidateEvents.length > 0 ? (
@@ -793,6 +788,15 @@ export default async function IntelligencePage() {
         ) : (
           <div className="empty-state">AI 후보가 아직 없다. 뉴스 수집과 뉴스 AI 분석 실행 이력을 먼저 확인해야 한다.</div>
         )}
+
+        <div className="btn-row decision-actions">
+          <Link className="btn btn-secondary" href={"/ai-evidence" as Route}>
+            AI 후보 전체 보기
+          </Link>
+          <Link className="btn btn-secondary" href={"/ai-evidence/blocked" as Route}>
+            차단된 후보 보기
+          </Link>
+        </div>
 
         {unstructuredEvents.length > 0 ? (
           <details className="secondary-details">
