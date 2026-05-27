@@ -1036,7 +1036,7 @@ h6 {
 .stock-table-row {
   display: grid;
   min-width: 920px;
-  grid-template-columns: minmax(190px, 1.4fr) repeat(5, minmax(120px, 1fr));
+  grid-template-columns: minmax(190px, 1.3fr) repeat(5, minmax(116px, 1fr)) minmax(160px, 0.95fr);
   gap: 14px;
   align-items: center;
   padding: 15px 0;
@@ -1101,6 +1101,31 @@ h6 {
 
 .stock-table-head:hover {
   color: var(--text-tertiary);
+}
+
+.stock-action-cell {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.stock-action-cell .btn {
+  min-height: 34px;
+  padding: 8px 10px;
+  font-size: 0.72rem;
+}
+
+.section-note {
+  max-width: 860px;
+  margin: -4px 0 18px;
+  color: var(--text-secondary);
+  font-size: 0.92rem;
+  font-weight: 700;
+  line-height: 1.7;
+}
+
+.section-note strong {
+  color: var(--text-primary);
 }
 
 .price-chart {
@@ -4348,6 +4373,14 @@ h6 {
 
   .stock-table-row > span:first-child {
     grid-column: 1 / -1;
+  }
+
+  .stock-action-cell {
+    grid-column: 1 / -1;
+  }
+
+  .stock-action-cell .btn {
+    width: 100%;
   }
 
   .stock-table-row small {
