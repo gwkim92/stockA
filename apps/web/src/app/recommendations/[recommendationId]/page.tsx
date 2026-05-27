@@ -25,6 +25,7 @@ type IndustryCompetitivePosition = NonNullable<RecommendationDetailData["industr
 type FinancialStatementModel = RecommendationDetailData["financial_statement_model"];
 type FinancialMetricSnapshot = FinancialStatementModel["metrics"][number];
 type FundInstrumentAnalysis = RecommendationDetailData["fund_instrument_analysis"];
+type ProfessionalEvidenceAudit = RecommendationDetailData["professional_evidence_audit"];
 
 function isZeroWeight(value: number) {
   return Math.abs(Number(value)) < 0.000001;
@@ -817,6 +818,45 @@ function researchFlowTone(tone: string): ResearchFlowStep["tone"] {
   return "neutral";
 }
 
+function professionalAuditTone(audit: ProfessionalEvidenceAudit) {
+  if (audit.status === "source_blocked" || audit.blocked_layer_count > 0) {
+    return "risk-high";
+  }
+  if (audit.status === "ready_for_review") {
+    return "risk-low";
+  }
+  return "risk-medium";
+}
+
+function professionalLayerTone(status: string) {
+  if (status === "complete") {
+    return "risk-low";
+  }
+  if (status === "blocked") {
+    return "risk-high";
+  }
+  return "risk-medium";
+}
+
+function professionalLayerStatusLabel(status: string) {
+  const labels: Record<string, string> = {
+    complete: "확인됨",
+    partial: "일부 확인",
+    missing: "부족",
+    blocked: "차단",
+    pending: "대기",
+    not_applicable: "비적용",
+  };
+  return labels[status] ?? koCode(status);
+}
+
+function professionalProductLabel(productType: string) {
+  if (productType === "fund_or_etf") {
+    return "ETF·펀드형";
+  }
+  return "일반 기업";
+}
+
 function gateStatusLabel(status: string) {
   if (status === "pass") {
     return "통과";
@@ -1026,6 +1066,7 @@ export default async function RecommendationPage({ params }: RecommendationPageP
   const peerComponent = fundamentalStack.find((component) => component.component === "peer_relative_score");
   const blockedEvidenceCount = reviewCount(evidenceReview.summary.blocked_count);
   const decisionWaterfall = data.professional_decision_waterfall;
+  const professionalAudit = data.professional_evidence_audit;
   const readyDecisionStepCount = decisionWaterfall.steps.filter((step) => step.tone === "ready").length;
   const watchDecisionStepCount = decisionWaterfall.steps.filter((step) => step.tone === "watch" || step.tone === "neutral").length;
   const blockedDecisionStepCount = decisionWaterfall.steps.filter((step) => step.tone === "blocked").length;
@@ -1141,6 +1182,80 @@ export default async function RecommendationPage({ params }: RecommendationPageP
         footer={`점수 정책: ${koCode(decisionWaterfall.score_policy)}. 주문 경계: ${koCode(decisionWaterfall.order_boundary)}.`}
         steps={professionalResearchSteps}
       />
+
+      <section className="bento-card reveal delay-1" aria-label="추천 전문 분석 감사">
+        <div className="section-heading">
+          <div>
+            <span className="metric-sub">추천 전문 분석 감사</span>
+            <h2 style={{ fontSize: "1.5rem", marginTop: "6px" }}>{professionalAudit.title}</h2>
+          </div>
+          <span className={`risk-tag ${professionalAuditTone(professionalAudit)}`}>
+            {koCode(professionalAudit.status)}
+          </span>
+        </div>
+        <p style={{ color: "var(--text-secondary)", marginTop: 0, maxWidth: "920px" }}>
+          {professionalAudit.summary} {professionalAudit.next_action}
+        </p>
+
+        <div className="status-rail compact-rail" aria-label="추천 전문 분석 감사 요약">
+          <div className="rail-cell">
+            <span>분석 대상</span>
+            <strong>{professionalProductLabel(professionalAudit.product_type)}</strong>
+            <small>{professionalAudit.symbol} · {professionalAudit.as_of_date}</small>
+          </div>
+          <div className="rail-cell">
+            <span>근거 커버리지</span>
+            <strong>{formatPercent(professionalAudit.coverage_ratio)}</strong>
+            <small>
+              완료 {professionalAudit.available_layer_count}/{professionalAudit.expected_layer_count}
+              {professionalAudit.partial_layer_count > 0 ? ` · 일부 ${professionalAudit.partial_layer_count}` : ""}
+            </small>
+          </div>
+          <div className="rail-cell">
+            <span>차단·대기</span>
+            <strong>{professionalAudit.blocked_layer_count + professionalAudit.pending_layer_count}개</strong>
+            <small>누락 {professionalAudit.missing_layer_count}개</small>
+          </div>
+          <div className="rail-cell rail-critical">
+            <span>거래 경계</span>
+            <strong>{koCode(professionalAudit.order_boundary)}</strong>
+            <small>weight 변경 {professionalAudit.automatic_weight_change_allowed ? "허용" : "금지"} · 주문 {professionalAudit.broker_submit_allowed ? "허용" : "금지"}</small>
+          </div>
+        </div>
+
+        {professionalAudit.source_blocker.blocked ? (
+          <div className="empty-state" style={{ marginTop: "18px" }}>
+            <strong>{professionalAudit.source_blocker.blocker_label || "원천 차단"}</strong>
+            <p style={{ margin: "8px 0 0", color: "var(--text-secondary)" }}>
+              {professionalAudit.source_blocker.summary} {professionalAudit.source_blocker.next_action}
+            </p>
+          </div>
+        ) : null}
+
+        {professionalAudit.missing_layer_labels.length > 0 ? (
+          <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginTop: "18px" }}>
+            {professionalAudit.missing_layer_labels.map((label) => (
+              <span className="risk-tag risk-medium" key={label}>{label}</span>
+            ))}
+          </div>
+        ) : null}
+
+        <div className="flow-steps" style={{ marginTop: "18px" }}>
+          {professionalAudit.layer_checks.map((layer) => (
+            <article className="flow-step" key={layer.key}>
+              <span>{layer.label}</span>
+              <strong className={`risk-tag ${professionalLayerTone(layer.status)}`}>
+                {professionalLayerStatusLabel(layer.status)}
+              </strong>
+              <p>{layer.detail}</p>
+              <small style={{ color: "var(--text-secondary)", fontWeight: 800 }}>
+                원천: {koCode(layer.source)}
+              </small>
+              {layer.href ? <Link href={layer.href as Route}>관련 화면 열기</Link> : null}
+            </article>
+          ))}
+        </div>
+      </section>
 
       <FinancialStatementModelPanel model={financialStatementModel} symbol={data.symbol} />
 

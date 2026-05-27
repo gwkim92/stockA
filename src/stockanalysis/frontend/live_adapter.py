@@ -2342,6 +2342,22 @@ def build_live_recommendation_detail_response(
         outcome=outcome,
         professional_source_guardrail=professional_source_guardrail,
     )
+    professional_decision_waterfall = _build_recommendation_professional_decision_waterfall_payload(
+        score_components=score_components,
+        equity_research=equity_research,
+        industry_competitive_position=industry_competitive_position,
+        financial_statement_model=financial_statement_model,
+        valuation_target_range=valuation_target_range,
+        linked_thesis_id=linked_thesis_id,
+        evidence_trace=evidence_trace,
+        evidence_review=evidence_review,
+        professional_source_guardrail=professional_source_guardrail,
+        outcome=outcome,
+        symbol=symbol,
+        as_of_date=as_of_date_text,
+        recommendation=str(state.get("recommendation") or "monitor"),
+        score=_number(state.get("score")),
+    )
 
     return {
         "contract_version": CONTRACT_VERSION,
@@ -2367,21 +2383,25 @@ def build_live_recommendation_detail_response(
             "evidence_trace": evidence_trace,
             "professional_source_guardrail": professional_source_guardrail,
             "evidence_review": evidence_review,
-            "professional_decision_waterfall": _build_recommendation_professional_decision_waterfall_payload(
+            "professional_decision_waterfall": professional_decision_waterfall,
+            "professional_evidence_audit": _build_recommendation_professional_evidence_audit_payload(
+                recommendation_id=_recommendation_detail_id(state, identifier),
+                symbol=symbol,
+                as_of_date=as_of_date_text,
+                recommendation=str(state.get("recommendation") or "monitor"),
+                score=_number(state.get("score")),
                 score_components=score_components,
                 equity_research=equity_research,
                 industry_competitive_position=industry_competitive_position,
                 financial_statement_model=financial_statement_model,
                 valuation_target_range=valuation_target_range,
+                fund_instrument_analysis=fund_instrument_analysis,
                 linked_thesis_id=linked_thesis_id,
                 evidence_trace=evidence_trace,
                 evidence_review=evidence_review,
                 professional_source_guardrail=professional_source_guardrail,
+                professional_decision_waterfall=professional_decision_waterfall,
                 outcome=outcome,
-                symbol=symbol,
-                as_of_date=as_of_date_text,
-                recommendation=str(state.get("recommendation") or "monitor"),
-                score=_number(state.get("score")),
             ),
             "outcome": {
                 "measurement_end_date": str(outcome.get("measurement_end_date") or ""),
@@ -15934,6 +15954,8 @@ def _build_professional_source_gap_payload(item: dict[str, Any]) -> dict[str, An
 def _professional_source_layer_label(layer: str) -> str:
     labels = {
         "financial_metric_normalized": "재무 지표 정규화",
+        "macro_cycle": "거시·사이클",
+        "news_ai": "뉴스·AI 해석",
         "peer_relative_snapshot": "피어 비교",
         "segment_footnote_evidence": "사업부/주석 근거",
         "sum_of_parts_component": "SOTP 구성",
@@ -15941,6 +15963,7 @@ def _professional_source_layer_label(layer: str) -> str:
         "industry_competitive_position": "산업 경쟁 포지션",
         "equity_research_artifact": "AI 리서치 노트",
         "active_thesis": "활성 투자 논리",
+        "paper_validation": "페이퍼 검증",
         "fund_benchmark_composition": "펀드 보유종목/벤치마크 구성",
         "fund_expense_ratio": "펀드 비용",
         "fund_nav_premium_discount": "NAV/premium·discount",
@@ -17300,6 +17323,384 @@ def _build_recommendation_professional_decision_waterfall_payload(
         "score_policy": "recommendation_weights_unchanged",
         "steps": steps,
     }
+
+
+def _build_recommendation_professional_evidence_audit_payload(
+    *,
+    recommendation_id: str,
+    symbol: str,
+    as_of_date: str,
+    recommendation: str,
+    score: float | None,
+    score_components: list[dict[str, Any]],
+    equity_research: dict[str, Any] | None,
+    industry_competitive_position: dict[str, Any] | None,
+    financial_statement_model: dict[str, Any] | None,
+    valuation_target_range: dict[str, Any] | None,
+    fund_instrument_analysis: dict[str, Any] | None,
+    linked_thesis_id: Any,
+    evidence_trace: dict[str, Any],
+    evidence_review: dict[str, Any],
+    professional_source_guardrail: dict[str, Any] | None,
+    professional_decision_waterfall: dict[str, Any],
+    outcome: dict[str, Any],
+) -> dict[str, Any]:
+    direct_evidence = _as_dict(_as_dict(evidence_trace).get("direct_news_or_ai"))
+    macro_flow = _as_dict(_as_dict(evidence_trace).get("macro_flow"))
+    holding_review = _as_dict(_as_dict(evidence_trace).get("holding_review"))
+    review_summary = _as_dict(_as_dict(evidence_review).get("summary"))
+    source_guardrail = _as_dict(professional_source_guardrail)
+    source_blocked = source_guardrail.get("blocked") is True
+    source_blocker = _as_dict(source_guardrail.get("source_data_blocker"))
+    financial_model = _as_dict(financial_statement_model)
+    valuation_range = _as_dict(valuation_target_range)
+    fund_analysis = _as_dict(fund_instrument_analysis)
+    product_type = "fund_or_etf" if fund_analysis.get("status") == "available" else "operating_company"
+    outcome_measured = bool(outcome.get("measurement_end_date")) and str(outcome.get("label") or "unmeasured") != "unmeasured"
+    paper_status = "measured" if outcome_measured else ("blocked_source" if source_blocked else "pending")
+    ai_or_event_count = sum(
+        1 for component in score_components if _as_dict(component.get("provenance")).get("source_type") == "event_or_ai_evidence"
+    )
+    cycle_component_count = sum(
+        1 for component in score_components if _as_dict(component.get("provenance")).get("source_type") == "cycle_stack_context"
+    )
+    macro_flow_count = _integer(macro_flow.get("propagated_impact_count")) or 0
+    peer_relative = _find_recommendation_score_component(score_components, "peer_relative_score")
+    fundamental_quality = _find_recommendation_score_component(score_components, "fundamental_quality_score")
+    valuation_margin = _find_recommendation_score_component(score_components, "valuation_margin_score")
+    thesis_consistency = _find_recommendation_score_component(score_components, "thesis_consistency_score")
+    financial_status = str(financial_model.get("status") or "unavailable")
+    valuation_status = str(valuation_range.get("status") or "unavailable")
+    news_detail = (
+        _first_non_empty(direct_evidence.get("korean_title"), direct_evidence.get("title"))
+        or (
+            f"AI/뉴스 점수 구성요소 {ai_or_event_count}개가 연결됐다."
+            if ai_or_event_count
+            else "원천 뉴스와 AI 구조화 근거가 추천 상세에 아직 직접 연결되지 않았다."
+        )
+    )
+
+    layers = [
+        _recommendation_evidence_layer_check(
+            key="macro_cycle",
+            label="거시·사이클",
+            status="complete" if cycle_component_count or macro_flow_count else "missing",
+            detail=(
+                f"계층형 사이클 {cycle_component_count}개와 상위 흐름 전파 {macro_flow_count}개가 연결됐다."
+                if cycle_component_count or macro_flow_count
+                else "추천을 상위 흐름과 연결하는 사이클 근거가 아직 부족하다."
+            ),
+            source="cycle_stack_and_macro_flow",
+            href="/cycle-map",
+        ),
+        _recommendation_evidence_layer_check(
+            key="news_ai",
+            label="뉴스·AI 해석",
+            status="complete" if direct_evidence.get("status") == "linked" or ai_or_event_count else "missing",
+            detail=news_detail,
+            source="event_or_ai_evidence",
+            href="/intelligence",
+        ),
+        _recommendation_evidence_layer_check(
+            key="financial_metric_normalized",
+            label="재무 지표",
+            status=(
+                "not_applicable"
+                if product_type == "fund_or_etf"
+                else "blocked"
+                if source_blocked
+                else "complete"
+                if financial_status == "available"
+                else "partial"
+                if financial_status == "partial" or fundamental_quality
+                else "missing"
+            ),
+            detail=(
+                "ETF·펀드형 상품은 기업 재무제표 모델 대신 보유종목, 비용률, NAV, 추적 차이를 본다."
+                if product_type == "fund_or_etf"
+                else str(source_guardrail.get("summary") or "전문 재무 원천이 차단됐다.")
+                if source_blocked
+                else f"최근 재무 기간 {financial_model.get('latest_period_end') or '미정'} 기준 지표 {financial_model.get('computed_metric_count') or 0}개를 확인한다."
+                if financial_status in {"available", "partial"}
+                else "매출, 마진, 현금흐름, 재무 안정성 입력이 부족하다."
+            ),
+            source="financial_statement_model",
+            href=f"/stocks/{quote(symbol, safe='')}",
+        ),
+        _recommendation_evidence_layer_check(
+            key="peer_relative_snapshot",
+            label="피어 비교",
+            status="not_applicable" if product_type == "fund_or_etf" else ("complete" if peer_relative else "missing"),
+            detail=(
+                "ETF·펀드형 상품은 기업 peer 대신 보유종목과 벤치마크 구성을 비교한다."
+                if product_type == "fund_or_etf"
+                else f"피어 상대 점수 {_format_percent_text(_number(peer_relative.get('value')))}가 연결됐다."
+                if peer_relative
+                else "같은 산업·테마 비교군 안에서 상대 위치가 아직 연결되지 않았다."
+            ),
+            source="peer_relative_score",
+            href=f"/stocks/{quote(symbol, safe='')}",
+        ),
+        _recommendation_evidence_layer_check(
+            key="valuation_snapshot",
+            label="밸류에이션",
+            status=(
+                "not_applicable"
+                if product_type == "fund_or_etf"
+                else "complete"
+                if valuation_status == "available"
+                else "partial"
+                if valuation_status == "review_required" or valuation_margin
+                else "missing"
+            ),
+            detail=(
+                "ETF·펀드형 상품은 DCF-lite 목표가 대신 NAV 괴리, 추적 차이, 비용률, 유동성을 본다."
+                if product_type == "fund_or_etf"
+                else f"목표가 범위 {_valuation_target_range_price_band_text(valuation_range)}와 기준 상승여지 {_format_signed_percent_text(_number(valuation_range.get('upside_base')))}를 확인한다."
+                if valuation_status == "available"
+                else "밸류에이션 snapshot은 있으나 산출 방법이나 원천이 더 필요하다."
+                if valuation_status == "review_required" or valuation_margin
+                else "DCF-lite, 상대 배수, 시나리오 범위가 아직 추천 상세에 연결되지 않았다."
+            ),
+            source="valuation_target_range",
+            href=f"/stocks/{quote(symbol, safe='')}",
+        ),
+        _recommendation_evidence_layer_check(
+            key="industry_competitive_position",
+            label="산업 경쟁 위치",
+            status="not_applicable" if product_type == "fund_or_etf" else ("complete" if industry_competitive_position else "missing"),
+            detail=(
+                "ETF·펀드형 상품은 기업 경쟁 포지션 대신 지수 구성과 포트폴리오 역할을 본다."
+                if product_type == "fund_or_etf"
+                else f"{_professional_code_label(industry_competitive_position.get('competitive_position'))} · {industry_competitive_position.get('peer_group_name') or '비교군 미확인'}"
+                if industry_competitive_position
+                else "경쟁 위치, 피어 그룹, 산업 리스크가 아직 추천 상세에 연결되지 않았다."
+            ),
+            source="industry_competitive_position",
+            href=f"/stocks/{quote(symbol, safe='')}",
+        ),
+        _recommendation_evidence_layer_check(
+            key="equity_research_artifact",
+            label="AI 기업 리서치",
+            status="not_applicable" if product_type == "fund_or_etf" else ("complete" if equity_research else "missing"),
+            detail=(
+                "ETF·펀드형 상품은 기업 리서치 대신 fund source layer와 포트폴리오 역할을 본다."
+                if product_type == "fund_or_etf"
+                else _first_non_empty(equity_research.get("korean_summary") if equity_research else None)
+                or "사업 설명, 촉매, 리스크, 무효화 조건을 요약한 AI 리서치가 아직 없다."
+            ),
+            source="equity_research_artifact",
+            href=f"/stocks/{quote(symbol, safe='')}",
+        ),
+        _recommendation_evidence_layer_check(
+            key="active_thesis",
+            label="투자 논리",
+            status="complete" if linked_thesis_id is not None and thesis_consistency else ("partial" if linked_thesis_id is not None else "blocked"),
+            detail=(
+                f"활성 thesis와 일관성 점수 {_format_percent_text(_number(thesis_consistency.get('value')))}가 연결됐다."
+                if linked_thesis_id is not None and thesis_consistency
+                else "활성 thesis는 있으나 추천과 thesis consistency 점수 연결이 부족하다."
+                if linked_thesis_id is not None
+                else "활성 thesis가 없으면 중장기 추천 입력으로 쓰면 안 된다."
+            ),
+            source="thesis_lifecycle",
+            href=f"/theses/{_opaque_id('thesis', linked_thesis_id, None)}" if linked_thesis_id is not None else "",
+        ),
+        _recommendation_evidence_layer_check(
+            key="paper_validation",
+            label="페이퍼 검증",
+            status="complete" if outcome_measured else ("blocked" if source_blocked else "pending"),
+            detail=(
+                f"성과 측정 완료: {_professional_code_label(outcome.get('label'))}, 알파 {_format_signed_percent_text(_number(outcome.get('alpha')))}."
+                if outcome_measured
+                else "전문 원천 차단 상태라 페이퍼 검증 입력도 차단한다."
+                if source_blocked
+                else "성과 측정 윈도우가 끝날 때까지 추천 weight 변경을 금지한다."
+            ),
+            source="paper_validation_and_order_boundary",
+            href="/paper-trading",
+        ),
+    ]
+    if product_type == "fund_or_etf":
+        layers.extend(
+            [
+                _recommendation_evidence_layer_check(
+                    key="fund_benchmark_composition",
+                    label="ETF 보유종목",
+                    status="complete" if _integer(fund_analysis.get("holding_count")) else "missing",
+                    detail=f"보유종목 {_integer(fund_analysis.get('holding_count')) or 0}개와 커버리지 {_format_percent_text(_number(fund_analysis.get('holdings_coverage_weight')))}를 확인한다.",
+                    source="fund_instrument_analysis",
+                    href=f"/stocks/{quote(symbol, safe='')}",
+                ),
+                _recommendation_evidence_layer_check(
+                    key="fund_expense_ratio",
+                    label="ETF 비용률",
+                    status="complete" if _as_dict(fund_analysis.get("expense_ratio")).get("status") == "collected" else "missing",
+                    detail=_first_non_empty(_as_dict(fund_analysis.get("expense_ratio")).get("summary"), "비용률 원천이 아직 충분하지 않다."),
+                    source="fund_instrument_analysis",
+                    href=f"/stocks/{quote(symbol, safe='')}",
+                ),
+                _recommendation_evidence_layer_check(
+                    key="fund_tracking_difference",
+                    label="추적 차이",
+                    status="complete" if _as_dict(fund_analysis.get("tracking_error")).get("status") else "missing",
+                    detail=_first_non_empty(_as_dict(fund_analysis.get("tracking_error")).get("summary"), "추적 차이 또는 추적오차 원천이 아직 충분하지 않다."),
+                    source="fund_instrument_analysis",
+                    href=f"/stocks/{quote(symbol, safe='')}",
+                ),
+            ]
+        )
+
+    expected_layers = [layer for layer in layers if layer["status"] != "not_applicable"]
+    available_layer_count = sum(1 for layer in expected_layers if layer["status"] == "complete")
+    partial_layer_count = sum(1 for layer in expected_layers if layer["status"] == "partial")
+    blocked_layer_count = sum(1 for layer in expected_layers if layer["status"] == "blocked")
+    pending_layer_count = sum(1 for layer in expected_layers if layer["status"] == "pending")
+    missing_layers = [
+        layer["key"]
+        for layer in expected_layers
+        if layer["status"] in {"missing", "blocked", "pending"}
+    ]
+    expected_layer_count = len(expected_layers)
+    coverage_ratio = (
+        (available_layer_count + partial_layer_count * 0.5) / expected_layer_count
+        if expected_layer_count > 0
+        else 1.0
+    )
+    if source_blocked:
+        status = "source_blocked"
+    elif blocked_layer_count > 0:
+        status = "blocked_until_thesis_or_evidence"
+    elif missing_layers:
+        status = "paper_validation_pending" if missing_layers == ["paper_validation"] else "coverage_gap"
+    else:
+        status = "ready_for_review"
+
+    return {
+        "status": status,
+        "title": _recommendation_professional_evidence_audit_title(status),
+        "summary": _recommendation_professional_evidence_audit_summary(
+            status=status,
+            symbol=symbol,
+            expected_layer_count=expected_layer_count,
+            available_layer_count=available_layer_count,
+            partial_layer_count=partial_layer_count,
+            blocked_layer_count=blocked_layer_count,
+            pending_layer_count=pending_layer_count,
+        ),
+        "next_action": _recommendation_professional_evidence_next_action(
+            status=status,
+            source_guardrail=source_guardrail,
+            missing_layers=missing_layers,
+        ),
+        "recommendation_id": recommendation_id,
+        "symbol": symbol,
+        "as_of_date": as_of_date,
+        "recommendation": recommendation,
+        "score": score,
+        "product_type": product_type,
+        "coverage_ratio": coverage_ratio,
+        "available_layer_count": available_layer_count,
+        "partial_layer_count": partial_layer_count,
+        "expected_layer_count": expected_layer_count,
+        "missing_layer_count": len(missing_layers),
+        "blocked_layer_count": blocked_layer_count,
+        "pending_layer_count": pending_layer_count,
+        "missing_layers": missing_layers,
+        "missing_layer_labels": [_professional_source_layer_label(layer) for layer in missing_layers],
+        "layer_checks": layers,
+        "source_blocker": {
+            "blocked": source_blocked,
+            "blocker_code": str(source_guardrail.get("blocker_code") or ""),
+            "blocker_label": str(source_guardrail.get("blocker_label") or ""),
+            "summary": str(source_guardrail.get("summary") or ""),
+            "next_action": str(source_guardrail.get("next_action") or ""),
+            "source_run_id": str(source_blocker.get("source_run_id") or ""),
+        },
+        "paper_validation_status": paper_status,
+        "paper_validation_input_allowed": bool(professional_decision_waterfall.get("paper_validation_input_allowed")),
+        "professional_decision_status": str(professional_decision_waterfall.get("status") or "unknown"),
+        "evidence_quality_status": str(evidence_review.get("quality_status") or "unknown"),
+        "blocked_evidence_gate_count": _integer(review_summary.get("blocked_count")) or 0,
+        "warning_evidence_gate_count": _integer(review_summary.get("warning_count")) or 0,
+        "holding_review_status": str(holding_review.get("status") or "unknown"),
+        "score_policy": "recommendation_weights_unchanged",
+        "recommendation_scoring_mutated": False,
+        "automatic_weight_change_allowed": False,
+        "automatic_order_allowed": False,
+        "broker_submit_allowed": False,
+        "order_boundary": "read_only_no_order",
+    }
+
+
+def _recommendation_evidence_layer_check(
+    *,
+    key: str,
+    label: str,
+    status: str,
+    detail: str,
+    source: str,
+    href: str,
+) -> dict[str, Any]:
+    return {
+        "key": key,
+        "label": label,
+        "status": status,
+        "detail": detail,
+        "source": source,
+        "href": href,
+    }
+
+
+def _recommendation_professional_evidence_audit_title(status: str) -> str:
+    if status == "ready_for_review":
+        return "전문 분석 근거가 추천 상세에 연결됨"
+    if status == "source_blocked":
+        return "전문 원천 차단 추천"
+    if status == "paper_validation_pending":
+        return "페이퍼 검증 대기 추천"
+    if status == "blocked_until_thesis_or_evidence":
+        return "투자 논리 또는 핵심 근거 차단"
+    return "전문 분석 근거 보강 필요"
+
+
+def _recommendation_professional_evidence_audit_summary(
+    *,
+    status: str,
+    symbol: str,
+    expected_layer_count: int,
+    available_layer_count: int,
+    partial_layer_count: int,
+    blocked_layer_count: int,
+    pending_layer_count: int,
+) -> str:
+    base = (
+        f"{symbol} 추천은 전문 분석 레이어 {expected_layer_count}개 중 완료 {available_layer_count}개, "
+        f"부분 {partial_layer_count}개, 차단 {blocked_layer_count}개, 대기 {pending_layer_count}개다."
+    )
+    if status == "ready_for_review":
+        return f"{base} 그래도 이 결과는 읽기 전용 검토이며 추천 weight와 주문은 바꾸지 않는다."
+    if status == "source_blocked":
+        return f"{base} 표준 재무 원천 차단 때문에 전문 판단과 페이퍼 검증 입력으로 쓰면 안 된다."
+    if status == "paper_validation_pending":
+        return f"{base} 핵심 근거는 연결됐지만 성과 측정 표본이 쌓일 때까지 기다린다."
+    return f"{base} 누락된 레이어가 남아 있어 추천 채택 전에 보강이 필요하다."
+
+
+def _recommendation_professional_evidence_next_action(
+    *,
+    status: str,
+    source_guardrail: dict[str, Any],
+    missing_layers: list[str],
+) -> str:
+    if status == "source_blocked":
+        return str(source_guardrail.get("next_action") or "지원되는 정기 공시나 안전한 parser가 확보될 때까지 차단한다.")
+    if status == "paper_validation_pending":
+        return "성과 측정 윈도우가 끝날 때까지 추천 outcome을 쌓고 weight 변경을 금지한다."
+    if missing_layers:
+        labels = ", ".join(_professional_source_layer_label(layer) for layer in missing_layers[:4])
+        return f"누락된 전문 분석 레이어를 보강한다: {labels}."
+    return "전문 근거는 연결됐지만 자동 주문과 자동 weight 변경은 계속 금지한다."
 
 
 def _find_recommendation_score_component(score_components: list[dict[str, Any]], component_name: str) -> dict[str, Any] | None:

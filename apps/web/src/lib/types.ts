@@ -1730,6 +1730,7 @@ export type RecommendationDetailData = {
   linked_thesis_id: string;
   professional_source_guardrail: ProfessionalSourceGuardrail;
   professional_decision_waterfall: ProfessionalDecisionWaterfall;
+  professional_evidence_audit: ProfessionalEvidenceAudit;
   evidence_trace: {
     symbol: string;
     as_of_date: string;
@@ -1830,6 +1831,57 @@ export type ProfessionalDecisionStep = {
     label: string;
     value: string;
   }>;
+  automatic_order_allowed: boolean;
+  broker_submit_allowed: boolean;
+  order_boundary: string;
+};
+
+export type ProfessionalEvidenceAudit = {
+  status: string;
+  title: string;
+  summary: string;
+  next_action: string;
+  recommendation_id: string;
+  symbol: string;
+  as_of_date: string;
+  recommendation: string;
+  score: number | null;
+  product_type: string;
+  coverage_ratio: number;
+  available_layer_count: number;
+  partial_layer_count: number;
+  expected_layer_count: number;
+  missing_layer_count: number;
+  blocked_layer_count: number;
+  pending_layer_count: number;
+  missing_layers: string[];
+  missing_layer_labels: string[];
+  layer_checks: Array<{
+    key: string;
+    label: string;
+    status: string;
+    detail: string;
+    source: string;
+    href: string;
+  }>;
+  source_blocker: {
+    blocked: boolean;
+    blocker_code: string;
+    blocker_label: string;
+    summary: string;
+    next_action: string;
+    source_run_id: string;
+  };
+  paper_validation_status: string;
+  paper_validation_input_allowed: boolean;
+  professional_decision_status: string;
+  evidence_quality_status: string;
+  blocked_evidence_gate_count: number;
+  warning_evidence_gate_count: number;
+  holding_review_status: string;
+  score_policy: string;
+  recommendation_scoring_mutated: boolean;
+  automatic_weight_change_allowed: boolean;
   automatic_order_allowed: boolean;
   broker_submit_allowed: boolean;
   order_boundary: string;
