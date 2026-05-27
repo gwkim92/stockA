@@ -1,7 +1,6 @@
 import Link from "next/link";
 import type { Route } from "next";
 
-import { DecisionReviewStrip } from "@/components/decision-review-strip";
 import { NewsTitleBlock } from "@/components/news-title-block";
 import {
   getAiNewsClusters,
@@ -359,92 +358,56 @@ export default async function IntelligencePage() {
   const firstCluster = storedNewsClusters.clusters[0] ?? null;
   const visibleNewsClusters = storedNewsClusters.clusters.slice(0, 2);
   const hiddenNewsClusterCount = Math.max(storedNewsClusters.clusters.length - visibleNewsClusters.length, 0);
-  const reviewActions = [
-    {
-      index: "1",
-      title: "뉴스 흐름 보기",
-      target: firstCluster ? formatClusterHeadline(firstCluster) : "묶음 대기",
-      body: "오늘 많이 반복된 이슈와 연결 종목을 먼저 본다.",
-      cta: "흐름 열기",
-      href: firstCluster ? clusterEvidenceHref(firstCluster) : ("/ai-evidence" as Route),
-    },
-    {
-      index: "2",
-      title: "AI 후보 대조",
-      target: firstCandidate
-        ? `${formatNewsSymbol(firstCandidate.symbol)} · ${koCode(firstCandidate.theme_key)}`
-        : "후보 대기",
-      body: "AI가 붙인 종목, 테마, 방향이 뉴스 원문과 맞는지 본다.",
-      cta: "AI 상세 열기",
-      href: firstCandidateEvidenceId ? (`/ai-evidence/${firstCandidateEvidenceId}` as Route) : ("/ai-evidence" as Route),
-    },
-    {
-      index: "3",
-      title: "상위 흐름 지도",
-      target: `${events.summary.themes_represented}개 테마`,
-      body: "거시 뉴스와 테마 뉴스가 어떤 종목군으로 내려가는지 먼저 본다.",
-      cta: "흐름 지도",
-      href: "/cycle-map" as Route,
-    },
-    {
-      index: "4",
-      title: "차단 후보 확인",
-      target: `${events.summary.suppressed_low_signal_candidate_count}개 차단`,
-      body: "추천 입력에서 빠진 뉴스가 왜 차단됐는지 확인한다.",
-      cta: "차단 목록 보기",
-      href: "/ai-evidence/blocked" as Route,
-    },
-  ];
-  const decisionSteps = [
+  const blockedCandidateCount = events.summary.suppressed_low_signal_candidate_count;
+  const firstFlowTitle = firstCluster
+    ? formatClusterHeadline(firstCluster)
+    : fallbackClusters[0]
+      ? koCode(fallbackClusters[0].themeKey)
+      : "상위 흐름 대기";
+  const firstFlowTarget = firstCluster ? formatSymbols(firstCluster.symbols) : "시장/테마 흐름";
+  const firstFlowHref = firstCluster ? clusterEvidenceHref(firstCluster) : ("/cycle-map" as Route);
+  const flowSummaryCards = [
     {
       index: "01",
-      title: "수집 상태",
-      question: "뉴스가 최신인가",
-      status: formatRunStatus(newsRun),
-      body: "뉴스 RSS 수집과 원천 문서 저장이 최근에 성공했는지 확인한다.",
-      href: "/data-health" as Route,
-      cta: "수집 상태",
-      tone: newsRun?.health_status === "ok" ? "ok" as const : "watch" as const,
+      label: "오늘의 상위 흐름",
+      title: firstFlowTitle,
+      target: firstFlowTarget,
+      body: "반복된 뉴스가 같은 시장 흐름인지 먼저 본다. 직접 종목 뉴스가 아니면 억지로 종목을 붙이지 않는다.",
+      cta: firstCluster ? "흐름 상세 보기" : "흐름 지도 보기",
+      href: firstFlowHref,
+      tone: "focus",
     },
     {
       index: "02",
-      title: "뉴스·AI 근거",
-      question: "뉴스가 왜 묶였나",
-      status: `${clusterSummary.cluster_count}개 묶음`,
-      body: "한국어 제목, 묶인 기준, 직접 종목/상위 흐름 관계, 차단 후보를 확인한다.",
-      href: "/intelligence" as Route,
-      cta: "현재 화면",
-      tone: clusterSummary.cluster_count > 0 ? "ok" as const : "watch" as const,
+      label: "통과한 AI 근거",
+      title: `${clusterSummary.llm_candidate_success_count}건 통과`,
+      target: firstCandidate
+        ? `${formatNewsSymbol(firstCandidate.symbol)} · ${koCode(firstCandidate.theme_key)}`
+        : formatLlmCandidateStatus(clusterSummary),
+      body: "한국어 번역, AI 구조화, validator 통과 결과가 있는 근거만 추천 후보로 이어진다.",
+      cta: firstCandidateEvidenceId ? "첫 AI 근거 보기" : "AI 근거 목록",
+      href: firstCandidateEvidenceId ? (`/ai-evidence/${firstCandidateEvidenceId}` as Route) : ("/ai-evidence" as Route),
+      tone: clusterSummary.llm_candidate_success_count > 0 ? "ready" : "watch",
     },
     {
       index: "03",
-      title: "상위 흐름",
-      question: "종목에 어떻게 전파되나",
-      status: `${events.summary.themes_represented}개 테마`,
-      body: "거시 뉴스는 억지로 종목에 붙이지 않고 흐름 지도로 내려간다.",
-      href: "/cycle-map" as Route,
-      cta: "흐름 지도",
-      tone: "ok" as const,
+      label: "차단·오염 의심",
+      title: `${blockedCandidateCount}건 차단`,
+      target: blockedCandidateCount > 0 ? "검토 필요" : "새 차단 없음",
+      body: "저신호 뉴스, 근거 없는 종목 연결, 오분류 의심은 추천 입력에서 분리한다.",
+      cta: "차단 목록 보기",
+      href: "/ai-evidence/blocked" as Route,
+      tone: blockedCandidateCount > 0 ? "watch" : "ready",
     },
     {
       index: "04",
-      title: "추천·보유",
-      question: "근거가 추천에 연결됐나",
-      status: `커버리지 ${formatPercent(dashboard.latest_metrics.weight_coverage_ratio)}`,
-      body: "추천 상세에서 직접 뉴스, 상위 흐름, 가격/사이클 근거를 분리해 본다.",
+      label: "추천 연결",
+      title: `커버리지 ${formatPercent(dashboard.latest_metrics.weight_coverage_ratio)}`,
+      target: "읽기 전용",
+      body: "통과한 근거가 추천 상세와 보유 검토로 이어졌는지 본다. 주문은 여전히 차단된다.",
+      cta: "추천 연결 보기",
       href: "/recommendations" as Route,
-      cta: "추천 보기",
-      tone: dashboard.latest_metrics.weight_coverage_ratio > 0 ? "ok" as const : "watch" as const,
-    },
-    {
-      index: "05",
-      title: "페이퍼 안전",
-      question: "주문으로 넘어가도 되나",
-      status: "실거래 아님",
-      body: "이 화면의 AI 결과는 주문 결론이 아니다. 페이퍼 검증과 안전 조건을 따로 확인한다.",
-      href: "/paper-trading" as Route,
-      cta: "페이퍼 상태",
-      tone: "watch" as const,
+      tone: dashboard.latest_metrics.weight_coverage_ratio > 0 ? "ready" : "watch",
     },
   ];
 
@@ -463,12 +426,28 @@ export default async function IntelligencePage() {
         </p>
       </section>
 
-      <DecisionReviewStrip
-        activeIndex="02"
-        title="뉴스는 원문, AI 해석, 종목 연결을 분리해서 본다"
-        description="같은 뉴스 묶음인지, 직접 종목 뉴스인지, 상위 흐름 뉴스인지 확인한 뒤 추천 화면으로 넘긴다."
-        steps={decisionSteps}
-      />
+      <section className="intelligence-flow-panel reveal delay-1" aria-labelledby="intelligence-flow-title">
+        <div className="intelligence-flow-lead">
+          <span>오늘의 판단 순서</span>
+          <h2 id="intelligence-flow-title">뉴스는 네 단계만 보면 된다.</h2>
+          <p>
+            먼저 반복된 상위 흐름을 보고, AI가 통과시킨 근거와 차단한 근거를 분리한 뒤,
+            마지막에 추천·보유 화면으로 이어졌는지 확인한다.
+          </p>
+        </div>
+        <div className="intelligence-flow-grid">
+          {flowSummaryCards.map((card) => (
+            <Link className={`intelligence-flow-card ${card.tone}`} href={card.href} key={card.index}>
+              <span>{card.index}</span>
+              <small>{card.label}</small>
+              <strong>{card.title}</strong>
+              <em>{card.target}</em>
+              <p>{card.body}</p>
+              <b>{card.cta}</b>
+            </Link>
+          ))}
+        </div>
+      </section>
 
       <section className="status-rail compact-rail reveal delay-1" aria-label="뉴스 AI 판단 요약">
         <article className="rail-cell">
@@ -498,32 +477,10 @@ export default async function IntelligencePage() {
         </article>
       </section>
 
-      <section className="review-command-panel reveal delay-1" aria-labelledby="review-command-title">
+      <section className="intelligence-board reveal delay-2" id="today-flow" aria-labelledby="news-decision-board-title">
         <div className="section-heading stacked-heading">
-          <span>검토 시작</span>
-          <h2 id="review-command-title">왼쪽부터 보면 오늘 검토가 끝난다</h2>
-          <p>
-            지금 가능한 작업은 읽기 전용 대조다. 완료/반려 저장 버튼은 아직 없으며,
-            저장형 검토는 승인자와 감사 로그가 붙은 뒤 별도 화면으로 열어야 한다.
-          </p>
-        </div>
-        <div className="review-command-grid">
-          {reviewActions.map((step) => (
-            <Link className="review-command-card" href={step.href} key={step.index}>
-              <span>{step.index}</span>
-              <strong>{step.title}</strong>
-              <em>{step.target}</em>
-              <small>{step.body}</small>
-              <b>{step.cta}</b>
-            </Link>
-          ))}
-        </div>
-      </section>
-
-      <section className="intelligence-board reveal delay-2" aria-labelledby="news-decision-board-title">
-        <div className="section-heading stacked-heading">
-          <span>대표 뉴스 흐름</span>
-          <h2 id="news-decision-board-title">대표 흐름만 먼저 본다</h2>
+          <span>01 오늘의 상위 흐름</span>
+          <h2 id="news-decision-board-title">반복된 뉴스가 같은 흐름인지 확인한다</h2>
           <p>
             첫 화면에서는 가장 중요한 뉴스 묶음만 보여준다. 전체 원천, 후보, 통과·차단 결과는 아래 전용 화면에서 이어서 본다.
           </p>
@@ -739,9 +696,9 @@ export default async function IntelligencePage() {
         )}
       </section>
 
-      <section className="intelligence-board reveal delay-3" aria-labelledby="ai-candidate-queue-title">
+      <section className="intelligence-board reveal delay-3" id="ai-candidates" aria-labelledby="ai-candidate-queue-title">
         <div className="section-heading stacked-heading">
-          <span>개별 뉴스 후보</span>
+          <span>02 통과한 AI 근거</span>
           <h2 id="ai-candidate-queue-title">대표 AI 후보 3건만 먼저 본다</h2>
         </div>
         <p className="board-intro">
@@ -824,6 +781,77 @@ export default async function IntelligencePage() {
             </div>
           </details>
         ) : null}
+      </section>
+
+      <section className="intelligence-board intelligence-brief-board reveal delay-3" id="blocked-candidates" aria-labelledby="blocked-candidate-title">
+        <div className="section-heading stacked-heading">
+          <span>03 차단·오염 의심</span>
+          <h2 id="blocked-candidate-title">추천 입력에서 제외된 근거를 따로 본다</h2>
+          <p>
+            저신호 뉴스, 원문 근거가 약한 종목 연결, 오분류 의심은 추천 상세로 넘기지 않는다.
+            차단 목록은 “나쁜 데이터가 들어오지 않았는지” 확인하는 곳이다.
+          </p>
+        </div>
+        <div className="intelligence-brief-grid">
+          <article className={blockedCandidateCount > 0 ? "brief-signal-card watch" : "brief-signal-card ready"}>
+            <span>차단 후보</span>
+            <strong>{blockedCandidateCount}건</strong>
+            <p>{blockedCandidateCount > 0 ? "차단 사유를 확인해야 한다." : "현재 노출된 차단 후보는 없다."}</p>
+          </article>
+          <article className="brief-signal-card">
+            <span>품질 기준</span>
+            <strong>원문 근거 우선</strong>
+            <p>뉴스에 없는 티커, 낮은 신뢰도, 애매한 테마 연결은 추천 입력에서 제외한다.</p>
+          </article>
+          <article className="brief-signal-card">
+            <span>운영 확인</span>
+            <strong>{formatRunStatus(newsRun)}</strong>
+            <p>수집 실패나 AI 실패는 데이터 상태 화면에서 먼저 확인한다.</p>
+          </article>
+        </div>
+        <div className="btn-row decision-actions">
+          <Link className="btn btn-primary" href={"/ai-evidence/blocked" as Route}>
+            차단 목록 보기
+          </Link>
+          <Link className="btn btn-secondary" href={"/data-health" as Route}>
+            수집·분석 상태 보기
+          </Link>
+        </div>
+      </section>
+
+      <section className="intelligence-board intelligence-brief-board reveal delay-3" id="recommendation-linkage" aria-labelledby="recommendation-linkage-title">
+        <div className="section-heading stacked-heading">
+          <span>04 추천 연결</span>
+          <h2 id="recommendation-linkage-title">통과한 근거가 추천·보유 판단으로 이어졌는지 본다</h2>
+          <p>
+            이 화면은 주문 화면이 아니다. 통과한 뉴스 근거가 추천 상세, 종목 상세, 페이퍼 검증에서 어떻게 쓰이는지 이어서 확인한다.
+          </p>
+        </div>
+        <div className="intelligence-brief-grid">
+          <article className="brief-signal-card ready">
+            <span>추천 근거 연결률</span>
+            <strong>{formatPercent(dashboard.latest_metrics.weight_coverage_ratio)}</strong>
+            <p>추천 상세에서 직접 뉴스, 상위 흐름, 가격·사이클 근거를 분리해서 본다.</p>
+          </article>
+          <article className="brief-signal-card watch">
+            <span>주문 경계</span>
+            <strong>읽기 전용</strong>
+            <p>AI 근거는 주문 결론이 아니다. 실거래 제출은 계속 차단된다.</p>
+          </article>
+          <article className="brief-signal-card">
+            <span>다음 화면</span>
+            <strong>추천·페이퍼</strong>
+            <p>추천 상세와 페이퍼 거래 상태에서 실제 검증 단계까지 이어서 본다.</p>
+          </article>
+        </div>
+        <div className="btn-row decision-actions">
+          <Link className="btn btn-primary" href={"/recommendations" as Route}>
+            추천 연결 보기
+          </Link>
+          <Link className="btn btn-secondary" href={"/paper-trading" as Route}>
+            페이퍼 거래 상태 보기
+          </Link>
+        </div>
       </section>
 
     </div>

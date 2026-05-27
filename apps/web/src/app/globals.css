@@ -1763,6 +1763,208 @@ h6 {
   font-weight: 900;
 }
 
+.intelligence-flow-panel {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.45fr) minmax(0, 1fr);
+  gap: clamp(18px, 2.4vw, 34px);
+  align-items: stretch;
+  padding: clamp(22px, 2.6vw, 38px);
+  background:
+    linear-gradient(135deg, rgba(251, 250, 246, 0.98), rgba(241, 235, 222, 0.84)),
+    radial-gradient(circle at 8% 12%, rgba(204, 116, 53, 0.17), transparent 34%),
+    repeating-linear-gradient(
+      90deg,
+      rgba(17, 18, 15, 0.06),
+      rgba(17, 18, 15, 0.06) 1px,
+      transparent 1px,
+      transparent 42px
+    );
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+}
+
+.intelligence-flow-lead {
+  display: grid;
+  align-content: space-between;
+  gap: 18px;
+  min-width: 0;
+  padding: clamp(14px, 1.6vw, 22px) 0;
+}
+
+.intelligence-flow-lead span,
+.intelligence-flow-card small,
+.brief-signal-card span {
+  color: var(--text-tertiary);
+  font-size: 0.72rem;
+  font-weight: 950;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.intelligence-flow-lead h2 {
+  max-width: 460px;
+  margin: 0;
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: clamp(2.25rem, 4.8vw, 5.2rem);
+  font-weight: 950;
+  letter-spacing: -0.07em;
+  line-height: 0.9;
+  word-break: keep-all;
+}
+
+.intelligence-flow-lead p {
+  max-width: 520px;
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.96rem;
+  font-weight: 780;
+  line-height: 1.68;
+  word-break: keep-all;
+}
+
+.intelligence-flow-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  min-width: 0;
+}
+
+.intelligence-flow-card {
+  display: grid;
+  min-width: 0;
+  min-height: 270px;
+  align-content: space-between;
+  gap: 12px;
+  padding: 18px;
+  background: color-mix(in srgb, var(--bg-panel) 90%, white);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  transition: border-color 0.16s ease, transform 0.16s ease, background 0.16s ease;
+}
+
+.intelligence-flow-card:hover,
+.intelligence-flow-card:focus-visible {
+  background: var(--bg-panel);
+  border-color: var(--border-strong);
+  outline: none;
+  transform: translateY(-2px);
+}
+
+.intelligence-flow-card > span {
+  display: inline-grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  background: var(--text-primary);
+  color: var(--bg-panel);
+  font-size: 0.72rem;
+  font-weight: 950;
+}
+
+.intelligence-flow-card.focus > span {
+  background: var(--accent-amber);
+  color: var(--text-primary);
+}
+
+.intelligence-flow-card.watch {
+  background: color-mix(in srgb, var(--accent-amber) 10%, var(--bg-panel));
+  border-color: color-mix(in srgb, var(--accent-amber) 30%, var(--border-light));
+}
+
+.intelligence-flow-card.ready {
+  background: color-mix(in srgb, var(--accent-green) 7%, var(--bg-panel));
+  border-color: color-mix(in srgb, var(--accent-green) 24%, var(--border-light));
+}
+
+.intelligence-flow-card strong {
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: clamp(1.3rem, 1.7vw, 1.9rem);
+  font-weight: 900;
+  letter-spacing: -0.035em;
+  line-height: 1.02;
+  word-break: keep-all;
+}
+
+.intelligence-flow-card em {
+  color: var(--accent-blue);
+  font-size: 0.78rem;
+  font-style: normal;
+  font-weight: 900;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.intelligence-flow-card p,
+.brief-signal-card p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  font-weight: 740;
+  line-height: 1.58;
+  word-break: keep-all;
+}
+
+.intelligence-flow-card b {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  padding: 8px 10px;
+  background: var(--text-primary);
+  border-radius: 999px;
+  color: var(--bg-panel);
+  font-size: 0.72rem;
+  font-weight: 900;
+}
+
+.intelligence-brief-board {
+  background:
+    linear-gradient(135deg, rgba(251, 250, 246, 0.96), rgba(251, 250, 246, 0.74)),
+    linear-gradient(90deg, rgba(17, 18, 15, 0.04) 1px, transparent 1px);
+  background-size: auto, 30px 100%;
+}
+
+.intelligence-brief-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.brief-signal-card {
+  display: grid;
+  min-width: 0;
+  min-height: 178px;
+  align-content: space-between;
+  gap: 12px;
+  padding: 18px;
+  background: color-mix(in srgb, var(--bg-panel) 90%, white);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+}
+
+.brief-signal-card.ready {
+  background: color-mix(in srgb, var(--accent-green) 7%, var(--bg-panel));
+  border-color: color-mix(in srgb, var(--accent-green) 24%, var(--border-light));
+}
+
+.brief-signal-card.watch {
+  background: color-mix(in srgb, var(--accent-amber) 10%, var(--bg-panel));
+  border-color: color-mix(in srgb, var(--accent-amber) 32%, var(--border-light));
+}
+
+.brief-signal-card strong {
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: clamp(1.3rem, 1.9vw, 2rem);
+  font-weight: 900;
+  letter-spacing: -0.04em;
+  line-height: 1;
+  overflow-wrap: anywhere;
+}
+
 .review-boundary-note {
   display: grid;
   grid-template-columns: minmax(140px, 0.22fr) minmax(0, 1fr);
@@ -4482,6 +4684,7 @@ h6 {
   .stock-decision-panel,
   .recommendation-waterfall-panel,
   .ai-evidence-brief-panel,
+  .intelligence-flow-panel,
   .research-flow {
     grid-template-columns: 1fr;
   }
@@ -4494,7 +4697,8 @@ h6 {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
-  .ai-evidence-brief-grid {
+  .ai-evidence-brief-grid,
+  .intelligence-flow-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -4560,7 +4764,9 @@ h6 {
   .stock-decision-grid,
   .recommendation-waterfall-track,
   .ai-evidence-brief-grid,
-  .ai-evidence-brief-metrics {
+  .ai-evidence-brief-metrics,
+  .intelligence-flow-grid,
+  .intelligence-brief-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -4699,13 +4905,17 @@ h6 {
   .ai-evidence-brief-panel,
   .ai-evidence-brief-grid,
   .ai-evidence-brief-metrics,
+  .intelligence-flow-panel,
+  .intelligence-flow-grid,
+  .intelligence-brief-grid,
   .research-flow {
     grid-template-columns: 1fr;
   }
 
   .stock-decision-actions .btn,
   .recommendation-waterfall-actions .btn,
-  .ai-evidence-brief-actions .btn {
+  .ai-evidence-brief-actions .btn,
+  .intelligence-flow-card b {
     width: 100%;
   }
 
