@@ -45,7 +45,7 @@
 
 ## Done Criteria
 
-- [ ] `/trading-readiness` 상단에 `실거래 경계 판정판`이 렌더링된다.
-- [ ] `실거래 결론`, `증권사 제출`, `킬 스위치`, `감사·페이퍼`가 첫 화면에 보인다.
-- [ ] broker submit과 실제 주문 전송 상태가 명확히 보인다.
-- [ ] local verification과 EC2 route smoke가 통과한다.
+- [x] `/trading-readiness` 상단에 `실거래 경계 판정판`이 렌더링된다.
+- [x] `실거래 결론`, `증권사 제출`, `킬 스위치`, `감사·페이퍼`가 첫 화면에 보인다.
+- [x] broker submit과 실제 주문 전송 상태가 명확히 보인다.
+- [x] local verification과 EC2 route smoke가 통과한다.
