@@ -1046,6 +1046,188 @@ function evidenceTraceCards(data: RecommendationDetailData) {
   ];
 }
 
+function recommendationWaterfallCards({
+  data,
+  cycleStack,
+  macroFlowComponents,
+  fundamentalStack,
+  qualityDecision,
+  decisionWaterfall,
+  professionalAudit,
+  outcomeMeasured,
+}: {
+  data: RecommendationDetailData;
+  cycleStack: ScoreComponent[];
+  macroFlowComponents: ScoreComponent[];
+  fundamentalStack: ScoreComponent[];
+  qualityDecision: { status: string; tone: string; summary: string };
+  decisionWaterfall: RecommendationDetailData["professional_decision_waterfall"];
+  professionalAudit: ProfessionalEvidenceAudit;
+  outcomeMeasured: boolean;
+}) {
+  const macroComponent = cycleStack.find((component) => component.component === "macro_regime_score");
+  const themeComponent =
+    cycleStack.find((component) => component.component === "theme_cycle_score") ?? macroFlowComponents[0];
+  const valuationReady = data.valuation_target_range.status === "available";
+  const sourceBlocked = professionalAudit.source_blocker.blocked || data.professional_decision_waterfall.status === "source_data_blocked";
+  const riskBlocked = professionalAudit.blocked_layer_count > 0 || reviewCount(data.evidence_review.summary.blocked_count) > 0;
+
+  return [
+    {
+      step: "01",
+      label: "거시",
+      title: macroComponent ? formatPercent(macroComponent.value) : "거시 근거 대기",
+      body: macroComponent
+        ? `금리·물가·유동성 같은 상위 환경이 ${data.symbol} 검토 배경으로 연결됐다. ${isZeroWeight(macroComponent.weight) ? "현재 총점 영향은 없다." : "총점에 반영된다."}`
+        : "거시 사이클 점수 항목이 아직 연결되지 않았다.",
+      href: "#recommendation-cycle-stack",
+      hrefLabel: "사이클 근거 보기",
+      tone: macroComponent ? "ready" : "watch",
+    },
+    {
+      step: "02",
+      label: "테마",
+      title: themeComponent ? formatPercent(themeComponent.value) : "테마 전파 대기",
+      body: macroFlowComponents.length > 0
+        ? `상위 흐름 전파 ${macroFlowComponents.length}개 점수 항목이 있다. 회사명이 직접 언급되지 않아도 노출도 규칙으로 연결된다.`
+        : themeComponent
+          ? "테마 사이클 항목은 있으나 최근 macro-flow 전파 근거는 적다."
+          : "테마·상위 흐름 전파 근거가 아직 추천 입력으로 연결되지 않았다.",
+      href: "#recommendation-macro-flow",
+      hrefLabel: "흐름 전파 보기",
+      tone: themeComponent || macroFlowComponents.length > 0 ? "ready" : "watch",
+    },
+    {
+      step: "03",
+      label: "기업",
+      title: data.equity_research ? "리서치 연결" : "리서치 대기",
+      body: data.equity_research
+        ? "사업 설명, 촉매, 리스크, 무효화 조건이 AI 배치 리서치로 연결됐다."
+        : "기업 리서치 artifact가 아직 없어 사업 맥락은 제한적으로만 볼 수 있다.",
+      href: "#recommendation-equity-research",
+      hrefLabel: "기업 리서치 보기",
+      tone: data.equity_research ? "ready" : "watch",
+    },
+    {
+      step: "04",
+      label: "재무",
+      title:
+        data.financial_statement_model.status === "available" || data.financial_statement_model.status === "partial"
+          ? `${data.financial_statement_model.computed_metric_count}개 지표`
+          : "재무 원천 부족",
+      body: sourceBlocked
+        ? professionalAudit.source_blocker.summary
+        : `재무 품질·현금흐름·부채·희석 지표 ${data.financial_statement_model.computed_metric_count}개를 확인한다.`,
+      href: "#recommendation-financial-model",
+      hrefLabel: "재무 근거 보기",
+      tone: sourceBlocked
+        ? "blocked"
+        : data.financial_statement_model.status === "available" || data.financial_statement_model.status === "partial"
+          ? "ready"
+          : "watch",
+    },
+    {
+      step: "05",
+      label: "밸류에이션",
+      title: valuationReady ? `${data.valuation_target_range.method_count}개 방법` : "가격 검토 대기",
+      body: valuationReady
+        ? `기준 상승여지 ${formatOptionalPercent(data.valuation_target_range.upside_base)}와 안전마진 ${formatOptionalPercent(data.valuation_target_range.margin_of_safety)}를 확인한다.`
+        : "목표가 범위나 안전마진이 충분히 연결되지 않았다.",
+      href: "#recommendation-valuation",
+      hrefLabel: "밸류에이션 보기",
+      tone: valuationReady ? "ready" : "watch",
+    },
+    {
+      step: "06",
+      label: "리스크",
+      title: qualityDecision.status,
+      body: riskBlocked
+        ? "차단된 근거나 전문 분석 원천 문제가 있어 추천은 기록으로만 남긴다."
+        : outcomeMeasured
+          ? `성과 측정 완료. 알파 ${formatPercent(data.outcome.alpha)}와 근거 gate를 함께 본다.`
+          : "성과 측정창이 아직 끝나지 않았다. weight 변경이나 자동 주문은 금지 상태다.",
+      href: "#recommendation-evidence-review",
+      hrefLabel: "리스크 점검 보기",
+      tone: riskBlocked ? "blocked" : qualityDecision.tone === "risk-low" ? "ready" : "watch",
+    },
+    {
+      step: "07",
+      label: "페이퍼 검증",
+      title: decisionWaterfall.paper_validation_input_allowed ? "입력 가능" : "입력 차단",
+      body: decisionWaterfall.paper_validation_input_allowed
+        ? `페이퍼 검증 입력은 가능하지만 주문 경계는 ${koCode(decisionWaterfall.order_boundary)}이다.`
+        : `페이퍼 검증 입력 전 차단 조건이 남아 있다. 주문 경계는 ${koCode(decisionWaterfall.order_boundary)}이다.`,
+      href: "/paper-trading",
+      hrefLabel: "페이퍼 거래 상태",
+      tone: decisionWaterfall.paper_validation_input_allowed ? "watch" : "blocked",
+    },
+  ];
+}
+
+function RecommendationDecisionWaterfall({
+  data,
+  cards,
+  qualityDecision,
+  decisionWaterfall,
+}: {
+  data: RecommendationDetailData;
+  cards: ReturnType<typeof recommendationWaterfallCards>;
+  qualityDecision: { status: string; tone: string; summary: string };
+  decisionWaterfall: RecommendationDetailData["professional_decision_waterfall"];
+}) {
+  return (
+    <section className={`recommendation-waterfall-panel ${qualityDecision.tone} reveal delay-1`} aria-labelledby="recommendation-waterfall-title">
+      <div className="recommendation-waterfall-lead">
+        <span>추천 결론</span>
+        <h2 id="recommendation-waterfall-title">
+          {data.symbol} · {qualityDecision.status}
+        </h2>
+        <p>{qualityDecision.summary}</p>
+        <div className="recommendation-waterfall-metrics" aria-label="추천 핵심 지표">
+          <div>
+            <span>추천</span>
+            <strong>{koCode(data.recommendation)}</strong>
+          </div>
+          <div>
+            <span>점수</span>
+            <strong>{formatPercent(data.score)}</strong>
+          </div>
+          <div>
+            <span>주문</span>
+            <strong>{decisionWaterfall.broker_submit_allowed ? "허용" : "차단"}</strong>
+          </div>
+        </div>
+        <div className="recommendation-waterfall-actions">
+          <Link className="btn btn-primary" href={stockHref(data.symbol)}>
+            종목 상세 보기
+          </Link>
+          <Link className="btn btn-secondary" href={`/theses/${data.linked_thesis_id}` as Route}>
+            투자 논리 보기
+          </Link>
+          <Link className="btn btn-secondary" href="/paper-trading">
+            페이퍼 거래 상태
+          </Link>
+        </div>
+      </div>
+
+      <div className="recommendation-waterfall-track">
+        {cards.map((card) => (
+          <article className={`recommendation-waterfall-card tone-${card.tone}`} key={card.label}>
+            <span>{card.step} · {card.label}</span>
+            <strong>{card.title}</strong>
+            <p>{card.body}</p>
+            {card.href.startsWith("#") ? (
+              <a href={card.href}>{card.hrefLabel}</a>
+            ) : (
+              <Link href={card.href as Route}>{card.hrefLabel}</Link>
+            )}
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 export default async function RecommendationPage({ params }: RecommendationPageProps) {
   const { recommendationId } = await params;
   const response = await getRecommendationDetail(recommendationId);
@@ -1081,6 +1263,16 @@ export default async function RecommendationPage({ params }: RecommendationPageP
     href: step.href ? (step.href as Route) : undefined,
     hrefLabel: step.href_label ?? undefined,
   }));
+  const waterfallCards = recommendationWaterfallCards({
+    data,
+    cycleStack,
+    macroFlowComponents,
+    fundamentalStack,
+    qualityDecision,
+    decisionWaterfall,
+    professionalAudit,
+    outcomeMeasured,
+  });
 
   return (
     <div className="pageStack">
@@ -1092,8 +1284,7 @@ export default async function RecommendationPage({ params }: RecommendationPageP
           <div>
             <h1 style={{ fontSize: "clamp(2.5rem, 4vw, 4rem)", marginBottom: "16px" }}>{data.symbol} 추천 검토서</h1>
             <p style={{ color: "var(--text-secondary)", fontSize: "1.1rem", maxWidth: "700px" }}>
-              추천은 자동 매매 명령이 아니라 점수, 증거, 측정된 성과를 함께 검토하는 입력값이다.
-              포트폴리오 조치 전 연결된 투자 논리와 성과를 함께 확인한다.
+              추천은 자동 매매 명령이 아니다. 먼저 추천 결론과 주문 경계를 보고, 그 다음 거시·테마·기업·재무·밸류에이션·리스크·페이퍼 검증 순서로 읽는다.
             </p>
           </div>
           
@@ -1114,6 +1305,13 @@ export default async function RecommendationPage({ params }: RecommendationPageP
           </div>
         </div>
       </section>
+
+      <RecommendationDecisionWaterfall
+        data={data}
+        cards={waterfallCards}
+        qualityDecision={qualityDecision}
+        decisionWaterfall={decisionWaterfall}
+      />
 
       <section className="bento-card reveal delay-1" aria-label="중장기 추천 검토 판정">
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "20px", flexWrap: "wrap", marginBottom: "20px" }}>
@@ -1175,13 +1373,15 @@ export default async function RecommendationPage({ params }: RecommendationPageP
         </div>
       </section>
 
-      <ProfessionalResearchFlow
-        eyebrow="전문 의사결정 흐름"
-        title={`${data.symbol} 추천을 분석서처럼 읽는다`}
-        summary={decisionWaterfall.summary}
-        footer={`점수 정책: ${koCode(decisionWaterfall.score_policy)}. 주문 경계: ${koCode(decisionWaterfall.order_boundary)}.`}
-        steps={professionalResearchSteps}
-      />
+      <section id="recommendation-professional-flow">
+        <ProfessionalResearchFlow
+          eyebrow="전문 의사결정 흐름"
+          title={`${data.symbol} 추천을 분석서처럼 읽는다`}
+          summary={decisionWaterfall.summary}
+          footer={`점수 정책: ${koCode(decisionWaterfall.score_policy)}. 주문 경계: ${koCode(decisionWaterfall.order_boundary)}.`}
+          steps={professionalResearchSteps}
+        />
+      </section>
 
       <section className="bento-card reveal delay-1" aria-label="추천 전문 분석 감사">
         <div className="section-heading">
@@ -1257,18 +1457,22 @@ export default async function RecommendationPage({ params }: RecommendationPageP
         </div>
       </section>
 
-      <FinancialStatementModelPanel model={financialStatementModel} symbol={data.symbol} />
+      <section id="recommendation-financial-model">
+        <FinancialStatementModelPanel model={financialStatementModel} symbol={data.symbol} />
+      </section>
 
       <FundInstrumentAnalysisPanel analysis={data.fund_instrument_analysis} />
 
-      <ValuationTargetRangeCard
-        valuation={valuationTargetRange}
-        eyebrow="추천 가격 검토"
-        title={`${data.symbol} 목표가 범위와 상승여지`}
-      />
+      <section id="recommendation-valuation">
+        <ValuationTargetRangeCard
+          valuation={valuationTargetRange}
+          eyebrow="추천 가격 검토"
+          title={`${data.symbol} 목표가 범위와 상승여지`}
+        />
+      </section>
 
       {cycleStack.length > 0 ? (
-        <section className="bento-card reveal delay-1" aria-label="계층형 사이클 추천 경로">
+        <section className="bento-card reveal delay-1" id="recommendation-cycle-stack" aria-label="계층형 사이클 추천 경로">
           <div style={{ marginBottom: "22px" }}>
             <span className="metric-sub">계층형 사이클 경로</span>
             <h2 style={{ fontSize: "1.5rem", marginTop: "6px" }}>왜 {data.symbol}을 지금 검토하는가</h2>
@@ -1363,7 +1567,7 @@ export default async function RecommendationPage({ params }: RecommendationPageP
         peerComponent={peerComponent}
       />
 
-      <section className="bento-card reveal delay-1" aria-label="기업 리서치 연결">
+      <section className="bento-card reveal delay-1" id="recommendation-equity-research" aria-label="기업 리서치 연결">
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "18px", flexWrap: "wrap", marginBottom: "22px" }}>
           <div>
             <span className="metric-sub">기업 리서치 연결</span>
@@ -1468,7 +1672,7 @@ export default async function RecommendationPage({ params }: RecommendationPageP
         )}
       </section>
 
-      <section className="bento-card reveal delay-1" aria-label="추천 근거 흐름 요약">
+      <section className="bento-card reveal delay-1" id="recommendation-evidence-trace" aria-label="추천 근거 흐름 요약">
         <div style={{ marginBottom: "20px" }}>
           <span className="metric-sub">근거 흐름 요약</span>
           <h2 style={{ fontSize: "1.5rem", marginTop: "6px" }}>무엇을 보고 이 추천을 검토해야 하나</h2>
@@ -1492,7 +1696,7 @@ export default async function RecommendationPage({ params }: RecommendationPageP
       </section>
 
       {macroFlowComponents.length > 0 ? (
-        <section className="bento-card reveal delay-1" aria-label="상위 흐름 전파 경로">
+        <section className="bento-card reveal delay-1" id="recommendation-macro-flow" aria-label="상위 흐름 전파 경로">
           <div style={{ marginBottom: "22px" }}>
             <span className="metric-sub">상위 흐름 전파 경로</span>
             <h2 style={{ fontSize: "1.5rem", marginTop: "6px" }}>시장·테마 뉴스가 {data.symbol} 점수에 들어간 방식</h2>
@@ -1553,7 +1757,7 @@ export default async function RecommendationPage({ params }: RecommendationPageP
         </section>
       ) : null}
 
-      <section className="bento-card reveal delay-1" aria-label="추천 근거 연결 점검">
+      <section className="bento-card reveal delay-1" id="recommendation-evidence-review" aria-label="추천 근거 연결 점검">
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "20px", flexWrap: "wrap", marginBottom: "20px" }}>
           <div>
             <span className="metric-sub">근거 연결 점검</span>
