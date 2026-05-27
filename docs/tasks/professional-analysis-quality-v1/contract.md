@@ -45,4 +45,4 @@
 - [x] `/data-health` renders a user-facing professional quality section.
 - [x] Tests assert source-limited professional analysis remains visible but does not allow weight/order changes.
 - [x] Local verification passes.
-- [ ] EC2 route smoke confirms live rendering.
+- [x] EC2 route smoke confirms live rendering.
