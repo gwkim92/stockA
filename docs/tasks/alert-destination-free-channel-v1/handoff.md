@@ -2,8 +2,8 @@
 
 ## Status
 
-- current status: implemented locally; unit tests, compileall, typecheck, roadmap verify, and AWH verify passed. EC2 deploy/smoke is pending.
-- in progress: EC2 deploy/smoke with repo-outside free alert destination is pending.
+- current status: implemented, committed, pushed, deployed to EC2, and smoke verified.
+- completed: local implementation, unit tests, compileall, typecheck, roadmap verify, AWH verify, GitHub push, EC2 deploy, repo-outside ntfy destination setup, execute smoke, service restart, API smoke, and web route smoke.
 
 ## Context
 
@@ -13,7 +13,7 @@
 
 ## Exact Next Step
 
-- exact next step: deploy to EC2, configure a repo-outside free ntfy/webhook target without printing it, run `stockanalysis-operations alert-destination-test-run --execute`, and confirm `alert_destination` leaves `/api/data-health.open_gates`.
+- exact next step: continue with `internal-rag-retrieval-foundation-v1`; keep the remaining `portfolio_review_feedback_calibration_attention` gate open until outcome maturity.
 
 ## Implemented
 
@@ -30,3 +30,16 @@
 - passed: `cd apps/web && npm run typecheck`
 - passed: `bash scripts/verify_project_execution_roadmap.sh`
 - passed: `PYTHONPATH=/Users/woody/ai/agent-work-harness/src /private/tmp/stockanalysis-runtime/venv/bin/python -m awh verify --repo . --task alert-destination-free-channel-v1`
+
+## EC2 Verification
+
+- deployed commit: `56dff0d`.
+- alert env updated outside the repo: `/opt/stockanalysis/runtime/frontend-api.env`.
+- status artifact written outside the repo: `/opt/stockanalysis/artifacts/alert-destination/status.json`.
+- `stockanalysis-operations alert-destination-test-run --execute` wrote a passed status artifact.
+- `stockanalysis-frontend-api.service`: active.
+- `stockanalysis-web.service`: active.
+- `/api/data-health.alert_destination`: `status=external_destination_verified`, `attention_required=false`, `mode=ntfy`, `destination_type=ntfy`, `target_configured=true`, `last_test_status=passed`, `test_recent=true`.
+- `/api/data-health.open_gates`: `['portfolio_review_feedback_calibration_attention']`.
+- secret check: data-health alert payload did not contain `ntfy.sh` or `STOCKANALYSIS_NTFY_TOPIC_URL`.
+- `/data-health`: HTTP 200 and renders `외부 알림 검증됨` and `ntfy`.

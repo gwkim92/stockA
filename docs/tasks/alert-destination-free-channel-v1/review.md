@@ -8,5 +8,12 @@
 
 ## Remaining Risk
 
-- EC2 alert delivery still requires a real repo-outside destination and execute smoke.
 - Public no-auth ntfy topics should be treated as secrets because anyone with the topic can publish/subscribe.
+
+## EC2 Result
+
+- commit `56dff0d` deployed to `/opt/stockanalysis/app`.
+- repo-outside ntfy target configured without printing the URL.
+- execute smoke passed and wrote `/opt/stockanalysis/artifacts/alert-destination/status.json`.
+- `alert_destination` is no longer in `/api/data-health.open_gates`.
+- Remaining open gate is `portfolio_review_feedback_calibration_attention`.
