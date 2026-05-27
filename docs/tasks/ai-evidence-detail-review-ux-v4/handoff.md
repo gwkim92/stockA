@@ -2,7 +2,7 @@
 
 ## Status
 
-- in progress: AI 근거 상세 상단을 4단계 판단 패널로 재구성하는 작업을 진행 중이다.
+- completed: AI 근거 상세 상단을 4단계 판단 패널로 재구성하는 작업을 완료했다.
 
 ## Completed
 
@@ -24,8 +24,10 @@
 - passed: `cd apps/web && npm run build`
 - passed: `PYTHONPATH=/Users/woody/ai/agent-work-harness/src python3 -m awh verify --repo . --task ai-evidence-detail-review-ux-v4`
 - passed: `git diff --check`
-- pending: EC2/local tunnel `/ai-evidence/ai-evidence-251` route smoke
+- passed: EC2 deploy `npm run typecheck`, `npm run build`, `sudo systemctl restart stockanalysis-web.service`, `systemctl is-active stockanalysis-web.service`
+- passed: local tunnel `/ai-evidence/ai-evidence-251` route smoke at `http://127.0.0.1:13000/ai-evidence/ai-evidence-251` confirmed `AI 근거 결론`, `원천·번역`, `AI 구조화`, `자동 검증`, `종목·추천 연결`, `원천 문서 열기`, `구조화 결과 보기`, `검증 근거 보기`, `주문`, `읽기 전용`
+- passed: EC2 internal `/ai-evidence/ai-evidence-251` route smoke at `http://127.0.0.1:3000/ai-evidence/ai-evidence-251` confirmed the same strings
 
 ## Next Step
 
-- exact next step: 변경사항을 commit/push/deploy한 뒤 EC2/local tunnel `/ai-evidence/ai-evidence-251` route smoke로 새 결론 패널과 문구를 확인한다.
+- exact next step: 다음 UX slice는 `intelligence-news-flow-ux-v5`로, 인텔리전스 화면을 오늘의 상위 흐름, 통과 근거, 차단 근거, 추천 연결 순서로 더 압축한다.

@@ -43,4 +43,4 @@
 - [x] 4단계 `원천·번역`, `AI 구조화`, `자동 검증`, `종목·추천 연결`이 보인다.
 - [x] 원천 문서, 종목 상세, 추천 상세, 세부 구조화 결과로 이동하는 링크가 보인다.
 - [x] 주문 차단/읽기 전용 경계가 첫 화면에서 보인다.
-- [ ] local verification과 EC2 route smoke가 통과한다.
+- [x] local verification과 EC2 route smoke가 통과한다.
