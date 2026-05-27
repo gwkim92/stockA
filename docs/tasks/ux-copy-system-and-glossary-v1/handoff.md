@@ -2,8 +2,8 @@
 
 ## Status
 
-- in progress: commit, EC2 deploy, and route smoke remain.
-- local implementation complete; commit, EC2 deploy, and route smoke remain.
+- completed: local implementation, GitHub push, EC2 deploy, web service restart, EC2 route smoke, and local tunnel smoke are complete.
+- current status: completed.
 
 ## Current Decision
 
@@ -11,13 +11,17 @@
 
 ## Next Step
 
-- exact next step: commit and push the copy cleanup, pull it on EC2, rebuild/restart `stockanalysis-web.service`, then smoke `/`, `/intelligence`, `/ai-evidence/ai-evidence-251`, `/recommendations`, `/stocks/SPY`.
+- exact next step: start `news-ai-information-architecture-v4` to reduce duplicated explanations across news/AI pages and add cluster-level Korean translation fallback.
 
 ## Verification So Far
 
 - passed: `cd apps/web && npm run typecheck`
 - passed: `cd apps/web && npm run build`
+- passed: `PYTHONPATH=/Users/woody/ai/agent-work-harness/src /private/tmp/stockanalysis-runtime/venv/bin/python -m awh verify --repo . --task ux-copy-system-and-glossary-v1`
 - passed: `git diff --check`
+- passed on EC2: `cd /opt/stockanalysis/app/apps/web && npm run typecheck && npm run build`
+- passed on EC2: `systemctl is-active stockanalysis-web.service` returned `active`.
+- passed on EC2 and local tunnel: `/`, `/intelligence`, `/ai-evidence/ai-evidence-251`, `/recommendations`, `/stocks/SPY`, `/portfolio/coverage`, `/trading-readiness` rendered new terminology matches.
 
 ## Risks
 

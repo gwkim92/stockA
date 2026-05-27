@@ -51,3 +51,4 @@
 - [x] Key audited pages no longer expose the most obvious English developer terms in primary copy.
 - [x] “사람이 검토” copy is replaced where no actual human review action exists.
 - [x] Local frontend verification passes.
+- [x] EC2 and local tunnel route smoke pass.
