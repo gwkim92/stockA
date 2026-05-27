@@ -2,9 +2,9 @@
 
 ## Status
 
-- status: implemented_pending_ec2_smoke
+- status: implemented_and_ec2_smoked
 - started_at: 2026-05-27
-- current status: implemented locally and pending EC2 deploy/smoke.
+- current status: implemented, committed, pushed, deployed to EC2, and smoke verified.
 - completed: managed wait policy for portfolio feedback calibration gate.
 - completed: data-health wording now distinguishes managed wait from operational failure.
 
@@ -15,7 +15,7 @@
 
 ## Next Step
 
-- exact next step: deploy to EC2, smoke `/api/data-health` and `/data-health`, then update this handoff with evidence.
+- exact next step: keep recommendation weights blocked until the managed wait date is reached and the feedback/calibration router produces mature outcome evidence.
 
 ## Verification So Far
 
@@ -25,9 +25,19 @@
 - passed: `cd apps/web && npm run build`
 - passed: `PYTHONPATH=/Users/woody/ai/agent-work-harness/src /private/tmp/stockanalysis-runtime/venv/bin/python -m awh verify --repo . --task portfolio-feedback-calibration-managed-wait-gate-v1`
 - passed: `git diff --check`
-- pending: EC2 smoke.
+- passed: EC2 targeted tests with `/opt/stockanalysis/venv/bin/python`.
+- passed: EC2 Next typecheck and production build.
+- passed: EC2 service restart with `stockanalysis-frontend-api.service=active` and `stockanalysis-web.service=active`.
+
+## EC2 Verification
+
+- deployed commit: `388034e`.
+- `/api/data-health`: `open_gates=[]`.
+- `/api/data-health`: `portfolio_review_feedback_calibration.attention_required=false`, `managed_wait=true`, `managed_gate_status=managed_wait_until_outcome_window`, `weight_review_blocked=true`, `estimated_maturity_date=2026-06-24`.
+- `/data-health`: rendered `관리된 대기`, `왜 open gate가 아닌가`, and `weight 변경 금지`.
 
 ## Risks
 
 - If cadence/action-router evidence is missing or blocked, the gate must remain open.
 - This task is visibility and gate classification only; it does not generate new outcome samples.
+- Recommendation weight changes remain blocked.

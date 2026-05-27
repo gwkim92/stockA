@@ -2,7 +2,7 @@
 
 ## Status
 
-- Implemented locally. EC2 smoke pending.
+- Complete. Implemented, pushed, deployed to EC2, and smoke verified.
 
 ## Verification Evidence
 
@@ -12,8 +12,13 @@
 - `cd apps/web && npm run build`: passed.
 - `PYTHONPATH=/Users/woody/ai/agent-work-harness/src /private/tmp/stockanalysis-runtime/venv/bin/python -m awh verify --repo . --task portfolio-feedback-calibration-managed-wait-gate-v1`: passed.
 - `git diff --check`: passed.
+- EC2 targeted tests with `/opt/stockanalysis/venv/bin/python`: 87 tests passed.
+- EC2 `npm run typecheck`: passed.
+- EC2 `npm run build`: passed.
+- EC2 `/api/data-health`: `open_gates=[]`, `managed_wait=true`, `weight_review_blocked=true`, `estimated_maturity_date=2026-06-24`.
+- EC2 `/data-health`: rendered `관리된 대기`, `왜 open gate가 아닌가`, and `weight 변경 금지`.
 
 ## Remaining Risks
 
-- EC2 deploy and smoke are still required before calling the task operationally complete.
 - This does not change recommendation weights or generate new outcome samples.
+- Managed wait is not a pass to change weights; it is an explicit wait state.
