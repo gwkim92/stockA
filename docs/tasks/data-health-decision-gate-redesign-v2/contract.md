@@ -42,4 +42,4 @@
 - [x] Collection/analysis status appears before long operational details.
 - [x] Secondary status cards remain reachable but are not dumped into the first screen.
 - [x] Local frontend verification passes.
-- [ ] EC2 and local tunnel route smoke pass.
+- [x] EC2 and local tunnel route smoke pass.
