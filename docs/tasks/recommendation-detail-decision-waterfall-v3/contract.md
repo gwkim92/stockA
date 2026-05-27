@@ -43,4 +43,4 @@
 - [x] waterfall 단계 `거시`, `테마`, `기업`, `재무`, `밸류에이션`, `리스크`, `페이퍼 검증`이 보인다.
 - [x] 주문 차단/읽기 전용 경계가 첫 화면에서 보인다.
 - [x] 단계별 상세 이동 링크가 보인다.
-- [ ] local verification과 EC2 route smoke가 통과한다.
+- [x] local verification과 EC2 route smoke가 통과한다.

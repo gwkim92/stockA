@@ -2,7 +2,7 @@
 
 ## Status
 
-- in progress: 추천 상세 상단에 의사결정 waterfall과 다음 확인 위치를 추가하는 작업을 진행 중이다.
+- completed: 추천 상세 상단에 의사결정 waterfall과 다음 확인 위치를 추가하는 작업을 완료했다.
 
 ## Completed
 
@@ -24,8 +24,10 @@
 - passed: `cd apps/web && npm run build`
 - passed: `PYTHONPATH=/Users/woody/ai/agent-work-harness/src python3 -m awh verify --repo . --task recommendation-detail-decision-waterfall-v3`
 - passed: `git diff --check`
-- pending: EC2/local tunnel `/recommendations/recommendation-157` route smoke
+- passed: EC2 deploy `npm run typecheck`, `npm run build`, `sudo systemctl restart stockanalysis-web.service`, `systemctl is-active stockanalysis-web.service`
+- passed: EC2 internal `/recommendations/recommendation-157` route smoke at `http://127.0.0.1:3000/recommendations/recommendation-157` confirmed `추천 결론`, `거시`, `테마`, `기업`, `재무`, `밸류에이션`, `리스크`, `페이퍼 검증`, `주문`, `차단`, `사이클 근거 보기`, `기업 리서치 보기`, `페이퍼 거래 상태`
+- passed: local tunnel was down and was reopened with `ssh -L 13000:127.0.0.1:3000`; `/recommendations/recommendation-157` route smoke at `http://127.0.0.1:13000/recommendations/recommendation-157` confirmed the same strings
 
 ## Next Step
 
-- exact next step: 변경사항을 commit/push/deploy한 뒤 EC2/local tunnel `/recommendations/recommendation-157` route smoke로 새 waterfall 패널과 문구를 확인한다.
+- exact next step: 다음 UX slice는 `ai-evidence-detail-review-ux-v4`로, AI 근거 상세에서 원천 뉴스 번역, 구조화 결과, validator 판단, 추천 연결을 더 짧은 판단 순서로 재구성한다.
