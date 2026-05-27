@@ -159,6 +159,27 @@ export type DataHealthData = {
     automatic_action_allowed: boolean;
     next_action: string;
   };
+  alert_destination: {
+    status: string;
+    attention_required: boolean;
+    mode: string;
+    destination_type: string;
+    external_destination: boolean;
+    local_only: boolean;
+    target_configured: boolean;
+    status_artifact_configured: boolean;
+    status_artifact_loaded: boolean;
+    last_test_status: string;
+    last_tested_at: string;
+    test_recent: boolean;
+    test_age_hours: number | null;
+    max_test_age_hours: number;
+    missing_conditions: string[];
+    summary: string;
+    next_action: string;
+    order_boundary: string;
+    automatic_action_allowed: boolean;
+  };
   freshness: Array<{
     dataset: string;
     status: string;

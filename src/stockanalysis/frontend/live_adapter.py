@@ -43,6 +43,19 @@ DEFAULT_MAX_UNCLASSIFIED_WEIGHT = 0.1000
 NO_PORTFOLIO_POSITIONS_MESSAGE = "No portfolio positions matched the requested coverage report identity."
 SCHEDULER_APPROVAL_GATE_REPORT_ENV = "STOCKANALYSIS_DATA_OPERATIONS_SCHEDULER_APPROVAL_GATE_REPORT"
 OPERATING_DATA_PROFILE_SCHEDULER_STATUS_REPORT_ENV = "STOCKANALYSIS_OPERATING_DATA_PROFILE_SCHEDULER_STATUS_REPORT"
+ALERT_DESTINATION_MODE_ENV = "STOCKANALYSIS_ALERT_DESTINATION_MODE"
+ALERT_DESTINATION_STATUS_PATH_ENV = "STOCKANALYSIS_ALERT_DESTINATION_STATUS_PATH"
+ALERT_DESTINATION_MAX_TEST_AGE_HOURS_ENV = "STOCKANALYSIS_ALERT_DESTINATION_MAX_TEST_AGE_HOURS"
+ALERT_DESTINATION_TARGET_ENVS = (
+    "STOCKANALYSIS_ALERT_DESTINATION_URL",
+    "STOCKANALYSIS_ALERT_WEBHOOK_URL",
+    "STOCKANALYSIS_SLACK_WEBHOOK_URL",
+    "STOCKANALYSIS_DISCORD_WEBHOOK_URL",
+    "STOCKANALYSIS_TELEGRAM_CHAT_ID",
+    "STOCKANALYSIS_ALERT_EMAIL_TO",
+)
+EXTERNAL_ALERT_DESTINATION_MODES = frozenset({"webhook", "email", "telegram", "slack", "discord"})
+LOCAL_ALERT_DESTINATION_MODES = frozenset({"local_file", "journal", "stdout"})
 DEFAULT_REPO_ROOT = Path(__file__).resolve().parents[3]
 _STORY_GROUP_STOP_WORDS = frozenset(
     {
@@ -518,6 +531,7 @@ def build_live_dashboard_response(
 def _build_open_gate_details(
     *,
     open_gates: list[str],
+    alert_destination: Mapping[str, Any],
     benchmark_drift_quality: Mapping[str, Any],
     data_operations_artifact_runner: Mapping[str, Any],
     portfolio_review_decision_history: Mapping[str, Any],
@@ -538,6 +552,32 @@ def _build_open_gate_details(
                     "status_label": "운영 서버 확인 필요",
                     "summary": "FastAPI production runtime, live source, read-token auth, DB pool readiness 증거가 부족하다.",
                     "next_action": "EC2 FastAPI `/__health`와 `/__ready`가 production/live/read-token/psycopg_pool 상태인지 확인한다.",
+                    "order_boundary": "read_only_no_order",
+                    "automatic_action_allowed": False,
+                }
+            )
+            continue
+        if gate == "alert_destination":
+            details.append(
+                {
+                    "gate_id": gate,
+                    "label": "알림 목적지",
+                    "category": "operational_blocker",
+                    "category_label": "운영 조건",
+                    "severity": "medium",
+                    "status_label": (
+                        "외부 알림 미검증"
+                        if alert_destination.get("external_destination")
+                        else "알림 목적지 필요"
+                    ),
+                    "summary": str(
+                        alert_destination.get("summary")
+                        or "scheduler 실패와 데이터 오염을 받을 외부 알림 목적지가 검증되지 않았다."
+                    ),
+                    "next_action": str(
+                        alert_destination.get("next_action")
+                        or "무료 webhook, email, Telegram, Slack, Discord 중 하나를 설정하고 테스트 artifact를 남긴다."
+                    ),
                     "order_boundary": "read_only_no_order",
                     "automatic_action_allowed": False,
                 }
@@ -949,6 +989,111 @@ def _build_production_api_server_payload(
     }
 
 
+def _safe_public_alert_token(value: object, fallback: str = "unknown") -> str:
+    text = str(value or "").strip().lower()
+    if not text:
+        return fallback
+    sanitized = re.sub(r"[^a-z0-9_-]+", "_", text)[:64].strip("_")
+    return sanitized or fallback
+
+
+def _load_alert_destination_status_artifact(path_text: str) -> dict[str, Any]:
+    if not path_text.strip():
+        return {}
+    try:
+        path = Path(path_text).expanduser()
+        if not path.exists() or not path.is_file():
+            return {}
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        return payload if isinstance(payload, dict) else {}
+    except (OSError, json.JSONDecodeError):
+        return {}
+
+
+def _build_alert_destination_payload(*, generated_at: str) -> dict[str, Any]:
+    mode = _safe_public_alert_token(os.environ.get(ALERT_DESTINATION_MODE_ENV), fallback="missing")
+    status_path = os.environ.get(ALERT_DESTINATION_STATUS_PATH_ENV, "")
+    status_artifact = _load_alert_destination_status_artifact(status_path)
+    artifact_mode = _safe_public_alert_token(status_artifact.get("mode"), fallback=mode)
+    destination_type = _safe_public_alert_token(status_artifact.get("destination_type"), fallback=artifact_mode)
+    target_configured = any(os.environ.get(name, "").strip() for name in ALERT_DESTINATION_TARGET_ENVS)
+    last_test_status = _safe_public_alert_token(status_artifact.get("last_test_status"), fallback="missing")
+    last_tested_at = str(status_artifact.get("last_tested_at") or "")
+    max_age_hours = int(
+        _safe_number(os.environ.get(ALERT_DESTINATION_MAX_TEST_AGE_HOURS_ENV))
+        or 168
+    )
+    generated_dt = _parse_frontend_datetime(generated_at) or datetime.now(timezone.utc)
+    last_test_dt = _parse_frontend_datetime(last_tested_at)
+    test_age_hours: float | None = None
+    test_recent = False
+    if last_test_dt is not None:
+        test_age_hours = (generated_dt - last_test_dt).total_seconds() / 3600
+        test_recent = 0 <= test_age_hours <= max_age_hours
+    external_destination = mode in EXTERNAL_ALERT_DESTINATION_MODES
+    local_only = mode in LOCAL_ALERT_DESTINATION_MODES
+    test_passed = last_test_status == "passed"
+    ready = external_destination and target_configured and test_passed and test_recent
+    if ready:
+        status = "external_destination_verified"
+        summary = f"{destination_type} 외부 알림 목적지가 최근 테스트를 통과했다."
+        next_action = "알림 테스트 artifact를 주기적으로 갱신하고 scheduler 실패 시 실제 도착 여부를 확인한다."
+    elif mode in {"missing", "none", "disabled"}:
+        status = "missing_destination"
+        summary = "scheduler 실패와 데이터 오염을 받을 외부 알림 목적지가 설정되지 않았다."
+        next_action = "무료 webhook, email, Telegram, Slack, Discord 중 하나를 repo 밖 env에 설정하고 테스트 artifact를 남긴다."
+    elif local_only:
+        status = "local_only_not_external"
+        summary = f"{mode} 알림은 로컬 기록만 남기므로 EC2 장애를 사용자에게 직접 알리지 못한다."
+        next_action = "로컬 기록은 보조 증거로만 쓰고, 별도 외부 알림 목적지를 추가한다."
+    elif external_destination and not target_configured:
+        status = "missing_target"
+        summary = f"{mode} 알림 모드는 선택됐지만 목적지 target 설정 여부가 확인되지 않았다."
+        next_action = "repo 밖 runtime env에 목적지 값을 설정한다. 화면과 API에는 값이 아니라 설정 여부만 노출한다."
+    elif external_destination and not test_passed:
+        status = "missing_test"
+        summary = f"{mode} 알림 목적지는 설정됐지만 성공한 도달 테스트 artifact가 없다."
+        next_action = "테스트 알림을 1회 보내고 repo 밖 status artifact에 last_test_status=passed를 기록한다."
+    elif external_destination and not test_recent:
+        status = "stale_test"
+        summary = f"{mode} 알림 테스트가 없거나 {max_age_hours}시간 기준보다 오래됐다."
+        next_action = "알림 도달 테스트를 다시 실행해 최신 status artifact를 남긴다."
+    else:
+        status = "unsupported_mode"
+        summary = f"{mode} 알림 모드는 운영 gate가 인정하는 외부 목적지가 아니다."
+        next_action = "지원 모드 중 하나를 선택한다: webhook, email, telegram, slack, discord."
+    missing_conditions: list[str] = []
+    if not external_destination:
+        missing_conditions.append("external_alert_destination")
+    if not target_configured:
+        missing_conditions.append("alert_target_configured")
+    if not test_passed:
+        missing_conditions.append("alert_test_passed")
+    if not test_recent:
+        missing_conditions.append("alert_test_recent")
+    return {
+        "status": status,
+        "attention_required": not ready,
+        "mode": mode,
+        "destination_type": destination_type,
+        "external_destination": external_destination,
+        "local_only": local_only,
+        "target_configured": target_configured,
+        "status_artifact_configured": bool(status_path.strip()),
+        "status_artifact_loaded": bool(status_artifact),
+        "last_test_status": last_test_status,
+        "last_tested_at": last_tested_at,
+        "test_recent": test_recent,
+        "test_age_hours": test_age_hours,
+        "max_test_age_hours": max_age_hours,
+        "missing_conditions": missing_conditions,
+        "summary": summary,
+        "next_action": next_action,
+        "order_boundary": "read_only_no_order",
+        "automatic_action_allowed": False,
+    }
+
+
 def build_live_data_health_response(
     *,
     config: RuntimeConfig,
@@ -991,6 +1136,7 @@ def build_live_data_health_response(
         manual_local_ingest_smoke=manual_local_ingest_smoke,
         local_ingest_worker=local_ingest_worker,
     )
+    alert_destination = _build_alert_destination_payload(generated_at=generated_at)
     production_api_server = _build_production_api_server_payload(
         config=config,
         executor=executor,
@@ -1066,6 +1212,12 @@ def build_live_data_health_response(
             open_gates.append(gate)
     else:
         open_gates = [item for item in open_gates if item != gate]
+    gate = "alert_destination"
+    if alert_destination["attention_required"]:
+        if gate not in open_gates:
+            open_gates.append(gate)
+    else:
+        open_gates = [item for item in open_gates if item != gate]
     gate = "data_operations_artifact_runner"
     if data_operations_artifact_runner["attention_required"]:
         if gate not in open_gates:
@@ -1129,6 +1281,7 @@ def build_live_data_health_response(
             open_gates.append(gate)
     open_gate_details = _build_open_gate_details(
         open_gates=open_gates,
+        alert_destination=alert_destination,
         benchmark_drift_quality=benchmark_drift_quality,
         data_operations_artifact_runner=data_operations_artifact_runner,
         portfolio_review_decision_history=portfolio_review_decision_history,
@@ -1146,6 +1299,7 @@ def build_live_data_health_response(
             "pipeline_runs": pipeline_runs,
             "scheduler": scheduler_status,
             "production_api_server": production_api_server,
+            "alert_destination": alert_destination,
             "freshness": freshness,
             "provider_budget": provider_budget,
             "data_operations_artifact_runner": data_operations_artifact_runner,

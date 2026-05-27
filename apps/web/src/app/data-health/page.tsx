@@ -12,6 +12,7 @@ type SchedulerActivation = DataHealthData["scheduler"]["activation"];
 type SchedulerStatus = DataHealthData["scheduler"];
 type ProfileSchedulerStatus = NonNullable<DataHealthData["scheduler"]["profile_scheduler"]>;
 type ProductionApiServer = DataHealthData["production_api_server"];
+type AlertDestination = DataHealthData["alert_destination"];
 type ManualIngestSmoke = DataHealthData["manual_local_ingest_smoke"];
 type LocalIngestWorker = DataHealthData["local_ingest_worker"];
 type CycleAiQualityAudit = DataHealthData["cycle_ai_quality_audit"];
@@ -1292,6 +1293,28 @@ const DEFAULT_PRODUCTION_API_SERVER: ProductionApiServer = {
   next_action: "FastAPI runtime profile, auth, explicit CORS origin, DB config, psycopg pool boundary를 확인한다.",
 };
 
+const DEFAULT_ALERT_DESTINATION: AlertDestination = {
+  status: "missing_destination",
+  attention_required: true,
+  mode: "missing",
+  destination_type: "unknown",
+  external_destination: false,
+  local_only: false,
+  target_configured: false,
+  status_artifact_configured: false,
+  status_artifact_loaded: false,
+  last_test_status: "missing",
+  last_tested_at: "",
+  test_recent: false,
+  test_age_hours: null,
+  max_test_age_hours: 168,
+  missing_conditions: ["external_alert_destination", "alert_target_configured", "alert_test_passed"],
+  summary: "scheduler 실패와 데이터 오염을 받을 외부 알림 목적지가 설정되지 않았다.",
+  next_action: "무료 webhook, email, Telegram, Slack, Discord 중 하나를 repo 밖 env에 설정하고 테스트 artifact를 남긴다.",
+  order_boundary: "read_only_no_order",
+  automatic_action_allowed: false,
+};
+
 const DEFAULT_DATA_OPERATIONS_ARTIFACT_RUNNER: DataOperationsArtifactRunner = {
   status: "missing_pipeline_evidence",
   attention_required: true,
@@ -1316,6 +1339,7 @@ export default async function DataHealthPage() {
   const data = response.data;
   const providerBudget = data.provider_budget;
   const productionApiServer = data.production_api_server ?? DEFAULT_PRODUCTION_API_SERVER;
+  const alertDestination = data.alert_destination ?? DEFAULT_ALERT_DESTINATION;
   const artifactRunner = data.data_operations_artifact_runner ?? DEFAULT_DATA_OPERATIONS_ARTIFACT_RUNNER;
   const schedulerActivation = data.scheduler.activation;
   const profileScheduler = data.scheduler.profile_scheduler ?? DEFAULT_PROFILE_SCHEDULER;
@@ -1375,6 +1399,8 @@ export default async function DataHealthPage() {
       title:
         productionApiServer.attention_required
           ? "운영 API 확인 필요"
+          : alertDestination.attention_required
+          ? "운영 알림 확인 필요"
           : failedPipelines > 0
           ? "수집 문제 먼저 해결"
           : data.overall_status === "healthy"
@@ -1383,12 +1409,24 @@ export default async function DataHealthPage() {
       body:
         productionApiServer.attention_required
           ? productionApiServer.next_action
+          : alertDestination.attention_required
+          ? alertDestination.next_action
           : failedPipelines > 0
           ? "실패 또는 오래된 작업이 있어 추천·보유 판단보다 수집 복구가 먼저다."
           : "캔들, 뉴스, AI 분석, 추천 갱신이 현재 화면 기준으로 읽을 수 있는 상태다.",
-      href: productionApiServer.attention_required ? "#scheduler-detail" : "#execution-log",
-      cta: productionApiServer.attention_required ? "운영 서버 보기" : "실행 이력 보기",
-      tone: productionApiServer.attention_required ? "risk-high" : failedPipelines > 0 ? "risk-high" : "risk-low",
+      href: productionApiServer.attention_required || alertDestination.attention_required ? "#scheduler-detail" : "#execution-log",
+      cta: productionApiServer.attention_required
+        ? "운영 서버 보기"
+        : alertDestination.attention_required
+          ? "알림 설정 보기"
+          : "실행 이력 보기",
+      tone: productionApiServer.attention_required
+        ? "risk-high"
+        : alertDestination.attention_required
+          ? "risk-medium"
+          : failedPipelines > 0
+            ? "risk-high"
+            : "risk-low",
     },
     {
       label: "자동화",
@@ -3370,6 +3408,24 @@ export default async function DataHealthPage() {
               <div>
                 <dt>API 다음 조치</dt>
                 <dd>{productionApiServer.next_action}</dd>
+              </div>
+              <div>
+                <dt>알림 목적지</dt>
+                <dd>{alertDestination.attention_required ? "확인 필요" : "외부 알림 검증됨"}</dd>
+              </div>
+              <div>
+                <dt>알림 방식</dt>
+                <dd>
+                  {koCode(alertDestination.mode)} · 목적지{" "}
+                  {alertDestination.target_configured ? "설정됨" : "미설정"} · 테스트{" "}
+                  {alertDestination.last_test_status === "passed" && alertDestination.test_recent
+                    ? "통과"
+                    : "미검증"}
+                </dd>
+              </div>
+              <div>
+                <dt>알림 다음 조치</dt>
+                <dd>{alertDestination.next_action}</dd>
               </div>
               <div>
                 <dt>자동 실행기</dt>

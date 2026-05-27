@@ -13,6 +13,7 @@ from stockanalysis.frontend.live_adapter import (
     FrontendLiveUnavailableError,
     FrontendLiveUnsupportedPathError,
     _attach_portfolio_review_feedback_maturity_visibility,
+    _build_alert_destination_payload,
     _build_benchmark_rebalance_candidate_review_payload,
     _build_data_operations_artifact_runner_payload,
     _build_financial_statement_model_payload,
@@ -4286,6 +4287,10 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertTrue(production_api["attention_required"])
         self.assertEqual(production_api["connection_boundary"], "injected_executor")
         self.assertIn("production_api_server", payload["data"]["open_gates"])
+        alert_destination = payload["data"]["alert_destination"]
+        self.assertEqual(alert_destination["status"], "missing_destination")
+        self.assertTrue(alert_destination["attention_required"])
+        self.assertIn("alert_destination", payload["data"]["open_gates"])
         self.assertEqual(payload["data"]["freshness"][0]["dataset"], "market.daily_price_bar")
         self.assertEqual(payload["data"]["freshness"][0]["latest_observation_date"], "2024-12-02")
         self.assertIn("auth_rbac", payload["data"]["open_gates"])
@@ -4640,6 +4645,59 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertTrue(payload["allowed_origin_configured"])
         self.assertTrue(payload["database_configured"])
         self.assertEqual(payload["connection_boundary"], "psycopg_pool")
+        self.assertEqual(payload["missing_conditions"], [])
+
+    def test_alert_destination_payload_blocks_when_missing(self) -> None:
+        with patch.dict(os.environ, {}, clear=True):
+            payload = _build_alert_destination_payload(generated_at="2026-05-27T00:00:00Z")
+
+        self.assertEqual(payload["status"], "missing_destination")
+        self.assertTrue(payload["attention_required"])
+        self.assertFalse(payload["external_destination"])
+        self.assertIn("external_alert_destination", payload["missing_conditions"])
+        self.assertIn("alert_target_configured", payload["missing_conditions"])
+
+    def test_alert_destination_payload_keeps_local_file_open(self) -> None:
+        with patch.dict(os.environ, {"STOCKANALYSIS_ALERT_DESTINATION_MODE": "local_file"}, clear=True):
+            payload = _build_alert_destination_payload(generated_at="2026-05-27T00:00:00Z")
+
+        self.assertEqual(payload["status"], "local_only_not_external")
+        self.assertTrue(payload["attention_required"])
+        self.assertTrue(payload["local_only"])
+        self.assertFalse(payload["external_destination"])
+
+    def test_alert_destination_payload_closes_with_recent_external_test(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            status_path = Path(tmpdir) / "alert-status.json"
+            status_path.write_text(
+                json.dumps(
+                    {
+                        "mode": "webhook",
+                        "destination_type": "discord",
+                        "last_test_status": "passed",
+                        "last_tested_at": "2026-05-26T23:00:00Z",
+                    }
+                ),
+                encoding="utf-8",
+            )
+            with patch.dict(
+                os.environ,
+                {
+                    "STOCKANALYSIS_ALERT_DESTINATION_MODE": "webhook",
+                    "STOCKANALYSIS_ALERT_DESTINATION_URL": "https://example.invalid/webhook",
+                    "STOCKANALYSIS_ALERT_DESTINATION_STATUS_PATH": str(status_path),
+                },
+                clear=True,
+            ):
+                payload = _build_alert_destination_payload(generated_at="2026-05-27T00:00:00Z")
+
+        self.assertEqual(payload["status"], "external_destination_verified")
+        self.assertFalse(payload["attention_required"])
+        self.assertTrue(payload["external_destination"])
+        self.assertTrue(payload["target_configured"])
+        self.assertTrue(payload["status_artifact_loaded"])
+        self.assertEqual(payload["last_test_status"], "passed")
+        self.assertTrue(payload["test_recent"])
         self.assertEqual(payload["missing_conditions"], [])
 
     def test_professional_source_gap_attention_policy_keeps_unguarded_gaps_open(self) -> None:
@@ -5000,6 +5058,43 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertFalse(production_api["attention_required"])
         self.assertEqual(production_api["connection_boundary"], "psycopg_pool")
         self.assertNotIn("production_api_server", payload["data"]["open_gates"])
+
+    def test_live_data_health_response_closes_alert_gate_with_external_test_evidence(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            status_path = Path(tmpdir) / "alert-status.json"
+            status_path.write_text(
+                json.dumps(
+                    {
+                        "mode": "webhook",
+                        "destination_type": "discord",
+                        "last_test_status": "passed",
+                        "last_tested_at": "2026-05-01T00:00:00Z",
+                    }
+                ),
+                encoding="utf-8",
+            )
+            with patch.dict(
+                os.environ,
+                {
+                    "STOCKANALYSIS_ALERT_DESTINATION_MODE": "webhook",
+                    "STOCKANALYSIS_ALERT_DESTINATION_URL": "https://example.invalid/webhook",
+                    "STOCKANALYSIS_ALERT_DESTINATION_STATUS_PATH": str(status_path),
+                },
+                clear=True,
+            ):
+                payload = resolve_live_frontend_response(
+                    "/api/data-health",
+                    config=type("Config", (), {"psql_command": "psql"})(),
+                    executor=FakeLiveExecutor(),
+                    generated_at=datetime(2026, 5, 1, tzinfo=timezone.utc),
+                )
+
+        alert_destination = payload["data"]["alert_destination"]
+        self.assertEqual(alert_destination["status"], "external_destination_verified")
+        self.assertFalse(alert_destination["attention_required"])
+        self.assertEqual(alert_destination["destination_type"], "discord")
+        self.assertNotIn("alert_destination", payload["data"]["open_gates"])
+        self.assertNotIn("https://example.invalid", json.dumps(alert_destination))
 
     def test_live_data_health_response_includes_sanitized_manual_ingest_smoke(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
