@@ -95,6 +95,15 @@ export default async function HomePage() {
   const coverage = data.latest_metrics;
   const firstRecommendation = recommendationData.recommendations[0];
   const recommendationBoundary = recommendationData.summary;
+  const outcomeWaitMonitor = health.data.outcome_maturity_wait_monitor;
+  const recommendationOutcomeDate =
+    outcomeWaitMonitor.recommendation_next_due_date || outcomeWaitMonitor.earliest_action_date || "미정";
+  const portfolioFeedbackDate =
+    outcomeWaitMonitor.portfolio_feedback_maturity_date || outcomeWaitMonitor.earliest_action_date || "미정";
+  const weightReviewLabel = outcomeWaitMonitor.manual_weight_review_allowed
+    ? "수동 weight 검토 가능"
+    : "weight 검토 차단";
+  const orderBoundaryLabel = outcomeWaitMonitor.broker_submit_allowed ? "broker 제출 가능" : "주문 제출 차단";
   const firstRecommendationHref = firstRecommendation
     ? (`/recommendations/${firstRecommendation.recommendation_id}` as Route)
     : ("/recommendations" as Route);
@@ -297,6 +306,53 @@ export default async function HomePage() {
         description="이 순서가 현재 서비스의 기본 동선이다. 수집이 흔들리면 뒤 판단을 멈추고, 뉴스 근거와 흐름이 확인된 뒤 추천·페이퍼 검증으로 넘어간다."
         steps={decisionSteps}
       />
+
+      <section
+        className="feature-map-panel reveal delay-1"
+        aria-labelledby="outcome-wait-title"
+      >
+        <div className="section-heading stacked-heading">
+          <span>지금 결론</span>
+          <h2 id="outcome-wait-title">{outcomeWaitMonitor.title}</h2>
+        </div>
+        <p className="manifest-lede compact-copy">
+          {outcomeWaitMonitor.summary} 추천 산식은 성과 표본이 성숙하기 전까지 바꾸지 않는다.
+          지금 할 일은 새 주문이 아니라 수집·뉴스 근거·페이퍼 결과가 다음 측정일까지 정상 누적되는지 확인하는 것이다.
+        </p>
+        <div className="status-rail compact-rail">
+          <article className="rail-cell">
+            <span>추천 outcome</span>
+            <strong>{recommendationOutcomeDate}</strong>
+            <small>다음 측정 대상 {outcomeWaitMonitor.recommendation_next_due_count}개</small>
+          </article>
+          <article className="rail-cell">
+            <span>포트폴리오 feedback</span>
+            <strong>{portfolioFeedbackDate}</strong>
+            <small>성숙 표본 부족 {outcomeWaitMonitor.portfolio_mature_decision_gap}개</small>
+          </article>
+          <article className="rail-cell rail-critical">
+            <span>weight 검토</span>
+            <strong>{weightReviewLabel}</strong>
+            <small>{koReason(outcomeWaitMonitor.weight_review_block_reason)}</small>
+          </article>
+          <article className="rail-cell rail-critical">
+            <span>거래 경계</span>
+            <strong>{orderBoundaryLabel}</strong>
+            <small>{koCode(outcomeWaitMonitor.order_boundary)}</small>
+          </article>
+        </div>
+        <div className="btn-row compact-btn-row">
+          <Link className="btn btn-primary" href={"/data-health#outcome-maturity-wait-monitor" as Route}>
+            대기 근거 자세히 보기
+          </Link>
+          <Link className="btn btn-secondary" href={"/recommendations" as Route}>
+            추천 목록 보기
+          </Link>
+          <Link className="btn btn-secondary" href={"/portfolio/coverage" as Route}>
+            포트폴리오 검토 보기
+          </Link>
+        </div>
+      </section>
 
       <section className="status-rail reveal delay-1" aria-label="오늘의 핵심 숫자">
         <article className="rail-cell rail-critical">

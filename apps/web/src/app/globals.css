@@ -837,6 +837,11 @@ h6 {
   word-break: keep-all;
 }
 
+.manifest-lede.compact-copy {
+  max-width: 940px;
+  margin-top: 14px;
+}
+
 .signal-graph {
   position: relative;
   min-width: 0;
