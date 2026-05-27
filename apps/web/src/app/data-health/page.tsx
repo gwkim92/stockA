@@ -15,6 +15,7 @@ type ManualIngestSmoke = DataHealthData["manual_local_ingest_smoke"];
 type LocalIngestWorker = DataHealthData["local_ingest_worker"];
 type CycleAiQualityAudit = DataHealthData["cycle_ai_quality_audit"];
 type NewsAiEvalQuality = DataHealthData["news_ai_eval_quality"];
+type DataOperationsArtifactRunner = DataHealthData["data_operations_artifact_runner"];
 type BenchmarkDriftQuality = DataHealthData["benchmark_drift_quality"];
 type PortfolioReviewDecisionHistory = DataHealthData["portfolio_review_decision_history"];
 type PortfolioReviewDecisionFeedback = DataHealthData["portfolio_review_decision_feedback"];
@@ -1270,10 +1271,30 @@ const DEFAULT_PROFILE_SCHEDULER: ProfileSchedulerStatus = {
   timers: [],
 };
 
+const DEFAULT_DATA_OPERATIONS_ARTIFACT_RUNNER: DataOperationsArtifactRunner = {
+  status: "missing_pipeline_evidence",
+  attention_required: true,
+  job_count: 0,
+  artifact_policy_count: 0,
+  latest_run_count: 0,
+  failed_or_missing_count: 0,
+  degraded_count: 0,
+  profile_scheduler_installed: false,
+  timer_count: 0,
+  active_timer_count: 0,
+  manual_smoke_status: "missing",
+  local_worker_status: "missing",
+  latest_artifact_root: "",
+  order_boundary: "read_only_no_order",
+  automatic_action_allowed: false,
+  next_action: "artifact runner를 통해 성공한 data operation run evidence를 먼저 생성한다.",
+};
+
 export default async function DataHealthPage() {
   const response = await getDataHealth();
   const data = response.data;
   const providerBudget = data.provider_budget;
+  const artifactRunner = data.data_operations_artifact_runner ?? DEFAULT_DATA_OPERATIONS_ARTIFACT_RUNNER;
   const schedulerActivation = data.scheduler.activation;
   const profileScheduler = data.scheduler.profile_scheduler ?? DEFAULT_PROFILE_SCHEDULER;
   const ec2SchedulerInstalled = isEc2ProfileSchedulerInstalled(data.scheduler);
@@ -1345,11 +1366,17 @@ export default async function DataHealthPage() {
     },
     {
       label: "자동화",
-      title: `${profileScheduler.active_timer_count}/${profileScheduler.timer_count}개 예약 실행`,
-      body: "뉴스/AI, 장마감 캔들, 추천 갱신, 주간 기준 데이터가 서로 다른 주기로 돈다.",
+      title: artifactRunner.attention_required
+        ? "실행 증거 확인 필요"
+        : `${profileScheduler.active_timer_count}/${profileScheduler.timer_count}개 예약 실행`,
+      body: artifactRunner.attention_required
+        ? artifactRunner.next_action
+        : `artifact runner가 ${artifactRunner.latest_run_count}개 최신 실행 증거와 ${artifactRunner.artifact_policy_count}/${artifactRunner.job_count}개 artifact 정책을 남기고 있다.`,
       href: "#scheduler-detail",
       cta: "스케줄 보기",
-      tone: profileScheduler.active_timer_count === profileScheduler.timer_count ? "risk-low" : "risk-medium",
+      tone: artifactRunner.attention_required
+        ? "risk-medium"
+        : profileScheduler.active_timer_count === profileScheduler.timer_count ? "risk-low" : "risk-medium",
     },
     {
       label: "무료 API 예산",
@@ -3326,6 +3353,25 @@ export default async function DataHealthPage() {
               <div>
                 <dt>휴장일 처리</dt>
                 <dd>{koCode(data.scheduler.holiday_skip_mode)}</dd>
+              </div>
+              <div>
+                <dt>실행 artifact</dt>
+                <dd>{artifactRunner.attention_required ? "확인 필요" : "운영 증거 확인됨"}</dd>
+              </div>
+              <div>
+                <dt>artifact 정책</dt>
+                <dd>
+                  {artifactRunner.artifact_policy_count}/{artifactRunner.job_count}개 · 최신 실행{" "}
+                  {artifactRunner.latest_run_count}개
+                </dd>
+              </div>
+              <div>
+                <dt>artifact root</dt>
+                <dd>{artifactRunner.latest_artifact_root || "경로 미표시"}</dd>
+              </div>
+              <div>
+                <dt>artifact 다음 조치</dt>
+                <dd>{artifactRunner.next_action}</dd>
               </div>
             </dl>
           </article>

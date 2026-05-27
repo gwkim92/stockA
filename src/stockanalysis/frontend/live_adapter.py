@@ -519,6 +519,7 @@ def _build_open_gate_details(
     *,
     open_gates: list[str],
     benchmark_drift_quality: Mapping[str, Any],
+    data_operations_artifact_runner: Mapping[str, Any],
     portfolio_review_decision_history: Mapping[str, Any],
     portfolio_review_feedback_calibration: Mapping[str, Any],
     professional_source_gap_prioritization: Mapping[str, Any],
@@ -544,6 +545,31 @@ def _build_open_gate_details(
                     ),
                     "next_action": "자동 주문하지 말고 thesis, 밸류에이션, 집중도를 확인해 비중 유지/축소 판단을 남긴다.",
                     "order_boundary": str(benchmark_drift_quality.get("order_boundary") or "read_only_no_order"),
+                    "automatic_action_allowed": False,
+                }
+            )
+            continue
+        if gate == "data_operations_artifact_runner":
+            status = str(data_operations_artifact_runner.get("status") or "unknown")
+            policy_count = int(data_operations_artifact_runner.get("artifact_policy_count") or 0)
+            job_count = int(data_operations_artifact_runner.get("job_count") or 0)
+            latest_count = int(data_operations_artifact_runner.get("latest_run_count") or 0)
+            details.append(
+                {
+                    "gate_id": gate,
+                    "label": "데이터 실행 artifact",
+                    "category": "operational_blocker",
+                    "category_label": "운영 조건",
+                    "severity": "medium" if status != "missing_pipeline_evidence" else "high",
+                    "status_label": "실행 증거 확인 필요",
+                    "summary": (
+                        f"artifact 정책 {policy_count}/{job_count}개, 최신 실행 증거 {latest_count}개."
+                    ),
+                    "next_action": str(
+                        data_operations_artifact_runner.get("next_action")
+                        or "artifact runner와 profile scheduler 실행 증거를 확인한다."
+                    ),
+                    "order_boundary": "read_only_no_order",
                     "automatic_action_allowed": False,
                 }
             )
@@ -758,6 +784,82 @@ def _benchmark_drift_quality_attention_policy(
     }
 
 
+def _build_data_operations_artifact_runner_payload(
+    *,
+    pipeline_runs: list[dict[str, Any]],
+    scheduler: Mapping[str, Any],
+    manual_local_ingest_smoke: Mapping[str, Any],
+    local_ingest_worker: Mapping[str, Any],
+) -> dict[str, Any]:
+    job_count = len(pipeline_runs)
+    artifact_policy_count = sum(1 for run in pipeline_runs if str(run.get("artifact_policy") or ""))
+    latest_run_count = sum(
+        1
+        for run in pipeline_runs
+        if str(run.get("latest_run_id") or "") not in {"", "pipeline-run-unknown"}
+    )
+    failed_or_missing_count = sum(
+        1
+        for run in pipeline_runs
+        if str(run.get("health_status") or "") in {"missing", "stale", "failed"}
+    )
+    degraded_count = sum(1 for run in pipeline_runs if str(run.get("health_status") or "") == "degraded")
+    profile_scheduler = _as_dict(scheduler.get("profile_scheduler"))
+    active_timer_count = int(_safe_number(profile_scheduler.get("active_timer_count")) or 0)
+    timer_count = int(_safe_number(profile_scheduler.get("timer_count")) or 0)
+    profile_scheduler_installed = (
+        str(profile_scheduler.get("install_status") or "") == "installed"
+        and timer_count > 0
+        and active_timer_count == timer_count
+    )
+    manual_artifact_root = str(manual_local_ingest_smoke.get("artifact_root") or "")
+    latest_artifact_root = str(scheduler.get("latest_artifact_root") or "") or manual_artifact_root
+    local_worker_status = str(local_ingest_worker.get("status") or "missing")
+    if job_count <= 0 or artifact_policy_count <= 0 or latest_run_count <= 0:
+        status = "missing_pipeline_evidence"
+    elif artifact_policy_count < job_count:
+        status = "partial_artifact_policy"
+    elif failed_or_missing_count > 0:
+        status = "runner_evidence_has_failed_jobs"
+    elif profile_scheduler_installed:
+        status = "operational_profile_scheduler_active"
+    else:
+        status = "runner_evidence_available"
+    attention_required = status in {
+        "missing_pipeline_evidence",
+        "partial_artifact_policy",
+        "runner_evidence_has_failed_jobs",
+    }
+    if status == "operational_profile_scheduler_active":
+        next_action = "artifact runner는 profile scheduler 실행 증거로 확인됐다. 개별 job 실패와 degraded 상태는 pipeline run health에서 별도로 감시한다."
+    elif status == "runner_evidence_available":
+        next_action = "artifact runner 실행 증거는 있다. profile scheduler 활성 상태를 확인해 반복 운영 증거를 보강한다."
+    elif status == "runner_evidence_has_failed_jobs":
+        next_action = "실패·누락·stale pipeline을 먼저 복구하고 해당 job artifact를 확인한다."
+    elif status == "partial_artifact_policy":
+        next_action = "artifact_policy가 없는 expected job을 cadence registry에서 보강한다."
+    else:
+        next_action = "artifact runner를 통해 성공한 data operation run evidence를 먼저 생성한다."
+    return {
+        "status": status,
+        "attention_required": attention_required,
+        "job_count": job_count,
+        "artifact_policy_count": artifact_policy_count,
+        "latest_run_count": latest_run_count,
+        "failed_or_missing_count": failed_or_missing_count,
+        "degraded_count": degraded_count,
+        "profile_scheduler_installed": profile_scheduler_installed,
+        "timer_count": timer_count,
+        "active_timer_count": active_timer_count,
+        "manual_smoke_status": str(manual_local_ingest_smoke.get("status") or "missing"),
+        "local_worker_status": local_worker_status,
+        "latest_artifact_root": latest_artifact_root,
+        "order_boundary": "read_only_no_order",
+        "automatic_action_allowed": False,
+        "next_action": next_action,
+    }
+
+
 def build_live_data_health_response(
     *,
     config: RuntimeConfig,
@@ -774,6 +876,14 @@ def build_live_data_health_response(
     scheduler_activation = _load_scheduler_activation_for_data_health()
     if profile_scheduler_status["install_status"] == "installed":
         scheduler_activation = _installed_profile_scheduler_activation(profile_scheduler_status)
+    scheduler_status = {
+        "install_status": profile_scheduler_status["install_status"],
+        "runtime_env_readiness": "template_rendered_placeholder_pending",
+        "holiday_skip_mode": "explicit_skip_dates",
+        "latest_artifact_root": str(state.get("latest_artifact_root") or ""),
+        "activation": scheduler_activation,
+        "profile_scheduler": profile_scheduler_status,
+    }
     manual_local_ingest_smoke = load_manual_local_ingest_smoke_visibility_report(
         env=os.environ,
         repo_root=DEFAULT_REPO_ROOT,
@@ -785,6 +895,12 @@ def build_live_data_health_response(
     cycle_ai_quality_audit = load_cycle_ai_quality_audit_visibility_report(
         env=os.environ,
         repo_root=DEFAULT_REPO_ROOT,
+    )
+    data_operations_artifact_runner = _build_data_operations_artifact_runner_payload(
+        pipeline_runs=pipeline_runs,
+        scheduler=scheduler_status,
+        manual_local_ingest_smoke=manual_local_ingest_smoke,
+        local_ingest_worker=local_ingest_worker,
     )
     news_ai_eval_quality = _build_news_ai_eval_quality_payload(
         _as_dict(state.get("news_ai_eval_quality"))
@@ -851,6 +967,12 @@ def build_live_data_health_response(
         gate = "news_ai_eval_quality_attention"
         if gate not in open_gates:
             open_gates.append(gate)
+    gate = "data_operations_artifact_runner"
+    if data_operations_artifact_runner["attention_required"]:
+        if gate not in open_gates:
+            open_gates.append(gate)
+    else:
+        open_gates = [item for item in open_gates if item != gate]
     gate = "benchmark_drift_quality_attention"
     if not benchmark_drift_quality["attention_required"]:
         open_gates = [item for item in open_gates if item != gate]
@@ -909,6 +1031,7 @@ def build_live_data_health_response(
     open_gate_details = _build_open_gate_details(
         open_gates=open_gates,
         benchmark_drift_quality=benchmark_drift_quality,
+        data_operations_artifact_runner=data_operations_artifact_runner,
         portfolio_review_decision_history=portfolio_review_decision_history,
         portfolio_review_feedback_calibration=portfolio_review_feedback_calibration,
         professional_source_gap_prioritization=professional_source_gap_prioritization,
@@ -922,16 +1045,10 @@ def build_live_data_health_response(
             "overall_status": str(state.get("overall_status") or "unknown"),
             "as_of_date": str(state.get("as_of_date") or ""),
             "pipeline_runs": pipeline_runs,
-            "scheduler": {
-                "install_status": profile_scheduler_status["install_status"],
-                "runtime_env_readiness": "template_rendered_placeholder_pending",
-                "holiday_skip_mode": "explicit_skip_dates",
-                "latest_artifact_root": str(state.get("latest_artifact_root") or ""),
-                "activation": scheduler_activation,
-                "profile_scheduler": profile_scheduler_status,
-            },
+            "scheduler": scheduler_status,
             "freshness": freshness,
             "provider_budget": provider_budget,
+            "data_operations_artifact_runner": data_operations_artifact_runner,
             "manual_local_ingest_smoke": manual_local_ingest_smoke,
             "local_ingest_worker": local_ingest_worker,
             "cycle_ai_quality_audit": cycle_ai_quality_audit,

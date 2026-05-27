@@ -145,6 +145,24 @@ export type DataHealthData = {
     status: string;
     latest_observation_date: string;
   }>;
+  data_operations_artifact_runner: {
+    status: string;
+    attention_required: boolean;
+    job_count: number;
+    artifact_policy_count: number;
+    latest_run_count: number;
+    failed_or_missing_count: number;
+    degraded_count: number;
+    profile_scheduler_installed: boolean;
+    timer_count: number;
+    active_timer_count: number;
+    manual_smoke_status: string;
+    local_worker_status: string;
+    latest_artifact_root: string;
+    order_boundary: string;
+    automatic_action_allowed: boolean;
+    next_action: string;
+  };
   provider_budget: {
     provider: string;
     status: string;

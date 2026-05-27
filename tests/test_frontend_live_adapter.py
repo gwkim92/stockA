@@ -13,6 +13,7 @@ from stockanalysis.frontend.live_adapter import (
     FrontendLiveUnsupportedPathError,
     _attach_portfolio_review_feedback_maturity_visibility,
     _build_benchmark_rebalance_candidate_review_payload,
+    _build_data_operations_artifact_runner_payload,
     _build_financial_statement_model_payload,
     _build_fund_instrument_analysis_payload,
     _build_portfolio_review_feedback_cadence_payload,
@@ -725,6 +726,7 @@ class FakeLiveExecutor:
                         "production_api_server",
                         "auth_rbac",
                         "alert_destination",
+                        "data_operations_artifact_runner",
                         "actual_db_backed_frontend_live_smoke",
                     ],
                 }
@@ -4286,6 +4288,13 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertEqual(payload["data"]["manual_local_ingest_smoke"]["source"], "not_configured")
         self.assertEqual(payload["data"]["local_ingest_worker"]["status"], "not_configured")
         self.assertEqual(payload["data"]["local_ingest_worker"]["source"], "not_configured")
+        artifact_runner = payload["data"]["data_operations_artifact_runner"]
+        self.assertEqual(artifact_runner["status"], "runner_evidence_available")
+        self.assertEqual(artifact_runner["job_count"], 1)
+        self.assertEqual(artifact_runner["artifact_policy_count"], 1)
+        self.assertEqual(artifact_runner["latest_run_count"], 1)
+        self.assertFalse(artifact_runner["attention_required"])
+        self.assertNotIn("data_operations_artifact_runner", payload["data"]["open_gates"])
         self.assertEqual(payload["data"]["cycle_ai_quality_audit"]["status"], "not_configured")
         self.assertEqual(payload["data"]["cycle_ai_quality_audit"]["source"], "not_configured")
         news_eval = payload["data"]["news_ai_eval_quality"]
@@ -4531,6 +4540,58 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertTrue(enriched["attention_required"])
         self.assertTrue(enriched["weight_review_blocked"])
         self.assertIn("2026-06-24", enriched["weight_review_block_reason"])
+
+    def test_data_operations_artifact_runner_payload_blocks_when_pipeline_evidence_missing(self) -> None:
+        payload = _build_data_operations_artifact_runner_payload(
+            pipeline_runs=[],
+            scheduler={"profile_scheduler": {"install_status": "not_installed"}},
+            manual_local_ingest_smoke={"status": "not_configured"},
+            local_ingest_worker={"status": "not_configured"},
+        )
+
+        self.assertEqual(payload["status"], "missing_pipeline_evidence")
+        self.assertTrue(payload["attention_required"])
+        self.assertEqual(payload["job_count"], 0)
+        self.assertIn("성공한 data operation run evidence", payload["next_action"])
+
+    def test_data_operations_artifact_runner_payload_closes_when_scheduler_and_artifact_evidence_exist(self) -> None:
+        payload = _build_data_operations_artifact_runner_payload(
+            pipeline_runs=[
+                {
+                    "job_id": "news-rss-daily",
+                    "artifact_policy": "stdout_json_and_stderr_log",
+                    "latest_run_id": "pipeline-run-1710",
+                    "health_status": "ok",
+                },
+                {
+                    "job_id": "market-price-daily",
+                    "artifact_policy": "stdout_json_and_stderr_log",
+                    "latest_run_id": "pipeline-run-1664",
+                    "health_status": "degraded",
+                },
+            ],
+            scheduler={
+                "latest_artifact_root": "",
+                "profile_scheduler": {
+                    "install_status": "installed",
+                    "timer_count": 7,
+                    "active_timer_count": 7,
+                },
+            },
+            manual_local_ingest_smoke={
+                "status": "passed",
+                "artifact_root": "/opt/stockanalysis/artifacts/data-operations",
+            },
+            local_ingest_worker={"status": "completed"},
+        )
+
+        self.assertEqual(payload["status"], "operational_profile_scheduler_active")
+        self.assertFalse(payload["attention_required"])
+        self.assertEqual(payload["job_count"], 2)
+        self.assertEqual(payload["artifact_policy_count"], 2)
+        self.assertEqual(payload["latest_run_count"], 2)
+        self.assertEqual(payload["degraded_count"], 1)
+        self.assertEqual(payload["latest_artifact_root"], "/opt/stockanalysis/artifacts/data-operations")
 
     def test_professional_source_gap_attention_policy_keeps_unguarded_gaps_open(self) -> None:
         self.assertTrue(
