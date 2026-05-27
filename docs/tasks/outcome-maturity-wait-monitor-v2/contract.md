@@ -41,8 +41,8 @@
 
 ## Done Criteria
 
-- [ ] `/api/data-health` includes `outcome_maturity_wait_monitor`.
-- [ ] Monitor includes recommendation next due date, portfolio feedback maturity date, weight review block reason, and read-only order boundary.
-- [ ] `/data-health` renders the combined wait monitor in Korean.
-- [ ] Local verification passes.
-- [ ] EC2 route smoke confirms live rendering.
+- [x] `/api/data-health` includes `outcome_maturity_wait_monitor`.
+- [x] Monitor includes recommendation next due date, portfolio feedback maturity date, weight review block reason, and read-only order boundary.
+- [x] `/data-health` renders the combined wait monitor in Korean.
+- [x] Local verification passes.
+- [x] EC2 route smoke confirms live rendering.
