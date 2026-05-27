@@ -75,6 +75,7 @@ classification_impacts as (
         impact.impact_direction,
         impact.impact_strength,
         impact.confidence,
+        left(coalesce(document.korean_title, document.title, event_row.title, ''), 220) as event_title,
         upper(
             coalesce(document.title, event_row.title, '') || ' ' ||
             coalesce(document.summary, event_row.summary, '')
@@ -102,6 +103,7 @@ direct_impacts as (
         impact.impact_direction,
         impact.impact_strength,
         impact.confidence,
+        left(coalesce(document.korean_title, document.title, event_row.title, ''), 220) as event_title,
         source_text.source_text_upper,
         case
             when position(' ' || lower(instrument.primary_symbol) || ' ' in source_text.source_text_normalized) > 0 then true
@@ -169,12 +171,25 @@ duplicate_titles as (
     having count(*) > 1
 ),
 ungrounded_direct_tickers as (
-    select distinct event_id, instrument_id, primary_symbol, instrument_name
+    select
+        event_id,
+        instrument_id,
+        primary_symbol,
+        instrument_name,
+        max(event_title) as event_title
     from direct_impacts
     where is_grounded = false
+    group by event_id, instrument_id, primary_symbol, instrument_name
 ),
 macro_false_tickers as (
-    select distinct direct_impacts.event_id, direct_impacts.instrument_id, direct_impacts.primary_symbol
+    select
+        direct_impacts.event_id,
+        direct_impacts.instrument_id,
+        direct_impacts.primary_symbol,
+        direct_impacts.instrument_name,
+        max(direct_impacts.event_title) as event_title,
+        array_agg(distinct classification_impacts.node_code order by classification_impacts.node_code) as node_codes,
+        max(classification_impacts.impact_direction) as impact_direction
     from direct_impacts
     join classification_impacts on classification_impacts.event_id = direct_impacts.event_id
     where direct_impacts.is_grounded = false
@@ -182,6 +197,7 @@ macro_false_tickers as (
           classification_impacts.node_code like 'MACRO_%'
           or classification_impacts.node_code in ('MACRO_RATES_FED', 'MACRO_INFLATION', 'MACRO_LIQUIDITY', 'MACRO_GROWTH')
       )
+    group by direct_impacts.event_id, direct_impacts.instrument_id, direct_impacts.primary_symbol, direct_impacts.instrument_name
 ),
 quantum_energy_mislinks as (
     select distinct classification_impacts.event_id, classification_impacts.node_code
@@ -195,7 +211,11 @@ quantum_energy_mislinks as (
       and direct_impacts.primary_symbol in ('XLE', 'XOM')
 ),
 normal_macro_flows as (
-    select distinct classification_impacts.event_id
+    select
+        classification_impacts.event_id,
+        max(classification_impacts.event_title) as event_title,
+        array_agg(distinct classification_impacts.node_code order by classification_impacts.node_code) as node_codes,
+        array_agg(distinct classification_impacts.impact_direction order by classification_impacts.impact_direction) as impact_directions
     from classification_impacts
     left join direct_impacts on direct_impacts.event_id = classification_impacts.event_id
     where direct_impacts.event_id is null
@@ -203,6 +223,7 @@ normal_macro_flows as (
           classification_impacts.node_code like 'MACRO_%'
           or classification_impacts.node_type in ('macro', 'domain', 'theme')
       )
+    group by classification_impacts.event_id
 ),
 artifact_counts as (
     select
@@ -345,8 +366,32 @@ select json_build_object(
         'ungrounded_direct_tickers',
         coalesce(
             (
-                select json_agg(json_build_object('event_id', event_id, 'symbol', primary_symbol, 'instrument_name', instrument_name))
+                select json_agg(
+                    json_build_object(
+                        'event_id', event_id,
+                        'symbol', primary_symbol,
+                        'instrument_name', instrument_name,
+                        'event_title', event_title
+                    )
+                )
                 from (select * from ungrounded_direct_tickers order by event_id, primary_symbol limit 5) sample
+            ),
+            '[]'::json
+        ),
+        'macro_false_tickers',
+        coalesce(
+            (
+                select json_agg(
+                    json_build_object(
+                        'event_id', event_id,
+                        'symbol', primary_symbol,
+                        'instrument_name', instrument_name,
+                        'event_title', event_title,
+                        'node_codes', node_codes,
+                        'impact_direction', impact_direction
+                    )
+                )
+                from (select * from macro_false_tickers order by event_id, primary_symbol limit 5) sample
             ),
             '[]'::json
         ),
@@ -355,6 +400,21 @@ select json_build_object(
             (
                 select json_agg(json_build_object('event_id', event_id, 'node_code', node_code))
                 from (select * from quantum_energy_mislinks order by event_id, node_code limit 5) sample
+            ),
+            '[]'::json
+        ),
+        'normal_macro_flows',
+        coalesce(
+            (
+                select json_agg(
+                    json_build_object(
+                        'event_id', event_id,
+                        'event_title', event_title,
+                        'node_codes', node_codes,
+                        'impact_directions', impact_directions
+                    )
+                )
+                from (select * from normal_macro_flows order by event_id limit 5) sample
             ),
             '[]'::json
         )

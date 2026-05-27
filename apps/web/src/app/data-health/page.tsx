@@ -31,6 +31,11 @@ type RecommendationOutcomeDueActionRouter = DataHealthData["recommendation_outco
 type RecommendationWeightReviewReadiness = DataHealthData["recommendation_weight_review_readiness"];
 type ProfessionalSourceGapPrioritization = DataHealthData["professional_source_gap_prioritization"];
 type ProfileTimer = ProfileSchedulerStatus["timers"][number];
+type AuditSampleRecord = Record<string, unknown>;
+
+function isRecord(value: unknown): value is AuditSampleRecord {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
 
 function statusRiskClass(value: string) {
   if (
@@ -358,6 +363,95 @@ function qualityAuditTone(audit: CycleAiQualityAudit) {
 function qualityMetric(audit: CycleAiQualityAudit, key: string) {
   const value = audit.metrics[key] ?? audit.checks[key] ?? 0;
   return typeof value === "number" ? value : Number(value || 0);
+}
+
+function auditSampleRecords(audit: CycleAiQualityAudit, key: string) {
+  const value = audit.samples[key];
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.filter(isRecord).slice(0, 5);
+}
+
+function auditSampleValue(record: AuditSampleRecord, key: string) {
+  const value = record[key];
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => auditSampleScalar(item))
+      .filter(Boolean)
+      .join(", ");
+  }
+  return auditSampleScalar(value);
+}
+
+function auditSampleScalar(value: unknown) {
+  if (typeof value === "string") {
+    return value.trim();
+  }
+  if (typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+  return "";
+}
+
+function auditSampleHeadline(record: AuditSampleRecord) {
+  const eventId = auditSampleValue(record, "event_id");
+  return (
+    auditSampleValue(record, "event_title")
+    || auditSampleValue(record, "title")
+    || (eventId ? `이벤트 ${eventId}` : "제목 미확인")
+  );
+}
+
+function auditSampleMeta(record: AuditSampleRecord) {
+  const symbol = auditSampleValue(record, "symbol");
+  const instrumentName = auditSampleValue(record, "instrument_name");
+  const nodeCodes = auditSampleValue(record, "node_codes");
+  const nodeCode = auditSampleValue(record, "node_code");
+  const direction = auditSampleValue(record, "impact_direction")
+    || auditSampleValue(record, "impact_directions");
+  const repeatedCount = auditSampleValue(record, "repeated_count");
+  return [
+    symbol ? `종목 ${symbol}` : "",
+    instrumentName ? instrumentName : "",
+    nodeCodes ? `흐름 ${nodeCodes.split(", ").map(koCode).join(", ")}` : "",
+    nodeCode ? `흐름 ${koCode(nodeCode)}` : "",
+    direction ? `방향 ${direction.split(", ").map(koCode).join(", ")}` : "",
+    repeatedCount ? `반복 ${repeatedCount}회` : "",
+  ].filter(Boolean).join(" · ");
+}
+
+function qualityAuditSampleGroups(audit: CycleAiQualityAudit) {
+  return [
+    {
+      key: "duplicate_titles",
+      label: "중복 뉴스",
+      description: "같은 제목이 반복 수집되어 근거가 부풀려질 수 있는 후보.",
+    },
+    {
+      key: "ungrounded_direct_tickers",
+      label: "근거 없는 종목",
+      description: "원문 제목·요약에서 종목 근거가 확인되지 않는 직접 연결 후보.",
+    },
+    {
+      key: "macro_false_tickers",
+      label: "거시 뉴스 종목 오부착",
+      description: "거시 흐름으로 남겨야 하는 뉴스에 직접 종목이 붙은 후보.",
+    },
+    {
+      key: "quantum_energy_mislinks",
+      label: "테마 오분류",
+      description: "양자컴퓨팅 뉴스가 에너지 흐름이나 XLE/XOM으로 잘못 연결된 후보.",
+    },
+    {
+      key: "normal_macro_flows",
+      label: "정상 거시 흐름",
+      description: "종목을 억지로 붙이지 않고 상위 흐름으로 처리한 정상 샘플.",
+    },
+  ].map((group) => ({
+    ...group,
+    records: auditSampleRecords(audit, group.key),
+  })).filter((group) => group.records.length > 0);
 }
 
 function newsAiEvalTitle(evalQuality: NewsAiEvalQuality) {
@@ -1370,6 +1464,7 @@ export default async function DataHealthPage() {
   const manualSmoke = data.manual_local_ingest_smoke ?? DEFAULT_MANUAL_SMOKE;
   const localWorker = data.local_ingest_worker ?? DEFAULT_LOCAL_WORKER;
   const qualityAudit = data.cycle_ai_quality_audit ?? DEFAULT_CYCLE_AI_QUALITY_AUDIT;
+  const qualityAuditSamples = qualityAuditSampleGroups(qualityAudit);
   const newsAiEvalQuality = data.news_ai_eval_quality ?? DEFAULT_NEWS_AI_EVAL_QUALITY;
   const benchmarkDriftQuality = data.benchmark_drift_quality ?? DEFAULT_BENCHMARK_DRIFT_QUALITY;
   const portfolioReviewHistory =
@@ -1908,6 +2003,25 @@ export default async function DataHealthPage() {
             <p>종목을 억지로 붙이지 않고 상위 흐름으로 남겨둔 뉴스다.</p>
           </article>
         </div>
+        {qualityAuditSamples.length > 0 ? (
+          <div className="relationship-panel">
+            <span>감사 샘플</span>
+            <div className="relationship-list">
+              {qualityAuditSamples.map((group) => (
+                <article className="relationship-chip" key={group.key}>
+                  <span>{group.label}</span>
+                  <strong>{group.description}</strong>
+                  {group.records.map((record, index) => (
+                    <small key={`${group.key}-${auditSampleValue(record, "event_id") || index}`}>
+                      {auditSampleHeadline(record)}
+                      {auditSampleMeta(record) ? ` · ${auditSampleMeta(record)}` : ""}
+                    </small>
+                  ))}
+                </article>
+              ))}
+            </div>
+          </div>
+        ) : null}
         <div className="empty-state">
           <strong>다음 조치</strong>
           <p>{qualityAudit.next_actions[0] ? koCode(qualityAudit.next_actions[0]) : "현재 추가 조치 없음"}</p>

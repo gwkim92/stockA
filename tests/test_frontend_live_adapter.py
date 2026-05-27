@@ -5309,7 +5309,26 @@ class FrontendLiveAdapterTests(unittest.TestCase):
                             "ungrounded_direct_ticker_count": 1,
                             "quantum_energy_mislink_count": 0,
                         },
-                        "samples": {"ungrounded_direct_tickers": [{"event_id": 1, "symbol": "SPY"}]},
+                        "samples": {
+                            "ungrounded_direct_tickers": [
+                                {"event_id": 1, "symbol": "SPY", "event_title": "Fed risk"}
+                            ],
+                            "macro_false_tickers": [
+                                {
+                                    "event_id": 2,
+                                    "symbol": "QQQ",
+                                    "event_title": "Fed rate risk",
+                                    "node_codes": ["MACRO_RATES_FED"],
+                                }
+                            ],
+                            "normal_macro_flows": [
+                                {
+                                    "event_id": 3,
+                                    "event_title": "Inflation cools",
+                                    "node_codes": ["MACRO_INFLATION"],
+                                }
+                            ],
+                        },
                         "next_actions": ["review direct ticker impacts without source-text grounding"],
                     }
                 ),
@@ -5333,6 +5352,8 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertEqual(audit["issue_count"], 2)
         self.assertEqual(audit["metrics"]["rss_document_count"], 10)
         self.assertEqual(audit["checks"]["ungrounded_direct_ticker_count"], 1)
+        self.assertEqual(audit["samples"]["macro_false_tickers"][0]["symbol"], "QQQ")
+        self.assertEqual(audit["samples"]["normal_macro_flows"][0]["event_title"], "Inflation cools")
         self.assertEqual(audit["source"], "cycle_ai_quality_audit_report")
         self.assertIn("cycle_ai_quality_audit_attention", payload["data"]["open_gates"])
         self.assertNotIn(str(report), json.dumps(audit))

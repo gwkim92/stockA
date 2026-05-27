@@ -87,6 +87,10 @@ class CycleAiQualityAuditTests(unittest.TestCase):
         self.assertIn("('SPY', 's&p 500')", sql)
         self.assertIn("regexp_split_to_table(instrument.name", sql)
         self.assertIn("normal_macro_flows", sql)
+        self.assertIn("'macro_false_tickers'", sql)
+        self.assertIn("'normal_macro_flows'", sql)
+        self.assertIn("'event_title'", sql)
+        self.assertIn("'node_codes'", sql)
         self.assertIn("signal.hierarchical_propagated_instrument_impact", sql)
         self.assertIn("signal.cycle_hierarchy_state_snapshot", sql)
         self.assertIn("trading.paper_validation_run", sql)
@@ -107,6 +111,8 @@ class CycleAiQualityAuditTests(unittest.TestCase):
         self.assertEqual(report["status"], "planned")
         self.assertEqual(report["audit_status"], "attention_required")
         self.assertEqual(report["issue_count"], 2)
+        self.assertIn("normal_macro_flows", report["samples"])
+        self.assertIn("macro_false_tickers", report["samples"])
         self.assertEqual(len(executor.scalar_sql), 1)
         self.assertEqual(executor.non_query_sql, [])
 
@@ -306,7 +312,27 @@ def _sample_state(*, audit_status: str = "attention_required", issue_count: int 
             "quantum_energy_mislink_count": 0,
             "normal_macro_flow_count": 4,
         },
-        "samples": {"ungrounded_direct_tickers": [{"event_id": 1, "symbol": "SPY"}]},
+        "samples": {
+            "ungrounded_direct_tickers": [{"event_id": 1, "symbol": "SPY", "event_title": "Fed news"}],
+            "macro_false_tickers": [
+                {
+                    "event_id": 2,
+                    "symbol": "QQQ",
+                    "instrument_name": "Invesco QQQ Trust",
+                    "event_title": "Fed holds rates",
+                    "node_codes": ["MACRO_RATES_FED"],
+                    "impact_direction": "risk_review",
+                }
+            ],
+            "normal_macro_flows": [
+                {
+                    "event_id": 3,
+                    "event_title": "Inflation cools",
+                    "node_codes": ["MACRO_INFLATION"],
+                    "impact_directions": ["supportive"],
+                }
+            ],
+        },
     }
 
 
