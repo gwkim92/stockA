@@ -2,7 +2,7 @@
 
 ## Status
 
-- in progress: `/stocks` 화면의 종목 상세 진입 affordance를 명확히 하는 작업을 진행 중이다.
+- completed: `/stocks` 화면의 종목 상세 진입 affordance를 명확히 하는 작업을 완료했다.
 
 ## Completed
 
@@ -24,8 +24,10 @@
 - passed: `cd apps/web && npm run build`
 - passed: `PYTHONPATH=/Users/woody/ai/agent-work-harness/src python3 -m awh verify --repo . --task stocks-list-action-affordance-v2`
 - passed: `git diff --check`
-- pending: EC2/local tunnel `/stocks` route smoke
+- passed: EC2 deploy `npm run typecheck`, `npm run build`, `sudo systemctl restart stockanalysis-web.service`, `systemctl is-active stockanalysis-web.service`
+- passed: local tunnel `/stocks` route smoke at `http://127.0.0.1:13000/stocks` confirmed `오늘 먼저 볼 종목`, `종목별 상세로 바로 이동한다`, `행 전체는 링크가 아니다`, `종목 상세 보기`, `추천 근거 보기`
+- passed: EC2 internal `/stocks` route smoke at `http://127.0.0.1:3000/stocks` confirmed the same strings
 
 ## Next Step
 
-- exact next step: 변경사항을 commit/push/deploy한 뒤 EC2/local tunnel `/stocks` route smoke로 새 문구와 버튼 렌더링을 확인한다.
+- exact next step: 다음 UX slice는 `stock-detail-decision-stack-v2`로, 종목 상세에서 가격·뉴스·상위 흐름·추천·보유·페이퍼 상태의 읽는 순서를 더 명확히 한다.

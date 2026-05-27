@@ -43,4 +43,4 @@
 - [x] 목록 행에 명확한 `종목 상세 보기` 버튼이 렌더링된다.
 - [x] 추천이 있는 종목은 `추천 근거 보기` 버튼이 렌더링된다.
 - [x] 행 전체가 링크가 아니라는 안내 문구가 보인다.
-- [ ] local verification과 EC2 route smoke가 통과한다.
+- [x] local verification과 EC2 route smoke가 통과한다.
