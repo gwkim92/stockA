@@ -20,6 +20,7 @@ type IndustryCompetitivePosition = NonNullable<StockDetailData["industry_competi
 type FinancialStatementModel = StockDetailData["financial_statement_model"];
 type FinancialMetricSnapshot = FinancialStatementModel["metrics"][number];
 type FundInstrumentAnalysis = StockDetailData["fund_instrument_analysis"];
+type ProfessionalSourceGuardrail = StockDetailData["professional_source_guardrail"];
 
 function formatCurrency(value: number | null, currencyCode: string) {
   if (value === null) {
@@ -636,6 +637,86 @@ function stockGuardrails() {
   ];
 }
 
+function professionalGuardrailTone(guardrail: ProfessionalSourceGuardrail) {
+  if (guardrail.blocked) {
+    return "risk-high";
+  }
+  if (!guardrail.paper_validation_input_allowed || !guardrail.professional_decision_use_allowed) {
+    return "risk-medium";
+  }
+  return "risk-low";
+}
+
+function professionalGuardrailTitle(guardrail: ProfessionalSourceGuardrail) {
+  if (guardrail.blocked) {
+    return "전문 판단 입력 차단";
+  }
+  if (guardrail.status === "fund_or_etf_company_model_not_applicable") {
+    return "ETF·펀드 경계 적용";
+  }
+  return "전문 판단 입력 가능";
+}
+
+function ProfessionalSourceGuardrailPanel({
+  guardrail,
+  symbol,
+}: {
+  guardrail: ProfessionalSourceGuardrail;
+  symbol: string;
+}) {
+  return (
+    <section className="bento-card span-4 reveal delay-2" aria-label="전문 판단 경계">
+      <div className="section-heading">
+        <div>
+          <span className="metric-sub">전문 판단 경계</span>
+          <h2>{symbol} 분석을 투자 판단 입력으로 써도 되는가</h2>
+        </div>
+        <span className={`risk-tag ${professionalGuardrailTone(guardrail)}`}>
+          {professionalGuardrailTitle(guardrail)}
+        </span>
+      </div>
+      <p style={{ color: "var(--text-secondary)", marginTop: 0 }}>
+        {guardrail.summary} 이 경계는 추천 점수나 포지션을 바꾸지 않고, 전문 분석·페이퍼 검증·주문 입력 가능 여부만
+        분리해서 보여준다.
+      </p>
+      <div className="status-rail compact-rail" aria-label="전문 판단 경계 요약">
+        <div className="rail-cell">
+          <span>전문 판단 입력</span>
+          <strong>{guardrail.professional_decision_use_allowed ? "가능" : "차단"}</strong>
+          <small>{koCode(guardrail.status)}</small>
+        </div>
+        <div className="rail-cell">
+          <span>페이퍼 검증 입력</span>
+          <strong>{guardrail.paper_validation_input_allowed ? "가능" : "차단"}</strong>
+          <small>성과검증 입력 경계</small>
+        </div>
+        <div className="rail-cell">
+          <span>원천 차단 사유</span>
+          <strong>{guardrail.blocker_label || "없음"}</strong>
+          <small>{guardrail.blocker_code || "source blocker 없음"}</small>
+        </div>
+        <div className="rail-cell rail-critical">
+          <span>주문 경계</span>
+          <strong>{koCode(guardrail.order_boundary)}</strong>
+          <small>broker submit {guardrail.broker_submit_allowed ? "허용" : "금지"}</small>
+        </div>
+      </div>
+      <div className="empty-state" style={{ marginTop: "18px" }}>
+        <strong>다음 확인</strong>
+        <p>{guardrail.next_action}</p>
+        <div className="btn-row">
+          <Link className="btn btn-secondary" href="/data-health">
+            원천 상태 보기
+          </Link>
+          <Link className="btn btn-secondary" href="/paper-trading">
+            페이퍼 거래 경계 보기
+          </Link>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function PriceChart({ bars, currencyCode }: { bars: StockPrice[]; currencyCode: string }) {
   const plotted = bars.filter((bar) => typeof bar.adjusted_close === "number" && bar.adjusted_close !== null);
   if (plotted.length < 2) {
@@ -935,6 +1016,8 @@ export default async function StockDetailPage({ params }: StockDetailPageProps) 
   const industryPosition = data.industry_competitive_position;
   const financialStatementModel = data.financial_statement_model;
   const valuationTargetRange = data.valuation_target_range;
+  const sourceGuardrail = data.professional_source_guardrail;
+  const sourceBlocked = sourceGuardrail.blocked;
   const hasTargetRange = valuationTargetRange.status === "available";
   const valuationItems = equityResearch ? valuationSensitivityItems(equityResearch.valuation_sensitivity) : [];
   const hasEvidenceOnlyData =
@@ -959,22 +1042,26 @@ export default async function StockDetailPage({ params }: StockDetailPageProps) 
       id: "financial-quality",
       label: "02",
       title: "재무 품질",
-      status:
-        financialStatementModel.status === "available" || financialStatementModel.status === "partial"
+      status: sourceBlocked
+        ? "전문 판단 차단"
+        : financialStatementModel.status === "available" || financialStatementModel.status === "partial"
           ? `${financialStatementModel.computed_metric_count}개 지표`
           : "재무 모델 대기",
-      tone:
-        financialStatementModel.status === "available" || financialStatementModel.status === "partial"
+      tone: sourceBlocked
+        ? "blocked"
+        : financialStatementModel.status === "available" || financialStatementModel.status === "partial"
           ? "ready"
           : "watch",
-      body:
-        financialStatementModel.status === "available" || financialStatementModel.status === "partial" || financialStatementModel.source_data_blocker
+      body: sourceBlocked
+        ? sourceGuardrail.summary
+        : financialStatementModel.status === "available" || financialStatementModel.status === "partial" || financialStatementModel.source_data_blocker
           ? financialStatementModel.summary
           : "매출, 마진, 현금흐름, 부채, 이익 품질을 확인할 정규화 재무 모델이 아직 충분하지 않다.",
       facts: [
         { label: "최근 기간", value: financialStatementModel.latest_period_end || "없음" },
         { label: "계산 지표", value: `${financialStatementModel.computed_metric_count}개` },
         { label: "데이터 공백", value: `${financialStatementModel.data_gap_count}개` },
+        { label: "원천 경계", value: sourceBlocked ? sourceGuardrail.blocker_label : "차단 없음" },
       ],
     },
     {
@@ -1051,9 +1138,11 @@ export default async function StockDetailPage({ params }: StockDetailPageProps) 
       id: "paper-validation",
       label: "07",
       title: "페이퍼 검증·거래 경계",
-      status: data.position ? "보유 상태 있음" : data.recommendation ? "추천 검토 중" : "거래 입력 전",
-      tone: "neutral",
-      body: "이 화면은 주문을 만들지 않는다. 실제 broker submit은 닫혀 있고, 추천이 생겨도 페이퍼 검증과 리스크 경계를 먼저 확인해야 한다.",
+      status: sourceBlocked ? "페이퍼 입력 차단" : data.position ? "보유 상태 있음" : data.recommendation ? "추천 검토 중" : "거래 입력 전",
+      tone: sourceBlocked ? "blocked" : "neutral",
+      body: sourceBlocked
+        ? `${sourceGuardrail.next_action} 실제 broker submit은 계속 닫혀 있다.`
+        : "이 화면은 주문을 만들지 않는다. 실제 broker submit은 닫혀 있고, 추천이 생겨도 페이퍼 검증과 리스크 경계를 먼저 확인해야 한다.",
       href: "/paper-trading" as Route,
       hrefLabel: "페이퍼 거래 상태 보기",
     },
@@ -1104,6 +1193,8 @@ export default async function StockDetailPage({ params }: StockDetailPageProps) 
         footer="현재 화면은 저장된 데이터만 읽는다. 화면 진입 중 실시간 AI 호출이나 주문 생성은 없다."
         steps={professionalResearchSteps}
       />
+
+      <ProfessionalSourceGuardrailPanel guardrail={sourceGuardrail} symbol={data.symbol} />
 
       <FinancialStatementModelPanel model={financialStatementModel} symbol={data.symbol} />
 

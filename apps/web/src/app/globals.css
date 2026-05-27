@@ -1921,6 +1921,57 @@ h6 {
   font-size: 0.78rem;
 }
 
+.research-flow-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 18px;
+}
+
+.research-flow-summary div {
+  min-width: 0;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.5);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+}
+
+.research-flow-summary span {
+  display: block;
+  color: var(--text-tertiary);
+  font-size: 0.68rem;
+  font-weight: 900;
+}
+
+.research-flow-summary strong {
+  display: block;
+  margin-top: 6px;
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: clamp(1.55rem, 3vw, 2.35rem);
+  line-height: 0.86;
+}
+
+.research-flow-summary .summary-blocked {
+  border-color: color-mix(in oklch, var(--accent-red), transparent 52%);
+}
+
+.research-flow-summary .summary-blocked strong {
+  color: var(--accent-red);
+}
+
+.research-flow-warning {
+  margin-top: 14px;
+  padding: 12px 14px;
+  color: var(--accent-red);
+  font-size: 0.82rem;
+  font-weight: 850;
+  line-height: 1.55;
+  background: color-mix(in oklch, var(--accent-red), transparent 92%);
+  border: 1px solid color-mix(in oklch, var(--accent-red), transparent 70%);
+  border-radius: var(--radius-sm);
+}
+
 .research-flow-track {
   display: grid;
   gap: 0;

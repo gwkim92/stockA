@@ -1026,6 +1026,9 @@ export default async function RecommendationPage({ params }: RecommendationPageP
   const peerComponent = fundamentalStack.find((component) => component.component === "peer_relative_score");
   const blockedEvidenceCount = reviewCount(evidenceReview.summary.blocked_count);
   const decisionWaterfall = data.professional_decision_waterfall;
+  const readyDecisionStepCount = decisionWaterfall.steps.filter((step) => step.tone === "ready").length;
+  const watchDecisionStepCount = decisionWaterfall.steps.filter((step) => step.tone === "watch" || step.tone === "neutral").length;
+  const blockedDecisionStepCount = decisionWaterfall.steps.filter((step) => step.tone === "blocked").length;
   const professionalResearchSteps: ResearchFlowStep[] = decisionWaterfall.steps.map((step, index) => ({
     id: step.step_key,
     label: String(index + 1).padStart(2, "0"),
@@ -1090,6 +1093,44 @@ export default async function RecommendationPage({ params }: RecommendationPageP
               <p>{check.detail}</p>
             </article>
           ))}
+        </div>
+      </section>
+
+      <section className="bento-card reveal delay-1" aria-label="추천 사용 경계">
+        <div className="section-heading">
+          <div>
+            <span className="metric-sub">추천 사용 경계</span>
+            <h2 style={{ fontSize: "1.5rem", marginTop: "6px" }}>이 추천을 어디까지 써도 되는가</h2>
+          </div>
+          <span className={`risk-tag ${blockedDecisionStepCount > 0 ? "risk-high" : decisionWaterfall.paper_validation_input_allowed ? "risk-low" : "risk-medium"}`}>
+            {blockedDecisionStepCount > 0 ? "입력 차단" : decisionWaterfall.paper_validation_input_allowed ? "검토 입력 가능" : "검토 대기"}
+          </span>
+        </div>
+        <p style={{ color: "var(--text-secondary)", marginTop: 0 }}>
+          {decisionWaterfall.summary} 이 판정은 추천 점수를 바꾸지 않고, 이 추천을 페이퍼 검증·보유 검토·주문 경계 중 어디까지
+          넘길 수 있는지만 설명한다.
+        </p>
+        <div className="status-rail compact-rail" aria-label="추천 사용 경계 요약">
+          <div className="rail-cell">
+            <span>전문 흐름</span>
+            <strong>{koCode(decisionWaterfall.status)}</strong>
+            <small>{decisionWaterfall.as_of_date}</small>
+          </div>
+          <div className="rail-cell">
+            <span>단계 상태</span>
+            <strong>{readyDecisionStepCount}/{decisionWaterfall.steps.length}</strong>
+            <small>주의 {watchDecisionStepCount} · 차단 {blockedDecisionStepCount}</small>
+          </div>
+          <div className="rail-cell">
+            <span>페이퍼 검증 입력</span>
+            <strong>{decisionWaterfall.paper_validation_input_allowed ? "허용" : "차단"}</strong>
+            <small>원천 차단이면 입력 금지</small>
+          </div>
+          <div className="rail-cell rail-critical">
+            <span>주문 경계</span>
+            <strong>{koCode(decisionWaterfall.order_boundary)}</strong>
+            <small>자동 주문 {decisionWaterfall.automatic_order_allowed || decisionWaterfall.broker_submit_allowed ? "허용" : "금지"}</small>
+          </div>
         </div>
       </section>
 

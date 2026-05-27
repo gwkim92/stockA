@@ -33,12 +33,35 @@ export function ProfessionalResearchFlow({
   steps,
   footer,
 }: ProfessionalResearchFlowProps) {
+  const readyCount = steps.filter((step) => step.tone === "ready").length;
+  const watchCount = steps.filter((step) => step.tone === "watch" || step.tone === "neutral").length;
+  const blockedCount = steps.filter((step) => step.tone === "blocked").length;
+
   return (
     <section className="research-flow reveal delay-1" aria-label={title}>
       <div className="research-flow-intro">
         <span className="metric-sub">{eyebrow}</span>
         <h2>{title}</h2>
         <p>{summary}</p>
+        <div className="research-flow-summary" aria-label="전문 분석 흐름 요약">
+          <div>
+            <span>준비</span>
+            <strong>{readyCount}</strong>
+          </div>
+          <div>
+            <span>주의</span>
+            <strong>{watchCount}</strong>
+          </div>
+          <div className={blockedCount > 0 ? "summary-blocked" : undefined}>
+            <span>차단</span>
+            <strong>{blockedCount}</strong>
+          </div>
+        </div>
+        {blockedCount > 0 ? (
+          <p className="research-flow-warning">
+            차단 단계가 있으면 추천은 기록으로 남기되, 페이퍼 검증이나 주문 입력으로 넘기지 않는다.
+          </p>
+        ) : null}
         {footer ? <small>{footer}</small> : null}
       </div>
 
@@ -74,4 +97,3 @@ export function ProfessionalResearchFlow({
     </section>
   );
 }
-
