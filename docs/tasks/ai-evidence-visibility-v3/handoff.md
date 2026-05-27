@@ -2,11 +2,11 @@
 
 ## Status
 
-- status: implemented_local
+- status: implemented_and_ec2_smoked
 - started_at: 2026-05-27
-- current status: local implementation is complete and targeted verification passed; EC2 deploy and smoke are next.
+- current status: implemented, committed, pushed, deployed to EC2, and smoke verified.
 - completed: API visibility trace payload, frontend trace board, Korean labels, DTO typing, targeted backend test, typecheck, build.
-- in progress: EC2 deploy and smoke.
+- completed: EC2 deploy, API smoke, route smoke.
 
 ## Current Decision
 
@@ -25,6 +25,16 @@
 - passed: `cd apps/web && npm run typecheck`
 - passed: `cd apps/web && npm run build`
 - passed: `git diff --check`
+
+## EC2 Verification
+
+- deployed commit: `17deba7`.
+- `stockanalysis-frontend-api.service`: active.
+- `stockanalysis-web.service`: active.
+- EC2 targeted backend test passed for `test_live_ai_evidence_detail_response_exposes_news_event_candidate_artifact`.
+- EC2 Next production build passed.
+- `/api/ai-evidence/ai-evidence-251`: `visibility_trace.steps=[source, translation, ai_structure, validator, recommendation_linkage]`, `source.status=available`, `translation.status=available`, `validator.status=passed`, `target_symbol=SPY`, no vector storage URI or read-token env name in response.
+- `/ai-evidence/ai-evidence-251`: HTTP 200 and rendered `한눈에 보는 근거 흐름`, `이 근거가 어디서 와서 어디에 쓰이는지 확인한다`, `검증 결과`, `실시간 AI 호출 없음`.
 
 ## Risks
 
