@@ -39,8 +39,8 @@
 
 ## Done Criteria
 
-- [ ] `/intelligence` defaults to representative news flow rather than full mixed lists.
-- [ ] Full news/source/AI lists remain reachable through explicit CTAs.
-- [ ] AI evidence detail uses a translated cluster event as source preview when available.
-- [ ] Local frontend verification passes.
-- [ ] EC2 and local tunnel route smoke pass.
+- [x] `/intelligence` defaults to representative news flow rather than full mixed lists.
+- [x] Full news/source/AI lists remain reachable through explicit CTAs.
+- [x] AI evidence detail uses a translated cluster/evidence preview when available.
+- [x] Local frontend verification passes.
+- [x] EC2 and local tunnel route smoke pass.
