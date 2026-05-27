@@ -807,6 +807,59 @@ class FakeLiveExecutor:
                         "broker_submit_allowed": False,
                         "order_boundary": "read_only_no_order",
                     },
+                    "professional_recommendation_coverage_audit": {
+                        "status": "source_limited",
+                        "as_of_date": "2026-05-27",
+                        "recommendation_count": 2,
+                        "ready_for_review_count": 0,
+                        "coverage_gap_count": 0,
+                        "source_blocked_count": 1,
+                        "paper_validation_pending_count": 1,
+                        "average_coverage_ratio": "0.7750",
+                        "items": [
+                            {
+                                "rank": 1,
+                                "recommendation_id": 67,
+                                "symbol": "EROK",
+                                "instrument_id": 7001,
+                                "instrument_name": "Ero Copper Corp.",
+                                "product_type": "operating_company",
+                                "recommendation_score": "0.6200",
+                                "recommended_weight": "0.0300",
+                                "recommendation_as_of_date": "2026-05-27",
+                                "audit_status": "blocked_source",
+                                "professional_decision_status": "blocked_source",
+                                "coverage_ratio": "0.5500",
+                                "available_layer_count": 3,
+                                "expected_layer_count": 8,
+                                "missing_layer_count": 5,
+                                "missing_layers": ["financial_metric_normalized", "valuation_snapshot"],
+                                "blocker_type": "source_blocker",
+                                "blocker_code": "sec_companyfacts_missing_us_gaap_facts",
+                                "has_active_thesis": True,
+                                "paper_validation_status": "missing",
+                                "paper_validation_run_id": None,
+                                "paper_validation_date": "",
+                                "layer_checks": [
+                                    {"key": "financial_metric_normalized", "label": "재무 지표", "status": "missing"},
+                                    {"key": "active_thesis", "label": "투자 논리", "status": "complete"},
+                                ],
+                                "remediation_action": "첫 periodic filing 전까지 전문 판단에서 제외한다.",
+                                "detail_href": "/recommendations/recommendation-67",
+                                "stock_href": "/stocks/EROK",
+                                "order_boundary": "read_only_no_order",
+                                "automatic_weight_change_allowed": False,
+                                "automatic_order_allowed": False,
+                                "broker_submit_allowed": False,
+                            }
+                        ],
+                        "next_action": "source-blocked 추천은 제외한다.",
+                        "recommendation_scoring_mutated": False,
+                        "automatic_weight_change_allowed": False,
+                        "automatic_order_allowed": False,
+                        "broker_submit_allowed": False,
+                        "order_boundary": "read_only_no_order",
+                    },
                     "open_gates": [
                         "production_api_server",
                         "auth_rbac",
@@ -4646,6 +4699,19 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertFalse(professional_quality["recommendation_scoring_mutated"])
         self.assertFalse(professional_quality["broker_submit_allowed"])
         self.assertEqual(professional_quality["order_boundary"], "read_only_no_order")
+        recommendation_audit = payload["data"]["professional_recommendation_coverage_audit"]
+        self.assertEqual(recommendation_audit["status"], "source_limited")
+        self.assertEqual(recommendation_audit["recommendation_count"], 2)
+        self.assertEqual(recommendation_audit["source_blocked_count"], 1)
+        self.assertEqual(recommendation_audit["paper_validation_pending_count"], 1)
+        self.assertEqual(recommendation_audit["items"][0]["recommendation_id"], "recommendation-67")
+        self.assertEqual(recommendation_audit["items"][0]["symbol"], "EROK")
+        self.assertEqual(recommendation_audit["items"][0]["audit_status"], "blocked_source")
+        self.assertIn("재무 지표 정규화", recommendation_audit["items"][0]["missing_layer_labels"])
+        self.assertEqual(recommendation_audit["items"][0]["paper_validation_status"], "missing")
+        self.assertFalse(recommendation_audit["automatic_weight_change_allowed"])
+        self.assertFalse(recommendation_audit["broker_submit_allowed"])
+        self.assertEqual(recommendation_audit["order_boundary"], "read_only_no_order")
         professional_next = payload["data"]["professional_analysis_next_action"]
         self.assertEqual(professional_next["status"], "managed_outcome_wait")
         self.assertTrue(professional_next["managed_wait"])
@@ -5715,6 +5781,9 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertIn("professional_analysis_depth", sql)
         self.assertIn("professional_analysis_depth_summary", sql)
         self.assertIn("professional_analysis_depth_ranked", sql)
+        self.assertIn("professional_recommendation_coverage_audit", sql)
+        self.assertIn("professional_recommendation_coverage_audit_rows", sql)
+        self.assertIn("selected_professional_audit_paper_validation", sql)
         self.assertIn("professional_gap_raw_filing_decision", sql)
         self.assertIn("professional_source_blocker_raw_filing_remediation", sql)
         self.assertIn("professional-source-blocker-raw-filing-remediation-v1", sql)

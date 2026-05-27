@@ -1313,6 +1313,9 @@ def build_live_data_health_response(
         portfolio_review_feedback_calibration=portfolio_review_feedback_calibration,
         recommendation_weight_review_readiness=recommendation_weight_review_readiness,
     )
+    professional_recommendation_coverage_audit = _build_professional_recommendation_coverage_audit_payload(
+        _as_dict(state.get("professional_recommendation_coverage_audit"))
+    )
     if scheduler_activation["status"] == "pending_manual_approval":
         gate = "scheduler_activation_manual_approval"
         if gate not in open_gates:
@@ -1446,6 +1449,7 @@ def build_live_data_health_response(
             "recommendation_weight_review_readiness": recommendation_weight_review_readiness,
             "professional_source_gap_prioritization": professional_source_gap_prioritization,
             "professional_analysis_quality": professional_analysis_quality,
+            "professional_recommendation_coverage_audit": professional_recommendation_coverage_audit,
             "professional_analysis_depth": professional_analysis_depth,
             "professional_analysis_next_action": professional_analysis_next_action,
             "open_gates": open_gates,
@@ -5538,6 +5542,167 @@ professional_analysis_depth_summary as (
         coalesce(min(coverage_ratio), 0)::numeric(8,4) as weakest_coverage_ratio
     from professional_gap_scored
 ),
+selected_professional_audit_paper_validation as (
+    select validation.*
+    from trading.paper_validation_run validation
+    join portfolio.portfolio portfolio on portfolio.portfolio_id = validation.portfolio_id
+    where portfolio.portfolio_name = {sql_literal(DEFAULT_PORTFOLIO_NAME)}
+    order by validation.validation_date desc, validation.paper_validation_run_id desc
+    limit 1
+),
+professional_recommendation_coverage_audit_rows as (
+    select
+        row_number() over (
+            order by
+                case
+                    when scored.blocker_type = 'source_blocker' then 0
+                    when scored.missing_layer_count > 0 then 1
+                    when not (
+                        recommendation.primary_symbol = any(
+                            coalesce(
+                                (select validation.validated_symbols from selected_professional_audit_paper_validation validation),
+                                '{{}}'::text[]
+                            )
+                        )
+                    ) then 2
+                    else 3
+                end,
+                recommendation.total_score desc,
+                recommendation.primary_symbol
+        )::integer as audit_rank,
+        recommendation.recommendation_id,
+        recommendation.instrument_id,
+        recommendation.primary_symbol,
+        recommendation.name as instrument_name,
+        recommendation.total_score,
+        recommendation.recommended_weight,
+        recommendation.as_of_date as recommendation_as_of_date,
+        case when scored.is_fund_like then 'fund_or_etf' else 'operating_company' end as product_type,
+        scored.coverage_ratio,
+        scored.available_layer_count,
+        scored.expected_layer_count,
+        scored.missing_layer_count,
+        scored.missing_layers,
+        scored.blocker_type,
+        coalesce(scored.blocker_code, '') as blocker_code,
+        scored.remediation_action,
+        scored.has_active_thesis,
+        case
+            when not exists (select 1 from selected_professional_audit_paper_validation) then 'missing'
+            when recommendation.primary_symbol = any(
+                coalesce(
+                    (select validation.validated_symbols from selected_professional_audit_paper_validation validation),
+                    '{{}}'::text[]
+                )
+            ) then 'passed'
+            else coalesce((select validation.status from selected_professional_audit_paper_validation validation), 'missing')
+        end as paper_validation_status,
+        (select validation.paper_validation_run_id from selected_professional_audit_paper_validation validation)
+            as paper_validation_run_id,
+        (select validation.validation_date from selected_professional_audit_paper_validation validation)
+            as paper_validation_date,
+        case
+            when scored.blocker_type = 'source_blocker' then 'blocked_source'
+            when scored.missing_layer_count > 0 then 'coverage_gap'
+            else 'professional_ready'
+        end as professional_decision_status,
+        case
+            when scored.blocker_type = 'source_blocker' then 'blocked_source'
+            when scored.missing_layer_count > 0 then 'coverage_gap'
+            when not (
+                recommendation.primary_symbol = any(
+                    coalesce(
+                        (select validation.validated_symbols from selected_professional_audit_paper_validation validation),
+                        '{{}}'::text[]
+                    )
+                )
+            ) then 'paper_validation_pending'
+            else 'ready_for_review'
+        end as audit_status,
+        json_build_array(
+            json_build_object(
+                'key', 'financial_metric_normalized',
+                'label', '재무 지표',
+                'status',
+                    case
+                        when scored.is_fund_like then 'not_applicable'
+                        when scored.has_financial_metrics then 'complete'
+                        else 'missing'
+                    end
+            ),
+            json_build_object(
+                'key', 'peer_relative_snapshot',
+                'label', '피어 비교',
+                'status',
+                    case
+                        when scored.is_fund_like then 'not_applicable'
+                        when scored.has_peer_relative then 'complete'
+                        else 'missing'
+                    end
+            ),
+            json_build_object(
+                'key', 'valuation_snapshot',
+                'label', '밸류에이션',
+                'status',
+                    case
+                        when scored.is_fund_like then 'not_applicable'
+                        when scored.has_valuation_snapshot then 'complete'
+                        else 'missing'
+                    end
+            ),
+            json_build_object(
+                'key', 'industry_competitive_position',
+                'label', '산업 포지션',
+                'status',
+                    case
+                        when scored.is_fund_like then 'not_applicable'
+                        when scored.has_industry_competitive_position then 'complete'
+                        else 'missing'
+                    end
+            ),
+            json_build_object(
+                'key', 'equity_research_artifact',
+                'label', 'AI 리서치',
+                'status',
+                    case
+                        when scored.is_fund_like then 'not_applicable'
+                        when scored.has_equity_research_artifact then 'complete'
+                        else 'missing'
+                    end
+            ),
+            json_build_object(
+                'key', 'active_thesis',
+                'label', '투자 논리',
+                'status', case when scored.has_active_thesis then 'complete' else 'missing' end
+            ),
+            json_build_object(
+                'key', 'paper_validation',
+                'label', '페이퍼 검증',
+                'status',
+                    case
+                        when recommendation.primary_symbol = any(
+                            coalesce(
+                                (select validation.validated_symbols from selected_professional_audit_paper_validation validation),
+                                '{{}}'::text[]
+                            )
+                        ) then 'passed'
+                        else 'pending'
+                    end
+            )
+        ) as layer_checks
+    from professional_gap_active_recommendations recommendation
+    join professional_gap_scored scored on scored.instrument_id = recommendation.instrument_id
+),
+professional_recommendation_coverage_audit_summary as (
+    select
+        count(*)::integer as recommendation_count,
+        count(*) filter (where audit_status = 'ready_for_review')::integer as ready_for_review_count,
+        count(*) filter (where audit_status = 'coverage_gap')::integer as coverage_gap_count,
+        count(*) filter (where audit_status = 'blocked_source')::integer as source_blocked_count,
+        count(*) filter (where audit_status = 'paper_validation_pending')::integer as paper_validation_pending_count,
+        coalesce(avg(coverage_ratio), 0)::numeric(8,4) as average_coverage_ratio
+    from professional_recommendation_coverage_audit_rows
+),
 selected_recommendation_weight_review_readiness as (
     select eval_run.*
     from ai.eval_run eval_run
@@ -6361,6 +6526,108 @@ select json_build_object(
             'weakest_coverage_ratio', 0,
             'layer_coverage', '[]'::json,
             'items', '[]'::json,
+            'recommendation_scoring_mutated', false,
+            'automatic_weight_change_allowed', false,
+            'automatic_order_allowed', false,
+            'broker_submit_allowed', false,
+            'order_boundary', 'read_only_no_order'
+        )
+    ),
+    'professional_recommendation_coverage_audit',
+    coalesce(
+        (
+            select json_build_object(
+                'status',
+                case
+                    when summary.recommendation_count = 0 then 'missing_active_recommendations'
+                    when summary.source_blocked_count > 0 then 'source_limited'
+                    when summary.coverage_gap_count > 0 then 'coverage_gaps_present'
+                    when summary.paper_validation_pending_count > 0 then 'paper_validation_pending'
+                    else 'ready_for_review'
+                end,
+                'as_of_date', current_date::text,
+                'recommendation_count', summary.recommendation_count,
+                'ready_for_review_count', summary.ready_for_review_count,
+                'coverage_gap_count', summary.coverage_gap_count,
+                'source_blocked_count', summary.source_blocked_count,
+                'paper_validation_pending_count', summary.paper_validation_pending_count,
+                'average_coverage_ratio', summary.average_coverage_ratio,
+                'items',
+                coalesce(
+                    (
+                        select json_agg(
+                            json_build_object(
+                                'rank', item.audit_rank,
+                                'recommendation_id', item.recommendation_id,
+                                'symbol', item.primary_symbol,
+                                'instrument_id', item.instrument_id,
+                                'instrument_name', item.instrument_name,
+                                'product_type', item.product_type,
+                                'recommendation_score', item.total_score,
+                                'recommended_weight', item.recommended_weight,
+                                'recommendation_as_of_date', item.recommendation_as_of_date,
+                                'audit_status', item.audit_status,
+                                'professional_decision_status', item.professional_decision_status,
+                                'coverage_ratio', item.coverage_ratio,
+                                'available_layer_count', item.available_layer_count,
+                                'expected_layer_count', item.expected_layer_count,
+                                'missing_layer_count', item.missing_layer_count,
+                                'missing_layers', item.missing_layers,
+                                'blocker_type', item.blocker_type,
+                                'blocker_code', item.blocker_code,
+                                'has_active_thesis', item.has_active_thesis,
+                                'paper_validation_status', item.paper_validation_status,
+                                'paper_validation_run_id', item.paper_validation_run_id,
+                                'paper_validation_date', item.paper_validation_date,
+                                'layer_checks', item.layer_checks,
+                                'remediation_action', item.remediation_action,
+                                'detail_href', '/recommendations/recommendation-' || item.recommendation_id::text,
+                                'stock_href', '/stocks/' || item.primary_symbol,
+                                'order_boundary', 'read_only_no_order',
+                                'automatic_weight_change_allowed', false,
+                                'automatic_order_allowed', false,
+                                'broker_submit_allowed', false
+                            )
+                            order by item.audit_rank
+                        )
+                        from (
+                            select *
+                            from professional_recommendation_coverage_audit_rows
+                            order by audit_rank
+                            limit 25
+                        ) item
+                    ),
+                    '[]'::json
+                ),
+                'next_action',
+                    case
+                        when summary.source_blocked_count > 0
+                            then 'source-blocked 추천은 합성 재무를 만들지 말고 전문 판단과 페이퍼 검증 입력에서 제외한다.'
+                        when summary.coverage_gap_count > 0
+                            then 'coverage gap 추천부터 professional-coverage-expansion-run으로 재무·피어·밸류에이션·산업·리서치 근거를 보강한다.'
+                        when summary.paper_validation_pending_count > 0
+                            then '전문 분석 근거는 준비됐지만 페이퍼 검증 대기 후보가 있다. 주문은 계속 차단한다.'
+                        else '추천별 전문 분석 근거가 연결됐다. weight 변경은 outcome maturity 이후 별도 pilot task에서만 검토한다.'
+                    end,
+                'recommendation_scoring_mutated', false,
+                'automatic_weight_change_allowed', false,
+                'automatic_order_allowed', false,
+                'broker_submit_allowed', false,
+                'order_boundary', 'read_only_no_order'
+            )
+            from professional_recommendation_coverage_audit_summary summary
+        ),
+        json_build_object(
+            'status', 'missing',
+            'as_of_date', current_date::text,
+            'recommendation_count', 0,
+            'ready_for_review_count', 0,
+            'coverage_gap_count', 0,
+            'source_blocked_count', 0,
+            'paper_validation_pending_count', 0,
+            'average_coverage_ratio', 0,
+            'items', '[]'::json,
+            'next_action', 'active 추천별 전문 분석 coverage audit을 먼저 생성한다.',
             'recommendation_scoring_mutated', false,
             'automatic_weight_change_allowed', false,
             'automatic_order_allowed', false,
@@ -15317,6 +15584,126 @@ def _build_professional_analysis_quality_payload(
         "broker_submit_allowed": False,
         "order_boundary": "read_only_no_order",
     }
+
+
+def _build_professional_recommendation_coverage_audit_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    items = [
+        _build_professional_recommendation_coverage_audit_item_payload(item)
+        for item in _as_list(payload.get("items"))[:25]
+    ]
+    recommendation_count = int(_safe_number(payload.get("recommendation_count")) or len(items))
+    ready_for_review_count = int(_safe_number(payload.get("ready_for_review_count")) or 0)
+    coverage_gap_count = int(_safe_number(payload.get("coverage_gap_count")) or 0)
+    source_blocked_count = int(_safe_number(payload.get("source_blocked_count")) or 0)
+    paper_validation_pending_count = int(_safe_number(payload.get("paper_validation_pending_count")) or 0)
+    status = str(payload.get("status") or "missing")
+    if status == "missing" and recommendation_count > 0:
+        status = "coverage_audit_available"
+    return {
+        "status": status,
+        "title": _professional_recommendation_coverage_audit_title(status),
+        "summary": _professional_recommendation_coverage_audit_summary(
+            recommendation_count=recommendation_count,
+            ready_for_review_count=ready_for_review_count,
+            coverage_gap_count=coverage_gap_count,
+            source_blocked_count=source_blocked_count,
+            paper_validation_pending_count=paper_validation_pending_count,
+        ),
+        "as_of_date": str(payload.get("as_of_date") or ""),
+        "recommendation_count": recommendation_count,
+        "ready_for_review_count": ready_for_review_count,
+        "coverage_gap_count": coverage_gap_count,
+        "source_blocked_count": source_blocked_count,
+        "paper_validation_pending_count": paper_validation_pending_count,
+        "average_coverage_ratio": _safe_number(payload.get("average_coverage_ratio")) or 0.0,
+        "items": items,
+        "next_action": str(payload.get("next_action") or "추천별 전문 분석 coverage audit을 계속 감시한다."),
+        "recommendation_scoring_mutated": payload.get("recommendation_scoring_mutated") is True,
+        "automatic_weight_change_allowed": payload.get("automatic_weight_change_allowed") is True,
+        "automatic_order_allowed": payload.get("automatic_order_allowed") is True,
+        "broker_submit_allowed": payload.get("broker_submit_allowed") is True,
+        "order_boundary": str(payload.get("order_boundary") or "read_only_no_order"),
+    }
+
+
+def _build_professional_recommendation_coverage_audit_item_payload(item: dict[str, Any]) -> dict[str, Any]:
+    raw_recommendation_id = item.get("recommendation_id")
+    symbol = str(item.get("symbol") or "").upper()
+    missing_layers = [str(value) for value in _as_list_or_scalars(item.get("missing_layers")) if value]
+    return {
+        "rank": int(_safe_number(item.get("rank")) or 0),
+        "recommendation_id": _opaque_id("recommendation", raw_recommendation_id, None),
+        "symbol": symbol,
+        "instrument_id": _opaque_id("instrument", item.get("instrument_id"), None),
+        "instrument_name": str(item.get("instrument_name") or ""),
+        "product_type": str(item.get("product_type") or "operating_company"),
+        "recommendation_score": _safe_number(item.get("recommendation_score")) or 0.0,
+        "recommended_weight": _safe_number(item.get("recommended_weight")),
+        "recommendation_as_of_date": str(item.get("recommendation_as_of_date") or ""),
+        "audit_status": str(item.get("audit_status") or "unknown"),
+        "professional_decision_status": str(item.get("professional_decision_status") or "unknown"),
+        "coverage_ratio": _safe_number(item.get("coverage_ratio")) or 0.0,
+        "available_layer_count": int(_safe_number(item.get("available_layer_count")) or 0),
+        "expected_layer_count": int(_safe_number(item.get("expected_layer_count")) or 0),
+        "missing_layer_count": int(_safe_number(item.get("missing_layer_count")) or len(missing_layers)),
+        "missing_layers": missing_layers,
+        "missing_layer_labels": [_professional_source_layer_label(layer) for layer in missing_layers],
+        "blocker_type": str(item.get("blocker_type") or ""),
+        "blocker_code": str(item.get("blocker_code") or ""),
+        "has_active_thesis": item.get("has_active_thesis") is True,
+        "paper_validation_status": str(item.get("paper_validation_status") or "missing"),
+        "paper_validation_run_id": _opaque_id("paper-validation", item.get("paper_validation_run_id"), None),
+        "paper_validation_date": str(item.get("paper_validation_date") or ""),
+        "layer_checks": [
+            {
+                "key": str(check.get("key") or ""),
+                "label": str(check.get("label") or _professional_source_layer_label(str(check.get("key") or ""))),
+                "status": str(check.get("status") or "unknown"),
+            }
+            for check in _as_list(item.get("layer_checks"))
+        ],
+        "remediation_action": str(item.get("remediation_action") or ""),
+        "detail_href": str(
+            item.get("detail_href")
+            or (f"/recommendations/{_opaque_id('recommendation', raw_recommendation_id, None)}" if raw_recommendation_id else "")
+        ),
+        "stock_href": str(item.get("stock_href") or (f"/stocks/{symbol}" if symbol else "")),
+        "order_boundary": str(item.get("order_boundary") or "read_only_no_order"),
+        "automatic_weight_change_allowed": item.get("automatic_weight_change_allowed") is True,
+        "automatic_order_allowed": item.get("automatic_order_allowed") is True,
+        "broker_submit_allowed": item.get("broker_submit_allowed") is True,
+    }
+
+
+def _professional_recommendation_coverage_audit_title(status: str) -> str:
+    if status == "ready_for_review":
+        return "추천별 전문 근거 연결 완료"
+    if status == "paper_validation_pending":
+        return "페이퍼 검증 대기 추천 있음"
+    if status == "coverage_gaps_present":
+        return "추천별 전문 근거 일부 부족"
+    if status == "source_limited":
+        return "원천 차단 추천 포함"
+    if status == "missing_active_recommendations":
+        return "active 추천 없음"
+    return "추천별 전문 감사 상태 확인"
+
+
+def _professional_recommendation_coverage_audit_summary(
+    *,
+    recommendation_count: int,
+    ready_for_review_count: int,
+    coverage_gap_count: int,
+    source_blocked_count: int,
+    paper_validation_pending_count: int,
+) -> str:
+    if recommendation_count == 0:
+        return "전문 분석 근거를 연결할 active 추천이 아직 없다."
+    return (
+        f"active 추천 {recommendation_count}개 중 상세 검토 가능 {ready_for_review_count}개, "
+        f"전문 근거 부족 {coverage_gap_count}개, 원천 차단 {source_blocked_count}개, "
+        f"페이퍼 검증 대기 {paper_validation_pending_count}개다."
+    )
 
 
 def _build_professional_analysis_quality_layer_check(

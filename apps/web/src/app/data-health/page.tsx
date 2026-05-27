@@ -31,6 +31,7 @@ type RecommendationOutcomeDueActionRouter = DataHealthData["recommendation_outco
 type RecommendationWeightReviewReadiness = DataHealthData["recommendation_weight_review_readiness"];
 type ProfessionalSourceGapPrioritization = DataHealthData["professional_source_gap_prioritization"];
 type ProfessionalAnalysisQuality = DataHealthData["professional_analysis_quality"];
+type ProfessionalRecommendationCoverageAudit = DataHealthData["professional_recommendation_coverage_audit"];
 type ProfessionalAnalysisNextAction = DataHealthData["professional_analysis_next_action"];
 type ProfessionalAnalysisDepth = DataHealthData["professional_analysis_depth"];
 type ProfileTimer = ProfileSchedulerStatus["timers"][number];
@@ -847,6 +848,16 @@ function professionalQualityTone(quality: ProfessionalAnalysisQuality) {
   return "risk-high";
 }
 
+function professionalRecommendationAuditTone(audit: ProfessionalRecommendationCoverageAudit) {
+  if (audit.status === "ready_for_review") {
+    return "risk-low";
+  }
+  if (audit.status === "paper_validation_pending" || audit.status === "coverage_gaps_present") {
+    return "risk-medium";
+  }
+  return "risk-high";
+}
+
 function professionalDepthTitle(depth: ProfessionalAnalysisDepth) {
   if (depth.status === "complete") {
     return "전문 분석 layer 충족";
@@ -900,6 +911,16 @@ function professionalDepthItemTone(status: string) {
     return "risk-low";
   }
   if (status === "mostly_covered" || status === "partial") {
+    return "risk-medium";
+  }
+  return "risk-high";
+}
+
+function professionalRecommendationAuditItemTone(status: string) {
+  if (status === "ready_for_review") {
+    return "risk-low";
+  }
+  if (status === "paper_validation_pending" || status === "coverage_gap") {
     return "risk-medium";
   }
   return "risk-high";
@@ -1194,6 +1215,26 @@ const DEFAULT_PROFESSIONAL_ANALYSIS_QUALITY: ProfessionalAnalysisQuality = {
   manual_weight_review_allowed: false,
   automatic_weight_change_allowed: false,
   recommendation_scoring_mutated: false,
+  automatic_order_allowed: false,
+  broker_submit_allowed: false,
+  order_boundary: "read_only_no_order",
+};
+
+const DEFAULT_PROFESSIONAL_RECOMMENDATION_COVERAGE_AUDIT: ProfessionalRecommendationCoverageAudit = {
+  status: "missing",
+  title: "추천별 전문 감사 상태 없음",
+  summary: "active 추천별 재무·피어·밸류에이션·산업·AI 리서치 연결 상태를 아직 읽지 못했다.",
+  as_of_date: "",
+  recommendation_count: 0,
+  ready_for_review_count: 0,
+  coverage_gap_count: 0,
+  source_blocked_count: 0,
+  paper_validation_pending_count: 0,
+  average_coverage_ratio: 0,
+  items: [],
+  next_action: "추천별 전문 분석 coverage audit payload를 먼저 생성한다.",
+  recommendation_scoring_mutated: false,
+  automatic_weight_change_allowed: false,
   automatic_order_allowed: false,
   broker_submit_allowed: false,
   order_boundary: "read_only_no_order",
@@ -1648,6 +1689,8 @@ export default async function DataHealthPage() {
     data.professional_source_gap_prioritization ?? DEFAULT_PROFESSIONAL_SOURCE_GAP_PRIORITIZATION;
   const professionalQuality =
     data.professional_analysis_quality ?? DEFAULT_PROFESSIONAL_ANALYSIS_QUALITY;
+  const professionalRecommendationAudit =
+    data.professional_recommendation_coverage_audit ?? DEFAULT_PROFESSIONAL_RECOMMENDATION_COVERAGE_AUDIT;
   const professionalDepth =
     data.professional_analysis_depth ?? DEFAULT_PROFESSIONAL_ANALYSIS_DEPTH;
   const professionalNextAction =
@@ -1881,6 +1924,14 @@ export default async function DataHealthPage() {
       href: "#professional-analysis-quality",
       cta: "품질 판정 보기",
       tone: professionalQualityTone(professionalQuality),
+    },
+    {
+      label: "추천별 전문 감사",
+      title: professionalRecommendationAudit.title,
+      body: professionalRecommendationAudit.summary,
+      href: "#professional-recommendation-coverage-audit",
+      cta: "추천별 감사 보기",
+      tone: professionalRecommendationAuditTone(professionalRecommendationAudit),
     },
     {
       label: "전문 분석 다음 행동",
@@ -2527,6 +2578,114 @@ export default async function DataHealthPage() {
         <div className="empty-state">
           <strong>다음 조치</strong>
           <p>{professionalQuality.next_action}</p>
+        </div>
+      </section>
+
+      <section
+        className="feature-map-panel reveal delay-1"
+        id="professional-recommendation-coverage-audit"
+        aria-labelledby="professional-recommendation-coverage-audit-title"
+      >
+        <div className="section-heading stacked-heading">
+          <span>추천별 전문 감사</span>
+          <h2 id="professional-recommendation-coverage-audit-title">
+            active 추천마다 전문 분석 근거가 실제로 붙었는지 본다.
+          </h2>
+        </div>
+        <p className="board-intro">{professionalRecommendationAudit.summary}</p>
+        <div className="status-rail compact-rail">
+          <article className="rail-cell">
+            <span>감사 판정</span>
+            <strong className={`risk-tag ${professionalRecommendationAuditTone(professionalRecommendationAudit)}`}>
+              {professionalRecommendationAudit.title}
+            </strong>
+            <small>{professionalRecommendationAudit.as_of_date || "기준일 없음"}</small>
+          </article>
+          <article className="rail-cell">
+            <span>active 추천</span>
+            <strong>{professionalRecommendationAudit.recommendation_count}</strong>
+            <small>감사 대상</small>
+          </article>
+          <article className="rail-cell">
+            <span>상세 검토 가능</span>
+            <strong>{professionalRecommendationAudit.ready_for_review_count}</strong>
+            <small>전문 근거와 페이퍼 검증 통과</small>
+          </article>
+          <article className="rail-cell">
+            <span>근거 부족</span>
+            <strong>{professionalRecommendationAudit.coverage_gap_count}</strong>
+            <small>재무·피어·밸류에이션·산업·리서치</small>
+          </article>
+          <article className="rail-cell rail-critical">
+            <span>원천 차단</span>
+            <strong>{professionalRecommendationAudit.source_blocked_count}</strong>
+            <small>합성 재무 금지</small>
+          </article>
+          <article className="rail-cell rail-critical">
+            <span>주문 경계</span>
+            <strong>{professionalRecommendationAudit.broker_submit_allowed ? "제출 가능" : "제출 금지"}</strong>
+            <small>{koCode(professionalRecommendationAudit.order_boundary)}</small>
+          </article>
+        </div>
+
+        {professionalRecommendationAudit.items.length > 0 ? (
+          <div className="feature-map-grid collection-map-grid">
+            {professionalRecommendationAudit.items.map((item) => (
+              <article className="feature-map-card collection-map-card" key={item.recommendation_id}>
+                <span>
+                  #{item.rank} · {item.product_type === "fund_or_etf" ? "ETF·펀드형" : "개별 기업"}
+                </span>
+                <strong>
+                  <a href={item.detail_href}>{item.symbol}</a> · {koCode(item.audit_status)}
+                </strong>
+                <small>{item.instrument_name || "종목명 미확인"}</small>
+                <small>
+                  추천 점수 {formatPercent(item.recommendation_score)} · 목표 비중 {formatPercent(item.recommended_weight)}
+                </small>
+                <small>
+                  coverage {formatPercent(item.coverage_ratio)} · layer {item.available_layer_count}/{item.expected_layer_count}
+                </small>
+                <small className={`risk-tag ${professionalRecommendationAuditItemTone(item.audit_status)}`}>
+                  {koCode(item.professional_decision_status)}
+                </small>
+                <div className="tag-ledger">
+                  {item.layer_checks.map((check) => (
+                    <span className={`risk-tag ${check.status === "complete" || check.status === "passed" ? "risk-low" : check.status === "not_applicable" ? "risk-medium" : "risk-high"}`} key={check.key}>
+                      {check.label}: {koCode(check.status)}
+                    </span>
+                  ))}
+                </div>
+                {item.missing_layer_labels.length > 0 ? (
+                  <p>부족 근거: {item.missing_layer_labels.join(" · ")}</p>
+                ) : (
+                  <p>표시할 부족 근거가 없다.</p>
+                )}
+                <dl className="fact-list compact-facts">
+                  <div>
+                    <dt>thesis</dt>
+                    <dd>{item.has_active_thesis ? "연결됨" : "없음"}</dd>
+                  </div>
+                  <div>
+                    <dt>페이퍼 검증</dt>
+                    <dd>{koCode(item.paper_validation_status)}</dd>
+                  </div>
+                  <div>
+                    <dt>주문</dt>
+                    <dd>{item.broker_submit_allowed ? "제출 가능" : "제출 금지"}</dd>
+                  </div>
+                </dl>
+                {item.remediation_action ? <p>{item.remediation_action}</p> : null}
+                <a href={item.stock_href}>종목 상세 보기</a>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <div className="empty-state">추천별 전문 분석 감사 대상이 없다.</div>
+        )}
+
+        <div className="empty-state">
+          <strong>다음 조치</strong>
+          <p>{professionalRecommendationAudit.next_action}</p>
         </div>
       </section>
 
