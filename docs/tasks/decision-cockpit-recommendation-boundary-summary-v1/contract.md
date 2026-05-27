@@ -47,4 +47,4 @@
 - [x] `/recommendations` shows judgment boundary per candidate.
 - [x] `/` shows recommendation boundary counts in today's decision area.
 - [x] Local verification passes.
-- [ ] EC2 route smoke confirms live rendering.
+- [x] EC2 route smoke confirms live rendering.
