@@ -12,6 +12,7 @@ type SchedulerActivation = DataHealthData["scheduler"]["activation"];
 type SchedulerStatus = DataHealthData["scheduler"];
 type ProfileSchedulerStatus = NonNullable<DataHealthData["scheduler"]["profile_scheduler"]>;
 type ProductionApiServer = DataHealthData["production_api_server"];
+type AuthRbac = DataHealthData["auth_rbac"];
 type AlertDestination = DataHealthData["alert_destination"];
 type ManualIngestSmoke = DataHealthData["manual_local_ingest_smoke"];
 type LocalIngestWorker = DataHealthData["local_ingest_worker"];
@@ -1293,6 +1294,27 @@ const DEFAULT_PRODUCTION_API_SERVER: ProductionApiServer = {
   next_action: "FastAPI runtime profile, auth, explicit CORS origin, DB config, psycopg pool boundary를 확인한다.",
 };
 
+const DEFAULT_AUTH_RBAC: AuthRbac = {
+  status: "missing_rbac_evidence",
+  attention_required: true,
+  mode: "disabled",
+  auth_mode: "unknown",
+  read_role: "viewer",
+  read_allowed_roles: ["viewer", "analyst", "operator", "admin"],
+  read_token_configured: false,
+  role_valid: true,
+  protected_paths: ["/__endpoints", "/api/*"],
+  public_paths: ["/__live", "/__health", "/__ready"],
+  allowed_methods: ["GET", "HEAD", "OPTIONS"],
+  write_methods_allowed: false,
+  automatic_order_allowed: false,
+  broker_submit_allowed: false,
+  order_boundary: "read_only_no_order",
+  missing_conditions: ["production_api_ready", "bearer_read_token", "read_only_rbac_mode"],
+  summary: "운영 API의 bearer token, read-only role, 쓰기/주문 차단 경계 증거가 아직 부족하다.",
+  next_action: "production API readiness, read-token auth, read-only role, write method 405, broker submit 차단을 확인한다.",
+};
+
 const DEFAULT_ALERT_DESTINATION: AlertDestination = {
   status: "missing_destination",
   attention_required: true,
@@ -1339,6 +1361,7 @@ export default async function DataHealthPage() {
   const data = response.data;
   const providerBudget = data.provider_budget;
   const productionApiServer = data.production_api_server ?? DEFAULT_PRODUCTION_API_SERVER;
+  const authRbac = data.auth_rbac ?? DEFAULT_AUTH_RBAC;
   const alertDestination = data.alert_destination ?? DEFAULT_ALERT_DESTINATION;
   const artifactRunner = data.data_operations_artifact_runner ?? DEFAULT_DATA_OPERATIONS_ARTIFACT_RUNNER;
   const schedulerActivation = data.scheduler.activation;
@@ -1399,6 +1422,8 @@ export default async function DataHealthPage() {
       title:
         productionApiServer.attention_required
           ? "운영 API 확인 필요"
+          : authRbac.attention_required
+          ? "인증/RBAC 확인 필요"
           : alertDestination.attention_required
           ? "운영 알림 확인 필요"
           : failedPipelines > 0
@@ -1409,19 +1434,25 @@ export default async function DataHealthPage() {
       body:
         productionApiServer.attention_required
           ? productionApiServer.next_action
+          : authRbac.attention_required
+          ? authRbac.next_action
           : alertDestination.attention_required
           ? alertDestination.next_action
           : failedPipelines > 0
           ? "실패 또는 오래된 작업이 있어 추천·보유 판단보다 수집 복구가 먼저다."
           : "캔들, 뉴스, AI 분석, 추천 갱신이 현재 화면 기준으로 읽을 수 있는 상태다.",
-      href: productionApiServer.attention_required || alertDestination.attention_required ? "#scheduler-detail" : "#execution-log",
+      href: productionApiServer.attention_required || authRbac.attention_required || alertDestination.attention_required ? "#scheduler-detail" : "#execution-log",
       cta: productionApiServer.attention_required
         ? "운영 서버 보기"
+        : authRbac.attention_required
+          ? "인증 경계 보기"
         : alertDestination.attention_required
           ? "알림 설정 보기"
           : "실행 이력 보기",
       tone: productionApiServer.attention_required
         ? "risk-high"
+        : authRbac.attention_required
+          ? "risk-high"
         : alertDestination.attention_required
           ? "risk-medium"
           : failedPipelines > 0
@@ -3404,6 +3435,28 @@ export default async function DataHealthPage() {
                   {productionApiServer.read_token_configured ? "설정됨" : "미설정"} · CORS{" "}
                   {productionApiServer.allowed_origin_configured ? "명시됨" : "미설정"}
                 </dd>
+              </div>
+              <div>
+                <dt>권한 경계</dt>
+                <dd>{authRbac.attention_required ? "확인 필요" : "읽기 전용 RBAC 확인"}</dd>
+              </div>
+              <div>
+                <dt>읽기 역할</dt>
+                <dd>
+                  {koCode(authRbac.read_role)} · 보호 경로 {authRbac.protected_paths.join(", ")} · 허용 메서드{" "}
+                  {authRbac.allowed_methods.join(", ")}
+                </dd>
+              </div>
+              <div>
+                <dt>주문/쓰기 차단</dt>
+                <dd>
+                  쓰기 {authRbac.write_methods_allowed ? "허용됨" : "차단됨"} · 주문{" "}
+                  {authRbac.broker_submit_allowed ? "허용됨" : "차단됨"} · {koCode(authRbac.order_boundary)}
+                </dd>
+              </div>
+              <div>
+                <dt>권한 다음 조치</dt>
+                <dd>{authRbac.next_action}</dd>
               </div>
               <div>
                 <dt>API 다음 조치</dt>

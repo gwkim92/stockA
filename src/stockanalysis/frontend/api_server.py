@@ -282,7 +282,12 @@ def create_app(
             _server_error_payload(
                 code="MethodNotAllowed",
                 message=f"Method {request.method} is not allowed for the frontend API server.",
-                details={"method": request.method, "allowed_methods": ["GET", "HEAD", "OPTIONS"]},
+                details={
+                    "method": request.method,
+                    "allowed_methods": ["GET", "HEAD", "OPTIONS"],
+                    "order_boundary": selected_policy.order_boundary,
+                    "broker_submit_allowed": selected_policy.broker_submit_allowed,
+                },
                 request_id=_request_id_for_request(request),
             ),
             HTTPStatus.METHOD_NOT_ALLOWED,
@@ -328,13 +333,21 @@ def _unauthorized_response_if_needed(
     request: Request,
     policy: FrontendRuntimePolicy,
 ) -> JSONResponse | None:
-    if policy.is_authorized(request.headers.get("Authorization")):
+    principal = policy.authenticated_principal(request.headers.get("Authorization"))
+    if principal is not None:
+        request.state.frontend_principal_role = principal.role
         return None
     return _json_response(
         _server_error_payload(
             code="Unauthorized",
             message="A valid bearer token is required for this frontend API runtime.",
-            details={"required_role": "viewer", "auth_mode": policy.auth_mode},
+            details={
+                "required_permission": "frontend:read",
+                "required_role": "viewer",
+                "auth_mode": policy.auth_mode,
+                "rbac_mode": policy.rbac_mode,
+                "order_boundary": policy.order_boundary,
+            },
             request_id=_request_id_for_request(request),
         ),
         HTTPStatus.UNAUTHORIZED,

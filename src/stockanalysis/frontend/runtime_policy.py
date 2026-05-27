@@ -7,12 +7,23 @@ from dataclasses import dataclass
 
 PROFILE_CHOICES = ("local", "production")
 AUTH_MODE_CHOICES = ("disabled", "read-token")
+RBAC_MODE_CHOICES = ("disabled", "read-only-token")
+READ_ONLY_ROLES = ("viewer", "analyst", "operator", "admin")
 DEFAULT_ALLOWED_ORIGIN = "*"
 DEFAULT_READ_TOKEN_ENV = "STOCKANALYSIS_FRONTEND_API_READ_TOKEN"
 DATABASE_URL_ENV = "STOCKANALYSIS_DATABASE_URL"
 PRODUCTION_DB_ENV = "STOCKANALYSIS_PSQL_COMMAND"
 LOOPBACK_HOSTS = {"127.0.0.1", "localhost", "::1"}
 SOURCE_CHOICES = ("fixture", "live", "auto")
+RBAC_MODE_ENV = "STOCKANALYSIS_FRONTEND_API_RBAC_MODE"
+READ_ROLE_ENV = "STOCKANALYSIS_FRONTEND_API_READ_ROLE"
+
+
+@dataclass(frozen=True)
+class FrontendPrincipal:
+    role: str
+    permissions: tuple[str, ...]
+    order_boundary: str = "read_only_no_order"
 
 
 @dataclass(frozen=True)
@@ -21,6 +32,8 @@ class FrontendRuntimePolicy:
     source: str = "fixture"
     allowed_origin: str = DEFAULT_ALLOWED_ORIGIN
     auth_mode: str = "disabled"
+    rbac_mode: str = "disabled"
+    read_role: str = "viewer"
     read_token_env: str = DEFAULT_READ_TOKEN_ENV
     read_token: str | None = None
     database_url: str | None = None
@@ -39,11 +52,17 @@ class FrontendRuntimePolicy:
         selected_profile = profile or os.environ.get("STOCKANALYSIS_FRONTEND_RUNTIME_PROFILE") or "local"
         selected_origin = allowed_origin or os.environ.get("STOCKANALYSIS_FRONTEND_API_ALLOWED_ORIGIN") or DEFAULT_ALLOWED_ORIGIN
         selected_auth_mode = auth_mode or os.environ.get("STOCKANALYSIS_FRONTEND_API_AUTH_MODE") or "disabled"
+        selected_rbac_mode = os.environ.get(RBAC_MODE_ENV) or (
+            "read-only-token" if selected_auth_mode == "read-token" else "disabled"
+        )
+        selected_read_role = os.environ.get(READ_ROLE_ENV) or "viewer"
         return cls(
             profile=selected_profile,
             source=source,
             allowed_origin=selected_origin,
             auth_mode=selected_auth_mode,
+            rbac_mode=selected_rbac_mode,
+            read_role=selected_read_role,
             read_token_env=read_token_env,
             read_token=os.environ.get(read_token_env) or None,
             database_url=os.environ.get(DATABASE_URL_ENV) or None,
@@ -75,8 +94,14 @@ class FrontendRuntimePolicy:
             issues.append(f"source must be one of {SOURCE_CHOICES}")
         if self.auth_mode not in AUTH_MODE_CHOICES:
             issues.append(f"auth mode must be one of {AUTH_MODE_CHOICES}")
+        if self.rbac_mode not in RBAC_MODE_CHOICES:
+            issues.append(f"rbac mode must be one of {RBAC_MODE_CHOICES}")
+        if self.read_role not in READ_ONLY_ROLES:
+            issues.append(f"read role must be one of {READ_ONLY_ROLES}")
         if self.requires_auth and not self.read_token:
             issues.append(f"{self.read_token_env} is required when auth_mode=read-token")
+        if self.rbac_mode == "read-only-token" and self.auth_mode != "read-token":
+            issues.append("rbac_mode=read-only-token requires auth_mode=read-token")
 
         if self.profile == "local":
             if not _is_loopback_host(host) and not self.requires_auth:
@@ -103,12 +128,37 @@ class FrontendRuntimePolicy:
         expected = f"Bearer {self.read_token}"
         return hmac.compare_digest(authorization_header or "", expected)
 
+    def authenticated_principal(self, authorization_header: str | None) -> FrontendPrincipal | None:
+        if not self.is_authorized(authorization_header):
+            return None
+        if self.rbac_mode != "read-only-token":
+            return FrontendPrincipal(role="anonymous", permissions=("frontend:read",))
+        return FrontendPrincipal(role=self.read_role, permissions=("frontend:read",))
+
+    @property
+    def write_methods_allowed(self) -> bool:
+        return False
+
+    @property
+    def broker_submit_allowed(self) -> bool:
+        return False
+
+    @property
+    def order_boundary(self) -> str:
+        return "read_only_no_order"
+
     def public_metadata(self) -> dict[str, object]:
         return {
             "runtime_profile": self.profile,
             "source_mode": self.source,
             "auth_mode": self.auth_mode,
             "read_auth_required": self.requires_auth,
+            "rbac_mode": self.rbac_mode,
+            "read_role": self.read_role if self.rbac_mode == "read-only-token" else "none",
+            "read_allowed_roles": list(READ_ONLY_ROLES),
+            "write_methods_allowed": self.write_methods_allowed,
+            "broker_submit_allowed": self.broker_submit_allowed,
+            "order_boundary": self.order_boundary,
             "allowed_origin": self.allowed_origin,
         }
 

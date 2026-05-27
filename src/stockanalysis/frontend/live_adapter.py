@@ -29,6 +29,7 @@ from stockanalysis.frontend.pagination import (
     apply_frontend_sql_pagination,
     frontend_sql_page_window,
 )
+from stockanalysis.frontend.runtime_policy import READ_ONLY_ROLES, RBAC_MODE_ENV, READ_ROLE_ENV
 from stockanalysis.performance.coverage import load_portfolio_outcome_coverage_report
 from stockanalysis.signal.portfolio_remediation_ticket import load_portfolio_remediation_ticket_report
 
@@ -531,6 +532,7 @@ def build_live_dashboard_response(
 def _build_open_gate_details(
     *,
     open_gates: list[str],
+    auth_rbac: Mapping[str, Any],
     alert_destination: Mapping[str, Any],
     benchmark_drift_quality: Mapping[str, Any],
     data_operations_artifact_runner: Mapping[str, Any],
@@ -553,6 +555,32 @@ def _build_open_gate_details(
                     "summary": "FastAPI production runtime, live source, read-token auth, DB pool readiness 증거가 부족하다.",
                     "next_action": "EC2 FastAPI `/__health`와 `/__ready`가 production/live/read-token/psycopg_pool 상태인지 확인한다.",
                     "order_boundary": "read_only_no_order",
+                    "automatic_action_allowed": False,
+                }
+            )
+            continue
+        if gate == "auth_rbac":
+            details.append(
+                {
+                    "gate_id": gate,
+                    "label": "인증/RBAC",
+                    "category": "operational_blocker",
+                    "category_label": "운영 조건",
+                    "severity": "high",
+                    "status_label": (
+                        "읽기 전용 권한 경계 확인 필요"
+                        if auth_rbac.get("attention_required")
+                        else "읽기 전용 권한 경계 확인됨"
+                    ),
+                    "summary": str(
+                        auth_rbac.get("summary")
+                        or "운영 API를 누가 어떤 권한으로 읽는지 확인해야 한다."
+                    ),
+                    "next_action": str(
+                        auth_rbac.get("next_action")
+                        or "production API, bearer token, read-only role, write/order 차단 경계를 확인한다."
+                    ),
+                    "order_boundary": str(auth_rbac.get("order_boundary") or "read_only_no_order"),
                     "automatic_action_allowed": False,
                 }
             )
@@ -989,6 +1017,72 @@ def _build_production_api_server_payload(
     }
 
 
+def _build_auth_rbac_payload(*, production_api_server: Mapping[str, Any]) -> dict[str, Any]:
+    auth_mode = os.environ.get("STOCKANALYSIS_FRONTEND_API_AUTH_MODE", "")
+    read_token_configured = bool(os.environ.get("STOCKANALYSIS_FRONTEND_API_READ_TOKEN", "").strip())
+    rbac_mode = os.environ.get(RBAC_MODE_ENV) or ("read-only-token" if auth_mode == "read-token" else "disabled")
+    read_role = _safe_public_alert_token(os.environ.get(READ_ROLE_ENV) or "viewer")
+    role_valid = read_role in READ_ONLY_ROLES
+    production_ready = production_api_server.get("status") == "production_ready"
+    write_methods_allowed = False
+    automatic_order_allowed = False
+    broker_submit_allowed = False
+    ready = (
+        production_ready
+        and auth_mode == "read-token"
+        and read_token_configured
+        and rbac_mode == "read-only-token"
+        and role_valid
+        and not write_methods_allowed
+        and not automatic_order_allowed
+        and not broker_submit_allowed
+    )
+    missing_conditions: list[str] = []
+    if not production_ready:
+        missing_conditions.append("production_api_ready")
+    if auth_mode != "read-token" or not read_token_configured:
+        missing_conditions.append("bearer_read_token")
+    if rbac_mode != "read-only-token":
+        missing_conditions.append("read_only_rbac_mode")
+    if not role_valid:
+        missing_conditions.append("valid_read_role")
+    if write_methods_allowed:
+        missing_conditions.append("write_methods_blocked")
+    if automatic_order_allowed or broker_submit_allowed:
+        missing_conditions.append("order_submit_blocked")
+    status = "read_only_rbac_ready" if ready else "missing_rbac_evidence"
+    summary = (
+        f"{read_role} role bearer token만 frontend read API를 읽고, 쓰기와 주문 제출은 차단된다."
+        if ready
+        else "운영 API의 bearer token, read-only role, 쓰기/주문 차단 경계 증거가 아직 부족하다."
+    )
+    next_action = (
+        "이 경계를 유지한 상태에서 외부 알림과 RAG 품질 작업을 진행한다."
+        if ready
+        else "production API readiness, read-token auth, read-only role, write method 405, broker submit 차단을 확인한다."
+    )
+    return {
+        "status": status,
+        "attention_required": not ready,
+        "mode": rbac_mode or "unknown",
+        "auth_mode": auth_mode or "unknown",
+        "read_role": read_role,
+        "read_allowed_roles": list(READ_ONLY_ROLES),
+        "read_token_configured": read_token_configured,
+        "role_valid": role_valid,
+        "protected_paths": ["/__endpoints", "/api/*"],
+        "public_paths": ["/__live", "/__health", "/__ready"],
+        "allowed_methods": ["GET", "HEAD", "OPTIONS"],
+        "write_methods_allowed": write_methods_allowed,
+        "automatic_order_allowed": automatic_order_allowed,
+        "broker_submit_allowed": broker_submit_allowed,
+        "order_boundary": "read_only_no_order",
+        "missing_conditions": missing_conditions,
+        "summary": summary,
+        "next_action": next_action,
+    }
+
+
 def _safe_public_alert_token(value: object, fallback: str = "unknown") -> str:
     text = str(value or "").strip().lower()
     if not text:
@@ -1141,6 +1235,7 @@ def build_live_data_health_response(
         config=config,
         executor=executor,
     )
+    auth_rbac = _build_auth_rbac_payload(production_api_server=production_api_server)
     news_ai_eval_quality = _build_news_ai_eval_quality_payload(
         _as_dict(state.get("news_ai_eval_quality"))
     )
@@ -1208,6 +1303,12 @@ def build_live_data_health_response(
             open_gates.append(gate)
     gate = "production_api_server"
     if production_api_server["attention_required"]:
+        if gate not in open_gates:
+            open_gates.append(gate)
+    else:
+        open_gates = [item for item in open_gates if item != gate]
+    gate = "auth_rbac"
+    if auth_rbac["attention_required"]:
         if gate not in open_gates:
             open_gates.append(gate)
     else:
@@ -1281,6 +1382,7 @@ def build_live_data_health_response(
             open_gates.append(gate)
     open_gate_details = _build_open_gate_details(
         open_gates=open_gates,
+        auth_rbac=auth_rbac,
         alert_destination=alert_destination,
         benchmark_drift_quality=benchmark_drift_quality,
         data_operations_artifact_runner=data_operations_artifact_runner,
@@ -1299,6 +1401,7 @@ def build_live_data_health_response(
             "pipeline_runs": pipeline_runs,
             "scheduler": scheduler_status,
             "production_api_server": production_api_server,
+            "auth_rbac": auth_rbac,
             "alert_destination": alert_destination,
             "freshness": freshness,
             "provider_budget": provider_budget,

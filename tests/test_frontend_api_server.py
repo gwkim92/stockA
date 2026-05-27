@@ -66,6 +66,10 @@ class FrontendApiServerTests(unittest.TestCase):
         payload = response.json()
         self.assertEqual(payload["service"], "frontend-api-server")
         self.assertEqual(payload["runtime"]["runtime_profile"], "local")
+        self.assertEqual(payload["runtime"]["rbac_mode"], "disabled")
+        self.assertFalse(payload["runtime"]["write_methods_allowed"])
+        self.assertFalse(payload["runtime"]["broker_submit_allowed"])
+        self.assertEqual(payload["runtime"]["order_boundary"], "read_only_no_order")
         self.assertEqual(payload["request_timeout_seconds"], 30.0)
         self.assertEqual(payload["observability"]["observability_mode"], "disabled")
         self.assertFalse(payload["observability"]["instrumented"])
@@ -128,6 +132,8 @@ class FrontendApiServerTests(unittest.TestCase):
 
         self.assertEqual(unauthorized.status_code, 401)
         self.assertEqual(unauthorized.json()["error"]["code"], "Unauthorized")
+        self.assertEqual(unauthorized.json()["error"]["details"]["required_permission"], "frontend:read")
+        self.assertEqual(unauthorized.json()["error"]["details"]["order_boundary"], "read_only_no_order")
         self.assertIn("request_id", unauthorized.json())
         self.assertEqual(authorized.status_code, 200)
         self.assertEqual(authorized.json()["contract_version"], "frontend-api-v0.1")
@@ -239,6 +245,8 @@ class FrontendApiServerTests(unittest.TestCase):
         payload = response.json()
         self.assertEqual(payload["error"]["code"], "MethodNotAllowed")
         self.assertEqual(payload["error"]["details"]["method"], "POST")
+        self.assertEqual(payload["error"]["details"]["order_boundary"], "read_only_no_order")
+        self.assertFalse(payload["error"]["details"]["broker_submit_allowed"])
 
     def test_production_live_runtime_accepts_database_url_without_psql_command(self) -> None:
         policy = FrontendRuntimePolicy(
@@ -246,11 +254,44 @@ class FrontendApiServerTests(unittest.TestCase):
             source="live",
             allowed_origin="https://cockpit.example",
             auth_mode="read-token",
+            rbac_mode="read-only-token",
+            read_role="operator",
             read_token="server-secret",
             database_url="postgresql://example.invalid/db",
         )
 
         self.assertEqual(policy.validation_issues(host="127.0.0.1"), [])
+        principal = policy.authenticated_principal("Bearer server-secret")
+        self.assertIsNotNone(principal)
+        self.assertEqual(principal.role, "operator")
+        self.assertEqual(principal.permissions, ("frontend:read",))
+        metadata = policy.public_metadata()
+        self.assertEqual(metadata["read_role"], "operator")
+        self.assertFalse(metadata["write_methods_allowed"])
+        self.assertFalse(metadata["broker_submit_allowed"])
+        self.assertNotIn("server-secret", json.dumps(metadata))
+
+    def test_readonly_rbac_rejects_invalid_role_or_disabled_auth(self) -> None:
+        invalid_role = FrontendRuntimePolicy(
+            profile="local",
+            source="live",
+            auth_mode="read-token",
+            rbac_mode="read-only-token",
+            read_role="trader",
+            read_token="server-secret",
+        )
+        self.assertIn("read role must be one of", "; ".join(invalid_role.validation_issues(host="127.0.0.1")))
+
+        disabled_auth = FrontendRuntimePolicy(
+            profile="local",
+            source="live",
+            auth_mode="disabled",
+            rbac_mode="read-only-token",
+        )
+        self.assertIn(
+            "rbac_mode=read-only-token requires auth_mode=read-token",
+            disabled_auth.validation_issues(host="127.0.0.1"),
+        )
 
     def test_production_live_runtime_still_rejects_missing_database_config(self) -> None:
         policy = FrontendRuntimePolicy(

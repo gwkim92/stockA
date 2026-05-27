@@ -14,6 +14,7 @@ from stockanalysis.frontend.live_adapter import (
     FrontendLiveUnsupportedPathError,
     _attach_portfolio_review_feedback_maturity_visibility,
     _build_alert_destination_payload,
+    _build_auth_rbac_payload,
     _build_benchmark_rebalance_candidate_review_payload,
     _build_data_operations_artifact_runner_payload,
     _build_financial_statement_model_payload,
@@ -4287,13 +4288,19 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertTrue(production_api["attention_required"])
         self.assertEqual(production_api["connection_boundary"], "injected_executor")
         self.assertIn("production_api_server", payload["data"]["open_gates"])
+        auth_rbac = payload["data"]["auth_rbac"]
+        self.assertEqual(auth_rbac["status"], "missing_rbac_evidence")
+        self.assertTrue(auth_rbac["attention_required"])
+        self.assertFalse(auth_rbac["write_methods_allowed"])
+        self.assertFalse(auth_rbac["broker_submit_allowed"])
+        self.assertEqual(auth_rbac["order_boundary"], "read_only_no_order")
+        self.assertIn("auth_rbac", payload["data"]["open_gates"])
         alert_destination = payload["data"]["alert_destination"]
         self.assertEqual(alert_destination["status"], "missing_destination")
         self.assertTrue(alert_destination["attention_required"])
         self.assertIn("alert_destination", payload["data"]["open_gates"])
         self.assertEqual(payload["data"]["freshness"][0]["dataset"], "market.daily_price_bar")
         self.assertEqual(payload["data"]["freshness"][0]["latest_observation_date"], "2024-12-02")
-        self.assertIn("auth_rbac", payload["data"]["open_gates"])
         self.assertEqual(payload["data"]["provider_budget"]["status"], "not_configured")
         self.assertEqual(payload["data"]["provider_budget"]["provider"], "alpha_vantage")
         self.assertEqual(payload["data"]["manual_local_ingest_smoke"]["status"], "not_configured")
@@ -4507,6 +4514,7 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         gate_details = {item["gate_id"]: item for item in payload["data"]["open_gate_details"]}
         self.assertEqual(gate_details["auth_rbac"]["category"], "operational_blocker")
         self.assertEqual(gate_details["auth_rbac"]["severity"], "high")
+        self.assertIn("쓰기/주문 차단", gate_details["auth_rbac"]["summary"])
         self.assertEqual(gate_details["benchmark_drift_quality_attention"]["category"], "investment_review")
         self.assertNotIn("portfolio_review_decision_history_attention", gate_details)
         self.assertEqual(
@@ -4646,6 +4654,42 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertTrue(payload["database_configured"])
         self.assertEqual(payload["connection_boundary"], "psycopg_pool")
         self.assertEqual(payload["missing_conditions"], [])
+
+    def test_auth_rbac_payload_blocks_without_production_readonly_boundary(self) -> None:
+        with patch.dict(os.environ, {}, clear=True):
+            payload = _build_auth_rbac_payload(
+                production_api_server={"status": "missing_runtime_evidence"}
+            )
+
+        self.assertEqual(payload["status"], "missing_rbac_evidence")
+        self.assertTrue(payload["attention_required"])
+        self.assertIn("production_api_ready", payload["missing_conditions"])
+        self.assertIn("bearer_read_token", payload["missing_conditions"])
+        self.assertFalse(payload["write_methods_allowed"])
+        self.assertFalse(payload["broker_submit_allowed"])
+        self.assertEqual(payload["order_boundary"], "read_only_no_order")
+
+    def test_auth_rbac_payload_closes_with_readonly_role_boundary(self) -> None:
+        with patch.dict(
+            os.environ,
+            {
+                "STOCKANALYSIS_FRONTEND_API_AUTH_MODE": "read-token",
+                "STOCKANALYSIS_FRONTEND_API_READ_TOKEN": "secret",
+                "STOCKANALYSIS_FRONTEND_API_READ_ROLE": "analyst",
+            },
+            clear=True,
+        ):
+            payload = _build_auth_rbac_payload(
+                production_api_server={"status": "production_ready"}
+            )
+
+        self.assertEqual(payload["status"], "read_only_rbac_ready")
+        self.assertFalse(payload["attention_required"])
+        self.assertEqual(payload["mode"], "read-only-token")
+        self.assertEqual(payload["read_role"], "analyst")
+        self.assertEqual(payload["missing_conditions"], [])
+        self.assertEqual(payload["protected_paths"], ["/__endpoints", "/api/*"])
+        self.assertEqual(payload["allowed_methods"], ["GET", "HEAD", "OPTIONS"])
 
     def test_alert_destination_payload_blocks_when_missing(self) -> None:
         with patch.dict(os.environ, {}, clear=True):
@@ -5058,6 +5102,11 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertFalse(production_api["attention_required"])
         self.assertEqual(production_api["connection_boundary"], "psycopg_pool")
         self.assertNotIn("production_api_server", payload["data"]["open_gates"])
+        auth_rbac = payload["data"]["auth_rbac"]
+        self.assertEqual(auth_rbac["status"], "read_only_rbac_ready")
+        self.assertFalse(auth_rbac["attention_required"])
+        self.assertEqual(auth_rbac["read_role"], "viewer")
+        self.assertNotIn("auth_rbac", payload["data"]["open_gates"])
 
     def test_live_data_health_response_closes_alert_gate_with_external_test_evidence(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:

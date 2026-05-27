@@ -159,6 +159,26 @@ export type DataHealthData = {
     automatic_action_allowed: boolean;
     next_action: string;
   };
+  auth_rbac: {
+    status: string;
+    attention_required: boolean;
+    mode: string;
+    auth_mode: string;
+    read_role: string;
+    read_allowed_roles: string[];
+    read_token_configured: boolean;
+    role_valid: boolean;
+    protected_paths: string[];
+    public_paths: string[];
+    allowed_methods: string[];
+    write_methods_allowed: boolean;
+    automatic_order_allowed: boolean;
+    broker_submit_allowed: boolean;
+    order_boundary: string;
+    missing_conditions: string[];
+    summary: string;
+    next_action: string;
+  };
   alert_destination: {
     status: string;
     attention_required: boolean;

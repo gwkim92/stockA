@@ -194,8 +194,9 @@ Phase 1.9: API runtime boundary
 - status: runtime policy documented as `docs/frontend-api-runtime-boundary.md`.
 - module: `src/stockanalysis/frontend/runtime_policy.py`.
 - behavior: local unauthenticated runtime is loopback-only; production profile requires read-token auth, explicit CORS origin, and DB configuration for `live`/`auto`.
+- auth/RBAC boundary: production read-token mode now maps to a sanitized read-only principal role (`viewer` by default, or `STOCKANALYSIS_FRONTEND_API_READ_ROLE`). The frontend API remains read-only: write methods return 405 and broker/order submit remains blocked by `read_only_no_order`.
 - verification: `scripts/verify_frontend_api_runtime_boundary.sh`.
-- boundary: read-token is a deployment safety seam, not full user/role RBAC.
+- boundary: this is a read-only API role boundary, not a full user/session identity provider and not a write/audit command boundary.
 
 Phase 1.10: FastAPI read-only API server
 
@@ -237,6 +238,13 @@ Phase 6: operational hardening
 ## Next Task
 
 FastAPI read-only API server now exists and API operations have basic request id, timeout, structured log, liveness, readiness, deployment boundary hardening, and pagination conventions.
+
+Implemented in `auth-rbac-readonly-boundary-v1`:
+
+- read-token protected paths are tied to a read-only principal role.
+- `/api/data-health` exposes `auth_rbac` readiness without leaking secrets.
+- `auth_rbac` closes only when production API readiness, bearer token auth, read-only role, write method block, and broker submit block are proven.
+- live broker/order submit remains outside the frontend API boundary.
 
 Implemented in `frontend-api-server-observability-hardening`:
 
