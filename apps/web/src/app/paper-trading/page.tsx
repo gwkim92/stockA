@@ -79,9 +79,9 @@ function paperValidationState(trading: TradingReadinessData) {
   }
   if (trading.paper_validation.approved_action_count > 0) {
     return {
-      title: "가상 후보 검토 가능",
+      title: "가상 후보 있음 · 실거래 금지",
       tone: "risk-medium",
-      detail: "가상 검증 후보가 있지만 실거래는 별도 승인과 증권사 연결 이후에만 가능하다.",
+      detail: "가상 검증 후보가 있지만 이 화면은 주문을 만들지 않는다. 실거래는 별도 승인, 증권사 연결, 계좌 권한, 주문 한도, 감사 기록이 모두 붙은 뒤에만 가능하다.",
     };
   }
   return {
@@ -105,6 +105,47 @@ export default async function PaperTradingPage() {
   const candidateReview = riskGuardrail.rebalance_candidate_review;
   const blockedReasonDetails = trading.paper_validation.blocked_reasons.map((reason) => koBlockedReason(reason));
   const liveSubmitCount = trading.audit_summary.submitted_to_broker_count;
+  const simulatedActionCount = data.paper_actions.length;
+  const executionSummaryCards = [
+    {
+      label: "실제 주문",
+      title: liveSubmitCount > 0 ? "실제 주문 전송 기록 있음" : "실제 주문 전송 0건",
+      body:
+        liveSubmitCount > 0
+          ? "이 경우 페이퍼 화면을 보기 전에 감사 로그와 실제 계좌 내역을 먼저 대조해야 한다."
+          : "현재 서버 기준으로 증권사에 전송된 주문은 없다. 아래 후보는 모두 시뮬레이션이다.",
+      tone: liveSubmitCount > 0 ? "risk-high" : "risk-low",
+    },
+    {
+      label: "페이퍼 후보",
+      title: simulatedActionCount > 0 ? `${simulatedActionCount}개 시뮬레이션 후보` : "시뮬레이션 후보 없음",
+      body:
+        simulatedActionCount > 0
+          ? "추천과 현재 보유가 충돌하거나 조정 여지가 있는 항목이다. 주문 지시가 아니라 검증용 후보다."
+          : "추천, 가격, 보유 데이터가 갱신되면 후보가 다시 계산된다.",
+      tone: simulatedActionCount > 0 ? "risk-medium" : "risk-low",
+    },
+    {
+      label: "실거래 전환",
+      title: trading.gate_summary.blocked_count > 0 ? "차단됨" : "여전히 별도 승인 필요",
+      body:
+        trading.gate_summary.blocked_count > 0
+          ? "거래 안전 조건이 닫혀 있어 페이퍼 후보를 실거래로 전환하면 안 된다."
+          : "차단 조건이 없어 보여도 이 화면에는 주문 버튼이 없다. 실거래 전환은 별도 broker flow에서만 다룬다.",
+      tone: trading.gate_summary.blocked_count > 0 ? "risk-high" : "risk-medium",
+    },
+    {
+      label: "다음에 볼 곳",
+      title: trading.gate_summary.blocked_count > 0 ? "거래 안전 상태" : simulatedActionCount > 0 ? "후보 상세" : "추천 신호",
+      body:
+        trading.gate_summary.blocked_count > 0
+          ? "차단 사유를 먼저 확인한다. 주문 경계는 계속 읽기 전용이다."
+          : simulatedActionCount > 0
+            ? "후보별 추천서, 투자 논리, 종목 상세를 열어 근거가 맞는지 확인한다."
+            : "추천 후보와 보유 상태가 갱신됐는지 먼저 본다.",
+      tone: trading.gate_summary.blocked_count > 0 ? "risk-high" : "risk-medium",
+    },
+  ];
   const paperStatusCards = [
     {
       index: "01",
@@ -235,6 +276,34 @@ export default async function PaperTradingPage() {
         steps={decisionSteps}
       />
 
+      <section className="feature-map-panel reveal delay-1" aria-labelledby="paper-execution-boundary-title">
+        <div className="section-heading stacked-heading">
+          <span>현재 결론</span>
+          <h2 id="paper-execution-boundary-title">{validationState.title}</h2>
+          <p>
+            페이퍼 거래 화면은 “실제로 주문했다”가 아니라 “주문한다면 무엇이 문제인지 미리 계산했다”는 뜻이다.
+            실제 주문 전송, 시뮬레이션 후보, 차단 조건을 분리해서 본다.
+          </p>
+        </div>
+        <div className="insight-grid">
+          {executionSummaryCards.map((card) => (
+            <article className="insight-card" key={card.label}>
+              <span>{card.label}</span>
+              <strong className={`risk-tag ${card.tone}`}>{card.title}</strong>
+              <p>{card.body}</p>
+            </article>
+          ))}
+        </div>
+        <div className="btn-row decision-actions">
+          <Link className="btn btn-primary" href={"/trading-readiness" as Route}>
+            거래 안전 상태 보기
+          </Link>
+          <Link className="btn btn-secondary" href={"/recommendations" as Route}>
+            추천 신호 보기
+          </Link>
+        </div>
+      </section>
+
       <section className="status-rail compact-rail reveal delay-1" aria-label="가상 거래 요약">
         <article className="rail-cell">
           <span>추천 수</span>
@@ -254,7 +323,7 @@ export default async function PaperTradingPage() {
         <article className="rail-cell rail-critical">
           <span>추천/보유 충돌</span>
           <strong>{summary.position_recommendation_conflict_count}</strong>
-          <small>거래 안전 승인 필요 {summary.requires_human_approval_count}</small>
+          <small>안전 조건 확인 필요 {summary.requires_human_approval_count}</small>
         </article>
         <article className="rail-cell">
           <span>실제 주문 제출</span>
@@ -267,7 +336,7 @@ export default async function PaperTradingPage() {
         <div className="section-heading stacked-heading">
           <span>현재 단계</span>
           <h2 id="paper-current-state-title">{validationState.title}</h2>
-          <p>이 네 칸만 보면 현재가 테스트 중인지, 차단 중인지, 실제 주문이 나갔는지 바로 알 수 있다.</p>
+          <p>이 상태 카드만 보면 현재가 시뮬레이션 중인지, 차단 중인지, 실제 주문이 나갔는지 바로 알 수 있다.</p>
         </div>
         <p className="board-intro">{validationState.detail}</p>
         <div className="paper-state-grid">
@@ -345,8 +414,8 @@ export default async function PaperTradingPage() {
       <section className="split-ledger reveal delay-2">
         <article className="ledger-panel queue-panel">
           <div className="section-heading">
-            <span>가상 거래 테스트 결과</span>
-            <h2>추천과 현재 보유가 충돌하는 후보</h2>
+            <span>시뮬레이션 후보 목록</span>
+            <h2>주문이 아니라 검증용 후보만 보여준다</h2>
           </div>
           <div className="ledger-table-wrap">
             <table className="ledger-table data-health-table">
@@ -356,7 +425,7 @@ export default async function PaperTradingPage() {
                   <th scope="col">추천</th>
                   <th scope="col">현재 비중</th>
                   <th scope="col">목표 비중</th>
-                  <th scope="col">가상 조치</th>
+                  <th scope="col">시뮬레이션 조치</th>
                   <th scope="col">이유</th>
                   <th scope="col">상세</th>
                 </tr>
@@ -379,7 +448,10 @@ export default async function PaperTradingPage() {
                       </td>
                       <td>{formatPercent(action.current_weight)}</td>
                       <td>{formatPercent(action.target_weight)}</td>
-                      <td>{koCode(action.paper_action)}</td>
+                      <td>
+                        <strong>{koCode(action.paper_action)}</strong>
+                        <small>주문 아님</small>
+                      </td>
                       <td>{koReason(action.reason)}</td>
                       <td>
                         <div className="btn-row" style={{ marginTop: 0 }}>
@@ -402,7 +474,7 @@ export default async function PaperTradingPage() {
                   );
                 }) : (
                   <tr>
-                    <td colSpan={7}>현재 가상 거래 후보가 없다. 추천 후보나 보유 내역이 갱신되면 다시 표시된다.</td>
+                    <td colSpan={7}>현재 시뮬레이션 후보가 없다. 추천 후보나 보유 내역이 갱신되면 다시 표시된다.</td>
                   </tr>
                 )}
               </tbody>
