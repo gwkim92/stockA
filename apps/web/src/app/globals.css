@@ -2066,6 +2066,161 @@ h6 {
   font-weight: 900;
 }
 
+.data-health-command-panel {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.42fr) minmax(0, 1fr);
+  gap: clamp(18px, 2.4vw, 34px);
+  align-items: stretch;
+  padding: clamp(22px, 2.6vw, 38px);
+  background:
+    linear-gradient(135deg, rgba(251, 250, 246, 0.98), rgba(244, 238, 224, 0.82)),
+    radial-gradient(circle at 10% 12%, rgba(35, 116, 78, 0.15), transparent 34%),
+    repeating-linear-gradient(
+      90deg,
+      rgba(17, 18, 15, 0.055),
+      rgba(17, 18, 15, 0.055) 1px,
+      transparent 1px,
+      transparent 38px
+    );
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+}
+
+.data-health-command-lead {
+  display: grid;
+  align-content: space-between;
+  gap: 18px;
+  min-width: 0;
+  padding: clamp(14px, 1.6vw, 22px) 0;
+}
+
+.data-health-command-lead span,
+.data-health-command-card small {
+  color: var(--text-tertiary);
+  font-size: 0.72rem;
+  font-weight: 950;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.data-health-command-lead h2 {
+  max-width: 520px;
+  margin: 0;
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: clamp(2.2rem, 4.2vw, 4.8rem);
+  font-weight: 950;
+  letter-spacing: -0.07em;
+  line-height: 0.92;
+  word-break: keep-all;
+}
+
+.data-health-command-lead p {
+  max-width: 540px;
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.96rem;
+  font-weight: 780;
+  line-height: 1.68;
+  word-break: keep-all;
+}
+
+.data-health-command-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  min-width: 0;
+}
+
+.data-health-command-card {
+  display: grid;
+  min-width: 0;
+  min-height: 270px;
+  align-content: space-between;
+  gap: 12px;
+  padding: 18px;
+  background: color-mix(in srgb, var(--bg-panel) 90%, white);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  text-decoration: none;
+  transition: border-color 0.16s ease, transform 0.16s ease, background 0.16s ease;
+}
+
+.data-health-command-card:hover,
+.data-health-command-card:focus-visible {
+  background: var(--bg-panel);
+  border-color: var(--border-strong);
+  outline: none;
+  transform: translateY(-2px);
+}
+
+.data-health-command-card.ready {
+  background: color-mix(in srgb, var(--accent-green) 7%, var(--bg-panel));
+  border-color: color-mix(in srgb, var(--accent-green) 24%, var(--border-light));
+}
+
+.data-health-command-card.watch {
+  background: color-mix(in srgb, var(--accent-amber) 10%, var(--bg-panel));
+  border-color: color-mix(in srgb, var(--accent-amber) 30%, var(--border-light));
+}
+
+.data-health-command-card.block {
+  background: color-mix(in srgb, var(--accent-red) 8%, var(--bg-panel));
+  border-color: color-mix(in srgb, var(--accent-red) 30%, var(--border-light));
+}
+
+.data-health-command-card > span {
+  display: inline-grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  background: var(--text-primary);
+  color: var(--bg-panel);
+  font-size: 0.72rem;
+  font-weight: 950;
+}
+
+.data-health-command-card strong {
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: clamp(1.28rem, 1.65vw, 1.85rem);
+  font-weight: 900;
+  letter-spacing: -0.035em;
+  line-height: 1.02;
+  word-break: keep-all;
+}
+
+.data-health-command-card em {
+  color: var(--accent-blue);
+  font-size: 0.78rem;
+  font-style: normal;
+  font-weight: 900;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.data-health-command-card p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  font-weight: 740;
+  line-height: 1.58;
+  word-break: keep-all;
+}
+
+.data-health-command-card b {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 10px;
+  background: var(--text-primary);
+  border-radius: 999px;
+  color: var(--bg-panel);
+  font-size: 0.72rem;
+  font-weight: 900;
+}
+
 .detail-path-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -4685,6 +4840,7 @@ h6 {
   .recommendation-waterfall-panel,
   .ai-evidence-brief-panel,
   .intelligence-flow-panel,
+  .data-health-command-panel,
   .research-flow {
     grid-template-columns: 1fr;
   }
@@ -4698,7 +4854,8 @@ h6 {
   }
 
   .ai-evidence-brief-grid,
-  .intelligence-flow-grid {
+  .intelligence-flow-grid,
+  .data-health-command-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -4766,7 +4923,8 @@ h6 {
   .ai-evidence-brief-grid,
   .ai-evidence-brief-metrics,
   .intelligence-flow-grid,
-  .intelligence-brief-grid {
+  .intelligence-brief-grid,
+  .data-health-command-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -4908,6 +5066,8 @@ h6 {
   .intelligence-flow-panel,
   .intelligence-flow-grid,
   .intelligence-brief-grid,
+  .data-health-command-panel,
+  .data-health-command-grid,
   .research-flow {
     grid-template-columns: 1fr;
   }
@@ -4915,7 +5075,8 @@ h6 {
   .stock-decision-actions .btn,
   .recommendation-waterfall-actions .btn,
   .ai-evidence-brief-actions .btn,
-  .intelligence-flow-card b {
+  .intelligence-flow-card b,
+  .data-health-command-card b {
     width: 100%;
   }
 

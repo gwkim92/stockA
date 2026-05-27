@@ -1,5 +1,4 @@
 import type { Route } from "next";
-import { DecisionReviewStrip } from "@/components/decision-review-strip";
 import { getDataHealth } from "@/lib/frontend-api";
 import { koCode } from "@/lib/korean-labels";
 import type { DataHealthData } from "@/lib/types";
@@ -1774,6 +1773,66 @@ export default async function DataHealthPage() {
   const failedPipelines = data.pipeline_runs.filter((run) =>
     ["missing", "stale", "failed"].includes(run.health_status),
   ).length;
+  const accessAttention =
+    productionApiServer.attention_required || authRbac.attention_required || alertDestination.attention_required;
+  const allTimersActive =
+    profileScheduler.timer_count > 0 && profileScheduler.active_timer_count === profileScheduler.timer_count;
+  const dataQualityReady =
+    qualityAuditTone(qualityAudit) === "risk-low" && newsAiEvalTone(newsAiEvalQuality) === "risk-low";
+  const safeInvestmentBoundary =
+    outcomeWaitMonitor.weight_review_blocked
+    && !outcomeWaitMonitor.automatic_weight_change_allowed
+    && !outcomeWaitMonitor.broker_submit_allowed;
+  const operationVerdictCards = [
+    {
+      index: "01",
+      label: "서비스 접근",
+      title: accessAttention ? "접근 경계 확인 필요" : "읽기 전용 접근 정상",
+      body: accessAttention
+        ? "운영 API, 읽기 권한, 알림 목적지 중 주의 항목이 있다. 투자 판단 화면보다 접근 경계 확인이 먼저다."
+        : "FastAPI read-only, RBAC, 무료 알림 목적지가 연결되어 있고 주문/쓰기 경계는 닫혀 있다.",
+      metric: authRbac.read_role ? `역할 ${koCode(authRbac.read_role)}` : "읽기 역할 확인",
+      href: "#execution-log",
+      cta: "접근 경계 보기",
+      tone: accessAttention ? "watch" : "ready",
+    },
+    {
+      index: "02",
+      label: "자동 수집",
+      title: allTimersActive && failedPipelines === 0 ? "자동 수집 작동 중" : "수집 상태 확인 필요",
+      body: allTimersActive
+        ? "뉴스, 가격, 추천, 성과 측정 프로파일이 EC2 systemd 예약 실행기로 분리되어 돈다."
+        : "예약 실행기 일부가 꺼졌거나 실행 증거가 부족하다. 어떤 프로파일이 멈췄는지 확인해야 한다.",
+      metric: `${profileScheduler.active_timer_count}/${profileScheduler.timer_count}개 활성 · 실패 ${failedPipelines}개`,
+      href: "#scheduler-detail",
+      cta: "자동화 보기",
+      tone: allTimersActive && failedPipelines === 0 ? "ready" : "watch",
+    },
+    {
+      index: "03",
+      label: "데이터·AI 품질",
+      title: dataQualityReady ? "품질 기준 통과" : "품질 근거 확인 필요",
+      body: dataQualityReady
+        ? "뉴스 오염 감사와 AI 회귀평가가 현재 기준을 통과했다. 세부 샘플은 아래에서 확인한다."
+        : "중복 뉴스, 오분류, 번역/AI 회귀평가 중 확인할 항목이 있다. 추천 입력 전에 품질 근거를 본다.",
+      metric: `오염 의심 ${qualityAudit.issue_count}개 · AI 실패 ${newsAiEvalQuality.failed_case_count}개`,
+      href: "#quality-audit",
+      cta: "품질 감사 보기",
+      tone: dataQualityReady ? "ready" : "watch",
+    },
+    {
+      index: "04",
+      label: "투자 경계",
+      title: safeInvestmentBoundary ? "weight·주문 차단" : "투자 경계 확인 필요",
+      body: safeInvestmentBoundary
+        ? "성과 표본이 성숙하기 전까지 추천 weight 변경과 broker 주문 제출은 막혀 있다."
+        : "weight 검토나 주문 경계 조건이 예상과 다르다. 추천 산식/거래 안전 상태를 먼저 확인한다.",
+      metric: outcomeWaitMonitor.weight_review_blocked ? "weight 변경 금지" : "manual 검토 가능",
+      href: "#outcome-maturity-wait-monitor",
+      cta: "투자 경계 보기",
+      tone: safeInvestmentBoundary ? "ready" : "block",
+    },
+  ];
 	  const decisionCards = [
     {
       label: "지금 판단",
@@ -2134,62 +2193,6 @@ export default async function DataHealthPage() {
       check: "보유 검토와 가상 거래 검증으로 이어진다.",
     },
   ];
-  const decisionSteps = [
-    {
-      index: "01",
-      title: "수집 상태",
-      question: "데이터가 믿을 만한가",
-      status: failedPipelines > 0 ? `문제 ${failedPipelines}개` : koCode(data.overall_status),
-      body: "캔들, 뉴스, AI 분석, 추천 갱신이 최근에 성공했는지 확인한다.",
-      href: "/data-health" as Route,
-      cta: "현재 화면",
-      tone: failedPipelines > 0 ? "block" as const : "ok" as const,
-    },
-    {
-      index: "02",
-      title: "뉴스·AI 근거",
-      question: "새 뉴스가 무엇을 말하나",
-      status: runStateLabel(aiRun),
-      body: "원천 뉴스, 한국어 번역, AI 구조화, 차단 후보를 이어서 본다.",
-      href: "/intelligence" as Route,
-      cta: "뉴스 AI 보기",
-      tone:
-        aiRun?.health_status === "degraded" || aiRun?.latest_status === "succeeded_with_fallback"
-          ? "watch" as const
-          : "ok" as const,
-    },
-    {
-      index: "03",
-      title: "상위 흐름",
-      question: "거시 흐름이 어디로 내려가나",
-      status: runStateLabel(decisionRun),
-      body: "거시·도메인·테마 흐름이 어떤 종목군으로 전파되는지 확인한다.",
-      href: "/cycle-map" as Route,
-      cta: "흐름 지도",
-      tone: decisionRun?.health_status === "ok" ? "ok" as const : "watch" as const,
-    },
-    {
-      index: "04",
-      title: "추천·보유",
-      question: "판단 입력이 충분한가",
-      status: runStateLabel(remediationRun),
-      body: "추천 신호와 보유 논리, 미측정 성과, 보완 큐를 확인한다.",
-      href: "/recommendations" as Route,
-      cta: "추천 보기",
-      tone: remediationRun?.health_status === "ok" ? "ok" as const : "watch" as const,
-    },
-    {
-      index: "05",
-      title: "페이퍼 안전",
-      question: "실거래 전 단계가 막혔나",
-      status: `${qualityMetric(qualityAudit, "paper_validation_passed_count")}회 통과`,
-      body: "가상 검증과 거래 안전 조건을 보고 실제 주문과 분리되어 있는지 확인한다.",
-      href: "/paper-trading" as Route,
-      cta: "페이퍼 상태",
-      tone: qualityMetric(qualityAudit, "paper_validation_passed_count") > 0 ? "ok" as const : "watch" as const,
-    },
-  ];
-
   return (
     <div className="terminal-page">
       <section className="page-hero reveal" aria-labelledby="data-health-title">
@@ -2205,12 +2208,28 @@ export default async function DataHealthPage() {
         </p>
       </section>
 
-      <DecisionReviewStrip
-        activeIndex="01"
-        title="수집 상태가 통과해야 뒤 판단으로 넘어간다"
-        description="이 화면은 운영 로그가 아니라 판단 게이트다. 문제가 있으면 뉴스·추천·페이퍼 해석보다 수집 복구가 먼저다."
-        steps={decisionSteps}
-      />
+      <section className="data-health-command-panel reveal delay-1" aria-labelledby="data-health-command-title">
+        <div className="data-health-command-lead">
+          <span>운영 판정판</span>
+          <h2 id="data-health-command-title">정상인지, 멈췄는지, 막아뒀는지 먼저 본다.</h2>
+          <p>
+            이 화면은 로그를 읽는 곳이 아니다. 서비스 접근, 자동 수집, 데이터·AI 품질, 투자 경계가 통과해야
+            뉴스·종목·추천 화면을 신뢰할 수 있다.
+          </p>
+        </div>
+        <div className="data-health-command-grid">
+          {operationVerdictCards.map((card) => (
+            <a className={`data-health-command-card ${card.tone}`} href={card.href} key={card.index}>
+              <span>{card.index}</span>
+              <small>{card.label}</small>
+              <strong>{card.title}</strong>
+              <em>{card.metric}</em>
+              <p>{card.body}</p>
+              <b>{card.cta}</b>
+            </a>
+          ))}
+        </div>
+      </section>
 
       <section className="status-rail compact-rail reveal delay-1" aria-label="데이터 상태 요약">
         <article className="rail-cell">
@@ -2244,11 +2263,11 @@ export default async function DataHealthPage() {
 
 	      <section className="feature-map-panel reveal delay-1" aria-labelledby="priority-status-title">
 	        <div className="section-heading stacked-heading">
-	          <span>먼저 볼 상태</span>
-	          <h2 id="priority-status-title">이 5개만 먼저 보면 된다</h2>
+	          <span>오늘 조치</span>
+	          <h2 id="priority-status-title">문제가 있으면 여기서 바로 갈라진다</h2>
 	          <p>
-	            운영 로그를 먼저 읽지 않는다. 수집이 정상인지, 자동화가 돌고 있는지, 뉴스 AI 품질과 전문 분석 근거가
-	            추천 판단에 쓸 수 있는 상태인지부터 확인한다. 성과·포트폴리오·전문분석 상세는 접힌 영역에서 이어서 본다.
+	            상단 판정판에서 이상이 보이면 아래 카드가 실제 조치 위치로 보낸다. 성과·포트폴리오·전문분석 상세는
+	            접힌 영역에서 이어서 본다.
 	          </p>
 	        </div>
 	        <div className="decision-brief-grid" aria-label="데이터 수집 우선 판단 요약">
@@ -4269,7 +4288,7 @@ export default async function DataHealthPage() {
             </dl>
           </article>
 
-          <article className="ledger-panel">
+          <article className="ledger-panel" id="runtime-boundary">
             <div className="section-heading stacked-heading">
               <span>조건과 최신성</span>
               <h2>조건과 데이터 최신성</h2>
