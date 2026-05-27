@@ -2,8 +2,8 @@
 
 ## Status
 
-- current status: local verification passed; EC2 deploy/smoke remains.
-- completed locally: API payload, frontend visibility, gate policy, tests, Next typecheck/build, roadmap verify, and AWH verify.
+- current status: implemented and EC2-smoked.
+- completed: API payload, frontend visibility, gate policy, tests, Next typecheck/build, roadmap verify, AWH verify, EC2 deploy, and route smoke.
 
 ## Context
 
@@ -27,7 +27,7 @@
 
 ## Exact Next Step
 
-- exact next step: deploy to EC2 and confirm `/api/data-health.open_gates` no longer includes `production_api_server` while `production_api_server.status=production_ready`.
+- exact next step: continue with remaining open gates: `auth_rbac`, `alert_destination`, and `portfolio_review_feedback_calibration_attention`.
 
 ## Local Verification
 
@@ -37,6 +37,15 @@
 - `cd apps/web && npm run build` -> passed.
 - `bash scripts/verify_project_execution_roadmap.sh` -> passed.
 - `PYTHONPATH=/Users/woody/ai/agent-work-harness/src /opt/homebrew/bin/python3.13 -m awh verify --repo . --task production-api-server-gate-evidence-v1` -> passed.
+
+## EC2 Verification
+
+- deployed commit: `e238663`.
+- services: `stockanalysis-frontend-api.service` active, `stockanalysis-web.service` active.
+- `/__health`: `runtime_profile=production`, `source_mode=live`, `auth_mode=read-token`, `connection_boundary=psycopg_pool`.
+- `/api/data-health`: `production_api_server.status=production_ready`, `attention_required=false`, `connection_boundary=psycopg_pool`.
+- `/api/data-health.open_gates`: `['auth_rbac', 'alert_destination', 'portfolio_review_feedback_calibration_attention']`.
+- `/data-health`: HTTP 200 and renders `운영 준비 확인`, `production · 실거래 · psycopg pool`, `read-token`, and the three remaining open gates.
 
 ## Guardrails
 

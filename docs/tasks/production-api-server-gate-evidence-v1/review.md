@@ -14,7 +14,10 @@
 - `cd apps/web && npm run build` -> passed.
 - `bash scripts/verify_project_execution_roadmap.sh` -> passed.
 - `PYTHONPATH=/Users/woody/ai/agent-work-harness/src /opt/homebrew/bin/python3.13 -m awh verify --repo . --task production-api-server-gate-evidence-v1` -> passed.
+- EC2 `/__health` -> `runtime_profile=production`, `source_mode=live`, `auth_mode=read-token`, `connection_boundary=psycopg_pool`.
+- EC2 `/api/data-health` -> `production_api_server.status=production_ready`, `attention_required=false`, and `production_api_server` removed from `open_gates`.
+- EC2 `/data-health` -> HTTP 200 and renders production API readiness evidence.
 
 ## Remaining
 
-- Deploy and smoke on EC2.
+- Remaining open gates are outside this task: `auth_rbac`, `alert_destination`, and `portfolio_review_feedback_calibration_attention`.
