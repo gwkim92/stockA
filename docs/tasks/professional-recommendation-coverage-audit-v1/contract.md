@@ -46,4 +46,4 @@
 - [x] Audit rows show recommendation id, symbol, layer checks, source blocker, thesis, paper validation, and read-only boundary.
 - [x] `/data-health` renders the recommendation-level audit.
 - [x] Local verification passes.
-- [ ] EC2 route smoke confirms live rendering.
+- [x] EC2 route smoke confirms live rendering.
