@@ -1,7 +1,6 @@
 import Link from "next/link";
 import type { Route } from "next";
 
-import { DecisionReviewStrip } from "@/components/decision-review-strip";
 import { getPaperTradingPreview, getTradingReadiness } from "@/lib/frontend-api";
 import { koBlockedReason, koCode, koLabel, koReason } from "@/lib/korean-labels";
 import type { TradingReadinessData } from "@/lib/types";
@@ -106,44 +105,60 @@ export default async function PaperTradingPage() {
   const blockedReasonDetails = trading.paper_validation.blocked_reasons.map((reason) => koBlockedReason(reason));
   const liveSubmitCount = trading.audit_summary.submitted_to_broker_count;
   const simulatedActionCount = data.paper_actions.length;
-  const executionSummaryCards = [
+  const paperCommandCards = [
     {
+      index: "01",
       label: "실제 주문",
       title: liveSubmitCount > 0 ? "실제 주문 전송 기록 있음" : "실제 주문 전송 0건",
+      metric: liveSubmitCount > 0 ? `${liveSubmitCount}건 확인 필요` : "증권사 전송 없음",
       body:
         liveSubmitCount > 0
           ? "이 경우 페이퍼 화면을 보기 전에 감사 로그와 실제 계좌 내역을 먼저 대조해야 한다."
           : "현재 서버 기준으로 증권사에 전송된 주문은 없다. 아래 후보는 모두 시뮬레이션이다.",
-      tone: liveSubmitCount > 0 ? "risk-high" : "risk-low",
+      href: "#paper-current-state",
+      cta: "주문 경계 보기",
+      tone: liveSubmitCount > 0 ? "block" : "ready",
     },
     {
-      label: "페이퍼 후보",
-      title: simulatedActionCount > 0 ? `${simulatedActionCount}개 시뮬레이션 후보` : "시뮬레이션 후보 없음",
+      index: "02",
+      label: "페이퍼 검증",
+      title: validationState.title,
+      metric: simulatedActionCount > 0 ? `${simulatedActionCount}개 후보` : "후보 대기",
       body:
         simulatedActionCount > 0
           ? "추천과 현재 보유가 충돌하거나 조정 여지가 있는 항목이다. 주문 지시가 아니라 검증용 후보다."
           : "추천, 가격, 보유 데이터가 갱신되면 후보가 다시 계산된다.",
-      tone: simulatedActionCount > 0 ? "risk-medium" : "risk-low",
+      href: "#paper-action-candidates",
+      cta: simulatedActionCount > 0 ? "후보 보기" : "추천 대기 보기",
+      tone: simulatedActionCount > 0 ? "watch" : "ready",
     },
     {
-      label: "실거래 전환",
+      index: "03",
+      label: "차단 조건",
       title: trading.gate_summary.blocked_count > 0 ? "차단됨" : "여전히 별도 승인 필요",
+      metric: `${trading.gate_summary.blocked_count}개 차단`,
       body:
         trading.gate_summary.blocked_count > 0
           ? "거래 안전 조건이 닫혀 있어 페이퍼 후보를 실거래로 전환하면 안 된다."
           : "차단 조건이 없어 보여도 이 화면에는 주문 버튼이 없다. 실거래 전환은 별도 broker flow에서만 다룬다.",
-      tone: trading.gate_summary.blocked_count > 0 ? "risk-high" : "risk-medium",
+      href: "/trading-readiness",
+      cta: "거래 안전 보기",
+      tone: trading.gate_summary.blocked_count > 0 ? "block" : "watch",
     },
     {
+      index: "04",
       label: "다음에 볼 곳",
       title: trading.gate_summary.blocked_count > 0 ? "거래 안전 상태" : simulatedActionCount > 0 ? "후보 상세" : "추천 신호",
+      metric: trading.gate_summary.blocked_count > 0 ? "차단 사유 우선" : "읽기 전용 검토",
       body:
         trading.gate_summary.blocked_count > 0
           ? "차단 사유를 먼저 확인한다. 주문 경계는 계속 읽기 전용이다."
           : simulatedActionCount > 0
             ? "후보별 추천서, 투자 논리, 종목 상세를 열어 근거가 맞는지 확인한다."
             : "추천 후보와 보유 상태가 갱신됐는지 먼저 본다.",
-      tone: trading.gate_summary.blocked_count > 0 ? "risk-high" : "risk-medium",
+      href: simulatedActionCount > 0 ? "#paper-action-candidates" : "/recommendations",
+      cta: simulatedActionCount > 0 ? "후보 검토" : "추천 보기",
+      tone: trading.gate_summary.blocked_count > 0 ? "block" : "watch",
     },
   ];
   const paperStatusCards = [
@@ -201,59 +216,6 @@ export default async function PaperTradingPage() {
         : `최신 위험 예산 검증이 ${koCode(riskGuardrail.risk_gate_decision)} 상태라 가상 검증 입력을 막고 있다.`,
     },
   ];
-  const decisionSteps = [
-    {
-      index: "01",
-      title: "수집 상태",
-      question: "추천 입력이 최신인가",
-      status: data.latest_recommendation_batch.as_of_date || "추천 없음",
-      body: "페이퍼 검증은 최신 추천과 가격/보유 데이터가 있어야 의미가 있다.",
-      href: "/data-health" as Route,
-      cta: "수집 상태",
-      tone: data.latest_recommendation_batch.as_of_date ? "ok" as const : "watch" as const,
-    },
-    {
-      index: "02",
-      title: "뉴스·AI 근거",
-      question: "추천 근거가 확인됐나",
-      status: `${summary.recommendation_count}개 추천`,
-      body: "AI 근거는 추천의 입력일 뿐이고 주문을 직접 결정하지 않는다.",
-      href: "/intelligence" as Route,
-      cta: "뉴스 AI",
-      tone: summary.recommendation_count > 0 ? "ok" as const : "watch" as const,
-    },
-    {
-      index: "03",
-      title: "상위 흐름",
-      question: "시장 흐름과 충돌하나",
-      status: "흐름 확인 필요",
-      body: "페이퍼 후보가 상위 흐름과 반대로 움직이는지 사이클맵에서 확인한다.",
-      href: "/cycle-map" as Route,
-      cta: "흐름 지도",
-      tone: "watch" as const,
-    },
-    {
-      index: "04",
-      title: "추천·보유",
-      question: "보유와 추천이 충돌하나",
-      status: `${summary.position_recommendation_conflict_count}개 충돌`,
-      body: "추천 액션과 현재 비중이 맞지 않으면 실거래가 아니라 검토 후보로 남긴다.",
-      href: "/recommendations" as Route,
-      cta: "추천 보기",
-      tone: summary.position_recommendation_conflict_count > 0 ? "watch" as const : "ok" as const,
-    },
-    {
-      index: "05",
-      title: "페이퍼 안전",
-      question: "실거래로 넘어갈 수 있나",
-      status: validationState.title,
-      body: "이 화면은 가상 주문 검증이다. 증권사 제출은 안전 조건과 별도 승인 전까지 막힌다.",
-      href: "/paper-trading" as Route,
-      cta: "현재 화면",
-      tone: validationState.tone === "risk-high" ? "block" as const : "watch" as const,
-    },
-  ];
-
   return (
     <div className="terminal-page">
       <section className="page-hero reveal" aria-labelledby="paper-title">
@@ -269,38 +231,26 @@ export default async function PaperTradingPage() {
         </p>
       </section>
 
-      <DecisionReviewStrip
-        activeIndex="05"
-        title="페이퍼 거래는 실거래 직전이 아니라 안전 검증 단계다"
-        description="추천 후보를 주문으로 바꾸지 않는다. 보유 충돌, 승인 후보, 차단 조건, 실제 주문 제출 여부를 분리해서 본다."
-        steps={decisionSteps}
-      />
-
-      <section className="feature-map-panel reveal delay-1" aria-labelledby="paper-execution-boundary-title">
-        <div className="section-heading stacked-heading">
-          <span>현재 결론</span>
-          <h2 id="paper-execution-boundary-title">{validationState.title}</h2>
+      <section className="paper-command-panel reveal delay-1" aria-labelledby="paper-execution-boundary-title">
+        <div className="paper-command-lead">
+          <span>페이퍼 거래 판정판</span>
+          <h2 id="paper-execution-boundary-title">주문이 나갔는지, 후보일 뿐인지 먼저 구분한다.</h2>
           <p>
-            페이퍼 거래 화면은 “실제로 주문했다”가 아니라 “주문한다면 무엇이 문제인지 미리 계산했다”는 뜻이다.
-            실제 주문 전송, 시뮬레이션 후보, 차단 조건을 분리해서 본다.
+            페이퍼 거래는 주문 실행이 아니다. 실제 주문 전송 여부, 시뮬레이션 후보,
+            차단 조건, 다음 확인 위치를 분리해서 본다.
           </p>
         </div>
-        <div className="insight-grid">
-          {executionSummaryCards.map((card) => (
-            <article className="insight-card" key={card.label}>
-              <span>{card.label}</span>
-              <strong className={`risk-tag ${card.tone}`}>{card.title}</strong>
+        <div className="paper-command-grid">
+          {paperCommandCards.map((card) => (
+            <a className={`paper-command-card ${card.tone}`} href={card.href} key={card.index}>
+              <span>{card.index}</span>
+              <small>{card.label}</small>
+              <strong>{card.title}</strong>
+              <em>{card.metric}</em>
               <p>{card.body}</p>
-            </article>
+              <b>{card.cta}</b>
+            </a>
           ))}
-        </div>
-        <div className="btn-row decision-actions">
-          <Link className="btn btn-primary" href={"/trading-readiness" as Route}>
-            거래 안전 상태 보기
-          </Link>
-          <Link className="btn btn-secondary" href={"/recommendations" as Route}>
-            추천 신호 보기
-          </Link>
         </div>
       </section>
 
@@ -332,7 +282,7 @@ export default async function PaperTradingPage() {
         </article>
       </section>
 
-      <section className="paper-state-panel reveal delay-1" aria-labelledby="paper-current-state-title">
+      <section className="paper-state-panel reveal delay-1" id="paper-current-state" aria-labelledby="paper-current-state-title">
         <div className="section-heading stacked-heading">
           <span>현재 단계</span>
           <h2 id="paper-current-state-title">{validationState.title}</h2>
@@ -411,7 +361,7 @@ export default async function PaperTradingPage() {
         </div>
       </section>
 
-      <section className="split-ledger reveal delay-2">
+      <section className="split-ledger reveal delay-2" id="paper-action-candidates">
         <article className="ledger-panel queue-panel">
           <div className="section-heading">
             <span>시뮬레이션 후보 목록</span>

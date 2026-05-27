@@ -2,38 +2,25 @@
 
 ## Status
 
-- completed: local implementation, EC2 deployment, and route smoke are complete.
+- status: in_progress
+- in progress: `/paper-trading` 상단을 페이퍼 거래 판정판 중심으로 재구성하는 작업을 진행 중이다.
 
-## Completed
+## Intent
 
-- completed: created task contract.
-- completed: added `/paper-trading` current-state summary for live order, simulation candidates, live conversion blocker, and next link.
-- completed: clarified that paper actions are simulation candidates and not orders.
-- completed: renamed candidate table language from virtual action to simulation action.
-- completed: deployed commit `2dfc4d9` to EC2 and restarted `stockanalysis-web.service`.
+페이퍼 거래 화면은 주문 화면이 아니라 안전 검증 화면이다. 사용자는 첫 화면에서 실제 주문이 나갔는지, 후보가 시뮬레이션인지, 어떤 조건이 실거래 전환을 막는지 바로 알아야 한다.
 
-## Verification
+## Boundaries
 
-- `cd apps/web && npm run typecheck`: passed locally.
-- `cd apps/web && npm run build`: passed locally.
-- `git diff --check`: passed locally.
-- `PYTHONPATH=/Users/woody/ai/agent-work-harness/src python3 -m awh verify --repo . --task paper-trading-status-clarity-v2`: passed locally.
-- EC2 `cd apps/web && npm run typecheck`: passed.
-- EC2 `cd apps/web && npm run build`: passed.
-- EC2 `systemctl is-active stockanalysis-web.service`: `active`.
-- EC2 and local tunnel `/paper-trading` route smoke:
-  - `현재 결론`: rendered.
-  - `실제 주문 전송 0건`: rendered.
-  - `시뮬레이션 후보`: rendered.
-  - `실거래 전환`: rendered.
-  - `주문 아님`: rendered.
-  - `거래 안전 상태 보기`: rendered.
+- recommendation weight, scoring formula, benchmark, portfolio position, broker/order flow는 변경하지 않는다.
+- API, DB schema, scheduler, AI batch는 변경하지 않는다.
+
+## Verification Log
+
+- passed: `cd apps/web && npm run typecheck`
+- passed: `cd apps/web && npm run build`
+- passed: `PYTHONPATH=/Users/woody/ai/agent-work-harness/src python3 -m awh verify --repo . --task paper-trading-status-clarity-v2`
+- passed: `git diff --check`
 
 ## Next Step
 
-- exact next step: continue page-by-page UX cleanup with `stocks-list-action-affordance-v2`.
-
-## Notes
-
-- This task is frontend information architecture and copy only.
-- Broker submit and live order flow must remain blocked.
+- exact next step: 변경사항을 커밋하고 EC2에 배포한 뒤 `/paper-trading` route smoke를 수행한다.
