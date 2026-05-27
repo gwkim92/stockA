@@ -15,8 +15,9 @@
   - `stockanalysis-operations internal-rag-context-run` added as a read-only context preview command.
   - stock detail page shows internal AI reference material readiness.
   - local Python, frontend, AWH, and verification-script checks passed.
+  - EC2 commit `bfa11d2` deployed and smoke verified.
 - 진행 중:
-  - EC2 deploy and smoke.
+  - none.
 - 막힌 점:
   - none.
 
@@ -33,6 +34,18 @@
 - passed: `cd apps/web && npm run build`
 - passed: `PYTHONPATH=/Users/woody/ai/agent-work-harness/src /private/tmp/stockanalysis-runtime/venv/bin/python -m awh verify --repo . --task internal-rag-retrieval-foundation-v1`
 - passed: `git diff --check`
+
+## EC2 Verification
+
+- deployed commit: `bfa11d2`.
+- `stockanalysis-frontend-api.service`: active.
+- `stockanalysis-web.service`: active.
+- EC2 targeted Python smoke passed for `tests.test_internal_rag`, evidence neighborhood API contract test, and internal RAG CLI tests.
+- EC2 Next production build passed.
+- CLI smoke wrote `/opt/stockanalysis/artifacts/internal-rag/nvda-context.json`.
+- `/api/ai/evidence-neighborhoods/NVDA?asOfDate=2026-05-27&maxItems=12`: `internal_rag_context.status=ready`, `event_count=12`, `evidence_chunk_count=12`, `translated_event_count=12`, all 5 quality gates passed.
+- API smoke confirmed `live_llm_call_enabled=false`, `write_enabled=false`, no `vector_storage_uri`, and no read-token env name in response body.
+- `/stocks/NVDA`: HTTP 200 and rendered `AI가 이 종목을 다시 분석할 때 참고하는 자료` plus `외부 유료 RAG`.
 
 ## Risks
 

@@ -2,7 +2,7 @@
 
 ## Status
 
-- Implemented locally. EC2 smoke pending.
+- Complete. Implemented, pushed, deployed to EC2, and smoke verified.
 
 ## Notes
 
@@ -18,6 +18,10 @@
 - `cd apps/web && npm run build`: passed.
 - `PYTHONPATH=/Users/woody/ai/agent-work-harness/src /private/tmp/stockanalysis-runtime/venv/bin/python -m awh verify --repo . --task internal-rag-retrieval-foundation-v1`: passed.
 - `git diff --check`: passed.
+- EC2 deploy: commit `bfa11d2`, `stockanalysis-frontend-api.service=active`, `stockanalysis-web.service=active`.
+- EC2 CLI smoke: `/opt/stockanalysis/artifacts/internal-rag/nvda-context.json` written.
+- EC2 API smoke: `/api/ai/evidence-neighborhoods/NVDA?asOfDate=2026-05-27&maxItems=12` returned `internal_rag_context.status=ready`, event count `12`, chunk count `12`, translated event count `12`, all 5 quality gates passed, no vector storage URI leak.
+- EC2 route smoke: `/stocks/NVDA` rendered `AI가 이 종목을 다시 분석할 때 참고하는 자료` and `외부 유료 RAG`.
 
 ## Remaining Risks
 
