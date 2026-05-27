@@ -177,6 +177,167 @@ function providerLabel(provider: string) {
   return koCode(provider);
 }
 
+function stockDecisionOutcome(
+  data: StockDetailData,
+  guardrail: ProfessionalSourceGuardrail,
+  hasPriceData: boolean,
+) {
+  if (guardrail.blocked) {
+    return {
+      tone: "blocked",
+      label: "입력 차단",
+      title: `${data.symbol}은 전문 판단 입력에서 제외`,
+      body: guardrail.summary,
+    };
+  }
+  if (data.recommendation && data.position) {
+    return {
+      tone: "ready",
+      label: "추천·보유 연결",
+      title: `${data.symbol}은 추천과 보유가 모두 연결됨`,
+      body: "추천 논리, 현재 보유 비중, thesis, 페이퍼 검증 상태가 서로 맞는지 확인한다.",
+    };
+  }
+  if (data.recommendation) {
+    return {
+      tone: "ready",
+      label: "추천 검토",
+      title: `${data.symbol}은 추천 근거가 있음`,
+      body: "추천 상세에서 점수 구성, 기업 분석, 뉴스·사이클 근거, 주문 차단 경계를 함께 확인한다.",
+    };
+  }
+  if (data.position) {
+    return {
+      tone: "watch",
+      label: "보유 검토",
+      title: `${data.symbol}은 보유 중이지만 최신 추천은 없음`,
+      body: "보유 thesis와 최근 뉴스·상위 흐름이 유지 조건을 깨지 않는지 먼저 확인한다.",
+    };
+  }
+  if (!hasPriceData) {
+    return {
+      tone: "watch",
+      label: "가격 보강 필요",
+      title: `${data.symbol}은 가격 데이터가 부족함`,
+      body: "뉴스·상위 흐름은 볼 수 있지만 가격 차트와 수익률 판단은 아직 보류한다.",
+    };
+  }
+  return {
+    tone: "neutral",
+    label: "관찰 종목",
+    title: `${data.symbol}은 관찰 단계`,
+    body: "가격 데이터는 있으나 추천·보유 연결은 아직 없다. 뉴스와 사이클 근거가 쌓이는지 확인한다.",
+  };
+}
+
+function StockDecisionBrief({
+  data,
+  neighborhood,
+  guardrail,
+  hasPriceData,
+  linkedThesisId,
+}: {
+  data: StockDetailData;
+  neighborhood: AiEvidenceNeighborhoodData;
+  guardrail: ProfessionalSourceGuardrail;
+  hasPriceData: boolean;
+  linkedThesisId: string | null;
+}) {
+  const outcome = stockDecisionOutcome(data, guardrail, hasPriceData);
+  const newsCount = data.recent_events.length + data.macro_flow_impacts.length;
+  const cards = [
+    {
+      label: "추천",
+      title: data.recommendation ? koCode(data.recommendation.action) : "추천 없음",
+      body: data.recommendation
+        ? `점수 ${formatPercent(data.recommendation.score)} · 상태 ${koCode(data.recommendation.status)}`
+        : "아직 추천 점수나 추천 상세가 없다.",
+      href: data.recommendation ? recommendationHref(data.recommendation.recommendation_id) : undefined,
+      hrefLabel: data.recommendation ? "추천 근거 보기" : undefined,
+      tone: data.recommendation ? "ready" : "watch",
+    },
+    {
+      label: "보유",
+      title: data.position ? formatPercent(data.position.weight) : "미보유",
+      body: data.position
+        ? `${koLabel(data.position.portfolio_name)} 기준 · 평가액 ${formatCurrency(data.position.market_value, data.currency_code)}`
+        : "포트폴리오 스냅샷에 보유 포지션이 없다.",
+      href: "/portfolio/coverage",
+      hrefLabel: "보유 검토 보기",
+      tone: data.position ? "ready" : "neutral",
+    },
+    {
+      label: "뉴스·흐름",
+      title: `${newsCount.toLocaleString("ko-KR")}개 연결`,
+      body: `직접 뉴스 ${data.recent_events.length}개 · 상위 흐름 ${data.macro_flow_impacts.length}개 · AI 근거 ${neighborhood.summary.ai_artifact_count}개`,
+      href: newsCount > 0 ? "#stock-flow-impacts" : "/intelligence",
+      hrefLabel: newsCount > 0 ? "뉴스 근거 보기" : "인텔리전스 보기",
+      tone: newsCount > 0 ? "ready" : "watch",
+    },
+    {
+      label: "투자 논리",
+      title: linkedThesisId ? "Thesis 연결" : "Thesis 없음",
+      body: linkedThesisId
+        ? "매수 이유, 유지 조건, 무효화 조건을 따로 확인한다."
+        : "중장기 판단 전 thesis 생성이나 연결이 필요하다.",
+      href: linkedThesisId ? thesisHref(linkedThesisId) : undefined,
+      hrefLabel: linkedThesisId ? "투자 논리 보기" : undefined,
+      tone: linkedThesisId ? "ready" : "blocked",
+    },
+    {
+      label: "페이퍼·주문",
+      title: guardrail.broker_submit_allowed ? "주문 허용" : "주문 차단",
+      body: guardrail.paper_validation_input_allowed
+        ? "페이퍼 검증 입력 가능. 실제 증권사 주문은 별도 경계에서 계속 통제한다."
+        : "페이퍼 검증 입력도 차단된다. 원천 데이터 보강 전까지 판단에 쓰지 않는다.",
+      href: "/paper-trading",
+      hrefLabel: "페이퍼 상태 보기",
+      tone: guardrail.broker_submit_allowed || guardrail.paper_validation_input_allowed ? "watch" : "blocked",
+    },
+  ];
+
+  return (
+    <section className={`stock-decision-panel tone-${outcome.tone} reveal delay-1`} aria-labelledby="stock-decision-title">
+      <div className="stock-decision-lead">
+        <span>{outcome.label}</span>
+        <h2 id="stock-decision-title">{outcome.title}</h2>
+        <p>{outcome.body}</p>
+        <div className="stock-decision-actions">
+          {data.recommendation ? (
+            <Link className="btn btn-primary" href={recommendationHref(data.recommendation.recommendation_id)}>
+              추천 상세 보기
+            </Link>
+          ) : null}
+          {linkedThesisId ? (
+            <Link className="btn btn-secondary" href={thesisHref(linkedThesisId)}>
+              투자 논리 보기
+            </Link>
+          ) : null}
+          <Link className="btn btn-secondary" href="/paper-trading">
+            페이퍼 거래 상태
+          </Link>
+        </div>
+      </div>
+      <div className="stock-decision-grid">
+        {cards.map((card) => (
+          <article className={`stock-decision-card tone-${card.tone}`} key={card.label}>
+            <span>{card.label}</span>
+            <strong>{card.title}</strong>
+            <p>{card.body}</p>
+            {card.href && card.hrefLabel ? (
+              card.href.startsWith("#") ? (
+                <a href={card.href}>{card.hrefLabel}</a>
+              ) : (
+                <Link href={card.href as Route}>{card.hrefLabel}</Link>
+              )
+            ) : null}
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function competitivePositionLabel(value: string) {
   const labels: Record<string, string> = {
     leader: "경쟁 우위",
@@ -1158,10 +1319,18 @@ export default async function StockDetailPage({ params }: StockDetailPageProps) 
           {hasEvidenceOnlyData ? `${data.symbol} 시장 흐름과 수집 상태` : `${data.symbol} 데이터와 판단 근거`}
         </h1>
         <p>
-          가격 차트, 추천 상태, 보유 상태, 직접 뉴스, 상위 흐름 전파를 함께 확인한다.
-          주문 판단보다 먼저 근거가 충분한지 확인하는 화면이다.
+          먼저 현재 결론을 보고, 그 다음 가격·추천·보유·뉴스·상위 흐름·thesis·페이퍼 경계를 같은 순서로
+          확인한다. 이 화면은 판단 근거를 읽는 곳이며 주문을 만들지 않는다.
         </p>
       </section>
+
+      <StockDecisionBrief
+        data={data}
+        neighborhood={neighborhood}
+        guardrail={sourceGuardrail}
+        hasPriceData={hasPriceData}
+        linkedThesisId={linkedThesisId}
+      />
 
       <section className="status-rail compact-rail reveal delay-1" aria-label="종목 요약">
         <div className="rail-cell">
@@ -1213,12 +1382,12 @@ export default async function StockDetailPage({ params }: StockDetailPageProps) 
         </section>
       ) : null}
 
-      <section className="bento-grid reveal delay-2">
+      <section className="bento-grid reveal delay-2" id="stock-price-data" aria-label="가격 데이터와 차트">
         <article className="bento-card span-3">
           <div className="section-heading">
             <div>
-              <span className="metric-sub">수집된 가격 차트</span>
-              <h2>가격 흐름</h2>
+              <span className="metric-sub">1. 가격 데이터</span>
+              <h2>가격 흐름은 추천 근거가 아니라 상태 확인부터 한다</h2>
             </div>
             <Link className="btn btn-secondary" href="/data-health">
               수집 상태 보기
@@ -1242,12 +1411,12 @@ export default async function StockDetailPage({ params }: StockDetailPageProps) 
         </article>
       </section>
 
-      <section className="bento-grid reveal delay-3">
+      <section className="bento-grid reveal delay-3" id="stock-recommendation-status" aria-label="추천과 보유 상태">
         <article className="bento-card span-2">
           <div className="section-heading">
             <div>
-              <span className="metric-sub">최근 추천</span>
-              <h2>투자 판단 상태</h2>
+              <span className="metric-sub">2. 추천 판단</span>
+              <h2>추천은 상세 근거가 있을 때만 읽는다</h2>
             </div>
             {data.recommendation ? (
               <Link className="btn btn-primary" href={recommendationHref(data.recommendation.recommendation_id)}>
@@ -1280,8 +1449,8 @@ export default async function StockDetailPage({ params }: StockDetailPageProps) 
         <article className="bento-card span-2">
           <div className="section-heading">
             <div>
-              <span className="metric-sub">포트폴리오</span>
-              <h2>보유 상태</h2>
+              <span className="metric-sub">3. 보유 상태</span>
+              <h2>보유 중이면 추천·thesis와 충돌하는지 본다</h2>
             </div>
             <Link className="btn btn-secondary" href="/portfolio/coverage">
               포트폴리오 보기
@@ -1407,11 +1576,11 @@ export default async function StockDetailPage({ params }: StockDetailPageProps) 
 
       <EvidenceNeighborhoodPanel neighborhood={neighborhood} />
 
-      <section className="bento-card span-4 reveal delay-4">
+      <section className="bento-card span-4 reveal delay-4" id="stock-flow-impacts">
         <div className="section-heading">
           <div>
-            <span className="metric-sub">상위 흐름 전파</span>
-            <h2>시장·테마 뉴스가 이 종목에 준 영향</h2>
+            <span className="metric-sub">4. 상위 흐름 전파</span>
+            <h2>회사명이 없어도 거시·테마 흐름은 종목에 영향을 줄 수 있다</h2>
           </div>
           <Link className="btn btn-secondary" href="/intelligence">
             흐름 분석 보기
@@ -1469,11 +1638,11 @@ export default async function StockDetailPage({ params }: StockDetailPageProps) 
         </div>
       </section>
 
-      <section className="bento-card span-4 reveal delay-4">
+      <section className="bento-card span-4 reveal delay-4" id="stock-direct-events">
         <div className="section-heading">
           <div>
-            <span className="metric-sub">직접 뉴스</span>
-            <h2>이 종목이 직접 연결된 이벤트</h2>
+            <span className="metric-sub">5. 직접 뉴스</span>
+            <h2>회사나 티커가 직접 연결된 뉴스만 따로 본다</h2>
           </div>
           <Link className="btn btn-secondary" href={`/events?symbol=${encodeURIComponent(data.symbol)}` as Route}>
             수집 뉴스

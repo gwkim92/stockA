@@ -1905,6 +1905,134 @@ h6 {
   word-break: keep-all;
 }
 
+.stock-decision-panel {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.78fr) minmax(0, 1.42fr);
+  gap: clamp(18px, 2.4vw, 34px);
+  padding: clamp(22px, 3vw, 38px);
+  background:
+    linear-gradient(135deg, rgba(251, 250, 246, 0.98), rgba(241, 238, 228, 0.84)),
+    repeating-linear-gradient(
+      0deg,
+      rgba(17, 18, 15, 0.05),
+      rgba(17, 18, 15, 0.05) 1px,
+      transparent 1px,
+      transparent 28px
+    );
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-soft);
+}
+
+.stock-decision-panel.tone-blocked {
+  background:
+    linear-gradient(135deg, rgba(251, 250, 246, 0.98), rgba(244, 230, 226, 0.84)),
+    radial-gradient(circle at 0% 0%, rgba(168, 59, 52, 0.13), transparent 38%);
+}
+
+.stock-decision-lead {
+  display: grid;
+  align-content: start;
+  gap: 14px;
+  min-width: 0;
+}
+
+.stock-decision-lead > span,
+.stock-decision-card > span {
+  width: fit-content;
+  padding: 5px 8px;
+  background: var(--text-primary);
+  color: var(--bg-panel);
+  font-size: 0.68rem;
+  font-weight: 950;
+  letter-spacing: 0.02em;
+}
+
+.stock-decision-lead h2 {
+  max-width: 720px;
+  margin: 0;
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: clamp(1.9rem, 3.6vw, 4rem);
+  line-height: 0.9;
+  letter-spacing: -0.055em;
+  word-break: keep-all;
+}
+
+.stock-decision-lead p {
+  max-width: 720px;
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: clamp(0.98rem, 1.35vw, 1.18rem);
+  font-weight: 780;
+  line-height: 1.58;
+  word-break: keep-all;
+}
+
+.stock-decision-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.stock-decision-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+  align-content: stretch;
+}
+
+.stock-decision-card {
+  display: grid;
+  min-width: 0;
+  align-content: start;
+  gap: 10px;
+  padding: 16px;
+  background: color-mix(in srgb, var(--bg-panel) 88%, white);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+}
+
+.stock-decision-card.tone-ready {
+  border-color: color-mix(in oklch, var(--accent-green), transparent 66%);
+}
+
+.stock-decision-card.tone-watch {
+  border-color: color-mix(in oklch, var(--accent-amber), transparent 60%);
+}
+
+.stock-decision-card.tone-blocked {
+  border-color: color-mix(in oklch, var(--accent-red), transparent 58%);
+}
+
+.stock-decision-card strong {
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: clamp(1.12rem, 1.6vw, 1.58rem);
+  line-height: 0.98;
+  word-break: keep-all;
+}
+
+.stock-decision-card p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  font-weight: 740;
+  line-height: 1.55;
+  word-break: keep-all;
+}
+
+.stock-decision-card a {
+  width: fit-content;
+  margin-top: auto;
+  color: var(--accent-blue);
+  font-size: 0.76rem;
+  font-weight: 950;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
 .research-flow {
   display: grid;
   grid-template-columns: minmax(260px, 0.72fr) minmax(0, 1.55fr);
@@ -4026,8 +4154,13 @@ h6 {
   .evidence-review-panel,
   .source-review-panel,
   .evidence-source-grid,
+  .stock-decision-panel,
   .research-flow {
     grid-template-columns: 1fr;
+  }
+
+  .stock-decision-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .research-flow-intro {
@@ -4088,7 +4221,8 @@ h6 {
   .operator-steps,
   .operator-secondary,
   .flow-steps,
-  .readiness-grid {
+  .readiness-grid,
+  .stock-decision-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -4220,8 +4354,14 @@ h6 {
   .operator-secondary,
   .flow-steps,
   .readiness-grid,
+  .stock-decision-panel,
+  .stock-decision-grid,
   .research-flow {
     grid-template-columns: 1fr;
+  }
+
+  .stock-decision-actions .btn {
+    width: 100%;
   }
 
   .ledger-guide,
