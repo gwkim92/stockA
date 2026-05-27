@@ -403,6 +403,9 @@ function benchmarkDriftQualityTitle(quality: BenchmarkDriftQuality) {
   if (quality.status === "ok") {
     return "벤치마크 구성 신뢰 가능";
   }
+  if (!quality.attention_required && quality.status === "drift_outlier_review") {
+    return "큰 괴리 검토 관리 중";
+  }
   if (quality.status === "partial_composition") {
     return "부분 구성비로만 계산됨";
   }
@@ -425,6 +428,9 @@ function benchmarkDriftQualityExplanation(quality: BenchmarkDriftQuality) {
   if (quality.status === "ok") {
     return "구성비 커버리지와 기준일이 충분해 active share를 보조 위험 지표로 볼 수 있다. 추천 weight는 자동 변경하지 않는다.";
   }
+  if (!quality.attention_required && quality.status === "drift_outlier_review") {
+    return quality.managed_review_reason || "큰 벤치마크 괴리는 검토 후보로 저장됐고 자동 주문 없이 성과 관찰을 기다린다.";
+  }
   if (quality.status === "partial_composition") {
     return "현재 benchmark holdings가 일부만 들어와 있다. active share 숫자는 계산됐지만 전체 SPY 대비 괴리로 해석하면 안 된다.";
   }
@@ -444,6 +450,9 @@ function benchmarkDriftQualityExplanation(quality: BenchmarkDriftQuality) {
 }
 
 function benchmarkDriftQualityTone(quality: BenchmarkDriftQuality) {
+  if (!quality.attention_required && quality.status === "drift_outlier_review") {
+    return "risk-medium";
+  }
   if (quality.status === "ok") {
     return "risk-low";
   }
@@ -823,6 +832,9 @@ const DEFAULT_BENCHMARK_DRIFT_QUALITY: BenchmarkDriftQuality = {
   outlier_decisions: [],
   review_candidate_count: 0,
   review_decision_counts: {},
+  attention_required: true,
+  managed_review_status: "source_or_guardrail_gap",
+  managed_review_reason: "위험 예산 평가가 아직 없어 벤치마크 drift 관리 상태를 판단할 수 없다.",
   automatic_order_allowed: false,
   broker_submit_allowed: false,
   order_boundary: "read_only_no_order",
@@ -846,6 +858,9 @@ const DEFAULT_PORTFOLIO_REVIEW_DECISION_HISTORY: PortfolioReviewDecisionHistory 
   benchmark_decision_count: 0,
   position_sizing_decision_count: 0,
   decision_counts: {},
+  attention_required: true,
+  managed_review_status: "unmanaged_or_missing",
+  managed_review_reason: "검토 이력, 안전 가드레일, 또는 후속 action router 상태를 확인해야 한다.",
   top_decision: null,
   latest_decisions: [],
   guardrails: {
@@ -1363,15 +1378,19 @@ export default async function DataHealthPage() {
       label: "포트폴리오 검토 이력",
       title:
         portfolioReviewHistory.status === "loaded"
-          ? `${portfolioReviewHistory.decision_count}개 결정 저장됨`
+          ? portfolioReviewHistory.attention_required
+            ? `${portfolioReviewHistory.decision_count}개 결정 저장됨`
+            : "검토 이력 관리 중"
           : "검토 결정 이력 없음",
       body:
         portfolioReviewHistory.status === "loaded"
-          ? `최신 ${portfolioReviewHistory.as_of_date} 기준으로 벤치마크 ${portfolioReviewHistory.benchmark_decision_count}개, 포지션 크기 ${portfolioReviewHistory.position_sizing_decision_count}개 결정을 감사 이력으로 남겼다.`
+          ? portfolioReviewHistory.attention_required
+            ? `최신 ${portfolioReviewHistory.as_of_date} 기준으로 벤치마크 ${portfolioReviewHistory.benchmark_decision_count}개, 포지션 크기 ${portfolioReviewHistory.position_sizing_decision_count}개 결정을 감사 이력으로 남겼다.`
+            : portfolioReviewHistory.managed_review_reason
           : "현재 화면의 검토 후보는 보이지만 durable audit history로는 아직 저장되지 않았다.",
       href: "#portfolio-review-history",
       cta: "검토 이력 보기",
-      tone: portfolioReviewHistory.decision_status === "review_required" ? "risk-medium" : "risk-low",
+      tone: portfolioReviewHistory.attention_required ? "risk-medium" : "risk-low",
     },
     {
       label: "검토 사후평가",
@@ -2211,14 +2230,15 @@ export default async function DataHealthPage() {
           <h2 id="portfolio-review-history-title">화면에서 본 판단이 나중에도 추적되는지 확인한다.</h2>
         </div>
         <p className="board-intro">
-          벤치마크 괴리와 포지션 크기 검토는 주문 지시가 아니다. 이 섹션은 그 판단 후보가 언제 어떤 근거로
-          저장됐는지 보여주는 감사 이력이다.
+          {portfolioReviewHistory.attention_required
+            ? "벤치마크 괴리와 포지션 크기 검토는 주문 지시가 아니다. 이 섹션은 그 판단 후보가 언제 어떤 근거로 저장됐는지 보여주는 감사 이력이다."
+            : portfolioReviewHistory.managed_review_reason}
         </p>
         <div className="status-rail compact-rail">
           <article className="rail-cell">
             <span>상태</span>
-            <strong className={`risk-tag ${portfolioReviewHistory.decision_status === "review_required" ? "risk-medium" : "risk-low"}`}>
-              {koCode(portfolioReviewHistory.decision_status)}
+            <strong className={`risk-tag ${portfolioReviewHistory.attention_required ? "risk-medium" : "risk-low"}`}>
+              {portfolioReviewHistory.attention_required ? koCode(portfolioReviewHistory.decision_status) : "관리 중"}
             </strong>
             <small>{portfolioReviewHistory.eval_run_id}</small>
           </article>

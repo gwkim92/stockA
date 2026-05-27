@@ -291,6 +291,9 @@ export type DataHealthData = {
     outlier_decisions: BenchmarkRebalanceCandidate[];
     review_candidate_count: number;
     review_decision_counts: Record<string, number>;
+    attention_required: boolean;
+    managed_review_status: string;
+    managed_review_reason: string;
     automatic_order_allowed: boolean;
     broker_submit_allowed: boolean;
     order_boundary: string;
@@ -2008,6 +2011,9 @@ export type PortfolioReviewDecisionHistory = {
   benchmark_decision_count: number;
   position_sizing_decision_count: number;
   decision_counts: Record<string, number>;
+  attention_required: boolean;
+  managed_review_status: string;
+  managed_review_reason: string;
   top_decision: PortfolioReviewHistoryDecision | null;
   latest_decisions: PortfolioReviewHistoryDecision[];
   guardrails: {

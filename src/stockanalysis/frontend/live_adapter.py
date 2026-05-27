@@ -651,6 +651,95 @@ def _build_open_gate_details(
     return details
 
 
+def _portfolio_review_router_is_safe_wait(router: Mapping[str, Any]) -> bool:
+    if router.get("status") != "loaded":
+        return False
+    if router.get("automatic_order_allowed") is True or router.get("broker_submit_allowed") is True:
+        return False
+    if str(router.get("order_boundary") or "") != "read_only_no_order":
+        return False
+    return str(router.get("action_status") or "") in {
+        "no_op_wait_for_outcome_window",
+        "no_op_current_window_complete",
+    }
+
+
+def _portfolio_review_decision_history_attention_policy(
+    history: Mapping[str, Any],
+    action_router: Mapping[str, Any],
+) -> dict[str, Any]:
+    status = str(history.get("status") or "missing")
+    decision_status = str(history.get("decision_status") or "missing")
+    decision_count = int(_safe_number(history.get("decision_count")) or 0)
+    review_required_count = int(_safe_number(history.get("review_required_count")) or 0)
+    guardrails = _as_dict(history.get("guardrails"))
+    unsafe_guardrail = (
+        guardrails.get("automatic_rebalance_allowed") is True
+        or guardrails.get("automatic_order_allowed") is True
+        or guardrails.get("broker_submit_allowed") is True
+        or str(guardrails.get("order_boundary") or "") != "read_only_no_order"
+    )
+    managed = (
+        status == "loaded"
+        and decision_count > 0
+        and review_required_count > 0
+        and decision_status == "review_required"
+        and not unsafe_guardrail
+        and _portfolio_review_router_is_safe_wait(action_router)
+    )
+    if managed:
+        return {
+            "attention_required": False,
+            "managed_review_status": "waiting_for_outcome_window",
+            "managed_review_reason": "검토 결정은 저장됐고 자동 주문은 차단됐으며 성과 관찰 기간을 기다리는 중이다.",
+        }
+    return {
+        "attention_required": decision_status == "review_required" or status != "loaded" or unsafe_guardrail,
+        "managed_review_status": "unmanaged_or_missing",
+        "managed_review_reason": "검토 이력, 안전 가드레일, 또는 후속 action router 상태를 확인해야 한다.",
+    }
+
+
+def _benchmark_drift_quality_attention_policy(
+    quality: Mapping[str, Any],
+    history: Mapping[str, Any],
+    action_router: Mapping[str, Any],
+) -> dict[str, Any]:
+    status = str(quality.get("status") or "missing")
+    if status == "ok":
+        return {
+            "attention_required": False,
+            "managed_review_status": "not_needed",
+            "managed_review_reason": "벤치마크 괴리가 검토 기준 안에 있다.",
+        }
+    if status in {"missing_guardrail", "missing_benchmark_composition", "partial_composition", "stale_composition"}:
+        return {
+            "attention_required": True,
+            "managed_review_status": "source_or_guardrail_gap",
+            "managed_review_reason": "벤치마크 drift를 신뢰하려면 원천 구성비와 위험 예산 평가를 먼저 보강해야 한다.",
+        }
+    outlier_decision_count = len(_as_list(quality.get("outlier_decisions")))
+    review_candidate_count = int(_safe_number(quality.get("review_candidate_count")) or 0)
+    managed = (
+        status == "drift_outlier_review"
+        and outlier_decision_count > 0
+        and review_candidate_count > 0
+        and history.get("attention_required") is False
+        and _portfolio_review_router_is_safe_wait(action_router)
+    )
+    if managed:
+        return {
+            "attention_required": False,
+            "managed_review_status": "review_recorded_waiting_for_outcome",
+            "managed_review_reason": "큰 벤치마크 괴리는 검토 후보로 저장됐고 자동 주문 없이 성과 관찰을 기다린다.",
+        }
+    return {
+        "attention_required": True,
+        "managed_review_status": "unmanaged_drift_review",
+        "managed_review_reason": "큰 벤치마크 괴리가 아직 검토 이력과 안전한 후속 라우터로 관리되지 않는다.",
+    }
+
+
 def build_live_data_health_response(
     *,
     config: RuntimeConfig,
@@ -700,6 +789,19 @@ def build_live_data_health_response(
     portfolio_review_feedback_action_router = _build_portfolio_review_feedback_action_router_payload(
         _as_dict(state.get("portfolio_review_feedback_action_router"))
     )
+    portfolio_review_decision_history.update(
+        _portfolio_review_decision_history_attention_policy(
+            portfolio_review_decision_history,
+            portfolio_review_feedback_action_router,
+        )
+    )
+    benchmark_drift_quality.update(
+        _benchmark_drift_quality_attention_policy(
+            benchmark_drift_quality,
+            portfolio_review_decision_history,
+            portfolio_review_feedback_action_router,
+        )
+    )
     recommendation_outcome_calibration = _build_recommendation_outcome_calibration_payload(
         _as_dict(state.get("recommendation_outcome_calibration"))
     )
@@ -727,12 +829,16 @@ def build_live_data_health_response(
         gate = "news_ai_eval_quality_attention"
         if gate not in open_gates:
             open_gates.append(gate)
-    if benchmark_drift_quality["status"] != "ok":
-        gate = "benchmark_drift_quality_attention"
+    gate = "benchmark_drift_quality_attention"
+    if not benchmark_drift_quality["attention_required"]:
+        open_gates = [item for item in open_gates if item != gate]
+    else:
         if gate not in open_gates:
             open_gates.append(gate)
-    if portfolio_review_decision_history["decision_status"] == "review_required":
-        gate = "portfolio_review_decision_history_attention"
+    gate = "portfolio_review_decision_history_attention"
+    if not portfolio_review_decision_history["attention_required"]:
+        open_gates = [item for item in open_gates if item != gate]
+    else:
         if gate not in open_gates:
             open_gates.append(gate)
     if portfolio_review_decision_feedback["feedback_status"] in {"has_contradictions", "needs_more_data", "missing_history"}:

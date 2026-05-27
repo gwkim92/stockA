@@ -15,6 +15,8 @@ from stockanalysis.frontend.live_adapter import (
     _build_financial_statement_model_payload,
     _build_fund_instrument_analysis_payload,
     _build_professional_source_guardrail_payload,
+    _benchmark_drift_quality_attention_policy,
+    _portfolio_review_decision_history_attention_policy,
     _professional_source_gap_requires_attention,
     _build_recommendation_evidence_review_payload,
     _build_recommendation_outcome_due_action_router_payload,
@@ -4317,6 +4319,8 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertFalse(drift_quality["automatic_order_allowed"])
         self.assertFalse(drift_quality["broker_submit_allowed"])
         self.assertEqual(drift_quality["order_boundary"], "read_only_no_order")
+        self.assertTrue(drift_quality["attention_required"])
+        self.assertEqual(drift_quality["managed_review_status"], "source_or_guardrail_gap")
         self.assertIn("benchmark_drift_quality_attention", payload["data"]["open_gates"])
         review_history = payload["data"]["portfolio_review_decision_history"]
         self.assertEqual(review_history["status"], "loaded")
@@ -4330,7 +4334,9 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertFalse(review_history["guardrails"]["automatic_rebalance_allowed"])
         self.assertFalse(review_history["guardrails"]["broker_submit_allowed"])
         self.assertEqual(review_history["guardrails"]["order_boundary"], "read_only_no_order")
-        self.assertIn("portfolio_review_decision_history_attention", payload["data"]["open_gates"])
+        self.assertFalse(review_history["attention_required"])
+        self.assertEqual(review_history["managed_review_status"], "waiting_for_outcome_window")
+        self.assertNotIn("portfolio_review_decision_history_attention", payload["data"]["open_gates"])
         review_feedback = payload["data"]["portfolio_review_decision_feedback"]
         self.assertEqual(review_feedback["status"], "loaded")
         self.assertEqual(review_feedback["eval_run_id"], "eval-run-53")
@@ -4468,7 +4474,7 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertEqual(gate_details["auth_rbac"]["category"], "operational_blocker")
         self.assertEqual(gate_details["auth_rbac"]["severity"], "high")
         self.assertEqual(gate_details["benchmark_drift_quality_attention"]["category"], "investment_review")
-        self.assertEqual(gate_details["benchmark_drift_quality_attention"]["label"], "벤치마크 괴리 검토")
+        self.assertNotIn("portfolio_review_decision_history_attention", gate_details)
         self.assertEqual(
             gate_details["portfolio_review_feedback_calibration_attention"]["category"],
             "outcome_wait",
@@ -4527,6 +4533,61 @@ class FrontendLiveAdapterTests(unittest.TestCase):
                 }
             )
         )
+
+    def test_portfolio_review_managed_gate_policy_keeps_unmanaged_drift_open(self) -> None:
+        safe_router = {
+            "status": "loaded",
+            "action_status": "no_op_wait_for_outcome_window",
+            "automatic_order_allowed": False,
+            "broker_submit_allowed": False,
+            "order_boundary": "read_only_no_order",
+        }
+        managed_history = {
+            "status": "loaded",
+            "decision_status": "review_required",
+            "decision_count": 2,
+            "review_required_count": 2,
+            "guardrails": {
+                "automatic_rebalance_allowed": False,
+                "automatic_order_allowed": False,
+                "broker_submit_allowed": False,
+                "order_boundary": "read_only_no_order",
+            },
+        }
+        history_policy = _portfolio_review_decision_history_attention_policy(
+            managed_history,
+            safe_router,
+        )
+        self.assertFalse(history_policy["attention_required"])
+        self.assertEqual(history_policy["managed_review_status"], "waiting_for_outcome_window")
+        unmanaged_router = {**safe_router, "status": "missing"}
+        unmanaged_history_policy = _portfolio_review_decision_history_attention_policy(
+            managed_history,
+            unmanaged_router,
+        )
+        self.assertTrue(unmanaged_history_policy["attention_required"])
+
+        managed_quality = {
+            "status": "drift_outlier_review",
+            "outlier_decisions": [{"symbol": "MSFT"}],
+            "review_candidate_count": 1,
+        }
+        managed_drift_policy = _benchmark_drift_quality_attention_policy(
+            managed_quality,
+            {**managed_history, **history_policy},
+            safe_router,
+        )
+        self.assertFalse(managed_drift_policy["attention_required"])
+        self.assertEqual(
+            managed_drift_policy["managed_review_status"],
+            "review_recorded_waiting_for_outcome",
+        )
+        unmanaged_drift_policy = _benchmark_drift_quality_attention_policy(
+            {**managed_quality, "outlier_decisions": []},
+            {**managed_history, **history_policy},
+            safe_router,
+        )
+        self.assertTrue(unmanaged_drift_policy["attention_required"])
 
     def test_recommendation_outcome_maturity_due_state_requests_calibration_now(self) -> None:
         payload = _build_recommendation_outcome_maturity_payload(
