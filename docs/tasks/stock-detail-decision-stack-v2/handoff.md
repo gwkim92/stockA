@@ -2,7 +2,7 @@
 
 ## Status
 
-- in progress: 종목 상세 상단의 판단 순서와 다음 클릭 위치를 정리하는 작업을 진행 중이다.
+- completed: 종목 상세 상단의 판단 순서와 다음 클릭 위치를 정리하는 작업을 완료했다.
 
 ## Completed
 
@@ -23,8 +23,10 @@
 - passed: `cd apps/web && npm run build`
 - passed: `PYTHONPATH=/Users/woody/ai/agent-work-harness/src python3 -m awh verify --repo . --task stock-detail-decision-stack-v2`
 - passed: `git diff --check`
-- pending: EC2/local tunnel `/stocks/SPY` route smoke
+- passed: EC2 deploy `npm run typecheck`, `npm run build`, `sudo systemctl restart stockanalysis-web.service`, `systemctl is-active stockanalysis-web.service`
+- passed: local tunnel `/stocks/SPY` route smoke at `http://127.0.0.1:13000/stocks/SPY` confirmed `현재 결론`, `추천`, `보유`, `뉴스·흐름`, `투자 논리`, `페이퍼·주문`, `주문 차단`, `가격 흐름은 추천 근거가 아니라 상태 확인부터 한다`, `회사명이 없어도 거시·테마 흐름은 종목에 영향을 줄 수 있다`
+- passed: EC2 internal `/stocks/SPY` route smoke at `http://127.0.0.1:3000/stocks/SPY` confirmed the same strings
 
 ## Next Step
 
-- exact next step: 변경사항을 commit/push/deploy한 뒤 EC2/local tunnel `/stocks/SPY` route smoke로 새 결론 패널과 문구를 확인한다.
+- exact next step: 다음 UX slice는 `recommendation-detail-decision-waterfall-v3`로, 추천 상세에서 거시→테마→기업→재무→밸류에이션→리스크→페이퍼 검증 순서를 더 선명하게 만든다.

@@ -43,4 +43,4 @@
 - [x] 결론 패널에서 추천, 보유, 뉴스/흐름, 페이퍼 상태가 분리되어 보인다.
 - [x] 추천이나 thesis가 있으면 해당 상세로 이동하는 버튼이 보인다.
 - [x] 페이퍼 거래 상태와 주문 차단 경계가 명확히 보인다.
-- [ ] local verification과 EC2 route smoke가 통과한다.
+- [x] local verification과 EC2 route smoke가 통과한다.
