@@ -11,3 +11,10 @@
 
 - This does not replace a future user/session identity provider.
 - EC2 env must continue to run production/live/read-token with a configured read token for the gate to remain closed.
+
+## EC2 Result
+
+- commit `84e2cff` deployed to `/opt/stockanalysis/app`.
+- FastAPI and Next services restarted and active.
+- `auth_rbac` is no longer in `/api/data-health.open_gates`.
+- Remaining open gates are `alert_destination` and `portfolio_review_feedback_calibration_attention`.
