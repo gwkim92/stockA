@@ -54,8 +54,9 @@ ALERT_DESTINATION_TARGET_ENVS = (
     "STOCKANALYSIS_DISCORD_WEBHOOK_URL",
     "STOCKANALYSIS_TELEGRAM_CHAT_ID",
     "STOCKANALYSIS_ALERT_EMAIL_TO",
+    "STOCKANALYSIS_NTFY_TOPIC_URL",
 )
-EXTERNAL_ALERT_DESTINATION_MODES = frozenset({"webhook", "email", "telegram", "slack", "discord"})
+EXTERNAL_ALERT_DESTINATION_MODES = frozenset({"webhook", "email", "telegram", "slack", "discord", "ntfy"})
 LOCAL_ALERT_DESTINATION_MODES = frozenset({"local_file", "journal", "stdout"})
 DEFAULT_REPO_ROOT = Path(__file__).resolve().parents[3]
 _STORY_GROUP_STOP_WORDS = frozenset(

@@ -51,6 +51,7 @@ const KOREAN_LABELS: Record<string, string> = {
   missing_destination: "알림 목적지 없음",
   missing_target: "알림 대상 미설정",
   missing_test: "알림 테스트 미실행",
+  ntfy: "ntfy",
   slack: "Slack",
   stale_test: "알림 테스트 오래됨",
   telegram: "Telegram",

@@ -20,6 +20,13 @@ from stockanalysis.ingest.news.enrichment import (
 from stockanalysis.ingest.news.eval import DEFAULT_DATASET_PATH, run_news_ai_eval
 from stockanalysis.ingest.news.translation import run_news_rss_translation
 from stockanalysis.operations.artifact_runner import run_data_operation_artifact_command
+from stockanalysis.operations.alert_destination import (
+    DEFAULT_ALERT_MESSAGE,
+    DEFAULT_ALERT_TITLE,
+    SUPPORTED_DESTINATION_TYPES,
+    ALERT_DESTINATION_STATUS_PATH_ENV,
+    build_alert_destination_test_report,
+)
 from stockanalysis.operations.benchmark_composition_import import (
     DEFAULT_MIN_FULL_COVERAGE_WEIGHT,
     SUPPORTED_SOURCE_TYPES as BENCHMARK_COMPOSITION_SOURCE_TYPES,
@@ -251,6 +258,21 @@ def build_parser() -> argparse.ArgumentParser:
     env_readiness.add_argument("--env-file")
     env_readiness.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
     env_readiness.set_defaults(handler=_handle_env_readiness)
+
+    alert_destination_test = subparsers.add_parser(
+        "alert-destination-test-run",
+        help="Send a secret-free alert destination test and write a sanitized status artifact.",
+    )
+    alert_destination_test.add_argument("--env-file")
+    alert_destination_test.add_argument("--destination-type", choices=SUPPORTED_DESTINATION_TYPES)
+    alert_destination_test.add_argument("--mode", help="Public alert mode stored in the status artifact.")
+    alert_destination_test.add_argument("--title", default=DEFAULT_ALERT_TITLE)
+    alert_destination_test.add_argument("--message", default=DEFAULT_ALERT_MESSAGE)
+    alert_destination_test.add_argument("--timeout-seconds", type=float, default=10.0)
+    alert_destination_test.add_argument("--execute", action="store_true")
+    alert_destination_test.add_argument("--output")
+    alert_destination_test.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
+    alert_destination_test.set_defaults(handler=_handle_alert_destination_test_run)
 
     local_runtime_status = subparsers.add_parser(
         "local-runtime-status",
@@ -1578,6 +1600,31 @@ def _handle_env_readiness(args: argparse.Namespace, *, stdout: TextIO) -> int:
     )
     print_json(report, stdout=stdout)
     return 0
+
+
+def _handle_alert_destination_test_run(args: argparse.Namespace, *, stdout: TextIO) -> int:
+    env_mapping = _load_optional_env_mapping(args.env_file, repo_root=args.repo_root) or os.environ
+    report = build_alert_destination_test_report(
+        env=env_mapping,
+        execute=bool(args.execute),
+        title=args.title,
+        message=args.message,
+        destination_type=args.destination_type,
+        mode=args.mode,
+        timeout_seconds=args.timeout_seconds,
+    )
+    output = args.output or str(env_mapping.get(ALERT_DESTINATION_STATUS_PATH_ENV) or "")
+    if output:
+        output_path = resolve_output_path(
+            output,
+            label="alert destination status output",
+            repo_root=args.repo_root,
+            require_repo_outside=True,
+        )
+        write_json_report(report, output_path=output_path, stdout=stdout)
+    else:
+        print_json(report, stdout=stdout, sort_keys=False)
+    return 0 if report.get("last_test_status") in {"passed", "not_executed"} else 1
 
 
 def _handle_local_runtime_status(args: argparse.Namespace, *, stdout: TextIO) -> int:

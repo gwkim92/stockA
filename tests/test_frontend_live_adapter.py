@@ -4744,6 +4744,36 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertTrue(payload["test_recent"])
         self.assertEqual(payload["missing_conditions"], [])
 
+    def test_alert_destination_payload_accepts_ntfy_topic_url(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            status_path = Path(tmpdir) / "alert-status.json"
+            status_path.write_text(
+                json.dumps(
+                    {
+                        "mode": "ntfy",
+                        "destination_type": "ntfy",
+                        "last_test_status": "passed",
+                        "last_tested_at": "2026-05-26T23:30:00Z",
+                    }
+                ),
+                encoding="utf-8",
+            )
+            with patch.dict(
+                os.environ,
+                {
+                    "STOCKANALYSIS_ALERT_DESTINATION_MODE": "ntfy",
+                    "STOCKANALYSIS_NTFY_TOPIC_URL": "https://ntfy.sh/private-topic-token",
+                    "STOCKANALYSIS_ALERT_DESTINATION_STATUS_PATH": str(status_path),
+                },
+                clear=True,
+            ):
+                payload = _build_alert_destination_payload(generated_at="2026-05-27T00:00:00Z")
+
+        self.assertEqual(payload["status"], "external_destination_verified")
+        self.assertFalse(payload["attention_required"])
+        self.assertEqual(payload["destination_type"], "ntfy")
+        self.assertNotIn("private-topic-token", json.dumps(payload))
+
     def test_professional_source_gap_attention_policy_keeps_unguarded_gaps_open(self) -> None:
         self.assertTrue(
             _professional_source_gap_requires_attention(
