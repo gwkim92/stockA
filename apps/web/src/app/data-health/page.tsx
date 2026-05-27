@@ -959,6 +959,17 @@ function errorLogLabel(value: string | null | undefined) {
   return value ? "오류 내용 있음" : "없음";
 }
 
+function operationCopy(value: string) {
+  return koCode(value)
+    .replaceAll("artifact runner", "실행 증거 저장기")
+    .replaceAll("artifact", "실행 증거")
+    .replaceAll("profile scheduler", "프로파일 예약 실행기")
+    .replaceAll("pipeline run health", "작업 실행 상태")
+    .replaceAll("data operation", "데이터 작업")
+    .replaceAll("job", "작업")
+    .replaceAll("degraded", "주의");
+}
+
 const DEFAULT_MANUAL_SMOKE: ManualIngestSmoke = {
   status: "not_configured",
   execute: false,
@@ -1812,7 +1823,7 @@ export default async function DataHealthPage() {
         ? "실행 증거 확인 필요"
         : `${profileScheduler.active_timer_count}/${profileScheduler.timer_count}개 예약 실행`,
       body: artifactRunner.attention_required
-        ? artifactRunner.next_action
+        ? operationCopy(artifactRunner.next_action)
         : `실행 증거 저장기가 ${artifactRunner.latest_run_count}개 최신 실행 증거와 ${artifactRunner.artifact_policy_count}/${artifactRunner.job_count}개 저장 정책을 남기고 있다.`,
       href: "#scheduler-detail",
       cta: "스케줄 보기",
@@ -4410,25 +4421,25 @@ export default async function DataHealthPage() {
                 <dt>휴장일 처리</dt>
                 <dd>{koCode(data.scheduler.holiday_skip_mode)}</dd>
               </div>
-              <div>
-                <dt>실행 artifact</dt>
-                <dd>{artifactRunner.attention_required ? "확인 필요" : "운영 증거 확인됨"}</dd>
-              </div>
-              <div>
-                <dt>artifact 정책</dt>
-                <dd>
-                  {artifactRunner.artifact_policy_count}/{artifactRunner.job_count}개 · 최신 실행{" "}
-                  {artifactRunner.latest_run_count}개
-                </dd>
-              </div>
-              <div>
-                <dt>artifact root</dt>
-                <dd>{artifactRunner.latest_artifact_root || "경로 미표시"}</dd>
-              </div>
-              <div>
-                <dt>artifact 다음 조치</dt>
-                <dd>{artifactRunner.next_action}</dd>
-              </div>
+	            <div>
+	              <dt>실행 증거</dt>
+	              <dd>{artifactRunner.attention_required ? "확인 필요" : "운영 증거 확인됨"}</dd>
+	            </div>
+	            <div>
+	              <dt>저장 정책</dt>
+	              <dd>
+	                {artifactRunner.artifact_policy_count}/{artifactRunner.job_count}개 · 최신 실행{" "}
+	                {artifactRunner.latest_run_count}개
+	              </dd>
+	            </div>
+	            <div>
+	              <dt>실행 증거 경로</dt>
+	              <dd>{artifactRunner.latest_artifact_root || "경로 미표시"}</dd>
+	            </div>
+	            <div>
+	              <dt>실행 증거 다음 조치</dt>
+	              <dd>{operationCopy(artifactRunner.next_action)}</dd>
+	            </div>
             </dl>
           </article>
         </aside>
