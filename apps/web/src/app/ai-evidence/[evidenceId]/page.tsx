@@ -313,7 +313,7 @@ function preferredClusterPreviewEvent(data: AiEvidenceDetailData) {
 
 function primarySourcePreview(data: AiEvidenceDetailData) {
   const event = preferredClusterPreviewEvent(data);
-  if (event) {
+  if (event?.korean_title || event?.korean_summary) {
     return {
       title: event.title,
       koreanTitle: event.korean_title,
@@ -325,15 +325,27 @@ function primarySourcePreview(data: AiEvidenceDetailData) {
       impactScore: event.impact_score,
     };
   }
+  if (data.korean_title || data.korean_summary || !event) {
+    return {
+      title: data.title,
+      koreanTitle: data.korean_title,
+      koreanSummary: data.korean_summary,
+      translationConfidence: data.translation_confidence,
+      symbol: primarySymbol(data),
+      themeKey: data.classification.theme_key,
+      impactDirection: data.classification.impact_direction,
+      impactScore: data.classification.impact_score,
+    };
+  }
   return {
-    title: data.title,
-    koreanTitle: data.korean_title,
-    koreanSummary: data.korean_summary,
-    translationConfidence: data.translation_confidence,
-    symbol: primarySymbol(data),
-    themeKey: data.classification.theme_key,
-    impactDirection: data.classification.impact_direction,
-    impactScore: data.classification.impact_score,
+    title: event.title,
+    koreanTitle: event.korean_title,
+    koreanSummary: event.korean_summary,
+    translationConfidence: event.translation_confidence,
+    symbol: event.symbol,
+    themeKey: data.cluster_summary?.theme_key ?? data.classification.theme_key,
+    impactDirection: event.impact_direction,
+    impactScore: event.impact_score,
   };
 }
 
