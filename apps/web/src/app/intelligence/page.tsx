@@ -211,7 +211,7 @@ function formatLlmCandidateDetail(summary: AiNewsClusterSummary) {
   if (summary.llm_candidate_invocation_count === 0) {
     return "뉴스 묶음은 저장된 규칙 기반 결과를 표시 중";
   }
-  return `저장된 분석 ${summary.llm_candidate_artifact_count}건 · 성공 ${summary.llm_candidate_success_count}건 · 실패 ${summary.llm_candidate_failed_count}건`;
+  return `저장된 AI 분석 ${summary.llm_candidate_artifact_count}건 · 성공 ${summary.llm_candidate_success_count}건 · 실패 ${summary.llm_candidate_failed_count}건`;
 }
 
 function formatClusterModeStatus(summary: AiNewsClusterSummary) {

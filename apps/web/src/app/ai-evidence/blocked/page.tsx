@@ -94,7 +94,7 @@ export default async function BlockedAiEvidencePage() {
         <article className="cluster-decision-cell">
           <span>복구 가능한가</span>
           <strong>분류 체계 보강 후보</strong>
-          <p>좋은 뉴스가 taxonomy나 ticker alias 부족으로 막혔다면 규칙을 보강하고 재실행한다.</p>
+          <p>좋은 뉴스가 분류 체계나 종목 별칭 부족으로 막혔다면 규칙을 보강하고 재실행한다.</p>
         </article>
         <article className="cluster-decision-cell cluster-decision-final">
           <span>현재 처리</span>
@@ -110,7 +110,7 @@ export default async function BlockedAiEvidencePage() {
         </div>
         <ol>
           <li>잡음으로 판단된 뉴스는 추천·보유검토 입력에서 계속 제외한다.</li>
-          <li>유효한 뉴스가 분류 체계 부족으로 막힌 경우에는 taxonomy, theme, ticker alias를 보강한다.</li>
+          <li>유효한 뉴스가 분류 체계 부족으로 막힌 경우에는 테마 분류와 종목 별칭을 보강한다.</li>
           <li>보강 후 같은 배치를 재실행해 차단 후보가 통과 결과로 이동하는지 확인한다.</li>
         </ol>
       </section>

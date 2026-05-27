@@ -59,7 +59,7 @@ const KOREAN_LABELS: Record<string, string> = {
   webhook: "Webhook",
   ai: "AI",
   llm: "AI",
-  codex_oauth: "Codex OAuth",
+  codex_oauth: "AI 배치 분석",
   fixture: "기준 세트",
   news_ai_extraction_quality: "뉴스 AI 추출 품질",
   "news-ai-eval-v1": "뉴스 AI 평가 v1",
@@ -78,7 +78,7 @@ const KOREAN_LABELS: Record<string, string> = {
   direct_stock: "직접 종목 뉴스",
   low_signal: "저신호 뉴스",
   "codex-cli-default": "Codex 기본 모델",
-  "codex oauth": "Codex OAuth",
+  "codex oauth": "AI 배치 분석",
   alpha_vantage: "Alpha Vantage",
   all: "전체",
   "attention required": "주의 필요",
@@ -104,7 +104,7 @@ const KOREAN_LABELS: Record<string, string> = {
   needs_neighborhood_lookup: "종목 맥락 확인",
   source: "원천",
   translation: "번역",
-  validator: "검증기",
+  validator: "자동 검증",
   twelve_data: "Twelve Data",
   accumulate: "분할 매수",
   accumulate_candidate: "분할 매수 검토 후보",
@@ -409,14 +409,14 @@ const KOREAN_LABELS: Record<string, string> = {
   collect_more_outcomes_keep_weights: "성과 표본 축적 중",
   backfill_candidates_remain: "성과 산출 후보 남음",
   price_history_gaps_remain: "가격 이력 보강 필요",
-  ready_for_manual_weight_review: "수동 weight 검토 가능",
+  ready_for_manual_weight_review: "수동 추천 산식 검토 가능",
   blocked_by_outcome_calibration_no_due_outcome_window: "성과 측정일 대기",
   blocked_by_outcome_calibration_backfill_candidates_remain: "성과 산출 먼저 필요",
   blocked_by_outcome_calibration_price_history_gaps_remain: "가격 이력 보강 필요",
   blocked_by_outcome_calibration_no_outcome_sample_available: "성과 표본 없음",
   blocked_by_outcome_calibration_missing: "성과 calibration 없음",
   blocked_by_outcome_calibration_not_ready: "성과 calibration 미통과",
-  missing_recommendation_weight_review_readiness: "weight 검토 감사 없음",
+  missing_recommendation_weight_review_readiness: "추천 산식 검토 증거 없음",
   no_outcome_sample_available: "성과 표본 없음",
   no_due_outcome_window: "성과 측정일 대기",
   missing_recommendation_outcome_calibration: "추천 성과검증 없음",
@@ -565,10 +565,10 @@ const KOREAN_LABELS: Record<string, string> = {
   "Create or link an active thesis before the next portfolio review.":
     "다음 포트폴리오 검토 전에 활성 투자 논리를 만들거나 연결해야 합니다.",
   "Review overweight exposure before any trade decision.":
-    "거래 판단 전에 단일 종목 비중 초과 여부를 사람이 검토해야 합니다.",
+    "거래 판단 전에 단일 종목 비중 초과 여부를 운영 검토로 확인해야 한다.",
   "Review target allocation before any trade decision.":
-    "거래 판단 전에 목표 비중과 증액 필요성을 사람이 검토해야 합니다.",
-  data_operations_artifact_runner: "데이터 운영 결과 관리",
+    "거래 판단 전에 목표 비중과 증액 필요성을 운영 검토로 확인해야 한다.",
+  data_operations_artifact_runner: "데이터 운영 증거 관리",
   exit: "청산",
   exit_review: "청산 검토",
   exclude: "제외",
@@ -637,9 +637,9 @@ const KOREAN_LABELS: Record<string, string> = {
   "covered thesis and outcome remain valid": "커버된 투자 논리와 성과 측정이 계속 유효합니다.",
   "coverage status missing_thesis": "커버리지 상태: 투자 논리 누락",
   "quality_gate requires human review before this event can justify a thesis change.":
-    "이 이벤트가 투자 논리 변경 근거가 되기 전에 검증 조건과 AI 검토를 통과해야 합니다.",
+    "이 이벤트가 투자 논리 변경 근거가 되기 전에 자동 검증 조건을 통과해야 합니다.",
   "quality_gate requires AI validator review before this event can justify a thesis change.":
-    "이 이벤트가 투자 논리 변경 근거가 되기 전에 AI 검증 조건을 통과해야 합니다.",
+    "이 이벤트가 투자 논리 변경 근거가 되기 전에 자동 검증 조건을 통과해야 합니다.",
   "Review exit thesis and risk evidence; no trade automation is implied.":
     "청산 투자 논리와 리스크 증거를 검토해야 합니다. 자동 매매는 포함하지 않습니다.",
   "raw document delivery and access control are deferred until auth/RBAC exists":
@@ -925,7 +925,7 @@ const BLOCKED_REASON_DETAILS: Record<string, { title: string; description: strin
   },
   blocked_by_risk_budget_review: {
     title: "위험 예산 검토가 필요하다",
-    description: "포트폴리오 위험 예산 runner가 이 포트폴리오를 검토 필요 상태로 판단했다.",
+    description: "포트폴리오 위험 예산 검증 작업이 이 포트폴리오를 검토 필요 상태로 판단했다.",
     nextStep: "초과 비중, 초과 섹터, 초과 테마를 줄일지 또는 투자 논리를 보강할지 검토한다.",
   },
   over_single_position_limit: {
@@ -945,7 +945,7 @@ const BLOCKED_REASON_DETAILS: Record<string, { title: string; description: strin
   },
   missing_portfolio_risk_budget_guardrail: {
     title: "위험 예산 검증이 아직 없다",
-    description: "최신 포트폴리오 위험 예산 runner 결과가 없어 가상 검증 입력으로 쓰기 어렵다.",
+    description: "최신 포트폴리오 위험 예산 검증 결과가 없어 가상 검증 입력으로 쓰기 어렵다.",
     nextStep: "portfolio-risk-budget-guardrail-run을 실행한 뒤 paper validation을 다시 실행한다.",
   },
   single_order_notional_limit_exceeded: {
@@ -998,7 +998,7 @@ export function koBlockedReason(value: string): KoreanBlockedReason {
       symbol: null,
       code,
       title: detail?.title ?? koCode(code),
-      description: detail?.description ?? "포트폴리오 위험 예산 runner가 남긴 차단 사유다.",
+      description: detail?.description ?? "포트폴리오 위험 예산 검증 작업이 남긴 차단 사유다.",
       nextStep: detail?.nextStep ?? "포트폴리오 커버리지 화면에서 해당 위험 예산 항목을 확인한다.",
     };
   }

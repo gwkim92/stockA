@@ -43,7 +43,7 @@ export default async function EventsPage() {
         <Link className="screen-switch-card" href="/ai-evidence">
           <span>03</span>
           <strong>AI 분석 목록</strong>
-          <small>Codex OAuth 후보 확인</small>
+          <small>AI 후보 확인</small>
         </Link>
         <Link className="screen-switch-card" href={"/ai-evidence/results" as Route}>
           <span>04</span>
@@ -122,7 +122,7 @@ export default async function EventsPage() {
         <Link className="where-card" href="/ai-evidence">
           <span>다음</span>
           <strong>AI 분석 목록</strong>
-          <p>Codex OAuth가 구조화한 후보만 따로 확인한다.</p>
+          <p>AI가 구조화한 후보만 따로 확인한다.</p>
           <small>분석 목록 열기</small>
         </Link>
         <Link className="where-card" href={"/ai-evidence/blocked" as Route}>

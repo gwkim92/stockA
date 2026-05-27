@@ -101,9 +101,9 @@ export default async function HomePage() {
   const portfolioFeedbackDate =
     outcomeWaitMonitor.portfolio_feedback_maturity_date || outcomeWaitMonitor.earliest_action_date || "미정";
   const weightReviewLabel = outcomeWaitMonitor.manual_weight_review_allowed
-    ? "수동 weight 검토 가능"
-    : "weight 검토 차단";
-  const orderBoundaryLabel = outcomeWaitMonitor.broker_submit_allowed ? "broker 제출 가능" : "주문 제출 차단";
+    ? "수동 추천 산식 검토 가능"
+    : "추천 산식 검토 차단";
+  const orderBoundaryLabel = outcomeWaitMonitor.broker_submit_allowed ? "증권사 주문 전송 가능" : "주문 제출 차단";
   const firstRecommendationHref = firstRecommendation
     ? (`/recommendations/${firstRecommendation.recommendation_id}` as Route)
     : ("/recommendations" as Route);
@@ -331,7 +331,7 @@ export default async function HomePage() {
             <small>성숙 표본 부족 {outcomeWaitMonitor.portfolio_mature_decision_gap}개</small>
           </article>
           <article className="rail-cell rail-critical">
-            <span>weight 검토</span>
+            <span>추천 산식 검토</span>
             <strong>{weightReviewLabel}</strong>
             <small>{koReason(outcomeWaitMonitor.weight_review_block_reason)}</small>
           </article>
@@ -356,7 +356,7 @@ export default async function HomePage() {
 
       <section className="status-rail reveal delay-1" aria-label="오늘의 핵심 숫자">
         <article className="rail-cell rail-critical">
-          <span>사람이 확인할 항목</span>
+          <span>운영 검토 항목</span>
           <strong>{data.attention_summary.open_ticket_count}</strong>
           <small>열린 검토 티켓</small>
         </article>
@@ -444,7 +444,7 @@ export default async function HomePage() {
         <article className="ledger-panel queue-panel">
           <div className="section-heading">
             <span>우선순위</span>
-            <h2>지금 사람이 처리해야 할 것</h2>
+            <h2>지금 정리해야 할 운영 항목</h2>
           </div>
           <div className="ledger-table-wrap">
             <table className="ledger-table">

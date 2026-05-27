@@ -33,7 +33,7 @@ export default async function RemediationPage() {
         <div>
           <div className="bento-badge">보완 큐</div>
           <h1 className="page-title" id="remediation-title">
-            사람이 먼저 확인해야 할 공백을 모은다.
+            먼저 정리해야 할 판단 공백을 모은다.
           </h1>
         </div>
         <p className="page-lede">

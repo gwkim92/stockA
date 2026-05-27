@@ -393,7 +393,7 @@ export default async function PortfolioCoveragePage() {
             </span>
           </div>
           <p style={{ color: "var(--text-secondary)", marginTop: 0 }}>
-            화면에서 계산한 집중도와 별도로, backend guardrail runner가 저장한 최신 결과를 paper validation이 읽는다.
+            화면에서 계산한 집중도와 별도로, 백엔드 위험 예산 검증 작업이 저장한 최신 결과를 가상 검증이 읽는다.
             이 값이 차단이면 가상 거래 검증은 충돌 수가 0이어도 실패 상태로 남는다.
           </p>
           <div className="status-rail compact-rail" aria-label="저장된 위험 예산 검증 요약">
@@ -557,12 +557,12 @@ export default async function PortfolioCoveragePage() {
             </div>
             <span className={`risk-tag ${reviewCalibration.weight_review_blocked ? "risk-medium" : "risk-low"}`}>
               {reviewCalibration.status === "loaded"
-                ? reviewCalibration.weight_review_blocked ? "weight 변경 금지" : "manual 검토 가능"
+                ? reviewCalibration.weight_review_blocked ? "추천 산식 변경 금지" : "수동 검토 가능"
                 : "누적평가 없음"}
             </span>
           </div>
           <p style={{ color: "var(--text-secondary)", marginTop: 0 }}>
-            포트폴리오 비중 검토는 실제 outcome 관찰 기간이 지난 뒤 평가한다. 이 카드가 보여주는 것은 weight 변경
+            포트폴리오 비중 검토는 실제 성과 관찰 기간이 지난 뒤 평가한다. 이 카드가 보여주는 것은 추천 산식 변경
             허용이 아니라, 왜 아직 금지인지와 다음 성숙 시점이다.
           </p>
           <div className="status-rail compact-rail" aria-label="검토 신뢰도 누적평가 요약" style={{ marginBottom: "20px" }}>
@@ -637,7 +637,7 @@ export default async function PortfolioCoveragePage() {
             </span>
           </div>
           <p style={{ color: "var(--text-secondary)", marginTop: 0 }}>
-            최신 검토 이력, 사후평가, 누적평가가 서로 연결되어 있는지 확인한다. 실행 필요가 떠도 주문이나 weight 변경은
+            최신 검토 이력, 사후평가, 누적평가가 서로 연결되어 있는지 확인한다. 실행 필요가 떠도 주문이나 추천 산식 변경은
             자동으로 허용되지 않는다.
           </p>
           <div className="status-rail compact-rail" aria-label="검토 실행시점 요약" style={{ marginBottom: "20px" }}>
@@ -710,7 +710,7 @@ export default async function PortfolioCoveragePage() {
               <small>
                 {reviewActionRouter.child_runner.executed
                   ? `${koCode(reviewActionRouter.child_runner.report_name)} · ${reviewActionRouter.child_runner.eval_run_id}`
-                  : "child runner 미실행"}
+                  : "후속 자동 실행 없음"}
               </small>
             </article>
             <article className="rail-cell rail-critical">

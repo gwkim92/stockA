@@ -166,10 +166,10 @@ export default async function TradingReadinessPage() {
             </div>
             <p className="empty-copy">
               SPY 대비 active weight가 큰 종목을 검토 후보로만 보여준다. 이 목록은 주문 목표가 아니며
-              broker submit은 계속 금지된다.
+              증권사 주문 전송은 계속 금지된다.
             </p>
             {candidateReview.candidates.length > 0 ? (
-              <div className="reason-list" aria-label="벤치마크 active weight 검토 후보">
+              <div className="reason-list" aria-label="벤치마크 대비 초과 비중 검토 후보">
                 {candidateReview.candidates.slice(0, 5).map((candidate) => (
                   <article className="reason-card" key={`${candidate.priority}-${candidate.symbol}`}>
                     <div>

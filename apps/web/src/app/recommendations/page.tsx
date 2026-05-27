@@ -193,7 +193,7 @@ export default async function RecommendationsPage() {
           <article className="flow-step">
             <span>5. 경계</span>
             <strong>주문은 계속 차단</strong>
-            <p>목록의 모든 추천은 읽기 전용이다. 상세 검토가 가능해도 broker submit은 열리지 않는다.</p>
+            <p>목록의 모든 추천은 읽기 전용이다. 상세 검토가 가능해도 증권사 주문 전송은 열리지 않는다.</p>
           </article>
         </div>
       </section>

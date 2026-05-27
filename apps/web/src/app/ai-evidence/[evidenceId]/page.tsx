@@ -266,10 +266,10 @@ function pageCopy(data: AiEvidenceDetailData, candidate: NewsCandidate | null, c
 
 function providerReviewNote(data: AiEvidenceDetailData) {
   if (["local_rules", "local_deterministic"].includes(data.extraction_run.provider)) {
-    return "LLM 최종 판단이 아니라 무료 로컬 규칙으로 만든 묶음이다. 다음 AI 배치와 validator가 원문 제목과 테마 일치 여부를 다시 점검해야 한다.";
+    return "최종 AI 판단이 아니라 무료 로컬 규칙으로 만든 묶음이다. 다음 AI 배치와 자동 검증이 원문 제목과 테마 일치 여부를 다시 점검해야 한다.";
   }
   if (data.extraction_run.provider === "codex_oauth") {
-    return "Codex OAuth 배치가 구조화한 결과다. 그래도 원문과 종목 연결을 대조해야 한다.";
+    return "AI 배치가 구조화한 결과다. 그래도 원문과 종목 연결을 대조해야 한다.";
   }
   return `${koCode(data.extraction_run.provider)} 결과다. 원천과 연결 대상을 대조해야 한다.`;
 }
@@ -277,7 +277,7 @@ function providerReviewNote(data: AiEvidenceDetailData) {
 function evidenceDecision(data: AiEvidenceDetailData) {
   if (data.evidence_type === "news_event_candidate_rejected") {
     return {
-      label: "validator 차단",
+      label: "자동 검증 차단",
       tone: "risk-high",
       body: "이 후보는 canonical 영향 테이블과 추천 입력으로 넘기지 않는다. 원천 확인과 분류 보강 대상으로만 남긴다.",
     };
@@ -286,7 +286,7 @@ function evidenceDecision(data: AiEvidenceDetailData) {
     return {
       label: "규칙 기반 후보",
       tone: "risk-medium",
-      body: "무료 로컬 규칙이 만든 근거다. AI 최종 구조화가 아니라서 같은 테마·종목 연결이 맞는지 별도 validator가 확인해야 한다.",
+      body: "무료 로컬 규칙이 만든 근거다. AI 최종 구조화가 아니라서 같은 테마·종목 연결이 맞는지 별도 자동 검증이 확인해야 한다.",
     };
   }
   if (data.extraction_run.quality_gate === "ai_review_passed") {
@@ -782,7 +782,7 @@ export default async function AiEvidencePage({ params }: AiEvidencePageProps) {
     },
     {
       index: "04",
-      label: "validator 판정",
+      label: "자동 검증 판정",
       title: decision.label,
       status: data.evidence_type === "news_event_candidate_rejected" ? "차단" : "입력 후보",
       body: decision.body,

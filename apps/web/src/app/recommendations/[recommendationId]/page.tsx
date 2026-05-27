@@ -167,7 +167,7 @@ function sourceDocumentHref(documentId: string) {
 
 function providerLabel(provider: string) {
   if (provider === "codex_oauth") {
-    return "Codex OAuth AI 분석";
+    return "AI 분석";
   }
   if (provider === "fixture") {
     return "검증용 샘플 분석";
@@ -1219,7 +1219,7 @@ export default async function RecommendationPage({ params }: RecommendationPageP
           <div className="rail-cell rail-critical">
             <span>거래 경계</span>
             <strong>{koCode(professionalAudit.order_boundary)}</strong>
-            <small>weight 변경 {professionalAudit.automatic_weight_change_allowed ? "허용" : "금지"} · 주문 {professionalAudit.broker_submit_allowed ? "허용" : "금지"}</small>
+            <small>추천 산식 변경 {professionalAudit.automatic_weight_change_allowed ? "허용" : "금지"} · 주문 {professionalAudit.broker_submit_allowed ? "허용" : "금지"}</small>
           </div>
         </div>
 
@@ -1462,7 +1462,7 @@ export default async function RecommendationPage({ params }: RecommendationPageP
           </>
         ) : (
           <div className="empty-state">
-            아직 이 종목의 기업 리서치 artifact가 없다. `equity-research-reporting-daily`
+            아직 이 종목의 기업 리서치 결과가 없다. `equity-research-reporting-daily`
             배치가 실행되면 사업 설명, 재무 변화, 촉매, 리스크, 무효화 조건이 이곳에 연결된다.
           </div>
         )}

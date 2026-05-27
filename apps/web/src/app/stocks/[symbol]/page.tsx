@@ -169,7 +169,7 @@ function sourceDocumentHref(documentId: string | null) {
 
 function providerLabel(provider: string) {
   if (provider === "codex_oauth") {
-    return "Codex OAuth AI 분석";
+    return "AI 분석";
   }
   if (provider === "fixture") {
     return "검증용 샘플 분석";
@@ -698,7 +698,7 @@ function ProfessionalSourceGuardrailPanel({
         <div className="rail-cell rail-critical">
           <span>주문 경계</span>
           <strong>{koCode(guardrail.order_boundary)}</strong>
-          <small>broker submit {guardrail.broker_submit_allowed ? "허용" : "금지"}</small>
+          <small>증권사 주문 전송 {guardrail.broker_submit_allowed ? "허용" : "금지"}</small>
         </div>
       </div>
       <div className="empty-state" style={{ marginTop: "18px" }}>
@@ -1032,7 +1032,7 @@ export default async function StockDetailPage({ params }: StockDetailPageProps) 
       tone: equityResearch ? "ready" : "watch",
       body: equityResearch?.korean_summary
         ? equityResearch.korean_summary
-        : "이 종목의 사업 설명 artifact가 아직 없다. 현재 화면에서는 가격, 뉴스, 상위 흐름까지만 신뢰할 수 있다.",
+        : "이 종목의 사업 설명 결과가 아직 없다. 현재 화면에서는 가격, 뉴스, 상위 흐름까지만 신뢰할 수 있다.",
       facts: [
         { label: "종목", value: `${data.symbol} · ${data.name}` },
         { label: "시장", value: `${data.market_code} · ${data.currency_code}` },
@@ -1103,7 +1103,7 @@ export default async function StockDetailPage({ params }: StockDetailPageProps) 
             ]
           : valuationItems.length > 0
           ? valuationItems.slice(0, 3).map((item) => ({ label: koCode(item.key), value: koLabel(item.value) }))
-          : [{ label: "상태", value: "밸류에이션 artifact 대기" }],
+          : [{ label: "상태", value: "밸류에이션 결과 대기" }],
     },
     {
       id: "news-cycle",
@@ -1141,8 +1141,8 @@ export default async function StockDetailPage({ params }: StockDetailPageProps) 
       status: sourceBlocked ? "페이퍼 입력 차단" : data.position ? "보유 상태 있음" : data.recommendation ? "추천 검토 중" : "거래 입력 전",
       tone: sourceBlocked ? "blocked" : "neutral",
       body: sourceBlocked
-        ? `${sourceGuardrail.next_action} 실제 broker submit은 계속 닫혀 있다.`
-        : "이 화면은 주문을 만들지 않는다. 실제 broker submit은 닫혀 있고, 추천이 생겨도 페이퍼 검증과 리스크 경계를 먼저 확인해야 한다.",
+        ? `${sourceGuardrail.next_action} 실제 증권사 주문 전송은 계속 닫혀 있다.`
+        : "이 화면은 주문을 만들지 않는다. 실제 증권사 주문 전송은 닫혀 있고, 추천이 생겨도 페이퍼 검증과 리스크 경계를 먼저 확인해야 한다.",
       href: "/paper-trading" as Route,
       hrefLabel: "페이퍼 거래 상태 보기",
     },
@@ -1397,7 +1397,7 @@ export default async function StockDetailPage({ params }: StockDetailPageProps) 
           </>
         ) : (
           <div className="empty-state">
-            아직 이 종목의 기업 리서치 artifact가 없다. `equity-research-reporting-daily` 배치가 실행되면
+            아직 이 종목의 기업 리서치 결과가 없다. `equity-research-reporting-daily` 배치가 실행되면
             사업 설명, 핵심 재무 변화, 촉매, 리스크, 무효화 조건, 밸류에이션 민감도가 이곳에 표시된다.
           </div>
         )}
