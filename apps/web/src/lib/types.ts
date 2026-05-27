@@ -1592,6 +1592,10 @@ export type RecommendationListData = {
     linked_thesis_count: number;
     ai_or_event_evidence_count: number;
     macro_flow_evidence_recommendation_count: number;
+    decision_review_ready_count: number;
+    paper_validation_pending_count: number;
+    decision_blocked_count: number;
+    order_blocked_count: number;
     average_score: number | null;
   };
   recommendations: Array<{
@@ -1620,6 +1624,14 @@ export type RecommendationListData = {
       measurement_end_date: string;
       label: string;
       alpha: number | null;
+    };
+    decision_boundary: {
+      status: string;
+      reason: string;
+      paper_validation_input_allowed: boolean;
+      automatic_order_allowed: boolean;
+      broker_submit_allowed: boolean;
+      order_boundary: string;
     };
   }>;
 };

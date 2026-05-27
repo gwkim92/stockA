@@ -77,6 +77,35 @@ function macroFlowBadge(row: RecommendationRow) {
   return `상위 흐름 ${row.evidence.macro_flow_evidence_count}개`;
 }
 
+function boundaryLabel(status: string) {
+  if (status === "decision_review_ready") {
+    return "상세 검토 가능";
+  }
+  if (status === "paper_validation_pending") {
+    return "페이퍼 검증 대기";
+  }
+  if (status === "blocked_missing_thesis") {
+    return "투자 논리 차단";
+  }
+  if (status === "blocked_missing_score_components") {
+    return "점수 근거 차단";
+  }
+  if (status === "blocked_missing_ai_or_event_evidence") {
+    return "뉴스 근거 차단";
+  }
+  return koCode(status);
+}
+
+function boundaryTone(status: string) {
+  if (status === "decision_review_ready") {
+    return "risk-low";
+  }
+  if (status === "paper_validation_pending") {
+    return "risk-medium";
+  }
+  return "risk-high";
+}
+
 export default async function RecommendationsPage() {
   const response = await getRecommendations();
   const data = response.data;
@@ -112,6 +141,16 @@ export default async function RecommendationsPage() {
           <span>상위 흐름 연결</span>
           <strong>{data.summary.macro_flow_evidence_recommendation_count.toLocaleString("ko-KR")}</strong>
           <small>거시·테마 전파 근거 보유</small>
+        </div>
+        <div className="rail-cell">
+          <span>상세 검토 가능</span>
+          <strong>{data.summary.decision_review_ready_count.toLocaleString("ko-KR")}</strong>
+          <small>페이퍼 대기 {data.summary.paper_validation_pending_count.toLocaleString("ko-KR")}개</small>
+        </div>
+        <div className="rail-cell rail-critical">
+          <span>검토 차단</span>
+          <strong>{data.summary.decision_blocked_count.toLocaleString("ko-KR")}</strong>
+          <small>주문 차단 {data.summary.order_blocked_count.toLocaleString("ko-KR")}개</small>
         </div>
         <div className="rail-cell">
           <span>평균 점수</span>
@@ -151,6 +190,11 @@ export default async function RecommendationsPage() {
             <strong>보유·성과 확인</strong>
             <p>보유 검토와 성과 측정이 이어져 추천 품질을 계속 확인한다.</p>
           </article>
+          <article className="flow-step">
+            <span>5. 경계</span>
+            <strong>주문은 계속 차단</strong>
+            <p>목록의 모든 추천은 읽기 전용이다. 상세 검토가 가능해도 broker submit은 열리지 않는다.</p>
+          </article>
         </div>
       </section>
 
@@ -183,6 +227,9 @@ export default async function RecommendationsPage() {
                     <span className={row.evidence.macro_flow_evidence_count > 0 ? "risk-tag risk-medium" : "risk-tag"}>
                       {macroFlowBadge(row)}
                     </span>
+                    <span className={`risk-tag ${boundaryTone(row.decision_boundary.status)}`}>
+                      {boundaryLabel(row.decision_boundary.status)}
+                    </span>
                     <span className="metric-sub">#{row.rank_position} · {koCode(row.bucket)} · {koCode(row.status)}</span>
                   </div>
                   <Link className="stock-symbol-link" href={recommendationHref(row.recommendation_id)}>
@@ -191,6 +238,9 @@ export default async function RecommendationsPage() {
                   </Link>
                   <p style={{ color: "var(--text-secondary)", margin: "10px 0 0", lineHeight: 1.55 }}>
                     {recommendationSummary(row)}
+                  </p>
+                  <p style={{ color: "var(--text-secondary)", margin: "8px 0 0", lineHeight: 1.55 }}>
+                    사용 경계: {row.decision_boundary.reason} 주문 경계는 {koCode(row.decision_boundary.order_boundary)}다.
                   </p>
                   <div className="mini-link-stack" style={{ marginTop: "12px" }}>
                     <Link href={recommendationHref(row.recommendation_id)}>추천 상세</Link>

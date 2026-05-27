@@ -3014,6 +3014,10 @@ class FakeLiveExecutor:
                         "linked_thesis_count": 1,
                         "ai_or_event_evidence_count": 1,
                         "macro_flow_evidence_recommendation_count": 1,
+                        "decision_review_ready_count": 1,
+                        "paper_validation_pending_count": 0,
+                        "decision_blocked_count": 1,
+                        "order_blocked_count": 2,
                         "average_score": "0.5189",
                     },
                     "recommendations": [
@@ -3044,6 +3048,14 @@ class FakeLiveExecutor:
                                 "label": "outperform",
                                 "alpha": "0.0600",
                             },
+                            "decision_boundary": {
+                                "status": "decision_review_ready",
+                                "reason": "근거와 투자 논리가 연결되어 추천 상세 검토로 들어갈 수 있다.",
+                                "paper_validation_input_allowed": True,
+                                "automatic_order_allowed": False,
+                                "broker_submit_allowed": False,
+                                "order_boundary": "read_only_no_order",
+                            },
                         },
                         {
                             "recommendation_id": 7102,
@@ -3071,6 +3083,14 @@ class FakeLiveExecutor:
                                 "measurement_end_date": None,
                                 "label": "unmeasured",
                                 "alpha": None,
+                            },
+                            "decision_boundary": {
+                                "status": "blocked_missing_thesis",
+                                "reason": "투자 논리가 없어 추천 검토 입력으로 쓰면 안 된다.",
+                                "paper_validation_input_allowed": False,
+                                "automatic_order_allowed": False,
+                                "broker_submit_allowed": False,
+                                "order_boundary": "read_only_no_order",
                             },
                         },
                     ],
@@ -6671,6 +6691,10 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertEqual(payload["data"]["summary"]["blocked_count"], 1)
         self.assertEqual(payload["data"]["summary"]["average_score"], 0.5189)
         self.assertEqual(payload["data"]["summary"]["macro_flow_evidence_recommendation_count"], 1)
+        self.assertEqual(payload["data"]["summary"]["decision_review_ready_count"], 1)
+        self.assertEqual(payload["data"]["summary"]["paper_validation_pending_count"], 0)
+        self.assertEqual(payload["data"]["summary"]["decision_blocked_count"], 1)
+        self.assertEqual(payload["data"]["summary"]["order_blocked_count"], 2)
         self.assertEqual(payload["pagination"]["limit"], 1)
         self.assertTrue(payload["pagination"]["has_more"])
         row = payload["data"]["recommendations"][0]
@@ -6685,6 +6709,11 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertEqual(row["evidence"]["macro_flow_component_count"], 1)
         self.assertEqual(row["evidence"]["macro_flow_evidence_count"], 8)
         self.assertEqual(row["outcome"]["alpha"], 0.06)
+        self.assertEqual(row["decision_boundary"]["status"], "decision_review_ready")
+        self.assertTrue(row["decision_boundary"]["paper_validation_input_allowed"])
+        self.assertFalse(row["decision_boundary"]["automatic_order_allowed"])
+        self.assertFalse(row["decision_boundary"]["broker_submit_allowed"])
+        self.assertEqual(row["decision_boundary"]["order_boundary"], "read_only_no_order")
         self.assertEqual(payload["links"]["paper_trading"], "/api/paper-trading/preview")
         self.assertTrue(is_live_supported_path("/api/recommendations?asOfDate=2024-11-01"))
 
@@ -6704,6 +6733,12 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertIn("macro_flow_evidence_count", sql)
         self.assertIn("signal.propagated_instrument_impact", sql)
         self.assertIn("'macro_flow_evidence_recommendation_count'", sql)
+        self.assertIn("'decision_review_ready_count'", sql)
+        self.assertIn("'paper_validation_pending_count'", sql)
+        self.assertIn("'decision_blocked_count'", sql)
+        self.assertIn("'order_blocked_count'", sql)
+        self.assertIn("'decision_boundary'", sql)
+        self.assertIn("'read_only_no_order'", sql)
         self.assertIn("performance.recommendation_outcome", sql)
         self.assertIn("event.event_instrument_impact", sql)
         self.assertIn("ai.extraction_artifact", sql)

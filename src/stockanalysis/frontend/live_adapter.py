@@ -2026,6 +2026,10 @@ def build_live_recommendation_list_response(
                 "macro_flow_evidence_recommendation_count": int(
                     summary.get("macro_flow_evidence_recommendation_count") or 0
                 ),
+                "decision_review_ready_count": int(summary.get("decision_review_ready_count") or 0),
+                "paper_validation_pending_count": int(summary.get("paper_validation_pending_count") or 0),
+                "decision_blocked_count": int(summary.get("decision_blocked_count") or 0),
+                "order_blocked_count": int(summary.get("order_blocked_count") or 0),
                 "average_score": _number(summary.get("average_score")),
             },
             "recommendations": recommendations,
@@ -11090,7 +11094,29 @@ recommendation_rows as (
             when coalesce(component_count.score_component_count, 0) = 0 then 'blocked'
             when coalesce(component_count.ai_or_event_component_count, 0) = 0 then 'needs_evidence'
             else 'ai_review_passed'
-        end as quality_status
+        end as quality_status,
+        case
+            when recommendation.thesis_id is null then 'blocked_missing_thesis'
+            when coalesce(component_count.score_component_count, 0) = 0 then 'blocked_missing_score_components'
+            when coalesce(component_count.ai_or_event_component_count, 0) = 0 then 'blocked_missing_ai_or_event_evidence'
+            when coalesce(outcome.outcome_label, 'unmeasured') = 'unmeasured' then 'paper_validation_pending'
+            else 'decision_review_ready'
+        end as decision_boundary_status,
+        case
+            when recommendation.thesis_id is null then '투자 논리가 없어 추천 검토 입력으로 쓰면 안 된다.'
+            when coalesce(component_count.score_component_count, 0) = 0 then '추천 점수 구성요소가 없어 검토 입력으로 쓰면 안 된다.'
+            when coalesce(component_count.ai_or_event_component_count, 0) = 0 then '뉴스·공시·AI 근거가 부족해 먼저 근거를 확인해야 한다.'
+            when coalesce(outcome.outcome_label, 'unmeasured') = 'unmeasured' then '근거는 있으나 성과 측정창이 아직 끝나지 않았다. 페이퍼 검증 대기 상태다.'
+            else '근거와 투자 논리가 연결되어 추천 상세 검토로 들어갈 수 있다.'
+        end as decision_boundary_reason,
+        coalesce(outcome.outcome_label, 'unmeasured') <> 'unmeasured'
+          and recommendation.thesis_id is not null
+          and coalesce(component_count.score_component_count, 0) > 0
+          and coalesce(component_count.ai_or_event_component_count, 0) > 0
+            as paper_validation_input_allowed,
+        false as automatic_order_allowed,
+        false as broker_submit_allowed,
+        'read_only_no_order' as order_boundary
     from recommendation_base recommendation
     left join score_component_counts component_count
       on component_count.recommendation_id = recommendation.recommendation_id
@@ -11151,6 +11177,10 @@ select json_build_object(
         'linked_thesis_count', (select count(*) filter (where thesis_id is not null)::int from recommendation_rows),
         'ai_or_event_evidence_count', (select count(*) filter (where ai_or_event_component_count > 0 or primary_evidence_id is not null)::int from recommendation_rows),
         'macro_flow_evidence_recommendation_count', (select count(*) filter (where macro_flow_evidence_count > 0)::int from recommendation_rows),
+        'decision_review_ready_count', (select count(*) filter (where decision_boundary_status = 'decision_review_ready')::int from recommendation_rows),
+        'paper_validation_pending_count', (select count(*) filter (where decision_boundary_status = 'paper_validation_pending')::int from recommendation_rows),
+        'decision_blocked_count', (select count(*) filter (where decision_boundary_status like 'blocked_%')::int from recommendation_rows),
+        'order_blocked_count', (select count(*)::int from recommendation_rows),
         'average_score', (select avg(total_score) from recommendation_rows)
     ),
     'recommendations',
@@ -11185,6 +11215,15 @@ select json_build_object(
                         'measurement_end_date', measurement_end_date,
                         'label', outcome_label,
                         'alpha', alpha_pct
+                    ),
+                    'decision_boundary',
+                    json_build_object(
+                        'status', decision_boundary_status,
+                        'reason', decision_boundary_reason,
+                        'paper_validation_input_allowed', paper_validation_input_allowed,
+                        'automatic_order_allowed', automatic_order_allowed,
+                        'broker_submit_allowed', broker_submit_allowed,
+                        'order_boundary', order_boundary
                     )
                 )
                 order by rank_position, recommendation_id
@@ -17118,6 +17157,50 @@ def _build_recommendation_list_item_payload(item: dict[str, Any]) -> dict[str, A
             "label": str(outcome.get("label") or "unmeasured"),
             "alpha": _number(outcome.get("alpha")),
         },
+        "decision_boundary": _build_recommendation_list_boundary_payload(
+            _as_dict(item.get("decision_boundary")),
+            linked_thesis_id=linked_thesis_id,
+            evidence=evidence,
+            outcome=outcome,
+        ),
+    }
+
+
+def _build_recommendation_list_boundary_payload(
+    boundary: dict[str, Any],
+    *,
+    linked_thesis_id: Any,
+    evidence: Mapping[str, Any],
+    outcome: Mapping[str, Any],
+) -> dict[str, Any]:
+    status = str(boundary.get("status") or "")
+    if not status:
+        if linked_thesis_id is None:
+            status = "blocked_missing_thesis"
+        elif int(evidence.get("score_component_count") or 0) <= 0:
+            status = "blocked_missing_score_components"
+        elif int(evidence.get("ai_or_event_component_count") or 0) <= 0:
+            status = "blocked_missing_ai_or_event_evidence"
+        elif str(outcome.get("label") or "unmeasured") == "unmeasured":
+            status = "paper_validation_pending"
+        else:
+            status = "decision_review_ready"
+    reason = str(boundary.get("reason") or "")
+    if not reason:
+        reason = {
+            "blocked_missing_thesis": "투자 논리가 없어 추천 검토 입력으로 쓰면 안 된다.",
+            "blocked_missing_score_components": "추천 점수 구성요소가 없어 검토 입력으로 쓰면 안 된다.",
+            "blocked_missing_ai_or_event_evidence": "뉴스·공시·AI 근거가 부족해 먼저 근거를 확인해야 한다.",
+            "paper_validation_pending": "근거는 있으나 성과 측정창이 아직 끝나지 않았다. 페이퍼 검증 대기 상태다.",
+            "decision_review_ready": "근거와 투자 논리가 연결되어 추천 상세 검토로 들어갈 수 있다.",
+        }.get(status, "추천 상세에서 판단 경계를 확인한다.")
+    return {
+        "status": status,
+        "reason": reason,
+        "paper_validation_input_allowed": boundary.get("paper_validation_input_allowed") is True,
+        "automatic_order_allowed": boundary.get("automatic_order_allowed") is True,
+        "broker_submit_allowed": boundary.get("broker_submit_allowed") is True,
+        "order_boundary": str(boundary.get("order_boundary") or "read_only_no_order"),
     }
 
 

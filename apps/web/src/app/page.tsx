@@ -94,6 +94,7 @@ export default async function HomePage() {
   const providerBudget = health.data.provider_budget;
   const coverage = data.latest_metrics;
   const firstRecommendation = recommendationData.recommendations[0];
+  const recommendationBoundary = recommendationData.summary;
   const firstRecommendationHref = firstRecommendation
     ? (`/recommendations/${firstRecommendation.recommendation_id}` as Route)
     : ("/recommendations" as Route);
@@ -160,8 +161,8 @@ export default async function HomePage() {
     {
       index: "04",
       title: "추천과 보유가 막혔나",
-      status: `${recommendationData.summary.reviewable_count}개 검토`,
-      detail: `보유 커버리지 ${formatPercent(coverage.weight_coverage_ratio)}, 열린 검토 ${ticketData.ticket_count}개`,
+      status: `${recommendationBoundary.decision_review_ready_count}개 검토 가능`,
+      detail: `페이퍼 대기 ${recommendationBoundary.paper_validation_pending_count}개, 차단 ${recommendationBoundary.decision_blocked_count}개, 열린 검토 ${ticketData.ticket_count}개`,
       href: "/recommendations",
       cta: "추천 보유",
     },
@@ -310,8 +311,13 @@ export default async function HomePage() {
         </article>
         <article className="rail-cell">
           <span>추천 검토 가능</span>
-          <strong>{recommendationData.summary.reviewable_count}</strong>
-          <small>뉴스·AI 근거 {recommendationData.summary.ai_or_event_evidence_count}개</small>
+          <strong>{recommendationBoundary.decision_review_ready_count}</strong>
+          <small>페이퍼 대기 {recommendationBoundary.paper_validation_pending_count}개</small>
+        </article>
+        <article className="rail-cell rail-critical">
+          <span>추천 검토 차단</span>
+          <strong>{recommendationBoundary.decision_blocked_count}</strong>
+          <small>주문 차단 {recommendationBoundary.order_blocked_count}개</small>
         </article>
         <article className="rail-cell">
           <span>거래 안전 차단</span>
@@ -365,6 +371,14 @@ export default async function HomePage() {
             <strong>{koCode(trading.readiness_status)}</strong>
             <p>
               차단 조건 {trading.gate_summary.blocked_count}개. 실제 주문 전송 {trading.audit_summary.submitted_to_broker_count}건.
+            </p>
+          </article>
+          <article className="decision-brief-card">
+            <span>추천 사용 경계</span>
+            <strong>{recommendationBoundary.decision_review_ready_count}개 검토 가능</strong>
+            <p>
+              페이퍼 검증 대기 {recommendationBoundary.paper_validation_pending_count}개, 근거·thesis 차단{" "}
+              {recommendationBoundary.decision_blocked_count}개. 모든 추천은 주문 차단 상태다.
             </p>
           </article>
         </div>
