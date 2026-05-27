@@ -47,6 +47,66 @@ export default async function TradingReadinessPage() {
   const riskGuardrail = data.portfolio_risk_budget_guardrail;
   const candidateReview = riskGuardrail.rebalance_candidate_review;
   const blockedReasons = data.paper_validation.blocked_reasons.map((reason) => koBlockedReason(reason));
+  const liveSubmitCount = data.audit_summary.submitted_to_broker_count;
+  const brokerSubmitEnabled = data.broker_boundary.supports_order_submit;
+  const brokerPreviewEnabled = data.broker_boundary.supports_order_preview;
+  const tradingCommandCards = [
+    {
+      index: "01",
+      label: "실거래 결론",
+      title:
+        liveSubmitCount > 0
+          ? "실제 주문 기록 확인 필요"
+          : data.gate_summary.blocked_count > 0
+            ? "실거래 차단 중"
+            : "실거래 전 별도 승인 필요",
+      metric: `${data.gate_summary.blocked_count}개 차단 · 실제 주문 ${liveSubmitCount}건`,
+      body:
+        liveSubmitCount > 0
+          ? "실제 주문 전송 기록이 있으므로 감사 로그와 계좌 내역을 먼저 대조해야 한다."
+          : data.gate_summary.blocked_count > 0
+            ? "안전 조건이 닫혀 있어 현재 화면 기준으로 실거래 후보로 넘기면 안 된다."
+            : "차단 수가 0이어도 이 화면은 주문 화면이 아니다. 실거래는 별도 broker flow와 승인 뒤에만 가능하다.",
+      href: "#trading-gates",
+      cta: "안전 조건 보기",
+      tone: liveSubmitCount > 0 || data.gate_summary.blocked_count > 0 ? "block" : "watch",
+    },
+    {
+      index: "02",
+      label: "증권사 제출",
+      title: brokerSubmitEnabled ? "broker submit 설정됨" : "broker submit 비활성",
+      metric: data.broker_boundary.broker_code || "증권사 미등록",
+      body: brokerSubmitEnabled
+        ? "증권사 제출 기능이 켜진 상태다. 주문 전송 기록과 권한 경계를 더 엄격히 확인해야 한다."
+        : "현재 broker boundary는 실제 주문 제출을 지원하지 않는다. 미리보기와 실제 제출을 분리해서 본다.",
+      href: "#broker-boundary",
+      cta: "증권사 경계 보기",
+      tone: brokerSubmitEnabled ? "watch" : "ready",
+    },
+    {
+      index: "03",
+      label: "킬 스위치",
+      title: blockedSwitches.length > 0 ? "킬 스위치 작동 중" : "킬 스위치 해제",
+      metric: `${blockedSwitches.length}개 작동`,
+      body:
+        blockedSwitches.length > 0
+          ? "scope별 kill switch가 켜져 있어 해당 범위의 주문 전환은 차단된다."
+          : "현재 작동 중인 kill switch는 없다. 그래도 broker submit과 audit boundary가 별도로 막는다.",
+      href: "#kill-switches",
+      cta: "킬 스위치 보기",
+      tone: blockedSwitches.length > 0 ? "block" : "ready",
+    },
+    {
+      index: "04",
+      label: "감사·페이퍼",
+      title: `${koCode(data.paper_validation.status)} · 검토 ${data.audit_summary.intent_count}건`,
+      metric: `승인 후보 ${data.paper_validation.approved_action_count}개 · 제출 ${liveSubmitCount}건`,
+      body: "페이퍼 검증과 감사 기록은 실제 주문 전 단계의 근거다. 승인 후보가 있어도 자동 주문은 아니다.",
+      href: "#audit-boundary",
+      cta: "감사 경계 보기",
+      tone: data.paper_validation.blocked_reasons.length > 0 ? "watch" : "ready",
+    },
+  ];
 
   return (
     <div className="pageStack">
@@ -58,6 +118,29 @@ export default async function TradingReadinessPage() {
           실거래 후보가 된다. 아래 거래 안전 요약에서 차단 수와 실제 주문 전송 건수를 먼저 확인한다.
           실제 주문 전송 건수가 0이면 현재 서버에서 실제 주문은 나가지 않았다.
         </p>
+      </section>
+
+      <section className="trading-command-panel reveal delay-1" aria-labelledby="trading-command-title">
+        <div className="trading-command-lead">
+          <span>실거래 경계 판정판</span>
+          <h2 id="trading-command-title">지금 주문할 수 있는지가 아니라, 무엇이 막는지 본다.</h2>
+          <p>
+            이 화면은 주문 버튼이 아니다. 실거래 결론, 증권사 제출 기능, kill switch,
+            감사·페이퍼 검증을 분리해서 실제 주문 전환이 가능한지 판단한다.
+          </p>
+        </div>
+        <div className="trading-command-grid">
+          {tradingCommandCards.map((card) => (
+            <a className={`trading-command-card ${card.tone}`} href={card.href} key={card.index}>
+              <span>{card.index}</span>
+              <small>{card.label}</small>
+              <strong>{card.title}</strong>
+              <em>{card.metric}</em>
+              <p>{card.body}</p>
+              <b>{card.cta}</b>
+            </a>
+          ))}
+        </div>
       </section>
 
       <section className="status-rail compact-rail reveal delay-1" aria-label="거래 안전 요약">
@@ -87,12 +170,12 @@ export default async function TradingReadinessPage() {
         </article>
         <article className="rail-cell">
           <span>실제 주문 전송</span>
-          <strong>{data.audit_summary.submitted_to_broker_count}</strong>
+          <strong>{liveSubmitCount}</strong>
           <small>실제 주문 전송 기록</small>
         </article>
       </section>
 
-      <section className="split-ledger reveal delay-2">
+      <section className="split-ledger reveal delay-2" id="trading-gates">
         <article className="ledger-panel queue-panel">
           <div className="section-heading">
             <div>
@@ -118,7 +201,7 @@ export default async function TradingReadinessPage() {
         </article>
 
         <aside className="side-ledger">
-          <article className="ledger-panel">
+          <article className="ledger-panel" id="broker-boundary">
             <div className="section-heading stacked-heading">
               <span>증권사/계좌</span>
               <h2>권한 경계</h2>
@@ -134,11 +217,11 @@ export default async function TradingReadinessPage() {
               </div>
               <div>
                 <dt>주문 미리보기</dt>
-                <dd>{yesNo(data.broker_boundary.supports_order_preview)}</dd>
+                <dd>{yesNo(brokerPreviewEnabled)}</dd>
               </div>
               <div>
                 <dt>실제 주문 전송</dt>
-                <dd>{yesNo(data.broker_boundary.supports_order_submit)}</dd>
+                <dd>{yesNo(brokerSubmitEnabled)}</dd>
               </div>
               <div>
                 <dt>접속 정보 설정</dt>
@@ -237,8 +320,8 @@ export default async function TradingReadinessPage() {
         </aside>
       </section>
 
-      <section className="ledger-grid reveal delay-3">
-        <article className="ledger-panel">
+      <section className="ledger-grid reveal delay-3" id="kill-switches">
+        <article className="ledger-panel" id="audit-boundary">
           <div className="section-heading stacked-heading">
             <span>킬 스위치와 검증</span>
             <h2>현재 차단 장치</h2>
@@ -299,7 +382,7 @@ export default async function TradingReadinessPage() {
             </div>
             <div>
               <dt>실제 주문 전송</dt>
-              <dd>{data.audit_summary.submitted_to_broker_count.toLocaleString("ko-KR")}건</dd>
+              <dd>{liveSubmitCount.toLocaleString("ko-KR")}건</dd>
             </div>
             <div>
               <dt>위험 예산 검증</dt>
