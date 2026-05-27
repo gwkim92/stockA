@@ -2,9 +2,8 @@
 
 ## Status
 
-- current status: local implementation and verification passed; EC2 deploy/smoke remains.
-- completed: local payload, frontend visibility, gate policy, tests, Next typecheck/build, roadmap verify.
-- in progress: EC2 deploy and smoke.
+- current status: implemented and EC2-smoked.
+- completed: payload, frontend visibility, gate policy, tests, local verification, AWH verify, GitHub push, EC2 deploy, service restart, API smoke, and route smoke.
 
 ## Context
 
@@ -14,7 +13,7 @@
 
 ## Exact Next Step
 
-- exact next step: deploy to EC2 and confirm `/api/data-health.alert_destination` explains missing external alert evidence while keeping `alert_destination` open.
+- exact next step: continue with `auth_rbac` or configure a free external alert destination and write a passed status artifact outside the repo.
 
 ## Implemented Locally
 
@@ -31,6 +30,15 @@
 - `cd apps/web && npm run typecheck` -> passed.
 - `cd apps/web && npm run build` -> passed.
 - `bash scripts/verify_project_execution_roadmap.sh` -> passed.
+- `PYTHONPATH=/Users/woody/ai/agent-work-harness/src /opt/homebrew/bin/python3.13 -m awh verify --repo . --task alert-destination-readiness-visibility-v1` -> passed.
+
+## EC2 Verification
+
+- deployed commit: `dad38e4`.
+- services: `stockanalysis-frontend-api.service` active, `stockanalysis-web.service` active.
+- `/api/data-health.alert_destination`: `status=missing_destination`, `attention_required=true`, `mode=missing`, `target_configured=false`, `last_test_status=missing`.
+- `/api/data-health.open_gates`: `['auth_rbac', 'alert_destination', 'portfolio_review_feedback_calibration_attention']`.
+- `/data-health`: HTTP 200 and renders `운영 알림 확인 필요`, `알림 목적지`, `외부 알림 목적지가 설정되지 않았다`, `알림 설정 보기`.
 
 ## Guardrails
 
