@@ -525,6 +525,7 @@ export type DataHealthData = {
     broker_submit_allowed: boolean;
     order_boundary: string;
   };
+  professional_analysis_next_action: ProfessionalAnalysisNextAction;
   open_gates: string[];
   open_gate_details?: Array<{
     gate_id: string;
@@ -2329,6 +2330,9 @@ export type PortfolioReviewFeedbackCalibration = {
   estimated_maturity_date: string;
   days_until_maturity: number | null;
   attention_required: boolean;
+  managed_wait: boolean;
+  managed_gate_status: string;
+  managed_gate_reason: string;
   weight_review_blocked: boolean;
   weight_review_block_reason: string;
   status_counts: Record<string, number>;
@@ -2347,6 +2351,35 @@ export type PortfolioReviewFeedbackCalibration = {
   };
   next_action: string;
   next_calibration_action: string;
+};
+
+export type ProfessionalAnalysisNextAction = {
+  status: string;
+  title: string;
+  summary: string;
+  next_action: string;
+  as_of_date: string;
+  source_gap_count: number;
+  source_blocker_count: number;
+  guarded_source_blocked_recommendation_count: number;
+  managed_wait: boolean;
+  weight_review_blocked: boolean;
+  manual_weight_review_allowed: boolean;
+  estimated_maturity_date: string;
+  days_until_maturity: number | null;
+  next_symbol: string;
+  next_symbol_href: string;
+  next_symbol_reason: string;
+  readiness_items: Array<{
+    key: string;
+    label: string;
+    status: string;
+    detail: string;
+  }>;
+  order_boundary: string;
+  automatic_weight_change_allowed: boolean;
+  automatic_order_allowed: boolean;
+  broker_submit_allowed: boolean;
 };
 
 export type PortfolioReviewFeedbackCadence = {

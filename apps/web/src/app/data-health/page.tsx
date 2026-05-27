@@ -30,6 +30,7 @@ type RecommendationOutcomeMaturity = DataHealthData["recommendation_outcome_matu
 type RecommendationOutcomeDueActionRouter = DataHealthData["recommendation_outcome_due_action_router"];
 type RecommendationWeightReviewReadiness = DataHealthData["recommendation_weight_review_readiness"];
 type ProfessionalSourceGapPrioritization = DataHealthData["professional_source_gap_prioritization"];
+type ProfessionalAnalysisNextAction = DataHealthData["professional_analysis_next_action"];
 type ProfileTimer = ProfileSchedulerStatus["timers"][number];
 type AuditSampleRecord = Record<string, unknown>;
 
@@ -816,6 +817,20 @@ function professionalSourceGapTone(gaps: ProfessionalSourceGapPrioritization) {
   return "risk-high";
 }
 
+function professionalNextActionTone(nextAction: ProfessionalAnalysisNextAction) {
+  if (
+    nextAction.status === "managed_outcome_wait"
+    || nextAction.status === "professional_inputs_ready"
+    || nextAction.status === "manual_weight_review_possible"
+  ) {
+    return "risk-low";
+  }
+  if (nextAction.status === "outcome_or_weight_review_blocked") {
+    return "risk-medium";
+  }
+  return "risk-high";
+}
+
 function executionIdLabel(value: string | null | undefined) {
   if (!value) {
     return "실행 기록 없음";
@@ -1042,6 +1057,9 @@ const DEFAULT_PORTFOLIO_REVIEW_FEEDBACK_CALIBRATION: PortfolioReviewFeedbackCali
   estimated_maturity_date: "",
   days_until_maturity: null,
   attention_required: true,
+  managed_wait: false,
+  managed_gate_status: "unmanaged_attention",
+  managed_gate_reason: "",
   weight_review_blocked: true,
   weight_review_block_reason: "검토 성과 누적평가 artifact가 없어 추천 weight 검토를 막는다.",
   status_counts: {},
@@ -1060,6 +1078,30 @@ const DEFAULT_PORTFOLIO_REVIEW_FEEDBACK_CALIBRATION: PortfolioReviewFeedbackCali
   },
   next_action: "portfolio-review-feedback-calibration-run을 실행해 누적 검토 feedback 신뢰도를 집계한다.",
   next_calibration_action: "검토 이력과 사후평가를 먼저 누적한다.",
+};
+
+const DEFAULT_PROFESSIONAL_ANALYSIS_NEXT_ACTION: ProfessionalAnalysisNextAction = {
+  status: "missing",
+  title: "전문 분석 상태 없음",
+  summary: "전문 분석 source gap, outcome feedback, weight review 상태를 아직 읽지 못했다.",
+  next_action: "전문 분석 data-health payload를 먼저 생성한다.",
+  as_of_date: "",
+  source_gap_count: 0,
+  source_blocker_count: 0,
+  guarded_source_blocked_recommendation_count: 0,
+  managed_wait: false,
+  weight_review_blocked: true,
+  manual_weight_review_allowed: false,
+  estimated_maturity_date: "",
+  days_until_maturity: null,
+  next_symbol: "",
+  next_symbol_href: "",
+  next_symbol_reason: "",
+  readiness_items: [],
+  order_boundary: "read_only_no_order",
+  automatic_weight_change_allowed: false,
+  automatic_order_allowed: false,
+  broker_submit_allowed: false,
 };
 
 const DEFAULT_PORTFOLIO_REVIEW_FEEDBACK_CADENCE: PortfolioReviewFeedbackCadence = {
@@ -1489,6 +1531,8 @@ export default async function DataHealthPage() {
     data.recommendation_weight_review_readiness ?? DEFAULT_RECOMMENDATION_WEIGHT_REVIEW_READINESS;
   const professionalSourceGaps =
     data.professional_source_gap_prioritization ?? DEFAULT_PROFESSIONAL_SOURCE_GAP_PRIORITIZATION;
+  const professionalNextAction =
+    data.professional_analysis_next_action ?? DEFAULT_PROFESSIONAL_ANALYSIS_NEXT_ACTION;
   const openGateDetails = data.open_gate_details ?? [];
   const marketPriceRun = findPipelineRun(data, "market-price-daily", "market_price_upsert");
   const newsRun = findPipelineRun(data, "news-rss-daily", "news_rss_upsert");
@@ -1641,7 +1685,9 @@ export default async function DataHealthPage() {
       label: "검토 신뢰도",
       title:
         portfolioReviewCalibration.status === "loaded"
-          ? portfolioReviewCalibration.weight_review_blocked
+          ? portfolioReviewCalibration.managed_wait
+            ? "관리된 대기"
+            : portfolioReviewCalibration.weight_review_blocked
             ? "weight 변경 금지"
             : "manual 검토 가능"
           : "누적평가 없음",
@@ -1651,7 +1697,9 @@ export default async function DataHealthPage() {
           : "단일 사후평가만으로 추천 weight를 바꾸지 않기 위해 누적 calibration이 필요하다.",
       href: "#portfolio-review-calibration",
       cta: "신뢰도 보기",
-      tone: calibrationStatusClass(portfolioReviewCalibration.calibration_status),
+      tone: portfolioReviewCalibration.managed_wait
+        ? "risk-low"
+        : calibrationStatusClass(portfolioReviewCalibration.calibration_status),
     },
     {
       label: "검토 실행시점",
@@ -1706,6 +1754,14 @@ export default async function DataHealthPage() {
       href: "#professional-source-gaps",
       cta: "소스 공백 보기",
       tone: professionalSourceGapTone(professionalSourceGaps),
+    },
+    {
+      label: "전문 분석 다음 행동",
+      title: professionalNextAction.title,
+      body: professionalNextAction.summary,
+      href: "#professional-next-action",
+      cta: "다음 행동 보기",
+      tone: professionalNextActionTone(professionalNextAction),
     },
   ];
   const automationCards = [
@@ -2269,6 +2325,82 @@ export default async function DataHealthPage() {
 
       <section
         className="feature-map-panel reveal delay-1"
+        id="professional-next-action"
+        aria-labelledby="professional-next-action-title"
+      >
+        <div className="section-heading stacked-heading">
+          <span>전문 분석 다음 행동</span>
+          <h2 id="professional-next-action-title">재무·밸류에이션·원천 공백·성과 표본 중 지금 무엇을 봐야 하는지 정리한다.</h2>
+        </div>
+        <p className="board-intro">{professionalNextAction.summary}</p>
+        <div className="status-rail compact-rail">
+          <article className="rail-cell">
+            <span>현재 판단</span>
+            <strong className={`risk-tag ${professionalNextActionTone(professionalNextAction)}`}>
+              {professionalNextAction.title}
+            </strong>
+            <small>{professionalNextAction.as_of_date || "기준일 없음"}</small>
+          </article>
+          <article className="rail-cell">
+            <span>원천 공백</span>
+            <strong>{professionalNextAction.source_gap_count}</strong>
+            <small>source blocker {professionalNextAction.source_blocker_count}개</small>
+          </article>
+          <article className="rail-cell">
+            <span>전문 판단 차단</span>
+            <strong>{professionalNextAction.guarded_source_blocked_recommendation_count}</strong>
+            <small>원천 없으면 합성 재무 금지</small>
+          </article>
+          <article className="rail-cell">
+            <span>성과 표본</span>
+            <strong>{professionalNextAction.managed_wait ? "관리된 대기" : koCode(professionalNextAction.status)}</strong>
+            <small>
+              {professionalNextAction.estimated_maturity_date
+                ? `${professionalNextAction.estimated_maturity_date} 이후 재평가`
+                : "성숙일 미확인"}
+            </small>
+          </article>
+          <article className="rail-cell rail-critical">
+            <span>weight/주문 경계</span>
+            <strong>{professionalNextAction.weight_review_blocked ? "weight 변경 금지" : "manual 검토 가능"}</strong>
+            <small>{koCode(professionalNextAction.order_boundary)}</small>
+          </article>
+        </div>
+        <div className="insight-grid">
+          {professionalNextAction.readiness_items.map((item) => (
+            <article className="insight-card" key={item.key}>
+              <span>{item.label}</span>
+              <strong>{koCode(item.status)}</strong>
+              <p>{item.detail}</p>
+            </article>
+          ))}
+          {professionalNextAction.readiness_items.length === 0 ? (
+            <article className="insight-card">
+              <span>상태 없음</span>
+              <strong>data-health payload 대기</strong>
+              <p>전문 분석 summary를 만들 source gap, outcome feedback, weight review evidence가 아직 없다.</p>
+            </article>
+          ) : null}
+        </div>
+        <div className="empty-state">
+          <strong>다음 조치</strong>
+          <p>{professionalNextAction.next_action}</p>
+          {professionalNextAction.next_symbol ? (
+            <p>
+              우선 확인 대상{" "}
+              {professionalNextAction.next_symbol_href ? (
+                <a href={professionalNextAction.next_symbol_href}>{professionalNextAction.next_symbol}</a>
+              ) : (
+                professionalNextAction.next_symbol
+              )}
+              {professionalNextAction.next_symbol_reason ? ` · ${professionalNextAction.next_symbol_reason}` : ""}
+            </p>
+          ) : null}
+        </div>
+      </section>
+
+      <section
+        className="feature-map-panel reveal delay-1"
         id="professional-source-gaps"
         aria-labelledby="professional-source-gaps-title"
       >
@@ -2679,8 +2811,12 @@ export default async function DataHealthPage() {
         <div className="status-rail compact-rail">
           <article className="rail-cell">
             <span>weight 검토 상태</span>
-            <strong className={`risk-tag ${portfolioReviewCalibration.weight_review_blocked ? "risk-medium" : "risk-low"}`}>
-              {portfolioReviewCalibration.weight_review_blocked ? "변경 금지" : "manual 검토 가능"}
+            <strong className={`risk-tag ${portfolioReviewCalibration.managed_wait ? "risk-low" : portfolioReviewCalibration.weight_review_blocked ? "risk-medium" : "risk-low"}`}>
+              {portfolioReviewCalibration.managed_wait
+                ? "관리된 대기"
+                : portfolioReviewCalibration.weight_review_blocked
+                  ? "변경 금지"
+                  : "manual 검토 가능"}
             </strong>
             <small>{koCode(portfolioReviewCalibration.maturity_status)} · {portfolioReviewCalibration.eval_run_id}</small>
           </article>
@@ -2723,8 +2859,12 @@ export default async function DataHealthPage() {
           </article>
         </div>
         <div className="empty-state">
-          <strong>왜 막혀 있나</strong>
-          <p>{portfolioReviewCalibration.weight_review_block_reason}</p>
+          <strong>{portfolioReviewCalibration.managed_wait ? "왜 open gate가 아닌가" : "왜 막혀 있나"}</strong>
+          <p>
+            {portfolioReviewCalibration.managed_wait
+              ? portfolioReviewCalibration.managed_gate_reason
+              : portfolioReviewCalibration.weight_review_block_reason}
+          </p>
         </div>
         <div className="insight-grid">
           {portfolioReviewCalibration.family_summaries.slice(0, 3).map((summary) => (

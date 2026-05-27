@@ -1263,6 +1263,11 @@ def build_live_data_health_response(
     portfolio_review_feedback_action_router = _build_portfolio_review_feedback_action_router_payload(
         _as_dict(state.get("portfolio_review_feedback_action_router"))
     )
+    portfolio_review_feedback_calibration = _apply_portfolio_review_feedback_managed_wait_policy(
+        calibration=portfolio_review_feedback_calibration,
+        cadence=portfolio_review_feedback_cadence,
+        action_router=portfolio_review_feedback_action_router,
+    )
     portfolio_review_decision_history.update(
         _portfolio_review_decision_history_attention_policy(
             portfolio_review_decision_history,
@@ -1290,6 +1295,12 @@ def build_live_data_health_response(
     )
     professional_source_gap_prioritization = _build_professional_source_gap_prioritization_payload(
         _as_dict(state.get("professional_source_gap_prioritization"))
+    )
+    professional_analysis_next_action = _build_professional_analysis_next_action_payload(
+        professional_source_gap_prioritization=professional_source_gap_prioritization,
+        portfolio_review_feedback_calibration=portfolio_review_feedback_calibration,
+        recommendation_outcome_maturity=recommendation_outcome_maturity,
+        recommendation_weight_review_readiness=recommendation_weight_review_readiness,
     )
     if scheduler_activation["status"] == "pending_manual_approval":
         gate = "scheduler_activation_manual_approval"
@@ -1423,6 +1434,7 @@ def build_live_data_health_response(
             "recommendation_outcome_due_action_router": recommendation_outcome_due_action_router,
             "recommendation_weight_review_readiness": recommendation_weight_review_readiness,
             "professional_source_gap_prioritization": professional_source_gap_prioritization,
+            "professional_analysis_next_action": professional_analysis_next_action,
             "open_gates": open_gates,
             "open_gate_details": open_gate_details,
         },
@@ -14083,6 +14095,65 @@ def _attach_portfolio_review_feedback_maturity_visibility(
     return calibration
 
 
+def _apply_portfolio_review_feedback_managed_wait_policy(
+    *,
+    calibration: dict[str, Any],
+    cadence: Mapping[str, Any],
+    action_router: Mapping[str, Any],
+) -> dict[str, Any]:
+    result = dict(calibration)
+    cadence_status = str(cadence.get("cadence_status") or "")
+    action_status = str(action_router.get("action_status") or "")
+    maturity_status = str(result.get("maturity_status") or "")
+    guardrails = _as_dict(result.get("guardrails"))
+    order_boundary = str(guardrails.get("order_boundary") or "read_only_no_order")
+    safe_order_boundary = (
+        order_boundary == "read_only_no_order"
+        and guardrails.get("automatic_order_allowed") is not True
+        and guardrails.get("broker_submit_allowed") is not True
+        and action_router.get("automatic_weight_change_allowed") is not True
+        and action_router.get("automatic_order_allowed") is not True
+        and action_router.get("broker_submit_allowed") is not True
+    )
+    wait_evidence = (
+        maturity_status == "waiting_for_outcome_window"
+        or cadence_status == "wait_for_outcome_window"
+        or action_status == "no_op_wait_for_outcome_window"
+    )
+    managed_wait = bool(
+        result.get("weight_review_blocked") is True
+        and wait_evidence
+        and safe_order_boundary
+        and (
+            cadence.get("should_wait") is True
+            or action_status == "no_op_wait_for_outcome_window"
+        )
+    )
+    wait_until = str(result.get("estimated_maturity_date") or cadence.get("wait_until") or "")
+    reason = (
+        f"성과 관찰 기간이 끝나는 {wait_until}까지 기다리는 관리된 대기 상태다. "
+        "추천 weight 변경과 주문은 계속 차단한다."
+        if wait_until
+        else "성과 관찰 기간을 기다리는 관리된 대기 상태다. 추천 weight 변경과 주문은 계속 차단한다."
+    )
+    result.update(
+        {
+            "managed_wait": managed_wait,
+            "managed_gate_status": "managed_wait_until_outcome_window" if managed_wait else "unmanaged_attention",
+            "managed_gate_reason": reason if managed_wait else "",
+            "attention_required": False if managed_wait else result.get("attention_required") is True,
+            "weight_review_blocked": result.get("weight_review_blocked") is True,
+            "weight_review_block_reason": str(result.get("weight_review_block_reason") or reason),
+        }
+    )
+    if managed_wait:
+        result["next_calibration_action"] = (
+            str(result.get("next_calibration_action") or "")
+            or "성과 관찰 기간이 끝난 뒤 feedback/calibration 라우터가 다시 평가한다."
+        )
+    return result
+
+
 def _build_portfolio_review_feedback_group_summary(item: dict[str, Any], key_name: str) -> dict[str, Any]:
     return {
         key_name: str(item.get(key_name) or ""),
@@ -14751,6 +14822,144 @@ def _build_professional_source_gap_prioritization_payload(payload: dict[str, Any
     }
     result["attention_required"] = _professional_source_gap_requires_attention(result)
     return result
+
+
+def _build_professional_analysis_next_action_payload(
+    *,
+    professional_source_gap_prioritization: Mapping[str, Any],
+    portfolio_review_feedback_calibration: Mapping[str, Any],
+    recommendation_outcome_maturity: Mapping[str, Any],
+    recommendation_weight_review_readiness: Mapping[str, Any],
+) -> dict[str, Any]:
+    gaps = [_as_dict(item) for item in _as_list(professional_source_gap_prioritization.get("gaps"))]
+    source_blocked_gaps = [
+        gap for gap in gaps if gap.get("active_recommendation_professional_use_blocked") is True
+    ]
+    first_blocked_gap = source_blocked_gaps[0] if source_blocked_gaps else (gaps[0] if gaps else {})
+    weight_blocked = portfolio_review_feedback_calibration.get("weight_review_blocked") is True
+    managed_wait = portfolio_review_feedback_calibration.get("managed_wait") is True
+    source_attention = professional_source_gap_prioritization.get("attention_required") is True
+    manual_weight_allowed = recommendation_weight_review_readiness.get("manual_weight_review_allowed") is True
+    if source_attention:
+        status = "source_remediation_required"
+        title = "전문 분석 원천부터 보강"
+        summary = "추천·보유 판단에 쓰이는 재무, 밸류에이션, 리서치 원천 중 아직 관리되지 않은 공백이 있다."
+        next_action = str(
+            professional_source_gap_prioritization.get("next_action")
+            or "전문 분석 source gap을 먼저 보강한다."
+        )
+    elif managed_wait:
+        status = "managed_outcome_wait"
+        title = "전문 분석은 관리 중, 성과 표본 대기"
+        wait_until = str(portfolio_review_feedback_calibration.get("estimated_maturity_date") or "")
+        summary = (
+            f"원천 한계는 guardrail로 관리 중이고, 추천 weight 검토는 {wait_until} 이후 성과 표본을 보고 판단한다."
+            if wait_until
+            else "원천 한계는 guardrail로 관리 중이고, 추천 weight 검토는 성과 표본이 성숙할 때까지 기다린다."
+        )
+        next_action = str(
+            portfolio_review_feedback_calibration.get("next_calibration_action")
+            or "성과 관찰 기간이 끝난 뒤 feedback/calibration을 다시 실행한다."
+        )
+    elif manual_weight_allowed:
+        status = "manual_weight_review_possible"
+        title = "manual weight 검토 가능"
+        summary = "전문 분석 coverage와 outcome 기준이 통과됐다. 그래도 별도 승인된 pilot-weight task 전까지 자동 변경은 금지한다."
+        next_action = str(
+            recommendation_weight_review_readiness.get("next_action")
+            or "별도 pilot-weight 검토 task를 만든 뒤 수동으로 weight 변경 여부를 판단한다."
+        )
+    elif weight_blocked:
+        status = "outcome_or_weight_review_blocked"
+        title = "추천 weight 검토 차단"
+        summary = str(
+            portfolio_review_feedback_calibration.get("weight_review_block_reason")
+            or recommendation_weight_review_readiness.get("blocker_message")
+            or "추천 weight 변경 근거가 아직 부족하다."
+        )
+        next_action = str(
+            portfolio_review_feedback_calibration.get("next_calibration_action")
+            or recommendation_weight_review_readiness.get("next_action")
+            or "성과 표본을 더 쌓는다."
+        )
+    else:
+        status = "professional_inputs_ready"
+        title = "전문 분석 입력 관리 중"
+        summary = "원천 공백과 weight 검토 차단 조건이 현재 관리 가능한 범위다."
+        next_action = "현재 전문 분석 evidence를 유지하고 새 source gap이 생기는지 감시한다."
+    return {
+        "status": status,
+        "title": title,
+        "summary": summary,
+        "next_action": next_action,
+        "as_of_date": str(
+            professional_source_gap_prioritization.get("as_of_date")
+            or portfolio_review_feedback_calibration.get("as_of_date")
+            or recommendation_outcome_maturity.get("as_of_date")
+            or ""
+        ),
+        "source_gap_count": int(professional_source_gap_prioritization.get("gap_count") or 0),
+        "source_blocker_count": int(professional_source_gap_prioritization.get("source_blocker_count") or 0),
+        "guarded_source_blocked_recommendation_count": int(
+            professional_source_gap_prioritization.get("guarded_source_blocked_recommendation_count") or 0
+        ),
+        "managed_wait": managed_wait,
+        "weight_review_blocked": weight_blocked,
+        "manual_weight_review_allowed": manual_weight_allowed,
+        "estimated_maturity_date": str(portfolio_review_feedback_calibration.get("estimated_maturity_date") or ""),
+        "days_until_maturity": portfolio_review_feedback_calibration.get("days_until_maturity"),
+        "next_symbol": str(first_blocked_gap.get("symbol") or ""),
+        "next_symbol_href": str(first_blocked_gap.get("detail_href") or ""),
+        "next_symbol_reason": str(
+            first_blocked_gap.get("remediation_action")
+            or first_blocked_gap.get("blocker_label")
+            or ""
+        ),
+        "readiness_items": [
+            {
+                "key": "source_coverage",
+                "label": "원천 coverage",
+                "status": "managed" if not source_attention else "attention_required",
+                "detail": (
+                    f"source blocker {professional_source_gap_prioritization.get('source_blocker_count') or 0}개, "
+                    f"전문 판단 입력 차단 {professional_source_gap_prioritization.get('guarded_source_blocked_recommendation_count') or 0}개."
+                ),
+            },
+            {
+                "key": "valuation_and_research",
+                "label": "재무·밸류에이션·리서치",
+                "status": "source_limited" if source_blocked_gaps else "available_or_not_applicable",
+                "detail": (
+                    "원천 차단 종목은 합성 재무를 만들지 않고 제외한다."
+                    if source_blocked_gaps
+                    else "현재 active recommendation 기준 주요 전문 분석 layer가 관리 중이다."
+                ),
+            },
+            {
+                "key": "outcome_feedback",
+                "label": "성과 feedback",
+                "status": "managed_wait" if managed_wait else str(portfolio_review_feedback_calibration.get("maturity_status") or "unknown"),
+                "detail": str(
+                    portfolio_review_feedback_calibration.get("managed_gate_reason")
+                    or portfolio_review_feedback_calibration.get("weight_review_block_reason")
+                    or ""
+                ),
+            },
+            {
+                "key": "weight_boundary",
+                "label": "추천 weight 경계",
+                "status": "blocked" if weight_blocked else "manual_review_possible",
+                "detail": str(
+                    recommendation_weight_review_readiness.get("blocker_message")
+                    or "자동 weight 변경은 별도 승인 전까지 금지한다."
+                ),
+            },
+        ],
+        "order_boundary": "read_only_no_order",
+        "automatic_weight_change_allowed": False,
+        "automatic_order_allowed": False,
+        "broker_submit_allowed": False,
+    }
 
 
 def _professional_source_gap_requires_attention(payload: Mapping[str, Any]) -> bool:
@@ -16872,6 +17081,14 @@ def _build_portfolio_risk_budget_payload(
         review_feedback_calibration_payload,
         review_feedback_cadence_payload,
     )
+    review_feedback_action_router_payload = _build_portfolio_review_feedback_action_router_payload(
+        _as_dict(review_feedback_action_router)
+    )
+    review_feedback_calibration_payload = _apply_portfolio_review_feedback_managed_wait_policy(
+        calibration=review_feedback_calibration_payload,
+        cadence=review_feedback_cadence_payload,
+        action_router=review_feedback_action_router_payload,
+    )
     status = "within_budget"
     if missing_position_snapshot or not positions:
         status = "missing_position_snapshot"
@@ -16915,9 +17132,7 @@ def _build_portfolio_risk_budget_payload(
         ),
         "review_feedback_calibration": review_feedback_calibration_payload,
         "review_feedback_cadence": review_feedback_cadence_payload,
-        "review_feedback_action_router": _build_portfolio_review_feedback_action_router_payload(
-            _as_dict(review_feedback_action_router)
-        ),
+        "review_feedback_action_router": review_feedback_action_router_payload,
         "review_reasons": reasons,
     }
 

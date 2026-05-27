@@ -13,6 +13,7 @@ from stockanalysis.frontend.live_adapter import (
     FrontendLiveUnavailableError,
     FrontendLiveUnsupportedPathError,
     _attach_portfolio_review_feedback_maturity_visibility,
+    _apply_portfolio_review_feedback_managed_wait_policy,
     _build_alert_destination_payload,
     _build_auth_rbac_payload,
     _build_benchmark_rebalance_candidate_review_payload,
@@ -4393,7 +4394,10 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertEqual(review_calibration["mature_decision_gap"], 10)
         self.assertEqual(review_calibration["estimated_maturity_date"], "2026-06-24")
         self.assertEqual(review_calibration["days_until_maturity"], 28)
-        self.assertTrue(review_calibration["attention_required"])
+        self.assertFalse(review_calibration["attention_required"])
+        self.assertTrue(review_calibration["managed_wait"])
+        self.assertEqual(review_calibration["managed_gate_status"], "managed_wait_until_outcome_window")
+        self.assertIn("관리된 대기", review_calibration["managed_gate_reason"])
         self.assertTrue(review_calibration["weight_review_blocked"])
         self.assertIn("최소 30일 관찰 기간", review_calibration["weight_review_block_reason"])
         self.assertEqual(review_calibration["family_summaries"][0]["decision_family"], "benchmark_drift")
@@ -4401,7 +4405,7 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertFalse(review_calibration["guardrails"]["automatic_order_allowed"])
         self.assertFalse(review_calibration["guardrails"]["broker_submit_allowed"])
         self.assertEqual(review_calibration["guardrails"]["order_boundary"], "read_only_no_order")
-        self.assertIn("portfolio_review_feedback_calibration_attention", payload["data"]["open_gates"])
+        self.assertNotIn("portfolio_review_feedback_calibration_attention", payload["data"]["open_gates"])
         review_cadence = payload["data"]["portfolio_review_feedback_cadence"]
         self.assertEqual(review_cadence["status"], "loaded")
         self.assertEqual(review_cadence["eval_run_id"], "eval-run-55")
@@ -4511,18 +4515,21 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertFalse(source_gaps["broker_submit_allowed"])
         self.assertFalse(source_gaps["attention_required"])
         self.assertNotIn("professional_source_gap_attention", payload["data"]["open_gates"])
+        professional_next = payload["data"]["professional_analysis_next_action"]
+        self.assertEqual(professional_next["status"], "managed_outcome_wait")
+        self.assertTrue(professional_next["managed_wait"])
+        self.assertTrue(professional_next["weight_review_blocked"])
+        self.assertEqual(professional_next["next_symbol"], "EROK")
+        self.assertFalse(professional_next["automatic_weight_change_allowed"])
+        self.assertFalse(professional_next["broker_submit_allowed"])
+        self.assertEqual(professional_next["order_boundary"], "read_only_no_order")
         gate_details = {item["gate_id"]: item for item in payload["data"]["open_gate_details"]}
         self.assertEqual(gate_details["auth_rbac"]["category"], "operational_blocker")
         self.assertEqual(gate_details["auth_rbac"]["severity"], "high")
         self.assertIn("쓰기/주문 차단", gate_details["auth_rbac"]["summary"])
         self.assertEqual(gate_details["benchmark_drift_quality_attention"]["category"], "investment_review")
         self.assertNotIn("portfolio_review_decision_history_attention", gate_details)
-        self.assertEqual(
-            gate_details["portfolio_review_feedback_calibration_attention"]["category"],
-            "outcome_wait",
-        )
-        self.assertIn("2026-06-24", gate_details["portfolio_review_feedback_calibration_attention"]["summary"])
-        self.assertIn("최소 30일 관찰 기간", gate_details["portfolio_review_feedback_calibration_attention"]["next_action"])
+        self.assertNotIn("portfolio_review_feedback_calibration_attention", gate_details)
         self.assertNotIn("professional_source_gap_attention", gate_details)
         self.assertEqual(payload["links"]["dashboard"], "/api/dashboard/today")
 
@@ -4560,6 +4567,20 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertTrue(enriched["attention_required"])
         self.assertTrue(enriched["weight_review_blocked"])
         self.assertIn("2026-06-24", enriched["weight_review_block_reason"])
+        managed = _apply_portfolio_review_feedback_managed_wait_policy(
+            calibration=enriched,
+            cadence=cadence,
+            action_router={
+                "action_status": "no_op_wait_for_outcome_window",
+                "automatic_weight_change_allowed": False,
+                "automatic_order_allowed": False,
+                "broker_submit_allowed": False,
+            },
+        )
+        self.assertFalse(managed["attention_required"])
+        self.assertTrue(managed["managed_wait"])
+        self.assertEqual(managed["managed_gate_status"], "managed_wait_until_outcome_window")
+        self.assertTrue(managed["weight_review_blocked"])
 
     def test_data_operations_artifact_runner_payload_blocks_when_pipeline_evidence_missing(self) -> None:
         payload = _build_data_operations_artifact_runner_payload(
@@ -7121,6 +7142,8 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertEqual(calibration["status"], "loaded")
         self.assertEqual(calibration["eval_run_id"], "eval-run-54")
         self.assertEqual(calibration["calibration_status"], "insufficient_history")
+        self.assertFalse(calibration["attention_required"])
+        self.assertTrue(calibration["managed_wait"])
         self.assertEqual(calibration["feedback_run_count"], 1)
         self.assertEqual(calibration["family_summaries"][0]["decision_family"], "benchmark_drift")
         self.assertEqual(calibration["symbol_summaries"][0]["symbol"], "TSLA")
