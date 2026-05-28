@@ -37,8 +37,8 @@
 
 ## Done Criteria
 
-- [ ] `/events/classification` has a first-screen Korean command panel explaining theme groups, direct instrument tags, macro/theme-only tags, and AI comparison.
-- [ ] The page routes users to classification groups and AI evidence without implying final recommendation approval.
-- [ ] Local frontend verification passes.
-- [ ] AWH task verification passes.
-- [ ] EC2/tunnel route smoke confirms the new Korean copy renders.
+- [x] `/events/classification` has a first-screen Korean command panel explaining theme groups, direct instrument tags, macro/theme-only tags, and AI comparison.
+- [x] The page routes users to classification groups and AI evidence without implying final recommendation approval.
+- [x] Local frontend verification passes.
+- [x] AWH task verification passes.
+- [x] EC2/tunnel route smoke confirms the new Korean copy renders.
