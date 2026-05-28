@@ -302,7 +302,7 @@ export default async function CycleMapPage() {
               <div className="relationship-chip" key={`${edge.parent_code}-${edge.child_code}-${edge.relation_type}`}>
                 <span>{koCode(edge.relation_type)} · {formatPercent(edge.weight)}</span>
                 <strong>{koCode(edge.parent_code)} → {koCode(edge.child_code)}</strong>
-                <small>{koCode(edge.parent_code)} 흐름이 {koCode(edge.child_code)}로 이어진다.</small>
+                <small>{koCode(edge.parent_code)}에서 {koCode(edge.child_code)} 방향으로 이어지는 흐름이다.</small>
               </div>
             ))}
           </div>
