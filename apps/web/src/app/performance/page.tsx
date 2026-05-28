@@ -130,43 +130,107 @@ export default async function PerformancePage() {
   const data = response.data;
   const quality = data.quality_evaluation;
   const hasMeasuredOutcomes = data.summary.measured_recommendation_count > 0 || data.outcomes.length > 0;
+  const performanceCommandCards = [
+    {
+      index: "01",
+      label: "측정 상태",
+      title: hasMeasuredOutcomes ? `${data.summary.measured_recommendation_count}개 측정` : "성과 측정 전",
+      metric: hasMeasuredOutcomes
+        ? `평균 알파 ${formatPercent(data.summary.average_alpha)} · 적중률 ${formatPercent(data.summary.hit_rate)}`
+        : `측정 종료 ${data.measurement_end_date}`,
+      body: hasMeasuredOutcomes
+        ? "측정 종료일이 지난 추천만 성과로 본다. 개별 추천과 thesis 링크를 열어 어떤 판단이 맞았는지 확인한다."
+        : "아직 측정 가능한 추천 성과가 없다. outcome window가 도래할 때까지 성과 해석과 weight 검토를 보류한다.",
+      href: "#performance-outcomes",
+      cta: "성과 목록 보기",
+      tone: hasMeasuredOutcomes ? "ready" : "watch",
+    },
+    {
+      index: "02",
+      label: "표본 품질",
+      title: evaluationStatusLabel(quality.status),
+      metric: `${quality.measured_recommendation_count}개 추천 · ${quality.measured_thesis_count}개 thesis`,
+      body:
+        quality.status === "positive_alignment"
+          ? "성과 방향이 추천 점수와 대체로 맞는다. 그래도 표본 크기와 제외 항목을 같이 확인한다."
+          : "성과 표본이 부족하거나 커버리지 보완이 필요하면 추천 산식과 weight를 바꾸면 안 된다.",
+      href: "#performance-quality",
+      cta: "품질 평가 보기",
+      tone: quality.status === "positive_alignment" ? "ready" : "watch",
+    },
+    {
+      index: "03",
+      label: "귀속 해석",
+      title:
+        data.summary.attribution_component_count > 0
+          ? `${data.summary.attribution_component_count}개 관점`
+          : "귀속 관점 없음",
+      metric: `종목 ${formatBps(data.summary.security_lens_contribution_bps)} · 테마 ${formatBps(data.summary.theme_lens_contribution_bps)}`,
+      body:
+        data.summary.attribution_component_count > 0
+          ? "성과 귀속은 단순 합산 주문 근거가 아니라 종목·테마·현금 관점에서 왜 결과가 났는지 해석하는 자료다."
+          : "성과 결과가 쌓이면 종목, 테마, 현금 관점의 해석이 생성된다.",
+      href: "#performance-attribution",
+      cta: "귀속 보기",
+      tone: data.summary.attribution_component_count > 0 ? "ready" : "watch",
+    },
+    {
+      index: "04",
+      label: "제외·보완",
+      title:
+        data.summary.excluded_position_count > 0
+          ? `${data.summary.excluded_position_count}개 제외`
+          : "제외 없음",
+      metric: `제외 비중 ${formatPercent(data.summary.excluded_weight)} · 현금 ${formatPercent(data.summary.cash_weight)}`,
+      body:
+        data.summary.excluded_position_count > 0
+          ? "성과 해석에서 빠진 포지션이 있으면 먼저 투자 논리, outcome, 원천 데이터를 보완해야 한다."
+          : "현재 성과 귀속에서 제외된 포지션은 없다. 그래도 품질 gate는 계속 확인한다.",
+      href: "#performance-exclusions",
+      cta: "보완 항목 보기",
+      tone: data.summary.excluded_position_count > 0 ? "block" : "ready",
+    },
+  ];
 
   return (
     <div className="pageStack">
-      <section className="reveal">
+      <section className="page-hero reveal" aria-labelledby="performance-title">
         <div className="bento-badge">
           성과 측정 • {koLabel(data.portfolio_name)} • {data.measurement_end_date}
         </div>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "24px", flexWrap: "wrap" }}>
-          <div>
-            <h1 style={{ fontSize: "clamp(2.5rem, 4vw, 4rem)", marginBottom: "16px" }}>
-              성과 측정 검토
-            </h1>
-            <p style={{ color: "var(--text-secondary)", fontSize: "1.1rem", maxWidth: "760px" }}>
-              장기 추천의 책임 추적 화면이다. 무엇을 측정했고, 무엇이 벤치마크를 이겼고,
-              성과 귀속을 신뢰하기 전에 무엇이 제외됐는지 보여준다.
-            </p>
-          </div>
-
-          <div style={{
-            padding: "20px 32px",
-            background: hasMeasuredOutcomes ? "rgba(16, 185, 129, 0.1)" : "rgba(245, 158, 11, 0.1)",
-            border: `1px solid ${hasMeasuredOutcomes ? "rgba(16, 185, 129, 0.2)" : "rgba(245, 158, 11, 0.2)"}`,
-            borderRadius: "var(--radius-md)",
-            textAlign: "center",
-          }}>
-            <span className="metric-sub" style={{ color: hasMeasuredOutcomes ? "var(--accent-green)" : "var(--accent-amber)" }}>평균 알파</span>
-            <div style={{ fontSize: "2.5rem", fontWeight: 700, color: "var(--text-primary)", margin: "4px 0" }}>
-              {hasMeasuredOutcomes ? formatPercent(data.summary.average_alpha) : "측정 전"}
-            </div>
-            <div style={{ fontSize: "0.85rem", color: hasMeasuredOutcomes ? "var(--accent-green)" : "var(--accent-amber)", fontWeight: 600 }}>
-              대비 {data.benchmark_code}
-            </div>
-          </div>
+        <div>
+          <h1 id="performance-title">성과를 확인하되, 아직 바꾸면 안 되는 것도 같이 본다.</h1>
+          <p>
+            이 화면은 장기 추천의 책임 추적 화면이다. 측정된 추천, 표본 품질, 성과 귀속,
+            제외·보완 항목을 분리해서 보여주며 주문이나 추천 weight 변경을 실행하지 않는다.
+          </p>
         </div>
       </section>
 
-      <section className="bento-grid reveal delay-1">
+      <section className="performance-command-panel reveal delay-1" aria-labelledby="performance-command-title">
+        <div className="performance-command-lead">
+          <span>성과 판정판</span>
+          <h2 id="performance-command-title">결과가 좋아 보이는지보다, 믿고 써도 되는지 먼저 본다.</h2>
+          <p>
+            측정 구간 {data.measurement_start_date} ~ {data.measurement_end_date} · 벤치마크 {data.benchmark_code}.
+            성과는 추천 품질 검증 자료이고, 자동 주문·자동 weight 변경 근거가 아니다.
+          </p>
+        </div>
+        <div className="performance-command-grid">
+          {performanceCommandCards.map((card) => (
+            <a className={`performance-command-card ${card.tone}`} href={card.href} key={card.index}>
+              <span>{card.index}</span>
+              <small>{card.label}</small>
+              <strong>{card.title}</strong>
+              <em>{card.metric}</em>
+              <p>{card.body}</p>
+              <b>{card.cta}</b>
+            </a>
+          ))}
+        </div>
+      </section>
+
+      <section className="bento-grid reveal delay-1" aria-label="성과 핵심 요약">
         <article className="bento-card">
           <span className="metric-label">적중률</span>
           <strong className="metric-value">{hasMeasuredOutcomes ? formatPercent(data.summary.hit_rate) : "측정 전"}</strong>
@@ -198,7 +262,7 @@ export default async function PerformancePage() {
       </section>
 
       <section className="bento-grid reveal delay-2">
-        <article className="bento-card span-4" style={{ borderColor: evaluationStatusColor(quality.status) }}>
+        <article id="performance-quality" className="bento-card span-4" style={{ borderColor: evaluationStatusColor(quality.status) }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "16px", flexWrap: "wrap", marginBottom: "20px" }}>
             <div>
               <span className="metric-sub">추천 품질 평가</span>
@@ -259,7 +323,7 @@ export default async function PerformancePage() {
           </div>
         </article>
 
-        <article className="bento-card span-4">
+        <article id="performance-outcomes" className="bento-card span-4">
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: "24px", gap: "16px", flexWrap: "wrap" }}>
             <div>
               <span className="metric-sub">측정된 성과</span>
@@ -306,7 +370,7 @@ export default async function PerformancePage() {
           </div>
         </article>
 
-        <article className="bento-card span-2">
+        <article id="performance-attribution" className="bento-card span-2">
           <div style={{ marginBottom: "24px" }}>
             <span className="metric-sub">성과 해석 관점</span>
             <h2 style={{ fontSize: "1.5rem" }}>합산값이 아니라 해석 관점</h2>
@@ -341,7 +405,7 @@ export default async function PerformancePage() {
           </div>
         </article>
 
-        <article className="bento-card span-2">
+        <article id="performance-exclusions" className="bento-card span-2">
           <div style={{ marginBottom: "24px" }}>
             <span className="metric-sub">커버리지 제외</span>
             <h2 style={{ fontSize: "1.5rem" }}>커버리지 부족 항목</h2>
