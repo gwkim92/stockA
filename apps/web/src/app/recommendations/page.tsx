@@ -109,102 +109,121 @@ function boundaryTone(status: string) {
 export default async function RecommendationsPage() {
   const response = await getRecommendations();
   const data = response.data;
+  const topRecommendation = data.recommendations[0] ?? null;
+  const recommendationCommandCards = [
+    {
+      index: "01",
+      label: "추천 신호",
+      title:
+        data.recommendation_count > 0
+          ? `${data.recommendation_count.toLocaleString("ko-KR")}개 후보`
+          : "추천 후보 없음",
+      metric:
+        topRecommendation !== null
+          ? `상위 후보 ${topRecommendation.symbol} · 점수 ${formatPercent(topRecommendation.score)}`
+          : `평균 점수 ${formatPercent(data.summary.average_score)}`,
+      body:
+        data.recommendation_count > 0
+          ? "중장기 검토 대상이다. 이 신호만으로 주문하지 않고 상세 근거, 보유 상태, 성과 측정창을 함께 확인한다."
+          : "추천 생성 작업이 아직 후보를 만들지 않았다. 먼저 데이터 수집과 추천 배치 상태를 확인한다.",
+      href: "#recommendation-list",
+      cta: data.recommendation_count > 0 ? "후보 목록 보기" : "목록 확인",
+      tone: data.recommendation_count > 0 ? "watch" : "block",
+    },
+    {
+      index: "02",
+      label: "페이퍼 대기",
+      title:
+        data.summary.paper_validation_pending_count > 0
+          ? "가상 검증 대기"
+          : data.summary.decision_review_ready_count > 0
+            ? "상세 검토 가능"
+            : "검토 입력 부족",
+      metric: `${data.summary.paper_validation_pending_count.toLocaleString("ko-KR")}개 대기 · ${data.summary.decision_review_ready_count.toLocaleString("ko-KR")}개 상세 검토`,
+      body:
+        data.summary.paper_validation_pending_count > 0
+          ? "추천 후보가 곧바로 주문으로 가지 않고 페이퍼 검증과 보유 검토를 기다리는 상태다."
+          : "페이퍼 후보가 없거나 검토 입력이 부족하다. 추천 상세에서 어떤 근거가 빠졌는지 본다.",
+      href: "/paper-trading",
+      cta: "페이퍼 상태 보기",
+      tone: data.summary.paper_validation_pending_count > 0 ? "watch" : "ready",
+    },
+    {
+      index: "03",
+      label: "주문 차단",
+      title:
+        data.summary.order_blocked_count > 0
+          ? "실제 주문은 차단"
+          : "주문 전환 미개방",
+      metric: `${data.summary.order_blocked_count.toLocaleString("ko-KR")}개 주문 차단`,
+      body:
+        data.summary.order_blocked_count > 0
+          ? "목록의 추천은 읽기 전용이다. broker submit, 자동 주문, weight 변경은 이 화면에서 열리지 않는다."
+          : "차단 수가 0이어도 이 화면에는 주문 기능이 없다. 실거래는 별도 승인된 broker flow에서만 다룬다.",
+      href: "/trading-readiness",
+      cta: "거래 경계 보기",
+      tone: data.summary.order_blocked_count > 0 ? "block" : "watch",
+    },
+    {
+      index: "04",
+      label: "전문 분석 근거",
+      title:
+        data.summary.linked_thesis_count > 0 || data.summary.ai_or_event_evidence_count > 0
+          ? "근거 연결됨"
+          : "근거 보강 필요",
+      metric: `thesis ${data.summary.linked_thesis_count.toLocaleString("ko-KR")}개 · AI/이벤트 근거 ${data.summary.ai_or_event_evidence_count.toLocaleString("ko-KR")}개`,
+      body:
+        data.summary.linked_thesis_count > 0 || data.summary.ai_or_event_evidence_count > 0
+          ? "추천 상세에서 재무·밸류에이션·뉴스·사이클 근거가 어디까지 연결됐는지 확인한다."
+          : "투자 논리나 근거가 연결되지 않은 후보는 전문 검토 입력으로 쓰면 안 된다.",
+      href: topRecommendation ? recommendationHref(topRecommendation.recommendation_id) : "#recommendation-list",
+      cta: "근거 추적",
+      tone: data.summary.linked_thesis_count > 0 || data.summary.ai_or_event_evidence_count > 0 ? "ready" : "block",
+    },
+  ];
 
   return (
     <div className="pageStack">
       <section className="page-hero reveal" aria-labelledby="recommendations-title">
-        <div className="bento-badge">추천 상황실 • 중장기 후보 검토</div>
-        <h1 id="recommendations-title">지금 시스템이 어떤 종목을 왜 추천 후보로 보는지 확인한다.</h1>
+        <div className="bento-badge">추천 상황실 • 읽기 전용 투자 후보</div>
+        <h1 id="recommendations-title">추천 신호를 보고, 근거와 차단 경계를 먼저 확인한다.</h1>
         <p>
-          최신 추천 후보의 점수, 근거, 투자 논리, 성과 측정 상태를 한 번에 보여준다.
-          AI 자동 검토가 통과한 후보와 보강이 필요한 후보를 분리한다.
+          이 화면은 주문 화면이 아니다. 중장기 후보의 점수, thesis, AI·이벤트 근거, 페이퍼 대기,
+          주문 차단 상태를 분리해서 보여준다.
         </p>
       </section>
 
-      <section className="status-rail compact-rail reveal delay-1" aria-label="추천 요약">
-        <div className="rail-cell">
-          <span>추천 후보</span>
-          <strong>{data.recommendation_count.toLocaleString("ko-KR")}</strong>
-          <small>{data.as_of_date || "기준일 없음"}</small>
+      <section className="recommendations-command-panel reveal delay-1" aria-labelledby="recommendations-command-title">
+        <div className="recommendations-command-lead">
+          <span>추천 신호 판정판</span>
+          <h2 id="recommendations-command-title">무엇을 검토하고, 무엇은 아직 막혀 있는지 먼저 본다.</h2>
+          <p>
+            기준일 {data.as_of_date || "미정"} · {koCode(data.strategy_name)} · {koCode(data.horizon_type)}.
+            추천은 후보 신호이고, 주문과 weight 변경은 계속 별도 경계에서 차단된다.
+          </p>
         </div>
-        <div className="rail-cell">
-          <span>AI 검토 통과</span>
-          <strong>{data.summary.reviewable_count.toLocaleString("ko-KR")}</strong>
-          <small>근거와 논리가 연결됨</small>
-        </div>
-        <div className="rail-cell">
-          <span>차단/보강</span>
-          <strong>{data.summary.blocked_count.toLocaleString("ko-KR")}</strong>
-          <small>근거 부족 또는 논리 미연결</small>
-        </div>
-        <div className="rail-cell">
-          <span>상위 흐름 연결</span>
-          <strong>{data.summary.macro_flow_evidence_recommendation_count.toLocaleString("ko-KR")}</strong>
-          <small>거시·테마 전파 근거 보유</small>
-        </div>
-        <div className="rail-cell">
-          <span>상세 검토 가능</span>
-          <strong>{data.summary.decision_review_ready_count.toLocaleString("ko-KR")}</strong>
-          <small>페이퍼 대기 {data.summary.paper_validation_pending_count.toLocaleString("ko-KR")}개</small>
-        </div>
-        <div className="rail-cell rail-critical">
-          <span>검토 차단</span>
-          <strong>{data.summary.decision_blocked_count.toLocaleString("ko-KR")}</strong>
-          <small>주문 차단 {data.summary.order_blocked_count.toLocaleString("ko-KR")}개</small>
-        </div>
-        <div className="rail-cell">
-          <span>평균 점수</span>
-          <strong>{formatPercent(data.summary.average_score)}</strong>
-          <small>{koCode(data.strategy_name)} · {koCode(data.horizon_type)}</small>
+        <div className="recommendations-command-grid">
+          {recommendationCommandCards.map((card) => (
+            <a className={`recommendations-command-card ${card.tone}`} href={card.href} key={card.index}>
+              <span>{card.index}</span>
+              <small>{card.label}</small>
+              <strong>{card.title}</strong>
+              <em>{card.metric}</em>
+              <p>{card.body}</p>
+              <b>{card.cta}</b>
+            </a>
+          ))}
         </div>
       </section>
 
-      <section className="bento-card reveal delay-2" aria-labelledby="recommendation-flow-title">
-        <div className="section-heading">
-          <div>
-            <span className="metric-sub">판단 흐름</span>
-            <h2 id="recommendation-flow-title">추천은 수집 데이터와 AI 검토 근거를 묶은 결과다</h2>
-          </div>
-          <Link className="btn btn-secondary" href="/intelligence">
-            분석 지도 보기
-          </Link>
-        </div>
-        <div className="flow-steps">
-          <article className="flow-step">
-            <span>1. 수집</span>
-            <strong>가격·뉴스·공시</strong>
-            <p>자동 수집 작업이 가격, 뉴스, 공시를 저장하고 성공·실패 상태를 수집 화면에 남긴다.</p>
-          </article>
-          <article className="flow-step">
-            <span>2. 구조화</span>
-            <strong>테마·종목·방향</strong>
-            <p>AI가 중요한 뉴스를 테마, 종목, 방향, 불확실성으로 구조화하고 검증을 통과한 것만 연결한다.</p>
-          </article>
-          <article className="flow-step">
-            <span>3. 추천</span>
-            <strong>점수와 논리</strong>
-            <p>추천은 주문이 아니라 장기 투자 후보를 검토하기 위한 입력값이다.</p>
-          </article>
-          <article className="flow-step">
-            <span>4. 검토</span>
-            <strong>보유·성과 확인</strong>
-            <p>보유 검토와 성과 측정이 이어져 추천 품질을 계속 확인한다.</p>
-          </article>
-          <article className="flow-step">
-            <span>5. 경계</span>
-            <strong>주문은 계속 차단</strong>
-            <p>목록의 모든 추천은 읽기 전용이다. 상세 검토가 가능해도 증권사 주문 전송은 열리지 않는다.</p>
-          </article>
-        </div>
-      </section>
-
-      <section className="bento-card span-4 reveal delay-3" aria-labelledby="recommendation-list-title">
+      <section className="bento-card span-4 reveal delay-2" id="recommendation-list" aria-labelledby="recommendation-list-title">
         <div className="section-heading">
           <div>
             <span className="metric-sub">추천 목록</span>
-            <h2 id="recommendation-list-title">최신 추천 후보</h2>
+            <h2 id="recommendation-list-title">최신 추천 후보를 근거별로 연다</h2>
           </div>
           <div className="mini-link-stack">
+            <Link href="/intelligence">뉴스·사이클 근거</Link>
             <Link href="/paper-trading">가상 거래 검토</Link>
             <Link href="/portfolio/coverage">보유 검토</Link>
           </div>
