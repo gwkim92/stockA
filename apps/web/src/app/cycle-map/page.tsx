@@ -1,7 +1,6 @@
 import Link from "next/link";
 import type { Route } from "next";
 
-import { DecisionReviewStrip } from "@/components/decision-review-strip";
 import { getCycleMap } from "@/lib/frontend-api";
 import { koCode, koLabel } from "@/lib/korean-labels";
 import type { CycleMapData } from "@/lib/types";
@@ -79,58 +78,9 @@ export default async function CycleMapPage() {
   const data = response.data;
   const groups = groupedNodes(data.nodes);
   const hotNode = data.nodes.find((node) => node.node_code === data.summary.hot_node_code) ?? data.nodes[0] ?? null;
-  const decisionSteps = [
-    {
-      index: "01",
-      title: "수집 상태",
-      question: "흐름 지도 입력이 최신인가",
-      status: data.as_of_date,
-      body: "뉴스, 가격, AI 구조화가 실행된 뒤 이 지도에 반영된다.",
-      href: "/data-health" as Route,
-      cta: "수집 상태",
-      tone: "ok" as const,
-    },
-    {
-      index: "02",
-      title: "뉴스·AI 근거",
-      question: "어떤 뉴스가 흐름을 만들었나",
-      status: `${data.summary.direct_event_count}개 뉴스`,
-      body: "개별 뉴스와 AI 근거를 보고 상위 흐름 입력이 타당한지 확인한다.",
-      href: "/intelligence" as Route,
-      cta: "뉴스 AI",
-      tone: data.summary.direct_event_count > 0 ? "ok" as const : "watch" as const,
-    },
-    {
-      index: "03",
-      title: "상위 흐름",
-      question: "거시에서 종목까지 어떻게 내려가나",
-      status: `${data.summary.node_count}개 노드`,
-      body: "거시, 도메인, 테마, 종목 노출을 한 계층으로 묶어 본다.",
-      href: "/cycle-map" as Route,
-      cta: "현재 화면",
-      tone: data.summary.node_count > 0 ? "ok" as const : "watch" as const,
-    },
-    {
-      index: "04",
-      title: "추천·보유",
-      question: "흐름이 판단에 쓰였나",
-      status: `${data.summary.recommendation_count}개 연결`,
-      body: "추천 상세에서 상위 흐름 전파와 직접 뉴스 근거를 분리해 본다.",
-      href: "/recommendations" as Route,
-      cta: "추천 보기",
-      tone: data.summary.recommendation_count > 0 ? "ok" as const : "watch" as const,
-    },
-    {
-      index: "05",
-      title: "페이퍼 안전",
-      question: "거래 검증은 별도인가",
-      status: "별도 확인",
-      body: "흐름 지도는 주문 지시가 아니다. 페이퍼 검증과 거래 안전을 따로 확인한다.",
-      href: "/paper-trading" as Route,
-      cta: "페이퍼 상태",
-      tone: "watch" as const,
-    },
-  ];
+  const exposedNodeCount = data.nodes.filter((node) => node.counts.exposed_instrument_count > 0).length;
+  const aiBackedNodeCount = data.nodes.filter((node) => node.counts.ai_artifact_count > 0).length;
+  const conflictNodeCount = data.nodes.filter((node) => node.conflict_flags.length > 0).length;
 
   return (
     <div className="terminal-page">
@@ -147,12 +97,65 @@ export default async function CycleMapPage() {
         </p>
       </section>
 
-      <DecisionReviewStrip
-        activeIndex="03"
-        title="상위 흐름은 종목 추천 전 단계의 지도다"
-        description="거시 뉴스는 바로 종목 추천이 되지 않는다. 흐름 노드와 노출도를 거쳐 어느 종목군에 닿는지 먼저 확인한다."
-        steps={decisionSteps}
-      />
+      <section className="cycle-map-path-panel reveal delay-1" aria-labelledby="cycle-map-path-title">
+        <div className="cycle-map-path-lead">
+          <span>흐름 경로 판정판</span>
+          <h2 id="cycle-map-path-title">뉴스가 어느 흐름을 거쳐 종목에 닿았는지 본다.</h2>
+          <p>
+            사이클 상태표가 테마별 현재 상태를 보여준다면, 이 화면은 원인 경로 지도다. 원천 뉴스와
+            AI 구조화가 어떤 상위 노드로 묶였고, 그 노드가 어느 종목·추천 근거로 내려갔는지 추적한다.
+          </p>
+        </div>
+        <div className="cycle-map-path-grid">
+          <Link className="cycle-map-path-card ready" href={"/intelligence" as Route}>
+            <span>01</span>
+            <small>원천 뉴스</small>
+            <strong>{data.summary.direct_event_count}개 뉴스 영향</strong>
+            <em>AI 근거 노드 {aiBackedNodeCount}개</em>
+            <p>
+              먼저 어떤 뉴스와 AI 구조화 결과가 흐름을 만들었는지 본다. 번역·validator 결과는 AI 근거
+              화면에서 이어서 확인한다.
+            </p>
+            <b>뉴스 AI 보기</b>
+          </Link>
+          <a className="cycle-map-path-card ready" href="#cycle-map-layers">
+            <span>02</span>
+            <small>흐름 노드</small>
+            <strong>{data.summary.node_count}개 노드</strong>
+            <em>거시 {data.summary.macro_count} · 테마 {data.summary.theme_count}</em>
+            <p>
+              거시, 도메인, 섹터, 테마, 종목 노드를 계층으로 본다. 노드가 많아도 핵심은 위에서 아래로
+              내려가는 경로다.
+            </p>
+            <b>노드 경로 보기</b>
+          </a>
+          <a className={conflictNodeCount > 0 ? "cycle-map-path-card watch" : "cycle-map-path-card ready"} href="#cycle-map-layers">
+            <span>03</span>
+            <small>종목 노출</small>
+            <strong>{exposedNodeCount}개 노드 연결</strong>
+            <em>충돌 플래그 {conflictNodeCount}개</em>
+            <p>
+              상위 흐름이 바로 매수 신호가 되지는 않는다. 어떤 종목이 노출됐고, 충돌이나 불확실성이
+              있는지 같이 본다.
+            </p>
+            <b>노출 종목 확인</b>
+          </a>
+          <Link
+            className={data.summary.recommendation_count > 0 ? "cycle-map-path-card ready" : "cycle-map-path-card watch"}
+            href={"/recommendations" as Route}
+          >
+            <span>04</span>
+            <small>추천 연결</small>
+            <strong>{data.summary.recommendation_count}개 추천</strong>
+            <em>투자 논리 {data.summary.thesis_count}개</em>
+            <p>
+              추천은 이 지도만으로 결정하지 않는다. 추천 상세에서 직접 뉴스, 상위 흐름 전파, 재무·밸류에이션,
+              페이퍼 검증을 분리해 본다.
+            </p>
+            <b>추천 근거 보기</b>
+          </Link>
+        </div>
+      </section>
 
       <section className="status-rail compact-rail reveal delay-1" aria-label="흐름 지도 요약">
         <article className="rail-cell">
@@ -212,7 +215,7 @@ export default async function CycleMapPage() {
         </div>
       </section>
 
-      <section className="reveal delay-2" aria-label="계층형 사이클 지도">
+      <section className="reveal delay-2" id="cycle-map-layers" aria-label="계층형 사이클 지도">
         {groups.length === 0 ? (
           <article className="empty-state">
             아직 표시할 계층형 사이클 스냅샷이 없다. 뉴스 수집, AI 구조화, 계층형 전파, 사이클 스냅샷 실행 후 이 화면이 채워진다.

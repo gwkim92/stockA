@@ -2998,7 +2998,8 @@ h6 {
 }
 
 .events-command-panel,
-.cycle-command-panel {
+.cycle-command-panel,
+.cycle-map-path-panel {
   display: grid;
   grid-template-columns: minmax(300px, 0.4fr) minmax(0, 1fr);
   gap: clamp(18px, 2.4vw, 34px);
@@ -3019,7 +3020,8 @@ h6 {
 }
 
 .events-command-lead,
-.cycle-command-lead {
+.cycle-command-lead,
+.cycle-map-path-lead {
   display: grid;
   align-content: space-between;
   gap: 18px;
@@ -3030,7 +3032,9 @@ h6 {
 .events-command-lead span,
 .events-command-card small,
 .cycle-command-lead span,
-.cycle-command-card small {
+.cycle-command-card small,
+.cycle-map-path-lead span,
+.cycle-map-path-card small {
   color: var(--text-tertiary);
   font-size: 0.72rem;
   font-weight: 950;
@@ -3039,7 +3043,8 @@ h6 {
 }
 
 .events-command-lead h2,
-.cycle-command-lead h2 {
+.cycle-command-lead h2,
+.cycle-map-path-lead h2 {
   max-width: 560px;
   margin: 0;
   color: var(--text-primary);
@@ -3052,7 +3057,8 @@ h6 {
 }
 
 .events-command-lead p,
-.cycle-command-lead p {
+.cycle-command-lead p,
+.cycle-map-path-lead p {
   max-width: 560px;
   margin: 0;
   color: var(--text-secondary);
@@ -3063,7 +3069,8 @@ h6 {
 }
 
 .events-command-grid,
-.cycle-command-grid {
+.cycle-command-grid,
+.cycle-map-path-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 10px;
@@ -3071,7 +3078,8 @@ h6 {
 }
 
 .events-command-card,
-.cycle-command-card {
+.cycle-command-card,
+.cycle-map-path-card {
   display: grid;
   min-width: 0;
   min-height: 285px;
@@ -3088,7 +3096,9 @@ h6 {
 .events-command-card:hover,
 .events-command-card:focus-visible,
 .cycle-command-card:hover,
-.cycle-command-card:focus-visible {
+.cycle-command-card:focus-visible,
+.cycle-map-path-card:hover,
+.cycle-map-path-card:focus-visible {
   background: var(--bg-panel);
   border-color: var(--border-strong);
   outline: none;
@@ -3096,25 +3106,29 @@ h6 {
 }
 
 .events-command-card.ready,
-.cycle-command-card.ready {
+.cycle-command-card.ready,
+.cycle-map-path-card.ready {
   background: color-mix(in srgb, var(--accent-green) 7%, var(--bg-panel));
   border-color: color-mix(in srgb, var(--accent-green) 24%, var(--border-light));
 }
 
 .events-command-card.watch,
-.cycle-command-card.watch {
+.cycle-command-card.watch,
+.cycle-map-path-card.watch {
   background: color-mix(in srgb, var(--accent-amber) 10%, var(--bg-panel));
   border-color: color-mix(in srgb, var(--accent-amber) 30%, var(--border-light));
 }
 
 .events-command-card.block,
-.cycle-command-card.block {
+.cycle-command-card.block,
+.cycle-map-path-card.block {
   background: color-mix(in srgb, var(--accent-red) 8%, var(--bg-panel));
   border-color: color-mix(in srgb, var(--accent-red) 30%, var(--border-light));
 }
 
 .events-command-card > span,
-.cycle-command-card > span {
+.cycle-command-card > span,
+.cycle-map-path-card > span {
   display: inline-grid;
   width: 32px;
   height: 32px;
@@ -3126,7 +3140,8 @@ h6 {
 }
 
 .events-command-card strong,
-.cycle-command-card strong {
+.cycle-command-card strong,
+.cycle-map-path-card strong {
   color: var(--text-primary);
   font-family: var(--font-display);
   font-size: clamp(1.28rem, 1.65vw, 1.85rem);
@@ -3137,7 +3152,8 @@ h6 {
 }
 
 .events-command-card em,
-.cycle-command-card em {
+.cycle-command-card em,
+.cycle-map-path-card em {
   color: var(--accent-blue);
   font-size: 0.78rem;
   font-style: normal;
@@ -3147,7 +3163,8 @@ h6 {
 }
 
 .events-command-card p,
-.cycle-command-card p {
+.cycle-command-card p,
+.cycle-map-path-card p {
   margin: 0;
   color: var(--text-secondary);
   font-size: 0.82rem;
@@ -3157,7 +3174,8 @@ h6 {
 }
 
 .events-command-card b,
-.cycle-command-card b {
+.cycle-command-card b,
+.cycle-map-path-card b {
   display: inline-flex;
   width: fit-content;
   align-items: center;
@@ -5952,6 +5970,7 @@ h6 {
   .performance-command-panel,
   .events-command-panel,
   .cycle-command-panel,
+  .cycle-map-path-panel,
   .paper-command-panel,
   .trading-command-panel,
   .research-flow {
@@ -5975,6 +5994,7 @@ h6 {
   .performance-command-grid,
   .events-command-grid,
   .cycle-command-grid,
+  .cycle-map-path-grid,
   .paper-command-grid,
   .trading-command-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -6208,6 +6228,8 @@ h6 {
   .events-command-grid,
   .cycle-command-panel,
   .cycle-command-grid,
+  .cycle-map-path-panel,
+  .cycle-map-path-grid,
   .paper-command-panel,
   .paper-command-grid,
   .trading-command-panel,
@@ -6227,6 +6249,7 @@ h6 {
   .performance-command-card b,
   .events-command-card b,
   .cycle-command-card b,
+  .cycle-map-path-card b,
   .paper-command-card b,
   .trading-command-card b {
     width: 100%;
