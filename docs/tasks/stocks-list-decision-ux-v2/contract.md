@@ -38,8 +38,8 @@
 
 ## Done Criteria
 
-- [ ] `/stocks` has a first-screen Korean command panel explaining recommended, held, watch-only, and stale/missing data groups.
-- [ ] The page routes users to stock detail and recommendation detail without implying a trade action.
-- [ ] Local frontend verification passes.
-- [ ] AWH task verification passes.
-- [ ] EC2/tunnel route smoke confirms the new Korean copy renders.
+- [x] `/stocks` has a first-screen Korean command panel explaining recommended, held, watch-only, and stale/missing data groups.
+- [x] The page routes users to stock detail and recommendation detail without implying a trade action.
+- [x] Local frontend verification passes.
+- [x] AWH task verification passes.
+- [x] EC2/tunnel route smoke confirms the new Korean copy renders.
