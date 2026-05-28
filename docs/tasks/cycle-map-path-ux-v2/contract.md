@@ -13,6 +13,7 @@
 - mutable surface:
   - `apps/web/src/app/cycle-map/page.tsx`
   - `apps/web/src/app/globals.css`
+  - `apps/web/src/lib/korean-labels.ts`
   - `docs/tasks/cycle-map-path-ux-v2/*`
 
 ## Invariants
@@ -25,6 +26,7 @@
 ## Scope
 
 - Replace generic repeated review strip copy with a page-specific path panel.
+- Translate major sector/factor node labels that appear on the flow map.
 - Keep the existing node groups, relationship chips, and detail links.
 - Explain that `/cycle-map` shows causal paths while `/cycles` shows theme state snapshots.
 - Make clear that path evidence is not an order or final recommendation.
