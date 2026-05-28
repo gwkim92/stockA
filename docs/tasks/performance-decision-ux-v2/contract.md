@@ -38,8 +38,8 @@
 
 ## Done Criteria
 
-- [ ] `/performance` has a first-screen Korean command panel explaining measured outcomes, sample quality, attribution lens, and coverage exclusions.
-- [ ] The page routes users to evidence sections without implying a trade action or weight change.
-- [ ] Local frontend verification passes.
-- [ ] AWH task verification passes.
-- [ ] EC2/tunnel route smoke confirms the new Korean copy renders.
+- [x] `/performance` has a first-screen Korean command panel explaining measured outcomes, sample quality, attribution lens, and coverage exclusions.
+- [x] The page routes users to evidence sections without implying a trade action or weight change.
+- [x] Local frontend verification passes.
+- [x] AWH task verification passes.
+- [x] EC2/tunnel route smoke confirms the new Korean copy renders.
