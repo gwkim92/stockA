@@ -38,8 +38,8 @@
 
 ## Done Criteria
 
-- [ ] `/recommendations` has a first-screen Korean command panel explaining recommendation signal, paper wait, order block, and professional evidence.
-- [ ] The page avoids implying that a recommendation can be directly ordered.
-- [ ] Local frontend verification passes.
-- [ ] AWH task verification passes.
-- [ ] EC2/tunnel route smoke confirms the new Korean copy renders.
+- [x] `/recommendations` has a first-screen Korean command panel explaining recommendation signal, paper wait, order block, and professional evidence.
+- [x] The page avoids implying that a recommendation can be directly ordered.
+- [x] Local frontend verification passes.
+- [x] AWH task verification passes.
+- [x] EC2/tunnel route smoke confirms the new Korean copy renders.
