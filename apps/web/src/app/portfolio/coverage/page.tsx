@@ -268,37 +268,93 @@ export default async function PortfolioCoveragePage() {
     : 0;
   const thesisReady = hasPositions && data.summary.missing_thesis_count === 0;
   const outcomeCoverageRatio = data.summary.weight_coverage_ratio;
+  const reviewCandidateTotal = candidateReview.candidate_count + positionSizingReview.review_required_count;
+  const portfolioCommandCards = [
+    {
+      index: "01",
+      label: "보유 검토",
+      title: hasPositions ? `${data.summary.position_count}개 보유` : "보유 스냅샷 없음",
+      metric: `thesis 연결률 ${formatPercent(thesisCoverageRatio)} · outcome ${formatPercent(outcomeCoverageRatio)}`,
+      body: hasPositions
+        ? "보유 종목마다 투자 논리와 성과 측정 상태가 연결됐는지 먼저 본다. 논리 누락 종목은 보유 판단 근거가 약하다."
+        : "이 기준일에는 포지션 스냅샷이 없어 보유 검토를 만들 수 없다. 포지션 수집 상태를 먼저 확인한다.",
+      href: "#portfolio-position-map",
+      cta: "보유 지도 보기",
+      tone: thesisReady ? "ready" : "watch",
+    },
+    {
+      index: "02",
+      label: "리스크 예산",
+      title: riskBudgetLabel(riskBudget.status),
+      metric: `한도 초과 ${riskBudget.over_single_position_limit_count}개 · 집중 초과 ${concentration.over_limit_count}개`,
+      body: riskBudget.status === "needs_position_review" || concentration.over_limit_count > 0
+        ? "단일 종목, 섹터, 테마 노출이 정책 한도와 충돌하는지 확인한다. 이 값은 주문 지시가 아니라 위험 검토 신호다."
+        : "현재 정책 기준으로 큰 한도 초과는 없다. 그래도 비중과 집중도는 아래 카드에서 계속 확인한다.",
+      href: "#portfolio-risk-budget",
+      cta: "리스크 보기",
+      tone: riskBudget.status === "needs_position_review" || concentration.over_limit_count > 0 ? "watch" : "ready",
+    },
+    {
+      index: "03",
+      label: "리밸런싱 후보",
+      title: reviewCandidateTotal > 0 ? `${reviewCandidateTotal}개 검토` : "즉시 후보 없음",
+      metric: `벤치마크 ${candidateReview.candidate_count}개 · 포지션 ${positionSizingReview.review_required_count}개`,
+      body: reviewCandidateTotal > 0
+        ? "SPY 대비 괴리나 포지션 크기 문제를 검토한다. 매수·매도 버튼이 아니라 상세 판단으로 들어가는 입구다."
+        : "현재 threshold 기준으로 리밸런싱 검토 후보가 없다.",
+      href: "#portfolio-rebalance-review",
+      cta: "후보 보기",
+      tone: reviewCandidateTotal > 0 ? "watch" : "ready",
+    },
+    {
+      index: "04",
+      label: "성과·weight 경계",
+      title: reviewCalibration.weight_review_blocked ? "weight 변경 금지" : "수동 검토 가능",
+      metric: `성숙일 ${reviewCalibration.estimated_maturity_date || "미정"} · ${koCode(reviewCalibration.guardrails.order_boundary)}`,
+      body: reviewCalibration.weight_review_blocked
+        ? "성과 표본이 성숙하기 전에는 추천 weight를 바꾸지 않는다. broker 주문과 자동 리밸런싱도 계속 차단된다."
+        : "수동 검토 조건이 열려도 이 화면에서 자동 주문이나 자동 비중 변경은 하지 않는다.",
+      href: "#portfolio-outcome-boundary",
+      cta: "경계 보기",
+      tone: reviewCalibration.weight_review_blocked ? "block" : "watch",
+    },
+  ];
 
   return (
     <div className="pageStack">
-      <section className="reveal">
+      <section className="page-hero reveal" aria-labelledby="portfolio-coverage-title">
         <div className="bento-badge">
           커버리지 지도 • {koLabel(data.portfolio_name)} • {koCode(data.strategy_name)} • {data.as_of_date}
         </div>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "24px", flexWrap: "wrap" }}>
-          <div>
-            <h1 style={{ fontSize: "clamp(2.5rem, 4vw, 4rem)", marginBottom: "16px" }}>포트폴리오 커버리지 확인</h1>
-            <p style={{ color: "var(--text-secondary)", fontSize: "1.1rem", maxWidth: "700px" }}>
-              투자 논리 연결과 성과 측정을 분리해서 본다. 투자 논리가 연결되면 보유 검토는 가능하지만,
-              장기 성과 측정 window가 아직 끝나지 않으면 성과 귀속은 계속 대기 상태로 남는다.
-            </p>
-          </div>
-          
-          <div style={{ 
-            padding: "20px 32px", 
-            background: thesisReady ? "rgba(16, 185, 129, 0.1)" : "rgba(245, 158, 11, 0.1)",
-            border: `1px solid ${thesisReady ? "rgba(16, 185, 129, 0.2)" : "rgba(245, 158, 11, 0.2)"}`,
-            borderRadius: "var(--radius-md)",
-            textAlign: "center"
-          }}>
-            <span className="metric-sub" style={{ color: thesisReady ? "var(--accent-green)" : "var(--accent-amber)" }}>투자 논리 연결률</span>
-            <div style={{ fontSize: "2.5rem", fontWeight: 700, color: "var(--text-primary)", margin: "4px 0" }}>
-              {formatPercent(thesisCoverageRatio)}
-            </div>
-            <div style={{ fontSize: "0.85rem", color: thesisReady ? "var(--accent-green)" : "var(--accent-amber)", fontWeight: 600, textTransform: "uppercase" }}>
-              {thesisReady ? "연결됨" : "보강 필요"}
-            </div>
-          </div>
+        <div>
+          <h1 id="portfolio-coverage-title">보유 종목을 검토하고, 무엇은 아직 바꾸면 안 되는지 확인한다.</h1>
+          <p>
+            이 화면은 포트폴리오 주문 화면이 아니다. 보유 thesis, 리스크 예산, 리밸런싱 후보,
+            성과 성숙 대기, weight 변경 금지 상태를 분리해서 보여준다.
+          </p>
+        </div>
+      </section>
+
+      <section className="portfolio-command-panel reveal delay-1" aria-labelledby="portfolio-command-title">
+        <div className="portfolio-command-lead">
+          <span>포트폴리오 판정판</span>
+          <h2 id="portfolio-command-title">보유를 유지할지보다, 먼저 무엇을 검토해야 하는지 본다.</h2>
+          <p>
+            기준일 {data.as_of_date} · 측정 종료 {data.coverage_measurement_end_date}.
+            모든 카드는 읽기 전용이며, broker 주문·자동 리밸런싱·추천 weight 변경은 이 화면에서 실행되지 않는다.
+          </p>
+        </div>
+        <div className="portfolio-command-grid">
+          {portfolioCommandCards.map((card) => (
+            <a className={`portfolio-command-card ${card.tone}`} href={card.href} key={card.index}>
+              <span>{card.index}</span>
+              <small>{card.label}</small>
+              <strong>{card.title}</strong>
+              <em>{card.metric}</em>
+              <p>{card.body}</p>
+              <b>{card.cta}</b>
+            </a>
+          ))}
         </div>
       </section>
 
@@ -339,7 +395,7 @@ export default async function PortfolioCoveragePage() {
           <span className="metric-sub">명시적 배분</span>
         </article>
 
-        <article className="bento-card span-4" style={{ borderColor: riskBudget.status === "needs_position_review" ? "var(--accent-amber)" : "var(--border-light)" }}>
+        <article id="portfolio-risk-budget" className="bento-card span-4" style={{ borderColor: riskBudget.status === "needs_position_review" ? "var(--accent-amber)" : "var(--border-light)" }}>
           <div className="section-heading">
             <div>
               <span className="metric-sub">위험 예산 / 포지션 크기</span>
@@ -549,7 +605,7 @@ export default async function PortfolioCoveragePage() {
           )}
         </article>
 
-        <article className="bento-card span-4" style={{ borderColor: reviewCalibration.calibration_status === "contradiction_review_required" ? "var(--accent-red)" : "var(--border-light)" }}>
+        <article id="portfolio-outcome-boundary" className="bento-card span-4" style={{ borderColor: reviewCalibration.calibration_status === "contradiction_review_required" ? "var(--accent-red)" : "var(--border-light)" }}>
           <div className="section-heading">
             <div>
               <span className="metric-sub">검토 신뢰도 누적평가</span>
@@ -725,7 +781,7 @@ export default async function PortfolioCoveragePage() {
           </div>
         </article>
 
-        <article className="bento-card span-4" style={{ borderColor: candidateReview.candidate_count > 0 ? "var(--accent-red)" : "var(--border-light)" }}>
+        <article id="portfolio-rebalance-review" className="bento-card span-4" style={{ borderColor: candidateReview.candidate_count > 0 ? "var(--accent-red)" : "var(--border-light)" }}>
           <div className="section-heading">
             <div>
               <span className="metric-sub">벤치마크 대비 리밸런싱 검토</span>
@@ -980,7 +1036,7 @@ export default async function PortfolioCoveragePage() {
           </div>
         </article>
 
-        <article className="bento-card span-4">
+        <article id="portfolio-position-map" className="bento-card span-4">
           <div className="section-heading">
             <div>
               <span className="metric-sub">리밸런싱 우선순위</span>
