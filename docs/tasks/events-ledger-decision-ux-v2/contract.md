@@ -38,8 +38,8 @@
 
 ## Done Criteria
 
-- [ ] `/events` has a first-screen Korean command panel explaining collection, classification, AI linkage, and blocked/low-signal review.
-- [ ] The page routes users to evidence sections without implying a recommendation, trade action, or manual approval flow.
-- [ ] Local frontend verification passes.
-- [ ] AWH task verification passes.
-- [ ] EC2/tunnel route smoke confirms the new Korean copy renders.
+- [x] `/events` has a first-screen Korean command panel explaining collection, classification, AI linkage, and blocked/low-signal review.
+- [x] The page routes users to evidence sections without implying a recommendation, trade action, or manual approval flow.
+- [x] Local frontend verification passes.
+- [x] AWH task verification passes.
+- [x] EC2/tunnel route smoke confirms the new Korean copy renders.
