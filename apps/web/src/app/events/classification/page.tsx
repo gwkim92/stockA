@@ -74,6 +74,64 @@ export default async function ClassificationPage() {
   const directSymbolCount = data.events.filter((event) => isKnownNewsCode(event.symbol)).length;
   const macroOnlyCount = data.events.length - directSymbolCount;
   const strongestEvent = [...data.events].sort((left, right) => right.impact_score - left.impact_score)[0];
+  const aiLinkedCount = data.events.filter((event) => event.ai_evidence_id).length;
+  const unreviewedCount = data.summary.unreviewed_event_count;
+  const ruleCheckCount = Math.max(0, data.events.length - aiLinkedCount);
+  const riskReviewCount = groups.reduce((count, group) => count + group.riskReview, 0);
+  const classificationCommandCards = [
+    {
+      index: "01",
+      label: "테마 묶음",
+      title: groups.length > 0 ? `${groups.length.toLocaleString("ko-KR")}개 테마` : "테마 없음",
+      metric: `뉴스 ${data.events.length.toLocaleString("ko-KR")}건 · 리스크 ${riskReviewCount.toLocaleString("ko-KR")}건`,
+      body:
+        groups.length > 0
+          ? "뉴스가 어떤 상위 흐름으로 묶였는지 먼저 본다. 테마 이름이 뉴스 내용과 맞지 않으면 AI 근거와 대조한다."
+          : "현재 필터 기준으로 묶을 테마가 없다. 수집 원장과 분류 배치 상태를 확인한다.",
+      href: "#classification-groups",
+      cta: "테마 묶음 보기",
+      tone: groups.length > 0 ? "ready" : "block",
+    },
+    {
+      index: "02",
+      label: "직접 종목",
+      title: directSymbolCount > 0 ? `${directSymbolCount.toLocaleString("ko-KR")}건` : "직접 종목 없음",
+      metric: `종목 태그 ${directSymbolCount.toLocaleString("ko-KR")}건`,
+      body:
+        directSymbolCount > 0
+          ? "명확한 회사명·티커 뉴스만 직접 종목으로 본다. 원문에 없는 티커가 붙었다면 AI/validator 화면에서 차단 여부를 본다."
+          : "직접 종목 태그가 없다. 거시·테마 뉴스일 수 있으므로 억지로 종목을 붙이지 않는다.",
+      href: "#classification-groups",
+      cta: "종목 태그 확인",
+      tone: directSymbolCount > 0 ? "watch" : "ready",
+    },
+    {
+      index: "03",
+      label: "상위 흐름",
+      title: macroOnlyCount > 0 ? `${macroOnlyCount.toLocaleString("ko-KR")}건` : "상위 흐름 없음",
+      metric: `시장/테마 뉴스 ${macroOnlyCount.toLocaleString("ko-KR")}건`,
+      body:
+        macroOnlyCount > 0
+          ? "금리, 물가, 정책, 에너지 같은 뉴스는 개별 종목보다 상위 흐름으로 먼저 저장하고 이후 exposure로 전파한다."
+          : "현재 목록에서는 종목 없는 상위 흐름 뉴스가 두드러지지 않는다.",
+      href: "/cycle-map",
+      cta: "사이클 지도 보기",
+      tone: macroOnlyCount > 0 ? "watch" : "ready",
+    },
+    {
+      index: "04",
+      label: "AI 비교",
+      title: aiLinkedCount > 0 ? `${aiLinkedCount.toLocaleString("ko-KR")}건 연결` : "AI 비교 전",
+      metric: `규칙만 ${ruleCheckCount.toLocaleString("ko-KR")}건 · 미검토 ${unreviewedCount.toLocaleString("ko-KR")}건`,
+      body:
+        aiLinkedCount > 0
+          ? "1차 태그와 AI 구조화 결과가 같은 방향인지 본다. 불일치하거나 낮은 신뢰도는 추천 근거로 쓰지 않는다."
+          : "이 화면의 태그는 아직 최종 판단이 아니다. AI 분석과 validator 결과가 붙을 때까지 추천 입력으로 보류한다.",
+      href: "/ai-evidence",
+      cta: "AI와 비교",
+      tone: aiLinkedCount > 0 ? "ready" : "watch",
+    },
+  ];
 
   return (
     <div className="pageStack classification-page">
@@ -81,13 +139,36 @@ export default async function ClassificationPage() {
         <div>
           <div className="bento-badge">1차 분류 태그 · {data.as_of_date}</div>
           <h1 className="page-title" id="classification-title">
-            AI 전에 붙은 종목·테마·방향 태그를 검수한다.
+            1차 태그가 맞는지 보고, AI 결과와 비교한다.
           </h1>
         </div>
         <p className="page-lede">
-          이 화면은 수집된 뉴스에 처음 붙은 해석만 따로 보는 곳이다. 테마가 이상하거나 종목이 잘못 붙은
-          뉴스는 여기서 먼저 발견하고, AI 구조화 결과와 비교한다.
+          이 화면은 최종 투자 판단이 아니라 규칙 기반 1차 분류를 보는 곳이다. 직접 종목 뉴스와
+          거시·테마 뉴스를 분리하고, 이상한 태그는 AI 구조화와 validator 결과에서 다시 확인한다.
         </p>
+      </section>
+
+      <section className="events-command-panel reveal delay-1" aria-labelledby="classification-command-title">
+        <div className="events-command-lead">
+          <span>1차 분류 판정판</span>
+          <h2 id="classification-command-title">테마가 맞는지, 종목을 억지로 붙였는지 먼저 본다.</h2>
+          <p>
+            기준일 {data.as_of_date}. 이 태그는 rule pack의 첫 해석이며, AI 구조화와 validator를 통과해야
+            추천 근거 후보가 된다.
+          </p>
+        </div>
+        <div className="events-command-grid">
+          {classificationCommandCards.map((card) => (
+            <a className={`events-command-card ${card.tone}`} href={card.href} key={card.index}>
+              <span>{card.index}</span>
+              <small>{card.label}</small>
+              <strong>{card.title}</strong>
+              <em>{card.metric}</em>
+              <p>{card.body}</p>
+              <b>{card.cta}</b>
+            </a>
+          ))}
+        </div>
       </section>
 
       <section className="screen-switchboard reveal delay-1" aria-label="뉴스 처리 단계 바로가기">
@@ -148,7 +229,7 @@ export default async function ClassificationPage() {
         </ol>
       </section>
 
-      <section className="classification-grid reveal delay-2" aria-label="테마별 1차 분류">
+      <section className="classification-grid reveal delay-2" id="classification-groups" aria-label="테마별 1차 분류">
         {groups.map((group) => (
           <article className="classification-card" key={group.themeKey}>
             <div className="trace-card-top">
