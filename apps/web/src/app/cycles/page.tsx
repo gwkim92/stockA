@@ -44,6 +44,14 @@ export default async function CyclesPage() {
   const data = response.data;
   const activeCycleCount = data.cycle_states.filter((cycle) => cycle.state !== cycle.previous_state).length;
   const instrumentCount = data.cycle_states.reduce((total, cycle) => total + cycle.instrument_count, 0);
+  const eventLedThemeCount = data.cycle_states.filter((cycle) => (cycle.features.event_intensity ?? 0) >= 0.65).length;
+  const momentumThemeCount = data.cycle_states.filter((cycle) => (cycle.features.price_momentum ?? 0) >= 0.6).length;
+  const fundamentalMeasuredCount = data.cycle_states.filter(
+    (cycle) => cycle.features.fundamental_quality !== null,
+  ).length;
+  const missingFeatureCount = data.cycle_states.filter((cycle) =>
+    Object.values(cycle.features).some((value) => value === null),
+  ).length;
   const averageConfidence =
     data.cycle_states.length > 0
       ? data.cycle_states.reduce((total, cycle) => total + cycle.confidence, 0) / data.cycle_states.length
@@ -65,6 +73,63 @@ export default async function CyclesPage() {
         <Link className="btn btn-primary" href={"/cycle-map" as Route}>
           상위 흐름 지도 열기
         </Link>
+      </section>
+
+      <section className="cycle-command-panel reveal delay-1" aria-labelledby="cycle-command-title">
+        <div className="cycle-command-lead">
+          <span>사이클 판정판</span>
+          <h2 id="cycle-command-title">테마 상태를 보고, 원인 경로는 따로 확인한다.</h2>
+          <p>
+            이 화면은 테마별 현재 사이클 상태표다. 어떤 테마가 변했는지 먼저 보고, 왜 변했는지는
+            상위 흐름 지도와 테마 상세에서 원천 뉴스·AI 근거를 이어서 확인한다.
+          </p>
+        </div>
+        <div className="cycle-command-grid">
+          <a className="cycle-command-card ready" href="#cycle-states">
+            <span>01</span>
+            <small>상태표</small>
+            <strong>{data.cycle_states.length}개 테마</strong>
+            <em>{universeLabel(data.universe_version)}</em>
+            <p>
+              여기는 테마별 사이클 상태를 한 번에 보는 곳이다. 매수·매도 결론이 아니라 투자 논리 점검
+              출발점으로 사용한다.
+            </p>
+            <b>상태표 보기</b>
+          </a>
+          <a className={activeCycleCount > 0 ? "cycle-command-card watch" : "cycle-command-card ready"} href="#cycle-states">
+            <span>02</span>
+            <small>변화</small>
+            <strong>{activeCycleCount}개 상태 변화</strong>
+            <em>현재 상태와 이전 상태 비교</em>
+            <p>
+              상태가 바뀐 테마는 추천·보유 thesis와 충돌하는지 먼저 본다. 변화가 없어도 신뢰도와 근거
+              축은 별도로 확인한다.
+            </p>
+            <b>변화 항목 보기</b>
+          </a>
+          <a className={missingFeatureCount > 0 ? "cycle-command-card watch" : "cycle-command-card ready"} href="#cycle-states">
+            <span>03</span>
+            <small>근거 축</small>
+            <strong>뉴스 {eventLedThemeCount} · 가격 {momentumThemeCount}</strong>
+            <em>재무 품질 {fundamentalMeasuredCount}/{data.cycle_states.length}</em>
+            <p>
+              막대는 이벤트, 가격 모멘텀, 기업 품질을 분리해 보여준다. 특정 축이 비어 있으면 결론보다
+              데이터 보강이 먼저다.
+            </p>
+            <b>근거 축 확인</b>
+          </a>
+          <Link className="cycle-command-card" href={"/cycle-map" as Route}>
+            <span>04</span>
+            <small>원인 경로</small>
+            <strong>상위 흐름 지도</strong>
+            <em>거시 → 도메인 → 테마 → 종목</em>
+            <p>
+              사이클 상태의 배경은 지도에서 본다. 뉴스가 어떤 상위 흐름을 거쳐 테마와 종목에 전파됐는지
+              확인하는 화면이다.
+            </p>
+            <b>흐름 지도 열기</b>
+          </Link>
+        </div>
       </section>
 
       <section className="status-rail compact-rail reveal delay-1" aria-label="사이클 요약">
@@ -90,7 +155,7 @@ export default async function CyclesPage() {
         </article>
       </section>
 
-      <section className="cycle-index reveal delay-2" aria-label="테마 사이클 목록">
+      <section className="cycle-index reveal delay-2" id="cycle-states" aria-label="테마 사이클 목록">
         {data.cycle_states.length === 0 ? (
           <article className="empty-state">
             아직 이 기준일에 저장된 사이클 스냅샷이 없다. 뉴스·상위 흐름은 계속 수집되지만,
