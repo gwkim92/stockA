@@ -40,8 +40,8 @@
 
 ## Done Criteria
 
-- [ ] `/cycle-map` has a first-screen Korean path panel explaining news, flow nodes, instrument exposure, and recommendation links.
-- [ ] The page distinguishes `/cycle-map` from `/cycles` without implying graph paths are final trade instructions.
-- [ ] Local frontend verification passes.
-- [ ] AWH task verification passes.
-- [ ] EC2/tunnel route smoke confirms the new Korean copy renders.
+- [x] `/cycle-map` has a first-screen Korean path panel explaining news, flow nodes, instrument exposure, and recommendation links.
+- [x] The page distinguishes `/cycle-map` from `/cycles` without implying graph paths are final trade instructions.
+- [x] Local frontend verification passes.
+- [x] AWH task verification passes.
+- [x] EC2/tunnel route smoke confirms the new Korean copy renders.
