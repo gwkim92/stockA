@@ -33,7 +33,9 @@ function recommendationHref(recommendationId: string) {
   return `/recommendations/${encodeURIComponent(recommendationId)}` as Route;
 }
 
-function stockPriorityReason(stock: Awaited<ReturnType<typeof getStocks>>["data"]["stocks"][number]) {
+type StockRow = Awaited<ReturnType<typeof getStocks>>["data"]["stocks"][number];
+
+function stockPriorityReason(stock: StockRow) {
   if (stock.recommendation && stock.position) {
     return "추천과 보유가 모두 연결된 종목이다. 추천 논리와 현재 보유 상태가 충돌하지 않는지 먼저 본다.";
   }
@@ -46,9 +48,25 @@ function stockPriorityReason(stock: Awaited<ReturnType<typeof getStocks>>["data"
   return "가격 데이터가 수집된 종목이다. 추천 전 단계의 관찰 대상으로 본다.";
 }
 
+function formatSymbolList(stocks: StockRow[]) {
+  if (stocks.length === 0) {
+    return "해당 없음";
+  }
+  return stocks
+    .slice(0, 4)
+    .map((stock) => stock.symbol)
+    .join(" · ");
+}
+
 export default async function StocksPage() {
   const response = await getStocks();
   const data = response.data;
+  const recommendedStocks = data.stocks.filter((stock) => stock.recommendation);
+  const heldStocks = data.stocks.filter((stock) => stock.position);
+  const watchOnlyStocks = data.stocks.filter((stock) => !stock.recommendation && !stock.position);
+  const staleOrMissingPriceStocks = data.stocks.filter(
+    (stock) => !stock.latest_price.trade_date || stock.latest_price.trade_date !== data.summary.latest_price_date,
+  );
   const priorityStocks = data.stocks
     .slice()
     .sort((left, right) => {
@@ -57,38 +75,104 @@ export default async function StocksPage() {
       return rightScore - leftScore || left.symbol.localeCompare(right.symbol);
     })
     .slice(0, 3);
+  const stockCommandCards = [
+    {
+      index: "01",
+      label: "추천 연결",
+      title:
+        recommendedStocks.length > 0
+          ? `${recommendedStocks.length.toLocaleString("ko-KR")}개 종목`
+          : "추천 연결 없음",
+      metric: formatSymbolList(recommendedStocks),
+      body:
+        recommendedStocks.length > 0
+          ? "추천서가 붙은 종목이다. 종목 상세에서 뉴스·사이클·재무·밸류에이션 근거가 같이 맞는지 본다."
+          : "현재 목록에는 추천서가 붙은 종목이 없다. 추천 생성 상태를 먼저 확인한다.",
+      href: "/recommendations",
+      cta: "추천 근거 보기",
+      tone: recommendedStocks.length > 0 ? "watch" : "block",
+    },
+    {
+      index: "02",
+      label: "보유 연결",
+      title:
+        heldStocks.length > 0
+          ? `${heldStocks.length.toLocaleString("ko-KR")}개 보유`
+          : "보유 연결 없음",
+      metric: formatSymbolList(heldStocks),
+      body:
+        heldStocks.length > 0
+          ? "포트폴리오에 연결된 종목이다. 추천 신호와 현재 보유 비중이 충돌하는지 보유 검토에서 확인한다."
+          : "현재 포트폴리오 스냅샷에 연결된 보유 종목이 없다.",
+      href: "/portfolio/coverage",
+      cta: "보유 검토 보기",
+      tone: heldStocks.length > 0 ? "ready" : "watch",
+    },
+    {
+      index: "03",
+      label: "관찰 종목",
+      title:
+        watchOnlyStocks.length > 0
+          ? `${watchOnlyStocks.length.toLocaleString("ko-KR")}개 관찰`
+          : "관찰 전용 없음",
+      metric: formatSymbolList(watchOnlyStocks),
+      body:
+        watchOnlyStocks.length > 0
+          ? "가격은 수집됐지만 추천이나 보유가 아직 붙지 않은 종목이다. 상세에서 차트와 상위 흐름을 먼저 본다."
+          : "모든 종목이 추천이나 보유 상태와 연결돼 있다.",
+      href: "#stock-list",
+      cta: "목록에서 찾기",
+      tone: watchOnlyStocks.length > 0 ? "watch" : "ready",
+    },
+    {
+      index: "04",
+      label: "데이터 점검",
+      title:
+        staleOrMissingPriceStocks.length > 0
+          ? "가격 갱신 확인"
+          : "가격일 일치",
+      metric: `${staleOrMissingPriceStocks.length.toLocaleString("ko-KR")}개 확인 · 최신 ${data.summary.latest_price_date || "없음"}`,
+      body:
+        staleOrMissingPriceStocks.length > 0
+          ? "최신 가격일과 다른 종목이 있다. 투자 판단 전에 수집 상태와 종목 상세의 데이터 기간을 확인한다."
+          : "목록의 가격 관측일이 최신 기준일과 맞는다. 그래도 전문 원천 차단 여부는 종목 상세에서 본다.",
+      href: "/data-health",
+      cta: "수집 상태 보기",
+      tone: staleOrMissingPriceStocks.length > 0 ? "block" : "ready",
+    },
+  ];
 
   return (
     <div className="pageStack">
       <section className="page-hero reveal" aria-labelledby="stocks-title">
-        <div className="bento-badge">종목 확인실 • 상세 분석 입구</div>
-        <h1 id="stocks-title">종목을 고르고 상세 분석으로 들어간다.</h1>
+        <div className="bento-badge">종목 확인실 • 추천·보유·관찰 분류</div>
+        <h1 id="stocks-title">종목을 먼저 분류하고, 필요한 상세 근거로 들어간다.</h1>
         <p>
-          이 화면은 DB에 들어온 종목을 나열하는 곳이다. 추천이 붙었는지, 보유 중인지, 가격 데이터가
-          충분한지를 먼저 보고 오른쪽의 명확한 버튼으로 종목 상세나 추천 근거로 이동한다.
+          추천이 붙은 종목, 실제 보유와 연결된 종목, 아직 관찰 단계인 종목을 나눠 본다.
+          이 목록은 주문 화면이 아니며, 전문 원천과 AI 근거는 종목 상세에서 확인한다.
         </p>
       </section>
 
-      <section className="status-rail compact-rail reveal delay-1" aria-label="종목 데이터 요약">
-        <div className="rail-cell">
-          <span>수집 종목</span>
-          <strong>{data.stock_count.toLocaleString("ko-KR")}</strong>
-          <small>가격 데이터가 있는 종목</small>
+      <section className="stocks-command-panel reveal delay-1" aria-labelledby="stocks-command-title">
+        <div className="stocks-command-lead">
+          <span>종목 판정판</span>
+          <h2 id="stocks-command-title">무엇을 먼저 열어야 하는지 종목을 네 갈래로 나눈다.</h2>
+          <p>
+            총 {data.stock_count.toLocaleString("ko-KR")}개 · 가격 수집 {data.summary.priced_stock_count.toLocaleString("ko-KR")}개 ·
+            최신 가격일 {data.summary.latest_price_date || "없음"}. 원천 차단, 전문 분석, 페이퍼 입력 가능 여부는 각 종목 상세에서 확인한다.
+          </p>
         </div>
-        <div className="rail-cell">
-          <span>최신 가격일</span>
-          <strong>{data.summary.latest_price_date || "없음"}</strong>
-          <small>시장 데이터 최종 관측일</small>
-        </div>
-        <div className="rail-cell">
-          <span>추천 연결</span>
-          <strong>{data.summary.recommended_stock_count.toLocaleString("ko-KR")}</strong>
-          <small>추천/논리가 붙은 종목</small>
-        </div>
-        <div className="rail-cell">
-          <span>보유 중</span>
-          <strong>{data.summary.held_stock_count.toLocaleString("ko-KR")}</strong>
-          <small>포트폴리오 스냅샷 기준</small>
+        <div className="stocks-command-grid">
+          {stockCommandCards.map((card) => (
+            <a className={`stocks-command-card ${card.tone}`} href={card.href} key={card.index}>
+              <span>{card.index}</span>
+              <small>{card.label}</small>
+              <strong>{card.title}</strong>
+              <em>{card.metric}</em>
+              <p>{card.body}</p>
+              <b>{card.cta}</b>
+            </a>
+          ))}
         </div>
       </section>
 
@@ -96,7 +180,7 @@ export default async function StocksPage() {
         <div className="section-heading">
           <div>
             <span className="metric-sub">오늘 먼저 볼 종목</span>
-            <h2 id="stock-priority-title">추천·보유 연결이 있는 종목부터 확인한다</h2>
+            <h2 id="stock-priority-title">추천·보유 연결이 있는 종목부터 연다</h2>
           </div>
           <Link className="btn btn-secondary" href="/recommendations">
             추천 후보 전체 보기
@@ -124,11 +208,11 @@ export default async function StocksPage() {
         </div>
       </section>
 
-      <section className="bento-card span-4 reveal delay-3" aria-labelledby="stock-list-title">
+      <section className="bento-card span-4 reveal delay-3" id="stock-list" aria-labelledby="stock-list-title">
         <div className="section-heading">
           <div>
             <span className="metric-sub">종목 목록</span>
-            <h2 id="stock-list-title">종목별 상세로 바로 이동한다</h2>
+            <h2 id="stock-list-title">종목별 상세와 추천 근거로 바로 이동한다</h2>
           </div>
           <Link className="btn btn-secondary" href="/data-health">
             데이터 수집 상태 보기

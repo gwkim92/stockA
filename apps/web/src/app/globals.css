@@ -2532,6 +2532,161 @@ h6 {
   font-weight: 900;
 }
 
+.stocks-command-panel {
+  display: grid;
+  grid-template-columns: minmax(300px, 0.4fr) minmax(0, 1fr);
+  gap: clamp(18px, 2.4vw, 34px);
+  align-items: stretch;
+  padding: clamp(22px, 2.6vw, 38px);
+  background:
+    linear-gradient(135deg, rgba(250, 248, 240, 0.98), rgba(232, 239, 226, 0.82)),
+    radial-gradient(circle at 14% 10%, rgba(35, 116, 78, 0.18), transparent 34%),
+    repeating-linear-gradient(
+      0deg,
+      rgba(17, 18, 15, 0.048),
+      rgba(17, 18, 15, 0.048) 1px,
+      transparent 1px,
+      transparent 36px
+    );
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+}
+
+.stocks-command-lead {
+  display: grid;
+  align-content: space-between;
+  gap: 18px;
+  min-width: 0;
+  padding: clamp(14px, 1.6vw, 22px) 0;
+}
+
+.stocks-command-lead span,
+.stocks-command-card small {
+  color: var(--text-tertiary);
+  font-size: 0.72rem;
+  font-weight: 950;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.stocks-command-lead h2 {
+  max-width: 560px;
+  margin: 0;
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: clamp(2.2rem, 4.1vw, 4.7rem);
+  font-weight: 950;
+  letter-spacing: -0.07em;
+  line-height: 0.92;
+  word-break: keep-all;
+}
+
+.stocks-command-lead p {
+  max-width: 560px;
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.96rem;
+  font-weight: 780;
+  line-height: 1.68;
+  word-break: keep-all;
+}
+
+.stocks-command-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  min-width: 0;
+}
+
+.stocks-command-card {
+  display: grid;
+  min-width: 0;
+  min-height: 285px;
+  align-content: space-between;
+  gap: 12px;
+  padding: 18px;
+  background: color-mix(in srgb, var(--bg-panel) 90%, white);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  text-decoration: none;
+  transition: border-color 0.16s ease, transform 0.16s ease, background 0.16s ease;
+}
+
+.stocks-command-card:hover,
+.stocks-command-card:focus-visible {
+  background: var(--bg-panel);
+  border-color: var(--border-strong);
+  outline: none;
+  transform: translateY(-2px);
+}
+
+.stocks-command-card.ready {
+  background: color-mix(in srgb, var(--accent-green) 7%, var(--bg-panel));
+  border-color: color-mix(in srgb, var(--accent-green) 24%, var(--border-light));
+}
+
+.stocks-command-card.watch {
+  background: color-mix(in srgb, var(--accent-amber) 10%, var(--bg-panel));
+  border-color: color-mix(in srgb, var(--accent-amber) 30%, var(--border-light));
+}
+
+.stocks-command-card.block {
+  background: color-mix(in srgb, var(--accent-red) 8%, var(--bg-panel));
+  border-color: color-mix(in srgb, var(--accent-red) 30%, var(--border-light));
+}
+
+.stocks-command-card > span {
+  display: inline-grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  background: var(--text-primary);
+  color: var(--bg-panel);
+  font-size: 0.72rem;
+  font-weight: 950;
+}
+
+.stocks-command-card strong {
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: clamp(1.28rem, 1.65vw, 1.85rem);
+  font-weight: 900;
+  letter-spacing: -0.035em;
+  line-height: 1.02;
+  word-break: keep-all;
+}
+
+.stocks-command-card em {
+  color: var(--accent-blue);
+  font-size: 0.78rem;
+  font-style: normal;
+  font-weight: 900;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.stocks-command-card p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  font-weight: 740;
+  line-height: 1.58;
+  word-break: keep-all;
+}
+
+.stocks-command-card b {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 10px;
+  background: var(--text-primary);
+  border-radius: 999px;
+  color: var(--bg-panel);
+  font-size: 0.72rem;
+  font-weight: 900;
+}
+
 .detail-path-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -5309,6 +5464,7 @@ h6 {
   .intelligence-flow-panel,
   .data-health-command-panel,
   .recommendations-command-panel,
+  .stocks-command-panel,
   .paper-command-panel,
   .trading-command-panel,
   .research-flow {
@@ -5327,6 +5483,7 @@ h6 {
   .intelligence-flow-grid,
   .data-health-command-grid,
   .recommendations-command-grid,
+  .stocks-command-grid,
   .paper-command-grid,
   .trading-command-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -5399,6 +5556,7 @@ h6 {
   .intelligence-brief-grid,
   .data-health-command-grid,
   .recommendations-command-grid,
+  .stocks-command-grid,
   .paper-command-grid,
   .trading-command-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -5546,6 +5704,8 @@ h6 {
   .data-health-command-grid,
   .recommendations-command-panel,
   .recommendations-command-grid,
+  .stocks-command-panel,
+  .stocks-command-grid,
   .paper-command-panel,
   .paper-command-grid,
   .trading-command-panel,
@@ -5560,6 +5720,7 @@ h6 {
   .intelligence-flow-card b,
   .data-health-command-card b,
   .recommendations-command-card b,
+  .stocks-command-card b,
   .paper-command-card b,
   .trading-command-card b {
     width: 100%;
