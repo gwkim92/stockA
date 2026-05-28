@@ -38,8 +38,8 @@
 
 ## Done Criteria
 
-- [ ] `/portfolio/coverage` has a first-screen Korean command panel explaining holdings coverage, risk budget, rebalance review, and outcome/weight boundary.
-- [ ] The page routes users to review sections without implying a trade action.
-- [ ] Local frontend verification passes.
-- [ ] AWH task verification passes.
-- [ ] EC2/tunnel route smoke confirms the new Korean copy renders.
+- [x] `/portfolio/coverage` has a first-screen Korean command panel explaining holdings coverage, risk budget, rebalance review, and outcome/weight boundary.
+- [x] The page routes users to review sections without implying a trade action.
+- [x] Local frontend verification passes.
+- [x] AWH task verification passes.
+- [x] EC2/tunnel route smoke confirms the new Korean copy renders.
