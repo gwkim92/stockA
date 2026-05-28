@@ -38,8 +38,8 @@
 
 ## Done Criteria
 
-- [ ] `/cycles` has a first-screen Korean command panel explaining status, changes, evidence axes, and next navigation.
-- [ ] The page distinguishes `/cycles` from `/cycle-map` without implying cycle status is a final recommendation.
-- [ ] Local frontend verification passes.
-- [ ] AWH task verification passes.
-- [ ] EC2/tunnel route smoke confirms the new Korean copy renders.
+- [x] `/cycles` has a first-screen Korean command panel explaining status, changes, evidence axes, and next navigation.
+- [x] The page distinguishes `/cycles` from `/cycle-map` without implying cycle status is a final recommendation.
+- [x] Local frontend verification passes.
+- [x] AWH task verification passes.
+- [x] EC2/tunnel route smoke confirms the new Korean copy renders.

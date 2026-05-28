@@ -2,7 +2,7 @@
 
 ## Status
 
-- in progress: task contract created; implementation is next.
+- completed: local implementation, local verification, GitHub push, EC2 deploy, EC2 route smoke, tunnel route smoke, and Playwright snapshot verification passed.
 
 ## Current Decision
 
@@ -13,13 +13,20 @@
 
 ## Next Step
 
-- exact next step: add the `/cycles` command panel, update responsive CSS, run local verification, deploy to EC2, smoke the tunnel route, then update this handoff with evidence.
+- exact next step: continue the broader UX/page split sweep with `/cycle-map`, focusing on making macro-to-theme-to-instrument paths understandable without repeating `/cycles` status-board language.
 
 ## Verification So Far
 
-- pending: local frontend verification.
-- pending: AWH verification.
-- pending: EC2/tunnel route smoke.
+- passed: `cd apps/web && npm run typecheck`
+- passed: `cd apps/web && npm run build`
+- passed: `PYTHONPATH=/Users/woody/ai/agent-work-harness/src python3 -m awh verify --repo . --task cycles-decision-ux-v2`
+- passed: `git diff --check`
+- passed: EC2 `cd /opt/stockanalysis/app/apps/web && npm run typecheck`
+- passed: EC2 `cd /opt/stockanalysis/app/apps/web && npm run build`
+- passed: EC2 `sudo systemctl restart stockanalysis-web.service`
+- passed: EC2 internal route smoke for `http://127.0.0.1:3000/cycles`
+- passed: tunnel route smoke for `http://127.0.0.1:13000/cycles`
+- passed: Playwright snapshot found `사이클 판정판`, `테마 상태를 보고, 원인 경로는 따로 확인한다`, `상태표`, `변화`, `근거 축`, and `상위 흐름 지도`
 
 ## Risks
 
