@@ -2,7 +2,7 @@
 
 ## Status
 
-- in progress: local implementation and local verification are underway; EC2 deploy/smoke remains.
+- completed: live AI invocation health gate is implemented, deployed to EC2, and API/UI smoke confirms the existing Codex OAuth failure is now visible.
 - 기준일: 2026-06-01
 - root cause:
   - EC2 최신 `news-intraday`는 systemd와 profile runner 관점에서는 성공했지만, 실제 Codex OAuth 호출은 `token_invalidated`/`refresh_token_reused`/`401 Unauthorized`로 실패했다.
@@ -28,15 +28,17 @@
 - PASS: `cd apps/web && npm run build`
 - PASS: `git diff --check`
 - PASS: local SQL rendered against EC2 DB returned `live_ai_invocation_health.status=critical_ai_failed`, `recent_failed_count=737`, `latest_failed_task_name=news-rss-ai-extract`, `latest_error_code=codex_oauth_auth_invalid`.
+- PASS: AWH readiness passed for `live-ai-invocation-health-gate-v1`.
+- PASS: EC2 deployed commit `e61c33d`, backend focused tests passed, Next typecheck/build passed, `stockanalysis-frontend-api.service` and `stockanalysis-web.service` are active.
+- PASS: EC2 `/api/data-health` returns `open_gates=['data_operations_artifact_runner', 'live_ai_invocation_health_attention']`, `live_ai_invocation_health.status=critical_ai_failed`, `recent_success_count=0`, `recent_failed_count=737`, `latest_error_code=codex_oauth_auth_invalid`.
+- PASS: EC2 `/data-health` renders `실제 AI 호출 상태`, `실제 AI 호출 확인 필요`, `실제 AI 실패 737건`, and `Codex OAuth 분석 실패`.
+- FAIL-EXPECTED: limited `news-rss-translation-run --provider codex_oauth --limit 1 --execute` still returns `completed_with_fallback`; direct `codex exec` smoke exits 1 with `token_invalidated` and `refresh_token_reused`.
 
 ## Remaining
 
-- Run AWH after this handoff exists.
-- Deploy to EC2 and restart FastAPI/Next.
-- Verify `/api/data-health.open_gates` contains `live_ai_invocation_health_attention`.
-- Verify `/data-health` renders `실제 AI 호출 상태`, `실제 AI 호출 실패`, and Korean auth failure wording.
-- Run limited Codex OAuth smoke after deployment to check whether re-login is currently fixed.
+- Actual Codex OAuth authentication is still broken on EC2. `codex login status` reports ChatGPT login, but real `codex exec` returns 401. The stored refresh token must be replaced by a fresh login.
+- After re-login, rerun limited translation and news AI extract smoke, then run `news-intraday` once.
 
 ## Exact Next Step
 
-- exact next step: run AWH, deploy the branch to EC2, then execute one limited `news-rss-translation-run` or `news-rss-ai-extract-run` smoke with `--provider codex_oauth --limit 1 --execute`.
+- exact next step: refresh EC2 Codex OAuth credentials with `codex logout` and `codex login --device-auth` or equivalent browser login, then run `news-rss-translation-run --provider codex_oauth --limit 1 --execute`.
