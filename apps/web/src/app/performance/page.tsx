@@ -42,7 +42,7 @@ function performanceCopy(value: string | null | undefined) {
     security_selection: "종목 선택",
     theme_exposure: "테마 노출",
     cash_timing: "현금 비중",
-    coverage_ready: "커버리지 준비",
+    coverage_ready: "성과 연결 준비",
     outcome_run: "성과 측정 실행",
     methodology_boundary: "측정 방식 경계",
   };
@@ -54,17 +54,20 @@ function performanceCopy(value: string | null | undefined) {
     .replaceAll("outcome window", "성과 측정창")
     .replaceAll("outcome", "성과")
     .replaceAll("weight review", "추천 산식 검토")
-    .replaceAll("weight", "가중치")
+    .replaceAll("weight", "추천 산식 반영 비중")
     .replaceAll("quality gate", "품질 기준")
     .replaceAll("gate", "기준")
-    .replaceAll("coverage", "커버리지")
+    .replaceAll("coverage", "성과 연결 상태")
     .replaceAll("methodology", "측정 방식")
     .replaceAll("source run", "산출 실행")
     .replaceAll("source", "원천")
     .replaceAll("feedback", "사후평가")
     .replaceAll("calibration", "누적평가")
-    .replaceAll("broker", "증권사")
-    .replaceAll("paper validation", "페이퍼 검증");
+    .replaceAll("broker", "증권사 연결")
+    .replaceAll("paper validation", "가상 매매 검증")
+    .replaceAll("커버리지", "연결 상태")
+    .replaceAll("가중치", "반영 비중")
+    .replaceAll("페이퍼", "가상 매매");
 }
 
 function executionIdLabel(value: string) {
@@ -89,7 +92,7 @@ function evaluationStatusLabel(status: string) {
     no_outcome_data: "성과 측정 전",
     insufficient_sample: "표본 부족",
     enough_sample: "표본 충분",
-    needs_coverage_review: "커버리지 보완 필요",
+    needs_coverage_review: "성과 연결 보완 필요",
     needs_quality_review: "품질 재검토 필요",
     positive_alignment: "성과 정렬 양호",
     reviewable: "검토 가능",
@@ -194,7 +197,7 @@ export default async function PerformancePage() {
       body:
         quality.status === "positive_alignment"
           ? "성과 방향이 추천 점수와 대체로 맞는다. 그래도 표본 크기와 제외 항목을 같이 확인한다."
-          : "성과 표본이 부족하거나 커버리지 보완이 필요하면 추천 산식 가중치를 바꾸면 안 된다.",
+          : "성과 표본이 부족하거나 성과 연결 보완이 필요하면 추천 산식 반영 비중을 바꾸면 안 된다.",
       href: "#performance-quality",
       cta: "품질 평가 보기",
       tone: quality.status === "positive_alignment" ? "ready" : "watch",
@@ -243,7 +246,7 @@ export default async function PerformancePage() {
           <h1 id="performance-title">성과를 확인하되, 아직 바꾸면 안 되는 것도 같이 본다.</h1>
           <p>
             이 화면은 장기 추천의 책임 추적 화면이다. 측정된 추천, 표본 품질, 성과 귀속,
-            제외·보완 항목을 분리해서 보여주며 주문이나 추천 산식 가중치 변경을 실행하지 않는다.
+            제외·보완 항목을 분리해서 보여주며 주문이나 추천 산식 반영 비중 변경을 실행하지 않는다.
           </p>
         </div>
       </section>
@@ -298,7 +301,7 @@ export default async function PerformancePage() {
           <strong className="metric-value" style={{ color: data.summary.excluded_position_count > 0 ? "var(--accent-amber)" : "var(--text-primary)" }}>
             {formatPercent(data.summary.excluded_weight)}
           </strong>
-          <span className="metric-sub">{data.summary.excluded_position_count}개 포지션 커버리지 필요</span>
+          <span className="metric-sub">{data.summary.excluded_position_count}개 포지션 연결 상태 보완 필요</span>
         </article>
       </section>
 
@@ -309,7 +312,7 @@ export default async function PerformancePage() {
               <span className="metric-sub">추천 품질 평가</span>
               <h2 style={{ fontSize: "1.5rem", marginTop: "6px" }}>{evaluationStatusLabel(quality.status)}</h2>
               <p style={{ color: "var(--text-secondary)", marginTop: "8px", maxWidth: "720px" }}>
-                이 평가는 추천을 새로 만들지 않는다. 이미 저장된 추천 점수, 성과, 보유 검토, 커버리지를 대조해
+                이 평가는 추천을 새로 만들지 않는다. 이미 저장된 추천 점수, 성과, 보유 검토, 성과 연결 상태를 대조해
                 중장기 추천 품질을 과대 해석하지 않도록 점검한다.
               </p>
             </div>
@@ -339,7 +342,7 @@ export default async function PerformancePage() {
               <span className="metric-sub">보유 판단과 결과 대조</span>
             </div>
             <div>
-              <span className="metric-label">커버리지 제외</span>
+              <span className="metric-label">성과 연결 제외</span>
               <strong className="metric-value">{quality.coverage_exclusion_count}</strong>
               <span className="metric-sub">먼저 보완할 빈칸</span>
             </div>
@@ -371,7 +374,7 @@ export default async function PerformancePage() {
               <h2 style={{ fontSize: "1.5rem" }}>추천 책임 추적</h2>
             </div>
             <Link className="btn btn-secondary" href="/portfolio/coverage">
-              커버리지 확인 열기
+              보유 검토 열기
             </Link>
           </div>
           <div className="bento-list">
@@ -448,8 +451,8 @@ export default async function PerformancePage() {
 
         <article id="performance-exclusions" className="bento-card span-2">
           <div style={{ marginBottom: "24px" }}>
-            <span className="metric-sub">커버리지 제외</span>
-            <h2 style={{ fontSize: "1.5rem" }}>커버리지 부족 항목</h2>
+            <span className="metric-sub">성과 연결 제외</span>
+            <h2 style={{ fontSize: "1.5rem" }}>성과 연결 보완 항목</h2>
           </div>
           <div className="bento-list">
             {data.coverage_exclusions.length === 0 ? (
