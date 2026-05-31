@@ -1259,13 +1259,16 @@ export default async function RecommendationPage({ params }: RecommendationPageP
   const professionalResearchSteps: ResearchFlowStep[] = decisionWaterfall.steps.map((step, index) => ({
     id: step.step_key,
     label: String(index + 1).padStart(2, "0"),
-    title: step.title,
-    status: step.status,
+    title: koLabel(step.title),
+    status: koLabel(step.status),
     tone: researchFlowTone(step.tone),
-    body: `${step.decision}. ${step.detail}`,
-    facts: step.facts,
+    body: `${koLabel(step.decision)}. ${koLabel(step.detail)}`,
+    facts: step.facts.map((fact) => ({
+      label: koLabel(fact.label),
+      value: koLabel(fact.value),
+    })),
     href: step.href ? (step.href as Route) : undefined,
-    hrefLabel: step.href_label ?? undefined,
+    hrefLabel: step.href_label ? koLabel(step.href_label) : undefined,
   }));
   const waterfallCards = recommendationWaterfallCards({
     data,

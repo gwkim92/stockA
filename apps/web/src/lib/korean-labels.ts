@@ -819,6 +819,8 @@ const EMBEDDED_LABEL_REPLACEMENTS: Array<[RegExp, string]> = [
   [/\bread-only\b/g, "읽기 전용"],
   [/\bbroker boundary\b/g, "증권사 연결 경계"],
   [/\bbroker submit\b/g, "증권사 주문 제출"],
+  [/\bpaper validation and order boundary\b/g, "페이퍼 검증과 주문 경계"],
+  [/\bpaper validation\b/g, "페이퍼 검증"],
   [/\bkill switch\b/g, "킬 스위치"],
   [/\bthesis\b/g, "투자 논리"],
   [/\bThesis\b/g, "투자 논리"],
