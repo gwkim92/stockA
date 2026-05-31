@@ -986,6 +986,9 @@ function operationCopy(value: string) {
     .replaceAll("managed wait", "관리된 대기")
     .replaceAll("coverage", "근거 커버리지")
     .replaceAll("active", "활성")
+    .replaceAll("boundary", "경계")
+    .replaceAll("managed", "관리됨")
+    .replaceAll("source", "원천")
     .replaceAll("job", "작업")
     .replaceAll("degraded", "주의");
 }
@@ -2804,8 +2807,8 @@ export default async function DataHealthPage() {
         <div className="insight-grid">
           {professionalQuality.layer_checks.map((layer) => (
             <article className="insight-card" key={layer.layer_key}>
-              <span>{layer.label}</span>
-              <strong>{koCode(layer.status)}</strong>
+              <span>{operationCopy(layer.label)}</span>
+              <strong>{operationCopy(layer.status)}</strong>
               <p>
                 {layer.available_count}/{layer.expected_count}개 후보 연결 · 근거 커버리지 {formatPercent(layer.coverage_ratio)}
               </p>
@@ -2815,8 +2818,8 @@ export default async function DataHealthPage() {
         <div className="flow-steps data-health-summary-grid">
           {professionalQuality.quality_checks.map((check) => (
             <article className="flow-step" key={check.key}>
-              <span>{check.label}</span>
-              <strong>{koCode(check.status)}</strong>
+              <span>{operationCopy(check.label)}</span>
+              <strong>{operationCopy(check.status)}</strong>
 	              <p>{operationCopy(check.detail)}</p>
             </article>
           ))}
@@ -2897,7 +2900,7 @@ export default async function DataHealthPage() {
                 <div className="tag-ledger">
                   {item.layer_checks.map((check) => (
                     <span className={`risk-tag ${check.status === "complete" || check.status === "passed" ? "risk-low" : check.status === "not_applicable" ? "risk-medium" : "risk-high"}`} key={check.key}>
-                      {check.label}: {koCode(check.status)}
+                      {operationCopy(check.label)}: {operationCopy(check.status)}
                     </span>
                   ))}
                 </div>
@@ -3069,7 +3072,7 @@ export default async function DataHealthPage() {
         <div className="insight-grid">
           {professionalDepth.layer_coverage.map((layer) => (
             <article className="insight-card" key={layer.layer_key}>
-              <span>{layer.label}</span>
+              <span>{operationCopy(layer.label)}</span>
               <strong>{formatPercent(layer.coverage_ratio)}</strong>
               <p>
                 {layer.available_count}/{layer.expected_count}개 후보가 이 근거를 갖췄다.
