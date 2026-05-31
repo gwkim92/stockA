@@ -175,14 +175,34 @@ function userFacingStockText(value: string | null | undefined) {
     return "";
   }
   return koLabel(value)
+    .replace(/\baccumulate_candidate\b/gi, "분할 매수 검토 후보")
+    .replace(/\bhold_candidate\b/gi, "보유 검토 후보")
+    .replace(/\breduce_watch\b/gi, "비중 축소 관찰")
     .replace(/\bthesis\b/gi, "투자 논리")
     .replace(/\bevidence review\b/gi, "근거 검토")
     .replace(/\bpaper validation gate\b/gi, "가상 매매 검증")
     .replace(/\bpaper validation\b/gi, "가상 매매 검증")
     .replace(/\bvaluation\b/gi, "밸류에이션")
+    .replace(/\bfund\/ETF source layer\b/gi, "ETF·펀드 근거")
+    .replace(/\bfund or etf company model not applicable\b/gi, "ETF·펀드라 기업 재무 모델 비적용")
+    .replace(/\bfund_company_financial_model_not_applicable\b/gi, "ETF·펀드라 기업 재무 모델 비적용")
     .replace(/\bsource blocker\b/gi, "부족한 원천 근거")
+    .replace(/\bblocker\b/gi, "차단 사유")
+    .replace(/\bref\.instrument\b/gi, "상품 분류 기준")
     .replace(/\bgate\b/gi, "확인 조건")
     .replace(/\bvia\b/gi, "기준");
+}
+
+function valuationSensitivityLabel(key: string) {
+  const labels: Record<string, string> = {
+    "base case": "기준 시나리오",
+    base_case: "기준 시나리오",
+    confidence: "신뢰도",
+    "upside case": "상승 시나리오",
+    upside_case: "상승 시나리오",
+    downside_case: "하락 시나리오",
+  };
+  return labels[key] ?? labels[key.toLowerCase()] ?? userFacingStockText(koCode(key));
 }
 
 function stockDecisionOutcome(
@@ -388,14 +408,14 @@ function FinancialStatementModelPanel({
         {sourceBlocker ? (
           <div className="status-rail compact-rail" aria-label="재무 원천 차단 사유" style={{ marginTop: "18px" }}>
             <div className="rail-cell">
-              <span>차단 사유</span>
+              <span>부족한 근거</span>
               <strong>{sourceBlocker.label}</strong>
-              <small>{sourceBlocker.blocker_code}</small>
+              <small>{userFacingStockText(koCode(sourceBlocker.blocker_code))}</small>
             </div>
             <div className="rail-cell">
-              <span>확인 위치</span>
-              <strong>{sourceBlocker.source_pipeline}</strong>
-              <small>{sourceBlocker.source_run_id || "정적 분류"}</small>
+              <span>확인 기준</span>
+              <strong>{userFacingStockText(sourceBlocker.source_pipeline)}</strong>
+              <small>{sourceBlocker.source_run_id ? "수집 실행 기록 있음" : "정적 분류"}</small>
             </div>
           </div>
         ) : null}
@@ -851,7 +871,7 @@ function ProfessionalSourceGuardrailPanel({
         <div className="rail-cell">
           <span>투자 판단 입력</span>
           <strong>{guardrail.professional_decision_use_allowed ? "가능" : "차단"}</strong>
-          <small>{koCode(guardrail.status)}</small>
+          <small>{userFacingStockText(koCode(guardrail.status))}</small>
         </div>
         <div className="rail-cell">
           <span>가상 매매 검증</span>
@@ -861,7 +881,7 @@ function ProfessionalSourceGuardrailPanel({
         <div className="rail-cell">
           <span>부족한 근거</span>
           <strong>{guardrail.blocker_label || "없음"}</strong>
-          <small>{guardrail.blocker_code ? koCode(guardrail.blocker_code) : "추가 보강 필요 없음"}</small>
+          <small>{guardrail.blocker_code ? userFacingStockText(koCode(guardrail.blocker_code)) : "추가 보강 필요 없음"}</small>
         </div>
         <div className="rail-cell rail-critical">
           <span>실거래 상태</span>
@@ -1227,7 +1247,7 @@ export default async function StockDetailPage({ params }: StockDetailPageProps) 
         { label: "최근 기간", value: financialStatementModel.latest_period_end || "없음" },
         { label: "계산 지표", value: `${financialStatementModel.computed_metric_count}개` },
         { label: "데이터 공백", value: `${financialStatementModel.data_gap_count}개` },
-        { label: "원천 경계", value: sourceBlocked ? sourceGuardrail.blocker_label : "차단 없음" },
+        { label: "근거 상태", value: sourceBlocked ? sourceGuardrail.blocker_label : "차단 없음" },
       ],
     },
     {
@@ -1268,7 +1288,10 @@ export default async function StockDetailPage({ params }: StockDetailPageProps) 
               { label: "산출 방법", value: `${valuationTargetRange.method_count}개` },
             ]
           : valuationItems.length > 0
-          ? valuationItems.slice(0, 3).map((item) => ({ label: koCode(item.key), value: koLabel(item.value) }))
+          ? valuationItems.slice(0, 3).map((item) => ({
+              label: valuationSensitivityLabel(item.key),
+              value: userFacingStockText(item.value),
+            }))
           : [{ label: "상태", value: "밸류에이션 결과 대기" }],
     },
     {
@@ -1549,8 +1572,8 @@ export default async function StockDetailPage({ params }: StockDetailPageProps) 
               <div className="stock-meta-grid" style={{ marginTop: "18px" }}>
                 {valuationItems.map((item) => (
                   <Fragment key={item.key}>
-                    <span>{koCode(item.key)}</span>
-                    <strong>{koLabel(item.value)}</strong>
+                    <span>{valuationSensitivityLabel(item.key)}</span>
+                    <strong>{userFacingStockText(item.value)}</strong>
                   </Fragment>
                 ))}
               </div>
