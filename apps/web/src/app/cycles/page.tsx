@@ -106,8 +106,8 @@ export default async function CyclesPage() {
             <strong>{activeCycleCount}개 상태 변화</strong>
             <em>현재 상태와 이전 상태 비교</em>
             <p>
-              상태가 바뀐 테마는 추천·보유 투자 논리와 충돌하는지 먼저 본다. 변화가 없어도 신뢰도와 근거
-              축은 별도로 확인한다.
+              상태가 바뀐 테마는 추천·보유 투자 논리와 충돌하는지 먼저 본다. 변화가 없어도 신뢰도와 판단
+              근거는 별도로 확인한다.
             </p>
             <b>변화 항목 보기</b>
           </a>
@@ -115,7 +115,7 @@ export default async function CyclesPage() {
             <span>03</span>
             <small>판단 근거</small>
             <strong>뉴스 {eventLedThemeCount} · 가격 {momentumThemeCount}</strong>
-            <em>재무 품질 {fundamentalMeasuredCount}/{data.cycle_states.length}</em>
+            <em>기업 품질 {fundamentalMeasuredCount}/{data.cycle_states.length}</em>
             <p>
               막대는 뉴스 흐름, 가격 흐름, 기업 품질을 분리해 보여준다. 특정 축이 비어 있으면 결론보다
               데이터 보강이 먼저다.
