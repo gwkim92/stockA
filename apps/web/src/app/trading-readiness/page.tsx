@@ -40,6 +40,16 @@ function yesNo(value: boolean) {
   return value ? "예" : "아니오";
 }
 
+function brokerLabel(value: string | null | undefined) {
+  if (!value) {
+    return "증권사 미등록";
+  }
+  if (value === "simulated_paper") {
+    return "가상 거래 전용";
+  }
+  return koCode(value);
+}
+
 export default async function TradingReadinessPage() {
   const response = await getTradingReadiness();
   const data = response.data;
@@ -75,7 +85,7 @@ export default async function TradingReadinessPage() {
       index: "02",
       label: "증권사 제출",
       title: brokerSubmitEnabled ? "실제 주문 제출 기능 켜짐" : "실제 주문 제출 기능 꺼짐",
-      metric: data.broker_boundary.broker_code || "증권사 미등록",
+      metric: brokerLabel(data.broker_boundary.broker_code),
       body: brokerSubmitEnabled
         ? "증권사 제출 기능이 켜진 상태다. 주문 전송 기록과 권한 경계를 더 엄격히 확인해야 한다."
         : "현재 증권사 연결 경계는 실제 주문 제출을 지원하지 않는다. 미리보기와 실제 제출을 분리해서 본다.",
@@ -209,7 +219,7 @@ export default async function TradingReadinessPage() {
             <dl className="fact-list">
               <div>
                 <dt>증권사</dt>
-                <dd>{data.broker_boundary.broker_code || "미등록"}</dd>
+                <dd>{brokerLabel(data.broker_boundary.broker_code)}</dd>
               </div>
               <div>
                 <dt>증권사 연결 상태</dt>
