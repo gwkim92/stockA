@@ -6,7 +6,29 @@ import { koBlockedReason, koCode, koLabel, koReason } from "@/lib/korean-labels"
 import type { TradingReadinessData } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "가상 거래 점검" };
+export const metadata = { title: "가상 매매 점검" };
+
+const USER_FACING_REPLACEMENTS: Array<[string, string]> = [
+  ["paper validation", "가상 매매 검증"],
+  ["Paper validation", "가상 매매 검증"],
+  ["paper trade", "가상 매매"],
+  ["broker submit", "증권사 주문 제출"],
+  ["broker", "증권사"],
+  ["order boundary", "실거래 상태"],
+  ["order_boundary", "실거래 상태"],
+  ["read_only_no_order", "읽기 전용, 실거래 주문 차단"],
+  ["eval_run_id", "검증 기록"],
+  ["active share", "벤치마크와 다른 비중"],
+  ["drift", "벤치마크 괴리"],
+  ["runner", "실행 기록"],
+  ["artifact", "결과 기록"],
+  ["blocked", "차단"],
+  ["pending", "대기"],
+  ["approved", "허용"],
+  ["페이퍼", "가상 매매"],
+  ["주문 경계", "실거래 상태"],
+  ["가중치", "반영 비중"],
+];
 
 function formatPercent(value: number | null | undefined) {
   if (value === null || value === undefined) {
@@ -43,6 +65,33 @@ function recordNumber(record: Record<string, unknown> | undefined, key: string) 
   return null;
 }
 
+function userFacingText(value: string | number | boolean | null | undefined) {
+  if (value === null || value === undefined || value === "") {
+    return "";
+  }
+  if (typeof value === "number") {
+    return value.toLocaleString("ko-KR");
+  }
+  if (typeof value === "boolean") {
+    return value ? "예" : "아니오";
+  }
+  let text = koLabel(koCode(value));
+  for (const [from, to] of USER_FACING_REPLACEMENTS) {
+    text = text.replaceAll(from, to);
+  }
+  return text;
+}
+
+function orderBoundaryLabel(value: string | null | undefined) {
+  if (!value) {
+    return "실거래 상태 미기록";
+  }
+  if (value === "read_only_no_order") {
+    return "읽기 전용, 실거래 주문 차단";
+  }
+  return userFacingText(value);
+}
+
 function riskClass(value: string) {
   if (value === "high") {
     return "risk-high";
@@ -71,20 +120,20 @@ function paperValidationState(trading: TradingReadinessData) {
   }
   if (trading.gate_summary.blocked_count > 0 || trading.paper_validation.blocked_reasons.length > 0) {
     return {
-      title: "가상 검증 후보 있음 · 실제 주문 차단",
+      title: "가상 매매 후보 있음 · 실제 주문 차단",
       tone: "risk-high",
       detail: "가상 후보는 만들 수 있지만 안전 조건이 닫혀 있어 실제 주문으로 넘어가지 않는다.",
     };
   }
   if (trading.paper_validation.approved_action_count > 0) {
     return {
-      title: "가상 검증 통과 후보 있음 · 실제 주문 금지",
+      title: "가상 매매 검증 통과 후보 있음 · 실제 주문 금지",
       tone: "risk-medium",
-      detail: "가상 검증을 통과한 후보가 있지만 이 화면은 주문을 만들지 않는다. 실거래는 거래 안전 승인, 증권사 연결, 계좌 권한, 주문 한도, 감사 기록이 모두 붙은 뒤에만 가능하다.",
+      detail: "가상 매매 검증을 통과한 후보가 있지만 이 화면은 주문을 만들지 않는다. 실거래는 거래 안전 승인, 증권사 연결, 계좌 권한, 주문 한도, 감사 기록이 모두 붙은 뒤에만 가능하다.",
     };
   }
   return {
-    title: "가상 검증 후보 대기 · 실제 주문 없음",
+    title: "가상 매매 후보 대기 · 실제 주문 없음",
     tone: "risk-medium",
     detail: "추천 후보와 현재 보유 내역이 맞물릴 때 가상 조치 후보가 생성된다.",
   };
@@ -113,15 +162,15 @@ export default async function PaperTradingPage() {
       metric: liveSubmitCount > 0 ? `${liveSubmitCount}건 확인 필요` : "증권사 전송 없음",
       body:
         liveSubmitCount > 0
-          ? "이 경우 페이퍼 화면을 보기 전에 감사 로그와 실제 계좌 내역을 먼저 대조해야 한다."
+          ? "이 경우 가상 매매 화면을 보기 전에 감사 로그와 실제 계좌 내역을 먼저 대조해야 한다."
           : "현재 서버 기준으로 증권사에 전송된 주문은 없다. 아래 후보는 모두 시뮬레이션이다.",
       href: "#paper-current-state",
-      cta: "주문 경계 보기",
+      cta: "실거래 상태 보기",
       tone: liveSubmitCount > 0 ? "block" : "ready",
     },
     {
       index: "02",
-      label: "페이퍼 검증",
+      label: "가상 매매 검증",
       title: validationState.title,
       metric: simulatedActionCount > 0 ? `${simulatedActionCount}개 후보` : "후보 대기",
       body:
@@ -139,7 +188,7 @@ export default async function PaperTradingPage() {
       metric: `${trading.gate_summary.blocked_count}개 차단`,
       body:
         trading.gate_summary.blocked_count > 0
-          ? "거래 안전 조건이 닫혀 있어 페이퍼 후보를 실거래로 전환하면 안 된다."
+          ? "거래 안전 조건이 닫혀 있어 가상 매매 후보를 실거래로 전환하면 안 된다."
           : "차단 조건이 없어 보여도 이 화면에는 주문 버튼이 없다. 실거래 전환은 별도 증권사 주문 절차에서만 다룬다.",
       href: "/trading-readiness",
       cta: "거래 안전 보기",
@@ -152,7 +201,7 @@ export default async function PaperTradingPage() {
       metric: trading.gate_summary.blocked_count > 0 ? "차단 사유 우선" : "읽기 전용 검토",
       body:
         trading.gate_summary.blocked_count > 0
-          ? "차단 사유를 먼저 확인한다. 주문 경계는 계속 읽기 전용이다."
+          ? "차단 사유를 먼저 확인한다. 실거래 상태는 계속 읽기 전용이다."
           : simulatedActionCount > 0
             ? "후보별 추천서, 투자 논리, 종목 상세를 열어 근거가 맞는지 확인한다."
             : "추천 후보와 보유 상태가 갱신됐는지 먼저 본다.",
@@ -201,7 +250,7 @@ export default async function PaperTradingPage() {
       tone: trading.gate_summary.blocked_count > 0 ? "risk-high" : "risk-medium",
       body:
         trading.gate_summary.blocked_count > 0
-          ? "차단 사유를 먼저 풀지 않으면 페이퍼 후보를 실거래로 전환하면 안 된다."
+          ? "차단 사유를 먼저 풀지 않으면 가상 매매 후보를 실거래로 전환하면 안 된다."
           : data.paper_actions.length > 0
             ? "가상 후보 표에서 종목별 추천, 현재 비중, 목표 비중을 대조한다."
             : "추천이나 보유 내역이 갱신되면 가상 후보가 다시 계산된다.",
@@ -212,17 +261,17 @@ export default async function PaperTradingPage() {
       value: riskGuardrail.paper_validation_input_allowed ? "입력 가능" : "입력 차단",
       tone: riskGuardrail.paper_validation_input_allowed ? "risk-low" : "risk-high",
       body: riskGuardrail.paper_validation_input_allowed
-        ? "최신 포트폴리오 위험 예산 검증이 가상 검증 입력을 허용했다."
-        : `최신 위험 예산 검증이 ${koCode(riskGuardrail.risk_gate_decision)} 상태라 가상 검증 입력을 막고 있다.`,
+        ? "최신 포트폴리오 위험 예산 검증이 가상 매매 검증 입력을 허용했다."
+        : `최신 위험 예산 검증이 ${userFacingText(riskGuardrail.risk_gate_decision)} 상태라 가상 매매 검증 입력을 막고 있다.`,
     },
   ];
   return (
     <div className="terminal-page">
       <section className="page-hero reveal" aria-labelledby="paper-title">
         <div>
-          <div className="bento-badge">가상 거래 • 주문 전 안전 점검</div>
+          <div className="bento-badge">가상 매매 • 주문 전 안전 점검</div>
           <h1 className="page-title" id="paper-title">
-            현재는 실거래가 아니라 가상 주문 검증 단계다.
+            현재는 실거래가 아니라 가상 매매 검증 단계다.
           </h1>
         </div>
         <p className="page-lede">
@@ -233,10 +282,10 @@ export default async function PaperTradingPage() {
 
       <section className="paper-command-panel reveal delay-1" aria-labelledby="paper-execution-boundary-title">
         <div className="paper-command-lead">
-          <span>페이퍼 거래 판정판</span>
+          <span>가상 매매 판정판</span>
           <h2 id="paper-execution-boundary-title">주문이 나갔는지, 후보일 뿐인지 먼저 구분한다.</h2>
           <p>
-            페이퍼 거래는 주문 실행이 아니다. 실제 주문 전송 여부, 시뮬레이션 후보,
+            가상 매매는 주문 실행이 아니다. 실제 주문 전송 여부, 시뮬레이션 후보,
             차단 조건, 다음 확인 위치를 분리해서 본다.
           </p>
         </div>
@@ -254,7 +303,7 @@ export default async function PaperTradingPage() {
         </div>
       </section>
 
-      <section className="status-rail compact-rail reveal delay-1" aria-label="가상 거래 요약">
+      <section className="status-rail compact-rail reveal delay-1" aria-label="가상 매매 요약">
         <article className="rail-cell">
           <span>추천 수</span>
           <strong>{summary.recommendation_count}</strong>
@@ -273,12 +322,12 @@ export default async function PaperTradingPage() {
         <article className="rail-cell rail-critical">
           <span>추천/보유 충돌</span>
           <strong>{summary.position_recommendation_conflict_count}</strong>
-          <small>거래 안전 승인 필요 {summary.requires_human_approval_count}</small>
+          <small>거래 안전 재확인 필요 {summary.requires_human_approval_count}</small>
         </article>
         <article className="rail-cell">
           <span>실제 주문 제출</span>
           <strong>{trading.audit_summary.submitted_to_broker_count}</strong>
-          <small>가상 검증 통과 후보 {trading.paper_validation.approved_action_count}</small>
+          <small>가상 매매 검증 통과 후보 {trading.paper_validation.approved_action_count}</small>
         </article>
       </section>
 
@@ -302,12 +351,12 @@ export default async function PaperTradingPage() {
         <div className="paper-blocked-reasons" aria-label="포트폴리오 위험 예산 상태">
           <span>위험 예산 연결</span>
           <p>
-            최신 검증 {riskGuardrail.eval_run_id || "없음"} · 기준일 {riskGuardrail.effective_snapshot_date || "미확인"} ·
+            위험 예산 검증 {riskGuardrail.eval_run_id ? "기록 있음" : "기록 없음"} · 기준일 {riskGuardrail.effective_snapshot_date || "미확인"} ·
             {benchmarkDriftCalculated
-              ? ` ${benchmarkCode} 기준 active share ${formatPercent(benchmarkActiveShare)}까지 계산했다.`
+              ? ` ${benchmarkCode} 기준 벤치마크와 다른 비중 ${formatPercent(benchmarkActiveShare)}까지 계산했다.`
               : riskGuardrail.warning_reasons.includes("insufficient_benchmark_composition")
-              ? " 벤치마크 구성비가 없어 drift는 아직 계산하지 않는다."
-              : " 위험 예산 검증 결과가 페이퍼 검증에 연결되어 있다."}
+              ? " 벤치마크 구성비가 없어 괴리 계산은 아직 하지 않는다."
+              : " 위험 예산 검증 결과가 가상 매매 검증에 연결되어 있다."}
           </p>
         </div>
         <div className="paper-blocked-reasons" aria-label="벤치마크 리밸런싱 검토 후보">
@@ -318,7 +367,7 @@ export default async function PaperTradingPage() {
                 <div className="relationship-chip" key={`${candidate.priority}-${candidate.symbol}`}>
                   <span>{candidate.symbol}</span>
                   <strong>
-                    {candidate.direction === "overweight" ? "과대 보유" : "과소 보유"} · {formatPercent(candidate.active_weight)}
+                    {candidate.direction === "overweight" ? "과대 보유" : "과소 보유"} · 벤치마크 대비 {formatPercent(candidate.active_weight)}
                   </strong>
                   <small>{koReason(candidate.rationale)}</small>
                 </div>
@@ -328,12 +377,12 @@ export default async function PaperTradingPage() {
             <p>현재 벤치마크 대비 별도 검토 후보가 없다.</p>
           )}
           <p>
-            이 후보는 가상 주문 후보가 아니다. 주문 경계는 {koCode(candidateReview.order_boundary)}이고,
+            이 후보는 가상 매매 주문 후보가 아니다. 실거래 상태는 {orderBoundaryLabel(candidateReview.order_boundary)}이고,
             실제 주문 전송은 계속 금지되어 있다.
           </p>
         </div>
         {blockedReasonDetails.length > 0 ? (
-          <div className="paper-blocked-reasons" aria-label="가상 거래 차단 사유">
+          <div className="paper-blocked-reasons" aria-label="가상 매매 차단 사유">
             <span>차단 사유</span>
             <div className="relationship-list">
               {blockedReasonDetails.slice(0, 6).map((reason) => (
@@ -348,7 +397,7 @@ export default async function PaperTradingPage() {
         ) : (
           <div className="paper-blocked-reasons">
             <span>차단 사유</span>
-            <p>현재 가상 검증 차단 사유는 없다. 그래도 실거래 전환은 거래 안전 승인과 증권사 연결 이후에만 가능하다.</p>
+            <p>현재 가상 매매 검증 차단 사유는 없다. 그래도 실거래 전환은 거래 안전 승인과 증권사 연결 이후에만 가능하다.</p>
           </div>
         )}
         <div className="btn-row decision-actions">
@@ -403,7 +452,7 @@ export default async function PaperTradingPage() {
                       <td>{formatPercent(action.current_weight)}</td>
                       <td>{formatPercent(action.target_weight)}</td>
                       <td>
-                        <strong>{koCode(action.paper_action)}</strong>
+                        <strong>{userFacingText(action.paper_action)}</strong>
                         <small>주문 아님</small>
                       </td>
                       <td>{koReason(action.reason)}</td>
@@ -439,17 +488,17 @@ export default async function PaperTradingPage() {
         <aside className="side-ledger">
           <article className="ledger-panel">
             <div className="section-heading stacked-heading">
-              <span>안전 경계</span>
+              <span>실거래 안전장치</span>
               <h2>아직 실제 주문이 아닌 이유</h2>
             </div>
             <p className="empty-copy">
-              아래 후보는 가상 검증 결과다. 실제 주문은 증권사 연결, 계좌 권한, 주문 한도,
+              아래 후보는 가상 매매 검증 결과다. 실제 주문은 증권사 연결, 계좌 권한, 주문 한도,
               킬 스위치, 검토 기록이 모두 통과해야 별도 단계에서만 다룬다.
             </p>
             <div className="tag-ledger">
               {data.guardrails.map((guardrail) => (
                 <span className="risk-tag risk-medium" key={guardrail}>
-                  {koLabel(guardrail)}
+                  {userFacingText(guardrail)}
                 </span>
               ))}
             </div>
