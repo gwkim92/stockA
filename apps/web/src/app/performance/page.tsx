@@ -17,8 +17,8 @@ function formatOptionalPercent(value: number | null) {
 }
 
 function formatBps(value: number) {
-  const rounded = Math.round(value * 10) / 10;
-  return `${rounded > 0 ? "+" : ""}${rounded} bps`;
+  const roundedPercentagePoint = Math.round((value / 100) * 100) / 100;
+  return `${roundedPercentagePoint > 0 ? "+" : ""}${roundedPercentagePoint}%p`;
 }
 
 function recommendationHref(recommendationId: string) {
@@ -31,6 +31,47 @@ function thesisHref(thesisId: string) {
 
 function themeHref(themeKey: string | null) {
   return themeKey ? (`/themes/${themeKey}` as Route) : null;
+}
+
+function performanceCopy(value: string | null | undefined) {
+  if (!value) {
+    return "없음";
+  }
+  const directLabels: Record<string, string> = {
+    component_lens_not_total_attribution: "관점별 해석이며 단순 합산값이 아니다",
+    security_selection: "종목 선택",
+    theme_exposure: "테마 노출",
+    cash_timing: "현금 비중",
+    coverage_ready: "커버리지 준비",
+    outcome_run: "성과 측정 실행",
+    methodology_boundary: "측정 방식 경계",
+  };
+  const labelled = directLabels[value] ?? koLabel(value);
+  const base = labelled === value ? koCode(value) : labelled;
+  return base
+    .replaceAll("thesis", "투자 논리")
+    .replaceAll("Thesis", "투자 논리")
+    .replaceAll("outcome window", "성과 측정창")
+    .replaceAll("outcome", "성과")
+    .replaceAll("weight review", "추천 산식 검토")
+    .replaceAll("weight", "가중치")
+    .replaceAll("quality gate", "품질 기준")
+    .replaceAll("gate", "기준")
+    .replaceAll("coverage", "커버리지")
+    .replaceAll("methodology", "측정 방식")
+    .replaceAll("source run", "산출 실행")
+    .replaceAll("source", "원천")
+    .replaceAll("feedback", "사후평가")
+    .replaceAll("calibration", "누적평가")
+    .replaceAll("broker", "증권사")
+    .replaceAll("paper validation", "페이퍼 검증");
+}
+
+function executionIdLabel(value: string) {
+  if (value.startsWith("pipeline-run-")) {
+    return `산출 실행 #${value.replace("pipeline-run-", "")}`;
+  }
+  return performanceCopy(value);
 }
 
 function gateColor(status: string) {
@@ -122,7 +163,7 @@ function qualityGateReason(gate: QualityGate) {
   if (gate.gate === "methodology_boundary") {
     return "종목/테마 구성요소는 설명 관점이며 단순 합산 총액이 아니다.";
   }
-  return koLabel(gate.reason);
+  return performanceCopy(gate.reason);
 }
 
 export default async function PerformancePage() {
@@ -139,8 +180,8 @@ export default async function PerformancePage() {
         ? `평균 알파 ${formatPercent(data.summary.average_alpha)} · 적중률 ${formatPercent(data.summary.hit_rate)}`
         : `측정 종료 ${data.measurement_end_date}`,
       body: hasMeasuredOutcomes
-        ? "측정 종료일이 지난 추천만 성과로 본다. 개별 추천과 thesis 링크를 열어 어떤 판단이 맞았는지 확인한다."
-        : "아직 측정 가능한 추천 성과가 없다. outcome window가 도래할 때까지 성과 해석과 weight 검토를 보류한다.",
+        ? "측정 종료일이 지난 추천만 성과로 본다. 개별 추천과 투자 논리 링크를 열어 어떤 판단이 맞았는지 확인한다."
+        : "아직 측정 가능한 추천 성과가 없다. 성과 측정창이 도래할 때까지 성과 해석과 추천 산식 검토를 보류한다.",
       href: "#performance-outcomes",
       cta: "성과 목록 보기",
       tone: hasMeasuredOutcomes ? "ready" : "watch",
@@ -149,11 +190,11 @@ export default async function PerformancePage() {
       index: "02",
       label: "표본 품질",
       title: evaluationStatusLabel(quality.status),
-      metric: `${quality.measured_recommendation_count}개 추천 · ${quality.measured_thesis_count}개 thesis`,
+      metric: `${quality.measured_recommendation_count}개 추천 · ${quality.measured_thesis_count}개 투자 논리`,
       body:
         quality.status === "positive_alignment"
           ? "성과 방향이 추천 점수와 대체로 맞는다. 그래도 표본 크기와 제외 항목을 같이 확인한다."
-          : "성과 표본이 부족하거나 커버리지 보완이 필요하면 추천 산식과 weight를 바꾸면 안 된다.",
+          : "성과 표본이 부족하거나 커버리지 보완이 필요하면 추천 산식 가중치를 바꾸면 안 된다.",
       href: "#performance-quality",
       cta: "품질 평가 보기",
       tone: quality.status === "positive_alignment" ? "ready" : "watch",
@@ -184,8 +225,8 @@ export default async function PerformancePage() {
       metric: `제외 비중 ${formatPercent(data.summary.excluded_weight)} · 현금 ${formatPercent(data.summary.cash_weight)}`,
       body:
         data.summary.excluded_position_count > 0
-          ? "성과 해석에서 빠진 포지션이 있으면 먼저 투자 논리, outcome, 원천 데이터를 보완해야 한다."
-          : "현재 성과 귀속에서 제외된 포지션은 없다. 그래도 품질 gate는 계속 확인한다.",
+          ? "성과 해석에서 빠진 포지션이 있으면 먼저 투자 논리, 성과 측정, 원천 데이터를 보완해야 한다."
+          : "현재 성과 귀속에서 제외된 포지션은 없다. 그래도 품질 기준은 계속 확인한다.",
       href: "#performance-exclusions",
       cta: "보완 항목 보기",
       tone: data.summary.excluded_position_count > 0 ? "block" : "ready",
@@ -202,7 +243,7 @@ export default async function PerformancePage() {
           <h1 id="performance-title">성과를 확인하되, 아직 바꾸면 안 되는 것도 같이 본다.</h1>
           <p>
             이 화면은 장기 추천의 책임 추적 화면이다. 측정된 추천, 표본 품질, 성과 귀속,
-            제외·보완 항목을 분리해서 보여주며 주문이나 추천 weight 변경을 실행하지 않는다.
+            제외·보완 항목을 분리해서 보여주며 주문이나 추천 산식 가중치 변경을 실행하지 않는다.
           </p>
         </div>
       </section>
@@ -213,7 +254,7 @@ export default async function PerformancePage() {
           <h2 id="performance-command-title">결과가 좋아 보이는지보다, 믿고 써도 되는지 먼저 본다.</h2>
           <p>
             측정 구간 {data.measurement_start_date} ~ {data.measurement_end_date} · 벤치마크 {data.benchmark_code}.
-            성과는 추천 품질 검증 자료이고, 자동 주문·자동 weight 변경 근거가 아니다.
+            성과는 추천 품질 검증 자료이고, 자동 주문·자동 추천 산식 변경 근거가 아니다.
           </p>
         </div>
         <div className="performance-command-grid">
@@ -250,7 +291,7 @@ export default async function PerformancePage() {
           <strong className="metric-value">
             {hasMeasuredOutcomes ? formatBps(data.summary.security_lens_contribution_bps) : "측정 전"}
           </strong>
-          <span className="metric-sub">{koCode(data.methodology)}</span>
+          <span className="metric-sub">{performanceCopy(data.methodology)}</span>
         </article>
         <article className="bento-card" style={{ borderColor: data.summary.excluded_position_count > 0 ? "rgba(245, 158, 11, 0.45)" : "var(--border-light)" }}>
           <span className="metric-label">제외 비중</span>
@@ -311,9 +352,9 @@ export default async function PerformancePage() {
             {quality.checks.map((check) => (
               <div className="bento-list-item" key={check.check_key} style={{ alignItems: "flex-start" }}>
                 <div>
-                  <strong>{koLabel(check.label)}</strong>
-                  <span>{koLabel(check.detail)}</span>
-                  <span>{koLabel(check.next_step)}</span>
+                  <strong>{performanceCopy(check.label)}</strong>
+                  <span>{performanceCopy(check.detail)}</span>
+                  <span>{performanceCopy(check.next_step)}</span>
                 </div>
                 <strong style={{ color: qualityCheckColor(check.status) }}>
                   {koCode(check.status)}
@@ -347,7 +388,7 @@ export default async function PerformancePage() {
                     {outcome.symbol} • {outcome.horizon_days}일 • {data.measurement_start_date} ~ {data.measurement_end_date}
                   </span>
                   <strong style={{ fontSize: "1.05rem" }}>{koCode(outcome.recommendation)} / {koCode(outcome.label)}</strong>
-                  <span>원천 실행 {outcome.source_run_id}</span>
+                  <span>{executionIdLabel(outcome.source_run_id)}</span>
                   <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", marginTop: "8px" }}>
                     <Link className="btn btn-secondary" href={recommendationHref(outcome.recommendation_id)}>
                       추천
@@ -384,7 +425,7 @@ export default async function PerformancePage() {
               return (
                 <div className="bento-list-item" key={component.component_id} style={{ alignItems: "flex-start" }}>
                   <div style={{ flex: 1 }}>
-                    <span className="metric-sub">{koCode(component.component_type)}</span>
+                    <span className="metric-sub">{performanceCopy(component.component_type)}</span>
                     <strong>{attributionTitle(component)}</strong>
                     <span>{attributionDescription(component)}</span>
                     {href ? (
@@ -418,11 +459,11 @@ export default async function PerformancePage() {
               <div className="bento-list-item" key={exclusion.instrument_id}>
                 <div>
                   <strong>{exclusion.symbol}</strong>
-                  <span>{koCode(exclusion.reason)}</span>
+                  <span>{performanceCopy(exclusion.reason)}</span>
                 </div>
                 <div style={{ alignItems: "flex-end" }}>
                   <strong style={{ color: "var(--accent-amber)" }}>{formatPercent(exclusion.weight)}</strong>
-                  <span>{koCode(exclusion.required_action)}</span>
+                  <span>{performanceCopy(exclusion.required_action)}</span>
                 </div>
               </div>
             ))}
@@ -443,7 +484,7 @@ export default async function PerformancePage() {
             {data.quality_gates.map((gate) => (
               <div className="bento-list-item" key={gate.gate}>
                 <div>
-                  <strong>{koCode(gate.gate)}</strong>
+                  <strong>{performanceCopy(gate.gate)}</strong>
                   <span>{qualityGateReason(gate)}</span>
                 </div>
                 <strong style={{ color: gateColor(gate.status), textTransform: "uppercase" }}>{koCode(gate.status)}</strong>
