@@ -2565,7 +2565,7 @@ export default async function DataHealthPage() {
           </h2>
         </div>
         <p className="board-intro">
-          {outcomeWaitMonitor.summary} {outcomeWaitMonitor.next_action}
+          {operationCopy(outcomeWaitMonitor.summary)} {operationCopy(outcomeWaitMonitor.next_action)}
         </p>
         <div className="status-rail compact-rail">
           <article className="rail-cell">
@@ -2877,7 +2877,7 @@ export default async function DataHealthPage() {
                   #{item.rank} · {item.product_type === "fund_or_etf" ? "ETF·펀드형" : "개별 기업"}
                 </span>
                 <strong>
-                  <a href={item.detail_href}>{item.symbol}</a> · {koCode(item.audit_status)}
+                  <a href={item.detail_href}>{item.symbol}</a> · {operationCopy(item.audit_status)}
                 </strong>
                 <small>{item.instrument_name || "종목명 미확인"}</small>
                 <small>
@@ -2887,7 +2887,7 @@ export default async function DataHealthPage() {
 	                  커버리지 {formatPercent(item.coverage_ratio)} · 근거 {item.available_layer_count}/{item.expected_layer_count}
                 </small>
                 <small className={`risk-tag ${professionalRecommendationAuditItemTone(item.audit_status)}`}>
-                  {koCode(item.professional_decision_status)}
+                  {operationCopy(item.professional_decision_status)}
                 </small>
                 <div className="tag-ledger">
                   {item.layer_checks.map((check) => (
@@ -4051,7 +4051,7 @@ export default async function DataHealthPage() {
           </div>
           <p style={{ color: "var(--text-secondary)", marginBottom: "16px" }}>
             {ec2SchedulerInstalled
-              ? "이 기록은 EC2 systemd 프로파일 스케줄러를 붙이기 전 로컬 MVP 단계의 점검 결과다. 현재 자동 실행 판단은 위의 EC2 반복 실행기와 작업 실행 이력을 우선한다."
+              ? "이 기록은 EC2 서버 예약 실행기를 붙이기 전 로컬 MVP 단계의 점검 결과다. 현재 자동 실행 판단은 위의 EC2 반복 실행기와 작업 실행 이력을 우선한다."
               : localWorkerExplanation(localWorker)}
           </p>
           <dl className="fact-list compact-facts">
@@ -4195,7 +4195,7 @@ export default async function DataHealthPage() {
                     <tr key={`${run.job_id}-${run.artifact_dir || run.exit_code}`}>
                       <td>
                         <strong>{koCode(run.job_id)}</strong>
-                        <small>{koCode(run.pipeline_name)}</small>
+                        <small>{operationCopy(run.pipeline_name)}</small>
                       </td>
                       <td>{koCode(run.status)}</td>
                       <td>{run.exit_code}</td>
@@ -4266,7 +4266,7 @@ export default async function DataHealthPage() {
                 {data.pipeline_runs.map((run) => (
                   <tr key={run.latest_run_id}>
                     <td>
-                      <strong>{koCode(run.pipeline_name)}</strong>
+                      <strong>{operationCopy(run.pipeline_name)}</strong>
                       <small>{koCode(run.cadence)}</small>
                     </td>
                     <td>{koCode(run.domain)}</td>
