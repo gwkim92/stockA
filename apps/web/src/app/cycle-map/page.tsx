@@ -62,7 +62,7 @@ function nodeSummary(node: CycleNode) {
   const symbolCount = node.top_symbols.length;
   const recommendationCount = node.counts.recommendation_count;
 
-  return `${name}. 현재 상태는 ${state}. 최근 뉴스 ${directEvents}건, 상위 흐름 전파 ${propagatedImpacts}건, 연결 종목 ${symbolCount}개, 추천 연결 ${recommendationCount}건을 함께 확인한다.`;
+  return `${name}. 현재 상태는 ${state}. 최근 뉴스 ${directEvents}건, 상위 흐름 연결 영향 ${propagatedImpacts}건, 연결 종목 ${symbolCount}개, 추천 연결 ${recommendationCount}건을 함께 확인한다.`;
 }
 
 function groupedNodes(nodes: CycleNode[]) {
@@ -103,7 +103,7 @@ export default async function CycleMapPage() {
           <h2 id="cycle-map-path-title">뉴스가 어느 흐름을 거쳐 종목에 닿았는지 본다.</h2>
           <p>
             사이클 상태표가 테마별 현재 상태를 보여준다면, 이 화면은 원인 경로 지도다. 원천 뉴스와
-            AI 구조화가 어떤 상위 노드로 묶였고, 그 노드가 어느 종목·추천 근거로 내려갔는지 추적한다.
+            AI 구조화가 어떤 상위 흐름으로 묶였고, 그 흐름이 어느 종목·추천 근거로 내려갔는지 추적한다.
           </p>
         </div>
         <div className="cycle-map-path-grid">
@@ -111,29 +111,29 @@ export default async function CycleMapPage() {
             <span>01</span>
             <small>원천 뉴스</small>
             <strong>{data.summary.direct_event_count}개 뉴스 영향</strong>
-            <em>AI 근거 노드 {aiBackedNodeCount}개</em>
+            <em>AI 판단 흐름 {aiBackedNodeCount}개</em>
             <p>
-              먼저 어떤 뉴스와 AI 구조화 결과가 흐름을 만들었는지 본다. 번역·validator 결과는 AI 근거
+              먼저 어떤 뉴스와 AI 구조화 결과가 흐름을 만들었는지 본다. 번역·검증 결과는 AI 판단
               화면에서 이어서 확인한다.
             </p>
             <b>뉴스 AI 보기</b>
           </Link>
           <a className="cycle-map-path-card ready" href="#cycle-map-layers">
             <span>02</span>
-            <small>흐름 노드</small>
-            <strong>{data.summary.node_count}개 노드</strong>
+            <small>흐름 항목</small>
+            <strong>{data.summary.node_count}개 흐름 항목</strong>
             <em>거시 {data.summary.macro_count} · 테마 {data.summary.theme_count}</em>
             <p>
-              거시, 도메인, 섹터, 테마, 종목 노드를 계층으로 본다. 노드가 많아도 핵심은 위에서 아래로
+              거시, 도메인, 섹터, 테마, 종목 흐름을 계층으로 본다. 항목이 많아도 핵심은 위에서 아래로
               내려가는 경로다.
             </p>
-            <b>노드 경로 보기</b>
+            <b>흐름 경로 보기</b>
           </a>
           <a className={conflictNodeCount > 0 ? "cycle-map-path-card watch" : "cycle-map-path-card ready"} href="#cycle-map-layers">
             <span>03</span>
             <small>종목 노출</small>
-            <strong>{exposedNodeCount}개 노드 연결</strong>
-            <em>충돌 플래그 {conflictNodeCount}개</em>
+            <strong>{exposedNodeCount}개 흐름 연결</strong>
+            <em>충돌 표시 {conflictNodeCount}개</em>
             <p>
               상위 흐름이 바로 매수 신호가 되지는 않는다. 어떤 종목이 노출됐고, 충돌이나 불확실성이
               있는지 같이 본다.
@@ -149,7 +149,7 @@ export default async function CycleMapPage() {
             <strong>{data.summary.recommendation_count}개 추천</strong>
             <em>투자 논리 {data.summary.thesis_count}개</em>
             <p>
-              추천은 이 지도만으로 결정하지 않는다. 추천 상세에서 직접 뉴스, 상위 흐름 전파, 재무·밸류에이션,
+              추천은 이 지도만으로 결정하지 않는다. 추천 상세에서 직접 뉴스, 상위 흐름 연결, 재무·밸류에이션,
               페이퍼 검증을 분리해 본다.
             </p>
             <b>추천 근거 보기</b>
@@ -166,7 +166,7 @@ export default async function CycleMapPage() {
         <article className="rail-cell">
           <span>뉴스 영향</span>
           <strong>{data.summary.direct_event_count}</strong>
-          <small>전파 영향 {data.summary.propagated_impact_count}개</small>
+          <small>연결 영향 {data.summary.propagated_impact_count}개</small>
         </article>
         <article className="rail-cell">
           <span>추천 연결</span>
@@ -184,7 +184,7 @@ export default async function CycleMapPage() {
         <div className="section-heading stacked-heading">
           <span>읽는 순서</span>
           <h2>뉴스에서 추천까지 내려가는 경로</h2>
-          <p>이 지도는 매수 신호가 아니다. 상위 흐름이 어떤 노드를 거쳐 어느 종목군과 추천 검토에 닿는지 확인하는 근거 화면이다.</p>
+          <p>이 지도는 매수 신호가 아니다. 상위 흐름이 어떤 흐름 단계를 거쳐 어느 종목군과 추천 검토에 닿는지 확인하는 근거 화면이다.</p>
         </div>
         <div className="flow-steps">
           <article className="flow-step">
@@ -210,7 +210,7 @@ export default async function CycleMapPage() {
           <article className="flow-step">
             <span>05</span>
             <strong>검증</strong>
-            <p>추천 상세와 보유검토에서 점수, thesis, 거래 안전을 따로 확인한다.</p>
+            <p>추천 상세와 보유검토에서 점수, 투자 논리, 거래 안전을 따로 확인한다.</p>
           </article>
         </div>
       </section>
@@ -218,7 +218,7 @@ export default async function CycleMapPage() {
       <section className="reveal delay-2" id="cycle-map-layers" aria-label="계층형 사이클 지도">
         {groups.length === 0 ? (
           <article className="empty-state">
-            아직 표시할 계층형 사이클 스냅샷이 없다. 뉴스 수집, AI 구조화, 계층형 전파, 사이클 스냅샷 실행 후 이 화면이 채워진다.
+            아직 표시할 계층형 사이클 스냅샷이 없다. 뉴스 수집, AI 구조화, 상위 흐름 연결, 사이클 스냅샷 실행 후 이 화면이 채워진다.
           </article>
         ) : null}
 
@@ -227,10 +227,10 @@ export default async function CycleMapPage() {
             <section className="bento-card" key={group.level} aria-label={`${group.title} 흐름`}>
               <div style={{ display: "flex", justifyContent: "space-between", gap: "18px", alignItems: "flex-end", flexWrap: "wrap", marginBottom: "18px" }}>
                 <div>
-                  <span className="metric-sub">{group.title} 레이어</span>
+                  <span className="metric-sub">{group.title} 단계</span>
                   <h2 style={{ fontSize: "1.45rem", marginTop: "6px" }}>{group.title}에서 현재 움직이는 흐름</h2>
                 </div>
-                <span className="relation-pill">{group.nodes.length}개 노드</span>
+                <span className="relation-pill">{group.nodes.length}개 흐름 항목</span>
               </div>
 
               <div className="detail-path-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))" }}>
@@ -242,7 +242,7 @@ export default async function CycleMapPage() {
 
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginTop: "14px" }}>
                       <small>뉴스 {node.counts.direct_event_count}</small>
-                      <small>전파 {node.counts.propagated_impact_count}</small>
+                      <small>연결 영향 {node.counts.propagated_impact_count}</small>
                       <small>추천 {node.counts.recommendation_count}</small>
                       <small>관계 {relationCount(data, node.node_code)}</small>
                     </div>
@@ -290,7 +290,7 @@ export default async function CycleMapPage() {
         </div>
       </section>
 
-      <section className="bento-card reveal delay-3" aria-label="노드 관계">
+      <section className="bento-card reveal delay-3" aria-label="흐름 관계">
         <div className="section-heading stacked-heading">
           <span>관계선</span>
           <h2>상위 흐름이 아래 흐름으로 이어지는 규칙</h2>
@@ -307,7 +307,7 @@ export default async function CycleMapPage() {
             ))}
           </div>
         ) : (
-          <div className="empty-state">현재 기준일에 표시할 노드 관계가 없다.</div>
+          <div className="empty-state">현재 기준일에 표시할 흐름 관계가 없다.</div>
         )}
       </section>
     </div>
