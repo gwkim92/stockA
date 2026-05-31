@@ -49,6 +49,51 @@ export default async function StructuredResultsPage() {
         </p>
       </section>
 
+      <section className="ai-evidence-command-panel reveal delay-1" aria-labelledby="structured-command-title">
+        <div className="ai-evidence-command-lead">
+          <span>통과 결과 판정판</span>
+          <h2 id="structured-command-title">AI 통과 결과를 투자 입력 후보로만 본다.</h2>
+          <p>
+            자동 검증을 통과한 결과라도 바로 추천이나 주문이 아니다. 직접 종목 뉴스, 상위 흐름,
+            뉴스 묶음을 분리해서 보고, 추천 상세에서 가격·사이클·재무·페이퍼 검증과 다시 합친다.
+          </p>
+        </div>
+        <div className="ai-evidence-command-grid">
+          <a className="ai-evidence-command-card ready" href="#accepted-results">
+            <span>01</span>
+            <small>직접 종목</small>
+            <strong>{directCandidates.length}개 결과</strong>
+            <em>종목 상세·추천 상세 연결 후보</em>
+            <p>회사명이나 티커가 명확한 뉴스다. 원천 뉴스와 한국어 번역을 열어 직접 연결이 과하지 않은지 본다.</p>
+            <b>직접 결과 보기</b>
+          </a>
+          <a className="ai-evidence-command-card watch" href="#macro-results">
+            <span>02</span>
+            <small>상위 흐름</small>
+            <strong>{macroCandidates.length}개 결과</strong>
+            <em>거시·테마 전파 입력</em>
+            <p>금리, 정책, 유가, 산업 뉴스는 종목을 억지로 붙이지 않고 흐름으로 저장한 뒤 노출도로 전파한다.</p>
+            <b>흐름 결과 보기</b>
+          </a>
+          <a className="ai-evidence-command-card ready" href="#cluster-results">
+            <span>03</span>
+            <small>뉴스 묶음</small>
+            <strong>{clusterData.summary.cluster_count}개 묶음</strong>
+            <em>같은 이야기의 증거 묶음</em>
+            <p>여러 뉴스가 같은 흐름을 말하는지 본다. 묶음이 틀리면 추천 근거 신뢰도도 낮아진다.</p>
+            <b>묶음 결과 보기</b>
+          </a>
+          <Link className="ai-evidence-command-card block" href={"/recommendations" as Route}>
+            <span>04</span>
+            <small>추천 경계</small>
+            <strong>바로 주문 안 함</strong>
+            <em>{koCode(clusterData.summary.latest_llm_invocation_status)}</em>
+            <p>AI 통과 결과는 추천 점수의 입력 후보일 뿐이다. 실제 판단은 추천 상세와 거래 안전 경계에서 다시 막는다.</p>
+            <b>추천 경계 보기</b>
+          </Link>
+        </div>
+      </section>
+
       <section className="screen-switchboard reveal delay-1" aria-label="뉴스 처리 단계 바로가기">
         <Link className="screen-switch-card" href="/events">
           <span>01</span>
@@ -152,7 +197,7 @@ export default async function StructuredResultsPage() {
         </div>
       </section>
 
-      <section className="bento-card span-4 reveal delay-3" aria-labelledby="structured-macro-title">
+      <section className="bento-card span-4 reveal delay-3" id="macro-results" aria-labelledby="structured-macro-title">
         <div className="section-heading stacked-heading">
           <span>상위 흐름</span>
           <h2 id="structured-macro-title">종목을 억지로 붙이지 않은 AI 구조화 결과</h2>
@@ -172,7 +217,7 @@ export default async function StructuredResultsPage() {
         </div>
       </section>
 
-      <section className="bento-card span-4 reveal delay-3" aria-labelledby="structured-cluster-title">
+      <section className="bento-card span-4 reveal delay-3" id="cluster-results" aria-labelledby="structured-cluster-title">
         <div className="section-heading stacked-heading">
           <span>뉴스 묶음</span>
           <h2 id="structured-cluster-title">같은 이야기로 묶인 구조화 결과</h2>
