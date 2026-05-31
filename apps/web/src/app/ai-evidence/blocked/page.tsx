@@ -34,6 +34,51 @@ export default async function BlockedAiEvidencePage() {
         </p>
       </section>
 
+      <section className="ai-evidence-command-panel reveal delay-1" aria-labelledby="blocked-command-title">
+        <div className="ai-evidence-command-lead">
+          <span>차단 후보 판정판</span>
+          <h2 id="blocked-command-title">막힌 후보를 버릴지, 보강할지 나눠 본다.</h2>
+          <p>
+            차단 후보는 추천 입력이 아니다. 잡음은 계속 제외하고, 유효한 뉴스가 분류 체계나 종목 별칭
+            부족으로 막힌 경우에만 별도 보강 작업으로 넘긴다.
+          </p>
+        </div>
+        <div className="ai-evidence-command-grid">
+          <a className="ai-evidence-command-card block" href="#blocked-list">
+            <span>01</span>
+            <small>검증 차단</small>
+            <strong>{rejectedData.summary.event_count}개 후보</strong>
+            <em>추천 입력 제외</em>
+            <p>알 수 없는 종목·테마, 낮은 신뢰도, 근거 부족으로 막힌 후보다. 기본적으로 추천 점수에 넣지 않는다.</p>
+            <b>차단 목록 보기</b>
+          </a>
+          <a className="ai-evidence-command-card watch" href="#blocked-list">
+            <span>02</span>
+            <small>저신호 보류</small>
+            <strong>{suppressedData.summary.event_count}개 후보</strong>
+            <em>종목 없는 일반 뉴스</em>
+            <p>시장 잡음에 가까운 뉴스다. 삭제하지 않고 보류하지만, 추천·보유검토 입력으로는 쓰지 않는다.</p>
+            <b>보류 목록 보기</b>
+          </a>
+          <Link className="ai-evidence-command-card watch" href={"/events/classification" as Route}>
+            <span>03</span>
+            <small>보강 후보</small>
+            <strong>분류·별칭 점검</strong>
+            <em>유효 뉴스만 재처리</em>
+            <p>좋은 뉴스가 잘못 막혔다면 테마 분류, 종목 별칭, 검증 규칙을 고친 뒤 배치를 다시 돌린다.</p>
+            <b>1차 분류 보기</b>
+          </Link>
+          <Link className="ai-evidence-command-card ready" href={"/ai-evidence/results" as Route}>
+            <span>04</span>
+            <small>통과 결과</small>
+            <strong>분리 확인</strong>
+            <em>차단과 통과를 섞지 않음</em>
+            <p>추천 입력 후보는 통과 결과 화면에서만 본다. 차단 화면에서 직접 승인하거나 주문으로 넘기지 않는다.</p>
+            <b>통과 결과 보기</b>
+          </Link>
+        </div>
+      </section>
+
       <section className="screen-switchboard reveal delay-1" aria-label="뉴스 처리 단계 바로가기">
         <Link className="screen-switch-card" href="/events">
           <span>01</span>
