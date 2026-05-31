@@ -811,6 +811,13 @@ function reviewCount(value: number | boolean | undefined) {
   return typeof value === "number" ? value : value ? 1 : 0;
 }
 
+function decisionCopy(value: string | null | undefined) {
+  return koLabel(value)
+    .replaceAll("성과 window", "성과 측정창")
+    .replaceAll("in_line", "평균 수준")
+    .replaceAll("US Core Financial Disclosure Coverage", "미국 핵심 공시 커버리지");
+}
+
 function researchFlowTone(tone: string): ResearchFlowStep["tone"] {
   if (tone === "ready" || tone === "watch" || tone === "blocked" || tone === "neutral") {
     return tone;
@@ -1259,16 +1266,16 @@ export default async function RecommendationPage({ params }: RecommendationPageP
   const professionalResearchSteps: ResearchFlowStep[] = decisionWaterfall.steps.map((step, index) => ({
     id: step.step_key,
     label: String(index + 1).padStart(2, "0"),
-    title: koLabel(step.title),
-    status: koLabel(step.status),
+    title: decisionCopy(step.title),
+    status: decisionCopy(step.status),
     tone: researchFlowTone(step.tone),
-    body: `${koLabel(step.decision)}. ${koLabel(step.detail)}`,
+    body: `${decisionCopy(step.decision)}. ${decisionCopy(step.detail)}`,
     facts: step.facts.map((fact) => ({
-      label: koLabel(fact.label),
-      value: koLabel(fact.value),
+      label: decisionCopy(fact.label),
+      value: decisionCopy(fact.value),
     })),
     href: step.href ? (step.href as Route) : undefined,
-    hrefLabel: step.href_label ? koLabel(step.href_label) : undefined,
+    hrefLabel: step.href_label ? decisionCopy(step.href_label) : undefined,
   }));
   const waterfallCards = recommendationWaterfallCards({
     data,
@@ -1442,7 +1449,7 @@ export default async function RecommendationPage({ params }: RecommendationPageP
         {professionalAudit.missing_layer_labels.length > 0 ? (
           <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginTop: "18px" }}>
             {professionalAudit.missing_layer_labels.map((label) => (
-              <span className="risk-tag risk-medium" key={label}>{koLabel(label)}</span>
+              <span className="risk-tag risk-medium" key={label}>{decisionCopy(label)}</span>
             ))}
           </div>
         ) : null}
@@ -1450,11 +1457,11 @@ export default async function RecommendationPage({ params }: RecommendationPageP
         <div className="flow-steps" style={{ marginTop: "18px" }}>
           {professionalAudit.layer_checks.map((layer) => (
             <article className="flow-step" key={layer.key}>
-              <span>{koLabel(layer.label)}</span>
+              <span>{decisionCopy(layer.label)}</span>
               <strong className={`risk-tag ${professionalLayerTone(layer.status)}`}>
                 {professionalLayerStatusLabel(layer.status)}
               </strong>
-              <p>{koLabel(layer.detail)}</p>
+              <p>{decisionCopy(layer.detail)}</p>
               <small style={{ color: "var(--text-secondary)", fontWeight: 800 }}>
                 원천: {koCode(layer.source)}
               </small>
