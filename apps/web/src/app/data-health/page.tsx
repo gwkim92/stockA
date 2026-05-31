@@ -1864,10 +1864,10 @@ export default async function DataHealthPage() {
           ? "오염 의심 확인 필요"
           : "품질 근거 보강 중",
       body: dataQualityReady
-        ? "뉴스 오염 감사와 AI 회귀평가가 현재 기준을 통과했다. 세부 샘플은 아래에서 확인한다."
+        ? "뉴스 오염 감사와 AI 회귀평가가 현재 기준을 통과했다. 벤치마크 괴리 품질과 세부 샘플은 아래에서 확인한다."
         : qualityAudit.issue_count > 0 || newsAiEvalQuality.failed_case_count > 0
-          ? "중복 뉴스, 오분류, AI 회귀평가 실패 중 확인할 항목이 있다. 추천 입력 전에 품질 근거를 본다."
-          : "큰 오염은 없지만 번역, 전파, 사이클 스냅샷, 가상 매매 검증 근거가 아직 부족하다.",
+          ? "중복 뉴스, 오분류, AI 회귀평가 실패, 벤치마크 괴리 품질 중 확인할 항목이 있다. 추천 입력 전에 품질 근거를 본다."
+          : "큰 오염은 없지만 번역, 전파, 사이클 스냅샷, 가상 매매 검증 근거가 아직 부족하다. 벤치마크 괴리 품질도 함께 본다.",
       metric: `오염 의심 ${qualityAudit.issue_count}개 · AI 실패 ${newsAiEvalQuality.failed_case_count}개`,
       href: "#quality-audit",
       cta: "품질 감사 보기",
@@ -1876,11 +1876,11 @@ export default async function DataHealthPage() {
     {
       index: "04",
       label: "투자 경계",
-      title: safeInvestmentBoundary ? "추천 산식·주문 차단" : "투자 경계 확인 필요",
+      title: safeInvestmentBoundary ? "추천 산식·실거래 차단" : "투자 경계 확인 필요",
       body: safeInvestmentBoundary
         ? "성과 표본이 성숙하기 전까지 추천 산식 반영 비중 변경과 실거래 주문 제출은 막혀 있다."
         : "추천 산식 검토나 실거래 상태 조건이 예상과 다르다. 추천 산식/거래 안전 상태를 먼저 확인한다.",
-      metric: outcomeWaitMonitor.weight_review_blocked ? "추천 산식 변경 금지" : "별도 검토 가능",
+      metric: outcomeWaitMonitor.weight_review_blocked ? "실거래 상태: 주문 차단" : "실거래 상태 확인",
       href: "#outcome-maturity-wait-monitor",
       cta: "투자 경계 보기",
       tone: safeInvestmentBoundary ? "ready" : "block",
@@ -2439,7 +2439,7 @@ export default async function DataHealthPage() {
         ) : null}
         <div className="empty-state">
           <strong>다음 조치</strong>
-          <p>{qualityAudit.next_actions[0] ? koCode(qualityAudit.next_actions[0]) : "현재 추가 조치 없음"}</p>
+          <p>{qualityAudit.next_actions[0] ? operationCopy(qualityAudit.next_actions[0]) : "현재 추가 조치 없음"}</p>
         </div>
       </section>
 
