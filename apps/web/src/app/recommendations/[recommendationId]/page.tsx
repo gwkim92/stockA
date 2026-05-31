@@ -60,6 +60,12 @@ const USER_FACING_TERM_REPLACEMENTS: Array<[string, string]> = [
   ["valuation target range", "밸류에이션 목표가 범위"],
   ["industry competitive position", "산업 경쟁 위치"],
   ["equity research artifact", "AI 기업 리서치"],
+  ["SEC/companyfacts", "SEC 표준 재무 원천"],
+  ["SEC companyfacts", "SEC 표준 재무 원천"],
+  ["segment", "사업부"],
+  ["footnote", "주석"],
+  ["guidance", "가이던스"],
+  ["fundamental 구성요소", "재무·밸류에이션 항목"],
   ["투자 논리 lifecycle", "투자 논리 생애주기"],
   ["source event/AI evidence", "원천 이벤트/AI 해석"],
   ["페이퍼", "가상 매매"],
@@ -296,7 +302,7 @@ function ResearchList({ title, items, emptyText }: { title: string; items: strin
     <article className="detail-path-card" style={{ minHeight: "180px" }}>
       <span>{title}</span>
       {items.length > 0 ? (
-        items.map((item) => <p key={item}>{koLabel(item)}</p>)
+        items.map((item) => <p key={item}>{userFacingRecommendationText(item)}</p>)
       ) : (
         <p>{emptyText}</p>
       )}
@@ -703,7 +709,7 @@ function IndustryCompetitivePositionPanel({
         <div className="rail-cell">
           <span>피어 점수 항목</span>
           <strong>{peerComponent ? formatPercent(peerComponent.value) : "미연결"}</strong>
-          <small>{peerComponent ? "현재 총점 미반영" : "추천 점수 항목 대기"}</small>
+          <small>{peerComponent ? "현재 최종 점수 미반영" : "추천 점수 항목 대기"}</small>
         </div>
         <div className="rail-cell">
           <span>지표 커버리지</span>
