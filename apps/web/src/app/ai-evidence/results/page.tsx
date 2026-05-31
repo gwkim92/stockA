@@ -33,6 +33,9 @@ export default async function StructuredResultsPage() {
   );
   const directCandidates = acceptedCandidates.filter((event) => isKnownNewsCode(event.symbol));
   const macroCandidates = acceptedCandidates.filter((event) => !isKnownNewsCode(event.symbol));
+  const latestAiRunStatus = clusterData.summary.latest_llm_invocation_status
+    ? `최근 AI 실행 ${koCode(clusterData.summary.latest_llm_invocation_status)}`
+    : "최근 AI 실행 없음";
 
   return (
     <div className="pageStack structured-results-page">
@@ -87,7 +90,7 @@ export default async function StructuredResultsPage() {
             <span>04</span>
             <small>추천 경계</small>
             <strong>바로 주문 안 함</strong>
-            <em>{koCode(clusterData.summary.latest_llm_invocation_status)}</em>
+            <em>{latestAiRunStatus}</em>
             <p>AI 통과 결과는 추천 점수의 입력 후보일 뿐이다. 실제 판단은 추천 상세와 거래 안전 경계에서 다시 막는다.</p>
             <b>추천 경계 보기</b>
           </Link>
