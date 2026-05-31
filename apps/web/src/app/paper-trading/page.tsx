@@ -71,20 +71,20 @@ function paperValidationState(trading: TradingReadinessData) {
   }
   if (trading.gate_summary.blocked_count > 0 || trading.paper_validation.blocked_reasons.length > 0) {
     return {
-      title: "가상 검증 중 · 실거래 차단",
+      title: "가상 검증 후보 있음 · 실제 주문 차단",
       tone: "risk-high",
       detail: "가상 후보는 만들 수 있지만 안전 조건이 닫혀 있어 실제 주문으로 넘어가지 않는다.",
     };
   }
   if (trading.paper_validation.approved_action_count > 0) {
     return {
-      title: "가상 후보 있음 · 실거래 금지",
+      title: "가상 검증 통과 후보 있음 · 실제 주문 금지",
       tone: "risk-medium",
-      detail: "가상 검증 후보가 있지만 이 화면은 주문을 만들지 않는다. 실거래는 별도 승인, 증권사 연결, 계좌 권한, 주문 한도, 감사 기록이 모두 붙은 뒤에만 가능하다.",
+      detail: "가상 검증을 통과한 후보가 있지만 이 화면은 주문을 만들지 않는다. 실거래는 거래 안전 승인, 증권사 연결, 계좌 권한, 주문 한도, 감사 기록이 모두 붙은 뒤에만 가능하다.",
     };
   }
   return {
-    title: "가상 후보 대기",
+    title: "가상 검증 후보 대기 · 실제 주문 없음",
     tone: "risk-medium",
     detail: "추천 후보와 현재 보유 내역이 맞물릴 때 가상 조치 후보가 생성된다.",
   };
@@ -135,12 +135,12 @@ export default async function PaperTradingPage() {
     {
       index: "03",
       label: "차단 조건",
-      title: trading.gate_summary.blocked_count > 0 ? "차단됨" : "여전히 별도 승인 필요",
+      title: trading.gate_summary.blocked_count > 0 ? "실제 주문 차단됨" : "주문 전환은 별도 절차",
       metric: `${trading.gate_summary.blocked_count}개 차단`,
       body:
         trading.gate_summary.blocked_count > 0
           ? "거래 안전 조건이 닫혀 있어 페이퍼 후보를 실거래로 전환하면 안 된다."
-          : "차단 조건이 없어 보여도 이 화면에는 주문 버튼이 없다. 실거래 전환은 별도 broker flow에서만 다룬다.",
+          : "차단 조건이 없어 보여도 이 화면에는 주문 버튼이 없다. 실거래 전환은 별도 증권사 주문 절차에서만 다룬다.",
       href: "/trading-readiness",
       cta: "거래 안전 보기",
       tone: trading.gate_summary.blocked_count > 0 ? "block" : "watch",
@@ -174,10 +174,10 @@ export default async function PaperTradingPage() {
     },
     {
       index: "02",
-      title: "가상 검증 상태",
+      title: "가상 후보 검증",
       value: koCode(trading.paper_validation.status),
       tone: trading.paper_validation.status === "passed" ? "risk-low" : "risk-medium",
-      body: `추천 ${trading.paper_validation.recommendation_count}개를 검증했고 승인 후보 ${trading.paper_validation.approved_action_count}개, 충돌 ${trading.paper_validation.conflict_count}개가 있다.`,
+      body: `추천 ${trading.paper_validation.recommendation_count}개를 대조했고 검증 통과 후보 ${trading.paper_validation.approved_action_count}개, 충돌 ${trading.paper_validation.conflict_count}개가 있다. 통과 후보도 주문 지시는 아니다.`,
     },
     {
       index: "03",
@@ -187,7 +187,7 @@ export default async function PaperTradingPage() {
       body:
         trading.gate_summary.blocked_count > 0
           ? "차단 조건이 남아 있어 실거래 후보로 넘어가지 않는다."
-          : "현재 거래 안전 차단 조건은 없지만, 실거래 전 별도 승인이 필요하다.",
+          : "현재 거래 안전 차단 조건은 없지만, 실거래 전 거래 안전 승인이 필요하다.",
     },
     {
       index: "04",
@@ -273,12 +273,12 @@ export default async function PaperTradingPage() {
         <article className="rail-cell rail-critical">
           <span>추천/보유 충돌</span>
           <strong>{summary.position_recommendation_conflict_count}</strong>
-          <small>안전 조건 확인 필요 {summary.requires_human_approval_count}</small>
+          <small>거래 안전 승인 필요 {summary.requires_human_approval_count}</small>
         </article>
         <article className="rail-cell">
           <span>실제 주문 제출</span>
           <strong>{trading.audit_summary.submitted_to_broker_count}</strong>
-          <small>가상 승인 후보 {trading.paper_validation.approved_action_count}</small>
+          <small>가상 검증 통과 후보 {trading.paper_validation.approved_action_count}</small>
         </article>
       </section>
 
@@ -320,7 +320,7 @@ export default async function PaperTradingPage() {
                   <strong>
                     {candidate.direction === "overweight" ? "과대 보유" : "과소 보유"} · {formatPercent(candidate.active_weight)}
                   </strong>
-                  <small>{candidate.rationale}</small>
+                  <small>{koReason(candidate.rationale)}</small>
                 </div>
               ))}
             </div>
@@ -348,7 +348,7 @@ export default async function PaperTradingPage() {
         ) : (
           <div className="paper-blocked-reasons">
             <span>차단 사유</span>
-            <p>현재 가상 검증 차단 사유는 없다. 그래도 실거래 전환은 별도 승인과 증권사 연결 이후에만 가능하다.</p>
+            <p>현재 가상 검증 차단 사유는 없다. 그래도 실거래 전환은 거래 안전 승인과 증권사 연결 이후에만 가능하다.</p>
           </div>
         )}
         <div className="btn-row decision-actions">
@@ -367,6 +367,10 @@ export default async function PaperTradingPage() {
             <span>시뮬레이션 후보 목록</span>
             <h2>주문이 아니라 검증용 후보만 보여준다</h2>
           </div>
+          <p className="empty-copy">
+            표의 조치는 실제 주문 명령이 아니다. 추천서, 투자 논리, 종목 상세를 대조하기 위한 검증 항목이며,
+            이 화면에는 주문 제출 기능이 없다.
+          </p>
           <div className="ledger-table-wrap">
             <table className="ledger-table data-health-table">
               <thead>
@@ -394,7 +398,7 @@ export default async function PaperTradingPage() {
                         <span className={`risk-tag ${riskClass(action.risk_level)}`}>
                           {koCode(action.recommendation_action)}
                         </span>
-                        <small>점수 {formatPercent(action.recommendation_score)}</small>
+                        <small>추천 점수 {formatPercent(action.recommendation_score)}</small>
                       </td>
                       <td>{formatPercent(action.current_weight)}</td>
                       <td>{formatPercent(action.target_weight)}</td>
@@ -412,7 +416,7 @@ export default async function PaperTradingPage() {
                           ) : null}
                           {thesisLink ? (
                             <Link className="btn btn-secondary" href={thesisLink}>
-                              논리
+                              투자 논리
                             </Link>
                           ) : null}
                           <Link className="btn btn-secondary" href={`/stocks/${action.symbol}` as Route}>
