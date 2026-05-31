@@ -1291,7 +1291,7 @@ export default async function RecommendationPage({ params }: RecommendationPageP
           <div>
             <h1 style={{ fontSize: "clamp(2.5rem, 4vw, 4rem)", marginBottom: "16px" }}>{data.symbol} 추천 검토서</h1>
             <p style={{ color: "var(--text-secondary)", fontSize: "1.1rem", maxWidth: "700px" }}>
-              추천은 자동 매매 명령이 아니다. 먼저 추천 결론과 주문 경계를 보고, 그 다음 거시·테마·기업·재무·밸류에이션·리스크·페이퍼 검증 순서로 읽는다.
+              추천은 자동 매매 명령이 아니다. 먼저 현재 판단과 주문 경계를 보고, 그 다음 거시·테마·기업·재무·밸류에이션·리스크·페이퍼 검증 순서로 읽는다.
             </p>
           </div>
           
