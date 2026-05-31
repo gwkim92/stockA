@@ -206,7 +206,7 @@ export default async function AiEvidenceIndexPage() {
             <small>직접 종목</small>
             <strong>{directNewsCandidates.length}개 후보</strong>
             <em>회사명·티커가 명확한 뉴스</em>
-            <p>원문과 한국어 번역을 대조한 뒤 종목 상세, 추천 상세, 보유 thesis에서 실제 반영 위치를 확인한다.</p>
+            <p>원문과 한국어 번역을 대조한 뒤 종목 상세, 추천 상세, 보유 투자 논리에서 실제 반영 위치를 확인한다.</p>
             <b>직접 후보 보기</b>
           </a>
           <a className="ai-evidence-command-card watch" href="#macro-candidates">
@@ -240,7 +240,7 @@ export default async function AiEvidenceIndexPage() {
         {firstCandidateLink ? (
           <div className="ai-evidence-command-footer">
             <span>상세 추적</span>
-            <strong>후보 하나를 열면 원천 뉴스, 한국어 번역, AI 구조화 필드, validator 결과, 추천 연결을 한 화면에서 본다.</strong>
+            <strong>후보 하나를 열면 원천 뉴스, 한국어 번역, AI 구조화 필드, 자동 검증 결과, 추천 연결을 한 화면에서 본다.</strong>
             <Link href={firstCandidateLink}>최신 후보 상세 열기</Link>
           </div>
         ) : null}
