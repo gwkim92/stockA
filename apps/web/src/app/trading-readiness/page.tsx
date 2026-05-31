@@ -59,14 +59,14 @@ export default async function TradingReadinessPage() {
           ? "실제 주문 기록 확인 필요"
           : data.gate_summary.blocked_count > 0
             ? "실거래 차단 중"
-            : "실거래 전 별도 승인 필요",
+            : "거래 안전 승인 필요",
       metric: `${data.gate_summary.blocked_count}개 차단 · 실제 주문 ${liveSubmitCount}건`,
       body:
         liveSubmitCount > 0
-          ? "실제 주문 전송 기록이 있으므로 감사 로그와 계좌 내역을 먼저 대조해야 한다."
+          ? "실제 주문 전송 기록이 있으므로 검토 기록과 계좌 내역을 먼저 대조해야 한다."
           : data.gate_summary.blocked_count > 0
             ? "안전 조건이 닫혀 있어 현재 화면 기준으로 실거래 후보로 넘기면 안 된다."
-            : "차단 수가 0이어도 이 화면은 주문 화면이 아니다. 실거래는 별도 broker flow와 승인 뒤에만 가능하다.",
+            : "차단 수가 0이어도 이 화면은 주문 화면이 아니다. 실거래는 별도 증권사 주문 절차와 거래 안전 승인 뒤에만 가능하다.",
       href: "#trading-gates",
       cta: "안전 조건 보기",
       tone: liveSubmitCount > 0 || data.gate_summary.blocked_count > 0 ? "block" : "watch",
@@ -74,13 +74,13 @@ export default async function TradingReadinessPage() {
     {
       index: "02",
       label: "증권사 제출",
-      title: brokerSubmitEnabled ? "broker submit 설정됨" : "broker submit 비활성",
+      title: brokerSubmitEnabled ? "실제 주문 제출 기능 켜짐" : "실제 주문 제출 기능 꺼짐",
       metric: data.broker_boundary.broker_code || "증권사 미등록",
       body: brokerSubmitEnabled
         ? "증권사 제출 기능이 켜진 상태다. 주문 전송 기록과 권한 경계를 더 엄격히 확인해야 한다."
-        : "현재 broker boundary는 실제 주문 제출을 지원하지 않는다. 미리보기와 실제 제출을 분리해서 본다.",
+        : "현재 증권사 연결 경계는 실제 주문 제출을 지원하지 않는다. 미리보기와 실제 제출을 분리해서 본다.",
       href: "#broker-boundary",
-      cta: "증권사 경계 보기",
+      cta: "증권사 연결 보기",
       tone: brokerSubmitEnabled ? "watch" : "ready",
     },
     {
@@ -90,20 +90,20 @@ export default async function TradingReadinessPage() {
       metric: `${blockedSwitches.length}개 작동`,
       body:
         blockedSwitches.length > 0
-          ? "scope별 kill switch가 켜져 있어 해당 범위의 주문 전환은 차단된다."
-          : "현재 작동 중인 kill switch는 없다. 그래도 broker submit과 audit boundary가 별도로 막는다.",
+          ? "범위별 킬 스위치가 켜져 있어 해당 범위의 주문 전환은 차단된다."
+          : "현재 작동 중인 킬 스위치는 없다. 그래도 증권사 주문 제출 기능과 검토 기록 경계가 별도로 막는다.",
       href: "#kill-switches",
       cta: "킬 스위치 보기",
       tone: blockedSwitches.length > 0 ? "block" : "ready",
     },
     {
       index: "04",
-      label: "감사·페이퍼",
+      label: "검토 기록·페이퍼",
       title: `${koCode(data.paper_validation.status)} · 검토 ${data.audit_summary.intent_count}건`,
-      metric: `승인 후보 ${data.paper_validation.approved_action_count}개 · 제출 ${liveSubmitCount}건`,
-      body: "페이퍼 검증과 감사 기록은 실제 주문 전 단계의 근거다. 승인 후보가 있어도 자동 주문은 아니다.",
+      metric: `검증 통과 후보 ${data.paper_validation.approved_action_count}개 · 제출 ${liveSubmitCount}건`,
+      body: "페이퍼 검증과 검토 기록은 실제 주문 전 단계의 근거다. 검증 통과 후보가 있어도 자동 주문은 아니다.",
       href: "#audit-boundary",
-      cta: "감사 경계 보기",
+      cta: "검토 기록 보기",
       tone: data.paper_validation.blocked_reasons.length > 0 ? "watch" : "ready",
     },
   ];
@@ -115,7 +115,7 @@ export default async function TradingReadinessPage() {
         <h1 id="trading-readiness-title">실제 주문을 넣기 전에 무엇이 막고 있는지 본다.</h1>
         <p>
           증권사 연결, 계좌 권한, 주문 한도, 킬 스위치, 가상 검증, 검토 기록이 모두 통과해야
-          실거래 후보가 된다. 아래 거래 안전 요약에서 차단 수와 실제 주문 전송 건수를 먼저 확인한다.
+          실거래 전환 검토 대상이 된다. 아래 거래 안전 요약에서 차단 수와 실제 주문 전송 건수를 먼저 확인한다.
           실제 주문 전송 건수가 0이면 현재 서버에서 실제 주문은 나가지 않았다.
         </p>
       </section>
@@ -125,8 +125,8 @@ export default async function TradingReadinessPage() {
           <span>실거래 경계 판정판</span>
           <h2 id="trading-command-title">지금 주문할 수 있는지가 아니라, 무엇이 막는지 본다.</h2>
           <p>
-            이 화면은 주문 버튼이 아니다. 실거래 결론, 증권사 제출 기능, kill switch,
-            감사·페이퍼 검증을 분리해서 실제 주문 전환이 가능한지 판단한다.
+            이 화면은 주문 버튼이 아니다. 실거래 결론, 증권사 제출 기능, 킬 스위치,
+            검토 기록·페이퍼 검증을 분리해서 실제 주문 전환이 가능한지 판단한다.
           </p>
         </div>
         <div className="trading-command-grid">
@@ -157,7 +157,7 @@ export default async function TradingReadinessPage() {
         <article className="rail-cell">
           <span>누락/주의</span>
           <strong>{data.gate_summary.missing_count + data.gate_summary.warning_count}</strong>
-          <small>설정 또는 감사 기록 필요</small>
+          <small>설정 또는 검토 기록 필요</small>
         </article>
         <article className="rail-cell rail-critical">
           <span>차단</span>
@@ -248,7 +248,7 @@ export default async function TradingReadinessPage() {
               <h2>위험 예산이 막는 종목</h2>
             </div>
             <p className="empty-copy">
-              SPY 대비 active weight가 큰 종목을 검토 후보로만 보여준다. 이 목록은 주문 목표가 아니며
+              SPY 기준 비중과 차이가 큰 종목을 검토 후보로만 보여준다. 이 목록은 주문 목표가 아니며
               증권사 주문 전송은 계속 금지된다.
             </p>
             {candidateReview.candidates.length > 0 ? (
@@ -261,7 +261,7 @@ export default async function TradingReadinessPage() {
                         {candidate.direction === "overweight" ? "과대 보유" : "과소 보유"} · {formatPercent(candidate.active_weight)}
                       </strong>
                     </div>
-                    <p>{candidate.rationale}</p>
+                    <p>{koReason(candidate.rationale)}</p>
                     <small>주문 경계: {koCode(candidate.order_boundary)}</small>
                   </article>
                 ))}
@@ -275,12 +275,12 @@ export default async function TradingReadinessPage() {
                 <dd>{candidateReview.candidate_count.toLocaleString("ko-KR")}개</dd>
               </div>
               <div>
-                <dt>active share</dt>
+                <dt>벤치마크 괴리</dt>
                 <dd>{formatPercent(candidateReview.active_share)}</dd>
               </div>
               <div>
-                <dt>source</dt>
-                <dd>{candidateReview.benchmark_source || candidateReview.source_type || "없음"}</dd>
+                <dt>근거 원천</dt>
+                <dd>{koLabel(candidateReview.benchmark_source || candidateReview.source_type)}</dd>
               </div>
             </dl>
           </article>
@@ -373,7 +373,7 @@ export default async function TradingReadinessPage() {
               <dd>{data.paper_validation.conflict_count.toLocaleString("ko-KR")}</dd>
             </div>
             <div>
-              <dt>승인 후보</dt>
+              <dt>검증 통과 후보</dt>
               <dd>{data.paper_validation.approved_action_count.toLocaleString("ko-KR")}</dd>
             </div>
             <div>
@@ -412,7 +412,7 @@ export default async function TradingReadinessPage() {
                   <span className="reason-symbol">위험 예산</span>
                   <strong>현재 위험 예산 차단 사유가 없다</strong>
                 </div>
-                <p>최신 guardrail 결과가 가상 검증 입력을 막지 않는다.</p>
+                <p>최신 위험 예산 검증 결과가 가상 검증 입력을 막지 않는다.</p>
               </article>
             )}
           </div>
