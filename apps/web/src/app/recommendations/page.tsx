@@ -33,6 +33,23 @@ function evidenceHref(evidenceId: string | null) {
   return evidenceId ? (`/ai-evidence/${encodeURIComponent(evidenceId)}` as Route) : null;
 }
 
+function userFacingText(value: string | null | undefined) {
+  if (!value) {
+    return "";
+  }
+  return koCode(value)
+    .replaceAll("paper validation", "가상 매매 검증")
+    .replaceAll("Paper validation", "가상 매매 검증")
+    .replaceAll("broker flow", "실거래 연결")
+    .replaceAll("broker submit", "증권사 주문 제출")
+    .replaceAll("order boundary", "실거래 제한")
+    .replaceAll("read_only_no_order", "읽기 전용, 실거래 주문 차단")
+    .replaceAll("source blocker", "원천 근거 부족")
+    .replaceAll("AI/이벤트", "뉴스·AI 해석")
+    .replaceAll("AI·이벤트", "뉴스·AI 해석")
+    .replaceAll("페이퍼", "가상 매매");
+}
+
 function qualityLabel(row: RecommendationRow) {
   if (row.evidence.quality_status === "ai_review_passed" || row.evidence.quality_status === "ready_for_human_review") {
     return "AI 검토 통과";
@@ -57,8 +74,8 @@ function recommendationSummary(row: RecommendationRow) {
   const thesisText = row.linked_thesis_id ? "투자 논리 연결" : "투자 논리 없음";
   const evidenceText =
     row.evidence.ai_or_event_component_count > 0
-      ? `뉴스·공시·AI 근거 ${row.evidence.ai_or_event_component_count}개`
-      : "뉴스·공시·AI 근거 없음";
+      ? `뉴스·공시·AI 해석 ${row.evidence.ai_or_event_component_count}개`
+      : "뉴스·공시·AI 해석 없음";
   const macroFlowText =
     row.evidence.macro_flow_evidence_count > 0
       ? `상위 흐름 전파 ${row.evidence.macro_flow_evidence_count}개`
@@ -82,7 +99,7 @@ function boundaryLabel(status: string) {
     return "상세 검토 가능";
   }
   if (status === "paper_validation_pending") {
-    return "페이퍼 검증 대기";
+    return "가상 매매 검증 대기";
   }
   if (status === "blocked_missing_thesis") {
     return "투자 논리 차단";
@@ -132,7 +149,7 @@ export default async function RecommendationsPage() {
     },
     {
       index: "02",
-      label: "페이퍼 대기",
+      label: "가상 매매 대기",
       title:
         data.summary.paper_validation_pending_count > 0
           ? "가상 검증 대기"
@@ -142,10 +159,10 @@ export default async function RecommendationsPage() {
       metric: `${data.summary.paper_validation_pending_count.toLocaleString("ko-KR")}개 대기 · ${data.summary.decision_review_ready_count.toLocaleString("ko-KR")}개 상세 검토`,
       body:
         data.summary.paper_validation_pending_count > 0
-          ? "추천 후보가 곧바로 주문으로 가지 않고 페이퍼 검증과 보유 검토를 기다리는 상태다."
-          : "페이퍼 후보가 없거나 검토 입력이 부족하다. 추천 상세에서 어떤 근거가 빠졌는지 본다.",
+          ? "추천 후보가 곧바로 주문으로 가지 않고 가상 매매 검증과 보유 검토를 기다리는 상태다."
+          : "가상 매매 후보가 없거나 검토 입력이 부족하다. 추천 상세에서 어떤 근거가 빠졌는지 본다.",
       href: "/paper-trading",
-      cta: "페이퍼 상태 보기",
+      cta: "가상 매매 상태 보기",
       tone: data.summary.paper_validation_pending_count > 0 ? "watch" : "ready",
     },
     {
@@ -158,10 +175,10 @@ export default async function RecommendationsPage() {
       metric: `${data.summary.order_blocked_count.toLocaleString("ko-KR")}개 주문 차단`,
       body:
         data.summary.order_blocked_count > 0
-          ? "목록의 추천은 읽기 전용이다. 증권사 주문 제출, 자동 주문, 추천 산식 가중치 변경은 이 화면에서 열리지 않는다."
-          : "차단 수가 0이어도 이 화면에는 주문 기능이 없다. 실거래는 별도 승인된 broker flow에서만 다룬다.",
+          ? "목록의 추천은 읽기 전용이다. 증권사 주문 제출, 자동 주문, 추천 산식 변경은 이 화면에서 열리지 않는다."
+          : "차단 수가 0이어도 이 화면에는 주문 기능이 없다. 실거래는 별도 승인된 실거래 연결에서만 다룬다.",
       href: "/trading-readiness",
-      cta: "거래 경계 보기",
+      cta: "실거래 제한 보기",
       tone: data.summary.order_blocked_count > 0 ? "block" : "watch",
     },
     {
@@ -171,7 +188,7 @@ export default async function RecommendationsPage() {
         data.summary.linked_thesis_count > 0 || data.summary.ai_or_event_evidence_count > 0
           ? "근거 연결됨"
           : "근거 보강 필요",
-      metric: `투자 논리 ${data.summary.linked_thesis_count.toLocaleString("ko-KR")}개 · AI/이벤트 근거 ${data.summary.ai_or_event_evidence_count.toLocaleString("ko-KR")}개`,
+      metric: `투자 논리 ${data.summary.linked_thesis_count.toLocaleString("ko-KR")}개 · 뉴스·AI 해석 ${data.summary.ai_or_event_evidence_count.toLocaleString("ko-KR")}개`,
       body:
         data.summary.linked_thesis_count > 0 || data.summary.ai_or_event_evidence_count > 0
           ? "추천 상세에서 재무·밸류에이션·뉴스·사이클 근거가 어디까지 연결됐는지 확인한다."
@@ -186,10 +203,10 @@ export default async function RecommendationsPage() {
     <div className="pageStack">
       <section className="page-hero reveal" aria-labelledby="recommendations-title">
         <div className="bento-badge">추천 상황실 • 읽기 전용 투자 후보</div>
-        <h1 id="recommendations-title">추천 신호를 보고, 근거와 차단 경계를 먼저 확인한다.</h1>
+        <h1 id="recommendations-title">추천 신호를 보고, 근거와 실거래 차단 상태를 먼저 확인한다.</h1>
         <p>
-            이 화면은 주문 화면이 아니다. 중장기 후보의 점수, 투자 논리, AI·이벤트 근거, 페이퍼 대기,
-          주문 차단 상태를 분리해서 보여준다.
+          이 화면은 주문 화면이 아니다. 중장기 후보의 점수, 투자 논리, 뉴스·AI 해석, 가상 매매 대기,
+          실거래 차단 상태를 분리해서 보여준다.
         </p>
       </section>
 
@@ -199,7 +216,7 @@ export default async function RecommendationsPage() {
           <h2 id="recommendations-command-title">무엇을 검토하고, 무엇은 아직 막혀 있는지 먼저 본다.</h2>
           <p>
             기준일 {data.as_of_date || "미정"} · {koCode(data.strategy_name)} · {koCode(data.horizon_type)}.
-            추천은 후보 신호이고, 주문과 추천 산식 가중치 변경은 계속 별도 경계에서 차단된다.
+            추천은 후보 신호이고, 실거래 주문과 추천 산식 변경은 계속 별도 안전 장치에서 차단된다.
           </p>
         </div>
         <div className="recommendations-command-grid">
@@ -259,13 +276,13 @@ export default async function RecommendationsPage() {
                     {recommendationSummary(row)}
                   </p>
                   <p style={{ color: "var(--text-secondary)", margin: "8px 0 0", lineHeight: 1.55 }}>
-                    사용 경계: {row.decision_boundary.reason} 주문 경계는 {koCode(row.decision_boundary.order_boundary)}다.
+                    사용 가능 범위: {userFacingText(row.decision_boundary.reason)} 실거래 상태는 {userFacingText(row.decision_boundary.order_boundary)}다.
                   </p>
                   <div className="mini-link-stack" style={{ marginTop: "12px" }}>
                     <Link href={recommendationHref(row.recommendation_id)}>추천 상세</Link>
                     <Link href={stockHref(row.symbol)}>종목 상세</Link>
                     {thesisLink ? <Link href={thesisLink}>투자 논리</Link> : <span>투자 논리 없음</span>}
-                    {evidenceLink ? <Link href={evidenceLink}>뉴스·AI 근거</Link> : <span>뉴스·AI 근거 없음</span>}
+                    {evidenceLink ? <Link href={evidenceLink}>뉴스·AI 해석</Link> : <span>뉴스·AI 해석 없음</span>}
                   </div>
                 </div>
                 <div style={{ flex: "0 0 150px", textAlign: "right" }}>

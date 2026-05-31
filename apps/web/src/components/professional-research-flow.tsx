@@ -59,7 +59,7 @@ export function ProfessionalResearchFlow({
         </div>
         {blockedCount > 0 ? (
           <p className="research-flow-warning">
-            차단 단계가 있으면 추천은 기록으로 남기되, 페이퍼 검증이나 주문 입력으로 넘기지 않는다.
+            차단 단계가 있으면 추천은 기록으로 남기되, 가상 매매 검증이나 실거래 입력으로 넘기지 않는다.
           </p>
         ) : null}
         {footer ? <small>{footer}</small> : null}

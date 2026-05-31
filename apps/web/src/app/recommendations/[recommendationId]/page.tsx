@@ -27,6 +27,91 @@ type FinancialMetricSnapshot = FinancialStatementModel["metrics"][number];
 type FundInstrumentAnalysis = RecommendationDetailData["fund_instrument_analysis"];
 type ProfessionalEvidenceAudit = RecommendationDetailData["professional_evidence_audit"];
 
+const USER_FACING_TERM_REPLACEMENTS: Array<[string, string]> = [
+  ["DCF-lite", "간이 현금흐름 평가"],
+  ["paper validation", "가상 매매 검증"],
+  ["Paper validation", "가상 매매 검증"],
+  ["broker submit", "증권사 주문 제출"],
+  ["broker flow", "실거래 연결"],
+  ["source blocker", "원천 근거 부족"],
+  ["source data", "원천 데이터"],
+  ["source_run_id", "실행 기록"],
+  ["read_only_no_order", "읽기 전용, 실거래 주문 차단"],
+  ["source_data_blocked", "원천 근거 부족으로 차단"],
+  ["sec_companyfacts_missing_us_gaap_facts", "SEC 표준 재무 항목 없음"],
+  ["ipo_prospectus_without_standard_periodic_financials", "정기 재무제표 전 공시만 존재"],
+  ["fund_company_financial_model_not_applicable", "ETF·펀드라 기업 재무 모델 비적용"],
+  ["accumulate_candidate", "분할 매수 검토 후보"],
+  ["base case", "기준 시나리오"],
+  ["upside case", "상승 시나리오"],
+  ["downside case", "하락 시나리오"],
+  ["confidence", "신뢰도"],
+  ["AI 근거", "AI 해석"],
+  ["주문 경계", "실거래 상태"],
+  ["페이퍼", "가상 매매"],
+];
+
+const SCORE_COMPONENT_LABELS: Record<string, string> = {
+  macro_regime_score: "거시 환경",
+  domain_cycle_score: "산업·도메인 사이클",
+  theme_cycle_score: "테마 사이클",
+  instrument_cycle_score: "종목 자체 사이클",
+  cycle_conflict_penalty: "사이클 충돌 감점",
+  macro_flow_score: "상위 흐름 전파",
+  fundamental_quality_score: "재무 품질",
+  valuation_margin_score: "밸류에이션 안전마진",
+  peer_relative_score: "동종업계 비교",
+  balance_sheet_risk_penalty: "재무 안정성 리스크",
+  thesis_consistency_score: "투자 논리 일치도",
+};
+
+const SOURCE_TYPE_LABELS: Record<string, string> = {
+  market_feature: "가격·거래 데이터",
+  strategy_universe_rank: "전략 종목군 순위",
+  event_or_ai_evidence: "뉴스·AI 해석",
+  macro_flow_propagation: "상위 흐름 전파",
+  cycle_stack_context: "계층형 사이클",
+  fundamental_context: "재무·밸류에이션 분석",
+};
+
+function userFacingRecommendationText(value: string | number | boolean | null | undefined) {
+  if (value === null || value === undefined || value === "") {
+    return "";
+  }
+  if (typeof value === "number") {
+    return value.toLocaleString("ko-KR");
+  }
+  if (typeof value === "boolean") {
+    return value ? "예" : "아니오";
+  }
+  let text = koLabel(koCode(value));
+  for (const [from, to] of USER_FACING_TERM_REPLACEMENTS) {
+    text = text.replaceAll(from, to);
+  }
+  return text;
+}
+
+function scoreComponentLabel(componentName: string) {
+  return SCORE_COMPONENT_LABELS[componentName] ?? userFacingRecommendationText(componentName);
+}
+
+function sourceTypeLabel(sourceType: string | null | undefined) {
+  if (!sourceType) {
+    return "입력 출처 미기록";
+  }
+  return SOURCE_TYPE_LABELS[sourceType] ?? userFacingRecommendationText(sourceType);
+}
+
+function orderBoundaryLabel(value: string | null | undefined) {
+  if (!value) {
+    return "실거래 상태 미기록";
+  }
+  if (value === "read_only_no_order") {
+    return "읽기 전용, 실거래 주문 차단";
+  }
+  return userFacingRecommendationText(value);
+}
+
 function isZeroWeight(value: number) {
   return Math.abs(Number(value)) < 0.000001;
 }
@@ -81,7 +166,7 @@ const FUNDAMENTAL_COMPONENT_META: Record<string, { lens: string; title: string; 
   valuation_margin_score: {
     lens: "밸류에이션",
     title: "현재 가격에 안전마진이 있는가",
-    body: "DCF-lite, 상대 배수, 시나리오 범위를 근거로 비싸게 따라사는 후보인지 아닌지 확인한다.",
+    body: "간이 현금흐름 평가, 상대 배수, 시나리오 범위를 근거로 비싸게 따라사는 후보인지 아닌지 확인한다.",
   },
   peer_relative_score: {
     lens: "피어 비교",
@@ -331,20 +416,20 @@ function FinancialStatementModelPanel({
         </div>
         <p style={{ color: "var(--text-secondary)", marginBottom: 0 }}>
           {sourceBlocker
-            ? model.summary
-            : "추천서에서 매출, 마진, 현금흐름, 부채, 이익 품질을 확인하려면 SEC companyfacts와 재무 정규화가 먼저 필요하다. 이 값이 없으면 뉴스나 사이클만으로 중장기 판단을 확정하지 않는다."}
+            ? userFacingRecommendationText(model.summary)
+            : "추천서에서 매출, 마진, 현금흐름, 부채, 이익 품질을 확인하려면 SEC 표준 재무 원천과 재무 정규화가 먼저 필요하다. 이 값이 없으면 뉴스나 사이클만으로 중장기 판단을 확정하지 않는다."}
         </p>
         {sourceBlocker ? (
           <div className="status-rail compact-rail" aria-label="추천 재무 원천 차단 사유" style={{ marginTop: "18px" }}>
             <div className="rail-cell">
               <span>차단 사유</span>
-              <strong>{sourceBlocker.label}</strong>
-              <small>{sourceBlocker.blocker_code}</small>
+              <strong>{userFacingRecommendationText(sourceBlocker.label)}</strong>
+              <small>{userFacingRecommendationText(sourceBlocker.blocker_code)}</small>
             </div>
             <div className="rail-cell">
-              <span>확인 위치</span>
-              <strong>{sourceBlocker.source_pipeline}</strong>
-              <small>{sourceBlocker.source_run_id || "정적 분류"}</small>
+              <span>다음에 필요한 원천</span>
+              <strong>정기 재무제표 또는 표준 재무 항목</strong>
+              <small>{userFacingRecommendationText(sourceBlocker.source_pipeline) || "원천 분류 기록 있음"}</small>
             </div>
           </div>
         ) : null}
@@ -359,7 +444,7 @@ function FinancialStatementModelPanel({
           <span className="metric-sub">추천 재무제표 모델</span>
           <h2 style={{ fontSize: "1.5rem", marginTop: "6px" }}>이 추천의 숫자 근거가 무엇인가</h2>
           <p style={{ color: "var(--text-secondary)", marginTop: "8px", maxWidth: "900px" }}>
-            {model.summary} 이 영역은 추천 총점을 바꾸지 않는 읽기 전용 근거이며, 재무 모델이 추천 논리를 보강하는지
+            {userFacingRecommendationText(model.summary)} 이 영역은 최종 추천 점수를 바꾸지 않는 읽기 전용 근거이며, 재무 모델이 추천 논리를 보강하는지
             또는 반박하는지 확인하는 데 사용한다.
           </p>
         </div>
@@ -455,7 +540,7 @@ function FundInstrumentAnalysisPanel({ analysis }: { analysis: FundInstrumentAna
           <article className="detail-path-card" key={`fund-holding-${holding.symbol}`}>
             <span>{holding.symbol}</span>
             <strong>{holding.name || holding.symbol}</strong>
-            <p>보유 비중 {formatOptionalPercent(holding.target_weight)} · 신뢰도 {formatOptionalPercent(holding.confidence)}</p>
+            <p>보유 비중 {formatOptionalPercent(holding.target_weight)} · 자료 신뢰도 {formatOptionalPercent(holding.confidence)}</p>
           </article>
         ))}
       </div>
@@ -525,8 +610,8 @@ function FundInstrumentAnalysisPanel({ analysis }: { analysis: FundInstrumentAna
           </p>
         </article>
         <article className="flow-step">
-          <span>주문 경계</span>
-          <strong>{koCode(analysis.order_boundary)}</strong>
+          <span>실거래 상태</span>
+          <strong>{orderBoundaryLabel(analysis.order_boundary)}</strong>
           <p>펀드 분석은 추천 점수와 주문 가능 여부를 자동 변경하지 않는다.</p>
         </article>
       </div>
@@ -582,7 +667,7 @@ function IndustryCompetitivePositionPanel({
           <h2 style={{ fontSize: "1.5rem", marginTop: "6px" }}>{symbol}이 같은 그룹 안에서 얼마나 강한가</h2>
           <p style={{ color: "var(--text-secondary)", marginTop: "8px", maxWidth: "900px" }}>
             {competitivePositionSummary(position, symbol)} 이 값은 무료 공개 재무 데이터와 피어 비교로 만든 추정 지표이며,
-            추천 총점에는 평가 전까지 직접 반영하지 않는다.
+            최종 추천 점수에는 평가 전까지 직접 반영하지 않는다.
           </p>
         </div>
         <span className="bento-badge" style={{ margin: 0 }}>
@@ -609,7 +694,7 @@ function IndustryCompetitivePositionPanel({
         <div className="rail-cell">
           <span>지표 커버리지</span>
           <strong>{position.metric_coverage_count.toLocaleString("ko-KR")}</strong>
-          <small>{position.source_run_id ?? "실행 번호 없음"}</small>
+          <small>{position.source_run_id ? "계산 기록 있음" : "계산 기록 없음"}</small>
         </div>
       </div>
 
@@ -640,7 +725,7 @@ function IndustryCompetitivePositionPanel({
 
       {position.rationale ? (
         <p style={{ color: "var(--text-muted)", margin: "16px 0 0" }}>
-          계산 근거: {koLabel(position.rationale)}
+          계산 근거: {userFacingRecommendationText(position.rationale)}
         </p>
       ) : null}
     </section>
@@ -653,9 +738,9 @@ function provenanceBadges(component: ScoreComponent) {
     return ["출처 요약 대기"];
   }
 
-  const badges = [koCode(provenance.source_type)];
+  const badges = [sourceTypeLabel(provenance.source_type)];
   if (provenance.feature_code) {
-    badges.push(koCode(provenance.feature_code));
+    badges.push(userFacingRecommendationText(provenance.feature_code));
   }
   if (provenance.rank_position !== null && provenance.rank_position !== undefined) {
     badges.push(
@@ -678,7 +763,7 @@ function provenanceBadges(component: ScoreComponent) {
       badges.push(`기준 노드 ${koCode(nodeCode)}`);
     }
     if (provenance.evidence?.cycle_stack_level) {
-      badges.push(koCode(provenance.evidence.cycle_stack_level));
+      badges.push(userFacingRecommendationText(provenance.evidence.cycle_stack_level));
     }
   }
   if (provenance.source_type === "fundamental_context") {
@@ -694,37 +779,37 @@ function provenanceMetadata(component: ScoreComponent): AuditMetadataItem[] {
   const provenance = component.provenance;
   if (!provenance) {
     return [
-      { label: "점수 항목", value: koCode(component.component) },
+      { label: "점수 항목", value: scoreComponentLabel(component.component) },
       { label: "근거 연결 번호", value: component.evidence_id },
     ];
   }
 
   return [
-    { label: "점수 항목", value: koCode(component.component) },
+    { label: "점수 항목", value: scoreComponentLabel(component.component) },
     { label: "근거 연결 번호", value: component.evidence_id },
-    { label: "입력 종류", value: koCode(provenance.source_type) },
-    { label: "입력 설명", value: koLabel(provenance.label) },
-    { label: "가격 지표", value: provenance.feature_code ? koCode(provenance.feature_code) : null },
-    { label: "가격 지표 이름", value: provenance.feature_name ? koCode(provenance.feature_name) : null },
+    { label: "입력 종류", value: sourceTypeLabel(provenance.source_type) },
+    { label: "입력 설명", value: userFacingRecommendationText(provenance.label) },
+    { label: "가격 지표", value: provenance.feature_code ? userFacingRecommendationText(provenance.feature_code) : null },
+    { label: "가격 지표 이름", value: provenance.feature_name ? userFacingRecommendationText(provenance.feature_name) : null },
     { label: "기준일", value: provenance.as_of_date },
-    { label: "수집·계산 실행 번호", value: provenance.source_run_id },
-    { label: "종목군 계산 묶음", value: provenance.universe_batch_id },
-    { label: "가격 계산 버전", value: provenance.evidence?.feature_set_version },
+    { label: "계산 기록", value: provenance.source_run_id ? "있음" : null },
+    { label: "종목군 계산 기록", value: provenance.universe_batch_id ? "있음" : null },
+    { label: "가격 계산 기준", value: provenance.evidence?.feature_set_version ? "기록 있음" : null },
     { label: "종목군 순위", value: provenance.rank_position },
     { label: "종목군 전체 수", value: provenance.universe_member_count },
     { label: "관측치 수", value: provenance.observation_count ?? provenance.evidence?.observation_count },
     { label: "첫 가격일", value: provenance.evidence?.first_trade_date },
     { label: "최근 가격일", value: provenance.latest_trade_date ?? provenance.evidence?.latest_trade_date },
-    { label: "사이클 계층", value: provenance.evidence?.cycle_stack_level ? koCode(provenance.evidence.cycle_stack_level) : null },
+    { label: "사이클 계층", value: provenance.evidence?.cycle_stack_level ? userFacingRecommendationText(provenance.evidence.cycle_stack_level) : null },
     { label: "선택 사이클 노드", value: provenance.evidence?.cycle_stack_node_code ? koCode(provenance.evidence.cycle_stack_node_code) : null },
-    { label: "사이클 설명", value: provenance.evidence?.cycle_stack_explanation ? koLabel(provenance.evidence.cycle_stack_explanation) : null },
-    { label: "적용 메모", value: provenance.evidence?.cycle_stack_note ? koLabel(provenance.evidence.cycle_stack_note) : null },
-    { label: "기업 분석 항목", value: provenance.evidence?.fundamental_component_name ? koCode(provenance.evidence.fundamental_component_name) : null },
-    { label: "기업 분석 설명", value: provenance.evidence?.fundamental_explanation ? koLabel(provenance.evidence.fundamental_explanation) : null },
-    { label: "기업 분석 메모", value: provenance.evidence?.fundamental_note ? koLabel(provenance.evidence.fundamental_note) : null },
+    { label: "사이클 설명", value: provenance.evidence?.cycle_stack_explanation ? userFacingRecommendationText(provenance.evidence.cycle_stack_explanation) : null },
+    { label: "적용 메모", value: provenance.evidence?.cycle_stack_note ? userFacingRecommendationText(provenance.evidence.cycle_stack_note) : null },
+    { label: "기업 분석 항목", value: provenance.evidence?.fundamental_component_name ? scoreComponentLabel(provenance.evidence.fundamental_component_name) : null },
+    { label: "기업 분석 설명", value: provenance.evidence?.fundamental_explanation ? userFacingRecommendationText(provenance.evidence.fundamental_explanation) : null },
+    { label: "기업 분석 메모", value: provenance.evidence?.fundamental_note ? userFacingRecommendationText(provenance.evidence.fundamental_note) : null },
     { label: "전파 근거 수", value: provenance.evidence?.propagated_impact_count },
-    { label: "선정 규칙", value: provenance.selection_rule },
-    { label: "편입 사유", value: provenance.inclusion_reason },
+    { label: "선정 규칙", value: provenance.selection_rule ? userFacingRecommendationText(provenance.selection_rule) : null },
+    { label: "편입 사유", value: provenance.inclusion_reason ? userFacingRecommendationText(provenance.inclusion_reason) : null },
   ];
 }
 
@@ -734,7 +819,7 @@ function provenanceDetail(component: ScoreComponent) {
     return "아직 이 점수의 입력 출처 요약이 붙지 않았다.";
   }
   if (provenance.source_type === "market_feature") {
-    const featureName = provenance.feature_code ? koCode(provenance.feature_code) : koCode(provenance.feature_name ?? "market_feature");
+    const featureName = provenance.feature_code ? userFacingRecommendationText(provenance.feature_code) : userFacingRecommendationText(provenance.feature_name ?? "market_feature");
     return `${featureName}: 원값 ${formatMetricValue(provenance.feature_value)}, 표준화 점수 ${formatMetricValue(provenance.zscore)}.`;
   }
   if (provenance.source_type === "strategy_universe_rank") {
@@ -762,10 +847,10 @@ function provenanceDetail(component: ScoreComponent) {
   }
   if (provenance.source_type === "fundamental_context") {
     const meta = FUNDAMENTAL_COMPONENT_META[component.component];
-    const status = isZeroWeight(component.weight) ? "현재 추천 총점에는 반영하지 않는 검증 항목" : "추천 총점에 반영되는 항목";
-    return `${meta?.lens ?? "기업 분석"}: ${meta?.body ?? koLabel(provenance.label)} ${status}이다.`;
+    const status = isZeroWeight(component.weight) ? "현재 최종 추천 점수에는 반영하지 않는 검증 항목" : "최종 추천 점수에 반영되는 항목";
+    return `${meta?.lens ?? "기업 분석"}: ${meta?.body ?? userFacingRecommendationText(provenance.label)} ${status}이다.`;
   }
-  return koLabel(provenance.label);
+  return userFacingRecommendationText(provenance.label);
 }
 
 function evidenceHref(evidenceId: string, symbol: string) {
@@ -786,7 +871,7 @@ function evidenceHref(evidenceId: string, symbol: string) {
 
 function evidenceLinkLabel(evidenceId: string) {
   if (evidenceId.startsWith("ai-evidence-")) {
-    return "AI 근거 열기";
+    return "AI 해석 열기";
   }
   if (evidenceId.startsWith("event-") || evidenceId.startsWith("sec-event-")) {
     return "수집 뉴스 열기";
@@ -812,7 +897,7 @@ function reviewCount(value: number | boolean | undefined) {
 }
 
 function decisionCopy(value: string | null | undefined) {
-  return koLabel(value)
+  return userFacingRecommendationText(value)
     .replaceAll("성과 window", "성과 측정창")
     .replaceAll("in_line", "평균 수준")
     .replaceAll("US Core Financial Disclosure Coverage", "미국 핵심 공시 커버리지");
@@ -903,7 +988,7 @@ function recommendationQualityDecision(data: RecommendationDetailData) {
     return {
       status: "전문 재무 원천 차단",
       tone: "risk-high",
-      summary: "정기 재무제표나 검증된 parser가 없어 이 추천은 기록으로만 보존한다. 뉴스·AI·가격 근거가 있어도 전문 투자 판단이나 페이퍼 검증 입력으로 넘기면 안 된다.",
+      summary: "정기 재무제표나 검증된 해석기가 없어 이 추천은 기록으로만 보존한다. 뉴스·AI·가격 근거가 있어도 전문 투자 판단이나 가상 매매 검증 입력으로 넘기면 안 된다.",
     };
   }
   if (blockedCount > 0) {
@@ -949,7 +1034,7 @@ function recommendationQualityChecks(data: RecommendationDetailData) {
       value: ["ai_review_passed", "ready_for_human_review"].includes(data.evidence_review.quality_status)
         ? "AI 검토 통과"
         : koCode(data.evidence_review.quality_status),
-      detail: `뉴스·AI 근거 ${aiEvidenceCount}개 · 가격/순위 출처 기록 ${marketProvenanceCount}개`,
+      detail: `뉴스·AI 해석 ${aiEvidenceCount}개 · 가격/순위 출처 기록 ${marketProvenanceCount}개`,
     },
     {
       label: "성과 확인",
@@ -959,9 +1044,9 @@ function recommendationQualityChecks(data: RecommendationDetailData) {
         : "성과 측정 기간이 끝나면 성과 기록을 생성해야 한다.",
     },
     {
-      label: "주문 경계",
+      label: "실거래 상태",
       value: "자동 주문 없음",
-      detail: "이 판정은 추천 검토 결과이며 증권사 주문 흐름을 실행하지 않는다.",
+      detail: "이 판정은 추천 검토 결과이며 증권사 주문 연결을 실행하지 않는다.",
     },
   ];
 }
@@ -993,11 +1078,11 @@ function evidenceTraceCards(data: RecommendationDetailData) {
 
   return [
     {
-      label: "뉴스/AI 분석",
+      label: "뉴스·AI 해석",
       value: traceStatusLabel(direct.status),
       detail:
         direct.status === "linked"
-          ? `직접 종목 뉴스나 AI 근거가 추천 입력으로 연결됐다. 신뢰도 ${formatMetricValue(direct.confidence)}.`
+          ? `직접 종목 뉴스나 AI 해석이 추천 입력으로 연결됐다. 자료 신뢰도 ${formatMetricValue(direct.confidence)}.`
           : "이 추천은 직접 종목 뉴스보다 가격, 종목군 순위, 또는 상위 흐름 근거가 중심이다.",
       href: directHref,
       hrefLabel: direct.evidence_id ? evidenceLinkLabel(direct.evidence_id) : null,
@@ -1042,7 +1127,7 @@ function evidenceTraceCards(data: RecommendationDetailData) {
       value: traceStatusLabel(holding.status),
       detail:
         holding.status === "review_linked"
-          ? `${koCode(holding.action)} · ${holding.reason ?? "보유검토 항목과 연결됨"}`
+          ? `${userFacingRecommendationText(holding.action)} · ${userFacingRecommendationText(holding.reason) || "보유검토 항목과 연결됨"}`
           : holding.status === "position_without_review"
             ? `포지션 ${formatMetricValue(holding.current_weight)}가 있으나 최신 보유검토 항목은 아직 연결되지 않았다.`
             : "현재 포트폴리오 보유 항목으로 확인되지 않았다.",
@@ -1085,7 +1170,7 @@ function recommendationWaterfallCards({
       label: "거시",
       title: macroComponent ? formatPercent(macroComponent.value) : "거시 근거 대기",
       body: macroComponent
-        ? `금리·물가·유동성 같은 상위 환경이 ${data.symbol} 검토 배경으로 연결됐다. ${isZeroWeight(macroComponent.weight) ? "현재 총점 영향은 없다." : "총점에 반영된다."}`
+        ? `금리·물가·유동성 같은 상위 환경이 ${data.symbol} 검토 배경으로 연결됐다. ${isZeroWeight(macroComponent.weight) ? "현재 최종 점수 영향은 없다." : "최종 점수에 반영된다."}`
         : "거시 사이클 점수 항목이 아직 연결되지 않았다.",
       href: "#recommendation-cycle-stack",
       hrefLabel: "사이클 근거 보기",
@@ -1152,20 +1237,20 @@ function recommendationWaterfallCards({
         ? "차단된 근거나 전문 분석 원천 문제가 있어 추천은 기록으로만 남긴다."
         : outcomeMeasured
           ? `성과 측정 완료. 알파 ${formatPercent(data.outcome.alpha)}와 근거 검증 기준을 함께 본다.`
-          : "성과 측정창이 아직 끝나지 않았다. 추천 산식 가중치 변경이나 자동 주문은 금지 상태다.",
+          : "성과 측정창이 아직 끝나지 않았다. 추천 산식 변경이나 자동 주문은 금지 상태다.",
       href: "#recommendation-evidence-review",
       hrefLabel: "리스크 점검 보기",
       tone: riskBlocked ? "blocked" : qualityDecision.tone === "risk-low" ? "ready" : "watch",
     },
     {
       step: "07",
-      label: "페이퍼 검증",
+      label: "가상 매매 검증",
       title: decisionWaterfall.paper_validation_input_allowed ? "입력 가능" : "입력 차단",
       body: decisionWaterfall.paper_validation_input_allowed
-        ? `페이퍼 검증 입력은 가능하지만 주문 경계는 ${koCode(decisionWaterfall.order_boundary)}이다.`
-        : `페이퍼 검증 입력 전 차단 조건이 남아 있다. 주문 경계는 ${koCode(decisionWaterfall.order_boundary)}이다.`,
+        ? `가상 매매 검증 입력은 가능하지만 실거래 상태는 ${orderBoundaryLabel(decisionWaterfall.order_boundary)}이다.`
+        : `가상 매매 검증 입력 전 차단 조건이 남아 있다. 실거래 상태는 ${orderBoundaryLabel(decisionWaterfall.order_boundary)}이다.`,
       href: "/paper-trading",
-      hrefLabel: "페이퍼 거래 상태",
+      hrefLabel: "가상 매매 상태",
       tone: decisionWaterfall.paper_validation_input_allowed ? "watch" : "blocked",
     },
   ];
@@ -1200,7 +1285,7 @@ function RecommendationDecisionWaterfall({
             <strong>{formatPercent(data.score)}</strong>
           </div>
           <div>
-            <span>페이퍼 검증</span>
+            <span>가상 매매 검증</span>
             <strong>{decisionWaterfall.paper_validation_input_allowed ? "입력 가능" : "입력 차단"}</strong>
           </div>
           <div>
@@ -1216,7 +1301,7 @@ function RecommendationDecisionWaterfall({
             투자 논리 보기
           </Link>
           <Link className="btn btn-secondary" href="/paper-trading">
-            페이퍼 거래 상태
+            가상 매매 상태
           </Link>
         </div>
       </div>
@@ -1298,7 +1383,7 @@ export default async function RecommendationPage({ params }: RecommendationPageP
           <div>
             <h1 style={{ fontSize: "clamp(2.5rem, 4vw, 4rem)", marginBottom: "16px" }}>{data.symbol} 추천 검토서</h1>
             <p style={{ color: "var(--text-secondary)", fontSize: "1.1rem", maxWidth: "700px" }}>
-              추천은 자동 매매 명령이 아니다. 먼저 현재 판단과 주문 경계를 보고, 그 다음 거시·테마·기업·재무·밸류에이션·리스크·페이퍼 검증 순서로 읽는다.
+              추천은 자동 매매 명령이 아니다. 먼저 현재 판단과 실거래 상태를 보고, 그 다음 거시·테마·기업·재무·밸류에이션·리스크·가상 매매 검증 순서로 읽는다.
             </p>
           </div>
           
@@ -1349,10 +1434,10 @@ export default async function RecommendationPage({ params }: RecommendationPageP
         </div>
       </section>
 
-      <section className="bento-card reveal delay-1" aria-label="추천 사용 경계">
+      <section className="bento-card reveal delay-1" aria-label="추천 사용 가능 범위">
         <div className="section-heading">
           <div>
-            <span className="metric-sub">추천 사용 경계</span>
+            <span className="metric-sub">추천 사용 가능 범위</span>
             <h2 style={{ fontSize: "1.5rem", marginTop: "6px" }}>이 추천을 어디까지 써도 되는가</h2>
           </div>
           <span className={`risk-tag ${blockedDecisionStepCount > 0 ? "risk-high" : decisionWaterfall.paper_validation_input_allowed ? "risk-low" : "risk-medium"}`}>
@@ -1360,13 +1445,13 @@ export default async function RecommendationPage({ params }: RecommendationPageP
           </span>
         </div>
         <p style={{ color: "var(--text-secondary)", marginTop: 0 }}>
-          {koLabel(decisionWaterfall.summary)} 이 판정은 추천 점수를 바꾸지 않고, 이 추천을 페이퍼 검증·보유 검토·주문 경계 중 어디까지
+          {userFacingRecommendationText(decisionWaterfall.summary)} 이 판정은 추천 점수를 바꾸지 않고, 이 추천을 가상 매매 검증·보유 검토·실거래 차단 중 어디까지
           넘길 수 있는지만 설명한다.
         </p>
-        <div className="status-rail compact-rail" aria-label="추천 사용 경계 요약">
+        <div className="status-rail compact-rail" aria-label="추천 사용 가능 범위 요약">
           <div className="rail-cell">
             <span>전문 흐름</span>
-            <strong>{koCode(decisionWaterfall.status)}</strong>
+            <strong>{userFacingRecommendationText(decisionWaterfall.status)}</strong>
             <small>{decisionWaterfall.as_of_date}</small>
           </div>
           <div className="rail-cell">
@@ -1375,13 +1460,13 @@ export default async function RecommendationPage({ params }: RecommendationPageP
             <small>주의 {watchDecisionStepCount} · 차단 {blockedDecisionStepCount}</small>
           </div>
           <div className="rail-cell">
-            <span>페이퍼 검증 입력</span>
+            <span>가상 매매 입력</span>
             <strong>{decisionWaterfall.paper_validation_input_allowed ? "허용" : "차단"}</strong>
             <small>원천 차단이면 입력 금지</small>
           </div>
           <div className="rail-cell rail-critical">
-            <span>주문 경계</span>
-            <strong>{koCode(decisionWaterfall.order_boundary)}</strong>
+            <span>실거래 상태</span>
+            <strong>{orderBoundaryLabel(decisionWaterfall.order_boundary)}</strong>
             <small>자동 주문 {decisionWaterfall.automatic_order_allowed || decisionWaterfall.broker_submit_allowed ? "허용" : "금지"}</small>
           </div>
         </div>
@@ -1391,8 +1476,8 @@ export default async function RecommendationPage({ params }: RecommendationPageP
         <ProfessionalResearchFlow
           eyebrow="전문 의사결정 흐름"
           title={`${data.symbol} 추천을 분석서처럼 읽는다`}
-          summary={koLabel(decisionWaterfall.summary)}
-          footer={`추천 산식 정책: ${koCode(decisionWaterfall.score_policy)}. 주문 경계: ${koCode(decisionWaterfall.order_boundary)}.`}
+          summary={userFacingRecommendationText(decisionWaterfall.summary)}
+          footer={`추천 산식 정책: ${userFacingRecommendationText(decisionWaterfall.score_policy)}. 실거래 상태: ${orderBoundaryLabel(decisionWaterfall.order_boundary)}.`}
           steps={professionalResearchSteps}
         />
       </section>
@@ -1404,11 +1489,11 @@ export default async function RecommendationPage({ params }: RecommendationPageP
             <h2 style={{ fontSize: "1.5rem", marginTop: "6px" }}>{professionalAudit.title}</h2>
           </div>
           <span className={`risk-tag ${professionalAuditTone(professionalAudit)}`}>
-            {koCode(professionalAudit.status)}
+            {userFacingRecommendationText(professionalAudit.status)}
           </span>
         </div>
         <p style={{ color: "var(--text-secondary)", marginTop: 0, maxWidth: "920px" }}>
-          {koLabel(professionalAudit.summary)} {koLabel(professionalAudit.next_action)}
+          {userFacingRecommendationText(professionalAudit.summary)} {userFacingRecommendationText(professionalAudit.next_action)}
         </p>
 
         <div className="status-rail compact-rail" aria-label="추천 전문 분석 감사 요약">
@@ -1431,9 +1516,9 @@ export default async function RecommendationPage({ params }: RecommendationPageP
             <small>누락 {professionalAudit.missing_layer_count}개</small>
           </div>
           <div className="rail-cell rail-critical">
-            <span>거래 경계</span>
-            <strong>{koCode(professionalAudit.order_boundary)}</strong>
-            <small>추천 산식 가중치 변경 {professionalAudit.automatic_weight_change_allowed ? "허용" : "금지"} · 주문 {professionalAudit.broker_submit_allowed ? "허용" : "금지"}</small>
+            <span>실거래 상태</span>
+            <strong>{orderBoundaryLabel(professionalAudit.order_boundary)}</strong>
+            <small>추천 산식 변경 {professionalAudit.automatic_weight_change_allowed ? "허용" : "금지"} · 실거래 주문 {professionalAudit.broker_submit_allowed ? "허용" : "금지"}</small>
           </div>
         </div>
 
@@ -1441,7 +1526,7 @@ export default async function RecommendationPage({ params }: RecommendationPageP
           <div className="empty-state" style={{ marginTop: "18px" }}>
             <strong>{professionalAudit.source_blocker.blocker_label || "원천 차단"}</strong>
             <p style={{ margin: "8px 0 0", color: "var(--text-secondary)" }}>
-              {koLabel(professionalAudit.source_blocker.summary)} {koLabel(professionalAudit.source_blocker.next_action)}
+              {userFacingRecommendationText(professionalAudit.source_blocker.summary)} {userFacingRecommendationText(professionalAudit.source_blocker.next_action)}
             </p>
           </div>
         ) : null}
@@ -1463,7 +1548,7 @@ export default async function RecommendationPage({ params }: RecommendationPageP
               </strong>
               <p>{decisionCopy(layer.detail)}</p>
               <small style={{ color: "var(--text-secondary)", fontWeight: 800 }}>
-                원천: {koCode(layer.source)}
+                원천: {userFacingRecommendationText(layer.source)}
               </small>
               {layer.href ? <Link href={layer.href as Route}>관련 화면 열기</Link> : null}
             </article>
@@ -1492,7 +1577,7 @@ export default async function RecommendationPage({ params }: RecommendationPageP
             <h2 style={{ fontSize: "1.5rem", marginTop: "6px" }}>왜 {data.symbol}을 지금 검토하는가</h2>
             <p style={{ color: "var(--text-secondary)", marginTop: "8px", maxWidth: "860px" }}>
               추천 점수를 한 덩어리로 보지 않고 거시 환경, 도메인, 테마, 종목 자체 상태, 충돌 감점을 분리해 보여준다.
-              초기 가중치 0 항목은 결과를 흔들지 않기 위한 설명·검증용 항목이며, 품질 검증 후 점수 반영을 키운다.
+              현재 반영 전 항목은 결과를 흔들지 않기 위한 설명·검증용 항목이며, 품질 검증 후 별도 승인으로만 반영한다.
             </p>
           </div>
 
@@ -1516,15 +1601,15 @@ export default async function RecommendationPage({ params }: RecommendationPageP
                   }}
                 >
                   <span>{meta?.step ?? koCode(component.component)}</span>
-                  <strong>{koCode(component.component)}</strong>
+                  <strong>{scoreComponentLabel(component.component)}</strong>
                   <p>{meta?.body ?? "계층형 사이클 근거를 설명하는 점수 항목이다."}</p>
                   <p style={{ marginTop: "8px", color: "var(--text-secondary)", fontSize: "0.78rem", fontWeight: 850 }}>
                     {nodeCode ? `기준 노드: ${koCode(nodeCode)}` : "기준 노드 미기록"}
                   </p>
                   <div style={{ marginTop: "14px", display: "grid", gap: "6px", color: "var(--text-secondary)", fontSize: "0.8rem", fontWeight: 800 }}>
                     <span>점수 {formatPercent(component.value)}</span>
-                    <span>가중치 {formatPercent(component.weight)}</span>
-                    <span>{isZeroWeight(component.weight) ? "현재 총점 영향 없음" : "총점에 반영됨"}</span>
+                    <span>현재 반영 비중 {formatPercent(component.weight)}</span>
+                    <span>{isZeroWeight(component.weight) ? "현재 최종 점수 영향 없음" : "최종 점수에 반영됨"}</span>
                   </div>
                 </article>
               );
@@ -1539,7 +1624,7 @@ export default async function RecommendationPage({ params }: RecommendationPageP
             <span className="metric-sub">재무·밸류에이션 근거</span>
             <h2 style={{ fontSize: "1.5rem", marginTop: "6px" }}>뉴스가 아니라 기업 자체가 받쳐주는가</h2>
             <p style={{ color: "var(--text-secondary)", marginTop: "8px", maxWidth: "900px" }}>
-              이 영역은 프로 애널리스트식 검토 축이다. 현재는 성과 표본이 부족하므로 추천 총점에는 반영하지 않고,
+              이 영역은 프로 애널리스트식 검토 축이다. 현재는 성과 표본이 부족하므로 최종 추천 점수에는 반영하지 않고,
               재무 품질과 가격 매력도가 추천 논리를 보강하거나 반박하는지 확인하는 근거로만 쓴다.
             </p>
           </div>
@@ -1561,12 +1646,12 @@ export default async function RecommendationPage({ params }: RecommendationPageP
                   }}
                 >
                   <span>{meta?.lens ?? "기업 분석"}</span>
-                  <strong>{meta?.title ?? koCode(component.component)}</strong>
+                  <strong>{meta?.title ?? scoreComponentLabel(component.component)}</strong>
                   <p>{meta?.body ?? provenanceDetail(component)}</p>
                   <div style={{ marginTop: "14px", display: "grid", gap: "6px", color: "var(--text-secondary)", fontSize: "0.8rem", fontWeight: 800 }}>
                     <span>검토 점수 {formatPercent(component.value)}</span>
-                    <span>{isZeroWeight(component.weight) ? "추천 총점에는 아직 미반영" : `가중치 ${formatPercent(component.weight)}`}</span>
-                    <span>{component.provenance?.label ?? "기업 분석 근거"}</span>
+                    <span>{isZeroWeight(component.weight) ? "최종 추천 점수에는 아직 미반영" : `현재 반영 비중 ${formatPercent(component.weight)}`}</span>
+                    <span>{component.provenance?.label ? userFacingRecommendationText(component.provenance.label) : "기업 분석 근거"}</span>
                   </div>
                 </article>
               );
@@ -1728,8 +1813,8 @@ export default async function RecommendationPage({ params }: RecommendationPageP
                 <div className="bento-list-item" key={component.component} style={{ alignItems: "flex-start", flexDirection: "column" }}>
                   <div style={{ width: "100%", display: "flex", justifyContent: "space-between", gap: "16px", flexWrap: "wrap" }}>
                     <div>
-                      <span className="metric-sub">{koCode(component.component)}</span>
-                      <strong>{formatPercent(component.value)} · 가중치 {formatPercent(component.weight)}</strong>
+                      <span className="metric-sub">{scoreComponentLabel(component.component)}</span>
+                      <strong>{formatPercent(component.value)} · 현재 반영 비중 {formatPercent(component.weight)}</strong>
                     </div>
                     <span style={{ color: "var(--text-secondary)" }}>
                       전체 전파 근거 {component.provenance?.evidence?.propagated_impact_count ?? rows.length}개 · 최근 표시 {rows.length}개
@@ -1754,7 +1839,7 @@ export default async function RecommendationPage({ params }: RecommendationPageP
                             impactScore={flow.impact_strength}
                           />
                           <small>
-                            {koCode(flow.impact_direction)} · 강도 {formatMetricValue(flow.impact_strength)} · 신뢰도 {formatMetricValue(flow.confidence)}
+                            {koCode(flow.impact_direction)} · 강도 {formatMetricValue(flow.impact_strength)} · 자료 신뢰도 {formatMetricValue(flow.confidence)}
                           </small>
                           <small>
                             노출도 {formatMetricValue(flow.exposure_weight)} · 발생 {flow.event_at}
@@ -1777,7 +1862,7 @@ export default async function RecommendationPage({ params }: RecommendationPageP
             <span className="metric-sub">근거 연결 점검</span>
             <h2 style={{ fontSize: "1.5rem", marginTop: "6px" }}>{koCode(evidenceReview.quality_status)}</h2>
             <p style={{ color: "var(--text-secondary)", marginTop: "8px", maxWidth: "760px" }}>
-              이 점검은 추천 점수를 새로 만들지 않는다. 추천이 투자 논리, 점수 항목, 뉴스·AI 근거, 성과 측정과
+              이 점검은 추천 점수를 새로 만들지 않는다. 추천이 투자 논리, 점수 항목, 뉴스·AI 해석, 성과 측정과
               충분히 연결됐는지 확인하는 읽기 전용 검토다.
             </p>
           </div>
@@ -1818,7 +1903,7 @@ export default async function RecommendationPage({ params }: RecommendationPageP
         <article className="bento-card span-2">
           <div style={{ marginBottom: "24px" }}>
             <span className="metric-sub">점수 근거</span>
-            <h2 style={{ fontSize: "1.5rem" }}>{koCode(data.score_version)}</h2>
+            <h2 style={{ fontSize: "1.5rem" }}>추천 점수 입력이 어디서 왔는가</h2>
           </div>
           
           <div className="bento-list">
@@ -1828,7 +1913,7 @@ export default async function RecommendationPage({ params }: RecommendationPageP
               return (
                 <div className="bento-list-item" key={component.component} style={{ alignItems: "flex-start", gap: "18px" }}>
                   <div style={{ flex: "1 1 360px", minWidth: 0 }}>
-                    <strong style={{ display: "block", marginBottom: "6px" }}>{koCode(component.component)}</strong>
+                    <strong style={{ display: "block", marginBottom: "6px" }}>{scoreComponentLabel(component.component)}</strong>
                     <p style={{ color: "var(--text-secondary)", fontSize: "0.9rem", lineHeight: 1.55, margin: "0 0 10px" }}>
                       {provenanceDetail(component)}
                     </p>
@@ -1854,13 +1939,13 @@ export default async function RecommendationPage({ params }: RecommendationPageP
                         <span>연결된 상세 근거 없음</span>
                       )}
                     </div>
-                    <AuditMetadata items={provenanceMetadata(component)} summary="계산 입력 상세 보기" />
+                    <AuditMetadata items={provenanceMetadata(component)} summary="계산 입력 출처 보기" />
                   </div>
                   <div style={{ flex: "0 0 110px", textAlign: "right" }}>
                     <strong style={{ fontSize: "1.1rem", color: "var(--text-primary)" }}>{formatPercent(component.value)}</strong>
                   </div>
                   <div style={{ flex: "0 0 120px", textAlign: "right" }}>
-                    <span className="metric-sub">가중치 {formatPercent(component.weight)}</span>
+                    <span className="metric-sub">반영 비중 {formatPercent(component.weight)}</span>
                   </div>
                 </div>
               );
