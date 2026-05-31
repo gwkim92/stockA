@@ -37,8 +37,8 @@
 
 ## Done Criteria
 
-- [ ] `/ai-evidence/results` has a first-screen Korean command panel explaining direct results, macro/theme results, clusters, and recommendation/order boundary.
-- [ ] The page routes users to direct, macro, and cluster result sections without implying final recommendation approval.
-- [ ] Local frontend verification passes.
-- [ ] AWH task verification passes.
-- [ ] EC2/tunnel route smoke confirms the new Korean copy renders.
+- [x] `/ai-evidence/results` has a first-screen Korean command panel explaining direct results, macro/theme results, clusters, and recommendation/order boundary.
+- [x] The page routes users to direct, macro, and cluster result sections without implying final recommendation approval.
+- [x] Local frontend verification passes.
+- [x] AWH task verification passes.
+- [x] EC2/tunnel route smoke confirms the new Korean copy renders.
