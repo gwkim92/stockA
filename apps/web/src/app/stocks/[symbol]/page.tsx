@@ -186,11 +186,13 @@ function userFacingStockText(value: string | null | undefined) {
     .replace(/\bfund\/ETF source layer\b/gi, "ETF·펀드 근거")
     .replace(/\bfund or etf company model not applicable\b/gi, "ETF·펀드라 기업 재무 모델 비적용")
     .replace(/\bfund_company_financial_model_not_applicable\b/gi, "ETF·펀드라 기업 재무 모델 비적용")
+    .replace(/\bfund company financial model not applicable\b/gi, "ETF·펀드라 기업 재무 모델 비적용")
     .replace(/\bsource blocker\b/gi, "부족한 원천 근거")
     .replace(/\bblocker\b/gi, "차단 사유")
     .replace(/\bref\.instrument\b/gi, "상품 분류 기준")
     .replace(/\bgate\b/gi, "확인 조건")
-    .replace(/\bvia\b/gi, "기준");
+    .replace(/\bvia\b/gi, "기준")
+    .replace(/분할 매수 검토 후보 후보/g, "분할 매수 검토 후보");
 }
 
 function valuationSensitivityLabel(key: string) {
