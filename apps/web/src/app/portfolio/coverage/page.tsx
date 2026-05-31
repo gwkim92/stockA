@@ -5,7 +5,59 @@ import { getPortfolioCoverage, getTradingReadiness } from "@/lib/frontend-api";
 import { koCode, koLabel, koReason } from "@/lib/korean-labels";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "포트폴리오 커버리지" };
+export const metadata = { title: "보유 검토" };
+
+const USER_FACING_REPLACEMENTS: Array<[string, string]> = [
+  ["read_only_no_order", "읽기 전용, 실거래 주문 차단"],
+  ["broker submit", "증권사 주문 제출"],
+  ["broker", "증권사"],
+  ["order boundary", "실거래 상태"],
+  ["order_boundary", "실거래 상태"],
+  ["eval_run_id", "검증 기록"],
+  ["source_cadence_eval_run_id", "실행 주기 기록"],
+  ["active share", "벤치마크와 다른 비중"],
+  ["drift", "벤치마크 괴리"],
+  ["benchmark", "벤치마크"],
+  ["runner", "실행 기록"],
+  ["child runner", "후속 실행 기록"],
+  ["artifact", "결과 기록"],
+  ["paper validation", "가상 매매 검증"],
+  ["Paper validation", "가상 매매 검증"],
+  ["blocked", "차단"],
+  ["pending", "대기"],
+  ["no_op", "대기"],
+  ["weight review", "추천 산식 검토"],
+  ["weight", "비중"],
+  ["가중치", "추천 산식 반영 비중"],
+  ["주문 경계", "실거래 상태"],
+  ["페이퍼", "가상 매매"],
+  ["가상 거래", "가상 매매"],
+  ["커버리지", "연결 상태"],
+  ["커버됨", "연결됨"],
+];
+
+const USER_FACING_CODES: Record<string, string> = {
+  add_blocked_until_evidence: "근거 보강 전 증액 금지",
+  benchmark_drift_review: "벤치마크 괴리 검토",
+  contradicted: "반박됨",
+  execute_calibration: "누적평가 실행",
+  execute_feedback: "사후평가 실행",
+  has_contradictions: "반박 근거 있음",
+  hold_with_thesis: "투자 논리 유지",
+  needs_more_data: "추가 성과 필요",
+  needs_position_review: "비중 검토 필요",
+  needs_thesis_update: "투자 논리 보강",
+  no_op_wait_for_outcome_window: "성과 관찰 기간 대기",
+  reduce_review: "축소 검토",
+  reduce_watch: "축소 관찰",
+  review_required: "검토 필요",
+  run_calibration_now: "누적평가 실행 필요",
+  run_feedback_now: "사후평가 실행 필요",
+  too_early: "관찰 기간 부족",
+  validated: "검증됨",
+  watch_small_position: "작은 비중 관찰",
+  within_budget: "한도 내",
+};
 
 function formatPercent(value: number | null | undefined) {
   if (value === null || value === undefined) {
@@ -31,6 +83,40 @@ function recordNumber(record: Record<string, unknown> | undefined, key: string) 
   return null;
 }
 
+function userFacingText(value: string | number | boolean | null | undefined) {
+  if (value === null || value === undefined || value === "") {
+    return "";
+  }
+  if (typeof value === "number") {
+    return value.toLocaleString("ko-KR");
+  }
+  if (typeof value === "boolean") {
+    return value ? "예" : "아니오";
+  }
+  if (USER_FACING_CODES[value]) {
+    return USER_FACING_CODES[value];
+  }
+  let text = koReason(koLabel(koCode(value)));
+  for (const [from, to] of USER_FACING_REPLACEMENTS) {
+    text = text.replaceAll(from, to);
+  }
+  return text;
+}
+
+function recordPresent(value: string | null | undefined) {
+  return value ? "기록 있음" : "기록 없음";
+}
+
+function orderBoundaryLabel(value: string | null | undefined) {
+  if (!value) {
+    return "실거래 상태 미기록";
+  }
+  if (value === "read_only_no_order") {
+    return "읽기 전용, 실거래 주문 차단";
+  }
+  return userFacingText(value);
+}
+
 function riskBudgetLabel(status: string) {
   if (status === "within_budget") {
     return "한도 내";
@@ -41,7 +127,7 @@ function riskBudgetLabel(status: string) {
   if (status === "missing_position_snapshot") {
     return "스냅샷 없음";
   }
-  return koCode(status);
+  return userFacingText(status);
 }
 
 function sizeStatusLabel(status: string) {
@@ -57,7 +143,7 @@ function sizeStatusLabel(status: string) {
   if (status === "missing_weight") {
     return "비중 없음";
   }
-  return koCode(status);
+  return userFacingText(status);
 }
 
 function sizeStatusClass(status: string) {
@@ -83,7 +169,7 @@ function concentrationStatusLabel(status: string) {
   if (status === "missing_position_snapshot") {
     return "스냅샷 없음";
   }
-  return koCode(status);
+  return userFacingText(status);
 }
 
 function concentrationStatusClass(status: string) {
@@ -103,7 +189,7 @@ function exposureStatusLabel(status: string) {
   if (status === "within_limit") {
     return "한도 내";
   }
-  return koCode(status);
+  return userFacingText(status);
 }
 
 function candidateSeverityClass(severity: string) {
@@ -123,7 +209,7 @@ function candidateDirectionLabel(direction: string) {
   if (direction === "underweight") {
     return "과소 보유";
   }
-  return koCode(direction);
+  return userFacingText(direction);
 }
 
 function sizingBandClass(reviewBand: string) {
@@ -190,11 +276,11 @@ function actionRouterLabel(status: string, executed: boolean, routeAction: strin
   if (status.startsWith("blocked_")) {
     return "가드레일 차단";
   }
-  return koCode(status);
+  return userFacingText(status);
 }
 
 function orderSubmitLabel(allowed: boolean) {
-  return `증권사 주문 ${allowed ? "허용" : "금지"}`;
+  return `실거래 주문 ${allowed ? "허용" : "금지"}`;
 }
 
 function formatScore(value: number | null | undefined) {
@@ -228,7 +314,7 @@ function ExposureList({ empty, items }: { empty: string; items: ExposureRow[] })
             <span className={`risk-tag ${item.status === "over_limit" ? "risk-high" : "risk-low"}`}>
               {exposureStatusLabel(item.status)}
             </span>
-            <strong>{koLabel(item.exposure_name)}</strong>
+            <strong>{userFacingText(item.exposure_name)}</strong>
             <span>
               {item.symbols.join(", ") || "심볼 없음"} · {item.position_count}개 포지션
             </span>
@@ -305,21 +391,21 @@ export default async function PortfolioCoveragePage() {
       metric: `벤치마크 ${candidateReview.candidate_count}개 · 포지션 ${positionSizingReview.review_required_count}개`,
       body: reviewCandidateTotal > 0
         ? "SPY 대비 괴리나 포지션 크기 문제를 검토한다. 매수·매도 버튼이 아니라 상세 판단으로 들어가는 입구다."
-        : "현재 threshold 기준으로 리밸런싱 검토 후보가 없다.",
+        : "현재 검토 기준으로 리밸런싱 후보가 없다.",
       href: "#portfolio-rebalance-review",
       cta: "후보 보기",
       tone: reviewCandidateTotal > 0 ? "watch" : "ready",
     },
     {
       index: "04",
-      label: "성과·추천 산식 경계",
+      label: "성과 성숙 대기",
       title: reviewCalibration.weight_review_blocked ? "추천 산식 변경 금지" : "별도 검토 가능",
-      metric: `성숙일 ${reviewCalibration.estimated_maturity_date || "미정"} · ${koCode(reviewCalibration.guardrails.order_boundary)}`,
+      metric: `성숙일 ${reviewCalibration.estimated_maturity_date || "미정"} · ${orderBoundaryLabel(reviewCalibration.guardrails.order_boundary)}`,
       body: reviewCalibration.weight_review_blocked
-        ? "성과 표본이 성숙하기 전에는 추천 산식 가중치를 바꾸지 않는다. 증권사 주문과 자동 리밸런싱도 계속 차단된다."
+        ? "성과 표본이 성숙하기 전에는 추천 산식 반영 비중을 바꾸지 않는다. 실거래 주문과 자동 리밸런싱도 계속 차단된다."
         : "수동 검토 조건이 열려도 이 화면에서 자동 주문이나 자동 비중 변경은 하지 않는다.",
       href: "#portfolio-outcome-boundary",
-      cta: "경계 보기",
+      cta: "상태 보기",
       tone: reviewCalibration.weight_review_blocked ? "block" : "watch",
     },
   ];
@@ -328,13 +414,13 @@ export default async function PortfolioCoveragePage() {
     <div className="pageStack">
       <section className="page-hero reveal" aria-labelledby="portfolio-coverage-title">
         <div className="bento-badge">
-          커버리지 지도 • {koLabel(data.portfolio_name)} • {koCode(data.strategy_name)} • {data.as_of_date}
+          보유 검토 지도 • {userFacingText(data.portfolio_name)} • {userFacingText(data.strategy_name)} • {data.as_of_date}
         </div>
         <div>
           <h1 id="portfolio-coverage-title">보유 종목을 검토하고, 무엇은 아직 바꾸면 안 되는지 확인한다.</h1>
           <p>
             이 화면은 포트폴리오 주문 화면이 아니다. 보유 투자 논리, 리스크 예산, 리밸런싱 후보,
-            성과 성숙 대기, 추천 산식 가중치 변경 금지 상태를 분리해서 보여준다.
+            성과 성숙 대기, 추천 산식 반영 비중 변경 금지 상태를 분리해서 보여준다.
           </p>
         </div>
       </section>
@@ -345,7 +431,7 @@ export default async function PortfolioCoveragePage() {
           <h2 id="portfolio-command-title">보유를 유지할지보다, 먼저 무엇을 검토해야 하는지 본다.</h2>
           <p>
             기준일 {data.as_of_date} · 측정 종료 {data.coverage_measurement_end_date}.
-            모든 카드는 읽기 전용이며, 증권사 주문·자동 리밸런싱·추천 산식 가중치 변경은 이 화면에서 실행되지 않는다.
+            모든 카드는 읽기 전용이며, 실거래 주문·자동 리밸런싱·추천 산식 반영 비중 변경은 이 화면에서 실행되지 않는다.
           </p>
         </div>
         <div className="portfolio-command-grid">
@@ -382,7 +468,7 @@ export default async function PortfolioCoveragePage() {
         </article>
 
         <article className="bento-card">
-          <span className="metric-label">성과 측정 커버리지</span>
+          <span className="metric-label">성과 측정 연결률</span>
           <strong className="metric-value">{formatPercent(outcomeCoverageRatio)}</strong>
           <span className="metric-sub">장기 성과 기준</span>
         </article>
@@ -411,13 +497,13 @@ export default async function PortfolioCoveragePage() {
           </div>
           <p style={{ color: "var(--text-secondary)", marginTop: 0 }}>
             추천 점수는 매수·매도 명령이 아니다. 실제 보유 비중은 단일 종목 한도, 리밸런싱 기준,
-            투자 논리와 성과 커버리지를 함께 보고 따로 판단한다.
+            투자 논리와 성과 측정 연결 상태를 함께 보고 따로 판단한다.
           </p>
           <div className="status-rail compact-rail" aria-label="위험 예산 요약">
             <article className="rail-cell">
               <span>단일 종목 상한</span>
               <strong>{formatPercent(allocationPolicy.max_single_position_weight)}</strong>
-              <small>{koCode(allocationPolicy.policy_scope)} 정책</small>
+              <small>{userFacingText(allocationPolicy.policy_scope)} 정책</small>
             </article>
             <article className="rail-cell">
               <span>최대 보유</span>
@@ -446,34 +532,34 @@ export default async function PortfolioCoveragePage() {
           <div className="section-heading">
             <div>
               <span className="metric-sub">저장된 위험 예산 검증</span>
-              <h2>이 검증 결과가 가상 거래를 막고 있는지 본다</h2>
+              <h2>이 검증 결과가 가상 매매 검증을 막고 있는지 본다</h2>
             </div>
             <span className={`risk-tag ${riskGuardrail.paper_validation_input_allowed ? "risk-low" : "risk-high"}`}>
               {riskGuardrail.paper_validation_input_allowed ? "입력 가능" : "입력 차단"}
             </span>
           </div>
           <p style={{ color: "var(--text-secondary)", marginTop: 0 }}>
-            화면에서 계산한 집중도와 별도로, 백엔드 위험 예산 검증 작업이 저장한 최신 결과를 가상 검증이 읽는다.
-            이 값이 차단이면 가상 거래 검증은 충돌 수가 0이어도 실패 상태로 남는다.
+            화면에서 계산한 집중도와 별도로, 서버에 저장된 위험 예산 검증 결과를 가상 매매 검증이 읽는다.
+            이 값이 차단이면 가상 매매 검증은 충돌 수가 0이어도 실패 상태로 남는다.
           </p>
           <div className="status-rail compact-rail" aria-label="저장된 위험 예산 검증 요약">
             <article className="rail-cell">
-              <span>검증 ID</span>
-              <strong>{riskGuardrail.eval_run_id || "없음"}</strong>
-              <small>{riskGuardrail.status}</small>
+              <span>검증 기록</span>
+              <strong>{recordPresent(riskGuardrail.eval_run_id)}</strong>
+              <small>{userFacingText(riskGuardrail.status)}</small>
             </article>
             <article className="rail-cell">
               <span>판정</span>
-              <strong>{koCode(riskGuardrail.risk_gate_decision)}</strong>
+              <strong>{userFacingText(riskGuardrail.risk_gate_decision)}</strong>
               <small>{riskGuardrail.effective_snapshot_date || "기준일 없음"}</small>
             </article>
             <article className="rail-cell rail-critical">
               <span>차단 사유</span>
               <strong>{riskGuardrail.blocking_reasons.length}</strong>
-              <small>{riskGuardrail.blocking_reasons.map((reason) => koCode(reason)).join(", ") || "없음"}</small>
+              <small>{riskGuardrail.blocking_reasons.map((reason) => userFacingText(reason)).join(", ") || "없음"}</small>
             </article>
             <article className="rail-cell">
-              <span>벤치마크 drift</span>
+              <span>벤치마크 괴리</span>
               <strong>
                 {benchmarkDriftCalculated ? formatPercent(benchmarkActiveShare) : "미계산"}
               </strong>
@@ -493,7 +579,7 @@ export default async function PortfolioCoveragePage() {
               <h2>오늘 보이는 판단 후보가 감사 이력으로 남았는지 본다</h2>
             </div>
             <span className={`risk-tag ${reviewHistory.decision_status === "review_required" ? "risk-medium" : "risk-low"}`}>
-              {reviewHistory.status === "loaded" ? koCode(reviewHistory.decision_status) : "이력 없음"}
+              {reviewHistory.status === "loaded" ? userFacingText(reviewHistory.decision_status) : "이력 없음"}
             </span>
           </div>
           <p style={{ color: "var(--text-secondary)", marginTop: 0 }}>
@@ -502,8 +588,8 @@ export default async function PortfolioCoveragePage() {
           </p>
           <div className="status-rail compact-rail" aria-label="포트폴리오 검토 이력 요약" style={{ marginBottom: "20px" }}>
             <article className="rail-cell">
-              <span>이력 ID</span>
-              <strong>{reviewHistory.eval_run_id}</strong>
+              <span>이력 기록</span>
+              <strong>{recordPresent(reviewHistory.eval_run_id)}</strong>
               <small>{reviewHistory.as_of_date || "기준일 없음"}</small>
             </article>
             <article className="rail-cell">
@@ -517,8 +603,8 @@ export default async function PortfolioCoveragePage() {
               <small>판단군 분리</small>
             </article>
             <article className="rail-cell rail-critical">
-              <span>주문 경계</span>
-              <strong>{koCode(reviewHistory.guardrails.order_boundary)}</strong>
+              <span>실거래 상태</span>
+              <strong>{orderBoundaryLabel(reviewHistory.guardrails.order_boundary)}</strong>
               <small>{orderSubmitLabel(reviewHistory.guardrails.broker_submit_allowed)}</small>
             </article>
           </div>
@@ -528,13 +614,13 @@ export default async function PortfolioCoveragePage() {
                 <div className="bento-list-item" key={`${decision.decision_family}-${decision.priority}-${decision.symbol}`}>
                   <div>
                     <span className={`risk-tag ${candidateSeverityClass(decision.severity)}`}>
-                      {decision.decision_label || koCode(decision.decision_type)}
+                      {decision.decision_label || userFacingText(decision.decision_type)}
                     </span>
-                    <strong>{decision.symbol} · {koCode(decision.decision_family)}</strong>
-                    <span>{koReason(decision.next_review_action)}</span>
+                    <strong>{decision.symbol} · {userFacingText(decision.decision_family)}</strong>
+                    <span>{userFacingText(decision.next_review_action)}</span>
                   </div>
                   <span style={{ color: "var(--text-secondary)", maxWidth: "520px" }}>
-                    {koReason(decision.rationale || "저장된 설명 없음")}
+                    {userFacingText(decision.rationale || "저장된 설명 없음")}
                   </span>
                 </div>
               ))}
@@ -553,17 +639,17 @@ export default async function PortfolioCoveragePage() {
               <h2>저장한 판단이 이후 성과와 맞았는지 본다</h2>
             </div>
             <span className={`risk-tag ${feedbackStatusClass(reviewFeedback.feedback_status)}`}>
-              {reviewFeedback.status === "loaded" ? koCode(reviewFeedback.feedback_status) : "평가 없음"}
+              {reviewFeedback.status === "loaded" ? userFacingText(reviewFeedback.feedback_status) : "평가 없음"}
             </span>
           </div>
           <p style={{ color: "var(--text-secondary)", marginTop: 0 }}>
-            이 평가는 리밸런싱이나 추천 산식 가중치를 바꾸지 않는다. 이전 검토 결정을 성과 측정,
-            페이퍼 검증, 투자 논리, 가격 변화와 대조해서 다음 검토의 신뢰도를 높이는 검증 자료다.
+            이 평가는 리밸런싱이나 추천 산식 반영 비중을 바꾸지 않는다. 이전 검토 결정을 성과 측정,
+            가상 매매 검증, 투자 논리, 가격 변화와 대조해서 다음 검토의 신뢰도를 높이는 자료다.
           </p>
           <div className="status-rail compact-rail" aria-label="검토 결정 사후평가 요약" style={{ marginBottom: "20px" }}>
             <article className="rail-cell">
-              <span>평가 ID</span>
-              <strong>{reviewFeedback.eval_run_id}</strong>
+              <span>평가 기록</span>
+              <strong>{recordPresent(reviewFeedback.eval_run_id)}</strong>
               <small>{reviewFeedback.as_of_date || "기준일 없음"}</small>
             </article>
             <article className="rail-cell">
@@ -577,8 +663,8 @@ export default async function PortfolioCoveragePage() {
               <small>{reviewFeedback.min_horizon_days}일 관찰 기준</small>
             </article>
             <article className="rail-cell rail-critical">
-              <span>주문 경계</span>
-              <strong>{koCode(reviewFeedback.guardrails.order_boundary)}</strong>
+              <span>실거래 상태</span>
+              <strong>{orderBoundaryLabel(reviewFeedback.guardrails.order_boundary)}</strong>
               <small>{orderSubmitLabel(reviewFeedback.guardrails.broker_submit_allowed)}</small>
             </article>
           </div>
@@ -588,13 +674,13 @@ export default async function PortfolioCoveragePage() {
                 <div className="bento-list-item" key={`${item.decision_index}-${item.symbol}-${item.feedback_status}`}>
                   <div>
                     <span className={`risk-tag ${feedbackStatusClass(item.feedback_status)}`}>
-                      {koCode(item.feedback_status)}
+                      {userFacingText(item.feedback_status)}
                     </span>
-                    <strong>{item.symbol} · {item.decision_label || koCode(item.decision_type)}</strong>
-                    <span>{koReason(item.feedback_reason)}</span>
+                    <strong>{item.symbol} · {item.decision_label || userFacingText(item.decision_type)}</strong>
+                    <span>{userFacingText(item.feedback_reason)}</span>
                   </div>
                   <span style={{ color: "var(--text-secondary)", maxWidth: "520px" }}>
-                    성과 {koCode(item.evidence.recommendation_outcome.outcome_label || "미측정")} · 초과수익{" "}
+                    성과 {userFacingText(item.evidence.recommendation_outcome.outcome_label || "미측정")} · 초과수익{" "}
                     {formatPercent(item.evidence.recommendation_outcome.alpha_pct)} · 가격{" "}
                     {formatPercent(item.evidence.price_evidence.price_return_pct)}
                   </span>
@@ -612,11 +698,11 @@ export default async function PortfolioCoveragePage() {
           <div className="section-heading">
             <div>
               <span className="metric-sub">검토 신뢰도 누적평가</span>
-              <h2>성과 표본이 성숙하기 전에는 추천 산식 가중치를 바꾸지 않는다</h2>
+              <h2>성과 표본이 성숙하기 전에는 추천 산식 반영 비중을 바꾸지 않는다</h2>
             </div>
             <span className={`risk-tag ${reviewCalibration.weight_review_blocked ? "risk-medium" : "risk-low"}`}>
               {reviewCalibration.status === "loaded"
-                ? reviewCalibration.weight_review_blocked ? "추천 산식 변경 금지" : "별도 검토 가능"
+                  ? reviewCalibration.weight_review_blocked ? "추천 산식 변경 금지" : "별도 검토 가능"
                 : "누적평가 없음"}
             </span>
           </div>
@@ -640,7 +726,7 @@ export default async function PortfolioCoveragePage() {
               <strong>{reviewCalibration.estimated_maturity_date || "계산 불가"}</strong>
               <small>
                 {reviewCalibration.days_until_maturity === null
-                  ? koCode(reviewCalibration.maturity_status)
+                  ? userFacingText(reviewCalibration.maturity_status)
                   : reviewCalibration.days_until_maturity > 0
                     ? `${reviewCalibration.days_until_maturity}일 대기`
                     : "다시 평가 가능일 도달"}
@@ -652,21 +738,21 @@ export default async function PortfolioCoveragePage() {
               <small>반박률 {formatPercent(reviewCalibration.contradiction_rate)}</small>
             </article>
             <article className="rail-cell rail-critical">
-              <span>주문 경계</span>
-              <strong>{koCode(reviewCalibration.guardrails.order_boundary)}</strong>
+              <span>실거래 상태</span>
+              <strong>{orderBoundaryLabel(reviewCalibration.guardrails.order_boundary)}</strong>
               <small>{orderSubmitLabel(reviewCalibration.guardrails.broker_submit_allowed)}</small>
             </article>
           </div>
           <p className="empty-state" style={{ marginTop: 0 }}>
             <strong>차단 이유</strong>
-            <span>{koReason(reviewCalibration.weight_review_block_reason)}</span>
+            <span>{userFacingText(reviewCalibration.weight_review_block_reason)}</span>
           </p>
           <div className="bento-list" style={{ gap: "8px" }}>
             {reviewCalibration.family_summaries.slice(0, 3).map((summary) => (
               <div className="bento-list-item" key={`calibration-${summary.decision_family}`}>
                 <div>
                   <span className="risk-tag risk-medium">판단군</span>
-                  <strong>{koCode(summary.decision_family || "unknown")}</strong>
+                  <strong>{userFacingText(summary.decision_family || "unknown")}</strong>
                   <span>
                     전체 {summary.decision_count}개 · 성숙 {summary.mature_decision_count}개 · 반박{" "}
                     {summary.contradicted_count}개
@@ -692,7 +778,7 @@ export default async function PortfolioCoveragePage() {
               <h2>사후평가와 누적평가를 언제 다시 돌릴지 본다</h2>
             </div>
             <span className={`risk-tag ${cadenceStatusClass(reviewCadence.cadence_status)}`}>
-              {reviewCadence.status === "loaded" ? koCode(reviewCadence.cadence_status) : "실행 주기 없음"}
+              {reviewCadence.status === "loaded" ? userFacingText(reviewCadence.cadence_status) : "실행 주기 없음"}
             </span>
           </div>
           <p style={{ color: "var(--text-secondary)", marginTop: 0 }}>
@@ -703,7 +789,7 @@ export default async function PortfolioCoveragePage() {
             <article className="rail-cell">
               <span>실행 판단</span>
               <strong>{reviewCadence.should_run_now ? "지금 실행" : "즉시 실행 아님"}</strong>
-              <small>{reviewCadence.reason}</small>
+              <small>{userFacingText(reviewCadence.reason)}</small>
             </article>
             <article className="rail-cell">
               <span>검토 이력 나이</span>
@@ -712,18 +798,18 @@ export default async function PortfolioCoveragePage() {
             </article>
             <article className="rail-cell">
               <span>사후평가/누적평가</span>
-              <strong>{reviewCadence.feedback.eval_run_id} / {reviewCadence.calibration.eval_run_id}</strong>
-              <small>사후평가 {koCode(reviewCadence.feedback.feedback_status)}</small>
+              <strong>{recordPresent(reviewCadence.feedback.eval_run_id)} / {recordPresent(reviewCadence.calibration.eval_run_id)}</strong>
+              <small>사후평가 {userFacingText(reviewCadence.feedback.feedback_status)}</small>
             </article>
             <article className="rail-cell rail-critical">
-              <span>주문 경계</span>
-              <strong>{koCode(reviewCadence.order_boundary)}</strong>
+              <span>실거래 상태</span>
+              <strong>{orderBoundaryLabel(reviewCadence.order_boundary)}</strong>
               <small>{orderSubmitLabel(reviewCadence.broker_submit_allowed)}</small>
             </article>
           </div>
           <div className="empty-state" style={{ margin: 0 }}>
             <strong>{reviewCadence.label}</strong>
-            <p>{koReason(reviewCadence.reason)}</p>
+            <p>{userFacingText(reviewCadence.reason)}</p>
           </div>
         </article>
 
@@ -749,38 +835,38 @@ export default async function PortfolioCoveragePage() {
             </span>
           </div>
           <p style={{ color: "var(--text-secondary)", marginTop: 0 }}>
-            실행 주기 판단이 실제 안전 작업으로 이어졌는지 확인한다. 실행 기록이 있어도 추천 산식 가중치,
-            보유 비중, 증권사 주문 전송은 여전히 자동으로 바뀌지 않는다.
+            실행 주기 판단이 실제 안전 작업으로 이어졌는지 확인한다. 실행 기록이 있어도 추천 산식 반영 비중,
+            보유 비중, 실거래 주문 전송은 여전히 자동으로 바뀌지 않는다.
           </p>
           <div className="status-rail compact-rail" aria-label="검토 실행 라우터 요약" style={{ marginBottom: "20px" }}>
             <article className="rail-cell">
               <span>원천 실행 주기</span>
-              <strong>{koCode(reviewActionRouter.cadence_status)}</strong>
-              <small>{reviewActionRouter.source_cadence_eval_run_id}</small>
+              <strong>{userFacingText(reviewActionRouter.cadence_status)}</strong>
+              <small>{recordPresent(reviewActionRouter.source_cadence_eval_run_id)}</small>
             </article>
             <article className="rail-cell">
               <span>라우팅</span>
-              <strong>{koCode(reviewActionRouter.route_action)}</strong>
-              <small>{koReason(reviewActionRouter.reason)}</small>
+              <strong>{userFacingText(reviewActionRouter.route_action)}</strong>
+              <small>{userFacingText(reviewActionRouter.reason)}</small>
             </article>
             <article className="rail-cell">
               <span>실행한 작업</span>
               <strong>{reviewActionRouter.child_runner.executed ? "있음" : "없음"}</strong>
               <small>
                 {reviewActionRouter.child_runner.executed
-                  ? `${koCode(reviewActionRouter.child_runner.report_name)} · ${reviewActionRouter.child_runner.eval_run_id}`
+                  ? `${userFacingText(reviewActionRouter.child_runner.report_name)} · ${recordPresent(reviewActionRouter.child_runner.eval_run_id)}`
                   : "후속 자동 실행 없음"}
               </small>
             </article>
             <article className="rail-cell rail-critical">
-              <span>주문 경계</span>
-              <strong>{koCode(reviewActionRouter.order_boundary)}</strong>
+              <span>실거래 상태</span>
+              <strong>{orderBoundaryLabel(reviewActionRouter.order_boundary)}</strong>
               <small>{orderSubmitLabel(reviewActionRouter.broker_submit_allowed)}</small>
             </article>
           </div>
           <div className="empty-state" style={{ margin: 0 }}>
-            <strong>{koCode(reviewActionRouter.action_status)}</strong>
-            <p>{koReason(reviewActionRouter.next_action)}</p>
+            <strong>{userFacingText(reviewActionRouter.action_status)}</strong>
+            <p>{userFacingText(reviewActionRouter.next_action)}</p>
           </div>
         </article>
 
@@ -802,10 +888,10 @@ export default async function PortfolioCoveragePage() {
             <article className="rail-cell">
               <span>전체 괴리</span>
               <strong>{formatPercent(candidateReview.active_share)}</strong>
-              <small>{koLabel(candidateReview.benchmark_source || benchmarkSource || "근거 없음")}</small>
+              <small>{userFacingText(candidateReview.benchmark_source || benchmarkSource || "근거 없음")}</small>
             </article>
             <article className="rail-cell">
-              <span>구성비 커버리지</span>
+              <span>구성비 확인률</span>
               <strong>{formatPercent(candidateReview.composition_coverage_weight)}</strong>
               <small>{candidateReview.source_as_of_date || "기준일 없음"}</small>
             </article>
@@ -818,14 +904,14 @@ export default async function PortfolioCoveragePage() {
               </small>
             </article>
             <article className="rail-cell">
-              <span>주문 경계</span>
-              <strong>{koCode(candidateReview.order_boundary)}</strong>
+              <span>실거래 상태</span>
+              <strong>{orderBoundaryLabel(candidateReview.order_boundary)}</strong>
               <small>{orderSubmitLabel(candidateReview.broker_submit_allowed)}</small>
             </article>
           </div>
           {candidateReview.candidates.length === 0 ? (
             <p className="empty-state" style={{ margin: 0 }}>
-              현재 threshold 기준에서 별도 리밸런싱 검토 후보가 없다.
+              현재 검토 기준에서 별도 리밸런싱 후보가 없다.
             </p>
           ) : (
             <div className="ledger-table-wrap">
@@ -848,7 +934,7 @@ export default async function PortfolioCoveragePage() {
                       <td><strong>{candidate.symbol}</strong></td>
                       <td>
                         <span className={`risk-tag ${candidateSeverityClass(candidate.severity)}`}>
-                          {koCode(candidate.decision_label)}
+                          {userFacingText(candidate.decision_label)}
                         </span>
                         <small style={{ display: "block", color: "var(--text-secondary)", marginTop: "4px" }}>
                           {candidateDirectionLabel(candidate.direction)}
@@ -867,12 +953,12 @@ export default async function PortfolioCoveragePage() {
                         </small>
                       </td>
                       <td>
-                        {koReason(candidate.next_review_action)}
+                        {userFacingText(candidate.next_review_action)}
                         <small style={{ display: "block", color: "var(--text-secondary)", marginTop: "4px" }}>
-                          {koReason(candidate.rationale)}
+                          {userFacingText(candidate.rationale)}
                         </small>
                         <small style={{ display: "block", color: "var(--text-secondary)", marginTop: "4px" }}>
-                          {koCode(candidate.order_boundary)} · {orderSubmitLabel(candidate.broker_submit_allowed)}
+                          {orderBoundaryLabel(candidate.order_boundary)} · {orderSubmitLabel(candidate.broker_submit_allowed)}
                         </small>
                       </td>
                     </tr>
@@ -890,7 +976,7 @@ export default async function PortfolioCoveragePage() {
               <h2>이 비중을 더 키워도 되는지, 줄여야 하는지 본다</h2>
             </div>
             <span className={`risk-tag ${positionSizingReview.review_required_count > 0 ? "risk-medium" : "risk-low"}`}>
-              {koCode(positionSizingReview.status)}
+              {userFacingText(positionSizingReview.status)}
             </span>
           </div>
           <p style={{ color: "var(--text-secondary)", marginTop: 0 }}>
@@ -914,8 +1000,8 @@ export default async function PortfolioCoveragePage() {
               <small>{formatPercent(positionSizingReview.min_rebalance_target_weight)} 미만</small>
             </article>
             <article className="rail-cell">
-              <span>주문 경계</span>
-              <strong>{koCode(positionSizingReview.order_boundary)}</strong>
+              <span>실거래 상태</span>
+              <strong>{orderBoundaryLabel(positionSizingReview.order_boundary)}</strong>
               <small>{orderSubmitLabel(positionSizingReview.broker_submit_allowed)}</small>
             </article>
           </div>
@@ -948,10 +1034,10 @@ export default async function PortfolioCoveragePage() {
                       </td>
                       <td>
                         <span className={`risk-tag ${sizingBandClass(candidate.review_band)}`}>
-                          {koCode(candidate.review_band)}
+                          {userFacingText(candidate.review_band)}
                         </span>
                         <small style={{ display: "block", color: "var(--text-secondary)", marginTop: "4px" }}>
-                          {koCode(candidate.professional_analysis_status)}
+                          {userFacingText(candidate.professional_analysis_status)}
                         </small>
                       </td>
                       <td>
@@ -967,12 +1053,12 @@ export default async function PortfolioCoveragePage() {
                         </small>
                       </td>
                       <td>
-                        {koReason(candidate.rationale)}
+                        {userFacingText(candidate.rationale)}
                         <small style={{ display: "block", color: "var(--text-secondary)", marginTop: "6px" }}>
-                          막는 이유: {candidate.blocking_factors.map((factor) => koCode(factor)).join(", ") || "없음"}
+                          막는 이유: {candidate.blocking_factors.map((factor) => userFacingText(factor)).join(", ") || "없음"}
                         </small>
                         <small style={{ display: "block", color: "var(--text-secondary)", marginTop: "2px" }}>
-                          받치는 근거: {candidate.supporting_factors.map((factor) => koCode(factor)).join(", ") || "없음"}
+                          받치는 근거: {candidate.supporting_factors.map((factor) => userFacingText(factor)).join(", ") || "없음"}
                         </small>
                       </td>
                     </tr>
@@ -1058,10 +1144,10 @@ export default async function PortfolioCoveragePage() {
                   <div>
                     <span className="metric-sub">우선순위 {priority.priority}</span>
                     <strong>{priority.symbol} · {formatPercent(priority.current_weight)}</strong>
-                    <span>{koCode(priority.action)}</span>
+                    <span>{userFacingText(priority.action)}</span>
                   </div>
                   <span style={{ color: "var(--text-secondary)", maxWidth: "520px" }}>
-                    {koReason(priority.reason)}
+                    {userFacingText(priority.reason)}
                   </span>
                 </div>
               ))}
@@ -1071,7 +1157,7 @@ export default async function PortfolioCoveragePage() {
 
         <article className="bento-card span-4">
           <div style={{ marginBottom: "24px" }}>
-            <span className="metric-sub">포지션 커버리지</span>
+            <span className="metric-sub">보유 연결 상태</span>
             <h2 style={{ fontSize: "1.5rem" }}>보유 종목 검토 지도</h2>
           </div>
           
@@ -1089,7 +1175,7 @@ export default async function PortfolioCoveragePage() {
 
             {!hasPositions ? (
               <p className="empty-state">
-                이 기준일에 보유 포지션 스냅샷이 없어 커버리지 표를 만들 수 없다. 포트폴리오 포지션 적재 배치가
+                이 기준일에 보유 포지션 스냅샷이 없어 연결 상태 표를 만들 수 없다. 포트폴리오 포지션 적재 배치가
                 최신 영업일 스냅샷을 저장하면 심볼, 비중, 투자 논리, 성과 측정 상태가 여기에 표시된다.
               </p>
             ) : null}
@@ -1114,12 +1200,12 @@ export default async function PortfolioCoveragePage() {
                     width: "140px", 
                     color: position.coverage_status === 'covered' ? 'var(--accent-green)' : 'var(--text-secondary)'
                   }}>
-                    {position.coverage_status === "missing_outcome" ? "측정 대기" : koCode(position.outcome_status)}
+                      {position.coverage_status === "missing_outcome" ? "측정 대기" : userFacingText(position.outcome_status)}
                   </span>
                   <span style={{ flex: 1, color: "var(--text-primary)", fontWeight: 500 }}>
-                    {koLabel(position.action)}
+                    {userFacingText(position.action)}
                     <small style={{ display: "block", color: "var(--text-secondary)", fontWeight: 400, marginTop: "4px" }}>
-                      {koReason(position.position_size_note)}
+                      {userFacingText(position.position_size_note)}
                     </small>
                   </span>
                 </div>
