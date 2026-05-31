@@ -224,6 +224,7 @@ const KOREAN_LABELS: Record<string, string> = {
   order_boundary: "주문 차단",
   kill_switch: "킬 스위치",
   paper_validation: "가상 검증",
+  paper_validation_and_order_boundary: "페이퍼 검증과 주문 경계",
   portfolio_risk_budget_guardrail: "포트폴리오 위험 예산",
   portfolio_risk_budget_guardrail_blocker: "위험 예산 차단 사유",
   blocked_by_risk_budget_review: "위험 예산 검토 필요",

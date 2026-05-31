@@ -1442,7 +1442,7 @@ export default async function RecommendationPage({ params }: RecommendationPageP
         {professionalAudit.missing_layer_labels.length > 0 ? (
           <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginTop: "18px" }}>
             {professionalAudit.missing_layer_labels.map((label) => (
-              <span className="risk-tag risk-medium" key={label}>{label}</span>
+              <span className="risk-tag risk-medium" key={label}>{koLabel(label)}</span>
             ))}
           </div>
         ) : null}
@@ -1450,11 +1450,11 @@ export default async function RecommendationPage({ params }: RecommendationPageP
         <div className="flow-steps" style={{ marginTop: "18px" }}>
           {professionalAudit.layer_checks.map((layer) => (
             <article className="flow-step" key={layer.key}>
-              <span>{layer.label}</span>
+              <span>{koLabel(layer.label)}</span>
               <strong className={`risk-tag ${professionalLayerTone(layer.status)}`}>
                 {professionalLayerStatusLabel(layer.status)}
               </strong>
-              <p>{layer.detail}</p>
+              <p>{koLabel(layer.detail)}</p>
               <small style={{ color: "var(--text-secondary)", fontWeight: 800 }}>
                 원천: {koCode(layer.source)}
               </small>
