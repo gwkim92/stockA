@@ -37,8 +37,8 @@
 
 ## Done Criteria
 
-- [ ] `/source-documents/[documentId]` has a first-screen Korean command panel explaining document summary, excerpts, linked AI evidence, and access policy.
-- [ ] The page routes users to source summary, excerpts, linked AI evidence, and access policy without implying approval/write actions.
-- [ ] Local frontend verification passes.
-- [ ] AWH task verification passes.
-- [ ] EC2/tunnel route smoke confirms the new Korean copy renders.
+- [x] `/source-documents/[documentId]` has a first-screen Korean command panel explaining document summary, excerpts, linked AI evidence, and access policy.
+- [x] The page routes users to source summary, excerpts, linked AI evidence, and access policy without implying approval/write actions.
+- [x] Local frontend verification passes.
+- [x] AWH task verification passes.
+- [x] EC2/tunnel route smoke confirms the new Korean copy renders.
