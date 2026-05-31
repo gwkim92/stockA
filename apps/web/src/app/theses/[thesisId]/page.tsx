@@ -374,12 +374,12 @@ export default async function ThesisPage({ params }: ThesisPageProps) {
         </div>
       </section>
 
-      <section className="bento-card reveal delay-1" aria-label="전문 thesis gate">
+      <section className="bento-card reveal delay-1" aria-label="전문 투자 논리 검증">
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "20px", flexWrap: "wrap", marginBottom: "20px" }}>
           <div>
-            <span className="metric-sub">전문 Thesis Gate</span>
+            <span className="metric-sub">전문 투자 논리 검증</span>
             <h2 style={{ fontSize: "1.5rem", marginTop: "6px" }}>
-              {professionalGates.status === "complete" ? "전문 게이트 통과" : professionalGates.status === "blocked" ? "게이트 차단" : "재검토 필요"}
+              {professionalGates.status === "complete" ? "전문 검증 통과" : professionalGates.status === "blocked" ? "전문 검증 차단" : "재검토 필요"}
             </h2>
             <p style={{ color: "var(--text-secondary)", marginTop: "8px", maxWidth: "860px" }}>
               {professionalGates.summary}
@@ -394,7 +394,7 @@ export default async function ThesisPage({ params }: ThesisPageProps) {
           <div className="rail-cell">
             <span>통과</span>
             <strong>{professionalGates.pass_count}</strong>
-            <small>{professionalGates.gate_count}개 gate</small>
+            <small>{professionalGates.gate_count}개 검증 기준</small>
           </div>
           <div className="rail-cell">
             <span>주의</span>
@@ -446,7 +446,7 @@ export default async function ThesisPage({ params }: ThesisPageProps) {
 
       <ValuationTargetRangeCard
         valuation={valuationTargetRange}
-        eyebrow="Thesis 가격 검토"
+        eyebrow="투자 논리 가격 검토"
         title={`${data.symbol} 목표가 범위와 안전마진`}
       />
 
@@ -458,7 +458,7 @@ export default async function ThesisPage({ params }: ThesisPageProps) {
               {lifecycleReadinessLabel(lifecycle.readiness.status)}
             </h2>
             <p style={{ color: "var(--text-secondary)", marginTop: "8px", maxWidth: "820px" }}>
-              이 섹션은 종목을 볼 때 반드시 확인해야 하는 순서다. AI 리서치와 thesis 원장을 합쳐서 매수 논리, 성립 조건,
+              이 섹션은 종목을 볼 때 반드시 확인해야 하는 순서다. AI 리서치와 투자 논리 원장을 합쳐서 매수 논리, 성립 조건,
               이탈 조건, 밸류에이션 관점, 다음 재검토일을 분리한다.
             </p>
           </div>
@@ -506,7 +506,7 @@ export default async function ThesisPage({ params }: ThesisPageProps) {
           <article className="bento-card span-2">
             <span className="metric-sub">무엇이 맞아야 하는가</span>
             <h3 style={{ fontSize: "1.15rem", margin: "6px 0 12px" }}>촉매와 성립 조건</h3>
-            <LifecycleList empty="AI 리서치나 thesis 원장에 촉매 조건이 없다." items={lifecycle.catalysts} />
+            <LifecycleList empty="AI 리서치나 투자 논리 원장에 촉매 조건이 없다." items={lifecycle.catalysts} />
           </article>
 
           <article className="bento-card span-2">
@@ -562,10 +562,10 @@ export default async function ThesisPage({ params }: ThesisPageProps) {
             </div>
             <AuditMetadata
               items={[
-                { label: "생애주기 원천", value: lifecycle.source },
-                { label: "기업 리서치 artifact", value: lifecycle.equity_research_artifact_id },
-                { label: "누락 항목", value: lifecycle.readiness.missing_items.join(", ") || "none" },
-                { label: "밸류에이션 입력", value: lifecycle.readiness.has_valuation_view ? "present" : "missing" },
+                { label: "생애주기 원천", value: lifecycleSourceLabel(lifecycle.source) },
+                { label: "기업 리서치 결과", value: lifecycle.equity_research_artifact_id || "없음" },
+                { label: "누락 항목", value: missingLifecycleItems(lifecycle.readiness.missing_items) },
+                { label: "밸류에이션 입력", value: lifecycle.readiness.has_valuation_view ? "확인됨" : "부족" },
               ]}
               summary="생애주기 판정 원천 보기"
             />
@@ -629,7 +629,7 @@ export default async function ThesisPage({ params }: ThesisPageProps) {
           </div>
         ) : (
           <p style={{ color: "var(--text-secondary)", lineHeight: 1.65, margin: 0, fontSize: "0.92rem" }}>
-            아직 검토 signal 기록이 없다.
+            아직 검토 신호 기록이 없다.
           </p>
         )}
       </section>

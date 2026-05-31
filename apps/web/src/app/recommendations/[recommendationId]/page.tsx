@@ -96,7 +96,7 @@ const FUNDAMENTAL_COMPONENT_META: Record<string, { lens: string; title: string; 
   thesis_consistency_score: {
     lens: "투자 논리",
     title: "추천과 투자 논리가 서로 맞는가",
-    body: "활성 thesis, 무효화 조건, 보유 검토 맥락이 추천 방향과 충돌하지 않는지 점검한다.",
+    body: "활성 투자 논리, 무효화 조건, 보유 검토 맥락이 추천 방향과 충돌하지 않는지 점검한다.",
   },
 };
 
@@ -1103,7 +1103,7 @@ function recommendationWaterfallCards({
       title: data.equity_research ? "리서치 연결" : "리서치 대기",
       body: data.equity_research
         ? "사업 설명, 촉매, 리스크, 무효화 조건이 AI 배치 리서치로 연결됐다."
-        : "기업 리서치 artifact가 아직 없어 사업 맥락은 제한적으로만 볼 수 있다.",
+        : "기업 리서치 결과가 아직 없어 사업 맥락은 제한적으로만 볼 수 있다.",
       href: "#recommendation-equity-research",
       hrefLabel: "기업 리서치 보기",
       tone: data.equity_research ? "ready" : "watch",
@@ -1144,8 +1144,8 @@ function recommendationWaterfallCards({
       body: riskBlocked
         ? "차단된 근거나 전문 분석 원천 문제가 있어 추천은 기록으로만 남긴다."
         : outcomeMeasured
-          ? `성과 측정 완료. 알파 ${formatPercent(data.outcome.alpha)}와 근거 gate를 함께 본다.`
-          : "성과 측정창이 아직 끝나지 않았다. weight 변경이나 자동 주문은 금지 상태다.",
+          ? `성과 측정 완료. 알파 ${formatPercent(data.outcome.alpha)}와 근거 검증 기준을 함께 본다.`
+          : "성과 측정창이 아직 끝나지 않았다. 추천 산식 가중치 변경이나 자동 주문은 금지 상태다.",
       href: "#recommendation-evidence-review",
       hrefLabel: "리스크 점검 보기",
       tone: riskBlocked ? "blocked" : qualityDecision.tone === "risk-low" ? "ready" : "watch",
@@ -1178,7 +1178,7 @@ function RecommendationDecisionWaterfall({
   return (
     <section className={`recommendation-waterfall-panel ${qualityDecision.tone} reveal delay-1`} aria-labelledby="recommendation-waterfall-title">
       <div className="recommendation-waterfall-lead">
-        <span>추천 결론</span>
+        <span>현재 판단</span>
         <h2 id="recommendation-waterfall-title">
           {data.symbol} · {qualityDecision.status}
         </h2>
@@ -1193,7 +1193,11 @@ function RecommendationDecisionWaterfall({
             <strong>{formatPercent(data.score)}</strong>
           </div>
           <div>
-            <span>주문</span>
+            <span>페이퍼 검증</span>
+            <strong>{decisionWaterfall.paper_validation_input_allowed ? "입력 가능" : "입력 차단"}</strong>
+          </div>
+          <div>
+            <span>증권사 주문</span>
             <strong>{decisionWaterfall.broker_submit_allowed ? "허용" : "차단"}</strong>
           </div>
         </div>
@@ -1378,7 +1382,7 @@ export default async function RecommendationPage({ params }: RecommendationPageP
           eyebrow="전문 의사결정 흐름"
           title={`${data.symbol} 추천을 분석서처럼 읽는다`}
           summary={decisionWaterfall.summary}
-          footer={`점수 정책: ${koCode(decisionWaterfall.score_policy)}. 주문 경계: ${koCode(decisionWaterfall.order_boundary)}.`}
+          footer={`추천 산식 정책: ${koCode(decisionWaterfall.score_policy)}. 주문 경계: ${koCode(decisionWaterfall.order_boundary)}.`}
           steps={professionalResearchSteps}
         />
       </section>
@@ -1419,7 +1423,7 @@ export default async function RecommendationPage({ params }: RecommendationPageP
           <div className="rail-cell rail-critical">
             <span>거래 경계</span>
             <strong>{koCode(professionalAudit.order_boundary)}</strong>
-            <small>추천 산식 변경 {professionalAudit.automatic_weight_change_allowed ? "허용" : "금지"} · 주문 {professionalAudit.broker_submit_allowed ? "허용" : "금지"}</small>
+            <small>추천 산식 가중치 변경 {professionalAudit.automatic_weight_change_allowed ? "허용" : "금지"} · 주문 {professionalAudit.broker_submit_allowed ? "허용" : "금지"}</small>
           </div>
         </div>
 
@@ -1610,7 +1614,7 @@ export default async function RecommendationPage({ params }: RecommendationPageP
               <div className="rail-cell">
                 <span>무효화 조건</span>
                 <strong>{equityResearch.invalidation_conditions.length}</strong>
-                <small>thesis 재검토 기준</small>
+                <small>투자 논리 재검토 기준</small>
               </div>
             </div>
 
@@ -1666,8 +1670,8 @@ export default async function RecommendationPage({ params }: RecommendationPageP
           </>
         ) : (
           <div className="empty-state">
-            아직 이 종목의 기업 리서치 결과가 없다. `equity-research-reporting-daily`
-            배치가 실행되면 사업 설명, 재무 변화, 촉매, 리스크, 무효화 조건이 이곳에 연결된다.
+            아직 이 종목의 기업 리서치 결과가 없다. 기업 리서치 배치가 실행되면 사업 설명, 재무 변화,
+            촉매, 리스크, 무효화 조건이 이곳에 연결된다.
           </div>
         )}
       </section>
