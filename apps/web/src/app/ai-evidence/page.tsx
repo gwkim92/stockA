@@ -173,6 +173,8 @@ export default async function AiEvidenceIndexPage() {
   const clusterEvidenceCount = allSummary.news_cluster_summary_count;
   const suppressedLowSignalCount = data.summary.suppressed_low_signal_candidate_count;
   const blockedCandidateCount = rejectedData.summary.event_count + suppressedData.summary.event_count;
+  const translatedCandidateCount = newsCandidates.filter((event) => event.korean_title || event.korean_summary).length;
+  const firstCandidateLink = candidates[0]?.ai_evidence_id ? evidenceHref(candidates[0].ai_evidence_id) : null;
 
   return (
     <div className="pageStack">
@@ -187,6 +189,61 @@ export default async function AiEvidenceIndexPage() {
           한 뉴스 단위로 AI가 구조화한 후보를 모았다. 종목이 없는 저신호 일반 뉴스는
           기본 후보에서 숨기고, 구조화 결과와 차단 후보는 별도 화면에서 확인한다.
         </p>
+      </section>
+
+      <section className="ai-evidence-command-panel reveal delay-1" aria-labelledby="ai-evidence-command-title">
+        <div className="ai-evidence-command-lead">
+          <span>AI 후보 작업대</span>
+          <h2 id="ai-evidence-command-title">후보를 먼저 나누고, 상세에서 원천까지 추적한다.</h2>
+          <p>
+            이 화면은 AI가 만든 뉴스 후보를 분류하는 입구다. 직접 종목 후보는 보유·추천 근거 후보로,
+            상위 흐름 후보는 테마 전파 입력으로, 차단 후보는 추천 입력 제외 항목으로 본다.
+          </p>
+        </div>
+        <div className="ai-evidence-command-grid">
+          <a className="ai-evidence-command-card ready" href="#accepted-candidates">
+            <span>01</span>
+            <small>직접 종목</small>
+            <strong>{directNewsCandidates.length}개 후보</strong>
+            <em>회사명·티커가 명확한 뉴스</em>
+            <p>원문과 한국어 번역을 대조한 뒤 종목 상세, 추천 상세, 보유 thesis에서 실제 반영 위치를 확인한다.</p>
+            <b>직접 후보 보기</b>
+          </a>
+          <a className="ai-evidence-command-card watch" href="#macro-candidates">
+            <span>02</span>
+            <small>상위 흐름</small>
+            <strong>{macroNewsCandidates.length}개 후보</strong>
+            <em>종목을 억지로 붙이지 않음</em>
+            <p>금리, 정책, 유가, 산업 흐름은 먼저 테마로 저장하고 노출도 규칙으로 관련 종목에 전파한다.</p>
+            <b>흐름 후보 보기</b>
+          </a>
+          <Link className="ai-evidence-command-card ready" href={"/ai-evidence/results" as Route}>
+            <span>03</span>
+            <small>통과 결과</small>
+            <strong>{newsCandidates.length}개 구조화</strong>
+            <em>한국어 번역 {translatedCandidateCount}/{newsCandidates.length}</em>
+            <p>추천 입력 후보로 넘길 수 있는 구조화 결과를 종목, 테마, 방향, 신뢰도 기준으로 따로 확인한다.</p>
+            <b>구조화 결과 보기</b>
+          </Link>
+          <Link
+            className={blockedCandidateCount > 0 ? "ai-evidence-command-card block" : "ai-evidence-command-card ready"}
+            href={"/ai-evidence/blocked" as Route}
+          >
+            <span>04</span>
+            <small>차단·보류</small>
+            <strong>{blockedCandidateCount}개 제외</strong>
+            <em>저신호 {suppressedLowSignalCount} · 차단 {rejectedData.summary.event_count}</em>
+            <p>추천 근거로 쓰지 않는 후보를 본다. 유효한 뉴스가 막혔다면 분류 체계와 종목 별칭을 보강한다.</p>
+            <b>차단 후보 보기</b>
+          </Link>
+        </div>
+        {firstCandidateLink ? (
+          <div className="ai-evidence-command-footer">
+            <span>상세 추적</span>
+            <strong>후보 하나를 열면 원천 뉴스, 한국어 번역, AI 구조화 필드, validator 결과, 추천 연결을 한 화면에서 본다.</strong>
+            <Link href={firstCandidateLink}>최신 후보 상세 열기</Link>
+          </div>
+        ) : null}
       </section>
 
       <section className="screen-switchboard reveal delay-1" aria-label="뉴스 처리 단계 바로가기">
@@ -280,7 +337,7 @@ export default async function AiEvidenceIndexPage() {
         )}
       </section>
 
-      <section className="bento-card span-4 reveal delay-3" aria-labelledby="ai-evidence-macro-list-title">
+      <section className="bento-card span-4 reveal delay-3" id="macro-candidates" aria-labelledby="ai-evidence-macro-list-title">
         <div className="section-heading stacked-heading">
           <span>상위 흐름</span>
           <h2 id="ai-evidence-macro-list-title">종목 없이 먼저 보는 거시·테마 후보</h2>
