@@ -73,6 +73,9 @@ export default async function SourceDocumentPage({ params }: SourceDocumentPageP
   const { documentId } = await params;
   const response = await getSourceDocumentDetail(documentId);
   const data = response.data;
+  const hasKoreanSummary = Boolean(data.korean_title || data.korean_summary);
+  const firstEvidenceId = data.linked_evidence[0]?.evidence_id ?? null;
+  const downloadStatus = data.access_policy.browser_download_enabled ? "원문 열람 가능" : "원문 열람 제한";
 
   return (
     <div className="pageStack">
@@ -107,6 +110,54 @@ export default async function SourceDocumentPage({ params }: SourceDocumentPageP
         </div>
       </section>
 
+      <section className="ai-evidence-command-panel reveal delay-1" aria-labelledby="source-command-title">
+        <div className="ai-evidence-command-lead">
+          <span>원천 문서 작업대</span>
+          <h2 id="source-command-title">AI 해석의 출발점을 한국어로 먼저 대조한다.</h2>
+          <p>
+            이 문서는 추천을 승인하는 화면이 아니다. 원문 제목·요약, 발췌, 연결된 AI 근거를 확인해
+            AI가 붙인 테마·종목·방향이 원천과 맞는지 검증하는 화면이다.
+          </p>
+        </div>
+        <div className="ai-evidence-command-grid">
+          <a className="ai-evidence-command-card ready" href="#source-document-summary">
+            <span>01</span>
+            <small>문서 요약</small>
+            <strong>{koCode(data.source_type)}</strong>
+            <em>{hasKoreanSummary ? "한국어 요약 있음" : "한국어 요약 추론"}</em>
+            <p>영어 원문을 바로 읽기 전에 이 문서가 어떤 뉴스·테마 판단에 쓰였는지 먼저 확인한다.</p>
+            <b>문서 요약 보기</b>
+          </a>
+          <a className="ai-evidence-command-card watch" href="#source-document-excerpts">
+            <span>02</span>
+            <small>검토 발췌</small>
+            <strong>{data.excerpts.length}개 발췌</strong>
+            <em>영어 원문은 펼쳐서 대조</em>
+            <p>화면은 한국어 검토 요약을 먼저 보여주고, 필요한 경우에만 원문 발췌를 펼쳐 확인한다.</p>
+            <b>발췌 보기</b>
+          </a>
+          <a className="ai-evidence-command-card ready" href="#linked-ai-evidence">
+            <span>03</span>
+            <small>AI 근거 연결</small>
+            <strong>{data.linked_evidence.length}개 근거</strong>
+            <em>{firstEvidenceId ? "상세 연결 가능" : "연결 근거 없음"}</em>
+            <p>연결된 AI 근거 상세에서 원천, 번역, 구조화, 자동 검증, 추천 연결을 이어서 본다.</p>
+            <b>AI 근거 보기</b>
+          </a>
+          <a
+            className={data.access_policy.browser_download_enabled ? "ai-evidence-command-card ready" : "ai-evidence-command-card block"}
+            href="#source-access-policy"
+          >
+            <span>04</span>
+            <small>접근 정책</small>
+            <strong>{downloadStatus}</strong>
+            <em>{koCode(data.access_policy.reason)}</em>
+            <p>다운로드 가능 여부는 원천 접근 정책일 뿐이다. 이 화면에서 추천 승인이나 주문 처리는 하지 않는다.</p>
+            <b>접근 정책 보기</b>
+          </a>
+        </div>
+      </section>
+
       <section className="source-review-panel reveal delay-1" aria-labelledby="source-review-title">
         <div>
           <span>한국어 검토 요약</span>
@@ -121,7 +172,7 @@ export default async function SourceDocumentPage({ params }: SourceDocumentPageP
       </section>
 
       <section className="bento-grid reveal delay-1">
-        <article className="bento-card span-2" style={{ background: "var(--bg-card-hover)", borderColor: "var(--border-focus)" }}>
+        <article className="bento-card span-2" id="source-document-summary" style={{ background: "var(--bg-card-hover)", borderColor: "var(--border-focus)" }}>
           <div style={{ marginBottom: "24px" }}>
             <span className="metric-sub">문서</span>
             <NewsTitleBlock
@@ -178,7 +229,7 @@ export default async function SourceDocumentPage({ params }: SourceDocumentPageP
           </div>
         </article>
 
-        <article className="bento-card span-2 row-span-2">
+        <article className="bento-card span-2 row-span-2" id="source-document-excerpts">
           <div style={{ marginBottom: "24px" }}>
             <span className="metric-sub">검토된 발췌</span>
             <h2 style={{ fontSize: "1.5rem" }}>검토 발췌 목록</h2>
@@ -209,7 +260,7 @@ export default async function SourceDocumentPage({ params }: SourceDocumentPageP
           </div>
         </article>
 
-        <article className="bento-card span-2">
+        <article className="bento-card span-2" id="linked-ai-evidence">
           <div style={{ marginBottom: "24px" }}>
             <span className="metric-sub">연결된 증거</span>
             <h2 style={{ fontSize: "1.5rem" }}>AI 증거 연결</h2>
@@ -248,7 +299,7 @@ export default async function SourceDocumentPage({ params }: SourceDocumentPageP
               </div>
             ))}
           </div>
-          <div style={{ padding: "12px 16px", background: "rgba(255,255,255,0.05)", borderRadius: "var(--radius-sm)", fontSize: "0.85rem", color: "var(--text-secondary)" }}>
+          <div id="source-access-policy" style={{ padding: "12px 16px", background: "rgba(255,255,255,0.05)", borderRadius: "var(--radius-sm)", fontSize: "0.85rem", color: "var(--text-secondary)" }}>
             <span className="metric-sub" style={{ display: "block", marginBottom: "4px" }}>접근 정책 메모</span>
             {koLabel(data.access_policy.reason)}
           </div>
