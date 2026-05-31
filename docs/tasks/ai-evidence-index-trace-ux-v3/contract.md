@@ -38,8 +38,8 @@
 
 ## Done Criteria
 
-- [ ] `/ai-evidence` has a first-screen Korean trace command panel explaining direct stock, macro/theme, blocked/suppressed, and detail-review lanes.
-- [ ] The page routes users to direct candidates, macro candidates, structured results, blocked candidates, and detail pages without implying final recommendation approval.
-- [ ] Local frontend verification passes.
-- [ ] AWH task verification passes.
-- [ ] EC2/tunnel route smoke confirms the new Korean copy renders.
+- [x] `/ai-evidence` has a first-screen Korean trace command panel explaining direct stock, macro/theme, blocked/suppressed, and detail-review lanes.
+- [x] The page routes users to direct candidates, macro candidates, structured results, blocked candidates, and detail pages without implying final recommendation approval.
+- [x] Local frontend verification passes.
+- [x] AWH task verification passes.
+- [x] EC2/tunnel route smoke confirms the new Korean copy renders.
