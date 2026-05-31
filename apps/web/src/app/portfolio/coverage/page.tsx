@@ -2,7 +2,7 @@ import type { Route } from "next";
 import Link from "next/link";
 
 import { getPortfolioCoverage, getTradingReadiness } from "@/lib/frontend-api";
-import { koCode, koLabel } from "@/lib/korean-labels";
+import { koCode, koLabel, koReason } from "@/lib/korean-labels";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "포트폴리오 커버리지" };
@@ -193,6 +193,10 @@ function actionRouterLabel(status: string, executed: boolean, routeAction: strin
   return koCode(status);
 }
 
+function orderSubmitLabel(allowed: boolean) {
+  return `증권사 주문 ${allowed ? "허용" : "금지"}`;
+}
+
 function formatScore(value: number | null | undefined) {
   if (value === null || value === undefined) {
     return "없음";
@@ -274,7 +278,7 @@ export default async function PortfolioCoveragePage() {
       index: "01",
       label: "보유 검토",
       title: hasPositions ? `${data.summary.position_count}개 보유` : "보유 스냅샷 없음",
-      metric: `thesis 연결률 ${formatPercent(thesisCoverageRatio)} · outcome ${formatPercent(outcomeCoverageRatio)}`,
+      metric: `투자 논리 연결률 ${formatPercent(thesisCoverageRatio)} · 성과 측정 ${formatPercent(outcomeCoverageRatio)}`,
       body: hasPositions
         ? "보유 종목마다 투자 논리와 성과 측정 상태가 연결됐는지 먼저 본다. 논리 누락 종목은 보유 판단 근거가 약하다."
         : "이 기준일에는 포지션 스냅샷이 없어 보유 검토를 만들 수 없다. 포지션 수집 상태를 먼저 확인한다.",
@@ -308,11 +312,11 @@ export default async function PortfolioCoveragePage() {
     },
     {
       index: "04",
-      label: "성과·weight 경계",
-      title: reviewCalibration.weight_review_blocked ? "weight 변경 금지" : "수동 검토 가능",
+      label: "성과·추천 산식 경계",
+      title: reviewCalibration.weight_review_blocked ? "추천 산식 변경 금지" : "별도 검토 가능",
       metric: `성숙일 ${reviewCalibration.estimated_maturity_date || "미정"} · ${koCode(reviewCalibration.guardrails.order_boundary)}`,
       body: reviewCalibration.weight_review_blocked
-        ? "성과 표본이 성숙하기 전에는 추천 weight를 바꾸지 않는다. broker 주문과 자동 리밸런싱도 계속 차단된다."
+        ? "성과 표본이 성숙하기 전에는 추천 산식 가중치를 바꾸지 않는다. 증권사 주문과 자동 리밸런싱도 계속 차단된다."
         : "수동 검토 조건이 열려도 이 화면에서 자동 주문이나 자동 비중 변경은 하지 않는다.",
       href: "#portfolio-outcome-boundary",
       cta: "경계 보기",
@@ -329,8 +333,8 @@ export default async function PortfolioCoveragePage() {
         <div>
           <h1 id="portfolio-coverage-title">보유 종목을 검토하고, 무엇은 아직 바꾸면 안 되는지 확인한다.</h1>
           <p>
-            이 화면은 포트폴리오 주문 화면이 아니다. 보유 thesis, 리스크 예산, 리밸런싱 후보,
-            성과 성숙 대기, weight 변경 금지 상태를 분리해서 보여준다.
+            이 화면은 포트폴리오 주문 화면이 아니다. 보유 투자 논리, 리스크 예산, 리밸런싱 후보,
+            성과 성숙 대기, 추천 산식 가중치 변경 금지 상태를 분리해서 보여준다.
           </p>
         </div>
       </section>
@@ -341,7 +345,7 @@ export default async function PortfolioCoveragePage() {
           <h2 id="portfolio-command-title">보유를 유지할지보다, 먼저 무엇을 검토해야 하는지 본다.</h2>
           <p>
             기준일 {data.as_of_date} · 측정 종료 {data.coverage_measurement_end_date}.
-            모든 카드는 읽기 전용이며, broker 주문·자동 리밸런싱·추천 weight 변경은 이 화면에서 실행되지 않는다.
+            모든 카드는 읽기 전용이며, 증권사 주문·자동 리밸런싱·추천 산식 가중치 변경은 이 화면에서 실행되지 않는다.
           </p>
         </div>
         <div className="portfolio-command-grid">
@@ -380,7 +384,7 @@ export default async function PortfolioCoveragePage() {
         <article className="bento-card">
           <span className="metric-label">성과 측정 커버리지</span>
           <strong className="metric-value">{formatPercent(outcomeCoverageRatio)}</strong>
-          <span className="metric-sub">장기 outcome 기준</span>
+          <span className="metric-sub">장기 성과 기준</span>
         </article>
 
         <article className="bento-card">
@@ -510,12 +514,12 @@ export default async function PortfolioCoveragePage() {
             <article className="rail-cell">
               <span>벤치마크 / 포지션</span>
               <strong>{reviewHistory.benchmark_decision_count} / {reviewHistory.position_sizing_decision_count}</strong>
-              <small>결정 family 분리</small>
+              <small>판단군 분리</small>
             </article>
             <article className="rail-cell rail-critical">
               <span>주문 경계</span>
               <strong>{koCode(reviewHistory.guardrails.order_boundary)}</strong>
-              <small>broker 전송 {reviewHistory.guardrails.broker_submit_allowed ? "허용" : "금지"}</small>
+              <small>{orderSubmitLabel(reviewHistory.guardrails.broker_submit_allowed)}</small>
             </article>
           </div>
           {reviewHistory.latest_decisions.length > 0 ? (
@@ -527,17 +531,17 @@ export default async function PortfolioCoveragePage() {
                       {decision.decision_label || koCode(decision.decision_type)}
                     </span>
                     <strong>{decision.symbol} · {koCode(decision.decision_family)}</strong>
-                    <span>{decision.next_review_action}</span>
+                    <span>{koReason(decision.next_review_action)}</span>
                   </div>
                   <span style={{ color: "var(--text-secondary)", maxWidth: "520px" }}>
-                    {decision.rationale || "저장된 설명 없음"}
+                    {koReason(decision.rationale || "저장된 설명 없음")}
                   </span>
                 </div>
               ))}
             </div>
           ) : (
             <p className="empty-state" style={{ margin: 0 }}>
-              아직 durable 검토 이력이 없다. `portfolio-review-decision-history-run` 실행 후 이곳에 최신 결정이 표시된다.
+              아직 저장된 검토 이력이 없다. 포트폴리오 검토 이력이 생성되면 이곳에 최신 결정이 표시된다.
             </p>
           )}
         </article>
@@ -553,8 +557,8 @@ export default async function PortfolioCoveragePage() {
             </span>
           </div>
           <p style={{ color: "var(--text-secondary)", marginTop: 0 }}>
-            이 평가는 리밸런싱이나 추천 weight를 바꾸지 않는다. 이전 검토 결정을 outcome, paper validation,
-            thesis, 가격 변화와 대조해서 다음 검토의 신뢰도를 높이는 감사 자료다.
+            이 평가는 리밸런싱이나 추천 산식 가중치를 바꾸지 않는다. 이전 검토 결정을 성과 측정,
+            페이퍼 검증, 투자 논리, 가격 변화와 대조해서 다음 검토의 신뢰도를 높이는 검증 자료다.
           </p>
           <div className="status-rail compact-rail" aria-label="검토 결정 사후평가 요약" style={{ marginBottom: "20px" }}>
             <article className="rail-cell">
@@ -575,7 +579,7 @@ export default async function PortfolioCoveragePage() {
             <article className="rail-cell rail-critical">
               <span>주문 경계</span>
               <strong>{koCode(reviewFeedback.guardrails.order_boundary)}</strong>
-              <small>broker 전송 {reviewFeedback.guardrails.broker_submit_allowed ? "허용" : "금지"}</small>
+              <small>{orderSubmitLabel(reviewFeedback.guardrails.broker_submit_allowed)}</small>
             </article>
           </div>
           {reviewFeedback.latest_items.length > 0 ? (
@@ -587,10 +591,10 @@ export default async function PortfolioCoveragePage() {
                       {koCode(item.feedback_status)}
                     </span>
                     <strong>{item.symbol} · {item.decision_label || koCode(item.decision_type)}</strong>
-                    <span>{item.feedback_reason}</span>
+                    <span>{koReason(item.feedback_reason)}</span>
                   </div>
                   <span style={{ color: "var(--text-secondary)", maxWidth: "520px" }}>
-                    outcome {koCode(item.evidence.recommendation_outcome.outcome_label || "미측정")} · alpha{" "}
+                    성과 {koCode(item.evidence.recommendation_outcome.outcome_label || "미측정")} · 초과수익{" "}
                     {formatPercent(item.evidence.recommendation_outcome.alpha_pct)} · 가격{" "}
                     {formatPercent(item.evidence.price_evidence.price_return_pct)}
                   </span>
@@ -599,8 +603,7 @@ export default async function PortfolioCoveragePage() {
             </div>
           ) : (
             <p className="empty-state" style={{ margin: 0 }}>
-              아직 사후평가 이력이 없다. outcome window가 끝난 뒤 `portfolio-review-decision-outcome-feedback-run`을 실행하면
-              검토 판단이 맞았는지 여기에 표시된다.
+              아직 사후평가 이력이 없다. 성과 측정 기간이 끝난 뒤 검토 판단이 맞았는지 여기에 표시된다.
             </p>
           )}
         </article>
@@ -609,11 +612,11 @@ export default async function PortfolioCoveragePage() {
           <div className="section-heading">
             <div>
               <span className="metric-sub">검토 신뢰도 누적평가</span>
-              <h2>성과 표본이 성숙하기 전에는 weight를 바꾸지 않는다</h2>
+              <h2>성과 표본이 성숙하기 전에는 추천 산식 가중치를 바꾸지 않는다</h2>
             </div>
             <span className={`risk-tag ${reviewCalibration.weight_review_blocked ? "risk-medium" : "risk-low"}`}>
               {reviewCalibration.status === "loaded"
-                ? reviewCalibration.weight_review_blocked ? "추천 산식 변경 금지" : "수동 검토 가능"
+                ? reviewCalibration.weight_review_blocked ? "추천 산식 변경 금지" : "별도 검토 가능"
                 : "누적평가 없음"}
             </span>
           </div>
@@ -623,7 +626,7 @@ export default async function PortfolioCoveragePage() {
           </p>
           <div className="status-rail compact-rail" aria-label="검토 신뢰도 누적평가 요약" style={{ marginBottom: "20px" }}>
             <article className="rail-cell">
-              <span>feedback 실행</span>
+              <span>사후평가 실행</span>
               <strong>{reviewCalibration.feedback_run_count}/{reviewCalibration.min_feedback_runs}</strong>
               <small>부족 {reviewCalibration.feedback_run_gap}회 · {reviewCalibration.lookback_days || "기간 미확인"}일 기준</small>
             </article>
@@ -651,18 +654,18 @@ export default async function PortfolioCoveragePage() {
             <article className="rail-cell rail-critical">
               <span>주문 경계</span>
               <strong>{koCode(reviewCalibration.guardrails.order_boundary)}</strong>
-              <small>broker 전송 {reviewCalibration.guardrails.broker_submit_allowed ? "허용" : "금지"}</small>
+              <small>{orderSubmitLabel(reviewCalibration.guardrails.broker_submit_allowed)}</small>
             </article>
           </div>
           <p className="empty-state" style={{ marginTop: 0 }}>
             <strong>차단 이유</strong>
-            <span>{reviewCalibration.weight_review_block_reason}</span>
+            <span>{koReason(reviewCalibration.weight_review_block_reason)}</span>
           </p>
           <div className="bento-list" style={{ gap: "8px" }}>
             {reviewCalibration.family_summaries.slice(0, 3).map((summary) => (
               <div className="bento-list-item" key={`calibration-${summary.decision_family}`}>
                 <div>
-                  <span className="risk-tag risk-medium">family</span>
+                  <span className="risk-tag risk-medium">판단군</span>
                   <strong>{koCode(summary.decision_family || "unknown")}</strong>
                   <span>
                     전체 {summary.decision_count}개 · 성숙 {summary.mature_decision_count}개 · 반박{" "}
@@ -676,7 +679,7 @@ export default async function PortfolioCoveragePage() {
             ))}
             {reviewCalibration.family_summaries.length === 0 ? (
               <p className="empty-state" style={{ margin: 0 }}>
-                아직 누적 calibration 자료가 없다. 여러 사후평가가 쌓인 뒤 이곳에서 판단 family별 신뢰도를 본다.
+                아직 누적평가 자료가 없다. 여러 사후평가가 쌓인 뒤 이곳에서 판단군별 신뢰도를 본다.
               </p>
             ) : null}
           </div>
@@ -686,10 +689,10 @@ export default async function PortfolioCoveragePage() {
           <div className="section-heading">
             <div>
               <span className="metric-sub">검토 실행시점</span>
-              <h2>feedback과 calibration을 언제 다시 돌릴지 본다</h2>
+              <h2>사후평가와 누적평가를 언제 다시 돌릴지 본다</h2>
             </div>
             <span className={`risk-tag ${cadenceStatusClass(reviewCadence.cadence_status)}`}>
-              {reviewCadence.status === "loaded" ? koCode(reviewCadence.cadence_status) : "cadence 없음"}
+              {reviewCadence.status === "loaded" ? koCode(reviewCadence.cadence_status) : "실행 주기 없음"}
             </span>
           </div>
           <p style={{ color: "var(--text-secondary)", marginTop: 0 }}>
@@ -708,19 +711,19 @@ export default async function PortfolioCoveragePage() {
               <small>최소 {reviewCadence.min_horizon_days}일</small>
             </article>
             <article className="rail-cell">
-              <span>feedback/calibration</span>
+              <span>사후평가/누적평가</span>
               <strong>{reviewCadence.feedback.eval_run_id} / {reviewCadence.calibration.eval_run_id}</strong>
-              <small>feedback {koCode(reviewCadence.feedback.feedback_status)}</small>
+              <small>사후평가 {koCode(reviewCadence.feedback.feedback_status)}</small>
             </article>
             <article className="rail-cell rail-critical">
               <span>주문 경계</span>
               <strong>{koCode(reviewCadence.order_boundary)}</strong>
-              <small>broker 전송 {reviewCadence.broker_submit_allowed ? "허용" : "금지"}</small>
+              <small>{orderSubmitLabel(reviewCadence.broker_submit_allowed)}</small>
             </article>
           </div>
           <div className="empty-state" style={{ margin: 0 }}>
             <strong>{reviewCadence.label}</strong>
-            <p>{reviewCadence.command}</p>
+            <p>{koReason(reviewCadence.reason)}</p>
           </div>
         </article>
 
@@ -734,7 +737,7 @@ export default async function PortfolioCoveragePage() {
         >
           <div className="section-heading">
             <div>
-              <span className="metric-sub">검토 실행 라우터</span>
+              <span className="metric-sub">검토 실행 분기</span>
               <h2>대기, 사후평가, 누적평가 중 실제로 무엇을 했는지 본다</h2>
             </div>
             <span className={`risk-tag ${actionRouterStatusClass(reviewActionRouter.action_status)}`}>
@@ -746,19 +749,19 @@ export default async function PortfolioCoveragePage() {
             </span>
           </div>
           <p style={{ color: "var(--text-secondary)", marginTop: 0 }}>
-            cadence 판단이 실제 안전 작업으로 이어졌는지 확인한다. 실행 기록이 있어도 추천 weight, 보유 비중,
-            broker 주문 전송은 여전히 자동으로 바뀌지 않는다.
+            실행 주기 판단이 실제 안전 작업으로 이어졌는지 확인한다. 실행 기록이 있어도 추천 산식 가중치,
+            보유 비중, 증권사 주문 전송은 여전히 자동으로 바뀌지 않는다.
           </p>
           <div className="status-rail compact-rail" aria-label="검토 실행 라우터 요약" style={{ marginBottom: "20px" }}>
             <article className="rail-cell">
-              <span>원천 cadence</span>
+              <span>원천 실행 주기</span>
               <strong>{koCode(reviewActionRouter.cadence_status)}</strong>
               <small>{reviewActionRouter.source_cadence_eval_run_id}</small>
             </article>
             <article className="rail-cell">
               <span>라우팅</span>
               <strong>{koCode(reviewActionRouter.route_action)}</strong>
-              <small>{reviewActionRouter.reason}</small>
+              <small>{koReason(reviewActionRouter.reason)}</small>
             </article>
             <article className="rail-cell">
               <span>실행한 작업</span>
@@ -772,12 +775,12 @@ export default async function PortfolioCoveragePage() {
             <article className="rail-cell rail-critical">
               <span>주문 경계</span>
               <strong>{koCode(reviewActionRouter.order_boundary)}</strong>
-              <small>broker 전송 {reviewActionRouter.broker_submit_allowed ? "허용" : "금지"}</small>
+              <small>{orderSubmitLabel(reviewActionRouter.broker_submit_allowed)}</small>
             </article>
           </div>
           <div className="empty-state" style={{ margin: 0 }}>
             <strong>{koCode(reviewActionRouter.action_status)}</strong>
-            <p>{reviewActionRouter.next_action}</p>
+            <p>{koReason(reviewActionRouter.next_action)}</p>
           </div>
         </article>
 
@@ -799,7 +802,7 @@ export default async function PortfolioCoveragePage() {
             <article className="rail-cell">
               <span>전체 괴리</span>
               <strong>{formatPercent(candidateReview.active_share)}</strong>
-              <small>{candidateReview.benchmark_source || benchmarkSource || "source 없음"}</small>
+              <small>{koLabel(candidateReview.benchmark_source || benchmarkSource || "근거 없음")}</small>
             </article>
             <article className="rail-cell">
               <span>구성비 커버리지</span>
@@ -817,7 +820,7 @@ export default async function PortfolioCoveragePage() {
             <article className="rail-cell">
               <span>주문 경계</span>
               <strong>{koCode(candidateReview.order_boundary)}</strong>
-              <small>주문 전송 {candidateReview.broker_submit_allowed ? "허용" : "금지"}</small>
+              <small>{orderSubmitLabel(candidateReview.broker_submit_allowed)}</small>
             </article>
           </div>
           {candidateReview.candidates.length === 0 ? (
@@ -845,7 +848,7 @@ export default async function PortfolioCoveragePage() {
                       <td><strong>{candidate.symbol}</strong></td>
                       <td>
                         <span className={`risk-tag ${candidateSeverityClass(candidate.severity)}`}>
-                          {candidate.decision_label}
+                          {koCode(candidate.decision_label)}
                         </span>
                         <small style={{ display: "block", color: "var(--text-secondary)", marginTop: "4px" }}>
                           {candidateDirectionLabel(candidate.direction)}
@@ -860,16 +863,16 @@ export default async function PortfolioCoveragePage() {
                           <span>추천 연결 없음</span>
                         )}
                         <small style={{ display: "block", color: "var(--text-secondary)", marginTop: "4px" }}>
-                          {candidate.related_thesis_id ? `thesis ${candidate.related_thesis_id}` : "thesis 확인 필요"}
+                          {candidate.related_thesis_id ? `투자 논리 ${candidate.related_thesis_id}` : "투자 논리 확인 필요"}
                         </small>
                       </td>
                       <td>
-                        {candidate.next_review_action}
+                        {koReason(candidate.next_review_action)}
                         <small style={{ display: "block", color: "var(--text-secondary)", marginTop: "4px" }}>
-                          {candidate.rationale}
+                          {koReason(candidate.rationale)}
                         </small>
                         <small style={{ display: "block", color: "var(--text-secondary)", marginTop: "4px" }}>
-                          {koCode(candidate.order_boundary)} · 주문 전송 {candidate.broker_submit_allowed ? "허용" : "금지"}
+                          {koCode(candidate.order_boundary)} · {orderSubmitLabel(candidate.broker_submit_allowed)}
                         </small>
                       </td>
                     </tr>
@@ -913,7 +916,7 @@ export default async function PortfolioCoveragePage() {
             <article className="rail-cell">
               <span>주문 경계</span>
               <strong>{koCode(positionSizingReview.order_boundary)}</strong>
-              <small>주문 전송 {positionSizingReview.broker_submit_allowed ? "허용" : "금지"}</small>
+              <small>{orderSubmitLabel(positionSizingReview.broker_submit_allowed)}</small>
             </article>
           </div>
           {positionSizingReview.candidates.length === 0 ? (
@@ -960,11 +963,11 @@ export default async function PortfolioCoveragePage() {
                       <td>
                         재무 {formatScore(candidate.fundamental_quality_score)} · 밸류 {formatScore(candidate.valuation_margin_score)}
                         <small style={{ display: "block", color: "var(--text-secondary)", marginTop: "4px" }}>
-                          안전마진 {formatPercent(candidate.valuation_margin_of_safety)} · 리서치 {candidate.equity_research_artifact_id ? "있음" : "없음"}
+                          안전마진 {formatPercent(candidate.valuation_margin_of_safety)} · 기업 리서치 {candidate.equity_research_artifact_id ? "있음" : "없음"}
                         </small>
                       </td>
                       <td>
-                        {candidate.rationale}
+                        {koReason(candidate.rationale)}
                         <small style={{ display: "block", color: "var(--text-secondary)", marginTop: "6px" }}>
                           막는 이유: {candidate.blocking_factors.map((factor) => koCode(factor)).join(", ") || "없음"}
                         </small>
@@ -1058,7 +1061,7 @@ export default async function PortfolioCoveragePage() {
                     <span>{koCode(priority.action)}</span>
                   </div>
                   <span style={{ color: "var(--text-secondary)", maxWidth: "520px" }}>
-                    {priority.reason}
+                    {koReason(priority.reason)}
                   </span>
                 </div>
               ))}
@@ -1116,7 +1119,7 @@ export default async function PortfolioCoveragePage() {
                   <span style={{ flex: 1, color: "var(--text-primary)", fontWeight: 500 }}>
                     {koLabel(position.action)}
                     <small style={{ display: "block", color: "var(--text-secondary)", fontWeight: 400, marginTop: "4px" }}>
-                      {position.position_size_note}
+                      {koReason(position.position_size_note)}
                     </small>
                   </span>
                 </div>
