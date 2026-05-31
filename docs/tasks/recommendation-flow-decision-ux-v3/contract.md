@@ -29,7 +29,7 @@
 - 추천 상세는 `현재 결론`, `근거 경로`, `재무/밸류에이션`, `가상 매매`, `실거래 차단`을 사용자가 따라 읽을 수 있게 한다.
 - 경고, 원천 한계, 차단, 실거래 금지는 숨기지 않고 사용자용 한국어로 표시한다.
 - Next.js typecheck/build, AWH verify, diff check를 통과한다.
-- EC2 route smoke에서 `/recommendations`, `/recommendations/recommendation-67`, `/recommendations/recommendation-157`이 200을 반환한다.
+- EC2 route smoke에서 `/recommendations`, active 추천 `/recommendations/recommendation-189`, source-blocked 추천 `/recommendations/recommendation-67`이 200을 반환한다.
 
 ## Verification
 
@@ -37,7 +37,7 @@
 - verification command: `cd apps/web && npm run build`
 - verification command: `PYTHONPATH=/Users/woody/ai/agent-work-harness/src python3 -m awh verify --repo . --task recommendation-flow-decision-ux-v3`
 - verification command: `git diff --check`
-- verification command: EC2 route/content smoke for `/recommendations`, `/recommendations/recommendation-67`, `/recommendations/recommendation-157`
+- verification command: EC2 route/content smoke for `/recommendations`, `/recommendations/recommendation-189`, `/recommendations/recommendation-67`
 
 ## Boundaries
 

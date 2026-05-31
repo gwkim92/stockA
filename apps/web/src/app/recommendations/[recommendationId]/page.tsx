@@ -38,6 +38,8 @@ const USER_FACING_TERM_REPLACEMENTS: Array<[string, string]> = [
   ["source_run_id", "실행 기록"],
   ["read_only_no_order", "읽기 전용, 실거래 주문 차단"],
   ["source_data_blocked", "원천 근거 부족으로 차단"],
+  ["macro-flow", "상위 흐름"],
+  ["Macro-flow", "상위 흐름"],
   ["sec_companyfacts_missing_us_gaap_facts", "SEC 표준 재무 항목 없음"],
   ["ipo_prospectus_without_standard_periodic_financials", "정기 재무제표 전 공시만 존재"],
   ["fund_company_financial_model_not_applicable", "ETF·펀드라 기업 재무 모델 비적용"],
@@ -48,6 +50,18 @@ const USER_FACING_TERM_REPLACEMENTS: Array<[string, string]> = [
   ["confidence", "신뢰도"],
   ["AI 근거", "AI 해석"],
   ["주문 경계", "실거래 상태"],
+  ["거래 경계", "실거래 상태"],
+  ["추천 총점", "최종 추천 점수"],
+  ["총점 반영", "최종 점수 반영"],
+  ["총점 미반영", "최종 점수 미반영"],
+  ["점수 가중치", "점수 반영 비중"],
+  ["가중치", "반영 비중"],
+  ["financial statement model", "재무제표 모델"],
+  ["valuation target range", "밸류에이션 목표가 범위"],
+  ["industry competitive position", "산업 경쟁 위치"],
+  ["equity research artifact", "AI 기업 리서치"],
+  ["투자 논리 lifecycle", "투자 논리 생애주기"],
+  ["source event/AI evidence", "원천 이벤트/AI 해석"],
   ["페이퍼", "가상 매매"],
 ];
 
@@ -767,7 +781,7 @@ function provenanceBadges(component: ScoreComponent) {
     }
   }
   if (provenance.source_type === "fundamental_context") {
-    badges.push(isZeroWeight(component.weight) ? "현재 총점 미반영" : "총점 반영");
+    badges.push(isZeroWeight(component.weight) ? "현재 최종 점수 미반영" : "최종 점수 반영");
     if (provenance.evidence?.as_of_date) {
       badges.push(`기준일 ${provenance.evidence.as_of_date}`);
     }
@@ -1183,7 +1197,7 @@ function recommendationWaterfallCards({
       body: macroFlowComponents.length > 0
         ? `상위 흐름 전파 ${macroFlowComponents.length}개 점수 항목이 있다. 회사명이 직접 언급되지 않아도 노출도 규칙으로 연결된다.`
         : themeComponent
-          ? "테마 사이클 항목은 있으나 최근 macro-flow 전파 근거는 적다."
+          ? "테마 사이클 항목은 있으나 최근 상위 흐름 전파 근거는 적다."
           : "테마·상위 흐름 전파 근거가 아직 추천 입력으로 연결되지 않았다.",
       href: "#recommendation-macro-flow",
       hrefLabel: "흐름 전파 보기",
@@ -1890,10 +1904,10 @@ export default async function RecommendationPage({ params }: RecommendationPageP
             <div className="bento-list-item" key={gate.gate_key}>
               <div>
                 <span className="metric-sub" style={{ color: gateStatusColor(gate.status) }}>{gateStatusLabel(gate.status)}</span>
-                <strong>{koLabel(gate.label)}</strong>
-                <span>{koLabel(gate.detail)}</span>
+                <strong>{userFacingRecommendationText(gate.label)}</strong>
+                <span>{userFacingRecommendationText(gate.detail)}</span>
               </div>
-              <span style={{ color: "var(--text-secondary)", maxWidth: "360px" }}>{koLabel(gate.next_step)}</span>
+              <span style={{ color: "var(--text-secondary)", maxWidth: "360px" }}>{userFacingRecommendationText(gate.next_step)}</span>
             </div>
           ))}
         </div>
