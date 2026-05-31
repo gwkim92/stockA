@@ -170,6 +170,21 @@ function providerLabel(provider: string) {
   return koCode(provider);
 }
 
+function userFacingStockText(value: string | null | undefined) {
+  if (!value) {
+    return "";
+  }
+  return koLabel(value)
+    .replace(/\bthesis\b/gi, "투자 논리")
+    .replace(/\bevidence review\b/gi, "근거 검토")
+    .replace(/\bpaper validation gate\b/gi, "가상 매매 검증")
+    .replace(/\bpaper validation\b/gi, "가상 매매 검증")
+    .replace(/\bvaluation\b/gi, "밸류에이션")
+    .replace(/\bsource blocker\b/gi, "부족한 원천 근거")
+    .replace(/\bgate\b/gi, "확인 조건")
+    .replace(/\bvia\b/gi, "기준");
+}
+
 function stockDecisionOutcome(
   data: StockDetailData,
   guardrail: ProfessionalSourceGuardrail,
@@ -180,7 +195,7 @@ function stockDecisionOutcome(
       tone: "blocked",
       label: "입력 차단",
       title: `${data.symbol}은 투자 판단 입력에서 제외`,
-      body: guardrail.summary,
+      body: userFacingStockText(guardrail.summary),
     };
   }
   if (data.recommendation && data.position) {
@@ -368,7 +383,7 @@ function FinancialStatementModelPanel({
         <p style={{ color: "var(--text-secondary)", marginBottom: 0 }}>
           {sourceBlocker
             ? model.summary
-            : "SEC companyfacts 수집과 재무 정규화가 완료되면 매출 성장, 마진, 현금흐름, 부채, 이익 품질을 이곳에서 확인한다. 이 데이터가 없으면 뉴스나 사이클만으로 장기 투자 판단을 확정하지 않는다."}
+          : "SEC 공시 재무 데이터 수집과 재무 정규화가 완료되면 매출 성장, 마진, 현금흐름, 부채, 이익 품질을 이곳에서 확인한다. 이 데이터가 없으면 뉴스나 사이클만으로 장기 투자 판단을 확정하지 않는다."}
         </p>
         {sourceBlocker ? (
           <div className="status-rail compact-rail" aria-label="재무 원천 차단 사유" style={{ marginTop: "18px" }}>
@@ -400,7 +415,7 @@ function FinancialStatementModelPanel({
         </span>
       </div>
       <p style={{ color: "var(--text-secondary)", marginTop: 0 }}>
-        {model.summary} 이 섹션은 기존 정규화 재무 지표를 읽는 화면이며, 추천 점수와 주문 가능 여부를 바꾸지 않는다.
+        {userFacingStockText(model.summary)} 이 섹션은 기존 정규화 재무 지표를 읽는 화면이며, 추천 점수와 주문 가능 여부를 바꾸지 않는다.
       </p>
 
       <div className="status-rail compact-rail" aria-label="재무 모델 요약">
@@ -829,7 +844,7 @@ function ProfessionalSourceGuardrailPanel({
         </span>
       </div>
       <p style={{ color: "var(--text-secondary)", marginTop: 0 }}>
-        {guardrail.summary} 이 화면은 추천 점수나 보유 비중을 바꾸지 않고, 투자 판단·가상 매매 검증·실거래 가능 여부를
+        {userFacingStockText(guardrail.summary)} 이 화면은 추천 점수나 보유 비중을 바꾸지 않고, 투자 판단·가상 매매 검증·실거래 가능 여부를
         분리해서 보여준다.
       </p>
       <div className="status-rail compact-rail" aria-label="투자 판단 사용 가능 여부 요약">
@@ -856,7 +871,7 @@ function ProfessionalSourceGuardrailPanel({
       </div>
       <div className="empty-state" style={{ marginTop: "18px" }}>
         <strong>다음 확인</strong>
-        <p>{guardrail.next_action}</p>
+        <p>{userFacingStockText(guardrail.next_action)}</p>
         <div className="btn-row">
           <Link className="btn btn-secondary" href="/data-health">
             원천 상태 보기
@@ -1057,7 +1072,7 @@ function EvidenceNeighborhoodPanel({ neighborhood }: { neighborhood: AiEvidenceN
               {firstRecommendation
                 ? `점수 ${formatPercent(firstRecommendation.total_score)} · 목표 비중 ${formatPercent(firstRecommendation.recommended_weight)}`
                 : firstThesis
-                  ? `${koLabel(firstThesis.title)} · 확신 ${formatPercent(firstThesis.conviction_score)}`
+                  ? `${userFacingStockText(firstThesis.title)} · 확신 ${formatPercent(firstThesis.conviction_score)}`
                   : "추천이나 보유 판단으로 연결되기 전 단계다."}
             </p>
             <div className="mini-link-stack">
@@ -1182,7 +1197,7 @@ export default async function StockDetailPage({ params }: StockDetailPageProps) 
       status: equityResearch ? "리서치 생성" : "리서치 대기",
       tone: equityResearch ? "ready" : "watch",
       body: equityResearch?.korean_summary
-        ? equityResearch.korean_summary
+        ? userFacingStockText(equityResearch.korean_summary)
         : "이 종목의 사업 설명 결과가 아직 없다. 현재 화면에서는 가격, 뉴스, 상위 흐름까지만 신뢰할 수 있다.",
       facts: [
         { label: "종목", value: `${data.symbol} · ${data.name}` },
@@ -1204,9 +1219,9 @@ export default async function StockDetailPage({ params }: StockDetailPageProps) 
           ? "ready"
           : "watch",
       body: sourceBlocked
-        ? sourceGuardrail.summary
+        ? userFacingStockText(sourceGuardrail.summary)
         : financialStatementModel.status === "available" || financialStatementModel.status === "partial" || financialStatementModel.source_data_blocker
-          ? financialStatementModel.summary
+          ? userFacingStockText(financialStatementModel.summary)
           : "매출, 마진, 현금흐름, 부채, 이익 품질을 확인할 정규화 재무 모델이 아직 충분하지 않다.",
       facts: [
         { label: "최근 기간", value: financialStatementModel.latest_period_end || "없음" },
@@ -1292,7 +1307,7 @@ export default async function StockDetailPage({ params }: StockDetailPageProps) 
       status: sourceBlocked ? "가상 검증 입력 차단" : data.position ? "보유 상태 있음" : data.recommendation ? "추천 검토 중" : "거래 입력 전",
       tone: sourceBlocked ? "blocked" : "neutral",
       body: sourceBlocked
-        ? `${sourceGuardrail.next_action} 실제 증권사 주문 전송은 계속 닫혀 있다.`
+        ? `${userFacingStockText(sourceGuardrail.next_action)} 실제 증권사 주문 전송은 계속 닫혀 있다.`
         : "이 화면은 주문을 만들지 않는다. 실제 증권사 주문 전송은 닫혀 있고, 추천이 생겨도 가상 매매 검증과 리스크 상태를 먼저 확인해야 한다.",
       href: "/paper-trading" as Route,
       hrefLabel: "가상 매매 상태 보기",
@@ -1484,7 +1499,7 @@ export default async function StockDetailPage({ params }: StockDetailPageProps) 
         {equityResearch ? (
           <>
             <p style={{ color: "var(--text-secondary)", marginTop: 0 }}>
-              {equityResearch.korean_summary}
+              {userFacingStockText(equityResearch.korean_summary)}
             </p>
             <div className="status-rail compact-rail" aria-label="기업 리서치 범위">
               <div className="rail-cell">
