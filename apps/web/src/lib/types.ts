@@ -338,6 +338,34 @@ export type DataHealthData = {
     }>;
     next_action: string;
   };
+  live_ai_invocation_health: {
+    status: string;
+    attention_required: boolean;
+    window_hours: number;
+    recent_invocation_count: number;
+    recent_success_count: number;
+    recent_failed_count: number;
+    critical_failed_count: number;
+    critical_success_count: number;
+    latest_invocation_at: string;
+    latest_failed_at: string;
+    latest_failed_task_name: string;
+    latest_error_summary: string;
+    latest_error_code: string;
+    task_health: Array<{
+      task_name: string;
+      label: string;
+      recent_invocation_count: number;
+      recent_success_count: number;
+      recent_failed_count: number;
+      latest_status: string;
+      latest_created_at: string;
+      latest_error_summary: string;
+      latest_error_code: string;
+      critical: boolean;
+    }>;
+    next_action: string;
+  };
   benchmark_drift_quality: {
     status: string;
     guardrail_status: string;

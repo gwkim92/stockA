@@ -17,6 +17,7 @@ type ManualIngestSmoke = DataHealthData["manual_local_ingest_smoke"];
 type LocalIngestWorker = DataHealthData["local_ingest_worker"];
 type CycleAiQualityAudit = DataHealthData["cycle_ai_quality_audit"];
 type NewsAiEvalQuality = DataHealthData["news_ai_eval_quality"];
+type LiveAiInvocationHealth = DataHealthData["live_ai_invocation_health"];
 type DataOperationsArtifactRunner = DataHealthData["data_operations_artifact_runner"];
 type BenchmarkDriftQuality = DataHealthData["benchmark_drift_quality"];
 type PortfolioReviewDecisionHistory = DataHealthData["portfolio_review_decision_history"];
@@ -489,6 +490,48 @@ function newsAiEvalTone(evalQuality: NewsAiEvalQuality) {
     return "risk-low";
   }
   if (evalQuality.status === "missing") {
+    return "risk-medium";
+  }
+  return "risk-high";
+}
+
+function liveAiInvocationTitle(health: LiveAiInvocationHealth) {
+  if (health.status === "healthy") {
+    return "실제 AI 호출 정상";
+  }
+  if (health.status === "critical_ai_failed") {
+    return "실제 AI 호출 실패";
+  }
+  if (health.status === "degraded") {
+    return "일부 AI 호출 실패";
+  }
+  if (health.status === "missing_recent_invocations") {
+    return "최근 AI 호출 없음";
+  }
+  return koCode(health.status);
+}
+
+function liveAiInvocationExplanation(health: LiveAiInvocationHealth) {
+  if (health.status === "healthy") {
+    return "최근 실제 Codex OAuth 호출이 성공했다. fixture 회귀평가뿐 아니라 운영 배치 LLM 호출도 살아 있다.";
+  }
+  if (health.status === "critical_ai_failed") {
+    return "뉴스 한국어 번역이나 뉴스 AI 구조화 같은 핵심 Codex OAuth 호출이 실패했다. 화면의 뉴스 해석은 fallback 결과일 수 있다.";
+  }
+  if (health.status === "degraded") {
+    return "일부 Codex OAuth 호출이 실패했다. 성공한 작업과 실패한 작업을 나눠 보고 다음 주기에서 회복되는지 확인해야 한다.";
+  }
+  if (health.status === "missing_recent_invocations") {
+    return "최근 운영 배치에서 실제 LLM 호출 증거가 없다. 뉴스가 없는 것인지, 배치 호출이 멈춘 것인지 확인해야 한다.";
+  }
+  return "실제 AI 호출 상태를 확인해야 한다.";
+}
+
+function liveAiInvocationTone(health: LiveAiInvocationHealth) {
+  if (health.status === "healthy") {
+    return "risk-low";
+  }
+  if (health.status === "degraded" || health.status === "missing_recent_invocations") {
     return "risk-medium";
   }
   return "risk-high";
@@ -998,6 +1041,25 @@ function operationCopy(value: string) {
     .replaceAll("degraded", "주의");
 }
 
+function aiInvocationErrorCopy(value: string, code = "") {
+  if (!value) {
+    return "최근 오류 없음";
+  }
+  if (
+    code === "codex_oauth_auth_invalid"
+    || code === "codex_oauth_auth_invalidated"
+    || value.includes("token_invalidated")
+    || value.includes("refresh_token_reused")
+    || value.includes("401 Unauthorized")
+  ) {
+    return "Codex OAuth 인증 토큰이 만료되었거나 재사용되어 실패했다. EC2에서 다시 로그인한 뒤 smoke를 실행해야 한다.";
+  }
+  if (code === "codex_oauth_timeout" || value.includes("timeout")) {
+    return "Codex OAuth 호출 시간이 초과됐다. limit와 timeout, 네트워크 상태를 확인해야 한다.";
+  }
+  return operationCopy(value);
+}
+
 function orderSubmitCopy(allowed: boolean) {
   return `실거래 주문 ${allowed ? "허용" : "금지"}`;
 }
@@ -1085,6 +1147,24 @@ const DEFAULT_NEWS_AI_EVAL_QUALITY: NewsAiEvalQuality = {
   pass_thresholds: {},
   case_results: [],
   next_action: "news-ai-eval-run --provider fixture --execute를 실행해 기준 정답 뉴스 세트 회귀평가를 저장한다.",
+};
+
+const DEFAULT_LIVE_AI_INVOCATION_HEALTH: LiveAiInvocationHealth = {
+  status: "missing_recent_invocations",
+  attention_required: true,
+  window_hours: 48,
+  recent_invocation_count: 0,
+  recent_success_count: 0,
+  recent_failed_count: 0,
+  critical_failed_count: 0,
+  critical_success_count: 0,
+  latest_invocation_at: "",
+  latest_failed_at: "",
+  latest_failed_task_name: "",
+  latest_error_summary: "",
+  latest_error_code: "",
+  task_health: [],
+  next_action: "최근 실제 LLM 호출 증거가 없다. 뉴스 AI 배치가 실제로 호출됐는지 확인한다.",
 };
 
 const DEFAULT_BENCHMARK_DRIFT_QUALITY: BenchmarkDriftQuality = {
@@ -1765,6 +1845,7 @@ export default async function DataHealthPage() {
   const qualityAudit = data.cycle_ai_quality_audit ?? DEFAULT_CYCLE_AI_QUALITY_AUDIT;
   const qualityAuditSamples = qualityAuditSampleGroups(qualityAudit);
   const newsAiEvalQuality = data.news_ai_eval_quality ?? DEFAULT_NEWS_AI_EVAL_QUALITY;
+  const liveAiInvocationHealth = data.live_ai_invocation_health ?? DEFAULT_LIVE_AI_INVOCATION_HEALTH;
   const benchmarkDriftQuality = data.benchmark_drift_quality ?? DEFAULT_BENCHMARK_DRIFT_QUALITY;
   const portfolioReviewHistory =
     data.portfolio_review_decision_history ?? DEFAULT_PORTFOLIO_REVIEW_DECISION_HISTORY;
@@ -1825,7 +1906,9 @@ export default async function DataHealthPage() {
   const allTimersActive =
     profileScheduler.timer_count > 0 && profileScheduler.active_timer_count === profileScheduler.timer_count;
   const dataQualityReady =
-    qualityAuditTone(qualityAudit) === "risk-low" && newsAiEvalTone(newsAiEvalQuality) === "risk-low";
+    qualityAuditTone(qualityAudit) === "risk-low"
+    && newsAiEvalTone(newsAiEvalQuality) === "risk-low"
+    && liveAiInvocationTone(liveAiInvocationHealth) === "risk-low";
   const safeInvestmentBoundary =
     outcomeWaitMonitor.weight_review_blocked
     && !outcomeWaitMonitor.automatic_weight_change_allowed
@@ -1860,15 +1943,19 @@ export default async function DataHealthPage() {
       label: "데이터·AI 품질",
       title: dataQualityReady
         ? "품질 기준 통과"
+        : liveAiInvocationHealth.attention_required
+          ? "실제 AI 호출 확인 필요"
         : qualityAudit.issue_count > 0 || newsAiEvalQuality.failed_case_count > 0
           ? "오염 의심 확인 필요"
           : "품질 근거 보강 중",
       body: dataQualityReady
-        ? "뉴스 오염 감사와 AI 회귀평가가 현재 기준을 통과했다. 벤치마크 괴리 품질과 세부 샘플은 아래에서 확인한다."
+        ? "뉴스 오염 감사, AI 회귀평가, 실제 Codex OAuth 호출이 모두 통과했다. 벤치마크 괴리 품질과 세부 샘플은 아래에서 확인한다."
+        : liveAiInvocationHealth.attention_required
+          ? "fixture 기준 세트가 통과해도 실제 LLM 호출이 실패하면 뉴스 번역과 AI 구조화는 fallback일 수 있다. 실제 호출 상태를 먼저 본다."
         : qualityAudit.issue_count > 0 || newsAiEvalQuality.failed_case_count > 0
           ? "중복 뉴스, 오분류, AI 회귀평가 실패, 벤치마크 괴리 품질 중 확인할 항목이 있다. 추천 입력 전에 품질 근거를 본다."
           : "큰 오염은 없지만 번역, 전파, 사이클 스냅샷, 가상 매매 검증 근거가 아직 부족하다. 벤치마크 괴리 품질도 함께 본다.",
-      metric: `오염 의심 ${qualityAudit.issue_count}개 · AI 실패 ${newsAiEvalQuality.failed_case_count}개`,
+      metric: `실제 AI 실패 ${liveAiInvocationHealth.recent_failed_count}건 · 회귀 실패 ${newsAiEvalQuality.failed_case_count}개`,
       href: "#quality-audit",
       cta: "품질 감사 보기",
       tone: dataQualityReady ? "ready" : "watch",
@@ -1958,6 +2045,14 @@ export default async function DataHealthPage() {
       href: "#quality-audit",
       cta: "오염 점검 보기",
       tone: qualityAuditTone(qualityAudit),
+    },
+    {
+      label: "실제 AI 호출",
+      title: liveAiInvocationTitle(liveAiInvocationHealth),
+      body: liveAiInvocationExplanation(liveAiInvocationHealth),
+      href: "#live-ai-invocation-health",
+      cta: "실제 호출 보기",
+      tone: liveAiInvocationTone(liveAiInvocationHealth),
     },
     {
       label: "AI 회귀평가",
@@ -2442,6 +2537,82 @@ export default async function DataHealthPage() {
           <p>{qualityAudit.next_actions[0] ? operationCopy(qualityAudit.next_actions[0]) : "현재 추가 조치 없음"}</p>
         </div>
       </section>
+
+	      <section
+	        className="feature-map-panel reveal delay-1"
+	        id="live-ai-invocation-health"
+	        aria-labelledby="live-ai-invocation-health-title"
+	      >
+	        <div className="section-heading stacked-heading">
+	          <span>실제 AI 호출 상태</span>
+	          <h2 id="live-ai-invocation-health-title">
+	            기준 세트 통과와 별개로, 운영 배치가 실제 Codex OAuth를 호출했는지 본다.
+	          </h2>
+	        </div>
+	        <p className="board-intro">{liveAiInvocationExplanation(liveAiInvocationHealth)}</p>
+	        <div className="status-rail compact-rail">
+	          <article className="rail-cell">
+	            <span>판정</span>
+	            <strong className={`risk-tag ${liveAiInvocationTone(liveAiInvocationHealth)}`}>
+	              {liveAiInvocationTitle(liveAiInvocationHealth)}
+	            </strong>
+	            <small>최근 {liveAiInvocationHealth.window_hours}시간</small>
+	          </article>
+	          <article className="rail-cell">
+	            <span>실제 호출</span>
+	            <strong>{liveAiInvocationHealth.recent_invocation_count}</strong>
+	            <small>성공 {liveAiInvocationHealth.recent_success_count} · 실패 {liveAiInvocationHealth.recent_failed_count}</small>
+	          </article>
+	          <article className="rail-cell">
+	            <span>핵심 실패</span>
+	            <strong>{liveAiInvocationHealth.critical_failed_count}</strong>
+	            <small>번역/뉴스 구조화 기준</small>
+	          </article>
+	          <article className="rail-cell">
+	            <span>최신 실패 작업</span>
+	            <strong>{koCode(liveAiInvocationHealth.latest_failed_task_name) || "없음"}</strong>
+	            <small>{liveAiInvocationHealth.latest_failed_at || "최근 실패 없음"}</small>
+	          </article>
+	        </div>
+	        <div className="simple-table-wrap">
+	          <table className="simple-table">
+	            <thead>
+	              <tr>
+	                <th>작업</th>
+	                <th>최근 상태</th>
+	                <th>성공/실패</th>
+	                <th>최신 오류</th>
+	              </tr>
+	            </thead>
+	            <tbody>
+	              {liveAiInvocationHealth.task_health.map((task) => (
+	                <tr key={task.task_name}>
+	                  <td>
+	                    <strong>{task.label || koCode(task.task_name)}</strong>
+	                    <small>{task.critical ? "핵심 AI 작업" : "보조 AI 작업"}</small>
+	                  </td>
+	                  <td>{koCode(task.latest_status)}</td>
+	                  <td>{task.recent_success_count}/{task.recent_failed_count}</td>
+	                  <td>
+	                    {task.latest_error_summary
+	                      ? aiInvocationErrorCopy(task.latest_error_summary, task.latest_error_code)
+	                      : task.latest_created_at || "최근 호출 없음"}
+	                  </td>
+	                </tr>
+	              ))}
+	              {liveAiInvocationHealth.task_health.length === 0 ? (
+	                <tr>
+	                  <td colSpan={4}>최근 실제 AI 호출 기록이 없다.</td>
+	                </tr>
+	              ) : null}
+	            </tbody>
+	          </table>
+	        </div>
+	        <div className="empty-state">
+	          <strong>다음 조치</strong>
+	          <p>{operationCopy(liveAiInvocationHealth.next_action)}</p>
+	        </div>
+	      </section>
 
 	      <section
 	        className="feature-map-panel reveal delay-1"

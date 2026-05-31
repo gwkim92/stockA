@@ -174,6 +174,47 @@ class FakeLiveExecutor:
                         ],
                         "next_action": "뉴스 AI 회귀평가가 통과했다.",
                     },
+                    "live_ai_invocation_health": {
+                        "status": "healthy",
+                        "window_hours": 48,
+                        "recent_invocation_count": 12,
+                        "recent_success_count": 12,
+                        "recent_failed_count": 0,
+                        "critical_failed_count": 0,
+                        "critical_success_count": 10,
+                        "latest_invocation_at": "2026-05-31T16:01:46+00:00",
+                        "latest_failed_at": "",
+                        "latest_failed_task_name": "",
+                        "latest_error_summary": "",
+                        "latest_error_code": "",
+                        "task_health": [
+                            {
+                                "task_name": "news-rss-ai-extract",
+                                "label": "뉴스 AI 구조화",
+                                "critical": True,
+                                "recent_invocation_count": 10,
+                                "recent_success_count": 10,
+                                "recent_failed_count": 0,
+                                "latest_status": "succeeded",
+                                "latest_created_at": "2026-05-31T16:01:46+00:00",
+                                "latest_error_summary": "",
+                                "latest_error_code": "",
+                            },
+                            {
+                                "task_name": "cycle-community-ai-summary-v2",
+                                "label": "사이클 흐름 요약",
+                                "critical": False,
+                                "recent_invocation_count": 2,
+                                "recent_success_count": 2,
+                                "recent_failed_count": 0,
+                                "latest_status": "succeeded",
+                                "latest_created_at": "2026-05-31T15:01:46+00:00",
+                                "latest_error_summary": "",
+                                "latest_error_code": "",
+                            },
+                        ],
+                        "next_action": "최근 실제 Codex OAuth 호출이 성공했다.",
+                    },
                     "portfolio_risk_budget_guardrail": {
                         "status": "loaded",
                         "eval_run_id": 22,
@@ -4522,6 +4563,11 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertEqual(news_eval["quantum_energy_misclassification_count"], 0)
         self.assertEqual(news_eval["case_results"][0]["accepted_theme_codes"], ["QUANTUM_COMPUTING_POLICY"])
         self.assertNotIn("news_ai_eval_quality_attention", payload["data"]["open_gates"])
+        live_ai = payload["data"]["live_ai_invocation_health"]
+        self.assertEqual(live_ai["status"], "healthy")
+        self.assertFalse(live_ai["attention_required"])
+        self.assertEqual(live_ai["recent_success_count"], 12)
+        self.assertNotIn("live_ai_invocation_health_attention", payload["data"]["open_gates"])
         drift_quality = payload["data"]["benchmark_drift_quality"]
         self.assertEqual(drift_quality["status"], "partial_composition")
         self.assertEqual(drift_quality["guardrail_eval_run_id"], "eval-run-22")
@@ -4539,6 +4585,7 @@ class FrontendLiveAdapterTests(unittest.TestCase):
             drift_quality["outlier_decisions"][0]["source_evidence"]["benchmark_source"],
             "operator_spy_holdings_2026_05_25",
         )
+
         self.assertFalse(drift_quality["automatic_order_allowed"])
         self.assertFalse(drift_quality["broker_submit_allowed"])
         self.assertEqual(drift_quality["order_boundary"], "read_only_no_order")
@@ -5280,6 +5327,58 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertFalse(payload["automatic_weight_change_allowed"])
         self.assertFalse(payload["broker_submit_allowed"])
 
+    def test_live_data_health_response_opens_gate_for_failed_live_codex_invocations(self) -> None:
+        class FailingAiExecutor(FakeLiveExecutor):
+            def execute_scalar(self, sql: str) -> str:
+                payload = json.loads(super().execute_scalar(sql))
+                if sql.startswith("-- frontend data health state lookup"):
+                    payload["live_ai_invocation_health"] = {
+                        "status": "critical_ai_failed",
+                        "window_hours": 48,
+                        "recent_invocation_count": 30,
+                        "recent_success_count": 0,
+                        "recent_failed_count": 30,
+                        "critical_failed_count": 30,
+                        "critical_success_count": 0,
+                        "latest_invocation_at": "2026-05-31T16:01:46+00:00",
+                        "latest_failed_at": "2026-05-31T16:01:46+00:00",
+                        "latest_failed_task_name": "news-rss-ai-extract",
+                        "latest_error_summary": "token_invalidated 401 Unauthorized",
+                        "latest_error_code": "codex_oauth_auth_invalid",
+                        "task_health": [
+                            {
+                                "task_name": "news-rss-ai-extract",
+                                "label": "뉴스 AI 구조화",
+                                "critical": True,
+                                "recent_invocation_count": 10,
+                                "recent_success_count": 0,
+                                "recent_failed_count": 10,
+                                "latest_status": "failed",
+                                "latest_created_at": "2026-05-31T16:01:46+00:00",
+                                "latest_error_summary": "token_invalidated 401 Unauthorized",
+                                "latest_error_code": "codex_oauth_auth_invalid",
+                            }
+                        ],
+                        "next_action": "EC2 Codex OAuth 재로그인 후 뉴스 번역과 뉴스 AI 구조화 smoke를 즉시 다시 실행한다.",
+                    }
+                return json.dumps(payload)
+
+        payload = resolve_live_frontend_response(
+            "/api/data-health",
+            config=type("Config", (), {"psql_command": "psql"})(),
+            executor=FailingAiExecutor(),
+            generated_at=datetime(2026, 5, 1, tzinfo=timezone.utc),
+        )
+
+        live_ai = payload["data"]["live_ai_invocation_health"]
+        self.assertEqual(live_ai["status"], "critical_ai_failed")
+        self.assertTrue(live_ai["attention_required"])
+        self.assertEqual(live_ai["latest_failed_task_name"], "news-rss-ai-extract")
+        self.assertIn("live_ai_invocation_health_attention", payload["data"]["open_gates"])
+        gate_details = {item["gate_id"]: item for item in payload["data"]["open_gate_details"]}
+        self.assertEqual(gate_details["live_ai_invocation_health_attention"]["label"], "실제 AI 호출")
+        self.assertIn("Codex OAuth", gate_details["live_ai_invocation_health_attention"]["status_label"])
+
     def test_live_data_health_response_includes_sanitized_scheduler_activation_gate(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             report = Path(tmpdir) / "pending-approval-gate.json"
@@ -5801,6 +5900,11 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertIn("news_ai_extraction_quality", sql)
         self.assertIn("news-ai-eval-v1", sql)
         self.assertIn("news_ai_eval_quality", sql)
+        self.assertIn("live_ai_task_catalog", sql)
+        self.assertIn("live_ai_invocation_health", sql)
+        self.assertIn("news-rss-korean-translation", sql)
+        self.assertIn("news-rss-ai-extract", sql)
+        self.assertIn("provider = 'codex_oauth'", sql)
         self.assertIn("selected_portfolio_review_decision_history", sql)
         self.assertIn("portfolio_review_decision_history", sql)
         self.assertIn("portfolio-review-decision-history-v1", sql)

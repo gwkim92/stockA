@@ -536,6 +536,7 @@ def _build_open_gate_details(
     open_gates: list[str],
     auth_rbac: Mapping[str, Any],
     alert_destination: Mapping[str, Any],
+    live_ai_invocation_health: Mapping[str, Any],
     benchmark_drift_quality: Mapping[str, Any],
     data_operations_artifact_runner: Mapping[str, Any],
     portfolio_review_decision_history: Mapping[str, Any],
@@ -607,6 +608,31 @@ def _build_open_gate_details(
                     "next_action": str(
                         alert_destination.get("next_action")
                         or "무료 webhook, email, Telegram, Slack, Discord 중 하나를 설정하고 테스트 artifact를 남긴다."
+                    ),
+                    "order_boundary": "read_only_no_order",
+                    "automatic_action_allowed": False,
+                }
+            )
+            continue
+        if gate == "live_ai_invocation_health_attention":
+            failed_count = int(_safe_number(live_ai_invocation_health.get("recent_failed_count")) or 0)
+            success_count = int(_safe_number(live_ai_invocation_health.get("recent_success_count")) or 0)
+            latest_failed_task = str(live_ai_invocation_health.get("latest_failed_task_name") or "")
+            details.append(
+                {
+                    "gate_id": gate,
+                    "label": "실제 AI 호출",
+                    "category": "operational_blocker",
+                    "category_label": "운영 조건",
+                    "severity": "high",
+                    "status_label": "Codex OAuth 분석 실패",
+                    "summary": (
+                        f"최근 실제 LLM 호출 성공 {success_count}건, 실패 {failed_count}건."
+                        + (f" 최신 실패 작업은 {latest_failed_task}." if latest_failed_task else "")
+                    ),
+                    "next_action": str(
+                        live_ai_invocation_health.get("next_action")
+                        or "EC2 Codex OAuth 재로그인 후 번역/뉴스 AI smoke를 다시 실행한다."
                     ),
                     "order_boundary": "read_only_no_order",
                     "automatic_action_allowed": False,
@@ -1241,6 +1267,9 @@ def build_live_data_health_response(
     news_ai_eval_quality = _build_news_ai_eval_quality_payload(
         _as_dict(state.get("news_ai_eval_quality"))
     )
+    live_ai_invocation_health = _build_live_ai_invocation_health_payload(
+        _as_dict(state.get("live_ai_invocation_health"))
+    )
     benchmark_drift_quality = _build_benchmark_drift_quality_payload(
         _as_dict(state.get("portfolio_risk_budget_guardrail"))
     )
@@ -1334,6 +1363,12 @@ def build_live_data_health_response(
         gate = "news_ai_eval_quality_attention"
         if gate not in open_gates:
             open_gates.append(gate)
+    gate = "live_ai_invocation_health_attention"
+    if live_ai_invocation_health["attention_required"]:
+        if gate not in open_gates:
+            open_gates.append(gate)
+    else:
+        open_gates = [item for item in open_gates if item != gate]
     gate = "production_api_server"
     if production_api_server["attention_required"]:
         if gate not in open_gates:
@@ -1417,6 +1452,7 @@ def build_live_data_health_response(
         open_gates=open_gates,
         auth_rbac=auth_rbac,
         alert_destination=alert_destination,
+        live_ai_invocation_health=live_ai_invocation_health,
         benchmark_drift_quality=benchmark_drift_quality,
         data_operations_artifact_runner=data_operations_artifact_runner,
         portfolio_review_decision_history=portfolio_review_decision_history,
@@ -1429,7 +1465,11 @@ def build_live_data_health_response(
         "contract_version": CONTRACT_VERSION,
         "generated_at": generated_at,
         "data": {
-            "overall_status": str(state.get("overall_status") or "unknown"),
+            "overall_status": (
+                "attention_required"
+                if open_gates
+                else str(state.get("overall_status") or "unknown")
+            ),
             "as_of_date": str(state.get("as_of_date") or ""),
             "pipeline_runs": pipeline_runs,
             "scheduler": scheduler_status,
@@ -1443,6 +1483,7 @@ def build_live_data_health_response(
             "local_ingest_worker": local_ingest_worker,
             "cycle_ai_quality_audit": cycle_ai_quality_audit,
             "news_ai_eval_quality": news_ai_eval_quality,
+            "live_ai_invocation_health": live_ai_invocation_health,
             "benchmark_drift_quality": benchmark_drift_quality,
             "portfolio_review_decision_history": portfolio_review_decision_history,
             "portfolio_review_decision_feedback": portfolio_review_decision_feedback,
@@ -4993,6 +5034,86 @@ selected_news_ai_eval_quality as (
         eval_run.eval_run_id desc
     limit 1
 ),
+live_ai_task_catalog(task_name, label, critical) as (
+    values
+        ('news-rss-korean-translation', '뉴스 한국어 번역', true),
+        ('news-rss-ai-extract', '뉴스 AI 구조화', true),
+        ('cycle-community-ai-summary-v2', '사이클 흐름 요약', false),
+        ('ai-equity-research-reporting', '기업 리서치 요약', false)
+),
+live_ai_recent_invocations as (
+    select
+        invocation.invocation_id,
+        invocation.task_name,
+        invocation.provider,
+        invocation.status,
+        invocation.created_at,
+        regexp_replace(left(coalesce(invocation.error_summary, ''), 240), '[\r\n\t]+', ' ', 'g') as error_summary,
+        case
+            when invocation.error_summary ilike '%token_invalidated%'
+              or invocation.error_summary ilike '%refresh_token_reused%'
+              or invocation.error_summary ilike '%401 Unauthorized%'
+                then 'codex_oauth_auth_invalid'
+            when invocation.error_summary ilike '%timeout%'
+                then 'codex_oauth_timeout'
+            when invocation.error_summary is not null
+                then 'codex_oauth_provider_error'
+            else ''
+        end as error_code
+    from ai.model_invocation invocation
+    join live_ai_task_catalog catalog on catalog.task_name = invocation.task_name
+    where invocation.provider = 'codex_oauth'
+      and invocation.created_at >= now() - interval '48 hours'
+),
+live_ai_latest_by_task as (
+    select distinct on (catalog.task_name)
+        catalog.task_name,
+        catalog.label,
+        catalog.critical,
+        invocation.status as latest_status,
+        invocation.created_at as latest_created_at,
+        invocation.error_summary as latest_error_summary,
+        invocation.error_code as latest_error_code
+    from live_ai_task_catalog catalog
+    left join live_ai_recent_invocations invocation on invocation.task_name = catalog.task_name
+    order by catalog.task_name, invocation.created_at desc nulls last, invocation.invocation_id desc nulls last
+),
+live_ai_task_health as (
+    select
+        catalog.task_name,
+        catalog.label,
+        catalog.critical,
+        count(invocation.invocation_id)::integer as recent_invocation_count,
+        count(invocation.invocation_id) filter (where invocation.status = 'succeeded')::integer as recent_success_count,
+        count(invocation.invocation_id) filter (where invocation.status <> 'succeeded')::integer as recent_failed_count,
+        coalesce(latest.latest_status, 'missing') as latest_status,
+        latest.latest_created_at,
+        coalesce(latest.latest_error_summary, '') as latest_error_summary,
+        coalesce(latest.latest_error_code, '') as latest_error_code
+    from live_ai_task_catalog catalog
+    left join live_ai_recent_invocations invocation on invocation.task_name = catalog.task_name
+    left join live_ai_latest_by_task latest on latest.task_name = catalog.task_name
+    group by catalog.task_name, catalog.label, catalog.critical, latest.latest_status, latest.latest_created_at, latest.latest_error_summary, latest.latest_error_code
+),
+live_ai_invocation_summary as (
+    select
+        coalesce(sum(recent_invocation_count), 0)::integer as recent_invocation_count,
+        coalesce(sum(recent_success_count), 0)::integer as recent_success_count,
+        coalesce(sum(recent_failed_count), 0)::integer as recent_failed_count,
+        coalesce(sum(recent_failed_count) filter (where critical), 0)::integer as critical_failed_count,
+        coalesce(sum(recent_success_count) filter (where critical), 0)::integer as critical_success_count,
+        max(latest_created_at) as latest_invocation_at,
+        max(latest_created_at) filter (where recent_failed_count > 0 and latest_status <> 'succeeded') as latest_failed_at
+    from live_ai_task_health
+),
+live_ai_latest_failure as (
+    select task_name, latest_error_summary, latest_error_code
+    from live_ai_task_health
+    where latest_status <> 'succeeded'
+      and latest_created_at is not null
+    order by latest_created_at desc
+    limit 1
+),
 selected_portfolio_review_decision_history as (
     select eval_run.*
     from ai.eval_run eval_run
@@ -5854,6 +5975,62 @@ select json_build_object(
             'korean_translation_availability', 0,
             'next_action', 'news-ai-eval-run --provider fixture --execute를 실행해 기준 정답 뉴스 세트 회귀평가를 저장한다.'
         )
+    ),
+    'live_ai_invocation_health',
+    (
+        select json_build_object(
+            'status',
+                case
+                    when summary.recent_invocation_count = 0 then 'missing_recent_invocations'
+                    when summary.critical_failed_count > 0
+                     and summary.critical_success_count = 0 then 'critical_ai_failed'
+                    when summary.recent_failed_count > 0 then 'degraded'
+                    else 'healthy'
+                end,
+            'window_hours', 48,
+            'recent_invocation_count', summary.recent_invocation_count,
+            'recent_success_count', summary.recent_success_count,
+            'recent_failed_count', summary.recent_failed_count,
+            'critical_failed_count', summary.critical_failed_count,
+            'critical_success_count', summary.critical_success_count,
+            'latest_invocation_at', summary.latest_invocation_at,
+            'latest_failed_at', summary.latest_failed_at,
+            'latest_failed_task_name', coalesce(failure.task_name, ''),
+            'latest_error_summary', coalesce(failure.latest_error_summary, ''),
+            'latest_error_code', coalesce(failure.latest_error_code, ''),
+            'task_health',
+                coalesce(
+                    (
+                        select json_agg(
+                            json_build_object(
+                                'task_name', task.task_name,
+                                'label', task.label,
+                                'critical', task.critical,
+                                'recent_invocation_count', task.recent_invocation_count,
+                                'recent_success_count', task.recent_success_count,
+                                'recent_failed_count', task.recent_failed_count,
+                                'latest_status', task.latest_status,
+                                'latest_created_at', task.latest_created_at,
+                                'latest_error_summary', task.latest_error_summary,
+                                'latest_error_code', task.latest_error_code
+                            )
+                            order by task.critical desc, task.task_name
+                        )
+                        from live_ai_task_health task
+                    ),
+                    '[]'::json
+                ),
+            'next_action',
+                case
+                    when summary.recent_invocation_count = 0 then '최근 실제 LLM 호출 증거가 없다. 뉴스 AI 배치가 실제로 호출됐는지 확인한다.'
+                    when summary.critical_failed_count > 0
+                     and summary.critical_success_count = 0 then 'EC2 Codex OAuth 재로그인 후 뉴스 번역과 뉴스 AI 구조화 smoke를 즉시 다시 실행한다.'
+                    when summary.recent_failed_count > 0 then '일부 AI 작업이 실패했다. 실패 task의 인증/토큰/CLI 오류를 확인하고 다음 주기 성공 여부를 확인한다.'
+                    else '최근 실제 Codex OAuth 호출이 성공했다. 다음 뉴스 주기에서도 계속 감시한다.'
+                end
+        )
+        from live_ai_invocation_summary summary
+        left join live_ai_latest_failure failure on true
     ),
     'portfolio_risk_budget_guardrail',
     coalesce(
@@ -14991,6 +15168,62 @@ def _build_news_ai_eval_quality_payload(payload: dict[str, Any]) -> dict[str, An
         "next_action": str(
             payload.get("next_action") or "news-ai-eval-run --provider fixture --execute를 실행해 기준 정답 뉴스 세트 회귀평가를 저장한다."
         ),
+    }
+
+
+def _build_live_ai_invocation_health_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    task_health: list[dict[str, Any]] = []
+    for item in _as_list(payload.get("task_health"))[:12]:
+        task_health.append(
+            {
+                "task_name": str(item.get("task_name") or ""),
+                "label": str(item.get("label") or item.get("task_name") or ""),
+                "recent_invocation_count": int(_safe_number(item.get("recent_invocation_count")) or 0),
+                "recent_success_count": int(_safe_number(item.get("recent_success_count")) or 0),
+                "recent_failed_count": int(_safe_number(item.get("recent_failed_count")) or 0),
+                "latest_status": str(item.get("latest_status") or "missing"),
+                "latest_created_at": _timestamp(item.get("latest_created_at")),
+                "latest_error_summary": str(item.get("latest_error_summary") or ""),
+                "latest_error_code": str(item.get("latest_error_code") or ""),
+                "critical": item.get("critical") is True,
+            }
+        )
+    status = str(payload.get("status") or "missing_recent_invocations")
+    recent_failed_count = int(_safe_number(payload.get("recent_failed_count")) or 0)
+    recent_success_count = int(_safe_number(payload.get("recent_success_count")) or 0)
+    critical_failed_count = int(_safe_number(payload.get("critical_failed_count")) or 0)
+    critical_success_count = int(_safe_number(payload.get("critical_success_count")) or 0)
+    attention_required = status in {
+        "missing_recent_invocations",
+        "critical_ai_failed",
+        "degraded",
+    }
+    if not attention_required and (recent_failed_count > 0 and critical_success_count == 0):
+        attention_required = True
+    if status == "healthy":
+        next_action = "최근 실제 Codex OAuth 호출이 성공했다. 다음 뉴스 주기에서도 계속 감시한다."
+    elif status == "critical_ai_failed":
+        next_action = "EC2 Codex OAuth 재로그인 후 뉴스 번역과 뉴스 AI 구조화 smoke를 즉시 다시 실행한다."
+    elif status == "degraded":
+        next_action = "일부 AI 작업이 실패했다. 실패 task의 인증/토큰/CLI 오류를 확인하고 다음 주기 성공 여부를 확인한다."
+    else:
+        next_action = "최근 실제 LLM 호출 증거가 없다. 뉴스 AI 배치가 실제로 호출됐는지 확인한다."
+    return {
+        "status": status,
+        "attention_required": attention_required,
+        "window_hours": int(_safe_number(payload.get("window_hours")) or 48),
+        "recent_invocation_count": int(_safe_number(payload.get("recent_invocation_count")) or 0),
+        "recent_success_count": recent_success_count,
+        "recent_failed_count": recent_failed_count,
+        "critical_failed_count": critical_failed_count,
+        "critical_success_count": critical_success_count,
+        "latest_invocation_at": _timestamp(payload.get("latest_invocation_at")),
+        "latest_failed_at": _timestamp(payload.get("latest_failed_at")),
+        "latest_failed_task_name": str(payload.get("latest_failed_task_name") or ""),
+        "latest_error_summary": str(payload.get("latest_error_summary") or ""),
+        "latest_error_code": str(payload.get("latest_error_code") or ""),
+        "task_health": task_health,
+        "next_action": str(payload.get("next_action") or next_action),
     }
 
 
