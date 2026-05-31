@@ -857,57 +857,7 @@ export default async function AiEvidencePage({ params }: AiEvidencePageProps) {
   const firstRecommendationLink = recommendationHref(neighborhood?.recommendations[0]?.recommendation_id);
   const decision = evidenceDecision(data);
   const sourcePreview = primarySourcePreview(data);
-  const sourceCount = isNewsCluster ? uniqueSourceDocumentCount(data) : sourceLink ? 1 : 0;
-  const subjectLabel = isNewsCluster
-    ? evidenceTitle
-    : linkedSymbol
-      ? `${koCode(linkedSymbol)} 뉴스 후보`
-      : `${koCode(data.classification.theme_key)} 뉴스 후보`;
   const linkedSymbolLabel = linkedSymbol ? koCode(linkedSymbol) : "종목 없음";
-  const reviewQuestions = [
-    {
-      label: "점검 1",
-      title: isNewsCluster ? "이 뉴스들이 정말 같은 흐름인가?" : "원문 제목과 해석이 맞는가?",
-      body: isNewsCluster
-        ? `대표 뉴스 목록에서 ${formatClusterStory(cluster)}와 어긋나는 제목이 섞였는지 확인한다. 섞였으면 데이터 오염 후보다.`
-        : isNewsCandidate
-          ? "원문 제목과 요약을 보고 AI가 붙인 테마·방향이 과장됐는지 확인한다."
-          : "저장된 근거 제목과 원천 문서가 같은 내용을 말하는지 확인한다.",
-    },
-    {
-      label: "점검 2",
-      title: linkedSymbol ? `${koCode(linkedSymbol)} 연결이 타당한가?` : "종목을 붙이지 않는 게 맞는가?",
-      body: isNewsCluster
-        ? linkedSymbol
-          ? `${koCode(linkedSymbol)}는 이 묶음의 영향 후보일 뿐이다. 직접 회사 뉴스인지, 시장 대표 ETF라서 붙은 것인지 구분한다.`
-          : "거시·테마 뉴스라면 종목을 억지로 붙이지 않는 것이 정상이다."
-        : linkedSymbol
-          ? "회사명이나 티커가 원문에 직접 있거나 충분히 명확한지 확인한다."
-          : "원문에 명확한 회사/티커가 없다면 테마 뉴스로만 남겨야 한다.",
-    },
-    {
-      label: "점검 3",
-      title:
-        data.evidence_type === "news_event_candidate_rejected"
-          ? "차단됨"
-          : data.extraction_run.quality_gate
-            ? koCode(data.extraction_run.quality_gate)
-            : koCode(data.extraction_run.status),
-      body:
-        data.evidence_type === "news_event_candidate_rejected"
-          ? "검증 단계에서 추천 입력으로 넘기지 않았다. 원천 확인과 분류 보강 대상으로만 본다."
-          : "현재는 추천 입력 후보 근거다. 추천 검토서에 연결되어도 이 근거 하나로 매수나 주문을 결정하지 않는다.",
-    },
-    {
-      label: "점검 4",
-      title: sourceLink ? "원천 뉴스부터 대조" : "원천 링크 없음",
-      body: targetStockLink
-        ? "원천 문서로 제목과 내용을 확인한 뒤, 종목 상세와 추천 검토서에서 실제 반영 위치를 본다."
-        : sourceLink
-          ? "종목 연결이 없으면 원천 문서와 테마 분류가 맞는지 먼저 확인한다."
-          : "뉴스 AI 판단 화면에서 같은 묶음과 주변 뉴스를 확인한다.",
-    },
-  ];
 
   return (
     <div className="pageStack ai-evidence-detail-page">
@@ -945,6 +895,14 @@ export default async function AiEvidencePage({ params }: AiEvidencePageProps) {
         isNewsCluster={isNewsCluster}
       />
 
+      <EvidenceVisibilityTraceBoard
+        data={data}
+        neighborhood={neighborhood}
+        sourceLink={sourceLink}
+        targetStockLink={targetStockLink}
+        firstRecommendationLink={firstRecommendationLink}
+      />
+
       <section className="evidence-decision-card reveal delay-1" id="evidence-source-preview" aria-labelledby="source-preview-title">
         <div className="section-heading stacked-heading">
           <span>원천 뉴스</span>
@@ -975,39 +933,6 @@ export default async function AiEvidencePage({ params }: AiEvidencePageProps) {
             </Link>
           ) : null}
         </div>
-      </section>
-
-      <section className="status-rail compact-rail reveal delay-1" aria-label="AI 근거 핵심 요약">
-        <article className="rail-cell">
-          <span>검토 대상</span>
-          <strong>{subjectLabel}</strong>
-          <small>{isNewsCluster ? `뉴스 ${cluster.event_count}개 · 원천 ${sourceCount}개` : data.event_at}</small>
-        </article>
-        <article className="rail-cell">
-          <span>연결 종목 후보</span>
-          <strong>{linkedSymbolLabel}</strong>
-          <small>{targetStockLink ? "종목 맥락 확인 가능" : "테마 중심 증거"}</small>
-        </article>
-        <article className="rail-cell">
-          <span>영향 방향</span>
-          <strong>{koCode(data.classification.impact_direction)}</strong>
-          <small>영향도 {formatPercent(data.classification.impact_score)}</small>
-        </article>
-        <article className="rail-cell">
-          <span>추천 연결</span>
-          <strong>{neighborhood?.summary.recommendation_count ?? 0}</strong>
-          <small>{firstRecommendationLink ? "연결된 검토서 있음" : "추천 연결 없음"}</small>
-        </article>
-      </section>
-
-      <section className="evidence-review-questions reveal delay-1" aria-label="AI 근거 자동 검토 질문">
-        {reviewQuestions.map((card) => (
-          <article className="evidence-review-question" key={card.label}>
-            <span>{card.label}</span>
-            <strong>{card.title}</strong>
-            <p>{card.body}</p>
-          </article>
-        ))}
       </section>
 
       <section className="evidence-decision-card reveal delay-2" aria-labelledby="evidence-main-title">
