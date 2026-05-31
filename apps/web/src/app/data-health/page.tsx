@@ -981,6 +981,11 @@ function operationCopy(value: string) {
     .replaceAll("open gate", "열린 확인 항목")
     .replaceAll("guardrail", "안전 조건")
     .replaceAll("source gap", "원천 공백")
+    .replaceAll("source blocker", "원천 차단")
+    .replaceAll("quality eval", "품질 평가")
+    .replaceAll("managed wait", "관리된 대기")
+    .replaceAll("coverage", "근거 커버리지")
+    .replaceAll("active", "활성")
     .replaceAll("job", "작업")
     .replaceAll("degraded", "주의");
 }
@@ -1960,7 +1965,7 @@ export default async function DataHealthPage() {
         portfolioReviewHistory.status === "loaded"
           ? portfolioReviewHistory.attention_required
             ? `최신 ${portfolioReviewHistory.as_of_date} 기준으로 벤치마크 ${portfolioReviewHistory.benchmark_decision_count}개, 포지션 크기 ${portfolioReviewHistory.position_sizing_decision_count}개 결정을 감사 이력으로 남겼다.`
-            : portfolioReviewHistory.managed_review_reason
+            : operationCopy(portfolioReviewHistory.managed_review_reason)
 	          : "현재 화면의 검토 후보는 보이지만 저장된 검토 이력으로는 아직 남지 않았다.",
       href: "#portfolio-review-history",
       cta: "검토 이력 보기",
@@ -2062,7 +2067,7 @@ export default async function DataHealthPage() {
     {
       label: "전문 분석 품질",
       title: professionalQuality.title,
-      body: professionalQuality.summary,
+      body: operationCopy(professionalQuality.summary),
       href: "#professional-analysis-quality",
       cta: "품질 판정 보기",
       tone: professionalQualityTone(professionalQuality),
@@ -2070,7 +2075,7 @@ export default async function DataHealthPage() {
     {
       label: "추천별 전문 감사",
       title: professionalRecommendationAudit.title,
-      body: professionalRecommendationAudit.summary,
+      body: operationCopy(professionalRecommendationAudit.summary),
       href: "#professional-recommendation-coverage-audit",
       cta: "추천별 감사 보기",
       tone: professionalRecommendationAuditTone(professionalRecommendationAudit),
@@ -2078,7 +2083,7 @@ export default async function DataHealthPage() {
     {
       label: "전문 분석 다음 행동",
       title: professionalNextAction.title,
-      body: professionalNextAction.summary,
+      body: operationCopy(professionalNextAction.summary),
       href: "#professional-next-action",
       cta: "다음 행동 보기",
       tone: professionalNextActionTone(professionalNextAction),
@@ -2734,8 +2739,8 @@ export default async function DataHealthPage() {
             <strong>{weightReviewReadiness.manual_weight_review_allowed ? "검토 가능" : "차단"}</strong>
             <p>
               {weightReviewReadiness.blocker_message
-                ? koCode(weightReviewReadiness.blocker_message)
-                : koCode(weightReviewReadiness.next_action)}
+                ? operationCopy(weightReviewReadiness.blocker_message)
+                : operationCopy(weightReviewReadiness.next_action)}
             </p>
           </article>
           <article className="insight-card">
@@ -2761,7 +2766,7 @@ export default async function DataHealthPage() {
             재무·피어·밸류에이션·산업·AI 리서치 근거가 추천 판단에 붙었는지 확인한다.
           </h2>
         </div>
-        <p className="board-intro">{professionalQuality.summary}</p>
+        <p className="board-intro">{operationCopy(professionalQuality.summary)}</p>
         <div className="status-rail compact-rail">
           <article className="rail-cell">
             <span>품질 판정</span>
@@ -2771,17 +2776,17 @@ export default async function DataHealthPage() {
             <small>{professionalQuality.as_of_date || "기준일 없음"}</small>
           </article>
           <article className="rail-cell">
-            <span>active 후보</span>
+            <span>활성 후보</span>
             <strong>{professionalQuality.active_candidate_count}</strong>
             <small>전문 분석 품질 점검 대상</small>
           </article>
           <article className="rail-cell">
             <span>근거 연결 완료</span>
             <strong>{professionalQuality.complete_candidate_count}</strong>
-            <small>필수 layer 충족 후보</small>
+            <small>필수 근거 충족 후보</small>
           </article>
           <article className="rail-cell">
-            <span>평균 coverage</span>
+            <span>평균 커버리지</span>
             <strong>{formatPercent(professionalQuality.average_coverage_ratio)}</strong>
             <small>재무·피어·밸류에이션·산업·리서치</small>
           </article>
@@ -2802,7 +2807,7 @@ export default async function DataHealthPage() {
               <span>{layer.label}</span>
               <strong>{koCode(layer.status)}</strong>
               <p>
-                {layer.available_count}/{layer.expected_count}개 후보 연결 · coverage {formatPercent(layer.coverage_ratio)}
+                {layer.available_count}/{layer.expected_count}개 후보 연결 · 근거 커버리지 {formatPercent(layer.coverage_ratio)}
               </p>
             </article>
           ))}
@@ -2833,7 +2838,7 @@ export default async function DataHealthPage() {
             active 추천마다 전문 분석 근거가 실제로 붙었는지 본다.
           </h2>
         </div>
-        <p className="board-intro">{professionalRecommendationAudit.summary}</p>
+        <p className="board-intro">{operationCopy(professionalRecommendationAudit.summary)}</p>
         <div className="status-rail compact-rail">
           <article className="rail-cell">
             <span>감사 판정</span>
@@ -2926,7 +2931,7 @@ export default async function DataHealthPage() {
 
         <div className="empty-state">
           <strong>다음 조치</strong>
-          <p>{professionalRecommendationAudit.next_action}</p>
+          <p>{operationCopy(professionalRecommendationAudit.next_action)}</p>
         </div>
       </section>
 
@@ -2939,7 +2944,7 @@ export default async function DataHealthPage() {
           <span>전문 분석 다음 행동</span>
           <h2 id="professional-next-action-title">재무·밸류에이션·원천 공백·성과 표본 중 지금 무엇을 봐야 하는지 정리한다.</h2>
         </div>
-        <p className="board-intro">{professionalNextAction.summary}</p>
+        <p className="board-intro">{operationCopy(professionalNextAction.summary)}</p>
         <div className="status-rail compact-rail">
           <article className="rail-cell">
             <span>현재 판단</span>
@@ -2951,7 +2956,7 @@ export default async function DataHealthPage() {
           <article className="rail-cell">
             <span>원천 공백</span>
             <strong>{professionalNextAction.source_gap_count}</strong>
-            <small>source blocker {professionalNextAction.source_blocker_count}개</small>
+            <small>원천 차단 {professionalNextAction.source_blocker_count}개</small>
           </article>
           <article className="rail-cell">
             <span>전문 판단 차단</span>
@@ -2959,9 +2964,9 @@ export default async function DataHealthPage() {
             <small>원천 없으면 합성 재무 금지</small>
           </article>
           <article className="rail-cell">
-            <span>평균 coverage</span>
+            <span>평균 커버리지</span>
             <strong>{formatPercent(professionalNextAction.average_coverage_ratio)}</strong>
-            <small>active 후보 기준</small>
+            <small>활성 후보 기준</small>
           </article>
           <article className="rail-cell">
             <span>성과 표본</span>
@@ -2981,8 +2986,8 @@ export default async function DataHealthPage() {
         <div className="insight-grid">
           {professionalNextAction.readiness_items.map((item) => (
             <article className="insight-card" key={item.key}>
-              <span>{item.label}</span>
-              <strong>{koCode(item.status)}</strong>
+              <span>{operationCopy(item.label)}</span>
+              <strong>{operationCopy(item.status)}</strong>
 	              <p>{operationCopy(item.detail)}</p>
             </article>
           ))}
@@ -3019,7 +3024,7 @@ export default async function DataHealthPage() {
         <div className="section-heading stacked-heading">
           <span>전문 분석 깊이</span>
           <h2 id="professional-analysis-depth-title">
-            active 후보가 재무·피어·밸류에이션·리서치 근거를 얼마나 갖췄는지 본다.
+            활성 후보가 재무·피어·밸류에이션·리서치 근거를 얼마나 갖췄는지 본다.
           </h2>
         </div>
         <p className="board-intro">
@@ -3092,31 +3097,31 @@ export default async function DataHealthPage() {
                 </strong>
                 <small>{item.instrument_name || "종목명 미확인"}</small>
                 <small>
-                  coverage {formatPercent(item.coverage_ratio)} · layer {item.available_layer_count}/{item.expected_layer_count}
+                  근거 커버리지 {formatPercent(item.coverage_ratio)} · 근거 {item.available_layer_count}/{item.expected_layer_count}
                 </small>
                 <small>추천 연결 {item.active_recommendation_count}개 · 보유 {formatPercent(item.current_weight)}</small>
                 <small className={`risk-tag ${professionalDepthItemTone(item.depth_status)}`}>
                   {professionalDepthStatusLabel(item.depth_status)}
                 </small>
                 {item.missing_layer_labels.length > 0 ? (
-                  <p>부족 layer: {item.missing_layer_labels.join(" · ")}</p>
+                  <p>부족 근거: {item.missing_layer_labels.join(" · ")}</p>
                 ) : (
-                  <p>현재 기준에서 표시할 부족 layer가 없다.</p>
+                  <p>현재 기준에서 표시할 부족 근거가 없다.</p>
                 )}
                 {item.blocker_code ? <small>차단 사유 {koCode(item.blocker_code)}</small> : null}
-                {item.remediation_action ? <p>{item.remediation_action}</p> : null}
+                {item.remediation_action ? <p>{operationCopy(item.remediation_action)}</p> : null}
               </article>
             ))}
           </div>
         ) : (
           <div className="empty-state">
-            active recommendation 기준으로 표시할 전문 분석 후보가 없다.
+            활성 추천 기준으로 표시할 전문 분석 후보가 없다.
           </div>
         )}
 
         <div className="empty-state">
           <strong>다음 조치</strong>
-          <p>{professionalDepth.next_action}</p>
+          <p>{operationCopy(professionalDepth.next_action)}</p>
         </div>
       </section>
 
@@ -3128,7 +3133,7 @@ export default async function DataHealthPage() {
         <div className="section-heading stacked-heading">
           <span>전문 분석 소스 공백</span>
           <h2 id="professional-source-gaps-title">
-            추천·보유 판단에 필요한 재무, 밸류에이션, 펀드 source가 어디서 막혔는지 본다.
+            추천·보유 판단에 필요한 재무, 밸류에이션, 펀드 원천이 어디서 막혔는지 본다.
           </h2>
         </div>
         <p className="board-intro">{professionalSourceGapExplanation(professionalSourceGaps)}</p>
@@ -3224,12 +3229,12 @@ export default async function DataHealthPage() {
           </div>
         ) : (
           <div className="empty-state">
-            active recommendation 기준으로 표시할 전문 분석 source 공백이 없다.
+            활성 추천 기준으로 표시할 전문 분석 원천 공백이 없다.
           </div>
         )}
         <div className="empty-state">
           <strong>다음 조치</strong>
-          <p>{professionalSourceGaps.next_action}</p>
+          <p>{operationCopy(professionalSourceGaps.next_action)}</p>
         </div>
       </section>
 
@@ -3332,7 +3337,7 @@ export default async function DataHealthPage() {
         <p className="board-intro">
           {portfolioReviewHistory.attention_required
             ? "벤치마크 괴리와 포지션 크기 검토는 주문 지시가 아니다. 이 섹션은 그 판단 후보가 언제 어떤 근거로 저장됐는지 보여주는 감사 이력이다."
-            : portfolioReviewHistory.managed_review_reason}
+            : operationCopy(portfolioReviewHistory.managed_review_reason)}
         </p>
         <div className="status-rail compact-rail">
           <article className="rail-cell">
@@ -3408,7 +3413,7 @@ export default async function DataHealthPage() {
         )}
         <div className="empty-state">
           <strong>다음 조치</strong>
-          <p>{portfolioReviewHistory.next_action}</p>
+          <p>{operationCopy(portfolioReviewHistory.next_action)}</p>
         </div>
       </section>
 
@@ -3512,7 +3517,7 @@ export default async function DataHealthPage() {
         )}
         <div className="empty-state">
           <strong>다음 조치</strong>
-          <p>{portfolioReviewFeedback.next_action}</p>
+          <p>{operationCopy(portfolioReviewFeedback.next_action)}</p>
         </div>
       </section>
 
@@ -3835,7 +3840,7 @@ export default async function DataHealthPage() {
         </div>
 	        <div className="empty-state">
 	          <strong>다음 조치</strong>
-	          <p>{portfolioReviewActionRouter.next_action}</p>
+	          <p>{operationCopy(portfolioReviewActionRouter.next_action)}</p>
 	        </div>
 	      </section>
 
@@ -4335,7 +4340,7 @@ export default async function DataHealthPage() {
                       </div>
                       <div>
                         <dt>다음 행동</dt>
-                        <dd>{gate.next_action}</dd>
+                        <dd>{operationCopy(gate.next_action)}</dd>
                       </div>
                       <div>
                         <dt>주문 경계</dt>
@@ -4410,11 +4415,11 @@ export default async function DataHealthPage() {
               </div>
               <div>
                 <dt>권한 다음 조치</dt>
-                <dd>{authRbac.next_action}</dd>
+                <dd>{operationCopy(authRbac.next_action)}</dd>
               </div>
               <div>
                 <dt>API 다음 조치</dt>
-                <dd>{productionApiServer.next_action}</dd>
+                <dd>{operationCopy(productionApiServer.next_action)}</dd>
               </div>
               <div>
                 <dt>알림 목적지</dt>
@@ -4432,7 +4437,7 @@ export default async function DataHealthPage() {
               </div>
               <div>
                 <dt>알림 다음 조치</dt>
-                <dd>{alertDestination.next_action}</dd>
+                <dd>{operationCopy(alertDestination.next_action)}</dd>
               </div>
               <div>
                 <dt>자동 실행기</dt>
