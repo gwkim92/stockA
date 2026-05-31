@@ -40,14 +40,39 @@ function yesNo(value: boolean) {
   return value ? "예" : "아니오";
 }
 
+function userText(value: string | null | undefined) {
+  if (!value) {
+    return "";
+  }
+  return koReason(koLabel(koCode(value)))
+    .replaceAll("페이퍼", "가상 매매")
+    .replaceAll("가상 거래", "가상 매매")
+    .replaceAll("paper validation", "가상 매매 검증")
+    .replaceAll("broker submit", "실거래 주문 제출")
+    .replaceAll("broker", "증권사 연결")
+    .replaceAll("주문 경계", "실거래 상태")
+    .replaceAll("order boundary", "실거래 상태")
+    .replaceAll("read_only_no_order", "읽기 전용, 실거래 주문 차단");
+}
+
+function orderBoundaryLabel(value: string | null | undefined) {
+  if (!value) {
+    return "실거래 상태 미확인";
+  }
+  if (value === "read_only_no_order") {
+    return "읽기 전용, 실거래 주문 차단";
+  }
+  return userText(value);
+}
+
 function brokerLabel(value: string | null | undefined) {
   if (!value) {
     return "증권사 미등록";
   }
   if (value === "simulated_paper") {
-    return "가상 거래 전용";
+    return "가상 매매 전용";
   }
-  return koCode(value);
+  return userText(value);
 }
 
 export default async function TradingReadinessPage() {
@@ -108,10 +133,10 @@ export default async function TradingReadinessPage() {
     },
     {
       index: "04",
-      label: "검토 기록·페이퍼",
-      title: `${koCode(data.paper_validation.status)} · 검토 ${data.audit_summary.intent_count}건`,
+      label: "검토 기록·가상 매매",
+      title: `${userText(data.paper_validation.status)} · 검토 ${data.audit_summary.intent_count}건`,
       metric: `검증 통과 후보 ${data.paper_validation.approved_action_count}개 · 제출 ${liveSubmitCount}건`,
-      body: "페이퍼 검증과 검토 기록은 실제 주문 전 단계의 근거다. 검증 통과 후보가 있어도 자동 주문은 아니다.",
+      body: "가상 매매 검증과 검토 기록은 실제 주문 전 단계의 근거다. 검증 통과 후보가 있어도 자동 주문은 아니다.",
       href: "#audit-boundary",
       cta: "검토 기록 보기",
       tone: data.paper_validation.blocked_reasons.length > 0 ? "watch" : "ready",
@@ -124,7 +149,7 @@ export default async function TradingReadinessPage() {
         <div className="bento-badge">거래 안전 점검 • 주문 전 차단 상태</div>
         <h1 id="trading-readiness-title">실제 주문을 넣기 전에 무엇이 막고 있는지 본다.</h1>
         <p>
-          증권사 연결, 계좌 권한, 주문 한도, 킬 스위치, 가상 검증, 검토 기록이 모두 통과해야
+          증권사 연결, 계좌 권한, 주문 한도, 킬 스위치, 가상 매매 검증, 검토 기록이 모두 통과해야
           실거래 전환 검토 대상이 된다. 아래 거래 안전 요약에서 차단 수와 실제 주문 전송 건수를 먼저 확인한다.
           실제 주문 전송 건수가 0이면 현재 서버에서 실제 주문은 나가지 않았다.
         </p>
@@ -136,7 +161,7 @@ export default async function TradingReadinessPage() {
           <h2 id="trading-command-title">지금 주문할 수 있는지가 아니라, 무엇이 막는지 본다.</h2>
           <p>
             이 화면은 주문 버튼이 아니다. 실거래 결론, 증권사 제출 기능, 킬 스위치,
-            검토 기록·페이퍼 검증을 분리해서 실제 주문 전환이 가능한지 판단한다.
+            검토 기록·가상 매매 검증을 분리해서 실제 주문 전환이 가능한지 판단한다.
           </p>
         </div>
         <div className="trading-command-grid">
@@ -156,8 +181,8 @@ export default async function TradingReadinessPage() {
       <section className="status-rail compact-rail reveal delay-1" aria-label="거래 안전 요약">
         <article className="rail-cell">
           <span>현재 상태</span>
-          <strong>{koCode(data.readiness_status)}</strong>
-          <small>{koLabel(data.portfolio_name)} · {koCode(data.execution_mode)}</small>
+          <strong>{userText(data.readiness_status)}</strong>
+          <small>{userText(data.portfolio_name)} · {userText(data.execution_mode)}</small>
         </article>
         <article className="rail-cell">
           <span>통과</span>
@@ -193,7 +218,7 @@ export default async function TradingReadinessPage() {
               <h2>실제 주문 전에 반드시 통과해야 하는 조건</h2>
             </div>
             <Link className="btn btn-secondary" href={"/paper-trading" as Route}>
-              가상 거래 후보 보기
+              가상 매매 후보 보기
             </Link>
           </div>
           <div className="readiness-grid">
@@ -201,10 +226,10 @@ export default async function TradingReadinessPage() {
               <article className="readiness-card" key={gate.gate_key}>
                 <div className="readiness-card-top">
                   <strong>{koLabel(gate.label)}</strong>
-                  <span className={`risk-tag ${statusClass(gate.status)}`}>{koCode(gate.status)}</span>
+                  <span className={`risk-tag ${statusClass(gate.status)}`}>{userText(gate.status)}</span>
                 </div>
-                <p>{koLabel(gate.detail)}</p>
-                <small>다음 조치: {koReason(gate.next_step)}</small>
+                <p>{userText(gate.detail)}</p>
+                <small>다음 조치: {userText(gate.next_step)}</small>
               </article>
             ))}
           </div>
@@ -223,7 +248,7 @@ export default async function TradingReadinessPage() {
               </div>
               <div>
                 <dt>증권사 연결 상태</dt>
-                <dd>{koCode(data.broker_boundary.status)}</dd>
+                <dd>{userText(data.broker_boundary.status)}</dd>
               </div>
               <div>
                 <dt>주문 미리보기</dt>
@@ -239,11 +264,11 @@ export default async function TradingReadinessPage() {
               </div>
               <div>
                 <dt>계좌 권한</dt>
-                <dd>{koCode(data.account_permission.permission_scope)}</dd>
+                <dd>{userText(data.account_permission.permission_scope)}</dd>
               </div>
               <div>
                 <dt>계좌 상태</dt>
-                <dd>{koCode(data.account_permission.status)}</dd>
+                <dd>{userText(data.account_permission.status)}</dd>
               </div>
               <div>
                 <dt>허용 종목</dt>
@@ -271,8 +296,8 @@ export default async function TradingReadinessPage() {
                         {candidate.direction === "overweight" ? "과대 보유" : "과소 보유"} · {formatPercent(candidate.active_weight)}
                       </strong>
                     </div>
-                    <p>{koReason(candidate.rationale)}</p>
-                    <small>주문 경계: {koCode(candidate.order_boundary)}</small>
+                    <p>{userText(candidate.rationale)}</p>
+                    <small>실거래 상태: {orderBoundaryLabel(candidate.order_boundary)}</small>
                   </article>
                 ))}
               </div>
@@ -303,7 +328,7 @@ export default async function TradingReadinessPage() {
             <dl className="fact-list">
               <div>
                 <dt>정책 상태</dt>
-                <dd>{koCode(data.order_limit_policy.status)}</dd>
+                <dd>{userText(data.order_limit_policy.status)}</dd>
               </div>
               <div>
                 <dt>단일 주문</dt>
@@ -349,13 +374,13 @@ export default async function TradingReadinessPage() {
               <tbody>
                 {data.kill_switches.map((item) => (
                   <tr key={`${item.scope}-${item.scope_ref}`}>
-                    <td>{koCode(item.scope)} · {item.scope_ref}</td>
+                    <td>{userText(item.scope)} · {item.scope_ref}</td>
                     <td>
                       <span className={`risk-tag ${item.is_engaged ? "risk-high" : "risk-low"}`}>
                         {item.is_engaged ? "차단 중" : "열림"}
                       </span>
                     </td>
-                    <td>{koReason(item.reason)}</td>
+                    <td>{userText(item.reason)}</td>
                     <td>{item.changed_at || "변경 기록 없음"}</td>
                   </tr>
                 ))}
@@ -366,13 +391,13 @@ export default async function TradingReadinessPage() {
 
         <article className="ledger-panel">
             <div className="section-heading stacked-heading">
-              <span>가상 검증/기록</span>
-              <h2>가상 검증과 검토 기록</h2>
+              <span>가상 매매 검증/기록</span>
+              <h2>가상 매매 검증과 검토 기록</h2>
             </div>
           <dl className="fact-list">
             <div>
-              <dt>가상 검증 상태</dt>
-              <dd>{koCode(data.paper_validation.status)}</dd>
+              <dt>가상 매매 검증 상태</dt>
+              <dd>{userText(data.paper_validation.status)}</dd>
             </div>
             <div>
               <dt>검증일</dt>
@@ -396,7 +421,7 @@ export default async function TradingReadinessPage() {
             </div>
             <div>
               <dt>위험 예산 검증</dt>
-              <dd>{koCode(riskGuardrail.risk_gate_decision)}</dd>
+              <dd>{userText(riskGuardrail.risk_gate_decision)}</dd>
             </div>
             <div>
               <dt>위험 예산 기준일</dt>
@@ -422,12 +447,12 @@ export default async function TradingReadinessPage() {
                   <span className="reason-symbol">위험 예산</span>
                   <strong>현재 위험 예산 차단 사유가 없다</strong>
                 </div>
-                <p>최신 위험 예산 검증 결과가 가상 검증 입력을 막지 않는다.</p>
+                <p>최신 위험 예산 검증 결과가 가상 매매 검증 입력을 막지 않는다.</p>
               </article>
             )}
           </div>
           {blockedReasons.length > 0 ? (
-            <div className="reason-list" aria-label="가상 검증 차단 사유">
+            <div className="reason-list" aria-label="가상 매매 검증 차단 사유">
               {blockedReasons.map((reason) => (
                 <article className="reason-card" key={reason.raw}>
                   <div>
@@ -440,12 +465,12 @@ export default async function TradingReadinessPage() {
               ))}
             </div>
           ) : (
-            <p className="empty-copy">현재 기록된 가상 검증 차단 사유가 없다.</p>
+            <p className="empty-copy">현재 기록된 가상 매매 검증 차단 사유가 없다.</p>
           )}
           <div className="tag-ledger">
             {data.guardrails.map((guardrail) => (
               <span className="risk-tag risk-medium" key={guardrail}>
-                {koLabel(guardrail)}
+                {userText(guardrail)}
               </span>
             ))}
           </div>
