@@ -37,8 +37,8 @@
 
 ## Done Criteria
 
-- [ ] `/ai-evidence/[evidenceId]` renders a Korean visibility trace board for source, translation, AI structure, validator, recommendation linkage, and read-only boundary.
-- [ ] Redundant first-screen status/question blocks are removed without removing source preview or detailed evidence sections.
-- [ ] Local frontend verification passes.
-- [ ] AWH task verification passes.
-- [ ] EC2/tunnel route smoke confirms the new Korean copy renders.
+- [x] `/ai-evidence/[evidenceId]` renders a Korean visibility trace board for source, translation, AI structure, validator, recommendation linkage, and read-only boundary.
+- [x] Redundant first-screen status/question blocks are removed without removing source preview or detailed evidence sections.
+- [x] Local frontend verification passes.
+- [x] AWH task verification passes.
+- [x] EC2/tunnel route smoke confirms the new Korean copy renders.

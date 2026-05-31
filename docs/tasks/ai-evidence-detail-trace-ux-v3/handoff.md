@@ -2,7 +2,7 @@
 
 ## Status
 
-- in progress: task contract created; implementation is next.
+- completed: local implementation, local verification, GitHub push, EC2 deploy, EC2 route smoke, tunnel route smoke, and Playwright snapshot verification passed.
 
 ## Current Decision
 
@@ -12,13 +12,21 @@
 
 ## Next Step
 
-- exact next step: render the visibility trace board, remove duplicate summary/question blocks, run local verification, deploy to EC2, smoke a known AI evidence detail route, then update this handoff with evidence.
+- exact next step: continue the UX/page split sweep with `/source-documents/[documentId]`, focusing on replacing inline styles and making source document purpose, linked AI evidence, and original text disclosure easier to scan.
 
 ## Verification So Far
 
-- pending: local frontend verification.
-- pending: AWH verification.
-- pending: EC2/tunnel route smoke.
+- passed: `cd apps/web && npm run typecheck`
+- passed: `cd apps/web && npm run build`
+- passed: `PYTHONPATH=/Users/woody/ai/agent-work-harness/src python3 -m awh verify --repo . --task ai-evidence-detail-trace-ux-v3`
+- passed: `git diff --check`
+- passed: EC2 `cd /opt/stockanalysis/app/apps/web && npm run typecheck`
+- passed: EC2 `cd /opt/stockanalysis/app/apps/web && npm run build`
+- passed: EC2 `sudo systemctl restart stockanalysis-web.service`
+- passed: EC2 internal route smoke for `http://127.0.0.1:3000/ai-evidence/ai-evidence-547`
+- passed: tunnel route smoke for `http://127.0.0.1:13000/ai-evidence/ai-evidence-547`
+- passed: route smoke confirmed `AI 근거 핵심 요약` no longer renders.
+- passed: Playwright snapshot found `한눈에 보는 근거 흐름`, `이 근거가 어디서 와서 어디에 쓰이는지 확인한다`, `원천 뉴스`, `한국어 번역`, `자동 검증`, `실시간 AI 호출 없음`, and `주문 없음`
 
 ## Risks
 
