@@ -774,7 +774,7 @@ function ResearchList({ title, items, emptyText }: { title: string; items: strin
       <div className="bento-list compact-list">
         {items.length > 0 ? (
           items.map((item) => (
-            <div className="bento-list-item" key={item}>{koLabel(item)}</div>
+            <div className="bento-list-item" key={item}>{userFacingStockText(item)}</div>
           ))
         ) : (
           <div className="empty-state">{emptyText}</div>
