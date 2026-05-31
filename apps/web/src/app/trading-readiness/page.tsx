@@ -44,7 +44,11 @@ function userText(value: string | null | undefined) {
   if (!value) {
     return "";
   }
-  return koReason(koLabel(koCode(value)))
+  return cleanCopy(koReason(koLabel(koCode(value))));
+}
+
+function cleanCopy(value: string) {
+  return value
     .replaceAll("페이퍼", "가상 매매")
     .replaceAll("가상 거래", "가상 매매")
     .replaceAll("paper validation", "가상 매매 검증")
@@ -435,10 +439,10 @@ export default async function TradingReadinessPage() {
                 <article className="reason-card" key={reason}>
                   <div>
                     <span className="reason-symbol">위험 예산</span>
-                    <strong>{detail.title}</strong>
+                    <strong>{cleanCopy(detail.title)}</strong>
                   </div>
-                  <p>{detail.description}</p>
-                  <small>다음 조치: {detail.nextStep}</small>
+                  <p>{cleanCopy(detail.description)}</p>
+                  <small>다음 조치: {cleanCopy(detail.nextStep)}</small>
                 </article>
               );
             }) : (
@@ -457,10 +461,10 @@ export default async function TradingReadinessPage() {
                 <article className="reason-card" key={reason.raw}>
                   <div>
                     <span className="reason-symbol">{reason.symbol ?? "공통"}</span>
-                    <strong>{reason.title}</strong>
+                    <strong>{cleanCopy(reason.title)}</strong>
                   </div>
-                  <p>{reason.description}</p>
-                  <small>다음 조치: {reason.nextStep}</small>
+                  <p>{cleanCopy(reason.description)}</p>
+                  <small>다음 조치: {cleanCopy(reason.nextStep)}</small>
                 </article>
               ))}
             </div>
