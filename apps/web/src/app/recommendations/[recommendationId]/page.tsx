@@ -1116,7 +1116,7 @@ function recommendationWaterfallCards({
           ? `${data.financial_statement_model.computed_metric_count}개 지표`
           : "재무 원천 부족",
       body: sourceBlocked
-        ? professionalAudit.source_blocker.summary
+        ? koLabel(professionalAudit.source_blocker.summary)
         : `재무 품질·현금흐름·부채·희석 지표 ${data.financial_statement_model.computed_metric_count}개를 확인한다.`,
       href: "#recommendation-financial-model",
       hrefLabel: "재무 근거 보기",
@@ -1350,7 +1350,7 @@ export default async function RecommendationPage({ params }: RecommendationPageP
           </span>
         </div>
         <p style={{ color: "var(--text-secondary)", marginTop: 0 }}>
-          {decisionWaterfall.summary} 이 판정은 추천 점수를 바꾸지 않고, 이 추천을 페이퍼 검증·보유 검토·주문 경계 중 어디까지
+          {koLabel(decisionWaterfall.summary)} 이 판정은 추천 점수를 바꾸지 않고, 이 추천을 페이퍼 검증·보유 검토·주문 경계 중 어디까지
           넘길 수 있는지만 설명한다.
         </p>
         <div className="status-rail compact-rail" aria-label="추천 사용 경계 요약">
@@ -1381,7 +1381,7 @@ export default async function RecommendationPage({ params }: RecommendationPageP
         <ProfessionalResearchFlow
           eyebrow="전문 의사결정 흐름"
           title={`${data.symbol} 추천을 분석서처럼 읽는다`}
-          summary={decisionWaterfall.summary}
+          summary={koLabel(decisionWaterfall.summary)}
           footer={`추천 산식 정책: ${koCode(decisionWaterfall.score_policy)}. 주문 경계: ${koCode(decisionWaterfall.order_boundary)}.`}
           steps={professionalResearchSteps}
         />
@@ -1398,7 +1398,7 @@ export default async function RecommendationPage({ params }: RecommendationPageP
           </span>
         </div>
         <p style={{ color: "var(--text-secondary)", marginTop: 0, maxWidth: "920px" }}>
-          {professionalAudit.summary} {professionalAudit.next_action}
+          {koLabel(professionalAudit.summary)} {koLabel(professionalAudit.next_action)}
         </p>
 
         <div className="status-rail compact-rail" aria-label="추천 전문 분석 감사 요약">
@@ -1431,7 +1431,7 @@ export default async function RecommendationPage({ params }: RecommendationPageP
           <div className="empty-state" style={{ marginTop: "18px" }}>
             <strong>{professionalAudit.source_blocker.blocker_label || "원천 차단"}</strong>
             <p style={{ margin: "8px 0 0", color: "var(--text-secondary)" }}>
-              {professionalAudit.source_blocker.summary} {professionalAudit.source_blocker.next_action}
+              {koLabel(professionalAudit.source_blocker.summary)} {koLabel(professionalAudit.source_blocker.next_action)}
             </p>
           </div>
         ) : null}
