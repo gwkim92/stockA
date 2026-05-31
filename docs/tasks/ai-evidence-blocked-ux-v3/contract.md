@@ -37,8 +37,8 @@
 
 ## Done Criteria
 
-- [ ] `/ai-evidence/blocked` has a first-screen Korean command panel explaining blocked, suppressed, remediation, and order-boundary lanes.
-- [ ] The page routes users to blocked list and related result screens without implying approval/write actions.
-- [ ] Local frontend verification passes.
-- [ ] AWH task verification passes.
-- [ ] EC2/tunnel route smoke confirms the new Korean copy renders.
+- [x] `/ai-evidence/blocked` has a first-screen Korean command panel explaining blocked, suppressed, remediation, and order-boundary lanes.
+- [x] The page routes users to blocked list and related result screens without implying approval/write actions.
+- [x] Local frontend verification passes.
+- [x] AWH task verification passes.
+- [x] EC2/tunnel route smoke confirms the new Korean copy renders.
