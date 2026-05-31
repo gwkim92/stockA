@@ -12,6 +12,7 @@ const USER_FACING_REPLACEMENTS: Array<[string, string]> = [
   ["paper validation", "가상 매매 검증"],
   ["Paper validation", "가상 매매 검증"],
   ["paper trade", "가상 매매"],
+  ["가상 거래", "가상 매매"],
   ["broker submit", "증권사 주문 제출"],
   ["broker", "증권사"],
   ["order boundary", "실거래 상태"],
@@ -388,8 +389,8 @@ export default async function PaperTradingPage() {
               {blockedReasonDetails.slice(0, 6).map((reason) => (
                 <div className="relationship-chip" key={reason.raw}>
                   <span>{reason.symbol ? koCode(reason.symbol) : "전체"}</span>
-                  <strong>{reason.title}</strong>
-                  <small>{reason.description}</small>
+                  <strong>{userFacingText(reason.title)}</strong>
+                  <small>{userFacingText(reason.description)}</small>
                 </div>
               ))}
             </div>
