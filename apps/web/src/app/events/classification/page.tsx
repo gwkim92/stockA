@@ -99,7 +99,7 @@ export default async function ClassificationPage() {
       metric: `종목 태그 ${directSymbolCount.toLocaleString("ko-KR")}건`,
       body:
         directSymbolCount > 0
-          ? "명확한 회사명·티커 뉴스만 직접 종목으로 본다. 원문에 없는 티커가 붙었다면 AI/validator 화면에서 차단 여부를 본다."
+          ? "명확한 회사명·티커 뉴스만 직접 종목으로 본다. 원문에 없는 티커가 붙었다면 AI 판단과 검증 결과에서 차단 여부를 본다."
           : "직접 종목 태그가 없다. 거시·테마 뉴스일 수 있으므로 억지로 종목을 붙이지 않는다.",
       href: "#classification-groups",
       cta: "종목 태그 확인",
@@ -112,7 +112,7 @@ export default async function ClassificationPage() {
       metric: `시장/테마 뉴스 ${macroOnlyCount.toLocaleString("ko-KR")}건`,
       body:
         macroOnlyCount > 0
-          ? "금리, 물가, 정책, 에너지 같은 뉴스는 개별 종목보다 상위 흐름으로 먼저 저장하고 이후 exposure로 전파한다."
+          ? "금리, 물가, 정책, 에너지 같은 뉴스는 개별 종목보다 상위 흐름으로 먼저 저장하고 이후 종목 민감도에 따라 전파한다."
           : "현재 목록에서는 종목 없는 상위 흐름 뉴스가 두드러지지 않는다.",
       href: "/cycle-map",
       cta: "사이클 지도 보기",
@@ -126,7 +126,7 @@ export default async function ClassificationPage() {
       body:
         aiLinkedCount > 0
           ? "1차 태그와 AI 구조화 결과가 같은 방향인지 본다. 불일치하거나 낮은 신뢰도는 추천 근거로 쓰지 않는다."
-          : "이 화면의 태그는 아직 최종 판단이 아니다. AI 분석과 validator 결과가 붙을 때까지 추천 입력으로 보류한다.",
+          : "이 화면의 태그는 아직 최종 판단이 아니다. AI 분석과 검증 결과가 붙을 때까지 추천 입력으로 보류한다.",
       href: "/ai-evidence",
       cta: "AI와 비교",
       tone: aiLinkedCount > 0 ? "ready" : "watch",
@@ -144,7 +144,7 @@ export default async function ClassificationPage() {
         </div>
         <p className="page-lede">
           이 화면은 최종 투자 판단이 아니라 규칙 기반 1차 분류를 보는 곳이다. 직접 종목 뉴스와
-          거시·테마 뉴스를 분리하고, 이상한 태그는 AI 구조화와 validator 결과에서 다시 확인한다.
+          거시·테마 뉴스를 분리하고, 이상한 태그는 AI 구조화와 검증 결과에서 다시 확인한다.
         </p>
       </section>
 
@@ -153,7 +153,7 @@ export default async function ClassificationPage() {
           <span>1차 분류 판정판</span>
           <h2 id="classification-command-title">테마가 맞는지, 종목을 억지로 붙였는지 먼저 본다.</h2>
           <p>
-            기준일 {data.as_of_date}. 이 태그는 rule pack의 첫 해석이며, AI 구조화와 validator를 통과해야
+            기준일 {data.as_of_date}. 이 태그는 기본 규칙의 첫 해석이며, AI 구조화와 검증을 통과해야
             추천 근거 후보가 된다.
           </p>
         </div>

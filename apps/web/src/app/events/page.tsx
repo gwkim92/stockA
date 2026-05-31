@@ -64,7 +64,7 @@ export default async function EventsPage() {
       metric: `후보 ${data.summary.news_event_candidate_count.toLocaleString("ko-KR")}건 · 묶음 ${data.summary.news_cluster_summary_count.toLocaleString("ko-KR")}건`,
       body:
         linkedCount > 0
-          ? "AI evidence가 연결된 뉴스는 구조화 상세에서 원문, 번역, 판단 근거, 추천 연결 여부를 추적한다."
+          ? "AI 판단이 연결된 뉴스는 구조화 상세에서 원문, 번역, 판단 근거, 추천 연결 여부를 추적한다."
           : "수집은 됐지만 아직 AI 분석 근거가 연결되지 않았다. 추천 입력으로 쓰기 전 단계다.",
       href: "/ai-evidence",
       cta: "AI 분석 보기",
@@ -80,8 +80,8 @@ export default async function EventsPage() {
       metric: `저신호 ${data.summary.suppressed_low_signal_candidate_count.toLocaleString("ko-KR")}건 · 미검토 ${data.summary.unreviewed_event_count.toLocaleString("ko-KR")}건`,
       body:
         blockedOrSuppressedCount > 0
-          ? "validator 차단이나 저신호 보류 뉴스는 추천 근거로 쓰면 안 된다. 차단 화면에서 이유를 확인한다."
-          : "현재 목록에서는 차단·저신호 후보가 두드러지지 않는다. 그래도 AI 결과 화면에서 validator 상태를 확인한다.",
+          ? "검증에서 막혔거나 신호가 약한 뉴스는 추천 근거로 쓰면 안 된다. 차단 화면에서 이유를 확인한다."
+          : "현재 목록에서는 차단·저신호 후보가 두드러지지 않는다. 그래도 AI 결과 화면에서 검증 상태를 확인한다.",
       href: "/ai-evidence/blocked",
       cta: "차단 보기",
       tone: blockedOrSuppressedCount > 0 ? "block" : "ready",
@@ -99,7 +99,7 @@ export default async function EventsPage() {
         </div>
         <p className="page-lede">
           이 화면은 투자 결론이나 주문을 내리는 곳이 아니다. 수집 원장, 1차 분류, AI 분석 연결,
-          validator 차단 여부를 분리해서 보고 이상한 뉴스만 다음 화면에서 추적한다.
+          검증 차단 여부를 분리해서 보고 이상한 뉴스만 다음 화면에서 추적한다.
         </p>
       </section>
 
@@ -109,7 +109,7 @@ export default async function EventsPage() {
           <h2 id="events-command-title">원문이 들어왔는지보다, 판단 입력으로 쓸 수 있는지 본다.</h2>
           <p>
             최신 이벤트 {latestEvent ? latestEvent.event_at : "없음"} · 기준일 {data.as_of_date}.
-            뉴스는 원장, 분류, AI 구조화, validator 통과를 거친 뒤에만 추천 근거 후보가 된다.
+            뉴스는 원장, 분류, AI 구조화, 검증 통과를 거친 뒤에만 추천 근거 후보가 된다.
           </p>
         </div>
         <div className="events-command-grid">

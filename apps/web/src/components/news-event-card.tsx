@@ -74,7 +74,7 @@ export function NewsEventCard({ event, mode, compact = false }: NewsEventCardPro
   const themeLink = newsThemeHref(event.theme_key);
   const stockLink = newsStockHref(event.symbol);
   const classifiedSymbol = isKnownNewsCode(event.symbol);
-  const actionLabel = mode === "blocked" ? "차단 근거" : mode === "result" ? "구조화 상세" : "AI 근거";
+  const actionLabel = mode === "blocked" ? "차단 이유 보기" : mode === "result" ? "구조화 결과 보기" : "AI 판단 상세";
 
   return (
     <article className={compact ? "news-row-card news-row-card-compact" : "news-row-card"}>
@@ -93,7 +93,7 @@ export function NewsEventCard({ event, mode, compact = false }: NewsEventCardPro
           impactDirection={event.impact_direction}
           impactScore={event.impact_score}
         />
-        <div className="tag-strip" aria-label={`${event.title} 태그`}>
+        <div className="tag-strip" aria-label={`${event.title} 해석 태그`}>
           <span>{classifiedSymbol ? `직접 종목 ${koCode(event.symbol)}` : "시장/테마 뉴스"}</span>
           <span>테마 {koCode(event.theme_key)}</span>
           <span>방향 {koCode(event.impact_direction)}</span>
@@ -119,7 +119,7 @@ export function NewsEventCard({ event, mode, compact = false }: NewsEventCardPro
         ) : null}
         {documentLink ? (
           <Link className="btn btn-secondary" href={documentLink}>
-            원문
+            원문 열기
           </Link>
         ) : null}
       </div>
