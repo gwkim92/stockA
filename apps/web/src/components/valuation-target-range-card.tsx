@@ -81,6 +81,24 @@ function qualityTone(status: string) {
   return "risk-high";
 }
 
+function userFacingValuationText(value: string) {
+  return value
+    .replace(/\bSOTP\b/g, "사업부 가치합산")
+    .replace(/\bDCF-lite\b/g, "현금흐름 간이평가")
+    .replace(/\bDCF\b/g, "현금흐름 평가")
+    .replace(/\bforecast\b/gi, "재무 추정")
+    .replace(/\bsegment\b/gi, "사업부")
+    .replace(/\bfootnote\b/gi, "주석")
+    .replace(/\bproxy\b/gi, "대체 추정")
+    .replace(/\breserve\b/gi, "보수적 차감")
+    .replace(/\bcomponent\b/gi, "구성요소")
+    .replace(/\bTrue\b/g, "예")
+    .replace(/\bFalse\b/g, "아니오")
+    .replace(/\bUSD_millions_as_reported\b/g, "백만 달러 단위")
+    .replace(/\bUSD_thousands_as_reported\b/g, "천 달러 단위")
+    .replace(/\bUSD_as_reported\b/g, "공시 보고 단위");
+}
+
 export function ValuationTargetRangeCard({
   valuation,
   eyebrow = "밸류에이션",
@@ -136,11 +154,13 @@ export function ValuationTargetRangeCard({
 
       {available ? (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "14px", marginTop: "18px" }}>
-          {valuation.methods.map((method) => (
+          {valuation.methods.map((method) => {
+            const methodLabel = userFacingValuationText(method.method_label);
+            return (
             <article className="detail-path-card" key={`${method.method}-${method.as_of_date}`} style={{ minHeight: "360px" }}>
               <div style={{ display: "flex", justifyContent: "space-between", gap: "12px", alignItems: "flex-start" }}>
                 <div>
-                  <span>{method.method_label}</span>
+                  <span>{methodLabel}</span>
                   <strong style={{ display: "block", fontSize: "1rem", marginTop: "4px" }}>
                     {formatCurrency(method.fair_value_base, currency)}
                   </strong>
@@ -160,20 +180,20 @@ export function ValuationTargetRangeCard({
                 <strong>{formatCurrency(method.valuation_gap, currency)}</strong>
               </div>
               <p style={{ color: "var(--text-secondary)", lineHeight: 1.55, margin: "12px 0 0" }}>
-                {method.evidence_summary || assumptionText(method.assumptions)}
+                {userFacingValuationText(method.evidence_summary || assumptionText(method.assumptions))}
               </p>
 
               <div style={{ display: "grid", gap: "8px", marginTop: "14px" }}>
                 {method.assumption_items.slice(0, 4).map((item) => (
                   <div key={`${method.method}-${item.label}`} style={{ borderTop: "1px solid var(--border-light)", paddingTop: "8px" }}>
-                    <span style={{ color: "var(--text-secondary)", fontSize: "0.75rem", fontWeight: 800 }}>{item.label}</span>
-                    <strong style={{ display: "block", marginTop: "2px" }}>{item.value}</strong>
-                    <small style={{ color: "var(--text-muted)", lineHeight: 1.45 }}>{item.interpretation}</small>
+                    <span style={{ color: "var(--text-secondary)", fontSize: "0.75rem", fontWeight: 800 }}>{userFacingValuationText(item.label)}</span>
+                    <strong style={{ display: "block", marginTop: "2px" }}>{userFacingValuationText(item.value)}</strong>
+                    <small style={{ color: "var(--text-muted)", lineHeight: 1.45 }}>{userFacingValuationText(item.interpretation)}</small>
                   </div>
                 ))}
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "8px", marginTop: "14px" }} aria-label={`${method.method_label} 민감도`}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "8px", marginTop: "14px" }} aria-label={`${methodLabel} 민감도`}>
                 {method.sensitivity_cases.map((scenario) => (
                   <div key={`${method.method}-${scenario.case_key}`} style={{ border: "1px solid var(--border-light)", borderRadius: "12px", padding: "10px", background: "rgba(255,255,255,0.42)" }}>
                     <span style={{ color: "var(--text-secondary)", fontSize: "0.72rem", fontWeight: 900 }}>{scenario.label}</span>
@@ -186,7 +206,7 @@ export function ValuationTargetRangeCard({
               {method.forecast_evidence.status === "available" ? (
                 <div style={{ borderTop: "1px solid var(--border-light)", marginTop: "14px", paddingTop: "12px" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", gap: "10px", alignItems: "baseline" }}>
-                    <span style={{ color: "var(--text-secondary)", fontSize: "0.78rem", fontWeight: 900 }}>재무 forecast 입력</span>
+                    <span style={{ color: "var(--text-secondary)", fontSize: "0.78rem", fontWeight: 900 }}>재무 추정 입력</span>
                     <small style={{ color: "var(--text-muted)" }}>
                       {method.forecast_evidence.forecast_row_count}개 입력 · {method.forecast_evidence.latest_forecast_as_of_date || "기준일 없음"}
                     </small>
@@ -196,8 +216,8 @@ export function ValuationTargetRangeCard({
                       <div key={`${method.method}-forecast-${scenario.scenario_key}`} style={{ display: "grid", gridTemplateColumns: "72px 1fr", gap: "8px", alignItems: "start" }}>
                         <strong>{scenario.label}</strong>
                         <small style={{ color: "var(--text-secondary)", lineHeight: 1.45 }}>
-                          {scenario.last_year ?? "?"}년차 매출 {formatCurrency(scenario.terminal_revenue, currency)} · FCF {formatCurrency(scenario.terminal_free_cash_flow, currency)} ·
-                          성장 {formatPercent(scenario.avg_revenue_growth_rate, true)} · FCF마진 {formatPercent(scenario.avg_free_cash_flow_margin)}
+                          {scenario.last_year ?? "?"}년차 매출 {formatCurrency(scenario.terminal_revenue, currency)} · 잉여현금흐름 {formatCurrency(scenario.terminal_free_cash_flow, currency)} ·
+                          성장 {formatPercent(scenario.avg_revenue_growth_rate, true)} · 잉여현금흐름 마진 {formatPercent(scenario.avg_free_cash_flow_margin)}
                         </small>
                       </div>
                     ))}
@@ -208,7 +228,7 @@ export function ValuationTargetRangeCard({
               {method.sotp_evidence.status === "available" ? (
                 <div style={{ borderTop: "1px solid var(--border-light)", marginTop: "14px", paddingTop: "12px" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", gap: "10px", alignItems: "baseline" }}>
-                    <span style={{ color: "var(--text-secondary)", fontSize: "0.78rem", fontWeight: 900 }}>SOTP 구성요소</span>
+                    <span style={{ color: "var(--text-secondary)", fontSize: "0.78rem", fontWeight: 900 }}>사업부 가치합산 구성요소</span>
                     <small style={{ color: "var(--text-muted)" }}>
                       {method.sotp_evidence.component_count}개 구성 · {method.sotp_evidence.latest_sotp_as_of_date || "기준일 없음"}
                     </small>
@@ -219,7 +239,7 @@ export function ValuationTargetRangeCard({
                         <strong>{component.component_label}</strong>
                         <small style={{ color: "var(--text-secondary)", lineHeight: 1.45 }}>
                           기준 {formatCurrency(component.fair_value_base, currency)} · 보수 {formatCurrency(component.fair_value_low, currency)} · 낙관 {formatCurrency(component.fair_value_high, currency)}
-                          {component.description ? ` · ${component.description}` : ""}
+                          {component.description ? ` · ${userFacingValuationText(component.description)}` : ""}
                         </small>
                       </div>
                     ))}
@@ -251,7 +271,7 @@ export function ValuationTargetRangeCard({
                       <div style={{ display: "flex", justifyContent: "space-between", gap: "10px", alignItems: "baseline" }}>
                         <span style={{ color: "var(--text-secondary)", fontSize: "0.76rem", fontWeight: 900 }}>사업부별 가치 배분</span>
                         <small style={{ color: "var(--text-muted)" }}>
-                          기존 영업사업 SOTP 총액을 바꾸지 않는 설명용 배분
+                          기존 영업사업 가치합산 총액을 바꾸지 않는 설명용 배분
                         </small>
                       </div>
                       <div style={{ display: "grid", gap: "8px", marginTop: "10px" }}>
@@ -282,15 +302,15 @@ export function ValuationTargetRangeCard({
                           <div key={`${method.method}-segment-assumption-${segment.segment_key}-${segment.period_end}`} style={{ display: "grid", gridTemplateColumns: "124px 1fr", gap: "8px", alignItems: "start" }}>
                             <strong>{segment.segment_label}</strong>
                             <small style={{ color: "var(--text-secondary)", lineHeight: 1.45 }}>
-                              {segment.driver_label || "사업부 driver 미확인"} · 기준 성장률 {formatPercent(segment.base_growth_rate)}
+                              {userFacingValuationText(segment.driver_label || "사업부 동인 미확인")} · 기준 성장률 {formatPercent(segment.base_growth_rate)}
                               · 마진 {formatPercent(segment.margin_assumption)}
                               · 배수 {formatMultiple(segment.low_multiple)}~{formatMultiple(segment.high_multiple)}
                               · 비중 {formatPercent(segment.allocation_weight)}
-                              {segment.driver_template_label ? ` · 동인 ${segment.driver_template_label}` : ""}
+                              {segment.driver_template_label ? ` · 동인 ${userFacingValuationText(segment.driver_template_label)}` : ""}
                               {segment.history_period_count > 1
                                 ? ` · ${segment.history_period_count}개 기간 추세: 매출 CAGR ${formatPercent(segment.observed_revenue_cagr, true)}, 마진 변화 ${formatPercent(segment.observed_margin_change, true)}`
-                                : " · 단일 기간 proxy"}
-                              {segment.rationale ? ` · ${segment.rationale}` : ""}
+                                : " · 단일 기간 대체 추정"}
+                              {segment.rationale ? ` · ${userFacingValuationText(segment.rationale)}` : ""}
                             </small>
                           </div>
                         ))}
@@ -300,9 +320,9 @@ export function ValuationTargetRangeCard({
                   {method.sotp_evidence.segment_footnote_evidence.status === "available" ? (
                     <div style={{ borderTop: "1px solid var(--border-light)", marginTop: "12px", paddingTop: "10px" }}>
                       <div style={{ display: "flex", justifyContent: "space-between", gap: "10px", alignItems: "baseline" }}>
-                        <span style={{ color: "var(--text-secondary)", fontSize: "0.76rem", fontWeight: 900 }}>SEC 세그먼트/footnote 근거</span>
+                        <span style={{ color: "var(--text-secondary)", fontSize: "0.76rem", fontWeight: 900 }}>SEC 사업부 주석 근거</span>
                         <small style={{ color: "var(--text-muted)" }}>
-                          근거 {method.sotp_evidence.segment_footnote_evidence.evidence_count}개 · 실제 segment {method.sotp_evidence.segment_footnote_evidence.reported_segment_metric_count}개 · 공백 {method.sotp_evidence.segment_footnote_evidence.segment_data_gap_count}개
+                          근거 {method.sotp_evidence.segment_footnote_evidence.evidence_count}개 · 실제 사업부 {method.sotp_evidence.segment_footnote_evidence.reported_segment_metric_count}개 · 공백 {method.sotp_evidence.segment_footnote_evidence.segment_data_gap_count}개
                         </small>
                       </div>
                       <div style={{ display: "grid", gap: "8px", marginTop: "10px" }}>
@@ -310,10 +330,10 @@ export function ValuationTargetRangeCard({
                           <div key={`${method.method}-segment-${row.evidence_type}-${row.segment_key}-${row.metric_code}`} style={{ display: "grid", gridTemplateColumns: "108px 1fr", gap: "8px", alignItems: "start" }}>
                             <strong>{row.segment_label}</strong>
                             <small style={{ color: "var(--text-secondary)", lineHeight: 1.45 }}>
-                              {row.evidence_type === "segment_data_gap" ? "사업부별 데이터 공백" : row.metric_code}
-                              {row.metric_value !== null ? ` · ${new Intl.NumberFormat("ko-KR", { maximumFractionDigits: 2 }).format(row.metric_value)} ${row.metric_unit}` : ""}
+                              {row.evidence_type === "segment_data_gap" ? "사업부별 데이터 공백" : userFacingValuationText(row.metric_code)}
+                              {row.metric_value !== null ? ` · ${new Intl.NumberFormat("ko-KR", { maximumFractionDigits: 2 }).format(row.metric_value)} ${userFacingValuationText(row.metric_unit)}` : ""}
                               {row.period_end ? ` · ${row.period_end}` : ""}
-                              {row.evidence_text ? ` · ${row.evidence_text}` : ""}
+                              {row.evidence_text ? ` · ${userFacingValuationText(row.evidence_text)}` : ""}
                             </small>
                           </div>
                         ))}
@@ -336,16 +356,16 @@ export function ValuationTargetRangeCard({
                   </div>
                   <div>
                     <dt>경고</dt>
-                    <dd>{method.data_quality.warnings.length ? method.data_quality.warnings.join(" / ") : "없음"}</dd>
+                    <dd>{method.data_quality.warnings.length ? userFacingValuationText(method.data_quality.warnings.join(" / ")) : "없음"}</dd>
                   </div>
                   <div>
                     <dt>모델 한계</dt>
-                    <dd>{method.limitations.join(" / ")}</dd>
+                    <dd>{userFacingValuationText(method.limitations.join(" / "))}</dd>
                   </div>
                 </dl>
               </details>
             </article>
-          ))}
+          )})}
         </div>
       ) : (
         <div className="empty-state" style={{ marginTop: "18px" }}>
