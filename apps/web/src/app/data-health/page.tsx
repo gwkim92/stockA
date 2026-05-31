@@ -1,6 +1,6 @@
 import type { Route } from "next";
 import { getDataHealth } from "@/lib/frontend-api";
-import { koCode } from "@/lib/korean-labels";
+import { koCode, koReason } from "@/lib/korean-labels";
 import type { DataHealthData } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -187,7 +187,7 @@ function timerPurpose(profileId: string) {
     return "SEC 공시 기반 기업 이벤트를 주간 단위로 보강한다.";
   }
   if (profileId === "performance-monthly") {
-    return "추천과 thesis 성과를 월간 단위로 측정한다.";
+    return "추천과 투자 논리 성과를 월간 단위로 측정한다.";
   }
   return "운영 프로파일에 등록된 데이터 작업을 정해진 주기로 실행한다.";
 }
@@ -481,7 +481,7 @@ function newsAiEvalExplanation(evalQuality: NewsAiEvalQuality) {
   if (evalQuality.status === "missing") {
     return "최근 fixture/gold 회귀평가가 저장되지 않았다. 뉴스 AI 분석이 좋아 보이더라도 기준 세트 통과 여부를 아직 증명하지 못했다.";
   }
-  return "뉴스 AI 평가 artifact의 상태와 실패 case를 확인해야 한다.";
+  return "뉴스 AI 평가 기록의 상태와 실패 사례를 확인해야 한다.";
 }
 
 function newsAiEvalTone(evalQuality: NewsAiEvalQuality) {
@@ -528,13 +528,13 @@ function benchmarkDriftQualityTitle(quality: BenchmarkDriftQuality) {
 
 function benchmarkDriftQualityExplanation(quality: BenchmarkDriftQuality) {
   if (quality.status === "ok") {
-    return "구성비 커버리지와 기준일이 충분해 active share를 보조 위험 지표로 볼 수 있다. 추천 weight는 자동 변경하지 않는다.";
+    return "구성비 커버리지와 기준일이 충분해 벤치마크 대비 괴리를 보조 위험 지표로 볼 수 있다. 추천 산식 가중치는 자동 변경하지 않는다.";
   }
   if (!quality.attention_required && quality.status === "drift_outlier_review") {
     return quality.managed_review_reason || "큰 벤치마크 괴리는 검토 후보로 저장됐고 자동 주문 없이 성과 관찰을 기다린다.";
   }
   if (quality.status === "partial_composition") {
-    return "현재 benchmark holdings가 일부만 들어와 있다. active share 숫자는 계산됐지만 전체 SPY 대비 괴리로 해석하면 안 된다.";
+    return "현재 벤치마크 보유종목 일부만 들어와 있다. 괴리 숫자는 계산됐지만 전체 SPY 대비 괴리로 해석하면 안 된다.";
   }
   if (quality.status === "stale_composition") {
     return "벤치마크 구성 기준일이 오래되어 최신 지수 구성과 다를 수 있다. holdings 파일을 다시 적재해야 한다.";
@@ -543,7 +543,7 @@ function benchmarkDriftQualityExplanation(quality: BenchmarkDriftQuality) {
     return "벤치마크 구성비가 없어 포트폴리오가 SPY와 얼마나 다른지 계산하지 못했다.";
   }
   if (quality.status === "drift_outlier_review") {
-    return "active share 또는 개별 active weight가 커서 포트폴리오 위험 예산 검토가 필요하다.";
+    return "벤치마크 대비 전체 괴리 또는 개별 종목 괴리가 커서 포트폴리오 위험 예산 검토가 필요하다.";
   }
   if (quality.status === "missing_guardrail") {
     return "위험 예산 평가가 아직 없어 벤치마크 drift 품질도 판단할 수 없다.";
@@ -658,10 +658,10 @@ function outcomeCalibrationTitle(calibration: RecommendationOutcomeCalibration) 
 
 function outcomeCalibrationExplanation(calibration: RecommendationOutcomeCalibration) {
   if (calibration.status === "ready_for_manual_weight_review") {
-    return "성과 표본과 전문 분석 coverage 기준을 통과했다. 그래도 자동 weight 변경은 금지이고 별도 검토 task가 필요하다.";
+    return "성과 표본과 전문 분석 커버리지 기준을 통과했다. 그래도 자동 추천 산식 변경은 금지이고 별도 검토 작업이 필요하다.";
   }
   if (calibration.status === "collect_more_outcomes_keep_weights") {
-    return "성과 표본은 있지만 추천 산식 weight를 바꾸기에는 아직 더 많은 outcome과 실패 사례가 필요하다.";
+    return "성과 표본은 있지만 추천 산식 가중치를 바꾸기에는 아직 더 많은 성과와 실패 사례가 필요하다.";
   }
   if (calibration.status === "backfill_candidates_remain") {
     return "이미 수집된 가격 이력으로 성과를 더 산출할 수 있다. 추천 품질 평가 전에 backfill runner를 다시 실행해야 한다.";
@@ -670,7 +670,7 @@ function outcomeCalibrationExplanation(calibration: RecommendationOutcomeCalibra
     return "성과를 계산해야 할 추천은 있지만 entry/exit 가격 이력이 부족하다. 캔들 보강이 먼저다.";
   }
   if (calibration.status === "no_due_outcome_window") {
-    return "선택한 중장기 horizon의 성과 측정일이 아직 오지 않았다. 추천 weight는 그대로 두고 표본이 쌓일 때까지 기다린다.";
+    return "선택한 중장기 기간의 성과 측정일이 아직 오지 않았다. 추천 산식 가중치는 그대로 두고 표본이 쌓일 때까지 기다린다.";
   }
   if (calibration.status === "missing") {
     return "추천 성과 표본과 컴포넌트 보정 진단이 아직 생성되지 않았다.";
@@ -710,20 +710,20 @@ function outcomeMaturityTitle(maturity: RecommendationOutcomeMaturity) {
 function outcomeMaturityExplanation(maturity: RecommendationOutcomeMaturity) {
   if (maturity.status === "not_due") {
     return maturity.next_due_date
-      ? `${maturity.next_due_date}에 ${maturity.next_due_count}개 추천×기간 성과 측정창이 처음 열린다. 그 전까지 weight 검토는 대기한다.`
-      : "아직 성과 측정 가능한 추천×기간이 없다. weight 검토는 대기한다.";
+      ? `${maturity.next_due_date}에 ${maturity.next_due_count}개 추천×기간 성과 측정창이 처음 열린다. 그 전까지 추천 산식 검토는 대기한다.`
+      : "아직 성과 측정 가능한 추천×기간이 없다. 추천 산식 검토는 대기한다.";
   }
   if (maturity.status === "due_outcomes_ready") {
-    return `${maturity.ready_for_backfill_count}개 추천×기간 성과를 산출할 수 있다. outcome backfill과 calibration을 먼저 실행해야 한다.`;
+    return `${maturity.ready_for_backfill_count}개 추천×기간 성과를 산출할 수 있다. 성과 보강과 누적평가를 먼저 실행해야 한다.`;
   }
   if (maturity.status === "overdue_outcomes_ready") {
-    return `${maturity.overdue_count}개 추천×기간 성과 산출이 지연됐다. 추천 weight 검토 전에 outcome backfill을 실행해야 한다.`;
+    return `${maturity.overdue_count}개 추천×기간 성과 산출이 지연됐다. 추천 산식 검토 전에 성과 보강을 실행해야 한다.`;
   }
   if (maturity.status === "blocked_by_price_gaps") {
     return `${maturity.price_gap_count}개 추천×기간은 가격 이력 부족으로 성과 계산이 막혔다. 캔들 보강이 먼저다.`;
   }
   if (maturity.status === "complete_current_window") {
-    return "현재 측정 가능한 성과창은 모두 처리됐다. 다음 측정일 전까지 weight 변경은 하지 않는다.";
+    return "현재 측정 가능한 성과창은 모두 처리됐다. 다음 측정일 전까지 추천 산식 변경은 하지 않는다.";
   }
   return "추천 성과 측정창 상태를 확인한다.";
 }
@@ -790,14 +790,14 @@ function professionalSourceGapTitle(gaps: ProfessionalSourceGapPrioritization) {
     return "펀드는 기업 재무 모델 제외";
   }
   if (gaps.status === "coverage_gaps_present") {
-    return "분석 layer 누락 있음";
+    return "분석 근거 누락 있음";
   }
   return koCode(gaps.status);
 }
 
 function professionalSourceGapExplanation(gaps: ProfessionalSourceGapPrioritization) {
   if (gaps.status === "ok") {
-    return "active recommendation 기준으로 핵심 재무·밸류에이션·리서치 source gap이 없다.";
+    return "활성 추천 기준으로 핵심 재무·밸류에이션·리서치 원천 공백이 없다.";
   }
   if (!gaps.attention_required && gaps.source_blocker_count > 0) {
     return "원천 데이터가 부족한 종목은 남겨두되, 전문 판단과 페이퍼 검증 입력에서는 이미 차단했다. 새 periodic filing이나 전용 parser가 생기면 다시 확인한다.";
@@ -809,12 +809,12 @@ function professionalSourceGapExplanation(gaps: ProfessionalSourceGapPrioritizat
     return "추천 또는 보유 노출이 있는 종목의 재무·피어·밸류에이션·리서치 근거가 비어 있다. 이 종목부터 보강한다.";
   }
   if (gaps.status === "fund_source_gaps") {
-    return "ETF·펀드형 상품은 기업 재무제표가 아니라 보유종목, 비용, NAV, 추적차이 source가 판단 근거다.";
+    return "ETF·펀드형 상품은 기업 재무제표가 아니라 보유종목, 비용, NAV, 추적차이 원천이 판단 근거다.";
   }
   if (gaps.status === "fund_company_model_not_applicable") {
     return "ETF·펀드형 상품은 기업 재무 모델 실패가 아니다. 별도 fund analysis 근거로 검토한다.";
   }
-  return "전문가식 분석에 필요한 source layer 중 일부가 비어 있어 추천 weight 검토 전 보강해야 한다.";
+  return "전문가식 분석에 필요한 원천 근거 중 일부가 비어 있어 추천 산식 검토 전 보강해야 한다.";
 }
 
 function professionalSourceGapTone(gaps: ProfessionalSourceGapPrioritization) {
@@ -870,7 +870,7 @@ function professionalRecommendationAuditTone(audit: ProfessionalRecommendationCo
 
 function professionalDepthTitle(depth: ProfessionalAnalysisDepth) {
   if (depth.status === "complete") {
-    return "전문 분석 layer 충족";
+    return "전문 분석 근거 충족";
   }
   if (depth.status === "mostly_covered") {
     return "대부분 갖춰짐";
@@ -879,10 +879,10 @@ function professionalDepthTitle(depth: ProfessionalAnalysisDepth) {
     return "원천 한계 포함";
   }
   if (depth.status === "coverage_gaps_present") {
-    return "분석 layer 보강 필요";
+    return "분석 근거 보강 필요";
   }
   if (depth.status === "missing_active_candidates") {
-    return "active 후보 없음";
+    return "활성 후보 없음";
   }
   return koCode(depth.status);
 }
@@ -965,8 +965,28 @@ function operationCopy(value: string) {
     .replaceAll("profile scheduler", "프로파일 예약 실행기")
     .replaceAll("pipeline run health", "작업 실행 상태")
     .replaceAll("data operation", "데이터 작업")
+    .replaceAll("recommendation weight", "추천 산식 가중치")
+    .replaceAll("weight review", "추천 산식 검토")
+    .replaceAll("weight", "추천 산식 가중치")
+    .replaceAll("broker submit", "증권사 주문 제출")
+    .replaceAll("broker", "증권사")
+    .replaceAll("outcome", "성과")
+    .replaceAll("paper validation", "페이퍼 검증")
+    .replaceAll("thesis", "투자 논리")
+    .replaceAll("feedback", "사후평가")
+    .replaceAll("calibration", "누적평가")
+    .replaceAll("cadence", "실행 주기")
+    .replaceAll("router", "실행 분기")
+    .replaceAll("child runner", "후속 실행")
+    .replaceAll("open gate", "열린 확인 항목")
+    .replaceAll("guardrail", "안전 조건")
+    .replaceAll("source gap", "원천 공백")
     .replaceAll("job", "작업")
     .replaceAll("degraded", "주의");
+}
+
+function orderSubmitCopy(allowed: boolean) {
+  return `증권사 주문 ${allowed ? "허용" : "금지"}`;
 }
 
 const DEFAULT_MANUAL_SMOKE: ManualIngestSmoke = {
@@ -1089,7 +1109,7 @@ const DEFAULT_PORTFOLIO_REVIEW_DECISION_HISTORY: PortfolioReviewDecisionHistory 
   decision_counts: {},
   attention_required: true,
   managed_review_status: "unmanaged_or_missing",
-  managed_review_reason: "검토 이력, 안전 가드레일, 또는 후속 action router 상태를 확인해야 한다.",
+  managed_review_reason: "검토 이력, 안전 조건, 또는 후속 실행 분기 상태를 확인해야 한다.",
   top_decision: null,
   latest_decisions: [],
   guardrails: {
@@ -1177,7 +1197,7 @@ const DEFAULT_PORTFOLIO_REVIEW_FEEDBACK_CALIBRATION: PortfolioReviewFeedbackCali
   managed_gate_status: "unmanaged_attention",
   managed_gate_reason: "",
   weight_review_blocked: true,
-  weight_review_block_reason: "검토 성과 누적평가 artifact가 없어 추천 weight 검토를 막는다.",
+  weight_review_block_reason: "검토 성과 누적평가 기록이 없어 추천 산식 검토를 막는다.",
   status_counts: {},
   family_summaries: [],
   decision_type_summaries: [],
@@ -1192,14 +1212,14 @@ const DEFAULT_PORTFOLIO_REVIEW_FEEDBACK_CALIBRATION: PortfolioReviewFeedbackCali
     broker_submit_allowed: false,
     order_boundary: "read_only_no_order",
   },
-  next_action: "portfolio-review-feedback-calibration-run을 실행해 누적 검토 feedback 신뢰도를 집계한다.",
+  next_action: "포트폴리오 검토 누적평가를 실행해 누적 검토 사후평가 신뢰도를 집계한다.",
   next_calibration_action: "검토 이력과 사후평가를 먼저 누적한다.",
 };
 
 const DEFAULT_PROFESSIONAL_ANALYSIS_NEXT_ACTION: ProfessionalAnalysisNextAction = {
   status: "missing",
   title: "전문 분석 상태 없음",
-  summary: "전문 분석 source gap, outcome feedback, weight review 상태를 아직 읽지 못했다.",
+  summary: "전문 분석 원천 공백, 성과 사후평가, 추천 산식 검토 상태를 아직 읽지 못했다.",
   next_action: "전문 분석 data-health payload를 먼저 생성한다.",
   as_of_date: "",
   source_gap_count: 0,
@@ -1273,7 +1293,7 @@ const DEFAULT_PROFESSIONAL_ANALYSIS_DEPTH: ProfessionalAnalysisDepth = {
   weakest_coverage_ratio: 0,
   layer_coverage: [],
   items: [],
-  next_action: "active recommendation professional analysis depth를 먼저 계산한다.",
+  next_action: "활성 추천의 전문 분석 깊이를 먼저 계산한다.",
   recommendation_scoring_mutated: false,
   automatic_weight_change_allowed: false,
   automatic_order_allowed: false,
@@ -1295,10 +1315,10 @@ const DEFAULT_PORTFOLIO_REVIEW_FEEDBACK_CADENCE: PortfolioReviewFeedbackCadence 
   should_run_now: false,
   should_wait: false,
   wait_until: "",
-  command: "portfolio-review-feedback-cadence-run을 실행해 다음 feedback/calibration 작업을 판단한다.",
+  command: "포트폴리오 검토 실행 주기를 계산해 다음 사후평가/누적평가 작업을 판단한다.",
   follow_up_command: "",
-  label: "검토 feedback cadence 상태를 먼저 계산한다.",
-  reason: "아직 portfolio review feedback cadence artifact가 없다.",
+  label: "검토 사후평가 실행 주기 상태를 먼저 계산한다.",
+  reason: "아직 포트폴리오 검토 사후평가 실행 주기 기록이 없다.",
   history: {
     status: "missing",
     eval_run_id: "eval-run-unknown",
@@ -1361,7 +1381,7 @@ const DEFAULT_PORTFOLIO_REVIEW_FEEDBACK_CADENCE: PortfolioReviewFeedbackCadence 
   automatic_order_allowed: false,
   broker_submit_allowed: false,
   order_boundary: "read_only_no_order",
-  next_action: "portfolio-review-feedback-cadence-run을 실행해 다음 feedback/calibration 작업을 판단한다.",
+  next_action: "포트폴리오 검토 실행 주기를 계산해 다음 사후평가/누적평가 작업을 판단한다.",
 };
 
 const DEFAULT_PORTFOLIO_REVIEW_FEEDBACK_ACTION_ROUTER: PortfolioReviewFeedbackActionRouter = {
@@ -1381,7 +1401,7 @@ const DEFAULT_PORTFOLIO_REVIEW_FEEDBACK_ACTION_ROUTER: PortfolioReviewFeedbackAc
   source_should_run_now: false,
   route_action: "no_op",
   action_status: "missing",
-  reason: "아직 portfolio review feedback action router artifact가 없다.",
+  reason: "아직 포트폴리오 검토 실행 분기 기록이 없다.",
   history_eval_run_id: "eval-run-unknown",
   feedback_eval_run_id: "eval-run-unknown",
   calibration_eval_run_id: "eval-run-unknown",
@@ -1411,7 +1431,7 @@ const DEFAULT_PORTFOLIO_REVIEW_FEEDBACK_ACTION_ROUTER: PortfolioReviewFeedbackAc
   automatic_order_allowed: false,
   broker_submit_allowed: false,
   order_boundary: "read_only_no_order",
-  next_action: "portfolio-review-feedback-action-router-run을 실행해 cadence 판단을 안전한 후속 작업으로 라우팅한다.",
+  next_action: "포트폴리오 검토 실행 분기를 실행해 실행 주기 판단을 안전한 후속 작업으로 연결한다.",
 };
 
 const DEFAULT_RECOMMENDATION_OUTCOME_CALIBRATION: RecommendationOutcomeCalibration = {
@@ -1501,7 +1521,7 @@ const DEFAULT_RECOMMENDATION_OUTCOME_DUE_ACTION_ROUTER: RecommendationOutcomeDue
   },
   route_action: "no_op",
   action_status: "missing",
-  reason: "아직 recommendation outcome due action router artifact가 없다.",
+  reason: "아직 추천 성과 실행 분기 기록이 없다.",
   wait_until: "",
   sample_audit_summary: {
     recommendation_horizon_count: 0,
@@ -1548,8 +1568,8 @@ const DEFAULT_RECOMMENDATION_WEIGHT_REVIEW_READINESS: RecommendationWeightReview
   outcome_calibration_status: "missing",
   outcome_calibration_eval_run_id: "eval-run-unknown",
   blocker_code: "missing_recommendation_weight_review_readiness",
-  blocker_message: "recommendation-weight-review-readiness-audit-run을 실행한다.",
-  next_action: "recommendation-weight-review-readiness-audit-run을 실행한다.",
+  blocker_message: "추천 산식 검토 준비 감사 작업을 실행한다.",
+  next_action: "추천 산식 검토 준비 감사 작업을 실행한다.",
   automatic_weight_change_allowed: false,
   automatic_order_allowed: false,
   broker_submit_allowed: false,
@@ -1558,8 +1578,8 @@ const DEFAULT_RECOMMENDATION_WEIGHT_REVIEW_READINESS: RecommendationWeightReview
 const DEFAULT_OUTCOME_MATURITY_WAIT_MONITOR: OutcomeMaturityWaitMonitor = {
   status: "missing",
   title: "성과 성숙 상태 없음",
-  summary: "추천 outcome과 포트폴리오 feedback 성숙 상태를 아직 읽지 못했다.",
-  next_action: "outcome maturity data-health payload를 먼저 생성한다.",
+  summary: "추천 성과와 포트폴리오 사후평가 성숙 상태를 아직 읽지 못했다.",
+  next_action: "성과 성숙 데이터 상태 기록을 먼저 생성한다.",
   as_of_date: "",
   recommendation_next_due_date: "",
   recommendation_next_due_count: 0,
@@ -1576,7 +1596,7 @@ const DEFAULT_OUTCOME_MATURITY_WAIT_MONITOR: OutcomeMaturityWaitMonitor = {
   wait_item_count: 0,
   wait_items: [],
   weight_review_blocked: true,
-  weight_review_block_reason: "성과 성숙 상태가 없어 추천 weight 검토를 막는다.",
+  weight_review_block_reason: "성과 성숙 상태가 없어 추천 산식 검토를 막는다.",
   manual_weight_review_allowed: false,
   recommendation_scoring_mutated: false,
   benchmark_definition_mutated: false,
@@ -1601,7 +1621,7 @@ const DEFAULT_PROFESSIONAL_SOURCE_GAP_PRIORITIZATION: ProfessionalSourceGapPrior
   attention_required: false,
   top_priority_score: 0,
   gaps: [],
-  next_action: "전문 분석 source gap을 먼저 계산한다.",
+  next_action: "전문 분석 원천 공백을 먼저 계산한다.",
   recommendation_scoring_mutated: false,
   automatic_weight_change_allowed: false,
   automatic_order_allowed: false,
@@ -1637,7 +1657,7 @@ const DEFAULT_PRODUCTION_API_SERVER: ProductionApiServer = {
   missing_conditions: ["runtime_profile_production", "read_token_auth", "psycopg_pool_boundary"],
   order_boundary: "read_only_no_order",
   automatic_action_allowed: false,
-  next_action: "FastAPI runtime profile, auth, explicit CORS origin, DB config, psycopg pool boundary를 확인한다.",
+  next_action: "운영 API 실행 환경, 인증, 허용 출처, DB 설정, DB 연결 경계를 확인한다.",
 };
 
 const DEFAULT_AUTH_RBAC: AuthRbac = {
@@ -1657,8 +1677,8 @@ const DEFAULT_AUTH_RBAC: AuthRbac = {
   broker_submit_allowed: false,
   order_boundary: "read_only_no_order",
   missing_conditions: ["production_api_ready", "bearer_read_token", "read_only_rbac_mode"],
-  summary: "운영 API의 bearer token, read-only role, 쓰기/주문 차단 경계 증거가 아직 부족하다.",
-  next_action: "production API readiness, read-token auth, read-only role, write method 405, broker submit 차단을 확인한다.",
+  summary: "운영 API의 읽기 토큰, 읽기 전용 역할, 쓰기/주문 차단 경계 증거가 아직 부족하다.",
+  next_action: "운영 API 준비, 읽기 토큰 인증, 읽기 전용 역할, 쓰기 요청 차단, 증권사 주문 차단을 확인한다.",
 };
 
 const DEFAULT_ALERT_DESTINATION: AlertDestination = {
@@ -1677,8 +1697,8 @@ const DEFAULT_ALERT_DESTINATION: AlertDestination = {
   test_age_hours: null,
   max_test_age_hours: 168,
   missing_conditions: ["external_alert_destination", "alert_target_configured", "alert_test_passed"],
-  summary: "scheduler 실패와 데이터 오염을 받을 외부 알림 목적지가 설정되지 않았다.",
-  next_action: "무료 webhook, email, Telegram, Slack, Discord 중 하나를 repo 밖 env에 설정하고 테스트 artifact를 남긴다.",
+  summary: "예약 실행 실패와 데이터 오염을 받을 외부 알림 목적지가 설정되지 않았다.",
+  next_action: "무료 webhook, email, Telegram, Slack, Discord 중 하나를 저장소 밖 환경 파일에 설정하고 테스트 기록을 남긴다.",
   order_boundary: "read_only_no_order",
   automatic_action_allowed: false,
 };
@@ -1790,7 +1810,7 @@ export default async function DataHealthPage() {
       title: accessAttention ? "접근 경계 확인 필요" : "읽기 전용 접근 정상",
       body: accessAttention
         ? "운영 API, 읽기 권한, 알림 목적지 중 주의 항목이 있다. 투자 판단 화면보다 접근 경계 확인이 먼저다."
-        : "FastAPI read-only, RBAC, 무료 알림 목적지가 연결되어 있고 주문/쓰기 경계는 닫혀 있다.",
+        : "읽기 전용 API, 역할 기반 조회 권한, 무료 알림 목적지가 연결되어 있고 주문/쓰기 경계는 닫혀 있다.",
       metric: authRbac.read_role ? `역할 ${koCode(authRbac.read_role)}` : "읽기 역할 확인",
       href: "#execution-log",
       cta: "접근 경계 보기",
@@ -1801,7 +1821,7 @@ export default async function DataHealthPage() {
       label: "자동 수집",
       title: allTimersActive && failedPipelines === 0 ? "자동 수집 작동 중" : "수집 상태 확인 필요",
       body: allTimersActive
-        ? "뉴스, 가격, 추천, 성과 측정 프로파일이 EC2 systemd 예약 실행기로 분리되어 돈다."
+        ? "뉴스, 가격, 추천, 성과 측정 작업이 EC2 서버 예약 실행기로 분리되어 돈다."
         : "예약 실행기 일부가 꺼졌거나 실행 증거가 부족하다. 어떤 프로파일이 멈췄는지 확인해야 한다.",
       metric: `${profileScheduler.active_timer_count}/${profileScheduler.timer_count}개 활성 · 실패 ${failedPipelines}개`,
       href: "#scheduler-detail",
@@ -1829,11 +1849,11 @@ export default async function DataHealthPage() {
     {
       index: "04",
       label: "투자 경계",
-      title: safeInvestmentBoundary ? "weight·주문 차단" : "투자 경계 확인 필요",
+      title: safeInvestmentBoundary ? "추천 산식·주문 차단" : "투자 경계 확인 필요",
       body: safeInvestmentBoundary
-        ? "성과 표본이 성숙하기 전까지 추천 weight 변경과 broker 주문 제출은 막혀 있다."
-        : "weight 검토나 주문 경계 조건이 예상과 다르다. 추천 산식/거래 안전 상태를 먼저 확인한다.",
-      metric: outcomeWaitMonitor.weight_review_blocked ? "weight 변경 금지" : "manual 검토 가능",
+        ? "성과 표본이 성숙하기 전까지 추천 산식 가중치 변경과 증권사 주문 제출은 막혀 있다."
+        : "추천 산식 검토나 주문 경계 조건이 예상과 다르다. 추천 산식/거래 안전 상태를 먼저 확인한다.",
+      metric: outcomeWaitMonitor.weight_review_blocked ? "추천 산식 변경 금지" : "별도 검토 가능",
       href: "#outcome-maturity-wait-monitor",
       cta: "투자 경계 보기",
       tone: safeInvestmentBoundary ? "ready" : "block",
@@ -1856,11 +1876,11 @@ export default async function DataHealthPage() {
             : "주의 항목 확인",
       body:
         productionApiServer.attention_required
-          ? productionApiServer.next_action
-          : authRbac.attention_required
-          ? authRbac.next_action
-          : alertDestination.attention_required
-          ? alertDestination.next_action
+	          ? operationCopy(productionApiServer.next_action)
+	          : authRbac.attention_required
+	          ? operationCopy(authRbac.next_action)
+	          : alertDestination.attention_required
+	          ? operationCopy(alertDestination.next_action)
           : failedPipelines > 0
           ? "실패 또는 오래된 작업이 있어 추천·보유 판단보다 수집 복구가 먼저다."
           : "캔들, 뉴스, AI 분석, 추천 갱신이 현재 화면 기준으로 읽을 수 있는 상태다.",
@@ -1941,7 +1961,7 @@ export default async function DataHealthPage() {
           ? portfolioReviewHistory.attention_required
             ? `최신 ${portfolioReviewHistory.as_of_date} 기준으로 벤치마크 ${portfolioReviewHistory.benchmark_decision_count}개, 포지션 크기 ${portfolioReviewHistory.position_sizing_decision_count}개 결정을 감사 이력으로 남겼다.`
             : portfolioReviewHistory.managed_review_reason
-          : "현재 화면의 검토 후보는 보이지만 durable audit history로는 아직 저장되지 않았다.",
+	          : "현재 화면의 검토 후보는 보이지만 저장된 검토 이력으로는 아직 남지 않았다.",
       href: "#portfolio-review-history",
       cta: "검토 이력 보기",
       tone: portfolioReviewHistory.attention_required ? "risk-medium" : "risk-low",
@@ -1954,8 +1974,8 @@ export default async function DataHealthPage() {
           : "사후평가 없음",
       body:
         portfolioReviewFeedback.status === "loaded"
-          ? `저장된 검토 결정 ${portfolioReviewFeedback.decision_count}개를 후속 outcome, paper validation, 가격 변화와 대조했다.`
-          : "검토 결정 이력은 저장됐지만 아직 이후 성과와 대조한 feedback artifact가 없다.",
+	          ? `저장된 검토 결정 ${portfolioReviewFeedback.decision_count}개를 후속 성과, 페이퍼 검증, 가격 변화와 대조했다.`
+	          : "검토 결정 이력은 저장됐지만 아직 이후 성과와 대조한 사후평가 기록이 없다.",
       href: "#portfolio-review-feedback",
       cta: "사후평가 보기",
       tone:
@@ -1972,13 +1992,13 @@ export default async function DataHealthPage() {
           ? portfolioReviewCalibration.managed_wait
             ? "관리된 대기"
             : portfolioReviewCalibration.weight_review_blocked
-            ? "weight 변경 금지"
-            : "manual 검토 가능"
+	            ? "추천 산식 변경 금지"
+	            : "별도 검토 가능"
           : "누적평가 없음",
       body:
         portfolioReviewCalibration.status === "loaded"
-          ? `성숙 표본 ${portfolioReviewCalibration.mature_decision_count}/${portfolioReviewCalibration.min_mature_decisions}개, feedback ${portfolioReviewCalibration.feedback_run_count}/${portfolioReviewCalibration.min_feedback_runs}회. ${portfolioReviewCalibration.estimated_maturity_date ? `예상 성숙일은 ${portfolioReviewCalibration.estimated_maturity_date}이다.` : portfolioReviewCalibration.weight_review_block_reason}`
-          : "단일 사후평가만으로 추천 weight를 바꾸지 않기 위해 누적 calibration이 필요하다.",
+	          ? `성숙 표본 ${portfolioReviewCalibration.mature_decision_count}/${portfolioReviewCalibration.min_mature_decisions}개, 사후평가 ${portfolioReviewCalibration.feedback_run_count}/${portfolioReviewCalibration.min_feedback_runs}회. ${portfolioReviewCalibration.estimated_maturity_date ? `예상 성숙일은 ${portfolioReviewCalibration.estimated_maturity_date}이다.` : operationCopy(portfolioReviewCalibration.weight_review_block_reason)}`
+	          : "단일 사후평가만으로 추천 산식 가중치를 바꾸지 않기 위해 누적평가가 필요하다.",
       href: "#portfolio-review-calibration",
       cta: "신뢰도 보기",
       tone: portfolioReviewCalibration.managed_wait
@@ -1995,7 +2015,7 @@ export default async function DataHealthPage() {
             : "상태 확인",
       body:
         portfolioReviewCadence.status === "loaded"
-          ? portfolioReviewCadence.reason
+	          ? operationCopy(portfolioReviewCadence.reason)
           : "사후평가와 누적평가를 언제 다시 돌릴지 아직 계산되지 않았다.",
       href: "#portfolio-review-cadence",
       cta: "실행시점 보기",
@@ -2006,8 +2026,8 @@ export default async function DataHealthPage() {
       title: actionRouterTitle(portfolioReviewActionRouter),
       body:
         portfolioReviewActionRouter.status === "loaded"
-          ? portfolioReviewActionRouter.reason
-          : "cadence 판단을 실제 사후평가/누적평가 실행 또는 대기로 변환한 기록이 아직 없다.",
+	          ? operationCopy(portfolioReviewActionRouter.reason)
+	          : "실행 주기 판단을 실제 사후평가/누적평가 실행 또는 대기로 변환한 기록이 아직 없다.",
       href: "#portfolio-review-action-router",
       cta: "라우터 판단 보기",
       tone: actionRouterStatusClass(portfolioReviewActionRouter.action_status),
@@ -2025,8 +2045,8 @@ export default async function DataHealthPage() {
       title: outcomeDueActionRouterTitle(outcomeDueActionRouter),
       body:
         outcomeDueActionRouter.status === "loaded"
-          ? outcomeDueActionRouter.reason
-          : "성과 측정창 상태를 실제 calibration 실행 또는 대기로 변환한 기록이 아직 없다.",
+	          ? operationCopy(outcomeDueActionRouter.reason)
+	          : "성과 측정창 상태를 실제 누적평가 실행 또는 대기로 변환한 기록이 아직 없다.",
       href: "#outcome-calibration",
       cta: "라우터 보기",
       tone: actionRouterStatusClass(outcomeDueActionRouter.action_status),
@@ -2066,7 +2086,7 @@ export default async function DataHealthPage() {
     {
 	      label: "전문 분석 깊이",
 	      title: professionalDepthTitle(professionalDepth),
-	      body: `active 후보 ${professionalDepth.active_candidate_count}개 중 ${professionalDepth.complete_candidate_count}개가 필요한 professional layer를 채웠고, 평균 coverage는 ${formatPercent(professionalDepth.average_coverage_ratio)}이다.`,
+		      body: `활성 후보 ${professionalDepth.active_candidate_count}개 중 ${professionalDepth.complete_candidate_count}개가 필요한 전문 분석 근거를 채웠고, 평균 커버리지는 ${formatPercent(professionalDepth.average_coverage_ratio)}이다.`,
 	      href: "#professional-analysis-depth",
 	      cta: "깊이 보기",
 	      tone: professionalDepthTone(professionalDepth),
@@ -2541,7 +2561,7 @@ export default async function DataHealthPage() {
         <div className="section-heading stacked-heading">
           <span>성과 성숙 대기 모니터</span>
           <h2 id="outcome-maturity-wait-monitor-title">
-            추천 outcome과 포트폴리오 feedback이 성숙하기 전에는 weight를 바꾸지 않는다.
+	            추천 성과와 포트폴리오 사후평가가 성숙하기 전에는 추천 산식 가중치를 바꾸지 않는다.
           </h2>
         </div>
         <p className="board-intro">
@@ -2556,7 +2576,7 @@ export default async function DataHealthPage() {
             <small>{outcomeWaitMonitor.as_of_date || "기준일 없음"}</small>
           </article>
           <article className="rail-cell">
-            <span>추천 outcome</span>
+	            <span>추천 성과</span>
             <strong>{outcomeWaitMonitor.recommendation_next_due_date || "대기일 없음"}</strong>
             <small>
               다음 창 {outcomeWaitMonitor.recommendation_next_due_count}개 · 상태{" "}
@@ -2564,7 +2584,7 @@ export default async function DataHealthPage() {
             </small>
           </article>
           <article className="rail-cell">
-            <span>포트폴리오 feedback</span>
+	            <span>포트폴리오 사후평가</span>
             <strong>{outcomeWaitMonitor.portfolio_feedback_maturity_date || "성숙일 없음"}</strong>
             <small>
               성숙 판단 부족 {outcomeWaitMonitor.portfolio_mature_decision_gap}개 · 실행 부족{" "}
@@ -2572,8 +2592,8 @@ export default async function DataHealthPage() {
             </small>
           </article>
           <article className="rail-cell rail-critical">
-            <span>weight 검토</span>
-            <strong>{outcomeWaitMonitor.weight_review_blocked ? "차단" : "manual 검토 가능"}</strong>
+	            <span>추천 산식 검토</span>
+	            <strong>{outcomeWaitMonitor.weight_review_blocked ? "차단" : "별도 검토 가능"}</strong>
             <small>주문 경계 {koCode(outcomeWaitMonitor.order_boundary)}</small>
           </article>
         </div>
@@ -2582,23 +2602,23 @@ export default async function DataHealthPage() {
             <article className="insight-card" key={item.scope}>
               <span>{item.label}</span>
               <strong>{item.wait_until || "날짜 미정"}</strong>
-              <p>{item.reason}</p>
+              <p>{operationCopy(item.reason)}</p>
               <small>
                 {koCode(item.status)} · {koCode(item.action_status)} · 대상 {item.count}개
               </small>
             </article>
           ))}
           <article className="insight-card">
-            <span>weight 차단 이유</span>
+            <span>추천 산식 차단 이유</span>
             <strong>{outcomeWaitMonitor.manual_weight_review_allowed ? "검토 가능" : "검토 금지"}</strong>
-            <p>{outcomeWaitMonitor.weight_review_block_reason}</p>
+            <p>{operationCopy(outcomeWaitMonitor.weight_review_block_reason)}</p>
           </article>
           <article className="insight-card">
             <span>안전 경계</span>
             <strong>{outcomeWaitMonitor.automatic_weight_change_allowed ? "자동 변경 허용" : "자동 변경 금지"}</strong>
             <p>
               추천 점수 변경 {outcomeWaitMonitor.recommendation_scoring_mutated ? "감지" : "없음"} ·
-              broker 전송 {outcomeWaitMonitor.broker_submit_allowed ? "허용" : "금지"}
+              {orderSubmitCopy(outcomeWaitMonitor.broker_submit_allowed)}
             </p>
           </article>
         </div>
@@ -2611,7 +2631,7 @@ export default async function DataHealthPage() {
       >
         <div className="section-heading stacked-heading">
           <span>추천 성과검증</span>
-          <h2 id="outcome-calibration-title">추천 weight를 바꾸기 전에 outcome 표본과 실패 사례를 먼저 확인한다.</h2>
+          <h2 id="outcome-calibration-title">추천 산식 가중치를 바꾸기 전에 성과 표본과 실패 사례를 먼저 확인한다.</h2>
         </div>
         <p className="board-intro">{outcomeCalibrationExplanation(outcomeCalibration)}</p>
         <div className="status-rail compact-rail">
@@ -2666,36 +2686,36 @@ export default async function DataHealthPage() {
             <strong>{outcomeMaturity.overdue_count + outcomeMaturity.price_gap_count}</strong>
             <p>
               지연 {outcomeMaturity.overdue_count}개, 가격 이력 부족 {outcomeMaturity.price_gap_count}개다. 이 값이
-              있으면 weight 검토보다 outcome 보강이 먼저다.
+	              있으면 추천 산식 검토보다 성과 보강이 먼저다.
             </p>
           </article>
           <article className="insight-card">
             <span>실행 액션</span>
             <strong>{koCode(outcomeMaturity.cadence_action.status)}</strong>
-            <p>{outcomeMaturity.cadence_action.reason}</p>
-            <small>{outcomeMaturity.cadence_action.command}</small>
+            <p>{operationCopy(outcomeMaturity.cadence_action.reason)}</p>
+            <small>{operationCopy(outcomeMaturity.cadence_action.label)}</small>
           </article>
           <article className="insight-card">
             <span>성과 실행 라우터</span>
             <strong className={`risk-tag ${actionRouterStatusClass(outcomeDueActionRouter.action_status)}`}>
               {outcomeDueActionRouterTitle(outcomeDueActionRouter)}
             </strong>
-            <p>{outcomeDueActionRouter.reason || "저장된 라우터 판단이 없다."}</p>
+            <p>{operationCopy(outcomeDueActionRouter.reason || "저장된 실행 분기 판단이 없다.")}</p>
             <small>{outcomeDueActionRouter.eval_run_id}</small>
           </article>
           <article className="insight-card">
-            <span>child 실행</span>
+            <span>후속 실행</span>
             <strong>{outcomeDueActionRouter.child_runner.executed ? "실행됨" : "실행 안 함"}</strong>
             <p>
               {outcomeDueActionRouter.child_runner.executed
                 ? `${koCode(outcomeDueActionRouter.child_runner.report_name)} · ${outcomeDueActionRouter.child_runner.eval_run_id}`
-                : "측정일 대기, 가격 이력 차단, 또는 가드레일 때문에 calibration runner를 실행하지 않았다."}
+                : "측정일 대기, 가격 이력 차단, 또는 안전 조건 때문에 누적평가 실행을 시작하지 않았다."}
             </p>
           </article>
           <article className="insight-card">
-            <span>추천 weight</span>
+            <span>추천 산식 가중치</span>
             <strong>{outcomeCalibration.recommendation_scoring_mutated ? "변경 감지" : "변경 없음"}</strong>
-            <p>성과 검증은 추천 산식 변경이 아니다. weight 조정은 별도 승인된 pilot task 전까지 막는다.</p>
+            <p>성과 검증은 추천 산식 변경이 아니다. 가중치 조정은 별도 승인된 시험 작업 전까지 막는다.</p>
           </article>
           <article className="insight-card">
             <span>가격 이력 부족</span>
@@ -2707,10 +2727,10 @@ export default async function DataHealthPage() {
           <article className="insight-card">
             <span>품질 평가</span>
             <strong>{koCode(outcomeCalibration.quality_status)}</strong>
-            <p>전문 분석 coverage와 outcome 표본이 weight 검토 기준을 충족하는지 본다.</p>
+            <p>전문 분석 커버리지와 성과 표본이 추천 산식 검토 기준을 충족하는지 본다.</p>
           </article>
           <article className="insight-card">
-            <span>수동 weight 검토</span>
+            <span>추천 산식 별도 검토</span>
             <strong>{weightReviewReadiness.manual_weight_review_allowed ? "검토 가능" : "차단"}</strong>
             <p>
               {weightReviewReadiness.blocker_message
@@ -2726,7 +2746,7 @@ export default async function DataHealthPage() {
         </div>
         <div className="empty-state">
           <strong>다음 조치</strong>
-          <p>{outcomeDueActionRouter.next_action || outcomeMaturity.cadence_action.label}</p>
+          <p>{operationCopy(outcomeDueActionRouter.next_action || outcomeMaturity.cadence_action.label)}</p>
         </div>
       </section>
 
@@ -2771,8 +2791,8 @@ export default async function DataHealthPage() {
             <small>합성 재무 금지</small>
           </article>
           <article className="rail-cell rail-critical">
-            <span>weight/주문 경계</span>
-            <strong>{professionalQuality.automatic_weight_change_allowed ? "weight 변경 허용" : "weight 변경 금지"}</strong>
+	            <span>추천 산식/주문 경계</span>
+	            <strong>{professionalQuality.automatic_weight_change_allowed ? "추천 산식 변경 허용" : "추천 산식 변경 금지"}</strong>
             <small>{koCode(professionalQuality.order_boundary)}</small>
           </article>
         </div>
@@ -2792,13 +2812,13 @@ export default async function DataHealthPage() {
             <article className="flow-step" key={check.key}>
               <span>{check.label}</span>
               <strong>{koCode(check.status)}</strong>
-              <p>{check.detail}</p>
+	              <p>{operationCopy(check.detail)}</p>
             </article>
           ))}
         </div>
         <div className="empty-state">
           <strong>다음 조치</strong>
-          <p>{professionalQuality.next_action}</p>
+	          <p>{operationCopy(professionalQuality.next_action)}</p>
         </div>
       </section>
 
@@ -2823,9 +2843,9 @@ export default async function DataHealthPage() {
             <small>{professionalRecommendationAudit.as_of_date || "기준일 없음"}</small>
           </article>
           <article className="rail-cell">
-            <span>active 추천</span>
+	            <span>활성 추천</span>
             <strong>{professionalRecommendationAudit.recommendation_count}</strong>
-            <small>감사 대상</small>
+	            <small>검토 대상</small>
           </article>
           <article className="rail-cell">
             <span>상세 검토 가능</span>
@@ -2844,7 +2864,7 @@ export default async function DataHealthPage() {
           </article>
           <article className="rail-cell rail-critical">
             <span>주문 경계</span>
-            <strong>{professionalRecommendationAudit.broker_submit_allowed ? "제출 가능" : "제출 금지"}</strong>
+	            <strong>{professionalRecommendationAudit.broker_submit_allowed ? "제출 가능" : "제출 금지"}</strong>
             <small>{koCode(professionalRecommendationAudit.order_boundary)}</small>
           </article>
         </div>
@@ -2864,7 +2884,7 @@ export default async function DataHealthPage() {
                   추천 점수 {formatPercent(item.recommendation_score)} · 목표 비중 {formatPercent(item.recommended_weight)}
                 </small>
                 <small>
-                  coverage {formatPercent(item.coverage_ratio)} · layer {item.available_layer_count}/{item.expected_layer_count}
+	                  커버리지 {formatPercent(item.coverage_ratio)} · 근거 {item.available_layer_count}/{item.expected_layer_count}
                 </small>
                 <small className={`risk-tag ${professionalRecommendationAuditItemTone(item.audit_status)}`}>
                   {koCode(item.professional_decision_status)}
@@ -2883,7 +2903,7 @@ export default async function DataHealthPage() {
                 )}
                 <dl className="fact-list compact-facts">
                   <div>
-                    <dt>thesis</dt>
+	                    <dt>투자 논리</dt>
                     <dd>{item.has_active_thesis ? "연결됨" : "없음"}</dd>
                   </div>
                   <div>
@@ -2895,7 +2915,7 @@ export default async function DataHealthPage() {
                     <dd>{item.broker_submit_allowed ? "제출 가능" : "제출 금지"}</dd>
                   </div>
                 </dl>
-                {item.remediation_action ? <p>{item.remediation_action}</p> : null}
+	                {item.remediation_action ? <p>{operationCopy(item.remediation_action)}</p> : null}
                 <a href={item.stock_href}>종목 상세 보기</a>
               </article>
             ))}
@@ -2953,8 +2973,8 @@ export default async function DataHealthPage() {
             </small>
           </article>
           <article className="rail-cell rail-critical">
-            <span>weight/주문 경계</span>
-            <strong>{professionalNextAction.weight_review_blocked ? "weight 변경 금지" : "manual 검토 가능"}</strong>
+	            <span>추천 산식/주문 경계</span>
+	            <strong>{professionalNextAction.weight_review_blocked ? "추천 산식 변경 금지" : "별도 검토 가능"}</strong>
             <small>{koCode(professionalNextAction.order_boundary)}</small>
           </article>
         </div>
@@ -2963,20 +2983,20 @@ export default async function DataHealthPage() {
             <article className="insight-card" key={item.key}>
               <span>{item.label}</span>
               <strong>{koCode(item.status)}</strong>
-              <p>{item.detail}</p>
+	              <p>{operationCopy(item.detail)}</p>
             </article>
           ))}
           {professionalNextAction.readiness_items.length === 0 ? (
             <article className="insight-card">
               <span>상태 없음</span>
               <strong>data-health payload 대기</strong>
-              <p>전문 분석 summary를 만들 source gap, outcome feedback, weight review evidence가 아직 없다.</p>
+	              <p>전문 분석 요약을 만들 원천 공백, 성과 사후평가, 추천 산식 검토 근거가 아직 없다.</p>
             </article>
           ) : null}
         </div>
         <div className="empty-state">
           <strong>다음 조치</strong>
-          <p>{professionalNextAction.next_action}</p>
+	          <p>{operationCopy(professionalNextAction.next_action)}</p>
           {professionalNextAction.next_symbol ? (
             <p>
               우선 확인 대상{" "}
@@ -2985,7 +3005,7 @@ export default async function DataHealthPage() {
               ) : (
                 professionalNextAction.next_symbol
               )}
-              {professionalNextAction.next_symbol_reason ? ` · ${professionalNextAction.next_symbol_reason}` : ""}
+	              {professionalNextAction.next_symbol_reason ? ` · ${operationCopy(professionalNextAction.next_symbol_reason)}` : ""}
             </p>
           ) : null}
         </div>
@@ -3015,17 +3035,17 @@ export default async function DataHealthPage() {
             <small>{professionalDepth.as_of_date || "기준일 없음"}</small>
           </article>
           <article className="rail-cell">
-            <span>active 후보</span>
+	            <span>활성 후보</span>
             <strong>{professionalDepth.active_candidate_count}</strong>
             <small>개별 기업 {professionalDepth.operating_company_candidate_count} · ETF/펀드 {professionalDepth.fund_like_candidate_count}</small>
           </article>
           <article className="rail-cell">
             <span>완비 후보</span>
             <strong>{professionalDepth.complete_candidate_count}</strong>
-            <small>필요 layer 충족</small>
+	            <small>필요 근거 충족</small>
           </article>
           <article className="rail-cell">
-            <span>평균 coverage</span>
+	            <span>평균 커버리지</span>
             <strong>{formatPercent(professionalDepth.average_coverage_ratio)}</strong>
             <small>최저 {formatPercent(professionalDepth.weakest_coverage_ratio)}</small>
           </article>
@@ -3035,8 +3055,8 @@ export default async function DataHealthPage() {
             <small>합성 재무 금지</small>
           </article>
           <article className="rail-cell rail-critical">
-            <span>weight/주문 경계</span>
-            <strong>{professionalDepth.automatic_weight_change_allowed ? "weight 변경 허용" : "weight 변경 금지"}</strong>
+	            <span>추천 산식/주문 경계</span>
+	            <strong>{professionalDepth.automatic_weight_change_allowed ? "추천 산식 변경 허용" : "추천 산식 변경 금지"}</strong>
             <small>{koCode(professionalDepth.order_boundary)}</small>
           </article>
         </div>
@@ -3053,9 +3073,9 @@ export default async function DataHealthPage() {
           ))}
           {professionalDepth.layer_coverage.length === 0 ? (
             <article className="insight-card">
-              <span>layer 없음</span>
+	              <span>근거 없음</span>
               <strong>계산 대기</strong>
-              <p>active 후보별 재무·피어·밸류에이션·리서치 coverage를 아직 계산하지 못했다.</p>
+	              <p>활성 후보별 재무·피어·밸류에이션·리서치 커버리지를 아직 계산하지 못했다.</p>
             </article>
           ) : null}
         </div>
@@ -3337,12 +3357,12 @@ export default async function DataHealthPage() {
             <strong>
               {portfolioReviewHistory.benchmark_decision_count} / {portfolioReviewHistory.position_sizing_decision_count}
             </strong>
-            <small>결정 family 분리 저장</small>
+	            <small>판단군 분리 저장</small>
           </article>
           <article className="rail-cell rail-critical">
             <span>주문 경계</span>
             <strong>{koCode(portfolioReviewHistory.guardrails.order_boundary)}</strong>
-            <small>broker 전송 {portfolioReviewHistory.guardrails.broker_submit_allowed ? "허용" : "금지"}</small>
+	            <small>{orderSubmitCopy(portfolioReviewHistory.guardrails.broker_submit_allowed)}</small>
           </article>
         </div>
         {portfolioReviewHistory.latest_decisions.length > 0 ? (
@@ -3353,7 +3373,7 @@ export default async function DataHealthPage() {
                   <th scope="col">순위</th>
                   <th scope="col">종목</th>
                   <th scope="col">결정</th>
-                  <th scope="col">가족</th>
+	                  <th scope="col">판단군</th>
                   <th scope="col">근거</th>
                 </tr>
               </thead>
@@ -3369,12 +3389,12 @@ export default async function DataHealthPage() {
                       <span className={`risk-tag ${decisionSeverityClass(decision.severity)}`}>
                         {decision.decision_label || koCode(decision.decision_type)}
                       </span>
-                      <small>{decision.next_review_action}</small>
+	                      <small>{koReason(decision.next_review_action)}</small>
                     </td>
                     <td>{koCode(decision.decision_family)}</td>
                     <td>
-                      <small>{decision.rationale || "저장된 설명 없음"}</small>
-                      <small>{koCode(decision.order_boundary)} · 주문 전송 {decision.broker_submit_allowed ? "허용" : "금지"}</small>
+	                      <small>{koReason(decision.rationale || "저장된 설명 없음")}</small>
+	                      <small>{koCode(decision.order_boundary)} · {orderSubmitCopy(decision.broker_submit_allowed)}</small>
                     </td>
                   </tr>
                 ))}
@@ -3402,8 +3422,8 @@ export default async function DataHealthPage() {
           <h2 id="portfolio-review-feedback-title">저장한 판단이 나중의 성과와 맞았는지 본다.</h2>
         </div>
         <p className="board-intro">
-          이 섹션은 검토 결정을 추천 weight로 바로 바꾸지 않는다. 저장된 축소 검토, 증액 금지, 유지 검토가
-          이후 recommendation outcome, thesis outcome, paper validation, 가격 변화와 맞았는지만 읽기 전용으로 평가한다.
+	          이 섹션은 검토 결정을 추천 산식 가중치로 바로 바꾸지 않는다. 저장된 축소 검토, 증액 금지, 유지 검토가
+	          이후 추천 성과, 투자 논리 성과, 페이퍼 검증, 가격 변화와 맞았는지만 읽기 전용으로 평가한다.
         </p>
         <div className="status-rail compact-rail">
           <article className="rail-cell">
@@ -3428,12 +3448,12 @@ export default async function DataHealthPage() {
           <article className="rail-cell">
             <span>근거 부족</span>
             <strong>{portfolioReviewFeedback.needs_more_data_count}</strong>
-            <small>outcome/paper/가격 보강 필요</small>
+	            <small>성과/페이퍼/가격 보강 필요</small>
           </article>
           <article className="rail-cell rail-critical">
             <span>주문 경계</span>
             <strong>{koCode(portfolioReviewFeedback.guardrails.order_boundary)}</strong>
-            <small>broker 전송 {portfolioReviewFeedback.guardrails.broker_submit_allowed ? "허용" : "금지"}</small>
+	            <small>{orderSubmitCopy(portfolioReviewFeedback.guardrails.broker_submit_allowed)}</small>
           </article>
         </div>
         {portfolioReviewFeedback.latest_items.length > 0 ? (
@@ -3459,26 +3479,26 @@ export default async function DataHealthPage() {
                       <span className={`risk-tag ${decisionSeverityClass(item.source_decision.severity)}`}>
                         {item.decision_label || koCode(item.decision_type)}
                       </span>
-                      <small>{item.source_decision.rationale || "원래 판단 설명 없음"}</small>
+	                      <small>{koReason(item.source_decision.rationale || "원래 판단 설명 없음")}</small>
                     </td>
                     <td>
                       <span className={`risk-tag ${feedbackStatusClass(item.feedback_status)}`}>
                         {koCode(item.feedback_status)}
                       </span>
-                      <small>{item.evidence.recommendation_outcome.outcome_label || "outcome 미측정"}</small>
+	                      <small>{item.evidence.recommendation_outcome.outcome_label || "성과 미측정"}</small>
                     </td>
                     <td>
                       <small>
-                        alpha {formatPercent(item.evidence.recommendation_outcome.alpha_pct)} · 가격{" "}
+	                        초과수익 {formatPercent(item.evidence.recommendation_outcome.alpha_pct)} · 가격{" "}
                         {formatPercent(item.evidence.price_evidence.price_return_pct)}
                       </small>
                       <small>
-                        paper {koCode(item.evidence.paper_validation.status)} · thesis {koCode(item.evidence.thesis.status || "없음")}
+	                        페이퍼 {koCode(item.evidence.paper_validation.status)} · 투자 논리 {koCode(item.evidence.thesis.status || "없음")}
                       </small>
                     </td>
                     <td>
-                      <small>{item.feedback_reason}</small>
-                      <small>{koCode(item.order_boundary)} · 주문 전송 {item.broker_submit_allowed ? "허용" : "금지"}</small>
+	                      <small>{koReason(item.feedback_reason)}</small>
+	                      <small>{koCode(item.order_boundary)} · {orderSubmitCopy(item.broker_submit_allowed)}</small>
                     </td>
                   </tr>
                 ))}
@@ -3487,7 +3507,7 @@ export default async function DataHealthPage() {
           </div>
         ) : (
           <div className="empty-state">
-            아직 검토 결정 사후평가가 없다. 먼저 검토 결정 이력을 저장하고, 이후 outcome window가 끝나면 feedback runner를 실행한다.
+	            아직 검토 결정 사후평가가 없다. 먼저 검토 결정 이력을 저장하고, 이후 성과 측정 기간이 끝나면 사후평가를 실행한다.
           </div>
         )}
         <div className="empty-state">
@@ -3503,30 +3523,30 @@ export default async function DataHealthPage() {
       >
         <div className="section-heading stacked-heading">
           <span>포트폴리오 검토 신뢰도 누적평가</span>
-          <h2 id="portfolio-review-calibration-title">성과 표본이 성숙하기 전에는 추천 weight를 바꾸지 않는다.</h2>
+	          <h2 id="portfolio-review-calibration-title">성과 표본이 성숙하기 전에는 추천 산식 가중치를 바꾸지 않는다.</h2>
         </div>
         <p className="board-intro">
-          검토 결정은 최소 관찰 기간을 지난 뒤 실제 outcome과 대조해야 한다. 이 섹션은 지금 weight 변경이 왜
+	          검토 결정은 최소 관찰 기간을 지난 뒤 실제 성과와 대조해야 한다. 이 섹션은 지금 추천 산식 변경이 왜
           막혀 있는지, 어떤 표본이 부족한지, 언제 다시 사후평가를 실행해야 하는지를 보여주는 읽기 전용 안전장치다.
         </p>
         <div className="status-rail compact-rail">
           <article className="rail-cell">
-            <span>weight 검토 상태</span>
+	            <span>추천 산식 검토 상태</span>
             <strong className={`risk-tag ${portfolioReviewCalibration.managed_wait ? "risk-low" : portfolioReviewCalibration.weight_review_blocked ? "risk-medium" : "risk-low"}`}>
               {portfolioReviewCalibration.managed_wait
                 ? "관리된 대기"
                 : portfolioReviewCalibration.weight_review_blocked
                   ? "변경 금지"
-                  : "manual 검토 가능"}
+	                  : "별도 검토 가능"}
             </strong>
             <small>{koCode(portfolioReviewCalibration.maturity_status)} · {portfolioReviewCalibration.eval_run_id}</small>
           </article>
           <article className="rail-cell">
-            <span>feedback 실행</span>
+	            <span>사후평가 실행</span>
             <strong>
               {portfolioReviewCalibration.feedback_run_count}/{portfolioReviewCalibration.min_feedback_runs}
             </strong>
-            <small>부족 {portfolioReviewCalibration.feedback_run_gap}회 · {portfolioReviewCalibration.lookback_days || "기간 미확인"}일 lookback</small>
+	            <small>부족 {portfolioReviewCalibration.feedback_run_gap}회 · {portfolioReviewCalibration.lookback_days || "기간 미확인"}일 관찰</small>
           </article>
           <article className="rail-cell">
             <span>성숙한 판단</span>
@@ -3556,21 +3576,21 @@ export default async function DataHealthPage() {
           <article className="rail-cell rail-critical">
             <span>주문 경계</span>
             <strong>{koCode(portfolioReviewCalibration.guardrails.order_boundary)}</strong>
-            <small>broker 전송 {portfolioReviewCalibration.guardrails.broker_submit_allowed ? "허용" : "금지"}</small>
+	            <small>{orderSubmitCopy(portfolioReviewCalibration.guardrails.broker_submit_allowed)}</small>
           </article>
         </div>
         <div className="empty-state">
-          <strong>{portfolioReviewCalibration.managed_wait ? "왜 open gate가 아닌가" : "왜 막혀 있나"}</strong>
+	          <strong>{portfolioReviewCalibration.managed_wait ? "왜 열린 문제로 보지 않는가" : "왜 막혀 있나"}</strong>
           <p>
             {portfolioReviewCalibration.managed_wait
-              ? portfolioReviewCalibration.managed_gate_reason
-              : portfolioReviewCalibration.weight_review_block_reason}
+	              ? operationCopy(portfolioReviewCalibration.managed_gate_reason)
+	              : operationCopy(portfolioReviewCalibration.weight_review_block_reason)}
           </p>
         </div>
         <div className="insight-grid">
           {portfolioReviewCalibration.family_summaries.slice(0, 3).map((summary) => (
             <article className="insight-card" key={`family-${summary.decision_family}`}>
-              <span>결정 family</span>
+	              <span>판단군</span>
               <strong>{koCode(summary.decision_family || "unknown")}</strong>
               <p>
                 전체 {summary.decision_count}개 · 성숙 {summary.mature_decision_count}개 · 반박{" "}
@@ -3580,7 +3600,7 @@ export default async function DataHealthPage() {
           ))}
           {portfolioReviewCalibration.symbol_summaries.slice(0, 3).map((summary) => (
             <article className="insight-card" key={`symbol-${summary.symbol}`}>
-              <span>종목별 feedback</span>
+	              <span>종목별 사후평가</span>
               <strong>{summary.symbol || "미분류"}</strong>
               <p>
                 성숙 {summary.mature_decision_count}개 · 검증 {summary.validated_count}개 · 반박률{" "}
@@ -3592,8 +3612,8 @@ export default async function DataHealthPage() {
             && portfolioReviewCalibration.symbol_summaries.length === 0 ? (
               <article className="insight-card">
                 <span>누적 자료 없음</span>
-                <strong>feedback을 더 쌓아야 함</strong>
-                <p>검토 이력과 사후평가가 여러 번 쌓여야 manual weight pilot 검토로 넘어갈 수 있다.</p>
+	                <strong>사후평가를 더 쌓아야 함</strong>
+	                <p>검토 이력과 사후평가가 여러 번 쌓여야 별도 추천 산식 검토로 넘어갈 수 있다.</p>
               </article>
             ) : null}
         </div>
@@ -3629,7 +3649,7 @@ export default async function DataHealthPage() {
         ) : null}
         <div className="empty-state">
           <strong>다음 조치</strong>
-          <p>{portfolioReviewCalibration.next_calibration_action || portfolioReviewCalibration.next_action}</p>
+	          <p>{operationCopy(portfolioReviewCalibration.next_calibration_action || portfolioReviewCalibration.next_action)}</p>
         </div>
       </section>
 
@@ -3643,12 +3663,12 @@ export default async function DataHealthPage() {
           <h2 id="portfolio-review-cadence-title">사후평가와 누적평가를 언제 다시 돌릴지 판단한다.</h2>
         </div>
         <p className="board-intro">
-          검토 이력, outcome window, 가격·paper validation 근거, 최신 feedback, 최신 calibration의 연결 상태를 보고
-          기다릴지, feedback을 실행할지, calibration을 실행할지 결정한다. 이 판단도 주문이나 weight 변경이 아니다.
+	          검토 이력, 성과 측정 기간, 가격·페이퍼 검증 근거, 최신 사후평가, 최신 누적평가의 연결 상태를 보고
+	          기다릴지, 사후평가를 실행할지, 누적평가를 실행할지 결정한다. 이 판단도 주문이나 추천 산식 변경이 아니다.
         </p>
         <div className="status-rail compact-rail">
           <article className="rail-cell">
-            <span>cadence 상태</span>
+	            <span>실행 주기 상태</span>
             <strong className={`risk-tag ${cadenceStatusClass(portfolioReviewCadence.cadence_status)}`}>
               {koCode(portfolioReviewCadence.cadence_status)}
             </strong>
@@ -3670,20 +3690,20 @@ export default async function DataHealthPage() {
               {portfolioReviewCadence.evidence.recommendation_outcome_count}/
               {portfolioReviewCadence.evidence.recommendation_link_count}
             </strong>
-            <small>outcome 연결 · 가격 {portfolioReviewCadence.evidence.price_evidence_count}개</small>
+	            <small>성과 연결 · 가격 {portfolioReviewCadence.evidence.price_evidence_count}개</small>
           </article>
           <article className="rail-cell rail-critical">
             <span>주문 경계</span>
             <strong>{koCode(portfolioReviewCadence.order_boundary)}</strong>
-            <small>broker 전송 {portfolioReviewCadence.broker_submit_allowed ? "허용" : "금지"}</small>
+	            <small>{orderSubmitCopy(portfolioReviewCadence.broker_submit_allowed)}</small>
           </article>
         </div>
         <div className="insight-grid">
           <article className="insight-card">
             <span>다음 명령</span>
             <strong>{koCode(portfolioReviewCadence.action_type)}</strong>
-            <p>{portfolioReviewCadence.label}</p>
-            <small>{portfolioReviewCadence.command}</small>
+	            <p>{operationCopy(portfolioReviewCadence.label)}</p>
+	            <small>{operationCopy(portfolioReviewCadence.reason)}</small>
           </article>
           <article className="insight-card">
             <span>후속 명령</span>
@@ -3691,28 +3711,28 @@ export default async function DataHealthPage() {
             <p>{portfolioReviewCadence.follow_up_command || "현재 후속 명령은 없다."}</p>
           </article>
           <article className="insight-card">
-            <span>history → feedback</span>
+	            <span>검토 이력 → 사후평가</span>
             <strong>
               {portfolioReviewCadence.history.eval_run_id} → {portfolioReviewCadence.feedback.eval_run_id}
             </strong>
             <p>
-              이력 {portfolioReviewCadence.history.decision_count}개 · feedback{" "}
+	              이력 {portfolioReviewCadence.history.decision_count}개 · 사후평가{" "}
               {portfolioReviewCadence.feedback.decision_count}개 · 상태{" "}
               {koCode(portfolioReviewCadence.feedback.feedback_status)}
             </p>
           </article>
           <article className="insight-card">
-            <span>feedback → calibration</span>
+	            <span>사후평가 → 누적평가</span>
             <strong>
               {portfolioReviewCadence.feedback.eval_run_id} → {portfolioReviewCadence.calibration.eval_run_id}
             </strong>
             <p>
-              누적 feedback {portfolioReviewCadence.calibration.feedback_run_count}회 · 성숙 판단{" "}
+	              누적 사후평가 {portfolioReviewCadence.calibration.feedback_run_count}회 · 성숙 판단{" "}
               {portfolioReviewCadence.calibration.mature_decision_count}개
             </p>
           </article>
           <article className="insight-card">
-            <span>paper validation</span>
+	            <span>페이퍼 검증</span>
             <strong>{koCode(portfolioReviewCadence.evidence.paper_validation.status)}</strong>
             <p>
               검증일 {portfolioReviewCadence.evidence.paper_validation.validation_date || "없음"} · 충돌{" "}
@@ -3720,14 +3740,14 @@ export default async function DataHealthPage() {
             </p>
           </article>
           <article className="insight-card">
-            <span>추천 weight</span>
+	            <span>추천 산식 가중치</span>
             <strong>{portfolioReviewCadence.automatic_weight_change_allowed ? "변경 허용" : "변경 금지"}</strong>
-            <p>cadence 판단은 실행 순서만 정한다. 추천 점수와 포트폴리오 비중은 바꾸지 않는다.</p>
+	            <p>실행 주기 판단은 실행 순서만 정한다. 추천 점수와 포트폴리오 비중은 바꾸지 않는다.</p>
           </article>
         </div>
         <div className="empty-state">
           <strong>다음 조치</strong>
-          <p>{portfolioReviewCadence.next_action}</p>
+	          <p>{operationCopy(portfolioReviewCadence.next_action)}</p>
         </div>
       </section>
 
@@ -3737,23 +3757,23 @@ export default async function DataHealthPage() {
         aria-labelledby="portfolio-review-action-router-title"
       >
         <div className="section-heading stacked-heading">
-          <span>포트폴리오 검토 실행 라우터</span>
+	          <span>포트폴리오 검토 실행 분기</span>
           <h2 id="portfolio-review-action-router-title">대기할지, 사후평가를 돌릴지, 누적평가를 돌릴지 기록한다.</h2>
         </div>
         <p className="board-intro">
-          cadence는 “언제 실행해야 하는가”를 판단하고, 라우터는 그 판단을 안전한 후속 작업으로 바꾼다.
-          이 라우터가 실행해도 추천 weight, 보유 비중, 주문 전송은 자동으로 바뀌지 않는다.
+	          실행 주기는 “언제 실행해야 하는가”를 판단하고, 실행 분기는 그 판단을 안전한 후속 작업으로 바꾼다.
+	          이 실행 분기가 동작해도 추천 산식 가중치, 보유 비중, 주문 전송은 자동으로 바뀌지 않는다.
         </p>
         <div className="status-rail compact-rail">
           <article className="rail-cell">
-            <span>라우터 결과</span>
+	            <span>실행 분기 결과</span>
             <strong className={`risk-tag ${actionRouterStatusClass(portfolioReviewActionRouter.action_status)}`}>
               {actionRouterTitle(portfolioReviewActionRouter)}
             </strong>
             <small>{portfolioReviewActionRouter.eval_run_id}</small>
           </article>
           <article className="rail-cell">
-            <span>원천 cadence</span>
+	            <span>원천 실행 주기</span>
             <strong>{koCode(portfolioReviewActionRouter.cadence_status)}</strong>
             <small>{portfolioReviewActionRouter.source_cadence_eval_run_id}</small>
           </article>
@@ -3768,45 +3788,45 @@ export default async function DataHealthPage() {
             <small>
               {portfolioReviewActionRouter.child_runner.executed
                 ? `${koCode(portfolioReviewActionRouter.child_runner.report_name)} · ${portfolioReviewActionRouter.child_runner.eval_run_id}`
-                : "성과 관찰 또는 가드레일 때문에 child runner를 실행하지 않았다."}
+	                : "성과 관찰 또는 안전 조건 때문에 후속 실행을 시작하지 않았다."}
             </small>
           </article>
           <article className="rail-cell rail-critical">
             <span>주문 경계</span>
             <strong>{koCode(portfolioReviewActionRouter.order_boundary)}</strong>
-            <small>broker 전송 {portfolioReviewActionRouter.broker_submit_allowed ? "허용" : "금지"}</small>
+	            <small>{orderSubmitCopy(portfolioReviewActionRouter.broker_submit_allowed)}</small>
           </article>
         </div>
         <div className="insight-grid">
           <article className="insight-card">
             <span>왜 이 결론인가</span>
             <strong>{koCode(portfolioReviewActionRouter.action_status)}</strong>
-            <p>{portfolioReviewActionRouter.reason || "저장된 설명 없음"}</p>
+	            <p>{operationCopy(portfolioReviewActionRouter.reason || "저장된 설명 없음")}</p>
           </article>
           <article className="insight-card">
             <span>검토 이력 연결</span>
             <strong>{portfolioReviewActionRouter.history_eval_run_id}</strong>
             <p>
-              feedback {portfolioReviewActionRouter.feedback_eval_run_id} · calibration{" "}
+	              사후평가 {portfolioReviewActionRouter.feedback_eval_run_id} · 누적평가{" "}
               {portfolioReviewActionRouter.calibration_eval_run_id}
             </p>
           </article>
           <article className="insight-card">
-            <span>child runner 상태</span>
+	            <span>후속 실행 상태</span>
             <strong>{koCode(portfolioReviewActionRouter.child_runner.status)}</strong>
             <p>
               실행 기록 {portfolioReviewActionRouter.child_runner.run_id}
-              {portfolioReviewActionRouter.child_runner.feedback_status
-                ? ` · feedback ${koCode(portfolioReviewActionRouter.child_runner.feedback_status)}`
-                : ""}
-              {portfolioReviewActionRouter.child_runner.calibration_status
-                ? ` · calibration ${koCode(portfolioReviewActionRouter.child_runner.calibration_status)}`
-                : ""}
+	              {portfolioReviewActionRouter.child_runner.feedback_status
+	                ? ` · 사후평가 ${koCode(portfolioReviewActionRouter.child_runner.feedback_status)}`
+	                : ""}
+	              {portfolioReviewActionRouter.child_runner.calibration_status
+	                ? ` · 누적평가 ${koCode(portfolioReviewActionRouter.child_runner.calibration_status)}`
+	                : ""}
             </p>
           </article>
           <article className="insight-card">
             <span>안전 장치</span>
-            <strong>{portfolioReviewActionRouter.automatic_weight_change_allowed ? "weight 변경 허용" : "weight 변경 금지"}</strong>
+	            <strong>{portfolioReviewActionRouter.automatic_weight_change_allowed ? "추천 산식 변경 허용" : "추천 산식 변경 금지"}</strong>
             <p>
               리밸런싱 {portfolioReviewActionRouter.automatic_rebalance_allowed ? "허용" : "금지"} · 주문{" "}
               {portfolioReviewActionRouter.automatic_order_allowed ? "허용" : "금지"}
