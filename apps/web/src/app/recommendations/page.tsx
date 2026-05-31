@@ -158,7 +158,7 @@ export default async function RecommendationsPage() {
       metric: `${data.summary.order_blocked_count.toLocaleString("ko-KR")}개 주문 차단`,
       body:
         data.summary.order_blocked_count > 0
-          ? "목록의 추천은 읽기 전용이다. broker submit, 자동 주문, weight 변경은 이 화면에서 열리지 않는다."
+          ? "목록의 추천은 읽기 전용이다. 증권사 주문 제출, 자동 주문, 추천 산식 가중치 변경은 이 화면에서 열리지 않는다."
           : "차단 수가 0이어도 이 화면에는 주문 기능이 없다. 실거래는 별도 승인된 broker flow에서만 다룬다.",
       href: "/trading-readiness",
       cta: "거래 경계 보기",
@@ -171,7 +171,7 @@ export default async function RecommendationsPage() {
         data.summary.linked_thesis_count > 0 || data.summary.ai_or_event_evidence_count > 0
           ? "근거 연결됨"
           : "근거 보강 필요",
-      metric: `thesis ${data.summary.linked_thesis_count.toLocaleString("ko-KR")}개 · AI/이벤트 근거 ${data.summary.ai_or_event_evidence_count.toLocaleString("ko-KR")}개`,
+      metric: `투자 논리 ${data.summary.linked_thesis_count.toLocaleString("ko-KR")}개 · AI/이벤트 근거 ${data.summary.ai_or_event_evidence_count.toLocaleString("ko-KR")}개`,
       body:
         data.summary.linked_thesis_count > 0 || data.summary.ai_or_event_evidence_count > 0
           ? "추천 상세에서 재무·밸류에이션·뉴스·사이클 근거가 어디까지 연결됐는지 확인한다."
@@ -188,7 +188,7 @@ export default async function RecommendationsPage() {
         <div className="bento-badge">추천 상황실 • 읽기 전용 투자 후보</div>
         <h1 id="recommendations-title">추천 신호를 보고, 근거와 차단 경계를 먼저 확인한다.</h1>
         <p>
-          이 화면은 주문 화면이 아니다. 중장기 후보의 점수, thesis, AI·이벤트 근거, 페이퍼 대기,
+            이 화면은 주문 화면이 아니다. 중장기 후보의 점수, 투자 논리, AI·이벤트 근거, 페이퍼 대기,
           주문 차단 상태를 분리해서 보여준다.
         </p>
       </section>
@@ -199,7 +199,7 @@ export default async function RecommendationsPage() {
           <h2 id="recommendations-command-title">무엇을 검토하고, 무엇은 아직 막혀 있는지 먼저 본다.</h2>
           <p>
             기준일 {data.as_of_date || "미정"} · {koCode(data.strategy_name)} · {koCode(data.horizon_type)}.
-            추천은 후보 신호이고, 주문과 weight 변경은 계속 별도 경계에서 차단된다.
+            추천은 후보 신호이고, 주문과 추천 산식 가중치 변경은 계속 별도 경계에서 차단된다.
           </p>
         </div>
         <div className="recommendations-command-grid">

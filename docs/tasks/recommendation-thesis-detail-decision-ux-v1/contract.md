@@ -18,8 +18,10 @@
 
 - mutable surface:
   - `apps/web/src/app/recommendations/[recommendationId]/page.tsx`
+  - `apps/web/src/app/recommendations/page.tsx`
   - `apps/web/src/app/theses/[thesisId]/page.tsx`
   - `apps/web/src/app/globals.css`
+  - `apps/web/src/lib/korean-labels.ts`
   - `docs/tasks/recommendation-thesis-detail-decision-ux-v1/*`
 
 ## Non-Goals
