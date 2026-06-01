@@ -2,7 +2,9 @@
 
 ## Status
 
-- completed: live AI invocation health gate is implemented, deployed to EC2, and API/UI smoke confirms the existing Codex OAuth failure is now visible.
+- completed: live AI invocation health gate is implemented, deployed to EC2, and API/UI smoke confirms the existing Codex OAuth failure is visible.
+- resumed on 2026-06-01: EC2 Codex OAuth was re-authenticated through OpenAI device auth, limited live AI smoke passed, and `news-intraday` systemd profile completed.
+- follow-up fix: health status now separates current latest task health from the 48h failure history. If all monitored AI tasks have latest successful invocations but older failures remain in the window, status becomes `recovered_with_recent_failures` instead of keeping the operational gate open as `degraded`.
 - 기준일: 2026-06-01
 - root cause:
   - EC2 최신 `news-intraday`는 systemd와 profile runner 관점에서는 성공했지만, 실제 Codex OAuth 호출은 `token_invalidated`/`refresh_token_reused`/`401 Unauthorized`로 실패했다.
@@ -33,12 +35,19 @@
 - PASS: EC2 `/api/data-health` returns `open_gates=['data_operations_artifact_runner', 'live_ai_invocation_health_attention']`, `live_ai_invocation_health.status=critical_ai_failed`, `recent_success_count=0`, `recent_failed_count=737`, `latest_error_code=codex_oauth_auth_invalid`.
 - PASS: EC2 `/data-health` renders `실제 AI 호출 상태`, `실제 AI 호출 확인 필요`, `실제 AI 실패 737건`, and `Codex OAuth 분석 실패`.
 - FAIL-EXPECTED: limited `news-rss-translation-run --provider codex_oauth --limit 1 --execute` still returns `completed_with_fallback`; direct `codex exec` smoke exits 1 with `token_invalidated` and `refresh_token_reused`.
+- PASS: after EC2 device-auth re-login, direct `codex exec` smoke returned `{"ok": true}`.
+- PASS: EC2 `news-rss-translation-run --provider codex_oauth --limit 1 --execute` completed with `run_id=2531`, `updated_document_count=1`, `failed_document_count=0`, `translation_confidence=0.93`.
+- PASS: EC2 `news-rss-ai-extract-run --provider codex_oauth --limit 1 --execute` completed with `run_id=2532`, `inserted_artifact_count=1`, `failed_candidate_count=0`.
+- PASS: EC2 `stockanalysis-operating-data-news-intraday.service` completed successfully, `failed_step_count=0`, and recent `ai.model_invocation` includes 11 successful `news-rss-ai-extract` and 18 successful `news-rss-korean-translation` calls.
+- PASS: EC2 `cycle-community-ai-summary-v2-run --provider codex_oauth --node-code TECH_DOMAIN --limit 1 --max-nodes 1 --execute` completed with `run_id=2545`, `failed_summary_count=0`.
+- PASS: EC2 `equity-research-reporting-run --provider codex_oauth --symbol NVDA --limit 1 --execute` completed with `run_id=2546`, `inserted_artifact_count=1`, `failed_artifact_count=0`.
 
 ## Remaining
 
-- Actual Codex OAuth authentication is still broken on EC2. `codex login status` reports ChatGPT login, but real `codex exec` returns 401. The stored refresh token must be replaced by a fresh login.
-- After re-login, rerun limited translation and news AI extract smoke, then run `news-intraday` once.
+- Current Codex OAuth authentication is fixed on EC2 and real AI calls work.
+- Historical failed `ai.model_invocation` rows remain in the 48h observation window. They are now treated as recovery history when latest monitored task executions are successful.
+- Remaining unrelated `/api/data-health.open_gates` item: `data_operations_artifact_runner`.
 
 ## Exact Next Step
 
-- exact next step: refresh EC2 Codex OAuth credentials with `codex logout` and `codex login --device-auth` or equivalent browser login, then run `news-rss-translation-run --provider codex_oauth --limit 1 --execute`.
+- exact next step: deploy the `recovered_with_recent_failures` health classification patch, restart FastAPI/Next.js, and confirm `/api/data-health.live_ai_invocation_health.status` no longer opens `live_ai_invocation_health_attention` when all monitored task latest statuses are `succeeded`.

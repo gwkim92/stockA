@@ -5379,6 +5379,57 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertEqual(gate_details["live_ai_invocation_health_attention"]["label"], "실제 AI 호출")
         self.assertIn("Codex OAuth", gate_details["live_ai_invocation_health_attention"]["status_label"])
 
+    def test_live_data_health_response_does_not_open_gate_for_recovered_live_codex_invocations(self) -> None:
+        class RecoveredAiExecutor(FakeLiveExecutor):
+            def execute_scalar(self, sql: str) -> str:
+                payload = json.loads(super().execute_scalar(sql))
+                if sql.startswith("-- frontend data health state lookup"):
+                    payload["live_ai_invocation_health"] = {
+                        "status": "recovered_with_recent_failures",
+                        "window_hours": 48,
+                        "recent_invocation_count": 40,
+                        "recent_success_count": 10,
+                        "recent_failed_count": 30,
+                        "critical_failed_count": 30,
+                        "critical_success_count": 10,
+                        "latest_unhealthy_count": 0,
+                        "critical_latest_unhealthy_count": 0,
+                        "latest_invocation_at": "2026-05-31T16:20:46+00:00",
+                        "latest_failed_at": "2026-05-31T16:01:46+00:00",
+                        "latest_failed_task_name": "news-rss-ai-extract",
+                        "latest_error_summary": "token_invalidated 401 Unauthorized",
+                        "latest_error_code": "codex_oauth_auth_invalid",
+                        "task_health": [
+                            {
+                                "task_name": "news-rss-ai-extract",
+                                "label": "뉴스 AI 구조화",
+                                "critical": True,
+                                "recent_invocation_count": 20,
+                                "recent_success_count": 10,
+                                "recent_failed_count": 10,
+                                "latest_status": "succeeded",
+                                "latest_created_at": "2026-05-31T16:20:46+00:00",
+                                "latest_error_summary": "",
+                                "latest_error_code": "",
+                            }
+                        ],
+                        "next_action": "과거 실패 이력은 남아 있지만 monitored AI 작업의 최신 실행은 성공했다.",
+                    }
+                return json.dumps(payload)
+
+        payload = resolve_live_frontend_response(
+            "/api/data-health",
+            config=type("Config", (), {"psql_command": "psql"})(),
+            executor=RecoveredAiExecutor(),
+            generated_at=datetime(2026, 5, 1, tzinfo=timezone.utc),
+        )
+
+        live_ai = payload["data"]["live_ai_invocation_health"]
+        self.assertEqual(live_ai["status"], "recovered_with_recent_failures")
+        self.assertFalse(live_ai["attention_required"])
+        self.assertEqual(live_ai["latest_unhealthy_count"], 0)
+        self.assertNotIn("live_ai_invocation_health_attention", payload["data"]["open_gates"])
+
     def test_live_data_health_response_includes_sanitized_scheduler_activation_gate(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             report = Path(tmpdir) / "pending-approval-gate.json"
@@ -5905,6 +5956,7 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertIn("news-rss-korean-translation", sql)
         self.assertIn("news-rss-ai-extract", sql)
         self.assertIn("provider = 'codex_oauth'", sql)
+        self.assertIn("recovered_with_recent_failures", sql)
         self.assertIn("selected_portfolio_review_decision_history", sql)
         self.assertIn("portfolio_review_decision_history", sql)
         self.assertIn("portfolio-review-decision-history-v1", sql)

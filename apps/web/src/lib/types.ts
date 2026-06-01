@@ -347,6 +347,8 @@ export type DataHealthData = {
     recent_failed_count: number;
     critical_failed_count: number;
     critical_success_count: number;
+    latest_unhealthy_count: number;
+    critical_latest_unhealthy_count: number;
     latest_invocation_at: string;
     latest_failed_at: string;
     latest_failed_task_name: string;

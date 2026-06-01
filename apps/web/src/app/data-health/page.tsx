@@ -505,6 +505,9 @@ function liveAiInvocationTitle(health: LiveAiInvocationHealth) {
   if (health.status === "degraded") {
     return "일부 AI 호출 실패";
   }
+  if (health.status === "recovered_with_recent_failures") {
+    return "AI 호출 복구됨";
+  }
   if (health.status === "missing_recent_invocations") {
     return "최근 AI 호출 없음";
   }
@@ -519,7 +522,10 @@ function liveAiInvocationExplanation(health: LiveAiInvocationHealth) {
     return "뉴스 한국어 번역이나 뉴스 AI 구조화 같은 핵심 Codex OAuth 호출이 실패했다. 화면의 뉴스 해석은 fallback 결과일 수 있다.";
   }
   if (health.status === "degraded") {
-    return "일부 Codex OAuth 호출이 실패했다. 성공한 작업과 실패한 작업을 나눠 보고 다음 주기에서 회복되는지 확인해야 한다.";
+    return "일부 Codex OAuth 작업의 최신 실행이 실패했다. 성공한 작업과 실패한 작업을 나눠 보고 인증, 토큰, CLI 오류를 확인해야 한다.";
+  }
+  if (health.status === "recovered_with_recent_failures") {
+    return "최근 48시간 안에 실패 이력은 남아 있지만, monitored AI 작업의 최신 실행은 성공했다. 현재 장애가 아니라 복구 후 관찰 상태다.";
   }
   if (health.status === "missing_recent_invocations") {
     return "최근 운영 배치에서 실제 LLM 호출 증거가 없다. 뉴스가 없는 것인지, 배치 호출이 멈춘 것인지 확인해야 한다.";
@@ -529,6 +535,9 @@ function liveAiInvocationExplanation(health: LiveAiInvocationHealth) {
 
 function liveAiInvocationTone(health: LiveAiInvocationHealth) {
   if (health.status === "healthy") {
+    return "risk-low";
+  }
+  if (health.status === "recovered_with_recent_failures") {
     return "risk-low";
   }
   if (health.status === "degraded" || health.status === "missing_recent_invocations") {
@@ -1158,6 +1167,8 @@ const DEFAULT_LIVE_AI_INVOCATION_HEALTH: LiveAiInvocationHealth = {
   recent_failed_count: 0,
   critical_failed_count: 0,
   critical_success_count: 0,
+  latest_unhealthy_count: 0,
+  critical_latest_unhealthy_count: 0,
   latest_invocation_at: "",
   latest_failed_at: "",
   latest_failed_task_name: "",

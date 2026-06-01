@@ -5102,16 +5102,17 @@ live_ai_invocation_summary as (
         coalesce(sum(recent_failed_count), 0)::integer as recent_failed_count,
         coalesce(sum(recent_failed_count) filter (where critical), 0)::integer as critical_failed_count,
         coalesce(sum(recent_success_count) filter (where critical), 0)::integer as critical_success_count,
+        count(*) filter (where latest_status <> 'succeeded')::integer as latest_unhealthy_count,
+        count(*) filter (where critical and latest_status <> 'succeeded')::integer as critical_latest_unhealthy_count,
         max(latest_created_at) as latest_invocation_at,
-        max(latest_created_at) filter (where recent_failed_count > 0 and latest_status <> 'succeeded') as latest_failed_at
+        (select max(created_at) from live_ai_recent_invocations where status <> 'succeeded') as latest_failed_at
     from live_ai_task_health
 ),
 live_ai_latest_failure as (
-    select task_name, latest_error_summary, latest_error_code
-    from live_ai_task_health
-    where latest_status <> 'succeeded'
-      and latest_created_at is not null
-    order by latest_created_at desc
+    select task_name, error_summary as latest_error_summary, error_code as latest_error_code
+    from live_ai_recent_invocations
+    where status <> 'succeeded'
+    order by created_at desc, invocation_id desc
     limit 1
 ),
 selected_portfolio_review_decision_history as (
@@ -5982,9 +5983,9 @@ select json_build_object(
             'status',
                 case
                     when summary.recent_invocation_count = 0 then 'missing_recent_invocations'
-                    when summary.critical_failed_count > 0
-                     and summary.critical_success_count = 0 then 'critical_ai_failed'
-                    when summary.recent_failed_count > 0 then 'degraded'
+                    when summary.critical_latest_unhealthy_count > 0 then 'critical_ai_failed'
+                    when summary.latest_unhealthy_count > 0 then 'degraded'
+                    when summary.recent_failed_count > 0 then 'recovered_with_recent_failures'
                     else 'healthy'
                 end,
             'window_hours', 48,
@@ -5993,6 +5994,8 @@ select json_build_object(
             'recent_failed_count', summary.recent_failed_count,
             'critical_failed_count', summary.critical_failed_count,
             'critical_success_count', summary.critical_success_count,
+            'latest_unhealthy_count', summary.latest_unhealthy_count,
+            'critical_latest_unhealthy_count', summary.critical_latest_unhealthy_count,
             'latest_invocation_at', summary.latest_invocation_at,
             'latest_failed_at', summary.latest_failed_at,
             'latest_failed_task_name', coalesce(failure.task_name, ''),
@@ -6023,9 +6026,9 @@ select json_build_object(
             'next_action',
                 case
                     when summary.recent_invocation_count = 0 then '최근 실제 LLM 호출 증거가 없다. 뉴스 AI 배치가 실제로 호출됐는지 확인한다.'
-                    when summary.critical_failed_count > 0
-                     and summary.critical_success_count = 0 then 'EC2 Codex OAuth 재로그인 후 뉴스 번역과 뉴스 AI 구조화 smoke를 즉시 다시 실행한다.'
-                    when summary.recent_failed_count > 0 then '일부 AI 작업이 실패했다. 실패 task의 인증/토큰/CLI 오류를 확인하고 다음 주기 성공 여부를 확인한다.'
+                    when summary.critical_latest_unhealthy_count > 0 then 'EC2 Codex OAuth 재로그인 후 뉴스 번역과 뉴스 AI 구조화 smoke를 즉시 다시 실행한다.'
+                    when summary.latest_unhealthy_count > 0 then '일부 AI 작업의 최신 실행이 실패했다. 실패 task의 인증/토큰/CLI 오류를 확인한다.'
+                    when summary.recent_failed_count > 0 then '과거 실패 이력은 남아 있지만 monitored AI 작업의 최신 실행은 성공했다. 다음 자동 주기에서도 성공이 유지되는지 관찰한다.'
                     else '최근 실제 Codex OAuth 호출이 성공했다. 다음 뉴스 주기에서도 계속 감시한다.'
                 end
         )
@@ -15193,19 +15196,23 @@ def _build_live_ai_invocation_health_payload(payload: dict[str, Any]) -> dict[st
     recent_success_count = int(_safe_number(payload.get("recent_success_count")) or 0)
     critical_failed_count = int(_safe_number(payload.get("critical_failed_count")) or 0)
     critical_success_count = int(_safe_number(payload.get("critical_success_count")) or 0)
+    latest_unhealthy_count = int(_safe_number(payload.get("latest_unhealthy_count")) or 0)
+    critical_latest_unhealthy_count = int(_safe_number(payload.get("critical_latest_unhealthy_count")) or 0)
     attention_required = status in {
         "missing_recent_invocations",
         "critical_ai_failed",
         "degraded",
     }
-    if not attention_required and (recent_failed_count > 0 and critical_success_count == 0):
+    if not attention_required and (latest_unhealthy_count > 0 or critical_latest_unhealthy_count > 0):
         attention_required = True
     if status == "healthy":
         next_action = "최근 실제 Codex OAuth 호출이 성공했다. 다음 뉴스 주기에서도 계속 감시한다."
     elif status == "critical_ai_failed":
         next_action = "EC2 Codex OAuth 재로그인 후 뉴스 번역과 뉴스 AI 구조화 smoke를 즉시 다시 실행한다."
     elif status == "degraded":
-        next_action = "일부 AI 작업이 실패했다. 실패 task의 인증/토큰/CLI 오류를 확인하고 다음 주기 성공 여부를 확인한다."
+        next_action = "일부 AI 작업의 최신 실행이 실패했다. 실패 task의 인증/토큰/CLI 오류를 확인한다."
+    elif status == "recovered_with_recent_failures":
+        next_action = "과거 실패 이력은 남아 있지만 monitored AI 작업의 최신 실행은 성공했다. 다음 자동 주기에서도 성공이 유지되는지 관찰한다."
     else:
         next_action = "최근 실제 LLM 호출 증거가 없다. 뉴스 AI 배치가 실제로 호출됐는지 확인한다."
     return {
@@ -15217,6 +15224,8 @@ def _build_live_ai_invocation_health_payload(payload: dict[str, Any]) -> dict[st
         "recent_failed_count": recent_failed_count,
         "critical_failed_count": critical_failed_count,
         "critical_success_count": critical_success_count,
+        "latest_unhealthy_count": latest_unhealthy_count,
+        "critical_latest_unhealthy_count": critical_latest_unhealthy_count,
         "latest_invocation_at": _timestamp(payload.get("latest_invocation_at")),
         "latest_failed_at": _timestamp(payload.get("latest_failed_at")),
         "latest_failed_task_name": str(payload.get("latest_failed_task_name") or ""),
