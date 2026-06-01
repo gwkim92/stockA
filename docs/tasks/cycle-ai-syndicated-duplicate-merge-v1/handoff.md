@@ -36,6 +36,8 @@
 - passed: EC2 manual `stockanalysis-operating-data-news-intraday.service` profile smoke after deployment returned `Result=success`, `ExecMainStatus=0`, generated profile report at `2026-06-01T08:18:12Z`, `run_status=completed`, `failed_step_count=0`, and all 10 steps succeeded including `cycle-ai-duplicate-title-cleanup`.
 - passed: Profile cleanup step artifact `/opt/stockanalysis/artifacts/data-operations/20260601T081843Z_event-intelligence-weekly-2/stdout.txt` returned `run_id=2637`, `candidate_count=0`, `deleted_event_count=0`, `deleted_document_count=0`, `recommendation_scoring_mutated=false`, `broker_submit_allowed=false`.
 - passed: Post-profile `/api/data-health` still returned `overall_status=healthy`, `open_gates=[]`, `duplicate_title_count=0`, `ungrounded_direct_ticker_count=0`, `macro_false_ticker_count=0`, `quantum_energy_mislink_count=0`.
+- passed: Follow-up EC2 smoke before the next timer-created run confirmed `stockanalysis-operating-data-news-intraday.timer` next run at `2026-06-01T10:00:00Z`, latest manual service execution at `2026-06-01T08:18:12Z`, FastAPI and Next.js active, and 16 core routes returned HTTP 200: `/`, `/data-health`, `/events`, `/events/classification`, `/ai-evidence`, `/ai-evidence/results`, `/ai-evidence/blocked`, `/intelligence`, `/cycle-map`, `/stocks`, `/stocks/SPY`, `/recommendations`, `/paper-trading`, `/portfolio/coverage`, `/performance`, `/trading-readiness`.
+- passed: Follow-up `/api/data-health` summary returned `overall_status=healthy`, `open_gates=[]`, `cycle_ai_quality=ok`, `news_ai_eval=passed`, `data_runner=operational_profile_scheduler_active`, `data_runner_attention=false`, `non_ok=[]`.
 
 ## Guardrails
 
