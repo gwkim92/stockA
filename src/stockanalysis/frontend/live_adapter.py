@@ -5032,7 +5032,7 @@ expected_jobs_with_due as (
                     end
                 ) + expected.expected_after_local::time
             else null::timestamp
-        end as latest_due_at_local
+        end::date as latest_due_date_local
     from expected_jobs expected
     cross join data_health_local_clock clock
 ),
@@ -5064,9 +5064,9 @@ latest_runs as (
             when run.status in ('started', 'running') then 'running'
             when run.ended_at is null then 'missing'
             when run.status = 'succeeded_with_fallback' then 'degraded'
-            when expected.latest_due_at_local is not null
+            when expected.latest_due_date_local is not null
              and run.status = 'succeeded'
-             and run.ended_at at time zone 'America/New_York' >= expected.latest_due_at_local
+             and (run.ended_at at time zone 'America/New_York')::date >= expected.latest_due_date_local
                 then 'ok'
             when run.ended_at < now() - make_interval(hours => expected.stale_after_hours) then 'stale'
             else 'ok'
