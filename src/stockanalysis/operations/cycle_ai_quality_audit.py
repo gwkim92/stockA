@@ -592,8 +592,156 @@ def render_duplicate_title_cleanup_sql(
         raise ValueError("limit must be between 1 and 1000.")
     target_date = sql_date(as_of_date)
     lookback_interval = f"interval '{lookback_days} days'"
-    deletion_ctes = (
-        """deleted_events as (
+    write_ctes = (
+        """deleted_conflicting_classification as (
+    delete from event.event_classification_impact impact
+    using cleanup_candidates candidate
+    where impact.event_id = candidate.event_id
+      and exists (
+          select 1
+          from event.event_classification_impact keeper
+          where keeper.event_id = candidate.keeper_event_id
+            and keeper.node_id = impact.node_id
+      )
+    returning impact.event_id, impact.node_id
+),
+merged_classification as (
+    update event.event_classification_impact impact
+    set event_id = candidate.keeper_event_id
+    from cleanup_candidates candidate
+    where impact.event_id = candidate.event_id
+      and not exists (
+          select 1
+          from event.event_classification_impact keeper
+          where keeper.event_id = candidate.keeper_event_id
+            and keeper.node_id = impact.node_id
+      )
+    returning impact.event_id, impact.node_id
+),
+deleted_conflicting_instrument as (
+    delete from event.event_instrument_impact impact
+    using cleanup_candidates candidate
+    where impact.event_id = candidate.event_id
+      and exists (
+          select 1
+          from event.event_instrument_impact keeper
+          where keeper.event_id = candidate.keeper_event_id
+            and keeper.instrument_id = impact.instrument_id
+      )
+    returning impact.event_id, impact.instrument_id
+),
+merged_instrument as (
+    update event.event_instrument_impact impact
+    set event_id = candidate.keeper_event_id
+    from cleanup_candidates candidate
+    where impact.event_id = candidate.event_id
+      and not exists (
+          select 1
+          from event.event_instrument_impact keeper
+          where keeper.event_id = candidate.keeper_event_id
+            and keeper.instrument_id = impact.instrument_id
+      )
+    returning impact.event_id, impact.instrument_id
+),
+deleted_conflicting_propagated as (
+    delete from signal.propagated_instrument_impact impact
+    using cleanup_candidates candidate
+    where impact.event_id = candidate.event_id
+      and exists (
+          select 1
+          from signal.propagated_instrument_impact keeper
+          where keeper.event_id = candidate.keeper_event_id
+            and keeper.node_id = impact.node_id
+            and keeper.instrument_id = impact.instrument_id
+            and keeper.propagation_kind = impact.propagation_kind
+      )
+    returning impact.event_id, impact.node_id, impact.instrument_id
+),
+merged_propagated as (
+    update signal.propagated_instrument_impact impact
+    set event_id = candidate.keeper_event_id
+    from cleanup_candidates candidate
+    where impact.event_id = candidate.event_id
+      and not exists (
+          select 1
+          from signal.propagated_instrument_impact keeper
+          where keeper.event_id = candidate.keeper_event_id
+            and keeper.node_id = impact.node_id
+            and keeper.instrument_id = impact.instrument_id
+            and keeper.propagation_kind = impact.propagation_kind
+      )
+    returning impact.event_id, impact.node_id, impact.instrument_id
+),
+deleted_conflicting_hierarchical as (
+    delete from signal.hierarchical_propagated_instrument_impact impact
+    using cleanup_candidates candidate
+    where impact.event_id = candidate.event_id
+      and exists (
+          select 1
+          from signal.hierarchical_propagated_instrument_impact keeper
+          where keeper.event_id = candidate.keeper_event_id
+            and keeper.source_node_id = impact.source_node_id
+            and keeper.propagated_node_id = impact.propagated_node_id
+            and keeper.instrument_id = impact.instrument_id
+            and keeper.propagation_kind = impact.propagation_kind
+            and keeper.path_hash = impact.path_hash
+      )
+    returning impact.event_id, impact.source_node_id, impact.propagated_node_id, impact.instrument_id, impact.path_hash
+),
+merged_hierarchical as (
+    update signal.hierarchical_propagated_instrument_impact impact
+    set event_id = candidate.keeper_event_id
+    from cleanup_candidates candidate
+    where impact.event_id = candidate.event_id
+      and not exists (
+          select 1
+          from signal.hierarchical_propagated_instrument_impact keeper
+          where keeper.event_id = candidate.keeper_event_id
+            and keeper.source_node_id = impact.source_node_id
+            and keeper.propagated_node_id = impact.propagated_node_id
+            and keeper.instrument_id = impact.instrument_id
+            and keeper.propagation_kind = impact.propagation_kind
+            and keeper.path_hash = impact.path_hash
+      )
+    returning impact.event_id, impact.source_node_id, impact.propagated_node_id, impact.instrument_id, impact.path_hash
+),
+deleted_conflicting_chunks as (
+    delete from ai.document_chunk chunk
+    using cleanup_candidates candidate
+    where chunk.document_id = candidate.document_id
+      and exists (
+          select 1
+          from ai.document_chunk keeper
+          where keeper.document_id = candidate.keeper_document_id
+            and keeper.chunk_index = chunk.chunk_index
+            and keeper.content_hash = chunk.content_hash
+      )
+    returning chunk.chunk_id
+),
+merged_chunks as (
+    update ai.document_chunk chunk
+    set document_id = candidate.keeper_document_id
+    from cleanup_candidates candidate
+    where chunk.document_id = candidate.document_id
+      and not exists (
+          select 1
+          from ai.document_chunk keeper
+          where keeper.document_id = candidate.keeper_document_id
+            and keeper.chunk_index = chunk.chunk_index
+      )
+    returning chunk.chunk_id
+),
+merged_artifacts as (
+    update ai.extraction_artifact artifact
+    set
+        document_id = candidate.keeper_document_id,
+        event_id = candidate.keeper_event_id
+    from cleanup_candidates candidate
+    where artifact.document_id = candidate.document_id
+       or artifact.event_id = candidate.event_id
+    returning artifact.artifact_id
+),
+deleted_events as (
     delete from event.event event_row
     using cleanup_candidates candidate
     where event_row.event_id = candidate.event_id
@@ -606,7 +754,51 @@ deleted_documents as (
     returning document.document_id
 )"""
         if execute
-        else """deleted_events as (
+        else """deleted_conflicting_classification as (
+    select null::bigint as event_id, null::bigint as node_id
+    where false
+),
+merged_classification as (
+    select null::bigint as event_id, null::bigint as node_id
+    where false
+),
+deleted_conflicting_instrument as (
+    select null::bigint as event_id, null::bigint as instrument_id
+    where false
+),
+merged_instrument as (
+    select null::bigint as event_id, null::bigint as instrument_id
+    where false
+),
+deleted_conflicting_propagated as (
+    select null::bigint as event_id, null::bigint as node_id, null::bigint as instrument_id
+    where false
+),
+merged_propagated as (
+    select null::bigint as event_id, null::bigint as node_id, null::bigint as instrument_id
+    where false
+),
+deleted_conflicting_hierarchical as (
+    select null::bigint as event_id, null::bigint as source_node_id, null::bigint as propagated_node_id, null::bigint as instrument_id, null::text as path_hash
+    where false
+),
+merged_hierarchical as (
+    select null::bigint as event_id, null::bigint as source_node_id, null::bigint as propagated_node_id, null::bigint as instrument_id, null::text as path_hash
+    where false
+),
+deleted_conflicting_chunks as (
+    select null::bigint as chunk_id
+    where false
+),
+merged_chunks as (
+    select null::bigint as chunk_id
+    where false
+),
+merged_artifacts as (
+    select null::bigint as artifact_id
+    where false
+),
+deleted_events as (
     select null::bigint as event_id
     where false
 ),
@@ -671,24 +863,64 @@ ranked_documents as (
         document.*,
         event_row.event_id,
         coalesce(event_row.event_title, document.title) as event_title,
+        first_value(document.document_id) over (
+            partition by document.normalized_title, document.observed_at
+            order by
+                case when event_row.event_id is null then 1 else 0 end,
+                case
+                    when lower(coalesce(document.url, '')) like '%finance.yahoo.com/%' then 2
+                    when lower(coalesce(document.url, '')) like '%finance.yahoo.com%' then 2
+                    else 0
+                end,
+                quality.has_ai_artifact desc,
+                quality.has_classification_impact desc,
+                quality.has_instrument_impact desc,
+                quality.has_propagated_impact desc,
+                quality.has_hierarchical_impact desc,
+                document.ingested_at,
+                document.document_id
+        ) as keeper_document_id,
+        first_value(event_row.event_id) over (
+            partition by document.normalized_title, document.observed_at
+            order by
+                case when event_row.event_id is null then 1 else 0 end,
+                case
+                    when lower(coalesce(document.url, '')) like '%finance.yahoo.com/%' then 2
+                    when lower(coalesce(document.url, '')) like '%finance.yahoo.com%' then 2
+                    else 0
+                end,
+                quality.has_ai_artifact desc,
+                quality.has_classification_impact desc,
+                quality.has_instrument_impact desc,
+                quality.has_propagated_impact desc,
+                quality.has_hierarchical_impact desc,
+                document.ingested_at,
+                document.document_id
+        ) as keeper_event_id,
         quality.has_classification_impact,
         quality.has_instrument_impact,
         quality.has_propagated_impact,
         quality.has_hierarchical_impact,
         quality.has_ai_artifact,
         count(*) over (
-            partition by document.data_source_id, document.normalized_title, coalesce(document.published_at, document.observed_at)
+            partition by document.normalized_title, document.observed_at
         ) as duplicate_group_count,
         row_number() over (
-            partition by document.data_source_id, document.normalized_title, coalesce(document.published_at, document.observed_at)
+            partition by document.normalized_title, document.observed_at
             order by
+                case when event_row.event_id is null then 1 else 0 end,
+                case
+                    when lower(coalesce(document.url, '')) like '%finance.yahoo.com/%' then 2
+                    when lower(coalesce(document.url, '')) like '%finance.yahoo.com%' then 2
+                    else 0
+                end,
                 quality.has_ai_artifact desc,
                 quality.has_classification_impact desc,
                 quality.has_instrument_impact desc,
                 quality.has_propagated_impact desc,
                 quality.has_hierarchical_impact desc,
-                document.ingested_at desc,
-                document.document_id desc
+                document.ingested_at,
+                document.document_id
         ) as duplicate_rank
     from windowed_documents document
     left join document_events event_row on event_row.document_id = document.document_id
@@ -698,6 +930,8 @@ cleanup_candidates as (
     select
         document_id,
         event_id,
+        keeper_document_id,
+        keeper_event_id,
         normalized_title,
         title,
         event_title,
@@ -709,20 +943,37 @@ cleanup_candidates as (
     where duplicate_group_count > 1
       and duplicate_rank > 1
       and event_id is not null
-      and has_classification_impact = false
-      and has_instrument_impact = false
-      and has_propagated_impact = false
-      and has_hierarchical_impact = false
-      and has_ai_artifact = false
+      and keeper_event_id is not null
+      and event_id <> keeper_event_id
+      and not exists (
+          select 1
+          from ai.document_chunk duplicate_chunk
+          join ai.document_chunk keeper_chunk
+            on keeper_chunk.document_id = ranked_documents.keeper_document_id
+           and keeper_chunk.chunk_index = duplicate_chunk.chunk_index
+           and keeper_chunk.content_hash <> duplicate_chunk.content_hash
+          where duplicate_chunk.document_id = ranked_documents.document_id
+      )
     order by duplicate_group_count desc, normalized_title, duplicate_rank
     limit {limit}
 ),
-{deletion_ctes}
+{write_ctes}
 select json_build_object(
     'as_of_date', {sql_literal(as_of_date.isoformat())},
     'lookback_days', {lookback_days},
     'execute', {str(execute).lower()},
     'candidate_count', (select count(*)::integer from cleanup_candidates),
+    'merged_classification_count', (select count(*)::integer from merged_classification),
+    'deleted_conflicting_classification_count', (select count(*)::integer from deleted_conflicting_classification),
+    'merged_instrument_count', (select count(*)::integer from merged_instrument),
+    'deleted_conflicting_instrument_count', (select count(*)::integer from deleted_conflicting_instrument),
+    'merged_propagated_count', (select count(*)::integer from merged_propagated),
+    'deleted_conflicting_propagated_count', (select count(*)::integer from deleted_conflicting_propagated),
+    'merged_hierarchical_count', (select count(*)::integer from merged_hierarchical),
+    'deleted_conflicting_hierarchical_count', (select count(*)::integer from deleted_conflicting_hierarchical),
+    'merged_chunk_count', (select count(*)::integer from merged_chunks),
+    'deleted_conflicting_chunk_count', (select count(*)::integer from deleted_conflicting_chunks),
+    'merged_artifact_count', (select count(*)::integer from merged_artifacts),
     'deleted_event_count', (select count(*)::integer from deleted_events),
     'deleted_document_count', (select count(*)::integer from deleted_documents),
     'samples',
@@ -732,6 +983,8 @@ select json_build_object(
                     json_build_object(
                         'event_id', event_id,
                         'document_id', document_id,
+                        'keeper_event_id', keeper_event_id,
+                        'keeper_document_id', keeper_document_id,
                         'title', title,
                         'url', url,
                         'published_at', published_at,
@@ -978,6 +1231,23 @@ def run_duplicate_title_cleanup(
         "as_of_date": str(state.get("as_of_date") or as_of_date.isoformat()),
         "lookback_days": int(state.get("lookback_days") or lookback_days),
         "candidate_count": int(state.get("candidate_count") or 0),
+        "merged_classification_count": int(state.get("merged_classification_count") or 0),
+        "deleted_conflicting_classification_count": int(
+            state.get("deleted_conflicting_classification_count") or 0
+        ),
+        "merged_instrument_count": int(state.get("merged_instrument_count") or 0),
+        "deleted_conflicting_instrument_count": int(state.get("deleted_conflicting_instrument_count") or 0),
+        "merged_propagated_count": int(state.get("merged_propagated_count") or 0),
+        "deleted_conflicting_propagated_count": int(
+            state.get("deleted_conflicting_propagated_count") or 0
+        ),
+        "merged_hierarchical_count": int(state.get("merged_hierarchical_count") or 0),
+        "deleted_conflicting_hierarchical_count": int(
+            state.get("deleted_conflicting_hierarchical_count") or 0
+        ),
+        "merged_chunk_count": int(state.get("merged_chunk_count") or 0),
+        "deleted_conflicting_chunk_count": int(state.get("deleted_conflicting_chunk_count") or 0),
+        "merged_artifact_count": int(state.get("merged_artifact_count") or 0),
         "deleted_event_count": int(state.get("deleted_event_count") or 0),
         "deleted_document_count": int(state.get("deleted_document_count") or 0),
         "samples": _as_scalar_or_mapping_list(state.get("samples")),

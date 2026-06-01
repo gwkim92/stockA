@@ -55,12 +55,22 @@ class FakeExecutor:
                     "lookback_days": 30,
                     "execute": execute,
                     "candidate_count": 1,
+                    "merged_classification_count": 1 if execute else 0,
+                    "deleted_conflicting_classification_count": 1 if execute else 0,
+                    "merged_propagated_count": 2 if execute else 0,
+                    "deleted_conflicting_propagated_count": 2 if execute else 0,
+                    "merged_hierarchical_count": 3 if execute else 0,
+                    "deleted_conflicting_hierarchical_count": 2 if execute else 0,
+                    "merged_chunk_count": 1 if execute else 0,
+                    "merged_artifact_count": 1 if execute else 0,
                     "deleted_event_count": 1 if execute else 0,
                     "deleted_document_count": 1 if execute else 0,
                     "samples": [
                         {
                             "event_id": 881,
                             "document_id": 896,
+                            "keeper_event_id": 880,
+                            "keeper_document_id": 895,
                             "title": "SpaceX's road to landmark IPO filing",
                             "duplicate_group_count": 2,
                             "duplicate_rank": 2,
@@ -236,9 +246,13 @@ class CycleAiQualityAuditTests(unittest.TestCase):
 
         self.assertTrue(sql.startswith("-- cycle ai duplicate title cleanup"))
         self.assertIn("duplicate_group_count > 1", sql)
-        self.assertIn("has_ai_artifact = false", sql)
-        self.assertIn("has_classification_impact = false", sql)
-        self.assertIn("has_instrument_impact = false", sql)
+        self.assertIn("keeper_event_id", sql)
+        self.assertIn("partition by document.normalized_title, document.observed_at", sql)
+        self.assertIn("finance.yahoo.com", sql)
+        self.assertIn("merged_artifacts as", sql)
+        self.assertIn("deleted_conflicting_classification as", sql)
+        self.assertIn("deleted_conflicting_propagated as", sql)
+        self.assertIn("deleted_conflicting_hierarchical as", sql)
         self.assertNotIn("delete from event.event event_row", sql)
 
     def test_render_duplicate_title_cleanup_sql_execute_deletes_events_and_documents(self) -> None:
@@ -247,6 +261,8 @@ class CycleAiQualityAuditTests(unittest.TestCase):
         self.assertIn("delete from event.event event_row", sql)
         self.assertIn("delete from ingest.source_document document", sql)
         self.assertIn("using cleanup_candidates candidate", sql)
+        self.assertIn("update ai.extraction_artifact artifact", sql)
+        self.assertIn("update ai.document_chunk chunk", sql)
 
     def test_run_duplicate_title_cleanup_preview_is_secret_free_and_does_not_write_pipeline(self) -> None:
         executor = FakeExecutor(_sample_state())
@@ -279,6 +295,9 @@ class CycleAiQualityAuditTests(unittest.TestCase):
         self.assertEqual(report["run_id"], 9401)
         self.assertEqual(report["deleted_event_count"], 1)
         self.assertEqual(report["deleted_document_count"], 1)
+        self.assertEqual(report["merged_artifact_count"], 1)
+        self.assertEqual(report["merged_classification_count"], 1)
+        self.assertEqual(report["deleted_conflicting_classification_count"], 1)
         self.assertFalse(report["recommendation_scoring_mutated"])
         self.assertFalse(report["automatic_order_allowed"])
         self.assertFalse(report["broker_submit_allowed"])

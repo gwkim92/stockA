@@ -213,6 +213,7 @@ class OperatingDataOrchestratorTests(unittest.TestCase):
                 "news-korean-translation",
                 "news-cluster-evidence",
                 "news-ai-evidence",
+                "cycle-ai-duplicate-title-cleanup",
                 "news-ai-eval",
                 "macro-event-propagation",
                 "hierarchical-impact-propagation",
@@ -231,15 +232,19 @@ class OperatingDataOrchestratorTests(unittest.TestCase):
         self.assertIn("news-rss-ai-extract-run", ai_command)
         self.assertIn("--provider codex_oauth", ai_command)
         self.assertIn("--execute", ai_command)
-        eval_command = " ".join(report["planned_steps"][6]["command_argv"])
+        duplicate_cleanup_command = " ".join(report["planned_steps"][6]["command_argv"])
+        self.assertIn("cycle-ai-duplicate-title-cleanup-run", duplicate_cleanup_command)
+        self.assertIn("--lookback-days 3", duplicate_cleanup_command)
+        self.assertIn("--execute", duplicate_cleanup_command)
+        eval_command = " ".join(report["planned_steps"][7]["command_argv"])
         self.assertIn("news-ai-eval-run", eval_command)
         self.assertIn("--provider fixture", eval_command)
         self.assertIn("--execute", eval_command)
-        propagation_command = " ".join(report["planned_steps"][7]["command_argv"])
+        propagation_command = " ".join(report["planned_steps"][8]["command_argv"])
         self.assertIn("macro-event-propagation-run", propagation_command)
         self.assertIn("--as-of-date 2026-05-20", propagation_command)
         self.assertIn("--execute", propagation_command)
-        hierarchical_command = " ".join(report["planned_steps"][8]["command_argv"])
+        hierarchical_command = " ".join(report["planned_steps"][9]["command_argv"])
         self.assertIn("hierarchical-impact-propagation-run", hierarchical_command)
         self.assertIn("--max-depth 3", hierarchical_command)
         self.assertIn("--execute", hierarchical_command)
