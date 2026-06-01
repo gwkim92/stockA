@@ -92,6 +92,7 @@ source_aliases(primary_symbol, alias_text) as (
         ('SPY', 'spx'),
         ('QQQ', 'nasdaq 100'),
         ('QQQ', 'nasdaq futures'),
+        ('QQQ', 'nasdaq'),
         ('XLE', 'energy sector')
 ),
 direct_impacts as (
@@ -481,6 +482,7 @@ source_aliases(primary_symbol, alias_text) as (
         ('SPY', 'spx'),
         ('QQQ', 'nasdaq 100'),
         ('QQQ', 'nasdaq futures'),
+        ('QQQ', 'nasdaq'),
         ('XLE', 'energy sector')
 ),
 direct_impacts as (

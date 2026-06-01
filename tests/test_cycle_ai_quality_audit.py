@@ -95,6 +95,7 @@ class CycleAiQualityAuditTests(unittest.TestCase):
         self.assertIn("ungrounded_direct_tickers", sql)
         self.assertIn("source_aliases(primary_symbol, alias_text)", sql)
         self.assertIn("('SPY', 's&p 500')", sql)
+        self.assertIn("('QQQ', 'nasdaq')", sql)
         self.assertIn("regexp_split_to_table(instrument.name", sql)
         self.assertIn("normal_macro_flows", sql)
         self.assertIn("'macro_false_tickers'", sql)

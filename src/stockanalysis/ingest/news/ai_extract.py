@@ -1605,7 +1605,7 @@ _COMPANY_NAME_STOPWORDS = {
 
 _DIRECT_INSTRUMENT_SOURCE_ALIASES = {
     "SPY": ("s&p 500", "s&p500", "spx"),
-    "QQQ": ("nasdaq 100", "nasdaq futures"),
+    "QQQ": ("nasdaq 100", "nasdaq futures", "nasdaq"),
     "XLE": ("energy sector",),
 }
 
