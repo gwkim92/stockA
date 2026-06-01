@@ -382,8 +382,12 @@ def _expand_allowed_latin_tokens(tokens: set[str]) -> set[str]:
     for token in list(tokens):
         parts = [part for part in re.split(r"[._/+\\-]+", token) if part]
         expanded.update(parts)
+        if token.endswith("s") and len(token) > 2:
+            expanded.add(token[:-1])
         if token == "etfs" or "etfs" in parts:
             expanded.add("etf")
+        if token == "openai" or "openai" in parts:
+            expanded.add("ai")
         if token in {"cryptocurrency", "cryptocurrencies"} or any(
             part in {"cryptocurrency", "cryptocurrencies"} for part in parts
         ):

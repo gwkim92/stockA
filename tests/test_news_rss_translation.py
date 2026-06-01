@@ -219,6 +219,60 @@ class NewsRssTranslationTests(unittest.TestCase):
             ),
         )
 
+    def test_validate_translation_output_allows_grounded_singularized_acronyms(self) -> None:
+        candidate = NewsRssTranslationCandidate(
+            event_id=23,
+            document_id=35,
+            title="Are Hot IPOs a Sign of a Market Top?",
+            summary="A bank strategist says CDs and IPOs show investors are seeking alternatives.",
+            published_at="2026-06-01T01:50:00+00:00",
+            source_name="rss_news:yahoo-finance-news",
+            external_document_id="rss:yahoo-finance-news:ghi789",
+            source_url="https://finance.yahoo.com/news/hot-ipos",
+            existing_theme_code="MARKET_NEWS_FLOW",
+            existing_instrument_symbol=None,
+            impact_direction="watch",
+            impact_score=0.61,
+        )
+        bounded_text = build_news_translation_input(candidate, max_input_chars=4000)
+
+        validate_news_translation_output_grounding(
+            candidate=candidate,
+            bounded_text=bounded_text,
+            output=NewsTranslationOutput(
+                korean_title="뜨거운 IPO가 시장 고점의 신호일까?",
+                korean_summary="원문은 IPO와 CD 수요를 투자자 대안 선호의 단서로 다뤘다.",
+                translation_confidence=0.88,
+            ),
+        )
+
+    def test_validate_translation_output_allows_ai_when_openai_is_grounded(self) -> None:
+        candidate = NewsRssTranslationCandidate(
+            event_id=24,
+            document_id=36,
+            title="Anthropic nears $1 trillion valuation, leapfrogging OpenAI",
+            summary="A funding round follows a revenue surge for the Claude creator.",
+            published_at="2026-06-01T02:00:00+00:00",
+            source_name="rss_news:marketwatch",
+            external_document_id="rss:marketwatch:jkl012",
+            source_url="https://www.marketwatch.com/story/anthropic-openai",
+            existing_theme_code="AI_LABOR_PRODUCTIVITY",
+            existing_instrument_symbol=None,
+            impact_direction="supportive",
+            impact_score=0.66,
+        )
+        bounded_text = build_news_translation_input(candidate, max_input_chars=4000)
+
+        validate_news_translation_output_grounding(
+            candidate=candidate,
+            bounded_text=bounded_text,
+            output=NewsTranslationOutput(
+                korean_title="Anthropic이 OpenAI를 앞지르며 1조 달러 가치에 접근했다",
+                korean_summary="AI 기업 가치평가 경쟁이 다시 부각됐다는 내용이다.",
+                translation_confidence=0.9,
+            ),
+        )
+
     def test_build_provider_response_accepts_translation_wrapper(self) -> None:
         response = build_news_translation_provider_response_from_payload(
             {
