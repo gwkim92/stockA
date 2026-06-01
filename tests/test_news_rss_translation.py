@@ -165,6 +165,60 @@ class NewsRssTranslationTests(unittest.TestCase):
             ),
         )
 
+    def test_validate_translation_output_allows_source_token_aliases(self) -> None:
+        candidate = NewsRssTranslationCandidate(
+            event_id=21,
+            document_id=33,
+            title="Stocks edge higher as investors parse ETF inflows",
+            summary="RSS item without publisher summary.",
+            published_at="2026-06-01T01:30:00+00:00",
+            source_name="rss_news:yahoo-finance-news",
+            external_document_id="rss:yahoo-finance-news:abc123",
+            source_url="https://finance.yahoo.com/news/stocks-etfs",
+            existing_theme_code="MACRO_LIQUIDITY",
+            existing_instrument_symbol=None,
+            impact_direction="watch",
+            impact_score=0.62,
+        )
+        bounded_text = build_news_translation_input(candidate, max_input_chars=4000)
+
+        validate_news_translation_output_grounding(
+            candidate=candidate,
+            bounded_text=bounded_text,
+            output=NewsTranslationOutput(
+                korean_title="Yahoo Finance: ETF 자금 유입을 보며 주식이 소폭 상승했다",
+                korean_summary="Yahoo Finance 원문은 투자자들이 ETF 유입을 해석하는 가운데 시장이 상승했다고 전했다.",
+                translation_confidence=0.88,
+            ),
+        )
+
+    def test_validate_translation_output_allows_common_market_abbreviations(self) -> None:
+        candidate = NewsRssTranslationCandidate(
+            event_id=22,
+            document_id=34,
+            title="Crypto-linked stocks climb as digital asset optimism returns",
+            summary="Cryptocurrency exposed equities gained in early trading.",
+            published_at="2026-06-01T01:40:00+00:00",
+            source_name="rss_news:marketwatch",
+            external_document_id="rss:marketwatch:def456",
+            source_url="https://www.marketwatch.com/story/crypto-linked-stocks",
+            existing_theme_code="TECH_DOMAIN",
+            existing_instrument_symbol=None,
+            impact_direction="supportive",
+            impact_score=0.64,
+        )
+        bounded_text = build_news_translation_input(candidate, max_input_chars=4000)
+
+        validate_news_translation_output_grounding(
+            candidate=candidate,
+            bounded_text=bounded_text,
+            output=NewsTranslationOutput(
+                korean_title="MarketWatch: crypto 관련 주식이 디지털 자산 기대감에 올랐다",
+                korean_summary="MarketWatch 원문은 cryptocurrency 노출 주식이 상승했다고 전했다.",
+                translation_confidence=0.87,
+            ),
+        )
+
     def test_build_provider_response_accepts_translation_wrapper(self) -> None:
         response = build_news_translation_provider_response_from_payload(
             {

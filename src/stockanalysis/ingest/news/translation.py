@@ -338,17 +338,19 @@ def validate_news_translation_output_grounding(
 ) -> None:
     """Reject translations that introduce unsupported English entities."""
 
-    allowed_tokens = _latin_tokens(
-        " ".join(
-            (
-                bounded_text,
-                candidate.title,
-                candidate.summary,
-                candidate.source_name or "",
-                candidate.source_url or "",
-                candidate.external_document_id or "",
-                candidate.existing_theme_code or "",
-                candidate.existing_instrument_symbol or "",
+    allowed_tokens = _expand_allowed_latin_tokens(
+        _latin_tokens(
+            " ".join(
+                (
+                    bounded_text,
+                    candidate.title,
+                    candidate.summary,
+                    candidate.source_name or "",
+                    candidate.source_url or "",
+                    candidate.external_document_id or "",
+                    candidate.existing_theme_code or "",
+                    candidate.existing_instrument_symbol or "",
+                )
             )
         )
     )
@@ -373,6 +375,20 @@ def _latin_tokens(text: str) -> set[str]:
 
 def _normalize_latin_token(token: str) -> str:
     return token.strip(".,:;!?()[]{}\"'`“”‘’").lower()
+
+
+def _expand_allowed_latin_tokens(tokens: set[str]) -> set[str]:
+    expanded = set(tokens)
+    for token in list(tokens):
+        parts = [part for part in re.split(r"[._/+\\-]+", token) if part]
+        expanded.update(parts)
+        if token == "etfs" or "etfs" in parts:
+            expanded.add("etf")
+        if token in {"cryptocurrency", "cryptocurrencies"} or any(
+            part in {"cryptocurrency", "cryptocurrencies"} for part in parts
+        ):
+            expanded.add("crypto")
+    return expanded
 
 
 def parse_news_translation_output(payload: dict[str, object]) -> NewsTranslationOutput:
