@@ -33,6 +33,9 @@
 - passed: EC2 rollback SQL preview/execute check found one candidate and one safe merge without committing writes.
 - passed: EC2 focused tests and compileall on commit `2967637`.
 - passed: EC2 `/api/data-health` returned `overall_status=healthy`, `open_gates=[]`, `cycle_ai_quality_audit.status=ok`, `data_operations_artifact_runner.attention_required=false`.
+- passed: EC2 manual `stockanalysis-operating-data-news-intraday.service` profile smoke after deployment returned `Result=success`, `ExecMainStatus=0`, generated profile report at `2026-06-01T08:18:12Z`, `run_status=completed`, `failed_step_count=0`, and all 10 steps succeeded including `cycle-ai-duplicate-title-cleanup`.
+- passed: Profile cleanup step artifact `/opt/stockanalysis/artifacts/data-operations/20260601T081843Z_event-intelligence-weekly-2/stdout.txt` returned `run_id=2637`, `candidate_count=0`, `deleted_event_count=0`, `deleted_document_count=0`, `recommendation_scoring_mutated=false`, `broker_submit_allowed=false`.
+- passed: Post-profile `/api/data-health` still returned `overall_status=healthy`, `open_gates=[]`, `duplicate_title_count=0`, `ungrounded_direct_ticker_count=0`, `macro_false_ticker_count=0`, `quantum_energy_mislink_count=0`.
 
 ## Guardrails
 
@@ -41,4 +44,4 @@
 
 ## Next Step
 
-- exact next step: monitor the next scheduled `news-intraday` profile and confirm the new `cycle-ai-duplicate-title-cleanup` step keeps duplicate title count at 0 without manual cleanup.
+- exact next step: continue normal scheduler monitoring; if the next timer-created `news-intraday` run reopens duplicate title count, inspect the new duplicate sample before changing scoring, recommendation, or broker boundaries.
