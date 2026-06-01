@@ -5007,6 +5007,35 @@ with expected_jobs(
     values
         {expected_jobs_values}
 ),
+data_health_local_clock as (
+    select now() at time zone 'America/New_York' as local_now
+),
+expected_jobs_with_due as (
+    select
+        expected.*,
+        case
+            when expected.cadence = 'daily'
+             and expected.expected_after_local ~ '^[0-9]{{2}}:[0-9]{{2}}$'
+                then (
+                    case
+                        when extract(isodow from clock.local_now)::integer = 1
+                         and clock.local_now::time < expected.expected_after_local::time
+                            then clock.local_now::date - 3
+                        when extract(isodow from clock.local_now)::integer = 6
+                            then clock.local_now::date - 1
+                        when extract(isodow from clock.local_now)::integer = 7
+                            then clock.local_now::date - 2
+                        when extract(isodow from clock.local_now)::integer between 2 and 5
+                         and clock.local_now::time < expected.expected_after_local::time
+                            then clock.local_now::date - 1
+                        else clock.local_now::date
+                    end
+                ) + expected.expected_after_local::time
+            else null::timestamp
+        end as latest_due_at_local
+    from expected_jobs expected
+    cross join data_health_local_clock clock
+),
 latest_runs as (
     select distinct on (expected.pipeline_name)
         expected.pipeline_name,
@@ -5035,10 +5064,14 @@ latest_runs as (
             when run.status in ('started', 'running') then 'running'
             when run.ended_at is null then 'missing'
             when run.status = 'succeeded_with_fallback' then 'degraded'
+            when expected.latest_due_at_local is not null
+             and run.status = 'succeeded'
+             and run.ended_at at time zone 'America/New_York' >= expected.latest_due_at_local
+                then 'ok'
             when run.ended_at < now() - make_interval(hours => expected.stale_after_hours) then 'stale'
             else 'ok'
         end as health_status
-    from expected_jobs expected
+    from expected_jobs_with_due expected
     left join ops.pipeline_run run on run.pipeline_name = expected.pipeline_name
     order by expected.pipeline_name, run.started_at desc nulls last, run.run_id desc nulls last
 ),
