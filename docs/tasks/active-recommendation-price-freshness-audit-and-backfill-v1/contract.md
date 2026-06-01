@@ -44,8 +44,8 @@
 
 ## Done Criteria
 
-- [ ] `/api/data-health` includes active recommendation price freshness summary and stale symbol examples.
-- [ ] `/data-health` explains active recommendation price freshness in Korean.
-- [ ] Stale/missing active recommendation price data is visible as an attention gate.
-- [ ] EC2 stale symbols are backfilled where the free provider can return data.
-- [ ] Verification commands pass or unresolved provider/source limitations are documented.
+- [x] `/api/data-health` includes active recommendation price freshness summary and stale symbol examples.
+- [x] `/data-health` explains active recommendation price freshness in Korean.
+- [x] Stale/missing active recommendation price data is visible as an attention gate.
+- [x] EC2 stale symbols are backfilled where the free provider can return data.
+- [x] Verification commands pass or unresolved provider/source limitations are documented.
