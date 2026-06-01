@@ -19,6 +19,7 @@ type CycleAiQualityAudit = DataHealthData["cycle_ai_quality_audit"];
 type NewsAiEvalQuality = DataHealthData["news_ai_eval_quality"];
 type LiveAiInvocationHealth = DataHealthData["live_ai_invocation_health"];
 type DataOperationsArtifactRunner = DataHealthData["data_operations_artifact_runner"];
+type ActiveRecommendationPriceFreshness = DataHealthData["active_recommendation_price_freshness"];
 type BenchmarkDriftQuality = DataHealthData["benchmark_drift_quality"];
 type PortfolioReviewDecisionHistory = DataHealthData["portfolio_review_decision_history"];
 type PortfolioReviewDecisionFeedback = DataHealthData["portfolio_review_decision_feedback"];
@@ -1840,6 +1841,26 @@ const DEFAULT_DATA_OPERATIONS_ARTIFACT_RUNNER: DataOperationsArtifactRunner = {
   next_action: "실행 증거 저장기를 통해 성공한 데이터 작업 기록을 먼저 생성한다.",
 };
 
+const DEFAULT_ACTIVE_RECOMMENDATION_PRICE_FRESHNESS: ActiveRecommendationPriceFreshness = {
+  status: "missing",
+  attention_required: true,
+  active_symbol_count: 0,
+  fresh_symbol_count: 0,
+  stale_symbol_count: 0,
+  missing_symbol_count: 0,
+  stale_recommendation_count: 0,
+  missing_recommendation_count: 0,
+  global_latest_trade_date: "",
+  stale_after_days: 7,
+  max_days_behind_latest: 0,
+  stale_symbols: [],
+  next_action: "active 추천 종목 가격 최신성 감사를 먼저 생성한다.",
+  recommendation_scoring_mutated: false,
+  automatic_order_allowed: false,
+  broker_submit_allowed: false,
+  order_boundary: "read_only_no_order",
+};
+
 export default async function DataHealthPage() {
   const response = await getDataHealth();
   const data = response.data;
@@ -1848,6 +1869,8 @@ export default async function DataHealthPage() {
   const authRbac = data.auth_rbac ?? DEFAULT_AUTH_RBAC;
   const alertDestination = data.alert_destination ?? DEFAULT_ALERT_DESTINATION;
   const artifactRunner = data.data_operations_artifact_runner ?? DEFAULT_DATA_OPERATIONS_ARTIFACT_RUNNER;
+  const activeRecommendationPriceFreshness =
+    data.active_recommendation_price_freshness ?? DEFAULT_ACTIVE_RECOMMENDATION_PRICE_FRESHNESS;
   const schedulerActivation = data.scheduler.activation;
   const profileScheduler = data.scheduler.profile_scheduler ?? DEFAULT_PROFILE_SCHEDULER;
   const ec2SchedulerInstalled = isEc2ProfileSchedulerInstalled(data.scheduler);
@@ -2050,6 +2073,18 @@ export default async function DataHealthPage() {
       tone: providerBudget.remaining_request_count > 0 ? "risk-low" : "risk-high",
     },
     {
+      label: "추천 가격",
+      title: activeRecommendationPriceFreshness.attention_required
+        ? `${activeRecommendationPriceFreshness.stale_symbol_count + activeRecommendationPriceFreshness.missing_symbol_count}개 가격 보강 필요`
+        : "추천 종목 가격 최신",
+      body: activeRecommendationPriceFreshness.attention_required
+        ? `추천에 쓰이는 종목 가격이 최신 가격일 ${activeRecommendationPriceFreshness.global_latest_trade_date || "미확인"}보다 뒤처져 있다. 가격 보강 전에는 성과·페이퍼 검증 해석 신뢰도가 낮아진다.`
+        : `활성 추천 ${activeRecommendationPriceFreshness.active_symbol_count}개 종목 가격이 최신 가격일 ${activeRecommendationPriceFreshness.global_latest_trade_date || "미확인"} 기준으로 맞춰져 있다.`,
+      href: "#active-recommendation-price-freshness",
+      cta: "가격 최신성 보기",
+      tone: activeRecommendationPriceFreshness.attention_required ? "risk-high" : "risk-low",
+    },
+    {
       label: "품질 감사",
       title: qualityAuditTitle(qualityAudit),
       body: qualityAuditExplanation(qualityAudit),
@@ -2229,6 +2264,7 @@ export default async function DataHealthPage() {
 	    "지금 판단",
 	    "자동화",
 	    "무료 API 예산",
+	    "추천 가격",
 	    "품질 감사",
 	    "AI 회귀평가",
 	  ]);
@@ -4521,6 +4557,62 @@ export default async function DataHealthPage() {
                 <dd>{providerBudget.latest_run?.started_at ?? "오늘 실행 없음"}</dd>
               </div>
             </dl>
+          </article>
+
+          <article className="ledger-panel" id="active-recommendation-price-freshness">
+            <div className="section-heading stacked-heading">
+              <span>추천 종목 가격</span>
+              <h2>추천에 쓰는 가격이 최신인지 확인</h2>
+              <p>
+                추천, 성과 측정, 페이퍼 검증은 종목별 가격을 읽는다. 여기서 오래된 종목이 보이면 가격 보강이 먼저다.
+              </p>
+            </div>
+            <dl className="fact-list">
+              <div>
+                <dt>상태</dt>
+                <dd>
+                  <span className={`risk-tag ${activeRecommendationPriceFreshness.attention_required ? "risk-high" : "risk-low"}`}>
+                    {activeRecommendationPriceFreshness.attention_required ? "가격 보강 필요" : "최신성 확인"}
+                  </span>
+                </dd>
+              </div>
+              <div>
+                <dt>추천 종목</dt>
+                <dd>
+                  {activeRecommendationPriceFreshness.fresh_symbol_count}/{activeRecommendationPriceFreshness.active_symbol_count}개 최신
+                </dd>
+              </div>
+              <div>
+                <dt>최신 가격일</dt>
+                <dd>{activeRecommendationPriceFreshness.global_latest_trade_date || "미확인"}</dd>
+              </div>
+              <div>
+                <dt>뒤처진 종목</dt>
+                <dd>
+                  오래됨 {activeRecommendationPriceFreshness.stale_symbol_count}개 · 없음{" "}
+                  {activeRecommendationPriceFreshness.missing_symbol_count}개
+                </dd>
+              </div>
+              <div>
+                <dt>거래 경계</dt>
+                <dd>{orderBoundaryCopy(activeRecommendationPriceFreshness.order_boundary)}</dd>
+              </div>
+            </dl>
+            <p className="panel-copy">{operationCopy(activeRecommendationPriceFreshness.next_action)}</p>
+            {activeRecommendationPriceFreshness.stale_symbols.length > 0 ? (
+              <div className="flow-steps data-health-summary-grid">
+                {activeRecommendationPriceFreshness.stale_symbols.slice(0, 8).map((item) => (
+                  <a className="flow-step" href={item.detail_href || `/stocks/${item.symbol}`} key={item.symbol}>
+                    <span>{koCode(item.status)}</span>
+                    <strong>{item.symbol}</strong>
+                    <p>
+                      최근 가격 {item.latest_trade_date || "없음"} · 최신 기준보다 {item.days_behind_latest}일 뒤처짐 ·
+                      연결 추천 {item.active_recommendation_count}개
+                    </p>
+                  </a>
+                ))}
+              </div>
+            ) : null}
           </article>
 
           <article className="ledger-panel" id="runtime-boundary">

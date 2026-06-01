@@ -127,6 +127,38 @@ class FakeLiveExecutor:
                             "latest_observation_date": "2024-11-01",
                         },
                     ],
+                    "active_recommendation_price_freshness": {
+                        "status": "stale_prices",
+                        "attention_required": True,
+                        "active_symbol_count": 2,
+                        "fresh_symbol_count": 1,
+                        "stale_symbol_count": 1,
+                        "missing_symbol_count": 0,
+                        "stale_recommendation_count": 3,
+                        "missing_recommendation_count": 0,
+                        "global_latest_trade_date": "2024-12-02",
+                        "stale_after_days": 7,
+                        "max_days_behind_latest": 9,
+                        "stale_symbols": [
+                            {
+                                "symbol": "QUBT",
+                                "instrument_id": 7002,
+                                "instrument_name": "Quantum Computing Inc.",
+                                "status": "stale",
+                                "latest_trade_date": "2024-11-23",
+                                "global_latest_trade_date": "2024-12-02",
+                                "days_behind_latest": 9,
+                                "active_recommendation_count": 3,
+                                "latest_recommendation_date": "2024-11-25",
+                                "detail_href": "/stocks/QUBT",
+                            }
+                        ],
+                        "next_action": "active 추천 종목 watchlist로 market-price-free-backfill-run을 실행한다.",
+                        "recommendation_scoring_mutated": False,
+                        "automatic_order_allowed": False,
+                        "broker_submit_allowed": False,
+                        "order_boundary": "read_only_no_order",
+                    },
                     "news_ai_eval_quality": {
                         "status": "passed",
                         "eval_run_id": 72,
@@ -4536,6 +4568,16 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertEqual(payload["data"]["freshness"][0]["latest_observation_date"], "2024-12-02")
         self.assertEqual(payload["data"]["provider_budget"]["status"], "not_configured")
         self.assertEqual(payload["data"]["provider_budget"]["provider"], "alpha_vantage")
+        price_freshness = payload["data"]["active_recommendation_price_freshness"]
+        self.assertEqual(price_freshness["status"], "stale_prices")
+        self.assertTrue(price_freshness["attention_required"])
+        self.assertEqual(price_freshness["active_symbol_count"], 2)
+        self.assertEqual(price_freshness["stale_symbol_count"], 1)
+        self.assertEqual(price_freshness["stale_symbols"][0]["symbol"], "QUBT")
+        self.assertEqual(price_freshness["stale_symbols"][0]["instrument_id"], "instrument-7002")
+        self.assertFalse(price_freshness["automatic_order_allowed"])
+        self.assertEqual(price_freshness["order_boundary"], "read_only_no_order")
+        self.assertIn("active_recommendation_price_freshness_attention", payload["data"]["open_gates"])
         self.assertEqual(payload["data"]["manual_local_ingest_smoke"]["status"], "not_configured")
         self.assertEqual(payload["data"]["manual_local_ingest_smoke"]["source"], "not_configured")
         self.assertEqual(payload["data"]["local_ingest_worker"]["status"], "not_configured")
@@ -5956,6 +5998,8 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertIn("news-rss-korean-translation", sql)
         self.assertIn("news-rss-ai-extract", sql)
         self.assertIn("provider = 'codex_oauth'", sql)
+        self.assertIn("active_recommendation_price_symbols", sql)
+        self.assertIn("active_recommendation_price_freshness", sql)
         self.assertIn("recovered_with_recent_failures", sql)
         self.assertIn("selected_portfolio_review_decision_history", sql)
         self.assertIn("portfolio_review_decision_history", sql)

@@ -536,6 +536,7 @@ def _build_open_gate_details(
     open_gates: list[str],
     auth_rbac: Mapping[str, Any],
     alert_destination: Mapping[str, Any],
+    active_recommendation_price_freshness: Mapping[str, Any],
     live_ai_invocation_health: Mapping[str, Any],
     benchmark_drift_quality: Mapping[str, Any],
     data_operations_artifact_runner: Mapping[str, Any],
@@ -682,6 +683,32 @@ def _build_open_gate_details(
                         or "artifact runner와 profile scheduler 실행 증거를 확인한다."
                     ),
                     "order_boundary": "read_only_no_order",
+                    "automatic_action_allowed": False,
+                }
+            )
+            continue
+        if gate == "active_recommendation_price_freshness_attention":
+            stale_count = int(_safe_number(active_recommendation_price_freshness.get("stale_symbol_count")) or 0)
+            missing_count = int(_safe_number(active_recommendation_price_freshness.get("missing_symbol_count")) or 0)
+            latest_date = str(active_recommendation_price_freshness.get("global_latest_trade_date") or "미확인")
+            details.append(
+                {
+                    "gate_id": gate,
+                    "label": "추천 종목 가격 최신성",
+                    "category": "operational_blocker",
+                    "category_label": "데이터 최신성",
+                    "severity": "high" if missing_count else "medium",
+                    "status_label": "가격 보강 필요",
+                    "summary": (
+                        f"최신 가격일 {latest_date} 기준으로 stale {stale_count}개, missing {missing_count}개 추천 종목이 있다."
+                    ),
+                    "next_action": str(
+                        active_recommendation_price_freshness.get("next_action")
+                        or "active 추천 종목 watchlist로 market-price-free-backfill-run을 실행한다."
+                    ),
+                    "order_boundary": str(
+                        active_recommendation_price_freshness.get("order_boundary") or "read_only_no_order"
+                    ),
                     "automatic_action_allowed": False,
                 }
             )
@@ -1270,6 +1297,9 @@ def build_live_data_health_response(
     live_ai_invocation_health = _build_live_ai_invocation_health_payload(
         _as_dict(state.get("live_ai_invocation_health"))
     )
+    active_recommendation_price_freshness = _build_active_recommendation_price_freshness_payload(
+        _as_dict(state.get("active_recommendation_price_freshness"))
+    )
     benchmark_drift_quality = _build_benchmark_drift_quality_payload(
         _as_dict(state.get("portfolio_risk_budget_guardrail"))
     )
@@ -1369,6 +1399,12 @@ def build_live_data_health_response(
             open_gates.append(gate)
     else:
         open_gates = [item for item in open_gates if item != gate]
+    gate = "active_recommendation_price_freshness_attention"
+    if active_recommendation_price_freshness["attention_required"]:
+        if gate not in open_gates:
+            open_gates.append(gate)
+    else:
+        open_gates = [item for item in open_gates if item != gate]
     gate = "production_api_server"
     if production_api_server["attention_required"]:
         if gate not in open_gates:
@@ -1452,6 +1488,7 @@ def build_live_data_health_response(
         open_gates=open_gates,
         auth_rbac=auth_rbac,
         alert_destination=alert_destination,
+        active_recommendation_price_freshness=active_recommendation_price_freshness,
         live_ai_invocation_health=live_ai_invocation_health,
         benchmark_drift_quality=benchmark_drift_quality,
         data_operations_artifact_runner=data_operations_artifact_runner,
@@ -1484,6 +1521,7 @@ def build_live_data_health_response(
             "cycle_ai_quality_audit": cycle_ai_quality_audit,
             "news_ai_eval_quality": news_ai_eval_quality,
             "live_ai_invocation_health": live_ai_invocation_health,
+            "active_recommendation_price_freshness": active_recommendation_price_freshness,
             "benchmark_drift_quality": benchmark_drift_quality,
             "portfolio_review_decision_history": portfolio_review_decision_history,
             "portfolio_review_decision_feedback": portfolio_review_decision_feedback,
@@ -5008,6 +5046,64 @@ latest_market_price as (
     select max(trade_date) as latest_observation_date
     from market.daily_price_bar
 ),
+active_recommendation_price_symbols as (
+    select
+        recommendation.instrument_id,
+        instrument.primary_symbol,
+        max(instrument.name) as instrument_name,
+        count(distinct recommendation.recommendation_id)::integer as active_recommendation_count,
+        max(batch.as_of_date) as latest_recommendation_date
+    from signal.recommendation recommendation
+    join signal.recommendation_batch batch on batch.batch_id = recommendation.batch_id
+    join ref.instrument instrument on instrument.instrument_id = recommendation.instrument_id
+    where recommendation.status = 'active'
+      and instrument.is_active = true
+    group by recommendation.instrument_id, instrument.primary_symbol
+),
+active_recommendation_price_latest as (
+    select
+        active.instrument_id,
+        active.primary_symbol,
+        active.instrument_name,
+        active.active_recommendation_count,
+        active.latest_recommendation_date,
+        latest.latest_trade_date,
+        global_price.latest_observation_date as global_latest_trade_date,
+        case
+            when global_price.latest_observation_date is null then 'missing_global_price'
+            when latest.latest_trade_date is null then 'missing'
+            when latest.latest_trade_date < global_price.latest_observation_date - 7 then 'stale'
+            else 'fresh'
+        end as freshness_status,
+        case
+            when global_price.latest_observation_date is not null
+             and latest.latest_trade_date is not null
+                then global_price.latest_observation_date - latest.latest_trade_date
+            else null
+        end as days_behind_latest
+    from active_recommendation_price_symbols active
+    left join lateral (
+        select max(price.trade_date) as latest_trade_date
+        from market.daily_price_bar price
+        where price.instrument_id = active.instrument_id
+    ) latest on true
+    left join latest_market_price global_price on true
+),
+active_recommendation_price_summary as (
+    select
+        count(*)::integer as active_symbol_count,
+        count(*) filter (where freshness_status = 'fresh')::integer as fresh_symbol_count,
+        count(*) filter (where freshness_status = 'stale')::integer as stale_symbol_count,
+        count(*) filter (where freshness_status = 'missing')::integer as missing_symbol_count,
+        coalesce(sum(active_recommendation_count) filter (where freshness_status = 'stale'), 0)::integer
+            as stale_recommendation_count,
+        coalesce(sum(active_recommendation_count) filter (where freshness_status = 'missing'), 0)::integer
+            as missing_recommendation_count,
+        max(global_latest_trade_date) as global_latest_trade_date,
+        coalesce(max(days_behind_latest) filter (where freshness_status in ('stale', 'missing')), 0)::integer
+            as max_days_behind_latest
+    from active_recommendation_price_latest
+),
 latest_position_snapshot as (
     select max(snapshot_date) as latest_observation_date
     from portfolio.position_snapshot
@@ -5909,6 +6005,94 @@ select json_build_object(
             'status', case when (select latest_observation_date from latest_position_snapshot) is null then 'missing' else 'observed' end,
             'latest_observation_date', (select latest_observation_date from latest_position_snapshot)
         )
+    ),
+    'active_recommendation_price_freshness',
+    (
+        select json_build_object(
+            'status',
+            case
+                when summary.active_symbol_count = 0 then 'no_active_recommendations'
+                when summary.global_latest_trade_date is null then 'missing_global_price'
+                when summary.missing_symbol_count > 0 then 'missing_prices'
+                when summary.stale_symbol_count > 0 then 'stale_prices'
+                else 'fresh'
+            end,
+            'attention_required',
+                summary.active_symbol_count > 0
+                and (
+                    summary.global_latest_trade_date is null
+                    or summary.missing_symbol_count > 0
+                    or summary.stale_symbol_count > 0
+                ),
+            'active_symbol_count', summary.active_symbol_count,
+            'fresh_symbol_count', summary.fresh_symbol_count,
+            'stale_symbol_count', summary.stale_symbol_count,
+            'missing_symbol_count', summary.missing_symbol_count,
+            'stale_recommendation_count', summary.stale_recommendation_count,
+            'missing_recommendation_count', summary.missing_recommendation_count,
+            'global_latest_trade_date', summary.global_latest_trade_date,
+            'stale_after_days', 7,
+            'max_days_behind_latest', summary.max_days_behind_latest,
+            'stale_symbols',
+            coalesce(
+                (
+                    select json_agg(
+                        json_build_object(
+                            'symbol', item.primary_symbol,
+                            'instrument_id', item.instrument_id,
+                            'instrument_name', item.instrument_name,
+                            'status', item.freshness_status,
+                            'latest_trade_date', item.latest_trade_date,
+                            'global_latest_trade_date', item.global_latest_trade_date,
+                            'days_behind_latest', coalesce(item.days_behind_latest, 0),
+                            'active_recommendation_count', item.active_recommendation_count,
+                            'latest_recommendation_date', item.latest_recommendation_date,
+                            'detail_href', '/stocks/' || item.primary_symbol
+                        )
+                        order by
+                            case item.freshness_status
+                                when 'missing' then 1
+                                when 'missing_global_price' then 2
+                                when 'stale' then 3
+                                else 4
+                            end,
+                            coalesce(item.days_behind_latest, 999) desc,
+                            item.primary_symbol
+                    )
+                    from (
+                        select *
+                        from active_recommendation_price_latest
+                        where freshness_status in ('missing', 'missing_global_price', 'stale')
+                        order by
+                            case freshness_status
+                                when 'missing' then 1
+                                when 'missing_global_price' then 2
+                                when 'stale' then 3
+                                else 4
+                            end,
+                            coalesce(days_behind_latest, 999) desc,
+                            primary_symbol
+                        limit 20
+                    ) item
+                ),
+                '[]'::json
+            ),
+            'next_action',
+            case
+                when summary.active_symbol_count = 0
+                    then '현재 active 추천 종목이 없으므로 가격 보강 대상도 없다.'
+                when summary.global_latest_trade_date is null
+                    then 'market-price-daily가 가격 원장을 만들지 못했다. 무료 provider/env/ledger 설정을 먼저 확인한다.'
+                when summary.missing_symbol_count > 0 or summary.stale_symbol_count > 0
+                    then 'active 추천 종목 watchlist로 market-price-free-backfill-run을 실행하고 다시 최신성 감사를 확인한다.'
+                else 'active 추천 종목 가격이 최신 가격일과 맞다. 다음 market-price-daily 주기에서도 계속 감시한다.'
+            end,
+            'recommendation_scoring_mutated', false,
+            'automatic_order_allowed', false,
+            'broker_submit_allowed', false,
+            'order_boundary', 'read_only_no_order'
+        )
+        from active_recommendation_price_summary summary
     ),
     'news_ai_eval_quality',
     coalesce(
@@ -15233,6 +15417,60 @@ def _build_live_ai_invocation_health_payload(payload: dict[str, Any]) -> dict[st
         "latest_error_code": str(payload.get("latest_error_code") or ""),
         "task_health": task_health,
         "next_action": str(payload.get("next_action") or next_action),
+    }
+
+
+def _build_active_recommendation_price_freshness_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    stale_symbols: list[dict[str, Any]] = []
+    for item in _as_list(payload.get("stale_symbols"))[:20]:
+        stale_symbols.append(
+            {
+                "symbol": str(item.get("symbol") or ""),
+                "instrument_id": _opaque_id("instrument", item.get("instrument_id"), None),
+                "instrument_name": str(item.get("instrument_name") or ""),
+                "status": str(item.get("status") or "unknown"),
+                "latest_trade_date": str(item.get("latest_trade_date") or ""),
+                "global_latest_trade_date": str(item.get("global_latest_trade_date") or ""),
+                "days_behind_latest": int(_safe_number(item.get("days_behind_latest")) or 0),
+                "active_recommendation_count": int(_safe_number(item.get("active_recommendation_count")) or 0),
+                "latest_recommendation_date": str(item.get("latest_recommendation_date") or ""),
+                "detail_href": str(item.get("detail_href") or ""),
+            }
+        )
+    status = str(payload.get("status") or "missing")
+    stale_symbol_count = int(_safe_number(payload.get("stale_symbol_count")) or 0)
+    missing_symbol_count = int(_safe_number(payload.get("missing_symbol_count")) or 0)
+    active_symbol_count = int(_safe_number(payload.get("active_symbol_count")) or 0)
+    attention_required = (
+        payload.get("attention_required") is True
+        or status in {"missing", "stale_prices", "missing_prices", "missing_global_price"}
+        or stale_symbol_count > 0
+        or missing_symbol_count > 0
+    )
+    if active_symbol_count == 0 and status == "no_active_recommendations":
+        next_action = "현재 active 추천 종목이 없으므로 가격 최신성 보강 대상도 없다."
+    elif attention_required:
+        next_action = "active 추천 종목 watchlist로 market-price-free-backfill-run을 실행하고 다시 최신성 감사를 확인한다."
+    else:
+        next_action = "active 추천 종목 가격이 최신 가격일과 맞다. 다음 market-price-daily 주기에서도 계속 감시한다."
+    return {
+        "status": status,
+        "attention_required": attention_required,
+        "active_symbol_count": active_symbol_count,
+        "fresh_symbol_count": int(_safe_number(payload.get("fresh_symbol_count")) or 0),
+        "stale_symbol_count": stale_symbol_count,
+        "missing_symbol_count": missing_symbol_count,
+        "stale_recommendation_count": int(_safe_number(payload.get("stale_recommendation_count")) or 0),
+        "missing_recommendation_count": int(_safe_number(payload.get("missing_recommendation_count")) or 0),
+        "global_latest_trade_date": str(payload.get("global_latest_trade_date") or ""),
+        "stale_after_days": int(_safe_number(payload.get("stale_after_days")) or 7),
+        "max_days_behind_latest": int(_safe_number(payload.get("max_days_behind_latest")) or 0),
+        "stale_symbols": stale_symbols,
+        "next_action": str(payload.get("next_action") or next_action),
+        "recommendation_scoring_mutated": payload.get("recommendation_scoring_mutated") is True,
+        "automatic_order_allowed": payload.get("automatic_order_allowed") is True,
+        "broker_submit_allowed": payload.get("broker_submit_allowed") is True,
+        "order_boundary": str(payload.get("order_boundary") or "read_only_no_order"),
     }
 
 

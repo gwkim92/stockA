@@ -239,6 +239,36 @@ export type DataHealthData = {
     } | null;
     source: string;
   };
+  active_recommendation_price_freshness: {
+    status: string;
+    attention_required: boolean;
+    active_symbol_count: number;
+    fresh_symbol_count: number;
+    stale_symbol_count: number;
+    missing_symbol_count: number;
+    stale_recommendation_count: number;
+    missing_recommendation_count: number;
+    global_latest_trade_date: string;
+    stale_after_days: number;
+    max_days_behind_latest: number;
+    stale_symbols: Array<{
+      symbol: string;
+      instrument_id: string;
+      instrument_name: string;
+      status: string;
+      latest_trade_date: string;
+      global_latest_trade_date: string;
+      days_behind_latest: number;
+      active_recommendation_count: number;
+      latest_recommendation_date: string;
+      detail_href: string;
+    }>;
+    next_action: string;
+    recommendation_scoring_mutated: boolean;
+    automatic_order_allowed: boolean;
+    broker_submit_allowed: boolean;
+    order_boundary: string;
+  };
   manual_local_ingest_smoke: {
     status: string;
     execute: boolean;
