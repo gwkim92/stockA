@@ -27,6 +27,7 @@ from stockanalysis.frontend.live_adapter import (
     _benchmark_drift_quality_attention_policy,
     _portfolio_review_decision_history_attention_policy,
     _professional_source_gap_requires_attention,
+    _resolve_data_health_overall_status,
     _build_recommendation_evidence_review_payload,
     _build_recommendation_outcome_due_action_router_payload,
     _build_recommendation_outcome_maturity_payload,
@@ -4871,6 +4872,29 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertNotIn("portfolio_review_feedback_calibration_attention", gate_details)
         self.assertNotIn("professional_source_gap_attention", gate_details)
         self.assertEqual(payload["links"]["dashboard"], "/api/dashboard/today")
+
+    def test_data_health_overall_status_uses_final_open_gates(self) -> None:
+        self.assertEqual(
+            _resolve_data_health_overall_status(
+                open_gates=[],
+                fallback_status="attention_required",
+            ),
+            "healthy",
+        )
+        self.assertEqual(
+            _resolve_data_health_overall_status(
+                open_gates=["active_recommendation_price_freshness_attention"],
+                fallback_status="healthy",
+            ),
+            "attention_required",
+        )
+        self.assertEqual(
+            _resolve_data_health_overall_status(
+                open_gates=[],
+                fallback_status="unknown",
+            ),
+            "unknown",
+        )
 
     def test_portfolio_review_feedback_maturity_visibility_computes_wait_until_when_missing(self) -> None:
         calibration = _build_portfolio_review_feedback_calibration_payload(

@@ -1503,9 +1503,10 @@ def build_live_data_health_response(
         "generated_at": generated_at,
         "data": {
             "overall_status": (
-                "attention_required"
-                if open_gates
-                else str(state.get("overall_status") or "unknown")
+                _resolve_data_health_overall_status(
+                    open_gates=open_gates,
+                    fallback_status=str(state.get("overall_status") or "unknown"),
+                )
             ),
             "as_of_date": str(state.get("as_of_date") or ""),
             "pipeline_runs": pipeline_runs,
@@ -1546,6 +1547,14 @@ def build_live_data_health_response(
             "dashboard": "/api/dashboard/today",
         },
     }
+
+
+def _resolve_data_health_overall_status(*, open_gates: list[str], fallback_status: str) -> str:
+    if open_gates:
+        return "attention_required"
+    if fallback_status == "unknown":
+        return "unknown"
+    return "healthy"
 
 
 def build_live_stock_list_response(
