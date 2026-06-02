@@ -34,6 +34,11 @@
 - passed: `document_id=14457` now has Korean title `Nvidia가 개인용 컴퓨터용 새 AI 칩을 발표하자 Microsoft, Dell, HP 주가가 상승했다`.
 - passed: EC2 `/api/data-health` returned `overall_status=healthy`, `open_gates=[]`, `live_ai_invocation_health.status=recovered_with_recent_failures`, `news-rss-korean-translation.latest_status=succeeded`.
 - passed: `http://127.0.0.1:13000/`, `/data-health`, and `/source-documents/rss:yahoo-finance-news:d68822679a37d769ca33e98d` returned HTTP 200.
+- passed: manual EC2 `stockanalysis-operating-data-news-intraday.service` profile run at `2026-06-02T15:49:10Z` ended with `Result=success`, `ExecMainStatus=0`, `ExecMainExitTimestamp=2026-06-02T15:51:51Z`.
+- passed: post-manual-profile `/api/data-health` returned `overall_status=healthy`, `open_gates=[]`, `news-rss-korean-translation.latest_status=succeeded`, `cycle_ai_quality.status=ok`, `news_ai_eval_quality.status=passed`, and `data_operations_artifact_runner.attention_required=false`.
+- passed: automatic EC2 `news-intraday` timer run at `2026-06-02T16:00:22Z` ended with `Result=success`, `ExecMainStatus=0`, `ExecMainExitTimestamp=2026-06-02T16:01:30Z`; next timer run is `2026-06-02T18:00:00Z`.
+- passed: post-automatic-profile `/api/data-health` still returned `overall_status=healthy`, `open_gates=[]`, `news-rss-korean-translation.latest_status=succeeded`, duplicate title `0`, ungrounded direct ticker `0`, quantum-energy mislink `0`, `news_ai_eval_quality.status=passed`, and `data_operations_artifact_runner.attention_required=false`.
+- passed: post-automatic-profile `http://127.0.0.1:13000/`, `/data-health`, `/ai-evidence`, `/intelligence`, `/cycle-map`, and `/source-documents/rss:yahoo-finance-news:d68822679a37d769ca33e98d` returned HTTP 200.
 
 ## Next Step
 
