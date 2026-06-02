@@ -392,6 +392,8 @@ def _expand_allowed_latin_tokens(tokens: set[str]) -> set[str]:
             part in {"cryptocurrency", "cryptocurrencies"} for part in parts
         ):
             expanded.add("crypto")
+    if "personal" in expanded and ("computer" in expanded or "computers" in expanded):
+        expanded.update({"pc", "pcs"})
     return expanded
 
 

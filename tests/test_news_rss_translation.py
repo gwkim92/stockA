@@ -219,6 +219,33 @@ class NewsRssTranslationTests(unittest.TestCase):
             ),
         )
 
+    def test_validate_translation_output_allows_personal_computer_pc_abbreviation(self) -> None:
+        candidate = NewsRssTranslationCandidate(
+            event_id=25,
+            document_id=14457,
+            title="Microsoft, Dell, and HP stocks rise as Nvidia announces new AI chip for personal computers",
+            summary="RSS item without publisher summary.",
+            published_at="2026-06-01T13:09:15+00:00",
+            source_name="rss_news:yahoo-finance-news",
+            external_document_id="rss:yahoo-finance-news:d68822679a37d769ca33e98d",
+            source_url="https://finance.yahoo.com/markets/stocks/article/microsoft-dell-and-hp-stocks-rise-as-nvidia-announces-new-ai-chip-for-personal-computers-130915506.html",
+            existing_theme_code="TECH_DOMAIN",
+            existing_instrument_symbol="NVDA",
+            impact_direction="watch",
+            impact_score=0.62,
+        )
+        bounded_text = build_news_translation_input(candidate, max_input_chars=4000)
+
+        validate_news_translation_output_grounding(
+            candidate=candidate,
+            bounded_text=bounded_text,
+            output=NewsTranslationOutput(
+                korean_title="Nvidia가 개인용 컴퓨터용 신규 AI PC 칩을 발표하자 Microsoft, Dell, HP 주가가 올랐다",
+                korean_summary="원문은 Nvidia의 개인용 컴퓨터용 AI 칩 발표 이후 Microsoft, Dell, HP 주가가 상승했다고 전했다.",
+                translation_confidence=0.88,
+            ),
+        )
+
     def test_validate_translation_output_allows_grounded_singularized_acronyms(self) -> None:
         candidate = NewsRssTranslationCandidate(
             event_id=23,
