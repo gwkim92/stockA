@@ -2,9 +2,9 @@
 
 ## Status
 
-- status: in_progress
-- in progress: final data-health status normalization is implemented locally and needs commit, EC2 deploy, and smoke verification.
-- current status: code change is implemented locally and awaiting final verification, commit, EC2 deploy, and smoke.
+- status: completed
+- completed: final data-health status normalization is implemented, committed, pushed, deployed to EC2, and smoke verified.
+- current status: EC2 `/api/data-health` reports `overall_status=healthy` with `open_gates=[]`.
 
 ## Context
 
@@ -31,10 +31,18 @@
 - Added final overall status normalization so `/api/data-health.overall_status` follows final post-policy `open_gates`.
 - Added unit coverage for fallback `attention_required` with no final open gates returning `healthy`.
 
-## Remaining Verification
+## Verification Log
 
-- exact next step: run local verification, commit, deploy to EC2, and verify `/api/data-health` reports `overall_status=healthy` with `open_gates=[]`.
-- Run local unit/compile/typecheck.
-- Deploy commit to EC2.
-- Verify `/api/data-health` reports `overall_status=healthy`, `open_gates=[]`.
-- Verify `http://127.0.0.1:13000/` and `/data-health` return HTTP 200.
+- passed: local `PYTHONPATH=src /opt/homebrew/bin/python3.13 -m unittest tests.test_frontend_live_adapter`, 90 tests.
+- passed: local `PYTHONPATH=src /opt/homebrew/bin/python3.13 -m compileall -q src tests`.
+- passed: local `cd apps/web && npm run typecheck`.
+- passed: local `PYTHONPATH=/Users/woody/ai/agent-work-harness/src /opt/homebrew/bin/python3.13 -m awh verify --repo . --task data-health-final-overall-status-normalization-v1`.
+- passed: commit `f50f20b` pushed to `origin/codex/local-mvp-runtime-aws-bootstrap`.
+- passed: EC2 pulled commit `f50f20b`; EC2 `tests.test_frontend_live_adapter` and compileall passed.
+- passed: EC2 `stockanalysis-frontend-api.service` and `stockanalysis-web.service` are active.
+- passed: EC2 `/api/data-health` returned `overall_status=healthy`, `open_gates=[]`, `open_gate_details=[]`, price freshness `24/24`, source gap attention `false`, coverage gap count `0`, cycle AI quality `ok`, news AI eval `passed`, data runner `operational_profile_scheduler_active`.
+- passed: `http://127.0.0.1:13000/`, `/data-health`, `/recommendations`, `/stocks/ADSK`, `/recommendations/recommendation-205` returned HTTP 200.
+
+## Next Step
+
+- exact next step: leave manual weight review blocked until outcome maturity dates; continue monitoring the `news-intraday` timer and handle newly opened data-health gates from the backend runner boundary first.
