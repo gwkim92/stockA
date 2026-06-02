@@ -42,6 +42,9 @@
 - passed: EC2 `stockanalysis-frontend-api.service` and `stockanalysis-web.service` are active.
 - passed: EC2 `/api/data-health` returned `overall_status=healthy`, `open_gates=[]`, `open_gate_details=[]`, price freshness `24/24`, source gap attention `false`, coverage gap count `0`, cycle AI quality `ok`, news AI eval `passed`, data runner `operational_profile_scheduler_active`.
 - passed: `http://127.0.0.1:13000/`, `/data-health`, `/recommendations`, `/stocks/ADSK`, `/recommendations/recommendation-205` returned HTTP 200.
+- passed: EC2 automatic `news-intraday` timer run at `2026-06-02T06:00:10Z` ended with `Result=success`, `ExecMainStatus=0`, `ExecMainExitTimestamp=2026-06-02T06:02:10Z`; next run is `2026-06-02T08:00:00Z`.
+- passed: post-timer `/api/data-health` still returned `overall_status=healthy`, `open_gates=[]`, price freshness `24/24`, `cycle_ai_quality.status=ok`, duplicate title `0`, ungrounded direct ticker `0`, quantum-energy mislink `0`, `news_ai_eval_quality.status=passed`, and `data_operations_artifact_runner.attention_required=false`.
+- passed: post-timer `http://127.0.0.1:13000/`, `/data-health`, `/ai-evidence`, `/intelligence`, `/cycle-map`, `/stocks/ADSK`, `/recommendations/recommendation-205` returned HTTP 200.
 
 ## Next Step
 
