@@ -41,8 +41,8 @@
 
 ## Done Criteria
 
-- [ ] `/recommendations` uses user-facing recommendation signal wording and avoids manual-review copy.
-- [ ] `/recommendations/[id]` top decision flow explains current recommendation status and boundaries without implying an order action.
-- [ ] The pages keep the read-only/no-order/no-weight-change boundary explicit.
-- [ ] Local frontend/backend verification passes.
-- [ ] EC2 route smoke confirms the updated Korean copy renders.
+- [x] `/recommendations` uses user-facing recommendation signal wording and avoids manual-review copy.
+- [x] `/recommendations/[id]` top decision flow explains current recommendation status and boundaries without implying an order action.
+- [x] The pages keep the read-only/no-order/no-weight-change boundary explicit.
+- [x] Local frontend/backend verification passes.
+- [x] EC2 route smoke confirms the updated Korean copy renders.
