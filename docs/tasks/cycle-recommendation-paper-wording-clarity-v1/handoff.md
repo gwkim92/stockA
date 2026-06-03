@@ -2,7 +2,7 @@
 
 ## Current Status
 
-- in progress: local implementation and local verification are underway.
+- completed: local implementation, local verification, GitHub push, EC2 deploy/build/restart, route smoke, and browser text smoke are complete.
 
 ## Decisions
 
@@ -25,7 +25,19 @@
 - passed: `PYTHONPATH=src /opt/homebrew/bin/python3.13 -m unittest tests.test_frontend_live_adapter`
 - passed: `PYTHONPATH=src /opt/homebrew/bin/python3.13 -m compileall -q src tests`
 - passed: `git diff --check`
+- passed: `PYTHONPATH=/Users/woody/ai/agent-work-harness/src /opt/homebrew/bin/python3.13 -m awh verify --repo . --task cycle-recommendation-paper-wording-clarity-v1`
+- passed: commit `acb2a90` pushed and deployed to EC2.
+- passed: EC2 `cd /opt/stockanalysis/app/apps/web && npm run typecheck`
+- passed: EC2 `cd /opt/stockanalysis/app/apps/web && npm run build`
+- passed: EC2 `stockanalysis-web.service` and `stockanalysis-frontend-api.service` are active after restart.
+- passed: EC2 internal route smoke returned HTTP `200` for `/cycle-map`, `/recommendations`, and `/paper-trading`.
+- passed: EC2 `/__health` returned `status=ok`, `read_only=true`, `broker_submit_allowed=false`, and `order_boundary=read_only_no_order`.
+- passed: EC2 `/api/data-health` returned `overall_status=healthy`, `open_gates=[]`, `alert_destination.status=external_destination_verified`, `live_ai_invocation_health.status=recovered_with_recent_failures`, and `news_ai_eval_quality.status=passed`.
+- passed: local tunnel browser smoke on `http://127.0.0.1:13000/cycle-map` found no old review/judgment wording and found `AI 근거 흐름`, `뉴스·AI 근거`.
+- passed: local tunnel browser smoke on `http://127.0.0.1:13000/recommendations` found no old review wording and found `AI 검증 통과`, `추천 상세`, `가상 매매 상태`, `보유 상태`.
+- passed: local tunnel browser smoke on `http://127.0.0.1:13000/paper-trading` found no old review wording and found `후보 확인`, `감사 기록`, `리밸런싱 확인 후보`.
+- note: EC2 does not have the `awh` Python module installed, so AWH verification was run locally against the deployed commit before push.
 
 ## Next Step
 
-- exact next step: run AWH verify, commit/push, deploy to EC2, and smoke `/cycle-map`, `/recommendations`, and `/paper-trading`.
+- exact next step: continue the broader UX audit with the next route family, likely `/stocks`, `/stocks/[symbol]`, and `/recommendations/[recommendationId]`, focusing on professional analysis evidence layout and duplicated explanatory copy.
