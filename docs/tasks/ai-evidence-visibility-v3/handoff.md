@@ -2,7 +2,7 @@
 
 ## Status
 
-- status: clarity_pass_in_progress
+- status: implemented_and_ec2_smoked
 - started_at: 2026-05-27
 - current status: implemented, committed, pushed, deployed to EC2, and smoke verified.
 - completed: API visibility trace payload, frontend trace board, Korean labels, DTO typing, targeted backend test, typecheck, build.
@@ -18,7 +18,7 @@
 
 ## Next Step
 
-- exact next step: verify the new five-step detail header on `/ai-evidence/{id}`, deploy to EC2, and route/browser smoke the user tunnel.
+- exact next step: continue `cycle-quality-audit-hardening-v1` so duplicate clusters, wrong theme attachment, unsupported ticker linkage, and macro-flow-vs-error classification are audited automatically and surfaced on `/data-health` and AI evidence screens.
 
 ## Verification So Far
 
@@ -28,9 +28,13 @@
 - passed: `cd apps/web && npm run build`
 - passed: `git diff --check`
 - 2026-06-04 clarity pass: `cd apps/web && npm run typecheck` passed.
-- pending: 2026-06-04 clarity pass `cd apps/web && npm run build`.
-- pending: 2026-06-04 clarity pass AWH verify.
-- pending: 2026-06-04 clarity pass EC2 route/browser smoke.
+- 2026-06-04 clarity pass: `cd apps/web && npm run build` passed.
+- 2026-06-04 clarity pass: `PYTHONPATH=src /private/tmp/stockanalysis-runtime/venv/bin/python -m unittest tests.test_frontend_live_adapter` passed.
+- 2026-06-04 clarity pass: `PYTHONPATH=/Users/woody/ai/agent-work-harness/src /private/tmp/stockanalysis-runtime/venv/bin/python -m awh verify --repo . --task ai-evidence-visibility-v3` passed.
+- 2026-06-04 clarity pass: `git diff --check` passed.
+- 2026-06-04 clarity pass EC2: `npm run typecheck`, `npm run build`, `stockanalysis-web.service active`, deployed commit `c5859aa`.
+- 2026-06-04 clarity pass EC2 route smoke: `/api/ai-evidence/ai-evidence-251` returned `visibility_trace.steps=[source, translation, ai_structure, validator, recommendation_linkage]`, validator `passed`; `/ai-evidence/ai-evidence-251` rendered `이 근거의 현재 사용처`, `원천 뉴스`, `한국어 번역`, `AI 구조화`, `자동 검증`, `추천·주문 경계`, `증권사 주문은`, `근거 사용 경로`.
+- 2026-06-04 clarity pass user tunnel/browser smoke: `http://127.0.0.1:13000/ai-evidence/ai-evidence-251` rendered the same eight strings.
 
 ## EC2 Verification
 
