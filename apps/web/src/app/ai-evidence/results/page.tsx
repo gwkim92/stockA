@@ -48,14 +48,14 @@ export default async function StructuredResultsPage() {
         </div>
         <p className="page-lede">
           이 화면은 AI가 어떤 종목·테마·방향을 추출했고, 추천·보유 상태 근거로 넘길 수 있는지 보여준다.
-          수집 뉴스, 1차 자동 태그, 차단 후보는 각각 별도 화면으로 분리했다.
+          수집 뉴스, 1차 자동 태그, 차단 항목은 각각 별도 화면으로 분리했다.
         </p>
       </section>
 
       <section className="ai-evidence-command-panel reveal delay-1" aria-labelledby="structured-command-title">
         <div className="ai-evidence-command-lead">
           <span>통과 결과 판정판</span>
-          <h2 id="structured-command-title">AI 통과 결과를 투자 입력 후보로만 본다.</h2>
+          <h2 id="structured-command-title">AI 통과 결과를 투자 입력으로만 본다.</h2>
           <p>
             자동 검증을 통과한 결과라도 바로 추천이나 주문이 아니다. 직접 종목 뉴스, 상위 흐름,
             뉴스 묶음을 분리해서 보고, 추천 상세에서 가격·사이클·재무·가상 매매 검증과 다시 합친다.
@@ -66,7 +66,7 @@ export default async function StructuredResultsPage() {
             <span>01</span>
             <small>직접 종목</small>
             <strong>{directCandidates.length}개 결과</strong>
-            <em>종목 상세·추천 상세 연결 후보</em>
+            <em>종목 상세·추천 상세 연결 항목</em>
             <p>회사명이나 티커가 명확한 뉴스다. 원천 뉴스와 한국어 번역을 열어 직접 연결이 과하지 않은지 본다.</p>
             <b>직접 결과 보기</b>
           </a>
@@ -91,7 +91,7 @@ export default async function StructuredResultsPage() {
             <small>추천 경계</small>
             <strong>바로 주문 안 함</strong>
             <em>{latestAiRunStatus}</em>
-            <p>AI 통과 결과는 추천 점수의 입력 후보일 뿐이다. 실제 판단은 추천 상세와 거래 안전 경계에서 다시 막는다.</p>
+            <p>AI 통과 결과는 추천 점수의 입력일 뿐이다. 실제 판단은 추천 상세와 거래 안전 경계에서 다시 막는다.</p>
             <b>추천 경계 보기</b>
           </Link>
         </div>
@@ -111,7 +111,7 @@ export default async function StructuredResultsPage() {
         <Link className="screen-switch-card" href="/ai-evidence">
           <span>03</span>
           <strong>AI 근거 목록</strong>
-          <small>후보 목록</small>
+          <small>구조화 항목</small>
         </Link>
         <Link className="screen-switch-card active" href={"/ai-evidence/results" as Route}>
           <span>04</span>
@@ -120,16 +120,16 @@ export default async function StructuredResultsPage() {
         </Link>
         <Link className="screen-switch-card" href={"/ai-evidence/blocked" as Route}>
           <span>차단</span>
-          <strong>차단 후보</strong>
+          <strong>차단 항목</strong>
           <small>추천 입력 제외</small>
         </Link>
       </section>
 
       <section className="status-rail compact-rail reveal delay-1" aria-label="구조화 결과 요약">
         <article className="rail-cell">
-          <span>통과 후보</span>
+          <span>통과 항목</span>
           <strong>{acceptedCandidates.length}</strong>
-          <small>추천 입력 가능 후보</small>
+          <small>추천 입력 가능 항목</small>
         </article>
         <article className="rail-cell">
           <span>직접 종목</span>
@@ -186,7 +186,7 @@ export default async function StructuredResultsPage() {
           <h2 id="structured-direct-title">종목에 바로 붙은 AI 구조화 결과</h2>
         </div>
         <p className="relationship-empty">
-          이 목록은 자동 검증을 통과해 추천·보유 상태 근거 후보로 바로 연결될 수 있다.
+          이 목록은 자동 검증을 통과해 추천·보유 상태 근거로 바로 연결될 수 있다.
           주문 결정은 만들지 않으며, 상세 화면에서 원천 뉴스와 불확실성을 함께 보여준다.
         </p>
         <div className="news-row-list">

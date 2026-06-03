@@ -38,7 +38,7 @@ export function newsStockHref(symbol: string | null | undefined) {
 
 export function newsCandidateKind(event: NewsEventRow) {
   if (event.ai_evidence_type === "news_event_candidate_rejected" || event.quality_gate === "validator_blocked") {
-    return "차단 후보";
+    return "차단 항목";
   }
   if (event.quality_gate === "low_signal_suppressed") {
     return "저신호 보류";

@@ -190,7 +190,7 @@ function formatExtractedFieldValue(field: ExtractedField) {
 
 function formatExtractedFieldSource(sourceChunkId: string) {
   if (sourceChunkId === "chunk-news-ai-candidate") {
-    return "뉴스 후보 근거";
+    return "뉴스 구조화 근거";
   }
   if (sourceChunkId === "chunk-news-ai-theme-impact") {
     return "테마 영향 근거";
@@ -235,15 +235,15 @@ async function loadNeighborhood(symbol: string | null): Promise<EvidenceNeighbor
 function pageCopy(data: AiEvidenceDetailData, candidate: NewsCandidate | null, cluster: ClusterSummary | null) {
   if (candidate && data.evidence_type === "news_event_candidate_rejected") {
     return {
-      badge: `차단된 AI 후보 · ${koCode(data.extraction_run.provider)}`,
-      title: "이 AI 후보가 왜 추천 근거로 통과하지 못했는지 확인한다.",
+      badge: `차단된 AI 구조화 항목 · ${koCode(data.extraction_run.provider)}`,
+      title: "이 AI 구조화 항목이 왜 추천 근거로 통과하지 못했는지 확인한다.",
       lede:
-        "검증 단계에서 통과 가능한 종목·테마 영향으로 인정하지 않은 후보를 보는 화면이다. 원천과 AI 출력은 보존하지만 추천·보유 판단 입력으로 쓰지 않는다.",
+        "자동 검증 단계에서 통과 가능한 종목·테마 영향으로 인정하지 않은 항목을 보는 화면이다. 원천과 AI 출력은 보존하지만 추천·보유 상태 판단 입력으로 쓰지 않는다.",
     };
   }
   if (candidate) {
     return {
-      badge: `개별 뉴스 AI 후보 · ${koCode(data.extraction_run.provider)}`,
+      badge: `개별 뉴스 AI 구조화 항목 · ${koCode(data.extraction_run.provider)}`,
       title: "이 뉴스가 어떤 종목과 테마에 영향을 주는지 확인한다.",
       lede:
         "AI는 뉴스 한 건을 투자 행동으로 바꾸지 않는다. 여기서는 원천 뉴스, 추출된 테마·종목 영향, 신뢰도, 불확실성, 추천·보유 연결 여부만 확인한다.",
@@ -251,22 +251,22 @@ function pageCopy(data: AiEvidenceDetailData, candidate: NewsCandidate | null, c
   }
   if (cluster) {
     return {
-      badge: `뉴스 묶음 증거 · ${koCode(data.extraction_run.provider)}`,
-      title: "이 뉴스 묶음이 어떤 시장 흐름과 종목 후보로 이어졌는지 확인한다.",
+      badge: `뉴스 묶음 근거 · ${koCode(data.extraction_run.provider)}`,
+      title: "이 뉴스 묶음이 어떤 시장 흐름과 종목 연결로 이어졌는지 확인한다.",
       lede:
-        "이 화면은 매수 판단 화면이 아니다. 같은 흐름으로 묶인 이유, 연결된 상위 테마, 종목 후보, 추천 근거 연결 여부를 원천 뉴스와 함께 대조한다.",
+        "이 화면은 매수 판단 화면이 아니다. 같은 흐름으로 묶인 이유, 연결된 상위 테마, 종목 연결, 추천 근거 연결 여부를 원천 뉴스와 함께 대조한다.",
     };
   }
   return {
-    badge: `AI 추출 증거 · ${koCode(data.extraction_run.provider)}`,
+    badge: `AI 추출 근거 · ${koCode(data.extraction_run.provider)}`,
     title: "저장된 AI 근거의 원천과 품질을 확인한다.",
-    lede: "이 증거 하나만으로 투자 논리나 추천을 바꾸지 않는다. 반드시 원천과 품질 조건을 함께 확인한다.",
+    lede: "이 근거 하나만으로 투자 논리나 추천을 바꾸지 않는다. 반드시 원천과 품질 조건을 함께 확인한다.",
   };
 }
 
 function providerReviewNote(data: AiEvidenceDetailData) {
   if (["local_rules", "local_deterministic"].includes(data.extraction_run.provider)) {
-    return "최종 AI 판단이 아니라 무료 로컬 규칙으로 만든 묶음이다. 다음 AI 배치와 자동 검증이 원문 제목과 테마 일치 여부를 다시 점검해야 한다.";
+    return "최종 투자 판단이 아니라 무료 로컬 규칙으로 만든 묶음이다. 다음 AI 배치와 자동 검증이 원문 제목과 테마 일치 여부를 다시 점검해야 한다.";
   }
   if (data.extraction_run.provider === "codex_oauth") {
     return "AI 배치가 구조화한 결과다. 그래도 원문과 종목 연결을 대조해야 한다.";
@@ -279,21 +279,21 @@ function evidenceDecision(data: AiEvidenceDetailData) {
     return {
       label: "자동 검증 차단",
       tone: "risk-high",
-      body: "이 후보는 canonical 영향 테이블과 추천 입력으로 넘기지 않는다. 원천 확인과 분류 보강 대상으로만 남긴다.",
+      body: "이 항목은 canonical 영향 테이블과 추천 입력으로 넘기지 않는다. 원천 확인과 분류 보강 대상으로만 남긴다.",
     };
   }
   if (["local_rules", "local_deterministic"].includes(data.extraction_run.provider)) {
     return {
-      label: "규칙 기반 후보",
+      label: "규칙 기반 항목",
       tone: "risk-medium",
       body: "무료 로컬 규칙이 만든 근거다. AI 최종 구조화가 아니라서 같은 테마·종목 연결이 맞는지 별도 자동 검증이 확인해야 한다.",
     };
   }
   if (data.extraction_run.quality_gate === "ai_review_passed") {
     return {
-      label: "AI 검증 통과 후보",
+      label: "AI 검증 통과 항목",
       tone: "risk-low",
-      body: "구조화 결과가 저장됐고 추천·보유 판단의 입력 후보로 사용할 수 있다. 그래도 주문 결론은 만들지 않는다.",
+      body: "구조화 결과가 저장됐고 추천·보유 상태 판단의 입력으로 사용할 수 있다. 그래도 주문 결론은 만들지 않는다.",
     };
   }
   return {
@@ -390,7 +390,7 @@ function aiStructureTraceStatus({
     return {
       title: "뉴스 묶음 구조화",
       status: `뉴스 ${cluster.event_count}개`,
-      body: "여러 뉴스가 같은 상위 테마나 하위 이슈인지 묶어 시장 흐름 후보로 만들었다.",
+      body: "여러 뉴스가 같은 상위 테마나 하위 이슈인지 묶어 시장 흐름 항목으로 만들었다.",
     };
   }
   return {
@@ -407,7 +407,7 @@ function CandidateImpactList({ candidate }: { candidate: NewsCandidate }) {
   ];
 
   if (impacts.length === 0) {
-    return <div className="empty-state">AI가 구조화한 테마·종목 영향 후보가 없다. 이 증거는 추천 입력으로 쓰면 안 된다.</div>;
+    return <div className="empty-state">AI가 구조화한 테마·종목 영향 항목이 없다. 이 근거는 추천 입력으로 쓰면 안 된다.</div>;
   }
 
   return (
@@ -435,7 +435,7 @@ function NeighborhoodPanel({ neighborhood }: { neighborhood: EvidenceNeighborhoo
           <span>종목 연결</span>
           <h2>연결할 종목 맥락이 없다</h2>
         </div>
-        <p className="board-intro">이 증거는 아직 특정 종목의 추천, 투자 논리, 보유 포지션과 연결되지 않았다.</p>
+        <p className="board-intro">이 근거는 아직 특정 종목의 추천, 투자 논리, 보유 포지션과 연결되지 않았다.</p>
       </article>
     );
   }
@@ -461,7 +461,7 @@ function NeighborhoodPanel({ neighborhood }: { neighborhood: EvidenceNeighborhoo
         <article className="rail-cell">
           <span>추천</span>
           <strong>{neighborhood.summary.recommendation_count}</strong>
-          <small>검토서 연결</small>
+          <small>추천 상세 연결</small>
         </article>
         <article className="rail-cell">
           <span>보유</span>
@@ -795,7 +795,7 @@ function EvidenceVisibilityTraceBoard({
     <section className="evidence-decision-card reveal delay-1" aria-labelledby="visibility-trace-title">
       <div className="section-heading stacked-heading">
         <span>근거 사용 경로</span>
-        <h2 id="visibility-trace-title">원천 뉴스가 추천 근거 후보가 되는 과정을 본다</h2>
+        <h2 id="visibility-trace-title">원천 뉴스가 추천 근거로 쓰일 수 있는지 확인한다</h2>
         <p>{trace.summary_ko}</p>
       </div>
       <div className="evidence-trace-grid">
@@ -817,7 +817,7 @@ function EvidenceVisibilityTraceBoard({
         <span>검증 결과</span>
         <div className="relationship-list">
           <div className="relationship-chip">
-            <span>{trace.validator.blocked ? "차단" : "통과 후보"}</span>
+            <span>{trace.validator.blocked ? "차단" : "통과 항목"}</span>
             <strong>{trace.validator.decision_ko}</strong>
             <small>{trace.validator.reasons_ko.join(" ")}</small>
           </div>
@@ -937,7 +937,7 @@ export default async function AiEvidencePage({ params }: AiEvidencePageProps) {
 
       <section className="evidence-decision-card reveal delay-2" aria-labelledby="evidence-main-title">
         <div className="section-heading stacked-heading">
-          <span>판단 대상</span>
+          <span>확인 대상</span>
           <h2 id="evidence-main-title">{evidenceTitle}</h2>
         </div>
 
@@ -955,7 +955,7 @@ export default async function AiEvidencePage({ params }: AiEvidencePageProps) {
           <>
             <p className="board-intro">
               {formatClusterStory(cluster)} 이슈의 뉴스 {cluster.event_count}개를 하나의 흐름으로 묶었다.
-              상위 테마는 {koCode(cluster.theme_key)}이고, 연결 종목 후보는 {formatSymbols(cluster.symbols)}이다.
+              상위 테마는 {koCode(cluster.theme_key)}이고, 연결 종목은 {formatSymbols(cluster.symbols)}이다.
               방향 분포는 {formatDirectionCounts(cluster.direction_counts)}이다. 아래 대표 뉴스를 보고 묶음 이유와 종목 연결이 원문과 맞는지 확인한다. {providerReviewNote(data)}
             </p>
             <div className="relationship-panel">
@@ -1002,7 +1002,7 @@ export default async function AiEvidencePage({ params }: AiEvidencePageProps) {
 
         {!isNewsCandidate && !isNewsCluster ? (
           <p className="board-intro">
-            {koLabel(data.title)} 증거다. 원천과 품질 조건을 확인한 뒤 추천 또는 보유 검토와 연결해야 한다.
+            {koLabel(data.title)} 근거다. 원천과 품질 조건을 확인한 뒤 추천 상세 또는 보유 상태 판단과 연결해야 한다.
           </p>
         ) : null}
 
@@ -1071,8 +1071,8 @@ export default async function AiEvidencePage({ params }: AiEvidencePageProps) {
           ) : (
             <div className="empty-state">
               {isNewsCluster
-                ? "이 뉴스 묶음은 로컬 규칙과 저장 이벤트로 만든 증거라 모델 입력 조각이 없다."
-                : "이 증거에 연결된 모델 입력 근거가 아직 저장되지 않았다."}
+                ? "이 뉴스 묶음은 로컬 규칙과 저장 이벤트로 만든 근거라 모델 입력 조각이 없다."
+                : "이 근거에 연결된 모델 입력 근거가 아직 저장되지 않았다."}
             </div>
           )}
         </article>
@@ -1087,7 +1087,7 @@ export default async function AiEvidencePage({ params }: AiEvidencePageProps) {
           {data.audit_notes.map((note) => (
             <li key={note}>{koLabel(note)}</li>
           ))}
-          <li>AI는 추천과 주문을 직접 결정하지 않는다. 추천 점수, 보유 검토, 거래 안전 조건이 별도로 통과해야 한다.</li>
+          <li>AI는 추천과 주문을 직접 결정하지 않는다. 추천 점수, 보유 상태 판단, 거래 안전 조건이 별도로 통과해야 한다.</li>
           <li>화면 진입 시 실시간 AI 호출은 하지 않으며, 배치가 저장한 결과만 읽는다.</li>
         </ul>
         <div className="audit-metadata">
