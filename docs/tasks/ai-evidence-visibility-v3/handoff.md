@@ -2,21 +2,23 @@
 
 ## Status
 
-- status: implemented_and_ec2_smoked
+- status: clarity_pass_in_progress
 - started_at: 2026-05-27
 - current status: implemented, committed, pushed, deployed to EC2, and smoke verified.
 - completed: API visibility trace payload, frontend trace board, Korean labels, DTO typing, targeted backend test, typecheck, build.
 - completed: EC2 deploy, API smoke, route smoke.
+- reopened: 2026-06-04 clarity pass to make the detail-page top summary explicitly answer where the evidence can be used.
 
 ## Current Decision
 
 - Keep the screen read-only.
 - Show AI review results as evidence trace, not as a manual approval workflow.
 - Do not add approval/rejection buttons until audit write API and RBAC write policy exist.
+- The 2026-06-04 clarity pass does not change API, DB, scoring, scheduler, AI batch, or broker/order flow. It reuses existing `visibility_trace`, translation, and evidence neighborhood data.
 
 ## Next Step
 
-- exact next step: add `visibility_trace` to `/api/ai-evidence/{id}` and render it on `/ai-evidence/{id}`.
+- exact next step: verify the new five-step detail header on `/ai-evidence/{id}`, deploy to EC2, and route/browser smoke the user tunnel.
 
 ## Verification So Far
 
@@ -25,6 +27,10 @@
 - passed: `cd apps/web && npm run typecheck`
 - passed: `cd apps/web && npm run build`
 - passed: `git diff --check`
+- 2026-06-04 clarity pass: `cd apps/web && npm run typecheck` passed.
+- pending: 2026-06-04 clarity pass `cd apps/web && npm run build`.
+- pending: 2026-06-04 clarity pass AWH verify.
+- pending: 2026-06-04 clarity pass EC2 route/browser smoke.
 
 ## EC2 Verification
 

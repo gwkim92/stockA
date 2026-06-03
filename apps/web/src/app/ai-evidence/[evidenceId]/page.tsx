@@ -414,6 +414,57 @@ function aiStructureTraceStatus({
   };
 }
 
+function aiEvidenceUsageVerdict({
+  data,
+  linkedSymbol,
+  recommendationCount,
+  thesisCount,
+}: {
+  data: AiEvidenceDetailData;
+  linkedSymbol: string | null;
+  recommendationCount: number;
+  thesisCount: number;
+}) {
+  if (data.visibility_trace.validator.blocked || data.evidence_type === "news_event_candidate_rejected") {
+    return {
+      title: "추천 입력에서 제외한다",
+      metric: "차단",
+      body:
+        "자동 검증이 차단한 근거다. 원천과 AI 출력은 보존하지만 추천 점수, 보유 상태 판단, 가상 매매 입력으로 넘기지 않는다.",
+      next: "차단 이유와 원천을 확인하고, 좋은 뉴스가 잘못 막혔을 때만 분류 체계나 종목 별칭을 보강한다.",
+      tone: "risk-high" as const,
+    };
+  }
+  if (recommendationCount > 0) {
+    return {
+      title: "추천 근거로 연결됐다",
+      metric: `추천 ${recommendationCount}개`,
+      body:
+        "자동 검증을 통과했고 추천 상세에 연결된 근거다. 그래도 추천 상세에서 가격, 사이클, 재무, thesis, 가상 매매 상태를 다시 합쳐 판단한다.",
+      next: `투자 논리 ${thesisCount}개와 추천 상세를 이어서 확인한다. 이 화면은 주문을 만들지 않는다.`,
+      tone: "risk-low" as const,
+    };
+  }
+  if (linkedSymbol) {
+    return {
+      title: "종목 맥락까지 연결됐다",
+      metric: koCode(linkedSymbol),
+      body:
+        "명확한 종목 맥락은 있지만 아직 추천 상세 연결은 약하다. 종목 상세에서 직접 뉴스, 상위 흐름, 투자 논리 연결을 먼저 확인한다.",
+      next: "추천 점수에 반영됐다고 단정하지 말고 종목 상세에서 근거 경로를 이어서 본다.",
+      tone: "risk-medium" as const,
+    };
+  }
+  return {
+    title: "시장·테마 흐름으로 보관한다",
+    metric: "상위 흐름",
+    body:
+      "명확한 직접 종목이 없으므로 억지로 티커를 붙이지 않는다. 거시·테마 흐름으로 저장한 뒤 노출도 전파가 관련 종목 영향을 계산한다.",
+    next: "흐름 보드와 사이클맵에서 상위 테마가 어떤 종목군에 전파되는지 확인한다.",
+    tone: "risk-medium" as const,
+  };
+}
+
 function CandidateImpactList({ candidate }: { candidate: NewsCandidate }) {
   const impacts = [
     ...candidate.theme_impacts.map((impact) => ({ ...impact, kind: "테마" })),
@@ -600,24 +651,37 @@ function AiEvidenceReviewBrief({
   const structure = aiStructureTraceStatus({ candidate, cluster, isNewsCandidate, isNewsCluster });
   const recommendationCount = neighborhood?.summary.recommendation_count ?? 0;
   const thesisCount = neighborhood?.summary.thesis_count ?? 0;
+  const usage = aiEvidenceUsageVerdict({ data, linkedSymbol, recommendationCount, thesisCount });
   const readOnlyBoundary = data.visibility_trace.read_only_boundary;
   const sourceCount = isNewsCluster ? uniqueSourceDocumentCount(data) : sourceLink ? 1 : 0;
   const cards = [
     {
       step: "01",
-      label: "원천·번역",
-      title: translation.title,
+      label: "원천 뉴스",
+      title: sourceCount > 0 ? "원천 문서 연결" : "원천 확인 필요",
       status: sourceCount > 0 ? `원천 ${sourceCount}개` : "원천 확인 필요",
+      body: sourceCount > 0
+        ? "AI 해석의 출발점이 되는 원천 문서가 연결되어 있다. 원천이 틀리면 뒤의 구조화와 추천 연결도 믿으면 안 된다."
+        : "원천 문서가 없으면 이 근거를 추천 입력으로 쓰면 안 된다.",
+      href: "#evidence-source-preview",
+      cta: "원천 보기",
+      tone: sourceCount > 0 ? "risk-low" as const : "risk-high" as const,
+    },
+    {
+      step: "02",
+      label: "한국어 번역",
+      title: translation.title,
+      status: translation.status,
       body:
         sourcePreview.koreanSummary ||
         sourcePreview.koreanTitle ||
-        "한국어 제목·요약이 없으면 원문과 AI 해석을 직접 대조해야 한다.",
+        "저장된 한국어 제목·요약이 없으면 원문 제목과 AI 해석을 직접 대조해야 한다.",
       href: "#evidence-source-preview",
       cta: "번역 보기",
       tone: translation.tone,
     },
     {
-      step: "02",
+      step: "03",
       label: "AI 구조화",
       title: structure.title,
       status: structure.status,
@@ -627,7 +691,7 @@ function AiEvidenceReviewBrief({
       tone: "risk-low" as const,
     },
     {
-      step: "03",
+      step: "04",
       label: "자동 검증",
       title: decision.label,
       status: data.evidence_type === "news_event_candidate_rejected" ? "차단" : koCode(data.extraction_run.quality_gate || data.extraction_run.status),
@@ -637,33 +701,23 @@ function AiEvidenceReviewBrief({
       tone: decision.tone,
     },
     {
-      step: "04",
-      label: "종목·추천 연결",
-      title:
-        recommendationCount > 0
-          ? `추천 ${recommendationCount}개 연결`
-          : linkedSymbol
-            ? `${koCode(linkedSymbol)} 종목 맥락`
-            : "상위 흐름 근거",
-      status: `투자 논리 ${thesisCount}개`,
-      body:
-        recommendationCount > 0
-          ? "추천 상세에서 가격, 사이클, 재무, 보유 논리와 함께 다시 판단한다. 이 화면만으로 주문하지 않는다."
-          : linkedSymbol
-            ? "추천 상세에 바로 연결되지 않았더라도 종목 상세에서 직접 뉴스와 상위 흐름을 확인한다."
-            : "명확한 종목이 없으면 억지로 티커를 붙이지 않고 시장·테마 흐름으로 남긴다.",
+      step: "05",
+      label: "추천·주문 경계",
+      title: usage.title,
+      status: `${usage.metric} · ${koCode(readOnlyBoundary.order_boundary || "read_only_no_order")}`,
+      body: `${usage.next} 증권사 주문은 ${readOnlyBoundary.broker_submit_allowed ? "허용 상태" : "차단 상태"}다.`,
       href: firstRecommendationLink ?? targetStockLink ?? "#evidence-neighborhood",
       cta: firstRecommendationLink ? "추천 보기" : targetStockLink ? "종목 보기" : "연결 상태 보기",
-      tone: recommendationCount > 0 || linkedSymbol ? "risk-low" : "risk-medium",
+      tone: usage.tone,
     },
   ];
 
   return (
-    <section className={`ai-evidence-brief-panel ${decision.tone} reveal delay-1`} aria-labelledby="ai-evidence-brief-title">
+    <section className={`ai-evidence-brief-panel ${usage.tone} reveal delay-1`} aria-labelledby="ai-evidence-brief-title">
       <div className="ai-evidence-brief-lead">
-        <span>AI 근거 결론</span>
-        <h2 id="ai-evidence-brief-title">{decision.label}</h2>
-        <p>{decision.body}</p>
+        <span>이 근거의 현재 사용처</span>
+        <h2 id="ai-evidence-brief-title">{usage.title}</h2>
+        <p>{usage.body}</p>
         <div className="ai-evidence-brief-metrics" aria-label="AI 근거 핵심 상태">
           <div>
             <span>원천</span>
@@ -674,8 +728,8 @@ function AiEvidenceReviewBrief({
             <strong>{sourcePreview.koreanTitle || sourcePreview.koreanSummary ? "있음" : "없음"}</strong>
           </div>
           <div>
-            <span>추천</span>
-            <strong>{recommendationCount}</strong>
+            <span>사용처</span>
+            <strong>{usage.metric}</strong>
           </div>
           <div>
             <span>주문</span>
