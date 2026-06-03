@@ -547,6 +547,46 @@ function liveAiInvocationTone(health: LiveAiInvocationHealth) {
   return "risk-high";
 }
 
+function liveAiCurrentFailureCount(health: LiveAiInvocationHealth) {
+  const currentCriticalFailures = Number(health.critical_latest_unhealthy_count ?? 0);
+  const currentFailures = Number(health.latest_unhealthy_count ?? 0);
+  if (Number.isFinite(currentCriticalFailures) && currentCriticalFailures > 0) {
+    return currentCriticalFailures;
+  }
+  if (Number.isFinite(currentFailures) && currentFailures > 0) {
+    return currentFailures;
+  }
+  return 0;
+}
+
+function liveAiInvocationQualityMetric(health: LiveAiInvocationHealth, evalQuality: NewsAiEvalQuality) {
+  const regressionText = `회귀 실패 ${evalQuality.failed_case_count}개`;
+  if (health.status === "recovered_with_recent_failures") {
+    return `최신 실행 성공 · 과거 실패 기록 ${health.recent_failed_count}건 · ${regressionText}`;
+  }
+  if (health.attention_required) {
+    return `현재 실패 작업 ${liveAiCurrentFailureCount(health)}개 · 최근 실패 ${health.recent_failed_count}건 · ${regressionText}`;
+  }
+  if (health.status === "healthy") {
+    return `최신 실행 성공 · 최근 실패 ${health.recent_failed_count}건 · ${regressionText}`;
+  }
+  return `최근 호출 ${health.recent_invocation_count}건 · 최근 실패 ${health.recent_failed_count}건 · ${regressionText}`;
+}
+
+function liveAiInvocationHistoryLabel(health: LiveAiInvocationHealth) {
+  if (health.status === "recovered_with_recent_failures") {
+    return `성공 ${health.recent_success_count} · 과거 실패 기록 ${health.recent_failed_count}`;
+  }
+  return `성공 ${health.recent_success_count} · 실패 ${health.recent_failed_count}`;
+}
+
+function liveAiCurrentFailureDetail(health: LiveAiInvocationHealth) {
+  if (health.status === "recovered_with_recent_failures") {
+    return `현재 실패 0 · 최근 ${health.window_hours}시간 누적 핵심 실패 ${health.critical_failed_count}`;
+  }
+  return `번역/뉴스 구조화 기준 · 최근 누적 ${health.critical_failed_count}`;
+}
+
 function formatPercent(value: number | null | undefined) {
   if (typeof value !== "number" || Number.isNaN(value)) {
     return "미계산";
@@ -2000,7 +2040,7 @@ export default async function DataHealthPage() {
         : qualityAudit.issue_count > 0 || newsAiEvalQuality.failed_case_count > 0
           ? "중복 뉴스, 오분류, AI 회귀평가 실패, 벤치마크 괴리 품질 중 확인할 항목이 있다. 추천 입력 전에 품질 근거를 본다."
           : "큰 오염은 없지만 번역, 전파, 사이클 스냅샷, 가상 매매 검증 근거가 아직 부족하다. 벤치마크 괴리 품질도 함께 본다.",
-      metric: `실제 AI 실패 ${liveAiInvocationHealth.recent_failed_count}건 · 회귀 실패 ${newsAiEvalQuality.failed_case_count}개`,
+      metric: liveAiInvocationQualityMetric(liveAiInvocationHealth, newsAiEvalQuality),
       href: "#quality-audit",
       cta: "품질 감사 보기",
       tone: dataQualityReady ? "ready" : "watch",
@@ -2617,14 +2657,14 @@ export default async function DataHealthPage() {
 	            <small>최근 {liveAiInvocationHealth.window_hours}시간</small>
 	          </article>
 	          <article className="rail-cell">
-	            <span>실제 호출</span>
+	            <span>최근 호출</span>
 	            <strong>{liveAiInvocationHealth.recent_invocation_count}</strong>
-	            <small>성공 {liveAiInvocationHealth.recent_success_count} · 실패 {liveAiInvocationHealth.recent_failed_count}</small>
+	            <small>{liveAiInvocationHistoryLabel(liveAiInvocationHealth)}</small>
 	          </article>
 	          <article className="rail-cell">
-	            <span>핵심 실패</span>
-	            <strong>{liveAiInvocationHealth.critical_failed_count}</strong>
-	            <small>번역/뉴스 구조화 기준</small>
+	            <span>현재 실패 작업</span>
+	            <strong>{liveAiCurrentFailureCount(liveAiInvocationHealth)}</strong>
+	            <small>{liveAiCurrentFailureDetail(liveAiInvocationHealth)}</small>
 	          </article>
 	          <article className="rail-cell">
 	            <span>최신 실패 작업</span>
