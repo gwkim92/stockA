@@ -79,6 +79,8 @@ function recommendationSummary(row: RecommendationRow) {
   const macroFlowText =
     row.evidence.macro_flow_evidence_count > 0
       ? `상위 흐름 전파 ${row.evidence.macro_flow_evidence_count}개`
+      : row.evidence.macro_flow_component_count > 0
+        ? `상위 흐름 점수 ${row.evidence.macro_flow_component_count}개`
       : "상위 흐름 전파 없음";
   const outcomeText =
     row.outcome.label === "unmeasured"
@@ -88,10 +90,13 @@ function recommendationSummary(row: RecommendationRow) {
 }
 
 function macroFlowBadge(row: RecommendationRow) {
-  if (row.evidence.macro_flow_evidence_count <= 0) {
-    return "상위 흐름 없음";
+  if (row.evidence.macro_flow_evidence_count > 0) {
+    return `상위 흐름 ${row.evidence.macro_flow_evidence_count}개`;
   }
-  return `상위 흐름 ${row.evidence.macro_flow_evidence_count}개`;
+  if (row.evidence.macro_flow_component_count > 0) {
+    return `흐름 점수 ${row.evidence.macro_flow_component_count}개`;
+  }
+  return "상위 흐름 없음";
 }
 
 function boundaryLabel(status: string) {
@@ -225,6 +230,8 @@ export default async function RecommendationsPage() {
           ? "근거 연결됨"
           : data.summary.evidence_quality_source_blocked_count > 0
             ? "원천 차단 있음"
+            : data.summary.paper_validation_pending_count > 0
+              ? "성과 검증 대기"
           : "근거 보강 필요",
       metric: `완료 ${data.summary.evidence_quality_ready_count.toLocaleString("ko-KR")}개 · 보강/대기 ${data.summary.evidence_quality_gap_count.toLocaleString("ko-KR")}개 · 원천 차단 ${data.summary.evidence_quality_source_blocked_count.toLocaleString("ko-KR")}개`,
       body:
@@ -232,6 +239,8 @@ export default async function RecommendationsPage() {
           ? "원천 차단 추천은 전문 판단과 가상 매매 입력에서 제외한다. 먼저 어떤 원천이 막혔는지 확인한다."
           : data.summary.evidence_quality_ready_count > 0
             ? "추천 상세에서 재무·밸류에이션·뉴스·사이클 근거가 어디까지 연결됐는지 확인한다."
+            : data.summary.paper_validation_pending_count > 0
+              ? "핵심 근거가 연결된 추천도 성과 측정창이 끝나기 전에는 weight 변경과 실거래 주문으로 넘기지 않는다."
             : "투자 논리나 근거가 연결되지 않은 신호는 전문 분석 입력으로 쓰면 안 된다.",
       href: topRecommendation ? recommendationHref(topRecommendation.recommendation_id) : "#recommendation-list",
       cta: "근거 추적",
