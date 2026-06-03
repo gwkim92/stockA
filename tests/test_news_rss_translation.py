@@ -219,6 +219,33 @@ class NewsRssTranslationTests(unittest.TestCase):
             ),
         )
 
+    def test_validate_translation_output_allows_overcrowded_crowded_derivative(self) -> None:
+        candidate = NewsRssTranslationCandidate(
+            event_id=26,
+            document_id=14789,
+            title="The 6% solution is gone: How overcrowded AI-powered trading has erased investors’ advantage",
+            summary="So many AI-driven stock picks, so little profit.",
+            published_at="2026-06-02T23:44:00+00:00",
+            source_name="rss_news:marketwatch",
+            external_document_id="rss:marketwatch:overcrowded-ai-trading",
+            source_url="https://www.marketwatch.com/story/the-6-solution-is-gone",
+            existing_theme_code="MARKET_NEWS_FLOW",
+            existing_instrument_symbol=None,
+            impact_direction="watch",
+            impact_score=0.61,
+        )
+        bounded_text = build_news_translation_input(candidate, max_input_chars=4000)
+
+        validate_news_translation_output_grounding(
+            candidate=candidate,
+            bounded_text=bounded_text,
+            output=NewsTranslationOutput(
+                korean_title="6% 해법은 사라졌다: crowded AI 트레이딩이 투자자 우위를 지운 방식",
+                korean_summary="원문은 AI 기반 주식 선택 전략이 crowded 상태가 되며 수익 기회가 줄었다고 전했다.",
+                translation_confidence=0.86,
+            ),
+        )
+
     def test_validate_translation_output_allows_personal_computer_pc_abbreviation(self) -> None:
         candidate = NewsRssTranslationCandidate(
             event_id=25,

@@ -388,6 +388,8 @@ def _expand_allowed_latin_tokens(tokens: set[str]) -> set[str]:
             expanded.add("etf")
         if token == "openai" or "openai" in parts:
             expanded.add("ai")
+        if token == "overcrowded":
+            expanded.add("crowded")
         if token in {"cryptocurrency", "cryptocurrencies"} or any(
             part in {"cryptocurrency", "cryptocurrencies"} for part in parts
         ):
