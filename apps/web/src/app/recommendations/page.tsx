@@ -123,6 +123,42 @@ function boundaryTone(status: string) {
   return "risk-high";
 }
 
+function evidenceQualityLabel(row: RecommendationRow) {
+  if (row.evidence_quality.status === "ready_for_review") {
+    return "근거 연결";
+  }
+  if (row.evidence_quality.status === "source_blocked") {
+    return "원천 차단";
+  }
+  if (row.evidence_quality.status === "paper_validation_pending") {
+    return "성과 대기";
+  }
+  if (row.evidence_quality.status === "coverage_gap") {
+    return "근거 보강";
+  }
+  return "근거 확인";
+}
+
+function evidenceQualityTone(row: RecommendationRow) {
+  if (row.evidence_quality.status === "ready_for_review") {
+    return "risk-low";
+  }
+  if (row.evidence_quality.status === "source_blocked") {
+    return "risk-high";
+  }
+  return "risk-medium";
+}
+
+function evidenceQualitySummary(row: RecommendationRow) {
+  const quality = row.evidence_quality;
+  const coverage = formatPercent(quality.coverage_ratio);
+  const missing =
+    quality.missing_layer_labels.length > 0
+      ? `빠진 근거: ${quality.missing_layer_labels.slice(0, 3).join(", ")}${quality.missing_layer_labels.length > 3 ? " 외" : ""}`
+      : "빠진 핵심 근거 없음";
+  return `근거 감사 ${coverage} · 완료 ${quality.available_layer_count}/${quality.expected_layer_count} · ${missing}`;
+}
+
 export default async function RecommendationsPage() {
   const response = await getRecommendations();
   const data = response.data;
@@ -185,17 +221,26 @@ export default async function RecommendationsPage() {
       index: "04",
       label: "전문 분석 근거",
       title:
-        data.summary.linked_thesis_count > 0 || data.summary.ai_or_event_evidence_count > 0
+        data.summary.evidence_quality_ready_count > 0
           ? "근거 연결됨"
+          : data.summary.evidence_quality_source_blocked_count > 0
+            ? "원천 차단 있음"
           : "근거 보강 필요",
-      metric: `투자 논리 ${data.summary.linked_thesis_count.toLocaleString("ko-KR")}개 · 뉴스·AI 해석 ${data.summary.ai_or_event_evidence_count.toLocaleString("ko-KR")}개`,
+      metric: `완료 ${data.summary.evidence_quality_ready_count.toLocaleString("ko-KR")}개 · 보강/대기 ${data.summary.evidence_quality_gap_count.toLocaleString("ko-KR")}개 · 원천 차단 ${data.summary.evidence_quality_source_blocked_count.toLocaleString("ko-KR")}개`,
       body:
-        data.summary.linked_thesis_count > 0 || data.summary.ai_or_event_evidence_count > 0
-          ? "추천 상세에서 재무·밸류에이션·뉴스·사이클 근거가 어디까지 연결됐는지 확인한다."
-          : "투자 논리나 근거가 연결되지 않은 신호는 전문 분석 입력으로 쓰면 안 된다.",
+        data.summary.evidence_quality_source_blocked_count > 0
+          ? "원천 차단 추천은 전문 판단과 가상 매매 입력에서 제외한다. 먼저 어떤 원천이 막혔는지 확인한다."
+          : data.summary.evidence_quality_ready_count > 0
+            ? "추천 상세에서 재무·밸류에이션·뉴스·사이클 근거가 어디까지 연결됐는지 확인한다."
+            : "투자 논리나 근거가 연결되지 않은 신호는 전문 분석 입력으로 쓰면 안 된다.",
       href: topRecommendation ? recommendationHref(topRecommendation.recommendation_id) : "#recommendation-list",
       cta: "근거 추적",
-      tone: data.summary.linked_thesis_count > 0 || data.summary.ai_or_event_evidence_count > 0 ? "ready" : "block",
+      tone:
+        data.summary.evidence_quality_source_blocked_count > 0
+          ? "block"
+          : data.summary.evidence_quality_ready_count > 0
+            ? "ready"
+            : "block",
     },
   ];
 
@@ -266,6 +311,9 @@ export default async function RecommendationsPage() {
                     <span className={`risk-tag ${boundaryTone(row.decision_boundary.status)}`}>
                       {boundaryLabel(row.decision_boundary.status)}
                     </span>
+                    <span className={`risk-tag ${evidenceQualityTone(row)}`}>
+                      {evidenceQualityLabel(row)}
+                    </span>
                     <span className="metric-sub">#{row.rank_position} · {koCode(row.bucket)} · {koCode(row.status)}</span>
                   </div>
                   <Link className="stock-symbol-link" href={recommendationHref(row.recommendation_id)}>
@@ -278,6 +326,18 @@ export default async function RecommendationsPage() {
                   <p style={{ color: "var(--text-secondary)", margin: "8px 0 0", lineHeight: 1.55 }}>
                     사용 가능 범위: {userFacingText(row.decision_boundary.reason)} 실거래 상태는 {userFacingText(row.decision_boundary.order_boundary)}다.
                   </p>
+                  <p style={{ color: "var(--text-secondary)", margin: "8px 0 0", lineHeight: 1.55 }}>
+                    {evidenceQualitySummary(row)}. {userFacingText(row.evidence_quality.summary)}
+                  </p>
+                  {row.evidence_quality.missing_layer_labels.length > 0 ? (
+                    <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginTop: "10px" }}>
+                      {row.evidence_quality.missing_layer_labels.slice(0, 5).map((label) => (
+                        <span className="risk-tag risk-medium" key={`${row.recommendation_id}-${label}`}>
+                          {label}
+                        </span>
+                      ))}
+                    </div>
+                  ) : null}
                   <div className="mini-link-stack" style={{ marginTop: "12px" }}>
                     <Link href={recommendationHref(row.recommendation_id)}>추천 상세</Link>
                     <Link href={stockHref(row.symbol)}>종목 상세</Link>

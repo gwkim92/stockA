@@ -3146,6 +3146,9 @@ class FakeLiveExecutor:
                         "paper_validation_pending_count": 0,
                         "decision_blocked_count": 1,
                         "order_blocked_count": 2,
+                        "evidence_quality_ready_count": 1,
+                        "evidence_quality_gap_count": 0,
+                        "evidence_quality_source_blocked_count": 1,
                         "average_score": "0.5189",
                     },
                     "recommendations": [
@@ -3170,6 +3173,25 @@ class FakeLiveExecutor:
                                 "macro_flow_evidence_count": 8,
                                 "quality_status": "ai_review_passed",
                                 "primary_evidence_id": "ai-evidence-8801",
+                            },
+                            "evidence_quality": {
+                                "status": "ready_for_review",
+                                "summary": "핵심 추천 근거가 연결됐다. 그래도 추천 weight와 주문은 바꾸지 않는다.",
+                                "product_type": "operating_company",
+                                "coverage_ratio": "1.0000",
+                                "available_layer_count": 9,
+                                "expected_layer_count": 9,
+                                "missing_layer_count": 0,
+                                "blocked_layer_count": 0,
+                                "pending_layer_count": 0,
+                                "missing_layers": [],
+                                "paper_validation_status": "measured",
+                                "source_blocker": {
+                                    "blocked": False,
+                                    "blocker_code": "",
+                                    "blocker_label": "",
+                                    "summary": "",
+                                },
                             },
                             "outcome": {
                                 "measurement_end_date": "2024-12-02",
@@ -3206,6 +3228,31 @@ class FakeLiveExecutor:
                                 "macro_flow_evidence_count": 0,
                                 "quality_status": "blocked",
                                 "primary_evidence_id": None,
+                            },
+                            "evidence_quality": {
+                                "status": "source_blocked",
+                                "summary": "표준 재무 원천이 차단되어 전문 판단과 페이퍼 검증 입력에서 제외한다.",
+                                "product_type": "operating_company",
+                                "coverage_ratio": "0.3333",
+                                "available_layer_count": 3,
+                                "expected_layer_count": 9,
+                                "missing_layer_count": 6,
+                                "blocked_layer_count": 2,
+                                "pending_layer_count": 0,
+                                "missing_layers": [
+                                    "macro_cycle",
+                                    "news_ai",
+                                    "financial_metric_normalized",
+                                    "active_thesis",
+                                    "paper_validation",
+                                ],
+                                "paper_validation_status": "blocked_source",
+                                "source_blocker": {
+                                    "blocked": True,
+                                    "blocker_code": "sec_companyfacts_missing_us_gaap_facts",
+                                    "blocker_label": "SEC us-gaap facts 없음",
+                                    "summary": "facts.us-gaap missing",
+                                },
                             },
                             "outcome": {
                                 "measurement_end_date": None,
@@ -7082,6 +7129,8 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertEqual(payload["data"]["summary"]["paper_validation_pending_count"], 0)
         self.assertEqual(payload["data"]["summary"]["decision_blocked_count"], 1)
         self.assertEqual(payload["data"]["summary"]["order_blocked_count"], 2)
+        self.assertEqual(payload["data"]["summary"]["evidence_quality_ready_count"], 1)
+        self.assertEqual(payload["data"]["summary"]["evidence_quality_source_blocked_count"], 1)
         self.assertEqual(payload["pagination"]["limit"], 1)
         self.assertTrue(payload["pagination"]["has_more"])
         row = payload["data"]["recommendations"][0]
@@ -7095,6 +7144,15 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertEqual(row["evidence"]["primary_evidence_id"], "ai-evidence-8801")
         self.assertEqual(row["evidence"]["macro_flow_component_count"], 1)
         self.assertEqual(row["evidence"]["macro_flow_evidence_count"], 8)
+        self.assertEqual(row["evidence_quality"]["status"], "ready_for_review")
+        self.assertEqual(row["evidence_quality"]["title"], "핵심 근거 연결")
+        self.assertEqual(row["evidence_quality"]["coverage_ratio"], 1.0)
+        self.assertEqual(row["evidence_quality"]["available_layer_count"], 9)
+        self.assertEqual(row["evidence_quality"]["expected_layer_count"], 9)
+        self.assertEqual(row["evidence_quality"]["missing_layer_labels"], [])
+        self.assertFalse(row["evidence_quality"]["automatic_weight_change_allowed"])
+        self.assertFalse(row["evidence_quality"]["broker_submit_allowed"])
+        self.assertEqual(row["evidence_quality"]["order_boundary"], "read_only_no_order")
         self.assertEqual(row["outcome"]["alpha"], 0.06)
         self.assertEqual(row["decision_boundary"]["status"], "decision_review_ready")
         self.assertTrue(row["decision_boundary"]["paper_validation_input_allowed"])
@@ -7124,6 +7182,16 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertIn("'paper_validation_pending_count'", sql)
         self.assertIn("'decision_blocked_count'", sql)
         self.assertIn("'order_blocked_count'", sql)
+        self.assertIn("'evidence_quality'", sql)
+        self.assertIn("'evidence_quality_ready_count'", sql)
+        self.assertIn("'evidence_quality_source_blocked_count'", sql)
+        self.assertIn("professional_source_linkage", sql)
+        self.assertIn("market.financial_metric_normalized", sql)
+        self.assertIn("market.peer_relative_snapshot", sql)
+        self.assertIn("market.valuation_snapshot", sql)
+        self.assertIn("research.industry_competitive_position", sql)
+        self.assertIn("research.equity_research_artifact", sql)
+        self.assertIn("recommendation_weights_unchanged", sql)
         self.assertIn("'decision_boundary'", sql)
         self.assertIn("'read_only_no_order'", sql)
         self.assertIn("performance.recommendation_outcome", sql)

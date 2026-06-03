@@ -2137,6 +2137,11 @@ def build_live_recommendation_list_response(
                 "paper_validation_pending_count": int(summary.get("paper_validation_pending_count") or 0),
                 "decision_blocked_count": int(summary.get("decision_blocked_count") or 0),
                 "order_blocked_count": int(summary.get("order_blocked_count") or 0),
+                "evidence_quality_ready_count": int(summary.get("evidence_quality_ready_count") or 0),
+                "evidence_quality_gap_count": int(summary.get("evidence_quality_gap_count") or 0),
+                "evidence_quality_source_blocked_count": int(
+                    summary.get("evidence_quality_source_blocked_count") or 0
+                ),
                 "average_score": _number(summary.get("average_score")),
             },
             "recommendations": recommendations,
@@ -11749,7 +11754,8 @@ recommendation_base as (
         batch.horizon_type,
         batch.universe_version,
         instrument.primary_symbol,
-        instrument.name
+        instrument.name,
+        instrument.instrument_type
     from latest_batch batch
     join signal.recommendation recommendation on recommendation.batch_id = batch.batch_id
     join ref.instrument instrument on instrument.instrument_id = recommendation.instrument_id
@@ -11780,6 +11786,22 @@ score_component_counts as (
     from signal.recommendation_score_component component
     join recommendation_base recommendation on recommendation.recommendation_id = component.recommendation_id
     group by component.recommendation_id
+),
+professional_source_linkage as (
+    select distinct on (upper(run.config_json ->> 'fallback_symbol'))
+        upper(run.config_json ->> 'fallback_symbol') as primary_symbol,
+        run.status,
+        run.error_summary,
+        case
+            when run.error_summary ilike '%facts.us-gaap%' then 'sec_companyfacts_missing_us_gaap_facts'
+            when run.error_summary ilike '%HTTP Error 404%' then 'sec_companyfacts_not_found'
+            when run.status = 'failed' then 'financial_source_linkage_failed'
+            else null
+        end as blocker_code
+    from ops.pipeline_run run
+    where run.pipeline_name = 'financial_period_source_linkage'
+      and nullif(run.config_json ->> 'fallback_symbol', '') is not null
+    order by upper(run.config_json ->> 'fallback_symbol'), run.started_at desc nulls last, run.run_id desc
 ),
 recommendation_rows as (
     select
@@ -11824,7 +11846,8 @@ recommendation_rows as (
             as paper_validation_input_allowed,
         false as automatic_order_allowed,
         false as broker_submit_allowed,
-        'read_only_no_order' as order_boundary
+        'read_only_no_order' as order_boundary,
+        professional_evidence.evidence_quality
     from recommendation_base recommendation
     left join score_component_counts component_count
       on component_count.recommendation_id = recommendation.recommendation_id
@@ -11862,6 +11885,173 @@ recommendation_rows as (
         where propagated_impact.instrument_id = recommendation.instrument_id
           and event_row.event_at < (recommendation.as_of_date + interval '1 day')
     ) macro_flow_evidence on true
+    left join professional_source_linkage source_linkage
+      on upper(source_linkage.primary_symbol) = upper(recommendation.primary_symbol)
+    left join lateral (
+        select json_build_object(
+            'status',
+            case
+                when scored.source_blocker_code is not null then 'source_blocked'
+                when scored.missing_layer_count = 0 then 'ready_for_review'
+                when scored.missing_layer_count = 1 and 'paper_validation' = any(scored.missing_layers) then 'paper_validation_pending'
+                else 'coverage_gap'
+            end,
+            'summary',
+            case
+                when scored.source_blocker_code is not null then '표준 재무 원천이 차단되어 전문 판단과 페이퍼 검증 입력에서 제외한다.'
+                when scored.missing_layer_count = 0 then '핵심 추천 근거가 연결됐다. 그래도 추천 weight와 주문은 바꾸지 않는다.'
+                when scored.missing_layer_count = 1 and 'paper_validation' = any(scored.missing_layers) then '핵심 근거는 연결됐지만 성과 측정창이 아직 끝나지 않았다.'
+                else '추천 상세에서 빠진 전문 근거를 먼저 확인해야 한다.'
+            end,
+            'product_type', scored.product_type,
+            'coverage_ratio', scored.coverage_ratio,
+            'available_layer_count', scored.available_layer_count,
+            'expected_layer_count', scored.expected_layer_count,
+            'missing_layer_count', scored.missing_layer_count,
+            'blocked_layer_count', scored.blocked_layer_count,
+            'pending_layer_count', scored.pending_layer_count,
+            'missing_layers', scored.missing_layers,
+            'paper_validation_status',
+            case
+                when scored.source_blocker_code is not null then 'blocked_source'
+                when 'paper_validation' = any(scored.missing_layers) then 'pending'
+                else 'measured'
+            end,
+            'source_blocker',
+            json_build_object(
+                'blocked', scored.source_blocker_code is not null,
+                'blocker_code', coalesce(scored.source_blocker_code, ''),
+                'blocker_label',
+                case scored.source_blocker_code
+                    when 'sec_companyfacts_missing_us_gaap_facts' then 'SEC us-gaap facts 없음'
+                    when 'sec_companyfacts_not_found' then 'SEC companyfacts 미제공'
+                    when 'financial_source_linkage_failed' then '재무 원천 연결 실패'
+                    else ''
+                end,
+                'summary', coalesce(source_linkage.error_summary, '')
+            ),
+            'score_policy', 'recommendation_weights_unchanged',
+            'automatic_weight_change_allowed', false,
+            'automatic_order_allowed', false,
+            'broker_submit_allowed', false,
+            'order_boundary', 'read_only_no_order'
+        ) as evidence_quality
+        from (
+            select
+                raw.product_type,
+                raw.missing_layers,
+                raw.source_blocker_code,
+                cardinality(raw.missing_layers)::int as missing_layer_count,
+                raw.expected_layer_count,
+                greatest(raw.expected_layer_count - cardinality(raw.missing_layers), 0)::int as available_layer_count,
+                case
+                    when raw.source_blocker_code is not null then 2
+                    else 0
+                end as blocked_layer_count,
+                case
+                    when raw.source_blocker_code is null and 'paper_validation' = any(raw.missing_layers) then 1
+                    else 0
+                end as pending_layer_count,
+                (
+                    greatest(raw.expected_layer_count - cardinality(raw.missing_layers), 0)::numeric
+                    / nullif(raw.expected_layer_count::numeric, 0)
+                )::numeric(8,4) as coverage_ratio
+            from (
+                select
+                    case when fund_like.is_fund_like then 'fund_or_etf' else 'operating_company' end as product_type,
+                    case
+                        when not fund_like.is_fund_like and source_linkage.status = 'failed'
+                            then coalesce(source_linkage.blocker_code, 'financial_source_linkage_failed')
+                        else null
+                    end as source_blocker_code,
+                    case when fund_like.is_fund_like then 8 else 9 end as expected_layer_count,
+                    case
+                        when fund_like.is_fund_like then array_remove(array[
+                            case when coalesce(component_count.macro_flow_component_count, 0) > 0 or coalesce(macro_flow_evidence.macro_flow_evidence_count, 0) > 0 then null else 'macro_cycle' end,
+                            case when coalesce(component_count.ai_or_event_component_count, 0) > 0 or evidence.event_id is not null then null else 'news_ai' end,
+                            case when recommendation.thesis_id is not null then null else 'active_thesis' end,
+                            case when coalesce(outcome.outcome_label, 'unmeasured') <> 'unmeasured' then null else 'paper_validation' end,
+                            case when exists (
+                                select 1
+                                from ref.benchmark_composition composition
+                                where upper(composition.benchmark_code) = upper(recommendation.primary_symbol)
+                                  and composition.valid_from <= recommendation.as_of_date
+                                  and (composition.valid_to is null or composition.valid_to >= recommendation.as_of_date)
+                            ) then null else 'fund_benchmark_composition' end,
+                            case when exists (
+                                select 1
+                                from market.fund_metric_snapshot metric
+                                where metric.instrument_id = recommendation.instrument_id
+                                  and metric.source_as_of_date <= recommendation.as_of_date
+                                  and metric.metric_code in ('gross_expense_ratio', 'net_expense_ratio')
+                            ) then null else 'fund_expense_ratio' end,
+                            case when exists (
+                                select 1
+                                from market.fund_metric_snapshot metric
+                                where metric.instrument_id = recommendation.instrument_id
+                                  and metric.source_as_of_date <= recommendation.as_of_date
+                                  and metric.metric_code in ('nav_per_share', 'premium_discount_to_nav')
+                            ) then null else 'fund_nav_premium_discount' end,
+                            case when exists (
+                                select 1
+                                from market.fund_metric_snapshot metric
+                                where metric.instrument_id = recommendation.instrument_id
+                                  and metric.source_as_of_date <= recommendation.as_of_date
+                                  and metric.metric_code like 'tracking_difference_nav_%'
+                            ) then null else 'fund_tracking_difference' end
+                        ], null)
+                        else array_remove(array[
+                            case when coalesce(component_count.macro_flow_component_count, 0) > 0 or coalesce(macro_flow_evidence.macro_flow_evidence_count, 0) > 0 then null else 'macro_cycle' end,
+                            case when coalesce(component_count.ai_or_event_component_count, 0) > 0 or evidence.event_id is not null then null else 'news_ai' end,
+                            case when exists (
+                                select 1
+                                from market.financial_metric_normalized metric
+                                where metric.instrument_id = recommendation.instrument_id
+                                  and metric.as_of_date <= recommendation.as_of_date
+                                  and metric.metric_status = 'computed'
+                            ) then null else 'financial_metric_normalized' end,
+                            case when exists (
+                                select 1
+                                from market.peer_relative_snapshot peer_snapshot
+                                where peer_snapshot.instrument_id = recommendation.instrument_id
+                                  and peer_snapshot.as_of_date <= recommendation.as_of_date
+                            ) then null else 'peer_relative_snapshot' end,
+                            case when exists (
+                                select 1
+                                from market.valuation_snapshot valuation
+                                where valuation.instrument_id = recommendation.instrument_id
+                                  and valuation.as_of_date <= recommendation.as_of_date
+                            ) then null else 'valuation_snapshot' end,
+                            case when exists (
+                                select 1
+                                from research.industry_competitive_position position
+                                where position.instrument_id = recommendation.instrument_id
+                                  and position.as_of_date <= recommendation.as_of_date
+                            ) then null else 'industry_competitive_position' end,
+                            case when exists (
+                                select 1
+                                from research.equity_research_artifact artifact
+                                where artifact.instrument_id = recommendation.instrument_id
+                                  and artifact.as_of_date <= recommendation.as_of_date
+                            ) then null else 'equity_research_artifact' end,
+                            case when recommendation.thesis_id is not null then null else 'active_thesis' end,
+                            case
+                                when source_linkage.status = 'failed' then 'paper_validation'
+                                when coalesce(outcome.outcome_label, 'unmeasured') <> 'unmeasured' then null
+                                else 'paper_validation'
+                            end
+                        ], null)
+                    end as missing_layers
+                from (
+                    select (
+                        upper(coalesce(recommendation.name, '')) like '%ETF%'
+                        or upper(coalesce(recommendation.name, '')) like '%TRUST%'
+                        or lower(coalesce(recommendation.instrument_type, '')) in ('etf', 'fund')
+                    ) as is_fund_like
+                ) fund_like
+            ) raw
+        ) scored
+    ) professional_evidence on true
 ),
 recommendation_page as (
     select *
@@ -11889,6 +12079,9 @@ select json_build_object(
         'paper_validation_pending_count', (select count(*) filter (where decision_boundary_status = 'paper_validation_pending')::int from recommendation_rows),
         'decision_blocked_count', (select count(*) filter (where decision_boundary_status like 'blocked_%')::int from recommendation_rows),
         'order_blocked_count', (select count(*)::int from recommendation_rows),
+        'evidence_quality_ready_count', (select count(*) filter (where evidence_quality ->> 'status' = 'ready_for_review')::int from recommendation_rows),
+        'evidence_quality_gap_count', (select count(*) filter (where evidence_quality ->> 'status' in ('coverage_gap', 'paper_validation_pending'))::int from recommendation_rows),
+        'evidence_quality_source_blocked_count', (select count(*) filter (where evidence_quality ->> 'status' = 'source_blocked')::int from recommendation_rows),
         'average_score', (select avg(total_score) from recommendation_rows)
     ),
     'recommendations',
@@ -11918,6 +12111,7 @@ select json_build_object(
                         'quality_status', quality_status,
                         'primary_evidence_id', primary_evidence_id
                     ),
+                    'evidence_quality', evidence_quality,
                     'outcome',
                     json_build_object(
                         'measurement_end_date', measurement_end_date,
@@ -18793,6 +18987,7 @@ def _build_linked_evidence_payload(evidence: dict[str, Any]) -> dict[str, Any]:
 def _build_recommendation_list_item_payload(item: dict[str, Any]) -> dict[str, Any]:
     symbol = str(item.get("symbol") or "UNKNOWN").upper()
     evidence = _as_dict(item.get("evidence"))
+    evidence_quality = _as_dict(item.get("evidence_quality"))
     outcome = _as_dict(item.get("outcome"))
     linked_thesis_id = item.get("linked_thesis_id")
     primary_evidence_id = evidence.get("primary_evidence_id")
@@ -18818,6 +19013,7 @@ def _build_recommendation_list_item_payload(item: dict[str, Any]) -> dict[str, A
             "quality_status": str(evidence.get("quality_status") or "unknown"),
             "primary_evidence_id": str(primary_evidence_id) if primary_evidence_id else None,
         },
+        "evidence_quality": _build_recommendation_list_evidence_quality_payload(evidence_quality),
         "outcome": {
             "measurement_end_date": str(outcome.get("measurement_end_date") or ""),
             "label": str(outcome.get("label") or "unmeasured"),
@@ -18830,6 +19026,80 @@ def _build_recommendation_list_item_payload(item: dict[str, Any]) -> dict[str, A
             outcome=outcome,
         ),
     }
+
+
+def _build_recommendation_list_evidence_quality_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    missing_layers = [str(item) for item in _as_scalar_list(payload.get("missing_layers")) if str(item)]
+    source_blocker = _as_dict(payload.get("source_blocker"))
+    status = str(payload.get("status") or "unknown")
+    product_type = str(payload.get("product_type") or "operating_company")
+    expected_layer_count = int(payload.get("expected_layer_count") or 0)
+    available_layer_count = int(payload.get("available_layer_count") or 0)
+    missing_layer_count = int(payload.get("missing_layer_count") or len(missing_layers))
+    blocked_layer_count = int(payload.get("blocked_layer_count") or 0)
+    pending_layer_count = int(payload.get("pending_layer_count") or 0)
+    return {
+        "status": status,
+        "title": _recommendation_list_evidence_quality_title(status),
+        "summary": str(payload.get("summary") or _recommendation_list_evidence_quality_summary(
+            status=status,
+            expected_layer_count=expected_layer_count,
+            available_layer_count=available_layer_count,
+            missing_layer_count=missing_layer_count,
+            pending_layer_count=pending_layer_count,
+        )),
+        "product_type": product_type,
+        "coverage_ratio": _number(payload.get("coverage_ratio")),
+        "available_layer_count": available_layer_count,
+        "expected_layer_count": expected_layer_count,
+        "missing_layer_count": missing_layer_count,
+        "blocked_layer_count": blocked_layer_count,
+        "pending_layer_count": pending_layer_count,
+        "missing_layers": missing_layers,
+        "missing_layer_labels": [_professional_source_layer_label(layer) for layer in missing_layers],
+        "source_blocker": {
+            "blocked": source_blocker.get("blocked") is True,
+            "blocker_code": str(source_blocker.get("blocker_code") or ""),
+            "blocker_label": str(source_blocker.get("blocker_label") or ""),
+            "summary": str(source_blocker.get("summary") or ""),
+        },
+        "paper_validation_status": str(payload.get("paper_validation_status") or "unknown"),
+        "score_policy": "recommendation_weights_unchanged",
+        "automatic_weight_change_allowed": False,
+        "automatic_order_allowed": False,
+        "broker_submit_allowed": False,
+        "order_boundary": "read_only_no_order",
+    }
+
+
+def _recommendation_list_evidence_quality_title(status: str) -> str:
+    if status == "ready_for_review":
+        return "핵심 근거 연결"
+    if status == "source_blocked":
+        return "원천 차단"
+    if status == "paper_validation_pending":
+        return "성과 검증 대기"
+    if status == "coverage_gap":
+        return "근거 보강 필요"
+    return "근거 상태 확인 필요"
+
+
+def _recommendation_list_evidence_quality_summary(
+    *,
+    status: str,
+    expected_layer_count: int,
+    available_layer_count: int,
+    missing_layer_count: int,
+    pending_layer_count: int,
+) -> str:
+    base = f"근거 레이어 {expected_layer_count}개 중 {available_layer_count}개가 연결됐고 누락 {missing_layer_count}개, 대기 {pending_layer_count}개다."
+    if status == "ready_for_review":
+        return f"{base} 그래도 주문과 weight 변경은 차단된다."
+    if status == "source_blocked":
+        return f"{base} 원천 재무 데이터가 막혀 전문 판단 입력으로 쓰면 안 된다."
+    if status == "paper_validation_pending":
+        return f"{base} 성과 측정창이 끝날 때까지 기다린다."
+    return f"{base} 추천 상세에서 빠진 근거를 확인한다."
 
 
 def _build_recommendation_list_boundary_payload(

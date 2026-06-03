@@ -1659,6 +1659,9 @@ export type RecommendationListData = {
     paper_validation_pending_count: number;
     decision_blocked_count: number;
     order_blocked_count: number;
+    evidence_quality_ready_count: number;
+    evidence_quality_gap_count: number;
+    evidence_quality_source_blocked_count: number;
     average_score: number | null;
   };
   recommendations: Array<{
@@ -1682,6 +1685,32 @@ export type RecommendationListData = {
       macro_flow_evidence_count: number;
       quality_status: string;
       primary_evidence_id: string | null;
+    };
+    evidence_quality: {
+      status: string;
+      title: string;
+      summary: string;
+      product_type: string;
+      coverage_ratio: number | null;
+      available_layer_count: number;
+      expected_layer_count: number;
+      missing_layer_count: number;
+      blocked_layer_count: number;
+      pending_layer_count: number;
+      missing_layers: string[];
+      missing_layer_labels: string[];
+      source_blocker: {
+        blocked: boolean;
+        blocker_code: string;
+        blocker_label: string;
+        summary: string;
+      };
+      paper_validation_status: string;
+      score_policy: string;
+      automatic_weight_change_allowed: boolean;
+      automatic_order_allowed: boolean;
+      broker_submit_allowed: boolean;
+      order_boundary: string;
     };
     outcome: {
       measurement_end_date: string;
