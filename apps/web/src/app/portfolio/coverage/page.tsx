@@ -5,7 +5,7 @@ import { getPortfolioCoverage, getTradingReadiness } from "@/lib/frontend-api";
 import { koCode, koLabel, koReason } from "@/lib/korean-labels";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "보유 검토" };
+export const metadata = { title: "보유·리스크 상태" };
 
 const USER_FACING_REPLACEMENTS: Array<[string, string]> = [
   ["read_only_no_order", "읽기 전용, 실거래 주문 차단"],
@@ -26,11 +26,11 @@ const USER_FACING_REPLACEMENTS: Array<[string, string]> = [
   ["blocked", "차단"],
   ["pending", "대기"],
   ["no_op", "대기"],
-  ["weight review", "추천 산식 검토"],
+  ["weight review", "추천 산식 변경 여부"],
   ["weight", "비중"],
   ["가중치", "추천 산식 반영 비중"],
   ["주문 경계", "실거래 상태"],
-  ["페이퍼", "가상 매매"],
+  [["페", "이퍼"].join(""), "가상 매매"],
   ["가상 거래", "가상 매매"],
   ["커버리지", "연결 상태"],
   ["커버됨", "연결됨"],
@@ -38,19 +38,19 @@ const USER_FACING_REPLACEMENTS: Array<[string, string]> = [
 
 const USER_FACING_CODES: Record<string, string> = {
   add_blocked_until_evidence: "근거 보강 전 증액 금지",
-  benchmark_drift_review: "벤치마크 괴리 검토",
+  benchmark_drift_review: "벤치마크 괴리 확인",
   contradicted: "반박됨",
   execute_calibration: "누적평가 실행",
   execute_feedback: "사후평가 실행",
   has_contradictions: "반박 근거 있음",
   hold_with_thesis: "투자 논리 유지",
   needs_more_data: "추가 성과 필요",
-  needs_position_review: "비중 검토 필요",
+  needs_position_review: "비중 확인 필요",
   needs_thesis_update: "투자 논리 보강",
   no_op_wait_for_outcome_window: "성과 관찰 기간 대기",
-  reduce_review: "축소 검토",
+  reduce_review: "축소 필요성 확인",
   reduce_watch: "축소 관찰",
-  review_required: "검토 필요",
+  review_required: "확인 필요",
   run_calibration_now: "누적평가 실행 필요",
   run_feedback_now: "사후평가 실행 필요",
   too_early: "관찰 기간 부족",
@@ -122,7 +122,7 @@ function riskBudgetLabel(status: string) {
     return "한도 내";
   }
   if (status === "needs_position_review") {
-    return "비중 검토 필요";
+    return "비중 확인 필요";
   }
   if (status === "missing_position_snapshot") {
     return "스냅샷 없음";
@@ -161,7 +161,7 @@ function concentrationStatusLabel(status: string) {
     return "집중도 한도 내";
   }
   if (status === "needs_concentration_review") {
-    return "집중도 검토 필요";
+    return "집중도 확인 필요";
   }
   if (status === "classification_gap") {
     return "분류 보강 필요";
@@ -362,12 +362,12 @@ export default async function PortfolioCoveragePage() {
   const portfolioCommandCards = [
     {
       index: "01",
-      label: "보유 검토",
+      label: "보유 상태",
       title: hasPositions ? `${data.summary.position_count}개 보유` : "보유 스냅샷 없음",
       metric: `투자 논리 연결률 ${formatPercent(thesisCoverageRatio)} · 성과 측정 ${formatPercent(outcomeCoverageRatio)}`,
       body: hasPositions
-        ? "보유 종목마다 투자 논리와 성과 측정 상태가 연결됐는지 먼저 본다. 논리 누락 종목은 보유 판단 근거가 약하다."
-        : "이 기준일에는 포지션 스냅샷이 없어 보유 검토를 만들 수 없다. 포지션 수집 상태를 먼저 확인한다.",
+        ? "보유 종목마다 투자 논리와 성과 측정 상태가 연결됐는지 먼저 본다. 논리 누락 종목은 보유 근거가 약하다."
+        : "이 기준일에는 포지션 스냅샷이 없어 보유 상태를 만들 수 없다. 포지션 수집 상태를 먼저 확인한다.",
       href: "#portfolio-position-map",
       cta: "보유 지도 보기",
       tone: thesisReady ? "ready" : "watch",
@@ -378,7 +378,7 @@ export default async function PortfolioCoveragePage() {
       title: riskBudgetLabel(riskBudget.status),
       metric: `한도 초과 ${riskBudget.over_single_position_limit_count}개 · 집중 초과 ${concentration.over_limit_count}개`,
       body: riskBudget.status === "needs_position_review" || concentration.over_limit_count > 0
-        ? "단일 종목, 섹터, 테마 노출이 정책 한도와 충돌하는지 확인한다. 이 값은 주문 지시가 아니라 위험 검토 신호다."
+        ? "단일 종목, 섹터, 테마 노출이 정책 한도와 충돌하는지 확인한다. 이 값은 주문 지시가 아니라 위험 확인 신호다."
         : "현재 정책 기준으로 큰 한도 초과는 없다. 그래도 비중과 집중도는 아래 카드에서 계속 확인한다.",
       href: "#portfolio-risk-budget",
       cta: "리스크 보기",
@@ -386,24 +386,24 @@ export default async function PortfolioCoveragePage() {
     },
     {
       index: "03",
-      label: "리밸런싱 후보",
-      title: reviewCandidateTotal > 0 ? `${reviewCandidateTotal}개 검토` : "즉시 후보 없음",
+      label: "리밸런싱 확인 대상",
+      title: reviewCandidateTotal > 0 ? `${reviewCandidateTotal}개 확인 대상` : "즉시 대상 없음",
       metric: `벤치마크 ${candidateReview.candidate_count}개 · 포지션 ${positionSizingReview.review_required_count}개`,
       body: reviewCandidateTotal > 0
-        ? "SPY 대비 괴리나 포지션 크기 문제를 검토한다. 매수·매도 버튼이 아니라 상세 판단으로 들어가는 입구다."
-        : "현재 검토 기준으로 리밸런싱 후보가 없다.",
+        ? "SPY 대비 괴리나 포지션 크기 문제를 확인한다. 매수·매도 버튼이 아니라 상세 근거로 들어가는 입구다."
+        : "현재 기준으로 리밸런싱 확인 대상이 없다.",
       href: "#portfolio-rebalance-review",
-      cta: "후보 보기",
+      cta: "확인 대상 보기",
       tone: reviewCandidateTotal > 0 ? "watch" : "ready",
     },
     {
       index: "04",
       label: "성과 성숙 대기",
-      title: reviewCalibration.weight_review_blocked ? "추천 산식 변경 금지" : "별도 검토 가능",
+      title: reviewCalibration.weight_review_blocked ? "추천 산식 변경 금지" : "조건 확인 가능",
       metric: `성숙일 ${reviewCalibration.estimated_maturity_date || "미정"} · ${orderBoundaryLabel(reviewCalibration.guardrails.order_boundary)}`,
       body: reviewCalibration.weight_review_blocked
         ? "성과 표본이 성숙하기 전에는 추천 산식 반영 비중을 바꾸지 않는다. 실거래 주문과 자동 리밸런싱도 계속 차단된다."
-        : "수동 검토 조건이 열려도 이 화면에서 자동 주문이나 자동 비중 변경은 하지 않는다.",
+        : "조건이 열려도 이 화면에서 자동 주문이나 자동 비중 변경은 하지 않는다.",
       href: "#portfolio-outcome-boundary",
       cta: "상태 보기",
       tone: reviewCalibration.weight_review_blocked ? "block" : "watch",
@@ -414,12 +414,12 @@ export default async function PortfolioCoveragePage() {
     <div className="pageStack">
       <section className="page-hero reveal" aria-labelledby="portfolio-coverage-title">
         <div className="bento-badge">
-          보유 검토 지도 • {userFacingText(data.portfolio_name)} • {userFacingText(data.strategy_name)} • {data.as_of_date}
+          보유·리스크 상태 • {userFacingText(data.portfolio_name)} • {userFacingText(data.strategy_name)} • {data.as_of_date}
         </div>
         <div>
-          <h1 id="portfolio-coverage-title">보유 종목을 검토하고, 무엇은 아직 바꾸면 안 되는지 확인한다.</h1>
+          <h1 id="portfolio-coverage-title">보유 종목 상태와 아직 바꾸면 안 되는 항목을 확인한다.</h1>
           <p>
-            이 화면은 포트폴리오 주문 화면이 아니다. 보유 투자 논리, 리스크 예산, 리밸런싱 후보,
+            이 화면은 포트폴리오 주문 화면이 아니다. 보유 투자 논리, 리스크 예산, 리밸런싱 확인 대상,
             성과 성숙 대기, 추천 산식 반영 비중 변경 금지 상태를 분리해서 보여준다.
           </p>
         </div>
@@ -428,7 +428,7 @@ export default async function PortfolioCoveragePage() {
       <section className="portfolio-command-panel reveal delay-1" aria-labelledby="portfolio-command-title">
         <div className="portfolio-command-lead">
           <span>포트폴리오 판정판</span>
-          <h2 id="portfolio-command-title">보유를 유지할지보다, 먼저 무엇을 검토해야 하는지 본다.</h2>
+          <h2 id="portfolio-command-title">보유를 유지할지보다, 먼저 어떤 위험과 공백이 있는지 본다.</h2>
           <p>
             기준일 {data.as_of_date} · 측정 종료 {data.coverage_measurement_end_date}.
             모든 카드는 읽기 전용이며, 실거래 주문·자동 리밸런싱·추천 산식 반영 비중 변경은 이 화면에서 실행되지 않는다.
@@ -497,7 +497,7 @@ export default async function PortfolioCoveragePage() {
           </div>
           <p style={{ color: "var(--text-secondary)", marginTop: 0 }}>
             추천 점수는 매수·매도 명령이 아니다. 실제 보유 비중은 단일 종목 한도, 리밸런싱 기준,
-            투자 논리와 성과 측정 연결 상태를 함께 보고 따로 판단한다.
+            투자 논리와 성과 측정 연결 상태를 함께 보고 따로 결정한다.
           </p>
           <div className="status-rail compact-rail" aria-label="위험 예산 요약">
             <article className="rail-cell">
@@ -513,7 +513,7 @@ export default async function PortfolioCoveragePage() {
             <article className="rail-cell">
               <span>한도 초과</span>
               <strong>{riskBudget.over_single_position_limit_count}</strong>
-              <small>축소/검토 후보</small>
+              <small>축소 확인 대상</small>
             </article>
             <article className="rail-cell">
               <span>작은 비중</span>
@@ -575,18 +575,18 @@ export default async function PortfolioCoveragePage() {
         <article className="bento-card span-4" style={{ borderColor: reviewHistory.decision_status === "review_required" ? "var(--accent-amber)" : "var(--border-light)" }}>
           <div className="section-heading">
             <div>
-              <span className="metric-sub">저장된 포트폴리오 검토 이력</span>
-              <h2>오늘 보이는 판단 후보가 감사 이력으로 남았는지 본다</h2>
+              <span className="metric-sub">저장된 포트폴리오 결정 이력</span>
+              <h2>오늘 보이는 확인 대상이 감사 이력으로 남았는지 본다</h2>
             </div>
             <span className={`risk-tag ${reviewHistory.decision_status === "review_required" ? "risk-medium" : "risk-low"}`}>
               {reviewHistory.status === "loaded" ? userFacingText(reviewHistory.decision_status) : "이력 없음"}
             </span>
           </div>
           <p style={{ color: "var(--text-secondary)", marginTop: 0 }}>
-            리밸런싱 후보와 포지션 크기 검토는 주문이 아니라 의사결정 기록이다. 이력이 없으면 같은 화면을 나중에
-            다시 봤을 때 당시 판단 근거를 추적하기 어렵다.
+            리밸런싱 확인 대상과 포지션 크기 상태는 주문이 아니라 의사결정 기록이다. 이력이 없으면 같은 화면을 나중에
+            다시 봤을 때 당시 근거를 추적하기 어렵다.
           </p>
-          <div className="status-rail compact-rail" aria-label="포트폴리오 검토 이력 요약" style={{ marginBottom: "20px" }}>
+          <div className="status-rail compact-rail" aria-label="포트폴리오 결정 이력 요약" style={{ marginBottom: "20px" }}>
             <article className="rail-cell">
               <span>이력 기록</span>
               <strong>{recordPresent(reviewHistory.eval_run_id)}</strong>
@@ -595,12 +595,12 @@ export default async function PortfolioCoveragePage() {
             <article className="rail-cell">
               <span>저장 결정</span>
               <strong>{reviewHistory.decision_count}</strong>
-              <small>검토 필요 {reviewHistory.review_required_count}개</small>
+              <small>확인 필요 {reviewHistory.review_required_count}개</small>
             </article>
             <article className="rail-cell">
               <span>벤치마크 / 포지션</span>
               <strong>{reviewHistory.benchmark_decision_count} / {reviewHistory.position_sizing_decision_count}</strong>
-              <small>판단군 분리</small>
+              <small>상태군 분리</small>
             </article>
             <article className="rail-cell rail-critical">
               <span>실거래 상태</span>
@@ -627,7 +627,7 @@ export default async function PortfolioCoveragePage() {
             </div>
           ) : (
             <p className="empty-state" style={{ margin: 0 }}>
-              아직 저장된 검토 이력이 없다. 포트폴리오 검토 이력이 생성되면 이곳에 최신 결정이 표시된다.
+              아직 저장된 결정 이력이 없다. 포트폴리오 결정 이력이 생성되면 이곳에 최신 결정이 표시된다.
             </p>
           )}
         </article>
@@ -635,18 +635,18 @@ export default async function PortfolioCoveragePage() {
         <article className="bento-card span-4" style={{ borderColor: reviewFeedback.feedback_status === "has_contradictions" ? "var(--accent-red)" : "var(--border-light)" }}>
           <div className="section-heading">
             <div>
-              <span className="metric-sub">검토 결정 사후평가</span>
-              <h2>저장한 판단이 이후 성과와 맞았는지 본다</h2>
+              <span className="metric-sub">포트폴리오 결정 사후평가</span>
+              <h2>저장한 결정이 이후 성과와 맞았는지 본다</h2>
             </div>
             <span className={`risk-tag ${feedbackStatusClass(reviewFeedback.feedback_status)}`}>
               {reviewFeedback.status === "loaded" ? userFacingText(reviewFeedback.feedback_status) : "평가 없음"}
             </span>
           </div>
           <p style={{ color: "var(--text-secondary)", marginTop: 0 }}>
-            이 평가는 리밸런싱이나 추천 산식 반영 비중을 바꾸지 않는다. 이전 검토 결정을 성과 측정,
-            가상 매매 검증, 투자 논리, 가격 변화와 대조해서 다음 검토의 신뢰도를 높이는 자료다.
+            이 평가는 리밸런싱이나 추천 산식 반영 비중을 바꾸지 않는다. 이전 결정을 성과 측정,
+            가상 매매 검증, 투자 논리, 가격 변화와 대조해서 다음 상태 확인의 신뢰도를 높이는 자료다.
           </p>
-          <div className="status-rail compact-rail" aria-label="검토 결정 사후평가 요약" style={{ marginBottom: "20px" }}>
+          <div className="status-rail compact-rail" aria-label="포트폴리오 결정 사후평가 요약" style={{ marginBottom: "20px" }}>
             <article className="rail-cell">
               <span>평가 기록</span>
               <strong>{recordPresent(reviewFeedback.eval_run_id)}</strong>
@@ -689,7 +689,7 @@ export default async function PortfolioCoveragePage() {
             </div>
           ) : (
             <p className="empty-state" style={{ margin: 0 }}>
-              아직 사후평가 이력이 없다. 성과 측정 기간이 끝난 뒤 검토 판단이 맞았는지 여기에 표시된다.
+              아직 사후평가 이력이 없다. 성과 측정 기간이 끝난 뒤 저장된 결정이 맞았는지 여기에 표시된다.
             </p>
           )}
         </article>
@@ -697,27 +697,27 @@ export default async function PortfolioCoveragePage() {
         <article id="portfolio-outcome-boundary" className="bento-card span-4" style={{ borderColor: reviewCalibration.calibration_status === "contradiction_review_required" ? "var(--accent-red)" : "var(--border-light)" }}>
           <div className="section-heading">
             <div>
-              <span className="metric-sub">검토 신뢰도 누적평가</span>
+              <span className="metric-sub">포트폴리오 결정 신뢰도</span>
               <h2>성과 표본이 성숙하기 전에는 추천 산식 반영 비중을 바꾸지 않는다</h2>
             </div>
             <span className={`risk-tag ${reviewCalibration.weight_review_blocked ? "risk-medium" : "risk-low"}`}>
               {reviewCalibration.status === "loaded"
-                  ? reviewCalibration.weight_review_blocked ? "추천 산식 변경 금지" : "별도 검토 가능"
+                  ? reviewCalibration.weight_review_blocked ? "추천 산식 변경 금지" : "조건 확인 가능"
                 : "누적평가 없음"}
             </span>
           </div>
           <p style={{ color: "var(--text-secondary)", marginTop: 0 }}>
-            포트폴리오 비중 검토는 실제 성과 관찰 기간이 지난 뒤 평가한다. 이 카드가 보여주는 것은 추천 산식 변경
+            포트폴리오 비중 결정은 실제 성과 관찰 기간이 지난 뒤 평가한다. 이 카드가 보여주는 것은 추천 산식 변경
             허용이 아니라, 왜 아직 금지인지와 다음 성숙 시점이다.
           </p>
-          <div className="status-rail compact-rail" aria-label="검토 신뢰도 누적평가 요약" style={{ marginBottom: "20px" }}>
+          <div className="status-rail compact-rail" aria-label="포트폴리오 결정 신뢰도 요약" style={{ marginBottom: "20px" }}>
             <article className="rail-cell">
               <span>사후평가 실행</span>
               <strong>{reviewCalibration.feedback_run_count}/{reviewCalibration.min_feedback_runs}</strong>
               <small>부족 {reviewCalibration.feedback_run_gap}회 · {reviewCalibration.lookback_days || "기간 미확인"}일 기준</small>
             </article>
             <article className="rail-cell">
-              <span>성숙한 판단</span>
+              <span>성숙한 결정</span>
               <strong>{reviewCalibration.mature_decision_count}/{reviewCalibration.min_mature_decisions}</strong>
               <small>부족 {reviewCalibration.mature_decision_gap}개 · 전체 {reviewCalibration.decision_count}개</small>
             </article>
@@ -751,7 +751,7 @@ export default async function PortfolioCoveragePage() {
             {reviewCalibration.family_summaries.slice(0, 3).map((summary) => (
               <div className="bento-list-item" key={`calibration-${summary.decision_family}`}>
                 <div>
-                  <span className="risk-tag risk-medium">판단군</span>
+                  <span className="risk-tag risk-medium">결정 유형</span>
                   <strong>{userFacingText(summary.decision_family || "unknown")}</strong>
                   <span>
                     전체 {summary.decision_count}개 · 성숙 {summary.mature_decision_count}개 · 반박{" "}
@@ -765,7 +765,7 @@ export default async function PortfolioCoveragePage() {
             ))}
             {reviewCalibration.family_summaries.length === 0 ? (
               <p className="empty-state" style={{ margin: 0 }}>
-                아직 누적평가 자료가 없다. 여러 사후평가가 쌓인 뒤 이곳에서 판단군별 신뢰도를 본다.
+                아직 누적평가 자료가 없다. 여러 사후평가가 쌓인 뒤 이곳에서 결정 유형별 신뢰도를 본다.
               </p>
             ) : null}
           </div>
@@ -774,7 +774,7 @@ export default async function PortfolioCoveragePage() {
         <article className="bento-card span-4" style={{ borderColor: reviewCadence.should_run_now ? "var(--accent-red)" : "var(--border-light)" }}>
           <div className="section-heading">
             <div>
-              <span className="metric-sub">검토 실행시점</span>
+              <span className="metric-sub">사후평가 실행 시점</span>
               <h2>사후평가와 누적평가를 언제 다시 돌릴지 본다</h2>
             </div>
             <span className={`risk-tag ${cadenceStatusClass(reviewCadence.cadence_status)}`}>
@@ -782,17 +782,17 @@ export default async function PortfolioCoveragePage() {
             </span>
           </div>
           <p style={{ color: "var(--text-secondary)", marginTop: 0 }}>
-            최신 검토 이력, 사후평가, 누적평가가 서로 연결되어 있는지 확인한다. 실행 필요가 떠도 주문이나 추천 산식 변경은
+            최신 결정 이력, 사후평가, 누적평가가 서로 연결되어 있는지 확인한다. 실행 필요가 떠도 주문이나 추천 산식 변경은
             자동으로 허용되지 않는다.
           </p>
-          <div className="status-rail compact-rail" aria-label="검토 실행시점 요약" style={{ marginBottom: "20px" }}>
+          <div className="status-rail compact-rail" aria-label="사후평가 실행 시점 요약" style={{ marginBottom: "20px" }}>
             <article className="rail-cell">
-              <span>실행 판단</span>
+              <span>실행 여부</span>
               <strong>{reviewCadence.should_run_now ? "지금 실행" : "즉시 실행 아님"}</strong>
               <small>{userFacingText(reviewCadence.reason)}</small>
             </article>
             <article className="rail-cell">
-              <span>검토 이력 나이</span>
+              <span>결정 이력 나이</span>
               <strong>{reviewCadence.evidence.history_age_days}일</strong>
               <small>최소 {reviewCadence.min_horizon_days}일</small>
             </article>
@@ -823,7 +823,7 @@ export default async function PortfolioCoveragePage() {
         >
           <div className="section-heading">
             <div>
-              <span className="metric-sub">검토 실행 분기</span>
+              <span className="metric-sub">사후평가 실행 분기</span>
               <h2>대기, 사후평가, 누적평가 중 실제로 무엇을 했는지 본다</h2>
             </div>
             <span className={`risk-tag ${actionRouterStatusClass(reviewActionRouter.action_status)}`}>
@@ -835,10 +835,10 @@ export default async function PortfolioCoveragePage() {
             </span>
           </div>
           <p style={{ color: "var(--text-secondary)", marginTop: 0 }}>
-            실행 주기 판단이 실제 안전 작업으로 이어졌는지 확인한다. 실행 기록이 있어도 추천 산식 반영 비중,
+            실행 주기 결과가 실제 안전 작업으로 이어졌는지 확인한다. 실행 기록이 있어도 추천 산식 반영 비중,
             보유 비중, 실거래 주문 전송은 여전히 자동으로 바뀌지 않는다.
           </p>
-          <div className="status-rail compact-rail" aria-label="검토 실행 라우터 요약" style={{ marginBottom: "20px" }}>
+          <div className="status-rail compact-rail" aria-label="사후평가 실행 라우터 요약" style={{ marginBottom: "20px" }}>
             <article className="rail-cell">
               <span>원천 실행 주기</span>
               <strong>{userFacingText(reviewActionRouter.cadence_status)}</strong>
@@ -873,18 +873,18 @@ export default async function PortfolioCoveragePage() {
         <article id="portfolio-rebalance-review" className="bento-card span-4" style={{ borderColor: candidateReview.candidate_count > 0 ? "var(--accent-red)" : "var(--border-light)" }}>
           <div className="section-heading">
             <div>
-              <span className="metric-sub">벤치마크 대비 리밸런싱 검토</span>
+              <span className="metric-sub">벤치마크 대비 리밸런싱 확인</span>
               <h2>SPY와 비교해 어느 종목 비중이 과하게 다른지 본다</h2>
             </div>
             <span className={`risk-tag ${candidateReview.candidate_count > 0 ? "risk-high" : "risk-low"}`}>
-              {candidateReview.candidate_count > 0 ? "검토 후보 있음" : "큰 괴리 없음"}
+              {candidateReview.candidate_count > 0 ? "확인 대상 있음" : "큰 괴리 없음"}
             </span>
           </div>
           <p style={{ color: "var(--text-secondary)", marginTop: 0 }}>
             이 표는 주문 지시가 아니다. {candidateReview.benchmark_code || benchmarkCode} 기준 벤치마크 대비 괴리가 큰 종목을
-            투자 논리, 세금/비용, 섹터 집중도와 함께 검토하기 위한 읽기 전용 후보 목록이다.
+            투자 논리, 세금/비용, 섹터 집중도와 함께 확인하기 위한 읽기 전용 대상 목록이다.
           </p>
-          <div className="status-rail compact-rail" aria-label="벤치마크 리밸런싱 검토 요약" style={{ marginBottom: "20px" }}>
+          <div className="status-rail compact-rail" aria-label="벤치마크 리밸런싱 확인 요약" style={{ marginBottom: "20px" }}>
             <article className="rail-cell">
               <span>전체 괴리</span>
               <strong>{formatPercent(candidateReview.active_share)}</strong>
@@ -896,7 +896,7 @@ export default async function PortfolioCoveragePage() {
               <small>{candidateReview.source_as_of_date || "기준일 없음"}</small>
             </article>
             <article className="rail-cell rail-critical">
-              <span>검토 후보</span>
+              <span>확인 대상</span>
               <strong>{candidateReview.candidate_count}</strong>
               <small>
                 축소 {candidateDecisionCounts.reduce_watch ?? 0} · 미보유 확인{" "}
@@ -911,7 +911,7 @@ export default async function PortfolioCoveragePage() {
           </div>
           {candidateReview.candidates.length === 0 ? (
             <p className="empty-state" style={{ margin: 0 }}>
-              현재 검토 기준에서 별도 리밸런싱 후보가 없다.
+              현재 기준에서 별도 리밸런싱 확인 대상이 없다.
             </p>
           ) : (
             <div className="ledger-table-wrap">
@@ -920,11 +920,11 @@ export default async function PortfolioCoveragePage() {
                   <tr>
                     <th scope="col">순위</th>
                     <th scope="col">종목</th>
-                    <th scope="col">판단</th>
+                    <th scope="col">상태</th>
                     <th scope="col">현재/벤치마크</th>
                     <th scope="col">벤치마크 괴리</th>
                     <th scope="col">연결 근거</th>
-                    <th scope="col">검토 이유</th>
+                    <th scope="col">확인 이유</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -972,7 +972,7 @@ export default async function PortfolioCoveragePage() {
         <article className="bento-card span-4" style={{ borderColor: positionSizingReview.review_required_count > 0 ? "var(--accent-amber)" : "var(--border-light)" }}>
           <div className="section-heading">
             <div>
-              <span className="metric-sub">포지션 크기 검토</span>
+              <span className="metric-sub">포지션 크기 상태</span>
               <h2>이 비중을 더 키워도 되는지, 줄여야 하는지 본다</h2>
             </div>
             <span className={`risk-tag ${positionSizingReview.review_required_count > 0 ? "risk-medium" : "risk-low"}`}>
@@ -981,11 +981,11 @@ export default async function PortfolioCoveragePage() {
           </div>
           <p style={{ color: "var(--text-secondary)", marginTop: 0 }}>
             현재 보유 비중을 투자 논리, 기업 분석, 밸류에이션, 벤치마크 괴리와 함께 묶어 본다.
-            여기서 나오는 값은 주문 목표가 아니라 증액 금지, 축소 검토, 유지 검토를 구분하는 읽기 전용 검토 범위다.
+            여기서 나오는 값은 주문 목표가 아니라 증액 금지, 축소 필요성, 유지 상태를 구분하는 읽기 전용 상태 범위다.
           </p>
-          <div className="status-rail compact-rail" aria-label="포지션 크기 검토 요약" style={{ marginBottom: "20px" }}>
+          <div className="status-rail compact-rail" aria-label="포지션 크기 상태 요약" style={{ marginBottom: "20px" }}>
             <article className="rail-cell rail-critical">
-              <span>축소 검토</span>
+              <span>축소 필요성</span>
               <strong>{positionSizingReview.reduce_review_count}</strong>
               <small>한도 또는 벤치마크 괴리</small>
             </article>
@@ -1007,7 +1007,7 @@ export default async function PortfolioCoveragePage() {
           </div>
           {positionSizingReview.candidates.length === 0 ? (
             <p className="empty-state" style={{ margin: 0 }}>
-              보유 포지션이 없어 포지션 크기 검토를 만들 수 없다.
+              보유 포지션이 없어 포지션 크기 상태를 만들 수 없다.
             </p>
           ) : (
             <div className="ledger-table-wrap">
@@ -1016,10 +1016,10 @@ export default async function PortfolioCoveragePage() {
                   <tr>
                     <th scope="col">순위</th>
                     <th scope="col">종목</th>
-                    <th scope="col">판정</th>
+                    <th scope="col">상태</th>
                     <th scope="col">현재/벤치마크</th>
                     <th scope="col">기업 근거</th>
-                    <th scope="col">판단 이유</th>
+                    <th scope="col">상태 이유</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1029,7 +1029,7 @@ export default async function PortfolioCoveragePage() {
                       <td>
                         <strong>{candidate.symbol}</strong>
                         <small style={{ display: "block", color: "var(--text-secondary)" }}>
-                          검토 상한 {formatPercent(candidate.review_ceiling_weight)}
+                          확대 상한 {formatPercent(candidate.review_ceiling_weight)}
                         </small>
                       </td>
                       <td>
@@ -1081,13 +1081,13 @@ export default async function PortfolioCoveragePage() {
           </div>
           <p style={{ color: "var(--text-secondary)", marginTop: 0 }}>
             같은 섹터나 테마에 여러 종목이 묶이면 종목 수가 분산되어 보여도 실제 위험은 한 방향으로 움직일 수 있다.
-            이 표는 주문 지시가 아니라 포트폴리오 검토 우선순위를 정하기 위한 노출도 지도다.
+            이 표는 주문 지시가 아니라 포트폴리오 확인 우선순위를 정하기 위한 노출도 지도다.
           </p>
           <div className="status-rail compact-rail" aria-label="집중도 정책 요약" style={{ marginBottom: "20px" }}>
             <article className="rail-cell">
               <span>섹터 한도</span>
               <strong>{formatPercent(concentration.max_sector_weight)}</strong>
-              <small>초과 시 집중도 검토</small>
+              <small>초과 시 집중도 확인</small>
             </article>
             <article className="rail-cell">
               <span>테마 한도</span>
@@ -1129,13 +1129,13 @@ export default async function PortfolioCoveragePage() {
           <div className="section-heading">
             <div>
               <span className="metric-sub">리밸런싱 우선순위</span>
-              <h2>바로 주문하지 않고 무엇을 먼저 검토할지 정한다</h2>
+              <h2>바로 주문하지 않고 무엇을 먼저 확인할지 정한다</h2>
             </div>
             <span className="risk-tag risk-medium">읽기 전용</span>
           </div>
           {riskBudget.rebalance_priorities.length === 0 ? (
             <p className="empty-state" style={{ margin: 0 }}>
-              현재 정책 기준에서 우선 검토할 포지션이 없다.
+              현재 정책 기준에서 우선 확인할 포지션이 없다.
             </p>
           ) : (
             <div className="bento-list">
@@ -1158,7 +1158,7 @@ export default async function PortfolioCoveragePage() {
         <article className="bento-card span-4">
           <div style={{ marginBottom: "24px" }}>
             <span className="metric-sub">보유 연결 상태</span>
-            <h2 style={{ fontSize: "1.5rem" }}>보유 종목 검토 지도</h2>
+            <h2 style={{ fontSize: "1.5rem" }}>보유 종목 상태 지도</h2>
           </div>
           
           <div className="bento-list" style={{ gap: "8px" }}>

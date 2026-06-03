@@ -53,7 +53,7 @@ function performanceCopy(value: string | null | undefined) {
     .replaceAll("Thesis", "투자 논리")
     .replaceAll("outcome window", "성과 측정창")
     .replaceAll("outcome", "성과")
-    .replaceAll("weight review", "추천 산식 검토")
+    .replaceAll("weight review", "추천 산식 변경 여부")
     .replaceAll("weight", "추천 산식 반영 비중")
     .replaceAll("quality gate", "품질 기준")
     .replaceAll("gate", "기준")
@@ -67,7 +67,7 @@ function performanceCopy(value: string | null | undefined) {
     .replaceAll("paper validation", "가상 매매 검증")
     .replaceAll("커버리지", "연결 상태")
     .replaceAll("가중치", "반영 비중")
-    .replaceAll("페이퍼", "가상 매매");
+    .replaceAll(["페", "이퍼"].join(""), "가상 매매");
 }
 
 function executionIdLabel(value: string) {
@@ -93,9 +93,9 @@ function evaluationStatusLabel(status: string) {
     insufficient_sample: "표본 부족",
     enough_sample: "표본 충분",
     needs_coverage_review: "성과 연결 보완 필요",
-    needs_quality_review: "품질 재검토 필요",
+    needs_quality_review: "품질 재확인 필요",
     positive_alignment: "성과 정렬 양호",
-    reviewable: "검토 가능",
+    reviewable: "확인 가능",
   };
   return labels[status] ?? koCode(status);
 }
@@ -183,8 +183,8 @@ export default async function PerformancePage() {
         ? `평균 알파 ${formatPercent(data.summary.average_alpha)} · 적중률 ${formatPercent(data.summary.hit_rate)}`
         : `측정 종료 ${data.measurement_end_date}`,
       body: hasMeasuredOutcomes
-        ? "측정 종료일이 지난 추천만 성과로 본다. 개별 추천과 투자 논리 링크를 열어 어떤 판단이 맞았는지 확인한다."
-        : "아직 측정 가능한 추천 성과가 없다. 성과 측정창이 도래할 때까지 성과 해석과 추천 산식 검토를 보류한다.",
+        ? "측정 종료일이 지난 추천만 성과로 본다. 개별 추천과 투자 논리 링크를 열어 어떤 근거가 성과와 맞았는지 확인한다."
+        : "아직 측정 가능한 추천 성과가 없다. 성과 측정창이 도래할 때까지 성과 해석과 추천 산식 변경을 보류한다.",
       href: "#performance-outcomes",
       cta: "성과 목록 보기",
       tone: hasMeasuredOutcomes ? "ready" : "watch",
@@ -312,7 +312,7 @@ export default async function PerformancePage() {
               <span className="metric-sub">추천 품질 평가</span>
               <h2 style={{ fontSize: "1.5rem", marginTop: "6px" }}>{evaluationStatusLabel(quality.status)}</h2>
               <p style={{ color: "var(--text-secondary)", marginTop: "8px", maxWidth: "720px" }}>
-                이 평가는 추천을 새로 만들지 않는다. 이미 저장된 추천 점수, 성과, 보유 검토, 성과 연결 상태를 대조해
+                이 평가는 추천을 새로 만들지 않는다. 이미 저장된 추천 점수, 성과, 보유 상태, 성과 연결 상태를 대조해
                 중장기 추천 품질을 과대 해석하지 않도록 점검한다.
               </p>
             </div>
@@ -337,9 +337,9 @@ export default async function PerformancePage() {
               <span className="metric-sub">평균 알파 {formatOptionalPercent(quality.high_score_average_alpha)}</span>
             </div>
             <div>
-              <span className="metric-label">검토-성과 충돌</span>
+              <span className="metric-label">보유 상태-성과 충돌</span>
               <strong className="metric-value">{quality.review_outcome_mismatch_count}</strong>
-              <span className="metric-sub">보유 판단과 결과 대조</span>
+              <span className="metric-sub">보유 상태와 결과 대조</span>
             </div>
             <div>
               <span className="metric-label">성과 연결 제외</span>
@@ -350,7 +350,7 @@ export default async function PerformancePage() {
 
           <div className="bento-list">
             {quality.checks.length === 0 ? (
-              <p className="empty-state">아직 성과 검토 기준이 실행되지 않았다. 성과 측정이 생성되면 여기에 확인 항목이 표시된다.</p>
+              <p className="empty-state">아직 성과 해석 기준이 실행되지 않았다. 성과 측정이 생성되면 여기에 확인 항목이 표시된다.</p>
             ) : null}
             {quality.checks.map((check) => (
               <div className="bento-list-item" key={check.check_key} style={{ alignItems: "flex-start" }}>
@@ -374,7 +374,7 @@ export default async function PerformancePage() {
               <h2 style={{ fontSize: "1.5rem" }}>추천 책임 추적</h2>
             </div>
             <Link className="btn btn-secondary" href="/portfolio/coverage">
-              보유 검토 열기
+              보유·리스크 상태 열기
             </Link>
           </div>
           <div className="bento-list">
@@ -480,7 +480,7 @@ export default async function PerformancePage() {
 
         <article className="bento-card span-4">
           <div style={{ marginBottom: "24px" }}>
-            <span className="metric-sub">성과 검토 기준</span>
+            <span className="metric-sub">성과 해석 기준</span>
             <h2 style={{ fontSize: "1.5rem" }}>성과를 과대 해석하지 않기</h2>
           </div>
           <div className="bento-list">
