@@ -78,7 +78,14 @@ function formatDirectionCounts(counts: Record<string, number>) {
   if (entries.length === 0) {
     return "방향성 미분류";
   }
-  return entries.map(([key, count]) => `${koCode(key)} ${count}`).join(" · ");
+  return entries.map(([key, count]) => `${formatImpactDirection(key)} ${count}`).join(" · ");
+}
+
+function formatImpactDirection(value: string | null | undefined) {
+  if (value === "risk_review") {
+    return "리스크 확인";
+  }
+  return koCode(value);
 }
 
 function formatClusterRagStatus(cluster: StoredAiNewsCluster) {
@@ -466,7 +473,7 @@ export default async function IntelligencePage() {
           <small>저장된 분석 결과만 표시</small>
         </article>
         <article className="rail-cell">
-          <span>저장된 뉴스 묶음</span>
+          <span>뉴스 묶음 근거</span>
           <strong>{clusterSummary.cluster_count}</strong>
           <small>뉴스 {clusterSummary.clustered_event_count}개 연결</small>
         </article>
@@ -560,7 +567,7 @@ export default async function IntelligencePage() {
                     <div className="relationship-list">
                       {cluster.events.slice(0, 1).map((event) => (
                         <div className="relationship-chip" key={`${cluster.evidence_id}-${event.event_id}`}>
-                          <span>{koCode(event.impact_direction)}</span>
+                          <span>{formatImpactDirection(event.impact_direction)}</span>
                           <NewsTitleBlock
                             compact
                             title={event.title}
@@ -659,7 +666,7 @@ export default async function IntelligencePage() {
                     <div className="relationship-list">
                       {cluster.examples.map((event) => (
                         <div className="relationship-chip" key={`${cluster.key}-${event.event_id}`}>
-                          <span>{koCode(event.impact_direction)}</span>
+                          <span>{formatImpactDirection(event.impact_direction)}</span>
                           <NewsTitleBlock
                             compact
                             title={event.title}
@@ -730,7 +737,7 @@ export default async function IntelligencePage() {
                     />
                     <p>
                       {aiEvidenceLabel(event.ai_evidence_type)} · 대상 {formatNewsSymbol(event.symbol)} · 방향{" "}
-                      {koCode(event.impact_direction)} · 신뢰도 {formatPercent(event.ai_evidence_confidence)}
+                      {formatImpactDirection(event.impact_direction)} · 신뢰도 {formatPercent(event.ai_evidence_confidence)}
                     </p>
                   </div>
                   <div className="review-queue-actions">
