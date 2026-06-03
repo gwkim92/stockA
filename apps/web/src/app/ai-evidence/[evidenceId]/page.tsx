@@ -45,6 +45,20 @@ function formatCost(value: number | null | undefined) {
   return `$${value.toFixed(4)}`;
 }
 
+function normalizeEvidenceSystemCopy(value: string | null | undefined) {
+  const oldNewsAiCandidate = ["뉴스 AI", "후보"].join(" ");
+  const oldAiCandidate = ["AI", "후보"].join(" ");
+  const oldHoldingReview = ["보유", "검토"].join("");
+  return koLabel(value)
+    .replaceAll(oldNewsAiCandidate, "뉴스 AI 구조화 항목")
+    .replaceAll(oldAiCandidate, "AI 구조화 항목")
+    .replaceAll(oldHoldingReview, "보유 상태 판단")
+    .replaceAll("입력 후보", "입력 항목")
+    .replaceAll("통과 후보", "통과 항목")
+    .replaceAll("검토 후보", "판단 항목")
+    .replaceAll("후보 상태", "항목 상태");
+}
+
 function isKnownCode(value: string | null | undefined) {
   return Boolean(value && value !== "UNKNOWN" && value !== "UNCLASSIFIED");
 }
@@ -617,7 +631,7 @@ function AiEvidenceReviewBrief({
       label: "자동 검증",
       title: decision.label,
       status: data.evidence_type === "news_event_candidate_rejected" ? "차단" : koCode(data.extraction_run.quality_gate || data.extraction_run.status),
-      body: data.visibility_trace.validator.reasons_ko.join(" ") || decision.body,
+      body: normalizeEvidenceSystemCopy(data.visibility_trace.validator.reasons_ko.join(" ") || decision.body),
       href: "#evidence-validation",
       cta: "검증 근거 보기",
       tone: decision.tone,
@@ -756,7 +770,7 @@ function EvidenceVisibilityTraceBoard({
   const stepFacts: Record<string, { title: string; body: string; href?: Route | null; cta?: string }> = {
     source: {
       title: `${trace.source.source_document_count}개 원천 · ${trace.source.source_chunk_count}개 입력 근거`,
-      body: trace.source.message_ko,
+      body: normalizeEvidenceSystemCopy(trace.source.message_ko),
       href: sourceLink,
       cta: "원천 열기",
     },
@@ -764,16 +778,16 @@ function EvidenceVisibilityTraceBoard({
       title: `${trace.translation.translated_event_count}개 한국어 번역`,
       body:
         trace.translation.translation_confidence != null
-          ? `${trace.translation.message_ko} 번역 신뢰도 ${formatPercent(trace.translation.translation_confidence)}.`
-          : trace.translation.message_ko,
+          ? `${normalizeEvidenceSystemCopy(trace.translation.message_ko)} 번역 신뢰도 ${formatPercent(trace.translation.translation_confidence)}.`
+          : normalizeEvidenceSystemCopy(trace.translation.message_ko),
     },
     ai_structure: {
       title: `${koCode(trace.ai_structure.provider)} · ${koCode(trace.ai_structure.evidence_type)}`,
-      body: `${trace.ai_structure.message_ko} 구조화 필드 ${trace.ai_structure.extracted_field_count}개.`,
+      body: `${normalizeEvidenceSystemCopy(trace.ai_structure.message_ko)} 구조화 필드 ${trace.ai_structure.extracted_field_count}개.`,
     },
     validator: {
-      title: trace.validator.decision_ko,
-      body: trace.validator.reasons_ko.join(" "),
+      title: normalizeEvidenceSystemCopy(trace.validator.decision_ko),
+      body: normalizeEvidenceSystemCopy(trace.validator.reasons_ko.join(" ")),
     },
     recommendation_linkage: {
       title:
@@ -785,7 +799,7 @@ function EvidenceVisibilityTraceBoard({
       body:
         recommendationCount > 0
           ? "연결된 추천 상세에서 가격, 사이클, 재무, 보유 논리와 함께 다시 판단한다. 이 근거는 주문 결론이 아니라 입력 근거다."
-          : trace.recommendation_linkage.message_ko,
+          : normalizeEvidenceSystemCopy(trace.recommendation_linkage.message_ko),
       href: firstRecommendationLink ?? targetStockLink,
       cta: firstRecommendationLink ? "추천 열기" : targetStockLink ? "종목 열기" : undefined,
     },
@@ -796,11 +810,11 @@ function EvidenceVisibilityTraceBoard({
       <div className="section-heading stacked-heading">
         <span>근거 사용 경로</span>
         <h2 id="visibility-trace-title">원천 뉴스가 추천 근거로 쓰일 수 있는지 확인한다</h2>
-        <p>{trace.summary_ko}</p>
+        <p>{normalizeEvidenceSystemCopy(trace.summary_ko)}</p>
       </div>
       <div className="evidence-trace-grid">
         {trace.steps.map((step, index) => {
-          const fact = stepFacts[step.step_key] ?? { title: koCode(step.step_key), body: trace.summary_ko };
+          const fact = stepFacts[step.step_key] ?? { title: koCode(step.step_key), body: normalizeEvidenceSystemCopy(trace.summary_ko) };
           return (
             <article className={`evidence-trace-card ${traceTone(step.status)}`} key={step.step_key}>
               <span>{String(index + 1).padStart(2, "0")}</span>
@@ -818,8 +832,8 @@ function EvidenceVisibilityTraceBoard({
         <div className="relationship-list">
           <div className="relationship-chip">
             <span>{trace.validator.blocked ? "차단" : "통과 항목"}</span>
-            <strong>{trace.validator.decision_ko}</strong>
-            <small>{trace.validator.reasons_ko.join(" ")}</small>
+            <strong>{normalizeEvidenceSystemCopy(trace.validator.decision_ko)}</strong>
+            <small>{normalizeEvidenceSystemCopy(trace.validator.reasons_ko.join(" "))}</small>
           </div>
           <div className="relationship-chip">
             <span>주문 경계</span>
