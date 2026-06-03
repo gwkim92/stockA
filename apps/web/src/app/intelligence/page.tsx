@@ -393,7 +393,7 @@ export default async function IntelligencePage() {
       index: "03",
       label: "차단·오염 의심",
       title: `${blockedCandidateCount}건 차단`,
-      target: blockedCandidateCount > 0 ? "검토 필요" : "새 차단 없음",
+      target: blockedCandidateCount > 0 ? "원인 확인 필요" : "새 차단 없음",
       body: "저신호 뉴스, 근거 없는 종목 연결, 오분류 의심은 추천 입력에서 분리한다.",
       cta: "차단 목록 보기",
       href: "/ai-evidence/blocked" as Route,
@@ -601,7 +601,7 @@ export default async function IntelligencePage() {
             </div>
             <div className="btn-row decision-actions">
               <Link className="btn btn-secondary" href={"/events" as Route}>
-                수집 뉴스 원장 전체 보기
+                수집 뉴스 전체 보기
               </Link>
               <Link className="btn btn-secondary" href={"/ai-evidence" as Route}>
                 AI 후보 전체 보기
@@ -734,7 +734,7 @@ export default async function IntelligencePage() {
                     </p>
                   </div>
                   <div className="review-queue-actions">
-                    {evidenceLink ? <Link className="btn btn-primary" href={evidenceLink}>AI 상세</Link> : null}
+                    {evidenceLink ? <Link className="btn btn-primary" href={evidenceLink}>근거 상세</Link> : null}
                     {symbolLink ? <Link className="btn btn-secondary" href={symbolLink}>종목</Link> : null}
                     {documentLink ? <Link className="btn btn-secondary" href={documentLink}>뉴스 원문</Link> : null}
                   </div>
@@ -804,7 +804,7 @@ export default async function IntelligencePage() {
             <p>뉴스에 없는 티커, 낮은 신뢰도, 애매한 테마 연결은 추천 입력에서 제외한다.</p>
           </article>
           <article className="brief-signal-card">
-            <span>운영 확인</span>
+            <span>수집 상태</span>
             <strong>{formatRunStatus(newsRun)}</strong>
             <p>수집 실패나 AI 실패는 데이터 상태 화면에서 먼저 확인한다.</p>
           </article>

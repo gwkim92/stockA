@@ -689,7 +689,7 @@ function actionRouterTitle(router: PortfolioReviewFeedbackActionRouter) {
 
 function outcomeCalibrationTitle(calibration: RecommendationOutcomeCalibration) {
   if (calibration.status === "ready_for_manual_weight_review") {
-    return "성과 표본 검토 가능";
+    return "성과 표본 충족";
   }
   if (calibration.status === "collect_more_outcomes_keep_weights") {
     return "성과 표본 축적 중";
@@ -2160,8 +2160,8 @@ export default async function DataHealthPage() {
           ? portfolioReviewCalibration.managed_wait
             ? "관리된 대기"
             : portfolioReviewCalibration.weight_review_blocked
-	            ? "추천 산식 변경 금지"
-	            : "별도 검토 가능"
+              ? "추천 산식 변경 금지"
+              : "성과 표본 충족"
           : "누적평가 없음",
       body:
         portfolioReviewCalibration.status === "loaded"
@@ -2837,8 +2837,8 @@ export default async function DataHealthPage() {
             </small>
           </article>
           <article className="rail-cell rail-critical">
-	            <span>추천 산식 검토</span>
-	            <strong>{outcomeWaitMonitor.weight_review_blocked ? "차단" : "별도 검토 가능"}</strong>
+            <span>추천 산식 검토</span>
+            <strong>{outcomeWaitMonitor.weight_review_blocked ? "변경 차단" : "성과 표본 충족"}</strong>
             <small>실거래 상태 {orderBoundaryCopy(outcomeWaitMonitor.order_boundary)}</small>
           </article>
         </div>
@@ -2855,7 +2855,7 @@ export default async function DataHealthPage() {
           ))}
           <article className="insight-card">
             <span>추천 산식 차단 이유</span>
-            <strong>{outcomeWaitMonitor.manual_weight_review_allowed ? "검토 가능" : "검토 금지"}</strong>
+            <strong>{outcomeWaitMonitor.manual_weight_review_allowed ? "성과 표본 충족" : "성과 표본 대기"}</strong>
             <p>{operationCopy(outcomeWaitMonitor.weight_review_block_reason)}</p>
           </article>
           <article className="insight-card">
@@ -2975,8 +2975,8 @@ export default async function DataHealthPage() {
             <p>전문 분석 연결률과 성과 표본이 추천 산식 검토 기준을 충족하는지 본다.</p>
           </article>
           <article className="insight-card">
-            <span>추천 산식 별도 검토</span>
-            <strong>{weightReviewReadiness.manual_weight_review_allowed ? "검토 가능" : "차단"}</strong>
+            <span>추천 산식 변경 조건</span>
+            <strong>{weightReviewReadiness.manual_weight_review_allowed ? "성과 표본 충족" : "변경 차단"}</strong>
             <p>
               {weightReviewReadiness.blocker_message
                 ? operationCopy(weightReviewReadiness.blocker_message)
@@ -3093,7 +3093,7 @@ export default async function DataHealthPage() {
 	            <small>검토 대상</small>
           </article>
           <article className="rail-cell">
-            <span>상세 검토 가능</span>
+            <span>전문 근거 충족</span>
             <strong>{professionalRecommendationAudit.ready_for_review_count}</strong>
             <small>전문 근거와 가상 매매 검증 통과</small>
           </article>
@@ -3218,8 +3218,8 @@ export default async function DataHealthPage() {
             </small>
           </article>
           <article className="rail-cell rail-critical">
-	            <span>추천 산식/실거래 상태</span>
-	            <strong>{professionalNextAction.weight_review_blocked ? "추천 산식 변경 금지" : "별도 검토 가능"}</strong>
+            <span>추천 산식/실거래 상태</span>
+            <strong>{professionalNextAction.weight_review_blocked ? "추천 산식 변경 금지" : "성과 표본 충족"}</strong>
             <small>{orderBoundaryCopy(professionalNextAction.order_boundary)}</small>
           </article>
         </div>
@@ -3595,7 +3595,7 @@ export default async function DataHealthPage() {
           <article className="rail-cell">
             <span>저장된 결정</span>
             <strong>{portfolioReviewHistory.decision_count}</strong>
-            <small>검토 필요 {portfolioReviewHistory.review_required_count}개</small>
+            <small>확인 필요 {portfolioReviewHistory.review_required_count}개</small>
           </article>
           <article className="rail-cell">
             <span>벤치마크 / 포지션</span>
@@ -3782,7 +3782,7 @@ export default async function DataHealthPage() {
                 ? "관리된 대기"
                 : portfolioReviewCalibration.weight_review_blocked
                   ? "변경 금지"
-	                  : "별도 검토 가능"}
+                  : "성과 표본 충족"}
             </strong>
             <small>{operationCopy(portfolioReviewCalibration.maturity_status)} · {recordLabel(portfolioReviewCalibration.eval_run_id)}</small>
           </article>
@@ -4143,8 +4143,8 @@ export default async function DataHealthPage() {
 
       <details className="operator-details-panel reveal delay-2">
         <summary>
-          <span>운영자용 상세 보기</span>
-          <strong>스케줄, 실행 요약, 수동 점검, 작업별 실행 구조</strong>
+          <span>상세 운영 기록</span>
+          <strong>스케줄, 실행 요약, 수동 점검, 작업별 실행 구조를 필요할 때만 펼친다</strong>
         </summary>
 
       <section className="flow-panel details-inner" aria-labelledby="automation-summary-title">
