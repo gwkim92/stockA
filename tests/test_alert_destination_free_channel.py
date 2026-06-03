@@ -54,8 +54,31 @@ class AlertDestinationFreeChannelTests(unittest.TestCase):
         self.assertEqual(report["last_test_status"], "passed")
         self.assertEqual(report["last_tested_at"], "2026-05-27T00:00:00Z")
         self.assertEqual(report["http_status_class"], "2xx")
-        self.assertEqual(calls[0][1], "도달 테스트".encode("utf-8"))
-        self.assertEqual(calls[0][2]["Title"], "테스트")
+        self.assertEqual(calls[0][1], "테스트\n도달 테스트".encode("utf-8"))
+        self.assertEqual(calls[0][2]["Title"], "Stockanalysis alert")
+        for value in calls[0][2].values():
+            value.encode("ascii")
+
+    def test_execute_posts_ntfy_ascii_title_without_body_prefix(self) -> None:
+        calls: list[tuple[str, bytes, dict[str, str], float]] = []
+
+        def fake_post(url: str, body: bytes, headers: dict[str, str], timeout: float) -> AlertHttpResult:
+            calls.append((url, body, headers, timeout))
+            return AlertHttpResult(status_code=200, response_header_count=2)
+
+        report = build_alert_destination_test_report(
+            env={"STOCKANALYSIS_NTFY_TOPIC_URL": "https://ntfy.sh/private-topic-token"},
+            destination_type="ntfy",
+            execute=True,
+            now=datetime(2026, 5, 27, tzinfo=timezone.utc),
+            title="Stockanalysis alert test",
+            message="reachability test",
+            http_post=fake_post,
+        )
+
+        self.assertEqual(report["last_test_status"], "passed")
+        self.assertEqual(calls[0][1], b"reachability test")
+        self.assertEqual(calls[0][2]["Title"], "Stockanalysis alert test")
 
     def test_execute_missing_target_fails_without_secret_output(self) -> None:
         report = build_alert_destination_test_report(

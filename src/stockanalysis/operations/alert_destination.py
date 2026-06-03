@@ -19,6 +19,7 @@ NTFY_TOPIC_URL_ENV = "STOCKANALYSIS_NTFY_TOPIC_URL"
 ALERT_DESTINATION_STATUS_PATH_ENV = "STOCKANALYSIS_ALERT_DESTINATION_STATUS_PATH"
 DEFAULT_ALERT_TITLE = "Stockanalysis 운영 알림 테스트"
 DEFAULT_ALERT_MESSAGE = "Stockanalysis alert destination reachability test."
+NTFY_ASCII_TITLE_FALLBACK = "Stockanalysis alert"
 SUPPORTED_DESTINATION_TYPES = ("webhook", "ntfy", "discord", "slack")
 
 
@@ -122,8 +123,10 @@ def _target_url_for_type(*, env: Mapping[str, str], destination_type: str) -> st
 
 def _request_body_and_headers(*, destination_type: str, title: str, message: str) -> tuple[bytes, dict[str, str]]:
     if destination_type == "ntfy":
-        return message.encode("utf-8"), {
-            "Title": title,
+        safe_title = _ascii_header_value(title, fallback=NTFY_ASCII_TITLE_FALLBACK)
+        body_text = message if safe_title == title else f"{title}\n{message}"
+        return body_text.encode("utf-8"), {
+            "Title": safe_title,
             "Priority": "default",
             "Tags": "stockanalysis",
             "X-Cache": "no",
@@ -167,3 +170,14 @@ def _safe_target_host(url: str) -> str:
     if parsed.scheme not in {"http", "https"}:
         return "unsupported_scheme"
     return parsed.hostname or ""
+
+
+def _ascii_header_value(value: object, *, fallback: str) -> str:
+    text = str(value or "").strip()
+    if not text:
+        return fallback
+    try:
+        text.encode("ascii")
+    except UnicodeEncodeError:
+        return fallback
+    return text
