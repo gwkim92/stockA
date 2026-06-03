@@ -12,7 +12,7 @@ import { koCode, koLabel } from "@/lib/korean-labels";
 import type { AiNewsClusterListData, DataHealthData, EventListData } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "뉴스·AI 판단" };
+export const metadata = { title: "뉴스 흐름과 AI 근거" };
 
 type NewsEvent = EventListData["events"][number];
 type StoredAiNewsCluster = AiNewsClusterListData["clusters"][number];
@@ -50,15 +50,15 @@ function maybeRoute(path: string | null | undefined) {
 
 function aiEvidenceLabel(type: string | null) {
   if (type === "news_event_candidate") {
-    return "개별 뉴스 AI 후보";
+    return "개별 뉴스 AI 구조화 항목";
   }
   if (type === "news_cluster_summary") {
-    return "뉴스 묶음 증거";
+    return "뉴스 묶음 근거";
   }
   if (type) {
     return koCode(type);
   }
-  return "AI 분석 대기";
+  return "AI 구조화 대기";
 }
 
 function formatSymbols(symbols: string[]) {
@@ -141,7 +141,7 @@ function clusterInstrumentConnection(cluster: StoredAiNewsCluster) {
       body:
         symbols.length > 3
           ? `직접 언급 종목 ${symbols.length}개가 있다. 종목 상세에서 가격·추천·보유 상태를 이어 본다.`
-          : "회사명이나 티커가 직접 잡힌 뉴스라 종목 상세와 추천 근거 후보에 바로 연결된다.",
+          : "회사명이나 티커가 직접 잡힌 뉴스라 종목 상세와 추천 근거에 바로 연결된다.",
     };
   }
   return {
@@ -156,7 +156,7 @@ function clusterRecommendationUse(cluster: StoredAiNewsCluster) {
     return {
       label: "추천 영향",
       title: "관찰 전용",
-      body: "신뢰도가 낮아 추천 점수에 강하게 반영하지 않고 원천 문서 검토가 먼저다.",
+      body: "신뢰도가 낮아 추천 점수에 강하게 반영하지 않고 원천 문서 확인이 먼저다.",
     };
   }
   if (cluster.event_count < 2) {
@@ -168,8 +168,8 @@ function clusterRecommendationUse(cluster: StoredAiNewsCluster) {
   }
   return {
     label: "추천 영향",
-    title: "근거 후보",
-    body: "추천·보유 검토에 연결될 수 있지만, 최종 판단은 점수·가격·투자 논리 검토가 결정한다.",
+    title: "근거 항목",
+    body: "추천 상세·보유 상태에 연결될 수 있지만, 실제 사용 여부는 점수·가격·투자 논리 확인이 결정한다.",
   };
 }
 
@@ -195,7 +195,7 @@ function formatStoryKeyword(cluster: StoredAiNewsCluster) {
 
 function formatLlmCandidateStatus(summary: AiNewsClusterSummary) {
   if (summary.llm_candidate_invocation_count === 0) {
-    return "개별 AI 후보 없음";
+    return "개별 AI 구조화 항목 없음";
   }
   if (summary.latest_llm_invocation_status === "failed") {
     return "최근 AI 분석 실패";
@@ -384,7 +384,7 @@ export default async function IntelligencePage() {
       target: firstCandidate
         ? `${formatNewsSymbol(firstCandidate.symbol)} · ${koCode(firstCandidate.theme_key)}`
         : formatLlmCandidateStatus(clusterSummary),
-      body: "한국어 번역, AI 구조화, validator 통과 결과가 있는 근거만 추천 후보로 이어진다.",
+      body: "한국어 번역, AI 구조화, validator 통과 결과가 있는 근거만 추천 입력으로 이어진다.",
       cta: firstCandidateEvidenceId ? "첫 AI 근거 보기" : "AI 근거 목록",
       href: firstCandidateEvidenceId ? (`/ai-evidence/${firstCandidateEvidenceId}` as Route) : ("/ai-evidence" as Route),
       tone: clusterSummary.llm_candidate_success_count > 0 ? "ready" : "watch",
@@ -404,7 +404,7 @@ export default async function IntelligencePage() {
       label: "추천 연결",
       title: `커버리지 ${formatPercent(dashboard.latest_metrics.weight_coverage_ratio)}`,
       target: "읽기 전용",
-      body: "통과한 근거가 추천 상세와 보유 검토로 이어졌는지 본다. 주문은 여전히 차단된다.",
+      body: "통과한 근거가 추천 상세와 보유 상태로 이어졌는지 본다. 주문은 여전히 차단된다.",
       cta: "추천 연결 보기",
       href: "/recommendations" as Route,
       tone: dashboard.latest_metrics.weight_coverage_ratio > 0 ? "ready" : "watch",
@@ -415,7 +415,7 @@ export default async function IntelligencePage() {
     <div className="terminal-page intelligence-page">
       <section className="page-hero reveal" aria-labelledby="intelligence-title">
         <div>
-          <div className="bento-badge">뉴스·AI 판단</div>
+          <div className="bento-badge">뉴스 흐름과 AI 근거</div>
           <h1 className="page-title" id="intelligence-title">
             오늘 볼 뉴스 흐름과 추천 연결을 확인한다.
           </h1>
@@ -428,7 +428,7 @@ export default async function IntelligencePage() {
 
       <section className="intelligence-flow-panel reveal delay-1" aria-labelledby="intelligence-flow-title">
         <div className="intelligence-flow-lead">
-          <span>오늘의 판단 순서</span>
+          <span>오늘의 확인 순서</span>
           <h2 id="intelligence-flow-title">뉴스는 네 단계만 보면 된다.</h2>
           <p>
             먼저 반복된 상위 흐름을 보고, AI가 통과시킨 근거와 차단한 근거를 분리한 뒤,
@@ -449,14 +449,14 @@ export default async function IntelligencePage() {
         </div>
       </section>
 
-      <section className="status-rail compact-rail reveal delay-1" aria-label="뉴스 AI 판단 요약">
+      <section className="status-rail compact-rail reveal delay-1" aria-label="뉴스 흐름과 AI 근거 요약">
         <article className="rail-cell">
           <span>뉴스 수집</span>
           <strong className="rail-word-value">{formatRunStatus(newsRun)}</strong>
           <small>{formatNewsRunLabel(newsRun)} · {newsRun?.finished_at ?? "최근 완료 없음"}</small>
         </article>
         <article className="rail-cell">
-          <span>AI 후보 분석</span>
+          <span>AI 구조화 항목</span>
           <strong className="rail-word-value">{formatLlmCandidateStatus(clusterSummary)}</strong>
           <small>{formatLlmCandidateDetail(clusterSummary)}</small>
         </article>
@@ -473,7 +473,7 @@ export default async function IntelligencePage() {
         <article className="rail-cell">
           <span>추천·보유 연결</span>
           <strong className="rail-ratio-value">{formatPercent(dashboard.latest_metrics.weight_coverage_ratio)}</strong>
-          <small>추천·보유 판단 연결률</small>
+          <small>추천·보유 상태 연결률</small>
         </article>
       </section>
 
@@ -482,7 +482,7 @@ export default async function IntelligencePage() {
           <span>01 오늘의 상위 흐름</span>
           <h2 id="news-decision-board-title">반복된 뉴스가 같은 흐름인지 확인한다</h2>
           <p>
-            첫 화면에서는 가장 중요한 뉴스 묶음만 보여준다. 전체 원천, 후보, 통과·차단 결과는 아래 전용 화면에서 이어서 본다.
+            첫 화면에서는 가장 중요한 뉴스 묶음만 보여준다. 전체 원천, 구조화 항목, 통과·차단 결과는 아래 전용 화면에서 이어서 본다.
           </p>
         </div>
 
@@ -525,7 +525,7 @@ export default async function IntelligencePage() {
                     신뢰도는 {formatPercent(cluster.confidence)}다.
                   </p>
 
-                  <div className="cluster-proof-grid" aria-label={`${koCode(cluster.theme_key)} 핵심 판단`}>
+                  <div className="cluster-proof-grid" aria-label={`${koCode(cluster.theme_key)} 핵심 근거`}>
                     <article>
                       <span>{groupingBasis.label}</span>
                       <strong>{groupingBasis.title}</strong>
@@ -604,7 +604,7 @@ export default async function IntelligencePage() {
                 수집 뉴스 전체 보기
               </Link>
               <Link className="btn btn-secondary" href={"/ai-evidence" as Route}>
-                AI 후보 전체 보기
+                AI 구조화 항목 전체 보기
               </Link>
               <Link className="btn btn-secondary" href={"/ai-evidence/results" as Route}>
                 구조화 결과 전체 보기
@@ -612,7 +612,7 @@ export default async function IntelligencePage() {
             </div>
             {hiddenNewsClusterCount > 0 ? (
               <p className="board-intro">
-                나머지 뉴스 묶음 {hiddenNewsClusterCount}개는 AI 후보·구조화 결과 화면에서 이어서 확인한다.
+                나머지 뉴스 묶음 {hiddenNewsClusterCount}개는 AI 근거 목록·구조화 결과 화면에서 이어서 확인한다.
               </p>
             ) : null}
           </>
@@ -631,7 +631,7 @@ export default async function IntelligencePage() {
                     <span className="relation-pill">{formatFallbackTone(cluster)}</span>
                   </div>
                   <p className="fallback-note">
-                    저장된 뉴스 묶음 증거가 아직 없어서 로컬 규칙 기반 임시 묶음을 보여준다.
+                    저장된 뉴스 묶음 근거가 아직 없어서 로컬 규칙 기반 임시 묶음을 보여준다.
                     AI 분석이 성공하면 묶음 기준과 원천 문서가 있는 분석 카드로 대체된다.
                   </p>
                   <div className="relationship-panel" aria-label={`${koCode(cluster.themeKey)} 임시 묶음 근거`}>
@@ -699,10 +699,10 @@ export default async function IntelligencePage() {
       <section className="intelligence-board reveal delay-3" id="ai-candidates" aria-labelledby="ai-candidate-queue-title">
         <div className="section-heading stacked-heading">
           <span>02 통과한 AI 근거</span>
-          <h2 id="ai-candidate-queue-title">대표 AI 후보 3건만 먼저 본다</h2>
+          <h2 id="ai-candidate-queue-title">대표 AI 구조화 항목 3건만 먼저 본다</h2>
         </div>
         <p className="board-intro">
-          한 건 단위의 테마, 종목, 방향, 신뢰도만 빠르게 확인한다. 전체 후보와 차단 목록은 전용 화면에서 본다.
+          한 건 단위의 테마, 종목, 방향, 신뢰도만 빠르게 확인한다. 전체 항목과 차단 목록은 전용 화면에서 본다.
         </p>
 
         {aiCandidateEvents.length > 0 ? (
@@ -743,21 +743,21 @@ export default async function IntelligencePage() {
             })}
           </div>
         ) : (
-          <div className="empty-state">AI 후보가 아직 없다. 뉴스 수집과 뉴스 AI 분석 실행 이력을 먼저 확인해야 한다.</div>
+          <div className="empty-state">AI 구조화 항목이 아직 없다. 뉴스 수집과 뉴스 AI 분석 실행 이력을 먼저 확인해야 한다.</div>
         )}
 
         <div className="btn-row decision-actions">
           <Link className="btn btn-secondary" href={"/ai-evidence" as Route}>
-            AI 후보 전체 보기
+            AI 구조화 항목 전체 보기
           </Link>
           <Link className="btn btn-secondary" href={"/ai-evidence/blocked" as Route}>
-            차단된 후보 보기
+            차단된 항목 보기
           </Link>
         </div>
 
         {unstructuredEvents.length > 0 ? (
           <details className="secondary-details">
-            <summary>아직 AI 후보가 아닌 최근 뉴스 {unstructuredEvents.length}개 보기</summary>
+            <summary>아직 AI 구조화 전인 최근 뉴스 {unstructuredEvents.length}개 보기</summary>
             <div className="relationship-list">
               {unstructuredEvents.map((event) => (
                 <div className="relationship-chip" key={event.event_id}>
@@ -794,9 +794,9 @@ export default async function IntelligencePage() {
         </div>
         <div className="intelligence-brief-grid">
           <article className={blockedCandidateCount > 0 ? "brief-signal-card watch" : "brief-signal-card ready"}>
-            <span>차단 후보</span>
+            <span>차단 항목</span>
             <strong>{blockedCandidateCount}건</strong>
-            <p>{blockedCandidateCount > 0 ? "차단 사유를 확인해야 한다." : "현재 노출된 차단 후보는 없다."}</p>
+            <p>{blockedCandidateCount > 0 ? "차단 사유를 확인해야 한다." : "현재 노출된 차단 항목은 없다."}</p>
           </article>
           <article className="brief-signal-card">
             <span>품질 기준</span>
@@ -822,9 +822,9 @@ export default async function IntelligencePage() {
       <section className="intelligence-board intelligence-brief-board reveal delay-3" id="recommendation-linkage" aria-labelledby="recommendation-linkage-title">
         <div className="section-heading stacked-heading">
           <span>04 추천 연결</span>
-          <h2 id="recommendation-linkage-title">통과한 근거가 추천·보유 판단으로 이어졌는지 본다</h2>
+          <h2 id="recommendation-linkage-title">통과한 근거가 추천 상세·보유 상태로 이어졌는지 본다</h2>
           <p>
-            이 화면은 주문 화면이 아니다. 통과한 뉴스 근거가 추천 상세, 종목 상세, 페이퍼 검증에서 어떻게 쓰이는지 이어서 확인한다.
+            이 화면은 주문 화면이 아니다. 통과한 뉴스 근거가 추천 상세, 종목 상세, 가상 매매 검증에서 어떻게 쓰이는지 이어서 확인한다.
           </p>
         </div>
         <div className="intelligence-brief-grid">
@@ -840,8 +840,8 @@ export default async function IntelligencePage() {
           </article>
           <article className="brief-signal-card">
             <span>다음 화면</span>
-            <strong>추천·페이퍼</strong>
-            <p>추천 상세와 페이퍼 거래 상태에서 실제 검증 단계까지 이어서 본다.</p>
+            <strong>추천·가상 매매</strong>
+            <p>추천 상세와 가상 매매 상태에서 실제 검증 단계까지 이어서 본다.</p>
           </article>
         </div>
         <div className="btn-row decision-actions">
@@ -849,7 +849,7 @@ export default async function IntelligencePage() {
             추천 연결 보기
           </Link>
           <Link className="btn btn-secondary" href={"/paper-trading" as Route}>
-            페이퍼 거래 상태 보기
+            가상 매매 상태 보기
           </Link>
         </div>
       </section>
