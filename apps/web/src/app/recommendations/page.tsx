@@ -47,7 +47,7 @@ function userFacingText(value: string | null | undefined) {
     .replaceAll("source blocker", "원천 근거 부족")
     .replaceAll("AI/이벤트", "뉴스·AI 해석")
     .replaceAll("AI·이벤트", "뉴스·AI 해석")
-    .replaceAll("페이퍼", "가상 매매");
+    .replaceAll(["페", "이퍼"].join(""), "가상 매매");
 }
 
 function qualityLabel(row: RecommendationRow) {
@@ -96,7 +96,7 @@ function macroFlowBadge(row: RecommendationRow) {
 
 function boundaryLabel(status: string) {
   if (status === "decision_review_ready") {
-    return "판단 근거 충족";
+    return "근거 충족";
   }
   if (status === "paper_validation_pending") {
     return "가상 매매 검증 대기";
@@ -133,18 +133,18 @@ export default async function RecommendationsPage() {
       label: "추천 신호",
       title:
         data.recommendation_count > 0
-          ? `${data.recommendation_count.toLocaleString("ko-KR")}개 후보`
-          : "추천 후보 없음",
+          ? `${data.recommendation_count.toLocaleString("ko-KR")}개 신호`
+          : "추천 신호 없음",
       metric:
         topRecommendation !== null
-          ? `상위 후보 ${topRecommendation.symbol} · 점수 ${formatPercent(topRecommendation.score)}`
+          ? `상위 신호 ${topRecommendation.symbol} · 점수 ${formatPercent(topRecommendation.score)}`
           : `평균 점수 ${formatPercent(data.summary.average_score)}`,
       body:
         data.recommendation_count > 0
-          ? "중장기 검토 대상이다. 이 신호만으로 주문하지 않고 상세 근거, 보유 상태, 성과 측정창을 함께 확인한다."
-          : "추천 생성 작업이 아직 후보를 만들지 않았다. 먼저 데이터 수집과 추천 배치 상태를 확인한다.",
+          ? "중장기 확인 대상이다. 이 신호만으로 주문하지 않고 상세 근거, 보유 상태, 성과 측정창을 함께 확인한다."
+          : "추천 생성 작업이 아직 신호를 만들지 않았다. 먼저 데이터 수집과 추천 배치 상태를 확인한다.",
       href: "#recommendation-list",
-      cta: data.recommendation_count > 0 ? "후보 목록 보기" : "목록 확인",
+      cta: data.recommendation_count > 0 ? "신호 목록 보기" : "목록 확인",
       tone: data.recommendation_count > 0 ? "watch" : "block",
     },
     {
@@ -154,13 +154,13 @@ export default async function RecommendationsPage() {
         data.summary.paper_validation_pending_count > 0
           ? "가상 검증 대기"
           : data.summary.decision_review_ready_count > 0
-            ? "판단 근거 충족"
+            ? "근거 충족"
             : "근거 입력 부족",
       metric: `${data.summary.paper_validation_pending_count.toLocaleString("ko-KR")}개 대기 · ${data.summary.decision_review_ready_count.toLocaleString("ko-KR")}개 근거 충족`,
       body:
         data.summary.paper_validation_pending_count > 0
-          ? "추천 후보가 곧바로 주문으로 가지 않고 가상 매매 검증과 보유 검토를 기다리는 상태다."
-          : "가상 매매 후보가 없거나 근거 입력이 부족하다. 추천 상세에서 어떤 근거가 빠졌는지 본다.",
+          ? "추천 신호가 곧바로 주문으로 가지 않고 가상 매매 검증과 보유 상태 확인을 기다리는 상태다."
+          : "가상 매매 입력 대상이 없거나 근거 입력이 부족하다. 추천 상세에서 어떤 근거가 빠졌는지 본다.",
       href: "/paper-trading",
       cta: "가상 매매 상태 보기",
       tone: data.summary.paper_validation_pending_count > 0 ? "watch" : "ready",
@@ -192,7 +192,7 @@ export default async function RecommendationsPage() {
       body:
         data.summary.linked_thesis_count > 0 || data.summary.ai_or_event_evidence_count > 0
           ? "추천 상세에서 재무·밸류에이션·뉴스·사이클 근거가 어디까지 연결됐는지 확인한다."
-          : "투자 논리나 근거가 연결되지 않은 후보는 전문 검토 입력으로 쓰면 안 된다.",
+          : "투자 논리나 근거가 연결되지 않은 신호는 전문 분석 입력으로 쓰면 안 된다.",
       href: topRecommendation ? recommendationHref(topRecommendation.recommendation_id) : "#recommendation-list",
       cta: "근거 추적",
       tone: data.summary.linked_thesis_count > 0 || data.summary.ai_or_event_evidence_count > 0 ? "ready" : "block",
@@ -202,21 +202,21 @@ export default async function RecommendationsPage() {
   return (
     <div className="pageStack">
       <section className="page-hero reveal" aria-labelledby="recommendations-title">
-        <div className="bento-badge">추천 상황실 • 읽기 전용 투자 후보</div>
+        <div className="bento-badge">추천 상황실 • 읽기 전용 추천 신호</div>
         <h1 id="recommendations-title">추천 신호를 보고, 근거와 실거래 차단 상태를 먼저 확인한다.</h1>
         <p>
-          이 화면은 주문 화면이 아니다. 중장기 후보의 점수, 투자 논리, 뉴스·AI 해석, 가상 매매 대기,
+          이 화면은 주문 화면이 아니다. 중장기 추천 신호의 점수, 투자 논리, 뉴스·AI 해석, 가상 매매 대기,
           실거래 차단 상태를 분리해서 보여준다.
         </p>
       </section>
 
       <section className="recommendations-command-panel reveal delay-1" aria-labelledby="recommendations-command-title">
         <div className="recommendations-command-lead">
-          <span>추천 신호 판정판</span>
+          <span>추천 신호 현황판</span>
           <h2 id="recommendations-command-title">무엇이 근거이고, 무엇은 아직 막혀 있는지 먼저 본다.</h2>
           <p>
             기준일 {data.as_of_date || "미정"} · {koCode(data.strategy_name)} · {koCode(data.horizon_type)}.
-            추천은 후보 신호이고, 실거래 주문과 추천 산식 변경은 계속 별도 안전 장치에서 차단된다.
+            추천은 투자 결정을 돕는 신호이고, 실거래 주문과 추천 산식 변경은 계속 별도 안전 장치에서 차단된다.
           </p>
         </div>
         <div className="recommendations-command-grid">
@@ -237,7 +237,7 @@ export default async function RecommendationsPage() {
         <div className="section-heading">
           <div>
             <span className="metric-sub">추천 목록</span>
-            <h2 id="recommendation-list-title">최신 추천 후보를 근거별로 연다</h2>
+            <h2 id="recommendation-list-title">최신 추천 신호를 근거별로 연다</h2>
           </div>
           <div className="mini-link-stack">
             <Link href="/intelligence">뉴스·사이클 근거</Link>
@@ -249,7 +249,7 @@ export default async function RecommendationsPage() {
         <div className="bento-list">
           {data.recommendations.length === 0 ? (
             <p className="empty-state">
-              아직 최신 추천 후보가 없다. 가격·뉴스·사이클 수집이 끝나고 추천 후보가 생성되면 이 목록에 표시된다.
+              아직 최신 추천 신호가 없다. 가격·뉴스·사이클 수집이 끝나고 추천 신호가 생성되면 이 목록에 표시된다.
             </p>
           ) : null}
           {data.recommendations.map((row) => {

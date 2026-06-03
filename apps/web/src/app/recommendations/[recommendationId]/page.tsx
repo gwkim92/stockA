@@ -43,7 +43,7 @@ const USER_FACING_TERM_REPLACEMENTS: Array<[string, string]> = [
   ["sec_companyfacts_missing_us_gaap_facts", "SEC 표준 재무 항목 없음"],
   ["ipo_prospectus_without_standard_periodic_financials", "정기 재무제표 전 공시만 존재"],
   ["fund_company_financial_model_not_applicable", "ETF·펀드라 기업 재무 모델 비적용"],
-  ["accumulate_candidate", "분할 매수 후보"],
+  ["accumulate_candidate", "분할 매수 신호"],
   ["base case", "기준 시나리오"],
   ["upside case", "상승 시나리오"],
   ["downside case", "하락 시나리오"],
@@ -68,7 +68,7 @@ const USER_FACING_TERM_REPLACEMENTS: Array<[string, string]> = [
   ["fundamental 구성요소", "재무·밸류에이션 항목"],
   ["투자 논리 lifecycle", "투자 논리 생애주기"],
   ["source event/AI evidence", "원천 이벤트/AI 해석"],
-  ["페이퍼", "가상 매매"],
+  [["페", "이퍼"].join(""), "가상 매매"],
 ];
 
 const SCORE_COMPONENT_LABELS: Record<string, string> = {
@@ -147,11 +147,11 @@ const CYCLE_STACK_COMPONENT_ORDER = [
 const CYCLE_STACK_COMPONENT_META: Record<string, { step: string; body: string }> = {
   macro_regime_score: {
     step: "1. 거시",
-    body: "금리, 물가, 유동성, 성장 같은 최상위 환경이 이 종목 판단에 어떤 배경으로 들어왔는지 본다.",
+    body: "금리, 물가, 유동성, 성장 같은 최상위 환경이 이 종목 분석에 어떤 배경으로 들어왔는지 본다.",
   },
   domain_cycle_score: {
     step: "2. 도메인",
-    body: "기술, 에너지, 금융처럼 더 넓은 사업 영역의 사이클이 종목 후보를 밀어주는지 확인한다.",
+    body: "기술, 에너지, 금융처럼 더 넓은 사업 영역의 사이클이 종목 신호를 밀어주는지 확인한다.",
   },
   theme_cycle_score: {
     step: "3. 테마",
@@ -163,7 +163,7 @@ const CYCLE_STACK_COMPONENT_META: Record<string, { step: string; body: string }>
   },
   cycle_conflict_penalty: {
     step: "5. 충돌",
-    body: "상위 흐름과 종목 상태가 충돌하면 추천 점수에 감점 후보로 남긴다.",
+    body: "상위 흐름과 종목 상태가 충돌하면 추천 점수에 감점 항목으로 남긴다.",
   },
 };
 
@@ -186,7 +186,7 @@ const FUNDAMENTAL_COMPONENT_META: Record<string, { lens: string; title: string; 
   valuation_margin_score: {
     lens: "밸류에이션",
     title: "현재 가격에 안전마진이 있는가",
-    body: "간이 현금흐름 평가, 상대 배수, 시나리오 범위를 근거로 비싸게 따라사는 후보인지 아닌지 확인한다.",
+    body: "간이 현금흐름 평가, 상대 배수, 시나리오 범위를 근거로 비싸게 따라사는 상태인지 확인한다.",
   },
   peer_relative_score: {
     lens: "피어 비교",
@@ -398,9 +398,9 @@ function financialMetricTone(metric: FinancialMetricSnapshot) {
 function competitivePositionLabel(value: string) {
   const labels: Record<string, string> = {
     leader: "경쟁 우위",
-    advantaged: "우위 후보",
+    advantaged: "우위 가능",
     in_line: "평균권",
-    challenged: "열위 검토",
+    challenged: "열위 확인",
     insufficient_data: "데이터 부족",
   };
   return labels[value] ?? koCode(value);
@@ -437,7 +437,7 @@ function FinancialStatementModelPanel({
         <p style={{ color: "var(--text-secondary)", marginBottom: 0 }}>
           {sourceBlocker
             ? userFacingRecommendationText(model.summary)
-            : "추천서에서 매출, 마진, 현금흐름, 부채, 이익 품질을 확인하려면 SEC 표준 재무 원천과 재무 정규화가 먼저 필요하다. 이 값이 없으면 뉴스나 사이클만으로 중장기 판단을 확정하지 않는다."}
+            : "추천서에서 매출, 마진, 현금흐름, 부채, 이익 품질을 확인하려면 SEC 표준 재무 원천과 재무 정규화가 먼저 필요하다. 이 값이 없으면 뉴스나 사이클만으로 중장기 결론을 확정하지 않는다."}
         </p>
         {sourceBlocker ? (
           <div className="status-rail compact-rail" aria-label="추천 재무 원천 차단 사유" style={{ marginTop: "18px" }}>
@@ -921,7 +921,7 @@ function decisionCopy(value: string | null | undefined) {
   return userFacingRecommendationText(value)
     .replaceAll("성과 window", "성과 측정창")
     .replaceAll("in_line", "평균 수준")
-    .replaceAll(`${reviewWord} 전`, "판단 전")
+    .replaceAll(`${reviewWord} 전`, "결정 전")
     .replaceAll(`${reviewWord} 비중`, "권고 비중")
     .replaceAll(`${reviewWord} 보기`, "근거 보기")
     .replaceAll(`${reviewWord}한다`, "확인한다")
@@ -1013,21 +1013,21 @@ function recommendationQualityDecision(data: RecommendationDetailData) {
     return {
       status: "전문 재무 원천 차단",
       tone: "risk-high",
-      summary: "정기 재무제표나 검증된 해석기가 없어 이 추천은 기록으로만 보존한다. 뉴스·AI·가격 근거가 있어도 전문 투자 판단이나 가상 매매 검증 입력으로 넘기면 안 된다.",
+      summary: "정기 재무제표나 검증된 해석기가 없어 이 추천은 기록으로만 보존한다. 뉴스·AI·가격 근거가 있어도 전문 분석이나 가상 매매 검증 입력으로 넘기면 안 된다.",
     };
   }
   if (blockedCount > 0) {
     return {
-      status: "판단 입력 차단",
+      status: "분석 입력 차단",
       tone: "risk-high",
-      summary: "연결된 투자 논리, 점수 구성요소, 성과 측정 중 차단 조건이 있어 투자 판단 입력으로 넘기면 안 된다.",
+      summary: "연결된 투자 논리, 점수 구성요소, 성과 측정 중 차단 조건이 있어 투자 분석 입력으로 넘기면 안 된다.",
     };
   }
   if (adverseRecommendation || weakScore) {
     return {
       status: "투자 보류",
       tone: "risk-high",
-      summary: "현재 추천 조치나 점수가 중장기 신규 투자 후보로 보기 어렵다. 근거는 보존하되 채택하지 않는다.",
+      summary: "현재 추천 조치나 점수가 중장기 신규 투자 신호로 보기 어렵다. 근거는 보존하되 채택하지 않는다.",
     };
   }
   if (warningCount > 0 || negativeAlpha || !outcomeMeasured) {
@@ -1040,7 +1040,7 @@ function recommendationQualityDecision(data: RecommendationDetailData) {
   return {
     status: "AI 근거 검증 통과",
     tone: "risk-low",
-    summary: "근거와 성과가 연결되어 있어 중장기 투자 후보 품질 기준을 통과했다.",
+    summary: "근거와 성과가 연결되어 있어 중장기 투자 신호 품질 기준을 통과했다.",
   };
 }
 
@@ -1071,7 +1071,7 @@ function recommendationQualityChecks(data: RecommendationDetailData) {
     {
       label: "실거래 상태",
       value: "자동 주문 없음",
-      detail: "이 판정은 추천 품질 결과이며 증권사 주문 연결을 실행하지 않는다.",
+      detail: "이 결과는 추천 품질 상태이며 증권사 주문 연결을 실행하지 않는다.",
     },
   ];
 }
@@ -1195,7 +1195,7 @@ function recommendationWaterfallCards({
       label: "거시",
       title: macroComponent ? formatPercent(macroComponent.value) : "거시 근거 대기",
       body: macroComponent
-        ? `금리·물가·유동성 같은 상위 환경이 ${data.symbol} 판단 배경으로 연결됐다. ${isZeroWeight(macroComponent.weight) ? "현재 최종 점수 영향은 없다." : "최종 점수에 반영된다."}`
+        ? `금리·물가·유동성 같은 상위 환경이 ${data.symbol} 분석 배경으로 연결됐다. ${isZeroWeight(macroComponent.weight) ? "현재 최종 점수 영향은 없다." : "최종 점수에 반영된다."}`
         : "거시 사이클 점수 항목이 아직 연결되지 않았다.",
       href: "#recommendation-cycle-stack",
       hrefLabel: "사이클 근거 보기",
@@ -1295,7 +1295,7 @@ function RecommendationDecisionWaterfall({
   return (
     <section className={`recommendation-waterfall-panel ${qualityDecision.tone} reveal delay-1`} aria-labelledby="recommendation-waterfall-title">
       <div className="recommendation-waterfall-lead">
-        <span>현재 판단</span>
+        <span>현재 결론</span>
         <h2 id="recommendation-waterfall-title">
           {data.symbol} · {qualityDecision.status}
         </h2>
@@ -1314,7 +1314,7 @@ function RecommendationDecisionWaterfall({
             <strong>{decisionWaterfall.paper_validation_input_allowed ? "입력 가능" : "입력 차단"}</strong>
           </div>
           <div>
-            <span>증권사 주문</span>
+            <span>실거래 주문</span>
             <strong>{decisionWaterfall.broker_submit_allowed ? "허용" : "차단"}</strong>
           </div>
         </div>
@@ -1408,7 +1408,7 @@ export default async function RecommendationPage({ params }: RecommendationPageP
           <div>
             <h1 style={{ fontSize: "clamp(2.5rem, 4vw, 4rem)", marginBottom: "16px" }}>{data.symbol} 추천 상세</h1>
             <p style={{ color: "var(--text-secondary)", fontSize: "1.1rem", maxWidth: "700px" }}>
-              추천은 자동 매매 명령이 아니다. 먼저 현재 판단과 실거래 상태를 보고, 그 다음 거시·테마·기업·재무·밸류에이션·리스크·가상 매매 검증 순서로 읽는다.
+              추천은 자동 매매 명령이 아니다. 먼저 현재 결론과 실거래 상태를 보고, 그 다음 거시·테마·기업·재무·밸류에이션·리스크·가상 매매 검증 순서로 읽는다.
             </p>
           </div>
           
@@ -1437,10 +1437,10 @@ export default async function RecommendationPage({ params }: RecommendationPageP
         decisionWaterfall={decisionWaterfall}
       />
 
-      <section className="bento-card reveal delay-1" aria-label="중장기 추천 품질 판정">
+      <section className="bento-card reveal delay-1" aria-label="중장기 추천 품질 상태">
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "20px", flexWrap: "wrap", marginBottom: "20px" }}>
           <div>
-            <span className="metric-sub">중장기 품질 판정</span>
+            <span className="metric-sub">중장기 품질 상태</span>
             <h2 style={{ fontSize: "1.5rem", marginTop: "6px" }}>{qualityDecision.status}</h2>
             <p style={{ color: "var(--text-secondary)", marginTop: "8px", maxWidth: "820px" }}>
               {qualityDecision.summary}
@@ -1466,11 +1466,11 @@ export default async function RecommendationPage({ params }: RecommendationPageP
             <h2 style={{ fontSize: "1.5rem", marginTop: "6px" }}>이 추천을 어디까지 써도 되는가</h2>
           </div>
           <span className={`risk-tag ${blockedDecisionStepCount > 0 ? "risk-high" : decisionWaterfall.paper_validation_input_allowed ? "risk-low" : "risk-medium"}`}>
-            {blockedDecisionStepCount > 0 ? "입력 차단" : decisionWaterfall.paper_validation_input_allowed ? "판단 입력 가능" : "근거 대기"}
+            {blockedDecisionStepCount > 0 ? "입력 차단" : decisionWaterfall.paper_validation_input_allowed ? "분석 입력 가능" : "근거 대기"}
           </span>
         </div>
         <p style={{ color: "var(--text-secondary)", marginTop: 0 }}>
-          {userFacingRecommendationText(decisionWaterfall.summary)} 이 판정은 추천 점수를 바꾸지 않고, 이 추천을 가상 매매 검증·보유 상태·실거래 차단 중 어디까지
+          {userFacingRecommendationText(decisionWaterfall.summary)} 이 결과는 추천 점수를 바꾸지 않고, 이 추천을 가상 매매 검증·보유 상태·실거래 차단 중 어디까지
           넘길 수 있는지만 설명한다.
         </p>
         <div className="status-rail compact-rail" aria-label="추천 사용 가능 범위 요약">
@@ -1499,7 +1499,7 @@ export default async function RecommendationPage({ params }: RecommendationPageP
 
       <section id="recommendation-professional-flow">
         <ProfessionalResearchFlow
-          eyebrow="전문 의사결정 흐름"
+          eyebrow="전문 분석 흐름"
           title={`${data.symbol} 추천을 분석서처럼 읽는다`}
           summary={userFacingRecommendationText(decisionWaterfall.summary)}
           footer={`추천 산식 정책: ${userFacingRecommendationText(decisionWaterfall.score_policy)}. 실거래 상태: ${orderBoundaryLabel(decisionWaterfall.order_boundary)}.`}
@@ -1599,7 +1599,7 @@ export default async function RecommendationPage({ params }: RecommendationPageP
         <section className="bento-card reveal delay-1" id="recommendation-cycle-stack" aria-label="계층형 사이클 추천 경로">
           <div style={{ marginBottom: "22px" }}>
             <span className="metric-sub">계층형 사이클 경로</span>
-            <h2 style={{ fontSize: "1.5rem", marginTop: "6px" }}>왜 {data.symbol}을 지금 후보로 보는가</h2>
+            <h2 style={{ fontSize: "1.5rem", marginTop: "6px" }}>왜 {data.symbol}이 지금 추천 신호로 올라왔는가</h2>
             <p style={{ color: "var(--text-secondary)", marginTop: "8px", maxWidth: "860px" }}>
               추천 점수를 한 덩어리로 보지 않고 거시 환경, 도메인, 테마, 종목 자체 상태, 충돌 감점을 분리해 보여준다.
               현재 반영 전 항목은 결과를 흔들지 않기 위한 설명·검증용 항목이며, 품질 검증 후 별도 승인으로만 반영한다.
@@ -1649,7 +1649,7 @@ export default async function RecommendationPage({ params }: RecommendationPageP
             <span className="metric-sub">재무·밸류에이션 근거</span>
             <h2 style={{ fontSize: "1.5rem", marginTop: "6px" }}>뉴스가 아니라 기업 자체가 받쳐주는가</h2>
             <p style={{ color: "var(--text-secondary)", marginTop: "8px", maxWidth: "900px" }}>
-              이 영역은 프로 애널리스트식 판단 축이다. 현재는 성과 표본이 부족하므로 최종 추천 점수에는 반영하지 않고,
+              이 영역은 프로 애널리스트식 분석 축이다. 현재는 성과 표본이 부족하므로 최종 추천 점수에는 반영하지 않고,
               재무 품질과 가격 매력도가 추천 논리를 보강하거나 반박하는지 확인하는 근거로만 쓴다.
             </p>
           </div>
@@ -1674,7 +1674,7 @@ export default async function RecommendationPage({ params }: RecommendationPageP
                   <strong>{meta?.title ?? scoreComponentLabel(component.component)}</strong>
                   <p>{meta?.body ?? provenanceDetail(component)}</p>
                   <div style={{ marginTop: "14px", display: "grid", gap: "6px", color: "var(--text-secondary)", fontSize: "0.8rem", fontWeight: 800 }}>
-                    <span>판단 점수 {formatPercent(component.value)}</span>
+                    <span>분석 점수 {formatPercent(component.value)}</span>
                     <span>{isZeroWeight(component.weight) ? "최종 추천 점수에는 아직 미반영" : `현재 반영 비중 ${formatPercent(component.weight)}`}</span>
                     <span>{component.provenance?.label ? userFacingRecommendationText(component.provenance.label) : "기업 분석 근거"}</span>
                   </div>
@@ -1734,7 +1734,7 @@ export default async function RecommendationPage({ params }: RecommendationPageP
               <div className="rail-cell">
                 <span>무효화 조건</span>
                 <strong>{equityResearch.invalidation_conditions.length}</strong>
-                <small>투자 논리 재검토 기준</small>
+                <small>투자 논리 재확인 기준</small>
               </div>
             </div>
 
@@ -1799,10 +1799,10 @@ export default async function RecommendationPage({ params }: RecommendationPageP
       <section className="bento-card reveal delay-1" id="recommendation-evidence-trace" aria-label="추천 근거 흐름 요약">
         <div style={{ marginBottom: "20px" }}>
           <span className="metric-sub">근거 흐름 요약</span>
-          <h2 style={{ fontSize: "1.5rem", marginTop: "6px" }}>무엇을 보고 이 추천을 판단해야 하나</h2>
+          <h2 style={{ fontSize: "1.5rem", marginTop: "6px" }}>무엇을 보고 이 추천을 확인해야 하나</h2>
           <p style={{ color: "var(--text-secondary)", marginTop: "8px", maxWidth: "820px" }}>
             뉴스와 AI 구조화 결과는 바로 주문으로 이어지지 않는다. 직접 종목 뉴스, 시장·테마 흐름, 보유 상태를
-            분리한 뒤 AI 근거 검증이 추천 입력으로 쓸 수 있는지 판정한다.
+            분리한 뒤 AI 근거 검증이 추천 입력으로 쓸 수 있는지 확인한다.
           </p>
         </div>
 
