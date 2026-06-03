@@ -45,4 +45,4 @@
 - [x] `/cycle-map` no longer uses ambiguous 후보/페이퍼/보유검토 wording for flow paths.
 - [x] The pages keep the read-only/no-order/no-weight-change boundary explicit.
 - [x] Local frontend/backend verification passes.
-- [ ] EC2 route smoke confirms the updated Korean copy renders.
+- [x] EC2 route smoke confirms the updated Korean copy renders.
