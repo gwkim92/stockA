@@ -252,9 +252,9 @@ function pageCopy(data: AiEvidenceDetailData, candidate: NewsCandidate | null, c
   if (cluster) {
     return {
       badge: `뉴스 묶음 증거 · ${koCode(data.extraction_run.provider)}`,
-      title: "이 뉴스 묶음을 추천 입력 후보로 인정해도 되는지 검토한다.",
+      title: "이 뉴스 묶음이 어떤 시장 흐름과 종목 후보로 이어졌는지 확인한다.",
       lede:
-        "이 화면의 핵심은 종목 매수 판단이 아니다. 여러 뉴스가 정말 같은 흐름인지, 연결 종목 후보가 과하지 않은지, 추천 검토서에 넣어도 되는지를 확인한다.",
+        "이 화면은 매수 판단 화면이 아니다. 같은 흐름으로 묶인 이유, 연결된 상위 테마, 종목 후보, 추천 근거 연결 여부를 원천 뉴스와 함께 대조한다.",
     };
   }
   return {
@@ -480,7 +480,7 @@ function NeighborhoodPanel({ neighborhood }: { neighborhood: EvidenceNeighborhoo
                 <span>{koCode(recommendation.action)}</span>
                 <strong>{koCode(recommendation.bucket)} · 점수 {formatPercent(recommendation.total_score)}</strong>
                 <small>{recommendation.as_of_date} · 권장 비중 {formatPercent(recommendation.recommended_weight)}</small>
-                {href ? <Link href={href}>추천 검토서 열기</Link> : null}
+                {href ? <Link href={href}>추천 상세 열기</Link> : null}
               </div>
             );
           })}
@@ -498,7 +498,7 @@ function NeighborhoodPanel({ neighborhood }: { neighborhood: EvidenceNeighborhoo
             );
           })}
           {neighborhood.recommendations.length === 0 && neighborhood.theses.length === 0 ? (
-            <p className="relationship-empty">아직 추천 검토서나 투자 논리가 연결되지 않았다.</p>
+            <p className="relationship-empty">아직 추천 상세나 투자 논리가 연결되지 않았다.</p>
           ) : null}
         </div>
       </div>
@@ -634,9 +634,9 @@ function AiEvidenceReviewBrief({
       status: `투자 논리 ${thesisCount}개`,
       body:
         recommendationCount > 0
-          ? "추천 검토서에서 가격, 사이클, 보유 논리와 함께 다시 판단한다."
+          ? "추천 상세에서 가격, 사이클, 재무, 보유 논리와 함께 다시 판단한다. 이 화면만으로 주문하지 않는다."
           : linkedSymbol
-            ? "추천 검토서에 바로 연결되지 않았더라도 종목 상세에서 직접 뉴스와 상위 흐름을 확인한다."
+            ? "추천 상세에 바로 연결되지 않았더라도 종목 상세에서 직접 뉴스와 상위 흐름을 확인한다."
             : "명확한 종목이 없으면 억지로 티커를 붙이지 않고 시장·테마 흐름으로 남긴다.",
       href: firstRecommendationLink ?? targetStockLink ?? "#evidence-neighborhood",
       cta: firstRecommendationLink ? "추천 보기" : targetStockLink ? "종목 보기" : "연결 상태 보기",
@@ -784,7 +784,7 @@ function EvidenceVisibilityTraceBoard({
             : "직접 종목 없이 상위 흐름으로 확인",
       body:
         recommendationCount > 0
-          ? "연결된 추천 검토서에서 가격, 사이클, 보유 논리와 함께 다시 판단한다."
+          ? "연결된 추천 상세에서 가격, 사이클, 재무, 보유 논리와 함께 다시 판단한다. 이 근거는 주문 결론이 아니라 입력 근거다."
           : trace.recommendation_linkage.message_ko,
       href: firstRecommendationLink ?? targetStockLink,
       cta: firstRecommendationLink ? "추천 열기" : targetStockLink ? "종목 열기" : undefined,
@@ -794,8 +794,8 @@ function EvidenceVisibilityTraceBoard({
   return (
     <section className="evidence-decision-card reveal delay-1" aria-labelledby="visibility-trace-title">
       <div className="section-heading stacked-heading">
-        <span>한눈에 보는 근거 흐름</span>
-        <h2 id="visibility-trace-title">이 근거가 어디서 와서 어디에 쓰이는지 확인한다</h2>
+        <span>근거 사용 경로</span>
+        <h2 id="visibility-trace-title">원천 뉴스가 추천 근거 후보가 되는 과정을 본다</h2>
         <p>{trace.summary_ko}</p>
       </div>
       <div className="evidence-trace-grid">
@@ -822,11 +822,11 @@ function EvidenceVisibilityTraceBoard({
             <small>{trace.validator.reasons_ko.join(" ")}</small>
           </div>
           <div className="relationship-chip">
-            <span>운영 경계</span>
-            <strong>실시간 AI 호출 없음 · 주문 없음</strong>
+            <span>주문 경계</span>
+            <strong>읽기 전용 · 자동 주문 없음</strong>
             <small>
-              live LLM {trace.read_only_boundary.live_llm_call_enabled ? "사용" : "미사용"} · write{" "}
-              {trace.read_only_boundary.write_enabled ? "허용" : "차단"} · {koCode(trace.read_only_boundary.order_boundary)}
+              화면에서는 저장된 배치 결과만 읽는다. write {trace.read_only_boundary.write_enabled ? "허용" : "차단"} ·{" "}
+              {koCode(trace.read_only_boundary.order_boundary)}
             </small>
           </div>
         </div>
@@ -870,7 +870,7 @@ export default async function AiEvidencePage({ params }: AiEvidencePageProps) {
           <p className="page-lede">{copy.lede}</p>
         </div>
         <aside className="quality-decision-card" aria-label="AI 근거 품질">
-          <span>AI 자동 판정</span>
+          <span>근거 사용 상태</span>
           <strong className={`risk-tag ${decision.tone}`}>{decision.label}</strong>
           <p>{decision.body}</p>
           <small>
@@ -956,7 +956,7 @@ export default async function AiEvidencePage({ params }: AiEvidencePageProps) {
             <p className="board-intro">
               {formatClusterStory(cluster)} 이슈의 뉴스 {cluster.event_count}개를 하나의 흐름으로 묶었다.
               상위 테마는 {koCode(cluster.theme_key)}이고, 연결 종목 후보는 {formatSymbols(cluster.symbols)}이다.
-              방향 분포는 {formatDirectionCounts(cluster.direction_counts)}이다. {providerReviewNote(data)}
+              방향 분포는 {formatDirectionCounts(cluster.direction_counts)}이다. 아래 대표 뉴스를 보고 묶음 이유와 종목 연결이 원문과 맞는지 확인한다. {providerReviewNote(data)}
             </p>
             <div className="relationship-panel">
               <span>왜 이 뉴스들이 같이 묶였나</span>
@@ -1018,7 +1018,7 @@ export default async function AiEvidencePage({ params }: AiEvidencePageProps) {
             </Link>
           ) : null}
           <Link className="btn btn-secondary" href="/intelligence">
-            뉴스 AI 판단으로 돌아가기
+            뉴스 흐름으로 돌아가기
           </Link>
         </div>
       </section>

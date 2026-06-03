@@ -101,7 +101,7 @@ export default async function HomePage() {
   const portfolioFeedbackDate =
     outcomeWaitMonitor.portfolio_feedback_maturity_date || outcomeWaitMonitor.earliest_action_date || "미정";
   const weightReviewLabel = outcomeWaitMonitor.manual_weight_review_allowed
-    ? "수동 추천 산식 검토 가능"
+    ? "성과 표본 충족 시 산식 점검"
     : "추천 산식 검토 차단";
   const orderBoundaryLabel = outcomeWaitMonitor.broker_submit_allowed ? "증권사 주문 전송 가능" : "주문 제출 차단";
   const firstRecommendationHref = firstRecommendation
@@ -169,11 +169,11 @@ export default async function HomePage() {
     },
     {
       index: "04",
-      title: "추천과 보유가 막혔나",
-      status: `${recommendationBoundary.decision_review_ready_count}개 검토 가능`,
+      title: "추천 근거가 충분한가",
+      status: `${recommendationBoundary.decision_review_ready_count}개 판단 후보`,
       detail: `페이퍼 대기 ${recommendationBoundary.paper_validation_pending_count}개, 차단 ${recommendationBoundary.decision_blocked_count}개, 열린 검토 ${ticketData.ticket_count}개`,
       href: "/recommendations",
-      cta: "추천 보유",
+      cta: "추천 근거",
     },
     {
       index: "05",
@@ -258,8 +258,8 @@ export default async function HomePage() {
             <span className="title-muted">안전이다.</span>
           </h1>
           <p className="manifest-lede">
-            이 첫 화면은 기능 목록이 아니라 판단 순서다. 수집이 정상인지 확인하고, 뉴스 AI가 어떤 종목과
-            테마에 연결됐는지 본 뒤, 추천·보유·거래 안전 조건을 검토한다.
+            오늘은 이 순서로 보면 된다. 먼저 데이터가 정상인지 확인하고, 새 뉴스 근거가 어떤 흐름과
+            종목에 붙었는지 본 뒤, 추천·보유·페이퍼 검증이 주문 차단 경계 안에 있는지 확인한다.
           </p>
           <div className="btn-row">
             <Link className="btn btn-primary" href="/data-health">
@@ -269,7 +269,7 @@ export default async function HomePage() {
               02 뉴스 근거
             </Link>
             <Link className="btn btn-secondary" href={"/recommendations" as Route}>
-              03 추천 검토
+              03 추천 근거
             </Link>
           </div>
         </div>
@@ -296,6 +296,10 @@ export default async function HomePage() {
             <div>
               <dt>자동화</dt>
               <dd>{automationDisplayLabel(health.data.scheduler, data.run_status.scheduler)}</dd>
+            </div>
+            <div>
+              <dt>주문 상태</dt>
+              <dd>{orderBoundaryLabel}</dd>
             </div>
           </dl>
         </aside>
@@ -366,12 +370,12 @@ export default async function HomePage() {
           <small>AI 후보 {eventData.summary.ai_extracted_count}개</small>
         </article>
         <article className="rail-cell">
-          <span>추천 검토 가능</span>
+          <span>추천 판단 후보</span>
           <strong>{recommendationBoundary.decision_review_ready_count}</strong>
           <small>페이퍼 대기 {recommendationBoundary.paper_validation_pending_count}개</small>
         </article>
         <article className="rail-cell rail-critical">
-          <span>추천 검토 차단</span>
+          <span>추천 사용 차단</span>
           <strong>{recommendationBoundary.decision_blocked_count}</strong>
           <small>주문 차단 {recommendationBoundary.order_blocked_count}개</small>
         </article>
@@ -431,7 +435,7 @@ export default async function HomePage() {
           </article>
           <article className="decision-brief-card">
             <span>추천 사용 경계</span>
-            <strong>{recommendationBoundary.decision_review_ready_count}개 검토 가능</strong>
+            <strong>{recommendationBoundary.decision_review_ready_count}개 판단 후보</strong>
             <p>
               페이퍼 검증 대기 {recommendationBoundary.paper_validation_pending_count}개, 근거·thesis 차단{" "}
               {recommendationBoundary.decision_blocked_count}개. 모든 추천은 주문 차단 상태다.
@@ -487,7 +491,7 @@ export default async function HomePage() {
         <aside className="operator-side-stack">
           <article className="ledger-panel decision-panel">
             <div className="section-heading">
-              <span>첫 검토</span>
+              <span>첫 보완 항목</span>
               <h2>{firstTicket ? `${firstTicket.symbol}: ${koCode(firstTicket.action)}` : "보완 티켓 없음"}</h2>
             </div>
             {firstTicket ? (
