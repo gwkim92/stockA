@@ -17,6 +17,7 @@
 - `/recommendations/[recommendationId]` now uses `추천 상세`, `AI 근거 검증 통과`, `판단 입력 가능`, `근거 대기`, `보유 상태 연결`, and `ETF·펀드 추천 근거`.
 - Price/valuation wording now describes `가격 근거` and `판단 점수`, not action-less review states.
 - Data-derived RAG quality gate messages on `/stocks/[symbol]` now pass through user-facing wording conversion before rendering.
+- Data-derived professional decision step copy on `/recommendations/[recommendationId]` now maps `검토 전`, `검토 비중`, and related action-less review labels to decision/evidence wording.
 
 ## Verification
 
@@ -30,4 +31,4 @@
 
 ## Next Step
 
-- exact next step: commit/push the final data-derived message wording fix, deploy to EC2, and smoke `/stocks`, `/stocks/SPY`, and a representative recommendation detail route.
+- exact next step: commit/push the final recommendation decision copy fix, deploy to EC2, and repeat route/browser text smoke.

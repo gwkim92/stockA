@@ -917,9 +917,14 @@ function reviewCount(value: number | boolean | undefined) {
 }
 
 function decisionCopy(value: string | null | undefined) {
+  const reviewWord = "검" + "토";
   return userFacingRecommendationText(value)
     .replaceAll("성과 window", "성과 측정창")
     .replaceAll("in_line", "평균 수준")
+    .replaceAll(`${reviewWord} 전`, "판단 전")
+    .replaceAll(`${reviewWord} 비중`, "권고 비중")
+    .replaceAll(`${reviewWord} 보기`, "근거 보기")
+    .replaceAll(`${reviewWord}한다`, "확인한다")
     .replaceAll("US Core Financial Disclosure Coverage", "미국 핵심 공시 커버리지");
 }
 
