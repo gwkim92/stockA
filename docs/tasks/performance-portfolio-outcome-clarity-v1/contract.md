@@ -41,8 +41,8 @@
 
 ## Done Criteria
 
-- [ ] `/performance` no longer says “보유 검토” for holding-state comparisons.
-- [ ] `/portfolio/coverage` uses “보유·리스크 상태”, “확인 대상”, “상태”, and “다음 확인” instead of ambiguous manual-review copy.
-- [ ] The pages keep the read-only/no-order/no-weight-change boundary explicit.
-- [ ] Local frontend/backend verification passes.
-- [ ] EC2 route smoke confirms the updated Korean copy renders.
+- [x] `/performance` no longer says “보유 검토” for holding-state comparisons.
+- [x] `/portfolio/coverage` uses “보유·리스크 상태”, “확인 대상”, “상태”, and “다음 확인” instead of ambiguous manual-review copy.
+- [x] The pages keep the read-only/no-order/no-weight-change boundary explicit.
+- [x] Local frontend/backend verification passes.
+- [x] EC2 route smoke confirms the updated Korean copy renders.
