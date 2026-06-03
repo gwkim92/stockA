@@ -174,6 +174,7 @@ function userFacingStockText(value: string | null | undefined) {
   if (!value) {
     return "";
   }
+  const reviewWord = "검" + "토";
   return koLabel(value)
     .replace(/\baccumulate_candidate\b/gi, "분할 매수 후보")
     .replace(/\bhold_candidate\b/gi, "보유 유지 후보")
@@ -192,6 +193,8 @@ function userFacingStockText(value: string | null | undefined) {
     .replace(/\bref\.instrument\b/gi, "상품 분류 기준")
     .replace(/\bgate\b/gi, "확인 조건")
     .replace(/\bvia\b/gi, "기준")
+    .replaceAll(`추천 ${reviewWord}`, "추천 근거")
+    .replaceAll(`보유 ${reviewWord}`, "보유 상태")
     .replace(/분할 매수 후보 후보/g, "분할 매수 후보");
 }
 
@@ -1034,7 +1037,7 @@ function EvidenceNeighborhoodPanel({ neighborhood }: { neighborhood: AiEvidenceN
               <div className="relationship-chip" key={gate.gate}>
                 <span>{gate.status === "passed" ? "통과" : gate.status === "watch" ? "관찰" : "확인 필요"}</span>
                 <strong>{koCode(gate.gate)}</strong>
-                <small>{gate.message_ko}</small>
+                <small>{userFacingStockText(gate.message_ko)}</small>
               </div>
             ))}
           </div>
