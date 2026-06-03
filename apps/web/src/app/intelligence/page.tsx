@@ -576,7 +576,7 @@ export default async function IntelligencePage() {
                             translationConfidence={event.translation_confidence}
                             symbol={event.symbol}
                             themeKey={cluster.theme_key}
-                            impactDirection={event.impact_direction}
+                            impactDirection={formatImpactDirection(event.impact_direction)}
                             impactScore={event.impact_score}
                           />
                           <small>
@@ -675,7 +675,7 @@ export default async function IntelligencePage() {
                             translationConfidence={event.translation_confidence}
                             symbol={event.symbol}
                             themeKey={event.theme_key}
-                            impactDirection={event.impact_direction}
+                            impactDirection={formatImpactDirection(event.impact_direction)}
                             impactScore={event.impact_score}
                           />
                           <small>
@@ -732,7 +732,7 @@ export default async function IntelligencePage() {
                       translationConfidence={event.translation_confidence}
                       symbol={event.symbol}
                       themeKey={event.theme_key}
-                      impactDirection={event.impact_direction}
+                      impactDirection={formatImpactDirection(event.impact_direction)}
                       impactScore={event.impact_score}
                     />
                     <p>
@@ -777,7 +777,7 @@ export default async function IntelligencePage() {
                     translationConfidence={event.translation_confidence}
                     symbol={event.symbol}
                     themeKey={event.theme_key}
-                    impactDirection={event.impact_direction}
+                    impactDirection={formatImpactDirection(event.impact_direction)}
                     impactScore={event.impact_score}
                   />
                   <small>
