@@ -2,7 +2,7 @@
 
 ## Current Status
 
-- in progress: local implementation and local verification are complete; EC2 deploy/route smoke is pending.
+- in progress: local implementation and local verification are complete; final EC2 deploy/route smoke is pending.
 
 ## Decisions
 
@@ -18,6 +18,7 @@
 - AI evidence detail now frames cluster evidence as a source-to-recommendation evidence path, not a buy/review decision.
 - AI evidence detail replaced `AI 자동 판정` with `근거 사용 상태`, and `운영 경계` with clearer `주문 경계`.
 - Recommendation-linked evidence copy now says the recommendation detail must combine price, cycle, financials, thesis, and paper/order boundary before any action.
+- Global Korean labels now use `AI 검증` and `성과 표본 충족` instead of action-less `AI 검토` / `검토 가능` labels in the touched decision flow.
 
 ## Verification
 
@@ -25,7 +26,9 @@
 - passed: `cd apps/web && npm run build`
 - passed: `PYTHONPATH=src /opt/homebrew/bin/python3.13 -m unittest tests.test_frontend_live_adapter`
 - passed: `PYTHONPATH=src /opt/homebrew/bin/python3.13 -m compileall -q src tests`
+- passed: local text scan for `사람 검토`, `AI 검토`, `추천·보유검토`, and `검토 가능` in the touched files returned no matches.
+- passed: first EC2 deploy/route smoke for commit `26d3b58`; `/` and `/ai-evidence/ai-evidence-973` rendered the new home and evidence-path wording.
 
 ## Next Step
 
-- exact next step: run AWH verify, commit/push, deploy to EC2, rebuild/restart Next.js, and route-smoke `/`, `/ai-evidence`, and `/ai-evidence/ai-evidence-973`.
+- exact next step: run AWH verify, commit/push the final label cleanup, deploy to EC2, rebuild/restart Next.js, and route-smoke `/`, `/ai-evidence`, and `/ai-evidence/ai-evidence-973`.

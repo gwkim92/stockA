@@ -14,6 +14,7 @@
 - mutable surface:
   - `apps/web/src/app/page.tsx`
   - `apps/web/src/app/ai-evidence/[evidenceId]/page.tsx`
+  - `apps/web/src/lib/korean-labels.ts`
   - `apps/web/src/app/globals.css`
   - `docs/tasks/decision-cockpit-evidence-clarity-v1/*`
 
@@ -39,4 +40,3 @@
 - verification command: `PYTHONPATH=src /opt/homebrew/bin/python3.13 -m compileall -q src tests`
 - verification command: route smoke for `/`, `/ai-evidence`, and one `/ai-evidence/{id}`
 - verification command: `PYTHONPATH=/Users/woody/ai/agent-work-harness/src /opt/homebrew/bin/python3.13 -m awh verify --repo . --task decision-cockpit-evidence-clarity-v1`
-

@@ -236,15 +236,15 @@ function pageCopy(data: AiEvidenceDetailData, candidate: NewsCandidate | null, c
   if (candidate && data.evidence_type === "news_event_candidate_rejected") {
     return {
       badge: `차단된 AI 후보 · ${koCode(data.extraction_run.provider)}`,
-      title: "이 AI 후보가 왜 추천 근거로 통과하지 못했는지 검증한다.",
+      title: "이 AI 후보가 왜 추천 근거로 통과하지 못했는지 확인한다.",
       lede:
-        "검증 단계에서 통과 가능한 종목·테마 영향으로 인정하지 않은 후보를 보는 화면이다. 원천과 AI 출력은 보존하지만 추천·보유검토 입력으로 쓰지 않는다.",
+        "검증 단계에서 통과 가능한 종목·테마 영향으로 인정하지 않은 후보를 보는 화면이다. 원천과 AI 출력은 보존하지만 추천·보유 판단 입력으로 쓰지 않는다.",
     };
   }
   if (candidate) {
     return {
       badge: `개별 뉴스 AI 후보 · ${koCode(data.extraction_run.provider)}`,
-      title: "이 뉴스가 어떤 종목과 테마에 영향을 주는지 검증한다.",
+      title: "이 뉴스가 어떤 종목과 테마에 영향을 주는지 확인한다.",
       lede:
         "AI는 뉴스 한 건을 투자 행동으로 바꾸지 않는다. 여기서는 원천 뉴스, 추출된 테마·종목 영향, 신뢰도, 불확실성, 추천·보유 연결 여부만 확인한다.",
     };
@@ -293,7 +293,7 @@ function evidenceDecision(data: AiEvidenceDetailData) {
     return {
       label: "AI 검증 통과 후보",
       tone: "risk-low",
-      body: "구조화 결과가 저장됐고 추천·보유 검토의 입력 후보로 사용할 수 있다. 그래도 주문 결론은 만들지 않는다.",
+      body: "구조화 결과가 저장됐고 추천·보유 판단의 입력 후보로 사용할 수 있다. 그래도 주문 결론은 만들지 않는다.",
     };
   }
   return {
