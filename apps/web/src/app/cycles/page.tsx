@@ -84,7 +84,7 @@ export default async function CyclesPage() {
 
       <section className="cycle-command-panel reveal delay-1" aria-labelledby="cycle-command-title">
         <div className="cycle-command-lead">
-          <span>사이클 판정판</span>
+          <span>사이클 현황판</span>
           <h2 id="cycle-command-title">상태, 근거, 추천 영향을 분리해서 본다.</h2>
           <p>
             이 화면은 테마별 사이클 상태표다. 어떤 테마가 변했는지 먼저 보고, 왜 변했는지는
@@ -106,21 +106,21 @@ export default async function CyclesPage() {
             <strong>{activeCycleCount}개 상태 변화</strong>
             <em>현재 상태와 이전 상태 비교</em>
             <p>
-              상태가 바뀐 테마는 추천·보유 투자 논리와 충돌하는지 먼저 본다. 변화가 없어도 신뢰도와 판단
-              근거는 별도로 확인한다.
+              상태가 바뀐 테마는 추천·보유 투자 논리와 충돌하는지 먼저 본다. 변화가 없어도 신뢰도와 확인
+              근거는 별도로 본다.
             </p>
             <b>변화 항목 보기</b>
           </a>
           <a className={missingFeatureCount > 0 ? "cycle-command-card watch" : "cycle-command-card ready"} href="#cycle-states">
             <span>03</span>
-            <small>판단 근거</small>
+            <small>확인 근거</small>
             <strong>뉴스 {eventLedThemeCount} · 가격 {momentumThemeCount}</strong>
             <em>기업 품질 {fundamentalMeasuredCount}/{data.cycle_states.length}</em>
             <p>
               막대는 뉴스 흐름, 가격 흐름, 기업 품질을 분리해 보여준다. 특정 축이 비어 있으면 결론보다
               데이터 보강이 먼저다.
             </p>
-            <b>판단 근거 확인</b>
+            <b>확인 근거 보기</b>
           </a>
           <Link className="cycle-command-card" href={"/cycle-map" as Route}>
             <span>04</span>
@@ -163,7 +163,7 @@ export default async function CyclesPage() {
         {data.cycle_states.length === 0 ? (
           <article className="empty-state">
             아직 이 기준일에 저장된 사이클 스냅샷이 없다. 뉴스·상위 흐름은 계속 수집되지만,
-            테마 사이클은 일간 신호와 추천 후보가 계산된 뒤 이 화면에 표시된다.
+            테마 사이클은 일간 신호와 추천 신호가 계산된 뒤 이 화면에 표시된다.
           </article>
         ) : null}
         {data.cycle_states.map((cycle, index) => {

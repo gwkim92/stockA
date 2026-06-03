@@ -92,14 +92,14 @@ export default async function CycleMapPage() {
           </h1>
         </div>
         <p className="page-lede">
-          뉴스는 개별 종목 뉴스와 상위 흐름 뉴스로 나뉜다. 이 화면은 거시, 도메인, 테마, 종목 후보가
+          뉴스는 개별 종목 뉴스와 상위 흐름 뉴스로 나뉜다. 이 화면은 거시, 도메인, 테마, 종목 신호가
           어떤 계층으로 연결되고 추천 근거에 들어가는지 보여주는 지도다.
         </p>
       </section>
 
       <section className="cycle-map-path-panel reveal delay-1" aria-labelledby="cycle-map-path-title">
         <div className="cycle-map-path-lead">
-          <span>흐름 경로 판정판</span>
+          <span>흐름 경로 현황판</span>
           <h2 id="cycle-map-path-title">뉴스가 어느 흐름을 거쳐 종목에 닿았는지 본다.</h2>
           <p>
             사이클 상태표가 테마별 현재 상태를 보여준다면, 이 화면은 원인 경로 지도다. 원천 뉴스와
@@ -150,7 +150,7 @@ export default async function CycleMapPage() {
             <em>투자 논리 {data.summary.thesis_count}개</em>
             <p>
               추천은 이 지도만으로 결정하지 않는다. 추천 상세에서 직접 뉴스, 상위 흐름 연결, 재무·밸류에이션,
-              페이퍼 검증을 분리해 본다.
+              가상 매매 검증을 분리해 본다.
             </p>
             <b>추천 근거 보기</b>
           </Link>
@@ -205,12 +205,12 @@ export default async function CycleMapPage() {
           <article className="flow-step">
             <span>04</span>
             <strong>종목</strong>
-            <p>노출도와 직접 뉴스가 있는 종목 후보로 연결한다.</p>
+            <p>노출도와 직접 뉴스가 있는 종목 신호로 연결한다.</p>
           </article>
           <article className="flow-step">
             <span>05</span>
             <strong>검증</strong>
-            <p>추천 상세와 보유검토에서 점수, 투자 논리, 거래 안전을 따로 확인한다.</p>
+            <p>추천 상세와 보유 상태에서 점수, 투자 논리, 거래 안전을 따로 확인한다.</p>
           </article>
         </div>
       </section>
