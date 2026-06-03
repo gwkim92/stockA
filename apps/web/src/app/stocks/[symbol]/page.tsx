@@ -175,11 +175,11 @@ function userFacingStockText(value: string | null | undefined) {
     return "";
   }
   return koLabel(value)
-    .replace(/\baccumulate_candidate\b/gi, "분할 매수 검토 후보")
-    .replace(/\bhold_candidate\b/gi, "보유 검토 후보")
+    .replace(/\baccumulate_candidate\b/gi, "분할 매수 후보")
+    .replace(/\bhold_candidate\b/gi, "보유 유지 후보")
     .replace(/\breduce_watch\b/gi, "비중 축소 관찰")
     .replace(/\bthesis\b/gi, "투자 논리")
-    .replace(/\bevidence review\b/gi, "근거 검토")
+    .replace(/\bevidence review\b/gi, "근거 확인")
     .replace(/\bpaper validation gate\b/gi, "가상 매매 검증")
     .replace(/\bpaper validation\b/gi, "가상 매매 검증")
     .replace(/\bvaluation\b/gi, "밸류에이션")
@@ -192,7 +192,7 @@ function userFacingStockText(value: string | null | undefined) {
     .replace(/\bref\.instrument\b/gi, "상품 분류 기준")
     .replace(/\bgate\b/gi, "확인 조건")
     .replace(/\bvia\b/gi, "기준")
-    .replace(/분할 매수 검토 후보 후보/g, "분할 매수 검토 후보");
+    .replace(/분할 매수 후보 후보/g, "분할 매수 후보");
 }
 
 function valuationSensitivityLabel(key: string) {
@@ -231,7 +231,7 @@ function stockDecisionOutcome(
   if (data.recommendation) {
     return {
       tone: "ready",
-      label: "추천 검토",
+      label: "추천 근거 있음",
       title: `${data.symbol}은 추천 근거가 있음`,
       body: "추천 상세에서 점수 구성, 기업 분석, 뉴스·사이클 근거, 실거래 차단 상태를 함께 확인한다.",
     };
@@ -239,7 +239,7 @@ function stockDecisionOutcome(
   if (data.position) {
     return {
       tone: "watch",
-      label: "보유 검토",
+      label: "보유 상태 확인",
       title: `${data.symbol}은 보유 중이지만 최신 추천은 없음`,
       body: "보유 이유와 최근 뉴스·상위 흐름이 유지 조건을 깨지 않는지 먼저 확인한다.",
     };
@@ -293,7 +293,7 @@ function StockDecisionBrief({
         ? `${koLabel(data.position.portfolio_name)} 기준 · 평가액 ${formatCurrency(data.position.market_value, data.currency_code)}`
         : "포트폴리오 스냅샷에 보유 포지션이 없다.",
       href: "/portfolio/coverage",
-      hrefLabel: "보유 검토 보기",
+      hrefLabel: "보유 상태 보기",
       tone: data.position ? "ready" : "neutral",
     },
     {
@@ -1278,9 +1278,9 @@ export default async function StockDetailPage({ params }: StockDetailPageProps) 
       status: hasTargetRange ? `${valuationTargetRange.method_count}개 목표가 산출` : (valuationItems.length ? `${valuationItems.length}개 민감도` : "산출 대기"),
       tone: hasTargetRange || valuationItems.length ? "ready" : "watch",
       body: hasTargetRange
-        ? "현재가 대비 목표가 하단·기준·상단과 안전마진을 먼저 본다. 이 값은 추천 점수를 바로 바꾸지 않고 가격 검토 근거로만 쓴다."
+        ? "현재가 대비 목표가 하단·기준·상단과 안전마진을 먼저 본다. 이 값은 추천 점수를 바로 바꾸지 않고 가격 근거로만 쓴다."
         : valuationItems.length
-          ? "현금흐름, 상대 배수, 시나리오 범위가 추천 점수를 바로 바꾸지는 않지만, 비싸게 사는지 여부를 검토하는 핵심 입력이다."
+          ? "현금흐름, 상대 배수, 시나리오 범위가 추천 점수를 바로 바꾸지는 않지만, 비싸게 사는지 여부를 확인하는 핵심 입력이다."
         : "아직 목표가 범위, 안전마진, 시나리오 민감도가 충분히 저장되지 않았다.",
       facts:
         hasTargetRange
@@ -1329,7 +1329,7 @@ export default async function StockDetailPage({ params }: StockDetailPageProps) 
       id: "paper-validation",
       label: "07",
       title: "가상 매매·실거래 상태",
-      status: sourceBlocked ? "가상 검증 입력 차단" : data.position ? "보유 상태 있음" : data.recommendation ? "추천 검토 중" : "거래 입력 전",
+      status: sourceBlocked ? "가상 검증 입력 차단" : data.position ? "보유 상태 있음" : data.recommendation ? "추천 근거 있음" : "거래 입력 전",
       tone: sourceBlocked ? "blocked" : "neutral",
       body: sourceBlocked
         ? `${userFacingStockText(sourceGuardrail.next_action)} 실제 증권사 주문 전송은 계속 닫혀 있다.`
@@ -1407,7 +1407,7 @@ export default async function StockDetailPage({ params }: StockDetailPageProps) 
           </div>
           <p style={{ color: "var(--text-secondary)", marginBottom: 0 }}>
             {data.symbol}은 현재 뉴스·테마 흐름에는 연결되어 있지만, 이 서버의 가격 캔들 수집 대상에는 아직 충분히
-            포함되지 않았다. 따라서 가격 차트와 수익률은 판단하지 않고, 아래 상위 흐름/원천 뉴스만 검토한다.
+            포함되지 않았다. 따라서 가격 차트와 수익률은 판단하지 않고, 아래 상위 흐름/원천 뉴스만 확인한다.
           </p>
         </section>
       ) : null}

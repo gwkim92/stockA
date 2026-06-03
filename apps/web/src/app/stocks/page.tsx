@@ -102,10 +102,10 @@ export default async function StocksPage() {
       metric: formatSymbolList(heldStocks),
       body:
         heldStocks.length > 0
-          ? "포트폴리오에 연결된 종목이다. 추천 방향과 현재 보유 비중이 충돌하지 않는지 보유 검토에서 확인한다."
+          ? "포트폴리오에 연결된 종목이다. 추천 방향과 현재 보유 비중이 충돌하지 않는지 보유 상태 화면에서 확인한다."
           : "현재 포트폴리오 스냅샷에 연결된 보유 종목이 없다.",
       href: "/portfolio/coverage",
-      cta: "보유 검토 보기",
+      cta: "보유 상태 보기",
       tone: heldStocks.length > 0 ? "ready" : "watch",
     },
     {
@@ -264,7 +264,7 @@ export default async function StocksPage() {
                   <small>
                     {stock.recommendation
                       ? `${stock.recommendation.as_of_date} · 점수 ${formatPercent(stock.recommendation.score)}`
-                      : "검토 전"}
+                      : "추천 전"}
                   </small>
                 </span>
                 <span role="cell">
