@@ -45,4 +45,4 @@
 - [x] Live AI section shows current unhealthy task count separately from recent rolling-window failures.
 - [x] Existing critical failure status still communicates failure.
 - [x] Local verification passes.
-- [ ] EC2 route smoke confirms updated Korean copy renders.
+- [x] EC2 route smoke confirms updated Korean copy renders.
