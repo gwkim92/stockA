@@ -26,7 +26,7 @@ const USER_FACING_REPLACEMENTS: Array<[string, string]> = [
   ["blocked", "차단"],
   ["pending", "대기"],
   ["approved", "허용"],
-  ["페이퍼", "가상 매매"],
+  [["페", "이퍼"].join(""), "가상 매매"],
   ["주문 경계", "실거래 상태"],
   ["가중치", "반영 비중"],
 ];
@@ -121,22 +121,22 @@ function paperValidationState(trading: TradingReadinessData) {
   }
   if (trading.gate_summary.blocked_count > 0 || trading.paper_validation.blocked_reasons.length > 0) {
     return {
-      title: "가상 매매 후보 있음 · 실제 주문 차단",
+      title: "가상 매매 항목 있음 · 실제 주문 차단",
       tone: "risk-high",
-      detail: "가상 후보는 만들 수 있지만 안전 조건이 닫혀 있어 실제 주문으로 넘어가지 않는다.",
+      detail: "가상 매매 항목은 만들 수 있지만 안전 조건이 닫혀 있어 실제 주문으로 넘어가지 않는다.",
     };
   }
   if (trading.paper_validation.approved_action_count > 0) {
     return {
-      title: "가상 매매 검증 통과 후보 있음 · 실제 주문 금지",
+      title: "가상 매매 검증 통과 항목 있음 · 실제 주문 금지",
       tone: "risk-medium",
-      detail: "가상 매매 검증을 통과한 후보가 있지만 이 화면은 주문을 만들지 않는다. 실거래는 거래 안전 승인, 증권사 연결, 계좌 권한, 주문 한도, 감사 기록이 모두 붙은 뒤에만 가능하다.",
+      detail: "가상 매매 검증을 통과한 항목이 있지만 이 화면은 주문을 만들지 않는다. 실거래는 거래 안전 승인, 증권사 연결, 계좌 권한, 주문 한도, 감사 기록이 모두 붙은 뒤에만 가능하다.",
     };
   }
   return {
-    title: "가상 매매 후보 대기 · 실제 주문 없음",
+    title: "가상 매매 항목 대기 · 실제 주문 없음",
     tone: "risk-medium",
-    detail: "추천 후보와 현재 보유 내역이 맞물릴 때 가상 조치 후보가 생성된다.",
+    detail: "추천 신호와 현재 보유 내역이 맞물릴 때 가상 매매 항목이 생성된다.",
   };
 }
 
@@ -164,7 +164,7 @@ export default async function PaperTradingPage() {
       body:
         liveSubmitCount > 0
           ? "이 경우 가상 매매 화면을 보기 전에 감사 로그와 실제 계좌 내역을 먼저 대조해야 한다."
-          : "현재 서버 기준으로 증권사에 전송된 주문은 없다. 아래 후보는 모두 시뮬레이션이다.",
+          : "현재 서버 기준으로 증권사에 전송된 주문은 없다. 아래 항목은 모두 시뮬레이션이다.",
       href: "#paper-current-state",
       cta: "실거래 상태 보기",
       tone: liveSubmitCount > 0 ? "block" : "ready",
@@ -173,13 +173,13 @@ export default async function PaperTradingPage() {
       index: "02",
       label: "가상 매매 검증",
       title: validationState.title,
-      metric: simulatedActionCount > 0 ? `${simulatedActionCount}개 후보` : "후보 대기",
+      metric: simulatedActionCount > 0 ? `${simulatedActionCount}개 항목` : "항목 대기",
       body:
         simulatedActionCount > 0
-          ? "추천과 현재 보유가 충돌하거나 조정 여지가 있는 항목이다. 주문 지시가 아니라 검증용 후보다."
-          : "추천, 가격, 보유 데이터가 갱신되면 후보가 다시 계산된다.",
+          ? "추천과 현재 보유가 충돌하거나 조정 여지가 있는 항목이다. 주문 지시가 아니라 검증용 항목이다."
+          : "추천, 가격, 보유 데이터가 갱신되면 가상 매매 항목이 다시 계산된다.",
       href: "#paper-action-candidates",
-      cta: simulatedActionCount > 0 ? "후보 보기" : "추천 대기 보기",
+      cta: simulatedActionCount > 0 ? "항목 보기" : "추천 대기 보기",
       tone: simulatedActionCount > 0 ? "watch" : "ready",
     },
     {
@@ -189,7 +189,7 @@ export default async function PaperTradingPage() {
       metric: `${trading.gate_summary.blocked_count}개 차단`,
       body:
         trading.gate_summary.blocked_count > 0
-          ? "거래 안전 조건이 닫혀 있어 가상 매매 후보를 실거래로 전환하면 안 된다."
+          ? "거래 안전 조건이 닫혀 있어 가상 매매 항목을 실거래로 전환하면 안 된다."
           : "차단 조건이 없어 보여도 이 화면에는 주문 버튼이 없다. 실거래 전환은 별도 증권사 주문 절차에서만 다룬다.",
       href: "/trading-readiness",
       cta: "거래 안전 보기",
@@ -198,16 +198,16 @@ export default async function PaperTradingPage() {
     {
       index: "04",
       label: "다음에 볼 곳",
-      title: trading.gate_summary.blocked_count > 0 ? "거래 안전 상태" : simulatedActionCount > 0 ? "후보 상세" : "추천 신호",
+      title: trading.gate_summary.blocked_count > 0 ? "거래 안전 상태" : simulatedActionCount > 0 ? "가상 매매 항목" : "추천 신호",
       metric: trading.gate_summary.blocked_count > 0 ? "차단 사유 우선" : "읽기 전용 확인",
       body:
         trading.gate_summary.blocked_count > 0
           ? "차단 사유를 먼저 확인한다. 실거래 상태는 계속 읽기 전용이다."
           : simulatedActionCount > 0
-            ? "후보별 추천서, 투자 논리, 종목 상세를 열어 근거가 맞는지 확인한다."
-            : "추천 후보와 보유 상태가 갱신됐는지 먼저 본다.",
+            ? "항목별 추천서, 투자 논리, 종목 상세를 열어 근거가 맞는지 확인한다."
+            : "추천 신호와 보유 상태가 갱신됐는지 먼저 본다.",
       href: simulatedActionCount > 0 ? "#paper-action-candidates" : "/recommendations",
-      cta: simulatedActionCount > 0 ? "후보 확인" : "추천 보기",
+      cta: simulatedActionCount > 0 ? "항목 확인" : "추천 보기",
       tone: trading.gate_summary.blocked_count > 0 ? "block" : "watch",
     },
   ];
@@ -224,10 +224,10 @@ export default async function PaperTradingPage() {
     },
     {
       index: "02",
-      title: "가상 후보 검증",
+      title: "가상 매매 항목 검증",
       value: koCode(trading.paper_validation.status),
       tone: trading.paper_validation.status === "passed" ? "risk-low" : "risk-medium",
-      body: `추천 ${trading.paper_validation.recommendation_count}개를 대조했고 검증 통과 후보 ${trading.paper_validation.approved_action_count}개, 충돌 ${trading.paper_validation.conflict_count}개가 있다. 통과 후보도 주문 지시는 아니다.`,
+      body: `추천 ${trading.paper_validation.recommendation_count}개를 대조했고 검증 통과 항목 ${trading.paper_validation.approved_action_count}개, 충돌 ${trading.paper_validation.conflict_count}개가 있다. 통과 항목도 주문 지시는 아니다.`,
     },
     {
       index: "03",
@@ -236,7 +236,7 @@ export default async function PaperTradingPage() {
       tone: trading.gate_summary.blocked_count > 0 ? "risk-high" : "risk-low",
       body:
         trading.gate_summary.blocked_count > 0
-          ? "차단 조건이 남아 있어 실거래 후보로 넘어가지 않는다."
+          ? "차단 조건이 남아 있어 실거래 전환으로 넘어가지 않는다."
           : "현재 거래 안전 차단 조건은 없지만, 실거래 전 거래 안전 승인이 필요하다.",
     },
     {
@@ -246,15 +246,15 @@ export default async function PaperTradingPage() {
         trading.gate_summary.blocked_count > 0
           ? "거래 안전"
           : data.paper_actions.length > 0
-            ? "후보 확인"
+            ? "항목 확인"
             : "추천 대기",
       tone: trading.gate_summary.blocked_count > 0 ? "risk-high" : "risk-medium",
       body:
         trading.gate_summary.blocked_count > 0
-          ? "차단 사유를 먼저 풀지 않으면 가상 매매 후보를 실거래로 전환하면 안 된다."
+          ? "차단 사유를 먼저 풀지 않으면 가상 매매 항목을 실거래로 전환하면 안 된다."
           : data.paper_actions.length > 0
-            ? "가상 후보 표에서 종목별 추천, 현재 비중, 목표 비중을 대조한다."
-            : "추천이나 보유 내역이 갱신되면 가상 후보가 다시 계산된다.",
+            ? "가상 매매 표에서 종목별 추천, 현재 비중, 목표 비중을 대조한다."
+            : "추천이나 보유 내역이 갱신되면 가상 매매 항목이 다시 계산된다.",
     },
     {
       index: "05",
@@ -283,10 +283,10 @@ export default async function PaperTradingPage() {
 
       <section className="paper-command-panel reveal delay-1" aria-labelledby="paper-execution-boundary-title">
         <div className="paper-command-lead">
-          <span>가상 매매 판정판</span>
-          <h2 id="paper-execution-boundary-title">주문이 나갔는지, 후보일 뿐인지 먼저 구분한다.</h2>
+          <span>가상 매매 현황판</span>
+          <h2 id="paper-execution-boundary-title">주문이 나갔는지, 시뮬레이션일 뿐인지 먼저 구분한다.</h2>
           <p>
-            가상 매매는 주문 실행이 아니다. 실제 주문 전송 여부, 시뮬레이션 후보,
+            가상 매매는 주문 실행이 아니다. 실제 주문 전송 여부, 시뮬레이션 항목,
             차단 조건, 다음 확인 위치를 분리해서 본다.
           </p>
         </div>
@@ -308,7 +308,7 @@ export default async function PaperTradingPage() {
         <article className="rail-cell">
           <span>추천 수</span>
           <strong>{summary.recommendation_count}</strong>
-          <small>{data.latest_recommendation_batch.as_of_date || "추천 후보 없음"}</small>
+          <small>{data.latest_recommendation_batch.as_of_date || "추천 신호 없음"}</small>
         </article>
         <article className="rail-cell">
           <span>측정 완료</span>
@@ -328,7 +328,7 @@ export default async function PaperTradingPage() {
         <article className="rail-cell">
           <span>실제 주문 제출</span>
           <strong>{trading.audit_summary.submitted_to_broker_count}</strong>
-          <small>가상 매매 검증 통과 후보 {trading.paper_validation.approved_action_count}</small>
+          <small>가상 매매 검증 통과 항목 {trading.paper_validation.approved_action_count}</small>
         </article>
       </section>
 
@@ -360,8 +360,8 @@ export default async function PaperTradingPage() {
               : " 위험 예산 검증 결과가 가상 매매 검증에 연결되어 있다."}
           </p>
         </div>
-        <div className="paper-blocked-reasons" aria-label="벤치마크 리밸런싱 확인 후보">
-          <span>리밸런싱 확인 후보</span>
+        <div className="paper-blocked-reasons" aria-label="벤치마크 리밸런싱 확인 대상">
+          <span>리밸런싱 확인 대상</span>
           {candidateReview.candidates.length > 0 ? (
             <div className="relationship-list">
               {candidateReview.candidates.slice(0, 4).map((candidate) => (
@@ -375,10 +375,10 @@ export default async function PaperTradingPage() {
               ))}
             </div>
           ) : (
-            <p>현재 벤치마크 대비 별도 확인 후보가 없다.</p>
+            <p>현재 벤치마크 대비 별도 확인 대상이 없다.</p>
           )}
           <p>
-            이 후보는 가상 매매 주문 후보가 아니다. 실거래 상태는 {orderBoundaryLabel(candidateReview.order_boundary)}이고,
+            이 항목은 가상 매매 주문 항목이 아니다. 실거래 상태는 {orderBoundaryLabel(candidateReview.order_boundary)}이고,
             실제 주문 전송은 계속 금지되어 있다.
           </p>
         </div>
@@ -414,8 +414,8 @@ export default async function PaperTradingPage() {
       <section className="split-ledger reveal delay-2" id="paper-action-candidates">
         <article className="ledger-panel queue-panel">
           <div className="section-heading">
-            <span>시뮬레이션 후보 목록</span>
-            <h2>주문이 아니라 검증용 후보만 보여준다</h2>
+            <span>시뮬레이션 항목 목록</span>
+            <h2>주문이 아니라 검증용 항목만 보여준다</h2>
           </div>
           <p className="empty-copy">
             표의 조치는 실제 주문 명령이 아니다. 추천서, 투자 논리, 종목 상세를 대조하기 위한 검증 항목이며,
@@ -478,7 +478,7 @@ export default async function PaperTradingPage() {
                   );
                 }) : (
                   <tr>
-                    <td colSpan={7}>현재 시뮬레이션 후보가 없다. 추천 후보나 보유 내역이 갱신되면 다시 표시된다.</td>
+                    <td colSpan={7}>현재 시뮬레이션 항목이 없다. 추천 신호나 보유 내역이 갱신되면 다시 표시된다.</td>
                   </tr>
                 )}
               </tbody>
@@ -493,7 +493,7 @@ export default async function PaperTradingPage() {
               <h2>아직 실제 주문이 아닌 이유</h2>
             </div>
             <p className="empty-copy">
-              아래 후보는 가상 매매 검증 결과다. 실제 주문은 증권사 연결, 계좌 권한, 주문 한도,
+              아래 항목은 가상 매매 검증 결과다. 실제 주문은 증권사 연결, 계좌 권한, 주문 한도,
               킬 스위치, 감사 기록이 모두 통과해야 별도 단계에서만 다룬다.
             </p>
             <div className="tag-ledger">

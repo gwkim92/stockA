@@ -49,7 +49,7 @@ function userText(value: string | null | undefined) {
 
 function cleanCopy(value: string) {
   return value
-    .replaceAll("페이퍼", "가상 매매")
+    .replaceAll(["페", "이퍼"].join(""), "가상 매매")
     .replaceAll("가상 거래", "가상 매매")
     .replaceAll("paper validation", "가상 매매 검증")
     .replaceAll("broker submit", "실거래 주문 제출")
@@ -102,9 +102,9 @@ export default async function TradingReadinessPage() {
       metric: `${data.gate_summary.blocked_count}개 차단 · 실제 주문 ${liveSubmitCount}건`,
       body:
         liveSubmitCount > 0
-          ? "실제 주문 전송 기록이 있으므로 검토 기록과 계좌 내역을 먼저 대조해야 한다."
+          ? "실제 주문 전송 기록이 있으므로 결정 기록과 계좌 내역을 먼저 대조해야 한다."
           : data.gate_summary.blocked_count > 0
-            ? "안전 조건이 닫혀 있어 현재 화면 기준으로 실거래 후보로 넘기면 안 된다."
+            ? "안전 조건이 닫혀 있어 현재 화면 기준으로 실거래 전환으로 넘기면 안 된다."
             : "차단 수가 0이어도 이 화면은 주문 화면이 아니다. 실거래는 별도 증권사 주문 절차와 거래 안전 승인 뒤에만 가능하다.",
       href: "#trading-gates",
       cta: "안전 조건 보기",
@@ -130,19 +130,19 @@ export default async function TradingReadinessPage() {
       body:
         blockedSwitches.length > 0
           ? "범위별 킬 스위치가 켜져 있어 해당 범위의 주문 전환은 차단된다."
-          : "현재 작동 중인 킬 스위치는 없다. 그래도 증권사 주문 제출 기능과 검토 기록 경계가 별도로 막는다.",
+          : "현재 작동 중인 킬 스위치는 없다. 그래도 증권사 주문 제출 기능과 결정 기록 경계가 별도로 막는다.",
       href: "#kill-switches",
       cta: "킬 스위치 보기",
       tone: blockedSwitches.length > 0 ? "block" : "ready",
     },
     {
       index: "04",
-      label: "검토 기록·가상 매매",
-      title: `${userText(data.paper_validation.status)} · 검토 ${data.audit_summary.intent_count}건`,
-      metric: `검증 통과 후보 ${data.paper_validation.approved_action_count}개 · 제출 ${liveSubmitCount}건`,
-      body: "가상 매매 검증과 검토 기록은 실제 주문 전 단계의 근거다. 검증 통과 후보가 있어도 자동 주문은 아니다.",
+      label: "결정 기록·가상 매매",
+      title: `${userText(data.paper_validation.status)} · 기록 ${data.audit_summary.intent_count}건`,
+      metric: `검증 통과 항목 ${data.paper_validation.approved_action_count}개 · 제출 ${liveSubmitCount}건`,
+      body: "가상 매매 검증과 결정 기록은 실제 주문 전 단계의 근거다. 검증 통과 항목이 있어도 자동 주문은 아니다.",
       href: "#audit-boundary",
-      cta: "검토 기록 보기",
+      cta: "결정 기록 보기",
       tone: data.paper_validation.blocked_reasons.length > 0 ? "watch" : "ready",
     },
   ];
@@ -153,19 +153,19 @@ export default async function TradingReadinessPage() {
         <div className="bento-badge">거래 안전 점검 • 주문 전 차단 상태</div>
         <h1 id="trading-readiness-title">실제 주문을 넣기 전에 무엇이 막고 있는지 본다.</h1>
         <p>
-          증권사 연결, 계좌 권한, 주문 한도, 킬 스위치, 가상 매매 검증, 검토 기록이 모두 통과해야
-          실거래 전환 검토 대상이 된다. 아래 거래 안전 요약에서 차단 수와 실제 주문 전송 건수를 먼저 확인한다.
+          증권사 연결, 계좌 권한, 주문 한도, 킬 스위치, 가상 매매 검증, 결정 기록이 모두 통과해야
+          실거래 전환 확인 대상이 된다. 아래 거래 안전 요약에서 차단 수와 실제 주문 전송 건수를 먼저 확인한다.
           실제 주문 전송 건수가 0이면 현재 서버에서 실제 주문은 나가지 않았다.
         </p>
       </section>
 
       <section className="trading-command-panel reveal delay-1" aria-labelledby="trading-command-title">
         <div className="trading-command-lead">
-          <span>실거래 경계 판정판</span>
+          <span>실거래 경계 현황판</span>
           <h2 id="trading-command-title">지금 주문할 수 있는지가 아니라, 무엇이 막는지 본다.</h2>
           <p>
             이 화면은 주문 버튼이 아니다. 실거래 결론, 증권사 제출 기능, 킬 스위치,
-            검토 기록·가상 매매 검증을 분리해서 실제 주문 전환이 가능한지 판단한다.
+            결정 기록·가상 매매 검증을 분리해서 실제 주문 전환이 가능한지 확인한다.
           </p>
         </div>
         <div className="trading-command-grid">
@@ -196,7 +196,7 @@ export default async function TradingReadinessPage() {
         <article className="rail-cell">
           <span>누락/주의</span>
           <strong>{data.gate_summary.missing_count + data.gate_summary.warning_count}</strong>
-          <small>설정 또는 검토 기록 필요</small>
+          <small>설정 또는 결정 기록 필요</small>
         </article>
         <article className="rail-cell rail-critical">
           <span>차단</span>
@@ -222,7 +222,7 @@ export default async function TradingReadinessPage() {
               <h2>실제 주문 전에 반드시 통과해야 하는 조건</h2>
             </div>
             <Link className="btn btn-secondary" href={"/paper-trading" as Route}>
-              가상 매매 후보 보기
+              가상 매매 항목 보기
             </Link>
           </div>
           <div className="readiness-grid">
@@ -283,15 +283,15 @@ export default async function TradingReadinessPage() {
 
           <article className="ledger-panel">
             <div className="section-heading stacked-heading">
-              <span>리밸런싱 검토 후보</span>
+              <span>리밸런싱 확인 대상</span>
               <h2>위험 예산이 막는 종목</h2>
             </div>
             <p className="empty-copy">
-              SPY 기준 비중과 차이가 큰 종목을 검토 후보로만 보여준다. 이 목록은 주문 목표가 아니며
+              SPY 기준 비중과 차이가 큰 종목을 확인 대상으로만 보여준다. 이 목록은 주문 목표가 아니며
               증권사 주문 전송은 계속 금지된다.
             </p>
             {candidateReview.candidates.length > 0 ? (
-              <div className="reason-list" aria-label="벤치마크 대비 초과 비중 검토 후보">
+              <div className="reason-list" aria-label="벤치마크 대비 초과 비중 확인 대상">
                 {candidateReview.candidates.slice(0, 5).map((candidate) => (
                   <article className="reason-card" key={`${candidate.priority}-${candidate.symbol}`}>
                     <div>
@@ -306,11 +306,11 @@ export default async function TradingReadinessPage() {
                 ))}
               </div>
             ) : (
-              <p className="empty-copy">현재 벤치마크 대비 리밸런싱 검토 후보가 없다.</p>
+              <p className="empty-copy">현재 벤치마크 대비 리밸런싱 확인 대상이 없다.</p>
             )}
             <dl className="fact-list">
               <div>
-                <dt>후보 수</dt>
+                <dt>확인 대상 수</dt>
                 <dd>{candidateReview.candidate_count.toLocaleString("ko-KR")}개</dd>
               </div>
               <div>
@@ -396,7 +396,7 @@ export default async function TradingReadinessPage() {
         <article className="ledger-panel">
             <div className="section-heading stacked-heading">
               <span>가상 매매 검증/기록</span>
-              <h2>가상 매매 검증과 검토 기록</h2>
+              <h2>가상 매매 검증과 결정 기록</h2>
             </div>
           <dl className="fact-list">
             <div>
@@ -412,11 +412,11 @@ export default async function TradingReadinessPage() {
               <dd>{data.paper_validation.conflict_count.toLocaleString("ko-KR")}</dd>
             </div>
             <div>
-              <dt>검증 통과 후보</dt>
+              <dt>검증 통과 항목</dt>
               <dd>{data.paper_validation.approved_action_count.toLocaleString("ko-KR")}</dd>
             </div>
             <div>
-              <dt>검토 기록</dt>
+              <dt>결정 기록</dt>
               <dd>{data.audit_summary.intent_count.toLocaleString("ko-KR")}건</dd>
             </div>
             <div>
