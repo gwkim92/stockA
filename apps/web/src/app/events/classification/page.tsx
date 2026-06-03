@@ -87,7 +87,7 @@ export default async function ClassificationPage() {
       body:
         groups.length > 0
           ? "뉴스가 어떤 상위 흐름으로 묶였는지 먼저 본다. 테마 이름이 뉴스 내용과 맞지 않으면 AI 근거와 대조한다."
-          : "현재 필터 기준으로 묶을 테마가 없다. 수집 원장과 분류 배치 상태를 확인한다.",
+          : "현재 필터 기준으로 묶을 테마가 없다. 수집 목록과 분류 배치 상태를 확인한다.",
       href: "#classification-groups",
       cta: "테마 묶음 보기",
       tone: groups.length > 0 ? "ready" : "block",
@@ -99,7 +99,7 @@ export default async function ClassificationPage() {
       metric: `종목 태그 ${directSymbolCount.toLocaleString("ko-KR")}건`,
       body:
         directSymbolCount > 0
-          ? "명확한 회사명·티커 뉴스만 직접 종목으로 본다. 원문에 없는 티커가 붙었다면 AI 판단과 검증 결과에서 차단 여부를 본다."
+          ? "명확한 회사명·티커 뉴스만 직접 종목으로 본다. 원문에 없는 티커가 붙었다면 AI 근거와 검증 결과에서 차단 여부를 본다."
           : "직접 종목 태그가 없다. 거시·테마 뉴스일 수 있으므로 억지로 종목을 붙이지 않는다.",
       href: "#classification-groups",
       cta: "종목 태그 확인",
@@ -120,15 +120,15 @@ export default async function ClassificationPage() {
     },
     {
       index: "04",
-      label: "AI 비교",
+      label: "AI 근거 비교",
       title: aiLinkedCount > 0 ? `${aiLinkedCount.toLocaleString("ko-KR")}건 연결` : "AI 비교 전",
-      metric: `규칙만 ${ruleCheckCount.toLocaleString("ko-KR")}건 · 미검토 ${unreviewedCount.toLocaleString("ko-KR")}건`,
+      metric: `규칙만 ${ruleCheckCount.toLocaleString("ko-KR")}건 · AI 미연결 ${unreviewedCount.toLocaleString("ko-KR")}건`,
       body:
         aiLinkedCount > 0
           ? "1차 태그와 AI 구조화 결과가 같은 방향인지 본다. 불일치하거나 낮은 신뢰도는 추천 근거로 쓰지 않는다."
-          : "이 화면의 태그는 아직 최종 판단이 아니다. AI 분석과 검증 결과가 붙을 때까지 추천 입력으로 보류한다.",
+          : "이 화면의 태그는 아직 최종 판단이 아니다. AI 근거와 검증 결과가 붙을 때까지 추천 입력으로 보류한다.",
       href: "/ai-evidence",
-      cta: "AI와 비교",
+      cta: "AI 근거와 비교",
       tone: aiLinkedCount > 0 ? "ready" : "watch",
     },
   ];
@@ -180,12 +180,12 @@ export default async function ClassificationPage() {
         <Link className="screen-switch-card active" href={"/events/classification" as Route}>
           <span>02</span>
           <strong>1차 분류</strong>
-          <small>태그와 방향 검수</small>
+          <small>태그와 방향 확인</small>
         </Link>
         <Link className="screen-switch-card" href="/ai-evidence">
           <span>03</span>
-          <strong>AI 분석 목록</strong>
-          <small>AI 후보 확인</small>
+          <strong>AI 근거 목록</strong>
+          <small>AI 근거 후보 확인</small>
         </Link>
         <Link className="screen-switch-card" href={"/ai-evidence/results" as Route}>
           <span>04</span>
@@ -256,7 +256,7 @@ export default async function ClassificationPage() {
                 테마 상세
               </Link>
               <Link className="btn btn-secondary" href="/ai-evidence">
-                AI 분석과 비교
+                AI 근거와 비교
               </Link>
             </div>
           </article>

@@ -59,7 +59,7 @@ export function newsQualityLabel(event: NewsEventRow) {
   if (event.ai_evidence_id) {
     return "AI 근거 연결";
   }
-  return "AI 분석 전";
+  return "AI 구조화 전";
 }
 
 type NewsEventCardProps = {
@@ -74,7 +74,7 @@ export function NewsEventCard({ event, mode, compact = false }: NewsEventCardPro
   const themeLink = newsThemeHref(event.theme_key);
   const stockLink = newsStockHref(event.symbol);
   const classifiedSymbol = isKnownNewsCode(event.symbol);
-  const actionLabel = mode === "blocked" ? "차단 이유 보기" : mode === "result" ? "구조화 결과 보기" : "AI 판단 상세";
+  const actionLabel = mode === "blocked" ? "차단 이유 보기" : mode === "result" ? "구조화 결과 보기" : "AI 근거 상세";
 
   return (
     <article className={compact ? "news-row-card news-row-card-compact" : "news-row-card"}>

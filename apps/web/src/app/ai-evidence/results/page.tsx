@@ -47,7 +47,7 @@ export default async function StructuredResultsPage() {
           </h1>
         </div>
         <p className="page-lede">
-          이 화면은 AI가 어떤 종목·테마·방향을 추출했고, 추천·보유검토 근거로 넘길 수 있는지 보여준다.
+          이 화면은 AI가 어떤 종목·테마·방향을 추출했고, 추천·보유 상태 근거로 넘길 수 있는지 보여준다.
           수집 뉴스, 1차 자동 태그, 차단 후보는 각각 별도 화면으로 분리했다.
         </p>
       </section>
@@ -58,7 +58,7 @@ export default async function StructuredResultsPage() {
           <h2 id="structured-command-title">AI 통과 결과를 투자 입력 후보로만 본다.</h2>
           <p>
             자동 검증을 통과한 결과라도 바로 추천이나 주문이 아니다. 직접 종목 뉴스, 상위 흐름,
-            뉴스 묶음을 분리해서 보고, 추천 상세에서 가격·사이클·재무·페이퍼 검증과 다시 합친다.
+            뉴스 묶음을 분리해서 보고, 추천 상세에서 가격·사이클·재무·가상 매매 검증과 다시 합친다.
           </p>
         </div>
         <div className="ai-evidence-command-grid">
@@ -82,7 +82,7 @@ export default async function StructuredResultsPage() {
             <span>03</span>
             <small>뉴스 묶음</small>
             <strong>{clusterData.summary.cluster_count}개 묶음</strong>
-            <em>같은 이야기의 증거 묶음</em>
+            <em>같은 이야기의 근거 묶음</em>
             <p>여러 뉴스가 같은 흐름을 말하는지 본다. 묶음이 틀리면 추천 근거 신뢰도도 낮아진다.</p>
             <b>묶음 결과 보기</b>
           </a>
@@ -110,7 +110,7 @@ export default async function StructuredResultsPage() {
         </Link>
         <Link className="screen-switch-card" href="/ai-evidence">
           <span>03</span>
-          <strong>AI 분석 목록</strong>
+          <strong>AI 근거 목록</strong>
           <small>후보 목록</small>
         </Link>
         <Link className="screen-switch-card active" href={"/ai-evidence/results" as Route}>
@@ -134,7 +134,7 @@ export default async function StructuredResultsPage() {
         <article className="rail-cell">
           <span>직접 종목</span>
           <strong>{directCandidates.length}</strong>
-          <small>추천·보유검토 직접 근거</small>
+          <small>추천·보유 상태 직접 근거</small>
         </article>
         <article className="rail-cell">
           <span>상위 흐름</span>
@@ -161,7 +161,7 @@ export default async function StructuredResultsPage() {
         <article className="cluster-decision-cell">
           <span>직접 종목 뉴스</span>
           <strong>종목에 바로 연결</strong>
-          <p>회사명·티커가 명확한 뉴스다. 종목 상세, 추천 근거, 보유검토 입력으로 이어질 수 있다.</p>
+          <p>회사명·티커가 명확한 뉴스다. 종목 상세, 추천 근거, 보유 상태 입력으로 이어질 수 있다.</p>
         </article>
         <article className="cluster-decision-cell">
           <span>상위 흐름 뉴스</span>
@@ -170,7 +170,7 @@ export default async function StructuredResultsPage() {
         </article>
         <article className="cluster-decision-cell">
           <span>뉴스 묶음</span>
-          <strong>같은 이야기의 증거 묶음</strong>
+          <strong>같은 이야기의 근거 묶음</strong>
           <p>여러 기사와 원천 문서가 같은 흐름을 말하는지 보여준다. 하나의 기사보다 흐름 신뢰도를 높인다.</p>
         </article>
         <article className="cluster-decision-cell cluster-decision-final">
@@ -186,7 +186,7 @@ export default async function StructuredResultsPage() {
           <h2 id="structured-direct-title">종목에 바로 붙은 AI 구조화 결과</h2>
         </div>
         <p className="relationship-empty">
-          이 목록은 자동 검증을 통과해 추천·보유검토 근거 후보로 바로 연결될 수 있다.
+          이 목록은 자동 검증을 통과해 추천·보유 상태 근거 후보로 바로 연결될 수 있다.
           주문 결정은 만들지 않으며, 상세 화면에서 원천 뉴스와 불확실성을 함께 보여준다.
         </p>
         <div className="news-row-list">

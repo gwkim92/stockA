@@ -55,7 +55,7 @@ function sourceDocumentDigest(data: SourceDocumentDetailData) {
   }
   const target = isKnownCode(data.symbol) ? `${koCode(data.symbol)} 관련` : `${koCode(data.source_type)} 원천`;
   const topic = inferKoreanTopic(`${data.title} ${data.excerpts.map((excerpt) => excerpt.summary).join(" ")}`);
-  return `${target} ${topic} 문서다. 영어 원문을 먼저 읽지 말고, 연결된 AI 근거와 발췌의 한국어 검토 요약으로 테마·종목·방향 해석이 맞는지 확인한다.`;
+  return `${target} ${topic} 문서다. 영어 원문을 먼저 읽지 말고, 연결된 AI 근거와 발췌의 한국어 근거 요약으로 테마·종목·방향 해석이 맞는지 확인한다.`;
 }
 
 function sourceExcerptDigest(excerpt: SourceExcerpt, documentTitle: string) {
@@ -85,9 +85,9 @@ export default async function SourceDocumentPage({ params }: SourceDocumentPageP
         </div>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "24px", flexWrap: "wrap" }}>
           <div>
-            <h1 style={{ fontSize: "clamp(2.5rem, 4vw, 4rem)", marginBottom: "16px" }}>원천 문서 검토서</h1>
+            <h1 style={{ fontSize: "clamp(2.5rem, 4vw, 4rem)", marginBottom: "16px" }}>원천 문서 근거 상세</h1>
             <p style={{ color: "var(--text-secondary)", fontSize: "1.1rem", maxWidth: "700px" }}>
-              한국어 검토 요약을 먼저 보고, 필요할 때만 영어 원문 제목과 발췌를 펼쳐서 대조한다.
+              한국어 근거 요약을 먼저 보고, 필요할 때만 영어 원문 제목과 발췌를 펼쳐서 대조한다.
               이 화면은 뉴스가 어떤 AI 근거와 연결됐는지 확인하는 곳이다.
             </p>
           </div>
@@ -99,7 +99,7 @@ export default async function SourceDocumentPage({ params }: SourceDocumentPageP
             borderRadius: "var(--radius-md)",
             textAlign: "center"
           }}>
-            <span className="metric-sub" style={{ color: data.access_policy.browser_download_enabled ? "var(--accent-green)" : "var(--accent-red)" }}>원문 다운로드</span>
+            <span className="metric-sub" style={{ color: data.access_policy.browser_download_enabled ? "var(--accent-green)" : "var(--accent-red)" }}>원문 열람</span>
             <div style={{ fontSize: "1.5rem", fontWeight: 700, color: "var(--text-primary)", margin: "4px 0", textTransform: "uppercase" }}>
               {data.access_policy.browser_download_enabled ? "허용" : "차단"}
             </div>
@@ -130,10 +130,10 @@ export default async function SourceDocumentPage({ params }: SourceDocumentPageP
           </a>
           <a className="ai-evidence-command-card watch" href="#source-document-excerpts">
             <span>02</span>
-            <small>검토 발췌</small>
+            <small>근거 발췌</small>
             <strong>{data.excerpts.length}개 발췌</strong>
             <em>영어 원문은 펼쳐서 대조</em>
-            <p>화면은 한국어 검토 요약을 먼저 보여주고, 필요한 경우에만 원문 발췌를 펼쳐 확인한다.</p>
+            <p>화면은 한국어 근거 요약을 먼저 보여주고, 필요한 경우에만 원문 발췌를 펼쳐 확인한다.</p>
             <b>발췌 보기</b>
           </a>
           <a className="ai-evidence-command-card ready" href="#linked-ai-evidence">
@@ -152,7 +152,7 @@ export default async function SourceDocumentPage({ params }: SourceDocumentPageP
             <small>접근 정책</small>
             <strong>{downloadStatus}</strong>
             <em>{koCode(data.access_policy.reason)}</em>
-            <p>다운로드 가능 여부는 원천 접근 정책일 뿐이다. 이 화면에서 추천 승인이나 주문 처리는 하지 않는다.</p>
+            <p>다운로드 가능 여부는 원천 접근 정책일 뿐이다. 이 화면에서 추천 채택이나 주문 처리는 하지 않는다.</p>
             <b>접근 정책 보기</b>
           </a>
         </div>
@@ -160,7 +160,7 @@ export default async function SourceDocumentPage({ params }: SourceDocumentPageP
 
       <section className="source-review-panel reveal delay-1" aria-labelledby="source-review-title">
         <div>
-          <span>한국어 검토 요약</span>
+          <span>한국어 근거 요약</span>
           <h2 id="source-review-title">영어 원문을 읽기 전에 이 문서가 무엇에 쓰였는지 먼저 확인한다</h2>
           <p>{sourceDocumentDigest(data)}</p>
         </div>
@@ -231,12 +231,12 @@ export default async function SourceDocumentPage({ params }: SourceDocumentPageP
 
         <article className="bento-card span-2 row-span-2" id="source-document-excerpts">
           <div style={{ marginBottom: "24px" }}>
-            <span className="metric-sub">검토된 발췌</span>
-            <h2 style={{ fontSize: "1.5rem" }}>검토 발췌 목록</h2>
+            <span className="metric-sub">근거 발췌</span>
+            <h2 style={{ fontSize: "1.5rem" }}>근거 발췌 목록</h2>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: "16px", overflowY: "auto" }}>
             {data.excerpts.length === 0 ? (
-              <p className="empty-state">이 문서에는 아직 화면에 노출할 검토 발췌가 없다.</p>
+              <p className="empty-state">이 문서에는 아직 화면에 노출할 근거 발췌가 없다.</p>
             ) : null}
             {data.excerpts.map((excerpt) => (
               <div key={excerpt.chunk_id} style={{
@@ -262,8 +262,8 @@ export default async function SourceDocumentPage({ params }: SourceDocumentPageP
 
         <article className="bento-card span-2" id="linked-ai-evidence">
           <div style={{ marginBottom: "24px" }}>
-            <span className="metric-sub">연결된 증거</span>
-            <h2 style={{ fontSize: "1.5rem" }}>AI 증거 연결</h2>
+            <span className="metric-sub">연결된 근거</span>
+            <h2 style={{ fontSize: "1.5rem" }}>AI 근거 연결</h2>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginBottom: "24px" }}>
             {data.linked_evidence.length === 0 ? (
