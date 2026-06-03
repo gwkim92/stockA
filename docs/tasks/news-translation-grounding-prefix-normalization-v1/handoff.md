@@ -2,8 +2,9 @@
 
 ## Current Status
 
-- 진행 중: implementation and local verification passed; AWH and EC2 smoke pending.
+- 완료: implementation, local verification, AWH readiness, EC2 deploy, EC2 targeted tests, and CLI dry-run smoke passed.
 - 시작: 2026-06-03
+- 완료: 2026-06-03
 
 ## Context
 
@@ -24,7 +25,13 @@
 - passed: `PYTHONPATH=src /opt/homebrew/bin/python3.13 -m unittest tests.test_frontend_live_adapter`
 - passed: `PYTHONPATH=src /opt/homebrew/bin/python3.13 -m compileall -q src tests`
 - passed: `git diff --check`
+- passed: `PYTHONPATH=/Users/woody/ai/agent-work-harness/src /opt/homebrew/bin/python3.13 -m awh verify --repo . --task news-translation-grounding-prefix-normalization-v1`
+- passed on EC2: pulled commit `5f3c4d7`.
+- passed on EC2: `PYTHONPATH=src /opt/stockanalysis/venv/bin/python -m unittest tests.test_news_rss_translation tests.test_frontend_live_adapter` ran 104 tests.
+- passed on EC2: `PYTHONPATH=src /opt/stockanalysis/venv/bin/python -m compileall -q src tests`.
+- passed on EC2: `stockanalysis-web.service` and `stockanalysis-frontend-api.service` remained active.
+- passed on EC2: `stockanalysis-operations news-rss-translation-run --env-file /opt/stockanalysis/runtime/data-operations.env --as-of-date 2026-06-03 --limit 1 --provider codex_oauth --dry-run` returned `status=planned`, `requested_document_count=0`, `planned_document_count=0`.
 
 ## Next Step
 
-- exact next step: run AWH verify, commit/push, deploy to EC2, and run EC2 targeted translation tests plus service smoke.
+- exact next step: do not keep iterating on one false-positive token. Continue with broader AI/data quality work: monitor the next `news-korean-translation-intraday` scheduler run and only add more normalization if a repeated, source-grounded false positive appears.

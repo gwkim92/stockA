@@ -44,4 +44,4 @@
 - [x] `overcrowded` source text permits `crowded` in Korean translation output.
 - [x] Existing ungrounded entity rejection remains covered.
 - [x] Local verification passes.
-- [ ] EC2 smoke passes without service disruption.
+- [x] EC2 smoke passes without service disruption.
