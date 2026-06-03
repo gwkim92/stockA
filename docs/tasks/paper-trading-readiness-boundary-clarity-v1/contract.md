@@ -41,8 +41,8 @@
 
 ## Done Criteria
 
-- [ ] `/paper-trading` clearly labels simulated actions as 가상 매매 항목, not order candidates.
-- [ ] `/trading-readiness` clearly labels real-trading boundaries and safety conditions without implying an order UI.
-- [ ] The pages keep the read-only/no-order/no-broker-submit boundary explicit.
-- [ ] Local frontend/backend verification passes.
-- [ ] EC2 route smoke confirms the updated Korean copy renders.
+- [x] `/paper-trading` clearly labels simulated actions as 가상 매매 항목, not order candidates.
+- [x] `/trading-readiness` clearly labels real-trading boundaries and safety conditions without implying an order UI.
+- [x] The pages keep the read-only/no-order/no-broker-submit boundary explicit.
+- [x] Local frontend/backend verification passes.
+- [x] EC2 route smoke confirms the updated Korean copy renders.
