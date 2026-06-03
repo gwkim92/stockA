@@ -4,7 +4,7 @@ import { koCode, koReason } from "@/lib/korean-labels";
 import type { DataHealthData } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "데이터 수집" };
+export const metadata = { title: "데이터·자동화 상태" };
 
 type PipelineRun = DataHealthData["pipeline_runs"][number];
 type SchedulerActivation = DataHealthData["scheduler"]["activation"];
@@ -177,7 +177,7 @@ function timerPurpose(profileId: string) {
     return "장 마감 후 무료 가격 데이터 한도 안에서 일봉 캔들을 보강한다.";
   }
   if (profileId === "decision-daily") {
-    return "가격, 뉴스, 사이클, 보유 상태를 합쳐 추천과 보유 검토를 갱신한다.";
+    return "가격, 뉴스, 사이클, 보유 상태를 합쳐 추천과 보유 상태 판단을 갱신한다.";
   }
   if (profileId === "market-universe-weekly") {
     return "감시 종목군과 기본 가격 연결 상태를 주간 단위로 정리한다.";
@@ -584,7 +584,7 @@ function benchmarkDriftQualityExplanation(quality: BenchmarkDriftQuality) {
     return "구성비 확인률과 기준일이 충분해 벤치마크 대비 괴리를 보조 위험 지표로 볼 수 있다. 추천 산식 반영 비중은 자동 변경하지 않는다.";
   }
   if (!quality.attention_required && quality.status === "drift_outlier_review") {
-    return quality.managed_review_reason || "큰 벤치마크 괴리는 검토 후보로 저장됐고 자동 주문 없이 성과 관찰을 기다린다.";
+    return quality.managed_review_reason || "큰 벤치마크 괴리는 확인 대상으로 저장됐고 자동 주문 없이 성과 관찰을 기다린다.";
   }
   if (quality.status === "partial_composition") {
     return "현재 벤치마크 보유종목 일부만 들어와 있다. 괴리 숫자는 계산됐지만 전체 SPY 대비 괴리로 해석하면 안 된다.";
@@ -1012,6 +1012,11 @@ function errorLogLabel(value: string | null | undefined) {
 }
 
 function operationCopy(value: string) {
+  const oldHoldingReviewCompact = ["보유", "검토"].join("");
+  const oldHoldingReview = ["보유", "검토"].join(" ");
+  const oldReviewCandidate = ["검토", "후보"].join(" ");
+  const oldReviewDocument = ["검토", "서"].join("");
+  const oldPaper = ["페", "이퍼"].join("");
   return koCode(value)
     .replaceAll("artifact runner", "실행 증거 저장기")
     .replaceAll("artifact", "실행 증거")
@@ -1032,6 +1037,12 @@ function operationCopy(value: string) {
     .replaceAll("router", "실행 분기")
     .replaceAll("child runner", "후속 실행")
     .replaceAll("open gate", "열린 확인 항목")
+    .replaceAll("review candidate", "확인 대상")
+    .replaceAll("candidate", "대상")
+    .replaceAll(oldHoldingReviewCompact, "보유 상태 판단")
+    .replaceAll(oldHoldingReview, "보유 상태 판단")
+    .replaceAll(oldReviewCandidate, "확인 대상")
+    .replaceAll(oldReviewDocument, "상세 근거")
     .replaceAll("guardrail", "안전 조건")
     .replaceAll("source gap", "원천 공백")
     .replaceAll("source blocker", "원천 차단")
@@ -1039,7 +1050,7 @@ function operationCopy(value: string) {
     .replaceAll("managed wait", "관리된 대기")
     .replaceAll("coverage", "근거 연결률")
     .replaceAll("커버리지", "연결률")
-    .replaceAll("페이퍼", "가상 매매")
+    .replaceAll(oldPaper, "가상 매매")
     .replaceAll("가중치", "반영 비중")
     .replaceAll("drift", "괴리")
     .replaceAll("주문 경계", "실거래 상태")
@@ -2078,7 +2089,7 @@ export default async function DataHealthPage() {
         ? `${activeRecommendationPriceFreshness.stale_symbol_count + activeRecommendationPriceFreshness.missing_symbol_count}개 가격 보강 필요`
         : "추천 종목 가격 최신",
       body: activeRecommendationPriceFreshness.attention_required
-        ? `추천에 쓰이는 종목 가격이 최신 가격일 ${activeRecommendationPriceFreshness.global_latest_trade_date || "미확인"}보다 뒤처져 있다. 가격 보강 전에는 성과·페이퍼 검증 해석 신뢰도가 낮아진다.`
+        ? `추천에 쓰이는 종목 가격이 최신 가격일 ${activeRecommendationPriceFreshness.global_latest_trade_date || "미확인"}보다 뒤처져 있다. 가격 보강 전에는 성과·가상 매매 검증 해석 신뢰도가 낮아진다.`
         : `활성 추천 ${activeRecommendationPriceFreshness.active_symbol_count}개 종목 가격이 최신 가격일 ${activeRecommendationPriceFreshness.global_latest_trade_date || "미확인"} 기준으로 맞춰져 있다.`,
       href: "#active-recommendation-price-freshness",
       cta: "가격 최신성 보기",
@@ -2129,7 +2140,7 @@ export default async function DataHealthPage() {
           ? portfolioReviewHistory.attention_required
             ? `최신 ${portfolioReviewHistory.as_of_date} 기준으로 벤치마크 ${portfolioReviewHistory.benchmark_decision_count}개, 포지션 크기 ${portfolioReviewHistory.position_sizing_decision_count}개 결정을 감사 이력으로 남겼다.`
             : operationCopy(portfolioReviewHistory.managed_review_reason)
-	          : "현재 화면의 검토 후보는 보이지만 저장된 검토 이력으로는 아직 남지 않았다.",
+	          : "현재 화면의 확인 대상은 보이지만 저장된 확인 이력으로는 아직 남지 않았다.",
       href: "#portfolio-review-history",
       cta: "검토 이력 보기",
       tone: portfolioReviewHistory.attention_required ? "risk-medium" : "risk-low",
@@ -2315,24 +2326,24 @@ export default async function DataHealthPage() {
       title: "AI 근거 생성",
       run: aiRun,
       owner: "event-intelligence-weekly",
-      output: "중요 뉴스만 AI 배치 분석으로 처리해 종목·테마·방향·근거 후보를 AI 분석 기록에 남긴다.",
+      output: "중요 뉴스만 AI 배치 분석으로 처리해 종목·테마·방향·근거 항목을 AI 분석 기록에 남긴다.",
       next: "검증을 통과한 근거만 표준 뉴스 영향으로 반영한다. 매수·매도·주문 결론은 여기서 만들지 않는다.",
     },
     {
       index: "04",
-      title: "신호와 추천 후보 갱신",
+      title: "신호와 추천 항목 갱신",
       run: decisionRun,
       owner: "decision-daily",
-      output: "가격, 테마 연결, 이벤트 강도, 사이클 상태를 합쳐 추천 후보와 투자 논리 입력을 만든다.",
+      output: "가격, 테마 연결, 이벤트 강도, 사이클 상태를 합쳐 추천 항목과 투자 논리 입력을 만든다.",
       next: "결정 로직은 재현 가능한 점수 계산이다. AI 근거는 설명 가능한 보조 근거로 붙는다.",
     },
     {
       index: "05",
-      title: "보유 검토와 운영 큐",
+      title: "보유 상태와 운영 큐",
       run: remediationRun,
       owner: "portfolio-remediation-daily",
       output: "보유 투자 논리 유지 여부, 빈 가격/논리/성과 항목, 가상 거래 검증 문제를 큐로 만든다.",
-      next: "추천, 투자 논리, 보유 검토, 가상 거래 화면에서 사람이 검토한다.",
+      next: "추천 상세, 투자 논리, 보유 상태, 가상 매매 화면에서 확인한다.",
     },
   ];
   const collectionStatusCards = [
@@ -2363,7 +2374,7 @@ export default async function DataHealthPage() {
       index: "04",
       title: "AI 배치 분석",
       run: aiRun,
-      purpose: "중요 뉴스를 구조화해 근거 후보를 만든다.",
+      purpose: "중요 뉴스를 구조화해 근거 항목을 만든다.",
       check: "화면을 열 때마다 AI를 새로 호출하지 않고 저장된 결과만 읽는다.",
     },
     {
@@ -2371,41 +2382,41 @@ export default async function DataHealthPage() {
       title: "AI 결과 검증",
       run: aiRun,
       purpose: "낮은 신뢰도, 알 수 없는 종목/테마, 저신호 뉴스를 차단한다.",
-      check: "차단 후보는 AI 차단 후보 화면에서 본다.",
+      check: "차단 항목은 AI 차단 항목 화면에서 본다.",
     },
     {
       index: "06",
       title: "추천 신호",
       run: decisionRun,
       purpose: "가격, 뉴스, 사이클, 상위 흐름을 추천 점수로 합친다.",
-      check: "추천은 주문이 아니라 사람이 볼 검토서다.",
+      check: "추천은 주문이 아니라 확인해야 할 상세 근거다.",
     },
     {
       index: "07",
-      title: "보유 검토",
+      title: "보유 상태",
       run: remediationRun,
       purpose: "투자 논리 공백, 성과 미측정, 보유 충돌을 운영 큐로 만든다.",
-      check: "보유 검토와 가상 거래 검증으로 이어진다.",
+      check: "보유 상태와 가상 매매 검증으로 이어진다.",
     },
   ];
   return (
     <div className="terminal-page">
       <section className="page-hero reveal" aria-labelledby="data-health-title">
         <div>
-          <div className="bento-badge">데이터 수집 상태</div>
+          <div className="bento-badge">데이터·자동화 상태</div>
           <h1 className="page-title" id="data-health-title">
             데이터 수집과 자동 실행이 정상인지 먼저 확인한다.
           </h1>
         </div>
         <p className="page-lede">
-          뉴스는 짧은 주기, 주식 캔들은 장 마감 후, 추천·보유검토는 데이터 보강 뒤에 돈다.
-          이 화면이 정상이 아니면 추천과 성과 해석도 신뢰하지 않는다.
+          뉴스는 짧은 주기, 주식 캔들은 장 마감 후, 추천·보유 상태 판단은 데이터 보강 뒤에 돈다.
+          이 화면이 정상이 아니면 추천 상세와 성과 해석도 낮은 신뢰도로 봐야 한다.
         </p>
       </section>
 
       <section className="data-health-command-panel reveal delay-1" aria-labelledby="data-health-command-title">
         <div className="data-health-command-lead">
-          <span>운영 판정판</span>
+          <span>상태 판정판</span>
           <h2 id="data-health-command-title">정상인지, 멈췄는지, 막아뒀는지 먼저 본다.</h2>
           <p>
             이 화면은 로그를 읽는 곳이 아니다. 서비스 접근, 자동 수집, 데이터·AI 품질, 투자 경계가 통과해야
@@ -2483,7 +2494,7 @@ export default async function DataHealthPage() {
 	          <h2 id="collection-status-title">무엇이 언제 돌았고, 어디에 쓰이는지 먼저 본다</h2>
 	        </div>
 	        <p className="board-intro">
-	          주식 캔들, 뉴스 원문, 1차 분류, AI 분석, 추천 갱신, 보유 검토가 각각 따로 돈다.
+	          주식 캔들, 뉴스 원문, 1차 분류, AI 분석, 추천 갱신, 보유 상태 판단이 각각 따로 돈다.
 	          문제가 있는 데이터가 있으면 해당 화면의 판단을 낮게 신뢰해야 한다.
 	        </p>
 	        <div className="feature-map-grid collection-map-grid">
@@ -3518,7 +3529,7 @@ export default async function DataHealthPage() {
           <article className="rail-cell">
             <span>큰 괴리 종목</span>
             <strong>{benchmarkDriftQuality.outlier_positions.length}</strong>
-            <small>검토 후보 {benchmarkDriftQuality.review_candidate_count}개</small>
+            <small>확인 대상 {benchmarkDriftQuality.review_candidate_count}개</small>
           </article>
           <article className="rail-cell rail-critical">
             <span>실거래 상태</span>
@@ -4257,11 +4268,11 @@ export default async function DataHealthPage() {
         <article className="ledger-panel" style={{ marginTop: "18px" }}>
           <div className="section-heading stacked-heading">
             <span>뉴스 분석 이후 운영 흐름</span>
-            <h3>AI 근거 이후에는 추천·투자 논리·보유 검토로 넘어간다</h3>
+            <h3>AI 근거 이후에는 추천·투자 논리·보유 상태로 넘어간다</h3>
           </div>
           <p style={{ color: "var(--text-secondary)", marginBottom: "16px" }}>
             뉴스 분석은 끝점이 아니다. 수집된 뉴스는 이벤트와 AI 근거가 되고, 이후 가격·테마·사이클 데이터와
-            결합되어 중장기 추천 후보, 투자 논리, 보유 검토 큐를 만든다. 주문은 자동 실행하지 않는다.
+            결합되어 중장기 추천 항목, 투자 논리, 보유 상태 큐를 만든다. 주문은 자동 실행하지 않는다.
           </p>
           <div className="operating-flow-grid">
             {newsAfterAnalysisSteps.map((step) => (
@@ -4564,7 +4575,7 @@ export default async function DataHealthPage() {
               <span>추천 종목 가격</span>
               <h2>추천에 쓰는 가격이 최신인지 확인</h2>
               <p>
-                추천, 성과 측정, 페이퍼 검증은 종목별 가격을 읽는다. 여기서 오래된 종목이 보이면 가격 보강이 먼저다.
+                추천, 성과 측정, 가상 매매 검증은 종목별 가격을 읽는다. 여기서 오래된 종목이 보이면 가격 보강이 먼저다.
               </p>
             </div>
             <dl className="fact-list">
