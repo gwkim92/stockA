@@ -2,7 +2,7 @@
 
 ## Status
 
-- in progress: local implementation and local verification completed; EC2 route/browser smoke pending.
+- completed: stock detail professional evidence audit is implemented, committed, pushed, deployed to EC2, and route/browser smoke passed.
 
 ## Scope
 
@@ -21,8 +21,12 @@
 - passed: `cd apps/web && npm run build`
 - passed: `PYTHONPATH=/Users/woody/ai/agent-work-harness/src /opt/homebrew/bin/python3.13 -m awh verify --repo . --task stocks-page-professional-analysis-clarity-v1`
 - passed: `git diff --check`
-- pending: EC2 route smoke.
+- passed on EC2: `npm run typecheck`
+- passed on EC2: `npm run build`
+- passed on EC2: `systemctl is-active stockanalysis-web.service`
+- passed on EC2: route smoke for `/stocks/ARM`, `/stocks/SPY`, and `/stocks/EROK`.
+- passed through user tunnel: `http://127.0.0.1:13000/stocks/ARM`, `/stocks/SPY`, and `/stocks/EROK` render the stock professional evidence audit, ETF/fund boundary, source-blocked boundary, and read-only order status copy.
 
 ## Next Step
 
-- exact next step: commit, push, deploy to EC2, restart the web service, and verify `/stocks/ARM`, `/stocks/SPY`, `/stocks/EROK`, plus the tunnel route.
+- exact next step: continue page-by-page UX refactor with `ai-evidence-visibility-v3` so source news, Korean translation, AI structure, validator result, propagation path, and recommendation connection are visible in one trace.
