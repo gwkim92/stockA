@@ -2,7 +2,7 @@
 
 ## Current Status
 
-- in progress: local implementation and local verification are complete; final EC2 deploy/route smoke is pending.
+- completed: local implementation, local verification, AWH verify, GitHub push, EC2 deploy/build/restart, route smoke, Playwright text smoke, and data-health smoke are complete.
 
 ## Decisions
 
@@ -28,7 +28,11 @@
 - passed: `PYTHONPATH=src /opt/homebrew/bin/python3.13 -m compileall -q src tests`
 - passed: local text scan for `사람 검토`, `AI 검토`, `추천·보유검토`, and `검토 가능` in the touched files returned no matches.
 - passed: first EC2 deploy/route smoke for commit `26d3b58`; `/` and `/ai-evidence/ai-evidence-973` rendered the new home and evidence-path wording.
+- passed: final commit `6979c8a` deployed to EC2; `npm run build` passed and `stockanalysis-web.service` restarted active.
+- passed: EC2 internal route smoke returned HTTP 200 for `/`, `/ai-evidence`, and `/ai-evidence/ai-evidence-973`.
+- passed: Playwright text smoke on `http://127.0.0.1:13000/ai-evidence/ai-evidence-973` returned `hasAiVerification=true`, `hasAiReview=false`, `hasOrderBoundary=true`, and `hasEvidencePath=true`.
+- passed: EC2 `/api/data-health` returned `overall_status=healthy`, `open_gates=[]`, `alert_destination.status=external_destination_verified`, `live_ai_invocation_health.status=recovered_with_recent_failures`, and `news_ai_eval_quality.status=passed`.
 
 ## Next Step
 
-- exact next step: run AWH verify, commit/push the final label cleanup, deploy to EC2, rebuild/restart Next.js, and route-smoke `/`, `/ai-evidence`, and `/ai-evidence/ai-evidence-973`.
+- exact next step: continue the broader UX audit with `/data-health`, `/intelligence`, `/cycle-map`, `/recommendations`, and `/paper-trading`, focusing on duplicate wording, operator-only phrasing, and pages that show status without an obvious decision path.
