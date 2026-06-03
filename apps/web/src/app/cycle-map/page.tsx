@@ -111,9 +111,9 @@ export default async function CycleMapPage() {
             <span>01</span>
             <small>원천 뉴스</small>
             <strong>{data.summary.direct_event_count}개 뉴스 영향</strong>
-            <em>AI 판단 흐름 {aiBackedNodeCount}개</em>
+            <em>AI 근거 흐름 {aiBackedNodeCount}개</em>
             <p>
-              먼저 어떤 뉴스와 AI 구조화 결과가 흐름을 만들었는지 본다. 번역·검증 결과는 AI 판단
+              먼저 어떤 뉴스와 AI 구조화 결과가 흐름을 만들었는지 본다. 번역·검증 결과는 뉴스·AI 근거
               화면에서 이어서 확인한다.
             </p>
             <b>뉴스 AI 보기</b>
@@ -184,7 +184,7 @@ export default async function CycleMapPage() {
         <div className="section-heading stacked-heading">
           <span>읽는 순서</span>
           <h2>뉴스에서 추천까지 내려가는 경로</h2>
-          <p>이 지도는 매수 신호가 아니다. 상위 흐름이 어떤 흐름 단계를 거쳐 어느 종목군과 추천 검토에 닿는지 확인하는 근거 화면이다.</p>
+          <p>이 지도는 매수 신호가 아니다. 상위 흐름이 어떤 흐름 단계를 거쳐 어느 종목군과 추천 상세 근거에 닿는지 확인하는 화면이다.</p>
         </div>
         <div className="flow-steps">
           <article className="flow-step">

@@ -52,7 +52,7 @@ function userFacingText(value: string | null | undefined) {
 
 function qualityLabel(row: RecommendationRow) {
   if (row.evidence.quality_status === "ai_review_passed" || row.evidence.quality_status === "ready_for_human_review") {
-    return "AI 검토 통과";
+    return "AI 검증 통과";
   }
   if (row.evidence.quality_status === "blocked") {
     return "근거 부족";
@@ -96,7 +96,7 @@ function macroFlowBadge(row: RecommendationRow) {
 
 function boundaryLabel(status: string) {
   if (status === "decision_review_ready") {
-    return "상세 검토 가능";
+    return "판단 근거 충족";
   }
   if (status === "paper_validation_pending") {
     return "가상 매매 검증 대기";
@@ -154,13 +154,13 @@ export default async function RecommendationsPage() {
         data.summary.paper_validation_pending_count > 0
           ? "가상 검증 대기"
           : data.summary.decision_review_ready_count > 0
-            ? "상세 검토 가능"
-            : "검토 입력 부족",
-      metric: `${data.summary.paper_validation_pending_count.toLocaleString("ko-KR")}개 대기 · ${data.summary.decision_review_ready_count.toLocaleString("ko-KR")}개 상세 검토`,
+            ? "판단 근거 충족"
+            : "근거 입력 부족",
+      metric: `${data.summary.paper_validation_pending_count.toLocaleString("ko-KR")}개 대기 · ${data.summary.decision_review_ready_count.toLocaleString("ko-KR")}개 근거 충족`,
       body:
         data.summary.paper_validation_pending_count > 0
           ? "추천 후보가 곧바로 주문으로 가지 않고 가상 매매 검증과 보유 검토를 기다리는 상태다."
-          : "가상 매매 후보가 없거나 검토 입력이 부족하다. 추천 상세에서 어떤 근거가 빠졌는지 본다.",
+          : "가상 매매 후보가 없거나 근거 입력이 부족하다. 추천 상세에서 어떤 근거가 빠졌는지 본다.",
       href: "/paper-trading",
       cta: "가상 매매 상태 보기",
       tone: data.summary.paper_validation_pending_count > 0 ? "watch" : "ready",
@@ -213,7 +213,7 @@ export default async function RecommendationsPage() {
       <section className="recommendations-command-panel reveal delay-1" aria-labelledby="recommendations-command-title">
         <div className="recommendations-command-lead">
           <span>추천 신호 판정판</span>
-          <h2 id="recommendations-command-title">무엇을 검토하고, 무엇은 아직 막혀 있는지 먼저 본다.</h2>
+          <h2 id="recommendations-command-title">무엇이 근거이고, 무엇은 아직 막혀 있는지 먼저 본다.</h2>
           <p>
             기준일 {data.as_of_date || "미정"} · {koCode(data.strategy_name)} · {koCode(data.horizon_type)}.
             추천은 후보 신호이고, 실거래 주문과 추천 산식 변경은 계속 별도 안전 장치에서 차단된다.
@@ -241,8 +241,8 @@ export default async function RecommendationsPage() {
           </div>
           <div className="mini-link-stack">
             <Link href="/intelligence">뉴스·사이클 근거</Link>
-            <Link href="/paper-trading">가상 거래 검토</Link>
-            <Link href="/portfolio/coverage">보유 검토</Link>
+            <Link href="/paper-trading">가상 매매 상태</Link>
+            <Link href="/portfolio/coverage">보유 상태</Link>
           </div>
         </div>
 
@@ -269,7 +269,7 @@ export default async function RecommendationsPage() {
                     <span className="metric-sub">#{row.rank_position} · {koCode(row.bucket)} · {koCode(row.status)}</span>
                   </div>
                   <Link className="stock-symbol-link" href={recommendationHref(row.recommendation_id)}>
-                    <strong>{row.symbol} 추천 검토서</strong>
+                    <strong>{row.symbol} 추천 상세</strong>
                     <small>{row.name}</small>
                   </Link>
                   <p style={{ color: "var(--text-secondary)", margin: "10px 0 0", lineHeight: 1.55 }}>

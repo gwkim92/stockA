@@ -116,7 +116,7 @@ function paperValidationState(trading: TradingReadinessData) {
     return {
       title: "실제 주문 전송 기록 있음",
       tone: "risk-high",
-      detail: "실제 주문 전송 기록이 있으므로 검토 기록과 계좌 내역을 먼저 확인해야 한다.",
+      detail: "실제 주문 전송 기록이 있으므로 감사 기록과 계좌 내역을 먼저 대조해야 한다.",
     };
   }
   if (trading.gate_summary.blocked_count > 0 || trading.paper_validation.blocked_reasons.length > 0) {
@@ -199,7 +199,7 @@ export default async function PaperTradingPage() {
       index: "04",
       label: "다음에 볼 곳",
       title: trading.gate_summary.blocked_count > 0 ? "거래 안전 상태" : simulatedActionCount > 0 ? "후보 상세" : "추천 신호",
-      metric: trading.gate_summary.blocked_count > 0 ? "차단 사유 우선" : "읽기 전용 검토",
+      metric: trading.gate_summary.blocked_count > 0 ? "차단 사유 우선" : "읽기 전용 확인",
       body:
         trading.gate_summary.blocked_count > 0
           ? "차단 사유를 먼저 확인한다. 실거래 상태는 계속 읽기 전용이다."
@@ -207,7 +207,7 @@ export default async function PaperTradingPage() {
             ? "후보별 추천서, 투자 논리, 종목 상세를 열어 근거가 맞는지 확인한다."
             : "추천 후보와 보유 상태가 갱신됐는지 먼저 본다.",
       href: simulatedActionCount > 0 ? "#paper-action-candidates" : "/recommendations",
-      cta: simulatedActionCount > 0 ? "후보 검토" : "추천 보기",
+      cta: simulatedActionCount > 0 ? "후보 확인" : "추천 보기",
       tone: trading.gate_summary.blocked_count > 0 ? "block" : "watch",
     },
   ];
@@ -246,7 +246,7 @@ export default async function PaperTradingPage() {
         trading.gate_summary.blocked_count > 0
           ? "거래 안전"
           : data.paper_actions.length > 0
-            ? "후보 검토"
+            ? "후보 확인"
             : "추천 대기",
       tone: trading.gate_summary.blocked_count > 0 ? "risk-high" : "risk-medium",
       body:
@@ -277,7 +277,7 @@ export default async function PaperTradingPage() {
         </div>
         <p className="page-lede">
           이 화면은 추천을 바로 주문으로 바꾸지 않는다. 최신 추천과 현재 가상 포트폴리오 보유 내역을 대조해
-          “실제로 주문한다면 어떤 조치가 필요할지”만 계산한다. 안전 조건과 검토 기록이 막으면 실거래로 넘어가지 않는다.
+          “실제로 주문한다면 어떤 조치가 필요할지”만 계산한다. 안전 조건과 감사 기록이 막으면 실거래로 넘어가지 않는다.
         </p>
       </section>
 
@@ -360,8 +360,8 @@ export default async function PaperTradingPage() {
               : " 위험 예산 검증 결과가 가상 매매 검증에 연결되어 있다."}
           </p>
         </div>
-        <div className="paper-blocked-reasons" aria-label="벤치마크 리밸런싱 검토 후보">
-          <span>리밸런싱 검토 후보</span>
+        <div className="paper-blocked-reasons" aria-label="벤치마크 리밸런싱 확인 후보">
+          <span>리밸런싱 확인 후보</span>
           {candidateReview.candidates.length > 0 ? (
             <div className="relationship-list">
               {candidateReview.candidates.slice(0, 4).map((candidate) => (
@@ -375,7 +375,7 @@ export default async function PaperTradingPage() {
               ))}
             </div>
           ) : (
-            <p>현재 벤치마크 대비 별도 검토 후보가 없다.</p>
+            <p>현재 벤치마크 대비 별도 확인 후보가 없다.</p>
           )}
           <p>
             이 후보는 가상 매매 주문 후보가 아니다. 실거래 상태는 {orderBoundaryLabel(candidateReview.order_boundary)}이고,
@@ -494,7 +494,7 @@ export default async function PaperTradingPage() {
             </div>
             <p className="empty-copy">
               아래 후보는 가상 매매 검증 결과다. 실제 주문은 증권사 연결, 계좌 권한, 주문 한도,
-              킬 스위치, 검토 기록이 모두 통과해야 별도 단계에서만 다룬다.
+              킬 스위치, 감사 기록이 모두 통과해야 별도 단계에서만 다룬다.
             </p>
             <div className="tag-ledger">
               {data.guardrails.map((guardrail) => (
