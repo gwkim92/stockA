@@ -237,37 +237,37 @@ export default async function PerformancePage() {
   ];
 
   return (
-    <div className="pageStack">
-      <section className="page-hero reveal" aria-labelledby="performance-title">
-        <div className="bento-badge">
-          성과 측정 • {koLabel(data.portfolio_name)} • {data.measurement_end_date}
-        </div>
-        <div>
-          <h1 id="performance-title">성과를 확인하되, 아직 바꾸면 안 되는 것도 같이 본다.</h1>
-          <p>
-            이 화면은 장기 추천의 책임 추적 화면이다. 측정된 추천, 표본 품질, 성과 귀속,
-            제외·보완 항목을 분리해서 보여주며 주문이나 추천 산식 반영 비중 변경을 실행하지 않는다.
+    <div className="pageStack decision-page">
+      <section className="decision-brief reveal" aria-labelledby="performance-title">
+        <div className="decision-brief-main">
+          <span className="decision-brief-kicker">
+            성과 측정 · {koLabel(data.portfolio_name)} · {data.measurement_end_date}
+          </span>
+          <h1 className="decision-brief-title" id="performance-title">
+            성과는 확인하지만 추천 산식과 주문은 바꾸지 않는다.
+          </h1>
+          <p className="decision-brief-copy">
+            이 화면은 장기 추천의 책임 추적 화면이다. 측정된 추천, 표본 품질, 성과 귀속, 제외·보완 항목을 분리해서 보고 자동 주문이나 추천 산식 변경은 실행하지 않는다.
           </p>
+          <div className="decision-brief-meta" aria-label="성과 핵심 상태">
+            <span>측정 구간 {data.measurement_start_date} ~ {data.measurement_end_date}</span>
+            <span>벤치마크 {data.benchmark_code}</span>
+            <span>적중률 {hasMeasuredOutcomes ? formatPercent(data.summary.hit_rate) : "측정 전"}</span>
+            <span>제외 {data.summary.excluded_position_count.toLocaleString("ko-KR")}개</span>
+          </div>
         </div>
-      </section>
-
-      <section className="performance-command-panel reveal delay-1" aria-labelledby="performance-command-title">
-        <div className="performance-command-lead">
-          <span>성과 판정판</span>
-          <h2 id="performance-command-title">결과가 좋아 보이는지보다, 믿고 써도 되는지 먼저 본다.</h2>
-          <p>
-            측정 구간 {data.measurement_start_date} ~ {data.measurement_end_date} · 벤치마크 {data.benchmark_code}.
-            성과는 추천 품질 검증 자료이고, 자동 주문·자동 추천 산식 변경 근거가 아니다.
-          </p>
-        </div>
-        <div className="performance-command-grid">
+        <div className="decision-brief-grid">
           {performanceCommandCards.map((card) => (
-            <a className={`performance-command-card ${card.tone}`} href={card.href} key={card.index}>
-              <span>{card.index}</span>
-              <small>{card.label}</small>
+            <a
+              className={`decision-card ${
+                card.tone === "ready" ? "is-good" : card.tone === "watch" ? "is-watch" : "is-block"
+              }`}
+              href={card.href}
+              key={card.index}
+            >
+              <span>{card.label}</span>
               <strong>{card.title}</strong>
-              <em>{card.metric}</em>
-              <p>{card.body}</p>
+              <small>{card.metric} · {card.body}</small>
               <b>{card.cta}</b>
             </a>
           ))}

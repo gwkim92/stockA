@@ -143,33 +143,35 @@ export default async function StocksPage() {
   ];
 
   return (
-    <div className="pageStack">
-      <section className="page-hero reveal" aria-labelledby="stocks-title">
-        <div className="bento-badge">종목 지도 • 추천·보유·관찰 분류</div>
-        <h1 id="stocks-title">오늘 볼 종목을 고르고 상세 근거로 들어간다.</h1>
-        <p>
-          추천이 붙은 종목, 실제 보유와 연결된 종목, 아직 관찰 단계인 종목을 나눠 본다.
-          이 목록은 주문 화면이 아니며, 재무·공시 근거와 AI 해석은 종목 상세에서 확인한다.
-        </p>
-      </section>
-
-      <section className="stocks-command-panel reveal delay-1" aria-labelledby="stocks-command-title">
-        <div className="stocks-command-lead">
-          <span>종목 우선순위</span>
-          <h2 id="stocks-command-title">추천, 보유, 관찰, 데이터 점검으로 먼저 볼 순서를 정한다.</h2>
-          <p>
-            총 {data.stock_count.toLocaleString("ko-KR")}개 · 가격 수집 {data.summary.priced_stock_count.toLocaleString("ko-KR")}개 ·
-            최신 가격일 {data.summary.latest_price_date || "없음"}. 재무·공시 근거, 기업 분석, 가상 매매 검증 상태는 각 종목 상세에서 확인한다.
+    <div className="pageStack decision-page">
+      <section className="decision-brief reveal" aria-labelledby="stocks-title">
+        <div className="decision-brief-main">
+          <span className="decision-brief-kicker">종목 지도 · 추천·보유·관찰 분류</span>
+          <h1 className="decision-brief-title" id="stocks-title">
+            오늘 먼저 볼 종목: {priorityStocks[0]?.symbol ?? "대기"}
+          </h1>
+          <p className="decision-brief-copy">
+            추천이 붙은 종목, 실제 보유 종목, 관찰 종목, 데이터 점검 종목을 나눠 본다. 주문은 만들지 않고 종목 상세에서 재무·공시·AI 근거를 확인한다.
           </p>
+          <div className="decision-brief-meta" aria-label="종목 목록 핵심 상태">
+            <span>총 {data.stock_count.toLocaleString("ko-KR")}개</span>
+            <span>추천 {recommendedStocks.length.toLocaleString("ko-KR")}개</span>
+            <span>보유 {heldStocks.length.toLocaleString("ko-KR")}개</span>
+            <span>가격 점검 {staleOrMissingPriceStocks.length.toLocaleString("ko-KR")}개</span>
+          </div>
         </div>
-        <div className="stocks-command-grid">
+        <div className="decision-brief-grid">
           {stockCommandCards.map((card) => (
-            <a className={`stocks-command-card ${card.tone}`} href={card.href} key={card.index}>
-              <span>{card.index}</span>
-              <small>{card.label}</small>
+            <a
+              className={`decision-card ${
+                card.tone === "ready" ? "is-good" : card.tone === "watch" ? "is-watch" : "is-block"
+              }`}
+              href={card.href}
+              key={card.index}
+            >
+              <span>{card.label}</span>
               <strong>{card.title}</strong>
-              <em>{card.metric}</em>
-              <p>{card.body}</p>
+              <small>{card.metric} · {card.body}</small>
               <b>{card.cta}</b>
             </a>
           ))}

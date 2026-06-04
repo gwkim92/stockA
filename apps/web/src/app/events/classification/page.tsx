@@ -134,37 +134,35 @@ export default async function ClassificationPage() {
   ];
 
   return (
-    <div className="pageStack classification-page">
-      <section className="page-hero reveal" aria-labelledby="classification-title">
-        <div>
-          <div className="bento-badge">1차 분류 태그 · {data.as_of_date}</div>
-          <h1 className="page-title" id="classification-title">
-            1차 태그가 맞는지 보고, AI 결과와 비교한다.
+    <div className="pageStack classification-page decision-page">
+      <section className="decision-brief reveal" aria-labelledby="classification-title">
+        <div className="decision-brief-main">
+          <span className="decision-brief-kicker">1차 분류 태그 · {data.as_of_date}</span>
+          <h1 className="decision-brief-title" id="classification-title">
+            1차 태그 {groups.length.toLocaleString("ko-KR")}개, AI 연결 {aiLinkedCount.toLocaleString("ko-KR")}건
           </h1>
-        </div>
-        <p className="page-lede">
-          이 화면은 최종 투자 판단이 아니라 규칙 기반 1차 분류를 보는 곳이다. 직접 종목 뉴스와
-          거시·테마 뉴스를 분리하고, 이상한 태그는 AI 구조화와 검증 결과에서 다시 확인한다.
-        </p>
-      </section>
-
-      <section className="events-command-panel reveal delay-1" aria-labelledby="classification-command-title">
-        <div className="events-command-lead">
-          <span>1차 분류 판정판</span>
-          <h2 id="classification-command-title">테마가 맞는지, 종목을 억지로 붙였는지 먼저 본다.</h2>
-          <p>
-            기준일 {data.as_of_date}. 이 태그는 기본 규칙의 첫 해석이며, AI 구조화와 검증을 통과해야
-            추천 근거 후보가 된다.
+          <p className="decision-brief-copy">
+            이 화면은 최종 투자 판단이 아니라 규칙 기반 첫 해석이다. 테마가 맞는지, 종목을 억지로 붙였는지 보고 AI 구조화·검증 결과와 비교한다.
           </p>
+          <div className="decision-brief-meta" aria-label="1차 분류 핵심 상태">
+            <span>직접 종목 {directSymbolCount.toLocaleString("ko-KR")}건</span>
+            <span>상위 흐름 {macroOnlyCount.toLocaleString("ko-KR")}건</span>
+            <span>규칙만 {ruleCheckCount.toLocaleString("ko-KR")}건</span>
+            <span>AI 미연결 {unreviewedCount.toLocaleString("ko-KR")}건</span>
+          </div>
         </div>
-        <div className="events-command-grid">
+        <div className="decision-brief-grid">
           {classificationCommandCards.map((card) => (
-            <a className={`events-command-card ${card.tone}`} href={card.href} key={card.index}>
-              <span>{card.index}</span>
-              <small>{card.label}</small>
+            <a
+              className={`decision-card ${
+                card.tone === "ready" ? "is-good" : card.tone === "watch" ? "is-watch" : "is-block"
+              }`}
+              href={card.href}
+              key={card.index}
+            >
+              <span>{card.label}</span>
               <strong>{card.title}</strong>
-              <em>{card.metric}</em>
-              <p>{card.body}</p>
+              <small>{card.metric} · {card.body}</small>
               <b>{card.cta}</b>
             </a>
           ))}
@@ -192,29 +190,6 @@ export default async function ClassificationPage() {
           <strong>구조화 결과</strong>
           <small>통과 결과 확인</small>
         </Link>
-      </section>
-
-      <section className="status-rail compact-rail reveal delay-1" aria-label="1차 분류 요약">
-        <article className="rail-cell">
-          <span>테마</span>
-          <strong>{groups.length}</strong>
-          <small>현재 수집 뉴스 기준</small>
-        </article>
-        <article className="rail-cell">
-          <span>직접 종목</span>
-          <strong>{directSymbolCount}</strong>
-          <small>종목 태그가 붙은 뉴스</small>
-        </article>
-        <article className="rail-cell">
-          <span>상위 흐름</span>
-          <strong>{macroOnlyCount}</strong>
-          <small>종목 없이 테마로 본 뉴스</small>
-        </article>
-        <article className="rail-cell">
-          <span>가장 강한 영향</span>
-          <strong>{strongestEvent ? formatNewsPercent(strongestEvent.impact_score) : "미측정"}</strong>
-          <small>{strongestEvent ? koCode(strongestEvent.theme_key) : "데이터 없음"}</small>
-        </article>
       </section>
 
       <section className="ledger-guide reveal delay-2" aria-labelledby="classification-guide-title">

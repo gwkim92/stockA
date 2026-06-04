@@ -254,33 +254,37 @@ export default async function RecommendationsPage() {
   ];
 
   return (
-    <div className="pageStack">
-      <section className="page-hero reveal" aria-labelledby="recommendations-title">
-        <div className="bento-badge">추천 상황실 • 읽기 전용 추천 신호</div>
-        <h1 id="recommendations-title">추천 신호를 보고, 근거와 실거래 차단 상태를 먼저 확인한다.</h1>
-        <p>
-          이 화면은 주문 화면이 아니다. 중장기 추천 신호의 점수, 투자 논리, 뉴스·AI 해석, 가상 매매 대기,
-          실거래 차단 상태를 분리해서 보여준다.
-        </p>
-      </section>
-
-      <section className="recommendations-command-panel reveal delay-1" aria-labelledby="recommendations-command-title">
-        <div className="recommendations-command-lead">
-          <span>추천 신호 현황판</span>
-          <h2 id="recommendations-command-title">무엇이 근거이고, 무엇은 아직 막혀 있는지 먼저 본다.</h2>
-          <p>
-            기준일 {data.as_of_date || "미정"} · {koCode(data.strategy_name)} · {koCode(data.horizon_type)}.
-            추천은 투자 결정을 돕는 신호이고, 실거래 주문과 추천 산식 변경은 계속 별도 안전 장치에서 차단된다.
+    <div className="pageStack decision-page">
+      <section className="decision-brief reveal" aria-labelledby="recommendations-title">
+        <div className="decision-brief-main">
+          <span className="decision-brief-kicker">
+            추천 상황실 · {data.as_of_date || "기준일 미정"} · {koCode(data.strategy_name)} · {koCode(data.horizon_type)}
+          </span>
+          <h1 className="decision-brief-title" id="recommendations-title">
+            오늘 먼저 볼 추천: {topRecommendation ? topRecommendation.symbol : "신호 대기"}
+          </h1>
+          <p className="decision-brief-copy">
+            추천은 주문이 아니라 중장기 검토 신호다. 점수, 투자 논리, 뉴스·AI 해석, 가상 매매 대기, 실거래 차단 상태를 분리해서 본다.
           </p>
+          <div className="decision-brief-meta" aria-label="추천 목록 핵심 상태">
+            <span>추천 {data.recommendation_count.toLocaleString("ko-KR")}개</span>
+            <span>가상 대기 {data.summary.paper_validation_pending_count.toLocaleString("ko-KR")}개</span>
+            <span>주문 차단 {data.summary.order_blocked_count.toLocaleString("ko-KR")}개</span>
+            <span>원천 차단 {data.summary.evidence_quality_source_blocked_count.toLocaleString("ko-KR")}개</span>
+          </div>
         </div>
-        <div className="recommendations-command-grid">
+        <div className="decision-brief-grid">
           {recommendationCommandCards.map((card) => (
-            <a className={`recommendations-command-card ${card.tone}`} href={card.href} key={card.index}>
-              <span>{card.index}</span>
-              <small>{card.label}</small>
+            <a
+              className={`decision-card ${
+                card.tone === "ready" ? "is-good" : card.tone === "watch" ? "is-watch" : "is-block"
+              }`}
+              href={card.href}
+              key={card.index}
+            >
+              <span>{card.label}</span>
               <strong>{card.title}</strong>
-              <em>{card.metric}</em>
-              <p>{card.body}</p>
+              <small>{card.metric} · {card.body}</small>
               <b>{card.cta}</b>
             </a>
           ))}

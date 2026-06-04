@@ -148,70 +148,39 @@ export default async function TradingReadinessPage() {
   ];
 
   return (
-    <div className="pageStack">
-      <section className="page-hero reveal" aria-labelledby="trading-readiness-title">
-        <div className="bento-badge">거래 안전 점검 • 주문 전 차단 상태</div>
-        <h1 id="trading-readiness-title">실제 주문을 넣기 전에 무엇이 막고 있는지 본다.</h1>
-        <p>
-          증권사 연결, 계좌 권한, 주문 한도, 킬 스위치, 가상 매매 검증, 결정 기록이 모두 통과해야
-          실거래 전환 확인 대상이 된다. 아래 거래 안전 요약에서 차단 수와 실제 주문 전송 건수를 먼저 확인한다.
-          실제 주문 전송 건수가 0이면 현재 서버에서 실제 주문은 나가지 않았다.
-        </p>
-      </section>
-
-      <section className="trading-command-panel reveal delay-1" aria-labelledby="trading-command-title">
-        <div className="trading-command-lead">
-          <span>실거래 경계 현황판</span>
-          <h2 id="trading-command-title">지금 주문할 수 있는지가 아니라, 무엇이 막는지 본다.</h2>
-          <p>
-            이 화면은 주문 버튼이 아니다. 실거래 결론, 증권사 제출 기능, 킬 스위치,
-            결정 기록·가상 매매 검증을 분리해서 실제 주문 전환이 가능한지 확인한다.
+    <div className="pageStack decision-page">
+      <section className="decision-brief reveal" aria-labelledby="trading-readiness-title">
+        <div className="decision-brief-main">
+          <span className="decision-brief-kicker">거래 안전 점검 · 주문 전 차단 상태</span>
+          <h1 className="decision-brief-title" id="trading-readiness-title">
+            현재 실거래는 {liveSubmitCount > 0 ? "주문 기록 확인 필요" : data.gate_summary.blocked_count > 0 ? "차단 중" : "별도 승인 필요"}
+          </h1>
+          <p className="decision-brief-copy">
+            이 화면은 주문 버튼이 아니다. 증권사 연결, 계좌 권한, 주문 한도, 킬 스위치, 가상 매매 검증, 결정 기록 중 무엇이 실거래 전환을 막는지 먼저 본다.
           </p>
+          <div className="decision-brief-meta" aria-label="거래 안전 핵심 상태">
+            <span>차단 {data.gate_summary.blocked_count.toLocaleString("ko-KR")}개</span>
+            <span>누락/주의 {(data.gate_summary.missing_count + data.gate_summary.warning_count).toLocaleString("ko-KR")}개</span>
+            <span>킬 스위치 {blockedSwitches.length.toLocaleString("ko-KR")}개</span>
+            <span>실제 주문 {liveSubmitCount.toLocaleString("ko-KR")}건</span>
+          </div>
         </div>
-        <div className="trading-command-grid">
+        <div className="decision-brief-grid">
           {tradingCommandCards.map((card) => (
-            <a className={`trading-command-card ${card.tone}`} href={card.href} key={card.index}>
-              <span>{card.index}</span>
-              <small>{card.label}</small>
+            <a
+              className={`decision-card ${
+                card.tone === "ready" ? "is-good" : card.tone === "watch" ? "is-watch" : "is-block"
+              }`}
+              href={card.href}
+              key={card.index}
+            >
+              <span>{card.label}</span>
               <strong>{card.title}</strong>
-              <em>{card.metric}</em>
-              <p>{card.body}</p>
+              <small>{card.metric} · {card.body}</small>
               <b>{card.cta}</b>
             </a>
           ))}
         </div>
-      </section>
-
-      <section className="status-rail compact-rail reveal delay-1" aria-label="거래 안전 요약">
-        <article className="rail-cell">
-          <span>현재 상태</span>
-          <strong>{userText(data.readiness_status)}</strong>
-          <small>{userText(data.portfolio_name)} · {userText(data.execution_mode)}</small>
-        </article>
-        <article className="rail-cell">
-          <span>통과</span>
-          <strong>{data.gate_summary.pass_count}</strong>
-          <small>안전 조건 통과</small>
-        </article>
-        <article className="rail-cell">
-          <span>누락/주의</span>
-          <strong>{data.gate_summary.missing_count + data.gate_summary.warning_count}</strong>
-          <small>설정 또는 결정 기록 필요</small>
-        </article>
-        <article className="rail-cell rail-critical">
-          <span>차단</span>
-          <strong>{data.gate_summary.blocked_count}</strong>
-          <small>
-            {riskGuardrail.paper_validation_input_allowed
-              ? blockedSwitches.length > 0 ? "킬 스위치 포함" : "차단 조건 수"
-              : "위험 예산 포함"}
-          </small>
-        </article>
-        <article className="rail-cell">
-          <span>실제 주문 전송</span>
-          <strong>{liveSubmitCount}</strong>
-          <small>실제 주문 전송 기록</small>
-        </article>
       </section>
 
       <section className="split-ledger reveal delay-2" id="trading-gates">

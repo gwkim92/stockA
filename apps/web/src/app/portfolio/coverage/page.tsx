@@ -411,37 +411,37 @@ export default async function PortfolioCoveragePage() {
   ];
 
   return (
-    <div className="pageStack">
-      <section className="page-hero reveal" aria-labelledby="portfolio-coverage-title">
-        <div className="bento-badge">
-          보유·리스크 상태 • {userFacingText(data.portfolio_name)} • {userFacingText(data.strategy_name)} • {data.as_of_date}
-        </div>
-        <div>
-          <h1 id="portfolio-coverage-title">보유 종목 상태와 아직 바꾸면 안 되는 항목을 확인한다.</h1>
-          <p>
-            이 화면은 포트폴리오 주문 화면이 아니다. 보유 투자 논리, 리스크 예산, 리밸런싱 확인 대상,
-            성과 성숙 대기, 추천 산식 반영 비중 변경 금지 상태를 분리해서 보여준다.
+    <div className="pageStack decision-page">
+      <section className="decision-brief reveal" aria-labelledby="portfolio-coverage-title">
+        <div className="decision-brief-main">
+          <span className="decision-brief-kicker">
+            보유·리스크 상태 · {userFacingText(data.portfolio_name)} · {userFacingText(data.strategy_name)} · {data.as_of_date}
+          </span>
+          <h1 className="decision-brief-title" id="portfolio-coverage-title">
+            보유 위험과 근거 공백을 먼저 확인한다.
+          </h1>
+          <p className="decision-brief-copy">
+            이 화면은 포트폴리오 주문 화면이 아니다. 보유 투자 논리, 리스크 예산, 리밸런싱 확인 대상, 성과 성숙 대기, 추천 산식 변경 금지를 분리해서 본다.
           </p>
+          <div className="decision-brief-meta" aria-label="포트폴리오 핵심 상태">
+            <span>포지션 {data.summary.position_count.toLocaleString("ko-KR")}개</span>
+            <span>투자 논리 누락 {data.summary.missing_thesis_count.toLocaleString("ko-KR")}개</span>
+            <span>측정 종료 {data.coverage_measurement_end_date}</span>
+            <span>실거래 {orderBoundaryLabel(reviewCalibration.guardrails.order_boundary)}</span>
+          </div>
         </div>
-      </section>
-
-      <section className="portfolio-command-panel reveal delay-1" aria-labelledby="portfolio-command-title">
-        <div className="portfolio-command-lead">
-          <span>포트폴리오 판정판</span>
-          <h2 id="portfolio-command-title">보유를 유지할지보다, 먼저 어떤 위험과 공백이 있는지 본다.</h2>
-          <p>
-            기준일 {data.as_of_date} · 측정 종료 {data.coverage_measurement_end_date}.
-            모든 카드는 읽기 전용이며, 실거래 주문·자동 리밸런싱·추천 산식 반영 비중 변경은 이 화면에서 실행되지 않는다.
-          </p>
-        </div>
-        <div className="portfolio-command-grid">
+        <div className="decision-brief-grid">
           {portfolioCommandCards.map((card) => (
-            <a className={`portfolio-command-card ${card.tone}`} href={card.href} key={card.index}>
-              <span>{card.index}</span>
-              <small>{card.label}</small>
+            <a
+              className={`decision-card ${
+                card.tone === "ready" ? "is-good" : card.tone === "watch" ? "is-watch" : "is-block"
+              }`}
+              href={card.href}
+              key={card.index}
+            >
+              <span>{card.label}</span>
               <strong>{card.title}</strong>
-              <em>{card.metric}</em>
-              <p>{card.body}</p>
+              <small>{card.metric} · {card.body}</small>
               <b>{card.cta}</b>
             </a>
           ))}

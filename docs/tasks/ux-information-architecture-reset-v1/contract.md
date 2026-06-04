@@ -22,6 +22,13 @@
 - mutable surface: `apps/web/src/app/paper-trading/page.tsx`
 - mutable surface: `apps/web/src/app/stocks/[symbol]/page.tsx`
 - mutable surface: `apps/web/src/app/recommendations/[recommendationId]/page.tsx`
+- mutable surface: `apps/web/src/app/trading-readiness/page.tsx`
+- mutable surface: `apps/web/src/app/portfolio/coverage/page.tsx`
+- mutable surface: `apps/web/src/app/performance/page.tsx`
+- mutable surface: `apps/web/src/app/stocks/page.tsx`
+- mutable surface: `apps/web/src/app/recommendations/page.tsx`
+- mutable surface: `apps/web/src/app/cycles/page.tsx`
+- mutable surface: `apps/web/src/app/events/classification/page.tsx`
 - mutable surface: `docs/plans/2026-06-04-ux-information-architecture-reset-v1.md`
 - mutable surface: `docs/tasks/ux-information-architecture-reset-v1/`
 
@@ -59,4 +66,11 @@
 - `/stocks/[symbol]` first viewport separates recommendation, holding, news/flow, and thesis before dense professional evidence panels.
 - `/recommendations/[recommendationId]` first viewport separates recommendation decision, score, professional step state, paper validation, and live order boundary.
 - `/paper-trading` first viewport clearly distinguishes simulated actions from real order submission.
+- `/trading-readiness` first viewport explains live order status, blocked gates, kill switches, and audit boundary.
+- `/portfolio/coverage` first viewport explains holding risk, thesis gaps, review maturity, and no-order boundary.
+- `/performance` first viewport explains measured outcome, sample quality, attribution, exclusions, and no automatic weight/order change.
+- `/stocks` first viewport points to the first stock to inspect and separates recommendation, holding, watch-only, and data freshness buckets.
+- `/recommendations` first viewport points to the first recommendation to inspect and separates evidence, paper validation, order block, and source blockers.
+- `/cycles` first viewport separates cycle changes, evidence axes, and upstream flow map.
+- `/events/classification` first viewport separates rule tags, direct-instrument tags, macro-only tags, and AI-linked/unlinked rows.
 - Existing data remains reachable below fold.

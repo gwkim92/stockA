@@ -2,7 +2,7 @@
 
 ## Status
 
-- in progress: first news/AI evidence UX slice deployed; second home/data-health/intelligence slice deployed; third cycle-map/stock-detail/recommendation-detail/paper-trading slice deployed and verified.
+- in progress: first news/AI evidence UX slice deployed; second home/data-health/intelligence slice deployed; third cycle-map/stock-detail/recommendation-detail/paper-trading slice deployed; fourth list/operation slice implemented and locally smoke verified.
 
 ## Current Status
 
@@ -18,10 +18,11 @@
 - completed: refactored `/stocks/[symbol]` first viewport around recommendation, holding, news/flow, and thesis state.
 - completed: refactored `/recommendations/[recommendationId]` first viewport around current decision, score, professional step status, paper validation, and live-order boundary.
 - completed: removed the unused legacy `StockDecisionBrief` component after replacing it with the shared decision-first layout.
+- completed: refactored `/trading-readiness`, `/portfolio/coverage`, `/performance`, `/stocks`, `/recommendations`, `/cycles`, `/events/classification` first viewport to remove repeated page hero/command panel patterns.
 
 ## Exact Next Step
 
-- exact next step: apply the same pattern to `/trading-readiness`, `/portfolio/coverage`, `/performance`, `/stocks`, `/recommendations`, `/cycles`, and `/events/classification`.
+- exact next step: deploy the fourth list/operation slice, then audit remaining secondary detail pages such as `/cycles`, `/themes/[themeKey]`, `/theses/[thesisId]`, `/source-documents/[documentId]`, `/remediation`, and lower-fold dense ledgers.
 
 ## Risks
 
@@ -51,6 +52,10 @@
 - passed deployed for third slice: `http://127.0.0.1:13000/cycle-map`, `/stocks/SPY`, `/recommendations/recommendation-67`, `/paper-trading`
 - passed deployed for third slice: mobile smoke for `/cycle-map`, `/stocks/SPY`, `/recommendations/recommendation-67`, `/paper-trading`, no horizontal overflow at 390px viewport
 - deployed commit: `c814e3f`
+- passed locally for fourth slice: `cd apps/web && npm run typecheck`
+- passed locally for fourth slice: `cd apps/web && npm run build`
+- passed locally for fourth slice: Playwright route smoke on `http://127.0.0.1:3002/trading-readiness`, `/portfolio/coverage`, `/performance`, `/stocks`, `/recommendations`, `/cycles`, `/events/classification`
+- passed locally for fourth slice: mobile smoke for the same 7 routes, no horizontal overflow at 390px viewport
 
 ## Browser Evidence
 
@@ -89,3 +94,17 @@
 - deployed mobile screenshot: `/tmp/stockanalysis-ux-reset-v1-slice3-deployed/mobile-stock-spy.png`
 - deployed mobile screenshot: `/tmp/stockanalysis-ux-reset-v1-slice3-deployed/mobile-recommendation-67.png`
 - deployed mobile screenshot: `/tmp/stockanalysis-ux-reset-v1-slice3-deployed/mobile-paper-trading.png`
+- local screenshot: `/tmp/stockanalysis-ux-reset-v1-slice4/trading-readiness.png`
+- local screenshot: `/tmp/stockanalysis-ux-reset-v1-slice4/portfolio-coverage.png`
+- local screenshot: `/tmp/stockanalysis-ux-reset-v1-slice4/performance.png`
+- local screenshot: `/tmp/stockanalysis-ux-reset-v1-slice4/stocks.png`
+- local screenshot: `/tmp/stockanalysis-ux-reset-v1-slice4/recommendations.png`
+- local screenshot: `/tmp/stockanalysis-ux-reset-v1-slice4/cycles.png`
+- local screenshot: `/tmp/stockanalysis-ux-reset-v1-slice4/events-classification.png`
+- local mobile screenshot: `/tmp/stockanalysis-ux-reset-v1-slice4/mobile-trading-readiness.png`
+- local mobile screenshot: `/tmp/stockanalysis-ux-reset-v1-slice4/mobile-portfolio-coverage.png`
+- local mobile screenshot: `/tmp/stockanalysis-ux-reset-v1-slice4/mobile-performance.png`
+- local mobile screenshot: `/tmp/stockanalysis-ux-reset-v1-slice4/mobile-stocks.png`
+- local mobile screenshot: `/tmp/stockanalysis-ux-reset-v1-slice4/mobile-recommendations.png`
+- local mobile screenshot: `/tmp/stockanalysis-ux-reset-v1-slice4/mobile-cycles.png`
+- local mobile screenshot: `/tmp/stockanalysis-ux-reset-v1-slice4/mobile-events-classification.png`

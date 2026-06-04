@@ -65,98 +65,49 @@ export default async function CyclesPage() {
       : 0;
 
   return (
-    <div className="terminal-page">
-      <section className="page-hero reveal" aria-labelledby="cycles-title">
-        <div>
-          <div className="bento-badge">테마 사이클</div>
-          <h1 className="page-title" id="cycles-title">
-            사이클은 매수 신호가 아니라 투자 논리 점검 지도다.
+    <div className="terminal-page decision-page">
+      <section className="decision-brief reveal" aria-labelledby="cycles-title">
+        <div className="decision-brief-main">
+          <span className="decision-brief-kicker">테마 사이클 · {koCode(data.strategy_name)} · {koCode(data.horizon_type)}</span>
+          <h1 className="decision-brief-title" id="cycles-title">
+            사이클 변화 {activeCycleCount.toLocaleString("ko-KR")}개, 평균 신뢰도 {formatConfidence(averageConfidence)}
           </h1>
-        </div>
-        <p className="page-lede">
-          테마 상태만 보고 매수·매도를 결정하지 않는다. 뉴스 흐름, 가격 흐름, 기업 품질을 나눠 보고
-          기존 추천·보유 투자 논리와 충돌하는지 확인하는 출발점으로 사용한다.
-        </p>
-        <Link className="btn btn-primary" href={"/cycle-map" as Route}>
-          상위 흐름 지도 열기
-        </Link>
-      </section>
-
-      <section className="cycle-command-panel reveal delay-1" aria-labelledby="cycle-command-title">
-        <div className="cycle-command-lead">
-          <span>사이클 현황판</span>
-          <h2 id="cycle-command-title">상태, 근거, 추천 영향을 분리해서 본다.</h2>
-          <p>
-            이 화면은 테마별 사이클 상태표다. 어떤 테마가 변했는지 먼저 보고, 왜 변했는지는
-            상위 흐름 지도와 테마 상세에서 뉴스·AI 근거·연결 종목을 이어서 확인한다.
+          <p className="decision-brief-copy">
+            사이클은 매수 신호가 아니라 투자 논리 점검 지도다. 뉴스 흐름, 가격 흐름, 기업 품질을 나눠 보고 추천·보유 논리와 충돌하는지 확인한다.
           </p>
+          <div className="decision-brief-meta" aria-label="사이클 핵심 상태">
+            <span>테마 {data.cycle_states.length.toLocaleString("ko-KR")}개</span>
+            <span>연결 종목 {instrumentCount.toLocaleString("ko-KR")}개</span>
+            <span>뉴스 주도 {eventLedThemeCount.toLocaleString("ko-KR")}개</span>
+            <span>가격 주도 {momentumThemeCount.toLocaleString("ko-KR")}개</span>
+          </div>
         </div>
-        <div className="cycle-command-grid">
-          <a className="cycle-command-card ready" href="#cycle-states">
-            <span>01</span>
-            <small>상태표</small>
-            <strong>{data.cycle_states.length}개 테마</strong>
-            <em>{universeLabel(data.universe_version)}</em>
-            <p>테마별 상태를 한 번에 본다. 이 표는 매수·매도 결론이 아니라 투자 논리 점검 출발점이다.</p>
+        <div className="decision-brief-grid">
+          <a className="decision-card is-good" href="#cycle-states">
+            <span>상태표</span>
+            <strong>{data.cycle_states.length.toLocaleString("ko-KR")}개 테마</strong>
+            <small>{universeLabel(data.universe_version)} · 매수·매도 결론이 아니라 투자 논리 점검 출발점이다.</small>
             <b>상태표 보기</b>
           </a>
-          <a className={activeCycleCount > 0 ? "cycle-command-card watch" : "cycle-command-card ready"} href="#cycle-states">
-            <span>02</span>
-            <small>변화</small>
-            <strong>{activeCycleCount}개 상태 변화</strong>
-            <em>현재 상태와 이전 상태 비교</em>
-            <p>
-              상태가 바뀐 테마는 추천·보유 투자 논리와 충돌하는지 먼저 본다. 변화가 없어도 신뢰도와 확인
-              근거는 별도로 본다.
-            </p>
+          <a className={activeCycleCount > 0 ? "decision-card is-watch" : "decision-card is-good"} href="#cycle-states">
+            <span>변화</span>
+            <strong>{activeCycleCount.toLocaleString("ko-KR")}개 상태 변화</strong>
+            <small>바뀐 테마는 추천·보유 논리와 충돌하는지 먼저 본다.</small>
             <b>변화 항목 보기</b>
           </a>
-          <a className={missingFeatureCount > 0 ? "cycle-command-card watch" : "cycle-command-card ready"} href="#cycle-states">
-            <span>03</span>
-            <small>확인 근거</small>
+          <a className={missingFeatureCount > 0 ? "decision-card is-watch" : "decision-card is-good"} href="#cycle-states">
+            <span>확인 근거</span>
             <strong>뉴스 {eventLedThemeCount} · 가격 {momentumThemeCount}</strong>
-            <em>기업 품질 {fundamentalMeasuredCount}/{data.cycle_states.length}</em>
-            <p>
-              막대는 뉴스 흐름, 가격 흐름, 기업 품질을 분리해 보여준다. 특정 축이 비어 있으면 결론보다
-              데이터 보강이 먼저다.
-            </p>
+            <small>기업 품질 {fundamentalMeasuredCount}/{data.cycle_states.length}. 빈 축이 있으면 결론보다 데이터 보강이 먼저다.</small>
             <b>확인 근거 보기</b>
           </a>
-          <Link className="cycle-command-card" href={"/cycle-map" as Route}>
-            <span>04</span>
-            <small>원인 경로</small>
+          <Link className="decision-card" href={"/cycle-map" as Route}>
+            <span>원인 경로</span>
             <strong>상위 흐름 지도</strong>
-            <em>거시 → 도메인 → 테마 → 종목</em>
-            <p>
-              사이클 상태의 배경은 지도에서 본다. 뉴스가 어떤 상위 흐름을 거쳐 테마와 종목으로 이어졌는지
-              확인하는 화면이다.
-            </p>
+            <small>뉴스가 어떤 상위 흐름을 거쳐 테마와 종목으로 이어졌는지 확인한다.</small>
             <b>흐름 지도 열기</b>
           </Link>
         </div>
-      </section>
-
-      <section className="status-rail compact-rail reveal delay-1" aria-label="사이클 요약">
-        <article className="rail-cell">
-          <span>전략</span>
-          <strong className="rail-word-value">{koCode(data.strategy_name)}</strong>
-          <small>{koCode(data.strategy_name)} · {koCode(data.horizon_type)}</small>
-        </article>
-        <article className="rail-cell">
-          <span>테마 수</span>
-          <strong>{data.cycle_states.length}</strong>
-          <small>{universeLabel(data.universe_version)}</small>
-        </article>
-        <article className="rail-cell">
-          <span>연결 종목</span>
-          <strong>{instrumentCount}</strong>
-          <small>테마 종목군 전체</small>
-        </article>
-        <article className="rail-cell">
-          <span>평균 신뢰도</span>
-          <strong>{formatConfidence(averageConfidence)}</strong>
-          <small>{activeCycleCount}개 상태 변화</small>
-        </article>
       </section>
 
       <section className="cycle-index reveal delay-2" id="cycle-states" aria-label="테마 사이클 목록">
