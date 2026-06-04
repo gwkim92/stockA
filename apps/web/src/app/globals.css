@@ -3761,6 +3761,291 @@ h6 {
   gap: 8px;
 }
 
+.performance-workbench {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.performance-panel {
+  min-width: 0;
+  padding: clamp(20px, 2.4vw, 30px);
+  background:
+    linear-gradient(145deg, color-mix(in srgb, var(--bg-panel) 94%, white), rgba(246, 240, 226, 0.86)),
+    radial-gradient(circle at 0% 0%, rgba(42, 111, 151, 0.1), transparent 34%);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+}
+
+.performance-panel.is-good {
+  border-color: color-mix(in srgb, var(--accent-green) 34%, var(--border-light));
+}
+
+.performance-panel.is-watch {
+  border-color: color-mix(in srgb, var(--accent-amber) 36%, var(--border-light));
+}
+
+.performance-panel.is-block {
+  border-color: color-mix(in srgb, var(--accent-red) 32%, var(--border-light));
+}
+
+.performance-panel-wide {
+  grid-column: 1 / -1;
+}
+
+.performance-panel-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 20px;
+  align-items: start;
+}
+
+.performance-panel-head.compact {
+  align-items: end;
+  margin-bottom: 18px;
+}
+
+.performance-panel-head span,
+.performance-metric-grid span,
+.performance-check-card span,
+.performance-outcome-main span,
+.performance-mini-card span,
+.performance-gate-card span {
+  color: var(--text-tertiary);
+  font-size: 0.72rem;
+  font-weight: 950;
+  letter-spacing: 0.02em;
+}
+
+.performance-panel-head h2 {
+  margin: 6px 0 0;
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: clamp(1.6rem, 2.8vw, 3.05rem);
+  line-height: 0.98;
+  word-break: keep-all;
+}
+
+.performance-panel-head p {
+  max-width: 760px;
+  margin: 10px 0 0;
+  color: var(--text-secondary);
+  font-size: 0.92rem;
+  font-weight: 760;
+  line-height: 1.65;
+  word-break: keep-all;
+}
+
+.performance-status-badge {
+  min-width: 180px;
+  padding: 16px;
+  background: rgba(17, 18, 15, 0.035);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  text-align: right;
+}
+
+.performance-status-badge.is-good {
+  border-color: color-mix(in srgb, var(--accent-green) 36%, var(--border-light));
+}
+
+.performance-status-badge.is-watch {
+  border-color: color-mix(in srgb, var(--accent-amber) 36%, var(--border-light));
+}
+
+.performance-status-badge.is-block {
+  border-color: color-mix(in srgb, var(--accent-red) 34%, var(--border-light));
+}
+
+.performance-status-badge span,
+.performance-status-badge small {
+  display: block;
+  color: var(--text-tertiary);
+  font-size: 0.72rem;
+  font-weight: 900;
+}
+
+.performance-status-badge strong {
+  display: block;
+  margin-top: 6px;
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: clamp(1.6rem, 2.5vw, 2.6rem);
+  line-height: 1;
+}
+
+.performance-metric-grid,
+.performance-check-grid,
+.performance-outcome-grid,
+.performance-mini-card-grid,
+.performance-gate-grid {
+  display: grid;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.performance-metric-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.performance-check-grid,
+.performance-outcome-grid,
+.performance-gate-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.performance-mini-card-grid {
+  grid-template-columns: 1fr;
+}
+
+.performance-metric-grid div,
+.performance-check-card,
+.performance-outcome-card,
+.performance-mini-card,
+.performance-gate-card {
+  min-width: 0;
+  padding: 16px;
+  background: rgba(17, 18, 15, 0.035);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+}
+
+.performance-metric-grid strong {
+  display: block;
+  margin-top: 8px;
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: clamp(1.7rem, 2.8vw, 3.4rem);
+  line-height: 0.92;
+}
+
+.performance-metric-grid small,
+.performance-check-card span,
+.performance-outcome-main small,
+.performance-return-stack span,
+.performance-mini-card small,
+.performance-mini-card em {
+  display: block;
+  margin-top: 6px;
+  color: var(--text-secondary);
+  font-size: 0.76rem;
+  font-style: normal;
+  font-weight: 740;
+  line-height: 1.5;
+  word-break: keep-all;
+}
+
+.performance-check-card,
+.performance-gate-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: start;
+}
+
+.performance-check-card.is-good,
+.performance-gate-card.is-good,
+.performance-outcome-card.is-good,
+.performance-mini-card.is-good {
+  border-color: color-mix(in srgb, var(--accent-green) 32%, var(--border-light));
+}
+
+.performance-check-card.is-watch,
+.performance-gate-card.is-watch,
+.performance-outcome-card.is-watch,
+.performance-mini-card.is-watch {
+  border-color: color-mix(in srgb, var(--accent-amber) 34%, var(--border-light));
+}
+
+.performance-check-card.is-block,
+.performance-gate-card.is-block,
+.performance-outcome-card.is-block,
+.performance-mini-card.is-block {
+  border-color: color-mix(in srgb, var(--accent-red) 30%, var(--border-light));
+}
+
+.performance-check-card strong,
+.performance-gate-card strong,
+.performance-outcome-main strong,
+.performance-mini-card strong {
+  display: block;
+  margin-top: 6px;
+  color: var(--text-primary);
+  font-size: 1rem;
+  font-weight: 900;
+  line-height: 1.25;
+  word-break: keep-all;
+}
+
+.performance-check-card b,
+.performance-gate-card b,
+.performance-mini-card b {
+  justify-self: end;
+  color: var(--text-primary);
+  font-size: 0.82rem;
+  font-weight: 950;
+  text-align: right;
+}
+
+.performance-outcome-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(150px, 0.45fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.performance-return-stack {
+  display: grid;
+  justify-items: end;
+  gap: 5px;
+  min-width: 0;
+}
+
+.performance-return-stack strong {
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: clamp(1.45rem, 2.1vw, 2.35rem);
+  line-height: 1;
+}
+
+.performance-outcome-card.is-good .performance-return-stack strong {
+  color: var(--accent-green);
+}
+
+.performance-outcome-card.is-block .performance-return-stack strong {
+  color: var(--accent-red);
+}
+
+.performance-card-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.performance-mini-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px 14px;
+  align-items: start;
+}
+
+.performance-mini-card a {
+  display: inline-flex;
+  width: fit-content;
+  margin-top: 8px;
+  color: var(--accent-blue);
+  font-size: 0.75rem;
+  font-weight: 900;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.performance-mini-card em {
+  grid-column: 1 / -1;
+  margin-top: 0;
+}
+
 .fallback-news-card {
   border-style: dashed;
 }
@@ -5562,12 +5847,22 @@ h6 {
   .portfolio-review-metrics,
   .portfolio-review-evidence,
   .trading-safety-card-grid,
-  .trading-validation-grid,
-  .paper-action-card-grid,
-  .paper-action-metrics,
-  .paper-action-context {
-    grid-template-columns: 1fr;
-  }
+	  .trading-validation-grid,
+	  .paper-action-card-grid,
+	  .paper-action-metrics,
+	  .paper-action-context,
+	  .performance-workbench,
+	  .performance-panel-head,
+	  .performance-metric-grid,
+	  .performance-check-grid,
+	  .performance-outcome-grid,
+	  .performance-gate-grid,
+	  .performance-outcome-card,
+	  .performance-check-card,
+	  .performance-gate-card,
+	  .performance-mini-card {
+	    grid-template-columns: 1fr;
+	  }
 
   .topbar {
     gap: 12px;

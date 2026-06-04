@@ -123,6 +123,23 @@ function qualityCheckColor(status: string) {
   return "var(--accent-amber)";
 }
 
+function statusToneClass(status: string) {
+  if (status === "passed" || status === "positive_alignment" || status === "reviewable") {
+    return "is-good";
+  }
+  if (status === "blocked" || status === "needs_quality_review") {
+    return "is-block";
+  }
+  return "is-watch";
+}
+
+function alphaToneClass(value: number | null) {
+  if (value === null) {
+    return "is-watch";
+  }
+  return value >= 0 ? "is-good" : "is-block";
+}
+
 type AttributionComponent = PerformanceOutcomesData["attribution_components"][number];
 type QualityGate = PerformanceOutcomesData["quality_gates"][number];
 
@@ -305,79 +322,76 @@ export default async function PerformancePage() {
         </article>
       </section>
 
-      <section className="bento-grid reveal delay-2">
-        <article id="performance-quality" className="bento-card span-4" style={{ borderColor: evaluationStatusColor(quality.status) }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "16px", flexWrap: "wrap", marginBottom: "20px" }}>
+      <section className="performance-workbench reveal delay-2" aria-label="성과 상세 점검">
+        <article id="performance-quality" className={`performance-panel performance-panel-wide ${statusToneClass(quality.status)}`}>
+          <div className="performance-panel-head">
             <div>
-              <span className="metric-sub">추천 품질 평가</span>
-              <h2 style={{ fontSize: "1.5rem", marginTop: "6px" }}>{evaluationStatusLabel(quality.status)}</h2>
-              <p style={{ color: "var(--text-secondary)", marginTop: "8px", maxWidth: "720px" }}>
-                이 평가는 추천을 새로 만들지 않는다. 이미 저장된 추천 점수, 성과, 보유 상태, 성과 연결 상태를 대조해
-                중장기 추천 품질을 과대 해석하지 않도록 점검한다.
+              <span>추천 품질 평가</span>
+              <h2>{evaluationStatusLabel(quality.status)}</h2>
+              <p>
+                이 평가는 추천을 새로 만들지 않는다. 이미 저장된 추천 점수, 성과, 보유 상태, 성과 연결 상태를
+                대조해 중장기 추천 품질을 과대 해석하지 않도록 점검한다.
               </p>
             </div>
-            <div style={{ textAlign: "right", minWidth: "180px" }}>
-              <span className="metric-sub">평균 알파</span>
-              <strong style={{ display: "block", fontSize: "2rem", color: evaluationStatusColor(quality.status) }}>
-                {formatOptionalPercent(quality.average_alpha)}
-              </strong>
-              <span className="metric-sub">적중률 {formatOptionalPercent(quality.hit_rate)}</span>
+            <div className={`performance-status-badge ${alphaToneClass(quality.average_alpha)}`}>
+              <span>평균 알파</span>
+              <strong>{formatOptionalPercent(quality.average_alpha)}</strong>
+              <small>적중률 {formatOptionalPercent(quality.hit_rate)}</small>
             </div>
           </div>
 
-          <div className="bento-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", marginBottom: "18px" }}>
+          <div className="performance-metric-grid">
             <div>
-              <span className="metric-label">측정 추천</span>
-              <strong className="metric-value">{quality.measured_recommendation_count}</strong>
-              <span className="metric-sub">{evaluationStatusLabel(quality.sample_size_status)}</span>
+              <span>측정 추천</span>
+              <strong>{quality.measured_recommendation_count}</strong>
+              <small>{evaluationStatusLabel(quality.sample_size_status)}</small>
             </div>
             <div>
-              <span className="metric-label">고점수 추천</span>
-              <strong className="metric-value">{quality.high_score_recommendation_count}</strong>
-              <span className="metric-sub">평균 알파 {formatOptionalPercent(quality.high_score_average_alpha)}</span>
+              <span>고점수 추천</span>
+              <strong>{quality.high_score_recommendation_count}</strong>
+              <small>평균 알파 {formatOptionalPercent(quality.high_score_average_alpha)}</small>
             </div>
             <div>
-              <span className="metric-label">보유 상태-성과 충돌</span>
-              <strong className="metric-value">{quality.review_outcome_mismatch_count}</strong>
-              <span className="metric-sub">보유 상태와 결과 대조</span>
+              <span>보유 상태-성과 충돌</span>
+              <strong>{quality.review_outcome_mismatch_count}</strong>
+              <small>보유 상태와 결과 대조</small>
             </div>
             <div>
-              <span className="metric-label">성과 연결 제외</span>
-              <strong className="metric-value">{quality.coverage_exclusion_count}</strong>
-              <span className="metric-sub">먼저 보완할 빈칸</span>
+              <span>성과 연결 제외</span>
+              <strong>{quality.coverage_exclusion_count}</strong>
+              <small>먼저 보완할 빈칸</small>
             </div>
           </div>
 
-          <div className="bento-list">
+          <div className="performance-check-grid">
             {quality.checks.length === 0 ? (
               <p className="empty-state">아직 성과 해석 기준이 실행되지 않았다. 성과 측정이 생성되면 여기에 확인 항목이 표시된다.</p>
             ) : null}
             {quality.checks.map((check) => (
-              <div className="bento-list-item" key={check.check_key} style={{ alignItems: "flex-start" }}>
+              <article className={`performance-check-card ${statusToneClass(check.status)}`} key={check.check_key}>
                 <div>
                   <strong>{performanceCopy(check.label)}</strong>
                   <span>{performanceCopy(check.detail)}</span>
                   <span>{performanceCopy(check.next_step)}</span>
                 </div>
-                <strong style={{ color: qualityCheckColor(check.status) }}>
-                  {koCode(check.status)}
-                </strong>
-              </div>
+                <b style={{ color: qualityCheckColor(check.status) }}>{koCode(check.status)}</b>
+              </article>
             ))}
           </div>
         </article>
 
-        <article id="performance-outcomes" className="bento-card span-4">
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: "24px", gap: "16px", flexWrap: "wrap" }}>
+        <article id="performance-outcomes" className="performance-panel performance-panel-wide">
+          <div className="performance-panel-head compact">
             <div>
-              <span className="metric-sub">측정된 성과</span>
-              <h2 style={{ fontSize: "1.5rem" }}>추천 책임 추적</h2>
+              <span>측정된 성과</span>
+              <h2>추천 책임 추적</h2>
+              <p>추천이 실제로 벤치마크를 이겼는지와 어떤 투자 논리로 연결되는지 확인한다.</p>
             </div>
             <Link className="btn btn-secondary" href="/portfolio/coverage">
               보유·리스크 상태 열기
             </Link>
           </div>
-          <div className="bento-list">
+          <div className="performance-outcome-grid">
             {data.outcomes.length === 0 ? (
               <p className="empty-state">
                 아직 측정 종료일이 지난 추천 성과가 없다. 성과 측정 윈도우가 도래하면 추천별 알파와
@@ -385,113 +399,115 @@ export default async function PerformancePage() {
               </p>
             ) : null}
             {data.outcomes.map((outcome) => (
-              <div className="bento-list-item" key={outcome.outcome_id} style={{ alignItems: "flex-start" }}>
-                <div style={{ flex: 1 }}>
-                  <span className="metric-sub">
+              <article className={`performance-outcome-card ${alphaToneClass(outcome.alpha)}`} key={outcome.outcome_id}>
+                <div className="performance-outcome-main">
+                  <span>
                     {outcome.symbol} • {outcome.horizon_days}일 • {data.measurement_start_date} ~ {data.measurement_end_date}
                   </span>
-                  <strong style={{ fontSize: "1.05rem" }}>{koCode(outcome.recommendation)} / {koCode(outcome.label)}</strong>
-                  <span>{executionIdLabel(outcome.source_run_id)}</span>
-                  <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", marginTop: "8px" }}>
+                  <strong>{koCode(outcome.recommendation)} / {koCode(outcome.label)}</strong>
+                  <small>{executionIdLabel(outcome.source_run_id)}</small>
+                  <div className="performance-card-links">
                     <Link className="btn btn-secondary" href={recommendationHref(outcome.recommendation_id)}>
-                      추천
+                      추천 보기
                     </Link>
                     <Link className="btn btn-secondary" href={thesisHref(outcome.thesis_id)}>
-                      투자 논리
+                      투자 논리 보기
                     </Link>
                   </div>
                 </div>
-                <div style={{ alignItems: "flex-end", minWidth: "220px" }}>
-                  <strong style={{ color: outcome.alpha >= 0 ? "var(--accent-green)" : "var(--accent-red)", fontSize: "1.25rem" }}>
-                    알파 {formatPercent(outcome.alpha)}
-                  </strong>
+                <div className="performance-return-stack">
+                  <strong>알파 {formatPercent(outcome.alpha)}</strong>
                   <span>절대수익률 {formatPercent(outcome.absolute_return)}</span>
                   <span>벤치마크 {formatPercent(outcome.benchmark_return)}</span>
                   <span>기여도 {formatBps(outcome.security_contribution_bps)}</span>
                 </div>
-              </div>
+              </article>
             ))}
           </div>
         </article>
 
-        <article id="performance-attribution" className="bento-card span-2">
-          <div style={{ marginBottom: "24px" }}>
-            <span className="metric-sub">성과 해석 관점</span>
-            <h2 style={{ fontSize: "1.5rem" }}>합산값이 아니라 해석 관점</h2>
+        <article id="performance-attribution" className="performance-panel">
+          <div className="performance-panel-head compact">
+            <div>
+              <span>성과 해석 관점</span>
+              <h2>합산값이 아니라 해석 관점</h2>
+              <p>종목·테마·현금이 결과를 어떻게 설명하는지 나눠 본다.</p>
+            </div>
           </div>
-          <div className="bento-list">
+          <div className="performance-mini-card-grid">
             {data.attribution_components.length === 0 ? (
               <p className="empty-state">성과 결과가 없어서 아직 귀속 관점이 생성되지 않았다.</p>
             ) : null}
             {data.attribution_components.map((component) => {
               const href = themeHref(component.theme_key);
               return (
-                <div className="bento-list-item" key={component.component_id} style={{ alignItems: "flex-start" }}>
-                  <div style={{ flex: 1 }}>
-                    <span className="metric-sub">{performanceCopy(component.component_type)}</span>
+                <article className={`performance-mini-card ${alphaToneClass(component.contribution_bps)}`} key={component.component_id}>
+                  <div>
+                    <span>{performanceCopy(component.component_type)}</span>
                     <strong>{attributionTitle(component)}</strong>
-                    <span>{attributionDescription(component)}</span>
+                    <small>{attributionDescription(component)}</small>
                     {href ? (
-                      <Link href={href} style={{ color: "var(--accent-blue)", fontSize: "0.75rem", textDecoration: "underline", textUnderlineOffset: "3px", marginTop: "4px" }}>
+                      <Link href={href}>
                         테마 열기
                       </Link>
                     ) : null}
                   </div>
-                  <div style={{ alignItems: "flex-end", minWidth: "92px" }}>
-                    <strong style={{ color: component.contribution_bps > 0 ? "var(--accent-green)" : "var(--text-primary)" }}>
-                      {formatBps(component.contribution_bps)}
-                    </strong>
-                    <span>비중 {formatPercent(component.weight)}</span>
-                  </div>
-                </div>
+                  <b>{formatBps(component.contribution_bps)}</b>
+                  <em>비중 {formatPercent(component.weight)}</em>
+                </article>
               );
             })}
           </div>
         </article>
 
-        <article id="performance-exclusions" className="bento-card span-2">
-          <div style={{ marginBottom: "24px" }}>
-            <span className="metric-sub">성과 연결 제외</span>
-            <h2 style={{ fontSize: "1.5rem" }}>성과 연결 보완 항목</h2>
+        <article id="performance-exclusions" className="performance-panel">
+          <div className="performance-panel-head compact">
+            <div>
+              <span>성과 연결 제외</span>
+              <h2>성과 연결 보완 항목</h2>
+              <p>성과 해석에서 빠진 포지션이 있으면 추천 평가보다 원천 연결을 먼저 보완한다.</p>
+            </div>
           </div>
-          <div className="bento-list">
+          <div className="performance-mini-card-grid">
             {data.coverage_exclusions.length === 0 ? (
               <p className="empty-state">성과 귀속에서 제외된 포지션이 없다.</p>
             ) : null}
             {data.coverage_exclusions.map((exclusion) => (
-              <div className="bento-list-item" key={exclusion.instrument_id}>
+              <article className="performance-mini-card is-watch" key={exclusion.instrument_id}>
                 <div>
+                  <span>보완 대상</span>
                   <strong>{exclusion.symbol}</strong>
-                  <span>{performanceCopy(exclusion.reason)}</span>
+                  <small>{performanceCopy(exclusion.reason)}</small>
                 </div>
-                <div style={{ alignItems: "flex-end" }}>
-                  <strong style={{ color: "var(--accent-amber)" }}>{formatPercent(exclusion.weight)}</strong>
-                  <span>{performanceCopy(exclusion.required_action)}</span>
-                </div>
-              </div>
+                <b>{formatPercent(exclusion.weight)}</b>
+                <em>{performanceCopy(exclusion.required_action)}</em>
+              </article>
             ))}
           </div>
-          <div className="btn-row">
+          <div className="performance-card-links">
             <Link className="btn btn-secondary" href="/remediation">
               보완 큐 열기
             </Link>
           </div>
         </article>
 
-        <article className="bento-card span-4">
-          <div style={{ marginBottom: "24px" }}>
-            <span className="metric-sub">성과 해석 기준</span>
-            <h2 style={{ fontSize: "1.5rem" }}>성과를 과대 해석하지 않기</h2>
+        <article className="performance-panel performance-panel-wide">
+          <div className="performance-panel-head compact">
+            <div>
+              <span>성과 해석 기준</span>
+              <h2>성과를 과대 해석하지 않기</h2>
+              <p>성과가 있어도 표본, 원천 연결, 측정 방식 경계가 부족하면 추천 산식 반영 비중은 바꾸지 않는다.</p>
+            </div>
           </div>
-          <div className="bento-list">
+          <div className="performance-gate-grid">
             {data.quality_gates.map((gate) => (
-              <div className="bento-list-item" key={gate.gate}>
+              <article className={`performance-gate-card ${statusToneClass(gate.status)}`} key={gate.gate}>
                 <div>
-                  <strong>{performanceCopy(gate.gate)}</strong>
-                  <span>{qualityGateReason(gate)}</span>
+                  <span>{performanceCopy(gate.gate)}</span>
+                  <strong>{qualityGateReason(gate)}</strong>
                 </div>
-                <strong style={{ color: gateColor(gate.status), textTransform: "uppercase" }}>{koCode(gate.status)}</strong>
-              </div>
+                <b>{koCode(gate.status)}</b>
+              </article>
             ))}
           </div>
         </article>
