@@ -201,6 +201,13 @@ function userFacingStockText(value: string | null | undefined) {
     .replace(/\bfund company financial model not applicable\b/gi, "ETF·펀드라 기업 재무 모델 비적용")
     .replace(/\bsource blocker\b/gi, "부족한 원천 근거")
     .replace(/\bblocker\b/gi, "차단 사유")
+    .replace(/\bsec_companyfacts_missing_us_gaap_facts\b/gi, "SEC 표준 재무 항목 없음")
+    .replace(/\bsec companyfacts missing us gaap facts\b/gi, "SEC 표준 재무 항목 없음")
+    .replace(/\bfinancial_period_source_linkage\b/gi, "재무 기간 원천 연결")
+    .replace(/fundamental 구성요소 가중치/gi, "재무·밸류에이션 항목 반영 비중")
+    .replace(/\bSEC\/companyfacts\b/gi, "SEC 표준 재무 원천")
+    .replace(/\bSEC companyfacts\b/gi, "SEC 표준 재무 원천")
+    .replace(/\bus-gaap\b/gi, "미국 표준 회계 항목")
     .replace(/\bRAG\b/g, "저장 근거 관계망")
     .replace(/\blive DB smoke\b/gi, "운영 데이터 연결 점검")
     .replace(/\blive DB\b/gi, "운영 데이터")
@@ -1190,234 +1197,224 @@ function EvidenceNeighborhoodPanel({ neighborhood }: { neighborhood: AiEvidenceN
   const ragContext = neighborhood.internal_rag_context;
   const ragInventory = ragContext.context_inventory;
   const ragPassedGateCount = ragContext.quality_gates.filter((gate) => gate.status === "passed").length;
+  const investmentLinkCount = neighborhood.summary.thesis_count + neighborhood.summary.recommendation_count;
+  const firstEvidenceHref = firstArtifact ? evidenceHref(firstArtifact.evidence_id) : null;
+  const readinessLabel = ragContext.status === "ready" ? "판단 근거 준비됨" : "근거 보강 필요";
+  const readinessCopy =
+    ragContext.status === "ready"
+      ? "뉴스, 번역, 원문 근거, 기존 추천·투자 논리가 함께 조회된다. 새 AI 호출 없이 저장된 근거만 보여준다."
+      : "연결된 자료가 부족하다. 이 상태에서는 추천이나 보유 판단 입력으로 쓰기 전에 원문과 번역 상태를 먼저 확인해야 한다.";
 
   return (
-    <section className="bento-grid reveal delay-4" aria-label="이 종목이 뉴스와 엮인 이유">
-      <article className="bento-card span-4" style={{ background: "var(--bg-card-hover)", borderColor: "var(--border-focus)" }}>
-        <div className="section-heading">
-          <div>
-            <span className="metric-sub">뉴스와 종목 연결 이유</span>
-            <h2>이 종목이 어떤 뉴스·테마 때문에 움직일 수 있는지 본다</h2>
-          </div>
-          <span className="bento-badge" style={{ margin: 0 }}>
-            저장된 분석만 표시
-          </span>
-        </div>
-
-        <div className="status-rail compact-rail" aria-label="뉴스와 종목 연결 요약">
-          <div className="rail-cell">
-            <span>이벤트</span>
-            <strong>{neighborhood.summary.event_count}</strong>
-            <small>종목에 연결된 뉴스/공시</small>
-          </div>
-          <div className="rail-cell">
-            <span>뉴스 묶음</span>
-            <strong>{neighborhood.summary.story_group_count ?? storyGroups.length}</strong>
-            <small>같은 이야기 후보</small>
-          </div>
-          <div className="rail-cell">
-            <span>AI 해석</span>
-            <strong>{neighborhood.summary.ai_artifact_count}</strong>
-            <small>저장된 구조화 증거</small>
-          </div>
-          <div className="rail-cell">
-            <span>원문 근거</span>
-            <strong>{neighborhood.summary.evidence_chunk_count}</strong>
-            <small>뉴스·공시 원문 연결</small>
-          </div>
-          <div className="rail-cell">
-            <span>투자 연결</span>
-            <strong>{neighborhood.summary.thesis_count + neighborhood.summary.recommendation_count}</strong>
-            <small>논리/추천 연결 수</small>
-          </div>
-        </div>
-
-        <div className="relationship-panel" aria-label={`${neighborhood.symbol} AI 참고 자료 준비 상태`}>
-          <span>AI가 참고한 자료 묶음</span>
-          <div className="status-rail compact-rail" aria-label="저장된 참고 자료 요약">
-            <div className="rail-cell">
-              <span>준비 상태</span>
-              <strong>{ragContext.status === "ready" ? "준비됨" : "부족"}</strong>
-              <small>저장 데이터 기준</small>
-            </div>
-            <div className="rail-cell">
-              <span>한국어 뉴스</span>
-              <strong>
-                {ragInventory.translated_event_count}/{ragInventory.event_count}
-              </strong>
-              <small>번역된 이벤트</small>
-            </div>
-            <div className="rail-cell">
-              <span>원문 근거</span>
-              <strong>{ragInventory.evidence_chunk_count}</strong>
-              <small>뉴스·공시 청크</small>
-            </div>
-            <div className="rail-cell">
-              <span>검사 통과</span>
-              <strong>
-                {ragPassedGateCount}/{ragContext.quality_gates.length}
-              </strong>
-              <small>통과한 검사</small>
-            </div>
-          </div>
-          <div className="relationship-list">
-            {ragContext.quality_gates.map((gate) => (
-              <div className="relationship-chip" key={gate.gate}>
-                <span>{gate.status === "passed" ? "통과" : gate.status === "watch" ? "관찰" : "확인 필요"}</span>
-                <strong>{userFacingStockText(koCode(gate.gate))}</strong>
-                <small>{userFacingStockText(gate.message_ko)}</small>
-              </div>
-            ))}
-          </div>
-          <p className="board-intro">
-            이 자료 묶음은 저장된 뉴스, 공시, 투자 논리, 추천 기록을 한데 모은 것이다. 화면을 여는 순간 새 AI 분석을 만들지
-            않고, 주문이나 추천 점수도 여기서 자동으로 바꾸지 않는다.
+    <section className="stock-evidence-panel reveal delay-4" aria-label="이 종목이 뉴스와 엮인 이유">
+      <div className="stock-evidence-head">
+        <div>
+          <span className="metric-sub">뉴스·AI 근거 연결</span>
+          <h2>{neighborhood.symbol}에 영향을 줄 수 있는 뉴스가 어디서 왔고, 어떻게 연결됐는지 본다</h2>
+          <p>
+            수집 뉴스, 한국어 번역, AI 구조화, 원문 근거, 추천·투자 논리 연결을 한 흐름으로 정리했다.
+            이 화면은 저장된 분석을 읽는 곳이며 새 추천이나 주문을 만들지 않는다.
           </p>
         </div>
+        <aside>
+          <span>현재 상태</span>
+          <strong>{readinessLabel}</strong>
+          <small>
+            검사 {ragPassedGateCount}/{ragContext.quality_gates.length}개 통과 · 투자 연결 {investmentLinkCount.toLocaleString("ko-KR")}개
+          </small>
+        </aside>
+      </div>
 
-        <div className="trace-chain" aria-label={`${neighborhood.symbol} 뉴스 근거 관계 흐름`}>
-          <div className="trace-node">
-            <span>발생</span>
-            <strong>이벤트 {neighborhood.summary.event_count}개</strong>
-            <p>
-              {neighborhood.events[0]
-                ? koLabel(neighborhood.events[0].title)
-                : "아직 이 종목에 연결된 이벤트가 없다."}
-            </p>
-            <div className="mini-link-stack">
-              <Link href={`/events?symbol=${encodeURIComponent(neighborhood.symbol)}` as Route}>수집 뉴스 보기</Link>
-            </div>
-          </div>
-
-          <div className="trace-arrow" aria-hidden="true">→</div>
-
-          <div className="trace-node">
-            <span>테마</span>
-            <strong>{firstTheme ? koCode(firstTheme.theme_key) : "테마 없음"}</strong>
-            <p>
-              {firstTheme
-                ? `멤버십 ${koCode(firstTheme.membership_type)} · 신뢰도 ${formatPercent(firstTheme.confidence)}`
-                : "테마 연결이 쌓이면 이 위치에 표시된다."}
-            </p>
-          </div>
-
-          <div className="trace-arrow" aria-hidden="true">→</div>
-
-          <div className="trace-node">
-            <span>AI 해석</span>
-            <strong>{firstArtifact ? koCode(firstArtifact.evidence_type) : "AI 해석 없음"}</strong>
-            <p>
-              {firstArtifact
-                ? `${providerLabel(firstArtifact.provider)} · 신뢰도 ${formatPercent(firstArtifact.confidence)}`
-                : "아직 저장된 AI 구조화 증거가 없다."}
-            </p>
-            <div className="mini-link-stack">
-              {firstArtifact ? <Link href={evidenceHref(firstArtifact.evidence_id) as Route}>AI 해석 열기</Link> : <span>근거 대기</span>}
-            </div>
-          </div>
-
-          <div className="trace-arrow" aria-hidden="true">→</div>
-
-          <div className="trace-node trace-node-final">
-            <span>판단</span>
-            <strong>{firstRecommendation ? koCode(firstRecommendation.action) : firstThesis ? "투자 논리만 있음" : "판단 대기"}</strong>
-            <p>
-              {firstRecommendation
-                ? `점수 ${formatPercent(firstRecommendation.total_score)} · 목표 비중 ${formatPercent(firstRecommendation.recommended_weight)}`
-                : firstThesis
-                  ? `${userFacingStockText(firstThesis.title)} · 확신 ${formatPercent(firstThesis.conviction_score)}`
-                  : "추천이나 보유 판단으로 연결되기 전 단계다."}
-            </p>
-            <div className="mini-link-stack">
-              {firstRecommendation ? <Link href={recommendationHref(firstRecommendation.recommendation_id)}>추천 상세</Link> : null}
-              {firstThesis ? <Link href={thesisHref(firstThesis.thesis_id)}>투자 논리</Link> : null}
-            </div>
-          </div>
+      <div className="stock-evidence-summary" aria-label="뉴스와 종목 연결 요약">
+        <div>
+          <span>수집 이벤트</span>
+          <strong>{neighborhood.summary.event_count.toLocaleString("ko-KR")}개</strong>
+          <small>뉴스·공시가 이 종목에 연결된 수</small>
         </div>
-
-        <div className="relationship-panel" aria-label={`${neighborhood.symbol} 뉴스 이야기 묶음`}>
-          <span>같은 이야기로 묶인 뉴스와 이유</span>
-          <div className="relationship-list">
-            {storyGroups.slice(0, 4).map((group) => {
-              const firstSource = sourceDocumentHref(group.source_document_ids[0] ?? null);
-              return (
-                <div className="relationship-chip" key={group.story_id}>
-                  <span>{formatStoryBasis(group.basis)}</span>
-                  <NewsTitleBlock
-                    compact
-                    title={group.title}
-                    koreanTitle={group.korean_title}
-                    koreanSummary={group.korean_summary}
-                    translationConfidence={group.translation_confidence}
-                    themeKey={group.theme_keys[0]}
-                  />
-                  <small>
-                    이벤트 {group.event_count.toLocaleString("ko-KR")}개 · 원천 {group.source_document_count.toLocaleString("ko-KR")}개 ·
-                    원문 근거 {group.linked_chunk_count.toLocaleString("ko-KR")}개 · 묶음 신뢰도 {formatPercent(group.confidence)}
-                  </small>
-                  {group.relation_reasons.slice(0, 3).map((reason) => (
-                    <small key={`${group.story_id}-${reason}`}>묶인 이유: {koLabel(reason)}</small>
-                  ))}
-                  {group.events.slice(0, 2).map((event) => (
-                    <div className="nested-news-title" key={`${group.story_id}-${event.event_id}`}>
-                      <small>대표 이벤트: {formatDate(event.event_at)} · {koCode(event.impact_direction)}</small>
-                      <NewsTitleBlock
-                        compact
-                        title={event.title}
-                        koreanTitle={event.korean_title}
-                        koreanSummary={event.korean_summary}
-                        translationConfidence={event.translation_confidence}
-                        themeKey={event.theme_key}
-                        impactDirection={event.impact_direction}
-                        impactScore={event.impact_score}
-                      />
-                    </div>
-                  ))}
-                  <div className="mini-link-stack">
-                    {firstSource ? <Link href={firstSource}>원천 문서</Link> : null}
-                    <Link href={`/events?symbol=${encodeURIComponent(neighborhood.symbol)}` as Route}>수집 뉴스</Link>
-                  </div>
-                </div>
-              );
-            })}
-            {storyGroups.length === 0 ? (
-              <p className="relationship-empty">아직 같은 이야기로 묶을 수 있는 뉴스 근거가 없다.</p>
-            ) : null}
-          </div>
+        <div>
+          <span>뉴스 묶음</span>
+          <strong>{(neighborhood.summary.story_group_count ?? storyGroups.length).toLocaleString("ko-KR")}개</strong>
+          <small>같은 이슈로 묶인 후보</small>
         </div>
-
-        <div className="relationship-panel" aria-label={`${neighborhood.symbol} 저장된 원문 근거`}>
-          <span>원문 근거 상태</span>
-          <div className="relationship-list">
-            {neighborhood.evidence_chunks.slice(0, 4).map((chunk) => {
-              const document = sourceDocumentHref(chunk.source_document_id);
-              const sourceKind =
-                chunk.source_text_kind === "raw_html_text"
-                  ? "원문 본문 추출"
-                  : chunk.used_metadata_fallback
-                    ? "본문 부족, 문서 정보 대체"
-                    : "추출 상태 미확인";
-              return (
-                <div className="relationship-chip" key={chunk.chunk_id}>
-                  <span>{chunk.used_metadata_fallback ? "요약 정보" : "원문 근거"}</span>
-                  <strong>{evidenceChunkPreview(chunk.text_preview)}</strong>
-                  <small>{chunk.source_url_host || "출처 없음"} · {sourceKind} · 근거 저장 상태 {koCode(chunk.embedding_status)}</small>
-                  {document ? <Link href={document}>원천 문서 열기</Link> : null}
-                </div>
-              );
-            })}
-            {neighborhood.evidence_chunks.length === 0 ? (
-              <p className="relationship-empty">아직 이 종목에 연결된 원문 근거가 없다.</p>
-            ) : null}
-          </div>
+        <div>
+          <span>AI 해석</span>
+          <strong>{neighborhood.summary.ai_artifact_count.toLocaleString("ko-KR")}개</strong>
+          <small>저장된 구조화 결과</small>
         </div>
+        <div>
+          <span>원문 근거</span>
+          <strong>{neighborhood.summary.evidence_chunk_count.toLocaleString("ko-KR")}개</strong>
+          <small>뉴스·공시 본문 연결</small>
+        </div>
+      </div>
 
-        <ul style={{ margin: "18px 0 0", paddingLeft: "20px", color: "var(--text-secondary)", lineHeight: 1.6 }}>
-          {stockGuardrails().map((guardrail) => (
-            <li key={guardrail}>{koLabel(guardrail)}</li>
+      <div className="stock-evidence-readiness" aria-label={`${neighborhood.symbol} 근거 준비 상태`}>
+        <div className="stock-evidence-readiness-copy">
+          <span>추천 입력 전 확인</span>
+          <strong>{readinessLabel}</strong>
+          <p>{readinessCopy}</p>
+        </div>
+        <div className="stock-evidence-gate-grid">
+          {ragContext.quality_gates.map((gate) => (
+            <article className="stock-evidence-gate-card" data-status={gate.status} key={gate.gate}>
+              <span>{gate.status === "passed" ? "통과" : gate.status === "watch" ? "관찰" : "확인 필요"}</span>
+              <strong>{userFacingStockText(koCode(gate.gate))}</strong>
+              <p>{userFacingStockText(gate.message_ko)}</p>
+            </article>
           ))}
-        </ul>
-      </article>
+        </div>
+      </div>
+
+      <div className="stock-evidence-chain" aria-label={`${neighborhood.symbol} 뉴스 근거 관계 흐름`}>
+        <article className="stock-evidence-chain-card">
+          <span>1. 수집된 사건</span>
+          <strong>이벤트 {neighborhood.summary.event_count.toLocaleString("ko-KR")}개</strong>
+          <p>
+            {neighborhood.events[0]
+              ? koLabel(neighborhood.events[0].title)
+              : "아직 이 종목에 연결된 이벤트가 없다."}
+          </p>
+          <Link href={`/events?symbol=${encodeURIComponent(neighborhood.symbol)}` as Route}>수집 뉴스 보기</Link>
+        </article>
+        <article className="stock-evidence-chain-card">
+          <span>2. 테마·노출</span>
+          <strong>{firstTheme ? koCode(firstTheme.theme_key) : "테마 없음"}</strong>
+          <p>
+            {firstTheme
+              ? `멤버십 ${koCode(firstTheme.membership_type)} · 신뢰도 ${formatPercent(firstTheme.confidence)}`
+              : "테마 연결이 쌓이면 이 위치에 표시된다."}
+          </p>
+        </article>
+        <article className="stock-evidence-chain-card">
+          <span>3. AI 구조화</span>
+          <strong>{firstArtifact ? koCode(firstArtifact.evidence_type) : "AI 해석 없음"}</strong>
+          <p>
+            {firstArtifact
+              ? `${providerLabel(firstArtifact.provider)} · 신뢰도 ${formatPercent(firstArtifact.confidence)}`
+              : "아직 저장된 AI 구조화 증거가 없다."}
+          </p>
+          {firstEvidenceHref ? <Link href={firstEvidenceHref}>AI 해석 열기</Link> : <small>근거 대기</small>}
+        </article>
+        <article className="stock-evidence-chain-card final">
+          <span>4. 투자 판단 연결</span>
+          <strong>{firstRecommendation ? koCode(firstRecommendation.action) : firstThesis ? "투자 논리만 있음" : "판단 대기"}</strong>
+          <p>
+            {firstRecommendation
+              ? `점수 ${formatPercent(firstRecommendation.total_score)} · 목표 비중 ${formatPercent(firstRecommendation.recommended_weight)}`
+              : firstThesis
+                ? `${userFacingStockText(firstThesis.title)} · 확신 ${formatPercent(firstThesis.conviction_score)}`
+                : "추천이나 보유 판단으로 연결되기 전 단계다."}
+          </p>
+          <div className="mini-link-stack">
+            {firstRecommendation ? <Link href={recommendationHref(firstRecommendation.recommendation_id)}>추천 상세</Link> : null}
+            {firstThesis ? <Link href={thesisHref(firstThesis.thesis_id)}>투자 논리</Link> : null}
+          </div>
+        </article>
+      </div>
+
+      <section className="stock-evidence-section" aria-label={`${neighborhood.symbol} 뉴스 이야기 묶음`}>
+        <div className="stock-evidence-section-head">
+          <div>
+            <span>뉴스 묶음 이유</span>
+            <h3>같은 이슈로 묶인 뉴스와 그 근거</h3>
+          </div>
+          <p>제목만 보지 않고, 테마·종목·원문 근거·묶음 신뢰도를 함께 확인한다.</p>
+        </div>
+        <div className="stock-story-card-grid">
+          {storyGroups.slice(0, 4).map((group) => {
+            const firstSource = sourceDocumentHref(group.source_document_ids[0] ?? null);
+            return (
+              <article className="stock-story-card" key={group.story_id}>
+                <div className="stock-story-card-top">
+                  <span>{formatStoryBasis(group.basis)}</span>
+                  <strong>묶음 신뢰도 {formatPercent(group.confidence)}</strong>
+                </div>
+                <NewsTitleBlock
+                  compact
+                  title={group.title}
+                  koreanTitle={group.korean_title}
+                  koreanSummary={group.korean_summary}
+                  translationConfidence={group.translation_confidence}
+                  themeKey={group.theme_keys[0]}
+                />
+                <div className="stock-story-metrics">
+                  <span>이벤트 {group.event_count.toLocaleString("ko-KR")}개</span>
+                  <span>원천 {group.source_document_count.toLocaleString("ko-KR")}개</span>
+                  <span>원문 근거 {group.linked_chunk_count.toLocaleString("ko-KR")}개</span>
+                </div>
+                <div className="stock-story-reasons">
+                  {group.relation_reasons.slice(0, 3).map((reason) => (
+                    <p key={`${group.story_id}-${reason}`}>묶인 이유: {koLabel(reason)}</p>
+                  ))}
+                </div>
+                {group.events.slice(0, 2).map((event) => (
+                  <div className="stock-story-event" key={`${group.story_id}-${event.event_id}`}>
+                    <small>대표 이벤트 · {formatDate(event.event_at)} · {koCode(event.impact_direction)}</small>
+                    <NewsTitleBlock
+                      compact
+                      title={event.title}
+                      koreanTitle={event.korean_title}
+                      koreanSummary={event.korean_summary}
+                      translationConfidence={event.translation_confidence}
+                      themeKey={event.theme_key}
+                      impactDirection={event.impact_direction}
+                      impactScore={event.impact_score}
+                    />
+                  </div>
+                ))}
+                <div className="mini-link-stack">
+                  {firstSource ? <Link href={firstSource}>원천 문서</Link> : null}
+                  <Link href={`/events?symbol=${encodeURIComponent(neighborhood.symbol)}` as Route}>수집 뉴스</Link>
+                </div>
+              </article>
+            );
+          })}
+          {storyGroups.length === 0 ? (
+            <p className="stock-evidence-empty">아직 같은 이야기로 묶을 수 있는 뉴스 근거가 없다.</p>
+          ) : null}
+        </div>
+      </section>
+
+      <section className="stock-evidence-section" aria-label={`${neighborhood.symbol} 저장된 원문 근거`}>
+        <div className="stock-evidence-section-head">
+          <div>
+            <span>원천 대조</span>
+            <h3>AI 해석이 참조한 원문 근거</h3>
+          </div>
+          <p>본문 추출 여부와 출처를 먼저 보여준다. 영어 원문은 필요할 때만 열어 확인한다.</p>
+        </div>
+        <div className="stock-source-card-grid">
+          {neighborhood.evidence_chunks.slice(0, 4).map((chunk) => {
+            const document = sourceDocumentHref(chunk.source_document_id);
+            const sourceKind =
+              chunk.source_text_kind === "raw_html_text"
+                ? "원문 본문 추출"
+                : chunk.used_metadata_fallback
+                  ? "본문 부족, 문서 정보 대체"
+                  : "추출 상태 미확인";
+            return (
+              <article className="stock-source-card" key={chunk.chunk_id}>
+                <span>{chunk.used_metadata_fallback ? "요약 정보 기반" : "원문 본문 기반"}</span>
+                <strong>{evidenceChunkPreview(chunk.text_preview)}</strong>
+                <p>{chunk.source_url_host || "출처 없음"} · {sourceKind} · 근거 저장 상태 {koCode(chunk.embedding_status)}</p>
+                {document ? <Link href={document}>원천 문서 열기</Link> : null}
+              </article>
+            );
+          })}
+          {neighborhood.evidence_chunks.length === 0 ? (
+            <p className="stock-evidence-empty">아직 이 종목에 연결된 원문 근거가 없다.</p>
+          ) : null}
+        </div>
+      </section>
+
+      <div className="stock-guardrail-list" aria-label="종목 근거 화면 사용 경계">
+        {stockGuardrails().map((guardrail) => (
+          <article key={guardrail}>
+            <span>사용 경계</span>
+            <p>{koLabel(guardrail)}</p>
+          </article>
+        ))}
+      </div>
     </section>
   );
 }

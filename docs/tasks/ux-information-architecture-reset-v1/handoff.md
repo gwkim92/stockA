@@ -70,10 +70,12 @@
 - completed locally: refactored `/recommendations/[recommendationId]` lower-fold `근거 연결 점검`, `점수 근거`, and `성과 측정` areas from dense list rows and inline audit layout into dedicated evidence, score, and outcome cards. Recommendation score components, evidence metadata, outcome values, score weights, and order boundaries are unchanged.
 - inspected locally: `/stocks/[symbol]` rendered without tables, fact lists, Server Component error, or horizontal overflow in the checked fixture route. It still has relationship/evidence lower-fold areas that should be reviewed in the next slice for user-facing clarity.
 - completed deployed: EC2 now serves commit `e78dc1b`; `/recommendations/recommendation-67` renders live evidence, gate, score, and outcome cards with no tables, no Server Component error, and no desktop/mobile horizontal overflow.
+- completed locally: refactored `/stocks/[symbol]` lower-fold news/AI evidence neighborhood from generic relationship chips into a dedicated stock evidence panel: summary, readiness gates, `수집된 사건 → 테마·노출 → AI 구조화 → 투자 판단 연결`, story grouping reasons, source evidence cards, and read-only guardrail cards. Data, scoring, recommendation weights, and order boundaries are unchanged.
+- completed locally: fixed visible stock detail terminology normalization for `sec_companyfacts_missing_us_gaap_facts`, `financial_period_source_linkage`, `fundamental 구성요소 가중치`, `SEC companyfacts`, and `us-gaap`.
 
 ## Exact Next Step
 
-- exact next step: continue page-by-page lower-fold copy/content review. The next likely dense target is `/stocks/[symbol]` relationship/evidence neighborhoods and raw source preview areas.
+- exact next step: deploy the `/stocks/[symbol]` evidence neighborhood refactor to EC2, smoke `/stocks/EROK` through the 13000 tunnel, then continue page-by-page lower-fold copy/content review on the next dense detail/audit surface.
 
 ## Risks
 
@@ -81,7 +83,8 @@
 - Dense raw ledgers are still needed for audit; move them below fold rather than deleting evidence.
 - Raw ledgers are still dense below the fold. They remain intentionally available for audit, but card internals need a later readability pass.
 - Latest UX/navigation/fixture/terminology cleanup has been deployed to EC2 and smoke-tested through the local tunnel. Do not claim the entire UX reset goal complete yet, because lower-fold dense audit sections still need page-by-page readability work.
-- AWS account boundary: stockanalysis deploy/security-group work must use the personal AWS browser session. If the local AWS CLI is authenticated to a company account, do not perform AWS write operations for this project.
+- AWS account boundary: `061051252914` is the company AWS account and must not be used for stockanalysis deploy/security-group writes. `115623963546` is the personal AWS account for stockanalysis EC2/security-group/deploy operations.
+- AWS operation rule: the local AWS CLI can be authenticated to the company account, so do not perform stockanalysis AWS write operations through local AWS CLI. Use the logged-in personal AWS Chrome/computer-use session for personal account checks, and verify the account ID before any security-group or EC2 change.
 
 ## Verification
 
@@ -117,6 +120,12 @@
 - passed locally for news/AI visibility cleanup: `git diff --check`
 - passed locally for news/AI visibility cleanup: Playwright snapshots on `http://127.0.0.1:13002/intelligence`, `/events`, `/ai-evidence`, `/ai-evidence/blocked`, `/ai-evidence/results`, `/ai-evidence/sec-event-aapl-10k-20240928`
 - not run for news/AI visibility cleanup: EC2 deployed route smoke, intentionally deferred because current network is public Wi-Fi.
+- passed locally for stock evidence neighborhood refactor: `cd apps/web && npm run typecheck`
+- passed locally for stock evidence neighborhood refactor: `cd apps/web && npm run build`
+- passed locally for stock evidence neighborhood refactor: `bash scripts/verify_frontend_detail_routes.sh`
+- passed locally for stock evidence neighborhood refactor: `PYTHONPATH=/Users/woody/ai/agent-work-harness/src /opt/homebrew/bin/python3.13 -m awh verify --repo . --task ux-information-architecture-reset-v1`
+- passed locally for stock evidence neighborhood refactor: `git diff --check`
+- passed locally for stock evidence neighborhood refactor: Playwright dev route smoke on `http://127.0.0.1:13002/stocks/AAPL`, desktop `stockEvidencePanels=1`, `gateCards=1`, `legacyRelationshipPanelsInStockEvidence=0`, `tables=0`, `serverError=false`, `overflow=false`, `rawTermHits=[]`; mobile `stockEvidencePanels=1`, `overflow=false`, `bodyWidth=390`, `scrollWidth=390`, `serverError=false`. Dev-only HMR WebSocket console errors were due to Next `allowedDevOrigins`, not page rendering.
 - passed locally for source/stock terminology cleanup: `cd apps/web && npm run typecheck`
 - passed locally for source/stock terminology cleanup: `cd apps/web && npm run build`
 - passed locally for source/stock terminology cleanup: `bash scripts/verify_frontend_detail_routes.sh`

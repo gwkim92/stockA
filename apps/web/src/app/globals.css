@@ -3536,6 +3536,341 @@ h6 {
   font-size: 0.84rem;
 }
 
+.stock-evidence-panel {
+  display: grid;
+  gap: clamp(18px, 2.4vw, 30px);
+  margin-top: clamp(24px, 4vw, 42px);
+  padding: clamp(22px, 3vw, 42px);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--bg-panel) 94%, white), color-mix(in srgb, var(--accent-amber) 10%, var(--bg-card))),
+    radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--accent-blue) 13%, transparent), transparent 32%);
+  border: 1px solid color-mix(in srgb, var(--border-focus) 48%, var(--border-light));
+  border-radius: var(--radius-xl);
+}
+
+.stock-evidence-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 0.24fr);
+  gap: clamp(18px, 3vw, 34px);
+  align-items: stretch;
+}
+
+.stock-evidence-head h2 {
+  max-width: 960px;
+  margin: 8px 0 0;
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: clamp(1.8rem, 3.2vw, 3.8rem);
+  font-weight: 950;
+  letter-spacing: -0.055em;
+  line-height: 0.98;
+  word-break: keep-all;
+}
+
+.stock-evidence-head p {
+  max-width: 860px;
+  margin: 14px 0 0;
+  color: var(--text-secondary);
+  font-size: 0.98rem;
+  font-weight: 750;
+  line-height: 1.65;
+  word-break: keep-all;
+}
+
+.stock-evidence-head aside {
+  display: grid;
+  align-content: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 18px;
+  background: color-mix(in srgb, var(--bg-card-hover) 86%, white);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-lg);
+}
+
+.stock-evidence-head aside span,
+.stock-evidence-summary span,
+.stock-evidence-readiness-copy span,
+.stock-evidence-gate-card span,
+.stock-evidence-chain-card span,
+.stock-evidence-section-head span,
+.stock-story-card-top span,
+.stock-source-card span,
+.stock-guardrail-list span {
+  color: var(--text-tertiary);
+  font-size: 0.7rem;
+  font-weight: 950;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.stock-evidence-head aside strong {
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: clamp(1.6rem, 3vw, 2.8rem);
+  font-weight: 950;
+  letter-spacing: -0.04em;
+  line-height: 1;
+  word-break: keep-all;
+}
+
+.stock-evidence-head aside small {
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  font-weight: 800;
+  line-height: 1.45;
+}
+
+.stock-evidence-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1px;
+  overflow: hidden;
+  background: var(--border-light);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+}
+
+.stock-evidence-summary div {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding: clamp(14px, 1.8vw, 22px);
+  background: color-mix(in srgb, var(--bg-panel) 90%, white);
+}
+
+.stock-evidence-summary strong {
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: clamp(1.35rem, 2.5vw, 2.4rem);
+  font-weight: 950;
+  letter-spacing: -0.04em;
+}
+
+.stock-evidence-summary small {
+  color: var(--text-secondary);
+  font-size: 0.76rem;
+  font-weight: 800;
+  line-height: 1.45;
+}
+
+.stock-evidence-readiness {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.3fr) minmax(0, 1fr);
+  gap: 14px;
+  align-items: stretch;
+}
+
+.stock-evidence-readiness-copy,
+.stock-evidence-gate-card,
+.stock-evidence-chain-card,
+.stock-story-card,
+.stock-source-card,
+.stock-guardrail-list article {
+  min-width: 0;
+  background: color-mix(in srgb, var(--bg-panel) 88%, white);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+}
+
+.stock-evidence-readiness-copy {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  padding: clamp(18px, 2.2vw, 26px);
+}
+
+.stock-evidence-readiness-copy strong {
+  color: var(--text-primary);
+  font-size: 1.12rem;
+  font-weight: 950;
+  line-height: 1.3;
+  word-break: keep-all;
+}
+
+.stock-evidence-readiness-copy p,
+.stock-evidence-gate-card p,
+.stock-evidence-chain-card p,
+.stock-story-reasons p,
+.stock-source-card p,
+.stock-guardrail-list p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  font-weight: 750;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+  word-break: keep-all;
+}
+
+.stock-evidence-gate-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.stock-evidence-gate-card {
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+}
+
+.stock-evidence-gate-card[data-status="passed"] {
+  border-color: color-mix(in srgb, var(--accent-green) 34%, var(--border-light));
+}
+
+.stock-evidence-gate-card[data-status="watch"] {
+  border-color: color-mix(in srgb, var(--accent-amber) 42%, var(--border-light));
+  background: color-mix(in srgb, var(--accent-amber) 8%, var(--bg-panel));
+}
+
+.stock-evidence-gate-card strong,
+.stock-evidence-chain-card strong,
+.stock-story-card-top strong,
+.stock-source-card strong {
+  color: var(--text-primary);
+  font-size: 0.94rem;
+  font-weight: 900;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  word-break: keep-all;
+}
+
+.stock-evidence-chain {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.stock-evidence-chain-card {
+  position: relative;
+  display: grid;
+  gap: 10px;
+  align-content: start;
+  padding: clamp(16px, 2vw, 22px);
+}
+
+.stock-evidence-chain-card.final {
+  background: color-mix(in srgb, var(--accent-amber) 11%, var(--bg-panel));
+  border-color: color-mix(in srgb, var(--accent-amber) 32%, var(--border-light));
+}
+
+.stock-evidence-chain-card a,
+.stock-source-card a {
+  width: fit-content;
+  margin-top: auto;
+  color: var(--text-primary);
+  font-size: 0.76rem;
+  font-weight: 950;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.stock-evidence-chain-card small {
+  color: var(--text-tertiary);
+  font-size: 0.76rem;
+  font-weight: 850;
+}
+
+.stock-evidence-section {
+  display: grid;
+  gap: 14px;
+  padding-top: clamp(18px, 2.5vw, 28px);
+  border-top: 1px solid var(--border-light);
+}
+
+.stock-evidence-section-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 0.34fr);
+  gap: 16px;
+  align-items: end;
+}
+
+.stock-evidence-section-head h3 {
+  margin: 5px 0 0;
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: clamp(1.2rem, 2vw, 2rem);
+  font-weight: 900;
+  letter-spacing: -0.035em;
+}
+
+.stock-evidence-section-head p,
+.stock-evidence-empty {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.84rem;
+  font-weight: 760;
+  line-height: 1.55;
+  word-break: keep-all;
+}
+
+.stock-story-card-grid,
+.stock-source-card-grid,
+.stock-guardrail-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.stock-story-card,
+.stock-source-card {
+  display: grid;
+  gap: 12px;
+  padding: clamp(16px, 2vw, 22px);
+}
+
+.stock-story-card-top,
+.stock-story-metrics {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.stock-story-metrics span {
+  display: inline-flex;
+  min-height: 28px;
+  align-items: center;
+  padding: 6px 8px;
+  background: color-mix(in srgb, var(--accent-blue) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent-blue) 18%, var(--border-light));
+  border-radius: 999px;
+  color: var(--text-secondary);
+  font-size: 0.7rem;
+  font-weight: 900;
+}
+
+.stock-story-reasons,
+.stock-story-event {
+  display: grid;
+  gap: 6px;
+  padding-top: 10px;
+  border-top: 1px solid color-mix(in srgb, var(--accent-blue) 14%, transparent);
+}
+
+.stock-story-event small {
+  color: var(--text-tertiary);
+  font-size: 0.72rem;
+  font-weight: 850;
+}
+
+.stock-source-card {
+  background: color-mix(in srgb, var(--accent-blue) 6%, var(--bg-panel));
+}
+
+.stock-guardrail-list {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.stock-guardrail-list article {
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+}
+
 .source-review-panel {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(220px, 0.24fr);
@@ -6034,6 +6369,12 @@ h6 {
   .flow-steps,
   .readiness-grid,
   .stock-decision-grid,
+  .stock-evidence-summary,
+  .stock-evidence-gate-grid,
+  .stock-evidence-chain,
+  .stock-story-card-grid,
+  .stock-source-card-grid,
+  .stock-guardrail-list,
   .recommendation-waterfall-track,
   .ai-evidence-brief-grid,
   .ai-evidence-brief-metrics,
@@ -6044,7 +6385,10 @@ h6 {
 
   .ledger-guide,
   .ledger-section-head,
-  .news-row-card {
+  .news-row-card,
+  .stock-evidence-head,
+  .stock-evidence-readiness,
+  .stock-evidence-section-head {
     grid-template-columns: 1fr;
   }
 
@@ -6234,6 +6578,15 @@ h6 {
   .readiness-grid,
   .stock-decision-panel,
   .stock-decision-grid,
+  .stock-evidence-head,
+  .stock-evidence-summary,
+  .stock-evidence-readiness,
+  .stock-evidence-gate-grid,
+  .stock-evidence-chain,
+  .stock-evidence-section-head,
+  .stock-story-card-grid,
+  .stock-source-card-grid,
+  .stock-guardrail-list,
   .recommendation-waterfall-panel,
   .recommendation-waterfall-track,
   .ai-evidence-brief-panel,
