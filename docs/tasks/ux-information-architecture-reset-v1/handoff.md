@@ -67,10 +67,12 @@
 - completed deployed: EC2 now serves commit `a159642`; `/paper-trading` renders 14 live validation cards and no longer renders the targeted simulation-action section as a wide table.
 - completed locally: refactored `/performance` lower-fold 성과 품질, 추천별 성과, 성과 귀속, 제외·보완, 해석 기준 areas from dense `bento-list` rows and inline layout into dedicated decision panels/cards. The page now separates “측정 상태”, “품질 기준”, “추천 책임 추적”, “귀속 관점”, and “보완 항목” without changing outcome data or recommendation weights.
 - completed deployed: EC2 now serves commit `d0a3d97`; `/performance` renders live performance decision panels and quality/gate cards with no tables, no Server Component error, and no desktop/mobile horizontal overflow.
+- completed locally: refactored `/recommendations/[recommendationId]` lower-fold `근거 연결 점검`, `점수 근거`, and `성과 측정` areas from dense list rows and inline audit layout into dedicated evidence, score, and outcome cards. Recommendation score components, evidence metadata, outcome values, score weights, and order boundaries are unchanged.
+- inspected locally: `/stocks/[symbol]` rendered without tables, fact lists, Server Component error, or horizontal overflow in the checked fixture route. It still has relationship/evidence lower-fold areas that should be reviewed in the next slice for user-facing clarity.
 
 ## Exact Next Step
 
-- exact next step: continue page-by-page lower-fold copy/content review. The next likely dense targets are recommendation/stock detail lower-fold evidence sections that still mix audit detail with investor-facing interpretation.
+- exact next step: deploy the `/recommendations/[recommendationId]` lower-fold evidence-card slice to EC2, then continue page-by-page lower-fold copy/content review. The next likely dense target is `/stocks/[symbol]` relationship/evidence neighborhoods and raw source preview areas.
 
 ## Risks
 
@@ -210,6 +212,14 @@
 - passed deployed for performance lower-fold outcome/readability refactor: `http://127.0.0.1:13000/performance` rendered `.performance-panel` count `5`, `.performance-check-card` count `4`, `.performance-gate-card` count `3`, table count `0`, no Server Component error, no desktop horizontal overflow.
 - passed deployed for performance lower-fold outcome/readability refactor: mobile `390x900` check on `http://127.0.0.1:13000/performance`; `.performance-panel` count `5`, no Server Component error, no horizontal overflow.
 - passed deployed route smoke for performance lower-fold outcome/readability refactor: `http://127.0.0.1:13000/`, `/data-health`, `/portfolio/coverage`, `/trading-readiness`, `/paper-trading`, `/performance`, `/recommendations`, `/remediation` returned `200` with no server error.
+- passed locally for recommendation detail lower-fold evidence-card refactor: `cd apps/web && npm run typecheck`
+- passed locally for recommendation detail lower-fold evidence-card refactor: `cd apps/web && npm run build`
+- passed locally for recommendation detail lower-fold evidence-card refactor: Playwright CLI desktop rendered check on `http://127.0.0.1:13002/recommendations/AAPL-2024-11-01`; `.recommendation-evidence-panel` count `1`, `.recommendation-score-card` count `3`, `.recommendation-outcome-panel` count `1`, table count `0`, no Server Component error, no desktop horizontal overflow.
+- passed locally for recommendation detail lower-fold evidence-card refactor: Playwright CLI mobile check at `390x900`; `.recommendation-evidence-panel` count `1`, `.recommendation-score-card` count `3`, `.recommendation-outcome-panel` count `1`, no Server Component error, no horizontal overflow.
+- passed locally for recommendation detail lower-fold evidence-card refactor: Playwright CLI stock-detail spot check on `http://127.0.0.1:13002/stocks/AAPL`; table count `0`, fact-list count `0`, no Server Component error, no desktop horizontal overflow.
+- passed locally for recommendation detail lower-fold evidence-card refactor: `bash scripts/verify_frontend_detail_routes.sh`
+- passed locally for recommendation detail lower-fold evidence-card refactor: `PYTHONPATH=/Users/woody/ai/agent-work-harness/src /opt/homebrew/bin/python3.13 -m awh verify --repo . --task ux-information-architecture-reset-v1`
+- passed locally for recommendation detail lower-fold evidence-card refactor: `git diff --check`
 - deployed commit: `1258c6e`
 - passed deployed for trading readiness lower-fold safety card refactor: EC2 pull/build/restart completed with `stockanalysis-frontend-api.service` active and `stockanalysis-web.service` active.
 - passed deployed for trading readiness lower-fold safety card refactor: `http://127.0.0.1:13000/trading-readiness` returned `200`; `.trading-safety-card` and `.trading-validation-grid` rendered; no Server Component error.

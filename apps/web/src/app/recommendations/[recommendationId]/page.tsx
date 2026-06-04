@@ -1008,6 +1008,33 @@ function gateStatusColor(status: string) {
   return "var(--text-secondary)";
 }
 
+function gateToneClass(status: string) {
+  if (status === "pass") {
+    return "tone-ready";
+  }
+  if (status === "blocked") {
+    return "tone-blocked";
+  }
+  return "tone-watch";
+}
+
+function scoreComponentTone(component: ScoreComponent) {
+  if (isZeroWeight(component.weight)) {
+    return "tone-watch";
+  }
+  if (component.value < 0) {
+    return "tone-blocked";
+  }
+  return "tone-ready";
+}
+
+function outcomeTone(outcomeMeasured: boolean, alpha: number) {
+  if (!outcomeMeasured) {
+    return "tone-watch";
+  }
+  return alpha >= 0 ? "tone-ready" : "tone-blocked";
+}
+
 function recommendationQualityDecision(data: RecommendationDetailData) {
   const blockedCount = reviewCount(data.evidence_review.summary.blocked_count);
   const warningCount = reviewCount(data.evidence_review.summary.warning_count);
@@ -1902,28 +1929,32 @@ export default async function RecommendationPage({ params }: RecommendationPageP
         </section>
       ) : null}
 
-      <section className="bento-card reveal delay-1" id="recommendation-evidence-review" aria-label="추천 근거 연결 점검">
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "20px", flexWrap: "wrap", marginBottom: "20px" }}>
+      <section
+        className={`recommendation-evidence-panel reveal delay-1 ${professionalAuditTone(professionalAudit)}`}
+        id="recommendation-evidence-review"
+        aria-label="추천 근거 연결 점검"
+      >
+        <div className="recommendation-evidence-head">
           <div>
-            <span className="metric-sub">근거 연결 점검</span>
-            <h2 style={{ fontSize: "1.5rem", marginTop: "6px" }}>{koCode(evidenceReview.quality_status)}</h2>
-            <p style={{ color: "var(--text-secondary)", marginTop: "8px", maxWidth: "760px" }}>
-              이 점검은 추천 점수를 새로 만들지 않는다. 추천이 투자 논리, 점수 항목, 뉴스·AI 해석, 성과 측정과
-              충분히 연결됐는지 확인하는 읽기 전용 근거 점검이다.
+            <span>근거 연결 점검</span>
+            <h2>{koCode(evidenceReview.quality_status)}</h2>
+            <p>
+              이 점검은 추천 점수를 새로 만들지 않는다. 투자 논리, 점수 항목, 뉴스·AI 해석, 성과 측정이
+              서로 연결됐는지 확인하고, 부족하면 추천을 기록으로만 남긴다.
             </p>
           </div>
-          <div className="status-rail compact-rail" style={{ flex: "1 1 360px" }}>
-            <div className="rail-cell">
+          <div className="recommendation-evidence-summary" aria-label="근거 연결 점검 요약">
+            <div>
               <span>통과</span>
               <strong>{reviewCount(evidenceReview.summary.pass_count)}</strong>
               <small>기준 충족</small>
             </div>
-            <div className="rail-cell">
+            <div>
               <span>주의</span>
               <strong>{reviewCount(evidenceReview.summary.warning_count)}</strong>
               <small>보강 필요</small>
             </div>
-            <div className="rail-cell">
+            <div>
               <span>차단</span>
               <strong>{reviewCount(evidenceReview.summary.blocked_count)}</strong>
               <small>진행 금지</small>
@@ -1931,111 +1962,103 @@ export default async function RecommendationPage({ params }: RecommendationPageP
           </div>
         </div>
 
-        <div className="bento-list">
+        <div className="recommendation-gate-grid">
           {evidenceReview.gates.map((gate) => (
-            <div className="bento-list-item" key={gate.gate_key}>
+            <article className={`recommendation-gate-card ${gateToneClass(gate.status)}`} key={gate.gate_key}>
               <div>
-                <span className="metric-sub" style={{ color: gateStatusColor(gate.status) }}>{gateStatusLabel(gate.status)}</span>
+                <span style={{ color: gateStatusColor(gate.status) }}>{gateStatusLabel(gate.status)}</span>
                 <strong>{userFacingRecommendationText(gate.label)}</strong>
-                <span>{userFacingRecommendationText(gate.detail)}</span>
+                <p>{userFacingRecommendationText(gate.detail)}</p>
               </div>
-              <span style={{ color: "var(--text-secondary)", maxWidth: "360px" }}>{userFacingRecommendationText(gate.next_step)}</span>
-            </div>
+              <small>{userFacingRecommendationText(gate.next_step)}</small>
+            </article>
           ))}
         </div>
       </section>
 
-      <section className="bento-grid reveal delay-1">
-        <article className="bento-card span-2">
-          <div style={{ marginBottom: "24px" }}>
-            <span className="metric-sub">점수 근거</span>
-            <h2 style={{ fontSize: "1.5rem" }}>추천 점수 입력이 어디서 왔는가</h2>
+      <section className="recommendation-score-audit-grid reveal delay-1" aria-label="추천 점수와 성과 측정">
+        <article className="recommendation-score-panel">
+          <div className="recommendation-evidence-head compact">
+            <div>
+              <span>점수 근거</span>
+              <h2>추천 점수 입력이 어디서 왔는가</h2>
+              <p>가격·뉴스·상위 흐름·재무 근거를 섞어 보지 않고, 각 점수 항목의 출처와 현재 반영 비중을 분리해 본다.</p>
+            </div>
           </div>
-          
-          <div className="bento-list">
+
+          <div className="recommendation-score-card-grid">
             {data.score_components.map((component) => {
               const href = evidenceHref(component.evidence_id, data.symbol);
               const badges = provenanceBadges(component);
               return (
-                <div className="bento-list-item" key={component.component} style={{ alignItems: "flex-start", gap: "18px" }}>
-                  <div style={{ flex: "1 1 360px", minWidth: 0 }}>
-                    <strong style={{ display: "block", marginBottom: "6px" }}>{scoreComponentLabel(component.component)}</strong>
-                    <p style={{ color: "var(--text-secondary)", fontSize: "0.9rem", lineHeight: 1.55, margin: "0 0 10px" }}>
-                      {provenanceDetail(component)}
-                    </p>
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginBottom: "10px" }}>
-                      {badges.map((badge) => (
-                        <span key={`${component.component}-${badge}`} style={{
-                          border: "1px solid var(--border-light)",
-                          borderRadius: "999px",
-                          color: "var(--text-secondary)",
-                          fontSize: "0.72rem",
-                          padding: "4px 8px"
-                        }}>
-                          {badge}
-                        </span>
-                      ))}
+                <article className={`recommendation-score-card ${scoreComponentTone(component)}`} key={component.component}>
+                  <div className="recommendation-score-card-head">
+                    <span>{sourceTypeLabel(component.provenance?.source_type)}</span>
+                    <strong>{scoreComponentLabel(component.component)}</strong>
+                    <b>{formatPercent(component.value)}</b>
+                  </div>
+                  <p>{provenanceDetail(component)}</p>
+                  <div className="recommendation-score-badges">
+                    {badges.map((badge) => (
+                      <span key={`${component.component}-${badge}`}>{badge}</span>
+                    ))}
+                  </div>
+                  <div className="recommendation-score-metrics">
+                    <div>
+                      <span>현재 반영 비중</span>
+                      <strong>{formatPercent(component.weight)}</strong>
                     </div>
-                    <div className="mini-link-stack">
-                      {href ? (
-                        <Link href={href}>
-                          {evidenceLinkLabel(component.evidence_id)}
-                        </Link>
-                      ) : (
-                        <span>연결된 상세 근거 없음</span>
-                      )}
+                    <div>
+                      <span>사용 경계</span>
+                      <strong>{isZeroWeight(component.weight) ? "설명용" : "점수 반영"}</strong>
                     </div>
-                    <AuditMetadata items={provenanceMetadata(component)} summary="계산 입력 출처 보기" />
                   </div>
-                  <div style={{ flex: "0 0 110px", textAlign: "right" }}>
-                    <strong style={{ fontSize: "1.1rem", color: "var(--text-primary)" }}>{formatPercent(component.value)}</strong>
+                  <div className="recommendation-score-links">
+                    {href ? (
+                      <Link href={href}>
+                        {evidenceLinkLabel(component.evidence_id)}
+                      </Link>
+                    ) : (
+                      <span>연결된 상세 근거 없음</span>
+                    )}
                   </div>
-                  <div style={{ flex: "0 0 120px", textAlign: "right" }}>
-                    <span className="metric-sub">반영 비중 {formatPercent(component.weight)}</span>
-                  </div>
-                </div>
+                  <AuditMetadata items={provenanceMetadata(component)} summary="계산 입력 출처 보기" />
+                </article>
               );
             })}
           </div>
         </article>
 
-        <article className="bento-card span-2">
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: "24px" }}>
+        <article className={`recommendation-outcome-panel ${outcomeTone(outcomeMeasured, data.outcome.alpha)}`}>
+          <div className="recommendation-evidence-head compact">
             <div>
-              <span className="metric-sub">성과 측정</span>
-              <h2 style={{ fontSize: "1.5rem" }}>
-                {outcomeMeasured ? koCode(data.outcome.label) : "아직 성과 측정 전"}
-              </h2>
+              <span>성과 측정</span>
+              <h2>{outcomeMeasured ? koCode(data.outcome.label) : "아직 성과 측정 전"}</h2>
+              <p>
+                추천이 맞았는지는 측정창이 끝난 뒤에만 판단한다. 성과가 없으면 추천 산식 반영 비중을 바꾸지 않는다.
+              </p>
             </div>
             <Link className="btn btn-primary" href={`/theses/${data.linked_thesis_id}`}>
               연결된 투자 논리 열기
             </Link>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
-            <div style={{ padding: "16px", background: "rgba(255,255,255,0.03)", border: "1px solid var(--border-light)", borderRadius: "var(--radius-sm)" }}>
-              <span className="metric-sub">알파</span>
-              <div style={{ fontSize: "1.5rem", fontWeight: 700, color: "var(--text-primary)" }}>
-                {outcomeMeasured ? formatPercent(data.outcome.alpha) : "측정 전"}
-              </div>
+          <div className="recommendation-outcome-grid">
+            <div>
+              <span>알파</span>
+              <strong>{outcomeMeasured ? formatPercent(data.outcome.alpha) : "측정 전"}</strong>
             </div>
-            <div style={{ padding: "16px", background: "rgba(255,255,255,0.03)", border: "1px solid var(--border-light)", borderRadius: "var(--radius-sm)" }}>
-              <span className="metric-sub">절대수익률</span>
-              <div style={{ fontSize: "1.5rem", fontWeight: 700, color: "var(--text-primary)" }}>
-                {outcomeMeasured ? formatPercent(data.outcome.absolute_return) : "측정 전"}
-              </div>
+            <div>
+              <span>절대수익률</span>
+              <strong>{outcomeMeasured ? formatPercent(data.outcome.absolute_return) : "측정 전"}</strong>
             </div>
-            <div style={{ padding: "16px", background: "rgba(255,255,255,0.03)", border: "1px solid var(--border-light)", borderRadius: "var(--radius-sm)" }}>
-              <span className="metric-sub">벤치마크 수익률</span>
-              <div style={{ fontSize: "1.5rem", fontWeight: 700, color: "var(--text-primary)" }}>
-                {outcomeMeasured ? formatPercent(data.outcome.benchmark_return) : "측정 전"}
-              </div>
+            <div>
+              <span>벤치마크 수익률</span>
+              <strong>{outcomeMeasured ? formatPercent(data.outcome.benchmark_return) : "측정 전"}</strong>
             </div>
-            <div style={{ padding: "16px", background: "rgba(255,255,255,0.03)", border: "1px solid var(--border-light)", borderRadius: "var(--radius-sm)" }}>
-              <span className="metric-sub">측정 종료일</span>
-              <div style={{ fontSize: "1.1rem", fontWeight: 600, color: "var(--text-primary)", marginTop: "4px" }}>
-                {outcomeMeasured ? data.outcome.measurement_end_date : "성과 측정 윈도우 대기"}
-              </div>
+            <div>
+              <span>측정 종료일</span>
+              <strong>{outcomeMeasured ? data.outcome.measurement_end_date : "성과 측정창 대기"}</strong>
             </div>
           </div>
         </article>
