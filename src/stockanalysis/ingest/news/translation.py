@@ -24,7 +24,7 @@ from stockanalysis.ingest.psql import PsqlCommandExecutor
 
 DEFAULT_TASK_NAME = "news-rss-korean-translation"
 DEFAULT_PIPELINE_NAME = "news_rss_korean_translation"
-DEFAULT_TEMPLATE_VERSION = "2026-05-23-ko-translation-v1"
+DEFAULT_TEMPLATE_VERSION = "2026-06-04-ko-translation-v2"
 FIXTURE_PROVIDER = "fixture"
 CODEX_OAUTH_PROVIDER = "codex_oauth"
 DEFAULT_MODEL_NAME = "codex-cli-default"
@@ -173,11 +173,40 @@ def run_news_rss_translation(
                     llm_output_json_path=llm_output_json_path,
                     provider_runner=provider_runner,
                 )
-                validate_news_translation_output_grounding(
-                    candidate=candidate,
-                    bounded_text=bounded_text,
-                    output=response.output,
-                )
+                try:
+                    validate_news_translation_output_grounding(
+                        candidate=candidate,
+                        bounded_text=bounded_text,
+                        output=response.output,
+                    )
+                except ValueError as validation_error:
+                    if not _can_retry_grounding_failure(provider=provider, provider_runner=provider_runner):
+                        raise
+                    _record_failed_invocation(
+                        sql_executor,
+                        run_id=run_id,
+                        prompt_template_id=prompt_template_id,
+                        provider=response.provider,
+                        model_name=response.model_name,
+                        reasoning_effort=response.reasoning_effort,
+                        error_summary=f"strict translation retry after validation failure: {validation_error}",
+                        request_hash=request_hash or None,
+                    )
+                    response = _invoke_provider(
+                        candidate,
+                        bounded_text,
+                        provider=provider,
+                        model_name=model_name,
+                        reasoning_effort=reasoning_effort,
+                        llm_output_json_path=llm_output_json_path,
+                        provider_runner=provider_runner,
+                        validation_error=str(validation_error),
+                    )
+                    validate_news_translation_output_grounding(
+                        candidate=candidate,
+                        bounded_text=bounded_text,
+                        output=response.output,
+                    )
                 invocation_id = int(
                     sql_executor.execute_scalar(
                         render_news_translation_model_invocation_insert_sql(
@@ -443,6 +472,8 @@ def invoke_codex_oauth_news_translation_provider(
     bounded_text: str,
     model_name: str,
     reasoning_effort: str | None,
+    *,
+    validation_error: str | None = None,
 ) -> NewsTranslationProviderResponse:
     command_text = os.getenv("STOCKANALYSIS_CODEX_CLI_COMMAND", "codex").strip() or "codex"
     try:
@@ -452,7 +483,11 @@ def invoke_codex_oauth_news_translation_provider(
     if not base_command:
         raise ValueError("STOCKANALYSIS_CODEX_CLI_COMMAND must not be empty.")
 
-    prompt = build_codex_oauth_news_translation_prompt(candidate, bounded_text)
+    prompt = build_codex_oauth_news_translation_prompt(
+        candidate,
+        bounded_text,
+        validation_error=validation_error,
+    )
     output_schema = build_codex_oauth_news_translation_output_schema()
     timeout_seconds = int(os.getenv("STOCKANALYSIS_CODEX_TIMEOUT_SECONDS", "300"))
     if timeout_seconds <= 0:
@@ -527,18 +562,37 @@ def invoke_codex_oauth_news_translation_provider(
     )
 
 
-def build_codex_oauth_news_translation_prompt(candidate: NewsRssTranslationCandidate, bounded_text: str) -> str:
-    return "\n".join(
-        (
-            "You are a Korean financial-news translation engine for an investment cockpit.",
-            "Use only the RSS item below. Do not browse, do not call tools, and do not make buy/sell/order recommendations.",
-            "Return exactly one JSON object matching the provided output schema.",
-            "Translate the original title into natural Korean sentence-level wording.",
-            "Write korean_summary as one or two Korean sentences explaining what happened and why it matters.",
-            "Preserve ticker symbols, company names, policy names, and theme codes when they are important.",
-            "Do not introduce English company names, tickers, acronyms, or product names that are not present in the RSS item or metadata.",
-            "Do not replace the title with a generic label such as 'market news' or 'rate news'.",
-            "Set translation_confidence lower when the RSS text is ambiguous, truncated, or lacks enough context.",
+def build_codex_oauth_news_translation_prompt(
+    candidate: NewsRssTranslationCandidate,
+    bounded_text: str,
+    *,
+    validation_error: str | None = None,
+) -> str:
+    lines = [
+        "You are a strict Korean financial-news translation engine, not an analyst.",
+        "Use only the RSS item below. Do not browse, do not call tools, and do not make buy/sell/order recommendations.",
+        "Return exactly one JSON object matching the provided output schema.",
+        "Translate the original title into natural Korean sentence-level wording.",
+        "Write korean_summary as one or two faithful Korean sentences based only on explicit title/summary text.",
+        "If the RSS summary is empty or generic, summarize only what the title explicitly says and note low confidence when needed.",
+        "Preserve ticker symbols, company names, policy names, and product names only when they appear in the RSS item or metadata.",
+        "Do not infer industry context from company names. For example, do not add AI, PC, chip, cloud, energy, quantum, or semiconductor unless that exact idea is present in the RSS item or metadata.",
+        "Theme Code, Symbol, and Impact Direction are grounding metadata, not permission to invent claims in the translation.",
+        "Do not introduce English company names, tickers, acronyms, or product names that are not present in the RSS item or metadata.",
+        "Do not replace the title with a generic label such as 'market news' or 'rate news'.",
+        "Set translation_confidence lower when the RSS text is ambiguous, truncated, or lacks enough context.",
+    ]
+    if validation_error:
+        lines.extend(
+            [
+                "",
+                "Previous output was rejected by validation.",
+                f"Validation error: {validation_error}",
+                "Retry with a stricter literal translation. Remove every unsupported Latin token and unsupported inferred concept.",
+            ]
+        )
+    lines.extend(
+        [
             "",
             "News metadata:",
             json.dumps(
@@ -561,8 +615,9 @@ def build_codex_oauth_news_translation_prompt(candidate: NewsRssTranslationCandi
             "",
             "Bounded translation context:",
             bounded_text,
-        )
+        ]
     )
+    return "\n".join(lines)
 
 
 def build_codex_oauth_news_translation_output_schema() -> dict[str, object]:
@@ -663,6 +718,7 @@ def _invoke_provider(
     reasoning_effort: str | None,
     llm_output_json_path: str | None,
     provider_runner: NewsTranslationProviderRunner | None,
+    validation_error: str | None = None,
 ) -> NewsTranslationProviderResponse:
     if provider_runner is not None:
         return provider_runner(candidate, bounded_text, model_name, reasoning_effort)
@@ -674,7 +730,21 @@ def _invoke_provider(
             model_name=model_name,
             reasoning_effort=reasoning_effort,
         )
-    return invoke_codex_oauth_news_translation_provider(candidate, bounded_text, model_name, reasoning_effort)
+    return invoke_codex_oauth_news_translation_provider(
+        candidate,
+        bounded_text,
+        model_name,
+        reasoning_effort,
+        validation_error=validation_error,
+    )
+
+
+def _can_retry_grounding_failure(
+    *,
+    provider: str,
+    provider_runner: NewsTranslationProviderRunner | None,
+) -> bool:
+    return provider == CODEX_OAUTH_PROVIDER and provider_runner is None
 
 
 def _create_pipeline_run(

@@ -117,11 +117,25 @@ class NewsRssTranslationTests(unittest.TestCase):
 
         self.assertIn("natural Korean sentence-level wording", prompt)
         self.assertIn("Do not browse", prompt)
+        self.assertIn("not an analyst", prompt)
+        self.assertIn("Do not infer industry context from company names", prompt)
         self.assertIn("Do not introduce English company names", prompt)
         self.assertIn("Do not replace the title with a generic label", prompt)
         self.assertEqual(schema["required"], ["translation"])
         self.assertIn("korean_title", json.dumps(schema))
         self.assertIn("translation_confidence", json.dumps(schema))
+
+    def test_codex_translation_prompt_retry_includes_validation_error(self) -> None:
+        candidate = _candidate()
+        prompt = build_codex_oauth_news_translation_prompt(
+            candidate,
+            "Title: Quantum stocks soar",
+            validation_error="news translation output contains ungrounded latin token(s): ai",
+        )
+
+        self.assertIn("Previous output was rejected by validation.", prompt)
+        self.assertIn("unsupported Latin token", prompt)
+        self.assertIn("stricter literal translation", prompt)
 
     def test_validate_translation_output_rejects_ungrounded_english_entities(self) -> None:
         candidate = NewsRssTranslationCandidate(
@@ -344,6 +358,34 @@ class NewsRssTranslationTests(unittest.TestCase):
 
         self.assertEqual(response.output.korean_title, "트럼프 행정부 매입 기대에 양자컴퓨터 주식이 급등했다")
         self.assertEqual(response.input_token_count, 12)
+
+    def test_validate_translation_output_rejects_inferred_ai_for_nvidia_title_without_ai(self) -> None:
+        candidate = NewsRssTranslationCandidate(
+            event_id=None,
+            document_id=15052,
+            title="Nvidia CEO Jensen Huang Is Building the Future Faster Than Infrastructure Can Support It",
+            summary="",
+            published_at="2026-06-02T14:15:02+00:00",
+            source_name="rss_news:yahoo-finance-news",
+            external_document_id="rss:yahoo-finance-news:782d1e28e123b5b0e2378e5c",
+            source_url="https://finance.yahoo.com/sectors/technology/articles/nvidia-ceo-jensen-huang-building-141502826.html",
+            existing_theme_code="TECH_DOMAIN",
+            existing_instrument_symbol="NVDA",
+            impact_direction="watch",
+            impact_score=0.62,
+        )
+        bounded_text = build_news_translation_input(candidate, max_input_chars=4000)
+
+        with self.assertRaisesRegex(ValueError, "ungrounded latin token.*ai"):
+            validate_news_translation_output_grounding(
+                candidate=candidate,
+                bounded_text=bounded_text,
+                output=NewsTranslationOutput(
+                    korean_title="Nvidia CEO 젠슨 황이 AI 인프라보다 빠르게 미래를 구축하고 있다",
+                    korean_summary="원문은 Nvidia가 AI 인프라 수요와 관련해 빠르게 움직이고 있다고 전했다.",
+                    translation_confidence=0.81,
+                ),
+            )
 
     def test_run_translation_execute_updates_source_document_and_records_invocation(self) -> None:
         executor = FakeTranslationExecutor()
