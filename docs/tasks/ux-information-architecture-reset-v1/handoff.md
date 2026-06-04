@@ -2,7 +2,7 @@
 
 ## Status
 
-- in progress: all primary app first-view slices deployed and verified; news/event ledger row readability deployed and verified; legacy unused CSS cleanup and full-page lower-fold readability audit remain.
+- in progress: all primary app first-view slices, news/event ledger row readability, and deployed 24-route terminology/overflow audit are complete; legacy unused CSS cleanup and lower-fold dense ledger readability pass remain.
 
 ## Current Status
 
@@ -23,10 +23,12 @@
 - completed: refactored `/themes/[themeKey]` and `/theses/[thesisId]` first viewport to use the shared decision-first structure.
 - completed: fixed theme detail headline so ontology node labels use Korean `theme_key` labels instead of raw English `theme_name`.
 - completed: added a compact `원천 → 번역 → AI → 연결` path to shared `NewsEventCard` rows used by `/events`, `/events/classification`, `/ai-evidence/blocked`, and `/ai-evidence/results`.
+- completed: reduced oversized decision hero/card density across deployed pages and normalized remaining raw internal terms on stock, recommendation, theme, thesis, valuation, source-document, and classification pages.
+- completed: deployed EC2 24-route smoke now has 0 data errors, 0 page errors, 0 console errors, 0 desktop/mobile horizontal overflow, and 0 targeted raw-term hits.
 
 ## Exact Next Step
 
-- exact next step: run a full route readability audit from the deployed UI, then remove unused legacy command-panel CSS if no route still uses it.
+- exact next step: remove unused legacy command-panel CSS only after confirming no route still references it; then run a lower-fold dense-ledger readability pass page by page.
 
 ## Risks
 
@@ -41,6 +43,10 @@
 - passed: `cd apps/web && npm run build`
 - passed: `PYTHONPATH=/Users/woody/ai/agent-work-harness/src /opt/homebrew/bin/python3.13 -m awh verify --repo . --task ux-information-architecture-reset-v1`
 - passed: `git diff --check`
+- passed for final terminology slice: `cd apps/web && npm run typecheck`
+- passed for final terminology slice: `cd apps/web && npm run build`
+- passed for final terminology slice: `PYTHONPATH=/Users/woody/ai/agent-work-harness/src /opt/homebrew/bin/python3.13 -m awh verify --repo . --task ux-information-architecture-reset-v1`
+- passed for final terminology slice: `git diff --check`
 - passed locally for third slice: `cd apps/web && npm run typecheck`
 - passed locally for third slice: `cd apps/web && npm run build`
 - passed locally for third slice: Playwright route smoke on `http://127.0.0.1:3002/cycle-map`, `/stocks/SPY`, `/recommendations/recommendation-67`, `/paper-trading`
@@ -85,6 +91,15 @@
 - passed deployed for news/event ledger card path: Playwright route smoke on `http://127.0.0.1:13000/events`, `/events/classification`, `/ai-evidence/blocked`, `/ai-evidence/results`
 - passed deployed for news/event ledger card path: mobile smoke for the same 4 routes, no horizontal overflow at 390px viewport
 - deployed commit: `4ecc3b9`
+- deployed commit: `a60dc19`
+- deployed commit: `d862749`
+- deployed commit: `305e548`
+- deployed commit: `61ef6d8`
+- passed deployed full 24-route audit on `http://127.0.0.1:13000`: routes `24`, failed `0`
+- deployed full audit output: `/tmp/stockanalysis-sitewide-ux-refactor-slice3-deployed/summary.json`
+- deployed full audit screenshots: `/tmp/stockanalysis-sitewide-ux-refactor-slice3-deployed/screenshots/`
+- final deployed full audit checked: `/`, `/data-health`, `/intelligence`, `/cycle-map`, `/events`, `/events/classification`, `/ai-evidence`, `/ai-evidence/blocked`, `/ai-evidence/results`, `/ai-evidence/ai-evidence-251`, `/source-documents/rss%3Amarketwatch-topstories%3Ab057be957d391c978876835f`, `/stocks`, `/stocks/SPY`, `/stocks/QUBT`, `/recommendations`, `/recommendations/recommendation-67`, `/paper-trading`, `/trading-readiness`, `/portfolio/coverage`, `/performance`, `/cycles`, `/remediation`, `/themes/MACRO_INFLATION`, `/theses/thesis-31`
+- final deployed full audit targeted raw-term hits: `[]` for `Broad US Equity`, `margin of safety`, `UNKNOWN`, `좋은 thesis`, `thesis review`, `안전마진 안전마진`, `검토 가능`, `manual weight`, `source blocker`, `paper validation`, `broker submit`, `source_data_blocked`
 
 ## Browser Evidence
 
