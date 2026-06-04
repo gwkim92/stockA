@@ -2,7 +2,7 @@
 
 ## Status
 
-- in progress: all primary app first-view slices, news/event ledger row readability, deployed 24-route terminology/overflow audit, legacy unused command-panel CSS cleanup, shared lower-fold dense ledger base styling, local global navigation cleanup, and final rendered terminology cleanup are complete locally. EC2 deploy smoke for the latest local changes is pending personal AWS browser-session security-group access and deploy.
+- in progress: all primary app first-view slices, news/event ledger row readability, deployed 24-route terminology/overflow audit, legacy unused command-panel CSS cleanup, shared lower-fold dense ledger base styling, local global navigation cleanup, final rendered terminology cleanup, and latest EC2 deployed smoke are complete. Remaining work is page-by-page lower-fold copy/content review for dense audit sections.
 
 ## Current Status
 
@@ -59,14 +59,14 @@
 
 ## Exact Next Step
 
-- exact next step: commit and push the latest local UX terminology changes, then use the personal AWS Chrome session to allow the current client IP on the stockanalysis EC2 security group, deploy the branch to EC2, and run deployed route smoke on `http://127.0.0.1:13000`; after that, continue page-by-page lower-fold copy/content review for remaining dense audit sections.
+- exact next step: continue page-by-page lower-fold copy/content review for remaining dense audit sections, starting with sections that still read like tables or audit logs rather than investor decision evidence.
 
 ## Risks
 
 - This slice improves information architecture only. It must not change data, scoring, broker/order boundary, or scheduler behavior.
 - Dense raw ledgers are still needed for audit; move them below fold rather than deleting evidence.
 - Raw ledgers are still dense below the fold. They remain intentionally available for audit, but card internals need a later readability pass.
-- Latest local UX/navigation/fixture cleanup is not yet deployed to EC2; do not claim deployed status for it until trusted-network deployment and route smoke are complete.
+- Latest UX/navigation/fixture/terminology cleanup has been deployed to EC2 and smoke-tested through the local tunnel. Do not claim the entire UX reset goal complete yet, because lower-fold dense audit sections still need page-by-page readability work.
 - AWS account boundary: stockanalysis deploy/security-group work must use the personal AWS browser session. If the local AWS CLI is authenticated to a company account, do not perform AWS write operations for this project.
 
 ## Verification
@@ -143,6 +143,11 @@
 - passed locally for live recommendation copy fix: Playwright rendered text check on `http://127.0.0.1:13002/recommendations` and `/recommendations/recommendation-67`; output `recommendation-copy-ok`
 - passed locally for live recommendation copy fix: `bash scripts/verify_frontend_detail_routes.sh`
 - passed locally for live recommendation copy fix: `PYTHONPATH=/Users/woody/ai/agent-work-harness/src python3 -m awh verify --repo . --task ux-information-architecture-reset-v1`
+- deployed commit: `1c7f721`
+- passed deployed for latest UX copy cleanup: EC2 pull/build/restart completed with `stockanalysis-frontend-api.service` active and `stockanalysis-web.service` active.
+- passed deployed for latest UX copy cleanup: `http://127.0.0.1:13000/`, `/data-health`, `/ai-evidence/results`, `/ai-evidence/sec-event-aapl-10k-20240928`, `/theses/AAPL-bootstrap-v1`, `/trading-readiness` returned `200`.
+- passed deployed for latest UX copy cleanup: Playwright rendered text checks on `http://127.0.0.1:13000/`, `/ai-evidence/results`, `/ai-evidence/sec-event-aapl-10k-20240928`, `/theses/AAPL-bootstrap-v1`, and `/trading-readiness`; output `deployed-rendered-copy-ok`.
+- passed deployed for latest sitewide smoke: `http://127.0.0.1:13000` route smoke checked 26 routes, all returned `200`, no targeted raw-term hits, and no desktop horizontal overflow; output `sitewide-smoke-ok`, `checked 26`.
 - passed: `cd apps/web && npm run typecheck`
 - passed: `cd apps/web && npm run build`
 - passed: `PYTHONPATH=/Users/woody/ai/agent-work-harness/src /opt/homebrew/bin/python3.13 -m awh verify --repo . --task ux-information-architecture-reset-v1`
