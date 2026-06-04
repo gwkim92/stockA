@@ -1715,7 +1715,7 @@ export default async function RecommendationPage({ params }: RecommendationPageP
           <div>
             <span className="metric-sub">기업 리서치 연결</span>
             <h2 style={{ fontSize: "1.5rem", marginTop: "6px" }}>
-              {equityResearch?.title || `${data.symbol} 기업 리서치가 아직 연결되지 않았다`}
+              {equityResearch ? userFacingRecommendationText(equityResearch.title) : `${data.symbol} 기업 리서치가 아직 연결되지 않았다`}
             </h2>
             <p style={{ color: "var(--text-secondary)", marginTop: "8px", maxWidth: "900px" }}>
               추천을 뉴스 신호만으로 보지 않기 위해 배치 AI가 만든 기업 분석 결과를 같이 보여준다.
@@ -1732,7 +1732,7 @@ export default async function RecommendationPage({ params }: RecommendationPageP
         {equityResearch ? (
           <>
             <p style={{ color: "var(--text-secondary)", marginTop: 0 }}>
-              {equityResearch.korean_summary}
+              {userFacingRecommendationText(equityResearch.korean_summary)}
             </p>
             <div className="status-rail compact-rail" aria-label="기업 리서치 구성">
               <div className="rail-cell">
@@ -1789,8 +1789,8 @@ export default async function RecommendationPage({ params }: RecommendationPageP
               <div className="stock-meta-grid" style={{ marginTop: "18px" }}>
                 {valuationItems.map((item) => (
                   <Fragment key={item.key}>
-                    <span>{koCode(item.key)}</span>
-                    <strong>{koLabel(item.value)}</strong>
+                    <span>{userFacingRecommendationText(item.key)}</span>
+                    <strong>{userFacingRecommendationText(item.value)}</strong>
                   </Fragment>
                 ))}
               </div>

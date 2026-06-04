@@ -1742,7 +1742,7 @@ export default async function StockDetailPage({ params }: StockDetailPageProps) 
         <div className="section-heading">
           <div>
             <span className="metric-sub">AI 기업 분석 리포트</span>
-            <h2>{equityResearch?.title || `${data.symbol} 기업 리서치가 아직 생성되지 않았다`}</h2>
+            <h2>{equityResearch ? userFacingStockText(equityResearch.title) : `${data.symbol} 기업 리서치가 아직 생성되지 않았다`}</h2>
           </div>
           {equityResearch ? (
             <span className="bento-badge" style={{ margin: 0 }}>

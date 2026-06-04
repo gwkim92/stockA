@@ -90,6 +90,7 @@ function userFacingValuationText(value: string) {
     .replace(/\bmargin of safety\b/gi, "안전마진")
     .replace(/\bvaluation_snapshot\b/gi, "밸류에이션 스냅샷")
     .replace(/\bvaluation_margin_score\b/gi, "밸류에이션 안전마진")
+    .replace(/검토 가능/g, "가정 확인 필요")
     .replace(/\bforecast\b/gi, "재무 추정")
     .replace(/\bsegment\b/gi, "사업부")
     .replace(/\bfootnote\b/gi, "주석")
@@ -120,7 +121,7 @@ export function ValuationTargetRangeCard({
           <h2>{title}</h2>
         </div>
         <span className={`risk-tag ${available ? "risk-low" : "risk-medium"}`}>
-          {available ? valuation.valuation_quality.label : "산출 대기"}
+          {available ? userFacingValuationText(valuation.valuation_quality.label) : "산출 대기"}
         </span>
       </div>
 
@@ -170,7 +171,7 @@ export function ValuationTargetRangeCard({
                   </strong>
                 </div>
                 <span className={`risk-tag ${qualityTone(method.data_quality.status)}`}>
-                  {method.data_quality.label}
+                  {userFacingValuationText(method.data_quality.label)}
                 </span>
               </div>
               <div className="stock-meta-grid" style={{ marginTop: "12px" }}>
@@ -352,7 +353,7 @@ export function ValuationTargetRangeCard({
                 <dl>
                   <div>
                     <dt>신뢰도</dt>
-                    <dd>{method.data_quality.confidence_label}</dd>
+                    <dd>{userFacingValuationText(method.data_quality.confidence_label)}</dd>
                   </div>
                   <div>
                     <dt>입력 공백</dt>

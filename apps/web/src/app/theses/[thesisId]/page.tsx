@@ -133,6 +133,7 @@ function thesisText(value: string | null | undefined) {
     .replace(/좋은 thesis/g, "좋은 투자 논리")
     .replace(/thesis review/g, "투자 논리 검토")
     .replace(/thesis(?=[가-힣])/g, "투자 논리")
+    .replace(/안전마진\s+근거/g, "근거")
     .replace(/안전마진\s+안전마진/g, "안전마진")
     .replace(/밸류에이션 스냅샷가/g, "밸류에이션 스냅샷이");
 }
