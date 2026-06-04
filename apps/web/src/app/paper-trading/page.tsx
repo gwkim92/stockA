@@ -392,69 +392,76 @@ export default async function PaperTradingPage() {
             표의 조치는 실제 주문 명령이 아니다. 추천서, 투자 논리, 종목 상세를 대조하기 위한 검증 항목이며,
             이 화면에는 주문 제출 기능이 없다.
           </p>
-          <div className="ledger-table-wrap">
-            <table className="ledger-table data-health-table">
-              <thead>
-                <tr>
-                  <th scope="col">종목</th>
-                  <th scope="col">추천</th>
-                  <th scope="col">현재 비중</th>
-                  <th scope="col">목표 비중</th>
-                  <th scope="col">시뮬레이션 조치</th>
-                  <th scope="col">이유</th>
-                  <th scope="col">상세</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.paper_actions.length > 0 ? data.paper_actions.map((action) => {
-                  const recommendationLink = recommendationHref(action.recommendation_id);
-                  const thesisLink = thesisHref(action.linked_thesis_id);
-                  return (
-                    <tr key={`${action.symbol}-${action.paper_action}`}>
-                      <td>
-                        <strong>{action.symbol}</strong>
-                        <small>{action.latest_price_date} · {formatCurrency(action.latest_price)}</small>
-                      </td>
-                      <td>
-                        <span className={`risk-tag ${riskClass(action.risk_level)}`}>
-                          {koCode(action.recommendation_action)}
-                        </span>
-                        <small>추천 점수 {formatPercent(action.recommendation_score)}</small>
-                      </td>
-                      <td>{formatPercent(action.current_weight)}</td>
-                      <td>{formatPercent(action.target_weight)}</td>
-                      <td>
-                        <strong>{userFacingText(action.paper_action)}</strong>
-                        <small>주문 아님</small>
-                      </td>
-                      <td>{koReason(action.reason)}</td>
-                      <td>
-                        <div className="btn-row" style={{ marginTop: 0 }}>
-                          {recommendationLink ? (
-                            <Link className="btn btn-secondary" href={recommendationLink}>
-                              추천
-                            </Link>
-                          ) : null}
-                          {thesisLink ? (
-                            <Link className="btn btn-secondary" href={thesisLink}>
-                              투자 논리
-                            </Link>
-                          ) : null}
-                          <Link className="btn btn-secondary" href={`/stocks/${action.symbol}` as Route}>
-                            종목
-                          </Link>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                }) : (
-                  <tr>
-                    <td colSpan={7}>현재 시뮬레이션 항목이 없다. 추천 신호나 보유 내역이 갱신되면 다시 표시된다.</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+          {data.paper_actions.length > 0 ? (
+            <div className="paper-action-card-grid" aria-label="가상 매매 검증 항목">
+              {data.paper_actions.map((action) => {
+                const recommendationLink = recommendationHref(action.recommendation_id);
+                const thesisLink = thesisHref(action.linked_thesis_id);
+                return (
+                  <article
+                    className={`paper-action-card ${action.conflict ? "is-conflict" : ""}`}
+                    key={`${action.symbol}-${action.paper_action}`}
+                  >
+                    <div className="paper-action-card-head">
+                      <span>가상 검증 · 주문 아님</span>
+                      <strong>{action.symbol}</strong>
+                      <b className={`risk-tag ${riskClass(action.risk_level)}`}>
+                        {userFacingText(action.paper_action)}
+                      </b>
+                    </div>
+                    <p>{koReason(action.reason)}</p>
+                    <dl className="paper-action-metrics">
+                      <div>
+                        <dt>현재 비중</dt>
+                        <dd>{formatPercent(action.current_weight)}</dd>
+                      </div>
+                      <div>
+                        <dt>목표 비중</dt>
+                        <dd>{formatPercent(action.target_weight)}</dd>
+                      </div>
+                      <div>
+                        <dt>추천 점수</dt>
+                        <dd>{formatPercent(action.recommendation_score)}</dd>
+                      </div>
+                    </dl>
+                    <div className="paper-action-context">
+                      <div>
+                        <span>추천 상태</span>
+                        <strong>{koCode(action.recommendation_action)}</strong>
+                        <small>추천일 {action.recommendation_as_of_date || "미확인"} · 가격일 {action.latest_price_date || "미확인"}</small>
+                      </div>
+                      <div>
+                        <span>실거래 경계</span>
+                        <strong>{action.requires_human_approval ? "검증 조건 확인 필요" : "읽기 전용 검증"}</strong>
+                        <small>
+                          {action.conflict ? "추천과 보유 상태 충돌 있음" : "저장된 충돌 없음"} · 최근 가격 {formatCurrency(action.latest_price)}
+                        </small>
+                      </div>
+                    </div>
+                    <div className="paper-action-links">
+                      {recommendationLink ? (
+                        <Link className="btn btn-secondary" href={recommendationLink}>
+                          추천 보기
+                        </Link>
+                      ) : null}
+                      {thesisLink ? (
+                        <Link className="btn btn-secondary" href={thesisLink}>
+                          투자 논리 보기
+                        </Link>
+                      ) : null}
+                      <Link className="btn btn-secondary" href={`/stocks/${action.symbol}` as Route}>
+                        종목 보기
+                      </Link>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="empty-state" style={{ margin: 0 }}>
+              현재 시뮬레이션 항목이 없다. 추천 신호나 보유 내역이 갱신되면 다시 표시된다.
+            </p>
+          )}
         </article>
 
         <aside className="side-ledger">
