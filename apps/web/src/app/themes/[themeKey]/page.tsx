@@ -35,6 +35,14 @@ function sourceDocumentHref(documentId: string | null) {
   return documentId ? (`/source-documents/${documentId}` as Route) : null;
 }
 
+function isKnownThemeEventSymbol(value: string | null | undefined) {
+  return Boolean(value && value !== "UNKNOWN" && value !== "UNCLASSIFIED");
+}
+
+function themeEventSymbolLabel(value: string | null | undefined) {
+  return isKnownThemeEventSymbol(value) ? koCode(value) : "시장·테마 뉴스";
+}
+
 export default async function ThemePage({ params }: ThemePageProps) {
   const { themeKey } = await params;
   const response = await getThemeDetail(themeKey);
@@ -207,7 +215,7 @@ export default async function ThemePage({ params }: ThemePageProps) {
               return (
                 <div className="bento-list-item" key={event.event_id} style={{ alignItems: "flex-start" }}>
                   <div style={{ flex: 1 }}>
-                    <span className="metric-sub">{event.symbol} • {event.event_at}</span>
+                    <span className="metric-sub">{themeEventSymbolLabel(event.symbol)} • {event.event_at}</span>
                     <strong>{koLabel(event.title)}</strong>
                   </div>
                   <div style={{ alignItems: "flex-end", gap: "8px" }}>

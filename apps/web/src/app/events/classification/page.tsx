@@ -211,7 +211,7 @@ export default async function ClassificationPage() {
               <div>
                 <span className="metric-sub">뉴스 {group.events.length}개 · 종목 {group.symbols.size}개</span>
                 <h2>{koCode(group.themeKey)}</h2>
-                <p className="cluster-story-context">{group.themeName}</p>
+                <p className="cluster-story-context">{koCode(group.themeName)}</p>
               </div>
               <span className="relation-pill">{directionSummary(group)}</span>
             </div>

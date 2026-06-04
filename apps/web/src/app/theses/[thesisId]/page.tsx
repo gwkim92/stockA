@@ -454,7 +454,7 @@ export default async function ThesisPage({ params }: ThesisPageProps) {
               {professionalGates.status === "complete" ? "전문 검증 통과" : professionalGates.status === "blocked" ? "전문 검증 차단" : "재검토 필요"}
             </h2>
             <p style={{ color: "var(--text-secondary)", marginTop: "8px", maxWidth: "860px" }}>
-              {professionalGates.summary}
+              {thesisText(professionalGates.summary)}
             </p>
           </div>
           <span className={`risk-tag ${professionalGates.blocked_count > 0 ? "risk-high" : professionalGates.warning_count > 0 ? "risk-medium" : "risk-low"}`}>
@@ -490,26 +490,26 @@ export default async function ThesisPage({ params }: ThesisPageProps) {
             <article className="detail-path-card" key={gate.gate_key}>
               <div style={{ display: "flex", justifyContent: "space-between", gap: "12px", alignItems: "flex-start", marginBottom: "10px" }}>
                 <div>
-                  <span>{gate.title}</span>
-                  <strong style={{ display: "block", fontSize: "1rem", marginTop: "4px" }}>{gate.decision}</strong>
+                  <span>{thesisText(gate.title)}</span>
+                  <strong style={{ display: "block", fontSize: "1rem", marginTop: "4px" }}>{thesisText(gate.decision)}</strong>
                 </div>
                 <span className={`risk-tag ${professionalGateTone(gate.status)}`}>
                   {gateStatusLabel(gate.status)}
                 </span>
               </div>
               <p style={{ color: "var(--text-secondary)", lineHeight: 1.6, margin: "0 0 12px" }}>
-                {gate.detail}
+                {thesisText(gate.detail)}
               </p>
               <dl className="research-flow-facts" style={{ marginBottom: "12px" }}>
                 {gate.facts.map((fact) => (
                   <div key={`${gate.gate_key}-${fact.label}`}>
-                    <dt>{fact.label}</dt>
+                    <dt>{thesisText(fact.label)}</dt>
                     <dd>{thesisText(fact.value)}</dd>
                   </div>
                 ))}
               </dl>
               <p style={{ color: "var(--text-muted)", lineHeight: 1.55, margin: 0, fontSize: "0.86rem" }}>
-                다음 조치: {gate.next_step}
+                다음 조치: {thesisText(gate.next_step)}
               </p>
             </article>
           ))}

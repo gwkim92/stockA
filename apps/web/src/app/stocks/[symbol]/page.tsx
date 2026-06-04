@@ -201,9 +201,12 @@ function userFacingStockText(value: string | null | undefined) {
     .replace(/\bfund company financial model not applicable\b/gi, "ETF·펀드라 기업 재무 모델 비적용")
     .replace(/\bsource blocker\b/gi, "부족한 원천 근거")
     .replace(/\bblocker\b/gi, "차단 사유")
+    .replace(/\bBroad US Equity\b/g, "미국 광범위 주식")
     .replace(/\bref\.instrument\b/gi, "상품 분류 기준")
     .replace(/\bgate\b/gi, "확인 조건")
     .replace(/\bvia\b/gi, "기준")
+    .replace(/상세 검토 가능/g, "상세 근거 확인")
+    .replace(/검토 가능/g, "근거 확인")
     .replaceAll(`추천 ${reviewWord}`, "추천 근거")
     .replaceAll(`보유 ${reviewWord}`, "보유 상태")
     .replace(/분할 매수 후보 후보/g, "분할 매수 후보");
@@ -286,8 +289,8 @@ function competitivePositionLabel(value: string) {
 }
 
 function competitivePositionSummary(position: IndustryCompetitivePosition, symbol: string) {
-  const peerGroup = position.peer_group_name ?? position.peer_group_code ?? "비교군";
-  const sector = position.sector_name ?? position.sector_code ?? "섹터 미분류";
+  const peerGroup = userFacingStockText(position.peer_group_name ?? position.peer_group_code ?? "비교군");
+  const sector = userFacingStockText(position.sector_name ?? position.sector_code ?? "섹터 미분류");
   return `${symbol}은 ${peerGroup} 기준으로 ${competitivePositionLabel(position.competitive_position)} 상태다. ${sector} 안에서 수익성, 성장성, 재무 방어력, 가격 결정력 추정 지표를 함께 본다.`;
 }
 
@@ -310,14 +313,14 @@ function FinancialStatementModelPanel({
         </div>
         <p style={{ color: "var(--text-secondary)", marginBottom: 0 }}>
           {sourceBlocker
-            ? model.summary
+            ? userFacingStockText(model.summary)
           : "SEC 공시 재무 데이터 수집과 재무 정규화가 완료되면 매출 성장, 마진, 현금흐름, 부채, 이익 품질을 이곳에서 확인한다. 이 데이터가 없으면 뉴스나 사이클만으로 장기 투자 판단을 확정하지 않는다."}
         </p>
         {sourceBlocker ? (
           <div className="status-rail compact-rail" aria-label="재무 원천 차단 사유" style={{ marginTop: "18px" }}>
             <div className="rail-cell">
               <span>부족한 근거</span>
-              <strong>{sourceBlocker.label}</strong>
+              <strong>{userFacingStockText(sourceBlocker.label)}</strong>
               <small>{userFacingStockText(koCode(sourceBlocker.blocker_code))}</small>
             </div>
             <div className="rail-cell">
@@ -597,12 +600,12 @@ function IndustryCompetitivePositionPanel({
         </div>
         <div className="rail-cell">
           <span>비교군</span>
-          <strong>{position.peer_group_name ?? position.peer_group_code ?? "미분류"}</strong>
+          <strong>{userFacingStockText(position.peer_group_name ?? position.peer_group_code ?? "미분류")}</strong>
           <small>{position.peer_count.toLocaleString("ko-KR")}개 종목 기준</small>
         </div>
         <div className="rail-cell">
           <span>섹터</span>
-          <strong>{position.sector_name ?? position.sector_code ?? "미분류"}</strong>
+          <strong>{userFacingStockText(position.sector_name ?? position.sector_code ?? "미분류")}</strong>
           <small>산업/테마 분류 기준</small>
         </div>
         <div className="rail-cell">

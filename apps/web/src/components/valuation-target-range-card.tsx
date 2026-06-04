@@ -1,3 +1,4 @@
+import { koLabel } from "@/lib/korean-labels";
 import type { ValuationTargetRange } from "@/lib/types";
 
 type ValuationTargetRangeCardProps = {
@@ -82,10 +83,13 @@ function qualityTone(status: string) {
 }
 
 function userFacingValuationText(value: string) {
-  return value
+  return koLabel(value)
     .replace(/\bSOTP\b/g, "사업부 가치합산")
     .replace(/\bDCF-lite\b/g, "현금흐름 간이평가")
     .replace(/\bDCF\b/g, "현금흐름 평가")
+    .replace(/\bmargin of safety\b/gi, "안전마진")
+    .replace(/\bvaluation_snapshot\b/gi, "밸류에이션 스냅샷")
+    .replace(/\bvaluation_margin_score\b/gi, "밸류에이션 안전마진")
     .replace(/\bforecast\b/gi, "재무 추정")
     .replace(/\bsegment\b/gi, "사업부")
     .replace(/\bfootnote\b/gi, "주석")
@@ -121,7 +125,7 @@ export function ValuationTargetRangeCard({
       </div>
 
       <p style={{ color: "var(--text-secondary)", marginTop: 0, maxWidth: "860px" }}>
-        {valuation.summary}
+        {userFacingValuationText(valuation.summary)}
       </p>
 
       <div className="status-rail compact-rail" style={{ marginTop: "18px" }}>
