@@ -66,10 +66,11 @@
 - completed locally: refactored `/paper-trading` lower-fold `시뮬레이션 항목 목록` from a wide order-like table into read-only validation cards. Each card now starts with symbol, simulated action, current/target weight, recommendation score, recommendation/price dates, conflict state, and links to recommendation/thesis/stock detail while explicitly saying it is not an order.
 - completed deployed: EC2 now serves commit `a159642`; `/paper-trading` renders 14 live validation cards and no longer renders the targeted simulation-action section as a wide table.
 - completed locally: refactored `/performance` lower-fold 성과 품질, 추천별 성과, 성과 귀속, 제외·보완, 해석 기준 areas from dense `bento-list` rows and inline layout into dedicated decision panels/cards. The page now separates “측정 상태”, “품질 기준”, “추천 책임 추적”, “귀속 관점”, and “보완 항목” without changing outcome data or recommendation weights.
+- completed deployed: EC2 now serves commit `d0a3d97`; `/performance` renders live performance decision panels and quality/gate cards with no tables, no Server Component error, and no desktop/mobile horizontal overflow.
 
 ## Exact Next Step
 
-- exact next step: deploy the `/performance` outcome/readability slice to EC2, then continue page-by-page lower-fold copy/content review. The next likely dense targets are recommendation/stock detail lower-fold evidence sections that still mix audit detail with investor-facing interpretation.
+- exact next step: continue page-by-page lower-fold copy/content review. The next likely dense targets are recommendation/stock detail lower-fold evidence sections that still mix audit detail with investor-facing interpretation.
 
 ## Risks
 
@@ -204,6 +205,11 @@
 - passed locally for performance lower-fold outcome/readability refactor: `bash scripts/verify_frontend_detail_routes.sh`
 - passed locally for performance lower-fold outcome/readability refactor: `PYTHONPATH=/Users/woody/ai/agent-work-harness/src /opt/homebrew/bin/python3.13 -m awh verify --repo . --task ux-information-architecture-reset-v1`
 - passed locally for performance lower-fold outcome/readability refactor: `git diff --check`
+- deployed commit: `d0a3d97`
+- passed deployed for performance lower-fold outcome/readability refactor: EC2 pull/build/restart completed with `stockanalysis-frontend-api.service` active and `stockanalysis-web.service` active.
+- passed deployed for performance lower-fold outcome/readability refactor: `http://127.0.0.1:13000/performance` rendered `.performance-panel` count `5`, `.performance-check-card` count `4`, `.performance-gate-card` count `3`, table count `0`, no Server Component error, no desktop horizontal overflow.
+- passed deployed for performance lower-fold outcome/readability refactor: mobile `390x900` check on `http://127.0.0.1:13000/performance`; `.performance-panel` count `5`, no Server Component error, no horizontal overflow.
+- passed deployed route smoke for performance lower-fold outcome/readability refactor: `http://127.0.0.1:13000/`, `/data-health`, `/portfolio/coverage`, `/trading-readiness`, `/paper-trading`, `/performance`, `/recommendations`, `/remediation` returned `200` with no server error.
 - deployed commit: `1258c6e`
 - passed deployed for trading readiness lower-fold safety card refactor: EC2 pull/build/restart completed with `stockanalysis-frontend-api.service` active and `stockanalysis-web.service` active.
 - passed deployed for trading readiness lower-fold safety card refactor: `http://127.0.0.1:13000/trading-readiness` returned `200`; `.trading-safety-card` and `.trading-validation-grid` rendered; no Server Component error.
