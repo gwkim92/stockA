@@ -2,7 +2,7 @@
 
 ## Status
 
-- in progress: all primary app first-view slices, news/event ledger row readability, and deployed 24-route terminology/overflow audit are complete; legacy unused CSS cleanup and lower-fold dense ledger readability pass remain.
+- in progress: all primary app first-view slices, news/event ledger row readability, deployed 24-route terminology/overflow audit, legacy unused command-panel CSS cleanup, and shared lower-fold dense ledger base styling are complete locally. AWS/EC2 deploy smoke for the latest local CSS cleanup is deferred because the current network is public Wi-Fi.
 
 ## Current Status
 
@@ -25,10 +25,12 @@
 - completed: added a compact `원천 → 번역 → AI → 연결` path to shared `NewsEventCard` rows used by `/events`, `/events/classification`, `/ai-evidence/blocked`, and `/ai-evidence/results`.
 - completed: reduced oversized decision hero/card density across deployed pages and normalized remaining raw internal terms on stock, recommendation, theme, thesis, valuation, source-document, and classification pages.
 - completed: deployed EC2 24-route smoke now has 0 data errors, 0 page errors, 0 console errors, 0 desktop/mobile horizontal overflow, and 0 targeted raw-term hits.
+- completed locally: removed unused legacy command-panel CSS selectors that no route references.
+- completed locally: changed shared lower-fold ledger/list/path/relationship card styling so dense audit rows read as bounded cards instead of thin raw log lines.
 
 ## Exact Next Step
 
-- exact next step: remove unused legacy command-panel CSS only after confirming no route still references it; then run a lower-fold dense-ledger readability pass page by page.
+- exact next step: when back on trusted network, deploy the latest local CSS cleanup and run the 24-route deployed smoke again; after that, continue page-by-page lower-fold copy/content review for remaining dense audit sections.
 
 ## Risks
 
@@ -36,9 +38,15 @@
 - Dense raw ledgers are still needed for audit; move them below fold rather than deleting evidence.
 - Existing top navigation still wraps awkwardly on narrow mobile widths. It did not overflow horizontally, but it needs a separate navigation cleanup slice.
 - Raw ledgers are still dense below the fold. They remain intentionally available for audit, but card internals need a later readability pass.
+- Latest local CSS cleanup is not yet deployed to EC2; do not claim deployed status for it until trusted-network deployment and route smoke are complete.
 
 ## Verification
 
+- passed locally for legacy CSS/readability cleanup: `cd apps/web && npm run typecheck`
+- passed locally for legacy CSS/readability cleanup: `cd apps/web && npm run build`
+- passed locally for legacy CSS/readability cleanup: `PYTHONPATH=/Users/woody/ai/agent-work-harness/src /opt/homebrew/bin/python3.13 -m awh verify --repo . --task ux-information-architecture-reset-v1`
+- passed locally for legacy CSS/readability cleanup: `git diff --check`
+- not run for latest local CSS cleanup: EC2 deployed route smoke, intentionally deferred on public Wi-Fi.
 - passed: `cd apps/web && npm run typecheck`
 - passed: `cd apps/web && npm run build`
 - passed: `PYTHONPATH=/Users/woody/ai/agent-work-harness/src /opt/homebrew/bin/python3.13 -m awh verify --repo . --task ux-information-architecture-reset-v1`
