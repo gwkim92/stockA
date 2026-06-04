@@ -2,7 +2,7 @@
 
 ## Status
 
-- in progress: first news/AI evidence UX slice deployed; second home/data-health/intelligence slice deployed; third cycle-map/stock-detail/recommendation-detail/paper-trading slice deployed; fourth list/operation slice deployed; fifth secondary detail slice implemented and locally smoke verified.
+- in progress: first news/AI evidence UX slice deployed; second home/data-health/intelligence slice deployed; third cycle-map/stock-detail/recommendation-detail/paper-trading slice deployed; fourth list/operation slice deployed; fifth secondary detail slice deployed and verified.
 
 ## Current Status
 
@@ -64,6 +64,9 @@
 - passed locally for fifth slice: `cd apps/web && npm run build`
 - passed locally for fifth slice: Playwright route smoke on `http://127.0.0.1:3002/remediation`, `/ai-evidence/ai-evidence-251`, `/source-documents/rss%3Amarketwatch-topstories%3Ab057be957d391c978876835f`
 - passed locally for fifth slice: mobile smoke for the same 3 routes, no horizontal overflow at 390px viewport
+- passed deployed for fifth slice: `http://127.0.0.1:13000/remediation`, `/ai-evidence/ai-evidence-251`, `/source-documents/rss%3Amarketwatch-topstories%3Ab057be957d391c978876835f`
+- passed deployed for fifth slice: mobile smoke for the same 3 routes, no horizontal overflow at 390px viewport
+- deployed commit: `ea33ba2`
 
 ## Browser Evidence
 
@@ -136,3 +139,9 @@
 - local mobile screenshot: `/tmp/stockanalysis-ux-reset-v1-slice5/mobile-remediation.png`
 - local mobile screenshot: `/tmp/stockanalysis-ux-reset-v1-slice5/mobile-ai-evidence-251.png`
 - local mobile screenshot: `/tmp/stockanalysis-ux-reset-v1-slice5/mobile-source-document.png`
+- deployed screenshot: `/tmp/stockanalysis-ux-reset-v1-slice5-deployed/remediation.png`
+- deployed screenshot: `/tmp/stockanalysis-ux-reset-v1-slice5-deployed/ai-evidence-251.png`
+- deployed screenshot: `/tmp/stockanalysis-ux-reset-v1-slice5-deployed/source-document.png`
+- deployed mobile screenshot: `/tmp/stockanalysis-ux-reset-v1-slice5-deployed/mobile-remediation.png`
+- deployed mobile screenshot: `/tmp/stockanalysis-ux-reset-v1-slice5-deployed/mobile-ai-evidence-251.png`
+- deployed mobile screenshot: `/tmp/stockanalysis-ux-reset-v1-slice5-deployed/mobile-source-document.png`
