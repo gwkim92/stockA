@@ -1400,33 +1400,46 @@ export default async function RecommendationPage({ params }: RecommendationPageP
 
   return (
     <div className="pageStack">
-      <section className="reveal">
-        <div className="bento-badge">
-          추천 • {koCode(data.strategy_name)} • {koCode(data.horizon_type)} • {data.as_of_date}
+      <section className="decision-brief reveal" aria-labelledby="recommendation-detail-title">
+        <div className="decision-brief-main">
+          <span className="decision-brief-kicker">
+            추천 상세 · {koCode(data.strategy_name)} · {koCode(data.horizon_type)} · {data.as_of_date}
+          </span>
+          <h1 className="decision-brief-title" id="recommendation-detail-title">
+            {data.symbol} · {qualityDecision.status}
+          </h1>
+          <p className="decision-brief-copy">
+            {qualityDecision.summary} 추천은 자동 매매 명령이 아니며, 이 화면은 근거가 어디서 왔고 가상 매매나 실거래 경계까지 통과했는지만 판단하게 한다.
+          </p>
+          <div className="decision-brief-meta" aria-label="추천 상세 핵심 상태">
+            <span>점수 {formatPercent(data.score)}</span>
+            <span>추천 {koCode(data.recommendation)}</span>
+            <span>가상 매매 {decisionWaterfall.paper_validation_input_allowed ? "입력 가능" : "입력 차단"}</span>
+            <span>실거래 {decisionWaterfall.broker_submit_allowed ? "허용" : "차단"}</span>
+          </div>
         </div>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "24px", flexWrap: "wrap" }}>
-          <div>
-            <h1 style={{ fontSize: "clamp(2.5rem, 4vw, 4rem)", marginBottom: "16px" }}>{data.symbol} 추천 상세</h1>
-            <p style={{ color: "var(--text-secondary)", fontSize: "1.1rem", maxWidth: "700px" }}>
-              추천은 자동 매매 명령이 아니다. 먼저 현재 결론과 실거래 상태를 보고, 그 다음 거시·테마·기업·재무·밸류에이션·리스크·가상 매매 검증 순서로 읽는다.
-            </p>
-          </div>
-          
-          <div style={{ 
-            padding: "20px 32px", 
-            background: "rgba(59, 130, 246, 0.1)", 
-            border: "1px solid rgba(59, 130, 246, 0.2)",
-            borderRadius: "var(--radius-md)",
-            textAlign: "center"
-          }}>
-            <span className="metric-sub" style={{ color: "var(--accent-blue)" }}>종합 점수</span>
-            <div style={{ fontSize: "2.5rem", fontWeight: 700, color: "var(--text-primary)", margin: "4px 0" }}>
-              {formatPercent(data.score)}
-            </div>
-            <div style={{ fontSize: "0.85rem", color: "var(--accent-blue)", fontWeight: 700 }}>
-              {koCode(data.recommendation)}
-            </div>
-          </div>
+
+        <div className="decision-brief-grid">
+          <Link className="decision-card primary" href="#recommendation-professional-flow">
+            <span>현재 결론</span>
+            <strong>{qualityDecision.status}</strong>
+            <small>전문 분석 단계에서 무엇이 통과·차단됐는지 먼저 확인한다.</small>
+          </Link>
+          <Link className="decision-card" href={stockHref(data.symbol)}>
+            <span>종목 맥락</span>
+            <strong>{data.symbol} 상세</strong>
+            <small>직접 뉴스, 상위 흐름, 재무·밸류에이션 근거를 종목 단위로 이어서 본다.</small>
+          </Link>
+          <Link className="decision-card" href="#recommendation-professional-flow">
+            <span>분석 단계</span>
+            <strong>{readyDecisionStepCount}/{decisionWaterfall.steps.length} 통과</strong>
+            <small>주의 {watchDecisionStepCount}개 · 차단 {blockedDecisionStepCount}개.</small>
+          </Link>
+          <Link className="decision-card" href="/paper-trading">
+            <span>거래 경계</span>
+            <strong>{orderBoundaryLabel(decisionWaterfall.order_boundary)}</strong>
+            <small>가상 매매와 실거래 제출 가능 여부를 분리해서 확인한다.</small>
+          </Link>
         </div>
       </section>
 

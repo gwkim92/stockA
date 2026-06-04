@@ -6,7 +6,7 @@
 
 ## Goal
 
-- goal: 첫 slice가 끝나면 `/events`, `/ai-evidence`, `/ai-evidence/blocked`, `/ai-evidence/results`가 원장 덤프형 첫 화면이 아니라 decision-first 화면이 된다.
+- goal: 웹사이트의 주요 판단 화면을 원장 덤프형 첫 화면에서 벗어나게 하고, 사용자가 각 페이지 첫 화면에서 현재 결론, 핵심 근거, 다음 확인 위치를 먼저 보게 만든다.
 
 ## Mutable Surface
 
@@ -18,6 +18,10 @@
 - mutable surface: `apps/web/src/app/page.tsx`
 - mutable surface: `apps/web/src/app/data-health/page.tsx`
 - mutable surface: `apps/web/src/app/intelligence/page.tsx`
+- mutable surface: `apps/web/src/app/cycle-map/page.tsx`
+- mutable surface: `apps/web/src/app/paper-trading/page.tsx`
+- mutable surface: `apps/web/src/app/stocks/[symbol]/page.tsx`
+- mutable surface: `apps/web/src/app/recommendations/[recommendationId]/page.tsx`
 - mutable surface: `docs/plans/2026-06-04-ux-information-architecture-reset-v1.md`
 - mutable surface: `docs/tasks/ux-information-architecture-reset-v1/`
 
@@ -32,6 +36,7 @@
 ## Scope
 
 - Replace repeated giant hero/command-panel patterns on the first news/AI pages with compact decision summaries.
+- Extend the same pattern to major investor decision pages: home, data health, intelligence, cycle map, stock detail, recommendation detail, and paper trading.
 - Keep raw lists available below fold.
 - Use Korean investor-facing copy, not operator-log phrasing.
 - Preserve existing read-only route data calls.
@@ -49,4 +54,9 @@
 - `/ai-evidence` first viewport separates direct evidence, macro-flow evidence, blocked evidence, and latest detail without dumping rows first.
 - `/ai-evidence/blocked` first viewport explains what stays blocked versus what needs taxonomy/alias remediation.
 - `/ai-evidence/results` first viewport separates recommendation input, macro-flow, direct instrument, and no-order boundary.
+- `/`, `/data-health`, `/intelligence` first viewport tells the user what needs attention today before raw monitoring details.
+- `/cycle-map` first viewport explains the hottest flow, news impact count, exposed nodes, and recommendation links before graph layers.
+- `/stocks/[symbol]` first viewport separates recommendation, holding, news/flow, and thesis before dense professional evidence panels.
+- `/recommendations/[recommendationId]` first viewport separates recommendation decision, score, professional step state, paper validation, and live order boundary.
+- `/paper-trading` first viewport clearly distinguishes simulated actions from real order submission.
 - Existing data remains reachable below fold.

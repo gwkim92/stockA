@@ -267,69 +267,40 @@ export default async function PaperTradingPage() {
     },
   ];
   return (
-    <div className="terminal-page">
-      <section className="page-hero reveal" aria-labelledby="paper-title">
-        <div>
-          <div className="bento-badge">가상 매매 • 주문 전 안전 점검</div>
-          <h1 className="page-title" id="paper-title">
-            현재는 실거래가 아니라 가상 매매 검증 단계다.
+    <div className="terminal-page decision-page">
+      <section className="decision-brief reveal" aria-labelledby="paper-title">
+        <div className="decision-brief-main">
+          <span className="decision-brief-kicker">가상 매매 · 주문 전 안전 점검</span>
+          <h1 className="decision-brief-title" id="paper-title">
+            실제 주문 전송은 {liveSubmitCount.toLocaleString("ko-KR")}건이고, 지금은 가상 검증 단계다.
           </h1>
-        </div>
-        <p className="page-lede">
-          이 화면은 추천을 바로 주문으로 바꾸지 않는다. 최신 추천과 현재 가상 포트폴리오 보유 내역을 대조해
-          “실제로 주문한다면 어떤 조치가 필요할지”만 계산한다. 안전 조건과 감사 기록이 막으면 실거래로 넘어가지 않는다.
-        </p>
-      </section>
-
-      <section className="paper-command-panel reveal delay-1" aria-labelledby="paper-execution-boundary-title">
-        <div className="paper-command-lead">
-          <span>가상 매매 현황판</span>
-          <h2 id="paper-execution-boundary-title">주문이 나갔는지, 시뮬레이션일 뿐인지 먼저 구분한다.</h2>
-          <p>
-            가상 매매는 주문 실행이 아니다. 실제 주문 전송 여부, 시뮬레이션 항목,
-            차단 조건, 다음 확인 위치를 분리해서 본다.
+          <p className="decision-brief-copy">
+            이 화면은 주문 버튼이 아니다. 추천과 보유 내역을 대조해 “주문한다면 무엇이 필요한지”만 계산하고,
+            안전 조건과 감사 경계가 막으면 실거래로 넘어가지 않는다.
           </p>
+          <div className="decision-brief-meta" aria-label="가상 매매 핵심 상태">
+            <span>추천 {summary.recommendation_count.toLocaleString("ko-KR")}개</span>
+            <span>가상 항목 {simulatedActionCount.toLocaleString("ko-KR")}개</span>
+            <span>차단 {trading.gate_summary.blocked_count.toLocaleString("ko-KR")}개</span>
+            <span>적중률 {formatPercent(summary.hit_rate)}</span>
+          </div>
         </div>
-        <div className="paper-command-grid">
+        <div className="decision-brief-grid">
           {paperCommandCards.map((card) => (
-            <a className={`paper-command-card ${card.tone}`} href={card.href} key={card.index}>
-              <span>{card.index}</span>
-              <small>{card.label}</small>
+            <a
+              className={`decision-card ${
+                card.tone === "ready" ? "is-good" : card.tone === "watch" ? "is-watch" : "is-block"
+              }`}
+              href={card.href}
+              key={card.index}
+            >
+              <span>{card.label}</span>
               <strong>{card.title}</strong>
-              <em>{card.metric}</em>
-              <p>{card.body}</p>
+              <small>{card.metric} · {card.body}</small>
               <b>{card.cta}</b>
             </a>
           ))}
         </div>
-      </section>
-
-      <section className="status-rail compact-rail reveal delay-1" aria-label="가상 매매 요약">
-        <article className="rail-cell">
-          <span>추천 수</span>
-          <strong>{summary.recommendation_count}</strong>
-          <small>{data.latest_recommendation_batch.as_of_date || "추천 신호 없음"}</small>
-        </article>
-        <article className="rail-cell">
-          <span>측정 완료</span>
-          <strong>{summary.measured_recommendation_count}</strong>
-          <small>미측정 {summary.unmeasured_recommendation_count}</small>
-        </article>
-        <article className="rail-cell">
-          <span>적중률</span>
-          <strong>{formatPercent(summary.hit_rate)}</strong>
-          <small>평균 알파 {formatPercent(summary.average_alpha)}</small>
-        </article>
-        <article className="rail-cell rail-critical">
-          <span>추천/보유 충돌</span>
-          <strong>{summary.position_recommendation_conflict_count}</strong>
-          <small>거래 안전 재확인 필요 {summary.requires_human_approval_count}</small>
-        </article>
-        <article className="rail-cell">
-          <span>실제 주문 제출</span>
-          <strong>{trading.audit_summary.submitted_to_broker_count}</strong>
-          <small>가상 매매 검증 통과 항목 {trading.paper_validation.approved_action_count}</small>
-        </article>
       </section>
 
       <section className="paper-state-panel reveal delay-1" id="paper-current-state" aria-labelledby="paper-current-state-title">
