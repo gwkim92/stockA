@@ -2,7 +2,7 @@
 
 ## Status
 
-- in progress: all primary app first-view slices deployed and verified; news/event ledger row readability improved locally; legacy unused CSS cleanup remains.
+- in progress: all primary app first-view slices deployed and verified; news/event ledger row readability deployed and verified; legacy unused CSS cleanup and full-page lower-fold readability audit remain.
 
 ## Current Status
 
@@ -26,7 +26,7 @@
 
 ## Exact Next Step
 
-- exact next step: deploy the shared news/event ledger card path, then remove unused legacy command-panel CSS if no route still uses it.
+- exact next step: run a full route readability audit from the deployed UI, then remove unused legacy command-panel CSS if no route still uses it.
 
 ## Risks
 
@@ -82,6 +82,9 @@
 - passed locally for news/event ledger card path: `PYTHONPATH=/Users/woody/ai/agent-work-harness/src /opt/homebrew/bin/python3.13 -m awh verify --repo . --task ux-information-architecture-reset-v1`
 - passed locally for news/event ledger card path: Playwright route smoke on `http://127.0.0.1:3002/events`, `/events/classification`, `/ai-evidence/blocked`, `/ai-evidence/results`
 - passed locally for news/event ledger card path: mobile smoke for the same 4 routes, no horizontal overflow at 390px viewport
+- passed deployed for news/event ledger card path: Playwright route smoke on `http://127.0.0.1:13000/events`, `/events/classification`, `/ai-evidence/blocked`, `/ai-evidence/results`
+- passed deployed for news/event ledger card path: mobile smoke for the same 4 routes, no horizontal overflow at 390px viewport
+- deployed commit: `4ecc3b9`
 
 ## Browser Evidence
 
@@ -176,3 +179,11 @@
 - local mobile screenshot: `/tmp/stockanalysis-ux-reset-v1-news-card-path-fixed/mobile-classification.png`
 - local mobile screenshot: `/tmp/stockanalysis-ux-reset-v1-news-card-path-fixed/mobile-ai-evidence-blocked.png`
 - local mobile screenshot: `/tmp/stockanalysis-ux-reset-v1-news-card-path-fixed/mobile-ai-evidence-results.png`
+- deployed screenshot: `/tmp/stockanalysis-ux-reset-v1-news-card-path-deployed/events.png`
+- deployed screenshot: `/tmp/stockanalysis-ux-reset-v1-news-card-path-deployed/classification.png`
+- deployed screenshot: `/tmp/stockanalysis-ux-reset-v1-news-card-path-deployed/ai-evidence-blocked.png`
+- deployed screenshot: `/tmp/stockanalysis-ux-reset-v1-news-card-path-deployed/ai-evidence-results.png`
+- deployed mobile screenshot: `/tmp/stockanalysis-ux-reset-v1-news-card-path-deployed/mobile-events.png`
+- deployed mobile screenshot: `/tmp/stockanalysis-ux-reset-v1-news-card-path-deployed/mobile-classification.png`
+- deployed mobile screenshot: `/tmp/stockanalysis-ux-reset-v1-news-card-path-deployed/mobile-ai-evidence-blocked.png`
+- deployed mobile screenshot: `/tmp/stockanalysis-ux-reset-v1-news-card-path-deployed/mobile-ai-evidence-results.png`
