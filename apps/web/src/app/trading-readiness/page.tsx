@@ -359,31 +359,26 @@ export default async function TradingReadinessPage() {
             <span>킬 스위치와 검증</span>
             <h2>현재 차단 장치</h2>
           </div>
-          <div className="ledger-table-wrap">
-            <table className="ledger-table data-health-table">
-              <thead>
-                <tr>
-                  <th scope="col">구분</th>
-                  <th scope="col">상태</th>
-                  <th scope="col">이유</th>
-                  <th scope="col">변경</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.kill_switches.map((item) => (
-                  <tr key={`${item.scope}-${item.scope_ref}`}>
-                    <td>{userText(item.scope)} · {userText(item.scope_ref)}</td>
-                    <td>
-                      <span className={`risk-tag ${item.is_engaged ? "risk-high" : "risk-low"}`}>
-                        {item.is_engaged ? "차단 중" : "열림"}
-                      </span>
-                    </td>
-                    <td>{userText(item.reason)}</td>
-                    <td>{item.changed_at || "변경 기록 없음"}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <p className="empty-copy">
+            킬 스위치는 범위별 최종 차단 장치다. 아래 카드 중 하나라도 차단 중이면 해당 범위의 실거래 전환은
+            진행하지 않는다.
+          </p>
+          <div className="trading-safety-card-grid" aria-label="킬 스위치 차단 상태">
+            {data.kill_switches.map((item) => (
+              <article className="trading-safety-card" key={`${item.scope}-${item.scope_ref}`}>
+                <div className="trading-safety-card-head">
+                  <span>{userText(item.scope)}</span>
+                  <strong>{userText(item.scope_ref) || "전체 범위"}</strong>
+                  <b className={`risk-tag ${item.is_engaged ? "risk-high" : "risk-low"}`}>
+                    {item.is_engaged ? "차단 중" : "열림"}
+                  </b>
+                </div>
+                <p>{userText(item.reason) || "저장된 사유 없음"}</p>
+                <small>
+                  변경 {item.changed_at || "기록 없음"} · 변경자 {userText(item.changed_by) || "미기록"}
+                </small>
+              </article>
+            ))}
           </div>
         </article>
 
@@ -392,40 +387,31 @@ export default async function TradingReadinessPage() {
               <span>가상 매매 검증/기록</span>
               <h2>가상 매매 검증과 결정 기록</h2>
             </div>
-          <dl className="fact-list">
-            <div>
-              <dt>가상 매매 검증 상태</dt>
-              <dd>{userText(data.paper_validation.status)}</dd>
-            </div>
-            <div>
-              <dt>검증일</dt>
-              <dd>{data.paper_validation.validation_date || "없음"}</dd>
-            </div>
-            <div>
-              <dt>충돌 수</dt>
-              <dd>{data.paper_validation.conflict_count.toLocaleString("ko-KR")}</dd>
-            </div>
-            <div>
-              <dt>검증 통과 항목</dt>
-              <dd>{data.paper_validation.approved_action_count.toLocaleString("ko-KR")}</dd>
-            </div>
-            <div>
-              <dt>결정 기록</dt>
-              <dd>{data.audit_summary.intent_count.toLocaleString("ko-KR")}건</dd>
-            </div>
-            <div>
-              <dt>실제 주문 전송</dt>
-              <dd>{liveSubmitCount.toLocaleString("ko-KR")}건</dd>
-            </div>
-            <div>
-              <dt>위험 예산 검증</dt>
-              <dd>{userText(riskGuardrail.risk_gate_decision)}</dd>
-            </div>
-            <div>
-              <dt>위험 예산 기준일</dt>
-              <dd>{riskGuardrail.effective_snapshot_date || "없음"}</dd>
-            </div>
-          </dl>
+          <div className="trading-validation-grid" aria-label="가상 매매 검증과 결정 기록 요약">
+            <article>
+              <span>가상 매매 검증</span>
+              <strong>{userText(data.paper_validation.status)}</strong>
+              <small>검증일 {data.paper_validation.validation_date || "없음"}</small>
+            </article>
+            <article>
+              <span>충돌 / 통과</span>
+              <strong>
+                {data.paper_validation.conflict_count.toLocaleString("ko-KR")} /{" "}
+                {data.paper_validation.approved_action_count.toLocaleString("ko-KR")}
+              </strong>
+              <small>추천 {data.paper_validation.recommendation_count.toLocaleString("ko-KR")}개 대조</small>
+            </article>
+            <article>
+              <span>결정 기록</span>
+              <strong>{data.audit_summary.intent_count.toLocaleString("ko-KR")}건</strong>
+              <small>실제 주문 전송 {liveSubmitCount.toLocaleString("ko-KR")}건</small>
+            </article>
+            <article>
+              <span>위험 예산</span>
+              <strong>{userText(riskGuardrail.risk_gate_decision)}</strong>
+              <small>기준일 {riskGuardrail.effective_snapshot_date || "없음"}</small>
+            </article>
+          </div>
           <div className="reason-list" aria-label="포트폴리오 위험 예산 차단 사유">
             {riskGuardrail.blocking_reasons.length > 0 ? riskGuardrail.blocking_reasons.map((reason) => {
               const detail = koBlockedReason(`portfolio_risk_budget_guardrail_blocker:${reason}`);

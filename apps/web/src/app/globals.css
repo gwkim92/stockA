@@ -4892,6 +4892,110 @@ h6 {
   overflow-wrap: anywhere;
 }
 
+.trading-safety-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 12px;
+}
+
+.trading-safety-card {
+  min-width: 0;
+  padding: 16px;
+  background:
+    linear-gradient(135deg, rgba(251, 250, 246, 0.94), rgba(239, 236, 226, 0.72)),
+    repeating-linear-gradient(
+      90deg,
+      rgba(17, 18, 15, 0.035),
+      rgba(17, 18, 15, 0.035) 1px,
+      transparent 1px,
+      transparent 22px
+    );
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+}
+
+.trading-safety-card-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 9px;
+  align-items: start;
+}
+
+.trading-safety-card-head span {
+  grid-column: 1 / -1;
+  color: var(--text-tertiary);
+  font-size: 0.7rem;
+  font-weight: 900;
+}
+
+.trading-safety-card-head strong {
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: clamp(1.35rem, 2vw, 1.9rem);
+  line-height: 1;
+}
+
+.trading-safety-card p {
+  margin: 13px 0 0;
+  color: var(--text-secondary);
+  font-size: 0.84rem;
+  font-weight: 760;
+  line-height: 1.52;
+  word-break: keep-all;
+}
+
+.trading-safety-card small {
+  display: block;
+  margin-top: 12px;
+  color: var(--text-tertiary);
+  font-size: 0.72rem;
+  font-weight: 820;
+  line-height: 1.4;
+}
+
+.trading-validation-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.trading-validation-grid article {
+  min-width: 0;
+  padding: 14px;
+  background: rgba(255, 255, 255, 0.62);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+}
+
+.trading-validation-grid span,
+.trading-validation-grid strong,
+.trading-validation-grid small {
+  display: block;
+}
+
+.trading-validation-grid span {
+  color: var(--text-tertiary);
+  font-size: 0.66rem;
+  font-weight: 900;
+}
+
+.trading-validation-grid strong {
+  margin-top: 8px;
+  color: var(--text-primary);
+  font-size: clamp(1rem, 1.5vw, 1.4rem);
+  font-weight: 950;
+  line-height: 1.1;
+}
+
+.trading-validation-grid small {
+  margin-top: 8px;
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  font-weight: 780;
+  line-height: 1.4;
+}
+
 .scheduler-timer-card,
 .operating-flow-card {
   min-width: 0;
@@ -5320,7 +5424,9 @@ h6 {
 
   .portfolio-review-card-grid,
   .portfolio-review-metrics,
-  .portfolio-review-evidence {
+  .portfolio-review-evidence,
+  .trading-safety-card-grid,
+  .trading-validation-grid {
     grid-template-columns: 1fr;
   }
 
