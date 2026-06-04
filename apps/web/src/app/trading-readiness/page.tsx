@@ -51,9 +51,25 @@ function cleanCopy(value: string) {
   return value
     .replaceAll(["페", "이퍼"].join(""), "가상 매매")
     .replaceAll("가상 거래", "가상 매매")
+    .replaceAll("simulated paper", "가상 매매 전용")
+    .replaceAll("paper trade", "가상 매매")
     .replaceAll("paper validation", "가상 매매 검증")
+    .replaceAll("order intent audit", "주문 의도 감사 기록")
+    .replaceAll("audit row", "감사 기록")
+    .replaceAll("FastAPI frontend server", "읽기 전용 화면 서버")
+    .replaceAll("write endpoint", "쓰기 기능")
+    .replaceAll("submitted to broker", "실제 주문으로 전송된")
+    .replaceAll("submitted to", "제출된")
     .replaceAll("broker submit", "실거래 주문 제출")
     .replaceAll("broker", "증권사 연결")
+    .replaceAll("secret", "접속 정보")
+    .replaceAll("adapter", "연동기")
+    .replaceAll("preview", "미리보기")
+    .replaceAll("scope", "권한 범위")
+    .replaceAll("enabled", "활성")
+    .replaceAll("not available", "아직 없음")
+    .replaceAll("not_available", "아직 없음")
+    .replaceAll("global", "전체")
     .replaceAll("주문 경계", "실거래 상태")
     .replaceAll("order boundary", "실거래 상태")
     .replaceAll("read_only_no_order", "읽기 전용, 실거래 주문 차단");
@@ -347,7 +363,7 @@ export default async function TradingReadinessPage() {
               <tbody>
                 {data.kill_switches.map((item) => (
                   <tr key={`${item.scope}-${item.scope_ref}`}>
-                    <td>{userText(item.scope)} · {item.scope_ref}</td>
+                    <td>{userText(item.scope)} · {userText(item.scope_ref)}</td>
                     <td>
                       <span className={`risk-tag ${item.is_engaged ? "risk-high" : "risk-low"}`}>
                         {item.is_engaged ? "차단 중" : "열림"}

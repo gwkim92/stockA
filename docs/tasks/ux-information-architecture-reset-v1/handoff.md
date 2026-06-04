@@ -47,6 +47,11 @@
 - completed locally: verified rendered text for `/source-documents/aapl-2024-10k-20240928` and `/stocks/AAPL` on `http://127.0.0.1:13002` with Playwright CLI; source document no longer shows default raw storage/checksum IDs, stock detail no longer shows `fixture`, `live DB`, `RAG endpoint`, `stored relationship`, or `저장 DB 기준` in the checked sections.
 - completed locally: refactored `/data-health` monitoring copy so first-view and AI quality sections use user-facing labels (`확인 필요 항목`, `실거래 상태`, `읽기 서버`, `조회 권한`, `AI 기준 평가`, `원문 없는 종목 코드`) instead of raw operator terms (`open gate`, `order boundary`, `운영 API`, `인증/RBAC`, `LLM`, `ticker`, `validator`, `case`, `EC2`).
 - completed locally: verified `/data-health` rendered text on `http://127.0.0.1:13002`; the checked first-view and AI quality sections no longer expose `LLM`, `회귀평가`, `운영 API`, `인증/RBAC`, `열린 조건`, `주문 경계`, `평가 case`, `EC2`, `fixture/gold`, `fallback`, `ticker`, `unknown theme`, or `validator`.
+- completed locally: audited rendered text across 22 local routes on `http://127.0.0.1:13002`; remaining targeted raw-term hits were limited to `/`, `/intelligence`, and `/trading-readiness`.
+- completed locally: changed home page fallback and rail copy from internal `fixture/outcome/feedback/thesis/paper` wording to user-facing Korean terms for recommendation performance measurement, portfolio follow-up review, investment thesis, and simulated-trade validation.
+- completed locally: changed `/intelligence` recommendation linkage copy from `주문 경계` to `실거래 상태`.
+- completed locally: hardened `/trading-readiness` copy normalization for visible internal execution terms including `simulated paper`, `paper trade`, `audit row`, `order intent audit`, `FastAPI frontend server`, `write endpoint`, `secret`, `submitted to`, `adapter`, `not available`, and raw scope refs.
+- completed locally: verified `/`, `/intelligence`, and `/trading-readiness` rendered text on `http://127.0.0.1:13002`; the targeted raw terms above no longer render in the checked pages.
 
 ## Exact Next Step
 
@@ -107,6 +112,13 @@
 - passed locally for data-health terminology cleanup: `git diff --check`
 - passed locally for data-health terminology cleanup: Playwright rendered text check on `http://127.0.0.1:13002/data-health`
 - not run for data-health terminology cleanup: EC2 deployed route smoke, intentionally deferred because current network is public Wi-Fi.
+- passed locally for rendered terminology cleanup: `cd apps/web && npm run typecheck`
+- passed locally for rendered terminology cleanup: `cd apps/web && npm run build`
+- passed locally for rendered terminology cleanup: `bash scripts/verify_frontend_detail_routes.sh`
+- passed locally for rendered terminology cleanup: `PYTHONPATH=/Users/woody/ai/agent-work-harness/src python3 -m awh verify --repo . --task ux-information-architecture-reset-v1`
+- passed locally for rendered terminology cleanup: `curl -fsS http://127.0.0.1:13002/`
+- passed locally for rendered terminology cleanup: Playwright rendered text checks on `http://127.0.0.1:13002/`, `/intelligence`, and `/trading-readiness`
+- not run for rendered terminology cleanup: EC2 deployed route smoke, intentionally deferred because current network is public Wi-Fi.
 - passed: `cd apps/web && npm run typecheck`
 - passed: `cd apps/web && npm run build`
 - passed: `PYTHONPATH=/Users/woody/ai/agent-work-harness/src /opt/homebrew/bin/python3.13 -m awh verify --repo . --task ux-information-architecture-reset-v1`

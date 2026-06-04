@@ -65,8 +65,8 @@ function fallbackOutcomeWaitMonitor(asOfDate: string): DataHealthData["outcome_m
   return {
     status: "unavailable",
     title: "성과 대기 정보가 아직 연결되지 않았다",
-    summary: "로컬 fixture 또는 부분 장애 상태라 추천 outcome과 포트폴리오 feedback 성숙일을 확인하지 못했다.",
-    next_action: "데이터 상태 화면에서 outcome maturity wait monitor 수집 여부를 확인한다.",
+    summary: "추천 성과 측정일과 포트폴리오 사후 평가 성숙일이 아직 연결되지 않았다.",
+    next_action: "데이터 상태 화면에서 성과 성숙 대기 정보가 연결됐는지 확인한다.",
     as_of_date: asOfDate,
     recommendation_next_due_date: "",
     recommendation_next_due_count: 0,
@@ -83,7 +83,7 @@ function fallbackOutcomeWaitMonitor(asOfDate: string): DataHealthData["outcome_m
     wait_item_count: 0,
     wait_items: [],
     weight_review_blocked: true,
-    weight_review_block_reason: "outcome_maturity_wait_monitor_unavailable",
+    weight_review_block_reason: "성과 성숙 대기 정보 미연결",
     manual_weight_review_allowed: false,
     recommendation_scoring_mutated: false,
     benchmark_definition_mutated: false,
@@ -229,7 +229,7 @@ export default async function HomePage() {
       index: "04",
       title: "추천 근거가 충분한가",
       status: `${recommendationBoundary.decision_review_ready_count}개 판단 후보`,
-      detail: `페이퍼 대기 ${recommendationBoundary.paper_validation_pending_count}개, 차단 ${recommendationBoundary.decision_blocked_count}개, 열린 검토 ${ticketCount}개`,
+      detail: `가상 매매 검증 대기 ${recommendationBoundary.paper_validation_pending_count}개, 차단 ${recommendationBoundary.decision_blocked_count}개, 열린 검토 ${ticketCount}개`,
       href: "/recommendations",
       cta: "추천 근거",
     },
@@ -339,7 +339,7 @@ export default async function HomePage() {
           <Link className="decision-card is-watch" href={"/recommendations" as Route}>
             <span>추천·보유</span>
             <strong>{recommendationBoundary.decision_review_ready_count.toLocaleString("ko-KR")}개 후보</strong>
-            <small>페이퍼 대기 {recommendationBoundary.paper_validation_pending_count.toLocaleString("ko-KR")}개 · 열린 검토 {ticketCount.toLocaleString("ko-KR")}개</small>
+            <small>가상 매매 검증 대기 {recommendationBoundary.paper_validation_pending_count.toLocaleString("ko-KR")}개 · 열린 검토 {ticketCount.toLocaleString("ko-KR")}개</small>
             <b>추천 보기</b>
           </Link>
           <Link className={tradingBlockedCount > 0 ? "decision-card is-block" : "decision-card is-good"} href={"/trading-readiness" as Route}>
@@ -371,12 +371,12 @@ export default async function HomePage() {
         </p>
         <div className="status-rail compact-rail">
           <article className="rail-cell">
-            <span>추천 outcome</span>
+            <span>추천 성과 측정</span>
             <strong>{recommendationOutcomeDate}</strong>
             <small>다음 측정 대상 {outcomeWaitMonitor.recommendation_next_due_count}개</small>
           </article>
           <article className="rail-cell">
-            <span>포트폴리오 feedback</span>
+            <span>포트폴리오 사후 평가</span>
             <strong>{portfolioFeedbackDate}</strong>
             <small>성숙 표본 부족 {outcomeWaitMonitor.portfolio_mature_decision_gap}개</small>
           </article>
@@ -418,7 +418,7 @@ export default async function HomePage() {
         <article className="rail-cell">
           <span>추천 판단 후보</span>
           <strong>{recommendationBoundary.decision_review_ready_count}</strong>
-          <small>페이퍼 대기 {recommendationBoundary.paper_validation_pending_count}개</small>
+          <small>가상 매매 검증 대기 {recommendationBoundary.paper_validation_pending_count}개</small>
         </article>
         <article className="rail-cell rail-critical">
           <span>추천 사용 차단</span>
@@ -483,7 +483,7 @@ export default async function HomePage() {
             <span>추천 사용 경계</span>
             <strong>{recommendationBoundary.decision_review_ready_count}개 판단 후보</strong>
             <p>
-              페이퍼 검증 대기 {recommendationBoundary.paper_validation_pending_count}개, 근거·thesis 차단{" "}
+              가상 매매 검증 대기 {recommendationBoundary.paper_validation_pending_count}개, 근거·투자 논리 차단{" "}
               {recommendationBoundary.decision_blocked_count}개. 모든 추천은 주문 차단 상태다.
             </p>
           </article>

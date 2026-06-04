@@ -832,7 +832,7 @@ export default async function IntelligencePage() {
             <p>추천 상세에서 직접 뉴스, 상위 흐름, 가격·사이클 근거를 분리해서 본다.</p>
           </article>
           <article className="brief-signal-card watch">
-            <span>주문 경계</span>
+            <span>실거래 상태</span>
             <strong>읽기 전용</strong>
             <p>AI 근거는 주문 결론이 아니다. 실거래 제출은 계속 차단된다.</p>
           </article>
