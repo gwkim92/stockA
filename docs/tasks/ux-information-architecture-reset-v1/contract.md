@@ -32,6 +32,8 @@
 - mutable surface: `apps/web/src/app/remediation/page.tsx`
 - mutable surface: `apps/web/src/app/source-documents/[documentId]/page.tsx`
 - mutable surface: `apps/web/src/app/ai-evidence/[evidenceId]/page.tsx`
+- mutable surface: `apps/web/src/app/themes/[themeKey]/page.tsx`
+- mutable surface: `apps/web/src/app/theses/[thesisId]/page.tsx`
 - mutable surface: `docs/plans/2026-06-04-ux-information-architecture-reset-v1.md`
 - mutable surface: `docs/tasks/ux-information-architecture-reset-v1/`
 
@@ -79,4 +81,6 @@
 - `/remediation` first viewport separates open tickets, high-risk gaps, allocation policy, and no-auto-action boundary.
 - `/source-documents/[documentId]` first viewport separates Korean source summary, excerpts, linked AI evidence, and access policy.
 - `/ai-evidence/[evidenceId]` first viewport separates evidence use status, source document, stock connection, recommendation connection, and model/cost metadata.
+- `/themes/[themeKey]` first viewport separates cycle state, linked instruments, supporting events, and upstream flow map.
+- `/theses/[thesisId]` first viewport separates latest review, professional gates, evidence ledger, and no-order boundary.
 - Existing data remains reachable below fold.

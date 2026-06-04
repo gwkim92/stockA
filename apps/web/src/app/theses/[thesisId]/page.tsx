@@ -343,38 +343,54 @@ export default async function ThesisPage({ params }: ThesisPageProps) {
   const valuationRows = valuationItems(lifecycle.valuation);
 
   return (
-    <div className="pageStack">
-      <section className="reveal">
-        <div className="bento-badge">
-          투자 논리 • {data.symbol} • {koCode(data.status)} • {koCode(data.thesis_version)}
+    <div className="pageStack decision-page">
+      <section className="decision-brief reveal" aria-labelledby="thesis-detail-title">
+        <div className="decision-brief-main">
+          <span className="decision-brief-kicker">
+            투자 논리 · {data.symbol} · {koCode(data.status)} · {koCode(data.thesis_version)}
+          </span>
+          <h1 className="decision-brief-title" id="thesis-detail-title">
+            {data.symbol} 투자 논리: 최근 검토 {koCode(data.latest_review.action)}
+          </h1>
+          <p className="decision-brief-copy">
+            {koLabel(data.summary)} 투자 논리는 주문 지시가 아니라 “왜 보유/추천하는가, 무엇이 틀리면 나갈 것인가”를 검증하는 기준이다.
+          </p>
+          <div className="decision-brief-meta" aria-label="투자 논리 핵심 상태">
+            <span>위험도 {koCode(data.latest_review.risk_level)}</span>
+            <span>전문 게이트 {professionalGates.pass_count}/{professionalGates.gate_count} 통과</span>
+            <span>차단 {professionalGates.blocked_count.toLocaleString("ko-KR")}개</span>
+            <span>근거 {data.evidence.length.toLocaleString("ko-KR")}개</span>
+          </div>
         </div>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "24px", flexWrap: "wrap" }}>
-          <div>
-            <h1 style={{ fontSize: "clamp(2.5rem, 4vw, 4rem)", marginBottom: "16px" }}>투자 논리와 증거 원장</h1>
-            <p style={{ color: "var(--text-secondary)", fontSize: "1.1rem", maxWidth: "700px" }}>
-              {koLabel(data.summary)}
-            </p>
-          </div>
-          
-          <div style={{ 
-            padding: "20px 32px", 
-            background: "rgba(16, 185, 129, 0.1)", 
-            border: "1px solid rgba(16, 185, 129, 0.2)",
-            borderRadius: "var(--radius-md)",
-            textAlign: "center"
-          }}>
-            <span className="metric-sub" style={{ color: "var(--accent-green)" }}>최근 검토</span>
-            <div style={{ fontSize: "2rem", fontWeight: 700, color: "var(--text-primary)", margin: "4px 0" }}>
-              {koCode(data.latest_review.action)}
-            </div>
-            <div style={{ fontSize: "0.8rem", color: "var(--accent-green)", fontWeight: 500 }}>
-              위험도 {koCode(data.latest_review.risk_level)}
-            </div>
-          </div>
+        <div className="decision-brief-grid">
+          <a className={professionalGates.blocked_count > 0 ? "decision-card is-block" : "decision-card is-good"} href="#thesis-professional-gates">
+            <span>전문 검증</span>
+            <strong>{professionalGates.status === "complete" ? "통과" : professionalGates.status === "blocked" ? "차단" : "재검토"}</strong>
+            <small>주의 {professionalGates.warning_count.toLocaleString("ko-KR")}개 · 차단 {professionalGates.blocked_count.toLocaleString("ko-KR")}개</small>
+            <b>게이트 보기</b>
+          </a>
+          <a className="decision-card is-watch" href="#thesis-lifecycle">
+            <span>최근 검토</span>
+            <strong>{koCode(data.latest_review.action)}</strong>
+            <small>위험도 {koCode(data.latest_review.risk_level)} · 변화 사유를 아래에서 확인한다.</small>
+            <b>검토 보기</b>
+          </a>
+          <a className={data.evidence.length > 0 ? "decision-card is-good" : "decision-card is-watch"} href="#thesis-evidence-ledger">
+            <span>근거 원장</span>
+            <strong>{data.evidence.length.toLocaleString("ko-KR")}개</strong>
+            <small>뉴스·공시·성과 근거가 투자 논리를 받치는지 확인한다.</small>
+            <b>근거 보기</b>
+          </a>
+          <a className="decision-card is-block" href="#thesis-professional-gates">
+            <span>주문 경계</span>
+            <strong>자동 주문 없음</strong>
+            <small>이 화면은 투자 논리 품질 검토이며 증권사 주문 흐름을 실행하지 않는다.</small>
+            <b>경계 보기</b>
+          </a>
         </div>
       </section>
 
-      <section className="bento-card reveal delay-1" aria-label="전문 투자 논리 검증">
+      <section className="bento-card reveal delay-1" id="thesis-professional-gates" aria-label="전문 투자 논리 검증">
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "20px", flexWrap: "wrap", marginBottom: "20px" }}>
           <div>
             <span className="metric-sub">전문 투자 논리 검증</span>
@@ -450,7 +466,7 @@ export default async function ThesisPage({ params }: ThesisPageProps) {
         title={`${data.symbol} 목표가 범위와 안전마진`}
       />
 
-      <section className="bento-card reveal delay-1" aria-label="투자 논리 생애주기">
+      <section className="bento-card reveal delay-1" id="thesis-lifecycle" aria-label="투자 논리 생애주기">
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "20px", flexWrap: "wrap", marginBottom: "20px" }}>
           <div>
             <span className="metric-sub">투자 논리 생애주기</span>
@@ -677,7 +693,7 @@ export default async function ThesisPage({ params }: ThesisPageProps) {
         </div>
       </section>
 
-      <section className="bento-grid reveal delay-1">
+      <section className="bento-grid reveal delay-1" id="thesis-evidence-ledger">
         <article className="bento-card span-4">
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: "24px" }}>
             <div>

@@ -43,36 +43,53 @@ export default async function ThemePage({ params }: ThemePageProps) {
     data.linked_instruments.length > 0 || data.supporting_events.length > 0 || data.cycle_history.length > 0;
   const hasCycleSnapshot =
     data.cycle_history.length > 0 && data.state !== "unknown" && data.state !== "unavailable";
+  const themeDisplayName = koCode(data.theme_key);
 
   return (
-    <div className="pageStack">
-      <section className="reveal">
-        <div className="bento-badge">
-          테마 • {koCode(data.strategy_name)} • {koCode(data.horizon_type)} • {data.as_of_date}
+    <div className="pageStack decision-page">
+      <section className="decision-brief reveal" aria-labelledby="theme-detail-title">
+        <div className="decision-brief-main">
+          <span className="decision-brief-kicker">
+            테마 · {koCode(data.strategy_name)} · {koCode(data.horizon_type)} · {data.as_of_date}
+          </span>
+          <h1 className="decision-brief-title" id="theme-detail-title">
+            {themeDisplayName} · {hasCycleSnapshot ? koCode(data.state) : "사이클 측정 전"}
+          </h1>
+          <p className="decision-brief-copy">
+            테마 화면은 독립 매수 신호가 아니다. 사이클 상태를 실제 종목, 이벤트, 추천, 투자 논리와 연결해 검토 맥락으로 사용한다.
+          </p>
+          <div className="decision-brief-meta" aria-label="테마 상세 핵심 상태">
+            <span>신뢰도 {hasCycleSnapshot ? formatPercent(data.confidence) : "대기"}</span>
+            <span>연결 종목 {data.linked_instruments.length.toLocaleString("ko-KR")}개</span>
+            <span>이벤트 {data.supporting_events.length.toLocaleString("ko-KR")}개</span>
+            <span>이력 {data.cycle_history.length.toLocaleString("ko-KR")}개</span>
+          </div>
         </div>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "24px", flexWrap: "wrap" }}>
-          <div>
-            <h1 style={{ fontSize: "clamp(2.5rem, 4vw, 4rem)", marginBottom: "16px" }}>{koLabel(data.theme_name)}</h1>
-            <p style={{ color: "var(--text-secondary)", fontSize: "1.1rem", maxWidth: "760px" }}>
-              테마 화면은 사이클 상태를 실제 종목과 보조 이벤트에 연결한다. 독립 매수 신호가 아니라 투자 논리
-              검토를 위한 맥락이다.
-            </p>
-          </div>
-          <div style={{
-            padding: "20px 32px",
-            background: "rgba(16, 185, 129, 0.1)",
-            border: "1px solid rgba(16, 185, 129, 0.2)",
-            borderRadius: "var(--radius-md)",
-            textAlign: "center",
-          }}>
-            <span className="metric-sub" style={{ color: "var(--accent-green)" }}>사이클 상태</span>
-            <div style={{ fontSize: "2rem", fontWeight: 700, color: "var(--text-primary)", margin: "4px 0", textTransform: "uppercase" }}>
-              {hasCycleSnapshot ? koCode(data.state) : "측정 전"}
-            </div>
-            <div style={{ fontSize: "0.8rem", color: "var(--accent-green)", fontWeight: 500 }}>
-              {hasCycleSnapshot ? `신뢰도 ${formatPercent(data.confidence)}` : "사이클 스냅샷 대기"}
-            </div>
-          </div>
+        <div className="decision-brief-grid">
+          <a className={hasCycleSnapshot ? "decision-card is-good" : "decision-card is-watch"} href="#theme-cycle-history">
+            <span>사이클 상태</span>
+            <strong>{hasCycleSnapshot ? koCode(data.state) : "측정 전"}</strong>
+            <small>{hasCycleSnapshot ? `점수 ${formatPercent(data.cycle_score)} · 신뢰도 ${formatPercent(data.confidence)}` : "사이클 배치 완료 후 상태가 표시된다."}</small>
+            <b>이력 보기</b>
+          </a>
+          <a className={data.linked_instruments.length > 0 ? "decision-card is-good" : "decision-card is-watch"} href="#theme-linked-instruments">
+            <span>연결 종목</span>
+            <strong>{data.linked_instruments.length.toLocaleString("ko-KR")}개</strong>
+            <small>테마가 어떤 종목에 노출되는지 확인한다.</small>
+            <b>종목 보기</b>
+          </a>
+          <a className={data.supporting_events.length > 0 ? "decision-card is-good" : "decision-card is-watch"} href="#theme-supporting-events">
+            <span>뉴스·이벤트</span>
+            <strong>{data.supporting_events.length.toLocaleString("ko-KR")}개</strong>
+            <small>원천 뉴스와 AI 근거가 테마 상태를 뒷받침하는지 본다.</small>
+            <b>근거 보기</b>
+          </a>
+          <Link className={hasThemeEvidence ? "decision-card" : "decision-card is-watch"} href={"/cycle-map" as Route}>
+            <span>상위 흐름</span>
+            <strong>흐름 지도</strong>
+            <small>거시·도메인·테마·종목 경로를 지도에서 이어서 확인한다.</small>
+            <b>지도 열기</b>
+          </Link>
         </div>
       </section>
 
@@ -100,7 +117,7 @@ export default async function ThemePage({ params }: ThemePageProps) {
       </section>
 
       <section className="bento-grid reveal delay-2">
-        <article className="bento-card span-2">
+        <article className="bento-card span-2" id="theme-cycle-history">
           <div style={{ marginBottom: "24px" }}>
             <span className="metric-sub">사이클 이력</span>
             <h2 style={{ fontSize: "1.5rem" }}>상태 전환</h2>
@@ -127,7 +144,7 @@ export default async function ThemePage({ params }: ThemePageProps) {
           </div>
         </article>
 
-        <article className="bento-card span-2">
+        <article className="bento-card span-2" id="theme-linked-instruments">
           <div style={{ marginBottom: "24px" }}>
             <span className="metric-sub">연결 종목</span>
             <h2 style={{ fontSize: "1.5rem" }}>테마 노출</h2>
@@ -167,7 +184,7 @@ export default async function ThemePage({ params }: ThemePageProps) {
           </div>
         </article>
 
-        <article className="bento-card span-4">
+        <article className="bento-card span-4" id="theme-supporting-events">
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: "24px", gap: "16px", flexWrap: "wrap" }}>
             <div>
               <span className="metric-sub">보조 이벤트</span>

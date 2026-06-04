@@ -2,7 +2,7 @@
 
 ## Status
 
-- in progress: first news/AI evidence UX slice deployed; second home/data-health/intelligence slice deployed; third cycle-map/stock-detail/recommendation-detail/paper-trading slice deployed; fourth list/operation slice deployed; fifth secondary detail slice deployed and verified.
+- in progress: first news/AI evidence UX slice deployed; second home/data-health/intelligence slice deployed; third cycle-map/stock-detail/recommendation-detail/paper-trading slice deployed; fourth list/operation slice deployed; fifth secondary detail slice deployed; sixth theme/thesis detail slice implemented and locally smoke verified.
 
 ## Current Status
 
@@ -20,10 +20,12 @@
 - completed: removed the unused legacy `StockDecisionBrief` component after replacing it with the shared decision-first layout.
 - completed: refactored `/trading-readiness`, `/portfolio/coverage`, `/performance`, `/stocks`, `/recommendations`, `/cycles`, `/events/classification` first viewport to remove repeated page hero/command panel patterns.
 - completed: refactored `/remediation`, `/source-documents/[documentId]`, `/ai-evidence/[evidenceId]` first viewport to remove repeated page hero/command panel patterns.
+- completed: refactored `/themes/[themeKey]` and `/theses/[thesisId]` first viewport to use the shared decision-first structure.
+- completed: fixed theme detail headline so ontology node labels use Korean `theme_key` labels instead of raw English `theme_name`.
 
 ## Exact Next Step
 
-- exact next step: deploy the fifth secondary detail slice, then audit remaining secondary detail pages such as `/themes/[themeKey]`, `/theses/[thesisId]`, and lower-fold dense ledgers.
+- exact next step: deploy the sixth theme/thesis detail slice, then audit lower-fold dense ledgers and remove unused legacy command-panel CSS if no route still uses it.
 
 ## Risks
 
@@ -67,6 +69,10 @@
 - passed deployed for fifth slice: `http://127.0.0.1:13000/remediation`, `/ai-evidence/ai-evidence-251`, `/source-documents/rss%3Amarketwatch-topstories%3Ab057be957d391c978876835f`
 - passed deployed for fifth slice: mobile smoke for the same 3 routes, no horizontal overflow at 390px viewport
 - deployed commit: `ea33ba2`
+- passed locally for sixth slice: `cd apps/web && npm run typecheck`
+- passed locally for sixth slice: `cd apps/web && npm run build`
+- passed locally for sixth slice: Playwright route smoke on `http://127.0.0.1:3002/themes/MACRO_INFLATION`, `/theses/thesis-31`
+- passed locally for sixth slice: mobile smoke for the same 2 routes, no horizontal overflow at 390px viewport
 
 ## Browser Evidence
 
@@ -145,3 +151,7 @@
 - deployed mobile screenshot: `/tmp/stockanalysis-ux-reset-v1-slice5-deployed/mobile-remediation.png`
 - deployed mobile screenshot: `/tmp/stockanalysis-ux-reset-v1-slice5-deployed/mobile-ai-evidence-251.png`
 - deployed mobile screenshot: `/tmp/stockanalysis-ux-reset-v1-slice5-deployed/mobile-source-document.png`
+- local screenshot: `/tmp/stockanalysis-ux-reset-v1-slice6-fixed/theme-detail.png`
+- local screenshot: `/tmp/stockanalysis-ux-reset-v1-slice6-fixed/thesis-detail.png`
+- local mobile screenshot: `/tmp/stockanalysis-ux-reset-v1-slice6-fixed/mobile-theme-detail.png`
+- local mobile screenshot: `/tmp/stockanalysis-ux-reset-v1-slice6-fixed/mobile-thesis-detail.png`
