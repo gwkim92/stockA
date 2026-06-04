@@ -72,10 +72,11 @@
 - completed deployed: EC2 now serves commit `e78dc1b`; `/recommendations/recommendation-67` renders live evidence, gate, score, and outcome cards with no tables, no Server Component error, and no desktop/mobile horizontal overflow.
 - completed locally: refactored `/stocks/[symbol]` lower-fold news/AI evidence neighborhood from generic relationship chips into a dedicated stock evidence panel: summary, readiness gates, `수집된 사건 → 테마·노출 → AI 구조화 → 투자 판단 연결`, story grouping reasons, source evidence cards, and read-only guardrail cards. Data, scoring, recommendation weights, and order boundaries are unchanged.
 - completed locally: fixed visible stock detail terminology normalization for `sec_companyfacts_missing_us_gaap_facts`, `financial_period_source_linkage`, `fundamental 구성요소 가중치`, `SEC companyfacts`, and `us-gaap`.
+- completed deployed: EC2 now serves commit `43a1074`; `/stocks/EROK` renders the live stock evidence panel with story/source/gate/chain cards, no legacy relationship panels inside the stock evidence area, no tables, no Server Component error, no desktop/mobile horizontal overflow, and no targeted raw-term hits.
 
 ## Exact Next Step
 
-- exact next step: deploy the `/stocks/[symbol]` evidence neighborhood refactor to EC2, smoke `/stocks/EROK` through the 13000 tunnel, then continue page-by-page lower-fold copy/content review on the next dense detail/audit surface.
+- exact next step: continue page-by-page lower-fold copy/content review on the next dense detail/audit surface. Candidate targets are remaining source-document technical details, theme/thesis lower-fold evidence lists, or any live page still showing dense audit rows after the stock evidence refactor.
 
 ## Risks
 
@@ -126,6 +127,9 @@
 - passed locally for stock evidence neighborhood refactor: `PYTHONPATH=/Users/woody/ai/agent-work-harness/src /opt/homebrew/bin/python3.13 -m awh verify --repo . --task ux-information-architecture-reset-v1`
 - passed locally for stock evidence neighborhood refactor: `git diff --check`
 - passed locally for stock evidence neighborhood refactor: Playwright dev route smoke on `http://127.0.0.1:13002/stocks/AAPL`, desktop `stockEvidencePanels=1`, `gateCards=1`, `legacyRelationshipPanelsInStockEvidence=0`, `tables=0`, `serverError=false`, `overflow=false`, `rawTermHits=[]`; mobile `stockEvidencePanels=1`, `overflow=false`, `bodyWidth=390`, `scrollWidth=390`, `serverError=false`. Dev-only HMR WebSocket console errors were due to Next `allowedDevOrigins`, not page rendering.
+- passed deployed for stock evidence neighborhood refactor: EC2 fast-forwarded to `43a1074`; server `npm run typecheck`, `npm run build`, and `sudo systemctl restart stockanalysis-frontend-api.service stockanalysis-web.service` completed; both services returned `active`.
+- passed deployed for stock evidence neighborhood refactor: Python HTTP route smoke on `http://127.0.0.1:13000` returned 200 for `/`, `/data-health`, `/stocks/EROK`, `/recommendations/recommendation-67`, `/performance`, and `/paper-trading`.
+- passed deployed for stock evidence neighborhood refactor: Playwright live route smoke on `http://127.0.0.1:13000/stocks/EROK`, desktop `stockEvidencePanels=1`, `storyCards=1`, `sourceCards=1`, `gateCards=5`, `chainCards=4`, `legacyRelationshipPanelsInStockEvidence=0`, `tables=0`, `rawTermHits=[]`, `serverError=false`, `overflow=false`; mobile `stockEvidencePanels=1`, `storyCards=1`, `sourceCards=1`, `overflow=false`, `bodyWidth=390`, `scrollWidth=390`, `serverError=false`.
 - passed locally for source/stock terminology cleanup: `cd apps/web && npm run typecheck`
 - passed locally for source/stock terminology cleanup: `cd apps/web && npm run build`
 - passed locally for source/stock terminology cleanup: `bash scripts/verify_frontend_detail_routes.sh`
