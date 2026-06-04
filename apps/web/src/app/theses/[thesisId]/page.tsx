@@ -134,6 +134,8 @@ function thesisText(value: string | null | undefined) {
     .replace(/lifecycle not available/gi, "투자 논리 생애주기 미연결")
     .replace(/not available/gi, "아직 없음")
     .replace(/fallback/gi, "대체 처리")
+    .replace(/주문 경계/g, "실거래 상태")
+    .replace(/증권사 연결 경계/g, "증권사 연결 상태")
     .replace(/좋은 thesis/g, "좋은 투자 논리")
     .replace(/thesis review/g, "투자 논리 검토")
     .replace(/thesis(?=[가-힣])/g, "투자 논리")

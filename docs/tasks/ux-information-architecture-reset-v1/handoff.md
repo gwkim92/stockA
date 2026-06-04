@@ -53,6 +53,7 @@
 - completed locally: hardened `/trading-readiness` copy normalization for visible internal execution terms including `simulated paper`, `paper trade`, `audit row`, `order intent audit`, `FastAPI frontend server`, `write endpoint`, `secret`, `submitted to`, `adapter`, `not available`, and raw scope refs.
 - completed locally: verified `/`, `/intelligence`, and `/trading-readiness` rendered text on `http://127.0.0.1:13002`; the targeted raw terms above no longer render in the checked pages.
 - completed locally: final rendered terminology sweep for `/`, `/ai-evidence/results`, `/ai-evidence/sec-event-aapl-10k-20240928`, `/theses/AAPL-bootstrap-v1`, and `/trading-readiness`; targeted internal terms `페이퍼`, `주문 경계`, `OpenAI`, `fallback`, `not available`, `브로커`, `paper 전용`, `validation run`, and grammar artifacts no longer render.
+- completed locally: fixed live thesis-detail gate text normalization so live payload phrases `주문 경계` and `증권사 연결 경계` render as `실거래 상태` and `증권사 연결 상태`.
 
 ## Exact Next Step
 
@@ -125,6 +126,11 @@
 - passed locally for final rendered terminology cleanup: `bash scripts/verify_frontend_detail_routes.sh`
 - passed locally for final rendered terminology cleanup: `PYTHONPATH=/Users/woody/ai/agent-work-harness/src python3 -m awh verify --repo . --task ux-information-architecture-reset-v1`
 - not run for final rendered terminology cleanup: EC2 deployed route smoke, pending personal AWS browser-session security-group access and deploy.
+- passed locally for live thesis gate text fix: `cd apps/web && npm run typecheck`
+- passed locally for live thesis gate text fix: `cd apps/web && npm run build`
+- passed locally for live thesis gate text fix: Playwright rendered text check on `http://127.0.0.1:13002/theses/AAPL-bootstrap-v1`; output `thesis-copy-ok`
+- passed locally for live thesis gate text fix: `bash scripts/verify_frontend_detail_routes.sh`
+- passed locally for live thesis gate text fix: `PYTHONPATH=/Users/woody/ai/agent-work-harness/src python3 -m awh verify --repo . --task ux-information-architecture-reset-v1`
 - passed: `cd apps/web && npm run typecheck`
 - passed: `cd apps/web && npm run build`
 - passed: `PYTHONPATH=/Users/woody/ai/agent-work-harness/src /opt/homebrew/bin/python3.13 -m awh verify --repo . --task ux-information-architecture-reset-v1`
