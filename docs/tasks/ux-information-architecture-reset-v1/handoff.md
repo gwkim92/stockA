@@ -58,10 +58,11 @@
 - completed locally: fixed live recommendation list/detail copy normalization so `페이퍼 검증` and `증권사 연결 경계` render as `가상 매매 검증` and `증권사 연결 상태`.
 - completed locally: refactored the home lower-fold priority section from a repeated raw `top_actions` table into grouped remediation decision cards. Duplicate `symbol/action/reason` style rows are now compressed by shared action/reason/runner/risk, while the underlying action data remains unchanged.
 - completed locally: refactored `/data-health` automatic cadence section from raw per-timer cards into grouped decision cards: `뉴스·AI 분석`, `캔들·감시 종목`, `추천·보유 상태`, `거시·공시 데이터`, `성과 측정`. Raw timer profile names and schedules remain visible as secondary chips, but the primary view now answers which operating loop is running and what it is for.
+- completed deployed: EC2 now serves commit `84bf845`; `/data-health` renders the automatic cadence groups from live scheduler data without server component error or desktop horizontal overflow.
 
 ## Exact Next Step
 
-- exact next step: deploy the `/data-health` automatic cadence grouping to EC2, verify live scheduler groups render from real profile timers, then continue page-by-page lower-fold copy/content review for remaining dense audit sections.
+- exact next step: continue page-by-page lower-fold copy/content review for remaining dense audit sections, with `/portfolio/coverage` and `/trading-readiness` lower-fold audit tables as likely next candidates.
 
 ## Risks
 
@@ -157,6 +158,11 @@
 - passed locally for data-health automatic cadence grouping: `bash scripts/verify_frontend_detail_routes.sh`
 - passed locally for data-health automatic cadence grouping: `PYTHONPATH=/Users/woody/ai/agent-work-harness/src python3 -m awh verify --repo . --task ux-information-architecture-reset-v1`
 - passed locally for data-health automatic cadence grouping: `git diff --check`
+- deployed commit: `84bf845`
+- passed deployed for data-health automatic cadence grouping: EC2 pull/build/restart completed with `stockanalysis-frontend-api.service` active and `stockanalysis-web.service` active.
+- passed deployed for data-health automatic cadence grouping: `http://127.0.0.1:13000/data-health` returned `200`; `뉴스·AI 분석`, `캔들·감시 종목`, `추천·보유 상태`, and `자동 실행 주기` rendered from live scheduler data; no Server Component error.
+- passed deployed for data-health automatic cadence grouping: Playwright CLI check on `http://127.0.0.1:13000/data-health`; grouped cards present, no Server Component error, no desktop horizontal overflow.
+- passed deployed route smoke for data-health automatic cadence grouping: `http://127.0.0.1:13000/`, `/data-health`, `/recommendations`, `/remediation`, `/portfolio/coverage`, `/trading-readiness` returned `200` with no server error.
 - deployed commit: `f9ef0d8`
 - passed deployed for home grouped remediation queue: EC2 pull/build/restart completed with `stockanalysis-frontend-api.service` active and `stockanalysis-web.service` active.
 - passed deployed for home grouped remediation queue: `http://127.0.0.1:13000/` returned `200`; grouped title present, first grouped item present, old repeated table header absent, no server component error, no desktop horizontal overflow.
