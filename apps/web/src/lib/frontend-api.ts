@@ -133,7 +133,7 @@ function defaultValuationTargetRange(symbol: string) {
     confidence: null,
     currency_code: "USD",
     methods: [],
-    summary: "밸류에이션 원천 데이터가 아직 fixture에 없다.",
+    summary: "밸류에이션 원천 데이터가 아직 충분히 연결되지 않았다.",
     valuation_quality: {
       status: "unavailable",
       label: "가정 품질 미수집",
@@ -157,7 +157,7 @@ function defaultFinancialStatementModel(symbol: string) {
   return {
     status: "unavailable",
     symbol,
-    summary: "재무제표 정규화 데이터가 아직 fixture에 없다.",
+    summary: "재무제표 정규화 데이터가 아직 충분히 연결되지 않았다.",
     latest_period_end: "",
     statement_scope: "unknown",
     metric_count: 0,
@@ -182,8 +182,8 @@ function defaultProfessionalSourceGuardrail() {
     blocker_code: "",
     blocker_label: "",
     source_data_blocker: null,
-    summary: "전문 원천 차단 정보가 fixture에 없다.",
-    next_action: "live DB smoke에서 최신 원천 상태를 확인한다.",
+    summary: "전문 원천 상태가 아직 충분히 연결되지 않았다.",
+    next_action: "수집 상태와 원천 문서 연결 상태를 확인한다.",
     score_policy: "recommendation_weights_unchanged",
     automatic_order_allowed: false,
     broker_submit_allowed: false,
@@ -194,8 +194,8 @@ function defaultProfessionalSourceGuardrail() {
 
 function defaultProfessionalDecisionWaterfall(symbol: string, recommendation = "unknown", score: number | null = null) {
   return {
-    status: "fixture_not_available",
-    summary: "전문 판단 waterfall 데이터가 fixture에 없다. 이 화면에서는 주문을 만들지 않는다.",
+    status: "not_available",
+    summary: "전문 판단 흐름 데이터가 아직 충분히 연결되지 않았다. 이 화면에서는 주문을 만들지 않는다.",
     symbol,
     as_of_date: "",
     recommendation,
@@ -212,10 +212,10 @@ function defaultProfessionalDecisionWaterfall(symbol: string, recommendation = "
 
 function defaultProfessionalEvidenceAudit(symbol: string, recommendationId = "", recommendation = "unknown") {
   return {
-    status: "fixture_not_available",
-    title: "전문 감사 fixture 없음",
-    summary: "재무·밸류에이션·뉴스·사이클 근거 감사 데이터가 fixture에 없다.",
-    next_action: "live DB 기준 추천 상세에서 최신 감사 상태를 확인한다.",
+    status: "not_available",
+    title: "전문 감사 대기",
+    summary: "재무·밸류에이션·뉴스·사이클 근거 감사 데이터가 아직 충분히 연결되지 않았다.",
+    next_action: "원천 데이터, 추천 상세, 가상 매매 검증 연결 상태를 확인한다.",
     recommendation_id: recommendationId,
     symbol,
     as_of_date: "",
@@ -242,8 +242,8 @@ function defaultProfessionalEvidenceAudit(symbol: string, recommendationId = "",
     },
     paper_validation_status: "not_available",
     paper_validation_input_allowed: false,
-    professional_decision_status: "fixture_not_available",
-    evidence_quality_status: "fixture_not_available",
+    professional_decision_status: "not_available",
+    evidence_quality_status: "not_available",
     blocked_evidence_gate_count: 0,
     warning_evidence_gate_count: 0,
     holding_review_status: "not_available",
@@ -395,8 +395,8 @@ function defaultReviewFeedbackCalibration() {
     days_until_maturity: null,
     attention_required: false,
     managed_wait: true,
-    managed_gate_status: "fixture_not_available",
-    managed_gate_reason: "fixture에는 성과 성숙 평가가 없다.",
+    managed_gate_status: "not_available",
+    managed_gate_reason: "성과 성숙 평가 데이터가 아직 연결되지 않았다.",
     weight_review_blocked: true,
     weight_review_block_reason: "성과 표본 미확인",
     status_counts: {},
@@ -414,8 +414,8 @@ function defaultReviewFeedbackCadence() {
   return {
     status: "not_available",
     cadence_status: "not_available",
-    label: "성과 평가 주기 fixture 없음",
-    reason: "fixture에는 포트폴리오 사후평가 주기 정보가 없다.",
+    label: "성과 평가 주기 대기",
+    reason: "포트폴리오 사후평가 주기 정보가 아직 연결되지 않았다.",
     should_run_now: false,
     min_horizon_days: 30,
     evidence: { history_age_days: 0 },
@@ -429,11 +429,11 @@ function defaultReviewFeedbackCadence() {
 function defaultReviewFeedbackActionRouter() {
   return {
     status: "not_available",
-    action_status: "no_op_fixture_not_available",
+    action_status: "no_op_not_available",
     route_action: "wait",
     cadence_status: "not_available",
     source_cadence_eval_run_id: "",
-    reason: "fixture에는 실행 라우터 결과가 없다.",
+    reason: "실행 라우터 결과가 아직 연결되지 않았다.",
     child_runner: {
       executed: false,
       report_name: "",
@@ -441,7 +441,7 @@ function defaultReviewFeedbackActionRouter() {
     },
     order_boundary: "read_only_no_order",
     broker_submit_allowed: false,
-    next_action: "live DB 기준 실행 라우터 상태를 확인한다.",
+    next_action: "성과 측정 주기와 실행 라우터 연결 상태를 확인한다.",
   };
 }
 
@@ -469,7 +469,7 @@ function defaultPortfolioRiskBudgetGuardrail() {
     risk_gate_decision: "not_available",
     paper_validation_input_allowed: false,
     blocking_reasons: [],
-    warning_reasons: ["fixture_risk_budget_not_available"],
+    warning_reasons: ["risk_budget_not_available"],
     benchmark_drift: {
       drift_calculated: false,
       benchmark_code: "SPY",
@@ -482,7 +482,7 @@ function defaultPortfolioRiskBudgetGuardrail() {
 
 function defaultLifecycle(symbol: string, summary = "") {
   return {
-    source: "fixture_fallback",
+    source: "read_only_fallback",
     equity_research_artifact_id: null,
     buy_case: {
       symbol,
@@ -510,7 +510,7 @@ function defaultLifecycle(symbol: string, summary = "") {
     },
     readiness: {
       status: "partial",
-      missing_items: ["fixture_lifecycle_not_available"],
+      missing_items: ["lifecycle_not_available"],
       core_claim_count: 0,
       catalyst_count: 0,
       risk_count: 0,
@@ -524,7 +524,7 @@ function defaultLifecycle(symbol: string, summary = "") {
 function defaultProfessionalLifecycleGates() {
   return {
     status: "partial",
-    summary: "전문 투자 논리 gate 데이터가 fixture에 없다.",
+    summary: "전문 투자 논리 확인 조건 데이터가 아직 충분히 연결되지 않았다.",
     gate_count: 0,
     pass_count: 0,
     warning_count: 0,
@@ -594,9 +594,9 @@ function normalizeRecommendationList(data: MutableRecord) {
     withDefault(evidence, "primary_evidence_id", null);
 
     const evidenceQuality = ensureRecord(row, "evidence_quality");
-    withDefault(evidenceQuality, "status", "fixture_not_available");
-    withDefault(evidenceQuality, "title", "근거 감사 fixture 없음");
-    withDefault(evidenceQuality, "summary", "전문 근거 감사 데이터가 fixture에 없다.");
+    withDefault(evidenceQuality, "status", "not_available");
+    withDefault(evidenceQuality, "title", "근거 감사 대기");
+    withDefault(evidenceQuality, "summary", "전문 근거 감사 데이터가 아직 충분히 연결되지 않았다.");
     withDefault(evidenceQuality, "product_type", "stock");
     withDefault(evidenceQuality, "coverage_ratio", null);
     withDefault(evidenceQuality, "available_layer_count", 0);
@@ -621,7 +621,7 @@ function normalizeRecommendationList(data: MutableRecord) {
 
     const decisionBoundary = ensureRecord(row, "decision_boundary");
     withDefault(decisionBoundary, "status", row.linked_thesis_id ? "paper_validation_pending" : "blocked_missing_thesis");
-    withDefault(decisionBoundary, "reason", "fixture에는 최신 추천 결정 경계가 없다.");
+    withDefault(decisionBoundary, "reason", "최신 추천 결정 경계가 아직 충분히 연결되지 않았다.");
     withDefault(decisionBoundary, "paper_validation_input_allowed", false);
     withDefault(decisionBoundary, "automatic_order_allowed", false);
     withDefault(decisionBoundary, "broker_submit_allowed", false);
@@ -726,14 +726,14 @@ function normalizeStockDetail(data: MutableRecord) {
 function normalizePortfolioCoverage(data: MutableRecord) {
   withDefault(data, "allocation_policy", {
     policy_id: "",
-    policy_name: "fixture 기본 정책",
+    policy_name: "기본 읽기 전용 정책",
     status: "not_available",
     policy_scope: "portfolio",
     max_single_position_weight: null,
     min_rebalance_target_weight: null,
     valid_from: "",
     valid_to: "",
-    rationale: "fixture에는 최신 allocation policy가 없다.",
+    rationale: "최신 배분 정책 데이터가 아직 충분히 연결되지 않았다.",
   });
   const riskBudget = ensureRecord(data, "risk_budget");
   withDefault(riskBudget, "status", "not_available");
@@ -819,43 +819,43 @@ function normalizeAiEvidenceDetail(data: MutableRecord) {
   withDefault(data, "audit_notes", []);
   withDefault(data, "extracted_fields", []);
   withDefault(data, "visibility_trace", {
-    summary_ko: "fixture에는 AI 근거 가시성 trace가 없어 기본 경로만 표시한다.",
+    summary_ko: "AI 근거 가시성 경로가 아직 충분히 연결되지 않아 기본 경로만 표시한다.",
     source: {
       status: data.source_document_id ? "linked" : "missing",
       source_document_id: typeof data.source_document_id === "string" ? data.source_document_id : "",
       source_document_count: data.source_document_id ? 1 : 0,
       source_chunk_count: Array.isArray(data.source_chunks) ? data.source_chunks.length : 0,
-      message_ko: data.source_document_id ? "원천 문서가 연결되어 있다." : "원천 문서 연결이 fixture에 없다.",
+      message_ko: data.source_document_id ? "원천 문서가 연결되어 있다." : "원천 문서 연결이 아직 없다.",
     },
     translation: {
       status: data.korean_title || data.korean_summary ? "translated" : "missing",
       translated_event_count: data.korean_title || data.korean_summary ? 1 : 0,
       translation_confidence: typeof data.translation_confidence === "number" ? data.translation_confidence : null,
-      message_ko: "fixture 기준 번역 trace가 없다.",
+      message_ko: "번역 추적 정보가 아직 충분히 연결되지 않았다.",
     },
     ai_structure: {
       status: "stored",
-      provider: isRecord(data.extraction_run) && typeof data.extraction_run.provider === "string" ? data.extraction_run.provider : "fixture",
-      model_id: isRecord(data.extraction_run) && typeof data.extraction_run.model_id === "string" ? data.extraction_run.model_id : "fixture",
+      provider: isRecord(data.extraction_run) && typeof data.extraction_run.provider === "string" ? data.extraction_run.provider : "not_available",
+      model_id: isRecord(data.extraction_run) && typeof data.extraction_run.model_id === "string" ? data.extraction_run.model_id : "not_available",
       evidence_type: typeof data.evidence_type === "string" ? data.evidence_type : "unknown",
       extracted_field_count: Array.isArray(data.extracted_fields) ? data.extracted_fields.length : 0,
       theme_impact_count: 0,
       instrument_impact_count: 0,
       cluster_event_count: 0,
-      message_ko: "저장된 구조화 근거를 fixture로 표시한다.",
+      message_ko: "저장된 구조화 근거를 표시한다.",
     },
     validator: {
       status: "not_available",
       quality_gate: isRecord(data.extraction_run) && typeof data.extraction_run.quality_gate === "string" ? data.extraction_run.quality_gate : "not_available",
       blocked: false,
-      decision_ko: "검증 trace 없음",
-      reasons_ko: ["fixture에는 validator 상세 이유가 없다."],
+      decision_ko: "검증 추적 정보 없음",
+      reasons_ko: ["검증 상세 이유가 아직 충분히 연결되지 않았다."],
     },
     recommendation_linkage: {
       status: "not_available",
       target_symbol: isRecord(data.instrument) && typeof data.instrument.symbol === "string" ? data.instrument.symbol : "",
       theme_key: isRecord(data.classification) && typeof data.classification.theme_key === "string" ? data.classification.theme_key : "",
-      message_ko: "추천 연결 trace는 live DB에서 확인한다.",
+      message_ko: "추천 연결 경로가 아직 충분히 연결되지 않았다.",
     },
     steps: [],
     read_only_boundary: {
@@ -1054,7 +1054,7 @@ function buildCycleMapFallback(): ApiResponse<CycleMapData> {
           node_code: "MACRO_GROWTH",
           node_name: "Macro growth",
           node_type: "macro",
-          description: "fixture fallback macro node",
+          description: "대표 거시 흐름",
           cycle_level: "macro",
           cycle_state: "watch",
           cycle_score: 0.5,
@@ -1066,7 +1066,7 @@ function buildCycleMapFallback(): ApiResponse<CycleMapData> {
           parent_alignment_score: null,
           conflict_flags: [],
           evidence_event_ids: ["event-aapl-10k"],
-          summary_text_ko: "fixture에는 최신 흐름 지도 endpoint가 없어 대표 거시 흐름만 표시한다.",
+          summary_text_ko: "최신 흐름 지도 데이터가 아직 충분히 연결되지 않아 대표 거시 흐름만 표시한다.",
           top_symbols: ["AAPL"],
           recent_event_titles: ["AAPL 2024 10-K annual reporting event"],
           parent_codes: [],
@@ -1090,7 +1090,7 @@ function buildCycleMapFallback(): ApiResponse<CycleMapData> {
           node_code: "ANNUAL_REPORTING",
           node_name: "Annual reporting quality",
           node_type: "theme",
-          description: "fixture fallback theme node",
+          description: "대표 테마 흐름",
           cycle_level: "theme",
           cycle_state: "constructive",
           cycle_score: 0.62,
@@ -1102,7 +1102,7 @@ function buildCycleMapFallback(): ApiResponse<CycleMapData> {
           parent_alignment_score: null,
           conflict_flags: [],
           evidence_event_ids: ["event-aapl-10k"],
-          summary_text_ko: "연간 공시 품질 흐름을 대표 fixture로 표시한다.",
+          summary_text_ko: "연간 공시 품질 흐름을 대표 흐름으로 표시한다.",
           top_symbols: ["AAPL"],
           recent_event_titles: ["AAPL 2024 10-K annual reporting event"],
           parent_codes: ["MACRO_GROWTH"],
@@ -1149,7 +1149,7 @@ function buildAiEvidenceNeighborhoodFallback(symbol: string): ApiResponse<AiEvid
       symbol,
       as_of_date: asOfDate,
       retrieval_boundary: {
-        mode: "fixture_fallback",
+        mode: "read_only_fallback",
         retrieval_backend: "postgres_sql_graph_neighborhood",
         vector_backend: "disabled",
         graph_backend: "postgres_ontology_lite",
@@ -1186,11 +1186,11 @@ function buildAiEvidenceNeighborhoodFallback(symbol: string): ApiResponse<AiEvid
       recommendations: [],
       positions: [],
       internal_rag_context: {
-        status: "fixture_fallback",
+        status: "not_available",
         symbol,
         as_of_date: asOfDate,
         retrieval_policy: {
-          mode: "fixture_fallback",
+          mode: "read_only_fallback",
           retrieval_backend: "postgres_sql_graph_neighborhood",
           canonical_store: "postgres",
           vector_backend: "disabled",
@@ -1218,28 +1218,28 @@ function buildAiEvidenceNeighborhoodFallback(symbol: string): ApiResponse<AiEvid
         },
         quality_gates: [
           {
-            gate: "fixture_endpoint",
+            gate: "stored_relationship_context",
             status: "warning",
-            message_ko: "로컬 fixture에는 종목별 RAG 관계망 endpoint가 없어 빈 관계망으로 표시한다.",
+            message_ko: "이 종목의 저장 근거 관계망이 아직 충분히 연결되지 않아 빈 관계망으로 표시한다.",
           },
         ],
         sections: [],
         evidence_items: [],
         prompt_context: {
           language: "ko",
-          purpose: "local_fixture_smoke",
-          instruction: "live DB smoke에서 실제 RAG context를 확인한다.",
+          purpose: "read_only_context_preview",
+          instruction: "저장된 뉴스·공시·추천 관계가 연결되면 이 문맥이 채워진다.",
           context_char_budget: 0,
           context_text: "",
         },
         guardrails: [
-          "fixture fallback은 실시간 AI 호출을 하지 않는다.",
+          "이 화면은 실시간 AI 호출을 하지 않는다.",
           "이 데이터는 주문이나 추천 산식 변경에 쓰지 않는다.",
         ],
       },
       guardrails: [
-        "fixture fallback은 로컬 화면 검증용이다.",
-        "실제 AI/RAG 근거는 live DB API에서 확인한다.",
+        "이 화면은 저장된 근거 관계만 읽는다.",
+        "관계망 데이터가 연결되기 전까지 추천 점수나 주문에는 쓰지 않는다.",
       ],
     },
     links: {

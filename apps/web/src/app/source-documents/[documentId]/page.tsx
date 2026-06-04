@@ -78,6 +78,46 @@ function sourceExcerptDigest(excerpt: SourceExcerpt, documentTitle: string) {
   return `${topic} 관련 원천 발췌다. 제목과 세부 문장은 영어 원문에 보관되어 있고, 화면에서는 이 발췌가 어떤 테마 흐름으로 쓰였는지 먼저 확인한다.`;
 }
 
+function recordStatus(value: string | null | undefined, presentLabel: string) {
+  return value ? presentLabel : "기록 없음";
+}
+
+function retrievalSourceLabel(parserVersion: string | null | undefined, sourceType: string | null | undefined) {
+  const text = `${parserVersion ?? ""} ${sourceType ?? ""}`.toLowerCase();
+  if (text.includes("sec")) {
+    return "SEC 공시 원문 수집";
+  }
+  if (text.includes("rss") || text.includes("news")) {
+    return "뉴스 원문 수집";
+  }
+  return "원천 문서 수집";
+}
+
+function chunkLabel(chunkId: string, index: number) {
+  const text = chunkId.toLowerCase();
+  if (text.includes("business")) {
+    return "사업 개요 근거";
+  }
+  if (text.includes("mdna")) {
+    return "경영진 논의 근거";
+  }
+  if (text.includes("risk")) {
+    return "위험 요인 근거";
+  }
+  if (text.includes("financial")) {
+    return "재무 근거";
+  }
+  return `근거 발췌 ${index + 1}`;
+}
+
+function accessPolicyReasonLabel(value: string | null | undefined) {
+  const text = `${value ?? ""}`.toLowerCase();
+  if (text.includes("auth") || text.includes("rbac") || text.includes("access")) {
+    return "현재는 원문 원격 다운로드를 열지 않고, 저장된 제목·요약·발췌만 화면에서 확인한다.";
+  }
+  return koLabel(value ?? "");
+}
+
 export default async function SourceDocumentPage({ params }: SourceDocumentPageProps) {
   const { documentId } = await params;
   const response = await getSourceDocumentDetail(documentId);
@@ -85,6 +125,7 @@ export default async function SourceDocumentPage({ params }: SourceDocumentPageP
   const hasKoreanSummary = Boolean(data.korean_title || data.korean_summary);
   const firstEvidenceId = data.linked_evidence[0]?.evidence_id ?? null;
   const downloadStatus = data.access_policy.browser_download_enabled ? "원문 열람 가능" : "원문 열람 제한";
+  const retrievalLabel = retrievalSourceLabel(data.retrieval.parser_version, data.source_type);
 
   return (
     <div className="pageStack decision-page">
@@ -131,7 +172,7 @@ export default async function SourceDocumentPage({ params }: SourceDocumentPageP
           >
             <span>접근 정책</span>
             <strong>{downloadStatus}</strong>
-            <small>{koCode(data.access_policy.reason)} · 추천 채택이나 주문 처리는 하지 않는다.</small>
+            <small>{accessPolicyReasonLabel(data.access_policy.reason)} · 추천 채택이나 주문 처리는 하지 않는다.</small>
             <b>접근 정책 보기</b>
           </a>
         </div>
@@ -165,12 +206,12 @@ export default async function SourceDocumentPage({ params }: SourceDocumentPageP
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
             <div>
-              <span className="metric-sub">문서 식별자</span>
-              <div style={{ fontSize: "0.95rem", fontWeight: 500, fontFamily: "monospace" }}>{data.document_id}</div>
+              <span className="metric-sub">문서 기록</span>
+              <div style={{ fontSize: "0.95rem", fontWeight: 500 }}>{recordStatus(data.document_id, "기록 있음")}</div>
             </div>
             <div>
-              <span className="metric-sub">접수번호</span>
-              <div style={{ fontSize: "0.95rem", fontWeight: 500, fontFamily: "monospace" }}>{data.accession_id}</div>
+              <span className="metric-sub">접수 기록</span>
+              <div style={{ fontSize: "0.95rem", fontWeight: 500 }}>{recordStatus(data.accession_id, "접수 기록 있음")}</div>
             </div>
             <div>
               <span className="metric-sub">게시자</span>
@@ -180,31 +221,43 @@ export default async function SourceDocumentPage({ params }: SourceDocumentPageP
               <span className="metric-sub">공시 시각</span>
               <div style={{ fontSize: "0.95rem", fontWeight: 500 }}>{data.filed_at}</div>
             </div>
+            <details className="news-original-title source-original-detail" style={{ gridColumn: "span 2", marginTop: "4px" }}>
+              <summary>기술 식별자 보기</summary>
+              <p>문서 ID: {data.document_id}</p>
+              <p>접수번호: {data.accession_id || "없음"}</p>
+            </details>
           </div>
         </article>
 
         <article className="bento-card span-2">
           <div style={{ marginBottom: "24px" }}>
             <span className="metric-sub">수집 출처</span>
-            <h2 style={{ fontSize: "1.5rem" }}>{data.retrieval.parser_version}</h2>
+            <h2 style={{ fontSize: "1.5rem" }}>{retrievalLabel}</h2>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
             <div>
-              <span className="metric-sub">수집 실행</span>
-              <div style={{ fontSize: "0.95rem", fontWeight: 500, fontFamily: "monospace" }}>{data.retrieval.source_run_id}</div>
+              <span className="metric-sub">수집 상태</span>
+              <div style={{ fontSize: "0.95rem", fontWeight: 500 }}>{recordStatus(data.retrieval.source_run_id, "수집 기록 있음")}</div>
             </div>
             <div>
               <span className="metric-sub">수집 시각</span>
               <div style={{ fontSize: "0.95rem", fontWeight: 500 }}>{data.retrieval.fetched_at}</div>
             </div>
-            <div style={{ gridColumn: "span 2" }}>
-              <span className="metric-sub">저장 경로</span>
-              <div style={{ fontSize: "0.85rem", fontWeight: 500, fontFamily: "monospace", color: "var(--text-secondary)", wordBreak: "break-all" }}>{data.storage_uri}</div>
+            <div>
+              <span className="metric-sub">원문 저장</span>
+              <div style={{ fontSize: "0.95rem", fontWeight: 500 }}>{recordStatus(data.storage_uri, "원문 저장됨")}</div>
             </div>
-            <div style={{ gridColumn: "span 2" }}>
-              <span className="metric-sub">체크섬</span>
-              <div style={{ fontSize: "0.85rem", fontWeight: 500, fontFamily: "monospace", color: "var(--text-secondary)", wordBreak: "break-all" }}>{data.checksum}</div>
+            <div>
+              <span className="metric-sub">무결성</span>
+              <div style={{ fontSize: "0.95rem", fontWeight: 500 }}>{recordStatus(data.checksum, "검증 기록 있음")}</div>
             </div>
+            <details className="news-original-title source-original-detail" style={{ gridColumn: "span 2", marginTop: "4px" }}>
+              <summary>수집 기술 정보 보기</summary>
+              <p>수집기: {data.retrieval.parser_version || "없음"}</p>
+              <p>수집 실행: {data.retrieval.source_run_id || "없음"}</p>
+              <p>저장 위치: {data.storage_uri || "없음"}</p>
+              <p>체크섬: {data.checksum || "없음"}</p>
+            </details>
           </div>
         </article>
 
@@ -217,7 +270,7 @@ export default async function SourceDocumentPage({ params }: SourceDocumentPageP
             {data.excerpts.length === 0 ? (
               <p className="empty-state">이 문서에는 아직 화면에 노출할 근거 발췌가 없다.</p>
             ) : null}
-            {data.excerpts.map((excerpt) => (
+            {data.excerpts.map((excerpt, index) => (
               <div key={excerpt.chunk_id} style={{
                 padding: "16px",
                 background: "rgba(255, 255, 255, 0.02)",
@@ -233,7 +286,7 @@ export default async function SourceDocumentPage({ params }: SourceDocumentPageP
                   <summary>영어 원문 발췌 보기</summary>
                   <p>{excerpt.summary}</p>
                 </details>
-                <span style={{ fontSize: "0.7rem", color: "var(--text-tertiary)", fontFamily: "monospace" }}>ID: {excerpt.chunk_id}</span>
+                <span style={{ fontSize: "0.75rem", color: "var(--text-tertiary)" }}>근거 위치: {chunkLabel(excerpt.chunk_id, index)}</span>
               </div>
             ))}
           </div>
@@ -273,14 +326,14 @@ export default async function SourceDocumentPage({ params }: SourceDocumentPageP
                   marginTop: "4px",
                   width: "fit-content"
                 }}>
-                  {evidence.evidence_id}
+                  AI 근거 상세 열기
                 </Link>
               </div>
             ))}
           </div>
           <div id="source-access-policy" style={{ padding: "12px 16px", background: "rgba(255,255,255,0.05)", borderRadius: "var(--radius-sm)", fontSize: "0.85rem", color: "var(--text-secondary)" }}>
             <span className="metric-sub" style={{ display: "block", marginBottom: "4px" }}>접근 정책 메모</span>
-            {koLabel(data.access_policy.reason)}
+            {accessPolicyReasonLabel(data.access_policy.reason)}
           </div>
         </article>
       </section>

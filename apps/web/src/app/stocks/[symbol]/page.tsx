@@ -201,6 +201,19 @@ function userFacingStockText(value: string | null | undefined) {
     .replace(/\bfund company financial model not applicable\b/gi, "ETF·펀드라 기업 재무 모델 비적용")
     .replace(/\bsource blocker\b/gi, "부족한 원천 근거")
     .replace(/\bblocker\b/gi, "차단 사유")
+    .replace(/\bRAG\b/g, "저장 근거 관계망")
+    .replace(/\blive DB smoke\b/gi, "운영 데이터 연결 점검")
+    .replace(/\blive DB\b/gi, "운영 데이터")
+    .replace(/\bfixture endpoint\b/gi, "샘플 연결 경로")
+    .replace(/\bfixture_not_available\b/gi, "아직 없음")
+    .replace(/\bfixture_fallback\b/gi, "샘플 데이터 대기")
+    .replace(/\bfixture\b/gi, "샘플 데이터")
+    .replace(/\bnot_available\b/gi, "아직 없음")
+    .replace(/\bnot available\b/gi, "아직 없음")
+    .replace(/\bread_only_fallback\b/gi, "읽기 전용 대기")
+    .replace(/\bstored_relationship_context\b/gi, "저장 근거 관계망")
+    .replace(/\bstored relationship context\b/gi, "저장 근거 관계망")
+    .replace(/stored relationship 근거 맥락/gi, "저장 근거 관계망")
     .replace(/\bBroad US Equity\b/g, "미국 광범위 주식")
     .replace(/\bref\.instrument\b/gi, "상품 분류 기준")
     .replace(/\bgate\b/gi, "확인 조건")
@@ -1225,7 +1238,7 @@ function EvidenceNeighborhoodPanel({ neighborhood }: { neighborhood: AiEvidenceN
             <div className="rail-cell">
               <span>준비 상태</span>
               <strong>{ragContext.status === "ready" ? "준비됨" : "부족"}</strong>
-              <small>저장 DB 기준</small>
+              <small>저장 데이터 기준</small>
             </div>
             <div className="rail-cell">
               <span>한국어 뉴스</span>
@@ -1251,7 +1264,7 @@ function EvidenceNeighborhoodPanel({ neighborhood }: { neighborhood: AiEvidenceN
             {ragContext.quality_gates.map((gate) => (
               <div className="relationship-chip" key={gate.gate}>
                 <span>{gate.status === "passed" ? "통과" : gate.status === "watch" ? "관찰" : "확인 필요"}</span>
-                <strong>{koCode(gate.gate)}</strong>
+                <strong>{userFacingStockText(koCode(gate.gate))}</strong>
                 <small>{userFacingStockText(gate.message_ko)}</small>
               </div>
             ))}

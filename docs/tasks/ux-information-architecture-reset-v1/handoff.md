@@ -41,6 +41,10 @@
 - completed locally: split `/ai-evidence` counts into `뉴스 후보` and `공시·기타 AI 근거` so a non-news AI artifact no longer contradicts an empty news candidate list.
 - completed locally: changed `/ai-evidence/blocked` to derive blocked/suppressed rows from actual row quality fields, preventing fixture or stale responses from showing accepted events as blocked.
 - completed locally: removed visible developer terms from AI evidence detail (`fixture`, placeholder model id, raw chunk ids, raw `impact direction`, raw `write`) and replaced them with Korean user-facing labels.
+- completed locally: refactored `/source-documents/[documentId]` lower-fold metadata so raw document IDs, accession IDs, storage URIs, checksums, parser versions, source run IDs, and chunk IDs are hidden behind collapsed technical details or replaced by user-facing status labels.
+- completed locally: changed source document access-policy copy from internal auth/RBAC wording to a user-facing read-only document access explanation.
+- completed locally: changed stock detail fallback/default copy from `fixture`, `live DB smoke`, `RAG endpoint`, `stored relationship context`, and `저장 DB 기준` to user-facing Korean labels such as `아직 충분히 연결되지 않았다`, `저장 근거 관계망`, and `저장 데이터 기준`.
+- completed locally: verified rendered text for `/source-documents/aapl-2024-10k-20240928` and `/stocks/AAPL` on `http://127.0.0.1:13002` with Playwright CLI; source document no longer shows default raw storage/checksum IDs, stock detail no longer shows `fixture`, `live DB`, `RAG endpoint`, `stored relationship`, or `저장 DB 기준` in the checked sections.
 
 ## Exact Next Step
 
@@ -87,6 +91,13 @@
 - passed locally for news/AI visibility cleanup: `git diff --check`
 - passed locally for news/AI visibility cleanup: Playwright snapshots on `http://127.0.0.1:13002/intelligence`, `/events`, `/ai-evidence`, `/ai-evidence/blocked`, `/ai-evidence/results`, `/ai-evidence/sec-event-aapl-10k-20240928`
 - not run for news/AI visibility cleanup: EC2 deployed route smoke, intentionally deferred because current network is public Wi-Fi.
+- passed locally for source/stock terminology cleanup: `cd apps/web && npm run typecheck`
+- passed locally for source/stock terminology cleanup: `cd apps/web && npm run build`
+- passed locally for source/stock terminology cleanup: `bash scripts/verify_frontend_detail_routes.sh`
+- passed locally for source/stock terminology cleanup: `PYTHONPATH=/Users/woody/ai/agent-work-harness/src python3 -m awh verify --repo . --task ux-information-architecture-reset-v1`
+- passed locally for source/stock terminology cleanup: `git diff --check`
+- passed locally for source/stock terminology cleanup: Playwright rendered text checks on `http://127.0.0.1:13002/source-documents/aapl-2024-10k-20240928` and `/stocks/AAPL`
+- not run for source/stock terminology cleanup: EC2 deployed route smoke, intentionally deferred because current network is public Wi-Fi.
 - passed: `cd apps/web && npm run typecheck`
 - passed: `cd apps/web && npm run build`
 - passed: `PYTHONPATH=/Users/woody/ai/agent-work-harness/src /opt/homebrew/bin/python3.13 -m awh verify --repo . --task ux-information-architecture-reset-v1`
