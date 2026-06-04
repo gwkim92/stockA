@@ -56,6 +56,7 @@
 - completed locally: fixed live thesis-detail gate text normalization so live payload phrases `주문 경계` and `증권사 연결 경계` render as `실거래 상태` and `증권사 연결 상태`.
 - completed locally: fixed live trading-readiness copy normalization so live payload/default copy phrase `증권사 연결 경계` renders as `증권사 연결 상태`.
 - completed locally: fixed live recommendation list/detail copy normalization so `페이퍼 검증` and `증권사 연결 경계` render as `가상 매매 검증` and `증권사 연결 상태`.
+- completed locally: refactored the home lower-fold priority section from a repeated raw `top_actions` table into grouped remediation decision cards. Duplicate `symbol/action/reason` style rows are now compressed by shared action/reason/runner/risk, while the underlying action data remains unchanged.
 
 ## Exact Next Step
 
@@ -143,6 +144,12 @@
 - passed locally for live recommendation copy fix: Playwright rendered text check on `http://127.0.0.1:13002/recommendations` and `/recommendations/recommendation-67`; output `recommendation-copy-ok`
 - passed locally for live recommendation copy fix: `bash scripts/verify_frontend_detail_routes.sh`
 - passed locally for live recommendation copy fix: `PYTHONPATH=/Users/woody/ai/agent-work-harness/src python3 -m awh verify --repo . --task ux-information-architecture-reset-v1`
+- passed locally for home grouped remediation queue: `cd apps/web && npm run typecheck`
+- passed locally for home grouped remediation queue: `cd apps/web && npm run build`
+- passed locally for home grouped remediation queue: Playwright rendered text check on `http://127.0.0.1:13002/`; output `home-action-group-ok`
+- passed locally for home grouped remediation queue: in-app browser check on `http://127.0.0.1:13002/`; grouped title present, first grouped item present, old table header absent, no console errors, no desktop horizontal overflow.
+- passed locally for home grouped remediation queue: `bash scripts/verify_frontend_detail_routes.sh`
+- passed locally for home grouped remediation queue: `PYTHONPATH=/Users/woody/ai/agent-work-harness/src python3 -m awh verify --repo . --task ux-information-architecture-reset-v1`
 - deployed commit: `1c7f721`
 - passed deployed for latest UX copy cleanup: EC2 pull/build/restart completed with `stockanalysis-frontend-api.service` active and `stockanalysis-web.service` active.
 - passed deployed for latest UX copy cleanup: `http://127.0.0.1:13000/`, `/data-health`, `/ai-evidence/results`, `/ai-evidence/sec-event-aapl-10k-20240928`, `/theses/AAPL-bootstrap-v1`, `/trading-readiness` returned `200`.

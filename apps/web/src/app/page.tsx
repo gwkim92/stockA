@@ -8,8 +8,8 @@ import {
   getRecommendations,
   getTradingReadiness,
 } from "@/lib/frontend-api";
-import { koCode, koLabel, koReason } from "@/lib/korean-labels";
-import type { DataHealthData } from "@/lib/types";
+import { koCode, koReason } from "@/lib/korean-labels";
+import type { DailyCockpitData, DataHealthData } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -112,6 +112,58 @@ function shortReviewReason(value: string) {
   return koReason(value);
 }
 
+type TopAction = DailyCockpitData["top_actions"][number];
+
+type TopActionGroup = {
+  key: string;
+  firstRank: number;
+  symbols: string[];
+  action: string;
+  reason: string;
+  suggestedRunner: string;
+  riskLevel: TopAction["risk_level"];
+  count: number;
+};
+
+function actionGroupKey(action: TopAction) {
+  return [action.action, action.reason, action.suggested_runner, action.risk_level].join("\u0000");
+}
+
+function groupTopActions(actions: TopAction[]): TopActionGroup[] {
+  const groups = new Map<string, TopActionGroup>();
+  for (const action of actions) {
+    const key = actionGroupKey(action);
+    const existing = groups.get(key);
+    if (existing) {
+      existing.count += 1;
+      existing.firstRank = Math.min(existing.firstRank, action.rank);
+      if (!existing.symbols.includes(action.symbol)) {
+        existing.symbols.push(action.symbol);
+      }
+      continue;
+    }
+
+    groups.set(key, {
+      key,
+      firstRank: action.rank,
+      symbols: [action.symbol],
+      action: action.action,
+      reason: action.reason,
+      suggestedRunner: action.suggested_runner,
+      riskLevel: action.risk_level,
+      count: 1,
+    });
+  }
+
+  return Array.from(groups.values()).sort((left, right) => left.firstRank - right.firstRank);
+}
+
+function symbolGroupLabel(symbols: string[]) {
+  const visibleSymbols = symbols.slice(0, 6).join(", ");
+  const extraCount = symbols.length - 6;
+  return extraCount > 0 ? `${visibleSymbols} 외 ${extraCount}개` : visibleSymbols;
+}
+
 export default async function HomePage() {
   const [snapshot, eventsResponse, newsClustersResponse, recommendationsResponse, tradingResponse] =
     await Promise.all([
@@ -129,7 +181,6 @@ export default async function HomePage() {
   const clusterData = newsClustersResponse.data;
   const recommendationData = recommendationsResponse.data;
   const trading = tradingResponse.data;
-  const firstTicket = ticketData.tickets[0];
   const providerBudget = health.data.provider_budget;
   const coverage = data.latest_metrics;
   const firstRecommendation = recommendationData.recommendations[0];
@@ -199,6 +250,9 @@ export default async function HomePage() {
               href: "/intelligence" as Route,
               cta: "뉴스 AI 열기",
             };
+  const groupedTopActions = groupTopActions(data.top_actions);
+  const repeatedActionCount = data.top_actions.length - groupedTopActions.length;
+  const firstActionGroup = groupedTopActions[0] ?? null;
 
   const operatingSteps = [
     {
@@ -491,72 +545,67 @@ export default async function HomePage() {
       </section>
 
       <section className="operator-workbench reveal delay-2">
-        <article className="ledger-panel queue-panel">
+        <article className="ledger-panel queue-panel" aria-labelledby="priority-actions-title">
           <div className="section-heading">
             <span>우선순위</span>
-            <h2>지금 정리해야 할 운영 항목</h2>
+            <h2 id="priority-actions-title">반복되는 보완 항목을 묶어서 본다</h2>
           </div>
-          <div className="ledger-table-wrap">
-            <table className="ledger-table">
-              <thead>
-                <tr>
-                  <th scope="col">순위</th>
-                  <th scope="col">심볼</th>
-                  <th scope="col">위험</th>
-                  <th scope="col">조치</th>
-                  <th scope="col">사유</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.top_actions.length > 0 ? (
-                  data.top_actions.map((action) => (
-                    <tr key={`${action.rank}-${action.symbol}`}>
-                      <td>{String(action.rank).padStart(2, "0")}</td>
-                      <td>
-                        <strong>{action.symbol}</strong>
-                      </td>
-                      <td>
-                        <span className={`risk-tag ${riskClass(action.risk_level)}`}>
-                          {koCode(action.risk_level)}
-                        </span>
-                      </td>
-                      <td>{koCode(action.action)}</td>
-                      <td>{shortReviewReason(action.reason)}</td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={5}>오늘 표시할 보완 조치가 없다.</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+          <p className="compact-copy">
+            같은 사유가 여러 번 반복되면 표를 길게 읽지 말고 묶음 단위로 처리한다.
+            {repeatedActionCount > 0
+              ? ` 현재 ${data.top_actions.length}개 보완 기록은 ${groupedTopActions.length}개 묶음으로 압축됐다.`
+              : " 현재 중복 보완 기록은 없다."}
+          </p>
+          <div className="bento-list">
+            {groupedTopActions.length > 0 ? (
+              groupedTopActions.map((group) => (
+                <article className="bento-list-item" key={group.key}>
+                  <div>
+                    <span>
+                      우선순위 {String(group.firstRank).padStart(2, "0")} · {group.count}건 반복 · {symbolGroupLabel(group.symbols)}
+                    </span>
+                    <strong>{koCode(group.action)}</strong>
+                    <p className="flow-rationale">{shortReviewReason(group.reason)}</p>
+                  </div>
+                  <div style={{ flex: "0 1 260px" }}>
+                    <span className={`risk-tag ${riskClass(group.riskLevel)}`}>{koCode(group.riskLevel)}</span>
+                    <span>제안 실행: {koCode(group.suggestedRunner)}</span>
+                    <Link href="/remediation">보완 큐에서 처리</Link>
+                  </div>
+                </article>
+              ))
+            ) : (
+              <p className="empty-state">오늘 표시할 보완 조치가 없다.</p>
+            )}
           </div>
         </article>
 
         <aside className="operator-side-stack">
           <article className="ledger-panel decision-panel">
             <div className="section-heading">
-              <span>첫 보완 항목</span>
-              <h2>{firstTicket ? `${firstTicket.symbol}: ${koCode(firstTicket.action)}` : "보완 티켓 없음"}</h2>
+              <span>첫 보완 묶음</span>
+              <h2>{firstActionGroup ? `${symbolGroupLabel(firstActionGroup.symbols)}: ${koCode(firstActionGroup.action)}` : "보완 티켓 없음"}</h2>
             </div>
-            {firstTicket ? (
+            {firstActionGroup ? (
               <>
-                <p className="decision-copy">{koLabel(firstTicket.required_human_decision)}</p>
+                <p className="decision-copy">
+                  {shortReviewReason(firstActionGroup.reason)} 같은 항목이 {firstActionGroup.count}건 반복된다.
+                  먼저 이 묶음의 기준을 정리한 뒤 개별 보유 검토로 내려간다.
+                </p>
                 <dl className="fact-list">
                   <div>
                     <dt>제안 실행</dt>
-                    <dd>{koCode(firstTicket.suggested_runner)}</dd>
+                    <dd>{koCode(firstActionGroup.suggestedRunner)}</dd>
                   </div>
                   <div>
-                    <dt>사유</dt>
-                    <dd>{shortReviewReason(firstTicket.reason)}</dd>
+                    <dt>대상</dt>
+                    <dd>{symbolGroupLabel(firstActionGroup.symbols)}</dd>
                   </div>
                   <div>
                     <dt>위험도</dt>
                     <dd>
-                      <span className={`risk-tag ${riskClass(firstTicket.risk_level)}`}>
-                        {koCode(firstTicket.risk_level)}
+                      <span className={`risk-tag ${riskClass(firstActionGroup.riskLevel)}`}>
+                        {koCode(firstActionGroup.riskLevel)}
                       </span>
                     </dd>
                   </div>
