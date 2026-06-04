@@ -2,8 +2,8 @@
 
 ## Status
 
-- completed: local implementation and verification passed.
-- blocked for EC2 smoke: `34.206.72.213` SSH and HTTP timed out, `127.0.0.1:13000` has no tunnel, and Chrome AWS console opened to sign-in.
+- completed: local implementation, GitHub push, EC2 deploy, EC2 quality audit rerun, API smoke, route smoke, and browser smoke passed.
+- recovered: current workplace IP `218.48.213.246/32` was added to EC2 security group `sg-0a2d52009e73a59e3` for SSH 22.
 
 ## What Changed
 
@@ -28,16 +28,22 @@
 - passed: `cd apps/web && npm run typecheck`
 - passed: `cd apps/web && npm run build`
 
-## EC2 Evidence And Blocker
+## EC2 Evidence
 
-- failed: `ssh -i /Users/woody/Downloads/settle.pem ... ec2-user@34.206.72.213 'echo ok'` timed out.
-- failed: `curl -I http://34.206.72.213:3000/` timed out.
-- failed: `curl -I http://127.0.0.1:13000/` could not connect because the tunnel is down.
-- local AWS CLI profiles `default` and `beatoz-dev` both resolve to account `061051252914`, which does not contain the stockanalysis EC2.
-- Chrome AWS console opened to AWS sign-in, so EC2 read-only inspection needs user login.
+- EC2 account: `115623963546`.
+- instance: `stockanalysis-mvp-20260520`, `i-029d51b163fb07b61`, public IPv4 `34.206.72.213`, running.
+- security group: `sg-0a2d52009e73a59e3`, `stockanalysis-mvp-ssh-20260520`.
+- added inbound rule: SSH 22 from `218.48.213.246/32`.
+- passed: `ssh -i /Users/woody/Downloads/settle.pem ... ec2-user@34.206.72.213 'echo ok'`.
+- passed: local tunnel `127.0.0.1:13000 -> EC2 127.0.0.1:3000` restored and `/data-health` route returned 200.
+- deployed commit: `4677b7c`.
+- services: `stockanalysis-frontend-api.service` active, `stockanalysis-web.service` active.
+- EC2 `decision-daily` rerun with `--runtime-root /opt/stockanalysis/runtime` completed with `failed_step_count=0`.
+- EC2 quality audit rerun `run_id=3242`: `audit_status=ok`, `audit_score=100`, `issue_count=0`, `readiness_gap_count=0`, `readiness_gaps=[]`, `cycle_snapshot_count=18`.
+- `/api/data-health` returned `cycle_ai_quality_audit.status=ok`, `audit_score=100`, `readiness_gap_count=0`, `readiness_gaps=[]`, `open_gates=["live_ai_invocation_health_attention","active_recommendation_price_freshness_attention"]`.
+- Chrome route smoke `http://127.0.0.1:13000/data-health` rendered `품질 감사 통과`, `누락 실행 단계`, `감사 점수`, `정상 거시 흐름`, `실제 AI 호출 확인 필요`, `가격 보강 필요`.
 
 ## Next Step
 
-- exact next step: after AWS login or EC2 network recovery, deploy this change and rerun:
-  - `stockanalysis-operations cycle-ai-quality-audit-run --env-file /opt/stockanalysis/runtime/data-operations.env --as-of-date 2026-06-04 --lookback-days 30 --execute --output /opt/stockanalysis/runtime/reports/cycle-ai-quality-audit-latest.json`
-- If `readiness_gaps[0].gap_key` is `cycle_snapshot_missing`, run `decision-daily` or `cycle-hierarchy-snapshot-v2-run` for `2026-06-04`, then rerun the audit.
+- exact next step: handle the remaining open gates in this order: `live_ai_invocation_health_attention` first, then `active_recommendation_price_freshness_attention`.
+- Do not change recommendation weights, benchmark, portfolio positions, or broker/order boundary while closing those gates.
