@@ -38,6 +38,19 @@ type ProfessionalAnalysisNextAction = DataHealthData["professional_analysis_next
 type ProfessionalAnalysisDepth = DataHealthData["professional_analysis_depth"];
 type ProfileTimer = ProfileSchedulerStatus["timers"][number];
 type AuditSampleRecord = Record<string, unknown>;
+type TimerGroupDefinition = {
+  key: string;
+  label: string;
+  title: string;
+  description: string;
+  profileIds: string[];
+};
+type SchedulerCadenceGroup = TimerGroupDefinition & {
+  timers: ProfileTimer[];
+  activeCount: number;
+  successCount: number;
+  problemCount: number;
+};
 
 function isRecord(value: unknown): value is AuditSampleRecord {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -202,6 +215,106 @@ function timerStatusTone(timer: ProfileTimer) {
     return "risk-medium";
   }
   return "risk-high";
+}
+
+const TIMER_GROUP_DEFINITIONS: TimerGroupDefinition[] = [
+  {
+    key: "news-ai",
+    label: "장중 반복",
+    title: "뉴스·AI 분석",
+    description: "뉴스 수집, 한국어 번역, AI 구조화, 상위 흐름 전파를 짧은 주기로 갱신한다.",
+    profileIds: ["news-intraday"],
+  },
+  {
+    key: "market",
+    label: "가격 보강",
+    title: "캔들·감시 종목",
+    description: "장 마감 후 가격 캔들을 보강하고 감시 종목군의 기본 연결 상태를 확인한다.",
+    profileIds: ["market-daily", "market-universe-weekly"],
+  },
+  {
+    key: "decision",
+    label: "일간 판단",
+    title: "추천·보유 상태",
+    description: "가격, 뉴스, 사이클, 보유 상태를 합쳐 추천과 보유 검토 입력을 갱신한다.",
+    profileIds: ["decision-daily"],
+  },
+  {
+    key: "macro-disclosure",
+    label: "주간 보강",
+    title: "거시·공시 데이터",
+    description: "거시 지표와 SEC 공시를 보강해 큰 사이클과 기업 이벤트 판단 근거로 쓴다.",
+    profileIds: ["macro-weekly", "sec-filings-weekly"],
+  },
+  {
+    key: "performance",
+    label: "월간 검증",
+    title: "성과 측정",
+    description: "추천과 투자 논리의 사후 성과를 측정한다. 추천 산식 변경은 별도 승인 전까지 막는다.",
+    profileIds: ["performance-monthly"],
+  },
+];
+
+function buildSchedulerCadenceGroups(timers: ProfileTimer[]): SchedulerCadenceGroup[] {
+  const groups = TIMER_GROUP_DEFINITIONS.map((definition) => ({
+    ...definition,
+    timers: [] as ProfileTimer[],
+  }));
+  const otherGroup = {
+    key: "other",
+    label: "기타",
+    title: "기타 예약 작업",
+    description: "정의된 운영 묶음에 아직 들어가지 않은 보조 예약 작업이다.",
+    profileIds: [] as string[],
+    timers: [] as ProfileTimer[],
+  };
+
+  for (const timer of timers) {
+    const group = groups.find((candidate) => candidate.profileIds.includes(timer.profile_id));
+    if (group) {
+      group.timers.push(timer);
+    } else {
+      otherGroup.profileIds.push(timer.profile_id);
+      otherGroup.timers.push(timer);
+    }
+  }
+
+  return [...groups, otherGroup]
+    .filter((group) => group.timers.length > 0)
+    .map((group) => {
+      const activeCount = group.timers.filter((timer) => timer.active_state === "active").length;
+      const successCount = group.timers.filter((timer) => timer.last_result === "success").length;
+      return {
+        ...group,
+        activeCount,
+        successCount,
+        problemCount: group.timers.length - Math.min(activeCount, successCount),
+      };
+    });
+}
+
+function schedulerGroupTone(group: SchedulerCadenceGroup) {
+  if (group.problemCount === 0 && group.activeCount === group.timers.length) {
+    return "risk-low";
+  }
+  if (group.activeCount > 0) {
+    return "risk-medium";
+  }
+  return "risk-high";
+}
+
+function schedulerGroupStatusLabel(group: SchedulerCadenceGroup) {
+  if (group.problemCount === 0 && group.activeCount === group.timers.length) {
+    return "정상 대기";
+  }
+  if (group.activeCount > 0) {
+    return "결과 확인 필요";
+  }
+  return "예약 꺼짐";
+}
+
+function schedulerGroupNextElapse(group: SchedulerCadenceGroup) {
+  return group.timers.find((timer) => timer.next_elapse)?.next_elapse ?? "다음 실행 미확인";
 }
 
 function schedulerNextStepLabel(activation: SchedulerActivation) {
@@ -2002,6 +2115,7 @@ export default async function DataHealthPage() {
   const failedPipelines = data.pipeline_runs.filter((run) =>
     ["missing", "stale", "failed"].includes(run.health_status),
   ).length;
+  const schedulerCadenceGroups = buildSchedulerCadenceGroups(profileScheduler.timers);
   const accessAttention =
     productionApiServer.attention_required || authRbac.attention_required || alertDestination.attention_required;
   const allTimersActive =
@@ -4158,27 +4272,46 @@ export default async function DataHealthPage() {
         <p className="board-intro">
           웹 화면은 작업을 직접 실행하지 않고 저장된 결과를 읽는다. 실제 수집과 분석은 아래 작업들이 각자 다른 주기로 실행한다.
         </p>
-        {profileScheduler.timers.length > 0 ? (
-          <div className="scheduler-timer-grid">
-            {profileScheduler.timers.map((timer) => (
-              <article className="scheduler-timer-card" key={timer.profile_id}>
-                <span>{koCode(timer.profile_id)}</span>
-                <strong>{timerPurpose(timer.profile_id)}</strong>
-                <small>{timer.schedule || "스케줄 미확인"}</small>
-                <dl>
+        {schedulerCadenceGroups.length > 0 ? (
+          <div className="cadence-group-grid">
+            {schedulerCadenceGroups.map((group) => (
+              <article className="cadence-group-card" key={group.key}>
+                <div className="cadence-group-head">
+                  <span>{group.label}</span>
+                  <strong>{group.title}</strong>
+                  <small>{group.description}</small>
+                </div>
+                <dl className="cadence-group-metrics">
                   <div>
                     <dt>상태</dt>
                     <dd>
-                      <span className={`risk-tag ${timerStatusTone(timer)}`}>
-                        {koCode(timer.active_state)} · {koCode(timer.last_result || "unknown")}
+                      <span className={`risk-tag ${schedulerGroupTone(group)}`}>
+                        {schedulerGroupStatusLabel(group)}
                       </span>
                     </dd>
                   </div>
                   <div>
+                    <dt>예약</dt>
+                    <dd>
+                      {group.activeCount}/{group.timers.length}개 활성 · 성공 {group.successCount}개
+                    </dd>
+                  </div>
+                  <div>
                     <dt>다음 실행</dt>
-                    <dd>{timer.next_elapse || "미확인"}</dd>
+                    <dd>{schedulerGroupNextElapse(group)}</dd>
                   </div>
                 </dl>
+                <div className="timer-chip-list" aria-label={`${group.title} 세부 예약`}>
+                  {group.timers.map((timer) => (
+                    <div className="timer-chip" key={timer.profile_id}>
+                      <b>{koCode(timer.profile_id)}</b>
+                      <span>{timer.schedule || "스케줄 미확인"}</span>
+                      <small>
+                        {koCode(timer.active_state)} · {koCode(timer.last_result || "unknown")}
+                      </small>
+                    </div>
+                  ))}
+                </div>
               </article>
             ))}
           </div>

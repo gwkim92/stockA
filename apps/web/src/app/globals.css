@@ -4641,6 +4641,128 @@ h6 {
   gap: 12px;
 }
 
+.cadence-group-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 14px;
+}
+
+.cadence-group-card {
+  display: grid;
+  grid-template-rows: auto auto 1fr;
+  gap: 18px;
+  min-width: 0;
+  padding: clamp(18px, 2vw, 24px);
+  background:
+    linear-gradient(135deg, rgba(251, 250, 246, 0.94), rgba(238, 236, 227, 0.72)),
+    repeating-linear-gradient(
+      135deg,
+      rgba(17, 18, 15, 0.035),
+      rgba(17, 18, 15, 0.035) 1px,
+      transparent 1px,
+      transparent 18px
+    );
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+}
+
+.cadence-group-head span {
+  display: inline-flex;
+  color: var(--text-tertiary);
+  font-size: 0.72rem;
+  font-weight: 900;
+}
+
+.cadence-group-head strong {
+  display: block;
+  margin-top: 10px;
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: clamp(1.35rem, 2vw, 1.9rem);
+  line-height: 1.04;
+}
+
+.cadence-group-head small {
+  display: block;
+  margin-top: 10px;
+  color: var(--text-secondary);
+  font-size: 0.84rem;
+  font-weight: 750;
+  line-height: 1.55;
+  word-break: keep-all;
+}
+
+.cadence-group-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0;
+}
+
+.cadence-group-metrics div {
+  min-width: 0;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.58);
+  border: 1px solid var(--border-light);
+}
+
+.cadence-group-metrics dt {
+  color: var(--text-tertiary);
+  font-size: 0.66rem;
+  font-weight: 900;
+}
+
+.cadence-group-metrics dd {
+  margin: 7px 0 0;
+  color: var(--text-primary);
+  font-size: 0.78rem;
+  font-weight: 850;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.timer-chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-content: flex-start;
+}
+
+.timer-chip {
+  min-width: min(100%, 210px);
+  flex: 1 1 210px;
+  padding: 10px 12px;
+  background: rgba(17, 18, 15, 0.05);
+  border: 1px solid var(--border-light);
+}
+
+.timer-chip b,
+.timer-chip span,
+.timer-chip small {
+  display: block;
+}
+
+.timer-chip b {
+  color: var(--text-primary);
+  font-size: 0.78rem;
+  font-weight: 950;
+}
+
+.timer-chip span {
+  margin-top: 5px;
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.timer-chip small {
+  margin-top: 5px;
+  color: var(--text-tertiary);
+  font-size: 0.68rem;
+  font-weight: 850;
+}
+
 .scheduler-timer-card,
 .operating-flow-card {
   min-width: 0;
@@ -5061,6 +5183,10 @@ h6 {
 @media (max-width: 640px) {
   :root {
     --page-edge: 20px;
+  }
+
+  .cadence-group-metrics {
+    grid-template-columns: 1fr;
   }
 
   .topbar {
