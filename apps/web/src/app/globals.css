@@ -187,10 +187,15 @@ h6 {
   display: flex;
   min-width: 0;
   max-width: 100%;
-  flex-wrap: wrap;
-  gap: 7px;
+  flex-wrap: nowrap;
+  gap: 8px;
   justify-content: flex-end;
-  overflow: visible;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 3px;
+  scroll-padding-inline: 2px;
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
 }
 
 .nav a {
@@ -198,8 +203,9 @@ h6 {
   flex: 0 0 auto;
   max-width: 100%;
   align-items: center;
-  min-height: 34px;
-  padding: 8px 10px;
+  gap: 7px;
+  min-height: 38px;
+  padding: 7px 11px 7px 8px;
   background: color-mix(in srgb, var(--bg-panel) 52%, transparent);
   border: 1px solid var(--border-light);
   border-radius: 999px;
@@ -209,6 +215,28 @@ h6 {
   line-height: 1.15;
   overflow-wrap: anywhere;
   transition: background 0.16s ease, border-color 0.16s ease;
+}
+
+.nav a::before {
+  display: inline-grid;
+  width: 24px;
+  height: 24px;
+  flex: 0 0 auto;
+  place-items: center;
+  background: color-mix(in srgb, var(--text-primary) 92%, var(--bg-panel));
+  border-radius: 999px;
+  color: var(--bg-panel);
+  content: attr(data-step);
+  font-size: 0.62rem;
+  font-weight: 950;
+  line-height: 1;
+}
+
+.nav a span {
+  overflow: hidden;
+  max-width: 7.8rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .nav a:hover,
@@ -4943,10 +4971,12 @@ h6 {
   .topbar {
     grid-template-columns: 1fr;
     align-items: start;
+    gap: 12px;
   }
 
   .nav {
     justify-content: flex-start;
+    width: 100%;
   }
 
   .bento-grid {
@@ -5034,6 +5064,7 @@ h6 {
   }
 
   .topbar {
+    gap: 12px;
     padding-top: 18px;
   }
 
@@ -5042,13 +5073,24 @@ h6 {
   }
 
   .nav {
-    gap: 6px;
+    width: auto;
+    margin-right: calc(var(--page-edge) * -1);
+    margin-left: calc(var(--page-edge) * -1);
+    padding-inline: var(--page-edge);
+    gap: 8px;
+    scroll-snap-type: x proximity;
   }
 
   .nav a {
-    flex: 1 1 auto;
+    flex: 0 0 auto;
     justify-content: center;
-    padding: 9px 8px;
+    min-height: 42px;
+    padding: 8px 12px 8px 8px;
+    scroll-snap-align: start;
+  }
+
+  .nav a span {
+    max-width: 6.4rem;
   }
 
   .pageFrame {

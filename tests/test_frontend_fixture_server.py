@@ -51,7 +51,7 @@ class FrontendFixtureServerTests(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertEqual(payload["status"], "ok")
         self.assertEqual(payload["contract_version"], "frontend-api-v0.1")
-        self.assertEqual(payload["endpoint_count"], 17)
+        self.assertEqual(payload["endpoint_count"], 18)
         self.assertTrue(payload["read_only"])
         self.assertEqual(payload["source_mode"], "fixture")
         self.assertEqual(payload["runtime"]["runtime_profile"], "local")
@@ -71,6 +71,7 @@ class FrontendFixtureServerTests(unittest.TestCase):
         self.assertIn("/api/ai-evidence/sec-event-aapl-10k-20240928", paths)
         self.assertIn("/api/source-documents/aapl-2024-10k-20240928", paths)
         self.assertIn("/api/events?asOfDate=2024-11-01", paths)
+        self.assertIn("/api/ai/news-clusters?asOfDate=2026-05-19", paths)
         self.assertIn("/api/themes/ANNUAL_REPORTING?asOfDate=2024-11-01", paths)
         self.assertIn("/api/performance/Long%20Term%20Paper/outcomes?measurementEndDate=2024-12-02", paths)
 
@@ -97,6 +98,22 @@ class FrontendFixtureServerTests(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertEqual(theme["data"]["theme_key"], "ANNUAL_REPORTING")
         self.assertEqual(theme["data"]["linked_instruments"][0]["symbol"], "AAPL")
+
+    def test_current_frontend_event_query_aliases_to_fixture_response(self) -> None:
+        status, events = self.fetch_json("/api/events?asOfDate=2026-06-04&eventType=all&evidenceType=all&limit=1")
+        self.assertEqual(status, 200)
+        self.assertEqual(events["data"]["summary"]["event_count"], 2)
+        self.assertEqual(len(events["data"]["events"]), 1)
+        self.assertEqual(events["pagination"]["limit"], 1)
+        self.assertEqual(events["data"]["events"][0]["ai_evidence_id"], "sec-event-aapl-10k-20240928")
+
+    def test_ai_news_cluster_query_returns_fixture_response(self) -> None:
+        status, clusters = self.fetch_json("/api/ai/news-clusters?asOfDate=2026-06-04&limit=3")
+        self.assertEqual(status, 200)
+        self.assertEqual(clusters["data"]["summary"]["cluster_count"], 1)
+        self.assertEqual(clusters["data"]["clusters"][0]["evidence_id"], "ai-evidence-2")
+        self.assertEqual(clusters["data"]["clusters"][0]["symbols"], ["NVDA"])
+        self.assertEqual(clusters["pagination"]["limit"], 3)
 
     def test_performance_path_returns_fixture_response(self) -> None:
         status, payload = self.fetch_json(

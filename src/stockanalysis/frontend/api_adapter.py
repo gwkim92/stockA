@@ -5,6 +5,7 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Sequence
+from urllib.parse import parse_qs, urlsplit
 
 from stockanalysis.ingest.config import RuntimeConfig
 from stockanalysis.frontend.pagination import (
@@ -90,8 +91,14 @@ def resolve_frontend_response(
 
         root = repo_root or resolve_repo_root()
         canonical_path = canonical_frontend_path_for_pagination(api_path)
+        candidate_paths = [api_path]
+        if canonical_path not in candidate_paths:
+            candidate_paths.append(canonical_path)
+        alias_path = _fixture_alias_path(api_path)
+        if alias_path and alias_path not in candidate_paths:
+            candidate_paths.append(alias_path)
         for endpoint in list_frontend_endpoints(root):
-            if endpoint.path in {api_path, canonical_path}:
+            if endpoint.path in candidate_paths:
                 example_path = root / endpoint.example
                 with example_path.open("r", encoding="utf-8") as handle:
                     payload = json.load(handle)
@@ -99,6 +106,43 @@ def resolve_frontend_response(
     except FrontendPaginationError as exc:
         raise FrontendApiAdapterError(str(exc), code=exc.code) from exc
     raise FrontendApiAdapterError(f"Unknown frontend API path: {api_path}")
+
+
+def _fixture_alias_path(api_path: str) -> str | None:
+    """Map live-style frontend queries to stable local fixture examples.
+
+    Fixture files are intentionally tiny and date-stable. Current app routes use
+    today's date and extra filter parameters, so local visual smoke needs a
+    representative fixture alias without changing live adapter behavior.
+    """
+    parsed = urlsplit(api_path)
+    query = _single_value_query(parsed.query)
+    if parsed.path == "/api/events" and query.get("asOfDate"):
+        return "/api/events?asOfDate=2024-11-01"
+    if parsed.path == "/api/ai/news-clusters":
+        return "/api/ai/news-clusters?asOfDate=2026-05-19"
+    if parsed.path == "/api/cycles" and query.get("asOfDate"):
+        return "/api/cycles?asOfDate=2024-11-01"
+    if parsed.path.startswith("/api/themes/") and query.get("asOfDate"):
+        return "/api/themes/ANNUAL_REPORTING?asOfDate=2024-11-01"
+    if parsed.path.startswith("/api/portfolio/") and parsed.path.endswith("/coverage") and query.get("asOfDate"):
+        return "/api/portfolio/Long%20Term%20Paper/coverage?asOfDate=2024-11-01"
+    if (
+        parsed.path.startswith("/api/performance/")
+        and parsed.path.endswith("/outcomes")
+        and query.get("measurementEndDate")
+    ):
+        return "/api/performance/Long%20Term%20Paper/outcomes?measurementEndDate=2024-12-02"
+    return None
+
+
+def _single_value_query(raw_query: str) -> dict[str, str]:
+    query_values = parse_qs(raw_query, keep_blank_values=True)
+    query: dict[str, str] = {}
+    for key, values in query_values.items():
+        if values:
+            query[key] = values[-1]
+    return query
 
 
 def _resolve_live_frontend_response(

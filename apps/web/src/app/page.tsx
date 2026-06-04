@@ -20,6 +20,10 @@ function formatPercent(value: number | null | undefined) {
   return `${Math.round(value * 1000) / 10}%`;
 }
 
+function safeCount(value: unknown, fallback = 0) {
+  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+}
+
 function riskClass(value: string) {
   if (value === "high") {
     return "risk-high";
@@ -55,6 +59,41 @@ function automationDisplayLabel(scheduler: DataHealthData["scheduler"], fallback
     return "자동 반복 실행 가능";
   }
   return koCode(fallbackStatus);
+}
+
+function fallbackOutcomeWaitMonitor(asOfDate: string): DataHealthData["outcome_maturity_wait_monitor"] {
+  return {
+    status: "unavailable",
+    title: "성과 대기 정보가 아직 연결되지 않았다",
+    summary: "로컬 fixture 또는 부분 장애 상태라 추천 outcome과 포트폴리오 feedback 성숙일을 확인하지 못했다.",
+    next_action: "데이터 상태 화면에서 outcome maturity wait monitor 수집 여부를 확인한다.",
+    as_of_date: asOfDate,
+    recommendation_next_due_date: "",
+    recommendation_next_due_count: 0,
+    recommendation_maturity_status: "unavailable",
+    recommendation_action_status: "unavailable",
+    recommendation_ready_for_backfill_count: 0,
+    recommendation_overdue_count: 0,
+    recommendation_price_gap_count: 0,
+    portfolio_feedback_maturity_date: "",
+    portfolio_feedback_status: "unavailable",
+    portfolio_feedback_run_gap: 0,
+    portfolio_mature_decision_gap: 0,
+    earliest_action_date: "",
+    wait_item_count: 0,
+    wait_items: [],
+    weight_review_blocked: true,
+    weight_review_block_reason: "outcome_maturity_wait_monitor_unavailable",
+    manual_weight_review_allowed: false,
+    recommendation_scoring_mutated: false,
+    benchmark_definition_mutated: false,
+    portfolio_position_mutated: false,
+    automatic_weight_change_allowed: false,
+    automatic_rebalance_allowed: false,
+    automatic_order_allowed: false,
+    broker_submit_allowed: false,
+    order_boundary: "read_only_no_order",
+  };
 }
 
 function shortReviewReason(value: string) {
@@ -94,8 +133,28 @@ export default async function HomePage() {
   const providerBudget = health.data.provider_budget;
   const coverage = data.latest_metrics;
   const firstRecommendation = recommendationData.recommendations[0];
-  const recommendationBoundary = recommendationData.summary;
-  const outcomeWaitMonitor = health.data.outcome_maturity_wait_monitor;
+  const rawRecommendationSummary = recommendationData.summary as typeof recommendationData.summary & Record<string, unknown>;
+  const recommendationBoundary = {
+    decision_review_ready_count: safeCount(
+      rawRecommendationSummary.decision_review_ready_count,
+      safeCount(rawRecommendationSummary.reviewable_count),
+    ),
+    paper_validation_pending_count: safeCount(rawRecommendationSummary.paper_validation_pending_count),
+    decision_blocked_count: safeCount(
+      rawRecommendationSummary.decision_blocked_count,
+      safeCount(rawRecommendationSummary.blocked_count),
+    ),
+    order_blocked_count: safeCount(
+      rawRecommendationSummary.order_blocked_count,
+      safeCount(rawRecommendationSummary.blocked_count),
+    ),
+  };
+  const ticketCount = safeCount(ticketData.ticket_count, ticketData.tickets.length);
+  const tradingBlockedCount = safeCount(trading.gate_summary.blocked_count);
+  const tradingWarningCount = safeCount(trading.gate_summary.warning_count);
+  const brokerSubmittedCount = safeCount(trading.audit_summary.submitted_to_broker_count);
+  const outcomeWaitMonitor =
+    health.data.outcome_maturity_wait_monitor ?? fallbackOutcomeWaitMonitor(health.data.as_of_date || data.as_of_date);
   const recommendationOutcomeDate =
     outcomeWaitMonitor.recommendation_next_due_date || outcomeWaitMonitor.earliest_action_date || "미정";
   const portfolioFeedbackDate =
@@ -127,10 +186,10 @@ export default async function HomePage() {
             href: "/remediation" as Route,
             cta: "할 일 열기",
           }
-        : trading.gate_summary.blocked_count > 0
+        : tradingBlockedCount > 0
           ? {
               title: "거래 안전 조건을 확인한다.",
-              body: `수집과 추천은 읽을 수 있지만 거래 안전 조건 ${trading.gate_summary.blocked_count}개가 닫혀 있다.`,
+              body: `수집과 추천은 읽을 수 있지만 거래 안전 조건 ${tradingBlockedCount}개가 닫혀 있다.`,
               href: "/trading-readiness" as Route,
               cta: "거래 안전 열기",
             }
@@ -170,7 +229,7 @@ export default async function HomePage() {
       index: "04",
       title: "추천 근거가 충분한가",
       status: `${recommendationBoundary.decision_review_ready_count}개 판단 후보`,
-      detail: `페이퍼 대기 ${recommendationBoundary.paper_validation_pending_count}개, 차단 ${recommendationBoundary.decision_blocked_count}개, 열린 검토 ${ticketData.ticket_count}개`,
+      detail: `페이퍼 대기 ${recommendationBoundary.paper_validation_pending_count}개, 차단 ${recommendationBoundary.decision_blocked_count}개, 열린 검토 ${ticketCount}개`,
       href: "/recommendations",
       cta: "추천 근거",
     },
@@ -178,7 +237,7 @@ export default async function HomePage() {
       index: "05",
       title: "거래해도 안전한가",
       status: koCode(trading.readiness_status),
-      detail: `차단 ${trading.gate_summary.blocked_count}개, 경고 ${trading.gate_summary.warning_count}개`,
+      detail: `차단 ${tradingBlockedCount}개, 경고 ${tradingWarningCount}개`,
       href: "/trading-readiness",
       cta: "거래 안전",
       tone: readinessTone(trading.readiness_status),
@@ -280,13 +339,13 @@ export default async function HomePage() {
           <Link className="decision-card is-watch" href={"/recommendations" as Route}>
             <span>추천·보유</span>
             <strong>{recommendationBoundary.decision_review_ready_count.toLocaleString("ko-KR")}개 후보</strong>
-            <small>페이퍼 대기 {recommendationBoundary.paper_validation_pending_count.toLocaleString("ko-KR")}개 · 열린 검토 {ticketData.ticket_count.toLocaleString("ko-KR")}개</small>
+            <small>페이퍼 대기 {recommendationBoundary.paper_validation_pending_count.toLocaleString("ko-KR")}개 · 열린 검토 {ticketCount.toLocaleString("ko-KR")}개</small>
             <b>추천 보기</b>
           </Link>
-          <Link className={trading.gate_summary.blocked_count > 0 ? "decision-card is-block" : "decision-card is-good"} href={"/trading-readiness" as Route}>
+          <Link className={tradingBlockedCount > 0 ? "decision-card is-block" : "decision-card is-good"} href={"/trading-readiness" as Route}>
             <span>거래 안전</span>
             <strong>{koCode(trading.readiness_status)}</strong>
-            <small>차단 {trading.gate_summary.blocked_count.toLocaleString("ko-KR")}개 · 실제 주문 제출 {trading.audit_summary.submitted_to_broker_count.toLocaleString("ko-KR")}건</small>
+            <small>차단 {tradingBlockedCount.toLocaleString("ko-KR")}개 · 실제 주문 제출 {brokerSubmittedCount.toLocaleString("ko-KR")}건</small>
             <b>안전 경계</b>
           </Link>
         </div>
@@ -368,7 +427,7 @@ export default async function HomePage() {
         </article>
         <article className="rail-cell">
           <span>거래 안전 차단</span>
-          <strong>{trading.gate_summary.blocked_count}</strong>
+          <strong>{tradingBlockedCount}</strong>
           <small>{koCode(trading.execution_mode)} 모드</small>
         </article>
       </section>
@@ -417,7 +476,7 @@ export default async function HomePage() {
             <span>거래 안전</span>
             <strong>{koCode(trading.readiness_status)}</strong>
             <p>
-              차단 조건 {trading.gate_summary.blocked_count}개. 실제 주문 전송 {trading.audit_summary.submitted_to_broker_count}건.
+              차단 조건 {tradingBlockedCount}개. 실제 주문 전송 {brokerSubmittedCount}건.
             </p>
           </article>
           <article className="decision-brief-card">

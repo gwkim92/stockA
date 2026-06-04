@@ -1,0 +1,111 @@
+{
+  "contract_version": "frontend-api-v0.1",
+  "generated_at": "2026-05-19T11:20:00Z",
+  "data": {
+    "as_of_date": "2026-05-19",
+    "filters": {
+      "theme_key": null,
+      "symbol": null
+    },
+    "summary": {
+      "cluster_count": 1,
+      "clustered_event_count": 1,
+      "source_document_count": 1,
+      "chunk_count": 1,
+      "embedded_chunk_count": 1,
+      "local_rule_cluster_count": 1,
+      "llm_candidate_invocation_count": 0,
+      "llm_candidate_success_count": 0,
+      "llm_candidate_failed_count": 0,
+      "llm_candidate_artifact_count": 0,
+      "latest_llm_invocation_status": "not_run",
+      "latest_llm_invocation_at": "",
+      "latest_llm_success_at": "",
+      "latest_llm_failure_at": "",
+      "latest_llm_provider": "local_rules",
+      "estimated_cost_usd": 0.0
+    },
+    "clusters": [
+      {
+        "evidence_id": "ai-evidence-2",
+        "title": "뉴스 묶음: AI 반도체 사이클",
+        "evidence_type": "news_cluster_summary",
+        "created_at": "2026-05-19T11:20:00Z",
+        "confidence": 0.91,
+        "theme_key": "AI_SEMICONDUCTOR_CYCLE",
+        "theme_name": "AI Semiconductor Cycle",
+        "story_key": "theme",
+        "story_label": "AI 반도체 수요와 공급망 이슈",
+        "as_of_date": "2026-05-19",
+        "event_count": 1,
+        "symbols": [
+          "NVDA"
+        ],
+        "direction_counts": {
+          "supportive": 1
+        },
+        "representative_event_id": "event-20",
+        "request_hash": "hash-fixture",
+        "source_document_count": 1,
+        "chunk_count": 1,
+        "embedded_chunk_count": 1,
+        "representative_source_document_id": "rss:ai-semiconductor-cycle:65353569b9948d8593917bae",
+        "extraction_run": {
+          "run_id": "run-95",
+          "status": "succeeded",
+          "provider": "local_rules",
+          "model_id": "news_cluster_summary_v1",
+          "reasoning_effort": "",
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "estimated_cost_usd": 0.0,
+          "request_hash": "hash-fixture"
+        },
+        "events": [
+          {
+            "event_id": "event-20",
+            "title": "The Nvidia H200 China deal survived the Trump-Xi summit",
+            "korean_title": "엔비디아 H200 중국 거래가 미중 정상회담 이후에도 유지됐다",
+            "korean_summary": "AI 반도체 수출과 중국 수요가 동시에 거론된 뉴스다. 직접 연결 종목은 NVDA이고, 상위 흐름은 AI 반도체 사이클이다.",
+            "translation_confidence": 0.87,
+            "event_at": "2026-05-19T10:02:40Z",
+            "symbol": "NVDA",
+            "impact_direction": "supportive",
+            "impact_score": 0.66,
+            "source_document_id": "rss:ai-semiconductor-cycle:65353569b9948d8593917bae"
+          }
+        ],
+        "source_documents": [
+          {
+            "source_document_id": "rss:ai-semiconductor-cycle:65353569b9948d8593917bae",
+            "title": "The Nvidia H200 China deal survived the Trump-Xi summit",
+            "korean_title": "엔비디아 H200 중국 거래가 미중 정상회담 이후에도 유지됐다",
+            "korean_summary": "원천 뉴스는 AI 반도체 수출, 중국 수요, 정책 리스크를 함께 다룬다.",
+            "translation_confidence": 0.87,
+            "url": "https://example.com/nvda-h200",
+            "published_at": "2026-05-19T10:02:40Z",
+            "chunk_count": 1,
+            "embedded_chunk_count": 1
+          }
+        ],
+        "relation_reasons": [
+          "같은 상위 테마로 묶임: AI_SEMICONDUCTOR_CYCLE",
+          "직접 연결 종목: NVDA",
+          "원천 문서 1개로 확인 가능"
+        ],
+        "audit_notes": [
+          "Fixture smoke용 예시이며 유료 provider 또는 LLM을 호출하지 않았다."
+        ]
+      }
+    ],
+    "guardrails": [
+      "이 fixture는 로컬 화면 검증용 대표 예시다.",
+      "실제 투자 판단에는 live DB와 validator 통과 결과를 사용한다."
+    ]
+  },
+  "links": {
+    "events": "/api/events?asOfDate=2026-05-19",
+    "intelligence": "/api/ai/news-clusters?asOfDate=2026-05-19",
+    "representative_source_document": "/api/source-documents/rss%3Aai-semiconductor-cycle%3A65353569b9948d8593917bae"
+  }
+}

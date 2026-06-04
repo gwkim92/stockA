@@ -59,12 +59,14 @@ try:
     status, health = fetch_json("/__health")
     assert status == 200, health
     assert health["contract_version"] == "frontend-api-v0.1", health
-    assert health["endpoint_count"] == 17, health
+    assert health["endpoint_count"] == 18, health
     assert health["source_mode"] == "fixture", health
 
     status, endpoints = fetch_json("/__endpoints")
     assert status == 200, endpoints
-    assert len(endpoints["data"]["endpoints"]) == 17, endpoints
+    endpoint_paths = {endpoint["path"] for endpoint in endpoints["data"]["endpoints"]}
+    assert len(endpoint_paths) == 18, endpoints
+    assert "/api/ai/news-clusters?asOfDate=2026-05-19" in endpoint_paths, endpoint_paths
     assert endpoints["source_mode"] == "fixture", endpoints
 
     status, dashboard = fetch_json("/api/dashboard/today")

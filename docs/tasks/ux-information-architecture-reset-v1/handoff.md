@@ -2,7 +2,7 @@
 
 ## Status
 
-- in progress: all primary app first-view slices, news/event ledger row readability, deployed 24-route terminology/overflow audit, legacy unused command-panel CSS cleanup, and shared lower-fold dense ledger base styling are complete locally. AWS/EC2 deploy smoke for the latest local CSS cleanup is deferred because the current network is public Wi-Fi.
+- in progress: all primary app first-view slices, news/event ledger row readability, deployed 24-route terminology/overflow audit, legacy unused command-panel CSS cleanup, shared lower-fold dense ledger base styling, and local global navigation cleanup are complete locally. AWS/EC2 deploy smoke for the latest local changes is deferred because the current network is public Wi-Fi.
 
 ## Current Status
 
@@ -27,18 +27,20 @@
 - completed: deployed EC2 24-route smoke now has 0 data errors, 0 page errors, 0 console errors, 0 desktop/mobile horizontal overflow, and 0 targeted raw-term hits.
 - completed locally: removed unused legacy command-panel CSS selectors that no route references.
 - completed locally: changed shared lower-fold ledger/list/path/relationship card styling so dense audit rows read as bounded cards instead of thin raw log lines.
+- completed locally: changed global header navigation from multi-row wrapped pills to a numbered one-line scroll rail on narrow screens.
+- completed locally: restored AWS-free local visual QA by adding a fixture `ai-news-clusters` example and fixture aliases for current frontend date/filter query variants.
+- completed locally: hardened the home page against missing `outcome_maturity_wait_monitor` and older recommendation summary fields so partial fixture/runtime payloads render an explicit unavailable state instead of a server component crash.
 
 ## Exact Next Step
 
-- exact next step: when back on trusted network, deploy the latest local CSS cleanup and run the 24-route deployed smoke again; after that, continue page-by-page lower-fold copy/content review for remaining dense audit sections.
+- exact next step: when back on trusted network, push/deploy the latest local UX/navigation/fixture changes and run the 24-route deployed smoke again; after that, continue page-by-page lower-fold copy/content review for remaining dense audit sections.
 
 ## Risks
 
 - This slice improves information architecture only. It must not change data, scoring, broker/order boundary, or scheduler behavior.
 - Dense raw ledgers are still needed for audit; move them below fold rather than deleting evidence.
-- Existing top navigation still wraps awkwardly on narrow mobile widths. It did not overflow horizontally, but it needs a separate navigation cleanup slice.
 - Raw ledgers are still dense below the fold. They remain intentionally available for audit, but card internals need a later readability pass.
-- Latest local CSS cleanup is not yet deployed to EC2; do not claim deployed status for it until trusted-network deployment and route smoke are complete.
+- Latest local UX/navigation/fixture cleanup is not yet deployed to EC2; do not claim deployed status for it until trusted-network deployment and route smoke are complete.
 
 ## Verification
 
@@ -46,7 +48,17 @@
 - passed locally for legacy CSS/readability cleanup: `cd apps/web && npm run build`
 - passed locally for legacy CSS/readability cleanup: `PYTHONPATH=/Users/woody/ai/agent-work-harness/src /opt/homebrew/bin/python3.13 -m awh verify --repo . --task ux-information-architecture-reset-v1`
 - passed locally for legacy CSS/readability cleanup: `git diff --check`
-- not run for latest local CSS cleanup: EC2 deployed route smoke, intentionally deferred on public Wi-Fi.
+- passed locally for global navigation/fixture cleanup: `cd apps/web && npm run typecheck`
+- passed locally for global navigation/fixture cleanup: `cd apps/web && npm run build`
+- passed locally for global navigation/fixture cleanup: `bash scripts/verify_frontend_api_contract.sh`
+- passed locally for global navigation/fixture cleanup: `bash scripts/verify_frontend_api_adapter.sh`
+- passed locally for global navigation/fixture cleanup: `bash scripts/verify_frontend_fixture_server.sh`
+- passed locally for global navigation/fixture cleanup: `PYTHONPATH=/Users/woody/ai/agent-work-harness/src /opt/homebrew/bin/python3.13 -m awh verify --repo . --task ux-information-architecture-reset-v1`
+- passed locally for global navigation/fixture cleanup: `git diff --check`
+- passed locally for global navigation/fixture cleanup: Playwright production server smoke on `http://127.0.0.1:13002/`, `hasDataError=false`, body/document `scrollWidth=390`, nav links `7`, nav rows `1`
+- local screenshot: `output/playwright/ux-information-architecture-reset-v1/mobile-nav-home-fixed.png`
+- local screenshot: `output/playwright/ux-information-architecture-reset-v1/desktop-nav-home-fixed.png`
+- not run for latest local changes: EC2 deployed route smoke, intentionally deferred on public Wi-Fi.
 - passed: `cd apps/web && npm run typecheck`
 - passed: `cd apps/web && npm run build`
 - passed: `PYTHONPATH=/Users/woody/ai/agent-work-harness/src /opt/homebrew/bin/python3.13 -m awh verify --repo . --task ux-information-architecture-reset-v1`

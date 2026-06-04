@@ -36,13 +36,13 @@ export const viewport: Viewport = {
 };
 
 const navItems = [
-  { href: "/", label: "현황" },
-  { href: "/data-health", label: "수집" },
-  { href: "/intelligence", label: "뉴스·AI" },
-  { href: "/stocks", label: "종목" },
-  { href: "/recommendations", label: "추천·보유" },
-  { href: "/trading-readiness", label: "거래 안전" },
-  { href: "/remediation", label: "할 일" },
+  { href: "/", label: "현황", step: "01", description: "오늘 먼저 볼 판단 지도" },
+  { href: "/data-health", label: "수집", step: "02", description: "데이터 수집과 자동화 상태" },
+  { href: "/intelligence", label: "뉴스·AI", step: "03", description: "뉴스 해석과 AI 근거" },
+  { href: "/stocks", label: "종목", step: "04", description: "종목별 뉴스, 흐름, 분석" },
+  { href: "/recommendations", label: "추천·보유", step: "05", description: "추천 후보와 보유 검토" },
+  { href: "/trading-readiness", label: "거래 안전", step: "06", description: "주문 차단과 안전 경계" },
+  { href: "/remediation", label: "할 일", step: "07", description: "수정이 필요한 운영 항목" },
 ] as const;
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
@@ -65,8 +65,14 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
             </Link>
             <nav className="nav" aria-label="주요 내비게이션">
               {navItems.map((item) => (
-                <Link href={item.href as Route} key={item.href}>
-                  {item.label}
+                <Link
+                  aria-label={`${item.step}. ${item.label}: ${item.description}`}
+                  data-step={item.step}
+                  href={item.href as Route}
+                  key={item.href}
+                  title={item.description}
+                >
+                  <span>{item.label}</span>
                 </Link>
               ))}
             </nav>

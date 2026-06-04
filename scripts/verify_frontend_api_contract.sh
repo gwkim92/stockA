@@ -86,7 +86,7 @@ with open(index_path, "r", encoding="utf-8") as handle:
 assert index["contract_version"] == "frontend-api-v0.1", index
 assert index["status"] == "draft", index
 endpoints = index["endpoints"]
-assert len(endpoints) == 17, endpoints
+assert len(endpoints) == 18, endpoints
 
 expected_dtos = {
     "DailyCockpitResponse",
@@ -104,6 +104,7 @@ expected_dtos = {
     "AiEvidenceDetailResponse",
     "SourceDocumentDetailResponse",
     "EventListResponse",
+    "AiNewsClusterListResponse",
     "ThemeDetailResponse",
     "PerformanceOutcomesResponse",
 }
@@ -115,6 +116,7 @@ assert "/api/stocks/AAPL" in paths, endpoints
 assert "/api/paper-trading/preview" in paths, endpoints
 assert "/api/trading/readiness" in paths, endpoints
 assert "/api/events?asOfDate=2024-11-01" in paths, endpoints
+assert "/api/ai/news-clusters?asOfDate=2026-05-19" in paths, endpoints
 assert "/api/recommendations" in paths, endpoints
 assert "/api/themes/ANNUAL_REPORTING?asOfDate=2024-11-01" in paths, endpoints
 assert "/api/performance/Long%20Term%20Paper/outcomes?measurementEndDate=2024-12-02" in paths, endpoints
@@ -147,6 +149,7 @@ examples = {
     "ai_evidence": "docs/api/frontend/examples/ai-evidence-detail.json",
     "source_document": "docs/api/frontend/examples/source-document-detail.json",
     "events": "docs/api/frontend/examples/event-list.json",
+    "ai_news_clusters": "docs/api/frontend/examples/ai-news-clusters.json",
     "theme": "docs/api/frontend/examples/theme-detail.json",
     "performance": "docs/api/frontend/examples/performance-outcomes.json",
 }

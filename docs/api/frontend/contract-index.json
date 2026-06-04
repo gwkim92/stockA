@@ -133,6 +133,14 @@
     },
     {
       "method": "GET",
+      "path": "/api/ai/news-clusters?asOfDate=2026-05-19",
+      "response_dto": "AiNewsClusterListResponse",
+      "example": "docs/api/frontend/examples/ai-news-clusters.json",
+      "route_owner": "/intelligence",
+      "description": "Read-only AI news cluster list that groups related news into themes, symbols, source documents, and relationship reasons."
+    },
+    {
+      "method": "GET",
       "path": "/api/themes/ANNUAL_REPORTING?asOfDate=2024-11-01",
       "response_dto": "ThemeDetailResponse",
       "example": "docs/api/frontend/examples/theme-detail.json",
