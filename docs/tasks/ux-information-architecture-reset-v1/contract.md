@@ -15,6 +15,9 @@
 - mutable surface: `apps/web/src/app/ai-evidence/page.tsx`
 - mutable surface: `apps/web/src/app/ai-evidence/blocked/page.tsx`
 - mutable surface: `apps/web/src/app/ai-evidence/results/page.tsx`
+- mutable surface: `apps/web/src/app/page.tsx`
+- mutable surface: `apps/web/src/app/data-health/page.tsx`
+- mutable surface: `apps/web/src/app/intelligence/page.tsx`
 - mutable surface: `docs/plans/2026-06-04-ux-information-architecture-reset-v1.md`
 - mutable surface: `docs/tasks/ux-information-architecture-reset-v1/`
 
@@ -47,4 +50,3 @@
 - `/ai-evidence/blocked` first viewport explains what stays blocked versus what needs taxonomy/alias remediation.
 - `/ai-evidence/results` first viewport separates recommendation input, macro-flow, direct instrument, and no-order boundary.
 - Existing data remains reachable below fold.
-

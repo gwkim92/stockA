@@ -109,7 +109,6 @@ export default async function HomePage() {
     : ("/recommendations" as Route);
   const failedJobCount = data.attention_summary.failed_pipeline_count;
   const openTicketCount = data.attention_summary.open_ticket_count;
-  const criticalBlindSpotCount = data.attention_summary.critical_blind_spot_count;
   const budgetLabel = `${providerBudget.remaining_request_count}/${providerBudget.daily_budget}`;
   const budgetDateLabel =
     providerBudget.status === "stale" ? `${providerBudget.budget_date} 기준` : `${providerBudget.budget_date} 오늘 기준`;
@@ -248,61 +247,49 @@ export default async function HomePage() {
   ];
 
   return (
-    <div className="terminal-home">
-      <section className="operator-hero reveal" aria-labelledby="dashboard-title">
-        <div className="operator-hero-copy">
-          <div className="bento-badge">오늘의 판단 지도</div>
-          <h1 className="terminal-title operator-title" id="dashboard-title">
-            <span>오늘 볼 것은</span>
-            <span>수집, 근거,</span>
-            <span className="title-muted">안전이다.</span>
+    <div className="terminal-home decision-page">
+      <section className="decision-brief reveal" aria-labelledby="dashboard-title">
+        <div className="decision-brief-main">
+          <span className="decision-brief-kicker">오늘의 판단 지도 · {data.as_of_date}</span>
+          <h1 className="decision-brief-title" id="dashboard-title">
+            지금 할 일은 {primaryFocus.title}
           </h1>
-          <p className="manifest-lede">
-            오늘은 이 순서로 보면 된다. 먼저 데이터가 정상인지 확인하고, 새 뉴스 근거가 어떤 흐름과
-            종목에 붙었는지 본 뒤, 추천·보유·페이퍼 검증이 주문 차단 경계 안에 있는지 확인한다.
+          <p className="decision-brief-copy">
+            {primaryFocus.body} 첫 화면에서는 수집 상태, 뉴스·AI 근거, 추천·보유 변화, 거래 안전 경계만 본다.
           </p>
-          <div className="btn-row">
-            <Link className="btn btn-primary" href="/data-health">
-              01 수집 확인
-            </Link>
-            <Link className="btn btn-secondary" href={"/intelligence" as Route}>
-              02 뉴스 근거
-            </Link>
-            <Link className="btn btn-secondary" href={"/recommendations" as Route}>
-              03 추천 근거
-            </Link>
+          <div className="decision-brief-meta" aria-label="홈 핵심 상태">
+            <span>실패 작업 {failedJobCount.toLocaleString("ko-KR")}개</span>
+            <span>열린 검토 {openTicketCount.toLocaleString("ko-KR")}개</span>
+            <span>호출 예산 {budgetLabel}</span>
+            <span>{orderBoundaryLabel}</span>
           </div>
         </div>
-
-        <aside className="operator-brief" aria-label="현재 운영 결론">
-          <span>지금 할 일</span>
-          <strong>{primaryFocus.title}</strong>
-          <p>{primaryFocus.body}</p>
-          <Link className="btn btn-primary operator-next-link" href={primaryFocus.href}>
-            {primaryFocus.cta}
+        <div className="decision-brief-grid">
+          <Link className={failedJobCount > 0 ? "decision-card is-block" : "decision-card is-good"} href="/data-health">
+            <span>수집 상태</span>
+            <strong>{koCode(health.data.overall_status)}</strong>
+            <small>자동화 {automationDisplayLabel(health.data.scheduler, data.run_status.scheduler)} · 예산 {budgetDateLabel}</small>
+            <b>수집 확인</b>
           </Link>
-          <p>
-            실패 작업 {failedJobCount}개, 열린 검토 {openTicketCount}개, 중요 사각지대 {criticalBlindSpotCount}개.
-          </p>
-          <dl>
-            <div>
-              <dt>데이터 제공자</dt>
-              <dd>{koCode(providerBudget.provider)}</dd>
-            </div>
-            <div>
-              <dt>호출 예산</dt>
-              <dd>{budgetLabel} · {budgetDateLabel}</dd>
-            </div>
-            <div>
-              <dt>자동화</dt>
-              <dd>{automationDisplayLabel(health.data.scheduler, data.run_status.scheduler)}</dd>
-            </div>
-            <div>
-              <dt>주문 상태</dt>
-              <dd>{orderBoundaryLabel}</dd>
-            </div>
-          </dl>
-        </aside>
+          <Link className="decision-card is-good" href={"/intelligence" as Route}>
+            <span>뉴스·AI</span>
+            <strong>{eventData.summary.event_count.toLocaleString("ko-KR")}개 뉴스</strong>
+            <small>AI 후보 {eventData.summary.ai_extracted_count.toLocaleString("ko-KR")}개 · 묶음 {clusterData.summary.cluster_count.toLocaleString("ko-KR")}개</small>
+            <b>뉴스 근거</b>
+          </Link>
+          <Link className="decision-card is-watch" href={"/recommendations" as Route}>
+            <span>추천·보유</span>
+            <strong>{recommendationBoundary.decision_review_ready_count.toLocaleString("ko-KR")}개 후보</strong>
+            <small>페이퍼 대기 {recommendationBoundary.paper_validation_pending_count.toLocaleString("ko-KR")}개 · 열린 검토 {ticketData.ticket_count.toLocaleString("ko-KR")}개</small>
+            <b>추천 보기</b>
+          </Link>
+          <Link className={trading.gate_summary.blocked_count > 0 ? "decision-card is-block" : "decision-card is-good"} href={"/trading-readiness" as Route}>
+            <span>거래 안전</span>
+            <strong>{koCode(trading.readiness_status)}</strong>
+            <small>차단 {trading.gate_summary.blocked_count.toLocaleString("ko-KR")}개 · 실제 주문 제출 {trading.audit_summary.submitted_to_broker_count.toLocaleString("ko-KR")}건</small>
+            <b>안전 경계</b>
+          </Link>
+        </div>
       </section>
 
       <DecisionReviewStrip

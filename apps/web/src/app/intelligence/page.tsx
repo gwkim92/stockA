@@ -419,69 +419,40 @@ export default async function IntelligencePage() {
   ];
 
   return (
-    <div className="terminal-page intelligence-page">
-      <section className="page-hero reveal" aria-labelledby="intelligence-title">
-        <div>
-          <div className="bento-badge">뉴스 흐름과 AI 근거</div>
-          <h1 className="page-title" id="intelligence-title">
-            오늘 볼 뉴스 흐름과 추천 연결을 확인한다.
+    <div className="terminal-page decision-page intelligence-page">
+      <section className="decision-brief reveal" aria-labelledby="intelligence-title">
+        <div className="decision-brief-main">
+          <span className="decision-brief-kicker">뉴스·AI · {dashboard.as_of_date}</span>
+          <h1 className="decision-brief-title" id="intelligence-title">
+            오늘의 뉴스 흐름은 {clusterSummary.cluster_count.toLocaleString("ko-KR")}개 묶음으로 정리됐다.
           </h1>
-        </div>
-        <p className="page-lede">
-          이 화면의 목적은 수집된 뉴스를 투자 판단에 쓰기 전에 “같은 흐름으로 묶어도 되는지”,
-          “어떤 종목과 관계가 있는지”, “추천 근거로 연결됐는지”를 확인하는 것이다.
-        </p>
-      </section>
-
-      <section className="intelligence-flow-panel reveal delay-1" aria-labelledby="intelligence-flow-title">
-        <div className="intelligence-flow-lead">
-          <span>오늘의 확인 순서</span>
-          <h2 id="intelligence-flow-title">뉴스는 네 단계만 보면 된다.</h2>
-          <p>
-            먼저 반복된 상위 흐름을 보고, AI가 통과시킨 근거와 차단한 근거를 분리한 뒤,
-            마지막에 추천·보유 화면으로 이어졌는지 확인한다.
+          <p className="decision-brief-copy">
+            먼저 볼 것은 기사 목록이 아니라 관계다. 같은 흐름으로 묶인 이유, AI가 통과시킨 근거,
+            차단된 근거, 추천·보유 연결 여부를 순서대로 확인한다.
           </p>
+          <div className="decision-brief-meta" aria-label="뉴스 AI 핵심 상태">
+            <span>뉴스 수집 {formatRunStatus(newsRun)}</span>
+            <span>AI {formatLlmCandidateStatus(clusterSummary)}</span>
+            <span>묶음 방식 {formatClusterModeStatus(clusterSummary)}</span>
+            <span>추천 연결 {formatPercent(dashboard.latest_metrics.weight_coverage_ratio)}</span>
+          </div>
         </div>
-        <div className="intelligence-flow-grid">
+        <div className="decision-brief-grid">
           {flowSummaryCards.map((card) => (
-            <Link className={`intelligence-flow-card ${card.tone}`} href={card.href} key={card.index}>
-              <span>{card.index}</span>
-              <small>{card.label}</small>
+            <Link
+              className={`decision-card ${
+                card.tone === "ready" ? "is-good" : card.tone === "watch" ? "is-watch" : "is-block"
+              }`}
+              href={card.href}
+              key={card.index}
+            >
+              <span>{card.label}</span>
               <strong>{card.title}</strong>
-              <em>{card.target}</em>
-              <p>{card.body}</p>
+              <small>{card.target} · {card.body}</small>
               <b>{card.cta}</b>
             </Link>
           ))}
         </div>
-      </section>
-
-      <section className="status-rail compact-rail reveal delay-1" aria-label="뉴스 흐름과 AI 근거 요약">
-        <article className="rail-cell">
-          <span>뉴스 수집</span>
-          <strong className="rail-word-value">{formatRunStatus(newsRun)}</strong>
-          <small>{formatNewsRunLabel(newsRun)} · {newsRun?.finished_at ?? "최근 완료 없음"}</small>
-        </article>
-        <article className="rail-cell">
-          <span>AI 구조화 항목</span>
-          <strong className="rail-word-value">{formatLlmCandidateStatus(clusterSummary)}</strong>
-          <small>{formatLlmCandidateDetail(clusterSummary)}</small>
-        </article>
-        <article className="rail-cell">
-          <span>뉴스 묶음 방식</span>
-          <strong className="rail-word-value">{formatClusterModeStatus(clusterSummary)}</strong>
-          <small>저장된 분석 결과만 표시</small>
-        </article>
-        <article className="rail-cell">
-          <span>뉴스 묶음 근거</span>
-          <strong>{clusterSummary.cluster_count}</strong>
-          <small>뉴스 {clusterSummary.clustered_event_count}개 연결</small>
-        </article>
-        <article className="rail-cell">
-          <span>추천·보유 연결</span>
-          <strong className="rail-ratio-value">{formatPercent(dashboard.latest_metrics.weight_coverage_ratio)}</strong>
-          <small>추천·보유 상태 연결률</small>
-        </article>
       </section>
 
       <section className="intelligence-board reveal delay-2" id="today-flow" aria-labelledby="news-decision-board-title">

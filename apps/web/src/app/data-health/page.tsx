@@ -2444,71 +2444,40 @@ export default async function DataHealthPage() {
     },
   ];
   return (
-    <div className="terminal-page">
-      <section className="page-hero reveal" aria-labelledby="data-health-title">
-        <div>
-          <div className="bento-badge">데이터·자동화 상태</div>
-          <h1 className="page-title" id="data-health-title">
-            데이터 수집과 자동 실행이 정상인지 먼저 확인한다.
+    <div className="terminal-page decision-page">
+      <section className="decision-brief reveal" aria-labelledby="data-health-title">
+        <div className="decision-brief-main">
+          <span className="decision-brief-kicker">데이터·자동화 · {data.as_of_date}</span>
+          <h1 className="decision-brief-title" id="data-health-title">
+            수집 상태는 {koCode(data.overall_status)}, 실패 작업은 {failedPipelines.toLocaleString("ko-KR")}개다.
           </h1>
-        </div>
-        <p className="page-lede">
-          뉴스는 짧은 주기, 주식 캔들은 장 마감 후, 추천·보유 상태 판단은 데이터 보강 뒤에 돈다.
-          이 화면이 정상이 아니면 추천 상세와 성과 해석도 낮은 신뢰도로 봐야 한다.
-        </p>
-      </section>
-
-      <section className="data-health-command-panel reveal delay-1" aria-labelledby="data-health-command-title">
-        <div className="data-health-command-lead">
-          <span>상태 판정판</span>
-          <h2 id="data-health-command-title">정상인지, 멈췄는지, 막아뒀는지 먼저 본다.</h2>
-          <p>
-            이 화면은 로그를 읽는 곳이 아니다. 서비스 접근, 자동 수집, 데이터·AI 품질, 투자 경계가 통과해야
-            뉴스·종목·추천 화면을 신뢰할 수 있다.
+          <p className="decision-brief-copy">
+            이 화면의 첫 판단은 단순하다. 데이터가 정상인지, 자동 실행이 살아 있는지, 무료 API 예산과 AI 품질이
+            추천 화면을 믿을 수 있는 상태인지 먼저 본다.
           </p>
+          <div className="decision-brief-meta" aria-label="데이터 상태 핵심 수치">
+            <span>반복 실행 {automationStateLabel(schedulerActivation)}</span>
+            <span>열린 조건 {data.open_gates.length.toLocaleString("ko-KR")}개</span>
+            <span>호출 예산 {providerBudget.remaining_request_count}/{providerBudget.daily_budget}</span>
+            <span>주문 경계 {koCode(outcomeWaitMonitor.order_boundary)}</span>
+          </div>
         </div>
-        <div className="data-health-command-grid">
+        <div className="decision-brief-grid">
           {operationVerdictCards.map((card) => (
-            <a className={`data-health-command-card ${card.tone}`} href={card.href} key={card.index}>
-              <span>{card.index}</span>
-              <small>{card.label}</small>
+            <a
+              className={`decision-card ${
+                card.tone === "ready" ? "is-good" : card.tone === "watch" ? "is-watch" : "is-block"
+              }`}
+              href={card.href}
+              key={card.index}
+            >
+              <span>{card.label}</span>
               <strong>{card.title}</strong>
-              <em>{card.metric}</em>
-              <p>{card.body}</p>
+              <small>{card.metric} · {card.body}</small>
               <b>{card.cta}</b>
             </a>
           ))}
         </div>
-      </section>
-
-      <section className="status-rail compact-rail reveal delay-1" aria-label="데이터 상태 요약">
-        <article className="rail-cell">
-          <span>01 전체 상태</span>
-          <strong>{koCode(data.overall_status)}</strong>
-          <small>{data.as_of_date}</small>
-        </article>
-        <article className="rail-cell rail-critical">
-          <span>02 실패 작업</span>
-          <strong>{failedPipelines}</strong>
-          <small>{data.pipeline_runs.length}개 중</small>
-        </article>
-        <article className="rail-cell">
-          <span>03 반복 실행</span>
-          <strong>{automationStateLabel(schedulerActivation)}</strong>
-          <small>{schedulerActivation.job_id ? koCode(schedulerActivation.job_id) : "조건 미설정"}</small>
-        </article>
-        <article className="rail-cell">
-          <span>04 열린 조건</span>
-          <strong>{data.open_gates.length}</strong>
-          <small>운영 전제</small>
-        </article>
-        <article className="rail-cell">
-          <span>05 호출 예산</span>
-          <strong className="rail-ratio-value">
-            {providerBudget.remaining_request_count}/{providerBudget.daily_budget}
-          </strong>
-          <small>{koCode(providerBudget.provider)}</small>
-        </article>
       </section>
 
 	      <section className="feature-map-panel reveal delay-1" aria-labelledby="priority-status-title">
