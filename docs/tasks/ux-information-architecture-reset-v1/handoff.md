@@ -2,7 +2,7 @@
 
 ## Status
 
-- in progress: first news/AI evidence UX slice deployed; second home/data-health/intelligence slice deployed; third cycle-map/stock-detail/recommendation-detail/paper-trading slice deployed; fourth list/operation slice implemented and locally smoke verified.
+- in progress: first news/AI evidence UX slice deployed; second home/data-health/intelligence slice deployed; third cycle-map/stock-detail/recommendation-detail/paper-trading slice deployed; fourth list/operation slice deployed and verified.
 
 ## Current Status
 
@@ -56,6 +56,9 @@
 - passed locally for fourth slice: `cd apps/web && npm run build`
 - passed locally for fourth slice: Playwright route smoke on `http://127.0.0.1:3002/trading-readiness`, `/portfolio/coverage`, `/performance`, `/stocks`, `/recommendations`, `/cycles`, `/events/classification`
 - passed locally for fourth slice: mobile smoke for the same 7 routes, no horizontal overflow at 390px viewport
+- passed deployed for fourth slice: `http://127.0.0.1:13000/trading-readiness`, `/portfolio/coverage`, `/performance`, `/stocks`, `/recommendations`, `/cycles`, `/events/classification`
+- passed deployed for fourth slice: mobile smoke for the same 7 routes, no horizontal overflow at 390px viewport
+- deployed commit: `6cb23cc`
 
 ## Browser Evidence
 
@@ -108,3 +111,17 @@
 - local mobile screenshot: `/tmp/stockanalysis-ux-reset-v1-slice4/mobile-recommendations.png`
 - local mobile screenshot: `/tmp/stockanalysis-ux-reset-v1-slice4/mobile-cycles.png`
 - local mobile screenshot: `/tmp/stockanalysis-ux-reset-v1-slice4/mobile-events-classification.png`
+- deployed screenshot: `/tmp/stockanalysis-ux-reset-v1-slice4-deployed/trading-readiness.png`
+- deployed screenshot: `/tmp/stockanalysis-ux-reset-v1-slice4-deployed/portfolio-coverage.png`
+- deployed screenshot: `/tmp/stockanalysis-ux-reset-v1-slice4-deployed/performance.png`
+- deployed screenshot: `/tmp/stockanalysis-ux-reset-v1-slice4-deployed/stocks.png`
+- deployed screenshot: `/tmp/stockanalysis-ux-reset-v1-slice4-deployed/recommendations.png`
+- deployed screenshot: `/tmp/stockanalysis-ux-reset-v1-slice4-deployed/cycles.png`
+- deployed screenshot: `/tmp/stockanalysis-ux-reset-v1-slice4-deployed/events-classification.png`
+- deployed mobile screenshot: `/tmp/stockanalysis-ux-reset-v1-slice4-deployed/mobile-trading-readiness.png`
+- deployed mobile screenshot: `/tmp/stockanalysis-ux-reset-v1-slice4-deployed/mobile-portfolio-coverage.png`
+- deployed mobile screenshot: `/tmp/stockanalysis-ux-reset-v1-slice4-deployed/mobile-performance.png`
+- deployed mobile screenshot: `/tmp/stockanalysis-ux-reset-v1-slice4-deployed/mobile-stocks.png`
+- deployed mobile screenshot: `/tmp/stockanalysis-ux-reset-v1-slice4-deployed/mobile-recommendations.png`
+- deployed mobile screenshot: `/tmp/stockanalysis-ux-reset-v1-slice4-deployed/mobile-cycles.png`
+- deployed mobile screenshot: `/tmp/stockanalysis-ux-reset-v1-slice4-deployed/mobile-events-classification.png`
