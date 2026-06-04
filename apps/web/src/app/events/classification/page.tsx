@@ -67,6 +67,10 @@ function directionSummary(group: ThemeGroup) {
   ].filter(Boolean).join(" · ") || "방향 미분류";
 }
 
+function safeCount(value: unknown) {
+  return typeof value === "number" && Number.isFinite(value) ? value : 0;
+}
+
 export default async function ClassificationPage() {
   const response = await getEvents({ limit: 100 });
   const data = response.data;
@@ -75,7 +79,8 @@ export default async function ClassificationPage() {
   const macroOnlyCount = data.events.length - directSymbolCount;
   const strongestEvent = [...data.events].sort((left, right) => right.impact_score - left.impact_score)[0];
   const aiLinkedCount = data.events.filter((event) => event.ai_evidence_id).length;
-  const unreviewedCount = data.summary.unreviewed_event_count;
+  const summary = data.summary as typeof data.summary & Record<string, unknown>;
+  const unreviewedCount = safeCount(summary.unreviewed_event_count);
   const ruleCheckCount = Math.max(0, data.events.length - aiLinkedCount);
   const riskReviewCount = groups.reduce((count, group) => count + group.riskReview, 0);
   const classificationCommandCards = [

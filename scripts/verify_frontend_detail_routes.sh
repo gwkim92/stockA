@@ -98,14 +98,14 @@ from urllib.request import urlopen
 
 base_url = sys.argv[1]
 checks = {
-    "/recommendations/AAPL-2024-11-01": ("Recommendation Dossier", "추천 검토서"),
-    "/theses/AAPL-bootstrap-v1": ("Thesis evidence ledger", "투자 논리 상세"),
-    "/portfolio/coverage": ("Portfolio coverage gate", "포트폴리오 커버리지 관문"),
-    "/ai-evidence/sec-event-aapl-10k-20240928": ("AI Extraction Evidence", "AI 근거 상세", "뉴스 묶음 증거"),
-    "/source-documents/aapl-2024-10k-20240928": ("Source Document Dossier", "원천 문서 검토서"),
-    "/events": ("Event Evidence Map", "이벤트", "오늘 들어온 시장 뉴스와 원천 문서를 확인한다"),
-    "/themes/ANNUAL_REPORTING": ("Annual reporting quality", "테마 화면은", "연간 보고"),
-    "/performance": ("Performance outcome review", "성과 측정"),
+    "/recommendations/AAPL-2024-11-01": ("AAPL · AI 근거 검증 통과", "추천은 자동 매매 명령이"),
+    "/theses/AAPL-bootstrap-v1": ("AAPL 투자 논리", "투자 논리"),
+    "/portfolio/coverage": ("보유 위험과 근거 공백", "리스크 예산"),
+    "/ai-evidence/sec-event-aapl-10k-20240928": ("저장된 AI 근거의 원천과 품질", "검증 trace"),
+    "/source-documents/aapl-2024-10k-20240928": ("AI 해석의 출발점", "원천 문서"),
+    "/events": ("오늘 들어온 뉴스", "수집된 뉴스와 이벤트"),
+    "/themes/ANNUAL_REPORTING": ("연간 공시", "테마"),
+    "/performance": ("성과는 확인하지만 추천 산식", "성과 측정"),
 }
 
 for path, expected_terms in checks.items():

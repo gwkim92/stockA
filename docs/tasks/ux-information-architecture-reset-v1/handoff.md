@@ -30,6 +30,11 @@
 - completed locally: changed global header navigation from multi-row wrapped pills to a numbered one-line scroll rail on narrow screens.
 - completed locally: restored AWS-free local visual QA by adding a fixture `ai-news-clusters` example and fixture aliases for current frontend date/filter query variants.
 - completed locally: hardened the home page against missing `outcome_maturity_wait_monitor` and older recommendation summary fields so partial fixture/runtime payloads render an explicit unavailable state instead of a server component crash.
+- completed locally: hardened news/AI/event pages against missing summary counters from older fixture DTOs.
+- completed locally: added frontend API response normalization for older fixture DTOs so stock detail, recommendation detail, thesis detail, portfolio coverage, paper trading, trading readiness, performance, AI evidence detail, and recommendation list render explicit unavailable/fallback states instead of Server Component crashes.
+- completed locally: added read-only local fallback responses for fixture-missing `/api/cycle-map` and `/api/ai/evidence-neighborhoods/{symbol}` so full-site UX smoke can run without live DB/AWS access.
+- completed locally: updated frontend detail route smoke expected terms from legacy English/dossier wording to current Korean decision-first page copy.
+- completed locally: full local production smoke on `http://127.0.0.1:13002` passed for 23 public routes with mobile/desktop status 200, no data error, no Server Component digest, no horizontal overflow, and nav rows 1 on 390px mobile.
 
 ## Exact Next Step
 
@@ -59,6 +64,16 @@
 - local screenshot: `output/playwright/ux-information-architecture-reset-v1/mobile-nav-home-fixed.png`
 - local screenshot: `output/playwright/ux-information-architecture-reset-v1/desktop-nav-home-fixed.png`
 - not run for latest local changes: EC2 deployed route smoke, intentionally deferred on public Wi-Fi.
+- passed locally for fixture DTO hardening: `cd apps/web && npm run typecheck`
+- passed locally for fixture DTO hardening: `cd apps/web && npm run build`
+- passed locally for fixture DTO hardening: `bash scripts/verify_frontend_api_contract.sh`
+- passed locally for fixture DTO hardening: `bash scripts/verify_frontend_api_adapter.sh`
+- passed locally for fixture DTO hardening: `bash scripts/verify_frontend_fixture_server.sh`
+- passed locally for fixture DTO hardening: `bash scripts/verify_frontend_detail_routes.sh`
+- passed locally for fixture DTO hardening: `git diff --check`
+- passed locally for fixture DTO hardening: Playwright production route smoke on `http://127.0.0.1:13002` for `/`, `/data-health`, `/intelligence`, `/cycle-map`, `/cycles`, `/events`, `/events/classification`, `/ai-evidence`, `/ai-evidence/blocked`, `/ai-evidence/results`, `/ai-evidence/sec-event-aapl-10k-20240928`, `/source-documents/aapl-2024-10k-20240928`, `/stocks`, `/stocks/AAPL`, `/themes/ANNUAL_REPORTING`, `/recommendations`, `/recommendations/AAPL-2024-11-01`, `/theses/AAPL-bootstrap-v1`, `/portfolio/coverage`, `/paper-trading`, `/trading-readiness`, `/performance`, `/remediation`
+- screenshots for latest local news/AI/event audit: `output/playwright/ux-information-architecture-reset-v1/news-audit/`
+- not run for latest fixture DTO hardening: EC2 deployed route smoke, intentionally deferred because current network is public Wi-Fi.
 - passed: `cd apps/web && npm run typecheck`
 - passed: `cd apps/web && npm run build`
 - passed: `PYTHONPATH=/Users/woody/ai/agent-work-harness/src /opt/homebrew/bin/python3.13 -m awh verify --repo . --task ux-information-architecture-reset-v1`

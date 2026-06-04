@@ -16,6 +16,10 @@ function formatPercent(value: number | null) {
   return `신뢰도 ${Math.round(value * 1000) / 10}%`;
 }
 
+function safeCount(value: unknown) {
+  return typeof value === "number" && Number.isFinite(value) ? value : 0;
+}
+
 function evidenceHref(evidenceId: string) {
   return `/ai-evidence/${encodeURIComponent(evidenceId)}` as Route;
 }
@@ -166,13 +170,20 @@ export default async function AiEvidenceIndexPage() {
   const allSummary = allEventsResponse.data.summary;
   const rejectedData = rejectedResponse.data;
   const suppressedData = suppressedResponse.data;
+  const allSummaryFields = allSummary as typeof allSummary & Record<string, unknown>;
+  const dataSummaryFields = data.summary as typeof data.summary & Record<string, unknown>;
+  const rejectedSummaryFields = rejectedData.summary as typeof rejectedData.summary & Record<string, unknown>;
+  const suppressedSummaryFields = suppressedData.summary as typeof suppressedData.summary & Record<string, unknown>;
   const candidates = data.events.filter((event) => event.ai_evidence_id);
   const newsCandidates = candidates.filter((event) => event.ai_evidence_type === "news_event_candidate");
   const directNewsCandidates = newsCandidates.filter(hasClassifiedSymbol);
   const macroNewsCandidates = newsCandidates.filter((event) => !hasClassifiedSymbol(event));
-  const clusterEvidenceCount = allSummary.news_cluster_summary_count;
-  const suppressedLowSignalCount = data.summary.suppressed_low_signal_candidate_count;
-  const blockedCandidateCount = rejectedData.summary.event_count + suppressedData.summary.event_count;
+  const aiExtractedCount = safeCount(allSummaryFields.ai_extracted_count);
+  const clusterEvidenceCount = safeCount(allSummaryFields.news_cluster_summary_count);
+  const suppressedLowSignalCount = safeCount(dataSummaryFields.suppressed_low_signal_candidate_count);
+  const rejectedEventCount = safeCount(rejectedSummaryFields.event_count);
+  const suppressedEventCount = safeCount(suppressedSummaryFields.event_count);
+  const blockedCandidateCount = rejectedEventCount + suppressedEventCount;
   const translatedCandidateCount = newsCandidates.filter((event) => event.korean_title || event.korean_summary).length;
   const firstCandidateLink = candidates[0]?.ai_evidence_id ? evidenceHref(candidates[0].ai_evidence_id) : null;
 
@@ -189,7 +200,7 @@ export default async function AiEvidenceIndexPage() {
             추천 입력에서 제외할 근거를 분리해서 본다.
           </p>
           <div className="decision-brief-meta" aria-label="뉴스 AI 근거 핵심 수치">
-            <span>AI 연결 {allSummary.ai_extracted_count.toLocaleString("ko-KR")}건</span>
+            <span>AI 연결 {aiExtractedCount.toLocaleString("ko-KR")}건</span>
             <span>한국어 {translatedCandidateCount.toLocaleString("ko-KR")}/{newsCandidates.length.toLocaleString("ko-KR")}</span>
             <span>뉴스 묶음 {clusterEvidenceCount.toLocaleString("ko-KR")}개</span>
             <span>차단·보류 {blockedCandidateCount.toLocaleString("ko-KR")}개</span>
@@ -217,7 +228,7 @@ export default async function AiEvidenceIndexPage() {
           <Link className={blockedCandidateCount > 0 ? "decision-card is-block" : "decision-card is-good"} href={"/ai-evidence/blocked" as Route}>
             <span>차단·보류</span>
             <strong>{blockedCandidateCount.toLocaleString("ko-KR")}개</strong>
-            <small>저신호 {suppressedLowSignalCount.toLocaleString("ko-KR")}개 · 검증 차단 {rejectedData.summary.event_count.toLocaleString("ko-KR")}개</small>
+            <small>저신호 {suppressedLowSignalCount.toLocaleString("ko-KR")}개 · 검증 차단 {rejectedEventCount.toLocaleString("ko-KR")}개</small>
             <b>차단 보기</b>
           </Link>
         </div>
