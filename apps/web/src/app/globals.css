@@ -220,19 +220,19 @@ h6 {
 
 /* Page Frame */
 .pageFrame {
-  padding: clamp(46px, 6vw, 88px) 0 80px;
+  padding: clamp(34px, 4.4vw, 64px) 0 72px;
 }
 
 .pageStack {
   display: flex;
   flex-direction: column;
-  gap: clamp(28px, 4vw, 56px);
+  gap: clamp(22px, 3.2vw, 44px);
 }
 
 .pageStack > section:first-child h1 {
   max-width: 1040px;
-  font-size: clamp(2.25rem, 4.8vw, 4.8rem);
-  line-height: 1.02;
+  font-size: clamp(2rem, 3.8vw, 4.2rem);
+  line-height: 1.04;
   word-break: keep-all;
 }
 
@@ -1671,6 +1671,28 @@ h6 {
 .flow-note {
   max-width: 980px;
   margin-top: 18px;
+}
+
+.flow-step-foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-top: 12px;
+}
+
+.flow-step-foot small {
+  color: var(--text-secondary);
+  font-size: 0.76rem;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.flow-step-foot a {
+  font-size: 0.78rem;
+  font-weight: 900;
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
 /* Intelligence flow cockpit */
@@ -5665,15 +5687,15 @@ h6 {
 .decision-page {
   display: flex;
   flex-direction: column;
-  gap: clamp(18px, 2.8vw, 34px);
+  gap: clamp(16px, 2.4vw, 30px);
 }
 
 .decision-brief {
   display: grid;
-  grid-template-columns: minmax(280px, 0.78fr) minmax(0, 1fr);
-  gap: clamp(16px, 2.4vw, 28px);
+  grid-template-columns: minmax(300px, 0.72fr) minmax(0, 1fr);
+  gap: clamp(14px, 2vw, 24px);
   align-items: stretch;
-  padding: clamp(18px, 2.4vw, 30px);
+  padding: clamp(16px, 2vw, 26px);
   background:
     linear-gradient(135deg, color-mix(in srgb, var(--bg-panel) 94%, white), color-mix(in srgb, var(--bg) 88%, white)),
     radial-gradient(circle at 8% 0%, rgba(27, 91, 143, 0.11), transparent 34%);
@@ -5684,7 +5706,7 @@ h6 {
 .decision-brief-main {
   display: grid;
   align-content: space-between;
-  gap: 16px;
+  gap: 14px;
   min-width: 0;
 }
 
@@ -5700,14 +5722,14 @@ h6 {
 }
 
 .decision-brief-title {
-  max-width: 720px;
+  max-width: 760px;
   margin: 0;
   color: var(--text-primary);
   font-family: var(--font-display);
-  font-size: clamp(2.05rem, 4.4vw, 4.8rem);
+  font-size: clamp(1.95rem, 3.6vw, 4rem);
   font-weight: 950;
-  letter-spacing: -0.07em;
-  line-height: 0.94;
+  letter-spacing: -0.052em;
+  line-height: 0.99;
   word-break: keep-all;
 }
 
@@ -5752,9 +5774,9 @@ h6 {
   display: grid;
   min-width: 0;
   align-content: space-between;
-  gap: 10px;
-  min-height: 158px;
-  padding: 16px;
+  gap: 9px;
+  min-height: 138px;
+  padding: 14px;
   background: color-mix(in srgb, var(--bg-panel) 92%, white);
   border: 1px solid var(--border-light);
   border-radius: var(--radius-md);
@@ -5790,10 +5812,10 @@ h6 {
   display: block;
   color: var(--text-primary);
   font-family: var(--font-display);
-  font-size: clamp(1.28rem, 1.9vw, 2.05rem);
+  font-size: clamp(1.15rem, 1.55vw, 1.72rem);
   font-weight: 950;
-  letter-spacing: -0.045em;
-  line-height: 1;
+  letter-spacing: -0.035em;
+  line-height: 1.05;
   word-break: keep-all;
 }
 

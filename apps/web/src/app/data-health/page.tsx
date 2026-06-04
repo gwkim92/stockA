@@ -92,10 +92,10 @@ function runStateLabel(run: PipelineRun | null) {
 
 function automationStateLabel(schedulerActivation: SchedulerActivation) {
   if (schedulerActivation.activation_allowed) {
-    return schedulerActivation.scheduler_activation === "installed" ? "자동 반복 실행 중" : "반복 실행 설정됨";
+    return schedulerActivation.scheduler_activation === "installed" ? "반복 실행 중" : "반복 실행 설정됨";
   }
   if (schedulerActivation.status === "pending_manual_approval") {
-    return "자동 반복 실행 미설정";
+    return "반복 실행 미설정";
   }
   return koCode(schedulerActivation.status);
 }
@@ -2456,7 +2456,7 @@ export default async function DataHealthPage() {
             추천 화면을 믿을 수 있는 상태인지 먼저 본다.
           </p>
           <div className="decision-brief-meta" aria-label="데이터 상태 핵심 수치">
-            <span>반복 실행 {automationStateLabel(schedulerActivation)}</span>
+            <span>자동 실행 {automationStateLabel(schedulerActivation)}</span>
             <span>열린 조건 {data.open_gates.length.toLocaleString("ko-KR")}개</span>
             <span>호출 예산 {providerBudget.remaining_request_count}/{providerBudget.daily_budget}</span>
             <span>주문 경계 {koCode(outcomeWaitMonitor.order_boundary)}</span>

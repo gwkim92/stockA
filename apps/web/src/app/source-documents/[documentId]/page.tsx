@@ -49,11 +49,20 @@ function extractSummary(value: string) {
   return value.match(/Summary:\s*(.*?)(?:\s+Published\/Event At:|$)/)?.[1]?.trim();
 }
 
+function sourceTypeLabel(data: SourceDocumentDetailData) {
+  return koCode(data.form_type || data.source_type || "news_rss_item");
+}
+
+function sourceDocumentKicker(data: SourceDocumentDetailData) {
+  const subject = isKnownCode(data.symbol) ? `${koCode(data.symbol)} 원천` : "시장 뉴스 문서";
+  return [subject, sourceTypeLabel(data), data.period_end].filter(Boolean).join(" · ");
+}
+
 function sourceDocumentDigest(data: SourceDocumentDetailData) {
   if (data.korean_summary) {
     return data.korean_summary;
   }
-  const target = isKnownCode(data.symbol) ? `${koCode(data.symbol)} 관련` : `${koCode(data.source_type)} 원천`;
+  const target = isKnownCode(data.symbol) ? `${koCode(data.symbol)} 관련` : sourceTypeLabel(data);
   const topic = inferKoreanTopic(`${data.title} ${data.excerpts.map((excerpt) => excerpt.summary).join(" ")}`);
   return `${target} ${topic} 문서다. 영어 원문을 먼저 읽지 말고, 연결된 AI 근거와 발췌의 한국어 근거 요약으로 테마·종목·방향 해석이 맞는지 확인한다.`;
 }
@@ -82,7 +91,7 @@ export default async function SourceDocumentPage({ params }: SourceDocumentPageP
       <section className="decision-brief reveal" aria-labelledby="source-command-title">
         <div className="decision-brief-main">
           <span className="decision-brief-kicker">
-            원천 문서 · {data.symbol} · {data.form_type} · {data.period_end}
+            {sourceDocumentKicker(data)}
           </span>
           <h1 className="decision-brief-title" id="source-command-title">
             AI 해석의 출발점을 한국어로 먼저 대조한다.
@@ -94,13 +103,13 @@ export default async function SourceDocumentPage({ params }: SourceDocumentPageP
             <span>원문 열람 {data.access_policy.browser_download_enabled ? "허용" : "차단"}</span>
             <span>발췌 {data.excerpts.length.toLocaleString("ko-KR")}개</span>
             <span>AI 근거 {data.linked_evidence.length.toLocaleString("ko-KR")}개</span>
-            <span>{koCode(data.source_type)}</span>
+            <span>{sourceTypeLabel(data)}</span>
           </div>
         </div>
         <div className="decision-brief-grid">
           <a className="decision-card is-good" href="#source-document-summary">
             <span>문서 요약</span>
-            <strong>{koCode(data.source_type)}</strong>
+            <strong>{sourceTypeLabel(data)}</strong>
             <small>{hasKoreanSummary ? "한국어 요약 있음" : "한국어 요약 추론"} · 어떤 뉴스·테마 판단에 쓰였는지 먼저 확인한다.</small>
             <b>문서 요약 보기</b>
           </a>

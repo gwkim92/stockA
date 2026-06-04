@@ -872,7 +872,7 @@ function buildStockProfessionalLayers({
         ? `보유종목 ${data.fund_instrument_analysis.holding_count}개, 커버리지 ${formatPercent(data.fund_instrument_analysis.holdings_coverage_weight)}가 연결됐다.`
         : isFundLike
           ? "펀드형 상품으로 분류됐지만 보유종목, 비용률, NAV, 추적차이 원천이 아직 충분하지 않다."
-          : "일반 기업 종목이므로 ETF·펀드 source layer는 적용하지 않는다.",
+          : "일반 기업 종목이므로 ETF·펀드 근거 레이어는 적용하지 않는다.",
       source: "fund_instrument_analysis",
       href: "#stock-fund-analysis",
       hrefLabel: "ETF·펀드 근거",
@@ -1045,14 +1045,16 @@ function StockProfessionalEvidenceAuditPanel({
               {stockProfessionalLayerStatusLabel(layer.status)}
             </strong>
             <p>{layer.detail}</p>
-            <small style={{ color: "var(--text-secondary)", fontWeight: 800 }}>원천: {userFacingStockText(layer.source)}</small>
-            {layer.href && layer.hrefLabel ? (
-              layer.href.startsWith("#") ? (
-                <a href={layer.href}>{layer.hrefLabel} 보기</a>
-              ) : (
-                <Link href={layer.href as Route}>{layer.hrefLabel} 보기</Link>
-              )
-            ) : null}
+            <div className="flow-step-foot">
+              <small>원천: {userFacingStockText(layer.source)}</small>
+              {layer.href && layer.hrefLabel ? (
+                layer.href.startsWith("#") ? (
+                  <a href={layer.href}>{layer.hrefLabel} 보기</a>
+                ) : (
+                  <Link href={layer.href as Route}>{layer.hrefLabel} 보기</Link>
+                )
+              ) : null}
+            </div>
           </article>
         ))}
       </div>

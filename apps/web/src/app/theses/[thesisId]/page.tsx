@@ -115,7 +115,7 @@ function parseReviewRationale(changeNotes: string | null | undefined): ReviewRat
 
 function reviewRationaleMetadata(rationale: ReviewRationale): AuditMetadataItem[] {
   return [
-    { label: "원문 검토 기록", value: rationale.rawChangeNotes },
+    { label: "원문 검토 기록", value: thesisText(rationale.rawChangeNotes) },
     { label: "적용 조치 코드", value: rationale.action },
     ...rationale.signals.map((signal, index) => ({
       label: `검토 기준 ${index + 1}`,
@@ -126,6 +126,62 @@ function reviewRationaleMetadata(rationale: ReviewRationale): AuditMetadataItem[
 
 function reviewCount(value: number | boolean | undefined) {
   return typeof value === "number" ? value : value ? 1 : 0;
+}
+
+function thesisText(value: string | null | undefined) {
+  return koLabel(value)
+    .replace(/좋은 thesis/g, "좋은 투자 논리")
+    .replace(/thesis review/g, "투자 논리 검토")
+    .replace(/thesis(?=[가-힣])/g, "투자 논리")
+    .replace(/안전마진\s+안전마진/g, "안전마진")
+    .replace(/밸류에이션 스냅샷가/g, "밸류에이션 스냅샷이");
+}
+
+function compactThesisSummary(data: ThesisDetailData) {
+  const summary = thesisText(data.summary).replace(/\s+/g, " ").trim();
+  if (summary.length <= 220) {
+    return `${summary} 이 투자 논리는 주문 지시가 아니라 매수 이유, 유지 조건, 무효화 조건을 검증하는 기준이다.`;
+  }
+
+  const theme = summary.match(/핵심 테마는\s*([^().,]+)(?:\s*\([^)]+\))?/u)?.[1]?.trim();
+  const cycleState = summary.match(/사이클 상태는\s*([^,.]+)[,.]/u)?.[1]?.trim();
+  const latestPriceRaw = summary.match(/최신 수정종가\s*([0-9]+(?:\.[0-9]+)?)/u)?.[1]?.trim();
+  const latestPrice = latestPriceRaw
+    ? Number(latestPriceRaw).toLocaleString("ko-KR", { maximumFractionDigits: 2 })
+    : null;
+  const facts = [
+    theme ? `핵심 테마 ${koCode(theme)}` : null,
+    cycleState ? `사이클 ${koCode(cycleState)}` : null,
+    latestPrice ? `최근 가격 ${latestPrice}` : null,
+  ].filter(Boolean);
+
+  return `${data.symbol}의 중장기 투자 논리를 ${facts.length > 0 ? facts.join(", ") : "핵심 테마와 최근 검토 기준"}으로 점검한다. 원문 초안 전체를 먼저 읽기보다, 아래에서 매수 이유, 유지 조건, 무효화 조건, 연결 근거가 충분한지 확인한다.`;
+}
+
+function compactLatestReviewSummary(data: ThesisDetailData) {
+  const rawSummary = data.latest_review.summary;
+  if (!rawSummary) {
+    return "아직 검토 요약이 없다.";
+  }
+
+  const summary = thesisText(rawSummary).replace(/\s+/g, " ").trim();
+  const action = koCode(data.latest_review.action);
+  const scoreRaw = summary.match(/(?:건강 점수|추천 점수)\s*([0-9]+(?:\.[0-9]+)?)/u)?.[1];
+  const score = scoreRaw ? `${(Number(scoreRaw) * 100).toFixed(1)}%` : null;
+  const cycleState = summary.match(/사이클은\s*([^.\s]+)\s*상태/u)?.[1]?.trim();
+  const latestPriceRaw = summary.match(/최신 수정종가\s*([0-9]+(?:\.[0-9]+)?)/u)?.[1]?.trim();
+  const latestPrice = latestPriceRaw
+    ? Number(latestPriceRaw).toLocaleString("ko-KR", { maximumFractionDigits: 2 })
+    : null;
+  const nextReview = data.latest_review.next_review_date;
+  const facts = [
+    score ? `점수 ${score}` : null,
+    cycleState ? `사이클 ${koCode(cycleState)}` : null,
+    latestPrice ? `최근 가격 ${latestPrice}` : null,
+    nextReview ? `다음 확인일 ${nextReview}` : null,
+  ].filter(Boolean);
+
+  return `${data.symbol} 최근 검토는 ${action} 판단이다. ${facts.length > 0 ? facts.join(", ") : "세부 입력은 아래 검토 기준"}을 기준으로 유지·보강 여부를 확인한다. 주문이나 가상 거래는 자동으로 만들지 않는다.`;
 }
 
 function gateStatusLabel(status: string) {
@@ -223,7 +279,7 @@ function formatUnknownValue(value: unknown) {
   if (typeof value === "boolean") {
     return value ? "예" : "아니오";
   }
-  return koLabel(String(value));
+  return thesisText(String(value));
 }
 
 type ThesisLifecycle = ThesisDetailData["lifecycle"];
@@ -253,7 +309,7 @@ function LifecycleList({ empty, items }: { empty: string; items: string[] }) {
   return (
     <ul style={{ margin: 0, paddingLeft: "18px", color: "var(--text-primary)", lineHeight: 1.65 }}>
       {items.map((item) => (
-        <li key={item}>{koLabel(item)}</li>
+        <li key={item}>{thesisText(item)}</li>
       ))}
     </ul>
   );
@@ -353,7 +409,7 @@ export default async function ThesisPage({ params }: ThesisPageProps) {
             {data.symbol} 투자 논리: 최근 검토 {koCode(data.latest_review.action)}
           </h1>
           <p className="decision-brief-copy">
-            {koLabel(data.summary)} 투자 논리는 주문 지시가 아니라 “왜 보유/추천하는가, 무엇이 틀리면 나갈 것인가”를 검증하는 기준이다.
+            {compactThesisSummary(data)}
           </p>
           <div className="decision-brief-meta" aria-label="투자 논리 핵심 상태">
             <span>위험도 {koCode(data.latest_review.risk_level)}</span>
@@ -448,7 +504,7 @@ export default async function ThesisPage({ params }: ThesisPageProps) {
                 {gate.facts.map((fact) => (
                   <div key={`${gate.gate_key}-${fact.label}`}>
                     <dt>{fact.label}</dt>
-                    <dd>{koLabel(fact.value)}</dd>
+                    <dd>{thesisText(fact.value)}</dd>
                   </div>
                 ))}
               </dl>
@@ -514,7 +570,7 @@ export default async function ThesisPage({ params }: ThesisPageProps) {
             <span className="metric-sub">왜 사는가</span>
             <h3 style={{ fontSize: "1.15rem", margin: "6px 0 12px" }}>{data.symbol} 장기 논리</h3>
             <p style={{ color: "var(--text-secondary)", lineHeight: 1.65, marginTop: 0 }}>
-              {koLabel(lifecycle.buy_case.summary || data.summary || "아직 투자 논리 요약이 없다.")}
+              {lifecycle.buy_case.summary ? thesisText(lifecycle.buy_case.summary) : compactThesisSummary(data)}
             </p>
             <LifecycleList empty="핵심 주장이 아직 분리되어 있지 않다." items={lifecycle.buy_case.core_claims} />
           </article>
@@ -532,7 +588,7 @@ export default async function ThesisPage({ params }: ThesisPageProps) {
             <div className="bento-list" style={{ marginTop: "14px" }}>
               {lifecycle.invalidation_conditions.map((condition) => (
                 <div className="bento-list-item" key={condition.condition} style={{ alignItems: "center" }}>
-                  <span style={{ color: "var(--text-primary)" }}>{koLabel(condition.condition)}</span>
+                  <span style={{ color: "var(--text-primary)" }}>{thesisText(condition.condition)}</span>
                   <strong style={{ color: condition.current_status === "not_triggered" ? "var(--accent-green)" : "var(--accent-red)" }}>
                     {koCode(condition.current_status)}
                   </strong>
@@ -622,7 +678,7 @@ export default async function ThesisPage({ params }: ThesisPageProps) {
           </div>
         </div>
         <p style={{ color: "var(--text-primary)", lineHeight: 1.7, margin: "0 0 12px" }}>
-          {koLabel(data.latest_review.summary || "아직 검토 요약이 없다.")}
+          {compactLatestReviewSummary(data)}
         </p>
         {reviewRationale ? (
           <div className="review-rationale">
@@ -635,11 +691,11 @@ export default async function ThesisPage({ params }: ThesisPageProps) {
                 ))}
               </div>
             ) : (
-              <p>{koLabel(data.latest_review.change_notes)}</p>
+              <p>{thesisText(data.latest_review.change_notes)}</p>
             )}
             <p>
               {reviewRationale.action ? `적용 조치: ${koCode(reviewRationale.action)}. ` : ""}
-              {reviewRationale.safetyNote ? koLabel(reviewRationale.safetyNote) : "투자 논리 상태와 주문은 자동으로 변경하지 않는다."}
+              {reviewRationale.safetyNote ? thesisText(reviewRationale.safetyNote) : "투자 논리 상태와 주문은 자동으로 변경하지 않는다."}
             </p>
             <AuditMetadata items={reviewRationaleMetadata(reviewRationale)} summary="검토 세부 기준 보기" />
           </div>
@@ -684,10 +740,10 @@ export default async function ThesisPage({ params }: ThesisPageProps) {
             <div className="bento-list-item" key={gate.gate_key}>
               <div>
                 <span className="metric-sub" style={{ color: gateStatusColor(gate.status) }}>{gateStatusLabel(gate.status)}</span>
-                <strong>{koLabel(gate.label)}</strong>
-                <span>{koLabel(gate.detail)}</span>
+                <strong>{thesisText(gate.label)}</strong>
+                <span>{thesisText(gate.detail)}</span>
               </div>
-              <span style={{ color: "var(--text-secondary)", maxWidth: "360px" }}>{koLabel(gate.next_step)}</span>
+              <span style={{ color: "var(--text-secondary)", maxWidth: "360px" }}>{thesisText(gate.next_step)}</span>
             </div>
           ))}
         </div>
@@ -719,7 +775,7 @@ export default async function ThesisPage({ params }: ThesisPageProps) {
                   gap: "8px"
                 }}>
                   <span className="metric-sub">{koCode(evidence.type)}</span>
-                  <strong style={{ fontSize: "1.1rem" }}>{koLabel(evidence.title)}</strong>
+                  <strong style={{ fontSize: "1.1rem" }}>{thesisText(evidence.title)}</strong>
                   {href ? (
                     <Link href={href} style={{
                       color: "var(--accent-blue)",

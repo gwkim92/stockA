@@ -11,6 +11,7 @@
 ## Mutable Surface
 
 - mutable surface: `apps/web/src/app/globals.css`
+- mutable surface: `apps/web/src/lib/korean-labels.ts`
 - mutable surface: `apps/web/src/components/news-event-card.tsx`
 - mutable surface: `apps/web/src/app/events/page.tsx`
 - mutable surface: `apps/web/src/app/ai-evidence/page.tsx`

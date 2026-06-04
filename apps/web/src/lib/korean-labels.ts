@@ -25,6 +25,7 @@ const KOREAN_LABELS: Record<string, string> = {
   ENERGY_GEOPOLITICS: "에너지·지정학",
   BROAD_US_EQUITY: "미국 광범위 주식",
   "BROAD US EQUITY": "미국 광범위 주식",
+  "Broad US Equity": "미국 광범위 주식",
   TECHNOLOGY: "기술 섹터",
   ENERGY: "에너지 섹터",
   FINANCIALS: "금융 섹터",
@@ -118,6 +119,14 @@ const KOREAN_LABELS: Record<string, string> = {
   macro_or_theme_only: "상위 흐름",
   needs_neighborhood_lookup: "종목 맥락 확인",
   source: "원천",
+  "event_and_ai_evidence": "뉴스·AI 근거",
+  "fund_instrument_analysis": "ETF·펀드 근거",
+  "market.financial_metric_normalized": "정규화 재무 지표",
+  "market.valuation_snapshot": "밸류에이션 원천",
+  "research.equity_research_artifact": "AI 기업 리서치",
+  "research.industry_competitive_position": "피어·산업 위치",
+  "signal.investment_thesis": "투자 논리",
+  "signal.recommendation": "추천 신호",
   translation: "번역",
   validator: "자동 검증",
   twelve_data: "Twelve Data",
@@ -145,6 +154,8 @@ const KOREAN_LABELS: Record<string, string> = {
   succeeded_with_fallback: "성공했지만 대체 처리 사용",
   forming: "형성 중",
   cooling: "냉각",
+  confirming: "확인 국면",
+  "cycle confirming": "사이클 확인 국면",
   healthy: "정상",
   high: "높음",
   human_review_required: "자동 판단 보류",
@@ -225,7 +236,7 @@ const KOREAN_LABELS: Record<string, string> = {
   order_boundary: "주문 차단",
   kill_switch: "킬 스위치",
   paper_validation: "가상 검증",
-  paper_validation_and_order_boundary: "페이퍼 검증과 주문 경계",
+  paper_validation_and_order_boundary: "가상 매매·주문 경계",
   portfolio_risk_budget_guardrail: "포트폴리오 위험 예산",
   portfolio_risk_budget_guardrail_blocker: "위험 예산 차단 사유",
   blocked_by_risk_budget_review: "위험 예산 검토 필요",
@@ -308,8 +319,11 @@ const KOREAN_LABELS: Record<string, string> = {
   risk_review: "리스크 검토",
   resolved: "해결",
   news_rss: "뉴스 RSS",
+  NEWS_RSS: "뉴스 RSS",
   news_rss_item: "뉴스 RSS 항목",
+  NEWS_RSS_ITEM: "뉴스 RSS 항목",
   "news rss item": "뉴스 RSS 항목",
+  browser_download_disabled_until_auth_rbac: "접근 권한 준비 전까지 원문 열람 제한",
   news_cluster_summary: "뉴스 묶음 근거",
   news_cluster_summary_v1: "뉴스 묶음 요약 v1",
   news_event_candidate: "뉴스 AI 구조화 항목",
@@ -376,7 +390,7 @@ const KOREAN_LABELS: Record<string, string> = {
   sec: "SEC",
   signal: "신호",
   market_daily_price_bar: "일간 가격 바",
-  "market.daily_price_bar": "일간 가격 바",
+  "market.daily_price_bar": "가격 캔들",
   macro_weekly: "주간 거시 데이터",
   market_price_upsert: "시장 가격 적재",
   market_price_daily: "일간 시장 가격 적재",
@@ -755,6 +769,15 @@ const EMBEDDED_LABEL_REPLACEMENTS: Array<[RegExp, string]> = [
   ],
   [/\bZero-weight\b/g, "총점 미반영"],
   [/\bzero-weight\b/g, "총점 미반영"],
+  [/\bbase case\b/g, "기준 시나리오"],
+  [/\bcontext\b/g, "근거 맥락"],
+  [/\bmargin of safety\b/g, "안전마진"],
+  [/\bneutral\b/g, "중립"],
+  [/\brecommendation_id\b/g, "추천 ID"],
+  [/\btotal_score\b/g, "총점"],
+  [/\bvaluation_margin_score\b/g, "밸류에이션 여유 점수"],
+  [/\bvaluation_snapshot\b/g, "밸류에이션 스냅샷"],
+  [/\bvaluations\b/g, "밸류에이션 입력"],
   [
     /\bLatest hierarchical macro-regime 사이클 score connected to the theme path\.?/g,
     "테마 경로에 연결된 최신 계층형 거시 사이클 점수.",
@@ -841,6 +864,10 @@ const EMBEDDED_LABEL_REPLACEMENTS: Array<[RegExp, string]> = [
   [/\blong_term_core\b/g, "장기 핵심 전략"],
   [/\bANNUAL_REPORTING\b/g, "연간 공시"],
   [/\bAnnual Reporting\b/g, "연간 공시"],
+  [/\bBROAD_US_EQUITY\b/g, "미국 광범위 주식"],
+  [/\bBroad US Equity\b/g, "미국 광범위 주식"],
+  [/\baccumulate_candidate\b/g, "분할 매수 판단 항목"],
+  [/\bconfirming\b/g, "확인 국면"],
   [/\bcredential-free news flow\b/g, "무료 출처 기반 뉴스 흐름"],
   [/\bcurrent_event_impacts\b/g, "현재 이벤트 영향"],
   [/\bMACRO_RATES_FED\b/g, "금리·연준"],
@@ -860,6 +887,12 @@ const EMBEDDED_LABEL_REPLACEMENTS: Array<[RegExp, string]> = [
   [/가격 가격 지표 출처/g, "가격 지표 출처"],
   [/성과을/g, "성과를"],
   [/투자 투자 논리/g, "투자 논리"],
+  [/핵심 thesis/g, "핵심 투자 논리"],
+  [/좋은 thesis/g, "좋은 투자 논리"],
+  [/thesis review/g, "투자 논리 검토"],
+  [/thesis는/g, "투자 논리는"],
+  [/밸류에이션 스냅샷가/g, "밸류에이션 스냅샷이"],
+  [/안전마진 안전마진/g, "안전마진"],
   [/미국 시장 참여도\s+\(미국 시장 참여도\)/g, "미국 시장 참여도"],
   [/우호적로/g, "우호적으로"],
   [/부정적로/g, "부정적으로"],
@@ -868,10 +901,16 @@ const EMBEDDED_LABEL_REPLACEMENTS: Array<[RegExp, string]> = [
 ];
 
 function translateEmbeddedLabels(value: string): string {
-  return EMBEDDED_LABEL_REPLACEMENTS.reduce(
+  const translated = EMBEDDED_LABEL_REPLACEMENTS.reduce(
     (translated, [pattern, replacement]) => translated.replace(pattern, replacement),
     value,
   );
+  return translated
+    .replace(/좋은 thesis/g, "좋은 투자 논리")
+    .replace(/thesis review/g, "투자 논리 검토")
+    .replace(/thesis(?=[가-힣])/g, "투자 논리")
+    .replace(/안전마진\s+안전마진/g, "안전마진")
+    .replace(/밸류에이션 스냅샷가/g, "밸류에이션 스냅샷이");
 }
 
 export function koLabel(value: string | null | undefined): string {
