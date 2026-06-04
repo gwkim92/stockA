@@ -64,10 +64,11 @@
 - completed locally: refactored `/trading-readiness` lower-fold `킬 스위치와 검증` area from a wide kill-switch table and plain fact-list into decision cards. The page now shows kill-switch scope/status/reason cards and a four-card validation summary for simulated trade validation, conflicts, decision records, and risk budget before blocker detail lists.
 - completed deployed: EC2 now serves commit `1258c6e`; `/trading-readiness` renders live kill-switch and validation summary cards with no targeted kill-switch table remaining.
 - completed locally: refactored `/paper-trading` lower-fold `시뮬레이션 항목 목록` from a wide order-like table into read-only validation cards. Each card now starts with symbol, simulated action, current/target weight, recommendation score, recommendation/price dates, conflict state, and links to recommendation/thesis/stock detail while explicitly saying it is not an order.
+- completed deployed: EC2 now serves commit `a159642`; `/paper-trading` renders 14 live validation cards and no longer renders the targeted simulation-action section as a wide table.
 
 ## Exact Next Step
 
-- exact next step: deploy the `/paper-trading` validation-card slice to EC2, then continue page-by-page lower-fold copy/content review. The next likely dense target is `/performance` outcome attribution sections.
+- exact next step: continue page-by-page lower-fold copy/content review. The next likely dense target is `/performance` outcome attribution sections.
 
 ## Risks
 
@@ -191,6 +192,10 @@
 - passed locally for paper trading lower-fold validation card refactor: `bash scripts/verify_frontend_detail_routes.sh`
 - passed locally for paper trading lower-fold validation card refactor: `PYTHONPATH=/Users/woody/ai/agent-work-harness/src /opt/homebrew/bin/python3.13 -m awh verify --repo . --task ux-information-architecture-reset-v1`
 - passed locally for paper trading lower-fold validation card refactor: `git diff --check`
+- deployed commit: `a159642`
+- passed deployed for paper trading lower-fold validation card refactor: EC2 pull/build/restart completed with `stockanalysis-frontend-api.service` active and `stockanalysis-web.service` active.
+- passed deployed for paper trading lower-fold validation card refactor: `http://127.0.0.1:13000/paper-trading` returned `200`; `.paper-action-card` count `14`, targeted paper action table count `0`, no Server Component error, no desktop horizontal overflow.
+- passed deployed route smoke for paper trading lower-fold validation card refactor: `http://127.0.0.1:13000/`, `/data-health`, `/portfolio/coverage`, `/trading-readiness`, `/paper-trading`, `/performance`, `/recommendations`, `/remediation` returned `200` with no server error.
 - deployed commit: `1258c6e`
 - passed deployed for trading readiness lower-fold safety card refactor: EC2 pull/build/restart completed with `stockanalysis-frontend-api.service` active and `stockanalysis-web.service` active.
 - passed deployed for trading readiness lower-fold safety card refactor: `http://127.0.0.1:13000/trading-readiness` returned `200`; `.trading-safety-card` and `.trading-validation-grid` rendered; no Server Component error.
