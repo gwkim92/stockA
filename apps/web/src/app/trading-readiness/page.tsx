@@ -62,6 +62,7 @@ function cleanCopy(value: string) {
     .replaceAll("submitted to", "제출된")
     .replaceAll("broker submit", "실거래 주문 제출")
     .replaceAll("broker", "증권사 연결")
+    .replaceAll("증권사 연결 경계", "증권사 연결 상태")
     .replaceAll("브로커 경계", "증권사 연결 상태")
     .replaceAll("브로커", "증권사 연결")
     .replaceAll("secret", "접속 정보")
@@ -141,7 +142,7 @@ export default async function TradingReadinessPage() {
       metric: brokerLabel(data.broker_boundary.broker_code),
       body: brokerSubmitEnabled
         ? "증권사 제출 기능이 켜진 상태다. 주문 전송 기록과 권한 경계를 더 엄격히 확인해야 한다."
-        : "현재 증권사 연결 경계는 실제 주문 제출을 지원하지 않는다. 미리보기와 실제 제출을 분리해서 본다.",
+        : "현재 증권사 연결 상태는 실제 주문 제출을 지원하지 않는다. 미리보기와 실제 제출을 분리해서 본다.",
       href: "#broker-boundary",
       cta: "증권사 연결 보기",
       tone: brokerSubmitEnabled ? "watch" : "ready",
