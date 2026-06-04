@@ -3,7 +3,7 @@ import type { Route } from "next";
 
 import { NewsTitleBlock } from "@/components/news-title-block";
 import { getEvents } from "@/lib/frontend-api";
-import { koCode, koLabel } from "@/lib/korean-labels";
+import { koCode } from "@/lib/korean-labels";
 import type { EventListData } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -177,152 +177,90 @@ export default async function AiEvidenceIndexPage() {
   const firstCandidateLink = candidates[0]?.ai_evidence_id ? evidenceHref(candidates[0].ai_evidence_id) : null;
 
   return (
-    <div className="pageStack">
-      <section className="page-hero reveal" aria-labelledby="ai-evidence-index-title">
-        <div>
-          <div className="bento-badge">뉴스 AI 구조화 • {data.as_of_date}</div>
-          <h1 className="page-title" id="ai-evidence-index-title">
-            AI가 해석한 뉴스 구조화 항목을 한 곳에서 본다.
+    <div className="pageStack decision-page">
+      <section className="decision-brief reveal" aria-labelledby="ai-evidence-index-title">
+        <div className="decision-brief-main">
+          <span className="decision-brief-kicker">뉴스 AI 근거 · {data.as_of_date}</span>
+          <h1 className="decision-brief-title" id="ai-evidence-index-title">
+            AI 근거는 직접 종목 {directNewsCandidates.length.toLocaleString("ko-KR")}개, 상위 흐름 {macroNewsCandidates.length.toLocaleString("ko-KR")}개로 나눠 본다.
           </h1>
-        </div>
-        <p className="page-lede">
-          한 뉴스 단위로 AI가 구조화한 항목을 모았다. 종목이 없는 저신호 일반 뉴스는
-          기본 목록에서 숨기고, 통과 결과와 차단 항목은 별도 화면에서 확인한다.
-        </p>
-      </section>
-
-      <section className="ai-evidence-command-panel reveal delay-1" aria-labelledby="ai-evidence-command-title">
-        <div className="ai-evidence-command-lead">
-          <span>AI 구조화 작업대</span>
-          <h2 id="ai-evidence-command-title">항목을 먼저 나누고, 상세에서 원천까지 추적한다.</h2>
-          <p>
-            이 화면은 AI가 만든 뉴스 구조화 항목을 분류하는 입구다. 직접 종목 항목은 보유 상태 판단·추천 근거로,
-            상위 흐름 항목은 테마 전파 입력으로, 차단 항목은 추천 입력 제외 항목으로 본다.
+          <p className="decision-brief-copy">
+            여기서는 AI가 만든 후보를 한 화면에 다 붓지 않는다. 종목에 바로 붙는 근거, 거시·테마로 먼저 남길 근거,
+            추천 입력에서 제외할 근거를 분리해서 본다.
           </p>
-        </div>
-        <div className="ai-evidence-command-grid">
-          <a className="ai-evidence-command-card ready" href="#accepted-candidates">
-            <span>01</span>
-            <small>직접 종목</small>
-            <strong>{directNewsCandidates.length}개 항목</strong>
-            <em>회사명·티커가 명확한 뉴스</em>
-            <p>원문과 한국어 번역을 대조한 뒤 종목 상세, 추천 상세, 보유 투자 논리에서 실제 반영 위치를 확인한다.</p>
-            <b>직접 항목 보기</b>
-          </a>
-          <a className="ai-evidence-command-card watch" href="#macro-candidates">
-            <span>02</span>
-            <small>상위 흐름</small>
-            <strong>{macroNewsCandidates.length}개 항목</strong>
-            <em>종목을 억지로 붙이지 않음</em>
-            <p>금리, 정책, 유가, 산업 흐름은 먼저 테마로 저장하고 노출도 규칙으로 관련 종목에 전파한다.</p>
-            <b>흐름 항목 보기</b>
-          </a>
-          <Link className="ai-evidence-command-card ready" href={"/ai-evidence/results" as Route}>
-            <span>03</span>
-            <small>통과 결과</small>
-            <strong>{newsCandidates.length}개 구조화</strong>
-            <em>한국어 번역 {translatedCandidateCount}/{newsCandidates.length}</em>
-            <p>추천 입력으로 넘길 수 있는 구조화 결과를 종목, 테마, 방향, 신뢰도 기준으로 따로 확인한다.</p>
-            <b>구조화 결과 보기</b>
-          </Link>
-          <Link
-            className={blockedCandidateCount > 0 ? "ai-evidence-command-card block" : "ai-evidence-command-card ready"}
-            href={"/ai-evidence/blocked" as Route}
-          >
-            <span>04</span>
-            <small>차단·보류</small>
-            <strong>{blockedCandidateCount}개 제외</strong>
-            <em>저신호 {suppressedLowSignalCount} · 차단 {rejectedData.summary.event_count}</em>
-            <p>추천 근거로 쓰지 않는 항목을 본다. 유효한 뉴스가 막혔다면 분류 체계와 종목 별칭을 보강한다.</p>
-            <b>차단 항목 보기</b>
-          </Link>
-        </div>
-        {firstCandidateLink ? (
-          <div className="ai-evidence-command-footer">
-            <span>상세 추적</span>
-            <strong>항목 하나를 열면 원천 뉴스, 한국어 번역, AI 구조화 필드, 자동 검증 결과, 추천 연결을 한 화면에서 본다.</strong>
-            <Link href={firstCandidateLink}>최신 항목 상세 열기</Link>
+          <div className="decision-brief-meta" aria-label="뉴스 AI 근거 핵심 수치">
+            <span>AI 연결 {allSummary.ai_extracted_count.toLocaleString("ko-KR")}건</span>
+            <span>한국어 {translatedCandidateCount.toLocaleString("ko-KR")}/{newsCandidates.length.toLocaleString("ko-KR")}</span>
+            <span>뉴스 묶음 {clusterEvidenceCount.toLocaleString("ko-KR")}개</span>
+            <span>차단·보류 {blockedCandidateCount.toLocaleString("ko-KR")}개</span>
           </div>
-        ) : null}
+        </div>
+        <div className="decision-brief-grid">
+          <a className="decision-card is-good" href="#accepted-candidates">
+            <span>직접 종목</span>
+            <strong>{directNewsCandidates.length.toLocaleString("ko-KR")}개</strong>
+            <small>회사명·티커가 명확한 뉴스다. 종목 상세와 추천 근거에서 다시 확인한다.</small>
+            <b>직접 근거</b>
+          </a>
+          <a className="decision-card is-watch" href="#macro-candidates">
+            <span>상위 흐름</span>
+            <strong>{macroNewsCandidates.length.toLocaleString("ko-KR")}개</strong>
+            <small>금리·정책·유가 같은 뉴스는 종목을 억지로 붙이지 않고 흐름으로 전파한다.</small>
+            <b>흐름 근거</b>
+          </a>
+          <Link className="decision-card is-good" href={"/ai-evidence/results" as Route}>
+            <span>통과 결과</span>
+            <strong>{newsCandidates.length.toLocaleString("ko-KR")}개</strong>
+            <small>추천 입력 후보로 볼 수 있는 구조화 결과만 따로 확인한다.</small>
+            <b>결과 보기</b>
+          </Link>
+          <Link className={blockedCandidateCount > 0 ? "decision-card is-block" : "decision-card is-good"} href={"/ai-evidence/blocked" as Route}>
+            <span>차단·보류</span>
+            <strong>{blockedCandidateCount.toLocaleString("ko-KR")}개</strong>
+            <small>저신호 {suppressedLowSignalCount.toLocaleString("ko-KR")}개 · 검증 차단 {rejectedData.summary.event_count.toLocaleString("ko-KR")}개</small>
+            <b>차단 보기</b>
+          </Link>
+        </div>
       </section>
 
-      <section className="screen-switchboard reveal delay-1" aria-label="뉴스 처리 단계 바로가기">
-        <Link className="screen-switch-card" href="/events">
+      <section className="decision-flow-nav reveal delay-1" aria-label="뉴스 처리 단계">
+        <Link className="decision-flow-link" href="/events">
           <span>01</span>
           <strong>수집 뉴스</strong>
           <small>원문 이벤트</small>
         </Link>
-        <Link className="screen-switch-card" href={"/events/classification" as Route}>
+        <Link className="decision-flow-link" href={"/events/classification" as Route}>
           <span>02</span>
           <strong>1차 분류</strong>
           <small>자동 태그</small>
         </Link>
-        <Link className="screen-switch-card active" href="/ai-evidence">
+        <Link className="decision-flow-link is-active" href="/ai-evidence">
           <span>03</span>
-          <strong>AI 근거 목록</strong>
-          <small>구조화 항목</small>
+          <strong>AI 근거</strong>
+          <small>후보 분리</small>
         </Link>
-        <Link className="screen-switch-card" href={"/ai-evidence/results" as Route}>
+        <Link className="decision-flow-link" href={"/ai-evidence/results" as Route}>
           <span>04</span>
-          <strong>구조화 결과</strong>
-          <small>통과 결과</small>
+          <strong>통과 결과</strong>
+          <small>추천 입력 후보</small>
         </Link>
-        <Link className="screen-switch-card" href={"/ai-evidence/blocked" as Route}>
+        <Link className="decision-flow-link" href={"/ai-evidence/blocked" as Route}>
           <span>차단</span>
           <strong>차단 항목</strong>
-          <small>추천 입력 제외</small>
+          <small>입력 제외</small>
         </Link>
       </section>
 
-      <section className="status-rail compact-rail reveal delay-1" aria-label="뉴스 AI 구조화 항목 요약">
-        <div className="rail-cell">
-          <span>AI 연결 이벤트</span>
-          <strong>{allSummary.ai_extracted_count}</strong>
-          <small>AI 구조화 항목과 뉴스 묶음 전체</small>
+      <section className="ledger-section reveal delay-2" id="accepted-candidates" aria-labelledby="ai-evidence-candidate-list-title">
+        <div className="ledger-section-head">
+          <div>
+            <span className="ledger-section-kicker">직접 종목</span>
+            <h2 className="ledger-section-title" id="ai-evidence-candidate-list-title">종목에 바로 붙은 AI 근거</h2>
+          </div>
+          <p className="ledger-section-note">
+            원천과 한국어 번역을 대조한 뒤 종목 상세, 추천 상세, 보유 논리에서 실제 반영 위치를 확인한다.
+          </p>
         </div>
-        <div className="rail-cell">
-          <span>직접 종목 항목</span>
-          <strong>{directNewsCandidates.length}</strong>
-          <small>종목 보유 상태 판단에 직접 연결</small>
-        </div>
-        <div className="rail-cell">
-          <span>상위 흐름 항목</span>
-          <strong>{macroNewsCandidates.length}</strong>
-          <small>거시·테마 흐름으로 전파</small>
-        </div>
-        <div className="rail-cell">
-          <span>뉴스 묶음 근거</span>
-          <strong>{clusterEvidenceCount}</strong>
-          <small>목록에서는 제외, 뉴스·AI에서 확인</small>
-        </div>
-        <div className="rail-cell">
-          <span>품질 필터 숨김</span>
-          <strong>{blockedCandidateCount}</strong>
-          <small>저신호 {suppressedLowSignalCount} · 검증 차단 {rejectedData.summary.event_count}</small>
-        </div>
-      </section>
-
-      <section className="ledger-guide reveal delay-2" aria-labelledby="ai-evidence-lane-guide-title">
-        <div>
-          <span>읽는 순서</span>
-          <h2 id="ai-evidence-lane-guide-title">뉴스 AI 구조화 항목은 세 갈래로 나뉜다</h2>
-        </div>
-        <ol>
-          <li>직접 종목 항목은 종목 상세, 보유 상태 판단, 추천 점수의 직접 근거가 된다.</li>
-          <li>상위 흐름 항목은 종목을 억지로 붙이지 않고 테마·거시 흐름으로 저장한 뒤 노출도 규칙으로 전파한다.</li>
-          <li>차단 항목은 추천 입력에서 제외하고, 필요하면 분류 체계·종목 별칭·검증 규칙을 고친 뒤 다시 처리한다.</li>
-        </ol>
-      </section>
-
-      <section className="bento-card span-4 reveal delay-2" id="accepted-candidates" aria-labelledby="ai-evidence-candidate-list-title">
-        <div className="section-heading stacked-heading">
-          <span>최신 항목</span>
-          <h2 id="ai-evidence-candidate-list-title">직접 종목 뉴스 구조화 항목</h2>
-        </div>
-        <p className="relationship-empty">
-          여기에 보이는 항목은 특정 종목에 직접 연결된 뉴스다. 자동 검증 기준을 통과해 추천·보유 상태 판단 입력으로 사용할 수 있다.
-          숨긴 항목 {suppressedLowSignalCount}개는 삭제한 것이 아니라, 종목을 특정하지 못한 일반 뉴스라 기본 목록에서 제외했다.
-        </p>
 
         {directNewsCandidates.length > 0 ? (
           <div className="trace-grid">
@@ -337,15 +275,16 @@ export default async function AiEvidenceIndexPage() {
         )}
       </section>
 
-      <section className="bento-card span-4 reveal delay-3" id="macro-candidates" aria-labelledby="ai-evidence-macro-list-title">
-        <div className="section-heading stacked-heading">
-          <span>상위 흐름</span>
-          <h2 id="ai-evidence-macro-list-title">종목 없이 먼저 보는 거시·테마 항목</h2>
+      <section className="ledger-section reveal delay-3" id="macro-candidates" aria-labelledby="ai-evidence-macro-list-title">
+        <div className="ledger-section-head">
+          <div>
+            <span className="ledger-section-kicker">상위 흐름</span>
+            <h2 className="ledger-section-title" id="ai-evidence-macro-list-title">종목을 억지로 붙이지 않은 AI 근거</h2>
+          </div>
+          <p className="ledger-section-note">
+            금리, 유가, 정책, 산업 사이클 뉴스는 테마로 저장한 뒤 노출도 규칙으로 관련 종목에 전파한다.
+          </p>
         </div>
-        <p className="relationship-empty">
-          Fed, 금리, 유가, 소비 둔화처럼 특정 종목을 바로 찍기 어려운 뉴스는 이 섹션에 둔다.
-          이 항목들은 상위 흐름으로 저장한 뒤 종목 노출도 규칙을 통해 관련 ETF·개별 종목으로 전파한다.
-        </p>
         {macroNewsCandidates.length > 0 ? (
           <div className="trace-grid">
             {macroNewsCandidates.map((event) => (
@@ -357,26 +296,28 @@ export default async function AiEvidenceIndexPage() {
         )}
       </section>
 
-      <section className="where-grid reveal delay-3" aria-label="AI 분석 후속 화면">
-        <Link className="where-card" href={"/ai-evidence/results" as Route}>
-          <span>결과</span>
-          <strong>구조화 결과</strong>
-          <p>통과한 항목을 종목·테마·방향·영향도 기준으로 확인한다.</p>
-          <small>결과 화면 열기</small>
-        </Link>
-        <Link className="where-card" href={"/ai-evidence/blocked" as Route}>
-          <span>차단</span>
-          <strong>차단 항목 {blockedCandidateCount}개</strong>
-          <p>검증 단계에서 추천 입력으로 넘기지 않은 항목과 이유를 확인한다.</p>
-          <small>차단 화면 열기</small>
-        </Link>
-        <Link className="where-card" href="/intelligence">
-          <span>묶음</span>
-          <strong>뉴스 흐름 보드</strong>
-          <p>여러 뉴스가 왜 같은 흐름으로 묶였는지 확인한다.</p>
-          <small>흐름 보드 열기</small>
-        </Link>
-      </section>
+      {firstCandidateLink ? (
+        <section className="where-grid reveal delay-3" aria-label="AI 상세 추적">
+          <Link className="where-card" href={firstCandidateLink}>
+            <span>상세</span>
+            <strong>최신 항목 추적</strong>
+            <p>원천 뉴스, 한국어 번역, AI 구조화 필드, 검증 결과, 추천 연결을 한 화면에서 본다.</p>
+            <small>최신 상세 열기</small>
+          </Link>
+          <Link className="where-card" href={"/ai-evidence/results" as Route}>
+            <span>결과</span>
+            <strong>통과 결과</strong>
+            <p>추천 입력 후보만 종목·테마·방향 기준으로 확인한다.</p>
+            <small>결과 화면 열기</small>
+          </Link>
+          <Link className="where-card" href={"/ai-evidence/blocked" as Route}>
+            <span>차단</span>
+            <strong>차단·보류</strong>
+            <p>추천 입력으로 쓰지 않는 항목과 이유를 따로 확인한다.</p>
+            <small>차단 화면 열기</small>
+          </Link>
+        </section>
+      ) : null}
 
     </div>
   );

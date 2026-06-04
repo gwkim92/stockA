@@ -1,0 +1,50 @@
+# ux-information-architecture-reset-v1 Contract
+
+## Task Request
+
+- request: 전체 웹사이트의 가시성 문제를 정보구조 관점에서 리셋한다. 기존처럼 문구를 더 붙이지 말고, 사용자가 각 페이지에서 결론·이유·다음 행동을 먼저 보게 만든다.
+
+## Goal
+
+- goal: 첫 slice가 끝나면 `/events`, `/ai-evidence`, `/ai-evidence/blocked`, `/ai-evidence/results`가 원장 덤프형 첫 화면이 아니라 decision-first 화면이 된다.
+
+## Mutable Surface
+
+- mutable surface: `apps/web/src/app/globals.css`
+- mutable surface: `apps/web/src/app/events/page.tsx`
+- mutable surface: `apps/web/src/app/ai-evidence/page.tsx`
+- mutable surface: `apps/web/src/app/ai-evidence/blocked/page.tsx`
+- mutable surface: `apps/web/src/app/ai-evidence/results/page.tsx`
+- mutable surface: `docs/plans/2026-06-04-ux-information-architecture-reset-v1.md`
+- mutable surface: `docs/tasks/ux-information-architecture-reset-v1/`
+
+## Invariants
+
+- Do not change backend schema.
+- Do not change recommendation scoring weights.
+- Do not change benchmark definitions, portfolio positions, paper validation records, broker/order flow, live trading, or scheduler cadence.
+- Do not hide source limitations or blocked state; compress them into clearer decision summaries.
+- Do not add write actions or review buttons that do not actually persist decisions.
+
+## Scope
+
+- Replace repeated giant hero/command-panel patterns on the first news/AI pages with compact decision summaries.
+- Keep raw lists available below fold.
+- Use Korean investor-facing copy, not operator-log phrasing.
+- Preserve existing read-only route data calls.
+
+## Verification
+
+- verification command: `cd apps/web && npm run typecheck`
+- verification command: `cd apps/web && npm run build`
+- verification command: `PYTHONPATH=/Users/woody/ai/agent-work-harness/src /opt/homebrew/bin/python3.13 -m awh verify --repo . --task ux-information-architecture-reset-v1`
+- verification command: `git diff --check`
+
+## Done Criteria
+
+- `/events` first viewport shows current conclusion and next action before event ledger rows.
+- `/ai-evidence` first viewport separates direct evidence, macro-flow evidence, blocked evidence, and latest detail without dumping rows first.
+- `/ai-evidence/blocked` first viewport explains what stays blocked versus what needs taxonomy/alias remediation.
+- `/ai-evidence/results` first viewport separates recommendation input, macro-flow, direct instrument, and no-order boundary.
+- Existing data remains reachable below fold.
+
