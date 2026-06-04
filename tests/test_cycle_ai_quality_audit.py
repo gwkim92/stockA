@@ -105,6 +105,9 @@ class CycleAiQualityAuditTests(unittest.TestCase):
         self.assertIn("signal.hierarchical_propagated_instrument_impact", sql)
         self.assertIn("signal.cycle_hierarchy_state_snapshot", sql)
         self.assertIn("trading.paper_validation_run", sql)
+        self.assertIn("'readiness_gaps'", sql)
+        self.assertIn("'cycle_snapshot_missing'", sql)
+        self.assertIn("'hierarchical_impact_missing'", sql)
 
     def test_run_dry_run_returns_secret_free_report_without_pipeline_write(self) -> None:
         executor = FakeExecutor(_sample_state())
@@ -122,6 +125,7 @@ class CycleAiQualityAuditTests(unittest.TestCase):
         self.assertEqual(report["status"], "planned")
         self.assertEqual(report["audit_status"], "attention_required")
         self.assertEqual(report["issue_count"], 2)
+        self.assertEqual(report["readiness_gaps"], [])
         self.assertIn("normal_macro_flows", report["samples"])
         self.assertIn("macro_false_tickers", report["samples"])
         self.assertEqual(len(executor.scalar_sql), 1)
@@ -156,7 +160,16 @@ class CycleAiQualityAuditTests(unittest.TestCase):
                         "audit_status": "ok",
                         "audit_score": 100,
                         "issue_count": 0,
-                        "readiness_gap_count": 0,
+                        "readiness_gap_count": 1,
+                        "readiness_gaps": [
+                            {
+                                "gap_key": "cycle_snapshot_missing",
+                                "label": "사이클 스냅샷 결과 없음",
+                                "metric_key": "cycle_snapshot_count",
+                                "current_value": 0,
+                                "next_action": "run decision-daily or cycle-hierarchy-snapshot-v2-run",
+                            }
+                        ],
                         "metrics": {"rss_document_count": 10, "translated_document_count": 10},
                         "checks": {"quantum_energy_mislink_count": 0},
                         "samples": {},
@@ -174,6 +187,8 @@ class CycleAiQualityAuditTests(unittest.TestCase):
         self.assertEqual(visibility["status"], "ok")
         self.assertEqual(visibility["audit_score"], 100)
         self.assertEqual(visibility["metrics"]["rss_document_count"], 10)
+        self.assertEqual(visibility["readiness_gap_count"], 1)
+        self.assertEqual(visibility["readiness_gaps"][0]["gap_key"], "cycle_snapshot_missing")
         self.assertEqual(visibility["source"], "cycle_ai_quality_audit_report")
 
     def test_render_stale_direct_impact_cleanup_sql_previews_without_delete(self) -> None:

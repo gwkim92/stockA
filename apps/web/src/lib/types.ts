@@ -325,6 +325,13 @@ export type DataHealthData = {
     audit_score: number;
     issue_count: number;
     readiness_gap_count: number;
+    readiness_gaps: Array<{
+      gap_key: string;
+      label: string;
+      metric_key: string;
+      current_value: number | string | boolean | null;
+      next_action: string;
+    }>;
     metrics: Record<string, number | string | boolean | null>;
     checks: Record<string, number | string | boolean | null>;
     samples: Record<string, unknown>;

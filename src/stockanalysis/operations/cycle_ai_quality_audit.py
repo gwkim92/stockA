@@ -333,6 +333,66 @@ select json_build_object(
     'audit_score', greatest(0, 100 - issue_count * 15 - readiness_gap_count * 8),
     'issue_count', issue_count,
     'readiness_gap_count', readiness_gap_count,
+    'readiness_gaps',
+    coalesce(
+        (
+            select json_agg(
+                json_build_object(
+                    'gap_key', gap.gap_key,
+                    'label', gap.label,
+                    'metric_key', gap.metric_key,
+                    'current_value', gap.current_value,
+                    'next_action', gap.next_action
+                )
+                order by gap.sort_order
+            )
+            from (
+                values
+                    (
+                        1,
+                        'rss_documents_missing',
+                        'RSS 뉴스 수집 결과 없음',
+                        'rss_document_count',
+                        rss_document_count,
+                        'run news-intraday before quality audit'
+                    ),
+                    (
+                        2,
+                        'korean_translation_missing',
+                        '한국어 번역 결과 없음',
+                        'translated_document_count',
+                        translated_document_count,
+                        'run Korean translation batch before user-facing review'
+                    ),
+                    (
+                        3,
+                        'ai_extraction_artifact_missing',
+                        'AI 후보 분석 결과 없음',
+                        'accepted_or_rejected_artifact_count',
+                        accepted_artifact_count + rejected_artifact_count,
+                        'run news-rss-ai-extract-run before recommendation review'
+                    ),
+                    (
+                        4,
+                        'hierarchical_impact_missing',
+                        '상위 흐름 전파 결과 없음',
+                        'hierarchical_impact_count',
+                        hierarchical_impact_count,
+                        'run hierarchical-impact-propagation after AI extraction'
+                    ),
+                    (
+                        5,
+                        'cycle_snapshot_missing',
+                        '사이클 스냅샷 결과 없음',
+                        'cycle_snapshot_count',
+                        cycle_snapshot_count,
+                        'run decision-daily or cycle-hierarchy-snapshot-v2-run'
+                    )
+            ) as gap(sort_order, gap_key, label, metric_key, current_value, next_action)
+            where gap.current_value = 0
+        ),
+        '[]'::json
+    ),
     'metrics', json_build_object(
         'rss_document_count', rss_document_count,
         'translated_document_count', translated_document_count,
@@ -1097,6 +1157,7 @@ def run_cycle_ai_quality_audit(
         "audit_score": int(state.get("audit_score") or 0),
         "issue_count": int(state.get("issue_count") or 0),
         "readiness_gap_count": int(state.get("readiness_gap_count") or 0),
+        "readiness_gaps": _as_scalar_or_mapping_list(state.get("readiness_gaps")),
         "metrics": _as_mapping(state.get("metrics")),
         "checks": _as_mapping(state.get("checks")),
         "samples": _as_mapping(state.get("samples")),
@@ -1284,6 +1345,7 @@ def load_cycle_ai_quality_audit_visibility_report(
         "audit_score": 0,
         "issue_count": 0,
         "readiness_gap_count": 0,
+        "readiness_gaps": [],
         "metrics": {},
         "checks": {},
         "samples": {},
@@ -1335,6 +1397,7 @@ def load_cycle_ai_quality_audit_visibility_report(
         "audit_score": int(payload.get("audit_score") or 0),
         "issue_count": int(payload.get("issue_count") or 0),
         "readiness_gap_count": int(payload.get("readiness_gap_count") or 0),
+        "readiness_gaps": _as_scalar_or_mapping_list(payload.get("readiness_gaps")),
         "metrics": _as_mapping(payload.get("metrics")),
         "checks": _as_mapping(payload.get("checks")),
         "samples": _as_mapping(payload.get("samples")),
@@ -1362,6 +1425,12 @@ def _next_actions(state: Mapping[str, object]) -> list[str]:
         actions.append("deduplicate repeated RSS titles before cluster evidence")
     if int(metrics.get("translated_document_count") or 0) == 0:
         actions.append("run Korean translation batch before user-facing review")
+    if int(metrics.get("accepted_artifact_count") or 0) == 0 and int(metrics.get("rejected_artifact_count") or 0) == 0:
+        actions.append("run news-rss-ai-extract-run before recommendation review")
+    if int(metrics.get("hierarchical_impact_count") or 0) == 0:
+        actions.append("run hierarchical-impact-propagation after AI extraction")
+    if int(metrics.get("cycle_snapshot_count") or 0) == 0:
+        actions.append("run decision-daily or cycle-hierarchy-snapshot-v2-run")
     if not actions:
         actions.append("continue scheduled news, propagation, cycle snapshot, and paper validation runs")
     return actions

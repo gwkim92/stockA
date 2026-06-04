@@ -5832,7 +5832,16 @@ class FrontendLiveAdapterTests(unittest.TestCase):
                         "audit_status": "attention_required",
                         "audit_score": 70,
                         "issue_count": 2,
-                        "readiness_gap_count": 0,
+                        "readiness_gap_count": 1,
+                        "readiness_gaps": [
+                            {
+                                "gap_key": "cycle_snapshot_missing",
+                                "label": "사이클 스냅샷 결과 없음",
+                                "metric_key": "cycle_snapshot_count",
+                                "current_value": 0,
+                                "next_action": "run decision-daily or cycle-hierarchy-snapshot-v2-run",
+                            }
+                        ],
                         "metrics": {
                             "rss_document_count": 10,
                             "translated_document_count": 8,
@@ -5884,6 +5893,8 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertEqual(audit["status"], "attention_required")
         self.assertEqual(audit["audit_score"], 70)
         self.assertEqual(audit["issue_count"], 2)
+        self.assertEqual(audit["readiness_gap_count"], 1)
+        self.assertEqual(audit["readiness_gaps"][0]["gap_key"], "cycle_snapshot_missing")
         self.assertEqual(audit["metrics"]["rss_document_count"], 10)
         self.assertEqual(audit["checks"]["ungrounded_direct_ticker_count"], 1)
         self.assertEqual(audit["samples"]["macro_false_tickers"][0]["symbol"], "QQQ")

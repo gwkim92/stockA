@@ -342,6 +342,9 @@ function qualityAuditExplanation(audit: CycleAiQualityAudit) {
     return "중복 뉴스, 잘못된 테마 연결, 원문 근거 없는 종목 연결이 현재 감사 기준에서 발견되지 않았다.";
   }
   if (audit.status === "degraded") {
+    if (audit.readiness_gaps.length > 0) {
+      return `큰 오염은 없지만 ${audit.readiness_gaps[0].label} 단계가 비어 있다. 이 단계가 채워져야 추천 근거 흐름을 끝까지 신뢰할 수 있다.`;
+    }
     return "큰 오염은 없지만 번역, AI 분석, 전파, 사이클 스냅샷 중 일부 근거가 아직 부족하다.";
   }
   if (audit.status === "attention_required") {
@@ -1178,6 +1181,7 @@ const DEFAULT_CYCLE_AI_QUALITY_AUDIT: CycleAiQualityAudit = {
   audit_score: 0,
   issue_count: 0,
   readiness_gap_count: 0,
+  readiness_gaps: [],
   metrics: {},
   checks: {},
   samples: {},
@@ -2591,6 +2595,15 @@ export default async function DataHealthPage() {
         </div>
         <div className="insight-grid">
           <article className="insight-card">
+            <span>누락 실행 단계</span>
+            <strong>{qualityAudit.readiness_gap_count}</strong>
+            <p>
+              {qualityAudit.readiness_gaps[0]
+                ? `${qualityAudit.readiness_gaps[0].label} 때문에 감사 상태가 낮아졌다.`
+                : "감사 기준에 필요한 수집·분석·전파·스냅샷 누락 수다."}
+            </p>
+          </article>
+          <article className="insight-card">
             <span>중복 뉴스 묶음</span>
             <strong>{qualityMetric(qualityAudit, "duplicate_title_count")}</strong>
             <p>같은 제목이 반복 수집되어 같은 뉴스가 여러 근거처럼 보일 위험이다.</p>
@@ -2611,6 +2624,22 @@ export default async function DataHealthPage() {
             <p>종목을 억지로 붙이지 않고 상위 흐름으로 남겨둔 뉴스다.</p>
           </article>
         </div>
+        {qualityAudit.readiness_gaps.length > 0 ? (
+          <div className="relationship-panel">
+            <span>부족한 실행 단계</span>
+            <div className="relationship-list">
+              {qualityAudit.readiness_gaps.map((gap) => (
+                <article className="relationship-chip" key={gap.gap_key}>
+                  <span>{gap.label}</span>
+                  <strong>
+                    {gap.metric_key}: {String(gap.current_value ?? 0)}
+                  </strong>
+                  <small>다음 조치: {operationCopy(gap.next_action)}</small>
+                </article>
+              ))}
+            </div>
+          </div>
+        ) : null}
         {qualityAuditSamples.length > 0 ? (
           <div className="relationship-panel">
             <span>감사 샘플</span>
