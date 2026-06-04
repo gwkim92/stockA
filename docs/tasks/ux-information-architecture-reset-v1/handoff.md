@@ -2,7 +2,7 @@
 
 ## Status
 
-- in progress: first news/AI evidence UX slice deployed; second home/data-health/intelligence slice implemented locally and verified.
+- in progress: first news/AI evidence UX slice deployed; second home/data-health/intelligence slice deployed and verified.
 
 ## Current Status
 
@@ -16,7 +16,7 @@
 
 ## Exact Next Step
 
-- exact next step: commit, push, and deploy the second slice, then extend the same decision-first pattern to `/cycle-map`, `/stocks/[symbol]`, `/recommendations/[id]`, `/paper-trading`, `/trading-readiness`, and portfolio/performance pages.
+- exact next step: extend the same decision-first pattern to `/cycle-map`, `/stocks/[symbol]`, `/recommendations/[id]`, `/paper-trading`, `/trading-readiness`, and portfolio/performance pages.
 
 ## Risks
 
@@ -36,7 +36,9 @@
 - passed: mobile smoke for `/events` and `/ai-evidence/blocked`, no horizontal overflow at 390px viewport
 - passed: mobile smoke for `/`, `/data-health`, `/intelligence`, no horizontal overflow at 390px viewport
 - passed: deployed EC2 tunnel route smoke on `http://127.0.0.1:13000/events`, `/ai-evidence`, `/ai-evidence/blocked`, `/ai-evidence/results`
+- passed: deployed EC2 tunnel route smoke on `http://127.0.0.1:13000/`, `/data-health`, `/intelligence`
 - deployed commit: `afb64a9`
+- deployed commit: `5d2936e`
 
 ## Browser Evidence
 
@@ -54,5 +56,8 @@
 - local mobile screenshot: `/tmp/stockanalysis-ux-reset-v1-slice2-mobile/home.png`
 - local mobile screenshot: `/tmp/stockanalysis-ux-reset-v1-slice2-mobile/data-health.png`
 - local mobile screenshot: `/tmp/stockanalysis-ux-reset-v1-slice2-mobile/intelligence.png`
+- deployed screenshot: `/tmp/stockanalysis-ux-reset-v1-slice2-deployed/home.png`
+- deployed screenshot: `/tmp/stockanalysis-ux-reset-v1-slice2-deployed/data-health.png`
+- deployed screenshot: `/tmp/stockanalysis-ux-reset-v1-slice2-deployed/intelligence.png`
 - mobile screenshot: `/tmp/stockanalysis-ux-reset-v1-mobile/events.png`
 - mobile screenshot: `/tmp/stockanalysis-ux-reset-v1-mobile/ai-evidence_blocked.png`
