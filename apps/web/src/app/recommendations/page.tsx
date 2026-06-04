@@ -40,6 +40,7 @@ function userFacingText(value: string | null | undefined) {
   return koCode(value)
     .replaceAll("paper validation", "가상 매매 검증")
     .replaceAll("Paper validation", "가상 매매 검증")
+    .replaceAll("페이퍼 검증", "가상 매매 검증")
     .replaceAll("broker flow", "실거래 연결")
     .replaceAll("broker submit", "증권사 주문 제출")
     .replaceAll("order boundary", "실거래 제한")
@@ -159,7 +160,7 @@ function evidenceQualitySummary(row: RecommendationRow) {
   const coverage = formatPercent(quality.coverage_ratio);
   const missing =
     quality.missing_layer_labels.length > 0
-      ? `빠진 근거: ${quality.missing_layer_labels.slice(0, 3).join(", ")}${quality.missing_layer_labels.length > 3 ? " 외" : ""}`
+      ? `빠진 근거: ${quality.missing_layer_labels.slice(0, 3).map(userFacingText).join(", ")}${quality.missing_layer_labels.length > 3 ? " 외" : ""}`
       : "빠진 핵심 근거 없음";
   return `근거 감사 ${coverage} · 완료 ${quality.available_layer_count}/${quality.expected_layer_count} · ${missing}`;
 }
@@ -346,7 +347,7 @@ export default async function RecommendationsPage() {
                     <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginTop: "10px" }}>
                       {row.evidence_quality.missing_layer_labels.slice(0, 5).map((label) => (
                         <span className="risk-tag risk-medium" key={`${row.recommendation_id}-${label}`}>
-                          {label}
+                          {userFacingText(label)}
                         </span>
                       ))}
                     </div>
