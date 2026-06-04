@@ -33,11 +33,25 @@ type FallbackNewsCluster = {
   examples: NewsEvent[];
 };
 
+function decisionCardClass(tone: string) {
+  if (tone === "ready" || tone === "focus") {
+    return "is-good";
+  }
+  if (tone === "watch") {
+    return "is-watch";
+  }
+  return "is-block";
+}
+
 function formatPercent(value: number | null | undefined) {
   if (value === null || value === undefined || !Number.isFinite(value)) {
     return "미측정";
   }
   return `${Math.round(value * 1000) / 10}%`;
+}
+
+function safeCount(value: unknown) {
+  return typeof value === "number" && Number.isFinite(value) ? value : 0;
 }
 
 function isKnownCode(value: string | null | undefined) {
@@ -201,7 +215,7 @@ function formatStoryKeyword(cluster: StoredAiNewsCluster) {
 }
 
 function formatLlmCandidateStatus(summary: AiNewsClusterSummary) {
-  if (summary.llm_candidate_invocation_count === 0) {
+  if (safeCount(summary.llm_candidate_invocation_count) === 0) {
     return "개별 AI 구조화 항목 없음";
   }
   if (summary.latest_llm_invocation_status === "failed") {
@@ -214,20 +228,22 @@ function formatLlmCandidateStatus(summary: AiNewsClusterSummary) {
 }
 
 function formatLlmCandidateDetail(summary: AiNewsClusterSummary) {
-  if (summary.llm_candidate_invocation_count === 0) {
+  if (safeCount(summary.llm_candidate_invocation_count) === 0) {
     return "뉴스 묶음은 저장된 규칙 기반 결과를 표시 중";
   }
-  return `저장된 AI 분석 ${summary.llm_candidate_artifact_count}건 · 성공 ${summary.llm_candidate_success_count}건 · 실패 ${summary.llm_candidate_failed_count}건`;
+  return `저장된 AI 분석 ${safeCount(summary.llm_candidate_artifact_count)}건 · 성공 ${safeCount(summary.llm_candidate_success_count)}건 · 실패 ${safeCount(summary.llm_candidate_failed_count)}건`;
 }
 
 function formatClusterModeStatus(summary: AiNewsClusterSummary) {
-  if (summary.cluster_count === 0) {
+  const clusterCount = safeCount(summary.cluster_count);
+  const localRuleClusterCount = safeCount(summary.local_rule_cluster_count);
+  if (clusterCount === 0) {
     return "묶음 없음";
   }
-  if (summary.local_rule_cluster_count === summary.cluster_count) {
+  if (localRuleClusterCount === clusterCount) {
     return "규칙 기반";
   }
-  return `규칙 ${summary.local_rule_cluster_count}/${summary.cluster_count}`;
+  return `규칙 ${localRuleClusterCount}/${clusterCount}`;
 }
 
 function formatFallbackTone(cluster: FallbackNewsCluster) {
@@ -365,7 +381,13 @@ export default async function IntelligencePage() {
   const firstCluster = storedNewsClusters.clusters[0] ?? null;
   const visibleNewsClusters = storedNewsClusters.clusters.slice(0, 2);
   const hiddenNewsClusterCount = Math.max(storedNewsClusters.clusters.length - visibleNewsClusters.length, 0);
-  const blockedCandidateCount = events.summary.suppressed_low_signal_candidate_count;
+  const clusterCount = safeCount(clusterSummary.cluster_count);
+  const llmCandidateSuccessCount = safeCount(clusterSummary.llm_candidate_success_count);
+  const eventsSummary = events.summary as typeof events.summary & Record<string, unknown>;
+  const blockedCandidateCount =
+    safeCount(eventsSummary.suppressed_low_signal_candidate_count)
+    + safeCount(eventsSummary.rejected_candidate_count)
+    + safeCount(eventsSummary.validator_blocked_candidate_count);
   const firstFlowTitle = firstCluster
     ? formatClusterHeadline(firstCluster)
     : fallbackClusters[0]
@@ -379,7 +401,7 @@ export default async function IntelligencePage() {
       label: "오늘의 상위 흐름",
       title: firstFlowTitle,
       target: firstFlowTarget,
-      body: "반복된 뉴스가 같은 시장 흐름인지 먼저 본다. 직접 종목 뉴스가 아니면 억지로 종목을 붙이지 않는다.",
+      body: "반복 뉴스가 같은 시장 흐름인지 확인한다.",
       cta: firstCluster ? "흐름 상세 보기" : "흐름 지도 보기",
       href: firstFlowHref,
       tone: "focus",
@@ -387,21 +409,21 @@ export default async function IntelligencePage() {
     {
       index: "02",
       label: "통과한 AI 근거",
-      title: `${clusterSummary.llm_candidate_success_count}건 통과`,
+      title: llmCandidateSuccessCount > 0 ? `${llmCandidateSuccessCount}건 통과` : "개별 후보 없음",
       target: firstCandidate
         ? `${formatNewsSymbol(firstCandidate.symbol)} · ${koCode(firstCandidate.theme_key)}`
         : formatLlmCandidateStatus(clusterSummary),
-      body: "한국어 번역, AI 구조화, validator 통과 결과가 있는 근거만 추천 입력으로 이어진다.",
+      body: "번역·구조화·검증이 끝난 항목만 본다.",
       cta: firstCandidateEvidenceId ? "첫 AI 근거 보기" : "AI 근거 목록",
       href: firstCandidateEvidenceId ? (`/ai-evidence/${firstCandidateEvidenceId}` as Route) : ("/ai-evidence" as Route),
-      tone: clusterSummary.llm_candidate_success_count > 0 ? "ready" : "watch",
+      tone: llmCandidateSuccessCount > 0 ? "ready" : "watch",
     },
     {
       index: "03",
       label: "차단·오염 의심",
       title: `${blockedCandidateCount}건 차단`,
       target: blockedCandidateCount > 0 ? "원인 확인 필요" : "새 차단 없음",
-      body: "저신호 뉴스, 근거 없는 종목 연결, 오분류 의심은 추천 입력에서 분리한다.",
+      body: "추천에 쓰면 안 되는 근거를 분리한다.",
       cta: "차단 목록 보기",
       href: "/ai-evidence/blocked" as Route,
       tone: blockedCandidateCount > 0 ? "watch" : "ready",
@@ -411,7 +433,7 @@ export default async function IntelligencePage() {
       label: "추천 연결",
       title: `커버리지 ${formatPercent(dashboard.latest_metrics.weight_coverage_ratio)}`,
       target: "읽기 전용",
-      body: "통과한 근거가 추천 상세와 보유 상태로 이어졌는지 본다. 주문은 여전히 차단된다.",
+      body: "근거가 추천·보유로 이어졌는지 본다.",
       cta: "추천 연결 보기",
       href: "/recommendations" as Route,
       tone: dashboard.latest_metrics.weight_coverage_ratio > 0 ? "ready" : "watch",
@@ -424,11 +446,11 @@ export default async function IntelligencePage() {
         <div className="decision-brief-main">
           <span className="decision-brief-kicker">뉴스·AI · {dashboard.as_of_date}</span>
           <h1 className="decision-brief-title" id="intelligence-title">
-            오늘의 뉴스 흐름은 {clusterSummary.cluster_count.toLocaleString("ko-KR")}개 묶음으로 정리됐다.
+            오늘의 뉴스 흐름은 {clusterCount.toLocaleString("ko-KR")}개 묶음으로 정리됐다.
           </h1>
           <p className="decision-brief-copy">
-            먼저 볼 것은 기사 목록이 아니라 관계다. 같은 흐름으로 묶인 이유, AI가 통과시킨 근거,
-            차단된 근거, 추천·보유 연결 여부를 순서대로 확인한다.
+            이 화면은 뉴스 전체 목록이 아니다. 오늘 판단에 필요한 흐름, 통과 근거, 차단 항목,
+            추천 연결만 먼저 보여준다.
           </p>
           <div className="decision-brief-meta" aria-label="뉴스 AI 핵심 상태">
             <span>뉴스 수집 {formatRunStatus(newsRun)}</span>
@@ -440,9 +462,7 @@ export default async function IntelligencePage() {
         <div className="decision-brief-grid">
           {flowSummaryCards.map((card) => (
             <Link
-              className={`decision-card ${
-                card.tone === "ready" ? "is-good" : card.tone === "watch" ? "is-watch" : "is-block"
-              }`}
+              className={`decision-card ${decisionCardClass(card.tone)}`}
               href={card.href}
               key={card.index}
             >

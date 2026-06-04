@@ -35,14 +35,16 @@ function formatPercent(value: number | null | undefined) {
   return `${Math.round(value * 1000) / 10}%`;
 }
 
-function formatCost(value: number | null | undefined) {
-  if (value == null || !Number.isFinite(value)) {
-    return "미제공";
+function isPlaceholderModel(value: string | null | undefined) {
+  return !value || /placeholder|fixture|unknown/i.test(value);
+}
+
+function extractionRunLabel(data: AiEvidenceDetailData) {
+  const provider = koCode(data.extraction_run.provider);
+  if (isPlaceholderModel(data.extraction_run.model_id)) {
+    return `${provider} 배치 분석`;
   }
-  if (value === 0) {
-    return "0달러";
-  }
-  return `$${value.toFixed(4)}`;
+  return `${provider} · ${koCode(data.extraction_run.model_id)}`;
 }
 
 function normalizeEvidenceSystemCopy(value: string | null | undefined) {
@@ -50,6 +52,15 @@ function normalizeEvidenceSystemCopy(value: string | null | undefined) {
   const oldAiCandidate = ["AI", "후보"].join(" ");
   const oldHoldingReview = ["보유", "검토"].join("");
   return koLabel(value)
+    .replaceAll("fixture에는 AI 근거 가시성 trace가 없어 기본 경로만 표시한다.", "저장된 상세 추적 정보가 부족해 확인 가능한 경로만 표시한다.")
+    .replaceAll("fixture에는 validator 상세 이유가 없다.", "자동 검증의 상세 사유가 아직 저장되지 않았다.")
+    .replaceAll("fixture 기준 번역 trace가 없다.", "번역 추적 정보가 아직 저장되지 않았다.")
+    .replaceAll("추천 연결 trace는 live DB에서 확인한다.", "추천 연결 정보는 최신 운영 데이터에서 확인한다.")
+    .replaceAll("live DB", "최신 운영 데이터")
+    .replaceAll("validator", "자동 검증")
+    .replaceAll("trace", "추적 정보")
+    .replaceAll("fixture", "현재 데이터")
+    .replaceAll("write", "쓰기 작업")
     .replaceAll(oldNewsAiCandidate, "뉴스 AI 구조화 항목")
     .replaceAll(oldAiCandidate, "AI 구조화 항목")
     .replaceAll(oldHoldingReview, "보유 상태 판단")
@@ -202,6 +213,20 @@ function formatExtractedFieldValue(field: ExtractedField) {
   return koLabel(rawValue);
 }
 
+function formatExtractedFieldLabel(fieldName: string) {
+  const normalized = fieldName.trim().toLowerCase().replaceAll(" ", "_");
+  if (normalized === "impact_direction") {
+    return "영향 방향";
+  }
+  if (normalized === "event_title") {
+    return "이벤트 제목";
+  }
+  if (normalized === "theme_mapping") {
+    return "테마 매핑";
+  }
+  return koCode(normalized);
+}
+
 function formatExtractedFieldSource(sourceChunkId: string) {
   if (sourceChunkId === "chunk-news-ai-candidate") {
     return "뉴스 구조화 근거";
@@ -214,6 +239,12 @@ function formatExtractedFieldSource(sourceChunkId: string) {
   }
   if (sourceChunkId.startsWith("chunk-news-ai-")) {
     return "AI 추출 근거";
+  }
+  if (sourceChunkId === "chunk-mdna-services") {
+    return "경영진 논의 근거";
+  }
+  if (sourceChunkId === "chunk-business-overview") {
+    return "사업 개요 근거";
   }
   return koLabel(sourceChunkId);
 }
@@ -893,7 +924,7 @@ function EvidenceVisibilityTraceBoard({
             <span>주문 경계</span>
             <strong>읽기 전용 · 자동 주문 없음</strong>
             <small>
-              화면에서는 저장된 배치 결과만 읽는다. write {trace.read_only_boundary.write_enabled ? "허용" : "차단"} ·{" "}
+              화면에서는 저장된 배치 결과만 읽는다. 쓰기 작업 {trace.read_only_boundary.write_enabled ? "허용" : "차단"} ·{" "}
               {koCode(trace.read_only_boundary.order_boundary)}
             </small>
           </div>
@@ -941,8 +972,8 @@ export default async function AiEvidencePage({ params }: AiEvidencePageProps) {
           <div className="decision-brief-meta" aria-label="AI 근거 상세 핵심 상태">
             <span>상태 {decision.label}</span>
             <span>연결 종목 {linkedSymbolLabel}</span>
-            <span>{koCode(data.extraction_run.provider)} · {koCode(data.extraction_run.model_id)}</span>
-            <span>비용 {formatCost(data.extraction_run.estimated_cost_usd)}</span>
+            <span>{extractionRunLabel(data)}</span>
+            <span>근거 유형 {koCode(data.evidence_type)}</span>
           </div>
         </div>
         <div className="decision-brief-grid">
@@ -1157,7 +1188,7 @@ export default async function AiEvidencePage({ params }: AiEvidencePageProps) {
             <div className="field-proof-grid">
               {data.extracted_fields.map((field) => (
                 <div className="field-proof-card" key={field.field}>
-                  <span>{koCode(field.field)}</span>
+                  <span>{formatExtractedFieldLabel(field.field)}</span>
                   <strong>{formatExtractedFieldValue(field)}</strong>
                   <small>
                     신뢰도 {formatPercent(field.confidence)} · {formatExtractedFieldSource(field.source_chunk_id)}

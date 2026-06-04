@@ -36,6 +36,14 @@ function hasClassifiedSymbol(event: NewsCandidateEvent) {
   return Boolean(event.symbol && !UNCLASSIFIED_SYMBOL_KEYS.has(event.symbol));
 }
 
+function isValidatorBlockedEvent(event: NewsCandidateEvent) {
+  return event.ai_evidence_type === "news_event_candidate_rejected" || event.quality_gate === "validator_blocked";
+}
+
+function isLowSignalSuppressedEvent(event: NewsCandidateEvent) {
+  return event.ai_evidence_type === "news_event_candidate_suppressed" || event.quality_gate === "low_signal_suppressed";
+}
+
 function candidateKindLabel(event: NewsCandidateEvent) {
   if (event.ai_evidence_type === "news_event_candidate_rejected" || event.quality_gate === "validator_blocked") {
     return "차단 항목";
@@ -172,35 +180,39 @@ export default async function AiEvidenceIndexPage() {
   const suppressedData = suppressedResponse.data;
   const allSummaryFields = allSummary as typeof allSummary & Record<string, unknown>;
   const dataSummaryFields = data.summary as typeof data.summary & Record<string, unknown>;
-  const rejectedSummaryFields = rejectedData.summary as typeof rejectedData.summary & Record<string, unknown>;
-  const suppressedSummaryFields = suppressedData.summary as typeof suppressedData.summary & Record<string, unknown>;
   const candidates = data.events.filter((event) => event.ai_evidence_id);
   const newsCandidates = candidates.filter((event) => event.ai_evidence_type === "news_event_candidate");
   const directNewsCandidates = newsCandidates.filter(hasClassifiedSymbol);
   const macroNewsCandidates = newsCandidates.filter((event) => !hasClassifiedSymbol(event));
   const aiExtractedCount = safeCount(allSummaryFields.ai_extracted_count);
   const clusterEvidenceCount = safeCount(allSummaryFields.news_cluster_summary_count);
-  const suppressedLowSignalCount = safeCount(dataSummaryFields.suppressed_low_signal_candidate_count);
-  const rejectedEventCount = safeCount(rejectedSummaryFields.event_count);
-  const suppressedEventCount = safeCount(suppressedSummaryFields.event_count);
+  const rejectedEventCount = rejectedData.events.filter(isValidatorBlockedEvent).length;
+  const suppressedEventCount = suppressedData.events.filter((event) => isLowSignalSuppressedEvent(event) && !isValidatorBlockedEvent(event)).length;
+  const suppressedLowSignalCount = suppressedEventCount || safeCount(dataSummaryFields.suppressed_low_signal_candidate_count);
   const blockedCandidateCount = rejectedEventCount + suppressedEventCount;
+  const otherAiEvidenceCount = Math.max(0, aiExtractedCount - newsCandidates.length - clusterEvidenceCount);
   const translatedCandidateCount = newsCandidates.filter((event) => event.korean_title || event.korean_summary).length;
   const firstCandidateLink = candidates[0]?.ai_evidence_id ? evidenceHref(candidates[0].ai_evidence_id) : null;
+  const titleText =
+    newsCandidates.length > 0
+      ? `AI 근거는 직접 종목 ${directNewsCandidates.length.toLocaleString("ko-KR")}개, 상위 흐름 ${macroNewsCandidates.length.toLocaleString("ko-KR")}개로 나눠 본다.`
+      : otherAiEvidenceCount > 0
+        ? `뉴스 AI 후보는 없고, 공시·기타 AI 근거 ${otherAiEvidenceCount.toLocaleString("ko-KR")}건이 있다.`
+        : "뉴스 AI 후보는 아직 없다.";
 
   return (
     <div className="pageStack decision-page">
       <section className="decision-brief reveal" aria-labelledby="ai-evidence-index-title">
         <div className="decision-brief-main">
           <span className="decision-brief-kicker">뉴스 AI 근거 · {data.as_of_date}</span>
-          <h1 className="decision-brief-title" id="ai-evidence-index-title">
-            AI 근거는 직접 종목 {directNewsCandidates.length.toLocaleString("ko-KR")}개, 상위 흐름 {macroNewsCandidates.length.toLocaleString("ko-KR")}개로 나눠 본다.
-          </h1>
+          <h1 className="decision-brief-title" id="ai-evidence-index-title">{titleText}</h1>
           <p className="decision-brief-copy">
             여기서는 AI가 만든 후보를 한 화면에 다 붓지 않는다. 종목에 바로 붙는 근거, 거시·테마로 먼저 남길 근거,
             추천 입력에서 제외할 근거를 분리해서 본다.
           </p>
           <div className="decision-brief-meta" aria-label="뉴스 AI 근거 핵심 수치">
-            <span>AI 연결 {aiExtractedCount.toLocaleString("ko-KR")}건</span>
+            <span>뉴스 후보 {newsCandidates.length.toLocaleString("ko-KR")}건</span>
+            <span>기타 AI {otherAiEvidenceCount.toLocaleString("ko-KR")}건</span>
             <span>한국어 {translatedCandidateCount.toLocaleString("ko-KR")}/{newsCandidates.length.toLocaleString("ko-KR")}</span>
             <span>뉴스 묶음 {clusterEvidenceCount.toLocaleString("ko-KR")}개</span>
             <span>차단·보류 {blockedCandidateCount.toLocaleString("ko-KR")}개</span>
@@ -312,7 +324,7 @@ export default async function AiEvidenceIndexPage() {
           <Link className="where-card" href={firstCandidateLink}>
             <span>상세</span>
             <strong>최신 항목 추적</strong>
-            <p>원천 뉴스, 한국어 번역, AI 구조화 필드, 검증 결과, 추천 연결을 한 화면에서 본다.</p>
+            <p>원천 문서, 한국어 번역, AI 구조화 필드, 검증 결과, 추천 연결을 한 화면에서 본다.</p>
             <small>최신 상세 열기</small>
           </Link>
           <Link className="where-card" href={"/ai-evidence/results" as Route}>

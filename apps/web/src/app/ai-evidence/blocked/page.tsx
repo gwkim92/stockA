@@ -3,9 +3,32 @@ import type { Route } from "next";
 
 import { NewsEventCard } from "@/components/news-event-card";
 import { getEvents } from "@/lib/frontend-api";
+import type { EventListData } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "차단된 AI 구조화 항목" };
+
+type NewsEvent = EventListData["events"][number];
+
+function isValidatorBlockedEvent(event: NewsEvent) {
+  return event.ai_evidence_type === "news_event_candidate_rejected" || event.quality_gate === "validator_blocked";
+}
+
+function isLowSignalSuppressedEvent(event: NewsEvent) {
+  return event.ai_evidence_type === "news_event_candidate_suppressed" || event.quality_gate === "low_signal_suppressed";
+}
+
+function uniqueEvents(events: NewsEvent[]) {
+  const seen = new Set<string>();
+  return events.filter((event) => {
+    const key = `${event.event_id}:${event.ai_evidence_id ?? ""}:${event.quality_gate}`;
+    if (seen.has(key)) {
+      return false;
+    }
+    seen.add(key);
+    return true;
+  });
+}
 
 export default async function BlockedAiEvidencePage() {
   const [rejectedResponse, suppressedResponse] = await Promise.all([
@@ -14,11 +37,14 @@ export default async function BlockedAiEvidencePage() {
   ]);
   const rejectedData = rejectedResponse.data;
   const suppressedData = suppressedResponse.data;
-  const blockedEvents = [
-    ...rejectedData.events,
-    ...suppressedData.events.map((event) => ({ ...event, quality_gate: "low_signal_suppressed" })),
-  ];
-  const blockedTotalCount = rejectedData.summary.event_count + suppressedData.summary.event_count;
+  const rejectedEvents = uniqueEvents(rejectedData.events.filter(isValidatorBlockedEvent));
+  const suppressedEvents = uniqueEvents(
+    suppressedData.events
+      .filter((event) => isLowSignalSuppressedEvent(event) && !isValidatorBlockedEvent(event))
+      .map((event) => ({ ...event, quality_gate: "low_signal_suppressed" })),
+  );
+  const blockedEvents = uniqueEvents([...rejectedEvents, ...suppressedEvents]);
+  const blockedTotalCount = blockedEvents.length;
 
   return (
     <div className="pageStack decision-page blocked-evidence-page">
@@ -33,21 +59,21 @@ export default async function BlockedAiEvidencePage() {
             막힌 경우만 보강 대상으로 넘긴다.
           </p>
           <div className="decision-brief-meta" aria-label="차단 항목 핵심 수치">
-            <span>검증 차단 {rejectedData.summary.event_count.toLocaleString("ko-KR")}개</span>
-            <span>저신호 보류 {suppressedData.summary.event_count.toLocaleString("ko-KR")}개</span>
+            <span>검증 차단 {rejectedEvents.length.toLocaleString("ko-KR")}개</span>
+            <span>저신호 보류 {suppressedEvents.length.toLocaleString("ko-KR")}개</span>
             <span>상태 {blockedTotalCount > 0 ? "차단 기록 있음" : "차단 없음"}</span>
           </div>
         </div>
         <div className="decision-brief-grid">
           <a className="decision-card is-block" href="#blocked-list">
             <span>계속 제외</span>
-            <strong>{rejectedData.summary.event_count.toLocaleString("ko-KR")}개</strong>
+            <strong>{rejectedEvents.length.toLocaleString("ko-KR")}개</strong>
             <small>알 수 없는 종목·테마, 낮은 신뢰도, 근거 부족 항목이다.</small>
             <b>목록 보기</b>
           </a>
           <a className="decision-card is-watch" href="#blocked-list">
             <span>저신호 보류</span>
-            <strong>{suppressedData.summary.event_count.toLocaleString("ko-KR")}개</strong>
+            <strong>{suppressedEvents.length.toLocaleString("ko-KR")}개</strong>
             <small>종목 없는 일반 뉴스다. 삭제하지 않지만 추천 입력으로 쓰지 않는다.</small>
             <b>보류 보기</b>
           </a>

@@ -21,6 +21,13 @@ function formatClusterRelationReasons(reasons: string[]) {
   return reasons.length > 0 ? reasons.slice(0, 3) : ["same_theme"];
 }
 
+function formatLatestAiRunStatus(status: string | null | undefined) {
+  if (!status || status === "not_run") {
+    return "최근 AI 실행 이력 없음";
+  }
+  return `최근 AI 실행 ${koCode(status)}`;
+}
+
 export default async function StructuredResultsPage() {
   const [candidateResponse, clusterResponse] = await Promise.all([
     getEvents({ evidenceType: "news_event_candidate", limit: 80 }),
@@ -33,9 +40,7 @@ export default async function StructuredResultsPage() {
   );
   const directCandidates = acceptedCandidates.filter((event) => isKnownNewsCode(event.symbol));
   const macroCandidates = acceptedCandidates.filter((event) => !isKnownNewsCode(event.symbol));
-  const latestAiRunStatus = clusterData.summary.latest_llm_invocation_status
-    ? `최근 AI 실행 ${koCode(clusterData.summary.latest_llm_invocation_status)}`
-    : "최근 AI 실행 없음";
+  const latestAiRunStatus = formatLatestAiRunStatus(clusterData.summary.latest_llm_invocation_status);
 
   return (
     <div className="pageStack decision-page structured-results-page">

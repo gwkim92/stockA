@@ -35,6 +35,12 @@
 - completed locally: added read-only local fallback responses for fixture-missing `/api/cycle-map` and `/api/ai/evidence-neighborhoods/{symbol}` so full-site UX smoke can run without live DB/AWS access.
 - completed locally: updated frontend detail route smoke expected terms from legacy English/dossier wording to current Korean decision-first page copy.
 - completed locally: full local production smoke on `http://127.0.0.1:13002` passed for 23 public routes with mobile/desktop status 200, no data error, no Server Component digest, no horizontal overflow, and nav rows 1 on 390px mobile.
+- completed locally: refined `/intelligence`, `/events`, `/ai-evidence`, `/ai-evidence/blocked`, `/ai-evidence/results`, and `/ai-evidence/[evidenceId]` after direct Playwright snapshots.
+- completed locally: fixed `/intelligence` `undefined건 차단` by normalizing missing cluster/event summary counts and shortened first-view cards to action-oriented copy.
+- completed locally: changed `/events` copy from developer wording (`row`, `AI 전`) to user-facing wording (`기사 목록`, `AI 대기`).
+- completed locally: split `/ai-evidence` counts into `뉴스 후보` and `공시·기타 AI 근거` so a non-news AI artifact no longer contradicts an empty news candidate list.
+- completed locally: changed `/ai-evidence/blocked` to derive blocked/suppressed rows from actual row quality fields, preventing fixture or stale responses from showing accepted events as blocked.
+- completed locally: removed visible developer terms from AI evidence detail (`fixture`, placeholder model id, raw chunk ids, raw `impact direction`, raw `write`) and replaced them with Korean user-facing labels.
 
 ## Exact Next Step
 
@@ -74,6 +80,13 @@
 - passed locally for fixture DTO hardening: Playwright production route smoke on `http://127.0.0.1:13002` for `/`, `/data-health`, `/intelligence`, `/cycle-map`, `/cycles`, `/events`, `/events/classification`, `/ai-evidence`, `/ai-evidence/blocked`, `/ai-evidence/results`, `/ai-evidence/sec-event-aapl-10k-20240928`, `/source-documents/aapl-2024-10k-20240928`, `/stocks`, `/stocks/AAPL`, `/themes/ANNUAL_REPORTING`, `/recommendations`, `/recommendations/AAPL-2024-11-01`, `/theses/AAPL-bootstrap-v1`, `/portfolio/coverage`, `/paper-trading`, `/trading-readiness`, `/performance`, `/remediation`
 - screenshots for latest local news/AI/event audit: `output/playwright/ux-information-architecture-reset-v1/news-audit/`
 - not run for latest fixture DTO hardening: EC2 deployed route smoke, intentionally deferred because current network is public Wi-Fi.
+- passed locally for news/AI visibility cleanup: `cd apps/web && npm run typecheck`
+- passed locally for news/AI visibility cleanup: `cd apps/web && npm run build`
+- passed locally for news/AI visibility cleanup: `bash scripts/verify_frontend_detail_routes.sh`
+- passed locally for news/AI visibility cleanup: `PYTHONPATH=/Users/woody/ai/agent-work-harness/src /opt/homebrew/bin/python3.13 -m awh verify --repo . --task ux-information-architecture-reset-v1`
+- passed locally for news/AI visibility cleanup: `git diff --check`
+- passed locally for news/AI visibility cleanup: Playwright snapshots on `http://127.0.0.1:13002/intelligence`, `/events`, `/ai-evidence`, `/ai-evidence/blocked`, `/ai-evidence/results`, `/ai-evidence/sec-event-aapl-10k-20240928`
+- not run for news/AI visibility cleanup: EC2 deployed route smoke, intentionally deferred because current network is public Wi-Fi.
 - passed: `cd apps/web && npm run typecheck`
 - passed: `cd apps/web && npm run build`
 - passed: `PYTHONPATH=/Users/woody/ai/agent-work-harness/src /opt/homebrew/bin/python3.13 -m awh verify --repo . --task ux-information-architecture-reset-v1`

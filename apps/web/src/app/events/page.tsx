@@ -34,14 +34,14 @@ export default async function EventsPage() {
             오늘 들어온 뉴스는 {linkedCount.toLocaleString("ko-KR")}건이 AI 근거와 연결됐다.
           </h1>
           <p className="decision-brief-copy">
-            먼저 볼 것은 원문 row 전체가 아니라 처리 상태다. 수집, 1차 분류, AI 연결, 차단 여부를 확인한 뒤
+            먼저 볼 것은 기사 목록 전체가 아니라 처리 상태다. 수집, 1차 분류, AI 연결, 차단 여부를 확인한 뒤
             필요한 뉴스만 원장으로 내려가서 본다.
           </p>
           <div className="decision-brief-meta" aria-label="수집 뉴스 핵심 수치">
             <span>최신 {latestEvent ? latestEvent.event_at : "없음"}</span>
             <span>원천 {data.summary.source_document_count.toLocaleString("ko-KR")}개</span>
             <span>번역 {translatedCount.toLocaleString("ko-KR")}건</span>
-            <span>AI 전 {unlinkedCount.toLocaleString("ko-KR")}건</span>
+            <span>AI 대기 {unlinkedCount.toLocaleString("ko-KR")}건</span>
           </div>
         </div>
         <div className="decision-brief-grid">
