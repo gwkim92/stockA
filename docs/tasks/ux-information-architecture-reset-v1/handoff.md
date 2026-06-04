@@ -150,6 +150,10 @@
 - passed locally for home grouped remediation queue: in-app browser check on `http://127.0.0.1:13002/`; grouped title present, first grouped item present, old table header absent, no console errors, no desktop horizontal overflow.
 - passed locally for home grouped remediation queue: `bash scripts/verify_frontend_detail_routes.sh`
 - passed locally for home grouped remediation queue: `PYTHONPATH=/Users/woody/ai/agent-work-harness/src python3 -m awh verify --repo . --task ux-information-architecture-reset-v1`
+- deployed commit: `f9ef0d8`
+- passed deployed for home grouped remediation queue: EC2 pull/build/restart completed with `stockanalysis-frontend-api.service` active and `stockanalysis-web.service` active.
+- passed deployed for home grouped remediation queue: `http://127.0.0.1:13000/` returned `200`; grouped title present, first grouped item present, old repeated table header absent, no server component error, no desktop horizontal overflow.
+- passed deployed for home grouped remediation queue route smoke: `http://127.0.0.1:13000/`, `/data-health`, `/recommendations`, `/remediation`, `/portfolio/coverage`, `/trading-readiness` returned `200`.
 - deployed commit: `1c7f721`
 - passed deployed for latest UX copy cleanup: EC2 pull/build/restart completed with `stockanalysis-frontend-api.service` active and `stockanalysis-web.service` active.
 - passed deployed for latest UX copy cleanup: `http://127.0.0.1:13000/`, `/data-health`, `/ai-evidence/results`, `/ai-evidence/sec-event-aapl-10k-20240928`, `/theses/AAPL-bootstrap-v1`, `/trading-readiness` returned `200`.
