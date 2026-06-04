@@ -2,7 +2,7 @@
 
 ## Status
 
-- in progress: first news/AI evidence UX slice deployed; second home/data-health/intelligence slice deployed; third cycle-map/stock-detail/recommendation-detail/paper-trading slice deployed; fourth list/operation slice deployed and verified.
+- in progress: first news/AI evidence UX slice deployed; second home/data-health/intelligence slice deployed; third cycle-map/stock-detail/recommendation-detail/paper-trading slice deployed; fourth list/operation slice deployed; fifth secondary detail slice implemented and locally smoke verified.
 
 ## Current Status
 
@@ -19,10 +19,11 @@
 - completed: refactored `/recommendations/[recommendationId]` first viewport around current decision, score, professional step status, paper validation, and live-order boundary.
 - completed: removed the unused legacy `StockDecisionBrief` component after replacing it with the shared decision-first layout.
 - completed: refactored `/trading-readiness`, `/portfolio/coverage`, `/performance`, `/stocks`, `/recommendations`, `/cycles`, `/events/classification` first viewport to remove repeated page hero/command panel patterns.
+- completed: refactored `/remediation`, `/source-documents/[documentId]`, `/ai-evidence/[evidenceId]` first viewport to remove repeated page hero/command panel patterns.
 
 ## Exact Next Step
 
-- exact next step: deploy the fourth list/operation slice, then audit remaining secondary detail pages such as `/cycles`, `/themes/[themeKey]`, `/theses/[thesisId]`, `/source-documents/[documentId]`, `/remediation`, and lower-fold dense ledgers.
+- exact next step: deploy the fifth secondary detail slice, then audit remaining secondary detail pages such as `/themes/[themeKey]`, `/theses/[thesisId]`, and lower-fold dense ledgers.
 
 ## Risks
 
@@ -59,6 +60,10 @@
 - passed deployed for fourth slice: `http://127.0.0.1:13000/trading-readiness`, `/portfolio/coverage`, `/performance`, `/stocks`, `/recommendations`, `/cycles`, `/events/classification`
 - passed deployed for fourth slice: mobile smoke for the same 7 routes, no horizontal overflow at 390px viewport
 - deployed commit: `6cb23cc`
+- passed locally for fifth slice: `cd apps/web && npm run typecheck`
+- passed locally for fifth slice: `cd apps/web && npm run build`
+- passed locally for fifth slice: Playwright route smoke on `http://127.0.0.1:3002/remediation`, `/ai-evidence/ai-evidence-251`, `/source-documents/rss%3Amarketwatch-topstories%3Ab057be957d391c978876835f`
+- passed locally for fifth slice: mobile smoke for the same 3 routes, no horizontal overflow at 390px viewport
 
 ## Browser Evidence
 
@@ -125,3 +130,9 @@
 - deployed mobile screenshot: `/tmp/stockanalysis-ux-reset-v1-slice4-deployed/mobile-recommendations.png`
 - deployed mobile screenshot: `/tmp/stockanalysis-ux-reset-v1-slice4-deployed/mobile-cycles.png`
 - deployed mobile screenshot: `/tmp/stockanalysis-ux-reset-v1-slice4-deployed/mobile-events-classification.png`
+- local screenshot: `/tmp/stockanalysis-ux-reset-v1-slice5/remediation.png`
+- local screenshot: `/tmp/stockanalysis-ux-reset-v1-slice5/ai-evidence-251.png`
+- local screenshot: `/tmp/stockanalysis-ux-reset-v1-slice5/source-document.png`
+- local mobile screenshot: `/tmp/stockanalysis-ux-reset-v1-slice5/mobile-remediation.png`
+- local mobile screenshot: `/tmp/stockanalysis-ux-reset-v1-slice5/mobile-ai-evidence-251.png`
+- local mobile screenshot: `/tmp/stockanalysis-ux-reset-v1-slice5/mobile-source-document.png`

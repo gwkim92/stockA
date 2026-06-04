@@ -28,44 +28,52 @@ export default async function RemediationPage() {
   const highRiskCount = data.tickets.filter((ticket) => ticket.risk_level === "high").length;
 
   return (
-    <div className="terminal-page">
-      <section className="page-hero reveal" aria-labelledby="remediation-title">
-        <div>
-          <div className="bento-badge">보완 큐</div>
-          <h1 className="page-title" id="remediation-title">
-            먼저 정리해야 할 판단 공백을 모은다.
+    <div className="terminal-page decision-page">
+      <section className="decision-brief reveal" aria-labelledby="remediation-title">
+        <div className="decision-brief-main">
+          <span className="decision-brief-kicker">보완 큐 · {koLabel(data.portfolio_name)} · {koCode(data.status_filter)}</span>
+          <h1 className="decision-brief-title" id="remediation-title">
+            먼저 정리해야 할 판단 공백 {data.ticket_count.toLocaleString("ko-KR")}개
           </h1>
+          <p className="decision-brief-copy">
+            투자 논리 누락, 성과 측정 공백, 비중 검토처럼 자동으로 넘기면 안 되는 항목을 모은다. 실제 상태 변경은 감사 로그와 승인 경로가 준비된 뒤에만 다룬다.
+          </p>
+          <div className="decision-brief-meta" aria-label="보완 큐 핵심 상태">
+            <span>열린 티켓 {data.ticket_count.toLocaleString("ko-KR")}개</span>
+            <span>고위험 {highRiskCount.toLocaleString("ko-KR")}개</span>
+            <span>단일 종목 상한 {formatPercent(allocationPolicy.max_single_position_weight)}</span>
+            <span>리밸런싱 기준 {formatPercent(allocationPolicy.min_rebalance_target_weight)}</span>
+          </div>
         </div>
-        <p className="page-lede">
-          투자 논리 누락, 성과 측정 공백, 비중 검토처럼 자동으로 넘기면 안 되는 항목을 보여준다.
-          실제 상태 변경은 감사 로그와 승인 경로가 준비된 뒤에만 다룬다.
-        </p>
+        <div className="decision-brief-grid">
+          <a className={highRiskCount > 0 ? "decision-card is-block" : "decision-card is-good"} href="#remediation-open-items">
+            <span>열린 항목</span>
+            <strong>{data.ticket_count.toLocaleString("ko-KR")}개</strong>
+            <small>고위험 {highRiskCount.toLocaleString("ko-KR")}개. 자동 조치하지 말고 필요한 결정만 확인한다.</small>
+            <b>티켓 보기</b>
+          </a>
+          <a className="decision-card is-watch" href="#remediation-policy">
+            <span>비중 정책</span>
+            <strong>{formatPercent(allocationPolicy.max_single_position_weight)}</strong>
+            <small>추천 비중과 보유 비중 조정은 별도 정책과 승인 경로가 필요하다.</small>
+            <b>정책 보기</b>
+          </a>
+          <a className="decision-card" href="#remediation-status-counts">
+            <span>상태 분포</span>
+            <strong>{Object.keys(data.status_counts).length.toLocaleString("ko-KR")}개 상태</strong>
+            <small>큐가 어디에 몰려 있는지 확인한다.</small>
+            <b>분포 보기</b>
+          </a>
+          <a className="decision-card is-block" href="#remediation-boundary">
+            <span>자동 조치</span>
+            <strong>금지</strong>
+            <small>티켓은 추천이나 주문이 아니라 보완 입력이다.</small>
+            <b>경계 보기</b>
+          </a>
+        </div>
       </section>
 
-      <section className="status-rail compact-rail reveal delay-1" aria-label="보완 큐 요약">
-        <article className="rail-cell">
-          <span>01 포트폴리오</span>
-          <strong className="rail-word-value">{koLabel(data.portfolio_name)}</strong>
-          <small>{koCode(data.status_filter)} 필터</small>
-        </article>
-        <article className="rail-cell">
-          <span>02 열린 티켓</span>
-          <strong>{data.ticket_count}</strong>
-          <small>검토 대기</small>
-        </article>
-        <article className="rail-cell rail-critical">
-          <span>03 고위험</span>
-          <strong>{highRiskCount}</strong>
-          <small>우선 확인</small>
-        </article>
-        <article className="rail-cell">
-          <span>04 비중 정책</span>
-          <strong>{formatPercent(allocationPolicy.max_single_position_weight)}</strong>
-          <small>단일 종목 상한</small>
-        </article>
-      </section>
-
-      <section className="split-ledger reveal delay-2">
+      <section className="split-ledger reveal delay-2" id="remediation-open-items">
         <article className="ledger-panel queue-panel">
           <div className="section-heading">
             <span>열린 항목</span>
@@ -107,7 +115,7 @@ export default async function RemediationPage() {
         </article>
 
         <aside className="side-ledger">
-          <article className="ledger-panel">
+          <article className="ledger-panel" id="remediation-policy">
             <div className="section-heading stacked-heading">
               <span>비중 정책</span>
               <h2>현재 적용 기준</h2>
@@ -135,7 +143,7 @@ export default async function RemediationPage() {
             </dl>
           </article>
 
-          <article className="ledger-panel">
+          <article className="ledger-panel" id="remediation-status-counts">
             <div className="section-heading stacked-heading">
               <span>상태 분포</span>
               <h2>큐 분포</h2>
@@ -150,7 +158,7 @@ export default async function RemediationPage() {
             </dl>
           </article>
 
-          <article className="ledger-panel">
+          <article className="ledger-panel" id="remediation-boundary">
             <div className="section-heading stacked-heading">
               <span>결정 경계</span>
               <h2>자동 조치 금지</h2>

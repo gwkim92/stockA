@@ -928,24 +928,76 @@ export default async function AiEvidencePage({ params }: AiEvidencePageProps) {
   const linkedSymbolLabel = linkedSymbol ? koCode(linkedSymbol) : "종목 없음";
 
   return (
-    <div className="pageStack ai-evidence-detail-page">
-      <section className="page-hero evidence-decision-hero reveal" aria-labelledby="ai-evidence-title">
-        <div>
-          <div className="bento-badge">{copy.badge}</div>
-          <h1 className="page-title" id="ai-evidence-title">
+    <div className="pageStack ai-evidence-detail-page decision-page">
+      <section className="decision-brief reveal" aria-labelledby="ai-evidence-title">
+        <div className="decision-brief-main">
+          <span className="decision-brief-kicker">{copy.badge}</span>
+          <h1 className="decision-brief-title" id="ai-evidence-title">
             {copy.title}
           </h1>
-          <p className="page-lede">{copy.lede}</p>
+          <p className="decision-brief-copy">
+            {copy.lede} 근거 사용 상태는 {decision.label}이며, 원천 뉴스·한국어 번역·AI 구조화·검증·추천 연결을 아래 순서로 대조한다.
+          </p>
+          <div className="decision-brief-meta" aria-label="AI 근거 상세 핵심 상태">
+            <span>상태 {decision.label}</span>
+            <span>연결 종목 {linkedSymbolLabel}</span>
+            <span>{koCode(data.extraction_run.provider)} · {koCode(data.extraction_run.model_id)}</span>
+            <span>비용 {formatCost(data.extraction_run.estimated_cost_usd)}</span>
+          </div>
         </div>
-        <aside className="quality-decision-card" aria-label="AI 근거 품질">
-          <span>근거 사용 상태</span>
-          <strong className={`risk-tag ${decision.tone}`}>{decision.label}</strong>
-          <p>{decision.body}</p>
-          <small>
-            {koCode(data.extraction_run.provider)} · {koCode(data.extraction_run.model_id)} · 비용{" "}
-            {formatCost(data.extraction_run.estimated_cost_usd)}
-          </small>
-        </aside>
+        <div className="decision-brief-grid">
+          <a className={`decision-card ${decision.tone === "risk-low" ? "is-good" : decision.tone === "risk-medium" ? "is-watch" : "is-block"}`} href="#evidence-source-preview">
+            <span>근거 사용 상태</span>
+            <strong>{decision.label}</strong>
+            <small>{decision.body}</small>
+            <b>원천 확인</b>
+          </a>
+          {sourceLink ? (
+            <Link className="decision-card is-good" href={sourceLink}>
+              <span>원천 문서</span>
+              <strong>{sourcePreview ? "문서 연결" : "문서 있음"}</strong>
+              <small>원문과 한국어 요약을 대조한다.</small>
+              <b>문서 열기</b>
+            </Link>
+          ) : (
+            <a className="decision-card is-watch" href="#evidence-source-preview">
+              <span>원천 문서</span>
+              <strong>직접 문서 없음</strong>
+              <small>화면의 원천 뉴스 요약부터 확인한다.</small>
+              <b>원천 보기</b>
+            </a>
+          )}
+          {targetStockLink ? (
+            <Link className="decision-card" href={targetStockLink}>
+              <span>종목 연결</span>
+              <strong>{linkedSymbolLabel}</strong>
+              <small>종목 상세에서 직접 뉴스와 상위 흐름을 이어서 본다.</small>
+              <b>종목 보기</b>
+            </Link>
+          ) : (
+            <a className="decision-card is-watch" href="#evidence-neighborhood">
+              <span>종목 연결</span>
+              <strong>종목 없음</strong>
+              <small>거시·테마 뉴스는 억지로 종목에 붙이지 않는다.</small>
+              <b>연결 보기</b>
+            </a>
+          )}
+          {firstRecommendationLink ? (
+            <Link className="decision-card is-good" href={firstRecommendationLink}>
+              <span>추천 연결</span>
+              <strong>추천 있음</strong>
+              <small>추천 상세에서 이 근거가 어떻게 쓰였는지 확인한다.</small>
+              <b>추천 보기</b>
+            </Link>
+          ) : (
+            <a className="decision-card is-watch" href="#evidence-neighborhood">
+              <span>추천 연결</span>
+              <strong>연결 대기</strong>
+              <small>검증을 통과해도 바로 주문이나 추천 채택으로 가지 않는다.</small>
+              <b>연결 보기</b>
+            </a>
+          )}
+        </div>
       </section>
 
       <AiEvidenceReviewBrief
