@@ -62,10 +62,11 @@
 - completed locally: refactored `/portfolio/coverage` lower-fold `벤치마크 대비 리밸런싱 확인` and `포지션 크기 상태` sections from wide audit tables into decision cards. Each candidate now starts with symbol, priority, status, weight metrics, connected evidence, rationale, and no-order boundary instead of forcing users through table columns.
 - completed deployed: EC2 now serves commit `87bb038`; `/portfolio/coverage` renders 11 live review candidate cards and no longer renders the targeted lower-fold candidate sections as wide tables.
 - completed locally: refactored `/trading-readiness` lower-fold `킬 스위치와 검증` area from a wide kill-switch table and plain fact-list into decision cards. The page now shows kill-switch scope/status/reason cards and a four-card validation summary for simulated trade validation, conflicts, decision records, and risk budget before blocker detail lists.
+- completed deployed: EC2 now serves commit `1258c6e`; `/trading-readiness` renders live kill-switch and validation summary cards with no targeted kill-switch table remaining.
 
 ## Exact Next Step
 
-- exact next step: deploy the `/trading-readiness` lower-fold safety card refactor to EC2, verify live kill-switch/validation cards render from real data, then continue page-by-page lower-fold copy/content review for remaining dense audit sections.
+- exact next step: continue page-by-page lower-fold copy/content review for remaining dense audit sections. Likely next candidates are `/paper-trading` validation/audit sections and `/performance` outcome attribution sections.
 
 ## Risks
 
@@ -183,6 +184,11 @@
 - passed locally for trading readiness lower-fold safety card refactor: `bash scripts/verify_frontend_detail_routes.sh`
 - passed locally for trading readiness lower-fold safety card refactor: `PYTHONPATH=/Users/woody/ai/agent-work-harness/src python3 -m awh verify --repo . --task ux-information-architecture-reset-v1`
 - passed locally for trading readiness lower-fold safety card refactor: `git diff --check`
+- deployed commit: `1258c6e`
+- passed deployed for trading readiness lower-fold safety card refactor: EC2 pull/build/restart completed with `stockanalysis-frontend-api.service` active and `stockanalysis-web.service` active.
+- passed deployed for trading readiness lower-fold safety card refactor: `http://127.0.0.1:13000/trading-readiness` returned `200`; `.trading-safety-card` and `.trading-validation-grid` rendered; no Server Component error.
+- passed deployed for trading readiness lower-fold safety card refactor: Playwright CLI check on `http://127.0.0.1:13000/trading-readiness`; `safetyCards=1`, `validationCards=4`, targeted kill-switch table count `0`, no Server Component error, no desktop horizontal overflow.
+- passed deployed route smoke for trading readiness lower-fold safety card refactor: `http://127.0.0.1:13000/`, `/data-health`, `/portfolio/coverage`, `/trading-readiness`, `/paper-trading`, `/recommendations`, `/remediation` returned `200` with no server error.
 - deployed commit: `f9ef0d8`
 - passed deployed for home grouped remediation queue: EC2 pull/build/restart completed with `stockanalysis-frontend-api.service` active and `stockanalysis-web.service` active.
 - passed deployed for home grouped remediation queue: `http://127.0.0.1:13000/` returned `200`; grouped title present, first grouped item present, old repeated table header absent, no server component error, no desktop horizontal overflow.
