@@ -62,17 +62,25 @@ function cleanCopy(value: string) {
     .replaceAll("submitted to", "제출된")
     .replaceAll("broker submit", "실거래 주문 제출")
     .replaceAll("broker", "증권사 연결")
+    .replaceAll("브로커 경계", "증권사 연결 상태")
+    .replaceAll("브로커", "증권사 연결")
     .replaceAll("secret", "접속 정보")
     .replaceAll("adapter", "연동기")
     .replaceAll("preview", "미리보기")
     .replaceAll("scope", "권한 범위")
     .replaceAll("enabled", "활성")
+    .replaceAll("engaged", "차단 작동")
+    .replaceAll("validation run", "검증 실행")
+    .replaceAll("paper 전용", "가상 매매 전용")
+    .replaceAll("paper 미리보기", "가상 매매 미리보기")
     .replaceAll("not available", "아직 없음")
     .replaceAll("not_available", "아직 없음")
     .replaceAll("global", "전체")
     .replaceAll("주문 경계", "실거래 상태")
     .replaceAll("order boundary", "실거래 상태")
-    .replaceAll("read_only_no_order", "읽기 전용, 실거래 주문 차단");
+    .replaceAll("read_only_no_order", "읽기 전용, 실거래 주문 차단")
+    .replaceAll("쓰기 기능를", "쓰기 기능을")
+    .replaceAll("연동기는", "연동은");
 }
 
 function orderBoundaryLabel(value: string | null | undefined) {
@@ -214,7 +222,7 @@ export default async function TradingReadinessPage() {
             {data.gates.map((gate) => (
               <article className="readiness-card" key={gate.gate_key}>
                 <div className="readiness-card-top">
-                  <strong>{koLabel(gate.label)}</strong>
+                  <strong>{userText(gate.label)}</strong>
                   <span className={`risk-tag ${statusClass(gate.status)}`}>{userText(gate.status)}</span>
                 </div>
                 <p>{userText(gate.detail)}</p>

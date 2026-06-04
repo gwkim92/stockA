@@ -2,7 +2,7 @@
 
 ## Status
 
-- in progress: all primary app first-view slices, news/event ledger row readability, deployed 24-route terminology/overflow audit, legacy unused command-panel CSS cleanup, shared lower-fold dense ledger base styling, and local global navigation cleanup are complete locally. AWS/EC2 deploy smoke for the latest local changes is deferred because the current network is public Wi-Fi.
+- in progress: all primary app first-view slices, news/event ledger row readability, deployed 24-route terminology/overflow audit, legacy unused command-panel CSS cleanup, shared lower-fold dense ledger base styling, local global navigation cleanup, and final rendered terminology cleanup are complete locally. EC2 deploy smoke for the latest local changes is pending personal AWS browser-session security-group access and deploy.
 
 ## Current Status
 
@@ -52,10 +52,11 @@
 - completed locally: changed `/intelligence` recommendation linkage copy from `주문 경계` to `실거래 상태`.
 - completed locally: hardened `/trading-readiness` copy normalization for visible internal execution terms including `simulated paper`, `paper trade`, `audit row`, `order intent audit`, `FastAPI frontend server`, `write endpoint`, `secret`, `submitted to`, `adapter`, `not available`, and raw scope refs.
 - completed locally: verified `/`, `/intelligence`, and `/trading-readiness` rendered text on `http://127.0.0.1:13002`; the targeted raw terms above no longer render in the checked pages.
+- completed locally: final rendered terminology sweep for `/`, `/ai-evidence/results`, `/ai-evidence/sec-event-aapl-10k-20240928`, `/theses/AAPL-bootstrap-v1`, and `/trading-readiness`; targeted internal terms `페이퍼`, `주문 경계`, `OpenAI`, `fallback`, `not available`, `브로커`, `paper 전용`, `validation run`, and grammar artifacts no longer render.
 
 ## Exact Next Step
 
-- exact next step: when back on trusted network, push/deploy the latest local UX/navigation/fixture changes and run the 24-route deployed smoke again; after that, continue page-by-page lower-fold copy/content review for remaining dense audit sections.
+- exact next step: commit and push the latest local UX terminology changes, then use the personal AWS Chrome session to allow the current client IP on the stockanalysis EC2 security group, deploy the branch to EC2, and run deployed route smoke on `http://127.0.0.1:13000`; after that, continue page-by-page lower-fold copy/content review for remaining dense audit sections.
 
 ## Risks
 
@@ -63,6 +64,7 @@
 - Dense raw ledgers are still needed for audit; move them below fold rather than deleting evidence.
 - Raw ledgers are still dense below the fold. They remain intentionally available for audit, but card internals need a later readability pass.
 - Latest local UX/navigation/fixture cleanup is not yet deployed to EC2; do not claim deployed status for it until trusted-network deployment and route smoke are complete.
+- AWS account boundary: stockanalysis deploy/security-group work must use the personal AWS browser session. If the local AWS CLI is authenticated to a company account, do not perform AWS write operations for this project.
 
 ## Verification
 
@@ -119,6 +121,10 @@
 - passed locally for rendered terminology cleanup: `curl -fsS http://127.0.0.1:13002/`
 - passed locally for rendered terminology cleanup: Playwright rendered text checks on `http://127.0.0.1:13002/`, `/intelligence`, and `/trading-readiness`
 - not run for rendered terminology cleanup: EC2 deployed route smoke, intentionally deferred because current network is public Wi-Fi.
+- passed locally for final rendered terminology cleanup: Playwright rendered text checks on `http://127.0.0.1:13002/`, `/ai-evidence/results`, `/ai-evidence/sec-event-aapl-10k-20240928`, `/theses/AAPL-bootstrap-v1`, and `/trading-readiness`; output `rendered-copy-ok`
+- passed locally for final rendered terminology cleanup: `bash scripts/verify_frontend_detail_routes.sh`
+- passed locally for final rendered terminology cleanup: `PYTHONPATH=/Users/woody/ai/agent-work-harness/src python3 -m awh verify --repo . --task ux-information-architecture-reset-v1`
+- not run for final rendered terminology cleanup: EC2 deployed route smoke, pending personal AWS browser-session security-group access and deploy.
 - passed: `cd apps/web && npm run typecheck`
 - passed: `cd apps/web && npm run build`
 - passed: `PYTHONPATH=/Users/woody/ai/agent-work-harness/src /opt/homebrew/bin/python3.13 -m awh verify --repo . --task ux-information-architecture-reset-v1`

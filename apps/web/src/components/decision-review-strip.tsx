@@ -14,7 +14,7 @@ export type DecisionReviewStep = {
 
 export function DecisionReviewStrip({
   eyebrow = "오늘 확인 순서",
-  title = "수집에서 페이퍼 검증까지 같은 순서로 본다",
+  title = "수집에서 가상 매매 검증까지 같은 순서로 본다",
   description,
   activeIndex,
   steps,

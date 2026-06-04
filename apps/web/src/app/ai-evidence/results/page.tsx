@@ -52,7 +52,7 @@ export default async function StructuredResultsPage() {
           </h1>
           <p className="decision-brief-copy">
             통과한 AI 결과도 바로 매수·매도 신호가 아니다. 직접 종목, 상위 흐름, 뉴스 묶음을 분리해서 보고
-            추천 상세에서 가격·사이클·재무·페이퍼 검증과 다시 합친다.
+            추천 상세에서 가격·사이클·재무·가상 매매 검증과 다시 합친다.
           </p>
           <div className="decision-brief-meta" aria-label="구조화 결과 핵심 수치">
             <span>직접 종목 {directCandidates.length.toLocaleString("ko-KR")}개</span>
@@ -81,7 +81,7 @@ export default async function StructuredResultsPage() {
             <b>묶음 보기</b>
           </a>
           <Link className="decision-card is-block" href={"/recommendations" as Route}>
-            <span>주문 경계</span>
+            <span>실거래 상태</span>
             <strong>바로 주문 안 함</strong>
             <small>AI 결과는 추천 입력 후보일 뿐이며, 거래 안전 경계에서 다시 차단된다.</small>
             <b>추천 보기</b>

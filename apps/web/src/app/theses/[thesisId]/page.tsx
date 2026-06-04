@@ -130,6 +130,10 @@ function reviewCount(value: number | boolean | undefined) {
 
 function thesisText(value: string | null | undefined) {
   return koLabel(value)
+    .replace(/read only fallback/gi, "읽기 전용 대기")
+    .replace(/lifecycle not available/gi, "투자 논리 생애주기 미연결")
+    .replace(/not available/gi, "아직 없음")
+    .replace(/fallback/gi, "대체 처리")
     .replace(/좋은 thesis/g, "좋은 투자 논리")
     .replace(/thesis review/g, "투자 논리 검토")
     .replace(/thesis(?=[가-힣])/g, "투자 논리")
@@ -379,7 +383,7 @@ function thesisQualityChecks(data: ThesisDetailData) {
       detail: `조건 ${invalidationCount}개 중 발동 ${triggeredInvalidations}개`,
     },
     {
-      label: "주문 경계",
+      label: "실거래 상태",
       value: "자동 주문 없음",
       detail: "이 판정은 투자 논리 품질 검토이며 증권사 주문 흐름을 실행하지 않는다.",
     },
@@ -439,7 +443,7 @@ export default async function ThesisPage({ params }: ThesisPageProps) {
             <b>근거 보기</b>
           </a>
           <a className="decision-card is-block" href="#thesis-professional-gates">
-            <span>주문 경계</span>
+            <span>실거래 상태</span>
             <strong>자동 주문 없음</strong>
             <small>이 화면은 투자 논리 품질 검토이며 증권사 주문 흐름을 실행하지 않는다.</small>
             <b>경계 보기</b>

@@ -42,7 +42,7 @@ function isPlaceholderModel(value: string | null | undefined) {
 function extractionRunLabel(data: AiEvidenceDetailData) {
   const provider = koCode(data.extraction_run.provider);
   if (isPlaceholderModel(data.extraction_run.model_id)) {
-    return `${provider} 배치 분석`;
+    return provider.includes("분석") ? provider : `${provider} 배치 분석`;
   }
   return `${provider} · ${koCode(data.extraction_run.model_id)}`;
 }
@@ -733,7 +733,7 @@ function AiEvidenceReviewBrief({
     },
     {
       step: "05",
-      label: "추천·주문 경계",
+      label: "추천·실거래 상태",
       title: usage.title,
       status: `${usage.metric} · ${koCode(readOnlyBoundary.order_boundary || "read_only_no_order")}`,
       body: `${usage.next} 증권사 주문은 ${readOnlyBoundary.broker_submit_allowed ? "허용 상태" : "차단 상태"}다.`,
@@ -921,10 +921,10 @@ function EvidenceVisibilityTraceBoard({
             <small>{normalizeEvidenceSystemCopy(trace.validator.reasons_ko.join(" "))}</small>
           </div>
           <div className="relationship-chip">
-            <span>주문 경계</span>
+            <span>실거래 상태</span>
             <strong>읽기 전용 · 자동 주문 없음</strong>
             <small>
-              화면에서는 저장된 배치 결과만 읽는다. 쓰기 작업 {trace.read_only_boundary.write_enabled ? "허용" : "차단"} ·{" "}
+              화면에서는 저장된 배치 결과만 읽는다. 쓰기 기능 {trace.read_only_boundary.write_enabled ? "허용" : "차단"} ·{" "}
               {koCode(trace.read_only_boundary.order_boundary)}
             </small>
           </div>
