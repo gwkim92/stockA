@@ -2,7 +2,7 @@
 
 ## Status
 
-- in progress: first news/AI evidence UX slice deployed; second home/data-health/intelligence slice deployed; third cycle-map/stock-detail/recommendation-detail/paper-trading slice deployed; fourth list/operation slice deployed; fifth secondary detail slice deployed; sixth theme/thesis detail slice implemented and locally smoke verified.
+- in progress: all primary app first-view slices deployed and verified; lower-fold dense ledgers and legacy unused CSS cleanup remain.
 
 ## Current Status
 
@@ -25,7 +25,7 @@
 
 ## Exact Next Step
 
-- exact next step: deploy the sixth theme/thesis detail slice, then audit lower-fold dense ledgers and remove unused legacy command-panel CSS if no route still uses it.
+- exact next step: audit lower-fold dense ledgers and remove unused legacy command-panel CSS if no route still uses it.
 
 ## Risks
 
@@ -73,6 +73,9 @@
 - passed locally for sixth slice: `cd apps/web && npm run build`
 - passed locally for sixth slice: Playwright route smoke on `http://127.0.0.1:3002/themes/MACRO_INFLATION`, `/theses/thesis-31`
 - passed locally for sixth slice: mobile smoke for the same 2 routes, no horizontal overflow at 390px viewport
+- passed deployed for sixth slice: `http://127.0.0.1:13000/themes/MACRO_INFLATION`, `/theses/thesis-31`
+- passed deployed for sixth slice: mobile smoke for the same 2 routes, no horizontal overflow at 390px viewport
+- deployed commit: `db73811`
 
 ## Browser Evidence
 
@@ -155,3 +158,7 @@
 - local screenshot: `/tmp/stockanalysis-ux-reset-v1-slice6-fixed/thesis-detail.png`
 - local mobile screenshot: `/tmp/stockanalysis-ux-reset-v1-slice6-fixed/mobile-theme-detail.png`
 - local mobile screenshot: `/tmp/stockanalysis-ux-reset-v1-slice6-fixed/mobile-thesis-detail.png`
+- deployed screenshot: `/tmp/stockanalysis-ux-reset-v1-slice6-deployed/theme-detail.png`
+- deployed screenshot: `/tmp/stockanalysis-ux-reset-v1-slice6-deployed/thesis-detail.png`
+- deployed mobile screenshot: `/tmp/stockanalysis-ux-reset-v1-slice6-deployed/mobile-theme-detail.png`
+- deployed mobile screenshot: `/tmp/stockanalysis-ux-reset-v1-slice6-deployed/mobile-thesis-detail.png`
