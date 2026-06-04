@@ -4763,6 +4763,135 @@ h6 {
   font-weight: 850;
 }
 
+.portfolio-review-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 14px;
+}
+
+.portfolio-review-card {
+  min-width: 0;
+  padding: clamp(18px, 2vw, 24px);
+  background:
+    linear-gradient(145deg, rgba(251, 250, 246, 0.96), rgba(242, 239, 229, 0.72)),
+    linear-gradient(90deg, rgba(17, 18, 15, 0.045), transparent 42%);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+}
+
+.portfolio-review-card-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: start;
+}
+
+.portfolio-review-card-head span {
+  grid-column: 1 / -1;
+  color: var(--text-tertiary);
+  font-size: 0.72rem;
+  font-weight: 900;
+}
+
+.portfolio-review-card-head strong {
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: clamp(1.6rem, 2.5vw, 2.35rem);
+  line-height: 0.96;
+}
+
+.portfolio-review-card-head b {
+  align-self: start;
+  justify-self: end;
+}
+
+.portfolio-review-card p {
+  margin: 16px 0 0;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  font-weight: 780;
+  line-height: 1.55;
+  word-break: keep-all;
+}
+
+.portfolio-review-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 18px 0 0;
+}
+
+.portfolio-review-metrics div {
+  min-width: 0;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.64);
+  border: 1px solid var(--border-light);
+}
+
+.portfolio-review-metrics dt {
+  color: var(--text-tertiary);
+  font-size: 0.66rem;
+  font-weight: 900;
+}
+
+.portfolio-review-metrics dd {
+  margin: 6px 0 0;
+  color: var(--text-primary);
+  font-size: 0.88rem;
+  font-weight: 900;
+}
+
+.portfolio-review-evidence {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.portfolio-review-evidence div {
+  min-width: 0;
+  padding: 12px;
+  background: rgba(17, 18, 15, 0.04);
+  border: 1px solid var(--border-light);
+}
+
+.portfolio-review-evidence span,
+.portfolio-review-evidence small,
+.portfolio-review-evidence strong,
+.portfolio-review-evidence a {
+  display: block;
+}
+
+.portfolio-review-evidence span {
+  color: var(--text-tertiary);
+  font-size: 0.68rem;
+  font-weight: 900;
+}
+
+.portfolio-review-evidence strong,
+.portfolio-review-evidence a {
+  margin-top: 7px;
+  color: var(--text-primary);
+  font-size: 0.82rem;
+  font-weight: 900;
+  line-height: 1.35;
+}
+
+.portfolio-review-evidence a {
+  color: var(--accent-blue);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.portfolio-review-evidence small {
+  margin-top: 7px;
+  color: var(--text-secondary);
+  font-size: 0.74rem;
+  font-weight: 760;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
 .scheduler-timer-card,
 .operating-flow-card {
   min-width: 0;
@@ -5186,6 +5315,12 @@ h6 {
   }
 
   .cadence-group-metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .portfolio-review-card-grid,
+  .portfolio-review-metrics,
+  .portfolio-review-evidence {
     grid-template-columns: 1fr;
   }
 

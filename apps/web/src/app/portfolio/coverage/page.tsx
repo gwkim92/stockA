@@ -914,57 +914,53 @@ export default async function PortfolioCoveragePage() {
               현재 기준에서 별도 리밸런싱 확인 대상이 없다.
             </p>
           ) : (
-            <div className="ledger-table-wrap">
-              <table className="ledger-table data-health-table">
-                <thead>
-                  <tr>
-                    <th scope="col">순위</th>
-                    <th scope="col">종목</th>
-                    <th scope="col">상태</th>
-                    <th scope="col">현재/벤치마크</th>
-                    <th scope="col">벤치마크 괴리</th>
-                    <th scope="col">연결 근거</th>
-                    <th scope="col">확인 이유</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {candidateReview.candidates.map((candidate) => (
-                    <tr key={`${candidate.priority}-${candidate.symbol}-${candidate.direction}`}>
-                      <td>{candidate.priority.toString().padStart(2, "0")}</td>
-                      <td><strong>{candidate.symbol}</strong></td>
-                      <td>
-                        <span className={`risk-tag ${candidateSeverityClass(candidate.severity)}`}>
-                          {userFacingText(candidate.decision_label)}
-                        </span>
-                        <small style={{ display: "block", color: "var(--text-secondary)", marginTop: "4px" }}>
-                          {candidateDirectionLabel(candidate.direction)}
-                        </small>
-                      </td>
-                      <td>{formatPercent(candidate.current_weight)} / {formatPercent(candidate.benchmark_weight)}</td>
-                      <td>{formatPercent(candidate.active_weight)}</td>
-                      <td>
-                        {candidate.related_recommendation_id && candidate.links.recommendation ? (
-                          <Link href={candidate.links.recommendation as Route}>{candidate.related_recommendation_id}</Link>
-                        ) : (
-                          <span>추천 연결 없음</span>
-                        )}
-                        <small style={{ display: "block", color: "var(--text-secondary)", marginTop: "4px" }}>
-                          {candidate.related_thesis_id ? `투자 논리 ${candidate.related_thesis_id}` : "투자 논리 확인 필요"}
-                        </small>
-                      </td>
-                      <td>
-                        {userFacingText(candidate.next_review_action)}
-                        <small style={{ display: "block", color: "var(--text-secondary)", marginTop: "4px" }}>
-                          {userFacingText(candidate.rationale)}
-                        </small>
-                        <small style={{ display: "block", color: "var(--text-secondary)", marginTop: "4px" }}>
-                          {orderBoundaryLabel(candidate.order_boundary)} · {orderSubmitLabel(candidate.broker_submit_allowed)}
-                        </small>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="portfolio-review-card-grid" aria-label="벤치마크 리밸런싱 확인 후보">
+              {candidateReview.candidates.map((candidate) => (
+                <article className="portfolio-review-card" key={`${candidate.priority}-${candidate.symbol}-${candidate.direction}`}>
+                  <div className="portfolio-review-card-head">
+                    <span>우선순위 {candidate.priority.toString().padStart(2, "0")}</span>
+                    <strong>{candidate.symbol}</strong>
+                    <b className={`risk-tag ${candidateSeverityClass(candidate.severity)}`}>
+                      {userFacingText(candidate.decision_label)}
+                    </b>
+                  </div>
+                  <p>
+                    {candidateDirectionLabel(candidate.direction)} · {userFacingText(candidate.next_review_action)}
+                  </p>
+                  <dl className="portfolio-review-metrics">
+                    <div>
+                      <dt>현재 비중</dt>
+                      <dd>{formatPercent(candidate.current_weight)}</dd>
+                    </div>
+                    <div>
+                      <dt>벤치마크</dt>
+                      <dd>{formatPercent(candidate.benchmark_weight)}</dd>
+                    </div>
+                    <div>
+                      <dt>괴리</dt>
+                      <dd>{formatPercent(candidate.active_weight)}</dd>
+                    </div>
+                  </dl>
+                  <div className="portfolio-review-evidence">
+                    <div>
+                      <span>연결 근거</span>
+                      {candidate.related_recommendation_id && candidate.links.recommendation ? (
+                        <Link href={candidate.links.recommendation as Route}>{candidate.related_recommendation_id}</Link>
+                      ) : (
+                        <strong>추천 연결 없음</strong>
+                      )}
+                      <small>
+                        {candidate.related_thesis_id ? `투자 논리 ${candidate.related_thesis_id}` : "투자 논리 확인 필요"}
+                      </small>
+                    </div>
+                    <div>
+                      <span>왜 보는가</span>
+                      <strong>{userFacingText(candidate.rationale)}</strong>
+                      <small>{orderBoundaryLabel(candidate.order_boundary)} · {orderSubmitLabel(candidate.broker_submit_allowed)}</small>
+                    </div>
+                  </div>
+                </article>
+              ))}
             </div>
           )}
         </article>
@@ -1010,61 +1006,55 @@ export default async function PortfolioCoveragePage() {
               보유 포지션이 없어 포지션 크기 상태를 만들 수 없다.
             </p>
           ) : (
-            <div className="ledger-table-wrap">
-              <table className="ledger-table data-health-table">
-                <thead>
-                  <tr>
-                    <th scope="col">순위</th>
-                    <th scope="col">종목</th>
-                    <th scope="col">상태</th>
-                    <th scope="col">현재/벤치마크</th>
-                    <th scope="col">기업 근거</th>
-                    <th scope="col">상태 이유</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {positionSizingReview.candidates.map((candidate) => (
-                    <tr key={`${candidate.priority}-${candidate.symbol}-${candidate.review_band}`}>
-                      <td>{candidate.priority.toString().padStart(2, "0")}</td>
-                      <td>
-                        <strong>{candidate.symbol}</strong>
-                        <small style={{ display: "block", color: "var(--text-secondary)" }}>
-                          확대 상한 {formatPercent(candidate.review_ceiling_weight)}
-                        </small>
-                      </td>
-                      <td>
-                        <span className={`risk-tag ${sizingBandClass(candidate.review_band)}`}>
-                          {userFacingText(candidate.review_band)}
-                        </span>
-                        <small style={{ display: "block", color: "var(--text-secondary)", marginTop: "4px" }}>
-                          {userFacingText(candidate.professional_analysis_status)}
-                        </small>
-                      </td>
-                      <td>
-                        {formatPercent(candidate.current_weight)} / {formatPercent(candidate.benchmark_weight)}
-                        <small style={{ display: "block", color: "var(--text-secondary)", marginTop: "4px" }}>
-                          괴리 {formatPercent(candidate.active_weight)}
-                        </small>
-                      </td>
-                      <td>
+            <div className="portfolio-review-card-grid" aria-label="포지션 크기 확인 후보">
+              {positionSizingReview.candidates.map((candidate) => (
+                <article className="portfolio-review-card" key={`${candidate.priority}-${candidate.symbol}-${candidate.review_band}`}>
+                  <div className="portfolio-review-card-head">
+                    <span>우선순위 {candidate.priority.toString().padStart(2, "0")}</span>
+                    <strong>{candidate.symbol}</strong>
+                    <b className={`risk-tag ${sizingBandClass(candidate.review_band)}`}>
+                      {userFacingText(candidate.review_band)}
+                    </b>
+                  </div>
+                  <p>{userFacingText(candidate.rationale)}</p>
+                  <dl className="portfolio-review-metrics">
+                    <div>
+                      <dt>현재 비중</dt>
+                      <dd>{formatPercent(candidate.current_weight)}</dd>
+                    </div>
+                    <div>
+                      <dt>벤치마크</dt>
+                      <dd>{formatPercent(candidate.benchmark_weight)}</dd>
+                    </div>
+                    <div>
+                      <dt>확대 상한</dt>
+                      <dd>{formatPercent(candidate.review_ceiling_weight)}</dd>
+                    </div>
+                  </dl>
+                  <div className="portfolio-review-evidence">
+                    <div>
+                      <span>기업 근거</span>
+                      <strong>
                         재무 {formatScore(candidate.fundamental_quality_score)} · 밸류 {formatScore(candidate.valuation_margin_score)}
-                        <small style={{ display: "block", color: "var(--text-secondary)", marginTop: "4px" }}>
-                          안전마진 {formatPercent(candidate.valuation_margin_of_safety)} · 기업 리서치 {candidate.equity_research_artifact_id ? "있음" : "없음"}
-                        </small>
-                      </td>
-                      <td>
-                        {userFacingText(candidate.rationale)}
-                        <small style={{ display: "block", color: "var(--text-secondary)", marginTop: "6px" }}>
-                          막는 이유: {candidate.blocking_factors.map((factor) => userFacingText(factor)).join(", ") || "없음"}
-                        </small>
-                        <small style={{ display: "block", color: "var(--text-secondary)", marginTop: "2px" }}>
-                          받치는 근거: {candidate.supporting_factors.map((factor) => userFacingText(factor)).join(", ") || "없음"}
-                        </small>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                      </strong>
+                      <small>
+                        안전마진 {formatPercent(candidate.valuation_margin_of_safety)} · 기업 리서치{" "}
+                        {candidate.equity_research_artifact_id ? "있음" : "없음"}
+                      </small>
+                    </div>
+                    <div>
+                      <span>판단 조건</span>
+                      <strong>{userFacingText(candidate.professional_analysis_status)}</strong>
+                      <small>
+                        막는 이유: {candidate.blocking_factors.map((factor) => userFacingText(factor)).join(", ") || "없음"}
+                      </small>
+                      <small>
+                        받치는 근거: {candidate.supporting_factors.map((factor) => userFacingText(factor)).join(", ") || "없음"}
+                      </small>
+                    </div>
+                  </div>
+                </article>
+              ))}
             </div>
           )}
         </article>
