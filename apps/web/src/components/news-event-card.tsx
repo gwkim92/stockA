@@ -62,6 +62,20 @@ export function newsQualityLabel(event: NewsEventRow) {
   return "AI 구조화 전";
 }
 
+function hasStoredKoreanTranslation(event: NewsEventRow) {
+  return Boolean(event.korean_title?.trim() || event.korean_summary?.trim());
+}
+
+function pathToneClass(tone: "ready" | "watch" | "block") {
+  if (tone === "ready") {
+    return "is-ready";
+  }
+  if (tone === "block") {
+    return "is-block";
+  }
+  return "is-watch";
+}
+
 type NewsEventCardProps = {
   event: NewsEventRow;
   mode: "ledger" | "classification" | "analysis" | "blocked" | "result";
@@ -75,6 +89,34 @@ export function NewsEventCard({ event, mode, compact = false }: NewsEventCardPro
   const stockLink = newsStockHref(event.symbol);
   const classifiedSymbol = isKnownNewsCode(event.symbol);
   const actionLabel = mode === "blocked" ? "차단 이유 보기" : mode === "result" ? "구조화 결과 보기" : "AI 근거 상세";
+  const translationReady = hasStoredKoreanTranslation(event);
+  const aiBlocked = event.ai_evidence_type === "news_event_candidate_rejected"
+    || event.quality_gate === "validator_blocked"
+    || mode === "blocked";
+  const aiReady = Boolean(event.ai_evidence_id);
+  const hasConnection = classifiedSymbol || Boolean(themeLink);
+  const pathSteps = [
+    {
+      label: "원천",
+      value: documentLink ? "문서 있음" : "문서 없음",
+      tone: documentLink ? "ready" : "watch",
+    },
+    {
+      label: "번역",
+      value: translationReady ? "한국어 있음" : "화면 추론",
+      tone: translationReady ? "ready" : "watch",
+    },
+    {
+      label: "AI",
+      value: aiBlocked ? "차단/보류" : aiReady ? "구조화됨" : "대기",
+      tone: aiBlocked ? "block" : aiReady ? "ready" : "watch",
+    },
+    {
+      label: "연결",
+      value: classifiedSymbol ? `종목 ${koCode(event.symbol)}` : themeLink ? koCode(event.theme_key) : "대기",
+      tone: hasConnection ? "ready" : "watch",
+    },
+  ] as const;
 
   return (
     <article className={compact ? "news-row-card news-row-card-compact" : "news-row-card"}>
@@ -93,6 +135,14 @@ export function NewsEventCard({ event, mode, compact = false }: NewsEventCardPro
           impactDirection={event.impact_direction}
           impactScore={event.impact_score}
         />
+        <ol className="news-decision-path" aria-label={`${event.title} 처리 경로`}>
+          {pathSteps.map((step) => (
+            <li className={pathToneClass(step.tone)} key={step.label}>
+              <span>{step.label}</span>
+              <strong>{step.value}</strong>
+            </li>
+          ))}
+        </ol>
         <div className="tag-strip" aria-label={`${event.title} 해석 태그`}>
           <span>{classifiedSymbol ? `직접 종목 ${koCode(event.symbol)}` : "시장/테마 뉴스"}</span>
           <span>테마 {koCode(event.theme_key)}</span>

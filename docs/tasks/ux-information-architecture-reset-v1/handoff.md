@@ -2,7 +2,7 @@
 
 ## Status
 
-- in progress: all primary app first-view slices deployed and verified; lower-fold dense ledgers and legacy unused CSS cleanup remain.
+- in progress: all primary app first-view slices deployed and verified; news/event ledger row readability improved locally; legacy unused CSS cleanup remains.
 
 ## Current Status
 
@@ -22,10 +22,11 @@
 - completed: refactored `/remediation`, `/source-documents/[documentId]`, `/ai-evidence/[evidenceId]` first viewport to remove repeated page hero/command panel patterns.
 - completed: refactored `/themes/[themeKey]` and `/theses/[thesisId]` first viewport to use the shared decision-first structure.
 - completed: fixed theme detail headline so ontology node labels use Korean `theme_key` labels instead of raw English `theme_name`.
+- completed: added a compact `원천 → 번역 → AI → 연결` path to shared `NewsEventCard` rows used by `/events`, `/events/classification`, `/ai-evidence/blocked`, and `/ai-evidence/results`.
 
 ## Exact Next Step
 
-- exact next step: audit lower-fold dense ledgers and remove unused legacy command-panel CSS if no route still uses it.
+- exact next step: deploy the shared news/event ledger card path, then remove unused legacy command-panel CSS if no route still uses it.
 
 ## Risks
 
@@ -76,6 +77,11 @@
 - passed deployed for sixth slice: `http://127.0.0.1:13000/themes/MACRO_INFLATION`, `/theses/thesis-31`
 - passed deployed for sixth slice: mobile smoke for the same 2 routes, no horizontal overflow at 390px viewport
 - deployed commit: `db73811`
+- passed locally for news/event ledger card path: `cd apps/web && npm run typecheck`
+- passed locally for news/event ledger card path: `cd apps/web && npm run build`
+- passed locally for news/event ledger card path: `PYTHONPATH=/Users/woody/ai/agent-work-harness/src /opt/homebrew/bin/python3.13 -m awh verify --repo . --task ux-information-architecture-reset-v1`
+- passed locally for news/event ledger card path: Playwright route smoke on `http://127.0.0.1:3002/events`, `/events/classification`, `/ai-evidence/blocked`, `/ai-evidence/results`
+- passed locally for news/event ledger card path: mobile smoke for the same 4 routes, no horizontal overflow at 390px viewport
 
 ## Browser Evidence
 
@@ -162,3 +168,11 @@
 - deployed screenshot: `/tmp/stockanalysis-ux-reset-v1-slice6-deployed/thesis-detail.png`
 - deployed mobile screenshot: `/tmp/stockanalysis-ux-reset-v1-slice6-deployed/mobile-theme-detail.png`
 - deployed mobile screenshot: `/tmp/stockanalysis-ux-reset-v1-slice6-deployed/mobile-thesis-detail.png`
+- local screenshot: `/tmp/stockanalysis-ux-reset-v1-news-card-path-fixed/events.png`
+- local screenshot: `/tmp/stockanalysis-ux-reset-v1-news-card-path-fixed/classification.png`
+- local screenshot: `/tmp/stockanalysis-ux-reset-v1-news-card-path-fixed/ai-evidence-blocked.png`
+- local screenshot: `/tmp/stockanalysis-ux-reset-v1-news-card-path-fixed/ai-evidence-results.png`
+- local mobile screenshot: `/tmp/stockanalysis-ux-reset-v1-news-card-path-fixed/mobile-events.png`
+- local mobile screenshot: `/tmp/stockanalysis-ux-reset-v1-news-card-path-fixed/mobile-classification.png`
+- local mobile screenshot: `/tmp/stockanalysis-ux-reset-v1-news-card-path-fixed/mobile-ai-evidence-blocked.png`
+- local mobile screenshot: `/tmp/stockanalysis-ux-reset-v1-news-card-path-fixed/mobile-ai-evidence-results.png`

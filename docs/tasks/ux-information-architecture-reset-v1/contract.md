@@ -11,6 +11,7 @@
 ## Mutable Surface
 
 - mutable surface: `apps/web/src/app/globals.css`
+- mutable surface: `apps/web/src/components/news-event-card.tsx`
 - mutable surface: `apps/web/src/app/events/page.tsx`
 - mutable surface: `apps/web/src/app/ai-evidence/page.tsx`
 - mutable surface: `apps/web/src/app/ai-evidence/blocked/page.tsx`
@@ -83,4 +84,5 @@
 - `/ai-evidence/[evidenceId]` first viewport separates evidence use status, source document, stock connection, recommendation connection, and model/cost metadata.
 - `/themes/[themeKey]` first viewport separates cycle state, linked instruments, supporting events, and upstream flow map.
 - `/theses/[thesisId]` first viewport separates latest review, professional gates, evidence ledger, and no-order boundary.
+- news/event row cards expose a compact source, Korean translation, AI structure, and stock/theme connection path inside the ledger row.
 - Existing data remains reachable below fold.
