@@ -127,7 +127,7 @@ function runQualityExplanation(run: PipelineRun | null) {
 function schedulerReadinessTitle(scheduler: SchedulerStatus) {
   const activation = scheduler.activation;
   if (activation.approval_gate === "installed_on_ec2_systemd") {
-    return "EC2 반복 실행기 작동 중";
+    return "서버 반복 실행기 작동 중";
   }
   if (activation.activation_allowed && activation.scheduler_activation !== "not_installed") {
     return "반복 실행기 연결 가능";
@@ -147,10 +147,10 @@ function schedulerReadinessExplanation(scheduler: SchedulerStatus) {
   if (activation.approval_gate === "installed_on_ec2_systemd") {
     const activeCount = profileScheduler?.active_timer_count ?? 0;
     const timerCount = profileScheduler?.timer_count ?? 0;
-    return `EC2 서버의 예약 실행기가 데이터 수집과 분석 작업을 주기별로 호출한다. 현재 반복 실행기는 ${activeCount}/${timerCount}개가 활성 상태다.`;
+    return `서버 예약 실행기가 데이터 수집과 분석 작업을 주기별로 호출한다. 현재 반복 실행기는 ${activeCount}/${timerCount}개가 활성 상태다.`;
   }
   if (activation.activation_allowed && activation.scheduler_activation !== "not_installed") {
-    return "승인 조건과 실행기 상태가 반복 실행을 허용한다. EC2 예약 실행기가 작업별 주기에 맞춰 수집과 분석을 호출한다.";
+    return "승인 조건과 실행기 상태가 반복 실행을 허용한다. 서버 예약 실행기가 작업별 주기에 맞춰 수집과 분석을 호출한다.";
   }
   if (activation.status === "pending_manual_approval") {
     return "최근 작업 실행은 성공했지만 자동 반복 실행기는 아직 연결되지 않았다. 이 상태에서는 사람이 수동으로 실행해야 데이터가 갱신된다.";
@@ -226,7 +226,7 @@ function schedulerInstallLabel(value: string) {
 
 function schedulerApprovalGateLabel(value: string) {
   if (value === "installed_on_ec2_systemd") {
-    return "EC2 반복 실행 설치 완료";
+    return "서버 반복 실행 설치 완료";
   }
   if (value === "blocked_pending_manual_approval" || value === "pending_manual_approval") {
     return "자동 반복 실행 전 조건 닫힘";
@@ -297,7 +297,7 @@ function localWorkerTitle(worker: LocalIngestWorker) {
 
 function localWorkerExplanation(worker: LocalIngestWorker) {
   if (worker.status === "completed") {
-    return "정해진 반복 실행 주기가 끝났고 실패 주기가 없다는 뜻이다. EC2의 예약 실행과 함께 자동 운영 상태를 판단한다.";
+    return "정해진 반복 실행 주기가 끝났고 실패 주기가 없다는 뜻이다. 서버 예약 실행과 함께 자동 운영 상태를 판단한다.";
   }
   if (worker.status === "failed") {
     return "반복 실행 중 실패가 있었다. 최신 실행 요약과 오류 내용을 먼저 확인해야 한다.";
@@ -465,13 +465,13 @@ function qualityAuditSampleGroups(audit: CycleAiQualityAudit) {
 
 function newsAiEvalTitle(evalQuality: NewsAiEvalQuality) {
   if (evalQuality.status === "passed" || evalQuality.overall_pass) {
-    return "AI 회귀평가 통과";
+    return "AI 기준 평가 통과";
   }
   if (evalQuality.status === "failed_regression") {
-    return "AI 회귀평가 실패";
+    return "AI 기준 평가 실패";
   }
   if (evalQuality.status === "missing") {
-    return "AI 회귀평가 없음";
+    return "AI 기준 평가 없음";
   }
   return koCode(evalQuality.status);
 }
@@ -481,10 +481,10 @@ function newsAiEvalExplanation(evalQuality: NewsAiEvalQuality) {
     return "기준 정답 뉴스 세트에서 테마 분류, 직접 종목 근거, 거시 뉴스 종목 오부착, 양자→에너지 오분류, 한국어 번역 기준을 통과했다.";
   }
   if (evalQuality.status === "failed_regression") {
-    return "AI 구조화나 validator가 기준 세트에서 실패했다. 이 상태에서는 새 AI 근거를 추천 입력으로 신뢰하기 전에 실패 case를 먼저 확인해야 한다.";
+    return "AI 구조화나 자동 검증이 기준 세트에서 실패했다. 이 상태에서는 새 AI 근거를 추천 입력으로 신뢰하기 전에 실패 항목을 먼저 확인해야 한다.";
   }
   if (evalQuality.status === "missing") {
-    return "최근 fixture/gold 회귀평가가 저장되지 않았다. 뉴스 AI 분석이 좋아 보이더라도 기준 세트 통과 여부를 아직 증명하지 못했다.";
+    return "최근 기준 정답 뉴스 평가가 저장되지 않았다. 뉴스 AI 분석이 좋아 보이더라도 기준 세트 통과 여부를 아직 증명하지 못했다.";
   }
   return "뉴스 AI 평가 기록의 상태와 실패 사례를 확인해야 한다.";
 }
@@ -520,10 +520,10 @@ function liveAiInvocationTitle(health: LiveAiInvocationHealth) {
 
 function liveAiInvocationExplanation(health: LiveAiInvocationHealth) {
   if (health.status === "healthy") {
-    return "최근 실제 Codex OAuth 호출이 성공했다. fixture 회귀평가뿐 아니라 운영 배치 LLM 호출도 살아 있다.";
+    return "최근 실제 Codex OAuth 호출이 성공했다. 기준 세트 평가뿐 아니라 운영 배치 AI 호출도 살아 있다.";
   }
   if (health.status === "critical_ai_failed") {
-    return "뉴스 한국어 번역이나 뉴스 AI 구조화 같은 핵심 Codex OAuth 호출이 실패했다. 화면의 뉴스 해석은 fallback 결과일 수 있다.";
+    return "뉴스 한국어 번역이나 뉴스 AI 구조화 같은 핵심 Codex OAuth 호출이 실패했다. 화면의 뉴스 해석은 규칙 기반 대체 결과일 수 있다.";
   }
   if (health.status === "degraded") {
     return "일부 Codex OAuth 작업의 최신 실행이 실패했다. 성공한 작업과 실패한 작업을 나눠 보고 인증, 토큰, CLI 오류를 확인해야 한다.";
@@ -532,7 +532,7 @@ function liveAiInvocationExplanation(health: LiveAiInvocationHealth) {
     return "최근 48시간 안에 실패 이력은 남아 있지만, monitored AI 작업의 최신 실행은 성공했다. 현재 장애가 아니라 복구 후 관찰 상태다.";
   }
   if (health.status === "missing_recent_invocations") {
-    return "최근 운영 배치에서 실제 LLM 호출 증거가 없다. 뉴스가 없는 것인지, 배치 호출이 멈춘 것인지 확인해야 한다.";
+    return "최근 운영 배치에서 실제 AI 호출 증거가 없다. 뉴스가 없는 것인지, 배치 호출이 멈춘 것인지 확인해야 한다.";
   }
   return "실제 AI 호출 상태를 확인해야 한다.";
 }
@@ -563,7 +563,7 @@ function liveAiCurrentFailureCount(health: LiveAiInvocationHealth) {
 }
 
 function liveAiInvocationQualityMetric(health: LiveAiInvocationHealth, evalQuality: NewsAiEvalQuality) {
-  const regressionText = `회귀 실패 ${evalQuality.failed_case_count}개`;
+  const regressionText = `기준 실패 ${evalQuality.failed_case_count}개`;
   if (health.status === "recovered_with_recent_failures") {
     return `최신 실행 성공 · 과거 실패 기록 ${health.recent_failed_count}건 · ${regressionText}`;
   }
@@ -1033,8 +1033,11 @@ function professionalRecommendationAuditItemTone(status: string) {
 }
 
 function executionIdLabel(value: string | null | undefined) {
-  if (!value) {
+  if (!value || value.includes("unknown")) {
     return "실행 기록 없음";
+  }
+  if (value.startsWith("eval-run-")) {
+    return `평가 #${value.replace("eval-run-", "")}`;
   }
   if (value.startsWith("pipeline-run-")) {
     return `실행 #${value.replace("pipeline-run-", "")}`;
@@ -1061,6 +1064,15 @@ function operationCopy(value: string) {
   const oldReviewDocument = ["검토", "서"].join("");
   const oldPaper = ["페", "이퍼"].join("");
   return koCode(value)
+    .replaceAll("news-ai-eval-run --provider fixture --execute를 실행해 기준 정답 뉴스 세트 회귀평가를 저장한다.", "뉴스 AI 기준 세트 평가를 실행해 최근 평가 결과를 저장한다.")
+    .replaceAll("fixture/gold", "기준 정답")
+    .replaceAll("fixture", "기준 세트")
+    .replaceAll("fallback", "대체 처리")
+    .replaceAll("validator", "자동 검증")
+    .replaceAll("ticker", "종목 코드")
+    .replaceAll("unknown theme", "알 수 없는 테마")
+    .replaceAll("case", "평가 항목")
+    .replaceAll("EC2", "서버")
     .replaceAll("artifact runner", "실행 증거 저장기")
     .replaceAll("artifact", "실행 증거")
     .replaceAll("profile scheduler", "프로파일 예약 실행기")
@@ -1116,7 +1128,7 @@ function aiInvocationErrorCopy(value: string, code = "") {
     || value.includes("refresh_token_reused")
     || value.includes("401 Unauthorized")
   ) {
-    return "Codex OAuth 인증 토큰이 만료되었거나 재사용되어 실패했다. EC2에서 다시 로그인한 뒤 smoke를 실행해야 한다.";
+    return "Codex OAuth 인증 토큰이 만료되었거나 재사용되어 실패했다. 서버에서 다시 로그인한 뒤 실제 호출 점검을 실행해야 한다.";
   }
   if (code === "codex_oauth_timeout" || value.includes("timeout")) {
     return "Codex OAuth 호출 시간이 초과됐다. limit와 timeout, 네트워크 상태를 확인해야 한다.";
@@ -1231,7 +1243,7 @@ const DEFAULT_LIVE_AI_INVOCATION_HEALTH: LiveAiInvocationHealth = {
   latest_error_summary: "",
   latest_error_code: "",
   task_health: [],
-  next_action: "최근 실제 LLM 호출 증거가 없다. 뉴스 AI 배치가 실제로 호출됐는지 확인한다.",
+  next_action: "최근 실제 AI 호출 증거가 없다. 뉴스 AI 배치가 실제로 호출됐는지 확인한다.",
 };
 
 const DEFAULT_BENCHMARK_DRIFT_QUALITY: BenchmarkDriftQuality = {
@@ -1831,7 +1843,7 @@ const DEFAULT_PRODUCTION_API_SERVER: ProductionApiServer = {
   missing_conditions: ["runtime_profile_production", "read_token_auth", "psycopg_pool_boundary"],
   order_boundary: "read_only_no_order",
   automatic_action_allowed: false,
-  next_action: "운영 API 실행 환경, 인증, 허용 출처, DB 설정, DB 연결 경계를 확인한다.",
+  next_action: "읽기 서버 실행 환경, 조회 권한, 허용 출처, DB 설정, DB 연결 경계를 확인한다.",
 };
 
 const DEFAULT_AUTH_RBAC: AuthRbac = {
@@ -1851,8 +1863,8 @@ const DEFAULT_AUTH_RBAC: AuthRbac = {
   broker_submit_allowed: false,
   order_boundary: "read_only_no_order",
   missing_conditions: ["production_api_ready", "bearer_read_token", "read_only_rbac_mode"],
-  summary: "운영 API의 읽기 토큰, 읽기 전용 역할, 쓰기/주문 차단 경계 증거가 아직 부족하다.",
-  next_action: "운영 API 준비, 읽기 토큰 인증, 읽기 전용 역할, 쓰기 요청 차단, 증권사 주문 차단을 확인한다.",
+  summary: "읽기 서버의 읽기 토큰, 조회 역할, 쓰기/주문 차단 경계 증거가 아직 부족하다.",
+  next_action: "읽기 서버 준비, 읽기 토큰, 조회 역할, 쓰기 요청 차단, 증권사 주문 차단을 확인한다.",
 };
 
 const DEFAULT_ALERT_DESTINATION: AlertDestination = {
@@ -2008,7 +2020,7 @@ export default async function DataHealthPage() {
       label: "서비스 접근",
       title: accessAttention ? "접근 경계 확인 필요" : "읽기 전용 접근 정상",
       body: accessAttention
-        ? "운영 API, 읽기 권한, 알림 목적지 중 주의 항목이 있다. 투자 판단 화면보다 접근 경계 확인이 먼저다."
+        ? "읽기 서버, 조회 권한, 알림 목적지 중 주의 항목이 있다. 투자 판단 화면보다 접근 경계 확인이 먼저다."
         : "읽기 전용 API, 역할 기반 조회 권한, 무료 알림 목적지가 연결되어 있고 주문/쓰기 경계는 닫혀 있다.",
       metric: authRbac.read_role ? `역할 ${koCode(authRbac.read_role)}` : "읽기 역할 확인",
       href: "#execution-log",
@@ -2020,8 +2032,8 @@ export default async function DataHealthPage() {
       label: "자동 수집",
       title: allTimersActive && failedPipelines === 0 ? "자동 수집 작동 중" : "수집 상태 확인 필요",
       body: allTimersActive
-        ? "뉴스, 가격, 추천, 성과 측정 작업이 EC2 서버 예약 실행기로 분리되어 돈다."
-        : "예약 실행기 일부가 꺼졌거나 실행 증거가 부족하다. 어떤 프로파일이 멈췄는지 확인해야 한다.",
+        ? "뉴스, 가격, 추천, 성과 측정 작업이 서버 예약 실행기로 분리되어 돈다."
+        : "예약 실행기 일부가 꺼졌거나 실행 증거가 부족하다. 어떤 작업 묶음이 멈췄는지 확인해야 한다.",
       metric: `${profileScheduler.active_timer_count}/${profileScheduler.timer_count}개 활성 · 실패 ${failedPipelines}개`,
       href: "#scheduler-detail",
       cta: "자동화 보기",
@@ -2038,11 +2050,11 @@ export default async function DataHealthPage() {
           ? "오염 의심 확인 필요"
           : "품질 근거 보강 중",
       body: dataQualityReady
-        ? "뉴스 오염 감사, AI 회귀평가, 실제 Codex OAuth 호출이 모두 통과했다. 벤치마크 괴리 품질과 세부 샘플은 아래에서 확인한다."
+        ? "뉴스 오염 감사, AI 기준 평가, 실제 Codex OAuth 호출이 모두 통과했다. 벤치마크 괴리 품질과 세부 샘플은 아래에서 확인한다."
         : liveAiInvocationHealth.attention_required
-          ? "fixture 기준 세트가 통과해도 실제 LLM 호출이 실패하면 뉴스 번역과 AI 구조화는 fallback일 수 있다. 실제 호출 상태를 먼저 본다."
+          ? "기준 세트 평가가 통과해도 실제 AI 호출이 실패하면 뉴스 번역과 AI 구조화는 규칙 기반 대체 결과일 수 있다. 실제 호출 상태를 먼저 본다."
         : qualityAudit.issue_count > 0 || newsAiEvalQuality.failed_case_count > 0
-          ? "중복 뉴스, 오분류, AI 회귀평가 실패, 벤치마크 괴리 품질 중 확인할 항목이 있다. 추천 입력 전에 품질 근거를 본다."
+          ? "중복 뉴스, 오분류, AI 기준 평가 실패, 벤치마크 괴리 품질 중 확인할 항목이 있다. 추천 입력 전에 품질 근거를 본다."
           : "큰 오염은 없지만 번역, 전파, 사이클 스냅샷, 가상 매매 검증 근거가 아직 부족하다. 벤치마크 괴리 품질도 함께 본다.",
       metric: liveAiInvocationQualityMetric(liveAiInvocationHealth, newsAiEvalQuality),
       href: "#quality-audit",
@@ -2067,9 +2079,9 @@ export default async function DataHealthPage() {
       label: "지금 판단",
       title:
         productionApiServer.attention_required
-          ? "운영 API 확인 필요"
+          ? "읽기 서버 확인 필요"
           : authRbac.attention_required
-          ? "인증/RBAC 확인 필요"
+          ? "조회 권한 확인 필요"
           : alertDestination.attention_required
           ? "운영 알림 확인 필요"
           : failedPipelines > 0
@@ -2089,9 +2101,9 @@ export default async function DataHealthPage() {
           : "캔들, 뉴스, AI 분석, 추천 갱신이 현재 화면 기준으로 읽을 수 있는 상태다.",
       href: productionApiServer.attention_required || authRbac.attention_required || alertDestination.attention_required ? "#scheduler-detail" : "#execution-log",
       cta: productionApiServer.attention_required
-        ? "운영 서버 보기"
+        ? "읽기 서버 보기"
         : authRbac.attention_required
-          ? "인증 경계 보기"
+          ? "권한 경계 보기"
         : alertDestination.attention_required
           ? "알림 설정 보기"
           : "실행 이력 보기",
@@ -2156,11 +2168,11 @@ export default async function DataHealthPage() {
       tone: liveAiInvocationTone(liveAiInvocationHealth),
     },
     {
-      label: "AI 회귀평가",
+      label: "AI 기준 평가",
       title: newsAiEvalTitle(newsAiEvalQuality),
       body: newsAiEvalExplanation(newsAiEvalQuality),
       href: "#news-ai-eval-quality",
-      cta: "평가 case 보기",
+      cta: "평가 항목 보기",
       tone: newsAiEvalTone(newsAiEvalQuality),
     },
     {
@@ -2321,7 +2333,7 @@ export default async function DataHealthPage() {
 	    "무료 API 예산",
 	    "추천 가격",
 	    "품질 감사",
-	    "AI 회귀평가",
+	    "AI 기준 평가",
 	  ]);
 	  const priorityDecisionCards = decisionCards.filter((card) => priorityDecisionLabels.has(card.label));
 	  const detailDecisionCards = decisionCards.filter((card) => !priorityDecisionLabels.has(card.label));
@@ -2457,9 +2469,9 @@ export default async function DataHealthPage() {
           </p>
           <div className="decision-brief-meta" aria-label="데이터 상태 핵심 수치">
             <span>자동 실행 {automationStateLabel(schedulerActivation)}</span>
-            <span>열린 조건 {data.open_gates.length.toLocaleString("ko-KR")}개</span>
+            <span>확인 필요 항목 {data.open_gates.length.toLocaleString("ko-KR")}개</span>
             <span>호출 예산 {providerBudget.remaining_request_count}/{providerBudget.daily_budget}</span>
-            <span>주문 경계 {koCode(outcomeWaitMonitor.order_boundary)}</span>
+            <span>실거래 상태 {koCode(outcomeWaitMonitor.order_boundary)}</span>
           </div>
         </div>
         <div className="decision-brief-grid">
@@ -2716,7 +2728,7 @@ export default async function DataHealthPage() {
         aria-labelledby="news-ai-eval-quality-title"
       >
         <div className="section-heading stacked-heading">
-          <span>뉴스 AI 회귀평가</span>
+	          <span>뉴스 AI 기준 평가</span>
           <h2 id="news-ai-eval-quality-title">
             AI가 뉴스에서 테마와 종목을 잘못 뽑기 시작했는지 기준 세트로 확인한다.
           </h2>
@@ -2745,12 +2757,12 @@ export default async function DataHealthPage() {
           <article className="rail-cell">
             <span>종목 근거 정밀도</span>
             <strong>{formatPercent(newsAiEvalQuality.direct_ticker_grounding_precision)}</strong>
-            <small>원문 없는 ticker 차단</small>
+            <small>원문 없는 종목 코드 차단</small>
           </article>
           <article className="rail-cell">
             <span>한국어 준비</span>
             <strong>{formatPercent(newsAiEvalQuality.korean_translation_availability)}</strong>
-            <small>title/summary 기준</small>
+            <small>제목·요약 기준</small>
           </article>
         </div>
         <div className="insight-grid">
@@ -2767,12 +2779,12 @@ export default async function DataHealthPage() {
           <article className="insight-card">
             <span>차단 후보 정확도</span>
             <strong>{formatPercent(newsAiEvalQuality.blocked_candidate_correctness)}</strong>
-            <p>validator가 낮은 confidence, 원문 근거 없는 ticker, unknown theme를 제대로 막는지 본다.</p>
+            <p>자동 검증이 낮은 신뢰도, 원문 근거 없는 종목 코드, 알 수 없는 테마를 제대로 막는지 본다.</p>
           </article>
           <article className="insight-card">
             <span>평가 방식</span>
             <strong>{koCode(newsAiEvalQuality.provider)}</strong>
-            <p>기본 평가는 무료 기준 정답 뉴스 세트로 돈다. 실시간 유료 LLM 호출이 아니라 회귀 검증이다.</p>
+	            <p>기본 평가는 무료 기준 정답 뉴스 세트로 돈다. 실시간 유료 AI 호출이 아니라 저장된 기준 세트 검증이다.</p>
           </article>
         </div>
         <div className="simple-table-wrap">
@@ -2811,7 +2823,7 @@ export default async function DataHealthPage() {
               ))}
               {newsAiEvalQuality.case_results.length === 0 ? (
                 <tr>
-                  <td colSpan={5}>저장된 평가 case가 없다.</td>
+                  <td colSpan={5}>저장된 평가 항목이 없다.</td>
                 </tr>
               ) : null}
             </tbody>
@@ -2819,7 +2831,7 @@ export default async function DataHealthPage() {
         </div>
         <div className="empty-state">
           <strong>다음 조치</strong>
-          <p>{koCode(newsAiEvalQuality.next_action)}</p>
+          <p>{operationCopy(newsAiEvalQuality.next_action)}</p>
 	        </div>
 	      </section>
 
@@ -4140,11 +4152,11 @@ export default async function DataHealthPage() {
         <div className="section-heading stacked-heading">
           <span>자동 실행 주기</span>
           <h2 id="scheduler-profile-title">
-            {ec2SchedulerInstalled ? "현재 EC2에서 실제로 도는 작업" : "자동 실행 연결 상태"}
+            {ec2SchedulerInstalled ? "현재 서버에서 실제로 도는 작업" : "자동 실행 연결 상태"}
           </h2>
         </div>
         <p className="board-intro">
-          웹 화면은 작업을 직접 실행하지 않고 저장된 결과를 읽는다. 실제 수집과 분석은 아래 프로파일들이 각자 다른 주기로 실행한다.
+          웹 화면은 작업을 직접 실행하지 않고 저장된 결과를 읽는다. 실제 수집과 분석은 아래 작업들이 각자 다른 주기로 실행한다.
         </p>
         {profileScheduler.timers.length > 0 ? (
           <div className="scheduler-timer-grid">
@@ -4172,7 +4184,7 @@ export default async function DataHealthPage() {
           </div>
         ) : (
           <div className="empty-state">
-            아직 화면에 연결된 EC2 프로파일 스케줄이 없다. 수동 실행 결과와 실행 로그만 참고한다.
+            아직 화면에 연결된 서버 예약 실행 스케줄이 없다. 수동 실행 결과와 실행 로그만 참고한다.
           </div>
         )}
       </section>
@@ -4245,11 +4257,11 @@ export default async function DataHealthPage() {
         <article className="ledger-panel" style={{ marginTop: "18px" }}>
           <div className="section-heading stacked-heading">
             <span>실제 실행 구조</span>
-            <h3>웹 화면은 저장된 결과를 읽고, EC2 예약 작업이 수집·분석을 실행한다</h3>
+            <h3>웹 화면은 저장된 결과를 읽고, 서버 예약 작업이 수집·분석을 실행한다</h3>
           </div>
           <p style={{ color: "var(--text-secondary)", marginBottom: "16px" }}>
             FastAPI와 Next.js는 저장된 결과를 읽어 보여준다. 뉴스 수집, 캔들 보강, AI 분석, 추천 갱신은
-            EC2 예약 실행기가 백그라운드 작업 실행기를 호출해 수행하고, 결과는 서버 저장 기록과 실행 요약에 남긴다.
+            서버 예약 실행기가 백그라운드 작업 실행기를 호출해 수행하고, 결과는 서버 저장 기록과 실행 요약에 남긴다.
           </p>
           <dl className="fact-list compact-facts">
             <div>
@@ -4262,7 +4274,7 @@ export default async function DataHealthPage() {
             </div>
             <div>
               <dt>작업 실행</dt>
-              <dd>EC2 예약 실행 → 백그라운드 작업 실행기</dd>
+              <dd>서버 예약 실행 → 백그라운드 작업 실행기</dd>
             </div>
             <div>
               <dt>상태 저장</dt>
@@ -4273,7 +4285,7 @@ export default async function DataHealthPage() {
 
         <article className="ledger-panel" style={{ marginTop: "18px" }}>
           <div className="section-heading stacked-heading">
-            <span>EC2 반복 실행기</span>
+            <span>서버 반복 실행기</span>
             <h3>
               {profileScheduler.active_timer_count}/{profileScheduler.timer_count}개 예약 실행 활성
             </h3>
@@ -4341,11 +4353,11 @@ export default async function DataHealthPage() {
         <article className="ledger-panel" style={{ marginTop: "18px" }}>
           <div className="section-heading stacked-heading">
             <span>{ec2SchedulerInstalled ? "과거 로컬 워커 기록" : "최근 자동 실행 결과"}</span>
-            <h3>{ec2SchedulerInstalled ? "현재 EC2 자동화의 주 근거가 아니다" : localWorkerTitle(localWorker)}</h3>
+	            <h3>{ec2SchedulerInstalled ? "현재 서버 자동화의 주 근거가 아니다" : localWorkerTitle(localWorker)}</h3>
           </div>
           <p style={{ color: "var(--text-secondary)", marginBottom: "16px" }}>
             {ec2SchedulerInstalled
-              ? "이 기록은 EC2 서버 예약 실행기를 붙이기 전 로컬 MVP 단계의 점검 결과다. 현재 자동 실행 판단은 위의 EC2 반복 실행기와 작업 실행 이력을 우선한다."
+              ? "이 기록은 서버 예약 실행기를 붙이기 전 로컬 MVP 단계의 점검 결과다. 현재 자동 실행 판단은 위의 서버 반복 실행기와 작업 실행 이력을 우선한다."
               : localWorkerExplanation(localWorker)}
           </p>
           <dl className="fact-list compact-facts">
@@ -4430,7 +4442,7 @@ export default async function DataHealthPage() {
           </div>
           <p style={{ color: "var(--text-secondary)", marginBottom: "16px" }}>
             {ec2SchedulerInstalled
-              ? "이 기록은 수동으로 데이터 수집 경로를 검증했던 증거다. 현재 서버 운영 상태를 판단할 때는 EC2 반복 실행기와 최신 작업 실행 이력을 먼저 본다."
+              ? "이 기록은 수동으로 데이터 수집 경로를 검증했던 증거다. 현재 서버 운영 상태를 판단할 때는 서버 반복 실행기와 최신 작업 실행 이력을 먼저 본다."
               : manualSmokeExplanation(manualSmoke)}
           </p>
           <dl className="fact-list compact-facts">
@@ -4722,33 +4734,32 @@ export default async function DataHealthPage() {
             </div>
             <dl className="fact-list">
               <div>
-                <dt>운영 API</dt>
+                <dt>읽기 서버</dt>
                 <dd>{productionApiServer.attention_required ? "확인 필요" : "운영 준비 확인"}</dd>
               </div>
               <div>
-                <dt>API 런타임</dt>
+                <dt>데이터 연결</dt>
                 <dd>
                   {koCode(productionApiServer.runtime_profile)} · {koCode(productionApiServer.source_mode)} ·{" "}
                   {koCode(productionApiServer.connection_boundary)}
                 </dd>
               </div>
               <div>
-                <dt>API 인증</dt>
+                <dt>읽기 보호</dt>
                 <dd>
-                  {koCode(productionApiServer.auth_mode)} · 토큰{" "}
-                  {productionApiServer.read_token_configured ? "설정됨" : "미설정"} · CORS{" "}
+                  {koCode(productionApiServer.auth_mode)} · 읽기 토큰{" "}
+                  {productionApiServer.read_token_configured ? "설정됨" : "미설정"} · 허용 출처{" "}
                   {productionApiServer.allowed_origin_configured ? "명시됨" : "미설정"}
                 </dd>
               </div>
               <div>
-                <dt>권한 경계</dt>
-                <dd>{authRbac.attention_required ? "확인 필요" : "읽기 전용 RBAC 확인"}</dd>
+                <dt>조회 권한</dt>
+                <dd>{authRbac.attention_required ? "확인 필요" : "읽기 전용 권한 확인"}</dd>
               </div>
               <div>
-                <dt>읽기 역할</dt>
+                <dt>읽기 범위</dt>
                 <dd>
-                  {koCode(authRbac.read_role)} · 보호 경로 {authRbac.protected_paths.join(", ")} · 허용 메서드{" "}
-                  {authRbac.allowed_methods.join(", ")}
+                  {koCode(authRbac.read_role)} · 보호된 화면 {authRbac.protected_paths.length.toLocaleString("ko-KR")}개 · 읽기 요청만 허용
                 </dd>
               </div>
               <div>
