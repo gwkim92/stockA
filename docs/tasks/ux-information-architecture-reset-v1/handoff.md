@@ -2,7 +2,7 @@
 
 ## Status
 
-- in progress: first news/AI evidence UX slice deployed; second home/data-health/intelligence slice deployed; third cycle-map/stock-detail/recommendation-detail/paper-trading slice implemented and locally smoke verified, pending commit/push/EC2 deploy smoke.
+- in progress: first news/AI evidence UX slice deployed; second home/data-health/intelligence slice deployed; third cycle-map/stock-detail/recommendation-detail/paper-trading slice deployed and verified.
 
 ## Current Status
 
@@ -21,7 +21,7 @@
 
 ## Exact Next Step
 
-- exact next step: browser-smoke and deploy the third slice, then apply the same pattern to `/trading-readiness`, `/portfolio/coverage`, `/performance`, `/stocks`, `/recommendations`, `/cycles`, and `/events/classification`.
+- exact next step: apply the same pattern to `/trading-readiness`, `/portfolio/coverage`, `/performance`, `/stocks`, `/recommendations`, `/cycles`, and `/events/classification`.
 
 ## Risks
 
@@ -48,7 +48,9 @@
 - passed: deployed EC2 tunnel route smoke on `http://127.0.0.1:13000/`, `/data-health`, `/intelligence`
 - deployed commit: `afb64a9`
 - deployed commit: `5d2936e`
-- pending: third slice commit, push, EC2 deploy, and deployed `13000` smoke.
+- passed deployed for third slice: `http://127.0.0.1:13000/cycle-map`, `/stocks/SPY`, `/recommendations/recommendation-67`, `/paper-trading`
+- passed deployed for third slice: mobile smoke for `/cycle-map`, `/stocks/SPY`, `/recommendations/recommendation-67`, `/paper-trading`, no horizontal overflow at 390px viewport
+- deployed commit: `c814e3f`
 
 ## Browser Evidence
 
@@ -79,3 +81,11 @@
 - local mobile screenshot: `/tmp/stockanalysis-ux-reset-v1-slice3-fixed/mobile-stock-spy.png`
 - local mobile screenshot: `/tmp/stockanalysis-ux-reset-v1-slice3-fixed/mobile-recommendation-67.png`
 - local mobile screenshot: `/tmp/stockanalysis-ux-reset-v1-slice3-fixed/mobile-paper-trading.png`
+- deployed screenshot: `/tmp/stockanalysis-ux-reset-v1-slice3-deployed/cycle-map.png`
+- deployed screenshot: `/tmp/stockanalysis-ux-reset-v1-slice3-deployed/stock-spy.png`
+- deployed screenshot: `/tmp/stockanalysis-ux-reset-v1-slice3-deployed/recommendation-67.png`
+- deployed screenshot: `/tmp/stockanalysis-ux-reset-v1-slice3-deployed/paper-trading.png`
+- deployed mobile screenshot: `/tmp/stockanalysis-ux-reset-v1-slice3-deployed/mobile-cycle-map.png`
+- deployed mobile screenshot: `/tmp/stockanalysis-ux-reset-v1-slice3-deployed/mobile-stock-spy.png`
+- deployed mobile screenshot: `/tmp/stockanalysis-ux-reset-v1-slice3-deployed/mobile-recommendation-67.png`
+- deployed mobile screenshot: `/tmp/stockanalysis-ux-reset-v1-slice3-deployed/mobile-paper-trading.png`
