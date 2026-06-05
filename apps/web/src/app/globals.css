@@ -4103,6 +4103,155 @@ h6 {
   margin-bottom: 10px;
 }
 
+.source-document-workbench,
+.source-document-section {
+  display: grid;
+  gap: clamp(14px, 2vw, 22px);
+}
+
+.source-document-workbench {
+  grid-template-columns: minmax(0, 1.08fr) minmax(320px, 0.72fr);
+  align-items: start;
+}
+
+.source-document-summary-card,
+.source-document-section {
+  min-width: 0;
+  padding: clamp(18px, 2vw, 28px);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--bg-panel) 92%, white), color-mix(in srgb, var(--bg) 86%, white)),
+    radial-gradient(circle at 0% 0%, rgba(204, 116, 53, 0.1), transparent 34%);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+}
+
+.source-document-card-head,
+.source-document-section-head {
+  display: grid;
+  gap: 8px;
+  max-width: 880px;
+}
+
+.source-document-card-head span,
+.source-document-section-head span,
+.source-document-fact-grid span,
+.source-excerpt-card-head span,
+.source-linked-evidence-card > span,
+.source-access-policy-card > span {
+  color: var(--text-tertiary);
+  font-size: 0.7rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.source-document-card-head h2,
+.source-document-section-head h2 {
+  margin: 0;
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: clamp(1.32rem, 2vw, 2.25rem);
+  font-weight: 950;
+  letter-spacing: -0.04em;
+  line-height: 1.04;
+  word-break: keep-all;
+}
+
+.source-document-section-head p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  font-weight: 760;
+  line-height: 1.6;
+  word-break: keep-all;
+}
+
+.source-document-title-card {
+  margin-top: 16px;
+  padding: 16px;
+  background: color-mix(in srgb, var(--bg-panel) 88%, white);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+}
+
+.source-document-fact-grid,
+.source-excerpt-card-grid,
+.source-linked-evidence-grid {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.source-document-fact-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.source-document-fact-grid.compact {
+  grid-template-columns: 1fr;
+}
+
+.source-excerpt-card-grid,
+.source-linked-evidence-grid {
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
+.source-document-fact-grid article,
+.source-excerpt-card,
+.source-linked-evidence-card,
+.source-access-policy-card {
+  display: grid;
+  min-width: 0;
+  align-content: start;
+  gap: 9px;
+  padding: 15px;
+  background: color-mix(in srgb, var(--bg-panel) 88%, white);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+}
+
+.source-document-fact-grid strong,
+.source-excerpt-card-head strong,
+.source-access-policy-card strong {
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: clamp(1.02rem, 1.3vw, 1.42rem);
+  font-weight: 950;
+  letter-spacing: -0.03em;
+  line-height: 1.08;
+  overflow-wrap: anywhere;
+  word-break: keep-all;
+}
+
+.source-document-fact-grid p,
+.source-excerpt-card p,
+.source-excerpt-card-head small,
+.source-access-policy-card p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  font-weight: 760;
+  line-height: 1.55;
+  word-break: keep-all;
+}
+
+.source-excerpt-card-head {
+  display: grid;
+  gap: 6px;
+}
+
+.source-linked-evidence-card a {
+  width: fit-content;
+  color: var(--accent-blue);
+  font-size: 0.74rem;
+  font-weight: 950;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.source-document-technical-detail {
+  margin-top: 14px;
+}
+
 .relationship-chip .news-title-block {
   gap: 3px;
 }
@@ -6584,6 +6733,7 @@ h6 {
   .evidence-decision-hero,
   .evidence-review-panel,
   .source-review-panel,
+  .source-document-workbench,
   .evidence-source-grid,
   .stock-decision-panel,
   .recommendation-waterfall-panel,
@@ -6685,6 +6835,9 @@ h6 {
   .ai-neighborhood-event-grid,
   .ai-cluster-reason-grid,
   .ai-cluster-event-grid,
+  .source-document-fact-grid,
+  .source-excerpt-card-grid,
+  .source-linked-evidence-grid,
   .intelligence-flow-grid,
   .intelligence-brief-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -6912,6 +7065,10 @@ h6 {
   .ai-neighborhood-event-grid,
   .ai-cluster-reason-grid,
   .ai-cluster-event-grid,
+  .source-document-workbench,
+  .source-document-fact-grid,
+  .source-excerpt-card-grid,
+  .source-linked-evidence-grid,
   .intelligence-flow-panel,
   .intelligence-flow-grid,
   .intelligence-brief-grid,

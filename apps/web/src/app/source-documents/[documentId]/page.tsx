@@ -191,10 +191,13 @@ export default async function SourceDocumentPage({ params }: SourceDocumentPageP
         </aside>
       </section>
 
-      <section className="bento-grid reveal delay-1">
-        <article className="bento-card span-2" id="source-document-summary" style={{ background: "var(--bg-card-hover)", borderColor: "var(--border-focus)" }}>
-          <div style={{ marginBottom: "24px" }}>
-            <span className="metric-sub">문서</span>
+      <section className="source-document-workbench reveal delay-1">
+        <article className="source-document-summary-card" id="source-document-summary">
+          <div className="source-document-card-head">
+            <span>문서 요약</span>
+            <h2>이 원천이 어떤 판단에 쓰였는지 먼저 본다</h2>
+          </div>
+          <div className="source-document-title-card">
             <NewsTitleBlock
               title={data.title}
               summary={sourceDocumentDigest(data)}
@@ -204,137 +207,146 @@ export default async function SourceDocumentPage({ params }: SourceDocumentPageP
               symbol={data.symbol}
             />
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
-            <div>
-              <span className="metric-sub">문서 기록</span>
-              <div style={{ fontSize: "0.95rem", fontWeight: 500 }}>{recordStatus(data.document_id, "기록 있음")}</div>
-            </div>
-            <div>
-              <span className="metric-sub">접수 기록</span>
-              <div style={{ fontSize: "0.95rem", fontWeight: 500 }}>{recordStatus(data.accession_id, "접수 기록 있음")}</div>
-            </div>
-            <div>
-              <span className="metric-sub">게시자</span>
-              <div style={{ fontSize: "0.95rem", fontWeight: 500 }}>{data.publisher}</div>
-            </div>
-            <div>
-              <span className="metric-sub">공시 시각</span>
-              <div style={{ fontSize: "0.95rem", fontWeight: 500 }}>{data.filed_at}</div>
-            </div>
-            <details className="news-original-title source-original-detail" style={{ gridColumn: "span 2", marginTop: "4px" }}>
-              <summary>기술 식별자 보기</summary>
+          <div className="source-document-fact-grid">
+            <article>
+              <span>문서 기록</span>
+              <strong>{recordStatus(data.document_id, "기록 있음")}</strong>
+              <p>이 화면에서 추적 가능한 원천 문서로 저장되어 있다.</p>
+            </article>
+            <article>
+              <span>접수 기록</span>
+              <strong>{recordStatus(data.accession_id, "접수 기록 있음")}</strong>
+              <p>공시 문서는 접수번호, 뉴스 문서는 원천 식별자로 추적한다.</p>
+            </article>
+            <article>
+              <span>게시자</span>
+              <strong>{koLabel(data.publisher)}</strong>
+              <p>{data.filed_at || "게시 시각 미기록"}</p>
+            </article>
+            <article>
+              <span>분석 연결</span>
+              <strong>{data.linked_evidence.length.toLocaleString("ko-KR")}개 AI 근거</strong>
+              <p>연결된 AI 판단에서 테마·종목·방향 해석을 다시 대조한다.</p>
+            </article>
+          </div>
+          <details className="secondary-details source-document-technical-detail">
+            <summary>
+              <span>기술 식별자 보기</span>
+              <strong>감사용 식별자는 접어서 보관한다</strong>
+            </summary>
+            <div className="details-inner">
               <p>문서 ID: {data.document_id}</p>
               <p>접수번호: {data.accession_id || "없음"}</p>
-            </details>
-          </div>
+            </div>
+          </details>
         </article>
 
-        <article className="bento-card span-2">
-          <div style={{ marginBottom: "24px" }}>
-            <span className="metric-sub">수집 출처</span>
-            <h2 style={{ fontSize: "1.5rem" }}>{retrievalLabel}</h2>
+        <article className="source-document-summary-card">
+          <div className="source-document-card-head">
+            <span>수집 상태</span>
+            <h2>{retrievalLabel}</h2>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
-            <div>
-              <span className="metric-sub">수집 상태</span>
-              <div style={{ fontSize: "0.95rem", fontWeight: 500 }}>{recordStatus(data.retrieval.source_run_id, "수집 기록 있음")}</div>
-            </div>
-            <div>
-              <span className="metric-sub">수집 시각</span>
-              <div style={{ fontSize: "0.95rem", fontWeight: 500 }}>{data.retrieval.fetched_at}</div>
-            </div>
-            <div>
-              <span className="metric-sub">원문 저장</span>
-              <div style={{ fontSize: "0.95rem", fontWeight: 500 }}>{recordStatus(data.storage_uri, "원문 저장됨")}</div>
-            </div>
-            <div>
-              <span className="metric-sub">무결성</span>
-              <div style={{ fontSize: "0.95rem", fontWeight: 500 }}>{recordStatus(data.checksum, "검증 기록 있음")}</div>
-            </div>
-            <details className="news-original-title source-original-detail" style={{ gridColumn: "span 2", marginTop: "4px" }}>
-              <summary>수집 기술 정보 보기</summary>
+          <div className="source-document-fact-grid compact">
+            <article>
+              <span>수집 상태</span>
+              <strong>{recordStatus(data.retrieval.source_run_id, "수집 기록 있음")}</strong>
+              <p>수집 실행이 남아 있어 문제가 생기면 역추적할 수 있다.</p>
+            </article>
+            <article>
+              <span>수집 시각</span>
+              <strong>{data.retrieval.fetched_at || "미기록"}</strong>
+              <p>이 시점의 원천 내용으로 AI 판단이 만들어졌다.</p>
+            </article>
+            <article>
+              <span>원문 저장</span>
+              <strong>{recordStatus(data.storage_uri, "원문 저장됨")}</strong>
+              <p>화면은 원문 전문 대신 필요한 요약과 발췌를 먼저 보여준다.</p>
+            </article>
+            <article>
+              <span>무결성</span>
+              <strong>{recordStatus(data.checksum, "검증 기록 있음")}</strong>
+              <p>원천 파일 변경 여부를 감사할 수 있는 기록이다.</p>
+            </article>
+          </div>
+          <details className="secondary-details source-document-technical-detail">
+            <summary>
+              <span>수집 기술 정보 보기</span>
+              <strong>수집기·저장 위치·검증값</strong>
+            </summary>
+            <div className="details-inner">
               <p>수집기: {data.retrieval.parser_version || "없음"}</p>
               <p>수집 실행: {data.retrieval.source_run_id || "없음"}</p>
               <p>저장 위치: {data.storage_uri || "없음"}</p>
               <p>체크섬: {data.checksum || "없음"}</p>
-            </details>
-          </div>
+            </div>
+          </details>
         </article>
+      </section>
 
-        <article className="bento-card span-2 row-span-2" id="source-document-excerpts">
-          <div style={{ marginBottom: "24px" }}>
-            <span className="metric-sub">근거 발췌</span>
-            <h2 style={{ fontSize: "1.5rem" }}>근거 발췌 목록</h2>
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: "16px", overflowY: "auto" }}>
-            {data.excerpts.length === 0 ? (
-              <p className="empty-state">이 문서에는 아직 화면에 노출할 근거 발췌가 없다.</p>
-            ) : null}
-            {data.excerpts.map((excerpt, index) => (
-              <div key={excerpt.chunk_id} style={{
-                padding: "16px",
-                background: "rgba(255, 255, 255, 0.02)",
-                border: "1px solid var(--border-light)",
-                borderRadius: "var(--radius-sm)"
-              }}>
-                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
-                  <strong style={{ fontSize: "1rem", color: "var(--text-primary)" }}>{koLabel(excerpt.section)}</strong>
-                  <span className="bento-badge" style={{ margin: 0, padding: "2px 8px", fontSize: "0.65rem" }}>{excerpt.locator}</span>
+      <section className="source-document-section reveal delay-2" id="source-document-excerpts" aria-labelledby="source-document-excerpts-title">
+        <div className="source-document-section-head">
+          <span>근거 발췌</span>
+          <h2 id="source-document-excerpts-title">AI가 참고한 원문 조각을 한국어 흐름으로 먼저 본다</h2>
+          <p>영어 전문은 필요할 때만 펼친다. 기본 화면은 이 발췌가 어떤 투자 흐름 판단에 쓰였는지를 먼저 보여준다.</p>
+        </div>
+        <div className="source-excerpt-card-grid">
+          {data.excerpts.length === 0 ? (
+            <p className="empty-state">이 문서에는 아직 화면에 노출할 근거 발췌가 없다.</p>
+          ) : null}
+          {data.excerpts.map((excerpt, index) => {
+            const label = chunkLabel(excerpt.chunk_id, index);
+            return (
+              <article className="source-excerpt-card" key={excerpt.chunk_id}>
+                <div className="source-excerpt-card-head">
+                  <span>{label}</span>
+                  <strong>{koLabel(excerpt.section)}</strong>
+                  <small>{koLabel(excerpt.locator)}</small>
                 </div>
-                <p className="source-korean-digest">{sourceExcerptDigest(excerpt, data.title)}</p>
-                <details className="news-original-title source-original-detail">
-                  <summary>영어 원문 발췌 보기</summary>
-                  <p>{excerpt.summary}</p>
+                <p>{sourceExcerptDigest(excerpt, data.title)}</p>
+                <details className="secondary-details source-document-technical-detail">
+                  <summary>
+                    <span>{label} 영어 원문 보기</span>
+                    <strong>원문 문장 대조</strong>
+                  </summary>
+                  <div className="details-inner">
+                    <p>{excerpt.summary}</p>
+                  </div>
                 </details>
-                <span style={{ fontSize: "0.75rem", color: "var(--text-tertiary)" }}>근거 위치: {chunkLabel(excerpt.chunk_id, index)}</span>
-              </div>
-            ))}
-          </div>
-        </article>
+              </article>
+            );
+          })}
+        </div>
+      </section>
 
-        <article className="bento-card span-2" id="linked-ai-evidence">
-          <div style={{ marginBottom: "24px" }}>
-            <span className="metric-sub">연결된 근거</span>
-            <h2 style={{ fontSize: "1.5rem" }}>AI 근거 연결</h2>
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginBottom: "24px" }}>
-            {data.linked_evidence.length === 0 ? (
-              <p className="empty-state">이 원천 문서에 연결된 AI 근거가 아직 없다.</p>
-            ) : null}
-            {data.linked_evidence.map((evidence) => (
-              <div key={evidence.evidence_id} style={{
-                padding: "16px",
-                background: "rgba(255, 255, 255, 0.02)",
-                border: "1px solid var(--border-light)",
-                borderRadius: "var(--radius-sm)",
-                display: "flex",
-                flexDirection: "column",
-                gap: "4px"
-              }}>
-                <span className="metric-sub">{koCode(evidence.evidence_type)}</span>
-                <NewsTitleBlock
-                  compact
-                  title={evidence.title}
-                  summary={`${koCode(evidence.evidence_type)}로 연결된 원천 근거다. 상세 화면에서 종목·테마·방향 해석을 확인한다.`}
-                  symbol={data.symbol}
-                />
-                <Link href={`/ai-evidence/${evidence.evidence_id}`} style={{
-                  color: "var(--accent-blue)",
-                  fontSize: "0.85rem",
-                  textDecoration: "underline",
-                  textUnderlineOffset: "3px",
-                  marginTop: "4px",
-                  width: "fit-content"
-                }}>
-                  AI 근거 상세 열기
-                </Link>
-              </div>
-            ))}
-          </div>
-          <div id="source-access-policy" style={{ padding: "12px 16px", background: "rgba(255,255,255,0.05)", borderRadius: "var(--radius-sm)", fontSize: "0.85rem", color: "var(--text-secondary)" }}>
-            <span className="metric-sub" style={{ display: "block", marginBottom: "4px" }}>접근 정책 메모</span>
-            {accessPolicyReasonLabel(data.access_policy.reason)}
-          </div>
+      <section className="source-document-section reveal delay-3" id="linked-ai-evidence" aria-labelledby="linked-ai-evidence-title">
+        <div className="source-document-section-head">
+          <span>AI 근거 연결</span>
+          <h2 id="linked-ai-evidence-title">이 원천을 사용한 AI 판단으로 이어간다</h2>
+          <p>원천이 맞는지 본 뒤, 연결된 AI 근거에서 테마·종목·방향·자동 검증 결과를 확인한다.</p>
+        </div>
+        <div className="source-linked-evidence-grid">
+          {data.linked_evidence.length === 0 ? (
+            <p className="empty-state">이 원천 문서에 연결된 AI 근거가 아직 없다.</p>
+          ) : null}
+          {data.linked_evidence.map((evidence) => (
+            <article className="source-linked-evidence-card" key={evidence.evidence_id}>
+              <span>{koCode(evidence.evidence_type)}</span>
+              <NewsTitleBlock
+                compact
+                title={evidence.title}
+                summary={`${koCode(evidence.evidence_type)}로 연결된 원천 근거다. 상세 화면에서 종목·테마·방향 해석을 확인한다.`}
+                symbol={data.symbol}
+              />
+              <Link href={`/ai-evidence/${evidence.evidence_id}`}>
+                AI 근거 상세 열기
+              </Link>
+            </article>
+          ))}
+        </div>
+        <article className="source-access-policy-card" id="source-access-policy">
+          <span>접근 정책 메모</span>
+          <strong>{downloadStatus}</strong>
+          <p>{accessPolicyReasonLabel(data.access_policy.reason)}</p>
         </article>
       </section>
     </div>
