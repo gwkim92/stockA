@@ -39,14 +39,6 @@ function evidenceLinkLabel(evidence: ThesisEvidence) {
   return "근거 화면 열기";
 }
 
-function evidenceMetadata(evidence: ThesisEvidence): AuditMetadataItem[] {
-  return [
-    { label: "근거 ID", value: evidence.evidence_id },
-    { label: "근거 유형", value: evidence.type },
-    { label: "근거 제목", value: evidence.title },
-  ];
-}
-
 const REVIEW_RULE_LABELS: Record<string, string> = {
   cycle_correcting: "사이클이 조정 국면",
   cycle_score_unavailable: "사이클 점수 입력 없음",
@@ -392,6 +384,38 @@ function thesisQualityChecks(data: ThesisDetailData) {
   ];
 }
 
+function evidenceRole(evidence: ThesisEvidence) {
+  if (evidence.type === "performance_outcome" || evidence.evidence_id.startsWith("performance-outcome-")) {
+    return "추천 이후 실제 성과를 대조하는 근거다. 투자 논리가 결과로도 설명되는지 확인한다.";
+  }
+  if (
+    evidence.type === "source_document_event"
+    || evidence.evidence_id.startsWith("event-")
+    || evidence.evidence_id.startsWith("sec-event-")
+  ) {
+    return "뉴스·공시 원천에서 온 근거다. AI가 붙인 테마와 종목 해석이 원천과 맞는지 확인한다.";
+  }
+  return "투자 논리 판단에 연결된 보조 근거다. 상세 화면이 없으면 이 카드의 제목과 관측 시각만 참고한다.";
+}
+
+function evidenceTypeCount(data: ThesisDetailData, predicate: (evidence: ThesisEvidence) => boolean) {
+  return data.evidence.filter(predicate).length;
+}
+
+function evidenceObservedLabel(value: string | null | undefined) {
+  if (!value) {
+    return "관측 시각 미기록";
+  }
+  return value.length >= 10 ? value.slice(0, 10) : value;
+}
+
+function thesisEvidenceAuditItems(data: ThesisDetailData): AuditMetadataItem[] {
+  return data.evidence.flatMap((evidence, index) => [
+    { label: `근거 ${index + 1} ID`, value: evidence.evidence_id },
+    { label: `근거 ${index + 1} 유형`, value: koCode(evidence.type) },
+  ]);
+}
+
 export default async function ThesisPage({ params }: ThesisPageProps) {
   const { thesisId } = await params;
   const response = await getThesisDetail(thesisId);
@@ -404,6 +428,14 @@ export default async function ThesisPage({ params }: ThesisPageProps) {
   const professionalGates = data.professional_lifecycle_gates;
   const valuationTargetRange = data.valuation_target_range;
   const valuationRows = valuationItems(lifecycle.valuation);
+  const sourceEvidenceCount = evidenceTypeCount(data, (evidence) => (
+    evidence.type === "source_document_event"
+    || evidence.evidence_id.startsWith("event-")
+    || evidence.evidence_id.startsWith("sec-event-")
+  ));
+  const performanceEvidenceCount = evidenceTypeCount(data, (evidence) => (
+    evidence.type === "performance_outcome" || evidence.evidence_id.startsWith("performance-outcome-")
+  ));
 
   return (
     <div className="pageStack decision-page">
@@ -756,53 +788,68 @@ export default async function ThesisPage({ params }: ThesisPageProps) {
         </div>
       </section>
 
-      <section className="bento-grid reveal delay-1" id="thesis-evidence-ledger">
-        <article className="bento-card span-4">
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: "24px" }}>
-            <div>
-              <span className="metric-sub">근거 자료</span>
-              <h2 style={{ fontSize: "1.5rem" }}>투자 논리를 뒷받침한 원천 입력</h2>
-            </div>
-            <Link className="btn btn-secondary" href={`/recommendations/${data.created_from_recommendation_id}`}>
-              추천으로 돌아가기
-            </Link>
+      <section className="thesis-evidence-panel reveal delay-1" id="thesis-evidence-ledger" aria-labelledby="thesis-evidence-title">
+        <div className="thesis-evidence-head">
+          <div>
+            <span>근거 자료</span>
+            <h2 id="thesis-evidence-title">투자 논리를 뒷받침한 원천 입력</h2>
+            <p>뉴스·공시 원천, 성과 근거, 보조 근거를 분리해서 본다. 근거가 부족해도 이 화면은 주문을 만들지 않는다.</p>
           </div>
-          
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: "16px" }}>
-            {data.evidence.map((evidence) => {
-              const href = evidenceHref(evidence.evidence_id, evidence.type, data.symbol);
-              return (
-                <div key={evidence.evidence_id} style={{
-                  padding: "20px",
-                  background: "rgba(255, 255, 255, 0.02)",
-                  border: "1px solid var(--border-light)",
-                  borderRadius: "var(--radius-sm)",
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "8px"
-                }}>
-                  <span className="metric-sub">{koCode(evidence.type)}</span>
-                  <strong style={{ fontSize: "1.1rem" }}>{thesisText(evidence.title)}</strong>
-                  {href ? (
-                    <Link href={href} style={{
-                      color: "var(--accent-blue)",
-                      fontSize: "0.85rem",
-                      textDecoration: "underline",
-                      textUnderlineOffset: "4px",
-                      marginTop: "8px",
-                      width: "fit-content"
-                    }}>
-                      {evidenceLinkLabel(evidence)}
-                    </Link>
-                  ) : (
-                    <span className="metric-sub">연결된 근거 화면 없음</span>
-                  )}
-                  <AuditMetadata items={evidenceMetadata(evidence)} summary="근거 연결 정보 보기" />
+          <Link className="btn btn-secondary" href={`/recommendations/${data.created_from_recommendation_id}`}>
+            추천으로 돌아가기
+          </Link>
+        </div>
+
+        <div className="thesis-evidence-summary-grid" aria-label="투자 논리 근거 요약">
+          <article>
+            <span>전체 근거</span>
+            <strong>{data.evidence.length.toLocaleString("ko-KR")}개</strong>
+            <p>이 투자 논리를 지지하거나 검증하는 저장 근거 수다.</p>
+          </article>
+          <article>
+            <span>뉴스·공시</span>
+            <strong>{sourceEvidenceCount.toLocaleString("ko-KR")}개</strong>
+            <p>원천 문서에서 테마·종목 해석이 맞는지 대조한다.</p>
+          </article>
+          <article>
+            <span>성과 근거</span>
+            <strong>{performanceEvidenceCount.toLocaleString("ko-KR")}개</strong>
+            <p>추천 이후 결과가 논리와 맞는지 확인한다.</p>
+          </article>
+          <article>
+            <span>실거래 상태</span>
+            <strong>자동 주문 없음</strong>
+            <p>근거 검토는 읽기 전용이며 증권사 주문 흐름을 실행하지 않는다.</p>
+          </article>
+        </div>
+
+        <div className="thesis-evidence-card-grid">
+          {data.evidence.length === 0 ? (
+            <p className="empty-state">이 투자 논리를 뒷받침하는 저장 근거가 아직 없다.</p>
+          ) : null}
+          {data.evidence.map((evidence) => {
+            const href = evidenceHref(evidence.evidence_id, evidence.type, data.symbol);
+            return (
+              <article className="thesis-evidence-card" key={evidence.evidence_id}>
+                <div className="thesis-evidence-card-head">
+                  <span>{koCode(evidence.type)}</span>
+                  <strong>{thesisText(evidence.title)}</strong>
+                  <small>관측일 {evidenceObservedLabel(evidence.observed_at)}</small>
                 </div>
-              );
-            })}
-          </div>
-        </article>
+                <p>{evidenceRole(evidence)}</p>
+                {href ? (
+                  <Link href={href}>{evidenceLinkLabel(evidence)}</Link>
+                ) : (
+                  <small className="thesis-evidence-muted">연결된 상세 화면 없음</small>
+                )}
+              </article>
+            );
+          })}
+        </div>
+
+        {data.evidence.length > 0 ? (
+          <AuditMetadata items={thesisEvidenceAuditItems(data)} summary="근거 식별자 전체 보기" />
+        ) : null}
       </section>
     </div>
   );

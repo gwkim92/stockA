@@ -4032,6 +4032,117 @@ h6 {
   font-weight: 900;
 }
 
+.thesis-evidence-panel {
+  display: grid;
+  gap: clamp(14px, 2vw, 22px);
+  min-width: 0;
+  padding: clamp(18px, 2vw, 30px);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--bg-panel) 92%, white), color-mix(in srgb, var(--bg) 86%, white)),
+    radial-gradient(circle at 0% 0%, rgba(38, 92, 128, 0.1), transparent 34%);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+}
+
+.thesis-evidence-head {
+  display: flex;
+  gap: 16px;
+  align-items: flex-end;
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.thesis-evidence-head div {
+  display: grid;
+  gap: 8px;
+  max-width: 860px;
+}
+
+.thesis-evidence-head span,
+.thesis-evidence-summary-grid span,
+.thesis-evidence-card-head span {
+  color: var(--text-tertiary);
+  font-size: 0.7rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.thesis-evidence-head h2 {
+  margin: 0;
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: clamp(1.35rem, 2.2vw, 2.45rem);
+  font-weight: 950;
+  letter-spacing: -0.045em;
+  line-height: 1.02;
+  word-break: keep-all;
+}
+
+.thesis-evidence-head p,
+.thesis-evidence-summary-grid p,
+.thesis-evidence-card p,
+.thesis-evidence-card-head small,
+.thesis-evidence-muted {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  font-weight: 760;
+  line-height: 1.55;
+  word-break: keep-all;
+}
+
+.thesis-evidence-summary-grid,
+.thesis-evidence-card-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.thesis-evidence-summary-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.thesis-evidence-card-grid {
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
+.thesis-evidence-summary-grid article,
+.thesis-evidence-card {
+  display: grid;
+  min-width: 0;
+  align-content: start;
+  gap: 9px;
+  padding: 15px;
+  background: color-mix(in srgb, var(--bg-panel) 88%, white);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+}
+
+.thesis-evidence-summary-grid strong,
+.thesis-evidence-card-head strong {
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: clamp(1.02rem, 1.3vw, 1.45rem);
+  font-weight: 950;
+  letter-spacing: -0.032em;
+  line-height: 1.08;
+  word-break: keep-all;
+}
+
+.thesis-evidence-card-head {
+  display: grid;
+  gap: 6px;
+}
+
+.thesis-evidence-card a {
+  width: fit-content;
+  color: var(--accent-blue);
+  font-size: 0.74rem;
+  font-weight: 950;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
 .source-review-panel {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(220px, 0.24fr);
@@ -6843,6 +6954,8 @@ h6 {
   .source-document-fact-grid,
   .source-excerpt-card-grid,
   .source-linked-evidence-grid,
+  .thesis-evidence-summary-grid,
+  .thesis-evidence-card-grid,
   .intelligence-flow-grid,
   .intelligence-brief-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -6855,7 +6968,8 @@ h6 {
   .stock-evidence-readiness,
   .stock-evidence-section-head,
   .theme-evidence-head,
-  .theme-evidence-card-head.horizontal {
+  .theme-evidence-card-head.horizontal,
+  .thesis-evidence-head {
     grid-template-columns: 1fr;
   }
 
@@ -7074,11 +7188,18 @@ h6 {
   .source-document-fact-grid,
   .source-excerpt-card-grid,
   .source-linked-evidence-grid,
+  .thesis-evidence-summary-grid,
+  .thesis-evidence-card-grid,
   .intelligence-flow-panel,
   .intelligence-flow-grid,
   .intelligence-brief-grid,
   .research-flow {
     grid-template-columns: 1fr;
+  }
+
+  .thesis-evidence-head {
+    align-items: flex-start;
+    flex-direction: column;
   }
 
   .stock-decision-actions .btn,
