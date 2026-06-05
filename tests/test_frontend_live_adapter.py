@@ -6967,6 +6967,8 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertIn("ingest.data_source", sql)
         self.assertIn("data_source.source_name", sql)
         self.assertIn("stale_fred_dollar_index", sql)
+        self.assertIn("은 현물 달러는 무료 provider 후보가 모두 실패", sql)
+        self.assertIn("XAG/USD, XAGUSD, SILVER", sql)
         self.assertIn("추정값으로 채우지 않는다", sql)
         self.assertIn("'groups'", sql)
         self.assertIn("'regimes'", sql)

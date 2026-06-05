@@ -127,6 +127,8 @@ class CrossAssetMarketTest(unittest.TestCase):
         )
         self.assertIn("indicator.stale_policy", sql)
         self.assertIn("stale_dollar_index_weakens_dollar_regime_confidence", sql)
+        self.assertIn("twelve_data_silver_symbol_fallback_exhausted_no_imputation", sql)
+        self.assertIn("XAG/USD, XAGUSD, SILVER", sql)
         self.assertIn("추정값으로 채우지 않는다", sql)
 
     def test_parse_cboe_daily_price_csv_normalizes_rows(self) -> None:

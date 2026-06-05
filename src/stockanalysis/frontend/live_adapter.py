@@ -9573,6 +9573,8 @@ indicator_rows as (
         case
             when snapshot.indicator_code = 'USD_BROAD_INDEX' and snapshot.freshness_status = 'stale'
                 then '달러 지표가 오래되어 달러 유동성 판단은 약하게 본다.'
+            when indicator.indicator_code = 'XAG_USD' and coalesce(snapshot.freshness_status, 'missing') = 'missing'
+                then '은 현물 달러는 무료 provider 후보가 모두 실패해 시장 판단에 사용하지 않는다.'
             when coalesce(snapshot.freshness_status, 'missing') = 'missing'
                 then '아직 관측값이 없어 시장 판단에 사용하지 않는다.'
             when snapshot.freshness_status = 'stale'
@@ -9721,6 +9723,8 @@ quality_flags as (
         case
             when indicator_code = 'USD_BROAD_INDEX' and freshness_status = 'stale'
                 then 'FRED 달러 광의 지수가 stale이다. 달러 강세/약세 regime 판단은 약하게 보며 추정값으로 채우지 않는다.'
+            when indicator_code = 'XAG_USD' and freshness_status = 'missing'
+                then '은 현물 달러는 Twelve Data 무료 후보 XAG/USD, XAGUSD, SILVER가 모두 실패하면 missing으로 둔다. 대체 무료 provider 결정 전까지 시장 판단에 사용하지 않는다.'
             when freshness_status = 'missing'
                 then display_name || ' 관측값이 없다. provider symbol 또는 무료 API quota를 확인한다.'
             when freshness_status = 'stale'
