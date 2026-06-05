@@ -9689,11 +9689,12 @@ news_link_rows as (
         link.confidence,
         link.rationale,
         coalesce(nullif(document.korean_title, ''), document.title, link.evidence_json ->> 'news_title') as title_ko,
-        document.source_name,
+        coalesce(data_source.source_name, '') as source_name,
         document.url as source_url
     from event.news_indicator_link link
     left join market.market_indicator indicator on indicator.indicator_code = link.indicator_code
     left join ingest.source_document document on document.document_id = link.document_id
+    left join ingest.data_source data_source on data_source.data_source_id = document.data_source_id
     join target_date target on link.link_date between target.as_of_date - interval '14 days' and target.as_of_date
     order by link.link_date desc, link.confidence desc nulls last, link.document_id desc
     limit 12
