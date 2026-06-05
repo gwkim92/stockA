@@ -4252,6 +4252,11 @@ h6 {
   margin-top: 14px;
 }
 
+.source-document-technical-detail .details-inner p {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
 .relationship-chip .news-title-block {
   gap: 3px;
 }
