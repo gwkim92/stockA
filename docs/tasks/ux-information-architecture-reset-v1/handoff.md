@@ -78,10 +78,12 @@
 - completed deployed: EC2 now serves commit `0401d1f`; `/themes/ANNUAL_REPORTING` renders the live theme evidence flow panel with no targeted bento list rows inside the theme evidence area, no tables, no Server Component error, and no desktop/mobile horizontal overflow.
 - completed locally: refactored `/ai-evidence/[evidenceId]` lower-fold validation, neighborhood, and cluster proof areas from generic relationship chips into dedicated `ai-validation-*`, `ai-neighborhood-*`, and `ai-cluster-*` flow cards. Raw `validator`, `trace`, and `fixture` terms are normalized before render. Data, scoring, recommendation weights, and order boundaries are unchanged.
 - completed deployed: EC2 now serves commit `4c23db7`; `/ai-evidence/ai-evidence-251` renders live AI validation cards, cluster proof cards, and neighborhood cards with `relationshipChips=0`, `relationshipPanels=0`, no raw `validator/trace/fixture` hits, no Server Component error, and no desktop/mobile horizontal overflow.
+- completed locally: refactored `/source-documents/[documentId]` lower-fold document summary, collection status, excerpts, linked AI evidence, and access policy from generic `bento-card`/inline-style blocks into dedicated `source-document-*` flow cards. Repeated `영어 원문 발췌 보기` summaries were replaced with per-excerpt labels, and long technical identifiers wrap safely when expanded. Data, scoring, recommendation weights, and order boundaries are unchanged.
+- completed deployed: EC2 now serves commit `4f5b3fc`; `/source-documents/rss%3Amarketwatch-topstories%3Ab057be957d391c978876835f` renders live source document flow cards with `bentoCards=0`, `sourceOriginalDetails=0`, no repeated English excerpt summary text, no targeted raw-term hits, no Server Component error, and no desktop/mobile horizontal overflow.
 
 ## Exact Next Step
 
-- exact next step: continue page-by-page lower-fold copy/content review on the next dense detail/audit surface. Candidate targets are remaining source-document collapsed technical details, thesis lower-fold audit details, or any live page still showing dense audit rows after the AI evidence detail flow-card refactor.
+- exact next step: continue page-by-page lower-fold copy/content review on the next dense detail/audit surface. Candidate targets are thesis lower-fold audit details or any live page still showing dense audit rows after the source-document flow-card refactor.
 
 ## Risks
 
@@ -155,6 +157,15 @@
 - passed deployed for AI evidence detail flow-card refactor: EC2 fast-forwarded to `4c23db7`; server `npm run typecheck`, `npm run build`, and `sudo systemctl restart stockanalysis-frontend-api.service stockanalysis-web.service` completed; both services returned `active`.
 - passed deployed for AI evidence detail flow-card refactor: Python HTTP route smoke on `http://127.0.0.1:13000` returned 200 for `/`, `/data-health`, `/ai-evidence/ai-evidence-251`, `/themes/ANNUAL_REPORTING`, and `/stocks/EROK`.
 - passed deployed for AI evidence detail flow-card refactor: Playwright live route smoke on `http://127.0.0.1:13000/ai-evidence/ai-evidence-251`, desktop `aiValidationCards=2`, `aiNeighborhoodPanels=2`, `aiNeighborhoodCards=10`, `aiClusterProofPanels=2`, `aiClusterReasonCards=4`, `aiClusterEventCards=10`, `relationshipChips=0`, `relationshipPanels=0`, `rawValidatorHits=0`, `rawTraceHits=0`, `rawFixtureHits=0`, `overflow=[]`; mobile `aiValidationCards=2`, `aiClusterProofPanels=2`, `relationshipChips=0`, `rawValidatorHits=0`, `rawTraceHits=0`, `overflow=[]`.
+- passed locally for source document flow-card refactor: `cd apps/web && npm run typecheck`
+- passed locally for source document flow-card refactor: `cd apps/web && npm run build`
+- passed locally for source document flow-card refactor: `bash scripts/verify_frontend_detail_routes.sh`
+- passed locally for source document flow-card refactor: `PYTHONPATH=/Users/woody/ai/agent-work-harness/src /opt/homebrew/bin/python3.13 -m awh verify --repo . --task ux-information-architecture-reset-v1`
+- passed locally for source document flow-card refactor: `git diff --check`
+- passed locally for source document flow-card refactor: Playwright dev route smoke on `http://127.0.0.1:13002/source-documents/aapl-2024-10k-20240928`, desktop `sourceWorkbench=1`, `sourceSummaryCards=2`, `sourceFactCards=8`, `sourceExcerptCards=2`, `sourceLinkedEvidenceCards=1`, `sourceAccessCards=1`, `bentoCards=0`, `sourceOriginalDetails=0`, `repeatedEnglishSummaryCount=0`, `rawTermHits=[]`, `overflow=[]`; mobile `sourceWorkbench=1`, `bentoCards=0`, `rawTermHits=[]`, `overflow=[]`.
+- passed deployed for source document flow-card refactor: EC2 fast-forwarded to `4f5b3fc`; server `npm run typecheck`, `npm run build`, and `sudo systemctl restart stockanalysis-frontend-api.service stockanalysis-web.service` completed; both services returned `active`.
+- passed deployed for source document flow-card refactor: Python HTTP route smoke on `http://127.0.0.1:13000` returned 200 for `/`, `/data-health`, `/source-documents/rss%3Amarketwatch-topstories%3Ab057be957d391c978876835f`.
+- passed deployed for source document flow-card refactor: Playwright live route smoke on `http://127.0.0.1:13000/source-documents/rss%3Amarketwatch-topstories%3Ab057be957d391c978876835f`, desktop `sourceWorkbench=1`, `sourceSummaryCards=2`, `sourceFactCards=8`, `sourceLinkedEvidenceCards=10`, `sourceAccessCards=1`, `bentoCards=0`, `sourceOriginalDetails=0`, `repeatedEnglishSummaryCount=0`, `rawTermHits=[]`, `overflow=[]`; mobile `sourceWorkbench=1`, `sourceFactCards=8`, `sourceLinkedEvidenceCards=10`, `bentoCards=0`, `rawTermHits=[]`, `overflow=[]`.
 - passed locally for source/stock terminology cleanup: `cd apps/web && npm run typecheck`
 - passed locally for source/stock terminology cleanup: `cd apps/web && npm run build`
 - passed locally for source/stock terminology cleanup: `bash scripts/verify_frontend_detail_routes.sh`
