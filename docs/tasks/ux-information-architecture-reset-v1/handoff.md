@@ -74,11 +74,12 @@
 - completed locally: fixed visible stock detail terminology normalization for `sec_companyfacts_missing_us_gaap_facts`, `financial_period_source_linkage`, `fundamental 구성요소 가중치`, `SEC companyfacts`, and `us-gaap`.
 - completed deployed: EC2 now serves commit `43a1074`; `/stocks/EROK` renders the live stock evidence panel with story/source/gate/chain cards, no legacy relationship panels inside the stock evidence area, no tables, no Server Component error, no desktop/mobile horizontal overflow, and no targeted raw-term hits.
 - completed locally: refactored `/themes/[themeKey]` lower-fold `사이클 이력`, `연결 종목`, `보조 이벤트`, and `운영 안전장치` from generic bento list rows into a theme evidence flow panel: cycle transition, exposed instruments, supporting events, and read-only use boundary. Data, scoring, recommendation weights, and order boundaries are unchanged.
-- pending deploy: current cafe public IP is `182.230.61.40/32`. SSH to EC2 timed out before registration. Chrome AWS console showed personal account `115623963546`, but AWS CloudShell opened to sign-in; user re-login is needed before adding the minimal SSH security-group rule to `sg-0a2d52009e73a59e3`.
+- completed AWS access: current cafe public IP `182.230.61.40/32` was added to personal AWS account `115623963546` security group `sg-0a2d52009e73a59e3` for SSH port 22. CloudShell returned `SecurityGroupRuleId=sgr-0ed39408f613b5072`, `GroupOwnerId=115623963546`, `CidrIpv4=182.230.61.40/32`. Local AWS CLI was not used.
+- completed deployed: EC2 now serves commit `0401d1f`; `/themes/ANNUAL_REPORTING` renders the live theme evidence flow panel with no targeted bento list rows inside the theme evidence area, no tables, no Server Component error, and no desktop/mobile horizontal overflow.
 
 ## Exact Next Step
 
-- exact next step: after the user completes AWS re-login, add `182.230.61.40/32` to `sg-0a2d52009e73a59e3`, deploy the theme detail evidence-flow refactor to EC2, smoke `/themes/ANNUAL_REPORTING`, then continue page-by-page lower-fold copy/content review on the next dense detail/audit surface.
+- exact next step: continue page-by-page lower-fold copy/content review on the next dense detail/audit surface. Candidate targets are remaining source-document collapsed technical details, thesis lower-fold audit details, or any live page still showing dense audit rows after the theme evidence-flow refactor.
 
 ## Risks
 
@@ -138,6 +139,11 @@
 - passed locally for theme detail evidence-flow refactor: `bash scripts/verify_frontend_detail_routes.sh`
 - passed locally for theme detail evidence-flow refactor: `PYTHONPATH=/Users/woody/ai/agent-work-harness/src /opt/homebrew/bin/python3.13 -m awh verify --repo . --task ux-information-architecture-reset-v1`
 - passed locally for theme detail evidence-flow refactor: `git diff --check`
+- passed deployed for theme detail evidence-flow refactor: Chrome AWS CloudShell in personal account `115623963546` added SSH ingress `182.230.61.40/32` to `sg-0a2d52009e73a59e3`; returned `sgr-0ed39408f613b5072`.
+- passed deployed for theme detail evidence-flow refactor: SSH to `34.206.72.213` returned `ok` after security-group update.
+- passed deployed for theme detail evidence-flow refactor: EC2 fast-forwarded to `0401d1f`; server `npm run typecheck`, `npm run build`, and `sudo systemctl restart stockanalysis-frontend-api.service stockanalysis-web.service` completed; both services returned `active`.
+- passed deployed for theme detail evidence-flow refactor: local SSH tunnel `13000 -> EC2 127.0.0.1:3000` reopened; Python HTTP route smoke on `http://127.0.0.1:13000` returned 200 for `/`, `/data-health`, `/themes/ANNUAL_REPORTING`, `/stocks/EROK`, `/recommendations/recommendation-67`, `/performance`, and `/paper-trading`.
+- passed deployed for theme detail evidence-flow refactor: Playwright live route smoke on `http://127.0.0.1:13000/themes/ANNUAL_REPORTING`, desktop `themeEvidencePanels=1`, `themeEvidenceCards=2`, `themeEventCards=0`, `themeGuardrails=2`, `bentoListItems=0`, `tables=0`, `serverError=false`, `overflow=false`; mobile `themeEvidencePanels=1`, `overflow=false`, `bodyWidth=390`, `scrollWidth=390`, `serverError=false`.
 - passed locally for source/stock terminology cleanup: `cd apps/web && npm run typecheck`
 - passed locally for source/stock terminology cleanup: `cd apps/web && npm run build`
 - passed locally for source/stock terminology cleanup: `bash scripts/verify_frontend_detail_routes.sh`
