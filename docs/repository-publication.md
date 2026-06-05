@@ -12,8 +12,9 @@
 ## Branch Strategy
 
 - `main`: public stable branch. Only verified code and docs are pushed here.
-- `develop`: integration branch for continuing implementation after initial publication.
+- `develop`: canonical dev/integration branch. EC2 pulls this branch only.
 - `feature/<task-slug>`: task branches for reviewable changes.
+- `codex/<task-slug>`: Codex task branches are allowed, but they must be merged into `develop` before EC2 deployment.
 - `release/<date-or-version>`: future release stabilization branch if deployment starts.
 - hotfix branches: `hotfix/<issue-slug>` only for urgent corrections to `main`.
 
@@ -21,6 +22,16 @@ Rules:
 
 - `main` must pass the relevant verification script before push.
 - `develop` may contain integration work, but should still pass task-level verification before merging to `main`.
+- Feature work must not be deployed directly to EC2 as the steady state.
+- Standard flow is:
+  1. implement and verify on `feature/<task-slug>` or `codex/<task-slug>`;
+  2. push the feature branch;
+  3. fast-forward or merge into `develop`;
+  4. push `develop`;
+  5. on EC2, run `git pull --ff-only origin develop`;
+  6. restart the affected systemd services and run route/API smoke.
+- EC2 app checkout must track `develop`, not task branches.
+- EC2 Git remote should use read-only HTTPS for pull-only deployment. Local pushes should use SSH with `/Users/woody/.ssh/id_ed25519_pusan`.
 - risky changes such as schema, benchmark, evaluation, auth, secrets, broker integration, or deployment require task contract and explicit verification evidence.
 - public push must not include private keys, real API keys, local runtime env files, generated dependency directories, build outputs, or scheduler activation files.
 
