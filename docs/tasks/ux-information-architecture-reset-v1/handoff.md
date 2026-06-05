@@ -82,10 +82,12 @@
 - completed deployed: EC2 now serves commit `4f5b3fc`; `/source-documents/rss%3Amarketwatch-topstories%3Ab057be957d391c978876835f` renders live source document flow cards with `bentoCards=0`, `sourceOriginalDetails=0`, no repeated English excerpt summary text, no targeted raw-term hits, no Server Component error, and no desktop/mobile horizontal overflow.
 - completed locally: refactored `/theses/[thesisId]` lower-fold evidence ledger from repeated per-evidence `근거 연결 정보 보기` audit blocks into a dedicated `thesis-evidence-*` panel. The page now shows total/source/performance/read-only summary cards, individual evidence cards, and one collapsed `근거 식별자 전체 보기` block for audit. Data, thesis scoring, recommendation weights, and order boundaries are unchanged.
 - completed deployed: EC2 now serves commit `576612a`; `/theses/thesis-31` renders live thesis evidence cards with `thesisEvidencePanels=1`, `thesisEvidenceSummaryCards=4`, `thesisEvidenceCards=5`, `bentoCardsInsideEvidence=0`, `repeatedConnectionDetails=0`, `rawTermHits=[]`, no Server Component error, and no desktop/mobile horizontal overflow.
+- completed locally: refactored `/remediation` open-item ledger from a wide 24-row table into grouped decision cards. Tickets are grouped by symbol, action, remediation type, suggested route, and required decision so repeated TSLA/MSFT-style issues read as repeated judgment gaps instead of raw ticket rows. Data, remediation records, portfolio positions, recommendation weights, and order boundaries are unchanged.
+- completed deployed: EC2 now serves commit `5ea3a35`; `/remediation` renders live grouped remediation cards with `tables=0`, `remediationCards=2`, `sideCards=3`, `tableRows=0`, `rawTermHits=[]`, no Server Component error, and no desktop/mobile horizontal overflow.
 
 ## Exact Next Step
 
-- exact next step: continue page-by-page lower-fold copy/content review on the next dense operating/audit surface. Candidate targets are `/remediation` action queues, `/data-health` lower-fold open-gate detail cards, or any live page still showing dense operator rows after the thesis evidence ledger refactor.
+- exact next step: continue page-by-page lower-fold copy/content review on the next dense operating/audit surface. Candidate targets are `/data-health` lower-fold open-gate/detail cards, `/cycles` supporting state tables, or any live page still showing dense operator rows after the remediation card refactor.
 
 ## Risks
 
@@ -177,6 +179,15 @@
 - passed deployed for thesis evidence ledger refactor: EC2 fast-forwarded to `576612a`; server `npm run typecheck`, `npm run build`, and `sudo systemctl restart stockanalysis-frontend-api.service stockanalysis-web.service` completed; both services returned `active`.
 - passed deployed for thesis evidence ledger refactor: Python HTTP route smoke on `http://127.0.0.1:13000` returned 200 for `/`, `/data-health`, and `/theses/thesis-31`.
 - passed deployed for thesis evidence ledger refactor: Playwright live route smoke on `http://127.0.0.1:13000/theses/thesis-31`, desktop `thesisEvidencePanels=1`, `thesisEvidenceSummaryCards=4`, `thesisEvidenceCards=5`, `bentoCardsInsideEvidence=0`, `repeatedConnectionDetails=0`, `totalEvidenceAuditDetails=1`, `rawTermHits=[]`, `overflow=[]`; mobile `thesisEvidencePanels=1`, `thesisEvidenceSummaryCards=4`, `thesisEvidenceCards=5`, `bentoCardsInsideEvidence=0`, `repeatedConnectionDetails=0`, `totalEvidenceAuditDetails=1`, `rawTermHits=[]`, `overflow=[]`, `bodyWidth=390`, `scrollWidth=390`.
+- passed locally for remediation grouped-card refactor: `cd apps/web && npm run typecheck`
+- passed locally for remediation grouped-card refactor: `cd apps/web && npm run build`
+- passed locally for remediation grouped-card refactor: `bash scripts/verify_frontend_detail_routes.sh`
+- passed locally for remediation grouped-card refactor: `PYTHONPATH=/Users/woody/ai/agent-work-harness/src /opt/homebrew/bin/python3.13 -m awh verify --repo . --task ux-information-architecture-reset-v1`
+- passed locally for remediation grouped-card refactor: `git diff --check`
+- passed locally for remediation grouped-card refactor: Playwright dev route smoke on `http://127.0.0.1:13002/remediation` with fixture server `127.0.0.1:8765`, desktop `tables=0`, `remediationCards=1`, `sideCards=3`, `tableRows=0`, `hasGroupedCopy=true`, `rawTermHits=[]`, `overflow=[]`; mobile `tables=0`, `remediationCards=1`, `sideCards=3`, `tableRows=0`, `rawTermHits=[]`, `overflow=[]`, `bodyWidth=390`, `scrollWidth=390`.
+- passed deployed for remediation grouped-card refactor: EC2 fast-forwarded to `5ea3a35`; server `npm run typecheck`, `npm run build`, and `sudo systemctl restart stockanalysis-frontend-api.service stockanalysis-web.service` completed; both services returned `active`.
+- passed deployed for remediation grouped-card refactor: Python HTTP route smoke on `http://127.0.0.1:13000` returned 200 for `/`, `/data-health`, and `/remediation`.
+- passed deployed for remediation grouped-card refactor: Playwright live route smoke on `http://127.0.0.1:13000/remediation`, desktop `tables=0`, `remediationCards=2`, `remediationFacts=2`, `sideCards=3`, `auditDetails=2`, `tableRows=0`, `hasGroupedCopy=true`, `rawTermHits=[]`, `overflow=[]`; mobile `tables=0`, `remediationCards=2`, `sideCards=3`, `tableRows=0`, `rawTermHits=[]`, `overflow=[]`, `bodyWidth=390`, `scrollWidth=390`.
 - passed locally for source/stock terminology cleanup: `cd apps/web && npm run typecheck`
 - passed locally for source/stock terminology cleanup: `cd apps/web && npm run build`
 - passed locally for source/stock terminology cleanup: `bash scripts/verify_frontend_detail_routes.sh`
