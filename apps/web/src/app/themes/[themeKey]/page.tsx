@@ -124,87 +124,88 @@ export default async function ThemePage({ params }: ThemePageProps) {
         </article>
       </section>
 
-      <section className="bento-grid reveal delay-2">
-        <article className="bento-card span-2" id="theme-cycle-history">
-          <div style={{ marginBottom: "24px" }}>
-            <span className="metric-sub">사이클 이력</span>
-            <h2 style={{ fontSize: "1.5rem" }}>상태 전환</h2>
+      <section className="theme-evidence-panel reveal delay-2" aria-label={`${themeDisplayName} 판단 근거 흐름`}>
+        <div className="theme-evidence-head">
+          <div>
+            <span className="metric-sub">테마 판단 흐름</span>
+            <h2>사이클 변화, 노출 종목, 근거 이벤트를 한 번에 본다</h2>
           </div>
-          <div className="bento-list">
-            {data.cycle_history.length === 0 ? (
-              <p className="empty-state">
-                아직 이 테마의 사이클 이력이 없다. 상위 흐름이나 뉴스는 먼저 이벤트 화면에 쌓이고,
-                사이클 배치가 완료되면 상태 전환 이력이 생성된다.
-              </p>
-            ) : null}
-            {data.cycle_history.map((snapshot) => (
-              <div className="bento-list-item" key={snapshot.as_of_date}>
-                <div>
-                  <strong>{koCode(snapshot.state)}</strong>
+          <p>
+            이 영역은 테마가 왜 현재 상태로 해석됐는지 확인하는 곳이다. 테마 상태는 자동 매수 신호가 아니며,
+            종목·추천·투자 논리와 연결해 보조 근거로만 사용한다.
+          </p>
+        </div>
+
+        <div className="theme-evidence-grid">
+          <article className="theme-evidence-card" id="theme-cycle-history">
+            <div className="theme-evidence-card-head">
+              <span>1. 사이클 변화</span>
+              <strong>상태 전환 이력</strong>
+            </div>
+            <div className="theme-cycle-track">
+              {data.cycle_history.length === 0 ? (
+                <p className="theme-evidence-empty">
+                  아직 이 테마의 사이클 이력이 없다. 상위 흐름이나 뉴스는 먼저 이벤트 화면에 쌓이고,
+                  사이클 배치가 완료되면 상태 전환 이력이 생성된다.
+                </p>
+              ) : null}
+              {data.cycle_history.map((snapshot) => (
+                <div className="theme-cycle-step" key={snapshot.as_of_date}>
                   <span>{snapshot.as_of_date}</span>
+                  <strong>{koCode(snapshot.state)}</strong>
+                  <small>신뢰도 {formatPercent(snapshot.confidence)}</small>
                 </div>
-                <div style={{ alignItems: "flex-end" }}>
-                  <strong>{formatPercent(snapshot.confidence)}</strong>
-                  <span>신뢰도</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </article>
+              ))}
+            </div>
+          </article>
 
-        <article className="bento-card span-2" id="theme-linked-instruments">
-          <div style={{ marginBottom: "24px" }}>
-            <span className="metric-sub">연결 종목</span>
-            <h2 style={{ fontSize: "1.5rem" }}>테마 노출</h2>
-          </div>
-          <div className="bento-list">
-            {data.linked_instruments.length === 0 ? (
-              <p className="empty-state">
-                이 기준일에 테마와 직접 연결된 종목이 없다. 거시 뉴스라면 개별 종목을 억지로 붙이지 않고
-                상위 흐름으로 먼저 저장한다.
-              </p>
-            ) : null}
-            {data.linked_instruments.map((instrument) => {
-              const recommendationLink = recommendationHref(instrument.latest_recommendation_id);
-              const linkedThesisHref = thesisHref(instrument.active_thesis_id);
+          <article className="theme-evidence-card" id="theme-linked-instruments">
+            <div className="theme-evidence-card-head">
+              <span>2. 종목 노출</span>
+              <strong>이 테마에 연결된 종목</strong>
+            </div>
+            <div className="theme-instrument-grid">
+              {data.linked_instruments.length === 0 ? (
+                <p className="theme-evidence-empty">
+                  이 기준일에 테마와 직접 연결된 종목이 없다. 거시 뉴스라면 개별 종목을 억지로 붙이지 않고
+                  상위 흐름으로 먼저 저장한다.
+                </p>
+              ) : null}
+              {data.linked_instruments.map((instrument) => {
+                const recommendationLink = recommendationHref(instrument.latest_recommendation_id);
+                const linkedThesisHref = thesisHref(instrument.active_thesis_id);
 
-              return (
-                <div className="bento-list-item" key={instrument.instrument_id} style={{ alignItems: "flex-start" }}>
-                  <div>
-                    <strong>{instrument.symbol}</strong>
-                    <span>테마 연결 강도 {formatPercent(instrument.membership_strength)}</span>
+                return (
+                  <div className="theme-instrument-card" key={instrument.instrument_id}>
+                    <div>
+                      <span>노출 종목</span>
+                      <strong>{instrument.symbol}</strong>
+                      <small>테마 연결 강도 {formatPercent(instrument.membership_strength)}</small>
+                    </div>
+                    <div className="mini-link-stack">
+                      {recommendationLink ? <Link href={recommendationLink}>추천</Link> : null}
+                      {linkedThesisHref ? <Link href={linkedThesisHref}>투자 논리</Link> : null}
+                    </div>
                   </div>
-                  <div style={{ flexDirection: "row", gap: "8px", flexWrap: "wrap", justifyContent: "flex-end" }}>
-                    {recommendationLink ? (
-                      <Link className="btn btn-secondary" href={recommendationLink}>
-                        추천
-                      </Link>
-                    ) : null}
-                    {linkedThesisHref ? (
-                      <Link className="btn btn-secondary" href={linkedThesisHref}>
-                        투자 논리
-                      </Link>
-                    ) : null}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </article>
+                );
+              })}
+            </div>
+          </article>
+        </div>
 
-        <article className="bento-card span-4" id="theme-supporting-events">
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: "24px", gap: "16px", flexWrap: "wrap" }}>
+        <article className="theme-event-panel" id="theme-supporting-events">
+          <div className="theme-evidence-card-head horizontal">
             <div>
-              <span className="metric-sub">보조 이벤트</span>
-              <h2 style={{ fontSize: "1.5rem" }}>테마 뒤의 증거</h2>
+              <span>3. 근거 이벤트</span>
+              <strong>테마 상태를 뒷받침한 뉴스·공시</strong>
             </div>
             <Link className="btn btn-secondary" href="/events">
               이벤트 지도 열기
             </Link>
           </div>
-          <div className="bento-list">
+          <div className="theme-event-grid">
             {data.supporting_events.length === 0 ? (
-              <p className="empty-state">
+              <p className="theme-evidence-empty">
                 아직 이 테마를 뒷받침하는 이벤트가 없다. 뉴스 수집과 AI 후보 검증을 통과한 이벤트만 이 목록에 표시된다.
               </p>
             ) : null}
@@ -213,28 +214,18 @@ export default async function ThemePage({ params }: ThemePageProps) {
               const documentLink = sourceDocumentHref(event.source_document_id);
 
               return (
-                <div className="bento-list-item" key={event.event_id} style={{ alignItems: "flex-start" }}>
-                  <div style={{ flex: 1 }}>
-                    <span className="metric-sub">{themeEventSymbolLabel(event.symbol)} • {event.event_at}</span>
+                <div className="theme-event-card" key={event.event_id}>
+                  <div>
+                    <span>{themeEventSymbolLabel(event.symbol)} · {event.event_at}</span>
                     <strong>{koLabel(event.title)}</strong>
                   </div>
-                  <div style={{ alignItems: "flex-end", gap: "8px" }}>
-                    <strong style={{ color: "var(--accent-green)", textTransform: "uppercase" }}>
-                      {koCode(event.impact_direction)}
-                    </strong>
+                  <div className="theme-event-metrics">
+                    <span>{koCode(event.impact_direction)}</span>
                     <span>영향도 {formatPercent(event.impact_score)}</span>
-                    <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", justifyContent: "flex-end" }}>
-                      {evidenceLink ? (
-                        <Link className="btn btn-secondary" href={evidenceLink}>
-                          AI 증거
-                        </Link>
-                      ) : null}
-                      {documentLink ? (
-                        <Link className="btn btn-secondary" href={documentLink}>
-                          원천 문서
-                        </Link>
-                      ) : null}
-                    </div>
+                  </div>
+                  <div className="mini-link-stack">
+                    {evidenceLink ? <Link href={evidenceLink}>AI 근거</Link> : null}
+                    {documentLink ? <Link href={documentLink}>원천 문서</Link> : null}
                   </div>
                 </div>
               );
@@ -242,17 +233,14 @@ export default async function ThemePage({ params }: ThemePageProps) {
           </div>
         </article>
 
-        <article className="bento-card span-4">
-          <div style={{ marginBottom: "24px" }}>
-            <span className="metric-sub">운영 안전장치</span>
-            <h2 style={{ fontSize: "1.5rem" }}>이 테마를 읽는 방법</h2>
-          </div>
-          <ul style={{ margin: 0, paddingLeft: "20px", color: "var(--text-secondary)", display: "flex", flexDirection: "column", gap: "12px", lineHeight: 1.6 }}>
-            {data.operator_notes.map((note) => (
-              <li key={note} style={{ color: "var(--text-primary)" }}>{koLabel(note)}</li>
-            ))}
-          </ul>
-        </article>
+        <div className="theme-guardrail-grid">
+          {data.operator_notes.map((note) => (
+            <article key={note}>
+              <span>사용 경계</span>
+              <p>{koLabel(note)}</p>
+            </article>
+          ))}
+        </div>
       </section>
     </div>
   );

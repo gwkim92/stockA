@@ -73,10 +73,12 @@
 - completed locally: refactored `/stocks/[symbol]` lower-fold news/AI evidence neighborhood from generic relationship chips into a dedicated stock evidence panel: summary, readiness gates, `수집된 사건 → 테마·노출 → AI 구조화 → 투자 판단 연결`, story grouping reasons, source evidence cards, and read-only guardrail cards. Data, scoring, recommendation weights, and order boundaries are unchanged.
 - completed locally: fixed visible stock detail terminology normalization for `sec_companyfacts_missing_us_gaap_facts`, `financial_period_source_linkage`, `fundamental 구성요소 가중치`, `SEC companyfacts`, and `us-gaap`.
 - completed deployed: EC2 now serves commit `43a1074`; `/stocks/EROK` renders the live stock evidence panel with story/source/gate/chain cards, no legacy relationship panels inside the stock evidence area, no tables, no Server Component error, no desktop/mobile horizontal overflow, and no targeted raw-term hits.
+- completed locally: refactored `/themes/[themeKey]` lower-fold `사이클 이력`, `연결 종목`, `보조 이벤트`, and `운영 안전장치` from generic bento list rows into a theme evidence flow panel: cycle transition, exposed instruments, supporting events, and read-only use boundary. Data, scoring, recommendation weights, and order boundaries are unchanged.
+- pending deploy: current cafe public IP is `182.230.61.40/32`. SSH to EC2 timed out before registration. Chrome AWS console showed personal account `115623963546`, but AWS CloudShell opened to sign-in; user re-login is needed before adding the minimal SSH security-group rule to `sg-0a2d52009e73a59e3`.
 
 ## Exact Next Step
 
-- exact next step: continue page-by-page lower-fold copy/content review on the next dense detail/audit surface. Candidate targets are remaining source-document technical details, theme/thesis lower-fold evidence lists, or any live page still showing dense audit rows after the stock evidence refactor.
+- exact next step: after the user completes AWS re-login, add `182.230.61.40/32` to `sg-0a2d52009e73a59e3`, deploy the theme detail evidence-flow refactor to EC2, smoke `/themes/ANNUAL_REPORTING`, then continue page-by-page lower-fold copy/content review on the next dense detail/audit surface.
 
 ## Risks
 
@@ -130,6 +132,12 @@
 - passed deployed for stock evidence neighborhood refactor: EC2 fast-forwarded to `43a1074`; server `npm run typecheck`, `npm run build`, and `sudo systemctl restart stockanalysis-frontend-api.service stockanalysis-web.service` completed; both services returned `active`.
 - passed deployed for stock evidence neighborhood refactor: Python HTTP route smoke on `http://127.0.0.1:13000` returned 200 for `/`, `/data-health`, `/stocks/EROK`, `/recommendations/recommendation-67`, `/performance`, and `/paper-trading`.
 - passed deployed for stock evidence neighborhood refactor: Playwright live route smoke on `http://127.0.0.1:13000/stocks/EROK`, desktop `stockEvidencePanels=1`, `storyCards=1`, `sourceCards=1`, `gateCards=5`, `chainCards=4`, `legacyRelationshipPanelsInStockEvidence=0`, `tables=0`, `rawTermHits=[]`, `serverError=false`, `overflow=false`; mobile `stockEvidencePanels=1`, `storyCards=1`, `sourceCards=1`, `overflow=false`, `bodyWidth=390`, `scrollWidth=390`, `serverError=false`.
+- passed locally for theme detail evidence-flow refactor: Playwright dev route smoke on `http://127.0.0.1:13002/themes/ANNUAL_REPORTING`, desktop `themeEvidencePanels=1`, `themeEvidenceCards=2`, `themeEventCards=1`, `themeGuardrails=2`, `bentoListItems=0`, `tables=0`, `serverError=false`, `overflow=false`; mobile `themeEvidencePanels=1`, `overflow=false`, `bodyWidth=390`, `scrollWidth=390`, `serverError=false`.
+- passed locally for theme detail evidence-flow refactor: `cd apps/web && npm run typecheck`
+- passed locally for theme detail evidence-flow refactor: `cd apps/web && npm run build`
+- passed locally for theme detail evidence-flow refactor: `bash scripts/verify_frontend_detail_routes.sh`
+- passed locally for theme detail evidence-flow refactor: `PYTHONPATH=/Users/woody/ai/agent-work-harness/src /opt/homebrew/bin/python3.13 -m awh verify --repo . --task ux-information-architecture-reset-v1`
+- passed locally for theme detail evidence-flow refactor: `git diff --check`
 - passed locally for source/stock terminology cleanup: `cd apps/web && npm run typecheck`
 - passed locally for source/stock terminology cleanup: `cd apps/web && npm run build`
 - passed locally for source/stock terminology cleanup: `bash scripts/verify_frontend_detail_routes.sh`
