@@ -5268,6 +5268,143 @@ h6 {
   text-underline-offset: 3px;
 }
 
+.ai-validation-summary-grid,
+.ai-neighborhood-link-grid,
+.ai-neighborhood-event-grid,
+.ai-cluster-reason-grid,
+.ai-cluster-event-grid {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.ai-validation-summary-grid {
+  grid-template-columns: minmax(0, 1.08fr) minmax(260px, 0.62fr);
+  margin-top: 18px;
+}
+
+.ai-neighborhood-link-grid,
+.ai-neighborhood-event-grid {
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+}
+
+.ai-cluster-reason-grid {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.ai-cluster-event-grid {
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
+.ai-validation-summary-card,
+.ai-neighborhood-link-card,
+.ai-neighborhood-event-card,
+.ai-cluster-reason-card,
+.ai-cluster-event-card {
+  display: grid;
+  min-width: 0;
+  align-content: start;
+  gap: 9px;
+  padding: 15px;
+  background: color-mix(in srgb, var(--bg-panel) 88%, white);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+}
+
+.ai-validation-summary-card {
+  min-height: 148px;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--bg-panel) 92%, white), color-mix(in srgb, var(--bg) 86%, white)),
+    radial-gradient(circle at 0% 0%, rgba(35, 116, 78, 0.1), transparent 34%);
+}
+
+.ai-validation-summary-card.risk-medium {
+  border-color: color-mix(in srgb, var(--accent-amber) 38%, var(--border-light));
+}
+
+.ai-validation-summary-card.risk-high {
+  border-color: color-mix(in srgb, var(--accent-red) 42%, var(--border-light));
+}
+
+.ai-validation-summary-card > span,
+.ai-neighborhood-link-card > span,
+.ai-neighborhood-event-card > span,
+.ai-cluster-reason-card > span,
+.ai-cluster-event-card > span,
+.ai-cluster-section-head > span {
+  color: var(--text-tertiary);
+  font-size: 0.7rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.ai-validation-summary-card strong,
+.ai-neighborhood-link-card strong,
+.ai-cluster-reason-card strong {
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: clamp(1.06rem, 1.35vw, 1.55rem);
+  font-weight: 950;
+  letter-spacing: -0.032em;
+  line-height: 1.08;
+  word-break: keep-all;
+}
+
+.ai-validation-summary-card p,
+.ai-neighborhood-link-card small,
+.ai-neighborhood-event-card small,
+.ai-cluster-section-head p,
+.ai-cluster-event-card small {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  font-weight: 760;
+  line-height: 1.52;
+  word-break: keep-all;
+}
+
+.ai-neighborhood-link-card a,
+.ai-cluster-event-card a {
+  width: fit-content;
+  color: var(--accent-blue);
+  font-size: 0.74rem;
+  font-weight: 950;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.ai-neighborhood-panel,
+.ai-cluster-proof-panel {
+  display: grid;
+  gap: 10px;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-light);
+}
+
+.ai-cluster-section-head {
+  display: grid;
+  gap: 6px;
+  max-width: 880px;
+}
+
+.ai-cluster-reason-card {
+  min-height: 104px;
+  background: color-mix(in srgb, var(--accent-blue) 6%, var(--bg-panel));
+  border-color: color-mix(in srgb, var(--accent-blue) 20%, var(--border-light));
+}
+
+.ai-cluster-event-card,
+.ai-neighborhood-event-card {
+  min-height: 178px;
+}
+
+.ai-cluster-event-card .news-title-block,
+.ai-neighborhood-event-card .news-title-block {
+  gap: 5px;
+}
+
 .evidence-review-panel {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(260px, 0.32fr);
@@ -6543,6 +6680,11 @@ h6 {
   .recommendation-waterfall-track,
   .ai-evidence-brief-grid,
   .ai-evidence-brief-metrics,
+  .ai-validation-summary-grid,
+  .ai-neighborhood-link-grid,
+  .ai-neighborhood-event-grid,
+  .ai-cluster-reason-grid,
+  .ai-cluster-event-grid,
   .intelligence-flow-grid,
   .intelligence-brief-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -6765,6 +6907,11 @@ h6 {
   .ai-evidence-brief-panel,
   .ai-evidence-brief-grid,
   .ai-evidence-brief-metrics,
+  .ai-validation-summary-grid,
+  .ai-neighborhood-link-grid,
+  .ai-neighborhood-event-grid,
+  .ai-cluster-reason-grid,
+  .ai-cluster-event-grid,
   .intelligence-flow-panel,
   .intelligence-flow-grid,
   .intelligence-brief-grid,

@@ -566,31 +566,34 @@ function NeighborhoodPanel({ neighborhood }: { neighborhood: EvidenceNeighborhoo
         </article>
       </section>
 
-      <div className="relationship-panel">
-        <span>추천·투자 논리 연결</span>
-        <div className="relationship-list">
+      <div className="ai-neighborhood-panel">
+        <div className="ai-cluster-section-head">
+          <span>추천·투자 논리 연결</span>
+          <p>이 AI 근거가 실제 투자 판단 화면에서 어디까지 이어지는지 먼저 확인한다.</p>
+        </div>
+        <div className="ai-neighborhood-link-grid">
           {neighborhood.recommendations.slice(0, 3).map((recommendation) => {
             const href = recommendationHref(recommendation.recommendation_id);
             return (
-              <div className="relationship-chip" key={recommendation.recommendation_id}>
+              <article className="ai-neighborhood-link-card" key={recommendation.recommendation_id}>
                 <span>{koCode(recommendation.action)}</span>
                 <strong>{koCode(recommendation.bucket)} · 점수 {formatPercent(recommendation.total_score)}</strong>
                 <small>{recommendation.as_of_date} · 권장 비중 {formatPercent(recommendation.recommended_weight)}</small>
                 {href ? <Link href={href}>추천 상세 열기</Link> : null}
-              </div>
+              </article>
             );
           })}
           {neighborhood.theses.slice(0, 3).map((thesis) => {
             const href = thesisHref(thesis.thesis_id);
             return (
-              <div className="relationship-chip" key={thesis.thesis_id}>
+              <article className="ai-neighborhood-link-card" key={thesis.thesis_id}>
                 <span>투자 논리</span>
                 <strong>{koLabel(thesis.title)}</strong>
                 <small>
                   {koCode(thesis.status)} · 확신 {formatPercent(thesis.conviction_score)}
                 </small>
                 {href ? <Link href={href}>투자 논리 열기</Link> : null}
-              </div>
+              </article>
             );
           })}
           {neighborhood.recommendations.length === 0 && neighborhood.theses.length === 0 ? (
@@ -599,11 +602,14 @@ function NeighborhoodPanel({ neighborhood }: { neighborhood: EvidenceNeighborhoo
         </div>
       </div>
 
-      <div className="relationship-panel">
-        <span>최근 관련 이벤트</span>
-        <div className="relationship-list">
+      <div className="ai-neighborhood-panel">
+        <div className="ai-cluster-section-head">
+          <span>최근 관련 이벤트</span>
+          <p>같은 종목에 이미 붙어 있는 뉴스와 공시를 비교해 AI 해석이 튀는지 본다.</p>
+        </div>
+        <div className="ai-neighborhood-event-grid">
           {neighborhood.events.slice(0, 4).map((event) => (
-            <div className="relationship-chip" key={event.event_id}>
+            <article className="ai-neighborhood-event-card" key={event.event_id}>
               <span>{koCode(event.impact_direction)}</span>
               <NewsTitleBlock
                 compact
@@ -618,7 +624,7 @@ function NeighborhoodPanel({ neighborhood }: { neighborhood: EvidenceNeighborhoo
               <small>
                 {koCode(event.theme_key)} · {event.event_at} · 영향도 {formatPercent(event.impact_score)}
               </small>
-            </div>
+            </article>
           ))}
           {neighborhood.events.length === 0 ? <p className="relationship-empty">종목에 연결된 최근 이벤트가 없다.</p> : null}
         </div>
@@ -899,11 +905,14 @@ function EvidenceVisibilityTraceBoard({
       </div>
       <div className="evidence-trace-grid">
         {trace.steps.map((step, index) => {
-          const fact = stepFacts[step.step_key] ?? { title: koCode(step.step_key), body: normalizeEvidenceSystemCopy(trace.summary_ko) };
+          const fact = stepFacts[step.step_key] ?? {
+            title: normalizeEvidenceSystemCopy(koCode(step.step_key)),
+            body: normalizeEvidenceSystemCopy(trace.summary_ko),
+          };
           return (
             <article className={`evidence-trace-card ${traceTone(step.status)}`} key={step.step_key}>
               <span>{String(index + 1).padStart(2, "0")}</span>
-              <strong>{step.label_ko}</strong>
+              <strong>{normalizeEvidenceSystemCopy(step.label_ko)}</strong>
               <em>{fact.title}</em>
               <b>{traceStatusLabel(step.status)}</b>
               <p>{fact.body}</p>
@@ -912,23 +921,20 @@ function EvidenceVisibilityTraceBoard({
           );
         })}
       </div>
-      <div className="relationship-panel">
-        <span>검증 결과</span>
-        <div className="relationship-list">
-          <div className="relationship-chip">
-            <span>{trace.validator.blocked ? "차단" : "통과 항목"}</span>
-            <strong>{normalizeEvidenceSystemCopy(trace.validator.decision_ko)}</strong>
-            <small>{normalizeEvidenceSystemCopy(trace.validator.reasons_ko.join(" "))}</small>
-          </div>
-          <div className="relationship-chip">
-            <span>실거래 상태</span>
-            <strong>읽기 전용 · 자동 주문 없음</strong>
-            <small>
-              화면에서는 저장된 배치 결과만 읽는다. 쓰기 기능 {trace.read_only_boundary.write_enabled ? "허용" : "차단"} ·{" "}
-              {koCode(trace.read_only_boundary.order_boundary)}
-            </small>
-          </div>
-        </div>
+      <div className="ai-validation-summary-grid" aria-label="자동 검증과 거래 경계">
+        <article className={`ai-validation-summary-card ${trace.validator.blocked ? "risk-high" : "risk-low"}`}>
+          <span>{trace.validator.blocked ? "차단" : "통과 항목"}</span>
+          <strong>{normalizeEvidenceSystemCopy(trace.validator.decision_ko)}</strong>
+          <p>{normalizeEvidenceSystemCopy(trace.validator.reasons_ko.join(" "))}</p>
+        </article>
+        <article className="ai-validation-summary-card risk-medium">
+          <span>거래 경계</span>
+          <strong>읽기 전용 · 자동 주문 없음</strong>
+          <p>
+            화면은 저장된 배치 결과만 읽는다. 쓰기 기능 {trace.read_only_boundary.write_enabled ? "허용" : "차단"} ·{" "}
+            {koCode(trace.read_only_boundary.order_boundary)}
+          </p>
+        </article>
       </div>
     </section>
   );
@@ -1109,24 +1115,30 @@ export default async function AiEvidencePage({ params }: AiEvidencePageProps) {
               상위 테마는 {koCode(cluster.theme_key)}이고, 연결 종목은 {formatSymbols(cluster.symbols)}이다.
               방향 분포는 {formatDirectionCounts(cluster.direction_counts)}이다. 아래 대표 뉴스를 보고 묶음 이유와 종목 연결이 원문과 맞는지 확인한다. {providerReviewNote(data)}
             </p>
-            <div className="relationship-panel">
-              <span>왜 이 뉴스들이 같이 묶였나</span>
-              <div className="relationship-list">
+            <div className="ai-cluster-proof-panel">
+              <div className="ai-cluster-section-head">
+                <span>왜 이 뉴스들이 같이 묶였나</span>
+                <p>AI 묶음은 같은 테마, 같은 하위 이슈, 같은 종목 연결, 원천 문서 수가 함께 맞아야 신뢰한다.</p>
+              </div>
+              <div className="ai-cluster-reason-grid">
                 {clusterRelationReasons(data, cluster).map((reason) => (
-                  <div className="relationship-chip" key={`${data.evidence_id}-${reason}`}>
+                  <article className="ai-cluster-reason-card" key={`${data.evidence_id}-${reason}`}>
                     <span>근거</span>
                     <strong>{reason}</strong>
-                  </div>
+                  </article>
                 ))}
               </div>
             </div>
-            <div className="relationship-panel">
-              <span>묶음에 포함된 대표 뉴스</span>
-              <div className="relationship-list">
+            <div className="ai-cluster-proof-panel">
+              <div className="ai-cluster-section-head">
+                <span>묶음에 포함된 대표 뉴스</span>
+                <p>각 뉴스의 한국어 제목, 방향, 영향도를 보고 같은 흐름으로 묶어도 되는지 확인한다.</p>
+              </div>
+              <div className="ai-cluster-event-grid">
                 {data.cluster_events.map((event) => {
                   const eventSourceHref = sourceHref(event.source_document_id);
                   return (
-                    <div className="relationship-chip" key={event.event_id}>
+                    <article className="ai-cluster-event-card" key={event.event_id}>
                       <span>{koCode(event.impact_direction)}</span>
                       <NewsTitleBlock
                         compact
@@ -1143,7 +1155,7 @@ export default async function AiEvidencePage({ params }: AiEvidencePageProps) {
                         {koCode(event.symbol)} · {event.event_at} · 영향도 {formatPercent(event.impact_score)}
                       </small>
                       {eventSourceHref ? <Link href={eventSourceHref}>원천 문서 열기</Link> : null}
-                    </div>
+                    </article>
                   );
                 })}
               </div>
