@@ -333,6 +333,13 @@ def resolve_live_frontend_response(
             executor=executor,
             generated_at=generated_at_text,
         )
+    if parsed.path == "/api/market-map":
+        return build_live_market_map_response(
+            parsed,
+            config=runtime_config,
+            executor=executor,
+            generated_at=generated_at_text,
+        )
     if parsed.path == "/api/recommendations":
         return apply_frontend_sql_pagination(
             api_path,
@@ -2092,6 +2099,47 @@ def build_live_cycle_map_response(
             "edges": edges,
         },
         "links": _cycle_map_links(nodes, as_of_date=as_of_date),
+    }
+
+
+def build_live_market_map_response(
+    parsed: ParsedApiPath,
+    *,
+    config: RuntimeConfig,
+    executor: PsqlCommandExecutor | None,
+    generated_at: str,
+) -> dict[str, Any]:
+    as_of_date = _parse_optional_date(parsed.query, "asOfDate") or date.today()
+    indicator_limit = _parse_integer(parsed.query, "limit", default=80, minimum=10, maximum=120)
+    state = load_frontend_market_map_state(
+        config=config,
+        executor=executor,
+        as_of_date=as_of_date,
+        indicator_limit=indicator_limit,
+    )
+    groups = [_build_market_map_group_payload(item) for item in _as_list(state.get("groups"))]
+    regimes = [_build_market_map_regime_payload(item) for item in _as_list(state.get("regimes"))]
+    news_links = [_build_market_map_news_link_payload(item) for item in _as_list(state.get("news_links"))]
+    quality_flags = [_build_market_map_quality_flag_payload(item) for item in _as_list(state.get("quality_flags"))]
+    return {
+        "contract_version": CONTRACT_VERSION,
+        "generated_at": generated_at,
+        "data": {
+            "as_of_date": str(state.get("as_of_date") or as_of_date.isoformat()),
+            "snapshot_as_of_date": _optional_text(state.get("snapshot_as_of_date")),
+            "summary": _build_market_map_summary_payload(_as_dict(state.get("summary"))),
+            "groups": groups,
+            "regimes": regimes,
+            "news_links": news_links,
+            "quality_flags": quality_flags,
+            "guardrails": [
+                "시장 지도는 추천 점수나 주문을 직접 변경하지 않는다.",
+                "stale 지표는 추정값으로 채우지 않고 신뢰도를 낮춰 표시한다.",
+                "뉴스와 가격 지표 연결은 인과 확정이 아니라 시간상 근거 후보이다.",
+                "추천 weight는 outcome 검증 전까지 0으로 유지한다.",
+            ],
+        },
+        "links": _market_map_links(groups=groups, regimes=regimes, as_of_date=as_of_date),
     }
 
 
@@ -4585,6 +4633,7 @@ def is_live_supported_path(api_path: str) -> bool:
             "/api/trading/readiness",
             "/api/cycles",
             "/api/cycle-map",
+            "/api/market-map",
             "/api/recommendations",
             "/api/events",
             "/api/ai/news-clusters",
@@ -4732,6 +4781,20 @@ def load_frontend_cycle_map_state(
         render_frontend_cycle_map_state_sql(as_of_date=as_of_date, node_limit=node_limit)
     )
     return json_loads_object(payload, "Frontend cycle map state lookup")
+
+
+def load_frontend_market_map_state(
+    *,
+    config: RuntimeConfig,
+    executor: PsqlCommandExecutor | None,
+    as_of_date: date,
+    indicator_limit: int,
+) -> dict[str, Any]:
+    sql_executor = executor or PsqlCommandExecutor.from_config(config)
+    payload = sql_executor.execute_scalar(
+        render_frontend_market_map_state_sql(as_of_date=as_of_date, indicator_limit=indicator_limit)
+    )
+    return json_loads_object(payload, "Frontend market map state lookup")
 
 
 def load_frontend_event_list_state(
@@ -9440,6 +9503,394 @@ select json_build_object(
                 order by weight desc nulls last, parent_code, child_code
             )
             from edge_rows
+        ),
+        '[]'::json
+    )
+)::text;"""
+
+
+def render_frontend_market_map_state_sql(*, as_of_date: date, indicator_limit: int = 80) -> str:
+    if indicator_limit < 10 or indicator_limit > 120:
+        raise ValueError("indicator_limit must be between 10 and 120.")
+    target_date = sql_date(as_of_date)
+    return f"""-- frontend market map state lookup
+with target_date as (
+    select {target_date}::date as as_of_date
+),
+selected_snapshot_date as (
+    select max(snapshot.as_of_date) as as_of_date
+    from signal.market_indicator_snapshot snapshot
+    join target_date target on snapshot.as_of_date <= target.as_of_date
+),
+indicator_rows as (
+    select
+        indicator.indicator_code,
+        indicator.display_name,
+        indicator.indicator_type,
+        indicator.preferred_provider,
+        indicator.fallback_provider,
+        indicator.provider_symbol,
+        indicator.stale_policy,
+        indicator.license_note,
+        indicator.redistribution_allowed_note,
+        case
+            when indicator.indicator_type in ('equity_index', 'sector_etf') then 'indices'
+            when indicator.indicator_type in ('rates', 'real_rates', 'rates_curve', 'rates_etf') then 'rates'
+            when indicator.indicator_type = 'dollar' then 'dollar'
+            when indicator.indicator_type in ('commodity_energy', 'precious_metals') then 'commodities'
+            when indicator.indicator_type = 'volatility' then 'volatility'
+            when indicator.indicator_type in ('credit', 'credit_etf') then 'credit'
+            when indicator.indicator_type = 'crypto_liquidity' then 'crypto_liquidity'
+            else 'other'
+        end as group_code,
+        case
+            when indicator.indicator_type in ('equity_index', 'sector_etf') then '지수·섹터'
+            when indicator.indicator_type in ('rates', 'real_rates', 'rates_curve', 'rates_etf') then '금리'
+            when indicator.indicator_type = 'dollar' then '달러'
+            when indicator.indicator_type in ('commodity_energy', 'precious_metals') then '원자재'
+            when indicator.indicator_type = 'volatility' then '변동성'
+            when indicator.indicator_type in ('credit', 'credit_etf') then '신용'
+            when indicator.indicator_type = 'crypto_liquidity' then '크립토·유동성'
+            else '기타'
+        end as group_name,
+        snapshot.as_of_date,
+        snapshot.latest_observation_date,
+        snapshot.latest_value,
+        snapshot.return_1d,
+        snapshot.return_5d,
+        snapshot.return_20d,
+        snapshot.return_60d,
+        snapshot.return_120d,
+        snapshot.percentile_252d,
+        snapshot.z_score_252d,
+        snapshot.drawdown_252d,
+        snapshot.trend_state,
+        snapshot.shock_direction,
+        snapshot.shock_magnitude,
+        snapshot.confidence,
+        coalesce(snapshot.freshness_status, 'missing') as freshness_status,
+        coalesce(snapshot.evidence_json, '{{}}'::jsonb) as evidence_json,
+        case
+            when snapshot.indicator_code = 'USD_BROAD_INDEX' and snapshot.freshness_status = 'stale'
+                then '달러 지표가 오래되어 달러 유동성 판단은 약하게 본다.'
+            when coalesce(snapshot.freshness_status, 'missing') = 'missing'
+                then '아직 관측값이 없어 시장 판단에 사용하지 않는다.'
+            when snapshot.freshness_status = 'stale'
+                then '관측값이 오래되어 추정값으로 채우지 않고 신뢰도를 낮춘다.'
+            when snapshot.shock_direction <> 'neutral'
+                then '최근 움직임이 커서 뉴스·사이클 근거와 함께 확인한다.'
+            else '정상 관측 중이다.'
+        end as note_ko
+    from market.market_indicator indicator
+    left join selected_snapshot_date selected on true
+    left join signal.market_indicator_snapshot snapshot
+      on snapshot.indicator_code = indicator.indicator_code
+     and snapshot.as_of_date = selected.as_of_date
+    where indicator.is_active = true
+),
+indicator_page as (
+    select *
+    from indicator_rows
+    order by
+        case group_code
+            when 'indices' then 1
+            when 'rates' then 2
+            when 'dollar' then 3
+            when 'commodities' then 4
+            when 'volatility' then 5
+            when 'credit' then 6
+            when 'crypto_liquidity' then 7
+            else 99
+        end,
+        case freshness_status when 'missing' then 1 when 'stale' then 2 else 3 end,
+        case shock_direction when 'up' then 1 when 'down' then 2 else 3 end,
+        shock_magnitude desc nulls last,
+        indicator_code
+    limit {indicator_limit}
+),
+group_rollup as (
+    select
+        group_code,
+        max(group_name) as group_name,
+        count(*)::integer as indicator_count,
+        count(*) filter (where freshness_status = 'fresh')::integer as fresh_count,
+        count(*) filter (where freshness_status = 'stale')::integer as stale_count,
+        count(*) filter (where freshness_status = 'missing')::integer as missing_count,
+        count(*) filter (where shock_direction <> 'neutral')::integer as shock_count,
+        max(latest_observation_date) as latest_observation_date,
+        (
+            array_agg(indicator_code order by shock_magnitude desc nulls last, confidence desc nulls last, indicator_code)
+        )[1] as strongest_indicator_code,
+        coalesce(
+            json_agg(
+                json_build_object(
+                    'indicator_code', indicator_code,
+                    'display_name', display_name,
+                    'indicator_type', indicator_type,
+                    'preferred_provider', preferred_provider,
+                    'fallback_provider', fallback_provider,
+                    'provider_symbol', provider_symbol,
+                    'latest_observation_date', latest_observation_date,
+                    'latest_value', latest_value,
+                    'return_1d', return_1d,
+                    'return_5d', return_5d,
+                    'return_20d', return_20d,
+                    'return_60d', return_60d,
+                    'return_120d', return_120d,
+                    'percentile_252d', percentile_252d,
+                    'z_score_252d', z_score_252d,
+                    'drawdown_252d', drawdown_252d,
+                    'trend_state', trend_state,
+                    'shock_direction', shock_direction,
+                    'shock_magnitude', shock_magnitude,
+                    'confidence', confidence,
+                    'freshness_status', freshness_status,
+                    'stale_policy', stale_policy,
+                    'quality_policy', evidence_json ->> 'quality_policy',
+                    'quality_note_ko', coalesce(evidence_json ->> 'quality_note_ko', note_ko),
+                    'note_ko', note_ko,
+                    'source_policy', json_build_object(
+                        'license_note', license_note,
+                        'redistribution_allowed_note', redistribution_allowed_note,
+                        'causal_claim', false
+                    )
+                )
+                order by
+                    case freshness_status when 'missing' then 1 when 'stale' then 2 else 3 end,
+                    case shock_direction when 'up' then 1 when 'down' then 2 else 3 end,
+                    shock_magnitude desc nulls last,
+                    indicator_code
+            ),
+            '[]'::json
+        ) as indicators
+    from indicator_page
+    group by group_code
+),
+regime_rows as (
+    select
+        regime.regime_code,
+        regime.regime_state,
+        regime.regime_score,
+        regime.confidence,
+        regime.driver_indicator_codes,
+        regime.conflict_flags,
+        regime.evidence_json
+    from signal.cross_asset_regime_snapshot regime
+    join selected_snapshot_date selected on selected.as_of_date = regime.as_of_date
+),
+news_link_rows as (
+    select
+        link.document_id,
+        link.event_id,
+        link.indicator_code,
+        indicator.display_name as indicator_name,
+        link.link_date,
+        link.relationship,
+        link.confidence,
+        link.rationale,
+        coalesce(nullif(document.korean_title, ''), document.title, link.evidence_json ->> 'news_title') as title_ko,
+        document.source_name,
+        document.url as source_url
+    from event.news_indicator_link link
+    left join market.market_indicator indicator on indicator.indicator_code = link.indicator_code
+    left join ingest.source_document document on document.document_id = link.document_id
+    join target_date target on link.link_date between target.as_of_date - interval '14 days' and target.as_of_date
+    order by link.link_date desc, link.confidence desc nulls last, link.document_id desc
+    limit 12
+),
+quality_flags as (
+    select
+        indicator_code,
+        display_name,
+        freshness_status,
+        stale_policy,
+        latest_observation_date,
+        case
+            when indicator_code = 'USD_BROAD_INDEX' and freshness_status = 'stale' then 'stale_fred_dollar_index'
+            when freshness_status = 'missing' then 'missing_indicator'
+            when freshness_status = 'stale' then 'stale_indicator'
+            else 'watch_indicator'
+        end as flag_code,
+        case
+            when indicator_code = 'USD_BROAD_INDEX' and freshness_status = 'stale' then 'medium'
+            when freshness_status = 'missing' then 'high'
+            when freshness_status = 'stale' then 'medium'
+            else 'low'
+        end as severity,
+        case
+            when indicator_code = 'USD_BROAD_INDEX' and freshness_status = 'stale'
+                then 'FRED 달러 광의 지수가 stale이다. 달러 강세/약세 regime 판단은 약하게 보며 추정값으로 채우지 않는다.'
+            when freshness_status = 'missing'
+                then display_name || ' 관측값이 없다. provider symbol 또는 무료 API quota를 확인한다.'
+            when freshness_status = 'stale'
+                then display_name || ' 관측값이 오래됐다. 최신 provider fetch 후 다시 스냅샷을 만든다.'
+            else display_name || ' 지표를 계속 감시한다.'
+        end as message_ko
+    from indicator_rows
+    where freshness_status in ('missing', 'stale')
+       or (indicator_code = 'USD_BROAD_INDEX' and freshness_status = 'stale')
+),
+summary_rollup as (
+    select
+        count(*)::integer as indicator_count,
+        count(*) filter (where freshness_status = 'fresh')::integer as fresh_indicator_count,
+        count(*) filter (where freshness_status = 'stale')::integer as stale_indicator_count,
+        count(*) filter (where freshness_status = 'missing')::integer as missing_indicator_count,
+        count(*) filter (where shock_direction <> 'neutral')::integer as shock_indicator_count,
+        max(latest_observation_date) as latest_observation_date
+    from indicator_rows
+),
+regime_summary as (
+    select
+        count(*)::integer as regime_count,
+        count(*) filter (where regime_state = 'active')::integer as active_regime_count,
+        count(*) filter (where regime_state = 'watch')::integer as watch_regime_count,
+        count(*) filter (where cardinality(conflict_flags) > 0)::integer as conflict_regime_count
+    from regime_rows
+)
+select json_build_object(
+    'as_of_date', {sql_literal(as_of_date.isoformat())},
+    'snapshot_as_of_date', (select as_of_date from selected_snapshot_date),
+    'summary',
+    json_build_object(
+        'status',
+            case
+                when coalesce((select indicator_count from summary_rollup), 0) = 0 then 'missing'
+                when coalesce((select missing_indicator_count from summary_rollup), 0) > 0
+                  or coalesce((select stale_indicator_count from summary_rollup), 0) > 0 then 'partial_or_stale'
+                else 'available'
+            end,
+        'indicator_count', coalesce((select indicator_count from summary_rollup), 0),
+        'fresh_indicator_count', coalesce((select fresh_indicator_count from summary_rollup), 0),
+        'stale_indicator_count', coalesce((select stale_indicator_count from summary_rollup), 0),
+        'missing_indicator_count', coalesce((select missing_indicator_count from summary_rollup), 0),
+        'shock_indicator_count', coalesce((select shock_indicator_count from summary_rollup), 0),
+        'regime_count', coalesce((select regime_count from regime_summary), 0),
+        'active_regime_count', coalesce((select active_regime_count from regime_summary), 0),
+        'watch_regime_count', coalesce((select watch_regime_count from regime_summary), 0),
+        'conflict_regime_count', coalesce((select conflict_regime_count from regime_summary), 0),
+        'news_link_count', (select count(*)::integer from news_link_rows),
+        'latest_observation_date', (select latest_observation_date from summary_rollup),
+        'next_action',
+            case
+                when coalesce((select missing_indicator_count from summary_rollup), 0) > 0
+                    then 'missing 지표는 provider fallback과 무료 API quota를 먼저 확인한다.'
+                when coalesce((select stale_indicator_count from summary_rollup), 0) > 0
+                    then 'stale 지표는 추정값으로 채우지 말고 provider fetch와 snapshot을 다시 실행한다.'
+                when (select count(*) from news_link_rows) = 0
+                    then 'indicator-news-linkage-run으로 뉴스와 가격 shock의 시간상 연결을 만든다.'
+                else '시장 지표와 regime이 준비됐다. 추천 weight는 outcome 검증 전까지 그대로 둔다.'
+            end
+    ),
+    'groups',
+    coalesce(
+        (
+            select json_agg(
+                json_build_object(
+                    'group_code', group_code,
+                    'group_name', group_name,
+                    'indicator_count', indicator_count,
+                    'fresh_count', fresh_count,
+                    'stale_count', stale_count,
+                    'missing_count', missing_count,
+                    'shock_count', shock_count,
+                    'latest_observation_date', latest_observation_date,
+                    'strongest_indicator_code', strongest_indicator_code,
+                    'indicators', indicators
+                )
+                order by
+                    case group_code
+                        when 'indices' then 1
+                        when 'rates' then 2
+                        when 'dollar' then 3
+                        when 'commodities' then 4
+                        when 'volatility' then 5
+                        when 'credit' then 6
+                        when 'crypto_liquidity' then 7
+                        else 99
+                    end
+            )
+            from group_rollup
+        ),
+        '[]'::json
+    ),
+    'regimes',
+    coalesce(
+        (
+            select json_agg(
+                json_build_object(
+                    'regime_code', regime_code,
+                    'regime_state', regime_state,
+                    'regime_score', regime_score,
+                    'confidence', confidence,
+                    'driver_indicator_codes', driver_indicator_codes,
+                    'conflict_flags', conflict_flags,
+                    'summary_ko',
+                        case regime_code
+                            when 'risk_on' then '위험자산 선호가 강화되는지 본다.'
+                            when 'risk_off' then '위험 회피가 커지는지 본다.'
+                            when 'real_rate_pressure' then '실질금리 상승이 성장주 valuation을 압박하는지 본다.'
+                            when 'dollar_liquidity_tightening' then '달러 강세와 유동성 긴축 압력이 있는지 본다.'
+                            when 'commodity_reflation' then '원자재 reflation이 소재·에너지 흐름을 밀어주는지 본다.'
+                            when 'energy_shock' then '에너지 가격 충격이 비용과 섹터 수혜를 동시에 만드는지 본다.'
+                            when 'safe_haven_bid' then '안전자산 선호가 강해지는지 본다.'
+                            when 'credit_stress' then '신용 스프레드 확대가 위험자산에 부담인지 본다.'
+                            when 'volatility_shock' then '변동성 충격으로 포지션 보수화가 필요한지 본다.'
+                            when 'growth_slowdown' then '성장 둔화 신호가 경기민감 흐름을 압박하는지 본다.'
+                            else 'cross-asset regime을 확인한다.'
+                        end
+                )
+                order by
+                    case regime_state when 'active' then 1 when 'watch' then 2 when 'mixed' then 3 else 4 end,
+                    regime_score desc,
+                    regime_code
+            )
+            from regime_rows
+        ),
+        '[]'::json
+    ),
+    'news_links',
+    coalesce(
+        (
+            select json_agg(
+                json_build_object(
+                    'document_id', document_id,
+                    'event_id', event_id,
+                    'indicator_code', indicator_code,
+                    'indicator_name', indicator_name,
+                    'link_date', link_date,
+                    'relationship', relationship,
+                    'confidence', confidence,
+                    'rationale', rationale,
+                    'title_ko', title_ko,
+                    'source_name', source_name,
+                    'source_url', source_url
+                )
+                order by link_date desc, confidence desc nulls last, document_id desc
+            )
+            from news_link_rows
+        ),
+        '[]'::json
+    ),
+    'quality_flags',
+    coalesce(
+        (
+            select json_agg(
+                json_build_object(
+                    'flag_code', flag_code,
+                    'severity', severity,
+                    'indicator_code', indicator_code,
+                    'display_name', display_name,
+                    'freshness_status', freshness_status,
+                    'stale_policy', stale_policy,
+                    'latest_observation_date', latest_observation_date,
+                    'message_ko', message_ko
+                )
+                order by
+                    case severity when 'high' then 1 when 'medium' then 2 else 3 end,
+                    indicator_code
+            )
+            from quality_flags
         ),
         '[]'::json
     )
@@ -17408,6 +17859,126 @@ def _build_cycle_map_edge_payload(item: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _build_market_map_summary_payload(summary: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "status": str(summary.get("status") or "missing"),
+        "indicator_count": int(summary.get("indicator_count") or 0),
+        "fresh_indicator_count": int(summary.get("fresh_indicator_count") or 0),
+        "stale_indicator_count": int(summary.get("stale_indicator_count") or 0),
+        "missing_indicator_count": int(summary.get("missing_indicator_count") or 0),
+        "shock_indicator_count": int(summary.get("shock_indicator_count") or 0),
+        "regime_count": int(summary.get("regime_count") or 0),
+        "active_regime_count": int(summary.get("active_regime_count") or 0),
+        "watch_regime_count": int(summary.get("watch_regime_count") or 0),
+        "conflict_regime_count": int(summary.get("conflict_regime_count") or 0),
+        "news_link_count": int(summary.get("news_link_count") or 0),
+        "latest_observation_date": _optional_text(summary.get("latest_observation_date")),
+        "next_action": str(summary.get("next_action") or ""),
+        "recommendation_scoring_mutated": False,
+        "automatic_weight_change_allowed": False,
+        "broker_submit_allowed": False,
+        "order_boundary": "read_only_no_order",
+    }
+
+
+def _build_market_map_group_payload(item: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "group_code": str(item.get("group_code") or "other"),
+        "group_name": str(item.get("group_name") or "기타"),
+        "indicator_count": int(item.get("indicator_count") or 0),
+        "fresh_count": int(item.get("fresh_count") or 0),
+        "stale_count": int(item.get("stale_count") or 0),
+        "missing_count": int(item.get("missing_count") or 0),
+        "shock_count": int(item.get("shock_count") or 0),
+        "latest_observation_date": _optional_text(item.get("latest_observation_date")),
+        "strongest_indicator_code": _optional_text(item.get("strongest_indicator_code")),
+        "indicators": [
+            _build_market_map_indicator_payload(indicator)
+            for indicator in _as_list(item.get("indicators"))
+            if isinstance(indicator, Mapping)
+        ],
+    }
+
+
+def _build_market_map_indicator_payload(item: Mapping[str, Any]) -> dict[str, Any]:
+    source_policy = _as_dict(item.get("source_policy"))
+    return {
+        "indicator_code": str(item.get("indicator_code") or ""),
+        "display_name": str(item.get("display_name") or item.get("indicator_code") or ""),
+        "indicator_type": str(item.get("indicator_type") or "unknown"),
+        "preferred_provider": str(item.get("preferred_provider") or ""),
+        "fallback_provider": _optional_text(item.get("fallback_provider")),
+        "provider_symbol": _optional_text(item.get("provider_symbol")),
+        "latest_observation_date": _optional_text(item.get("latest_observation_date")),
+        "latest_value": _number(item.get("latest_value")),
+        "return_1d": _number(item.get("return_1d")),
+        "return_5d": _number(item.get("return_5d")),
+        "return_20d": _number(item.get("return_20d")),
+        "return_60d": _number(item.get("return_60d")),
+        "return_120d": _number(item.get("return_120d")),
+        "percentile_252d": _number(item.get("percentile_252d")),
+        "z_score_252d": _number(item.get("z_score_252d")),
+        "drawdown_252d": _number(item.get("drawdown_252d")),
+        "trend_state": str(item.get("trend_state") or "insufficient_history"),
+        "shock_direction": str(item.get("shock_direction") or "neutral"),
+        "shock_magnitude": _number(item.get("shock_magnitude")) or 0.0,
+        "confidence": _number(item.get("confidence")) or 0.0,
+        "freshness_status": str(item.get("freshness_status") or "missing"),
+        "stale_policy": str(item.get("stale_policy") or "mark_stale_no_imputation"),
+        "quality_policy": _optional_text(item.get("quality_policy")),
+        "quality_note_ko": _optional_text(item.get("quality_note_ko")),
+        "note_ko": str(item.get("note_ko") or ""),
+        "source_policy": {
+            "license_note": str(source_policy.get("license_note") or ""),
+            "redistribution_allowed_note": str(source_policy.get("redistribution_allowed_note") or ""),
+            "causal_claim": source_policy.get("causal_claim") is True,
+        },
+    }
+
+
+def _build_market_map_regime_payload(item: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "regime_code": str(item.get("regime_code") or ""),
+        "regime_state": str(item.get("regime_state") or "insufficient_data"),
+        "regime_score": _number(item.get("regime_score")) or 0.0,
+        "confidence": _number(item.get("confidence")) or 0.0,
+        "driver_indicator_codes": [str(value) for value in _as_scalar_list(item.get("driver_indicator_codes"))],
+        "conflict_flags": [str(value) for value in _as_scalar_list(item.get("conflict_flags"))],
+        "summary_ko": str(item.get("summary_ko") or ""),
+    }
+
+
+def _build_market_map_news_link_payload(item: dict[str, Any]) -> dict[str, Any]:
+    document_id = item.get("document_id")
+    event_id = item.get("event_id")
+    return {
+        "document_id": _opaque_id("source-document", document_id, None) if document_id is not None else "",
+        "event_id": _opaque_id("event", event_id, None) if event_id is not None else "",
+        "indicator_code": str(item.get("indicator_code") or ""),
+        "indicator_name": str(item.get("indicator_name") or item.get("indicator_code") or ""),
+        "link_date": str(item.get("link_date") or ""),
+        "relationship": str(item.get("relationship") or "temporal_evidence"),
+        "confidence": _number(item.get("confidence")) or 0.0,
+        "rationale": str(item.get("rationale") or ""),
+        "title_ko": str(item.get("title_ko") or ""),
+        "source_name": str(item.get("source_name") or ""),
+        "source_url": str(item.get("source_url") or ""),
+    }
+
+
+def _build_market_map_quality_flag_payload(item: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "flag_code": str(item.get("flag_code") or "unknown"),
+        "severity": str(item.get("severity") or "low"),
+        "indicator_code": str(item.get("indicator_code") or ""),
+        "display_name": str(item.get("display_name") or item.get("indicator_code") or ""),
+        "freshness_status": str(item.get("freshness_status") or "missing"),
+        "stale_policy": str(item.get("stale_policy") or "mark_stale_no_imputation"),
+        "latest_observation_date": _optional_text(item.get("latest_observation_date")),
+        "message_ko": str(item.get("message_ko") or ""),
+    }
+
+
 def _build_cycle_history_payload(item: dict[str, Any]) -> dict[str, Any]:
     return {
         "as_of_date": str(item.get("as_of_date") or ""),
@@ -17708,6 +18279,27 @@ def _cycle_map_links(nodes: list[dict[str, Any]], *, as_of_date: date) -> dict[s
     }
     if node_code != "UNCLASSIFIED":
         links["theme_detail"] = f"/api/themes/{node_code}?asOfDate={as_of_date}"
+    return links
+
+
+def _market_map_links(
+    *,
+    groups: list[dict[str, Any]],
+    regimes: list[dict[str, Any]],
+    as_of_date: date,
+) -> dict[str, str]:
+    links = {
+        "data_health": "/api/data-health",
+        "cycle_map": f"/api/cycle-map?asOfDate={as_of_date}",
+        "events": f"/api/events?asOfDate={as_of_date}",
+        "recommendations": f"/api/recommendations?batchDate={as_of_date}",
+    }
+    first_group = groups[0] if groups else {}
+    first_indicator = (_as_list(first_group.get("indicators"))[0] if _as_list(first_group.get("indicators")) else {})
+    if isinstance(first_indicator, Mapping) and first_indicator.get("indicator_code"):
+        links["primary_indicator"] = f"/api/market-map?asOfDate={as_of_date}#indicator-{first_indicator['indicator_code']}"
+    if regimes:
+        links["primary_regime"] = f"/api/market-map?asOfDate={as_of_date}#regime-{regimes[0].get('regime_code', '')}"
     return links
 
 

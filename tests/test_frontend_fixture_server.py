@@ -51,7 +51,7 @@ class FrontendFixtureServerTests(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertEqual(payload["status"], "ok")
         self.assertEqual(payload["contract_version"], "frontend-api-v0.1")
-        self.assertEqual(payload["endpoint_count"], 18)
+        self.assertEqual(payload["endpoint_count"], 19)
         self.assertTrue(payload["read_only"])
         self.assertEqual(payload["source_mode"], "fixture")
         self.assertEqual(payload["runtime"]["runtime_profile"], "local")
@@ -63,6 +63,7 @@ class FrontendFixtureServerTests(unittest.TestCase):
         self.assertEqual(payload["source_mode"], "fixture")
         paths = {endpoint["path"] for endpoint in payload["data"]["endpoints"]}
         self.assertIn("/api/dashboard/today", paths)
+        self.assertIn("/api/market-map?asOfDate=2026-06-05", paths)
         self.assertIn("/api/remediation-tickets?status=open", paths)
         self.assertIn("/api/stocks", paths)
         self.assertIn("/api/stocks/AAPL", paths)

@@ -1648,6 +1648,106 @@ export type CycleMapData = {
   }>;
 };
 
+export type MarketMapData = {
+  as_of_date: string;
+  snapshot_as_of_date: string | null;
+  summary: {
+    status: string;
+    indicator_count: number;
+    fresh_indicator_count: number;
+    stale_indicator_count: number;
+    missing_indicator_count: number;
+    shock_indicator_count: number;
+    regime_count: number;
+    active_regime_count: number;
+    watch_regime_count: number;
+    conflict_regime_count: number;
+    news_link_count: number;
+    latest_observation_date: string | null;
+    next_action: string;
+    recommendation_scoring_mutated: boolean;
+    automatic_weight_change_allowed: boolean;
+    broker_submit_allowed: boolean;
+    order_boundary: string;
+  };
+  groups: Array<{
+    group_code: string;
+    group_name: string;
+    indicator_count: number;
+    fresh_count: number;
+    stale_count: number;
+    missing_count: number;
+    shock_count: number;
+    latest_observation_date: string | null;
+    strongest_indicator_code: string | null;
+    indicators: Array<{
+      indicator_code: string;
+      display_name: string;
+      indicator_type: string;
+      preferred_provider: string;
+      fallback_provider: string | null;
+      provider_symbol: string | null;
+      latest_observation_date: string | null;
+      latest_value: number | null;
+      return_1d: number | null;
+      return_5d: number | null;
+      return_20d: number | null;
+      return_60d: number | null;
+      return_120d: number | null;
+      percentile_252d: number | null;
+      z_score_252d: number | null;
+      drawdown_252d: number | null;
+      trend_state: string;
+      shock_direction: string;
+      shock_magnitude: number;
+      confidence: number;
+      freshness_status: string;
+      stale_policy: string;
+      quality_policy: string | null;
+      quality_note_ko: string | null;
+      note_ko: string;
+      source_policy: {
+        license_note: string;
+        redistribution_allowed_note: string;
+        causal_claim: boolean;
+      };
+    }>;
+  }>;
+  regimes: Array<{
+    regime_code: string;
+    regime_state: string;
+    regime_score: number;
+    confidence: number;
+    driver_indicator_codes: string[];
+    conflict_flags: string[];
+    summary_ko: string;
+  }>;
+  news_links: Array<{
+    document_id: string;
+    event_id: string;
+    indicator_code: string;
+    indicator_name: string;
+    link_date: string;
+    relationship: string;
+    confidence: number;
+    rationale: string;
+    title_ko: string;
+    source_name: string;
+    source_url: string;
+  }>;
+  quality_flags: Array<{
+    flag_code: string;
+    severity: string;
+    indicator_code: string;
+    display_name: string;
+    freshness_status: string;
+    stale_policy: string;
+    latest_observation_date: string | null;
+    message_ko: string;
+  }>;
+  guardrails: string[];
+};
+
 export type RecommendationListData = {
   as_of_date: string;
   strategy_name: string;

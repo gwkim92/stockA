@@ -265,6 +265,14 @@ export default async function HomePage() {
     },
     {
       index: "02",
+      title: "시장 배경이 우호적인가",
+      status: "지수·금리·달러",
+      detail: "지수, 금리, 달러, 원자재, 변동성 압력을 시장 지도에서 먼저 본다.",
+      href: "/market-map",
+      cta: "시장 지도",
+    },
+    {
+      index: "03",
       title: "뉴스 AI가 무엇을 말하나",
       status: `${eventData.summary.event_count}개 뉴스`,
       detail: `AI 후보 ${eventData.summary.ai_extracted_count}개, 뉴스 묶음 ${clusterData.summary.cluster_count}개`,
@@ -272,7 +280,7 @@ export default async function HomePage() {
       cta: "뉴스 AI",
     },
     {
-      index: "03",
+      index: "04",
       title: "상위 흐름이 어디로 내려가나",
       status: `${eventData.summary.themes_represented}개 테마`,
       detail: "거시, 도메인, 테마, 종목 노출도를 흐름 지도에서 먼저 본다.",
@@ -280,7 +288,7 @@ export default async function HomePage() {
       cta: "흐름 지도",
     },
     {
-      index: "04",
+      index: "05",
       title: "추천 근거가 충분한가",
       status: `${recommendationBoundary.decision_review_ready_count}개 판단 후보`,
       detail: `가상 매매 검증 대기 ${recommendationBoundary.paper_validation_pending_count}개, 차단 ${recommendationBoundary.decision_blocked_count}개, 열린 검토 ${ticketCount}개`,
@@ -288,7 +296,7 @@ export default async function HomePage() {
       cta: "추천 근거",
     },
     {
-      index: "05",
+      index: "06",
       title: "거래해도 안전한가",
       status: koCode(trading.readiness_status),
       detail: `차단 ${tradingBlockedCount}개, 경고 ${tradingWarningCount}개`,
@@ -321,6 +329,7 @@ export default async function HomePage() {
       primaryHref: "/data-health",
       primaryCta: "수집 상태",
       links: [
+        { href: "/market-map", label: "시장 지도" },
         { href: "/events", label: "수집 뉴스" },
         { href: "/events/classification", label: "1차 분류" },
         { href: "/ai-evidence/blocked", label: "차단 후보" },

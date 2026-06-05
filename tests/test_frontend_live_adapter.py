@@ -39,6 +39,7 @@ from stockanalysis.frontend.live_adapter import (
     render_frontend_cycle_map_state_sql,
     render_frontend_cycle_state_list_sql,
     render_frontend_event_list_state_sql,
+    render_frontend_market_map_state_sql,
     render_frontend_paper_trading_preview_state_sql,
     render_frontend_portfolio_concentration_state_sql,
     render_frontend_portfolio_position_sizing_context_state_sql,
@@ -2394,6 +2395,106 @@ class FakeLiveExecutor:
                             "child_name": "Technology Domain",
                             "relation_type": "macro_to_domain",
                             "weight": "0.7500",
+                        }
+                    ],
+                }
+            )
+        if sql.startswith("-- frontend market map state lookup"):
+            return json.dumps(
+                {
+                    "as_of_date": "2026-06-05",
+                    "snapshot_as_of_date": "2026-06-05",
+                    "summary": {
+                        "status": "partial_or_stale",
+                        "indicator_count": 3,
+                        "fresh_indicator_count": 2,
+                        "stale_indicator_count": 1,
+                        "missing_indicator_count": 0,
+                        "shock_indicator_count": 2,
+                        "regime_count": 2,
+                        "active_regime_count": 1,
+                        "watch_regime_count": 1,
+                        "conflict_regime_count": 0,
+                        "news_link_count": 1,
+                        "latest_observation_date": "2026-06-05",
+                        "next_action": "stale 지표는 추정값으로 채우지 말고 provider fetch와 snapshot을 다시 실행한다.",
+                    },
+                    "groups": [
+                        {
+                            "group_code": "dollar",
+                            "group_name": "달러",
+                            "indicator_count": 1,
+                            "fresh_count": 0,
+                            "stale_count": 1,
+                            "missing_count": 0,
+                            "shock_count": 0,
+                            "latest_observation_date": "2026-05-29",
+                            "strongest_indicator_code": "USD_BROAD_INDEX",
+                            "indicators": [
+                                {
+                                    "indicator_code": "USD_BROAD_INDEX",
+                                    "display_name": "미국 달러 광의 지수",
+                                    "indicator_type": "dollar",
+                                    "preferred_provider": "fred",
+                                    "fallback_provider": None,
+                                    "provider_symbol": "DTWEXBGS",
+                                    "latest_observation_date": "2026-05-29",
+                                    "latest_value": "123.4500",
+                                    "return_20d": None,
+                                    "trend_state": "stale",
+                                    "shock_direction": "neutral",
+                                    "shock_magnitude": "0.0000",
+                                    "confidence": "0.3500",
+                                    "freshness_status": "stale",
+                                    "stale_policy": "mark_stale_no_imputation_weaken_dollar_regime",
+                                    "quality_policy": "stale_dollar_index_weakens_dollar_regime_confidence",
+                                    "quality_note_ko": "FRED 달러 광의 지수가 오래되어 달러 유동성 판단 신뢰도를 낮춘다. 추정값으로 채우지 않는다.",
+                                    "note_ko": "달러 지표가 오래되어 달러 유동성 판단은 약하게 본다.",
+                                    "source_policy": {
+                                        "license_note": "FRED public API.",
+                                        "redistribution_allowed_note": "Show normalized indicators only.",
+                                        "causal_claim": False,
+                                    },
+                                }
+                            ],
+                        }
+                    ],
+                    "regimes": [
+                        {
+                            "regime_code": "dollar_liquidity_tightening",
+                            "regime_state": "watch",
+                            "regime_score": "0.4200",
+                            "confidence": "0.3500",
+                            "driver_indicator_codes": ["USD_BROAD_INDEX"],
+                            "conflict_flags": [],
+                            "summary_ko": "달러 강세와 유동성 긴축 압력이 있는지 본다.",
+                        }
+                    ],
+                    "news_links": [
+                        {
+                            "document_id": 501,
+                            "event_id": 601,
+                            "indicator_code": "USD_BROAD_INDEX",
+                            "indicator_name": "미국 달러 광의 지수",
+                            "link_date": "2026-06-05",
+                            "relationship": "news_with_indicator_shock",
+                            "confidence": "0.5000",
+                            "rationale": "인과 확정이 아니라 시간상 근거 후보이다.",
+                            "title_ko": "달러와 금리 흐름 관련 뉴스",
+                            "source_name": "fixture",
+                            "source_url": "https://example.com/news",
+                        }
+                    ],
+                    "quality_flags": [
+                        {
+                            "flag_code": "stale_fred_dollar_index",
+                            "severity": "medium",
+                            "indicator_code": "USD_BROAD_INDEX",
+                            "display_name": "미국 달러 광의 지수",
+                            "freshness_status": "stale",
+                            "stale_policy": "mark_stale_no_imputation_weaken_dollar_regime",
+                            "latest_observation_date": "2026-05-29",
+                            "message_ko": "FRED 달러 광의 지수가 stale이다. 달러 강세/약세 regime 판단은 약하게 보며 추정값으로 채우지 않는다.",
                         }
                     ],
                 }
@@ -6826,6 +6927,48 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertIn("limit 12", lowered)
         self.assertIn("'nodes'", sql)
         self.assertIn("'edges'", sql)
+        self.assertNotIn("insert into", lowered)
+        self.assertNotIn("update ", lowered)
+        self.assertNotIn("delete from", lowered)
+
+    def test_live_market_map_response_matches_frontend_contract_shape(self) -> None:
+        payload = resolve_live_frontend_response(
+            "/api/market-map?asOfDate=2026-06-05&limit=80",
+            config=type("Config", (), {"psql_command": "psql"})(),
+            executor=FakeLiveExecutor(),
+            generated_at=datetime(2026, 6, 5, tzinfo=timezone.utc),
+        )
+
+        self.assertEqual(payload["contract_version"], "frontend-api-v0.1")
+        self.assertEqual(payload["data"]["as_of_date"], "2026-06-05")
+        self.assertEqual(payload["data"]["summary"]["status"], "partial_or_stale")
+        self.assertFalse(payload["data"]["summary"]["recommendation_scoring_mutated"])
+        self.assertEqual(payload["data"]["summary"]["order_boundary"], "read_only_no_order")
+        first_group = payload["data"]["groups"][0]
+        self.assertEqual(first_group["group_code"], "dollar")
+        first_indicator = first_group["indicators"][0]
+        self.assertEqual(first_indicator["indicator_code"], "USD_BROAD_INDEX")
+        self.assertEqual(first_indicator["freshness_status"], "stale")
+        self.assertIn("추정값으로 채우지 않는다", first_indicator["quality_note_ko"])
+        self.assertEqual(payload["data"]["quality_flags"][0]["flag_code"], "stale_fred_dollar_index")
+        self.assertEqual(payload["data"]["regimes"][0]["regime_code"], "dollar_liquidity_tightening")
+        self.assertEqual(payload["data"]["news_links"][0]["document_id"], "source-document-501")
+        self.assertTrue(is_live_supported_path("/api/market-map?asOfDate=2026-06-05"))
+
+    def test_live_market_map_sql_reads_cross_asset_tables_without_writes(self) -> None:
+        sql = render_frontend_market_map_state_sql(as_of_date=date(2026, 6, 5), indicator_limit=80)
+        lowered = sql.lower()
+
+        self.assertIn("-- frontend market map state lookup", sql)
+        self.assertIn("market.market_indicator", sql)
+        self.assertIn("signal.market_indicator_snapshot", sql)
+        self.assertIn("signal.cross_asset_regime_snapshot", sql)
+        self.assertIn("event.news_indicator_link", sql)
+        self.assertIn("stale_fred_dollar_index", sql)
+        self.assertIn("추정값으로 채우지 않는다", sql)
+        self.assertIn("'groups'", sql)
+        self.assertIn("'regimes'", sql)
+        self.assertIn("'quality_flags'", sql)
         self.assertNotIn("insert into", lowered)
         self.assertNotIn("update ", lowered)
         self.assertNotIn("delete from", lowered)

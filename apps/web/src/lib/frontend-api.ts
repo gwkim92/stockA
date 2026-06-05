@@ -8,6 +8,7 @@ import type {
   DailyCockpitData,
   DataHealthData,
   EventListData,
+  MarketMapData,
   PaperTradingPreviewData,
   PerformanceOutcomesData,
   PortfolioCoverageData,
@@ -964,6 +965,19 @@ export async function getCycleMap() {
   }
 }
 
+export async function getMarketMap() {
+  const query = new URLSearchParams({ asOfDate: currentIsoDate() });
+  const path = `/api/market-map?${query.toString()}`;
+  try {
+    return await fetchFrontendPayload<MarketMapData>(path);
+  } catch (error) {
+    if (error instanceof FrontendApiError && error.status === 404) {
+      return buildMarketMapFallback();
+    }
+    throw error;
+  }
+}
+
 export function getRecommendations() {
   return fetchFrontendPayload<RecommendationListData>("/api/recommendations");
 }
@@ -1025,6 +1039,49 @@ export function getPerformanceOutcomes() {
 
 function currentIsoDate() {
   return new Date().toISOString().slice(0, 10);
+}
+
+function buildMarketMapFallback(): ApiResponse<MarketMapData> {
+  const asOfDate = currentIsoDate();
+  return {
+    contract_version: "frontend-api-v0.1",
+    generated_at: new Date().toISOString(),
+    data: {
+      as_of_date: asOfDate,
+      snapshot_as_of_date: null,
+      summary: {
+        status: "missing",
+        indicator_count: 0,
+        fresh_indicator_count: 0,
+        stale_indicator_count: 0,
+        missing_indicator_count: 0,
+        shock_indicator_count: 0,
+        regime_count: 0,
+        active_regime_count: 0,
+        watch_regime_count: 0,
+        conflict_regime_count: 0,
+        news_link_count: 0,
+        latest_observation_date: null,
+        next_action: "market-indicator-daily와 cross-asset-regime-daily 실행 후 시장 지도를 다시 확인한다.",
+        recommendation_scoring_mutated: false,
+        automatic_weight_change_allowed: false,
+        broker_submit_allowed: false,
+        order_boundary: "read_only_no_order",
+      },
+      groups: [],
+      regimes: [],
+      news_links: [],
+      quality_flags: [],
+      guardrails: [
+        "시장 지도는 추천 점수나 주문을 직접 변경하지 않는다.",
+        "stale 지표는 추정값으로 채우지 않고 신뢰도를 낮춰 표시한다.",
+      ],
+    },
+    links: {
+      data_health: "/api/data-health",
+      cycle_map: `/api/cycle-map?asOfDate=${asOfDate}`,
+    },
+  };
 }
 
 function buildCycleMapFallback(): ApiResponse<CycleMapData> {

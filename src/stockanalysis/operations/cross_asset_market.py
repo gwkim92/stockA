@@ -39,6 +39,7 @@ DEFAULT_LOOKBACK_DAYS = 2
 DEFAULT_PROVIDER_FETCH_OUTPUTSIZE = "120"
 DEFAULT_PROVIDER_FETCH_MAX_REQUESTS = 8
 DEFAULT_PROVIDER_FETCH_THROTTLE_SECONDS = 8.0
+XAG_USD_TWELVE_DATA_SYMBOL_CANDIDATES = ("XAG/USD", "XAGUSD", "SILVER")
 
 
 @dataclass(frozen=True)
@@ -190,6 +191,7 @@ DEFAULT_MARKET_INDICATORS: tuple[MarketIndicatorDefinition, ...] = (
         fred_series_code="DTWEXBGS",
         provider_symbol="DTWEXBGS",
         freshness_sla_days=5,
+        stale_policy="mark_stale_no_imputation_weaken_dollar_regime",
         license_note=FRED_LICENSE_NOTE,
         redistribution_allowed_note="Show normalized indicators and attribution, not raw feed dumps.",
     ),
@@ -1185,23 +1187,58 @@ def fetch_twelve_data_indicator_observations(
     if not definition.provider_symbol:
         raise ValueError(f"Missing provider_symbol for `{definition.indicator_code}`.")
     twelve_data = get_source("twelve_data")
-    request = twelve_data.build_request(
-        "time_series_daily",
-        {
-            "symbol": definition.provider_symbol,
-            "outputsize": outputsize,
-        },
-        config=config,
-        require_credentials=True,
-    )
-    payload = request_executor(request).as_json()
-    result = normalize_twelve_data_time_series_payload(definition.provider_symbol, payload)
-    return _price_bars_to_indicator_observations(
-        definition=definition,
-        bars=tuple(bar for bar in result.bars if bar.trade_date <= as_of_date)[-max_rows:],
-        provider="twelve_data",
-        source_kind="price_bar",
-        source_url=request.url,
+    attempts: list[dict[str, str]] = []
+    for provider_symbol in twelve_data_symbol_candidates(definition):
+        request = twelve_data.build_request(
+            "time_series_daily",
+            {
+                "symbol": provider_symbol,
+                "outputsize": outputsize,
+            },
+            config=config,
+            require_credentials=True,
+        )
+        try:
+            payload = request_executor(request).as_json()
+            result = normalize_twelve_data_time_series_payload(provider_symbol, payload)
+        except Exception as exc:
+            attempts.append(
+                {
+                    "provider_symbol": provider_symbol,
+                    "status": "failed",
+                    "error": str(exc),
+                }
+            )
+            continue
+        attempts.append(
+            {
+                "provider_symbol": provider_symbol,
+                "status": "succeeded",
+            }
+        )
+        return _price_bars_to_indicator_observations(
+            definition=definition,
+            bars=tuple(bar for bar in result.bars if bar.trade_date <= as_of_date)[-max_rows:],
+            provider="twelve_data",
+            source_kind="price_bar",
+            source_url=request.url,
+            provider_symbol=provider_symbol,
+            evidence_extra={
+                "requested_provider_symbol": definition.provider_symbol,
+                "resolved_provider_symbol": provider_symbol,
+                "symbol_fallback_attempts": attempts,
+                "symbol_fallback_policy": (
+                    "bounded_twelve_data_symbol_fallback"
+                    if len(twelve_data_symbol_candidates(definition)) > 1
+                    else "single_symbol"
+                ),
+            },
+        )
+    attempted_symbols = ", ".join(attempt["provider_symbol"] for attempt in attempts)
+    last_error = attempts[-1]["error"] if attempts else "unknown"
+    raise ValueError(
+        f"Twelve Data time_series fetch failed for `{definition.indicator_code}` after candidates "
+        f"[{attempted_symbols}]: {last_error}"
     )
 
 
@@ -1300,6 +1337,7 @@ latest as (
     select distinct on (indicator.indicator_code)
         indicator.indicator_code,
         indicator.freshness_sla_days,
+        indicator.stale_policy,
         history.observation_date as latest_observation_date,
         history.value as latest_value
     from active_indicators indicator
@@ -1521,7 +1559,19 @@ select
     jsonb_build_object(
         'registry_version', {sql_literal(REGISTRY_VERSION)},
         'observation_count_252d', coalesce(observation_count_252d, 0),
-        'stale_policy', 'mark_stale_no_imputation'
+        'stale_policy', stale_policy,
+        'quality_policy',
+            case
+                when indicator_code = 'USD_BROAD_INDEX' and freshness_status = 'stale'
+                    then 'stale_dollar_index_weakens_dollar_regime_confidence'
+                else 'standard_indicator_snapshot_policy'
+            end,
+        'quality_note_ko',
+            case
+                when indicator_code = 'USD_BROAD_INDEX' and freshness_status = 'stale'
+                    then 'FRED 달러 광의 지수가 오래되어 달러 유동성 판단 신뢰도를 낮춘다. 추정값으로 채우지 않는다.'
+                else null
+            end
     )
 from classified
 on conflict (indicator_code, as_of_date) do update
@@ -2142,7 +2192,11 @@ def _price_bars_to_indicator_observations(
     provider: str,
     source_kind: str,
     source_url: str,
+    provider_symbol: str | None = None,
+    evidence_extra: dict[str, Any] | None = None,
 ) -> tuple[MarketIndicatorObservationInput, ...]:
+    resolved_provider_symbol = provider_symbol or definition.provider_symbol
+    extra = evidence_extra or {}
     return tuple(
         MarketIndicatorObservationInput(
             indicator_code=definition.indicator_code,
@@ -2157,9 +2211,10 @@ def _price_bars_to_indicator_observations(
             adjusted_close=bar.adjusted_close,
             volume=Decimal(bar.volume),
             evidence_json={
-                "provider_symbol": definition.provider_symbol,
+                "provider_symbol": resolved_provider_symbol,
                 "source_url": _redact_url_secret(source_url),
                 "causal_claim": False,
+                **extra,
             },
         )
         for bar in bars
@@ -2318,6 +2373,19 @@ def _provider_fetch_definitions() -> tuple[MarketIndicatorDefinition, ...]:
             )
         )
     )
+
+
+def twelve_data_symbol_candidates(definition: MarketIndicatorDefinition) -> tuple[str, ...]:
+    if not definition.provider_symbol:
+        return ()
+    if definition.indicator_code != "XAG_USD":
+        return (definition.provider_symbol,)
+    candidates: list[str] = []
+    for candidate in (definition.provider_symbol, *XAG_USD_TWELVE_DATA_SYMBOL_CANDIDATES):
+        cleaned = str(candidate or "").strip()
+        if cleaned and cleaned not in candidates:
+            candidates.append(cleaned)
+    return tuple(candidates)
 
 
 def _optional_decimal(value: object) -> Decimal | None:

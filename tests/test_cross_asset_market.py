@@ -21,6 +21,8 @@ from stockanalysis.operations.cross_asset_market import (
     render_market_indicator_observation_upsert_sql,
     render_news_indicator_link_upsert_sql,
     render_recommendation_cross_asset_components_upsert_sql,
+    render_market_indicator_snapshot_upsert_sql,
+    twelve_data_symbol_candidates,
 )
 from stockanalysis.ingest.config import RuntimeConfig
 
@@ -115,7 +117,17 @@ class CrossAssetMarketTest(unittest.TestCase):
     def test_registry_sql_records_stale_policy_without_imputation(self) -> None:
         sql = render_market_indicator_registry_upsert_sql(DEFAULT_MARKET_INDICATORS)
         self.assertIn("mark_stale_no_imputation", sql)
+        self.assertIn("mark_stale_no_imputation_weaken_dollar_regime", sql)
         self.assertIn("daily_budget_cost", sql)
+
+    def test_usd_broad_index_stale_policy_is_explicit_in_snapshot_evidence(self) -> None:
+        sql = render_market_indicator_snapshot_upsert_sql(
+            as_of_date=date(2026, 6, 5),
+            source_run_id=77,
+        )
+        self.assertIn("indicator.stale_policy", sql)
+        self.assertIn("stale_dollar_index_weakens_dollar_regime_confidence", sql)
+        self.assertIn("추정값으로 채우지 않는다", sql)
 
     def test_parse_cboe_daily_price_csv_normalizes_rows(self) -> None:
         definition = MarketIndicatorDefinition(
@@ -180,6 +192,32 @@ class CrossAssetMarketTest(unittest.TestCase):
         source_url = str((observations[-1].evidence_json or {}).get("source_url") or "")
         self.assertIn("apikey=<redacted>", source_url)
         self.assertNotIn("secret-key", source_url)
+
+    def test_xag_usd_twelve_data_fetch_tries_bounded_symbol_fallbacks(self) -> None:
+        definition = MarketIndicatorDefinition(
+            indicator_code="XAG_USD",
+            display_name="은 현물 달러",
+            indicator_type="precious_metals",
+            preferred_provider="twelve_data",
+            provider_symbol="XAG/USD",
+        )
+        self.assertEqual(twelve_data_symbol_candidates(definition), ("XAG/USD", "XAGUSD", "SILVER"))
+        fake_response = _FallbackTwelveDataResponse(fail_first_count=1)
+        observations = fetch_twelve_data_indicator_observations(
+            definition,
+            config=RuntimeConfig(twelve_data_api_key="secret-key"),
+            as_of_date=date(2026, 6, 4),
+            outputsize="2",
+            max_rows=10,
+            request_executor=fake_response,
+        )
+        self.assertEqual(len(observations), 2)
+        self.assertEqual(len(fake_response.request_urls), 2)
+        evidence = observations[-1].evidence_json or {}
+        self.assertEqual(evidence["requested_provider_symbol"], "XAG/USD")
+        self.assertEqual(evidence["resolved_provider_symbol"], "XAGUSD")
+        self.assertEqual(evidence["symbol_fallback_policy"], "bounded_twelve_data_symbol_fallback")
+        self.assertNotIn("secret-key", str(evidence))
 
     def test_direct_observation_upsert_sql_uses_deduped_conflict_boundary(self) -> None:
         definition = MarketIndicatorDefinition(
@@ -276,6 +314,44 @@ class _FakeTwelveDataResponse:
                     "high": "2355.0",
                     "low": "2325.0",
                     "close": "2348.4",
+                    "volume": "0",
+                },
+            ],
+        }
+
+
+class _FallbackTwelveDataResponse:
+    def __init__(self, *, fail_first_count: int) -> None:
+        self.fail_first_count = fail_first_count
+        self.request_urls: list[str] = []
+
+    def __call__(self, request: object) -> "_FallbackTwelveDataResponse":
+        self.request_urls.append(str(getattr(request, "url", "")))
+        return self
+
+    def as_json(self) -> dict[str, object]:
+        if len(self.request_urls) <= self.fail_first_count:
+            return {
+                "status": "error",
+                "message": "symbol not found",
+            }
+        return {
+            "status": "ok",
+            "values": [
+                {
+                    "datetime": "2026-06-04",
+                    "open": "30.10",
+                    "high": "30.40",
+                    "low": "29.90",
+                    "close": "30.25",
+                    "volume": "0",
+                },
+                {
+                    "datetime": "2026-06-03",
+                    "open": "29.70",
+                    "high": "30.05",
+                    "low": "29.50",
+                    "close": "29.95",
                     "volume": "0",
                 },
             ],

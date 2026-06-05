@@ -1,0 +1,120 @@
+{
+  "contract_version": "frontend-api-v0.1",
+  "generated_at": "2026-06-05T00:00:00Z",
+  "data": {
+    "as_of_date": "2026-06-05",
+    "snapshot_as_of_date": "2026-06-05",
+    "summary": {
+      "status": "partial_or_stale",
+      "indicator_count": 3,
+      "fresh_indicator_count": 2,
+      "stale_indicator_count": 1,
+      "missing_indicator_count": 0,
+      "shock_indicator_count": 2,
+      "regime_count": 2,
+      "active_regime_count": 1,
+      "watch_regime_count": 1,
+      "conflict_regime_count": 0,
+      "news_link_count": 1,
+      "latest_observation_date": "2026-06-05",
+      "next_action": "stale 지표는 추정값으로 채우지 말고 provider fetch와 snapshot을 다시 실행한다.",
+      "recommendation_scoring_mutated": false,
+      "automatic_weight_change_allowed": false,
+      "broker_submit_allowed": false,
+      "order_boundary": "read_only_no_order"
+    },
+    "groups": [
+      {
+        "group_code": "dollar",
+        "group_name": "달러",
+        "indicator_count": 1,
+        "fresh_count": 0,
+        "stale_count": 1,
+        "missing_count": 0,
+        "shock_count": 0,
+        "latest_observation_date": "2026-05-29",
+        "strongest_indicator_code": "USD_BROAD_INDEX",
+        "indicators": [
+          {
+            "indicator_code": "USD_BROAD_INDEX",
+            "display_name": "미국 달러 광의 지수",
+            "indicator_type": "dollar",
+            "preferred_provider": "fred",
+            "fallback_provider": null,
+            "provider_symbol": "DTWEXBGS",
+            "latest_observation_date": "2026-05-29",
+            "latest_value": 123.45,
+            "return_1d": null,
+            "return_5d": null,
+            "return_20d": null,
+            "return_60d": null,
+            "return_120d": null,
+            "percentile_252d": null,
+            "z_score_252d": null,
+            "drawdown_252d": null,
+            "trend_state": "stale",
+            "shock_direction": "neutral",
+            "shock_magnitude": 0,
+            "confidence": 0.35,
+            "freshness_status": "stale",
+            "stale_policy": "mark_stale_no_imputation_weaken_dollar_regime",
+            "quality_policy": "stale_dollar_index_weakens_dollar_regime_confidence",
+            "quality_note_ko": "FRED 달러 광의 지수가 오래되어 달러 유동성 판단 신뢰도를 낮춘다. 추정값으로 채우지 않는다.",
+            "note_ko": "달러 지표가 오래되어 달러 유동성 판단은 약하게 본다.",
+            "source_policy": {
+              "license_note": "FRED public API. Cache metadata and do not impute missing values.",
+              "redistribution_allowed_note": "Show normalized indicators and attribution, not raw feed dumps.",
+              "causal_claim": false
+            }
+          }
+        ]
+      }
+    ],
+    "regimes": [
+      {
+        "regime_code": "dollar_liquidity_tightening",
+        "regime_state": "watch",
+        "regime_score": 0.42,
+        "confidence": 0.35,
+        "driver_indicator_codes": ["USD_BROAD_INDEX"],
+        "conflict_flags": [],
+        "summary_ko": "달러 강세와 유동성 긴축 압력이 있는지 본다."
+      }
+    ],
+    "news_links": [
+      {
+        "document_id": "source-document-1",
+        "event_id": "event-1",
+        "indicator_code": "USD_BROAD_INDEX",
+        "indicator_name": "미국 달러 광의 지수",
+        "link_date": "2026-06-05",
+        "relationship": "news_with_indicator_shock",
+        "confidence": 0.5,
+        "rationale": "뉴스와 가격 지표의 shock이 같은 시간 창에서 관찰됐다. 인과 확정은 아니다.",
+        "title_ko": "달러와 금리 흐름 관련 뉴스",
+        "source_name": "fixture",
+        "source_url": "https://example.com/news"
+      }
+    ],
+    "quality_flags": [
+      {
+        "flag_code": "stale_fred_dollar_index",
+        "severity": "medium",
+        "indicator_code": "USD_BROAD_INDEX",
+        "display_name": "미국 달러 광의 지수",
+        "freshness_status": "stale",
+        "stale_policy": "mark_stale_no_imputation_weaken_dollar_regime",
+        "latest_observation_date": "2026-05-29",
+        "message_ko": "FRED 달러 광의 지수가 stale이다. 달러 강세/약세 regime 판단은 약하게 보며 추정값으로 채우지 않는다."
+      }
+    ],
+    "guardrails": [
+      "시장 지도는 추천 점수나 주문을 직접 변경하지 않는다.",
+      "stale 지표는 추정값으로 채우지 않고 신뢰도를 낮춰 표시한다."
+    ]
+  },
+  "links": {
+    "data_health": "/api/data-health",
+    "cycle_map": "/api/cycle-map?asOfDate=2026-06-05"
+  }
+}
