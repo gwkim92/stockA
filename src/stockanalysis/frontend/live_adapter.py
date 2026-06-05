@@ -1300,6 +1300,9 @@ def build_live_data_health_response(
     active_recommendation_price_freshness = _build_active_recommendation_price_freshness_payload(
         _as_dict(state.get("active_recommendation_price_freshness"))
     )
+    cross_asset_market_regime = _build_cross_asset_market_regime_payload(
+        _as_dict(state.get("cross_asset_market_regime"))
+    )
     benchmark_drift_quality = _build_benchmark_drift_quality_payload(
         _as_dict(state.get("portfolio_risk_budget_guardrail"))
     )
@@ -1523,6 +1526,7 @@ def build_live_data_health_response(
             "news_ai_eval_quality": news_ai_eval_quality,
             "live_ai_invocation_health": live_ai_invocation_health,
             "active_recommendation_price_freshness": active_recommendation_price_freshness,
+            "cross_asset_market_regime": cross_asset_market_regime,
             "benchmark_drift_quality": benchmark_drift_quality,
             "portfolio_review_decision_history": portfolio_review_decision_history,
             "portfolio_review_decision_feedback": portfolio_review_decision_feedback,
@@ -5093,6 +5097,58 @@ latest_market_price as (
     select max(trade_date) as latest_observation_date
     from market.daily_price_bar
 ),
+latest_cross_asset_snapshot_date as (
+    select max(as_of_date) as as_of_date
+    from signal.market_indicator_snapshot
+),
+cross_asset_indicator_summary as (
+    select
+        count(*)::integer as indicator_count,
+        count(*) filter (where snapshot.freshness_status = 'fresh')::integer as fresh_indicator_count,
+        count(*) filter (where snapshot.freshness_status = 'stale')::integer as stale_indicator_count,
+        count(*) filter (where snapshot.freshness_status = 'missing')::integer as missing_indicator_count,
+        count(*) filter (where snapshot.shock_direction <> 'neutral')::integer as shock_indicator_count,
+        max(snapshot.as_of_date) as as_of_date,
+        max(snapshot.latest_observation_date) as latest_observation_date
+    from signal.market_indicator_snapshot snapshot
+    join latest_cross_asset_snapshot_date selected on selected.as_of_date = snapshot.as_of_date
+),
+cross_asset_regime_summary as (
+    select
+        count(*)::integer as regime_count,
+        count(*) filter (where regime.regime_state = 'active')::integer as active_regime_count,
+        count(*) filter (where regime.regime_state = 'watch')::integer as watch_regime_count,
+        count(*) filter (where cardinality(regime.conflict_flags) > 0)::integer as conflict_regime_count,
+        max(regime.as_of_date) as as_of_date
+    from signal.cross_asset_regime_snapshot regime
+    join latest_cross_asset_snapshot_date selected on selected.as_of_date = regime.as_of_date
+),
+cross_asset_news_link_summary as (
+    select
+        count(*)::integer as link_count,
+        count(distinct link.document_id)::integer as linked_document_count,
+        count(distinct link.indicator_code)::integer as linked_indicator_count,
+        max(link.link_date) as latest_link_date
+    from event.news_indicator_link link
+    where link.link_date >= current_date - interval '14 days'
+),
+cross_asset_recommendation_component_summary as (
+    select
+        count(*)::integer as component_count,
+        count(distinct component.recommendation_id)::integer as recommendation_count,
+        count(*) filter (where coalesce(component.component_weight, 0) <> 0)::integer as non_zero_weight_count
+    from signal.recommendation_score_component component
+    where component.component_name in (
+        'index_regime_score',
+        'cross_asset_regime_score',
+        'real_rate_duration_penalty',
+        'usd_liquidity_pressure',
+        'commodity_input_cost_score',
+        'energy_shock_risk',
+        'volatility_risk_penalty',
+        'credit_stress_penalty'
+    )
+),
 active_recommendation_price_symbols as (
     select
         recommendation.instrument_id,
@@ -6140,6 +6196,53 @@ select json_build_object(
             'order_boundary', 'read_only_no_order'
         )
         from active_recommendation_price_summary summary
+    ),
+    'cross_asset_market_regime',
+    (
+        select json_build_object(
+            'status',
+                case
+                    when indicator.indicator_count is null or indicator.indicator_count = 0 then 'missing'
+                    when indicator.missing_indicator_count > 0 or indicator.stale_indicator_count > 0 then 'partial_or_stale'
+                    else 'available'
+                end,
+            'as_of_date', indicator.as_of_date,
+            'latest_observation_date', indicator.latest_observation_date,
+            'indicator_count', coalesce(indicator.indicator_count, 0),
+            'fresh_indicator_count', coalesce(indicator.fresh_indicator_count, 0),
+            'stale_indicator_count', coalesce(indicator.stale_indicator_count, 0),
+            'missing_indicator_count', coalesce(indicator.missing_indicator_count, 0),
+            'shock_indicator_count', coalesce(indicator.shock_indicator_count, 0),
+            'regime_count', coalesce(regime.regime_count, 0),
+            'active_regime_count', coalesce(regime.active_regime_count, 0),
+            'watch_regime_count', coalesce(regime.watch_regime_count, 0),
+            'conflict_regime_count', coalesce(regime.conflict_regime_count, 0),
+            'news_indicator_link_count', coalesce(link.link_count, 0),
+            'linked_news_document_count', coalesce(link.linked_document_count, 0),
+            'linked_indicator_count', coalesce(link.linked_indicator_count, 0),
+            'latest_news_indicator_link_date', link.latest_link_date,
+            'recommendation_component_count', coalesce(component.component_count, 0),
+            'recommendation_component_recommendation_count', coalesce(component.recommendation_count, 0),
+            'non_zero_weight_component_count', coalesce(component.non_zero_weight_count, 0),
+            'recommendation_scoring_mutated', false,
+            'automatic_weight_change_allowed', false,
+            'broker_submit_allowed', false,
+            'order_boundary', 'read_only_no_order',
+            'next_action',
+                case
+                    when indicator.indicator_count is null or indicator.indicator_count = 0
+                        then 'market-indicator-daily 계열을 실행해 FRED·Twelve Data·CBOE 지표를 canonical observation으로 먼저 만든다.'
+                    when indicator.missing_indicator_count > 0 or indicator.stale_indicator_count > 0
+                        then 'stale 또는 missing 지표는 추정값으로 채우지 말고 provider freshness와 budget을 확인한다.'
+                    when coalesce(link.link_count, 0) = 0
+                        then 'indicator-news-linkage-run으로 뉴스와 가격 shock을 시간상 근거 후보로 연결한다.'
+                    else 'cross-asset 지표와 뉴스 연결이 준비됐다. 추천 weight는 outcome 검증 전까지 0으로 유지한다.'
+                end
+        )
+        from cross_asset_indicator_summary indicator
+        cross join cross_asset_regime_summary regime
+        cross join cross_asset_news_link_summary link
+        cross join cross_asset_recommendation_component_summary component
     ),
     'news_ai_eval_quality',
     coalesce(
@@ -15590,6 +15693,42 @@ def _build_news_ai_eval_quality_payload(payload: dict[str, Any]) -> dict[str, An
         "case_results": cases,
         "next_action": str(
             payload.get("next_action") or "news-ai-eval-run --provider fixture --execute를 실행해 기준 정답 뉴스 세트 회귀평가를 저장한다."
+        ),
+    }
+
+
+def _build_cross_asset_market_regime_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    status = str(payload.get("status") or "missing")
+    return {
+        "status": status,
+        "as_of_date": str(payload.get("as_of_date") or ""),
+        "latest_observation_date": str(payload.get("latest_observation_date") or ""),
+        "indicator_count": int(_safe_number(payload.get("indicator_count")) or 0),
+        "fresh_indicator_count": int(_safe_number(payload.get("fresh_indicator_count")) or 0),
+        "stale_indicator_count": int(_safe_number(payload.get("stale_indicator_count")) or 0),
+        "missing_indicator_count": int(_safe_number(payload.get("missing_indicator_count")) or 0),
+        "shock_indicator_count": int(_safe_number(payload.get("shock_indicator_count")) or 0),
+        "regime_count": int(_safe_number(payload.get("regime_count")) or 0),
+        "active_regime_count": int(_safe_number(payload.get("active_regime_count")) or 0),
+        "watch_regime_count": int(_safe_number(payload.get("watch_regime_count")) or 0),
+        "conflict_regime_count": int(_safe_number(payload.get("conflict_regime_count")) or 0),
+        "news_indicator_link_count": int(_safe_number(payload.get("news_indicator_link_count")) or 0),
+        "linked_news_document_count": int(_safe_number(payload.get("linked_news_document_count")) or 0),
+        "linked_indicator_count": int(_safe_number(payload.get("linked_indicator_count")) or 0),
+        "latest_news_indicator_link_date": str(payload.get("latest_news_indicator_link_date") or ""),
+        "recommendation_component_count": int(_safe_number(payload.get("recommendation_component_count")) or 0),
+        "recommendation_component_recommendation_count": int(
+            _safe_number(payload.get("recommendation_component_recommendation_count")) or 0
+        ),
+        "non_zero_weight_component_count": int(_safe_number(payload.get("non_zero_weight_component_count")) or 0),
+        "attention_required": status in {"missing", "partial_or_stale"},
+        "recommendation_scoring_mutated": payload.get("recommendation_scoring_mutated") is True,
+        "automatic_weight_change_allowed": payload.get("automatic_weight_change_allowed") is True,
+        "broker_submit_allowed": payload.get("broker_submit_allowed") is True,
+        "order_boundary": str(payload.get("order_boundary") or "read_only_no_order"),
+        "next_action": str(
+            payload.get("next_action")
+            or "cross-asset 지표 registry, observation ingest, regime snapshot, 뉴스 linkage를 순서대로 실행한다."
         ),
     }
 

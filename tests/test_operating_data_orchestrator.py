@@ -250,6 +250,56 @@ class OperatingDataOrchestratorTests(unittest.TestCase):
         self.assertIn("--execute", hierarchical_command)
         self.assertEqual(runner.calls, [])
 
+    def test_cross_asset_daily_profile_generates_etf_price_watchlist_before_indicator_sync(self) -> None:
+        with tempfile.TemporaryDirectory() as repo_root, tempfile.TemporaryDirectory() as outside_root:
+            runtime_root, env_file = _write_runtime_files_without_positions(Path(outside_root))
+
+            report = build_operating_data_run_report(
+                repo_root=repo_root,
+                runtime_root=runtime_root,
+                data_operations_env_file=env_file,
+                profile="cross-asset-daily",
+                execute=True,
+                python_executable="/usr/bin/python3",
+                executor=FakeOperatingDataExecutor(),
+                runner=FakeArtifactRunner(),
+                generated_at=datetime(2026, 5, 20, tzinfo=timezone.utc),
+            )
+
+            cross_asset_watchlist_path = Path(report["generated_files"]["cross_asset_price_watchlist"])
+            with cross_asset_watchlist_path.open(encoding="utf-8") as stream:
+                watchlist_rows = list(csv.DictReader(stream))
+
+        step_ids = [step["step_id"] for step in report["planned_steps"]]
+        self.assertEqual(report["profile"], "cross-asset-daily")
+        self.assertFalse(report["derived_inputs"]["source_positions_required"])
+        self.assertIn("SPY", report["derived_inputs"]["cross_asset_price_symbols"])
+        self.assertIn("QQQ", report["derived_inputs"]["cross_asset_price_symbols"])
+        self.assertIn("XLE", report["derived_inputs"]["cross_asset_price_symbols"])
+        self.assertEqual(watchlist_rows[0], {"symbol": "SPY"})
+        self.assertIn({"symbol": "TLT"}, watchlist_rows)
+        self.assertLess(
+            step_ids.index("free-provider-capacity-registry"),
+            step_ids.index("cross-asset-market-price-refresh"),
+        )
+        self.assertLess(
+            step_ids.index("cross-asset-market-price-refresh"),
+            step_ids.index("cross-asset-indicator-provider-fetch"),
+        )
+        self.assertLess(
+            step_ids.index("cross-asset-indicator-provider-fetch"),
+            step_ids.index("cross-asset-indicator-ingest"),
+        )
+        refresh_step = next(
+            step for step in report["planned_steps"] if step["step_id"] == "cross-asset-market-price-refresh"
+        )
+        refresh_command = " ".join(refresh_step["command_argv"])
+        self.assertIn("market-price-free-backfill-run", refresh_command)
+        self.assertIn("--daily-budget 80", refresh_command)
+        self.assertIn("--max-requests-per-run 24", refresh_command)
+        self.assertIn("--throttle-seconds 8.0", refresh_command)
+        self.assertIn("--allow-symbol-failures", refresh_command)
+
     def test_weekly_reference_profiles_do_not_require_portfolio_positions(self) -> None:
         with tempfile.TemporaryDirectory() as repo_root, tempfile.TemporaryDirectory() as outside_root:
             runtime_root, env_file = _write_runtime_files_without_positions(Path(outside_root))

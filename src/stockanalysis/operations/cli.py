@@ -83,6 +83,14 @@ from stockanalysis.operations.market_price_free_backfill import (
     run_market_price_daily_from_env,
     run_market_price_free_backfill,
 )
+from stockanalysis.operations.cross_asset_market import (
+    run_cross_asset_indicator_ingest,
+    run_cross_asset_indicator_provider_fetch,
+    run_cross_asset_regime_snapshot,
+    run_free_provider_capacity_registry,
+    run_indicator_news_linkage,
+    run_recommendation_cross_asset_components,
+)
 from stockanalysis.operations.news_rss_feed_runner import (
     NEWS_RSS_FEED_CONFIG_ENV,
     build_news_rss_config_report,
@@ -573,6 +581,81 @@ def build_parser() -> argparse.ArgumentParser:
     )
     market_price_daily.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
     market_price_daily.set_defaults(handler=_handle_market_price_daily_run)
+
+    free_provider_capacity_registry = subparsers.add_parser(
+        "free-provider-capacity-registry-run",
+        help="Register free cross-asset provider capacity and indicator metadata.",
+    )
+    free_provider_capacity_registry.add_argument("--env-file")
+    free_provider_capacity_registry.add_argument("--execute", action="store_true")
+    free_provider_capacity_registry.add_argument("--dry-run", action="store_true")
+    free_provider_capacity_registry.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
+    free_provider_capacity_registry.set_defaults(handler=_handle_free_provider_capacity_registry_run)
+
+    cross_asset_indicator_provider_fetch = subparsers.add_parser(
+        "cross-asset-indicator-provider-fetch-run",
+        help="Fetch direct free-provider cross-asset indicators from CBOE CSV and Twelve Data.",
+    )
+    cross_asset_indicator_provider_fetch.add_argument("--env-file")
+    cross_asset_indicator_provider_fetch.add_argument("--as-of-date", required=True)
+    cross_asset_indicator_provider_fetch.add_argument("--outputsize", default="120")
+    cross_asset_indicator_provider_fetch.add_argument("--max-requests-per-run", type=int, default=8)
+    cross_asset_indicator_provider_fetch.add_argument("--throttle-seconds", type=float, default=8.0)
+    cross_asset_indicator_provider_fetch.add_argument("--max-rows-per-indicator", type=int, default=400)
+    cross_asset_indicator_provider_fetch.add_argument(
+        "--allow-indicator-failures",
+        action="store_true",
+        help="Return exit 0 when some free provider indicators fail; failures remain visible in JSON.",
+    )
+    cross_asset_indicator_provider_fetch.add_argument("--execute", action="store_true")
+    cross_asset_indicator_provider_fetch.add_argument("--dry-run", action="store_true")
+    cross_asset_indicator_provider_fetch.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
+    cross_asset_indicator_provider_fetch.set_defaults(handler=_handle_cross_asset_indicator_provider_fetch_run)
+
+    cross_asset_indicator_ingest = subparsers.add_parser(
+        "cross-asset-indicator-ingest-run",
+        help="Sync FRED and market price bars into canonical cross-asset indicator observations.",
+    )
+    cross_asset_indicator_ingest.add_argument("--env-file")
+    cross_asset_indicator_ingest.add_argument("--as-of-date", required=True)
+    cross_asset_indicator_ingest.add_argument("--execute", action="store_true")
+    cross_asset_indicator_ingest.add_argument("--dry-run", action="store_true")
+    cross_asset_indicator_ingest.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
+    cross_asset_indicator_ingest.set_defaults(handler=_handle_cross_asset_indicator_ingest_run)
+
+    cross_asset_regime_snapshot = subparsers.add_parser(
+        "cross-asset-regime-snapshot-run",
+        help="Compute indicator snapshots, cross-asset regimes, and cycle impacts.",
+    )
+    cross_asset_regime_snapshot.add_argument("--env-file")
+    cross_asset_regime_snapshot.add_argument("--as-of-date", required=True)
+    cross_asset_regime_snapshot.add_argument("--execute", action="store_true")
+    cross_asset_regime_snapshot.add_argument("--dry-run", action="store_true")
+    cross_asset_regime_snapshot.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
+    cross_asset_regime_snapshot.set_defaults(handler=_handle_cross_asset_regime_snapshot_run)
+
+    indicator_news_linkage = subparsers.add_parser(
+        "indicator-news-linkage-run",
+        help="Link recent news classifications to same-window indicator shocks as non-causal evidence candidates.",
+    )
+    indicator_news_linkage.add_argument("--env-file")
+    indicator_news_linkage.add_argument("--as-of-date", required=True)
+    indicator_news_linkage.add_argument("--lookback-days", type=int, default=2)
+    indicator_news_linkage.add_argument("--execute", action="store_true")
+    indicator_news_linkage.add_argument("--dry-run", action="store_true")
+    indicator_news_linkage.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
+    indicator_news_linkage.set_defaults(handler=_handle_indicator_news_linkage_run)
+
+    recommendation_cross_asset_components = subparsers.add_parser(
+        "recommendation-cross-asset-components-run",
+        help="Attach zero-weight cross-asset recommendation components without changing score or order boundary.",
+    )
+    recommendation_cross_asset_components.add_argument("--env-file")
+    recommendation_cross_asset_components.add_argument("--as-of-date", required=True)
+    recommendation_cross_asset_components.add_argument("--execute", action="store_true")
+    recommendation_cross_asset_components.add_argument("--dry-run", action="store_true")
+    recommendation_cross_asset_components.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
+    recommendation_cross_asset_components.set_defaults(handler=_handle_recommendation_cross_asset_components_run)
 
     news_rss_config_report = subparsers.add_parser(
         "news-rss-config-report",
@@ -2014,6 +2097,103 @@ def _handle_market_price_daily_run(args: argparse.Namespace, *, stdout: TextIO) 
         )
     print_json(report, stdout=stdout, sort_keys=False)
     return 0 if int(report.get("failed_symbol_count", 0)) == 0 else 1
+
+
+def _handle_free_provider_capacity_registry_run(args: argparse.Namespace, *, stdout: TextIO) -> int:
+    if bool(args.execute) and bool(args.dry_run):
+        raise ValueError("--execute and --dry-run cannot be used together.")
+    env_mapping = _load_optional_env_mapping(args.env_file, repo_root=args.repo_root)
+    with _temporary_environ(env_mapping):
+        report = run_free_provider_capacity_registry(
+            config=RuntimeConfig.from_env(),
+            execute=bool(args.execute) and not bool(args.dry_run),
+        )
+    print_json(report, stdout=stdout, sort_keys=False)
+    return 0
+
+
+def _handle_cross_asset_indicator_provider_fetch_run(args: argparse.Namespace, *, stdout: TextIO) -> int:
+    if bool(args.execute) and bool(args.dry_run):
+        raise ValueError("--execute and --dry-run cannot be used together.")
+    env_mapping = _load_optional_env_mapping(args.env_file, repo_root=args.repo_root)
+    as_of_date = date.fromisoformat(args.as_of_date)
+    with _temporary_environ(env_mapping):
+        report = run_cross_asset_indicator_provider_fetch(
+            config=RuntimeConfig.from_env(),
+            as_of_date=as_of_date,
+            outputsize=args.outputsize,
+            max_requests_per_run=args.max_requests_per_run,
+            throttle_seconds=args.throttle_seconds,
+            max_rows_per_indicator=args.max_rows_per_indicator,
+            execute=bool(args.execute) and not bool(args.dry_run),
+        )
+    if bool(args.allow_indicator_failures):
+        report["indicator_failures_allowed"] = True
+    print_json(report, stdout=stdout, sort_keys=False)
+    if bool(args.allow_indicator_failures):
+        return 0
+    return 0 if int(report.get("failed_indicator_count", 0)) == 0 else 1
+
+
+def _handle_cross_asset_indicator_ingest_run(args: argparse.Namespace, *, stdout: TextIO) -> int:
+    if bool(args.execute) and bool(args.dry_run):
+        raise ValueError("--execute and --dry-run cannot be used together.")
+    env_mapping = _load_optional_env_mapping(args.env_file, repo_root=args.repo_root)
+    as_of_date = date.fromisoformat(args.as_of_date)
+    with _temporary_environ(env_mapping):
+        report = run_cross_asset_indicator_ingest(
+            config=RuntimeConfig.from_env(),
+            as_of_date=as_of_date,
+            execute=bool(args.execute) and not bool(args.dry_run),
+        )
+    print_json(report, stdout=stdout, sort_keys=False)
+    return 0
+
+
+def _handle_cross_asset_regime_snapshot_run(args: argparse.Namespace, *, stdout: TextIO) -> int:
+    if bool(args.execute) and bool(args.dry_run):
+        raise ValueError("--execute and --dry-run cannot be used together.")
+    env_mapping = _load_optional_env_mapping(args.env_file, repo_root=args.repo_root)
+    as_of_date = date.fromisoformat(args.as_of_date)
+    with _temporary_environ(env_mapping):
+        report = run_cross_asset_regime_snapshot(
+            config=RuntimeConfig.from_env(),
+            as_of_date=as_of_date,
+            execute=bool(args.execute) and not bool(args.dry_run),
+        )
+    print_json(report, stdout=stdout, sort_keys=False)
+    return 0
+
+
+def _handle_indicator_news_linkage_run(args: argparse.Namespace, *, stdout: TextIO) -> int:
+    if bool(args.execute) and bool(args.dry_run):
+        raise ValueError("--execute and --dry-run cannot be used together.")
+    env_mapping = _load_optional_env_mapping(args.env_file, repo_root=args.repo_root)
+    as_of_date = date.fromisoformat(args.as_of_date)
+    with _temporary_environ(env_mapping):
+        report = run_indicator_news_linkage(
+            config=RuntimeConfig.from_env(),
+            as_of_date=as_of_date,
+            lookback_days=args.lookback_days,
+            execute=bool(args.execute) and not bool(args.dry_run),
+        )
+    print_json(report, stdout=stdout, sort_keys=False)
+    return 0
+
+
+def _handle_recommendation_cross_asset_components_run(args: argparse.Namespace, *, stdout: TextIO) -> int:
+    if bool(args.execute) and bool(args.dry_run):
+        raise ValueError("--execute and --dry-run cannot be used together.")
+    env_mapping = _load_optional_env_mapping(args.env_file, repo_root=args.repo_root)
+    as_of_date = date.fromisoformat(args.as_of_date)
+    with _temporary_environ(env_mapping):
+        report = run_recommendation_cross_asset_components(
+            config=RuntimeConfig.from_env(),
+            as_of_date=as_of_date,
+            execute=bool(args.execute) and not bool(args.dry_run),
+        )
+    print_json(report, stdout=stdout, sort_keys=False)
+    return 0
 
 
 def _handle_news_rss_config_report(args: argparse.Namespace, *, stdout: TextIO) -> int:

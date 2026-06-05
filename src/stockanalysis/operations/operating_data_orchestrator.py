@@ -22,6 +22,7 @@ from stockanalysis.operations.env_file import merged_env_with_file
 from stockanalysis.operations.env_readiness import PORTFOLIO_POSITIONS_CSV_ENV
 from stockanalysis.operations.financial_period_source_linkage import DEFAULT_SOURCE_LINKAGE_MAX_FILINGS
 from stockanalysis.operations.local_runtime_status import DEFAULT_LOCAL_RUNTIME_ROOT
+from stockanalysis.operations.cross_asset_market import cross_asset_instrument_price_symbols
 from stockanalysis.operations.market_price_free_backfill import (
     MARKET_PRICE_BUDGET_LEDGER_PATH_ENV,
     MARKET_PRICE_PROVIDER_ENV,
@@ -42,7 +43,23 @@ DEFAULT_THESIS_VERSION = "bootstrap-v1"
 DEFAULT_HOLDING_THESIS_VERSION = "holding-bootstrap-v1"
 DEFAULT_REVIEW_VERSION = "bootstrap-v1"
 DEFAULT_REVIEW_SOURCE = "deterministic_bootstrap"
-DEFAULT_MACRO_SERIES = ("CPIAUCSL", "FEDFUNDS")
+DEFAULT_MACRO_SERIES = (
+    "CPIAUCSL",
+    "FEDFUNDS",
+    "DGS2",
+    "DGS10",
+    "DFII10",
+    "T10YIE",
+    "T10Y2Y",
+    "T10Y3M",
+    "DTWEXBGS",
+    "DCOILWTICO",
+    "DCOILBRENTEU",
+    "DHHNGSP",
+    "VIXCLS",
+    "BAMLH0A0HYM2",
+    "BAMLC0A0CM",
+)
 DEFAULT_MACRO_OBSERVATION_START = "2025-01-01"
 DEFAULT_SEC_FILINGS_CIK = "320193"
 DEFAULT_SEC_FILINGS_MAX_FILINGS = 3
@@ -115,6 +132,15 @@ NEWS_INTRADAY_STEP_IDS = (
 MARKET_DAILY_STEP_IDS = (
     "market-price-daily",
 )
+CROSS_ASSET_DAILY_STEP_IDS = (
+    "free-provider-capacity-registry",
+    "cross-asset-market-price-refresh",
+    "cross-asset-indicator-provider-fetch",
+    "cross-asset-indicator-ingest",
+    "cross-asset-regime-snapshot",
+    "indicator-news-linkage",
+    "recommendation-cross-asset-components",
+)
 DECISION_DAILY_STEP_IDS = (
     "missing-symbol-price-backfill",
     "strategy-universe-slice",
@@ -152,6 +178,7 @@ FULL_RECOVERY_STEP_IDS = (
     *SEC_FILINGS_WEEKLY_STEP_IDS,
     *NEWS_INTRADAY_STEP_IDS,
     *MARKET_DAILY_STEP_IDS,
+    *CROSS_ASSET_DAILY_STEP_IDS,
     *DECISION_DAILY_STEP_IDS,
     *MACRO_WEEKLY_STEP_IDS,
     *PERFORMANCE_MONTHLY_STEP_IDS,
@@ -192,6 +219,14 @@ OPERATING_DATA_RUN_PROFILES: tuple[OperatingDataRunProfile, ...] = (
         recommended_schedule="18:35 America/New_York on US trading days",
         description="Refresh configured market price watchlist with free-provider budget controls.",
         step_ids=MARKET_DAILY_STEP_IDS,
+    ),
+    OperatingDataRunProfile(
+        profile_id="cross-asset-daily",
+        label="Daily cross-asset regime refresh",
+        cadence="daily",
+        recommended_schedule="18:50 America/New_York after market-daily succeeds",
+        description="Sync free macro and price indicators, classify cross-asset regimes, link news to indicator shocks, and attach zero-weight recommendation evidence components.",
+        step_ids=CROSS_ASSET_DAILY_STEP_IDS,
     ),
     OperatingDataRunProfile(
         profile_id="decision-daily",
@@ -307,17 +342,22 @@ def build_operating_data_run_report(
 
     generated_dir = _generated_input_dir(runtime_path)
     watchlist_path = generated_dir / f"missing-price-watchlist-{target_date.isoformat()}.csv"
+    cross_asset_watchlist_path = generated_dir / f"cross-asset-price-watchlist-{target_date.isoformat()}.csv"
     positions_snapshot_path = generated_dir / f"position-snapshot-{target_date.isoformat()}.csv"
     missing_watchlist_required = "missing-symbol-price-backfill" in selected_profile.step_ids
+    cross_asset_watchlist_required = "cross-asset-market-price-refresh" in selected_profile.step_ids
+    cross_asset_symbols = cross_asset_instrument_price_symbols()
     position_snapshot_required = "portfolio-position-snapshot" in selected_profile.step_ids
 
     planned_steps = _build_planned_steps(
         python_executable=resolved_python,
         env_file=data_env_path,
         watchlist_path=watchlist_path,
+        cross_asset_watchlist_path=cross_asset_watchlist_path,
         positions_snapshot_path=positions_snapshot_path,
         ledger_path=ledger_path,
         missing_price_symbols=missing_price_symbols,
+        cross_asset_symbols=cross_asset_symbols,
         target_date=target_date,
         portfolio_name=portfolio_name,
         strategy_name=strategy_name,
@@ -369,12 +409,14 @@ def build_operating_data_run_report(
             "source_symbols": [position.symbol for position in source_positions],
             "event_impacted_symbols": _symbol_list(context.get("event_impacted_symbols")),
             "missing_price_symbols": missing_price_symbols,
+            "cross_asset_price_symbols": list(cross_asset_symbols),
             "sec_filings_cik": sec_filings_cik,
             "sec_filings_max_filings": sec_filings_max_filings,
             "reported_segment_history_periods": reported_segment_history_periods,
         },
         "generated_files": {
             "missing_price_watchlist": str(watchlist_path) if missing_watchlist_required and missing_price_symbols else "",
+            "cross_asset_price_watchlist": str(cross_asset_watchlist_path) if cross_asset_watchlist_required else "",
             "position_snapshot_csv": str(positions_snapshot_path) if position_snapshot_required else "",
         },
         "planned_steps": [_public_step(step) for step in planned_steps],
@@ -389,6 +431,8 @@ def build_operating_data_run_report(
 
     if missing_watchlist_required:
         _write_missing_price_watchlist(watchlist_path, missing_price_symbols)
+    if cross_asset_watchlist_required:
+        _write_missing_price_watchlist(cross_asset_watchlist_path, cross_asset_symbols)
     artifact_runs: list[dict[str, object]] = []
     failed_step_count = 0
 
@@ -494,9 +538,11 @@ def _build_planned_steps(
     python_executable: str,
     env_file: Path,
     watchlist_path: Path,
+    cross_asset_watchlist_path: Path,
     positions_snapshot_path: Path,
     ledger_path: Path,
     missing_price_symbols: Sequence[str],
+    cross_asset_symbols: Sequence[str],
     target_date: date,
     portfolio_name: str,
     strategy_name: str,
@@ -973,6 +1019,145 @@ def _build_planned_steps(
                 "--outputsize",
                 outputsize,
                 "--skip-if-fresh",
+            ),
+        },
+        {
+            "step_id": "free-provider-capacity-registry",
+            "artifact_job_id": "cross-asset-indicator-ingest-daily",
+            "label": "Register free provider capacity and cross-asset indicator metadata",
+            "skip_reason": "",
+            "command_argv": (
+                python_executable,
+                "-m",
+                "stockanalysis.operations.cli",
+                "free-provider-capacity-registry-run",
+                "--env-file",
+                str(env_file),
+                "--execute",
+            ),
+        },
+        {
+            "step_id": "cross-asset-market-price-refresh",
+            "artifact_job_id": "cross-asset-market-price-refresh-daily",
+            "label": "Refresh cross-asset ETF and rates/credit ETF price bars before indicator sync",
+            "skip_reason": "" if cross_asset_symbols else "no_cross_asset_instrument_symbols",
+            "command_argv": (
+                python_executable,
+                "-m",
+                "stockanalysis.operations.cli",
+                "market-price-free-backfill-run",
+                "--watchlist",
+                str(cross_asset_watchlist_path),
+                "--ledger",
+                str(ledger_path),
+                "--provider",
+                provider,
+                "--env-file",
+                str(env_file),
+                "--daily-budget",
+                str(max(daily_budget, 80)),
+                "--max-requests-per-run",
+                str(max(max_requests_per_run, 24)),
+                "--throttle-seconds",
+                str(max(throttle_seconds, 8.0)),
+                "--outputsize",
+                "120",
+                "--skip-if-fresh",
+                "--allow-symbol-failures",
+            ),
+        },
+        {
+            "step_id": "cross-asset-indicator-ingest",
+            "artifact_job_id": "cross-asset-indicator-ingest-daily",
+            "label": "Sync FRED macro and price bars into cross-asset indicator observations",
+            "skip_reason": "",
+            "command_argv": (
+                python_executable,
+                "-m",
+                "stockanalysis.operations.cli",
+                "cross-asset-indicator-ingest-run",
+                "--env-file",
+                str(env_file),
+                "--as-of-date",
+                target,
+                "--execute",
+            ),
+        },
+        {
+            "step_id": "cross-asset-indicator-provider-fetch",
+            "artifact_job_id": "cross-asset-provider-fetch-daily",
+            "label": "Fetch direct CBOE CSV and Twelve Data indicators that are not instrument price bars",
+            "skip_reason": "",
+            "command_argv": (
+                python_executable,
+                "-m",
+                "stockanalysis.operations.cli",
+                "cross-asset-indicator-provider-fetch-run",
+                "--env-file",
+                str(env_file),
+                "--as-of-date",
+                target,
+                "--outputsize",
+                "120",
+                "--max-requests-per-run",
+                "8",
+                "--throttle-seconds",
+                "8",
+                "--allow-indicator-failures",
+                "--execute",
+            ),
+        },
+        {
+            "step_id": "cross-asset-regime-snapshot",
+            "artifact_job_id": "cross-asset-regime-daily",
+            "label": "Compute cross-asset indicator snapshots and regime states",
+            "skip_reason": "",
+            "command_argv": (
+                python_executable,
+                "-m",
+                "stockanalysis.operations.cli",
+                "cross-asset-regime-snapshot-run",
+                "--env-file",
+                str(env_file),
+                "--as-of-date",
+                target,
+                "--execute",
+            ),
+        },
+        {
+            "step_id": "indicator-news-linkage",
+            "artifact_job_id": "indicator-news-linkage-daily",
+            "label": "Link classified news to indicator shocks as non-causal evidence candidates",
+            "skip_reason": "",
+            "command_argv": (
+                python_executable,
+                "-m",
+                "stockanalysis.operations.cli",
+                "indicator-news-linkage-run",
+                "--env-file",
+                str(env_file),
+                "--as-of-date",
+                target,
+                "--lookback-days",
+                "2",
+                "--execute",
+            ),
+        },
+        {
+            "step_id": "recommendation-cross-asset-components",
+            "artifact_job_id": "recommendation-cross-asset-components-daily",
+            "label": "Attach zero-weight cross-asset components to current recommendations",
+            "skip_reason": "",
+            "command_argv": (
+                python_executable,
+                "-m",
+                "stockanalysis.operations.cli",
+                "recommendation-cross-asset-components-run",
+                "--env-file",
+                str(env_file),
+                "--as-of-date",
+                target,
+                "--execute",
             ),
         },
         {

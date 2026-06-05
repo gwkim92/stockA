@@ -33,10 +33,11 @@ class OperatingDataProfileSchedulerTests(unittest.TestCase):
         self.assertEqual(report["scheduler_target"], "cron")
         self.assertEqual(report["scheduler_job_name"], "stockanalysis-operating-data")
         self.assertFalse(report["include_full_recovery"])
-        self.assertEqual(report["total_profile_count"], 7)
+        self.assertEqual(report["total_profile_count"], 8)
         profile_ids = [profile["profile_id"] for profile in report["profiles"]]
         self.assertEqual(profile_ids[0], "market-universe-weekly")
         self.assertEqual(profile_ids[1], "sec-filings-weekly")
+        self.assertIn("cross-asset-daily", profile_ids)
         self.assertNotIn("full-recovery", profile_ids)
         self.assertEqual(report["schedules"][0]["schedule"], "0 7 * * 1")
         self.assertNotIn("hidden-profile-pass", json.dumps(report))
@@ -183,7 +184,7 @@ class OperatingDataProfileSchedulerTests(unittest.TestCase):
                 python_executable="/usr/bin/python3",
             )
 
-            self.assertEqual(report["total_profile_count"], 7)
+            self.assertEqual(report["total_profile_count"], 8)
             calendars = {}
             for profile in report["profiles"]:
                 profile_payload = dict(profile)
@@ -197,6 +198,7 @@ class OperatingDataProfileSchedulerTests(unittest.TestCase):
                 calendars["news-intraday"],
             )
             self.assertIn("OnCalendar=Mon..Fri *-*-* 18:35 America/New_York", calendars["market-daily"])
+            self.assertIn("OnCalendar=Mon..Fri *-*-* 18:50 America/New_York", calendars["cross-asset-daily"])
             self.assertIn("OnCalendar=Mon..Fri *-*-* 19:00 America/New_York", calendars["decision-daily"])
             self.assertIn("OnCalendar=Mon *-*-* 07:30 America/New_York", calendars["macro-weekly"])
             self.assertIn("OnCalendar=*-*-01 09:30 America/New_York", calendars["performance-monthly"])
