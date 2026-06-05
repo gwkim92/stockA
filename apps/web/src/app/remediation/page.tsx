@@ -4,6 +4,23 @@ import { koCode, koLabel, koReason } from "@/lib/korean-labels";
 export const dynamic = "force-dynamic";
 export const metadata = { title: "보완 큐" };
 
+type RemediationTicket = Awaited<ReturnType<typeof getRemediationTickets>>["data"]["tickets"][number];
+
+type RemediationGroup = {
+  key: string;
+  symbol: string;
+  action: string;
+  remediationType: string;
+  runner: string;
+  requiredDecision: string;
+  riskLevel: string;
+  latestReason: string;
+  latestUpdatedAt: string;
+  firstCreatedAt: string;
+  ticketCount: number;
+  ticketIds: string[];
+};
+
 function riskClass(value: string) {
   if (value === "high") {
     return "risk-high";
@@ -21,11 +38,98 @@ function formatPercent(value: number | null | undefined) {
   return `${(value * 100).toFixed(1)}%`;
 }
 
+function riskRank(value: string) {
+  if (value === "high") {
+    return 0;
+  }
+  if (value === "medium") {
+    return 1;
+  }
+  if (value === "normal") {
+    return 2;
+  }
+  return 3;
+}
+
+function formatDateTime(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value || "미확인";
+  }
+  return new Intl.DateTimeFormat("ko-KR", {
+    timeZone: "Asia/Seoul",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+}
+
+function summarizeTicketReason(reason: string) {
+  const normalized = koReason(reason).replace(/\s+/g, " ").trim();
+  return normalized || "검토 사유가 충분히 연결되지 않았다.";
+}
+
+function groupRemediationTickets(tickets: RemediationTicket[]): RemediationGroup[] {
+  const groups = new Map<string, RemediationGroup>();
+  for (const ticket of tickets) {
+    const key = [
+      ticket.symbol,
+      ticket.action,
+      ticket.remediation_type,
+      ticket.suggested_runner,
+      ticket.required_human_decision,
+    ].join("|");
+    const current = groups.get(key);
+    if (!current) {
+      groups.set(key, {
+        key,
+        symbol: ticket.symbol,
+        action: ticket.action,
+        remediationType: ticket.remediation_type,
+        runner: ticket.suggested_runner,
+        requiredDecision: ticket.required_human_decision,
+        riskLevel: ticket.risk_level,
+        latestReason: ticket.reason,
+        latestUpdatedAt: ticket.updated_at,
+        firstCreatedAt: ticket.created_at,
+        ticketCount: 1,
+        ticketIds: [ticket.ticket_id],
+      });
+      continue;
+    }
+    current.ticketCount += 1;
+    current.ticketIds.push(ticket.ticket_id);
+    if (riskRank(ticket.risk_level) < riskRank(current.riskLevel)) {
+      current.riskLevel = ticket.risk_level;
+    }
+    if (new Date(ticket.updated_at).getTime() >= new Date(current.latestUpdatedAt).getTime()) {
+      current.latestReason = ticket.reason;
+      current.latestUpdatedAt = ticket.updated_at;
+    }
+    if (new Date(ticket.created_at).getTime() < new Date(current.firstCreatedAt).getTime()) {
+      current.firstCreatedAt = ticket.created_at;
+    }
+  }
+  return [...groups.values()].sort((left, right) => {
+    const riskDelta = riskRank(left.riskLevel) - riskRank(right.riskLevel);
+    if (riskDelta !== 0) {
+      return riskDelta;
+    }
+    if (right.ticketCount !== left.ticketCount) {
+      return right.ticketCount - left.ticketCount;
+    }
+    return new Date(right.latestUpdatedAt).getTime() - new Date(left.latestUpdatedAt).getTime();
+  });
+}
+
 export default async function RemediationPage() {
   const response = await getRemediationTickets();
   const data = response.data;
   const allocationPolicy = data.allocation_policy;
   const highRiskCount = data.tickets.filter((ticket) => ticket.risk_level === "high").length;
+  const groupedTickets = groupRemediationTickets(data.tickets);
+  const repeatedGroupCount = groupedTickets.filter((group) => group.ticketCount > 1).length;
 
   return (
     <div className="terminal-page decision-page">
@@ -40,6 +144,7 @@ export default async function RemediationPage() {
           </p>
           <div className="decision-brief-meta" aria-label="보완 큐 핵심 상태">
             <span>열린 티켓 {data.ticket_count.toLocaleString("ko-KR")}개</span>
+            <span>묶은 판단 {groupedTickets.length.toLocaleString("ko-KR")}개</span>
             <span>고위험 {highRiskCount.toLocaleString("ko-KR")}개</span>
             <span>단일 종목 상한 {formatPercent(allocationPolicy.max_single_position_weight)}</span>
             <span>리밸런싱 기준 {formatPercent(allocationPolicy.min_rebalance_target_weight)}</span>
@@ -59,10 +164,10 @@ export default async function RemediationPage() {
             <b>정책 보기</b>
           </a>
           <a className="decision-card" href="#remediation-status-counts">
-            <span>상태 분포</span>
-            <strong>{Object.keys(data.status_counts).length.toLocaleString("ko-KR")}개 상태</strong>
-            <small>큐가 어디에 몰려 있는지 확인한다.</small>
-            <b>분포 보기</b>
+            <span>반복 이슈</span>
+            <strong>{repeatedGroupCount.toLocaleString("ko-KR")}개</strong>
+            <small>같은 판단 공백이 여러 날 반복된 종목을 먼저 본다.</small>
+            <b>묶음 보기</b>
           </a>
           <a className="decision-card is-block" href="#remediation-boundary">
             <span>자동 조치</span>
@@ -77,45 +182,62 @@ export default async function RemediationPage() {
         <article className="ledger-panel queue-panel">
           <div className="section-heading">
             <span>열린 항목</span>
-            <h2>심볼별 필수 결정</h2>
+            <h2>같은 사유는 묶어서 본다</h2>
           </div>
-          <div className="ledger-table-wrap">
-            <table className="ledger-table remediation-table">
-              <thead>
-                <tr>
-                  <th scope="col">티켓</th>
-                  <th scope="col">심볼</th>
-                  <th scope="col">조치</th>
-                  <th scope="col">위험</th>
-                  <th scope="col">필수 결정</th>
-                  <th scope="col">업데이트</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.tickets.map((ticket, index) => (
-                  <tr key={ticket.ticket_id}>
-                    <td>{String(index + 1).padStart(2, "0")}</td>
-                    <td>
-                      <strong>{ticket.symbol}</strong>
-                      <small>{ticket.instrument_id}</small>
-                    </td>
-                    <td>{koCode(ticket.action)}</td>
-                    <td>
-                      <span className={`risk-tag ${riskClass(ticket.risk_level)}`}>
-                        {koCode(ticket.risk_level)}
-                      </span>
-                    </td>
-                    <td>{koLabel(ticket.required_human_decision)}</td>
-                    <td>{ticket.updated_at}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <p className="decision-copy">
+            원장에는 {data.ticket_count.toLocaleString("ko-KR")}개 티켓이 있지만, 화면에서는 같은 종목·같은 조치·같은 판단 사유를 하나로 묶는다.
+            반복 횟수가 큰 항목은 같은 문제가 계속 다시 발생한다는 뜻이다.
+          </p>
+          <div className="remediation-card-grid">
+            {groupedTickets.map((group, index) => (
+              <article className="remediation-card" key={group.key}>
+                <div className="remediation-card-topline">
+                  <span>{String(index + 1).padStart(2, "0")}</span>
+                  <span className={`risk-tag ${riskClass(group.riskLevel)}`}>{koCode(group.riskLevel)}</span>
+                </div>
+                <div className="remediation-card-title-row">
+                  <h3>{group.symbol}</h3>
+                  <strong>{koCode(group.action)}</strong>
+                </div>
+                <p>{koLabel(group.requiredDecision)}</p>
+                <dl className="remediation-card-facts">
+                  <div>
+                    <dt>반복</dt>
+                    <dd>{group.ticketCount.toLocaleString("ko-KR")}건</dd>
+                  </div>
+                  <div>
+                    <dt>구분</dt>
+                    <dd>{koCode(group.remediationType)}</dd>
+                  </div>
+                  <div>
+                    <dt>최근 갱신</dt>
+                    <dd>{formatDateTime(group.latestUpdatedAt)}</dd>
+                  </div>
+                  <div>
+                    <dt>최초 발생</dt>
+                    <dd>{formatDateTime(group.firstCreatedAt)}</dd>
+                  </div>
+                </dl>
+                <div className="remediation-reason">
+                  <span>왜 봐야 하나</span>
+                  <p>{summarizeTicketReason(group.latestReason)}</p>
+                </div>
+                <details className="audit-details">
+                  <summary>감사용 티켓 식별자 보기</summary>
+                  <div className="audit-metadata-grid">
+                    <span>처리 경로</span>
+                    <strong>{koCode(group.runner)}</strong>
+                    <span>티켓 묶음</span>
+                    <strong>{group.ticketIds.join(", ")}</strong>
+                  </div>
+                </details>
+              </article>
+            ))}
           </div>
         </article>
 
         <aside className="side-ledger">
-          <article className="ledger-panel" id="remediation-policy">
+          <article className="ledger-panel remediation-side-card" id="remediation-policy">
             <div className="section-heading stacked-heading">
               <span>비중 정책</span>
               <h2>현재 적용 기준</h2>
@@ -123,42 +245,42 @@ export default async function RemediationPage() {
             <p className="decision-copy">
               추천 비중은 신호 크기이고, 보유 비중 축소 여부는 이 정책 기준으로 별도 판단한다.
             </p>
-            <dl className="fact-list">
-              <div>
-                <dt>정책</dt>
-                <dd>{koCode(allocationPolicy.policy_name)}</dd>
-              </div>
-              <div>
-                <dt>적용 범위</dt>
-                <dd>{koCode(allocationPolicy.policy_scope)}</dd>
-              </div>
-              <div>
-                <dt>단일 종목 상한</dt>
-                <dd>{formatPercent(allocationPolicy.max_single_position_weight)}</dd>
-              </div>
-              <div>
-                <dt>리밸런싱 목표 해석</dt>
-                <dd>{formatPercent(allocationPolicy.min_rebalance_target_weight)} 이상만 목표 비중으로 해석</dd>
-              </div>
-            </dl>
+            <div className="remediation-side-grid">
+              <article>
+                <span>정책</span>
+                <strong>{koCode(allocationPolicy.policy_name)}</strong>
+              </article>
+              <article>
+                <span>적용 범위</span>
+                <strong>{koCode(allocationPolicy.policy_scope)}</strong>
+              </article>
+              <article>
+                <span>단일 종목 상한</span>
+                <strong>{formatPercent(allocationPolicy.max_single_position_weight)}</strong>
+              </article>
+              <article>
+                <span>목표 비중 해석</span>
+                <strong>{formatPercent(allocationPolicy.min_rebalance_target_weight)} 이상</strong>
+              </article>
+            </div>
           </article>
 
-          <article className="ledger-panel" id="remediation-status-counts">
+          <article className="ledger-panel remediation-side-card" id="remediation-status-counts">
             <div className="section-heading stacked-heading">
               <span>상태 분포</span>
               <h2>큐 분포</h2>
             </div>
-            <dl className="fact-list">
+            <div className="remediation-status-list">
               {Object.entries(data.status_counts).map(([status, count]) => (
-                <div key={status}>
-                  <dt>{koCode(status)}</dt>
-                  <dd>{count}</dd>
-                </div>
+                <article key={status}>
+                  <span>{koCode(status)}</span>
+                  <strong>{count.toLocaleString("ko-KR")}개</strong>
+                </article>
               ))}
-            </dl>
+            </div>
           </article>
 
-          <article className="ledger-panel" id="remediation-boundary">
+          <article className="ledger-panel remediation-side-card" id="remediation-boundary">
             <div className="section-heading stacked-heading">
               <span>결정 경계</span>
               <h2>자동 조치 금지</h2>
@@ -167,14 +289,10 @@ export default async function RemediationPage() {
               티켓은 추천이 아니라 운영 입력이다. 실제 보유 판단은 당시 입력 데이터, 점수, thesis,
               무효화 조건을 함께 저장한 뒤 별도 승인 경로에서만 다룬다.
             </p>
-            <dl className="fact-list">
-              {data.tickets.slice(0, 2).map((ticket) => (
-                <div key={`${ticket.ticket_id}-runner`}>
-                  <dt>{ticket.symbol}</dt>
-                  <dd>{koReason(ticket.reason)}</dd>
-                </div>
-              ))}
-            </dl>
+            <div className="remediation-boundary-note">
+              <strong>이 화면에서 하는 일</strong>
+              <p>보완해야 할 판단 공백을 찾는다. 추천 점수, 포트폴리오 비중, 주문 제출은 여기서 바꾸지 않는다.</p>
+            </div>
           </article>
         </aside>
       </section>
