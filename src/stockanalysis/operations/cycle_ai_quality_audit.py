@@ -435,7 +435,6 @@ score_input as (
             + checks.cross_theme_mismatch_count
             + least(checks.duplicate_title_count, 5)
             + least(checks.duplicate_flow_evidence_count, 5)
-            + case when checks.weak_propagation_evidence_count > 0 then 1 else 0 end
         )::integer as issue_count,
         (
             case when metrics.rss_document_count = 0 then 1 else 0 end
@@ -455,9 +454,16 @@ select json_build_object(
         when rss_document_count = 0 then 'not_ready'
         when issue_count > 0 then 'attention_required'
         when readiness_gap_count > 0 then 'degraded'
+        when weak_propagation_evidence_count > 0 then 'managed_warning'
         else 'ok'
     end,
-    'audit_score', greatest(0, 100 - issue_count * 15 - readiness_gap_count * 8),
+    'audit_score', greatest(
+        0,
+        100
+        - issue_count * 15
+        - readiness_gap_count * 8
+        - case when weak_propagation_evidence_count > 0 then 5 else 0 end
+    ),
     'issue_count', issue_count,
     'readiness_gap_count', readiness_gap_count,
     'readiness_gaps',

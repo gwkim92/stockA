@@ -553,6 +553,9 @@ function qualityAuditTitle(audit: CycleAiQualityAudit) {
   if (audit.status === "degraded") {
     return "품질 감사 일부 부족";
   }
+  if (audit.status === "managed_warning") {
+    return "약한 전파 근거 관리 중";
+  }
   if (audit.status === "attention_required") {
     return "오염 의심 항목 확인 필요";
   }
@@ -575,6 +578,9 @@ function qualityAuditExplanation(audit: CycleAiQualityAudit) {
     }
     return "큰 오염은 없지만 번역, AI 분석, 전파, 사이클 스냅샷 중 일부 근거가 아직 부족하다.";
   }
+  if (audit.status === "managed_warning") {
+    return "치명적인 중복·오분류·근거 없는 직접 종목 연결은 없지만, 신뢰도나 경로 가중치가 낮은 전파 근거가 남아 있다. 사이클 스냅샷은 약한 전파를 제외하고 계산한다.";
+  }
   if (audit.status === "attention_required") {
     return "추천 판단 전에 중복 뉴스, 종목 근거, 잘못된 테마 연결, 전파 근거가 약한 흐름을 먼저 확인해야 한다.";
   }
@@ -591,7 +597,7 @@ function qualityAuditTone(audit: CycleAiQualityAudit) {
   if (audit.status === "ok") {
     return "risk-low";
   }
-  if (audit.status === "degraded" || audit.status === "not_configured") {
+  if (audit.status === "degraded" || audit.status === "managed_warning" || audit.status === "not_configured") {
     return "risk-medium";
   }
   return "risk-high";

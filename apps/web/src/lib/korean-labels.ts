@@ -433,6 +433,7 @@ const KOREAN_LABELS: Record<string, string> = {
   cycle_ai_quality_audit: "사이클·AI 품질 감사",
   cycle_ai_quality_audit_report: "사이클·AI 품질 감사 요약",
   cycle_ai_quality_audit_attention: "사이클·AI 품질 감사 주의",
+  managed_warning: "관리 중 경고",
   recommendation_outcome_calibration_attention: "추천 성과검증 주의",
   recommendation_outcome_calibration_sample_expansion: "추천 성과검증 표본 확장",
   recommendation_outcome_maturity_attention: "성과 측정창 주의",

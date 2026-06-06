@@ -3,7 +3,7 @@
 ## Status
 
 - status: implemented_ec2_smoked_with_followup_filter
-- current status: audit hardening deployed to EC2; stale direct ticker cleanup executed; cycle snapshot now ignores weak hierarchical propagation in event heat.
+- current status: audit hardening deployed to EC2; stale direct ticker cleanup executed; cycle snapshot now ignores weak hierarchical propagation in event heat; weak propagation is classified as managed warning rather than an open contamination gate.
 - completed: EC2 live audit found 6 ungrounded direct ticker impacts and removed them with the existing explicit cleanup runner.
 - updated_at: 2026-06-06
 - branch: `develop`
@@ -18,6 +18,7 @@
 - Report `next_actions` now points to the specific remediation path before recommendation input.
 - `/data-health` renders the new counters and sample groups in Korean.
 - `cycle_hierarchy_snapshot_v2` now excludes weak hierarchical propagation rows from event heat inputs using confidence, impact strength, and path weight thresholds.
+- `cycle-ai-quality-audit-run` now reports weak propagation as `managed_warning` when it is the only remaining issue, so severe contamination gates can close while the weak evidence count stays visible.
 - EC2 cleanup runner removed 6 stale direct instrument impacts without changing recommendation scoring or order boundary.
 
 ## Explicit Non-Changes
@@ -38,10 +39,11 @@
 - passed: `git diff --check`
 - passed: `PYTHONPATH=/Users/woody/ai/agent-work-harness/src /opt/homebrew/bin/python3.13 -m awh verify --repo . --task cycle-quality-audit-hardening-v1`
 - passed: `PYTHONPATH=src /opt/homebrew/bin/python3.13 -m unittest tests.test_cycle_hierarchy_snapshot_v2 tests.test_cycle_ai_quality_audit`
+- passed: `cd apps/web && npm run build`
 
 ## EC2 Evidence
 
-- exact next step: commit and deploy the weak-propagation cycle snapshot filter, rerun `cycle-hierarchy-snapshot-v2-run --execute`, then smoke `/api/data-health` and `/data-health`.
+- exact next step: commit and deploy the managed-warning status split, rerun `cycle-ai-quality-audit-run --execute`, restart services, then smoke `/api/data-health` and `/data-health`.
 - deployed commit before final filter: `f08a144b`.
 - `cycle-ai-stale-direct-impact-cleanup-run --dry-run`: `candidate_count=6`, `removed_count=0`.
 - `cycle-ai-stale-direct-impact-cleanup-run --execute`: `run_id=3703`, `candidate_count=6`, `removed_count=6`, `recommendation_scoring_mutated=false`, `broker_submit_allowed=false`, `order_boundary=read_only_no_order`.
