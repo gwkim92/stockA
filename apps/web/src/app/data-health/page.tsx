@@ -1345,6 +1345,13 @@ function operationCopy(value: string) {
     .replaceAll("degraded", "주의");
 }
 
+function openGateCopy(value: string) {
+  return operationCopy(value)
+    .replaceAll("_", " ")
+    .replace(/\bcount\b/g, "수")
+    .replaceAll("원천 차단 수가 있는 종목", "원천 차단 종목");
+}
+
 function aiInvocationErrorCopy(value: string, code = "") {
   if (!value) {
     return "최근 오류 없음";
@@ -2778,7 +2785,7 @@ export default async function DataHealthPage() {
                       <span className={`risk-tag ${gateSeverityTone(gate.severity)}`}>{gate.status_label}</span>
                       <strong>{gate.label}</strong>
                       <small>{operationCopy(gate.summary)}</small>
-                      <small>다음 확인: {operationCopy(gate.next_action)}</small>
+                      <small>다음 확인: {openGateCopy(gate.next_action)}</small>
                     </a>
                   ))}
                 </div>
@@ -4996,7 +5003,7 @@ export default async function DataHealthPage() {
                       </div>
                       <div>
                         <dt>다음 행동</dt>
-                        <dd>{operationCopy(gate.next_action)}</dd>
+                        <dd>{openGateCopy(gate.next_action)}</dd>
                       </div>
                       <div>
                         <dt>실거래 상태</dt>
