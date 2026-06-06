@@ -127,6 +127,40 @@ function groupTone(group: MarketGroup) {
   return "market-pressure-card";
 }
 
+function qualityCardText(data: MarketMapData) {
+  const qualityIssueCount = data.summary.stale_indicator_count + data.summary.missing_indicator_count;
+  if (qualityIssueCount > 0) {
+    return `${qualityIssueCount}개 지표는 추정하지 않는다. 품질 플래그를 먼저 확인한다.`;
+  }
+  return "시장 지표와 시장 체제 계산이 준비됐다. 추천 비중은 성과 검증 전까지 바꾸지 않는다.";
+}
+
+function sourcePolicyText(indicator: MarketIndicator) {
+  if (indicator.indicator_code === "XAG_USD") {
+    return "은 현물 가격이 아니라 FRED 프록시 지수다. 방향성 보조 지표로만 쓴다.";
+  }
+  if (indicator.preferred_provider === "fred") {
+    return "FRED 공식 원천을 가공 지표로만 표시한다. 지연값은 추정하지 않는다.";
+  }
+  if (indicator.preferred_provider === "twelve_data") {
+    return "Twelve Data 무료 한도 안에서 가공 지표만 표시한다. 원시 데이터 재배포는 하지 않는다.";
+  }
+  if (indicator.preferred_provider === "cboe_csv") {
+    return "CBOE 공개 파일을 정규화해 표시한다. 원본 파일을 그대로 재배포하지 않는다.";
+  }
+  return "원천 표기와 가공 지표만 사용한다. 인과를 단정하지 않는다.";
+}
+
+function humanizeNewsRationale(rationale: string) {
+  return rationale
+    .replaceAll("QUANTUM_COMPUTING_POLICY", koCode("QUANTUM_COMPUTING_POLICY"))
+    .replaceAll("AI_SEMICONDUCTOR_CYCLE", koCode("AI_SEMICONDUCTOR_CYCLE"))
+    .replaceAll("TECH_DOMAIN", koCode("TECH_DOMAIN"))
+    .replaceAll("ENERGY_GEOPOLITICS", koCode("ENERGY_GEOPOLITICS"))
+    .replaceAll("MACRO_RATES_FED", koCode("MACRO_RATES_FED"))
+    .replaceAll("shock", "가격 충격");
+}
+
 function buildMarketReadout(data: MarketMapData, regimes: MarketRegime[]) {
   const qualityIssueCount = data.summary.stale_indicator_count + data.summary.missing_indicator_count;
   const activeCount = data.summary.active_regime_count;
@@ -207,7 +241,7 @@ export default async function MarketMapPage() {
               {data.summary.fresh_indicator_count.toLocaleString("ko-KR")}개 최신 ·{" "}
               {(data.summary.stale_indicator_count + data.summary.missing_indicator_count).toLocaleString("ko-KR")}개 확인
             </strong>
-            <small>{data.summary.next_action}</small>
+            <small>{qualityCardText(data)}</small>
             <b>품질 확인</b>
           </a>
           <a className="decision-card is-good" href="#market-pressure">
@@ -339,14 +373,14 @@ export default async function MarketMapPage() {
                         <summary>원천과 정책</summary>
                         <div className="relationship-list">
                           <div className="relationship-chip">
-                            <span>{indicator.preferred_provider}</span>
+                            <span>{koCode(indicator.preferred_provider)}</span>
                             <strong>{indicator.provider_symbol || indicator.indicator_code}</strong>
-                            <small>{indicator.source_policy.redistribution_allowed_note}</small>
+                            <small>{sourcePolicyText(indicator)}</small>
                           </div>
                           <div className="relationship-chip">
-                            <span>{indicator.stale_policy}</span>
+                            <span>수집 정책</span>
                             <strong>{indicator.latest_observation_date || "관측일 없음"}</strong>
-                            <small>인과 확정 아님 · 추천 weight 변경 없음</small>
+                            <small>인과 확정 아님 · 추천 비중 변경 없음</small>
                           </div>
                         </div>
                       </details>
@@ -410,7 +444,7 @@ export default async function MarketMapPage() {
               <div className="relationship-chip" key={`${link.document_id}-${link.indicator_code}-${link.link_date}`}>
                 <span>{link.indicator_name} · 신뢰 {formatPercent(link.confidence)}</span>
                 <strong>{link.title_ko || "제목 미수집"}</strong>
-                <small>{link.rationale}</small>
+                <small>{humanizeNewsRationale(link.rationale)}</small>
               </div>
             ))}
           </div>
