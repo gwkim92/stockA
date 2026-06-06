@@ -2212,6 +2212,17 @@ export default async function DataHealthPage() {
   const gateTriageBuckets = buildGateTriageBuckets(openGateDetails);
   const visibleGateTriageBuckets = gateTriageBuckets.filter((bucket) => bucket.gates.length > 0);
   const gateTriageStatus = gateTriageSummary(gateTriageBuckets, data.open_gates.length);
+  const openGateChips = openGateDetails.length > 0
+    ? openGateDetails.map((gate) => ({
+        key: gate.gate_id,
+        label: gate.label,
+        tone: gateSeverityTone(gate.severity),
+      }))
+    : data.open_gates.map((gate) => ({
+        key: gate,
+        label: operationCopy(koCode(gate)).replaceAll("_", " "),
+        tone: "risk-medium",
+      }));
   const marketPriceRun = findPipelineRun(data, "market-price-daily", "market_price_upsert");
   const newsRun = findPipelineRun(data, "news-rss-daily", "news_rss_upsert");
   const newsEnrichmentRun = findPipelineRun(
@@ -4997,9 +5008,9 @@ export default async function DataHealthPage() {
               </div>
             ) : null}
             <div className="tag-ledger">
-              {data.open_gates.map((gate) => (
-                <span className="risk-tag risk-medium" key={gate}>
-                  {koCode(gate)}
+              {openGateChips.map((gate) => (
+                <span className={`risk-tag ${gate.tone}`} key={gate.key}>
+                  {gate.label}
                 </span>
               ))}
             </div>
