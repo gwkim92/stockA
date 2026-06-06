@@ -17,7 +17,11 @@ Use an official/free source that can run unattended. Twelve Data rejected `XAG/U
 
 - mutable surface:
   - `src/stockanalysis/operations/cross_asset_market.py`
+  - `src/stockanalysis/ingest/macro/defaults.py`
+  - `src/stockanalysis/operations/operating_data_orchestrator.py`
   - `src/stockanalysis/frontend/live_adapter.py`
+  - `tests/test_macro_ingest.py`
+  - `tests/test_operating_data_orchestrator.py`
   - `tests/test_cross_asset_market.py`
   - `tests/test_frontend_live_adapter.py`
   - `docs/tasks/xag-fred-silver-proxy-provider-v1/*`
@@ -31,7 +35,7 @@ Use an official/free source that can run unattended. Twelve Data rejected `XAG/U
 
 ## Verification
 
-- verification command: `PYTHONPATH=src /opt/homebrew/bin/python3.13 -m unittest tests.test_cross_asset_market tests.test_frontend_live_adapter`
+- verification command: `PYTHONPATH=src /opt/homebrew/bin/python3.13 -m unittest tests.test_macro_ingest tests.test_operating_data_orchestrator tests.test_cross_asset_market tests.test_frontend_live_adapter`
 - verification command: `git diff --check`
 - verification command: `PYTHONPATH=/Users/woody/ai/agent-work-harness/src /opt/homebrew/bin/python3.13 -m awh verify --repo . --task xag-fred-silver-proxy-provider-v1`
 - EC2 smoke: run registry, FRED ingest, snapshot, then verify `/api/market-map` has no missing `XAG_USD` and still says this is a silver proxy, not spot.
