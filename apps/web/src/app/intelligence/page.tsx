@@ -454,7 +454,7 @@ export default async function IntelligencePage() {
       label: "태그",
       title: "1차 분류",
       metric: "테마·종목·방향",
-      body: "규칙과 기본 enrichment가 붙인 태그를 본다. 틀릴 수 있으므로 AI·validator가 뒤에서 보정한다.",
+      body: "규칙과 기본 분류가 붙인 태그를 본다. 틀릴 수 있으므로 AI 구조화와 자동 검증이 뒤에서 보정한다.",
       href: "/events/classification" as Route,
       tone: "watch",
     },
