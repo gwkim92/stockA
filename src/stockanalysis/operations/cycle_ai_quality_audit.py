@@ -126,14 +126,30 @@ direct_impacts as (
                       'company',
                       'corp',
                       'corporation',
+                      'center',
+                      'centers',
+                      'computer',
+                      'computing',
+                      'data',
+                      'digital',
+                      'energy',
+                      'global',
                       'group',
                       'holding',
                       'holdings',
                       'inc',
                       'ltd',
                       'plc',
+                      'power',
+                      'quantum',
+                      'semiconductor',
+                      'semiconductors',
                       'shares',
                       'stock',
+                      'system',
+                      'systems',
+                      'technologies',
+                      'technology',
                       'trust'
                   )
                   and position(' ' || lower(token.value) || ' ' in source_text.source_text_normalized) > 0
@@ -204,32 +220,37 @@ quantum_energy_mislinks as (
     select distinct classification_impacts.event_id, classification_impacts.node_code
     from classification_impacts
     where classification_impacts.source_text_upper ~ '(QUANTUM|QUBIT)'
+      and classification_impacts.source_text_upper !~ '(POWER GENERATOR|DATA CENTER|DATA CENTRE|ELECTRIC|POWER|GRID|UTILITY|UTILITIES|ENERGY|OIL|GAS)'
       and classification_impacts.node_code in ('ENERGY_GEOPOLITICS', 'ENERGY_DOMAIN', 'ENERGY_CYCLE', 'XLE_ENERGY')
     union
     select distinct direct_impacts.event_id, direct_impacts.primary_symbol as node_code
     from direct_impacts
     where direct_impacts.source_text_upper ~ '(QUANTUM|QUBIT)'
+      and direct_impacts.source_text_upper !~ '(POWER GENERATOR|DATA CENTER|DATA CENTRE|ELECTRIC|POWER|GRID|UTILITY|UTILITIES|ENERGY|OIL|GAS)'
       and direct_impacts.primary_symbol in ('XLE', 'XOM')
 ),
-cross_theme_mismatch_rules(rule_key, label, source_pattern, node_pattern) as (
+cross_theme_mismatch_rules(rule_key, label, source_pattern, node_pattern, exclude_pattern) as (
     values
         (
             'energy_news_on_quantum_node',
             '에너지 원자재 뉴스가 양자컴퓨팅 흐름으로 연결됨',
             '(OIL|WTI|BRENT|OPEC|NATURAL GAS|CRUDE|ENERGY SHOCK)',
-            '^(QUANTUM_COMPUTING_POLICY)$'
+            '^(QUANTUM_COMPUTING_POLICY)$',
+            ''
         ),
         (
             'rates_news_on_energy_geopolitics',
             '금리·연준 뉴스가 에너지 지정학 흐름으로 연결됨',
             '(FED|FEDERAL RESERVE|TREASURY YIELD|INTEREST RATE|RATE CUT|RATE HIKE)',
-            '^(ENERGY_GEOPOLITICS)$'
+            '^(ENERGY_GEOPOLITICS)$',
+            '(OIL|WTI|BRENT|OPEC|NATURAL GAS|CRUDE|ENERGY|GAS)'
         ),
         (
             'semiconductor_news_on_energy_theme',
             '반도체·AI칩 뉴스가 에너지 흐름으로 연결됨',
             '(SEMICONDUCTOR|CHIPMAKER|CHIP STOCK|NVIDIA|NVDA|AI CHIP)',
-            '^(ENERGY_GEOPOLITICS|ENERGY_DOMAIN|ENERGY_CYCLE|XLE_ENERGY)$'
+            '^(ENERGY_GEOPOLITICS|ENERGY_DOMAIN|ENERGY_CYCLE|XLE_ENERGY)$',
+            '(POWER|ELECTRIC|GRID|DATA CENTER|DATA CENTRE|ENERGY)'
         )
 ),
 cross_theme_mismatches as (
@@ -243,6 +264,7 @@ cross_theme_mismatches as (
     join cross_theme_mismatch_rules rules
       on classification_impacts.source_text_upper ~ rules.source_pattern
      and classification_impacts.node_code ~ rules.node_pattern
+     and (rules.exclude_pattern = '' or classification_impacts.source_text_upper !~ rules.exclude_pattern)
 ),
 duplicate_flow_evidence as (
     select
@@ -413,7 +435,7 @@ score_input as (
             + checks.cross_theme_mismatch_count
             + least(checks.duplicate_title_count, 5)
             + least(checks.duplicate_flow_evidence_count, 5)
-            + least(checks.weak_propagation_evidence_count, 5)
+            + case when checks.weak_propagation_evidence_count > 0 then 1 else 0 end
         )::integer as issue_count,
         (
             case when metrics.rss_document_count = 0 then 1 else 0 end
@@ -750,14 +772,30 @@ direct_impacts as (
                       'company',
                       'corp',
                       'corporation',
+                      'center',
+                      'centers',
+                      'computer',
+                      'computing',
+                      'data',
+                      'digital',
+                      'energy',
+                      'global',
                       'group',
                       'holding',
                       'holdings',
                       'inc',
                       'ltd',
                       'plc',
+                      'power',
+                      'quantum',
+                      'semiconductor',
+                      'semiconductors',
                       'shares',
                       'stock',
+                      'system',
+                      'systems',
+                      'technologies',
+                      'technology',
                       'trust'
                   )
                   and position(' ' || lower(token.value) || ' ' in source_text.source_text_normalized) > 0
