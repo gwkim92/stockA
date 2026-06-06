@@ -181,6 +181,9 @@ hierarchical_event_rows as (
     join event.event event_row on event_row.event_id = impact.event_id
     where event_row.event_at >= ({sql_date(as_of_date)} - interval '30 days')
       and event_row.event_at < ({sql_date(as_of_date)} + interval '1 day')
+      and coalesce(impact.confidence, 0) >= 0.3500
+      and coalesce(impact.impact_strength, 0) >= 0.0500
+      and coalesce(impact.path_weight, 0) >= 0.100000
 ),
 event_rows as (
     select node_id, event_id, confidence, 'direct'::text as source_kind from direct_event_rows

@@ -124,6 +124,9 @@ class CycleHierarchySnapshotV2Tests(unittest.TestCase):
         self.assertIn("signal.cycle_state_snapshot", sql)
         self.assertIn("signal.cycle_hierarchy_state_snapshot", sql)
         self.assertIn("signal.hierarchical_propagated_instrument_impact", sql)
+        self.assertIn("coalesce(impact.confidence, 0) >= 0.3500", sql)
+        self.assertIn("coalesce(impact.impact_strength, 0) >= 0.0500", sql)
+        self.assertIn("coalesce(impact.path_weight, 0) >= 0.100000", sql)
         self.assertIn("parent_scores", sql)
         self.assertIn("previous_v2_snapshot", sql)
 
