@@ -9573,6 +9573,8 @@ indicator_rows as (
         case
             when snapshot.indicator_code = 'USD_BROAD_INDEX' and snapshot.freshness_status = 'stale'
                 then '달러 지표가 오래되어 달러 유동성 판단은 약하게 본다.'
+            when indicator.indicator_code = 'USD_BROAD_INDEX' and snapshot.freshness_status = 'fresh'
+                then 'FRED 공식 달러 지수는 공표 지연을 허용한다. 최신 관측일을 확인하고 추정값 없이 본다.'
             when indicator.indicator_code = 'XAG_USD' and coalesce(snapshot.freshness_status, 'missing') <> 'missing'
                 then '은 spot 가격이 아니라 FRED silver proxy index라 방향성 보조 지표로만 본다.'
             when indicator.indicator_code = 'XAG_USD' and coalesce(snapshot.freshness_status, 'missing') = 'missing'
@@ -9724,7 +9726,7 @@ quality_flags as (
         end as severity,
         case
             when indicator_code = 'USD_BROAD_INDEX' and freshness_status = 'stale'
-                then 'FRED 달러 광의 지수가 stale이다. 달러 강세/약세 regime 판단은 약하게 보며 추정값으로 채우지 않는다.'
+                then 'FRED 달러 광의 지수가 10일 허용 범위를 넘어 오래됐다. 달러 강세/약세 regime 판단은 약하게 보며 추정값으로 채우지 않는다.'
             when indicator_code = 'XAG_USD' and freshness_status = 'missing'
                 then '은 지표는 FRED NASDAQQSLVO silver proxy를 사용한다. 아직 관측값이 없으면 추정하지 않고 시장 판단에서 제외한다.'
             when freshness_status = 'missing'

@@ -128,8 +128,10 @@ class CrossAssetMarketTest(unittest.TestCase):
     def test_registry_sql_records_stale_policy_without_imputation(self) -> None:
         sql = render_market_indicator_registry_upsert_sql(DEFAULT_MARKET_INDICATORS)
         self.assertIn("mark_stale_no_imputation", sql)
-        self.assertIn("mark_stale_no_imputation_weaken_dollar_regime", sql)
+        self.assertIn("fred_lag_tolerant_no_imputation_weaken_dollar_regime_after_sla", sql)
         self.assertIn("daily_budget_cost", sql)
+        dollar = next(item for item in DEFAULT_MARKET_INDICATORS if item.indicator_code == "USD_BROAD_INDEX")
+        self.assertEqual(dollar.freshness_sla_days, 10)
 
     def test_usd_broad_index_stale_policy_is_explicit_in_snapshot_evidence(self) -> None:
         sql = render_market_indicator_snapshot_upsert_sql(
@@ -138,6 +140,8 @@ class CrossAssetMarketTest(unittest.TestCase):
         )
         self.assertIn("indicator.stale_policy", sql)
         self.assertIn("stale_dollar_index_weakens_dollar_regime_confidence", sql)
+        self.assertIn("fred_dollar_index_lag_tolerant_no_imputation", sql)
+        self.assertIn("공식 공표 지연을 10일까지 허용", sql)
         self.assertIn("fred_silver_proxy_not_spot_xag_usd", sql)
         self.assertIn("spot XAG/USD 가격이 아니므로 방향성 보조 지표", sql)
         self.assertIn("추정값으로 채우지 않는다", sql)

@@ -6969,6 +6969,8 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertIn("stale_fred_dollar_index", sql)
         self.assertIn("FRED silver proxy index", sql)
         self.assertIn("은 spot 가격이 아니라", sql)
+        self.assertIn("FRED 공식 달러 지수는 공표 지연을 허용", sql)
+        self.assertIn("10일 허용 범위", sql)
         self.assertIn("추정값으로 채우지 않는다", sql)
         self.assertIn("'groups'", sql)
         self.assertIn("'regimes'", sql)

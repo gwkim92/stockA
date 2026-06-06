@@ -190,8 +190,8 @@ DEFAULT_MARKET_INDICATORS: tuple[MarketIndicatorDefinition, ...] = (
         "fred",
         fred_series_code="DTWEXBGS",
         provider_symbol="DTWEXBGS",
-        freshness_sla_days=5,
-        stale_policy="mark_stale_no_imputation_weaken_dollar_regime",
+        freshness_sla_days=10,
+        stale_policy="fred_lag_tolerant_no_imputation_weaken_dollar_regime_after_sla",
         license_note=FRED_LICENSE_NOTE,
         redistribution_allowed_note="Show normalized indicators and attribution, not raw feed dumps.",
     ),
@@ -1565,6 +1565,8 @@ select
             case
                 when indicator_code = 'USD_BROAD_INDEX' and freshness_status = 'stale'
                     then 'stale_dollar_index_weakens_dollar_regime_confidence'
+                when indicator_code = 'USD_BROAD_INDEX'
+                    then 'fred_dollar_index_lag_tolerant_no_imputation'
                 when indicator_code = 'XAG_USD'
                     then 'fred_silver_proxy_not_spot_xag_usd'
                 else 'standard_indicator_snapshot_policy'
@@ -1573,6 +1575,8 @@ select
             case
                 when indicator_code = 'USD_BROAD_INDEX' and freshness_status = 'stale'
                     then 'FRED 달러 광의 지수가 오래되어 달러 유동성 판단 신뢰도를 낮춘다. 추정값으로 채우지 않는다.'
+                when indicator_code = 'USD_BROAD_INDEX'
+                    then 'FRED 달러 광의 지수는 공식 공표 지연을 10일까지 허용한다. 최신 관측일을 그대로 표시하고 추정값으로 채우지 않는다.'
                 when indicator_code = 'XAG_USD'
                     then '은 지표는 FRED NASDAQQSLVO 일간 silver proxy index를 사용한다. spot XAG/USD 가격이 아니므로 방향성 보조 지표로만 쓴다.'
                 else null
