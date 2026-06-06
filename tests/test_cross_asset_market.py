@@ -47,9 +47,20 @@ class CrossAssetMarketTest(unittest.TestCase):
             "SPY",
             "QQQ",
             "XAU_USD",
+            "XAG_USD",
             "BTC_USD",
         }:
             self.assertIn(expected, codes)
+
+    def test_xag_uses_fred_silver_proxy_not_twelve_data_spot_by_default(self) -> None:
+        by_code = {indicator.indicator_code: indicator for indicator in DEFAULT_MARKET_INDICATORS}
+        xag = by_code["XAG_USD"]
+
+        self.assertEqual(xag.preferred_provider, "fred")
+        self.assertEqual(xag.provider_symbol, "NASDAQQSLVO")
+        self.assertEqual(xag.fred_series_code, "NASDAQQSLVO")
+        self.assertIn("프록시", xag.display_name)
+        self.assertIn("Do not label as spot XAG/USD", xag.redistribution_allowed_note)
 
     def test_cross_asset_instrument_price_symbols_returns_etf_watchlist_only(self) -> None:
         symbols = cross_asset_instrument_price_symbols()
@@ -127,8 +138,8 @@ class CrossAssetMarketTest(unittest.TestCase):
         )
         self.assertIn("indicator.stale_policy", sql)
         self.assertIn("stale_dollar_index_weakens_dollar_regime_confidence", sql)
-        self.assertIn("twelve_data_silver_symbol_fallback_exhausted_no_imputation", sql)
-        self.assertIn("XAG/USD, XAGUSD, SILVER", sql)
+        self.assertIn("fred_silver_proxy_not_spot_xag_usd", sql)
+        self.assertIn("spot XAG/USD 가격이 아니므로 방향성 보조 지표", sql)
         self.assertIn("추정값으로 채우지 않는다", sql)
 
     def test_parse_cboe_daily_price_csv_normalizes_rows(self) -> None:

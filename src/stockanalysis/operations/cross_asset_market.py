@@ -341,14 +341,15 @@ DEFAULT_MARKET_INDICATORS: tuple[MarketIndicatorDefinition, ...] = (
     ),
     MarketIndicatorDefinition(
         "XAG_USD",
-        "은 현물 달러",
+        "은 가격 프록시 지수",
         "precious_metals",
-        "twelve_data",
-        provider_symbol="XAG/USD",
+        "fred",
+        provider_symbol="NASDAQQSLVO",
+        fred_series_code="NASDAQQSLVO",
         daily_budget_cost=Decimal("1"),
         freshness_sla_days=7,
-        license_note=TWELVE_DATA_LICENSE_NOTE,
-        redistribution_allowed_note="Show derived metrics and attribution. Avoid raw feed redistribution.",
+        license_note="FRED Nasdaq Daily Index Data. Silver proxy only; verify copyright before raw redistribution.",
+        redistribution_allowed_note="Show normalized proxy indicators and attribution, not raw index dumps. Do not label as spot XAG/USD.",
     ),
     MarketIndicatorDefinition(
         "BTC_USD",
@@ -1564,16 +1565,16 @@ select
             case
                 when indicator_code = 'USD_BROAD_INDEX' and freshness_status = 'stale'
                     then 'stale_dollar_index_weakens_dollar_regime_confidence'
-                when indicator_code = 'XAG_USD' and freshness_status = 'missing'
-                    then 'twelve_data_silver_symbol_fallback_exhausted_no_imputation'
+                when indicator_code = 'XAG_USD'
+                    then 'fred_silver_proxy_not_spot_xag_usd'
                 else 'standard_indicator_snapshot_policy'
             end,
         'quality_note_ko',
             case
                 when indicator_code = 'USD_BROAD_INDEX' and freshness_status = 'stale'
                     then 'FRED 달러 광의 지수가 오래되어 달러 유동성 판단 신뢰도를 낮춘다. 추정값으로 채우지 않는다.'
-                when indicator_code = 'XAG_USD' and freshness_status = 'missing'
-                    then '은 현물 달러는 Twelve Data 무료 후보 XAG/USD, XAGUSD, SILVER가 모두 실패하면 missing으로 둔다. 추정값으로 채우지 않는다.'
+                when indicator_code = 'XAG_USD'
+                    then '은 지표는 FRED NASDAQQSLVO 일간 silver proxy index를 사용한다. spot XAG/USD 가격이 아니므로 방향성 보조 지표로만 쓴다.'
                 else null
             end
     )
