@@ -123,6 +123,9 @@ class OperatingDataOrchestratorTests(unittest.TestCase):
             step_ids.index("portfolio-holding-thesis-bootstrap"),
             step_ids.index("portfolio-remediation-daily"),
         )
+        macro_step = next(step for step in report["planned_steps"] if step["step_id"] == "macro-weekly")
+        macro_command = " ".join(macro_step["command_argv"])
+        self.assertIn("--series-id NASDAQQSLVO", macro_command)
         self.assertLess(
             step_ids.index("paper-validation-audit"),
             step_ids.index("recommendation-outcome-backfill"),

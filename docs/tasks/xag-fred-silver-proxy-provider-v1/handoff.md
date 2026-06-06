@@ -2,7 +2,7 @@
 
 ## Status
 
-- current status: implemented locally; develop merge and EC2 smoke pending.
+- current status: implemented and deployed to EC2; automatic macro refresh support is being finalized.
 
 ## Current Status
 
@@ -11,16 +11,17 @@
   - Confirmed Stooq CSV path requires API key/captcha and is not suitable for unattended scheduler use.
   - Confirmed FRED search returns current daily silver proxy `NASDAQQSLVO`.
   - Updated `XAG_USD` default registry to FRED `NASDAQQSLVO` proxy semantics.
+  - Added `NASDAQQSLVO` to default macro catalog and operating-data `macro-weekly` series list so the proxy can refresh automatically.
   - Added snapshot/API wording that the series is a silver proxy, not spot XAG/USD.
   - Added regression tests for the provider definition and frontend SQL wording.
 - 진행 중:
-  - Merge to `develop`, deploy to EC2, run registry/FRED ingest/snapshot smoke, and verify `/market-map`.
+  - Run FRED ingest/snapshot smoke on EC2 and verify `/market-map`.
 - 막힌 점:
   - none currently.
 
 ## Exact Next Step
 
-- exact next step: run final local verification, commit feature branch, merge to `develop`, deploy to EC2, then execute registry, FRED ingest, and snapshot smoke for `2026-06-05`.
+- exact next step: commit the automatic macro refresh patch, merge to `develop`, deploy to EC2, then execute registry, FRED ingest, and snapshot smoke for `2026-06-05`.
 
 ## Verification
 

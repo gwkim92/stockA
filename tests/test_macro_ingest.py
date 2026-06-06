@@ -21,6 +21,11 @@ class MacroIngestTests(unittest.TestCase):
         ids = [spec.series_id for spec in list_default_series()]
         self.assertIn("CPIAUCSL", ids)
         self.assertIn("FEDFUNDS", ids)
+        self.assertIn("NASDAQQSLVO", ids)
+        silver = get_default_series("NASDAQQSLVO")
+        assert silver is not None
+        self.assertEqual(silver.category, "commodity")
+        self.assertIn("silver proxy", silver.description or "")
 
     def test_load_macro_sync_result_from_fixtures(self) -> None:
         spec = get_default_series("CPIAUCSL")

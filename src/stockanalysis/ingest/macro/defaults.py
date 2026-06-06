@@ -18,6 +18,11 @@ DEFAULT_MACRO_SERIES: tuple[MacroSeriesSpec, ...] = (
     MacroSeriesSpec("DCOILWTICO", "commodity", description="West Texas Intermediate crude oil spot price"),
     MacroSeriesSpec("DCOILBRENTEU", "commodity", description="Brent crude oil spot price"),
     MacroSeriesSpec("DHHNGSP", "commodity", description="Henry Hub natural gas spot price"),
+    MacroSeriesSpec(
+        "NASDAQQSLVO",
+        "commodity",
+        description="Credit Suisse NASDAQ Silver FLOWS106 Price Index; silver proxy, not spot XAG/USD",
+    ),
     MacroSeriesSpec("VIXCLS", "volatility", description="CBOE Volatility Index close"),
     MacroSeriesSpec("BAMLH0A0HYM2", "credit", description="ICE BofA U.S. High Yield option-adjusted spread"),
     MacroSeriesSpec("BAMLC0A0CM", "credit", description="ICE BofA U.S. Corporate option-adjusted spread"),
