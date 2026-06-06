@@ -36,6 +36,7 @@ type ProfessionalAnalysisQuality = DataHealthData["professional_analysis_quality
 type ProfessionalRecommendationCoverageAudit = DataHealthData["professional_recommendation_coverage_audit"];
 type ProfessionalAnalysisNextAction = DataHealthData["professional_analysis_next_action"];
 type ProfessionalAnalysisDepth = DataHealthData["professional_analysis_depth"];
+type OpenGateDetail = NonNullable<DataHealthData["open_gate_details"]>[number];
 type ProfileTimer = ProfileSchedulerStatus["timers"][number];
 type AuditSampleRecord = Record<string, unknown>;
 type TimerGroupDefinition = {
@@ -50,6 +51,15 @@ type SchedulerCadenceGroup = TimerGroupDefinition & {
   activeCount: number;
   successCount: number;
   problemCount: number;
+};
+type GateTriageBucket = {
+  key: string;
+  label: string;
+  title: string;
+  description: string;
+  tone: "risk-low" | "risk-medium" | "risk-high";
+  href: string;
+  gates: OpenGateDetail[];
 };
 
 function isRecord(value: unknown): value is AuditSampleRecord {
@@ -77,6 +87,111 @@ function statusRiskClass(value: string) {
     return "risk-medium";
   }
   return "risk-high";
+}
+
+function gateSeverityTone(severity: string) {
+  if (severity === "low") {
+    return "risk-low";
+  }
+  if (severity === "medium") {
+    return "risk-medium";
+  }
+  return "risk-high";
+}
+
+function gateTriageKey(gate: OpenGateDetail) {
+  const text = `${gate.gate_id} ${gate.category} ${gate.label} ${gate.summary} ${gate.next_action}`.toLowerCase();
+  if (text.includes("outcome") || text.includes("성과") || text.includes("wait")) {
+    return "managed-wait";
+  }
+  if (gate.category === "source_limit" || text.includes("source") || text.includes("원천")) {
+    return "source-limit";
+  }
+  if (
+    gate.category === "investment_review"
+    || text.includes("benchmark")
+    || text.includes("portfolio")
+    || text.includes("벤치마크")
+    || text.includes("포트폴리오")
+  ) {
+    return "investment-review";
+  }
+  if (gate.severity === "high") {
+    return "fix-now";
+  }
+  return "watch";
+}
+
+const GATE_TRIAGE_BUCKETS: Omit<GateTriageBucket, "gates">[] = [
+  {
+    key: "fix-now",
+    label: "즉시 조치",
+    title: "수집·AI·접근 장애",
+    description: "서비스 신뢰도를 직접 낮추는 항목이다. 추천 화면을 보기 전에 먼저 닫는다.",
+    tone: "risk-high",
+    href: "#runtime-boundary",
+  },
+  {
+    key: "managed-wait",
+    label: "관리된 대기",
+    title: "성과 측정일까지 기다림",
+    description: "문제가 아니라 설계된 대기다. 표본이 성숙하기 전까지 추천 산식 변경을 막는다.",
+    tone: "risk-medium",
+    href: "#outcome-maturity-wait-monitor",
+  },
+  {
+    key: "source-limit",
+    label: "원천 한계",
+    title: "원천 데이터 부족",
+    description: "합성 재무를 만들지 않고 전문 판단·가상 매매 입력에서 제외한 항목이다.",
+    tone: "risk-medium",
+    href: "#professional-source-gaps",
+  },
+  {
+    key: "investment-review",
+    label: "투자 검토",
+    title: "포트폴리오·벤치마크 확인",
+    description: "자동 주문이 아니라 검토 기록과 사후 성과 대조가 필요한 항목이다.",
+    tone: "risk-medium",
+    href: "#investment-quality-details",
+  },
+  {
+    key: "watch",
+    label: "관찰",
+    title: "운영 확인 항목",
+    description: "즉시 장애는 아니지만 다음 배치와 최신 실행 기록을 계속 본다.",
+    tone: "risk-low",
+    href: "#execution-log",
+  },
+];
+
+function buildGateTriageBuckets(gates: OpenGateDetail[]) {
+  const buckets = GATE_TRIAGE_BUCKETS.map((bucket) => ({ ...bucket, gates: [] as OpenGateDetail[] }));
+  for (const gate of gates) {
+    const key = gateTriageKey(gate);
+    const bucket = buckets.find((candidate) => candidate.key === key) ?? buckets[buckets.length - 1];
+    bucket.gates.push(gate);
+  }
+  return buckets;
+}
+
+function gateTriageSummary(buckets: GateTriageBucket[], rawOpenGateCount: number) {
+  const fixNowCount = buckets.find((bucket) => bucket.key === "fix-now")?.gates.length ?? 0;
+  const managedWaitCount = buckets.find((bucket) => bucket.key === "managed-wait")?.gates.length ?? 0;
+  const sourceLimitCount = buckets.find((bucket) => bucket.key === "source-limit")?.gates.length ?? 0;
+  if (fixNowCount > 0) {
+    return `즉시 조치 ${fixNowCount}개가 있다. 수집·AI·접근 장애를 먼저 닫아야 한다.`;
+  }
+  if (sourceLimitCount > 0) {
+    return `열린 항목 ${rawOpenGateCount}개 중 핵심은 원천 한계다. 합성 재무를 만들지 않고 판단 입력에서 차단한 상태다.`;
+  }
+  if (managedWaitCount > 0) {
+    return `열린 항목 ${rawOpenGateCount}개는 대부분 성과 측정일까지 기다리는 관리된 대기다.`;
+  }
+  if (rawOpenGateCount > 0) {
+    return `열린 확인 항목 ${rawOpenGateCount}개가 있다. 아래 분류에서 조치 위치를 확인한다.`;
+  }
+  return "현재 열린 확인 항목은 없다. 세부 실행 이력과 최신성만 필요할 때 확인하면 된다.";
 }
 
 function findPipelineRun(data: DataHealthData, jobId: string, pipelineName: string) {
@@ -2094,6 +2209,9 @@ export default async function DataHealthPage() {
   const professionalNextAction =
     data.professional_analysis_next_action ?? DEFAULT_PROFESSIONAL_ANALYSIS_NEXT_ACTION;
   const openGateDetails = data.open_gate_details ?? [];
+  const gateTriageBuckets = buildGateTriageBuckets(openGateDetails);
+  const visibleGateTriageBuckets = gateTriageBuckets.filter((bucket) => bucket.gates.length > 0);
+  const gateTriageStatus = gateTriageSummary(gateTriageBuckets, data.open_gates.length);
   const marketPriceRun = findPipelineRun(data, "market-price-daily", "market_price_upsert");
   const newsRun = findPipelineRun(data, "news-rss-daily", "news_rss_upsert");
   const newsEnrichmentRun = findPipelineRun(
@@ -2606,11 +2724,11 @@ export default async function DataHealthPage() {
         </div>
       </section>
 
-	      <section className="feature-map-panel reveal delay-1" aria-labelledby="priority-status-title">
-	        <div className="section-heading stacked-heading">
-	          <span>오늘 조치</span>
-	          <h2 id="priority-status-title">문제가 있으면 여기서 바로 갈라진다</h2>
-	          <p>
+      <section className="feature-map-panel reveal delay-1" aria-labelledby="priority-status-title">
+        <div className="section-heading stacked-heading">
+          <span>오늘 조치</span>
+          <h2 id="priority-status-title">문제가 있으면 여기서 바로 갈라진다</h2>
+          <p>
 	            상단 판정판에서 이상이 보이면 아래 카드가 실제 조치 위치로 보낸다. 성과·포트폴리오·전문분석 상세는
 	            접힌 영역에서 이어서 본다.
 	          </p>
@@ -2623,14 +2741,51 @@ export default async function DataHealthPage() {
 	              <p>{card.body}</p>
 	              <small>{card.cta}</small>
 	            </a>
-	          ))}
-	        </div>
-	      </section>
+          ))}
+        </div>
+      </section>
 
-	      <section className="feature-map-panel reveal delay-1" aria-labelledby="collection-status-title">
-	        <div className="section-heading stacked-heading">
-	          <span>수집/분석별 상태</span>
-	          <h2 id="collection-status-title">무엇이 언제 돌았고, 어디에 쓰이는지 먼저 본다</h2>
+      <section className="feature-map-panel reveal delay-1" aria-labelledby="open-gate-triage-title">
+        <div className="section-heading stacked-heading">
+          <span>열린 확인 항목</span>
+          <h2 id="open-gate-triage-title">장애인지, 기다릴 상태인지, 원천 한계인지 분리해서 본다</h2>
+          <p>{gateTriageStatus}</p>
+        </div>
+        {visibleGateTriageBuckets.length > 0 ? (
+          <div className="data-health-triage-grid">
+            {visibleGateTriageBuckets.map((bucket) => (
+              <article className="data-health-triage-card" key={bucket.key}>
+                <div className="data-health-triage-head">
+                  <span>{bucket.label}</span>
+                  <strong className={`risk-tag ${bucket.tone}`}>{bucket.gates.length}개</strong>
+                </div>
+                <h3>{bucket.title}</h3>
+                <p>{bucket.description}</p>
+                <div className="data-health-triage-list">
+                  {bucket.gates.map((gate) => (
+                    <a href={bucket.href} key={gate.gate_id}>
+                      <span className={`risk-tag ${gateSeverityTone(gate.severity)}`}>{gate.status_label}</span>
+                      <strong>{gate.label}</strong>
+                      <small>{operationCopy(gate.summary)}</small>
+                      <small>다음 확인: {operationCopy(gate.next_action)}</small>
+                    </a>
+                  ))}
+                </div>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <div className="empty-state">
+            <strong>열린 확인 항목 없음</strong>
+            <p>현재 상단 기준에서 즉시 조치할 장애, 관리되지 않은 대기, 원천 한계가 없다.</p>
+          </div>
+        )}
+      </section>
+
+      <section className="feature-map-panel reveal delay-1" aria-labelledby="collection-status-title">
+        <div className="section-heading stacked-heading">
+          <span>수집/분석별 상태</span>
+          <h2 id="collection-status-title">무엇이 언제 돌았고, 어디에 쓰이는지 먼저 본다</h2>
 	        </div>
 	        <p className="board-intro">
 	          주식 캔들, 뉴스 원문, 1차 분류, AI 분석, 추천 갱신, 보유 상태 판단이 각각 따로 돈다.
