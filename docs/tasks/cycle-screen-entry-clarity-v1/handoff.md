@@ -2,10 +2,11 @@
 
 ## Current Status
 
-- current status: local implementation complete, EC2 deploy pending.
-- completed: UI entry-point and API contract alignment implementation is complete locally.
-- in progress: commit, develop merge, push, EC2 deploy, and route smoke remain.
-- branch: `codex/cycle-screen-entry-clarity-v1`
+- current status: implemented, merged to `develop`, deployed to EC2, and route/browser smoke passed.
+- completed: UI entry-point and API contract alignment implementation is complete.
+- completed: EC2 deploy and smoke are complete.
+- in progress: none.
+- branch: `develop`
 
 ## What Changed
 
@@ -34,10 +35,28 @@
 - passed: `npm run typecheck` in `apps/web`
 - passed: `PYTHONPATH=src /opt/homebrew/bin/python3.13 -m unittest tests.test_frontend_api_adapter tests.test_frontend_fixture_server`
 - passed: `bash scripts/verify_frontend_api_contract.sh`
+- passed: `PATH=/usr/bin:/bin bash scripts/verify_frontend_api_contract.sh`
 - passed: `python3 -m json.tool docs/api/frontend/contract-index.json`
 - passed: `python3 -m json.tool docs/api/frontend/examples/cycle-map.json`
 - passed: `git diff --check`
 - passed: `npm run build` in `apps/web`
+- passed: `PYTHONPATH=/Users/woody/ai/agent-work-harness/src /opt/homebrew/bin/python3.13 -m awh verify --repo . --task cycle-screen-entry-clarity-v1`
+- passed: EC2 `bash scripts/verify_frontend_api_contract.sh`
+- passed: EC2 `npm run typecheck` in `apps/web`
+- passed: EC2 `npm run build` in `apps/web`
+- passed: EC2 `stockanalysis-frontend-api.service` active and `stockanalysis-web.service` active
+- passed: Playwright snapshot smoke for `http://127.0.0.1:13000/`, `/cycle-map`, and `/cycles`
+
+## EC2 Evidence
+
+- deployed commit: `cce71a22`.
+- `/__health`: `status=ok`, `endpoint_count=20`.
+- `/__endpoints`: `endpoint_count=20`, includes `/api/cycle-map?asOfDate=2026-06-05`.
+- `/api/cycles?asOfDate=2026-06-06`: `cycle_state_count=15`, first theme `AI_LABOR_PRODUCTIVITY`.
+- `/api/cycle-map?asOfDate=2026-06-06`: `node_count=17`, `direct_event_count=478`, `propagated_impact_count=1046`, hot node `AI_LABOR_PRODUCTIVITY`.
+- `/api/data-health`: cycle runs include `cycle_state_snapshot` latest status `succeeded`, latest run `pipeline-run-3620`, and `cycle_community_ai_summary` latest status `succeeded`, latest run `pipeline-run-3623`.
+- EC2 internal Next routes `/`, `/cycles`, `/cycle-map` returned HTTP 200 and contained `사이클` text.
+- local tunnel `http://127.0.0.1:13000/cycle-map` returned HTTP 200.
 
 ## Boundaries
 
@@ -48,4 +67,4 @@
 
 ## Next Step
 
-- exact next step: run AWH verification again, then commit, merge to `develop`, push, deploy EC2 by pulling `develop`, rebuild/restart Next.js, restart FastAPI if contract endpoint metadata needs refresh, and smoke `/`, `/cycles`, `/cycle-map`, `/api/cycles?asOfDate=2026-06-06`, `/api/cycle-map?asOfDate=2026-06-06`, `/__endpoints`.
+- exact next step: continue the next core quality task; cycle visibility is now closed unless a concrete page bug appears.
