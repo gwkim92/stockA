@@ -12,6 +12,8 @@ type MarketGroup = MarketMapData["groups"][number];
 type MarketIndicator = MarketGroup["indicators"][number];
 type MarketRegime = MarketMapData["regimes"][number];
 
+const VISIBLE_INDICATOR_COUNT = 3;
+
 function formatPercent(value: number | null | undefined) {
   if (value === null || value === undefined || !Number.isFinite(value)) {
     return "미측정";
@@ -39,18 +41,8 @@ function freshnessLabel(status: string) {
   return koCode(status);
 }
 
-function directionLabel(direction: string) {
-  if (direction === "up") {
-    return "상승 압력";
-  }
-  if (direction === "down") {
-    return "하락 압력";
-  }
-  return "중립";
-}
-
 function regimeTitle(regime: MarketRegime) {
-  return koCode(regime.regime_code).replaceAll("_", " ");
+  return koCode(regime.regime_code);
 }
 
 function regimeTone(regime: MarketRegime) {
@@ -76,7 +68,42 @@ function indicatorTone(indicator: MarketIndicator) {
   return "detail-path-card";
 }
 
+function indicatorPressureLabel(indicator: MarketIndicator) {
+  if (indicator.freshness_status === "missing") {
+    return "판단 제외";
+  }
+  if (indicator.freshness_status === "stale") {
+    return "신뢰도 낮춤";
+  }
+  if (indicator.shock_direction === "up") {
+    return "상승 압력";
+  }
+  if (indicator.shock_direction === "down") {
+    return "하락 압력";
+  }
+  return "중립";
+}
+
+function indicatorSortScore(indicator: MarketIndicator) {
+  const qualityPenalty = indicator.freshness_status === "missing" ? 100 : indicator.freshness_status === "stale" ? 80 : 0;
+  const shockScore = indicator.shock_direction === "neutral" ? 0 : 40;
+  return qualityPenalty + shockScore + Math.round((indicator.shock_magnitude || 0) * 100);
+}
+
+function rankedIndicators(group: MarketGroup) {
+  return [...group.indicators].sort((left, right) => indicatorSortScore(right) - indicatorSortScore(left));
+}
+
+function strongestIndicator(group: MarketGroup) {
+  return (
+    group.indicators.find((indicator) => indicator.indicator_code === group.strongest_indicator_code) ||
+    rankedIndicators(group)[0] ||
+    null
+  );
+}
+
 function groupSummary(group: MarketGroup) {
+  const strongest = strongestIndicator(group);
   const quality =
     group.missing_count > 0
       ? `${group.missing_count}개 지표가 비어 있다`
@@ -84,7 +111,61 @@ function groupSummary(group: MarketGroup) {
         ? `${group.stale_count}개 지표가 오래됐다`
         : "지표가 정상 관측 중이다";
   const shock = group.shock_count > 0 ? `움직임 큰 지표 ${group.shock_count}개` : "큰 가격 충격은 없다";
-  return `${quality}. ${shock}. 대표 확인 대상은 ${group.strongest_indicator_code || "아직 없음"}이다.`;
+  return `${quality}. ${shock}. 대표 확인 대상은 ${strongest?.display_name || "아직 없음"}이다.`;
+}
+
+function groupTone(group: MarketGroup) {
+  if (group.missing_count > 0) {
+    return "market-pressure-card is-block";
+  }
+  if (group.stale_count > 0) {
+    return "market-pressure-card is-watch";
+  }
+  if (group.shock_count > 0) {
+    return "market-pressure-card is-hot";
+  }
+  return "market-pressure-card";
+}
+
+function buildMarketReadout(data: MarketMapData, regimes: MarketRegime[]) {
+  const qualityIssueCount = data.summary.stale_indicator_count + data.summary.missing_indicator_count;
+  const activeCount = data.summary.active_regime_count;
+  const watchCount = data.summary.watch_regime_count;
+  const regimeNames = regimes.map(regimeTitle).join(", ");
+
+  if (qualityIssueCount > 0) {
+    return {
+      tone: "is-watch",
+      title: "먼저 데이터 품질을 확인한다.",
+      copy: `${qualityIssueCount}개 지표가 오래됐거나 비어 있다. 시장 판단을 이어가기 전에 품질 플래그를 먼저 확인한다.`,
+      nextSteps: ["품질 플래그 확인", "stale 지표는 추정하지 않기", "수집 재실행 후 다시 판단"],
+    };
+  }
+
+  if (activeCount > 0) {
+    return {
+      tone: "is-watch",
+      title: "시장 체제 신호가 켜져 있다.",
+      copy: `${regimeNames || "상위 체제"} 신호가 활성이다. 추천을 바로 바꾸지 말고 사이클 지도와 종목 노출도를 이어서 본다.`,
+      nextSteps: ["활성 시장 체제 확인", "영향받는 테마 확인", "추천·보유 근거와 충돌 확인"],
+    };
+  }
+
+  if (watchCount > 0 || data.summary.shock_indicator_count > 0) {
+    return {
+      tone: "is-good",
+      title: "가격 충격은 있지만 체제 전환은 관찰 단계다.",
+      copy: `${data.summary.shock_indicator_count}개 지표가 크게 움직였고 ${watchCount}개 시장 체제를 감시 중이다. 아직 추천 점수는 바꾸지 않고 뉴스·사이클 근거와 대조한다.`,
+      nextSteps: ["압력이 큰 영역 확인", "뉴스 연결 확인", "cycle-map에서 전파 경로 확인"],
+    };
+  }
+
+  return {
+    tone: "is-good",
+    title: "시장 배경은 판단 가능한 상태다.",
+    copy: "수집 품질이 안정적이고 강한 체제 신호는 없다. 종목별 뉴스·사이클·재무 근거를 중심으로 추천 후보를 본다.",
+    nextSteps: ["종목별 직접 근거 확인", "상위 흐름 전파 확인", "추천 상세에서 리스크 확인"],
+  };
 }
 
 export default async function MarketMapPage() {
@@ -92,6 +173,14 @@ export default async function MarketMapPage() {
   const data = response.data;
   const topRegimes = data.regimes.filter((regime) => ["active", "watch"].includes(regime.regime_state)).slice(0, 4);
   const topFlags = data.quality_flags.slice(0, 4);
+  const readout = buildMarketReadout(data, topRegimes);
+  const pressureGroups = [...data.groups]
+    .sort(
+      (left, right) =>
+        right.shock_count - left.shock_count ||
+        right.stale_count + right.missing_count - (left.stale_count + left.missing_count),
+    )
+    .slice(0, 6);
 
   return (
     <div className="terminal-page decision-page">
@@ -99,16 +188,15 @@ export default async function MarketMapPage() {
         <div className="decision-brief-main">
           <span className="decision-brief-kicker">시장 지도 · {data.snapshot_as_of_date || data.as_of_date}</span>
           <h1 className="decision-brief-title" id="market-map-title">
-            지수·금리·달러·원자재가 지금 만드는 압력
+            {readout.title}
           </h1>
           <p className="decision-brief-copy">
-            이 화면은 시장의 배경 조건을 먼저 본다. 뉴스와 가격 지표가 같은 방향을 가리키는지 확인하고, 종목·추천
-            판단은 그 다음 단계에서 따로 검토한다.
+            {readout.copy}
           </p>
           <div className="decision-brief-meta" aria-label="시장 지도 핵심 상태">
             <span>지표 {data.summary.indicator_count.toLocaleString("ko-KR")}개</span>
             <span>충격 {data.summary.shock_indicator_count.toLocaleString("ko-KR")}개</span>
-            <span>활성 regime {data.summary.active_regime_count.toLocaleString("ko-KR")}개</span>
+            <span>활성 체제 {data.summary.active_regime_count.toLocaleString("ko-KR")}개</span>
             <span>뉴스 연결 {data.summary.news_link_count.toLocaleString("ko-KR")}개</span>
           </div>
         </div>
@@ -122,17 +210,17 @@ export default async function MarketMapPage() {
             <small>{data.summary.next_action}</small>
             <b>품질 확인</b>
           </a>
-          <a className="decision-card is-good" href="#market-groups">
-            <span>시장 묶음</span>
-            <strong>{data.groups.length.toLocaleString("ko-KR")}개 영역</strong>
-            <small>지수, 금리, 달러, 원자재, 변동성, 신용, 유동성을 분리해서 본다.</small>
-            <b>흐름 보기</b>
+          <a className="decision-card is-good" href="#market-pressure">
+            <span>압력판</span>
+            <strong>{data.summary.shock_indicator_count.toLocaleString("ko-KR")}개 지표 변동</strong>
+            <small>가장 많이 움직인 영역부터 보고, 필요한 지표만 펼친다.</small>
+            <b>압력 확인</b>
           </a>
           <a className={topRegimes.length > 0 ? "decision-card is-watch" : "decision-card"} href="#market-regimes">
             <span>체제 신호</span>
             <strong>{topRegimes.length.toLocaleString("ko-KR")}개 주시</strong>
-            <small>risk-on/off, 실질금리, 달러 유동성, 에너지 충격 같은 상위 조건이다.</small>
-            <b>regime</b>
+            <small>위험자산 선호, 실질금리, 달러 유동성, 에너지 충격 같은 상위 조건이다.</small>
+            <b>체제 보기</b>
           </a>
           <Link className="decision-card" href={"/cycle-map" as Route}>
             <span>사이클 연결</span>
@@ -143,10 +231,49 @@ export default async function MarketMapPage() {
         </div>
       </section>
 
-      <section className="bento-card reveal delay-1" id="market-regimes" aria-label="시장 체제 신호">
+      <section className={`market-readout-panel reveal delay-1 ${readout.tone}`} aria-label="오늘의 시장 해석">
+        <div>
+          <span className="metric-sub">오늘 결론</span>
+          <h2>{readout.title}</h2>
+          <p>{readout.copy}</p>
+        </div>
+        <ol className="market-readout-steps" aria-label="다음 확인 순서">
+          {readout.nextSteps.map((step, index) => (
+            <li key={step}>
+              <span>{String(index + 1).padStart(2, "0")}</span>
+              <strong>{step}</strong>
+            </li>
+          ))}
+        </ol>
+      </section>
+
+      <section className="bento-card reveal delay-2" id="market-pressure" aria-label="시장 압력판">
+        <div className="section-heading stacked-heading">
+          <span>압력판</span>
+          <h2>지금 가장 먼저 볼 시장 영역</h2>
+          <p>충격이 큰 영역부터 보여준다. 정상 영역도 숨기지 않지만, 처음 판단은 큰 변화와 품질 이슈에서 시작한다.</p>
+        </div>
+        <div className="market-pressure-grid">
+          {pressureGroups.map((group) => {
+            const strongest = strongestIndicator(group);
+            return (
+              <a className={groupTone(group)} href={`#group-${group.group_code}`} key={group.group_code}>
+                <span>{group.group_name}</span>
+                <strong>{strongest?.display_name || "대표 지표 없음"}</strong>
+                <small>{groupSummary(group)}</small>
+                <b>
+                  충격 {group.shock_count} · 품질 이슈 {group.stale_count + group.missing_count}
+                </b>
+              </a>
+            );
+          })}
+        </div>
+      </section>
+
+      <section className="bento-card reveal delay-3" id="market-regimes" aria-label="시장 체제 신호">
         <div className="section-heading stacked-heading">
           <span>먼저 볼 상위 조건</span>
-          <h2>현재 켜져 있거나 감시 중인 시장 regime</h2>
+          <h2>현재 켜져 있거나 감시 중인 시장 체제</h2>
           <p>이 신호는 주문을 만들지 않는다. 종목 추천과 보유 검토의 배경 조건으로만 쓴다.</p>
         </div>
         {topRegimes.length > 0 ? (
@@ -161,64 +288,92 @@ export default async function MarketMapPage() {
             ))}
           </div>
         ) : (
-          <div className="empty-state">활성 또는 감시 중인 시장 regime이 아직 없다. 지표 스냅샷을 먼저 만든다.</div>
+          <div className="empty-state">활성 또는 감시 중인 시장 체제가 아직 없다. 시장 지표 수집을 먼저 확인한다.</div>
         )}
       </section>
 
-      <section className="reveal delay-2" id="market-groups" aria-label="시장 지표 묶음">
-        <div style={{ display: "grid", gap: "18px" }}>
+      <section className="reveal delay-4" id="market-groups" aria-label="시장 지표 묶음">
+        <div className="market-group-stack">
           {data.groups.length === 0 ? (
             <article className="empty-state">
-              표시할 시장 지표가 없다. cross-asset daily 수집과 regime snapshot을 실행한 뒤 다시 확인한다.
+              표시할 시장 지표가 없다. 시장 지표 수집과 시장 체제 계산을 실행한 뒤 다시 확인한다.
             </article>
           ) : null}
-          {data.groups.map((group) => (
-            <section className="bento-card" key={group.group_code} aria-label={`${group.group_name} 시장 지표`}>
-              <div style={{ display: "flex", justifyContent: "space-between", gap: "18px", alignItems: "flex-end", flexWrap: "wrap", marginBottom: "18px" }}>
-                <div>
-                  <span className="metric-sub">{group.group_name}</span>
-                  <h2 style={{ fontSize: "1.45rem", marginTop: "6px" }}>{group.group_name} 흐름</h2>
-                  <p style={{ marginTop: "8px", maxWidth: "760px" }}>{groupSummary(group)}</p>
+          {data.groups.map((group) => {
+            const ranked = rankedIndicators(group);
+            const visible = ranked.slice(0, VISIBLE_INDICATOR_COUNT);
+            const hidden = ranked.slice(VISIBLE_INDICATOR_COUNT);
+            return (
+              <section
+                className="market-group-panel"
+                id={`group-${group.group_code}`}
+                key={group.group_code}
+                aria-label={`${group.group_name} 시장 지표`}
+              >
+                <div className="market-group-header">
+                  <div>
+                    <span className="metric-sub">{group.group_name}</span>
+                    <h2>{group.group_name} 흐름</h2>
+                    <p>{groupSummary(group)}</p>
+                  </div>
+                  <span className="relation-pill">
+                    최신 {group.fresh_count} · 오래됨 {group.stale_count} · 없음 {group.missing_count}
+                  </span>
                 </div>
-                <span className="relation-pill">
-                  최신 {group.fresh_count} · 오래됨 {group.stale_count} · 없음 {group.missing_count}
-                </span>
-              </div>
 
-              <div className="detail-path-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))" }}>
-                {group.indicators.map((indicator) => (
-                  <article className={indicatorTone(indicator)} id={`indicator-${indicator.indicator_code}`} key={indicator.indicator_code}>
-                    <span>
-                      {freshnessLabel(indicator.freshness_status)} · {directionLabel(indicator.shock_direction)}
-                    </span>
-                    <strong>{indicator.display_name}</strong>
-                    <p>{indicator.quality_note_ko || indicator.note_ko}</p>
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginTop: "14px" }}>
-                      <small>값 {formatValue(indicator.latest_value)}</small>
-                      <small>20일 {formatPercent(indicator.return_20d)}</small>
-                      <small>충격 {formatPercent(indicator.shock_magnitude)}</small>
-                      <small>신뢰 {formatPercent(indicator.confidence)}</small>
-                    </div>
-                    <details className="secondary-details" style={{ marginTop: "12px" }}>
-                      <summary>원천과 정책</summary>
-                      <div className="relationship-list">
-                        <div className="relationship-chip">
-                          <span>{indicator.preferred_provider}</span>
-                          <strong>{indicator.provider_symbol || indicator.indicator_code}</strong>
-                          <small>{indicator.source_policy.redistribution_allowed_note}</small>
-                        </div>
-                        <div className="relationship-chip">
-                          <span>{indicator.stale_policy}</span>
-                          <strong>{indicator.latest_observation_date || "관측일 없음"}</strong>
-                          <small>인과 확정 아님 · 추천 weight 변경 없음</small>
-                        </div>
+                <div className="market-indicator-grid">
+                  {visible.map((indicator) => (
+                    <article className={indicatorTone(indicator)} id={`indicator-${indicator.indicator_code}`} key={indicator.indicator_code}>
+                      <span>
+                        {freshnessLabel(indicator.freshness_status)} · {indicatorPressureLabel(indicator)}
+                      </span>
+                      <strong>{indicator.display_name}</strong>
+                      <p>{indicator.quality_note_ko || indicator.note_ko}</p>
+                      <div className="market-indicator-metrics">
+                        <small>값 {formatValue(indicator.latest_value)}</small>
+                        <small>20일 {formatPercent(indicator.return_20d)}</small>
+                        <small>충격 {formatPercent(indicator.shock_magnitude)}</small>
+                        <small>신뢰 {formatPercent(indicator.confidence)}</small>
                       </div>
-                    </details>
-                  </article>
-                ))}
-              </div>
-            </section>
-          ))}
+                      <details className="secondary-details market-source-details">
+                        <summary>원천과 정책</summary>
+                        <div className="relationship-list">
+                          <div className="relationship-chip">
+                            <span>{indicator.preferred_provider}</span>
+                            <strong>{indicator.provider_symbol || indicator.indicator_code}</strong>
+                            <small>{indicator.source_policy.redistribution_allowed_note}</small>
+                          </div>
+                          <div className="relationship-chip">
+                            <span>{indicator.stale_policy}</span>
+                            <strong>{indicator.latest_observation_date || "관측일 없음"}</strong>
+                            <small>인과 확정 아님 · 추천 weight 변경 없음</small>
+                          </div>
+                        </div>
+                      </details>
+                    </article>
+                  ))}
+                </div>
+
+                {hidden.length > 0 ? (
+                  <details className="market-hidden-indicators">
+                    <summary>나머지 지표 {hidden.length.toLocaleString("ko-KR")}개 보기</summary>
+                    <div className="market-compact-list">
+                      {hidden.map((indicator) => (
+                        <a href={`#indicator-${indicator.indicator_code}`} key={indicator.indicator_code}>
+                          <span>{indicator.display_name}</span>
+                          <strong>{indicatorPressureLabel(indicator)}</strong>
+                          <small>
+                            20일 {formatPercent(indicator.return_20d)} · 충격 {formatPercent(indicator.shock_magnitude)} · 관측일{" "}
+                            {indicator.latest_observation_date || "없음"}
+                          </small>
+                        </a>
+                      ))}
+                    </div>
+                  </details>
+                ) : null}
+              </section>
+            );
+          })}
         </div>
       </section>
 
@@ -226,7 +381,7 @@ export default async function MarketMapPage() {
         <div className="section-heading stacked-heading">
           <span>품질 플래그</span>
           <h2>판단 전에 먼저 빼고 봐야 할 것</h2>
-          <p>비어 있거나 오래된 지표는 추정값으로 채우지 않는다. 해당 regime 신뢰도를 낮춘다.</p>
+          <p>비어 있거나 오래된 지표는 추정값으로 채우지 않는다. 해당 시장 체제 신뢰도를 낮춘다.</p>
         </div>
         {topFlags.length > 0 ? (
           <div className="relationship-list">
@@ -274,4 +429,3 @@ export default async function MarketMapPage() {
     </div>
   );
 }
-
