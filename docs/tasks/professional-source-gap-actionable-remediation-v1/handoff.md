@@ -2,8 +2,8 @@
 
 ## Status
 
-- completed: local implementation and verification completed; EC2 deployment/execution is blocked by current SSH timeout.
-- status: local implementation and verification completed; EC2 deployment/execution is blocked by current SSH timeout.
+- completed: implemented, pushed to `develop`, deployed to EC2, executed on EC2, and route/API-smoked.
+- status: completed.
 
 ## Completed
 
@@ -42,23 +42,36 @@
   - expense: `net_expense_ratio=0.0018`
   - NAV: `nav_per_share=705.040931`
   - tracking metric count: `4`
+- EC2 deployment:
+  - pulled `develop` to commit `aed06a61`
+  - restarted `stockanalysis-frontend-api.service` and `stockanalysis-web.service`
+  - both services returned `active`
+- EC2 QQQ execution:
+  - `benchmark_composition_invesco_qqq_import`: `status=completed`, `component_count=101`, `coverage_status=full_enough_for_drift`, source date `2026-06-06`
+  - `fund_expense_ratio_invesco_qqq_import`: `status=completed`, `run_id=3750`
+  - `fund_nav_premium_discount_invesco_qqq_import`: `status=completed`, `run_id=3751`, `metric_count=1`
+  - `fund_tracking_difference_invesco_qqq_import`: `status=completed`, `run_id=3752`, `metric_count=4`
+- EC2 AAPL execution:
+  - `equity_research_reporting`: `status=completed`, `run_id=3753`, `provider=codex_oauth`, `model_name=codex-cli-default`, `failed_artifact_count=0`
+- EC2 `/api/data-health`:
+  - `overall_status=healthy`
+  - `open_gates=[]`
+  - `professional_source_gap_prioritization.attention_required=false`
+  - `fund_source_gap_count=0`
+  - `coverage_gap_count=0`
+  - `professional_analysis_quality.status=managed_source_limited`
+  - active candidates `26`, complete candidates `25`, source blocked `1`, average coverage `0.9712`
+  - `automatic_weight_change_allowed=false`, `broker_submit_allowed=false`, `order_boundary=read_only_no_order`
+- EC2 route smoke:
+  - `/` `200`
+  - `/data-health` `200`
+  - `/stocks/QQQ` `200`
+  - `/stocks/AAPL` `200`
 
 ## Not Completed
 
-- EC2 execution and route smoke were not completed in this session because SSH to `34.206.72.213:22` timed out from the current network.
-- AAPL `equity_research_artifact` gap was not executed on EC2 for the same reason. Existing command remains:
-  - `stockanalysis-operations equity-research-reporting-run --env-file /opt/stockanalysis/runtime/data-operations.env --as-of-date 2026-06-06 --symbol AAPL --provider codex_oauth --execute`
+- Nothing remains for this task. EROK remains visible as a managed source blocker and is blocked from professional decision/paper validation input until standard periodic filings or a dedicated parser exist.
 
 ## Exact Next Step
 
-- exact next step: when EC2 SSH/network access is available, merge this task to `develop`, pull `develop` on EC2, then run the QQQ Invesco source imports and AAPL equity research artifact command below.
-
-```bash
-stockanalysis-operations benchmark-composition-invesco-qqq-import-run --env-file /opt/stockanalysis/runtime/data-operations.env --benchmark-code QQQ --create-missing-instruments --execute
-stockanalysis-operations fund-expense-ratio-invesco-qqq-import-run --env-file /opt/stockanalysis/runtime/data-operations.env --symbol QQQ --execute
-stockanalysis-operations fund-nav-premium-discount-invesco-qqq-import-run --env-file /opt/stockanalysis/runtime/data-operations.env --symbol QQQ --execute
-stockanalysis-operations fund-tracking-difference-invesco-qqq-import-run --env-file /opt/stockanalysis/runtime/data-operations.env --symbol QQQ --execute
-stockanalysis-operations equity-research-reporting-run --env-file /opt/stockanalysis/runtime/data-operations.env --as-of-date 2026-06-06 --symbol AAPL --provider codex_oauth --execute
-```
-
-Then confirm `/api/data-health.open_gates` no longer contains `professional_source_gap_attention`, unless a new non-managed source gap appears.
+- exact next step: continue with the next open product-quality task after `professional_source_gap_attention`; do not start manual weight review until the outcome maturity due date and router allow it.
