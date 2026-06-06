@@ -14,10 +14,15 @@ require_file() {
 require_text() {
   local path="$1"
   local pattern="$2"
-  if ! rg -q "$pattern" "$ROOT_DIR/$path"; then
-    echo "Missing required text in $path: $pattern" >&2
-    exit 1
+  if command -v rg >/dev/null 2>&1; then
+    if rg -q "$pattern" "$ROOT_DIR/$path"; then
+      return
+    fi
+  elif grep -Eq "$pattern" "$ROOT_DIR/$path"; then
+    return
   fi
+  echo "Missing required text in $path: $pattern" >&2
+  exit 1
 }
 
 require_absent_path() {
