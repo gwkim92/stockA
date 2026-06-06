@@ -1,16 +1,19 @@
 import Link from "next/link";
 import type { Route } from "next";
 
-import { getCycleMap } from "@/lib/frontend-api";
+import { getCycleMap, getCycleStates } from "@/lib/frontend-api";
 import { koCode, koLabel } from "@/lib/korean-labels";
-import type { CycleMapData } from "@/lib/types";
+import type { CycleMapData, CycleStateListData } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "흐름 지도" };
 
 type CycleNode = CycleMapData["nodes"][number];
+type CycleState = CycleStateListData["cycle_states"][number];
 
 const LEVEL_ORDER = ["macro", "domain", "sector", "theme", "instrument", "unknown"] as const;
+const HIGH_EVENT_THRESHOLD = 0.55;
+const HIGH_SCORE_THRESHOLD = 0.6;
 
 function formatPercent(value: number | null | undefined) {
   if (value === null || value === undefined || !Number.isFinite(value)) {
@@ -50,8 +53,78 @@ function nodeHeat(node: CycleNode) {
   return node.event_heat_score ?? node.cycle_score ?? 0;
 }
 
+function formatCount(value: number) {
+  return value.toLocaleString("ko-KR");
+}
+
+function shortText(value: string | null | undefined, fallback: string) {
+  const text = koLabel(value || fallback).trim();
+  return text.length > 180 ? `${text.slice(0, 180)}...` : text;
+}
+
+function cycleAttentionScore(node: CycleNode) {
+  const heat = node.event_heat_score ?? 0;
+  const cycleScore = node.cycle_score ?? 0;
+  const propagation = Math.min(1, node.counts.propagated_impact_count / 80);
+  const recommendations = Math.min(1, node.counts.recommendation_count / 20);
+  const conflicts = node.conflict_flags.length > 0 ? 0.22 : 0;
+  return heat * 0.34 + cycleScore * 0.22 + propagation * 0.2 + recommendations * 0.14 + conflicts;
+}
+
+function nodeTone(node: CycleNode) {
+  if (node.conflict_flags.length > 0) {
+    return "tone-watch";
+  }
+  if ((node.cycle_score ?? 0) >= HIGH_SCORE_THRESHOLD || nodeHeat(node) >= HIGH_EVENT_THRESHOLD) {
+    return "tone-ready";
+  }
+  return "tone-neutral";
+}
+
 function relationCount(data: CycleMapData, nodeCode: string) {
   return data.edges.filter((edge) => edge.parent_code === nodeCode || edge.child_code === nodeCode).length;
+}
+
+function nodeDecisionLabel(node: CycleNode) {
+  if (node.conflict_flags.length > 0) {
+    return "충돌 먼저 확인";
+  }
+  if (node.counts.direct_event_count >= 20) {
+    return "뉴스 원천 확인";
+  }
+  if (node.counts.propagated_impact_count > 0) {
+    return "전파 종목 확인";
+  }
+  if (node.counts.recommendation_count > 0) {
+    return "추천 연결 확인";
+  }
+  return "관찰 유지";
+}
+
+function nodeQuestion(node: CycleNode) {
+  if (node.cycle_level === "macro") {
+    return "이 거시 흐름이 성장주, 채권, 원자재, 현금성 자산 중 어디에 압력을 주는가?";
+  }
+  if (node.cycle_level === "domain") {
+    return "상위 거시 흐름이 이 산업 도메인의 수요·마진·밸류에이션을 밀어주는가?";
+  }
+  if (node.cycle_level === "sector") {
+    return "섹터 ETF와 주요 구성 종목이 같은 방향으로 움직이는가?";
+  }
+  if (node.cycle_level === "theme") {
+    return "테마 뉴스가 실제 종목 실적과 가격 흐름으로 내려오고 있는가?";
+  }
+  return "종목 자체 흐름이 상위 사이클과 같은 방향인가?";
+}
+
+function flowPathText(data: CycleMapData, node: CycleNode) {
+  const parent = data.edges.find((edge) => edge.child_code === node.node_code)?.parent_code;
+  const child = data.edges.find((edge) => edge.parent_code === node.node_code)?.child_code;
+  return [parent, node.node_code, child].filter(Boolean).map(koCode).join(" → ");
+}
+
+function cycleStateForNode(states: Map<string, CycleState>, node: CycleNode) {
+  return states.get(node.node_code) ?? null;
 }
 
 function nodeSummary(node: CycleNode) {
@@ -74,13 +147,22 @@ function groupedNodes(nodes: CycleNode[]) {
 }
 
 export default async function CycleMapPage() {
-  const response = await getCycleMap();
+  const [response, cycleStateResponse] = await Promise.all([getCycleMap(), getCycleStates()]);
   const data = response.data;
+  const cycleStates = cycleStateResponse.data.cycle_states;
+  const cycleStatesByKey = new Map(cycleStates.map((cycle) => [cycle.theme_key, cycle]));
   const groups = groupedNodes(data.nodes);
-  const hotNode = data.nodes.find((node) => node.node_code === data.summary.hot_node_code) ?? data.nodes[0] ?? null;
   const exposedNodeCount = data.nodes.filter((node) => node.counts.exposed_instrument_count > 0).length;
   const aiBackedNodeCount = data.nodes.filter((node) => node.counts.ai_artifact_count > 0).length;
   const conflictNodeCount = data.nodes.filter((node) => node.conflict_flags.length > 0).length;
+  const attentionNodes = [...data.nodes].sort((left, right) => cycleAttentionScore(right) - cycleAttentionScore(left)).slice(0, 6);
+  const turningCycles = cycleStates.filter((cycle) => cycle.state !== cycle.previous_state).slice(0, 5);
+  const eventLedCycles = [...cycleStates]
+    .sort((left, right) => (right.features.event_intensity ?? 0) - (left.features.event_intensity ?? 0))
+    .slice(0, 4);
+  const evidenceGapCount = cycleStates.filter((cycle) =>
+    Object.values(cycle.features).some((value) => value === null),
+  ).length;
 
   return (
     <div className="terminal-page decision-page">
@@ -88,11 +170,11 @@ export default async function CycleMapPage() {
         <div className="decision-brief-main">
           <span className="decision-brief-kicker">흐름 지도 · {data.as_of_date}</span>
           <h1 className="decision-brief-title" id="cycle-map-title">
-            현재 가장 뜨거운 흐름: {hotNode ? koCode(hotNode.node_code) : "아직 대기"}
+            오늘 먼저 볼 사이클은 {attentionNodes.length.toLocaleString("ko-KR")}개다.
           </h1>
           <p className="decision-brief-copy">
-            사이클은 두 화면으로 본다. /cycles는 테마별 상태표이고, 이 화면은 뉴스와 가격 흐름이
-            거시·도메인·테마를 거쳐 어떤 종목과 추천 근거로 내려가는지 확인하는 경로 지도다.
+            사이클 화면은 그래프를 구경하는 곳이 아니다. 먼저 전환·충돌·뉴스 열기를 찾고, 그 흐름이
+            거시에서 테마와 종목으로 내려와 추천 근거를 바꾸는지 확인한다.
           </p>
           <div className="decision-brief-meta" aria-label="흐름 지도 핵심 상태">
             <span>흐름 {data.summary.node_count.toLocaleString("ko-KR")}개</span>
@@ -135,7 +217,118 @@ export default async function CycleMapPage() {
         </div>
       </section>
 
-      <section className="reveal delay-2" id="cycle-map-layers" aria-label="계층형 사이클 지도">
+      <section className="cycle-operating-board reveal delay-1" aria-labelledby="cycle-operating-title">
+        <div className="cycle-attention-panel">
+          <div className="section-heading stacked-heading">
+            <span>우선순위</span>
+            <h2 id="cycle-operating-title">오늘 가장 먼저 읽을 사이클</h2>
+            <p>
+              뉴스 열기, 전파 영향, 추천 연결, 충돌 표시를 합쳐 먼저 볼 흐름을 정렬했다.
+              이 목록은 주문 신호가 아니라 분석 순서다.
+            </p>
+          </div>
+          <div className="cycle-attention-list">
+            {attentionNodes.map((node, index) => {
+              const linkedState = cycleStateForNode(cycleStatesByKey, node);
+              return (
+                <article className={`cycle-attention-card ${nodeTone(node)}`} key={node.node_code}>
+                  <div className="cycle-attention-rank">{String(index + 1).padStart(2, "0")}</div>
+                  <div className="cycle-attention-main">
+                    <span>{levelTitle(node.cycle_level)} · {nodeDecisionLabel(node)}</span>
+                    <strong>{koCode(node.node_code)}</strong>
+                    <p>{shortText(node.summary_text_ko, nodeSummary(node))}</p>
+                    <div className="cycle-path-tape">{flowPathText(data, node) || koCode(node.node_code)}</div>
+                  </div>
+                  <div className="cycle-attention-metrics">
+                    <div>
+                      <span>상태</span>
+                      <strong>{koCode(linkedState?.state ?? node.cycle_state)}</strong>
+                    </div>
+                    <div>
+                      <span>뉴스</span>
+                      <strong>{formatCount(node.counts.direct_event_count)}</strong>
+                    </div>
+                    <div>
+                      <span>전파</span>
+                      <strong>{formatCount(node.counts.propagated_impact_count)}</strong>
+                    </div>
+                    <div>
+                      <span>추천</span>
+                      <strong>{formatCount(node.counts.recommendation_count)}</strong>
+                    </div>
+                  </div>
+                  <div className="cycle-attention-actions">
+                    <Link className="btn btn-primary" href={nodeHref(node.node_code)}>
+                      흐름 상세
+                    </Link>
+                    {node.top_symbols[0] ? (
+                      <Link className="btn btn-secondary" href={stockHref(node.top_symbols[0])}>
+                        대표 종목
+                      </Link>
+                    ) : null}
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        </div>
+
+        <aside className="cycle-command-aside" aria-label="사이클 읽는 방법">
+          <article className="cycle-playbook">
+            <span>읽는 순서</span>
+            <strong>상위 흐름 → 전파 → 종목 → 추천</strong>
+            <p>거시 뉴스는 종목을 억지로 붙이지 않는다. 먼저 상위 사이클로 저장하고 노출도 규칙으로 종목 영향 후보를 만든다.</p>
+          </article>
+          <article className="cycle-playbook">
+            <span>전환 감시</span>
+            <strong>{turningCycles.length.toLocaleString("ko-KR")}개 변화</strong>
+            <p>{turningCycles.length > 0 ? turningCycles.map((cycle) => koCode(cycle.theme_key)).join(" · ") : "오늘 상태가 바뀐 테마는 없다."}</p>
+          </article>
+          <article className="cycle-playbook">
+            <span>뉴스 주도</span>
+            <strong>{eventLedCycles.length.toLocaleString("ko-KR")}개 상위</strong>
+            <p>{eventLedCycles.map((cycle) => koCode(cycle.theme_key)).join(" · ")}</p>
+          </article>
+          <article className="cycle-playbook warning">
+            <span>데이터 공백</span>
+            <strong>{evidenceGapCount.toLocaleString("ko-KR")}개</strong>
+            <p>뉴스, 가격, 기업 품질 중 빈 축이 있으면 결론보다 수집 보강이 먼저다.</p>
+          </article>
+        </aside>
+      </section>
+
+      <section className="cycle-lane-board reveal delay-2" aria-labelledby="cycle-lane-title">
+        <div className="section-heading stacked-heading">
+          <span>계층 지도</span>
+          <h2 id="cycle-lane-title">사이클은 위에서 아래로 내려오며 종목 근거가 된다</h2>
+          <p>각 레인은 거시, 도메인, 섹터, 테마를 분리한다. 같은 줄에 있어도 의미가 다르므로 바로 종목 추천으로 해석하지 않는다.</p>
+        </div>
+        <div className="cycle-lanes">
+          {groups.map((group) => (
+            <section className="cycle-lane" key={group.level} aria-label={`${group.title} 사이클 레인`}>
+              <div className="cycle-lane-head">
+                <span>{group.title}</span>
+                <strong>{group.nodes.length}개</strong>
+              </div>
+              <div className="cycle-node-stack">
+                {group.nodes
+                  .sort((left, right) => cycleAttentionScore(right) - cycleAttentionScore(left))
+                  .slice(0, 6)
+                  .map((node) => (
+                    <Link className={`cycle-node-card ${nodeTone(node)}`} href={nodeHref(node.node_code)} key={node.node_code}>
+                      <span>{koCode(node.cycle_state)} · {formatPercent(node.cycle_score)}</span>
+                      <strong>{koCode(node.node_code)}</strong>
+                      <small>{nodeQuestion(node)}</small>
+                      <b>뉴스 {node.counts.direct_event_count} · 전파 {node.counts.propagated_impact_count}</b>
+                    </Link>
+                  ))}
+              </div>
+            </section>
+          ))}
+        </div>
+      </section>
+
+      <section className="reveal delay-3" id="cycle-map-layers" aria-label="계층형 사이클 지도 상세">
         {groups.length === 0 ? (
           <article className="empty-state">
             아직 표시할 계층형 사이클 스냅샷이 없다. 뉴스 수집, AI 구조화, 상위 흐름 연결, 사이클 스냅샷 실행 후 이 화면이 채워진다.

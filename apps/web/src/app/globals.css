@@ -7368,6 +7368,271 @@ h6 {
   justify-items: end;
 }
 
+.cycle-operating-board {
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) minmax(280px, 0.62fr);
+  gap: clamp(18px, 2.5vw, 34px);
+  align-items: start;
+  padding: clamp(20px, 2.6vw, 36px);
+  background:
+    radial-gradient(circle at 0% 0%, rgba(189, 112, 55, 0.14), transparent 34%),
+    linear-gradient(135deg, rgba(251, 250, 246, 0.98), rgba(244, 239, 226, 0.84));
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+}
+
+.cycle-attention-panel,
+.cycle-command-aside,
+.cycle-lane-board,
+.cycle-state-board {
+  min-width: 0;
+}
+
+.cycle-attention-list {
+  display: grid;
+  gap: 12px;
+  margin-top: 22px;
+}
+
+.cycle-attention-card {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr) minmax(260px, 0.64fr) auto;
+  gap: 14px;
+  align-items: center;
+  min-width: 0;
+  padding: clamp(16px, 2vw, 24px);
+  background: color-mix(in srgb, var(--bg-panel) 88%, white);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+}
+
+.cycle-attention-card.tone-ready,
+.cycle-node-card.tone-ready,
+.cycle-state-lens.tone-ready {
+  border-color: color-mix(in srgb, var(--accent-green) 38%, var(--border-light));
+}
+
+.cycle-attention-card.tone-watch,
+.cycle-node-card.tone-watch,
+.cycle-state-lens.tone-watch {
+  border-color: color-mix(in srgb, var(--accent-amber) 42%, var(--border-light));
+}
+
+.cycle-attention-rank {
+  display: inline-grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  background: var(--text-primary);
+  border-radius: 999px;
+  color: var(--bg-panel);
+  font-size: 0.72rem;
+  font-weight: 950;
+}
+
+.cycle-attention-main {
+  min-width: 0;
+}
+
+.cycle-attention-main span,
+.cycle-lane-head span,
+.cycle-playbook span,
+.cycle-state-lens span {
+  color: var(--text-tertiary);
+  font-size: 0.72rem;
+  font-weight: 900;
+}
+
+.cycle-attention-main strong {
+  display: block;
+  margin-top: 5px;
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: clamp(1.35rem, 2vw, 2.15rem);
+  line-height: 0.98;
+  word-break: keep-all;
+}
+
+.cycle-attention-main p,
+.cycle-playbook p,
+.cycle-state-lens p,
+.cycle-state-lens small,
+.cycle-node-card small {
+  margin: 10px 0 0;
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  font-weight: 740;
+  line-height: 1.55;
+  word-break: keep-all;
+}
+
+.cycle-path-tape {
+  width: fit-content;
+  max-width: 100%;
+  margin-top: 12px;
+  padding: 7px 10px;
+  background: rgba(17, 18, 15, 0.06);
+  border: 1px solid var(--border-light);
+  color: var(--text-primary);
+  font-size: 0.74rem;
+  font-weight: 900;
+  overflow-wrap: anywhere;
+}
+
+.cycle-attention-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.cycle-attention-metrics div {
+  min-width: 0;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.54);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+}
+
+.cycle-attention-metrics span {
+  display: block;
+  color: var(--text-tertiary);
+  font-size: 0.66rem;
+  font-weight: 900;
+}
+
+.cycle-attention-metrics strong {
+  display: block;
+  margin-top: 4px;
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: clamp(1rem, 1.3vw, 1.35rem);
+  line-height: 1;
+}
+
+.cycle-attention-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.cycle-command-aside {
+  display: grid;
+  gap: 12px;
+}
+
+.cycle-playbook,
+.cycle-state-lens {
+  padding: clamp(16px, 1.8vw, 22px);
+  background: color-mix(in srgb, var(--bg-panel) 88%, white);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+}
+
+.cycle-playbook.warning {
+  border-color: color-mix(in srgb, var(--accent-amber) 42%, var(--border-light));
+}
+
+.cycle-playbook strong,
+.cycle-state-lens strong {
+  display: block;
+  margin-top: 8px;
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: clamp(1.25rem, 2vw, 2rem);
+  line-height: 0.96;
+}
+
+.cycle-lane-board,
+.cycle-state-board {
+  padding: clamp(20px, 2.6vw, 36px);
+  background:
+    linear-gradient(135deg, rgba(251, 250, 246, 0.95), rgba(251, 250, 246, 0.78)),
+    repeating-linear-gradient(
+      90deg,
+      rgba(17, 18, 15, 0.045),
+      rgba(17, 18, 15, 0.045) 1px,
+      transparent 1px,
+      transparent 36px
+    );
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+}
+
+.cycle-lanes,
+.cycle-state-lenses {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 22px;
+}
+
+.cycle-lane {
+  min-width: 0;
+  padding: 14px;
+  background: rgba(255, 255, 255, 0.46);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+}
+
+.cycle-lane-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: baseline;
+  margin-bottom: 12px;
+}
+
+.cycle-lane-head strong {
+  color: var(--text-primary);
+  font-size: 1.1rem;
+}
+
+.cycle-node-stack {
+  display: grid;
+  gap: 9px;
+}
+
+.cycle-node-card {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding: 13px;
+  background: color-mix(in srgb, var(--bg-panel) 90%, white);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  transition: border-color 0.16s ease, transform 0.16s ease;
+}
+
+.cycle-node-card:hover,
+.cycle-node-card:focus-visible {
+  border-color: var(--border-strong);
+  outline: none;
+  transform: translateY(-2px);
+}
+
+.cycle-node-card span,
+.cycle-node-card b {
+  color: var(--text-tertiary);
+  font-size: 0.68rem;
+  font-weight: 900;
+}
+
+.cycle-node-card strong {
+  color: var(--text-primary);
+  font-size: 1rem;
+  line-height: 1.08;
+  word-break: keep-all;
+}
+
+.cycle-node-card b {
+  color: var(--text-primary);
+}
+
+.cycle-state-lens {
+  min-height: 210px;
+}
+
 /* Animations */
 .reveal {
   animation: smoothUp 0.62s cubic-bezier(0.16, 1, 0.3, 1) forwards;
@@ -7526,6 +7791,9 @@ h6 {
   .status-rail,
   .route-index,
   .where-grid,
+  .cycle-operating-board,
+  .cycle-lanes,
+  .cycle-state-lenses,
   .decision-strip-grid,
   .evidence-trace-grid,
   .paper-state-grid,
@@ -7618,6 +7886,21 @@ h6 {
     grid-template-columns: 1fr;
     align-items: start;
   }
+
+  .cycle-attention-card {
+    grid-template-columns: 44px minmax(0, 1fr);
+    align-items: start;
+  }
+
+  .cycle-attention-metrics,
+  .cycle-attention-actions {
+    grid-column: 2;
+  }
+
+  .cycle-attention-actions {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
 }
 
 @media (max-width: 640px) {
@@ -7706,8 +7989,23 @@ h6 {
   }
 
   .decision-brief-grid,
+  .cycle-lanes,
+  .cycle-state-lenses,
   .decision-flow-nav {
     grid-template-columns: 1fr;
+  }
+
+  .cycle-attention-card {
+    grid-template-columns: 1fr;
+  }
+
+  .cycle-attention-metrics,
+  .cycle-attention-actions {
+    grid-column: auto;
+  }
+
+  .cycle-attention-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .decision-card {

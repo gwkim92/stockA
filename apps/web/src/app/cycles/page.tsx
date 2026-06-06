@@ -46,19 +46,36 @@ function cycleChangeLabel(currentState: string, previousState: string) {
   return `${koCode(previousState)}에서 ${koCode(currentState)}로 변화`;
 }
 
+function compactCycleList(cycles: Array<{ theme_key: string }>) {
+  if (cycles.length === 0) {
+    return "해당 항목 없음";
+  }
+  const visible = cycles.slice(0, 5).map((cycle) => koCode(cycle.theme_key)).join(" · ");
+  const extra = cycles.length - 5;
+  return extra > 0 ? `${visible} 외 ${extra}개` : visible;
+}
+
 export default async function CyclesPage() {
   const response = await getCycleStates();
   const data = response.data;
-  const activeCycleCount = data.cycle_states.filter((cycle) => cycle.state !== cycle.previous_state).length;
+  const changedCycles = data.cycle_states.filter((cycle) => cycle.state !== cycle.previous_state);
   const instrumentCount = data.cycle_states.reduce((total, cycle) => total + cycle.instrument_count, 0);
-  const eventLedThemeCount = data.cycle_states.filter((cycle) => (cycle.features.event_intensity ?? 0) >= 0.65).length;
-  const momentumThemeCount = data.cycle_states.filter((cycle) => (cycle.features.price_momentum ?? 0) >= 0.6).length;
+  const eventLedCycles = [...data.cycle_states]
+    .filter((cycle) => (cycle.features.event_intensity ?? 0) >= 0.65)
+    .sort((left, right) => (right.features.event_intensity ?? 0) - (left.features.event_intensity ?? 0));
+  const momentumCycles = [...data.cycle_states]
+    .filter((cycle) => (cycle.features.price_momentum ?? 0) >= 0.6)
+    .sort((left, right) => (right.features.price_momentum ?? 0) - (left.features.price_momentum ?? 0));
+  const evidenceGapCycles = data.cycle_states.filter((cycle) =>
+    Object.values(cycle.features).some((value) => value === null),
+  );
+  const activeCycleCount = changedCycles.length;
+  const eventLedThemeCount = eventLedCycles.length;
+  const momentumThemeCount = momentumCycles.length;
   const fundamentalMeasuredCount = data.cycle_states.filter(
     (cycle) => cycle.features.fundamental_quality !== null,
   ).length;
-  const missingFeatureCount = data.cycle_states.filter((cycle) =>
-    Object.values(cycle.features).some((value) => value === null),
-  ).length;
+  const missingFeatureCount = evidenceGapCycles.length;
   const averageConfidence =
     data.cycle_states.length > 0
       ? data.cycle_states.reduce((total, cycle) => total + cycle.confidence, 0) / data.cycle_states.length
@@ -107,6 +124,43 @@ export default async function CyclesPage() {
             <small>뉴스가 어떤 상위 흐름을 거쳐 테마와 종목으로 이어졌는지 확인한다.</small>
             <b>흐름 지도 열기</b>
           </Link>
+        </div>
+      </section>
+
+      <section className="cycle-state-board reveal delay-1" aria-labelledby="cycle-board-title">
+        <div className="section-heading stacked-heading">
+          <span>판단 순서</span>
+          <h2 id="cycle-board-title">사이클 상태표는 네 가지 질문으로 읽는다</h2>
+          <p>
+            상태 이름만 보면 안 된다. 전환이 있었는지, 뉴스가 먼저 움직였는지, 가격이 확인하는지,
+            데이터가 비어 있는지를 나눠 봐야 추천·보유 논리와 연결할 수 있다.
+          </p>
+        </div>
+        <div className="cycle-state-lenses">
+          <article className="cycle-state-lens tone-watch">
+            <span>01 전환</span>
+            <strong>{activeCycleCount.toLocaleString("ko-KR")}개</strong>
+            <p>{compactCycleList(changedCycles)}</p>
+            <small>상태가 바뀐 테마는 추천·보유 논리와 충돌하는지 먼저 본다.</small>
+          </article>
+          <article className="cycle-state-lens tone-ready">
+            <span>02 뉴스 주도</span>
+            <strong>{eventLedThemeCount.toLocaleString("ko-KR")}개</strong>
+            <p>{compactCycleList(eventLedCycles)}</p>
+            <small>뉴스 열기가 강해도 가격과 기업 품질이 따라오는지 확인해야 한다.</small>
+          </article>
+          <article className="cycle-state-lens tone-neutral">
+            <span>03 가격 확인</span>
+            <strong>{momentumThemeCount.toLocaleString("ko-KR")}개</strong>
+            <p>{compactCycleList(momentumCycles)}</p>
+            <small>가격이 먼저 움직인 테마는 뉴스와 재무 근거가 뒤따르는지 확인한다.</small>
+          </article>
+          <article className="cycle-state-lens tone-watch">
+            <span>04 데이터 공백</span>
+            <strong>{missingFeatureCount.toLocaleString("ko-KR")}개</strong>
+            <p>{compactCycleList(evidenceGapCycles)}</p>
+            <small>빈 축이 있으면 결론이 아니라 수집·정규화 보강 대상으로 본다.</small>
+          </article>
         </div>
       </section>
 
