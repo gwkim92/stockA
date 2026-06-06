@@ -439,6 +439,53 @@ export default async function IntelligencePage() {
       tone: dashboard.latest_metrics.weight_coverage_ratio > 0 ? "ready" : "watch",
     },
   ];
+  const newsWorkflowCards = [
+    {
+      index: "01",
+      label: "원장",
+      title: "수집 뉴스",
+      metric: `${events.events.length.toLocaleString("ko-KR")}건 표시`,
+      body: "RSS 원문이 언제 들어왔는지 시간순으로 본다. 여기서는 아직 투자 판단을 하지 않는다.",
+      href: "/events" as Route,
+      tone: "ready",
+    },
+    {
+      index: "02",
+      label: "태그",
+      title: "1차 분류",
+      metric: "테마·종목·방향",
+      body: "규칙과 기본 enrichment가 붙인 태그를 본다. 틀릴 수 있으므로 AI·validator가 뒤에서 보정한다.",
+      href: "/events/classification" as Route,
+      tone: "watch",
+    },
+    {
+      index: "03",
+      label: "AI",
+      title: "개별 후보",
+      metric: `${llmCandidateSuccessCount.toLocaleString("ko-KR")}건 성공`,
+      body: "Codex OAuth 배치 또는 저장된 AI 결과가 뉴스 한 건을 종목·테마·방향·불확실성으로 구조화한다.",
+      href: "/ai-evidence" as Route,
+      tone: llmCandidateSuccessCount > 0 ? "ready" : "watch",
+    },
+    {
+      index: "04",
+      label: "검증",
+      title: "통과/차단",
+      metric: `${blockedCandidateCount.toLocaleString("ko-KR")}건 차단`,
+      body: "원문 근거 없는 종목 연결, 낮은 신뢰도, 오분류 의심은 추천 입력에서 제외한다.",
+      href: blockedCandidateCount > 0 ? ("/ai-evidence/blocked" as Route) : ("/ai-evidence/results" as Route),
+      tone: blockedCandidateCount > 0 ? "watch" : "ready",
+    },
+    {
+      index: "05",
+      label: "연결",
+      title: "추천·보유",
+      metric: formatPercent(dashboard.latest_metrics.weight_coverage_ratio),
+      body: "통과한 근거가 추천 상세, 종목 상세, 보유 상태, 가상 매매 검증에 어떻게 붙었는지 확인한다.",
+      href: "/recommendations" as Route,
+      tone: dashboard.latest_metrics.weight_coverage_ratio > 0 ? "ready" : "watch",
+    },
+  ];
 
   return (
     <div className="terminal-page decision-page intelligence-page">
@@ -470,6 +517,29 @@ export default async function IntelligencePage() {
               <strong>{card.title}</strong>
               <small>{card.target} · {card.body}</small>
               <b>{card.cta}</b>
+            </Link>
+          ))}
+        </div>
+      </section>
+
+      <section className="intelligence-flow-panel reveal delay-1" aria-labelledby="news-workflow-title">
+        <div className="intelligence-flow-lead">
+          <span>처리 순서</span>
+          <h2 id="news-workflow-title">뉴스가 판단 근거가 되는 길</h2>
+          <p>
+            뉴스는 바로 추천이 되지 않는다. 원장, 1차 태그, AI 구조화, 자동 검증, 추천 연결을 순서대로 통과해야 한다.
+            막힌 항목은 차단 목록에 남기고, 통과한 항목만 추천·보유 화면의 근거 후보가 된다.
+          </p>
+        </div>
+        <div className="intelligence-flow-grid evidence-flow-grid">
+          {newsWorkflowCards.map((card) => (
+            <Link className={`intelligence-flow-card ${card.tone}`} href={card.href} key={card.index}>
+              <span>{card.index}</span>
+              <small>{card.label}</small>
+              <strong>{card.title}</strong>
+              <em>{card.metric}</em>
+              <p>{card.body}</p>
+              <b>열기</b>
             </Link>
           ))}
         </div>

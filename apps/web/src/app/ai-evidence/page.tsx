@@ -274,6 +274,39 @@ export default async function AiEvidenceIndexPage() {
         </Link>
       </section>
 
+      <section className="evidence-workbench reveal delay-1" aria-labelledby="ai-evidence-workbench-title">
+        <div>
+          <span>확인 순서</span>
+          <h2 id="ai-evidence-workbench-title">AI가 한 일을 원천부터 추천 연결까지 한 줄로 확인한다</h2>
+          <p>
+            이 목록은 “AI가 맞다”를 보여주는 화면이 아니다. 원천 뉴스와 한국어 번역을 먼저 보고,
+            AI 구조화 값이 원문과 맞는지 확인한 뒤, 자동 검증을 통과한 항목만 추천·보유 근거 후보로 넘긴다.
+          </p>
+        </div>
+        <ol className="evidence-workbench-steps" aria-label="AI 근거 확인 순서">
+          <li>
+            <span>01</span>
+            <strong>원천 뉴스</strong>
+            <small>RSS 원문과 한국어 제목·요약을 먼저 대조한다.</small>
+          </li>
+          <li>
+            <span>02</span>
+            <strong>AI 구조화</strong>
+            <small>테마, 종목, 방향, 영향도, 불확실성을 확인한다.</small>
+          </li>
+          <li>
+            <span>03</span>
+            <strong>자동 검증</strong>
+            <small>원문 근거 없는 종목·낮은 신뢰도·오분류를 차단한다.</small>
+          </li>
+          <li>
+            <span>04</span>
+            <strong>추천 연결</strong>
+            <small>통과한 근거만 추천 상세와 종목 상세의 후보로 이어진다.</small>
+          </li>
+        </ol>
+      </section>
+
       <section className="ledger-section reveal delay-2" id="accepted-candidates" aria-labelledby="ai-evidence-candidate-list-title">
         <div className="ledger-section-head">
           <div>
