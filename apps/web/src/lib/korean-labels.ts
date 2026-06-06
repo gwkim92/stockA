@@ -130,6 +130,8 @@ const KOREAN_LABELS: Record<string, string> = {
   translation: "번역",
   validator: "자동 검증",
   twelve_data: "Twelve Data",
+  fred: "FRED",
+  cboe_csv: "CBOE",
   accumulate: "분할 매수",
   accumulate_candidate: "분할 매수 판단 항목",
   "accumulate candidate": "분할 매수 판단 항목",

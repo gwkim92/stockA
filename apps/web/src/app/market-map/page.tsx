@@ -158,7 +158,9 @@ function humanizeNewsRationale(rationale: string) {
     .replaceAll("TECH_DOMAIN", koCode("TECH_DOMAIN"))
     .replaceAll("ENERGY_GEOPOLITICS", koCode("ENERGY_GEOPOLITICS"))
     .replaceAll("MACRO_RATES_FED", koCode("MACRO_RATES_FED"))
-    .replaceAll("shock", "가격 충격");
+    .replaceAll("shock", "가격 충격")
+    .replaceAll("사이클와", "사이클과")
+    .replaceAll("도메인와", "도메인과");
 }
 
 function buildMarketReadout(data: MarketMapData, regimes: MarketRegime[]) {
@@ -190,7 +192,7 @@ function buildMarketReadout(data: MarketMapData, regimes: MarketRegime[]) {
       tone: "is-good",
       title: "가격 충격은 있지만 체제 전환은 관찰 단계다.",
       copy: `${data.summary.shock_indicator_count}개 지표가 크게 움직였고 ${watchCount}개 시장 체제를 감시 중이다. 아직 추천 점수는 바꾸지 않고 뉴스·사이클 근거와 대조한다.`,
-      nextSteps: ["압력이 큰 영역 확인", "뉴스 연결 확인", "cycle-map에서 전파 경로 확인"],
+      nextSteps: ["압력이 큰 영역 확인", "뉴스 연결 확인", "흐름 지도에서 전파 경로 확인"],
     };
   }
 
