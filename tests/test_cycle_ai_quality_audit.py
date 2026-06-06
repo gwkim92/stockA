@@ -98,10 +98,22 @@ class CycleAiQualityAuditTests(unittest.TestCase):
         self.assertIn("('QQQ', 'nasdaq')", sql)
         self.assertIn("regexp_split_to_table(instrument.name", sql)
         self.assertIn("normal_macro_flows", sql)
+        self.assertIn("cross_theme_mismatch_rules", sql)
+        self.assertIn("cross_theme_mismatches", sql)
+        self.assertIn("duplicate_flow_evidence", sql)
+        self.assertIn("weak_propagation_evidence", sql)
         self.assertIn("'macro_false_tickers'", sql)
         self.assertIn("'normal_macro_flows'", sql)
+        self.assertIn("'cross_theme_mismatch_count'", sql)
+        self.assertIn("'duplicate_flow_evidence_count'", sql)
+        self.assertIn("'weak_propagation_evidence_count'", sql)
+        self.assertIn("'cross_theme_mismatches'", sql)
+        self.assertIn("'duplicate_flow_evidence'", sql)
+        self.assertIn("'weak_propagation_evidence'", sql)
         self.assertIn("'event_title'", sql)
         self.assertIn("'node_codes'", sql)
+        self.assertIn("path_weight", sql)
+        self.assertIn("source_document_count", sql)
         self.assertIn("signal.hierarchical_propagated_instrument_impact", sql)
         self.assertIn("signal.cycle_hierarchy_state_snapshot", sql)
         self.assertIn("trading.paper_validation_run", sql)
@@ -130,6 +142,73 @@ class CycleAiQualityAuditTests(unittest.TestCase):
         self.assertIn("macro_false_tickers", report["samples"])
         self.assertEqual(len(executor.scalar_sql), 1)
         self.assertEqual(executor.non_query_sql, [])
+
+    def test_run_report_includes_hardened_audit_next_actions(self) -> None:
+        executor = FakeExecutor(
+            _sample_state(
+                issue_count=3,
+                checks={
+                    "cross_theme_mismatch_count": 1,
+                    "duplicate_flow_evidence_count": 1,
+                    "weak_propagation_evidence_count": 1,
+                },
+                samples={
+                    "cross_theme_mismatches": [
+                        {
+                            "event_id": 11,
+                            "node_code": "ENERGY_GEOPOLITICS",
+                            "rule_key": "rates_news_on_energy_geopolitics",
+                            "label": "금리·연준 뉴스가 에너지 지정학 흐름으로 연결됨",
+                            "event_title": "Fed rate cut odds rise",
+                        }
+                    ],
+                    "duplicate_flow_evidence": [
+                        {
+                            "title": "same news",
+                            "event_count": 2,
+                            "node_count": 2,
+                            "node_codes": ["MACRO_RATES_FED", "TECH_DOMAIN"],
+                        }
+                    ],
+                    "weak_propagation_evidence": [
+                        {
+                            "event_id": 12,
+                            "source_node_code": "MACRO_RATES_FED",
+                            "propagated_node_code": "TECH_DOMAIN",
+                            "symbol": "QQQ",
+                            "confidence": 0.2,
+                            "path_weight": 0.08,
+                        }
+                    ],
+                },
+            )
+        )
+
+        report = run_cycle_ai_quality_audit(
+            config=RuntimeConfig(psql_command="psql"),
+            as_of_date=date(2026, 5, 24),
+            execute=False,
+            executor=executor,
+        )
+
+        self.assertEqual(report["checks"]["cross_theme_mismatch_count"], 1)
+        self.assertEqual(report["checks"]["duplicate_flow_evidence_count"], 1)
+        self.assertEqual(report["checks"]["weak_propagation_evidence_count"], 1)
+        self.assertIn("cross_theme_mismatches", report["samples"])
+        self.assertIn("duplicate_flow_evidence", report["samples"])
+        self.assertIn("weak_propagation_evidence", report["samples"])
+        self.assertIn(
+            "inspect cross-theme news mismatches before using cycle evidence",
+            report["next_actions"],
+        )
+        self.assertIn(
+            "merge duplicate news flow evidence before cycle review",
+            report["next_actions"],
+        )
+        self.assertIn(
+            "review weak cycle propagation evidence before recommendation input",
+            report["next_actions"],
+        )
 
     def test_run_execute_records_pipeline_run(self) -> None:
         executor = FakeExecutor(_sample_state(audit_status="ok", issue_count=0))
@@ -320,7 +399,48 @@ class CycleAiQualityAuditTests(unittest.TestCase):
         self.assertTrue(any("update ops.pipeline_run" in sql for sql in executor.non_query_sql))
 
 
-def _sample_state(*, audit_status: str = "attention_required", issue_count: int = 2) -> dict[str, object]:
+def _sample_state(
+    *,
+    audit_status: str = "attention_required",
+    issue_count: int = 2,
+    checks: dict[str, object] | None = None,
+    samples: dict[str, object] | None = None,
+) -> dict[str, object]:
+    base_checks: dict[str, object] = {
+        "duplicate_title_count": 1,
+        "ungrounded_direct_ticker_count": 1,
+        "macro_false_ticker_count": 0,
+        "quantum_energy_mislink_count": 0,
+        "cross_theme_mismatch_count": 0,
+        "duplicate_flow_evidence_count": 0,
+        "weak_propagation_evidence_count": 0,
+        "normal_macro_flow_count": 4,
+    }
+    if checks is not None:
+        base_checks.update(checks)
+    base_samples: dict[str, object] = {
+        "ungrounded_direct_tickers": [{"event_id": 1, "symbol": "SPY", "event_title": "Fed news"}],
+        "macro_false_tickers": [
+            {
+                "event_id": 2,
+                "symbol": "QQQ",
+                "instrument_name": "Invesco QQQ Trust",
+                "event_title": "Fed holds rates",
+                "node_codes": ["MACRO_RATES_FED"],
+                "impact_direction": "risk_review",
+            }
+        ],
+        "normal_macro_flows": [
+            {
+                "event_id": 3,
+                "event_title": "Inflation cools",
+                "node_codes": ["MACRO_INFLATION"],
+                "impact_directions": ["supportive"],
+            }
+        ],
+    }
+    if samples is not None:
+        base_samples.update(samples)
     return {
         "as_of_date": "2026-05-24",
         "lookback_days": 30,
@@ -340,34 +460,8 @@ def _sample_state(*, audit_status: str = "attention_required", issue_count: int 
             "paper_validation_count": 1,
             "paper_validation_passed_count": 1,
         },
-        "checks": {
-            "duplicate_title_count": 1,
-            "ungrounded_direct_ticker_count": 1,
-            "macro_false_ticker_count": 0,
-            "quantum_energy_mislink_count": 0,
-            "normal_macro_flow_count": 4,
-        },
-        "samples": {
-            "ungrounded_direct_tickers": [{"event_id": 1, "symbol": "SPY", "event_title": "Fed news"}],
-            "macro_false_tickers": [
-                {
-                    "event_id": 2,
-                    "symbol": "QQQ",
-                    "instrument_name": "Invesco QQQ Trust",
-                    "event_title": "Fed holds rates",
-                    "node_codes": ["MACRO_RATES_FED"],
-                    "impact_direction": "risk_review",
-                }
-            ],
-            "normal_macro_flows": [
-                {
-                    "event_id": 3,
-                    "event_title": "Inflation cools",
-                    "node_codes": ["MACRO_INFLATION"],
-                    "impact_directions": ["supportive"],
-                }
-            ],
-        },
+        "checks": base_checks,
+        "samples": base_samples,
     }
 
 

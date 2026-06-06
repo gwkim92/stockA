@@ -211,6 +211,55 @@ quantum_energy_mislinks as (
     where direct_impacts.source_text_upper ~ '(QUANTUM|QUBIT)'
       and direct_impacts.primary_symbol in ('XLE', 'XOM')
 ),
+cross_theme_mismatch_rules(rule_key, label, source_pattern, node_pattern) as (
+    values
+        (
+            'energy_news_on_quantum_node',
+            '에너지 원자재 뉴스가 양자컴퓨팅 흐름으로 연결됨',
+            '(OIL|WTI|BRENT|OPEC|NATURAL GAS|CRUDE|ENERGY SHOCK)',
+            '^(QUANTUM_COMPUTING_POLICY)$'
+        ),
+        (
+            'rates_news_on_energy_geopolitics',
+            '금리·연준 뉴스가 에너지 지정학 흐름으로 연결됨',
+            '(FED|FEDERAL RESERVE|TREASURY YIELD|INTEREST RATE|RATE CUT|RATE HIKE)',
+            '^(ENERGY_GEOPOLITICS)$'
+        ),
+        (
+            'semiconductor_news_on_energy_theme',
+            '반도체·AI칩 뉴스가 에너지 흐름으로 연결됨',
+            '(SEMICONDUCTOR|CHIPMAKER|CHIP STOCK|NVIDIA|NVDA|AI CHIP)',
+            '^(ENERGY_GEOPOLITICS|ENERGY_DOMAIN|ENERGY_CYCLE|XLE_ENERGY)$'
+        )
+),
+cross_theme_mismatches as (
+    select distinct
+        classification_impacts.event_id,
+        classification_impacts.node_code,
+        rules.rule_key,
+        rules.label,
+        classification_impacts.event_title
+    from classification_impacts
+    join cross_theme_mismatch_rules rules
+      on classification_impacts.source_text_upper ~ rules.source_pattern
+     and classification_impacts.node_code ~ rules.node_pattern
+),
+duplicate_flow_evidence as (
+    select
+        lower(regexp_replace(coalesce(document.title, ''), '\\s+', ' ', 'g')) as normalized_title,
+        max(left(coalesce(document.korean_title, document.title, ''), 220)) as event_title,
+        count(distinct document.document_id)::integer as document_count,
+        count(distinct document.event_id)::integer as event_count,
+        count(distinct classification_impacts.node_code)::integer as node_count,
+        array_agg(distinct classification_impacts.node_code order by classification_impacts.node_code) as node_codes
+    from event_documents document
+    left join classification_impacts on classification_impacts.event_id = document.event_id
+    where document.title is not null
+      and btrim(document.title) <> ''
+    group by lower(regexp_replace(coalesce(document.title, ''), '\\s+', ' ', 'g'))
+    having count(distinct document.event_id) > 1
+       and count(distinct classification_impacts.node_code) > 1
+),
 normal_macro_flows as (
     select
         classification_impacts.event_id,
@@ -225,6 +274,56 @@ normal_macro_flows as (
           or classification_impacts.node_type in ('macro', 'domain', 'theme')
       )
     group by classification_impacts.event_id
+),
+hierarchical_propagation_detail as (
+    select
+        propagated.event_id,
+        propagated.source_node_id,
+        source_node.code as source_node_code,
+        propagated.propagated_node_id,
+        propagated_node.code as propagated_node_code,
+        propagated.instrument_id,
+        instrument.primary_symbol,
+        propagated.path_depth,
+        propagated.path_weight,
+        propagated.impact_direction,
+        propagated.impact_strength,
+        propagated.confidence,
+        propagated.exposure_weight,
+        left(coalesce(max(document.korean_title), max(document.title), max(event_row.title), ''), 220) as event_title,
+        count(distinct document.document_id)::integer as source_document_count,
+        count(distinct artifact.artifact_id)::integer as ai_artifact_count
+    from signal.hierarchical_propagated_instrument_impact propagated
+    join windowed_events event_row on event_row.event_id = propagated.event_id
+    join ref.classification_node source_node on source_node.node_id = propagated.source_node_id
+    join ref.classification_node propagated_node on propagated_node.node_id = propagated.propagated_node_id
+    join ref.instrument instrument on instrument.instrument_id = propagated.instrument_id
+    left join event_documents document on document.event_id = propagated.event_id
+    left join ai.extraction_artifact artifact
+      on artifact.event_id = propagated.event_id
+     and artifact.artifact_type in ('news_event_candidate', 'news_event_candidate_rejected', 'news_cluster_summary')
+    group by
+        propagated.event_id,
+        propagated.source_node_id,
+        source_node.code,
+        propagated.propagated_node_id,
+        propagated_node.code,
+        propagated.instrument_id,
+        instrument.primary_symbol,
+        propagated.path_depth,
+        propagated.path_weight,
+        propagated.impact_direction,
+        propagated.impact_strength,
+        propagated.confidence,
+        propagated.exposure_weight
+),
+weak_propagation_evidence as (
+    select *
+    from hierarchical_propagation_detail
+    where source_document_count = 0
+       or coalesce(confidence, 0) < 0.3500
+       or coalesce(impact_strength, 0) < 0.0500
+       or coalesce(path_weight, 0) < 0.100000
 ),
 artifact_counts as (
     select
@@ -298,6 +397,9 @@ checks as (
         (select count(*)::integer from ungrounded_direct_tickers) as ungrounded_direct_ticker_count,
         (select count(*)::integer from macro_false_tickers) as macro_false_ticker_count,
         (select count(*)::integer from quantum_energy_mislinks) as quantum_energy_mislink_count,
+        (select count(*)::integer from cross_theme_mismatches) as cross_theme_mismatch_count,
+        (select coalesce(sum(event_count - 1), 0)::integer from duplicate_flow_evidence) as duplicate_flow_evidence_count,
+        (select count(*)::integer from weak_propagation_evidence) as weak_propagation_evidence_count,
         (select count(*)::integer from normal_macro_flows) as normal_macro_flow_count
 ),
 score_input as (
@@ -308,7 +410,10 @@ score_input as (
             checks.ungrounded_direct_ticker_count
             + checks.macro_false_ticker_count
             + checks.quantum_energy_mislink_count
+            + checks.cross_theme_mismatch_count
             + least(checks.duplicate_title_count, 5)
+            + least(checks.duplicate_flow_evidence_count, 5)
+            + least(checks.weak_propagation_evidence_count, 5)
         )::integer as issue_count,
         (
             case when metrics.rss_document_count = 0 then 1 else 0 end
@@ -413,6 +518,9 @@ select json_build_object(
         'ungrounded_direct_ticker_count', ungrounded_direct_ticker_count,
         'macro_false_ticker_count', macro_false_ticker_count,
         'quantum_energy_mislink_count', quantum_energy_mislink_count,
+        'cross_theme_mismatch_count', cross_theme_mismatch_count,
+        'duplicate_flow_evidence_count', duplicate_flow_evidence_count,
+        'weak_propagation_evidence_count', weak_propagation_evidence_count,
         'normal_macro_flow_count', normal_macro_flow_count
     ),
     'samples', json_build_object(
@@ -461,6 +569,72 @@ select json_build_object(
             (
                 select json_agg(json_build_object('event_id', event_id, 'node_code', node_code))
                 from (select * from quantum_energy_mislinks order by event_id, node_code limit 5) sample
+            ),
+            '[]'::json
+        ),
+        'cross_theme_mismatches',
+        coalesce(
+            (
+                select json_agg(
+                    json_build_object(
+                        'event_id', event_id,
+                        'node_code', node_code,
+                        'rule_key', rule_key,
+                        'label', label,
+                        'event_title', event_title
+                    )
+                )
+                from (select * from cross_theme_mismatches order by event_id, node_code, rule_key limit 5) sample
+            ),
+            '[]'::json
+        ),
+        'duplicate_flow_evidence',
+        coalesce(
+            (
+                select json_agg(
+                    json_build_object(
+                        'title', normalized_title,
+                        'event_title', event_title,
+                        'document_count', document_count,
+                        'event_count', event_count,
+                        'node_count', node_count,
+                        'node_codes', node_codes
+                    )
+                )
+                from (select * from duplicate_flow_evidence order by event_count desc, node_count desc, normalized_title limit 5) sample
+            ),
+            '[]'::json
+        ),
+        'weak_propagation_evidence',
+        coalesce(
+            (
+                select json_agg(
+                    json_build_object(
+                        'event_id', event_id,
+                        'event_title', event_title,
+                        'source_node_code', source_node_code,
+                        'propagated_node_code', propagated_node_code,
+                        'symbol', primary_symbol,
+                        'impact_direction', impact_direction,
+                        'confidence', confidence,
+                        'impact_strength', impact_strength,
+                        'path_weight', path_weight,
+                        'source_document_count', source_document_count,
+                        'ai_artifact_count', ai_artifact_count
+                    )
+                )
+                from (
+                    select *
+                    from weak_propagation_evidence
+                    order by
+                        source_document_count,
+                        confidence nulls first,
+                        impact_strength nulls first,
+                        path_weight nulls first,
+                        event_id,
+                        primary_symbol
+                    limit 5
+                ) sample
             ),
             '[]'::json
         ),
@@ -1417,12 +1591,18 @@ def _next_actions(state: Mapping[str, object]) -> list[str]:
         actions.append("run news-intraday and decision-daily before trusting recommendations")
     if int(checks.get("quantum_energy_mislink_count") or 0) > 0:
         actions.append("inspect quantum news theme grounding and remove energy mislinks")
+    if int(checks.get("cross_theme_mismatch_count") or 0) > 0:
+        actions.append("inspect cross-theme news mismatches before using cycle evidence")
     if int(checks.get("ungrounded_direct_ticker_count") or 0) > 0:
         actions.append("review direct ticker impacts without source-text grounding")
     if int(checks.get("macro_false_ticker_count") or 0) > 0:
         actions.append("keep macro-only news at macro/theme level until propagation adds instrument impact")
     if int(checks.get("duplicate_title_count") or 0) > 0:
         actions.append("deduplicate repeated RSS titles before cluster evidence")
+    if int(checks.get("duplicate_flow_evidence_count") or 0) > 0:
+        actions.append("merge duplicate news flow evidence before cycle review")
+    if int(checks.get("weak_propagation_evidence_count") or 0) > 0:
+        actions.append("review weak cycle propagation evidence before recommendation input")
     if int(metrics.get("translated_document_count") or 0) == 0:
         actions.append("run Korean translation batch before user-facing review")
     if int(metrics.get("accepted_artifact_count") or 0) == 0 and int(metrics.get("rejected_artifact_count") or 0) == 0:
