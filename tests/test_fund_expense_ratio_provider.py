@@ -9,10 +9,16 @@ from stockanalysis.operations.fund_expense_ratio_provider import (
     DEFAULT_NAV_PREMIUM_DISCOUNT_PIPELINE_NAME,
     DEFAULT_PIPELINE_NAME,
     DEFAULT_TRACKING_DIFFERENCE_PIPELINE_NAME,
+    parse_invesco_qqq_expense_ratio_json,
+    parse_invesco_qqq_nav_premium_discount_json,
+    parse_invesco_qqq_tracking_difference_json,
     parse_ssga_spdr_expense_ratio_page,
     parse_ssga_spdr_nav_premium_discount_page,
     parse_ssga_spdr_tracking_difference_page,
     render_fund_expense_ratio_upsert_sql,
+    run_invesco_qqq_fund_expense_ratio_import,
+    run_invesco_qqq_fund_nav_premium_discount_import,
+    run_invesco_qqq_fund_tracking_difference_import,
     run_ssga_spdr_fund_expense_ratio_import,
     run_ssga_spdr_fund_nav_premium_discount_import,
     run_ssga_spdr_fund_tracking_difference_import,
@@ -211,6 +217,94 @@ class FundExpenseRatioProviderTests(unittest.TestCase):
         self.assertIn("measurement_window", tracking_migration)
         self.assertIn("benchmark_return", tracking_migration)
 
+    def test_parse_invesco_qqq_details_extracts_expense_ratio_and_nav(self) -> None:
+        expense = parse_invesco_qqq_expense_ratio_json(
+            _invesco_qqq_details_json(),
+            source_url="https://dng-api.invesco.com/qqq/details",
+        )
+        nav_metrics = parse_invesco_qqq_nav_premium_discount_json(
+            _invesco_qqq_details_json(),
+            source_url="https://dng-api.invesco.com/qqq/details",
+        )
+
+        self.assertEqual(expense.symbol, "QQQ")
+        self.assertEqual(expense.metric_code, "net_expense_ratio")
+        self.assertEqual(str(expense.metric_value), "0.0018")
+        self.assertEqual(str(expense.percent_value), "0.1800")
+        self.assertEqual(expense.source_as_of_date.isoformat(), "2026-06-06")
+        self.assertEqual(nav_metrics[0].metric_code, "nav_per_share")
+        self.assertEqual(str(nav_metrics[0].metric_value), "705.040931")
+        self.assertEqual(nav_metrics[0].source_as_of_date.isoformat(), "2026-06-05")
+
+    def test_parse_invesco_qqq_performance_extracts_tracking_difference(self) -> None:
+        snapshots = parse_invesco_qqq_tracking_difference_json(_invesco_qqq_performance_json())
+        by_code = {snapshot.metric_code: snapshot for snapshot in snapshots}
+
+        self.assertEqual(
+            set(by_code),
+            {
+                "tracking_difference_nav_1_year",
+                "tracking_difference_nav_3_year",
+                "tracking_difference_nav_5_year",
+                "tracking_difference_nav_10_year",
+            },
+        )
+        one_year = by_code["tracking_difference_nav_1_year"]
+        self.assertEqual(str(one_year.metric_value), "-0.00317307")
+        self.assertEqual(one_year.source_as_of_date.isoformat(), "2026-05-31")
+        self.assertEqual(one_year.measurement_window, "1 Year")
+        self.assertEqual(one_year.measurement_basis, "nav_total_return_growth_of_10k")
+        self.assertEqual(one_year.benchmark_name, "NASDAQ-100 Index")
+        self.assertEqual(str(one_year.fund_return), "0.4276845")
+        self.assertEqual(str(one_year.benchmark_return), "0.43085757")
+        self.assertIn("not tracking error", one_year.rationale)
+
+    def test_run_invesco_qqq_metric_imports_record_pipeline_without_order_or_weight_mutation(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            details = Path(tmpdir) / "qqq-details.json"
+            performance = Path(tmpdir) / "qqq-performance.json"
+            details.write_text(_invesco_qqq_details_json(), encoding="utf-8")
+            performance.write_text(_invesco_qqq_performance_json(), encoding="utf-8")
+            executor = FakeExecutor()
+
+            expense = run_invesco_qqq_fund_expense_ratio_import(
+                config=RuntimeConfig(),
+                symbol="QQQ",
+                source_json=details,
+                source_url="https://dng-api.invesco.com/qqq/details",
+                execute=True,
+                executor=executor,  # type: ignore[arg-type]
+            )
+            nav = run_invesco_qqq_fund_nav_premium_discount_import(
+                config=RuntimeConfig(),
+                symbol="QQQ",
+                source_json=details,
+                source_url="https://dng-api.invesco.com/qqq/details",
+                execute=True,
+                executor=executor,  # type: ignore[arg-type]
+            )
+            tracking = run_invesco_qqq_fund_tracking_difference_import(
+                config=RuntimeConfig(),
+                symbol="QQQ",
+                source_json=performance,
+                source_url="https://dng-api.invesco.com/qqq/performance",
+                execute=True,
+                executor=executor,  # type: ignore[arg-type]
+            )
+
+        self.assertEqual(expense["report_name"], "fund_expense_ratio_invesco_qqq_import")
+        self.assertEqual(expense["metric_code"], "net_expense_ratio")
+        self.assertEqual(expense["fund_metric_snapshot_id"], 991)
+        self.assertEqual(nav["report_name"], "fund_nav_premium_discount_invesco_qqq_import")
+        self.assertEqual(nav["metric_count"], 1)
+        self.assertEqual(tracking["report_name"], "fund_tracking_difference_invesco_qqq_import")
+        self.assertEqual(tracking["metric_count"], 4)
+        self.assertEqual(tracking["metric_interpretation"], "tracking_difference_not_tracking_error")
+        self.assertFalse(tracking["recommendation_scoring_mutated"])
+        self.assertFalse(tracking["automatic_order_allowed"])
+        self.assertFalse(tracking["broker_submit_allowed"])
+        self.assertEqual(sum("insert into market.fund_metric_snapshot" in sql for sql in executor.scalar_sql), 6)
+
 
 def _ssga_fixture_html() -> str:
     return """
@@ -259,6 +353,82 @@ def _ssga_fixture_html() -> str:
         </tbody>
       </table>
     </div>
+    """
+
+
+def _invesco_qqq_details_json() -> str:
+    return """
+    {
+      "cusip": "QQQ",
+      "effectiveDate": "2026-06-06",
+      "effectiveBusinessDate": "2026-06-05",
+      "currencyCode": "USD",
+      "totalNoOfHoldings": 102,
+      "nav": 705.040931,
+      "marketValue": 471178854307,
+      "sharesOutstanding": 668300000,
+      "feeValue": 0.18,
+      "exchange": "Nasdaq/NMS (Global Market)",
+      "inceptionDate": "1999-03-10",
+      "ticker": "QQQ"
+    }
+    """
+
+
+def _invesco_qqq_performance_json() -> str:
+    return """
+    {
+      "effectiveDate": "2026-05-31",
+      "ticker": "QQQ",
+      "lineChart1YData": [
+        {
+          "type": "Shareclass",
+          "label": "Invesco QQQ Trust, Series 1",
+          "data": [{"date": "2026-05-31", "returnPercent": 42.76845}]
+        },
+        {
+          "type": "Index2",
+          "label": "NASDAQ-100 Index (USD)",
+          "data": [{"date": "2026-05-31", "returnPercent": 43.085757}]
+        }
+      ],
+      "lineChart3YData": [
+        {
+          "type": "Shareclass",
+          "label": "Invesco QQQ Trust, Series 1",
+          "data": [{"date": "2026-05-31", "returnPercent": 116.31897}]
+        },
+        {
+          "type": "Index2",
+          "label": "NASDAQ-100 Index (USD)",
+          "data": [{"date": "2026-05-31", "returnPercent": 117.66369}]
+        }
+      ],
+      "lineChart5YData": [
+        {
+          "type": "Shareclass",
+          "label": "Invesco QQQ Trust, Series 1",
+          "data": [{"date": "2026-05-31", "returnPercent": 127.983952}]
+        },
+        {
+          "type": "Index2",
+          "label": "NASDAQ-100 Index (USD)",
+          "data": [{"date": "2026-05-31", "returnPercent": 130.405171}]
+        }
+      ],
+      "lineChart10YData": [
+        {
+          "type": "Shareclass",
+          "label": "Invesco QQQ Trust, Series 1",
+          "data": [{"date": "2026-05-31", "returnPercent": 618.725315}]
+        },
+        {
+          "type": "Index2",
+          "label": "NASDAQ-100 Index (USD)",
+          "data": [{"date": "2026-05-31", "returnPercent": 633.799144}]
+        }
+      ]
+    }
     """
 
 

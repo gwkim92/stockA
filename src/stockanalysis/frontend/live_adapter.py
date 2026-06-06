@@ -5856,14 +5856,30 @@ professional_gap_scored as (
             else 'partial_gap'
         end as depth_status,
         case
-            when is_fund_like and 'fund_benchmark_composition' = any(missing_layers)
+            when is_fund_like and upper(primary_symbol) = 'SPY' and 'fund_benchmark_composition' = any(missing_layers)
                 then 'benchmark-composition-ssga-spdr-import-run으로 무료 공식 holdings/benchmark 구성을 먼저 적재한다.'
-            when is_fund_like and 'fund_expense_ratio' = any(missing_layers)
+            when is_fund_like and upper(primary_symbol) = 'QQQ' and 'fund_benchmark_composition' = any(missing_layers)
+                then 'benchmark-composition-invesco-qqq-import-run으로 Invesco QQQ 공식 holdings 구성을 먼저 적재한다.'
+            when is_fund_like and 'fund_benchmark_composition' = any(missing_layers)
+                then 'benchmark-composition-import-run으로 repo 밖 공식 holdings CSV를 적재하거나 해당 운용사 전용 provider를 추가한다.'
+            when is_fund_like and upper(primary_symbol) = 'SPY' and 'fund_expense_ratio' = any(missing_layers)
                 then 'fund-expense-ratio-ssga-spdr-import-run으로 무료 공식 비용 정보를 적재한다.'
-            when is_fund_like and 'fund_nav_premium_discount' = any(missing_layers)
+            when is_fund_like and upper(primary_symbol) = 'QQQ' and 'fund_expense_ratio' = any(missing_layers)
+                then 'fund-expense-ratio-invesco-qqq-import-run으로 Invesco QQQ 공식 비용 정보를 적재한다.'
+            when is_fund_like and 'fund_expense_ratio' = any(missing_layers)
+                then '해당 운용사의 무료 공식 비용 원천 provider를 추가하거나 source-backed fund metric을 적재한다.'
+            when is_fund_like and upper(primary_symbol) = 'SPY' and 'fund_nav_premium_discount' = any(missing_layers)
                 then 'fund-nav-premium-discount-ssga-spdr-import-run으로 NAV와 premium/discount 근거를 적재한다.'
-            when is_fund_like and 'fund_tracking_difference' = any(missing_layers)
+            when is_fund_like and upper(primary_symbol) = 'QQQ' and 'fund_nav_premium_discount' = any(missing_layers)
+                then 'fund-nav-premium-discount-invesco-qqq-import-run으로 Invesco QQQ 공식 NAV 근거를 적재한다.'
+            when is_fund_like and 'fund_nav_premium_discount' = any(missing_layers)
+                then '해당 운용사의 무료 공식 NAV 원천 provider를 추가하거나 source-backed NAV metric을 적재한다.'
+            when is_fund_like and upper(primary_symbol) = 'SPY' and 'fund_tracking_difference' = any(missing_layers)
                 then 'fund-tracking-difference-ssga-spdr-import-run으로 추적 차이 근거를 적재한다.'
+            when is_fund_like and upper(primary_symbol) = 'QQQ' and 'fund_tracking_difference' = any(missing_layers)
+                then 'fund-tracking-difference-invesco-qqq-import-run으로 Invesco QQQ 공식 performance 기반 추적 차이를 적재한다.'
+            when is_fund_like and 'fund_tracking_difference' = any(missing_layers)
+                then '해당 운용사의 무료 공식 performance 원천 provider를 추가하거나 source-backed tracking difference metric을 적재한다.'
             when is_fund_like
                 then '기업 재무 모델은 적용하지 않고 fund/ETF 분석 표면에서 보유종목, 비용, NAV, 추적차이를 검토한다.'
             when raw_filing_decision_status = 'durable_exclusion_until_periodic_filing'
@@ -5879,14 +5895,30 @@ professional_gap_scored as (
             else 'professional-coverage-expansion-run으로 누락된 전문가식 분석 layer를 보강한다.'
         end as remediation_action,
         case
+            when is_fund_like and upper(primary_symbol) = 'SPY' and 'fund_benchmark_composition' = any(missing_layers)
+                then 'stockanalysis-operations benchmark-composition-ssga-spdr-import-run --env-file <ENV> --benchmark-code SPY --create-missing-instruments --execute'
+            when is_fund_like and upper(primary_symbol) = 'QQQ' and 'fund_benchmark_composition' = any(missing_layers)
+                then 'stockanalysis-operations benchmark-composition-invesco-qqq-import-run --env-file <ENV> --benchmark-code QQQ --create-missing-instruments --execute'
             when is_fund_like and 'fund_benchmark_composition' = any(missing_layers)
-                then 'stockanalysis-operations benchmark-composition-ssga-spdr-import-run --env-file <ENV> --symbol ' || primary_symbol || ' --execute'
-            when is_fund_like and 'fund_expense_ratio' = any(missing_layers)
+                then ''
+            when is_fund_like and upper(primary_symbol) = 'SPY' and 'fund_expense_ratio' = any(missing_layers)
                 then 'stockanalysis-operations fund-expense-ratio-ssga-spdr-import-run --env-file <ENV> --symbol ' || primary_symbol || ' --execute'
-            when is_fund_like and 'fund_nav_premium_discount' = any(missing_layers)
+            when is_fund_like and upper(primary_symbol) = 'QQQ' and 'fund_expense_ratio' = any(missing_layers)
+                then 'stockanalysis-operations fund-expense-ratio-invesco-qqq-import-run --env-file <ENV> --symbol QQQ --execute'
+            when is_fund_like and 'fund_expense_ratio' = any(missing_layers)
+                then ''
+            when is_fund_like and upper(primary_symbol) = 'SPY' and 'fund_nav_premium_discount' = any(missing_layers)
                 then 'stockanalysis-operations fund-nav-premium-discount-ssga-spdr-import-run --env-file <ENV> --symbol ' || primary_symbol || ' --execute'
-            when is_fund_like and 'fund_tracking_difference' = any(missing_layers)
+            when is_fund_like and upper(primary_symbol) = 'QQQ' and 'fund_nav_premium_discount' = any(missing_layers)
+                then 'stockanalysis-operations fund-nav-premium-discount-invesco-qqq-import-run --env-file <ENV> --symbol QQQ --execute'
+            when is_fund_like and 'fund_nav_premium_discount' = any(missing_layers)
+                then ''
+            when is_fund_like and upper(primary_symbol) = 'SPY' and 'fund_tracking_difference' = any(missing_layers)
                 then 'stockanalysis-operations fund-tracking-difference-ssga-spdr-import-run --env-file <ENV> --symbol ' || primary_symbol || ' --execute'
+            when is_fund_like and upper(primary_symbol) = 'QQQ' and 'fund_tracking_difference' = any(missing_layers)
+                then 'stockanalysis-operations fund-tracking-difference-invesco-qqq-import-run --env-file <ENV> --symbol QQQ --execute'
+            when is_fund_like and 'fund_tracking_difference' = any(missing_layers)
+                then ''
             when is_fund_like
                 then ''
             when blocker_code in ('sec_companyfacts_not_found', 'financial_source_linkage_failed')

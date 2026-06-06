@@ -34,8 +34,11 @@ from stockanalysis.operations.benchmark_composition_import import (
     run_benchmark_composition_import,
 )
 from stockanalysis.operations.benchmark_composition_provider import (
+    DEFAULT_INVESCO_QQQ_HOLDINGS_URL,
+    DEFAULT_INVESCO_QQQ_SOURCE_NAME,
     DEFAULT_SSGA_SOURCE_NAME,
     DEFAULT_SSGA_SPDR_SPY_HOLDINGS_URL,
+    run_invesco_qqq_benchmark_composition_import,
     run_ssga_spdr_benchmark_composition_import,
 )
 from stockanalysis.operations.cadence import build_data_operations_cadence_report
@@ -47,8 +50,14 @@ from stockanalysis.operations.cycle_ai_quality_audit import (
 from stockanalysis.operations.env_file import merged_env_with_file
 from stockanalysis.operations.env_readiness import check_data_operations_runtime_env
 from stockanalysis.operations.fund_expense_ratio_provider import (
+    DEFAULT_INVESCO_QQQ_DETAILS_URL,
+    DEFAULT_INVESCO_QQQ_FUND_METRIC_SOURCE_NAME,
+    DEFAULT_INVESCO_QQQ_PERFORMANCE_URL,
     DEFAULT_SSGA_FUND_METRIC_SOURCE_NAME,
     DEFAULT_SSGA_SPDR_SPY_PRODUCT_URL,
+    run_invesco_qqq_fund_expense_ratio_import,
+    run_invesco_qqq_fund_nav_premium_discount_import,
+    run_invesco_qqq_fund_tracking_difference_import,
     run_ssga_spdr_fund_expense_ratio_import,
     run_ssga_spdr_fund_nav_premium_discount_import,
     run_ssga_spdr_fund_tracking_difference_import,
@@ -1293,6 +1302,30 @@ def build_parser() -> argparse.ArgumentParser:
     benchmark_composition_ssga_spdr_import.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
     benchmark_composition_ssga_spdr_import.set_defaults(handler=_handle_benchmark_composition_ssga_spdr_import_run)
 
+    benchmark_composition_invesco_qqq_import = subparsers.add_parser(
+        "benchmark-composition-invesco-qqq-import-run",
+        help="Download/normalize official Invesco QQQ holdings and import benchmark composition.",
+    )
+    benchmark_composition_invesco_qqq_import.add_argument("--env-file")
+    benchmark_composition_invesco_qqq_import.add_argument("--benchmark-code", default="QQQ")
+    benchmark_composition_invesco_qqq_import.add_argument("--source-json")
+    benchmark_composition_invesco_qqq_import.add_argument("--download-url", default=DEFAULT_INVESCO_QQQ_HOLDINGS_URL)
+    benchmark_composition_invesco_qqq_import.add_argument("--raw-json-output")
+    benchmark_composition_invesco_qqq_import.add_argument("--normalized-csv-output")
+    benchmark_composition_invesco_qqq_import.add_argument("--source-name", default=DEFAULT_INVESCO_QQQ_SOURCE_NAME)
+    benchmark_composition_invesco_qqq_import.add_argument(
+        "--min-full-coverage-weight",
+        default=str(DEFAULT_MIN_FULL_COVERAGE_WEIGHT),
+    )
+    benchmark_composition_invesco_qqq_import.add_argument("--create-missing-instruments", action="store_true")
+    benchmark_composition_invesco_qqq_import.add_argument("--execute", action="store_true")
+    benchmark_composition_invesco_qqq_import.add_argument("--dry-run", action="store_true")
+    benchmark_composition_invesco_qqq_import.add_argument("--output")
+    benchmark_composition_invesco_qqq_import.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
+    benchmark_composition_invesco_qqq_import.set_defaults(
+        handler=_handle_benchmark_composition_invesco_qqq_import_run
+    )
+
     fund_expense_ratio_ssga_spdr_import = subparsers.add_parser(
         "fund-expense-ratio-ssga-spdr-import-run",
         help="Download official State Street SPDR product data and import source-backed fund expense ratio.",
@@ -1343,6 +1376,64 @@ def build_parser() -> argparse.ArgumentParser:
     fund_tracking_difference_ssga_spdr_import.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
     fund_tracking_difference_ssga_spdr_import.set_defaults(
         handler=_handle_fund_tracking_difference_ssga_spdr_import_run
+    )
+
+    fund_expense_ratio_invesco_qqq_import = subparsers.add_parser(
+        "fund-expense-ratio-invesco-qqq-import-run",
+        help="Download official Invesco QQQ product data and import source-backed fund expense ratio.",
+    )
+    fund_expense_ratio_invesco_qqq_import.add_argument("--env-file")
+    fund_expense_ratio_invesco_qqq_import.add_argument("--symbol", default="QQQ")
+    fund_expense_ratio_invesco_qqq_import.add_argument("--source-json")
+    fund_expense_ratio_invesco_qqq_import.add_argument("--source-url", default=DEFAULT_INVESCO_QQQ_DETAILS_URL)
+    fund_expense_ratio_invesco_qqq_import.add_argument("--raw-json-output")
+    fund_expense_ratio_invesco_qqq_import.add_argument("--source-name", default=DEFAULT_INVESCO_QQQ_FUND_METRIC_SOURCE_NAME)
+    fund_expense_ratio_invesco_qqq_import.add_argument("--execute", action="store_true")
+    fund_expense_ratio_invesco_qqq_import.add_argument("--dry-run", action="store_true")
+    fund_expense_ratio_invesco_qqq_import.add_argument("--output")
+    fund_expense_ratio_invesco_qqq_import.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
+    fund_expense_ratio_invesco_qqq_import.set_defaults(handler=_handle_fund_expense_ratio_invesco_qqq_import_run)
+
+    fund_nav_premium_discount_invesco_qqq_import = subparsers.add_parser(
+        "fund-nav-premium-discount-invesco-qqq-import-run",
+        help="Download official Invesco QQQ product data and import source-backed NAV metrics.",
+    )
+    fund_nav_premium_discount_invesco_qqq_import.add_argument("--env-file")
+    fund_nav_premium_discount_invesco_qqq_import.add_argument("--symbol", default="QQQ")
+    fund_nav_premium_discount_invesco_qqq_import.add_argument("--source-json")
+    fund_nav_premium_discount_invesco_qqq_import.add_argument("--source-url", default=DEFAULT_INVESCO_QQQ_DETAILS_URL)
+    fund_nav_premium_discount_invesco_qqq_import.add_argument("--raw-json-output")
+    fund_nav_premium_discount_invesco_qqq_import.add_argument(
+        "--source-name",
+        default=DEFAULT_INVESCO_QQQ_FUND_METRIC_SOURCE_NAME,
+    )
+    fund_nav_premium_discount_invesco_qqq_import.add_argument("--execute", action="store_true")
+    fund_nav_premium_discount_invesco_qqq_import.add_argument("--dry-run", action="store_true")
+    fund_nav_premium_discount_invesco_qqq_import.add_argument("--output")
+    fund_nav_premium_discount_invesco_qqq_import.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
+    fund_nav_premium_discount_invesco_qqq_import.set_defaults(
+        handler=_handle_fund_nav_premium_discount_invesco_qqq_import_run
+    )
+
+    fund_tracking_difference_invesco_qqq_import = subparsers.add_parser(
+        "fund-tracking-difference-invesco-qqq-import-run",
+        help="Download official Invesco QQQ performance data and import source-backed tracking-difference metrics.",
+    )
+    fund_tracking_difference_invesco_qqq_import.add_argument("--env-file")
+    fund_tracking_difference_invesco_qqq_import.add_argument("--symbol", default="QQQ")
+    fund_tracking_difference_invesco_qqq_import.add_argument("--source-json")
+    fund_tracking_difference_invesco_qqq_import.add_argument("--source-url", default=DEFAULT_INVESCO_QQQ_PERFORMANCE_URL)
+    fund_tracking_difference_invesco_qqq_import.add_argument("--raw-json-output")
+    fund_tracking_difference_invesco_qqq_import.add_argument(
+        "--source-name",
+        default=DEFAULT_INVESCO_QQQ_FUND_METRIC_SOURCE_NAME,
+    )
+    fund_tracking_difference_invesco_qqq_import.add_argument("--execute", action="store_true")
+    fund_tracking_difference_invesco_qqq_import.add_argument("--dry-run", action="store_true")
+    fund_tracking_difference_invesco_qqq_import.add_argument("--output")
+    fund_tracking_difference_invesco_qqq_import.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
+    fund_tracking_difference_invesco_qqq_import.set_defaults(
+        handler=_handle_fund_tracking_difference_invesco_qqq_import_run
     )
 
     recommendation_fundamental_components = subparsers.add_parser(
@@ -2890,6 +2981,61 @@ def _handle_benchmark_composition_ssga_spdr_import_run(args: argparse.Namespace,
     return 0
 
 
+def _handle_benchmark_composition_invesco_qqq_import_run(args: argparse.Namespace, *, stdout: TextIO) -> int:
+    if bool(args.execute) and bool(args.dry_run):
+        raise ValueError("--execute and --dry-run cannot be used together.")
+    env_mapping = _load_optional_env_mapping(args.env_file, repo_root=args.repo_root)
+    source_json = None
+    if args.source_json:
+        source_json = resolve_existing_file(
+            args.source_json,
+            label="Invesco QQQ holdings JSON",
+            repo_root=args.repo_root,
+            require_repo_outside=True,
+        )
+    raw_json_output = None
+    if args.raw_json_output:
+        raw_json_output = resolve_output_path(
+            args.raw_json_output,
+            label="Invesco QQQ raw holdings JSON output",
+            repo_root=args.repo_root,
+            require_repo_outside=True,
+        )
+    normalized_csv_output = None
+    if args.normalized_csv_output:
+        normalized_csv_output = resolve_output_path(
+            args.normalized_csv_output,
+            label="Invesco QQQ normalized holdings CSV output",
+            repo_root=args.repo_root,
+            require_repo_outside=True,
+        )
+    min_full_coverage_weight = Decimal(str(args.min_full_coverage_weight))
+    with _temporary_environ(env_mapping):
+        report = run_invesco_qqq_benchmark_composition_import(
+            config=RuntimeConfig.from_env(),
+            benchmark_code=args.benchmark_code,
+            source_json=source_json,
+            raw_json_output=raw_json_output,
+            normalized_csv_output=normalized_csv_output,
+            download_url=args.download_url,
+            source_name=args.source_name,
+            execute=bool(args.execute) and not bool(args.dry_run),
+            create_missing_instruments=bool(args.create_missing_instruments),
+            min_full_coverage_weight=min_full_coverage_weight,
+        )
+    if args.output:
+        output_path = resolve_output_path(
+            args.output,
+            label="Invesco QQQ benchmark import output",
+            repo_root=args.repo_root,
+            require_repo_outside=True,
+        )
+        write_json_report(report, output_path=output_path, stdout=stdout)
+    else:
+        print_json(report, stdout=stdout, sort_keys=False)
+    return 0
+
+
 def _handle_fund_expense_ratio_ssga_spdr_import_run(args: argparse.Namespace, *, stdout: TextIO) -> int:
     if bool(args.execute) and bool(args.dry_run):
         raise ValueError("--execute and --dry-run cannot be used together.")
@@ -2933,6 +3079,17 @@ def _handle_fund_expense_ratio_ssga_spdr_import_run(args: argparse.Namespace, *,
     return 0
 
 
+def _handle_fund_expense_ratio_invesco_qqq_import_run(args: argparse.Namespace, *, stdout: TextIO) -> int:
+    report = _run_invesco_qqq_fund_metric_handler(
+        args,
+        stdout=stdout,
+        runner=run_invesco_qqq_fund_expense_ratio_import,
+        source_label="Invesco QQQ fund details JSON",
+        output_label="Invesco QQQ fund expense ratio output",
+    )
+    return report
+
+
 def _handle_fund_nav_premium_discount_ssga_spdr_import_run(args: argparse.Namespace, *, stdout: TextIO) -> int:
     if bool(args.execute) and bool(args.dry_run):
         raise ValueError("--execute and --dry-run cannot be used together.")
@@ -2974,6 +3131,17 @@ def _handle_fund_nav_premium_discount_ssga_spdr_import_run(args: argparse.Namesp
     else:
         print_json(report, stdout=stdout, sort_keys=False)
     return 0
+
+
+def _handle_fund_nav_premium_discount_invesco_qqq_import_run(args: argparse.Namespace, *, stdout: TextIO) -> int:
+    report = _run_invesco_qqq_fund_metric_handler(
+        args,
+        stdout=stdout,
+        runner=run_invesco_qqq_fund_nav_premium_discount_import,
+        source_label="Invesco QQQ fund details JSON",
+        output_label="Invesco QQQ fund NAV output",
+    )
+    return report
 
 
 def _handle_fund_tracking_difference_ssga_spdr_import_run(args: argparse.Namespace, *, stdout: TextIO) -> int:
@@ -3035,6 +3203,67 @@ def _handle_financial_metric_normalization_run(args: argparse.Namespace, *, stdo
         output_path = resolve_output_path(
             args.output,
             label="financial metric normalization output",
+            repo_root=args.repo_root,
+            require_repo_outside=True,
+        )
+        write_json_report(report, output_path=output_path, stdout=stdout)
+    else:
+        print_json(report, stdout=stdout, sort_keys=False)
+    return 0
+
+
+def _handle_fund_tracking_difference_invesco_qqq_import_run(args: argparse.Namespace, *, stdout: TextIO) -> int:
+    report = _run_invesco_qqq_fund_metric_handler(
+        args,
+        stdout=stdout,
+        runner=run_invesco_qqq_fund_tracking_difference_import,
+        source_label="Invesco QQQ performance JSON",
+        output_label="Invesco QQQ fund tracking-difference output",
+    )
+    return report
+
+
+def _run_invesco_qqq_fund_metric_handler(
+    args: argparse.Namespace,
+    *,
+    stdout: TextIO,
+    runner: object,
+    source_label: str,
+    output_label: str,
+) -> int:
+    if bool(args.execute) and bool(args.dry_run):
+        raise ValueError("--execute and --dry-run cannot be used together.")
+    env_mapping = _load_optional_env_mapping(args.env_file, repo_root=args.repo_root)
+    source_json = None
+    if args.source_json:
+        source_json = resolve_existing_file(
+            args.source_json,
+            label=source_label,
+            repo_root=args.repo_root,
+            require_repo_outside=True,
+        )
+    raw_json_output = None
+    if args.raw_json_output:
+        raw_json_output = resolve_output_path(
+            args.raw_json_output,
+            label=f"{source_label} raw output",
+            repo_root=args.repo_root,
+            require_repo_outside=True,
+        )
+    with _temporary_environ(env_mapping):
+        report = runner(
+            config=RuntimeConfig.from_env(),
+            symbol=args.symbol,
+            source_json=source_json,
+            raw_json_output=raw_json_output,
+            source_url=args.source_url,
+            source_name=args.source_name,
+            execute=bool(args.execute) and not bool(args.dry_run),
+        )
+    if args.output:
+        output_path = resolve_output_path(
+            args.output,
+            label=output_label,
             repo_root=args.repo_root,
             require_repo_outside=True,
         )

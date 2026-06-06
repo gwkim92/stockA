@@ -38,6 +38,7 @@ from stockanalysis.frontend.live_adapter import (
     render_frontend_ai_evidence_detail_state_sql,
     render_frontend_cycle_map_state_sql,
     render_frontend_cycle_state_list_sql,
+    render_frontend_data_health_state_sql,
     render_frontend_event_list_state_sql,
     render_frontend_market_map_state_sql,
     render_frontend_paper_trading_preview_state_sql,
@@ -5357,6 +5358,16 @@ class FrontendLiveAdapterTests(unittest.TestCase):
                 }
             )
         )
+
+    def test_professional_source_gap_remediation_commands_route_funds_to_matching_provider(self) -> None:
+        sql = render_frontend_data_health_state_sql()
+
+        self.assertIn("benchmark-composition-invesco-qqq-import-run", sql)
+        self.assertIn("fund-expense-ratio-invesco-qqq-import-run", sql)
+        self.assertIn("fund-nav-premium-discount-invesco-qqq-import-run", sql)
+        self.assertIn("fund-tracking-difference-invesco-qqq-import-run", sql)
+        self.assertIn("benchmark-composition-ssga-spdr-import-run --env-file <ENV> --benchmark-code SPY", sql)
+        self.assertNotIn("benchmark-composition-ssga-spdr-import-run --env-file <ENV> --symbol", sql)
 
     def test_portfolio_review_managed_gate_policy_keeps_unmanaged_drift_open(self) -> None:
         safe_router = {

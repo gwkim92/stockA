@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import html
+import json
 import re
 from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
+from typing import Mapping
 from urllib.request import Request, urlopen
 
 from stockanalysis.ingest.config import RuntimeConfig
@@ -23,6 +25,18 @@ DEFAULT_SSGA_FUND_METRIC_SOURCE_NAME = "ssga_spdr_product_page"
 DEFAULT_PIPELINE_NAME = "fund_expense_ratio_ssga_spdr_import"
 DEFAULT_NAV_PREMIUM_DISCOUNT_PIPELINE_NAME = "fund_nav_premium_discount_ssga_spdr_import"
 DEFAULT_TRACKING_DIFFERENCE_PIPELINE_NAME = "fund_tracking_difference_ssga_spdr_import"
+DEFAULT_INVESCO_QQQ_DETAILS_URL = (
+    "https://dng-api.invesco.com/cache/v1/accounts/en_US/shareclasses/QQQ"
+    "?idType=ticker&variationType=fundDetails&productType=ETF"
+)
+DEFAULT_INVESCO_QQQ_PERFORMANCE_URL = (
+    "https://dng-api.invesco.com/cache/v1/accounts/en_US/shareclasses/QQQ/performance/rolling"
+    "?idType=ticker&productType=ETF"
+)
+DEFAULT_INVESCO_QQQ_FUND_METRIC_SOURCE_NAME = "invesco_qqq_product_api"
+DEFAULT_INVESCO_QQQ_EXPENSE_PIPELINE_NAME = "fund_expense_ratio_invesco_qqq_import"
+DEFAULT_INVESCO_QQQ_NAV_PIPELINE_NAME = "fund_nav_premium_discount_invesco_qqq_import"
+DEFAULT_INVESCO_QQQ_TRACKING_PIPELINE_NAME = "fund_tracking_difference_invesco_qqq_import"
 
 TRACKING_DIFFERENCE_WINDOWS: tuple[tuple[str, str], ...] = (
     ("1_month", "1 Month"),
@@ -63,6 +77,18 @@ FundExpenseRatioSnapshot = FundMetricSnapshot
 
 def download_ssga_spdr_product_page(*, url: str = DEFAULT_SSGA_SPDR_SPY_PRODUCT_URL) -> str:
     request = Request(url, headers={"User-Agent": "stockanalysis-fund-expense-ratio/0.1"})
+    with urlopen(request, timeout=30) as response:
+        return response.read().decode("utf-8", errors="replace")
+
+
+def download_invesco_qqq_json(*, url: str) -> str:
+    request = Request(
+        url,
+        headers={
+            "User-Agent": "stockanalysis-fund-metric/0.1",
+            "Referer": "https://www.invesco.com/qqq-etf/en/about.html",
+        },
+    )
     with urlopen(request, timeout=30) as response:
         return response.read().decode("utf-8", errors="replace")
 
@@ -228,6 +254,117 @@ def parse_ssga_spdr_tracking_difference_page(
         )
     if not snapshots:
         raise ValueError("SSGA product page did not expose comparable NAV and benchmark return windows.")
+    return tuple(snapshots)
+
+
+def parse_invesco_qqq_expense_ratio_json(
+    content: str,
+    *,
+    symbol: str = "QQQ",
+    source_url: str = DEFAULT_INVESCO_QQQ_DETAILS_URL,
+    source_name: str = DEFAULT_INVESCO_QQQ_FUND_METRIC_SOURCE_NAME,
+) -> FundMetricSnapshot:
+    payload = json.loads(content)
+    normalized_symbol = symbol.strip().upper()
+    if normalized_symbol != "QQQ":
+        raise ValueError("Invesco QQQ provider only supports symbol QQQ.")
+    fee_percent = Decimal(str(payload["feeValue"]))
+    source_as_of_date = _json_date(payload["effectiveDate"])
+    return FundMetricSnapshot(
+        symbol=normalized_symbol,
+        metric_code="net_expense_ratio",
+        metric_value=fee_percent / Decimal("100"),
+        metric_unit="ratio",
+        source_name=source_name,
+        source_url=source_url,
+        source_as_of_date=source_as_of_date,
+        confidence=Decimal("0.9500"),
+        rationale=(
+            f"Official Invesco QQQ product API reported total expense ratio {fee_percent}% "
+            f"as of {source_as_of_date.isoformat()}."
+        ),
+    )
+
+
+def parse_invesco_qqq_nav_premium_discount_json(
+    content: str,
+    *,
+    symbol: str = "QQQ",
+    source_url: str = DEFAULT_INVESCO_QQQ_DETAILS_URL,
+    source_name: str = DEFAULT_INVESCO_QQQ_FUND_METRIC_SOURCE_NAME,
+) -> tuple[FundMetricSnapshot, ...]:
+    payload = json.loads(content)
+    normalized_symbol = symbol.strip().upper()
+    if normalized_symbol != "QQQ":
+        raise ValueError("Invesco QQQ provider only supports symbol QQQ.")
+    source_as_of_date = _json_date(payload["effectiveBusinessDate"])
+    nav = Decimal(str(payload["nav"]))
+    return (
+        FundMetricSnapshot(
+            symbol=normalized_symbol,
+            metric_code="nav_per_share",
+            metric_value=nav,
+            metric_unit="USD",
+            source_name=source_name,
+            source_url=source_url,
+            source_as_of_date=source_as_of_date,
+            confidence=Decimal("0.9500"),
+            rationale=(
+                f"Official Invesco QQQ product API reported NAV per share ${nav} "
+                f"as of {source_as_of_date.isoformat()}."
+            ),
+        ),
+    )
+
+
+def parse_invesco_qqq_tracking_difference_json(
+    content: str,
+    *,
+    symbol: str = "QQQ",
+    source_url: str = DEFAULT_INVESCO_QQQ_PERFORMANCE_URL,
+    source_name: str = DEFAULT_INVESCO_QQQ_FUND_METRIC_SOURCE_NAME,
+) -> tuple[FundMetricSnapshot, ...]:
+    payload = json.loads(content)
+    normalized_symbol = symbol.strip().upper()
+    if normalized_symbol != "QQQ":
+        raise ValueError("Invesco QQQ provider only supports symbol QQQ.")
+    source_as_of_date = _json_date(payload["effectiveDate"])
+    snapshots: list[FundMetricSnapshot] = []
+    for chart_key, window_code, window_label in (
+        ("lineChart1YData", "1_year", "1 Year"),
+        ("lineChart3YData", "3_year", "3 Year"),
+        ("lineChart5YData", "5_year", "5 Year"),
+        ("lineChart10YData", "10_year", "10 Year"),
+    ):
+        series = payload.get(chart_key) or []
+        fund_series = _find_invesco_performance_series(series, "Shareclass")
+        benchmark_series = _find_invesco_performance_series(series, "NASDAQ-100 Index")
+        fund_return = _last_return_ratio(fund_series)
+        benchmark_return = _last_return_ratio(benchmark_series)
+        metric_value = fund_return - benchmark_return
+        snapshots.append(
+            FundMetricSnapshot(
+                symbol=normalized_symbol,
+                metric_code=f"tracking_difference_nav_{window_code}",
+                metric_value=metric_value,
+                metric_unit="ratio",
+                source_name=source_name,
+                source_url=source_url,
+                source_as_of_date=source_as_of_date,
+                confidence=Decimal("0.9000"),
+                rationale=(
+                    f"Official Invesco QQQ performance API reported NAV return "
+                    f"{fund_return * Decimal('100')}% and NASDAQ-100 Index return "
+                    f"{benchmark_return * Decimal('100')}% for {window_label} as of "
+                    f"{source_as_of_date.isoformat()}. Stored as tracking difference, not tracking error."
+                ),
+                measurement_window=window_label,
+                measurement_basis="nav_total_return_growth_of_10k",
+                benchmark_name="NASDAQ-100 Index",
+                fund_return=fund_return,
+                benchmark_return=benchmark_return,
+            )
+        )
     return tuple(snapshots)
 
 
@@ -567,6 +704,241 @@ def run_ssga_spdr_fund_tracking_difference_import(
         "broker_submit_allowed": False,
         "order_boundary": "read_only_no_order",
     }
+
+
+def run_invesco_qqq_fund_expense_ratio_import(
+    *,
+    config: RuntimeConfig,
+    symbol: str = "QQQ",
+    source_json: str | Path | None = None,
+    raw_json_output: str | Path | None = None,
+    source_url: str = DEFAULT_INVESCO_QQQ_DETAILS_URL,
+    source_name: str = DEFAULT_INVESCO_QQQ_FUND_METRIC_SOURCE_NAME,
+    execute: bool = False,
+    executor: PsqlCommandExecutor | None = None,
+) -> dict[str, object]:
+    content = _load_or_download_invesco_json(source_json=source_json, raw_json_output=raw_json_output, source_url=source_url, execute=execute)
+    snapshot = parse_invesco_qqq_expense_ratio_json(
+        content,
+        symbol=symbol,
+        source_url=source_url,
+        source_name=source_name,
+    )
+    run_id, fund_metric_snapshot_ids = _execute_fund_metric_snapshots(
+        config=config,
+        pipeline_name=DEFAULT_INVESCO_QQQ_EXPENSE_PIPELINE_NAME,
+        snapshots=(snapshot,),
+        execute=execute,
+        executor=executor,
+    )
+    return {
+        "report_name": DEFAULT_INVESCO_QQQ_EXPENSE_PIPELINE_NAME,
+        "status": "completed" if execute else "planned",
+        "execute": execute,
+        "run_id": run_id,
+        "fund_metric_snapshot_id": fund_metric_snapshot_ids[0] if fund_metric_snapshot_ids else None,
+        "symbol": snapshot.symbol,
+        "metric_code": snapshot.metric_code,
+        "metric_value": format(snapshot.metric_value, "f"),
+        "percent_value": format(snapshot.percent_value, "f"),
+        "metric_unit": snapshot.metric_unit,
+        "source_name": snapshot.source_name,
+        "source_url": snapshot.source_url,
+        "source_as_of_date": snapshot.source_as_of_date.isoformat(),
+        "confidence": format(snapshot.confidence, "f"),
+        "raw_json_output": str(raw_json_output or source_json or ""),
+        "recommendation_scoring_mutated": False,
+        "automatic_order_allowed": False,
+        "broker_submit_allowed": False,
+        "order_boundary": "read_only_no_order",
+    }
+
+
+def run_invesco_qqq_fund_nav_premium_discount_import(
+    *,
+    config: RuntimeConfig,
+    symbol: str = "QQQ",
+    source_json: str | Path | None = None,
+    raw_json_output: str | Path | None = None,
+    source_url: str = DEFAULT_INVESCO_QQQ_DETAILS_URL,
+    source_name: str = DEFAULT_INVESCO_QQQ_FUND_METRIC_SOURCE_NAME,
+    execute: bool = False,
+    executor: PsqlCommandExecutor | None = None,
+) -> dict[str, object]:
+    content = _load_or_download_invesco_json(source_json=source_json, raw_json_output=raw_json_output, source_url=source_url, execute=execute)
+    snapshots = parse_invesco_qqq_nav_premium_discount_json(
+        content,
+        symbol=symbol,
+        source_url=source_url,
+        source_name=source_name,
+    )
+    run_id, fund_metric_snapshot_ids = _execute_fund_metric_snapshots(
+        config=config,
+        pipeline_name=DEFAULT_INVESCO_QQQ_NAV_PIPELINE_NAME,
+        snapshots=snapshots,
+        execute=execute,
+        executor=executor,
+    )
+    return {
+        "report_name": DEFAULT_INVESCO_QQQ_NAV_PIPELINE_NAME,
+        "status": "completed" if execute else "planned",
+        "execute": execute,
+        "run_id": run_id,
+        "fund_metric_snapshot_ids": fund_metric_snapshot_ids,
+        "symbol": symbol.strip().upper(),
+        "source_name": source_name,
+        "source_url": source_url,
+        "metric_count": len(snapshots),
+        "metrics": _fund_metric_payload(snapshots),
+        "raw_json_output": str(raw_json_output or source_json or ""),
+        "recommendation_scoring_mutated": False,
+        "automatic_order_allowed": False,
+        "broker_submit_allowed": False,
+        "order_boundary": "read_only_no_order",
+    }
+
+
+def run_invesco_qqq_fund_tracking_difference_import(
+    *,
+    config: RuntimeConfig,
+    symbol: str = "QQQ",
+    source_json: str | Path | None = None,
+    raw_json_output: str | Path | None = None,
+    source_url: str = DEFAULT_INVESCO_QQQ_PERFORMANCE_URL,
+    source_name: str = DEFAULT_INVESCO_QQQ_FUND_METRIC_SOURCE_NAME,
+    execute: bool = False,
+    executor: PsqlCommandExecutor | None = None,
+) -> dict[str, object]:
+    content = _load_or_download_invesco_json(source_json=source_json, raw_json_output=raw_json_output, source_url=source_url, execute=execute)
+    snapshots = parse_invesco_qqq_tracking_difference_json(
+        content,
+        symbol=symbol,
+        source_url=source_url,
+        source_name=source_name,
+    )
+    run_id, fund_metric_snapshot_ids = _execute_fund_metric_snapshots(
+        config=config,
+        pipeline_name=DEFAULT_INVESCO_QQQ_TRACKING_PIPELINE_NAME,
+        snapshots=snapshots,
+        execute=execute,
+        executor=executor,
+    )
+    return {
+        "report_name": DEFAULT_INVESCO_QQQ_TRACKING_PIPELINE_NAME,
+        "status": "completed" if execute else "planned",
+        "execute": execute,
+        "run_id": run_id,
+        "fund_metric_snapshot_ids": fund_metric_snapshot_ids,
+        "symbol": symbol.strip().upper(),
+        "source_name": source_name,
+        "source_url": source_url,
+        "metric_count": len(snapshots),
+        "metrics": _fund_metric_payload(snapshots),
+        "raw_json_output": str(raw_json_output or source_json or ""),
+        "metric_interpretation": "tracking_difference_not_tracking_error",
+        "recommendation_scoring_mutated": False,
+        "automatic_order_allowed": False,
+        "broker_submit_allowed": False,
+        "order_boundary": "read_only_no_order",
+    }
+
+
+def _load_or_download_invesco_json(
+    *,
+    source_json: str | Path | None,
+    raw_json_output: str | Path | None,
+    source_url: str,
+    execute: bool,
+) -> str:
+    if source_json:
+        return Path(source_json).expanduser().resolve().read_text(encoding="utf-8")
+    content = download_invesco_qqq_json(url=source_url)
+    if execute and raw_json_output is not None:
+        raw_output_path = Path(raw_json_output)
+        raw_output_path.parent.mkdir(parents=True, exist_ok=True)
+        raw_output_path.write_text(content, encoding="utf-8")
+    return content
+
+
+def _execute_fund_metric_snapshots(
+    *,
+    config: RuntimeConfig,
+    pipeline_name: str,
+    snapshots: tuple[FundMetricSnapshot, ...],
+    execute: bool,
+    executor: PsqlCommandExecutor | None,
+) -> tuple[int | None, list[int]]:
+    fund_metric_snapshot_ids: list[int] = []
+    run_id: int | None = None
+    if not execute:
+        return run_id, fund_metric_snapshot_ids
+    sql_executor = executor or PsqlCommandExecutor.from_config(config)
+    first = snapshots[0]
+    run_id = _create_pipeline_run(
+        sql_executor,
+        pipeline_name=pipeline_name,
+        config_json={
+            "symbol": first.symbol,
+            "metric_codes": [snapshot.metric_code for snapshot in snapshots],
+            "source_name": first.source_name,
+            "source_urls": sorted({snapshot.source_url for snapshot in snapshots}),
+            "source_as_of_dates": sorted({snapshot.source_as_of_date.isoformat() for snapshot in snapshots}),
+        },
+    )
+    try:
+        for snapshot in snapshots:
+            fund_metric_snapshot_ids.append(
+                int(sql_executor.execute_scalar(render_fund_expense_ratio_upsert_sql(snapshot, source_run_id=run_id)))
+            )
+        _mark_pipeline_run_succeeded(sql_executor, run_id)
+    except Exception as exc:
+        _mark_pipeline_run_failed(sql_executor, run_id, str(exc))
+        raise
+    return run_id, fund_metric_snapshot_ids
+
+
+def _fund_metric_payload(snapshots: tuple[FundMetricSnapshot, ...]) -> list[dict[str, object]]:
+    return [
+        {
+            "metric_code": snapshot.metric_code,
+            "metric_value": format(snapshot.metric_value, "f"),
+            "metric_unit": snapshot.metric_unit,
+            "source_as_of_date": snapshot.source_as_of_date.isoformat(),
+            "measurement_window": snapshot.measurement_window,
+            "measurement_basis": snapshot.measurement_basis,
+            "benchmark_name": snapshot.benchmark_name,
+            "fund_return": format(snapshot.fund_return, "f") if snapshot.fund_return is not None else None,
+            "benchmark_return": format(snapshot.benchmark_return, "f") if snapshot.benchmark_return is not None else None,
+            "confidence": format(snapshot.confidence, "f"),
+        }
+        for snapshot in snapshots
+    ]
+
+
+def _json_date(value: object) -> date:
+    return datetime.fromisoformat(str(value)).date()
+
+
+def _find_invesco_performance_series(series: object, label_or_type: str) -> dict[str, object]:
+    wanted = label_or_type.lower()
+    for item in series if isinstance(series, list) else []:
+        if not isinstance(item, dict):
+            continue
+        item_type = str(item.get("type") or "").lower()
+        item_label = str(item.get("label") or "").lower()
+        if wanted in item_type or wanted in item_label:
+            return item
+    raise ValueError(f"Invesco QQQ performance JSON did not expose {label_or_type} series.")
+
+
+def _last_return_ratio(series: Mapping[str, object]) -> Decimal:
+    data = series.get("data")
+    if not isinstance(data, list) or not data:
+        raise ValueError("Invesco QQQ performance series did not expose return data.")
+    last = data[-1]
+    if not isinstance(last, dict):
+        raise ValueError("Invesco QQQ performance series contained an invalid return point.")
+    return Decimal(str(last["returnPercent"])) / Decimal("100")
 
 
 def _extract_gross_expense_ratio_percent(text: str) -> Decimal:

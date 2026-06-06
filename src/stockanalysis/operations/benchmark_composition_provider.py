@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import csv
+import json
 import re
 import tempfile
 import zipfile
@@ -26,8 +27,16 @@ DEFAULT_SSGA_SPDR_SPY_HOLDINGS_URL = (
 DEFAULT_SSGA_PROVIDER_NAME = "State Street SPDR daily holdings"
 DEFAULT_SSGA_SOURCE_NAME = "ssga_spdr_spy_daily_holdings"
 DEFAULT_PIPELINE_NAME = "benchmark_composition_ssga_spdr_import"
+DEFAULT_INVESCO_QQQ_HOLDINGS_URL = (
+    "https://dng-api.invesco.com/cache/v1/accounts/en_US/shareclasses/QQQ/holdings/fund"
+    "?idType=ticker&interval=monthly&productType=ETF"
+)
+DEFAULT_INVESCO_QQQ_PROVIDER_NAME = "Invesco QQQ daily holdings"
+DEFAULT_INVESCO_QQQ_SOURCE_NAME = "invesco_qqq_daily_holdings"
+DEFAULT_INVESCO_QQQ_PIPELINE_NAME = "benchmark_composition_invesco_qqq_import"
 _XLSX_NS = {"a": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
 _LISTED_SYMBOL_RE = re.compile(r"^[A-Z][A-Z0-9.-]*$")
+_INVESCO_QQQ_IMPORTABLE_SECURITY_TYPES = {"COM", "ADR", "DRNY"}
 
 
 @dataclass(frozen=True)
@@ -47,6 +56,18 @@ def download_ssga_spdr_holdings_xlsx(*, url: str = DEFAULT_SSGA_SPDR_SPY_HOLDING
     request = Request(url, headers={"User-Agent": "stockanalysis-benchmark-holdings/0.1"})
     with urlopen(request, timeout=30) as response:
         return response.read()
+
+
+def download_invesco_qqq_holdings_json(*, url: str = DEFAULT_INVESCO_QQQ_HOLDINGS_URL) -> str:
+    request = Request(
+        url,
+        headers={
+            "User-Agent": "stockanalysis-benchmark-holdings/0.1",
+            "Referer": "https://www.invesco.com/qqq-etf/en/about.html",
+        },
+    )
+    with urlopen(request, timeout=30) as response:
+        return response.read().decode("utf-8", errors="replace")
 
 
 def load_ssga_spdr_holdings_xlsx(
@@ -92,6 +113,65 @@ def load_ssga_spdr_holdings_xlsx(
 
     if not holdings:
         raise ValueError("SSGA holdings XLSX did not contain any importable holdings.")
+    return NormalizedProviderHoldings(
+        benchmark_code=benchmark_code.strip().upper(),
+        provider_name=provider_name,
+        source_as_of_date=source_as_of_date,
+        rows=tuple(holdings),
+        skipped_rows=tuple(skipped),
+    )
+
+
+def load_invesco_qqq_holdings_json(
+    content: str,
+    *,
+    benchmark_code: str = "QQQ",
+    provider_name: str = DEFAULT_INVESCO_QQQ_PROVIDER_NAME,
+) -> NormalizedProviderHoldings:
+    payload = json.loads(content)
+    source_as_of_date = datetime.fromisoformat(str(payload["effectiveDate"])).date()
+    holdings: list[BenchmarkCompositionRow] = []
+    skipped: list[dict[str, object]] = []
+    seen_symbols: set[str] = set()
+    for row_number, row in enumerate(payload.get("holdings") or [], start=1):
+        raw_symbol = str(row.get("ticker") or "").strip().upper()
+        raw_name = str(row.get("issuerName") or "").strip()
+        security_type_code = str(row.get("securityTypeCode") or "").strip().upper()
+        symbol = _canonical_provider_symbol(raw_symbol)
+        weight = _parse_provider_weight(row.get("percentageOfTotalNetAssets"))
+        if security_type_code not in _INVESCO_QQQ_IMPORTABLE_SECURITY_TYPES or not symbol or weight is None:
+            skipped.append(
+                {
+                    "row_number": row_number,
+                    "symbol": raw_symbol,
+                    "name": raw_name,
+                    "security_type_code": security_type_code,
+                    "reason": "not_listed_common_equity",
+                }
+            )
+            continue
+        if symbol in seen_symbols:
+            skipped.append(
+                {
+                    "row_number": row_number,
+                    "symbol": symbol,
+                    "name": raw_name,
+                    "security_type_code": security_type_code,
+                    "reason": "duplicate_symbol",
+                }
+            )
+            continue
+        seen_symbols.add(symbol)
+        holdings.append(
+            BenchmarkCompositionRow(
+                symbol=symbol,
+                target_weight=weight / Decimal("100"),
+                name=raw_name or symbol,
+                rationale=f"{provider_name} constituent weight.",
+            )
+        )
+    if not holdings:
+        raise ValueError("Invesco QQQ holdings JSON did not contain any importable common equity holdings.")
     return NormalizedProviderHoldings(
         benchmark_code=benchmark_code.strip().upper(),
         provider_name=provider_name,
@@ -185,6 +265,78 @@ def run_ssga_spdr_benchmark_composition_import(
         "recommendation_scoring_mutated": False,
         "automatic_order_allowed": False,
         "broker_submit_allowed": False,
+        "skipped_rows": list(holdings.skipped_rows[:20]),
+        "import_report": import_report,
+    }
+
+
+def run_invesco_qqq_benchmark_composition_import(
+    *,
+    config: RuntimeConfig,
+    benchmark_code: str = "QQQ",
+    source_json: str | Path | None = None,
+    raw_json_output: str | Path | None = None,
+    normalized_csv_output: str | Path | None = None,
+    download_url: str = DEFAULT_INVESCO_QQQ_HOLDINGS_URL,
+    source_name: str = DEFAULT_INVESCO_QQQ_SOURCE_NAME,
+    execute: bool = False,
+    create_missing_instruments: bool = False,
+    min_full_coverage_weight: Decimal = DEFAULT_MIN_FULL_COVERAGE_WEIGHT,
+    executor: PsqlCommandExecutor | None = None,
+) -> dict[str, object]:
+    if source_json:
+        content = Path(source_json).expanduser().resolve().read_text(encoding="utf-8")
+    else:
+        content = download_invesco_qqq_holdings_json(url=download_url)
+        if execute and raw_json_output is not None:
+            raw_path = Path(raw_json_output)
+            raw_path.parent.mkdir(parents=True, exist_ok=True)
+            raw_path.write_text(content, encoding="utf-8")
+
+    holdings = load_invesco_qqq_holdings_json(
+        content,
+        benchmark_code=benchmark_code,
+        provider_name=DEFAULT_INVESCO_QQQ_PROVIDER_NAME,
+    )
+    if execute and normalized_csv_output is not None:
+        write_normalized_holdings_csv(holdings, normalized_csv_output)
+
+    import_report = run_benchmark_composition_import_rows(
+        config=config,
+        benchmark_code=holdings.benchmark_code,
+        source_type="provider_file",
+        source_name=source_name,
+        source_as_of_date=holdings.source_as_of_date,
+        valid_from=holdings.source_as_of_date,
+        rows=holdings.rows,
+        execute=execute,
+        min_full_coverage_weight=min_full_coverage_weight,
+        create_missing_instruments=create_missing_instruments,
+        executor=executor,
+    )
+
+    return {
+        "report_name": DEFAULT_INVESCO_QQQ_PIPELINE_NAME,
+        "status": "completed" if execute else "planned",
+        "execute": execute,
+        "benchmark_code": holdings.benchmark_code,
+        "provider_name": holdings.provider_name,
+        "source_name": source_name,
+        "source_type": "provider_file",
+        "download_url": download_url,
+        "source_as_of_date": holdings.source_as_of_date.isoformat(),
+        "component_count": len(holdings.rows),
+        "skipped_row_count": len(holdings.skipped_rows),
+        "target_weight_total": format(holdings.target_weight_total, "f"),
+        "coverage_status": import_report["coverage_status"],
+        "full_benchmark_drift_interpretation_allowed": import_report["full_benchmark_drift_interpretation_allowed"],
+        "raw_json_output": str(raw_json_output or source_json or ""),
+        "normalized_csv_output": str(normalized_csv_output or ""),
+        "create_missing_instruments": create_missing_instruments,
+        "recommendation_scoring_mutated": False,
+        "automatic_order_allowed": False,
+        "broker_submit_allowed": False,
+        "order_boundary": "read_only_no_order",
         "skipped_rows": list(holdings.skipped_rows[:20]),
         "import_report": import_report,
     }

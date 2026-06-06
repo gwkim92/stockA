@@ -9,7 +9,9 @@ from pathlib import Path
 
 from stockanalysis.ingest.config import RuntimeConfig
 from stockanalysis.operations.benchmark_composition_provider import (
+    load_invesco_qqq_holdings_json,
     load_ssga_spdr_holdings_xlsx,
+    run_invesco_qqq_benchmark_composition_import,
     run_ssga_spdr_benchmark_composition_import,
     write_normalized_holdings_csv,
 )
@@ -88,6 +90,49 @@ class BenchmarkCompositionProviderTests(unittest.TestCase):
         self.assertIn("insert into ref.instrument", executor.non_query_sql[0].lower())
         self.assertNotIn("trading.order_intent", executor.non_query_sql[0].lower())
 
+    def test_load_invesco_qqq_json_normalizes_common_equity_and_skips_synthetic_cash(self) -> None:
+        holdings = load_invesco_qqq_holdings_json(_invesco_qqq_holdings_json())
+
+        self.assertEqual(holdings.benchmark_code, "QQQ")
+        self.assertEqual(holdings.provider_name, "Invesco QQQ daily holdings")
+        self.assertEqual(holdings.source_as_of_date, date(2026, 6, 4))
+        self.assertEqual([row.symbol for row in holdings.rows], ["NVDA", "AAPL", "ARM"])
+        self.assertEqual(str(holdings.rows[0].target_weight), "0.08433591")
+        self.assertEqual(holdings.skipped_rows[0]["symbol"], "NQM6_")
+        self.assertEqual(holdings.skipped_rows[0]["reason"], "not_listed_common_equity")
+
+    def test_invesco_provider_import_run_uses_official_qqq_source_without_order_or_weight_mutation(self) -> None:
+        executor = FakeProviderImportExecutor()
+        with tempfile.TemporaryDirectory() as tmpdir:
+            source_json = Path(tmpdir) / "qqq-holdings.json"
+            source_json.write_text(_invesco_qqq_holdings_json(), encoding="utf-8")
+            csv_output = Path(tmpdir) / "normalized.csv"
+
+            report = run_invesco_qqq_benchmark_composition_import(
+                config=RuntimeConfig(psql_command="docker exec psql"),
+                benchmark_code="QQQ",
+                source_json=source_json,
+                raw_json_output=None,
+                normalized_csv_output=csv_output,
+                source_name="invesco_qqq_daily_holdings",
+                execute=True,
+                create_missing_instruments=True,
+                executor=executor,
+            )
+
+            self.assertTrue(csv_output.exists())
+
+        self.assertEqual(report["report_name"], "benchmark_composition_invesco_qqq_import")
+        self.assertEqual(report["source_name"], "invesco_qqq_daily_holdings")
+        self.assertEqual(report["source_as_of_date"], "2026-06-04")
+        self.assertEqual(report["component_count"], 3)
+        self.assertEqual(report["coverage_status"], "partial_holdings_only")
+        self.assertFalse(report["recommendation_scoring_mutated"])
+        self.assertFalse(report["automatic_order_allowed"])
+        self.assertFalse(report["broker_submit_allowed"])
+        self.assertIn("insert into ref.instrument", executor.non_query_sql[0].lower())
+        self.assertNotIn("trading.order_intent", executor.non_query_sql[0].lower())
+
 
 def _ssga_fixture_xlsx() -> Path:
     path = Path(tempfile.mkdtemp()) / "ssga-spy.xlsx"
@@ -130,6 +175,43 @@ def _ssga_fixture_xlsx() -> Path:
         workbook.writestr("xl/sharedStrings.xml", _shared_strings_xml(shared_strings))
         workbook.writestr("xl/worksheets/sheet1.xml", _sheet_xml(sheet_rows))
     return path
+
+
+def _invesco_qqq_holdings_json() -> str:
+    return """
+    {
+      "cusip": "QQQ",
+      "effectiveDate": "2026-06-04",
+      "effectiveBusinessDate": "2026-06-04",
+      "totalNumberOfHoldings": 105,
+      "holdings": [
+        {
+          "ticker": "NVDA",
+          "issuerName": "NVIDIA Corp",
+          "percentageOfTotalNetAssets": 8.433591,
+          "securityTypeCode": "COM"
+        },
+        {
+          "ticker": "AAPL",
+          "issuerName": "Apple Inc",
+          "percentageOfTotalNetAssets": 7.244039,
+          "securityTypeCode": "COM"
+        },
+        {
+          "ticker": "ARM",
+          "issuerName": "ARM Holdings PLC",
+          "percentageOfTotalNetAssets": 1.202301,
+          "securityTypeCode": "ADR"
+        },
+        {
+          "ticker": "NQM6_",
+          "issuerName": "CME E-Mini NASDAQ 100 Index Future",
+          "percentageOfTotalNetAssets": -0.088434,
+          "securityTypeCode": "SYN"
+        }
+      ]
+    }
+    """
 
 
 def _content_types_xml() -> str:

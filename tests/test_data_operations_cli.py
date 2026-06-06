@@ -2425,6 +2425,62 @@ class DataOperationsCliTests(unittest.TestCase):
             self.assertTrue(call_kwargs["create_missing_instruments"])
             self.assertTrue(call_kwargs["execute"])
 
+    def test_benchmark_composition_invesco_qqq_import_run_command_passes_outputs_and_flags(self) -> None:
+        with tempfile.TemporaryDirectory() as repo_root, tempfile.TemporaryDirectory() as outside_root:
+            env_file = Path(outside_root) / "data-operations.env"
+            source_json = Path(outside_root) / "qqq.json"
+            raw_output = Path(outside_root) / "raw-qqq.json"
+            csv_output = Path(outside_root) / "normalized-qqq.csv"
+            output_path = Path(outside_root) / "provider-import.json"
+            env_file.write_text('STOCKANALYSIS_PSQL_COMMAND="docker exec psql"\n', encoding="utf-8")
+            source_json.write_text("{}", encoding="utf-8")
+            stdout = io.StringIO()
+
+            with patch("stockanalysis.operations.cli.run_invesco_qqq_benchmark_composition_import") as runner_mock:
+                runner_mock.return_value = {
+                    "report_name": "benchmark_composition_invesco_qqq_import",
+                    "status": "completed",
+                    "coverage_status": "full_enough_for_drift",
+                }
+                exit_code = main(
+                    [
+                        "benchmark-composition-invesco-qqq-import-run",
+                        "--repo-root",
+                        repo_root,
+                        "--env-file",
+                        str(env_file),
+                        "--source-json",
+                        str(source_json),
+                        "--raw-json-output",
+                        str(raw_output),
+                        "--normalized-csv-output",
+                        str(csv_output),
+                        "--benchmark-code",
+                        "QQQ",
+                        "--source-name",
+                        "invesco_qqq_daily_holdings",
+                        "--create-missing-instruments",
+                        "--execute",
+                        "--output",
+                        str(output_path),
+                    ],
+                    stdout=stdout,
+                )
+
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(stdout.getvalue().strip(), str(output_path.resolve()))
+            payload = json.loads(output_path.read_text(encoding="utf-8"))
+            self.assertEqual(payload["report_name"], "benchmark_composition_invesco_qqq_import")
+            call_kwargs = runner_mock.call_args.kwargs
+            self.assertEqual(call_kwargs["config"].psql_command, "docker exec psql")
+            self.assertEqual(call_kwargs["source_json"], source_json.resolve())
+            self.assertEqual(call_kwargs["raw_json_output"], raw_output.resolve())
+            self.assertEqual(call_kwargs["normalized_csv_output"], csv_output.resolve())
+            self.assertEqual(call_kwargs["benchmark_code"], "QQQ")
+            self.assertEqual(call_kwargs["source_name"], "invesco_qqq_daily_holdings")
+            self.assertTrue(call_kwargs["create_missing_instruments"])
+            self.assertTrue(call_kwargs["execute"])
+
     def test_fund_expense_ratio_ssga_spdr_import_run_command_passes_source_and_output(self) -> None:
         with tempfile.TemporaryDirectory() as repo_root, tempfile.TemporaryDirectory() as outside_root:
             env_file = Path(outside_root) / "data-operations.env"
@@ -2476,6 +2532,59 @@ class DataOperationsCliTests(unittest.TestCase):
             self.assertEqual(call_kwargs["source_url"], "https://www.ssga.com/example/spy")
             self.assertEqual(call_kwargs["source_name"], "ssga_spdr_product_page")
             self.assertEqual(call_kwargs["symbol"], "SPY")
+            self.assertTrue(call_kwargs["execute"])
+
+    def test_fund_expense_ratio_invesco_qqq_import_run_command_passes_source_and_output(self) -> None:
+        with tempfile.TemporaryDirectory() as repo_root, tempfile.TemporaryDirectory() as outside_root:
+            env_file = Path(outside_root) / "data-operations.env"
+            source_json = Path(outside_root) / "qqq-details.json"
+            raw_output = Path(outside_root) / "raw-qqq-details.json"
+            output_path = Path(outside_root) / "fund-expense-ratio.json"
+            env_file.write_text('STOCKANALYSIS_PSQL_COMMAND="docker exec psql"\n', encoding="utf-8")
+            source_json.write_text("{}", encoding="utf-8")
+            stdout = io.StringIO()
+
+            with patch("stockanalysis.operations.cli.run_invesco_qqq_fund_expense_ratio_import") as runner_mock:
+                runner_mock.return_value = {
+                    "report_name": "fund_expense_ratio_invesco_qqq_import",
+                    "status": "completed",
+                    "metric_value": "0.0018",
+                }
+                exit_code = main(
+                    [
+                        "fund-expense-ratio-invesco-qqq-import-run",
+                        "--repo-root",
+                        repo_root,
+                        "--env-file",
+                        str(env_file),
+                        "--source-json",
+                        str(source_json),
+                        "--raw-json-output",
+                        str(raw_output),
+                        "--source-url",
+                        "https://dng-api.invesco.com/qqq/details",
+                        "--source-name",
+                        "invesco_qqq_product_api",
+                        "--symbol",
+                        "QQQ",
+                        "--execute",
+                        "--output",
+                        str(output_path),
+                    ],
+                    stdout=stdout,
+                )
+
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(stdout.getvalue().strip(), str(output_path.resolve()))
+            payload = json.loads(output_path.read_text(encoding="utf-8"))
+            self.assertEqual(payload["report_name"], "fund_expense_ratio_invesco_qqq_import")
+            call_kwargs = runner_mock.call_args.kwargs
+            self.assertEqual(call_kwargs["config"].psql_command, "docker exec psql")
+            self.assertEqual(call_kwargs["source_json"], source_json.resolve())
+            self.assertEqual(call_kwargs["raw_json_output"], raw_output.resolve())
+            self.assertEqual(call_kwargs["source_url"], "https://dng-api.invesco.com/qqq/details")
+            self.assertEqual(call_kwargs["source_name"], "invesco_qqq_product_api")
+            self.assertEqual(call_kwargs["symbol"], "QQQ")
             self.assertTrue(call_kwargs["execute"])
 
     def test_fund_nav_premium_discount_ssga_spdr_import_run_command_passes_source_and_output(self) -> None:
@@ -2531,6 +2640,58 @@ class DataOperationsCliTests(unittest.TestCase):
             self.assertEqual(call_kwargs["symbol"], "SPY")
             self.assertTrue(call_kwargs["execute"])
 
+    def test_fund_nav_premium_discount_invesco_qqq_import_run_command_passes_source_and_output(self) -> None:
+        with tempfile.TemporaryDirectory() as repo_root, tempfile.TemporaryDirectory() as outside_root:
+            env_file = Path(outside_root) / "data-operations.env"
+            source_json = Path(outside_root) / "qqq-details.json"
+            raw_output = Path(outside_root) / "raw-qqq-details.json"
+            output_path = Path(outside_root) / "fund-nav-premium-discount.json"
+            env_file.write_text('STOCKANALYSIS_PSQL_COMMAND="docker exec psql"\n', encoding="utf-8")
+            source_json.write_text("{}", encoding="utf-8")
+            stdout = io.StringIO()
+
+            with patch("stockanalysis.operations.cli.run_invesco_qqq_fund_nav_premium_discount_import") as runner_mock:
+                runner_mock.return_value = {
+                    "report_name": "fund_nav_premium_discount_invesco_qqq_import",
+                    "status": "completed",
+                    "metric_count": 1,
+                }
+                exit_code = main(
+                    [
+                        "fund-nav-premium-discount-invesco-qqq-import-run",
+                        "--repo-root",
+                        repo_root,
+                        "--env-file",
+                        str(env_file),
+                        "--source-json",
+                        str(source_json),
+                        "--raw-json-output",
+                        str(raw_output),
+                        "--source-url",
+                        "https://dng-api.invesco.com/qqq/details",
+                        "--source-name",
+                        "invesco_qqq_product_api",
+                        "--symbol",
+                        "QQQ",
+                        "--execute",
+                        "--output",
+                        str(output_path),
+                    ],
+                    stdout=stdout,
+                )
+
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(stdout.getvalue().strip(), str(output_path.resolve()))
+            payload = json.loads(output_path.read_text(encoding="utf-8"))
+            self.assertEqual(payload["report_name"], "fund_nav_premium_discount_invesco_qqq_import")
+            call_kwargs = runner_mock.call_args.kwargs
+            self.assertEqual(call_kwargs["source_json"], source_json.resolve())
+            self.assertEqual(call_kwargs["raw_json_output"], raw_output.resolve())
+            self.assertEqual(call_kwargs["source_url"], "https://dng-api.invesco.com/qqq/details")
+            self.assertEqual(call_kwargs["source_name"], "invesco_qqq_product_api")
+            self.assertEqual(call_kwargs["symbol"], "QQQ")
+            self.assertTrue(call_kwargs["execute"])
+
     def test_fund_tracking_difference_ssga_spdr_import_run_command_passes_source_and_output(self) -> None:
         with tempfile.TemporaryDirectory() as repo_root, tempfile.TemporaryDirectory() as outside_root:
             env_file = Path(outside_root) / "data-operations.env"
@@ -2582,6 +2743,58 @@ class DataOperationsCliTests(unittest.TestCase):
             self.assertEqual(call_kwargs["source_url"], "https://www.ssga.com/example/spy")
             self.assertEqual(call_kwargs["source_name"], "ssga_spdr_product_page")
             self.assertEqual(call_kwargs["symbol"], "SPY")
+            self.assertTrue(call_kwargs["execute"])
+
+    def test_fund_tracking_difference_invesco_qqq_import_run_command_passes_source_and_output(self) -> None:
+        with tempfile.TemporaryDirectory() as repo_root, tempfile.TemporaryDirectory() as outside_root:
+            env_file = Path(outside_root) / "data-operations.env"
+            source_json = Path(outside_root) / "qqq-performance.json"
+            raw_output = Path(outside_root) / "raw-qqq-performance.json"
+            output_path = Path(outside_root) / "fund-tracking-difference.json"
+            env_file.write_text('STOCKANALYSIS_PSQL_COMMAND="docker exec psql"\n', encoding="utf-8")
+            source_json.write_text("{}", encoding="utf-8")
+            stdout = io.StringIO()
+
+            with patch("stockanalysis.operations.cli.run_invesco_qqq_fund_tracking_difference_import") as runner_mock:
+                runner_mock.return_value = {
+                    "report_name": "fund_tracking_difference_invesco_qqq_import",
+                    "status": "completed",
+                    "metric_count": 4,
+                }
+                exit_code = main(
+                    [
+                        "fund-tracking-difference-invesco-qqq-import-run",
+                        "--repo-root",
+                        repo_root,
+                        "--env-file",
+                        str(env_file),
+                        "--source-json",
+                        str(source_json),
+                        "--raw-json-output",
+                        str(raw_output),
+                        "--source-url",
+                        "https://dng-api.invesco.com/qqq/performance",
+                        "--source-name",
+                        "invesco_qqq_product_api",
+                        "--symbol",
+                        "QQQ",
+                        "--execute",
+                        "--output",
+                        str(output_path),
+                    ],
+                    stdout=stdout,
+                )
+
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(stdout.getvalue().strip(), str(output_path.resolve()))
+            payload = json.loads(output_path.read_text(encoding="utf-8"))
+            self.assertEqual(payload["report_name"], "fund_tracking_difference_invesco_qqq_import")
+            call_kwargs = runner_mock.call_args.kwargs
+            self.assertEqual(call_kwargs["source_json"], source_json.resolve())
+            self.assertEqual(call_kwargs["raw_json_output"], raw_output.resolve())
+            self.assertEqual(call_kwargs["source_url"], "https://dng-api.invesco.com/qqq/performance")
+            self.assertEqual(call_kwargs["source_name"], "invesco_qqq_product_api")
+            self.assertEqual(call_kwargs["symbol"], "QQQ")
             self.assertTrue(call_kwargs["execute"])
 
     def test_industry_competitive_positioning_run_command_passes_env_and_writes_output(self) -> None:
