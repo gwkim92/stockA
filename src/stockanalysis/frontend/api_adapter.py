@@ -123,6 +123,8 @@ def _fixture_alias_path(api_path: str) -> str | None:
         return "/api/ai/news-clusters?asOfDate=2026-05-19"
     if parsed.path == "/api/cycles" and query.get("asOfDate"):
         return "/api/cycles?asOfDate=2024-11-01"
+    if parsed.path == "/api/cycle-map" and query.get("asOfDate"):
+        return "/api/cycle-map?asOfDate=2026-06-05"
     if parsed.path == "/api/market-map" and query.get("asOfDate"):
         return "/api/market-map?asOfDate=2026-06-05"
     if parsed.path.startswith("/api/themes/") and query.get("asOfDate"):

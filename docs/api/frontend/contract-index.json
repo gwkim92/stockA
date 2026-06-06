@@ -67,17 +67,25 @@
       "route_owner": "/trading-readiness",
       "description": "Read-only broker boundary, account permission, order limit, kill switch, paper validation, and audit readiness state."
     },
-        {
-            "method": "GET",
-            "path": "/api/cycles?asOfDate=2024-11-01",
-            "response_dto": "CycleStateListResponse",
-            "example": "docs/api/frontend/examples/cycle-state-list.json",
-            "route_owner": "/cycles",
-            "description": "Theme and sector cycle states with transitions and confidence."
-        },
-        {
-            "method": "GET",
-            "path": "/api/market-map?asOfDate=2026-06-05",
+    {
+      "method": "GET",
+      "path": "/api/cycles?asOfDate=2024-11-01",
+      "response_dto": "CycleStateListResponse",
+      "example": "docs/api/frontend/examples/cycle-state-list.json",
+      "route_owner": "/cycles",
+      "description": "Theme and sector cycle states with transitions and confidence."
+    },
+    {
+      "method": "GET",
+      "path": "/api/cycle-map?asOfDate=2026-06-05",
+      "response_dto": "CycleMapResponse",
+      "example": "docs/api/frontend/examples/cycle-map.json",
+      "route_owner": "/cycle-map",
+      "description": "Hierarchical cycle map connecting macro, domain, sector, theme, propagated impact, instruments, and recommendations."
+    },
+    {
+      "method": "GET",
+      "path": "/api/market-map?asOfDate=2026-06-05",
             "response_dto": "MarketMapResponse",
             "example": "docs/api/frontend/examples/market-map.json",
             "route_owner": "/market-map",

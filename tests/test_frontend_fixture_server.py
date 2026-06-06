@@ -51,7 +51,7 @@ class FrontendFixtureServerTests(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertEqual(payload["status"], "ok")
         self.assertEqual(payload["contract_version"], "frontend-api-v0.1")
-        self.assertEqual(payload["endpoint_count"], 19)
+        self.assertEqual(payload["endpoint_count"], 20)
         self.assertTrue(payload["read_only"])
         self.assertEqual(payload["source_mode"], "fixture")
         self.assertEqual(payload["runtime"]["runtime_profile"], "local")
@@ -63,6 +63,7 @@ class FrontendFixtureServerTests(unittest.TestCase):
         self.assertEqual(payload["source_mode"], "fixture")
         paths = {endpoint["path"] for endpoint in payload["data"]["endpoints"]}
         self.assertIn("/api/dashboard/today", paths)
+        self.assertIn("/api/cycle-map?asOfDate=2026-06-05", paths)
         self.assertIn("/api/market-map?asOfDate=2026-06-05", paths)
         self.assertIn("/api/remediation-tickets?status=open", paths)
         self.assertIn("/api/stocks", paths)
@@ -143,6 +144,19 @@ class FrontendFixtureServerTests(unittest.TestCase):
         self.assertEqual(payload["data"]["readiness_status"], "blocked")
         self.assertEqual(payload["data"]["audit_summary"]["submitted_to_broker_count"], 0)
         self.assertNotIn("secret_ref", json.dumps(payload))
+
+    def test_cycle_map_path_returns_fixture_response(self) -> None:
+        status, payload = self.fetch_json("/api/cycle-map?asOfDate=2026-06-05")
+
+        self.assertEqual(status, 200)
+        self.assertEqual(payload["data"]["summary"]["hot_node_code"], "MACRO_RATES_FED")
+        self.assertEqual(payload["data"]["nodes"][0]["node_code"], "MACRO_RATES_FED")
+
+    def test_current_frontend_cycle_map_query_aliases_to_fixture_response(self) -> None:
+        status, payload = self.fetch_json("/api/cycle-map?asOfDate=2026-06-06")
+
+        self.assertEqual(status, 200)
+        self.assertEqual(payload["data"]["summary"]["hot_node_code"], "MACRO_RATES_FED")
 
     def test_unknown_path_returns_stable_404_json(self) -> None:
         status, payload = self.fetch_error_json("/api/not-found")

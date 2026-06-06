@@ -281,11 +281,11 @@ export default async function HomePage() {
     },
     {
       index: "04",
-      title: "상위 흐름이 어디로 내려가나",
+      title: "사이클이 어디로 내려가나",
       status: `${eventData.summary.themes_represented}개 테마`,
-      detail: "거시, 도메인, 테마, 종목 노출도를 흐름 지도에서 먼저 본다.",
+      detail: "거시, 도메인, 테마, 종목 노출도를 사이클 지도에서 먼저 본다.",
       href: "/cycle-map",
-      cta: "흐름 지도",
+      cta: "사이클 지도",
     },
     {
       index: "05",
@@ -344,7 +344,8 @@ export default async function HomePage() {
       links: [
         { href: "/ai-evidence", label: "AI 후보" },
         { href: "/ai-evidence/results", label: "구조화 결과" },
-        { href: "/cycle-map", label: "흐름 지도" },
+        { href: "/cycle-map", label: "사이클 지도" },
+        { href: "/cycles", label: "사이클 상태표" },
         { href: "/stocks", label: "종목" },
       ],
     },
@@ -404,6 +405,12 @@ export default async function HomePage() {
             <strong>{recommendationBoundary.decision_review_ready_count.toLocaleString("ko-KR")}개 후보</strong>
             <small>가상 매매 검증 대기 {recommendationBoundary.paper_validation_pending_count.toLocaleString("ko-KR")}개 · 열린 검토 {ticketCount.toLocaleString("ko-KR")}개</small>
             <b>추천 보기</b>
+          </Link>
+          <Link className="decision-card is-good" href={"/cycle-map" as Route}>
+            <span>사이클</span>
+            <strong>흐름 지도</strong>
+            <small>거시→도메인→테마→종목으로 뉴스와 가격 흐름이 내려가는 경로를 본다.</small>
+            <b>사이클 보기</b>
           </Link>
           <Link className={tradingBlockedCount > 0 ? "decision-card is-block" : "decision-card is-good"} href={"/trading-readiness" as Route}>
             <span>거래 안전</span>
@@ -533,6 +540,13 @@ export default async function HomePage() {
             <strong>{eventData.summary.ai_extracted_count}개 AI 후보</strong>
             <p>
               뉴스 묶음 {clusterData.summary.cluster_count}개. 근거가 약하면 AI 상세와 원천 문서를 먼저 확인한다.
+            </p>
+          </article>
+          <article className="decision-brief-card">
+            <span>사이클</span>
+            <strong>시장 흐름 경로</strong>
+            <p>
+              테마 상태는 /cycles, 원인과 전파 경로는 /cycle-map에서 본다. 사이클은 매수 신호가 아니라 추천 근거를 점검하는 배경이다.
             </p>
           </article>
           <article className="decision-brief-card">

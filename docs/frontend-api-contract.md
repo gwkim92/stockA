@@ -49,6 +49,8 @@ Initial endpoints:
 - `GET /api/paper-trading/preview`: `PaperTradingPreviewResponse`
 - `GET /api/trading/readiness`: `TradingReadinessResponse`
 - `GET /api/cycles?asOfDate=2024-11-01`: `CycleStateListResponse`
+- `GET /api/cycle-map?asOfDate=2026-06-05`: `CycleMapResponse`
+- `GET /api/market-map?asOfDate=2026-06-05`: `MarketMapResponse`
 - `GET /api/recommendations`: `RecommendationListResponse`
 - `GET /api/recommendations/AAPL-2024-11-01`: `RecommendationDetailResponse`
 - `GET /api/theses/AAPL-bootstrap-v1`: `ThesisDetailResponse`
@@ -116,6 +118,20 @@ Cycle state list:
 - owner route: `/cycles`
 - source concepts: theme, cycle state snapshot, feature values.
 - example: `docs/api/frontend/examples/cycle-state-list.json`
+
+Cycle map:
+
+- owner route: `/cycle-map`
+- source concepts: classification node/edge hierarchy, hierarchical cycle snapshot, direct event impact, propagated instrument impact, recommendation and thesis linkage.
+- example: `docs/api/frontend/examples/cycle-map.json`
+- boundary: read-only context map only; it explains where evidence flows, but does not submit orders or mutate recommendation weights.
+
+Market map:
+
+- owner route: `/market-map`
+- source concepts: cross-asset indicator observations, indicator snapshots, regime snapshots, data freshness flags, news-indicator linkage.
+- example: `docs/api/frontend/examples/market-map.json`
+- boundary: read-only cross-asset context only; stale indicators are not imputed.
 
 Recommendation detail:
 
@@ -244,9 +260,11 @@ Live read adapter pilot:
 - CLI: `PYTHONPATH=src python3 -m stockanalysis.frontend.api_adapter get --source live --path "..."`
 - supported live endpoints:
   - `GET /api/dashboard/today`
-  - `GET /api/data-health`
-  - `GET /api/cycles?asOfDate=2024-11-01`
-  - `GET /api/events?asOfDate=2024-11-01`
+- `GET /api/data-health`
+- `GET /api/cycles?asOfDate=2024-11-01`
+- `GET /api/cycle-map?asOfDate=2026-06-05`
+- `GET /api/market-map?asOfDate=2026-06-05`
+- `GET /api/events?asOfDate=2024-11-01`
   - `GET /api/themes/ANNUAL_REPORTING?asOfDate=2024-11-01`
   - `GET /api/performance/Long%20Term%20Paper/outcomes?measurementEndDate=2024-12-02`
   - `GET /api/recommendations/AAPL-2024-11-01`

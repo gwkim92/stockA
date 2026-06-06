@@ -91,8 +91,8 @@ export default async function CycleMapPage() {
             현재 가장 뜨거운 흐름: {hotNode ? koCode(hotNode.node_code) : "아직 대기"}
           </h1>
           <p className="decision-brief-copy">
-            이 지도는 매수 신호가 아니다. 뉴스가 거시·도메인·테마를 거쳐 어떤 종목과 추천 근거로 내려가는지
-            확인하는 경로 화면이다.
+            사이클은 두 화면으로 본다. /cycles는 테마별 상태표이고, 이 화면은 뉴스와 가격 흐름이
+            거시·도메인·테마를 거쳐 어떤 종목과 추천 근거로 내려가는지 확인하는 경로 지도다.
           </p>
           <div className="decision-brief-meta" aria-label="흐름 지도 핵심 상태">
             <span>흐름 {data.summary.node_count.toLocaleString("ko-KR")}개</span>
@@ -109,11 +109,17 @@ export default async function CycleMapPage() {
             <b>뉴스 AI</b>
           </Link>
           <a className="decision-card is-good" href="#cycle-map-layers">
-            <span>흐름 항목</span>
+            <span>사이클 경로</span>
             <strong>{data.summary.node_count.toLocaleString("ko-KR")}개</strong>
             <small>거시 {data.summary.macro_count.toLocaleString("ko-KR")}개 · 테마 {data.summary.theme_count.toLocaleString("ko-KR")}개</small>
             <b>경로 보기</b>
           </a>
+          <Link className="decision-card is-good" href={"/cycles" as Route}>
+            <span>상태표</span>
+            <strong>테마별 사이클</strong>
+            <small>뉴스 흐름, 가격 흐름, 기업 품질을 나눠 테마 상태 변화를 확인한다.</small>
+            <b>상태표 열기</b>
+          </Link>
           <a className={conflictNodeCount > 0 ? "decision-card is-watch" : "decision-card is-good"} href="#cycle-map-layers">
             <span>종목 노출</span>
             <strong>{exposedNodeCount.toLocaleString("ko-KR")}개 연결</strong>

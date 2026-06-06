@@ -38,6 +38,8 @@ require_file "docs/api/frontend/examples/stock-detail.json"
 require_file "docs/api/frontend/examples/paper-trading-preview.json"
 require_file "docs/api/frontend/examples/trading-readiness.json"
 require_file "docs/api/frontend/examples/cycle-state-list.json"
+require_file "docs/api/frontend/examples/cycle-map.json"
+require_file "docs/api/frontend/examples/market-map.json"
 require_file "docs/api/frontend/examples/recommendation-detail.json"
 require_file "docs/api/frontend/examples/thesis-detail.json"
 require_file "docs/api/frontend/examples/portfolio-coverage.json"
@@ -60,6 +62,8 @@ require_text "docs/frontend-api-contract.md" "StockDetailResponse"
 require_text "docs/frontend-api-contract.md" "PaperTradingPreviewResponse"
 require_text "docs/frontend-api-contract.md" "TradingReadinessResponse"
 require_text "docs/frontend-api-contract.md" "CycleStateListResponse"
+require_text "docs/frontend-api-contract.md" "CycleMapResponse"
+require_text "docs/frontend-api-contract.md" "MarketMapResponse"
 require_text "docs/frontend-api-contract.md" "RecommendationListResponse"
 require_text "docs/frontend-api-contract.md" "RecommendationDetailResponse"
 require_text "docs/frontend-api-contract.md" "ThesisDetailResponse"
@@ -86,7 +90,7 @@ with open(index_path, "r", encoding="utf-8") as handle:
 assert index["contract_version"] == "frontend-api-v0.1", index
 assert index["status"] == "draft", index
 endpoints = index["endpoints"]
-assert len(endpoints) == 18, endpoints
+assert len(endpoints) == 20, endpoints
 
 expected_dtos = {
     "DailyCockpitResponse",
@@ -97,6 +101,8 @@ expected_dtos = {
     "PaperTradingPreviewResponse",
     "TradingReadinessResponse",
     "CycleStateListResponse",
+    "CycleMapResponse",
+    "MarketMapResponse",
     "RecommendationListResponse",
     "RecommendationDetailResponse",
     "ThesisDetailResponse",
@@ -115,6 +121,8 @@ assert "/api/stocks" in paths, endpoints
 assert "/api/stocks/AAPL" in paths, endpoints
 assert "/api/paper-trading/preview" in paths, endpoints
 assert "/api/trading/readiness" in paths, endpoints
+assert "/api/cycle-map?asOfDate=2026-06-05" in paths, endpoints
+assert "/api/market-map?asOfDate=2026-06-05" in paths, endpoints
 assert "/api/events?asOfDate=2024-11-01" in paths, endpoints
 assert "/api/ai/news-clusters?asOfDate=2026-05-19" in paths, endpoints
 assert "/api/recommendations" in paths, endpoints
@@ -142,6 +150,8 @@ examples = {
     "paper_trading": "docs/api/frontend/examples/paper-trading-preview.json",
     "trading_readiness": "docs/api/frontend/examples/trading-readiness.json",
     "cycles": "docs/api/frontend/examples/cycle-state-list.json",
+    "cycle_map": "docs/api/frontend/examples/cycle-map.json",
+    "market_map": "docs/api/frontend/examples/market-map.json",
     "recommendations": "docs/api/frontend/examples/recommendation-list.json",
     "recommendation": "docs/api/frontend/examples/recommendation-detail.json",
     "thesis": "docs/api/frontend/examples/thesis-detail.json",
@@ -170,6 +180,9 @@ assert loaded["trading_readiness"]["readiness_status"] == "blocked", loaded["tra
 assert loaded["trading_readiness"]["audit_summary"]["submitted_to_broker_count"] == 0, loaded["trading_readiness"]
 assert "secret_ref" not in json.dumps(loaded["trading_readiness"]), loaded["trading_readiness"]
 assert loaded["cycles"]["cycle_states"][0]["theme_key"] == "ANNUAL_REPORTING", loaded["cycles"]
+assert loaded["cycle_map"]["summary"]["hot_node_code"] == "MACRO_RATES_FED", loaded["cycle_map"]
+assert loaded["cycle_map"]["nodes"][0]["node_code"] == "MACRO_RATES_FED", loaded["cycle_map"]
+assert loaded["market_map"]["summary"]["status"] == "partial_or_stale", loaded["market_map"]
 assert loaded["recommendations"]["recommendations"][0]["recommendation_id"] == "recommendation-7101", loaded["recommendations"]
 assert loaded["recommendations"]["summary"]["reviewable_count"] == 1, loaded["recommendations"]
 assert loaded["recommendation"]["linked_thesis_id"] == "thesis-7001", loaded["recommendation"]
