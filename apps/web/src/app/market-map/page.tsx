@@ -10,9 +10,13 @@ export const metadata = { title: "시장 지도" };
 
 type MarketGroup = MarketMapData["groups"][number];
 type MarketIndicator = MarketGroup["indicators"][number];
+type MarketNewsLink = MarketMapData["news_links"][number];
+type MarketQualityFlag = MarketMapData["quality_flags"][number];
 type MarketRegime = MarketMapData["regimes"][number];
 
 const VISIBLE_INDICATOR_COUNT = 3;
+const VISIBLE_QUALITY_FLAG_COUNT = 5;
+const VISIBLE_NEWS_LINK_GROUP_COUNT = 6;
 
 function formatPercent(value: number | null | undefined) {
   if (value === null || value === undefined || !Number.isFinite(value)) {
@@ -151,8 +155,28 @@ function sourcePolicyText(indicator: MarketIndicator) {
   return "원천 표기와 가공 지표만 사용한다. 인과를 단정하지 않는다.";
 }
 
+function normalizeOperationalText(text: string | null | undefined) {
+  return (text || "추가 조치 없음")
+    .replaceAll("provider fetch와", "원천 수집과")
+    .replaceAll("stale", "오래된")
+    .replaceAll("provider fetch", "원천 수집")
+    .replaceAll("snapshot", "시장 스냅샷")
+    .replaceAll("rerun", "재실행")
+    .replaceAll("오래된이다", "오래된 상태다")
+    .replaceAll("regime", "체제")
+    .replaceAll("weight", "가중치");
+}
+
+function marketRelationshipLabel(relationship: string | null | undefined) {
+  const raw = relationship || "";
+  if (raw.includes("news") && raw.includes("indicator")) {
+    return "뉴스-지표 동시 관찰";
+  }
+  return normalizeOperationalText(koCode(raw) || "동시 관찰");
+}
+
 function humanizeNewsRationale(rationale: string) {
-  return rationale
+  return normalizeOperationalText(rationale)
     .replaceAll("QUANTUM_COMPUTING_POLICY", koCode("QUANTUM_COMPUTING_POLICY"))
     .replaceAll("AI_SEMICONDUCTOR_CYCLE", koCode("AI_SEMICONDUCTOR_CYCLE"))
     .replaceAll("TECH_DOMAIN", koCode("TECH_DOMAIN"))
@@ -161,6 +185,81 @@ function humanizeNewsRationale(rationale: string) {
     .replaceAll("shock", "가격 충격")
     .replaceAll("사이클와", "사이클과")
     .replaceAll("도메인와", "도메인과");
+}
+
+function activeRegimeText(regimes: MarketRegime[]) {
+  if (regimes.length === 0) {
+    return "켜진 체제 없음";
+  }
+  return regimes.map(regimeTitle).join(", ");
+}
+
+function groupNewsLinks(links: MarketNewsLink[]) {
+  const groups = new Map<
+    string,
+    {
+      indicator_code: string;
+      indicator_name: string;
+      links: MarketNewsLink[];
+      confidence_total: number;
+      relationships: Set<string>;
+      sources: Set<string>;
+      rationales: Set<string>;
+    }
+  >();
+
+  for (const link of links) {
+    const key = link.indicator_code || link.indicator_name || "unknown_indicator";
+    const current =
+      groups.get(key) ||
+      {
+        indicator_code: link.indicator_code,
+        indicator_name: link.indicator_name || link.indicator_code,
+        links: [],
+        confidence_total: 0,
+        relationships: new Set<string>(),
+        sources: new Set<string>(),
+        rationales: new Set<string>(),
+      };
+    current.links.push(link);
+    current.confidence_total += link.confidence || 0;
+    if (link.relationship) {
+      current.relationships.add(marketRelationshipLabel(link.relationship));
+    }
+    if (link.source_name) {
+      current.sources.add(link.source_name);
+    }
+    if (link.rationale) {
+      current.rationales.add(humanizeNewsRationale(link.rationale));
+    }
+    groups.set(key, current);
+  }
+
+  return [...groups.values()]
+    .map((group) => ({
+      ...group,
+      average_confidence: group.links.length > 0 ? group.confidence_total / group.links.length : 0,
+      top_titles: group.links
+        .map((link) => link.title_ko || "제목 미수집")
+        .filter((title, index, titles) => titles.indexOf(title) === index)
+        .slice(0, 4),
+      relationship_label: [...group.relationships].join(", ") || "동시 관찰",
+      source_label: [...group.sources].slice(0, 3).join(", ") || "원천 미표기",
+      rationale_label: [...group.rationales].slice(0, 2).join(" / ") || "가격 충격과 뉴스가 같은 기간에 관찰됐다.",
+    }))
+    .sort((left, right) => right.links.length - left.links.length || right.average_confidence - left.average_confidence);
+}
+
+function qualityFlagSummary(flags: MarketQualityFlag[]) {
+  const staleCount = flags.filter((flag) => flag.freshness_status === "stale").length;
+  const missingCount = flags.filter((flag) => flag.freshness_status === "missing").length;
+  if (missingCount > 0) {
+    return `비어 있는 지표 ${missingCount}개와 오래된 지표 ${staleCount}개가 있다. 해당 지표는 추정하지 않고 판단 신뢰도를 낮춘다.`;
+  }
+  if (staleCount > 0) {
+    return `오래된 지표 ${staleCount}개가 있다. 최신 수집이 확인될 때까지 체제 판단의 보조 근거로만 쓴다.`;
+  }
+  return "시장 지표 품질 플래그가 없다. 그래도 추천 weight와 주문은 자동 변경하지 않는다.";
 }
 
 function buildMarketReadout(data: MarketMapData, regimes: MarketRegime[]) {
@@ -174,7 +273,7 @@ function buildMarketReadout(data: MarketMapData, regimes: MarketRegime[]) {
       tone: "is-watch",
       title: "먼저 데이터 품질을 확인한다.",
       copy: `${qualityIssueCount}개 지표가 오래됐거나 비어 있다. 시장 판단을 이어가기 전에 품질 플래그를 먼저 확인한다.`,
-      nextSteps: ["품질 플래그 확인", "stale 지표는 추정하지 않기", "수집 재실행 후 다시 판단"],
+      nextSteps: ["품질 플래그 확인", "오래된 지표는 추정하지 않기", "수집 재실행 후 다시 판단"],
     };
   }
 
@@ -208,7 +307,8 @@ export default async function MarketMapPage() {
   const response = await getMarketMap();
   const data = response.data;
   const topRegimes = data.regimes.filter((regime) => ["active", "watch"].includes(regime.regime_state)).slice(0, 4);
-  const topFlags = data.quality_flags.slice(0, 4);
+  const topFlags = data.quality_flags.slice(0, VISIBLE_QUALITY_FLAG_COUNT);
+  const hiddenFlags = data.quality_flags.slice(VISIBLE_QUALITY_FLAG_COUNT);
   const readout = buildMarketReadout(data, topRegimes);
   const pressureGroups = [...data.groups]
     .sort(
@@ -217,6 +317,14 @@ export default async function MarketMapPage() {
         right.stale_count + right.missing_count - (left.stale_count + left.missing_count),
     )
     .slice(0, 6);
+  const newsLinkGroups = groupNewsLinks(data.news_links);
+  const visibleNewsLinkGroups = newsLinkGroups.slice(0, VISIBLE_NEWS_LINK_GROUP_COUNT);
+  const hiddenNewsLinkGroupCount = Math.max(0, newsLinkGroups.length - VISIBLE_NEWS_LINK_GROUP_COUNT);
+  const leadingPressure = pressureGroups
+    .filter((group) => group.shock_count > 0 || group.stale_count + group.missing_count > 0)
+    .slice(0, 3)
+    .map((group) => group.group_name)
+    .join(", ");
 
   return (
     <div className="terminal-page decision-page">
@@ -281,6 +389,35 @@ export default async function MarketMapPage() {
             </li>
           ))}
         </ol>
+      </section>
+
+      <section className="market-decision-lane reveal delay-1" aria-label="시장 판단 순서">
+        <article className={data.summary.stale_indicator_count + data.summary.missing_indicator_count > 0 ? "market-decision-rule is-watch" : "market-decision-rule is-good"}>
+          <span>1. 데이터 품질</span>
+          <strong>
+            최신 {data.summary.fresh_indicator_count.toLocaleString("ko-KR")}개 · 확인 필요{" "}
+            {(data.summary.stale_indicator_count + data.summary.missing_indicator_count).toLocaleString("ko-KR")}개
+          </strong>
+          <p>{normalizeOperationalText(data.summary.next_action)}</p>
+        </article>
+        <article className={data.summary.shock_indicator_count > 0 ? "market-decision-rule is-hot" : "market-decision-rule"}>
+          <span>2. 시장 압력</span>
+          <strong>{data.summary.shock_indicator_count.toLocaleString("ko-KR")}개 지표가 크게 움직임</strong>
+          <p>{leadingPressure ? `${leadingPressure}부터 확인한다.` : "큰 가격 충격은 없다. 종목별 근거를 중심으로 본다."}</p>
+        </article>
+        <article className={topRegimes.length > 0 ? "market-decision-rule is-watch" : "market-decision-rule"}>
+          <span>3. 체제 신호</span>
+          <strong>{activeRegimeText(topRegimes)}</strong>
+          <p>위험자산, 금리, 달러, 원자재, 변동성 조건을 추천 배경으로만 연결한다.</p>
+        </article>
+        <article className="market-decision-rule is-block">
+          <span>4. 사용 경계</span>
+          <strong>{data.summary.broker_submit_allowed ? "주문 가능 상태" : "주문 차단 유지"}</strong>
+          <p>
+            추천 점수 자동 변경 {data.summary.automatic_weight_change_allowed ? "허용" : "금지"} · 시장 지표 반영{" "}
+            {data.summary.recommendation_scoring_mutated ? "있음" : "없음"} · {koCode(data.summary.order_boundary)}
+          </p>
+        </article>
       </section>
 
       <section className="bento-card reveal delay-2" id="market-pressure" aria-label="시장 압력판">
@@ -417,18 +554,34 @@ export default async function MarketMapPage() {
         <div className="section-heading stacked-heading">
           <span>품질 플래그</span>
           <h2>판단 전에 먼저 빼고 봐야 할 것</h2>
-          <p>비어 있거나 오래된 지표는 추정값으로 채우지 않는다. 해당 시장 체제 신뢰도를 낮춘다.</p>
+          <p>{qualityFlagSummary(data.quality_flags)}</p>
         </div>
         {topFlags.length > 0 ? (
-          <div className="relationship-list">
-            {topFlags.map((flag) => (
-              <div className="relationship-chip" key={`${flag.flag_code}-${flag.indicator_code}`}>
-                <span>{koCode(flag.severity)} · {freshnessLabel(flag.freshness_status)}</span>
-                <strong>{flag.display_name}</strong>
-                <small>{flag.message_ko}</small>
-              </div>
-            ))}
-          </div>
+          <>
+            <div className="relationship-list">
+              {topFlags.map((flag) => (
+                <div className="relationship-chip" key={`${flag.flag_code}-${flag.indicator_code}`}>
+                  <span>{koCode(flag.severity)} · {freshnessLabel(flag.freshness_status)}</span>
+                  <strong>{flag.display_name}</strong>
+                  <small>{normalizeOperationalText(flag.message_ko)}</small>
+                </div>
+              ))}
+            </div>
+            {hiddenFlags.length > 0 ? (
+              <details className="market-hidden-indicators">
+                <summary>나머지 품질 플래그 {hiddenFlags.length.toLocaleString("ko-KR")}개 보기</summary>
+                <div className="market-compact-list">
+                  {hiddenFlags.map((flag) => (
+                    <div className="market-compact-row" key={`${flag.flag_code}-${flag.indicator_code}`}>
+                      <span>{flag.display_name}</span>
+                      <strong>{freshnessLabel(flag.freshness_status)}</strong>
+                      <small>{normalizeOperationalText(flag.message_ko)}</small>
+                    </div>
+                  ))}
+                </div>
+              </details>
+            ) : null}
+          </>
         ) : (
           <div className="empty-state">현재 표시할 품질 플래그가 없다.</div>
         )}
@@ -438,21 +591,57 @@ export default async function MarketMapPage() {
         <div className="section-heading stacked-heading">
           <span>뉴스 연결</span>
           <h2>뉴스와 가격 지표가 같은 시기에 움직였는가</h2>
-          <p>아래 연결은 인과 확정이 아니다. 뉴스 해석과 가격 충격이 같은 시간 창에 있었는지 보여주는 근거 후보다.</p>
+          <p>
+            원천 뉴스가 같은 지표에 반복 연결되면 한 묶음으로 요약한다. 아래 연결은 인과 확정이 아니라, 뉴스 해석과 가격 충격이
+            같은 시간 창에 있었는지 보여주는 근거 후보다.
+          </p>
         </div>
-        {data.news_links.length > 0 ? (
-          <div className="relationship-list">
-            {data.news_links.map((link) => (
-              <div className="relationship-chip" key={`${link.document_id}-${link.indicator_code}-${link.link_date}`}>
-                <span>{link.indicator_name} · 신뢰 {formatPercent(link.confidence)}</span>
-                <strong>{link.title_ko || "제목 미수집"}</strong>
-                <small>{humanizeNewsRationale(link.rationale)}</small>
-              </div>
+        {visibleNewsLinkGroups.length > 0 ? (
+          <div className="market-news-grid">
+            {visibleNewsLinkGroups.map((group) => (
+              <article className="market-news-cluster" key={group.indicator_code}>
+                <div className="market-news-cluster-head">
+                  <span>{group.indicator_name}</span>
+                  <strong>{group.links.length.toLocaleString("ko-KR")}건 연결</strong>
+                  <small>평균 신뢰 {formatPercent(group.average_confidence)} · {group.relationship_label}</small>
+                </div>
+                <p>{group.rationale_label}</p>
+                <div className="market-news-cluster-meta">
+                  <span>원천 {group.source_label}</span>
+                  <span>인과 확정 아님</span>
+                  <span>추천 가중치 변경 없음</span>
+                </div>
+                <ul className="market-news-title-list" aria-label={`${group.indicator_name} 연결 대표 뉴스`}>
+                  {group.top_titles.map((title) => (
+                    <li key={title}>{title}</li>
+                  ))}
+                </ul>
+                <details className="secondary-details market-source-details">
+                  <summary>연결된 뉴스 전체 보기</summary>
+                  <div className="market-compact-list">
+                    {group.links.map((link) => (
+                      <a
+                        href={link.source_url || "#"}
+                        key={`${link.document_id}-${link.indicator_code}-${link.link_date}`}
+                        rel="noreferrer"
+                        target={link.source_url ? "_blank" : undefined}
+                      >
+                        <span>{link.title_ko || "제목 미수집"}</span>
+                        <strong>{formatPercent(link.confidence)}</strong>
+                        <small>{humanizeNewsRationale(link.rationale)}</small>
+                      </a>
+                    ))}
+                  </div>
+                </details>
+              </article>
             ))}
           </div>
         ) : (
           <div className="empty-state">최근 14일 기준으로 뉴스와 시장 지표 shock 연결이 아직 없다.</div>
         )}
+        {hiddenNewsLinkGroupCount > 0 ? (
+          <p className="market-muted-note">추가 지표 연결 {hiddenNewsLinkGroupCount.toLocaleString("ko-KR")}개는 낮은 우선순위로 접었다.</p>
+        ) : null}
         <div className="btn-row" style={{ marginTop: "18px" }}>
           <Link className="btn btn-primary" href={"/intelligence" as Route}>
             뉴스 AI 보기
