@@ -3,15 +3,16 @@ set -euo pipefail
 
 ROOT_DIR=$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)
 cd "$ROOT_DIR"
+PYTHON_BIN=${PYTHON_BIN:-${PYTHON:-python3}}
 
 bash -n scripts/verify_operating_data_profile_scheduler_invocation.sh
-python3 -m compileall \
+"$PYTHON_BIN" -m compileall \
   src/stockanalysis/operations/operating_data_profile_scheduler.py \
   src/stockanalysis/operations/cli.py \
   tests/test_operating_data_profile_scheduler.py \
   tests/test_data_operations_cli.py >/dev/null
 
-PYTHONPATH=src python3 -m unittest \
+PYTHONPATH=src "$PYTHON_BIN" -m unittest \
   tests.test_operating_data_profile_scheduler \
   tests.test_data_operations_cli.DataOperationsCliTests.test_operating_data_profile_scheduler_invocation_plan_command_writes_output_and_markdown \
   tests.test_data_operations_cli.DataOperationsCliTests.test_operating_data_profile_scheduler_invocation_plan_rejects_repo_inside_output \
@@ -26,7 +27,7 @@ STOCKANALYSIS_DATABASE_URL="postgresql://user:hidden-verifier-pass@localhost/db"
 STOCKANALYSIS_DATA_OPERATIONS_ARTIFACT_ROOT="$TMP_ROOT/artifacts"
 EOF
 
-PYTHONPATH=src python3 -m stockanalysis.operations.cli operating-data-profile-scheduler-invocation-plan \
+PYTHONPATH=src "$PYTHON_BIN" -m stockanalysis.operations.cli operating-data-profile-scheduler-invocation-plan \
   --repo-root "$ROOT_DIR" \
   --target cron \
   --runtime-root "$TMP_ROOT/runtime" \
@@ -39,7 +40,7 @@ PYTHONPATH=src python3 -m stockanalysis.operations.cli operating-data-profile-sc
   --output "$TMP_ROOT/operating-data-profile-scheduler.json" \
   --markdown-output "$TMP_ROOT/operating-data-profile-scheduler.md" >/dev/null
 
-python3 - "$TMP_ROOT/operating-data-profile-scheduler.json" "$TMP_ROOT/operating-data-profile-scheduler.md" <<'PY'
+"$PYTHON_BIN" - "$TMP_ROOT/operating-data-profile-scheduler.json" "$TMP_ROOT/operating-data-profile-scheduler.md" <<'PY'
 import json
 import os
 import sys
@@ -76,7 +77,7 @@ assert "/manifests" in markdown
 print("operating data profile scheduler invocation verification passed")
 PY
 
-PYTHONPATH=src python3 -m stockanalysis.operations.cli operating-data-profile-scheduler-invocation-plan \
+PYTHONPATH=src "$PYTHON_BIN" -m stockanalysis.operations.cli operating-data-profile-scheduler-invocation-plan \
   --repo-root "$ROOT_DIR" \
   --target systemd \
   --runtime-root "$TMP_ROOT/runtime" \
@@ -90,7 +91,7 @@ PYTHONPATH=src python3 -m stockanalysis.operations.cli operating-data-profile-sc
   --execute \
   --output "$TMP_ROOT/operating-data-profile-scheduler-systemd.json" >/dev/null
 
-python3 - "$TMP_ROOT/operating-data-profile-scheduler-systemd.json" <<'PY'
+"$PYTHON_BIN" - "$TMP_ROOT/operating-data-profile-scheduler-systemd.json" <<'PY'
 import json
 import pathlib
 import sys
@@ -129,12 +130,12 @@ assert "--execute" in json.dumps(payload)
 print("operating data profile systemd manifest verification passed")
 PY
 
-PYTHONPATH=src python3 -m stockanalysis.operations.cli operating-data-profile-scheduler-status-report \
+PYTHONPATH=src "$PYTHON_BIN" -m stockanalysis.operations.cli operating-data-profile-scheduler-status-report \
   --repo-root "$ROOT_DIR" \
   --job-name definitely-not-installed-stockanalysis \
   --output "$TMP_ROOT/operating-data-profile-scheduler-status.json" >/dev/null
 
-python3 - "$TMP_ROOT/operating-data-profile-scheduler-status.json" <<'PY'
+"$PYTHON_BIN" - "$TMP_ROOT/operating-data-profile-scheduler-status.json" <<'PY'
 import json
 import pathlib
 import sys
