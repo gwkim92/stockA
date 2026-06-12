@@ -12,8 +12,11 @@ from stockanalysis.operations.cross_asset_market import (
     MarketIndicatorDefinition,
     compute_cross_asset_regimes,
     cross_asset_instrument_price_symbols,
+    fetch_fred_indicator_observations,
     fetch_twelve_data_indicator_observations,
+    run_cross_asset_indicator_ingest,
     parse_cboe_daily_price_csv,
+    parse_fred_indicator_observations,
     render_cross_asset_instrument_bootstrap_sql,
     render_cross_asset_cycle_impact_upsert_sql,
     render_cross_asset_indicator_observation_sync_sql,
@@ -210,6 +213,79 @@ class CrossAssetMarketTest(unittest.TestCase):
         self.assertIn("apikey=<redacted>", source_url)
         self.assertNotIn("secret-key", source_url)
 
+    def test_fred_direct_indicator_fetch_redacts_api_key_and_skips_missing_values(self) -> None:
+        definition = MarketIndicatorDefinition(
+            indicator_code="US_10Y_YIELD",
+            display_name="미국 10년 국채 금리",
+            indicator_type="rates",
+            preferred_provider="fred",
+            provider_symbol="DGS10",
+            fred_series_code="DGS10",
+        )
+        observations = fetch_fred_indicator_observations(
+            definition,
+            config=RuntimeConfig(fred_api_key="fred-secret"),
+            as_of_date=date(2026, 6, 12),
+            lookback_days=30,
+            max_rows=10,
+            request_executor=_FakeFredResponse(),
+        )
+
+        self.assertEqual(len(observations), 2)
+        self.assertEqual(observations[-1].observation_date, date(2026, 6, 10))
+        self.assertEqual(observations[-1].value, Decimal("4.55"))
+        self.assertEqual(observations[-1].source_kind, "macro_series")
+        evidence = observations[-1].evidence_json or {}
+        self.assertEqual(evidence["fred_series_code"], "DGS10")
+        self.assertEqual(evidence["direct_refresh_policy"], "cross_asset_daily_fred_direct_fetch_no_imputation")
+        self.assertIn("api_key=<redacted>", str(evidence["source_url"]))
+        self.assertNotIn("fred-secret", str(evidence))
+
+    def test_parse_fred_indicator_observations_sorts_and_limits_latest_rows(self) -> None:
+        definition = MarketIndicatorDefinition(
+            indicator_code="T10Y2Y",
+            display_name="미국 10년-2년 금리차",
+            indicator_type="rates_curve",
+            preferred_provider="fred",
+            provider_symbol="T10Y2Y",
+            fred_series_code="T10Y2Y",
+        )
+        observations = parse_fred_indicator_observations(
+            definition=definition,
+            payload={
+                "observations": [
+                    {"date": "2026-06-08", "value": "0.38"},
+                    {"date": "2026-06-11", "value": "0.40"},
+                    {"date": "2026-06-12", "value": "."},
+                    {"date": "2026-06-10", "value": "0.42"},
+                ]
+            },
+            as_of_date=date(2026, 6, 12),
+            max_rows=2,
+            source_url="https://api.stlouisfed.org/fred/series/observations?api_key=secret&series_id=T10Y2Y",
+        )
+
+        self.assertEqual([row.observation_date for row in observations], [date(2026, 6, 10), date(2026, 6, 11)])
+        self.assertEqual([row.value for row in observations], [Decimal("0.42"), Decimal("0.40")])
+
+    def test_cross_asset_ingest_runs_direct_fred_refresh_before_summary(self) -> None:
+        executor = _FakeCrossAssetIngestExecutor()
+        report = run_cross_asset_indicator_ingest(
+            config=RuntimeConfig(fred_api_key="fred-secret"),
+            as_of_date=date(2026, 6, 12),
+            execute=True,
+            executor=executor,
+            request_executor=_FakeFredResponse(),
+            fred_lookback_days=30,
+            fred_max_rows_per_indicator=2,
+        )
+
+        self.assertEqual(report["status"], "completed")
+        self.assertGreater(report["fred_direct_observation_count"], 0)
+        self.assertEqual(len(report["fred_direct_refresh_results"]), 14)
+        self.assertTrue(any("cross_asset_daily_fred_direct_fetch_no_imputation" in sql for sql in executor.non_query_sql))
+        self.assertTrue(any("macro.observation" in sql for sql in executor.non_query_sql))
+
     def test_xag_usd_twelve_data_fetch_tries_bounded_symbol_fallbacks(self) -> None:
         definition = MarketIndicatorDefinition(
             indicator_code="XAG_USD",
@@ -335,6 +411,40 @@ class _FakeTwelveDataResponse:
                 },
             ],
         }
+
+
+class _FakeFredResponse:
+    def __init__(self) -> None:
+        self.request_urls: list[str] = []
+
+    def __call__(self, request: object) -> "_FakeFredResponse":
+        self.request_urls.append(str(getattr(request, "url", "")))
+        return self
+
+    def as_json(self) -> dict[str, object]:
+        return {
+            "observations": [
+                {"date": "2026-06-08", "value": "4.56"},
+                {"date": "2026-06-09", "value": "."},
+                {"date": "2026-06-10", "value": "4.55"},
+                {"date": "2026-06-13", "value": "4.60"},
+            ]
+        }
+
+
+class _FakeCrossAssetIngestExecutor:
+    def __init__(self) -> None:
+        self.non_query_sql: list[str] = []
+        self.scalar_sql: list[str] = []
+
+    def execute_scalar(self, sql: str) -> str:
+        self.scalar_sql.append(sql)
+        if "returning run_id" in sql:
+            return "77"
+        return '{"as_of_date":"2026-06-12","indicator_count":39}'
+
+    def execute_non_query(self, sql: str) -> None:
+        self.non_query_sql.append(sql)
 
 
 class _FallbackTwelveDataResponse:

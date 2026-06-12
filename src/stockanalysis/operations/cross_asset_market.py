@@ -5,7 +5,7 @@ import time
 from collections.abc import Callable
 from csv import DictReader
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 from io import StringIO
 from typing import Any
@@ -39,6 +39,8 @@ DEFAULT_LOOKBACK_DAYS = 2
 DEFAULT_PROVIDER_FETCH_OUTPUTSIZE = "120"
 DEFAULT_PROVIDER_FETCH_MAX_REQUESTS = 8
 DEFAULT_PROVIDER_FETCH_THROTTLE_SECONDS = 8.0
+DEFAULT_FRED_DIRECT_REFRESH_LOOKBACK_DAYS = 540
+DEFAULT_FRED_DIRECT_REFRESH_MAX_ROWS = 400
 XAG_USD_TWELVE_DATA_SYMBOL_CANDIDATES = ("XAG/USD", "XAGUSD", "SILVER")
 
 
@@ -424,6 +426,16 @@ def cross_asset_instrument_price_symbols(
     return tuple(symbols)
 
 
+def _fred_indicator_definitions(
+    definitions: tuple[MarketIndicatorDefinition, ...] = DEFAULT_MARKET_INDICATORS,
+) -> tuple[MarketIndicatorDefinition, ...]:
+    return tuple(
+        definition
+        for definition in definitions
+        if definition.is_active and definition.preferred_provider == "fred" and definition.fred_series_code
+    )
+
+
 def run_free_provider_capacity_registry(
     *,
     config: RuntimeConfig,
@@ -701,13 +713,23 @@ def run_cross_asset_indicator_ingest(
     as_of_date: date,
     execute: bool,
     executor: PsqlCommandExecutor | None = None,
+    request_executor: Callable[[HttpRequest], Any] = execute_request,
+    fred_lookback_days: int = DEFAULT_FRED_DIRECT_REFRESH_LOOKBACK_DAYS,
+    fred_max_rows_per_indicator: int = DEFAULT_FRED_DIRECT_REFRESH_MAX_ROWS,
 ) -> dict[str, Any]:
+    if fred_lookback_days <= 0:
+        raise ValueError("fred_lookback_days must be positive.")
+    if fred_max_rows_per_indicator <= 0:
+        raise ValueError("fred_max_rows_per_indicator must be positive.")
     report: dict[str, Any] = {
         "report_name": CROSS_ASSET_INDICATOR_INGEST_PIPELINE_NAME,
         "as_of_date": as_of_date.isoformat(),
         "registry_version": REGISTRY_VERSION,
         "fred_indicator_count": sum(1 for item in DEFAULT_MARKET_INDICATORS if item.fred_series_code),
         "price_indicator_count": sum(1 for item in DEFAULT_MARKET_INDICATORS if item.instrument_symbol),
+        "fred_direct_refresh_policy": "daily_direct_fred_fetch_before_snapshot_no_imputation",
+        "fred_lookback_days": fred_lookback_days,
+        "fred_max_rows_per_indicator": fred_max_rows_per_indicator,
         "execute": execute,
     }
     if not execute:
@@ -728,6 +750,34 @@ def run_cross_asset_indicator_ingest(
                 source_run_id=run_id,
             )
         )
+        fred_observations: list[MarketIndicatorObservationInput] = []
+        fred_refresh_results: list[dict[str, Any]] = []
+        for definition in _fred_indicator_definitions():
+            observations = fetch_fred_indicator_observations(
+                definition,
+                config=config,
+                as_of_date=as_of_date,
+                lookback_days=fred_lookback_days,
+                max_rows=fred_max_rows_per_indicator,
+                request_executor=request_executor,
+            )
+            fred_observations.extend(observations)
+            fred_refresh_results.append(
+                {
+                    "indicator_code": definition.indicator_code,
+                    "fred_series_code": definition.fred_series_code,
+                    "observation_count": len(observations),
+                    "latest_observation_date": observations[-1].observation_date.isoformat() if observations else "",
+                }
+            )
+        sql_executor.execute_non_query(
+            render_market_indicator_observation_upsert_sql(
+                tuple(fred_observations),
+                source_run_id=run_id,
+            )
+        )
+        report["fred_direct_observation_count"] = len(fred_observations)
+        report["fred_direct_refresh_results"] = fred_refresh_results
         report["observation_summary"] = _load_json_scalar(
             sql_executor,
             render_cross_asset_observation_summary_sql(as_of_date=as_of_date),
@@ -1174,6 +1224,93 @@ def fetch_direct_market_indicator_observations(
             request_executor=request_executor,
         )
     raise ValueError(f"Unsupported direct fetch provider `{definition.preferred_provider}`.")
+
+
+def fetch_fred_indicator_observations(
+    definition: MarketIndicatorDefinition,
+    *,
+    config: RuntimeConfig,
+    as_of_date: date,
+    lookback_days: int,
+    max_rows: int,
+    request_executor: Callable[[HttpRequest], Any],
+) -> tuple[MarketIndicatorObservationInput, ...]:
+    if not definition.fred_series_code:
+        raise ValueError(f"Missing fred_series_code for `{definition.indicator_code}`.")
+    if lookback_days <= 0:
+        raise ValueError("lookback_days must be positive.")
+    if max_rows <= 0:
+        raise ValueError("max_rows must be positive.")
+
+    fred = get_source("fred")
+    request = fred.build_request(
+        "series_observations",
+        {
+            "series_id": definition.fred_series_code,
+            "observation_start": (as_of_date - timedelta(days=lookback_days)).isoformat(),
+            "observation_end": as_of_date.isoformat(),
+        },
+        config=config,
+        require_credentials=True,
+    )
+    payload = request_executor(request).as_json()
+    return parse_fred_indicator_observations(
+        definition=definition,
+        payload=payload,
+        as_of_date=as_of_date,
+        max_rows=max_rows,
+        source_url=request.url,
+    )
+
+
+def parse_fred_indicator_observations(
+    *,
+    definition: MarketIndicatorDefinition,
+    payload: dict[str, Any],
+    as_of_date: date,
+    max_rows: int,
+    source_url: str,
+) -> tuple[MarketIndicatorObservationInput, ...]:
+    if not definition.fred_series_code:
+        raise ValueError(f"Missing fred_series_code for `{definition.indicator_code}`.")
+    if max_rows <= 0:
+        raise ValueError("max_rows must be positive.")
+    raw_observations = payload.get("observations")
+    if not isinstance(raw_observations, list):
+        raise ValueError(f"FRED observations payload for `{definition.indicator_code}` is missing observations.")
+
+    observations: list[MarketIndicatorObservationInput] = []
+    for raw in raw_observations:
+        if not isinstance(raw, dict):
+            continue
+        raw_date = str(raw.get("date") or "").strip()
+        raw_value = str(raw.get("value") or "").strip()
+        if not raw_date or raw_value in {"", "."}:
+            continue
+        try:
+            observation_date = date.fromisoformat(raw_date)
+            value = Decimal(raw_value)
+        except Exception:
+            continue
+        if observation_date > as_of_date:
+            continue
+        observations.append(
+            MarketIndicatorObservationInput(
+                indicator_code=definition.indicator_code,
+                observation_date=observation_date,
+                provider="fred",
+                source_kind="macro_series",
+                value=value,
+                evidence_json={
+                    "provider_symbol": definition.provider_symbol or definition.fred_series_code,
+                    "fred_series_code": definition.fred_series_code,
+                    "source_url": _redact_url_secret(source_url),
+                    "causal_claim": False,
+                    "direct_refresh_policy": "cross_asset_daily_fred_direct_fetch_no_imputation",
+                },
+            )
+        )
+    return tuple(sorted(observations, key=lambda row: row.observation_date)[-max_rows:])
 
 
 def fetch_twelve_data_indicator_observations(
@@ -2416,13 +2553,14 @@ def _nullable_numeric(value: Decimal | None) -> str:
 
 
 def _redact_url_secret(url: str) -> str:
-    if "apikey=" not in url.lower():
+    lowered_url = url.lower()
+    if "apikey=" not in lowered_url and "api_key=" not in lowered_url:
         return url
     prefix, _, tail = url.partition("?")
     redacted_parts = []
     for part in tail.split("&"):
         key, separator, value = part.partition("=")
-        if key.lower() == "apikey":
+        if key.lower() in {"apikey", "api_key"}:
             redacted_parts.append(f"{key}{separator}<redacted>")
         else:
             redacted_parts.append(f"{key}{separator}{value}" if separator else key)
