@@ -2,8 +2,8 @@
 
 ## Status
 
-- current status: implemented, deployed to EC2, and smoke verified; final frontend wording patch pending commit/deploy.
-- completed: direct FRED fetch parser, ingest-run direct FRED refresh path, API key redaction for `api_key`, unit tests, CLI/orchestrator regression tests, compileall, diff check, EC2 ingest/regime smoke, and `/api/market-map` freshness verification.
+- current status: implemented, deployed to EC2, and smoke verified.
+- completed: direct FRED fetch parser, ingest-run direct FRED refresh path, API key redaction for `api_key`, unit tests, CLI/orchestrator regression tests, compileall, diff check, EC2 ingest/regime smoke, `/api/market-map` freshness verification, and `/market-map` wording cleanup.
 
 ## Context
 
@@ -41,4 +41,4 @@
 
 ## Exact Next Step
 
-- exact next step: commit final frontend wording patch, push/pull EC2, rebuild/restart web, then verify `/market-map` no longer renders `체제이` or `outcome`.
+- exact next step: continue with `/cycle-map` visual decision redesign now that cross-asset freshness is reliable.
