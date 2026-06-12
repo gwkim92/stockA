@@ -261,7 +261,7 @@ function qualityFlagSummary(flags: MarketQualityFlag[]) {
   if (staleCount > 0) {
     return `오래된 지표 ${staleCount}개가 있다. 최신 수집이 확인될 때까지 체제 판단의 보조 근거로만 쓴다.`;
   }
-  return "시장 지표 품질 플래그가 없다. 그래도 추천 weight와 주문은 자동 변경하지 않는다.";
+  return "시장 지표 품질 플래그가 없다. 그래도 추천 산식 반영 비중과 주문은 자동 변경하지 않는다.";
 }
 
 function buildMarketReadout(data: MarketMapData, regimes: MarketRegime[]) {
