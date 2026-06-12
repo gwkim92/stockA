@@ -163,8 +163,10 @@ function normalizeOperationalText(text: string | null | undefined) {
     .replaceAll("snapshot", "시장 스냅샷")
     .replaceAll("rerun", "재실행")
     .replaceAll("오래된이다", "오래된 상태다")
+    .replaceAll("체제이", "체제가")
     .replaceAll("regime", "체제")
-    .replaceAll("weight", "가중치");
+    .replaceAll("weight", "가중치")
+    .replaceAll("outcome", "성과");
 }
 
 function marketRelationshipLabel(relationship: string | null | undefined) {
