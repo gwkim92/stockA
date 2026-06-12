@@ -324,6 +324,9 @@ def build_operating_data_profile_scheduler_status_report(
                 "service_name": service_name,
                 "schedule": _cron_schedule_to_systemd_calendar(schedule)[0],
                 "active_state": command(("systemctl", "is-active", timer_name)) or "unknown",
+                "load_state": command(("systemctl", "show", timer_name, "-p", "LoadState", "--value")) or "unknown",
+                "service_load_state": command(("systemctl", "show", service_name, "-p", "LoadState", "--value"))
+                or "unknown",
                 "next_elapse": command(("systemctl", "show", timer_name, "-p", "NextElapseUSecRealtime", "--value")),
                 "last_result": command(("systemctl", "show", service_name, "-p", "Result", "--value")),
             }
@@ -331,6 +334,19 @@ def build_operating_data_profile_scheduler_status_report(
 
     active_timer_count = sum(1 for timer in timers if timer["active_state"] == "active")
     timer_count = len(timers)
+    missing_profiles = [
+        str(timer["profile_id"])
+        for timer in timers
+        if _timer_is_missing(active_state=str(timer["active_state"]), load_state=str(timer["load_state"]))
+    ]
+    inactive_profiles = [
+        str(timer["profile_id"])
+        for timer in timers
+        if str(timer["active_state"]) != "active" and str(timer["profile_id"]) not in set(missing_profiles)
+    ]
+    missing_timer_count = len(missing_profiles)
+    inactive_timer_count = len(inactive_profiles)
+    drift_detected = bool(missing_timer_count or inactive_timer_count)
     install_status = (
         "installed"
         if timer_count > 0 and active_timer_count == timer_count
@@ -347,11 +363,47 @@ def build_operating_data_profile_scheduler_status_report(
         "scheduler_job_name": str(job_name).strip(),
         "timer_count": timer_count,
         "active_timer_count": active_timer_count,
+        "missing_timer_count": missing_timer_count,
+        "inactive_timer_count": inactive_timer_count,
+        "drift_detected": drift_detected,
+        "missing_profiles": missing_profiles,
+        "inactive_profiles": inactive_profiles,
+        "expected_profiles": [str(profile["profile_id"]) for profile in selected_profiles],
+        "next_action": _profile_scheduler_status_next_action(
+            install_status=install_status,
+            missing_profiles=missing_profiles,
+            inactive_profiles=inactive_profiles,
+        ),
         "timers": timers,
         "secrets_policy": "systemd_unit_names_and_status_only_no_env_values",
     }
     _assert_secret_free(report)
     return report
+
+
+def _timer_is_missing(*, active_state: str, load_state: str) -> bool:
+    normalized_active = active_state.strip().lower()
+    normalized_load = load_state.strip().lower()
+    if normalized_load in {"not-found", "not_found", "missing"}:
+        return True
+    if normalized_active in {"not-found", "not_found", "missing"}:
+        return True
+    return normalized_active in {"", "unknown"} and normalized_load in {"", "unknown"}
+
+
+def _profile_scheduler_status_next_action(
+    *,
+    install_status: str,
+    missing_profiles: Sequence[str],
+    inactive_profiles: Sequence[str],
+) -> str:
+    if missing_profiles:
+        return "누락된 profile timer를 manifest에서 다시 설치하고 systemctl daemon-reload 후 enable --now로 활성화한다."
+    if inactive_profiles:
+        return "비활성 profile timer를 systemctl enable --now로 활성화하고 status report를 다시 생성한다."
+    if install_status == "installed":
+        return "기대 profile timer가 모두 설치·활성화되어 있다. 주기별 last_result와 pipeline freshness를 계속 감시한다."
+    return "profile scheduler manifest를 생성한 뒤 전체 expected timer를 설치한다."
 
 
 def _build_profile_scheduler_manifest_payload(

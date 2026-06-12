@@ -226,9 +226,25 @@ class OperatingDataProfileSchedulerTests(unittest.TestCase):
             command = tuple(argv)
             if command[:2] == ("systemctl", "is-active"):
                 return "active"
-            if command[:3] == ("systemctl", "show", "stockanalysis-operating-data-news-intraday.timer"):
+            if (
+                command[:3] == ("systemctl", "show", "stockanalysis-operating-data-news-intraday.timer")
+                and command[3:5] == ("-p", "LoadState")
+            ):
+                return "loaded"
+            if (
+                command[:3] == ("systemctl", "show", "stockanalysis-operating-data-news-intraday.timer")
+                and command[3:5] == ("-p", "NextElapseUSecRealtime")
+            ):
                 return "Thu 2026-05-21 13:00:00 UTC"
-            if command[:3] == ("systemctl", "show", "stockanalysis-operating-data-news-intraday.service"):
+            if (
+                command[:3] == ("systemctl", "show", "stockanalysis-operating-data-news-intraday.service")
+                and command[3:5] == ("-p", "LoadState")
+            ):
+                return "loaded"
+            if (
+                command[:3] == ("systemctl", "show", "stockanalysis-operating-data-news-intraday.service")
+                and command[3:5] == ("-p", "Result")
+            ):
                 return "success"
             return ""
 
@@ -242,9 +258,53 @@ class OperatingDataProfileSchedulerTests(unittest.TestCase):
         self.assertEqual(report["install_status"], "installed")
         self.assertEqual(report["timer_count"], 1)
         self.assertEqual(report["active_timer_count"], 1)
+        self.assertEqual(report["missing_timer_count"], 0)
+        self.assertEqual(report["inactive_timer_count"], 0)
+        self.assertFalse(report["drift_detected"])
         self.assertEqual(report["timers"][0]["profile_id"], "news-intraday")
         self.assertEqual(report["timers"][0]["active_state"], "active")
+        self.assertEqual(report["timers"][0]["load_state"], "loaded")
         self.assertNotIn("postgresql://", json.dumps(report))
+
+    def test_status_report_marks_missing_expected_profile_timer_as_drift(self) -> None:
+        def fake_runner(argv):
+            command = tuple(argv)
+            unit_name = command[2] if len(command) > 2 else ""
+            if command[:2] == ("systemctl", "is-active"):
+                if unit_name == "stockanalysis-operating-data-cross-asset-daily.timer":
+                    return "inactive"
+                return "active"
+            if command[:2] == ("systemctl", "show") and command[3:5] == ("-p", "LoadState"):
+                if unit_name in {
+                    "stockanalysis-operating-data-cross-asset-daily.timer",
+                    "stockanalysis-operating-data-cross-asset-daily.service",
+                }:
+                    return "not-found"
+                return "loaded"
+            if command[:2] == ("systemctl", "show") and command[3:5] == ("-p", "NextElapseUSecRealtime"):
+                return "" if unit_name == "stockanalysis-operating-data-cross-asset-daily.timer" else "Fri 2026-06-12 22:35:00 UTC"
+            if command[:2] == ("systemctl", "show") and command[3:5] == ("-p", "Result"):
+                return "" if unit_name == "stockanalysis-operating-data-cross-asset-daily.service" else "success"
+            return ""
+
+        report = build_operating_data_profile_scheduler_status_report(
+            profile_ids=("market-daily", "cross-asset-daily"),
+            generated_at=datetime(2026, 6, 12, tzinfo=timezone.utc),
+            command_runner=fake_runner,
+        )
+
+        self.assertEqual(report["install_status"], "partial")
+        self.assertEqual(report["timer_count"], 2)
+        self.assertEqual(report["active_timer_count"], 1)
+        self.assertEqual(report["missing_timer_count"], 1)
+        self.assertEqual(report["inactive_timer_count"], 0)
+        self.assertTrue(report["drift_detected"])
+        self.assertEqual(report["missing_profiles"], ["cross-asset-daily"])
+        self.assertEqual(report["inactive_profiles"], [])
+        self.assertIn("누락된 profile timer", report["next_action"])
+        cross_asset_timer = next(timer for timer in report["timers"] if timer["profile_id"] == "cross-asset-daily")
+        self.assertEqual(cross_asset_timer["load_state"], "not-found")
+        self.assertEqual(cross_asset_timer["service_load_state"], "not-found")
 
 
 def _write_runtime_env(root: Path) -> Path:

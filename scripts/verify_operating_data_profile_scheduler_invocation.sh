@@ -98,7 +98,7 @@ import sys
 payload = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"))
 assert payload["scheduler_target"] == "systemd"
 assert payload["operating_data_run_execute"] is True
-assert payload["total_profile_count"] == 7
+assert payload["total_profile_count"] == 8
 assert payload["systemd_user"] == "ec2-user"
 assert payload["systemd_group"] == "ec2-user"
 assert payload["systemd_home"] == "/home/ec2-user"
@@ -122,6 +122,7 @@ assert "OnCalendar=Mon *-*-* 07:00 America/New_York" in timer_text
 assert "OnCalendar=Mon *-*-* 08:00 America/New_York" in timer_text
 assert "OnCalendar=*-*-* 00,02,04,06,08,10,12,14,16,18,20,22:00 America/New_York" in timer_text
 assert "OnCalendar=Mon..Fri *-*-* 18:35 America/New_York" in timer_text
+assert "OnCalendar=Mon..Fri *-*-* 18:50 America/New_York" in timer_text
 assert "OnCalendar=Mon..Fri *-*-* 19:00 America/New_York" in timer_text
 assert "OnCalendar=*-*-01 09:30 America/New_York" in timer_text
 assert "--execute" in json.dumps(payload)
@@ -141,8 +142,10 @@ import sys
 payload = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"))
 assert payload["report_name"] == "operating_data_profile_scheduler_status"
 assert payload["scheduler_type"] == "systemd"
-assert payload["timer_count"] == 7
+assert payload["timer_count"] == 8
 assert payload["install_status"] in {"not_installed", "partial", "installed"}
+assert payload["missing_timer_count"] + payload["inactive_timer_count"] + payload["active_timer_count"] == 8
+assert "cross-asset-daily" in payload["expected_profiles"]
 assert payload["timers"][0]["profile_id"] == "market-universe-weekly"
 assert "postgresql://" not in json.dumps(payload)
 print("operating data profile scheduler status report verification passed")
