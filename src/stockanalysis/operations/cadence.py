@@ -133,6 +133,18 @@ DATA_OPERATION_CADENCES: tuple[DataOperationCadence, ...] = (
         data_health_dataset="event.news_indicator_link",
     ),
     DataOperationCadence(
+        job_id="asset-correlation-daily",
+        pipeline_name="asset_correlation_analysis",
+        domain="signal",
+        cadence="daily",
+        command_template="stockanalysis-operations correlation-analysis-run --env-file <ENV> --as-of-date <YYYY-MM-DD> --execute",
+        expected_after_local="18:57",
+        stale_after_hours=36,
+        artifact_policy="stdout_json_stderr_log_and_correlation_counts",
+        required_env_groups=("database",),
+        data_health_dataset="signal.asset_correlation_snapshot",
+    ),
+    DataOperationCadence(
         job_id="recommendation-cross-asset-components-daily",
         pipeline_name="recommendation_cross_asset_components",
         domain="signal",

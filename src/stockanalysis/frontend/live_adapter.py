@@ -2121,6 +2121,11 @@ def build_live_market_map_response(
     regimes = [_build_market_map_regime_payload(item) for item in _as_list(state.get("regimes"))]
     news_links = [_build_market_map_news_link_payload(item) for item in _as_list(state.get("news_links"))]
     quality_flags = [_build_market_map_quality_flag_payload(item) for item in _as_list(state.get("quality_flags"))]
+    correlations = [
+        _build_market_map_correlation_payload(item)
+        for item in _as_list(state.get("correlations"))
+        if isinstance(item, Mapping)
+    ]
     return {
         "contract_version": CONTRACT_VERSION,
         "generated_at": generated_at,
@@ -2131,11 +2136,13 @@ def build_live_market_map_response(
             "groups": groups,
             "regimes": regimes,
             "news_links": news_links,
+            "correlations": correlations,
             "quality_flags": quality_flags,
             "guardrails": [
                 "시장 지도는 추천 점수나 주문을 직접 변경하지 않는다.",
                 "stale 지표는 추정값으로 채우지 않고 신뢰도를 낮춰 표시한다.",
                 "뉴스와 가격 지표 연결은 인과 확정이 아니라 시간상 근거 후보이다.",
+                "상관관계는 같이 움직인 정도만 보여주며 원인을 단정하지 않는다.",
                 "추천 weight는 outcome 검증 전까지 0으로 유지한다.",
             ],
         },
@@ -9554,6 +9561,11 @@ selected_snapshot_date as (
     from signal.market_indicator_snapshot snapshot
     join target_date target on snapshot.as_of_date <= target.as_of_date
 ),
+selected_correlation_date as (
+    select max(snapshot.as_of_date) as as_of_date
+    from signal.asset_correlation_snapshot snapshot
+    join target_date target on snapshot.as_of_date <= target.as_of_date
+),
 indicator_rows as (
     select
         indicator.indicator_code,
@@ -9737,6 +9749,37 @@ news_link_rows as (
     order by link.link_date desc, link.confidence desc nulls last, link.document_id desc
     limit 12
 ),
+correlation_rows as (
+    select
+        snapshot.as_of_date,
+        snapshot.lookback_days,
+        snapshot.primary_asset_key,
+        snapshot.primary_asset_type,
+        snapshot.primary_instrument_id,
+        snapshot.primary_display_name,
+        snapshot.comparison_asset_key,
+        snapshot.comparison_asset_type,
+        snapshot.comparison_instrument_id,
+        snapshot.comparison_indicator_code,
+        snapshot.comparison_display_name,
+        snapshot.observation_count,
+        snapshot.correlation,
+        snapshot.beta,
+        snapshot.relationship_label,
+        snapshot.confidence,
+        snapshot.evidence_json
+    from signal.asset_correlation_snapshot snapshot
+    join selected_correlation_date selected on selected.as_of_date = snapshot.as_of_date
+    where snapshot.lookback_days = 60
+       or not exists (
+            select 1
+            from signal.asset_correlation_snapshot sixty
+            where sixty.as_of_date = selected.as_of_date
+              and sixty.lookback_days = 60
+        )
+    order by abs(snapshot.correlation) desc nulls last, snapshot.confidence desc, snapshot.primary_asset_key, snapshot.comparison_asset_key
+    limit 12
+),
 quality_flags as (
     select
         indicator_code,
@@ -9788,6 +9831,14 @@ regime_summary as (
         count(*) filter (where regime_state = 'watch')::integer as watch_regime_count,
         count(*) filter (where cardinality(conflict_flags) > 0)::integer as conflict_regime_count
     from regime_rows
+),
+correlation_summary as (
+    select
+        count(*)::integer as correlation_count,
+        count(*) filter (where relationship_label in ('strong_positive', 'strong_negative'))::integer as strong_correlation_count,
+        count(*) filter (where relationship_label in ('moderate_positive', 'moderate_negative'))::integer as moderate_correlation_count,
+        max(as_of_date) as as_of_date
+    from correlation_rows
 )
 select json_build_object(
     'as_of_date', {sql_literal(as_of_date.isoformat())},
@@ -9811,6 +9862,10 @@ select json_build_object(
         'watch_regime_count', coalesce((select watch_regime_count from regime_summary), 0),
         'conflict_regime_count', coalesce((select conflict_regime_count from regime_summary), 0),
         'news_link_count', (select count(*)::integer from news_link_rows),
+        'correlation_count', coalesce((select correlation_count from correlation_summary), 0),
+        'strong_correlation_count', coalesce((select strong_correlation_count from correlation_summary), 0),
+        'moderate_correlation_count', coalesce((select moderate_correlation_count from correlation_summary), 0),
+        'correlation_as_of_date', (select as_of_date from correlation_summary),
         'latest_observation_date', (select latest_observation_date from summary_rollup),
         'next_action',
             case
@@ -9818,6 +9873,8 @@ select json_build_object(
                     then 'missing 지표는 provider fallback과 무료 API quota를 먼저 확인한다.'
                 when coalesce((select stale_indicator_count from summary_rollup), 0) > 0
                     then 'stale 지표는 추정값으로 채우지 말고 provider fetch와 snapshot을 다시 실행한다.'
+                when coalesce((select correlation_count from correlation_summary), 0) = 0
+                    then 'correlation-analysis-run으로 종목과 시장 지표가 최근 같이 움직였는지 계산한다.'
                 when (select count(*) from news_link_rows) = 0
                     then 'indicator-news-linkage-run으로 뉴스와 가격 shock의 시간상 연결을 만든다.'
                 else '시장 지표와 regime이 준비됐다. 추천 weight는 outcome 검증 전까지 그대로 둔다.'
@@ -9910,6 +9967,37 @@ select json_build_object(
                 order by link_date desc, confidence desc nulls last, document_id desc
             )
             from news_link_rows
+        ),
+        '[]'::json
+    ),
+    'correlations',
+    coalesce(
+        (
+            select json_agg(
+                json_build_object(
+                    'as_of_date', as_of_date,
+                    'lookback_days', lookback_days,
+                    'primary_asset_key', primary_asset_key,
+                    'primary_asset_type', primary_asset_type,
+                    'primary_instrument_id', primary_instrument_id,
+                    'primary_display_name', primary_display_name,
+                    'comparison_asset_key', comparison_asset_key,
+                    'comparison_asset_type', comparison_asset_type,
+                    'comparison_instrument_id', comparison_instrument_id,
+                    'comparison_indicator_code', comparison_indicator_code,
+                    'comparison_display_name', comparison_display_name,
+                    'observation_count', observation_count,
+                    'correlation', correlation,
+                    'beta', beta,
+                    'relationship_label', relationship_label,
+                    'confidence', confidence,
+                    'causal_claim', false,
+                    'summary_ko',
+                        primary_display_name || '와 ' || comparison_display_name || '의 최근 ' || lookback_days::text || '일 수익률 동조성이다. 원인 단정이 아니라 리스크 점검 입력이다.'
+                )
+                order by abs(correlation) desc nulls last, confidence desc, primary_asset_key, comparison_asset_key
+            )
+            from correlation_rows
         ),
         '[]'::json
     ),
@@ -17913,6 +18001,10 @@ def _build_market_map_summary_payload(summary: dict[str, Any]) -> dict[str, Any]
         "watch_regime_count": int(summary.get("watch_regime_count") or 0),
         "conflict_regime_count": int(summary.get("conflict_regime_count") or 0),
         "news_link_count": int(summary.get("news_link_count") or 0),
+        "correlation_count": int(summary.get("correlation_count") or 0),
+        "strong_correlation_count": int(summary.get("strong_correlation_count") or 0),
+        "moderate_correlation_count": int(summary.get("moderate_correlation_count") or 0),
+        "correlation_as_of_date": _optional_text(summary.get("correlation_as_of_date")),
         "latest_observation_date": _optional_text(summary.get("latest_observation_date")),
         "next_action": str(summary.get("next_action") or ""),
         "recommendation_scoring_mutated": False,
@@ -18004,6 +18096,35 @@ def _build_market_map_news_link_payload(item: dict[str, Any]) -> dict[str, Any]:
         "title_ko": str(item.get("title_ko") or ""),
         "source_name": str(item.get("source_name") or ""),
         "source_url": str(item.get("source_url") or ""),
+    }
+
+
+def _build_market_map_correlation_payload(item: Mapping[str, Any]) -> dict[str, Any]:
+    primary_symbol = str(item.get("primary_display_name") or item.get("primary_asset_key") or "")
+    comparison_symbol = str(item.get("comparison_display_name") or item.get("comparison_asset_key") or "")
+    return {
+        "as_of_date": str(item.get("as_of_date") or ""),
+        "lookback_days": int(item.get("lookback_days") or 0),
+        "primary_asset_key": str(item.get("primary_asset_key") or ""),
+        "primary_asset_type": str(item.get("primary_asset_type") or ""),
+        "primary_instrument_id": _opaque_id("instrument", item.get("primary_instrument_id"), primary_symbol.lower())
+        if item.get("primary_instrument_id") is not None
+        else "",
+        "primary_display_name": primary_symbol,
+        "comparison_asset_key": str(item.get("comparison_asset_key") or ""),
+        "comparison_asset_type": str(item.get("comparison_asset_type") or ""),
+        "comparison_instrument_id": _opaque_id("instrument", item.get("comparison_instrument_id"), comparison_symbol.lower())
+        if item.get("comparison_instrument_id") is not None
+        else "",
+        "comparison_indicator_code": str(item.get("comparison_indicator_code") or ""),
+        "comparison_display_name": comparison_symbol,
+        "observation_count": int(item.get("observation_count") or 0),
+        "correlation": _number(item.get("correlation")),
+        "beta": _number(item.get("beta")),
+        "relationship_label": str(item.get("relationship_label") or "weak_or_unclear"),
+        "confidence": _number(item.get("confidence")) or 0.0,
+        "causal_claim": item.get("causal_claim") is True,
+        "summary_ko": str(item.get("summary_ko") or ""),
     }
 
 

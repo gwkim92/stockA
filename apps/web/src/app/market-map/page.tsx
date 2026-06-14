@@ -10,6 +10,7 @@ export const metadata = { title: "시장 지도" };
 
 type MarketGroup = MarketMapData["groups"][number];
 type MarketIndicator = MarketGroup["indicators"][number];
+type MarketCorrelation = MarketMapData["correlations"][number];
 type MarketNewsLink = MarketMapData["news_links"][number];
 type MarketQualityFlag = MarketMapData["quality_flags"][number];
 type MarketRegime = MarketMapData["regimes"][number];
@@ -32,6 +33,17 @@ function formatValue(value: number | null | undefined) {
   return new Intl.NumberFormat("ko-KR", { maximumFractionDigits: 2 }).format(value);
 }
 
+function formatCoefficient(value: number | null | undefined) {
+  if (value === null || value === undefined || !Number.isFinite(value)) {
+    return "미측정";
+  }
+  return new Intl.NumberFormat("ko-KR", {
+    maximumFractionDigits: 2,
+    minimumFractionDigits: 2,
+    signDisplay: "exceptZero",
+  }).format(value);
+}
+
 function freshnessLabel(status: string) {
   if (status === "fresh") {
     return "최신";
@@ -43,6 +55,41 @@ function freshnessLabel(status: string) {
     return "없음";
   }
   return koCode(status);
+}
+
+function correlationRelationshipLabel(label: string) {
+  if (label === "strong_positive") {
+    return "강한 동행";
+  }
+  if (label === "strong_negative") {
+    return "강한 반대";
+  }
+  if (label === "moderate_positive") {
+    return "보통 동행";
+  }
+  if (label === "moderate_negative") {
+    return "보통 반대";
+  }
+  return "약하거나 불명확";
+}
+
+function correlationTone(correlation: MarketCorrelation) {
+  if (correlation.relationship_label.includes("strong")) {
+    return "detail-path-card is-watch";
+  }
+  if (correlation.relationship_label.includes("moderate")) {
+    return "detail-path-card is-good";
+  }
+  return "detail-path-card";
+}
+
+function correlationSummaryText(data: MarketMapData) {
+  if (data.summary.correlation_count <= 0) {
+    return "아직 계산된 상관관계가 없다. correlation-analysis-run을 실행해야 한다.";
+  }
+  const strong = data.summary.strong_correlation_count;
+  const moderate = data.summary.moderate_correlation_count;
+  return `${data.summary.correlation_count}개 쌍 계산 · 강한 동조/반대 ${strong}개 · 보통 수준 ${moderate}개`;
 }
 
 function regimeTitle(regime: MarketRegime) {
@@ -322,6 +369,7 @@ export default async function MarketMapPage() {
   const newsLinkGroups = groupNewsLinks(data.news_links);
   const visibleNewsLinkGroups = newsLinkGroups.slice(0, VISIBLE_NEWS_LINK_GROUP_COUNT);
   const hiddenNewsLinkGroupCount = Math.max(0, newsLinkGroups.length - VISIBLE_NEWS_LINK_GROUP_COUNT);
+  const topCorrelations = data.correlations.slice(0, 8);
   const leadingPressure = pressureGroups
     .filter((group) => group.shock_count > 0 || group.stale_count + group.missing_count > 0)
     .slice(0, 3)
@@ -344,6 +392,7 @@ export default async function MarketMapPage() {
             <span>충격 {data.summary.shock_indicator_count.toLocaleString("ko-KR")}개</span>
             <span>활성 체제 {data.summary.active_regime_count.toLocaleString("ko-KR")}개</span>
             <span>뉴스 연결 {data.summary.news_link_count.toLocaleString("ko-KR")}개</span>
+            <span>상관관계 {data.summary.correlation_count.toLocaleString("ko-KR")}개</span>
           </div>
         </div>
         <div className="decision-brief-grid">
@@ -367,6 +416,12 @@ export default async function MarketMapPage() {
             <strong>{topRegimes.length.toLocaleString("ko-KR")}개 주시</strong>
             <small>위험자산 선호, 실질금리, 달러 유동성, 에너지 충격 같은 상위 조건이다.</small>
             <b>체제 보기</b>
+          </a>
+          <a className={data.summary.correlation_count > 0 ? "decision-card is-good" : "decision-card is-watch"} href="#market-correlations">
+            <span>상관관계</span>
+            <strong>{data.summary.correlation_count.toLocaleString("ko-KR")}개 쌍 계산</strong>
+            <small>종목이 지수·금리·달러·원자재와 최근 같이 움직였는지 본다. 원인 단정은 하지 않는다.</small>
+            <b>동조성 보기</b>
           </a>
           <Link className="decision-card" href={"/cycle-map" as Route}>
             <span>사이클 연결</span>
@@ -420,6 +475,45 @@ export default async function MarketMapPage() {
             {data.summary.recommendation_scoring_mutated ? "있음" : "없음"} · {koCode(data.summary.order_boundary)}
           </p>
         </article>
+      </section>
+
+      <section className="bento-card reveal delay-2" id="market-correlations" aria-label="상관관계 분석">
+        <div className="section-heading stacked-heading">
+          <span>상관관계</span>
+          <h2>종목이 무엇과 같이 움직였는지 본다</h2>
+          <p>
+            {correlationSummaryText(data)}. 이 값은 최근 수익률 동조성이다. 뉴스 원인이나 매수·매도 이유를 단정하지 않고,
+            포트폴리오 집중과 추천 리스크를 점검하는 입력으로만 쓴다.
+          </p>
+        </div>
+        {topCorrelations.length > 0 ? (
+          <div className="detail-path-grid">
+            {topCorrelations.map((correlation) => (
+              <article
+                className={correlationTone(correlation)}
+                key={`${correlation.primary_asset_key}-${correlation.comparison_asset_key}-${correlation.lookback_days}`}
+              >
+                <span>
+                  {correlationRelationshipLabel(correlation.relationship_label)} · {correlation.lookback_days}일 · 신뢰도{" "}
+                  {formatPercent(correlation.confidence)}
+                </span>
+                <strong>
+                  {correlation.primary_display_name} ↔ {correlation.comparison_display_name}
+                </strong>
+                <small>
+                  상관계수 {formatCoefficient(correlation.correlation)} · 베타 {formatCoefficient(correlation.beta)} · 관측{" "}
+                  {correlation.observation_count.toLocaleString("ko-KR")}개
+                </small>
+                <p>{correlation.summary_ko}</p>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <div className="empty-state compact">
+            <strong>상관관계가 아직 계산되지 않았다.</strong>
+            <span>장마감 후 `correlation-analysis-run`이 실행되면 종목과 시장 지표의 동조성이 여기에 표시된다.</span>
+          </div>
+        )}
       </section>
 
       <section className="bento-card reveal delay-2" id="market-pressure" aria-label="시장 압력판">

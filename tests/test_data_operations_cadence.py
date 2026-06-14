@@ -75,6 +75,12 @@ class DataOperationsCadenceTests(unittest.TestCase):
         self.assertEqual(recommendation_quality_job["pipeline_name"], "recommendation_quality_eval")
         self.assertEqual(recommendation_quality_job["domain"], "performance")
         self.assertIn("recommendation-quality-eval-run", recommendation_quality_job["command_template"])
+        correlation_job = next(job for job in report["jobs"] if job["job_id"] == "asset-correlation-daily")
+        self.assertEqual(correlation_job["pipeline_name"], "asset_correlation_analysis")
+        self.assertEqual(correlation_job["domain"], "signal")
+        self.assertEqual(correlation_job["cadence"], "daily")
+        self.assertIn("correlation-analysis-run", correlation_job["command_template"])
+        self.assertEqual(correlation_job["data_health_dataset"], "signal.asset_correlation_snapshot")
         recommendation_fundamental_job = next(
             job for job in report["jobs"] if job["job_id"] == "recommendation-fundamental-components-daily"
         )
@@ -212,6 +218,7 @@ class DataOperationsCadenceTests(unittest.TestCase):
         self.assertIn("'cycle_community_ai_summary'", values_sql)
         self.assertIn("'equity_research_reporting'", values_sql)
         self.assertIn("'recommendation_quality_eval'", values_sql)
+        self.assertIn("'asset_correlation_analysis'", values_sql)
         self.assertIn("'recommendation_fundamental_components'", values_sql)
         self.assertIn("'sec_companyfacts_upsert'", values_sql)
         self.assertIn("'financial_period_source_linkage'", values_sql)

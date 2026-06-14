@@ -140,6 +140,7 @@ CROSS_ASSET_DAILY_STEP_IDS = (
     "cross-asset-indicator-ingest",
     "cross-asset-regime-snapshot",
     "indicator-news-linkage",
+    "asset-correlation-analysis",
     "recommendation-cross-asset-components",
 )
 DECISION_DAILY_STEP_IDS = (
@@ -1141,6 +1142,23 @@ def _build_planned_steps(
                 target,
                 "--lookback-days",
                 "2",
+                "--execute",
+            ),
+        },
+        {
+            "step_id": "asset-correlation-analysis",
+            "artifact_job_id": "asset-correlation-daily",
+            "label": "Compute rolling co-movement correlations without causal claims",
+            "skip_reason": "",
+            "command_argv": (
+                python_executable,
+                "-m",
+                "stockanalysis.operations.cli",
+                "correlation-analysis-run",
+                "--env-file",
+                str(env_file),
+                "--as-of-date",
+                target,
                 "--execute",
             ),
         },

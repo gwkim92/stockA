@@ -293,6 +293,25 @@ class OperatingDataOrchestratorTests(unittest.TestCase):
             step_ids.index("cross-asset-indicator-provider-fetch"),
             step_ids.index("cross-asset-indicator-ingest"),
         )
+        self.assertLess(
+            step_ids.index("cross-asset-regime-snapshot"),
+            step_ids.index("asset-correlation-analysis"),
+        )
+        self.assertLess(
+            step_ids.index("indicator-news-linkage"),
+            step_ids.index("asset-correlation-analysis"),
+        )
+        self.assertLess(
+            step_ids.index("asset-correlation-analysis"),
+            step_ids.index("recommendation-cross-asset-components"),
+        )
+        correlation_step = next(
+            step for step in report["planned_steps"] if step["step_id"] == "asset-correlation-analysis"
+        )
+        correlation_command = " ".join(correlation_step["command_argv"])
+        self.assertIn("correlation-analysis-run", correlation_command)
+        self.assertIn("--as-of-date 2026-05-20", correlation_command)
+        self.assertIn("--execute", correlation_command)
         refresh_step = next(
             step for step in report["planned_steps"] if step["step_id"] == "cross-asset-market-price-refresh"
         )

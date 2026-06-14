@@ -100,6 +100,10 @@ from stockanalysis.operations.cross_asset_market import (
     run_indicator_news_linkage,
     run_recommendation_cross_asset_components,
 )
+from stockanalysis.operations.correlation_analysis import (
+    parse_lookback_days,
+    run_correlation_analysis,
+)
 from stockanalysis.operations.news_rss_feed_runner import (
     NEWS_RSS_FEED_CONFIG_ENV,
     build_news_rss_config_report,
@@ -654,6 +658,22 @@ def build_parser() -> argparse.ArgumentParser:
     indicator_news_linkage.add_argument("--dry-run", action="store_true")
     indicator_news_linkage.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
     indicator_news_linkage.set_defaults(handler=_handle_indicator_news_linkage_run)
+
+    correlation_analysis = subparsers.add_parser(
+        "correlation-analysis-run",
+        help="Compute rolling return correlation and beta snapshots without changing recommendations.",
+    )
+    correlation_analysis.add_argument("--env-file")
+    correlation_analysis.add_argument("--as-of-date", required=True)
+    correlation_analysis.add_argument(
+        "--lookback-days",
+        action="append",
+        help="Comma-separated or repeated lookback windows. Defaults to 20,60,120.",
+    )
+    correlation_analysis.add_argument("--execute", action="store_true")
+    correlation_analysis.add_argument("--dry-run", action="store_true")
+    correlation_analysis.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
+    correlation_analysis.set_defaults(handler=_handle_correlation_analysis_run)
 
     recommendation_cross_asset_components = subparsers.add_parser(
         "recommendation-cross-asset-components-run",
@@ -2266,6 +2286,22 @@ def _handle_indicator_news_linkage_run(args: argparse.Namespace, *, stdout: Text
             config=RuntimeConfig.from_env(),
             as_of_date=as_of_date,
             lookback_days=args.lookback_days,
+            execute=bool(args.execute) and not bool(args.dry_run),
+        )
+    print_json(report, stdout=stdout, sort_keys=False)
+    return 0
+
+
+def _handle_correlation_analysis_run(args: argparse.Namespace, *, stdout: TextIO) -> int:
+    if bool(args.execute) and bool(args.dry_run):
+        raise ValueError("--execute and --dry-run cannot be used together.")
+    env_mapping = _load_optional_env_mapping(args.env_file, repo_root=args.repo_root)
+    as_of_date = date.fromisoformat(args.as_of_date)
+    with _temporary_environ(env_mapping):
+        report = run_correlation_analysis(
+            config=RuntimeConfig.from_env(),
+            as_of_date=as_of_date,
+            lookback_days=parse_lookback_days(args.lookback_days),
             execute=bool(args.execute) and not bool(args.dry_run),
         )
     print_json(report, stdout=stdout, sort_keys=False)

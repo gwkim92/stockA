@@ -25,6 +25,46 @@ class DataOperationsCliTests(unittest.TestCase):
         self.assertEqual(payload["report_name"], "data_operations_cadence_foundation")
         self.assertEqual(payload["cadence_filter"], "weekly")
 
+    def test_correlation_analysis_run_command_passes_lookbacks_and_guardrails(self) -> None:
+        with tempfile.TemporaryDirectory() as repo_root, tempfile.TemporaryDirectory() as outside_root:
+            env_file = Path(outside_root) / "data-operations.env"
+            env_file.write_text('STOCKANALYSIS_PSQL_COMMAND="docker exec psql"\n', encoding="utf-8")
+            stdout = io.StringIO()
+
+            with patch("stockanalysis.operations.cli.run_correlation_analysis") as runner_mock:
+                runner_mock.return_value = {
+                    "report_name": "asset_correlation_analysis",
+                    "status": "planned",
+                    "lookback_days": [20, 60, 120],
+                    "recommendation_scoring_mutated": False,
+                    "broker_submit_allowed": False,
+                }
+                exit_code = main(
+                    [
+                        "correlation-analysis-run",
+                        "--repo-root",
+                        repo_root,
+                        "--env-file",
+                        str(env_file),
+                        "--as-of-date",
+                        "2026-06-14",
+                        "--lookback-days",
+                        "20,60",
+                        "--lookback-days",
+                        "120",
+                        "--dry-run",
+                    ],
+                    stdout=stdout,
+                )
+
+            self.assertEqual(exit_code, 0)
+            payload = json.loads(stdout.getvalue())
+            self.assertEqual(payload["report_name"], "asset_correlation_analysis")
+            self.assertFalse(payload["recommendation_scoring_mutated"])
+            self.assertFalse(payload["broker_submit_allowed"])
+            runner_mock.assert_called_once()
+            self.assertEqual(tuple(runner_mock.call_args.kwargs["lookback_days"]), (20, 60, 120))
+
     def test_internal_rag_context_command_prints_read_only_context(self) -> None:
         with tempfile.TemporaryDirectory() as repo_root, tempfile.TemporaryDirectory() as runtime_root:
             env_file = Path(runtime_root) / "data-operations.env"
