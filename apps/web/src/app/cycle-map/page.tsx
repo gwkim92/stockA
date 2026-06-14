@@ -59,7 +59,7 @@ function formatCount(value: number) {
 
 function shortText(value: string | null | undefined, fallback: string) {
   const text = koLabel(value || fallback).trim();
-  return text.length > 180 ? `${text.slice(0, 180)}...` : text;
+  return text.length > 140 ? `${text.slice(0, 140)}...` : text;
 }
 
 function cycleAttentionScore(node: CycleNode) {
@@ -197,7 +197,7 @@ export default async function CycleMapPage() {
   const conflictNodeCount = data.nodes.filter((node) => node.conflict_flags.length > 0).length;
   const attentionNodes = [...data.nodes].sort((left, right) => cycleAttentionScore(right) - cycleAttentionScore(left)).slice(0, 6);
   const pathNodes = [...data.nodes].sort((left, right) => cycleAttentionScore(right) - cycleAttentionScore(left)).slice(0, 10);
-  const hotNode = data.nodes.find((node) => node.node_code === data.summary.hot_node_code) ?? attentionNodes[0] ?? null;
+  const hotNode = attentionNodes[0] ?? data.nodes.find((node) => node.node_code === data.summary.hot_node_code) ?? null;
   const turningCycles = cycleStates.filter((cycle) => cycle.state !== cycle.previous_state).slice(0, 5);
   const eventLedCycles = [...cycleStates]
     .sort((left, right) => (right.features.event_intensity ?? 0) - (left.features.event_intensity ?? 0))
