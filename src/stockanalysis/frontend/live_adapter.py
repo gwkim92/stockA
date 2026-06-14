@@ -11426,7 +11426,6 @@ selected_recommendation_correlation_date as (
     select max(snapshot.as_of_date) as as_of_date
     from signal.asset_correlation_snapshot snapshot
     join selected_recommendation recommendation on recommendation.instrument_id = snapshot.primary_instrument_id
-    where snapshot.as_of_date <= recommendation.as_of_date
 ),
 recommendation_market_correlations as (
     select

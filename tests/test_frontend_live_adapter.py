@@ -7442,6 +7442,7 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertIn("recommendation_market_correlations as", sql)
         self.assertIn("signal.asset_correlation_snapshot", sql)
         self.assertIn("'market_correlations'", sql)
+        self.assertNotIn("snapshot.as_of_date <= recommendation.as_of_date", sql)
         self.assertIn("latest_position_trace as", sql)
         self.assertIn("portfolio_review_trace as", sql)
         self.assertIn("latest_equity_research as", sql)

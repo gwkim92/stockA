@@ -27,6 +27,7 @@
 - `src/stockanalysis/frontend/live_adapter.py`
   - added latest correlation lookup CTEs for stock and recommendation detail state.
   - added Korean non-causal summaries for co-movement rows.
+  - recommendation detail uses the latest available correlation snapshot for the instrument because the page is a current risk review, not a historical score reconstruction.
 - `apps/web`
   - added shared `AssetCorrelation` type usage.
   - added correlation counts/cards/sections to stock and recommendation detail pages.
