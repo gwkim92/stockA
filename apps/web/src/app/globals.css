@@ -7545,6 +7545,60 @@ h6 {
   justify-items: end;
 }
 
+.cycle-decision-strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: clamp(12px, 1.8vw, 20px);
+}
+
+.cycle-decision-strip-card {
+  min-width: 0;
+  padding: clamp(18px, 2.2vw, 28px);
+  background:
+    radial-gradient(circle at 12% 0%, rgba(189, 112, 55, 0.12), transparent 42%),
+    color-mix(in srgb, var(--bg-panel) 90%, white);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+}
+
+.cycle-decision-strip-card.tone-ready {
+  border-color: color-mix(in srgb, var(--accent-green) 36%, var(--border-light));
+}
+
+.cycle-decision-strip-card.tone-watch {
+  border-color: color-mix(in srgb, var(--accent-amber) 42%, var(--border-light));
+}
+
+.cycle-decision-strip-card span,
+.cycle-path-cell span {
+  color: var(--text-tertiary);
+  font-size: 0.7rem;
+  font-weight: 950;
+  letter-spacing: 0.04em;
+}
+
+.cycle-decision-strip-card strong {
+  display: block;
+  margin-top: 8px;
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: clamp(1.35rem, 2.4vw, 2.2rem);
+  line-height: 0.95;
+  text-wrap: balance;
+  word-break: keep-all;
+}
+
+.cycle-decision-strip-card p,
+.cycle-decision-strip-card small {
+  display: block;
+  margin: 12px 0 0;
+  color: var(--text-secondary);
+  font-size: 0.86rem;
+  font-weight: 780;
+  line-height: 1.5;
+  text-wrap: pretty;
+}
+
 .cycle-operating-board {
   display: grid;
   grid-template-columns: minmax(0, 1.55fr) minmax(280px, 0.62fr);
@@ -7810,6 +7864,89 @@ h6 {
   min-height: 210px;
 }
 
+.cycle-path-workbench {
+  display: grid;
+  gap: clamp(18px, 2.4vw, 28px);
+  padding: clamp(20px, 2.8vw, 38px);
+  background:
+    linear-gradient(135deg, rgba(251, 250, 246, 0.96), rgba(242, 235, 219, 0.82)),
+    repeating-linear-gradient(
+      0deg,
+      rgba(17, 18, 15, 0.035),
+      rgba(17, 18, 15, 0.035) 1px,
+      transparent 1px,
+      transparent 32px
+    );
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+}
+
+.cycle-path-table {
+  display: grid;
+  gap: 12px;
+}
+
+.cycle-path-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1.12fr) minmax(0, 1fr) minmax(260px, 0.92fr);
+  gap: 10px;
+  align-items: stretch;
+  min-width: 0;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.5);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+}
+
+.cycle-path-row.tone-ready {
+  border-color: color-mix(in srgb, var(--accent-green) 35%, var(--border-light));
+}
+
+.cycle-path-row.tone-watch {
+  border-color: color-mix(in srgb, var(--accent-amber) 42%, var(--border-light));
+}
+
+.cycle-path-cell {
+  display: grid;
+  align-content: start;
+  min-width: 0;
+  gap: 8px;
+  padding: 14px;
+  background: color-mix(in srgb, var(--bg-panel) 88%, white);
+  border: 1px solid rgba(17, 18, 15, 0.08);
+  border-radius: var(--radius-sm);
+}
+
+.cycle-path-cell.emphasis {
+  background:
+    radial-gradient(circle at 0% 0%, rgba(17, 18, 15, 0.08), transparent 44%),
+    color-mix(in srgb, var(--bg-panel) 84%, white);
+}
+
+.cycle-path-cell strong {
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: clamp(1rem, 1.3vw, 1.32rem);
+  line-height: 1.05;
+  text-wrap: balance;
+  word-break: keep-all;
+}
+
+.cycle-path-cell small {
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  font-weight: 760;
+  line-height: 1.48;
+  text-wrap: pretty;
+}
+
+.cycle-path-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+
 /* Animations */
 .reveal {
   animation: smoothUp 0.62s cubic-bezier(0.16, 1, 0.3, 1) forwards;
@@ -7969,12 +8106,13 @@ h6 {
     grid-column: span 2;
   }
 
-  .status-rail,
-  .route-index,
-  .where-grid,
-  .cycle-operating-board,
-  .cycle-lanes,
-  .cycle-state-lenses,
+	  .status-rail,
+	  .route-index,
+	  .where-grid,
+	  .cycle-decision-strip,
+	  .cycle-operating-board,
+	  .cycle-lanes,
+	  .cycle-state-lenses,
   .decision-strip-grid,
   .evidence-trace-grid,
   .paper-state-grid,
@@ -8017,9 +8155,13 @@ h6 {
   .thesis-evidence-card-grid,
   .intelligence-flow-grid,
   .evidence-workbench-steps,
-  .intelligence-brief-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
+	  .intelligence-brief-grid {
+	    grid-template-columns: repeat(2, minmax(0, 1fr));
+	  }
+
+	  .cycle-path-row {
+	    grid-template-columns: repeat(2, minmax(0, 1fr));
+	  }
 
   .ledger-guide,
   .ledger-section-head,
@@ -8109,9 +8251,11 @@ h6 {
   .performance-gate-grid,
   .performance-outcome-card,
   .performance-check-card,
-  .performance-gate-card,
-  .performance-mini-card,
-  .recommendation-evidence-head,
+	  .performance-gate-card,
+	  .performance-mini-card,
+	  .cycle-decision-strip,
+	  .cycle-path-row,
+	  .recommendation-evidence-head,
   .recommendation-evidence-head.compact,
   .recommendation-evidence-summary,
   .recommendation-gate-grid,

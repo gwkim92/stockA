@@ -81,10 +81,6 @@ function nodeTone(node: CycleNode) {
   return "tone-neutral";
 }
 
-function relationCount(data: CycleMapData, nodeCode: string) {
-  return data.edges.filter((edge) => edge.parent_code === nodeCode || edge.child_code === nodeCode).length;
-}
-
 function nodeDecisionLabel(node: CycleNode) {
   if (node.conflict_flags.length > 0) {
     return "충돌 먼저 확인";
@@ -101,6 +97,13 @@ function nodeDecisionLabel(node: CycleNode) {
   return "관찰 유지";
 }
 
+function topNodeLabel(node: CycleNode | null) {
+  if (!node) {
+    return "사이클 데이터 대기";
+  }
+  return koCode(node.node_code);
+}
+
 function nodeQuestion(node: CycleNode) {
   if (node.cycle_level === "macro") {
     return "이 거시 흐름이 성장주, 채권, 원자재, 현금성 자산 중 어디에 압력을 주는가?";
@@ -115,6 +118,43 @@ function nodeQuestion(node: CycleNode) {
     return "테마 뉴스가 실제 종목 실적과 가격 흐름으로 내려오고 있는가?";
   }
   return "종목 자체 흐름이 상위 사이클과 같은 방향인가?";
+}
+
+function nodeDriverText(node: CycleNode) {
+  if (node.parent_codes.length > 0) {
+    return node.parent_codes.slice(0, 2).map(koCode).join(" · ");
+  }
+  if (node.cycle_level === "macro") {
+    return "거시 뉴스와 시장 지표";
+  }
+  return `${levelTitle(node.cycle_level)} 자체 흐름`;
+}
+
+function nodeDownstreamText(node: CycleNode) {
+  if (node.child_codes.length > 0) {
+    return node.child_codes.slice(0, 2).map(koCode).join(" · ");
+  }
+  if (node.top_symbols.length > 0) {
+    return node.top_symbols.slice(0, 3).map(koCode).join(" · ");
+  }
+  return "아직 하위 노출 대기";
+}
+
+function nodeEvidenceLine(node: CycleNode) {
+  return `뉴스 ${formatCount(node.counts.direct_event_count)} · 전파 ${formatCount(node.counts.propagated_impact_count)} · 추천 ${formatCount(node.counts.recommendation_count)}`;
+}
+
+function nodeNextAction(node: CycleNode) {
+  if (node.counts.recommendation_count > 0) {
+    return "추천 상세에서 근거가 실제 점수와 어떻게 분리됐는지 확인한다.";
+  }
+  if (node.top_symbols.length > 0) {
+    return "대표 종목 상세에서 직접 뉴스, 상위 흐름, 시장 동조성을 확인한다.";
+  }
+  if (node.counts.direct_event_count > 0) {
+    return "뉴스·AI 화면에서 원천 뉴스와 AI 구조화 결과를 먼저 확인한다.";
+  }
+  return "다음 뉴스/가격 수집 후 상태 변화를 기다린다.";
 }
 
 function flowPathText(data: CycleMapData, node: CycleNode) {
@@ -156,6 +196,8 @@ export default async function CycleMapPage() {
   const aiBackedNodeCount = data.nodes.filter((node) => node.counts.ai_artifact_count > 0).length;
   const conflictNodeCount = data.nodes.filter((node) => node.conflict_flags.length > 0).length;
   const attentionNodes = [...data.nodes].sort((left, right) => cycleAttentionScore(right) - cycleAttentionScore(left)).slice(0, 6);
+  const pathNodes = [...data.nodes].sort((left, right) => cycleAttentionScore(right) - cycleAttentionScore(left)).slice(0, 10);
+  const hotNode = data.nodes.find((node) => node.node_code === data.summary.hot_node_code) ?? attentionNodes[0] ?? null;
   const turningCycles = cycleStates.filter((cycle) => cycle.state !== cycle.previous_state).slice(0, 5);
   const eventLedCycles = [...cycleStates]
     .sort((left, right) => (right.features.event_intensity ?? 0) - (left.features.event_intensity ?? 0))
@@ -163,6 +205,7 @@ export default async function CycleMapPage() {
   const evidenceGapCount = cycleStates.filter((cycle) =>
     Object.values(cycle.features).some((value) => value === null),
   ).length;
+  const symbolGapCount = data.nodes.filter((node) => node.counts.exposed_instrument_count === 0).length;
 
   return (
     <div className="terminal-page decision-page">
@@ -170,24 +213,25 @@ export default async function CycleMapPage() {
         <div className="decision-brief-main">
           <span className="decision-brief-kicker">흐름 지도 · {data.as_of_date}</span>
           <h1 className="decision-brief-title" id="cycle-map-title">
-            오늘 먼저 볼 사이클은 {attentionNodes.length.toLocaleString("ko-KR")}개다.
+            오늘은 {topNodeLabel(hotNode)}부터 본다.
           </h1>
           <p className="decision-brief-copy">
-            사이클 화면은 그래프를 구경하는 곳이 아니다. 먼저 전환·충돌·뉴스 열기를 찾고, 그 흐름이
-            거시에서 테마와 종목으로 내려와 추천 근거를 바꾸는지 확인한다.
+            사이클 지도는 자동 매수 신호가 아니라 판단 순서다. 먼저 상위 흐름의 열기와 충돌을 보고,
+            그 흐름이 어떤 종목과 추천 근거로 내려가는지 확인한다.
           </p>
           <div className="decision-brief-meta" aria-label="흐름 지도 핵심 상태">
             <span>흐름 {data.summary.node_count.toLocaleString("ko-KR")}개</span>
             <span>뉴스 영향 {data.summary.direct_event_count.toLocaleString("ko-KR")}개</span>
             <span>추천 연결 {data.summary.recommendation_count.toLocaleString("ko-KR")}개</span>
             <span>충돌 {conflictNodeCount.toLocaleString("ko-KR")}개</span>
+            <span>노출 대기 {symbolGapCount.toLocaleString("ko-KR")}개</span>
           </div>
         </div>
         <div className="decision-brief-grid">
           <Link className="decision-card is-good" href={"/intelligence" as Route}>
             <span>원천 뉴스</span>
             <strong>{data.summary.direct_event_count.toLocaleString("ko-KR")}개 영향</strong>
-            <small>AI 근거가 붙은 흐름 {aiBackedNodeCount.toLocaleString("ko-KR")}개. 번역과 검증은 뉴스·AI에서 본다.</small>
+            <small>AI 근거가 붙은 흐름 {aiBackedNodeCount.toLocaleString("ko-KR")}개. 원문·번역·검증 결과는 뉴스·AI에서 본다.</small>
             <b>뉴스 AI</b>
           </Link>
           <a className="decision-card is-good" href="#cycle-map-layers">
@@ -205,7 +249,7 @@ export default async function CycleMapPage() {
           <a className={conflictNodeCount > 0 ? "decision-card is-watch" : "decision-card is-good"} href="#cycle-map-layers">
             <span>종목 노출</span>
             <strong>{exposedNodeCount.toLocaleString("ko-KR")}개 연결</strong>
-            <small>상위 흐름은 바로 매수 신호가 아니다. 노출 종목과 충돌 표시를 같이 본다.</small>
+            <small>상위 흐름은 바로 매수 신호가 아니다. 노출 종목과 검증 화면을 같이 본다.</small>
             <b>종목 확인</b>
           </a>
           <Link className={data.summary.recommendation_count > 0 ? "decision-card is-good" : "decision-card is-watch"} href={"/recommendations" as Route}>
@@ -217,14 +261,25 @@ export default async function CycleMapPage() {
         </div>
       </section>
 
-      <section className="cycle-operating-board reveal delay-1" aria-labelledby="cycle-operating-title">
+      <section className="cycle-decision-strip reveal delay-1" aria-label="오늘의 사이클 판단 요약">
+        {attentionNodes.slice(0, 3).map((node, index) => (
+          <article className={`cycle-decision-strip-card ${nodeTone(node)}`} key={`strip-${node.node_code}`}>
+            <span>먼저 볼 흐름 {String(index + 1).padStart(2, "0")}</span>
+            <strong>{koCode(node.node_code)}</strong>
+            <p>{nodeEvidenceLine(node)}</p>
+            <small>{nodeNextAction(node)}</small>
+          </article>
+        ))}
+      </section>
+
+      <section className="cycle-operating-board reveal delay-2" aria-labelledby="cycle-operating-title">
         <div className="cycle-attention-panel">
           <div className="section-heading stacked-heading">
             <span>우선순위</span>
             <h2 id="cycle-operating-title">오늘 가장 먼저 읽을 사이클</h2>
             <p>
               뉴스 열기, 전파 영향, 추천 연결, 충돌 표시를 합쳐 먼저 볼 흐름을 정렬했다.
-              이 목록은 주문 신호가 아니라 분석 순서다.
+              왼쪽부터 무엇이 움직였는지, 어디로 내려가는지, 무엇을 확인할지 순서로 읽는다.
             </p>
           </div>
           <div className="cycle-attention-list">
@@ -291,13 +346,13 @@ export default async function CycleMapPage() {
           </article>
           <article className="cycle-playbook warning">
             <span>데이터 공백</span>
-            <strong>{evidenceGapCount.toLocaleString("ko-KR")}개</strong>
-            <p>뉴스, 가격, 기업 품질 중 빈 축이 있으면 결론보다 수집 보강이 먼저다.</p>
+            <strong>{evidenceGapCount.toLocaleString("ko-KR")}개 · 노출 대기 {symbolGapCount.toLocaleString("ko-KR")}개</strong>
+            <p>뉴스, 가격, 기업 품질, 종목 노출 중 빈 축이 있으면 결론보다 수집·전파 보강이 먼저다.</p>
           </article>
         </aside>
       </section>
 
-      <section className="cycle-lane-board reveal delay-2" aria-labelledby="cycle-lane-title">
+      <section className="cycle-lane-board reveal delay-3" aria-labelledby="cycle-lane-title">
         <div className="section-heading stacked-heading">
           <span>계층 지도</span>
           <h2 id="cycle-lane-title">사이클은 위에서 아래로 내려오며 종목 근거가 된다</h2>
@@ -328,77 +383,60 @@ export default async function CycleMapPage() {
         </div>
       </section>
 
-      <section className="reveal delay-3" id="cycle-map-layers" aria-label="계층형 사이클 지도 상세">
+      <section className="cycle-path-workbench reveal delay-3" id="cycle-map-layers" aria-label="계층형 사이클 판단 경로">
         {groups.length === 0 ? (
           <article className="empty-state">
             아직 표시할 계층형 사이클 스냅샷이 없다. 뉴스 수집, AI 구조화, 상위 흐름 연결, 사이클 스냅샷 실행 후 이 화면이 채워진다.
           </article>
         ) : null}
 
-        <div style={{ display: "grid", gap: "18px" }}>
-          {groups.map((group) => (
-            <section className="bento-card" key={group.level} aria-label={`${group.title} 흐름`}>
-              <div style={{ display: "flex", justifyContent: "space-between", gap: "18px", alignItems: "flex-end", flexWrap: "wrap", marginBottom: "18px" }}>
-                <div>
-                  <span className="metric-sub">{group.title} 단계</span>
-                  <h2 style={{ fontSize: "1.45rem", marginTop: "6px" }}>{group.title}에서 현재 움직이는 흐름</h2>
+        <div className="section-heading stacked-heading">
+          <span>판단 경로</span>
+          <h2>흐름이 종목과 추천으로 내려가는 길을 한 줄씩 확인한다</h2>
+          <p>
+            각 행은 원인을 단정하지 않는다. 상위 흐름과 종목 노출이 같은 방향인지 확인하는 추적 경로다.
+            추천 점수와 주문 경계는 이 화면에서 바꾸지 않는다.
+          </p>
+        </div>
+
+        <div className="cycle-path-table">
+          {pathNodes.map((node) => (
+            <article className={`cycle-path-row ${nodeTone(node)}`} key={`path-${node.node_code}`}>
+              <div className="cycle-path-cell">
+                <span>상위 흐름</span>
+                <strong>{nodeDriverText(node)}</strong>
+                <small>{node.recent_event_titles[0] ? koLabel(node.recent_event_titles[0]) : "최근 뉴스 원천은 뉴스·AI 화면에서 확인한다."}</small>
+              </div>
+              <div className="cycle-path-cell emphasis">
+                <span>현재 사이클</span>
+                <strong>{koCode(node.node_code)}</strong>
+                <small>{koCode(node.cycle_state)} · 점수 {formatPercent(node.cycle_score)} · {nodeEvidenceLine(node)}</small>
+              </div>
+              <div className="cycle-path-cell">
+                <span>내려가는 대상</span>
+                <strong>{nodeDownstreamText(node)}</strong>
+                <small>하위 흐름 {node.child_codes.length}개 · 노출 종목 {node.counts.exposed_instrument_count}개</small>
+              </div>
+              <div className="cycle-path-cell action">
+                <span>다음 확인</span>
+                <strong>{nodeDecisionLabel(node)}</strong>
+                <small>{nodeNextAction(node)}</small>
+                <div className="cycle-path-actions">
+                  <Link className="btn btn-primary" href={nodeHref(node.node_code)}>
+                    흐름 상세
+                  </Link>
+                  {node.top_symbols[0] ? (
+                    <Link className="btn btn-secondary" href={stockHref(node.top_symbols[0])}>
+                      {koCode(node.top_symbols[0])}
+                    </Link>
+                  ) : (
+                    <Link className="btn btn-secondary" href={"/intelligence" as Route}>
+                      뉴스 근거
+                    </Link>
+                  )}
                 </div>
-                <span className="relation-pill">{group.nodes.length}개 흐름 항목</span>
               </div>
-
-              <div className="detail-path-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))" }}>
-                {group.nodes.map((node) => (
-                  <article className="detail-path-card" key={node.node_code}>
-                    <span>{koCode(node.cycle_state)} · {formatPercent(node.cycle_score)}</span>
-                    <strong>{koCode(node.node_code)}</strong>
-                    <p>{nodeSummary(node)}</p>
-
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginTop: "14px" }}>
-                      <small>뉴스 {node.counts.direct_event_count}</small>
-                      <small>연결 영향 {node.counts.propagated_impact_count}</small>
-                      <small>추천 {node.counts.recommendation_count}</small>
-                      <small>관계 {relationCount(data, node.node_code)}</small>
-                    </div>
-
-                    {node.top_symbols.length > 0 ? (
-                      <div className="relationship-list" aria-label={`${node.node_code} 연결 종목`}>
-                        {node.top_symbols.slice(0, 5).map((symbol) => (
-                          <Link className="relationship-chip" href={stockHref(symbol)} key={`${node.node_code}-${symbol}`}>
-                            <span>종목</span>
-                            <strong>{koCode(symbol)}</strong>
-                          </Link>
-                        ))}
-                      </div>
-                    ) : null}
-
-                    {node.recent_event_titles.length > 0 ? (
-                      <details className="secondary-details" style={{ marginTop: "12px" }}>
-                        <summary>최근 근거 뉴스</summary>
-                        <div className="relationship-list">
-                          {node.recent_event_titles.slice(0, 3).map((title) => (
-                            <div className="relationship-chip" key={`${node.node_code}-${title}`}>
-                              <span>뉴스</span>
-                              <strong>{koLabel(title)}</strong>
-                            </div>
-                          ))}
-                        </div>
-                      </details>
-                    ) : null}
-
-                    <div className="btn-row" style={{ marginTop: "14px" }}>
-                      <Link className="btn btn-primary" href={nodeHref(node.node_code)}>
-                        흐름 상세
-                      </Link>
-                      {node.top_symbols[0] ? (
-                        <Link className="btn btn-secondary" href={stockHref(node.top_symbols[0])}>
-                          대표 종목
-                        </Link>
-                      ) : null}
-                    </div>
-                  </article>
-                ))}
-              </div>
-            </section>
+            </article>
           ))}
         </div>
       </section>
