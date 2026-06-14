@@ -641,6 +641,7 @@ function normalizeRecommendationDetail(data: MutableRecord) {
   withDefault(data, "valuation_target_range", defaultValuationTargetRange(symbol));
   withDefault(data, "fund_instrument_analysis", null);
   withDefault(data, "professional_source_guardrail", defaultProfessionalSourceGuardrail());
+  withDefault(data, "market_correlations", []);
   withDefault(data, "professional_decision_waterfall", defaultProfessionalDecisionWaterfall(symbol, recommendation, typeof data.score === "number" ? data.score : null));
   withDefault(data, "professional_evidence_audit", defaultProfessionalEvidenceAudit(symbol, recommendationId, recommendation));
   withDefault(data, "evidence_trace", {
@@ -721,6 +722,7 @@ function normalizeStockDetail(data: MutableRecord) {
   withDefault(data, "valuation_target_range", defaultValuationTargetRange(symbol));
   withDefault(data, "fund_instrument_analysis", null);
   withDefault(data, "professional_source_guardrail", defaultProfessionalSourceGuardrail());
+  withDefault(data, "market_correlations", []);
   withDefault(data, "macro_flow_impacts", []);
 }
 

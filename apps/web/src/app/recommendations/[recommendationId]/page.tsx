@@ -26,6 +26,7 @@ type FinancialStatementModel = RecommendationDetailData["financial_statement_mod
 type FinancialMetricSnapshot = FinancialStatementModel["metrics"][number];
 type FundInstrumentAnalysis = RecommendationDetailData["fund_instrument_analysis"];
 type ProfessionalEvidenceAudit = RecommendationDetailData["professional_evidence_audit"];
+type RecommendationMarketCorrelation = RecommendationDetailData["market_correlations"][number];
 
 const USER_FACING_TERM_REPLACEMENTS: Array<[string, string]> = [
   ["DCF-lite", "간이 현금흐름 평가"],
@@ -326,6 +327,43 @@ function formatMetricValue(value: number | null | undefined) {
     return formatPercent(value);
   }
   return value.toLocaleString("ko-KR", { maximumFractionDigits: 4 });
+}
+
+function formatCoefficient(value: number | null | undefined) {
+  if (value === null || value === undefined || !Number.isFinite(value)) {
+    return "미측정";
+  }
+  return new Intl.NumberFormat("ko-KR", {
+    maximumFractionDigits: 2,
+    minimumFractionDigits: 2,
+    signDisplay: "exceptZero",
+  }).format(value);
+}
+
+function correlationRelationshipLabel(label: string) {
+  if (label === "strong_positive") {
+    return "강한 동행";
+  }
+  if (label === "strong_negative") {
+    return "강한 반대";
+  }
+  if (label === "moderate_positive") {
+    return "보통 동행";
+  }
+  if (label === "moderate_negative") {
+    return "보통 반대";
+  }
+  return "약하거나 불명확";
+}
+
+function correlationTone(correlation: RecommendationMarketCorrelation) {
+  if (correlation.relationship_label.includes("strong")) {
+    return "detail-path-card is-watch";
+  }
+  if (correlation.relationship_label.includes("moderate")) {
+    return "detail-path-card is-good";
+  }
+  return "detail-path-card";
 }
 
 function formatOptionalPercent(value: number | null | undefined) {
@@ -1408,6 +1446,7 @@ export default async function RecommendationPage({ params }: RecommendationPageP
   const readyDecisionStepCount = decisionWaterfall.steps.filter((step) => step.tone === "ready").length;
   const watchDecisionStepCount = decisionWaterfall.steps.filter((step) => step.tone === "watch" || step.tone === "neutral").length;
   const blockedDecisionStepCount = decisionWaterfall.steps.filter((step) => step.tone === "blocked").length;
+  const marketCorrelationCount = data.market_correlations.length;
   const professionalResearchSteps: ResearchFlowStep[] = decisionWaterfall.steps.map((step, index) => ({
     id: step.step_key,
     label: String(index + 1).padStart(2, "0"),
@@ -1451,6 +1490,7 @@ export default async function RecommendationPage({ params }: RecommendationPageP
             <span>추천 {koCode(data.recommendation)}</span>
             <span>가상 매매 {decisionWaterfall.paper_validation_input_allowed ? "입력 가능" : "입력 차단"}</span>
             <span>실거래 {decisionWaterfall.broker_submit_allowed ? "허용" : "차단"}</span>
+            <span>시장 동조성 {marketCorrelationCount.toLocaleString("ko-KR")}개</span>
           </div>
         </div>
 
@@ -1474,6 +1514,11 @@ export default async function RecommendationPage({ params }: RecommendationPageP
             <span>거래 경계</span>
             <strong>{orderBoundaryLabel(decisionWaterfall.order_boundary)}</strong>
             <small>가상 매매와 실거래 제출 가능 여부를 분리해서 확인한다.</small>
+          </Link>
+          <Link className={marketCorrelationCount > 0 ? "decision-card is-good" : "decision-card is-watch"} href="#recommendation-market-correlations">
+            <span>시장 동조성</span>
+            <strong>{marketCorrelationCount.toLocaleString("ko-KR")}개 비교</strong>
+            <small>추천 종목이 지수·섹터·금리·달러·원자재와 같이 움직였는지 확인한다.</small>
           </Link>
         </div>
       </section>
@@ -1543,6 +1588,49 @@ export default async function RecommendationPage({ params }: RecommendationPageP
             <small>자동 주문 {decisionWaterfall.automatic_order_allowed || decisionWaterfall.broker_submit_allowed ? "허용" : "금지"}</small>
           </div>
         </div>
+      </section>
+
+      <section className="bento-card reveal delay-1" id="recommendation-market-correlations" aria-label="추천 시장 동조성 리스크">
+        <div className="section-heading">
+          <div>
+            <span className="metric-sub">시장 동조성 리스크</span>
+            <h2>{data.symbol} 추천이 어떤 시장 변수에 같이 흔들리는지 본다</h2>
+          </div>
+          <Link className="btn btn-secondary" href="/market-map">
+            시장 지도 보기
+          </Link>
+        </div>
+        <p style={{ color: "var(--text-secondary)", marginTop: 0 }}>
+          이 섹션은 추천 점수를 새로 만들지 않는다. 최근 수익률 동조성을 이용해 같은 방향으로 몰린 리스크,
+          헤지 필요성, 포트폴리오 집중 여부를 확인한다. 상관관계는 원인을 증명하지 않는다.
+        </p>
+        {data.market_correlations.length > 0 ? (
+          <div className="detail-path-grid">
+            {data.market_correlations.slice(0, 6).map((correlation) => (
+              <article
+                className={correlationTone(correlation)}
+                key={`${correlation.primary_asset_key}-${correlation.comparison_asset_key}-${correlation.lookback_days}`}
+              >
+                <span>
+                  {correlationRelationshipLabel(correlation.relationship_label)} · {correlation.lookback_days}일 · 신뢰도{" "}
+                  {formatOptionalPercent(correlation.confidence)}
+                </span>
+                <strong>
+                  {correlation.primary_display_name} ↔ {correlation.comparison_display_name}
+                </strong>
+                <small>
+                  상관계수 {formatCoefficient(correlation.correlation)} · 베타 {formatCoefficient(correlation.beta)} · 관측{" "}
+                  {correlation.observation_count.toLocaleString("ko-KR")}개
+                </small>
+                <p>{correlation.summary_ko}</p>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <div className="empty-state">
+            아직 이 추천 종목의 시장 동조성이 계산되지 않았다. correlation-analysis-run이 실행되면 추천 리스크 확인용으로 표시된다.
+          </div>
+        )}
       </section>
 
       <section id="recommendation-professional-flow">

@@ -1042,6 +1042,27 @@ export type StockPosition = {
   linked_thesis_id: string | null;
 };
 
+export type AssetCorrelation = {
+  as_of_date: string;
+  lookback_days: number;
+  primary_asset_key: string;
+  primary_asset_type: string;
+  primary_instrument_id: string;
+  primary_display_name: string;
+  comparison_asset_key: string;
+  comparison_asset_type: string;
+  comparison_instrument_id: string;
+  comparison_indicator_code: string;
+  comparison_display_name: string;
+  observation_count: number;
+  correlation: number | null;
+  beta: number | null;
+  relationship_label: string;
+  confidence: number;
+  causal_claim: boolean;
+  summary_ko: string;
+};
+
 export type StockListData = {
   as_of_date: string;
   stock_count: number;
@@ -1109,6 +1130,7 @@ export type StockDetailData = {
   valuation_target_range: ValuationTargetRange;
   fund_instrument_analysis: FundInstrumentAnalysis | null;
   professional_source_guardrail: ProfessionalSourceGuardrail;
+  market_correlations: AssetCorrelation[];
   macro_flow_impacts: Array<{
     event_id: string;
     title: string;
@@ -1739,26 +1761,7 @@ export type MarketMapData = {
     source_name: string;
     source_url: string;
   }>;
-  correlations: Array<{
-    as_of_date: string;
-    lookback_days: number;
-    primary_asset_key: string;
-    primary_asset_type: string;
-    primary_instrument_id: string;
-    primary_display_name: string;
-    comparison_asset_key: string;
-    comparison_asset_type: string;
-    comparison_instrument_id: string;
-    comparison_indicator_code: string;
-    comparison_display_name: string;
-    observation_count: number;
-    correlation: number | null;
-    beta: number | null;
-    relationship_label: string;
-    confidence: number;
-    causal_claim: boolean;
-    summary_ko: string;
-  }>;
+  correlations: AssetCorrelation[];
   quality_flags: Array<{
     flag_code: string;
     severity: string;
@@ -1950,6 +1953,7 @@ export type RecommendationDetailData = {
   fund_instrument_analysis: FundInstrumentAnalysis | null;
   linked_thesis_id: string;
   professional_source_guardrail: ProfessionalSourceGuardrail;
+  market_correlations: AssetCorrelation[];
   professional_decision_waterfall: ProfessionalDecisionWaterfall;
   professional_evidence_audit: ProfessionalEvidenceAudit;
   evidence_trace: {

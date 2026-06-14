@@ -1683,6 +1683,28 @@ class FakeLiveExecutor:
                             "source_run_id": 7701,
                         }
                     ],
+                    "market_correlations": [
+                        {
+                            "as_of_date": "2024-12-02",
+                            "lookback_days": 60,
+                            "primary_asset_key": "instrument:AAPL",
+                            "primary_asset_type": "instrument",
+                            "primary_instrument_id": 501,
+                            "primary_display_name": "AAPL",
+                            "comparison_asset_key": "indicator:QQQ",
+                            "comparison_asset_type": "indicator",
+                            "comparison_instrument_id": None,
+                            "comparison_indicator_code": "QQQ",
+                            "comparison_display_name": "Nasdaq 100 ETF",
+                            "observation_count": 60,
+                            "correlation": "0.68000000",
+                            "beta": "1.12000000",
+                            "relationship_label": "moderate_positive",
+                            "confidence": "0.880000",
+                            "causal_claim": False,
+                            "summary_ko": "AAPL와 Nasdaq 100 ETF의 최근 60일 수익률 동조성이다. 원인 단정이 아니다.",
+                        }
+                    ],
                     "recent_events": [
                         {
                             "event_id": 9001,
@@ -3160,6 +3182,28 @@ class FakeLiveExecutor:
 	                        },
 	                    ],
 	                    "linked_thesis_id": 7001,
+                        "market_correlations": [
+                            {
+                                "as_of_date": "2024-11-01",
+                                "lookback_days": 60,
+                                "primary_asset_key": "instrument:AAPL",
+                                "primary_asset_type": "instrument",
+                                "primary_instrument_id": 501,
+                                "primary_display_name": "AAPL",
+                                "comparison_asset_key": "indicator:QQQ",
+                                "comparison_asset_type": "indicator",
+                                "comparison_instrument_id": None,
+                                "comparison_indicator_code": "QQQ",
+                                "comparison_display_name": "Nasdaq 100 ETF",
+                                "observation_count": 58,
+                                "correlation": "0.64000000",
+                                "beta": "1.07000000",
+                                "relationship_label": "moderate_positive",
+                                "confidence": "0.860000",
+                                "causal_claim": False,
+                                "summary_ko": "AAPL 추천은 Nasdaq 100 ETF와 최근 60일 동안 같은 방향으로 움직인 경향이 있다.",
+                            }
+                        ],
 	                    "evidence_trace": {
 	                        "direct_news_or_ai": {
 	                            "status": "linked",
@@ -6484,6 +6528,9 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertEqual(target_range["score_policy"], "recommendation_weights_unchanged")
         self.assertEqual(payload["data"]["macro_flow_impacts"][0]["theme_key"], "MACRO_RATES_FED")
         self.assertEqual(payload["data"]["macro_flow_impacts"][0]["source_run_id"], "pipeline-run-7701")
+        self.assertEqual(payload["data"]["market_correlations"][0]["comparison_indicator_code"], "QQQ")
+        self.assertEqual(payload["data"]["market_correlations"][0]["relationship_label"], "moderate_positive")
+        self.assertFalse(payload["data"]["market_correlations"][0]["causal_claim"])
         self.assertEqual(payload["data"]["recent_events"][0]["event_id"], "event-9001")
         self.assertEqual(payload["links"]["recommendation"], "/api/recommendations/recommendation-7101")
         self.assertEqual(payload["links"]["events"], "/api/events?asOfDate=2024-12-02&symbol=AAPL")
@@ -6702,6 +6749,9 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertIn("'equity_research'", detail_sql)
         self.assertIn("'industry_competitive_position'", detail_sql)
         self.assertIn("macro_flow_impacts as", detail_sql)
+        self.assertIn("stock_market_correlations as", detail_sql)
+        self.assertIn("signal.asset_correlation_snapshot", detail_sql)
+        self.assertIn("'market_correlations'", detail_sql)
         self.assertIn("raw_recent_events as", detail_sql)
         self.assertIn("source_document.korean_title", detail_sql)
         self.assertIn("distinct on (coalesce(nullif(lower(title), ''), source_checksum, 'event:' || event_id::text))", detail_sql)
@@ -7185,6 +7235,9 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertAlmostEqual(target_range["upside_base"], 0.0902777778)
         self.assertEqual(target_range["order_boundary"], "read_only_no_order")
         self.assertEqual(payload["data"]["linked_thesis_id"], "thesis-7001")
+        self.assertEqual(payload["data"]["market_correlations"][0]["comparison_indicator_code"], "QQQ")
+        self.assertEqual(payload["data"]["market_correlations"][0]["relationship_label"], "moderate_positive")
+        self.assertFalse(payload["data"]["market_correlations"][0]["causal_claim"])
         trace = payload["data"]["evidence_trace"]
         self.assertEqual(trace["symbol"], "AAPL")
         self.assertEqual(trace["direct_news_or_ai"]["status"], "linked")
@@ -7386,6 +7439,9 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertIn("macro_flow_provenance as", sql)
         self.assertIn("macro_flow_all_rows as", sql)
         self.assertIn("macro_flow_recent_rows as", sql)
+        self.assertIn("recommendation_market_correlations as", sql)
+        self.assertIn("signal.asset_correlation_snapshot", sql)
+        self.assertIn("'market_correlations'", sql)
         self.assertIn("latest_position_trace as", sql)
         self.assertIn("portfolio_review_trace as", sql)
         self.assertIn("latest_equity_research as", sql)

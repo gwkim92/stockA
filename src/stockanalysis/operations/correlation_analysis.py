@@ -125,7 +125,13 @@ def render_asset_correlation_snapshot_upsert_sql(
         f"({sql_literal(str(symbol).upper())})" for symbol in sorted(set(comparison_symbols))
     )
     max_lookback = max(int(value) for value in lookback_days)
-    return f"""with target_date as (
+    return f"""with deleted_snapshot as (
+    delete from signal.asset_correlation_snapshot
+    where as_of_date = {sql_date(as_of_date)}
+      and lookback_days in ({", ".join(str(int(value)) for value in sorted(set(lookback_days)))})
+    returning 1
+),
+target_date as (
     select {sql_date(as_of_date)}::date as as_of_date
 ),
 lookbacks(lookback_days) as (
@@ -261,6 +267,20 @@ pair_observations as (
       on comparison_asset.observation_date = primary_asset.observation_date
      and comparison_asset.asset_key <> primary_asset.asset_key
      and comparison_asset.return_rank <= lookbacks.lookback_days
+     and not (
+        comparison_asset.asset_type = 'indicator'
+        and lower(comparison_asset.indicator_code) = lower(primary_asset.display_name)
+     )
+     and not (
+        comparison_asset.asset_type = 'instrument'
+        and exists (
+            select 1
+            from ranked_returns equivalent_indicator
+            where equivalent_indicator.asset_type = 'indicator'
+              and lower(equivalent_indicator.indicator_code) = lower(comparison_asset.display_name)
+              and equivalent_indicator.observation_date = comparison_asset.observation_date
+        )
+     )
 ),
 pair_stats as (
     select

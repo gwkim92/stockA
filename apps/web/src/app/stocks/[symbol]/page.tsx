@@ -21,6 +21,7 @@ type FinancialStatementModel = StockDetailData["financial_statement_model"];
 type FinancialMetricSnapshot = FinancialStatementModel["metrics"][number];
 type FundInstrumentAnalysis = StockDetailData["fund_instrument_analysis"];
 type ProfessionalSourceGuardrail = StockDetailData["professional_source_guardrail"];
+type StockMarketCorrelation = StockDetailData["market_correlations"][number];
 type StockProfessionalLayerStatus = "complete" | "partial" | "pending" | "blocked" | "missing" | "not_applicable";
 
 type StockProfessionalLayer = {
@@ -67,6 +68,43 @@ function formatPercent(value: number | null | undefined) {
     return "미측정";
   }
   return `${Math.round(value * 1000) / 10}%`;
+}
+
+function formatCoefficient(value: number | null | undefined) {
+  if (value === null || value === undefined || !Number.isFinite(value)) {
+    return "미측정";
+  }
+  return new Intl.NumberFormat("ko-KR", {
+    maximumFractionDigits: 2,
+    minimumFractionDigits: 2,
+    signDisplay: "exceptZero",
+  }).format(value);
+}
+
+function correlationRelationshipLabel(label: string) {
+  if (label === "strong_positive") {
+    return "강한 동행";
+  }
+  if (label === "strong_negative") {
+    return "강한 반대";
+  }
+  if (label === "moderate_positive") {
+    return "보통 동행";
+  }
+  if (label === "moderate_negative") {
+    return "보통 반대";
+  }
+  return "약하거나 불명확";
+}
+
+function correlationTone(correlation: StockMarketCorrelation) {
+  if (correlation.relationship_label.includes("strong")) {
+    return "detail-path-card is-watch";
+  }
+  if (correlation.relationship_label.includes("moderate")) {
+    return "detail-path-card is-good";
+  }
+  return "detail-path-card";
 }
 
 function formatCompactNumber(value: number | null | undefined) {
@@ -1439,6 +1477,7 @@ export default async function StockDetailPage({ params }: StockDetailPageProps) 
   const hasEvidenceOnlyData =
     !hasPriceData && (data.macro_flow_impacts.length > 0 || data.recent_events.length > 0);
   const linkedThesisId = data.recommendation?.linked_thesis_id ?? neighborhood.theses[0]?.thesis_id ?? null;
+  const marketCorrelationCount = data.market_correlations.length;
   const professionalResearchSteps: ResearchFlowStep[] = [
     {
       id: "business",
@@ -1528,15 +1567,16 @@ export default async function StockDetailPage({ params }: StockDetailPageProps) 
       id: "news-cycle",
       label: "05",
       title: "뉴스·사이클 영향",
-      status: `${data.recent_events.length + data.macro_flow_impacts.length}개 연결`,
-      tone: data.recent_events.length + data.macro_flow_impacts.length > 0 ? "ready" : "neutral",
+      status: `${data.recent_events.length + data.macro_flow_impacts.length}개 뉴스·흐름 · ${marketCorrelationCount}개 동조성`,
+      tone: data.recent_events.length + data.macro_flow_impacts.length + marketCorrelationCount > 0 ? "ready" : "neutral",
       body:
-        data.recent_events.length + data.macro_flow_impacts.length > 0
-          ? "직접 종목 뉴스와 거시·테마 흐름 전파를 분리해서 본다. 상위 흐름은 회사명이 없어도 노출도 규칙으로 종목 영향이 계산된다."
-          : "아직 이 종목에 연결된 직접 뉴스나 상위 흐름 전파가 없다.",
+        data.recent_events.length + data.macro_flow_impacts.length + marketCorrelationCount > 0
+          ? "직접 종목 뉴스, 거시·테마 흐름 전파, 시장 지표와의 동조성을 분리해서 본다. 동조성은 원인 단정이 아니라 리스크 점검 입력이다."
+          : "아직 이 종목에 연결된 직접 뉴스, 상위 흐름 전파, 시장 동조성 근거가 없다.",
       facts: [
         { label: "직접 뉴스", value: `${data.recent_events.length}개` },
         { label: "상위 흐름", value: `${data.macro_flow_impacts.length}개` },
+        { label: "시장 동조성", value: `${marketCorrelationCount}개` },
       ],
       href: "/intelligence" as Route,
       hrefLabel: "뉴스 AI 흐름 보기",
@@ -1585,6 +1625,7 @@ export default async function StockDetailPage({ params }: StockDetailPageProps) 
             <span>추천 {data.recommendation ? koCode(data.recommendation.action) : "없음"}</span>
             <span>보유 {data.position ? formatPercent(data.position.weight) : "미보유"}</span>
             <span>뉴스·흐름 {stockNewsCount.toLocaleString("ko-KR")}개</span>
+            <span>시장 동조성 {marketCorrelationCount.toLocaleString("ko-KR")}개</span>
           </div>
         </div>
         <div className="decision-brief-grid">
@@ -1605,6 +1646,12 @@ export default async function StockDetailPage({ params }: StockDetailPageProps) 
             <strong>{stockNewsCount.toLocaleString("ko-KR")}개 연결</strong>
             <small>직접 뉴스 {data.recent_events.length.toLocaleString("ko-KR")}개 · 상위 흐름 {data.macro_flow_impacts.length.toLocaleString("ko-KR")}개</small>
             <b>근거 보기</b>
+          </a>
+          <a className={marketCorrelationCount > 0 ? "decision-card is-good" : "decision-card is-watch"} href="#stock-market-correlations">
+            <span>시장 동조성</span>
+            <strong>{marketCorrelationCount.toLocaleString("ko-KR")}개 비교</strong>
+            <small>지수·섹터·금리·달러·원자재와 최근 같이 움직였는지 본다. 원인 단정은 하지 않는다.</small>
+            <b>리스크 보기</b>
           </a>
           <Link className={linkedThesisId ? "decision-card is-good" : "decision-card is-block"} href={linkedThesisId ? thesisHref(linkedThesisId) : "/portfolio/coverage"}>
             <span>투자 논리</span>
@@ -1678,11 +1725,53 @@ export default async function StockDetailPage({ params }: StockDetailPageProps) 
         </article>
       </section>
 
+      <section className="bento-card span-4 reveal delay-2" id="stock-market-correlations" aria-label="시장 동조성">
+        <div className="section-heading">
+          <div>
+            <span className="metric-sub">2. 시장 동조성</span>
+            <h2>{data.symbol}이 어떤 시장 변수와 같이 움직였는지 본다</h2>
+          </div>
+          <Link className="btn btn-secondary" href="/market-map">
+            시장 지도 보기
+          </Link>
+        </div>
+        <p style={{ color: "var(--text-secondary)", marginTop: 0 }}>
+          상관관계는 최근 수익률이 같이 움직인 정도다. 원인을 단정하지 않고, 포트폴리오 집중·헤지 필요성·추천 리스크를 확인하는 보조 입력으로만 쓴다.
+        </p>
+        {data.market_correlations.length > 0 ? (
+          <div className="detail-path-grid">
+            {data.market_correlations.slice(0, 6).map((correlation) => (
+              <article
+                className={correlationTone(correlation)}
+                key={`${correlation.primary_asset_key}-${correlation.comparison_asset_key}-${correlation.lookback_days}`}
+              >
+                <span>
+                  {correlationRelationshipLabel(correlation.relationship_label)} · {correlation.lookback_days}일 · 신뢰도{" "}
+                  {formatPercent(correlation.confidence)}
+                </span>
+                <strong>
+                  {correlation.primary_display_name} ↔ {correlation.comparison_display_name}
+                </strong>
+                <small>
+                  상관계수 {formatCoefficient(correlation.correlation)} · 베타 {formatCoefficient(correlation.beta)} · 관측{" "}
+                  {correlation.observation_count.toLocaleString("ko-KR")}개
+                </small>
+                <p>{correlation.summary_ko}</p>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <div className="empty-state">
+            아직 이 종목의 시장 동조성이 계산되지 않았다. 장마감 후 상관관계 분석이 실행되면 지수·섹터·금리·달러·원자재와의 관계가 표시된다.
+          </div>
+        )}
+      </section>
+
       <section className="bento-grid reveal delay-3" id="stock-recommendation-status" aria-label="추천과 보유 상태">
         <article className="bento-card span-2">
           <div className="section-heading">
             <div>
-              <span className="metric-sub">2. 추천 판단</span>
+              <span className="metric-sub">3. 추천 판단</span>
               <h2>추천은 상세 근거가 있을 때만 읽는다</h2>
             </div>
             {data.recommendation ? (
@@ -1716,7 +1805,7 @@ export default async function StockDetailPage({ params }: StockDetailPageProps) 
         <article className="bento-card span-2">
           <div className="section-heading">
             <div>
-              <span className="metric-sub">3. 보유 상태</span>
+              <span className="metric-sub">4. 보유 상태</span>
               <h2>보유 중이면 추천·투자 논리와 충돌하는지 본다</h2>
             </div>
             <Link className="btn btn-secondary" href="/portfolio/coverage">
@@ -1848,7 +1937,7 @@ export default async function StockDetailPage({ params }: StockDetailPageProps) 
       <section className="bento-card span-4 reveal delay-4" id="stock-flow-impacts">
         <div className="section-heading">
           <div>
-            <span className="metric-sub">4. 상위 흐름 전파</span>
+            <span className="metric-sub">5. 상위 흐름 전파</span>
             <h2>회사명이 없어도 거시·테마 흐름은 종목에 영향을 줄 수 있다</h2>
           </div>
           <Link className="btn btn-secondary" href="/intelligence">
@@ -1910,7 +1999,7 @@ export default async function StockDetailPage({ params }: StockDetailPageProps) 
       <section className="bento-card span-4 reveal delay-4" id="stock-direct-events">
         <div className="section-heading">
           <div>
-            <span className="metric-sub">5. 직접 뉴스</span>
+            <span className="metric-sub">6. 직접 뉴스</span>
             <h2>회사나 티커가 직접 연결된 뉴스만 따로 본다</h2>
           </div>
           <Link className="btn btn-secondary" href={`/events?symbol=${encodeURIComponent(data.symbol)}` as Route}>

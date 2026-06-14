@@ -32,8 +32,11 @@ class CorrelationAnalysisTest(unittest.TestCase):
         self.assertIn("corr(primary_return, comparison_return)", sql)
         self.assertIn("covar_samp(primary_return, comparison_return)", sql)
         self.assertIn("signal.asset_correlation_snapshot", sql)
+        self.assertIn("delete from signal.asset_correlation_snapshot", sql)
         self.assertIn("co_movement_only_not_causality", sql)
         self.assertIn("'causal_claim', false", sql)
+        self.assertIn("lower(comparison_asset.indicator_code) = lower(primary_asset.display_name)", sql)
+        self.assertIn("equivalent_indicator.asset_type = 'indicator'", sql)
         self.assertIn("on conflict (as_of_date, lookback_days, primary_asset_key, comparison_asset_key)", sql)
 
     def test_run_correlation_analysis_records_guardrails(self) -> None:

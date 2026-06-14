@@ -1651,6 +1651,11 @@ def build_live_stock_detail_response(
     thesis_id = recommendation.get("linked_thesis_id") if recommendation else None
     recommendation_id = recommendation.get("recommendation_id") if recommendation else None
     as_of_text = str(state.get("as_of_date") or (as_of_date.isoformat() if as_of_date else ""))
+    market_correlations = [
+        _build_market_map_correlation_payload(item)
+        for item in _as_list(state.get("market_correlations"))
+        if isinstance(item, Mapping)
+    ]
 
     return {
         "contract_version": CONTRACT_VERSION,
@@ -1676,6 +1681,7 @@ def build_live_stock_detail_response(
             "macro_flow_impacts": [
                 _build_stock_macro_flow_payload(item) for item in _as_list(state.get("macro_flow_impacts"))
             ],
+            "market_correlations": market_correlations,
             "recent_events": [_build_stock_event_payload(item) for item in _as_list(state.get("recent_events"))],
         },
         "links": {
@@ -2517,6 +2523,11 @@ def build_live_recommendation_detail_response(
         recommendation=str(state.get("recommendation") or "monitor"),
         score=_number(state.get("score")),
     )
+    market_correlations = [
+        _build_market_map_correlation_payload(item)
+        for item in _as_list(state.get("market_correlations"))
+        if isinstance(item, Mapping)
+    ]
 
     return {
         "contract_version": CONTRACT_VERSION,
@@ -2540,6 +2551,7 @@ def build_live_recommendation_detail_response(
             "fund_instrument_analysis": fund_instrument_analysis,
             "linked_thesis_id": _opaque_id("thesis", linked_thesis_id, None) if linked_thesis_id is not None else None,
             "evidence_trace": evidence_trace,
+            "market_correlations": market_correlations,
             "professional_source_guardrail": professional_source_guardrail,
             "evidence_review": evidence_review,
             "professional_decision_waterfall": professional_decision_waterfall,
@@ -7985,6 +7997,45 @@ macro_flow_impacts as (
     order by event_row.event_at desc, event_row.event_id desc, node.code
     limit 8
 ),
+selected_stock_correlation_date as (
+    select max(snapshot.as_of_date) as as_of_date
+    from signal.asset_correlation_snapshot snapshot
+    join target_instrument instrument on instrument.instrument_id = snapshot.primary_instrument_id
+    join target_date target on snapshot.as_of_date <= target.as_of_date
+),
+stock_market_correlations as (
+    select
+        snapshot.as_of_date,
+        snapshot.lookback_days,
+        snapshot.primary_asset_key,
+        snapshot.primary_asset_type,
+        snapshot.primary_instrument_id,
+        snapshot.primary_display_name,
+        snapshot.comparison_asset_key,
+        snapshot.comparison_asset_type,
+        snapshot.comparison_instrument_id,
+        snapshot.comparison_indicator_code,
+        snapshot.comparison_display_name,
+        snapshot.observation_count,
+        snapshot.correlation,
+        snapshot.beta,
+        snapshot.relationship_label,
+        snapshot.confidence,
+        snapshot.evidence_json
+    from signal.asset_correlation_snapshot snapshot
+    join selected_stock_correlation_date selected on selected.as_of_date = snapshot.as_of_date
+    join target_instrument instrument on instrument.instrument_id = snapshot.primary_instrument_id
+    where snapshot.lookback_days = 60
+       or not exists (
+            select 1
+            from signal.asset_correlation_snapshot sixty
+            where sixty.as_of_date = selected.as_of_date
+              and sixty.primary_instrument_id = instrument.instrument_id
+              and sixty.lookback_days = 60
+        )
+    order by abs(snapshot.correlation) desc nulls last, snapshot.confidence desc, snapshot.comparison_asset_key
+    limit 8
+),
 latest_equity_research as (
     select
         artifact.artifact_id,
@@ -8655,6 +8706,37 @@ select json_build_object(
                 order by event_at desc, event_id desc, theme_key
             )
             from macro_flow_impacts
+        ),
+        '[]'::json
+    ),
+    'market_correlations',
+    coalesce(
+        (
+            select json_agg(
+                json_build_object(
+                    'as_of_date', as_of_date,
+                    'lookback_days', lookback_days,
+                    'primary_asset_key', primary_asset_key,
+                    'primary_asset_type', primary_asset_type,
+                    'primary_instrument_id', primary_instrument_id,
+                    'primary_display_name', primary_display_name,
+                    'comparison_asset_key', comparison_asset_key,
+                    'comparison_asset_type', comparison_asset_type,
+                    'comparison_instrument_id', comparison_instrument_id,
+                    'comparison_indicator_code', comparison_indicator_code,
+                    'comparison_display_name', comparison_display_name,
+                    'observation_count', observation_count,
+                    'correlation', correlation,
+                    'beta', beta,
+                    'relationship_label', relationship_label,
+                    'confidence', confidence,
+                    'causal_claim', false,
+                    'summary_ko',
+                        primary_display_name || '와 ' || comparison_display_name || '의 최근 ' || lookback_days::text || '일 수익률 동조성이다. 원인 단정이 아니라 포트폴리오 집중과 추천 리스크 점검 입력이다.'
+                )
+                order by abs(correlation) desc nulls last, confidence desc, comparison_asset_key
+            )
+            from stock_market_correlations
         ),
         '[]'::json
     ),
@@ -11340,6 +11422,45 @@ macro_flow_provenance as (
             from macro_flow_recent_rows
         ) as recent_flows
 ),
+selected_recommendation_correlation_date as (
+    select max(snapshot.as_of_date) as as_of_date
+    from signal.asset_correlation_snapshot snapshot
+    join selected_recommendation recommendation on recommendation.instrument_id = snapshot.primary_instrument_id
+    where snapshot.as_of_date <= recommendation.as_of_date
+),
+recommendation_market_correlations as (
+    select
+        snapshot.as_of_date,
+        snapshot.lookback_days,
+        snapshot.primary_asset_key,
+        snapshot.primary_asset_type,
+        snapshot.primary_instrument_id,
+        snapshot.primary_display_name,
+        snapshot.comparison_asset_key,
+        snapshot.comparison_asset_type,
+        snapshot.comparison_instrument_id,
+        snapshot.comparison_indicator_code,
+        snapshot.comparison_display_name,
+        snapshot.observation_count,
+        snapshot.correlation,
+        snapshot.beta,
+        snapshot.relationship_label,
+        snapshot.confidence,
+        snapshot.evidence_json
+    from signal.asset_correlation_snapshot snapshot
+    join selected_recommendation_correlation_date selected on selected.as_of_date = snapshot.as_of_date
+    join selected_recommendation recommendation on recommendation.instrument_id = snapshot.primary_instrument_id
+    where snapshot.lookback_days = 60
+       or not exists (
+            select 1
+            from signal.asset_correlation_snapshot sixty
+            where sixty.as_of_date = selected.as_of_date
+              and sixty.primary_instrument_id = recommendation.instrument_id
+              and sixty.lookback_days = 60
+        )
+    order by abs(snapshot.correlation) desc nulls last, snapshot.confidence desc, snapshot.comparison_asset_key
+    limit 8
+),
 latest_position_trace as (
     select
         portfolio.portfolio_name,
@@ -12337,6 +12458,37 @@ select json_build_object(
         '[]'::json
     ),
     'linked_thesis_id', (select thesis_id from selected_recommendation),
+    'market_correlations',
+    coalesce(
+        (
+            select json_agg(
+                json_build_object(
+                    'as_of_date', as_of_date,
+                    'lookback_days', lookback_days,
+                    'primary_asset_key', primary_asset_key,
+                    'primary_asset_type', primary_asset_type,
+                    'primary_instrument_id', primary_instrument_id,
+                    'primary_display_name', primary_display_name,
+                    'comparison_asset_key', comparison_asset_key,
+                    'comparison_asset_type', comparison_asset_type,
+                    'comparison_instrument_id', comparison_instrument_id,
+                    'comparison_indicator_code', comparison_indicator_code,
+                    'comparison_display_name', comparison_display_name,
+                    'observation_count', observation_count,
+                    'correlation', correlation,
+                    'beta', beta,
+                    'relationship_label', relationship_label,
+                    'confidence', confidence,
+                    'causal_claim', false,
+                    'summary_ko',
+                        primary_display_name || '와 ' || comparison_display_name || '의 최근 ' || lookback_days::text || '일 수익률 동조성이다. 원인 단정이 아니라 추천 리스크와 포트폴리오 집중 점검 입력이다.'
+                )
+                order by abs(correlation) desc nulls last, confidence desc, comparison_asset_key
+            )
+            from recommendation_market_correlations
+        ),
+        '[]'::json
+    ),
     'evidence_trace',
     json_build_object(
         'direct_news_or_ai',
