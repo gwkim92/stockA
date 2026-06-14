@@ -1993,6 +1993,219 @@ h6 {
   word-break: keep-all;
 }
 
+.evidence-path-workbench {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.44fr) minmax(0, 1fr);
+  gap: clamp(16px, 2.2vw, 28px);
+  align-items: stretch;
+  padding: clamp(20px, 2.6vw, 36px);
+  background:
+    linear-gradient(135deg, rgba(251, 250, 246, 0.98), rgba(239, 236, 225, 0.82)),
+    radial-gradient(circle at 0% 0%, rgba(38, 92, 128, 0.14), transparent 34%),
+    repeating-linear-gradient(
+      90deg,
+      rgba(17, 18, 15, 0.035),
+      rgba(17, 18, 15, 0.035) 1px,
+      transparent 1px,
+      transparent 34px
+    );
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-soft);
+}
+
+.evidence-path-workbench.is-blocked {
+  background:
+    linear-gradient(135deg, rgba(251, 250, 246, 0.98), rgba(246, 230, 226, 0.88)),
+    radial-gradient(circle at 0% 0%, rgba(168, 59, 52, 0.14), transparent 36%),
+    repeating-linear-gradient(
+      90deg,
+      rgba(17, 18, 15, 0.035),
+      rgba(17, 18, 15, 0.035) 1px,
+      transparent 1px,
+      transparent 34px
+    );
+}
+
+.evidence-path-workbench-copy {
+  display: grid;
+  min-width: 0;
+  align-content: start;
+  gap: 13px;
+}
+
+.evidence-path-workbench-copy > span {
+  width: fit-content;
+  padding: 6px 9px;
+  background: var(--text-primary);
+  color: var(--bg-panel);
+  font-size: 0.68rem;
+  font-weight: 950;
+  letter-spacing: 0.03em;
+}
+
+.evidence-path-workbench-copy h2 {
+  max-width: 760px;
+  margin: 0;
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 4vw, 4.45rem);
+  letter-spacing: -0.06em;
+  line-height: 0.88;
+  text-wrap: balance;
+  word-break: keep-all;
+}
+
+.evidence-path-workbench-copy p {
+  max-width: 760px;
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: clamp(0.94rem, 1.28vw, 1.08rem);
+  font-weight: 780;
+  line-height: 1.62;
+  word-break: keep-all;
+}
+
+.evidence-path-workbench-copy strong {
+  width: fit-content;
+  max-width: 100%;
+  padding: 10px 12px;
+  background: color-mix(in srgb, var(--bg-panel) 82%, white);
+  border: 1px solid var(--border-light);
+  border-radius: 999px;
+  color: var(--text-primary);
+  font-size: 0.82rem;
+  font-weight: 920;
+  line-height: 1.35;
+  word-break: keep-all;
+}
+
+.evidence-path-workbench-steps {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 9px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.evidence-path-workbench-steps li {
+  display: grid;
+  min-width: 0;
+  align-content: start;
+  gap: 10px;
+  padding: 15px;
+  background: color-mix(in srgb, var(--bg-panel) 90%, white);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+}
+
+.evidence-path-workbench-steps li.is-watch {
+  border-color: color-mix(in srgb, var(--accent-amber) 40%, var(--border-light));
+}
+
+.evidence-path-workbench-steps li.is-blocked {
+  border-color: color-mix(in srgb, var(--accent-red) 42%, var(--border-light));
+}
+
+.evidence-path-workbench-steps span {
+  display: inline-grid;
+  width: 31px;
+  height: 31px;
+  place-items: center;
+  background: var(--text-primary);
+  color: var(--bg-panel);
+  font-size: 0.7rem;
+  font-weight: 950;
+}
+
+.evidence-path-workbench-steps strong {
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: clamp(1.08rem, 1.35vw, 1.45rem);
+  line-height: 0.98;
+  word-break: keep-all;
+}
+
+.evidence-path-workbench-steps em {
+  width: fit-content;
+  max-width: 100%;
+  padding: 6px 8px;
+  background: color-mix(in srgb, var(--accent-green) 12%, var(--bg-panel));
+  border: 1px solid color-mix(in srgb, var(--accent-green) 28%, var(--border-light));
+  border-radius: 999px;
+  color: var(--text-primary);
+  font-size: 0.7rem;
+  font-style: normal;
+  font-weight: 920;
+  line-height: 1.3;
+  word-break: keep-all;
+}
+
+.evidence-path-workbench-steps li.is-watch em {
+  background: color-mix(in srgb, var(--accent-amber) 16%, var(--bg-panel));
+  border-color: color-mix(in srgb, var(--accent-amber) 34%, var(--border-light));
+}
+
+.evidence-path-workbench-steps li.is-blocked em {
+  background: color-mix(in srgb, var(--accent-red) 12%, var(--bg-panel));
+  border-color: color-mix(in srgb, var(--accent-red) 32%, var(--border-light));
+}
+
+.evidence-path-workbench-steps p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.77rem;
+  font-weight: 740;
+  line-height: 1.5;
+  word-break: keep-all;
+}
+
+.evidence-path-workbench-steps a {
+  width: fit-content;
+  margin-top: auto;
+  color: var(--accent-blue);
+  font-size: 0.72rem;
+  font-weight: 950;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.evidence-mini-path {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.evidence-mini-path li {
+  min-width: 0;
+  padding: 10px;
+  background: color-mix(in srgb, var(--bg-panel) 88%, white);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+}
+
+.evidence-mini-path span {
+  display: block;
+  color: var(--text-tertiary);
+  font-size: 0.68rem;
+  font-weight: 900;
+}
+
+.evidence-mini-path strong {
+  display: block;
+  margin-top: 5px;
+  color: var(--text-primary);
+  font-size: 0.82rem;
+  font-weight: 900;
+  line-height: 1.25;
+  word-break: keep-all;
+}
+
 .intelligence-brief-board {
   background:
     linear-gradient(135deg, rgba(251, 250, 246, 0.96), rgba(251, 250, 246, 0.74)),
@@ -8040,6 +8253,7 @@ h6 {
   .source-document-workbench,
   .evidence-source-grid,
   .evidence-workbench,
+  .evidence-path-workbench,
   .stock-decision-panel,
   .recommendation-waterfall-panel,
   .ai-evidence-brief-panel,
@@ -8062,6 +8276,11 @@ h6 {
 
   .ai-evidence-brief-grid,
   .intelligence-flow-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .evidence-path-workbench-steps,
+  .evidence-mini-path {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -8143,6 +8362,8 @@ h6 {
   .recommendation-waterfall-track,
   .ai-evidence-brief-grid,
   .ai-evidence-brief-metrics,
+  .evidence-path-workbench-steps,
+  .evidence-mini-path,
   .ai-validation-summary-grid,
   .ai-neighborhood-link-grid,
   .ai-neighborhood-event-grid,
@@ -8431,6 +8652,7 @@ h6 {
   .ai-cluster-reason-grid,
   .ai-cluster-event-grid,
   .source-document-workbench,
+  .evidence-path-workbench,
   .source-document-fact-grid,
   .source-excerpt-card-grid,
   .source-linked-evidence-grid,

@@ -4,6 +4,7 @@ import type { Route } from "next";
 import { NewsEventCard } from "@/components/news-event-card";
 import { getEvents } from "@/lib/frontend-api";
 import type { EventListData } from "@/lib/types";
+import { EvidencePathWorkbench, type EvidencePathStep } from "../_components/evidence-path-workbench";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "차단된 AI 구조화 항목" };
@@ -45,6 +46,51 @@ export default async function BlockedAiEvidencePage() {
   );
   const blockedEvents = uniqueEvents([...rejectedEvents, ...suppressedEvents]);
   const blockedTotalCount = blockedEvents.length;
+  const translatedBlockedCount = blockedEvents.filter((event) => event.korean_title || event.korean_summary).length;
+  const sourceLinkedCount = blockedEvents.filter((event) => event.source_document_id).length;
+  const pathSteps: EvidencePathStep[] = [
+    {
+      index: "01",
+      label: "원천 보존",
+      value: `원천 ${sourceLinkedCount.toLocaleString("ko-KR")}개`,
+      body: "차단돼도 원천 뉴스는 남긴다. 나중에 분류 체계나 종목 별칭 보강이 필요한지 확인하기 위해서다.",
+      tone: sourceLinkedCount > 0 ? "ready" : "watch",
+      href: "/events",
+      cta: "수집 뉴스 보기",
+    },
+    {
+      index: "02",
+      label: "한국어 확인",
+      value: `${translatedBlockedCount.toLocaleString("ko-KR")}개`,
+      body: "차단 항목도 한국어 제목·요약을 먼저 보고, 실제로 잡음인지 좋은 뉴스가 잘못 막힌 것인지 구분한다.",
+      tone: translatedBlockedCount > 0 ? "ready" : "watch",
+    },
+    {
+      index: "03",
+      label: "AI 후보",
+      value: `${blockedTotalCount.toLocaleString("ko-KR")}개`,
+      body: "AI가 후보를 만들었거나 저신호로 보류했지만, 이 화면의 항목은 추천 근거로 바로 넘어가지 않는다.",
+      tone: blockedTotalCount > 0 ? "blocked" : "ready",
+      href: "#blocked-list",
+      cta: "목록 확인",
+    },
+    {
+      index: "04",
+      label: "차단 사유",
+      value: `검증 ${rejectedEvents.length} · 저신호 ${suppressedEvents.length}`,
+      body: "원문 근거 없는 종목, 알 수 없는 테마, 낮은 신뢰도, 일반 시장 잡음은 추천 입력에서 제외한다.",
+      tone: blockedTotalCount > 0 ? "blocked" : "ready",
+    },
+    {
+      index: "05",
+      label: "후속 조치",
+      value: "보강 또는 제외",
+      body: "좋은 뉴스가 잘못 막힌 경우만 분류 체계와 ticker alias를 보강한다. 그 외 항목은 계속 제외한다.",
+      tone: "watch",
+      href: "/events/classification",
+      cta: "분류 보강 보기",
+    },
+  ];
 
   return (
     <div className="pageStack decision-page blocked-evidence-page">
@@ -119,6 +165,15 @@ export default async function BlockedAiEvidencePage() {
           <small>입력 제외</small>
         </Link>
       </section>
+
+      <EvidencePathWorkbench
+        eyebrow="차단 항목을 읽는 순서"
+        title="차단은 오류 목록이 아니라 추천 입력에서 제외한 이유다"
+        summary="이 화면의 핵심은 실패 건수를 세는 것이 아니다. 원천 뉴스가 남아 있는지, 한국어로 대조 가능한지, 왜 자동 검증이 막았는지, 보강할 항목인지 계속 제외할 항목인지 판단한다."
+        verdict={`검증 차단 ${rejectedEvents.length.toLocaleString("ko-KR")}개 · 저신호 보류 ${suppressedEvents.length.toLocaleString("ko-KR")}개 · 자동 주문 영향 없음.`}
+        verdictTone={blockedTotalCount > 0 ? "blocked" : "ready"}
+        steps={pathSteps}
+      />
 
       <section className="ledger-section reveal delay-2" id="blocked-list" aria-labelledby="blocked-list-title">
         <div className="ledger-section-head">

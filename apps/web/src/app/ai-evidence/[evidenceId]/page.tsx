@@ -5,6 +5,7 @@ import { NewsTitleBlock } from "@/components/news-title-block";
 import { getAiEvidenceDetail, getAiEvidenceNeighborhood } from "@/lib/frontend-api";
 import { koCode, koLabel } from "@/lib/korean-labels";
 import type { AiEvidenceDetailData, AiEvidenceNeighborhoodData } from "@/lib/types";
+import { EvidencePathWorkbench, type EvidencePathStep, type EvidencePathTone } from "../_components/evidence-path-workbench";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "AI 근거 상세" };
@@ -842,6 +843,16 @@ function traceTone(status: string) {
   return "risk-medium";
 }
 
+function evidencePathToneFromRisk(tone: string): EvidencePathTone {
+  if (tone === "risk-high") {
+    return "blocked";
+  }
+  if (tone === "risk-medium") {
+    return "watch";
+  }
+  return "ready";
+}
+
 function EvidenceVisibilityTraceBoard({
   data,
   neighborhood,
@@ -963,6 +974,64 @@ export default async function AiEvidencePage({ params }: AiEvidencePageProps) {
   const decision = evidenceDecision(data);
   const sourcePreview = primarySourcePreview(data);
   const linkedSymbolLabel = linkedSymbol ? koCode(linkedSymbol) : "종목 없음";
+  const sourceCount = isNewsCluster ? uniqueSourceDocumentCount(data) : sourceLink ? 1 : 0;
+  const translation = translationTraceStatus(sourcePreview);
+  const structure = aiStructureTraceStatus({ candidate: isNewsCandidate ? candidate : null, cluster: isNewsCluster ? cluster : null, isNewsCandidate, isNewsCluster });
+  const recommendationCount = neighborhood?.summary.recommendation_count ?? 0;
+  const thesisCount = neighborhood?.summary.thesis_count ?? 0;
+  const usage = aiEvidenceUsageVerdict({ data, linkedSymbol, recommendationCount, thesisCount });
+  const detailPathSteps: EvidencePathStep[] = [
+    {
+      index: "01",
+      label: "원천 뉴스",
+      value: sourceCount > 0 ? `원천 ${sourceCount}개` : "원천 부족",
+      body: sourceCount > 0
+        ? "AI 해석의 출발점이 되는 원천 뉴스나 문서가 연결되어 있다."
+        : "원천 문서가 없으면 추천 입력으로 쓰지 않는다.",
+      tone: sourceCount > 0 ? "ready" : "blocked",
+      href: "#evidence-source-preview",
+      cta: "원천 보기",
+    },
+    {
+      index: "02",
+      label: "한국어 번역",
+      value: translation.status,
+      body:
+        sourcePreview.koreanSummary ||
+        sourcePreview.koreanTitle ||
+        "한국어 제목·요약이 없으면 원문 제목과 AI 해석을 직접 대조해야 한다.",
+      tone: translation.tone === "risk-low" ? "ready" : "watch",
+      href: "#evidence-source-preview",
+      cta: "번역 보기",
+    },
+    {
+      index: "03",
+      label: "AI 구조화",
+      value: structure.status,
+      body: `${structure.body} 저장된 구조화 필드 ${data.extracted_fields.length}개를 확인한다.`,
+      tone: data.extracted_fields.length > 0 || isNewsCandidate || isNewsCluster ? "ready" : "watch",
+      href: "#evidence-structured-fields",
+      cta: "구조화 보기",
+    },
+    {
+      index: "04",
+      label: "자동 검증",
+      value: data.evidence_type === "news_event_candidate_rejected" ? "차단" : koCode(data.extraction_run.quality_gate || data.extraction_run.status),
+      body: normalizeEvidenceSystemCopy(data.visibility_trace.validator.reasons_ko.join(" ") || decision.body),
+      tone: evidencePathToneFromRisk(decision.tone),
+      href: "#evidence-validation",
+      cta: "검증 근거 보기",
+    },
+    {
+      index: "05",
+      label: "추천·주문 경계",
+      value: `${usage.metric} · ${koCode(data.visibility_trace.read_only_boundary.order_boundary || "read_only_no_order")}`,
+      body: `${usage.next} 증권사 주문은 ${data.visibility_trace.read_only_boundary.broker_submit_allowed ? "허용 상태" : "차단 상태"}다.`,
+      tone: evidencePathToneFromRisk(usage.tone),
+      href: firstRecommendationLink ?? targetStockLink ?? "#evidence-neighborhood",
+      cta: firstRecommendationLink ? "추천 보기" : targetStockLink ? "종목 보기" : "연결 상태 보기",
+    },
+  ];
 
   return (
     <div className="pageStack ai-evidence-detail-page decision-page">
@@ -1037,27 +1106,13 @@ export default async function AiEvidencePage({ params }: AiEvidencePageProps) {
         </div>
       </section>
 
-      <AiEvidenceReviewBrief
-        data={data}
-        sourcePreview={sourcePreview}
-        sourceLink={sourceLink}
-        targetStockLink={targetStockLink}
-        firstRecommendationLink={firstRecommendationLink}
-        linkedSymbol={linkedSymbol}
-        neighborhood={neighborhood}
-        decision={decision}
-        candidate={isNewsCandidate ? candidate : null}
-        cluster={isNewsCluster ? cluster : null}
-        isNewsCandidate={isNewsCandidate}
-        isNewsCluster={isNewsCluster}
-      />
-
-      <EvidenceVisibilityTraceBoard
-        data={data}
-        neighborhood={neighborhood}
-        sourceLink={sourceLink}
-        targetStockLink={targetStockLink}
-        firstRecommendationLink={firstRecommendationLink}
+      <EvidencePathWorkbench
+        eyebrow="이 근거를 읽는 순서"
+        title={usage.title}
+        summary={`${usage.body} 원천 뉴스, 한국어 번역, AI 구조화, 자동 검증, 추천 연결을 이 순서로 확인한다.`}
+        verdict={`${decision.label} · 연결 종목 ${linkedSymbolLabel} · 주문 경계 ${koCode(data.visibility_trace.read_only_boundary.order_boundary || "read_only_no_order")}`}
+        verdictTone={evidencePathToneFromRisk(usage.tone)}
+        steps={detailPathSteps}
       />
 
       <section className="evidence-decision-card reveal delay-1" id="evidence-source-preview" aria-labelledby="source-preview-title">

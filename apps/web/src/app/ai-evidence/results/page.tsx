@@ -8,6 +8,7 @@ import {
 } from "@/components/news-event-card";
 import { getAiNewsClusters, getEvents } from "@/lib/frontend-api";
 import { koCode, koLabel } from "@/lib/korean-labels";
+import { EvidencePathWorkbench, type EvidencePathStep } from "../_components/evidence-path-workbench";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "구조화 결과" };
@@ -28,6 +29,18 @@ function formatLatestAiRunStatus(status: string | null | undefined) {
   return `최근 AI 실행 ${koCode(status)}`;
 }
 
+function formatCoverage(done: number, total: number) {
+  if (total <= 0) {
+    return "대상 없음";
+  }
+  return `${done.toLocaleString("ko-KR")}/${total.toLocaleString("ko-KR")}`;
+}
+
+function clusterTranslatedCount(cluster: Awaited<ReturnType<typeof getAiNewsClusters>>["data"]["clusters"][number]) {
+  return cluster.source_documents.filter((document) => document.korean_title || document.korean_summary).length
+    || cluster.events.filter((event) => event.korean_title || event.korean_summary).length;
+}
+
 export default async function StructuredResultsPage() {
   const [candidateResponse, clusterResponse] = await Promise.all([
     getEvents({ evidenceType: "news_event_candidate", limit: 80 }),
@@ -41,6 +54,53 @@ export default async function StructuredResultsPage() {
   const directCandidates = acceptedCandidates.filter((event) => isKnownNewsCode(event.symbol));
   const macroCandidates = acceptedCandidates.filter((event) => !isKnownNewsCode(event.symbol));
   const latestAiRunStatus = formatLatestAiRunStatus(clusterData.summary.latest_llm_invocation_status);
+  const translatedCandidateCount = acceptedCandidates.filter((event) => event.korean_title || event.korean_summary).length;
+  const sourceDocumentCount = candidateData.summary.source_document_count + clusterData.summary.source_document_count;
+  const pathSteps: EvidencePathStep[] = [
+    {
+      index: "01",
+      label: "원천 뉴스",
+      value: `원천 ${sourceDocumentCount.toLocaleString("ko-KR")}개`,
+      body: "통과 결과도 원천 뉴스나 문서가 있어야 추천 입력 후보로 볼 수 있다.",
+      tone: sourceDocumentCount > 0 ? "ready" : "watch",
+      href: "/events",
+      cta: "수집 뉴스 보기",
+    },
+    {
+      index: "02",
+      label: "한국어 번역",
+      value: `후보 ${formatCoverage(translatedCandidateCount, acceptedCandidates.length)}`,
+      body: "영어 원문만 보지 않도록 한국어 제목·요약이 있는 항목을 우선 확인한다.",
+      tone: translatedCandidateCount > 0 ? "ready" : "watch",
+    },
+    {
+      index: "03",
+      label: "AI 구조화",
+      value: `직접 ${directCandidates.length} · 흐름 ${macroCandidates.length}`,
+      body: "종목 뉴스와 거시·테마 뉴스를 분리한다. 거시 뉴스에 억지로 티커를 붙이지 않는다.",
+      tone: acceptedCandidates.length > 0 ? "ready" : "watch",
+      href: "#accepted-results",
+      cta: "결과 나눠 보기",
+    },
+    {
+      index: "04",
+      label: "자동 검증",
+      value: "통과 항목",
+      body: "이 화면에는 추천 입력 후보만 모은다. 차단·보류 항목은 별도 화면에서 봐야 한다.",
+      tone: "ready",
+      href: "/ai-evidence/blocked",
+      cta: "차단 항목 보기",
+    },
+    {
+      index: "05",
+      label: "추천·주문 경계",
+      value: "주문 아님",
+      body: "AI 결과는 가격, 사이클, 재무, thesis, 페이퍼 검증과 합쳐진 뒤에도 자동 주문으로 가지 않는다.",
+      tone: "watch",
+      href: "/recommendations",
+      cta: "추천 경계 보기",
+    },
+  ];
 
   return (
     <div className="pageStack decision-page structured-results-page">
@@ -116,6 +176,15 @@ export default async function StructuredResultsPage() {
           <small>입력 제외</small>
         </Link>
       </section>
+
+      <EvidencePathWorkbench
+        eyebrow="통과 결과를 읽는 순서"
+        title="AI가 통과시킨 뉴스도 바로 추천이나 주문이 아니다"
+        summary="먼저 원천과 번역을 보고, AI가 종목 뉴스와 상위 흐름 뉴스를 어떻게 나눴는지 확인한다. 그 다음 추천 상세에서 다른 근거와 합쳐졌는지 본다."
+        verdict={`현재 통과 후보 ${acceptedCandidates.length.toLocaleString("ko-KR")}개 · 주문 경계는 계속 읽기 전용이다.`}
+        verdictTone={acceptedCandidates.length > 0 ? "ready" : "watch"}
+        steps={pathSteps}
+      />
 
       <section className="ledger-section reveal delay-2" id="accepted-results" aria-labelledby="structured-direct-title">
         <div className="ledger-section-head">
@@ -195,6 +264,24 @@ export default async function StructuredResultsPage() {
                     ))}
                   </div>
                 </div>
+                <ol className="evidence-mini-path" aria-label={`${cluster.story_label || cluster.theme_name} 묶음 판단 경로`}>
+                  <li>
+                    <span>원천</span>
+                    <strong>{cluster.source_document_count.toLocaleString("ko-KR")}개</strong>
+                  </li>
+                  <li>
+                    <span>번역</span>
+                    <strong>{formatCoverage(clusterTranslatedCount(cluster), cluster.source_documents.length || cluster.events.length)}</strong>
+                  </li>
+                  <li>
+                    <span>구조화</span>
+                    <strong>{koCode(cluster.extraction_run.provider)}</strong>
+                  </li>
+                  <li>
+                    <span>연결</span>
+                    <strong>{formatClusterSymbols(cluster.symbols)}</strong>
+                  </li>
+                </ol>
                 <div className="relationship-panel">
                   <span>추천에 연결되는 방식</span>
                   <div className="relationship-list">
