@@ -563,6 +563,9 @@ def build_live_ai_agent_registry_response(*, generated_at: str) -> dict[str, Any
         "on",
     }
     provider_health_status = str(openai_provider_health.get("status") or "")
+    openai_cost_status = (
+        openai_provider_health.get("cost_status") if isinstance(openai_provider_health.get("cost_status"), Mapping) else {}
+    )
     if provider_health_status in {"openai_insufficient_quota", "openai_billing_unavailable"}:
         primary_provider_status = "known_billing_unavailable"
         primary_provider_fallback_reason = str(openai_provider_health.get("message") or "") or (
@@ -579,6 +582,11 @@ def build_live_ai_agent_registry_response(*, generated_at: str) -> dict[str, Any
     elif openai_billing_status.lower() in {"known_zero_balance", "zero_balance", "no_balance", "insufficient_quota"}:
         primary_provider_status = "known_billing_unavailable"
         primary_provider_fallback_reason = "OpenAI 잔액 또는 quota가 없는 상태로 표시되어 fallback provider를 사용한다."
+    elif openai_api_key_configured and str(openai_cost_status.get("status") or "") == "costs_available":
+        primary_provider_status = "costs_available_balance_not_returned"
+        primary_provider_fallback_reason = (
+            "Admin Costs API로 최근 비용은 확인했다. 남은 잔액은 공식 비용 API가 반환하지 않아 Billing Overview에서 확인한다."
+        )
     elif openai_api_key_configured:
         primary_provider_status = "key_configured_billing_unchecked"
         primary_provider_fallback_reason = "API key는 있지만 이 화면에서는 잔액을 실시간 확인하지 않는다."

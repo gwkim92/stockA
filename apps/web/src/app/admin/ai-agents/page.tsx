@@ -100,6 +100,9 @@ function runtimeStatusText(data: AiAgentRegistryData) {
   if (data.runtime_policy.primary_provider_status === "known_billing_unavailable") {
     return "OpenAI API key는 있지만 잔액 또는 quota가 없는 상태로 표시돼 있다. 배치는 OpenAI를 건너뛰고 fallback을 사용해야 한다.";
   }
+  if (data.runtime_policy.primary_provider_status === "costs_available_balance_not_returned") {
+    return `OpenAI API key와 Admin key가 감지됐다. 최근 ${health.cost_status.lookback_days}일 비용은 ${formatUsdAmount(health.cost_status.total_cost_usd)}이고, 남은 잔액은 공식 Costs API가 반환하지 않아 Billing Overview에서 확인한다.`;
+  }
   if (!data.runtime_policy.primary_api_key_configured) {
     return "OpenAI API 키는 이 요청 환경에서 감지되지 않았다. Codex OAuth 또는 로컬 규칙 fallback을 사용하도록 설계되어 있다.";
   }
