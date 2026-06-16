@@ -27,6 +27,20 @@ type FinancialMetricSnapshot = FinancialStatementModel["metrics"][number];
 type FundInstrumentAnalysis = RecommendationDetailData["fund_instrument_analysis"];
 type ProfessionalEvidenceAudit = RecommendationDetailData["professional_evidence_audit"];
 type RecommendationMarketCorrelation = RecommendationDetailData["market_correlations"][number];
+type RecommendationQualityDecision = {
+  status: string;
+  tone: "risk-low" | "risk-medium" | "risk-high";
+  summary: string;
+};
+type RecommendationFocusItem = {
+  label: string;
+  title: string;
+  body: string;
+  metric: string;
+  href: Route | `#${string}`;
+  hrefLabel: string;
+  tone: "ready" | "watch" | "blocked";
+};
 
 const USER_FACING_TERM_REPLACEMENTS: Array<[string, string]> = [
   ["DCF-lite", "간이 현금흐름 평가"],
@@ -1073,7 +1087,7 @@ function outcomeTone(outcomeMeasured: boolean, alpha: number) {
   return alpha >= 0 ? "tone-ready" : "tone-blocked";
 }
 
-function recommendationQualityDecision(data: RecommendationDetailData) {
+function recommendationQualityDecision(data: RecommendationDetailData): RecommendationQualityDecision {
   const blockedCount = reviewCount(data.evidence_review.summary.blocked_count);
   const warningCount = reviewCount(data.evidence_review.summary.warning_count);
   const sourceDataBlocked = data.professional_decision_waterfall.status === "source_data_blocked";
@@ -1147,6 +1161,145 @@ function recommendationQualityChecks(data: RecommendationDetailData) {
       detail: "이 결과는 추천 품질 상태이며 증권사 주문 연결을 실행하지 않는다.",
     },
   ];
+}
+
+function qualityToneToFocusTone(tone: RecommendationQualityDecision["tone"]): RecommendationFocusItem["tone"] {
+  if (tone === "risk-high") {
+    return "blocked";
+  }
+  if (tone === "risk-medium") {
+    return "watch";
+  }
+  return "ready";
+}
+
+function recommendationImmediateFocus({
+  data,
+  qualityDecision,
+  decisionWaterfall,
+  professionalAudit,
+  blockedDecisionStepCount,
+  watchDecisionStepCount,
+  outcomeMeasured,
+  marketCorrelationCount,
+  macroFlowComponents,
+  fundamentalStack,
+}: {
+  data: RecommendationDetailData;
+  qualityDecision: RecommendationQualityDecision;
+  decisionWaterfall: RecommendationDetailData["professional_decision_waterfall"];
+  professionalAudit: ProfessionalEvidenceAudit;
+  blockedDecisionStepCount: number;
+  watchDecisionStepCount: number;
+  outcomeMeasured: boolean;
+  marketCorrelationCount: number;
+  macroFlowComponents: ScoreComponent[];
+  fundamentalStack: ScoreComponent[];
+}): RecommendationFocusItem[] {
+  const items: RecommendationFocusItem[] = [];
+  const aiEvidenceCount = reviewCount(data.evidence_review.summary.ai_evidence_component_count);
+  const directEvidenceStatus = data.evidence_trace.direct_news_or_ai.status;
+  const financialMetricCount = data.financial_statement_model.computed_metric_count;
+  const sourceBlocked = professionalAudit.source_blocker.blocked || decisionWaterfall.status === "source_data_blocked";
+
+  if (sourceBlocked) {
+    items.push({
+      label: "1순위",
+      title: "원천 근거 차단부터 확인",
+      body: "정기 재무제표나 검증 가능한 원천이 부족하면 뉴스·AI 근거가 있어도 전문 판단이나 가상 매매 입력으로 넘기지 않는다.",
+      metric: "전문 판단 입력 금지",
+      href: "#recommendation-evidence-review",
+      hrefLabel: "차단 근거 보기",
+      tone: "blocked",
+    });
+  } else if (blockedDecisionStepCount > 0) {
+    items.push({
+      label: "1순위",
+      title: "차단된 분석 단계를 먼저 본다",
+      body: "추천이 어느 단계에서 막혔는지 확인해야 뒤의 재무·밸류·뉴스 근거를 투자 판단에 써도 되는지 알 수 있다.",
+      metric: `차단 ${blockedDecisionStepCount.toLocaleString("ko-KR")}개`,
+      href: "#recommendation-professional-flow",
+      hrefLabel: "전문 분석 흐름 보기",
+      tone: "blocked",
+    });
+  } else if (!decisionWaterfall.paper_validation_input_allowed) {
+    items.push({
+      label: "1순위",
+      title: "가상 매매 입력 차단 사유 확인",
+      body: "전문 분석 일부는 통과했더라도 가상 매매 검증으로 넘길 조건이 아직 부족하다.",
+      metric: "가상 매매 입력 차단",
+      href: "/paper-trading",
+      hrefLabel: "가상 매매 상태 보기",
+      tone: "blocked",
+    });
+  } else if (!outcomeMeasured) {
+    items.push({
+      label: "1순위",
+      title: "성과 측정 대기 상태 확인",
+      body: "추천 근거는 연결됐지만 성과 측정창이 끝나지 않았다. 이 기간에는 추천 weight 변경과 실거래 주문을 하지 않는다.",
+      metric: "성과 미측정",
+      href: "#recommendation-evidence-review",
+      hrefLabel: "성과·리스크 보기",
+      tone: "watch",
+    });
+  } else {
+    items.push({
+      label: "1순위",
+      title: "최종 결론과 반대 신호 확인",
+      body: qualityDecision.summary,
+      metric: qualityDecision.status,
+      href: "#recommendation-professional-flow",
+      hrefLabel: "전문 분석 흐름 보기",
+      tone: qualityToneToFocusTone(qualityDecision.tone),
+    });
+  }
+
+  items.push({
+    label: "근거",
+    title: "뉴스·AI·상위 흐름 연결 보기",
+    body:
+      directEvidenceStatus === "linked"
+        ? "직접 종목 뉴스 또는 AI 해석이 추천 근거로 연결됐다. 원천 뉴스와 한국어 번역, AI 구조화 결과를 같이 확인한다."
+        : "직접 종목 뉴스보다 상위 흐름, 가격, 종목군 순위 근거가 중심이다. 어떤 경로로 연결됐는지 확인한다.",
+    metric: `AI ${aiEvidenceCount.toLocaleString("ko-KR")}개 · 흐름 ${macroFlowComponents.length.toLocaleString("ko-KR")}개`,
+    href: "#recommendation-evidence-trace",
+    hrefLabel: "근거 경로 보기",
+    tone: aiEvidenceCount > 0 || macroFlowComponents.length > 0 ? "ready" : "watch",
+  });
+
+  items.push({
+    label: "기업",
+    title: "재무·밸류에이션 근거 확인",
+    body: "중장기 추천은 뉴스만으로 판단하지 않는다. 재무 품질, 밸류에이션, 피어 비교가 비어 있거나 차단됐는지 확인한다.",
+    metric: `재무 ${financialMetricCount.toLocaleString("ko-KR")}개 · 재무항목 ${fundamentalStack.length.toLocaleString("ko-KR")}개`,
+    href: financialMetricCount > 0 ? "#recommendation-financial-model" : "#recommendation-valuation",
+    hrefLabel: financialMetricCount > 0 ? "재무 모델 보기" : "밸류에이션 보기",
+    tone: financialMetricCount > 0 || fundamentalStack.length > 0 ? "ready" : "watch",
+  });
+
+  items.push({
+    label: "시장",
+    title: "시장 동조성과 외부 지표 확인",
+    body: "지수·섹터·금리·달러·원자재와 같은 외부 환경과 같이 움직이는지 봐야 종목 단독 착시를 줄일 수 있다.",
+    metric: `비교 ${marketCorrelationCount.toLocaleString("ko-KR")}개`,
+    href: "#recommendation-market-correlations",
+    hrefLabel: "시장 동조성 보기",
+    tone: marketCorrelationCount > 0 ? "ready" : "watch",
+  });
+
+  if (watchDecisionStepCount > 0 && items.length < 5) {
+    items.push({
+      label: "주의",
+      title: "주의 단계가 남아 있다",
+      body: "차단은 아니지만 추가 확인이 필요한 단계가 있다. 추천을 바로 채택하지 말고 남은 주의 항목을 확인한다.",
+      metric: `주의 ${watchDecisionStepCount.toLocaleString("ko-KR")}개`,
+      href: "#recommendation-professional-flow",
+      hrefLabel: "주의 단계 보기",
+      tone: "watch",
+    });
+  }
+
+  return items.slice(0, 4);
 }
 
 function traceStatusLabel(status: string) {
@@ -1250,7 +1403,7 @@ function recommendationWaterfallCards({
   cycleStack: ScoreComponent[];
   macroFlowComponents: ScoreComponent[];
   fundamentalStack: ScoreComponent[];
-  qualityDecision: { status: string; tone: string; summary: string };
+  qualityDecision: RecommendationQualityDecision;
   decisionWaterfall: RecommendationDetailData["professional_decision_waterfall"];
   professionalAudit: ProfessionalEvidenceAudit;
   outcomeMeasured: boolean;
@@ -1362,7 +1515,7 @@ function RecommendationDecisionWaterfall({
 }: {
   data: RecommendationDetailData;
   cards: ReturnType<typeof recommendationWaterfallCards>;
-  qualityDecision: { status: string; tone: string; summary: string };
+  qualityDecision: RecommendationQualityDecision;
   decisionWaterfall: RecommendationDetailData["professional_decision_waterfall"];
 }) {
   return (
@@ -1422,6 +1575,69 @@ function RecommendationDecisionWaterfall({
   );
 }
 
+function RecommendationFocusPanel({
+  data,
+  items,
+  qualityDecision,
+  decisionWaterfall,
+}: {
+  data: RecommendationDetailData;
+  items: RecommendationFocusItem[];
+  qualityDecision: RecommendationQualityDecision;
+  decisionWaterfall: RecommendationDetailData["professional_decision_waterfall"];
+}) {
+  const firstItem = items[0];
+
+  return (
+    <section className={`recommendation-focus-panel ${qualityDecision.tone} reveal delay-1`} aria-labelledby="recommendation-focus-title">
+      <div className="recommendation-focus-lead">
+        <span>추천서 읽는 순서</span>
+        <h2 id="recommendation-focus-title">
+          먼저 {firstItem?.title ?? "현재 결론"}부터 본다
+        </h2>
+        <p>
+          이 화면은 {data.symbol} 추천을 바로 매수·매도하라는 지시가 아니라, 원천 데이터와 AI 해석, 전문 분석, 가상 매매 경계가 어디까지 통과했는지
+          읽는 추천서다. 아래 카드 순서대로 확인하면 된다.
+        </p>
+        <div className="recommendation-focus-metrics" aria-label="추천서 핵심 상태">
+          <div>
+            <span>추천</span>
+            <strong>{koCode(data.recommendation)}</strong>
+          </div>
+          <div>
+            <span>점수</span>
+            <strong>{formatPercent(data.score)}</strong>
+          </div>
+          <div>
+            <span>전문 결론</span>
+            <strong>{qualityDecision.status}</strong>
+          </div>
+          <div>
+            <span>실거래</span>
+            <strong>{decisionWaterfall.broker_submit_allowed ? "허용" : "차단"}</strong>
+          </div>
+        </div>
+      </div>
+
+      <div className="recommendation-focus-list">
+        {items.map((item) => (
+          <article className={`recommendation-focus-card tone-${item.tone}`} key={`${item.label}-${item.title}`}>
+            <span>{item.label}</span>
+            <strong>{item.title}</strong>
+            <b>{item.metric}</b>
+            <p>{item.body}</p>
+            {item.href.startsWith("#") ? (
+              <a href={item.href}>{item.hrefLabel}</a>
+            ) : (
+              <Link href={item.href as Route}>{item.hrefLabel}</Link>
+            )}
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 export default async function RecommendationPage({ params }: RecommendationPageProps) {
   const { recommendationId } = await params;
   const response = await getRecommendationDetail(recommendationId);
@@ -1470,6 +1686,18 @@ export default async function RecommendationPage({ params }: RecommendationPageP
     decisionWaterfall,
     professionalAudit,
     outcomeMeasured,
+  });
+  const immediateFocusItems = recommendationImmediateFocus({
+    data,
+    qualityDecision,
+    decisionWaterfall,
+    professionalAudit,
+    blockedDecisionStepCount,
+    watchDecisionStepCount,
+    outcomeMeasured,
+    marketCorrelationCount,
+    macroFlowComponents,
+    fundamentalStack,
   });
 
   return (
@@ -1522,6 +1750,13 @@ export default async function RecommendationPage({ params }: RecommendationPageP
           </Link>
         </div>
       </section>
+
+      <RecommendationFocusPanel
+        data={data}
+        items={immediateFocusItems}
+        qualityDecision={qualityDecision}
+        decisionWaterfall={decisionWaterfall}
+      />
 
       <RecommendationDecisionWaterfall
         data={data}
