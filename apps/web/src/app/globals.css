@@ -6498,6 +6498,32 @@ h6 {
   font-weight: 900;
 }
 
+.data-health-command-grid {
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  align-content: stretch;
+}
+
+.data-health-command-card {
+  min-height: 190px;
+  padding: clamp(16px, 1.7vw, 22px);
+  background:
+    linear-gradient(155deg, color-mix(in srgb, var(--bg-panel) 94%, white), color-mix(in srgb, var(--bg) 72%, white)),
+    radial-gradient(circle at 0% 0%, rgba(35, 116, 78, 0.12), transparent 42%);
+}
+
+.data-health-command-card strong {
+  font-size: clamp(1.24rem, 1.8vw, 1.95rem);
+}
+
+.data-health-command-card small {
+  font-size: 0.8rem;
+  overflow-wrap: anywhere;
+}
+
+.data-health-command-card b {
+  border-radius: var(--radius-sm);
+}
+
 .market-readout-panel {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(260px, 0.48fr);

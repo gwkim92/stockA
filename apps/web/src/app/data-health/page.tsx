@@ -2255,6 +2255,11 @@ export default async function DataHealthPage() {
   const gateTriageBuckets = buildGateTriageBuckets(openGateDetails);
   const visibleGateTriageBuckets = gateTriageBuckets.filter((bucket) => bucket.gates.length > 0);
   const gateTriageStatus = gateTriageSummary(gateTriageBuckets, data.open_gates.length);
+  const fixNowGateCount = gateTriageBuckets.find((bucket) => bucket.key === "fix-now")?.gates.length ?? 0;
+  const managedWaitGateCount = gateTriageBuckets.find((bucket) => bucket.key === "managed-wait")?.gates.length ?? 0;
+  const sourceLimitGateCount = gateTriageBuckets.find((bucket) => bucket.key === "source-limit")?.gates.length ?? 0;
+  const investmentReviewGateCount =
+    gateTriageBuckets.find((bucket) => bucket.key === "investment-review")?.gates.length ?? 0;
   const openGateChips = openGateDetails.length > 0
     ? openGateDetails.map((gate) => ({
         key: gate.gate_id,
@@ -2300,34 +2305,59 @@ export default async function DataHealthPage() {
     outcomeWaitMonitor.weight_review_blocked
     && !outcomeWaitMonitor.automatic_weight_change_allowed
     && !outcomeWaitMonitor.broker_submit_allowed;
-  const operationVerdictCards = [
+  const commandCenterCards = [
     {
-      index: "01",
-      label: "서비스 접근",
-      title: accessAttention ? "접근 경계 확인 필요" : "읽기 전용 접근 정상",
-      body: accessAttention
-        ? "읽기 서버, 조회 권한, 알림 목적지 중 주의 항목이 있다. 투자 판단 화면보다 접근 경계 확인이 먼저다."
-        : "읽기 전용 API, 역할 기반 조회 권한, 무료 알림 목적지가 연결되어 있고 주문/쓰기 경계는 닫혀 있다.",
-      metric: authRbac.read_role ? `역할 ${koCode(authRbac.read_role)}` : "읽기 역할 확인",
-      href: "#execution-log",
-      cta: "접근 경계 보기",
-      tone: accessAttention ? "watch" : "ready",
+      label: "1. 지금 먼저",
+      title:
+        fixNowGateCount > 0
+          ? `즉시 조치 ${fixNowGateCount}개`
+          : sourceLimitGateCount > 0
+            ? `원천 한계 ${sourceLimitGateCount}개 관리`
+            : managedWaitGateCount > 0
+              ? `성과 대기 ${managedWaitGateCount}개`
+              : data.open_gates.length > 0
+                ? `확인 항목 ${data.open_gates.length}개`
+                : "열린 항목 없음",
+      body:
+        fixNowGateCount > 0
+          ? "수집·AI·접근 장애가 있으면 추천 화면보다 먼저 복구해야 한다."
+          : sourceLimitGateCount > 0
+            ? "원천 한계는 오류를 숨기는 것이 아니라 합성 데이터를 만들지 않고 판단 입력에서 제외한 상태다."
+            : managedWaitGateCount > 0
+              ? "성과 측정창이 끝날 때까지 기다리는 설계된 대기다. 추천 산식 변경은 계속 막는다."
+              : "즉시 조치할 장애는 없다. 최신 실행과 품질 샘플만 필요할 때 아래에서 확인한다.",
+      metric: `${data.open_gates.length.toLocaleString("ko-KR")}개 열린 항목`,
+      href:
+        fixNowGateCount > 0
+          ? "#open-gate-triage-title"
+          : sourceLimitGateCount > 0
+            ? "#professional-source-gaps"
+            : managedWaitGateCount > 0
+              ? "#outcome-maturity-wait-monitor"
+              : "#execution-log",
+      cta:
+        fixNowGateCount > 0
+          ? "즉시 조치 보기"
+          : sourceLimitGateCount > 0
+            ? "원천 한계 보기"
+            : managedWaitGateCount > 0
+              ? "성과 대기 보기"
+              : "실행 이력 보기",
+      tone: fixNowGateCount > 0 ? "block" : sourceLimitGateCount > 0 || managedWaitGateCount > 0 ? "watch" : "ready",
     },
     {
-      index: "02",
-      label: "자동 수집",
+      label: "2. 자동 수집",
       title: allTimersActive && failedPipelines === 0 ? "자동 수집 작동 중" : "수집 상태 확인 필요",
       body: allTimersActive
-        ? "뉴스, 가격, 추천, 성과 측정 작업이 서버 예약 실행기로 분리되어 돈다."
-        : "예약 실행기 일부가 꺼졌거나 실행 증거가 부족하다. 어떤 작업 묶음이 멈췄는지 확인해야 한다.",
-      metric: `${profileScheduler.active_timer_count}/${profileScheduler.timer_count}개 활성 · 실패 ${failedPipelines}개`,
+        ? "뉴스, 가격, 추천, 성과 측정 작업이 각각의 서버 예약 실행기로 분리되어 돈다."
+        : "예약 실행기 일부가 꺼졌거나 실행 증거가 부족하다. 어떤 작업 묶음이 멈췄는지 먼저 확인한다.",
+      metric: `${profileScheduler.active_timer_count}/${profileScheduler.timer_count}개 활성 · 문제 실행 ${failedPipelines}개`,
       href: "#scheduler-detail",
       cta: "자동화 보기",
       tone: allTimersActive && failedPipelines === 0 ? "ready" : "watch",
     },
     {
-      index: "03",
-      label: "데이터·AI 품질",
+      label: "3. 뉴스·AI 품질",
       title: dataQualityReady
         ? "품질 기준 통과"
         : liveAiInvocationHealth.attention_required
@@ -2348,16 +2378,32 @@ export default async function DataHealthPage() {
       tone: dataQualityReady ? "ready" : "watch",
     },
     {
-      index: "04",
-      label: "투자 경계",
+      label: "4. 투자 안전",
       title: safeInvestmentBoundary ? "추천 산식·실거래 차단" : "투자 경계 확인 필요",
       body: safeInvestmentBoundary
         ? "성과 표본이 성숙하기 전까지 추천 산식 반영 비중 변경과 실거래 주문 제출은 막혀 있다."
         : "추천 산식 검토나 실거래 상태 조건이 예상과 다르다. 추천 산식/거래 안전 상태를 먼저 확인한다.",
-      metric: outcomeWaitMonitor.weight_review_blocked ? "실거래 상태: 주문 차단" : "실거래 상태 확인",
+      metric: outcomeWaitMonitor.weight_review_blocked ? "반영 비중 변경 금지 · 주문 차단" : "투자 경계 확인",
       href: "#outcome-maturity-wait-monitor",
       cta: "투자 경계 보기",
       tone: safeInvestmentBoundary ? "ready" : "block",
+    },
+    {
+      label: "5. 원천·전문분석",
+      title:
+        professionalSourceGaps.source_blocker_count > 0
+          ? `원천 차단 ${professionalSourceGaps.source_blocker_count}개`
+          : professionalQuality.status === "managed_source_limited"
+            ? "원천 한계 관리 중"
+            : "전문 분석 연결 확인",
+      body:
+        professionalSourceGaps.source_blocker_count > 0
+          ? "표준 재무 원천이 부족한 종목은 전문 판단과 가상 매매 입력에서 제외한다."
+          : "재무·피어·밸류에이션·산업·AI 리서치 근거가 추천별로 얼마나 채워졌는지 확인한다.",
+      metric: `평균 연결률 ${formatPercent(professionalQuality.average_coverage_ratio)} · 투자 검토 ${investmentReviewGateCount}개`,
+      href: "#professional-analysis-quality",
+      cta: "전문 분석 보기",
+      tone: professionalSourceGaps.source_blocker_count > 0 || professionalQuality.status === "managed_source_limited" ? "watch" : "ready",
     },
   ];
 	  const decisionCards = [
@@ -2621,7 +2667,6 @@ export default async function DataHealthPage() {
 	    "품질 감사",
 	    "AI 기준 평가",
 	  ]);
-	  const priorityDecisionCards = decisionCards.filter((card) => priorityDecisionLabels.has(card.label));
 	  const detailDecisionCards = decisionCards.filter((card) => !priorityDecisionLabels.has(card.label));
 	  const automationCards = [
     {
@@ -2760,41 +2805,20 @@ export default async function DataHealthPage() {
             <span>실거래 상태 {koCode(outcomeWaitMonitor.order_boundary)}</span>
           </div>
         </div>
-        <div className="decision-brief-grid">
-          {operationVerdictCards.map((card) => (
+        <div className="decision-brief-grid data-health-command-grid" aria-label="데이터 상태 관제판">
+          {commandCenterCards.map((card) => (
             <a
-              className={`decision-card ${
+              className={`decision-card data-health-command-card ${
                 card.tone === "ready" ? "is-good" : card.tone === "watch" ? "is-watch" : "is-block"
               }`}
               href={card.href}
-              key={card.index}
+              key={card.label}
             >
               <span>{card.label}</span>
               <strong>{card.title}</strong>
               <small>{card.metric} · {card.body}</small>
               <b>{card.cta}</b>
             </a>
-          ))}
-        </div>
-      </section>
-
-      <section className="feature-map-panel reveal delay-1" aria-labelledby="priority-status-title">
-        <div className="section-heading stacked-heading">
-          <span>오늘 조치</span>
-          <h2 id="priority-status-title">문제가 있으면 여기서 바로 갈라진다</h2>
-          <p>
-	            상단 판정판에서 이상이 보이면 아래 카드가 실제 조치 위치로 보낸다. 성과·포트폴리오·전문분석 상세는
-	            접힌 영역에서 이어서 본다.
-	          </p>
-	        </div>
-	        <div className="decision-brief-grid" aria-label="데이터 수집 우선 판단 요약">
-	          {priorityDecisionCards.map((card) => (
-	            <a className="decision-brief-card data-decision-card" href={card.href} key={card.label}>
-	              <span>{card.label}</span>
-	              <strong className={`risk-tag ${card.tone}`}>{card.title}</strong>
-	              <p>{card.body}</p>
-	              <small>{card.cta}</small>
-	            </a>
           ))}
         </div>
       </section>
