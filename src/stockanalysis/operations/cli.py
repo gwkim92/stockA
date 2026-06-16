@@ -28,6 +28,7 @@ from stockanalysis.operations.alert_destination import (
     ALERT_DESTINATION_STATUS_PATH_ENV,
     build_alert_destination_test_report,
 )
+from stockanalysis.operations.ai_agent_registry import build_ai_agent_registry_report
 from stockanalysis.operations.benchmark_composition_import import (
     DEFAULT_MIN_FULL_COVERAGE_WEIGHT,
     SUPPORTED_SOURCE_TYPES as BENCHMARK_COMPOSITION_SOURCE_TYPES,
@@ -113,6 +114,7 @@ from stockanalysis.operations.operating_data_orchestrator import (
     OPERATING_DATA_RUN_PROFILE_IDS,
     build_operating_data_run_report,
 )
+from stockanalysis.operations.openai_provider_health import build_openai_provider_health_report
 from stockanalysis.operations.path_policy import resolve_existing_file, resolve_output_path
 from stockanalysis.operations.report_io import load_json_object, print_json, write_json_report
 from stockanalysis.operations.recommendation_quality_eval import (
@@ -295,6 +297,22 @@ def build_parser() -> argparse.ArgumentParser:
     alert_destination_test.add_argument("--output")
     alert_destination_test.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
     alert_destination_test.set_defaults(handler=_handle_alert_destination_test_run)
+
+    ai_agent_registry = subparsers.add_parser(
+        "ai-agent-registry-report",
+        help="Print the configured AI agent catalog, model policies, prompt versions, and safety boundaries.",
+    )
+    ai_agent_registry.add_argument("--include-prompts", action="store_true")
+    ai_agent_registry.set_defaults(handler=_handle_ai_agent_registry_report)
+
+    openai_provider_health = subparsers.add_parser(
+        "openai-provider-health-report",
+        help="Print secret-free OpenAI provider balance/quota/fallback visibility without making OpenAI calls.",
+    )
+    openai_provider_health.add_argument("--env-file")
+    openai_provider_health.add_argument("--output")
+    openai_provider_health.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
+    openai_provider_health.set_defaults(handler=_handle_openai_provider_health_report)
 
     local_runtime_status = subparsers.add_parser(
         "local-runtime-status",
@@ -1832,6 +1850,28 @@ def _handle_alert_destination_test_run(args: argparse.Namespace, *, stdout: Text
     else:
         print_json(report, stdout=stdout, sort_keys=False)
     return 0 if report.get("last_test_status") in {"passed", "not_executed"} else 1
+
+
+def _handle_ai_agent_registry_report(args: argparse.Namespace, *, stdout: TextIO) -> int:
+    report = build_ai_agent_registry_report(include_prompts=bool(args.include_prompts))
+    print_json(report, stdout=stdout, sort_keys=False)
+    return 0
+
+
+def _handle_openai_provider_health_report(args: argparse.Namespace, *, stdout: TextIO) -> int:
+    env_mapping = _load_optional_env_mapping(args.env_file, repo_root=args.repo_root) or os.environ
+    report = build_openai_provider_health_report(env=env_mapping)
+    if args.output:
+        output_path = resolve_output_path(
+            args.output,
+            label="openai provider health report output",
+            repo_root=args.repo_root,
+            require_repo_outside=True,
+        )
+        write_json_report(report, output_path=output_path, stdout=stdout)
+    else:
+        print_json(report, stdout=stdout, sort_keys=False)
+    return 0
 
 
 def _handle_local_runtime_status(args: argparse.Namespace, *, stdout: TextIO) -> int:

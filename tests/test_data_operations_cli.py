@@ -25,6 +25,57 @@ class DataOperationsCliTests(unittest.TestCase):
         self.assertEqual(payload["report_name"], "data_operations_cadence_foundation")
         self.assertEqual(payload["cadence_filter"], "weekly")
 
+    def test_openai_provider_health_report_is_secret_free_and_reads_cached_status(self) -> None:
+        with tempfile.TemporaryDirectory() as repo_root, tempfile.TemporaryDirectory() as runtime_root:
+            health_path = Path(runtime_root) / "ai-provider-health.json"
+            health_path.write_text(
+                json.dumps(
+                    {
+                        "provider": "agents_sdk_openai",
+                        "status": "fallback_required",
+                        "error_code": "openai_insufficient_quota",
+                        "message": "OpenAI quota is exhausted.",
+                        "last_checked_at": "2026-06-16T00:00:00+00:00",
+                        "next_retry_at": "2999-01-01T00:00:00+00:00",
+                        "fallback_provider": "codex_oauth",
+                        "local_fallback_provider": "local_rules",
+                    }
+                ),
+                encoding="utf-8",
+            )
+            env_file = Path(runtime_root) / "frontend-api.env"
+            env_file.write_text(
+                "\n".join(
+                    (
+                        'OPENAI_API_KEY="sk-test-do-not-print"',
+                        f'STOCKANALYSIS_AI_PROVIDER_HEALTH_PATH="{health_path}"',
+                    )
+                ),
+                encoding="utf-8",
+            )
+            stdout = io.StringIO()
+
+            exit_code = main(
+                [
+                    "openai-provider-health-report",
+                    "--repo-root",
+                    repo_root,
+                    "--env-file",
+                    str(env_file),
+                ],
+                stdout=stdout,
+            )
+
+        self.assertEqual(exit_code, 0)
+        output = stdout.getvalue()
+        self.assertNotIn("sk-test-do-not-print", output)
+        payload = json.loads(output)
+        self.assertEqual(payload["report_name"], "openai_provider_health")
+        self.assertEqual(payload["status"], "openai_insufficient_quota")
+        self.assertTrue(payload["fallback_required"])
+        self.assertEqual(payload["health"]["fallback_provider"], "codex_oauth")
+        self.assertFalse(payload["health"]["balance_known"])
+
     def test_correlation_analysis_run_command_passes_lookbacks_and_guardrails(self) -> None:
         with tempfile.TemporaryDirectory() as repo_root, tempfile.TemporaryDirectory() as outside_root:
             env_file = Path(outside_root) / "data-operations.env"

@@ -18,6 +18,7 @@ type LocalIngestWorker = DataHealthData["local_ingest_worker"];
 type CycleAiQualityAudit = DataHealthData["cycle_ai_quality_audit"];
 type NewsAiEvalQuality = DataHealthData["news_ai_eval_quality"];
 type LiveAiInvocationHealth = DataHealthData["live_ai_invocation_health"];
+type OpenAiProviderHealth = DataHealthData["openai_provider_health"];
 type DataOperationsArtifactRunner = DataHealthData["data_operations_artifact_runner"];
 type ActiveRecommendationPriceFreshness = DataHealthData["active_recommendation_price_freshness"];
 type BenchmarkDriftQuality = DataHealthData["benchmark_drift_quality"];
@@ -852,6 +853,75 @@ function liveAiCurrentFailureDetail(health: LiveAiInvocationHealth) {
   return `번역/뉴스 구조화 기준 · 최근 누적 ${health.critical_failed_count}`;
 }
 
+function aiProviderLabel(provider: string) {
+  if (provider === "agents_sdk_openai") {
+    return "OpenAI Agents SDK";
+  }
+  if (provider === "codex_oauth") {
+    return "Codex OAuth";
+  }
+  if (provider === "local_rules") {
+    return "로컬 규칙";
+  }
+  return provider || "미지정";
+}
+
+function openAiProviderTitle(health: OpenAiProviderHealth) {
+  if (health.status === "openai_insufficient_quota" || health.status === "openai_billing_unavailable") {
+    return "OpenAI 잔액·쿼터 없음";
+  }
+  if (health.status === "openai_auth_invalid") {
+    return "OpenAI 인증 실패";
+  }
+  if (health.status === "openai_provider_disabled") {
+    return "OpenAI 직접 호출 꺼짐";
+  }
+  if (health.status === "missing_api_key") {
+    return "OpenAI API 키 없음";
+  }
+  if (health.status === "key_configured_balance_unverified") {
+    return "OpenAI 키 있음 · 잔액 미확인";
+  }
+  return health.label || koCode(health.status);
+}
+
+function openAiProviderExplanation(health: OpenAiProviderHealth) {
+  if (health.status === "openai_insufficient_quota" || health.status === "openai_billing_unavailable") {
+    return `최근 OpenAI 호출에서 잔액 또는 quota 문제가 감지되어 ${aiProviderLabel(health.fallback_provider)}로 우회한다. 다음 재시도 전까지 사용자가 env를 직접 수정할 필요는 없다.`;
+  }
+  if (health.status === "openai_auth_invalid") {
+    return "OpenAI API 키 인증이 실패했다. 키를 새로 넣기 전까지 OpenAI 직접 호출은 건너뛰고 fallback 경로를 사용한다.";
+  }
+  if (health.status === "missing_api_key") {
+    return "OpenAI API 키가 없으므로 OpenAI 직접 호출은 하지 않는다. Codex OAuth 또는 로컬 규칙 경로로 분석을 계속한다.";
+  }
+  if (health.status === "key_configured_balance_unverified") {
+    return "OpenAI API 키는 감지됐지만 일반 키만으로 남은 잔액 숫자를 확정 조회하지 않는다. 실제 실패가 발생하면 자동으로 캐시하고 fallback으로 분기한다.";
+  }
+  return health.message || "OpenAI provider 상태를 확인한다.";
+}
+
+function openAiProviderTone(health: OpenAiProviderHealth) {
+  if (
+    health.status === "openai_insufficient_quota"
+    || health.status === "openai_billing_unavailable"
+    || health.status === "openai_auth_invalid"
+  ) {
+    return "risk-medium";
+  }
+  if (health.status === "key_configured_balance_unverified" || health.status === "missing_api_key") {
+    return "risk-medium";
+  }
+  return "risk-low";
+}
+
+function optionalTimestamp(value: string) {
+  if (!value) {
+    return "기록 없음";
+  }
+  return value.replace("T", " ").replace("+00:00", " UTC");
+}
+
 function formatPercent(value: number | null | undefined) {
   if (typeof value !== "number" || Number.isNaN(value)) {
     return "미계산";
@@ -1515,6 +1585,21 @@ const DEFAULT_LIVE_AI_INVOCATION_HEALTH: LiveAiInvocationHealth = {
   latest_error_code: "",
   task_health: [],
   next_action: "최근 실제 AI 호출 증거가 없다. 뉴스 AI 배치가 실제로 호출됐는지 확인한다.",
+};
+
+const DEFAULT_OPENAI_PROVIDER_HEALTH: OpenAiProviderHealth = {
+  status: "missing_api_key",
+  label: "OpenAI 키 없음",
+  balance_known: false,
+  balance_check_method: "not_available",
+  remaining_balance_usd: null,
+  api_key_configured: false,
+  admin_api_key_configured: false,
+  last_checked_at: "",
+  next_retry_at: "",
+  fallback_provider: "codex_oauth",
+  local_fallback_provider: "local_rules",
+  message: "OpenAI provider 상태를 아직 읽지 못했다. fallback provider를 사용한다.",
 };
 
 const DEFAULT_BENCHMARK_DRIFT_QUALITY: BenchmarkDriftQuality = {
@@ -2218,6 +2303,7 @@ export default async function DataHealthPage() {
   const qualityAuditSamples = qualityAuditSampleGroups(qualityAudit);
   const newsAiEvalQuality = data.news_ai_eval_quality ?? DEFAULT_NEWS_AI_EVAL_QUALITY;
   const liveAiInvocationHealth = data.live_ai_invocation_health ?? DEFAULT_LIVE_AI_INVOCATION_HEALTH;
+  const openAiProviderHealth = data.openai_provider_health ?? DEFAULT_OPENAI_PROVIDER_HEALTH;
   const benchmarkDriftQuality = data.benchmark_drift_quality ?? DEFAULT_BENCHMARK_DRIFT_QUALITY;
   const portfolioReviewHistory =
     data.portfolio_review_decision_history ?? DEFAULT_PORTFOLIO_REVIEW_DECISION_HISTORY;
@@ -2498,6 +2584,14 @@ export default async function DataHealthPage() {
       href: "#live-ai-invocation-health",
       cta: "실제 호출 보기",
       tone: liveAiInvocationTone(liveAiInvocationHealth),
+    },
+    {
+      label: "OpenAI 잔액",
+      title: openAiProviderTitle(openAiProviderHealth),
+      body: openAiProviderExplanation(openAiProviderHealth),
+      href: "#openai-provider-health",
+      cta: "잔액·fallback 보기",
+      tone: openAiProviderTone(openAiProviderHealth),
     },
     {
       label: "AI 기준 평가",
@@ -3081,6 +3175,61 @@ export default async function DataHealthPage() {
 	        <div className="empty-state">
 	          <strong>다음 조치</strong>
 	          <p>{operationCopy(liveAiInvocationHealth.next_action)}</p>
+	        </div>
+	      </section>
+
+	      <section
+	        className="feature-map-panel reveal delay-1"
+	        id="openai-provider-health"
+	        aria-labelledby="openai-provider-health-title"
+	      >
+	        <div className="section-heading stacked-heading">
+	          <span>OpenAI 잔액·쿼터 상태</span>
+	          <h2 id="openai-provider-health-title">
+	            OpenAI API를 바로 쓸 수 있는지와 실패 시 어떤 경로로 우회하는지 본다.
+	          </h2>
+	        </div>
+	        <p className="board-intro">{openAiProviderExplanation(openAiProviderHealth)}</p>
+	        <div className="status-rail compact-rail">
+	          <article className="rail-cell">
+	            <span>판정</span>
+	            <strong className={`risk-tag ${openAiProviderTone(openAiProviderHealth)}`}>
+	              {openAiProviderTitle(openAiProviderHealth)}
+	            </strong>
+	            <small>{openAiProviderHealth.status}</small>
+	          </article>
+	          <article className="rail-cell">
+	            <span>잔액 숫자</span>
+	            <strong>
+	              {openAiProviderHealth.remaining_balance_usd === null
+	                ? "직접 조회 불가"
+	                : `$${openAiProviderHealth.remaining_balance_usd.toFixed(2)}`}
+	            </strong>
+	            <small>{openAiProviderHealth.balance_check_method}</small>
+	          </article>
+	          <article className="rail-cell">
+	            <span>다음 재시도</span>
+	            <strong>{optionalTimestamp(openAiProviderHealth.next_retry_at)}</strong>
+	            <small>마지막 확인 {optionalTimestamp(openAiProviderHealth.last_checked_at)}</small>
+	          </article>
+	          <article className="rail-cell">
+	            <span>우회 경로</span>
+	            <strong>{aiProviderLabel(openAiProviderHealth.fallback_provider)}</strong>
+	            <small>최종 대체 {aiProviderLabel(openAiProviderHealth.local_fallback_provider)}</small>
+	          </article>
+	          <article className="rail-cell">
+	            <span>Admin 비용 API</span>
+	            <strong>{openAiProviderHealth.admin_api_key_configured ? "설정됨" : "없음"}</strong>
+	            <small>일반 API key와 별도 권한이다.</small>
+	          </article>
+	        </div>
+	        <div className="empty-state">
+	          <strong>분기 원칙</strong>
+	          <p>
+	            화면 요청에서는 OpenAI를 호출하지 않는다. 배치 작업에서 실패가 감지되면 provider health cache에 기록하고,
+	            만료 전까지 OpenAI 직접 호출을 건너뛰어 {aiProviderLabel(openAiProviderHealth.fallback_provider)} 또는{" "}
+	            {aiProviderLabel(openAiProviderHealth.local_fallback_provider)}로 내려간다.
+	          </p>
 	        </div>
 	      </section>
 

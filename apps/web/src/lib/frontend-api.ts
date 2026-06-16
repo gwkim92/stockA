@@ -1,5 +1,6 @@
 import type {
   ApiResponse,
+  AiAgentRegistryData,
   AiEvidenceNeighborhoodData,
   AiEvidenceDetailData,
   AiNewsClusterListData,
@@ -895,6 +896,10 @@ export function getRemediationTickets() {
 
 export function getDataHealth() {
   return fetchFrontendPayload<DataHealthData>("/api/data-health");
+}
+
+export function getAiAgentRegistry() {
+  return fetchFrontendPayload<AiAgentRegistryData>("/api/admin/ai-agents");
 }
 
 export function getStocks() {

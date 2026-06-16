@@ -14,6 +14,11 @@ from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Callable
 
+from stockanalysis.ai_agents.runtime_policy import (
+    AgentRuntimePolicy,
+    build_agent_runtime_policy,
+    resolve_runner_model_name,
+)
 from stockanalysis.ingest.config import RuntimeConfig
 from stockanalysis.ingest.macro.sql import sql_literal
 from stockanalysis.ingest.news.enrichment import (
@@ -45,6 +50,7 @@ from stockanalysis.ingest.sec.sql import (
 DEFAULT_TASK_NAME = "news-rss-ai-extract"
 DEFAULT_PIPELINE_NAME = "event_intelligence_llm_extract"
 DEFAULT_TEMPLATE_VERSION = "2026-05-23-hierarchical-ko-v3"
+DEFAULT_AGENT_KEY = "news_structuring_agent"
 FIXTURE_PROVIDER = "fixture"
 CODEX_OAUTH_PROVIDER = "codex_oauth"
 DEFAULT_MODEL_NAME = "codex-cli-default"
@@ -424,6 +430,13 @@ def run_news_rss_ai_extract(
     if provider == FIXTURE_PROVIDER and execute and not llm_output_json_path and provider_runner is None:
         raise ValueError("--llm-output-json is required when provider=fixture and --execute is used.")
 
+    agent_policy = build_agent_runtime_policy(DEFAULT_AGENT_KEY)
+    model_name = resolve_runner_model_name(
+        requested_provider=provider,
+        requested_model_name=model_name,
+        policy=agent_policy,
+        default_model_name=DEFAULT_MODEL_NAME,
+    )
     target_date = as_of_date or date.today()
     sql_executor = executor or PsqlCommandExecutor.from_config(config)
     candidates = load_news_rss_ai_extraction_candidates(
@@ -433,14 +446,14 @@ def run_news_rss_ai_extract(
     )
     if not execute:
         return {
-            **_empty_summary(as_of_date=target_date, provider=provider, model_name=model_name),
+            **_empty_summary(as_of_date=target_date, provider=provider, model_name=model_name, agent_policy=agent_policy),
             "status": "planned",
             "requested_event_count": len(candidates),
             "planned_event_count": len(candidates),
             "results": [_planned_result(candidate).summary() for candidate in candidates],
         }
     if not candidates:
-        return _empty_summary(as_of_date=target_date, provider=provider, model_name=model_name)
+        return _empty_summary(as_of_date=target_date, provider=provider, model_name=model_name, agent_policy=agent_policy)
 
     run_id = _create_pipeline_run(
         sql_executor,
@@ -455,6 +468,7 @@ def run_news_rss_ai_extract(
             "min_confidence": min_confidence,
             "requested_event_count": len(candidates),
             "offline_batch_only": True,
+            "agent_runtime_policy": agent_policy.as_config_json(),
         },
     )
     inserted = 0
@@ -487,6 +501,7 @@ def run_news_rss_ai_extract(
                     provider=provider,
                     model_name=model_name,
                     prompt_template_id=prompt_template_id,
+                    agent_prompt_version=agent_policy.prompt_version,
                 )
                 existing_artifact_id = lookup_existing_news_ai_candidate_artifact(
                     event_id=candidate.event_id,
@@ -664,6 +679,7 @@ def run_news_rss_ai_extract(
         "run_id": run_id,
         "provider": provider,
         "model_name": model_name,
+        "agent_runtime_policy": agent_policy.as_config_json(),
         "requested_event_count": len(candidates),
         "inserted_artifact_count": inserted,
         "skipped_existing_count": skipped,
@@ -1337,6 +1353,7 @@ def build_news_ai_request_hash(
     provider: str,
     model_name: str,
     prompt_template_id: int,
+    agent_prompt_version: str | None = None,
 ) -> str:
     payload = {
         "event_id": candidate.event_id,
@@ -1346,6 +1363,7 @@ def build_news_ai_request_hash(
         "provider": provider,
         "model_name": model_name,
         "prompt_template_id": prompt_template_id,
+        "agent_prompt_version": agent_prompt_version,
         "schema": DEFAULT_TEMPLATE_VERSION,
     }
     return hashlib.sha256(json.dumps(payload, sort_keys=True).encode("utf-8")).hexdigest()
@@ -1499,7 +1517,13 @@ def _planned_result(candidate: NewsRssAiExtractionCandidate) -> NewsRssAiExtract
     )
 
 
-def _empty_summary(*, as_of_date: date, provider: str, model_name: str) -> dict[str, object]:
+def _empty_summary(
+    *,
+    as_of_date: date,
+    provider: str,
+    model_name: str,
+    agent_policy: AgentRuntimePolicy | None = None,
+) -> dict[str, object]:
     return {
         "report_name": "news_rss_ai_extract",
         "status": "completed",
@@ -1508,6 +1532,7 @@ def _empty_summary(*, as_of_date: date, provider: str, model_name: str) -> dict[
         "run_id": None,
         "provider": provider,
         "model_name": model_name,
+        "agent_runtime_policy": agent_policy.as_config_json() if agent_policy else None,
         "requested_event_count": 0,
         "inserted_artifact_count": 0,
         "skipped_existing_count": 0,

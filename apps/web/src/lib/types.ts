@@ -87,6 +87,88 @@ export type RemediationTicketsData = {
   }>;
 };
 
+export type OpenAiProviderHealth = {
+  status: string;
+  label: string;
+  balance_known: boolean;
+  balance_check_method: string;
+  remaining_balance_usd: number | null;
+  api_key_configured: boolean;
+  admin_api_key_configured: boolean;
+  last_checked_at: string;
+  next_retry_at: string;
+  fallback_provider: string;
+  local_fallback_provider: string;
+  message: string;
+};
+
+export type AiAgentRegistryData = {
+  status: string;
+  report_name: string;
+  agent_count: number;
+  required_agent_count: number;
+  missing_required_agents: string[];
+  primary_providers: string[];
+  fallback_providers: string[];
+  local_fallback_providers: string[];
+  blocked_order_agent_count: number;
+  runtime_policy: {
+    model_editing_enabled: boolean;
+    live_request_invocation_enabled: boolean;
+    batch_invocation_only: boolean;
+    canonical_write_enabled: boolean;
+    broker_submit_allowed: boolean;
+    automatic_order_allowed: boolean;
+    order_boundary: string;
+    primary_api_key_configured: boolean;
+    primary_provider_status: string;
+    primary_provider_fallback_reason: string;
+    openai_billing_status: string;
+    openai_api_disabled: boolean;
+    openai_provider_health: OpenAiProviderHealth;
+    codex_oauth_status: string;
+    configuration_source: string;
+    next_action: string;
+  };
+  agents: Array<{
+    agent_key: string;
+    display_name: string;
+    agent_role: string;
+    owner_domain: string;
+    business_goal: string;
+    default_task_name: string;
+    prompt_version: string;
+    prompt_cache_key: string;
+    output_schema_name: string;
+    model_policy: {
+      primary_provider: string;
+      primary_model: string;
+      fallback_provider: string;
+      fallback_model: string;
+      local_fallback_provider: string;
+      model_tier: string;
+      reasoning_effort: string;
+      max_input_chars: number;
+      max_requests_per_run: number;
+      daily_usd_cap: string;
+    };
+    safety_boundary: {
+      can_write_canonical: boolean;
+      can_trigger_order: boolean;
+      requires_approval_for_side_effects: boolean;
+      order_boundary: string;
+    };
+    runtime_status: {
+      status: string;
+      last_run_status: string;
+      last_run_at: string;
+      latest_provider: string;
+      latest_model: string;
+      latest_error_code: string;
+    };
+  }>;
+};
+
 export type DataHealthData = {
   overall_status: string;
   as_of_date: string;
@@ -405,6 +487,7 @@ export type DataHealthData = {
     }>;
     next_action: string;
   };
+  openai_provider_health: OpenAiProviderHealth;
   benchmark_drift_quality: {
     status: string;
     guardrail_status: string;

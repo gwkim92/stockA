@@ -14,6 +14,11 @@ from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Callable
 
+from stockanalysis.ai_agents.runtime_policy import (
+    AgentRuntimePolicy,
+    build_agent_runtime_policy,
+    resolve_runner_model_name,
+)
 from stockanalysis.ingest.config import RuntimeConfig
 from stockanalysis.ingest.macro.sql import sql_literal
 from stockanalysis.ingest.news.sql import (
@@ -25,6 +30,7 @@ from stockanalysis.ingest.psql import PsqlCommandExecutor
 DEFAULT_TASK_NAME = "news-rss-korean-translation"
 DEFAULT_PIPELINE_NAME = "news_rss_korean_translation"
 DEFAULT_TEMPLATE_VERSION = "2026-06-04-ko-translation-v2"
+DEFAULT_AGENT_KEY = "news_translator_agent"
 FIXTURE_PROVIDER = "fixture"
 CODEX_OAUTH_PROVIDER = "codex_oauth"
 DEFAULT_MODEL_NAME = "codex-cli-default"
@@ -115,6 +121,13 @@ def run_news_rss_translation(
     if provider == FIXTURE_PROVIDER and execute and not llm_output_json_path and provider_runner is None:
         raise ValueError("--llm-output-json is required when provider=fixture and --execute is used.")
 
+    agent_policy = build_agent_runtime_policy(DEFAULT_AGENT_KEY)
+    model_name = resolve_runner_model_name(
+        requested_provider=provider,
+        requested_model_name=model_name,
+        policy=agent_policy,
+        default_model_name=DEFAULT_MODEL_NAME,
+    )
     target_date = as_of_date or date.today()
     sql_executor = executor or PsqlCommandExecutor.from_config(config)
     candidates = load_news_rss_translation_candidates(
@@ -124,14 +137,14 @@ def run_news_rss_translation(
     )
     if not execute:
         return {
-            **_empty_summary(as_of_date=target_date, provider=provider, model_name=model_name),
+            **_empty_summary(as_of_date=target_date, provider=provider, model_name=model_name, agent_policy=agent_policy),
             "status": "planned",
             "requested_document_count": len(candidates),
             "planned_document_count": len(candidates),
             "results": [_planned_result(candidate) for candidate in candidates],
         }
     if not candidates:
-        return _empty_summary(as_of_date=target_date, provider=provider, model_name=model_name)
+        return _empty_summary(as_of_date=target_date, provider=provider, model_name=model_name, agent_policy=agent_policy)
 
     run_id = _create_pipeline_run(
         sql_executor,
@@ -145,6 +158,7 @@ def run_news_rss_translation(
             "max_input_chars": max_input_chars,
             "requested_document_count": len(candidates),
             "offline_batch_only": True,
+            "agent_runtime_policy": agent_policy.as_config_json(),
         },
     )
     prompt_template_id = int(sql_executor.execute_scalar(render_news_translation_prompt_template_upsert_sql()))
@@ -163,6 +177,7 @@ def run_news_rss_translation(
                     provider=provider,
                     model_name=model_name,
                     prompt_template_id=prompt_template_id,
+                    agent_prompt_version=agent_policy.prompt_version,
                 )
                 response = _invoke_provider(
                     candidate,
@@ -286,6 +301,7 @@ def run_news_rss_translation(
         "run_id": run_id,
         "provider": provider,
         "model_name": model_name,
+        "agent_runtime_policy": agent_policy.as_config_json(),
         "requested_document_count": len(candidates),
         "updated_document_count": updated,
         "failed_document_count": failed,
@@ -346,6 +362,7 @@ def build_news_translation_request_hash(
     provider: str,
     model_name: str,
     prompt_template_id: int,
+    agent_prompt_version: str | None = None,
 ) -> str:
     payload = {
         "document_id": candidate.document_id,
@@ -354,6 +371,7 @@ def build_news_translation_request_hash(
         "provider": provider,
         "model_name": model_name,
         "prompt_template_id": prompt_template_id,
+        "agent_prompt_version": agent_prompt_version,
         "schema": DEFAULT_TEMPLATE_VERSION,
     }
     return hashlib.sha256(json.dumps(payload, sort_keys=True).encode("utf-8")).hexdigest()
@@ -846,7 +864,13 @@ where run_id = {run_id};"""
         return
 
 
-def _empty_summary(*, as_of_date: date, provider: str, model_name: str) -> dict[str, object]:
+def _empty_summary(
+    *,
+    as_of_date: date,
+    provider: str,
+    model_name: str,
+    agent_policy: AgentRuntimePolicy | None = None,
+) -> dict[str, object]:
     return {
         "report_name": "news_rss_korean_translation",
         "status": "completed",
@@ -855,6 +879,7 @@ def _empty_summary(*, as_of_date: date, provider: str, model_name: str) -> dict[
         "run_id": None,
         "provider": provider,
         "model_name": model_name,
+        "agent_runtime_policy": agent_policy.as_config_json() if agent_policy else None,
         "requested_document_count": 0,
         "updated_document_count": 0,
         "failed_document_count": 0,

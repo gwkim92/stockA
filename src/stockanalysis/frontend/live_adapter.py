@@ -24,6 +24,8 @@ from stockanalysis.operations.market_price_free_backfill import (
 )
 from stockanalysis.operations.manual_local_ingest_smoke import load_manual_local_ingest_smoke_visibility_report
 from stockanalysis.operations.local_ingest_worker import load_local_ingest_worker_visibility_report
+from stockanalysis.operations.ai_agent_registry import build_ai_agent_registry_report
+from stockanalysis.ai_agents.provider_health import build_openai_provider_health_visibility
 from stockanalysis.frontend.pagination import (
     MAX_PAGE_LIMIT,
     apply_frontend_pagination,
@@ -274,6 +276,11 @@ def resolve_live_frontend_response(
                 generated_at=generated_at_text,
             ),
         )
+    if parsed.path == "/api/admin/ai-agents":
+        return apply_frontend_pagination(
+            api_path,
+            build_live_ai_agent_registry_response(generated_at=generated_at_text),
+        )
     if parsed.path == "/api/stocks":
         return apply_frontend_sql_pagination(
             api_path,
@@ -478,6 +485,145 @@ def parse_api_path(api_path: str) -> ParsedApiPath:
         if values:
             query[key] = values[-1]
     return ParsedApiPath(path=parsed.path, query=query)
+
+
+def build_live_ai_agent_registry_response(*, generated_at: str) -> dict[str, Any]:
+    report = build_ai_agent_registry_report(include_prompts=False)
+    agents: list[dict[str, Any]] = []
+    primary_providers: set[str] = set()
+    fallback_providers: set[str] = set()
+    local_fallback_providers: set[str] = set()
+    blocked_order_count = 0
+
+    for raw_agent in _as_list(report.get("agents")):
+        agent = _as_dict(raw_agent)
+        model_policy = _as_dict(agent.get("model_policy"))
+        safety_boundary = _as_dict(agent.get("safety_boundary"))
+        primary_provider = str(model_policy.get("primary_provider") or "")
+        fallback_provider = str(model_policy.get("fallback_provider") or "")
+        local_fallback_provider = str(model_policy.get("local_fallback_provider") or "")
+        if primary_provider:
+            primary_providers.add(primary_provider)
+        if fallback_provider:
+            fallback_providers.add(fallback_provider)
+        if local_fallback_provider:
+            local_fallback_providers.add(local_fallback_provider)
+        if not bool(safety_boundary.get("can_trigger_order")):
+            blocked_order_count += 1
+
+        agents.append(
+            {
+                "agent_key": str(agent.get("agent_key") or ""),
+                "display_name": str(agent.get("display_name") or ""),
+                "agent_role": str(agent.get("agent_role") or ""),
+                "owner_domain": str(agent.get("owner_domain") or ""),
+                "business_goal": str(agent.get("business_goal") or ""),
+                "default_task_name": str(agent.get("default_task_name") or ""),
+                "prompt_version": str(agent.get("prompt_version") or ""),
+                "prompt_cache_key": str(agent.get("prompt_cache_key") or ""),
+                "output_schema_name": str(agent.get("output_schema_name") or ""),
+                "model_policy": {
+                    "primary_provider": primary_provider,
+                    "primary_model": str(model_policy.get("primary_model") or ""),
+                    "fallback_provider": fallback_provider,
+                    "fallback_model": str(model_policy.get("fallback_model") or ""),
+                    "local_fallback_provider": local_fallback_provider,
+                    "model_tier": str(model_policy.get("model_tier") or ""),
+                    "reasoning_effort": str(model_policy.get("reasoning_effort") or ""),
+                    "max_input_chars": int(model_policy.get("max_input_chars") or 0),
+                    "max_requests_per_run": int(model_policy.get("max_requests_per_run") or 0),
+                    "daily_usd_cap": str(model_policy.get("daily_usd_cap") or "0.000000"),
+                },
+                "safety_boundary": {
+                    "can_write_canonical": bool(safety_boundary.get("can_write_canonical")),
+                    "can_trigger_order": bool(safety_boundary.get("can_trigger_order")),
+                    "requires_approval_for_side_effects": bool(
+                        safety_boundary.get("requires_approval_for_side_effects", True)
+                    ),
+                    "order_boundary": str(safety_boundary.get("order_boundary") or "read_only_no_order"),
+                },
+                "runtime_status": {
+                    "status": "policy_registered",
+                    "last_run_status": "not_loaded_in_this_view",
+                    "last_run_at": "",
+                    "latest_provider": "",
+                    "latest_model": "",
+                    "latest_error_code": "",
+                },
+            }
+        )
+
+    openai_provider_health = build_openai_provider_health_visibility(os.environ)
+    openai_api_key_configured = bool(openai_provider_health.get("api_key_configured"))
+    openai_billing_status = os.environ.get("STOCKANALYSIS_OPENAI_BILLING_STATUS", "").strip() or "not_configured"
+    openai_api_disabled = str(os.environ.get("STOCKANALYSIS_DISABLE_OPENAI_API", "")).strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+    provider_health_status = str(openai_provider_health.get("status") or "")
+    if provider_health_status in {"openai_insufficient_quota", "openai_billing_unavailable"}:
+        primary_provider_status = "known_billing_unavailable"
+        primary_provider_fallback_reason = str(openai_provider_health.get("message") or "") or (
+            "OpenAI 잔액 또는 quota가 없는 상태로 캐시되어 fallback provider를 사용한다."
+        )
+    elif provider_health_status == "openai_auth_invalid":
+        primary_provider_status = "auth_invalid"
+        primary_provider_fallback_reason = str(openai_provider_health.get("message") or "") or (
+            "OpenAI API 인증이 실패해 fallback provider를 사용한다."
+        )
+    elif openai_api_disabled:
+        primary_provider_status = "disabled_by_runtime_flag"
+        primary_provider_fallback_reason = "OpenAI API 호출이 운영 플래그로 차단되어 fallback provider를 사용한다."
+    elif openai_billing_status.lower() in {"known_zero_balance", "zero_balance", "no_balance", "insufficient_quota"}:
+        primary_provider_status = "known_billing_unavailable"
+        primary_provider_fallback_reason = "OpenAI 잔액 또는 quota가 없는 상태로 표시되어 fallback provider를 사용한다."
+    elif openai_api_key_configured:
+        primary_provider_status = "key_configured_billing_unchecked"
+        primary_provider_fallback_reason = "API key는 있지만 이 화면에서는 잔액을 실시간 확인하지 않는다."
+    else:
+        primary_provider_status = "missing_api_key"
+        primary_provider_fallback_reason = "OpenAI API key가 없어 Codex OAuth 또는 로컬 규칙 fallback을 사용한다."
+
+    return {
+        "contract_version": CONTRACT_VERSION,
+        "generated_at": generated_at,
+        "data": {
+            "status": str(report.get("status") or "loaded"),
+            "report_name": str(report.get("report_name") or "ai_agent_registry"),
+            "agent_count": int(report.get("agent_count") or len(agents)),
+            "required_agent_count": int(report.get("required_agent_count") or len(agents)),
+            "missing_required_agents": list(_as_list(report.get("missing_required_agents"))),
+            "primary_providers": sorted(primary_providers),
+            "fallback_providers": sorted(fallback_providers),
+            "local_fallback_providers": sorted(local_fallback_providers),
+            "blocked_order_agent_count": blocked_order_count,
+            "runtime_policy": {
+                "model_editing_enabled": False,
+                "live_request_invocation_enabled": False,
+                "batch_invocation_only": True,
+                "canonical_write_enabled": False,
+                "broker_submit_allowed": False,
+                "automatic_order_allowed": False,
+                "order_boundary": "read_only_no_order",
+                "primary_api_key_configured": openai_api_key_configured,
+                "primary_provider_status": primary_provider_status,
+                "primary_provider_fallback_reason": primary_provider_fallback_reason,
+                "openai_billing_status": openai_billing_status,
+                "openai_api_disabled": openai_api_disabled,
+                "openai_provider_health": openai_provider_health,
+                "codex_oauth_status": "not_checked_by_request",
+                "configuration_source": "python_catalog_and_db_seed",
+                "next_action": "모델 변경 UI는 별도 감사 로그와 승인 경계가 붙은 후에만 활성화한다.",
+            },
+            "agents": agents,
+        },
+        "links": {
+            "data_health": "/api/data-health",
+            "agent_registry": "/api/admin/ai-agents",
+        },
+    }
 
 
 def build_live_dashboard_response(
@@ -1304,6 +1450,7 @@ def build_live_data_health_response(
     live_ai_invocation_health = _build_live_ai_invocation_health_payload(
         _as_dict(state.get("live_ai_invocation_health"))
     )
+    openai_provider_health = build_openai_provider_health_visibility(os.environ)
     active_recommendation_price_freshness = _build_active_recommendation_price_freshness_payload(
         _as_dict(state.get("active_recommendation_price_freshness"))
     )
@@ -1532,6 +1679,7 @@ def build_live_data_health_response(
             "cycle_ai_quality_audit": cycle_ai_quality_audit,
             "news_ai_eval_quality": news_ai_eval_quality,
             "live_ai_invocation_health": live_ai_invocation_health,
+            "openai_provider_health": openai_provider_health,
             "active_recommendation_price_freshness": active_recommendation_price_freshness,
             "cross_asset_market_regime": cross_asset_market_regime,
             "benchmark_drift_quality": benchmark_drift_quality,
@@ -4647,6 +4795,7 @@ def is_live_supported_path(api_path: str) -> bool:
         in {
             "/api/dashboard/today",
             "/api/data-health",
+            "/api/admin/ai-agents",
             "/api/stocks",
             "/api/paper-trading/preview",
             "/api/trading/readiness",

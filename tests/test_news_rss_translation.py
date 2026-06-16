@@ -18,6 +18,7 @@ from stockanalysis.ingest.news.translation import (
     build_codex_oauth_news_translation_prompt,
     build_news_translation_provider_response_from_payload,
     build_news_translation_input,
+    build_news_translation_request_hash,
     parse_news_translation_output,
     run_news_rss_translation,
     validate_news_translation_output_grounding,
@@ -421,9 +422,35 @@ class NewsRssTranslationTests(unittest.TestCase):
 
         self.assertEqual(report["status"], "completed")
         self.assertEqual(report["updated_document_count"], 1)
+        self.assertEqual(report["agent_runtime_policy"]["agent_key"], "news_translator_agent")
+        self.assertEqual(report["agent_runtime_policy"]["agent_order_boundary"], "read_only_no_order")
         self.assertTrue(any("insert into ai.model_invocation" in sql for sql in executor.scalar_sql))
+        self.assertTrue(any('"agent_key": "news_translator_agent"' in sql for sql in executor.scalar_sql))
         self.assertTrue(any("update ingest.source_document" in sql for sql in executor.scalar_sql))
         self.assertTrue(any("status = 'succeeded'" in sql for sql in executor.non_query_sql))
+
+    def test_translation_request_hash_includes_agent_prompt_version(self) -> None:
+        candidate = _candidate()
+        bounded_text = build_news_translation_input(candidate, max_input_chars=4000)
+
+        first = build_news_translation_request_hash(
+            candidate=candidate,
+            bounded_text=bounded_text,
+            provider=CODEX_OAUTH_PROVIDER,
+            model_name="codex-cli-default",
+            prompt_template_id=7,
+            agent_prompt_version="agent-prompt-v1",
+        )
+        second = build_news_translation_request_hash(
+            candidate=candidate,
+            bounded_text=bounded_text,
+            provider=CODEX_OAUTH_PROVIDER,
+            model_name="codex-cli-default",
+            prompt_template_id=7,
+            agent_prompt_version="agent-prompt-v2",
+        )
+
+        self.assertNotEqual(first, second)
 
 
 def _candidate() -> NewsRssTranslationCandidate:

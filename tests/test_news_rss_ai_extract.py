@@ -16,6 +16,7 @@ from stockanalysis.ingest.news.ai_extract import (
     _diagnostic_excerpt,
     build_codex_oauth_news_ai_prompt,
     build_codex_oauth_news_ai_output_schema,
+    build_news_ai_request_hash,
     build_news_ai_provider_response_from_payload,
     invoke_codex_oauth_news_ai_provider,
     is_news_ai_candidate_quality_eligible,
@@ -722,6 +723,8 @@ class NewsRssAiExtractTests(unittest.TestCase):
         )
 
         self.assertEqual(summary["status"], "completed_with_fallback")
+        self.assertEqual(summary["agent_runtime_policy"]["agent_key"], "news_structuring_agent")
+        self.assertEqual(summary["agent_runtime_policy"]["agent_order_boundary"], "read_only_no_order")
         self.assertEqual(summary["failed_candidate_count"], 1)
         self.assertEqual(summary["inserted_artifact_count"], 0)
         self.assertTrue(
@@ -732,6 +735,49 @@ class NewsRssAiExtractTests(unittest.TestCase):
             any("review ai.model_invocation errors" in sql for sql in executor.non_query_sql),
             executor.non_query_sql,
         )
+        self.assertTrue(any('"agent_key": "news_structuring_agent"' in sql for sql in executor.scalar_sql))
+
+    def test_news_ai_request_hash_includes_agent_prompt_version(self) -> None:
+        candidate = NewsRssAiExtractionCandidate(
+            event_id=101,
+            document_id=501,
+            title="Nvidia H200 China deal survived the summit",
+            summary="GPU export path stays open.",
+            event_at="2026-05-19T10:02:40+00:00",
+            source_name="rss_news:ai-semiconductor-cycle",
+            external_document_id="rss:ai-semiconductor-cycle:abc",
+            source_url="https://example.test/nvda",
+            existing_theme_code="AI_SEMICONDUCTOR_CYCLE",
+            existing_instrument_symbol="NVDA",
+        )
+        chunk = NewsAiDocumentChunk(
+            document_id=501,
+            chunk_index=9000,
+            content_hash="abc123",
+            text_preview="Nvidia H200 China deal",
+            token_count=10,
+            chunk_metadata={},
+            text="Nvidia H200 China deal survived the summit.",
+        )
+
+        first = build_news_ai_request_hash(
+            candidate=candidate,
+            chunk=chunk,
+            provider="codex_oauth",
+            model_name="codex-cli-default",
+            prompt_template_id=7,
+            agent_prompt_version="agent-prompt-v1",
+        )
+        second = build_news_ai_request_hash(
+            candidate=candidate,
+            chunk=chunk,
+            provider="codex_oauth",
+            model_name="codex-cli-default",
+            prompt_template_id=7,
+            agent_prompt_version="agent-prompt-v2",
+        )
+
+        self.assertNotEqual(first, second)
 
     def test_run_news_ai_extract_skips_existing_request_hash(self) -> None:
         executor = FakeExecutor(existing_artifact_id=9901)

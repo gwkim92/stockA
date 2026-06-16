@@ -5699,6 +5699,38 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertEqual(live_ai["latest_unhealthy_count"], 0)
         self.assertNotIn("live_ai_invocation_health_attention", payload["data"]["open_gates"])
 
+    def test_live_data_health_response_exposes_cached_openai_provider_health(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            health_path = Path(tmpdir) / "ai-provider-health.json"
+            health_path.write_text(
+                json.dumps(
+                    {
+                        "provider": "agents_sdk_openai",
+                        "status": "fallback_required",
+                        "error_code": "openai_billing_unavailable",
+                        "message": "OpenAI billing is unavailable.",
+                        "last_checked_at": "2026-06-16T00:00:00+00:00",
+                        "next_retry_at": "2999-01-01T00:00:00+00:00",
+                        "fallback_provider": "codex_oauth",
+                        "local_fallback_provider": "local_rules",
+                    }
+                ),
+                encoding="utf-8",
+            )
+            with patch.dict("os.environ", {"STOCKANALYSIS_AI_PROVIDER_HEALTH_PATH": str(health_path)}):
+                payload = resolve_live_frontend_response(
+                    "/api/data-health",
+                    config=type("Config", (), {"psql_command": "psql"})(),
+                    executor=FakeLiveExecutor(),
+                    generated_at=datetime(2026, 5, 1, tzinfo=timezone.utc),
+                )
+
+        provider_health = payload["data"]["openai_provider_health"]
+        self.assertEqual(provider_health["status"], "openai_billing_unavailable")
+        self.assertEqual(provider_health["fallback_provider"], "codex_oauth")
+        self.assertFalse(provider_health["balance_known"])
+        self.assertNotIn("openai_provider_health_attention", payload["data"]["open_gates"])
+
     def test_live_data_health_response_includes_sanitized_scheduler_activation_gate(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             report = Path(tmpdir) / "pending-approval-gate.json"
@@ -8184,6 +8216,74 @@ class FrontendLiveAdapterTests(unittest.TestCase):
                 config=type("Config", (), {"psql_command": "psql"})(),
                 executor=FakeLiveExecutor(),
             )
+
+    def test_live_adapter_returns_read_only_ai_agent_registry(self) -> None:
+        payload = resolve_live_frontend_response(
+            "/api/admin/ai-agents",
+            config=type("Config", (), {"psql_command": "psql"})(),
+            executor=FakeLiveExecutor(),
+        )
+
+        data = payload["data"]
+        self.assertEqual(data["status"], "loaded")
+        self.assertGreaterEqual(data["agent_count"], 13)
+        self.assertIn("agents_sdk_openai", data["primary_providers"])
+        self.assertIn("codex_oauth", data["fallback_providers"])
+        self.assertIn("local_rules", data["local_fallback_providers"])
+        self.assertEqual(data["blocked_order_agent_count"], data["agent_count"])
+        self.assertFalse(data["runtime_policy"]["model_editing_enabled"])
+        self.assertFalse(data["runtime_policy"]["broker_submit_allowed"])
+        self.assertEqual(data["runtime_policy"]["order_boundary"], "read_only_no_order")
+        self.assertIn("primary_provider_status", data["runtime_policy"])
+        self.assertTrue(is_live_supported_path("/api/admin/ai-agents"))
+
+        first_agent = data["agents"][0]
+        self.assertIn("model_policy", first_agent)
+        self.assertEqual(first_agent["safety_boundary"]["order_boundary"], "read_only_no_order")
+        self.assertFalse(first_agent["safety_boundary"]["can_trigger_order"])
+
+    def test_live_adapter_ai_agent_registry_marks_known_zero_balance(self) -> None:
+        with patch.dict("os.environ", {"STOCKANALYSIS_OPENAI_BILLING_STATUS": "known_zero_balance"}):
+            payload = resolve_live_frontend_response(
+                "/api/admin/ai-agents",
+                config=type("Config", (), {"psql_command": "psql"})(),
+                executor=FakeLiveExecutor(),
+            )
+
+        runtime_policy = payload["data"]["runtime_policy"]
+        self.assertEqual(runtime_policy["primary_provider_status"], "known_billing_unavailable")
+        self.assertEqual(runtime_policy["openai_billing_status"], "known_zero_balance")
+        self.assertIn("fallback", runtime_policy["primary_provider_fallback_reason"])
+
+    def test_live_adapter_ai_agent_registry_reads_cached_provider_health(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            health_path = Path(tmpdir) / "ai-provider-health.json"
+            health_path.write_text(
+                json.dumps(
+                    {
+                        "provider": "agents_sdk_openai",
+                        "status": "fallback_required",
+                        "error_code": "openai_insufficient_quota",
+                        "message": "OpenAI quota is exhausted.",
+                        "last_checked_at": "2026-06-16T00:00:00+00:00",
+                        "next_retry_at": "2999-01-01T00:00:00+00:00",
+                        "fallback_provider": "codex_oauth",
+                        "local_fallback_provider": "local_rules",
+                    }
+                ),
+                encoding="utf-8",
+            )
+            with patch.dict("os.environ", {"STOCKANALYSIS_AI_PROVIDER_HEALTH_PATH": str(health_path)}):
+                payload = resolve_live_frontend_response(
+                    "/api/admin/ai-agents",
+                    config=type("Config", (), {"psql_command": "psql"})(),
+                    executor=FakeLiveExecutor(),
+                )
+
+        runtime_policy = payload["data"]["runtime_policy"]
+        self.assertEqual(runtime_policy["primary_provider_status"], "known_billing_unavailable")
+        self.assertEqual(runtime_policy["openai_provider_health"]["status"], "openai_insufficient_quota")
+        self.assertEqual(runtime_policy["openai_provider_health"]["fallback_provider"], "codex_oauth")
 
     def test_live_adapter_requires_psql_command_without_injected_executor(self) -> None:
         with self.assertRaises(FrontendLiveUnavailableError):
