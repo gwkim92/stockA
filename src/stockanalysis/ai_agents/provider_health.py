@@ -7,6 +7,8 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Mapping
 
+from stockanalysis.ai_agents.openai_costs import load_cached_openai_cost_status
+
 
 AI_PROVIDER_HEALTH_PATH_ENV = "STOCKANALYSIS_AI_PROVIDER_HEALTH_PATH"
 OPENAI_HEALTH_TTL_SECONDS_ENV = "STOCKANALYSIS_OPENAI_HEALTH_TTL_SECONDS"
@@ -113,6 +115,7 @@ def build_openai_provider_health_visibility(env: Mapping[str, str] | None = None
     cached = load_cached_openai_provider_block(env=env_mapping)
     api_key_configured = bool(str(env_mapping.get("OPENAI_API_KEY") or "").strip())
     admin_key_configured = bool(str(env_mapping.get(OPENAI_ADMIN_API_KEY_ENV) or "").strip())
+    cost_status = load_cached_openai_cost_status(env_mapping)
     if cached is not None:
         return {
             "status": cached.error_code,
@@ -127,6 +130,7 @@ def build_openai_provider_health_visibility(env: Mapping[str, str] | None = None
             "fallback_provider": cached.fallback_provider,
             "local_fallback_provider": cached.local_fallback_provider,
             "message": cached.message,
+            "cost_status": cost_status,
         }
     if not api_key_configured:
         return {
@@ -142,10 +146,21 @@ def build_openai_provider_health_visibility(env: Mapping[str, str] | None = None
             "fallback_provider": "codex_oauth",
             "local_fallback_provider": "local_rules",
             "message": "OpenAI API key가 없어 fallback provider를 사용한다.",
+            "cost_status": cost_status,
         }
+    label = "비용 조회됨" if cost_status.get("status") == "costs_available" else "잔액 미확인"
+    message = (
+        "OpenAI API key와 Admin key가 설정됐고, Admin Costs API에서 최근 비용을 조회했다. "
+        "남은 잔액은 공식 Costs API가 반환하지 않으므로 Billing Overview에서 확인한다."
+        if cost_status.get("status") == "costs_available"
+        else (
+            "일반 API key만으로 남은 잔액을 확정 조회하지 않는다. "
+            "Admin Costs API batch를 실행하면 최근 비용은 화면에 표시한다."
+        )
+    )
     return {
         "status": "key_configured_balance_unverified",
-        "label": "잔액 미확인",
+        "label": label,
         "balance_known": False,
         "balance_check_method": "admin_costs_api_required_or_provider_error_cache",
         "remaining_balance_usd": None,
@@ -155,10 +170,8 @@ def build_openai_provider_health_visibility(env: Mapping[str, str] | None = None
         "next_retry_at": "",
         "fallback_provider": "codex_oauth",
         "local_fallback_provider": "local_rules",
-        "message": (
-            "일반 API key만으로 남은 잔액을 확정 조회하지 않는다. "
-            "Admin API costs 조회 또는 실제 provider 실패 캐시로 상태를 판단한다."
-        ),
+        "message": message,
+        "cost_status": cost_status,
     }
 
 

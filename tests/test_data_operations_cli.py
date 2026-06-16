@@ -7,6 +7,7 @@ import unittest
 from datetime import date
 from decimal import Decimal
 from pathlib import Path
+from urllib.error import HTTPError
 from unittest.mock import patch
 
 from stockanalysis.operations.cli import main
@@ -75,6 +76,116 @@ class DataOperationsCliTests(unittest.TestCase):
         self.assertTrue(payload["fallback_required"])
         self.assertEqual(payload["health"]["fallback_provider"], "codex_oauth")
         self.assertFalse(payload["health"]["balance_known"])
+
+    def test_openai_admin_cost_refresh_run_writes_secret_free_cost_artifact(self) -> None:
+        class FakeResponse:
+            def read(self) -> bytes:
+                return json.dumps(
+                    {
+                        "object": "page",
+                        "data": [
+                            {
+                                "object": "bucket",
+                                "start_time": 1_735_689_600,
+                                "end_time": 1_735_776_000,
+                                "results": [
+                                    {
+                                        "object": "organization.costs.result",
+                                        "amount": {"value": 0.06, "currency": "usd"},
+                                    }
+                                ],
+                            }
+                        ],
+                        "has_more": False,
+                    }
+                ).encode("utf-8")
+
+        with tempfile.TemporaryDirectory() as repo_root, tempfile.TemporaryDirectory() as runtime_root:
+            env_file = Path(runtime_root) / "frontend-api.env"
+            output_file = Path(runtime_root) / "openai-cost-status.json"
+            env_file.write_text(
+                "\n".join(
+                    (
+                        'OPENAI_ADMIN_API_KEY="sk-admin-test-do-not-print"',
+                        f'STOCKANALYSIS_OPENAI_COST_STATUS_PATH="{output_file}"',
+                    )
+                ),
+                encoding="utf-8",
+            )
+            stdout = io.StringIO()
+
+            with patch("stockanalysis.ai_agents.openai_costs.urllib.request.urlopen", return_value=FakeResponse()):
+                exit_code = main(
+                    [
+                        "openai-admin-cost-refresh-run",
+                        "--repo-root",
+                        repo_root,
+                        "--env-file",
+                        str(env_file),
+                        "--lookback-days",
+                        "7",
+                        "--execute",
+                    ],
+                    stdout=stdout,
+                )
+
+            self.assertEqual(exit_code, 0)
+            output = stdout.getvalue()
+            self.assertNotIn("sk-admin-test-do-not-print", output)
+            self.assertEqual(Path(output.strip()).resolve(), output_file.resolve())
+            payload = json.loads(output_file.read_text(encoding="utf-8"))
+            self.assertEqual(payload["report_name"], "openai_admin_cost_status")
+            self.assertEqual(payload["status"], "costs_available")
+            self.assertTrue(payload["cost_known"])
+            self.assertEqual(payload["total_cost_usd"], 0.06)
+            self.assertEqual(payload["latest_day_cost_usd"], 0.06)
+            self.assertTrue(payload["secret_free"])
+            self.assertNotIn("sk-admin-test-do-not-print", output_file.read_text(encoding="utf-8"))
+
+    def test_openai_admin_cost_refresh_run_classifies_auth_failure_without_secret_leak(self) -> None:
+        with tempfile.TemporaryDirectory() as repo_root, tempfile.TemporaryDirectory() as runtime_root:
+            env_file = Path(runtime_root) / "frontend-api.env"
+            output_file = Path(runtime_root) / "openai-cost-status.json"
+            env_file.write_text(
+                "\n".join(
+                    (
+                        'OPENAI_ADMIN_API_KEY="sk-admin-test-do-not-print"',
+                        f'STOCKANALYSIS_OPENAI_COST_STATUS_PATH="{output_file}"',
+                    )
+                ),
+                encoding="utf-8",
+            )
+            stdout = io.StringIO()
+            error = HTTPError(
+                url="https://api.openai.com/v1/organization/costs",
+                code=403,
+                msg="Forbidden",
+                hdrs=None,
+                fp=None,
+            )
+
+            with patch("stockanalysis.ai_agents.openai_costs.urllib.request.urlopen", side_effect=error):
+                exit_code = main(
+                    [
+                        "openai-admin-cost-refresh-run",
+                        "--repo-root",
+                        repo_root,
+                        "--env-file",
+                        str(env_file),
+                        "--execute",
+                    ],
+                    stdout=stdout,
+                )
+
+            self.assertEqual(exit_code, 1)
+            output = stdout.getvalue()
+            self.assertNotIn("sk-admin-test-do-not-print", output)
+            self.assertEqual(Path(output.strip()).resolve(), output_file.resolve())
+            payload = json.loads(output_file.read_text(encoding="utf-8"))
+            self.assertEqual(payload["status"], "admin_auth_failed")
+            self.assertEqual(payload["error_code"], "admin_api_key_rejected")
+            self.assertFalse(payload["cost_known"])
+            self.assertTrue(payload["secret_free"])
 
     def test_correlation_analysis_run_command_passes_lookbacks_and_guardrails(self) -> None:
         with tempfile.TemporaryDirectory() as repo_root, tempfile.TemporaryDirectory() as outside_root:

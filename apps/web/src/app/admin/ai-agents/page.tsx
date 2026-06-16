@@ -74,6 +74,13 @@ function formatUsdCap(value: string) {
   return `$${parsed.toFixed(2)}/일`;
 }
 
+function formatUsdAmount(value: number | null) {
+  if (typeof value !== "number" || Number.isNaN(value)) {
+    return "미조회";
+  }
+  return `$${value.toFixed(2)}`;
+}
+
 function providerSummary(data: AiAgentRegistryData) {
   return [
     `1차 ${data.primary_providers.map(providerLabel).join(", ") || "미지정"}`,
@@ -231,15 +238,29 @@ export default async function AiAgentAdminPage() {
         </div>
         <div className="decision-brief-grid">
           <div className="decision-card is-watch">
-            <span>잔액 숫자</span>
+            <span>남은 잔액</span>
             <strong>
               {data.runtime_policy.openai_provider_health.remaining_balance_usd === null
-                ? "직접 조회 불가"
+                ? "공식 API 없음"
                 : `$${data.runtime_policy.openai_provider_health.remaining_balance_usd.toFixed(2)}`}
             </strong>
             <small>
-              일반 API key로는 남은 잔액을 이 화면에서 확정하지 않는다. Admin Costs API key가 있으면 비용 조회를 별도
-              배치로 붙인다.
+              Admin Costs API는 사용 비용을 반환한다. 실제 prepaid 잔액은 Billing Overview에서 확인한다.
+            </small>
+          </div>
+          <div className="decision-card is-good">
+            <span>최근 비용</span>
+            <strong>{formatUsdAmount(data.runtime_policy.openai_provider_health.cost_status.total_cost_usd)}</strong>
+            <small>
+              최근 {data.runtime_policy.openai_provider_health.cost_status.lookback_days}일 · 상태{" "}
+              {data.runtime_policy.openai_provider_health.cost_status.status}
+            </small>
+          </div>
+          <div className="decision-card is-watch">
+            <span>최근 1일 비용</span>
+            <strong>{formatUsdAmount(data.runtime_policy.openai_provider_health.cost_status.latest_day_cost_usd)}</strong>
+            <small>
+              조회 {formatOptionalDate(data.runtime_policy.openai_provider_health.cost_status.last_checked_at)}
             </small>
           </div>
           <div className="decision-card is-good">
@@ -255,7 +276,7 @@ export default async function AiAgentAdminPage() {
           <div className="decision-card is-watch">
             <span>Admin key</span>
             <strong>{data.runtime_policy.openai_provider_health.admin_api_key_configured ? "설정됨" : "없음"}</strong>
-            <small>조직 비용 API 조회가 필요하면 일반 key가 아니라 Admin API key가 별도로 필요하다.</small>
+            <small>{data.runtime_policy.openai_provider_health.cost_status.message}</small>
           </div>
         </div>
       </section>

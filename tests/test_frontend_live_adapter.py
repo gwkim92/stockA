@@ -5731,6 +5731,53 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertFalse(provider_health["balance_known"])
         self.assertNotIn("openai_provider_health_attention", payload["data"]["open_gates"])
 
+    def test_live_data_health_response_exposes_cached_openai_admin_cost_status(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cost_path = Path(tmpdir) / "openai-cost-status.json"
+            cost_path.write_text(
+                json.dumps(
+                    {
+                        "report_name": "openai_admin_cost_status",
+                        "status": "costs_available",
+                        "cost_known": True,
+                        "admin_api_key_configured": True,
+                        "lookback_days": 7,
+                        "total_cost_usd": 0.12,
+                        "latest_day_cost_usd": 0.03,
+                        "currency": "usd",
+                        "period_start": "2026-06-09",
+                        "period_end": "2026-06-16",
+                        "last_checked_at": "2026-06-16T00:00:00+00:00",
+                        "message": "OpenAI Admin Costs API에서 최근 비용을 조회했다.",
+                        "secret_free": True,
+                    }
+                ),
+                encoding="utf-8",
+            )
+            with patch.dict(
+                "os.environ",
+                {
+                    "OPENAI_API_KEY": "sk-test-do-not-print",
+                    "OPENAI_ADMIN_API_KEY": "sk-admin-test-do-not-print",
+                    "STOCKANALYSIS_OPENAI_COST_STATUS_PATH": str(cost_path),
+                },
+            ):
+                payload = resolve_live_frontend_response(
+                    "/api/data-health",
+                    config=type("Config", (), {"psql_command": "psql"})(),
+                    executor=FakeLiveExecutor(),
+                    generated_at=datetime(2026, 5, 1, tzinfo=timezone.utc),
+                )
+
+        provider_health = payload["data"]["openai_provider_health"]
+        self.assertEqual(provider_health["status"], "key_configured_balance_unverified")
+        self.assertEqual(provider_health["label"], "비용 조회됨")
+        self.assertTrue(provider_health["admin_api_key_configured"])
+        self.assertEqual(provider_health["cost_status"]["status"], "costs_available")
+        self.assertEqual(provider_health["cost_status"]["total_cost_usd"], 0.12)
+        self.assertEqual(provider_health["cost_status"]["latest_day_cost_usd"], 0.03)
+        self.assertIsNone(provider_health["remaining_balance_usd"])
+
     def test_live_data_health_response_includes_sanitized_scheduler_activation_gate(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             report = Path(tmpdir) / "pending-approval-gate.json"

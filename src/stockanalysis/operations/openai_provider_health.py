@@ -10,6 +10,7 @@ def build_openai_provider_health_report(env: Mapping[str, str] | None = None) ->
     env_mapping = env if env is not None else os.environ
     health = build_openai_provider_health_visibility(env_mapping)
     status = str(health.get("status") or "unknown")
+    cost_status = health.get("cost_status") if isinstance(health.get("cost_status"), Mapping) else {}
     return {
         "report_name": "openai_provider_health",
         "status": status,
@@ -24,11 +25,11 @@ def build_openai_provider_health_report(env: Mapping[str, str] | None = None) ->
             "missing_api_key",
         },
         "secret_free": True,
-        "next_action": _next_action(status),
+        "next_action": _next_action(status, str(cost_status.get("status") or "")),
     }
 
 
-def _next_action(status: str) -> str:
+def _next_action(status: str, cost_status: str = "") -> str:
     if status in {"openai_insufficient_quota", "openai_billing_unavailable"}:
         return "잔액 또는 quota가 복구될 때까지 codex_oauth/local_rules fallback을 사용한다."
     if status == "openai_auth_invalid":
@@ -38,5 +39,7 @@ def _next_action(status: str) -> str:
     if status == "missing_api_key":
         return "OpenAI API key 없이 codex_oauth/local_rules fallback으로 실행한다."
     if status == "key_configured_balance_unverified":
-        return "일반 API key로 잔액 숫자는 확정하지 않고, 배치 호출 실패가 발생하면 자동 fallback cache를 남긴다."
+        if cost_status == "costs_available":
+            return "최근 비용은 Admin Costs API 캐시로 확인한다. 남은 잔액은 Billing Overview에서 직접 확인한다."
+        return "Admin Costs API refresh를 실행해 최근 비용 캐시를 만들고, 남은 잔액은 Billing Overview에서 확인한다."
     return "OpenAI provider health 상태를 확인한다."

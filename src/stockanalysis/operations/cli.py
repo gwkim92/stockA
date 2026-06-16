@@ -10,6 +10,12 @@ from pathlib import Path
 from typing import Iterator, Mapping, Sequence, TextIO
 from urllib.parse import quote
 
+from stockanalysis.ai_agents.openai_costs import (
+    DEFAULT_LOOKBACK_DAYS as DEFAULT_OPENAI_COST_LOOKBACK_DAYS,
+    OPENAI_COST_STATUS_PATH_ENV,
+    openai_cost_status_path,
+    refresh_openai_cost_status,
+)
 from stockanalysis.frontend.live_adapter import DEFAULT_PORTFOLIO_NAME, resolve_live_frontend_response
 from stockanalysis.ingest.config import RuntimeConfig
 from stockanalysis.ingest.news.ai_extract import CODEX_OAUTH_PROVIDER, run_news_rss_ai_extract
@@ -313,6 +319,18 @@ def build_parser() -> argparse.ArgumentParser:
     openai_provider_health.add_argument("--output")
     openai_provider_health.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
     openai_provider_health.set_defaults(handler=_handle_openai_provider_health_report)
+
+    openai_admin_cost_refresh = subparsers.add_parser(
+        "openai-admin-cost-refresh-run",
+        help="Refresh secret-free OpenAI Admin Costs API usage/cost status artifact.",
+    )
+    openai_admin_cost_refresh.add_argument("--env-file")
+    openai_admin_cost_refresh.add_argument("--lookback-days", type=int, default=DEFAULT_OPENAI_COST_LOOKBACK_DAYS)
+    openai_admin_cost_refresh.add_argument("--timeout-seconds", type=float, default=10.0)
+    openai_admin_cost_refresh.add_argument("--execute", action="store_true")
+    openai_admin_cost_refresh.add_argument("--output")
+    openai_admin_cost_refresh.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
+    openai_admin_cost_refresh.set_defaults(handler=_handle_openai_admin_cost_refresh_run)
 
     local_runtime_status = subparsers.add_parser(
         "local-runtime-status",
@@ -1872,6 +1890,26 @@ def _handle_openai_provider_health_report(args: argparse.Namespace, *, stdout: T
     else:
         print_json(report, stdout=stdout, sort_keys=False)
     return 0
+
+
+def _handle_openai_admin_cost_refresh_run(args: argparse.Namespace, *, stdout: TextIO) -> int:
+    env_mapping = _load_optional_env_mapping(args.env_file, repo_root=args.repo_root) or os.environ
+    output = args.output or str(env_mapping.get(OPENAI_COST_STATUS_PATH_ENV) or openai_cost_status_path(env_mapping))
+    output_path = resolve_output_path(
+        output,
+        label="openai admin cost status output",
+        repo_root=args.repo_root,
+        require_repo_outside=True,
+    )
+    report = refresh_openai_cost_status(
+        env=env_mapping,
+        lookback_days=args.lookback_days,
+        execute=bool(args.execute),
+        output_path=output_path,
+        timeout_seconds=args.timeout_seconds,
+    )
+    write_json_report(report, output_path=output_path, stdout=stdout)
+    return 0 if report.get("status") in {"not_executed", "costs_available"} else 1
 
 
 def _handle_local_runtime_status(args: argparse.Namespace, *, stdout: TextIO) -> int:

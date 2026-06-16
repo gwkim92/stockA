@@ -879,6 +879,9 @@ function openAiProviderTitle(health: OpenAiProviderHealth) {
   if (health.status === "missing_api_key") {
     return "OpenAI API 키 없음";
   }
+  if (health.cost_status.status === "costs_available") {
+    return "OpenAI 비용 조회됨";
+  }
   if (health.status === "key_configured_balance_unverified") {
     return "OpenAI 키 있음 · 잔액 미확인";
   }
@@ -895,8 +898,11 @@ function openAiProviderExplanation(health: OpenAiProviderHealth) {
   if (health.status === "missing_api_key") {
     return "OpenAI API 키가 없으므로 OpenAI 직접 호출은 하지 않는다. Codex OAuth 또는 로컬 규칙 경로로 분석을 계속한다.";
   }
+  if (health.cost_status.status === "costs_available") {
+    return `Admin Costs API로 최근 ${health.cost_status.lookback_days}일 사용 비용을 조회했다. 이 값은 남은 잔액이 아니라 이미 발생한 비용이다. 실제 prepaid 잔액은 OpenAI Billing Overview에서 확인한다.`;
+  }
   if (health.status === "key_configured_balance_unverified") {
-    return "OpenAI API 키는 감지됐지만 일반 키만으로 남은 잔액 숫자를 확정 조회하지 않는다. 실제 실패가 발생하면 자동으로 캐시하고 fallback으로 분기한다.";
+    return "OpenAI API 키는 감지됐지만 남은 잔액을 확정 조회하는 공식 API는 사용하지 않는다. Admin Costs API 배치가 성공하면 최근 비용을 표시하고, 실제 실패가 발생하면 자동으로 fallback으로 분기한다.";
   }
   return health.message || "OpenAI provider 상태를 확인한다.";
 }
@@ -909,6 +915,9 @@ function openAiProviderTone(health: OpenAiProviderHealth) {
   ) {
     return "risk-medium";
   }
+  if (health.cost_status.status === "costs_available" && health.status === "key_configured_balance_unverified") {
+    return "risk-low";
+  }
   if (health.status === "key_configured_balance_unverified" || health.status === "missing_api_key") {
     return "risk-medium";
   }
@@ -920,6 +929,13 @@ function optionalTimestamp(value: string) {
     return "기록 없음";
   }
   return value.replace("T", " ").replace("+00:00", " UTC");
+}
+
+function formatUsdAmount(value: number | null | undefined) {
+  if (typeof value !== "number" || Number.isNaN(value)) {
+    return "미조회";
+  }
+  return `$${value.toFixed(2)}`;
 }
 
 function formatPercent(value: number | null | undefined) {
@@ -1600,6 +1616,23 @@ const DEFAULT_OPENAI_PROVIDER_HEALTH: OpenAiProviderHealth = {
   fallback_provider: "codex_oauth",
   local_fallback_provider: "local_rules",
   message: "OpenAI provider 상태를 아직 읽지 못했다. fallback provider를 사용한다.",
+  cost_status: {
+    report_name: "openai_admin_cost_status",
+    status: "admin_key_missing",
+    cost_known: false,
+    admin_api_key_configured: false,
+    lookback_days: 7,
+    total_cost_usd: null,
+    latest_day_cost_usd: null,
+    currency: "usd",
+    period_start: "",
+    period_end: "",
+    last_checked_at: "",
+    error_code: "",
+    message: "Admin Costs API key가 없어 비용 조회를 실행할 수 없다.",
+    billing_overview_url: "https://platform.openai.com/settings/organization/billing/overview",
+    secret_free: true,
+  },
 };
 
 const DEFAULT_BENCHMARK_DRIFT_QUALITY: BenchmarkDriftQuality = {
@@ -3199,13 +3232,28 @@ export default async function DataHealthPage() {
 	            <small>{openAiProviderHealth.status}</small>
 	          </article>
 	          <article className="rail-cell">
-	            <span>잔액 숫자</span>
+	            <span>남은 잔액</span>
 	            <strong>
 	              {openAiProviderHealth.remaining_balance_usd === null
-	                ? "직접 조회 불가"
+	                ? "공식 API 없음"
 	                : `$${openAiProviderHealth.remaining_balance_usd.toFixed(2)}`}
 	            </strong>
-	            <small>{openAiProviderHealth.balance_check_method}</small>
+	            <small>실제 잔액은 Billing Overview에서 확인</small>
+	          </article>
+	          <article className="rail-cell">
+	            <span>최근 비용</span>
+	            <strong>{formatUsdAmount(openAiProviderHealth.cost_status.total_cost_usd)}</strong>
+	            <small>
+	              최근 {openAiProviderHealth.cost_status.lookback_days}일 · {openAiProviderHealth.cost_status.status}
+	            </small>
+	          </article>
+	          <article className="rail-cell">
+	            <span>최근 1일 비용</span>
+	            <strong>{formatUsdAmount(openAiProviderHealth.cost_status.latest_day_cost_usd)}</strong>
+	            <small>
+	              {openAiProviderHealth.cost_status.period_start || "기간 미확인"} →{" "}
+	              {openAiProviderHealth.cost_status.period_end || "기간 미확인"}
+	            </small>
 	          </article>
 	          <article className="rail-cell">
 	            <span>다음 재시도</span>
@@ -3220,7 +3268,7 @@ export default async function DataHealthPage() {
 	          <article className="rail-cell">
 	            <span>Admin 비용 API</span>
 	            <strong>{openAiProviderHealth.admin_api_key_configured ? "설정됨" : "없음"}</strong>
-	            <small>일반 API key와 별도 권한이다.</small>
+	            <small>{openAiProviderHealth.cost_status.message}</small>
 	          </article>
 	        </div>
 	        <div className="empty-state">
@@ -3229,6 +3277,10 @@ export default async function DataHealthPage() {
 	            화면 요청에서는 OpenAI를 호출하지 않는다. 배치 작업에서 실패가 감지되면 provider health cache에 기록하고,
 	            만료 전까지 OpenAI 직접 호출을 건너뛰어 {aiProviderLabel(openAiProviderHealth.fallback_provider)} 또는{" "}
 	            {aiProviderLabel(openAiProviderHealth.local_fallback_provider)}로 내려간다.
+	          </p>
+	          <p>
+	            Admin Costs API는 사용 비용만 제공한다. 잔액 자체는{" "}
+	            <a href={openAiProviderHealth.cost_status.billing_overview_url}>OpenAI Billing Overview</a>에서 직접 확인한다.
 	          </p>
 	        </div>
 	      </section>

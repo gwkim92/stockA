@@ -100,6 +100,23 @@ export type OpenAiProviderHealth = {
   fallback_provider: string;
   local_fallback_provider: string;
   message: string;
+  cost_status: {
+    report_name: string;
+    status: string;
+    cost_known: boolean;
+    admin_api_key_configured: boolean;
+    lookback_days: number;
+    total_cost_usd: number | null;
+    latest_day_cost_usd: number | null;
+    currency: string;
+    period_start: string;
+    period_end: string;
+    last_checked_at: string;
+    error_code: string;
+    message: string;
+    billing_overview_url: string;
+    secret_free: boolean;
+  };
 };
 
 export type AiAgentRegistryData = {
