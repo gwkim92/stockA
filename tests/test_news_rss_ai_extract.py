@@ -8,6 +8,8 @@ from datetime import date
 from pathlib import Path
 from unittest.mock import patch
 
+from stockanalysis.ai_agents.agents_sdk_provider import AgentsSdkStructuredResponse
+from stockanalysis.ai_agents.runtime_policy import AGENTS_SDK_OPENAI_PROVIDER
 from stockanalysis.ingest.news.ai_extract import (
     NewsAiImpactOutput,
     NewsAiOutput,
@@ -18,6 +20,7 @@ from stockanalysis.ingest.news.ai_extract import (
     build_codex_oauth_news_ai_output_schema,
     build_news_ai_request_hash,
     build_news_ai_provider_response_from_payload,
+    invoke_agents_sdk_openai_news_ai_provider,
     invoke_codex_oauth_news_ai_provider,
     is_news_ai_candidate_quality_eligible,
     load_news_rss_ai_extraction_candidates,
@@ -405,6 +408,64 @@ class NewsRssAiExtractTests(unittest.TestCase):
         self.assertIn("--cd", command)
         self.assertTrue(Path(command[command.index("--cd") + 1]).exists())
         self.assertLess(command.index("exec"), command.index("--skip-git-repo-check"))
+
+    def test_agents_sdk_openai_news_ai_provider_uses_structured_agent_request(self) -> None:
+        candidate = NewsRssAiExtractionCandidate(
+            event_id=101,
+            document_id=501,
+            title="Nvidia H200 China deal survived the summit",
+            summary="GPU export path stays open.",
+            event_at="2026-05-19T10:02:40+00:00",
+            source_name="rss_news:ai-semiconductor-cycle",
+            external_document_id="rss:ai-semiconductor-cycle:abc",
+            source_url="https://example.test/nvda",
+            existing_theme_code="AI_SEMICONDUCTOR_CYCLE",
+            existing_instrument_symbol="NVDA",
+        )
+        chunk = NewsAiDocumentChunk(
+            document_id=501,
+            chunk_index=9000,
+            content_hash="abc",
+            text_preview="Nvidia H200 China deal survived the summit",
+            token_count=10,
+            chunk_metadata={},
+            text="Nvidia H200 China deal survived the summit",
+        )
+        fixture_payload = json.loads(Path("tests/fixtures/llm_news_event_candidate_nvda.json").read_text(encoding="utf-8"))
+        with patch("stockanalysis.ingest.news.ai_extract.run_agents_sdk_structured_request") as runner:
+            runner.return_value = AgentsSdkStructuredResponse(
+                provider=AGENTS_SDK_OPENAI_PROVIDER,
+                model_name="gpt-5.5",
+                reasoning_effort="low",
+                output=fixture_payload["candidate"],
+                input_token_count=120,
+                output_token_count=80,
+                cached_input_token_count=0,
+                latency_ms=345,
+            )
+
+            response = invoke_agents_sdk_openai_news_ai_provider(
+                candidate,
+                chunk,
+                {
+                    "known_themes": [{"code": "AI_SEMICONDUCTOR_CYCLE"}],
+                    "theme_edges": [],
+                    "current_event_impacts": [],
+                    "recent_similar_events": [],
+                },
+                "gpt-5.5",
+                "low",
+            )
+
+        request = runner.call_args.args[0]
+        self.assertEqual(request.agent_key, "news_structuring_agent")
+        self.assertEqual(request.task_name, "news-rss-ai-extract")
+        self.assertEqual(request.model_name, "gpt-5.5")
+        self.assertIn("rss_news_item", request.input_payload)
+        self.assertIn("validator_contract", request.input_payload)
+        self.assertEqual(response.provider, AGENTS_SDK_OPENAI_PROVIDER)
+        self.assertEqual(response.output.theme_impacts[0].target, "AI_SEMICONDUCTOR_CYCLE")
+        self.assertEqual(response.input_token_count, 120)
 
     def test_diagnostic_excerpt_preserves_failure_tail(self) -> None:
         diagnostic = _diagnostic_excerpt(

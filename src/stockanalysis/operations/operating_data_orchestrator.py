@@ -70,6 +70,8 @@ SEC_FILINGS_CIK_ENV = "STOCKANALYSIS_SEC_FILINGS_CIK"
 SEC_FILINGS_MAX_FILINGS_ENV = "STOCKANALYSIS_SEC_FILINGS_MAX_FILINGS"
 REPORTED_SEGMENT_HISTORY_PERIODS_ENV = "STOCKANALYSIS_REPORTED_SEGMENT_HISTORY_PERIODS"
 OPERATING_DATA_REPORT_ENV = "STOCKANALYSIS_OPERATING_DATA_RUN_REPORT"
+LLM_PROVIDER_ENV = "STOCKANALYSIS_LLM_PROVIDER"
+DEFAULT_LLM_PROVIDER = "codex_oauth"
 
 ArtifactRunner = Callable[..., dict[str, object]]
 
@@ -321,6 +323,7 @@ def build_operating_data_run_report(
     source_positions = _load_source_positions(source_positions_path) if source_positions_path is not None else []
     resolved_python = str(python_executable or sys.executable)
     resolved_provider = provider or str(env_mapping.get(MARKET_PRICE_PROVIDER_ENV, "alpha_vantage")).strip() or "alpha_vantage"
+    resolved_llm_provider = str(env_mapping.get(LLM_PROVIDER_ENV, DEFAULT_LLM_PROVIDER)).strip() or DEFAULT_LLM_PROVIDER
     ledger_path = _resolve_market_price_ledger(env_mapping, runtime_path=runtime_path, repo_root=repo_root)
     sec_filings_cik = _resolve_sec_filings_cik(env_mapping)
     sec_filings_max_filings = _resolve_sec_filings_max_filings(env_mapping)
@@ -367,6 +370,7 @@ def build_operating_data_run_report(
         market_code=market_code,
         universe_version=resolved_universe_version,
         provider=resolved_provider,
+        llm_provider=resolved_llm_provider,
         daily_budget=daily_budget,
         max_requests_per_run=max_requests_per_run,
         throttle_seconds=throttle_seconds,
@@ -552,6 +556,7 @@ def _build_planned_steps(
     market_code: str,
     universe_version: str,
     provider: str,
+    llm_provider: str,
     daily_budget: int,
     max_requests_per_run: int,
     throttle_seconds: float,
@@ -879,7 +884,7 @@ def _build_planned_steps(
                 "--as-of-date",
                 target,
                 "--provider",
-                "codex_oauth",
+                llm_provider,
                 "--limit",
                 "20",
                 "--execute",
@@ -904,7 +909,7 @@ def _build_planned_steps(
         {
             "step_id": "news-ai-evidence",
             "artifact_job_id": "event-intelligence-weekly",
-            "label": "Extract Codex OAuth news AI evidence through validator-gated canonical impacts",
+            "label": "Extract configured LLM news AI evidence through validator-gated canonical impacts",
             "skip_reason": "",
             "command_argv": (
                 python_executable,
@@ -916,7 +921,7 @@ def _build_planned_steps(
                 "--as-of-date",
                 target,
                 "--provider",
-                "codex_oauth",
+                llm_provider,
                 "--limit",
                 "10",
                 "--execute",

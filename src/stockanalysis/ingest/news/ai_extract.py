@@ -14,9 +14,15 @@ from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Callable
 
+from stockanalysis.ai_agents.agents_sdk_provider import (
+    AgentsSdkStructuredRequest,
+    run_agents_sdk_structured_request,
+)
 from stockanalysis.ai_agents.runtime_policy import (
+    AGENTS_SDK_OPENAI_PROVIDER,
     AgentRuntimePolicy,
     build_agent_runtime_policy,
+    CODEX_OAUTH_PROVIDER as RUNTIME_CODEX_OAUTH_PROVIDER,
     resolve_runner_model_name,
 )
 from stockanalysis.ingest.config import RuntimeConfig
@@ -52,7 +58,16 @@ DEFAULT_PIPELINE_NAME = "event_intelligence_llm_extract"
 DEFAULT_TEMPLATE_VERSION = "2026-05-23-hierarchical-ko-v3"
 DEFAULT_AGENT_KEY = "news_structuring_agent"
 FIXTURE_PROVIDER = "fixture"
-CODEX_OAUTH_PROVIDER = "codex_oauth"
+CODEX_OAUTH_PROVIDER = RUNTIME_CODEX_OAUTH_PROVIDER
+OPENAI_PROVIDER_ALIAS = "openai"
+SUPPORTED_PROVIDERS = frozenset(
+    {
+        FIXTURE_PROVIDER,
+        CODEX_OAUTH_PROVIDER,
+        AGENTS_SDK_OPENAI_PROVIDER,
+        OPENAI_PROVIDER_ALIAS,
+    }
+)
 DEFAULT_MODEL_NAME = "codex-cli-default"
 DEFAULT_REASONING_EFFORT = "low"
 DEFAULT_MIN_CONFIDENCE = 0.72
@@ -425,8 +440,9 @@ def run_news_rss_ai_extract(
         raise ValueError("max_input_chars must be greater than 0")
     if min_confidence < 0 or min_confidence > 1:
         raise ValueError("min_confidence must be between 0 and 1")
-    if provider not in {FIXTURE_PROVIDER, CODEX_OAUTH_PROVIDER}:
-        raise ValueError("Supported news AI providers are fixture and codex_oauth.")
+    provider = normalize_news_ai_provider(provider)
+    if provider not in SUPPORTED_PROVIDERS:
+        raise ValueError("Supported news AI providers are fixture, codex_oauth, and agents_sdk_openai.")
     if provider == FIXTURE_PROVIDER and execute and not llm_output_json_path and provider_runner is None:
         raise ValueError("--llm-output-json is required when provider=fixture and --execute is used.")
 
@@ -1030,6 +1046,73 @@ def build_news_ai_provider_response_from_payload(
     )
 
 
+def invoke_agents_sdk_openai_news_ai_provider(
+    candidate: NewsRssAiExtractionCandidate,
+    chunk: NewsAiDocumentChunk,
+    retrieval_context: dict[str, object],
+    model_name: str,
+    reasoning_effort: str | None,
+) -> NewsAiProviderResponse:
+    response = run_agents_sdk_structured_request(
+        AgentsSdkStructuredRequest(
+            agent_key=DEFAULT_AGENT_KEY,
+            task_name=DEFAULT_TASK_NAME,
+            input_payload={
+                "rss_news_item": {
+                    "event_id": candidate.event_id,
+                    "document_id": candidate.document_id,
+                    "title": candidate.title,
+                    "summary": candidate.summary,
+                    "event_at": candidate.event_at,
+                    "source_name": candidate.source_name,
+                    "source_url": candidate.source_url,
+                    "existing_theme_code": candidate.existing_theme_code,
+                    "existing_instrument_symbol": candidate.existing_instrument_symbol,
+                },
+                "document_chunk": {
+                    "chunk_index": chunk.chunk_index,
+                    "content_hash": chunk.content_hash,
+                    "text_preview": chunk.text_preview,
+                    "token_count": chunk.token_count,
+                    "chunk_metadata": chunk.chunk_metadata,
+                    "text": chunk.text,
+                },
+                "retrieval_context": summarize_retrieval_context(retrieval_context),
+                "validator_contract": {
+                    "allowed_impact_directions": list(ALLOWED_IMPACT_DIRECTIONS),
+                    "min_confidence": DEFAULT_MIN_CONFIDENCE,
+                    "direct_instrument_rule": "Only attach a ticker when it is explicitly grounded in the RSS text.",
+                    "macro_news_rule": "Macro-only news should use macro/domain/theme impacts and no forced ticker.",
+                },
+            },
+            output_schema=NEWS_AI_OUTPUT_SCHEMA,
+            model_name=model_name,
+            reasoning_effort=reasoning_effort,
+            max_input_chars=max(len(chunk.text) + 5000, 6000),
+        )
+    )
+    payload: dict[str, object] = dict(response.output)
+    if "candidate" not in payload and "news_event_candidate" not in payload:
+        payload = {"candidate": payload}
+    parsed = build_news_ai_provider_response_from_payload(
+        payload,
+        provider=response.provider,
+        model_name=response.model_name,
+        reasoning_effort=response.reasoning_effort,
+    )
+    return NewsAiProviderResponse(
+        provider=response.provider,
+        model_name=parsed.model_name,
+        reasoning_effort=parsed.reasoning_effort,
+        output=parsed.output,
+        input_token_count=response.input_token_count or parsed.input_token_count or chunk.token_count,
+        output_token_count=response.output_token_count or parsed.output_token_count,
+        cached_input_token_count=response.cached_input_token_count or parsed.cached_input_token_count,
+        estimated_cost_usd=response.estimated_cost_usd or parsed.estimated_cost_usd,
+        latency_ms=response.latency_ms or parsed.latency_ms,
+    )
+
+
 def invoke_codex_oauth_news_ai_provider(
     candidate: NewsRssAiExtractionCandidate,
     chunk: NewsAiDocumentChunk,
@@ -1406,7 +1489,16 @@ def _invoke_provider(
             model_name=model_name,
             reasoning_effort=reasoning_effort,
         )
+    if provider == AGENTS_SDK_OPENAI_PROVIDER:
+        return invoke_agents_sdk_openai_news_ai_provider(candidate, chunk, retrieval_context, model_name, reasoning_effort)
     return invoke_codex_oauth_news_ai_provider(candidate, chunk, retrieval_context, model_name, reasoning_effort)
+
+
+def normalize_news_ai_provider(provider: str) -> str:
+    normalized = (provider or CODEX_OAUTH_PROVIDER).strip().lower()
+    if normalized == OPENAI_PROVIDER_ALIAS:
+        return AGENTS_SDK_OPENAI_PROVIDER
+    return normalized
 
 
 def _record_failed_invocation(

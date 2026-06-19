@@ -3,7 +3,10 @@ from __future__ import annotations
 import json
 import unittest
 from datetime import date
+from unittest.mock import patch
 
+from stockanalysis.ai_agents.agents_sdk_provider import AgentsSdkStructuredResponse
+from stockanalysis.ai_agents.runtime_policy import AGENTS_SDK_OPENAI_PROVIDER
 from stockanalysis.ingest.config import RuntimeConfig
 from stockanalysis.ingest.news.sql import (
     render_news_rss_translation_candidates_sql,
@@ -19,6 +22,7 @@ from stockanalysis.ingest.news.translation import (
     build_news_translation_provider_response_from_payload,
     build_news_translation_input,
     build_news_translation_request_hash,
+    invoke_agents_sdk_openai_news_translation_provider,
     parse_news_translation_output,
     run_news_rss_translation,
     validate_news_translation_output_grounding,
@@ -359,6 +363,41 @@ class NewsRssTranslationTests(unittest.TestCase):
 
         self.assertEqual(response.output.korean_title, "트럼프 행정부 매입 기대에 양자컴퓨터 주식이 급등했다")
         self.assertEqual(response.input_token_count, 12)
+
+    def test_agents_sdk_openai_translation_provider_uses_structured_agent_request(self) -> None:
+        candidate = _candidate()
+        bounded_text = build_news_translation_input(candidate, max_input_chars=4000)
+        with patch("stockanalysis.ingest.news.translation.run_agents_sdk_structured_request") as runner:
+            runner.return_value = AgentsSdkStructuredResponse(
+                provider=AGENTS_SDK_OPENAI_PROVIDER,
+                model_name="gpt-5.5",
+                reasoning_effort="low",
+                output={
+                    "korean_title": "트럼프 행정부 매입 기대에 양자컴퓨터 주식이 급등했다",
+                    "korean_summary": "양자컴퓨팅 관련주가 정책 기대감에 상승했다.",
+                    "translation_confidence": 0.91,
+                },
+                input_token_count=33,
+                output_token_count=18,
+                cached_input_token_count=0,
+                latency_ms=234,
+            )
+
+            response = invoke_agents_sdk_openai_news_translation_provider(
+                candidate,
+                bounded_text,
+                "gpt-5.5",
+                "low",
+            )
+
+        request = runner.call_args.args[0]
+        self.assertEqual(request.agent_key, "news_translator_agent")
+        self.assertEqual(request.task_name, "news-rss-korean-translation")
+        self.assertEqual(request.model_name, "gpt-5.5")
+        self.assertIn("bounded_translation_context", request.input_payload)
+        self.assertEqual(response.provider, AGENTS_SDK_OPENAI_PROVIDER)
+        self.assertEqual(response.output.translation_confidence, 0.91)
+        self.assertEqual(response.input_token_count, 33)
 
     def test_validate_translation_output_rejects_inferred_ai_for_nvidia_title_without_ai(self) -> None:
         candidate = NewsRssTranslationCandidate(

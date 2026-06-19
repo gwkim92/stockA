@@ -14,9 +14,15 @@ from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Callable
 
+from stockanalysis.ai_agents.agents_sdk_provider import (
+    AgentsSdkStructuredRequest,
+    run_agents_sdk_structured_request,
+)
 from stockanalysis.ai_agents.runtime_policy import (
+    AGENTS_SDK_OPENAI_PROVIDER,
     AgentRuntimePolicy,
     build_agent_runtime_policy,
+    CODEX_OAUTH_PROVIDER as RUNTIME_CODEX_OAUTH_PROVIDER,
     resolve_runner_model_name,
 )
 from stockanalysis.ingest.config import RuntimeConfig
@@ -32,7 +38,16 @@ DEFAULT_PIPELINE_NAME = "news_rss_korean_translation"
 DEFAULT_TEMPLATE_VERSION = "2026-06-04-ko-translation-v2"
 DEFAULT_AGENT_KEY = "news_translator_agent"
 FIXTURE_PROVIDER = "fixture"
-CODEX_OAUTH_PROVIDER = "codex_oauth"
+CODEX_OAUTH_PROVIDER = RUNTIME_CODEX_OAUTH_PROVIDER
+OPENAI_PROVIDER_ALIAS = "openai"
+SUPPORTED_PROVIDERS = frozenset(
+    {
+        FIXTURE_PROVIDER,
+        CODEX_OAUTH_PROVIDER,
+        AGENTS_SDK_OPENAI_PROVIDER,
+        OPENAI_PROVIDER_ALIAS,
+    }
+)
 DEFAULT_MODEL_NAME = "codex-cli-default"
 DEFAULT_REASONING_EFFORT = "low"
 _LATIN_TOKEN_PATTERN = re.compile(r"[A-Za-z][A-Za-z0-9&.+/-]*")
@@ -116,8 +131,9 @@ def run_news_rss_translation(
         raise ValueError("limit must be greater than 0")
     if max_input_chars <= 0:
         raise ValueError("max_input_chars must be greater than 0")
-    if provider not in {FIXTURE_PROVIDER, CODEX_OAUTH_PROVIDER}:
-        raise ValueError("Supported news translation providers are fixture and codex_oauth.")
+    provider = normalize_news_translation_provider(provider)
+    if provider not in SUPPORTED_PROVIDERS:
+        raise ValueError("Supported news translation providers are fixture, codex_oauth, and agents_sdk_openai.")
     if provider == FIXTURE_PROVIDER and execute and not llm_output_json_path and provider_runner is None:
         raise ValueError("--llm-output-json is required when provider=fixture and --execute is used.")
 
@@ -485,6 +501,70 @@ def build_news_translation_provider_response_from_payload(
     )
 
 
+def invoke_agents_sdk_openai_news_translation_provider(
+    candidate: NewsRssTranslationCandidate,
+    bounded_text: str,
+    model_name: str,
+    reasoning_effort: str | None,
+    *,
+    validation_error: str | None = None,
+) -> NewsTranslationProviderResponse:
+    input_payload: dict[str, object] = {
+        "news_metadata": {
+            "event_id": candidate.event_id,
+            "document_id": candidate.document_id,
+            "title": candidate.title,
+            "summary": candidate.summary,
+            "published_at": candidate.published_at,
+            "source_name": candidate.source_name,
+            "source_url": candidate.source_url,
+            "existing_theme_code": candidate.existing_theme_code,
+            "existing_instrument_symbol": candidate.existing_instrument_symbol,
+            "impact_direction": candidate.impact_direction,
+            "impact_score": candidate.impact_score,
+        },
+        "bounded_translation_context": bounded_text,
+        "grounding_rules": [
+            "Translate faithfully into Korean using only the provided RSS title and summary.",
+            "Do not add tickers, products, themes, or investment claims absent from the source text.",
+            "Return korean_title, korean_summary, and translation_confidence only.",
+        ],
+    }
+    if validation_error:
+        input_payload["previous_validation_error"] = validation_error
+        input_payload["retry_instruction"] = (
+            "The previous output failed grounding validation. Retry with a stricter literal translation."
+        )
+    response = run_agents_sdk_structured_request(
+        AgentsSdkStructuredRequest(
+            agent_key=DEFAULT_AGENT_KEY,
+            task_name=DEFAULT_TASK_NAME,
+            input_payload=input_payload,
+            output_schema=NEWS_TRANSLATION_OUTPUT_SCHEMA,
+            model_name=model_name,
+            reasoning_effort=reasoning_effort,
+            max_input_chars=max(len(bounded_text) + 1200, 2000),
+        )
+    )
+    parsed = build_news_translation_provider_response_from_payload(
+        response.output,
+        provider=response.provider,
+        model_name=response.model_name,
+        reasoning_effort=response.reasoning_effort,
+    )
+    return NewsTranslationProviderResponse(
+        provider=response.provider,
+        model_name=parsed.model_name,
+        reasoning_effort=parsed.reasoning_effort,
+        output=parsed.output,
+        input_token_count=response.input_token_count or parsed.input_token_count,
+        output_token_count=response.output_token_count or parsed.output_token_count,
+        cached_input_token_count=response.cached_input_token_count or parsed.cached_input_token_count,
+        estimated_cost_usd=response.estimated_cost_usd or parsed.estimated_cost_usd,
+        latency_ms=response.latency_ms or parsed.latency_ms,
+    )
+
+
 def invoke_codex_oauth_news_translation_provider(
     candidate: NewsRssTranslationCandidate,
     bounded_text: str,
@@ -748,6 +828,14 @@ def _invoke_provider(
             model_name=model_name,
             reasoning_effort=reasoning_effort,
         )
+    if provider == AGENTS_SDK_OPENAI_PROVIDER:
+        return invoke_agents_sdk_openai_news_translation_provider(
+            candidate,
+            bounded_text,
+            model_name,
+            reasoning_effort,
+            validation_error=validation_error,
+        )
     return invoke_codex_oauth_news_translation_provider(
         candidate,
         bounded_text,
@@ -762,7 +850,14 @@ def _can_retry_grounding_failure(
     provider: str,
     provider_runner: NewsTranslationProviderRunner | None,
 ) -> bool:
-    return provider == CODEX_OAUTH_PROVIDER and provider_runner is None
+    return provider in {CODEX_OAUTH_PROVIDER, AGENTS_SDK_OPENAI_PROVIDER} and provider_runner is None
+
+
+def normalize_news_translation_provider(provider: str) -> str:
+    normalized = (provider or CODEX_OAUTH_PROVIDER).strip().lower()
+    if normalized == OPENAI_PROVIDER_ALIAS:
+        return AGENTS_SDK_OPENAI_PROVIDER
+    return normalized
 
 
 def _create_pipeline_run(

@@ -16,6 +16,7 @@ from stockanalysis.ai_agents.openai_costs import (
     openai_cost_status_path,
     refresh_openai_cost_status,
 )
+from stockanalysis.ai_agents.runtime_policy import AGENTS_SDK_OPENAI_PROVIDER
 from stockanalysis.frontend.live_adapter import DEFAULT_PORTFOLIO_NAME, resolve_live_frontend_response
 from stockanalysis.ingest.config import RuntimeConfig
 from stockanalysis.ingest.news.ai_extract import CODEX_OAUTH_PROVIDER, run_news_rss_ai_extract
@@ -260,6 +261,8 @@ from stockanalysis.trading.paper_validation import run_paper_validation_audit
 
 
 DEFAULT_REPO_ROOT = Path(__file__).resolve().parents[3]
+LLM_PROVIDER_ENV = "STOCKANALYSIS_LLM_PROVIDER"
+LLM_PROVIDER_CHOICES = ("fixture", CODEX_OAUTH_PROVIDER, AGENTS_SDK_OPENAI_PROVIDER, "openai")
 EVENT_INTELLIGENCE_DATA_HEALTH_PIPELINE_NAME = "event_intelligence_llm_extract"
 
 
@@ -783,7 +786,7 @@ def build_parser() -> argparse.ArgumentParser:
     news_rss_translation.add_argument("--env-file")
     news_rss_translation.add_argument("--as-of-date")
     news_rss_translation.add_argument("--limit", type=int, default=20)
-    news_rss_translation.add_argument("--provider", choices=("fixture", "codex_oauth"), default=CODEX_OAUTH_PROVIDER)
+    news_rss_translation.add_argument("--provider", choices=LLM_PROVIDER_CHOICES)
     news_rss_translation.add_argument("--model-name", default="codex-cli-default")
     news_rss_translation.add_argument("--reasoning-effort", default="low")
     news_rss_translation.add_argument("--max-input-chars", type=int, default=4000)
@@ -800,7 +803,7 @@ def build_parser() -> argparse.ArgumentParser:
     news_rss_ai_extract.add_argument("--env-file")
     news_rss_ai_extract.add_argument("--as-of-date")
     news_rss_ai_extract.add_argument("--limit", type=int, default=10)
-    news_rss_ai_extract.add_argument("--provider", choices=("fixture", "codex_oauth"), default=CODEX_OAUTH_PROVIDER)
+    news_rss_ai_extract.add_argument("--provider", choices=LLM_PROVIDER_CHOICES)
     news_rss_ai_extract.add_argument("--model-name", default="codex-cli-default")
     news_rss_ai_extract.add_argument("--reasoning-effort", default="low")
     news_rss_ai_extract.add_argument("--max-input-chars", type=int, default=6000)
@@ -2475,17 +2478,29 @@ def _handle_news_rss_cluster_evidence_run(args: argparse.Namespace, *, stdout: T
     return 0 if int(report.get("failed_cluster_count", 0)) == 0 else 1
 
 
+def _resolve_llm_provider(provider: str | None, env_mapping: Mapping[str, str]) -> str:
+    resolved = (provider or env_mapping.get(LLM_PROVIDER_ENV) or CODEX_OAUTH_PROVIDER).strip().lower()
+    if resolved == "openai":
+        return AGENTS_SDK_OPENAI_PROVIDER
+    if resolved not in LLM_PROVIDER_CHOICES:
+        raise ValueError(
+            f"Unsupported LLM provider `{resolved}`. Supported providers: {', '.join(LLM_PROVIDER_CHOICES)}."
+        )
+    return resolved
+
+
 def _handle_news_rss_translation_run(args: argparse.Namespace, *, stdout: TextIO) -> int:
     if bool(args.execute) and bool(args.dry_run):
         raise ValueError("--execute and --dry-run cannot be used together.")
     env_mapping = _load_optional_env_mapping(args.env_file, repo_root=args.repo_root)
     as_of_date = date.fromisoformat(args.as_of_date) if args.as_of_date else None
+    provider = _resolve_llm_provider(args.provider, env_mapping)
     with _temporary_environ(env_mapping):
         report = run_news_rss_translation(
             config=RuntimeConfig.from_env(),
             as_of_date=as_of_date,
             limit=args.limit,
-            provider=args.provider,
+            provider=provider,
             model_name=args.model_name,
             reasoning_effort=args.reasoning_effort,
             max_input_chars=args.max_input_chars,
@@ -2501,12 +2516,13 @@ def _handle_news_rss_ai_extract_run(args: argparse.Namespace, *, stdout: TextIO)
         raise ValueError("--execute and --dry-run cannot be used together.")
     env_mapping = _load_optional_env_mapping(args.env_file, repo_root=args.repo_root)
     as_of_date = date.fromisoformat(args.as_of_date) if args.as_of_date else None
+    provider = _resolve_llm_provider(args.provider, env_mapping)
     with _temporary_environ(env_mapping):
         report = run_news_rss_ai_extract(
             config=RuntimeConfig.from_env(),
             as_of_date=as_of_date,
             limit=args.limit,
-            provider=args.provider,
+            provider=provider,
             model_name=args.model_name,
             reasoning_effort=args.reasoning_effort,
             max_input_chars=args.max_input_chars,

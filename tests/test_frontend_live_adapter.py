@@ -5628,7 +5628,7 @@ class FrontendLiveAdapterTests(unittest.TestCase):
                                 "latest_error_code": "codex_oauth_auth_invalid",
                             }
                         ],
-                        "next_action": "EC2 Codex OAuth 재로그인 후 뉴스 번역과 뉴스 AI 구조화 smoke를 즉시 다시 실행한다.",
+                        "next_action": "EC2 LLM provider 인증/결제/토큰 상태를 확인한 뒤 뉴스 번역과 뉴스 AI 구조화 smoke를 즉시 다시 실행한다.",
                     }
                 return json.dumps(payload)
 
@@ -5646,7 +5646,7 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertIn("live_ai_invocation_health_attention", payload["data"]["open_gates"])
         gate_details = {item["gate_id"]: item for item in payload["data"]["open_gate_details"]}
         self.assertEqual(gate_details["live_ai_invocation_health_attention"]["label"], "실제 AI 호출")
-        self.assertIn("Codex OAuth", gate_details["live_ai_invocation_health_attention"]["status_label"])
+        self.assertIn("LLM", gate_details["live_ai_invocation_health_attention"]["status_label"])
 
     def test_live_data_health_response_does_not_open_gate_for_recovered_live_codex_invocations(self) -> None:
         class RecoveredAiExecutor(FakeLiveExecutor):
@@ -6320,7 +6320,7 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertIn("live_ai_invocation_health", sql)
         self.assertIn("news-rss-korean-translation", sql)
         self.assertIn("news-rss-ai-extract", sql)
-        self.assertIn("provider = 'codex_oauth'", sql)
+        self.assertIn("provider in ('codex_oauth', 'agents_sdk_openai')", sql)
         self.assertIn("active_recommendation_price_symbols", sql)
         self.assertIn("active_recommendation_price_freshness", sql)
         self.assertIn("recovered_with_recent_failures", sql)
