@@ -59,7 +59,37 @@ class CodexOauthOperatorTests(unittest.TestCase):
         self.assertEqual(status["status"], "healthy")
         self.assertEqual(status["label"], "정상")
         self.assertEqual(status["last_smoke_status"], "succeeded")
+        self.assertEqual(status["last_error_summary"], "")
         self.assertEqual(status["order_boundary"], "read_only_no_order")
+
+    def test_pending_device_auth_is_not_rendered_as_recent_error(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            status_path = Path(tmpdir) / "status.json"
+            status_path.write_text(
+                json.dumps(
+                    {
+                        "updated_at": "2026-06-20T05:00:00Z",
+                        "events": [
+                            {
+                                "event_type": "device_auth_started",
+                                "status": "device_auth_pending",
+                                "auth_url": "https://auth.openai.com/codex/device",
+                                "user_code": "X1LP-L0QP3",
+                                "expires_at": "2099-06-20T06:00:00Z",
+                                "output_excerpt": "Enter this one-time code X1LP-L0QP3",
+                            }
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            with patch.dict("os.environ", {STATUS_PATH_ENV: str(status_path)}, clear=False):
+                status = load_codex_oauth_operator_status(repo_root=tmpdir)
+
+        self.assertEqual(status["status"], "device_auth_pending")
+        self.assertEqual(status["last_error_summary"], "")
+        self.assertEqual(status["user_code"], "X1LP-L0QP3")
 
     def test_direct_smoke_auth_failure_requires_relogin(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:

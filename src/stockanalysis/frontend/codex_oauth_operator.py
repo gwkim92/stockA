@@ -312,6 +312,7 @@ def _public_status(payload: dict[str, Any], *, status_path: Path, now: datetime)
         status = "relogin_required"
     elif _status_from_event(latest_event, now=now) in {"device_auth_pending", "device_code_expired"}:
         status = _status_from_event(latest_event, now=now)
+    error_visible = status not in {"healthy", "device_auth_pending"}
 
     return {
         "status": status,
@@ -325,8 +326,12 @@ def _public_status(payload: dict[str, Any], *, status_path: Path, now: datetime)
         "last_event_type": str(latest_event.get("event_type") or ""),
         "last_smoke_status": str(latest_smoke.get("status") or ""),
         "last_smoke_at": str(latest_smoke.get("finished_at") or latest_smoke.get("started_at") or ""),
-        "last_error_code": str(latest_event.get("error_code") or ""),
-        "last_error_summary": _diagnostic_excerpt(str(latest_event.get("message") or latest_event.get("output_excerpt") or ""), 800),
+        "last_error_code": str(latest_event.get("error_code") or "") if error_visible else "",
+        "last_error_summary": (
+            _diagnostic_excerpt(str(latest_event.get("message") or latest_event.get("output_excerpt") or ""), 800)
+            if error_visible
+            else ""
+        ),
         "next_action": str(latest_event.get("next_action") or _next_action_for_status(status)),
         "status_path": str(status_path),
         "admin_action_required": True,
