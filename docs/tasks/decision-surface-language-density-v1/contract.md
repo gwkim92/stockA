@@ -16,6 +16,8 @@
   - `apps/web/src/app/paper-trading/page.tsx`
   - `apps/web/src/app/performance/page.tsx`
   - `apps/web/src/app/portfolio/coverage/page.tsx`
+  - `apps/web/src/app/layout.tsx`
+  - `apps/web/src/app/recommendations/page.tsx`
   - `apps/web/src/app/recommendations/[recommendationId]/page.tsx`
   - `docs/tasks/decision-surface-language-density-v1/*`
 

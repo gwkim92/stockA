@@ -46,14 +46,15 @@ function userFacingText(value: string | null | undefined) {
     .replaceAll("order boundary", "실거래 제한")
     .replaceAll("read_only_no_order", "읽기 전용, 실거래 주문 차단")
     .replaceAll("source blocker", "원천 근거 부족")
-    .replaceAll("AI/이벤트", "뉴스·AI 해석")
-    .replaceAll("AI·이벤트", "뉴스·AI 해석")
+    .replaceAll("AI/이벤트", "뉴스·투자 근거")
+    .replaceAll("AI·이벤트", "뉴스·투자 근거")
+    .replaceAll("뉴스·AI 해석", "뉴스·투자 근거")
     .replaceAll(["페", "이퍼"].join(""), "가상 매매");
 }
 
 function qualityLabel(row: RecommendationRow) {
   if (row.evidence.quality_status === "ai_review_passed" || row.evidence.quality_status === "ready_for_human_review") {
-    return "AI 검증 통과";
+    return "품질 기준 통과";
   }
   if (row.evidence.quality_status === "blocked") {
     return "근거 부족";
@@ -75,8 +76,8 @@ function recommendationSummary(row: RecommendationRow) {
   const thesisText = row.linked_thesis_id ? "투자 논리 연결" : "투자 논리 없음";
   const evidenceText =
     row.evidence.ai_or_event_component_count > 0
-      ? `뉴스·공시·AI 해석 ${row.evidence.ai_or_event_component_count}개`
-      : "뉴스·공시·AI 해석 없음";
+      ? `뉴스·공시 근거 ${row.evidence.ai_or_event_component_count}개`
+      : "뉴스·공시 근거 없음";
   const macroFlowText =
     row.evidence.macro_flow_evidence_count > 0
       ? `상위 흐름 전파 ${row.evidence.macro_flow_evidence_count}개`
@@ -265,7 +266,7 @@ export default async function RecommendationsPage() {
             오늘 먼저 볼 추천: {topRecommendation ? topRecommendation.symbol : "신호 대기"}
           </h1>
           <p className="decision-brief-copy">
-            추천은 주문이 아니라 중장기 검토 신호다. 점수, 투자 논리, 뉴스·AI 해석, 가상 매매 대기, 실거래 차단 상태를 분리해서 본다.
+            추천은 주문이 아니라 중장기 검토 신호다. 점수, 투자 논리, 뉴스·투자 근거, 가상 매매 대기, 실거래 차단 상태를 분리해서 본다.
           </p>
           <div className="decision-brief-meta" aria-label="추천 목록 핵심 상태">
             <span>추천 {data.recommendation_count.toLocaleString("ko-KR")}개</span>
@@ -356,7 +357,7 @@ export default async function RecommendationsPage() {
                     <Link href={recommendationHref(row.recommendation_id)}>추천 상세</Link>
                     <Link href={stockHref(row.symbol)}>종목 상세</Link>
                     {thesisLink ? <Link href={thesisLink}>투자 논리</Link> : <span>투자 논리 없음</span>}
-                    {evidenceLink ? <Link href={evidenceLink}>뉴스·AI 해석</Link> : <span>뉴스·AI 해석 없음</span>}
+                    {evidenceLink ? <Link href={evidenceLink}>뉴스·투자 근거</Link> : <span>뉴스·투자 근거 없음</span>}
                   </div>
                 </div>
                 <div style={{ flex: "0 0 150px", textAlign: "right" }}>

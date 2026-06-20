@@ -71,7 +71,10 @@ const USER_FACING_TERM_REPLACEMENTS: Array<[string, string]> = [
   ["valuation_margin_score", "밸류에이션 안전마진"],
   ["total_score", "총점"],
   ["recommendation_id", "추천 ID"],
+  ["뉴스·AI 해석", "뉴스·투자 근거"],
+  ["뉴스·AI", "뉴스 근거"],
   ["AI 근거", "투자 근거"],
+  ["AI 검증", "품질 검증"],
   ["주문 경계", "실거래 상태"],
   ["거래 경계", "실거래 상태"],
   ["추천 총점", "최종 추천 점수"],
@@ -1445,7 +1448,7 @@ function recommendationWaterfallCards({
       label: "기업",
       title: data.equity_research ? "리서치 연결" : "리서치 대기",
       body: data.equity_research
-        ? "사업 설명, 촉매, 리스크, 무효화 조건이 AI 배치 리서치로 연결됐다."
+        ? "사업 설명, 촉매, 리스크, 무효화 조건이 기업 리서치로 연결됐다."
         : "기업 리서치 결과가 아직 없어 사업 맥락은 제한적으로만 볼 수 있다.",
       href: "#recommendation-equity-research",
       hrefLabel: "기업 리서치 보기",
@@ -2069,7 +2072,7 @@ export default async function RecommendationPage({ params }: RecommendationPageP
               {equityResearch ? userFacingRecommendationText(equityResearch.title) : `${data.symbol} 기업 리서치가 아직 연결되지 않았다`}
             </h2>
             <p style={{ color: "var(--text-secondary)", marginTop: "8px", maxWidth: "900px" }}>
-              추천을 뉴스 신호만으로 보지 않기 위해 배치 AI가 만든 기업 분석 결과를 같이 보여준다.
+              추천을 뉴스 신호만으로 보지 않기 위해 기업 분석 결과를 같이 보여준다.
               이 리포트는 추천 점수와 주문을 직접 바꾸지 않고, 재무·밸류에이션 점수 항목을 해석하는 읽기 전용 근거다.
             </p>
           </div>
@@ -2195,9 +2198,8 @@ export default async function RecommendationPage({ params }: RecommendationPageP
             <span className="metric-sub">상위 흐름 전파 경로</span>
             <h2 style={{ fontSize: "1.5rem", marginTop: "6px" }}>시장·테마 뉴스가 {data.symbol} 점수에 들어간 방식</h2>
             <p style={{ color: "var(--text-secondary)", marginTop: "8px", maxWidth: "820px" }}>
-              이 패널은 종목을 직접 언급하지 않은 뉴스가 테마와 종목 노출도 규칙을 거쳐 추천 점수에 들어간 경로다.
-              전체 전파 근거 수와 아래에 표시된 최근 사례 수는 다를 수 있다. AI가 주문을 결정한 것이 아니라,
-              구조화된 흐름이 점수 입력으로만 쓰였다.
+              종목을 직접 언급하지 않은 뉴스가 테마와 종목 노출도에 의해 이 추천과 연결된 경로다.
+              전체 전파 근거 수와 아래 최근 사례 수는 다를 수 있다. 이 근거는 주문 결정이 아니라 점수 입력으로만 쓰인다.
             </p>
           </div>
 

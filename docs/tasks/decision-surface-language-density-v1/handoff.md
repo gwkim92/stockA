@@ -13,6 +13,7 @@
 - `/portfolio/coverage` leads with portfolio risk gaps and outcome maturity boundary.
 - `/performance` states that current outcome samples are not yet enough to change recommendation formulas.
 - Recommendation detail copy now uses investor-facing evidence language instead of internal AI/process labels.
+- Global navigation and recommendation list copy now use `뉴스 근거` / `뉴스·투자 근거` instead of `뉴스·AI` / `뉴스·AI 해석`.
 
 ## Boundaries Preserved
 
