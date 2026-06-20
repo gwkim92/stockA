@@ -255,7 +255,7 @@ def _ai_artifact_section(ai_artifacts: Sequence[Mapping[str, object]]) -> dict[s
         items.append(
             {
                 "item_id": f"ai:{evidence_id}",
-                "title_ko": "AI 구조화 결과",
+                "title_ko": "투자 근거",
                 "summary_ko": (
                     f"{_safe_text(artifact.get('evidence_type') or artifact.get('artifact_type'), fallback='artifact')} · "
                     f"{_safe_text(artifact.get('provider'), fallback='provider_unknown')} · "
@@ -423,7 +423,7 @@ def _quality_gates(
         {
             "gate": "ai_artifact_linkage",
             "status": "passed" if artifact_count > 0 else "attention",
-            "message_ko": f"저장된 AI 구조화 결과 {artifact_count}개",
+            "message_ko": f"저장된 투자 근거 {artifact_count}개",
         },
         {
             "gate": "decision_linkage",

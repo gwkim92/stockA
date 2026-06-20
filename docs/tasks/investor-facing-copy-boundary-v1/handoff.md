@@ -14,11 +14,13 @@
 
 - Home now frames the first screen as investment checkpoints, not internal operating sequence.
 - `/intelligence`, `/events`, `/events/classification`, `/ai-evidence`, `/ai-evidence/results`, `/ai-evidence/blocked`, `/ai-evidence/[id]`, `/cycle-map`, `/market-map`, `/stocks/[symbol]`, `/themes/[themeKey]`, `/source-documents/[id]`, and recommendation detail copy now prefer 투자 근거, 품질 기준, 추천 영향, 상위 흐름 language.
+- Shared Korean labels, common news cards, stock detail normalization, and backend evidence DTO strings were also updated so old process wording does not reappear through data-driven messages.
 - `/data-health` and `/admin/ai-agents` are intentionally unchanged because they are operational surfaces.
 
 ## Verification So Far
 
 - passed: `cd apps/web && npm run typecheck`
+- passed: `PYTHONPATH=src python3 -m compileall -q src`
 - passed: `git diff --check`
 - passed: `cd apps/web && npm run build`
 - passed: `PYTHONPATH=/Users/woody/ai/agent-work-harness/src python3 -m awh verify --repo . --task investor-facing-copy-boundary-v1`

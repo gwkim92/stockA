@@ -57,9 +57,9 @@ export function newsQualityLabel(event: NewsEventRow) {
     return "저신호 보류";
   }
   if (event.ai_evidence_id) {
-    return "AI 근거 연결";
+    return "투자 근거 연결";
   }
-  return "AI 구조화 전";
+  return "근거 정리 전";
 }
 
 function hasStoredKoreanTranslation(event: NewsEventRow) {
@@ -88,7 +88,7 @@ export function NewsEventCard({ event, mode, compact = false }: NewsEventCardPro
   const themeLink = newsThemeHref(event.theme_key);
   const stockLink = newsStockHref(event.symbol);
   const classifiedSymbol = isKnownNewsCode(event.symbol);
-  const actionLabel = mode === "blocked" ? "차단 이유 보기" : mode === "result" ? "구조화 결과 보기" : "AI 근거 상세";
+  const actionLabel = mode === "blocked" ? "차단 이유 보기" : mode === "result" ? "통과 근거 보기" : "근거 상세";
   const translationReady = hasStoredKoreanTranslation(event);
   const aiBlocked = event.ai_evidence_type === "news_event_candidate_rejected"
     || event.quality_gate === "validator_blocked"
@@ -107,8 +107,8 @@ export function NewsEventCard({ event, mode, compact = false }: NewsEventCardPro
       tone: translationReady ? "ready" : "watch",
     },
     {
-      label: "AI",
-      value: aiBlocked ? "차단/보류" : aiReady ? "구조화됨" : "대기",
+      label: "근거",
+      value: aiBlocked ? "차단/보류" : aiReady ? "정리됨" : "대기",
       tone: aiBlocked ? "block" : aiReady ? "ready" : "watch",
     },
     {

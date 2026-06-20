@@ -3441,7 +3441,7 @@ def _build_ai_evidence_visibility_trace_payload(data: dict[str, Any]) -> dict[st
             "message_ko": (
                 f"{target_symbol} 종목 맥락과 추천 검토서 연결 여부를 이어서 확인한다."
                 if target_symbol
-                else "직접 종목이 없는 시장/테마 흐름이면 추천 연결은 전파/사이클 단계에서 판단한다."
+                else "직접 종목이 없는 시장/테마 흐름이면 추천 영향은 전파/사이클 단계에서 판단한다."
             ),
         },
         "steps": [
@@ -3449,11 +3449,11 @@ def _build_ai_evidence_visibility_trace_payload(data: dict[str, Any]) -> dict[st
             {"step_key": "translation", "label_ko": "한국어 번역", "status": "available" if has_translation else "missing"},
             {
                 "step_key": "ai_structure",
-                "label_ko": "AI 구조화",
+                "label_ko": "투자 영향",
                 "status": "available" if extracted_fields or theme_impacts or instrument_impacts or cluster else "limited",
             },
-            {"step_key": "validator", "label_ko": "validator 판정", "status": validator_status},
-            {"step_key": "recommendation_linkage", "label_ko": "추천 연결", "status": recommendation_link_status},
+            {"step_key": "validator", "label_ko": "품질 기준", "status": validator_status},
+            {"step_key": "recommendation_linkage", "label_ko": "추천 영향", "status": recommendation_link_status},
         ],
         "read_only_boundary": {
             "live_llm_call_enabled": False,
@@ -3492,10 +3492,10 @@ def _visibility_summary_ko(
 ) -> str:
     target_text = target_symbol or theme_key or "시장/테마"
     if validator_status == "blocked":
-        return f"{target_text} 관련 AI 후보지만 validator가 추천 입력 반영을 차단했다."
+        return f"{target_text} 관련 근거 후보지만 품질 기준이 추천 입력 반영을 차단했다."
     if evidence_type == "news_cluster_summary":
-        return f"{target_text} 관련 뉴스 묶음이다. 같은 흐름인지와 추천 연결이 과하지 않은지 확인한다."
-    return f"{target_text} 관련 AI 근거다. 원천, 번역, 구조화 결과, validator 판정을 순서대로 확인한다."
+        return f"{target_text} 관련 뉴스 묶음이다. 같은 흐름인지와 추천 영향이 과하지 않은지 확인한다."
+    return f"{target_text} 관련 투자 근거다. 원천, 번역, 투자 영향, 품질 기준을 순서대로 확인한다."
 
 
 def _ai_structure_message_ko(
@@ -19274,20 +19274,20 @@ def _build_recommendation_professional_decision_waterfall_payload(
         ),
         _professional_decision_step(
             step_key="news_ai",
-            title="뉴스·AI 근거",
+            title="뉴스·투자 근거",
             status="근거 연결" if direct_evidence.get("status") == "linked" or ai_or_event_count else "근거 대기",
             tone="ready" if direct_evidence.get("status") == "linked" or ai_or_event_count else "watch",
-            decision="원천 뉴스와 AI 구조화 결과를 대조한다",
+            decision="원천 뉴스와 투자 영향을 대조한다",
             detail=(
                 _first_non_empty(direct_evidence.get("korean_summary"), direct_evidence.get("korean_title"), direct_evidence.get("title"))
-                or "추천에 연결된 원천 뉴스나 AI 구조화 근거가 부족하다."
+                or "추천에 연결된 원천 뉴스나 투자 근거가 부족하다."
             ),
             evidence_count=ai_or_event_count + (1 if direct_evidence.get("status") == "linked" else 0),
             source="event_or_ai_evidence",
             href="/intelligence",
-            href_label="뉴스 AI 근거 보기",
+            href_label="뉴스 근거 보기",
             facts=[
-                _professional_fact("직접 뉴스/AI 점수", f"{ai_or_event_count}개"),
+                _professional_fact("직접 뉴스/근거 점수", f"{ai_or_event_count}개"),
                 _professional_fact("영향 방향", _professional_code_label(direct_evidence.get("impact_direction"))),
                 _professional_fact("영향도", _format_percent_text(_number(direct_evidence.get("impact_strength")))),
             ],
@@ -19529,9 +19529,9 @@ def _build_recommendation_professional_evidence_audit_payload(
     news_detail = (
         _first_non_empty(direct_evidence.get("korean_title"), direct_evidence.get("title"))
         or (
-            f"AI/뉴스 점수 구성요소 {ai_or_event_count}개가 연결됐다."
+            f"뉴스 근거 점수 구성요소 {ai_or_event_count}개가 연결됐다."
             if ai_or_event_count
-            else "원천 뉴스와 AI 구조화 근거가 추천 상세에 아직 직접 연결되지 않았다."
+            else "원천 뉴스와 투자 근거가 추천 상세에 아직 직접 연결되지 않았다."
         )
     )
 

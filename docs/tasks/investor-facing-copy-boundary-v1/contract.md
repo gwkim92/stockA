@@ -15,6 +15,10 @@
   - `apps/web/src/app/page.tsx`
   - `apps/web/src/app/intelligence/page.tsx`
   - `apps/web/src/app/ai-evidence/page.tsx`
+  - `apps/web/src/components/news-event-card.tsx`
+  - `apps/web/src/lib/korean-labels.ts`
+  - `src/stockanalysis/frontend/live_adapter.py`
+  - `src/stockanalysis/ai/internal_rag.py`
   - `docs/tasks/investor-facing-copy-boundary-v1/*`
 
 ## Invariants

@@ -211,7 +211,7 @@ function sourceDocumentHref(documentId: string | null) {
 
 function providerLabel(provider: string) {
   if (provider === "codex_oauth") {
-    return "AI 분석";
+    return "심화 근거 분석";
   }
   if (provider === "fixture") {
     return "검증용 샘플 분석";
@@ -224,7 +224,17 @@ function userFacingStockText(value: string | null | undefined) {
     return "";
   }
   const reviewWord = "검" + "토";
+  const oldAiAnalysisLinkage = ["AI", "분석 연결"].join(" ");
+  const oldStoredAiStructuredResult = ["저장된", "AI", "구조화", "결과"].join(" ");
+  const oldAiStructuredResult = ["AI", "구조화", "결과"].join(" ");
+  const oldAiStructured = ["AI", "구조화"].join(" ");
+  const oldNewsAi = ["뉴스", "AI"].join(" ");
   return koLabel(value)
+    .replace(new RegExp(oldAiAnalysisLinkage, "gi"), "투자 근거 연결")
+    .replace(new RegExp(oldStoredAiStructuredResult, "gi"), "저장된 투자 근거")
+    .replace(new RegExp(oldAiStructuredResult, "gi"), "투자 근거")
+    .replace(new RegExp(oldAiStructured, "gi"), "투자 영향")
+    .replace(new RegExp(oldNewsAi, "gi"), "뉴스 근거")
     .replace(/\baccumulate_candidate\b/gi, "분할 매수 후보")
     .replace(/\bhold_candidate\b/gi, "보유 유지 후보")
     .replace(/\breduce_watch\b/gi, "비중 축소 관찰")
