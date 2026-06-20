@@ -76,6 +76,11 @@ def start_codex_oauth_device_login(
     if existing_status["status"] == "device_auth_pending" and _valid_device_auth_status(existing_status):
         return existing_status
 
+    working_payload = existing
+    if existing_status["status"] in {"relogin_required", "device_code_expired", "failed"}:
+        logout_event = _logout_codex_session(repo_root=repo_root, now=current_now)
+        working_payload = _append_event(working_payload, logout_event, now=current_now)
+
     command = [*_codex_base_command(), "login", "--device-auth"]
     started_at = _iso(current_now)
     process = popen_factory(
@@ -108,7 +113,7 @@ def start_codex_oauth_device_login(
         event["next_action"] = "Codex CLI device auth 출력에서 URL/code를 찾지 못했다. 서버에서 codex login --device-auth 출력을 확인한다."
     else:
         event["next_action"] = "auth URL을 열고 user code를 입력한 뒤 smoke를 실행한다."
-    payload = _append_event(existing, event, now=current_now)
+    payload = _append_event(working_payload, event, now=current_now)
     _write_status_payload(status_path, payload)
     return _public_status(payload, status_path=status_path, now=current_now)
 
@@ -336,6 +341,33 @@ def _probe_codex_login_status(
     }
 
 
+def _logout_codex_session(*, repo_root: Path | str | None, now: datetime) -> dict[str, Any]:
+    command = [*_codex_base_command(), "logout"]
+    try:
+        result = _subprocess_runner(command, None, _status_probe_timeout_seconds(), _workdir(repo_root=repo_root))
+    except Exception as exc:
+        return {
+            "event_type": "logout_before_device_auth",
+            "status": "failed",
+            "started_at": _iso(now),
+            "finished_at": _iso(_utc_now()),
+            "error_code": "codex_logout_failed",
+            "message": _diagnostic_excerpt(str(exc), 500),
+            "command": _redacted_command(command),
+        }
+    diagnostic = _strip_ansi("\n".join(part for part in (result.stdout, result.stderr) if part))
+    return {
+        "event_type": "logout_before_device_auth",
+        "status": "succeeded" if result.returncode == 0 else "failed",
+        "started_at": _iso(now),
+        "finished_at": _iso(_utc_now()),
+        "returncode": result.returncode,
+        "error_code": "" if result.returncode == 0 else "codex_logout_failed",
+        "message": "기존 Codex 세션을 정리했다." if result.returncode == 0 else _diagnostic_excerpt(diagnostic, 500),
+        "command": _redacted_command(command),
+    }
+
+
 def _public_status(
     payload: dict[str, Any],
     *,
@@ -351,14 +383,14 @@ def _public_status(
     status = "unknown"
     if latest_event:
         status = _status_from_event(latest_event, now=now)
-    if probe_status == "not_logged_in" and status in {"healthy", "authenticated_smoke_required"}:
+    if _status_from_event(latest_event, now=now) == "relogin_required":
+        status = "relogin_required"
+    elif probe_status == "not_logged_in" and status in {"healthy", "authenticated_smoke_required"}:
         status = "relogin_required"
     elif latest_smoke and latest_smoke.get("status") == "succeeded":
         status = "healthy"
     elif probe_status == "logged_in":
         status = "authenticated_smoke_required"
-    elif _status_from_event(latest_event, now=now) == "relogin_required":
-        status = "relogin_required"
     elif _status_from_event(latest_event, now=now) in {"device_auth_pending", "device_code_expired"}:
         status = _status_from_event(latest_event, now=now)
     error_visible = status not in {"healthy", "authenticated_smoke_required", "device_auth_pending"}

@@ -137,6 +137,37 @@ class CodexOauthOperatorTests(unittest.TestCase):
         self.assertEqual(status["user_code"], "")
         self.assertEqual(status["login_probe_status"], "logged_in")
 
+    def test_auth_invalid_smoke_overrides_misleading_logged_in_probe(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            status_path = Path(tmpdir) / "status.json"
+            status_path.write_text(
+                json.dumps(
+                    {
+                        "updated_at": "2026-06-20T06:00:00Z",
+                        "events": [
+                            {
+                                "event_type": "direct_smoke",
+                                "status": "failed_auth_invalid",
+                                "error_code": "codex_oauth_auth_invalid",
+                                "message": "refresh_token_invalidated",
+                                "finished_at": "2026-06-20T06:00:00Z",
+                            }
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            with patch.dict("os.environ", {STATUS_PATH_ENV: str(status_path)}, clear=False):
+                status = load_codex_oauth_operator_status(
+                    repo_root=tmpdir,
+                    status_runner=self._status_runner("Logged in using ChatGPT"),
+                )
+
+        self.assertEqual(status["status"], "relogin_required")
+        self.assertEqual(status["label"], "재로그인 필요")
+        self.assertEqual(status["last_error_code"], "codex_oauth_auth_invalid")
+
     def test_direct_smoke_auth_failure_requires_relogin(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             status_path = Path(tmpdir) / "status.json"
