@@ -300,7 +300,7 @@ export default async function HomePage() {
       index: "06",
       title: "거래해도 안전한가",
       status: koCode(trading.readiness_status),
-      detail: `차단 ${tradingBlockedCount}개, 경고 ${tradingWarningCount}개`,
+      detail: `막힌 조건 ${tradingBlockedCount}개, 경고 ${tradingWarningCount}개`,
       href: "/trading-readiness",
       cta: "거래 안전",
       tone: readinessTone(trading.readiness_status),
@@ -374,7 +374,7 @@ export default async function HomePage() {
     <div className="terminal-home analyst-home decision-page">
       <section className="analyst-hero reveal" aria-labelledby="dashboard-title">
         <div className="analyst-hero-copy">
-          <span className="decision-brief-kicker">Research desk · {data.as_of_date}</span>
+          <span className="decision-brief-kicker">리서치 데스크 · {data.as_of_date}</span>
           <h1 className="analyst-title" id="dashboard-title">
             오늘 투자 판단은 {primaryFocus.title}
           </h1>
@@ -474,7 +474,7 @@ export default async function HomePage() {
         <Link className="analyst-packet-card packet-safety" href="/trading-readiness">
           <span>05 · 거래 안전</span>
           <strong>{koCode(trading.readiness_status)} 상태에서 주문은 계속 통제한다</strong>
-          <p>broker boundary, kill switch, 주문 한도, 계좌 권한, audit log를 보고 실거래와 분리한다.</p>
+          <p>증권사 연결 경계, kill switch, 주문 한도, 계좌 권한, 감사 기록을 보고 실거래와 분리한다.</p>
           <small>차단 {tradingBlockedCount.toLocaleString("ko-KR")}개 · 실제 주문 제출 {brokerSubmittedCount.toLocaleString("ko-KR")}건</small>
         </Link>
       </section>
@@ -616,7 +616,7 @@ export default async function HomePage() {
                 <dd>{portfolioFeedbackDate}</dd>
               </div>
               <div>
-                <dt>weight 검토</dt>
+                <dt>산식 검토</dt>
                 <dd>{weightReviewLabel}</dd>
               </div>
               <div>
