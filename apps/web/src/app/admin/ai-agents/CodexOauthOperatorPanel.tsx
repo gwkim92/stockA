@@ -17,12 +17,12 @@ type Props = {
 
 function statusTone(status: string) {
   if (status === "healthy" || status === "authenticated_smoke_required") {
-    return "risk-low";
+    return "is-ready";
   }
   if (status === "device_auth_pending" || status === "device_code_expired" || status === "unknown") {
-    return "risk-medium";
+    return "is-waiting";
   }
-  return "risk-high";
+  return "is-blocked";
 }
 
 function shortStatus(status: CodexOauthOperatorStatus) {
@@ -44,6 +44,14 @@ function shortStatus(status: CodexOauthOperatorStatus) {
   return status.label;
 }
 
+function isDeviceCodeExpired(status: CodexOauthOperatorStatus) {
+  if (!status.expires_at) {
+    return false;
+  }
+  const expiresAt = new Date(status.expires_at).getTime();
+  return Number.isFinite(expiresAt) && expiresAt <= Date.now();
+}
+
 function formatDateTime(value: string) {
   if (!value) {
     return "기록 없음";
@@ -58,10 +66,42 @@ function actionMessage(result: CodexOauthActionState | null, status: CodexOauthO
   return status.next_action || status.summary;
 }
 
+function primaryActionLabel(status: CodexOauthOperatorStatus) {
+  if (status.status === "device_auth_pending" && !isDeviceCodeExpired(status) && status.auth_url) {
+    return "인증 페이지 열기";
+  }
+  if (status.status === "authenticated_smoke_required") {
+    return "AI 응답 확인";
+  }
+  if (status.status === "healthy") {
+    return "뉴스 AI 확인";
+  }
+  return "새 로그인 코드 받기";
+}
+
+function primaryActionCopy(status: CodexOauthOperatorStatus) {
+  if (status.status === "device_auth_pending" && !isDeviceCodeExpired(status)) {
+    return "아래 코드를 OpenAI 인증 페이지에 입력한 뒤, 이 화면으로 돌아와 로그인 확인을 누른다.";
+  }
+  if (status.status === "authenticated_smoke_required") {
+    return "로그인은 감지됐다. 이제 서버에서 실제 AI 응답을 받을 수 있는지 확인해야 한다.";
+  }
+  if (status.status === "healthy") {
+    return "기본 연결은 정상이다. 뉴스 번역·구조화까지 실제 배치 경로로 확인할 수 있다.";
+  }
+  return "이전 로그인 토큰을 지우고 새 device code를 발급한다. 만료된 코드는 다시 쓰지 않는다.";
+}
+
 export default function CodexOauthOperatorPanel({ initialStatus }: Props) {
   const [status, setStatus] = useState(initialStatus);
   const [lastResult, setLastResult] = useState<CodexOauthActionState | null>(null);
   const [isPending, startTransition] = useTransition();
+  const codeExpired = isDeviceCodeExpired(status);
+  const effectiveStatus =
+    status.status === "device_auth_pending" && codeExpired
+      ? { ...status, status: "device_code_expired", label: "코드 만료", summary: "인증 코드가 만료됐다. 새 로그인 코드를 다시 받아야 한다." }
+      : status;
+  const canOpenAuth = effectiveStatus.status === "device_auth_pending" && Boolean(effectiveStatus.auth_url);
 
   function run(action: () => Promise<CodexOauthActionState>) {
     startTransition(async () => {
@@ -74,86 +114,51 @@ export default function CodexOauthOperatorPanel({ initialStatus }: Props) {
   }
 
   return (
-    <section className="decision-brief" id="codex-oauth-operator" aria-label="codex oauth operator">
-      <div className="decision-brief-main">
-        <span className="decision-brief-kicker">Codex OAuth 연결</span>
-        <h2 className="decision-brief-title">코드 발급, 로그인 확인, smoke 검증을 순서대로 처리한다.</h2>
-        <p className="decision-brief-copy">
-          OpenAI API quota가 없을 때 쓰는 fallback 경로다. 버튼은 서버에서만 admin token을 붙여 실행하며,
-          브라우저에는 token이나 OAuth 파일이 노출되지 않는다.
-        </p>
-        <div className="decision-brief-meta">
-          <span>상태: {shortStatus(status)}</span>
-          <span>마지막 확인: {formatDateTime(status.last_checked_at)}</span>
-          <span>마지막 smoke: {status.last_smoke_status || "없음"}</span>
-          <span>CLI 로그인: {status.login_probe_status || "not_checked"}</span>
-          <span>주문 경계: {status.order_boundary}</span>
-        </div>
-      </div>
-      <div className="decision-brief-grid">
-        <div className={`decision-card ${statusTone(status.status)}`}>
-          <span>현재 판정</span>
-          <strong>{shortStatus(status)}</strong>
-          <small>{status.summary}</small>
-        </div>
-        <div className="decision-card is-watch">
-          <span>해야 할 일</span>
-          <strong>{isPending ? "실행 중" : lastResult?.ok === false ? "실패" : "대기"}</strong>
-          <small>{actionMessage(lastResult, status)}</small>
-        </div>
-        <div className="decision-card is-good">
-          <span>거래 영향</span>
-          <strong>없음</strong>
-          <small>재로그인과 smoke는 AI 배치 확인용이다. 추천 weight, 주문, 포트폴리오를 바꾸지 않는다.</small>
-        </div>
-      </div>
-
-      <div className="flow-steps">
-        <div className="flow-step">
-          <span>01</span>
-          <strong>코드 발급</strong>
-          <p>로그인이 필요하거나 코드가 만료됐을 때만 새 device code를 만든다.</p>
-        </div>
-        <div className="flow-step">
-          <span>02</span>
-          <strong>브라우저 인증</strong>
-          <p>인증 URL을 열고 화면의 코드를 입력한다. 완료 후 이 화면으로 돌아온다.</p>
-        </div>
-        <div className="flow-step">
-          <span>03</span>
-          <strong>상태 확인</strong>
-          <p>로그인 상태 새로고침으로 서버의 `codex login status` 결과를 확인한다.</p>
-        </div>
-        <div className="flow-step">
-          <span>04</span>
-          <strong>Smoke 검증</strong>
-          <p>직접 smoke가 성공해야 실제 배치 AI fallback이 사용할 수 있다.</p>
-        </div>
-      </div>
-
-      {status.auth_url || status.user_code ? (
-        <div className="source-card">
-          <span>브라우저에 입력할 코드</span>
-          <strong>{status.user_code || "코드 미확인"}</strong>
+    <section className="codex-oauth-console" id="codex-oauth-operator" aria-label="Codex OAuth 연결 복구">
+      <div className="codex-oauth-header">
+        <div>
+          <span className="codex-oauth-kicker">Codex OAuth</span>
+          <h2>AI fallback 로그인 복구</h2>
           <p>
-            만료 시각 {formatDateTime(status.expires_at)}. 링크를 열어 위 코드를 입력한 뒤 “로그인 상태 새로고침”을 누른다.
+            OpenAI API 잔액이 없을 때 서버 배치가 사용하는 예비 AI 경로다. 이 화면에서는 로그인 복구와
+            실제 응답 확인만 한다.
           </p>
-          {status.auth_url ? (
-            <a className="text-link" href={status.auth_url} target="_blank" rel="noreferrer">
-              인증 URL 열기
+        </div>
+        <strong className={`codex-oauth-status ${statusTone(effectiveStatus.status)}`}>{shortStatus(effectiveStatus)}</strong>
+      </div>
+
+      <div className="codex-oauth-grid">
+        <article className="codex-oauth-primary">
+          <span>지금 할 일</span>
+          <strong>{isPending ? "서버에서 처리 중" : lastResult?.ok === false ? "요청 실패" : primaryActionLabel(effectiveStatus)}</strong>
+          <p>{isPending ? "버튼 실행 결과를 기다리고 있다." : actionMessage(lastResult, effectiveStatus) || primaryActionCopy(effectiveStatus)}</p>
+          <small>추천 점수, 포트폴리오, 주문 제출에는 영향이 없다.</small>
+        </article>
+
+        <article className={`codex-oauth-code-card ${canOpenAuth ? "is-live" : "is-muted"}`}>
+          <span>{codeExpired ? "만료된 코드" : "브라우저에 입력할 코드"}</span>
+          <strong>{effectiveStatus.user_code || "코드 없음"}</strong>
+          <p>
+            {effectiveStatus.expires_at
+              ? `만료 시각 ${formatDateTime(effectiveStatus.expires_at)}`
+              : "새 로그인 코드가 아직 발급되지 않았다."}
+          </p>
+          {canOpenAuth ? (
+            <a className="btn btn-primary" href={effectiveStatus.auth_url} target="_blank" rel="noreferrer">
+              인증 페이지 열기
             </a>
           ) : null}
-        </div>
-      ) : null}
+        </article>
+      </div>
 
-      <div className="route-grid compact-routes">
+      <div className="codex-oauth-actions" aria-label="Codex OAuth 작업 버튼">
         <button
           className="btn btn-primary"
           disabled={isPending}
           onClick={() => run(startCodexOauthReloginAction)}
           type="button"
         >
-          1. 재로그인 코드 발급
+          새 로그인 코드 받기
         </button>
         <button
           className="btn btn-secondary"
@@ -161,7 +166,7 @@ export default function CodexOauthOperatorPanel({ initialStatus }: Props) {
           onClick={() => run(refreshCodexOauthStatusAction)}
           type="button"
         >
-          2. 로그인 상태 새로고침
+          로그인 확인
         </button>
         <button
           className="btn btn-secondary"
@@ -169,7 +174,7 @@ export default function CodexOauthOperatorPanel({ initialStatus }: Props) {
           onClick={() => run(runCodexOauthDirectSmokeAction)}
           type="button"
         >
-          3. 직접 smoke 실행
+          AI 응답 확인
         </button>
         <button
           className="btn btn-secondary"
@@ -177,16 +182,57 @@ export default function CodexOauthOperatorPanel({ initialStatus }: Props) {
           onClick={() => run(runCodexOauthNewsSmokeAction)}
           type="button"
         >
-          4. 뉴스 번역·구조화 smoke
+          뉴스 AI 확인
         </button>
       </div>
 
-      {status.last_error_summary ? (
-        <div className="empty-state">
-          <strong>최근 오류</strong>
-          <p>{status.last_error_code ? `${status.last_error_code}: ${status.last_error_summary}` : status.last_error_summary}</p>
+      <div className="codex-oauth-steps" aria-label="복구 순서">
+        {[
+          ["01", "새 코드 받기", "서버의 낡은 토큰을 지우고 새 코드를 발급한다."],
+          ["02", "OpenAI에 입력", "인증 페이지에서 위 코드를 입력한다."],
+          ["03", "로그인 확인", "서버가 새 로그인 상태를 읽는지 확인한다."],
+          ["04", "AI 응답 확인", "실제 배치 AI 호출이 되는지 검증한다."],
+        ].map(([step, title, copy]) => (
+          <article key={step}>
+            <span>{step}</span>
+            <strong>{title}</strong>
+            <p>{copy}</p>
+          </article>
+        ))}
+      </div>
+
+      {effectiveStatus.last_error_summary ? (
+        <div className="codex-oauth-alert">
+          <strong>최근 실패</strong>
+          <p>
+            {effectiveStatus.last_error_code
+              ? `${effectiveStatus.last_error_code}: ${effectiveStatus.last_error_summary}`
+              : effectiveStatus.last_error_summary}
+          </p>
         </div>
       ) : null}
+
+      <details className="codex-oauth-details">
+        <summary>운영 진단값 보기</summary>
+        <dl>
+          <div>
+            <dt>마지막 확인</dt>
+            <dd>{formatDateTime(effectiveStatus.last_checked_at)}</dd>
+          </div>
+          <div>
+            <dt>AI 응답 확인</dt>
+            <dd>{effectiveStatus.last_smoke_status || "기록 없음"}</dd>
+          </div>
+          <div>
+            <dt>서버 로그인 감지</dt>
+            <dd>{effectiveStatus.login_probe_status || "not_checked"}</dd>
+          </div>
+          <div>
+            <dt>거래 경계</dt>
+            <dd>{effectiveStatus.order_boundary}</dd>
+          </div>
+        </dl>
+      </details>
     </section>
   );
 }
