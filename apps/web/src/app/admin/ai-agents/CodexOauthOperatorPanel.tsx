@@ -19,7 +19,7 @@ function statusTone(status: string) {
   if (status === "healthy" || status === "authenticated_smoke_required") {
     return "is-ready";
   }
-  if (status === "device_auth_pending" || status === "device_code_expired" || status === "unknown") {
+  if (status === "news_smoke_running" || status === "device_auth_pending" || status === "device_code_expired" || status === "unknown") {
     return "is-waiting";
   }
   return "is-blocked";
@@ -31,6 +31,9 @@ function shortStatus(status: CodexOauthOperatorStatus) {
   }
   if (status.status === "authenticated_smoke_required") {
     return "로그인 완료, smoke 필요";
+  }
+  if (status.status === "news_smoke_running") {
+    return "뉴스 AI 확인 중";
   }
   if (status.status === "device_auth_pending") {
     return "코드 입력 대기";
@@ -76,6 +79,9 @@ function primaryActionLabel(status: CodexOauthOperatorStatus) {
   if (status.status === "healthy") {
     return "뉴스 AI 확인";
   }
+  if (status.status === "news_smoke_running") {
+    return "뉴스 AI 실행 중";
+  }
   return "새 로그인 코드 받기";
 }
 
@@ -88,6 +94,9 @@ function primaryActionCopy(status: CodexOauthOperatorStatus) {
   }
   if (status.status === "healthy") {
     return "기본 연결은 정상이다. 뉴스 번역·구조화까지 실제 배치 경로로 확인할 수 있다.";
+  }
+  if (status.status === "news_smoke_running") {
+    return "뉴스 번역·구조화 확인이 백그라운드에서 돌고 있다. 잠시 후 로그인 확인을 눌러 결과를 갱신한다.";
   }
   return "이전 로그인 토큰을 지우고 새 device code를 발급한다. 만료된 코드는 다시 쓰지 않는다.";
 }
@@ -102,6 +111,7 @@ export default function CodexOauthOperatorPanel({ initialStatus }: Props) {
       ? { ...status, status: "device_code_expired", label: "코드 만료", summary: "인증 코드가 만료됐다. 새 로그인 코드를 다시 받아야 한다." }
       : status;
   const canOpenAuth = effectiveStatus.status === "device_auth_pending" && Boolean(effectiveStatus.auth_url);
+  const newsSmokeRunning = effectiveStatus.status === "news_smoke_running";
 
   function run(action: () => Promise<CodexOauthActionState>) {
     startTransition(async () => {
@@ -178,11 +188,11 @@ export default function CodexOauthOperatorPanel({ initialStatus }: Props) {
         </button>
         <button
           className="btn btn-secondary"
-          disabled={isPending}
+          disabled={isPending || newsSmokeRunning}
           onClick={() => run(runCodexOauthNewsSmokeAction)}
           type="button"
         >
-          뉴스 AI 확인
+          {newsSmokeRunning ? "뉴스 AI 실행 중" : "뉴스 AI 확인"}
         </button>
       </div>
 

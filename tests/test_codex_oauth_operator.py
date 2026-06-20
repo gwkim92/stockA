@@ -16,6 +16,7 @@ from stockanalysis.frontend.codex_oauth_operator import (
     run_codex_oauth_direct_smoke,
     run_codex_oauth_news_smoke,
     start_codex_oauth_device_login,
+    start_codex_oauth_news_smoke_job,
 )
 
 
@@ -290,6 +291,32 @@ class CodexOauthOperatorTests(unittest.TestCase):
         self.assertEqual(commands[0][3], "news-rss-translation-run")
         self.assertEqual(commands[1][:3], [sys.executable, "-m", "stockanalysis.operations.cli"])
         self.assertEqual(commands[1][3], "news-rss-ai-extract-run")
+
+    def test_start_news_smoke_job_records_running_status(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            status_path = Path(tmpdir) / "status.json"
+            with patch.dict("os.environ", {STATUS_PATH_ENV: str(status_path)}, clear=False):
+                status = start_codex_oauth_news_smoke_job(repo_root=tmpdir)
+                events = json.loads(status_path.read_text(encoding="utf-8"))["events"]
+
+        self.assertEqual(status["status"], "news_smoke_running")
+        self.assertEqual(status["label"], "뉴스 AI 확인 중")
+        self.assertTrue(status["background_job_started"])
+        self.assertEqual(events[-1]["event_type"], "news_smoke_async_started")
+        self.assertEqual(events[-1]["status"], "running")
+        self.assertEqual(status["last_error_summary"], "")
+
+    def test_start_news_smoke_job_does_not_duplicate_active_job(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            status_path = Path(tmpdir) / "status.json"
+            with patch.dict("os.environ", {STATUS_PATH_ENV: str(status_path)}, clear=False):
+                first = start_codex_oauth_news_smoke_job(repo_root=tmpdir)
+                second = start_codex_oauth_news_smoke_job(repo_root=tmpdir)
+                events = json.loads(status_path.read_text(encoding="utf-8"))["events"]
+
+        self.assertTrue(first["background_job_started"])
+        self.assertFalse(second["background_job_started"])
+        self.assertEqual(len(events), 1)
 
 
 if __name__ == "__main__":

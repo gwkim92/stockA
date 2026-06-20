@@ -5321,6 +5321,35 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertTrue(payload["test_recent"])
         self.assertEqual(payload["missing_conditions"], [])
 
+    def test_alert_destination_payload_tolerates_small_clock_skew(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            status_path = Path(tmpdir) / "alert-status.json"
+            status_path.write_text(
+                json.dumps(
+                    {
+                        "mode": "ntfy",
+                        "destination_type": "ntfy",
+                        "last_test_status": "passed",
+                        "last_tested_at": "2026-05-27T00:00:01Z",
+                    }
+                ),
+                encoding="utf-8",
+            )
+            with patch.dict(
+                os.environ,
+                {
+                    "STOCKANALYSIS_ALERT_DESTINATION_MODE": "ntfy",
+                    "STOCKANALYSIS_NTFY_TOPIC_URL": "https://ntfy.sh/example",
+                    "STOCKANALYSIS_ALERT_DESTINATION_STATUS_PATH": str(status_path),
+                },
+                clear=True,
+            ):
+                payload = _build_alert_destination_payload(generated_at="2026-05-27T00:00:00Z")
+
+        self.assertEqual(payload["status"], "external_destination_verified")
+        self.assertFalse(payload["attention_required"])
+        self.assertTrue(payload["test_recent"])
+
     def test_alert_destination_payload_accepts_ntfy_topic_url(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             status_path = Path(tmpdir) / "alert-status.json"

@@ -235,6 +235,37 @@ def run_codex_oauth_news_smoke(
     return _public_status(payload, status_path=status_path, now=current_now)
 
 
+def start_codex_oauth_news_smoke_job(
+    *,
+    repo_root: Path | str | None = None,
+    now: datetime | None = None,
+) -> dict[str, Any]:
+    current_now = now or _utc_now()
+    status_path = _status_path(repo_root=repo_root)
+    payload = _read_status_payload(status_path)
+    events = [event for event in payload.get("events", []) if isinstance(event, dict)]
+    latest_event = events[-1] if events else {}
+    if _status_from_event(latest_event, now=current_now) == "news_smoke_running":
+        status = _public_status(payload, status_path=status_path, now=current_now)
+        status["background_job_started"] = False
+        return status
+
+    timeout_seconds = _timeout_seconds()
+    event = {
+        "event_type": "news_smoke_async_started",
+        "status": "running",
+        "started_at": _iso(current_now),
+        "running_until": _iso(current_now + timedelta(seconds=timeout_seconds + 60)),
+        "message": "뉴스 번역/구조화 Codex OAuth smoke를 백그라운드로 시작했다.",
+        "next_action": "잠시 후 로그인 확인을 눌러 뉴스 AI 확인 결과를 갱신한다.",
+    }
+    payload = _append_event(payload, event, now=current_now)
+    _write_status_payload(status_path, payload)
+    status = _public_status(payload, status_path=status_path, now=current_now)
+    status["background_job_started"] = True
+    return status
+
+
 def _run_smoke_command(
     *,
     event_type: str,
@@ -387,13 +418,15 @@ def _public_status(
         status = "relogin_required"
     elif probe_status == "not_logged_in" and status in {"healthy", "authenticated_smoke_required"}:
         status = "relogin_required"
+    elif _status_from_event(latest_event, now=now) == "news_smoke_running":
+        status = "news_smoke_running"
     elif latest_smoke and latest_smoke.get("status") == "succeeded":
         status = "healthy"
     elif probe_status == "logged_in":
         status = "authenticated_smoke_required"
     elif _status_from_event(latest_event, now=now) in {"device_auth_pending", "device_code_expired"}:
         status = _status_from_event(latest_event, now=now)
-    error_visible = status not in {"healthy", "authenticated_smoke_required", "device_auth_pending"}
+    error_visible = status not in {"healthy", "authenticated_smoke_required", "device_auth_pending", "news_smoke_running"}
     show_device_auth = status in {"device_auth_pending", "device_code_expired"}
 
     return {
@@ -434,6 +467,11 @@ def _status_from_event(event: dict[str, Any], *, now: datetime) -> str:
     raw_status = str(event.get("status") or "")
     if raw_status == "succeeded":
         return "healthy"
+    if raw_status == "running":
+        running_until = _parse_datetime(str(event.get("running_until") or ""))
+        if running_until and running_until >= now:
+            return "news_smoke_running"
+        return "failed"
     if raw_status == "device_auth_pending":
         if not _valid_device_auth_status(event):
             return "relogin_required"
@@ -452,6 +490,7 @@ def _status_label(status: str) -> str:
     labels = {
         "healthy": "정상",
         "authenticated_smoke_required": "로그인 확인됨",
+        "news_smoke_running": "뉴스 AI 확인 중",
         "device_auth_pending": "로그인 대기",
         "device_code_expired": "코드 만료",
         "relogin_required": "재로그인 필요",
@@ -465,6 +504,7 @@ def _status_summary(status: str) -> str:
     summaries = {
         "healthy": "최근 Codex OAuth smoke가 성공했다.",
         "authenticated_smoke_required": "Codex CLI 로그인은 확인됐다. 실제 AI 호출이 되는지는 smoke로 확인해야 한다.",
+        "news_smoke_running": "뉴스 번역/구조화 smoke가 백그라운드에서 실행 중이다.",
         "device_auth_pending": "재로그인 device code가 발급됐다. auth URL에서 code를 입력한 뒤 smoke를 실행한다.",
         "device_code_expired": "발급된 device code가 만료됐다. 재로그인 시작을 다시 눌러 새 code를 받는다.",
         "relogin_required": "Codex OAuth 인증이 만료되었거나 로그인 출력 확인이 필요하다.",
@@ -479,6 +519,8 @@ def _next_action_for_status(status: str) -> str:
         return "필요 시 뉴스 번역/구조화 smoke를 재실행해 운영 배치를 확인한다."
     if status == "authenticated_smoke_required":
         return "로그인은 완료됐다. 직접 smoke를 실행해 Codex OAuth가 실제 응답을 내는지 확인한다."
+    if status == "news_smoke_running":
+        return "뉴스 AI 확인이 실행 중이다. 잠시 후 로그인 확인을 눌러 결과를 갱신한다."
     if status == "device_auth_pending":
         return "auth URL을 열고 user code를 입력한 뒤 smoke를 실행한다."
     return "재로그인 시작을 누르고 device code 발급 여부를 확인한다."

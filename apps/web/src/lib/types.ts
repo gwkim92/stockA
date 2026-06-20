@@ -142,6 +142,7 @@ export type CodexOauthOperatorStatus = {
   broker_submit_allowed: boolean;
   automatic_order_allowed: boolean;
   order_boundary: string;
+  background_job_started?: boolean;
 };
 
 export type AiAgentRegistryData = {

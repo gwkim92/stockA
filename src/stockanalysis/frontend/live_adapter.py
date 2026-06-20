@@ -1342,7 +1342,10 @@ def _build_alert_destination_payload(*, generated_at: str) -> dict[str, Any]:
     test_recent = False
     if last_test_dt is not None:
         test_age_hours = (generated_dt - last_test_dt).total_seconds() / 3600
-        test_recent = 0 <= test_age_hours <= max_age_hours
+        # The alert test artifact and data-health payload can be produced within
+        # the same second by different processes. Treat a tiny negative age as
+        # clock skew, not as stale evidence.
+        test_recent = (-5 / 60) <= test_age_hours <= max_age_hours
     external_destination = mode in EXTERNAL_ALERT_DESTINATION_MODES
     local_only = mode in LOCAL_ALERT_DESTINATION_MODES
     test_passed = last_test_status == "passed"

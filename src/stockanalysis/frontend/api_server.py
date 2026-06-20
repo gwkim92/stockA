@@ -7,6 +7,7 @@ import json
 import logging
 import os
 import re
+import threading
 import time
 import uuid
 from contextlib import asynccontextmanager
@@ -31,6 +32,7 @@ from stockanalysis.frontend.codex_oauth_operator import (
     load_codex_oauth_operator_status,
     run_codex_oauth_direct_smoke,
     run_codex_oauth_news_smoke,
+    start_codex_oauth_news_smoke_job,
     start_codex_oauth_device_login,
 )
 from stockanalysis.frontend.db_pool import PsycopgPoolExecutor
@@ -285,7 +287,9 @@ def create_app(
         unauthorized = _admin_action_response_if_needed(request, selected_policy)
         if unauthorized is not None:
             return unauthorized
-        payload = await run_in_threadpool(run_codex_oauth_news_smoke, repo_root=resolved_repo_root)
+        payload = await run_in_threadpool(start_codex_oauth_news_smoke_job, repo_root=resolved_repo_root)
+        if payload.get("background_job_started"):
+            _launch_codex_oauth_news_smoke_background(resolved_repo_root)
         return _json_response(payload)
 
     @app.get("/api/{path:path}")
@@ -591,6 +595,16 @@ def _log_access(
             sort_keys=True,
         )
     )
+
+
+def _launch_codex_oauth_news_smoke_background(repo_root: Path) -> None:
+    thread = threading.Thread(
+        target=run_codex_oauth_news_smoke,
+        kwargs={"repo_root": repo_root},
+        name="stockanalysis-codex-oauth-news-smoke",
+        daemon=True,
+    )
+    thread.start()
 
 
 def _request_path_from_scope(request: Request) -> str:

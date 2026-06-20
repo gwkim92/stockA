@@ -339,6 +339,43 @@ class FrontendApiServerTests(unittest.TestCase):
         self.assertEqual(allowed.json()["status"], "device_auth_pending")
         self.assertEqual(allowed.json()["user_code"], "ABCD-EFGH")
 
+    def test_codex_oauth_news_smoke_admin_action_starts_background_job(self) -> None:
+        policy = FrontendRuntimePolicy(
+            profile="local",
+            source="live",
+            auth_mode="read-token",
+            read_token="server-secret",
+        )
+        app = create_app(runtime_policy=policy, executor=FakeLiveExecutor())
+        fake_status = {
+            "status": "news_smoke_running",
+            "label": "뉴스 AI 확인 중",
+            "summary": "running",
+            "auth_url": "",
+            "user_code": "",
+            "expires_at": "",
+            "order_boundary": "read_only_no_order",
+            "broker_submit_allowed": False,
+            "background_job_started": True,
+        }
+
+        with patch.dict("os.environ", {"STOCKANALYSIS_FRONTEND_API_ADMIN_ACTION_TOKEN": "admin-secret"}, clear=False):
+            with patch("stockanalysis.frontend.api_server.start_codex_oauth_news_smoke_job", return_value=fake_status) as start_job:
+                with patch("stockanalysis.frontend.api_server._launch_codex_oauth_news_smoke_background") as launch_job:
+                    with TestClient(app) as client:
+                        response = client.post(
+                            "/__admin/codex-oauth/smoke/news",
+                            headers={
+                                "Authorization": "Bearer server-secret",
+                                "X-Stockanalysis-Admin-Action-Token": "admin-secret",
+                            },
+                        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["status"], "news_smoke_running")
+        start_job.assert_called_once()
+        launch_job.assert_called_once()
+
     def test_production_live_runtime_accepts_database_url_without_psql_command(self) -> None:
         policy = FrontendRuntimePolicy(
             profile="production",
