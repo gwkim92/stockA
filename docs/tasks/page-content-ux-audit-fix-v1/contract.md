@@ -48,7 +48,7 @@
 
 ## Done Criteria
 
-- [ ] 홈에서 동일한 `보완 큐에서 처리` CTA가 수십 번 반복되지 않는다.
-- [ ] `/data-health`의 뉴스 AI 평가 case가 한국어로 표시된다.
-- [ ] 주요 runner/status 코드가 사용자용 한국어 문구로 표시된다.
-- [ ] 검증 명령과 route smoke가 통과한다.
+- [x] 홈에서 동일한 `보완 큐에서 처리` CTA가 수십 번 반복되지 않는다.
+- [x] `/data-health`의 뉴스 AI 평가 case가 한국어로 표시된다.
+- [x] 주요 runner/status 코드가 사용자용 한국어 문구로 표시된다.
+- [x] 검증 명령과 route smoke가 통과한다.
