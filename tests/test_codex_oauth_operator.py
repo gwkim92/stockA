@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -260,6 +261,35 @@ class CodexOauthOperatorTests(unittest.TestCase):
         self.assertEqual(status["status"], "failed")
         self.assertEqual(status["last_error_code"], "missing_env_file")
         self.assertIn("env_file", status["last_error_code"])
+
+    def test_news_smoke_uses_current_python_module_cli_by_default(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            status_path = Path(tmpdir) / "status.json"
+            env_file = Path(tmpdir) / "data-operations.env"
+            env_file.write_text("STOCKANALYSIS_DATABASE_URL=postgresql://example\n", encoding="utf-8")
+            commands = []
+
+            def runner(command, input_text, timeout_seconds, cwd):
+                commands.append(list(command))
+                return CommandResult(returncode=0, stdout='{"ok":true}', stderr="")
+
+            with patch.dict(
+                "os.environ",
+                {
+                    STATUS_PATH_ENV: str(status_path),
+                    "STOCKANALYSIS_CODEX_OAUTH_SMOKE_ENV_FILE": str(env_file),
+                    "STOCKANALYSIS_OPERATIONS_COMMAND": "",
+                },
+                clear=False,
+            ):
+                status = run_codex_oauth_news_smoke(repo_root=tmpdir, runner=runner)
+
+        self.assertEqual(status["status"], "healthy")
+        self.assertEqual(len(commands), 2)
+        self.assertEqual(commands[0][:3], [sys.executable, "-m", "stockanalysis.operations.cli"])
+        self.assertEqual(commands[0][3], "news-rss-translation-run")
+        self.assertEqual(commands[1][:3], [sys.executable, "-m", "stockanalysis.operations.cli"])
+        self.assertEqual(commands[1][3], "news-rss-ai-extract-run")
 
 
 if __name__ == "__main__":

@@ -6,6 +6,7 @@ import re
 import selectors
 import shlex
 import subprocess
+import sys
 import tempfile
 import time
 from dataclasses import dataclass
@@ -20,6 +21,7 @@ CODEX_WORKDIR_ENV = "STOCKANALYSIS_CODEX_WORKDIR"
 CODEX_TIMEOUT_ENV = "STOCKANALYSIS_CODEX_TIMEOUT_SECONDS"
 CODEX_SMOKE_ENV_FILE_ENV = "STOCKANALYSIS_CODEX_OAUTH_SMOKE_ENV_FILE"
 DATA_OPERATIONS_ENV_FILE_ENV = "STOCKANALYSIS_DATA_OPERATIONS_ENV_FILE"
+OPERATIONS_COMMAND_ENV = "STOCKANALYSIS_OPERATIONS_COMMAND"
 DEVICE_AUTH_START_TIMEOUT_ENV = "STOCKANALYSIS_CODEX_OAUTH_DEVICE_AUTH_START_TIMEOUT_SECONDS"
 STATUS_PROBE_TIMEOUT_ENV = "STOCKANALYSIS_CODEX_OAUTH_STATUS_PROBE_TIMEOUT_SECONDS"
 NEWS_SMOKE_LIMIT_ENV = "STOCKANALYSIS_CODEX_OAUTH_NEWS_SMOKE_LIMIT"
@@ -184,7 +186,7 @@ def run_codex_oauth_news_smoke(
     limit = str(max(1, int(os.environ.get(NEWS_SMOKE_LIMIT_ENV, "1"))))
     commands = [
         [
-            "stockanalysis-operations",
+            *_operations_base_command(),
             "news-rss-translation-run",
             "--env-file",
             env_file,
@@ -195,7 +197,7 @@ def run_codex_oauth_news_smoke(
             "--execute",
         ],
         [
-            "stockanalysis-operations",
+            *_operations_base_command(),
             "news-rss-ai-extract-run",
             "--env-file",
             env_file,
@@ -531,6 +533,16 @@ def _codex_base_command() -> list[str]:
     if not base_command:
         raise ValueError(f"{CODEX_COMMAND_ENV} must not be empty.")
     return base_command
+
+
+def _operations_base_command() -> list[str]:
+    command_text = os.environ.get(OPERATIONS_COMMAND_ENV, "").strip()
+    if command_text:
+        base_command = shlex.split(command_text)
+        if not base_command:
+            raise ValueError(f"{OPERATIONS_COMMAND_ENV} must not be empty.")
+        return base_command
+    return [sys.executable, "-m", "stockanalysis.operations.cli"]
 
 
 def _timeout_seconds() -> int:
