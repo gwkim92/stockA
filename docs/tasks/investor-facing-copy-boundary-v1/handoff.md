@@ -2,7 +2,7 @@
 
 ## Status
 
-- completed: local copy refactor, local verification, and user-facing copy search passed.
+- completed: local copy refactor, GitHub push, EC2 deploy, EC2 route smoke, local tunnel route smoke, and user-facing copy search passed.
 
 ## Current Decision
 
@@ -25,10 +25,13 @@
 - passed: `cd apps/web && npm run build`
 - passed: `PYTHONPATH=/Users/woody/ai/agent-work-harness/src python3 -m awh verify --repo . --task investor-facing-copy-boundary-v1`
 - passed: investor-surface search excluding `/data-health` and `/admin` found no `AI가 한 일`, `처리 순서`, `AI 구조화`, `자동 검증`, `뉴스 AI`, `AI 후보`, `작업 방식`, `분석 방식`, `파이프라인`, or `구조화 결과`.
+- passed on EC2: `git pull --ff-only origin develop`, Python compile, Next typecheck, Next build, and `stockanalysis-web.service`/`stockanalysis-frontend-api.service` active at commit `83281159`.
+- passed on EC2: `/`, `/intelligence`, `/ai-evidence`, `/ai-evidence/results`, `/ai-evidence/blocked`, `/cycle-map`, `/events`, `/events/classification`, `/market-map`, `/recommendations`, `/stocks/AAPL` returned 200 with required investor-facing terms and no forbidden process-copy terms.
+- passed through local tunnel: `http://127.0.0.1:13000/`, `/intelligence`, `/ai-evidence`, `/stocks/AAPL` returned 200 and rendered investor-facing evidence terms.
 
 ## Next Step
 
-- exact next step: deploy to EC2 and smoke key routes so the running site reflects the copy boundary.
+- exact next step: continue the UX audit with pages not deeply redesigned yet, especially `/cycles`, `/paper-trading`, `/performance`, `/portfolio/coverage`, and recommendation detail layout density.
 
 ## Risks
 
