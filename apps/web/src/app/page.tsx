@@ -1,6 +1,5 @@
 import Link from "next/link";
 import type { Route } from "next";
-import { DecisionReviewStrip } from "@/components/decision-review-strip";
 import {
   getAiNewsClusters,
   getCockpitSnapshot,
@@ -372,211 +371,122 @@ export default async function HomePage() {
   ];
 
   return (
-    <div className="terminal-home decision-page">
-      <section className="decision-brief reveal" aria-labelledby="dashboard-title">
-        <div className="decision-brief-main">
-          <span className="decision-brief-kicker">오늘의 판단 지도 · {data.as_of_date}</span>
-          <h1 className="decision-brief-title" id="dashboard-title">
-            지금 할 일은 {primaryFocus.title}
+    <div className="terminal-home analyst-home decision-page">
+      <section className="analyst-hero reveal" aria-labelledby="dashboard-title">
+        <div className="analyst-hero-copy">
+          <span className="decision-brief-kicker">Research desk · {data.as_of_date}</span>
+          <h1 className="analyst-title" id="dashboard-title">
+            오늘 투자 판단은 {primaryFocus.title}
           </h1>
-          <p className="decision-brief-copy">
-            {primaryFocus.body} 첫 화면에서는 수집 상태, 뉴스·AI 근거, 추천·보유 변화, 거래 안전 경계만 본다.
+          <p className="analyst-lede">
+            {primaryFocus.body} 이 화면은 전체 로그가 아니라 투자위원회용 첫 장이다.
+            먼저 데이터 신뢰도와 시장 배경을 확인하고, 뉴스 AI와 사이클 근거를 본 뒤 추천·가상 매매·거래 경계로 내려간다.
           </p>
-          <div className="decision-brief-meta" aria-label="홈 핵심 상태">
-            <span>실패 작업 {failedJobCount.toLocaleString("ko-KR")}개</span>
-            <span>열린 검토 {openTicketCount.toLocaleString("ko-KR")}개</span>
-            <span>호출 예산 {budgetLabel}</span>
-            <span>{orderBoundaryLabel}</span>
+          <div className="analyst-action-row">
+            <Link className="btn btn-primary" href={primaryFocus.href}>
+              {primaryFocus.cta}
+            </Link>
+            <Link className="btn btn-secondary" href="/market-map">
+              시장 지도
+            </Link>
+            <Link className="btn btn-secondary" href="/ai-evidence">
+              AI 근거
+            </Link>
+            <Link className="btn btn-secondary" href="/recommendations">
+              추천 검토
+            </Link>
           </div>
         </div>
-        <div className="decision-brief-grid">
-          <Link className={failedJobCount > 0 ? "decision-card is-block" : "decision-card is-good"} href="/data-health">
-            <span>수집 상태</span>
-            <strong>{koCode(health.data.overall_status)}</strong>
-            <small>자동화 {automationDisplayLabel(health.data.scheduler, data.run_status.scheduler)} · 예산 {budgetDateLabel}</small>
-            <b>수집 확인</b>
-          </Link>
-          <Link className="decision-card is-good" href={"/intelligence" as Route}>
-            <span>뉴스·AI</span>
-            <strong>{eventData.summary.event_count.toLocaleString("ko-KR")}개 뉴스</strong>
-            <small>AI 후보 {eventData.summary.ai_extracted_count.toLocaleString("ko-KR")}개 · 묶음 {clusterData.summary.cluster_count.toLocaleString("ko-KR")}개</small>
-            <b>뉴스 근거</b>
-          </Link>
-          <Link className="decision-card is-watch" href={"/recommendations" as Route}>
-            <span>추천·보유</span>
-            <strong>{recommendationBoundary.decision_review_ready_count.toLocaleString("ko-KR")}개 후보</strong>
-            <small>가상 매매 검증 대기 {recommendationBoundary.paper_validation_pending_count.toLocaleString("ko-KR")}개 · 열린 검토 {ticketCount.toLocaleString("ko-KR")}개</small>
-            <b>추천 보기</b>
-          </Link>
-          <Link className="decision-card is-good" href={"/cycle-map" as Route}>
-            <span>사이클</span>
-            <strong>흐름 지도</strong>
-            <small>거시→도메인→테마→종목으로 뉴스와 가격 흐름이 내려가는 경로를 본다.</small>
-            <b>사이클 보기</b>
-          </Link>
-          <Link className={tradingBlockedCount > 0 ? "decision-card is-block" : "decision-card is-good"} href={"/trading-readiness" as Route}>
-            <span>거래 안전</span>
-            <strong>{koCode(trading.readiness_status)}</strong>
-            <small>차단 {tradingBlockedCount.toLocaleString("ko-KR")}개 · 실제 주문 제출 {brokerSubmittedCount.toLocaleString("ko-KR")}건</small>
-            <b>안전 경계</b>
-          </Link>
-        </div>
-      </section>
-
-      <DecisionReviewStrip
-        activeIndex="01"
-        description="이 순서가 현재 서비스의 기본 동선이다. 수집이 흔들리면 뒤 판단을 멈추고, 뉴스 근거와 흐름이 확인된 뒤 추천·가상 매매 검증으로 넘어간다."
-        steps={decisionSteps}
-      />
-
-      <section
-        className="feature-map-panel reveal delay-1"
-        aria-labelledby="outcome-wait-title"
-      >
-        <div className="section-heading stacked-heading">
-          <span>지금 결론</span>
-          <h2 id="outcome-wait-title">{outcomeWaitMonitor.title}</h2>
-        </div>
-        <p className="manifest-lede compact-copy">
-          {outcomeWaitMonitor.summary} 추천 산식은 성과 표본이 성숙하기 전까지 바꾸지 않는다.
-          지금 할 일은 새 주문이 아니라 수집·뉴스 근거·가상 매매 결과가 다음 측정일까지 정상 누적되는지 확인하는 것이다.
-        </p>
-        <div className="status-rail compact-rail">
-          <article className="rail-cell">
-            <span>추천 성과 측정</span>
-            <strong>{recommendationOutcomeDate}</strong>
-            <small>다음 측정 대상 {outcomeWaitMonitor.recommendation_next_due_count}개</small>
-          </article>
-          <article className="rail-cell">
-            <span>포트폴리오 사후 평가</span>
-            <strong>{portfolioFeedbackDate}</strong>
-            <small>성숙 표본 부족 {outcomeWaitMonitor.portfolio_mature_decision_gap}개</small>
-          </article>
-          <article className="rail-cell rail-critical">
-            <span>추천 산식 검토</span>
-            <strong>{weightReviewLabel}</strong>
-            <small>{koReason(outcomeWaitMonitor.weight_review_block_reason)}</small>
-          </article>
-          <article className="rail-cell rail-critical">
-            <span>거래 경계</span>
-            <strong>{orderBoundaryLabel}</strong>
-            <small>{koCode(outcomeWaitMonitor.order_boundary)}</small>
-          </article>
-        </div>
-        <div className="btn-row compact-btn-row">
-          <Link className="btn btn-primary" href={"/data-health#outcome-maturity-wait-monitor" as Route}>
-            대기 근거 자세히 보기
-          </Link>
-          <Link className="btn btn-secondary" href={"/recommendations" as Route}>
-            추천 목록 보기
-          </Link>
-          <Link className="btn btn-secondary" href={"/portfolio/coverage" as Route}>
-            포트폴리오 검토 보기
-          </Link>
-        </div>
-      </section>
-
-      <section className="status-rail reveal delay-1" aria-label="오늘의 핵심 숫자">
-        <article className="rail-cell rail-critical">
-          <span>운영 검토 항목</span>
-          <strong>{data.attention_summary.open_ticket_count}</strong>
-          <small>열린 검토 티켓</small>
-        </article>
-        <article className="rail-cell">
-          <span>뉴스와 공시 이벤트</span>
-          <strong>{eventData.summary.event_count}</strong>
-          <small>AI 후보 {eventData.summary.ai_extracted_count}개</small>
-        </article>
-        <article className="rail-cell">
-          <span>추천 판단 후보</span>
-          <strong>{recommendationBoundary.decision_review_ready_count}</strong>
-          <small>가상 매매 검증 대기 {recommendationBoundary.paper_validation_pending_count}개</small>
-        </article>
-        <article className="rail-cell rail-critical">
-          <span>추천 사용 차단</span>
-          <strong>{recommendationBoundary.decision_blocked_count}</strong>
-          <small>주문 차단 {recommendationBoundary.order_blocked_count}개</small>
-        </article>
-        <article className="rail-cell">
-          <span>거래 안전 차단</span>
-          <strong>{tradingBlockedCount}</strong>
-          <small>{koCode(trading.execution_mode)} 모드</small>
-        </article>
-      </section>
-
-      <section className="where-grid reveal delay-2" aria-label="상세 화면 입구">
-        {navigationGroups.map((group) => (
-          <article className="where-card cockpit-route-card" key={group.label}>
-            <span>{group.label}</span>
-            <strong>{group.title}</strong>
-            <p>{group.copy}</p>
-            <div className="btn-row compact-btn-row">
-              <Link className="btn btn-primary" href={group.primaryHref as Route}>
-                {group.primaryCta}
-              </Link>
-              {group.links.map((link) => (
-                <Link className="btn btn-secondary" href={link.href as Route} key={`${group.label}-${link.label}`}>
-                  {link.label}
-                </Link>
-              ))}
+        <aside className="analyst-command-panel" aria-label="오늘의 투자 운영 결론">
+          <span>오늘 결론</span>
+          <strong>{outcomeWaitMonitor.title}</strong>
+          <p>
+            추천 산식은 성과 표본이 성숙하기 전까지 바꾸지 않는다. 지금은 수집·뉴스 근거·가상 매매 결과가 정상적으로 쌓이는지 확인한다.
+          </p>
+          <dl className="analyst-fact-grid">
+            <div>
+              <dt>데이터 상태</dt>
+              <dd>{koCode(health.data.overall_status)}</dd>
             </div>
-          </article>
-        ))}
+            <div>
+              <dt>뉴스 AI</dt>
+              <dd>{eventData.summary.ai_extracted_count.toLocaleString("ko-KR")}개 후보</dd>
+            </div>
+            <div>
+              <dt>추천 성과 측정</dt>
+              <dd>{recommendationOutcomeDate}</dd>
+            </div>
+            <div>
+              <dt>거래 경계</dt>
+              <dd>{orderBoundaryLabel}</dd>
+            </div>
+          </dl>
+        </aside>
       </section>
 
-      <section className="feature-map-panel reveal delay-2" aria-labelledby="feature-map-title">
-        <div className="section-heading stacked-heading">
-          <span>판단 기준</span>
-          <h2 id="feature-map-title">첫 화면에서는 이 세 가지만 통과하면 된다</h2>
+      <section className="analyst-reading-flow reveal delay-1" aria-labelledby="reading-flow-title">
+        <div className="analyst-section-heading">
+          <span>읽는 순서</span>
+          <h2 id="reading-flow-title">수집 신뢰도에서 주문 차단까지 같은 순서로 읽는다</h2>
+          <p>
+            프로 리서치 화면은 숫자를 많이 보여주는 것이 아니라 판단 순서를 고정해야 한다.
+            아래 순서 중 앞 단계가 막히면 뒤 단계의 추천은 보류한다.
+          </p>
         </div>
-        <div className="decision-brief-grid">
-          <article className="decision-brief-card">
-            <span>데이터</span>
-            <strong>{koCode(health.data.overall_status)}</strong>
-            <p>
-              실패 작업 {failedJobCount}개. 데이터가 불안정하면 추천보다 수집 상태를 먼저 본다.
-            </p>
-          </article>
-          <article className="decision-brief-card">
-            <span>뉴스 근거</span>
-            <strong>{eventData.summary.ai_extracted_count}개 AI 후보</strong>
-            <p>
-              뉴스 묶음 {clusterData.summary.cluster_count}개. 근거가 약하면 AI 상세와 원천 문서를 먼저 확인한다.
-            </p>
-          </article>
-          <article className="decision-brief-card">
-            <span>사이클</span>
-            <strong>시장 흐름 경로</strong>
-            <p>
-              테마 상태는 /cycles, 원인과 전파 경로는 /cycle-map에서 본다. 사이클은 매수 신호가 아니라 추천 근거를 점검하는 배경이다.
-            </p>
-          </article>
-          <article className="decision-brief-card">
-            <span>거래 안전</span>
-            <strong>{koCode(trading.readiness_status)}</strong>
-            <p>
-              차단 조건 {tradingBlockedCount}개. 실제 주문 전송 {brokerSubmittedCount}건.
-            </p>
-          </article>
-          <article className="decision-brief-card">
-            <span>추천 사용 경계</span>
-            <strong>{recommendationBoundary.decision_review_ready_count}개 판단 후보</strong>
-            <p>
-              가상 매매 검증 대기 {recommendationBoundary.paper_validation_pending_count}개, 근거·투자 논리 차단{" "}
-              {recommendationBoundary.decision_blocked_count}개. 모든 추천은 주문 차단 상태다.
-            </p>
-          </article>
+        <div className="analyst-flow-grid">
+          {decisionSteps.map((step) => (
+            <Link className={`analyst-flow-card tone-${step.tone ?? "ok"}`} href={step.href} key={step.index}>
+              <span>{step.index}</span>
+              <strong>{step.title}</strong>
+              <em>{step.status}</em>
+              <p>{step.body}</p>
+              <small>{step.cta}</small>
+            </Link>
+          ))}
         </div>
       </section>
 
-      <section className="operator-workbench reveal delay-2">
-        <article className="ledger-panel queue-panel" aria-labelledby="priority-actions-title">
+      <section className="analyst-packet-grid reveal delay-2" aria-label="핵심 분석 패킷">
+        <Link className="analyst-packet-card packet-market" href="/market-map">
+          <span>01 · 시장 배경</span>
+          <strong>지수·금리·달러·원자재가 추천을 밀어주는가</strong>
+          <p>시장 지도에서 위험 선호, 금리 부담, 달러 유동성, 원자재 충격을 먼저 본다.</p>
+          <small>호출 예산 {budgetLabel} · {budgetDateLabel}</small>
+        </Link>
+        <Link className="analyst-packet-card packet-news" href="/intelligence">
+          <span>02 · 뉴스 AI</span>
+          <strong>{eventData.summary.event_count.toLocaleString("ko-KR")}개 뉴스에서 투자 근거를 추린다</strong>
+          <p>원천 뉴스, 한국어 번역, AI 구조화, 검증 통과/차단, 추천 연결을 이어서 본다.</p>
+          <small>AI 후보 {eventData.summary.ai_extracted_count.toLocaleString("ko-KR")}개 · 묶음 {clusterData.summary.cluster_count.toLocaleString("ko-KR")}개</small>
+        </Link>
+        <Link className="analyst-packet-card packet-cycle" href="/cycle-map">
+          <span>03 · 사이클 지도</span>
+          <strong>거시 흐름이 섹터·테마·종목으로 어떻게 내려가는가</strong>
+          <p>상위 흐름과 종목 노출도를 연결해 단일 뉴스가 아닌 사이클 배경으로 해석한다.</p>
+          <small>테마 {eventData.summary.themes_represented.toLocaleString("ko-KR")}개</small>
+        </Link>
+        <Link className="analyst-packet-card packet-recommendation" href="/recommendations">
+          <span>04 · 추천·보유</span>
+          <strong>추천 후보보다 먼저 근거 커버리지와 차단 사유를 본다</strong>
+          <p>추천 점수, 투자 논리, 전문 분석 근거, 페이퍼 검증 상태를 분리해서 확인한다.</p>
+          <small>검증 대기 {recommendationBoundary.paper_validation_pending_count.toLocaleString("ko-KR")}개 · 열린 검토 {ticketCount.toLocaleString("ko-KR")}개</small>
+        </Link>
+        <Link className="analyst-packet-card packet-safety" href="/trading-readiness">
+          <span>05 · 거래 안전</span>
+          <strong>{koCode(trading.readiness_status)} 상태에서 주문은 계속 통제한다</strong>
+          <p>broker boundary, kill switch, 주문 한도, 계좌 권한, audit log를 보고 실거래와 분리한다.</p>
+          <small>차단 {tradingBlockedCount.toLocaleString("ko-KR")}개 · 실제 주문 제출 {brokerSubmittedCount.toLocaleString("ko-KR")}건</small>
+        </Link>
+      </section>
+
+      <section className="analyst-workbench reveal delay-2">
+        <article className="ledger-panel queue-panel analyst-queue-panel" aria-labelledby="priority-actions-title">
           <div className="section-heading">
-            <span>우선순위</span>
-            <h2 id="priority-actions-title">반복되는 보완 항목을 묶어서 본다</h2>
+            <span>보완 큐</span>
+            <h2 id="priority-actions-title">오늘 처리할 리서치 공백</h2>
           </div>
           <p className="compact-copy">
-            같은 사유가 여러 번 반복되면 표를 길게 읽지 말고 묶음 단위로 처리한다.
+            추천을 읽기 전에 남은 공백을 먼저 본다. 같은 사유가 여러 번 반복되면 표를 길게 읽지 말고 묶음 단위로 처리한다.
             {repeatedActionCount > 0
               ? ` 현재 ${data.top_actions.length}개 보완 기록은 ${groupedTopActions.length}개 묶음으로 압축됐다. 홈에는 먼저 볼 ${visibleTopActionGroups.length}개만 보여준다.`
               : " 현재 중복 보완 기록은 없다."}
@@ -592,7 +502,7 @@ export default async function HomePage() {
                     <strong>{koCode(group.action)}</strong>
                     <p className="flow-rationale">{shortReviewReason(group.reason)}</p>
                   </div>
-                  <div style={{ flex: "0 1 260px" }}>
+                  <div className="bento-list-action">
                     <span className={`risk-tag ${riskClass(group.riskLevel)}`}>{koCode(group.riskLevel)}</span>
                     <span>제안 실행: {koCode(group.suggestedRunner)}</span>
                     <Link href="/remediation">보완 큐에서 처리</Link>
@@ -611,7 +521,7 @@ export default async function HomePage() {
                     홈은 오늘 먼저 볼 항목만 보여준다. 전체 원장은 보완 큐에서 종목·사유별로 이어서 본다.
                   </p>
                 </div>
-                <div style={{ flex: "0 1 260px" }}>
+                <div className="bento-list-action">
                   <Link href="/remediation">보완 큐 전체 보기</Link>
                 </div>
               </article>
@@ -619,7 +529,7 @@ export default async function HomePage() {
           </div>
         </article>
 
-        <aside className="operator-side-stack">
+        <aside className="operator-side-stack analyst-side-stack">
           <article className="ledger-panel decision-panel">
             <div className="section-heading">
               <span>첫 보완 묶음</span>
@@ -661,8 +571,8 @@ export default async function HomePage() {
 
           <article className="ledger-panel runtime-panel">
             <div className="section-heading">
-              <span>뉴스가 추천에 붙은 증거</span>
-              <h2>AI 근거가 실제 판단 입력으로 연결됐는가</h2>
+              <span>근거 연결</span>
+              <h2>뉴스 AI가 추천 판단으로 이어지는가</h2>
             </div>
             <dl className="runtime-grid">
               <div>
@@ -685,6 +595,38 @@ export default async function HomePage() {
             <div className="mini-link-stack">
               <Link href="/intelligence">뉴스 묶음 근거</Link>
               <Link href={firstRecommendationHref}>대표 추천 열기</Link>
+            </div>
+          </article>
+
+          <article className="ledger-panel runtime-panel">
+            <div className="section-heading">
+              <span>성과 대기</span>
+              <h2>{weightReviewLabel}</h2>
+            </div>
+            <p className="decision-copy">
+              {outcomeWaitMonitor.summary} 추천 산식과 실거래는 성과 표본이 성숙할 때까지 계속 차단한다.
+            </p>
+            <dl className="runtime-grid">
+              <div>
+                <dt>추천 측정일</dt>
+                <dd>{recommendationOutcomeDate}</dd>
+              </div>
+              <div>
+                <dt>포트폴리오 평가</dt>
+                <dd>{portfolioFeedbackDate}</dd>
+              </div>
+              <div>
+                <dt>weight 검토</dt>
+                <dd>{weightReviewLabel}</dd>
+              </div>
+              <div>
+                <dt>주문 경계</dt>
+                <dd>{koCode(outcomeWaitMonitor.order_boundary)}</dd>
+              </div>
+            </dl>
+            <div className="mini-link-stack">
+              <Link href={"/data-health#outcome-maturity-wait-monitor" as Route}>성과 대기 근거</Link>
+              <Link href="/paper-trading">가상 매매 상태</Link>
             </div>
           </article>
         </aside>
