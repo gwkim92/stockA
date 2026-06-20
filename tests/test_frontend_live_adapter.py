@@ -25,6 +25,7 @@ from stockanalysis.frontend.live_adapter import (
     _build_production_api_server_payload,
     _build_professional_source_guardrail_payload,
     _benchmark_drift_quality_attention_policy,
+    _build_outcome_maturity_wait_monitor_payload,
     _portfolio_review_decision_history_attention_policy,
     _professional_source_gap_requires_attention,
     _resolve_data_health_overall_status,
@@ -5624,6 +5625,56 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertEqual(payload["child_runner"]["run_id"], "pipeline-run-9801")
         self.assertFalse(payload["automatic_weight_change_allowed"])
         self.assertFalse(payload["broker_submit_allowed"])
+
+    def test_outcome_maturity_wait_monitor_ignores_stale_due_router_wait_until(self) -> None:
+        maturity = _build_recommendation_outcome_maturity_payload(
+            {
+                "status": "not_due",
+                "as_of_date": "2026-06-20",
+                "source_calibration_eval_run_id": 421,
+                "next_due_date": "2026-06-21",
+                "next_due_count": 6,
+                "ready_for_backfill_count": 0,
+                "overdue_count": 0,
+                "price_gap_count": 0,
+            }
+        )
+        stale_due_router = _build_recommendation_outcome_due_action_router_payload(
+            {
+                "status": "loaded",
+                "eval_run_id": 408,
+                "source_calibration_eval_run_id": 27,
+                "action_status": "no_op_wait_until_next_due_date",
+                "wait_until": "2026-07-19",
+                "reason": "오래된 router artifact의 대기 사유다.",
+                "next_action": "오래된 router artifact의 다음 조치다.",
+            }
+        )
+
+        payload = _build_outcome_maturity_wait_monitor_payload(
+            portfolio_review_feedback_calibration={
+                "managed_wait": True,
+                "estimated_maturity_date": "2026-06-24",
+                "maturity_status": "waiting_for_outcome_window",
+                "mature_decision_gap": 10,
+                "weight_review_blocked": True,
+            },
+            recommendation_outcome_maturity=maturity,
+            recommendation_outcome_due_action_router=stale_due_router,
+            recommendation_weight_review_readiness={
+                "manual_weight_review_allowed": False,
+                "blocker_message": "성과 표본이 아직 부족하다.",
+            },
+        )
+
+        self.assertEqual(payload["recommendation_next_due_date"], "2026-06-21")
+        self.assertEqual(payload["earliest_action_date"], "2026-06-21")
+        self.assertFalse(payload["recommendation_due_action_router_current"])
+        self.assertEqual(payload["recommendation_due_action_router_source_eval_run_id"], "eval-run-27")
+        self.assertEqual(payload["wait_items"][0]["wait_until"], "2026-06-21")
+        self.assertEqual(payload["wait_items"][0]["action_status"], "wait_until_next_due_date")
+        self.assertIn("2026-06-21", payload["summary"])
+        self.assertNotIn("2026-07-19", payload["summary"])
 
     def test_live_data_health_response_opens_gate_for_failed_live_codex_invocations(self) -> None:
         class FailingAiExecutor(FakeLiveExecutor):

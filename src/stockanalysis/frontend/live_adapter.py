@@ -17071,18 +17071,28 @@ def _build_outcome_maturity_wait_monitor_payload(
     recommendation_weight_review_readiness: Mapping[str, Any],
 ) -> dict[str, Any]:
     cadence_action = _as_dict(recommendation_outcome_maturity.get("cadence_action"))
-    router_child = _as_dict(recommendation_outcome_due_action_router.get("child_runner"))
+    maturity_calibration_eval_run_id = str(recommendation_outcome_maturity.get("source_calibration_eval_run_id") or "")
+    router_calibration_eval_run_id = str(
+        recommendation_outcome_due_action_router.get("source_calibration_eval_run_id") or ""
+    )
+    router_is_current = (
+        bool(maturity_calibration_eval_run_id)
+        and bool(router_calibration_eval_run_id)
+        and maturity_calibration_eval_run_id == router_calibration_eval_run_id
+    )
+    effective_due_action = recommendation_outcome_due_action_router if router_is_current else {}
+    router_child = _as_dict(effective_due_action.get("child_runner"))
     recommendation_wait_until = _first_non_empty(
-        recommendation_outcome_due_action_router.get("wait_until"),
         cadence_action.get("wait_until"),
         recommendation_outcome_maturity.get("next_due_date"),
+        effective_due_action.get("wait_until"),
     )
     portfolio_wait_until = str(portfolio_review_feedback_calibration.get("estimated_maturity_date") or "")
     wait_dates = [date for date in [recommendation_wait_until, portfolio_wait_until] if date]
     earliest_action_date = min(wait_dates) if wait_dates else ""
     recommendation_should_run = (
         cadence_action.get("should_run_now") is True
-        or str(recommendation_outcome_due_action_router.get("action_status") or "")
+        or str(effective_due_action.get("action_status") or "")
         in {"execute_outcome_calibration_ready", "blocked_by_price_gaps"}
     )
     portfolio_managed_wait = portfolio_review_feedback_calibration.get("managed_wait") is True
@@ -17108,16 +17118,16 @@ def _build_outcome_maturity_wait_monitor_payload(
             "scope": "recommendation_outcome",
             "label": "추천 outcome 측정창",
             "status": str(recommendation_outcome_maturity.get("status") or "missing"),
-            "action_status": str(recommendation_outcome_due_action_router.get("action_status") or cadence_action.get("status") or "missing"),
+            "action_status": str(effective_due_action.get("action_status") or cadence_action.get("status") or "missing"),
             "wait_until": recommendation_wait_until,
             "count": int(_safe_number(recommendation_outcome_maturity.get("next_due_count")) or 0),
             "reason": str(
-                recommendation_outcome_due_action_router.get("reason")
+                effective_due_action.get("reason")
                 or cadence_action.get("reason")
                 or "추천 outcome maturity 상태를 확인한다."
             ),
             "next_action": str(
-                recommendation_outcome_due_action_router.get("next_action")
+                effective_due_action.get("next_action")
                 or cadence_action.get("label")
                 or "recommendation outcome maturity를 계속 모니터링한다."
             ),
@@ -17153,7 +17163,7 @@ def _build_outcome_maturity_wait_monitor_payload(
         ),
         "next_action": _outcome_maturity_wait_monitor_next_action(
             status=status,
-            recommendation_due_action=recommendation_outcome_due_action_router,
+            recommendation_due_action=effective_due_action,
             portfolio_review_feedback_calibration=portfolio_review_feedback_calibration,
             earliest_action_date=earliest_action_date,
         ),
@@ -17166,7 +17176,10 @@ def _build_outcome_maturity_wait_monitor_payload(
         "recommendation_next_due_date": recommendation_wait_until,
         "recommendation_next_due_count": int(_safe_number(recommendation_outcome_maturity.get("next_due_count")) or 0),
         "recommendation_maturity_status": str(recommendation_outcome_maturity.get("status") or "missing"),
-        "recommendation_action_status": str(recommendation_outcome_due_action_router.get("action_status") or cadence_action.get("status") or "missing"),
+        "recommendation_action_status": str(effective_due_action.get("action_status") or cadence_action.get("status") or "missing"),
+        "recommendation_due_action_router_current": router_is_current,
+        "recommendation_due_action_router_eval_run_id": str(recommendation_outcome_due_action_router.get("eval_run_id") or ""),
+        "recommendation_due_action_router_source_eval_run_id": router_calibration_eval_run_id,
         "recommendation_ready_for_backfill_count": int(_safe_number(recommendation_outcome_maturity.get("ready_for_backfill_count")) or 0),
         "recommendation_overdue_count": int(_safe_number(recommendation_outcome_maturity.get("overdue_count")) or 0),
         "recommendation_price_gap_count": int(_safe_number(recommendation_outcome_maturity.get("price_gap_count")) or 0),
