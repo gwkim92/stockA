@@ -2,13 +2,14 @@
 
 ## Status
 
-- status: in_progress
-- in progress: local implementation and service recovery completed; code deployment and EC2 async endpoint smoke remain.
+- status: completed
+- current status: implemented, pushed to `develop`, deployed to EC2, and smoke verified.
+- completed: Codex OAuth news smoke now runs as a background admin action, EC2 open gates are clear, and service route smoke passed.
 
 ## Current Status
 
-- status: implementation verified locally; EC2 service gates recovered; code deployment pending.
-- 상태: implementation in progress.
+- status: implemented, pushed to `develop`, deployed to EC2, and smoke verified.
+- 상태: completed.
 - 기준일: 2026-06-20.
 - 발견한 장애:
   - OAuth 자체는 정상이다.
@@ -34,8 +35,12 @@
 - passed on EC2 runtime: `systemctl --failed` returned 0 failed units.
 - passed on EC2 runtime: `/__health`, `/__ready`, `/`, `/data-health`, `/admin/ai-agents`, `/market-map`, `/cycle-map`, `/recommendations`, `/paper-trading` returned 200.
 - passed on EC2 data-health: `open_gates=[]`, `alert_destination.status=external_destination_verified`, `active_recommendation_price_freshness.status=fresh`, `recommendation_outcome_calibration.status=ready_for_manual_weight_review`, `recommendation_outcome_maturity.status=not_due`.
-- pending: deploy code to EC2 and verify async admin endpoint behavior.
+- passed: deployed commit `9631cef4` to EC2 via `git pull --ff-only origin develop`.
+- passed: EC2 `python -m compileall -q src`, `apps/web npm run build`, and restart of `stockanalysis-frontend-api.service` / `stockanalysis-web.service`.
+- passed: `POST /__admin/codex-oauth/smoke/news` returned immediately with `status=news_smoke_running` and `background_job_started=true`.
+- passed: Codex OAuth background news smoke completed and status returned to `healthy`; latest event `news_smoke`, login probe `Logged in using ChatGPT`.
+- passed: local tunnel `http://127.0.0.1:13000` returned 200 for `/`, `/data-health`, `/admin/ai-agents`, `/market-map`, `/cycle-map`, `/recommendations`, `/paper-trading`.
 
 ## Next Step
 
-- exact next step: run local tests, deploy to EC2, verify that `POST /__admin/codex-oauth/smoke/news` returns `news_smoke_running` immediately and later resolves to `healthy`.
+- exact next step: monitor next `news-intraday` and next recommendation outcome due window. Do not start manual weight review until a separate approved task opens it.
