@@ -130,7 +130,7 @@ function paperValidationState(trading: TradingReadinessData) {
     return {
       title: "가상 매매 검증 통과 항목 있음 · 실제 주문 금지",
       tone: "risk-medium",
-      detail: "가상 매매 검증을 통과한 항목이 있지만 이 화면은 주문을 만들지 않는다. 실거래는 거래 안전 승인, 증권사 연결, 계좌 권한, 주문 한도, 감사 기록이 모두 붙은 뒤에만 가능하다.",
+      detail: "가상 매매 검증을 통과한 항목이 있어도 실거래는 닫혀 있다. 거래 안전 승인, 증권사 연결, 계좌 권한, 주문 한도, 감사 기록이 모두 필요하다.",
     };
   }
   return {
@@ -164,7 +164,7 @@ export default async function PaperTradingPage() {
       body:
         liveSubmitCount > 0
           ? "이 경우 가상 매매 화면을 보기 전에 감사 로그와 실제 계좌 내역을 먼저 대조해야 한다."
-          : "현재 서버 기준으로 증권사에 전송된 주문은 없다. 아래 항목은 모두 시뮬레이션이다.",
+          : "현재 서버 기준으로 증권사에 전송된 주문은 없다. 아래 항목은 모두 검증용이다.",
       href: "#paper-current-state",
       cta: "실거래 상태 보기",
       tone: liveSubmitCount > 0 ? "block" : "ready",
@@ -176,7 +176,7 @@ export default async function PaperTradingPage() {
       metric: simulatedActionCount > 0 ? `${simulatedActionCount}개 항목` : "항목 대기",
       body:
         simulatedActionCount > 0
-          ? "추천과 현재 보유가 충돌하거나 조정 여지가 있는 항목이다. 주문 지시가 아니라 검증용 항목이다."
+          ? "추천과 현재 보유가 충돌하거나 조정 여지가 있는 항목이다. 실제 실행 전 근거를 대조한다."
           : "추천, 가격, 보유 데이터가 갱신되면 가상 매매 항목이 다시 계산된다.",
       href: "#paper-action-candidates",
       cta: simulatedActionCount > 0 ? "항목 보기" : "추천 대기 보기",
@@ -190,7 +190,7 @@ export default async function PaperTradingPage() {
       body:
         trading.gate_summary.blocked_count > 0
           ? "거래 안전 조건이 닫혀 있어 가상 매매 항목을 실거래로 전환하면 안 된다."
-          : "차단 조건이 없어 보여도 이 화면에는 주문 버튼이 없다. 실거래 전환은 별도 증권사 주문 절차에서만 다룬다.",
+          : "차단 조건이 없어 보여도 실거래 전환은 별도 증권사 주문 절차에서만 다룬다.",
       href: "/trading-readiness",
       cta: "거래 안전 보기",
       tone: trading.gate_summary.blocked_count > 0 ? "block" : "watch",
@@ -272,11 +272,10 @@ export default async function PaperTradingPage() {
         <div className="decision-brief-main">
           <span className="decision-brief-kicker">가상 매매 · 주문 전 안전 점검</span>
           <h1 className="decision-brief-title" id="paper-title">
-            실제 주문 전송은 {liveSubmitCount.toLocaleString("ko-KR")}건이고, 지금은 가상 검증 단계다.
+            실거래 {liveSubmitCount.toLocaleString("ko-KR")}건, 가상 검증 {simulatedActionCount.toLocaleString("ko-KR")}건.
           </h1>
           <p className="decision-brief-copy">
-            이 화면은 주문 버튼이 아니다. 추천과 보유 내역을 대조해 “주문한다면 무엇이 필요한지”만 계산하고,
-            안전 조건과 감사 경계가 막으면 실거래로 넘어가지 않는다.
+            추천과 보유 내역을 대조해 실행 가능성을 점검한다. 차단 조건이 남아 있으면 실거래 전환은 닫힌 상태로 유지한다.
           </p>
           <div className="decision-brief-meta" aria-label="가상 매매 핵심 상태">
             <span>추천 {summary.recommendation_count.toLocaleString("ko-KR")}개</span>
@@ -305,9 +304,9 @@ export default async function PaperTradingPage() {
 
       <section className="paper-state-panel reveal delay-1" id="paper-current-state" aria-labelledby="paper-current-state-title">
         <div className="section-heading stacked-heading">
-          <span>현재 단계</span>
+          <span>현재 결론</span>
           <h2 id="paper-current-state-title">{validationState.title}</h2>
-          <p>이 상태 카드만 보면 현재가 시뮬레이션 중인지, 차단 중인지, 실제 주문이 나갔는지 바로 알 수 있다.</p>
+          <p>실제 주문 여부, 가상 검증 항목, 차단 조건을 분리해서 본다.</p>
         </div>
         <p className="board-intro">{validationState.detail}</p>
         <div className="paper-state-grid">

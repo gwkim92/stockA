@@ -378,7 +378,7 @@ export default async function PortfolioCoveragePage() {
       title: riskBudgetLabel(riskBudget.status),
       metric: `한도 초과 ${riskBudget.over_single_position_limit_count}개 · 집중 초과 ${concentration.over_limit_count}개`,
       body: riskBudget.status === "needs_position_review" || concentration.over_limit_count > 0
-        ? "단일 종목, 섹터, 테마 노출이 정책 한도와 충돌하는지 확인한다. 이 값은 주문 지시가 아니라 위험 확인 신호다."
+        ? "단일 종목, 섹터, 테마 노출이 정책 한도와 충돌하는지 확인한다."
         : "현재 정책 기준으로 큰 한도 초과는 없다. 그래도 비중과 집중도는 아래 카드에서 계속 확인한다.",
       href: "#portfolio-risk-budget",
       cta: "리스크 보기",
@@ -390,7 +390,7 @@ export default async function PortfolioCoveragePage() {
       title: reviewCandidateTotal > 0 ? `${reviewCandidateTotal}개 확인 대상` : "즉시 대상 없음",
       metric: `벤치마크 ${candidateReview.candidate_count}개 · 포지션 ${positionSizingReview.review_required_count}개`,
       body: reviewCandidateTotal > 0
-        ? "SPY 대비 괴리나 포지션 크기 문제를 확인한다. 매수·매도 버튼이 아니라 상세 근거로 들어가는 입구다."
+        ? "SPY 대비 괴리나 포지션 크기 문제를 확인한다. 상세 근거부터 열어본다."
         : "현재 기준으로 리밸런싱 확인 대상이 없다.",
       href: "#portfolio-rebalance-review",
       cta: "확인 대상 보기",
@@ -402,8 +402,8 @@ export default async function PortfolioCoveragePage() {
       title: reviewCalibration.weight_review_blocked ? "추천 산식 변경 금지" : "조건 확인 가능",
       metric: `성숙일 ${reviewCalibration.estimated_maturity_date || "미정"} · ${orderBoundaryLabel(reviewCalibration.guardrails.order_boundary)}`,
       body: reviewCalibration.weight_review_blocked
-        ? "성과 표본이 성숙하기 전에는 추천 산식 반영 비중을 바꾸지 않는다. 실거래 주문과 자동 리밸런싱도 계속 차단된다."
-        : "조건이 열려도 이 화면에서 자동 주문이나 자동 비중 변경은 하지 않는다.",
+        ? "성과 표본이 성숙하기 전에는 추천 산식 반영 비중을 바꾸지 않는다."
+        : "조건이 열려도 자동 비중 변경은 별도 승인 대상이다.",
       href: "#portfolio-outcome-boundary",
       cta: "상태 보기",
       tone: reviewCalibration.weight_review_blocked ? "block" : "watch",
@@ -418,10 +418,10 @@ export default async function PortfolioCoveragePage() {
             보유·리스크 상태 · {userFacingText(data.portfolio_name)} · {userFacingText(data.strategy_name)} · {data.as_of_date}
           </span>
           <h1 className="decision-brief-title" id="portfolio-coverage-title">
-            보유 위험과 근거 공백을 먼저 확인한다.
+            보유 위험 공백은 {reviewCandidateTotal.toLocaleString("ko-KR")}개다.
           </h1>
           <p className="decision-brief-copy">
-            이 화면은 포트폴리오 주문 화면이 아니다. 보유 투자 논리, 리스크 예산, 리밸런싱 확인 대상, 성과 성숙 대기, 추천 산식 변경 금지를 분리해서 본다.
+            투자 논리 누락, 리스크 한도, 벤치마크 괴리, 성과 성숙 대기를 한 화면에서 본다. 성숙 전에는 비중 정책을 바꾸지 않는다.
           </p>
           <div className="decision-brief-meta" aria-label="포트폴리오 핵심 상태">
             <span>포지션 {data.summary.position_count.toLocaleString("ko-KR")}개</span>

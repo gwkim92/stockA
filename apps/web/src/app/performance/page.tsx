@@ -261,10 +261,10 @@ export default async function PerformancePage() {
             성과 측정 · {koLabel(data.portfolio_name)} · {data.measurement_end_date}
           </span>
           <h1 className="decision-brief-title" id="performance-title">
-            성과는 확인하지만 추천 산식과 주문은 바꾸지 않는다.
+            성과 표본은 아직 산식 변경 근거가 아니다.
           </h1>
           <p className="decision-brief-copy">
-            이 화면은 장기 추천의 책임 추적 화면이다. 측정된 추천, 표본 품질, 성과 귀속, 제외·보완 항목을 분리해서 보고 자동 주문이나 추천 산식 변경은 실행하지 않는다.
+            측정된 추천, 표본 품질, 성과 귀속, 제외·보완 항목을 분리해서 본다. 표본이 부족하면 추천 산식과 주문 판단은 그대로 잠근다.
           </p>
           <div className="decision-brief-meta" aria-label="성과 핵심 상태">
             <span>측정 구간 {data.measurement_start_date} ~ {data.measurement_end_date}</span>

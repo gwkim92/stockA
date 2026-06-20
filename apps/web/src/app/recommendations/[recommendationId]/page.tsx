@@ -71,7 +71,7 @@ const USER_FACING_TERM_REPLACEMENTS: Array<[string, string]> = [
   ["valuation_margin_score", "밸류에이션 안전마진"],
   ["total_score", "총점"],
   ["recommendation_id", "추천 ID"],
-  ["AI 근거", "AI 해석"],
+  ["AI 근거", "투자 근거"],
   ["주문 경계", "실거래 상태"],
   ["거래 경계", "실거래 상태"],
   ["추천 총점", "최종 추천 점수"],
@@ -90,7 +90,7 @@ const USER_FACING_TERM_REPLACEMENTS: Array<[string, string]> = [
   ["guidance", "가이던스"],
   ["fundamental 구성요소", "재무·밸류에이션 항목"],
   ["투자 논리 lifecycle", "투자 논리 생애주기"],
-  ["source event/AI evidence", "원천 이벤트/AI 해석"],
+  ["source event/AI evidence", "원천 이벤트/투자 근거"],
   [["페", "이퍼"].join(""), "가상 매매"],
 ];
 
@@ -111,7 +111,7 @@ const SCORE_COMPONENT_LABELS: Record<string, string> = {
 const SOURCE_TYPE_LABELS: Record<string, string> = {
   market_feature: "가격·거래 데이터",
   strategy_universe_rank: "전략 종목군 순위",
-  event_or_ai_evidence: "뉴스·AI 해석",
+  event_or_ai_evidence: "뉴스·투자 근거",
   macro_flow_propagation: "상위 흐름 전파",
   cycle_stack_context: "계층형 사이클",
   fundamental_context: "재무·밸류에이션 분석",
@@ -951,7 +951,7 @@ function evidenceHref(evidenceId: string, symbol: string) {
 
 function evidenceLinkLabel(evidenceId: string) {
   if (evidenceId.startsWith("ai-evidence-")) {
-    return "AI 해석 열기";
+    return "투자 근거 열기";
   }
   if (evidenceId.startsWith("event-") || evidenceId.startsWith("sec-event-")) {
     return "수집 뉴스 열기";
@@ -1100,7 +1100,7 @@ function recommendationQualityDecision(data: RecommendationDetailData): Recommen
     return {
       status: "전문 재무 원천 차단",
       tone: "risk-high",
-      summary: "정기 재무제표나 검증된 해석기가 없어 이 추천은 기록으로만 보존한다. 뉴스·AI·가격 근거가 있어도 전문 분석이나 가상 매매 검증 입력으로 넘기면 안 된다.",
+      summary: "정기 재무제표나 검증된 해석기가 없어 이 추천은 기록으로만 보존한다. 뉴스·가격 근거가 있어도 전문 분석이나 가상 매매 검증 입력으로 넘기면 안 된다.",
     };
   }
   if (blockedCount > 0) {
@@ -1121,11 +1121,11 @@ function recommendationQualityDecision(data: RecommendationDetailData): Recommen
     return {
       status: "근거 보강 대기",
       tone: "risk-medium",
-      summary: "핵심 근거는 있으나 성과 측정, 근거 연결, 또는 최근 성과가 충분히 강하지 않아 AI 근거 보강이 먼저다.",
+      summary: "핵심 근거는 있으나 성과 측정, 근거 연결, 또는 최근 성과가 충분히 강하지 않아 근거 보강이 먼저다.",
     };
   }
   return {
-    status: "AI 근거 검증 통과",
+    status: "투자 근거 품질 통과",
     tone: "risk-low",
     summary: "근거와 성과가 연결되어 있어 중장기 투자 신호 품질 기준을 통과했다.",
   };
@@ -1144,9 +1144,9 @@ function recommendationQualityChecks(data: RecommendationDetailData) {
     {
       label: "근거 연결",
       value: ["ai_review_passed", "ready_for_human_review"].includes(data.evidence_review.quality_status)
-        ? "AI 검증 통과"
+        ? "품질 기준 통과"
         : koCode(data.evidence_review.quality_status),
-      detail: `뉴스·AI 해석 ${aiEvidenceCount}개 · 가격/순위 출처 기록 ${marketProvenanceCount}개`,
+      detail: `뉴스·투자 근거 ${aiEvidenceCount}개 · 가격/순위 출처 기록 ${marketProvenanceCount}개`,
     },
     {
       label: "성과 확인",
@@ -1206,7 +1206,7 @@ function recommendationImmediateFocus({
     items.push({
       label: "1순위",
       title: "원천 근거 차단부터 확인",
-      body: "정기 재무제표나 검증 가능한 원천이 부족하면 뉴스·AI 근거가 있어도 전문 판단이나 가상 매매 입력으로 넘기지 않는다.",
+      body: "정기 재무제표나 검증 가능한 원천이 부족하면 뉴스 근거가 있어도 전문 판단이나 가상 매매 입력으로 넘기지 않는다.",
       metric: "전문 판단 입력 금지",
       href: "#recommendation-evidence-review",
       hrefLabel: "차단 근거 보기",
@@ -1236,7 +1236,7 @@ function recommendationImmediateFocus({
     items.push({
       label: "1순위",
       title: "성과 측정 대기 상태 확인",
-      body: "추천 근거는 연결됐지만 성과 측정창이 끝나지 않았다. 이 기간에는 추천 weight 변경과 실거래 주문을 하지 않는다.",
+      body: "추천 근거는 연결됐지만 성과 측정창이 끝나지 않았다. 이 기간에는 추천 산식 변경과 실거래 주문을 하지 않는다.",
       metric: "성과 미측정",
       href: "#recommendation-evidence-review",
       hrefLabel: "성과·리스크 보기",
@@ -1329,11 +1329,11 @@ function evidenceTraceCards(data: RecommendationDetailData) {
 
   return [
     {
-      label: "뉴스·AI 해석",
+      label: "뉴스·투자 근거",
       value: traceStatusLabel(direct.status),
       detail:
         direct.status === "linked"
-          ? `직접 종목 뉴스나 AI 해석이 추천 입력으로 연결됐다. 자료 신뢰도 ${formatMetricValue(direct.confidence)}.`
+          ? `직접 종목 뉴스나 투자 근거가 추천 입력으로 연결됐다. 자료 신뢰도 ${formatMetricValue(direct.confidence)}.`
           : "이 추천은 직접 종목 뉴스보다 가격, 종목군 순위, 또는 상위 흐름 근거가 중심이다.",
       href: directHref,
       hrefLabel: direct.evidence_id ? evidenceLinkLabel(direct.evidence_id) : null,
@@ -1591,13 +1591,12 @@ function RecommendationFocusPanel({
   return (
     <section className={`recommendation-focus-panel ${qualityDecision.tone} reveal delay-1`} aria-labelledby="recommendation-focus-title">
       <div className="recommendation-focus-lead">
-        <span>추천서 읽는 순서</span>
+        <span>현재 결론</span>
         <h2 id="recommendation-focus-title">
           먼저 {firstItem?.title ?? "현재 결론"}부터 본다
         </h2>
         <p>
-          이 화면은 {data.symbol} 추천을 바로 매수·매도하라는 지시가 아니라, 원천 데이터와 AI 해석, 전문 분석, 가상 매매 경계가 어디까지 통과했는지
-          읽는 추천서다. 아래 카드 순서대로 확인하면 된다.
+          {data.symbol} 추천을 채택할지, 보류할지, 기록만 남길지 판단한다. 원천 근거, 전문 분석, 가상 매매 경계를 아래 카드에서 바로 확인한다.
         </p>
         <div className="recommendation-focus-metrics" aria-label="추천서 핵심 상태">
           <div>
@@ -1711,7 +1710,7 @@ export default async function RecommendationPage({ params }: RecommendationPageP
             {data.symbol} · {qualityDecision.status}
           </h1>
           <p className="decision-brief-copy">
-            {qualityDecision.summary} 추천은 자동 매매 명령이 아니며, 이 화면은 근거가 어디서 왔고 가상 매매나 실거래 경계까지 통과했는지만 판단하게 한다.
+            {qualityDecision.summary} 여기서는 근거의 출처, 전문 분석 통과 여부, 가상 매매 입력 가능 여부만 확인한다.
           </p>
           <div className="decision-brief-meta" aria-label="추천 상세 핵심 상태">
             <span>점수 {formatPercent(data.score)}</span>
@@ -2262,8 +2261,8 @@ export default async function RecommendationPage({ params }: RecommendationPageP
             <span>근거 연결 점검</span>
             <h2>{koCode(evidenceReview.quality_status)}</h2>
             <p>
-              이 점검은 추천 점수를 새로 만들지 않는다. 투자 논리, 점수 항목, 뉴스·AI 해석, 성과 측정이
-              서로 연결됐는지 확인하고, 부족하면 추천을 기록으로만 남긴다.
+              투자 논리, 점수 항목, 뉴스 근거, 성과 측정이 서로 맞물리는지 본다. 연결이 약하면 추천을
+              채택하지 않고 기록으로만 남긴다.
             </p>
           </div>
           <div className="recommendation-evidence-summary" aria-label="근거 연결 점검 요약">

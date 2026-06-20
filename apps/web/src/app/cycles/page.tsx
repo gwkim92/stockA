@@ -80,6 +80,8 @@ export default async function CyclesPage() {
     data.cycle_states.length > 0
       ? data.cycle_states.reduce((total, cycle) => total + cycle.confidence, 0) / data.cycle_states.length
       : 0;
+  const primaryCycleFocus = changedCycles[0] ?? eventLedCycles[0] ?? momentumCycles[0] ?? data.cycle_states[0] ?? null;
+  const primaryCycleLabel = primaryCycleFocus ? koCode(primaryCycleFocus.theme_key) : "사이클 대기";
 
   return (
     <div className="terminal-page decision-page">
@@ -87,10 +89,10 @@ export default async function CyclesPage() {
         <div className="decision-brief-main">
           <span className="decision-brief-kicker">테마 사이클 · {koCode(data.strategy_name)} · {koCode(data.horizon_type)}</span>
           <h1 className="decision-brief-title" id="cycles-title">
-            사이클 변화 {activeCycleCount.toLocaleString("ko-KR")}개, 평균 신뢰도 {formatConfidence(averageConfidence)}
+            오늘 먼저 볼 사이클은 {primaryCycleLabel}이다.
           </h1>
           <p className="decision-brief-copy">
-            사이클은 매수 신호가 아니라 투자 논리 점검 지도다. 뉴스 흐름, 가격 흐름, 기업 품질을 나눠 보고 추천·보유 논리와 충돌하는지 확인한다.
+            상태 변화, 뉴스 열기, 가격 확인, 데이터 공백을 한 번에 본다. 상위 흐름과 보유 논리가 충돌하면 추천 채택을 보류한다.
           </p>
           <div className="decision-brief-meta" aria-label="사이클 핵심 상태">
             <span>테마 {data.cycle_states.length.toLocaleString("ko-KR")}개</span>
@@ -103,7 +105,7 @@ export default async function CyclesPage() {
           <a className="decision-card is-good" href="#cycle-states">
             <span>상태표</span>
             <strong>{data.cycle_states.length.toLocaleString("ko-KR")}개 테마</strong>
-            <small>{universeLabel(data.universe_version)} · 매수·매도 결론이 아니라 투자 논리 점검 출발점이다.</small>
+            <small>{universeLabel(data.universe_version)} · 평균 신뢰도 {formatConfidence(averageConfidence)}</small>
             <b>상태표 보기</b>
           </a>
           <a className={activeCycleCount > 0 ? "decision-card is-watch" : "decision-card is-good"} href="#cycle-states">
@@ -129,11 +131,10 @@ export default async function CyclesPage() {
 
       <section className="cycle-state-board reveal delay-1" aria-labelledby="cycle-board-title">
         <div className="section-heading stacked-heading">
-          <span>판단 순서</span>
-          <h2 id="cycle-board-title">사이클 상태표는 네 가지 질문으로 읽는다</h2>
+          <span>오늘 볼 사이클</span>
+          <h2 id="cycle-board-title">상태 변화가 추천·보유 판단을 흔드는가</h2>
           <p>
-            상태 이름만 보면 안 된다. 전환이 있었는지, 뉴스가 먼저 움직였는지, 가격이 확인하는지,
-            데이터가 비어 있는지를 나눠 봐야 추천·보유 논리와 연결할 수 있다.
+            전환, 뉴스 열기, 가격 확인, 데이터 공백을 나눠 본다. 한 축만 강하면 추격 매수 근거로 보지 않는다.
           </p>
         </div>
         <div className="cycle-state-lenses">
