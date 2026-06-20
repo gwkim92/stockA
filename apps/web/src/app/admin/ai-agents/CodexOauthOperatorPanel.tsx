@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 
 import {
+  refreshCodexOauthStatusAction,
   runCodexOauthDirectSmokeAction,
   runCodexOauthNewsSmokeAction,
   startCodexOauthReloginAction,
@@ -15,13 +16,32 @@ type Props = {
 };
 
 function statusTone(status: string) {
-  if (status === "healthy") {
+  if (status === "healthy" || status === "authenticated_smoke_required") {
     return "risk-low";
   }
   if (status === "device_auth_pending" || status === "device_code_expired" || status === "unknown") {
     return "risk-medium";
   }
   return "risk-high";
+}
+
+function shortStatus(status: CodexOauthOperatorStatus) {
+  if (status.status === "healthy") {
+    return "연결 정상";
+  }
+  if (status.status === "authenticated_smoke_required") {
+    return "로그인 완료, smoke 필요";
+  }
+  if (status.status === "device_auth_pending") {
+    return "코드 입력 대기";
+  }
+  if (status.status === "device_code_expired") {
+    return "코드 만료";
+  }
+  if (status.status === "relogin_required") {
+    return "재로그인 필요";
+  }
+  return status.label;
 }
 
 function formatDateTime(value: string) {
@@ -56,27 +76,28 @@ export default function CodexOauthOperatorPanel({ initialStatus }: Props) {
   return (
     <section className="decision-brief" id="codex-oauth-operator" aria-label="codex oauth operator">
       <div className="decision-brief-main">
-        <span className="decision-brief-kicker">Codex OAuth 재로그인</span>
-        <h2 className="decision-brief-title">OpenAI quota가 없을 때 쓰는 무료 fallback 로그인 상태를 관리한다.</h2>
+        <span className="decision-brief-kicker">Codex OAuth 연결</span>
+        <h2 className="decision-brief-title">코드 발급, 로그인 확인, smoke 검증을 순서대로 처리한다.</h2>
         <p className="decision-brief-copy">
-          이 영역은 운영자 action이다. 버튼은 서버에서만 admin token을 붙여 실행하며, 브라우저에는 토큰이나 OAuth
-          파일이 노출되지 않는다.
+          OpenAI API quota가 없을 때 쓰는 fallback 경로다. 버튼은 서버에서만 admin token을 붙여 실행하며,
+          브라우저에는 token이나 OAuth 파일이 노출되지 않는다.
         </p>
         <div className="decision-brief-meta">
-          <span>상태: {status.label}</span>
+          <span>상태: {shortStatus(status)}</span>
           <span>마지막 확인: {formatDateTime(status.last_checked_at)}</span>
           <span>마지막 smoke: {status.last_smoke_status || "없음"}</span>
+          <span>CLI 로그인: {status.login_probe_status || "not_checked"}</span>
           <span>주문 경계: {status.order_boundary}</span>
         </div>
       </div>
       <div className="decision-brief-grid">
         <div className={`decision-card ${statusTone(status.status)}`}>
-          <span>Codex OAuth 상태</span>
-          <strong>{status.label}</strong>
+          <span>현재 판정</span>
+          <strong>{shortStatus(status)}</strong>
           <small>{status.summary}</small>
         </div>
         <div className="decision-card is-watch">
-          <span>다음 행동</span>
+          <span>해야 할 일</span>
           <strong>{isPending ? "실행 중" : lastResult?.ok === false ? "실패" : "대기"}</strong>
           <small>{actionMessage(lastResult, status)}</small>
         </div>
@@ -87,12 +108,35 @@ export default function CodexOauthOperatorPanel({ initialStatus }: Props) {
         </div>
       </div>
 
+      <div className="flow-steps">
+        <div className="flow-step">
+          <span>01</span>
+          <strong>코드 발급</strong>
+          <p>로그인이 필요하거나 코드가 만료됐을 때만 새 device code를 만든다.</p>
+        </div>
+        <div className="flow-step">
+          <span>02</span>
+          <strong>브라우저 인증</strong>
+          <p>인증 URL을 열고 화면의 코드를 입력한다. 완료 후 이 화면으로 돌아온다.</p>
+        </div>
+        <div className="flow-step">
+          <span>03</span>
+          <strong>상태 확인</strong>
+          <p>로그인 상태 새로고침으로 서버의 `codex login status` 결과를 확인한다.</p>
+        </div>
+        <div className="flow-step">
+          <span>04</span>
+          <strong>Smoke 검증</strong>
+          <p>직접 smoke가 성공해야 실제 배치 AI fallback이 사용할 수 있다.</p>
+        </div>
+      </div>
+
       {status.auth_url || status.user_code ? (
         <div className="source-card">
-          <span>Device Auth</span>
+          <span>브라우저에 입력할 코드</span>
           <strong>{status.user_code || "코드 미확인"}</strong>
           <p>
-            만료 시각 {formatDateTime(status.expires_at)}. 링크를 열어 위 코드를 입력한 뒤 smoke를 실행한다.
+            만료 시각 {formatDateTime(status.expires_at)}. 링크를 열어 위 코드를 입력한 뒤 “로그인 상태 새로고침”을 누른다.
           </p>
           {status.auth_url ? (
             <a className="text-link" href={status.auth_url} target="_blank" rel="noreferrer">
@@ -109,7 +153,15 @@ export default function CodexOauthOperatorPanel({ initialStatus }: Props) {
           onClick={() => run(startCodexOauthReloginAction)}
           type="button"
         >
-          재로그인 시작
+          1. 재로그인 코드 발급
+        </button>
+        <button
+          className="btn btn-secondary"
+          disabled={isPending}
+          onClick={() => run(refreshCodexOauthStatusAction)}
+          type="button"
+        >
+          2. 로그인 상태 새로고침
         </button>
         <button
           className="btn btn-secondary"
@@ -117,7 +169,7 @@ export default function CodexOauthOperatorPanel({ initialStatus }: Props) {
           onClick={() => run(runCodexOauthDirectSmokeAction)}
           type="button"
         >
-          재로그인 후 직접 smoke
+          3. 직접 smoke 실행
         </button>
         <button
           className="btn btn-secondary"
@@ -125,7 +177,7 @@ export default function CodexOauthOperatorPanel({ initialStatus }: Props) {
           onClick={() => run(runCodexOauthNewsSmokeAction)}
           type="button"
         >
-          뉴스 번역·구조화 smoke
+          4. 뉴스 번역·구조화 smoke
         </button>
       </div>
 

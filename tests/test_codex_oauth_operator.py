@@ -18,6 +18,13 @@ from stockanalysis.frontend.codex_oauth_operator import (
 
 
 class CodexOauthOperatorTests(unittest.TestCase):
+    def _status_runner(self, stdout: str, returncode: int = 0):
+        def runner(command, input_text, timeout_seconds, cwd):
+            self.assertEqual(command[-2:], ["login", "status"])
+            return CommandResult(returncode=returncode, stdout=stdout, stderr="")
+
+        return runner
+
     def test_device_auth_parser_ignores_ansi_and_command_line_text(self) -> None:
         output = (
             "\x1b[90mOpenAI's command-line coding agent\x1b[0m\n"
@@ -32,7 +39,10 @@ class CodexOauthOperatorTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmpdir:
             status_path = Path(tmpdir) / "status.json"
             with patch.dict("os.environ", {STATUS_PATH_ENV: str(status_path)}, clear=False):
-                status = load_codex_oauth_operator_status(repo_root=tmpdir)
+                status = load_codex_oauth_operator_status(
+                    repo_root=tmpdir,
+                    status_runner=self._status_runner("Not logged in", returncode=1),
+                )
 
         self.assertEqual(status["status"], "unknown")
         self.assertEqual(status["label"], "미확인")
@@ -85,11 +95,47 @@ class CodexOauthOperatorTests(unittest.TestCase):
             )
 
             with patch.dict("os.environ", {STATUS_PATH_ENV: str(status_path)}, clear=False):
-                status = load_codex_oauth_operator_status(repo_root=tmpdir)
+                status = load_codex_oauth_operator_status(
+                    repo_root=tmpdir,
+                    status_runner=self._status_runner("Not logged in", returncode=1),
+                )
 
         self.assertEqual(status["status"], "device_auth_pending")
         self.assertEqual(status["last_error_summary"], "")
         self.assertEqual(status["user_code"], "X1LP-L0QP3")
+
+    def test_completed_device_auth_is_detected_by_codex_login_status(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            status_path = Path(tmpdir) / "status.json"
+            status_path.write_text(
+                json.dumps(
+                    {
+                        "updated_at": "2026-06-20T05:00:00Z",
+                        "events": [
+                            {
+                                "event_type": "device_auth_started",
+                                "status": "device_auth_pending",
+                                "auth_url": "https://auth.openai.com/codex/device",
+                                "user_code": "X1LP-L0QP3",
+                                "expires_at": "2099-06-20T06:00:00Z",
+                            }
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            with patch.dict("os.environ", {STATUS_PATH_ENV: str(status_path)}, clear=False):
+                status = load_codex_oauth_operator_status(
+                    repo_root=tmpdir,
+                    status_runner=self._status_runner("Logged in using ChatGPT"),
+                )
+
+        self.assertEqual(status["status"], "authenticated_smoke_required")
+        self.assertEqual(status["label"], "로그인 확인됨")
+        self.assertEqual(status["auth_url"], "")
+        self.assertEqual(status["user_code"], "")
+        self.assertEqual(status["login_probe_status"], "logged_in")
 
     def test_direct_smoke_auth_failure_requires_relogin(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:

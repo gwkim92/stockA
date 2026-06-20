@@ -1,6 +1,7 @@
 "use server";
 
 import {
+  getCodexOauthOperatorStatus,
   runCodexOauthDirectSmoke,
   runCodexOauthNewsSmoke,
   startCodexOauthRelogin,
@@ -39,6 +40,10 @@ async function runAction(action: () => Promise<CodexOauthOperatorStatus>): Promi
 
 export async function startCodexOauthReloginAction(): Promise<CodexOauthActionState> {
   return runAction(startCodexOauthRelogin);
+}
+
+export async function refreshCodexOauthStatusAction(): Promise<CodexOauthActionState> {
+  return runAction(getCodexOauthOperatorStatus);
 }
 
 export async function runCodexOauthDirectSmokeAction(): Promise<CodexOauthActionState> {

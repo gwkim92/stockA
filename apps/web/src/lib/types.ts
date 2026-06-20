@@ -134,6 +134,8 @@ export type CodexOauthOperatorStatus = {
   last_error_code: string;
   last_error_summary: string;
   next_action: string;
+  login_probe_status: string;
+  login_probe_message: string;
   status_path: string;
   admin_action_required: boolean;
   read_only: boolean;

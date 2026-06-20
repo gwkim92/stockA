@@ -133,6 +133,8 @@ function defaultCodexOauthStatus(status: string): CodexOauthOperatorStatus {
     last_error_code: "",
     last_error_summary: "",
     next_action: "Codex OAuth 운영 상태 endpoint와 admin action token 설정을 확인한다.",
+    login_probe_status: "not_checked",
+    login_probe_message: "",
     status_path: "",
     admin_action_required: true,
     read_only: true,

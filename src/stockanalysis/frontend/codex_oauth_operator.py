@@ -21,6 +21,7 @@ CODEX_TIMEOUT_ENV = "STOCKANALYSIS_CODEX_TIMEOUT_SECONDS"
 CODEX_SMOKE_ENV_FILE_ENV = "STOCKANALYSIS_CODEX_OAUTH_SMOKE_ENV_FILE"
 DATA_OPERATIONS_ENV_FILE_ENV = "STOCKANALYSIS_DATA_OPERATIONS_ENV_FILE"
 DEVICE_AUTH_START_TIMEOUT_ENV = "STOCKANALYSIS_CODEX_OAUTH_DEVICE_AUTH_START_TIMEOUT_SECONDS"
+STATUS_PROBE_TIMEOUT_ENV = "STOCKANALYSIS_CODEX_OAUTH_STATUS_PROBE_TIMEOUT_SECONDS"
 NEWS_SMOKE_LIMIT_ENV = "STOCKANALYSIS_CODEX_OAUTH_NEWS_SMOKE_LIMIT"
 ORDER_BOUNDARY = "read_only_no_order"
 AUTH_URL_PATTERN = re.compile(r"https://[^\s'\"]+", re.IGNORECASE)
@@ -51,10 +52,13 @@ def load_codex_oauth_operator_status(
     *,
     repo_root: Path | str | None = None,
     now: datetime | None = None,
+    status_runner: CommandRunner | None = None,
 ) -> dict[str, Any]:
+    current_now = now or _utc_now()
     status_path = _status_path(repo_root=repo_root)
     payload = _read_status_payload(status_path)
-    return _public_status(payload, status_path=status_path, now=now or _utc_now())
+    login_probe = _probe_codex_login_status(repo_root=repo_root, runner=status_runner, now=current_now)
+    return _public_status(payload, status_path=status_path, now=current_now, login_probe=login_probe)
 
 
 def start_codex_oauth_device_login(
@@ -66,7 +70,9 @@ def start_codex_oauth_device_login(
     current_now = now or _utc_now()
     status_path = _status_path(repo_root=repo_root)
     existing = _read_status_payload(status_path)
-    existing_status = _public_status(existing, status_path=status_path, now=current_now)
+    existing_status = load_codex_oauth_operator_status(repo_root=repo_root, now=current_now)
+    if existing_status["status"] in {"healthy", "authenticated_smoke_required"}:
+        return existing_status
     if existing_status["status"] == "device_auth_pending" and _valid_device_auth_status(existing_status):
         return existing_status
 
@@ -298,31 +304,75 @@ def _subprocess_runner(command: Sequence[str], input_text: str | None, timeout_s
     )
 
 
-def _public_status(payload: dict[str, Any], *, status_path: Path, now: datetime) -> dict[str, Any]:
+def _probe_codex_login_status(
+    *,
+    repo_root: Path | str | None,
+    runner: CommandRunner | None,
+    now: datetime,
+) -> dict[str, Any]:
+    command = [*_codex_base_command(), "login", "status"]
+    selected_runner = runner or _subprocess_runner
+    try:
+        result = selected_runner(command, None, _status_probe_timeout_seconds(), _workdir(repo_root=repo_root))
+    except Exception as exc:
+        return {
+            "status": "probe_failed",
+            "checked_at": _iso(now),
+            "message": _diagnostic_excerpt(str(exc), 500),
+        }
+
+    output = _strip_ansi("\n".join(part for part in (result.stdout, result.stderr) if part))
+    normalized = output.lower()
+    if result.returncode == 0 and "logged in" in normalized:
+        status = "logged_in"
+    elif "not logged in" in normalized or "login required" in normalized or "unauthorized" in normalized:
+        status = "not_logged_in"
+    else:
+        status = "probe_failed" if result.returncode != 0 else "unknown"
+    return {
+        "status": status,
+        "checked_at": _iso(now),
+        "message": _diagnostic_excerpt(output, 500),
+    }
+
+
+def _public_status(
+    payload: dict[str, Any],
+    *,
+    status_path: Path,
+    now: datetime,
+    login_probe: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     events = [event for event in payload.get("events", []) if isinstance(event, dict)]
     latest_event = events[-1] if events else {}
     latest_smoke = next((event for event in reversed(events) if str(event.get("event_type", "")).endswith("smoke")), {})
     latest_device = next((event for event in reversed(events) if event.get("event_type") == "device_auth_started"), {})
+    probe_status = str((login_probe or {}).get("status") or "")
     status = "unknown"
     if latest_event:
         status = _status_from_event(latest_event, now=now)
-    if latest_smoke and latest_smoke.get("status") == "succeeded":
+    if probe_status == "not_logged_in" and status in {"healthy", "authenticated_smoke_required"}:
+        status = "relogin_required"
+    elif latest_smoke and latest_smoke.get("status") == "succeeded":
         status = "healthy"
+    elif probe_status == "logged_in":
+        status = "authenticated_smoke_required"
     elif _status_from_event(latest_event, now=now) == "relogin_required":
         status = "relogin_required"
     elif _status_from_event(latest_event, now=now) in {"device_auth_pending", "device_code_expired"}:
         status = _status_from_event(latest_event, now=now)
-    error_visible = status not in {"healthy", "device_auth_pending"}
+    error_visible = status not in {"healthy", "authenticated_smoke_required", "device_auth_pending"}
+    show_device_auth = status in {"device_auth_pending", "device_code_expired"}
 
     return {
         "status": status,
         "label": _status_label(status),
         "summary": _status_summary(status),
-        "auth_url": str(latest_device.get("auth_url") or "") if status in {"device_auth_pending", "device_code_expired"} else "",
-        "user_code": str(latest_device.get("user_code") or "") if status in {"device_auth_pending", "device_code_expired"} else "",
-        "expires_at": str(latest_device.get("expires_at") or "") if status in {"device_auth_pending", "device_code_expired"} else "",
+        "auth_url": str(latest_device.get("auth_url") or "") if show_device_auth else "",
+        "user_code": str(latest_device.get("user_code") or "") if show_device_auth else "",
+        "expires_at": str(latest_device.get("expires_at") or "") if show_device_auth else "",
         "device_auth_pid": latest_device.get("pid") if status == "device_auth_pending" else None,
-        "last_checked_at": str(payload.get("updated_at") or ""),
+        "last_checked_at": str((login_probe or {}).get("checked_at") or payload.get("updated_at") or ""),
         "last_event_type": str(latest_event.get("event_type") or ""),
         "last_smoke_status": str(latest_smoke.get("status") or ""),
         "last_smoke_at": str(latest_smoke.get("finished_at") or latest_smoke.get("started_at") or ""),
@@ -332,7 +382,13 @@ def _public_status(payload: dict[str, Any], *, status_path: Path, now: datetime)
             if error_visible
             else ""
         ),
-        "next_action": str(latest_event.get("next_action") or _next_action_for_status(status)),
+        "next_action": (
+            _next_action_for_status(status)
+            if status == "authenticated_smoke_required"
+            else str(latest_event.get("next_action") or _next_action_for_status(status))
+        ),
+        "login_probe_status": probe_status or "not_checked",
+        "login_probe_message": _diagnostic_excerpt(str((login_probe or {}).get("message") or ""), 500),
         "status_path": str(status_path),
         "admin_action_required": True,
         "read_only": True,
@@ -363,6 +419,7 @@ def _status_from_event(event: dict[str, Any], *, now: datetime) -> str:
 def _status_label(status: str) -> str:
     labels = {
         "healthy": "정상",
+        "authenticated_smoke_required": "로그인 확인됨",
         "device_auth_pending": "로그인 대기",
         "device_code_expired": "코드 만료",
         "relogin_required": "재로그인 필요",
@@ -375,6 +432,7 @@ def _status_label(status: str) -> str:
 def _status_summary(status: str) -> str:
     summaries = {
         "healthy": "최근 Codex OAuth smoke가 성공했다.",
+        "authenticated_smoke_required": "Codex CLI 로그인은 확인됐다. 실제 AI 호출이 되는지는 smoke로 확인해야 한다.",
         "device_auth_pending": "재로그인 device code가 발급됐다. auth URL에서 code를 입력한 뒤 smoke를 실행한다.",
         "device_code_expired": "발급된 device code가 만료됐다. 재로그인 시작을 다시 눌러 새 code를 받는다.",
         "relogin_required": "Codex OAuth 인증이 만료되었거나 로그인 출력 확인이 필요하다.",
@@ -387,6 +445,8 @@ def _status_summary(status: str) -> str:
 def _next_action_for_status(status: str) -> str:
     if status == "healthy":
         return "필요 시 뉴스 번역/구조화 smoke를 재실행해 운영 배치를 확인한다."
+    if status == "authenticated_smoke_required":
+        return "로그인은 완료됐다. 직접 smoke를 실행해 Codex OAuth가 실제 응답을 내는지 확인한다."
     if status == "device_auth_pending":
         return "auth URL을 열고 user code를 입력한 뒤 smoke를 실행한다."
     return "재로그인 시작을 누르고 device code 발급 여부를 확인한다."
@@ -449,6 +509,10 @@ def _timeout_seconds() -> int:
 
 def _device_auth_start_timeout_seconds() -> int:
     return max(3, int(os.environ.get(DEVICE_AUTH_START_TIMEOUT_ENV, "15")))
+
+
+def _status_probe_timeout_seconds() -> int:
+    return max(1, int(os.environ.get(STATUS_PROBE_TIMEOUT_ENV, "5")))
 
 
 def _collect_process_output(process: subprocess.Popen[Any], *, timeout_seconds: int) -> dict[str, str]:
