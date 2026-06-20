@@ -25,6 +25,7 @@ NEWS_SMOKE_LIMIT_ENV = "STOCKANALYSIS_CODEX_OAUTH_NEWS_SMOKE_LIMIT"
 ORDER_BOUNDARY = "read_only_no_order"
 AUTH_URL_PATTERN = re.compile(r"https://[^\s'\"]+", re.IGNORECASE)
 USER_CODE_PATTERN = re.compile(r"\b[A-Z0-9]{4,}(?:-[A-Z0-9]{4,})+\b")
+ANSI_ESCAPE_PATTERN = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
 AUTH_FAILURE_PATTERNS = (
     "token_invalidated",
     "refresh_token_invalidated",
@@ -66,7 +67,7 @@ def start_codex_oauth_device_login(
     status_path = _status_path(repo_root=repo_root)
     existing = _read_status_payload(status_path)
     existing_status = _public_status(existing, status_path=status_path, now=current_now)
-    if existing_status["status"] == "device_auth_pending":
+    if existing_status["status"] == "device_auth_pending" and _valid_device_auth_status(existing_status):
         return existing_status
 
     command = [*_codex_base_command(), "login", "--device-auth"]
@@ -80,7 +81,7 @@ def start_codex_oauth_device_login(
         text=False,
     )
     output = _collect_process_output(process, timeout_seconds=_device_auth_start_timeout_seconds())
-    combined_output = "\n".join(part for part in (output.get("stdout", ""), output.get("stderr", "")) if part)
+    combined_output = _strip_ansi("\n".join(part for part in (output.get("stdout", ""), output.get("stderr", "")) if part))
     auth_url = _extract_auth_url(combined_output)
     user_code = _extract_user_code(combined_output)
     expires_at = _iso(current_now + timedelta(minutes=15))
@@ -341,6 +342,8 @@ def _status_from_event(event: dict[str, Any], *, now: datetime) -> str:
     if raw_status == "succeeded":
         return "healthy"
     if raw_status == "device_auth_pending":
+        if not _valid_device_auth_status(event):
+            return "relogin_required"
         expires_at = _parse_datetime(str(event.get("expires_at") or ""))
         if expires_at and expires_at <= now:
             return "device_code_expired"
@@ -490,15 +493,36 @@ def _terminate_process(process: subprocess.Popen[Any]) -> None:
 
 
 def _extract_auth_url(text: str) -> str:
-    for match in AUTH_URL_PATTERN.findall(text):
-        if "device" in match.lower() or "openai" in match.lower():
-            return match.rstrip(").,")
+    cleaned = _strip_ansi(text)
+    for match in AUTH_URL_PATTERN.findall(cleaned):
+        sanitized = match.rstrip(").,")
+        if "device" in sanitized.lower() or "openai" in sanitized.lower():
+            return sanitized
     return ""
 
 
 def _extract_user_code(text: str) -> str:
-    match = USER_CODE_PATTERN.search(text.upper())
-    return match.group(0) if match else ""
+    cleaned = _strip_ansi(text).upper()
+    candidates = USER_CODE_PATTERN.findall(cleaned)
+    for candidate in candidates:
+        if _looks_like_device_code(candidate):
+            return candidate
+    return ""
+
+
+def _valid_device_auth_status(status: dict[str, Any]) -> bool:
+    auth_url = str(status.get("auth_url") or "")
+    user_code = str(status.get("user_code") or "")
+    return bool(auth_url and "\x1b" not in auth_url and _looks_like_device_code(user_code))
+
+
+def _looks_like_device_code(value: str) -> bool:
+    normalized = value.strip().upper()
+    return bool(USER_CODE_PATTERN.fullmatch(normalized) and any(char.isdigit() for char in normalized))
+
+
+def _strip_ansi(text: str) -> str:
+    return ANSI_ESCAPE_PATTERN.sub("", text or "")
 
 
 def _is_auth_failure(text: str) -> bool:

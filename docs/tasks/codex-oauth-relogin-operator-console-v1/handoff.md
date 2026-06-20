@@ -14,6 +14,7 @@
   - `/admin/ai-agents` Codex OAuth operator panel implemented.
   - `/data-health` live AI section links to the operator console.
   - Python tests, full unit test discovery, compileall, Next typecheck/build, and diff check passed locally.
+  - Fixed Codex CLI device-auth output parsing so ANSI color codes and the phrase `command-line` do not corrupt `auth_url` or `user_code`.
 - 미완료:
   - EC2 deployment and smoke are still pending.
 
@@ -50,6 +51,9 @@
 - passed: `cd apps/web && npm run typecheck`
 - passed: `cd apps/web && npm run build`
 - passed: `git diff --check`
+- passed after parser fix: `PYTHONPATH=src /private/tmp/stockanalysis-verify-venv/bin/python -m unittest tests.test_codex_oauth_operator tests.test_frontend_api_server`
+- passed after parser fix: `PYTHONPATH=src /private/tmp/stockanalysis-verify-venv/bin/python -m py_compile src/stockanalysis/frontend/codex_oauth_operator.py tests/test_codex_oauth_operator.py`
+- passed after parser fix: `git diff --check`
 
 ## Remaining Work
 

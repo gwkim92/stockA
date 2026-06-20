@@ -9,6 +9,8 @@ from unittest.mock import patch
 from stockanalysis.frontend.codex_oauth_operator import (
     CommandResult,
     STATUS_PATH_ENV,
+    _extract_auth_url,
+    _extract_user_code,
     load_codex_oauth_operator_status,
     run_codex_oauth_direct_smoke,
     run_codex_oauth_news_smoke,
@@ -16,6 +18,16 @@ from stockanalysis.frontend.codex_oauth_operator import (
 
 
 class CodexOauthOperatorTests(unittest.TestCase):
+    def test_device_auth_parser_ignores_ansi_and_command_line_text(self) -> None:
+        output = (
+            "\x1b[90mOpenAI's command-line coding agent\x1b[0m\n"
+            "Open this link \x1b[94mhttps://auth.openai.com/codex/device\x1b[0m\n"
+            "Enter this one-time code \x1b[94mX1FR-GKMLX\x1b[0m\n"
+        )
+
+        self.assertEqual(_extract_auth_url(output), "https://auth.openai.com/codex/device")
+        self.assertEqual(_extract_user_code(output), "X1FR-GKMLX")
+
     def test_missing_status_artifact_reports_unknown_without_secrets(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             status_path = Path(tmpdir) / "status.json"
