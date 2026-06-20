@@ -2,9 +2,9 @@
 
 ## Status
 
-- status: in_progress
-- current status: implementation started locally.
-- in progress: code and unit test are being verified.
+- status: completed
+- current status: implemented, pushed to `develop`, deployed to EC2, and smoke verified.
+- completed: wait monitor now prefers current maturity/cadence over stale due action router artifacts.
 
 ## Current Status
 
@@ -18,8 +18,16 @@
 
 ## Verification
 
-- pending: local tests and EC2 smoke.
+- passed: `PYTHONPATH=src /private/tmp/stockanalysis-verify-venv/bin/python -m unittest tests.test_frontend_live_adapter.FrontendLiveAdapterTests.test_outcome_maturity_wait_monitor_ignores_stale_due_router_wait_until`
+- passed: `PYTHONPATH=src /private/tmp/stockanalysis-verify-venv/bin/python -m unittest tests.test_frontend_live_adapter`
+- passed: `git diff --check`
+- passed: `PYTHONPATH=/Users/woody/ai/agent-work-harness/src /private/tmp/stockanalysis-verify-venv/bin/python -m awh verify --repo . --task outcome-maturity-wait-monitor-router-freshness-v1`
+- passed: deployed commit `a4b93ccf` to EC2 via `git pull --ff-only origin develop`.
+- passed: EC2 `python -m compileall -q src` and `stockanalysis-frontend-api.service` restart.
+- passed: EC2 `/api/data-health` has `open_gates=[]`.
+- passed: EC2 `outcome_maturity_wait_monitor.recommendation_next_due_date=2026-06-21`, `earliest_action_date=2026-06-21`, and `recommendation_due_action_router_current=false` while stale router still has `wait_until=2026-07-19`.
+- passed: EC2 `/__health`, `/__ready`, `/`, `/data-health`, `/admin/ai-agents`, `/market-map`, `/cycle-map`, `/recommendations`, `/paper-trading` returned 200.
 
 ## Next Step
 
-- exact next step: run local tests, commit/push to `develop`, deploy to EC2, and verify `/api/data-health` wait monitor date no longer shows stale `2026-07-19`.
+- exact next step: wait for the next recommendation outcome window on 2026-06-21 and monitor the next `news-intraday` timer. Do not start manual weight review without a separate approved task.
