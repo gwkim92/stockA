@@ -119,6 +119,29 @@ export type OpenAiProviderHealth = {
   };
 };
 
+export type CodexOauthOperatorStatus = {
+  status: string;
+  label: string;
+  summary: string;
+  auth_url: string;
+  user_code: string;
+  expires_at: string;
+  device_auth_pid: number | null;
+  last_checked_at: string;
+  last_event_type: string;
+  last_smoke_status: string;
+  last_smoke_at: string;
+  last_error_code: string;
+  last_error_summary: string;
+  next_action: string;
+  status_path: string;
+  admin_action_required: boolean;
+  read_only: boolean;
+  broker_submit_allowed: boolean;
+  automatic_order_allowed: boolean;
+  order_boundary: string;
+};
+
 export type AiAgentRegistryData = {
   status: string;
   report_name: string;
@@ -144,6 +167,7 @@ export type AiAgentRegistryData = {
     openai_api_disabled: boolean;
     openai_provider_health: OpenAiProviderHealth;
     codex_oauth_status: string;
+    codex_oauth_operator: CodexOauthOperatorStatus;
     configuration_source: string;
     next_action: string;
   };

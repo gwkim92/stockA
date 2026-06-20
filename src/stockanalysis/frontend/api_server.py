@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import hmac
 import json
 import logging
 import os
@@ -25,6 +26,12 @@ from stockanalysis.frontend.api_adapter import (
     list_frontend_endpoints,
     load_contract_index,
     resolve_frontend_response,
+)
+from stockanalysis.frontend.codex_oauth_operator import (
+    load_codex_oauth_operator_status,
+    run_codex_oauth_direct_smoke,
+    run_codex_oauth_news_smoke,
+    start_codex_oauth_device_login,
 )
 from stockanalysis.frontend.db_pool import PsycopgPoolExecutor
 from stockanalysis.frontend.fixture_server import build_server_error_payload
@@ -58,6 +65,8 @@ REQUEST_ID_HEADER = "X-Request-ID"
 WRITE_METHODS = ("POST", "PUT", "PATCH", "DELETE")
 REQUEST_ID_PATTERN = re.compile(r"^[A-Za-z0-9._:-]{1,128}$")
 ACCESS_LOGGER = logging.getLogger("stockanalysis.frontend.api_server")
+ADMIN_ACTION_TOKEN_ENV = "STOCKANALYSIS_FRONTEND_API_ADMIN_ACTION_TOKEN"
+ADMIN_ACTION_TOKEN_HEADER = "X-Stockanalysis-Admin-Action-Token"
 
 
 def create_app(
@@ -139,7 +148,7 @@ def create_app(
         CORSMiddleware,
         allow_origins=[selected_policy.allowed_origin] if selected_policy.allowed_origin != "*" else ["*"],
         allow_methods=["GET", "HEAD", "OPTIONS"],
-        allow_headers=["Authorization", "Content-Type", REQUEST_ID_HEADER],
+        allow_headers=["Authorization", "Content-Type", REQUEST_ID_HEADER, ADMIN_ACTION_TOKEN_HEADER],
         expose_headers=[REQUEST_ID_HEADER],
     )
 
@@ -247,6 +256,38 @@ def create_app(
         }
         return _json_response(payload)
 
+    @app.get("/__admin/codex-oauth/status")
+    async def codex_oauth_admin_status(request: Request) -> JSONResponse:
+        unauthorized = _unauthorized_response_if_needed(request, selected_policy)
+        if unauthorized is not None:
+            return unauthorized
+        payload = await run_in_threadpool(load_codex_oauth_operator_status, repo_root=resolved_repo_root)
+        return _json_response(payload)
+
+    @app.post("/__admin/codex-oauth/relogin/start")
+    async def codex_oauth_admin_relogin_start(request: Request) -> JSONResponse:
+        unauthorized = _admin_action_response_if_needed(request, selected_policy)
+        if unauthorized is not None:
+            return unauthorized
+        payload = await run_in_threadpool(start_codex_oauth_device_login, repo_root=resolved_repo_root)
+        return _json_response(payload)
+
+    @app.post("/__admin/codex-oauth/smoke/direct")
+    async def codex_oauth_admin_direct_smoke(request: Request) -> JSONResponse:
+        unauthorized = _admin_action_response_if_needed(request, selected_policy)
+        if unauthorized is not None:
+            return unauthorized
+        payload = await run_in_threadpool(run_codex_oauth_direct_smoke, repo_root=resolved_repo_root)
+        return _json_response(payload)
+
+    @app.post("/__admin/codex-oauth/smoke/news")
+    async def codex_oauth_admin_news_smoke(request: Request) -> JSONResponse:
+        unauthorized = _admin_action_response_if_needed(request, selected_policy)
+        if unauthorized is not None:
+            return unauthorized
+        payload = await run_in_threadpool(run_codex_oauth_news_smoke, repo_root=resolved_repo_root)
+        return _json_response(payload)
+
     @app.get("/api/{path:path}")
     async def read_api(path: str, request: Request) -> JSONResponse:
         unauthorized = _unauthorized_response_if_needed(request, selected_policy)
@@ -352,6 +393,48 @@ def _unauthorized_response_if_needed(
         ),
         HTTPStatus.UNAUTHORIZED,
     )
+
+
+def _admin_action_response_if_needed(
+    request: Request,
+    policy: FrontendRuntimePolicy,
+) -> JSONResponse | None:
+    unauthorized = _unauthorized_response_if_needed(request, policy)
+    if unauthorized is not None:
+        return unauthorized
+    expected_token = os.environ.get(ADMIN_ACTION_TOKEN_ENV) or ""
+    if not expected_token:
+        return _json_response(
+            _server_error_payload(
+                code="AdminActionTokenNotConfigured",
+                message="Admin action token is not configured for this frontend API runtime.",
+                details={
+                    "required_env": ADMIN_ACTION_TOKEN_ENV,
+                    "required_permission": "frontend:admin-action",
+                    "order_boundary": policy.order_boundary,
+                    "broker_submit_allowed": policy.broker_submit_allowed,
+                },
+                request_id=_request_id_for_request(request),
+            ),
+            HTTPStatus.SERVICE_UNAVAILABLE,
+        )
+    provided_token = request.headers.get(ADMIN_ACTION_TOKEN_HEADER) or ""
+    if not hmac.compare_digest(provided_token, expected_token):
+        return _json_response(
+            _server_error_payload(
+                code="ForbiddenAdminAction",
+                message="A valid admin action token is required for this operation.",
+                details={
+                    "required_permission": "frontend:admin-action",
+                    "order_boundary": policy.order_boundary,
+                    "broker_submit_allowed": policy.broker_submit_allowed,
+                },
+                request_id=_request_id_for_request(request),
+            ),
+            HTTPStatus.FORBIDDEN,
+        )
+    request.state.frontend_admin_action_authorized = True
+    return None
 
 
 def _adapter_error_response(

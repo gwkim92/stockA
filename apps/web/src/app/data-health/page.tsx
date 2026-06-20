@@ -783,13 +783,13 @@ function liveAiInvocationTitle(health: LiveAiInvocationHealth) {
 
 function liveAiInvocationExplanation(health: LiveAiInvocationHealth) {
   if (health.status === "healthy") {
-    return "최근 실제 Codex OAuth 호출이 성공했다. 기준 세트 평가뿐 아니라 운영 배치 AI 호출도 살아 있다.";
+    return "최근 실제 LLM 호출이 성공했다. 기준 세트 평가뿐 아니라 운영 배치 AI 호출도 살아 있다.";
   }
   if (health.status === "critical_ai_failed") {
-    return "뉴스 한국어 번역이나 뉴스 AI 구조화 같은 핵심 Codex OAuth 호출이 실패했다. 화면의 뉴스 해석은 규칙 기반 대체 결과일 수 있다.";
+    return "뉴스 한국어 번역이나 뉴스 AI 구조화 같은 핵심 LLM 호출이 실패했다. OpenAI quota와 Codex OAuth 재로그인 상태를 같이 확인해야 한다.";
   }
   if (health.status === "degraded") {
-    return "일부 Codex OAuth 작업의 최신 실행이 실패했다. 성공한 작업과 실패한 작업을 나눠 보고 인증, 토큰, CLI 오류를 확인해야 한다.";
+    return "일부 LLM 작업의 최신 실행이 실패했다. 성공한 작업과 실패한 작업을 나눠 보고 quota, 인증, CLI 오류를 확인해야 한다.";
   }
   if (health.status === "recovered_with_recent_failures") {
     return "최근 48시간 안에 실패 이력은 남아 있지만, monitored AI 작업의 최신 실행은 성공했다. 현재 장애가 아니라 복구 후 관찰 상태다.";
@@ -3143,7 +3143,7 @@ export default async function DataHealthPage() {
 	        <div className="section-heading stacked-heading">
 	          <span>실제 AI 호출 상태</span>
 	          <h2 id="live-ai-invocation-health-title">
-	            기준 세트 통과와 별개로, 운영 배치가 실제 Codex OAuth를 호출했는지 본다.
+            기준 세트 통과와 별개로, 운영 배치가 실제 LLM을 호출했는지 본다.
 	          </h2>
 	        </div>
 	        <p className="board-intro">{liveAiInvocationExplanation(liveAiInvocationHealth)}</p>
@@ -3208,6 +3208,13 @@ export default async function DataHealthPage() {
 	        <div className="empty-state">
 	          <strong>다음 조치</strong>
 	          <p>{operationCopy(liveAiInvocationHealth.next_action)}</p>
+	          <p>
+	            Codex OAuth 만료 여부, 재로그인 device code, 재로그인 후 smoke는{" "}
+	            <a className="text-link" href={"/admin/ai-agents#codex-oauth-operator" as Route}>
+	              AI 운영 콘솔
+	            </a>
+	            에서 실행한다.
+	          </p>
 	        </div>
 	      </section>
 

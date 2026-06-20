@@ -32,6 +32,7 @@ from stockanalysis.frontend.pagination import (
     apply_frontend_sql_pagination,
     frontend_sql_page_window,
 )
+from stockanalysis.frontend.codex_oauth_operator import load_codex_oauth_operator_status
 from stockanalysis.frontend.runtime_policy import READ_ONLY_ROLES, RBAC_MODE_ENV, READ_ROLE_ENV
 from stockanalysis.performance.coverage import load_portfolio_outcome_coverage_report
 from stockanalysis.signal.portfolio_remediation_ticket import load_portfolio_remediation_ticket_report
@@ -554,6 +555,7 @@ def build_live_ai_agent_registry_response(*, generated_at: str) -> dict[str, Any
         )
 
     openai_provider_health = build_openai_provider_health_visibility(os.environ)
+    codex_oauth_operator_status = load_codex_oauth_operator_status(repo_root=DEFAULT_REPO_ROOT)
     openai_api_key_configured = bool(openai_provider_health.get("api_key_configured"))
     openai_billing_status = os.environ.get("STOCKANALYSIS_OPENAI_BILLING_STATUS", "").strip() or "not_configured"
     openai_api_disabled = str(os.environ.get("STOCKANALYSIS_DISABLE_OPENAI_API", "")).strip().lower() in {
@@ -621,7 +623,8 @@ def build_live_ai_agent_registry_response(*, generated_at: str) -> dict[str, Any
                 "openai_billing_status": openai_billing_status,
                 "openai_api_disabled": openai_api_disabled,
                 "openai_provider_health": openai_provider_health,
-                "codex_oauth_status": "not_checked_by_request",
+                "codex_oauth_status": str(codex_oauth_operator_status.get("status") or "unknown"),
+                "codex_oauth_operator": codex_oauth_operator_status,
                 "configuration_source": "python_catalog_and_db_seed",
                 "next_action": "모델 변경 UI는 별도 감사 로그와 승인 경계가 붙은 후에만 활성화한다.",
             },

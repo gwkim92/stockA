@@ -2,7 +2,10 @@ from __future__ import annotations
 
 import asyncio
 import json
+import tempfile
 import unittest
+from pathlib import Path
+from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 
@@ -247,6 +250,94 @@ class FrontendApiServerTests(unittest.TestCase):
         self.assertEqual(payload["error"]["details"]["method"], "POST")
         self.assertEqual(payload["error"]["details"]["order_boundary"], "read_only_no_order")
         self.assertFalse(payload["error"]["details"]["broker_submit_allowed"])
+
+    def test_codex_oauth_status_endpoint_uses_read_auth(self) -> None:
+        policy = FrontendRuntimePolicy(
+            profile="local",
+            source="live",
+            auth_mode="read-token",
+            read_token="server-secret",
+        )
+        app = create_app(runtime_policy=policy, executor=FakeLiveExecutor())
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            status_path = Path(tmpdir) / "codex-status.json"
+            with patch.dict("os.environ", {"STOCKANALYSIS_CODEX_OAUTH_STATUS_PATH": str(status_path)}, clear=False):
+                with TestClient(app) as client:
+                    unauthorized = client.get("/__admin/codex-oauth/status")
+                    authorized = client.get(
+                        "/__admin/codex-oauth/status",
+                        headers={"Authorization": "Bearer server-secret"},
+                    )
+
+        self.assertEqual(unauthorized.status_code, 401)
+        self.assertEqual(authorized.status_code, 200)
+        payload = authorized.json()
+        self.assertEqual(payload["status"], "unknown")
+        self.assertEqual(payload["order_boundary"], "read_only_no_order")
+        self.assertFalse(payload["broker_submit_allowed"])
+
+    def test_codex_oauth_admin_action_requires_separate_action_token(self) -> None:
+        policy = FrontendRuntimePolicy(
+            profile="local",
+            source="live",
+            auth_mode="read-token",
+            read_token="server-secret",
+        )
+        app = create_app(runtime_policy=policy, executor=FakeLiveExecutor())
+
+        with patch.dict("os.environ", {"STOCKANALYSIS_FRONTEND_API_ADMIN_ACTION_TOKEN": ""}, clear=False):
+            with TestClient(app) as client:
+                response = client.post(
+                    "/__admin/codex-oauth/relogin/start",
+                    headers={"Authorization": "Bearer server-secret"},
+                )
+
+        self.assertEqual(response.status_code, 503)
+        payload = response.json()
+        self.assertEqual(payload["error"]["code"], "AdminActionTokenNotConfigured")
+        self.assertEqual(payload["error"]["details"]["required_permission"], "frontend:admin-action")
+        self.assertEqual(payload["error"]["details"]["order_boundary"], "read_only_no_order")
+
+    def test_codex_oauth_admin_action_allows_explicit_operator_token(self) -> None:
+        policy = FrontendRuntimePolicy(
+            profile="local",
+            source="live",
+            auth_mode="read-token",
+            read_token="server-secret",
+        )
+        app = create_app(runtime_policy=policy, executor=FakeLiveExecutor())
+        fake_status = {
+            "status": "device_auth_pending",
+            "label": "로그인 대기",
+            "summary": "device code issued",
+            "auth_url": "https://auth.openai.com/device",
+            "user_code": "ABCD-EFGH",
+            "expires_at": "2026-06-20T00:15:00Z",
+            "order_boundary": "read_only_no_order",
+            "broker_submit_allowed": False,
+        }
+
+        with patch.dict("os.environ", {"STOCKANALYSIS_FRONTEND_API_ADMIN_ACTION_TOKEN": "admin-secret"}, clear=False):
+            with patch("stockanalysis.frontend.api_server.start_codex_oauth_device_login", return_value=fake_status):
+                with TestClient(app) as client:
+                    forbidden = client.post(
+                        "/__admin/codex-oauth/relogin/start",
+                        headers={"Authorization": "Bearer server-secret"},
+                    )
+                    allowed = client.post(
+                        "/__admin/codex-oauth/relogin/start",
+                        headers={
+                            "Authorization": "Bearer server-secret",
+                            "X-Stockanalysis-Admin-Action-Token": "admin-secret",
+                        },
+                    )
+
+        self.assertEqual(forbidden.status_code, 403)
+        self.assertEqual(forbidden.json()["error"]["code"], "ForbiddenAdminAction")
+        self.assertEqual(allowed.status_code, 200)
+        self.assertEqual(allowed.json()["status"], "device_auth_pending")
+        self.assertEqual(allowed.json()["user_code"], "ABCD-EFGH")
 
     def test_production_live_runtime_accepts_database_url_without_psql_command(self) -> None:
         policy = FrontendRuntimePolicy(

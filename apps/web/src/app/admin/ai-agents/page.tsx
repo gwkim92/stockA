@@ -1,8 +1,9 @@
 import Link from "next/link";
 import type { Route } from "next";
 
-import { getAiAgentRegistry } from "@/lib/frontend-api";
-import type { AiAgentRegistryData } from "@/lib/types";
+import { getAiAgentRegistry, getCodexOauthOperatorStatus } from "@/lib/frontend-api";
+import type { AiAgentRegistryData, CodexOauthOperatorStatus } from "@/lib/types";
+import CodexOauthOperatorPanel from "./CodexOauthOperatorPanel";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "AI 에이전트 운영" };
@@ -116,6 +117,31 @@ function formatOptionalDate(value: string) {
   return value.replace("T", " ").replace("+00:00", " UTC");
 }
 
+function defaultCodexOauthStatus(status: string): CodexOauthOperatorStatus {
+  return {
+    status: status || "unknown",
+    label: status === "healthy" ? "정상" : status === "relogin_required" ? "재로그인 필요" : "미확인",
+    summary: "Codex OAuth 운영 상태 endpoint가 아직 연결되지 않았다.",
+    auth_url: "",
+    user_code: "",
+    expires_at: "",
+    device_auth_pid: null,
+    last_checked_at: "",
+    last_event_type: "",
+    last_smoke_status: "",
+    last_smoke_at: "",
+    last_error_code: "",
+    last_error_summary: "",
+    next_action: "Codex OAuth 운영 상태 endpoint와 admin action token 설정을 확인한다.",
+    status_path: "",
+    admin_action_required: true,
+    read_only: true,
+    broker_submit_allowed: false,
+    automatic_order_allowed: false,
+    order_boundary: "read_only_no_order",
+  };
+}
+
 function AgentCard({ agent }: { agent: Agent }) {
   return (
     <article className={boundaryTone(agent)}>
@@ -166,7 +192,12 @@ function AgentCard({ agent }: { agent: Agent }) {
 }
 
 export default async function AiAgentAdminPage() {
-  const { data } = await getAiAgentRegistry();
+  const [{ data }, codexOauthStatusResult] = await Promise.all([
+    getAiAgentRegistry(),
+    getCodexOauthOperatorStatus().catch(() => null),
+  ]);
+  const codexOauthStatus =
+    codexOauthStatusResult ?? data.runtime_policy.codex_oauth_operator ?? defaultCodexOauthStatus(data.runtime_policy.codex_oauth_status);
   const activeAgentCount = data.agents.length;
   const blockedOrderRatio =
     activeAgentCount > 0 ? Math.round((data.blocked_order_agent_count / activeAgentCount) * 100) : 0;
@@ -200,7 +231,7 @@ export default async function AiAgentAdminPage() {
             <span>설정 원천: {data.runtime_policy.configuration_source}</span>
             <span>OpenAI 상태: {data.runtime_policy.primary_provider_status}</span>
             <span>잔액 확인: {data.runtime_policy.openai_provider_health.balance_check_method}</span>
-            <span>Codex OAuth: {data.runtime_policy.codex_oauth_status}</span>
+            <span>Codex OAuth: {codexOauthStatus.label}</span>
             <span>주문 경계: {data.runtime_policy.order_boundary}</span>
           </div>
         </div>
@@ -227,6 +258,8 @@ export default async function AiAgentAdminPage() {
           </div>
         </div>
       </section>
+
+      <CodexOauthOperatorPanel initialStatus={codexOauthStatus} />
 
       <section className="decision-brief" aria-label="openai billing status">
         <div className="decision-brief-main">
