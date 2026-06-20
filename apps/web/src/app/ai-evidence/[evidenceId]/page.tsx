@@ -8,7 +8,7 @@ import type { AiEvidenceDetailData, AiEvidenceNeighborhoodData } from "@/lib/typ
 import { EvidencePathWorkbench, type EvidencePathStep, type EvidencePathTone } from "../_components/evidence-path-workbench";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "AI 근거 상세" };
+export const metadata = { title: "뉴스 근거 상세" };
 
 type AiEvidencePageProps = {
   params: Promise<{ evidenceId: string }>;
@@ -49,21 +49,22 @@ function extractionRunLabel(data: AiEvidenceDetailData) {
 }
 
 function normalizeEvidenceSystemCopy(value: string | null | undefined) {
-  const oldNewsAiCandidate = ["뉴스 AI", "후보"].join(" ");
+  const oldNewsCandidate = ["뉴스", "AI", "후보"].join(" ");
   const oldAiCandidate = ["AI", "후보"].join(" ");
   const oldHoldingReview = ["보유", "검토"].join("");
+  const oldRecommendationTrace = ["추천", "연결 trace는 live DB에서 확인한다."].join(" ");
   return koLabel(value)
     .replaceAll("fixture에는 AI 근거 가시성 trace가 없어 기본 경로만 표시한다.", "저장된 상세 추적 정보가 부족해 확인 가능한 경로만 표시한다.")
-    .replaceAll("fixture에는 validator 상세 이유가 없다.", "자동 검증의 상세 사유가 아직 저장되지 않았다.")
+    .replaceAll("fixture에는 validator 상세 이유가 없다.", "품질 차단 상세 사유가 아직 저장되지 않았다.")
     .replaceAll("fixture 기준 번역 trace가 없다.", "번역 추적 정보가 아직 저장되지 않았다.")
-    .replaceAll("추천 연결 trace는 live DB에서 확인한다.", "추천 연결 정보는 최신 운영 데이터에서 확인한다.")
+    .replaceAll(oldRecommendationTrace, "추천 영향 정보는 최신 운영 데이터에서 확인한다.")
     .replaceAll("live DB", "최신 운영 데이터")
-    .replaceAll("validator", "자동 검증")
+    .replaceAll("validator", "품질 기준")
     .replaceAll("trace", "추적 정보")
     .replaceAll("fixture", "현재 데이터")
     .replaceAll("write", "쓰기 작업")
-    .replaceAll(oldNewsAiCandidate, "뉴스 AI 구조화 항목")
-    .replaceAll(oldAiCandidate, "AI 구조화 항목")
+    .replaceAll(oldNewsCandidate, "뉴스 투자 근거")
+    .replaceAll(oldAiCandidate, "투자 근거")
     .replaceAll(oldHoldingReview, "보유 상태 판단")
     .replaceAll("입력 후보", "입력 항목")
     .replaceAll("통과 후보", "통과 항목")
@@ -281,18 +282,18 @@ async function loadNeighborhood(symbol: string | null): Promise<EvidenceNeighbor
 function pageCopy(data: AiEvidenceDetailData, candidate: NewsCandidate | null, cluster: ClusterSummary | null) {
   if (candidate && data.evidence_type === "news_event_candidate_rejected") {
     return {
-      badge: `차단된 AI 구조화 항목 · ${koCode(data.extraction_run.provider)}`,
-      title: "이 AI 구조화 항목이 왜 추천 근거로 통과하지 못했는지 확인한다.",
+      badge: `차단된 뉴스 근거 · ${koCode(data.extraction_run.provider)}`,
+      title: "이 뉴스 근거가 왜 추천 판단에서 제외됐는지 확인한다.",
       lede:
-        "자동 검증 단계에서 통과 가능한 종목·테마 영향으로 인정하지 않은 항목을 보는 화면이다. 원천과 AI 출력은 보존하지만 추천·보유 상태 판단 입력으로 쓰지 않는다.",
+        "품질 기준에서 통과 가능한 종목·테마 영향으로 인정하지 않은 항목을 보는 화면이다. 원천과 해석값은 보존하지만 추천·보유 상태 판단 입력으로 쓰지 않는다.",
     };
   }
   if (candidate) {
     return {
-      badge: `개별 뉴스 AI 구조화 항목 · ${koCode(data.extraction_run.provider)}`,
+      badge: `개별 뉴스 투자 근거 · ${koCode(data.extraction_run.provider)}`,
       title: "이 뉴스가 어떤 종목과 테마에 영향을 주는지 확인한다.",
       lede:
-        "AI는 뉴스 한 건을 투자 행동으로 바꾸지 않는다. 여기서는 원천 뉴스, 추출된 테마·종목 영향, 신뢰도, 불확실성, 추천·보유 연결 여부만 확인한다.",
+        "뉴스 한 건은 투자 행동이 아니다. 여기서는 원천 뉴스, 테마·종목 영향, 신뢰도, 불확실성, 추천·보유 영향 여부만 확인한다.",
     };
   }
   if (cluster) {
@@ -304,18 +305,18 @@ function pageCopy(data: AiEvidenceDetailData, candidate: NewsCandidate | null, c
     };
   }
   return {
-    badge: `AI 추출 근거 · ${koCode(data.extraction_run.provider)}`,
-    title: "저장된 AI 근거의 원천과 품질을 확인한다.",
+    badge: `저장된 투자 근거 · ${koCode(data.extraction_run.provider)}`,
+    title: "저장된 근거의 원천과 품질을 확인한다.",
     lede: "이 근거 하나만으로 투자 논리나 추천을 바꾸지 않는다. 반드시 원천과 품질 조건을 함께 확인한다.",
   };
 }
 
 function providerReviewNote(data: AiEvidenceDetailData) {
   if (["local_rules", "local_deterministic"].includes(data.extraction_run.provider)) {
-    return "최종 투자 판단이 아니라 무료 로컬 규칙으로 만든 묶음이다. 다음 AI 배치와 자동 검증이 원문 제목과 테마 일치 여부를 다시 점검해야 한다.";
+    return "최종 투자 판단이 아니라 기본 규칙으로 만든 묶음이다. 원문 제목과 테마 일치 여부를 다시 점검해야 한다.";
   }
   if (data.extraction_run.provider === "codex_oauth") {
-    return "AI 배치가 구조화한 결과다. 그래도 원문과 종목 연결을 대조해야 한다.";
+    return "심화 분석 결과다. 그래도 원문과 종목 연결을 대조해야 한다.";
   }
   return `${koCode(data.extraction_run.provider)} 결과다. 원천과 연결 대상을 대조해야 한다.`;
 }
@@ -323,29 +324,29 @@ function providerReviewNote(data: AiEvidenceDetailData) {
 function evidenceDecision(data: AiEvidenceDetailData) {
   if (data.evidence_type === "news_event_candidate_rejected") {
     return {
-      label: "자동 검증 차단",
+      label: "품질 기준 차단",
       tone: "risk-high",
       body: "이 항목은 canonical 영향 테이블과 추천 입력으로 넘기지 않는다. 원천 확인과 분류 보강 대상으로만 남긴다.",
     };
   }
   if (["local_rules", "local_deterministic"].includes(data.extraction_run.provider)) {
     return {
-      label: "규칙 기반 항목",
+      label: "기본 근거 항목",
       tone: "risk-medium",
-      body: "무료 로컬 규칙이 만든 근거다. AI 최종 구조화가 아니라서 같은 테마·종목 연결이 맞는지 별도 자동 검증이 확인해야 한다.",
+      body: "기본 규칙이 만든 근거다. 같은 테마·종목 연결이 맞는지 원문과 품질 기준으로 확인해야 한다.",
     };
   }
   if (data.extraction_run.quality_gate === "ai_review_passed") {
     return {
-      label: "AI 검증 통과 항목",
+      label: "품질 기준 통과 항목",
       tone: "risk-low",
-      body: "구조화 결과가 저장됐고 추천·보유 상태 판단의 입력으로 사용할 수 있다. 그래도 주문 결론은 만들지 않는다.",
+      body: "투자 근거가 저장됐고 추천·보유 상태 판단의 입력 후보로 사용할 수 있다. 그래도 주문 결론은 만들지 않는다.",
     };
   }
   return {
     label: koCode(data.extraction_run.quality_gate || data.extraction_run.status),
     tone: "risk-medium",
-    body: "AI 구조화 결과는 저장됐지만, 추천 입력으로 쓰기 전에 원천과 연결 대상 점검이 필요하다.",
+    body: "투자 근거는 저장됐지만, 추천 입력으로 쓰기 전에 원천과 연결 대상 점검이 필요하다.",
   };
 }
 
@@ -407,7 +408,7 @@ function translationTraceStatus(preview: ReturnType<typeof primarySourcePreview>
   return {
     title: "한국어 번역 없음",
     status: "원문 확인 필요",
-    body: "아직 저장된 한국어 제목/요약이 없어 원문 제목과 AI 해석을 직접 대조해야 한다.",
+    body: "아직 저장된 한국어 제목/요약이 없어 원문 제목과 해석값을 직접 대조해야 한다.",
     tone: "risk-medium" as const,
   };
 }
@@ -427,22 +428,22 @@ function aiStructureTraceStatus({
     const themeCount = candidate.theme_impacts.length;
     const instrumentCount = candidate.instrument_impacts.length;
     return {
-      title: "개별 뉴스 구조화",
+      title: "개별 뉴스 영향",
       status: `테마 ${themeCount} · 종목 ${instrumentCount}`,
-      body: "AI가 이 뉴스 한 건에서 테마 영향과 직접 종목 영향을 분리했다.",
+      body: "이 뉴스 한 건에서 테마 영향과 직접 종목 영향을 분리했다.",
     };
   }
   if (isNewsCluster && cluster) {
     return {
-      title: "뉴스 묶음 구조화",
+      title: "뉴스 흐름 묶음",
       status: `뉴스 ${cluster.event_count}개`,
       body: "여러 뉴스가 같은 상위 테마나 하위 이슈인지 묶어 시장 흐름 항목으로 만들었다.",
     };
   }
   return {
-    title: "구조화 결과 제한",
+    title: "근거 결과 제한",
     status: "세부 필드 확인",
-    body: "저장된 추출 필드와 모델 입력 근거를 아래 상세에서 확인해야 한다.",
+    body: "저장된 근거 필드를 아래 상세에서 확인해야 한다.",
   };
 }
 
@@ -462,7 +463,7 @@ function aiEvidenceUsageVerdict({
       title: "추천 입력에서 제외한다",
       metric: "차단",
       body:
-        "자동 검증이 차단한 근거다. 원천과 AI 출력은 보존하지만 추천 점수, 보유 상태 판단, 가상 매매 입력으로 넘기지 않는다.",
+        "품질 기준에서 차단한 근거다. 원천과 해석값은 보존하지만 추천 점수, 보유 상태 판단, 가상 매매 입력으로 넘기지 않는다.",
       next: "차단 이유와 원천을 확인하고, 좋은 뉴스가 잘못 막혔을 때만 분류 체계나 종목 별칭을 보강한다.",
       tone: "risk-high" as const,
     };
@@ -472,7 +473,7 @@ function aiEvidenceUsageVerdict({
       title: "추천 근거로 연결됐다",
       metric: `추천 ${recommendationCount}개`,
       body:
-        "자동 검증을 통과했고 추천 상세에 연결된 근거다. 그래도 추천 상세에서 가격, 사이클, 재무, thesis, 가상 매매 상태를 다시 합쳐 판단한다.",
+        "품질 기준을 통과했고 추천 상세에 연결된 근거다. 그래도 추천 상세에서 가격, 사이클, 재무, thesis, 가상 매매 상태를 다시 합쳐 판단한다.",
       next: `투자 논리 ${thesisCount}개와 추천 상세를 이어서 확인한다. 이 화면은 주문을 만들지 않는다.`,
       tone: "risk-low" as const,
     };
@@ -639,7 +640,7 @@ function EvidenceTracePath({ steps }: { steps: EvidenceTraceStep[] }) {
     <section className="evidence-trace-panel reveal delay-1" aria-labelledby="evidence-trace-title">
       <div className="section-heading stacked-heading">
         <span>근거 추적 경로</span>
-        <h2 id="evidence-trace-title">원천 뉴스에서 추천 연결까지 한 줄로 확인한다</h2>
+        <h2 id="evidence-trace-title">원천 뉴스에서 추천 영향까지 한 줄로 확인한다</h2>
         <p>아래 5단계 중 앞 단계가 흔들리면 뒤 단계는 투자 판단 입력으로 쓰지 않는다.</p>
       </div>
       <div className="evidence-trace-grid">
@@ -699,7 +700,7 @@ function AiEvidenceReviewBrief({
       title: sourceCount > 0 ? "원천 문서 연결" : "원천 확인 필요",
       status: sourceCount > 0 ? `원천 ${sourceCount}개` : "원천 확인 필요",
       body: sourceCount > 0
-        ? "AI 해석의 출발점이 되는 원천 문서가 연결되어 있다. 원천이 틀리면 뒤의 구조화와 추천 연결도 믿으면 안 된다."
+        ? "투자 근거의 출발점이 되는 원천 문서가 연결되어 있다. 원천이 틀리면 뒤의 종목·테마 영향도 믿으면 안 된다."
         : "원천 문서가 없으면 이 근거를 추천 입력으로 쓰면 안 된다.",
       href: "#evidence-source-preview",
       cta: "원천 보기",
@@ -720,22 +721,22 @@ function AiEvidenceReviewBrief({
     },
     {
       step: "03",
-      label: "AI 구조화",
+      label: "투자 영향",
       title: structure.title,
       status: structure.status,
-      body: `${structure.body} 저장된 구조화 필드 ${data.extracted_fields.length}개를 확인한다.`,
+      body: `${structure.body} 저장된 근거 필드 ${data.extracted_fields.length}개를 확인한다.`,
       href: "#evidence-structured-fields",
-      cta: "구조화 결과 보기",
+      cta: "근거 결과 보기",
       tone: "risk-low" as const,
     },
     {
       step: "04",
-      label: "자동 검증",
+      label: "품질 기준",
       title: decision.label,
       status: data.evidence_type === "news_event_candidate_rejected" ? "차단" : koCode(data.extraction_run.quality_gate || data.extraction_run.status),
       body: normalizeEvidenceSystemCopy(data.visibility_trace.validator.reasons_ko.join(" ") || decision.body),
       href: "#evidence-validation",
-      cta: "검증 근거 보기",
+      cta: "품질 근거 보기",
       tone: decision.tone,
     },
     {
@@ -932,7 +933,7 @@ function EvidenceVisibilityTraceBoard({
           );
         })}
       </div>
-      <div className="ai-validation-summary-grid" aria-label="자동 검증과 거래 경계">
+      <div className="ai-validation-summary-grid" aria-label="품질 기준과 거래 경계">
         <article className={`ai-validation-summary-card ${trace.validator.blocked ? "risk-high" : "risk-low"}`}>
           <span>{trace.validator.blocked ? "차단" : "통과 항목"}</span>
           <strong>{normalizeEvidenceSystemCopy(trace.validator.decision_ko)}</strong>
@@ -986,7 +987,7 @@ export default async function AiEvidencePage({ params }: AiEvidencePageProps) {
       label: "원천 뉴스",
       value: sourceCount > 0 ? `원천 ${sourceCount}개` : "원천 부족",
       body: sourceCount > 0
-        ? "AI 해석의 출발점이 되는 원천 뉴스나 문서가 연결되어 있다."
+        ? "투자 근거의 출발점이 되는 원천 뉴스나 문서가 연결되어 있다."
         : "원천 문서가 없으면 추천 입력으로 쓰지 않는다.",
       tone: sourceCount > 0 ? "ready" : "blocked",
       href: "#evidence-source-preview",
@@ -999,28 +1000,28 @@ export default async function AiEvidencePage({ params }: AiEvidencePageProps) {
       body:
         sourcePreview.koreanSummary ||
         sourcePreview.koreanTitle ||
-        "한국어 제목·요약이 없으면 원문 제목과 AI 해석을 직접 대조해야 한다.",
+        "한국어 제목·요약이 없으면 원문 제목과 해석값을 직접 대조해야 한다.",
       tone: translation.tone === "risk-low" ? "ready" : "watch",
       href: "#evidence-source-preview",
       cta: "번역 보기",
     },
     {
       index: "03",
-      label: "AI 구조화",
+      label: "투자 영향",
       value: structure.status,
-      body: `${structure.body} 저장된 구조화 필드 ${data.extracted_fields.length}개를 확인한다.`,
+      body: `${structure.body} 저장된 근거 필드 ${data.extracted_fields.length}개를 확인한다.`,
       tone: data.extracted_fields.length > 0 || isNewsCandidate || isNewsCluster ? "ready" : "watch",
       href: "#evidence-structured-fields",
-      cta: "구조화 보기",
+      cta: "근거 보기",
     },
     {
       index: "04",
-      label: "자동 검증",
+      label: "품질 기준",
       value: data.evidence_type === "news_event_candidate_rejected" ? "차단" : koCode(data.extraction_run.quality_gate || data.extraction_run.status),
       body: normalizeEvidenceSystemCopy(data.visibility_trace.validator.reasons_ko.join(" ") || decision.body),
       tone: evidencePathToneFromRisk(decision.tone),
       href: "#evidence-validation",
-      cta: "검증 근거 보기",
+      cta: "품질 근거 보기",
     },
     {
       index: "05",
@@ -1042,9 +1043,9 @@ export default async function AiEvidencePage({ params }: AiEvidencePageProps) {
             {copy.title}
           </h1>
           <p className="decision-brief-copy">
-            {copy.lede} 근거 사용 상태는 {decision.label}이며, 원천 뉴스·한국어 번역·AI 구조화·검증·추천 연결을 아래 순서로 대조한다.
+            {copy.lede} 근거 사용 상태는 {decision.label}이며, 원천 뉴스·한국어 요약·투자 영향·품질 기준·추천 영향을 아래 순서로 대조한다.
           </p>
-          <div className="decision-brief-meta" aria-label="AI 근거 상세 핵심 상태">
+          <div className="decision-brief-meta" aria-label="뉴스 근거 상세 핵심 상태">
             <span>상태 {decision.label}</span>
             <span>연결 종목 {linkedSymbolLabel}</span>
             <span>{extractionRunLabel(data)}</span>
@@ -1090,14 +1091,14 @@ export default async function AiEvidencePage({ params }: AiEvidencePageProps) {
           )}
           {firstRecommendationLink ? (
             <Link className="decision-card is-good" href={firstRecommendationLink}>
-              <span>추천 연결</span>
+              <span>추천 영향</span>
               <strong>추천 있음</strong>
               <small>추천 상세에서 이 근거가 어떻게 쓰였는지 확인한다.</small>
               <b>추천 보기</b>
             </Link>
           ) : (
             <a className="decision-card is-watch" href="#evidence-neighborhood">
-              <span>추천 연결</span>
+              <span>추천 영향</span>
               <strong>연결 대기</strong>
               <small>검증을 통과해도 바로 주문이나 추천 채택으로 가지 않는다.</small>
               <b>연결 보기</b>
@@ -1109,7 +1110,7 @@ export default async function AiEvidencePage({ params }: AiEvidencePageProps) {
       <EvidencePathWorkbench
         eyebrow="이 근거를 읽는 순서"
         title={usage.title}
-        summary={`${usage.body} 원천 뉴스, 한국어 번역, AI 구조화, 자동 검증, 추천 연결을 이 순서로 확인한다.`}
+        summary={`${usage.body} 원천 뉴스, 한국어 요약, 투자 영향, 품질 기준, 추천 영향을 이 순서로 확인한다.`}
         verdict={`${decision.label} · 연결 종목 ${linkedSymbolLabel} · 주문 경계 ${koCode(data.visibility_trace.read_only_boundary.order_boundary || "read_only_no_order")}`}
         verdictTone={evidencePathToneFromRisk(usage.tone)}
         steps={detailPathSteps}
@@ -1118,10 +1119,10 @@ export default async function AiEvidencePage({ params }: AiEvidencePageProps) {
       <section className="evidence-decision-card reveal delay-1" id="evidence-source-preview" aria-labelledby="source-preview-title">
         <div className="section-heading stacked-heading">
           <span>원천 뉴스</span>
-          <h2 id="source-preview-title">AI가 해석한 원문을 한국어로 먼저 확인한다</h2>
+          <h2 id="source-preview-title">투자 근거의 원문을 한국어로 먼저 확인한다</h2>
         </div>
         <p className="board-intro">
-          아래 제목과 요약이 AI 구조화의 출발점이다. 원천 해석이 틀리면 테마, 종목, 추천 연결도 신뢰하면 안 된다.
+          아래 제목과 요약이 투자 근거의 출발점이다. 원천 해석이 틀리면 테마, 종목, 추천 영향도 신뢰하면 안 된다.
         </p>
         <NewsTitleBlock
           title={sourcePreview.title}
@@ -1156,7 +1157,7 @@ export default async function AiEvidencePage({ params }: AiEvidencePageProps) {
         {isNewsCandidate ? (
           <>
             <p className="board-intro">
-              분석 방식: {koLabel(candidate.analysis_method)}. 추천 관련성:{" "}
+              근거 성격: {koLabel(candidate.analysis_method)}. 추천 관련성:{" "}
               {koLabel(candidate.recommendation_relevance)}. 불확실성: {koLabel(candidate.uncertainty_notes)}
             </p>
             <CandidateImpactList candidate={candidate} />

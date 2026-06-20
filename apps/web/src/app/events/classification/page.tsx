@@ -125,15 +125,15 @@ export default async function ClassificationPage() {
     },
     {
       index: "04",
-      label: "AI 근거 비교",
-      title: aiLinkedCount > 0 ? `${aiLinkedCount.toLocaleString("ko-KR")}건 연결` : "AI 비교 전",
-      metric: `규칙만 ${ruleCheckCount.toLocaleString("ko-KR")}건 · AI 미연결 ${unreviewedCount.toLocaleString("ko-KR")}건`,
+      label: "투자 근거 비교",
+      title: aiLinkedCount > 0 ? `${aiLinkedCount.toLocaleString("ko-KR")}건 연결` : "심화 근거 대기",
+      metric: `기본 태그만 ${ruleCheckCount.toLocaleString("ko-KR")}건 · 근거 미연결 ${unreviewedCount.toLocaleString("ko-KR")}건`,
       body:
         aiLinkedCount > 0
-          ? "1차 태그와 AI 구조화 결과가 같은 방향인지 본다. 불일치하거나 낮은 신뢰도는 추천 근거로 쓰지 않는다."
-          : "이 화면의 태그는 아직 최종 판단이 아니다. AI 근거와 검증 결과가 붙을 때까지 추천 입력으로 보류한다.",
+          ? "1차 태그와 투자 근거가 같은 방향인지 본다. 불일치하거나 낮은 신뢰도는 추천 근거로 쓰지 않는다."
+          : "이 화면의 태그는 아직 최종 판단이 아니다. 원문과 품질 기준이 확인될 때까지 추천 입력으로 보류한다.",
       href: "/ai-evidence",
-      cta: "AI 근거와 비교",
+      cta: "투자 근거와 비교",
       tone: aiLinkedCount > 0 ? "ready" : "watch",
     },
   ];
@@ -144,16 +144,16 @@ export default async function ClassificationPage() {
         <div className="decision-brief-main">
           <span className="decision-brief-kicker">1차 분류 태그 · {data.as_of_date}</span>
           <h1 className="decision-brief-title" id="classification-title">
-            1차 태그 {groups.length.toLocaleString("ko-KR")}개, AI 연결 {aiLinkedCount.toLocaleString("ko-KR")}건
+            1차 태그 {groups.length.toLocaleString("ko-KR")}개, 투자 근거 연결 {aiLinkedCount.toLocaleString("ko-KR")}건
           </h1>
           <p className="decision-brief-copy">
-            이 화면은 최종 투자 판단이 아니라 규칙 기반 첫 해석이다. 테마가 맞는지, 종목을 억지로 붙였는지 보고 AI 구조화·검증 결과와 비교한다.
+            이 화면은 최종 투자 판단이 아니라 첫 해석이다. 테마가 맞는지, 종목을 억지로 붙였는지 보고 원문 근거와 품질 결과를 대조한다.
           </p>
           <div className="decision-brief-meta" aria-label="1차 분류 핵심 상태">
             <span>직접 종목 {directSymbolCount.toLocaleString("ko-KR")}건</span>
             <span>상위 흐름 {macroOnlyCount.toLocaleString("ko-KR")}건</span>
             <span>규칙만 {ruleCheckCount.toLocaleString("ko-KR")}건</span>
-            <span>AI 미연결 {unreviewedCount.toLocaleString("ko-KR")}건</span>
+            <span>근거 미연결 {unreviewedCount.toLocaleString("ko-KR")}건</span>
           </div>
         </div>
         <div className="decision-brief-grid">
@@ -187,12 +187,12 @@ export default async function ClassificationPage() {
         </Link>
         <Link className="screen-switch-card" href="/ai-evidence">
           <span>03</span>
-          <strong>AI 근거 목록</strong>
-          <small>AI 근거 후보 확인</small>
+          <strong>투자 근거 목록</strong>
+          <small>근거 후보 확인</small>
         </Link>
         <Link className="screen-switch-card" href={"/ai-evidence/results" as Route}>
           <span>04</span>
-          <strong>구조화 결과</strong>
+          <strong>통과 결과</strong>
           <small>통과 결과 확인</small>
         </Link>
       </section>
@@ -205,7 +205,7 @@ export default async function ClassificationPage() {
         <ol>
           <li>테마 그룹 이름이 뉴스 내용과 맞는지 본다.</li>
           <li>종목이 있으면 직접 종목 뉴스, 없으면 상위 흐름 뉴스로 본다.</li>
-          <li>이상한 태그는 AI 결과 화면에서 한 번 더 비교한다.</li>
+          <li>이상한 태그는 투자 근거 화면에서 한 번 더 비교한다.</li>
         </ol>
       </section>
 

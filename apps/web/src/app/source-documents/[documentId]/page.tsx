@@ -320,13 +320,13 @@ export default async function SourceDocumentPage({ params }: SourceDocumentPageP
 
       <section className="source-document-section reveal delay-3" id="linked-ai-evidence" aria-labelledby="linked-ai-evidence-title">
         <div className="source-document-section-head">
-          <span>AI 근거 연결</span>
-          <h2 id="linked-ai-evidence-title">이 원천을 사용한 AI 판단으로 이어간다</h2>
-          <p>원천이 맞는지 본 뒤, 연결된 AI 근거에서 테마·종목·방향·자동 검증 결과를 확인한다.</p>
+          <span>투자 근거 연결</span>
+          <h2 id="linked-ai-evidence-title">이 원천이 어떤 투자 근거로 쓰였는지 본다</h2>
+          <p>원천이 맞는지 본 뒤, 연결된 근거에서 테마·종목·방향·품질 결과를 확인한다.</p>
         </div>
         <div className="source-linked-evidence-grid">
           {data.linked_evidence.length === 0 ? (
-            <p className="empty-state">이 원천 문서에 연결된 AI 근거가 아직 없다.</p>
+            <p className="empty-state">이 원천 문서에 연결된 투자 근거가 아직 없다.</p>
           ) : null}
           {data.linked_evidence.map((evidence) => (
             <article className="source-linked-evidence-card" key={evidence.evidence_id}>

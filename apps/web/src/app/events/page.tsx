@@ -41,7 +41,7 @@ export default async function EventsPage() {
             <span>최신 {latestEvent ? latestEvent.event_at : "없음"}</span>
             <span>원천 {data.summary.source_document_count.toLocaleString("ko-KR")}개</span>
             <span>번역 {translatedCount.toLocaleString("ko-KR")}건</span>
-            <span>AI 대기 {unlinkedCount.toLocaleString("ko-KR")}건</span>
+            <span>근거 정리 대기 {unlinkedCount.toLocaleString("ko-KR")}건</span>
           </div>
         </div>
         <div className="decision-brief-grid">
@@ -58,9 +58,9 @@ export default async function EventsPage() {
             <b>분류 보기</b>
           </Link>
           <Link className={linkedCount > 0 ? "decision-card is-good" : "decision-card is-watch"} href="/ai-evidence">
-            <span>AI 연결</span>
+            <span>근거 연결</span>
             <strong>{linkedCount.toLocaleString("ko-KR")}건</strong>
-            <small>AI가 구조화한 뉴스는 원천, 번역, 판단 필드, 추천 연결을 상세에서 추적한다.</small>
+            <small>원문과 한국어 요약을 대조한 뒤 종목·테마 영향과 추천 근거 여부를 확인한다.</small>
             <b>근거 보기</b>
           </Link>
           <Link className={blockedOrSuppressedCount > 0 ? "decision-card is-block" : "decision-card is-good"} href={"/ai-evidence/blocked" as Route}>
@@ -85,8 +85,8 @@ export default async function EventsPage() {
         </Link>
         <Link className="decision-flow-link" href="/ai-evidence">
           <span>03</span>
-          <strong>AI 근거</strong>
-          <small>구조화 후보</small>
+          <strong>투자 근거</strong>
+          <small>종목·흐름 후보</small>
         </Link>
         <Link className="decision-flow-link" href={"/ai-evidence/results" as Route}>
           <span>04</span>

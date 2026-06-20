@@ -206,7 +206,7 @@ export default async function ThemePage({ params }: ThemePageProps) {
           <div className="theme-event-grid">
             {data.supporting_events.length === 0 ? (
               <p className="theme-evidence-empty">
-                아직 이 테마를 뒷받침하는 이벤트가 없다. 뉴스 수집과 AI 후보 검증을 통과한 이벤트만 이 목록에 표시된다.
+                아직 이 테마를 뒷받침하는 이벤트가 없다. 뉴스 수집과 품질 기준을 통과한 이벤트만 이 목록에 표시된다.
               </p>
             ) : null}
             {data.supporting_events.map((event) => {

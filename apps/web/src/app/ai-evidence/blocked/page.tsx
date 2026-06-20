@@ -7,7 +7,7 @@ import type { EventListData } from "@/lib/types";
 import { EvidencePathWorkbench, type EvidencePathStep } from "../_components/evidence-path-workbench";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "차단된 AI 구조화 항목" };
+export const metadata = { title: "차단된 뉴스 근거" };
 
 type NewsEvent = EventListData["events"][number];
 
@@ -67,9 +67,9 @@ export default async function BlockedAiEvidencePage() {
     },
     {
       index: "03",
-      label: "AI 후보",
+      label: "근거 후보",
       value: `${blockedTotalCount.toLocaleString("ko-KR")}개`,
-      body: "AI가 후보를 만들었거나 저신호로 보류했지만, 이 화면의 항목은 추천 근거로 바로 넘어가지 않는다.",
+      body: "근거 후보가 만들어졌거나 저신호로 보류됐지만, 이 화면의 항목은 추천 근거로 바로 넘어가지 않는다.",
       tone: blockedTotalCount > 0 ? "blocked" : "ready",
       href: "#blocked-list",
       cta: "목록 확인",
@@ -98,7 +98,7 @@ export default async function BlockedAiEvidencePage() {
         <div className="decision-brief-main">
           <span className="decision-brief-kicker">차단 항목 · {rejectedData.as_of_date}</span>
           <h1 className="decision-brief-title" id="blocked-evidence-title">
-            추천 입력에서 제외된 AI 근거는 {blockedTotalCount.toLocaleString("ko-KR")}개다.
+            추천 입력에서 제외된 뉴스 근거는 {blockedTotalCount.toLocaleString("ko-KR")}개다.
           </h1>
           <p className="decision-brief-copy">
             차단은 실패가 아니라 안전장치다. 잡음은 계속 제외하고, 유효한 뉴스가 분류 체계나 종목 별칭 부족으로
@@ -151,8 +151,8 @@ export default async function BlockedAiEvidencePage() {
         </Link>
         <Link className="decision-flow-link" href="/ai-evidence">
           <span>03</span>
-          <strong>AI 근거</strong>
-          <small>구조화 후보</small>
+          <strong>투자 근거</strong>
+          <small>직접/상위 후보</small>
         </Link>
         <Link className="decision-flow-link" href={"/ai-evidence/results" as Route}>
           <span>04</span>
@@ -169,8 +169,8 @@ export default async function BlockedAiEvidencePage() {
       <EvidencePathWorkbench
         eyebrow="차단 항목을 읽는 순서"
         title="차단은 오류 목록이 아니라 추천 입력에서 제외한 이유다"
-        summary="이 화면의 핵심은 실패 건수를 세는 것이 아니다. 원천 뉴스가 남아 있는지, 한국어로 대조 가능한지, 왜 자동 검증이 막았는지, 보강할 항목인지 계속 제외할 항목인지 판단한다."
-        verdict={`검증 차단 ${rejectedEvents.length.toLocaleString("ko-KR")}개 · 저신호 보류 ${suppressedEvents.length.toLocaleString("ko-KR")}개 · 자동 주문 영향 없음.`}
+        summary="이 화면의 핵심은 실패 건수를 세는 것이 아니다. 원천 뉴스가 남아 있는지, 한국어로 대조 가능한지, 왜 품질 기준을 통과하지 못했는지, 보강할 항목인지 계속 제외할 항목인지 판단한다."
+        verdict={`품질 차단 ${rejectedEvents.length.toLocaleString("ko-KR")}개 · 저신호 보류 ${suppressedEvents.length.toLocaleString("ko-KR")}개 · 자동 주문 영향 없음.`}
         verdictTone={blockedTotalCount > 0 ? "blocked" : "ready"}
         steps={pathSteps}
       />
@@ -179,7 +179,7 @@ export default async function BlockedAiEvidencePage() {
         <div className="ledger-section-head">
           <div>
             <span className="ledger-section-kicker">차단/보류 원장</span>
-            <h2 className="ledger-section-title" id="blocked-list-title">추천 근거로 쓰지 않는 AI 항목</h2>
+            <h2 className="ledger-section-title" id="blocked-list-title">추천 근거로 쓰지 않는 뉴스 항목</h2>
           </div>
           <p className="ledger-section-note">
             전체 {blockedTotalCount.toLocaleString("ko-KR")}개 중 최신 {blockedEvents.length.toLocaleString("ko-KR")}개를 표시한다. 유효한 뉴스가 잘못 막혔으면 분류 체계와 종목 별칭을 보강한 뒤 같은 배치를 다시 실행한다.

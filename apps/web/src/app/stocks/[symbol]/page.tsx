@@ -978,8 +978,8 @@ function buildStockProfessionalLayers({
       status: newsCount > 0 || aiEvidenceCount > 0 ? "complete" : "missing",
       detail:
         newsCount > 0 || aiEvidenceCount > 0
-          ? `직접 뉴스 ${data.recent_events.length}개, 상위 흐름 ${data.macro_flow_impacts.length}개, AI 해석 ${aiEvidenceCount}개가 연결됐다.`
-          : "이 종목에 연결된 직접 뉴스, 상위 흐름 전파, AI 구조화 근거가 아직 없다.",
+          ? `직접 뉴스 ${data.recent_events.length}개, 상위 흐름 ${data.macro_flow_impacts.length}개, 심화 근거 ${aiEvidenceCount}개가 연결됐다.`
+          : "이 종목에 연결된 직접 뉴스, 상위 흐름 전파, 투자 근거가 아직 없다.",
       source: "event_and_ai_evidence",
       href: "#stock-flow-impacts",
       hrefLabel: "뉴스·흐름",
@@ -997,7 +997,7 @@ function buildStockProfessionalLayers({
     },
     {
       key: "recommendation",
-      label: "추천 연결",
+      label: "추천 영향",
       status: data.recommendation ? "complete" : "missing",
       detail: data.recommendation
         ? `최신 추천 ${koCode(data.recommendation.action)}, 점수 ${formatPercent(data.recommendation.score)}가 연결됐다.`
@@ -1247,10 +1247,10 @@ function EvidenceNeighborhoodPanel({ neighborhood }: { neighborhood: AiEvidenceN
     <section className="stock-evidence-panel reveal delay-4" aria-label="이 종목이 뉴스와 엮인 이유">
       <div className="stock-evidence-head">
         <div>
-          <span className="metric-sub">뉴스·AI 근거 연결</span>
+          <span className="metric-sub">뉴스·투자 근거 연결</span>
           <h2>{neighborhood.symbol}에 영향을 줄 수 있는 뉴스가 어디서 왔고, 어떻게 연결됐는지 본다</h2>
           <p>
-            수집 뉴스, 한국어 번역, AI 구조화, 원문 근거, 추천·투자 논리 연결을 한 흐름으로 정리했다.
+            수집 뉴스, 한국어 요약, 종목·테마 영향, 원문 근거, 추천·투자 논리 연결을 한 흐름으로 정리했다.
             이 화면은 저장된 분석을 읽는 곳이며 새 추천이나 주문을 만들지 않는다.
           </p>
         </div>
@@ -1275,9 +1275,9 @@ function EvidenceNeighborhoodPanel({ neighborhood }: { neighborhood: AiEvidenceN
           <small>같은 이슈로 묶인 후보</small>
         </div>
         <div>
-          <span>AI 해석</span>
+          <span>심화 근거</span>
           <strong>{neighborhood.summary.ai_artifact_count.toLocaleString("ko-KR")}개</strong>
-          <small>저장된 구조화 결과</small>
+          <small>저장된 투자 근거</small>
         </div>
         <div>
           <span>원문 근거</span>
@@ -1324,14 +1324,14 @@ function EvidenceNeighborhoodPanel({ neighborhood }: { neighborhood: AiEvidenceN
           </p>
         </article>
         <article className="stock-evidence-chain-card">
-          <span>3. AI 구조화</span>
-          <strong>{firstArtifact ? koCode(firstArtifact.evidence_type) : "AI 해석 없음"}</strong>
+          <span>3. 투자 영향</span>
+          <strong>{firstArtifact ? koCode(firstArtifact.evidence_type) : "심화 근거 없음"}</strong>
           <p>
             {firstArtifact
               ? `${providerLabel(firstArtifact.provider)} · 신뢰도 ${formatPercent(firstArtifact.confidence)}`
-              : "아직 저장된 AI 구조화 증거가 없다."}
+              : "아직 저장된 투자 근거가 없다."}
           </p>
-          {firstEvidenceHref ? <Link href={firstEvidenceHref}>AI 해석 열기</Link> : <small>근거 대기</small>}
+          {firstEvidenceHref ? <Link href={firstEvidenceHref}>근거 상세 열기</Link> : <small>근거 대기</small>}
         </article>
         <article className="stock-evidence-chain-card final">
           <span>4. 투자 판단 연결</span>
@@ -1579,7 +1579,7 @@ export default async function StockDetailPage({ params }: StockDetailPageProps) 
         { label: "시장 동조성", value: `${marketCorrelationCount}개` },
       ],
       href: "/intelligence" as Route,
-      hrefLabel: "뉴스 AI 흐름 보기",
+      hrefLabel: "뉴스 근거 흐름 보기",
     },
     {
       id: "thesis",

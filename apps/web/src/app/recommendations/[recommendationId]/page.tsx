@@ -911,7 +911,7 @@ function provenanceDetail(component: ScoreComponent) {
     return `${rankText}와 ${observationText}를 점수 입력으로 사용했다.`;
   }
   if (provenance.source_type === "event_or_ai_evidence") {
-    return "뉴스, 공시, AI 구조화 결과와 연결된 정성 근거다.";
+    return "뉴스, 공시, 투자 근거와 연결된 정성 근거다.";
   }
   if (provenance.source_type === "macro_flow_propagation") {
     const count = provenance.evidence?.propagated_impact_count ?? 0;
@@ -1256,12 +1256,12 @@ function recommendationImmediateFocus({
 
   items.push({
     label: "근거",
-    title: "뉴스·AI·상위 흐름 연결 보기",
+    title: "뉴스·상위 흐름 근거 보기",
     body:
       directEvidenceStatus === "linked"
-        ? "직접 종목 뉴스 또는 AI 해석이 추천 근거로 연결됐다. 원천 뉴스와 한국어 번역, AI 구조화 결과를 같이 확인한다."
+        ? "직접 종목 뉴스가 추천 근거로 연결됐다. 원천 뉴스와 한국어 요약, 종목 영향이 맞는지 확인한다."
         : "직접 종목 뉴스보다 상위 흐름, 가격, 종목군 순위 근거가 중심이다. 어떤 경로로 연결됐는지 확인한다.",
-    metric: `AI ${aiEvidenceCount.toLocaleString("ko-KR")}개 · 흐름 ${macroFlowComponents.length.toLocaleString("ko-KR")}개`,
+    metric: `뉴스 근거 ${aiEvidenceCount.toLocaleString("ko-KR")}개 · 흐름 ${macroFlowComponents.length.toLocaleString("ko-KR")}개`,
     href: "#recommendation-evidence-trace",
     hrefLabel: "근거 경로 보기",
     tone: aiEvidenceCount > 0 || macroFlowComponents.length > 0 ? "ready" : "watch",
@@ -2172,8 +2172,8 @@ export default async function RecommendationPage({ params }: RecommendationPageP
           <span className="metric-sub">근거 흐름 요약</span>
           <h2 style={{ fontSize: "1.5rem", marginTop: "6px" }}>무엇을 보고 이 추천을 확인해야 하나</h2>
           <p style={{ color: "var(--text-secondary)", marginTop: "8px", maxWidth: "820px" }}>
-            뉴스와 AI 구조화 결과는 바로 주문으로 이어지지 않는다. 직접 종목 뉴스, 시장·테마 흐름, 보유 상태를
-            분리한 뒤 AI 근거 검증이 추천 입력으로 쓸 수 있는지 확인한다.
+            뉴스 근거는 바로 주문으로 이어지지 않는다. 직접 종목 뉴스, 시장·테마 흐름, 보유 상태를
+            분리한 뒤 추천 입력으로 쓸 수 있는지 확인한다.
           </p>
         </div>
 

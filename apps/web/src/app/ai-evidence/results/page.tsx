@@ -11,7 +11,7 @@ import { koCode, koLabel } from "@/lib/korean-labels";
 import { EvidencePathWorkbench, type EvidencePathStep } from "../_components/evidence-path-workbench";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "구조화 결과" };
+export const metadata = { title: "통과한 뉴스 근거" };
 
 function formatClusterSymbols(symbols: string[]) {
   const known = symbols.filter(isKnownNewsCode);
@@ -24,9 +24,9 @@ function formatClusterRelationReasons(reasons: string[]) {
 
 function formatLatestAiRunStatus(status: string | null | undefined) {
   if (!status || status === "not_run") {
-    return "최근 AI 실행 이력 없음";
+    return "최근 심화 분석 이력 없음";
   }
-  return `최근 AI 실행 ${koCode(status)}`;
+  return `최근 심화 분석 ${koCode(status)}`;
 }
 
 function formatCoverage(done: number, total: number) {
@@ -75,7 +75,7 @@ export default async function StructuredResultsPage() {
     },
     {
       index: "03",
-      label: "AI 구조화",
+      label: "투자 영향",
       value: `직접 ${directCandidates.length} · 흐름 ${macroCandidates.length}`,
       body: "종목 뉴스와 거시·테마 뉴스를 분리한다. 거시 뉴스에 억지로 티커를 붙이지 않는다.",
       tone: acceptedCandidates.length > 0 ? "ready" : "watch",
@@ -84,7 +84,7 @@ export default async function StructuredResultsPage() {
     },
     {
       index: "04",
-      label: "자동 검증",
+      label: "품질 기준",
       value: "통과 항목",
       body: "이 화면에는 추천 입력 후보만 모은다. 차단·보류 항목은 별도 화면에서 봐야 한다.",
       tone: "ready",
@@ -95,7 +95,7 @@ export default async function StructuredResultsPage() {
       index: "05",
       label: "추천·주문 경계",
       value: "주문 아님",
-      body: "AI 결과는 가격, 사이클, 재무, thesis, 페이퍼 검증과 합쳐진 뒤에도 자동 주문으로 가지 않는다.",
+      body: "통과한 뉴스 근거도 가격, 사이클, 재무, thesis, 페이퍼 검증과 합쳐진 뒤에만 판단 후보가 된다.",
       tone: "watch",
       href: "/recommendations",
       cta: "추천 경계 보기",
@@ -106,15 +106,15 @@ export default async function StructuredResultsPage() {
     <div className="pageStack decision-page structured-results-page">
       <section className="decision-brief reveal" aria-labelledby="structured-results-title">
         <div className="decision-brief-main">
-          <span className="decision-brief-kicker">구조화 결과 · {candidateData.as_of_date}</span>
+          <span className="decision-brief-kicker">통과한 뉴스 근거 · {candidateData.as_of_date}</span>
           <h1 className="decision-brief-title" id="structured-results-title">
             추천 입력 후보는 {acceptedCandidates.length.toLocaleString("ko-KR")}개지만, 주문 결정은 아니다.
           </h1>
           <p className="decision-brief-copy">
-            통과한 AI 결과도 바로 매수·매도 신호가 아니다. 직접 종목, 상위 흐름, 뉴스 묶음을 분리해서 보고
+            통과한 뉴스 근거도 바로 매수·매도 신호가 아니다. 직접 종목, 상위 흐름, 뉴스 묶음을 분리해서 보고
             추천 상세에서 가격·사이클·재무·가상 매매 검증과 다시 합친다.
           </p>
-          <div className="decision-brief-meta" aria-label="구조화 결과 핵심 수치">
+          <div className="decision-brief-meta" aria-label="통과한 뉴스 근거 핵심 수치">
             <span>직접 종목 {directCandidates.length.toLocaleString("ko-KR")}개</span>
             <span>상위 흐름 {macroCandidates.length.toLocaleString("ko-KR")}개</span>
             <span>뉴스 묶음 {clusterData.summary.cluster_count.toLocaleString("ko-KR")}개</span>
@@ -162,8 +162,8 @@ export default async function StructuredResultsPage() {
         </Link>
         <Link className="decision-flow-link" href="/ai-evidence">
           <span>03</span>
-          <strong>AI 근거</strong>
-          <small>후보 분리</small>
+          <strong>투자 근거</strong>
+          <small>직접/상위 분리</small>
         </Link>
         <Link className="decision-flow-link is-active" href={"/ai-evidence/results" as Route}>
           <span>04</span>
@@ -178,9 +178,9 @@ export default async function StructuredResultsPage() {
       </section>
 
       <EvidencePathWorkbench
-        eyebrow="통과 결과를 읽는 순서"
-        title="AI가 통과시킨 뉴스도 바로 추천이나 주문이 아니다"
-        summary="먼저 원천과 번역을 보고, AI가 종목 뉴스와 상위 흐름 뉴스를 어떻게 나눴는지 확인한다. 그 다음 추천 상세에서 다른 근거와 합쳐졌는지 본다."
+        eyebrow="통과 근거 검토"
+        title="통과한 뉴스도 바로 추천이나 주문이 아니다"
+        summary="먼저 원천과 한국어 요약을 보고, 종목 뉴스와 상위 흐름 뉴스가 올바르게 나뉘었는지 확인한다. 그 다음 추천 상세에서 다른 근거와 합쳐졌는지 본다."
         verdict={`현재 통과 후보 ${acceptedCandidates.length.toLocaleString("ko-KR")}개 · 주문 경계는 계속 읽기 전용이다.`}
         verdictTone={acceptedCandidates.length > 0 ? "ready" : "watch"}
         steps={pathSteps}
@@ -190,10 +190,10 @@ export default async function StructuredResultsPage() {
         <div className="ledger-section-head">
           <div>
             <span className="ledger-section-kicker">직접 연결</span>
-            <h2 className="ledger-section-title" id="structured-direct-title">종목에 바로 붙은 AI 구조화 결과</h2>
+            <h2 className="ledger-section-title" id="structured-direct-title">종목에 바로 붙은 통과 근거</h2>
           </div>
           <p className="ledger-section-note">
-            자동 검증을 통과했더라도 상세 화면에서 원천 뉴스와 불확실성을 함께 확인한다.
+            품질 기준을 통과했더라도 상세 화면에서 원천 뉴스와 불확실성을 함께 확인한다.
           </p>
         </div>
         <div className="news-row-list">
@@ -202,7 +202,7 @@ export default async function StructuredResultsPage() {
               <NewsEventCard event={event} key={event.event_id} mode="result" />
             ))
           ) : (
-            <div className="empty-state">현재 직접 종목 구조화 결과가 없다.</div>
+            <div className="empty-state">현재 직접 종목 통과 근거가 없다.</div>
           )}
         </div>
       </section>
@@ -211,7 +211,7 @@ export default async function StructuredResultsPage() {
         <div className="ledger-section-head">
           <div>
             <span className="ledger-section-kicker">상위 흐름</span>
-            <h2 className="ledger-section-title" id="structured-macro-title">종목을 억지로 붙이지 않은 AI 구조화 결과</h2>
+            <h2 className="ledger-section-title" id="structured-macro-title">종목을 억지로 붙이지 않은 상위 흐름 근거</h2>
           </div>
           <p className="ledger-section-note">
             금리, 에너지, 양자컴퓨팅 정책 같은 흐름은 먼저 테마로 저장하고 관련 종목 영향으로 전파한다.
@@ -223,7 +223,7 @@ export default async function StructuredResultsPage() {
               <NewsEventCard event={event} key={event.event_id} mode="result" />
             ))
           ) : (
-            <div className="empty-state">현재 상위 흐름 구조화 결과가 없다.</div>
+            <div className="empty-state">현재 상위 흐름 통과 근거가 없다.</div>
           )}
         </div>
       </section>
@@ -232,7 +232,7 @@ export default async function StructuredResultsPage() {
         <div className="ledger-section-head">
           <div>
             <span className="ledger-section-kicker">뉴스 묶음</span>
-            <h2 className="ledger-section-title" id="structured-cluster-title">같은 이야기로 묶인 구조화 결과</h2>
+            <h2 className="ledger-section-title" id="structured-cluster-title">같은 이야기로 묶인 뉴스 흐름</h2>
           </div>
           <p className="ledger-section-note">
             묶인 이유와 연결 대상이 맞는지 확인한다. 잘못 묶인 뉴스는 추천 근거 신뢰도를 떨어뜨린다.
@@ -313,7 +313,7 @@ export default async function StructuredResultsPage() {
               </article>
             ))
           ) : (
-            <div className="empty-state">현재 저장된 뉴스 묶음 구조화 결과가 없다.</div>
+            <div className="empty-state">현재 저장된 뉴스 흐름 근거가 없다.</div>
           )}
         </div>
       </section>

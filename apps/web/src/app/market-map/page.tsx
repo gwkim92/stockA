@@ -740,7 +740,7 @@ export default async function MarketMapPage() {
         ) : null}
         <div className="btn-row" style={{ marginTop: "18px" }}>
           <Link className="btn btn-primary" href={"/intelligence" as Route}>
-            뉴스 AI 보기
+            뉴스 근거 보기
           </Link>
           <Link className="btn btn-secondary" href={"/data-health" as Route}>
             수집 상태 보기

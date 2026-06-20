@@ -232,7 +232,7 @@ export default async function HomePage() {
       : openTicketCount > 0
         ? {
             title: "보완 큐부터 확인한다.",
-            body: `${openTicketCount}개 검토 항목이 열려 있다. 투자 논리 공백, 보유 충돌, 성과 미측정 항목을 먼저 처리한다.`,
+            body: `${openTicketCount}개 보완 항목이 열려 있다. 투자 논리 공백, 보유 충돌, 성과 미측정 항목이 추천 판단을 막고 있다.`,
             href: "/remediation" as Route,
             cta: "할 일 열기",
           }
@@ -245,9 +245,9 @@ export default async function HomePage() {
             }
           : {
               title: "뉴스와 추천 변화를 점검한다.",
-              body: "수집과 검토 큐가 안정 상태다. 오늘 새 뉴스가 어떤 종목과 추천에 연결됐는지 확인한다.",
+              body: "수집과 보완 큐가 안정 상태다. 오늘 새 근거가 어떤 종목과 추천 판단을 바꾸는지 확인한다.",
               href: "/intelligence" as Route,
-              cta: "뉴스 AI 열기",
+              cta: "뉴스 근거 열기",
             };
   const groupedTopActions = groupTopActions(data.top_actions);
   const repeatedActionCount = data.top_actions.length - groupedTopActions.length;
@@ -258,9 +258,9 @@ export default async function HomePage() {
   const operatingSteps = [
     {
       index: "01",
-      title: "수집이 정상인가",
+      title: "데이터를 믿어도 되는가",
       status: koCode(health.data.overall_status),
-      detail: `${health.data.pipeline_runs.length}개 작업 중 실패 ${failedJobCount}개. 데이터가 불안정하면 여기서 멈춘다.`,
+      detail: `${health.data.pipeline_runs.length}개 작업 중 실패 ${failedJobCount}개. 데이터가 불안정하면 투자 판단을 보류한다.`,
       href: "/data-health",
       cta: "수집 상태",
     },
@@ -268,23 +268,23 @@ export default async function HomePage() {
       index: "02",
       title: "시장 배경이 우호적인가",
       status: "지수·금리·달러",
-      detail: "지수, 금리, 달러, 원자재, 변동성 압력을 시장 지도에서 먼저 본다.",
+      detail: "지수, 금리, 달러, 원자재, 변동성 압력이 현재 포지션에 우호적인지 본다.",
       href: "/market-map",
       cta: "시장 지도",
     },
     {
       index: "03",
-      title: "뉴스 AI가 무엇을 말하나",
+      title: "새 근거가 무엇을 바꾸나",
       status: `${eventData.summary.event_count}개 뉴스`,
-      detail: `AI 후보 ${eventData.summary.ai_extracted_count}개, 뉴스 묶음 ${clusterData.summary.cluster_count}개`,
+      detail: `근거 후보 ${eventData.summary.ai_extracted_count}개, 주요 뉴스 흐름 ${clusterData.summary.cluster_count}개`,
       href: "/intelligence",
-      cta: "뉴스 AI",
+      cta: "뉴스 근거",
     },
     {
       index: "04",
-      title: "사이클이 어디로 내려가나",
+      title: "사이클 배경이 맞나",
       status: `${eventData.summary.themes_represented}개 테마`,
-      detail: "거시, 도메인, 테마, 종목 노출도를 사이클 지도에서 먼저 본다.",
+      detail: "거시·섹터·테마 흐름이 종목 판단과 같은 방향인지 본다.",
       href: "/cycle-map",
       cta: "사이클 지도",
     },
@@ -298,7 +298,7 @@ export default async function HomePage() {
     },
     {
       index: "06",
-      title: "거래해도 안전한가",
+      title: "실행 가능 상태인가",
       status: trading.readiness_status === "blocked" ? "거래 차단" : koCode(trading.readiness_status),
       detail: `안전 조건 ${tradingBlockedCount}개 미충족, 경고 ${tradingWarningCount}개`,
       href: "/trading-readiness",
@@ -322,54 +322,6 @@ export default async function HomePage() {
           : "ok" as const,
   }));
 
-  const navigationGroups = [
-    {
-      label: "수집/분석 상태",
-      title: "데이터가 믿을 만한가",
-      copy: "캔들, 뉴스, AI 분석, 추천 갱신이 최근에 성공했는지 먼저 본다.",
-      primaryHref: "/data-health",
-      primaryCta: "수집 상태",
-      links: [
-        { href: "/market-map", label: "시장 지도" },
-        { href: "/events", label: "수집 뉴스" },
-        { href: "/events/classification", label: "1차 분류" },
-        { href: "/ai-evidence/blocked", label: "차단 후보" },
-      ],
-    },
-    {
-      label: "뉴스/종목 관계",
-      title: "뉴스가 어디에 영향을 주나",
-      copy: "개별 뉴스, 뉴스 묶음, 종목 상세에서 직접 종목과 상위 흐름 전파를 확인한다.",
-      primaryHref: "/intelligence",
-      primaryCta: "뉴스 AI",
-      links: [
-        { href: "/ai-evidence", label: "AI 후보" },
-        { href: "/ai-evidence/results", label: "구조화 결과" },
-        { href: "/cycle-map", label: "사이클 지도" },
-        { href: "/cycles", label: "사이클 상태표" },
-        { href: "/stocks", label: "종목" },
-      ],
-    },
-    {
-      label: "판단/거래 안전",
-      title: "추천을 실행해도 되는가",
-      copy: "추천 신호, 보유 투자 논리, 가상 검증, 거래 안전 조건을 분리해서 본다.",
-      primaryHref: "/recommendations",
-      primaryCta: "추천",
-      links: [
-        {
-          href: firstRecommendation?.linked_thesis_id
-            ? (`/theses/${firstRecommendation.linked_thesis_id}` as Route)
-            : ("/portfolio/coverage" as Route),
-          label: "보유 논리",
-        },
-        { href: "/paper-trading", label: "가상 거래" },
-        { href: "/trading-readiness", label: "거래 안전" },
-        { href: "/performance", label: "성과" },
-      ],
-    },
-  ];
-
   return (
     <div className="terminal-home analyst-home decision-page">
       <section className="analyst-hero reveal" aria-labelledby="dashboard-title">
@@ -379,8 +331,8 @@ export default async function HomePage() {
             오늘 투자 판단은 {primaryFocus.title}
           </h1>
           <p className="analyst-lede">
-            {primaryFocus.body} 이 화면은 전체 로그가 아니라 투자위원회용 첫 장이다.
-            먼저 데이터 신뢰도와 시장 배경을 확인하고, 뉴스 AI와 사이클 근거를 본 뒤 추천·가상 매매·거래 경계로 내려간다.
+            {primaryFocus.body} 여기서 알아야 할 것은 내부 처리 방식이 아니라 오늘의 결론, 결론을 흔드는 근거,
+            보류해야 할 위험, 다음 행동이다.
           </p>
           <div className="analyst-action-row">
             <Link className="btn btn-primary" href={primaryFocus.href}>
@@ -390,7 +342,7 @@ export default async function HomePage() {
               시장 지도
             </Link>
             <Link className="btn btn-secondary" href="/ai-evidence">
-              AI 근거
+              뉴스 근거
             </Link>
             <Link className="btn btn-secondary" href="/recommendations">
               추천 검토
@@ -401,7 +353,7 @@ export default async function HomePage() {
           <span>오늘 결론</span>
           <strong>{outcomeWaitMonitor.title}</strong>
           <p>
-            추천 산식은 성과 표본이 성숙하기 전까지 바꾸지 않는다. 지금은 수집·뉴스 근거·가상 매매 결과가 정상적으로 쌓이는지 확인한다.
+            추천 산식과 실거래는 성과 표본이 성숙할 때까지 잠겨 있다. 지금 결론은 새 주문이 아니라 보완 항목과 근거 품질 확인이다.
           </p>
           <dl className="analyst-fact-grid">
             <div>
@@ -409,7 +361,7 @@ export default async function HomePage() {
               <dd>{koCode(health.data.overall_status)}</dd>
             </div>
             <div>
-              <dt>뉴스 AI</dt>
+              <dt>뉴스 근거</dt>
               <dd>{eventData.summary.ai_extracted_count.toLocaleString("ko-KR")}개 후보</dd>
             </div>
             <div>
@@ -426,11 +378,11 @@ export default async function HomePage() {
 
       <section className="analyst-reading-flow reveal delay-1" aria-labelledby="reading-flow-title">
         <div className="analyst-section-heading">
-          <span>읽는 순서</span>
-          <h2 id="reading-flow-title">수집 신뢰도에서 주문 차단까지 같은 순서로 읽는다</h2>
+          <span>투자 체크포인트</span>
+          <h2 id="reading-flow-title">오늘 판단을 바꾸는 항목만 본다</h2>
           <p>
-            프로 리서치 화면은 숫자를 많이 보여주는 것이 아니라 판단 순서를 고정해야 한다.
-            아래 순서 중 앞 단계가 막히면 뒤 단계의 추천은 보류한다.
+            각 카드는 투자 판단을 바꿀 수 있는 질문이다. 정상이어도 매수 신호가 아니며,
+            막힌 항목이 있으면 추천과 실행은 보류한다.
           </p>
         </div>
         <div className="analyst-flow-grid">
@@ -450,19 +402,19 @@ export default async function HomePage() {
         <Link className="analyst-packet-card packet-market" href="/market-map">
           <span>01 · 시장 배경</span>
           <strong>지수·금리·달러·원자재가 추천을 밀어주는가</strong>
-          <p>시장 지도에서 위험 선호, 금리 부담, 달러 유동성, 원자재 충격을 먼저 본다.</p>
+          <p>위험 선호, 금리 부담, 달러 유동성, 원자재 충격이 보유·추천에 우호적인지 확인한다.</p>
           <small>호출 예산 {budgetLabel} · {budgetDateLabel}</small>
         </Link>
         <Link className="analyst-packet-card packet-news" href="/intelligence">
-          <span>02 · 뉴스 AI</span>
-          <strong>{eventData.summary.event_count.toLocaleString("ko-KR")}개 뉴스에서 투자 근거를 추린다</strong>
-          <p>원천 뉴스, 한국어 번역, AI 구조화, 검증 통과/차단, 추천 연결을 이어서 본다.</p>
-          <small>AI 후보 {eventData.summary.ai_extracted_count.toLocaleString("ko-KR")}개 · 묶음 {clusterData.summary.cluster_count.toLocaleString("ko-KR")}개</small>
+          <span>02 · 뉴스 근거</span>
+          <strong>{eventData.summary.event_count.toLocaleString("ko-KR")}개 뉴스 중 투자 판단에 영향을 줄 근거를 본다</strong>
+          <p>원문, 한국어 요약, 종목·테마 영향, 차단 사유를 확인하고 추천 근거로 쓸 수 있는지만 본다.</p>
+          <small>근거 후보 {eventData.summary.ai_extracted_count.toLocaleString("ko-KR")}개 · 주요 흐름 {clusterData.summary.cluster_count.toLocaleString("ko-KR")}개</small>
         </Link>
         <Link className="analyst-packet-card packet-cycle" href="/cycle-map">
           <span>03 · 사이클 지도</span>
-          <strong>거시 흐름이 섹터·테마·종목으로 어떻게 내려가는가</strong>
-          <p>상위 흐름과 종목 노출도를 연결해 단일 뉴스가 아닌 사이클 배경으로 해석한다.</p>
+          <strong>거시·섹터·테마 흐름이 종목 판단과 맞는가</strong>
+          <p>상위 흐름과 종목 노출도를 비교해 단일 뉴스가 아니라 지속되는 배경인지 확인한다.</p>
           <small>테마 {eventData.summary.themes_represented.toLocaleString("ko-KR")}개</small>
         </Link>
         <Link className="analyst-packet-card packet-recommendation" href="/recommendations">
@@ -486,7 +438,7 @@ export default async function HomePage() {
             <h2 id="priority-actions-title">오늘 처리할 리서치 공백</h2>
           </div>
           <p className="compact-copy">
-            추천을 읽기 전에 남은 공백을 먼저 본다. 같은 사유가 여러 번 반복되면 표를 길게 읽지 말고 묶음 단위로 처리한다.
+            추천을 읽기 전에 남은 공백부터 줄인다. 같은 사유가 반복되면 묶음 단위로 판단한다.
             {repeatedActionCount > 0
               ? ` 현재 ${data.top_actions.length}개 보완 기록은 ${groupedTopActions.length}개 묶음으로 압축됐다. 홈에는 먼저 볼 ${visibleTopActionGroups.length}개만 보여준다.`
               : " 현재 중복 보완 기록은 없다."}
@@ -518,7 +470,7 @@ export default async function HomePage() {
                   <span>나머지 보완 묶음</span>
                   <strong>{hiddenTopActionGroupCount.toLocaleString("ko-KR")}개는 보완 큐 전체에서 확인</strong>
                   <p className="flow-rationale">
-                    홈은 오늘 먼저 볼 항목만 보여준다. 전체 원장은 보완 큐에서 종목·사유별로 이어서 본다.
+                    첫 화면은 가장 큰 보완 묶음만 남긴다. 전체 목록은 보완 큐에서 종목·사유별로 확인한다.
                   </p>
                 </div>
                 <div className="bento-list-action">
@@ -539,7 +491,7 @@ export default async function HomePage() {
               <>
                 <p className="decision-copy">
                   {shortReviewReason(firstActionGroup.reason)} 같은 항목이 {firstActionGroup.count}건 반복된다.
-                  먼저 이 묶음의 기준을 정리한 뒤 개별 보유 검토로 내려간다.
+                  이 묶음이 해소되기 전까지 관련 추천·보유 판단은 보류한다.
                 </p>
                 <dl className="fact-list">
                   <div>
@@ -571,8 +523,8 @@ export default async function HomePage() {
 
           <article className="ledger-panel runtime-panel">
             <div className="section-heading">
-              <span>근거 연결</span>
-              <h2>뉴스 AI가 추천 판단으로 이어지는가</h2>
+              <span>추천 근거</span>
+              <h2>새 근거가 추천 판단을 바꾸는가</h2>
             </div>
             <dl className="runtime-grid">
               <div>
@@ -580,7 +532,7 @@ export default async function HomePage() {
                 <dd>{clusterData.summary.cluster_count}개</dd>
               </div>
               <div>
-                <dt>개별 AI 후보</dt>
+                <dt>개별 근거 후보</dt>
                 <dd>{eventData.summary.ai_extracted_count}개</dd>
               </div>
               <div>
@@ -593,7 +545,7 @@ export default async function HomePage() {
               </div>
             </dl>
             <div className="mini-link-stack">
-              <Link href="/intelligence">뉴스 묶음 근거</Link>
+              <Link href="/intelligence">뉴스 근거 보기</Link>
               <Link href={firstRecommendationHref}>대표 추천 열기</Link>
             </div>
           </article>

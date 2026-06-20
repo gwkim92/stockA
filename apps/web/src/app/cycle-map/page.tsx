@@ -92,7 +92,7 @@ function nodeDecisionLabel(node: CycleNode) {
     return "전파 종목 확인";
   }
   if (node.counts.recommendation_count > 0) {
-    return "추천 연결 확인";
+    return "추천 영향 확인";
   }
   return "관찰 유지";
 }
@@ -152,7 +152,7 @@ function nodeNextAction(node: CycleNode) {
     return "대표 종목 상세에서 직접 뉴스, 상위 흐름, 시장 동조성을 확인한다.";
   }
   if (node.counts.direct_event_count > 0) {
-    return "뉴스·AI 화면에서 원천 뉴스와 AI 구조화 결과를 먼저 확인한다.";
+    return "뉴스 근거 화면에서 원천 뉴스와 종목·테마 영향을 먼저 확인한다.";
   }
   return "다음 뉴스/가격 수집 후 상태 변화를 기다린다.";
 }
@@ -175,7 +175,7 @@ function nodeSummary(node: CycleNode) {
   const symbolCount = node.top_symbols.length;
   const recommendationCount = node.counts.recommendation_count;
 
-  return `${name}. 현재 상태는 ${state}. 최근 뉴스 ${directEvents}건, 상위 흐름 연결 영향 ${propagatedImpacts}건, 연결 종목 ${symbolCount}개, 추천 연결 ${recommendationCount}건을 함께 확인한다.`;
+  return `${name}. 현재 상태는 ${state}. 최근 뉴스 ${directEvents}건, 상위 흐름 영향 ${propagatedImpacts}건, 연결 종목 ${symbolCount}개, 추천 영향 ${recommendationCount}건을 함께 확인한다.`;
 }
 
 function groupedNodes(nodes: CycleNode[]) {
@@ -222,7 +222,7 @@ export default async function CycleMapPage() {
           <div className="decision-brief-meta" aria-label="흐름 지도 핵심 상태">
             <span>흐름 {data.summary.node_count.toLocaleString("ko-KR")}개</span>
             <span>뉴스 영향 {data.summary.direct_event_count.toLocaleString("ko-KR")}개</span>
-            <span>추천 연결 {data.summary.recommendation_count.toLocaleString("ko-KR")}개</span>
+            <span>추천 영향 {data.summary.recommendation_count.toLocaleString("ko-KR")}개</span>
             <span>충돌 {conflictNodeCount.toLocaleString("ko-KR")}개</span>
             <span>노출 대기 {symbolGapCount.toLocaleString("ko-KR")}개</span>
           </div>
@@ -231,8 +231,8 @@ export default async function CycleMapPage() {
           <Link className="decision-card is-good" href={"/intelligence" as Route}>
             <span>원천 뉴스</span>
             <strong>{data.summary.direct_event_count.toLocaleString("ko-KR")}개 영향</strong>
-            <small>AI 근거가 붙은 흐름 {aiBackedNodeCount.toLocaleString("ko-KR")}개. 원문·번역·검증 결과는 뉴스·AI에서 본다.</small>
-            <b>뉴스 AI</b>
+            <small>근거가 붙은 흐름 {aiBackedNodeCount.toLocaleString("ko-KR")}개. 원문·한국어 요약·품질 결과는 뉴스 근거에서 본다.</small>
+            <b>뉴스 근거</b>
           </Link>
           <a className="decision-card is-good" href="#cycle-map-layers">
             <span>사이클 경로</span>
@@ -253,7 +253,7 @@ export default async function CycleMapPage() {
             <b>종목 확인</b>
           </a>
           <Link className={data.summary.recommendation_count > 0 ? "decision-card is-good" : "decision-card is-watch"} href={"/recommendations" as Route}>
-            <span>추천 연결</span>
+            <span>추천 영향</span>
             <strong>{data.summary.recommendation_count.toLocaleString("ko-KR")}개</strong>
             <small>추천 상세에서 뉴스, 흐름, 재무, 가상 매매 검증을 다시 분리한다.</small>
             <b>추천 근거</b>
@@ -278,7 +278,7 @@ export default async function CycleMapPage() {
             <span>우선순위</span>
             <h2 id="cycle-operating-title">오늘 가장 먼저 읽을 사이클</h2>
             <p>
-              뉴스 열기, 전파 영향, 추천 연결, 충돌 표시를 합쳐 먼저 볼 흐름을 정렬했다.
+              뉴스 열기, 전파 영향, 추천 영향, 충돌 표시를 합쳐 먼저 볼 흐름을 정렬했다.
               왼쪽부터 무엇이 움직였는지, 어디로 내려가는지, 무엇을 확인할지 순서로 읽는다.
             </p>
           </div>
@@ -386,7 +386,7 @@ export default async function CycleMapPage() {
       <section className="cycle-path-workbench reveal delay-3" id="cycle-map-layers" aria-label="계층형 사이클 판단 경로">
         {groups.length === 0 ? (
           <article className="empty-state">
-            아직 표시할 계층형 사이클 스냅샷이 없다. 뉴스 수집, AI 구조화, 상위 흐름 연결, 사이클 스냅샷 실행 후 이 화면이 채워진다.
+            아직 표시할 계층형 사이클 스냅샷이 없다. 뉴스 근거, 상위 흐름 영향, 사이클 상태가 쌓이면 이 화면이 채워진다.
           </article>
         ) : null}
 
