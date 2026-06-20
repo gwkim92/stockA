@@ -252,6 +252,8 @@ export default async function HomePage() {
             };
   const groupedTopActions = groupTopActions(data.top_actions);
   const repeatedActionCount = data.top_actions.length - groupedTopActions.length;
+  const visibleTopActionGroups = groupedTopActions.slice(0, 5);
+  const hiddenTopActionGroupCount = Math.max(groupedTopActions.length - visibleTopActionGroups.length, 0);
   const firstActionGroup = groupedTopActions[0] ?? null;
 
   const operatingSteps = [
@@ -576,12 +578,12 @@ export default async function HomePage() {
           <p className="compact-copy">
             같은 사유가 여러 번 반복되면 표를 길게 읽지 말고 묶음 단위로 처리한다.
             {repeatedActionCount > 0
-              ? ` 현재 ${data.top_actions.length}개 보완 기록은 ${groupedTopActions.length}개 묶음으로 압축됐다.`
+              ? ` 현재 ${data.top_actions.length}개 보완 기록은 ${groupedTopActions.length}개 묶음으로 압축됐다. 홈에는 먼저 볼 ${visibleTopActionGroups.length}개만 보여준다.`
               : " 현재 중복 보완 기록은 없다."}
           </p>
           <div className="bento-list">
-            {groupedTopActions.length > 0 ? (
-              groupedTopActions.map((group) => (
+            {visibleTopActionGroups.length > 0 ? (
+              visibleTopActionGroups.map((group) => (
                 <article className="bento-list-item" key={group.key}>
                   <div>
                     <span>
@@ -600,6 +602,20 @@ export default async function HomePage() {
             ) : (
               <p className="empty-state">오늘 표시할 보완 조치가 없다.</p>
             )}
+            {hiddenTopActionGroupCount > 0 ? (
+              <article className="bento-list-item bento-list-summary">
+                <div>
+                  <span>나머지 보완 묶음</span>
+                  <strong>{hiddenTopActionGroupCount.toLocaleString("ko-KR")}개는 보완 큐 전체에서 확인</strong>
+                  <p className="flow-rationale">
+                    홈은 오늘 먼저 볼 항목만 보여준다. 전체 원장은 보완 큐에서 종목·사유별로 이어서 본다.
+                  </p>
+                </div>
+                <div style={{ flex: "0 1 260px" }}>
+                  <Link href="/remediation">보완 큐 전체 보기</Link>
+                </div>
+              </article>
+            ) : null}
           </div>
         </article>
 
