@@ -73,11 +73,9 @@ def start_codex_oauth_device_login(
     existing_status = load_codex_oauth_operator_status(repo_root=repo_root, now=current_now)
     if existing_status["status"] in {"healthy", "authenticated_smoke_required"}:
         return existing_status
-    if existing_status["status"] == "device_auth_pending" and _valid_device_auth_status(existing_status):
-        return existing_status
 
     working_payload = existing
-    if existing_status["status"] in {"relogin_required", "device_code_expired", "failed"}:
+    if existing_status["status"] != "unknown":
         logout_event = _logout_codex_session(repo_root=repo_root, now=current_now)
         working_payload = _append_event(working_payload, logout_event, now=current_now)
 
