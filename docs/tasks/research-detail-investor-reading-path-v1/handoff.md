@@ -10,6 +10,7 @@
 
 - Source document detail now frames documents as source evidence used by investment reasoning, not as an AI-process inspection screen.
 - Evidence detail now describes source, translation, structured evidence, quality gate, recommendation linkage, and order boundary without `AI 해석` wording.
+- Shared evidence path workbench accessibility label now uses `투자 근거 판단 경로`.
 - Stock detail now uses `근거 상세`, `투자 근거`, and `기업 리서치` labels instead of AI-process labels.
 - Read-only/no-order boundary remains visible but is expressed as execution state, not repeated screen-defense copy.
 

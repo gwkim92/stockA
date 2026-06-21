@@ -13,6 +13,7 @@
 
 - mutable surface: `apps/web/src/app/source-documents/[documentId]/page.tsx`
 - mutable surface: `apps/web/src/app/ai-evidence/[evidenceId]/page.tsx`
+- mutable surface: `apps/web/src/app/ai-evidence/_components/evidence-path-workbench.tsx`
 - mutable surface: `apps/web/src/app/stocks/[symbol]/page.tsx`
 - mutable surface: `docs/tasks/research-detail-investor-reading-path-v1/*`
 

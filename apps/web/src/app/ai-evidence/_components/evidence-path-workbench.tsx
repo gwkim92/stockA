@@ -58,7 +58,7 @@ export function EvidencePathWorkbench({
         <p>{summary}</p>
         <strong>{verdict}</strong>
       </div>
-      <ol className="evidence-path-workbench-steps" aria-label="AI 근거 판단 경로">
+      <ol className="evidence-path-workbench-steps" aria-label="투자 근거 판단 경로">
         {steps.map((step) => (
           <li className={toneClass(step.tone)} key={`${step.index}-${step.label}`}>
             <span>{step.index}</span>
