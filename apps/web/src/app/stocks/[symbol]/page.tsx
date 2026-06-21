@@ -230,6 +230,8 @@ function userFacingStockText(value: string | null | undefined) {
   const oldAiStructured = ["AI", "구조화"].join(" ");
   const oldNewsAi = ["뉴스", "AI"].join(" ");
   return koLabel(value)
+    .replace(/AI 기업 리서치/g, "기업 리서치")
+    .replace(/AI 리서치/g, "기업 리서치")
     .replace(new RegExp(oldAiAnalysisLinkage, "gi"), "투자 근거 연결")
     .replace(new RegExp(oldStoredAiStructuredResult, "gi"), "저장된 투자 근거")
     .replace(new RegExp(oldAiStructuredResult, "gi"), "투자 근거")
