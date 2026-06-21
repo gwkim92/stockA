@@ -2,8 +2,8 @@
 
 ## Current Status
 
-- status: implemented_locally_pending_verification
-- in progress: source document, evidence detail, and stock detail copy now use investor-facing evidence language; local verification and EC2 deploy remain.
+- status: implemented_and_ec2_smoked
+- completed: source document, evidence detail, shared evidence path workbench, and stock detail copy now use investor-facing evidence language; local verification, GitHub push, EC2 deploy, EC2 route smoke, and local tunnel smoke passed.
 - branch: `develop`
 
 ## What Changed
@@ -24,11 +24,24 @@
 
 ## Verification To Run
 
-- exact next step: run local typecheck/build/AWH/diff checks, commit, push to `develop`, deploy to EC2, and route-smoke `/source-documents/<id>`, `/ai-evidence/<id>`, `/stocks/<symbol>`.
+- exact next step: continue the UX/UI refactor with a larger information-architecture pass for `/intelligence`, `/cycle-map`, and `/market-map`, focusing on what to inspect today and how evidence changes recommendations.
 - `cd apps/web && npm run typecheck`
 - `cd apps/web && npm run build`
 - `PYTHONPATH=/Users/woody/ai/agent-work-harness/src python3 -m awh verify --repo . --task research-detail-investor-reading-path-v1`
 - `git diff --check`
+
+## Verification Evidence
+
+- local passed: `cd apps/web && npm run typecheck`
+- local passed: `cd apps/web && npm run build`
+- local passed: `git diff --check`
+- local passed: `PYTHONPATH=/Users/woody/ai/agent-work-harness/src python3 -m awh verify --repo . --task research-detail-investor-reading-path-v1`
+- pushed commits: `b8dcbec2`, `a5ace0df`, `e241ee5c`
+- EC2 deployed commit: `e241ee5c`
+- EC2 active services: `stockanalysis-web.service`, `stockanalysis-frontend-api.service`
+- EC2 route smoke passed: `/source-documents/source-document-16557`, `/ai-evidence/ai-evidence-1297`, `/stocks/AAPL`
+- local tunnel `http://127.0.0.1:13000` route smoke passed for the same three routes.
+- forbidden user-facing terms absent on smoke routes: `AI 해석`, `AI 근거`, `뉴스·AI`, `추천 weight`, `이 화면은`
 
 ## Remaining Risk
 
