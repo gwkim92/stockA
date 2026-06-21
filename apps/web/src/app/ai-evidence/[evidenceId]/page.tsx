@@ -240,7 +240,7 @@ function formatExtractedFieldSource(sourceChunkId: string) {
     return "종목 영향 근거";
   }
   if (sourceChunkId.startsWith("chunk-news-ai-")) {
-    return "AI 추출 근거";
+    return "투자 근거 발췌";
   }
   if (sourceChunkId === "chunk-mdna-services") {
     return "경영진 논의 근거";
@@ -301,7 +301,7 @@ function pageCopy(data: AiEvidenceDetailData, candidate: NewsCandidate | null, c
       badge: `뉴스 묶음 근거 · ${koCode(data.extraction_run.provider)}`,
       title: "이 뉴스 묶음이 어떤 시장 흐름과 종목 연결로 이어졌는지 확인한다.",
       lede:
-        "이 화면은 매수 판단 화면이 아니다. 같은 흐름으로 묶인 이유, 연결된 상위 테마, 종목 연결, 추천 근거 연결 여부를 원천 뉴스와 함께 대조한다.",
+        "같은 흐름으로 묶인 이유, 연결된 상위 테마, 종목 연결, 추천 근거 연결 여부를 원천 뉴스와 함께 대조한다.",
     };
   }
   return {
@@ -474,7 +474,7 @@ function aiEvidenceUsageVerdict({
       metric: `추천 ${recommendationCount}개`,
       body:
         "품질 기준을 통과했고 추천 상세에 연결된 근거다. 그래도 추천 상세에서 가격, 사이클, 재무, thesis, 가상 매매 상태를 다시 합쳐 판단한다.",
-      next: `투자 논리 ${thesisCount}개와 추천 상세를 이어서 확인한다. 이 화면은 주문을 만들지 않는다.`,
+      next: `투자 논리 ${thesisCount}개와 추천 상세를 이어서 확인한다. 주문 전송은 계속 차단 상태다.`,
       tone: "risk-low" as const,
     };
   }
@@ -505,7 +505,7 @@ function CandidateImpactList({ candidate }: { candidate: NewsCandidate }) {
   ];
 
   if (impacts.length === 0) {
-    return <div className="empty-state">AI가 구조화한 테마·종목 영향 항목이 없다. 이 근거는 추천 입력으로 쓰면 안 된다.</div>;
+    return <div className="empty-state">테마·종목 영향 항목이 없다. 이 근거는 추천 입력으로 쓰면 안 된다.</div>;
   }
 
   return (
@@ -571,7 +571,7 @@ function NeighborhoodPanel({ neighborhood }: { neighborhood: EvidenceNeighborhoo
       <div className="ai-neighborhood-panel">
         <div className="ai-cluster-section-head">
           <span>추천·투자 논리 연결</span>
-          <p>이 AI 근거가 실제 투자 판단 화면에서 어디까지 이어지는지 먼저 확인한다.</p>
+          <p>이 투자 근거가 실제 판단 화면에서 어디까지 이어지는지 먼저 확인한다.</p>
         </div>
         <div className="ai-neighborhood-link-grid">
           {neighborhood.recommendations.slice(0, 3).map((recommendation) => {
@@ -607,7 +607,7 @@ function NeighborhoodPanel({ neighborhood }: { neighborhood: EvidenceNeighborhoo
       <div className="ai-neighborhood-panel">
         <div className="ai-cluster-section-head">
           <span>최근 관련 이벤트</span>
-          <p>같은 종목에 이미 붙어 있는 뉴스와 공시를 비교해 AI 해석이 튀는지 본다.</p>
+          <p>같은 종목에 이미 붙어 있는 뉴스와 공시를 비교해 해석이 원천과 어긋나는지 본다.</p>
         </div>
         <div className="ai-neighborhood-event-grid">
           {neighborhood.events.slice(0, 4).map((event) => (
@@ -714,7 +714,7 @@ function AiEvidenceReviewBrief({
       body:
         sourcePreview.koreanSummary ||
         sourcePreview.koreanTitle ||
-        "저장된 한국어 제목·요약이 없으면 원문 제목과 AI 해석을 직접 대조해야 한다.",
+        "저장된 한국어 제목·요약이 없으면 원문 제목과 투자 근거를 직접 대조해야 한다.",
       href: "#evidence-source-preview",
       cta: "번역 보기",
       tone: translation.tone,
@@ -757,7 +757,7 @@ function AiEvidenceReviewBrief({
         <span>이 근거의 현재 사용처</span>
         <h2 id="ai-evidence-brief-title">{usage.title}</h2>
         <p>{usage.body}</p>
-        <div className="ai-evidence-brief-metrics" aria-label="AI 근거 핵심 상태">
+        <div className="ai-evidence-brief-metrics" aria-label="투자 근거 핵심 상태">
           <div>
             <span>원천</span>
             <strong>{sourceCount > 0 ? `${sourceCount}개` : "없음"}</strong>
@@ -1174,7 +1174,7 @@ export default async function AiEvidencePage({ params }: AiEvidencePageProps) {
             <div className="ai-cluster-proof-panel">
               <div className="ai-cluster-section-head">
                 <span>왜 이 뉴스들이 같이 묶였나</span>
-                <p>AI 묶음은 같은 테마, 같은 하위 이슈, 같은 종목 연결, 원천 문서 수가 함께 맞아야 신뢰한다.</p>
+                <p>같은 테마, 같은 하위 이슈, 같은 종목 연결, 원천 문서 수가 함께 맞아야 이 묶음을 신뢰한다.</p>
               </div>
               <div className="ai-cluster-reason-grid">
                 {clusterRelationReasons(data, cluster).map((reason) => (
@@ -1250,7 +1250,7 @@ export default async function AiEvidencePage({ params }: AiEvidencePageProps) {
         <article className="evidence-decision-card" id="evidence-structured-fields">
           <div className="section-heading stacked-heading">
             <span>추출 필드</span>
-            <h2>AI가 남긴 구조화 필드</h2>
+            <h2>저장된 구조화 근거</h2>
           </div>
           {data.extracted_fields.length > 0 ? (
             <div className="field-proof-grid">
@@ -1306,8 +1306,8 @@ export default async function AiEvidencePage({ params }: AiEvidencePageProps) {
           {data.audit_notes.map((note) => (
             <li key={note}>{koLabel(note)}</li>
           ))}
-          <li>AI는 추천과 주문을 직접 결정하지 않는다. 추천 점수, 보유 상태 판단, 거래 안전 조건이 별도로 통과해야 한다.</li>
-          <li>화면 진입 시 실시간 AI 호출은 하지 않으며, 배치가 저장한 결과만 읽는다.</li>
+          <li>이 근거 하나로 추천과 주문을 결정하지 않는다. 추천 점수, 보유 상태 판단, 거래 안전 조건이 별도로 통과해야 한다.</li>
+          <li>현재 화면은 저장된 결과만 읽으며 새 분석이나 주문을 만들지 않는다.</li>
         </ul>
         <div className="audit-metadata">
           <details>

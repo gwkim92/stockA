@@ -64,7 +64,7 @@ function sourceDocumentDigest(data: SourceDocumentDetailData) {
   }
   const target = isKnownCode(data.symbol) ? `${koCode(data.symbol)} 관련` : sourceTypeLabel(data);
   const topic = inferKoreanTopic(`${data.title} ${data.excerpts.map((excerpt) => excerpt.summary).join(" ")}`);
-  return `${target} ${topic} 문서다. 영어 원문을 먼저 읽지 말고, 연결된 AI 근거와 발췌의 한국어 근거 요약으로 테마·종목·방향 해석이 맞는지 확인한다.`;
+  return `${target} ${topic} 문서다. 영어 원문을 먼저 읽기 전에 연결된 투자 근거와 발췌 요약으로 테마·종목·방향 해석이 맞는지 확인한다.`;
 }
 
 function sourceExcerptDigest(excerpt: SourceExcerpt, documentTitle: string) {
@@ -135,15 +135,15 @@ export default async function SourceDocumentPage({ params }: SourceDocumentPageP
             {sourceDocumentKicker(data)}
           </span>
           <h1 className="decision-brief-title" id="source-command-title">
-            AI 해석의 출발점을 한국어로 먼저 대조한다.
+            이 원천이 어떤 투자 근거가 됐는지 먼저 확인한다.
           </h1>
           <p className="decision-brief-copy">
-            이 문서는 추천 승인 화면이 아니다. 원문 제목·요약, 발췌, 연결된 AI 근거를 확인해 AI가 붙인 테마·종목·방향이 원천과 맞는지 검증한다.
+            원문 제목·요약, 발췌, 연결된 투자 근거를 대조해 테마·종목·방향 해석이 원천과 맞는지 확인한다.
           </p>
           <div className="decision-brief-meta" aria-label="원천 문서 핵심 상태">
             <span>원문 열람 {data.access_policy.browser_download_enabled ? "허용" : "차단"}</span>
             <span>발췌 {data.excerpts.length.toLocaleString("ko-KR")}개</span>
-            <span>AI 근거 {data.linked_evidence.length.toLocaleString("ko-KR")}개</span>
+            <span>투자 근거 {data.linked_evidence.length.toLocaleString("ko-KR")}개</span>
             <span>{sourceTypeLabel(data)}</span>
           </div>
         </div>
@@ -161,10 +161,10 @@ export default async function SourceDocumentPage({ params }: SourceDocumentPageP
             <b>발췌 보기</b>
           </a>
           <a className="decision-card is-good" href="#linked-ai-evidence">
-            <span>AI 근거 연결</span>
+            <span>투자 근거 연결</span>
             <strong>{data.linked_evidence.length.toLocaleString("ko-KR")}개 근거</strong>
             <small>{firstEvidenceId ? "상세 연결 가능" : "연결 근거 없음"} · 원천, 번역, 구조화, 검증을 이어서 본다.</small>
-            <b>AI 근거 보기</b>
+            <b>투자 근거 보기</b>
           </a>
           <a
             className={data.access_policy.browser_download_enabled ? "decision-card is-good" : "decision-card is-block"}
@@ -186,7 +186,7 @@ export default async function SourceDocumentPage({ params }: SourceDocumentPageP
         </div>
         <aside>
           <strong>{data.linked_evidence.length}</strong>
-          <span>연결된 AI 근거</span>
+          <span>연결된 투자 근거</span>
           <p>근거 상세에서 종목·테마·방향 해석이 맞는지 이어서 확인한다.</p>
         </aside>
       </section>
@@ -225,8 +225,8 @@ export default async function SourceDocumentPage({ params }: SourceDocumentPageP
             </article>
             <article>
               <span>분석 연결</span>
-              <strong>{data.linked_evidence.length.toLocaleString("ko-KR")}개 AI 근거</strong>
-              <p>연결된 AI 판단에서 테마·종목·방향 해석을 다시 대조한다.</p>
+              <strong>{data.linked_evidence.length.toLocaleString("ko-KR")}개 투자 근거</strong>
+              <p>연결된 투자 근거에서 테마·종목·방향 해석을 다시 대조한다.</p>
             </article>
           </div>
           <details className="secondary-details source-document-technical-detail">
@@ -255,7 +255,7 @@ export default async function SourceDocumentPage({ params }: SourceDocumentPageP
             <article>
               <span>수집 시각</span>
               <strong>{data.retrieval.fetched_at || "미기록"}</strong>
-              <p>이 시점의 원천 내용으로 AI 판단이 만들어졌다.</p>
+              <p>이 시점의 원천 내용으로 투자 근거가 만들어졌다.</p>
             </article>
             <article>
               <span>원문 저장</span>
@@ -286,7 +286,7 @@ export default async function SourceDocumentPage({ params }: SourceDocumentPageP
       <section className="source-document-section reveal delay-2" id="source-document-excerpts" aria-labelledby="source-document-excerpts-title">
         <div className="source-document-section-head">
           <span>근거 발췌</span>
-          <h2 id="source-document-excerpts-title">AI가 참고한 원문 조각을 한국어 흐름으로 먼저 본다</h2>
+          <h2 id="source-document-excerpts-title">판단에 쓰인 원문 조각을 한국어 흐름으로 먼저 본다</h2>
           <p>영어 전문은 필요할 때만 펼친다. 기본 화면은 이 발췌가 어떤 투자 흐름 판단에 쓰였는지를 먼저 보여준다.</p>
         </div>
         <div className="source-excerpt-card-grid">
@@ -338,7 +338,7 @@ export default async function SourceDocumentPage({ params }: SourceDocumentPageP
                 symbol={data.symbol}
               />
               <Link href={`/ai-evidence/${evidence.evidence_id}`}>
-                AI 근거 상세 열기
+                투자 근거 상세 열기
               </Link>
             </article>
           ))}

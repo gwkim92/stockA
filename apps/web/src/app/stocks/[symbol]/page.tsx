@@ -774,7 +774,7 @@ function cleanFlowText(
     return `${koCode(themeKey)} 흐름이 ${koCode(symbol)}에 ${koCode(impactDirection)} 방향으로 전파됐다. 노출도와 신뢰도는 위 수치를 기준으로 확인한다.`;
   }
   if (/flow propagated to/i.test(value) || /directly exposed/i.test(value)) {
-    return `${koCode(themeKey)} 흐름이 ${koCode(symbol)}에 ${koCode(impactDirection)} 방향으로 전파됐다. 이 문장은 화면용 요약이며, 자세한 AI 해석은 상세 버튼에서 확인한다.`;
+    return `${koCode(themeKey)} 흐름이 ${koCode(symbol)}에 ${koCode(impactDirection)} 방향으로 전파됐다. 자세한 근거는 상세 버튼에서 확인한다.`;
   }
   const interpretation = value.match(/해석:\s*(.*?)(?:\s*근거:|;\s*노출 근거:|$)/)?.[1]?.trim();
   const evidence = value.match(/근거:\s*(.*?)(?:;\s*노출 근거:|$)/)?.[1]?.trim();
@@ -798,9 +798,9 @@ function cleanFlowText(
 
 function stockGuardrails() {
   return [
-    "이 화면은 읽기 전용이다. 추천 점수, 포지션, 주문을 변경하지 않는다.",
+    "읽기 전용 상태다. 추천 점수, 포지션, 주문을 변경하지 않는다.",
     "민감한 접속 정보와 API 키는 화면에 노출하지 않는다.",
-    "화면을 열 때 새 분석을 만들지 않고 저장된 근거만 보여준다.",
+    "새 분석을 만들지 않고 저장된 근거만 보여준다.",
   ];
 }
 
@@ -879,7 +879,7 @@ function stockProfessionalAuditStatus({
   return {
     tone: "risk-low",
     title: "전문 근거 연결",
-    summary: "전문 분석 레이어가 연결됐다. 그래도 이 화면은 읽기 전용이며 weight 변경과 실거래 주문은 하지 않는다.",
+    summary: "전문 분석 레이어가 연결됐다. 읽기 전용 상태이며 산식 변경과 실거래 주문은 하지 않는다.",
   };
 }
 
@@ -903,11 +903,11 @@ function buildStockProfessionalLayers({
   return [
     {
       key: "business_research",
-      label: "사업·AI 리서치",
+      label: "사업 리서치",
       status: data.equity_research ? "complete" : "missing",
       detail: data.equity_research
-        ? `AI 리서치가 ${data.equity_research.as_of_date} 기준으로 저장됐다. 사업 설명, 촉매, 리스크, 무효화 조건을 아래에서 확인한다.`
-        : "사업 설명, 촉매, 리스크, 무효화 조건을 요약한 AI 기업 리서치가 아직 없다.",
+        ? `기업 리서치가 ${data.equity_research.as_of_date} 기준으로 저장됐다. 사업 설명, 촉매, 리스크, 무효화 조건을 아래에서 확인한다.`
+        : "사업 설명, 촉매, 리스크, 무효화 조건을 요약한 기업 리서치가 아직 없다.",
       source: "research.equity_research_artifact",
       href: "#stock-equity-research",
       hrefLabel: "기업 리서치",
@@ -976,7 +976,7 @@ function buildStockProfessionalLayers({
         : data.valuation_target_range.status === "available"
           ? `목표가 범위 ${data.valuation_target_range.method_count}개 방법과 기준 상승여지 ${formatPercent(data.valuation_target_range.upside_base)}가 연결됐다.`
           : valuationItems.length > 0
-            ? "AI 리서치의 밸류에이션 민감도는 있으나 목표가 범위 snapshot은 아직 부족하다."
+            ? "기업 리서치의 밸류에이션 민감도는 있으나 목표가 범위 snapshot은 아직 부족하다."
             : "DCF-lite, 상대 배수, 시나리오 범위, SOTP 목표가가 아직 충분히 연결되지 않았다.",
       source: "market.valuation_snapshot",
       href: "#stock-valuation",
@@ -1152,7 +1152,7 @@ function ProfessionalSourceGuardrailPanel({
         </span>
       </div>
       <p style={{ color: "var(--text-secondary)", marginTop: 0 }}>
-        {userFacingStockText(guardrail.summary)} 이 화면은 추천 점수나 보유 비중을 바꾸지 않고, 투자 판단·가상 매매 검증·실거래 가능 여부를
+        {userFacingStockText(guardrail.summary)} 추천 점수나 보유 비중을 바꾸지 않고, 투자 판단·가상 매매 검증·실거래 가능 여부를
         분리해서 보여준다.
       </p>
       <div className="status-rail compact-rail" aria-label="투자 판단 사용 가능 여부 요약">
@@ -1250,7 +1250,7 @@ function EvidenceNeighborhoodPanel({ neighborhood }: { neighborhood: AiEvidenceN
   const readinessLabel = ragContext.status === "ready" ? "판단 근거 준비됨" : "근거 보강 필요";
   const readinessCopy =
     ragContext.status === "ready"
-      ? "뉴스, 번역, 원문 근거, 기존 추천·투자 논리가 함께 조회된다. 새 AI 호출 없이 저장된 근거만 보여준다."
+      ? "뉴스, 번역, 원문 근거, 기존 추천·투자 논리가 함께 조회된다. 저장된 근거만 보여준다."
       : "연결된 자료가 부족하다. 이 상태에서는 추천이나 보유 판단 입력으로 쓰기 전에 원문과 번역 상태를 먼저 확인해야 한다.";
 
   return (
@@ -1261,7 +1261,7 @@ function EvidenceNeighborhoodPanel({ neighborhood }: { neighborhood: AiEvidenceN
           <h2>{neighborhood.symbol}에 영향을 줄 수 있는 뉴스가 어디서 왔고, 어떻게 연결됐는지 본다</h2>
           <p>
             수집 뉴스, 한국어 요약, 종목·테마 영향, 원문 근거, 추천·투자 논리 연결을 한 흐름으로 정리했다.
-            이 화면은 저장된 분석을 읽는 곳이며 새 추천이나 주문을 만들지 않는다.
+            저장된 분석만 읽고 새 추천이나 주문은 만들지 않는다.
           </p>
         </div>
         <aside>
@@ -1427,7 +1427,7 @@ function EvidenceNeighborhoodPanel({ neighborhood }: { neighborhood: AiEvidenceN
         <div className="stock-evidence-section-head">
           <div>
             <span>원천 대조</span>
-            <h3>AI 해석이 참조한 원문 근거</h3>
+            <h3>투자 근거가 참조한 원문</h3>
           </div>
           <p>본문 추출 여부와 출처를 먼저 보여준다. 영어 원문은 필요할 때만 열어 확인한다.</p>
         </div>
@@ -1611,7 +1611,7 @@ export default async function StockDetailPage({ params }: StockDetailPageProps) 
       tone: sourceBlocked ? "blocked" : "neutral",
       body: sourceBlocked
         ? `${userFacingStockText(sourceGuardrail.next_action)} 실제 증권사 주문 전송은 계속 닫혀 있다.`
-        : "이 화면은 주문을 만들지 않는다. 실제 증권사 주문 전송은 닫혀 있고, 추천이 생겨도 가상 매매 검증과 리스크 상태를 먼저 확인해야 한다.",
+        : "실제 증권사 주문 전송은 닫혀 있다. 추천이 생겨도 가상 매매 검증과 리스크 상태를 먼저 확인해야 한다.",
       href: "/paper-trading" as Route,
       hrefLabel: "가상 매매 상태 보기",
     },
@@ -1628,7 +1628,7 @@ export default async function StockDetailPage({ params }: StockDetailPageProps) 
             {stockOutcome.title}
           </h1>
           <p className="decision-brief-copy">
-            {stockOutcome.body} 이 화면은 주문을 만들지 않고, 가격·추천·보유·뉴스·상위 흐름·투자 논리·가상 매매 상태를 한 종목 기준으로 대조한다.
+            {stockOutcome.body} 가격·추천·보유·뉴스·상위 흐름·투자 논리·가상 매매 상태를 한 종목 기준으로 대조한다.
           </p>
           <div className="decision-brief-meta" aria-label={`${data.symbol} 핵심 상태`}>
             <span>최신 종가 {hasPriceData ? formatCurrency(data.latest_price.close, data.currency_code) : "가격 미수집"}</span>
@@ -1683,7 +1683,7 @@ export default async function StockDetailPage({ params }: StockDetailPageProps) 
         eyebrow="전문 리서치 읽는 순서"
         title={`${data.symbol} 분석은 종목 하나로 끝나지 않는다`}
         summary="중장기 투자 판단은 뉴스 하나로 끝나지 않는다. 사업, 재무, 비교군, 밸류에이션, 사이클, 투자 논리, 가상 매매 검증을 같은 순서로 확인한다."
-        footer="현재 화면은 저장된 데이터만 읽는다. 화면 진입 중 새 AI 분석이나 주문 생성은 없다."
+        footer="저장된 데이터만 읽는다. 새 분석이나 주문 생성은 없다."
         steps={professionalResearchSteps}
       />
 
@@ -1847,10 +1847,10 @@ export default async function StockDetailPage({ params }: StockDetailPageProps) 
         />
       </div>
 
-      <section className="bento-card span-4 reveal delay-3" id="stock-equity-research" aria-label="AI 기업 분석 리포트">
+      <section className="bento-card span-4 reveal delay-3" id="stock-equity-research" aria-label="기업 리서치 리포트">
         <div className="section-heading">
           <div>
-            <span className="metric-sub">AI 기업 분석 리포트</span>
+            <span className="metric-sub">기업 리서치 리포트</span>
             <h2>{equityResearch ? userFacingStockText(equityResearch.title) : `${data.symbol} 기업 리서치가 아직 생성되지 않았다`}</h2>
           </div>
           {equityResearch ? (
@@ -1992,7 +1992,7 @@ export default async function StockDetailPage({ params }: StockDetailPageProps) 
                     <Link className="btn btn-secondary" href={`/themes/${encodeURIComponent(flow.theme_key)}?asOfDate=${encodeURIComponent(data.as_of_date)}` as Route}>
                       흐름 보기
                     </Link>
-                    {evidence ? <Link className="btn btn-secondary" href={evidence}>AI 해석</Link> : null}
+                    {evidence ? <Link className="btn btn-secondary" href={evidence}>근거 상세</Link> : null}
                     {sourceDocument ? <Link className="btn btn-secondary" href={sourceDocument}>근거 문서</Link> : null}
                   </div>
                 </div>
@@ -2037,7 +2037,7 @@ export default async function StockDetailPage({ params }: StockDetailPageProps) 
                     <span>{koCode(event.impact_direction)} • 영향도 {formatPercent(event.impact_score)}</span>
                   </div>
                   <div className="btn-row" style={{ marginTop: 0 }}>
-                    {evidence ? <Link className="btn btn-secondary" href={evidence}>AI 해석</Link> : null}
+                    {evidence ? <Link className="btn btn-secondary" href={evidence}>근거 상세</Link> : null}
                     {sourceDocument ? <Link className="btn btn-secondary" href={sourceDocument}>근거 문서</Link> : null}
                   </div>
                 </div>
