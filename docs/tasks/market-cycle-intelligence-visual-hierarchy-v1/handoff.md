@@ -2,8 +2,8 @@
 
 ## Current Status
 
-- status: implemented_locally_pending_verification
-- in progress: `/intelligence`, `/cycle-map`, `/market-map` 상단 판단 카드와 주요 그리드의 데스크톱 시각 위계를 강화했다.
+- status: completed
+- completed: `/intelligence`, `/cycle-map`, `/market-map` 상단 판단 카드와 주요 그리드의 데스크톱 시각 위계를 강화했다.
 - changed: 세 페이지 루트와 hero section에 page-specific class를 추가했다.
 - changed: `globals.css`에 1100px 이상 전용 asymmetric research desk layout을 추가했다.
 
@@ -16,12 +16,17 @@
 
 ## Verification To Run
 
-- exact next step: `cd apps/web && npm run typecheck`
-- next: `cd apps/web && npm run build`
-- next: `PYTHONPATH=/Users/woody/ai/agent-work-harness/src python3 -m awh verify --repo . --task market-cycle-intelligence-visual-hierarchy-v1`
-- next: `git diff --check`
+- exact next step: none; task completed and deployed, continue with the next roadmap task if requested.
+- passed: `cd apps/web && npm run typecheck`
+- passed: `cd apps/web && npm run build`
+- passed: `PYTHONPATH=/Users/woody/ai/agent-work-harness/src python3 -m awh verify --repo . --task market-cycle-intelligence-visual-hierarchy-v1`
+- passed: `git diff --check`
+- passed: EC2 `git pull --ff-only origin develop`, `npm run typecheck`, `npm run build`, `stockanalysis-web.service` active, `stockanalysis-frontend-api.service` active.
+- passed: EC2 internal route smoke for `/intelligence`, `/cycle-map`, `/market-map` returned 200, required layout classes rendered, forbidden operator wording absent.
+- passed: local tunnel route smoke for `http://127.0.0.1:13000/intelligence`, `/cycle-map`, `/market-map` returned 200 with `research-command-deck`.
+- visual evidence: `output/playwright/intelligence-visual-hierarchy.png`, `output/playwright/cycle-map-visual-hierarchy.png`, `output/playwright/market-map-visual-hierarchy.png` were generated for local review and are not intended for commit.
 
 ## Remaining Risk
 
-- 데스크톱 시각 위계는 CSS로 적용됐지만 실제 EC2 route smoke와 브라우저 시각 확인 전까지 최종 완료로 보지 않는다.
 - 모바일/tablet은 기존 breakpoint를 유지했고 새 규칙은 `min-width: 1100px`에만 적용했다.
+- 더 큰 정보 구조 개편은 별도 task로 진행해야 한다. 이번 작업은 문구·데이터 의미 변경이 아니라 visual hierarchy 개선이다.
