@@ -763,62 +763,123 @@ export default async function IntelligencePage() {
         )}
       </section>
 
-      <section className="intelligence-board reveal delay-3" id="ai-candidates" aria-labelledby="ai-candidate-queue-title">
+      <section
+        className="intelligence-board intelligence-brief-board decision-triage-board reveal delay-3"
+        id="news-decision-triage"
+        aria-labelledby="news-decision-triage-title"
+      >
         <div className="section-heading stacked-heading">
-          <span>02 통과한 뉴스 근거</span>
-          <h2 id="ai-candidate-queue-title">대표 투자 근거 3건만 먼저 본다</h2>
+          <span>02 판단 대기열</span>
+          <h2 id="news-decision-triage-title">근거를 추천에 쓰기 전에 한 번에 판별한다</h2>
+          <p>
+            개별 근거, 차단 항목, 추천 연결 상태를 한 화면에 모았다. 통과한 뉴스라도 바로 주문으로 이어지지 않고,
+            원문 근거와 종목 맥락, 가상 매매 검증을 다시 지난다.
+          </p>
         </div>
-        <p className="board-intro">
-          한 건 단위의 테마, 종목, 방향, 신뢰도를 확인한다. 전체 항목과 차단 목록은 전용 화면에서 본다.
-        </p>
 
-        {aiCandidateEvents.length > 0 ? (
-          <div className="review-queue-list">
-            {aiCandidateEvents.map((event) => {
-              const evidenceLink = maybeRoute(event.ai_evidence_id ? `/ai-evidence/${event.ai_evidence_id}` : null);
-              const documentLink = sourceDocumentHref(event.source_document_id);
-              const symbolLink = stockHref(event.symbol);
+        <div className="decision-triage-grid">
+          <article className="decision-triage-column is-wide">
+            <div className="decision-triage-head">
+              <span>투자 근거 후보</span>
+              <strong>{llmCandidateSuccessCount.toLocaleString("ko-KR")}건 통과</strong>
+              <p>대표 3건만 먼저 보고, 전체 근거는 전용 목록에서 이어서 확인한다.</p>
+            </div>
+            {aiCandidateEvents.length > 0 ? (
+              <div className="review-queue-list compact-review-list">
+                {aiCandidateEvents.map((event) => {
+                  const evidenceLink = maybeRoute(event.ai_evidence_id ? `/ai-evidence/${event.ai_evidence_id}` : null);
+                  const documentLink = sourceDocumentHref(event.source_document_id);
+                  const symbolLink = stockHref(event.symbol);
 
-              return (
-                <article className="review-queue-item" key={`${event.event_id}-${event.ai_evidence_id}`}>
-                  <div>
-                    <span className="metric-sub">
-                      {formatNewsSymbol(event.symbol)} · {koCode(event.theme_key)} · {event.event_at}
-                    </span>
-                    <NewsTitleBlock
-                      title={event.title}
-                      koreanTitle={event.korean_title}
-                      koreanSummary={event.korean_summary}
-                      translationConfidence={event.translation_confidence}
-                      symbol={event.symbol}
-                      themeKey={event.theme_key}
-                      impactDirection={formatImpactDirection(event.impact_direction)}
-                      impactScore={event.impact_score}
-                    />
-                    <p>
-                      {aiEvidenceLabel(event.ai_evidence_type)} · 대상 {formatNewsSymbol(event.symbol)} · 방향{" "}
-                      {formatImpactDirection(event.impact_direction)} · 신뢰도 {formatPercent(event.ai_evidence_confidence)}
-                    </p>
-                  </div>
-                  <div className="review-queue-actions">
-                    {evidenceLink ? <Link className="btn btn-primary" href={evidenceLink}>근거 상세</Link> : null}
-                    {symbolLink ? <Link className="btn btn-secondary" href={symbolLink}>종목</Link> : null}
-                    {documentLink ? <Link className="btn btn-secondary" href={documentLink}>뉴스 원문</Link> : null}
-                  </div>
-                </article>
-              );
-            })}
-          </div>
-        ) : (
-          <div className="empty-state">아직 표시할 투자 근거 후보가 없다. 데이터 상태에서 최근 뉴스 분석 상태를 확인한다.</div>
-        )}
+                  return (
+                    <article className="review-queue-item" key={`${event.event_id}-${event.ai_evidence_id}`}>
+                      <div>
+                        <span className="metric-sub">
+                          {formatNewsSymbol(event.symbol)} · {koCode(event.theme_key)} · {event.event_at}
+                        </span>
+                        <NewsTitleBlock
+                          compact
+                          title={event.title}
+                          koreanTitle={event.korean_title}
+                          koreanSummary={event.korean_summary}
+                          translationConfidence={event.translation_confidence}
+                          symbol={event.symbol}
+                          themeKey={event.theme_key}
+                          impactDirection={formatImpactDirection(event.impact_direction)}
+                          impactScore={event.impact_score}
+                        />
+                        <p>
+                          {aiEvidenceLabel(event.ai_evidence_type)} · 방향 {formatImpactDirection(event.impact_direction)} · 신뢰도{" "}
+                          {formatPercent(event.ai_evidence_confidence)}
+                        </p>
+                      </div>
+                      <div className="review-queue-actions">
+                        {evidenceLink ? <Link className="btn btn-primary" href={evidenceLink}>근거 상세</Link> : null}
+                        {symbolLink ? <Link className="btn btn-secondary" href={symbolLink}>종목</Link> : null}
+                        {documentLink ? <Link className="btn btn-secondary" href={documentLink}>원문</Link> : null}
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="empty-state">아직 표시할 투자 근거 후보가 없다. 데이터 상태에서 최근 뉴스 분석 상태를 확인한다.</div>
+            )}
+          </article>
+
+          <article className="decision-triage-column">
+            <div className="decision-triage-head">
+              <span>차단·오염 의심</span>
+              <strong>{blockedCandidateCount.toLocaleString("ko-KR")}건</strong>
+              <p>{blockedCandidateCount > 0 ? "차단 사유를 먼저 확인한다." : "현재 노출된 차단 항목은 없다."}</p>
+            </div>
+            <div className="decision-triage-stack">
+              <article className={blockedCandidateCount > 0 ? "brief-signal-card watch" : "brief-signal-card ready"}>
+                <span>추천 제외 기준</span>
+                <strong>원문 근거 우선</strong>
+                <p>뉴스에 없는 티커, 낮은 신뢰도, 애매한 테마 연결은 추천 입력에서 제외한다.</p>
+              </article>
+              <article className="brief-signal-card">
+                <span>수집 상태</span>
+                <strong>{formatRunStatus(newsRun)}</strong>
+                <p>수집 실패나 분석 실패는 데이터 상태 화면에서 먼저 확인한다.</p>
+              </article>
+            </div>
+          </article>
+
+          <article className="decision-triage-column">
+            <div className="decision-triage-head">
+              <span>추천 연결</span>
+              <strong>{formatPercent(dashboard.latest_metrics.weight_coverage_ratio)}</strong>
+              <p>추천 상세에서 직접 뉴스, 상위 흐름, 가격·사이클 근거를 분리해서 본다.</p>
+            </div>
+            <div className="decision-triage-stack">
+              <article className="brief-signal-card watch">
+                <span>거래 경계</span>
+                <strong>읽기 전용</strong>
+                <p>뉴스 근거는 주문 결론이 아니다. 실거래 제출은 계속 차단된다.</p>
+              </article>
+              <article className="brief-signal-card">
+                <span>다음 확인</span>
+                <strong>추천·가상 매매</strong>
+                <p>추천 상세와 가상 매매 상태에서 실제 검증 단계까지 이어서 본다.</p>
+              </article>
+            </div>
+          </article>
+        </div>
 
         <div className="btn-row decision-actions">
-          <Link className="btn btn-secondary" href={"/ai-evidence" as Route}>
+          <Link className="btn btn-primary" href={"/ai-evidence" as Route}>
             근거 후보 전체 보기
           </Link>
           <Link className="btn btn-secondary" href={"/ai-evidence/blocked" as Route}>
-            차단된 항목 보기
+            차단 목록 보기
+          </Link>
+          <Link className="btn btn-secondary" href={"/recommendations" as Route}>
+            추천 영향 보기
+          </Link>
+          <Link className="btn btn-secondary" href={"/paper-trading" as Route}>
+            가상 매매 상태 보기
           </Link>
         </div>
 
@@ -848,76 +909,6 @@ export default async function IntelligencePage() {
             </div>
           </details>
         ) : null}
-      </section>
-
-      <section className="intelligence-board intelligence-brief-board reveal delay-3" id="blocked-candidates" aria-labelledby="blocked-candidate-title">
-        <div className="section-heading stacked-heading">
-          <span>03 차단·오염 의심</span>
-          <h2 id="blocked-candidate-title">추천에 쓰지 말아야 할 근거를 따로 본다</h2>
-          <p>
-            저신호 뉴스, 원문 근거가 약한 종목 영향, 오분류 의심은 추천 판단에서 제외한다.
-          </p>
-        </div>
-        <div className="intelligence-brief-grid">
-          <article className={blockedCandidateCount > 0 ? "brief-signal-card watch" : "brief-signal-card ready"}>
-            <span>차단 항목</span>
-            <strong>{blockedCandidateCount}건</strong>
-            <p>{blockedCandidateCount > 0 ? "차단 사유를 확인해야 한다." : "현재 노출된 차단 항목은 없다."}</p>
-          </article>
-          <article className="brief-signal-card">
-            <span>품질 기준</span>
-            <strong>원문 근거 우선</strong>
-            <p>뉴스에 없는 티커, 낮은 신뢰도, 애매한 테마 연결은 추천 입력에서 제외한다.</p>
-          </article>
-          <article className="brief-signal-card">
-            <span>수집 상태</span>
-            <strong>{formatRunStatus(newsRun)}</strong>
-            <p>수집 실패나 분석 실패는 데이터 상태 화면에서 먼저 확인한다.</p>
-          </article>
-        </div>
-        <div className="btn-row decision-actions">
-          <Link className="btn btn-primary" href={"/ai-evidence/blocked" as Route}>
-            차단 목록 보기
-          </Link>
-          <Link className="btn btn-secondary" href={"/data-health" as Route}>
-            수집·분석 상태 보기
-          </Link>
-        </div>
-      </section>
-
-      <section className="intelligence-board intelligence-brief-board reveal delay-3" id="recommendation-linkage" aria-labelledby="recommendation-linkage-title">
-        <div className="section-heading stacked-heading">
-          <span>04 추천 영향</span>
-          <h2 id="recommendation-linkage-title">통과한 근거가 추천·보유 판단을 바꾸는지 본다</h2>
-          <p>
-            뉴스 근거가 추천 상세, 종목 상세, 가상 매매 검증에 어떤 영향을 주는지 확인한다. 실거래 전송은 계속 차단 상태다.
-          </p>
-        </div>
-        <div className="intelligence-brief-grid">
-          <article className="brief-signal-card ready">
-            <span>추천 근거 커버리지</span>
-            <strong>{formatPercent(dashboard.latest_metrics.weight_coverage_ratio)}</strong>
-            <p>추천 상세에서 직접 뉴스, 상위 흐름, 가격·사이클 근거를 분리해서 본다.</p>
-          </article>
-          <article className="brief-signal-card watch">
-            <span>실거래 상태</span>
-            <strong>읽기 전용</strong>
-            <p>뉴스 근거는 주문 결론이 아니다. 실거래 제출은 계속 차단된다.</p>
-          </article>
-          <article className="brief-signal-card">
-            <span>다음 화면</span>
-            <strong>추천·가상 매매</strong>
-            <p>추천 상세와 가상 매매 상태에서 실제 검증 단계까지 이어서 본다.</p>
-          </article>
-        </div>
-        <div className="btn-row decision-actions">
-          <Link className="btn btn-primary" href={"/recommendations" as Route}>
-            추천 영향 보기
-          </Link>
-          <Link className="btn btn-secondary" href={"/paper-trading" as Route}>
-            가상 매매 상태 보기
-          </Link>
-        </div>
       </section>
 
     </div>

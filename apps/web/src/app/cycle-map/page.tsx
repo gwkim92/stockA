@@ -260,18 +260,7 @@ export default async function CycleMapPage() {
         </div>
       </section>
 
-      <section className="cycle-decision-strip reveal delay-1" aria-label="오늘의 사이클 판단 요약">
-        {attentionNodes.slice(0, 3).map((node, index) => (
-          <article className={`cycle-decision-strip-card ${nodeTone(node)}`} key={`strip-${node.node_code}`}>
-            <span>먼저 볼 흐름 {String(index + 1).padStart(2, "0")}</span>
-            <strong>{koCode(node.node_code)}</strong>
-            <p>{nodeEvidenceLine(node)}</p>
-            <small>{nodeNextAction(node)}</small>
-          </article>
-        ))}
-      </section>
-
-      <section className="cycle-operating-board reveal delay-2" aria-labelledby="cycle-operating-title">
+      <section className="cycle-operating-board reveal delay-1" aria-labelledby="cycle-operating-title">
         <div className="cycle-attention-panel">
           <div className="section-heading stacked-heading">
             <span>우선순위</span>
@@ -351,7 +340,7 @@ export default async function CycleMapPage() {
         </aside>
       </section>
 
-      <section className="cycle-lane-board reveal delay-3" aria-labelledby="cycle-lane-title">
+      <section className="cycle-lane-board reveal delay-2" aria-labelledby="cycle-lane-title">
         <div className="section-heading stacked-heading">
           <span>계층 지도</span>
           <h2 id="cycle-lane-title">사이클은 위에서 아래로 내려오며 종목 근거가 된다</h2>

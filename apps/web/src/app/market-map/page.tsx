@@ -370,12 +370,6 @@ export default async function MarketMapPage() {
   const visibleNewsLinkGroups = newsLinkGroups.slice(0, VISIBLE_NEWS_LINK_GROUP_COUNT);
   const hiddenNewsLinkGroupCount = Math.max(0, newsLinkGroups.length - VISIBLE_NEWS_LINK_GROUP_COUNT);
   const topCorrelations = data.correlations.slice(0, 8);
-  const leadingPressure = pressureGroups
-    .filter((group) => group.shock_count > 0 || group.stale_count + group.missing_count > 0)
-    .slice(0, 3)
-    .map((group) => group.group_name)
-    .join(", ");
-
   return (
     <div className="terminal-page decision-page market-map-page research-command-page">
       <section className="decision-brief reveal research-command-deck market-command-deck" aria-labelledby="market-map-title">
@@ -432,52 +426,7 @@ export default async function MarketMapPage() {
         </div>
       </section>
 
-      <section className={`market-readout-panel reveal delay-1 ${readout.tone}`} aria-label="오늘의 시장 해석">
-        <div>
-          <span className="metric-sub">오늘 결론</span>
-          <h2>{readout.title}</h2>
-          <p>{readout.copy}</p>
-        </div>
-        <ol className="market-readout-steps" aria-label="다음 확인 순서">
-          {readout.nextSteps.map((step, index) => (
-            <li key={step}>
-              <span>{String(index + 1).padStart(2, "0")}</span>
-              <strong>{step}</strong>
-            </li>
-          ))}
-        </ol>
-      </section>
-
-      <section className="market-decision-lane reveal delay-1" aria-label="시장 체크포인트">
-        <article className={data.summary.stale_indicator_count + data.summary.missing_indicator_count > 0 ? "market-decision-rule is-watch" : "market-decision-rule is-good"}>
-          <span>1. 지표 신뢰도</span>
-          <strong>
-            최신 {data.summary.fresh_indicator_count.toLocaleString("ko-KR")}개 · 확인 필요{" "}
-            {(data.summary.stale_indicator_count + data.summary.missing_indicator_count).toLocaleString("ko-KR")}개
-          </strong>
-          <p>{normalizeOperationalText(data.summary.next_action)}</p>
-        </article>
-        <article className={data.summary.shock_indicator_count > 0 ? "market-decision-rule is-hot" : "market-decision-rule"}>
-          <span>2. 가격 압력</span>
-          <strong>{data.summary.shock_indicator_count.toLocaleString("ko-KR")}개 지표가 크게 움직임</strong>
-          <p>{leadingPressure ? `${leadingPressure}부터 확인한다.` : "큰 가격 충격은 없다. 종목별 근거를 중심으로 본다."}</p>
-        </article>
-        <article className={topRegimes.length > 0 ? "market-decision-rule is-watch" : "market-decision-rule"}>
-          <span>3. 상위 체제</span>
-          <strong>{activeRegimeText(topRegimes)}</strong>
-          <p>위험자산, 금리, 달러, 원자재, 변동성 조건을 추천 배경으로만 연결한다.</p>
-        </article>
-        <article className="market-decision-rule is-block">
-          <span>4. 추천 사용 경계</span>
-          <strong>{data.summary.broker_submit_allowed ? "주문 가능 상태" : "주문 차단 유지"}</strong>
-          <p>
-            추천 점수 자동 변경 {data.summary.automatic_weight_change_allowed ? "허용" : "금지"} · 시장 지표 반영{" "}
-            {data.summary.recommendation_scoring_mutated ? "있음" : "없음"} · {koCode(data.summary.order_boundary)}
-          </p>
-        </article>
-      </section>
-
-      <section className="bento-card reveal delay-2" id="market-correlations" aria-label="상관관계 분석">
+      <section className="bento-card reveal delay-1" id="market-correlations" aria-label="상관관계 분석">
         <div className="section-heading stacked-heading">
           <span>상관관계</span>
           <h2>종목이 무엇과 같이 움직였는지 본다</h2>

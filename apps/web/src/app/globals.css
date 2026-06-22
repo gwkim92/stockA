@@ -2591,6 +2591,96 @@ h6 {
   margin-top: 20px;
 }
 
+.decision-triage-board {
+  background:
+    radial-gradient(circle at 12% 0%, rgba(35, 116, 78, 0.09), transparent 32%),
+    linear-gradient(135deg, rgba(251, 250, 246, 0.97), rgba(244, 244, 239, 0.8));
+}
+
+.decision-triage-grid {
+  display: grid;
+  grid-template-columns: minmax(360px, 1.18fr) repeat(2, minmax(220px, 0.62fr));
+  gap: 14px;
+  margin-top: 22px;
+  align-items: stretch;
+}
+
+.decision-triage-column {
+  display: grid;
+  min-width: 0;
+  align-content: start;
+  gap: 14px;
+  padding: clamp(16px, 1.8vw, 22px);
+  background: color-mix(in srgb, var(--bg-panel) 90%, white);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+}
+
+.decision-triage-column.is-wide {
+  background:
+    linear-gradient(145deg, color-mix(in srgb, var(--bg-panel) 94%, white), color-mix(in srgb, var(--accent-green) 6%, var(--bg-panel))),
+    repeating-linear-gradient(135deg, rgba(35, 116, 78, 0.04) 0 1px, transparent 1px 12px);
+  border-color: color-mix(in srgb, var(--accent-green) 24%, var(--border-light));
+}
+
+.decision-triage-head {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.decision-triage-head span {
+  color: var(--text-tertiary);
+  font-size: 0.72rem;
+  font-weight: 950;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.decision-triage-head strong {
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: clamp(1.55rem, 2.2vw, 2.45rem);
+  font-weight: 950;
+  letter-spacing: -0.045em;
+  line-height: 0.98;
+  overflow-wrap: anywhere;
+}
+
+.decision-triage-head p {
+  max-width: 42rem;
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.86rem;
+  font-weight: 780;
+  line-height: 1.58;
+  word-break: keep-all;
+}
+
+.decision-triage-stack {
+  display: grid;
+  gap: 10px;
+}
+
+.decision-triage-column .brief-signal-card {
+  min-height: 154px;
+  padding: 15px;
+}
+
+.compact-review-list {
+  gap: 10px;
+  margin-top: 0;
+}
+
+.compact-review-list .review-queue-item {
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+}
+
+.compact-review-list .review-queue-actions {
+  justify-content: flex-start;
+}
+
 .brief-signal-card {
   display: grid;
   min-width: 0;
@@ -9165,6 +9255,10 @@ h6 {
   }
 
   .ledger-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .decision-triage-grid {
     grid-template-columns: 1fr;
   }
 
