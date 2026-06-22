@@ -2,8 +2,8 @@
 
 ## Current Status
 
-- status: implemented_locally_pending_verification
-- in progress: intelligence, cycle map, and market map copy now avoid internal/process wording and lead with decision checkpoints; local verification and EC2 deploy remain.
+- status: implemented_and_ec2_smoked
+- completed: intelligence, cycle map, and market map copy now avoid internal/process wording and lead with decision checkpoints; local verification, GitHub push, EC2 deploy, EC2 route smoke, and local tunnel smoke passed.
 - branch: `develop`
 
 ## What Changed
@@ -22,11 +22,24 @@
 
 ## Verification To Run
 
-- exact next step: run local typecheck/build/AWH/diff checks, commit, push to `develop`, deploy to EC2, and route-smoke `/intelligence`, `/cycle-map`, `/market-map`.
+- exact next step: continue the UX/UI refactor with layout-level density and visual hierarchy work, starting with the repeated card grids on `/intelligence`, `/cycle-map`, `/market-map`, and then move to `/events` and `/events/classification`.
 - `cd apps/web && npm run typecheck`
 - `cd apps/web && npm run build`
 - `PYTHONPATH=/Users/woody/ai/agent-work-harness/src python3 -m awh verify --repo . --task market-cycle-intelligence-decision-focus-v1`
 - `git diff --check`
+
+## Verification Evidence
+
+- local passed: `cd apps/web && npm run typecheck`
+- local passed: `cd apps/web && npm run build`
+- local passed: `git diff --check`
+- local passed: `PYTHONPATH=/Users/woody/ai/agent-work-harness/src python3 -m awh verify --repo . --task market-cycle-intelligence-decision-focus-v1`
+- pushed commit: `713c8b20`
+- EC2 deployed commit: `713c8b20`
+- EC2 active services: `stockanalysis-web.service`, `stockanalysis-frontend-api.service`
+- EC2 route smoke passed: `/intelligence`, `/cycle-map`, `/market-map`
+- local tunnel `http://127.0.0.1:13000` route smoke passed for the same three routes.
+- forbidden user-facing terms absent on smoke routes: `뉴스·AI`, `AI 해석`, `AI 근거`, `추천 weight`, `파이프라인`
 
 ## Remaining Risk
 
