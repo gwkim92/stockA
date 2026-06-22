@@ -491,13 +491,12 @@ export default async function IntelligencePage() {
     <div className="terminal-page decision-page intelligence-page">
       <section className="decision-brief reveal" aria-labelledby="intelligence-title">
         <div className="decision-brief-main">
-          <span className="decision-brief-kicker">뉴스·AI · {dashboard.as_of_date}</span>
+          <span className="decision-brief-kicker">뉴스 근거 · {dashboard.as_of_date}</span>
           <h1 className="decision-brief-title" id="intelligence-title">
             오늘의 뉴스 흐름은 {clusterCount.toLocaleString("ko-KR")}개 묶음으로 정리됐다.
           </h1>
           <p className="decision-brief-copy">
-            뉴스 원장을 설명하지 않는다. 오늘 투자 판단을 바꿀 수 있는 흐름, 종목 영향, 차단된 근거,
-            추천 영향을 먼저 보여준다.
+            오늘 투자 판단을 바꿀 수 있는 흐름, 종목 영향, 차단된 근거, 추천 영향을 먼저 보여준다.
           </p>
           <div className="decision-brief-meta" aria-label="뉴스 근거 핵심 상태">
             <span>뉴스 수집 {formatRunStatus(newsRun)}</span>
@@ -891,7 +890,7 @@ export default async function IntelligencePage() {
           <span>04 추천 영향</span>
           <h2 id="recommendation-linkage-title">통과한 근거가 추천·보유 판단을 바꾸는지 본다</h2>
           <p>
-            이 화면은 주문 화면이 아니다. 뉴스 근거가 추천 상세, 종목 상세, 가상 매매 검증에 어떤 영향을 주는지 확인한다.
+            뉴스 근거가 추천 상세, 종목 상세, 가상 매매 검증에 어떤 영향을 주는지 확인한다. 실거래 전송은 계속 차단 상태다.
           </p>
         </div>
         <div className="intelligence-brief-grid">

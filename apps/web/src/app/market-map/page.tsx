@@ -448,9 +448,9 @@ export default async function MarketMapPage() {
         </ol>
       </section>
 
-      <section className="market-decision-lane reveal delay-1" aria-label="시장 판단 순서">
+      <section className="market-decision-lane reveal delay-1" aria-label="시장 체크포인트">
         <article className={data.summary.stale_indicator_count + data.summary.missing_indicator_count > 0 ? "market-decision-rule is-watch" : "market-decision-rule is-good"}>
-          <span>1. 데이터 품질</span>
+          <span>1. 지표 신뢰도</span>
           <strong>
             최신 {data.summary.fresh_indicator_count.toLocaleString("ko-KR")}개 · 확인 필요{" "}
             {(data.summary.stale_indicator_count + data.summary.missing_indicator_count).toLocaleString("ko-KR")}개
@@ -458,17 +458,17 @@ export default async function MarketMapPage() {
           <p>{normalizeOperationalText(data.summary.next_action)}</p>
         </article>
         <article className={data.summary.shock_indicator_count > 0 ? "market-decision-rule is-hot" : "market-decision-rule"}>
-          <span>2. 시장 압력</span>
+          <span>2. 가격 압력</span>
           <strong>{data.summary.shock_indicator_count.toLocaleString("ko-KR")}개 지표가 크게 움직임</strong>
           <p>{leadingPressure ? `${leadingPressure}부터 확인한다.` : "큰 가격 충격은 없다. 종목별 근거를 중심으로 본다."}</p>
         </article>
         <article className={topRegimes.length > 0 ? "market-decision-rule is-watch" : "market-decision-rule"}>
-          <span>3. 체제 신호</span>
+          <span>3. 상위 체제</span>
           <strong>{activeRegimeText(topRegimes)}</strong>
           <p>위험자산, 금리, 달러, 원자재, 변동성 조건을 추천 배경으로만 연결한다.</p>
         </article>
         <article className="market-decision-rule is-block">
-          <span>4. 사용 경계</span>
+          <span>4. 추천 사용 경계</span>
           <strong>{data.summary.broker_submit_allowed ? "주문 가능 상태" : "주문 차단 유지"}</strong>
           <p>
             추천 점수 자동 변경 {data.summary.automatic_weight_change_allowed ? "허용" : "금지"} · 시장 지표 반영{" "}
