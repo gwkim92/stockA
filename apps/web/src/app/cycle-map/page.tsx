@@ -208,8 +208,8 @@ export default async function CycleMapPage() {
   const symbolGapCount = data.nodes.filter((node) => node.counts.exposed_instrument_count === 0).length;
 
   return (
-    <div className="terminal-page decision-page">
-      <section className="decision-brief reveal" aria-labelledby="cycle-map-title">
+    <div className="terminal-page decision-page cycle-map-page research-command-page">
+      <section className="decision-brief reveal research-command-deck cycle-command-deck" aria-labelledby="cycle-map-title">
         <div className="decision-brief-main">
           <span className="decision-brief-kicker">흐름 지도 · {data.as_of_date}</span>
           <h1 className="decision-brief-title" id="cycle-map-title">

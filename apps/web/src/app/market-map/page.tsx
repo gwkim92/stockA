@@ -377,8 +377,8 @@ export default async function MarketMapPage() {
     .join(", ");
 
   return (
-    <div className="terminal-page decision-page">
-      <section className="decision-brief reveal" aria-labelledby="market-map-title">
+    <div className="terminal-page decision-page market-map-page research-command-page">
+      <section className="decision-brief reveal research-command-deck market-command-deck" aria-labelledby="market-map-title">
         <div className="decision-brief-main">
           <span className="decision-brief-kicker">시장 지도 · {data.snapshot_as_of_date || data.as_of_date}</span>
           <h1 className="decision-brief-title" id="market-map-title">

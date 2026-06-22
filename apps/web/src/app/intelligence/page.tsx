@@ -488,8 +488,8 @@ export default async function IntelligencePage() {
   ];
 
   return (
-    <div className="terminal-page decision-page intelligence-page">
-      <section className="decision-brief reveal" aria-labelledby="intelligence-title">
+    <div className="terminal-page decision-page intelligence-page research-command-page">
+      <section className="decision-brief reveal research-command-deck intelligence-command-deck" aria-labelledby="intelligence-title">
         <div className="decision-brief-main">
           <span className="decision-brief-kicker">뉴스 근거 · {dashboard.as_of_date}</span>
           <h1 className="decision-brief-title" id="intelligence-title">
