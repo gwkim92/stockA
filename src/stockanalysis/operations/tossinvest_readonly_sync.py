@@ -6,6 +6,7 @@ from datetime import date, datetime, timezone
 from decimal import Decimal, ROUND_HALF_UP
 from pathlib import Path
 from typing import Any, Callable, Mapping
+from urllib.error import HTTPError, URLError
 
 from stockanalysis.ingest.config import RuntimeConfig
 from stockanalysis.ingest.http import execute_request
@@ -153,7 +154,32 @@ def run_tossinvest_readonly_sync(
             if execute:
                 report["status"] = "blocked_missing_credentials"
             return report
-        payload = _fetch_live_payload(config=config, base_currency=normalized_base_currency, request_executor=request_executor)
+        try:
+            payload = _fetch_live_payload(
+                config=config,
+                base_currency=normalized_base_currency,
+                request_executor=request_executor,
+            )
+        except (HTTPError, URLError) as exc:
+            report = _provider_access_error_report(
+                portfolio_name=portfolio_name,
+                base_currency=normalized_base_currency,
+                snapshot_date=snapshot_date,
+                selected_account_seq_configured=config.tossinvest_account_seq is not None,
+                error=exc,
+                execute=execute,
+            )
+            if execute:
+                sql_executor = executor or PsqlCommandExecutor.from_config(config)
+                run_id = _create_pipeline_run(sql_executor, config_json=report)
+                report["run_id"] = run_id
+                _mark_pipeline_run_failed(
+                    sql_executor,
+                    run_id,
+                    _provider_access_error_summary(report),
+                    config_json=report,
+                )
+            return report
         result = normalize_tossinvest_readonly_payload(
             payload,
             portfolio_name=portfolio_name,
@@ -697,6 +723,67 @@ def _missing_credentials_report(
         "submitted_to_broker": False,
         "secret_free": True,
     }
+
+
+def _provider_access_error_report(
+    *,
+    portfolio_name: str,
+    base_currency: str,
+    snapshot_date: date,
+    selected_account_seq_configured: bool,
+    error: HTTPError | URLError,
+    execute: bool,
+) -> dict[str, object]:
+    status_code, provider_error, provider_description = _provider_error_details(error)
+    config_gap = "ip_address_not_allowed" if provider_description == "IP address not allowed" else "provider_access_error"
+    return {
+        "report_name": "tossinvest_readonly_sync",
+        "provider": TOSSINVEST_PROVIDER_NAME,
+        "portfolio_name": portfolio_name,
+        "base_currency": base_currency,
+        "snapshot_date": snapshot_date.isoformat(),
+        "status": "blocked_provider_access",
+        "credentials_configured": True,
+        "selected_account_seq_configured": selected_account_seq_configured,
+        "provider_http_status": status_code,
+        "provider_error": provider_error,
+        "provider_error_description": provider_description,
+        "config_gap": config_gap,
+        "operator_action": "allowlist_runtime_egress_ip_for_tossinvest_openapi",
+        "submit_adapter_status": DISABLED_SUBMIT_ADAPTER_STATUS,
+        "broker_submit_allowed": False,
+        "automatic_order_allowed": False,
+        "order_boundary": READ_ONLY_ORDER_BOUNDARY,
+        "order_submit_attempted": False,
+        "submitted_to_broker": False,
+        "secret_free": True,
+        "mode": "execute" if execute else "dry_run",
+        "dry_run": not execute,
+    }
+
+
+def _provider_error_details(error: HTTPError | URLError) -> tuple[int | None, str, str]:
+    if isinstance(error, HTTPError):
+        body = error.read().decode("utf-8", errors="replace")[:2000]
+        provider_error = ""
+        description = ""
+        try:
+            parsed = json.loads(body)
+        except json.JSONDecodeError:
+            parsed = {}
+        if isinstance(parsed, dict):
+            provider_error = str(parsed.get("error") or "")
+            raw_description = str(parsed.get("error_description") or parsed.get("message") or "")
+            if raw_description.lower() == "ip address not allowed":
+                description = "IP address not allowed"
+        return error.code, provider_error or f"http_{error.code}", description
+    return None, "url_error", ""
+
+
+def _provider_access_error_summary(report: Mapping[str, object]) -> str:
+    status = report.get("provider_http_status")
+    config_gap = report.get("config_gap")
+    return f"TossInvest readonly sync blocked before write: {config_gap} http_status={status}"
 
 
 def _unwrap_result(value: Any) -> Any:

@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import json
 import unittest
+from io import BytesIO
 from datetime import date
 from decimal import Decimal
 from pathlib import Path
+from urllib.error import HTTPError
 
 from stockanalysis.ingest.config import RuntimeConfig
 from stockanalysis.ingest.portfolio.position import (
@@ -125,6 +127,65 @@ class TossInvestReadonlySyncTests(unittest.TestCase):
         self.assertNotIn("account-seq-secret-test", dumped)
         self.assertNotIn("1234567890", dumped)
         self.assertTrue(any("config_json" in sql and "succeeded" in sql for sql in executor.non_query_sql))
+
+    def test_live_http_403_reports_provider_access_block_without_secret(self) -> None:
+        def blocked_request(_request):
+            raise HTTPError(
+                url="https://openapi.tossinvest.com/oauth2/token",
+                code=403,
+                msg="Forbidden",
+                hdrs={},
+                fp=BytesIO(b'{"error":"access_denied","error_description":"IP address not allowed"}'),
+            )
+
+        report = run_tossinvest_readonly_sync(
+            config=RuntimeConfig(
+                tossinvest_client_id="client-id-test",
+                tossinvest_client_secret="client-secret-test",
+                psql_command="psql",
+            ),
+            as_of_date=date(2026, 6, 23),
+            dry_run=True,
+            request_executor=blocked_request,
+        )
+
+        dumped = json.dumps(report, sort_keys=True)
+        self.assertEqual(report["status"], "blocked_provider_access")
+        self.assertEqual(report["provider_http_status"], 403)
+        self.assertEqual(report["provider_error"], "access_denied")
+        self.assertEqual(report["provider_error_description"], "IP address not allowed")
+        self.assertEqual(report["config_gap"], "ip_address_not_allowed")
+        self.assertFalse(report["submitted_to_broker"])
+        self.assertNotIn("client-secret-test", dumped)
+
+    def test_execute_http_403_records_failed_pipeline_without_position_write(self) -> None:
+        def blocked_request(_request):
+            raise HTTPError(
+                url="https://openapi.tossinvest.com/oauth2/token",
+                code=403,
+                msg="Forbidden",
+                hdrs={},
+                fp=BytesIO(b'{"error":"access_denied","error_description":"IP address not allowed"}'),
+            )
+
+        executor = FakeExecutor()
+        report = run_tossinvest_readonly_sync(
+            config=RuntimeConfig(
+                tossinvest_client_id="client-id-test",
+                tossinvest_client_secret="client-secret-test",
+                psql_command="psql",
+            ),
+            as_of_date=date(2026, 6, 23),
+            execute=True,
+            executor=executor,
+            request_executor=blocked_request,
+        )
+
+        self.assertEqual(report["status"], "blocked_provider_access")
+        self.assertEqual(report["run_id"], 901)
+        self.assertFalse(report["submitted_to_broker"])
+        self.assertFalse(any("market.fx_rate_snapshot" in sql for sql in executor.scalar_sql))
+        self.assertTrue(any("ip_address_not_allowed" in sql and "failed" in sql for sql in executor.non_query_sql))
 
     def test_legacy_usd_position_snapshot_sql_stays_on_existing_columns(self) -> None:
         result = PositionSnapshotSyncResult(
