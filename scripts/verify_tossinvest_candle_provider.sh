@@ -26,6 +26,10 @@ export PYTHONPATH=src
   tests.test_market_price.MarketPriceTests.test_run_market_price_batch_upsert_reuses_tossinvest_oauth_token
 
 "$PYTHON_BIN" -m stockanalysis.ingest.cli market-price-upsert --help >/tmp/stockanalysis-tossinvest-candle-cli-help.txt
-rg -q "tossinvest" /tmp/stockanalysis-tossinvest-candle-cli-help.txt
+if command -v rg >/dev/null 2>&1; then
+  rg -q "tossinvest" /tmp/stockanalysis-tossinvest-candle-cli-help.txt
+else
+  grep -q "tossinvest" /tmp/stockanalysis-tossinvest-candle-cli-help.txt
+fi
 
 echo "tossinvest candle provider verification passed"
