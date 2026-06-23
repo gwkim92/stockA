@@ -31,9 +31,14 @@ PYTHONPATH=src "$PYTHON_BIN" -m unittest \
   tests.test_portfolio_outcome_coverage_report
 
 echo "Checking migration and seed references"
-rg -q "create table if not exists market\\.fx_rate_snapshot" db/migrations/0033_tossinvest_currency_foundation.sql
-rg -q "native_currency_code" db/migrations/0033_tossinvest_currency_foundation.sql
-rg -q "'KR', 'Korea Equities', 'KR', 'KRW', 'Asia/Seoul'" db/seeds/0001_reference_seed.sql
-rg -q "'KR', 'XKRX', 'Korea Exchange', 'Asia/Seoul'" db/seeds/0001_reference_seed.sql
+if command -v rg >/dev/null 2>&1; then
+  SEARCH_BIN=(rg -q)
+else
+  SEARCH_BIN=(grep -q)
+fi
+"${SEARCH_BIN[@]}" "create table if not exists market\\.fx_rate_snapshot" db/migrations/0033_tossinvest_currency_foundation.sql
+"${SEARCH_BIN[@]}" "native_currency_code" db/migrations/0033_tossinvest_currency_foundation.sql
+"${SEARCH_BIN[@]}" "'KR', 'Korea Equities', 'KR', 'KRW', 'Asia/Seoul'" db/seeds/0001_reference_seed.sql
+"${SEARCH_BIN[@]}" "'KR', 'XKRX', 'Korea Exchange', 'Asia/Seoul'" db/seeds/0001_reference_seed.sql
 
 echo "TossInvest read-only currency foundation verification passed"
