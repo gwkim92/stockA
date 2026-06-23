@@ -8092,7 +8092,9 @@ price_rows_desc as (
         bar.low,
         bar.close,
         bar.adjusted_close,
-        bar.volume
+        bar.volume,
+        bar.provider,
+        bar.source_run_id
     from market.daily_price_bar bar
     join target_instrument instrument on instrument.instrument_id = bar.instrument_id
     join target_date target on bar.trade_date <= target.as_of_date
