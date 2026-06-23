@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from collections import Counter
 from dataclasses import dataclass
 from datetime import date, datetime, timezone
 from decimal import Decimal, ROUND_HALF_UP
@@ -27,6 +28,10 @@ _MONEY_QUANTIZER = Decimal("0.01")
 _PRICE_QUANTIZER = Decimal("0.000001")
 _WEIGHT_QUANTIZER = Decimal("0.0001")
 _FX_QUANTIZER = Decimal("0.00000001")
+_MAX_READONLY_SYMBOL_DETAIL_REQUESTS = 10
+_RECENT_TRADE_COUNT = 10
+_CLOSED_ORDER_LIMIT = 20
+_ORDER_DETAIL_LIMIT = 5
 
 
 @dataclass(frozen=True)
@@ -80,6 +85,10 @@ class TossInvestReadonlySyncResult:
     buying_power: tuple[dict[str, str], ...]
     sellable_quantities: tuple[dict[str, str], ...]
     commissions: tuple[dict[str, str], ...]
+    market_calendars: dict[str, object]
+    stock_warnings: tuple[dict[str, object], ...]
+    market_microdata: tuple[dict[str, object], ...]
+    order_history: dict[str, object]
 
     def report(self) -> dict[str, object]:
         total_market_value = sum((holding.market_value_base for holding in self.holdings), Decimal("0"))
@@ -106,6 +115,12 @@ class TossInvestReadonlySyncResult:
             "sellable_quantities": list(self.sellable_quantities),
             "sellable_quantity_count": len(self.sellable_quantities),
             "commission_summary": list(self.commissions),
+            "market_calendars": self.market_calendars,
+            "stock_warnings": list(self.stock_warnings),
+            "stock_warning_symbol_count": len(self.stock_warnings),
+            "market_microdata": list(self.market_microdata),
+            "market_microdata_symbol_count": len(self.market_microdata),
+            "order_history": self.order_history,
             "submit_adapter_status": DISABLED_SUBMIT_ADAPTER_STATUS,
             "broker_submit_allowed": False,
             "automatic_order_allowed": False,
@@ -265,6 +280,10 @@ def normalize_tossinvest_readonly_payload(
         buying_power=tuple(_normalize_buying_power(payload.get("buying_power"))),
         sellable_quantities=tuple(_normalize_sellable_quantities(payload.get("sellable_quantities"))),
         commissions=tuple(_normalize_commissions(payload.get("commissions"))),
+        market_calendars=_normalize_market_calendars(payload.get("market_calendars")),
+        stock_warnings=tuple(_normalize_stock_warnings(payload.get("stock_warnings"))),
+        market_microdata=tuple(_normalize_market_microdata(payload.get("market_microdata"))),
+        order_history=_normalize_order_history(payload.get("order_history")),
     )
 
 
@@ -634,7 +653,13 @@ def _fetch_live_payload(
     holdings = request_executor(
         source.build_request("holdings", common, config=config, require_credentials=True)
     ).as_json()
-    symbols = ",".join(item["symbol"] for item in _holding_items(_unwrap_result(holdings)) if item.get("symbol"))
+    holding_items = _holding_items(_unwrap_result(holdings))
+    symbol_list = [
+        str(item["symbol"]).strip().upper()
+        for item in holding_items
+        if item.get("symbol")
+    ][:_MAX_READONLY_SYMBOL_DETAIL_REQUESTS]
+    symbols = ",".join(symbol_list)
     stocks = (
         request_executor(source.build_request("stocks", {"access_token": access_token, "symbols": symbols}, config=config, require_credentials=True)).as_json()
         if symbols
@@ -673,12 +698,93 @@ def _fetch_live_payload(
                 require_credentials=True,
             )
         ).as_json()
-        for item in _holding_items(_unwrap_result(holdings))
+        for item in holding_items
         if item.get("symbol")
     ]
     commissions = request_executor(
         source.build_request("commissions", common, config=config, require_credentials=True)
     ).as_json()
+    market_calendars = {
+        "KR": _fetch_optional_json(
+            source,
+            "market_calendar_kr",
+            {"access_token": access_token},
+            config=config,
+            request_executor=request_executor,
+        ),
+        "US": _fetch_optional_json(
+            source,
+            "market_calendar_us",
+            {"access_token": access_token},
+            config=config,
+            request_executor=request_executor,
+        ),
+    }
+    stock_warnings = {
+        symbol: _fetch_optional_json(
+            source,
+            "stock_warnings",
+            {"access_token": access_token, "symbol": symbol},
+            config=config,
+            request_executor=request_executor,
+        )
+        for symbol in symbol_list
+    }
+    orderbooks = {
+        symbol: _fetch_optional_json(
+            source,
+            "orderbook",
+            {"access_token": access_token, "symbol": symbol},
+            config=config,
+            request_executor=request_executor,
+        )
+        for symbol in symbol_list
+    }
+    trades = {
+        symbol: _fetch_optional_json(
+            source,
+            "trades",
+            {"access_token": access_token, "symbol": symbol, "count": str(_RECENT_TRADE_COUNT)},
+            config=config,
+            request_executor=request_executor,
+        )
+        for symbol in symbol_list
+    }
+    price_limits = {
+        symbol: _fetch_optional_json(
+            source,
+            "price_limits",
+            {"access_token": access_token, "symbol": symbol},
+            config=config,
+            request_executor=request_executor,
+        )
+        for symbol in symbol_list
+    }
+    open_orders = _fetch_optional_json(
+        source,
+        "orders",
+        {**common, "status": "OPEN"},
+        config=config,
+        request_executor=request_executor,
+    )
+    closed_orders = _fetch_optional_json(
+        source,
+        "orders",
+        {**common, "status": "CLOSED", "limit": str(_CLOSED_ORDER_LIMIT)},
+        config=config,
+        request_executor=request_executor,
+    )
+    order_detail_ids = _extract_order_ids(open_orders, closed_orders)[:_ORDER_DETAIL_LIMIT]
+    order_details = [
+        _fetch_optional_json(
+            source,
+            "order_detail",
+            {**common, "order_id": order_id},
+            config=config,
+            request_executor=request_executor,
+        )
+        for order_id in order_detail_ids
+    ]
     return {
         "accounts": accounts,
         "holdings": holdings,
@@ -688,7 +794,59 @@ def _fetch_live_payload(
         "buying_power": buying_power,
         "sellable_quantities": sellable_quantities,
         "commissions": commissions,
+        "market_calendars": market_calendars,
+        "stock_warnings": stock_warnings,
+        "market_microdata": {
+            "requested_symbols": symbol_list,
+            "truncated_symbol_count": max(0, len(holding_items) - len(symbol_list)),
+            "orderbooks": orderbooks,
+            "trades": trades,
+            "price_limits": price_limits,
+        },
+        "order_history": {
+            "open_orders": open_orders,
+            "closed_orders": closed_orders,
+            "order_details": order_details,
+            "order_detail_request_count": len(order_detail_ids),
+        },
     }
+
+
+def _fetch_optional_json(
+    source: TossInvestSource,
+    dataset_name: str,
+    params: dict[str, str],
+    *,
+    config: RuntimeConfig,
+    request_executor: Callable[[HttpRequest], FetchResponse],
+) -> dict[str, Any]:
+    try:
+        return request_executor(
+            source.build_request(dataset_name, params, config=config, require_credentials=True)
+        ).as_json()
+    except (HTTPError, URLError) as exc:
+        status_code, provider_error, provider_description = _provider_error_details(exc)
+        return {
+            "error": {
+                "dataset_name": dataset_name,
+                "provider_http_status": status_code,
+                "provider_error": provider_error,
+                "provider_error_description": provider_description,
+            }
+        }
+
+
+def _extract_order_ids(*payloads: Any) -> list[str]:
+    order_ids: list[str] = []
+    seen: set[str] = set()
+    for payload in payloads:
+        for item in _order_items(payload):
+            order_id = str(item.get("orderId") or item.get("order_id") or "").strip()
+            if not order_id or order_id in seen:
+                continue
+            seen.add(order_id)
+            order_ids.append(order_id)
+    return order_ids
 
 
 def _load_fixture_payload(path: str) -> dict[str, Any]:
@@ -1035,6 +1193,168 @@ def _normalize_commissions(value: Any) -> list[dict[str, str]]:
     return normalized
 
 
+def _normalize_market_calendars(value: Any) -> dict[str, object]:
+    if not isinstance(value, Mapping):
+        return {}
+    return {
+        str(market).upper(): _normalize_market_calendar(str(market), payload)
+        for market, payload in sorted(value.items())
+    }
+
+
+def _normalize_market_calendar(market: str, payload: Any) -> dict[str, object]:
+    error = _optional_error(payload)
+    if error:
+        return {"market_country": market.upper(), "status": "error", **error}
+    result = _unwrap_result(payload)
+    if not isinstance(result, Mapping):
+        return {"market_country": market.upper(), "status": "missing"}
+    today = _as_mapping(result.get("today"))
+    previous_day = _as_mapping(result.get("previousBusinessDay") or result.get("previous_business_day"))
+    next_day = _as_mapping(result.get("nextBusinessDay") or result.get("next_business_day"))
+    return {
+        "market_country": market.upper(),
+        "status": "loaded",
+        "today_date": str(today.get("date") or ""),
+        "today_is_open": _calendar_day_is_open(today),
+        "previous_business_day": str(previous_day.get("date") or ""),
+        "next_business_day": str(next_day.get("date") or ""),
+    }
+
+
+def _calendar_day_is_open(day: Mapping[str, Any]) -> bool:
+    if not day:
+        return False
+    integrated = day.get("integrated")
+    if isinstance(integrated, Mapping):
+        return any(isinstance(integrated.get(name), Mapping) for name in ("preMarket", "regularMarket", "afterMarket"))
+    return any(isinstance(day.get(name), Mapping) for name in ("dayMarket", "preMarket", "regularMarket", "afterMarket"))
+
+
+def _normalize_stock_warnings(value: Any) -> list[dict[str, object]]:
+    if not isinstance(value, Mapping):
+        return []
+    normalized: list[dict[str, object]] = []
+    for symbol, payload in sorted(value.items()):
+        error = _optional_error(payload)
+        if error:
+            normalized.append({"symbol": str(symbol).upper(), "status": "error", **error})
+            continue
+        warnings = _record_list(payload)
+        warning_types = sorted(
+            {
+                str(item.get("warningType") or item.get("warning_type") or "")
+                for item in warnings
+                if item.get("warningType") or item.get("warning_type")
+            }
+        )
+        start_dates = [
+            str(item.get("startDate") or item.get("start_date") or "")
+            for item in warnings
+            if item.get("startDate") or item.get("start_date")
+        ]
+        normalized.append(
+            {
+                "symbol": str(symbol).upper(),
+                "status": "loaded",
+                "warning_count": len(warnings),
+                "warning_types": warning_types,
+                "latest_start_date": max(start_dates) if start_dates else "",
+            }
+        )
+    return normalized
+
+
+def _normalize_market_microdata(value: Any) -> list[dict[str, object]]:
+    if not isinstance(value, Mapping):
+        return []
+    symbols = [str(symbol).upper() for symbol in _as_list_or_strings(value.get("requested_symbols"))]
+    orderbooks = _as_mapping(value.get("orderbooks"))
+    trades_by_symbol = _as_mapping(value.get("trades"))
+    price_limits = _as_mapping(value.get("price_limits"))
+    normalized: list[dict[str, object]] = []
+    for symbol in symbols:
+        orderbook_payload = orderbooks.get(symbol) or orderbooks.get(symbol.upper())
+        trades_payload = trades_by_symbol.get(symbol) or trades_by_symbol.get(symbol.upper())
+        price_limit_payload = price_limits.get(symbol) or price_limits.get(symbol.upper())
+        orderbook_result = {} if _optional_error(orderbook_payload) else _as_mapping(_unwrap_result(orderbook_payload))
+        trades = [] if _optional_error(trades_payload) else _record_list(trades_payload)
+        price_limit_result = {} if _optional_error(price_limit_payload) else _as_mapping(_unwrap_result(price_limit_payload))
+        best_ask = _first_book_level(orderbook_result.get("asks"))
+        best_bid = _first_book_level(orderbook_result.get("bids"))
+        latest_trade = trades[0] if trades else {}
+        normalized.append(
+            {
+                "symbol": symbol,
+                "status": "loaded" if any((orderbook_result, trades, price_limit_result)) else "missing",
+                "orderbook_error": _optional_error_code(orderbook_payload),
+                "trades_error": _optional_error_code(trades_payload),
+                "price_limits_error": _optional_error_code(price_limit_payload),
+                "currency": str(
+                    orderbook_result.get("currency")
+                    or price_limit_result.get("currency")
+                    or latest_trade.get("currency")
+                    or ""
+                ).upper(),
+                "best_ask_price": best_ask.get("price", ""),
+                "best_ask_volume": best_ask.get("volume", ""),
+                "best_bid_price": best_bid.get("price", ""),
+                "best_bid_volume": best_bid.get("volume", ""),
+                "trade_count": len(trades),
+                "latest_trade_price": str(latest_trade.get("price") or ""),
+                "latest_trade_volume": str(latest_trade.get("volume") or ""),
+                "latest_trade_timestamp": str(latest_trade.get("timestamp") or ""),
+                "upper_limit_price": str(price_limit_result.get("upperLimitPrice") or ""),
+                "lower_limit_price": str(price_limit_result.get("lowerLimitPrice") or ""),
+                "price_limit_timestamp": str(price_limit_result.get("timestamp") or ""),
+            }
+        )
+    return normalized
+
+
+def _normalize_order_history(value: Any) -> dict[str, object]:
+    if not isinstance(value, Mapping):
+        return {
+            "status": "missing",
+            "open_order_count": 0,
+            "closed_order_count": 0,
+            "order_detail_request_count": 0,
+            "secret_free": True,
+        }
+    open_orders_payload = value.get("open_orders")
+    closed_orders_payload = value.get("closed_orders")
+    open_orders = _order_items(open_orders_payload)
+    closed_orders = _order_items(closed_orders_payload)
+    all_orders = open_orders + closed_orders
+    status_counts = Counter(str(item.get("status") or "UNKNOWN") for item in all_orders)
+    symbol_counts = Counter(_symbol(item) or "UNKNOWN" for item in all_orders)
+    side_counts = Counter(str(item.get("side") or "UNKNOWN") for item in all_orders)
+    ordered_at_values = [str(item.get("orderedAt") or item.get("ordered_at") or "") for item in all_orders]
+    detail_rows = [
+        _as_mapping(_unwrap_result(item))
+        for item in _as_list_or_scalars(value.get("order_details"))
+        if not _optional_error(item)
+    ]
+    detail_status_counts = Counter(str(item.get("status") or "UNKNOWN") for item in detail_rows if item)
+    return {
+        "status": "loaded",
+        "open_order_count": len(open_orders),
+        "closed_order_count": len(closed_orders),
+        "order_count": len(all_orders),
+        "status_counts": dict(sorted(status_counts.items())),
+        "symbol_counts": dict(sorted(symbol_counts.items())),
+        "side_counts": dict(sorted(side_counts.items())),
+        "latest_ordered_at": max((item for item in ordered_at_values if item), default=""),
+        "closed_has_next": _orders_has_next(closed_orders_payload),
+        "order_detail_request_count": int(value.get("order_detail_request_count") or 0),
+        "order_detail_loaded_count": len([item for item in detail_rows if item]),
+        "order_detail_status_counts": dict(sorted(detail_status_counts.items())),
+        "open_orders_error": _optional_error_code(open_orders_payload),
+        "closed_orders_error": _optional_error_code(closed_orders_payload),
+        "secret_free": True,
+    }
+
+
 def _record_list(value: Any) -> list[dict[str, Any]]:
     value = _unwrap_result(value)
     if value is None:
@@ -1042,12 +1362,77 @@ def _record_list(value: Any) -> list[dict[str, Any]]:
     if isinstance(value, list):
         return [item for item in value if isinstance(item, dict)]
     if isinstance(value, dict):
-        for key in ("items", "holdings", "stocks", "accounts", "commissions", "prices"):
+        for key in ("items", "holdings", "stocks", "accounts", "commissions", "prices", "orders"):
             nested = value.get(key)
             if isinstance(nested, list):
                 return [item for item in nested if isinstance(item, dict)]
         return [value]
     return []
+
+
+def _as_mapping(value: Any) -> dict[str, Any]:
+    return dict(value) if isinstance(value, Mapping) else {}
+
+
+def _as_list_or_strings(value: Any) -> list[Any]:
+    if isinstance(value, list):
+        return value
+    if isinstance(value, tuple):
+        return list(value)
+    return []
+
+
+def _as_list_or_scalars(value: Any) -> list[Any]:
+    if isinstance(value, list):
+        return value
+    if isinstance(value, tuple):
+        return list(value)
+    if value is None:
+        return []
+    return [value]
+
+
+def _optional_error(value: Any) -> dict[str, object]:
+    if not isinstance(value, Mapping):
+        return {}
+    error = value.get("error")
+    if not isinstance(error, Mapping):
+        return {}
+    return {
+        "provider_http_status": int(error.get("provider_http_status") or 0) or None,
+        "provider_error": str(error.get("provider_error") or ""),
+        "provider_error_description": str(error.get("provider_error_description") or ""),
+    }
+
+
+def _optional_error_code(value: Any) -> str:
+    error = _optional_error(value)
+    return str(error.get("provider_error") or "") if error else ""
+
+
+def _first_book_level(value: Any) -> dict[str, str]:
+    if isinstance(value, list) and value and isinstance(value[0], Mapping):
+        return {
+            "price": str(value[0].get("price") or ""),
+            "volume": str(value[0].get("volume") or ""),
+        }
+    return {"price": "", "volume": ""}
+
+
+def _order_items(value: Any) -> list[dict[str, Any]]:
+    value = _unwrap_result(value)
+    if isinstance(value, Mapping):
+        orders = value.get("orders")
+        if isinstance(orders, list):
+            return [item for item in orders if isinstance(item, dict)]
+    if isinstance(value, list):
+        return [item for item in value if isinstance(item, dict)]
+    return []
+
+
+def _orders_has_next(value: Any) -> bool:
+    value = _unwrap_result(value)
+    return bool(value.get("hasNext")) if isinstance(value, Mapping) else False
 
 
 def _amount_decimal(value: Any, currency: str) -> Decimal | None:

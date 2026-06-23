@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from urllib.parse import urlencode
+from urllib.parse import quote, urlencode
 
 from stockanalysis.ingest.config import RuntimeConfig
 from stockanalysis.ingest.models import DatasetDefinition, HttpRequest
@@ -49,16 +49,55 @@ class TossInvestSource(IngestSource):
                 required_params=("access_token", "base_currency", "quote_currency"),
             ),
             DatasetDefinition(
+                name="market_calendar_kr",
+                description="Korean market trading calendar and session hours.",
+                documentation_url=TOSSINVEST_OPENAPI_DOC_URL,
+                required_params=("access_token",),
+                optional_params=("date",),
+            ),
+            DatasetDefinition(
+                name="market_calendar_us",
+                description="US market trading calendar and session hours in KST.",
+                documentation_url=TOSSINVEST_OPENAPI_DOC_URL,
+                required_params=("access_token",),
+                optional_params=("date",),
+            ),
+            DatasetDefinition(
                 name="stocks",
                 description="Stock reference information.",
                 documentation_url=TOSSINVEST_OPENAPI_DOC_URL,
                 required_params=("access_token", "symbols"),
             ),
             DatasetDefinition(
+                name="stock_warnings",
+                description="Read-only stock warnings and active volatility interruption flags.",
+                documentation_url=TOSSINVEST_OPENAPI_DOC_URL,
+                required_params=("access_token", "symbol"),
+            ),
+            DatasetDefinition(
                 name="prices",
                 description="Current stock prices.",
                 documentation_url=TOSSINVEST_OPENAPI_DOC_URL,
                 required_params=("access_token", "symbols"),
+            ),
+            DatasetDefinition(
+                name="orderbook",
+                description="Read-only market depth snapshot.",
+                documentation_url=TOSSINVEST_OPENAPI_DOC_URL,
+                required_params=("access_token", "symbol"),
+            ),
+            DatasetDefinition(
+                name="trades",
+                description="Read-only recent same-day trades.",
+                documentation_url=TOSSINVEST_OPENAPI_DOC_URL,
+                required_params=("access_token", "symbol"),
+                optional_params=("count",),
+            ),
+            DatasetDefinition(
+                name="price_limits",
+                description="Read-only daily upper/lower price limits.",
+                documentation_url=TOSSINVEST_OPENAPI_DOC_URL,
+                required_params=("access_token", "symbol"),
             ),
             DatasetDefinition(
                 name="candles",
@@ -84,6 +123,19 @@ class TossInvestSource(IngestSource):
                 description="Read-only commission rates by market.",
                 documentation_url=TOSSINVEST_OPENAPI_DOC_URL,
                 required_params=("access_token", "account_seq"),
+            ),
+            DatasetDefinition(
+                name="orders",
+                description="Read-only order history list.",
+                documentation_url=TOSSINVEST_OPENAPI_DOC_URL,
+                required_params=("access_token", "account_seq", "status"),
+                optional_params=("symbol", "from", "to", "cursor", "limit"),
+            ),
+            DatasetDefinition(
+                name="order_detail",
+                description="Read-only order detail.",
+                documentation_url=TOSSINVEST_OPENAPI_DOC_URL,
+                required_params=("access_token", "account_seq", "order_id"),
             ),
         )
 
@@ -140,10 +192,31 @@ class TossInvestSource(IngestSource):
                 },
                 dataset_name=dataset_name,
             )
+        if dataset_name == "market_calendar_kr":
+            query = {"date": params["date"]} if params.get("date") else {}
+            return self._get("/api/v1/market-calendar/KR", headers=headers, query=query, dataset_name=dataset_name)
+        if dataset_name == "market_calendar_us":
+            query = {"date": params["date"]} if params.get("date") else {}
+            return self._get("/api/v1/market-calendar/US", headers=headers, query=query, dataset_name=dataset_name)
         if dataset_name == "stocks":
             return self._get("/api/v1/stocks", headers=headers, query={"symbols": params["symbols"]}, dataset_name=dataset_name)
+        if dataset_name == "stock_warnings":
+            symbol = _normalize_symbol(params["symbol"])
+            return self._get(f"/api/v1/stocks/{quote(symbol, safe='')}/warnings", headers=headers, dataset_name=dataset_name)
         if dataset_name == "prices":
             return self._get("/api/v1/prices", headers=headers, query={"symbols": params["symbols"]}, dataset_name=dataset_name)
+        if dataset_name == "orderbook":
+            return self._get("/api/v1/orderbook", headers=headers, query={"symbol": _normalize_symbol(params["symbol"])}, dataset_name=dataset_name)
+        if dataset_name == "trades":
+            query = {"symbol": _normalize_symbol(params["symbol"])}
+            if params.get("count"):
+                count = int(params["count"])
+                if count < 1 or count > 50:
+                    raise ValueError("TossInvest trades count must be between 1 and 50")
+                query["count"] = str(count)
+            return self._get("/api/v1/trades", headers=headers, query=query, dataset_name=dataset_name)
+        if dataset_name == "price_limits":
+            return self._get("/api/v1/price-limits", headers=headers, query={"symbol": _normalize_symbol(params["symbol"])}, dataset_name=dataset_name)
         if dataset_name == "candles":
             interval = params["interval"].strip()
             if interval not in {"1m", "1d"}:
@@ -181,6 +254,27 @@ class TossInvestSource(IngestSource):
             )
         if dataset_name == "commissions":
             return self._get("/api/v1/commissions", headers=headers, dataset_name=dataset_name)
+        if dataset_name == "orders":
+            status = params["status"].strip().upper()
+            if status not in {"OPEN", "CLOSED"}:
+                raise ValueError("TossInvest orders status must be OPEN or CLOSED")
+            query = {"status": status}
+            if params.get("symbol"):
+                query["symbol"] = _normalize_symbol(params["symbol"])
+            for name in ("from", "to", "cursor"):
+                if params.get(name):
+                    query[name] = params[name]
+            if params.get("limit"):
+                limit = int(params["limit"])
+                if limit < 1 or limit > 100:
+                    raise ValueError("TossInvest orders limit must be between 1 and 100")
+                query["limit"] = str(limit)
+            return self._get("/api/v1/orders", headers=headers, query=query, dataset_name=dataset_name)
+        if dataset_name == "order_detail":
+            order_id = params["order_id"].strip()
+            if not order_id:
+                raise ValueError("TossInvest order_detail order_id must not be empty")
+            return self._get(f"/api/v1/orders/{quote(order_id, safe='')}", headers=headers, dataset_name=dataset_name)
         raise ValueError(f"Unsupported TossInvest dataset: {dataset_name}")
 
     def _get(
@@ -209,8 +303,32 @@ def sanitized_tossinvest_request_dict(request: HttpRequest) -> dict[str, object]
         "source_name": request.source_name,
         "dataset_name": request.dataset_name,
         "method": request.method,
-        "url": request.url,
+        "url": _sanitize_tossinvest_url(request),
         "headers": headers,
         "body_length": len(request.body) if request.body is not None else 0,
         "timeout_seconds": request.timeout_seconds,
     }
+
+
+def _sanitize_tossinvest_url(request: HttpRequest) -> str:
+    if request.dataset_name != "order_detail":
+        return request.url
+    marker = "/api/v1/orders/"
+    if marker not in request.url:
+        return request.url
+    prefix, suffix = request.url.split(marker, 1)
+    query = ""
+    if "?" in suffix:
+        _, query = suffix.split("?", 1)
+    sanitized = f"{prefix}{marker}<redacted>"
+    return f"{sanitized}?{query}" if query else sanitized
+
+
+def _normalize_symbol(value: str) -> str:
+    symbol = value.strip().upper()
+    if not symbol:
+        raise ValueError("TossInvest symbol must not be empty")
+    allowed = set("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.-")
+    if any(char not in allowed for char in symbol):
+        raise ValueError("TossInvest symbol may only contain letters, digits, '.', or '-'")
+    return symbol

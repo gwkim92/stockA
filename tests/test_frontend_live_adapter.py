@@ -2032,6 +2032,29 @@ class FakeLiveExecutor:
                             {"market_country": "KR", "commission_rate": "0.00015"},
                             {"market_country": "US", "commission_rate": "0.0007"},
                         ],
+                        "stock_warnings": [
+                            {"symbol": "AAPL", "status": "loaded", "warning_count": 1, "warning_types": ["VI_STATIC"]},
+                        ],
+                        "stock_warning_symbol_count": 1,
+                        "market_microdata": [
+                            {
+                                "symbol": "AAPL",
+                                "status": "loaded",
+                                "currency": "USD",
+                                "best_bid_price": "200.00",
+                                "best_ask_price": "200.10",
+                                "trade_count": 1,
+                                "latest_trade_price": "200.05",
+                            },
+                        ],
+                        "market_microdata_symbol_count": 1,
+                        "order_history": {
+                            "status": "loaded",
+                            "open_order_count": 1,
+                            "closed_order_count": 1,
+                            "order_count": 2,
+                            "secret_free": True,
+                        },
                         "submit_adapter_status": "disabled_stub",
                         "order_submit_attempted": False,
                         "submitted_to_broker": False,
@@ -6457,6 +6480,10 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertIn("provider_http_status", sql)
         self.assertIn("config_gap", sql)
         self.assertIn("operator_action", sql)
+        self.assertIn("market_calendars", sql)
+        self.assertIn("stock_warnings", sql)
+        self.assertIn("market_microdata", sql)
+        self.assertIn("order_history", sql)
         self.assertIn("disabled_stub", sql)
         self.assertIn("recovered_with_recent_failures", sql)
         self.assertIn("selected_portfolio_review_decision_history", sql)
@@ -7068,6 +7095,9 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertEqual(toss["buying_power"][0]["currency"], "KRW")
         self.assertEqual(toss["buying_power"][0]["cash_buying_power"], 1000000.0)
         self.assertEqual(toss["sellable_quantities"][1]["symbol"], "AAPL")
+        self.assertEqual(toss["stock_warnings"][0]["warning_types"], ["VI_STATIC"])
+        self.assertEqual(toss["market_microdata"][0]["best_bid_price"], "200.00")
+        self.assertEqual(toss["order_history"]["order_count"], 2)
         self.assertFalse(toss["broker_submit_allowed"])
         self.assertFalse(toss["submitted_to_broker"])
         review = payload["data"]["portfolio_risk_budget_guardrail"]["rebalance_candidate_review"]
@@ -7101,6 +7131,9 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertIn("provider_http_status", sql)
         self.assertIn("config_gap", sql)
         self.assertIn("operator_action", sql)
+        self.assertIn("stock_warnings", sql)
+        self.assertIn("market_microdata", sql)
+        self.assertIn("order_history", sql)
         self.assertIn("disabled_stub", sql)
         self.assertIn("portfolio_risk_budget_guardrail", sql)
         self.assertIn("portfolio-risk-budget-guardrail-v1", sql)

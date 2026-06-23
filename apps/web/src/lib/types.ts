@@ -145,6 +145,49 @@ export type CodexOauthOperatorStatus = {
   background_job_started?: boolean;
 };
 
+export type TossInvestStockWarningVisibility = {
+  symbol: string;
+  status: string;
+  warning_count: number;
+  warning_types: string[];
+  latest_start_date: string;
+  provider_error: string;
+};
+
+export type TossInvestMarketMicrodataVisibility = {
+  symbol: string;
+  status: string;
+  currency: string;
+  best_ask_price: string;
+  best_bid_price: string;
+  trade_count: number;
+  latest_trade_price: string;
+  latest_trade_timestamp: string;
+  upper_limit_price: string;
+  lower_limit_price: string;
+  orderbook_error: string;
+  trades_error: string;
+  price_limits_error: string;
+};
+
+export type TossInvestOrderHistoryVisibility = {
+  status?: string;
+  open_order_count?: number;
+  closed_order_count?: number;
+  order_count?: number;
+  status_counts?: Record<string, number>;
+  symbol_counts?: Record<string, number>;
+  side_counts?: Record<string, number>;
+  latest_ordered_at?: string;
+  closed_has_next?: boolean;
+  order_detail_request_count?: number;
+  order_detail_loaded_count?: number;
+  order_detail_status_counts?: Record<string, number>;
+  open_orders_error?: string;
+  closed_orders_error?: string;
+  secret_free?: boolean;
+};
+
 export type TossInvestReadonlySyncVisibility = {
   status: string;
   latest_status: string;
@@ -158,6 +201,12 @@ export type TossInvestReadonlySyncVisibility = {
   currency_summary: Record<string, unknown>;
   fx_rate: Record<string, unknown>;
   unresolved_exchange_mapping_count: number;
+  market_calendars: Record<string, unknown>;
+  stock_warnings: TossInvestStockWarningVisibility[];
+  stock_warning_symbol_count: number;
+  market_microdata: TossInvestMarketMicrodataVisibility[];
+  market_microdata_symbol_count: number;
+  order_history: TossInvestOrderHistoryVisibility;
   missing_env_vars: string[];
   provider_http_status: number | null;
   provider_error: string;
@@ -196,6 +245,11 @@ export type TossInvestOrderReadiness = {
     valid_from: string;
     valid_until: string;
   }>;
+  stock_warnings: TossInvestStockWarningVisibility[];
+  stock_warning_symbol_count: number;
+  market_microdata: TossInvestMarketMicrodataVisibility[];
+  market_microdata_symbol_count: number;
+  order_history: TossInvestOrderHistoryVisibility;
   provider_http_status: number | null;
   provider_error: string;
   provider_error_description: string;

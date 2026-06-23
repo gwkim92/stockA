@@ -6445,6 +6445,12 @@ select json_build_object(
                 'fx_rate', coalesce(config_json->'fx_rate', '{{}}'::jsonb),
                 'unresolved_exchange_mapping_count',
                     coalesce(nullif(config_json->>'unresolved_exchange_mapping_count', '')::integer, 0),
+                'market_calendars', coalesce(config_json->'market_calendars', '{{}}'::jsonb),
+                'stock_warnings', coalesce(config_json->'stock_warnings', '[]'::jsonb),
+                'stock_warning_symbol_count', coalesce(nullif(config_json->>'stock_warning_symbol_count', '')::integer, 0),
+                'market_microdata', coalesce(config_json->'market_microdata', '[]'::jsonb),
+                'market_microdata_symbol_count', coalesce(nullif(config_json->>'market_microdata_symbol_count', '')::integer, 0),
+                'order_history', coalesce(config_json->'order_history', '{{}}'::jsonb),
                 'missing_env_vars', coalesce(config_json->'missing_env_vars', '[]'::jsonb),
                 'provider_http_status', nullif(config_json->>'provider_http_status', '')::integer,
                 'provider_error', coalesce(config_json->>'provider_error', ''),
@@ -6472,6 +6478,12 @@ select json_build_object(
             'currency_summary', '{{}}'::json,
             'fx_rate', '{{}}'::json,
             'unresolved_exchange_mapping_count', 0,
+            'market_calendars', '{{}}'::json,
+            'stock_warnings', '[]'::json,
+            'stock_warning_symbol_count', 0,
+            'market_microdata', '[]'::json,
+            'market_microdata_symbol_count', 0,
+            'order_history', '{{}}'::json,
             'provider_http_status', null,
             'provider_error', '',
             'provider_error_description', '',
@@ -9470,6 +9482,11 @@ select json_build_object(
                 'sellable_quantities', coalesce(config_json->'sellable_quantities', '[]'::jsonb),
                 'sellable_quantity_count', coalesce(nullif(config_json->>'sellable_quantity_count', '')::integer, 0),
                 'commission_summary', coalesce(config_json->'commission_summary', '[]'::jsonb),
+                'stock_warnings', coalesce(config_json->'stock_warnings', '[]'::jsonb),
+                'stock_warning_symbol_count', coalesce(nullif(config_json->>'stock_warning_symbol_count', '')::integer, 0),
+                'market_microdata', coalesce(config_json->'market_microdata', '[]'::jsonb),
+                'market_microdata_symbol_count', coalesce(nullif(config_json->>'market_microdata_symbol_count', '')::integer, 0),
+                'order_history', coalesce(config_json->'order_history', '{{}}'::jsonb),
                 'provider_http_status', nullif(config_json->>'provider_http_status', '')::integer,
                 'provider_error', coalesce(config_json->>'provider_error', ''),
                 'provider_error_description', coalesce(config_json->>'provider_error_description', ''),
@@ -9494,6 +9511,11 @@ select json_build_object(
             'sellable_quantities', '[]'::json,
             'sellable_quantity_count', 0,
             'commission_summary', '[]'::json,
+            'stock_warnings', '[]'::json,
+            'stock_warning_symbol_count', 0,
+            'market_microdata', '[]'::json,
+            'market_microdata_symbol_count', 0,
+            'order_history', '{{}}'::json,
             'provider_http_status', null,
             'provider_error', '',
             'provider_error_description', '',
@@ -15829,6 +15851,38 @@ def _build_tossinvest_order_readiness_payload(payload: dict[str, Any]) -> dict[s
             }
             for item in _as_list(payload.get("commission_summary"))
         ],
+        "stock_warnings": [
+            {
+                "symbol": str(item.get("symbol") or "").upper(),
+                "status": str(item.get("status") or "missing"),
+                "warning_count": int(_safe_number(item.get("warning_count")) or 0),
+                "warning_types": [str(value) for value in _as_list_or_scalars(item.get("warning_types"))],
+                "latest_start_date": str(item.get("latest_start_date") or ""),
+                "provider_error": str(item.get("provider_error") or ""),
+            }
+            for item in _as_list(payload.get("stock_warnings"))
+        ],
+        "stock_warning_symbol_count": int(_safe_number(payload.get("stock_warning_symbol_count")) or 0),
+        "market_microdata": [
+            {
+                "symbol": str(item.get("symbol") or "").upper(),
+                "status": str(item.get("status") or "missing"),
+                "currency": str(item.get("currency") or "").upper(),
+                "best_ask_price": str(item.get("best_ask_price") or ""),
+                "best_bid_price": str(item.get("best_bid_price") or ""),
+                "trade_count": int(_safe_number(item.get("trade_count")) or 0),
+                "latest_trade_price": str(item.get("latest_trade_price") or ""),
+                "latest_trade_timestamp": str(item.get("latest_trade_timestamp") or ""),
+                "upper_limit_price": str(item.get("upper_limit_price") or ""),
+                "lower_limit_price": str(item.get("lower_limit_price") or ""),
+                "orderbook_error": str(item.get("orderbook_error") or ""),
+                "trades_error": str(item.get("trades_error") or ""),
+                "price_limits_error": str(item.get("price_limits_error") or ""),
+            }
+            for item in _as_list(payload.get("market_microdata"))
+        ],
+        "market_microdata_symbol_count": int(_safe_number(payload.get("market_microdata_symbol_count")) or 0),
+        "order_history": _as_dict(payload.get("order_history")),
         "provider_http_status": int(_safe_number(payload.get("provider_http_status")) or 0) or None,
         "provider_error": str(payload.get("provider_error") or ""),
         "provider_error_description": str(payload.get("provider_error_description") or ""),
@@ -16856,6 +16910,39 @@ def _build_tossinvest_readonly_sync_payload(payload: dict[str, Any]) -> dict[str
         "unresolved_exchange_mapping_count": int(
             _safe_number(payload.get("unresolved_exchange_mapping_count")) or 0
         ),
+        "market_calendars": _as_dict(payload.get("market_calendars")),
+        "stock_warnings": [
+            {
+                "symbol": str(item.get("symbol") or "").upper(),
+                "status": str(item.get("status") or "missing"),
+                "warning_count": int(_safe_number(item.get("warning_count")) or 0),
+                "warning_types": [str(value) for value in _as_list_or_scalars(item.get("warning_types"))],
+                "latest_start_date": str(item.get("latest_start_date") or ""),
+                "provider_error": str(item.get("provider_error") or ""),
+            }
+            for item in _as_list(payload.get("stock_warnings"))
+        ],
+        "stock_warning_symbol_count": int(_safe_number(payload.get("stock_warning_symbol_count")) or 0),
+        "market_microdata": [
+            {
+                "symbol": str(item.get("symbol") or "").upper(),
+                "status": str(item.get("status") or "missing"),
+                "currency": str(item.get("currency") or "").upper(),
+                "best_ask_price": str(item.get("best_ask_price") or ""),
+                "best_bid_price": str(item.get("best_bid_price") or ""),
+                "trade_count": int(_safe_number(item.get("trade_count")) or 0),
+                "latest_trade_price": str(item.get("latest_trade_price") or ""),
+                "latest_trade_timestamp": str(item.get("latest_trade_timestamp") or ""),
+                "upper_limit_price": str(item.get("upper_limit_price") or ""),
+                "lower_limit_price": str(item.get("lower_limit_price") or ""),
+                "orderbook_error": str(item.get("orderbook_error") or ""),
+                "trades_error": str(item.get("trades_error") or ""),
+                "price_limits_error": str(item.get("price_limits_error") or ""),
+            }
+            for item in _as_list(payload.get("market_microdata"))
+        ],
+        "market_microdata_symbol_count": int(_safe_number(payload.get("market_microdata_symbol_count")) or 0),
+        "order_history": _as_dict(payload.get("order_history")),
         "missing_env_vars": missing_env_vars,
         "provider_http_status": int(_safe_number(payload.get("provider_http_status")) or 0) or None,
         "provider_error": str(payload.get("provider_error") or ""),

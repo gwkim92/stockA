@@ -92,6 +92,117 @@ class TossInvestSourceTests(unittest.TestCase):
                 require_credentials=False,
             )
 
+    def test_remaining_readonly_requests_build_expected_paths_and_redact_headers(self) -> None:
+        source = TossInvestSource()
+        config = RuntimeConfig()
+        requests = [
+            source.build_request(
+                "market_calendar_kr",
+                {"access_token": "access-token-test", "date": "2026-06-23"},
+                config=config,
+                require_credentials=False,
+            ),
+            source.build_request(
+                "market_calendar_us",
+                {"access_token": "access-token-test"},
+                config=config,
+                require_credentials=False,
+            ),
+            source.build_request(
+                "stock_warnings",
+                {"access_token": "access-token-test", "symbol": "aapl"},
+                config=config,
+                require_credentials=False,
+            ),
+            source.build_request(
+                "orderbook",
+                {"access_token": "access-token-test", "symbol": "aapl"},
+                config=config,
+                require_credentials=False,
+            ),
+            source.build_request(
+                "trades",
+                {"access_token": "access-token-test", "symbol": "aapl", "count": "10"},
+                config=config,
+                require_credentials=False,
+            ),
+            source.build_request(
+                "price_limits",
+                {"access_token": "access-token-test", "symbol": "aapl"},
+                config=config,
+                require_credentials=False,
+            ),
+        ]
+
+        urls = [request.url for request in requests]
+        self.assertIn("/api/v1/market-calendar/KR?date=2026-06-23", urls[0])
+        self.assertIn("/api/v1/market-calendar/US", urls[1])
+        self.assertIn("/api/v1/stocks/AAPL/warnings", urls[2])
+        self.assertIn("/api/v1/orderbook?symbol=AAPL", urls[3])
+        self.assertIn("/api/v1/trades?symbol=AAPL&count=10", urls[4])
+        self.assertIn("/api/v1/price-limits?symbol=AAPL", urls[5])
+        dumped = json.dumps([sanitized_tossinvest_request_dict(request) for request in requests], sort_keys=True)
+        self.assertNotIn("access-token-test", dumped)
+
+    def test_order_history_requests_redact_account_header_and_order_detail_url(self) -> None:
+        source = TossInvestSource()
+        config = RuntimeConfig()
+        orders_request = source.build_request(
+            "orders",
+            {
+                "access_token": "access-token-test",
+                "account_seq": "account-seq-secret-test",
+                "status": "closed",
+                "symbol": "aapl",
+                "limit": "20",
+            },
+            config=config,
+            require_credentials=False,
+        )
+        detail_request = source.build_request(
+            "order_detail",
+            {
+                "access_token": "access-token-test",
+                "account_seq": "account-seq-secret-test",
+                "order_id": "order-secret-test-001",
+            },
+            config=config,
+            require_credentials=False,
+        )
+
+        self.assertIn("/api/v1/orders?status=CLOSED&symbol=AAPL&limit=20", orders_request.url)
+        self.assertIn("/api/v1/orders/order-secret-test-001", detail_request.url)
+        sanitized = sanitized_tossinvest_request_dict(detail_request)
+        dumped = json.dumps(
+            [sanitized_tossinvest_request_dict(orders_request), sanitized],
+            sort_keys=True,
+        )
+        self.assertNotIn("access-token-test", dumped)
+        self.assertNotIn("account-seq-secret-test", dumped)
+        self.assertNotIn("order-secret-test-001", dumped)
+        self.assertEqual(sanitized["url"], "https://openapi.tossinvest.com/api/v1/orders/<redacted>")
+
+    def test_readonly_request_validation_rejects_bad_status_and_counts(self) -> None:
+        source = TossInvestSource()
+        with self.assertRaisesRegex(ValueError, "status"):
+            source.build_request(
+                "orders",
+                {
+                    "access_token": "access-token-test",
+                    "account_seq": "account-seq-secret-test",
+                    "status": "all",
+                },
+                config=RuntimeConfig(),
+                require_credentials=False,
+            )
+        with self.assertRaisesRegex(ValueError, "count"):
+            source.build_request(
+                "trades",
+                {"access_token": "access-token-test", "symbol": "AAPL", "count": "51"},
+                config=RuntimeConfig(),
+                require_credentials=False,
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

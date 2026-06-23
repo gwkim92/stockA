@@ -145,5 +145,193 @@
         }
       ]
     }
+  },
+  "market_calendars": {
+    "KR": {
+      "result": {
+        "today": {
+          "date": "2026-06-23",
+          "integrated": {
+            "regularMarket": {
+              "startTime": "2026-06-23T09:00:00+09:00",
+              "endTime": "2026-06-23T15:30:00+09:00"
+            }
+          }
+        },
+        "previousBusinessDay": {
+          "date": "2026-06-22",
+          "integrated": {}
+        },
+        "nextBusinessDay": {
+          "date": "2026-06-24",
+          "integrated": {}
+        }
+      }
+    },
+    "US": {
+      "result": {
+        "today": {
+          "date": "2026-06-23",
+          "regularMarket": {
+            "startTime": "2026-06-23T22:30:00+09:00",
+            "endTime": "2026-06-24T05:00:00+09:00"
+          }
+        },
+        "previousBusinessDay": {
+          "date": "2026-06-22"
+        },
+        "nextBusinessDay": {
+          "date": "2026-06-24"
+        }
+      }
+    }
+  },
+  "stock_warnings": {
+    "005930": {
+      "result": []
+    },
+    "AAPL": {
+      "result": [
+        {
+          "warningType": "VI_STATIC",
+          "exchange": "NASDAQ",
+          "startDate": "2026-06-23",
+          "endDate": null
+        }
+      ]
+    }
+  },
+  "market_microdata": {
+    "requested_symbols": [
+      "005930",
+      "AAPL"
+    ],
+    "truncated_symbol_count": 0,
+    "orderbooks": {
+      "005930": {
+        "result": {
+          "timestamp": "2026-06-23T09:30:00.123+09:00",
+          "currency": "KRW",
+          "asks": [
+            {
+              "price": "70100",
+              "volume": "100"
+            }
+          ],
+          "bids": [
+            {
+              "price": "70000",
+              "volume": "120"
+            }
+          ]
+        }
+      },
+      "AAPL": {
+        "result": {
+          "timestamp": "2026-06-23T22:30:00.456+09:00",
+          "currency": "USD",
+          "asks": [
+            {
+              "price": "200.10",
+              "volume": "10"
+            }
+          ],
+          "bids": [
+            {
+              "price": "200.00",
+              "volume": "8"
+            }
+          ]
+        }
+      }
+    },
+    "trades": {
+      "005930": {
+        "result": [
+          {
+            "price": "70000",
+            "volume": "10",
+            "timestamp": "2026-06-23T09:31:00+09:00",
+            "currency": "KRW"
+          }
+        ]
+      },
+      "AAPL": {
+        "result": [
+          {
+            "price": "200.05",
+            "volume": "2",
+            "timestamp": "2026-06-23T22:31:00+09:00",
+            "currency": "USD"
+          }
+        ]
+      }
+    },
+    "price_limits": {
+      "005930": {
+        "result": {
+          "timestamp": "2026-06-23T09:30:00+09:00",
+          "upperLimitPrice": "91000",
+          "lowerLimitPrice": "49000",
+          "currency": "KRW"
+        }
+      },
+      "AAPL": {
+        "result": {
+          "timestamp": "2026-06-23T22:30:00+09:00",
+          "upperLimitPrice": null,
+          "lowerLimitPrice": null,
+          "currency": "USD"
+        }
+      }
+    }
+  },
+  "order_history": {
+    "open_orders": {
+      "result": {
+        "orders": [
+          {
+            "orderId": "order-open-secret-test-001",
+            "symbol": "AAPL",
+            "side": "BUY",
+            "status": "PENDING",
+            "quantity": "1",
+            "currency": "USD",
+            "orderedAt": "2026-06-23T22:30:00+09:00"
+          }
+        ],
+        "nextCursor": null,
+        "hasNext": false
+      }
+    },
+    "closed_orders": {
+      "result": {
+        "orders": [
+          {
+            "orderId": "order-closed-secret-test-002",
+            "symbol": "005930",
+            "side": "SELL",
+            "status": "FILLED",
+            "quantity": "1",
+            "currency": "KRW",
+            "orderedAt": "2026-06-22T10:30:00+09:00"
+          }
+        ],
+        "nextCursor": "cursor-secret-test",
+        "hasNext": true
+      }
+    },
+    "order_details": [
+      {
+        "result": {
+          "orderId": "order-open-secret-test-001",
+          "symbol": "AAPL",
+          "side": "BUY",
+          "status": "PENDING",
+          "orderedAt": "2026-06-23T22:30:00+09:00"
+        }
+      }
+    ],
+    "order_detail_request_count": 1
   }
 }

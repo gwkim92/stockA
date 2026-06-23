@@ -80,6 +80,20 @@ class TossInvestReadonlySyncTests(unittest.TestCase):
         self.assertEqual(result.buying_power[0]["cash_buying_power"], "1000000.00")
         self.assertEqual(result.sellable_quantities[1]["sellable_quantity"], "2")
         self.assertEqual(result.commissions[1]["commission_rate"], "0.0007")
+        self.assertTrue(result.market_calendars["KR"]["today_is_open"])
+        self.assertEqual(result.market_calendars["US"]["next_business_day"], "2026-06-24")
+        self.assertEqual(result.stock_warnings[1]["symbol"], "AAPL")
+        self.assertEqual(result.stock_warnings[1]["warning_types"], ["VI_STATIC"])
+        self.assertEqual(result.market_microdata[1]["symbol"], "AAPL")
+        self.assertEqual(result.market_microdata[1]["best_bid_price"], "200.00")
+        self.assertEqual(result.order_history["open_order_count"], 1)
+        self.assertEqual(result.order_history["closed_order_count"], 1)
+        self.assertEqual(result.order_history["order_detail_loaded_count"], 1)
+
+        dumped_report = json.dumps(result.report(), sort_keys=True)
+        self.assertNotIn("order-open-secret-test-001", dumped_report)
+        self.assertNotIn("order-closed-secret-test-002", dumped_report)
+        self.assertNotIn("cursor-secret-test", dumped_report)
 
     def test_render_upsert_sql_writes_fx_and_native_values_without_long_term_paper(self) -> None:
         result = normalize_tossinvest_readonly_payload(
@@ -124,10 +138,86 @@ class TossInvestReadonlySyncTests(unittest.TestCase):
         self.assertEqual(report["submit_adapter_status"], "disabled_stub")
         self.assertFalse(report["broker_submit_allowed"])
         self.assertFalse(report["submitted_to_broker"])
+        self.assertEqual(report["order_history"]["order_count"], 2)
+        self.assertEqual(report["market_microdata_symbol_count"], 2)
+        self.assertEqual(report["stock_warning_symbol_count"], 2)
         self.assertNotIn("client-secret-test", dumped)
         self.assertNotIn("account-seq-secret-test", dumped)
         self.assertNotIn("1234567890", dumped)
+        self.assertNotIn("order-open-secret-test-001", dumped)
+        self.assertNotIn("order-closed-secret-test-002", dumped)
         self.assertTrue(any("config_json" in sql and "succeeded" in sql for sql in executor.non_query_sql))
+
+    def test_live_dry_run_fetches_remaining_readonly_endpoints_without_order_submit(self) -> None:
+        fixture = json.loads(FIXTURE_PATH.read_text(encoding="utf-8"))
+        calls: list[str] = []
+
+        def fake_request(request):
+            calls.append(request.dataset_name)
+            if request.dataset_name == "oauth_token":
+                payload = {"access_token": "access-token-test"}
+            elif request.dataset_name == "accounts":
+                payload = fixture["accounts"]
+            elif request.dataset_name == "holdings":
+                payload = fixture["holdings"]
+            elif request.dataset_name == "exchange_rate":
+                payload = fixture["exchange_rate"]
+            elif request.dataset_name == "stocks":
+                payload = fixture["stocks"]
+            elif request.dataset_name == "prices":
+                payload = fixture["prices"]
+            elif request.dataset_name == "buying_power":
+                payload = fixture["buying_power"][0] if "currency=KRW" in request.url else fixture["buying_power"][1]
+            elif request.dataset_name == "sellable_quantity":
+                payload = fixture["sellable_quantities"][0] if "005930" in request.url else fixture["sellable_quantities"][1]
+            elif request.dataset_name == "commissions":
+                payload = fixture["commissions"]
+            elif request.dataset_name == "market_calendar_kr":
+                payload = fixture["market_calendars"]["KR"]
+            elif request.dataset_name == "market_calendar_us":
+                payload = fixture["market_calendars"]["US"]
+            elif request.dataset_name == "stock_warnings":
+                payload = fixture["stock_warnings"]["005930"] if "005930" in request.url else fixture["stock_warnings"]["AAPL"]
+            elif request.dataset_name == "orderbook":
+                payload = fixture["market_microdata"]["orderbooks"]["005930"] if "005930" in request.url else fixture["market_microdata"]["orderbooks"]["AAPL"]
+            elif request.dataset_name == "trades":
+                payload = fixture["market_microdata"]["trades"]["005930"] if "005930" in request.url else fixture["market_microdata"]["trades"]["AAPL"]
+            elif request.dataset_name == "price_limits":
+                payload = fixture["market_microdata"]["price_limits"]["005930"] if "005930" in request.url else fixture["market_microdata"]["price_limits"]["AAPL"]
+            elif request.dataset_name == "orders":
+                payload = fixture["order_history"]["open_orders"] if "status=OPEN" in request.url else fixture["order_history"]["closed_orders"]
+            elif request.dataset_name == "order_detail":
+                payload = fixture["order_history"]["order_details"][0]
+            else:
+                raise AssertionError(f"Unexpected Toss request: {request.dataset_name}")
+            return type(
+                "Response",
+                (),
+                {"as_json": lambda self, payload=payload: payload},
+            )()
+
+        report = run_tossinvest_readonly_sync(
+            config=RuntimeConfig(
+                tossinvest_client_id="client-id-test",
+                tossinvest_client_secret="client-secret-test",
+                psql_command="psql",
+            ),
+            as_of_date=date(2026, 6, 23),
+            dry_run=True,
+            request_executor=fake_request,
+        )
+
+        self.assertEqual(report["status"], "loaded")
+        self.assertIn("market_calendar_kr", calls)
+        self.assertIn("market_calendar_us", calls)
+        self.assertEqual(calls.count("stock_warnings"), 2)
+        self.assertEqual(calls.count("orderbook"), 2)
+        self.assertEqual(calls.count("trades"), 2)
+        self.assertEqual(calls.count("price_limits"), 2)
+        self.assertEqual(calls.count("orders"), 2)
+        self.assertEqual(calls.count("order_detail"), 2)
+        self.assertNotIn("orders_submit", calls)
+        self.assertFalse(report["submitted_to_broker"])
 
     def test_live_http_403_reports_provider_access_block_without_secret(self) -> None:
         def blocked_request(_request):
