@@ -10,7 +10,7 @@ from stockanalysis.ingest.registry import get_source, list_sources
 class IngestSourceTests(unittest.TestCase):
     def test_registry_lists_expected_sources(self) -> None:
         names = [source.name for source in list_sources()]
-        self.assertEqual(names, ["alpha_vantage", "fred", "rss_news", "sec", "twelve_data"])
+        self.assertEqual(names, ["alpha_vantage", "fred", "rss_news", "sec", "tossinvest", "twelve_data"])
 
     def test_sec_companyfacts_request(self) -> None:
         source = get_source("sec")

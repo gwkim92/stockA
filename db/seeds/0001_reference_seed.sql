@@ -7,7 +7,8 @@ insert into ref.market (
     is_active
 )
 values
-    ('US', 'United States Equities', 'US', 'USD', 'America/New_York', true)
+    ('US', 'United States Equities', 'US', 'USD', 'America/New_York', true),
+    ('KR', 'Korea Equities', 'KR', 'KRW', 'Asia/Seoul', true)
 on conflict (market_code) do update
 set
     name = excluded.name,
@@ -26,7 +27,8 @@ insert into ref.exchange (
 values
     ('US', 'XNAS', 'NASDAQ', 'America/New_York', true),
     ('US', 'XNYS', 'New York Stock Exchange', 'America/New_York', true),
-    ('US', 'ARCX', 'NYSE Arca', 'America/New_York', false)
+    ('US', 'ARCX', 'NYSE Arca', 'America/New_York', false),
+    ('KR', 'XKRX', 'Korea Exchange', 'Asia/Seoul', true)
 on conflict (mic_code) do update
 set
     market_code = excluded.market_code,

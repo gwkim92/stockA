@@ -145,6 +145,59 @@ export type CodexOauthOperatorStatus = {
   background_job_started?: boolean;
 };
 
+export type TossInvestReadonlySyncVisibility = {
+  status: string;
+  latest_status: string;
+  latest_run_id: string | null;
+  finished_at: string;
+  portfolio_name: string;
+  base_currency: string;
+  credentials_configured: boolean;
+  account_selection_status: string;
+  holding_count: number;
+  currency_summary: Record<string, unknown>;
+  fx_rate: Record<string, unknown>;
+  unresolved_exchange_mapping_count: number;
+  missing_env_vars: string[];
+  attention_required: boolean;
+  submit_adapter_status: string;
+  broker_submit_allowed: boolean;
+  automatic_order_allowed: boolean;
+  order_boundary: string;
+  secret_free: boolean;
+};
+
+export type TossInvestOrderReadiness = {
+  status: string;
+  latest_status: string;
+  latest_run_id: string | null;
+  finished_at: string;
+  portfolio_name: string;
+  base_currency: string;
+  buying_power: Array<{
+    currency: string;
+    cash_buying_power: number | null;
+  }>;
+  sellable_quantities: Array<{
+    symbol: string;
+    sellable_quantity: number | null;
+  }>;
+  sellable_quantity_count: number;
+  commission_summary: Array<{
+    market_country: string;
+    commission_rate: number | null;
+    valid_from: string;
+    valid_until: string;
+  }>;
+  submit_adapter_status: string;
+  order_submit_attempted: boolean;
+  submitted_to_broker: boolean;
+  broker_submit_allowed: boolean;
+  automatic_order_allowed: boolean;
+  order_boundary: string;
+  secret_free: boolean;
+};
+
 export type AiAgentRegistryData = {
   status: string;
   report_name: string;
@@ -532,6 +585,7 @@ export type DataHealthData = {
     next_action: string;
   };
   openai_provider_health: OpenAiProviderHealth;
+  tossinvest_readonly_sync: TossInvestReadonlySyncVisibility;
   benchmark_drift_quality: {
     status: string;
     guardrail_status: string;
@@ -1703,6 +1757,7 @@ export type TradingReadinessData = {
     benchmark_drift?: Record<string, unknown>;
     rebalance_candidate_review: BenchmarkRebalanceCandidateReview;
   };
+  tossinvest_order_readiness: TossInvestOrderReadiness;
   audit_summary: {
     intent_count: number;
     blocked_count: number;
@@ -2360,6 +2415,7 @@ export type EvidenceReviewData = {
 
 export type PortfolioCoverageData = {
   portfolio_name: string;
+  base_currency: string;
   as_of_date: string;
   strategy_name: string;
   coverage_measurement_end_date: string;
@@ -2383,6 +2439,13 @@ export type PortfolioCoverageData = {
     valid_from: string;
     valid_to: string;
     rationale: string;
+  };
+  currency_conversion: {
+    base_currency: string;
+    native_currencies: string[];
+    fx_converted_position_count: number;
+    fx_rate_providers: string[];
+    latest_fx_conversion_timestamp: string;
   };
   risk_budget: {
     status: string;
@@ -2450,6 +2513,20 @@ export type PortfolioCoverageData = {
     symbol: string;
     instrument_id: string;
     weight: number;
+    base_currency: string;
+    native_currency_code: string;
+    market_price: number | null;
+    market_value: number | null;
+    market_price_native: number | null;
+    market_value_native: number | null;
+    cost_basis: number | null;
+    cost_basis_native: number | null;
+    unrealized_pnl: number | null;
+    unrealized_pnl_native: number | null;
+    fx_rate_to_base: number | null;
+    fx_rate_provider: string;
+    fx_conversion_timestamp: string;
+    currency_conversion_note: string;
     coverage_status: string;
     active_thesis_id: string | null;
     outcome_status: string;

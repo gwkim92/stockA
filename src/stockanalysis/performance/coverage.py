@@ -29,6 +29,19 @@ class PortfolioOutcomeCoverageRow:
     outcome_status: str | None
     success_grade: str | None
     coverage_status: str
+    base_currency: str = "USD"
+    native_currency_code: str | None = None
+    market_price: Decimal | None = None
+    market_price_native: Decimal | None = None
+    market_value_native: Decimal | None = None
+    cost_basis: Decimal | None = None
+    cost_basis_native: Decimal | None = None
+    unrealized_pnl: Decimal | None = None
+    unrealized_pnl_native: Decimal | None = None
+    fx_rate_to_base: Decimal | None = None
+    fx_rate_provider: str | None = None
+    fx_conversion_timestamp: str | None = None
+    currency_conversion_note: str | None = None
 
 
 def load_portfolio_outcome_coverage_rows(
@@ -74,6 +87,25 @@ def load_portfolio_outcome_coverage_rows(
                 outcome_status=str(item["outcome_status"]) if item.get("outcome_status") is not None else None,
                 success_grade=str(item["success_grade"]) if item.get("success_grade") is not None else None,
                 coverage_status=str(item["coverage_status"]),
+                base_currency=str(item.get("base_currency") or "USD").upper(),
+                native_currency_code=str(item["native_currency_code"]).upper()
+                if item.get("native_currency_code") is not None
+                else None,
+                market_price=_optional_decimal(item.get("market_price")),
+                market_price_native=_optional_decimal(item.get("market_price_native")),
+                market_value_native=_optional_decimal(item.get("market_value_native")),
+                cost_basis=_optional_decimal(item.get("cost_basis")),
+                cost_basis_native=_optional_decimal(item.get("cost_basis_native")),
+                unrealized_pnl=_optional_decimal(item.get("unrealized_pnl")),
+                unrealized_pnl_native=_optional_decimal(item.get("unrealized_pnl_native")),
+                fx_rate_to_base=_optional_decimal(item.get("fx_rate_to_base")),
+                fx_rate_provider=str(item["fx_rate_provider"]) if item.get("fx_rate_provider") is not None else None,
+                fx_conversion_timestamp=str(item["fx_conversion_timestamp"])
+                if item.get("fx_conversion_timestamp") is not None
+                else None,
+                currency_conversion_note=str(item["currency_conversion_note"])
+                if item.get("currency_conversion_note") is not None
+                else None,
             )
         )
 
@@ -90,7 +122,7 @@ def render_portfolio_outcome_coverage_lookup_sql(
 ) -> str:
     return f"""-- portfolio outcome coverage lookup
 with selected_portfolio as (
-    select portfolio_id, portfolio_name
+    select portfolio_id, portfolio_name, base_currency
     from portfolio.portfolio
     where portfolio_name = {sql_literal(portfolio_name)}
     limit 1
@@ -99,14 +131,28 @@ position_rows as (
     select
         portfolio.portfolio_id,
         portfolio.portfolio_name,
+        portfolio.base_currency,
         position.instrument_id,
         instrument.primary_symbol,
+        position.market_price,
         position.market_value,
+        position.cost_basis,
+        position.unrealized_pnl,
         position.weight as position_weight,
-        position.linked_thesis_id
+        position.linked_thesis_id,
+        coalesce(position.native_currency_code, instrument.currency_code, portfolio.base_currency) as native_currency_code,
+        position.market_price_native,
+        position.market_value_native,
+        position.cost_basis_native,
+        position.unrealized_pnl_native,
+        position.fx_rate_to_base,
+        fx.provider as fx_rate_provider,
+        coalesce(fx.valid_from, fx.observed_at) as fx_conversion_timestamp,
+        position.currency_conversion_note
     from selected_portfolio portfolio
     join portfolio.position_snapshot position on position.portfolio_id = portfolio.portfolio_id
     join ref.instrument instrument on instrument.instrument_id = position.instrument_id
+    left join market.fx_rate_snapshot fx on fx.fx_rate_snapshot_id = position.fx_rate_snapshot_id
     where position.snapshot_date = {sql_date(snapshot_date)}
       and position.quantity <> 0
 ),
@@ -118,7 +164,20 @@ coverage_rows as (
         {sql_date(measurement_end_date)} as measurement_end_date,
         position.instrument_id,
         position.primary_symbol,
+        position.base_currency,
+        position.native_currency_code,
+        position.market_price,
         position.market_value,
+        position.market_price_native,
+        position.market_value_native,
+        position.cost_basis,
+        position.cost_basis_native,
+        position.unrealized_pnl,
+        position.unrealized_pnl_native,
+        position.fx_rate_to_base,
+        position.fx_rate_provider,
+        position.fx_conversion_timestamp,
+        position.currency_conversion_note,
         position.position_weight,
         position.linked_thesis_id,
         thesis.title as thesis_title,
@@ -147,7 +206,20 @@ select coalesce(
             'measurement_end_date', measurement_end_date,
             'instrument_id', instrument_id,
             'primary_symbol', primary_symbol,
+            'base_currency', base_currency,
+            'native_currency_code', native_currency_code,
+            'market_price', market_price,
             'market_value', market_value,
+            'market_price_native', market_price_native,
+            'market_value_native', market_value_native,
+            'cost_basis', cost_basis,
+            'cost_basis_native', cost_basis_native,
+            'unrealized_pnl', unrealized_pnl,
+            'unrealized_pnl_native', unrealized_pnl_native,
+            'fx_rate_to_base', fx_rate_to_base,
+            'fx_rate_provider', fx_rate_provider,
+            'fx_conversion_timestamp', fx_conversion_timestamp,
+            'currency_conversion_note', currency_conversion_note,
             'position_weight', position_weight,
             'linked_thesis_id', linked_thesis_id,
             'thesis_title', thesis_title,
@@ -169,6 +241,7 @@ def build_portfolio_outcome_coverage_report(rows: tuple[PortfolioOutcomeCoverage
 
     portfolio_id = rows[0].portfolio_id
     portfolio_name = rows[0].portfolio_name
+    base_currency = rows[0].base_currency
     snapshot_date = rows[0].snapshot_date
     measurement_end_date = rows[0].measurement_end_date
     if any(row.portfolio_id != portfolio_id for row in rows):
@@ -200,6 +273,7 @@ def build_portfolio_outcome_coverage_report(rows: tuple[PortfolioOutcomeCoverage
     return {
         "portfolio_id": portfolio_id,
         "portfolio_name": portfolio_name,
+        "base_currency": base_currency,
         "snapshot_date": snapshot_date.isoformat(),
         "measurement_end_date": measurement_end_date.isoformat(),
         "position_count": len(rows),
@@ -278,7 +352,7 @@ def render_portfolio_outcome_coverage_report_sql(
 
     return f"""-- portfolio outcome coverage report
 with selected_portfolio as (
-    select portfolio_id, portfolio_name
+    select portfolio_id, portfolio_name, base_currency
     from portfolio.portfolio
     where portfolio_name = {sql_literal(portfolio_name)}
     limit 1
@@ -287,14 +361,28 @@ position_rows as (
     select
         portfolio.portfolio_id,
         portfolio.portfolio_name,
+        portfolio.base_currency,
         position.instrument_id,
         instrument.primary_symbol,
+        position.market_price,
         position.market_value,
+        position.cost_basis,
+        position.unrealized_pnl,
         position.weight as position_weight,
-        position.linked_thesis_id
+        position.linked_thesis_id,
+        coalesce(position.native_currency_code, instrument.currency_code, portfolio.base_currency) as native_currency_code,
+        position.market_price_native,
+        position.market_value_native,
+        position.cost_basis_native,
+        position.unrealized_pnl_native,
+        position.fx_rate_to_base,
+        fx.provider as fx_rate_provider,
+        coalesce(fx.valid_from, fx.observed_at) as fx_conversion_timestamp,
+        position.currency_conversion_note
     from selected_portfolio portfolio
     join portfolio.position_snapshot position on position.portfolio_id = portfolio.portfolio_id
     join ref.instrument instrument on instrument.instrument_id = position.instrument_id
+    left join market.fx_rate_snapshot fx on fx.fx_rate_snapshot_id = position.fx_rate_snapshot_id
     where position.snapshot_date = {sql_date(snapshot_date)}
       and position.quantity <> 0
 ),
@@ -306,7 +394,20 @@ coverage_rows as (
         {sql_date(measurement_end_date)} as measurement_end_date,
         position.instrument_id,
         position.primary_symbol,
+        position.base_currency,
+        position.native_currency_code,
+        position.market_price,
         position.market_value,
+        position.market_price_native,
+        position.market_value_native,
+        position.cost_basis,
+        position.cost_basis_native,
+        position.unrealized_pnl,
+        position.unrealized_pnl_native,
+        position.fx_rate_to_base,
+        position.fx_rate_provider,
+        position.fx_conversion_timestamp,
+        position.currency_conversion_note,
         position.position_weight,
         position.linked_thesis_id,
         thesis.title as thesis_title,
@@ -351,6 +452,7 @@ position_page as (
 select json_build_object(
     'portfolio_id', (select portfolio_id from selected_portfolio),
     'portfolio_name', coalesce((select portfolio_name from selected_portfolio), {sql_literal(portfolio_name)}),
+    'base_currency', coalesce((select base_currency from selected_portfolio), 'USD'),
     'snapshot_date', {sql_date(snapshot_date)},
     'measurement_end_date', {sql_date(measurement_end_date)},
     'position_limit', {position_limit},
@@ -396,7 +498,20 @@ select json_build_object(
                     'instrument_id', instrument_id,
                     'coverage_status', coverage_status,
                     'weight', round(position_weight, 4),
+                    'base_currency', base_currency,
+                    'native_currency_code', native_currency_code,
+                    'market_price', market_price,
                     'market_value', market_value,
+                    'market_price_native', market_price_native,
+                    'market_value_native', market_value_native,
+                    'cost_basis', cost_basis,
+                    'cost_basis_native', cost_basis_native,
+                    'unrealized_pnl', unrealized_pnl,
+                    'unrealized_pnl_native', unrealized_pnl_native,
+                    'fx_rate_to_base', fx_rate_to_base,
+                    'fx_rate_provider', fx_rate_provider,
+                    'fx_conversion_timestamp', fx_conversion_timestamp,
+                    'currency_conversion_note', currency_conversion_note,
                     'linked_thesis_id', linked_thesis_id,
                     'thesis_title', thesis_title,
                     'outcome_id', outcome_id,
@@ -418,7 +533,20 @@ def _render_position(row: PortfolioOutcomeCoverageRow) -> dict[str, object]:
         "instrument_id": row.instrument_id,
         "coverage_status": row.coverage_status,
         "weight": str(_quantize_weight(row.position_weight)) if row.position_weight is not None else None,
+        "base_currency": row.base_currency,
+        "native_currency_code": row.native_currency_code or row.base_currency,
+        "market_price": str(row.market_price) if row.market_price is not None else None,
         "market_value": str(row.market_value),
+        "market_price_native": str(row.market_price_native) if row.market_price_native is not None else None,
+        "market_value_native": str(row.market_value_native) if row.market_value_native is not None else None,
+        "cost_basis": str(row.cost_basis) if row.cost_basis is not None else None,
+        "cost_basis_native": str(row.cost_basis_native) if row.cost_basis_native is not None else None,
+        "unrealized_pnl": str(row.unrealized_pnl) if row.unrealized_pnl is not None else None,
+        "unrealized_pnl_native": str(row.unrealized_pnl_native) if row.unrealized_pnl_native is not None else None,
+        "fx_rate_to_base": str(row.fx_rate_to_base) if row.fx_rate_to_base is not None else None,
+        "fx_rate_provider": row.fx_rate_provider,
+        "fx_conversion_timestamp": row.fx_conversion_timestamp,
+        "currency_conversion_note": row.currency_conversion_note,
         "linked_thesis_id": row.linked_thesis_id,
         "thesis_title": row.thesis_title,
         "outcome_id": row.outcome_id,

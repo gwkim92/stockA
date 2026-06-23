@@ -1,0 +1,149 @@
+{
+  "accounts": {
+    "result": [
+      {
+        "accountSeq": "account-seq-secret-test",
+        "accountNo": "1234567890",
+        "accountName": "Real Account"
+      }
+    ]
+  },
+  "exchange_rate": {
+    "result": {
+      "baseCurrency": "USD",
+      "quoteCurrency": "KRW",
+      "rate": "1400.00",
+      "midRate": "1390.00",
+      "basisPoint": "0.0000",
+      "validFrom": "2026-06-23T09:00:00+09:00",
+      "validUntil": "2026-06-23T09:01:00+09:00",
+      "rateChangeType": "UNCHANGED"
+    }
+  },
+  "stocks": {
+    "result": [
+      {
+        "symbol": "005930",
+        "name": "Samsung Electronics",
+        "currency": "KRW",
+        "marketCountry": "KR",
+        "market": "KRX",
+        "securityType": "STOCK"
+      },
+      {
+        "symbol": "AAPL",
+        "name": "Apple Inc.",
+        "currency": "USD",
+        "marketCountry": "US",
+        "market": "NASDAQ",
+        "securityType": "STOCK"
+      }
+    ]
+  },
+  "prices": {
+    "result": [
+      {
+        "symbol": "005930",
+        "currency": "KRW",
+        "price": "70000"
+      },
+      {
+        "symbol": "AAPL",
+        "currency": "USD",
+        "price": "200"
+      }
+    ]
+  },
+  "holdings": {
+    "result": {
+      "marketValue": {
+        "amount": {
+          "krw": "626000",
+          "usd": "400"
+        }
+      },
+      "holdings": [
+        {
+          "symbol": "005930",
+          "name": "Samsung Electronics",
+          "currency": "KRW",
+          "marketCountry": "KR",
+          "quantity": "1",
+          "lastPrice": "70000",
+          "averagePurchasePrice": "65000",
+          "marketValue": {
+            "amount": {
+              "krw": "70000"
+            }
+          },
+          "profitLoss": {
+            "amount": {
+              "krw": "5000"
+            }
+          }
+        },
+        {
+          "symbol": "AAPL",
+          "name": "Apple Inc.",
+          "currency": "USD",
+          "marketCountry": "US",
+          "quantity": "2",
+          "lastPrice": "200",
+          "averagePurchasePrice": "180",
+          "marketValue": {
+            "amount": {
+              "usd": "400"
+            }
+          },
+          "profitLoss": {
+            "amount": {
+              "usd": "40"
+            }
+          }
+        }
+      ]
+    }
+  },
+  "buying_power": [
+    {
+      "result": {
+        "currency": "KRW",
+        "cashBuyingPower": "1000000"
+      }
+    },
+    {
+      "result": {
+        "currency": "USD",
+        "cashBuyingPower": "100"
+      }
+    }
+  ],
+  "sellable_quantities": [
+    {
+      "result": {
+        "symbol": "005930",
+        "sellableQuantity": "1"
+      }
+    },
+    {
+      "result": {
+        "symbol": "AAPL",
+        "sellableQuantity": "2"
+      }
+    }
+  ],
+  "commissions": {
+    "result": {
+      "commissions": [
+        {
+          "marketCountry": "KR",
+          "commissionRate": "0.00015"
+        },
+        {
+          "marketCountry": "US",
+          "commissionRate": "0.0007"
+        }
+      ]
+    }
+  }
+}

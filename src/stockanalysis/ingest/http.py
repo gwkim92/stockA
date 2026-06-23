@@ -8,6 +8,7 @@ from .models import FetchResponse, HttpRequest
 def execute_request(request: HttpRequest) -> FetchResponse:
     raw_request = Request(
         request.url,
+        data=request.body,
         headers=request.headers,
         method=request.method,
     )

@@ -187,6 +187,81 @@ class DataOperationsCliTests(unittest.TestCase):
             self.assertFalse(payload["cost_known"])
             self.assertTrue(payload["secret_free"])
 
+    def test_tossinvest_readonly_sync_run_dry_run_is_secret_free(self) -> None:
+        fixture_path = Path(__file__).resolve().parent / "fixtures" / "tossinvest_readonly_mixed_holdings.json"
+        with tempfile.TemporaryDirectory() as repo_root, tempfile.TemporaryDirectory() as outside_root:
+            env_file = Path(outside_root) / "data-operations.env"
+            env_file.write_text(
+                "\n".join(
+                    (
+                        'STOCKANALYSIS_TOSSINVEST_CLIENT_ID="client-id-test"',
+                        'STOCKANALYSIS_TOSSINVEST_CLIENT_SECRET="client-secret-test"',
+                        'STOCKANALYSIS_TOSSINVEST_ACCOUNT_SEQ="account-seq-secret-test"',
+                        'STOCKANALYSIS_PSQL_COMMAND="psql"',
+                    )
+                ),
+                encoding="utf-8",
+            )
+            stdout = io.StringIO()
+
+            exit_code = main(
+                [
+                    "tossinvest-readonly-sync-run",
+                    "--repo-root",
+                    repo_root,
+                    "--env-file",
+                    str(env_file),
+                    "--fixture-json",
+                    str(fixture_path),
+                    "--as-of-date",
+                    "2026-06-23",
+                    "--dry-run",
+                ],
+                stdout=stdout,
+            )
+
+        self.assertEqual(exit_code, 0)
+        output = stdout.getvalue()
+        self.assertNotIn("client-secret-test", output)
+        self.assertNotIn("account-seq-secret-test", output)
+        self.assertNotIn("1234567890", output)
+        payload = json.loads(output)
+        self.assertEqual(payload["report_name"], "tossinvest_readonly_sync")
+        self.assertEqual(payload["portfolio_name"], "Toss Real Readonly")
+        self.assertEqual(payload["base_currency"], "KRW")
+        self.assertEqual(payload["holding_count"], 2)
+        self.assertEqual(payload["fx_rate"]["conversion_rate_source"], "midRate")
+        self.assertEqual(payload["submit_adapter_status"], "disabled_stub")
+        self.assertFalse(payload["broker_submit_allowed"])
+        self.assertFalse(payload["submitted_to_broker"])
+
+    def test_tossinvest_readonly_sync_run_rejects_repo_inside_env_file(self) -> None:
+        fixture_path = Path(__file__).resolve().parent / "fixtures" / "tossinvest_readonly_mixed_holdings.json"
+        with tempfile.TemporaryDirectory() as repo_root:
+            env_file = Path(repo_root) / "data-operations.env"
+            env_file.write_text('STOCKANALYSIS_TOSSINVEST_CLIENT_SECRET="client-secret-test"\n', encoding="utf-8")
+            stdout = io.StringIO()
+            stderr = io.StringIO()
+
+            exit_code = main(
+                [
+                    "tossinvest-readonly-sync-run",
+                    "--repo-root",
+                    repo_root,
+                    "--env-file",
+                    str(env_file),
+                    "--fixture-json",
+                    str(fixture_path),
+                    "--dry-run",
+                ],
+                stdout=stdout,
+                stderr=stderr,
+            )
+
+        self.assertEqual(exit_code, 1)
+        self.assertIn("must be outside repository", stderr.getvalue())
+        self.assertEqual(stdout.getvalue(), "")
+
     def test_correlation_analysis_run_command_passes_lookbacks_and_guardrails(self) -> None:
         with tempfile.TemporaryDirectory() as repo_root, tempfile.TemporaryDirectory() as outside_root:
             env_file = Path(outside_root) / "data-operations.env"

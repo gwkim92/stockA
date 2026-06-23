@@ -541,6 +541,38 @@ function defaultPortfolioRiskBudgetGuardrail() {
   };
 }
 
+function defaultTossInvestOrderReadiness() {
+  return {
+    status: "missing",
+    latest_status: "missing",
+    latest_run_id: null,
+    finished_at: "",
+    portfolio_name: "Toss Real Readonly",
+    base_currency: "KRW",
+    buying_power: [],
+    sellable_quantities: [],
+    sellable_quantity_count: 0,
+    commission_summary: [],
+    submit_adapter_status: "disabled_stub",
+    order_submit_attempted: false,
+    submitted_to_broker: false,
+    broker_submit_allowed: false,
+    automatic_order_allowed: false,
+    order_boundary: "read_only_no_order",
+    secret_free: true,
+  };
+}
+
+function defaultPortfolioCurrencyConversion(baseCurrency = "USD") {
+  return {
+    base_currency: baseCurrency,
+    native_currencies: [baseCurrency],
+    fx_converted_position_count: 0,
+    fx_rate_providers: [],
+    latest_fx_conversion_timestamp: "",
+  };
+}
+
 function defaultLifecycle(symbol: string, summary = "") {
   return {
     source: "read_only_fallback",
@@ -787,6 +819,7 @@ function normalizeStockDetail(data: MutableRecord) {
 }
 
 function normalizePortfolioCoverage(data: MutableRecord) {
+  withDefault(data, "base_currency", "USD");
   withDefault(data, "allocation_policy", {
     policy_id: "",
     policy_name: "기본 읽기 전용 정책",
@@ -798,6 +831,7 @@ function normalizePortfolioCoverage(data: MutableRecord) {
     valid_to: "",
     rationale: "최신 배분 정책 데이터가 아직 충분히 연결되지 않았다.",
   });
+  withDefault(data, "currency_conversion", defaultPortfolioCurrencyConversion(String(data.base_currency || "USD")));
   const riskBudget = ensureRecord(data, "risk_budget");
   withDefault(riskBudget, "status", "not_available");
   withDefault(riskBudget, "max_single_position_weight", null);
@@ -826,6 +860,20 @@ function normalizePortfolioCoverage(data: MutableRecord) {
       continue;
     }
     withDefault(rawPosition, "position_size_status", "not_available");
+    withDefault(rawPosition, "base_currency", data.base_currency || "USD");
+    withDefault(rawPosition, "native_currency_code", rawPosition.base_currency || data.base_currency || "USD");
+    withDefault(rawPosition, "market_price", null);
+    withDefault(rawPosition, "market_value", null);
+    withDefault(rawPosition, "market_price_native", null);
+    withDefault(rawPosition, "market_value_native", null);
+    withDefault(rawPosition, "cost_basis", null);
+    withDefault(rawPosition, "cost_basis_native", null);
+    withDefault(rawPosition, "unrealized_pnl", null);
+    withDefault(rawPosition, "unrealized_pnl_native", null);
+    withDefault(rawPosition, "fx_rate_to_base", null);
+    withDefault(rawPosition, "fx_rate_provider", "");
+    withDefault(rawPosition, "fx_conversion_timestamp", "");
+    withDefault(rawPosition, "currency_conversion_note", "");
     withDefault(rawPosition, "max_single_position_weight", null);
     withDefault(rawPosition, "min_rebalance_target_weight", null);
     withDefault(rawPosition, "weight_to_single_position_limit", null);
@@ -835,6 +883,7 @@ function normalizePortfolioCoverage(data: MutableRecord) {
 
 function normalizeTradingReadiness(data: MutableRecord) {
   withDefault(data, "portfolio_risk_budget_guardrail", defaultPortfolioRiskBudgetGuardrail());
+  withDefault(data, "tossinvest_order_readiness", defaultTossInvestOrderReadiness());
 }
 
 function normalizePaperTradingPreview(data: MutableRecord) {

@@ -1471,6 +1471,9 @@ def build_live_data_health_response(
     cross_asset_market_regime = _build_cross_asset_market_regime_payload(
         _as_dict(state.get("cross_asset_market_regime"))
     )
+    tossinvest_readonly_sync = _build_tossinvest_readonly_sync_payload(
+        _as_dict(state.get("tossinvest_readonly_sync"))
+    )
     benchmark_drift_quality = _build_benchmark_drift_quality_payload(
         _as_dict(state.get("portfolio_risk_budget_guardrail"))
     )
@@ -1696,6 +1699,7 @@ def build_live_data_health_response(
             "openai_provider_health": openai_provider_health,
             "active_recommendation_price_freshness": active_recommendation_price_freshness,
             "cross_asset_market_regime": cross_asset_market_regime,
+            "tossinvest_readonly_sync": tossinvest_readonly_sync,
             "benchmark_drift_quality": benchmark_drift_quality,
             "portfolio_review_decision_history": portfolio_review_decision_history,
             "portfolio_review_decision_feedback": portfolio_review_decision_feedback,
@@ -2043,6 +2047,9 @@ def build_live_trading_readiness_response(
             "paper_validation": _build_trading_paper_validation_payload(_as_dict(state.get("paper_validation"))),
             "portfolio_risk_budget_guardrail": _build_trading_risk_budget_guardrail_payload(
                 _as_dict(state.get("portfolio_risk_budget_guardrail"))
+            ),
+            "tossinvest_order_readiness": _build_tossinvest_order_readiness_payload(
+                _as_dict(state.get("tossinvest_order_readiness"))
             ),
             "audit_summary": _build_trading_audit_summary_payload(_as_dict(state.get("audit_summary"))),
             "guardrails": _trading_readiness_guardrails(),
@@ -3830,6 +3837,7 @@ def build_live_portfolio_coverage_response(
         "generated_at": generated_at,
         "data": {
             "portfolio_name": str(report.get("portfolio_name") or portfolio_name),
+            "base_currency": str(report.get("base_currency") or "USD"),
             "as_of_date": str(report.get("snapshot_date") or as_of_date.isoformat()),
             "strategy_name": DEFAULT_STRATEGY_NAME,
             "coverage_measurement_end_date": str(
@@ -3846,6 +3854,10 @@ def build_live_portfolio_coverage_response(
                 "weight_coverage_ratio": _number(report.get("coverage_ratio_by_weight")),
             },
             "allocation_policy": allocation_policy,
+            "currency_conversion": _build_portfolio_currency_conversion_payload(
+                base_currency=str(report.get("base_currency") or "USD"),
+                positions=positions,
+            ),
             "risk_budget": _build_portfolio_risk_budget_payload(
                 positions=positions,
                 allocation_policy=allocation_policy,
@@ -5338,6 +5350,13 @@ latest_runs as (
     left join ops.pipeline_run run on run.pipeline_name = expected.pipeline_name
     order by expected.pipeline_name, run.started_at desc nulls last, run.run_id desc nulls last
 ),
+selected_tossinvest_readonly_sync as (
+    select run.*
+    from ops.pipeline_run run
+    where run.pipeline_name = 'tossinvest_readonly_sync'
+    order by run.started_at desc, run.run_id desc
+    limit 1
+),
 latest_market_price as (
     select max(trade_date) as latest_observation_date
     from market.daily_price_bar
@@ -6407,6 +6426,55 @@ select json_build_object(
             'dataset', 'portfolio.position_snapshot',
             'status', case when (select latest_observation_date from latest_position_snapshot) is null then 'missing' else 'observed' end,
             'latest_observation_date', (select latest_observation_date from latest_position_snapshot)
+        )
+    ),
+    'tossinvest_readonly_sync',
+    coalesce(
+        (
+            select json_build_object(
+                'status', coalesce(config_json->>'status', status),
+                'latest_status', status,
+                'latest_run_id', run_id,
+                'finished_at', ended_at,
+                'portfolio_name', coalesce(config_json->>'portfolio_name', 'Toss Real Readonly'),
+                'base_currency', coalesce(config_json->>'base_currency', 'KRW'),
+                'credentials_configured', coalesce(nullif(config_json->>'credentials_configured', '')::boolean, false),
+                'account_selection_status', coalesce(config_json->>'account_selection_status', 'missing'),
+                'holding_count', coalesce(nullif(config_json->>'holding_count', '')::integer, 0),
+                'currency_summary', coalesce(config_json->'currency_summary', '{{}}'::jsonb),
+                'fx_rate', coalesce(config_json->'fx_rate', '{{}}'::jsonb),
+                'unresolved_exchange_mapping_count',
+                    coalesce(nullif(config_json->>'unresolved_exchange_mapping_count', '')::integer, 0),
+                'missing_env_vars', coalesce(config_json->'missing_env_vars', '[]'::jsonb),
+                'submit_adapter_status', coalesce(config_json->>'submit_adapter_status', 'disabled_stub'),
+                'broker_submit_allowed', false,
+                'automatic_order_allowed', false,
+                'order_boundary', 'read_only_no_order',
+                'secret_free', true
+            )
+            from selected_tossinvest_readonly_sync
+        ),
+        json_build_object(
+            'status', 'missing',
+            'latest_status', 'missing',
+            'portfolio_name', 'Toss Real Readonly',
+            'base_currency', 'KRW',
+            'credentials_configured', false,
+            'account_selection_status', 'missing',
+            'holding_count', 0,
+            'currency_summary', '{{}}'::json,
+            'fx_rate', '{{}}'::json,
+            'unresolved_exchange_mapping_count', 0,
+            'missing_env_vars',
+                json_build_array(
+                    'STOCKANALYSIS_TOSSINVEST_CLIENT_ID',
+                    'STOCKANALYSIS_TOSSINVEST_CLIENT_SECRET'
+                ),
+            'submit_adapter_status', 'disabled_stub',
+            'broker_submit_allowed', false,
+            'automatic_order_allowed', false,
+            'order_boundary', 'read_only_no_order',
+            'secret_free', true
         )
     ),
     'active_recommendation_price_freshness',
@@ -9249,6 +9317,13 @@ selected_risk_budget_guardrail as (
         eval_run.eval_run_id desc
     limit 1
 ),
+selected_tossinvest_readonly_sync as (
+    select run.*
+    from ops.pipeline_run run
+    where run.pipeline_name = 'tossinvest_readonly_sync'
+    order by run.started_at desc, run.run_id desc
+    limit 1
+),
 audit_summary as (
     select
         count(*)::integer as intent_count,
@@ -9365,6 +9440,48 @@ select json_build_object(
             'blocking_reasons', '[]'::json,
             'warning_reasons', '[]'::json,
             'benchmark_drift', '{{}}'::json
+        )
+    ),
+    'tossinvest_order_readiness',
+    coalesce(
+        (
+            select json_build_object(
+                'status', coalesce(config_json->>'status', status),
+                'latest_status', status,
+                'latest_run_id', run_id,
+                'finished_at', ended_at,
+                'portfolio_name', coalesce(config_json->>'portfolio_name', 'Toss Real Readonly'),
+                'base_currency', coalesce(config_json->>'base_currency', 'KRW'),
+                'buying_power', coalesce(config_json->'buying_power', '[]'::jsonb),
+                'sellable_quantities', coalesce(config_json->'sellable_quantities', '[]'::jsonb),
+                'sellable_quantity_count', coalesce(nullif(config_json->>'sellable_quantity_count', '')::integer, 0),
+                'commission_summary', coalesce(config_json->'commission_summary', '[]'::jsonb),
+                'submit_adapter_status', coalesce(config_json->>'submit_adapter_status', 'disabled_stub'),
+                'order_submit_attempted', false,
+                'submitted_to_broker', false,
+                'broker_submit_allowed', false,
+                'automatic_order_allowed', false,
+                'order_boundary', 'read_only_no_order',
+                'secret_free', true
+            )
+            from selected_tossinvest_readonly_sync
+        ),
+        json_build_object(
+            'status', 'missing',
+            'latest_status', 'missing',
+            'portfolio_name', 'Toss Real Readonly',
+            'base_currency', 'KRW',
+            'buying_power', '[]'::json,
+            'sellable_quantities', '[]'::json,
+            'sellable_quantity_count', 0,
+            'commission_summary', '[]'::json,
+            'submit_adapter_status', 'disabled_stub',
+            'order_submit_attempted', false,
+            'submitted_to_broker', false,
+            'broker_submit_allowed', false,
+            'automatic_order_allowed', false,
+            'order_boundary', 'read_only_no_order',
+            'secret_free', true
         )
     ),
     'audit_summary',
@@ -15656,6 +15773,48 @@ def _build_trading_risk_budget_guardrail_payload(guardrail: dict[str, Any]) -> d
     }
 
 
+def _build_tossinvest_order_readiness_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "status": str(payload.get("status") or "missing"),
+        "latest_status": str(payload.get("latest_status") or "missing"),
+        "latest_run_id": _opaque_id("pipeline-run", payload.get("latest_run_id"), None),
+        "finished_at": _timestamp(payload.get("finished_at")),
+        "portfolio_name": str(payload.get("portfolio_name") or "Toss Real Readonly"),
+        "base_currency": str(payload.get("base_currency") or "KRW").upper(),
+        "buying_power": [
+            {
+                "currency": str(item.get("currency") or "").upper(),
+                "cash_buying_power": _number(item.get("cash_buying_power")),
+            }
+            for item in _as_list(payload.get("buying_power"))
+        ],
+        "sellable_quantities": [
+            {
+                "symbol": str(item.get("symbol") or "").upper(),
+                "sellable_quantity": _number(item.get("sellable_quantity")),
+            }
+            for item in _as_list(payload.get("sellable_quantities"))
+        ],
+        "sellable_quantity_count": int(_safe_number(payload.get("sellable_quantity_count")) or 0),
+        "commission_summary": [
+            {
+                "market_country": str(item.get("market_country") or item.get("marketCountry") or "").upper(),
+                "commission_rate": _number(item.get("commission_rate") or item.get("commissionRate")),
+                "valid_from": str(item.get("valid_from") or item.get("validFrom") or ""),
+                "valid_until": str(item.get("valid_until") or item.get("validUntil") or ""),
+            }
+            for item in _as_list(payload.get("commission_summary"))
+        ],
+        "submit_adapter_status": str(payload.get("submit_adapter_status") or "disabled_stub"),
+        "order_submit_attempted": payload.get("order_submit_attempted") is True,
+        "submitted_to_broker": payload.get("submitted_to_broker") is True,
+        "broker_submit_allowed": False,
+        "automatic_order_allowed": False,
+        "order_boundary": "read_only_no_order",
+        "secret_free": True,
+    }
+
+
 def _build_benchmark_rebalance_candidate_review_payload(
     guardrail: dict[str, Any],
     *,
@@ -16647,6 +16806,34 @@ def _build_cross_asset_market_regime_payload(payload: dict[str, Any]) -> dict[st
             payload.get("next_action")
             or "cross-asset 지표 registry, observation ingest, regime snapshot, 뉴스 linkage를 순서대로 실행한다."
         ),
+    }
+
+
+def _build_tossinvest_readonly_sync_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    status = str(payload.get("status") or "missing")
+    missing_env_vars = [str(item) for item in _as_list_or_scalars(payload.get("missing_env_vars"))]
+    return {
+        "status": status,
+        "latest_status": str(payload.get("latest_status") or status),
+        "latest_run_id": _opaque_id("pipeline-run", payload.get("latest_run_id"), None),
+        "finished_at": _timestamp(payload.get("finished_at")),
+        "portfolio_name": str(payload.get("portfolio_name") or "Toss Real Readonly"),
+        "base_currency": str(payload.get("base_currency") or "KRW").upper(),
+        "credentials_configured": payload.get("credentials_configured") is True,
+        "account_selection_status": str(payload.get("account_selection_status") or "missing"),
+        "holding_count": int(_safe_number(payload.get("holding_count")) or 0),
+        "currency_summary": _as_dict(payload.get("currency_summary")),
+        "fx_rate": _as_dict(payload.get("fx_rate")),
+        "unresolved_exchange_mapping_count": int(
+            _safe_number(payload.get("unresolved_exchange_mapping_count")) or 0
+        ),
+        "missing_env_vars": missing_env_vars,
+        "attention_required": status in {"missing", "missing_credentials", "blocked_missing_credentials", "failed"},
+        "submit_adapter_status": str(payload.get("submit_adapter_status") or "disabled_stub"),
+        "broker_submit_allowed": False,
+        "automatic_order_allowed": False,
+        "order_boundary": "read_only_no_order",
+        "secret_free": True,
     }
 
 
@@ -20539,6 +20726,22 @@ def _build_position_payload(
         "symbol": symbol,
         "instrument_id": _opaque_id("instrument", position.get("instrument_id"), symbol.lower()),
         "weight": weight,
+        "base_currency": str(position.get("base_currency") or "USD").upper(),
+        "native_currency_code": str(
+            position.get("native_currency_code") or position.get("base_currency") or "USD"
+        ).upper(),
+        "market_price": _number(position.get("market_price")),
+        "market_value": _number(position.get("market_value")),
+        "market_price_native": _number(position.get("market_price_native")),
+        "market_value_native": _number(position.get("market_value_native")),
+        "cost_basis": _number(position.get("cost_basis")),
+        "cost_basis_native": _number(position.get("cost_basis_native")),
+        "unrealized_pnl": _number(position.get("unrealized_pnl")),
+        "unrealized_pnl_native": _number(position.get("unrealized_pnl_native")),
+        "fx_rate_to_base": _number(position.get("fx_rate_to_base")),
+        "fx_rate_provider": str(position.get("fx_rate_provider") or ""),
+        "fx_conversion_timestamp": str(position.get("fx_conversion_timestamp") or ""),
+        "currency_conversion_note": str(position.get("currency_conversion_note") or ""),
         "coverage_status": coverage_status,
         "active_thesis_id": _opaque_id("thesis", position.get("linked_thesis_id"), None)
         if position.get("linked_thesis_id") is not None
@@ -20553,6 +20756,43 @@ def _build_position_payload(
             max_single_position_weight=max_single_position_weight,
         ),
         "position_size_note": _position_size_note(position_size_status),
+    }
+
+
+def _build_portfolio_currency_conversion_payload(
+    *,
+    base_currency: str,
+    positions: list[dict[str, Any]],
+) -> dict[str, Any]:
+    native_currencies = sorted(
+        {
+            str(position.get("native_currency_code") or base_currency).upper()
+            for position in positions
+            if position.get("native_currency_code") or base_currency
+        }
+    )
+    fx_positions = [
+        position
+        for position in positions
+        if position.get("fx_rate_provider") or position.get("fx_rate_to_base")
+    ]
+    latest_timestamp = max(
+        (str(position.get("fx_conversion_timestamp") or "") for position in fx_positions),
+        default="",
+    )
+    providers = sorted(
+        {
+            str(position.get("fx_rate_provider"))
+            for position in fx_positions
+            if position.get("fx_rate_provider")
+        }
+    )
+    return {
+        "base_currency": base_currency.upper(),
+        "native_currencies": native_currencies,
+        "fx_converted_position_count": len(fx_positions),
+        "fx_rate_providers": providers,
+        "latest_fx_conversion_timestamp": latest_timestamp,
     }
 
 

@@ -2010,6 +2010,34 @@ class FakeLiveExecutor:
                             ],
                         },
                     },
+                    "tossinvest_order_readiness": {
+                        "status": "succeeded",
+                        "latest_status": "succeeded",
+                        "latest_run_id": 901,
+                        "finished_at": "2026-06-23T00:00:00+00:00",
+                        "portfolio_name": "Toss Real Readonly",
+                        "base_currency": "KRW",
+                        "buying_power": [
+                            {"currency": "KRW", "cash_buying_power": "1000000.00"},
+                            {"currency": "USD", "cash_buying_power": "100.00"},
+                        ],
+                        "sellable_quantities": [
+                            {"symbol": "005930", "sellable_quantity": "1"},
+                            {"symbol": "AAPL", "sellable_quantity": "2"},
+                        ],
+                        "sellable_quantity_count": 2,
+                        "commission_summary": [
+                            {"market_country": "KR", "commission_rate": "0.00015"},
+                            {"market_country": "US", "commission_rate": "0.0007"},
+                        ],
+                        "submit_adapter_status": "disabled_stub",
+                        "order_submit_attempted": False,
+                        "submitted_to_broker": False,
+                        "broker_submit_allowed": False,
+                        "automatic_order_allowed": False,
+                        "order_boundary": "read_only_no_order",
+                        "secret_free": True,
+                    },
                     "audit_summary": {
                         "intent_count": 3,
                         "blocked_count": 2,
@@ -4131,6 +4159,7 @@ class FakeLiveExecutor:
                 {
                     "portfolio_id": 3001,
                     "portfolio_name": "Long Term Paper",
+                    "base_currency": "USD",
                     "snapshot_date": "2024-11-01",
                     "measurement_end_date": "2024-12-02",
                     "position_count": 2,
@@ -4154,7 +4183,20 @@ class FakeLiveExecutor:
                             "instrument_id": 501,
                             "coverage_status": "covered",
                             "weight": "0.0500",
+                            "base_currency": "USD",
+                            "native_currency_code": "USD",
+                            "market_price": "222.9100",
                             "market_value": "2229.10",
+                            "market_price_native": "222.9100",
+                            "market_value_native": "2229.10",
+                            "cost_basis": "200.0000",
+                            "cost_basis_native": "200.0000",
+                            "unrealized_pnl": "229.10",
+                            "unrealized_pnl_native": "229.10",
+                            "fx_rate_to_base": "1.00000000",
+                            "fx_rate_provider": "",
+                            "fx_conversion_timestamp": "",
+                            "currency_conversion_note": "native_equals_base_currency",
                             "linked_thesis_id": 7001,
                             "thesis_title": "AAPL watch thesis via Annual Reporting",
                             "outcome_id": 8101,
@@ -4166,7 +4208,12 @@ class FakeLiveExecutor:
                             "instrument_id": 502,
                             "coverage_status": "missing_thesis",
                             "weight": "0.0300",
+                            "base_currency": "USD",
+                            "native_currency_code": "USD",
+                            "market_price": "99.5000",
                             "market_value": "298.50",
+                            "market_price_native": "99.5000",
+                            "market_value_native": "298.50",
                             "linked_thesis_id": None,
                             "thesis_title": None,
                             "outcome_id": None,
@@ -6403,6 +6450,9 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertIn("provider in ('codex_oauth', 'agents_sdk_openai')", sql)
         self.assertIn("active_recommendation_price_symbols", sql)
         self.assertIn("active_recommendation_price_freshness", sql)
+        self.assertIn("selected_tossinvest_readonly_sync", sql)
+        self.assertIn("tossinvest_readonly_sync", sql)
+        self.assertIn("disabled_stub", sql)
         self.assertIn("recovered_with_recent_failures", sql)
         self.assertIn("selected_portfolio_review_decision_history", sql)
         self.assertIn("portfolio_review_decision_history", sql)
@@ -7007,6 +7057,14 @@ class FrontendLiveAdapterTests(unittest.TestCase):
             payload["data"]["portfolio_risk_budget_guardrail"]["benchmark_drift"]["status"],
             "calculated",
         )
+        toss = payload["data"]["tossinvest_order_readiness"]
+        self.assertEqual(toss["submit_adapter_status"], "disabled_stub")
+        self.assertEqual(toss["base_currency"], "KRW")
+        self.assertEqual(toss["buying_power"][0]["currency"], "KRW")
+        self.assertEqual(toss["buying_power"][0]["cash_buying_power"], 1000000.0)
+        self.assertEqual(toss["sellable_quantities"][1]["symbol"], "AAPL")
+        self.assertFalse(toss["broker_submit_allowed"])
+        self.assertFalse(toss["submitted_to_broker"])
         review = payload["data"]["portfolio_risk_budget_guardrail"]["rebalance_candidate_review"]
         self.assertEqual(review["status"], "review_required")
         self.assertEqual(review["candidate_count"], 4)
@@ -7033,6 +7091,9 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertIn("trading.paper_validation_run", sql)
         self.assertIn("trading.order_intent_audit", sql)
         self.assertIn("ai.eval_run", sql)
+        self.assertIn("tossinvest_readonly_sync", sql)
+        self.assertIn("tossinvest_order_readiness", sql)
+        self.assertIn("disabled_stub", sql)
         self.assertIn("portfolio_risk_budget_guardrail", sql)
         self.assertIn("portfolio-risk-budget-guardrail-v1", sql)
         self.assertIn("benchmark_drift", sql)
@@ -8052,6 +8113,14 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertEqual(payload["data"]["summary"]["missing_thesis_weight"], 0.03)
         self.assertEqual(payload["data"]["summary"]["cash_weight"], 0.92)
         self.assertEqual(payload["data"]["summary"]["weight_coverage_ratio"], 0.625)
+        self.assertEqual(payload["data"]["base_currency"], "USD")
+        self.assertEqual(payload["data"]["currency_conversion"]["base_currency"], "USD")
+        self.assertEqual(payload["data"]["currency_conversion"]["native_currencies"], ["USD"])
+        self.assertEqual(payload["data"]["positions"][0]["base_currency"], "USD")
+        self.assertEqual(payload["data"]["positions"][0]["native_currency_code"], "USD")
+        self.assertEqual(payload["data"]["positions"][0]["market_value"], 2229.1)
+        self.assertEqual(payload["data"]["positions"][0]["market_value_native"], 2229.1)
+        self.assertEqual(payload["data"]["positions"][0]["currency_conversion_note"], "native_equals_base_currency")
         self.assertEqual(payload["data"]["allocation_policy"]["policy_name"], "global_default_long_term_guardrail")
         self.assertEqual(payload["data"]["allocation_policy"]["max_single_position_weight"], 0.25)
         self.assertEqual(payload["data"]["allocation_policy"]["max_sector_weight"], 0.45)

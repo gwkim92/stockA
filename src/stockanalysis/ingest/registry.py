@@ -5,6 +5,7 @@ from stockanalysis.ingest.sources.base import IngestSource
 from stockanalysis.ingest.sources.fred import FredSource
 from stockanalysis.ingest.sources.rss_news import RssNewsSource
 from stockanalysis.ingest.sources.sec import SecSource
+from stockanalysis.ingest.sources.tossinvest import TossInvestSource
 from stockanalysis.ingest.sources.twelve_data import TwelveDataSource
 
 
@@ -17,6 +18,7 @@ def build_registry() -> dict[str, IngestSource]:
             RssNewsSource(),
             AlphaVantageSource(),
             TwelveDataSource(),
+            TossInvestSource(),
         )
     }
 

@@ -22,15 +22,21 @@ class HttpRequest:
     method: str
     url: str
     headers: dict[str, str] = field(default_factory=dict)
+    body: bytes | None = None
     timeout_seconds: float = 30.0
 
     def as_dict(self) -> dict[str, Any]:
+        redacted_headers = {
+            key: ("<redacted>" if key.lower() in {"authorization", "x-tossinvest-account"} else value)
+            for key, value in self.headers.items()
+        }
         return {
             "source_name": self.source_name,
             "dataset_name": self.dataset_name,
             "method": self.method,
             "url": self.url,
-            "headers": self.headers,
+            "headers": redacted_headers,
+            "body_length": len(self.body) if self.body is not None else 0,
             "timeout_seconds": self.timeout_seconds,
         }
 

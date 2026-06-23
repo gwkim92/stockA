@@ -229,6 +229,11 @@ from stockanalysis.operations.scheduler_activation_execution_final_preflight imp
 from stockanalysis.operations.scheduler_activation_execution import (
     build_data_operations_live_scheduler_host_activation_execution_report,
 )
+from stockanalysis.operations.tossinvest_readonly_sync import (
+    DEFAULT_TOSSINVEST_BASE_CURRENCY,
+    DEFAULT_TOSSINVEST_PORTFOLIO_NAME,
+    run_tossinvest_readonly_sync,
+)
 from stockanalysis.operations.server_scheduler_invocation import (
     DEFAULT_SERVER_SCHEDULER_JOB_NAME,
     DEFAULT_SERVER_SCHEDULER_SCHEDULE,
@@ -306,6 +311,21 @@ def build_parser() -> argparse.ArgumentParser:
     alert_destination_test.add_argument("--output")
     alert_destination_test.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
     alert_destination_test.set_defaults(handler=_handle_alert_destination_test_run)
+
+    tossinvest_readonly_sync = subparsers.add_parser(
+        "tossinvest-readonly-sync-run",
+        help="Run a secret-free TossInvest read-only account/FX/position sync.",
+    )
+    tossinvest_readonly_sync.add_argument("--env-file")
+    tossinvest_readonly_sync.add_argument("--portfolio-name", default=DEFAULT_TOSSINVEST_PORTFOLIO_NAME)
+    tossinvest_readonly_sync.add_argument("--base-currency", default=DEFAULT_TOSSINVEST_BASE_CURRENCY)
+    tossinvest_readonly_sync.add_argument("--as-of-date")
+    tossinvest_readonly_sync.add_argument("--fixture-json")
+    tossinvest_readonly_sync.add_argument("--dry-run", action="store_true")
+    tossinvest_readonly_sync.add_argument("--execute", action="store_true")
+    tossinvest_readonly_sync.add_argument("--output")
+    tossinvest_readonly_sync.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
+    tossinvest_readonly_sync.set_defaults(handler=_handle_tossinvest_readonly_sync_run)
 
     ai_agent_registry = subparsers.add_parser(
         "ai-agent-registry-report",
@@ -1871,6 +1891,40 @@ def _handle_alert_destination_test_run(args: argparse.Namespace, *, stdout: Text
     else:
         print_json(report, stdout=stdout, sort_keys=False)
     return 0 if report.get("last_test_status") in {"passed", "not_executed"} else 1
+
+
+def _handle_tossinvest_readonly_sync_run(args: argparse.Namespace, *, stdout: TextIO) -> int:
+    env_mapping = _load_optional_env_mapping(args.env_file, repo_root=args.repo_root) or os.environ
+    fixture_json_path = None
+    if args.fixture_json:
+        fixture_json_path = str(
+            resolve_existing_file(
+                args.fixture_json,
+                label="TossInvest readonly fixture JSON",
+                repo_root=args.repo_root,
+                require_repo_outside=False,
+            )
+        )
+    report = run_tossinvest_readonly_sync(
+        config=RuntimeConfig.from_mapping(env_mapping),
+        portfolio_name=args.portfolio_name,
+        base_currency=args.base_currency,
+        as_of_date=date.fromisoformat(args.as_of_date) if args.as_of_date else None,
+        fixture_json_path=fixture_json_path,
+        execute=bool(args.execute),
+        dry_run=bool(args.dry_run or not args.execute),
+    )
+    if args.output:
+        output_path = resolve_output_path(
+            args.output,
+            label="TossInvest readonly sync output",
+            repo_root=args.repo_root,
+            require_repo_outside=True,
+        )
+        write_json_report(report, output_path=output_path, stdout=stdout)
+    else:
+        print_json(report, stdout=stdout, sort_keys=False)
+    return 0 if str(report.get("status")) not in {"failed", "blocked_missing_credentials"} else 1
 
 
 def _handle_ai_agent_registry_report(args: argparse.Namespace, *, stdout: TextIO) -> int:
