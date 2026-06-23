@@ -133,10 +133,28 @@ class MarketPriceTests(unittest.TestCase):
         self.assertEqual(result.bars[1].adjusted_close, result.bars[1].close)
         self.assertEqual(result.price_adjustment_mode, "split_adjusted_provider")
 
+    def test_load_market_price_sync_result_from_tossinvest_candles_payload(self) -> None:
+        result = load_market_price_sync_result(
+            "AAPL",
+            config=type("Config", (), {})(),
+            prices_json_path=str(FIXTURES_DIR / "tossinvest_candles_1d_AAPL.json"),
+            provider="tossinvest",
+        )
+
+        self.assertEqual(result.symbol, "AAPL")
+        self.assertEqual(result.provider, "tossinvest")
+        self.assertEqual(len(result.bars), 2)
+        self.assertEqual(result.bars[0].trade_date.isoformat(), "2026-03-24")
+        self.assertEqual(result.bars[0].close, Decimal("185.10"))
+        self.assertEqual(result.bars[1].volume, 3521000)
+        self.assertEqual(result.bars[1].adjusted_close, result.bars[1].close)
+        self.assertEqual(result.price_adjustment_mode, "adjusted_provider")
+
     def test_resolve_market_price_provider_accepts_aliases(self) -> None:
         self.assertEqual(resolve_market_price_provider("twelvedata"), "twelve_data")
         self.assertEqual(resolve_market_price_provider("12data"), "twelve_data")
         self.assertEqual(resolve_market_price_provider("av"), "alpha_vantage")
+        self.assertEqual(resolve_market_price_provider("toss"), "tossinvest")
 
     def test_load_market_price_sync_result_uses_free_daily_endpoint_by_default(self) -> None:
         calls: list[str] = []
@@ -219,6 +237,39 @@ class MarketPriceTests(unittest.TestCase):
         self.assertIn("interval=1day", calls[0])
         self.assertIn("outputsize=120", calls[0])
         self.assertEqual(result.provider, "twelve_data")
+
+    def test_load_market_price_sync_result_uses_tossinvest_candles_endpoint(self) -> None:
+        calls: list[object] = []
+
+        def fake_execute_request(request):
+            calls.append(request)
+            if request.dataset_name == "oauth_token":
+                return FetchResponse(
+                    status_code=200,
+                    content_type="application/json",
+                    body=json.dumps({"access_token": "access-token-test", "token_type": "Bearer"}).encode("utf-8"),
+                )
+            return FetchResponse(
+                status_code=200,
+                content_type="application/json",
+                body=(FIXTURES_DIR / "tossinvest_candles_1d_AAPL.json").read_bytes(),
+            )
+
+        config = type(
+            "Config",
+            (),
+            {"resolve": lambda self, env_name, required: "toss-secret-placeholder"},
+        )()
+        with patch("stockanalysis.ingest.market.price.execute_request", side_effect=fake_execute_request):
+            result = load_market_price_sync_result("AAPL", config=config, provider="tossinvest", outputsize="120")
+
+        self.assertEqual(len(calls), 2)
+        self.assertIn("/oauth2/token", calls[0].url)
+        self.assertIn("/api/v1/candles", calls[1].url)
+        self.assertIn("interval=1d", calls[1].url)
+        self.assertIn("count=120", calls[1].url)
+        self.assertEqual(calls[1].as_dict()["headers"]["Authorization"], "<redacted>")
+        self.assertEqual(result.provider, "tossinvest")
 
     def test_render_instrument_lookup_by_symbol_sql(self) -> None:
         sql = render_instrument_lookup_by_symbol_sql("AAPL")
@@ -436,6 +487,45 @@ class MarketPriceTests(unittest.TestCase):
         self.assertEqual(summary["results"][0]["reason"], "fresh_price_data_exists")
         self.assertEqual(summary["results"][0]["latest_trade_date"], "2026-05-15")
         self.assertEqual(summary["results"][1]["status"], "succeeded")
+
+    def test_run_market_price_batch_upsert_reuses_tossinvest_oauth_token(self) -> None:
+        executor = FakeExecutor(run_ids=[701, 702])
+        calls: list[str] = []
+
+        def fake_execute_request(request):
+            calls.append(request.dataset_name)
+            if request.dataset_name == "oauth_token":
+                return FetchResponse(
+                    status_code=200,
+                    content_type="application/json",
+                    body=json.dumps({"access_token": "access-token-test", "token_type": "Bearer"}).encode("utf-8"),
+                )
+            return FetchResponse(
+                status_code=200,
+                content_type="application/json",
+                body=(FIXTURES_DIR / "tossinvest_candles_1d_AAPL.json").read_bytes(),
+            )
+
+        config = type(
+            "Config",
+            (),
+            {"resolve": lambda self, env_name, required: "toss-secret-placeholder"},
+        )()
+        with patch("stockanalysis.ingest.market.price.execute_request", side_effect=fake_execute_request):
+            summary = run_market_price_batch_upsert(
+                ["AAPL", "MSFT"],
+                config=config,
+                provider="tossinvest",
+                outputsize="200",
+                max_requests_per_run=2,
+                executor=executor,
+            )
+
+        self.assertEqual(calls, ["oauth_token", "candles", "candles"])
+        self.assertEqual(summary["provider"], "tossinvest")
+        self.assertEqual(summary["provider_request_count"], 2)
+        self.assertEqual(summary["provider_auth_request_count"], 1)
+        self.assertEqual(summary["succeeded_symbol_count"], 2)
 
 
 def _market_price_result(symbol: str) -> MarketPriceSyncResult:

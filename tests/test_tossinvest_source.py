@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import unittest
+from urllib.parse import parse_qs, urlparse
 
 from stockanalysis.ingest.config import RuntimeConfig
 from stockanalysis.ingest.sources.tossinvest import TossInvestSource, sanitized_tossinvest_request_dict
@@ -47,6 +48,49 @@ class TossInvestSourceTests(unittest.TestCase):
         self.assertEqual(sanitized["headers"]["Authorization"], "<redacted>")
         self.assertEqual(sanitized["headers"]["X-Tossinvest-Account"], "<redacted>")
         self.assertEqual(request.as_dict()["headers"]["Authorization"], "<redacted>")
+
+    def test_candles_request_supports_daily_chart_params_and_redacts_token(self) -> None:
+        source = TossInvestSource()
+        request = source.build_request(
+            "candles",
+            {
+                "access_token": "access-token-test",
+                "symbol": "aapl",
+                "interval": "1d",
+                "count": "200",
+                "before": "2026-03-25T09:00:00+09:00",
+                "adjusted": "true",
+            },
+            config=RuntimeConfig(),
+            require_credentials=False,
+        )
+
+        parsed = urlparse(request.url)
+        query = parse_qs(parsed.query)
+        self.assertEqual(request.method, "GET")
+        self.assertEqual(parsed.path, "/api/v1/candles")
+        self.assertEqual(query["symbol"], ["AAPL"])
+        self.assertEqual(query["interval"], ["1d"])
+        self.assertEqual(query["count"], ["200"])
+        self.assertEqual(query["adjusted"], ["true"])
+        self.assertEqual(query["before"], ["2026-03-25T09:00:00+09:00"])
+        dumped = json.dumps(sanitized_tossinvest_request_dict(request), sort_keys=True)
+        self.assertNotIn("access-token-test", dumped)
+        self.assertEqual(request.as_dict()["headers"]["Authorization"], "<redacted>")
+
+    def test_candles_request_rejects_unsupported_interval(self) -> None:
+        source = TossInvestSource()
+        with self.assertRaisesRegex(ValueError, "interval"):
+            source.build_request(
+                "candles",
+                {
+                    "access_token": "access-token-test",
+                    "symbol": "AAPL",
+                    "interval": "5m",
+                },
+                config=RuntimeConfig(),
+                require_credentials=False,
+            )
 
 
 if __name__ == "__main__":

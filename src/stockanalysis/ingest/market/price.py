@@ -54,6 +54,12 @@ class _ResolvedInstrument:
     instrument_name: str
 
 
+@dataclass(frozen=True)
+class _MarketPriceProviderContext:
+    tossinvest_access_token: str | None = None
+    auth_request_count: int = 0
+
+
 def load_market_price_sync_result(
     symbol: str,
     *,
@@ -61,6 +67,7 @@ def load_market_price_sync_result(
     prices_json_path: str | None = None,
     outputsize: str | None = None,
     provider: str | None = None,
+    provider_context: _MarketPriceProviderContext | None = None,
 ) -> MarketPriceSyncResult:
     resolved_provider = resolve_market_price_provider(provider)
     payload = _load_prices_payload(
@@ -69,6 +76,7 @@ def load_market_price_sync_result(
         json_path=prices_json_path,
         outputsize=outputsize,
         provider=resolved_provider,
+        provider_context=provider_context,
     )
     return normalize_market_price_payload(symbol, payload, provider=resolved_provider)
 
@@ -83,6 +91,8 @@ def normalize_market_price_payload(
         return normalize_twelve_data_time_series_payload(symbol, payload)
     if provider == "alpha_vantage":
         return normalize_daily_adjusted_payload(symbol, payload)
+    if provider == "tossinvest":
+        return normalize_tossinvest_candles_payload(symbol, payload)
     raise ValueError(f"Unsupported market price provider `{provider}`.")
 
 
@@ -165,6 +175,50 @@ def normalize_twelve_data_time_series_payload(symbol: str, payload: dict[str, An
     )
 
 
+def normalize_tossinvest_candles_payload(symbol: str, payload: dict[str, Any]) -> MarketPriceSyncResult:
+    error = payload.get("error")
+    if isinstance(error, dict):
+        code = str(error.get("code") or "unknown")
+        message = str(error.get("message") or "unknown TossInvest error")
+        raise ValueError(f"TossInvest candles payload for `{symbol}` returned error `{code}`: {message}")
+
+    result = payload.get("result")
+    if not isinstance(result, dict):
+        result = payload
+    candles = result.get("candles") if isinstance(result, dict) else None
+    if not isinstance(candles, list) or not candles:
+        raise ValueError(f"TossInvest candles payload for `{symbol}` does not contain `result.candles`.")
+
+    bars: list[MarketDailyPriceBarRecord] = []
+    for raw_item in candles:
+        if not isinstance(raw_item, dict):
+            raise ValueError(f"TossInvest candles payload for `{symbol}` contains a non-object candle.")
+        timestamp_text = str(raw_item.get("timestamp", "")).strip()
+        try:
+            close = _as_decimal(raw_item["closePrice"])
+            bars.append(
+                MarketDailyPriceBarRecord(
+                    trade_date=_parse_iso_trade_date(timestamp_text),
+                    open=_as_decimal(raw_item["openPrice"]),
+                    high=_as_decimal(raw_item["highPrice"]),
+                    low=_as_decimal(raw_item["lowPrice"]),
+                    close=close,
+                    adjusted_close=close,
+                    volume=int(str(raw_item.get("volume", "0") or "0")),
+                )
+            )
+        except (KeyError, ValueError, InvalidOperation) as exc:
+            raise ValueError(f"Invalid TossInvest daily candle row for `{symbol}` at `{timestamp_text}`") from exc
+
+    bars.sort(key=lambda record: record.trade_date)
+    return MarketPriceSyncResult(
+        symbol=symbol.upper(),
+        bars=tuple(bars),
+        price_adjustment_mode="adjusted_provider",
+        provider="tossinvest",
+    )
+
+
 def run_market_price_upsert(
     symbol: str,
     *,
@@ -173,14 +227,19 @@ def run_market_price_upsert(
     outputsize: str | None = None,
     provider: str | None = None,
     executor: PsqlCommandExecutor | None = None,
+    provider_context: _MarketPriceProviderContext | None = None,
 ) -> dict[str, object]:
     resolved_provider = resolve_market_price_provider(provider)
+    resolved_context = provider_context
+    if prices_json_path is None and resolved_context is None:
+        resolved_context = _build_market_price_provider_context(resolved_provider, config=config)
     result = load_market_price_sync_result(
         symbol,
         config=config,
         prices_json_path=prices_json_path,
         outputsize=outputsize,
         provider=resolved_provider,
+        provider_context=resolved_context,
     )
     sql_executor = executor or PsqlCommandExecutor.from_config(config)
     instrument = resolve_instrument_for_symbol(result.symbol, executor=sql_executor)
@@ -213,6 +272,7 @@ def run_market_price_upsert(
     summary["run_id"] = run_id
     summary["instrument_id"] = instrument.instrument_id
     summary["instrument_symbol"] = instrument.primary_symbol
+    summary["provider_auth_request_count"] = resolved_context.auth_request_count if resolved_context else 0
     return summary
 
 
@@ -248,6 +308,8 @@ def run_market_price_batch_upsert(
     provider_request_count = 0
     throttle_sleep_count = 0
     resolved_freshness_date = freshness_date or date.today()
+    provider_context: _MarketPriceProviderContext | None = None
+    provider_auth_request_count = 0
 
     for symbol in requested_symbols:
         if skip_if_fresh:
@@ -283,6 +345,9 @@ def run_market_price_batch_upsert(
             )
             continue
         if uses_provider_request:
+            if provider_context is None:
+                provider_context = _build_market_price_provider_context(resolved_provider, config=config)
+                provider_auth_request_count += provider_context.auth_request_count
             if provider_request_count > 0 and throttle_seconds > 0:
                 sleeper(throttle_seconds)
                 throttle_sleep_count += 1
@@ -295,6 +360,7 @@ def run_market_price_batch_upsert(
                 outputsize=outputsize,
                 provider=resolved_provider,
                 executor=sql_executor,
+                provider_context=provider_context if uses_provider_request else None,
             )
         except Exception as exc:
             failed += 1
@@ -325,6 +391,7 @@ def run_market_price_batch_upsert(
         "skipped_symbol_count": skipped,
         "total_bar_count": total_bars,
         "provider_request_count": provider_request_count,
+        "provider_auth_request_count": provider_auth_request_count,
         "max_requests_per_run": max_requests_per_run,
         "throttle_seconds": throttle_seconds,
         "throttle_sleep_count": throttle_sleep_count,
@@ -462,9 +529,28 @@ def _load_prices_payload(
     json_path: str | None,
     outputsize: str | None,
     provider: str,
+    provider_context: _MarketPriceProviderContext | None = None,
 ) -> dict[str, Any]:
     if json_path:
         return json.loads(Path(json_path).read_text(encoding="utf-8"))
+    if provider == "tossinvest":
+        context = provider_context or _build_market_price_provider_context(provider, config=config)
+        if not context.tossinvest_access_token:
+            raise ValueError("TossInvest market price provider did not receive an access token.")
+        tossinvest = get_source("tossinvest")
+        request = tossinvest.build_request(
+            "candles",
+            {
+                "access_token": context.tossinvest_access_token,
+                "symbol": symbol,
+                "interval": "1d",
+                "count": _resolve_tossinvest_candle_count(outputsize),
+                "adjusted": "true",
+            },
+            config=config,
+            require_credentials=True,
+        )
+        return execute_request(request).as_json()
     if provider == "twelve_data":
         twelve_data = get_source("twelve_data")
         params = {"symbol": symbol}
@@ -511,10 +597,22 @@ def _as_decimal(value: object) -> Decimal:
     return Decimal(str(value))
 
 
+def _parse_iso_trade_date(value: str) -> date:
+    cleaned = value.strip()
+    if len(cleaned) < 10:
+        raise ValueError("TossInvest candle timestamp must include an ISO date.")
+    return date.fromisoformat(cleaned[:10])
+
+
 def _resolve_fixture_path(symbol: str, fixtures_dir: str | None, *, provider: str) -> str | None:
     if not fixtures_dir:
         return None
     base_dir = Path(fixtures_dir)
+    if provider == "tossinvest":
+        fixture_path = base_dir / f"tossinvest_candles_1d_{symbol.upper()}.json"
+        if fixture_path.exists():
+            return str(fixture_path)
+        raise FileNotFoundError(f"Missing fixture file: {fixture_path}")
     if provider == "twelve_data":
         fixture_path = base_dir / f"twelve_data_time_series_daily_{symbol.upper()}.json"
         if fixture_path.exists():
@@ -547,11 +645,47 @@ def resolve_market_price_provider(provider: str | None) -> str:
         return "alpha_vantage"
     if value in {"twelve_data", "twelvedata", "12data"}:
         return "twelve_data"
+    if value in {"tossinvest", "toss_invest", "toss"}:
+        return "tossinvest"
     raise ValueError(f"Unsupported market price provider `{provider or value}`.")
 
 
 def _resolve_market_price_provider(provider: str | None) -> str:
     return resolve_market_price_provider(provider)
+
+
+def _build_market_price_provider_context(provider: str, *, config: RuntimeConfig) -> _MarketPriceProviderContext:
+    if provider != "tossinvest":
+        return _MarketPriceProviderContext()
+    tossinvest = get_source("tossinvest")
+    request = tossinvest.build_request(
+        "oauth_token",
+        {},
+        config=config,
+        require_credentials=True,
+    )
+    payload = execute_request(request).as_json()
+    access_token = str(payload.get("access_token") or "").strip()
+    if not access_token:
+        raise ValueError("TossInvest OAuth response did not include access_token.")
+    return _MarketPriceProviderContext(tossinvest_access_token=access_token, auth_request_count=1)
+
+
+def _resolve_tossinvest_candle_count(outputsize: str | None) -> str:
+    if outputsize is None or not outputsize.strip():
+        return "200"
+    normalized = outputsize.strip().lower()
+    if normalized == "compact":
+        return "100"
+    if normalized == "full":
+        return "200"
+    try:
+        count = int(normalized)
+    except ValueError as exc:
+        raise ValueError("TossInvest candle outputsize must be compact, full, or an integer between 1 and 200.") from exc
+    if count < 1 or count > 200:
+        raise ValueError("TossInvest candle outputsize must be between 1 and 200.")
+    return str(count)
 
 
 def _create_pipeline_run(

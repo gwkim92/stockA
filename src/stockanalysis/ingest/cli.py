@@ -287,7 +287,7 @@ def build_parser() -> argparse.ArgumentParser:
     market_price_upsert.add_argument("--outputsize", help="Optional provider output size such as compact/full or bar count.")
     market_price_upsert.add_argument(
         "--provider",
-        choices=("alpha_vantage", "twelve_data"),
+        choices=("alpha_vantage", "twelve_data", "tossinvest"),
         default="alpha_vantage",
         help="Market price provider. Defaults to alpha_vantage.",
     )
@@ -301,7 +301,7 @@ def build_parser() -> argparse.ArgumentParser:
     market_price_batch_upsert.add_argument("--outputsize", help="Optional provider output size such as compact/full or bar count.")
     market_price_batch_upsert.add_argument(
         "--provider",
-        choices=("alpha_vantage", "twelve_data"),
+        choices=("alpha_vantage", "twelve_data", "tossinvest"),
         default="alpha_vantage",
         help="Market price provider. Defaults to alpha_vantage.",
     )
@@ -358,7 +358,7 @@ def build_parser() -> argparse.ArgumentParser:
     market_price_universe_backfill.add_argument("--outputsize", help="Optional provider output size such as compact/full or bar count.")
     market_price_universe_backfill.add_argument(
         "--provider",
-        choices=("alpha_vantage", "twelve_data"),
+        choices=("alpha_vantage", "twelve_data", "tossinvest"),
         default="alpha_vantage",
         help="Market price provider. Defaults to alpha_vantage.",
     )

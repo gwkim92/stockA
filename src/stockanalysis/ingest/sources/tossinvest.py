@@ -61,6 +61,13 @@ class TossInvestSource(IngestSource):
                 required_params=("access_token", "symbols"),
             ),
             DatasetDefinition(
+                name="candles",
+                description="Read-only OHLCV candles for 1-minute or daily bars.",
+                documentation_url=TOSSINVEST_OPENAPI_DOC_URL,
+                required_params=("access_token", "symbol", "interval"),
+                optional_params=("count", "before", "adjusted"),
+            ),
+            DatasetDefinition(
                 name="buying_power",
                 description="Read-only cash buying power by currency.",
                 documentation_url=TOSSINVEST_OPENAPI_DOC_URL,
@@ -137,6 +144,27 @@ class TossInvestSource(IngestSource):
             return self._get("/api/v1/stocks", headers=headers, query={"symbols": params["symbols"]}, dataset_name=dataset_name)
         if dataset_name == "prices":
             return self._get("/api/v1/prices", headers=headers, query={"symbols": params["symbols"]}, dataset_name=dataset_name)
+        if dataset_name == "candles":
+            interval = params["interval"].strip()
+            if interval not in {"1m", "1d"}:
+                raise ValueError("TossInvest candles interval must be one of: 1m, 1d")
+            query = {
+                "symbol": params["symbol"].strip().upper(),
+                "interval": interval,
+            }
+            if params.get("count"):
+                count = int(params["count"])
+                if count < 1 or count > 200:
+                    raise ValueError("TossInvest candles count must be between 1 and 200")
+                query["count"] = str(count)
+            if params.get("before"):
+                query["before"] = params["before"]
+            if params.get("adjusted"):
+                adjusted = params["adjusted"].strip().lower()
+                if adjusted not in {"true", "false"}:
+                    raise ValueError("TossInvest candles adjusted must be true or false")
+                query["adjusted"] = adjusted
+            return self._get("/api/v1/candles", headers=headers, query=query, dataset_name=dataset_name)
         if dataset_name == "buying_power":
             return self._get(
                 "/api/v1/buying-power",
