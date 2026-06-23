@@ -2,7 +2,7 @@
 
 ## Status
 
-- completed locally: remaining TossInvest read-only endpoint builders, bounded summaries, and frontend read-model exposure are implemented and verified locally.
+- completed and deployed to EC2: remaining TossInvest read-only endpoint builders, bounded summaries, frontend read-model exposure, and EC2 smoke are implemented and verified.
 
 ## Current Decisions
 
@@ -23,12 +23,35 @@
 - passed: `bash scripts/verify_tossinvest_remaining_readonly_endpoints.sh`
 - passed: `bash scripts/verify_tossinvest_readonly_currency_foundation.sh`
 - passed: `PYTHONPATH=src /tmp/stockanalysis-tossinvest-venv/bin/python -m unittest discover -s tests` (`1255` tests)
+- passed on EC2 after `git pull --ff-only origin develop`: `PYTHON_BIN=/opt/stockanalysis/venv/bin/python bash scripts/verify_tossinvest_remaining_readonly_endpoints.sh`
+- passed on EC2 after `git pull --ff-only origin develop`: `PYTHON_BIN=/opt/stockanalysis/venv/bin/python bash scripts/verify_tossinvest_readonly_currency_foundation.sh`
+- passed on EC2 live Toss execute: `tossinvest-readonly-sync-run --env-file /opt/stockanalysis/runtime/data-operations.env --execute`
+  - `run_id=7055`
+  - `status=succeeded`
+  - `market_calendars.KR.status=loaded`
+  - `market_calendars.US.status=loaded`
+  - `stock_warning_symbol_count=3`
+  - `market_microdata_symbol_count=3`
+  - `order_history.status=loaded`
+  - `order_history.open_order_count=0`
+  - `order_history.closed_order_count=20`
+  - `order_history.order_detail_loaded_count=5`
+  - `broker_submit_allowed=false`
+  - `submitted_to_broker=false`
+  - `secret_free=true`
+- passed on EC2 API smoke:
+  - `/api/data-health.data.tossinvest_readonly_sync.latest_run_id=pipeline-run-7055`
+  - `/api/trading/readiness.data.tossinvest_order_readiness.latest_run_id=pipeline-run-7055`
+  - both payloads expose stock warnings, market microdata, and sanitized order history summaries.
+- passed on EC2 route smoke: `http://127.0.0.1:3000/data-health` and `http://127.0.0.1:3000/trading-readiness` returned `200`.
+- checked EC2 ports after service restart: `127.0.0.1:3000` and `127.0.0.1:8787` listen locally; `13000` is not listening.
 
 ## Residual Risk
 
-- Live Toss rate-limit behavior for these additional endpoint groups needs EC2 smoke after deploy.
+- Live Toss rate-limit behavior for a larger holding set still needs observation before scheduler activation.
 - Production scheduler and market-data default provider remain unchanged.
+- Full raw orderbook/trades/order history archival remains intentionally out of scope; this task exposes bounded read-only summaries only.
 
 ## Exact Next Step
 
-- exact next step: Deploy to EC2, run `tossinvest-readonly-sync-run --execute`, verify `/api/data-health` and `/api/trading/readiness` expose the new read-only summaries, and confirm no order submission path is enabled.
+- exact next step: If the user wants all Toss market data to replace existing providers, first add a provider comparison/budget pilot that measures rate limits, symbol coverage, freshness, and retry behavior without changing recommendation weights or order boundaries.
