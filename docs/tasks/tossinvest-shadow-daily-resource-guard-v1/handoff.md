@@ -1,9 +1,9 @@
 # tossinvest-shadow-daily-resource-guard-v1 Handoff
 
 ## Current Status
-- status: implemented_local_changes_focused_verification_passed_ec2_smoke_pending
-- in progress: local resource guard implementation is complete; EC2 reduced-batch smoke and timer activation remain pending.
-- current status: Implemented local code changes and focused verification passed. EC2 timer activation remains blocked until reduced-batch smoke passes after instance access is stable.
+- status: completed_ec2_reduced_batch_smoke_passed_timer_activation_still_not_enabled
+- completed: Local resource guard implementation, GitHub push, EC2 deploy, reduced-batch Toss profile smoke, stale run cleanup, and route smoke are complete.
+- current status: Reduced TossInvest US shadow daily profile is deployed to EC2 and verified. Toss-specific systemd timers remain not installed/enabled, by design.
 
 ## Root Cause
 - `toss-candles-us-shadow-daily` used the expanded Toss US symbol universe in one run.
@@ -33,17 +33,23 @@
 - `PYTHONPATH=src python3 -m unittest tests.test_operating_data_orchestrator tests.test_data_operations_cadence tests.test_frontend_live_adapter.FrontendLiveAdapterTests.test_data_health_sql_uses_operations_cadence_registry`
 - `PYTHONPATH=src python3 -m unittest tests.test_tossinvest_market_data tests.test_operating_data_orchestrator tests.test_data_operations_cadence tests.test_frontend_live_adapter.FrontendLiveAdapterTests.test_data_health_sql_uses_operations_cadence_registry`
 - `git diff --check`
+- `PYTHONPATH=/Users/woody/ai/agent-work-harness/src python3 -m awh verify --repo . --task tossinvest-shadow-daily-resource-guard-v1`
+- EC2 deploy: `/opt/stockanalysis/app` fast-forwarded from `a70b0361` to `b10945ac`.
+- EC2 reduced Toss smoke: `operating-data-run --profile toss-candles-us-shadow-daily --execute` returned `run_status=completed`, `failed_step_count=0`.
+- EC2 Toss candle step: `run_id=7079`, requested `46`, selected `10`, `outputsize=30`, `candle_bar_count=300`, selected symbols `TLT/TSLA/XLB/XLC/XLE/XLF/XLI/XLK/XLP/XLRE`.
+- EC2 Toss comparison step: `run_id=7080`, requested `46`, selected `10`, `comparison_count=10`, `shadow_collecting_count=10`.
+- EC2 stale cleanup: `pipeline-run-7077` was `running` with `ended_at=null`; marked `failed` with orphaned cleanup reason after rerun succeeded.
+- EC2 route smoke: `http://127.0.0.1:3000/`, `http://127.0.0.1:13000/`, and `http://127.0.0.1:8787/__ready` returned `200`.
 
 ## Known Residuals
 - `PYTHONPATH=src python3 -m unittest tests.test_data_operations_cli` still has an unrelated local failure in `test_manual_host_scheduler_activation_preflight_command_writes_output`, returning `blocked_runtime_env_not_ready`.
-- Existing EC2 stale row such as `pipeline-run-7077` is not mutated by frontend code. It should now be surfaced as `stale_running`; direct cleanup can be done after SSH recovers.
-- Systemd timer should not be installed until EC2 smoke verifies the reduced Toss profile no longer harms sshd responsiveness.
+- Data-health expected jobs still collapse several Toss market-data jobs by shared `pipeline_name=tossinvest_market_data_sync`; latest Toss market-data run may display under a generic/neighbor Toss job label. This is visibility debt, not the resource-exhaustion root cause.
+- Toss-specific systemd timers were not installed/enabled. Reduced profile smoke passed, but timer activation should be a separate explicit operations step.
 
 ## Exact Next Step
-- exact next step: Restore EC2 SSH access if still timed out, deploy this change from `develop`, then run `stockanalysis-operations operating-data-run --profile toss-candles-us-shadow-daily --execute` once and confirm selected symbol count `10`, candle bar count near `10 * 30`, `failed_step_count=0`, and SSH remains responsive before enabling timers.
+- exact next step: Fix Toss data-health job label granularity by recording or deriving step/job identity for shared `tossinvest_market_data_sync` runs, then decide whether to install Toss-specific timers after another small-batch smoke window.
 
 ## Next EC2 Steps
-- Restore SSH access if still timed out.
-- Pull this commit on EC2 from `develop`.
-- Run `stockanalysis-operations operating-data-run --profile toss-candles-us-shadow-daily --execute` once and confirm selected symbol count `10`, candle bar count is bounded near `10 * 30`, `failed_step_count=0`, and SSH remains responsive during and after the run.
-- Only after that, install/enable the Toss timers.
+- Keep monitoring SSH responsiveness and load after the reduced profile.
+- Do not run full Toss US universe backfill on the daily profile.
+- If backfill is needed, implement a separate manual chunked backfill profile with explicit batch/window controls.

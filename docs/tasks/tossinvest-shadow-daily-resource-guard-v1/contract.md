@@ -32,6 +32,7 @@
   - `tests/test_operating_data_orchestrator.py`
   - `tests/test_data_operations_cadence.py`
   - `tests/test_frontend_live_adapter.py`
+  - `AGENTS.md`
   - `docs/tasks/tossinvest-shadow-daily-resource-guard-v1/*`
 
 ## Out Of Scope
