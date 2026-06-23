@@ -1585,6 +1585,155 @@ h6 {
   line-height: 1.6;
 }
 
+.candlestick-chart {
+  margin: 0;
+}
+
+.chart-toolbar {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.chart-provider-stack {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.provider-chip {
+  display: inline-flex;
+  min-height: 30px;
+  align-items: center;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  padding: 5px 9px;
+  background: var(--bg-card);
+  color: var(--text-primary);
+  font-size: 0.76rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.provider-chip.is-fresh {
+  border-color: color-mix(in srgb, var(--accent-green) 42%, var(--border-light));
+  color: var(--accent-green);
+}
+
+.provider-chip.is-stale,
+.provider-chip.is-missing {
+  border-color: color-mix(in srgb, var(--accent-amber) 45%, var(--border-light));
+  color: var(--accent-amber);
+}
+
+.provider-note {
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  font-weight: 800;
+  line-height: 1.4;
+}
+
+.range-segments {
+  display: inline-grid;
+  grid-template-columns: repeat(4, minmax(42px, 1fr));
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--bg-panel) 72%, var(--bg-card));
+}
+
+.range-segments button {
+  min-height: 30px;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 0.74rem;
+  font-weight: 900;
+}
+
+.range-segments button:hover,
+.range-segments button:focus-visible {
+  color: var(--text-primary);
+  outline: 2px solid var(--border-focus);
+  outline-offset: 1px;
+}
+
+.range-segments button.is-active {
+  background: var(--text-primary);
+  color: var(--bg-panel);
+}
+
+.candlestick-chart svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  color: var(--text-primary);
+}
+
+.chart-grid-line,
+.chart-volume-baseline {
+  stroke: var(--border-light);
+  stroke-width: 1;
+}
+
+.candle line {
+  stroke-width: 1.35;
+}
+
+.candle rect {
+  stroke-width: 0;
+}
+
+.candle.is-up line,
+.candle.is-up rect {
+  fill: var(--accent-green);
+  stroke: var(--accent-green);
+}
+
+.candle.is-down line,
+.candle.is-down rect {
+  fill: var(--accent-red);
+  stroke: var(--accent-red);
+}
+
+.candle .volume-bar {
+  opacity: 0.24;
+}
+
+.chart-axis-label {
+  fill: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.candlestick-chart figcaption {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  margin-top: 12px;
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  font-weight: 800;
+  line-height: 1.6;
+}
+
+@media (max-width: 760px) {
+  .chart-toolbar {
+    flex-direction: column;
+  }
+
+  .range-segments {
+    width: 100%;
+  }
+}
+
 .readiness-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

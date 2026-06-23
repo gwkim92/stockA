@@ -648,6 +648,50 @@ function defaultProfessionalLifecycleGates() {
   };
 }
 
+function defaultTossInvestMarketData() {
+  return {
+    sync: {
+      status: "not_configured",
+      latest_status: "missing",
+      latest_run_id: null,
+      finished_at: "",
+      provider: "tossinvest",
+      sync_mode: "not_available",
+      market_code: "",
+      requested_symbol_count: 0,
+      candle_symbol_count: 0,
+      candle_bar_count: 0,
+      stock_warning_symbol_count: 0,
+      market_microdata_symbol_count: 0,
+      unresolved_symbol_count: 0,
+      collection_cadence: {},
+      credentials_configured: false,
+      missing_env_vars: [],
+      operator_action: "Toss 시장 데이터 수집 설정과 최신 실행 상태를 확인한다.",
+      attention_required: true,
+      broker_submit_allowed: false,
+      submitted_to_broker: false,
+      order_boundary: "read_only_no_order",
+      secret_free: true,
+    },
+    provider_comparison: {
+      status: "missing",
+      latest_status: "missing",
+      latest_run_id: null,
+      finished_at: "",
+      symbol_count: 0,
+      comparison_date: "",
+      lookback_days: 5,
+      max_diff_bps: "50",
+      canonical_promotion_blocked: true,
+      attention_required: true,
+      broker_submit_allowed: false,
+      submitted_to_broker: false,
+      secret_free: true,
+    },
+  };
+}
+
 function normalizeFrontendPayload<TData>(path: string, payload: ApiResponse<TData>) {
   const mutablePayload = payload as ApiResponse<unknown>;
   const data = dataRecord(mutablePayload);
@@ -665,6 +709,8 @@ function normalizeFrontendPayload<TData>(path: string, payload: ApiResponse<TDat
     normalizeTradingReadiness(data);
   } else if (path === "/api/paper-trading/preview") {
     normalizePaperTradingPreview(data);
+  } else if (path === "/api/data-health") {
+    normalizeDataHealth(data);
   } else if (path.startsWith("/api/performance/")) {
     normalizePerformanceOutcomes(data);
   } else if (path.startsWith("/api/ai-evidence/")) {
@@ -824,6 +870,40 @@ function normalizeThesisDetail(data: MutableRecord) {
 
 function normalizeStockDetail(data: MutableRecord) {
   const symbol = typeof data.symbol === "string" ? data.symbol : "UNKNOWN";
+  withDefault(data, "candles", Array.isArray(data.price_bars) ? data.price_bars : []);
+  withDefault(data, "market_data_provider", {
+    canonical_provider: "missing",
+    provider_source_run_id: null,
+    latest_trade_date: "",
+    freshness_status: "missing",
+    toss_shadow_status: "missing",
+    toss_shadow_reason: "",
+    canonical_promotion_allowed: false,
+    order_boundary: "read_only_no_order",
+  });
+  withDefault(data, "toss_provider_evidence", {
+    status: "missing",
+    latest_trade_date: "",
+    latest_close: null,
+    latest_adjusted_close: null,
+    latest_volume: 0,
+    source_run_id: null,
+    observed_at: "",
+    comparison: {
+      status: "missing",
+      reason: "",
+      comparison_date: "",
+      canonical_provider: "",
+      compared_provider: "tossinvest",
+      matched_bar_count: 0,
+      missing_canonical_count: 0,
+      missing_compared_count: 0,
+      max_close_diff_bps: null,
+      median_close_diff_bps: null,
+    },
+  });
+  const provider = data.market_data_provider as MutableRecord;
+  withDefault(data, "freshness_status", provider.freshness_status || "missing");
   withDefault(data, "equity_research", null);
   withDefault(data, "industry_competitive_position", null);
   withDefault(data, "financial_statement_model", defaultFinancialStatementModel(symbol));
@@ -897,7 +977,20 @@ function normalizePortfolioCoverage(data: MutableRecord) {
   }
 }
 
+function normalizeDataHealth(data: MutableRecord) {
+  withDefault(data, "tossinvest_market_data", defaultTossInvestMarketData());
+}
+
 function normalizeTradingReadiness(data: MutableRecord) {
+  withDefault(data, "execution_boundary", {
+    paper_portfolio_name: "Long Term Paper",
+    live_account_portfolio_name: "Toss Real Readonly",
+    live_account_provider: "tossinvest",
+    submit_adapter_status: "disabled_stub",
+    broker_submit_allowed: false,
+    submitted_to_broker: false,
+    order_boundary: "read_only_no_order",
+  });
   withDefault(data, "portfolio_risk_budget_guardrail", defaultPortfolioRiskBudgetGuardrail());
   withDefault(data, "tossinvest_order_readiness", defaultTossInvestOrderReadiness());
 }
@@ -912,6 +1005,15 @@ function normalizePaperTradingPreview(data: MutableRecord) {
   withDefault(summary, "position_recommendation_conflict_count", 0);
   withDefault(summary, "paper_action_count", 0);
   withDefault(summary, "requires_human_approval_count", 0);
+  withDefault(data, "execution_boundary", {
+    mode: "simulated_paper_validation",
+    portfolio_kind: "paper",
+    live_account_provider: "tossinvest",
+    live_account_used_for_recommendation_scoring: false,
+    broker_submit_allowed: false,
+    submitted_to_broker: false,
+    order_boundary: "read_only_no_order",
+  });
   withDefault(data, "paper_actions", []);
   withDefault(data, "guardrails", []);
 }

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import csv
 import os
 import sys
 from contextlib import contextmanager
@@ -234,6 +235,12 @@ from stockanalysis.operations.tossinvest_readonly_sync import (
     DEFAULT_TOSSINVEST_PORTFOLIO_NAME,
     run_tossinvest_readonly_sync,
 )
+from stockanalysis.operations.tossinvest_market_data import (
+    DEFAULT_TOSSINVEST_CANDLE_OUTPUTSIZE,
+    DEFAULT_TOSSINVEST_MARKET_CODE,
+    run_tossinvest_market_data_sync,
+    run_tossinvest_provider_comparison,
+)
 from stockanalysis.operations.server_scheduler_invocation import (
     DEFAULT_SERVER_SCHEDULER_JOB_NAME,
     DEFAULT_SERVER_SCHEDULER_SCHEDULE,
@@ -326,6 +333,49 @@ def build_parser() -> argparse.ArgumentParser:
     tossinvest_readonly_sync.add_argument("--output")
     tossinvest_readonly_sync.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
     tossinvest_readonly_sync.set_defaults(handler=_handle_tossinvest_readonly_sync_run)
+
+    tossinvest_market_data_sync = subparsers.add_parser(
+        "tossinvest-market-data-sync-run",
+        help="Run secret-free TossInvest read-only market data collection for tracked symbols.",
+    )
+    tossinvest_market_data_sync.add_argument("--env-file")
+    tossinvest_market_data_sync.add_argument("--symbol", action="append")
+    tossinvest_market_data_sync.add_argument(
+        "--symbols-file",
+        help="CSV or newline file with a symbol column. Intended for repo-outside generated watchlists.",
+    )
+    tossinvest_market_data_sync.add_argument("--market-code", default=DEFAULT_TOSSINVEST_MARKET_CODE)
+    tossinvest_market_data_sync.add_argument(
+        "--sync-mode",
+        choices=("daily_candles", "reference", "microdata", "all"),
+        default="daily_candles",
+    )
+    tossinvest_market_data_sync.add_argument("--as-of-date")
+    tossinvest_market_data_sync.add_argument("--fixture-json")
+    tossinvest_market_data_sync.add_argument("--outputsize", default=DEFAULT_TOSSINVEST_CANDLE_OUTPUTSIZE)
+    tossinvest_market_data_sync.add_argument("--dry-run", action="store_true")
+    tossinvest_market_data_sync.add_argument("--execute", action="store_true")
+    tossinvest_market_data_sync.add_argument("--output")
+    tossinvest_market_data_sync.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
+    tossinvest_market_data_sync.set_defaults(handler=_handle_tossinvest_market_data_sync_run)
+
+    tossinvest_provider_comparison = subparsers.add_parser(
+        "tossinvest-provider-comparison-run",
+        help="Compare TossInvest shadow candles against canonical market.daily_price_bar.",
+    )
+    tossinvest_provider_comparison.add_argument("--env-file")
+    tossinvest_provider_comparison.add_argument("--symbol", action="append")
+    tossinvest_provider_comparison.add_argument(
+        "--symbols-file",
+        help="CSV or newline file with a symbol column. Intended for repo-outside generated watchlists.",
+    )
+    tossinvest_provider_comparison.add_argument("--comparison-date")
+    tossinvest_provider_comparison.add_argument("--lookback-days", type=int, default=5)
+    tossinvest_provider_comparison.add_argument("--max-diff-bps", type=Decimal, default=Decimal("50"))
+    tossinvest_provider_comparison.add_argument("--execute", action="store_true")
+    tossinvest_provider_comparison.add_argument("--output")
+    tossinvest_provider_comparison.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
+    tossinvest_provider_comparison.set_defaults(handler=_handle_tossinvest_provider_comparison_run)
 
     ai_agent_registry = subparsers.add_parser(
         "ai-agent-registry-report",
@@ -1925,6 +1975,83 @@ def _handle_tossinvest_readonly_sync_run(args: argparse.Namespace, *, stdout: Te
     else:
         print_json(report, stdout=stdout, sort_keys=False)
     return 0 if str(report.get("status")) not in {"failed", "blocked_missing_credentials"} else 1
+
+
+def _handle_tossinvest_market_data_sync_run(args: argparse.Namespace, *, stdout: TextIO) -> int:
+    env_mapping = _load_optional_env_mapping(args.env_file, repo_root=args.repo_root) or os.environ
+    fixture_json_path = None
+    if args.fixture_json:
+        fixture_json_path = str(
+            resolve_existing_file(
+                args.fixture_json,
+                label="TossInvest market data fixture JSON",
+                repo_root=args.repo_root,
+                require_repo_outside=False,
+            )
+        )
+    symbols = list(args.symbol or [])
+    if args.symbols_file:
+        symbols_file = resolve_existing_file(
+            args.symbols_file,
+            label="TossInvest market data symbols file",
+            repo_root=args.repo_root,
+            require_repo_outside=True,
+        )
+        symbols.extend(_load_symbol_file(symbols_file))
+    report = run_tossinvest_market_data_sync(
+        config=RuntimeConfig.from_mapping(env_mapping),
+        symbols=symbols,
+        market_code=args.market_code,
+        sync_mode=args.sync_mode,
+        as_of_date=date.fromisoformat(args.as_of_date) if args.as_of_date else None,
+        fixture_json_path=fixture_json_path,
+        outputsize=args.outputsize,
+        execute=bool(args.execute),
+        dry_run=bool(args.dry_run or not args.execute),
+    )
+    if args.output:
+        output_path = resolve_output_path(
+            args.output,
+            label="TossInvest market data sync output",
+            repo_root=args.repo_root,
+            require_repo_outside=True,
+        )
+        write_json_report(report, output_path=output_path, stdout=stdout)
+    else:
+        print_json(report, stdout=stdout, sort_keys=False)
+    return 0 if str(report.get("status")) not in {"failed", "blocked_missing_credentials"} else 1
+
+
+def _handle_tossinvest_provider_comparison_run(args: argparse.Namespace, *, stdout: TextIO) -> int:
+    env_mapping = _load_optional_env_mapping(args.env_file, repo_root=args.repo_root) or os.environ
+    symbols = list(args.symbol or [])
+    if args.symbols_file:
+        symbols_file = resolve_existing_file(
+            args.symbols_file,
+            label="TossInvest provider comparison symbols file",
+            repo_root=args.repo_root,
+            require_repo_outside=True,
+        )
+        symbols.extend(_load_symbol_file(symbols_file))
+    report = run_tossinvest_provider_comparison(
+        config=RuntimeConfig.from_mapping(env_mapping),
+        symbols=symbols,
+        comparison_date=date.fromisoformat(args.comparison_date) if args.comparison_date else None,
+        lookback_days=args.lookback_days,
+        max_diff_bps=args.max_diff_bps,
+        execute=bool(args.execute),
+    )
+    if args.output:
+        output_path = resolve_output_path(
+            args.output,
+            label="TossInvest provider comparison output",
+            repo_root=args.repo_root,
+            require_repo_outside=True,
+        )
+        write_json_report(report, output_path=output_path, stdout=stdout)
+    else:
+        print_json(report, stdout=stdout, sort_keys=False)
+    return 0 if str(report.get("status")) not in {"failed"} else 1
 
 
 def _handle_ai_agent_registry_report(args: argparse.Namespace, *, stdout: TextIO) -> int:
@@ -4425,6 +4552,24 @@ def _handle_manual_host_scheduler_activation_preflight(args: argparse.Namespace,
 class _NullWriter:
     def write(self, value: str) -> int:
         return len(value)
+
+
+def _load_symbol_file(path: Path) -> list[str]:
+    text = path.read_text(encoding="utf-8")
+    if "," not in text and "\t" not in text:
+        return [line.strip().upper() for line in text.splitlines() if line.strip()]
+    rows = csv.DictReader(text.splitlines())
+    if rows.fieldnames and "symbol" in rows.fieldnames:
+        return [
+            str(row.get("symbol") or "").strip().upper()
+            for row in rows
+            if str(row.get("symbol") or "").strip()
+        ]
+    return [
+        row[0].strip().upper()
+        for row in csv.reader(text.splitlines())
+        if row and row[0].strip() and row[0].strip().lower() != "symbol"
+    ]
 
 
 @contextmanager

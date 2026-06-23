@@ -223,6 +223,48 @@ export type TossInvestReadonlySyncVisibility = {
   secret_free: boolean;
 };
 
+export type TossInvestMarketDataVisibility = {
+  sync: {
+    status: string;
+    latest_status: string;
+    latest_run_id: string | null;
+    finished_at: string;
+    provider: string;
+    sync_mode: string;
+    market_code: string;
+    requested_symbol_count: number;
+    candle_symbol_count: number;
+    candle_bar_count: number;
+    stock_warning_symbol_count: number;
+    market_microdata_symbol_count: number;
+    unresolved_symbol_count: number;
+    collection_cadence: Record<string, string>;
+    credentials_configured: boolean;
+    missing_env_vars: string[];
+    operator_action: string;
+    attention_required: boolean;
+    broker_submit_allowed: boolean;
+    submitted_to_broker: boolean;
+    order_boundary: string;
+    secret_free: boolean;
+  };
+  provider_comparison: {
+    status: string;
+    latest_status: string;
+    latest_run_id: string | null;
+    finished_at: string;
+    symbol_count: number;
+    comparison_date: string;
+    lookback_days: number;
+    max_diff_bps: string;
+    canonical_promotion_blocked: boolean;
+    attention_required: boolean;
+    broker_submit_allowed: boolean;
+    submitted_to_broker: boolean;
+    secret_free: boolean;
+  };
+};
+
 export type TossInvestOrderReadiness = {
   status: string;
   latest_status: string;
@@ -652,6 +694,7 @@ export type DataHealthData = {
   };
   openai_provider_health: OpenAiProviderHealth;
   tossinvest_readonly_sync: TossInvestReadonlySyncVisibility;
+  tossinvest_market_data: TossInvestMarketDataVisibility;
   benchmark_drift_quality: {
     status: string;
     guardrail_status: string;
@@ -867,7 +910,42 @@ export type StockPrice = {
   close: number | null;
   adjusted_close: number | null;
   volume: number;
+  provider?: string;
+  source_run_id?: string | null;
   change_pct?: number | null;
+};
+
+export type StockMarketDataProvider = {
+  canonical_provider: string;
+  provider_source_run_id: string | null;
+  latest_trade_date: string;
+  freshness_status: string;
+  toss_shadow_status: string;
+  toss_shadow_reason: string;
+  canonical_promotion_allowed: boolean;
+  order_boundary: string;
+};
+
+export type StockTossProviderEvidence = {
+  status: string;
+  latest_trade_date: string;
+  latest_close: number | null;
+  latest_adjusted_close: number | null;
+  latest_volume: number;
+  source_run_id: string | null;
+  observed_at: string;
+  comparison: {
+    status: string;
+    reason: string;
+    comparison_date: string;
+    canonical_provider: string;
+    compared_provider: string;
+    matched_bar_count: number;
+    missing_canonical_count: number;
+    missing_compared_count: number;
+    max_close_diff_bps: number | null;
+    median_close_diff_bps: number | null;
+  };
 };
 
 export type IndustryCompetitivePosition = {
@@ -1353,6 +1431,10 @@ export type StockDetailData = {
     return_pct: number | null;
   };
   price_bars: StockPrice[];
+  candles: StockPrice[];
+  market_data_provider: StockMarketDataProvider;
+  toss_provider_evidence: StockTossProviderEvidence;
+  freshness_status: string;
   recommendation: StockRecommendation | null;
   position: StockPosition | null;
   equity_research: {
@@ -1721,6 +1803,15 @@ export type PaperTradingPreviewData = {
     requires_human_approval_count: number;
   };
   guardrails: string[];
+  execution_boundary: {
+    mode: string;
+    portfolio_kind: string;
+    live_account_provider: string;
+    live_account_used_for_recommendation_scoring: boolean;
+    broker_submit_allowed: boolean;
+    submitted_to_broker: boolean;
+    order_boundary: string;
+  };
   paper_actions: Array<{
     symbol: string;
     instrument_id: string;
@@ -1746,6 +1837,15 @@ export type TradingGateStatus = "pass" | "warning" | "missing" | "blocked";
 export type TradingReadinessData = {
   portfolio_name: string;
   execution_mode: string;
+  execution_boundary: {
+    paper_portfolio_name: string;
+    live_account_portfolio_name: string;
+    live_account_provider: string;
+    submit_adapter_status: string;
+    broker_submit_allowed: boolean;
+    submitted_to_broker: boolean;
+    order_boundary: string;
+  };
   readiness_status: string;
   gate_summary: {
     pass_count: number;

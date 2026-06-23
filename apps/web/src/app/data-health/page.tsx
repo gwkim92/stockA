@@ -19,6 +19,7 @@ type CycleAiQualityAudit = DataHealthData["cycle_ai_quality_audit"];
 type NewsAiEvalQuality = DataHealthData["news_ai_eval_quality"];
 type LiveAiInvocationHealth = DataHealthData["live_ai_invocation_health"];
 type OpenAiProviderHealth = DataHealthData["openai_provider_health"];
+type TossInvestMarketData = DataHealthData["tossinvest_market_data"];
 type DataOperationsArtifactRunner = DataHealthData["data_operations_artifact_runner"];
 type ActiveRecommendationPriceFreshness = DataHealthData["active_recommendation_price_freshness"];
 type BenchmarkDriftQuality = DataHealthData["benchmark_drift_quality"];
@@ -545,6 +546,26 @@ function localWorkerExplanation(worker: LocalIngestWorker) {
 
 function localWorkerNextAction(worker: LocalIngestWorker) {
   return worker.next_actions[0] ? koCode(worker.next_actions[0]) : "다음 조치 없음";
+}
+
+function tossMarketDataTitle(marketData: TossInvestMarketData) {
+  if (marketData.sync.status === "succeeded") {
+    return "Toss 시장 데이터 수집됨";
+  }
+  if (marketData.sync.status === "blocked_missing_credentials") {
+    return "Toss API 키 확인 필요";
+  }
+  if (marketData.sync.status === "missing") {
+    return "Toss market-data 실행 이력 없음";
+  }
+  return koCode(marketData.sync.status);
+}
+
+function tossMarketDataTone(marketData: TossInvestMarketData) {
+  if (marketData.sync.attention_required) {
+    return "risk-medium";
+  }
+  return "risk-low";
 }
 
 function qualityAuditTitle(audit: CycleAiQualityAudit) {
@@ -2404,6 +2425,7 @@ export default async function DataHealthPage() {
     "portfolio-remediation-daily",
     "portfolio_remediation_daily_automation",
   );
+  const tossMarketData = data.tossinvest_market_data;
   const budgetUsage =
     providerBudget.daily_budget > 0
       ? Math.round((providerBudget.used_request_count / providerBudget.daily_budget) * 100)
@@ -2601,6 +2623,16 @@ export default async function DataHealthPage() {
       href: "#active-recommendation-price-freshness",
       cta: "가격 최신성 보기",
       tone: activeRecommendationPriceFreshness.attention_required ? "risk-high" : "risk-low",
+    },
+    {
+      label: "Toss 시장 데이터",
+      title: tossMarketData.sync.status === "succeeded"
+        ? `캔들 ${tossMarketData.sync.candle_bar_count.toLocaleString("ko-KR")}개`
+        : koCode(tossMarketData.sync.status),
+      body: `Toss는 실계좌와 분리된 read-only provider 근거다. 비교 상태는 ${koCode(tossMarketData.provider_comparison.status)}이고 실주문은 차단된다.`,
+      href: "#toss-market-data",
+      cta: "Toss 수집 보기",
+      tone: tossMarketData.sync.attention_required ? "risk-medium" : "risk-low",
     },
     {
       label: "품질 감사",
@@ -2912,6 +2944,13 @@ export default async function DataHealthPage() {
       purpose: "투자 논리 공백, 성과 미측정, 보유 충돌을 운영 큐로 만든다.",
       check: "보유 상태와 가상 매매 검증으로 이어진다.",
     },
+    {
+      index: "08",
+      title: "Toss market data",
+      run: findPipelineRun(data, "toss-candles-us-shadow-daily", "tossinvest_market_data_sync"),
+      purpose: "전체 추적 종목의 보조 가격·호가·체결·주의사항 근거다.",
+      check: `${koCode(tossMarketData.sync.status)} · ${tossMarketData.sync.requested_symbol_count.toLocaleString("ko-KR")}개 요청`,
+    },
   ];
   return (
     <div className="terminal-page decision-page">
@@ -2936,7 +2975,7 @@ export default async function DataHealthPage() {
           {commandCenterCards.map((card) => (
             <a
               className={`decision-card data-health-command-card ${
-                card.tone === "ready" ? "is-good" : card.tone === "watch" ? "is-watch" : "is-block"
+                card.tone === "risk-low" ? "is-good" : card.tone === "risk-medium" ? "is-watch" : "is-block"
               }`}
               href={card.href}
               key={card.label}
@@ -3011,6 +3050,39 @@ export default async function DataHealthPage() {
 	          ))}
 	        </div>
 	      </section>
+
+      <section className="feature-map-panel reveal delay-1" id="toss-market-data" aria-labelledby="toss-market-data-title">
+        <div className="section-heading stacked-heading">
+          <span>Toss 시장 데이터</span>
+          <h2 id="toss-market-data-title">{tossMarketDataTitle(tossMarketData)}</h2>
+          <p>
+            Toss API는 실계좌 read-only와 분리된 provider evidence로 저장한다. US 가격은 shadow 비교를 통과하기 전까지
+            기존 canonical provider를 대체하지 않는다.
+          </p>
+        </div>
+        <div className="status-rail compact-rail">
+          <article className="rail-cell">
+            <span>수집 상태</span>
+            <strong className={`risk-tag ${tossMarketDataTone(tossMarketData)}`}>{koCode(tossMarketData.sync.status)}</strong>
+            <small>요청 종목 {tossMarketData.sync.requested_symbol_count.toLocaleString("ko-KR")}개 · 캔들 {tossMarketData.sync.candle_bar_count.toLocaleString("ko-KR")}개</small>
+          </article>
+          <article className="rail-cell">
+            <span>비교 상태</span>
+            <strong className="risk-tag risk-medium">{koCode(tossMarketData.provider_comparison.status)}</strong>
+            <small>{tossMarketData.provider_comparison.lookback_days}거래일 · 허용 {tossMarketData.provider_comparison.max_diff_bps}bps</small>
+          </article>
+          <article className="rail-cell">
+            <span>수집 주기</span>
+            <strong>{Object.keys(tossMarketData.sync.collection_cadence).length.toLocaleString("ko-KR")}개</strong>
+            <small>KR/US reference, daily candles, priority microdata, live account read-only</small>
+          </article>
+          <article className="rail-cell">
+            <span>주문 경계</span>
+            <strong className="risk-tag risk-low">{koCode(tossMarketData.sync.order_boundary)}</strong>
+            <small>broker_submit_allowed={String(tossMarketData.sync.broker_submit_allowed)}</small>
+          </article>
+        </div>
+      </section>
 
       <section className="feature-map-panel reveal delay-1" id="quality-audit" aria-labelledby="quality-audit-title">
         <div className="section-heading stacked-heading">

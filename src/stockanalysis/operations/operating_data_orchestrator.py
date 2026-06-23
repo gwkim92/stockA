@@ -72,6 +72,7 @@ REPORTED_SEGMENT_HISTORY_PERIODS_ENV = "STOCKANALYSIS_REPORTED_SEGMENT_HISTORY_P
 OPERATING_DATA_REPORT_ENV = "STOCKANALYSIS_OPERATING_DATA_RUN_REPORT"
 LLM_PROVIDER_ENV = "STOCKANALYSIS_LLM_PROVIDER"
 DEFAULT_LLM_PROVIDER = "codex_oauth"
+TOSSINVEST_KR_SYMBOLS_FILE_ENV = "STOCKANALYSIS_TOSSINVEST_KR_SYMBOLS_FILE"
 
 ArtifactRunner = Callable[..., dict[str, object]]
 
@@ -135,6 +136,25 @@ NEWS_INTRADAY_STEP_IDS = (
 MARKET_DAILY_STEP_IDS = (
     "market-price-daily",
 )
+TOSS_REFERENCE_KR_DAILY_STEP_IDS = (
+    "toss-reference-kr-daily",
+)
+TOSS_REFERENCE_US_DAILY_STEP_IDS = (
+    "toss-reference-us-daily",
+)
+TOSS_CANDLES_KR_DAILY_STEP_IDS = (
+    "toss-candles-kr-daily",
+)
+TOSS_CANDLES_US_SHADOW_DAILY_STEP_IDS = (
+    "toss-candles-us-shadow-daily",
+    "toss-provider-comparison-daily",
+)
+TOSS_PRIORITY_MICRODATA_INTRADAY_STEP_IDS = (
+    "toss-priority-microdata-intraday",
+)
+TOSS_LIVE_ACCOUNT_READONLY_STEP_IDS = (
+    "toss-live-account-readonly",
+)
 CROSS_ASSET_DAILY_STEP_IDS = (
     "free-provider-capacity-registry",
     "cross-asset-market-price-refresh",
@@ -182,6 +202,12 @@ FULL_RECOVERY_STEP_IDS = (
     *SEC_FILINGS_WEEKLY_STEP_IDS,
     *NEWS_INTRADAY_STEP_IDS,
     *MARKET_DAILY_STEP_IDS,
+    *TOSS_REFERENCE_KR_DAILY_STEP_IDS,
+    *TOSS_REFERENCE_US_DAILY_STEP_IDS,
+    *TOSS_CANDLES_KR_DAILY_STEP_IDS,
+    *TOSS_CANDLES_US_SHADOW_DAILY_STEP_IDS,
+    *TOSS_PRIORITY_MICRODATA_INTRADAY_STEP_IDS,
+    *TOSS_LIVE_ACCOUNT_READONLY_STEP_IDS,
     *CROSS_ASSET_DAILY_STEP_IDS,
     *DECISION_DAILY_STEP_IDS,
     *MACRO_WEEKLY_STEP_IDS,
@@ -223,6 +249,54 @@ OPERATING_DATA_RUN_PROFILES: tuple[OperatingDataRunProfile, ...] = (
         recommended_schedule="18:35 America/New_York on US trading days",
         description="Refresh configured market price watchlist with free-provider budget controls.",
         step_ids=MARKET_DAILY_STEP_IDS,
+    ),
+    OperatingDataRunProfile(
+        profile_id="toss-reference-kr-daily",
+        label="TossInvest KR reference refresh",
+        cadence="daily",
+        recommended_schedule="08:30 Asia/Seoul on KR trading days",
+        description="Refresh TossInvest KR market calendar, stock warnings, and price-limit reference evidence without order submission.",
+        step_ids=TOSS_REFERENCE_KR_DAILY_STEP_IDS,
+    ),
+    OperatingDataRunProfile(
+        profile_id="toss-reference-us-daily",
+        label="TossInvest US reference refresh",
+        cadence="daily",
+        recommended_schedule="08:45 America/New_York on US trading days",
+        description="Refresh TossInvest US market calendar, stock warnings, and price-limit reference evidence without order submission.",
+        step_ids=TOSS_REFERENCE_US_DAILY_STEP_IDS,
+    ),
+    OperatingDataRunProfile(
+        profile_id="toss-candles-kr-daily",
+        label="TossInvest KR daily candles",
+        cadence="daily",
+        recommended_schedule="16:10 Asia/Seoul after KR close",
+        description="Refresh TossInvest KR daily candles as the primary KR market data provider.",
+        step_ids=TOSS_CANDLES_KR_DAILY_STEP_IDS,
+    ),
+    OperatingDataRunProfile(
+        profile_id="toss-candles-us-shadow-daily",
+        label="TossInvest US shadow candles",
+        cadence="daily",
+        recommended_schedule="18:20 America/New_York after US close",
+        description="Collect TossInvest US daily candles as shadow provider evidence and compare against canonical prices before any provider promotion.",
+        step_ids=TOSS_CANDLES_US_SHADOW_DAILY_STEP_IDS,
+    ),
+    OperatingDataRunProfile(
+        profile_id="toss-priority-microdata-intraday",
+        label="TossInvest priority microdata",
+        cadence="intraday",
+        recommended_schedule="09:40, 12:30, 15:55 per open market calendar",
+        description="Collect TossInvest orderbook, recent trades, warnings, and price-limit evidence for priority tracked symbols only.",
+        step_ids=TOSS_PRIORITY_MICRODATA_INTRADAY_STEP_IDS,
+    ),
+    OperatingDataRunProfile(
+        profile_id="toss-live-account-readonly",
+        label="TossInvest live account read-only",
+        cadence="intraday",
+        recommended_schedule="pre-open, midday, and after-close on open market days",
+        description="Refresh TossInvest account, holdings, buying power, sellable quantity, commissions, and order history without order submission.",
+        step_ids=TOSS_LIVE_ACCOUNT_READONLY_STEP_IDS,
     ),
     OperatingDataRunProfile(
         profile_id="cross-asset-daily",
@@ -350,9 +424,22 @@ def build_operating_data_run_report(
     cross_asset_watchlist_path = generated_dir / f"cross-asset-price-watchlist-{target_date.isoformat()}.csv"
     positions_snapshot_path = generated_dir / f"position-snapshot-{target_date.isoformat()}.csv"
     missing_watchlist_required = "missing-symbol-price-backfill" in selected_profile.step_ids
-    cross_asset_watchlist_required = "cross-asset-market-price-refresh" in selected_profile.step_ids
+    tossinvest_us_symbols_required = any(
+        step_id in selected_profile.step_ids
+        for step_id in {
+            "toss-reference-us-daily",
+            "toss-candles-us-shadow-daily",
+            "toss-provider-comparison-daily",
+            "toss-priority-microdata-intraday",
+        }
+    )
+    cross_asset_watchlist_required = (
+        "cross-asset-market-price-refresh" in selected_profile.step_ids
+        or tossinvest_us_symbols_required
+    )
     cross_asset_symbols = cross_asset_instrument_price_symbols()
     position_snapshot_required = "portfolio-position-snapshot" in selected_profile.step_ids
+    tossinvest_kr_symbols_file = str(env_mapping.get(TOSSINVEST_KR_SYMBOLS_FILE_ENV) or "").strip()
 
     planned_steps = _build_planned_steps(
         python_executable=resolved_python,
@@ -379,6 +466,7 @@ def build_operating_data_run_report(
         sec_filings_cik=sec_filings_cik,
         sec_filings_max_filings=sec_filings_max_filings,
         reported_segment_history_periods=reported_segment_history_periods,
+        tossinvest_kr_symbols_file=tossinvest_kr_symbols_file,
         profile=selected_profile,
     )
 
@@ -565,6 +653,7 @@ def _build_planned_steps(
     sec_filings_cik: str,
     sec_filings_max_filings: int,
     reported_segment_history_periods: int,
+    tossinvest_kr_symbols_file: str,
     profile: OperatingDataRunProfile,
 ) -> list[dict[str, object]]:
     target = target_date.isoformat()
@@ -1026,6 +1115,157 @@ def _build_planned_steps(
                 "--outputsize",
                 outputsize,
                 "--skip-if-fresh",
+            ),
+        },
+        {
+            "step_id": "toss-reference-kr-daily",
+            "artifact_job_id": "toss-reference-kr-daily",
+            "label": "Refresh TossInvest KR market calendar and reference evidence",
+            "skip_reason": "" if tossinvest_kr_symbols_file else f"missing_{TOSSINVEST_KR_SYMBOLS_FILE_ENV}",
+            "command_argv": (
+                python_executable,
+                "-m",
+                "stockanalysis.operations.cli",
+                "tossinvest-market-data-sync-run",
+                "--env-file",
+                str(env_file),
+                "--symbols-file",
+                tossinvest_kr_symbols_file,
+                "--market-code",
+                "KR",
+                "--sync-mode",
+                "reference",
+                "--as-of-date",
+                target,
+                "--execute",
+            ),
+        },
+        {
+            "step_id": "toss-reference-us-daily",
+            "artifact_job_id": "toss-reference-us-daily",
+            "label": "Refresh TossInvest US market calendar and reference evidence",
+            "skip_reason": "",
+            "command_argv": (
+                python_executable,
+                "-m",
+                "stockanalysis.operations.cli",
+                "tossinvest-market-data-sync-run",
+                "--env-file",
+                str(env_file),
+                "--symbols-file",
+                str(cross_asset_watchlist_path),
+                "--market-code",
+                "US",
+                "--sync-mode",
+                "reference",
+                "--as-of-date",
+                target,
+                "--execute",
+            ),
+        },
+        {
+            "step_id": "toss-candles-kr-daily",
+            "artifact_job_id": "toss-candles-kr-daily",
+            "label": "Refresh TossInvest KR daily candles as canonical KR evidence",
+            "skip_reason": "" if tossinvest_kr_symbols_file else f"missing_{TOSSINVEST_KR_SYMBOLS_FILE_ENV}",
+            "command_argv": (
+                python_executable,
+                "-m",
+                "stockanalysis.operations.cli",
+                "tossinvest-market-data-sync-run",
+                "--env-file",
+                str(env_file),
+                "--symbols-file",
+                tossinvest_kr_symbols_file,
+                "--market-code",
+                "KR",
+                "--sync-mode",
+                "daily_candles",
+                "--as-of-date",
+                target,
+                "--execute",
+            ),
+        },
+        {
+            "step_id": "toss-candles-us-shadow-daily",
+            "artifact_job_id": "toss-candles-us-shadow-daily",
+            "label": "Refresh TossInvest US daily candles as shadow provider evidence",
+            "skip_reason": "",
+            "command_argv": (
+                python_executable,
+                "-m",
+                "stockanalysis.operations.cli",
+                "tossinvest-market-data-sync-run",
+                "--env-file",
+                str(env_file),
+                "--symbols-file",
+                str(cross_asset_watchlist_path),
+                "--market-code",
+                "US",
+                "--sync-mode",
+                "daily_candles",
+                "--as-of-date",
+                target,
+                "--execute",
+            ),
+        },
+        {
+            "step_id": "toss-provider-comparison-daily",
+            "artifact_job_id": "toss-provider-comparison-daily",
+            "label": "Compare TossInvest shadow candles against canonical prices",
+            "skip_reason": "",
+            "command_argv": (
+                python_executable,
+                "-m",
+                "stockanalysis.operations.cli",
+                "tossinvest-provider-comparison-run",
+                "--env-file",
+                str(env_file),
+                "--symbols-file",
+                str(cross_asset_watchlist_path),
+                "--comparison-date",
+                target,
+                "--execute",
+            ),
+        },
+        {
+            "step_id": "toss-priority-microdata-intraday",
+            "artifact_job_id": "toss-priority-microdata-intraday",
+            "label": "Refresh TossInvest orderbook, trade, warning, and price-limit evidence for priority symbols",
+            "skip_reason": "",
+            "command_argv": (
+                python_executable,
+                "-m",
+                "stockanalysis.operations.cli",
+                "tossinvest-market-data-sync-run",
+                "--env-file",
+                str(env_file),
+                "--symbols-file",
+                str(cross_asset_watchlist_path),
+                "--market-code",
+                "US",
+                "--sync-mode",
+                "microdata",
+                "--as-of-date",
+                target,
+                "--execute",
+            ),
+        },
+        {
+            "step_id": "toss-live-account-readonly",
+            "artifact_job_id": "toss-live-account-readonly",
+            "label": "Refresh TossInvest live account read-only readiness without order submission",
+            "skip_reason": "",
+            "command_argv": (
+                python_executable,
+                "-m",
+                "stockanalysis.operations.cli",
+                "tossinvest-readonly-sync-run",
+                "--env-file",
+                str(env_file),
+                "--as-of-date",
+                target,
+                "--execute",
             ),
         },
         {

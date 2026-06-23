@@ -470,6 +470,7 @@ def render_market_price_upsert_sql(
             record,
             instrument_id=instrument_id,
             run_literal=run_literal,
+            provider=result.provider,
         )
         for record in result.bars
     )
@@ -484,7 +485,8 @@ def render_market_price_upsert_sql(
     volume,
     turnover_value,
     market_cap,
-    source_run_id
+    source_run_id,
+    provider
 )
 values
     {value_rows}
@@ -498,7 +500,8 @@ set
     volume = excluded.volume,
     turnover_value = excluded.turnover_value,
     market_cap = excluded.market_cap,
-    source_run_id = excluded.source_run_id;"""
+    source_run_id = excluded.source_run_id,
+    provider = excluded.provider;"""
 
 
 def _render_daily_price_value_tuple(
@@ -506,6 +509,7 @@ def _render_daily_price_value_tuple(
     *,
     instrument_id: int,
     run_literal: str,
+    provider: str,
 ) -> str:
     return (
         f"({instrument_id}, "
@@ -518,7 +522,8 @@ def _render_daily_price_value_tuple(
         f"{record.volume}, "
         f"null::numeric, "
         f"null::numeric, "
-        f"{run_literal})"
+        f"{run_literal}, "
+        f"{sql_literal(provider)})"
     )
 
 

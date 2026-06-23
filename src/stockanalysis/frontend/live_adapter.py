@@ -701,6 +701,7 @@ def _build_open_gate_details(
     auth_rbac: Mapping[str, Any],
     alert_destination: Mapping[str, Any],
     active_recommendation_price_freshness: Mapping[str, Any],
+    tossinvest_market_data: Mapping[str, Any],
     live_ai_invocation_health: Mapping[str, Any],
     benchmark_drift_quality: Mapping[str, Any],
     data_operations_artifact_runner: Mapping[str, Any],
@@ -873,6 +874,34 @@ def _build_open_gate_details(
                     "order_boundary": str(
                         active_recommendation_price_freshness.get("order_boundary") or "read_only_no_order"
                     ),
+                    "automatic_action_allowed": False,
+                }
+            )
+            continue
+        if gate == "tossinvest_market_data_attention":
+            sync = _as_dict(tossinvest_market_data.get("sync"))
+            comparison = _as_dict(tossinvest_market_data.get("provider_comparison"))
+            missing_env_vars = [str(item) for item in _as_list_or_scalars(sync.get("missing_env_vars"))]
+            summary = (
+                "TossInvest market data 수집 실행 증거가 아직 없다."
+                if str(sync.get("status") or "") == "missing"
+                else f"TossInvest market data 상태 {sync.get('status')}, 비교 상태 {comparison.get('status')}."
+            )
+            details.append(
+                {
+                    "gate_id": gate,
+                    "label": "Toss 시장 데이터",
+                    "category": "operational_blocker",
+                    "category_label": "수집 조건",
+                    "severity": "medium",
+                    "status_label": "Toss 수집 확인 필요",
+                    "summary": summary,
+                    "next_action": (
+                        f"저장소 밖 env에 {', '.join(missing_env_vars)} 값을 설정한다."
+                        if missing_env_vars
+                        else "tossinvest-market-data-sync-run과 tossinvest-provider-comparison-run 결과를 확인한다."
+                    ),
+                    "order_boundary": "read_only_no_order",
                     "automatic_action_allowed": False,
                 }
             )
@@ -1474,6 +1503,9 @@ def build_live_data_health_response(
     tossinvest_readonly_sync = _build_tossinvest_readonly_sync_payload(
         _as_dict(state.get("tossinvest_readonly_sync"))
     )
+    tossinvest_market_data = _build_tossinvest_market_data_payload(
+        _as_dict(state.get("tossinvest_market_data"))
+    )
     benchmark_drift_quality = _build_benchmark_drift_quality_payload(
         _as_dict(state.get("portfolio_risk_budget_guardrail"))
     )
@@ -1658,11 +1690,21 @@ def build_live_data_health_response(
         gate = "professional_source_gap_attention"
         if gate not in open_gates:
             open_gates.append(gate)
+    gate = "tossinvest_market_data_attention"
+    if (
+        _as_dict(tossinvest_market_data.get("sync")).get("attention_required")
+        or _as_dict(tossinvest_market_data.get("provider_comparison")).get("attention_required")
+    ):
+        if gate not in open_gates:
+            open_gates.append(gate)
+    else:
+        open_gates = [item for item in open_gates if item != gate]
     open_gate_details = _build_open_gate_details(
         open_gates=open_gates,
         auth_rbac=auth_rbac,
         alert_destination=alert_destination,
         active_recommendation_price_freshness=active_recommendation_price_freshness,
+        tossinvest_market_data=tossinvest_market_data,
         live_ai_invocation_health=live_ai_invocation_health,
         benchmark_drift_quality=benchmark_drift_quality,
         data_operations_artifact_runner=data_operations_artifact_runner,
@@ -1700,6 +1742,7 @@ def build_live_data_health_response(
             "active_recommendation_price_freshness": active_recommendation_price_freshness,
             "cross_asset_market_regime": cross_asset_market_regime,
             "tossinvest_readonly_sync": tossinvest_readonly_sync,
+            "tossinvest_market_data": tossinvest_market_data,
             "benchmark_drift_quality": benchmark_drift_quality,
             "portfolio_review_decision_history": portfolio_review_decision_history,
             "portfolio_review_decision_feedback": portfolio_review_decision_feedback,
@@ -1791,6 +1834,10 @@ def build_live_stock_detail_response(
         as_of_date=as_of_date,
     )
     price_bars = [_build_stock_price_bar_payload(item) for item in _as_list(state.get("price_bars"))]
+    market_data_provider = _build_stock_market_data_provider_payload(
+        _as_dict(state.get("market_data_provider")),
+        price_bars=price_bars,
+    )
     recommendation = _build_stock_recommendation_payload(_as_dict(state.get("recommendation")))
     equity_research = _build_stock_equity_research_payload(_as_dict(state.get("equity_research")))
     industry_competitive_position = _build_industry_competitive_position_payload(
@@ -1836,6 +1883,12 @@ def build_live_stock_detail_response(
             "latest_price": _build_stock_price_payload(_as_dict(state.get("latest_price"))),
             "summary": _build_stock_detail_summary_payload(_as_dict(state.get("summary")), price_bars),
             "price_bars": price_bars,
+            "candles": price_bars,
+            "market_data_provider": market_data_provider,
+            "toss_provider_evidence": _build_stock_toss_provider_evidence_payload(
+                _as_dict(state.get("toss_provider_evidence"))
+            ),
+            "freshness_status": market_data_provider["freshness_status"],
             "recommendation": recommendation,
             "position": _build_stock_position_payload(_as_dict(state.get("position"))),
             "equity_research": equity_research,
@@ -2009,6 +2062,15 @@ def build_live_paper_trading_preview_response(
                 "requires_human_approval_count": int(quality_summary.get("requires_human_approval_count") or 0),
             },
             "guardrails": [str(item) for item in guardrails] if isinstance(guardrails, list) else _paper_guardrails(),
+            "execution_boundary": {
+                "mode": "simulated_paper_validation",
+                "portfolio_kind": "paper",
+                "live_account_provider": "tossinvest",
+                "live_account_used_for_recommendation_scoring": False,
+                "broker_submit_allowed": False,
+                "submitted_to_broker": False,
+                "order_boundary": "read_only_no_order",
+            },
             "paper_actions": paper_actions,
         },
         "links": {
@@ -2037,6 +2099,15 @@ def build_live_trading_readiness_response(
         "data": {
             "portfolio_name": str(state.get("portfolio_name") or DEFAULT_PORTFOLIO_NAME),
             "execution_mode": str(state.get("execution_mode") or "paper"),
+            "execution_boundary": {
+                "paper_portfolio_name": DEFAULT_PORTFOLIO_NAME,
+                "live_account_portfolio_name": "Toss Real Readonly",
+                "live_account_provider": "tossinvest",
+                "submit_adapter_status": "disabled_stub",
+                "broker_submit_allowed": False,
+                "submitted_to_broker": False,
+                "order_boundary": "read_only_no_order",
+            },
             "readiness_status": _trading_readiness_status(gate_summary),
             "gate_summary": gate_summary,
             "gates": gates,
@@ -5357,6 +5428,20 @@ selected_tossinvest_readonly_sync as (
     order by run.started_at desc, run.run_id desc
     limit 1
 ),
+selected_tossinvest_market_data_sync as (
+    select run.*
+    from ops.pipeline_run run
+    where run.pipeline_name = 'tossinvest_market_data_sync'
+    order by run.started_at desc, run.run_id desc
+    limit 1
+),
+selected_tossinvest_provider_comparison as (
+    select run.*
+    from ops.pipeline_run run
+    where run.pipeline_name = 'tossinvest_provider_comparison'
+    order by run.started_at desc, run.run_id desc
+    limit 1
+),
 latest_market_price as (
     select max(trade_date) as latest_observation_date
     from market.daily_price_bar
@@ -6501,6 +6586,94 @@ select json_build_object(
             'automatic_order_allowed', false,
             'order_boundary', 'read_only_no_order',
             'secret_free', true
+        )
+    ),
+    'tossinvest_market_data',
+    json_build_object(
+        'sync',
+        coalesce(
+            (
+                select json_build_object(
+                    'status', coalesce(config_json->>'status', status),
+                    'latest_status', status,
+                    'latest_run_id', run_id,
+                    'finished_at', ended_at,
+                    'provider', coalesce(config_json->>'provider', 'tossinvest'),
+                    'sync_mode', coalesce(config_json->>'sync_mode', ''),
+                    'market_code', coalesce(config_json->>'market_code', ''),
+                    'requested_symbol_count', coalesce(nullif(config_json->>'requested_symbol_count', '')::integer, 0),
+                    'candle_symbol_count', coalesce(nullif(config_json->>'candle_symbol_count', '')::integer, 0),
+                    'candle_bar_count', coalesce(nullif(config_json->>'candle_bar_count', '')::integer, 0),
+                    'stock_warning_symbol_count', coalesce(nullif(config_json->>'stock_warning_symbol_count', '')::integer, 0),
+                    'market_microdata_symbol_count', coalesce(nullif(config_json->>'market_microdata_symbol_count', '')::integer, 0),
+                    'unresolved_symbol_count', coalesce(nullif(config_json->>'unresolved_symbol_count', '')::integer, 0),
+                    'collection_cadence', coalesce(config_json->'collection_cadence', '{{}}'::jsonb),
+                    'credentials_configured', coalesce(nullif(config_json->>'credentials_configured', '')::boolean, false),
+                    'missing_env_vars', coalesce(config_json->'missing_env_vars', '[]'::jsonb),
+                    'operator_action', coalesce(config_json->>'operator_action', ''),
+                    'broker_submit_allowed', false,
+                    'submitted_to_broker', false,
+                    'order_boundary', 'read_only_no_order',
+                    'secret_free', true
+                )
+                from selected_tossinvest_market_data_sync
+            ),
+            json_build_object(
+                'status', 'missing',
+                'latest_status', 'missing',
+                'provider', 'tossinvest',
+                'sync_mode', '',
+                'market_code', '',
+                'requested_symbol_count', 0,
+                'candle_symbol_count', 0,
+                'candle_bar_count', 0,
+                'stock_warning_symbol_count', 0,
+                'market_microdata_symbol_count', 0,
+                'unresolved_symbol_count', 0,
+                'collection_cadence', '{{}}'::json,
+                'credentials_configured', false,
+                'missing_env_vars', json_build_array(
+                    'STOCKANALYSIS_TOSSINVEST_CLIENT_ID',
+                    'STOCKANALYSIS_TOSSINVEST_CLIENT_SECRET'
+                ),
+                'operator_action', 'configure_repo_outside_tossinvest_credentials',
+                'broker_submit_allowed', false,
+                'submitted_to_broker', false,
+                'order_boundary', 'read_only_no_order',
+                'secret_free', true
+            )
+        ),
+        'provider_comparison',
+        coalesce(
+            (
+                select json_build_object(
+                    'status', coalesce(config_json->>'status', status),
+                    'latest_status', status,
+                    'latest_run_id', run_id,
+                    'finished_at', ended_at,
+                    'symbol_count', coalesce(nullif(config_json->>'symbol_count', '')::integer, 0),
+                    'comparison_date', coalesce(config_json->>'comparison_date', ''),
+                    'lookback_days', coalesce(nullif(config_json->>'lookback_days', '')::integer, 5),
+                    'max_diff_bps', coalesce(config_json->>'max_diff_bps', '50'),
+                    'canonical_promotion_blocked', true,
+                    'broker_submit_allowed', false,
+                    'submitted_to_broker', false,
+                    'secret_free', true
+                )
+                from selected_tossinvest_provider_comparison
+            ),
+            json_build_object(
+                'status', 'missing',
+                'latest_status', 'missing',
+                'symbol_count', 0,
+                'comparison_date', '',
+                'lookback_days', 5,
+                'max_diff_bps', '50',
+                'canonical_promotion_blocked', true,
+                'broker_submit_allowed', false,
+                'submitted_to_broker', false,
+                'secret_free', true
+            )
         )
     ),
     'active_recommendation_price_freshness',
@@ -7706,7 +7879,9 @@ latest_price as (
         bar.low,
         bar.close,
         bar.adjusted_close,
-        bar.volume
+        bar.volume,
+        coalesce(nullif(bar.provider, ''), 'unknown') as provider,
+        bar.source_run_id
     from market.daily_price_bar bar
     join target_date target on bar.trade_date <= target.as_of_date
     order by bar.instrument_id, bar.trade_date desc
@@ -7933,6 +8108,41 @@ latest_price as (
     select *
     from price_rows
     order by trade_date desc
+    limit 1
+),
+toss_provider_latest as (
+    select
+        candle.trade_date,
+        candle.close,
+        candle.adjusted_close,
+        candle.volume,
+        candle.source_run_id,
+        candle.observed_at
+    from market.tossinvest_daily_candle_snapshot candle
+    join target_instrument instrument on instrument.instrument_id = candle.instrument_id
+    join target_date target on candle.trade_date <= target.as_of_date
+    order by candle.trade_date desc, candle.observed_at desc
+    limit 1
+),
+toss_provider_comparison_latest as (
+    select
+        comparison.comparison_date,
+        comparison.canonical_provider,
+        comparison.compared_provider,
+        comparison.latest_canonical_trade_date,
+        comparison.latest_compared_trade_date,
+        comparison.matched_bar_count,
+        comparison.missing_canonical_count,
+        comparison.missing_compared_count,
+        comparison.max_close_diff_bps,
+        comparison.median_close_diff_bps,
+        comparison.status,
+        comparison.reason,
+        comparison.observed_at
+    from market.tossinvest_provider_comparison_snapshot comparison
+    join target_instrument instrument on instrument.instrument_id = comparison.instrument_id
+    join target_date target on comparison.comparison_date <= target.as_of_date
+    order by comparison.comparison_date desc, comparison.observed_at desc
     limit 1
 ),
 first_price as (
@@ -8508,7 +8718,39 @@ select json_build_object(
         'low', (select low from latest_price),
         'close', (select close from latest_price),
         'adjusted_close', (select adjusted_close from latest_price),
-        'volume', (select volume from latest_price)
+        'volume', (select volume from latest_price),
+        'provider', (select provider from latest_price),
+        'source_run_id', (select source_run_id from latest_price)
+    ),
+    'market_data_provider',
+    json_build_object(
+        'canonical_provider', coalesce((select provider from latest_price), 'missing'),
+        'provider_source_run_id', (select source_run_id from latest_price),
+        'latest_trade_date', (select trade_date from latest_price),
+        'freshness_status',
+            case
+                when (select trade_date from latest_price) is null then 'missing'
+                when (select trade_date from latest_price) < (select as_of_date from target_date) - 7 then 'stale'
+                else 'fresh'
+            end,
+        'toss_shadow_status', coalesce((select status from toss_provider_comparison_latest), 'missing'),
+        'toss_shadow_reason', coalesce((select reason from toss_provider_comparison_latest), ''),
+        'canonical_promotion_allowed', false,
+        'order_boundary', 'read_only_no_order'
+    ),
+    'toss_provider_evidence',
+    json_build_object(
+        'status', case when exists (select 1 from toss_provider_latest) then 'available' else 'missing' end,
+        'latest_trade_date', (select trade_date from toss_provider_latest),
+        'latest_close', (select close from toss_provider_latest),
+        'latest_adjusted_close', (select adjusted_close from toss_provider_latest),
+        'latest_volume', (select volume from toss_provider_latest),
+        'source_run_id', (select source_run_id from toss_provider_latest),
+        'observed_at', (select observed_at from toss_provider_latest),
+        'comparison', (
+            select row_to_json(toss_provider_comparison_latest)
+            from toss_provider_comparison_latest
+        )
     ),
     'summary',
     json_build_object(
@@ -8534,7 +8776,9 @@ select json_build_object(
                     'low', low,
                     'close', close,
                     'adjusted_close', adjusted_close,
-                    'volume', volume
+                    'volume', volume,
+                    'provider', provider,
+                    'source_run_id', source_run_id
                 )
                 order by trade_date
             )
@@ -15165,6 +15409,55 @@ def _build_stock_price_bar_payload(bar: dict[str, Any]) -> dict[str, Any]:
         "close": _number(bar.get("close")),
         "adjusted_close": _number(bar.get("adjusted_close")),
         "volume": int(bar.get("volume") or 0),
+        "provider": str(bar.get("provider") or ""),
+        "source_run_id": _opaque_id("pipeline-run", bar.get("source_run_id"), None),
+    }
+
+
+def _build_stock_market_data_provider_payload(
+    payload: dict[str, Any],
+    *,
+    price_bars: list[dict[str, Any]],
+) -> dict[str, Any]:
+    latest = price_bars[-1] if price_bars else {}
+    return {
+        "canonical_provider": str(payload.get("canonical_provider") or latest.get("provider") or "missing"),
+        "provider_source_run_id": _opaque_id(
+            "pipeline-run",
+            payload.get("provider_source_run_id") or latest.get("source_run_id"),
+            None,
+        ),
+        "latest_trade_date": str(payload.get("latest_trade_date") or latest.get("trade_date") or ""),
+        "freshness_status": str(payload.get("freshness_status") or ("fresh" if latest else "missing")),
+        "toss_shadow_status": str(payload.get("toss_shadow_status") or "missing"),
+        "toss_shadow_reason": str(payload.get("toss_shadow_reason") or ""),
+        "canonical_promotion_allowed": payload.get("canonical_promotion_allowed") is True,
+        "order_boundary": str(payload.get("order_boundary") or "read_only_no_order"),
+    }
+
+
+def _build_stock_toss_provider_evidence_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    comparison = _as_dict(payload.get("comparison"))
+    return {
+        "status": str(payload.get("status") or "missing"),
+        "latest_trade_date": str(payload.get("latest_trade_date") or ""),
+        "latest_close": _number(payload.get("latest_close")),
+        "latest_adjusted_close": _number(payload.get("latest_adjusted_close")),
+        "latest_volume": int(_safe_number(payload.get("latest_volume")) or 0),
+        "source_run_id": _opaque_id("pipeline-run", payload.get("source_run_id"), None),
+        "observed_at": _timestamp(payload.get("observed_at")),
+        "comparison": {
+            "status": str(comparison.get("status") or "missing"),
+            "reason": str(comparison.get("reason") or ""),
+            "comparison_date": str(comparison.get("comparison_date") or ""),
+            "canonical_provider": str(comparison.get("canonical_provider") or ""),
+            "compared_provider": str(comparison.get("compared_provider") or "tossinvest"),
+            "matched_bar_count": int(_safe_number(comparison.get("matched_bar_count")) or 0),
+            "missing_canonical_count": int(_safe_number(comparison.get("missing_canonical_count")) or 0),
+            "missing_compared_count": int(_safe_number(comparison.get("missing_compared_count")) or 0),
+            "max_close_diff_bps": _number(comparison.get("max_close_diff_bps")),
+            "median_close_diff_bps": _number(comparison.get("median_close_diff_bps")),
+        },
     }
 
 
@@ -16958,6 +17251,54 @@ def _build_tossinvest_readonly_sync_payload(payload: dict[str, Any]) -> dict[str
         "automatic_order_allowed": False,
         "order_boundary": "read_only_no_order",
         "secret_free": True,
+    }
+
+
+def _build_tossinvest_market_data_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    sync = _as_dict(payload.get("sync"))
+    comparison = _as_dict(payload.get("provider_comparison"))
+    sync_status = str(sync.get("status") or "missing")
+    comparison_status = str(comparison.get("status") or "missing")
+    return {
+        "sync": {
+            "status": sync_status,
+            "latest_status": str(sync.get("latest_status") or sync_status),
+            "latest_run_id": _opaque_id("pipeline-run", sync.get("latest_run_id"), None),
+            "finished_at": _timestamp(sync.get("finished_at")),
+            "provider": str(sync.get("provider") or "tossinvest"),
+            "sync_mode": str(sync.get("sync_mode") or ""),
+            "market_code": str(sync.get("market_code") or "").upper(),
+            "requested_symbol_count": int(_safe_number(sync.get("requested_symbol_count")) or 0),
+            "candle_symbol_count": int(_safe_number(sync.get("candle_symbol_count")) or 0),
+            "candle_bar_count": int(_safe_number(sync.get("candle_bar_count")) or 0),
+            "stock_warning_symbol_count": int(_safe_number(sync.get("stock_warning_symbol_count")) or 0),
+            "market_microdata_symbol_count": int(_safe_number(sync.get("market_microdata_symbol_count")) or 0),
+            "unresolved_symbol_count": int(_safe_number(sync.get("unresolved_symbol_count")) or 0),
+            "collection_cadence": _as_dict(sync.get("collection_cadence")),
+            "credentials_configured": sync.get("credentials_configured") is True,
+            "missing_env_vars": [str(item) for item in _as_list_or_scalars(sync.get("missing_env_vars"))],
+            "operator_action": str(sync.get("operator_action") or ""),
+            "attention_required": sync_status in {"missing", "blocked_missing_credentials", "failed"},
+            "broker_submit_allowed": False,
+            "submitted_to_broker": False,
+            "order_boundary": "read_only_no_order",
+            "secret_free": True,
+        },
+        "provider_comparison": {
+            "status": comparison_status,
+            "latest_status": str(comparison.get("latest_status") or comparison_status),
+            "latest_run_id": _opaque_id("pipeline-run", comparison.get("latest_run_id"), None),
+            "finished_at": _timestamp(comparison.get("finished_at")),
+            "symbol_count": int(_safe_number(comparison.get("symbol_count")) or 0),
+            "comparison_date": str(comparison.get("comparison_date") or ""),
+            "lookback_days": int(_safe_number(comparison.get("lookback_days")) or 5),
+            "max_diff_bps": str(comparison.get("max_diff_bps") or "50"),
+            "canonical_promotion_blocked": True,
+            "attention_required": comparison_status in {"failed"},
+            "broker_submit_allowed": False,
+            "submitted_to_broker": False,
+            "secret_free": True,
+        },
     }
 
 

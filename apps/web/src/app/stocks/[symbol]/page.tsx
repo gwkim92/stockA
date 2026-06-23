@@ -2,12 +2,13 @@ import Link from "next/link";
 import type { Route } from "next";
 import { Fragment } from "react";
 
+import { CandlestickChart } from "@/components/candlestick-chart";
 import { NewsTitleBlock } from "@/components/news-title-block";
 import { ProfessionalResearchFlow, type ResearchFlowStep } from "@/components/professional-research-flow";
 import { ValuationTargetRangeCard } from "@/components/valuation-target-range-card";
 import { getAiEvidenceNeighborhood, getStockDetail } from "@/lib/frontend-api";
 import { koCode, koLabel } from "@/lib/korean-labels";
-import type { AiEvidenceNeighborhoodData, StockDetailData, StockPrice } from "@/lib/types";
+import type { AiEvidenceNeighborhoodData, StockDetailData } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "종목 상세" };
@@ -1195,49 +1196,6 @@ function ProfessionalSourceGuardrailPanel({
   );
 }
 
-function PriceChart({ bars, currencyCode }: { bars: StockPrice[]; currencyCode: string }) {
-  const plotted = bars.filter((bar) => typeof bar.adjusted_close === "number" && bar.adjusted_close !== null);
-  if (plotted.length < 2) {
-    return <div className="empty-state">차트를 그릴 만큼 가격 데이터가 아직 충분하지 않다.</div>;
-  }
-
-  const closes = plotted.map((bar) => bar.adjusted_close as number);
-  const min = Math.min(...closes);
-  const max = Math.max(...closes);
-  const range = max - min || 1;
-  const points = plotted
-    .map((bar, index) => {
-      const x = 40 + (index / Math.max(plotted.length - 1, 1)) * 780;
-      const y = 186 - (((bar.adjusted_close as number) - min) / range) * 142;
-      return `${x.toFixed(1)},${y.toFixed(1)}`;
-    })
-    .join(" ");
-  const first = plotted[0];
-  const last = plotted[plotted.length - 1];
-
-  return (
-    <figure className="price-chart" aria-label="종가 차트">
-      <svg viewBox="0 0 860 240" role="img" aria-labelledby="price-chart-title">
-        <title id="price-chart-title">수집된 조정 종가 흐름</title>
-        <line x1="40" x2="820" y1="44" y2="44" />
-        <line x1="40" x2="820" y1="115" y2="115" />
-        <line x1="40" x2="820" y1="186" y2="186" />
-        <polyline points={points} />
-        <circle cx="40" cy={186 - (((first.adjusted_close as number) - min) / range) * 142} r="4" />
-        <circle cx="820" cy={186 - (((last.adjusted_close as number) - min) / range) * 142} r="5" />
-        <text x="40" y="222">{first.trade_date}</text>
-        <text x="820" y="222" textAnchor="end">{last.trade_date}</text>
-        <text x="40" y="30">{formatCurrency(max, currencyCode)}</text>
-        <text x="820" y="205" textAnchor="end">{formatCurrency(min, currencyCode)}</text>
-      </svg>
-      <figcaption>
-        최근 {plotted.length.toLocaleString("ko-KR")}개 거래일 조정 종가 기준. 투자 판단용 확정 신호가 아니라
-        수집된 가격 데이터의 상태를 보여준다.
-      </figcaption>
-    </figure>
-  );
-}
-
 function EvidenceNeighborhoodPanel({ neighborhood }: { neighborhood: AiEvidenceNeighborhoodData }) {
   const firstTheme = neighborhood.themes[0];
   const firstArtifact = neighborhood.ai_artifacts[0];
@@ -1719,7 +1677,12 @@ export default async function StockDetailPage({ params }: StockDetailPageProps) 
               수집 상태 보기
             </Link>
           </div>
-          <PriceChart bars={data.price_bars} currencyCode={data.currency_code} />
+          <CandlestickChart
+            bars={data.candles}
+            currencyCode={data.currency_code}
+            provider={data.market_data_provider}
+            tossEvidence={data.toss_provider_evidence}
+          />
         </article>
 
         <article className="bento-card">
