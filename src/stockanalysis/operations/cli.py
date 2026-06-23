@@ -4557,7 +4557,11 @@ class _NullWriter:
 def _load_symbol_file(path: Path) -> list[str]:
     text = path.read_text(encoding="utf-8")
     if "," not in text and "\t" not in text:
-        return [line.strip().upper() for line in text.splitlines() if line.strip()]
+        return [
+            line.strip().upper()
+            for line in text.splitlines()
+            if line.strip() and line.strip().lower() != "symbol"
+        ]
     rows = csv.DictReader(text.splitlines())
     if rows.fieldnames and "symbol" in rows.fieldnames:
         return [

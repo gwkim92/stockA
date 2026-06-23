@@ -11,6 +11,7 @@ from pathlib import Path
 from stockanalysis.ingest.models import FetchResponse
 from stockanalysis.ingest.config import RuntimeConfig
 from stockanalysis.operations.cli import main
+from stockanalysis.operations.cli import _load_symbol_file
 from stockanalysis.operations.tossinvest_market_data import (
     normalize_tossinvest_market_data_payload,
     render_tossinvest_market_data_upsert_sql,
@@ -319,6 +320,15 @@ class TossInvestMarketDataTests(unittest.TestCase):
         self.assertTrue(payload["canonical_promotion_blocked"])
         self.assertFalse(payload["broker_submit_allowed"])
         self.assertNotIn("Authorization", dumped)
+
+    def test_symbol_file_loader_skips_newline_header(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            symbols_file = Path(temp_dir) / "symbols.txt"
+            symbols_file.write_text("symbol\nAAPL\nNVDA\n", encoding="utf-8")
+
+            symbols = _load_symbol_file(symbols_file)
+
+        self.assertEqual(symbols, ["AAPL", "NVDA"])
 
     def test_migration_adds_toss_market_data_tables_and_provider_provenance(self) -> None:
         migration = (ROOT_DIR / "db" / "migrations" / "0034_tossinvest_market_data_agent_context.sql").read_text(
