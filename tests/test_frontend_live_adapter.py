@@ -24,6 +24,8 @@ from stockanalysis.frontend.live_adapter import (
     _build_portfolio_review_feedback_calibration_payload,
     _build_production_api_server_payload,
     _build_professional_source_guardrail_payload,
+    _build_tossinvest_order_readiness_payload,
+    _build_tossinvest_readonly_sync_payload,
     _benchmark_drift_quality_attention_policy,
     _build_outcome_maturity_wait_monitor_payload,
     _portfolio_review_decision_history_attention_policy,
@@ -6452,6 +6454,9 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertIn("active_recommendation_price_freshness", sql)
         self.assertIn("selected_tossinvest_readonly_sync", sql)
         self.assertIn("tossinvest_readonly_sync", sql)
+        self.assertIn("provider_http_status", sql)
+        self.assertIn("config_gap", sql)
+        self.assertIn("operator_action", sql)
         self.assertIn("disabled_stub", sql)
         self.assertIn("recovered_with_recent_failures", sql)
         self.assertIn("selected_portfolio_review_decision_history", sql)
@@ -7093,6 +7098,9 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertIn("ai.eval_run", sql)
         self.assertIn("tossinvest_readonly_sync", sql)
         self.assertIn("tossinvest_order_readiness", sql)
+        self.assertIn("provider_http_status", sql)
+        self.assertIn("config_gap", sql)
+        self.assertIn("operator_action", sql)
         self.assertIn("disabled_stub", sql)
         self.assertIn("portfolio_risk_budget_guardrail", sql)
         self.assertIn("portfolio-risk-budget-guardrail-v1", sql)
@@ -7103,6 +7111,54 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertNotIn("delete from", lowered)
         self.assertNotIn("'secret_ref'", lowered)
         self.assertNotIn("submitted_to_broker = true", lowered)
+
+    def test_tossinvest_provider_block_payload_stays_secret_free_and_actionable(self) -> None:
+        payload = _build_tossinvest_readonly_sync_payload(
+            {
+                "status": "blocked_provider_access",
+                "latest_status": "failed",
+                "latest_run_id": 7039,
+                "portfolio_name": "Toss Real Readonly",
+                "base_currency": "KRW",
+                "credentials_configured": True,
+                "provider_http_status": 403,
+                "provider_error": "access_denied",
+                "provider_error_description": "IP address not allowed",
+                "config_gap": "ip_address_not_allowed",
+                "operator_action": "allowlist_runtime_egress_ip_for_tossinvest_openapi",
+                "submitted_to_broker": False,
+            }
+        )
+
+        self.assertEqual(payload["status"], "blocked_provider_access")
+        self.assertTrue(payload["attention_required"])
+        self.assertEqual(payload["provider_http_status"], 403)
+        self.assertEqual(payload["config_gap"], "ip_address_not_allowed")
+        self.assertFalse(payload["submitted_to_broker"])
+        dumped = json.dumps(payload).lower()
+        self.assertNotIn("client-secret", dumped)
+        self.assertNotIn("authorization", dumped)
+
+    def test_tossinvest_order_readiness_exposes_provider_block_without_enabling_submit(self) -> None:
+        payload = _build_tossinvest_order_readiness_payload(
+            {
+                "status": "blocked_provider_access",
+                "latest_status": "failed",
+                "provider_http_status": 403,
+                "provider_error": "access_denied",
+                "provider_error_description": "IP address not allowed",
+                "config_gap": "ip_address_not_allowed",
+                "operator_action": "allowlist_runtime_egress_ip_for_tossinvest_openapi",
+                "submit_adapter_status": "disabled_stub",
+                "submitted_to_broker": False,
+            }
+        )
+
+        self.assertEqual(payload["provider_http_status"], 403)
+        self.assertEqual(payload["config_gap"], "ip_address_not_allowed")
+        self.assertEqual(payload["submit_adapter_status"], "disabled_stub")
+        self.assertFalse(payload["broker_submit_allowed"])
+        self.assertFalse(payload["submitted_to_broker"])
 
     def test_live_cycle_state_list_response_matches_frontend_contract_shape(self) -> None:
         payload = resolve_live_frontend_response(

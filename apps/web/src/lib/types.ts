@@ -159,8 +159,15 @@ export type TossInvestReadonlySyncVisibility = {
   fx_rate: Record<string, unknown>;
   unresolved_exchange_mapping_count: number;
   missing_env_vars: string[];
+  provider_http_status: number | null;
+  provider_error: string;
+  provider_error_description: string;
+  config_gap: string;
+  operator_action: string;
   attention_required: boolean;
   submit_adapter_status: string;
+  order_submit_attempted: boolean;
+  submitted_to_broker: boolean;
   broker_submit_allowed: boolean;
   automatic_order_allowed: boolean;
   order_boundary: string;
@@ -189,6 +196,11 @@ export type TossInvestOrderReadiness = {
     valid_from: string;
     valid_until: string;
   }>;
+  provider_http_status: number | null;
+  provider_error: string;
+  provider_error_description: string;
+  config_gap: string;
+  operator_action: string;
   submit_adapter_status: string;
   order_submit_attempted: boolean;
   submitted_to_broker: boolean;
