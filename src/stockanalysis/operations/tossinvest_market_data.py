@@ -727,13 +727,21 @@ def _normalize_market_calendar_items(
         if not isinstance(raw_payload, Mapping) or "error" in raw_payload:
             continue
         unwrapped = _as_dict(_unwrap_result(raw_payload))
-        date_text = str(
+        today_payload = _as_dict(unwrapped.get("today"))
+        next_business_day_payload = _as_dict(unwrapped.get("nextBusinessDay") or unwrapped.get("next_business_day"))
+        date_text = _extract_calendar_date_text(
             unwrapped.get("date")
             or unwrapped.get("calendarDate")
             or unwrapped.get("businessDate")
+            or today_payload.get("date")
             or default_date.isoformat()
         )
-        next_text = str(unwrapped.get("nextBusinessDay") or unwrapped.get("next_business_day") or "").strip()
+        next_text = _extract_calendar_date_text(
+            next_business_day_payload.get("date")
+            or unwrapped.get("nextBusinessDay")
+            or unwrapped.get("next_business_day")
+            or ""
+        )
         calendars.append(
             TossInvestMarketCalendar(
                 market_code=_normalize_market_code(str(market_code)),
@@ -744,6 +752,12 @@ def _normalize_market_calendar_items(
             )
         )
     return calendars
+
+
+def _extract_calendar_date_text(value: Any) -> str:
+    if isinstance(value, Mapping):
+        return _extract_calendar_date_text(value.get("date") or value.get("calendarDate") or value.get("businessDate") or "")
+    return str(value or "").strip()
 
 
 def _calendar_payload_is_open(payload: Mapping[str, Any]) -> bool | None:

@@ -127,6 +127,43 @@ class TossInvestMarketDataTests(unittest.TestCase):
         self.assertNotIn("Authorization", dumped)
         self.assertIn("read_only_no_order", dumped)
 
+    def test_normalizer_handles_live_market_calendar_object_dates(self) -> None:
+        payload = sample_payload()
+        payload["market_calendars"] = {
+            "US": {
+                "result": {
+                    "today": {
+                        "date": "2026-06-23",
+                        "dayMarket": {
+                            "startTime": "2026-06-23T09:00:00.000+09:00",
+                            "endTime": "2026-06-23T17:00:00.000+09:00",
+                        },
+                    },
+                    "nextBusinessDay": {
+                        "date": "2026-06-24",
+                        "dayMarket": {
+                            "startTime": "2026-06-24T09:00:00.000+09:00",
+                            "endTime": "2026-06-24T17:00:00.000+09:00",
+                        },
+                    },
+                    "previousBusinessDay": {"date": "2026-06-22"},
+                }
+            }
+        }
+
+        result = normalize_tossinvest_market_data_payload(
+            payload,
+            symbols=("AAPL",),
+            market_code="US",
+            sync_mode="daily_candles",
+            as_of_date=date(2026, 6, 23),
+            credentials_configured=True,
+        )
+
+        self.assertEqual(result.calendars[0].calendar_date.isoformat(), "2026-06-23")
+        self.assertEqual(result.calendars[0].next_business_day.isoformat(), "2026-06-24")
+        self.assertEqual(len(result.candles), 2)
+
     def test_render_upsert_writes_snapshots_and_only_kr_canonical_prices(self) -> None:
         result = normalize_tossinvest_market_data_payload(
             sample_payload(),
