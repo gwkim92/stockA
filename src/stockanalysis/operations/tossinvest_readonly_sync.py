@@ -428,17 +428,24 @@ resolved_issuer as (
     select issuer_id, legal_name, country_code, issuer_type
     from inserted_issuer
     union all
-    select distinct on (existing.legal_name, existing.country_code, existing.issuer_type)
-        existing.issuer_id,
-        existing.legal_name,
-        existing.country_code,
-        existing.issuer_type
-    from ref.issuer existing
-    join issuer_source source
-      on source.legal_name = existing.legal_name
-     and source.country_code = existing.country_code
-     and source.issuer_type = existing.issuer_type
-    order by existing.legal_name, existing.country_code, existing.issuer_type, existing.issuer_id
+    select
+        issuer_id,
+        legal_name,
+        country_code,
+        issuer_type
+    from (
+        select distinct on (existing.legal_name, existing.country_code, existing.issuer_type)
+            existing.issuer_id,
+            existing.legal_name,
+            existing.country_code,
+            existing.issuer_type
+        from ref.issuer existing
+        join issuer_source source
+          on source.legal_name = existing.legal_name
+         and source.country_code = existing.country_code
+         and source.issuer_type = existing.issuer_type
+        order by existing.legal_name, existing.country_code, existing.issuer_type, existing.issuer_id
+    ) existing_issuer
 ),
 instrument_source as (
     select distinct

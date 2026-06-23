@@ -100,6 +100,7 @@ class TossInvestReadonlySyncTests(unittest.TestCase):
         self.assertIn("Toss Real Readonly", sql)
         self.assertNotIn("Long Term Paper", sql)
         self.assertIn("1390.00000000", sql)
+        self.assertIn(") existing_issuer", sql)
 
     def test_run_fixture_execute_produces_deterministic_secret_free_report(self) -> None:
         executor = FakeExecutor()
