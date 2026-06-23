@@ -165,6 +165,26 @@ class TossInvestMarketDataTests(unittest.TestCase):
         self.assertEqual(result.calendars[0].next_business_day.isoformat(), "2026-06-24")
         self.assertEqual(len(result.candles), 2)
 
+    def test_normalizer_caps_candles_and_uses_compact_evidence(self) -> None:
+        result = normalize_tossinvest_market_data_payload(
+            sample_payload(),
+            symbols=("AAPL",),
+            market_code="US",
+            sync_mode="daily_candles",
+            as_of_date=date(2026, 6, 23),
+            credentials_configured=True,
+            max_bars_per_symbol=1,
+        )
+
+        self.assertEqual(len(result.candles), 1)
+        self.assertEqual(result.candles[0].bar.trade_date.isoformat(), "2026-03-25")
+        evidence = result.candles[0].evidence
+        self.assertEqual(evidence["source_bar_count"], 2)
+        self.assertEqual(evidence["stored_bar_count"], 1)
+        self.assertEqual(evidence["trimmed_source_bar_count"], 1)
+        self.assertFalse(evidence["raw_candle_payload_stored"])
+        self.assertNotIn("candles", json.dumps(evidence))
+
     def test_render_upsert_writes_snapshots_and_only_kr_canonical_prices(self) -> None:
         result = normalize_tossinvest_market_data_payload(
             sample_payload(),
@@ -252,6 +272,52 @@ class TossInvestMarketDataTests(unittest.TestCase):
         self.assertEqual(report["market_microdata_symbol_count"], 0)
         self.assertFalse(report["broker_submit_allowed"])
 
+    def test_live_sync_batches_symbols_before_fetching_provider(self) -> None:
+        calls: list[str] = []
+
+        def fake_request_executor(request):
+            calls.append(request.dataset_name)
+            if request.dataset_name == "oauth_token":
+                return FetchResponse(
+                    status_code=200,
+                    content_type="application/json",
+                    body=json.dumps({"access_token": "access-token-test"}).encode("utf-8"),
+                )
+            if request.dataset_name == "market_calendar_us":
+                return FetchResponse(
+                    status_code=200,
+                    content_type="application/json",
+                    body=json.dumps({"result": {"date": "2026-06-23", "isOpen": True}}).encode("utf-8"),
+                )
+            self.assertEqual(request.dataset_name, "candles")
+            return FetchResponse(
+                status_code=200,
+                content_type="application/json",
+                body=json.dumps(sample_payload()["candles"]["AAPL"]).encode("utf-8"),
+            )
+
+        report = run_tossinvest_market_data_sync(
+            config=RuntimeConfig(
+                tossinvest_client_id="client-id-test",
+                tossinvest_client_secret="client-secret-test",
+                psql_command="psql",
+            ),
+            symbols=["AAPL", "MSFT", "NVDA"],
+            market_code="US",
+            sync_mode="daily_candles",
+            as_of_date=date(2026, 6, 23),
+            max_symbols_per_run=1,
+            dry_run=True,
+            execute=False,
+            request_executor=fake_request_executor,
+        )
+
+        self.assertEqual(calls.count("candles"), 1)
+        self.assertTrue(report["symbol_batch_limited"])
+        self.assertEqual(report["requested_symbol_count_total"], 3)
+        self.assertEqual(report["selected_symbol_count"], 1)
+        self.assertEqual(report["candle_bar_count"], 2)
+
     def test_provider_comparison_sql_keeps_toss_as_shadow_until_threshold_passes(self) -> None:
         sql = render_tossinvest_provider_comparison_sql(
             symbols=("AAPL", "NVDA"),
@@ -287,6 +353,10 @@ class TossInvestMarketDataTests(unittest.TestCase):
                         "2026-06-23",
                         "--fixture-json",
                         str(fixture_path),
+                        "--outputsize",
+                        "1",
+                        "--max-symbols-per-run",
+                        "1",
                         "--dry-run",
                     ]
                 )
@@ -295,6 +365,8 @@ class TossInvestMarketDataTests(unittest.TestCase):
         dumped = json.dumps(payload, sort_keys=True)
         self.assertEqual(exit_code, 0)
         self.assertEqual(payload["report_name"], "tossinvest_market_data_sync")
+        self.assertEqual(payload["candle_max_bars_per_symbol"], 1)
+        self.assertEqual(payload["candle_bar_count"], 1)
         self.assertFalse(payload["broker_submit_allowed"])
         self.assertNotIn("client-secret", dumped)
 
@@ -307,8 +379,12 @@ class TossInvestMarketDataTests(unittest.TestCase):
                     "tossinvest-provider-comparison-run",
                     "--symbol",
                     "AAPL",
+                    "--symbol",
+                    "MSFT",
                     "--comparison-date",
                     "2026-06-23",
+                    "--max-symbols-per-run",
+                    "1",
                 ]
             )
 
@@ -317,6 +393,8 @@ class TossInvestMarketDataTests(unittest.TestCase):
         self.assertEqual(exit_code, 0)
         self.assertEqual(payload["report_name"], "tossinvest_provider_comparison")
         self.assertEqual(payload["status"], "not_executed")
+        self.assertEqual(payload["requested_symbol_count_total"], 2)
+        self.assertEqual(payload["selected_symbol_count"], 1)
         self.assertTrue(payload["canonical_promotion_blocked"])
         self.assertFalse(payload["broker_submit_allowed"])
         self.assertNotIn("Authorization", dumped)

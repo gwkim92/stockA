@@ -33,6 +33,10 @@ from stockanalysis.operations.path_policy import (
     resolve_existing_file,
     resolve_output_path,
 )
+from stockanalysis.operations.tossinvest_market_data import (
+    DEFAULT_TOSSINVEST_SCHEDULED_DAILY_OUTPUTSIZE,
+    DEFAULT_TOSSINVEST_SCHEDULED_MAX_SYMBOLS_PER_RUN,
+)
 
 
 DEFAULT_PORTFOLIO_NAME = "Long Term Paper"
@@ -74,6 +78,8 @@ OPERATING_DATA_REPORT_ENV = "STOCKANALYSIS_OPERATING_DATA_RUN_REPORT"
 LLM_PROVIDER_ENV = "STOCKANALYSIS_LLM_PROVIDER"
 DEFAULT_LLM_PROVIDER = "codex_oauth"
 TOSSINVEST_KR_SYMBOLS_FILE_ENV = "STOCKANALYSIS_TOSSINVEST_KR_SYMBOLS_FILE"
+TOSSINVEST_SCHEDULED_DAILY_OUTPUTSIZE = DEFAULT_TOSSINVEST_SCHEDULED_DAILY_OUTPUTSIZE
+TOSSINVEST_SCHEDULED_MAX_SYMBOLS_PER_RUN = DEFAULT_TOSSINVEST_SCHEDULED_MAX_SYMBOLS_PER_RUN
 
 ArtifactRunner = Callable[..., dict[str, object]]
 
@@ -1227,6 +1233,10 @@ def _build_planned_steps(
                 "daily_candles",
                 "--as-of-date",
                 target,
+                "--outputsize",
+                TOSSINVEST_SCHEDULED_DAILY_OUTPUTSIZE,
+                "--max-symbols-per-run",
+                str(TOSSINVEST_SCHEDULED_MAX_SYMBOLS_PER_RUN),
                 "--execute",
             ),
         },
@@ -1246,6 +1256,8 @@ def _build_planned_steps(
                 str(tossinvest_us_symbols_path),
                 "--comparison-date",
                 target,
+                "--max-symbols-per-run",
+                str(TOSSINVEST_SCHEDULED_MAX_SYMBOLS_PER_RUN),
                 "--execute",
             ),
         },
@@ -1269,6 +1281,8 @@ def _build_planned_steps(
                 "microdata",
                 "--as-of-date",
                 target,
+                "--max-symbols-per-run",
+                str(TOSSINVEST_SCHEDULED_MAX_SYMBOLS_PER_RUN),
                 "--execute",
             ),
         },

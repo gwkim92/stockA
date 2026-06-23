@@ -353,6 +353,7 @@ def build_parser() -> argparse.ArgumentParser:
     tossinvest_market_data_sync.add_argument("--as-of-date")
     tossinvest_market_data_sync.add_argument("--fixture-json")
     tossinvest_market_data_sync.add_argument("--outputsize", default=DEFAULT_TOSSINVEST_CANDLE_OUTPUTSIZE)
+    tossinvest_market_data_sync.add_argument("--max-symbols-per-run", type=int, default=0)
     tossinvest_market_data_sync.add_argument("--dry-run", action="store_true")
     tossinvest_market_data_sync.add_argument("--execute", action="store_true")
     tossinvest_market_data_sync.add_argument("--output")
@@ -372,6 +373,7 @@ def build_parser() -> argparse.ArgumentParser:
     tossinvest_provider_comparison.add_argument("--comparison-date")
     tossinvest_provider_comparison.add_argument("--lookback-days", type=int, default=5)
     tossinvest_provider_comparison.add_argument("--max-diff-bps", type=Decimal, default=Decimal("50"))
+    tossinvest_provider_comparison.add_argument("--max-symbols-per-run", type=int, default=0)
     tossinvest_provider_comparison.add_argument("--execute", action="store_true")
     tossinvest_provider_comparison.add_argument("--output")
     tossinvest_provider_comparison.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
@@ -2006,6 +2008,7 @@ def _handle_tossinvest_market_data_sync_run(args: argparse.Namespace, *, stdout:
         as_of_date=date.fromisoformat(args.as_of_date) if args.as_of_date else None,
         fixture_json_path=fixture_json_path,
         outputsize=args.outputsize,
+        max_symbols_per_run=args.max_symbols_per_run,
         execute=bool(args.execute),
         dry_run=bool(args.dry_run or not args.execute),
     )
@@ -2039,6 +2042,7 @@ def _handle_tossinvest_provider_comparison_run(args: argparse.Namespace, *, stdo
         comparison_date=date.fromisoformat(args.comparison_date) if args.comparison_date else None,
         lookback_days=args.lookback_days,
         max_diff_bps=args.max_diff_bps,
+        max_symbols_per_run=args.max_symbols_per_run,
         execute=bool(args.execute),
     )
     if args.output:

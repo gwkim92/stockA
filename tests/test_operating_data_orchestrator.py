@@ -363,6 +363,8 @@ class OperatingDataOrchestratorTests(unittest.TestCase):
         self.assertIn("NVDA", report["derived_inputs"]["tossinvest_us_symbols"])
         rendered_commands = [" ".join(call["command_argv"]) for call in runner.calls]
         self.assertIn(str(toss_symbols_path), rendered_commands[0])
+        self.assertIn("--outputsize 30", rendered_commands[0])
+        self.assertIn("--max-symbols-per-run 10", rendered_commands[0])
 
     def test_weekly_reference_profiles_do_not_require_portfolio_positions(self) -> None:
         with tempfile.TemporaryDirectory() as repo_root, tempfile.TemporaryDirectory() as outside_root:

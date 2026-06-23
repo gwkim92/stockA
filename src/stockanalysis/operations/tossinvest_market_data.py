@@ -22,6 +22,8 @@ TOSSINVEST_PROVIDER_COMPARISON_PIPELINE_NAME = "tossinvest_provider_comparison"
 TOSSINVEST_PROVIDER_NAME = "tossinvest"
 DEFAULT_TOSSINVEST_CANDLE_OUTPUTSIZE = "120"
 DEFAULT_TOSSINVEST_MARKET_CODE = "US"
+DEFAULT_TOSSINVEST_SCHEDULED_DAILY_OUTPUTSIZE = "30"
+DEFAULT_TOSSINVEST_SCHEDULED_MAX_SYMBOLS_PER_RUN = 10
 TOSSINVEST_COLLECTION_CADENCE = {
     "toss-reference-kr-daily": "Mon..Fri 08:30 Asia/Seoul",
     "toss-reference-us-daily": "Mon..Fri 08:45 America/New_York",
@@ -137,6 +139,7 @@ def run_tossinvest_market_data_sync(
     as_of_date: date | None = None,
     fixture_json_path: str | None = None,
     outputsize: str = DEFAULT_TOSSINVEST_CANDLE_OUTPUTSIZE,
+    max_symbols_per_run: int = 0,
     execute: bool = False,
     dry_run: bool = True,
     executor: PsqlCommandExecutor | None = None,
@@ -147,13 +150,20 @@ def run_tossinvest_market_data_sync(
         raise ValueError("At least one TossInvest market data symbol is required.")
     normalized_market = _normalize_market_code(market_code)
     resolved_date = as_of_date or date.today()
+    candle_limit = _coerce_tossinvest_candle_outputsize(outputsize)
+    selected_symbols, batch_metadata = _select_tossinvest_symbol_batch(
+        normalized_symbols,
+        max_symbols_per_run=max_symbols_per_run,
+        as_of_date=resolved_date,
+    )
     credentials_configured = _credentials_configured(config)
     if fixture_json_path is None and not credentials_configured:
         return _blocked_missing_credentials_report(
-            symbols=normalized_symbols,
+            symbols=selected_symbols,
             market_code=normalized_market,
             sync_mode=sync_mode,
             as_of_date=resolved_date,
+            batch_metadata=batch_metadata,
         )
 
     payload = (
@@ -161,7 +171,7 @@ def run_tossinvest_market_data_sync(
         if fixture_json_path
         else _fetch_live_market_data_payload(
             config=config,
-            symbols=normalized_symbols,
+            symbols=selected_symbols,
             market_code=normalized_market,
             sync_mode=sync_mode,
             outputsize=outputsize,
@@ -170,13 +180,21 @@ def run_tossinvest_market_data_sync(
     )
     result = normalize_tossinvest_market_data_payload(
         payload,
-        symbols=normalized_symbols,
+        symbols=selected_symbols,
         market_code=normalized_market,
         sync_mode=sync_mode,
         as_of_date=resolved_date,
         credentials_configured=credentials_configured,
+        max_bars_per_symbol=candle_limit,
     )
     report = result.report()
+    report.update(batch_metadata)
+    report["requested_symbol_count_total"] = len(normalized_symbols)
+    report["requested_symbols_total"] = list(normalized_symbols)
+    report["selected_symbol_count"] = len(selected_symbols)
+    report["selected_symbols"] = list(selected_symbols)
+    report["candle_outputsize"] = str(outputsize)
+    report["candle_max_bars_per_symbol"] = candle_limit
     report["dry_run"] = bool(dry_run or not execute)
     report["execute"] = bool(execute)
 
@@ -211,9 +229,17 @@ def normalize_tossinvest_market_data_payload(
     sync_mode: str,
     as_of_date: date,
     credentials_configured: bool,
+    max_bars_per_symbol: int | None = None,
 ) -> TossInvestMarketDataResult:
     calendars = tuple(_normalize_market_calendar_items(payload, default_date=as_of_date))
-    candles = tuple(_normalize_candles(payload, symbols=symbols, market_code=market_code))
+    candles = tuple(
+        _normalize_candles(
+            payload,
+            symbols=symbols,
+            market_code=market_code,
+            max_bars_per_symbol=max_bars_per_symbol,
+        )
+    )
     warnings = tuple(_normalize_warnings(payload, symbols=symbols))
     microdata = tuple(_normalize_microdata(payload, symbols=symbols))
     return TossInvestMarketDataResult(
@@ -406,6 +432,7 @@ def run_tossinvest_provider_comparison(
     comparison_date: date | None = None,
     lookback_days: int = 5,
     max_diff_bps: Decimal = Decimal("50"),
+    max_symbols_per_run: int = 0,
     execute: bool = False,
     executor: PsqlCommandExecutor | None = None,
 ) -> dict[str, object]:
@@ -413,12 +440,21 @@ def run_tossinvest_provider_comparison(
     if not normalized_symbols:
         raise ValueError("At least one TossInvest provider comparison symbol is required.")
     resolved_date = comparison_date or date.today()
+    selected_symbols, batch_metadata = _select_tossinvest_symbol_batch(
+        normalized_symbols,
+        max_symbols_per_run=max_symbols_per_run,
+        as_of_date=resolved_date,
+    )
     report = {
         "report_name": TOSSINVEST_PROVIDER_COMPARISON_PIPELINE_NAME,
         "status": "not_executed" if not execute else "running",
         "provider": TOSSINVEST_PROVIDER_NAME,
-        "symbols": list(normalized_symbols),
-        "symbol_count": len(normalized_symbols),
+        "symbols": list(selected_symbols),
+        "symbol_count": len(selected_symbols),
+        "requested_symbol_count_total": len(normalized_symbols),
+        "requested_symbols_total": list(normalized_symbols),
+        "selected_symbol_count": len(selected_symbols),
+        "selected_symbols": list(selected_symbols),
         "comparison_date": resolved_date.isoformat(),
         "lookback_days": lookback_days,
         "max_diff_bps": str(max_diff_bps),
@@ -427,6 +463,7 @@ def run_tossinvest_provider_comparison(
         "submitted_to_broker": False,
         "secret_free": True,
     }
+    report.update(batch_metadata)
     if not execute:
         return report
     sql_executor = executor or PsqlCommandExecutor.from_config(config)
@@ -438,7 +475,7 @@ def run_tossinvest_provider_comparison(
     try:
         payload = sql_executor.execute_scalar(
             render_tossinvest_provider_comparison_sql(
-                symbols=normalized_symbols,
+                symbols=selected_symbols,
                 comparison_date=resolved_date,
                 lookback_days=lookback_days,
                 max_diff_bps=max_diff_bps,
@@ -687,6 +724,7 @@ def _normalize_candles(
     *,
     symbols: tuple[str, ...],
     market_code: str,
+    max_bars_per_symbol: int | None = None,
 ) -> list[TossInvestDailyCandle]:
     raw_candles = payload.get("candles")
     if not isinstance(raw_candles, Mapping):
@@ -701,17 +739,55 @@ def _normalize_candles(
         if not isinstance(symbol_payload, Mapping) or "error" in symbol_payload:
             continue
         normalized = normalize_tossinvest_candles_payload(symbol, dict(symbol_payload))
-        for bar in normalized.bars:
+        source_bar_count = len(normalized.bars)
+        selected_bars = normalized.bars[-max_bars_per_symbol:] if max_bars_per_symbol else normalized.bars
+        compact_evidence = _build_compact_candle_evidence(
+            symbol=symbol,
+            market_code=market_code,
+            source_bar_count=source_bar_count,
+            stored_bar_count=len(selected_bars),
+            max_bars_per_symbol=max_bars_per_symbol,
+            source_payload=symbol_payload,
+        )
+        for bar in selected_bars:
             candles.append(
                 TossInvestDailyCandle(
                     symbol=symbol,
                     market_code=market_code,
                     currency_code=currency_code,
                     bar=bar,
-                    evidence=symbol_payload,
+                    evidence=compact_evidence,
                 )
             )
     return candles
+
+
+def _build_compact_candle_evidence(
+    *,
+    symbol: str,
+    market_code: str,
+    source_bar_count: int,
+    stored_bar_count: int,
+    max_bars_per_symbol: int | None,
+    source_payload: Mapping[str, Any],
+) -> dict[str, Any]:
+    unwrapped = _as_dict(_unwrap_result(source_payload))
+    evidence: dict[str, Any] = {
+        "provider": TOSSINVEST_PROVIDER_NAME,
+        "symbol": symbol,
+        "market_code": market_code,
+        "source_bar_count": source_bar_count,
+        "stored_bar_count": stored_bar_count,
+        "max_bars_per_symbol": max_bars_per_symbol,
+        "raw_candle_payload_stored": False,
+        "evidence_policy": "compact_runtime_guard",
+    }
+    if unwrapped.get("nextBefore") or unwrapped.get("next_before"):
+        evidence["next_before"] = str(unwrapped.get("nextBefore") or unwrapped.get("next_before"))
+    if source_bar_count > stored_bar_count:
+        evidence["trimmed_source_bar_count"] = source_bar_count - stored_bar_count
+        evidence["trim_policy"] = f"latest_{stored_bar_count}_bars"
+    return evidence
 
 
 def _normalize_market_calendar_items(
@@ -1052,14 +1128,54 @@ def _read_error_body(exc: HTTPError) -> str:
         return ""
 
 
+def _coerce_tossinvest_candle_outputsize(outputsize: str) -> int:
+    text = str(outputsize or "").strip()
+    if not text:
+        raise ValueError("TossInvest candle outputsize must be an integer between 1 and 200.")
+    try:
+        count = int(text)
+    except ValueError as exc:
+        raise ValueError("TossInvest candle outputsize must be an integer between 1 and 200.") from exc
+    if count < 1 or count > 200:
+        raise ValueError("TossInvest candle outputsize must be between 1 and 200.")
+    return count
+
+
+def _select_tossinvest_symbol_batch(
+    symbols: tuple[str, ...],
+    *,
+    max_symbols_per_run: int,
+    as_of_date: date,
+) -> tuple[tuple[str, ...], dict[str, object]]:
+    max_symbols = int(max_symbols_per_run or 0)
+    if max_symbols < 0:
+        raise ValueError("TossInvest max_symbols_per_run must be zero or greater.")
+    if max_symbols == 0 or max_symbols >= len(symbols):
+        return symbols, {
+            "symbol_batch_limited": False,
+            "max_symbols_per_run": max_symbols,
+            "symbol_batch_offset": 0,
+        }
+
+    offset = ((as_of_date.toordinal() - 1) * max_symbols) % len(symbols)
+    selected = tuple(symbols[(offset + index) % len(symbols)] for index in range(max_symbols))
+    return selected, {
+        "symbol_batch_limited": True,
+        "max_symbols_per_run": max_symbols,
+        "symbol_batch_offset": offset,
+        "symbol_batch_rotation_policy": "as_of_date_ordinal_x_max_symbols_mod_symbol_count",
+    }
+
+
 def _blocked_missing_credentials_report(
     *,
     symbols: tuple[str, ...],
     market_code: str,
     sync_mode: str,
     as_of_date: date,
+    batch_metadata: Mapping[str, object] | None = None,
 ) -> dict[str, object]:
-    return {
+    report: dict[str, object] = {
         "report_name": TOSSINVEST_MARKET_DATA_PIPELINE_NAME,
         "status": "blocked_missing_credentials",
         "provider": TOSSINVEST_PROVIDER_NAME,
@@ -1083,6 +1199,9 @@ def _blocked_missing_credentials_report(
         "order_boundary": "read_only_no_order",
         "secret_free": True,
     }
+    if batch_metadata:
+        report.update(batch_metadata)
+    return report
 
 
 def _credentials_configured(config: RuntimeConfig) -> bool:

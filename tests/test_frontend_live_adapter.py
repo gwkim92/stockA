@@ -6460,7 +6460,7 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertIn("'portfolio_remediation_daily_automation'", sql)
         self.assertIn("'performance_outcome_schedule_bootstrap'", sql)
         self.assertIn("when run.status = 'succeeded_with_fallback' then 'degraded'", sql)
-        self.assertIn("health_status in ('missing', 'stale', 'failed', 'degraded')", sql)
+        self.assertIn("health_status in ('missing', 'stale', 'stale_running', 'failed', 'degraded')", sql)
         self.assertIn("expected.job_id = 'portfolio-attribution-monthly'", sql)
         self.assertIn("then 'not_due'", sql)
         self.assertIn("data_health_local_clock", sql)

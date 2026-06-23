@@ -149,7 +149,10 @@ DATA_OPERATION_CADENCES: tuple[DataOperationCadence, ...] = (
         pipeline_name="tossinvest_market_data_sync",
         domain="market",
         cadence="daily",
-        command_template="stockanalysis-operations tossinvest-market-data-sync-run --market-code US --sync-mode daily_candles --execute",
+        command_template=(
+            "stockanalysis-operations tossinvest-market-data-sync-run --market-code US "
+            "--sync-mode daily_candles --outputsize 30 --max-symbols-per-run 10 --execute"
+        ),
         expected_after_local="18:20",
         stale_after_hours=36,
         artifact_policy="stdout_json_stderr_log_and_toss_candle_counts",
@@ -161,7 +164,7 @@ DATA_OPERATION_CADENCES: tuple[DataOperationCadence, ...] = (
         pipeline_name="tossinvest_provider_comparison",
         domain="market",
         cadence="daily",
-        command_template="stockanalysis-operations tossinvest-provider-comparison-run --execute",
+        command_template="stockanalysis-operations tossinvest-provider-comparison-run --max-symbols-per-run 10 --execute",
         expected_after_local="18:25",
         stale_after_hours=36,
         artifact_policy="stdout_json_stderr_log_and_toss_provider_comparison_counts",
@@ -173,7 +176,10 @@ DATA_OPERATION_CADENCES: tuple[DataOperationCadence, ...] = (
         pipeline_name="tossinvest_market_data_sync",
         domain="market",
         cadence="intraday",
-        command_template="stockanalysis-operations tossinvest-market-data-sync-run --market-code US --sync-mode microdata --execute",
+        command_template=(
+            "stockanalysis-operations tossinvest-market-data-sync-run --market-code US "
+            "--sync-mode microdata --max-symbols-per-run 10 --execute"
+        ),
         expected_after_local="09:40, 12:40, 15:40",
         stale_after_hours=8,
         artifact_policy="stdout_json_stderr_log_and_toss_microdata_counts",

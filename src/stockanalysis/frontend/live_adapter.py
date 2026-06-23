@@ -1133,7 +1133,7 @@ def _build_data_operations_artifact_runner_payload(
     failed_or_missing_count = sum(
         1
         for run in pipeline_runs
-        if str(run.get("health_status") or "") in {"missing", "stale", "failed"}
+        if str(run.get("health_status") or "") in {"missing", "stale", "stale_running", "failed"}
     )
     degraded_count = sum(1 for run in pipeline_runs if str(run.get("health_status") or "") == "degraded")
     profile_scheduler = _as_dict(scheduler.get("profile_scheduler"))
@@ -5407,6 +5407,9 @@ latest_runs as (
                 then 'not_due'
             when run.run_id is null then 'missing'
             when run.status = 'failed' then 'failed'
+            when run.status in ('started', 'running')
+             and run.started_at < now() - make_interval(hours => expected.stale_after_hours)
+                then 'stale_running'
             when run.status in ('started', 'running') then 'running'
             when run.ended_at is null then 'missing'
             when run.status = 'succeeded_with_fallback' then 'degraded'
@@ -6471,7 +6474,7 @@ select json_build_object(
         when exists (
             select 1
             from latest_runs
-            where health_status in ('missing', 'stale', 'failed', 'degraded')
+            where health_status in ('missing', 'stale', 'stale_running', 'failed', 'degraded')
         ) then 'attention_required'
         else 'healthy'
     end,
