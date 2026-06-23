@@ -24,6 +24,9 @@ class FakeOperatingDataExecutor:
                     "latest_price_date": "2026-05-19",
                     "latest_event_date": "2026-05-20",
                     "event_impacted_symbols": ["AAPL", "TSLA"],
+                    "active_recommendation_symbols": ["AAPL", "NVDA"],
+                    "paper_portfolio_symbols": ["MSFT"],
+                    "toss_live_position_symbols": ["TSLA"],
                     "missing_event_price_symbols": ["TSLA"],
                 }
             )
@@ -321,6 +324,45 @@ class OperatingDataOrchestratorTests(unittest.TestCase):
         self.assertIn("--max-requests-per-run 24", refresh_command)
         self.assertIn("--throttle-seconds 8.0", refresh_command)
         self.assertIn("--allow-symbol-failures", refresh_command)
+
+    def test_toss_us_profile_generates_tracked_symbols_beyond_cross_asset_only(self) -> None:
+        with tempfile.TemporaryDirectory() as repo_root, tempfile.TemporaryDirectory() as outside_root:
+            runtime_root, env_file = _write_runtime_files_without_positions(Path(outside_root))
+            market_watchlist = Path(outside_root) / "market-watchlist.csv"
+            market_watchlist.write_text("symbol,role\nAMZN,core\nAAPL,duplicate\n", encoding="utf-8")
+            with env_file.open("a", encoding="utf-8") as stream:
+                stream.write(f'STOCKANALYSIS_MARKET_PRICE_WATCHLIST_CSV="{market_watchlist}"\n')
+            runner = FakeArtifactRunner()
+
+            report = build_operating_data_run_report(
+                repo_root=repo_root,
+                runtime_root=runtime_root,
+                data_operations_env_file=env_file,
+                profile="toss-candles-us-shadow-daily",
+                execute=True,
+                python_executable="/usr/bin/python3",
+                executor=FakeOperatingDataExecutor(),
+                runner=runner,
+                generated_at=datetime(2026, 5, 20, tzinfo=timezone.utc),
+            )
+
+            toss_symbols_path = Path(report["generated_files"]["tossinvest_us_symbols"])
+            with toss_symbols_path.open(encoding="utf-8") as stream:
+                watchlist_rows = list(csv.DictReader(stream))
+
+        symbols = [row["symbol"] for row in watchlist_rows]
+        self.assertIn("SPY", symbols)
+        self.assertIn("AMZN", symbols)
+        self.assertIn("AAPL", symbols)
+        self.assertIn("NVDA", symbols)
+        self.assertIn("MSFT", symbols)
+        self.assertIn("TSLA", symbols)
+        self.assertEqual(len(symbols), len(set(symbols)))
+        self.assertEqual(report["generated_files"]["cross_asset_price_watchlist"], "")
+        self.assertIn("AMZN", report["derived_inputs"]["market_price_watchlist_symbols"])
+        self.assertIn("NVDA", report["derived_inputs"]["tossinvest_us_symbols"])
+        rendered_commands = [" ".join(call["command_argv"]) for call in runner.calls]
+        self.assertIn(str(toss_symbols_path), rendered_commands[0])
 
     def test_weekly_reference_profiles_do_not_require_portfolio_positions(self) -> None:
         with tempfile.TemporaryDirectory() as repo_root, tempfile.TemporaryDirectory() as outside_root:

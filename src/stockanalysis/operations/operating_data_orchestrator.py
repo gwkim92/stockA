@@ -26,6 +26,7 @@ from stockanalysis.operations.cross_asset_market import cross_asset_instrument_p
 from stockanalysis.operations.market_price_free_backfill import (
     MARKET_PRICE_BUDGET_LEDGER_PATH_ENV,
     MARKET_PRICE_PROVIDER_ENV,
+    MARKET_PRICE_WATCHLIST_CSV_ENV,
 )
 from stockanalysis.operations.path_policy import (
     ensure_repo_outside,
@@ -438,18 +439,29 @@ def build_operating_data_run_report(
         or tossinvest_us_symbols_required
     )
     cross_asset_symbols = cross_asset_instrument_price_symbols()
+    market_price_watchlist_symbols = _load_market_price_watchlist_symbols(env_mapping, repo_root=repo_root)
+    tossinvest_us_symbols = _compose_tossinvest_us_symbols(
+        cross_asset_symbols=cross_asset_symbols,
+        market_price_watchlist_symbols=market_price_watchlist_symbols,
+        active_recommendation_symbols=_symbol_list(context.get("active_recommendation_symbols")),
+        paper_portfolio_symbols=_symbol_list(context.get("paper_portfolio_symbols")),
+        toss_live_position_symbols=_symbol_list(context.get("toss_live_position_symbols")),
+    )
     position_snapshot_required = "portfolio-position-snapshot" in selected_profile.step_ids
     tossinvest_kr_symbols_file = str(env_mapping.get(TOSSINVEST_KR_SYMBOLS_FILE_ENV) or "").strip()
+    tossinvest_us_symbols_path = generated_dir / f"toss-us-tracked-symbols-{target_date.isoformat()}.csv"
 
     planned_steps = _build_planned_steps(
         python_executable=resolved_python,
         env_file=data_env_path,
         watchlist_path=watchlist_path,
         cross_asset_watchlist_path=cross_asset_watchlist_path,
+        tossinvest_us_symbols_path=tossinvest_us_symbols_path,
         positions_snapshot_path=positions_snapshot_path,
         ledger_path=ledger_path,
         missing_price_symbols=missing_price_symbols,
         cross_asset_symbols=cross_asset_symbols,
+        tossinvest_us_symbols=tossinvest_us_symbols,
         target_date=target_date,
         portfolio_name=portfolio_name,
         strategy_name=strategy_name,
@@ -504,13 +516,18 @@ def build_operating_data_run_report(
             "event_impacted_symbols": _symbol_list(context.get("event_impacted_symbols")),
             "missing_price_symbols": missing_price_symbols,
             "cross_asset_price_symbols": list(cross_asset_symbols),
+            "market_price_watchlist_symbols": market_price_watchlist_symbols,
+            "tossinvest_us_symbols": list(tossinvest_us_symbols),
             "sec_filings_cik": sec_filings_cik,
             "sec_filings_max_filings": sec_filings_max_filings,
             "reported_segment_history_periods": reported_segment_history_periods,
         },
         "generated_files": {
             "missing_price_watchlist": str(watchlist_path) if missing_watchlist_required and missing_price_symbols else "",
-            "cross_asset_price_watchlist": str(cross_asset_watchlist_path) if cross_asset_watchlist_required else "",
+            "cross_asset_price_watchlist": str(cross_asset_watchlist_path)
+            if "cross-asset-market-price-refresh" in selected_profile.step_ids
+            else "",
+            "tossinvest_us_symbols": str(tossinvest_us_symbols_path) if tossinvest_us_symbols_required else "",
             "position_snapshot_csv": str(positions_snapshot_path) if position_snapshot_required else "",
         },
         "planned_steps": [_public_step(step) for step in planned_steps],
@@ -525,8 +542,10 @@ def build_operating_data_run_report(
 
     if missing_watchlist_required:
         _write_missing_price_watchlist(watchlist_path, missing_price_symbols)
-    if cross_asset_watchlist_required:
+    if "cross-asset-market-price-refresh" in selected_profile.step_ids:
         _write_missing_price_watchlist(cross_asset_watchlist_path, cross_asset_symbols)
+    if tossinvest_us_symbols_required:
+        _write_missing_price_watchlist(tossinvest_us_symbols_path, tossinvest_us_symbols)
     artifact_runs: list[dict[str, object]] = []
     failed_step_count = 0
 
@@ -633,10 +652,12 @@ def _build_planned_steps(
     env_file: Path,
     watchlist_path: Path,
     cross_asset_watchlist_path: Path,
+    tossinvest_us_symbols_path: Path,
     positions_snapshot_path: Path,
     ledger_path: Path,
     missing_price_symbols: Sequence[str],
     cross_asset_symbols: Sequence[str],
+    tossinvest_us_symbols: Sequence[str],
     target_date: date,
     portfolio_name: str,
     strategy_name: str,
@@ -1144,7 +1165,7 @@ def _build_planned_steps(
             "step_id": "toss-reference-us-daily",
             "artifact_job_id": "toss-reference-us-daily",
             "label": "Refresh TossInvest US market calendar and reference evidence",
-            "skip_reason": "",
+            "skip_reason": "" if tossinvest_us_symbols else "no_tossinvest_us_symbols",
             "command_argv": (
                 python_executable,
                 "-m",
@@ -1153,7 +1174,7 @@ def _build_planned_steps(
                 "--env-file",
                 str(env_file),
                 "--symbols-file",
-                str(cross_asset_watchlist_path),
+                str(tossinvest_us_symbols_path),
                 "--market-code",
                 "US",
                 "--sync-mode",
@@ -1190,7 +1211,7 @@ def _build_planned_steps(
             "step_id": "toss-candles-us-shadow-daily",
             "artifact_job_id": "toss-candles-us-shadow-daily",
             "label": "Refresh TossInvest US daily candles as shadow provider evidence",
-            "skip_reason": "",
+            "skip_reason": "" if tossinvest_us_symbols else "no_tossinvest_us_symbols",
             "command_argv": (
                 python_executable,
                 "-m",
@@ -1199,7 +1220,7 @@ def _build_planned_steps(
                 "--env-file",
                 str(env_file),
                 "--symbols-file",
-                str(cross_asset_watchlist_path),
+                str(tossinvest_us_symbols_path),
                 "--market-code",
                 "US",
                 "--sync-mode",
@@ -1213,7 +1234,7 @@ def _build_planned_steps(
             "step_id": "toss-provider-comparison-daily",
             "artifact_job_id": "toss-provider-comparison-daily",
             "label": "Compare TossInvest shadow candles against canonical prices",
-            "skip_reason": "",
+            "skip_reason": "" if tossinvest_us_symbols else "no_tossinvest_us_symbols",
             "command_argv": (
                 python_executable,
                 "-m",
@@ -1222,7 +1243,7 @@ def _build_planned_steps(
                 "--env-file",
                 str(env_file),
                 "--symbols-file",
-                str(cross_asset_watchlist_path),
+                str(tossinvest_us_symbols_path),
                 "--comparison-date",
                 target,
                 "--execute",
@@ -1232,7 +1253,7 @@ def _build_planned_steps(
             "step_id": "toss-priority-microdata-intraday",
             "artifact_job_id": "toss-priority-microdata-intraday",
             "label": "Refresh TossInvest orderbook, trade, warning, and price-limit evidence for priority symbols",
-            "skip_reason": "",
+            "skip_reason": "" if tossinvest_us_symbols else "no_tossinvest_us_symbols",
             "command_argv": (
                 python_executable,
                 "-m",
@@ -1241,7 +1262,7 @@ def _build_planned_steps(
                 "--env-file",
                 str(env_file),
                 "--symbols-file",
-                str(cross_asset_watchlist_path),
+                str(tossinvest_us_symbols_path),
                 "--market-code",
                 "US",
                 "--sync-mode",
@@ -1989,6 +2010,48 @@ impacted_symbols as (
     join ref.instrument instrument on instrument.instrument_id = impact.instrument_id
     where (event_row.event_at at time zone 'UTC')::date >= coalesce((select latest_event_date from latest_event), current_date) - interval '30 days'
 ),
+active_recommendation_symbols as (
+    select distinct upper(instrument.primary_symbol) as symbol
+    from signal.recommendation recommendation
+    join ref.instrument instrument on instrument.instrument_id = recommendation.instrument_id
+    where recommendation.status = 'active'
+      and instrument.is_active
+      and instrument.market_code = 'US'
+),
+latest_paper_position_date as (
+    select max(position.snapshot_date) as snapshot_date
+    from portfolio.position_snapshot position
+    join portfolio.portfolio portfolio on portfolio.portfolio_id = position.portfolio_id
+    where portfolio.portfolio_name = 'Long Term Paper'
+),
+paper_portfolio_symbols as (
+    select distinct upper(instrument.primary_symbol) as symbol
+    from portfolio.position_snapshot position
+    join portfolio.portfolio portfolio on portfolio.portfolio_id = position.portfolio_id
+    join latest_paper_position_date latest on latest.snapshot_date = position.snapshot_date
+    join ref.instrument instrument on instrument.instrument_id = position.instrument_id
+    where portfolio.portfolio_name = 'Long Term Paper'
+      and position.quantity <> 0
+      and instrument.is_active
+      and instrument.market_code = 'US'
+),
+latest_toss_position_date as (
+    select max(position.snapshot_date) as snapshot_date
+    from portfolio.position_snapshot position
+    join portfolio.portfolio portfolio on portfolio.portfolio_id = position.portfolio_id
+    where portfolio.portfolio_name = 'Toss Real Readonly'
+),
+toss_live_position_symbols as (
+    select distinct upper(instrument.primary_symbol) as symbol
+    from portfolio.position_snapshot position
+    join portfolio.portfolio portfolio on portfolio.portfolio_id = position.portfolio_id
+    join latest_toss_position_date latest on latest.snapshot_date = position.snapshot_date
+    join ref.instrument instrument on instrument.instrument_id = position.instrument_id
+    where portfolio.portfolio_name = 'Toss Real Readonly'
+      and position.quantity <> 0
+      and instrument.is_active
+      and instrument.market_code = 'US'
+),
 missing_price_symbols as (
     select impacted.symbol
     from impacted_symbols impacted
@@ -2002,6 +2065,9 @@ select json_build_object(
     'latest_price_date', (select latest_price_date from latest_price),
     'latest_event_date', (select latest_event_date from latest_event),
     'event_impacted_symbols', coalesce((select json_agg(symbol order by symbol) from impacted_symbols), '[]'::json),
+    'active_recommendation_symbols', coalesce((select json_agg(symbol order by symbol) from active_recommendation_symbols), '[]'::json),
+    'paper_portfolio_symbols', coalesce((select json_agg(symbol order by symbol) from paper_portfolio_symbols), '[]'::json),
+    'toss_live_position_symbols', coalesce((select json_agg(symbol order by symbol) from toss_live_position_symbols), '[]'::json),
     'missing_event_price_symbols', coalesce((select json_agg(symbol order by symbol) from missing_price_symbols), '[]'::json)
 )::text;"""
 
@@ -2088,6 +2154,47 @@ def _write_missing_price_watchlist(path: Path, symbols: Sequence[str]) -> None:
         writer.writeheader()
         for symbol in symbols:
             writer.writerow({"symbol": symbol})
+
+
+def _load_market_price_watchlist_symbols(env: Mapping[str, str], *, repo_root: str | Path | None) -> list[str]:
+    value = str(env.get(MARKET_PRICE_WATCHLIST_CSV_ENV) or "").strip()
+    if not value:
+        return []
+    path = resolve_existing_file(
+        value,
+        label="market price watchlist csv",
+        repo_root=repo_root,
+        require_repo_outside=True,
+    )
+    with path.open(encoding="utf-8", newline="") as stream:
+        sample = stream.read()
+    if "," not in sample and "\t" not in sample:
+        return _symbol_list([line for line in sample.splitlines() if line.strip().lower() != "symbol"])
+    rows = csv.DictReader(sample.splitlines())
+    if rows.fieldnames and "symbol" in rows.fieldnames:
+        return _symbol_list([str(row.get("symbol") or "") for row in rows])
+    return _symbol_list([row[0] for row in csv.reader(sample.splitlines()) if row and row[0].strip().lower() != "symbol"])
+
+
+def _compose_tossinvest_us_symbols(
+    *,
+    cross_asset_symbols: Sequence[str],
+    market_price_watchlist_symbols: Sequence[str],
+    active_recommendation_symbols: Sequence[str],
+    paper_portfolio_symbols: Sequence[str],
+    toss_live_position_symbols: Sequence[str],
+) -> tuple[str, ...]:
+    return tuple(
+        _symbol_list(
+            [
+                *cross_asset_symbols,
+                *market_price_watchlist_symbols,
+                *active_recommendation_symbols,
+                *paper_portfolio_symbols,
+                *toss_live_position_symbols,
+            ]
+        )
+    )
 
 
 def _write_position_snapshot_csv(
