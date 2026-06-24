@@ -202,7 +202,7 @@ export default async function AiEvidenceIndexPage() {
 
   return (
     <div className="pageStack decision-page">
-      <section className="decision-brief reveal" aria-labelledby="ai-evidence-index-title">
+      <section className="decision-brief workspace-brief evidence-command-deck reveal" aria-labelledby="ai-evidence-index-title">
         <div className="decision-brief-main">
           <span className="decision-brief-kicker">뉴스 투자 근거 · {data.as_of_date}</span>
           <h1 className="decision-brief-title" id="ai-evidence-index-title">{titleText}</h1>
@@ -218,9 +218,9 @@ export default async function AiEvidenceIndexPage() {
             <span>차단·보류 {blockedCandidateCount.toLocaleString("ko-KR")}개</span>
           </div>
         </div>
-        <div className="decision-brief-grid">
+        <div className="decision-brief-grid workspace-command-grid">
           <a className="decision-card is-good" href="#accepted-candidates">
-            <span>직접 종목</span>
+            <span>먼저 볼 근거</span>
             <strong>{directNewsCandidates.length.toLocaleString("ko-KR")}개</strong>
             <small>회사명·티커가 명확한 뉴스다. 종목 상세와 추천 근거에서 다시 확인한다.</small>
             <b>직접 근거</b>

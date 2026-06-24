@@ -257,7 +257,7 @@ export default async function RecommendationsPage() {
 
   return (
     <div className="pageStack decision-page">
-      <section className="decision-brief reveal" aria-labelledby="recommendations-title">
+      <section className="decision-brief workspace-brief recommendation-index-command-deck reveal" aria-labelledby="recommendations-title">
         <div className="decision-brief-main">
           <span className="decision-brief-kicker">
             추천 상황실 · {data.as_of_date || "기준일 미정"} · {koCode(data.strategy_name)} · {koCode(data.horizon_type)}
@@ -275,10 +275,12 @@ export default async function RecommendationsPage() {
             <span>원천 차단 {data.summary.evidence_quality_source_blocked_count.toLocaleString("ko-KR")}개</span>
           </div>
         </div>
-        <div className="decision-brief-grid">
-          {recommendationCommandCards.map((card) => (
+        <div className="decision-brief-grid workspace-command-grid">
+          {recommendationCommandCards.map((card, index) => (
             <a
               className={`decision-card ${
+                index === 0 ? "is-priority" : ""
+              } ${
                 card.tone === "ready" ? "is-good" : card.tone === "watch" ? "is-watch" : "is-block"
               }`}
               href={card.href}

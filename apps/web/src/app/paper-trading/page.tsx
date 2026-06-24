@@ -303,7 +303,7 @@ export default async function PaperTradingPage() {
   ];
   return (
     <div className="terminal-page decision-page">
-      <section className="decision-brief reveal" aria-labelledby="paper-title">
+      <section className="decision-brief workspace-brief paper-command-deck reveal" aria-labelledby="paper-title">
         <div className="decision-brief-main">
           <span className="decision-brief-kicker">가상 매매 · 주문 전 안전 점검</span>
           <h1 className="decision-brief-title" id="paper-title">
@@ -319,10 +319,12 @@ export default async function PaperTradingPage() {
             <span>적중률 {formatPercent(summary.hit_rate)}</span>
           </div>
         </div>
-        <div className="decision-brief-grid">
-          {paperCommandCards.map((card) => (
+        <div className="decision-brief-grid workspace-command-grid">
+          {paperCommandCards.map((card, index) => (
             <a
               className={`decision-card ${
+                index === 0 ? "is-priority" : ""
+              } ${
                 card.tone === "ready" ? "is-good" : card.tone === "watch" ? "is-watch" : "is-block"
               }`}
               href={card.href}

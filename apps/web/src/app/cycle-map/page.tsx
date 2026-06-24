@@ -209,7 +209,7 @@ export default async function CycleMapPage() {
 
   return (
     <div className="terminal-page decision-page cycle-map-page research-command-page">
-      <section className="decision-brief reveal research-command-deck cycle-command-deck" aria-labelledby="cycle-map-title">
+      <section className="decision-brief workspace-brief reveal research-command-deck cycle-command-deck" aria-labelledby="cycle-map-title">
         <div className="decision-brief-main">
           <span className="decision-brief-kicker">흐름 지도 · {data.as_of_date}</span>
           <h1 className="decision-brief-title" id="cycle-map-title">
@@ -226,9 +226,9 @@ export default async function CycleMapPage() {
             <span>노출 대기 {symbolGapCount.toLocaleString("ko-KR")}개</span>
           </div>
         </div>
-        <div className="decision-brief-grid">
+        <div className="decision-brief-grid workspace-command-grid">
           <Link className="decision-card is-good" href={"/intelligence" as Route}>
-            <span>원천 뉴스</span>
+            <span>먼저 볼 흐름</span>
             <strong>{data.summary.direct_event_count.toLocaleString("ko-KR")}개 영향</strong>
             <small>근거가 붙은 흐름 {aiBackedNodeCount.toLocaleString("ko-KR")}개. 원문·한국어 요약·품질 결과는 뉴스 근거에서 본다.</small>
             <b>뉴스 근거</b>

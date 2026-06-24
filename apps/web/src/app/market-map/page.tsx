@@ -85,7 +85,7 @@ function correlationTone(correlation: MarketCorrelation) {
 
 function correlationSummaryText(data: MarketMapData) {
   if (data.summary.correlation_count <= 0) {
-    return "아직 계산된 상관관계가 없다. correlation-analysis-run을 실행해야 한다.";
+    return "아직 계산된 상관관계가 없다. 장마감 후 상관관계 분석이 실행되면 여기서 확인한다.";
   }
   const strong = data.summary.strong_correlation_count;
   const moderate = data.summary.moderate_correlation_count;
@@ -372,7 +372,7 @@ export default async function MarketMapPage() {
   const topCorrelations = data.correlations.slice(0, 8);
   return (
     <div className="terminal-page decision-page market-map-page research-command-page">
-      <section className="decision-brief reveal research-command-deck market-command-deck" aria-labelledby="market-map-title">
+      <section className="decision-brief workspace-brief reveal research-command-deck market-command-deck" aria-labelledby="market-map-title">
         <div className="decision-brief-main">
           <span className="decision-brief-kicker">시장 지도 · {data.snapshot_as_of_date || data.as_of_date}</span>
           <h1 className="decision-brief-title" id="market-map-title">
@@ -389,9 +389,9 @@ export default async function MarketMapPage() {
             <span>상관관계 {data.summary.correlation_count.toLocaleString("ko-KR")}개</span>
           </div>
         </div>
-        <div className="decision-brief-grid">
+        <div className="decision-brief-grid workspace-command-grid">
           <a className={data.summary.stale_indicator_count + data.summary.missing_indicator_count > 0 ? "decision-card is-watch" : "decision-card is-good"} href="#market-quality">
-            <span>데이터 품질</span>
+            <span>먼저 볼 것</span>
             <strong>
               {data.summary.fresh_indicator_count.toLocaleString("ko-KR")}개 최신 ·{" "}
               {(data.summary.stale_indicator_count + data.summary.missing_indicator_count).toLocaleString("ko-KR")}개 확인
@@ -400,19 +400,19 @@ export default async function MarketMapPage() {
             <b>품질 확인</b>
           </a>
           <a className="decision-card is-good" href="#market-pressure">
-            <span>압력판</span>
+            <span>시장 압력</span>
             <strong>{data.summary.shock_indicator_count.toLocaleString("ko-KR")}개 지표 변동</strong>
             <small>가장 많이 움직인 영역부터 보고, 필요한 지표만 펼친다.</small>
             <b>압력 확인</b>
           </a>
           <a className={topRegimes.length > 0 ? "decision-card is-watch" : "decision-card"} href="#market-regimes">
-            <span>체제 신호</span>
+            <span>상위 체제</span>
             <strong>{topRegimes.length.toLocaleString("ko-KR")}개 주시</strong>
             <small>위험자산 선호, 실질금리, 달러 유동성, 에너지 충격 같은 상위 조건이다.</small>
             <b>체제 보기</b>
           </a>
           <a className={data.summary.correlation_count > 0 ? "decision-card is-good" : "decision-card is-watch"} href="#market-correlations">
-            <span>상관관계</span>
+            <span>동조성</span>
             <strong>{data.summary.correlation_count.toLocaleString("ko-KR")}개 쌍 계산</strong>
             <small>종목이 지수·금리·달러·원자재와 최근 같이 움직였는지 본다. 원인 단정은 하지 않는다.</small>
             <b>동조성 보기</b>
@@ -460,7 +460,7 @@ export default async function MarketMapPage() {
         ) : (
           <div className="empty-state compact">
             <strong>상관관계가 아직 계산되지 않았다.</strong>
-            <span>장마감 후 `correlation-analysis-run`이 실행되면 종목과 시장 지표의 동조성이 여기에 표시된다.</span>
+            <span>장마감 후 상관관계 분석이 실행되면 종목과 시장 지표의 동조성이 여기에 표시된다.</span>
           </div>
         )}
       </section>
