@@ -326,7 +326,7 @@ function evidenceDecision(data: AiEvidenceDetailData) {
     return {
       label: "품질 기준 차단",
       tone: "risk-high",
-      body: "이 항목은 canonical 영향 테이블과 추천 입력으로 넘기지 않는다. 원천 확인과 분류 보강 대상으로만 남긴다.",
+      body: "이 항목은 표준 영향 기록이나 추천 입력으로 넘기지 않는다. 원천 확인과 분류 보강 대상으로만 남긴다.",
     };
   }
   if (["local_rules", "local_deterministic"].includes(data.extraction_run.provider)) {

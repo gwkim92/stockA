@@ -246,7 +246,7 @@ function runQualityExplanation(run: PipelineRun | null) {
     return "실행 이력이 없어 근거 신뢰도를 판단할 수 없다.";
   }
   if (run.latest_status === "succeeded_with_fallback" || run.health_status === "degraded") {
-    return "작업은 멈추지 않았지만 일부 AI 분석이 실패해 규칙 기반 대체 처리로 완료됐다. 추천 근거 신뢰도를 낮게 보고 오류 내용을 확인해야 한다.";
+    return "작업은 멈추지 않았지만 일부 AI 분석이 중단되어 규칙 기반 대체 처리로 완료됐다. 추천 근거 신뢰도를 낮게 보고 오류 내용을 확인해야 한다.";
   }
   if (run.latest_status === "succeeded" && run.health_status === "ok") {
     return "최근 실행은 정상 범위다.";
@@ -469,7 +469,7 @@ function manualSmokeTitle(smoke: ManualIngestSmoke) {
     return "최근 수동 수집 성공";
   }
   if (smoke.status === "failed") {
-    return "최근 수동 수집 실패";
+    return "최근 수동 수집 중단";
   }
   if (smoke.status === "preview_not_executed") {
     return "수동 수집 계획만 확인됨";
@@ -485,10 +485,10 @@ function manualSmokeTitle(smoke: ManualIngestSmoke) {
 
 function manualSmokeExplanation(smoke: ManualIngestSmoke) {
   if (smoke.status === "passed") {
-    return "가격, 뉴스, AI 분석 단발 작업이 실행됐고 실패 작업이 없다는 뜻이다. 반복 자동화 상태는 별도로 확인한다.";
+    return "가격, 뉴스, AI 분석 단발 작업이 실행됐고 중단된 작업이 없다는 뜻이다. 반복 자동화 상태는 별도로 확인한다.";
   }
   if (smoke.status === "failed") {
-    return "단발 실행 중 실패한 작업이 있다. 실행 요약의 오류 내용과 작업 정보를 먼저 확인해야 한다.";
+    return "단발 실행 중 중단된 작업이 있다. 실행 요약의 오류 내용과 작업 정보를 확인해야 한다.";
   }
   if (smoke.status === "preview_not_executed") {
     return "실제 저장이나 외부 데이터 제공자 호출 없이 실행 계획만 생성한 상태다. 무료 API 한도를 쓰지 않고 어떤 작업이 돌지 확인한 것이다.";
@@ -511,7 +511,7 @@ function localWorkerTitle(worker: LocalIngestWorker) {
     return "반복 실행 최근 성공";
   }
   if (worker.status === "failed") {
-    return "반복 실행 최근 실패";
+    return "반복 실행 최근 중단";
   }
   if (worker.status === "preview_not_executed") {
     return "반복 실행 계획만 확인됨";
@@ -527,10 +527,10 @@ function localWorkerTitle(worker: LocalIngestWorker) {
 
 function localWorkerExplanation(worker: LocalIngestWorker) {
   if (worker.status === "completed") {
-    return "정해진 반복 실행 주기가 끝났고 실패 주기가 없다는 뜻이다. 서버 예약 실행과 함께 자동 운영 상태를 판단한다.";
+    return "정해진 반복 실행 주기가 끝났고 중단된 주기가 없다는 뜻이다. 서버 예약 실행과 함께 자동 운영 상태를 판단한다.";
   }
   if (worker.status === "failed") {
-    return "반복 실행 중 실패가 있었다. 최신 실행 요약과 오류 내용을 먼저 확인해야 한다.";
+    return "반복 실행 중 중단된 작업이 있었다. 최신 실행 요약과 오류 내용을 확인해야 한다.";
   }
   if (worker.status === "preview_not_executed") {
     return "실제 저장이나 외부 데이터 제공자 호출 없이 반복 실행 계획만 확인한 상태다.";
@@ -752,7 +752,7 @@ function newsAiEvalTitle(evalQuality: NewsAiEvalQuality) {
     return "AI 기준 평가 통과";
   }
   if (evalQuality.status === "failed_regression") {
-    return "AI 기준 평가 실패";
+    return "AI 기준 평가 중단";
   }
   if (evalQuality.status === "missing") {
     return "AI 기준 평가 없음";
@@ -765,12 +765,12 @@ function newsAiEvalExplanation(evalQuality: NewsAiEvalQuality) {
     return "기준 정답 뉴스 세트에서 테마 분류, 직접 종목 근거, 거시 뉴스 종목 오부착, 양자→에너지 오분류, 한국어 번역 기준을 통과했다.";
   }
   if (evalQuality.status === "failed_regression") {
-    return "AI 구조화나 자동 검증이 기준 세트에서 실패했다. 이 상태에서는 새 AI 근거를 추천 입력으로 신뢰하기 전에 실패 항목을 먼저 확인해야 한다.";
+    return "AI 구조화나 자동 검증이 기준 세트에서 중단됐다. 이 상태에서는 새 AI 근거를 추천 입력으로 신뢰하기 전에 중단 항목을 확인해야 한다.";
   }
   if (evalQuality.status === "missing") {
     return "최근 기준 정답 뉴스 평가가 저장되지 않았다. 뉴스 AI 분석이 좋아 보이더라도 기준 세트 통과 여부를 아직 증명하지 못했다.";
   }
-  return "뉴스 AI 평가 기록의 상태와 실패 사례를 확인해야 한다.";
+  return "뉴스 AI 평가 기록의 상태와 중단 사례를 확인해야 한다.";
 }
 
 function newsAiEvalTone(evalQuality: NewsAiEvalQuality) {
@@ -788,10 +788,10 @@ function liveAiInvocationTitle(health: LiveAiInvocationHealth) {
     return "실제 AI 호출 정상";
   }
   if (health.status === "critical_ai_failed") {
-    return "실제 AI 호출 실패";
+    return "실제 AI 호출 중단";
   }
   if (health.status === "degraded") {
-    return "일부 AI 호출 실패";
+    return "일부 AI 호출 중단";
   }
   if (health.status === "recovered_with_recent_failures") {
     return "AI 호출 복구됨";
@@ -804,16 +804,16 @@ function liveAiInvocationTitle(health: LiveAiInvocationHealth) {
 
 function liveAiInvocationExplanation(health: LiveAiInvocationHealth) {
   if (health.status === "healthy") {
-    return "최근 실제 LLM 호출이 성공했다. 기준 세트 평가뿐 아니라 운영 배치 AI 호출도 살아 있다.";
+    return "최근 실제 AI 호출이 성공했다. 기준 세트 평가뿐 아니라 운영 배치 AI 호출도 살아 있다.";
   }
   if (health.status === "critical_ai_failed") {
-    return "뉴스 한국어 번역이나 뉴스 AI 구조화 같은 핵심 LLM 호출이 실패했다. OpenAI quota와 Codex OAuth 재로그인 상태를 같이 확인해야 한다.";
+    return "뉴스 한국어 번역이나 뉴스 AI 구조화 같은 핵심 AI 호출이 중단됐다. OpenAI quota와 Codex OAuth 재로그인 상태를 같이 확인해야 한다.";
   }
   if (health.status === "degraded") {
-    return "일부 LLM 작업의 최신 실행이 실패했다. 성공한 작업과 실패한 작업을 나눠 보고 quota, 인증, CLI 오류를 확인해야 한다.";
+    return "일부 AI 작업의 최신 실행이 중단됐다. 완료된 작업과 중단된 작업을 나눠 보고 quota, 인증, CLI 오류를 확인해야 한다.";
   }
   if (health.status === "recovered_with_recent_failures") {
-    return "최근 48시간 안에 실패 이력은 남아 있지만, monitored AI 작업의 최신 실행은 성공했다. 현재 장애가 아니라 복구 후 관찰 상태다.";
+    return "최근 48시간 안에 중단 이력은 남아 있지만, monitored AI 작업의 최신 실행은 성공했다. 현재 장애가 아니라 복구 후 관찰 상태다.";
   }
   if (health.status === "missing_recent_invocations") {
     return "최근 운영 배치에서 실제 AI 호출 증거가 없다. 뉴스가 없는 것인지, 배치 호출이 멈춘 것인지 확인해야 한다.";
@@ -847,29 +847,29 @@ function liveAiCurrentFailureCount(health: LiveAiInvocationHealth) {
 }
 
 function liveAiInvocationQualityMetric(health: LiveAiInvocationHealth, evalQuality: NewsAiEvalQuality) {
-  const regressionText = `기준 실패 ${evalQuality.failed_case_count}개`;
+  const regressionText = `기준 중단 ${evalQuality.failed_case_count}개`;
   if (health.status === "recovered_with_recent_failures") {
-    return `최신 실행 성공 · 과거 실패 기록 ${health.recent_failed_count}건 · ${regressionText}`;
+    return `최신 실행 성공 · 과거 중단 기록 ${health.recent_failed_count}건 · ${regressionText}`;
   }
   if (health.attention_required) {
-    return `현재 실패 작업 ${liveAiCurrentFailureCount(health)}개 · 최근 실패 ${health.recent_failed_count}건 · ${regressionText}`;
+    return `현재 중단 작업 ${liveAiCurrentFailureCount(health)}개 · 최근 중단 ${health.recent_failed_count}건 · ${regressionText}`;
   }
   if (health.status === "healthy") {
-    return `최신 실행 성공 · 최근 실패 ${health.recent_failed_count}건 · ${regressionText}`;
+    return `최신 실행 성공 · 최근 중단 ${health.recent_failed_count}건 · ${regressionText}`;
   }
-  return `최근 호출 ${health.recent_invocation_count}건 · 최근 실패 ${health.recent_failed_count}건 · ${regressionText}`;
+  return `최근 호출 ${health.recent_invocation_count}건 · 최근 중단 ${health.recent_failed_count}건 · ${regressionText}`;
 }
 
 function liveAiInvocationHistoryLabel(health: LiveAiInvocationHealth) {
   if (health.status === "recovered_with_recent_failures") {
-    return `성공 ${health.recent_success_count} · 과거 실패 기록 ${health.recent_failed_count}`;
+    return `성공 ${health.recent_success_count} · 과거 중단 기록 ${health.recent_failed_count}`;
   }
-  return `성공 ${health.recent_success_count} · 실패 ${health.recent_failed_count}`;
+  return `성공 ${health.recent_success_count} · 중단 ${health.recent_failed_count}`;
 }
 
 function liveAiCurrentFailureDetail(health: LiveAiInvocationHealth) {
   if (health.status === "recovered_with_recent_failures") {
-    return `현재 실패 0 · 최근 ${health.window_hours}시간 누적 핵심 실패 ${health.critical_failed_count}`;
+    return `현재 중단 0 · 최근 ${health.window_hours}시간 누적 핵심 중단 ${health.critical_failed_count}`;
   }
   return `번역/뉴스 구조화 기준 · 최근 누적 ${health.critical_failed_count}`;
 }
@@ -892,7 +892,7 @@ function openAiProviderTitle(health: OpenAiProviderHealth) {
     return "OpenAI 잔액·쿼터 없음";
   }
   if (health.status === "openai_auth_invalid") {
-    return "OpenAI 인증 실패";
+    return "OpenAI 인증 중단";
   }
   if (health.status === "openai_provider_disabled") {
     return "OpenAI 직접 호출 꺼짐";
@@ -914,7 +914,7 @@ function openAiProviderExplanation(health: OpenAiProviderHealth) {
     return `최근 OpenAI 호출에서 잔액 또는 quota 문제가 감지되어 ${aiProviderLabel(health.fallback_provider)}로 우회한다. 다음 재시도 전까지 사용자가 env를 직접 수정할 필요는 없다.`;
   }
   if (health.status === "openai_auth_invalid") {
-    return "OpenAI API 키 인증이 실패했다. 키를 새로 넣기 전까지 OpenAI 직접 호출은 건너뛰고 fallback 경로를 사용한다.";
+    return "OpenAI API 키 인증이 중단됐다. 키를 새로 넣기 전까지 OpenAI 직접 호출은 건너뛰고 예비 경로를 사용한다.";
   }
   if (health.status === "missing_api_key") {
     return "OpenAI API 키가 없으므로 OpenAI 직접 호출은 하지 않는다. Codex OAuth 또는 로컬 규칙 경로로 분석을 계속한다.";
@@ -923,7 +923,7 @@ function openAiProviderExplanation(health: OpenAiProviderHealth) {
     return `Admin Costs API로 최근 ${health.cost_status.lookback_days}일 사용 비용을 조회했다. 이 값은 남은 잔액이 아니라 이미 발생한 비용이다. 실제 prepaid 잔액은 OpenAI Billing Overview에서 확인한다.`;
   }
   if (health.status === "key_configured_balance_unverified") {
-    return "OpenAI API 키는 감지됐지만 남은 잔액을 확정 조회하는 공식 API는 사용하지 않는다. Admin Costs API 배치가 성공하면 최근 비용을 표시하고, 실제 실패가 발생하면 자동으로 fallback으로 분기한다.";
+    return "OpenAI API 키는 감지됐지만 남은 잔액을 확정 조회하는 공식 API는 사용하지 않는다. Admin Costs API 배치가 성공하면 최근 비용을 표시하고, 실제 호출 중단이 발생하면 자동으로 예비 경로로 분기한다.";
   }
   return health.message || "OpenAI provider 상태를 확인한다.";
 }
@@ -1126,7 +1126,7 @@ function outcomeCalibrationExplanation(calibration: RecommendationOutcomeCalibra
     return "성과 표본과 전문 분석 근거 연결률 기준을 통과했다. 그래도 자동 추천 산식 변경은 금지이고 별도 검토 작업이 필요하다.";
   }
   if (calibration.status === "collect_more_outcomes_keep_weights") {
-    return "성과 표본은 있지만 추천 산식 반영 비중을 바꾸기에는 아직 더 많은 성과와 실패 사례가 필요하다.";
+    return "성과 표본은 있지만 추천 산식 반영 비중을 바꾸기에는 아직 더 많은 성과와 부진 사례가 필요하다.";
   }
   if (calibration.status === "backfill_candidates_remain") {
     return "이미 수집된 가격 이력으로 성과를 더 산출할 수 있다. 추천 품질 평가 전에 성과 보강 작업을 다시 실행해야 한다.";
@@ -1277,7 +1277,7 @@ function professionalSourceGapExplanation(gaps: ProfessionalSourceGapPrioritizat
     return "ETF·펀드형 상품은 기업 재무제표가 아니라 보유종목, 비용, NAV, 추적차이 원천이 판단 근거다.";
   }
   if (gaps.status === "fund_company_model_not_applicable") {
-    return "ETF·펀드형 상품은 기업 재무 모델 실패가 아니다. 별도 fund analysis 근거로 검토한다.";
+    return "ETF·펀드형 상품은 기업 재무 모델 대상이 아니다. 별도 펀드 분석 근거로 확인한다.";
   }
   return "전문가식 분석에 필요한 원천 근거 중 일부가 비어 있어 추천 산식 검토 전 보강해야 한다.";
 }
@@ -1506,7 +1506,7 @@ function aiInvocationErrorCopy(value: string, code = "") {
     || value.includes("refresh_token_reused")
     || value.includes("401 Unauthorized")
   ) {
-    return "Codex OAuth 인증 토큰이 만료되었거나 재사용되어 실패했다. 서버에서 다시 로그인한 뒤 실제 호출 점검을 실행해야 한다.";
+    return "Codex OAuth 인증 토큰이 만료되었거나 재사용되어 중단됐다. 서버에서 다시 로그인한 뒤 실제 호출 점검을 실행해야 한다.";
   }
   if (code === "codex_oauth_timeout" || value.includes("timeout")) {
     return "Codex OAuth 호출 시간이 초과됐다. limit와 timeout, 네트워크 상태를 확인해야 한다.";
@@ -1636,7 +1636,7 @@ const DEFAULT_OPENAI_PROVIDER_HEALTH: OpenAiProviderHealth = {
   next_retry_at: "",
   fallback_provider: "codex_oauth",
   local_fallback_provider: "local_rules",
-  message: "OpenAI provider 상태를 아직 읽지 못했다. fallback provider를 사용한다.",
+  message: "OpenAI provider 상태를 아직 읽지 못했다. 예비 provider를 사용한다.",
   cost_status: {
     report_name: "openai_admin_cost_status",
     status: "admin_key_missing",
@@ -2293,7 +2293,7 @@ const DEFAULT_ALERT_DESTINATION: AlertDestination = {
   test_age_hours: null,
   max_test_age_hours: 168,
   missing_conditions: ["external_alert_destination", "alert_target_configured", "alert_test_passed"],
-  summary: "예약 실행 실패와 데이터 오염을 받을 외부 알림 목적지가 설정되지 않았다.",
+  summary: "예약 실행 중단과 데이터 오염을 받을 외부 알림 목적지가 설정되지 않았다.",
   next_action: "무료 webhook, email, Telegram, Slack, Discord 중 하나를 저장소 밖 환경 파일에 설정하고 테스트 기록을 남긴다.",
   order_boundary: "read_only_no_order",
   automatic_action_allowed: false,
@@ -2509,9 +2509,9 @@ export default async function DataHealthPage() {
       body: dataQualityReady
         ? "뉴스 오염 감사, AI 기준 평가, 실제 Codex OAuth 호출이 모두 통과했다. 벤치마크 괴리 품질과 세부 샘플은 아래에서 확인한다."
         : liveAiInvocationHealth.attention_required
-          ? "기준 세트 평가가 통과해도 실제 AI 호출이 실패하면 뉴스 번역과 AI 구조화는 규칙 기반 대체 결과일 수 있다. 실제 호출 상태를 먼저 본다."
+          ? "기준 세트 평가가 통과해도 실제 AI 호출이 중단되면 뉴스 번역과 AI 구조화는 규칙 기반 대체 결과일 수 있다. 실제 호출 상태를 확인한다."
         : qualityAudit.issue_count > 0 || newsAiEvalQuality.failed_case_count > 0
-          ? "중복 뉴스, 오분류, AI 기준 평가 실패, 벤치마크 괴리 품질 중 확인할 항목이 있다. 추천 입력 전에 품질 근거를 본다."
+          ? "중복 뉴스, 오분류, AI 기준 평가 중단, 벤치마크 괴리 품질 중 확인할 항목이 있다. 추천 입력 전에 품질 근거를 본다."
           : "큰 오염은 없지만 번역, 전파, 사이클 스냅샷, 가상 매매 검증 근거가 아직 부족하다. 벤치마크 괴리 품질도 함께 본다.",
       metric: liveAiInvocationQualityMetric(liveAiInvocationHealth, newsAiEvalQuality),
       href: "#quality-audit",
@@ -2570,7 +2570,7 @@ export default async function DataHealthPage() {
 	          : alertDestination.attention_required
 	          ? operationCopy(alertDestination.next_action)
           : failedPipelines > 0
-          ? "실패 또는 오래된 작업이 있어 추천·보유 판단보다 수집 복구가 먼저다."
+          ? "중단 또는 오래된 작업이 있어 추천·보유 판단보다 수집 복구가 먼저다."
           : "캔들, 뉴스, AI 분석, 추천 갱신이 현재 화면 기준으로 읽을 수 있는 상태다.",
       href: productionApiServer.attention_required || authRbac.attention_required || alertDestination.attention_required ? "#scheduler-detail" : "#execution-log",
       cta: productionApiServer.attention_required
@@ -2655,7 +2655,7 @@ export default async function DataHealthPage() {
       title: openAiProviderTitle(openAiProviderHealth),
       body: openAiProviderExplanation(openAiProviderHealth),
       href: "#openai-provider-health",
-      cta: "잔액·fallback 보기",
+      cta: "잔액·예비 경로 보기",
       tone: openAiProviderTone(openAiProviderHealth),
     },
     {
@@ -2958,11 +2958,11 @@ export default async function DataHealthPage() {
         <div className="decision-brief-main">
           <span className="decision-brief-kicker">데이터·자동화 · {data.as_of_date}</span>
           <h1 className="decision-brief-title" id="data-health-title">
-            수집 상태는 {koCode(data.overall_status)}, 실패 작업은 {failedPipelines.toLocaleString("ko-KR")}개다.
+            수집 상태는 {koCode(data.overall_status)}, 주의 작업은 {failedPipelines.toLocaleString("ko-KR")}개다.
           </h1>
           <p className="decision-brief-copy">
-            이 화면의 첫 판단은 단순하다. 데이터가 정상인지, 자동 실행이 살아 있는지, 무료 API 예산과 AI 품질이
-            추천 화면을 믿을 수 있는 상태인지 먼저 본다.
+            데이터가 정상인지, 자동 실행이 살아 있는지, 무료 API 예산과 AI 품질이
+            추천 판단을 믿을 수 있는 상태인지 확인한다.
           </p>
           <div className="decision-brief-meta" aria-label="데이터 상태 핵심 수치">
             <span>자동 실행 {automationStateLabel(schedulerActivation)}</span>
@@ -2992,7 +2992,7 @@ export default async function DataHealthPage() {
       <section className="feature-map-panel reveal delay-1" aria-labelledby="open-gate-triage-title">
         <div className="section-heading stacked-heading">
           <span>열린 확인 항목</span>
-          <h2 id="open-gate-triage-title">장애인지, 기다릴 상태인지, 원천 한계인지 분리해서 본다</h2>
+          <h2 id="open-gate-triage-title">장애, 대기, 원천 한계를 분리한다</h2>
           <p>{gateTriageStatus}</p>
         </div>
         {visibleGateTriageBuckets.length > 0 ? (
@@ -3029,7 +3029,7 @@ export default async function DataHealthPage() {
       <section className="feature-map-panel reveal delay-1" aria-labelledby="collection-status-title">
         <div className="section-heading stacked-heading">
           <span>수집/분석별 상태</span>
-          <h2 id="collection-status-title">무엇이 언제 돌았고, 어디에 쓰이는지 먼저 본다</h2>
+          <h2 id="collection-status-title">무엇이 언제 실행됐고, 어디에 쓰이는지 확인한다</h2>
 	        </div>
 	        <p className="board-intro">
 	          주식 캔들, 뉴스 원문, 1차 분류, AI 분석, 추천 갱신, 보유 상태 판단이 각각 따로 돈다.
@@ -3215,7 +3215,7 @@ export default async function DataHealthPage() {
 	        <div className="section-heading stacked-heading">
 	          <span>실제 AI 호출 상태</span>
 	          <h2 id="live-ai-invocation-health-title">
-            기준 세트 통과와 별개로, 운영 배치가 실제 LLM을 호출했는지 본다.
+            기준 세트 통과와 별개로, 운영 배치가 실제 AI를 호출했는지 확인한다.
 	          </h2>
 	        </div>
 	        <p className="board-intro">{liveAiInvocationExplanation(liveAiInvocationHealth)}</p>
@@ -3233,14 +3233,14 @@ export default async function DataHealthPage() {
 	            <small>{liveAiInvocationHistoryLabel(liveAiInvocationHealth)}</small>
 	          </article>
 	          <article className="rail-cell">
-	            <span>현재 실패 작업</span>
+	            <span>현재 중단 작업</span>
 	            <strong>{liveAiCurrentFailureCount(liveAiInvocationHealth)}</strong>
 	            <small>{liveAiCurrentFailureDetail(liveAiInvocationHealth)}</small>
 	          </article>
 	          <article className="rail-cell">
-	            <span>최신 실패 작업</span>
+	            <span>최신 중단 작업</span>
 	            <strong>{koCode(liveAiInvocationHealth.latest_failed_task_name) || "없음"}</strong>
-	            <small>{liveAiInvocationHealth.latest_failed_at || "최근 실패 없음"}</small>
+	            <small>{liveAiInvocationHealth.latest_failed_at || "최근 중단 없음"}</small>
 	          </article>
 	        </div>
 	        <div className="simple-table-wrap">
@@ -3249,7 +3249,7 @@ export default async function DataHealthPage() {
 	              <tr>
 	                <th>작업</th>
 	                <th>최근 상태</th>
-	                <th>성공/실패</th>
+	                <th>성공/중단</th>
 	                <th>최신 오류</th>
 	              </tr>
 	            </thead>
@@ -3298,7 +3298,7 @@ export default async function DataHealthPage() {
 	        <div className="section-heading stacked-heading">
 	          <span>OpenAI 잔액·쿼터 상태</span>
 	          <h2 id="openai-provider-health-title">
-	            OpenAI API를 바로 쓸 수 있는지와 실패 시 어떤 경로로 우회하는지 본다.
+	            OpenAI API를 바로 쓸 수 있는지와 중단 시 어떤 경로로 우회하는지 확인한다.
 	          </h2>
 	        </div>
 	        <p className="board-intro">{openAiProviderExplanation(openAiProviderHealth)}</p>
@@ -3353,7 +3353,7 @@ export default async function DataHealthPage() {
 	        <div className="empty-state">
 	          <strong>분기 원칙</strong>
 	          <p>
-	            화면 요청에서는 OpenAI를 호출하지 않는다. 배치 작업에서 실패가 감지되면 provider health cache에 기록하고,
+		            화면 요청에서는 OpenAI를 호출하지 않는다. 배치 작업에서 중단이 감지되면 provider health cache에 기록하고,
 	            만료 전까지 OpenAI 직접 호출을 건너뛰어 {aiProviderLabel(openAiProviderHealth.fallback_provider)} 또는{" "}
 	            {aiProviderLabel(openAiProviderHealth.local_fallback_provider)}로 내려간다.
 	          </p>
@@ -3447,7 +3447,7 @@ export default async function DataHealthPage() {
                     <strong>{koCode(item.case_id)}</strong>
                     <small>{koCode(item.category)}</small>
                   </td>
-                  <td>{item.passed ? "통과" : "실패"}</td>
+                  <td>{item.passed ? "통과" : "중단"}</td>
                   <td>{item.accepted_theme_codes.map(koCode).join(" · ") || "없음"}</td>
                   <td>{item.accepted_direct_symbols.join(" · ") || "없음"}</td>
                   <td>
@@ -3579,7 +3579,7 @@ export default async function DataHealthPage() {
       >
         <div className="section-heading stacked-heading">
           <span>추천 성과검증</span>
-          <h2 id="outcome-calibration-title">추천 산식 반영 비중을 바꾸기 전에 성과 표본과 실패 사례를 먼저 확인한다.</h2>
+          <h2 id="outcome-calibration-title">추천 산식 반영 비중을 바꾸기 전에 성과 표본과 부진 사례를 확인한다.</h2>
         </div>
         <p className="board-intro">{outcomeCalibrationExplanation(outcomeCalibration)}</p>
         <div className="status-rail compact-rail">
@@ -5041,11 +5041,11 @@ export default async function DataHealthPage() {
               </dd>
             </div>
             <div>
-              <dt>실패 회차</dt>
+              <dt>중단 회차</dt>
               <dd>{localWorker.failed_cycle_count}회</dd>
             </div>
             <div>
-              <dt>실패 시 중단</dt>
+              <dt>오류 시 중단</dt>
               <dd>{localWorker.stop_on_failure ? "예" : "아니오"}</dd>
             </div>
             <div>
@@ -5085,7 +5085,7 @@ export default async function DataHealthPage() {
                       </td>
                       <td>{koCode(cycle.smoke_status)}</td>
                       <td>
-                        {cycle.job_count}개 · 실패 {cycle.failed_job_count}개
+                        {cycle.job_count}개 · 중단 {cycle.failed_job_count}개
                       </td>
                     <td>{cycle.artifact_run_count}개 기록</td>
                     </tr>
@@ -5103,7 +5103,7 @@ export default async function DataHealthPage() {
           </div>
           <p style={{ color: "var(--text-secondary)", marginBottom: "16px" }}>
             {ec2SchedulerInstalled
-              ? "이 기록은 수동으로 데이터 수집 경로를 검증했던 증거다. 현재 서버 운영 상태를 판단할 때는 서버 반복 실행기와 최신 작업 실행 이력을 먼저 본다."
+              ? "이 기록은 수동으로 데이터 수집 경로를 검증했던 증거다. 현재 서버 운영 상태는 서버 반복 실행기와 최신 작업 실행 이력으로 판단한다."
               : manualSmokeExplanation(manualSmoke)}
           </p>
           <dl className="fact-list compact-facts">
@@ -5134,7 +5134,7 @@ export default async function DataHealthPage() {
             <div>
               <dt>실행 기록</dt>
               <dd>
-                {manualSmoke.artifact_runs.length}개 기록 · 실패 {manualSmoke.failed_job_count}개
+                {manualSmoke.artifact_runs.length}개 기록 · 중단 {manualSmoke.failed_job_count}개
               </dd>
             </div>
             <div>

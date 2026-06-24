@@ -41,6 +41,9 @@ _COMPONENT_ORDER = (
     "short_term_score",
     "rank_score",
     "macro_flow_score",
+    "broker_execution_readiness_score",
+    "broker_liquidity_warning",
+    "broker_price_basis_risk",
 )
 _COMPONENT_WEIGHTS = {
     "cycle_score": _CYCLE_WEIGHT,
@@ -52,6 +55,9 @@ _COMPONENT_WEIGHTS = {
     "momentum_score": _MOMENTUM_WEIGHT,
     "short_term_score": _SHORT_TERM_WEIGHT,
     "rank_score": _RANK_WEIGHT,
+    "broker_execution_readiness_score": Decimal("0.0000"),
+    "broker_liquidity_warning": Decimal("0.0000"),
+    "broker_price_basis_risk": Decimal("0.0000"),
 }
 _COMPONENT_EXPLANATIONS = {
     "cycle_score": "Normalized current cycle state score from the linked internal theme.",
@@ -64,6 +70,9 @@ _COMPONENT_EXPLANATIONS = {
     "short_term_score": "Short-term price move from return_1d.",
     "rank_score": "Relative rank inside the selected strategy universe.",
     "macro_flow_score": "Propagated macro/theme news impact for this instrument and linked theme.",
+    "broker_execution_readiness_score": "Toss broker read-only quote and account reality check; stored for visibility only.",
+    "broker_liquidity_warning": "Toss broker stock warning and microdata availability check; stored for visibility only.",
+    "broker_price_basis_risk": "Toss broker price basis comparison against the analysis reference price; stored for visibility only.",
 }
 
 
@@ -89,6 +98,9 @@ class RecommendationCandidate:
     theme_cycle_score: Decimal | None = None
     instrument_cycle_score: Decimal | None = None
     cycle_conflict_penalty: Decimal | None = None
+    broker_execution_readiness_score: Decimal | None = None
+    broker_liquidity_warning: Decimal | None = None
+    broker_price_basis_risk: Decimal | None = None
 
 
 @dataclass(frozen=True)
@@ -161,6 +173,15 @@ def load_recommendation_candidates(
                 cycle_conflict_penalty=Decimal(str(item["cycle_conflict_penalty"]))
                 if item.get("cycle_conflict_penalty") is not None
                 else None,
+                broker_execution_readiness_score=Decimal(str(item["broker_execution_readiness_score"]))
+                if item.get("broker_execution_readiness_score") is not None
+                else None,
+                broker_liquidity_warning=Decimal(str(item["broker_liquidity_warning"]))
+                if item.get("broker_liquidity_warning") is not None
+                else None,
+                broker_price_basis_risk=Decimal(str(item["broker_price_basis_risk"]))
+                if item.get("broker_price_basis_risk") is not None
+                else None,
             )
         )
 
@@ -226,6 +247,49 @@ macro_flow_rows as (
       and event_row.event_at < ({sql_date(as_of_date)} + interval '1 day')
     group by selected_members.instrument_id, propagated_impact.node_id
 ),
+latest_toss_comparison as (
+    select distinct on (comparison.instrument_id)
+        comparison.instrument_id,
+        comparison.status,
+        comparison.reason,
+        comparison.matched_bar_count,
+        comparison.missing_canonical_count,
+        comparison.missing_compared_count,
+        comparison.max_close_diff_bps,
+        comparison.median_close_diff_bps,
+        comparison.comparison_date,
+        comparison.observed_at
+    from market.tossinvest_provider_comparison_snapshot comparison
+    join selected_members on selected_members.instrument_id = comparison.instrument_id
+    where comparison.comparison_date <= {sql_date(as_of_date)}
+    order by comparison.instrument_id, comparison.comparison_date desc, comparison.observed_at desc
+),
+latest_toss_microdata as (
+    select distinct on (microdata.instrument_id)
+        microdata.instrument_id,
+        microdata.microdata_status,
+        microdata.best_bid_price,
+        microdata.best_ask_price,
+        microdata.latest_trade_price,
+        microdata.trade_count,
+        microdata.observed_at
+    from market.tossinvest_market_microdata_snapshot microdata
+    join selected_members on selected_members.instrument_id = microdata.instrument_id
+    where microdata.observed_at < ({sql_date(as_of_date)} + interval '1 day')
+    order by microdata.instrument_id, microdata.observed_at desc
+),
+latest_toss_warning as (
+    select distinct on (warning.instrument_id)
+        warning.instrument_id,
+        warning.warning_status,
+        warning.warning_count,
+        warning.warning_types,
+        warning.observed_at
+    from market.tossinvest_stock_warning_snapshot warning
+    join selected_members on selected_members.instrument_id = warning.instrument_id
+    where warning.observed_at < ({sql_date(as_of_date)} + interval '1 day')
+    order by warning.instrument_id, warning.observed_at desc
+),
 evidence_rows as (
     select
         selected_members.universe_batch_id,
@@ -252,7 +316,30 @@ evidence_rows as (
             when jsonb_array_length(coalesce(theme_cycle.conflict_flags, '[]'::jsonb)) = 0 then 1.0000::numeric
             when theme_cycle.conflict_flags ? 'base_cycle_missing' then 0.8000::numeric
             else 0.7000::numeric
-        end as cycle_conflict_penalty
+        end as cycle_conflict_penalty,
+        case
+            when toss_microdata.instrument_id is null then 0.5000::numeric
+            when toss_microdata.best_bid_price is not null
+             and toss_microdata.best_ask_price is not null
+             and toss_microdata.latest_trade_price is not null then 1.0000::numeric
+            when toss_microdata.latest_trade_price is not null then 0.8000::numeric
+            else 0.6500::numeric
+        end as broker_execution_readiness_score,
+        case
+            when toss_warning.instrument_id is null then 0.5000::numeric
+            when coalesce(toss_warning.warning_count, 0) = 0 then 1.0000::numeric
+            when coalesce(toss_warning.warning_count, 0) <= 2 then 0.6500::numeric
+            else 0.2500::numeric
+        end as broker_liquidity_warning,
+        case
+            when toss_comparison.instrument_id is null then 0.5000::numeric
+            when toss_comparison.status = 'candidate_ready' then 1.0000::numeric
+            when toss_comparison.status = 'shadow_collecting'
+             and toss_comparison.reason = 'toss_provisional_low_volume_bar' then 0.7500::numeric
+            when toss_comparison.status = 'shadow_collecting' then 0.6000::numeric
+            when toss_comparison.status = 'conflict_review_required' then 0.2500::numeric
+            else 0.5000::numeric
+        end as broker_price_basis_risk
     from selected_members
     join ref.instrument_classification_membership membership
       on membership.instrument_id = selected_members.instrument_id
@@ -318,6 +405,12 @@ evidence_rows as (
           on macro_snapshot.node_id = macro_nodes.node_id
          and macro_snapshot.as_of_date = {sql_date(as_of_date)}
     ) macro_cycle on true
+    left join latest_toss_comparison toss_comparison
+      on toss_comparison.instrument_id = selected_members.instrument_id
+    left join latest_toss_microdata toss_microdata
+      on toss_microdata.instrument_id = selected_members.instrument_id
+    left join latest_toss_warning toss_warning
+      on toss_warning.instrument_id = selected_members.instrument_id
     where node.taxonomy_family = 'internal_theme'
       and node.code <> 'MARKET_NEWS_FLOW'
       and not (node.code = 'US_MARKET_BREADTH' and selected_members.instrument_type <> 'etf')
@@ -347,7 +440,10 @@ select coalesce(
             'domain_cycle_score', domain_cycle_score,
             'theme_cycle_score', theme_cycle_score,
             'instrument_cycle_score', instrument_cycle_score,
-            'cycle_conflict_penalty', cycle_conflict_penalty
+            'cycle_conflict_penalty', cycle_conflict_penalty,
+            'broker_execution_readiness_score', broker_execution_readiness_score,
+            'broker_liquidity_warning', broker_liquidity_warning,
+            'broker_price_basis_risk', broker_price_basis_risk
         )
         order by primary_symbol, node_code
     ),
@@ -627,6 +723,11 @@ def _compute_component_scores(candidate: RecommendationCandidate) -> dict[str, D
         ),
         "rank_score": _compute_rank_score(candidate),
         "macro_flow_score": _clamp_decimal(candidate.macro_flow_score or Decimal("0")),
+        "broker_execution_readiness_score": _clamp_decimal(
+            candidate.broker_execution_readiness_score or Decimal("0.5000")
+        ),
+        "broker_liquidity_warning": _clamp_decimal(candidate.broker_liquidity_warning or Decimal("0.5000")),
+        "broker_price_basis_risk": _clamp_decimal(candidate.broker_price_basis_risk or Decimal("0.5000")),
     }
 
 
@@ -755,4 +856,10 @@ def _component_explanation(component_name: str, row: RecommendationRow) -> str:
         "macro_flow_score",
     }:
         return f"{base} Selected recommendation node: {row.node_code}."
+    if component_name in {
+        "broker_execution_readiness_score",
+        "broker_liquidity_warning",
+        "broker_price_basis_risk",
+    }:
+        return f"{base} Current policy: component_weight=0, recommendation rank unchanged."
     return base

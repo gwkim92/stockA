@@ -195,7 +195,7 @@ export default async function SourceDocumentPage({ params }: SourceDocumentPageP
         <article className="source-document-summary-card" id="source-document-summary">
           <div className="source-document-card-head">
             <span>문서 요약</span>
-            <h2>이 원천이 어떤 판단에 쓰였는지 먼저 본다</h2>
+            <h2>이 원천이 어떤 판단에 쓰였는지 확인한다</h2>
           </div>
           <div className="source-document-title-card">
             <NewsTitleBlock
@@ -211,7 +211,7 @@ export default async function SourceDocumentPage({ params }: SourceDocumentPageP
             <article>
               <span>문서 기록</span>
               <strong>{recordStatus(data.document_id, "기록 있음")}</strong>
-              <p>이 화면에서 추적 가능한 원천 문서로 저장되어 있다.</p>
+              <p>추적 가능한 원천 문서로 저장되어 있다.</p>
             </article>
             <article>
               <span>접수 기록</span>
@@ -286,8 +286,8 @@ export default async function SourceDocumentPage({ params }: SourceDocumentPageP
       <section className="source-document-section reveal delay-2" id="source-document-excerpts" aria-labelledby="source-document-excerpts-title">
         <div className="source-document-section-head">
           <span>근거 발췌</span>
-          <h2 id="source-document-excerpts-title">판단에 쓰인 원문 조각을 한국어 흐름으로 먼저 본다</h2>
-          <p>영어 전문은 필요할 때만 펼친다. 기본 화면은 이 발췌가 어떤 투자 흐름 판단에 쓰였는지를 먼저 보여준다.</p>
+          <h2 id="source-document-excerpts-title">판단에 쓰인 원문 조각을 한국어 흐름으로 확인한다</h2>
+          <p>영어 전문은 필요할 때만 펼친다. 기본 표시는 이 발췌가 어떤 투자 흐름 판단에 쓰였는지 보여준다.</p>
         </div>
         <div className="source-excerpt-card-grid">
           {data.excerpts.length === 0 ? (

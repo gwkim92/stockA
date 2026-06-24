@@ -2298,6 +2298,11 @@ export type RecommendationDetailData = {
         fundamental_component_name?: string | null;
         fundamental_explanation?: string | null;
         fundamental_note?: string | null;
+        broker_component_name?: string | null;
+        broker_component_score?: number | null;
+        broker_component_weight?: number | null;
+        broker_explanation?: string | null;
+        broker_note?: string | null;
         propagated_impact_count?: number | null;
         recent_flows?: Array<{
           event_id: number | string;

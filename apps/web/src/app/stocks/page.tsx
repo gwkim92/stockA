@@ -37,7 +37,7 @@ type StockRow = Awaited<ReturnType<typeof getStocks>>["data"]["stocks"][number];
 
 function stockPriorityReason(stock: StockRow) {
   if (stock.recommendation && stock.position) {
-    return "추천 판단과 실제 보유가 모두 연결된 종목이다. 추천 이유와 현재 보유 상태가 서로 맞는지 먼저 본다.";
+    return "추천 판단과 실제 보유가 모두 연결된 종목이다. 추천 이유와 현재 보유 상태가 같은 방향인지 확인한다.";
   }
   if (stock.recommendation) {
     return "추천 판단이 붙은 종목이다. 상세에서 뉴스, 사이클, 재무, 가격 근거가 충분한지 확인한다.";

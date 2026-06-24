@@ -12521,6 +12521,12 @@ score_component_rows as (
                 'thesis_consistency_score'
             )
                 then 'fundamental-' || lower(recommendation.primary_symbol) || '-' || recommendation.as_of_date::text || '-' || component.component_name
+            when component.component_name in (
+                'broker_execution_readiness_score',
+                'broker_liquidity_warning',
+                'broker_price_basis_risk'
+            )
+                then 'broker-reality-' || lower(recommendation.primary_symbol) || '-' || recommendation.as_of_date::text || '-' || component.component_name
             else component.component_name
         end as evidence_id,
         case
@@ -12617,6 +12623,29 @@ score_component_rows as (
                         'fundamental_component_name', component.component_name,
                         'fundamental_explanation', component.explanation,
                         'fundamental_note', '전문가식 기업 분석 입력을 추천 상세에 노출하기 위한 zero-weight 검증 항목이다. 성과 평가 전까지 추천 총점에는 반영하지 않는다.'
+                    )
+                ))
+            when component.component_name in (
+                'broker_execution_readiness_score',
+                'broker_liquidity_warning',
+                'broker_price_basis_risk'
+            )
+                then json_strip_nulls(json_build_object(
+                    'source_type', 'broker_reality_context',
+                    'label',
+                    case component.component_name
+                        when 'broker_execution_readiness_score' then '브로커 실행 가능성'
+                        when 'broker_liquidity_warning' then '브로커 유동성·주의사항'
+                        when 'broker_price_basis_risk' then '브로커 가격 기준 차이'
+                        else '브로커 현실 확인'
+                    end,
+                    'evidence_json', json_build_object(
+                        'as_of_date', recommendation.as_of_date,
+                        'broker_component_name', component.component_name,
+                        'broker_component_score', component.component_score,
+                        'broker_component_weight', component.component_weight,
+                        'broker_explanation', component.explanation,
+                        'broker_note', '토스증권 read-only 데이터 기반 실행 현실 확인 항목이다. component weight는 0이라 추천 총점과 순위에는 반영하지 않는다.'
                     )
                 ))
             else json_build_object(
@@ -19703,6 +19732,11 @@ def _build_score_component_evidence_summary(evidence_json: dict[str, Any]) -> di
         "fundamental_component_name": _optional_text(evidence_json.get("fundamental_component_name")),
         "fundamental_explanation": _optional_text(evidence_json.get("fundamental_explanation")),
         "fundamental_note": _optional_text(evidence_json.get("fundamental_note")),
+        "broker_component_name": _optional_text(evidence_json.get("broker_component_name")),
+        "broker_component_score": _number(evidence_json.get("broker_component_score")),
+        "broker_component_weight": _number(evidence_json.get("broker_component_weight")),
+        "broker_explanation": _optional_text(evidence_json.get("broker_explanation")),
+        "broker_note": _optional_text(evidence_json.get("broker_note")),
         "propagated_impact_count": _integer(evidence_json.get("propagated_impact_count")),
         "recent_flows": _as_list(evidence_json.get("recent_flows")),
     }
@@ -19717,6 +19751,8 @@ def _infer_score_component_source_type(evidence_id: str) -> str:
         return "macro_flow_propagation"
     if evidence_id.startswith("fundamental-"):
         return "fundamental_context"
+    if evidence_id.startswith("broker-reality-"):
+        return "broker_reality_context"
     if _is_ai_or_event_evidence_id(evidence_id):
         return "event_or_ai_evidence"
     return "score_component"
@@ -19735,6 +19771,8 @@ def _default_score_component_provenance_label(source_type: str) -> str:
         return "계층형 사이클 근거"
     if source_type == "fundamental_context":
         return "기업 분석 근거"
+    if source_type == "broker_reality_context":
+        return "브로커 현실 확인"
     return "저장된 점수 구성요소"
 
 

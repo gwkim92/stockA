@@ -87,7 +87,7 @@ function primaryActionLabel(status: CodexOauthOperatorStatus) {
 
 function primaryActionCopy(status: CodexOauthOperatorStatus) {
   if (status.status === "device_auth_pending" && !isDeviceCodeExpired(status)) {
-    return "아래 코드를 OpenAI 인증 페이지에 입력한 뒤, 이 화면으로 돌아와 로그인 확인을 누른다.";
+    return "아래 코드를 OpenAI 인증 페이지에 입력한 뒤, 로그인 확인을 누른다.";
   }
   if (status.status === "authenticated_smoke_required") {
     return "로그인은 감지됐다. 이제 서버에서 실제 AI 응답을 받을 수 있는지 확인해야 한다.";
@@ -128,9 +128,9 @@ export default function CodexOauthOperatorPanel({ initialStatus }: Props) {
       <div className="codex-oauth-header">
         <div>
           <span className="codex-oauth-kicker">Codex OAuth</span>
-          <h2>AI fallback 로그인 복구</h2>
+          <h2>예비 AI 로그인 복구</h2>
           <p>
-            OpenAI API 잔액이 없을 때 서버 배치가 사용하는 예비 AI 경로다. 이 화면에서는 로그인 복구와
+            OpenAI API 잔액이 없을 때 서버 배치가 사용하는 예비 AI 경로다. 여기서는 로그인 복구와
             실제 응답 확인만 한다.
           </p>
         </div>
@@ -140,7 +140,7 @@ export default function CodexOauthOperatorPanel({ initialStatus }: Props) {
       <div className="codex-oauth-grid">
         <article className="codex-oauth-primary">
           <span>지금 할 일</span>
-          <strong>{isPending ? "서버에서 처리 중" : lastResult?.ok === false ? "요청 실패" : primaryActionLabel(effectiveStatus)}</strong>
+          <strong>{isPending ? "서버에서 처리 중" : lastResult?.ok === false ? "요청 중단" : primaryActionLabel(effectiveStatus)}</strong>
           <p>{isPending ? "버튼 실행 결과를 기다리고 있다." : actionMessage(lastResult, effectiveStatus) || primaryActionCopy(effectiveStatus)}</p>
           <small>추천 점수, 포트폴리오, 주문 제출에는 영향이 없다.</small>
         </article>
@@ -213,7 +213,7 @@ export default function CodexOauthOperatorPanel({ initialStatus }: Props) {
 
       {effectiveStatus.last_error_summary ? (
         <div className="codex-oauth-alert">
-          <strong>최근 실패</strong>
+          <strong>최근 중단</strong>
           <p>
             {effectiveStatus.last_error_code
               ? `${effectiveStatus.last_error_code}: ${effectiveStatus.last_error_summary}`

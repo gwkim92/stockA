@@ -211,7 +211,7 @@ export default async function HomePage() {
     outcomeWaitMonitor.portfolio_feedback_maturity_date || outcomeWaitMonitor.earliest_action_date || "미정";
   const weightReviewLabel = outcomeWaitMonitor.manual_weight_review_allowed
     ? "성과 표본 충족 시 산식 점검"
-    : "추천 산식 검토 차단";
+    : "추천 산식 변경 잠금";
   const orderBoundaryLabel = outcomeWaitMonitor.broker_submit_allowed ? "증권사 주문 전송 가능" : "주문 제출 차단";
   const firstRecommendationHref = firstRecommendation
     ? (`/recommendations/${firstRecommendation.recommendation_id}` as Route)
@@ -224,15 +224,15 @@ export default async function HomePage() {
   const primaryFocus =
     failedJobCount > 0
       ? {
-          title: "수집 문제를 먼저 해결한다.",
-          body: `${failedJobCount}개 작업이 실패했거나 오래됐다. 추천·보유 판단보다 수집 상태 복구가 먼저다.`,
+          title: "데이터 신뢰도부터 확인한다.",
+          body: `${failedJobCount}개 수집·분석 작업이 정상 상태가 아니다. 추천·보유 판단보다 데이터 복구가 우선이다.`,
           href: "/data-health" as Route,
           cta: "수집 상태 열기",
         }
       : openTicketCount > 0
         ? {
-            title: "보완 큐부터 확인한다.",
-            body: `${openTicketCount}개 보완 항목이 열려 있다. 투자 논리 공백, 보유 충돌, 성과 미측정 항목이 추천 판단을 막고 있다.`,
+            title: "판단을 막는 공백을 확인한다.",
+            body: `${openTicketCount}개 보완 항목이 남아 있다. 투자 논리 공백, 보유 충돌, 성과 미측정 항목이 추천 판단을 막고 있다.`,
             href: "/remediation" as Route,
             cta: "할 일 열기",
           }
@@ -260,7 +260,7 @@ export default async function HomePage() {
       index: "01",
       title: "데이터를 믿어도 되는가",
       status: koCode(health.data.overall_status),
-      detail: `${health.data.pipeline_runs.length}개 작업 중 실패 ${failedJobCount}개. 데이터가 불안정하면 투자 판단을 보류한다.`,
+      detail: `${health.data.pipeline_runs.length}개 수집·분석 작업 중 주의 ${failedJobCount}개. 데이터가 불안정하면 투자 판단을 보류한다.`,
       href: "/data-health",
       cta: "수집 상태",
     },
@@ -292,7 +292,7 @@ export default async function HomePage() {
       index: "05",
       title: "추천 근거가 충분한가",
       status: `${recommendationBoundary.decision_review_ready_count}개 판단 후보`,
-      detail: `가상 매매 검증 대기 ${recommendationBoundary.paper_validation_pending_count}개, 차단 ${recommendationBoundary.decision_blocked_count}개, 열린 검토 ${ticketCount}개`,
+      detail: `가상 매매 확인 대기 ${recommendationBoundary.paper_validation_pending_count}개, 차단 ${recommendationBoundary.decision_blocked_count}개, 보완 항목 ${ticketCount}개`,
       href: "/recommendations",
       cta: "추천 근거",
     },
@@ -331,7 +331,7 @@ export default async function HomePage() {
             오늘 투자 판단은 {primaryFocus.title}
           </h1>
           <p className="analyst-lede">
-            {primaryFocus.body} 여기서 알아야 할 것은 내부 처리 방식이 아니라 오늘의 결론, 결론을 흔드는 근거,
+            {primaryFocus.body} 여기서 중요한 것은 내부 처리 방식이 아니라 오늘의 결론, 결론을 흔드는 근거,
             보류해야 할 위험, 다음 행동이다.
           </p>
           <div className="analyst-action-row">
@@ -353,7 +353,7 @@ export default async function HomePage() {
           <span>오늘 결론</span>
           <strong>{outcomeWaitMonitor.title}</strong>
           <p>
-            추천 산식과 실거래는 성과 표본이 성숙할 때까지 잠겨 있다. 지금 결론은 새 주문이 아니라 보완 항목과 근거 품질 확인이다.
+              추천 산식과 실거래는 성과 표본이 성숙할 때까지 잠겨 있다. 지금 할 일은 새 주문이 아니라 보완 항목과 근거 품질 확인이다.
           </p>
           <dl className="analyst-fact-grid">
             <div>

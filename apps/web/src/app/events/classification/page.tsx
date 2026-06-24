@@ -91,7 +91,7 @@ export default async function ClassificationPage() {
       metric: `뉴스 ${data.events.length.toLocaleString("ko-KR")}건 · 리스크 ${riskReviewCount.toLocaleString("ko-KR")}건`,
       body:
         groups.length > 0
-          ? "뉴스가 어떤 상위 흐름으로 묶였는지 먼저 본다. 테마 이름이 뉴스 내용과 맞지 않으면 AI 근거와 대조한다."
+          ? "뉴스가 어떤 상위 흐름으로 묶였는지 확인한다. 테마 이름이 뉴스 내용과 맞지 않으면 투자 근거와 대조한다."
           : "현재 필터 기준으로 묶을 테마가 없다. 수집 목록과 분류 배치 상태를 확인한다.",
       href: "#classification-groups",
       cta: "테마 묶음 보기",
@@ -117,7 +117,7 @@ export default async function ClassificationPage() {
       metric: `시장/테마 뉴스 ${macroOnlyCount.toLocaleString("ko-KR")}건`,
       body:
         macroOnlyCount > 0
-          ? "금리, 물가, 정책, 에너지 같은 뉴스는 개별 종목보다 상위 흐름으로 먼저 저장하고 이후 종목 민감도에 따라 전파한다."
+          ? "금리, 물가, 정책, 에너지 같은 뉴스는 개별 종목보다 상위 흐름으로 저장하고 이후 종목 민감도에 따라 전파한다."
           : "현재 목록에서는 종목 없는 상위 흐름 뉴스가 두드러지지 않는다.",
       href: "/cycle-map",
       cta: "사이클 지도 보기",
@@ -130,8 +130,8 @@ export default async function ClassificationPage() {
       metric: `기본 태그만 ${ruleCheckCount.toLocaleString("ko-KR")}건 · 근거 미연결 ${unreviewedCount.toLocaleString("ko-KR")}건`,
       body:
         aiLinkedCount > 0
-          ? "1차 태그와 투자 근거가 같은 방향인지 본다. 불일치하거나 낮은 신뢰도는 추천 근거로 쓰지 않는다."
-          : "이 화면의 태그는 아직 최종 판단이 아니다. 원문과 품질 기준이 확인될 때까지 추천 입력으로 보류한다.",
+          ? "1차 태그와 투자 근거가 같은 방향인지 확인한다. 불일치하거나 낮은 신뢰도는 추천 근거로 쓰지 않는다."
+          : "1차 태그는 아직 최종 판단이 아니다. 원문과 품질 기준이 확인될 때까지 추천 입력으로 보류한다.",
       href: "/ai-evidence",
       cta: "투자 근거와 비교",
       tone: aiLinkedCount > 0 ? "ready" : "watch",
@@ -147,7 +147,7 @@ export default async function ClassificationPage() {
             1차 태그 {groups.length.toLocaleString("ko-KR")}개, 투자 근거 연결 {aiLinkedCount.toLocaleString("ko-KR")}건
           </h1>
           <p className="decision-brief-copy">
-            이 화면은 최종 투자 판단이 아니라 첫 해석이다. 테마가 맞는지, 종목을 억지로 붙였는지 보고 원문 근거와 품질 결과를 대조한다.
+            1차 태그는 최종 투자 판단이 아니라 첫 해석이다. 테마가 맞는지, 종목을 억지로 붙였는지 원문 근거와 품질 결과로 대조한다.
           </p>
           <div className="decision-brief-meta" aria-label="1차 분류 핵심 상태">
             <span>직접 종목 {directSymbolCount.toLocaleString("ko-KR")}건</span>

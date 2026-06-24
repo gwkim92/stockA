@@ -166,7 +166,7 @@ export default async function RemediationPage() {
           <a className="decision-card" href="#remediation-status-counts">
             <span>반복 이슈</span>
             <strong>{repeatedGroupCount.toLocaleString("ko-KR")}개</strong>
-            <small>같은 판단 공백이 여러 날 반복된 종목을 먼저 본다.</small>
+            <small>같은 판단 공백이 여러 날 반복된 종목을 우선 확인한다.</small>
             <b>묶음 보기</b>
           </a>
           <a className="decision-card is-block" href="#remediation-boundary">
@@ -290,7 +290,7 @@ export default async function RemediationPage() {
               무효화 조건을 함께 저장한 뒤 별도 승인 경로에서만 다룬다.
             </p>
             <div className="remediation-boundary-note">
-              <strong>이 화면에서 하는 일</strong>
+              <strong>보완 큐의 역할</strong>
               <p>보완해야 할 판단 공백을 찾는다. 추천 점수, 포트폴리오 비중, 주문 제출은 여기서 바꾸지 않는다.</p>
             </div>
           </article>

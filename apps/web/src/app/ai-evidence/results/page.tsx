@@ -86,7 +86,7 @@ export default async function StructuredResultsPage() {
       index: "04",
       label: "품질 기준",
       value: "통과 항목",
-      body: "이 화면에는 추천 입력 후보만 모은다. 차단·보류 항목은 별도 화면에서 봐야 한다.",
+      body: "추천 입력으로 넘길 수 있는 후보만 모았다. 제외·보류 항목은 차단 항목에서 따로 확인한다.",
       tone: "ready",
       href: "/ai-evidence/blocked",
       cta: "차단 항목 보기",

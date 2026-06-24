@@ -224,8 +224,8 @@ export default async function PaperTradingPage() {
       metric: `${brokerBuyingPowerText} · 매도 가능 ${tossOrderReadiness.sellable_quantity_count.toLocaleString("ko-KR")}개`,
       body:
         tossOrderReadiness.broker_submit_allowed
-          ? "브로커 데이터가 읽혔더라도 이 화면에서는 실주문을 제출하지 않는다."
-          : "토스 계좌·호가·체결은 실행 가능성 확인용이다. 실제 주문 제출은 계속 차단된다.",
+          ? "브로커 데이터가 읽혔더라도 실주문 전송은 아직 열지 않는다."
+          : "토스 계좌·호가·체결은 실행 현실 확인용이다. 실제 주문 제출은 계속 차단된다.",
       href: "#paper-broker-reality",
       cta: "브로커 확인",
       tone: tossOrderReadiness.status === "available" || tossOrderReadiness.latest_status === "succeeded" ? "ready" : "watch",
@@ -240,7 +240,7 @@ export default async function PaperTradingPage() {
           ? "차단 사유를 먼저 확인한다. 실거래 상태는 계속 읽기 전용이다."
           : simulatedActionCount > 0
             ? "항목별 추천서, 투자 논리, 종목 상세를 열어 근거가 맞는지 확인한다."
-            : "추천 신호와 보유 상태가 갱신됐는지 먼저 본다.",
+            : "추천 신호와 보유 상태가 같은 방향인지 확인한다.",
       href: simulatedActionCount > 0 ? "#paper-action-candidates" : "/recommendations",
       cta: simulatedActionCount > 0 ? "항목 확인" : "추천 보기",
       tone: trading.gate_summary.blocked_count > 0 ? "block" : "watch",
@@ -447,8 +447,8 @@ export default async function PaperTradingPage() {
             <h2>주문이 아니라 검증용 항목만 보여준다</h2>
           </div>
           <p className="empty-copy">
-            표의 조치는 실제 주문 명령이 아니다. 추천서, 투자 논리, 종목 상세를 대조하기 위한 검증 항목이며,
-            이 화면에는 주문 제출 기능이 없다.
+            표의 조치는 실제 주문 명령이 아니다. 추천서, 투자 논리, 종목 상세를 대조하기 위한 가상 검증 항목이며,
+            주문 제출 기능은 의도적으로 닫아 두었다.
           </p>
           {data.paper_actions.length > 0 ? (
             <div className="paper-action-card-grid" aria-label="가상 매매 검증 항목">
@@ -490,7 +490,7 @@ export default async function PaperTradingPage() {
                       </div>
                       <div>
                         <span>실거래 경계</span>
-                        <strong>{action.requires_human_approval ? "검증 조건 확인 필요" : "읽기 전용 검증"}</strong>
+                        <strong>{action.requires_human_approval ? "안전 조건 확인 필요" : "읽기 전용 확인"}</strong>
                         <small>
                           {action.conflict ? "추천과 보유 상태 충돌 있음" : "저장된 충돌 없음"} · 최근 가격 {formatCurrency(action.latest_price)}
                         </small>

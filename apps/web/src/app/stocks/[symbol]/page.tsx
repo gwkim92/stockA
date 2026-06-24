@@ -473,7 +473,7 @@ function FinancialStatementModelPanel({
       </div>
 
       <p style={{ color: "var(--text-muted)", margin: "18px 0 0" }}>
-        재무 지표는 저장된 공시 데이터로 계산한다. 이 화면에서는 주문을 만들지 않는다.
+        재무 지표는 저장된 공시 데이터로 계산한다. 이 영역은 읽기 전용 분석이며 주문 제출과 연결하지 않는다.
       </p>
     </section>
   );
@@ -1515,7 +1515,7 @@ export default async function StockDetailPage({ params }: StockDetailPageProps) 
       status: hasTargetRange ? `${valuationTargetRange.method_count}개 목표가 산출` : (valuationItems.length ? `${valuationItems.length}개 민감도` : "산출 대기"),
       tone: hasTargetRange || valuationItems.length ? "ready" : "watch",
       body: hasTargetRange
-        ? "현재가 대비 목표가 하단·기준·상단과 안전마진을 먼저 본다. 이 값은 추천 점수를 바로 바꾸지 않고 가격 근거로만 쓴다."
+        ? "현재가 대비 목표가 하단·기준·상단과 안전마진을 비교한다. 이 값은 추천 점수를 바로 바꾸지 않고 가격 근거로만 쓴다."
         : valuationItems.length
           ? "현금흐름, 상대 배수, 시나리오 범위가 추천 점수를 바로 바꾸지는 않지만, 비싸게 사는지 여부를 확인하는 핵심 입력이다."
         : "아직 목표가 범위, 안전마진, 시나리오 민감도가 충분히 저장되지 않았다.",

@@ -85,7 +85,7 @@ function formatUsdAmount(value: number | null) {
 function providerSummary(data: AiAgentRegistryData) {
   return [
     `1차 ${data.primary_providers.map(providerLabel).join(", ") || "미지정"}`,
-    `만료/실패 시 ${data.fallback_providers.map(providerLabel).join(", ") || "미지정"}`,
+    `만료·쿼터 부족 시 ${data.fallback_providers.map(providerLabel).join(", ") || "미지정"}`,
     `최종 대체 ${data.local_fallback_providers.map(providerLabel).join(", ") || "미지정"}`,
   ].join(" · ");
 }
@@ -99,13 +99,13 @@ function runtimeStatusText(data: AiAgentRegistryData) {
     return "OpenAI API 호출은 운영 플래그로 꺼져 있다. 배치는 Codex OAuth 또는 로컬 규칙으로 내려가야 한다.";
   }
   if (data.runtime_policy.primary_provider_status === "known_billing_unavailable") {
-    return "OpenAI API key는 있지만 잔액 또는 quota가 없는 상태로 표시돼 있다. 배치는 OpenAI를 건너뛰고 fallback을 사용해야 한다.";
+    return "OpenAI API key는 있지만 잔액 또는 quota가 없는 상태로 표시돼 있다. 배치는 OpenAI를 건너뛰고 예비 분석 경로를 사용해야 한다.";
   }
   if (data.runtime_policy.primary_provider_status === "costs_available_balance_not_returned") {
     return `OpenAI API key와 Admin key가 감지됐다. 최근 ${health.cost_status.lookback_days}일 비용은 ${formatUsdAmount(health.cost_status.total_cost_usd)}이고, 남은 잔액은 공식 Costs API가 반환하지 않아 Billing Overview에서 확인한다.`;
   }
   if (!data.runtime_policy.primary_api_key_configured) {
-    return "OpenAI API 키는 이 요청 환경에서 감지되지 않았다. Codex OAuth 또는 로컬 규칙 fallback을 사용하도록 설계되어 있다.";
+    return "OpenAI API 키는 이 요청 환경에서 감지되지 않았다. Codex OAuth 또는 로컬 규칙 분석을 사용하도록 설계되어 있다.";
   }
   return "OpenAI API 키가 감지됐다. 실제 호출은 배치 작업에서만 수행하고 화면 요청 중에는 호출하지 않는다.";
 }
@@ -158,7 +158,7 @@ function AgentCard({ agent }: { agent: Agent }) {
           </dd>
         </div>
         <div>
-          <dt>Fallback</dt>
+          <dt>예비 경로</dt>
           <dd>
             {providerLabel(agent.model_policy.fallback_provider)} · {agent.model_policy.fallback_model}
           </dd>
@@ -214,18 +214,18 @@ export default async function AiAgentAdminPage() {
       <section className="page-hero">
         <div>
           <p className="bento-badge">AI 운영 콘솔</p>
-          <h1 className="page-title">에이전트별 모델, fallback, 안전 경계를 한 화면에서 확인한다.</h1>
+          <h1 className="page-title">에이전트별 모델, 예비 경로, 안전 경계를 확인한다.</h1>
         </div>
         <p className="page-lede">
-          이 화면은 AI가 투자 운영에서 어떤 역할을 맡는지 보여주는 읽기 전용 콘솔이다. 모델 변경, canonical write,
-          추천 weight 변경, 주문 제출은 아직 이 화면에서 할 수 없다.
+          AI가 투자 운영에서 어떤 역할을 맡는지 보여주는 읽기 전용 콘솔이다. 모델 변경, 표준 저장소 쓰기,
+          추천 점수 비중 변경, 주문 제출은 아직 열지 않았다.
         </p>
       </section>
 
       <section className="decision-brief" aria-label="AI runtime boundary">
         <div className="decision-brief-main">
           <span className="decision-brief-kicker">현재 실행 경계</span>
-          <h2 className="decision-brief-title">배치 AI는 허용, 화면 요청 중 실시간 LLM 호출은 금지.</h2>
+          <h2 className="decision-brief-title">배치 AI는 허용, 화면 요청 중 실시간 AI 호출은 금지.</h2>
           <p className="decision-brief-copy">
             {providerSummary(data)}. {runtimeStatusText(data)}
           </p>
@@ -249,7 +249,7 @@ export default async function AiAgentAdminPage() {
             <small>모든 에이전트는 실거래·주문 제출 권한이 없다.</small>
           </div>
           <div className="decision-card is-watch">
-            <span>OpenAI fallback</span>
+            <span>OpenAI 예비 경로</span>
             <strong>{data.runtime_policy.primary_provider_status === "known_billing_unavailable" ? "우회 필요" : "상태 확인"}</strong>
             <small>{data.runtime_policy.primary_provider_fallback_reason}</small>
           </div>
@@ -302,14 +302,14 @@ export default async function AiAgentAdminPage() {
             </small>
           </div>
           <div className="decision-card is-good">
-            <span>Fallback 1</span>
+            <span>예비 경로 1</span>
             <strong>{providerLabel(data.runtime_policy.openai_provider_health.fallback_provider)}</strong>
-            <small>OpenAI가 실패하거나 잔액이 없으면 먼저 이 경로로 내려간다.</small>
+            <small>OpenAI가 중단되거나 잔액이 없으면 이 경로로 내려간다.</small>
           </div>
           <div className="decision-card is-good">
-            <span>Fallback 2</span>
+            <span>예비 경로 2</span>
             <strong>{providerLabel(data.runtime_policy.openai_provider_health.local_fallback_provider)}</strong>
-            <small>외부 AI가 모두 실패해도 규칙 기반 분석과 검증은 계속 진행한다.</small>
+            <small>외부 AI가 모두 중단돼도 규칙 기반 분석과 검증은 계속 진행한다.</small>
           </div>
           <div className="decision-card is-watch">
             <span>Admin key</span>
@@ -322,7 +322,7 @@ export default async function AiAgentAdminPage() {
       <section className="flow-panel" aria-label="AI processing flow">
         <div className="section-heading flow-heading">
           <span>AI 처리 순서</span>
-          <h2>수집 데이터는 에이전트를 거쳐 후보 근거가 되고, deterministic validator가 최종 반영 여부를 결정한다.</h2>
+          <h2>수집 데이터는 에이전트를 거쳐 후보 근거가 되고, 자동 검증기가 최종 반영 여부를 결정한다.</h2>
           <p>
             AI는 번역, 구조화, 연결 설명, 리서치 초안을 만든다. 추천 점수, 포트폴리오 제약, 주문 차단은 코드와 DB
             guardrail이 강제한다.
@@ -333,8 +333,8 @@ export default async function AiAgentAdminPage() {
             ["01", "뉴스·지표 수집", "RSS, SEC, FRED, CBOE, Twelve Data가 원천을 모은다."],
             ["02", "에이전트 분석", "번역, 구조화, 온톨로지 매핑, 사이클 해석을 배치로 수행한다."],
             ["03", "자동 검증", "원문 근거 없는 ticker, 낮은 confidence, unknown node를 차단한다."],
-            ["04", "근거 저장", "통과한 후보만 canonical event, signal, research artifact로 연결한다."],
-            ["05", "추천 검토", "추천은 AI가 직접 결정하지 않고 deterministic component와 thesis가 판단한다."],
+            ["04", "근거 저장", "통과한 후보만 표준 이벤트, 신호, 리서치 근거로 연결한다."],
+            ["05", "추천 판단", "추천은 AI가 직접 결정하지 않고 규칙형 점수 항목과 투자 논리가 판단한다."],
             ["06", "주문 차단", "페이퍼 검증까지 읽기 전용이며 실거래 제출은 막혀 있다."],
           ].map(([step, title, copy]) => (
             <div className="flow-step" key={step}>
@@ -370,8 +370,8 @@ export default async function AiAgentAdminPage() {
       <section className="bento-grid" aria-label="related routes">
         <Link className="route-card" href={"/data-health" as Route}>
           <span>운영 상태</span>
-          <strong>수집·AI 실패 확인</strong>
-          <small>실패한 배치, OAuth 만료, 알림 목적지, scheduler 상태를 본다.</small>
+          <strong>수집·AI 중단 확인</strong>
+          <small>중단된 배치, OAuth 만료, 알림 목적지, 예약 실행 상태를 본다.</small>
         </Link>
         <Link className="route-card" href={"/intelligence" as Route}>
           <span>뉴스 AI</span>

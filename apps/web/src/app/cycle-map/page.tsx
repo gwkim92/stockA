@@ -374,7 +374,7 @@ export default async function CycleMapPage() {
       <section className="cycle-path-workbench reveal delay-3" id="cycle-map-layers" aria-label="계층형 사이클 판단 경로">
         {groups.length === 0 ? (
           <article className="empty-state">
-            아직 표시할 계층형 사이클 스냅샷이 없다. 뉴스 근거, 상위 흐름 영향, 사이클 상태가 쌓이면 이 화면이 채워진다.
+            아직 표시할 계층형 사이클 스냅샷이 없다. 뉴스 근거, 상위 흐름 영향, 사이클 상태가 쌓이면 거시→섹터→테마→종목 경로로 표시된다.
           </article>
         ) : null}
 

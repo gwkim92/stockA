@@ -218,8 +218,8 @@ export default async function RecommendationsPage() {
       metric: `${data.summary.order_blocked_count.toLocaleString("ko-KR")}개 주문 차단`,
       body:
         data.summary.order_blocked_count > 0
-          ? "목록의 추천은 읽기 전용이다. 증권사 주문 제출, 자동 주문, 추천 산식 변경은 이 화면에서 열리지 않는다."
-          : "차단 수가 0이어도 이 화면에는 주문 기능이 없다. 실거래는 별도 승인된 실거래 연결에서만 다룬다.",
+          ? "목록의 추천은 읽기 전용이다. 증권사 주문 제출, 자동 주문, 추천 산식 변경은 아직 열지 않았다."
+          : "차단 수가 0이어도 실거래는 별도 승인된 증권사 주문 절차에서만 다룬다.",
       href: "/trading-readiness",
       cta: "실거래 제한 보기",
       tone: data.summary.order_blocked_count > 0 ? "block" : "watch",

@@ -111,7 +111,7 @@ export default async function CyclesPage() {
           <a className={activeCycleCount > 0 ? "decision-card is-watch" : "decision-card is-good"} href="#cycle-states">
             <span>변화</span>
             <strong>{activeCycleCount.toLocaleString("ko-KR")}개 상태 변화</strong>
-            <small>바뀐 테마는 추천·보유 논리와 충돌하는지 먼저 본다.</small>
+            <small>바뀐 테마가 추천·보유 논리와 충돌하는지 확인한다.</small>
             <b>변화 항목 보기</b>
           </a>
           <a className={missingFeatureCount > 0 ? "decision-card is-watch" : "decision-card is-good"} href="#cycle-states">
@@ -134,7 +134,7 @@ export default async function CyclesPage() {
           <span>오늘 볼 사이클</span>
           <h2 id="cycle-board-title">상태 변화가 추천·보유 판단을 흔드는가</h2>
           <p>
-            전환, 뉴스 열기, 가격 확인, 데이터 공백을 나눠 본다. 한 축만 강하면 추격 매수 근거로 보지 않는다.
+            전환, 뉴스 열기, 가격 확인, 데이터 공백을 나눠 본다. 한 축만 강하면 추격 매수 근거로 쓰지 않는다.
           </p>
         </div>
         <div className="cycle-state-lenses">
@@ -142,7 +142,7 @@ export default async function CyclesPage() {
             <span>01 전환</span>
             <strong>{activeCycleCount.toLocaleString("ko-KR")}개</strong>
             <p>{compactCycleList(changedCycles)}</p>
-            <small>상태가 바뀐 테마는 추천·보유 논리와 충돌하는지 먼저 본다.</small>
+            <small>상태가 바뀐 테마가 추천·보유 논리와 충돌하는지 확인한다.</small>
           </article>
           <article className="cycle-state-lens tone-ready">
             <span>02 뉴스 주도</span>
@@ -169,7 +169,7 @@ export default async function CyclesPage() {
         {data.cycle_states.length === 0 ? (
           <article className="empty-state">
             아직 이 기준일에 저장된 사이클 스냅샷이 없다. 뉴스·상위 흐름은 계속 수집되지만,
-            테마 사이클은 일간 신호와 추천 신호가 계산된 뒤 이 화면에 표시된다.
+            테마 사이클은 일간 신호와 추천 신호가 계산된 뒤 이곳에 표시된다.
           </article>
         ) : null}
         {data.cycle_states.map((cycle, index) => {

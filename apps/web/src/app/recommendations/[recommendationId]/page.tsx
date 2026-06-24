@@ -109,6 +109,9 @@ const SCORE_COMPONENT_LABELS: Record<string, string> = {
   peer_relative_score: "동종업계 비교",
   balance_sheet_risk_penalty: "재무 안정성 리스크",
   thesis_consistency_score: "투자 논리 일치도",
+  broker_execution_readiness_score: "브로커 실행 가능성",
+  broker_liquidity_warning: "브로커 유동성·주의사항",
+  broker_price_basis_risk: "브로커 가격 기준 차이",
 };
 
 const SOURCE_TYPE_LABELS: Record<string, string> = {
@@ -118,6 +121,7 @@ const SOURCE_TYPE_LABELS: Record<string, string> = {
   macro_flow_propagation: "상위 흐름 전파",
   cycle_stack_context: "계층형 사이클",
   fundamental_context: "재무·밸류에이션 분석",
+  broker_reality_context: "토스증권 브로커 현실",
 };
 
 function userFacingRecommendationText(value: string | number | boolean | null | undefined) {
@@ -233,6 +237,32 @@ const FUNDAMENTAL_COMPONENT_META: Record<string, { lens: string; title: string; 
 
 const FUNDAMENTAL_COMPONENT_SET = new Set<string>(FUNDAMENTAL_COMPONENT_ORDER);
 
+const BROKER_COMPONENT_ORDER = [
+  "broker_execution_readiness_score",
+  "broker_liquidity_warning",
+  "broker_price_basis_risk",
+] as const;
+
+const BROKER_COMPONENT_META: Record<string, { lens: string; title: string; body: string }> = {
+  broker_execution_readiness_score: {
+    lens: "실행 가능성",
+    title: "토스증권 화면에서 체결·호가 근거가 보이는가",
+    body: "관심 종목의 최신 체결가, 매수·매도 호가, 계좌 읽기 결과를 바탕으로 실행 현실을 확인한다.",
+  },
+  broker_liquidity_warning: {
+    lens: "주의사항",
+    title: "토스증권 기준 주의 종목이나 유동성 경고가 있는가",
+    body: "브로커가 제공하는 주의 표시와 호가 데이터 부족 여부를 확인한다. 낮은 값은 주문 전 확인이 필요하다는 뜻이다.",
+  },
+  broker_price_basis_risk: {
+    lens: "가격 기준",
+    title: "분석 기준 가격과 토스증권 가격 차이를 설명할 수 있는가",
+    body: "장중 미완성 일봉, 가격 기준 차이, 누락 여부를 분리한다. 차이는 곧 오류가 아니라 확인 항목이다.",
+  },
+};
+
+const BROKER_COMPONENT_SET = new Set<string>(BROKER_COMPONENT_ORDER);
+
 function macroFlowRows(component: ScoreComponent) {
   if (component.provenance?.source_type !== "macro_flow_propagation") {
     return [];
@@ -282,6 +312,21 @@ function fundamentalComponents(components: ScoreComponent[]) {
   return components
     .filter(isFundamentalComponent)
     .sort((left, right) => fundamentalOrder(left.component) - fundamentalOrder(right.component));
+}
+
+function isBrokerComponent(component: ScoreComponent) {
+  return component.provenance?.source_type === "broker_reality_context" || BROKER_COMPONENT_SET.has(component.component);
+}
+
+function brokerOrder(componentName: string) {
+  const index = BROKER_COMPONENT_ORDER.findIndex((item) => item === componentName);
+  return index === -1 ? BROKER_COMPONENT_ORDER.length : index;
+}
+
+function brokerComponents(components: ScoreComponent[]) {
+  return components
+    .filter(isBrokerComponent)
+    .sort((left, right) => brokerOrder(left.component) - brokerOrder(right.component));
 }
 
 function themeHref(themeKey: string | null | undefined) {
@@ -855,6 +900,13 @@ function provenanceBadges(component: ScoreComponent) {
       badges.push(`기준일 ${provenance.evidence.as_of_date}`);
     }
   }
+  if (provenance.source_type === "broker_reality_context") {
+    badges.push("토스증권 read-only");
+    badges.push(isZeroWeight(component.weight) ? "현재 최종 점수 미반영" : "최종 점수 반영");
+    if (provenance.evidence?.as_of_date) {
+      badges.push(`기준일 ${provenance.evidence.as_of_date}`);
+    }
+  }
   return badges;
 }
 
@@ -890,6 +942,9 @@ function provenanceMetadata(component: ScoreComponent): AuditMetadataItem[] {
     { label: "기업 분석 항목", value: provenance.evidence?.fundamental_component_name ? scoreComponentLabel(provenance.evidence.fundamental_component_name) : null },
     { label: "기업 분석 설명", value: provenance.evidence?.fundamental_explanation ? userFacingRecommendationText(provenance.evidence.fundamental_explanation) : null },
     { label: "기업 분석 메모", value: provenance.evidence?.fundamental_note ? userFacingRecommendationText(provenance.evidence.fundamental_note) : null },
+    { label: "브로커 확인 항목", value: provenance.evidence?.broker_component_name ? scoreComponentLabel(provenance.evidence.broker_component_name) : null },
+    { label: "브로커 확인 설명", value: provenance.evidence?.broker_explanation ? userFacingRecommendationText(provenance.evidence.broker_explanation) : null },
+    { label: "브로커 확인 메모", value: provenance.evidence?.broker_note ? userFacingRecommendationText(provenance.evidence.broker_note) : null },
     { label: "전파 근거 수", value: provenance.evidence?.propagated_impact_count },
     { label: "선정 규칙", value: provenance.selection_rule ? userFacingRecommendationText(provenance.selection_rule) : null },
     { label: "편입 사유", value: provenance.inclusion_reason ? userFacingRecommendationText(provenance.inclusion_reason) : null },
@@ -933,6 +988,11 @@ function provenanceDetail(component: ScoreComponent) {
     const status = isZeroWeight(component.weight) ? "현재 최종 추천 점수에는 반영하지 않는 검증 항목" : "최종 추천 점수에 반영되는 항목";
     return `${meta?.lens ?? "기업 분석"}: ${meta?.body ?? userFacingRecommendationText(provenance.label)} ${status}이다.`;
   }
+  if (provenance.source_type === "broker_reality_context") {
+    const meta = BROKER_COMPONENT_META[component.component];
+    const status = isZeroWeight(component.weight) ? "현재 최종 추천 점수에는 반영하지 않는 실행 확인 항목" : "최종 추천 점수에 반영되는 실행 확인 항목";
+    return `${meta?.lens ?? "토스증권 확인"}: ${meta?.body ?? userFacingRecommendationText(provenance.label)} ${status}이다.`;
+  }
   return userFacingRecommendationText(provenance.label);
 }
 
@@ -947,6 +1007,9 @@ function evidenceHref(evidenceId: string, symbol: string) {
     return `/stocks/${encodeURIComponent(symbol)}` as Route;
   }
   if (evidenceId.startsWith("fundamental-")) {
+    return `/stocks/${encodeURIComponent(symbol)}` as Route;
+  }
+  if (evidenceId.startsWith("broker-reality-")) {
     return `/stocks/${encodeURIComponent(symbol)}` as Route;
   }
   return null;
@@ -964,6 +1027,9 @@ function evidenceLinkLabel(evidenceId: string) {
   }
   if (evidenceId.startsWith("fundamental-")) {
     return "종목 분석 보기";
+  }
+  if (evidenceId.startsWith("broker-reality-")) {
+    return "토스증권 데이터 보기";
   }
   return "근거 화면 열기";
 }
@@ -1218,7 +1284,7 @@ function recommendationImmediateFocus({
   } else if (blockedDecisionStepCount > 0) {
     items.push({
       label: "1순위",
-      title: "차단된 분석 단계를 먼저 본다",
+      title: "막힌 분석 단계를 확인한다",
       body: "추천이 어느 단계에서 막혔는지 확인해야 뒤의 재무·밸류·뉴스 근거를 투자 판단에 써도 되는지 알 수 있다.",
       metric: `차단 ${blockedDecisionStepCount.toLocaleString("ko-KR")}개`,
       href: "#recommendation-professional-flow",
@@ -1651,6 +1717,7 @@ export default async function RecommendationPage({ params }: RecommendationPageP
   const macroFlowComponents = data.score_components.filter((component) => macroFlowRows(component).length > 0);
   const cycleStack = cycleStackComponents(data.score_components);
   const fundamentalStack = fundamentalComponents(data.score_components);
+  const brokerStack = brokerComponents(data.score_components);
   const equityResearch = data.equity_research;
   const industryPosition = data.industry_competitive_position;
   const financialStatementModel = data.financial_statement_model;
@@ -2050,6 +2117,48 @@ export default async function RecommendationPage({ params }: RecommendationPageP
                     <span>분석 점수 {formatPercent(component.value)}</span>
                     <span>{isZeroWeight(component.weight) ? "최종 추천 점수에는 아직 미반영" : `현재 반영 비중 ${formatPercent(component.weight)}`}</span>
                     <span>{component.provenance?.label ? userFacingRecommendationText(component.provenance.label) : "기업 분석 근거"}</span>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        </section>
+      ) : null}
+
+      {brokerStack.length > 0 ? (
+        <section className="bento-card reveal delay-1" aria-label="토스증권 브로커 현실 확인">
+          <div style={{ marginBottom: "22px" }}>
+            <span className="metric-sub">토스증권 실행 현실</span>
+            <h2 style={{ fontSize: "1.5rem", marginTop: "6px" }}>이 추천을 실제 계좌에서 확인할 수 있는가</h2>
+            <p style={{ color: "var(--text-secondary)", marginTop: "8px", maxWidth: "900px" }}>
+              토스증권 read-only 데이터로 호가, 체결가, 주의 표시, 가격 기준 차이를 따로 확인한다.
+              이 항목은 현재 최종 추천 점수와 순위를 바꾸지 않고, 주문 전 현실 점검 근거로만 표시한다.
+            </p>
+          </div>
+
+          <div style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))",
+            gap: "14px",
+          }}>
+            {brokerStack.map((component) => {
+              const meta = BROKER_COMPONENT_META[component.component];
+              return (
+                <article
+                  className="detail-path-card"
+                  key={`broker-${component.component}`}
+                  style={{
+                    background: "linear-gradient(180deg, rgba(251,250,246,0.96), rgba(31,97,85,0.10))",
+                    minHeight: "220px",
+                  }}
+                >
+                  <span>{meta?.lens ?? "브로커 확인"}</span>
+                  <strong>{meta?.title ?? scoreComponentLabel(component.component)}</strong>
+                  <p>{meta?.body ?? provenanceDetail(component)}</p>
+                  <div style={{ marginTop: "14px", display: "grid", gap: "6px", color: "var(--text-secondary)", fontSize: "0.8rem", fontWeight: 800 }}>
+                    <span>확인 점수 {formatPercent(component.value)}</span>
+                    <span>{isZeroWeight(component.weight) ? "최종 추천 점수에는 미반영" : `현재 반영 비중 ${formatPercent(component.weight)}`}</span>
+                    <span>{component.provenance?.label ? userFacingRecommendationText(component.provenance.label) : "토스증권 브로커 데이터"}</span>
                   </div>
                 </article>
               );

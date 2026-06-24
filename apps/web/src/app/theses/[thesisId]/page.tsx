@@ -479,7 +479,7 @@ export default async function ThesisPage({ params }: ThesisPageProps) {
           <a className="decision-card is-block" href="#thesis-professional-gates">
             <span>실거래 상태</span>
             <strong>자동 주문 없음</strong>
-            <small>이 화면은 투자 논리 품질 검토이며 증권사 주문 흐름을 실행하지 않는다.</small>
+            <small>투자 논리 품질 확인 영역이며 증권사 주문 흐름을 실행하지 않는다.</small>
             <b>경계 보기</b>
           </a>
         </div>
@@ -793,7 +793,7 @@ export default async function ThesisPage({ params }: ThesisPageProps) {
           <div>
             <span>근거 자료</span>
             <h2 id="thesis-evidence-title">투자 논리를 뒷받침한 원천 입력</h2>
-            <p>뉴스·공시 원천, 성과 근거, 보조 근거를 분리해서 본다. 근거가 부족해도 이 화면은 주문을 만들지 않는다.</p>
+            <p>뉴스·공시 원천, 성과 근거, 보조 근거를 분리한다. 근거가 부족해도 주문은 만들지 않는다.</p>
           </div>
           <Link className="btn btn-secondary" href={`/recommendations/${data.created_from_recommendation_id}`}>
             추천으로 돌아가기

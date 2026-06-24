@@ -366,8 +366,8 @@ export default async function PortfolioCoveragePage() {
       title: hasPositions ? `${data.summary.position_count}개 보유` : "보유 스냅샷 없음",
       metric: `투자 논리 연결률 ${formatPercent(thesisCoverageRatio)} · 성과 측정 ${formatPercent(outcomeCoverageRatio)}`,
       body: hasPositions
-        ? "보유 종목마다 투자 논리와 성과 측정 상태가 연결됐는지 먼저 본다. 논리 누락 종목은 보유 근거가 약하다."
-        : "이 기준일에는 포지션 스냅샷이 없어 보유 상태를 만들 수 없다. 포지션 수집 상태를 먼저 확인한다.",
+        ? "보유 종목마다 투자 논리와 성과 측정 상태가 연결됐는지 확인한다. 논리 누락 종목은 보유 근거가 약하다."
+        : "이 기준일에는 포지션 스냅샷이 없어 보유 상태를 만들 수 없다. 포지션 수집 상태를 확인해야 한다.",
       href: "#portfolio-position-map",
       cta: "보유 지도 보기",
       tone: thesisReady ? "ready" : "watch",
@@ -540,7 +540,7 @@ export default async function PortfolioCoveragePage() {
           </div>
           <p style={{ color: "var(--text-secondary)", marginTop: 0 }}>
             화면에서 계산한 집중도와 별도로, 서버에 저장된 위험 예산 검증 결과를 가상 매매 검증이 읽는다.
-            이 값이 차단이면 가상 매매 검증은 충돌 수가 0이어도 실패 상태로 남는다.
+            이 값이 차단이면 가상 매매 검증은 충돌 수가 0이어도 안전장치 차단 상태로 남는다.
           </p>
           <div className="status-rail compact-rail" aria-label="저장된 위험 예산 검증 요약">
             <article className="rail-cell">

@@ -49,6 +49,9 @@ class FakeExecutor:
                         "theme_cycle_score": "0.48000000",
                         "instrument_cycle_score": "0.20750000",
                         "cycle_conflict_penalty": "0.80000000",
+                        "broker_execution_readiness_score": "1.00000000",
+                        "broker_liquidity_warning": "1.00000000",
+                        "broker_price_basis_risk": "0.75000000",
                     }
                 ]
             )
@@ -86,6 +89,12 @@ class RecommendationBootstrapTests(unittest.TestCase):
         self.assertIn("domain_cycle_score", sql)
         self.assertIn("theme_cycle_score", sql)
         self.assertIn("cycle_conflict_penalty", sql)
+        self.assertIn("latest_toss_comparison", sql)
+        self.assertIn("latest_toss_microdata", sql)
+        self.assertIn("latest_toss_warning", sql)
+        self.assertIn("broker_execution_readiness_score", sql)
+        self.assertIn("broker_liquidity_warning", sql)
+        self.assertIn("broker_price_basis_risk", sql)
         self.assertIn("signal.instrument_feature_value", sql)
         self.assertIn("signal.propagated_instrument_impact", sql)
         self.assertIn("node.code <> 'MARKET_NEWS_FLOW'", sql)
@@ -108,6 +117,9 @@ class RecommendationBootstrapTests(unittest.TestCase):
         self.assertEqual(rows[0].cycle_score, Decimal("0.2075"))
         self.assertEqual(rows[0].macro_regime_score, Decimal("0.51000000"))
         self.assertEqual(rows[0].cycle_conflict_penalty, Decimal("0.80000000"))
+        self.assertEqual(rows[0].broker_execution_readiness_score, Decimal("1.00000000"))
+        self.assertEqual(rows[0].broker_liquidity_warning, Decimal("1.00000000"))
+        self.assertEqual(rows[0].broker_price_basis_risk, Decimal("0.75000000"))
 
     def test_load_recommendation_candidates_fails_when_empty(self) -> None:
         with self.assertRaises(ValueError):
@@ -178,6 +190,9 @@ class RecommendationBootstrapTests(unittest.TestCase):
                 "short_term_score": "0.3672",
                 "rank_score": "1.0000",
                 "macro_flow_score": "0.0000",
+                "broker_execution_readiness_score": "0.5000",
+                "broker_liquidity_warning": "0.5000",
+                "broker_price_basis_risk": "0.5000",
             },
         )
         self.assertEqual(by_symbol["NVDA"].bucket, "cycle")
@@ -231,6 +246,10 @@ class RecommendationBootstrapTests(unittest.TestCase):
         self.assertIn("0.0000::numeric", sql)
         self.assertIn("'macro_flow_score'", sql)
         self.assertIn("0.10::numeric", sql)
+        self.assertIn("'broker_execution_readiness_score'", sql)
+        self.assertIn("'broker_liquidity_warning'", sql)
+        self.assertIn("'broker_price_basis_risk'", sql)
+        self.assertIn("'Toss broker read-only quote and account reality check; stored for visibility only. Current policy: component_weight=0, recommendation rank unchanged.'", sql)
         self.assertIn("'Normalized current cycle state score from the linked internal theme.'", sql)
         self.assertIn(
             "'Latest hierarchical macro-regime cycle score connected to the theme path. Selected recommendation node: ANNUAL_REPORTING.'",
@@ -255,7 +274,7 @@ class RecommendationBootstrapTests(unittest.TestCase):
         self.assertEqual(summary["universe_batch_id"], 1001)
         self.assertEqual(summary["candidate_count"], 1)
         self.assertEqual(summary["recommendation_count"], 1)
-        self.assertEqual(summary["score_component_count"], 10)
+        self.assertEqual(summary["score_component_count"], 13)
         self.assertEqual(summary["bucket_counts"], {"watch": 1})
         self.assertIn("insert into ops.pipeline_run", executor.scalar_sql[1])
         self.assertIn("insert into signal.recommendation_batch", executor.scalar_sql[2])

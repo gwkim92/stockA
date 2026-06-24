@@ -127,10 +127,10 @@ export default async function TradingReadinessPage() {
       metric: `${data.gate_summary.blocked_count}개 차단 · 실제 주문 ${liveSubmitCount}건`,
       body:
         liveSubmitCount > 0
-          ? "실제 주문 전송 기록이 있으므로 결정 기록과 계좌 내역을 먼저 대조해야 한다."
+            ? "실제 주문 전송 기록이 있으므로 결정 기록과 계좌 내역을 우선 대조해야 한다."
           : data.gate_summary.blocked_count > 0
-            ? "안전 조건이 닫혀 있어 현재 화면 기준으로 실거래 전환으로 넘기면 안 된다."
-            : "차단 수가 0이어도 이 화면은 주문 화면이 아니다. 실거래는 별도 증권사 주문 절차와 거래 안전 승인 뒤에만 가능하다.",
+            ? "안전 조건이 닫혀 있어 실거래 전환으로 넘기면 안 된다."
+            : "차단 수가 0이어도 실거래는 별도 증권사 주문 절차와 거래 안전 승인 뒤에만 가능하다.",
       href: "#trading-gates",
       cta: "안전 조건 보기",
       tone: liveSubmitCount > 0 || data.gate_summary.blocked_count > 0 ? "block" : "watch",
@@ -181,7 +181,7 @@ export default async function TradingReadinessPage() {
             현재 실거래는 {liveSubmitCount > 0 ? "주문 기록 확인 필요" : data.gate_summary.blocked_count > 0 ? "차단 중" : "별도 승인 필요"}
           </h1>
           <p className="decision-brief-copy">
-            이 화면은 주문 버튼이 아니다. 증권사 연결, 계좌 권한, 주문 한도, 킬 스위치, 가상 매매 검증, 결정 기록 중 무엇이 실거래 전환을 막는지 먼저 본다.
+            주문 버튼이 아니라 실거래 전환 가능성을 점검하는 안전판이다. 증권사 연결, 계좌 권한, 주문 한도, 킬 스위치, 가상 매매 검증, 결정 기록 중 무엇이 막혀 있는지 확인한다.
           </p>
           <div className="decision-brief-meta" aria-label="거래 안전 핵심 상태">
             <span>차단 {data.gate_summary.blocked_count.toLocaleString("ko-KR")}개</span>

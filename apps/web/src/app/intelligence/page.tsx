@@ -219,7 +219,7 @@ function formatLlmCandidateStatus(summary: AiNewsClusterSummary) {
     return "개별 투자 근거 없음";
   }
   if (summary.latest_llm_invocation_status === "failed") {
-    return "최근 근거 분석 실패";
+    return "최근 근거 분석 중단";
   }
   if (summary.latest_llm_invocation_status === "succeeded") {
     return "최근 근거 분석 성공";
@@ -231,7 +231,7 @@ function formatLlmCandidateDetail(summary: AiNewsClusterSummary) {
   if (safeCount(summary.llm_candidate_invocation_count) === 0) {
     return "뉴스 흐름은 저장된 기본 근거를 표시 중";
   }
-  return `저장된 근거 분석 ${safeCount(summary.llm_candidate_artifact_count)}건 · 성공 ${safeCount(summary.llm_candidate_success_count)}건 · 실패 ${safeCount(summary.llm_candidate_failed_count)}건`;
+  return `저장된 근거 분석 ${safeCount(summary.llm_candidate_artifact_count)}건 · 완료 ${safeCount(summary.llm_candidate_success_count)}건 · 중단 ${safeCount(summary.llm_candidate_failed_count)}건`;
 }
 
 function formatClusterModeStatus(summary: AiNewsClusterSummary) {
@@ -831,7 +831,7 @@ export default async function IntelligencePage() {
             <div className="decision-triage-head">
               <span>차단·오염 의심</span>
               <strong>{blockedCandidateCount.toLocaleString("ko-KR")}건</strong>
-              <p>{blockedCandidateCount > 0 ? "차단 사유를 먼저 확인한다." : "현재 노출된 차단 항목은 없다."}</p>
+              <p>{blockedCandidateCount > 0 ? "추천 입력에서 제외된 이유를 확인한다." : "현재 노출된 차단 항목은 없다."}</p>
             </div>
             <div className="decision-triage-stack">
               <article className={blockedCandidateCount > 0 ? "brief-signal-card watch" : "brief-signal-card ready"}>
@@ -842,7 +842,7 @@ export default async function IntelligencePage() {
               <article className="brief-signal-card">
                 <span>수집 상태</span>
                 <strong>{formatRunStatus(newsRun)}</strong>
-                <p>수집 실패나 분석 실패는 데이터 상태 화면에서 먼저 확인한다.</p>
+                <p>수집·분석 이상은 데이터 상태 화면에서 원인과 복구 상태를 확인한다.</p>
               </article>
             </div>
           </article>
