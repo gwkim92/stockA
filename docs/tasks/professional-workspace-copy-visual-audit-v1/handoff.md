@@ -28,6 +28,12 @@
 - Visual check:
   - `/stocks/AAPL` screenshot saved at `/private/tmp/stockanalysis-stocks-aapl-final5.png`.
   - `decision-boundary-rail` status text measured as one-line `읽기 전용·주문 금지` with 218.9px width and 42.75px height.
+- EC2 deploy evidence:
+  - `develop` fast-forwarded on `stockanalysis-mvp-20260520` from `c8f3e602` to `1199fd43`.
+  - EC2 `python3 -m compileall -q src tests`, `npm run typecheck`, and `npm run build` passed.
+  - `stockanalysis-frontend-api.service` and `stockanalysis-web.service` returned `active` after restart.
+  - EC2 internal route smoke returned `200` for `http://127.0.0.1:8787/__ready`, `/`, `/market-map`, `/cycle-map`, `/stocks/AAPL`, `/data-health`.
+  - Local forwarded route smoke returned `200` for `http://127.0.0.1:13000/`, `/market-map`, `/cycle-map`, `/stocks/AAPL`, `/data-health`.
 
 ## Boundaries
 
@@ -40,4 +46,4 @@
 
 ## Exact Next Step
 
-- exact next step: commit/push `professional-workspace-copy-visual-audit-v1`, then optionally deploy `develop` to EC2 and run route smoke there.
+- exact next step: run the follow-up sweep for remaining support routes and navigation density, starting with `/events`, `/cycles`, `/themes/[themeKey]`, `/theses/[thesisId]`, `/trading-readiness`, `/remediation`, `/source-documents/[documentId]`, and `/admin/ai-agents`.
