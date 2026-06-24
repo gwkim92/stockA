@@ -1697,6 +1697,19 @@ export default async function StockDetailPage({ params }: StockDetailPageProps) 
             <span>거래량</span>
             <strong>{formatNumber(data.latest_price.volume)}</strong>
           </div>
+          <div className="stock-meta-grid" style={{ marginTop: "1rem" }}>
+            <span>분석 기준</span>
+            <strong>{data.market_data_provider.analysis_price_source.provider}</strong>
+            <span>계산 반영</span>
+            <strong>{data.market_data_provider.analysis_price_source.used_for_scoring ? "추천·사이클 사용" : "미사용"}</strong>
+            <span>브로커 참고</span>
+            <strong>{data.market_data_provider.broker_price_source.label}</strong>
+            <span>토스 상태</span>
+            <strong>{data.toss_provider_evidence.comparison.status_label}</strong>
+          </div>
+          <p style={{ color: "var(--text-secondary)", marginBottom: 0 }}>
+            {data.market_data_provider.price_basis_note} 토스증권 가격은 계좌·호가 현실 확인용이며 총점에는 아직 반영하지 않는다.
+          </p>
         </article>
       </section>
 

@@ -550,13 +550,13 @@ function localWorkerNextAction(worker: LocalIngestWorker) {
 
 function tossMarketDataTitle(marketData: TossInvestMarketData) {
   if (marketData.sync.status === "succeeded") {
-    return "Toss 시장 데이터 수집됨";
+    return "토스증권 브로커 데이터 수집됨";
   }
   if (marketData.sync.status === "blocked_missing_credentials") {
-    return "Toss API 키 확인 필요";
+    return "토스증권 API 키 확인 필요";
   }
   if (marketData.sync.status === "missing") {
-    return "Toss market-data 실행 이력 없음";
+    return "토스증권 데이터 실행 이력 없음";
   }
   return koCode(marketData.sync.status);
 }
@@ -2625,13 +2625,13 @@ export default async function DataHealthPage() {
       tone: activeRecommendationPriceFreshness.attention_required ? "risk-high" : "risk-low",
     },
     {
-      label: "Toss 시장 데이터",
+      label: "토스증권 데이터",
       title: tossMarketData.sync.status === "succeeded"
         ? `캔들 ${tossMarketData.sync.candle_bar_count.toLocaleString("ko-KR")}개`
         : koCode(tossMarketData.sync.status),
-      body: `Toss는 실계좌와 분리된 read-only provider 근거다. 비교 상태는 ${koCode(tossMarketData.provider_comparison.status)}이고 실주문은 차단된다.`,
+      body: `토스증권 데이터는 브로커 현실 확인용이다. 분석 기준 가격 대체 전 검증 상태는 ${koCode(tossMarketData.provider_comparison.status)}이고 실주문은 차단된다.`,
       href: "#toss-market-data",
-      cta: "Toss 수집 보기",
+      cta: "토스 데이터 보기",
       tone: tossMarketData.sync.attention_required ? "risk-medium" : "risk-low",
     },
     {
@@ -2946,9 +2946,9 @@ export default async function DataHealthPage() {
     },
     {
       index: "08",
-      title: "Toss market data",
+      title: "토스증권 브로커 데이터",
       run: findPipelineRun(data, "toss-candles-us-shadow-daily", "tossinvest_market_data_sync"),
-      purpose: "전체 추적 종목의 보조 가격·호가·체결·주의사항 근거다.",
+      purpose: "실제 증권사 화면에서 볼 가격·호가·체결·주의사항을 확인한다.",
       check: `${koCode(tossMarketData.sync.status)} · ${tossMarketData.sync.requested_symbol_count.toLocaleString("ko-KR")}개 요청`,
     },
   ];
@@ -3053,11 +3053,11 @@ export default async function DataHealthPage() {
 
       <section className="feature-map-panel reveal delay-1" id="toss-market-data" aria-labelledby="toss-market-data-title">
         <div className="section-heading stacked-heading">
-          <span>Toss 시장 데이터</span>
+          <span>토스증권 브로커 데이터</span>
           <h2 id="toss-market-data-title">{tossMarketDataTitle(tossMarketData)}</h2>
           <p>
-            Toss API는 실계좌 read-only와 분리된 provider evidence로 저장한다. US 가격은 shadow 비교를 통과하기 전까지
-            기존 canonical provider를 대체하지 않는다.
+            토스증권 데이터는 실제 계좌와 주문 가능성을 확인하는 브로커 현실 데이터다. 추천·사이클 계산은 계속
+            분석 기준 가격을 사용하고, 토스 가격은 가격 기준 차이와 최신 일봉 미완성 여부를 검증한 뒤 참고한다.
           </p>
         </div>
         <div className="status-rail compact-rail">
@@ -3067,19 +3067,19 @@ export default async function DataHealthPage() {
             <small>요청 종목 {tossMarketData.sync.requested_symbol_count.toLocaleString("ko-KR")}개 · 캔들 {tossMarketData.sync.candle_bar_count.toLocaleString("ko-KR")}개</small>
           </article>
           <article className="rail-cell">
-            <span>비교 상태</span>
+            <span>가격 기준 검증</span>
             <strong className="risk-tag risk-medium">{koCode(tossMarketData.provider_comparison.status)}</strong>
             <small>{tossMarketData.provider_comparison.lookback_days}거래일 · 허용 {tossMarketData.provider_comparison.max_diff_bps}bps</small>
           </article>
           <article className="rail-cell">
             <span>수집 주기</span>
             <strong>{Object.keys(tossMarketData.sync.collection_cadence).length.toLocaleString("ko-KR")}개</strong>
-            <small>KR/US reference, daily candles, priority microdata, live account read-only</small>
+            <small>한국/미국 기준정보, 일봉, 관심 종목 호가·체결, 계좌 읽기 전용</small>
           </article>
           <article className="rail-cell">
-            <span>주문 경계</span>
+            <span>실주문 상태</span>
             <strong className="risk-tag risk-low">{koCode(tossMarketData.sync.order_boundary)}</strong>
-            <small>broker_submit_allowed={String(tossMarketData.sync.broker_submit_allowed)}</small>
+            <small>{tossMarketData.sync.broker_submit_allowed ? "증권사 주문 제출 가능" : "증권사 주문 제출 차단"}</small>
           </article>
         </div>
       </section>

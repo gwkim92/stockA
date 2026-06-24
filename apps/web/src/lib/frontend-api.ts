@@ -880,9 +880,73 @@ function normalizeStockDetail(data: MutableRecord) {
     toss_shadow_reason: "",
     canonical_promotion_allowed: false,
     order_boundary: "read_only_no_order",
+    analysis_price_source: {
+      role: "analysis_reference",
+      label: "분석 기준 가격",
+      provider: "missing",
+      source_run_id: null,
+      latest_trade_date: "",
+      freshness_status: "missing",
+      status: "missing",
+      reason: "",
+      reason_label: "추천·사이클·성과 계산 기준으로 쓰는 글로벌 가격 데이터다.",
+      used_for_scoring: true,
+      used_for_cycle: true,
+      used_for_performance: true,
+      used_for_account: false,
+      used_for_execution: false,
+      price_basis_note: "장기 비교와 분석 일관성을 위해 쓰는 기준 가격이다.",
+    },
+    broker_price_source: {
+      role: "broker_reference",
+      label: "토스증권 브로커 데이터",
+      provider: "tossinvest",
+      source_run_id: null,
+      latest_trade_date: "",
+      freshness_status: "missing",
+      status: "missing",
+      status_label: "토스증권 가격 대기",
+      reason: "",
+      reason_label: "비교 사유 미기록",
+      used_for_scoring: false,
+      used_for_cycle: false,
+      used_for_performance: false,
+      used_for_account: false,
+      used_for_execution: false,
+      price_basis_note: "실제 증권사 화면과 계좌 현실을 확인하는 참고 가격이며 추천 점수에는 아직 반영하지 않는다.",
+    },
+    validation_price_source: {
+      role: "validation_price",
+      label: "검증 중 가격",
+      provider: "tossinvest",
+      source_run_id: null,
+      latest_trade_date: "",
+      freshness_status: "missing",
+      status: "missing",
+      status_label: "토스증권 가격 대기",
+      reason: "",
+      reason_label: "비교 사유 미기록",
+      used_for_scoring: false,
+      used_for_cycle: false,
+      used_for_performance: false,
+      used_for_account: false,
+      used_for_execution: false,
+      price_basis_note: "분석 기준 가격과 비교해 가격 기준 차이, 미완성 일봉, 누락 여부를 분류한다.",
+    },
+    used_for_scoring: true,
+    used_for_account: false,
+    used_for_execution: false,
+    price_basis_note: "분석 계산은 글로벌 기준 가격을 쓰고, 토스 데이터는 브로커 현실 확인과 품질 감사에 사용한다.",
   });
   withDefault(data, "toss_provider_evidence", {
     status: "missing",
+    status_label: "토스증권 가격 대기",
+    source_role: "broker_reference",
+    source_role_label: "토스증권 브로커 데이터",
+    used_for_scoring: false,
+    used_for_account: false,
+    used_for_execution: false,
+    price_basis_note: "토스증권에서 실제 투자자가 보는 가격과 수집 근거를 확인한다. 추천 점수와 사이클 계산에는 아직 직접 반영하지 않는다.",
     latest_trade_date: "",
     latest_close: null,
     latest_adjusted_close: null,
@@ -891,10 +955,15 @@ function normalizeStockDetail(data: MutableRecord) {
     observed_at: "",
     comparison: {
       status: "missing",
+      status_label: "토스 비교 데이터 없음",
       reason: "",
+      reason_label: "비교 사유 미기록",
+      comparison_basis_label: "분석 기준 가격과 토스증권 브로커 가격 비교",
       comparison_date: "",
       canonical_provider: "",
+      analysis_provider: "",
       compared_provider: "tossinvest",
+      broker_provider: "tossinvest",
       matched_bar_count: 0,
       missing_canonical_count: 0,
       missing_compared_count: 0,
@@ -903,6 +972,91 @@ function normalizeStockDetail(data: MutableRecord) {
     },
   });
   const provider = data.market_data_provider as MutableRecord;
+  const analysisProvider = typeof provider.canonical_provider === "string" ? provider.canonical_provider : "missing";
+  const providerSourceRunId = typeof provider.provider_source_run_id === "string" ? provider.provider_source_run_id : null;
+  const providerLatestTradeDate = typeof provider.latest_trade_date === "string" ? provider.latest_trade_date : "";
+  const providerFreshness = typeof provider.freshness_status === "string" ? provider.freshness_status : "missing";
+  const tossStatus = typeof provider.toss_shadow_status === "string" ? provider.toss_shadow_status : "missing";
+  const tossReason = typeof provider.toss_shadow_reason === "string" ? provider.toss_shadow_reason : "";
+  withDefault(provider, "analysis_price_source", {
+    role: "analysis_reference",
+    label: "분석 기준 가격",
+    provider: analysisProvider,
+    source_run_id: providerSourceRunId,
+    latest_trade_date: providerLatestTradeDate,
+    freshness_status: providerFreshness,
+    status: providerFreshness,
+    reason: "",
+    reason_label: "추천·사이클·성과 계산 기준으로 쓰는 글로벌 가격 데이터다.",
+    used_for_scoring: true,
+    used_for_cycle: true,
+    used_for_performance: true,
+    used_for_account: false,
+    used_for_execution: false,
+    price_basis_note: "장기 비교와 분석 일관성을 위해 쓰는 기준 가격이다.",
+  });
+  withDefault(provider, "broker_price_source", {
+    role: "broker_reference",
+    label: "토스증권 브로커 데이터",
+    provider: "tossinvest",
+    source_run_id: null,
+    latest_trade_date: "",
+    freshness_status: tossStatus,
+    status: tossStatus,
+    status_label: "토스증권 가격 검증 중",
+    reason: tossReason,
+    reason_label: tossReason || "비교 사유 미기록",
+    used_for_scoring: false,
+    used_for_cycle: false,
+    used_for_performance: false,
+    used_for_account: tossStatus !== "missing",
+    used_for_execution: false,
+    price_basis_note: "실제 증권사 화면과 계좌 현실을 확인하는 참고 가격이며 추천 점수에는 아직 반영하지 않는다.",
+  });
+  withDefault(provider, "validation_price_source", {
+    role: "validation_price",
+    label: "검증 중 가격",
+    provider: "tossinvest",
+    source_run_id: null,
+    latest_trade_date: "",
+    freshness_status: tossStatus,
+    status: tossStatus,
+    status_label: "토스증권 가격 검증 중",
+    reason: tossReason,
+    reason_label: tossReason || "비교 사유 미기록",
+    used_for_scoring: false,
+    used_for_cycle: false,
+    used_for_performance: false,
+    used_for_account: false,
+    used_for_execution: false,
+    price_basis_note: "분석 기준 가격과 비교해 가격 기준 차이, 미완성 일봉, 누락 여부를 분류한다.",
+  });
+  withDefault(provider, "used_for_scoring", true);
+  withDefault(provider, "used_for_account", tossStatus !== "missing");
+  withDefault(provider, "used_for_execution", false);
+  withDefault(
+    provider,
+    "price_basis_note",
+    "분석 계산은 글로벌 기준 가격을 쓰고, 토스 데이터는 브로커 현실 확인과 품질 감사에 사용한다.",
+  );
+  const tossEvidence = data.toss_provider_evidence as MutableRecord;
+  const tossComparison = ensureRecord(tossEvidence, "comparison");
+  withDefault(tossEvidence, "status_label", tossEvidence.status === "available" ? "토스증권 가격 수집됨" : "토스증권 가격 대기");
+  withDefault(tossEvidence, "source_role", "broker_reference");
+  withDefault(tossEvidence, "source_role_label", "토스증권 브로커 데이터");
+  withDefault(tossEvidence, "used_for_scoring", false);
+  withDefault(tossEvidence, "used_for_account", tossEvidence.status === "available");
+  withDefault(tossEvidence, "used_for_execution", false);
+  withDefault(
+    tossEvidence,
+    "price_basis_note",
+    "토스증권에서 실제 투자자가 보는 가격과 수집 근거를 확인한다. 추천 점수와 사이클 계산에는 아직 직접 반영하지 않는다.",
+  );
+  withDefault(tossComparison, "status_label", "토스 비교 데이터 없음");
+  withDefault(tossComparison, "reason_label", "비교 사유 미기록");
+  withDefault(tossComparison, "comparison_basis_label", "분석 기준 가격과 토스증권 브로커 가격 비교");
+  withDefault(tossComparison, "analysis_provider", tossComparison.canonical_provider || "");
+  withDefault(tossComparison, "broker_provider", tossComparison.compared_provider || "tossinvest");
   withDefault(data, "freshness_status", provider.freshness_status || "missing");
   withDefault(data, "equity_research", null);
   withDefault(data, "industry_competitive_position", null);

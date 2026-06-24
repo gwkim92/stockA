@@ -49,6 +49,21 @@ function formatCurrency(value: number | null | undefined) {
   }).format(value);
 }
 
+function formatBrokerCash(value: number | null | undefined, currencyCode: string) {
+  if (value === null || value === undefined) {
+    return `${currencyCode} 미확인`;
+  }
+  try {
+    return new Intl.NumberFormat("ko-KR", {
+      style: "currency",
+      currency: currencyCode,
+      maximumFractionDigits: currencyCode === "KRW" ? 0 : 2,
+    }).format(value);
+  } catch {
+    return `${value.toLocaleString("ko-KR")} ${currencyCode}`;
+  }
+}
+
 function recordString(record: Record<string, unknown> | undefined, key: string) {
   const value = record?.[key];
   return typeof value === "string" ? value : "";
@@ -147,6 +162,11 @@ export default async function PaperTradingPage() {
   const summary = data.quality_summary;
   const validationState = paperValidationState(trading);
   const riskGuardrail = trading.portfolio_risk_budget_guardrail;
+  const tossOrderReadiness = trading.tossinvest_order_readiness;
+  const primaryBuyingPower = tossOrderReadiness.buying_power[0];
+  const brokerBuyingPowerText = primaryBuyingPower
+    ? formatBrokerCash(primaryBuyingPower.cash_buying_power, primaryBuyingPower.currency)
+    : "현금 미확인";
   const benchmarkDrift = riskGuardrail.benchmark_drift;
   const benchmarkDriftCalculated = benchmarkDrift?.drift_calculated === true;
   const benchmarkCode = recordString(benchmarkDrift, "benchmark_code") || "벤치마크";
@@ -197,6 +217,21 @@ export default async function PaperTradingPage() {
     },
     {
       index: "04",
+      label: "브로커 현실",
+      title: tossOrderReadiness.status === "available" || tossOrderReadiness.latest_status === "succeeded"
+        ? "토스증권 읽기 확인"
+        : "토스증권 확인 필요",
+      metric: `${brokerBuyingPowerText} · 매도 가능 ${tossOrderReadiness.sellable_quantity_count.toLocaleString("ko-KR")}개`,
+      body:
+        tossOrderReadiness.broker_submit_allowed
+          ? "브로커 데이터가 읽혔더라도 이 화면에서는 실주문을 제출하지 않는다."
+          : "토스 계좌·호가·체결은 실행 가능성 확인용이다. 실제 주문 제출은 계속 차단된다.",
+      href: "#paper-broker-reality",
+      cta: "브로커 확인",
+      tone: tossOrderReadiness.status === "available" || tossOrderReadiness.latest_status === "succeeded" ? "ready" : "watch",
+    },
+    {
+      index: "05",
       label: "다음에 볼 곳",
       title: trading.gate_summary.blocked_count > 0 ? "거래 안전 상태" : simulatedActionCount > 0 ? "가상 매매 항목" : "추천 신호",
       metric: trading.gate_summary.blocked_count > 0 ? "차단 사유 우선" : "읽기 전용 확인",
@@ -351,6 +386,30 @@ export default async function PaperTradingPage() {
             이 항목은 가상 매매 주문 항목이 아니다. 실거래 상태는 {orderBoundaryLabel(candidateReview.order_boundary)}이고,
             실제 주문 전송은 계속 금지되어 있다.
           </p>
+        </div>
+        <div className="paper-blocked-reasons" id="paper-broker-reality" aria-label="토스증권 브로커 현실 데이터">
+          <span>토스증권 브로커 현실</span>
+          <p>
+            토스증권 read-only 결과는 계좌 현금, 매도 가능 수량, 관심 종목 호가·체결, 주의 종목을 확인하는 용도다.
+            추천 점수와 사이클 계산은 바꾸지 않고, 실제 주문 제출은 {tossOrderReadiness.broker_submit_allowed ? "별도 승인 필요" : "차단"} 상태다.
+          </p>
+          <div className="relationship-list">
+            <div className="relationship-chip">
+              <span>매수 여력</span>
+              <strong>{brokerBuyingPowerText}</strong>
+              <small>계좌 기준 통화 {tossOrderReadiness.base_currency || "미확인"} · 최근 확인 {tossOrderReadiness.finished_at || "미확인"}</small>
+            </div>
+            <div className="relationship-chip">
+              <span>매도 가능</span>
+              <strong>{tossOrderReadiness.sellable_quantity_count.toLocaleString("ko-KR")}개 종목</strong>
+              <small>보유 수량과 매도 가능 수량을 분리해서 실거래 가능성을 본다.</small>
+            </div>
+            <div className="relationship-chip">
+              <span>호가·체결</span>
+              <strong>{tossOrderReadiness.market_microdata_symbol_count.toLocaleString("ko-KR")}개 종목</strong>
+              <small>브로커 화면의 최신 체결과 호가 근거이며 추천 총점에는 반영하지 않는다.</small>
+            </div>
+          </div>
         </div>
         {blockedReasonDetails.length > 0 ? (
           <div className="paper-blocked-reasons" aria-label="가상 매매 차단 사유">

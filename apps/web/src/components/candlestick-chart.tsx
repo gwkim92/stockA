@@ -79,16 +79,22 @@ export function CandlestickChart({
   const first = plotted[0];
   const last = plotted[plotted.length - 1];
   const priceY = (value: number) => chartTop + (1 - (value - minPrice) / priceRange) * chartHeight;
+  const analysisSource = provider.analysis_price_source;
+  const brokerSource = provider.broker_price_source;
+  const brokerStatus =
+    tossEvidence.comparison.status_label
+    || brokerSource.status_label
+    || (tossEvidence.status === "available" ? "토스증권 가격 수집됨" : "토스증권 가격 대기");
 
   return (
     <figure className="candlestick-chart" aria-label="캔들 차트">
       <div className="chart-toolbar">
         <div className="chart-provider-stack">
           <span className={`provider-chip is-${provider.freshness_status}`}>
-            {provider.canonical_provider}
+            {analysisSource.label} · {analysisSource.provider}
           </span>
           <span className="provider-note">
-            Toss {tossEvidence.status === "available" ? "shadow 수집" : "shadow 대기"} · {provider.toss_shadow_status}
+            {brokerSource.label} · {brokerStatus} · 추천 점수 미반영
           </span>
         </div>
         <div className="range-segments" role="tablist" aria-label="캔들 기간">

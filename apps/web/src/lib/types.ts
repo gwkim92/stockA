@@ -915,6 +915,25 @@ export type StockPrice = {
   change_pct?: number | null;
 };
 
+export type StockPriceSourceDescriptor = {
+  role: string;
+  label: string;
+  provider: string;
+  source_run_id: string | null;
+  latest_trade_date: string;
+  freshness_status: string;
+  status: string;
+  status_label?: string;
+  reason: string;
+  reason_label: string;
+  used_for_scoring: boolean;
+  used_for_cycle?: boolean;
+  used_for_performance?: boolean;
+  used_for_account: boolean;
+  used_for_execution: boolean;
+  price_basis_note: string;
+};
+
 export type StockMarketDataProvider = {
   canonical_provider: string;
   provider_source_run_id: string | null;
@@ -924,10 +943,24 @@ export type StockMarketDataProvider = {
   toss_shadow_reason: string;
   canonical_promotion_allowed: boolean;
   order_boundary: string;
+  analysis_price_source: StockPriceSourceDescriptor;
+  broker_price_source: StockPriceSourceDescriptor;
+  validation_price_source: StockPriceSourceDescriptor;
+  used_for_scoring: boolean;
+  used_for_account: boolean;
+  used_for_execution: boolean;
+  price_basis_note: string;
 };
 
 export type StockTossProviderEvidence = {
   status: string;
+  status_label: string;
+  source_role: string;
+  source_role_label: string;
+  used_for_scoring: boolean;
+  used_for_account: boolean;
+  used_for_execution: boolean;
+  price_basis_note: string;
   latest_trade_date: string;
   latest_close: number | null;
   latest_adjusted_close: number | null;
@@ -936,10 +969,15 @@ export type StockTossProviderEvidence = {
   observed_at: string;
   comparison: {
     status: string;
+    status_label: string;
     reason: string;
+    reason_label: string;
+    comparison_basis_label: string;
     comparison_date: string;
     canonical_provider: string;
+    analysis_provider: string;
     compared_provider: string;
+    broker_provider: string;
     matched_bar_count: number;
     missing_canonical_count: number;
     missing_compared_count: number;

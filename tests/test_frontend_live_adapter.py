@@ -36,6 +36,7 @@ from stockanalysis.frontend.live_adapter import (
     _build_recommendation_outcome_maturity_payload,
     _build_recommendation_professional_decision_waterfall_payload,
     _build_recommendation_professional_evidence_audit_payload,
+    _build_stock_toss_provider_evidence_payload,
     is_live_supported_path,
     render_frontend_ai_news_cluster_list_state_sql,
     render_frontend_ai_evidence_detail_state_sql,
@@ -6635,6 +6636,38 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertEqual(stock["recommendation"]["recommendation_id"], "recommendation-7101")
         self.assertEqual(stock["position"]["linked_thesis_id"], "thesis-7001")
 
+    def test_toss_provider_evidence_labels_provisional_latest_bar_as_incomplete_broker_data(self) -> None:
+        payload = _build_stock_toss_provider_evidence_payload(
+            {
+                "status": "available",
+                "latest_trade_date": "2026-06-24",
+                "latest_close": "212.50",
+                "latest_volume": "100",
+                "comparison": {
+                    "status": "shadow_collecting",
+                    "reason": "toss_provisional_low_volume_bar",
+                    "comparison_date": "2026-06-24",
+                    "canonical_provider": "twelve_data",
+                    "compared_provider": "tossinvest",
+                    "matched_bar_count": "60",
+                    "missing_canonical_count": "0",
+                    "missing_compared_count": "0",
+                    "max_close_diff_bps": "5.1",
+                    "median_close_diff_bps": "1.2",
+                },
+            }
+        )
+
+        self.assertEqual(payload["source_role"], "broker_reference")
+        self.assertFalse(payload["used_for_scoring"])
+        self.assertEqual(payload["comparison"]["analysis_provider"], "twelve_data")
+        self.assertEqual(payload["comparison"]["broker_provider"], "tossinvest")
+        self.assertEqual(payload["comparison"]["status_label"], "토스 가격 검증 중")
+        self.assertEqual(
+            payload["comparison"]["reason_label"],
+            "최신 토스 일봉 거래량이 낮아 장중 또는 미완성 일봉일 가능성이 있다.",
+        )
+
     def test_live_stock_detail_response_matches_frontend_contract_shape(self) -> None:
         payload = resolve_live_frontend_response(
             "/api/stocks/AAPL",
@@ -6653,7 +6686,32 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertEqual(payload["data"]["market_data_provider"]["freshness_status"], "fresh")
         self.assertFalse(payload["data"]["market_data_provider"]["canonical_promotion_allowed"])
         self.assertEqual(payload["data"]["market_data_provider"]["order_boundary"], "read_only_no_order")
+        self.assertEqual(
+            payload["data"]["market_data_provider"]["analysis_price_source"]["role"],
+            "analysis_reference",
+        )
+        self.assertEqual(
+            payload["data"]["market_data_provider"]["analysis_price_source"]["label"],
+            "분석 기준 가격",
+        )
+        self.assertTrue(payload["data"]["market_data_provider"]["analysis_price_source"]["used_for_scoring"])
+        self.assertEqual(
+            payload["data"]["market_data_provider"]["broker_price_source"]["role"],
+            "broker_reference",
+        )
+        self.assertFalse(payload["data"]["market_data_provider"]["broker_price_source"]["used_for_scoring"])
+        self.assertEqual(
+            payload["data"]["market_data_provider"]["validation_price_source"]["role"],
+            "validation_price",
+        )
+        self.assertIn("글로벌 기준 가격", payload["data"]["market_data_provider"]["price_basis_note"])
         self.assertEqual(payload["data"]["toss_provider_evidence"]["status"], "missing")
+        self.assertEqual(payload["data"]["toss_provider_evidence"]["source_role"], "broker_reference")
+        self.assertFalse(payload["data"]["toss_provider_evidence"]["used_for_scoring"])
+        self.assertEqual(
+            payload["data"]["toss_provider_evidence"]["comparison"]["comparison_basis_label"],
+            "분석 기준 가격과 토스증권 브로커 가격 비교",
+        )
         self.assertEqual(payload["data"]["toss_provider_evidence"]["comparison"]["compared_provider"], "tossinvest")
         self.assertEqual(payload["data"]["freshness_status"], "fresh")
         self.assertEqual(payload["data"]["recommendation"]["linked_thesis_id"], "thesis-7001")

@@ -15419,32 +15419,138 @@ def _build_stock_price_bar_payload(bar: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+_TOSS_COMPARISON_STATUS_LABELS = {
+    "candidate_ready": "분석 기준 가격과 비교 완료",
+    "matched": "분석 기준 가격과 비교 완료",
+    "basis_difference": "가격 기준 차이 검토",
+    "provisional_latest_bar": "최신 토스 일봉 미완성 가능성",
+    "shadow_collecting": "토스 가격 검증 중",
+    "missing": "토스 비교 데이터 없음",
+    "conflict_needs_review": "가격 차이 검토 필요",
+}
+
+
+_TOSS_COMPARISON_REASON_LABELS = {
+    "within_diff_threshold": "분석 기준 가격과 허용 범위 안에서 일치한다.",
+    "toss_provisional_low_volume_bar": "최신 토스 일봉 거래량이 낮아 장중 또는 미완성 일봉일 가능성이 있다.",
+    "close_diff_threshold_exceeded": "종가 차이가 허용 범위를 넘어 가격 기준 차이를 확인해야 한다.",
+    "canonical_missing_toss_dates": "분석 기준 가격에 없는 토스 거래일이 있다.",
+    "toss_missing_canonical_dates": "토스 가격에 없는 분석 기준 거래일이 있다.",
+    "no_overlapping_bars": "분석 기준 가격과 토스 가격을 비교할 겹치는 거래일이 없다.",
+}
+
+
+def _toss_comparison_status_label(status: str) -> str:
+    return _TOSS_COMPARISON_STATUS_LABELS.get(status, status.replace("_", " ") if status else "상태 미확인")
+
+
+def _toss_comparison_reason_label(reason: str) -> str:
+    return _TOSS_COMPARISON_REASON_LABELS.get(reason, reason.replace("_", " ") if reason else "비교 사유 미기록")
+
+
 def _build_stock_market_data_provider_payload(
     payload: dict[str, Any],
     *,
     price_bars: list[dict[str, Any]],
 ) -> dict[str, Any]:
     latest = price_bars[-1] if price_bars else {}
+    analysis_provider = str(payload.get("canonical_provider") or latest.get("provider") or "missing")
+    provider_source_run_id = _opaque_id(
+        "pipeline-run",
+        payload.get("provider_source_run_id") or latest.get("source_run_id"),
+        None,
+    )
+    latest_trade_date = str(payload.get("latest_trade_date") or latest.get("trade_date") or "")
+    freshness_status = str(payload.get("freshness_status") or ("fresh" if latest else "missing"))
+    toss_status = str(payload.get("toss_shadow_status") or "missing")
+    toss_reason = str(payload.get("toss_shadow_reason") or "")
+    canonical_promotion_allowed = payload.get("canonical_promotion_allowed") is True
+    order_boundary = str(payload.get("order_boundary") or "read_only_no_order")
+    toss_status_label = _toss_comparison_status_label(toss_status)
+    toss_reason_label = _toss_comparison_reason_label(toss_reason)
     return {
-        "canonical_provider": str(payload.get("canonical_provider") or latest.get("provider") or "missing"),
-        "provider_source_run_id": _opaque_id(
-            "pipeline-run",
-            payload.get("provider_source_run_id") or latest.get("source_run_id"),
-            None,
-        ),
-        "latest_trade_date": str(payload.get("latest_trade_date") or latest.get("trade_date") or ""),
-        "freshness_status": str(payload.get("freshness_status") or ("fresh" if latest else "missing")),
-        "toss_shadow_status": str(payload.get("toss_shadow_status") or "missing"),
-        "toss_shadow_reason": str(payload.get("toss_shadow_reason") or ""),
-        "canonical_promotion_allowed": payload.get("canonical_promotion_allowed") is True,
-        "order_boundary": str(payload.get("order_boundary") or "read_only_no_order"),
+        "canonical_provider": analysis_provider,
+        "provider_source_run_id": provider_source_run_id,
+        "latest_trade_date": latest_trade_date,
+        "freshness_status": freshness_status,
+        "toss_shadow_status": toss_status,
+        "toss_shadow_reason": toss_reason,
+        "canonical_promotion_allowed": canonical_promotion_allowed,
+        "order_boundary": order_boundary,
+        "analysis_price_source": {
+            "role": "analysis_reference",
+            "label": "분석 기준 가격",
+            "provider": analysis_provider,
+            "source_run_id": provider_source_run_id,
+            "latest_trade_date": latest_trade_date,
+            "freshness_status": freshness_status,
+            "status": freshness_status,
+            "reason": "",
+            "reason_label": "추천·사이클·성과 계산 기준으로 쓰는 글로벌 가격 데이터다.",
+            "used_for_scoring": True,
+            "used_for_cycle": True,
+            "used_for_performance": True,
+            "used_for_account": False,
+            "used_for_execution": False,
+            "price_basis_note": "장기 비교와 분석 일관성을 위해 쓰는 기준 가격이다.",
+        },
+        "broker_price_source": {
+            "role": "broker_reference",
+            "label": "토스증권 브로커 데이터",
+            "provider": "tossinvest",
+            "source_run_id": None,
+            "latest_trade_date": "",
+            "freshness_status": toss_status,
+            "status": toss_status,
+            "reason": toss_reason,
+            "reason_label": toss_reason_label,
+            "status_label": toss_status_label,
+            "used_for_scoring": False,
+            "used_for_cycle": False,
+            "used_for_performance": False,
+            "used_for_account": toss_status != "missing",
+            "used_for_execution": False,
+            "price_basis_note": "실제 증권사 화면과 계좌 현실을 확인하는 참고 가격이며 추천 점수에는 아직 반영하지 않는다.",
+        },
+        "validation_price_source": {
+            "role": "validation_price",
+            "label": "검증 중 가격",
+            "provider": "tossinvest",
+            "source_run_id": None,
+            "latest_trade_date": "",
+            "freshness_status": toss_status,
+            "status": toss_status,
+            "reason": toss_reason,
+            "reason_label": toss_reason_label,
+            "status_label": toss_status_label,
+            "used_for_scoring": False,
+            "used_for_cycle": False,
+            "used_for_performance": False,
+            "used_for_account": False,
+            "used_for_execution": False,
+            "price_basis_note": "분석 기준 가격과 비교해 가격 기준 차이, 미완성 일봉, 누락 여부를 분류한다.",
+        },
+        "used_for_scoring": True,
+        "used_for_account": toss_status != "missing",
+        "used_for_execution": False,
+        "price_basis_note": "분석 계산은 글로벌 기준 가격을 쓰고, 토스 데이터는 브로커 현실 확인과 품질 감사에 사용한다.",
     }
 
 
 def _build_stock_toss_provider_evidence_payload(payload: dict[str, Any]) -> dict[str, Any]:
     comparison = _as_dict(payload.get("comparison"))
+    status = str(payload.get("status") or "missing")
+    comparison_status = str(comparison.get("status") or "missing")
+    comparison_reason = str(comparison.get("reason") or "")
     return {
-        "status": str(payload.get("status") or "missing"),
+        "status": status,
+        "status_label": "토스증권 가격 수집됨" if status == "available" else "토스증권 가격 대기",
+        "source_role": "broker_reference",
+        "source_role_label": "토스증권 브로커 데이터",
+        "used_for_scoring": False,
+        "used_for_account": status == "available",
+        "used_for_execution": False,
+        "price_basis_note": "토스증권에서 실제 투자자가 보는 가격과 수집 근거를 확인한다. 추천 점수와 사이클 계산에는 아직 직접 반영하지 않는다.",
         "latest_trade_date": str(payload.get("latest_trade_date") or ""),
         "latest_close": _number(payload.get("latest_close")),
         "latest_adjusted_close": _number(payload.get("latest_adjusted_close")),
@@ -15452,11 +15558,16 @@ def _build_stock_toss_provider_evidence_payload(payload: dict[str, Any]) -> dict
         "source_run_id": _opaque_id("pipeline-run", payload.get("source_run_id"), None),
         "observed_at": _timestamp(payload.get("observed_at")),
         "comparison": {
-            "status": str(comparison.get("status") or "missing"),
-            "reason": str(comparison.get("reason") or ""),
+            "status": comparison_status,
+            "status_label": _toss_comparison_status_label(comparison_status),
+            "reason": comparison_reason,
+            "reason_label": _toss_comparison_reason_label(comparison_reason),
+            "comparison_basis_label": "분석 기준 가격과 토스증권 브로커 가격 비교",
             "comparison_date": str(comparison.get("comparison_date") or ""),
             "canonical_provider": str(comparison.get("canonical_provider") or ""),
+            "analysis_provider": str(comparison.get("canonical_provider") or ""),
             "compared_provider": str(comparison.get("compared_provider") or "tossinvest"),
+            "broker_provider": str(comparison.get("compared_provider") or "tossinvest"),
             "matched_bar_count": int(_safe_number(comparison.get("matched_bar_count")) or 0),
             "missing_canonical_count": int(_safe_number(comparison.get("missing_canonical_count")) or 0),
             "missing_compared_count": int(_safe_number(comparison.get("missing_compared_count")) or 0),
