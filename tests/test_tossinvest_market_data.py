@@ -333,6 +333,9 @@ class TossInvestMarketDataTests(unittest.TestCase):
         self.assertIn("'written_count'", sql)
         self.assertIn("candidate_ready", sql)
         self.assertIn("conflict_review_required", sql)
+        self.assertIn("provisional_compared_bar_count", sql)
+        self.assertIn("toss_provisional_low_volume_bar", sql)
+        self.assertIn("provisional_volume_ratio_threshold", sql)
 
     def test_cli_dry_run_is_secret_free_and_accepts_fixture(self) -> None:
         stdout = io.StringIO()

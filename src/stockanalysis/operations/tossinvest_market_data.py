@@ -24,6 +24,7 @@ DEFAULT_TOSSINVEST_CANDLE_OUTPUTSIZE = "120"
 DEFAULT_TOSSINVEST_MARKET_CODE = "US"
 DEFAULT_TOSSINVEST_SCHEDULED_DAILY_OUTPUTSIZE = "30"
 DEFAULT_TOSSINVEST_SCHEDULED_MAX_SYMBOLS_PER_RUN = 10
+TOSSINVEST_PROVISIONAL_VOLUME_RATIO_THRESHOLD = Decimal("0.10")
 TOSSINVEST_COLLECTION_CADENCE = {
     "toss-reference-kr-daily": "Mon..Fri 08:30 Asia/Seoul",
     "toss-reference-us-daily": "Mon..Fri 08:45 America/New_York",
@@ -516,6 +517,7 @@ canonical as (
         instrument.symbol,
         bar.trade_date,
         bar.close,
+        bar.volume,
         coalesce(nullif(bar.provider, ''), 'unknown') as canonical_provider
     from target_instruments instrument
     join market.daily_price_bar bar on bar.instrument_id = instrument.instrument_id
@@ -526,7 +528,8 @@ toss as (
         instrument.instrument_id,
         instrument.symbol,
         candle.trade_date,
-        candle.close
+        candle.close,
+        candle.volume
     from target_instruments instrument
     join market.tossinvest_daily_candle_snapshot candle
       on candle.instrument_id = instrument.instrument_id
@@ -539,32 +542,52 @@ joined as (
         coalesce(canonical.trade_date, toss.trade_date) as trade_date,
         canonical.close as canonical_close,
         toss.close as toss_close,
+        canonical.volume as canonical_volume,
+        toss.volume as toss_volume,
         canonical.canonical_provider
     from canonical
     full outer join toss
       on toss.instrument_id = canonical.instrument_id
      and toss.trade_date = canonical.trade_date
 ),
+qualified as (
+    select
+        *,
+        abs((toss_close - canonical_close) / nullif(canonical_close, 0)) * 10000 as close_diff_bps,
+        (
+            canonical_close is not null
+            and toss_close is not null
+            and canonical_volume > 0
+            and toss_volume is not null
+            and toss_volume::numeric / canonical_volume::numeric
+                < {sql_numeric(TOSSINVEST_PROVISIONAL_VOLUME_RATIO_THRESHOLD)}
+        ) as compared_bar_provisional
+    from joined
+),
 summary as (
     select
         instrument.instrument_id,
         instrument.symbol,
-        max(joined.trade_date) filter (where joined.canonical_close is not null) as latest_canonical_trade_date,
-        max(joined.trade_date) filter (where joined.toss_close is not null) as latest_compared_trade_date,
-        count(*) filter (where joined.canonical_close is not null and joined.toss_close is not null)::integer
+        max(qualified.trade_date) filter (where qualified.canonical_close is not null) as latest_canonical_trade_date,
+        max(qualified.trade_date) filter (where qualified.toss_close is not null) as latest_compared_trade_date,
+        count(*) filter (where qualified.canonical_close is not null and qualified.toss_close is not null)::integer
             as matched_bar_count,
-        count(*) filter (where joined.canonical_close is null and joined.toss_close is not null)::integer
+        count(*) filter (where qualified.canonical_close is null and qualified.toss_close is not null)::integer
             as missing_canonical_count,
-        count(*) filter (where joined.canonical_close is not null and joined.toss_close is null)::integer
+        count(*) filter (where qualified.canonical_close is not null and qualified.toss_close is null)::integer
             as missing_compared_count,
-        max(abs((joined.toss_close - joined.canonical_close) / nullif(joined.canonical_close, 0)) * 10000)
+        count(*) filter (where qualified.compared_bar_provisional)::integer
+            as provisional_compared_bar_count,
+        max(qualified.close_diff_bps) filter (where not qualified.compared_bar_provisional)
             as max_close_diff_bps,
         percentile_cont(0.5) within group (
-            order by abs((joined.toss_close - joined.canonical_close) / nullif(joined.canonical_close, 0)) * 10000
+            order by qualified.close_diff_bps
+        ) filter (
+            where not qualified.compared_bar_provisional
         ) as median_close_diff_bps,
-        coalesce(max(joined.canonical_provider), 'unknown') as canonical_provider
+        coalesce(max(qualified.canonical_provider), 'unknown') as canonical_provider
     from target_instruments instrument
-    left join joined on joined.instrument_id = instrument.instrument_id
+    left join qualified on qualified.instrument_id = instrument.instrument_id
     group by instrument.instrument_id, instrument.symbol
 ),
 classified as (
@@ -573,6 +596,7 @@ classified as (
         case
             when matched_bar_count = 0 then 'missing'
             when missing_compared_count > 0 or missing_canonical_count > 0 then 'shadow_collecting'
+            when provisional_compared_bar_count > 0 then 'shadow_collecting'
             when coalesce(max_close_diff_bps, 0) <= {sql_numeric(max_diff_bps)} then 'candidate_ready'
             else 'conflict_review_required'
         end as status,
@@ -580,6 +604,7 @@ classified as (
             when matched_bar_count = 0 then 'no_overlapping_bars'
             when missing_compared_count > 0 then 'toss_missing_canonical_dates'
             when missing_canonical_count > 0 then 'canonical_missing_toss_dates'
+            when provisional_compared_bar_count > 0 then 'toss_provisional_low_volume_bar'
             when coalesce(max_close_diff_bps, 0) <= {sql_numeric(max_diff_bps)} then 'within_diff_threshold'
             else 'close_diff_threshold_exceeded'
         end as reason
@@ -608,7 +633,12 @@ select
     status,
     reason,
     {source_run_id},
-    json_build_object('lookback_days', {lookback_days}, 'max_diff_bps', {sql_literal(str(max_diff_bps))})::jsonb
+    json_build_object(
+        'lookback_days', {lookback_days},
+        'max_diff_bps', {sql_literal(str(max_diff_bps))},
+        'provisional_compared_bar_count', provisional_compared_bar_count,
+        'provisional_volume_ratio_threshold', {sql_literal(str(TOSSINVEST_PROVISIONAL_VOLUME_RATIO_THRESHOLD))}
+    )::jsonb
 from classified
 on conflict (provider, symbol, comparison_date) do update
 set
