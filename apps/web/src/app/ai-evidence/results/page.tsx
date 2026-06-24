@@ -26,6 +26,12 @@ function formatLatestAiRunStatus(status: string | null | undefined) {
   if (!status || status === "not_run") {
     return "최근 심화 분석 이력 없음";
   }
+  if (status === "failed") {
+    return "최근 심화 분석 중단";
+  }
+  if (status === "succeeded") {
+    return "최근 심화 분석 완료";
+  }
   return `최근 심화 분석 ${koCode(status)}`;
 }
 

@@ -82,6 +82,35 @@ function formatUsdAmount(value: number | null) {
   return `$${value.toFixed(2)}`;
 }
 
+function adminCopy(value: string) {
+  return value
+    .replaceAll(
+      "OpenAI quota is exhausted. Falling back to the configured offline provider.",
+      "OpenAI 사용량 한도가 소진되어 예비 분석 경로로 전환됐다.",
+    )
+    .replaceAll("Falling back to the configured offline provider.", "예비 분석 경로로 전환됐다.")
+    .replaceAll("quota", "사용량 한도")
+    .replaceAll("fallback", "예비 경로")
+    .replaceAll("backlog", "대기 작업")
+    .replaceAll("scheduler", "예약 실행")
+    .replaceAll("budget", "사용 한도")
+    .replaceAll("ticker", "종목 코드")
+    .replaceAll("stale provider", "오래된 데이터 제공자")
+    .replaceAll("provider health cache", "AI 상태 기록")
+    .replaceAll("provider", "제공자")
+    .replaceAll("canonical", "표준 저장소")
+    .replaceAll("guardrail", "안전 조건")
+    .replaceAll("confidence", "신뢰도")
+    .replaceAll("unknown node", "알 수 없는 분류")
+    .replaceAll("schema", "결과 형식")
+    .replaceAll("prompt", "프롬프트")
+    .replaceAll("paper validation", "가상 매매 검증")
+    .replaceAll("broker", "증권사")
+    .replaceAll("order", "주문")
+    .replaceAll("failed", "중단")
+    .replaceAll("fail", "중단");
+}
+
 function providerSummary(data: AiAgentRegistryData) {
   return [
     `1차 ${data.primary_providers.map(providerLabel).join(", ") || "미지정"}`,
@@ -93,7 +122,7 @@ function providerSummary(data: AiAgentRegistryData) {
 function runtimeStatusText(data: AiAgentRegistryData) {
   const health = data.runtime_policy.openai_provider_health;
   if (health.status === "openai_insufficient_quota" || health.status === "openai_billing_unavailable") {
-    return `${health.message} 다음 OpenAI 재시도 시점까지는 ${providerLabel(health.fallback_provider)} 또는 ${providerLabel(health.local_fallback_provider)}를 사용한다.`;
+    return `${adminCopy(health.message)} 다음 OpenAI 재시도 시점까지는 ${providerLabel(health.fallback_provider)} 또는 ${providerLabel(health.local_fallback_provider)}를 사용한다.`;
   }
   if (data.runtime_policy.openai_api_disabled) {
     return "OpenAI API 호출은 운영 플래그로 꺼져 있다. 배치는 Codex OAuth 또는 로컬 규칙으로 내려가야 한다.";
@@ -149,7 +178,7 @@ function AgentCard({ agent }: { agent: Agent }) {
     <article className={boundaryTone(agent)}>
       <span>{domainLabel(agent.owner_domain)}</span>
       <strong>{agent.display_name}</strong>
-      <small>{agent.business_goal}</small>
+      <small>{adminCopy(agent.business_goal)}</small>
       <dl className="runtime-grid">
         <div>
           <dt>1차 모델</dt>
@@ -251,7 +280,7 @@ export default async function AiAgentAdminPage() {
           <div className="decision-card is-watch">
             <span>OpenAI 예비 경로</span>
             <strong>{data.runtime_policy.primary_provider_status === "known_billing_unavailable" ? "우회 필요" : "상태 확인"}</strong>
-            <small>{data.runtime_policy.primary_provider_fallback_reason}</small>
+            <small>{adminCopy(data.runtime_policy.primary_provider_fallback_reason)}</small>
           </div>
           <div className="decision-card is-watch">
             <span>모델 변경</span>
@@ -267,7 +296,7 @@ export default async function AiAgentAdminPage() {
         <div className="decision-brief-main">
           <span className="decision-brief-kicker">OpenAI 잔액·쿼터 상태</span>
           <h2 className="decision-brief-title">{data.runtime_policy.openai_provider_health.label}</h2>
-          <p className="decision-brief-copy">{data.runtime_policy.openai_provider_health.message}</p>
+          <p className="decision-brief-copy">{adminCopy(data.runtime_policy.openai_provider_health.message)}</p>
           <div className="decision-brief-meta">
             <span>상태 코드: {data.runtime_policy.openai_provider_health.status}</span>
             <span>마지막 확인: {formatOptionalDate(data.runtime_policy.openai_provider_health.last_checked_at)}</span>
@@ -314,7 +343,7 @@ export default async function AiAgentAdminPage() {
           <div className="decision-card is-watch">
             <span>Admin key</span>
             <strong>{data.runtime_policy.openai_provider_health.admin_api_key_configured ? "설정됨" : "없음"}</strong>
-            <small>{data.runtime_policy.openai_provider_health.cost_status.message}</small>
+            <small>{adminCopy(data.runtime_policy.openai_provider_health.cost_status.message)}</small>
           </div>
         </div>
       </section>

@@ -1433,10 +1433,24 @@ function operationCopy(value: string) {
   const oldReviewDocument = ["검토", "서"].join("");
   const oldPaper = ["페", "이퍼"].join("");
   return koCode(value)
+    .replaceAll(
+      "OpenAI quota is exhausted. Falling back to the configured offline provider.",
+      "OpenAI 사용량 한도가 소진되어 예비 분석 경로로 전환됐다.",
+    )
+    .replaceAll(
+      "Falling back to the configured offline provider.",
+      "예비 분석 경로로 전환됐다.",
+    )
+    .replaceAll("professional-coverage-expansion-run", "전문 분석 근거 보강 실행")
+    .replaceAll("recommendation_outcome_calibration_sample_expansion", "추천 성과 표본 확장")
     .replaceAll("news-ai-eval-run --provider fixture --execute를 실행해 기준 정답 뉴스 세트 회귀평가를 저장한다.", "뉴스 AI 기준 세트 평가를 실행해 최근 평가 결과를 저장한다.")
     .replaceAll("fixture/gold", "기준 정답")
     .replaceAll("fixture", "기준 세트")
-    .replaceAll("fallback", "대체 처리")
+    .replaceAll("provider health cache", "AI 상태 기록")
+    .replaceAll("LLM provider", "AI 제공자")
+    .replaceAll("LLM", "AI")
+    .replaceAll("quota", "사용량 한도")
+    .replaceAll("fallback", "예비 경로")
     .replaceAll("validator", "자동 검증")
     .replaceAll("ticker", "종목 코드")
     .replaceAll("unknown theme", "알 수 없는 테마")
@@ -1447,6 +1461,7 @@ function operationCopy(value: string) {
     .replaceAll("profile scheduler", "프로파일 예약 실행기")
     .replaceAll("pipeline run health", "작업 실행 상태")
     .replaceAll("data operation", "데이터 작업")
+    .replaceAll("pipeline", "작업")
     .replaceAll("recommendation weight", "추천 산식 반영 비중")
     .replaceAll("weight review", "추천 산식 검토")
     .replaceAll("weight", "추천 산식 반영 비중")
@@ -1460,6 +1475,7 @@ function operationCopy(value: string) {
     .replaceAll("cadence", "실행 주기")
     .replaceAll("router", "실행 분기")
     .replaceAll("child runner", "후속 실행")
+    .replaceAll("runner", "실행기")
     .replaceAll("open gate", "열린 확인 항목")
     .replaceAll("review candidate", "확인 대상")
     .replaceAll("candidate", "대상")
@@ -1468,6 +1484,8 @@ function operationCopy(value: string) {
     .replaceAll(oldReviewCandidate, "확인 대상")
     .replaceAll(oldReviewDocument, "상세 근거")
     .replaceAll("guardrail", "안전 조건")
+    .replaceAll("raw filing", "원문 공시")
+    .replaceAll("registration", "증권신고서")
     .replaceAll("source gap", "원천 공백")
     .replaceAll("source blocker", "원천 차단")
     .replaceAll("quality eval", "품질 평가")
@@ -1483,6 +1501,8 @@ function operationCopy(value: string) {
     .replaceAll("managed", "관리됨")
     .replaceAll("source", "원천")
     .replaceAll("job", "작업")
+    .replaceAll("too early", "관찰 기간 미성숙")
+    .replaceAll("failed", "중단")
     .replaceAll("원천 차단 count가 있는 종목", "원천 차단 종목")
     .replaceAll("원천 차단 count", "원천 차단 수")
     .replaceAll("degraded", "주의");
