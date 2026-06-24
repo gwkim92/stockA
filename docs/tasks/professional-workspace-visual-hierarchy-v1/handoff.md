@@ -2,7 +2,7 @@
 
 ## Current Status
 
-- 완료: implemented locally, verified with typecheck/build/AWH, and rendered route smoke on fixture-backed local production server.
+- 완료: implemented locally, pushed to `develop`, deployed to EC2, and smoke verified on live `127.0.0.1:13000`.
 
 ## Current Decision
 
@@ -27,7 +27,11 @@
 - passed: fixture-backed local production route smoke for `/`, `/market-map`, `/cycle-map`, `/stocks/AAPL`, `/recommendations`, `/recommendations/AAPL-2024-11-01`, `/paper-trading`, `/ai-evidence`, `/ai-evidence/results`, `/ai-evidence/blocked`, `/data-health`, `/portfolio/coverage`, `/admin/ai-agents`.
 - passed: rendered visible text scan found no visible hits for `canonical`, `shadow`, `pipeline`, `artifact`, `runner`, `fallback`, `LLM`, `human review`, `사람 검토`, `검토 가능`.
 - passed: rendered visible text scan found no visible server-component/error-like text on the same route set.
+- passed on EC2 commit `211c40e8`: `git pull --ff-only origin develop`, `cd apps/web && npm run typecheck && npm run build`, `sudo systemctl restart stockanalysis-frontend-api.service stockanalysis-web.service`, both services `active`.
+- passed on EC2 internal route smoke: `/`, `/market-map`, `/cycle-map`, `/stocks/AAPL`, `/recommendations`, `/recommendations/recommendation-455`, `/paper-trading`, `/ai-evidence`, `/ai-evidence/results`, `/ai-evidence/blocked`, `/data-health`, `/portfolio/coverage`, `/admin/ai-agents` all `200`; `/__ready` returned `status=ok`, `source_mode=live`.
+- passed on local tunnel `http://127.0.0.1:13000`: `/data-health`, `/stocks/AAPL`, `/recommendations/recommendation-455`, `/market-map`, `/admin/ai-agents` returned `200`.
+- passed on live `127.0.0.1:13000` rendered visible text scan for the 13 route set: no visible hits for `canonical`, `shadow`, `pipeline`, `artifact`, `runner`, `fallback`, `LLM`, `human review`, `사람 검토`, `검토 가능`; no visible server-component/error-like text.
 
 ## Next
 
-- exact next step: commit, push to `develop`, deploy to EC2, restart FastAPI/Next, and smoke live routes `/data-health`, `/stocks/AAPL`, `/recommendations/recommendation-455`, `/market-map`, `/admin/ai-agents`.
+- exact next step: continue the broader UX refactor on pages that still do not use the new workspace hierarchy, starting with `/market-map`, `/cycle-map`, `/recommendations`, `/paper-trading`, and `/ai-evidence`.
