@@ -1584,7 +1584,7 @@ export default async function StockDetailPage({ params }: StockDetailPageProps) 
 
   return (
     <div className="pageStack decision-page">
-      <section className="decision-brief reveal" aria-labelledby="stock-detail-title">
+      <section className="decision-brief workspace-brief stock-command-deck reveal" aria-labelledby="stock-detail-title">
         <div className="decision-brief-main">
           <span className="decision-brief-kicker">종목 상세 · {data.market_code} · {data.as_of_date}</span>
           <h1 className="decision-brief-title" id="stock-detail-title">
@@ -1601,8 +1601,8 @@ export default async function StockDetailPage({ params }: StockDetailPageProps) 
             <span>시장 동조성 {marketCorrelationCount.toLocaleString("ko-KR")}개</span>
           </div>
         </div>
-        <div className="decision-brief-grid">
-          <Link className={data.recommendation ? "decision-card is-good" : "decision-card is-watch"} href={data.recommendation ? recommendationHref(data.recommendation.recommendation_id) : "/recommendations"}>
+        <div className="decision-brief-grid workspace-command-grid" aria-label={`${data.symbol} 분석 목차`}>
+          <Link className={data.recommendation ? "decision-card primary is-good" : "decision-card primary is-watch"} href={data.recommendation ? recommendationHref(data.recommendation.recommendation_id) : "/recommendations"}>
             <span>추천</span>
             <strong>{data.recommendation ? koCode(data.recommendation.action) : "추천 없음"}</strong>
             <small>{data.recommendation ? `점수 ${formatPercent(data.recommendation.score)} · ${koCode(data.recommendation.status)}` : "아직 추천 상세가 없다."}</small>
@@ -1674,7 +1674,7 @@ export default async function StockDetailPage({ params }: StockDetailPageProps) 
           <div className="section-heading">
             <div>
               <span className="metric-sub">1. 가격 데이터</span>
-              <h2>가격 흐름은 추천 근거가 아니라 상태 확인부터 한다</h2>
+              <h2>가격 흐름은 데이터 출처와 추세를 먼저 확인한다</h2>
             </div>
             <Link className="btn btn-secondary" href="/data-health">
               수집 상태 보기

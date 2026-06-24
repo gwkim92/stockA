@@ -711,12 +711,86 @@ function normalizeFrontendPayload<TData>(path: string, payload: ApiResponse<TDat
     normalizePaperTradingPreview(data);
   } else if (path === "/api/data-health") {
     normalizeDataHealth(data);
+  } else if (path.startsWith("/api/market-map")) {
+    normalizeMarketMap(data);
   } else if (path.startsWith("/api/performance/")) {
     normalizePerformanceOutcomes(data);
   } else if (path.startsWith("/api/ai-evidence/")) {
     normalizeAiEvidenceDetail(data);
   }
   return mutablePayload as ApiResponse<TData>;
+}
+
+function normalizeMarketMap(data: MutableRecord) {
+  withDefault(data, "as_of_date", currentIsoDate());
+  withDefault(data, "snapshot_as_of_date", null);
+  const summary = ensureRecord(data, "summary");
+  for (const key of [
+    "indicator_count",
+    "fresh_indicator_count",
+    "stale_indicator_count",
+    "missing_indicator_count",
+    "shock_indicator_count",
+    "regime_count",
+    "active_regime_count",
+    "watch_regime_count",
+    "conflict_regime_count",
+    "news_link_count",
+    "correlation_count",
+    "strong_correlation_count",
+    "moderate_correlation_count",
+  ]) {
+    withDefault(summary, key, 0);
+  }
+  withDefault(summary, "status", "missing");
+  withDefault(summary, "correlation_as_of_date", null);
+  withDefault(summary, "latest_observation_date", null);
+  withDefault(summary, "next_action", "시장 지표 수집과 상관관계 분석을 실행한 뒤 다시 확인한다.");
+  withDefault(summary, "recommendation_scoring_mutated", false);
+  withDefault(summary, "automatic_weight_change_allowed", false);
+  withDefault(summary, "broker_submit_allowed", false);
+  withDefault(summary, "order_boundary", "read_only_no_order");
+
+  for (const rawGroup of ensureArray(data, "groups")) {
+    if (!isRecord(rawGroup)) {
+      continue;
+    }
+    withDefault(rawGroup, "group_code", "UNKNOWN");
+    withDefault(rawGroup, "group_name", "시장 지표");
+    withDefault(rawGroup, "indicator_count", 0);
+    withDefault(rawGroup, "fresh_count", 0);
+    withDefault(rawGroup, "stale_count", 0);
+    withDefault(rawGroup, "missing_count", 0);
+    withDefault(rawGroup, "shock_count", 0);
+    withDefault(rawGroup, "latest_observation_date", null);
+    withDefault(rawGroup, "strongest_indicator_code", null);
+    ensureArray(rawGroup, "indicators");
+  }
+
+  for (const rawRegime of ensureArray(data, "regimes")) {
+    if (!isRecord(rawRegime)) {
+      continue;
+    }
+    withDefault(rawRegime, "driver_indicator_codes", []);
+    withDefault(rawRegime, "conflict_flags", []);
+    withDefault(rawRegime, "summary_ko", "시장 체제 설명이 아직 충분히 연결되지 않았다.");
+  }
+
+  for (const rawLink of ensureArray(data, "news_links")) {
+    if (!isRecord(rawLink)) {
+      continue;
+    }
+    withDefault(rawLink, "title_ko", "제목 미수집");
+    withDefault(rawLink, "source_name", "");
+    withDefault(rawLink, "source_url", "");
+    withDefault(rawLink, "rationale", "");
+    withDefault(rawLink, "relationship", "temporal_evidence");
+    withDefault(rawLink, "confidence", 0);
+  }
+
+  ensureArray(data, "correlations");
+  ensureArray(data, "quality_flags");
+  ensureArray(data, "guardrails");
 }
 
 function normalizeRecommendationList(data: MutableRecord) {
@@ -1278,8 +1352,15 @@ export function getDataHealth() {
   return fetchFrontendPayload<DataHealthData>("/api/data-health");
 }
 
-export function getAiAgentRegistry() {
-  return fetchFrontendPayload<AiAgentRegistryData>("/api/admin/ai-agents");
+export async function getAiAgentRegistry() {
+  try {
+    return await fetchFrontendPayload<AiAgentRegistryData>("/api/admin/ai-agents");
+  } catch (error) {
+    if (error instanceof FrontendApiError && error.status === 404) {
+      return buildAiAgentRegistryFallback();
+    }
+    throw error;
+  }
 }
 
 export function getCodexOauthOperatorStatus() {
@@ -1489,6 +1570,164 @@ function buildMarketMapFallback(): ApiResponse<MarketMapData> {
     links: {
       data_health: "/api/data-health",
       cycle_map: `/api/cycle-map?asOfDate=${asOfDate}`,
+    },
+  };
+}
+
+function buildAiAgentRegistryFallback(): ApiResponse<AiAgentRegistryData> {
+  const now = new Date().toISOString();
+  const codexOauthOperator: CodexOauthOperatorStatus = {
+    status: "unknown",
+    label: "미확인",
+    summary: "AI 운영 상태 endpoint가 아직 연결되지 않았다.",
+    auth_url: "",
+    user_code: "",
+    expires_at: "",
+    device_auth_pid: null,
+    last_checked_at: "",
+    last_event_type: "",
+    last_smoke_status: "",
+    last_smoke_at: "",
+    last_error_code: "",
+    last_error_summary: "",
+    next_action: "실제 API 연결 뒤 Codex OAuth 상태를 확인한다.",
+    login_probe_status: "not_checked",
+    login_probe_message: "",
+    status_path: "",
+    admin_action_required: true,
+    read_only: true,
+    broker_submit_allowed: false,
+    automatic_order_allowed: false,
+    order_boundary: "read_only_no_order",
+  };
+  const openaiProviderHealth = {
+    status: "unknown",
+    label: "미확인",
+    balance_known: false,
+    balance_check_method: "미연결",
+    remaining_balance_usd: null,
+    api_key_configured: false,
+    admin_api_key_configured: false,
+    last_checked_at: "",
+    next_retry_at: "",
+    fallback_provider: "codex_oauth",
+    local_fallback_provider: "local_rules",
+    message: "OpenAI 비용과 잔액 상태를 이 화면에서 아직 조회하지 못했다.",
+    cost_status: {
+      report_name: "openai-cost-status",
+      status: "미확인",
+      cost_known: false,
+      admin_api_key_configured: false,
+      lookback_days: 7,
+      total_cost_usd: null,
+      latest_day_cost_usd: null,
+      currency: "USD",
+      period_start: "",
+      period_end: "",
+      last_checked_at: "",
+      error_code: "",
+      message: "비용 조회 화면이 아직 연결되지 않았다.",
+      billing_overview_url: "https://platform.openai.com/settings/organization/billing/overview",
+      secret_free: true,
+    },
+  };
+  const baseAgent = {
+    prompt_version: "미연결",
+    prompt_cache_key: "미연결",
+    output_schema_name: "미연결",
+    model_policy: {
+      primary_provider: "codex_oauth",
+      primary_model: "운영 설정값",
+      fallback_provider: "local_rules",
+      fallback_model: "규칙 기반",
+      local_fallback_provider: "local_rules",
+      model_tier: "balanced",
+      reasoning_effort: "medium",
+      max_input_chars: 0,
+      max_requests_per_run: 0,
+      daily_usd_cap: "0",
+    },
+    safety_boundary: {
+      can_write_canonical: false,
+      can_trigger_order: false,
+      requires_approval_for_side_effects: true,
+      order_boundary: "read_only_no_order",
+    },
+    runtime_status: {
+      status: "unknown",
+      last_run_status: "미연결",
+      last_run_at: "",
+      latest_provider: "",
+      latest_model: "",
+      latest_error_code: "",
+    },
+  };
+
+  return {
+    contract_version: "frontend-api-v0.1",
+    generated_at: now,
+    data: {
+      status: "api_not_connected",
+      report_name: "ai-agent-registry-fallback",
+      agent_count: 3,
+      required_agent_count: 3,
+      missing_required_agents: [],
+      primary_providers: ["codex_oauth"],
+      fallback_providers: ["local_rules"],
+      local_fallback_providers: ["local_rules"],
+      blocked_order_agent_count: 3,
+      runtime_policy: {
+        model_editing_enabled: false,
+        live_request_invocation_enabled: false,
+        batch_invocation_only: true,
+        canonical_write_enabled: false,
+        broker_submit_allowed: false,
+        automatic_order_allowed: false,
+        order_boundary: "read_only_no_order",
+        primary_api_key_configured: false,
+        primary_provider_status: "미확인",
+        primary_provider_fallback_reason: "AI 운영 registry endpoint가 연결되지 않았다.",
+        openai_billing_status: "unknown",
+        openai_api_disabled: true,
+        openai_provider_health: openaiProviderHealth,
+        codex_oauth_status: "unknown",
+        codex_oauth_operator: codexOauthOperator,
+        configuration_source: "화면 기본값",
+        next_action: "FastAPI live API의 AI 에이전트 화면 연결 상태를 확인한다.",
+      },
+      agents: [
+        {
+          ...baseAgent,
+          agent_key: "news_event_analyst",
+          display_name: "뉴스 이벤트 분석 에이전트",
+          agent_role: "뉴스를 거시·테마·종목 근거로 구조화한다.",
+          owner_domain: "news",
+          business_goal: "원천 뉴스, 한국어 번역, 영향 방향, 불확실성을 투자 근거 후보로 정리한다.",
+          default_task_name: "news-rss-ai-extract-run",
+        },
+        {
+          ...baseAgent,
+          agent_key: "cycle_research_analyst",
+          display_name: "사이클 리서치 에이전트",
+          agent_role: "거시·섹터·테마·종목 사이클을 연결한다.",
+          owner_domain: "cycle",
+          business_goal: "뉴스와 시장 지표를 사이클 지도와 추천 근거 맥락으로 요약한다.",
+          default_task_name: "cycle-community-ai-summary-run",
+        },
+        {
+          ...baseAgent,
+          agent_key: "equity_research_analyst",
+          display_name: "기업 분석 에이전트",
+          agent_role: "재무·밸류에이션·리스크를 구조화한다.",
+          owner_domain: "equity_research",
+          business_goal: "기업 리서치 결과물을 만들되 추천 점수와 주문을 직접 바꾸지 않는다.",
+          default_task_name: "equity-research-reporting-run",
+        },
+      ],
+    },
+    links: {
+      data_health: "/api/data-health",
+      codex_oauth_status: "/__admin/codex-oauth/status",
     },
   };
 }

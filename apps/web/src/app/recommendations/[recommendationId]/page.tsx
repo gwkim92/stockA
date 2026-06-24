@@ -1593,7 +1593,7 @@ function RecommendationDecisionWaterfall({
   return (
     <section className={`recommendation-waterfall-panel ${qualityDecision.tone} reveal delay-1`} aria-labelledby="recommendation-waterfall-title">
       <div className="recommendation-waterfall-lead">
-        <span>현재 결론</span>
+        <span>판단 흐름</span>
         <h2 id="recommendation-waterfall-title">
           {data.symbol} · {qualityDecision.status}
         </h2>
@@ -1663,12 +1663,12 @@ function RecommendationFocusPanel({
   return (
     <section className={`recommendation-focus-panel ${qualityDecision.tone} reveal delay-1`} aria-labelledby="recommendation-focus-title">
       <div className="recommendation-focus-lead">
-        <span>현재 결론</span>
+        <span>다음 확인 순서</span>
         <h2 id="recommendation-focus-title">
           먼저 {firstItem?.title ?? "현재 결론"}부터 본다
         </h2>
         <p>
-          {data.symbol} 추천을 채택할지, 보류할지, 기록만 남길지 판단한다. 원천 근거, 전문 분석, 가상 매매 경계를 아래 카드에서 바로 확인한다.
+          {data.symbol} 추천을 채택할지, 보류할지, 기록만 남길지 판단한다. 원천 근거, 전문 분석, 가상 매매 경계를 순서대로 확인한다.
         </p>
         <div className="recommendation-focus-metrics" aria-label="추천서 핵심 상태">
           <div>
@@ -1774,7 +1774,7 @@ export default async function RecommendationPage({ params }: RecommendationPageP
 
   return (
     <div className="pageStack">
-      <section className="decision-brief reveal" aria-labelledby="recommendation-detail-title">
+      <section className="decision-brief workspace-brief recommendation-command-deck reveal" aria-labelledby="recommendation-detail-title">
         <div className="decision-brief-main">
           <span className="decision-brief-kicker">
             추천 상세 · {koCode(data.strategy_name)} · {koCode(data.horizon_type)} · {data.as_of_date}
@@ -1794,7 +1794,7 @@ export default async function RecommendationPage({ params }: RecommendationPageP
           </div>
         </div>
 
-        <div className="decision-brief-grid">
+        <div className="decision-brief-grid workspace-command-grid" aria-label="추천 상세 판단 목차">
           <Link className="decision-card primary" href="#recommendation-professional-flow">
             <span>현재 결론</span>
             <strong>{qualityDecision.status}</strong>

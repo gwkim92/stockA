@@ -2977,7 +2977,7 @@ export default async function DataHealthPage() {
   ];
   return (
     <div className="terminal-page decision-page">
-      <section className="decision-brief reveal" aria-labelledby="data-health-title">
+      <section className="decision-brief workspace-brief data-health-brief reveal" aria-labelledby="data-health-title">
         <div className="decision-brief-main">
           <span className="decision-brief-kicker">데이터·자동화 · {data.as_of_date}</span>
           <h1 className="decision-brief-title" id="data-health-title">
@@ -2994,11 +2994,17 @@ export default async function DataHealthPage() {
             <span>실거래 상태 {koCode(outcomeWaitMonitor.order_boundary)}</span>
           </div>
         </div>
-        <div className="decision-brief-grid data-health-command-grid" aria-label="데이터 상태 관제판">
-          {commandCenterCards.map((card) => (
+        <div className="decision-brief-grid workspace-command-grid data-health-command-grid" aria-label="데이터 상태 관제판">
+          {commandCenterCards.map((card, index) => (
             <a
               className={`decision-card data-health-command-card ${
-                card.tone === "risk-low" ? "is-good" : card.tone === "risk-medium" ? "is-watch" : "is-block"
+                index === 0 ? "is-priority" : ""
+              } ${
+                card.tone === "ready" || card.tone === "risk-low"
+                  ? "is-good"
+                  : card.tone === "watch" || card.tone === "risk-medium"
+                    ? "is-watch"
+                    : "is-block"
               }`}
               href={card.href}
               key={card.label}
