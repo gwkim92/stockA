@@ -9,6 +9,7 @@
 - Applied `workspace-brief` and `workspace-command-grid` to `/market-map`, `/cycle-map`, `/recommendations`, `/paper-trading`, and `/ai-evidence`.
 - The primary decision card is now visually dominant on all five target pages.
 - Replaced visible `correlation-analysis-run` wording on `/market-map` with user-facing "상관관계 분석" copy.
+- Replaced visible data-health `LLM` status wording with user-facing "AI 분석"/"AI 제공자" wording.
 - Preserved all existing links, data reads, recommendation scoring, portfolio state, and broker/order boundaries.
 
 ## Verification
@@ -23,4 +24,4 @@
 
 ## Next
 
-- exact next step: commit, push to `develop`, deploy to EC2, restart FastAPI/Next if needed, and smoke live routes on `127.0.0.1:13000`.
+- exact next step: commit the post-deploy wording cleanup, push to `develop`, deploy to EC2, restart FastAPI/Next, and smoke live routes on `127.0.0.1:13000`.

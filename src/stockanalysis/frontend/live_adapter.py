@@ -791,14 +791,14 @@ def _build_open_gate_details(
                     "category": "operational_blocker",
                     "category_label": "운영 조건",
                     "severity": "high",
-                    "status_label": "LLM 분석 실패",
+                    "status_label": "AI 분석 실패",
                     "summary": (
-                        f"최근 실제 LLM 호출 성공 {success_count}건, 실패 {failed_count}건."
+                        f"최근 실제 AI 분석 호출 성공 {success_count}건, 실패 {failed_count}건."
                         + (f" 최신 실패 작업은 {latest_failed_task}." if latest_failed_task else "")
                     ),
                     "next_action": str(
                         live_ai_invocation_health.get("next_action")
-                        or "EC2 LLM provider 인증/결제/토큰 상태를 확인한 뒤 번역/뉴스 AI smoke를 다시 실행한다."
+                        or "EC2 AI 제공자 인증/결제/토큰 상태를 확인한 뒤 번역/뉴스 AI smoke를 다시 실행한다."
                     ),
                     "order_boundary": "read_only_no_order",
                     "automatic_action_allowed": False,
@@ -6929,11 +6929,11 @@ select json_build_object(
                 ),
             'next_action',
                 case
-                    when summary.recent_invocation_count = 0 then '최근 실제 LLM 호출 증거가 없다. 뉴스 AI 배치가 실제로 호출됐는지 확인한다.'
-                    when summary.critical_latest_unhealthy_count > 0 then 'EC2 LLM provider 인증/결제/토큰 상태를 확인한 뒤 뉴스 번역과 뉴스 AI 구조화 smoke를 즉시 다시 실행한다.'
+                    when summary.recent_invocation_count = 0 then '최근 실제 AI 분석 호출 증거가 없다. 뉴스 AI 배치가 실제로 호출됐는지 확인한다.'
+                    when summary.critical_latest_unhealthy_count > 0 then 'EC2 AI 제공자 인증/결제/토큰 상태를 확인한 뒤 뉴스 번역과 뉴스 AI 구조화 smoke를 즉시 다시 실행한다.'
                     when summary.latest_unhealthy_count > 0 then '일부 AI 작업의 최신 실행이 실패했다. 실패 task의 인증/토큰/CLI 오류를 확인한다.'
                     when summary.recent_failed_count > 0 then '과거 실패 이력은 남아 있지만 monitored AI 작업의 최신 실행은 성공했다. 다음 자동 주기에서도 성공이 유지되는지 관찰한다.'
-                    else '최근 실제 LLM 호출이 성공했다. 다음 뉴스 주기에서도 계속 감시한다.'
+                    else '최근 실제 AI 분석 호출이 성공했다. 다음 뉴스 주기에서도 계속 감시한다.'
                 end
         )
         from live_ai_invocation_summary summary
@@ -17479,15 +17479,15 @@ def _build_live_ai_invocation_health_payload(payload: dict[str, Any]) -> dict[st
     if not attention_required and (latest_unhealthy_count > 0 or critical_latest_unhealthy_count > 0):
         attention_required = True
     if status == "healthy":
-        next_action = "최근 실제 LLM 호출이 성공했다. 다음 뉴스 주기에서도 계속 감시한다."
+        next_action = "최근 실제 AI 분석 호출이 성공했다. 다음 뉴스 주기에서도 계속 감시한다."
     elif status == "critical_ai_failed":
-        next_action = "EC2 LLM provider 인증/결제/토큰 상태를 확인한 뒤 뉴스 번역과 뉴스 AI 구조화 smoke를 즉시 다시 실행한다."
+        next_action = "EC2 AI 제공자 인증/결제/토큰 상태를 확인한 뒤 뉴스 번역과 뉴스 AI 구조화 smoke를 즉시 다시 실행한다."
     elif status == "degraded":
         next_action = "일부 AI 작업의 최신 실행이 실패했다. 실패 task의 인증/토큰/CLI 오류를 확인한다."
     elif status == "recovered_with_recent_failures":
         next_action = "과거 실패 이력은 남아 있지만 monitored AI 작업의 최신 실행은 성공했다. 다음 자동 주기에서도 성공이 유지되는지 관찰한다."
     else:
-        next_action = "최근 실제 LLM 호출 증거가 없다. 뉴스 AI 배치가 실제로 호출됐는지 확인한다."
+        next_action = "최근 실제 AI 분석 호출 증거가 없다. 뉴스 AI 배치가 실제로 호출됐는지 확인한다."
     return {
         "status": status,
         "attention_required": attention_required,
