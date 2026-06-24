@@ -2,9 +2,9 @@
 
 ## Status
 
-- status: implemented_locally.
-- current status: local implementation and verification complete. EC2 deployment smoke is still pending until the changes are committed, pushed to `develop`, pulled on EC2, and route-smoked.
-- completed: local implementation, focused Python tests, Toss market data tests, frontend typecheck, frontend build, and AWH task document requirements.
+- status: implemented_and_ec2_smoked.
+- current status: local implementation, GitHub push, EC2 fast-forward deploy, production build, service restart, API smoke, route smoke, and local tunnel smoke are complete.
+- completed: local implementation, focused Python tests, Toss market data tests, frontend typecheck, frontend build, AWH task document requirements, commit `889d4846`, GitHub push, and EC2 deploy.
 
 ## Implemented
 
@@ -26,13 +26,18 @@
 - `PYTHONPATH=src python3 -m unittest tests.test_tossinvest_market_data tests.test_frontend_live_adapter`
 - `cd apps/web && npm run typecheck`
 - `cd apps/web && npm run build`
+- EC2 `npm --prefix apps/web run build`
+- EC2 `sudo systemctl restart stockanalysis-web.service stockanalysis-frontend-api.service`
+- EC2 `/api/stocks/AAPL` confirms `analysis_price_source.role=analysis_reference`, `broker_price_source.role=broker_reference`, `broker_price_source.used_for_scoring=false`, and Toss provisional reason label is Korean.
+- EC2 route smoke: `/`, `/stocks/AAPL`, `/paper-trading`, `/data-health` all HTTP 200 and render `분석 기준 가격`, `토스증권 브로커 데이터`, `추천 점수 미반영`, `증권사 주문 제출 차단`.
+- Local tunnel smoke: `http://127.0.0.1:13000/` HTTP 200.
 
 ## Remaining
 
 - Toss broker component를 recommendation score component table에 zero-weight로 저장하는 작업은 별도 scoring task로 남긴다. 이번 작업은 화면/API 의미 정리와 read-only broker reality visibility에 한정했다.
 - Toss 계좌 주문 이력과 체결 상세를 더 깊게 보여주는 전용 브로커 현실 상세 화면은 후속 UX 작업으로 분리한다.
-- EC2 배포 후 route smoke에서 `/stocks/AAPL`, `/paper-trading`, `/data-health` 문구를 확인해야 한다.
+- EC2 배포와 route smoke는 완료됐다.
 
 ## Next Step
 
-- exact next step: commit and push this task to `develop`, then deploy to EC2 with `git pull --ff-only origin develop`, restart FastAPI/Next, and smoke `/api/stocks/AAPL`, `/stocks/AAPL`, `/paper-trading`, `/data-health`.
+- exact next step: add zero-weight broker execution readiness components without changing total recommendation score or cycle score, then expose those components on recommendation detail and paper-trading.
