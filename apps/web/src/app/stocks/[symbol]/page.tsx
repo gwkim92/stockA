@@ -281,6 +281,11 @@ function userFacingStockText(value: string | null | undefined) {
     .replace(/\bvia\b/gi, "기준")
     .replace(/상세 검토 가능/g, "상세 근거 확인")
     .replace(/검토 가능/g, "근거 확인")
+    .replace(/수집 상태와 원천 문서 연결 상태를 확인한다\./g, "수집 상태와 원천 문서 연결 상태를 본다.")
+    .replace(/추천이나 보유 판단 입력으로 쓰기 전에 원문과 번역 상태를 먼저 확인해야 한다\./g, "추천이나 보유 판단 입력으로 쓰기 전에 원문과 번역 상태를 먼저 봐야 한다.")
+    .replace(/확인 필요/g, "보강 필요")
+    .replace(/확인한다/g, "본다")
+    .replace(/확인해야/g, "봐야")
     .replaceAll(`추천 ${reviewWord}`, "추천 근거")
     .replaceAll(`보유 ${reviewWord}`, "보유 상태")
     .replace(/분할 매수 후보 후보/g, "분할 매수 후보");
@@ -316,7 +321,7 @@ function stockDecisionOutcome(
       tone: "ready",
       label: "추천·보유 연결",
       title: `${data.symbol} 상태: 추천과 보유 모두 연결`,
-      body: "추천 이유, 현재 보유 비중, 투자 논리, 가상 매매 검증 상태가 서로 맞는지 확인한다.",
+      body: "추천 이유, 현재 보유 비중, 투자 논리, 가상 매매 검증 상태가 서로 맞는지 본다.",
     };
   }
   if (data.recommendation) {
@@ -324,15 +329,15 @@ function stockDecisionOutcome(
       tone: "ready",
       label: "추천 근거 있음",
       title: `${data.symbol} 상태: 추천 근거 있음`,
-      body: "추천 상세에서 점수 구성, 기업 분석, 뉴스·사이클 근거, 실거래 차단 상태를 함께 확인한다.",
+      body: "추천 상세에서 점수 구성, 기업 분석, 뉴스·사이클 근거, 실거래 차단 상태를 함께 본다.",
     };
   }
   if (data.position) {
     return {
       tone: "watch",
-      label: "보유 상태 확인",
+      label: "보유 상태",
       title: `${data.symbol} 상태: 보유 중, 최신 추천 없음`,
-      body: "보유 이유와 최근 뉴스·상위 흐름이 유지 조건을 깨지 않는지 먼저 확인한다.",
+      body: "보유 이유와 최근 뉴스·상위 흐름이 유지 조건을 깨지 않는지 먼저 본다.",
     };
   }
   if (!hasPriceData) {
@@ -347,7 +352,7 @@ function stockDecisionOutcome(
     tone: "neutral",
     label: "관찰 종목",
     title: `${data.symbol} 상태: 관찰 단계`,
-    body: "가격 데이터는 있으나 추천·보유 연결은 아직 없다. 뉴스와 사이클 근거가 쌓이는지 확인한다.",
+    body: "가격 데이터는 있으나 추천·보유 연결은 아직 없다. 뉴스와 사이클 근거가 쌓이는지 본다.",
   };
 }
 
@@ -388,7 +393,7 @@ function FinancialStatementModelPanel({
         <p style={{ color: "var(--text-secondary)", marginBottom: 0 }}>
           {sourceBlocker
             ? userFacingStockText(model.summary)
-          : "SEC 공시 재무 데이터 수집과 재무 정규화가 완료되면 매출 성장, 마진, 현금흐름, 부채, 이익 품질을 이곳에서 확인한다. 이 데이터가 없으면 뉴스나 사이클만으로 장기 투자 판단을 확정하지 않는다."}
+          : "SEC 공시 재무 데이터 수집과 재무 정규화가 완료되면 매출 성장, 마진, 현금흐름, 부채, 이익 품질을 이곳에서 본다. 이 데이터가 없으면 뉴스나 사이클만으로 장기 투자 판단을 확정하지 않는다."}
         </p>
         {sourceBlocker ? (
           <div className="status-rail compact-rail" aria-label="재무 원천 차단 사유" style={{ marginTop: "18px" }}>
@@ -663,7 +668,7 @@ function IndustryCompetitivePositionPanel({
       </div>
       <p style={{ color: "var(--text-secondary)", marginTop: 0 }}>
         {competitivePositionSummary(position, symbol)} 이 값은 유료 시장점유율 데이터가 아니라 저장된 재무 지표와
-        동종업계 비교로 만든 추정 지표이며, 최종 추천 판단은 별도 화면에서 확인한다.
+        동종업계 비교로 만든 추정 지표이며, 최종 추천 판단은 별도 화면에서 본다.
       </p>
 
       <div className="status-rail compact-rail" aria-label="산업 경쟁 위치 요약">
@@ -777,10 +782,10 @@ function cleanFlowText(
 ) {
   const { themeKey, symbol, impactDirection } = options;
   if (!value) {
-    return `${koCode(themeKey)} 흐름이 ${koCode(symbol)}에 ${koCode(impactDirection)} 방향으로 전파됐다. 노출도와 신뢰도는 위 수치를 기준으로 확인한다.`;
+    return `${koCode(themeKey)} 흐름이 ${koCode(symbol)}에 ${koCode(impactDirection)} 방향으로 전파됐다. 노출도와 신뢰도는 위 수치를 기준으로 본다.`;
   }
   if (/flow propagated to/i.test(value) || /directly exposed/i.test(value)) {
-    return `${koCode(themeKey)} 흐름이 ${koCode(symbol)}에 ${koCode(impactDirection)} 방향으로 전파됐다. 자세한 근거는 상세 버튼에서 확인한다.`;
+    return `${koCode(themeKey)} 흐름이 ${koCode(symbol)}에 ${koCode(impactDirection)} 방향으로 전파됐다. 자세한 근거는 상세 버튼에서 본다.`;
   }
   const interpretation = value.match(/해석:\s*(.*?)(?:\s*근거:|;\s*노출 근거:|$)/)?.[1]?.trim();
   const evidence = value.match(/근거:\s*(.*?)(?:;\s*노출 근거:|$)/)?.[1]?.trim();
@@ -872,7 +877,7 @@ function stockProfessionalAuditStatus({
     return {
       tone: "risk-medium",
       title: "근거 보강 필요",
-      summary: "중장기 판단에 필요한 전문 근거가 일부 빠져 있다. 추천이나 보유 판단 전에 빠진 레이어를 먼저 확인한다.",
+      summary: "중장기 판단에 필요한 전문 근거가 일부 빠져 있다. 추천이나 보유 판단 전에 빠진 레이어가 먼저다.",
     };
   }
   if (pendingCount > 0) {
@@ -912,7 +917,7 @@ function buildStockProfessionalLayers({
       label: "사업 리서치",
       status: data.equity_research ? "complete" : "missing",
       detail: data.equity_research
-        ? `기업 리서치가 ${data.equity_research.as_of_date} 기준으로 저장됐다. 사업 설명, 촉매, 리스크, 무효화 조건을 아래에서 확인한다.`
+        ? `기업 리서치가 ${data.equity_research.as_of_date} 기준으로 저장됐다. 사업 설명, 촉매, 리스크, 무효화 조건을 아래에서 본다.`
         : "사업 설명, 촉매, 리스크, 무효화 조건을 요약한 기업 리서치가 아직 없다.",
       source: "research.equity_research_artifact",
       href: "#stock-equity-research",
@@ -1085,9 +1090,9 @@ function StockProfessionalEvidenceAuditPanel({
         <span className={`risk-tag ${auditStatus.tone}`}>{auditStatus.title}</span>
       </div>
       <p style={{ color: "var(--text-secondary)", marginTop: 0, maxWidth: "920px" }}>
-        {auditStatus.summary} 이 감사는 저장된 근거가 있는지 확인하는 읽기 전용 점검이며 추천 점수, 포지션, 주문을 바꾸지 않는다.
+        {auditStatus.summary} 이 감사는 저장된 근거가 실제로 남아 있는지 보는 읽기 전용 점검이며 추천 점수, 포지션, 주문을 바꾸지 않는다.
       </p>
-      <div className="status-rail compact-rail" aria-label="종목 전문 근거 감사 요약">
+      <div className="status-rail compact-rail decision-boundary-rail" aria-label="종목 전문 근거 감사 요약">
         <div className="rail-cell">
           <span>근거 커버리지</span>
           <strong>{formatPercent(coverageRatio)}</strong>
@@ -1109,7 +1114,7 @@ function StockProfessionalEvidenceAuditPanel({
         </div>
         <div className="rail-cell rail-critical">
           <span>실거래 상태</span>
-          <strong>{koCode(data.professional_source_guardrail.order_boundary)}</strong>
+          <strong className="rail-status-value">{koCode(data.professional_source_guardrail.order_boundary)}</strong>
           <small>증권사 주문 {data.professional_source_guardrail.broker_submit_allowed ? "허용" : "차단"}</small>
         </div>
       </div>
@@ -1146,6 +1151,9 @@ function ProfessionalSourceGuardrailPanel({
   guardrail: ProfessionalSourceGuardrail;
   symbol: string;
 }) {
+  const brokerSubmitLabel = guardrail.broker_submit_allowed ? "실거래 가능" : "읽기 전용";
+  const brokerSubmitDetail = guardrail.broker_submit_allowed ? "증권사 주문 전송 허용" : "증권사 주문 전송 금지";
+
   return (
     <section className="bento-card span-4 reveal delay-2" aria-label="투자 판단 사용 가능 여부">
       <div className="section-heading">
@@ -1161,7 +1169,7 @@ function ProfessionalSourceGuardrailPanel({
         {userFacingStockText(guardrail.summary)} 추천 점수나 보유 비중을 바꾸지 않고, 투자 판단·가상 매매 검증·실거래 가능 여부를
         분리해서 보여준다.
       </p>
-      <div className="status-rail compact-rail" aria-label="투자 판단 사용 가능 여부 요약">
+      <div className="status-rail compact-rail decision-boundary-rail" aria-label="투자 판단 사용 가능 여부 요약">
         <div className="rail-cell">
           <span>투자 판단 입력</span>
           <strong>{guardrail.professional_decision_use_allowed ? "가능" : "차단"}</strong>
@@ -1179,8 +1187,8 @@ function ProfessionalSourceGuardrailPanel({
         </div>
         <div className="rail-cell rail-critical">
           <span>실거래 상태</span>
-          <strong>{koCode(guardrail.order_boundary)}</strong>
-          <small>증권사 주문 전송 {guardrail.broker_submit_allowed ? "허용" : "금지"}</small>
+          <strong className="rail-status-value">{brokerSubmitLabel}</strong>
+          <small>{brokerSubmitDetail} · {koCode(guardrail.order_boundary)}</small>
         </div>
       </div>
       <div className="empty-state" style={{ marginTop: "18px" }}>
@@ -1214,7 +1222,7 @@ function EvidenceNeighborhoodPanel({ neighborhood }: { neighborhood: AiEvidenceN
   const readinessCopy =
     ragContext.status === "ready"
       ? "뉴스, 번역, 원문 근거, 기존 추천·투자 논리가 함께 조회된다. 저장된 근거만 보여준다."
-      : "연결된 자료가 부족하다. 이 상태에서는 추천이나 보유 판단 입력으로 쓰기 전에 원문과 번역 상태를 먼저 확인해야 한다.";
+      : "연결된 자료가 부족하다. 이 상태에서는 추천이나 보유 판단 입력으로 쓰기 전에 원문과 번역 상태를 먼저 봐야 한다.";
 
   return (
     <section className="stock-evidence-panel reveal delay-4" aria-label="이 종목이 뉴스와 엮인 이유">
@@ -1268,7 +1276,7 @@ function EvidenceNeighborhoodPanel({ neighborhood }: { neighborhood: AiEvidenceN
         <div className="stock-evidence-gate-grid">
           {ragContext.quality_gates.map((gate) => (
             <article className="stock-evidence-gate-card" data-status={gate.status} key={gate.gate}>
-              <span>{gate.status === "passed" ? "통과" : gate.status === "watch" ? "관찰" : "확인 필요"}</span>
+              <span>{gate.status === "passed" ? "통과" : gate.status === "watch" ? "관찰" : "보강 필요"}</span>
               <strong>{userFacingStockText(koCode(gate.gate))}</strong>
               <p>{userFacingStockText(gate.message_ko)}</p>
             </article>
@@ -1329,7 +1337,7 @@ function EvidenceNeighborhoodPanel({ neighborhood }: { neighborhood: AiEvidenceN
             <span>뉴스 묶음 이유</span>
             <h3>같은 이슈로 묶인 뉴스와 그 근거</h3>
           </div>
-          <p>제목만 보지 않고, 테마·종목·원문 근거·묶음 신뢰도를 함께 확인한다.</p>
+          <p>제목만 보지 않고, 테마·종목·원문 근거·묶음 신뢰도를 함께 본다.</p>
         </div>
         <div className="stock-story-card-grid">
           {storyGroups.slice(0, 4).map((group) => {
@@ -1392,7 +1400,7 @@ function EvidenceNeighborhoodPanel({ neighborhood }: { neighborhood: AiEvidenceN
             <span>원천 대조</span>
             <h3>투자 근거가 참조한 원문</h3>
           </div>
-          <p>본문 추출 여부와 출처를 먼저 보여준다. 영어 원문은 필요할 때만 열어 확인한다.</p>
+          <p>본문 추출 여부와 출처를 먼저 보여준다. 영어 원문은 필요할 때만 연다.</p>
         </div>
         <div className="stock-source-card-grid">
           {neighborhood.evidence_chunks.slice(0, 4).map((chunk) => {
@@ -1561,7 +1569,7 @@ export default async function StockDetailPage({ params }: StockDetailPageProps) 
       status: linkedThesisId ? "투자 논리 연결" : "투자 논리 없음",
       tone: linkedThesisId ? "ready" : "blocked",
       body: linkedThesisId
-        ? "왜 사는지, 무엇이 맞아야 하는지, 무엇이 틀리면 나가는지를 투자 논리 화면에서 확인한다."
+        ? "왜 사는지, 무엇이 맞아야 하는지, 무엇이 틀리면 나가는지를 투자 논리 화면에서 본다."
         : "중장기 투자 시스템에서는 투자 논리 없이 추천이나 보유 판단을 신뢰하면 안 된다.",
       href: linkedThesisId ? thesisHref(linkedThesisId) : undefined,
       hrefLabel: linkedThesisId ? "투자 논리 열기" : undefined,
@@ -1574,7 +1582,7 @@ export default async function StockDetailPage({ params }: StockDetailPageProps) 
       tone: sourceBlocked ? "blocked" : "neutral",
       body: sourceBlocked
         ? `${userFacingStockText(sourceGuardrail.next_action)} 실제 증권사 주문 전송은 계속 닫혀 있다.`
-        : "실제 증권사 주문 전송은 닫혀 있다. 추천이 생겨도 가상 매매 검증과 리스크 상태를 먼저 확인해야 한다.",
+        : "실제 증권사 주문 전송은 닫혀 있다. 추천이 생겨도 가상 매매 검증과 리스크 상태가 먼저다.",
       href: "/paper-trading" as Route,
       hrefLabel: "가상 매매 상태 보기",
     },
@@ -1629,7 +1637,7 @@ export default async function StockDetailPage({ params }: StockDetailPageProps) 
           <Link className={linkedThesisId ? "decision-card is-good" : "decision-card is-block"} href={linkedThesisId ? thesisHref(linkedThesisId) : "/portfolio/coverage"}>
             <span>투자 논리</span>
             <strong>{linkedThesisId ? "연결됨" : "없음"}</strong>
-            <small>{linkedThesisId ? "매수 이유, 유지 조건, 무효화 조건을 확인한다." : "중장기 판단 전 투자 논리 연결이 필요하다."}</small>
+	            <small>{linkedThesisId ? "매수 이유, 유지 조건, 무효화 조건을 본다." : "중장기 판단 전 투자 논리 연결이 필요하다."}</small>
             <b>{linkedThesisId ? "논리 보기" : "보유 점검"}</b>
           </Link>
         </div>
@@ -1645,7 +1653,7 @@ export default async function StockDetailPage({ params }: StockDetailPageProps) 
       <ProfessionalResearchFlow
         eyebrow="전문 리서치 읽는 순서"
         title={`${data.symbol} 분석은 종목 하나로 끝나지 않는다`}
-        summary="중장기 투자 판단은 뉴스 하나로 끝나지 않는다. 사업, 재무, 비교군, 밸류에이션, 사이클, 투자 논리, 가상 매매 검증을 같은 순서로 확인한다."
+        summary="중장기 투자 판단은 뉴스 하나로 끝나지 않는다. 사업, 재무, 비교군, 밸류에이션, 사이클, 투자 논리, 가상 매매 검증을 같은 순서로 본다."
         footer="저장된 데이터만 읽는다. 새 분석이나 주문 생성은 없다."
         steps={professionalResearchSteps}
       />
@@ -1664,7 +1672,7 @@ export default async function StockDetailPage({ params }: StockDetailPageProps) 
           </div>
           <p style={{ color: "var(--text-secondary)", marginBottom: 0 }}>
             {data.symbol}은 현재 뉴스·테마 흐름에는 연결되어 있지만, 이 서버의 가격 캔들 수집 대상에는 아직 충분히
-            포함되지 않았다. 따라서 가격 차트와 수익률은 판단하지 않고, 아래 상위 흐름/원천 뉴스만 확인한다.
+            포함되지 않았다. 따라서 가격 차트와 수익률은 판단하지 않고, 아래 상위 흐름/원천 뉴스만 본다.
           </p>
         </section>
       ) : null}
@@ -1674,7 +1682,7 @@ export default async function StockDetailPage({ params }: StockDetailPageProps) 
           <div className="section-heading">
             <div>
               <span className="metric-sub">1. 가격 데이터</span>
-              <h2>가격 흐름은 데이터 출처와 추세를 먼저 확인한다</h2>
+              <h2>가격 흐름은 데이터 출처와 추세가 먼저다</h2>
             </div>
             <Link className="btn btn-secondary" href="/data-health">
               수집 상태 보기
@@ -1910,7 +1918,7 @@ export default async function StockDetailPage({ params }: StockDetailPageProps) 
             ) : null}
             <p style={{ color: "var(--text-muted)", marginBottom: 0 }}>
               이 리포트는 저장된 읽기 전용 분석이다. 추천 점수와 주문은 직접 변경하지 않으며,
-              추천 상세의 재무·밸류에이션 근거와 성과 평가가 별도로 확인한다.
+              추천 상세의 재무·밸류에이션 근거와 성과 평가는 별도로 본다.
             </p>
           </>
         ) : (

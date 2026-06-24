@@ -46,7 +46,7 @@ function interpretationParts(props: NewsTitleBlockProps) {
   }
   const impactScore = formatPercent(props.impactScore);
   if (impactScore) {
-    parts.push(`영향도 ${impactScore}`);
+    parts.push(`영향 ${impactScore}`);
   }
   return parts;
 }
@@ -72,9 +72,9 @@ function koreanDigest(props: NewsTitleBlockProps, rawTitle: string, summary: str
     : isKnownCode(props.themeKey)
       ? `${koCode(props.themeKey as string)} 흐름 뉴스`
       : "시장 뉴스";
-  const direction = props.impactDirection ? `${koCode(props.impactDirection)} 신호` : "방향 확인 필요";
+  const direction = props.impactDirection ? `${koCode(props.impactDirection)} 신호` : "방향 미분류";
   const impactScore = formatPercent(props.impactScore);
-  return impactScore ? `${target} · ${direction} · 영향도 ${impactScore}` : `${target} · ${direction}`;
+  return impactScore ? `${target} · ${direction} · 영향 ${impactScore}` : `${target} · ${direction}`;
 }
 
 export function NewsTitleBlock(props: NewsTitleBlockProps) {
@@ -89,10 +89,10 @@ export function NewsTitleBlock(props: NewsTitleBlockProps) {
 
   return (
     <div className={props.compact ? "news-title-block news-title-block-compact" : "news-title-block"}>
-      <span>{hasStoredTranslation ? "한국어 번역" : englishOriginal || hasSummary ? "한국어 확인" : "제목"}</span>
+      <span>{hasStoredTranslation ? "한국어 요약" : englishOriginal || hasSummary ? "AI 요약" : "뉴스 제목"}</span>
       <strong>{digest}</strong>
       {hasStoredTranslation && confidence ? <small>번역 신뢰도 {confidence}</small> : null}
-      {parts.length > 0 ? <small>화면 해석: {parts.join(" · ")}</small> : null}
+      {parts.length > 0 ? <small>투자 해석: {parts.join(" · ")}</small> : null}
       {englishOriginal ? (
         <details className="news-original-title">
           <summary>영어 원문 제목 보기</summary>

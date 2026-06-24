@@ -76,7 +76,7 @@ export default async function StructuredResultsPage() {
       index: "02",
       label: "한국어 번역",
       value: `후보 ${formatCoverage(translatedCandidateCount, acceptedCandidates.length)}`,
-      body: "영어 원문만 보지 않도록 한국어 제목·요약이 있는 항목을 우선 확인한다.",
+      body: "영어 원문만 보지 않도록 한국어 제목·요약이 있는 항목을 우선 보여준다.",
       tone: translatedCandidateCount > 0 ? "ready" : "watch",
     },
     {
@@ -92,7 +92,7 @@ export default async function StructuredResultsPage() {
       index: "04",
       label: "품질 기준",
       value: "통과 항목",
-      body: "추천 입력으로 넘길 수 있는 후보만 모았다. 제외·보류 항목은 차단 항목에서 따로 확인한다.",
+      body: "추천 입력으로 넘길 수 있는 후보만 모았다. 제외·보류 항목은 차단 항목으로 분리한다.",
       tone: "ready",
       href: "/ai-evidence/blocked",
       cta: "차단 항목 보기",
@@ -186,7 +186,7 @@ export default async function StructuredResultsPage() {
       <EvidencePathWorkbench
         eyebrow="통과 근거 검토"
         title="통과한 뉴스도 바로 추천이나 주문이 아니다"
-        summary="먼저 원천과 한국어 요약을 보고, 종목 뉴스와 상위 흐름 뉴스가 올바르게 나뉘었는지 확인한다. 그 다음 추천 상세에서 다른 근거와 합쳐졌는지 본다."
+        summary="먼저 원천과 한국어 요약을 보고, 종목 뉴스와 상위 흐름 뉴스가 올바르게 나뉘었는지 본다. 그 다음 추천 상세에서 다른 근거와 합쳐졌는지 본다."
         verdict={`현재 통과 후보 ${acceptedCandidates.length.toLocaleString("ko-KR")}개 · 주문 경계는 계속 읽기 전용이다.`}
         verdictTone={acceptedCandidates.length > 0 ? "ready" : "watch"}
         steps={pathSteps}
@@ -199,7 +199,7 @@ export default async function StructuredResultsPage() {
             <h2 className="ledger-section-title" id="structured-direct-title">종목에 바로 붙은 통과 근거</h2>
           </div>
           <p className="ledger-section-note">
-            품질 기준을 통과했더라도 상세 화면에서 원천 뉴스와 불확실성을 함께 확인한다.
+            품질 기준을 통과했더라도 상세 화면에서 원천 뉴스와 불확실성을 함께 본다.
           </p>
         </div>
         <div className="news-row-list">
@@ -241,7 +241,7 @@ export default async function StructuredResultsPage() {
             <h2 className="ledger-section-title" id="structured-cluster-title">같은 이야기로 묶인 뉴스 흐름</h2>
           </div>
           <p className="ledger-section-note">
-            묶인 이유와 연결 대상이 맞는지 확인한다. 잘못 묶인 뉴스는 추천 근거 신뢰도를 떨어뜨린다.
+            묶인 이유와 연결 대상이 맞는지 본다. 잘못 묶인 뉴스는 추천 근거 신뢰도를 떨어뜨린다.
           </p>
         </div>
         <div className="classification-grid">
@@ -304,7 +304,7 @@ export default async function StructuredResultsPage() {
                     <div className="relationship-chip">
                       <span>다음 확인</span>
                       <strong>묶음 상세</strong>
-                      <small>대표 뉴스, 원천 문서, AI 해석을 한국어로 확인한다.</small>
+                      <small>대표 뉴스, 원천 문서, AI 해석을 한국어로 본다.</small>
                     </div>
                   </div>
                 </div>

@@ -57,9 +57,9 @@ export function newsQualityLabel(event: NewsEventRow) {
     return "저신호 보류";
   }
   if (event.ai_evidence_id) {
-    return "투자 근거 연결";
+    return "추천 근거 후보";
   }
-  return "근거 정리 전";
+  return "분석 전";
 }
 
 function hasStoredKoreanTranslation(event: NewsEventRow) {
@@ -98,22 +98,22 @@ export function NewsEventCard({ event, mode, compact = false }: NewsEventCardPro
   const pathSteps = [
     {
       label: "원천",
-      value: documentLink ? "문서 있음" : "문서 없음",
+      value: documentLink ? "원문 확보" : "원문 대기",
       tone: documentLink ? "ready" : "watch",
     },
     {
       label: "번역",
-      value: translationReady ? "한국어 있음" : "화면 추론",
+      value: translationReady ? "한국어 저장" : "자동 요약",
       tone: translationReady ? "ready" : "watch",
     },
     {
-      label: "근거",
-      value: aiBlocked ? "차단/보류" : aiReady ? "정리됨" : "대기",
+      label: "판정",
+      value: aiBlocked ? "입력 제외" : aiReady ? "근거 후보" : "분석 전",
       tone: aiBlocked ? "block" : aiReady ? "ready" : "watch",
     },
     {
       label: "연결",
-      value: classifiedSymbol ? `종목 ${koCode(event.symbol)}` : themeLink ? koCode(event.theme_key) : "대기",
+      value: classifiedSymbol ? koCode(event.symbol) : themeLink ? koCode(event.theme_key) : "상위 흐름",
       tone: hasConnection ? "ready" : "watch",
     },
   ] as const;
@@ -144,9 +144,9 @@ export function NewsEventCard({ event, mode, compact = false }: NewsEventCardPro
           ))}
         </ol>
         <div className="tag-strip" aria-label={`${event.title} 해석 태그`}>
-          <span>{classifiedSymbol ? `직접 종목 ${koCode(event.symbol)}` : "시장/테마 뉴스"}</span>
-          <span>테마 {koCode(event.theme_key)}</span>
-          <span>방향 {koCode(event.impact_direction)}</span>
+          <span>{classifiedSymbol ? `종목 ${koCode(event.symbol)}` : "상위 흐름 뉴스"}</span>
+          <span>{koCode(event.theme_key)}</span>
+          <span>{koCode(event.impact_direction)}</span>
           <span>영향도 {formatNewsPercent(event.impact_score)}</span>
           <span>{newsQualityLabel(event)}</span>
         </div>

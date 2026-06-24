@@ -45,12 +45,12 @@ const USER_FACING_CODES: Record<string, string> = {
   has_contradictions: "반박 근거 있음",
   hold_with_thesis: "투자 논리 유지",
   needs_more_data: "추가 성과 필요",
-  needs_position_review: "비중 확인 필요",
+  needs_position_review: "비중 점검 필요",
   needs_thesis_update: "투자 논리 보강",
   no_op_wait_for_outcome_window: "성과 관찰 기간 대기",
   reduce_review: "축소 필요성 확인",
   reduce_watch: "축소 관찰",
-  review_required: "확인 필요",
+  review_required: "점검 필요",
   run_calibration_now: "누적평가 실행 필요",
   run_feedback_now: "사후평가 실행 필요",
   too_early: "관찰 기간 부족",
@@ -100,7 +100,12 @@ function userFacingText(value: string | number | boolean | null | undefined) {
   for (const [from, to] of USER_FACING_REPLACEMENTS) {
     text = text.replaceAll(from, to);
   }
-  return text;
+  return text
+    .replace(/성과 측정 주기와 실행 라우터 연결 상태를 확인한다\./g, "성과 측정 주기와 실행 라우터 연결 상태를 본다.")
+    .replace(/확인 대상/g, "검토 후보")
+    .replace(/확인 필요/g, "점검 필요")
+    .replace(/확인한다/g, "본다")
+    .replace(/확인해야/g, "봐야");
 }
 
 function recordPresent(value: string | null | undefined) {
@@ -122,7 +127,7 @@ function riskBudgetLabel(status: string) {
     return "한도 내";
   }
   if (status === "needs_position_review") {
-    return "비중 확인 필요";
+    return "비중 점검 필요";
   }
   if (status === "missing_position_snapshot") {
     return "스냅샷 없음";
@@ -161,7 +166,7 @@ function concentrationStatusLabel(status: string) {
     return "집중도 한도 내";
   }
   if (status === "needs_concentration_review") {
-    return "집중도 확인 필요";
+    return "집중도 점검 필요";
   }
   if (status === "classification_gap") {
     return "분류 보강 필요";
@@ -366,8 +371,8 @@ export default async function PortfolioCoveragePage() {
       title: hasPositions ? `${data.summary.position_count}개 보유` : "보유 스냅샷 없음",
       metric: `투자 논리 연결률 ${formatPercent(thesisCoverageRatio)} · 성과 측정 ${formatPercent(outcomeCoverageRatio)}`,
       body: hasPositions
-        ? "보유 종목마다 투자 논리와 성과 측정 상태가 연결됐는지 확인한다. 논리 누락 종목은 보유 근거가 약하다."
-        : "이 기준일에는 포지션 스냅샷이 없어 보유 상태를 만들 수 없다. 포지션 수집 상태를 확인해야 한다.",
+        ? "보유 종목마다 투자 논리와 성과 측정 상태가 연결됐는지 본다. 논리 누락 종목은 보유 근거가 약하다."
+        : "이 기준일에는 포지션 스냅샷이 없어 보유 상태를 만들 수 없다. 포지션 수집 상태를 봐야 한다.",
       href: "#portfolio-position-map",
       cta: "보유 지도 보기",
       tone: thesisReady ? "ready" : "watch",
@@ -378,22 +383,22 @@ export default async function PortfolioCoveragePage() {
       title: riskBudgetLabel(riskBudget.status),
       metric: `한도 초과 ${riskBudget.over_single_position_limit_count}개 · 집중 초과 ${concentration.over_limit_count}개`,
       body: riskBudget.status === "needs_position_review" || concentration.over_limit_count > 0
-        ? "단일 종목, 섹터, 테마 노출이 정책 한도와 충돌하는지 확인한다."
-        : "현재 정책 기준으로 큰 한도 초과는 없다. 그래도 비중과 집중도는 아래 카드에서 계속 확인한다.",
+        ? "단일 종목, 섹터, 테마 노출이 정책 한도와 충돌하는지 본다."
+        : "현재 정책 기준으로 큰 한도 초과는 없다. 그래도 비중과 집중도는 아래 카드에서 계속 본다.",
       href: "#portfolio-risk-budget",
       cta: "리스크 보기",
       tone: riskBudget.status === "needs_position_review" || concentration.over_limit_count > 0 ? "watch" : "ready",
     },
     {
       index: "03",
-      label: "리밸런싱 확인 대상",
-      title: reviewCandidateTotal > 0 ? `${reviewCandidateTotal}개 확인 대상` : "즉시 대상 없음",
+      label: "리밸런싱 검토 후보",
+      title: reviewCandidateTotal > 0 ? `${reviewCandidateTotal}개 검토 후보` : "즉시 대상 없음",
       metric: `벤치마크 ${candidateReview.candidate_count}개 · 포지션 ${positionSizingReview.review_required_count}개`,
       body: reviewCandidateTotal > 0
-        ? "SPY 대비 괴리나 포지션 크기 문제를 확인한다. 상세 근거부터 열어본다."
-        : "현재 기준으로 리밸런싱 확인 대상이 없다.",
+        ? "SPY 대비 괴리나 포지션 크기 문제를 본다. 상세 근거부터 열어본다."
+        : "현재 기준으로 리밸런싱 검토 후보가 없다.",
       href: "#portfolio-rebalance-review",
-      cta: "확인 대상 보기",
+      cta: "검토 후보 보기",
       tone: reviewCandidateTotal > 0 ? "watch" : "ready",
     },
     {
@@ -513,7 +518,7 @@ export default async function PortfolioCoveragePage() {
             <article className="rail-cell">
               <span>한도 초과</span>
               <strong>{riskBudget.over_single_position_limit_count}</strong>
-              <small>축소 확인 대상</small>
+              <small>축소 검토 후보</small>
             </article>
             <article className="rail-cell">
               <span>작은 비중</span>
@@ -576,14 +581,14 @@ export default async function PortfolioCoveragePage() {
           <div className="section-heading">
             <div>
               <span className="metric-sub">저장된 포트폴리오 결정 이력</span>
-              <h2>오늘 보이는 확인 대상이 감사 이력으로 남았는지 본다</h2>
+              <h2>오늘 보이는 검토 후보가 감사 이력으로 남았는지 본다</h2>
             </div>
             <span className={`risk-tag ${reviewHistory.decision_status === "review_required" ? "risk-medium" : "risk-low"}`}>
               {reviewHistory.status === "loaded" ? userFacingText(reviewHistory.decision_status) : "이력 없음"}
             </span>
           </div>
           <p style={{ color: "var(--text-secondary)", marginTop: 0 }}>
-            리밸런싱 확인 대상과 포지션 크기 상태는 주문이 아니라 의사결정 기록이다. 이력이 없으면 같은 화면을 나중에
+            리밸런싱 검토 후보와 포지션 크기 상태는 주문이 아니라 의사결정 기록이다. 이력이 없으면 같은 화면을 나중에
             다시 봤을 때 당시 근거를 추적하기 어렵다.
           </p>
           <div className="status-rail compact-rail" aria-label="포트폴리오 결정 이력 요약" style={{ marginBottom: "20px" }}>
@@ -595,7 +600,7 @@ export default async function PortfolioCoveragePage() {
             <article className="rail-cell">
               <span>저장 결정</span>
               <strong>{reviewHistory.decision_count}</strong>
-              <small>확인 필요 {reviewHistory.review_required_count}개</small>
+              <small>점검 필요 {reviewHistory.review_required_count}개</small>
             </article>
             <article className="rail-cell">
               <span>벤치마크 / 포지션</span>
@@ -782,7 +787,7 @@ export default async function PortfolioCoveragePage() {
             </span>
           </div>
           <p style={{ color: "var(--text-secondary)", marginTop: 0 }}>
-            최신 결정 이력, 사후평가, 누적평가가 서로 연결되어 있는지 확인한다. 실행 필요가 떠도 주문이나 추천 산식 변경은
+            최신 결정 이력, 사후평가, 누적평가가 서로 연결되어 있는지 본다. 실행 필요가 떠도 주문이나 추천 산식 변경은
             자동으로 허용되지 않는다.
           </p>
           <div className="status-rail compact-rail" aria-label="사후평가 실행 시점 요약" style={{ marginBottom: "20px" }}>
@@ -835,7 +840,7 @@ export default async function PortfolioCoveragePage() {
             </span>
           </div>
           <p style={{ color: "var(--text-secondary)", marginTop: 0 }}>
-            실행 주기 결과가 실제 안전 작업으로 이어졌는지 확인한다. 실행 기록이 있어도 추천 산식 반영 비중,
+            실행 주기 결과가 실제 안전 작업으로 이어졌는지 본다. 실행 기록이 있어도 추천 산식 반영 비중,
             보유 비중, 실거래 주문 전송은 여전히 자동으로 바뀌지 않는다.
           </p>
           <div className="status-rail compact-rail" aria-label="사후평가 실행 라우터 요약" style={{ marginBottom: "20px" }}>
@@ -877,7 +882,7 @@ export default async function PortfolioCoveragePage() {
               <h2>SPY와 비교해 어느 종목 비중이 과하게 다른지 본다</h2>
             </div>
             <span className={`risk-tag ${candidateReview.candidate_count > 0 ? "risk-high" : "risk-low"}`}>
-              {candidateReview.candidate_count > 0 ? "확인 대상 있음" : "큰 괴리 없음"}
+              {candidateReview.candidate_count > 0 ? "검토 후보 있음" : "큰 괴리 없음"}
             </span>
           </div>
           <p style={{ color: "var(--text-secondary)", marginTop: 0 }}>
@@ -896,7 +901,7 @@ export default async function PortfolioCoveragePage() {
               <small>{candidateReview.source_as_of_date || "기준일 없음"}</small>
             </article>
             <article className="rail-cell rail-critical">
-              <span>확인 대상</span>
+              <span>검토 후보</span>
               <strong>{candidateReview.candidate_count}</strong>
               <small>
                 축소 {candidateDecisionCounts.reduce_watch ?? 0} · 미보유 확인{" "}
@@ -911,7 +916,7 @@ export default async function PortfolioCoveragePage() {
           </div>
           {candidateReview.candidates.length === 0 ? (
             <p className="empty-state" style={{ margin: 0 }}>
-              현재 기준에서 별도 리밸런싱 확인 대상이 없다.
+              현재 기준에서 별도 리밸런싱 검토 후보가 없다.
             </p>
           ) : (
             <div className="portfolio-review-card-grid" aria-label="벤치마크 리밸런싱 확인 후보">
@@ -950,7 +955,7 @@ export default async function PortfolioCoveragePage() {
                         <strong>추천 연결 없음</strong>
                       )}
                       <small>
-                        {candidate.related_thesis_id ? `투자 논리 ${candidate.related_thesis_id}` : "투자 논리 확인 필요"}
+                        {candidate.related_thesis_id ? `투자 논리 ${candidate.related_thesis_id}` : "투자 논리 필요"}
                       </small>
                     </div>
                     <div>

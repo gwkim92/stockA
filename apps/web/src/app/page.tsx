@@ -224,28 +224,28 @@ export default async function HomePage() {
   const primaryFocus =
     failedJobCount > 0
       ? {
-          title: "데이터 신뢰도부터 확인한다.",
+          title: "데이터 신뢰도가 먼저다",
           body: `${failedJobCount}개 수집·분석 작업이 정상 상태가 아니다. 추천·보유 판단보다 데이터 복구가 우선이다.`,
           href: "/data-health" as Route,
           cta: "수집 상태 열기",
         }
       : openTicketCount > 0
         ? {
-            title: "판단을 막는 공백을 확인한다.",
+            title: "판단 공백이 먼저다",
             body: `${openTicketCount}개 보완 항목이 남아 있다. 투자 논리 공백, 보유 충돌, 성과 미측정 항목이 추천 판단을 막고 있다.`,
             href: "/remediation" as Route,
             cta: "할 일 열기",
           }
         : tradingBlockedCount > 0
           ? {
-              title: "거래 안전 조건을 확인한다.",
+              title: "거래 안전 조건이 닫혀 있다",
               body: `수집과 추천은 읽을 수 있지만 거래 안전 조건 ${tradingBlockedCount}개가 닫혀 있다.`,
               href: "/trading-readiness" as Route,
               cta: "거래 안전 열기",
             }
           : {
-              title: "뉴스와 추천 변화를 점검한다.",
-              body: "수집과 보완 큐가 안정 상태다. 오늘 새 근거가 어떤 종목과 추천 판단을 바꾸는지 확인한다.",
+              title: "새 근거와 추천 변화가 초점이다",
+              body: "수집과 보완 큐가 안정 상태다. 오늘 새 근거가 어떤 종목과 추천 판단을 바꾸는지 본다.",
               href: "/intelligence" as Route,
               cta: "뉴스 근거 열기",
             };
@@ -328,11 +328,11 @@ export default async function HomePage() {
         <div className="analyst-hero-copy">
           <span className="decision-brief-kicker">리서치 데스크 · {data.as_of_date}</span>
           <h1 className="analyst-title" id="dashboard-title">
-            오늘 투자 판단은 {primaryFocus.title}
+            {primaryFocus.title}
           </h1>
           <p className="analyst-lede">
-            {primaryFocus.body} 여기서 중요한 것은 내부 처리 방식이 아니라 오늘의 결론, 결론을 흔드는 근거,
-            보류해야 할 위험, 다음 행동이다.
+            {primaryFocus.body} 이 화면은 내부 처리 방식이 아니라 오늘의 결론, 결론을 흔드는 근거,
+            보류해야 할 위험, 바로 열어야 할 화면만 남긴다.
           </p>
           <div className="analyst-action-row">
             <Link className="btn btn-primary" href={primaryFocus.href}>
@@ -402,31 +402,31 @@ export default async function HomePage() {
         <Link className="analyst-packet-card packet-market" href="/market-map">
           <span>01 · 시장 배경</span>
           <strong>지수·금리·달러·원자재가 추천을 밀어주는가</strong>
-          <p>위험 선호, 금리 부담, 달러 유동성, 원자재 충격이 보유·추천에 우호적인지 확인한다.</p>
+          <p>위험 선호, 금리 부담, 달러 유동성, 원자재 충격이 보유·추천에 유리한 배경인지 본다.</p>
           <small>호출 예산 {budgetLabel} · {budgetDateLabel}</small>
         </Link>
         <Link className="analyst-packet-card packet-news" href="/intelligence">
           <span>02 · 뉴스 근거</span>
           <strong>{eventData.summary.event_count.toLocaleString("ko-KR")}개 뉴스 중 투자 판단에 영향을 줄 근거를 본다</strong>
-          <p>원문, 한국어 요약, 종목·테마 영향, 차단 사유를 확인하고 추천 근거로 쓸 수 있는지만 본다.</p>
+          <p>원문, 한국어 요약, 종목·테마 영향, 차단 사유를 대조해 추천 근거로 쓸 수 있는지만 남긴다.</p>
           <small>근거 후보 {eventData.summary.ai_extracted_count.toLocaleString("ko-KR")}개 · 주요 흐름 {clusterData.summary.cluster_count.toLocaleString("ko-KR")}개</small>
         </Link>
         <Link className="analyst-packet-card packet-cycle" href="/cycle-map">
           <span>03 · 사이클 지도</span>
           <strong>거시·섹터·테마 흐름이 종목 판단과 맞는가</strong>
-          <p>상위 흐름과 종목 노출도를 비교해 단일 뉴스가 아니라 지속되는 배경인지 확인한다.</p>
+          <p>상위 흐름과 종목 노출도를 비교해 단일 뉴스가 아니라 지속되는 배경인지 판별한다.</p>
           <small>테마 {eventData.summary.themes_represented.toLocaleString("ko-KR")}개</small>
         </Link>
         <Link className="analyst-packet-card packet-recommendation" href="/recommendations">
           <span>04 · 추천·보유</span>
           <strong>추천 후보보다 먼저 근거 커버리지와 차단 사유를 본다</strong>
-          <p>추천 점수, 투자 논리, 전문 분석 근거, 페이퍼 검증 상태를 분리해서 확인한다.</p>
+          <p>추천 점수, 투자 논리, 전문 분석 근거, 페이퍼 검증 상태를 분리해 과잉 확신을 막는다.</p>
           <small>검증 대기 {recommendationBoundary.paper_validation_pending_count.toLocaleString("ko-KR")}개 · 열린 검토 {ticketCount.toLocaleString("ko-KR")}개</small>
         </Link>
         <Link className="analyst-packet-card packet-safety" href="/trading-readiness">
           <span>05 · 거래 안전</span>
           <strong>{koCode(trading.readiness_status)} 상태에서 주문은 계속 통제한다</strong>
-          <p>증권사 연결 경계, 긴급 중지, 주문 한도, 계좌 권한, 감사 기록을 보고 실거래와 분리한다.</p>
+          <p>증권사 연결 경계, 긴급 중지, 주문 한도, 계좌 권한, 감사 기록을 분리해 실거래 오작동을 막는다.</p>
           <small>차단 {tradingBlockedCount.toLocaleString("ko-KR")}개 · 실제 주문 제출 {brokerSubmittedCount.toLocaleString("ko-KR")}건</small>
         </Link>
       </section>

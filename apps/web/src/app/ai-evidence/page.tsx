@@ -222,7 +222,7 @@ export default async function AiEvidenceIndexPage() {
           <a className="decision-card is-good" href="#accepted-candidates">
             <span>먼저 볼 근거</span>
             <strong>{directNewsCandidates.length.toLocaleString("ko-KR")}개</strong>
-            <small>회사명·티커가 명확한 뉴스다. 종목 상세와 추천 근거에서 다시 확인한다.</small>
+            <small>회사명·티커가 명확한 뉴스다. 종목 상세와 추천 근거에서 이어 본다.</small>
             <b>직접 근거</b>
           </a>
           <a className="decision-card is-watch" href="#macro-candidates">
@@ -234,7 +234,7 @@ export default async function AiEvidenceIndexPage() {
           <Link className="decision-card is-good" href={"/ai-evidence/results" as Route}>
             <span>통과 결과</span>
             <strong>{newsCandidates.length.toLocaleString("ko-KR")}개</strong>
-            <small>추천 입력 후보로 볼 수 있는 결과만 따로 확인한다.</small>
+            <small>추천 입력 후보로 볼 수 있는 결과만 분리해 둔다.</small>
             <b>결과 보기</b>
           </Link>
           <Link className={blockedCandidateCount > 0 ? "decision-card is-block" : "decision-card is-good"} href={"/ai-evidence/blocked" as Route}>
@@ -276,10 +276,10 @@ export default async function AiEvidenceIndexPage() {
 
       <section className="evidence-workbench reveal delay-1" aria-labelledby="ai-evidence-workbench-title">
         <div>
-          <span>검토 기준</span>
-          <h2 id="ai-evidence-workbench-title">원천 뉴스와 투자 영향이 맞는지 확인한다</h2>
+          <span>판정 기준</span>
+          <h2 id="ai-evidence-workbench-title">원천 뉴스와 투자 영향이 같은 방향인지 대조한다</h2>
           <p>
-            원천 뉴스와 한국어 요약을 먼저 보고, 종목·테마·방향이 원문과 맞는지 확인한다.
+            원천 뉴스와 한국어 요약을 먼저 보고, 종목·테마·방향이 원문과 맞는지 대조한다.
             품질 기준을 통과한 항목만 추천·보유 판단의 근거 후보가 된다.
           </p>
         </div>
@@ -292,7 +292,7 @@ export default async function AiEvidenceIndexPage() {
           <li>
             <span>02</span>
             <strong>투자 영향</strong>
-            <small>테마, 종목, 방향, 영향도, 불확실성을 확인한다.</small>
+            <small>테마, 종목, 방향, 영향도, 불확실성을 한 줄로 본다.</small>
           </li>
           <li>
             <span>03</span>
@@ -314,7 +314,7 @@ export default async function AiEvidenceIndexPage() {
             <h2 className="ledger-section-title" id="ai-evidence-candidate-list-title">종목에 바로 붙은 뉴스 근거</h2>
           </div>
           <p className="ledger-section-note">
-            원천과 한국어 번역을 대조한 뒤 종목 상세, 추천 상세, 보유 논리에서 실제 반영 위치를 확인한다.
+            원천과 한국어 번역을 대조한 뒤 종목 상세, 추천 상세, 보유 논리에서 실제 반영 위치를 본다.
           </p>
         </div>
 
@@ -326,7 +326,8 @@ export default async function AiEvidenceIndexPage() {
           </div>
         ) : (
           <div className="empty-state">
-            아직 직접 종목 뉴스 근거가 없다. 뉴스 묶음 근거는 <Link href="/intelligence">뉴스 근거</Link>에서 확인한다.
+            <strong>아직 직접 종목 뉴스 근거가 없다.</strong>
+            <span>뉴스 묶음 근거는 <Link href="/intelligence">뉴스 근거</Link>에서 이어서 본다.</span>
           </div>
         )}
       </section>
@@ -363,13 +364,13 @@ export default async function AiEvidenceIndexPage() {
           <Link className="where-card" href={"/ai-evidence/results" as Route}>
             <span>결과</span>
             <strong>통과 결과</strong>
-            <p>추천 입력 후보만 종목·테마·방향 기준으로 확인한다.</p>
+            <p>추천 입력 후보만 종목·테마·방향 기준으로 모은다.</p>
             <small>결과 화면 열기</small>
           </Link>
           <Link className="where-card" href={"/ai-evidence/blocked" as Route}>
             <span>차단</span>
             <strong>차단·보류</strong>
-            <p>추천 입력으로 쓰지 않는 항목과 이유를 따로 확인한다.</p>
+            <p>추천 입력으로 쓰지 않는 항목과 이유를 따로 보여준다.</p>
             <small>차단 화면 열기</small>
           </Link>
         </section>

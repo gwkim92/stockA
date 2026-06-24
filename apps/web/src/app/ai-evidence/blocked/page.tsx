@@ -60,9 +60,9 @@ export default async function BlockedAiEvidencePage() {
     },
     {
       index: "02",
-      label: "한국어 확인",
+      label: "한국어 요약",
       value: `${translatedBlockedCount.toLocaleString("ko-KR")}개`,
-      body: "차단 항목도 한국어 제목·요약을 먼저 보고, 실제로 잡음인지 좋은 뉴스가 잘못 막힌 것인지 구분한다.",
+      body: "차단 항목도 한국어 제목·요약으로 잡음인지, 좋은 뉴스가 잘못 막힌 것인지 구분한다.",
       tone: translatedBlockedCount > 0 ? "ready" : "watch",
     },
     {
@@ -72,7 +72,7 @@ export default async function BlockedAiEvidencePage() {
       body: "근거 후보가 만들어졌어도 품질 기준을 통과하지 못하면 추천 근거로 넘기지 않는다.",
       tone: blockedTotalCount > 0 ? "blocked" : "ready",
       href: "#blocked-list",
-      cta: "목록 확인",
+      cta: "목록 보기",
     },
     {
       index: "04",
@@ -126,13 +126,13 @@ export default async function BlockedAiEvidencePage() {
           <Link className="decision-card is-watch" href={"/events/classification" as Route}>
             <span>보강 후보</span>
             <strong>분류·별칭</strong>
-            <small>좋은 뉴스가 잘못 막혔을 때만 taxonomy와 ticker alias를 보강한다.</small>
-            <b>분류 확인</b>
+            <small>좋은 뉴스가 잘못 막혔을 때만 분류 체계와 종목 별칭을 보강한다.</small>
+            <b>분류 보기</b>
           </Link>
           <Link className="decision-card is-good" href={"/ai-evidence/results" as Route}>
             <span>통과 결과</span>
-            <strong>분리 확인</strong>
-            <small>추천 입력 후보는 차단 화면이 아니라 통과 결과에서 확인한다.</small>
+            <strong>통과 항목</strong>
+            <small>추천 입력 후보는 차단 화면이 아니라 통과 결과에 모은다.</small>
             <b>결과 보기</b>
           </Link>
         </div>

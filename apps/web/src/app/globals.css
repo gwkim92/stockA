@@ -1,5 +1,6 @@
 :root {
   --bg-main: #f3f4f0;
+  --bg: var(--bg-main);
   --bg-panel: #fbfaf6;
   --bg-card: rgba(17, 17, 17, 0.025);
   --bg-card-hover: rgba(17, 17, 17, 0.055);
@@ -7,6 +8,7 @@
   --text-primary: #11120f;
   --text-secondary: #5d625c;
   --text-tertiary: #8a8d86;
+  --text-muted: var(--text-tertiary);
 
   --border-light: rgba(17, 18, 15, 0.16);
   --border-focus: rgba(17, 18, 15, 0.45);
@@ -23,6 +25,10 @@
   --radius-sm: 4px;
   --radius-md: 6px;
   --radius-lg: 8px;
+  --radius-xl: 14px;
+
+  --shadow-soft: 0 18px 46px rgba(47, 42, 30, 0.08);
+  --shadow-lift: 0 22px 60px rgba(47, 42, 30, 0.12);
 
   --gap: clamp(12px, 1.6vw, 20px);
   --page-edge: clamp(18px, 5vw, 72px);
@@ -1869,13 +1875,34 @@ h6 {
 }
 
 .empty-state {
-  padding: 18px;
-  background: rgba(17, 18, 15, 0.035);
-  border: 1px solid var(--border-light);
+  display: grid;
+  gap: 6px;
+  padding: 18px 20px;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--bg-panel) 86%, white), color-mix(in srgb, var(--accent-amber) 7%, var(--bg-main))),
+    repeating-linear-gradient(90deg, rgba(17, 18, 15, 0.035) 0 1px, transparent 1px 18px);
+  border: 1px solid color-mix(in srgb, var(--accent-amber) 28%, var(--border-light));
+  border-left: 5px solid color-mix(in srgb, var(--accent-amber) 72%, var(--border-strong));
+  border-radius: var(--radius-md);
   color: var(--text-secondary);
   font-size: 0.88rem;
-  font-weight: 700;
+  font-weight: 760;
   line-height: 1.6;
+  word-break: keep-all;
+}
+
+.empty-state strong {
+  color: var(--text-primary);
+  font-size: 0.98rem;
+  font-weight: 950;
+  line-height: 1.28;
+}
+
+.empty-state a {
+  color: var(--accent-blue);
+  font-weight: 950;
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
 .ledger-table-wrap {
@@ -3757,8 +3784,8 @@ h6 {
 
 .research-flow-summary div {
   min-width: 0;
-  padding: 12px;
-  background: rgba(255, 255, 255, 0.5);
+  padding: 13px 12px;
+  background: color-mix(in srgb, var(--bg-panel) 68%, white);
   border: 1px solid var(--border-light);
   border-radius: var(--radius-sm);
 }
@@ -3802,15 +3829,18 @@ h6 {
 .research-flow-track {
   display: grid;
   gap: 0;
-  border-top: 1px solid var(--border-strong);
-  border-bottom: 1px solid var(--border-strong);
+  overflow: hidden;
+  background: color-mix(in srgb, var(--border-light) 58%, transparent);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
 }
 
 .research-flow-step {
   display: grid;
   grid-template-columns: 56px minmax(0, 1fr);
   gap: clamp(14px, 1.8vw, 22px);
-  padding: clamp(16px, 2vw, 24px) 0;
+  padding: clamp(16px, 2vw, 24px);
+  background: color-mix(in srgb, var(--bg-panel) 82%, white);
   border-bottom: 1px solid var(--border-light);
 }
 
@@ -3823,27 +3853,30 @@ h6 {
   width: 44px;
   height: 44px;
   place-items: center;
-  color: var(--text-primary);
+  color: var(--bg-panel);
   font-size: 0.78rem;
   font-weight: 950;
-  background: rgba(255, 255, 255, 0.58);
-  border: 1px solid var(--border-light);
-  border-radius: 50%;
+  background: var(--text-primary);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
 }
 
 .research-flow-step.tone-ready .research-flow-index {
-  color: var(--accent-green);
-  border-color: color-mix(in oklch, var(--accent-green), transparent 58%);
+  background: var(--accent-green);
+  border-color: color-mix(in srgb, var(--accent-green) 58%, var(--border-strong));
+  color: var(--bg-panel);
 }
 
 .research-flow-step.tone-watch .research-flow-index {
-  color: var(--accent-amber);
-  border-color: color-mix(in oklch, var(--accent-amber), transparent 54%);
+  background: var(--accent-amber);
+  border-color: color-mix(in srgb, var(--accent-amber) 58%, var(--border-strong));
+  color: var(--bg-panel);
 }
 
 .research-flow-step.tone-blocked .research-flow-index {
-  color: var(--accent-red);
-  border-color: color-mix(in oklch, var(--accent-red), transparent 54%);
+  background: var(--accent-red);
+  border-color: color-mix(in srgb, var(--accent-red) 58%, var(--border-strong));
+  color: var(--bg-panel);
 }
 
 .research-flow-copy {
@@ -4095,14 +4128,34 @@ h6 {
 }
 
 .news-row-card {
+  position: relative;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 18px;
   min-width: 0;
-  padding: 16px;
-  background: rgba(243, 244, 240, 0.66);
-  border: 1px solid var(--border-light);
+  overflow: hidden;
+  padding: clamp(16px, 1.6vw, 22px);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--bg-panel) 88%, white), color-mix(in srgb, var(--bg-main) 80%, white));
+  border: 1px solid color-mix(in srgb, var(--border-light) 88%, var(--accent-blue));
   border-radius: var(--radius-md);
+  box-shadow: 0 12px 34px rgba(47, 42, 30, 0.045);
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+}
+
+.news-row-card::before {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 5px;
+  background: linear-gradient(180deg, var(--accent-blue), color-mix(in srgb, var(--accent-blue) 18%, transparent));
+  content: "";
+}
+
+.news-row-card:hover,
+.news-row-card:focus-within {
+  border-color: var(--border-focus);
+  box-shadow: var(--shadow-soft);
+  transform: translateY(-1px);
 }
 
 .news-row-card-compact {
@@ -4126,19 +4179,25 @@ h6 {
 .news-decision-path {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 8px;
-  margin: 12px 0 0;
+  gap: 0;
+  margin: 14px 0 0;
   padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
   list-style: none;
 }
 
 .news-decision-path li {
   min-width: 0;
-  padding: 9px 10px;
-  background: color-mix(in srgb, var(--bg-panel) 72%, white);
-  border: 1px solid var(--border-light);
-  border-left: 4px solid var(--text-muted);
-  border-radius: var(--radius-sm);
+  padding: 10px 11px;
+  background: color-mix(in srgb, var(--bg-panel) 78%, white);
+  border-left: 1px solid var(--border-light);
+  border-top: 3px solid var(--text-muted);
+}
+
+.news-decision-path li:first-child {
+  border-left: none;
 }
 
 .news-decision-path li.is-ready {
@@ -4158,9 +4217,8 @@ h6 {
   color: var(--text-muted);
   font-size: 0.68rem;
   font-weight: 950;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
   line-height: 1.1;
-  text-transform: uppercase;
 }
 
 .news-decision-path strong {
@@ -4168,7 +4226,7 @@ h6 {
   overflow: hidden;
   margin-top: 5px;
   color: var(--text-primary);
-  font-size: 0.78rem;
+  font-size: 0.8rem;
   font-weight: 900;
   line-height: 1.25;
   text-overflow: ellipsis;
@@ -4183,9 +4241,10 @@ h6 {
 }
 
 .tag-strip span {
-  padding: 5px 8px;
-  background: color-mix(in srgb, var(--text-primary) 7%, var(--bg-panel));
+  padding: 6px 9px;
+  background: color-mix(in srgb, var(--text-primary) 6%, var(--bg-panel));
   border: 1px solid var(--border-light);
+  border-radius: 999px;
   color: var(--text-secondary);
   font-size: 0.72rem;
   font-weight: 900;
@@ -4570,31 +4629,38 @@ h6 {
 .news-title-block {
   display: grid;
   min-width: 0;
-  gap: 4px;
+  gap: 6px;
 }
 
 .news-title-block > span {
+  width: fit-content;
+  padding: 4px 7px;
+  background: color-mix(in srgb, var(--accent-blue) 9%, var(--bg-panel));
+  border: 1px solid color-mix(in srgb, var(--accent-blue) 28%, var(--border-light));
+  border-radius: 999px;
   color: var(--accent-blue);
-  font-size: 0.68rem;
+  font-size: 0.66rem;
   font-weight: 900;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  letter-spacing: 0.03em;
 }
 
 .news-title-block strong {
   color: var(--text-primary);
-  font-size: 1.02rem;
-  font-weight: 850;
-  line-height: 1.35;
+  font-family: var(--font-display);
+  font-size: clamp(1rem, 1.18vw, 1.22rem);
+  font-weight: 920;
+  line-height: 1.28;
   overflow-wrap: anywhere;
+  word-break: keep-all;
 }
 
 .news-title-block small {
   color: var(--text-secondary);
-  font-size: 0.72rem;
-  font-weight: 750;
+  font-size: 0.74rem;
+  font-weight: 800;
   line-height: 1.45;
   overflow-wrap: anywhere;
+  word-break: keep-all;
 }
 
 .news-original-title {
@@ -4610,8 +4676,8 @@ h6 {
   cursor: pointer;
   color: var(--text-secondary);
   font-weight: 900;
-  text-decoration: underline;
-  text-underline-offset: 3px;
+  border-bottom: 1px solid currentColor;
+  text-decoration: none;
 }
 
 .news-original-title small,
@@ -7038,24 +7104,39 @@ h6 {
 }
 
 .decision-card {
+  position: relative;
   display: grid;
   min-width: 0;
+  overflow: hidden;
   align-content: space-between;
   gap: 9px;
   min-height: 138px;
-  padding: 14px;
-  background: color-mix(in srgb, var(--bg-panel) 92%, white);
+  padding: 15px;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--bg-panel) 94%, white), color-mix(in srgb, var(--bg-main) 76%, white));
   border: 1px solid var(--border-light);
   border-radius: var(--radius-md);
+  box-shadow: 0 10px 28px rgba(47, 42, 30, 0.045);
   color: inherit;
+  isolation: isolate;
   text-decoration: none;
-  transition: background 0.16s ease, border-color 0.16s ease, transform 0.16s ease;
+  transition: background 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+}
+
+.decision-card::before {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  background: color-mix(in srgb, var(--text-primary) 26%, transparent);
+  content: "";
+  opacity: 0.58;
 }
 
 .decision-card:hover,
 .decision-card:focus-visible {
   background: var(--bg-panel);
   border-color: var(--border-strong);
+  box-shadow: var(--shadow-soft);
   outline: none;
   transform: translateY(-2px);
 }
@@ -7293,14 +7374,26 @@ h6 {
   border-color: color-mix(in srgb, var(--accent-green) 30%, var(--border-light));
 }
 
+.decision-card.is-good::before {
+  background: var(--accent-green);
+}
+
 .decision-card.is-watch {
   background: color-mix(in srgb, var(--accent-amber) 12%, var(--bg-panel));
   border-color: color-mix(in srgb, var(--accent-amber) 34%, var(--border-light));
 }
 
+.decision-card.is-watch::before {
+  background: var(--accent-amber);
+}
+
 .decision-card.is-block {
   background: color-mix(in srgb, var(--accent-red) 8%, var(--bg-panel));
   border-color: color-mix(in srgb, var(--accent-red) 30%, var(--border-light));
+}
+
+.decision-card.is-block::before {
+  background: var(--accent-red);
 }
 
 .decision-card strong {
@@ -7393,9 +7486,20 @@ h6 {
   align-content: end;
   padding: clamp(20px, 2.2vw, 32px);
   background:
-    radial-gradient(circle at 14% 8%, rgba(38, 92, 128, 0.18), transparent 38%),
-    linear-gradient(145deg, color-mix(in srgb, var(--bg-panel) 98%, white), color-mix(in srgb, var(--bg) 76%, white));
+    repeating-linear-gradient(90deg, rgba(17, 18, 15, 0.045) 0 1px, transparent 1px 24px),
+    radial-gradient(circle at 16% 10%, rgba(38, 92, 128, 0.2), transparent 34%),
+    radial-gradient(circle at 96% 0%, rgba(155, 101, 23, 0.16), transparent 30%),
+    linear-gradient(145deg, color-mix(in srgb, var(--bg-panel) 98%, white), color-mix(in srgb, var(--bg-main) 76%, white));
   border-color: var(--border-strong);
+  box-shadow: var(--shadow-lift);
+}
+
+.workspace-command-grid .decision-card.primary::before,
+.workspace-command-grid .decision-card.is-priority::before,
+.workspace-command-grid .decision-card:first-child::before {
+  width: 8px;
+  background: linear-gradient(180deg, var(--accent-blue), var(--accent-amber));
+  opacity: 1;
 }
 
 .workspace-command-grid .decision-card.primary strong,
@@ -8126,6 +8230,41 @@ h6 {
 .compact-rail .rail-cell .rail-word-value {
   font-size: clamp(1.75rem, 2.8vw, 2.35rem);
   line-height: 0.95;
+}
+
+.compact-rail .rail-cell .rail-status-value {
+  max-width: none;
+  font-size: clamp(1.2rem, 1.8vw, 1.55rem);
+  line-height: 1.05;
+  letter-spacing: -0.04em;
+  overflow-wrap: normal;
+  white-space: nowrap;
+  word-break: keep-all;
+}
+
+.decision-boundary-rail {
+  grid-template-columns: minmax(150px, 0.85fr) minmax(150px, 0.85fr) minmax(260px, 1.55fr) minmax(220px, 1.05fr);
+}
+
+.decision-boundary-rail .rail-cell strong {
+  font-size: clamp(1.75rem, 2.7vw, 2.8rem);
+  line-height: 0.95;
+  overflow-wrap: normal;
+  word-break: keep-all;
+}
+
+.decision-boundary-rail .rail-cell .rail-status-value {
+  display: inline-flex;
+  width: fit-content;
+  max-width: 100%;
+  align-items: center;
+  padding: 0.2em 0.34em 0.24em;
+  background: color-mix(in srgb, var(--accent-red) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent-red) 30%, var(--border-light));
+  border-radius: var(--radius-sm);
+  font-size: clamp(1.25rem, 1.9vw, 1.75rem);
+  line-height: 1.05;
+  white-space: nowrap;
 }
 
 .compact-rail .rail-cell .rail-ratio-value {

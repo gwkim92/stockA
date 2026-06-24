@@ -51,7 +51,7 @@ function formatCurrency(value: number | null | undefined) {
 
 function formatBrokerCash(value: number | null | undefined, currencyCode: string) {
   if (value === null || value === undefined) {
-    return `${currencyCode} 미확인`;
+    return `${currencyCode} 정보 없음`;
   }
   try {
     return new Intl.NumberFormat("ko-KR", {
@@ -166,7 +166,7 @@ export default async function PaperTradingPage() {
   const primaryBuyingPower = tossOrderReadiness.buying_power[0];
   const brokerBuyingPowerText = primaryBuyingPower
     ? formatBrokerCash(primaryBuyingPower.cash_buying_power, primaryBuyingPower.currency)
-    : "현금 미확인";
+    : "현금 정보 없음";
   const benchmarkDrift = riskGuardrail.benchmark_drift;
   const benchmarkDriftCalculated = benchmarkDrift?.drift_calculated === true;
   const benchmarkCode = recordString(benchmarkDrift, "benchmark_code") || "벤치마크";
@@ -180,11 +180,11 @@ export default async function PaperTradingPage() {
       index: "01",
       label: "실제 주문",
       title: liveSubmitCount > 0 ? "실제 주문 전송 기록 있음" : "실제 주문 전송 0건",
-      metric: liveSubmitCount > 0 ? `${liveSubmitCount}건 확인 필요` : "증권사 전송 없음",
+      metric: liveSubmitCount > 0 ? `${liveSubmitCount}건 대조 필요` : "증권사 전송 없음",
       body:
         liveSubmitCount > 0
           ? "이 경우 가상 매매 화면을 보기 전에 감사 로그와 실제 계좌 내역을 먼저 대조해야 한다."
-          : "현재 서버 기준으로 증권사에 전송된 주문은 없다. 아래 항목은 모두 검증용이다.",
+          : "현재 서버 기준으로 증권사에 전송된 주문은 없다. 아래 항목은 모두 검증용 시뮬레이션이다.",
       href: "#paper-current-state",
       cta: "실거래 상태 보기",
       tone: liveSubmitCount > 0 ? "block" : "ready",
@@ -219,30 +219,30 @@ export default async function PaperTradingPage() {
       index: "04",
       label: "브로커 현실",
       title: tossOrderReadiness.status === "available" || tossOrderReadiness.latest_status === "succeeded"
-        ? "토스증권 읽기 확인"
-        : "토스증권 확인 필요",
+        ? "토스증권 읽기 완료"
+        : "토스증권 데이터 없음",
       metric: `${brokerBuyingPowerText} · 매도 가능 ${tossOrderReadiness.sellable_quantity_count.toLocaleString("ko-KR")}개`,
       body:
         tossOrderReadiness.broker_submit_allowed
           ? "브로커 데이터가 읽혔더라도 실주문 전송은 아직 열지 않는다."
           : "토스 계좌·호가·체결은 실행 현실 확인용이다. 실제 주문 제출은 계속 차단된다.",
       href: "#paper-broker-reality",
-      cta: "브로커 확인",
+      cta: "브로커 현실",
       tone: tossOrderReadiness.status === "available" || tossOrderReadiness.latest_status === "succeeded" ? "ready" : "watch",
     },
     {
       index: "05",
       label: "다음에 볼 곳",
       title: trading.gate_summary.blocked_count > 0 ? "거래 안전 상태" : simulatedActionCount > 0 ? "가상 매매 항목" : "추천 신호",
-      metric: trading.gate_summary.blocked_count > 0 ? "차단 사유 우선" : "읽기 전용 확인",
+      metric: trading.gate_summary.blocked_count > 0 ? "차단 사유 우선" : "읽기 전용",
       body:
         trading.gate_summary.blocked_count > 0
-          ? "차단 사유를 먼저 확인한다. 실거래 상태는 계속 읽기 전용이다."
+          ? "차단 사유를 먼저 본다. 실거래 상태는 계속 읽기 전용이다."
           : simulatedActionCount > 0
-            ? "항목별 추천서, 투자 논리, 종목 상세를 열어 근거가 맞는지 확인한다."
-            : "추천 신호와 보유 상태가 같은 방향인지 확인한다.",
+            ? "항목별 추천서, 투자 논리, 종목 상세를 열어 근거가 맞는지 대조한다."
+            : "추천 신호와 보유 상태가 같은 방향인지 본다.",
       href: simulatedActionCount > 0 ? "#paper-action-candidates" : "/recommendations",
-      cta: simulatedActionCount > 0 ? "항목 확인" : "추천 보기",
+      cta: simulatedActionCount > 0 ? "항목 보기" : "추천 보기",
       tone: trading.gate_summary.blocked_count > 0 ? "block" : "watch",
     },
   ];
@@ -276,12 +276,12 @@ export default async function PaperTradingPage() {
     },
     {
       index: "04",
-      title: "다음 확인",
+      title: "다음 경로",
       value:
         trading.gate_summary.blocked_count > 0
           ? "거래 안전"
           : data.paper_actions.length > 0
-            ? "항목 확인"
+            ? "항목 보기"
             : "추천 대기",
       tone: trading.gate_summary.blocked_count > 0 ? "risk-high" : "risk-medium",
       body:
@@ -367,8 +367,8 @@ export default async function PaperTradingPage() {
               : " 위험 예산 검증 결과가 가상 매매 검증에 연결되어 있다."}
           </p>
         </div>
-        <div className="paper-blocked-reasons" aria-label="벤치마크 리밸런싱 확인 대상">
-          <span>리밸런싱 확인 대상</span>
+        <div className="paper-blocked-reasons" aria-label="벤치마크 리밸런싱 후보">
+          <span>리밸런싱 후보</span>
           {candidateReview.candidates.length > 0 ? (
             <div className="relationship-list">
               {candidateReview.candidates.slice(0, 4).map((candidate) => (
@@ -382,7 +382,7 @@ export default async function PaperTradingPage() {
               ))}
             </div>
           ) : (
-            <p>현재 벤치마크 대비 별도 확인 대상이 없다.</p>
+            <p>현재 벤치마크 대비 별도 후보가 없다.</p>
           )}
           <p>
             이 항목은 가상 매매 주문 항목이 아니다. 실거래 상태는 {orderBoundaryLabel(candidateReview.order_boundary)}이고,
@@ -399,7 +399,7 @@ export default async function PaperTradingPage() {
             <div className="relationship-chip">
               <span>매수 여력</span>
               <strong>{brokerBuyingPowerText}</strong>
-              <small>계좌 기준 통화 {tossOrderReadiness.base_currency || "미확인"} · 최근 확인 {tossOrderReadiness.finished_at || "미확인"}</small>
+              <small>계좌 기준 통화 {tossOrderReadiness.base_currency || "정보 없음"} · 최근 수집 {tossOrderReadiness.finished_at || "정보 없음"}</small>
             </div>
             <div className="relationship-chip">
               <span>매도 가능</span>
@@ -492,7 +492,7 @@ export default async function PaperTradingPage() {
                       </div>
                       <div>
                         <span>실거래 경계</span>
-                        <strong>{action.requires_human_approval ? "안전 조건 확인 필요" : "읽기 전용 확인"}</strong>
+                        <strong>{action.requires_human_approval ? "안전 조건 대기" : "읽기 전용"}</strong>
                         <small>
                           {action.conflict ? "추천과 보유 상태 충돌 있음" : "저장된 충돌 없음"} · 최근 가격 {formatCurrency(action.latest_price)}
                         </small>

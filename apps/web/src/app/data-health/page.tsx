@@ -160,7 +160,7 @@ const GATE_TRIAGE_BUCKETS: Omit<GateTriageBucket, "gates">[] = [
   {
     key: "watch",
     label: "관찰",
-    title: "운영 확인 항목",
+    title: "관찰 중인 항목",
     description: "즉시 장애는 아니지만 다음 배치와 최신 실행 기록을 계속 본다.",
     tone: "risk-low",
     href: "#execution-log",
@@ -191,9 +191,9 @@ function gateTriageSummary(buckets: GateTriageBucket[], rawOpenGateCount: number
     return `열린 항목 ${rawOpenGateCount}개는 대부분 성과 측정일까지 기다리는 관리된 대기다.`;
   }
   if (rawOpenGateCount > 0) {
-    return `열린 확인 항목 ${rawOpenGateCount}개가 있다. 아래 분류에서 조치 위치를 확인한다.`;
+    return `열린 항목 ${rawOpenGateCount}개가 있다. 아래 분류에서 조치 위치를 나눈다.`;
   }
-  return "현재 열린 확인 항목은 없다. 세부 실행 이력과 최신성만 필요할 때 확인하면 된다.";
+  return "현재 열린 항목은 없다. 세부 실행 이력과 최신성만 필요할 때 보면 된다.";
 }
 
 function findPipelineRun(data: DataHealthData, jobId: string, pipelineName: string) {
@@ -246,12 +246,12 @@ function runQualityExplanation(run: PipelineRun | null) {
     return "실행 이력이 없어 근거 신뢰도를 판단할 수 없다.";
   }
   if (run.latest_status === "succeeded_with_fallback" || run.health_status === "degraded") {
-    return "작업은 멈추지 않았지만 일부 AI 분석이 중단되어 규칙 기반 대체 처리로 완료됐다. 추천 근거 신뢰도를 낮게 보고 오류 내용을 확인해야 한다.";
+    return "작업은 멈추지 않았지만 일부 AI 분석이 중단되어 규칙 기반 대체 처리로 완료됐다. 추천 근거 신뢰도를 낮게 보고 오류 내용을 먼저 봐야 한다.";
   }
   if (run.latest_status === "succeeded" && run.health_status === "ok") {
     return "최근 실행은 정상 범위다.";
   }
-  return "상태와 완료 시각을 기준으로 실행 로그를 확인해야 한다.";
+  return "상태와 완료 시각을 기준으로 실행 로그를 봐야 한다.";
 }
 
 function schedulerReadinessTitle(scheduler: SchedulerStatus) {
@@ -291,7 +291,7 @@ function schedulerReadinessExplanation(scheduler: SchedulerStatus) {
   if (activation.status === "invalid_report") {
     return "반복 실행 결과 형식이 맞지 않아 운영 근거로 사용할 수 없다.";
   }
-  return "현재 반복 실행 상태는 화면의 승인 조건과 다음 단계 값을 기준으로 다시 확인해야 한다.";
+  return "현재 반복 실행 상태는 화면의 승인 조건과 다음 단계 값을 기준으로 다시 봐야 한다.";
 }
 
 function isEc2ProfileSchedulerInstalled(scheduler: SchedulerStatus) {
@@ -346,7 +346,7 @@ const TIMER_GROUP_DEFINITIONS: TimerGroupDefinition[] = [
     key: "market",
     label: "가격 보강",
     title: "캔들·감시 종목",
-    description: "장 마감 후 가격 캔들을 보강하고 감시 종목군의 기본 연결 상태를 확인한다.",
+    description: "장 마감 후 가격 캔들을 보강하고 감시 종목군의 기본 연결 상태를 본다.",
     profileIds: ["market-daily", "market-universe-weekly"],
   },
   {
@@ -425,7 +425,7 @@ function schedulerGroupStatusLabel(group: SchedulerCadenceGroup) {
     return "정상 대기";
   }
   if (group.activeCount > 0) {
-    return "결과 확인 필요";
+    return "결과 보강 필요";
   }
   return "예약 꺼짐";
 }
@@ -436,7 +436,7 @@ function schedulerGroupNextElapse(group: SchedulerCadenceGroup) {
 
 function schedulerNextStepLabel(activation: SchedulerActivation) {
   if (activation.manual_next_step === "data-operations-live-scheduler-activation-request") {
-    return "반복 실행 설정 전에 수동 수집 순서와 결과를 먼저 확인한다.";
+    return "반복 실행 설정 전에 수동 수집 순서와 결과를 먼저 본다.";
   }
   if (activation.manual_next_step === "configure_scheduler_activation_gate_report") {
     return "저장소 밖 반복 실행 결과 경로를 설정한다.";
@@ -485,10 +485,10 @@ function manualSmokeTitle(smoke: ManualIngestSmoke) {
 
 function manualSmokeExplanation(smoke: ManualIngestSmoke) {
   if (smoke.status === "passed") {
-    return "가격, 뉴스, AI 분석 단발 작업이 실행됐고 중단된 작업이 없다는 뜻이다. 반복 자동화 상태는 별도로 확인한다.";
+    return "가격, 뉴스, AI 분석 단발 작업이 실행됐고 중단된 작업이 없다는 뜻이다. 반복 자동화 상태는 별도로 본다.";
   }
   if (smoke.status === "failed") {
-    return "단발 실행 중 중단된 작업이 있다. 실행 요약의 오류 내용과 작업 정보를 확인해야 한다.";
+    return "단발 실행 중 중단된 작업이 있다. 실행 요약의 오류 내용과 작업 정보를 봐야 한다.";
   }
   if (smoke.status === "preview_not_executed") {
     return "실제 저장이나 외부 데이터 제공자 호출 없이 실행 계획만 생성한 상태다. 무료 API 한도를 쓰지 않고 어떤 작업이 돌지 확인한 것이다.";
@@ -530,7 +530,7 @@ function localWorkerExplanation(worker: LocalIngestWorker) {
     return "정해진 반복 실행 주기가 끝났고 중단된 주기가 없다는 뜻이다. 서버 예약 실행과 함께 자동 운영 상태를 판단한다.";
   }
   if (worker.status === "failed") {
-    return "반복 실행 중 중단된 작업이 있었다. 최신 실행 요약과 오류 내용을 확인해야 한다.";
+    return "반복 실행 중 중단된 작업이 있었다. 최신 실행 요약과 오류 내용을 봐야 한다.";
   }
   if (worker.status === "preview_not_executed") {
     return "실제 저장이나 외부 데이터 제공자 호출 없이 반복 실행 계획만 확인한 상태다.";
@@ -553,7 +553,7 @@ function tossMarketDataTitle(marketData: TossInvestMarketData) {
     return "토스증권 브로커 데이터 수집됨";
   }
   if (marketData.sync.status === "blocked_missing_credentials") {
-    return "토스증권 API 키 확인 필요";
+    return "토스증권 API 키 필요";
   }
   if (marketData.sync.status === "missing") {
     return "토스증권 데이터 실행 이력 없음";
@@ -579,7 +579,7 @@ function qualityAuditTitle(audit: CycleAiQualityAudit) {
     return "약한 전파 근거 관리 중";
   }
   if (audit.status === "attention_required") {
-    return "오염 의심 항목 확인 필요";
+    return "오염 의심 항목 있음";
   }
   if (audit.status === "not_ready") {
     return "감사할 데이터 부족";
@@ -604,7 +604,7 @@ function qualityAuditExplanation(audit: CycleAiQualityAudit) {
     return "치명적인 중복·오분류·근거 없는 직접 종목 연결은 없지만, 신뢰도나 경로 가중치가 낮은 전파 근거가 남아 있다. 사이클 스냅샷은 약한 전파를 제외하고 계산한다.";
   }
   if (audit.status === "attention_required") {
-    return "추천 판단 전에 중복 뉴스, 종목 근거, 잘못된 테마 연결, 전파 근거가 약한 흐름을 먼저 확인해야 한다.";
+    return "추천 판단 전에 중복 뉴스, 종목 근거, 잘못된 테마 연결, 전파 근거가 약한 흐름을 먼저 봐야 한다.";
   }
   if (audit.status === "not_ready") {
     return "뉴스 수집부터 AI 분석, 전파, 사이클 스냅샷까지 한 번 더 실행한 뒤 판단해야 한다.";
@@ -612,7 +612,7 @@ function qualityAuditExplanation(audit: CycleAiQualityAudit) {
   if (audit.status === "not_configured") {
     return "서버에 최근 품질 감사 요약 파일 경로가 연결되지 않아 화면에서 읽을 수 없다.";
   }
-  return "품질 감사 결과 파일의 상태와 생성 시각을 다시 확인해야 한다.";
+  return "품질 감사 결과 파일의 상태와 생성 시각을 다시 봐야 한다.";
 }
 
 function qualityAuditTone(audit: CycleAiQualityAudit) {
@@ -765,12 +765,12 @@ function newsAiEvalExplanation(evalQuality: NewsAiEvalQuality) {
     return "기준 정답 뉴스 세트에서 테마 분류, 직접 종목 근거, 거시 뉴스 종목 오부착, 양자→에너지 오분류, 한국어 번역 기준을 통과했다.";
   }
   if (evalQuality.status === "failed_regression") {
-    return "AI 구조화나 자동 검증이 기준 세트에서 중단됐다. 이 상태에서는 새 AI 근거를 추천 입력으로 신뢰하기 전에 중단 항목을 확인해야 한다.";
+    return "AI 구조화나 자동 검증이 기준 세트에서 중단됐다. 이 상태에서는 새 AI 근거를 추천 입력으로 신뢰하기 전에 중단 항목을 봐야 한다.";
   }
   if (evalQuality.status === "missing") {
     return "최근 기준 정답 뉴스 평가가 저장되지 않았다. 뉴스 AI 분석이 좋아 보이더라도 기준 세트 통과 여부를 아직 증명하지 못했다.";
   }
-  return "뉴스 AI 평가 기록의 상태와 중단 사례를 확인해야 한다.";
+  return "뉴스 AI 평가 기록의 상태와 중단 사례를 봐야 한다.";
 }
 
 function newsAiEvalTone(evalQuality: NewsAiEvalQuality) {
@@ -807,18 +807,18 @@ function liveAiInvocationExplanation(health: LiveAiInvocationHealth) {
     return "최근 실제 AI 호출이 성공했다. 기준 세트 평가뿐 아니라 운영 배치 AI 호출도 살아 있다.";
   }
   if (health.status === "critical_ai_failed") {
-    return "뉴스 한국어 번역이나 뉴스 AI 구조화 같은 핵심 AI 호출이 중단됐다. OpenAI quota와 Codex OAuth 재로그인 상태를 같이 확인해야 한다.";
+    return "뉴스 한국어 번역이나 뉴스 AI 구조화 같은 핵심 AI 호출이 중단됐다. OpenAI quota와 Codex OAuth 재로그인 상태를 같이 봐야 한다.";
   }
   if (health.status === "degraded") {
-    return "일부 AI 작업의 최신 실행이 중단됐다. 완료된 작업과 중단된 작업을 나눠 보고 quota, 인증, CLI 오류를 확인해야 한다.";
+    return "일부 AI 작업의 최신 실행이 중단됐다. 완료된 작업과 중단된 작업을 나눠 보고 quota, 인증, CLI 오류를 봐야 한다.";
   }
   if (health.status === "recovered_with_recent_failures") {
     return "최근 48시간 안에 중단 이력은 남아 있지만, monitored AI 작업의 최신 실행은 성공했다. 현재 장애가 아니라 복구 후 관찰 상태다.";
   }
   if (health.status === "missing_recent_invocations") {
-    return "최근 운영 배치에서 실제 AI 호출 증거가 없다. 뉴스가 없는 것인지, 배치 호출이 멈춘 것인지 확인해야 한다.";
+    return "최근 운영 배치에서 실제 AI 호출 증거가 없다. 뉴스가 없는 것인지, 배치 호출이 멈춘 것인지 봐야 한다.";
   }
-  return "실제 AI 호출 상태를 확인해야 한다.";
+  return "실제 AI 호출 상태를 봐야 한다.";
 }
 
 function liveAiInvocationTone(health: LiveAiInvocationHealth) {
@@ -920,12 +920,12 @@ function openAiProviderExplanation(health: OpenAiProviderHealth) {
     return "OpenAI API 키가 없으므로 OpenAI 직접 호출은 하지 않는다. Codex OAuth 또는 로컬 규칙 경로로 분석을 계속한다.";
   }
   if (health.cost_status.status === "costs_available") {
-    return `Admin Costs API로 최근 ${health.cost_status.lookback_days}일 사용 비용을 조회했다. 이 값은 남은 잔액이 아니라 이미 발생한 비용이다. 실제 prepaid 잔액은 OpenAI Billing Overview에서 확인한다.`;
+    return `Admin Costs API로 최근 ${health.cost_status.lookback_days}일 사용 비용을 조회했다. 이 값은 남은 잔액이 아니라 이미 발생한 비용이다. 실제 prepaid 잔액은 OpenAI Billing Overview에서 본다.`;
   }
   if (health.status === "key_configured_balance_unverified") {
     return "OpenAI API 키는 감지됐지만 남은 잔액을 확정 조회하는 공식 API는 사용하지 않는다. Admin Costs API 배치가 성공하면 최근 비용을 표시하고, 실제 호출 중단이 발생하면 자동으로 예비 경로로 분기한다.";
   }
-  return health.message || "OpenAI provider 상태를 확인한다.";
+  return health.message || "OpenAI provider 상태를 본다.";
 }
 
 function openAiProviderTone(health: OpenAiProviderHealth) {
@@ -983,7 +983,7 @@ function benchmarkDriftQualityTitle(quality: BenchmarkDriftQuality) {
     return "벤치마크 구성비 없음";
   }
   if (quality.status === "drift_outlier_review") {
-    return "큰 괴리 종목 확인 필요";
+    return "큰 괴리 종목 있음";
   }
   if (quality.status === "missing_guardrail") {
     return "위험 예산 평가 없음";
@@ -996,7 +996,7 @@ function benchmarkDriftQualityExplanation(quality: BenchmarkDriftQuality) {
     return "구성비 확인률과 기준일이 충분해 벤치마크 대비 괴리를 보조 위험 지표로 볼 수 있다. 추천 산식 반영 비중은 자동 변경하지 않는다.";
   }
   if (!quality.attention_required && quality.status === "drift_outlier_review") {
-    return quality.managed_review_reason || "큰 벤치마크 괴리는 확인 대상으로 저장됐고 자동 주문 없이 성과 관찰을 기다린다.";
+    return quality.managed_review_reason || "큰 벤치마크 괴리는 검토 후보로 저장됐고 자동 주문 없이 성과 관찰을 기다린다.";
   }
   if (quality.status === "partial_composition") {
     return "현재 벤치마크 보유종목 일부만 들어와 있다. 괴리 숫자는 계산됐지만 전체 SPY 대비 괴리로 해석하면 안 된다.";
@@ -1013,7 +1013,7 @@ function benchmarkDriftQualityExplanation(quality: BenchmarkDriftQuality) {
   if (quality.status === "missing_guardrail") {
     return "위험 예산 평가가 아직 없어 벤치마크 괴리 품질도 판단할 수 없다.";
   }
-  return "벤치마크 괴리 품질 상태를 확인해야 한다.";
+  return "벤치마크 괴리 품질 상태를 봐야 한다.";
 }
 
 function benchmarkDriftQualityTone(quality: BenchmarkDriftQuality) {
@@ -1140,7 +1140,7 @@ function outcomeCalibrationExplanation(calibration: RecommendationOutcomeCalibra
   if (calibration.status === "missing") {
     return "추천 성과 표본과 컴포넌트 보정 진단이 아직 생성되지 않았다.";
   }
-  return "추천 성과 보정 상태를 확인해야 한다.";
+  return "추천 성과 보정 상태를 봐야 한다.";
 }
 
 function outcomeCalibrationTone(calibration: RecommendationOutcomeCalibration) {
@@ -1190,7 +1190,7 @@ function outcomeMaturityExplanation(maturity: RecommendationOutcomeMaturity) {
   if (maturity.status === "complete_current_window") {
     return "현재 측정 가능한 성과창은 모두 처리됐다. 다음 측정일 전까지 추천 산식 변경은 하지 않는다.";
   }
-  return "추천 성과 측정창 상태를 확인한다.";
+  return "추천 성과 측정창 상태를 본다.";
 }
 
 function outcomeMaturityTone(maturity: RecommendationOutcomeMaturity) {
@@ -1265,10 +1265,10 @@ function professionalSourceGapExplanation(gaps: ProfessionalSourceGapPrioritizat
     return "활성 추천 기준으로 핵심 재무·밸류에이션·리서치 원천 공백이 없다.";
   }
   if (!gaps.attention_required && gaps.source_blocker_count > 0) {
-    return "원천 데이터가 부족한 종목은 남겨두되, 전문 판단과 가상 매매 검증 입력에서는 이미 차단했다. 새 정기 공시나 전용 parser가 생기면 다시 확인한다.";
+    return "원천 데이터가 부족한 종목은 남겨두되, 전문 판단과 가상 매매 검증 입력에서는 이미 차단했다. 새 정기 공시나 전용 parser가 생기면 다시 본다.";
   }
   if (gaps.status === "source_blockers_present") {
-    return "SEC companyfacts나 원천 공시 연결이 막힌 종목이 있다. 합성 재무를 만들지 말고 원천 가능 여부부터 확인해야 한다.";
+    return "SEC companyfacts나 원천 공시 연결이 막힌 종목이 있다. 합성 재무를 만들지 말고 원천 가능 여부부터 봐야 한다.";
   }
   if (gaps.status === "high_priority_gaps") {
     return "추천 또는 보유 노출이 있는 종목의 재무·피어·밸류에이션·리서치 근거가 비어 있다. 이 종목부터 보강한다.";
@@ -1277,7 +1277,7 @@ function professionalSourceGapExplanation(gaps: ProfessionalSourceGapPrioritizat
     return "ETF·펀드형 상품은 기업 재무제표가 아니라 보유종목, 비용, NAV, 추적차이 원천이 판단 근거다.";
   }
   if (gaps.status === "fund_company_model_not_applicable") {
-    return "ETF·펀드형 상품은 기업 재무 모델 대상이 아니다. 별도 펀드 분석 근거로 확인한다.";
+    return "ETF·펀드형 상품은 기업 재무 모델 대상이 아니다. 별도 펀드 분석 근거로 본다.";
   }
   return "전문가식 분석에 필요한 원천 근거 중 일부가 비어 있어 추천 산식 검토 전 보강해야 한다.";
 }
@@ -1477,11 +1477,11 @@ function operationCopy(value: string) {
     .replaceAll("child runner", "후속 실행")
     .replaceAll("runner", "실행기")
     .replaceAll("open gate", "열린 확인 항목")
-    .replaceAll("review candidate", "확인 대상")
+    .replaceAll("review candidate", "검토 후보")
     .replaceAll("candidate", "대상")
     .replaceAll(oldHoldingReviewCompact, "보유 상태 판단")
     .replaceAll(oldHoldingReview, "보유 상태 판단")
-    .replaceAll(oldReviewCandidate, "확인 대상")
+    .replaceAll(oldReviewCandidate, "검토 후보")
     .replaceAll(oldReviewDocument, "상세 근거")
     .replaceAll("guardrail", "안전 조건")
     .replaceAll("raw filing", "원문 공시")
@@ -1644,7 +1644,7 @@ const DEFAULT_LIVE_AI_INVOCATION_HEALTH: LiveAiInvocationHealth = {
   latest_error_summary: "",
   latest_error_code: "",
   task_health: [],
-  next_action: "최근 실제 AI 호출 증거가 없다. 뉴스 AI 배치가 실제로 호출됐는지 확인한다.",
+  next_action: "최근 실제 AI 호출 증거가 없다. 뉴스 AI 배치가 실제로 호출됐는지 본다.",
 };
 
 const DEFAULT_OPENAI_PROVIDER_HEALTH: OpenAiProviderHealth = {
@@ -1728,7 +1728,7 @@ const DEFAULT_PORTFOLIO_REVIEW_DECISION_HISTORY: PortfolioReviewDecisionHistory 
   decision_counts: {},
   attention_required: true,
   managed_review_status: "unmanaged_or_missing",
-  managed_review_reason: "검토 이력, 안전 조건, 또는 후속 실행 분기 상태를 확인해야 한다.",
+  managed_review_reason: "검토 이력, 안전 조건, 또는 후속 실행 분기 상태를 봐야 한다.",
   top_decision: null,
   latest_decisions: [],
   guardrails: {
@@ -1781,7 +1781,7 @@ const DEFAULT_PORTFOLIO_REVIEW_DECISION_FEEDBACK: PortfolioReviewDecisionFeedbac
     broker_submit_allowed: false,
     order_boundary: "read_only_no_order",
   },
-  next_action: "portfolio-review-decision-outcome-feedback-run을 실행해 저장된 검토 결정이 후속 성과와 맞는지 확인한다.",
+  next_action: "portfolio-review-decision-outcome-feedback-run을 실행해 저장된 검토 결정이 후속 성과와 맞는지 본다.",
 };
 
 const DEFAULT_PORTFOLIO_REVIEW_FEEDBACK_CALIBRATION: PortfolioReviewFeedbackCalibration = {
@@ -2105,7 +2105,7 @@ const DEFAULT_RECOMMENDATION_OUTCOME_MATURITY: RecommendationOutcomeMaturity = {
     requires_price_backfill: false,
     wait_until: "",
     command: "stockanalysis-operations recommendation-outcome-calibration-sample-expansion-run --env-file <ENV> --as-of-date <YYYY-MM-DD> --execute",
-    label: "성과 측정창 상태를 먼저 확인한다.",
+    label: "성과 측정창 상태를 먼저 본다.",
     reason: "maturity monitor 결과가 아직 없다.",
     blocks_weight_review: true,
     automatic_weight_change_allowed: false,
@@ -2276,7 +2276,7 @@ const DEFAULT_PRODUCTION_API_SERVER: ProductionApiServer = {
   missing_conditions: ["runtime_profile_production", "read_token_auth", "psycopg_pool_boundary"],
   order_boundary: "read_only_no_order",
   automatic_action_allowed: false,
-  next_action: "읽기 서버 실행 환경, 조회 권한, 허용 출처, DB 설정, DB 연결 경계를 확인한다.",
+  next_action: "읽기 서버 실행 환경, 조회 권한, 허용 출처, DB 설정, DB 연결 경계를 본다.",
 };
 
 const DEFAULT_AUTH_RBAC: AuthRbac = {
@@ -2297,7 +2297,7 @@ const DEFAULT_AUTH_RBAC: AuthRbac = {
   order_boundary: "read_only_no_order",
   missing_conditions: ["production_api_ready", "bearer_read_token", "read_only_rbac_mode"],
   summary: "읽기 서버의 읽기 토큰, 조회 역할, 쓰기/주문 차단 경계 증거가 아직 부족하다.",
-  next_action: "읽기 서버 준비, 읽기 토큰, 조회 역할, 쓰기 요청 차단, 증권사 주문 차단을 확인한다.",
+  next_action: "읽기 서버 준비, 읽기 토큰, 조회 역할, 쓰기 요청 차단, 증권사 주문 차단을 본다.",
 };
 
 const DEFAULT_ALERT_DESTINATION: AlertDestination = {
@@ -2480,7 +2480,7 @@ export default async function DataHealthPage() {
             : managedWaitGateCount > 0
               ? `성과 대기 ${managedWaitGateCount}개`
               : data.open_gates.length > 0
-                ? `확인 항목 ${data.open_gates.length}개`
+                ? `점검 항목 ${data.open_gates.length}개`
                 : "열린 항목 없음",
       body:
         fixNowGateCount > 0
@@ -2489,7 +2489,7 @@ export default async function DataHealthPage() {
             ? "원천 한계는 오류를 숨기는 것이 아니라 합성 데이터를 만들지 않고 판단 입력에서 제외한 상태다."
             : managedWaitGateCount > 0
               ? "성과 측정창이 끝날 때까지 기다리는 설계된 대기다. 추천 산식 변경은 계속 막는다."
-              : "즉시 조치할 장애는 없다. 최신 실행과 품질 샘플만 필요할 때 아래에서 확인한다.",
+              : "즉시 조치할 장애는 없다. 최신 실행과 품질 샘플만 아래에서 보면 된다.",
       metric: `${data.open_gates.length.toLocaleString("ko-KR")}개 열린 항목`,
       href:
         fixNowGateCount > 0
@@ -2511,10 +2511,10 @@ export default async function DataHealthPage() {
     },
     {
       label: "2. 자동 수집",
-      title: allTimersActive && failedPipelines === 0 ? "자동 수집 작동 중" : "수집 상태 확인 필요",
+      title: allTimersActive && failedPipelines === 0 ? "자동 수집 작동 중" : "자동 수집 증거 부족",
       body: allTimersActive
         ? "뉴스, 가격, 추천, 성과 측정 작업이 각각의 서버 예약 실행기로 분리되어 돈다."
-        : "예약 실행기 일부가 꺼졌거나 실행 증거가 부족하다. 어떤 작업 묶음이 멈췄는지 먼저 확인한다.",
+        : "예약 실행기 일부가 꺼졌거나 실행 증거가 부족하다. 멈춘 작업 묶음을 먼저 찾는다.",
       metric: `${profileScheduler.active_timer_count}/${profileScheduler.timer_count}개 활성 · 문제 실행 ${failedPipelines}개`,
       href: "#scheduler-detail",
       cta: "자동화 보기",
@@ -2525,14 +2525,14 @@ export default async function DataHealthPage() {
       title: dataQualityReady
         ? "품질 기준 통과"
         : liveAiInvocationHealth.attention_required
-          ? "실제 AI 호출 확인 필요"
+          ? "실제 AI 호출 증거 부족"
         : qualityAudit.issue_count > 0 || newsAiEvalQuality.failed_case_count > 0
-          ? "오염 의심 확인 필요"
+          ? "오염 의심 항목 있음"
           : "품질 근거 보강 중",
       body: dataQualityReady
-        ? "뉴스 오염 감사, AI 기준 평가, 실제 Codex OAuth 호출이 모두 통과했다. 벤치마크 괴리 품질과 세부 샘플은 아래에서 확인한다."
+        ? "뉴스 오염 감사, AI 기준 평가, 실제 Codex OAuth 호출이 모두 통과했다. 벤치마크 괴리 품질과 세부 샘플은 아래에서 본다."
         : liveAiInvocationHealth.attention_required
-          ? "기준 세트 평가가 통과해도 실제 AI 호출이 중단되면 뉴스 번역과 AI 구조화는 규칙 기반 대체 결과일 수 있다. 실제 호출 상태를 확인한다."
+          ? "기준 세트 평가가 통과해도 실제 AI 호출이 중단되면 뉴스 번역과 AI 구조화는 규칙 기반 대체 결과일 수 있다. 실제 호출 상태를 먼저 본다."
         : qualityAudit.issue_count > 0 || newsAiEvalQuality.failed_case_count > 0
           ? "중복 뉴스, 오분류, AI 기준 평가 중단, 벤치마크 괴리 품질 중 확인할 항목이 있다. 추천 입력 전에 품질 근거를 본다."
           : "큰 오염은 없지만 번역, 전파, 사이클 스냅샷, 가상 매매 검증 근거가 아직 부족하다. 벤치마크 괴리 품질도 함께 본다.",
@@ -2543,11 +2543,11 @@ export default async function DataHealthPage() {
     },
     {
       label: "4. 투자 안전",
-      title: safeInvestmentBoundary ? "추천 산식·실거래 차단" : "투자 경계 확인 필요",
+      title: safeInvestmentBoundary ? "추천 산식·실거래 차단" : "투자 경계 불일치",
       body: safeInvestmentBoundary
         ? "성과 표본이 성숙하기 전까지 추천 산식 반영 비중 변경과 실거래 주문 제출은 막혀 있다."
-        : "추천 산식 검토나 실거래 상태 조건이 예상과 다르다. 추천 산식/거래 안전 상태를 먼저 확인한다.",
-      metric: outcomeWaitMonitor.weight_review_blocked ? "반영 비중 변경 금지 · 주문 차단" : "투자 경계 확인",
+        : "추천 산식 검토나 실거래 상태 조건이 예상과 다르다. 추천 산식/거래 안전 상태를 먼저 본다.",
+      metric: outcomeWaitMonitor.weight_review_blocked ? "반영 비중 변경 금지 · 주문 차단" : "투자 경계 불일치",
       href: "#outcome-maturity-wait-monitor",
       cta: "투자 경계 보기",
       tone: safeInvestmentBoundary ? "ready" : "block",
@@ -2559,11 +2559,11 @@ export default async function DataHealthPage() {
           ? `원천 차단 ${professionalSourceGaps.source_blocker_count}개`
           : professionalQuality.status === "managed_source_limited"
             ? "원천 한계 관리 중"
-            : "전문 분석 연결 확인",
+            : "전문 분석 연결 상태",
       body:
         professionalSourceGaps.source_blocker_count > 0
           ? "표준 재무 원천이 부족한 종목은 전문 판단과 가상 매매 입력에서 제외한다."
-          : "재무·피어·밸류에이션·산업·AI 리서치 근거가 추천별로 얼마나 채워졌는지 확인한다.",
+          : "재무·피어·밸류에이션·산업·AI 리서치 근거가 추천별로 얼마나 채워졌는지 본다.",
       metric: `평균 연결률 ${formatPercent(professionalQuality.average_coverage_ratio)} · 투자 검토 ${investmentReviewGateCount}개`,
       href: "#professional-analysis-quality",
       cta: "전문 분석 보기",
@@ -2575,16 +2575,16 @@ export default async function DataHealthPage() {
       label: "지금 판단",
       title:
         productionApiServer.attention_required
-          ? "읽기 서버 확인 필요"
+          ? "읽기 서버 보강 필요"
           : authRbac.attention_required
-          ? "조회 권한 확인 필요"
+          ? "조회 권한 보강 필요"
           : alertDestination.attention_required
-          ? "운영 알림 확인 필요"
+          ? "운영 알림 보강 필요"
           : failedPipelines > 0
           ? "수집 문제 먼저 해결"
           : data.overall_status === "healthy"
             ? "수집 상태 정상"
-            : "주의 항목 확인",
+            : "주의 항목 있음",
       body:
         productionApiServer.attention_required
 	          ? operationCopy(productionApiServer.next_action)
@@ -2616,7 +2616,7 @@ export default async function DataHealthPage() {
     {
       label: "자동화",
       title: artifactRunner.attention_required
-        ? "실행 증거 확인 필요"
+        ? "실행 증거 보강 필요"
         : `${profileScheduler.active_timer_count}/${profileScheduler.timer_count}개 예약 실행`,
       body: artifactRunner.attention_required
         ? operationCopy(artifactRunner.next_action)
@@ -2710,7 +2710,7 @@ export default async function DataHealthPage() {
           ? portfolioReviewHistory.attention_required
             ? `최신 ${portfolioReviewHistory.as_of_date} 기준으로 벤치마크 ${portfolioReviewHistory.benchmark_decision_count}개, 포지션 크기 ${portfolioReviewHistory.position_sizing_decision_count}개 결정을 감사 이력으로 남겼다.`
             : operationCopy(portfolioReviewHistory.managed_review_reason)
-	          : "현재 화면의 확인 대상은 보이지만 저장된 확인 이력으로는 아직 남지 않았다.",
+	          : "현재 화면의 검토 후보는 보이지만 저장된 검토 이력으로는 아직 남지 않았다.",
       href: "#portfolio-review-history",
       cta: "검토 이력 보기",
       tone: portfolioReviewHistory.attention_required ? "risk-medium" : "risk-low",
@@ -2912,7 +2912,7 @@ export default async function DataHealthPage() {
       run: remediationRun,
       owner: "portfolio-remediation-daily",
       output: "보유 투자 논리 유지 여부, 빈 가격/논리/성과 항목, 가상 거래 검증 문제를 큐로 만든다.",
-      next: "추천 상세, 투자 논리, 보유 상태, 가상 매매 화면에서 확인한다.",
+      next: "추천 상세, 투자 논리, 보유 상태, 가상 매매 화면에서 본다.",
     },
   ];
   const collectionStatusCards = [
@@ -2958,7 +2958,7 @@ export default async function DataHealthPage() {
       title: "추천 신호",
       run: decisionRun,
       purpose: "가격, 뉴스, 사이클, 상위 흐름을 추천 점수로 합친다.",
-      check: "추천은 주문이 아니라 확인해야 할 상세 근거다.",
+      check: "추천은 주문이 아니라 읽어야 할 상세 근거다.",
     },
     {
       index: "07",
@@ -2971,7 +2971,7 @@ export default async function DataHealthPage() {
       index: "08",
       title: "토스증권 브로커 데이터",
       run: findPipelineRun(data, "toss-candles-us-shadow-daily", "tossinvest_market_data_sync"),
-      purpose: "실제 증권사 화면에서 볼 가격·호가·체결·주의사항을 확인한다.",
+      purpose: "실제 증권사 화면에서 볼 가격·호가·체결·주의사항을 본다.",
       check: `${koCode(tossMarketData.sync.status)} · ${tossMarketData.sync.requested_symbol_count.toLocaleString("ko-KR")}개 요청`,
     },
   ];
@@ -2985,11 +2985,11 @@ export default async function DataHealthPage() {
           </h1>
           <p className="decision-brief-copy">
             데이터가 정상인지, 자동 실행이 살아 있는지, 무료 API 예산과 AI 품질이
-            추천 판단을 믿을 수 있는 상태인지 확인한다.
+            추천 판단을 믿을 수 있는 상태인지 본다.
           </p>
           <div className="decision-brief-meta" aria-label="데이터 상태 핵심 수치">
             <span>자동 실행 {automationStateLabel(schedulerActivation)}</span>
-            <span>확인 필요 항목 {data.open_gates.length.toLocaleString("ko-KR")}개</span>
+            <span>보강 필요 항목 {data.open_gates.length.toLocaleString("ko-KR")}개</span>
             <span>호출 예산 {providerBudget.remaining_request_count}/{providerBudget.daily_budget}</span>
             <span>실거래 상태 {koCode(outcomeWaitMonitor.order_boundary)}</span>
           </div>
@@ -3058,7 +3058,7 @@ export default async function DataHealthPage() {
       <section className="feature-map-panel reveal delay-1" aria-labelledby="collection-status-title">
         <div className="section-heading stacked-heading">
           <span>수집/분석별 상태</span>
-          <h2 id="collection-status-title">무엇이 언제 실행됐고, 어디에 쓰이는지 확인한다</h2>
+          <h2 id="collection-status-title">무엇이 언제 실행됐고, 어디에 쓰이는지 본다</h2>
 	        </div>
 	        <p className="board-intro">
 	          주식 캔들, 뉴스 원문, 1차 분류, AI 분석, 추천 갱신, 보유 상태 판단이 각각 따로 돈다.
@@ -3116,7 +3116,7 @@ export default async function DataHealthPage() {
       <section className="feature-map-panel reveal delay-1" id="quality-audit" aria-labelledby="quality-audit-title">
         <div className="section-heading stacked-heading">
           <span>품질 감사</span>
-          <h2 id="quality-audit-title">수집·번역·AI·전파·추천 입력이 오염되지 않았는지 확인한다.</h2>
+          <h2 id="quality-audit-title">수집·번역·AI·전파·추천 입력의 오염 여부</h2>
         </div>
         <p className="board-intro">{qualityAuditExplanation(qualityAudit)}</p>
         <div className="status-rail compact-rail">
@@ -3244,7 +3244,7 @@ export default async function DataHealthPage() {
 	        <div className="section-heading stacked-heading">
 	          <span>실제 AI 호출 상태</span>
 	          <h2 id="live-ai-invocation-health-title">
-            기준 세트 통과와 별개로, 운영 배치가 실제 AI를 호출했는지 확인한다.
+            기준 세트 통과와 별개로, 운영 배치가 실제 AI를 호출했는지 본다.
 	          </h2>
 	        </div>
 	        <p className="board-intro">{liveAiInvocationExplanation(liveAiInvocationHealth)}</p>
@@ -3327,7 +3327,7 @@ export default async function DataHealthPage() {
 	        <div className="section-heading stacked-heading">
 	          <span>OpenAI 잔액·쿼터 상태</span>
 	          <h2 id="openai-provider-health-title">
-	            OpenAI API를 바로 쓸 수 있는지와 중단 시 어떤 경로로 우회하는지 확인한다.
+	            OpenAI API를 바로 쓸 수 있는지와 중단 시 어떤 경로로 우회하는지 본다.
 	          </h2>
 	        </div>
 	        <p className="board-intro">{openAiProviderExplanation(openAiProviderHealth)}</p>
@@ -3388,7 +3388,7 @@ export default async function DataHealthPage() {
 	          </p>
 	          <p>
 	            Admin Costs API는 사용 비용만 제공한다. 잔액 자체는{" "}
-	            <a href={openAiProviderHealth.cost_status.billing_overview_url}>OpenAI Billing Overview</a>에서 직접 확인한다.
+	            <a href={openAiProviderHealth.cost_status.billing_overview_url}>OpenAI Billing Overview</a>에서 직접 본다.
 	          </p>
 	        </div>
 	      </section>
@@ -3401,7 +3401,7 @@ export default async function DataHealthPage() {
         <div className="section-heading stacked-heading">
 	          <span>뉴스 AI 기준 평가</span>
           <h2 id="news-ai-eval-quality-title">
-            AI가 뉴스에서 테마와 종목을 잘못 뽑기 시작했는지 기준 세트로 확인한다.
+            AI가 뉴스에서 테마와 종목을 잘못 뽑기 시작했는지 기준 세트로 본다.
           </h2>
         </div>
         <p className="board-intro">{newsAiEvalExplanation(newsAiEvalQuality)}</p>
@@ -3445,7 +3445,7 @@ export default async function DataHealthPage() {
           <article className="insight-card">
             <span>양자→에너지 오분류</span>
             <strong>{newsAiEvalQuality.quantum_energy_misclassification_count}</strong>
-            <p>양자컴퓨팅 정책 뉴스가 XOM/XLE 또는 에너지 테마로 잘못 흐르는지 확인한다.</p>
+            <p>양자컴퓨팅 정책 뉴스가 XOM/XLE 또는 에너지 테마로 잘못 흐르는지 본다.</p>
           </article>
           <article className="insight-card">
             <span>차단 후보 정확도</span>
@@ -3608,7 +3608,7 @@ export default async function DataHealthPage() {
       >
         <div className="section-heading stacked-heading">
           <span>추천 성과검증</span>
-          <h2 id="outcome-calibration-title">추천 산식 반영 비중을 바꾸기 전에 성과 표본과 부진 사례를 확인한다.</h2>
+          <h2 id="outcome-calibration-title">추천 산식 반영 비중을 바꾸기 전 성과 표본과 부진 사례</h2>
         </div>
         <p className="board-intro">{outcomeCalibrationExplanation(outcomeCalibration)}</p>
         <div className="status-rail compact-rail">
@@ -3735,7 +3735,7 @@ export default async function DataHealthPage() {
         <div className="section-heading stacked-heading">
           <span>전문 분석 품질</span>
           <h2 id="professional-analysis-quality-title">
-            재무·피어·밸류에이션·산업·AI 리서치 근거가 추천 판단에 붙었는지 확인한다.
+            재무·피어·밸류에이션·산업·AI 리서치 근거가 추천 판단에 붙었는지 본다.
           </h2>
         </div>
         <p className="board-intro">{operationCopy(professionalQuality.summary)}</p>
@@ -3976,7 +3976,7 @@ export default async function DataHealthPage() {
 	          <p>{operationCopy(professionalNextAction.next_action)}</p>
           {professionalNextAction.next_symbol ? (
             <p>
-              우선 확인 대상{" "}
+              우선 검토 후보{" "}
               {professionalNextAction.next_symbol_href ? (
                 <a href={professionalNextAction.next_symbol_href}>{professionalNextAction.next_symbol}</a>
               ) : (
@@ -4217,7 +4217,7 @@ export default async function DataHealthPage() {
       >
         <div className="section-heading stacked-heading">
           <span>벤치마크 괴리 품질</span>
-          <h2 id="benchmark-drift-quality-title">SPY와 얼마나 다른지 보기 전에 구성비 품질을 먼저 확인한다.</h2>
+          <h2 id="benchmark-drift-quality-title">SPY와 얼마나 다른지 보기 전 구성비 품질</h2>
         </div>
         <p className="board-intro">{benchmarkDriftQualityExplanation(benchmarkDriftQuality)}</p>
         <div className="status-rail compact-rail">
@@ -4250,7 +4250,7 @@ export default async function DataHealthPage() {
           <article className="rail-cell">
             <span>큰 괴리 종목</span>
             <strong>{benchmarkDriftQuality.outlier_positions.length}</strong>
-            <small>확인 대상 {benchmarkDriftQuality.review_candidate_count}개</small>
+            <small>검토 후보 {benchmarkDriftQuality.review_candidate_count}개</small>
           </article>
           <article className="rail-cell rail-critical">
             <span>실거래 상태</span>
@@ -4304,7 +4304,7 @@ export default async function DataHealthPage() {
       >
         <div className="section-heading stacked-heading">
           <span>포트폴리오 검토 결정 이력</span>
-          <h2 id="portfolio-review-history-title">화면에서 본 판단이 나중에도 추적되는지 확인한다.</h2>
+          <h2 id="portfolio-review-history-title">화면에서 본 판단이 나중에도 추적되는가</h2>
         </div>
         <p className="board-intro">
           {portfolioReviewHistory.attention_required
@@ -4327,7 +4327,7 @@ export default async function DataHealthPage() {
           <article className="rail-cell">
             <span>저장된 결정</span>
             <strong>{portfolioReviewHistory.decision_count}</strong>
-            <small>확인 필요 {portfolioReviewHistory.review_required_count}개</small>
+            <small>보강 필요 {portfolioReviewHistory.review_required_count}개</small>
           </article>
           <article className="rail-cell">
             <span>벤치마크 / 포지션</span>
@@ -5425,7 +5425,7 @@ export default async function DataHealthPage() {
             <dl className="fact-list">
               <div>
                 <dt>읽기 서버</dt>
-                <dd>{productionApiServer.attention_required ? "확인 필요" : "운영 준비 확인"}</dd>
+                <dd>{productionApiServer.attention_required ? "보강 필요" : "운영 준비됨"}</dd>
               </div>
               <div>
                 <dt>데이터 연결</dt>
@@ -5444,7 +5444,7 @@ export default async function DataHealthPage() {
               </div>
               <div>
                 <dt>조회 권한</dt>
-                <dd>{authRbac.attention_required ? "확인 필요" : "읽기 전용 권한 확인"}</dd>
+                <dd>{authRbac.attention_required ? "보강 필요" : "읽기 전용 권한 준비"}</dd>
               </div>
               <div>
                 <dt>읽기 범위</dt>
@@ -5469,7 +5469,7 @@ export default async function DataHealthPage() {
               </div>
               <div>
                 <dt>알림 목적지</dt>
-                <dd>{alertDestination.attention_required ? "확인 필요" : "외부 알림 검증됨"}</dd>
+                <dd>{alertDestination.attention_required ? "보강 필요" : "외부 알림 검증됨"}</dd>
               </div>
               <div>
                 <dt>알림 방식</dt>
@@ -5519,7 +5519,7 @@ export default async function DataHealthPage() {
               </div>
 	            <div>
 	              <dt>실행 증거</dt>
-	              <dd>{artifactRunner.attention_required ? "확인 필요" : "운영 증거 확인됨"}</dd>
+	              <dd>{artifactRunner.attention_required ? "보강 필요" : "운영 증거 있음"}</dd>
 	            </div>
 	            <div>
 	              <dt>저장 정책</dt>

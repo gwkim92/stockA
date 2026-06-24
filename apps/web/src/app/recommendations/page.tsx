@@ -184,10 +184,10 @@ export default async function RecommendationsPage() {
           : `평균 점수 ${formatPercent(data.summary.average_score)}`,
       body:
         data.recommendation_count > 0
-          ? "중장기 확인 대상이다. 이 신호만으로 주문하지 않고 상세 근거, 보유 상태, 성과 측정창을 함께 확인한다."
-          : "추천 생성 작업이 아직 신호를 만들지 않았다. 먼저 데이터 수집과 추천 배치 상태를 확인한다.",
+          ? "중장기 후보로만 본다. 이 신호만으로 주문하지 않고 상세 근거, 보유 상태, 성과 측정창을 함께 본다."
+          : "추천 생성 작업이 아직 신호를 만들지 않았다. 먼저 데이터 수집과 추천 배치 상태를 본다.",
       href: "#recommendation-list",
-      cta: data.recommendation_count > 0 ? "신호 목록 보기" : "목록 확인",
+      cta: data.recommendation_count > 0 ? "신호 목록 보기" : "목록 보기",
       tone: data.recommendation_count > 0 ? "watch" : "block",
     },
     {
@@ -198,12 +198,12 @@ export default async function RecommendationsPage() {
           ? "가상 검증 대기"
           : data.summary.decision_review_ready_count > 0
             ? "근거 충족"
-            : "근거 입력 부족",
-      metric: `${data.summary.paper_validation_pending_count.toLocaleString("ko-KR")}개 대기 · ${data.summary.decision_review_ready_count.toLocaleString("ko-KR")}개 근거 충족`,
+            : "가상 검증 없음",
+      metric: `대기 ${data.summary.paper_validation_pending_count.toLocaleString("ko-KR")}개 · 근거 충족 ${data.summary.decision_review_ready_count.toLocaleString("ko-KR")}개`,
       body:
         data.summary.paper_validation_pending_count > 0
-          ? "추천 신호가 곧바로 주문으로 가지 않고 가상 매매 검증과 보유 상태 확인을 기다리는 상태다."
-          : "가상 매매 입력 대상이 없거나 근거 입력이 부족하다. 추천 상세에서 어떤 근거가 빠졌는지 본다.",
+          ? "추천 신호가 곧바로 주문으로 가지 않고 가상 매매 검증과 보유 상태 대조를 기다리는 상태다."
+          : "가상 매매 입력 대상이 없거나 핵심 근거가 비어 있다. 추천 상세에서 빠진 층위를 본다.",
       href: "/paper-trading",
       cta: "가상 매매 상태 보기",
       tone: data.summary.paper_validation_pending_count > 0 ? "watch" : "ready",
@@ -221,7 +221,7 @@ export default async function RecommendationsPage() {
           ? "목록의 추천은 읽기 전용이다. 증권사 주문 제출, 자동 주문, 추천 산식 변경은 아직 열지 않았다."
           : "차단 수가 0이어도 실거래는 별도 승인된 증권사 주문 절차에서만 다룬다.",
       href: "/trading-readiness",
-      cta: "실거래 제한 보기",
+      cta: "주문 경계 보기",
       tone: data.summary.order_blocked_count > 0 ? "block" : "watch",
     },
     {
@@ -234,18 +234,18 @@ export default async function RecommendationsPage() {
             ? "원천 차단 있음"
             : data.summary.paper_validation_pending_count > 0
               ? "성과 검증 대기"
-          : "근거 보강 필요",
+          : "근거 보강 전",
       metric: `완료 ${data.summary.evidence_quality_ready_count.toLocaleString("ko-KR")}개 · 보강/대기 ${data.summary.evidence_quality_gap_count.toLocaleString("ko-KR")}개 · 원천 차단 ${data.summary.evidence_quality_source_blocked_count.toLocaleString("ko-KR")}개`,
       body:
         data.summary.evidence_quality_source_blocked_count > 0
-          ? "원천 차단 추천은 전문 판단과 가상 매매 입력에서 제외한다. 먼저 어떤 원천이 막혔는지 확인한다."
+          ? "원천 차단 추천은 전문 판단과 가상 매매 입력에서 제외한다. 먼저 어떤 원천이 막혔는지 본다."
           : data.summary.evidence_quality_ready_count > 0
-            ? "추천 상세에서 재무·밸류에이션·뉴스·사이클 근거가 어디까지 연결됐는지 확인한다."
+            ? "추천 상세에서 재무·밸류에이션·뉴스·사이클 근거가 어디까지 연결됐는지 본다."
             : data.summary.paper_validation_pending_count > 0
               ? "핵심 근거가 연결된 추천도 성과 측정창이 끝나기 전에는 weight 변경과 실거래 주문으로 넘기지 않는다."
             : "투자 논리나 근거가 연결되지 않은 신호는 전문 분석 입력으로 쓰면 안 된다.",
       href: topRecommendation ? recommendationHref(topRecommendation.recommendation_id) : "#recommendation-list",
-      cta: "근거 추적",
+      cta: "근거 지도",
       tone:
         data.summary.evidence_quality_source_blocked_count > 0
           ? "block"

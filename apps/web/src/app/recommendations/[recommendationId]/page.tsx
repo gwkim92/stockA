@@ -184,15 +184,15 @@ const CYCLE_STACK_COMPONENT_META: Record<string, { step: string; body: string }>
   },
   domain_cycle_score: {
     step: "2. 도메인",
-    body: "기술, 에너지, 금융처럼 더 넓은 사업 영역의 사이클이 종목 신호를 밀어주는지 확인한다.",
+    body: "기술, 에너지, 금융처럼 더 넓은 사업 영역의 사이클이 종목 신호를 밀어주는지 본다.",
   },
   theme_cycle_score: {
     step: "3. 테마",
-    body: "AI 반도체, 양자컴퓨팅, 에너지 지정학 같은 구체 테마 흐름이 연결됐는지 확인한다.",
+    body: "AI 반도체, 양자컴퓨팅, 에너지 지정학 같은 구체 테마 흐름이 연결됐는지 본다.",
   },
   instrument_cycle_score: {
     step: "4. 종목",
-    body: "종목 자체의 가격·사이클 상태가 상위 흐름과 같은 방향인지 확인한다.",
+    body: "종목 자체의 가격·사이클 상태가 상위 흐름과 같은 방향인지 본다.",
   },
   cycle_conflict_penalty: {
     step: "5. 충돌",
@@ -219,7 +219,7 @@ const FUNDAMENTAL_COMPONENT_META: Record<string, { lens: string; title: string; 
   valuation_margin_score: {
     lens: "밸류에이션",
     title: "현재 가격에 안전마진이 있는가",
-    body: "간이 현금흐름 평가, 상대 배수, 시나리오 범위를 근거로 비싸게 따라사는 상태인지 확인한다.",
+    body: "간이 현금흐름 평가, 상대 배수, 시나리오 범위로 비싸게 따라사는 상태인지 본다.",
   },
   peer_relative_score: {
     lens: "피어 비교",
@@ -229,12 +229,12 @@ const FUNDAMENTAL_COMPONENT_META: Record<string, { lens: string; title: string; 
   balance_sheet_risk_penalty: {
     lens: "재무 안정성",
     title: "부채와 재무 압력이 과하지 않은가",
-    body: "레버리지와 재무 부담이 중장기 보유 리스크를 키우는지 분리해서 확인한다.",
+    body: "레버리지와 재무 부담이 중장기 보유 리스크를 키우는지 분리한다.",
   },
   thesis_consistency_score: {
     lens: "투자 논리",
     title: "추천과 투자 논리가 서로 맞는가",
-    body: "활성 투자 논리, 무효화 조건, 보유 상태 맥락이 추천 방향과 충돌하지 않는지 확인한다.",
+    body: "활성 투자 논리, 무효화 조건, 보유 상태 맥락이 추천 방향과 충돌하지 않는지 본다.",
   },
 };
 
@@ -250,17 +250,17 @@ const BROKER_COMPONENT_META: Record<string, { lens: string; title: string; body:
   broker_execution_readiness_score: {
     lens: "실행 가능성",
     title: "토스증권 화면에서 체결·호가 근거가 보이는가",
-    body: "관심 종목의 최신 체결가, 매수·매도 호가, 계좌 읽기 결과를 바탕으로 실행 현실을 확인한다.",
+    body: "관심 종목의 최신 체결가, 매수·매도 호가, 계좌 읽기 결과로 실행 현실을 본다.",
   },
   broker_liquidity_warning: {
     lens: "주의사항",
     title: "토스증권 기준 주의 종목이나 유동성 경고가 있는가",
-    body: "브로커가 제공하는 주의 표시와 호가 데이터 부족 여부를 확인한다. 낮은 값은 주문 전 확인이 필요하다는 뜻이다.",
+    body: "브로커가 제공하는 주의 표시와 호가 데이터 부족 여부를 본다. 낮은 값은 주문 전 보강이 필요하다는 뜻이다.",
   },
   broker_price_basis_risk: {
     lens: "가격 기준",
     title: "분석 기준 가격과 토스증권 가격 차이를 설명할 수 있는가",
-    body: "장중 미완성 일봉, 가격 기준 차이, 누락 여부를 분리한다. 차이는 곧 오류가 아니라 확인 항목이다.",
+    body: "장중 미완성 일봉, 가격 기준 차이, 누락 여부를 분리한다. 차이는 곧 오류가 아니라 해석 항목이다.",
   },
 };
 
@@ -1287,8 +1287,8 @@ function recommendationImmediateFocus({
   } else if (blockedDecisionStepCount > 0) {
     items.push({
       label: "1순위",
-      title: "막힌 분석 단계를 확인한다",
-      body: "추천이 어느 단계에서 막혔는지 확인해야 뒤의 재무·밸류·뉴스 근거를 투자 판단에 써도 되는지 알 수 있다.",
+      title: "막힌 분석 단계가 먼저다",
+      body: "어느 단계가 막혔는지 알아야 뒤의 재무·밸류·뉴스 근거를 투자 판단에 쓸 수 있다.",
       metric: `차단 ${blockedDecisionStepCount.toLocaleString("ko-KR")}개`,
       href: "#recommendation-professional-flow",
       hrefLabel: "전문 분석 흐름 보기",
@@ -1297,7 +1297,7 @@ function recommendationImmediateFocus({
   } else if (!decisionWaterfall.paper_validation_input_allowed) {
     items.push({
       label: "1순위",
-      title: "가상 매매 입력 차단 사유 확인",
+      title: "가상 매매 입력이 막혀 있다",
       body: "전문 분석 일부는 통과했더라도 가상 매매 검증으로 넘길 조건이 아직 부족하다.",
       metric: "가상 매매 입력 차단",
       href: "/paper-trading",
@@ -1307,7 +1307,7 @@ function recommendationImmediateFocus({
   } else if (!outcomeMeasured) {
     items.push({
       label: "1순위",
-      title: "성과 측정 대기 상태 확인",
+      title: "성과 측정창을 기다린다",
       body: "추천 근거는 연결됐지만 성과 측정창이 끝나지 않았다. 이 기간에는 추천 산식 변경과 실거래 주문을 하지 않는다.",
       metric: "성과 미측정",
       href: "#recommendation-evidence-review",
@@ -1317,7 +1317,7 @@ function recommendationImmediateFocus({
   } else {
     items.push({
       label: "1순위",
-      title: "최종 결론과 반대 신호 확인",
+      title: "최종 결론과 반대 신호를 본다",
       body: qualityDecision.summary,
       metric: qualityDecision.status,
       href: "#recommendation-professional-flow",
@@ -1331,8 +1331,8 @@ function recommendationImmediateFocus({
     title: "뉴스·상위 흐름 근거 보기",
     body:
       directEvidenceStatus === "linked"
-        ? "직접 종목 뉴스가 추천 근거로 연결됐다. 원천 뉴스와 한국어 요약, 종목 영향이 맞는지 확인한다."
-        : "직접 종목 뉴스보다 상위 흐름, 가격, 종목군 순위 근거가 중심이다. 어떤 경로로 연결됐는지 확인한다.",
+        ? "직접 종목 뉴스가 추천 근거로 연결됐다. 원천 뉴스, 한국어 요약, 종목 영향이 같은 방향인지 본다."
+        : "직접 종목 뉴스보다 상위 흐름, 가격, 종목군 순위 근거가 중심이다. 연결 경로를 본다.",
     metric: `뉴스 근거 ${aiEvidenceCount.toLocaleString("ko-KR")}개 · 흐름 ${macroFlowComponents.length.toLocaleString("ko-KR")}개`,
     href: "#recommendation-evidence-trace",
     hrefLabel: "근거 경로 보기",
@@ -1341,8 +1341,8 @@ function recommendationImmediateFocus({
 
   items.push({
     label: "기업",
-    title: "재무·밸류에이션 근거 확인",
-    body: "중장기 추천은 뉴스만으로 판단하지 않는다. 재무 품질, 밸류에이션, 피어 비교가 비어 있거나 차단됐는지 확인한다.",
+    title: "재무·밸류에이션 근거",
+    body: "중장기 추천은 뉴스만으로 판단하지 않는다. 재무 품질, 밸류에이션, 피어 비교가 비어 있거나 차단됐는지 본다.",
     metric: `재무 ${financialMetricCount.toLocaleString("ko-KR")}개 · 재무항목 ${fundamentalStack.length.toLocaleString("ko-KR")}개`,
     href: financialMetricCount > 0 ? "#recommendation-financial-model" : "#recommendation-valuation",
     hrefLabel: financialMetricCount > 0 ? "재무 모델 보기" : "밸류에이션 보기",
@@ -1351,7 +1351,7 @@ function recommendationImmediateFocus({
 
   items.push({
     label: "시장",
-    title: "시장 동조성과 외부 지표 확인",
+    title: "시장 동조성과 외부 지표",
     body: "지수·섹터·금리·달러·원자재와 같은 외부 환경과 같이 움직이는지 봐야 종목 단독 착시를 줄일 수 있다.",
     metric: `비교 ${marketCorrelationCount.toLocaleString("ko-KR")}개`,
     href: "#recommendation-market-correlations",
@@ -1363,7 +1363,7 @@ function recommendationImmediateFocus({
     items.push({
       label: "주의",
       title: "주의 단계가 남아 있다",
-      body: "차단은 아니지만 추가 확인이 필요한 단계가 있다. 추천을 바로 채택하지 말고 남은 주의 항목을 확인한다.",
+      body: "차단은 아니지만 주의 단계가 남아 있다. 추천을 바로 채택하지 말고 남은 항목을 본다.",
       metric: `주의 ${watchDecisionStepCount.toLocaleString("ko-KR")}개`,
       href: "#recommendation-professional-flow",
       hrefLabel: "주의 단계 보기",
@@ -1663,12 +1663,12 @@ function RecommendationFocusPanel({
   return (
     <section className={`recommendation-focus-panel ${qualityDecision.tone} reveal delay-1`} aria-labelledby="recommendation-focus-title">
       <div className="recommendation-focus-lead">
-        <span>다음 확인 순서</span>
+        <span>추천 판단 순서</span>
         <h2 id="recommendation-focus-title">
           먼저 {firstItem?.title ?? "현재 결론"}부터 본다
         </h2>
         <p>
-          {data.symbol} 추천을 채택할지, 보류할지, 기록만 남길지 판단한다. 원천 근거, 전문 분석, 가상 매매 경계를 순서대로 확인한다.
+          {data.symbol} 추천을 채택할지, 보류할지, 기록만 남길지 판단한다. 원천 근거, 전문 분석, 가상 매매 경계를 순서대로 본다.
         </p>
         <div className="recommendation-focus-metrics" aria-label="추천서 핵심 상태">
           <div>
@@ -1783,7 +1783,7 @@ export default async function RecommendationPage({ params }: RecommendationPageP
             {data.symbol} · {qualityDecision.status}
           </h1>
           <p className="decision-brief-copy">
-            {qualityDecision.summary} 여기서는 근거의 출처, 전문 분석 통과 여부, 가상 매매 입력 가능 여부만 확인한다.
+            {qualityDecision.summary} 여기서는 근거의 출처, 전문 분석 통과 여부, 가상 매매 입력 가능 여부를 분리해서 본다.
           </p>
           <div className="decision-brief-meta" aria-label="추천 상세 핵심 상태">
             <span>점수 {formatPercent(data.score)}</span>
@@ -1798,7 +1798,7 @@ export default async function RecommendationPage({ params }: RecommendationPageP
           <Link className="decision-card primary" href="#recommendation-professional-flow">
             <span>현재 결론</span>
             <strong>{qualityDecision.status}</strong>
-            <small>전문 분석 단계에서 무엇이 통과·차단됐는지 먼저 확인한다.</small>
+            <small>전문 분석 단계에서 무엇이 통과·차단됐는지 먼저 본다.</small>
           </Link>
           <Link className="decision-card" href={stockHref(data.symbol)}>
             <span>종목 맥락</span>
@@ -1813,12 +1813,12 @@ export default async function RecommendationPage({ params }: RecommendationPageP
           <Link className="decision-card" href="/paper-trading">
             <span>거래 경계</span>
             <strong>{orderBoundaryLabel(decisionWaterfall.order_boundary)}</strong>
-            <small>가상 매매와 실거래 제출 가능 여부를 분리해서 확인한다.</small>
+            <small>가상 매매와 실거래 제출 가능 여부를 분리해서 본다.</small>
           </Link>
           <Link className={marketCorrelationCount > 0 ? "decision-card is-good" : "decision-card is-watch"} href="#recommendation-market-correlations">
             <span>시장 동조성</span>
             <strong>{marketCorrelationCount.toLocaleString("ko-KR")}개 비교</strong>
-            <small>추천 종목이 지수·섹터·금리·달러·원자재와 같이 움직였는지 확인한다.</small>
+            <small>추천 종목이 지수·섹터·금리·달러·원자재와 같이 움직였는지 본다.</small>
           </Link>
         </div>
       </section>

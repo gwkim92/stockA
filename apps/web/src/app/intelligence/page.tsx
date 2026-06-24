@@ -72,7 +72,7 @@ function aiEvidenceLabel(type: string | null) {
   if (type) {
     return koCode(type);
   }
-  return "근거 정리 대기";
+  return "근거 대기";
 }
 
 function formatSymbols(symbols: string[]) {
@@ -109,7 +109,7 @@ function formatClusterRagStatus(cluster: StoredAiNewsCluster) {
   if (cluster.embedded_chunk_count > 0) {
     return "원문 근거 검색 가능";
   }
-  return "원문 근거 연결";
+  return "원문 근거 있음";
 }
 
 function formatClusterStory(cluster: StoredAiNewsCluster) {
@@ -177,20 +177,20 @@ function clusterRecommendationUse(cluster: StoredAiNewsCluster) {
     return {
       label: "추천 영향",
       title: "관찰 전용",
-      body: "신뢰도가 낮아 추천 점수에 강하게 반영하지 않고 원천 문서 확인이 먼저다.",
+      body: "신뢰도가 낮아 추천 판단의 중심 근거로 쓰지 않는다.",
     };
   }
   if (cluster.event_count < 2) {
     return {
       label: "추천 영향",
       title: "단일 뉴스 근거",
-      body: "뉴스 수가 적어 보조 근거로만 본다. 반복되는 흐름인지 추가 확인이 필요하다.",
+      body: "뉴스 수가 적어 보조 근거로만 둔다. 반복 흐름이 쌓일 때 비중을 높인다.",
     };
   }
   return {
     label: "추천 영향",
     title: "근거 항목",
-    body: "추천 상세·보유 상태에 연결될 수 있지만, 실제 사용 여부는 점수·가격·투자 논리 확인이 결정한다.",
+    body: "추천 상세·보유 상태에 연결될 수 있다. 최종 판단은 가격, 사이클, 투자 논리가 함께 결정한다.",
   };
 }
 
@@ -231,7 +231,7 @@ function formatLlmCandidateDetail(summary: AiNewsClusterSummary) {
   if (safeCount(summary.llm_candidate_invocation_count) === 0) {
     return "뉴스 흐름은 저장된 기본 근거를 표시 중";
   }
-  return `저장된 근거 분석 ${safeCount(summary.llm_candidate_artifact_count)}건 · 완료 ${safeCount(summary.llm_candidate_success_count)}건 · 중단 ${safeCount(summary.llm_candidate_failed_count)}건`;
+  return `투자 근거 ${safeCount(summary.llm_candidate_artifact_count)}건 · 통과 ${safeCount(summary.llm_candidate_success_count)}건 · 중단 ${safeCount(summary.llm_candidate_failed_count)}건`;
 }
 
 function formatClusterModeStatus(summary: AiNewsClusterSummary) {
@@ -401,7 +401,7 @@ export default async function IntelligencePage() {
       label: "오늘의 상위 흐름",
       title: firstFlowTitle,
       target: firstFlowTarget,
-      body: "반복 뉴스가 같은 시장 흐름인지 확인한다.",
+      body: "반복 뉴스가 같은 시장 흐름을 만들고 있는지 본다.",
       cta: firstCluster ? "흐름 상세 보기" : "흐름 지도 보기",
       href: firstFlowHref,
       tone: "focus",
@@ -413,7 +413,7 @@ export default async function IntelligencePage() {
       target: firstCandidate
         ? `${formatNewsSymbol(firstCandidate.symbol)} · ${koCode(firstCandidate.theme_key)}`
         : formatLlmCandidateStatus(clusterSummary),
-      body: "추천 근거로 볼 수 있는 항목만 확인한다.",
+      body: "추천 근거로 볼 수 있는 항목만 남긴다.",
       cta: firstCandidateEvidenceId ? "첫 근거 보기" : "근거 목록",
       href: firstCandidateEvidenceId ? (`/ai-evidence/${firstCandidateEvidenceId}` as Route) : ("/ai-evidence" as Route),
       tone: llmCandidateSuccessCount > 0 ? "ready" : "watch",
@@ -422,7 +422,7 @@ export default async function IntelligencePage() {
       index: "03",
       label: "차단·오염 의심",
       title: `${blockedCandidateCount}건 차단`,
-      target: blockedCandidateCount > 0 ? "원인 확인 필요" : "새 차단 없음",
+      target: blockedCandidateCount > 0 ? "원인 검토 필요" : "새 차단 없음",
       body: "추천에 쓰면 안 되는 근거를 분리한다.",
       cta: "차단 목록 보기",
       href: "/ai-evidence/blocked" as Route,
@@ -433,7 +433,7 @@ export default async function IntelligencePage() {
       label: "추천 영향",
       title: `커버리지 ${formatPercent(dashboard.latest_metrics.weight_coverage_ratio)}`,
       target: "읽기 전용",
-      body: "통과한 근거가 추천·보유 판단에 영향을 주는지 확인한다.",
+      body: "통과한 근거가 추천·보유 판단에 실제로 연결됐는지 본다.",
       cta: "추천 영향 보기",
       href: "/recommendations" as Route,
       tone: dashboard.latest_metrics.weight_coverage_ratio > 0 ? "ready" : "watch",
@@ -445,7 +445,7 @@ export default async function IntelligencePage() {
       label: "원문",
       title: "뉴스 원문",
       metric: `${events.events.length.toLocaleString("ko-KR")}건 표시`,
-      body: "뉴스 제목, 시간, 원문 링크를 확인한다. 원문이 약하면 투자 판단에 쓰지 않는다.",
+      body: "뉴스 제목, 시간, 원문 링크가 판단의 출발점이다. 원문이 약하면 투자 근거에서 제외한다.",
       href: "/events" as Route,
       tone: "ready",
     },
@@ -454,7 +454,7 @@ export default async function IntelligencePage() {
       label: "1차 영향",
       title: "초기 영향",
       metric: "테마·종목·방향",
-      body: "초기 테마·종목·방향을 보고, 애매한 항목은 차단 목록에서 확인한다.",
+      body: "초기 테마·종목·방향을 붙인다. 애매한 항목은 차단 목록으로 보낸다.",
       href: "/events/classification" as Route,
       tone: "watch",
     },
@@ -481,7 +481,7 @@ export default async function IntelligencePage() {
       label: "추천 영향",
       title: "추천·보유 영향",
       metric: formatPercent(dashboard.latest_metrics.weight_coverage_ratio),
-      body: "통과한 근거가 추천 상세, 종목 상세, 보유 상태에 어떤 영향을 주는지 확인한다.",
+      body: "통과한 근거가 추천 상세, 종목 상세, 보유 상태까지 이어지는지 본다.",
       href: "/recommendations" as Route,
       tone: dashboard.latest_metrics.weight_coverage_ratio > 0 ? "ready" : "watch",
     },
@@ -549,7 +549,7 @@ export default async function IntelligencePage() {
           <span>01 오늘의 상위 흐름</span>
           <h2 id="news-decision-board-title">반복된 뉴스가 하나의 시장 흐름인지 본다</h2>
           <p>
-            첫 화면에는 가장 큰 뉴스 흐름만 남긴다. 전체 뉴스와 차단 항목은 전용 화면에서 확인한다.
+            첫 화면에는 가장 큰 뉴스 흐름만 남긴다. 전체 뉴스와 차단 항목은 전용 화면으로 분리한다.
           </p>
         </div>
 
@@ -782,7 +782,7 @@ export default async function IntelligencePage() {
             <div className="decision-triage-head">
               <span>투자 근거 후보</span>
               <strong>{llmCandidateSuccessCount.toLocaleString("ko-KR")}건 통과</strong>
-              <p>대표 3건만 먼저 보고, 전체 근거는 전용 목록에서 이어서 확인한다.</p>
+              <p>대표 3건만 먼저 보여준다. 전체 근거는 전용 목록에 있다.</p>
             </div>
             {aiCandidateEvents.length > 0 ? (
               <div className="review-queue-list compact-review-list">
@@ -823,7 +823,7 @@ export default async function IntelligencePage() {
                 })}
               </div>
             ) : (
-              <div className="empty-state">아직 표시할 투자 근거 후보가 없다. 데이터 상태에서 최근 뉴스 분석 상태를 확인한다.</div>
+              <div className="empty-state">아직 표시할 투자 근거 후보가 없다. 데이터 상태에서 최근 뉴스 분석 실행을 보면 된다.</div>
             )}
           </article>
 
@@ -831,7 +831,7 @@ export default async function IntelligencePage() {
             <div className="decision-triage-head">
               <span>차단·오염 의심</span>
               <strong>{blockedCandidateCount.toLocaleString("ko-KR")}건</strong>
-              <p>{blockedCandidateCount > 0 ? "추천 입력에서 제외된 이유를 확인한다." : "현재 노출된 차단 항목은 없다."}</p>
+              <p>{blockedCandidateCount > 0 ? "추천 입력에서 제외된 이유를 보여준다." : "현재 노출된 차단 항목은 없다."}</p>
             </div>
             <div className="decision-triage-stack">
               <article className={blockedCandidateCount > 0 ? "brief-signal-card watch" : "brief-signal-card ready"}>
@@ -842,7 +842,7 @@ export default async function IntelligencePage() {
               <article className="brief-signal-card">
                 <span>수집 상태</span>
                 <strong>{formatRunStatus(newsRun)}</strong>
-                <p>수집·분석 이상은 데이터 상태 화면에서 원인과 복구 상태를 확인한다.</p>
+                <p>수집·분석 이상은 데이터 상태 화면에서 원인과 복구 상태로 분리된다.</p>
               </article>
             </div>
           </article>
@@ -860,9 +860,9 @@ export default async function IntelligencePage() {
                 <p>뉴스 근거는 주문 결론이 아니다. 실거래 제출은 계속 차단된다.</p>
               </article>
               <article className="brief-signal-card">
-                <span>다음 확인</span>
+                <span>다음 경로</span>
                 <strong>추천·가상 매매</strong>
-                <p>추천 상세와 가상 매매 상태에서 실제 검증 단계까지 이어서 본다.</p>
+                <p>추천 상세와 가상 매매 상태에서 실제 검증 단계까지 이어 본다.</p>
               </article>
             </div>
           </article>

@@ -85,7 +85,7 @@ function correlationTone(correlation: MarketCorrelation) {
 
 function correlationSummaryText(data: MarketMapData) {
   if (data.summary.correlation_count <= 0) {
-    return "아직 계산된 상관관계가 없다. 장마감 후 상관관계 분석이 실행되면 여기서 확인한다.";
+    return "아직 계산된 상관관계가 없다. 장마감 후 동조성 분석이 끝나면 이 영역에 표시한다.";
   }
   const strong = data.summary.strong_correlation_count;
   const moderate = data.summary.moderate_correlation_count;
@@ -162,7 +162,7 @@ function groupSummary(group: MarketGroup) {
         ? `${group.stale_count}개 지표가 오래됐다`
         : "지표가 정상 관측 중이다";
   const shock = group.shock_count > 0 ? `움직임 큰 지표 ${group.shock_count}개` : "큰 가격 충격은 없다";
-  return `${quality}. ${shock}. 대표 확인 대상은 ${strongest?.display_name || "아직 없음"}이다.`;
+  return `${quality}. ${shock}. 가장 먼저 볼 지표는 ${strongest?.display_name || "아직 없음"}이다.`;
 }
 
 function groupTone(group: MarketGroup) {
@@ -181,7 +181,7 @@ function groupTone(group: MarketGroup) {
 function qualityCardText(data: MarketMapData) {
   const qualityIssueCount = data.summary.stale_indicator_count + data.summary.missing_indicator_count;
   if (qualityIssueCount > 0) {
-    return `${qualityIssueCount}개 지표는 추정하지 않는다. 품질 플래그를 먼저 확인한다.`;
+    return `${qualityIssueCount}개 지표는 추정하지 않는다. 오래됐거나 비어 있는 값은 판단에서 낮춰 본다.`;
   }
   return "시장 지표와 시장 체제 계산이 준비됐다. 추천 비중은 성과 검증 전까지 바꾸지 않는다.";
 }
@@ -320,9 +320,9 @@ function buildMarketReadout(data: MarketMapData, regimes: MarketRegime[]) {
   if (qualityIssueCount > 0) {
     return {
       tone: "is-watch",
-      title: "먼저 데이터 품질을 확인한다.",
-      copy: `${qualityIssueCount}개 지표가 오래됐거나 비어 있다. 시장 판단을 이어가기 전에 품질 플래그를 먼저 확인한다.`,
-      nextSteps: ["품질 플래그 확인", "오래된 지표는 추정하지 않기", "수집 재실행 후 다시 판단"],
+      title: "오래된 지표는 낮춰 본다.",
+      copy: `${qualityIssueCount}개 지표가 오래됐거나 비어 있다. 시장 판단은 가능하지만 해당 지표는 추정하지 않고 신뢰도를 낮춘다.`,
+      nextSteps: ["오래된 지표 분리", "추정값 사용 금지", "수집 재실행 후 재판단"],
     };
   }
 
@@ -394,16 +394,16 @@ export default async function MarketMapPage() {
             <span>먼저 볼 것</span>
             <strong>
               {data.summary.fresh_indicator_count.toLocaleString("ko-KR")}개 최신 ·{" "}
-              {(data.summary.stale_indicator_count + data.summary.missing_indicator_count).toLocaleString("ko-KR")}개 확인
+              {(data.summary.stale_indicator_count + data.summary.missing_indicator_count).toLocaleString("ko-KR")}개 낮춤
             </strong>
             <small>{qualityCardText(data)}</small>
-            <b>품질 확인</b>
+            <b>품질 보기</b>
           </a>
           <a className="decision-card is-good" href="#market-pressure">
             <span>시장 압력</span>
             <strong>{data.summary.shock_indicator_count.toLocaleString("ko-KR")}개 지표 변동</strong>
             <small>가장 많이 움직인 영역부터 보고, 필요한 지표만 펼친다.</small>
-            <b>압력 확인</b>
+            <b>압력 보기</b>
           </a>
           <a className={topRegimes.length > 0 ? "decision-card is-watch" : "decision-card"} href="#market-regimes">
             <span>상위 체제</span>

@@ -146,13 +146,13 @@ function nodeEvidenceLine(node: CycleNode) {
 
 function nodeNextAction(node: CycleNode) {
   if (node.counts.recommendation_count > 0) {
-    return "추천 상세에서 근거가 실제 점수와 어떻게 분리됐는지 확인한다.";
+    return "추천 상세에서 이 흐름이 점수와 분리돼 쓰이는지 본다.";
   }
   if (node.top_symbols.length > 0) {
-    return "대표 종목 상세에서 직접 뉴스, 상위 흐름, 시장 동조성을 확인한다.";
+    return "대표 종목 상세에서 직접 뉴스, 상위 흐름, 시장 동조성을 이어 본다.";
   }
   if (node.counts.direct_event_count > 0) {
-    return "뉴스 근거 화면에서 원천 뉴스와 종목·테마 영향을 먼저 확인한다.";
+    return "뉴스 근거 화면에서 원천 뉴스와 종목·테마 영향을 먼저 본다.";
   }
   return "다음 뉴스/가격 수집 후 상태 변화를 기다린다.";
 }
@@ -175,7 +175,7 @@ function nodeSummary(node: CycleNode) {
   const symbolCount = node.top_symbols.length;
   const recommendationCount = node.counts.recommendation_count;
 
-  return `${name}. 현재 상태는 ${state}. 최근 뉴스 ${directEvents}건, 상위 흐름 영향 ${propagatedImpacts}건, 연결 종목 ${symbolCount}개, 추천 영향 ${recommendationCount}건을 함께 확인한다.`;
+  return `${name}. 현재 상태는 ${state}. 최근 뉴스 ${directEvents}건, 상위 흐름 영향 ${propagatedImpacts}건, 연결 종목 ${symbolCount}개, 추천 영향 ${recommendationCount}건을 함께 본다.`;
 }
 
 function groupedNodes(nodes: CycleNode[]) {
@@ -216,7 +216,7 @@ export default async function CycleMapPage() {
             오늘은 {topNodeLabel(hotNode)}부터 본다.
           </h1>
           <p className="decision-brief-copy">
-            먼저 상위 흐름의 열기와 충돌을 보고, 그 흐름이 어떤 종목과 추천 근거로 내려가는지 확인한다.
+            먼저 상위 흐름의 열기와 충돌을 보고, 그 흐름이 어떤 종목과 추천 근거로 내려가는지 추적한다.
           </p>
           <div className="decision-brief-meta" aria-label="흐름 지도 핵심 상태">
             <span>흐름 {data.summary.node_count.toLocaleString("ko-KR")}개</span>
@@ -242,14 +242,14 @@ export default async function CycleMapPage() {
           <Link className="decision-card is-good" href={"/cycles" as Route}>
             <span>상태표</span>
             <strong>테마별 사이클</strong>
-            <small>뉴스 흐름, 가격 흐름, 기업 품질을 나눠 테마 상태 변화를 확인한다.</small>
+            <small>뉴스 흐름, 가격 흐름, 기업 품질을 나눠 테마 상태 변화를 본다.</small>
             <b>상태표 열기</b>
           </Link>
           <a className={conflictNodeCount > 0 ? "decision-card is-watch" : "decision-card is-good"} href="#cycle-map-layers">
             <span>종목 노출</span>
             <strong>{exposedNodeCount.toLocaleString("ko-KR")}개 연결</strong>
-            <small>상위 흐름이 어떤 종목으로 내려가는지 보고, 종목 상세에서 직접 근거를 확인한다.</small>
-            <b>종목 확인</b>
+            <small>상위 흐름이 어떤 종목으로 내려가는지 보고, 종목 상세에서 직접 근거를 이어 본다.</small>
+            <b>종목 보기</b>
           </a>
           <Link className={data.summary.recommendation_count > 0 ? "decision-card is-good" : "decision-card is-watch"} href={"/recommendations" as Route}>
             <span>추천 영향</span>
@@ -380,10 +380,10 @@ export default async function CycleMapPage() {
 
         <div className="section-heading stacked-heading">
           <span>판단 경로</span>
-          <h2>흐름이 종목과 추천으로 내려가는 길을 한 줄씩 확인한다</h2>
+          <h2>흐름이 종목과 추천으로 내려가는 길</h2>
           <p>
             각 행은 원인을 단정하지 않는다. 상위 흐름과 종목 노출이 같은 방향인지 확인하는 추적 경로다.
-            추천 점수와 실거래 경계는 추천 상세와 거래 안전 화면에서 별도로 확인한다.
+            추천 점수와 실거래 경계는 추천 상세와 거래 안전 화면에서 따로 본다.
           </p>
         </div>
 
@@ -393,7 +393,7 @@ export default async function CycleMapPage() {
               <div className="cycle-path-cell">
                 <span>상위 흐름</span>
                 <strong>{nodeDriverText(node)}</strong>
-                <small>{node.recent_event_titles[0] ? koLabel(node.recent_event_titles[0]) : "최근 뉴스 원천은 뉴스 근거 화면에서 확인한다."}</small>
+                <small>{node.recent_event_titles[0] ? koLabel(node.recent_event_titles[0]) : "최근 뉴스 원천은 뉴스 근거 화면에 있다."}</small>
               </div>
               <div className="cycle-path-cell emphasis">
                 <span>현재 사이클</span>
@@ -433,7 +433,7 @@ export default async function CycleMapPage() {
         <div className="section-heading stacked-heading">
           <span>관계선</span>
           <h2>상위 흐름이 아래 흐름으로 이어지는 규칙</h2>
-          <p>관계선은 사전에 정한 시장 분류 지도다. 거시 흐름이 어느 도메인·테마·종목으로 내려갈 수 있는지 확인한다.</p>
+          <p>관계선은 사전에 정한 시장 분류 지도다. 거시 흐름이 어느 도메인·테마·종목으로 내려갈 수 있는지 보여준다.</p>
         </div>
         {data.edges.length > 0 ? (
           <div className="relationship-list">
