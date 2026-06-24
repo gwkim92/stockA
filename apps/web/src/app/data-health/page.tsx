@@ -1503,6 +1503,9 @@ function operationCopy(value: string) {
     .replaceAll("job", "작업")
     .replaceAll("too early", "관찰 기간 미성숙")
     .replaceAll("failed", "중단")
+    .replaceAll("실패", "중단")
+    .replaceAll("상세 검토 가능", "상세 근거 확인")
+    .replaceAll("검토 가능", "근거 확인")
     .replaceAll("원천 차단 count가 있는 종목", "원천 차단 종목")
     .replaceAll("원천 차단 count", "원천 차단 수")
     .replaceAll("degraded", "주의");

@@ -108,7 +108,10 @@ function adminCopy(value: string) {
     .replaceAll("broker", "증권사")
     .replaceAll("order", "주문")
     .replaceAll("failed", "중단")
-    .replaceAll("fail", "중단");
+    .replaceAll("fail", "중단")
+    .replaceAll("실패", "중단")
+    .replaceAll("예비 경로과", "예비 경로와")
+    .replaceAll("대기 작업를", "대기 작업을");
 }
 
 function providerSummary(data: AiAgentRegistryData) {

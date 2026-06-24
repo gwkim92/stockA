@@ -685,7 +685,7 @@ function IndustryCompetitivePositionPanel({
         <div className="rail-cell">
           <span>지표 커버리지</span>
           <strong>{position.metric_coverage_count.toLocaleString("ko-KR")}</strong>
-          <small>{position.source_run_id ?? "실행 번호 없음"}</small>
+          <small>{position.source_run_id ? "계산 실행 기록 있음" : "실행 기록 없음"}</small>
         </div>
       </div>
 
