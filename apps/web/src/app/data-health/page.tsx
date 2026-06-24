@@ -3031,8 +3031,8 @@ export default async function DataHealthPage() {
                 <div className="data-health-triage-list">
                   {bucket.gates.map((gate) => (
                     <a href={bucket.href} key={gate.gate_id}>
-                      <span className={`risk-tag ${gateSeverityTone(gate.severity)}`}>{gate.status_label}</span>
-                      <strong>{gate.label}</strong>
+                      <span className={`risk-tag ${gateSeverityTone(gate.severity)}`}>{openGateCopy(gate.status_label)}</span>
+                      <strong>{openGateCopy(gate.label)}</strong>
                       <small>{operationCopy(gate.summary)}</small>
                       <small>다음 확인: {openGateCopy(gate.next_action)}</small>
                     </a>
@@ -5522,10 +5522,10 @@ export default async function DataHealthPage() {
 	                {artifactRunner.latest_run_count}개
 	              </dd>
 	            </div>
-	            <div>
-	              <dt>실행 증거 경로</dt>
-	              <dd>{artifactRunner.latest_artifact_root || "경로 미표시"}</dd>
-	            </div>
+		            <div>
+		              <dt>실행 증거 경로</dt>
+		              <dd>{evidenceLocationLabel(artifactRunner.latest_artifact_root)}</dd>
+		            </div>
 	            <div>
 	              <dt>실행 증거 다음 조치</dt>
 	              <dd>{operationCopy(artifactRunner.next_action)}</dd>
