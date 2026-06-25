@@ -33,6 +33,17 @@ export type PortfolioReturnSummary = {
   readonly returnPct: number | null;
 };
 
+export type MovementBucketSummary = {
+  readonly totalCount: number;
+  readonly measuredCount: number;
+  readonly upCount: number;
+  readonly downCount: number;
+  readonly flatCount: number;
+  readonly unknownCount: number;
+  readonly strongestUp: number | null;
+  readonly strongestDown: number | null;
+};
+
 const MOVEMENT_EPSILON = 0.00005;
 
 function finiteOrNull(value: number | null | undefined): number | null {
@@ -58,6 +69,51 @@ export function movementTone(value: number | null | undefined): MovementTone {
     return "down";
   }
   return "flat";
+}
+
+export function movementMagnitudePercent(value: number | null | undefined, maxAbsValue = 0.08): number {
+  const parsed = finiteOrNull(value);
+  const maxAbs = Math.abs(maxAbsValue);
+  if (parsed === null || maxAbs <= 0 || movementTone(parsed) === "flat") {
+    return 0;
+  }
+  return Math.min(100, Math.max(8, (Math.abs(parsed) / maxAbs) * 100));
+}
+
+export function summarizeMovementBuckets(values: readonly (number | null | undefined)[]): MovementBucketSummary {
+  let upCount = 0;
+  let downCount = 0;
+  let flatCount = 0;
+  let unknownCount = 0;
+  let strongestUp: number | null = null;
+  let strongestDown: number | null = null;
+
+  for (const value of values) {
+    const parsed = finiteOrNull(value);
+    const tone = movementTone(parsed);
+    if (tone === "up" && parsed !== null) {
+      upCount += 1;
+      strongestUp = strongestUp === null ? parsed : Math.max(strongestUp, parsed);
+    } else if (tone === "down" && parsed !== null) {
+      downCount += 1;
+      strongestDown = strongestDown === null ? parsed : Math.min(strongestDown, parsed);
+    } else if (tone === "flat") {
+      flatCount += 1;
+    } else {
+      unknownCount += 1;
+    }
+  }
+
+  return {
+    totalCount: values.length,
+    measuredCount: values.length - unknownCount,
+    upCount,
+    downCount,
+    flatCount,
+    unknownCount,
+    strongestUp,
+    strongestDown,
+  };
 }
 
 export function formatSignedPercent(

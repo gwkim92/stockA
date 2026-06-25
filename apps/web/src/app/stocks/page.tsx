@@ -9,6 +9,7 @@ import { StatusBadge } from "@/components/status/StatusBadge";
 import { getStocks } from "@/lib/frontend-api";
 import { formatPercent } from "@/lib/presentation";
 
+import { StockMovementHeatmap } from "./StockMovementHeatmap";
 import styles from "./StocksPage.module.css";
 
 export const dynamic = "force-dynamic";
@@ -117,6 +118,8 @@ export default async function StocksPage() {
           },
         ]}
       />
+
+      <StockMovementHeatmap stocks={data.stocks} latestPriceDate={data.summary.latest_price_date} />
 
       <ResearchSection
         eyebrow="우선 검토"

@@ -5,9 +5,12 @@ export {
   calculatePortfolioReturnSummary,
   calculatePositionReturn,
   formatSignedPercent,
+  movementMagnitudePercent,
   movementTone,
+  summarizeMovementBuckets,
 } from "./returns";
 export type {
+  MovementBucketSummary,
   MovementTone,
   PortfolioReturnSummary,
   PositionReturn,

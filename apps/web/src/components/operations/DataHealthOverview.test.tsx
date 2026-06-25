@@ -59,7 +59,9 @@ describe("DataHealthOverview", () => {
     expect(screen.getByRole("heading", { name: "수집·분석 상태 정상" })).toBeInTheDocument();
     expect(screen.getByText("열린 항목 없음")).toBeInTheDocument();
     expect(screen.getByText("성과 관찰 대기")).toBeInTheDocument();
-    expect(screen.getByText("주식 캔들")).toBeInTheDocument();
+    expect(screen.getByText("수집·분석 커버리지")).toBeInTheDocument();
+    expect(screen.getByText("종목·차트")).toBeInTheDocument();
+    expect(screen.getAllByText("주식 캔들")).toHaveLength(2);
     expect(screen.queryByText(/pipeline|runner|artifact|managed-wait/i)).not.toBeInTheDocument();
   });
 });

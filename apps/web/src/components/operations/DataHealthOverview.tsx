@@ -69,6 +69,28 @@ function commandToneClass(tone: DataHealthTone): string {
   }
 }
 
+function coverageDestination(card: DataHealthCollectionCard): { readonly href: string; readonly label: string } {
+  if (card.title.includes("주식 캔들")) {
+    return { href: "/stocks", label: "종목·차트" };
+  }
+  if (card.title.includes("뉴스 원문")) {
+    return { href: "/intelligence", label: "뉴스 흐름" };
+  }
+  if (card.title.includes("분류") || card.title.includes("AI")) {
+    return { href: "/ai-evidence", label: "AI 근거" };
+  }
+  if (card.title.includes("추천")) {
+    return { href: "/recommendations", label: "추천" };
+  }
+  if (card.title.includes("보유")) {
+    return { href: "/portfolio/coverage", label: "포트폴리오" };
+  }
+  if (card.title.includes("토스")) {
+    return { href: "/paper-trading", label: "브로커 현실" };
+  }
+  return { href: "/data-health", label: "상세 상태" };
+}
+
 export function DataHealthOverview({
   asOfDate,
   collectionCards,
@@ -159,6 +181,28 @@ export function DataHealthOverview({
           주식 캔들, 뉴스 원문, 1차 분류, AI 분석, 추천 갱신, 보유 상태 판단이 각각 따로 돈다.
           문제가 있는 데이터가 있으면 해당 화면의 판단을 낮게 신뢰해야 한다.
         </p>
+        <div className="data-health-coverage-matrix" aria-label="수집·분석 커버리지 매트릭스">
+          <div className="data-health-coverage-head">
+            <span>수집·분석 커버리지</span>
+            <strong>원천 데이터가 어느 투자 화면에 쓰이는지</strong>
+            <small>상태가 낮으면 연결된 화면의 판단 신뢰도도 낮춘다.</small>
+          </div>
+          <div className="data-health-coverage-rows">
+            {collectionCards.map((card) => {
+              const destination = coverageDestination(card);
+              return (
+                <a className="data-health-coverage-row" href={destination.href} key={card.index}>
+                  <span>{card.index}</span>
+                  <strong>{card.title}</strong>
+                  <em className={`risk-tag ${card.statusTone}`}>{card.statusLabel}</em>
+                  <small>{card.purpose}</small>
+                  <small>{card.check}</small>
+                  <b>{destination.label}</b>
+                </a>
+              );
+            })}
+          </div>
+        </div>
         <div className="feature-map-grid collection-map-grid">
           {collectionCards.map((card) => (
             <article className="feature-map-card collection-map-card" key={card.index}>

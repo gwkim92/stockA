@@ -3,13 +3,23 @@ import {
   calculatePortfolioReturnSummary,
   calculatePositionReturn,
   formatSignedPercent,
+  movementMagnitudePercent,
+  movementTone,
   portfolioCopy,
 } from "@/lib/presentation";
+import type { MovementTone } from "@/lib/presentation";
 import type { PortfolioCoverageData } from "@/lib/types";
 
 import styles from "./PortfolioReturnSummaryPanel.module.css";
 
 type PortfolioPosition = PortfolioCoverageData["positions"][number];
+
+const toneClassName: Record<MovementTone, string> = {
+  down: styles.loss,
+  flat: styles.flat,
+  unknown: styles.unknown,
+  up: styles.gain,
+};
 
 export type PortfolioReturnSummaryPanelProps = {
   readonly positions: readonly PortfolioPosition[];
@@ -53,6 +63,18 @@ function outcomeLabel(position: PortfolioPosition): string {
 
 export function PortfolioReturnSummaryPanel({ positions, baseCurrency }: PortfolioReturnSummaryPanelProps) {
   const summary = calculatePortfolioReturnSummary(positions);
+  const distributionRows = positions
+    .map((position) => ({
+      position,
+      positionReturn: calculatePositionReturn(position),
+    }))
+    .filter((row) => row.positionReturn.returnPct !== null)
+    .sort(
+      (left, right) =>
+        Math.abs(right.positionReturn.returnPct ?? 0) - Math.abs(left.positionReturn.returnPct ?? 0) ||
+        left.position.symbol.localeCompare(right.position.symbol),
+    )
+    .slice(0, 10);
   const summaryReturn = formatSignedPercent(summary.returnPct, {
     metricLabel: "평가손익률",
     upLabel: "수익",
@@ -104,45 +126,79 @@ export function PortfolioReturnSummaryPanel({ positions, baseCurrency }: Portfol
           이 기준일에는 보유 스냅샷이 없어 평가손익률을 계산할 수 없다.
         </p>
       ) : (
-        <div className={styles.tableWrap}>
-          <table className={styles.table}>
-            <thead>
-              <tr>
-                <th scope="col">종목</th>
-                <th scope="col">평가액</th>
-                <th scope="col">평가손익</th>
-                <th scope="col">수익률</th>
-                <th scope="col">비중</th>
-                <th scope="col">투자 논리</th>
-                <th scope="col">성과</th>
-                <th scope="col">필요 조치</th>
-              </tr>
-            </thead>
-            <tbody>
-              {positions.map((position) => {
-                const positionReturn = calculatePositionReturn(position);
-                return (
-                  <tr key={position.instrument_id}>
-                    <th scope="row">{position.symbol}</th>
-                    <td>{formatCurrency(position.market_value, baseCurrency)}</td>
-                    <td>{formatCurrency(positionReturn.unrealizedPnl, baseCurrency)}</td>
-                    <td>
+        <>
+          <section className={styles.distribution} aria-labelledby="portfolio-return-distribution-title">
+            <div>
+              <span>수익률 분포</span>
+              <h3 id="portfolio-return-distribution-title">성과를 끌어올린 포지션과 누른 포지션</h3>
+            </div>
+            <div className={styles.distributionRows}>
+              {distributionRows.length > 0 ? (
+                distributionRows.map((row) => {
+                  const tone = movementTone(row.positionReturn.returnPct);
+                  return (
+                    <div className={styles.distributionRow} key={row.position.instrument_id}>
+                      <strong>{row.position.symbol}</strong>
+                      <div className={styles.barTrack} aria-hidden="true">
+                        <b
+                          className={toneClassName[tone]}
+                          style={{ inlineSize: `${movementMagnitudePercent(row.positionReturn.returnPct, 0.5)}%` }}
+                        />
+                      </div>
                       <SignedReturnBadge
-                        value={positionReturn.returnPct}
+                        value={row.positionReturn.returnPct}
                         label="평가손익률"
-                        options={{ metricLabel: `${position.symbol} 평가손익률`, upLabel: "수익", downLabel: "손실" }}
+                        options={{ metricLabel: `${row.position.symbol} 평가손익률`, upLabel: "수익", downLabel: "손실" }}
                       />
-                    </td>
-                    <td>{formatPercent(position.weight)}</td>
-                    <td>{thesisLabel(position)}</td>
-                    <td>{outcomeLabel(position)}</td>
-                    <td>{portfolioCopy(position.action || "유지 관찰")}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                      <small>{formatCurrency(row.positionReturn.unrealizedPnl, baseCurrency)}</small>
+                    </div>
+                  );
+                })
+              ) : (
+                <p className="empty-state">원가와 평가액이 함께 있는 포지션이 없어 수익률 분포를 계산할 수 없다.</p>
+              )}
+            </div>
+          </section>
+          <div className={styles.tableWrap}>
+            <table className={styles.table}>
+              <thead>
+                <tr>
+                  <th scope="col">종목</th>
+                  <th scope="col">평가액</th>
+                  <th scope="col">평가손익</th>
+                  <th scope="col">수익률</th>
+                  <th scope="col">비중</th>
+                  <th scope="col">투자 논리</th>
+                  <th scope="col">성과</th>
+                  <th scope="col">필요 조치</th>
+                </tr>
+              </thead>
+              <tbody>
+                {positions.map((position) => {
+                  const positionReturn = calculatePositionReturn(position);
+                  return (
+                    <tr key={position.instrument_id}>
+                      <th scope="row">{position.symbol}</th>
+                      <td>{formatCurrency(position.market_value, baseCurrency)}</td>
+                      <td>{formatCurrency(positionReturn.unrealizedPnl, baseCurrency)}</td>
+                      <td>
+                        <SignedReturnBadge
+                          value={positionReturn.returnPct}
+                          label="평가손익률"
+                          options={{ metricLabel: `${position.symbol} 평가손익률`, upLabel: "수익", downLabel: "손실" }}
+                        />
+                      </td>
+                      <td>{formatPercent(position.weight)}</td>
+                      <td>{thesisLabel(position)}</td>
+                      <td>{outcomeLabel(position)}</td>
+                      <td>{portfolioCopy(position.action || "유지 관찰")}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
     </article>
   );

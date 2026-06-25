@@ -40,6 +40,93 @@
   line-height: 1;
 }
 
+.distribution {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.32fr) minmax(0, 1fr);
+  gap: 18px;
+  margin: 18px 0 20px;
+  padding: clamp(16px, 2vw, 22px);
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--accent-blue) 8%, transparent), transparent 42%),
+    color-mix(in srgb, var(--bg-panel) 90%, white);
+  border: 1px solid var(--border-light);
+}
+
+.distribution > div:first-child {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+}
+
+.distribution span {
+  color: var(--text-tertiary);
+  font-size: 0.72rem;
+  font-weight: 900;
+}
+
+.distribution h3 {
+  max-width: 13em;
+  margin: 0;
+  color: var(--text-primary);
+  font-size: clamp(1.35rem, 2.2vw, 2.15rem);
+  line-height: 1.02;
+  letter-spacing: -0.045em;
+}
+
+.distributionRows {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.distributionRow {
+  display: grid;
+  grid-template-columns: 64px minmax(110px, 1fr) auto minmax(86px, auto);
+  gap: 10px;
+  align-items: center;
+  min-width: 0;
+}
+
+.distributionRow strong {
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  font-weight: 950;
+}
+
+.distributionRow small {
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  font-weight: 820;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.barTrack {
+  block-size: 10px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--text-tertiary) 12%, transparent);
+  border-radius: 999px;
+}
+
+.barTrack b {
+  display: block;
+  block-size: 100%;
+  border-radius: inherit;
+}
+
+.gain {
+  background: var(--accent-green);
+}
+
+.loss {
+  background: var(--accent-red);
+}
+
+.flat,
+.unknown {
+  background: var(--text-tertiary);
+}
+
 .tableWrap {
   min-width: 0;
   overflow-x: auto;
@@ -84,10 +171,28 @@
   .metrics {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .distribution {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 560px) {
   .metrics {
     grid-template-columns: 1fr;
+  }
+
+  .distributionRow {
+    grid-template-columns: 1fr;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border-light);
+  }
+
+  .distributionRow:last-child {
+    border-bottom: 0;
+  }
+
+  .distributionRow small {
+    text-align: left;
   }
 }

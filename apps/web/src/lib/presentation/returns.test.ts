@@ -4,7 +4,9 @@ import {
   calculatePortfolioReturnSummary,
   calculatePositionReturn,
   formatSignedPercent,
+  movementMagnitudePercent,
   movementTone,
+  summarizeMovementBuckets,
 } from "./returns";
 
 describe("formatSignedPercent", () => {
@@ -41,6 +43,28 @@ describe("movementTone", () => {
     expect(movementTone(-0.0006)).toBe("down");
     expect(movementTone(0.00001)).toBe("flat");
     expect(movementTone(undefined)).toBe("unknown");
+  });
+});
+
+describe("movement visualization helpers", () => {
+  it("summarizes measured, flat, missing, and strongest movements", () => {
+    expect(summarizeMovementBuckets([0.035, -0.012, 0, null, 0.009])).toEqual({
+      totalCount: 5,
+      measuredCount: 4,
+      upCount: 2,
+      downCount: 1,
+      flatCount: 1,
+      unknownCount: 1,
+      strongestUp: 0.035,
+      strongestDown: -0.012,
+    });
+  });
+
+  it("scales non-flat moves for visual bars without inventing values for missing data", () => {
+    expect(movementMagnitudePercent(0.04, 0.08)).toBe(50);
+    expect(movementMagnitudePercent(-0.001, 0.08)).toBe(8);
+    expect(movementMagnitudePercent(0, 0.08)).toBe(0);
+    expect(movementMagnitudePercent(null, 0.08)).toBe(0);
   });
 });
 
