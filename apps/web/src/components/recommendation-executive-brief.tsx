@@ -87,6 +87,39 @@ function valuationValue(data: RecommendationDetailData) {
   return "대기";
 }
 
+function isFundOrEtf(data: RecommendationDetailData) {
+  return Boolean(data.fund_instrument_analysis) || data.professional_evidence_audit.product_type === "fund_or_etf";
+}
+
+function fundStatusLabel(status: string) {
+  if (status === "collected" || status === "available") {
+    return "수집 완료";
+  }
+  if (status === "missing") {
+    return "미수집";
+  }
+  if (status === "stale") {
+    return "오래된 자료";
+  }
+  return investorText(status);
+}
+
+function fundLensValue(data: RecommendationDetailData) {
+  const fund = data.fund_instrument_analysis;
+  if (!fund) {
+    return "ETF 근거 대기";
+  }
+  return `${fund.holding_count.toLocaleString("ko-KR")}개 보유`;
+}
+
+function fundLensSummary(data: RecommendationDetailData) {
+  const fund = data.fund_instrument_analysis;
+  if (!fund) {
+    return "ETF 보유종목, 비용률, 추적차이 자료가 아직 연결되지 않았다.";
+  }
+  return `커버리지 ${formatWeightPercent(fund.holdings_coverage_weight)} · 비용률 ${formatWeightPercent(fund.expense_ratio.value)} · 유동성 ${fundStatusLabel(fund.liquidity.status)}`;
+}
+
 function evidenceTone(data: RecommendationDetailData): BriefTone {
   const audit = data.professional_evidence_audit;
   if (audit.source_blocker.blocked || audit.blocked_layer_count > 0) {
@@ -143,6 +176,7 @@ export function RecommendationExecutiveBrief({ data }: RecommendationExecutiveBr
   const evidence = data.professional_evidence_audit;
   const decision = data.professional_decision_waterfall;
   const position = data.position_context;
+  const fundOrEtf = isFundOrEtf(data);
   const hasOrderBlocked = !decision.broker_submit_allowed;
   const cards = [
     {
@@ -158,10 +192,10 @@ export function RecommendationExecutiveBrief({ data }: RecommendationExecutiveBr
       tone: position.status === "held" ? "ready" : "watch",
     },
     {
-      label: "가치 범위",
-      value: valuationValue(data),
-      detail: valuationSummary(data),
-      tone: data.valuation_target_range.status === "available" ? "ready" : "watch",
+      label: fundOrEtf ? "ETF 구조" : "가치 범위",
+      value: fundOrEtf ? fundLensValue(data) : valuationValue(data),
+      detail: fundOrEtf ? fundLensSummary(data) : valuationSummary(data),
+      tone: fundOrEtf || data.valuation_target_range.status === "available" ? "ready" : "watch",
     },
     {
       label: "근거 품질",
@@ -189,9 +223,13 @@ export function RecommendationExecutiveBrief({ data }: RecommendationExecutiveBr
     <section className={styles.brief} aria-labelledby="recommendation-executive-brief-title">
       <div className={styles.header}>
         <span>투자 판단 요약</span>
-        <h2 id="recommendation-executive-brief-title">{data.symbol} 추천을 한 화면에서 먼저 판정한다</h2>
+        <h2 id="recommendation-executive-brief-title">
+          {fundOrEtf ? `${data.symbol} ETF 추천을 먼저 요약한다` : `${data.symbol} 기업 추천을 먼저 요약한다`}
+        </h2>
         <p>
-          점수, 보유 상태, 가치 범위, 근거 품질, 거래 경계를 먼저 대조한다. 자세한 뉴스·사이클·재무 근거는 아래 리포트에서 이어서 확인한다.
+          {fundOrEtf
+            ? "점수, 보유 상태, ETF 구조, 근거 품질, 거래 경계를 먼저 대조한다. 보유종목·비용·추적 품질은 아래 ETF 근거에서 이어서 확인한다."
+            : "점수, 보유 상태, 가치 범위, 근거 품질, 거래 경계를 먼저 대조한다. 자세한 뉴스·사이클·재무 근거는 아래 리포트에서 이어서 확인한다."}
         </p>
       </div>
       <div className={styles.cards}>
@@ -201,7 +239,9 @@ export function RecommendationExecutiveBrief({ data }: RecommendationExecutiveBr
       </div>
       <div className={styles.actions}>
         <Link href="#recommendation-position-reality">포지션 확인</Link>
-        <Link href="#recommendation-valuation">밸류에이션</Link>
+        <Link href={fundOrEtf ? "#recommendation-fund-analysis" : "#recommendation-valuation"}>
+          {fundOrEtf ? "ETF 근거" : "밸류에이션"}
+        </Link>
         <Link href="#recommendation-professional-flow">전문 분석 흐름</Link>
       </div>
     </section>

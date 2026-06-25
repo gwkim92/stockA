@@ -86,7 +86,7 @@ function recommendationProductProfile(data: RecommendationDetailData): Recommend
     return {
       kind: "fund_or_etf",
       label: "ETF·펀드형 상품",
-      headline: `${data.symbol}은 개별 기업이 아니라 지수·보유종목·비용·추적 품질로 판단한다`,
+      headline: `${data.symbol}는 개별 기업이 아니라 지수·보유종목·비용·추적 품질로 판단한다`,
       primaryLens: "보유종목과 벤치마크",
       secondaryLens: "비용률·추적차이·NAV",
       evidenceTitle: "ETF 추천 근거",
@@ -95,7 +95,7 @@ function recommendationProductProfile(data: RecommendationDetailData): Recommend
   return {
     kind: "company",
     label: "개별 기업 주식",
-    headline: `${data.symbol}은 기업 실적·밸류에이션·경쟁력까지 함께 판단한다`,
+    headline: `${data.symbol}는 기업 실적·밸류에이션·경쟁력까지 함께 판단한다`,
     primaryLens: "사업·재무·밸류에이션",
     secondaryLens: "뉴스·사이클·포지션",
     evidenceTitle: "기업 추천 근거",
@@ -427,6 +427,19 @@ function formatExpenseRatio(value: number | null | undefined) {
   })}%`;
 }
 
+function fundStatusLabel(status: string) {
+  if (status === "collected" || status === "available") {
+    return "수집 완료";
+  }
+  if (status === "missing") {
+    return "미수집";
+  }
+  if (status === "stale") {
+    return "오래된 자료";
+  }
+  return koCode(status);
+}
+
 function RecommendationProductOverview({
   data,
   productProfile,
@@ -452,8 +465,8 @@ function RecommendationProductOverview({
         <h2>{productProfile.headline}</h2>
         <p>
           {productProfile.kind === "fund_or_etf"
-            ? "이 추천은 기업 재무제표나 DCF보다 ETF가 실제로 무엇을 담고 있는지, 벤치마크를 얼마나 잘 따라가는지, 비용과 유동성이 보유에 적합한지를 먼저 봅니다."
-            : "이 추천은 뉴스 신호만 보지 않고 기업의 재무 품질, 가격 매력, 산업 내 위치, 투자 논리의 일관성을 함께 확인합니다."}
+            ? "기업 재무제표나 DCF보다 ETF가 실제로 무엇을 담고 있는지, 벤치마크를 얼마나 잘 따라가는지, 비용과 유동성이 보유에 적합한지를 먼저 확인한다."
+            : "뉴스 신호만 보지 않고 기업의 재무 품질, 가격 매력, 산업 내 위치, 투자 논리의 일관성을 함께 확인한다."}
         </p>
       </div>
 
@@ -520,7 +533,7 @@ function RecommendationProductOverview({
           </article>
           <article>
             <span>유동성</span>
-            <strong>{koCode(fundAnalysis.liquidity.status)}</strong>
+            <strong>{fundStatusLabel(fundAnalysis.liquidity.status)}</strong>
             <p>
               평균 거래량 {formatCompactNumber(fundAnalysis.liquidity.average_daily_volume)} · 평균 거래대금{" "}
               {formatCurrency(fundAnalysis.liquidity.average_daily_dollar_volume, data.currency_code)}
@@ -788,7 +801,7 @@ function FundInstrumentAnalysisPanel({ analysis }: { analysis: FundInstrumentAna
           <span>비용률</span>
           <strong>{formatExpenseRatio(analysis.expense_ratio.value)}</strong>
           <p>
-            {analysis.expense_ratio.summary} 상태 {koCode(analysis.expense_ratio.status)}
+            {analysis.expense_ratio.summary} 상태 {fundStatusLabel(analysis.expense_ratio.status)}
             {analysis.expense_ratio.source_name ? ` · 원천 ${analysis.expense_ratio.source_name}` : ""}
             {analysis.expense_ratio.source_as_of_date ? ` · 기준일 ${analysis.expense_ratio.source_as_of_date}` : ""}
           </p>
@@ -816,7 +829,7 @@ function FundInstrumentAnalysisPanel({ analysis }: { analysis: FundInstrumentAna
         </article>
         <article className="flow-step">
           <span>유동성</span>
-          <strong>{koCode(analysis.liquidity.status)}</strong>
+          <strong>{fundStatusLabel(analysis.liquidity.status)}</strong>
           <p>
             {analysis.liquidity.summary} 평균 거래량 {formatCompactNumber(analysis.liquidity.average_daily_volume)} ·
             평균 거래대금 {formatCurrency(analysis.liquidity.average_daily_dollar_volume, "USD")}
@@ -1245,7 +1258,7 @@ function recommendationImmediateFocus({
   } else if (!outcomeMeasured) {
     items.push({
       label: "1순위",
-      title: "성과 측정창을 기다린다",
+      title: "성과 측정창 종료 대기",
       body: "추천 근거는 연결됐지만 성과 측정창이 끝나지 않았다. 이 기간에는 추천 산식 변경과 실거래 주문을 하지 않는다.",
       metric: "성과 미측정",
       href: "#recommendation-evidence-review",
@@ -1650,14 +1663,13 @@ function RecommendationFocusPanel({
   decisionWaterfall: RecommendationDetailData["professional_decision_waterfall"];
 }) {
   const firstItem = items[0];
+  const focusTitle = firstItem ? `지금 확인할 항목: ${firstItem.title}` : "현재 결론";
 
   return (
     <section className={`recommendation-focus-panel ${qualityDecision.tone} reveal delay-1`} aria-labelledby="recommendation-focus-title">
       <div className="recommendation-focus-lead">
         <span>추천 판단 순서</span>
-        <h2 id="recommendation-focus-title">
-          먼저 {firstItem?.title ?? "현재 결론"}부터 본다
-        </h2>
+        <h2 id="recommendation-focus-title">{focusTitle}</h2>
         <p>
           {data.symbol} 추천을 채택할지, 보류할지, 기록만 남길지 판단한다. 원천 근거, 전문 분석, 가상 매매 경계를 순서대로 본다.
         </p>
