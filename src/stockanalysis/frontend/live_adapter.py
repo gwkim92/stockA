@@ -40,6 +40,7 @@ from stockanalysis.signal.portfolio_remediation_ticket import load_portfolio_rem
 
 CONTRACT_VERSION = "frontend-api-v0.1"
 DEFAULT_PORTFOLIO_NAME = "Long Term Paper"
+BROKER_READONLY_PORTFOLIO_NAME = "Toss Real Readonly"
 DEFAULT_STRATEGY_NAME = "long_term_core"
 DEFAULT_COVERAGE_HORIZON_DAYS = 31
 DEFAULT_MAX_SECTOR_WEIGHT = 0.4500
@@ -2737,6 +2738,10 @@ def build_live_recommendation_detail_response(
         symbol=symbol,
         as_of_date=as_of_date_text,
     )
+    position_context = _build_recommendation_position_context_payload(
+        _as_dict(state.get("position_context")),
+        symbol=symbol,
+    )
     professional_source_guardrail = _build_professional_source_guardrail_payload(
         financial_statement_model=financial_statement_model,
         fund_instrument_analysis=fund_instrument_analysis,
@@ -2782,6 +2787,7 @@ def build_live_recommendation_detail_response(
             "horizon_type": str(state.get("horizon_type") or "long_term"),
             "recommendation": str(state.get("recommendation") or "monitor"),
             "score": _number(state.get("score")),
+            "recommended_weight": _number(state.get("recommended_weight")),
             "score_version": str(state.get("score_version") or "unknown"),
             "score_components": score_components,
             "equity_research": equity_research,
@@ -2790,6 +2796,7 @@ def build_live_recommendation_detail_response(
             "valuation_target_range": valuation_target_range,
             "fund_instrument_analysis": fund_instrument_analysis,
             "linked_thesis_id": _opaque_id("thesis", linked_thesis_id, None) if linked_thesis_id is not None else None,
+            "position_context": position_context,
             "evidence_trace": evidence_trace,
             "market_correlations": market_correlations,
             "professional_source_guardrail": professional_source_guardrail,
@@ -12062,16 +12069,55 @@ latest_position_trace as (
     select
         portfolio.portfolio_name,
         position.snapshot_date,
+        position.quantity,
+        position.cost_basis,
+        position.market_price,
         position.weight,
         position.market_value,
+        position.unrealized_pnl,
         position.linked_thesis_id,
-        position.source_run_id
+        position.source_run_id,
+        position.native_currency_code,
+        position.market_price_native,
+        position.market_value_native,
+        position.cost_basis_native,
+        position.unrealized_pnl_native,
+        position.fx_rate_to_base,
+        position.currency_conversion_note
     from selected_recommendation recommendation
     join portfolio.position_snapshot position
       on position.instrument_id = recommendation.instrument_id
     join portfolio.portfolio portfolio
       on portfolio.portfolio_id = position.portfolio_id
     where portfolio.portfolio_name = {sql_literal(DEFAULT_PORTFOLIO_NAME)}
+    order by position.snapshot_date desc
+    limit 1
+),
+broker_position_trace as (
+    select
+        portfolio.portfolio_name,
+        position.snapshot_date,
+        position.quantity,
+        position.cost_basis,
+        position.market_price,
+        position.weight,
+        position.market_value,
+        position.unrealized_pnl,
+        position.linked_thesis_id,
+        position.source_run_id,
+        position.native_currency_code,
+        position.market_price_native,
+        position.market_value_native,
+        position.cost_basis_native,
+        position.unrealized_pnl_native,
+        position.fx_rate_to_base,
+        position.currency_conversion_note
+    from selected_recommendation recommendation
+    join portfolio.position_snapshot position
+      on position.instrument_id = recommendation.instrument_id
+    join portfolio.portfolio portfolio
+      on portfolio.portfolio_id = position.portfolio_id
+    where portfolio.portfolio_name = {sql_literal(BROKER_READONLY_PORTFOLIO_NAME)}
     order by position.snapshot_date desc
     limit 1
 ),
@@ -12671,6 +12717,7 @@ select json_build_object(
     'horizon_type', (select horizon_type from selected_recommendation),
     'recommendation', (select action from selected_recommendation),
     'score', (select total_score from selected_recommendation),
+    'recommended_weight', (select recommended_weight from selected_recommendation),
     'score_version', coalesce((select universe_version from selected_recommendation), 'bootstrap-v1'),
     'score_components',
     coalesce(
@@ -13084,6 +13131,86 @@ select json_build_object(
         '[]'::json
     ),
     'linked_thesis_id', (select thesis_id from selected_recommendation),
+    'position_context',
+    json_build_object(
+        'status',
+        case when exists (select 1 from latest_position_trace) then 'held' else 'not_held' end,
+        'symbol', (select primary_symbol from selected_recommendation),
+        'portfolio_name', coalesce((select portfolio_name from latest_position_trace), {sql_literal(DEFAULT_PORTFOLIO_NAME)}),
+        'snapshot_date', (select snapshot_date from latest_position_trace),
+        'quantity', (select quantity from latest_position_trace),
+        'cost_basis', (select cost_basis from latest_position_trace),
+        'average_cost',
+            (
+                select case
+                    when quantity is null or quantity = 0 or cost_basis is null then null
+                    else cost_basis / quantity
+                end
+                from latest_position_trace
+            ),
+        'market_price', (select market_price from latest_position_trace),
+        'market_value', (select market_value from latest_position_trace),
+        'weight', (select weight from latest_position_trace),
+        'unrealized_pnl', (select unrealized_pnl from latest_position_trace),
+        'unrealized_pnl_pct',
+            (
+                select case
+                    when cost_basis is null or cost_basis = 0 or unrealized_pnl is null then null
+                    else unrealized_pnl / cost_basis
+                end
+                from latest_position_trace
+            ),
+        'source_run_id', (select source_run_id from latest_position_trace),
+        'linked_thesis_id', (select linked_thesis_id from latest_position_trace),
+        'currency_code', coalesce((select currency_code from selected_recommendation), 'USD'),
+        'native_currency_code', (select native_currency_code from latest_position_trace),
+        'market_price_native', (select market_price_native from latest_position_trace),
+        'market_value_native', (select market_value_native from latest_position_trace),
+        'cost_basis_native', (select cost_basis_native from latest_position_trace),
+        'unrealized_pnl_native', (select unrealized_pnl_native from latest_position_trace),
+        'fx_rate_to_base', (select fx_rate_to_base from latest_position_trace),
+        'currency_conversion_note', (select currency_conversion_note from latest_position_trace),
+        'broker_reference',
+        json_build_object(
+            'status',
+            case when exists (select 1 from broker_position_trace) then 'held' else 'not_held' end,
+            'symbol', (select primary_symbol from selected_recommendation),
+            'portfolio_name', coalesce((select portfolio_name from broker_position_trace), {sql_literal(BROKER_READONLY_PORTFOLIO_NAME)}),
+            'snapshot_date', (select snapshot_date from broker_position_trace),
+            'quantity', (select quantity from broker_position_trace),
+            'cost_basis', (select cost_basis from broker_position_trace),
+            'average_cost',
+                (
+                    select case
+                        when quantity is null or quantity = 0 or cost_basis is null then null
+                        else cost_basis / quantity
+                    end
+                    from broker_position_trace
+                ),
+            'market_price', (select market_price from broker_position_trace),
+            'market_value', (select market_value from broker_position_trace),
+            'weight', (select weight from broker_position_trace),
+            'unrealized_pnl', (select unrealized_pnl from broker_position_trace),
+            'unrealized_pnl_pct',
+                (
+                    select case
+                        when cost_basis is null or cost_basis = 0 or unrealized_pnl is null then null
+                        else unrealized_pnl / cost_basis
+                    end
+                    from broker_position_trace
+                ),
+            'source_run_id', (select source_run_id from broker_position_trace),
+            'linked_thesis_id', (select linked_thesis_id from broker_position_trace),
+            'currency_code', coalesce((select currency_code from selected_recommendation), 'USD'),
+            'native_currency_code', (select native_currency_code from broker_position_trace),
+            'market_price_native', (select market_price_native from broker_position_trace),
+            'market_value_native', (select market_value_native from broker_position_trace),
+            'cost_basis_native', (select cost_basis_native from broker_position_trace),
+            'unrealized_pnl_native', (select unrealized_pnl_native from broker_position_trace),
+            'fx_rate_to_base', (select fx_rate_to_base from broker_position_trace),
+            'currency_conversion_note', (select currency_conversion_note from broker_position_trace)
+        )
+    ),
     'market_correlations',
     coalesce(
         (
@@ -19855,6 +19982,94 @@ def _build_recommendation_evidence_trace_payload(
             if linked_thesis_id is not None
             else None,
         },
+    }
+
+
+def _build_recommendation_position_context_payload(
+    context: dict[str, Any],
+    *,
+    symbol: str,
+    default_portfolio_name: str = DEFAULT_PORTFOLIO_NAME,
+) -> dict[str, Any]:
+    reference = _build_position_reference_payload(
+        context,
+        symbol=symbol,
+        default_portfolio_name=default_portfolio_name,
+    )
+    broker_reference = _build_position_reference_payload(
+        _as_dict(context.get("broker_reference")),
+        symbol=symbol,
+        default_portfolio_name=BROKER_READONLY_PORTFOLIO_NAME,
+    )
+    status = str(reference.get("status") or "not_held")
+    portfolio_name = str(reference.get("portfolio_name") or default_portfolio_name)
+    summary = (
+        f"{symbol}은 {portfolio_name}에 보유 중이다. 평단가와 평가손익은 포지션 원장에서 계산한다."
+        if status == "held"
+        else f"{symbol}은 {portfolio_name}에 현재 보유 포지션이 없다. 이 추천은 신규 편입 또는 관찰 후보로만 검토한다."
+    )
+    if status == "held" and reference.get("average_cost") is None:
+        summary = f"{symbol}은 {portfolio_name}에 보유 중이지만 cost_basis 원장이 없어 평단가를 계산할 수 없다."
+    return {
+        **reference,
+        "summary": summary,
+        "broker_reference": broker_reference,
+        "score_policy": "recommendation_weights_unchanged",
+        "automatic_order_allowed": False,
+        "broker_submit_allowed": False,
+        "order_boundary": "read_only_no_order",
+    }
+
+
+def _build_position_reference_payload(
+    position: dict[str, Any],
+    *,
+    symbol: str,
+    default_portfolio_name: str,
+) -> dict[str, Any]:
+    quantity = _number(position.get("quantity"))
+    cost_basis = _number(position.get("cost_basis"))
+    average_cost = _number(position.get("average_cost"))
+    has_quantity = quantity is not None and quantity != 0
+    has_cost_basis = cost_basis is not None and cost_basis != 0
+    if average_cost is None and has_quantity and cost_basis is not None:
+        average_cost = cost_basis / quantity
+    unrealized_pnl = _number(position.get("unrealized_pnl"))
+    unrealized_pnl_pct = _number(position.get("unrealized_pnl_pct"))
+    if unrealized_pnl_pct is None and has_cost_basis and unrealized_pnl is not None:
+        unrealized_pnl_pct = unrealized_pnl / cost_basis
+    status = str(position.get("status") or ("held" if has_quantity else "not_held"))
+    raw_source_run_id = position.get("source_run_id")
+    raw_linked_thesis_id = position.get("linked_thesis_id")
+    return {
+        "status": status,
+        "symbol": str(position.get("symbol") or symbol).upper(),
+        "portfolio_name": str(position.get("portfolio_name") or default_portfolio_name),
+        "snapshot_date": _optional_text(position.get("snapshot_date")),
+        "quantity": quantity,
+        "cost_basis": cost_basis,
+        "average_cost": average_cost,
+        "market_price": _number(position.get("market_price")),
+        "market_value": _number(position.get("market_value")),
+        "weight": _number(position.get("weight")),
+        "unrealized_pnl": unrealized_pnl,
+        "unrealized_pnl_pct": unrealized_pnl_pct,
+        "source_run_id": _opaque_id("pipeline-run", raw_source_run_id, None)
+        if raw_source_run_id is not None
+        else None,
+        "linked_thesis_id": _opaque_id("thesis", raw_linked_thesis_id, None)
+        if raw_linked_thesis_id is not None
+        else None,
+        "currency_code": str(position.get("currency_code") or "USD").upper(),
+        "native_currency_code": str(
+            position.get("native_currency_code") or position.get("currency_code") or "USD"
+        ).upper(),
+        "market_price_native": _number(position.get("market_price_native")),
+        "market_value_native": _number(position.get("market_value_native")),
+        "cost_basis_native": _number(position.get("cost_basis_native")),
+        "unrealized_pnl_native": _number(position.get("unrealized_pnl_native")),
+        "fx_rate_to_base": _number(position.get("fx_rate_to_base")),
+        "currency_conversion_note": str(position.get("currency_conversion_note") or ""),
     }
 
 

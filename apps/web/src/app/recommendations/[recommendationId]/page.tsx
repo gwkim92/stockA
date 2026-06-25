@@ -4,6 +4,7 @@ import { Fragment } from "react";
 import { AuditMetadata, type AuditMetadataItem } from "@/components/audit-metadata";
 import { NewsTitleBlock } from "@/components/news-title-block";
 import { ProfessionalResearchFlow, type ResearchFlowStep } from "@/components/professional-research-flow";
+import { RecommendationPositionReality } from "@/components/recommendation-position-reality";
 import { ValuationTargetRangeCard } from "@/components/valuation-target-range-card";
 import { getRecommendationDetail } from "@/lib/frontend-api";
 import { koCode, koLabel } from "@/lib/korean-labels";
@@ -1665,6 +1666,7 @@ export default async function RecommendationPage({ params }: RecommendationPageP
   const watchDecisionStepCount = decisionWaterfall.steps.filter((step) => step.tone === "watch" || step.tone === "neutral").length;
   const blockedDecisionStepCount = decisionWaterfall.steps.filter((step) => step.tone === "blocked").length;
   const marketCorrelationCount = data.market_correlations.length;
+  const positionStatusLabel = data.position_context.status === "held" ? "보유 중" : "미보유";
   const professionalResearchSteps: ResearchFlowStep[] = decisionWaterfall.steps.map((step, index) => ({
     id: step.step_key,
     label: String(index + 1).padStart(2, "0"),
@@ -1713,14 +1715,14 @@ export default async function RecommendationPage({ params }: RecommendationPageP
             {data.symbol} · {qualityDecision.status}
           </h1>
           <p className="decision-brief-copy">
-            {qualityDecision.summary} 여기서는 근거의 출처, 전문 분석 통과 여부, 가상 매매 입력 가능 여부를 분리해서 본다.
+            {qualityDecision.summary} 이 화면은 먼저 보유 여부와 평단가를 확인한 뒤, 근거·밸류에이션·가상 매매 경계를 순서대로 대조한다.
           </p>
           <div className="decision-brief-meta" aria-label="추천 상세 핵심 상태">
             <span>점수 {formatPercent(data.score)}</span>
             <span>추천 {koCode(data.recommendation)}</span>
+            <span>포지션 {positionStatusLabel}</span>
             <span>가상 매매 {decisionWaterfall.paper_validation_input_allowed ? "입력 가능" : "입력 차단"}</span>
             <span>실거래 {decisionWaterfall.broker_submit_allowed ? "허용" : "차단"}</span>
-            <span>시장 동조성 {marketCorrelationCount.toLocaleString("ko-KR")}개</span>
           </div>
         </div>
 
@@ -1728,30 +1730,32 @@ export default async function RecommendationPage({ params }: RecommendationPageP
           <Link className="decision-card primary" href="#recommendation-professional-flow">
             <span>현재 결론</span>
             <strong>{qualityDecision.status}</strong>
-            <small>전문 분석 단계에서 무엇이 통과·차단됐는지 먼저 본다.</small>
+            <small>추천을 채택할지, 보류할지, 기록만 남길지 정리한다.</small>
           </Link>
-          <Link className="decision-card" href={stockHref(data.symbol)}>
-            <span>종목 맥락</span>
-            <strong>{data.symbol} 상세</strong>
-            <small>직접 뉴스, 상위 흐름, 재무·밸류에이션 근거를 종목 단위로 이어서 본다.</small>
+          <Link className="decision-card" href="#recommendation-position-reality">
+            <span>포지션·평단가</span>
+            <strong>{positionStatusLabel}</strong>
+            <small>수량, 평단가, 평가손익, 브로커 계좌 상태를 먼저 확인한다.</small>
           </Link>
           <Link className="decision-card" href="#recommendation-professional-flow">
             <span>분석 단계</span>
             <strong>{readyDecisionStepCount}/{decisionWaterfall.steps.length} 통과</strong>
-            <small>주의 {watchDecisionStepCount}개 · 차단 {blockedDecisionStepCount}개.</small>
-          </Link>
-          <Link className="decision-card" href="/paper-trading">
-            <span>거래 경계</span>
-            <strong>{orderBoundaryLabel(decisionWaterfall.order_boundary)}</strong>
-            <small>가상 매매와 실거래 제출 가능 여부를 분리해서 본다.</small>
+            <small>주의 {watchDecisionStepCount}개 · 차단 {blockedDecisionStepCount}개</small>
           </Link>
           <Link className={marketCorrelationCount > 0 ? "decision-card is-good" : "decision-card is-watch"} href="#recommendation-market-correlations">
             <span>시장 동조성</span>
             <strong>{marketCorrelationCount.toLocaleString("ko-KR")}개 비교</strong>
-            <small>추천 종목이 지수·섹터·금리·달러·원자재와 같이 움직였는지 본다.</small>
+            <small>지수·섹터·금리·달러·원자재 민감도를 확인한다.</small>
+          </Link>
+          <Link className="decision-card" href="/paper-trading">
+            <span>거래 경계</span>
+            <strong>{orderBoundaryLabel(decisionWaterfall.order_boundary)}</strong>
+            <small>가상 매매와 실거래 제출 가능 여부를 분리한다.</small>
           </Link>
         </div>
       </section>
+
+      <RecommendationPositionReality data={data} />
 
       <RecommendationFocusPanel
         data={data}

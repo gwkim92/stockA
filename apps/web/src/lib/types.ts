@@ -2258,6 +2258,7 @@ export type RecommendationDetailData = {
   horizon_type: string;
   recommendation: string;
   score: number;
+  recommended_weight: number | null;
   score_version: string;
   score_components: Array<{
     component: string;
@@ -2343,6 +2344,7 @@ export type RecommendationDetailData = {
   valuation_target_range: ValuationTargetRange;
   fund_instrument_analysis: FundInstrumentAnalysis | null;
   linked_thesis_id: string;
+  position_context: RecommendationPositionContext;
   professional_source_guardrail: ProfessionalSourceGuardrail;
   market_correlations: AssetCorrelation[];
   professional_decision_waterfall: ProfessionalDecisionWaterfall;
@@ -2414,6 +2416,40 @@ export type RecommendationDetailData = {
     alpha: number;
     label: string;
   };
+};
+
+export type RecommendationPositionContext = RecommendationPositionReference & {
+  summary: string;
+  broker_reference: RecommendationPositionReference;
+  score_policy: string;
+  automatic_order_allowed: boolean;
+  broker_submit_allowed: boolean;
+  order_boundary: string;
+};
+
+export type RecommendationPositionReference = {
+  status: string;
+  symbol: string;
+  portfolio_name: string;
+  snapshot_date: string | null;
+  quantity: number | null;
+  cost_basis: number | null;
+  average_cost: number | null;
+  market_price: number | null;
+  market_value: number | null;
+  weight: number | null;
+  unrealized_pnl: number | null;
+  unrealized_pnl_pct: number | null;
+  source_run_id: string | null;
+  linked_thesis_id: string | null;
+  currency_code: string;
+  native_currency_code: string;
+  market_price_native: number | null;
+  market_value_native: number | null;
+  cost_basis_native: number | null;
+  unrealized_pnl_native: number | null;
+  fx_rate_to_base: number | null;
+  currency_conversion_note: string;
 };
 
 export type ProfessionalDecisionWaterfall = {

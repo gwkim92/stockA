@@ -2766,6 +2766,7 @@ class FakeLiveExecutor:
                     "horizon_type": "long_term",
                     "recommendation": "monitor_or_accumulate",
                     "score": "0.7800",
+                    "recommended_weight": "0.0550",
                     "score_version": "bootstrap-v1",
                     "score_components": [
                         {
@@ -3237,6 +3238,27 @@ class FakeLiveExecutor:
 	                        },
 	                    ],
 	                    "linked_thesis_id": 7001,
+                        "position_context": {
+                            "status": "held",
+                            "symbol": "AAPL",
+                            "portfolio_name": "Long Term Paper",
+                            "snapshot_date": "2024-11-01",
+                            "quantity": "10.0000",
+                            "cost_basis": "2100.0000",
+                            "average_cost": "210.0000",
+                            "market_price": "240.0000",
+                            "market_value": "2400.0000",
+                            "weight": "0.0500",
+                            "unrealized_pnl": "300.0000",
+                            "unrealized_pnl_pct": "0.1428571429",
+                            "source_run_id": 9400,
+                            "linked_thesis_id": 7001,
+                            "currency_code": "USD",
+                            "broker_reference": {
+                                "status": "not_held",
+                                "portfolio_name": "Toss Real Readonly",
+                            },
+                        },
                         "market_correlations": [
                             {
                                 "as_of_date": "2024-11-01",
@@ -7540,6 +7562,7 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertEqual(payload["data"]["instrument_id"], "instrument-501")
         self.assertEqual(payload["data"]["as_of_date"], "2024-11-01")
         self.assertEqual(payload["data"]["score"], 0.78)
+        self.assertEqual(payload["data"]["recommended_weight"], 0.055)
         self.assertEqual(payload["data"]["score_components"][0]["component"], "cycle_score")
         self.assertEqual(payload["data"]["score_components"][0]["value"], 0.74)
         self.assertEqual(payload["data"]["score_components"][0]["evidence_id"], "event-9001")
@@ -7627,6 +7650,23 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertAlmostEqual(target_range["upside_base"], 0.0902777778)
         self.assertEqual(target_range["order_boundary"], "read_only_no_order")
         self.assertEqual(payload["data"]["linked_thesis_id"], "thesis-7001")
+        position_context = payload["data"]["position_context"]
+        self.assertEqual(position_context["status"], "held")
+        self.assertEqual(position_context["portfolio_name"], "Long Term Paper")
+        self.assertEqual(position_context["snapshot_date"], "2024-11-01")
+        self.assertEqual(position_context["quantity"], 10.0)
+        self.assertEqual(position_context["average_cost"], 210.0)
+        self.assertEqual(position_context["market_price"], 240.0)
+        self.assertEqual(position_context["market_value"], 2400.0)
+        self.assertEqual(position_context["weight"], 0.05)
+        self.assertEqual(position_context["unrealized_pnl"], 300.0)
+        self.assertAlmostEqual(position_context["unrealized_pnl_pct"], 0.1428571429)
+        self.assertEqual(position_context["source_run_id"], "pipeline-run-9400")
+        self.assertEqual(position_context["linked_thesis_id"], "thesis-7001")
+        self.assertEqual(position_context["broker_reference"]["status"], "not_held")
+        self.assertFalse(position_context["automatic_order_allowed"])
+        self.assertFalse(position_context["broker_submit_allowed"])
+        self.assertEqual(position_context["order_boundary"], "read_only_no_order")
         self.assertEqual(payload["data"]["market_correlations"][0]["comparison_indicator_code"], "QQQ")
         self.assertEqual(payload["data"]["market_correlations"][0]["relationship_label"], "moderate_positive")
         self.assertFalse(payload["data"]["market_correlations"][0]["causal_claim"])
