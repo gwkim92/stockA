@@ -1480,7 +1480,7 @@ function recommendationWaterfallCards({
           {
             step: "05",
             label: "NAV·유동성",
-            title: `${formatOptionalPercent(fundAnalysis.nav_premium_discount.premium_discount_to_nav)} · ${koCode(fundAnalysis.liquidity.status)}`,
+            title: `${formatOptionalPercent(fundAnalysis.nav_premium_discount.premium_discount_to_nav)} · ${fundStatusLabel(fundAnalysis.liquidity.status)}`,
             body: `NAV 괴리와 거래대금이 실제 편입·리밸런싱에 무리가 없는지 본다. 평균 거래대금 ${formatCurrency(fundAnalysis.liquidity.average_daily_dollar_volume, data.currency_code)}.`,
             href: "#recommendation-fund-analysis",
             hrefLabel: "NAV·유동성 보기",
