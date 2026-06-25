@@ -2,9 +2,9 @@
 
 ## Status
 
-- current status: local implementation and browser verification complete; Git integration and EC2 deployment pending.
+- current status: implementation, Git integration, and EC2 deployment complete.
 - 완료: 디자인 시스템, 투자자용 내비게이션, 운영 콘솔 분리, presentation 계층, 핵심 화면 정보 위계, 반응형·접근성 회귀 검사를 구현했다.
-- 진행 중: Git 통합과 EC2 배포를 준비하고 있다.
+- 진행 중: 없음. 후속 대형 페이지 분해와 server action 사용자 인증은 별도 task가 필요하다.
 
 ## Completed
 
@@ -25,6 +25,11 @@
 - Playwright final expanded run: 51/51 passed across desktop, tablet, mobile, detail routes, operations separation, navigation, and axe checks.
 - Browser viewport checks: 375px, 768px, and 1280px all rendered without horizontal overflow. The mobile operations hero selector collision and Korean orphan-syllable table hint were corrected.
 - Final live-data mobile check: `/data-health` rendered with `width=375`, `scrollWidth=375`, no raw internal codes, no error surface, and the shortened hint `상세 표는 좌우로 이동할 수 있습니다.`.
+- Git: feature commit `38011cde`를 `develop`에 fast-forward하고 GitHub에 push했다.
+- EC2: `/opt/stockanalysis/app`에서 `develop` commit `38011cde`를 pull하고 `npm ci`, `npm run typecheck`, `npm run build`를 통과한 뒤 `stockanalysis-web.service`를 재시작했다.
+- EC2 route smoke: FastAPI `/__ready`와 `/`, `/market-map`, `/cycle-map`, `/intelligence`, `/stocks`, `/recommendations`, `/portfolio/coverage`, `/paper-trading`, `/data-health`, `/admin/ai-agents`, `/trading-readiness`, `/remediation`가 모두 `200`이다.
+- EC2 copy smoke: 홈과 AI 운영 화면에서 `portfolio review action`, `coverage status`, `equity_research`, `missing_api_key`, `admin_key_missing`이 노출되지 않는다.
+- EC2 services: `stockanalysis-frontend-api.service`, `stockanalysis-web.service` 모두 `active`.
 - `verify_frontend_api_contract.sh`: passed.
 - `verify_project_execution_roadmap.sh`: passed.
 - AWH task readiness: passed.
@@ -40,5 +45,5 @@
 
 ## Next Step
 
-- exact next step: AWH verify를 통과시킨 뒤 feature branch를 commit/push하고 `develop`에 병합·push한 다음, EC2에서 `develop`을 pull하여 Next.js를 build/restart하고 핵심 route smoke를 수행한다.
-- 다음 세션은 이것부터 시작: feature branch를 commit/push하고 `develop`에 병합·push한 다음 EC2 배포와 핵심 route smoke를 수행한다.
+- exact next step: `frontend-domain-component-extraction-v1`에서 `data-health`, 종목 상세, 추천 상세, AI 근거 상세를 도메인 컴포넌트로 분해한다.
+- 다음 세션은 이것부터 시작: 대형 페이지 분해 전에 현재 51개 E2E와 API contract를 기준선으로 고정하고 `data-health`부터 읽기 전용 섹션 컴포넌트를 추출한다.
