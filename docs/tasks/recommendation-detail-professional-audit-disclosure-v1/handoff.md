@@ -30,7 +30,9 @@
 - `bash scripts/verify_project_execution_roadmap.sh`: passed.
 - `PYTHONPATH=/Users/woody/ai/agent-work-harness/src python3 -m awh verify --repo . --task recommendation-detail-professional-audit-disclosure-v1`: passed.
 - Browser QA: 375px, 768px, and 1280px had no horizontal overflow, details were collapsed by default, expanded layer checks were visible, `pending`/internal terms were absent, and raw English news title was replaced with Korean fallback copy.
+- EC2 deploy: `develop` fast-forwarded to `38358bad`, `npm run build` passed, `stockanalysis-frontend-api.service` and `stockanalysis-web.service` were `active`.
+- EC2 route smoke: `http://127.0.0.1:13000/recommendations/recommendation-471#recommendation-professional-audit` panel showed `가상 매매 검증 대기`, collapsed details `[false,false]`, `읽기 전용, 실거래 주문 차단`, Korean news fallback copy, no panel-scoped internal terms, and no horizontal overflow.
 
 ## Next Step
 
-- exact next step: deploy `develop` to EC2, run `/recommendations/recommendation-471` route smoke, and then continue the broader recommendation detail UX reduction if needed.
+- exact next step: continue the broader recommendation detail UX reduction if needed, especially earlier research-flow/news sections that can still expose raw English source headlines outside this professional audit panel.
