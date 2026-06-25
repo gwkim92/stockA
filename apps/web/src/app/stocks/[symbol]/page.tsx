@@ -8,6 +8,7 @@ import { ProfessionalResearchFlow, type ResearchFlowStep } from "@/components/pr
 import { ValuationTargetRangeCard } from "@/components/valuation-target-range-card";
 import { getAiEvidenceNeighborhood, getStockDetail } from "@/lib/frontend-api";
 import { koCode, koLabel } from "@/lib/korean-labels";
+import { stockCopy } from "@/lib/presentation";
 import type { AiEvidenceNeighborhoodData, StockDetailData } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -221,74 +222,7 @@ function providerLabel(provider: string) {
 }
 
 function userFacingStockText(value: string | null | undefined) {
-  if (!value) {
-    return "";
-  }
-  const reviewWord = "검" + "토";
-  const oldAiAnalysisLinkage = ["AI", "분석 연결"].join(" ");
-  const oldStoredAiStructuredResult = ["저장된", "AI", "구조화", "결과"].join(" ");
-  const oldAiStructuredResult = ["AI", "구조화", "결과"].join(" ");
-  const oldAiStructured = ["AI", "구조화"].join(" ");
-  const oldNewsAi = ["뉴스", "AI"].join(" ");
-  return koLabel(value)
-    .replace(/AI 기업 리서치/g, "기업 리서치")
-    .replace(/AI 리서치/g, "기업 리서치")
-    .replace(new RegExp(oldAiAnalysisLinkage, "gi"), "투자 근거 연결")
-    .replace(new RegExp(oldStoredAiStructuredResult, "gi"), "저장된 투자 근거")
-    .replace(new RegExp(oldAiStructuredResult, "gi"), "투자 근거")
-    .replace(new RegExp(oldAiStructured, "gi"), "투자 영향")
-    .replace(new RegExp(oldNewsAi, "gi"), "뉴스 근거")
-    .replace(/\baccumulate_candidate\b/gi, "분할 매수 후보")
-    .replace(/\bhold_candidate\b/gi, "보유 유지 후보")
-    .replace(/\breduce_watch\b/gi, "비중 축소 관찰")
-    .replace(/\bthesis\b/gi, "투자 논리")
-    .replace(/\bevidence review\b/gi, "근거 확인")
-    .replace(/\bpaper validation gate\b/gi, "가상 매매 검증")
-    .replace(/\bpaper validation\b/gi, "가상 매매 검증")
-    .replace(/\bvaluation\b/gi, "밸류에이션")
-    .replace(/\bfund\/ETF source layer\b/gi, "ETF·펀드 근거")
-    .replace(/\bfund or etf company model not applicable\b/gi, "ETF·펀드라 기업 재무 모델 비적용")
-    .replace(/\bfund_company_financial_model_not_applicable\b/gi, "ETF·펀드라 기업 재무 모델 비적용")
-    .replace(/\bfund company financial model not applicable\b/gi, "ETF·펀드라 기업 재무 모델 비적용")
-    .replace(/\bsource blocker\b/gi, "부족한 원천 근거")
-    .replace(/\bblocker\b/gi, "차단 사유")
-    .replace(/\bresearch artifact\b/gi, "리서치 결과")
-    .replace(/\bartifact\b/gi, "결과 기록")
-    .replace(/\bpipeline-run\b/gi, "실행 기록")
-    .replace(/\bsec_companyfacts_missing_us_gaap_facts\b/gi, "SEC 표준 재무 항목 없음")
-    .replace(/\bsec companyfacts missing us gaap facts\b/gi, "SEC 표준 재무 항목 없음")
-    .replace(/\bfinancial_period_source_linkage\b/gi, "재무 기간 원천 연결")
-    .replace(/fundamental 구성요소 가중치/gi, "재무·밸류에이션 항목 반영 비중")
-    .replace(/\bSEC\/companyfacts\b/gi, "SEC 표준 재무 원천")
-    .replace(/\bSEC companyfacts\b/gi, "SEC 표준 재무 원천")
-    .replace(/\bus-gaap\b/gi, "미국 표준 회계 항목")
-    .replace(/\bRAG\b/g, "저장 근거 관계망")
-    .replace(/\blive DB smoke\b/gi, "운영 데이터 연결 점검")
-    .replace(/\blive DB\b/gi, "운영 데이터")
-    .replace(/\bfixture endpoint\b/gi, "샘플 연결 경로")
-    .replace(/\bfixture_not_available\b/gi, "아직 없음")
-    .replace(/\bfixture_fallback\b/gi, "샘플 데이터 대기")
-    .replace(/\bfixture\b/gi, "샘플 데이터")
-    .replace(/\bnot_available\b/gi, "아직 없음")
-    .replace(/\bnot available\b/gi, "아직 없음")
-    .replace(/\bread_only_fallback\b/gi, "읽기 전용 대기")
-    .replace(/\bstored_relationship_context\b/gi, "저장 근거 관계망")
-    .replace(/\bstored relationship context\b/gi, "저장 근거 관계망")
-    .replace(/stored relationship 근거 맥락/gi, "저장 근거 관계망")
-    .replace(/\bBroad US Equity\b/g, "미국 광범위 주식")
-    .replace(/\bref\.instrument\b/gi, "상품 분류 기준")
-    .replace(/\bgate\b/gi, "확인 조건")
-    .replace(/\bvia\b/gi, "기준")
-    .replace(/상세 검토 가능/g, "상세 근거 확인")
-    .replace(/검토 가능/g, "근거 확인")
-    .replace(/수집 상태와 원천 문서 연결 상태를 확인한다\./g, "수집 상태와 원천 문서 연결 상태를 본다.")
-    .replace(/추천이나 보유 판단 입력으로 쓰기 전에 원문과 번역 상태를 먼저 확인해야 한다\./g, "추천이나 보유 판단 입력으로 쓰기 전에 원문과 번역 상태를 먼저 봐야 한다.")
-    .replace(/확인 필요/g, "보강 필요")
-    .replace(/확인한다/g, "본다")
-    .replace(/확인해야/g, "봐야")
-    .replaceAll(`추천 ${reviewWord}`, "추천 근거")
-    .replaceAll(`보유 ${reviewWord}`, "보유 상태")
-    .replace(/분할 매수 후보 후보/g, "분할 매수 후보");
+  return stockCopy(value);
 }
 
 function valuationSensitivityLabel(key: string) {
@@ -1222,7 +1156,7 @@ function EvidenceNeighborhoodPanel({ neighborhood }: { neighborhood: AiEvidenceN
   const readinessCopy =
     ragContext.status === "ready"
       ? "뉴스, 번역, 원문 근거, 기존 추천·투자 논리가 함께 조회된다. 저장된 근거만 보여준다."
-      : "연결된 자료가 부족하다. 이 상태에서는 추천이나 보유 판단 입력으로 쓰기 전에 원문과 번역 상태를 먼저 봐야 한다.";
+      : "연결된 자료가 부족합니다. 원문과 번역 상태가 확보되기 전에는 추천이나 보유 판단에 사용하지 않습니다.";
 
   return (
     <section className="stock-evidence-panel reveal delay-4" aria-label="이 종목이 뉴스와 엮인 이유">

@@ -2,6 +2,8 @@ import Link from "next/link";
 import type { Route } from "next";
 
 import { NewsTitleBlock } from "@/components/news-title-block";
+import { DecisionSummary } from "@/components/research/DecisionSummary";
+import { MetricStrip } from "@/components/research/MetricStrip";
 import {
   getAiNewsClusters,
   getDashboardToday,
@@ -32,16 +34,6 @@ type FallbackNewsCluster = {
   watchCount: number;
   examples: NewsEvent[];
 };
-
-function decisionCardClass(tone: string) {
-  if (tone === "ready" || tone === "focus") {
-    return "is-good";
-  }
-  if (tone === "watch") {
-    return "is-watch";
-  }
-  return "is-block";
-}
 
 function formatPercent(value: number | null | undefined) {
   if (value === null || value === undefined || !Number.isFinite(value)) {
@@ -161,7 +153,7 @@ function clusterInstrumentConnection(cluster: StoredAiNewsCluster) {
       title: `${symbols.slice(0, 3).map(koCode).join(", ")} 직접 연결`,
       body:
         symbols.length > 3
-          ? `직접 언급 종목 ${symbols.length}개가 있다. 종목 상세에서 가격·추천·보유 상태를 이어 본다.`
+          ? `직접 언급 종목 ${symbols.length}개가 있습니다. 가격·추천·보유 상태와 연결됩니다.`
           : "회사명이나 티커가 직접 잡힌 뉴스라 종목 상세와 추천 근거에 바로 연결된다.",
     };
   }
@@ -376,8 +368,6 @@ export default async function IntelligencePage() {
     .filter((event) => event.ai_evidence_id && event.ai_evidence_type === "news_event_candidate")
     .slice(0, 3);
   const unstructuredEvents = events.events.filter((event) => !event.ai_evidence_id).slice(0, 2);
-  const firstCandidate = aiCandidateEvents[0] ?? null;
-  const firstCandidateEvidenceId = firstCandidate?.ai_evidence_id ?? null;
   const firstCluster = storedNewsClusters.clusters[0] ?? null;
   const visibleNewsClusters = storedNewsClusters.clusters.slice(0, 2);
   const hiddenNewsClusterCount = Math.max(storedNewsClusters.clusters.length - visibleNewsClusters.length, 0);
@@ -395,161 +385,41 @@ export default async function IntelligencePage() {
       : "상위 흐름 대기";
   const firstFlowTarget = firstCluster ? formatSymbols(firstCluster.symbols) : "시장/테마 흐름";
   const firstFlowHref = firstCluster ? clusterEvidenceHref(firstCluster) : ("/cycle-map" as Route);
-  const flowSummaryCards = [
-    {
-      index: "01",
-      label: "오늘의 상위 흐름",
-      title: firstFlowTitle,
-      target: firstFlowTarget,
-      body: "반복 뉴스가 같은 시장 흐름을 만들고 있는지 본다.",
-      cta: firstCluster ? "흐름 상세 보기" : "흐름 지도 보기",
-      href: firstFlowHref,
-      tone: "focus",
-    },
-    {
-      index: "02",
-      label: "통과한 뉴스 근거",
-      title: llmCandidateSuccessCount > 0 ? `${llmCandidateSuccessCount}건 통과` : "새 근거 없음",
-      target: firstCandidate
-        ? `${formatNewsSymbol(firstCandidate.symbol)} · ${koCode(firstCandidate.theme_key)}`
-        : formatLlmCandidateStatus(clusterSummary),
-      body: "추천 근거로 볼 수 있는 항목만 남긴다.",
-      cta: firstCandidateEvidenceId ? "첫 근거 보기" : "근거 목록",
-      href: firstCandidateEvidenceId ? (`/ai-evidence/${firstCandidateEvidenceId}` as Route) : ("/ai-evidence" as Route),
-      tone: llmCandidateSuccessCount > 0 ? "ready" : "watch",
-    },
-    {
-      index: "03",
-      label: "차단·오염 의심",
-      title: `${blockedCandidateCount}건 차단`,
-      target: blockedCandidateCount > 0 ? "원인 검토 필요" : "새 차단 없음",
-      body: "추천에 쓰면 안 되는 근거를 분리한다.",
-      cta: "차단 목록 보기",
-      href: "/ai-evidence/blocked" as Route,
-      tone: blockedCandidateCount > 0 ? "watch" : "ready",
-    },
-    {
-      index: "04",
-      label: "추천 영향",
-      title: `커버리지 ${formatPercent(dashboard.latest_metrics.weight_coverage_ratio)}`,
-      target: "읽기 전용",
-      body: "통과한 근거가 추천·보유 판단에 실제로 연결됐는지 본다.",
-      cta: "추천 영향 보기",
-      href: "/recommendations" as Route,
-      tone: dashboard.latest_metrics.weight_coverage_ratio > 0 ? "ready" : "watch",
-    },
-  ];
-  const newsWorkflowCards = [
-    {
-      index: "01",
-      label: "원문",
-      title: "뉴스 원문",
-      metric: `${events.events.length.toLocaleString("ko-KR")}건 표시`,
-      body: "뉴스 제목, 시간, 원문 링크가 판단의 출발점이다. 원문이 약하면 투자 근거에서 제외한다.",
-      href: "/events" as Route,
-      tone: "ready",
-    },
-    {
-      index: "02",
-      label: "1차 영향",
-      title: "초기 영향",
-      metric: "테마·종목·방향",
-      body: "초기 테마·종목·방향을 붙인다. 애매한 항목은 차단 목록으로 보낸다.",
-      href: "/events/classification" as Route,
-      tone: "watch",
-    },
-    {
-      index: "03",
-      label: "근거",
-      title: "투자 근거 후보",
-      metric: `${llmCandidateSuccessCount.toLocaleString("ko-KR")}건 성공`,
-      body: "종목·테마·방향·불확실성이 분명한 항목만 투자 판단 후보로 본다.",
-      href: "/ai-evidence" as Route,
-      tone: llmCandidateSuccessCount > 0 ? "ready" : "watch",
-    },
-    {
-      index: "04",
-      label: "품질",
-      title: "통과/차단",
-      metric: `${blockedCandidateCount.toLocaleString("ko-KR")}건 차단`,
-      body: "원문 근거가 약하거나 신뢰도가 낮은 항목은 추천 판단에서 제외한다.",
-      href: blockedCandidateCount > 0 ? ("/ai-evidence/blocked" as Route) : ("/ai-evidence/results" as Route),
-      tone: blockedCandidateCount > 0 ? "watch" : "ready",
-    },
-    {
-      index: "05",
-      label: "추천 영향",
-      title: "추천·보유 영향",
-      metric: formatPercent(dashboard.latest_metrics.weight_coverage_ratio),
-      body: "통과한 근거가 추천 상세, 종목 상세, 보유 상태까지 이어지는지 본다.",
-      href: "/recommendations" as Route,
-      tone: dashboard.latest_metrics.weight_coverage_ratio > 0 ? "ready" : "watch",
-    },
-  ];
-
   return (
     <div className="terminal-page decision-page intelligence-page research-command-page">
-      <section className="decision-brief reveal research-command-deck intelligence-command-deck" aria-labelledby="intelligence-title">
-        <div className="decision-brief-main">
-          <span className="decision-brief-kicker">뉴스 근거 · {dashboard.as_of_date}</span>
-          <h1 className="decision-brief-title" id="intelligence-title">
-            오늘의 뉴스 흐름은 {clusterCount.toLocaleString("ko-KR")}개 묶음으로 정리됐다.
-          </h1>
-          <p className="decision-brief-copy">
-            오늘 투자 판단을 바꿀 수 있는 흐름, 종목 영향, 차단된 근거, 추천 영향을 먼저 보여준다.
-          </p>
-          <div className="decision-brief-meta" aria-label="뉴스 근거 핵심 상태">
-            <span>뉴스 수집 {formatRunStatus(newsRun)}</span>
-            <span>근거 후보 {formatLlmCandidateStatus(clusterSummary)}</span>
-            <span>뉴스 흐름 {formatClusterModeStatus(clusterSummary)}</span>
-            <span>추천 영향 {formatPercent(dashboard.latest_metrics.weight_coverage_ratio)}</span>
+      <DecisionSummary
+        eyebrow={`뉴스 인텔리전스 · ${dashboard.as_of_date}`}
+        title={`${clusterCount.toLocaleString("ko-KR")}개 핵심 흐름이 시장 판단을 바꾸고 있습니다.`}
+        description="반복된 뉴스의 공통 원인과 영향을 묶어 보고, 반대 근거와 종목 연결까지 함께 확인합니다."
+        primaryAction={{ href: firstFlowHref, label: firstCluster ? "주요 흐름 분석" : "사이클 지도" }}
+        secondaryActions={[
+          { href: "/ai-evidence" as Route, label: "AI 근거" },
+          { href: "/events" as Route, label: "전체 뉴스" },
+        ]}
+        side={
+          <div className="research-lead-snapshot">
+            <span>가장 큰 뉴스 흐름</span>
+            <strong>{firstFlowTitle}</strong>
+            <small>{firstFlowTarget} · 추천 근거 연결률 {formatPercent(dashboard.latest_metrics.weight_coverage_ratio)}</small>
           </div>
-        </div>
-        <div className="decision-brief-grid">
-          {flowSummaryCards.map((card) => (
-            <Link
-              className={`decision-card ${decisionCardClass(card.tone)}`}
-              href={card.href}
-              key={card.index}
-            >
-              <span>{card.label}</span>
-              <strong>{card.title}</strong>
-              <small>{card.target} · {card.body}</small>
-              <b>{card.cta}</b>
-            </Link>
-          ))}
-        </div>
-      </section>
-
-      <section className="intelligence-flow-panel reveal delay-1" aria-labelledby="news-workflow-title">
-        <div className="intelligence-flow-lead">
-          <span>투자 판단 경로</span>
-          <h2 id="news-workflow-title">뉴스가 투자 판단을 바꾸는 지점</h2>
-          <p>
-            뉴스 자체가 추천은 아니다. 원문 근거, 종목·테마 영향, 품질 차단, 추천 영향을 분리해서 보고
-            투자 판단에 쓸 수 있는 항목만 남긴다.
-          </p>
-        </div>
-        <div className="intelligence-flow-grid evidence-flow-grid">
-          {newsWorkflowCards.map((card) => (
-            <Link className={`intelligence-flow-card ${card.tone}`} href={card.href} key={card.index}>
-              <span>{card.index}</span>
-              <small>{card.label}</small>
-              <strong>{card.title}</strong>
-              <em>{card.metric}</em>
-              <p>{card.body}</p>
-              <b>열기</b>
-            </Link>
-          ))}
-        </div>
-      </section>
+        }
+      />
+      <MetricStrip
+        label="뉴스 인텔리전스 현황"
+        items={[
+          { label: "뉴스 흐름", value: `${clusterCount}개`, context: formatClusterModeStatus(clusterSummary) },
+          { label: "AI 근거 통과", value: `${llmCandidateSuccessCount}개`, context: formatLlmCandidateStatus(clusterSummary) },
+          { label: "품질 차단", value: `${blockedCandidateCount}개`, context: blockedCandidateCount > 0 ? "추천 근거에서 제외" : "새 차단 없음" },
+          { label: "뉴스 수집", value: formatRunStatus(newsRun), context: formatNewsRunLabel(newsRun) },
+        ]}
+      />
 
       <section className="intelligence-board reveal delay-2" id="today-flow" aria-labelledby="news-decision-board-title">
         <div className="section-heading stacked-heading">
-          <span>01 오늘의 상위 흐름</span>
-          <h2 id="news-decision-board-title">반복된 뉴스가 하나의 시장 흐름인지 본다</h2>
+          <span>주요 시장 흐름</span>
+          <h2 id="news-decision-board-title">반복된 사건이 만든 공통 투자 환경</h2>
           <p>
-            첫 화면에는 가장 큰 뉴스 흐름만 남긴다. 전체 뉴스와 차단 항목은 전용 화면으로 분리한다.
+            영향이 큰 흐름부터 정렬했습니다. 각 묶음에서 원문, 연결 근거, 영향을 받는 종목을 확인할 수 있습니다.
           </p>
         </div>
 
@@ -679,7 +549,7 @@ export default async function IntelligencePage() {
             </div>
             {hiddenNewsClusterCount > 0 ? (
               <p className="board-intro">
-                나머지 뉴스 묶음 {hiddenNewsClusterCount}개는 근거 목록·통과 결과 화면에서 이어서 확인한다.
+                나머지 뉴스 묶음 {hiddenNewsClusterCount}개는 근거 목록과 통과 결과에 정리되어 있습니다.
               </p>
             ) : null}
           </>
@@ -851,7 +721,7 @@ export default async function IntelligencePage() {
             <div className="decision-triage-head">
               <span>추천 연결</span>
               <strong>{formatPercent(dashboard.latest_metrics.weight_coverage_ratio)}</strong>
-              <p>추천 상세에서 직접 뉴스, 상위 흐름, 가격·사이클 근거를 분리해서 본다.</p>
+              <p>추천 상세에서는 직접 뉴스, 상위 흐름, 가격·사이클 근거가 분리되어 표시됩니다.</p>
             </div>
             <div className="decision-triage-stack">
               <article className="brief-signal-card watch">
@@ -862,7 +732,7 @@ export default async function IntelligencePage() {
               <article className="brief-signal-card">
                 <span>다음 경로</span>
                 <strong>추천·가상 매매</strong>
-                <p>추천 상세와 가상 매매 상태에서 실제 검증 단계까지 이어 본다.</p>
+                <p>추천 상세와 가상 매매 상태에 실제 검증 단계가 연결됩니다.</p>
               </article>
             </div>
           </article>

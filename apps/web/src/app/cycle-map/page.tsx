@@ -1,6 +1,8 @@
 import Link from "next/link";
 import type { Route } from "next";
 
+import { DecisionSummary } from "@/components/research/DecisionSummary";
+import { MetricStrip } from "@/components/research/MetricStrip";
 import { getCycleMap, getCycleStates } from "@/lib/frontend-api";
 import { koCode, koLabel } from "@/lib/korean-labels";
 import type { CycleMapData, CycleStateListData } from "@/lib/types";
@@ -146,13 +148,13 @@ function nodeEvidenceLine(node: CycleNode) {
 
 function nodeNextAction(node: CycleNode) {
   if (node.counts.recommendation_count > 0) {
-    return "추천 상세에서 이 흐름이 점수와 분리돼 쓰이는지 본다.";
+    return "이 흐름이 추천 점수와 근거에 미친 영향을 확인할 수 있습니다.";
   }
   if (node.top_symbols.length > 0) {
-    return "대표 종목 상세에서 직접 뉴스, 상위 흐름, 시장 동조성을 이어 본다.";
+    return "대표 종목의 직접 뉴스, 상위 흐름과 시장 동조성이 연결됩니다.";
   }
   if (node.counts.direct_event_count > 0) {
-    return "뉴스 근거 화면에서 원천 뉴스와 종목·테마 영향을 먼저 본다.";
+    return "원천 뉴스와 종목·테마 영향이 뉴스 근거 화면에 연결됩니다.";
   }
   return "다음 뉴스/가격 수집 후 상태 변화를 기다린다.";
 }
@@ -175,7 +177,7 @@ function nodeSummary(node: CycleNode) {
   const symbolCount = node.top_symbols.length;
   const recommendationCount = node.counts.recommendation_count;
 
-  return `${name}. 현재 상태는 ${state}. 최근 뉴스 ${directEvents}건, 상위 흐름 영향 ${propagatedImpacts}건, 연결 종목 ${symbolCount}개, 추천 영향 ${recommendationCount}건을 함께 본다.`;
+  return `${name}의 현재 상태는 ${state}입니다. 최근 뉴스 ${directEvents}건, 상위 흐름 영향 ${propagatedImpacts}건, 연결 종목 ${symbolCount}개, 추천 영향 ${recommendationCount}건이 반영됐습니다.`;
 }
 
 function groupedNodes(nodes: CycleNode[]) {
@@ -209,65 +211,46 @@ export default async function CycleMapPage() {
 
   return (
     <div className="terminal-page decision-page cycle-map-page research-command-page">
-      <section className="decision-brief workspace-brief reveal research-command-deck cycle-command-deck" aria-labelledby="cycle-map-title">
-        <div className="decision-brief-main">
-          <span className="decision-brief-kicker">흐름 지도 · {data.as_of_date}</span>
-          <h1 className="decision-brief-title" id="cycle-map-title">
-            오늘은 {topNodeLabel(hotNode)}부터 본다.
-          </h1>
-          <p className="decision-brief-copy">
-            먼저 상위 흐름의 열기와 충돌을 보고, 그 흐름이 어떤 종목과 추천 근거로 내려가는지 추적한다.
-          </p>
-          <div className="decision-brief-meta" aria-label="흐름 지도 핵심 상태">
-            <span>흐름 {data.summary.node_count.toLocaleString("ko-KR")}개</span>
-            <span>뉴스 영향 {data.summary.direct_event_count.toLocaleString("ko-KR")}개</span>
-            <span>추천 영향 {data.summary.recommendation_count.toLocaleString("ko-KR")}개</span>
-            <span>충돌 {conflictNodeCount.toLocaleString("ko-KR")}개</span>
-            <span>노출 대기 {symbolGapCount.toLocaleString("ko-KR")}개</span>
+      <DecisionSummary
+        eyebrow={`사이클 지도 · ${data.as_of_date}`}
+        title={`${topNodeLabel(hotNode)} 흐름이 현재 시장을 주도합니다.`}
+        description="거시 환경에서 시작된 변화가 산업·테마·종목으로 어떻게 확산되는지, 충돌 신호와 함께 보여줍니다."
+        primaryAction={{
+          href: hotNode ? nodeHref(hotNode.node_code) : ("/intelligence" as Route),
+          label: hotNode ? "주도 흐름 분석" : "뉴스 근거 보기",
+        }}
+        secondaryActions={[
+          { href: "/intelligence" as Route, label: "뉴스 근거" },
+          { href: "/cycles" as Route, label: "사이클 상태표" },
+        ]}
+        side={
+          <div className="research-lead-snapshot">
+            <span>주도 사이클</span>
+            <strong>{topNodeLabel(hotNode)}</strong>
+            <small>
+              뉴스 영향 {hotNode?.counts.direct_event_count ?? 0}개 · 종목 연결 {hotNode?.counts.exposed_instrument_count ?? 0}개
+            </small>
           </div>
-        </div>
-        <div className="decision-brief-grid workspace-command-grid">
-          <Link className="decision-card is-good" href={"/intelligence" as Route}>
-            <span>먼저 볼 흐름</span>
-            <strong>{data.summary.direct_event_count.toLocaleString("ko-KR")}개 영향</strong>
-            <small>근거가 붙은 흐름 {aiBackedNodeCount.toLocaleString("ko-KR")}개. 원문·한국어 요약·품질 결과는 뉴스 근거에서 본다.</small>
-            <b>뉴스 근거</b>
-          </Link>
-          <a className="decision-card is-good" href="#cycle-map-layers">
-            <span>사이클 경로</span>
-            <strong>{data.summary.node_count.toLocaleString("ko-KR")}개</strong>
-            <small>거시 {data.summary.macro_count.toLocaleString("ko-KR")}개 · 테마 {data.summary.theme_count.toLocaleString("ko-KR")}개</small>
-            <b>경로 보기</b>
-          </a>
-          <Link className="decision-card is-good" href={"/cycles" as Route}>
-            <span>상태표</span>
-            <strong>테마별 사이클</strong>
-            <small>뉴스 흐름, 가격 흐름, 기업 품질을 나눠 테마 상태 변화를 본다.</small>
-            <b>상태표 열기</b>
-          </Link>
-          <a className={conflictNodeCount > 0 ? "decision-card is-watch" : "decision-card is-good"} href="#cycle-map-layers">
-            <span>종목 노출</span>
-            <strong>{exposedNodeCount.toLocaleString("ko-KR")}개 연결</strong>
-            <small>상위 흐름이 어떤 종목으로 내려가는지 보고, 종목 상세에서 직접 근거를 이어 본다.</small>
-            <b>종목 보기</b>
-          </a>
-          <Link className={data.summary.recommendation_count > 0 ? "decision-card is-good" : "decision-card is-watch"} href={"/recommendations" as Route}>
-            <span>추천 영향</span>
-            <strong>{data.summary.recommendation_count.toLocaleString("ko-KR")}개</strong>
-            <small>추천 상세에서 뉴스, 흐름, 재무, 가상 매매 검증을 다시 분리한다.</small>
-            <b>추천 근거</b>
-          </Link>
-        </div>
-      </section>
+        }
+      />
+      <MetricStrip
+        label="사이클 지도 현황"
+        items={[
+          { label: "추적 흐름", value: `${data.summary.node_count}개`, context: `거시 ${data.summary.macro_count} · 테마 ${data.summary.theme_count}` },
+          { label: "뉴스 영향", value: `${data.summary.direct_event_count}개`, context: `AI 근거 연결 ${aiBackedNodeCount}개 흐름` },
+          { label: "종목 연결", value: `${exposedNodeCount}개`, context: `연결 대기 ${symbolGapCount}개` },
+          { label: "충돌 신호", value: `${conflictNodeCount}개`, context: conflictNodeCount > 0 ? "상위·하위 흐름 불일치" : "뚜렷한 충돌 없음" },
+          { label: "추천 영향", value: `${data.summary.recommendation_count}개`, context: "추천 상세에서 근거 확인" },
+        ]}
+      />
 
       <section className="cycle-operating-board reveal delay-1" aria-labelledby="cycle-operating-title">
         <div className="cycle-attention-panel">
           <div className="section-heading stacked-heading">
-            <span>우선순위</span>
-            <h2 id="cycle-operating-title">오늘 가장 먼저 읽을 사이클</h2>
+            <span>주도 사이클</span>
+            <h2 id="cycle-operating-title">시장 영향력이 큰 흐름</h2>
             <p>
-              뉴스 열기, 전파 영향, 추천 영향, 충돌 표시를 합쳐 먼저 볼 흐름을 정렬했다.
-              왼쪽부터 무엇이 움직였는지, 어디로 내려가는지, 무엇을 확인할지 순서로 읽는다.
+              뉴스 강도, 하위 전파, 추천 영향과 충돌 신호를 합산해 중요도 순으로 정렬했습니다.
             </p>
           </div>
           <div className="cycle-attention-list">
@@ -316,26 +299,21 @@ export default async function CycleMapPage() {
           </div>
         </div>
 
-        <aside className="cycle-command-aside" aria-label="사이클 읽는 방법">
+        <aside className="cycle-command-aside" aria-label="사이클 변화 요약">
           <article className="cycle-playbook">
-            <span>읽는 순서</span>
-            <strong>상위 흐름 → 전파 → 종목 → 추천</strong>
-            <p>거시 뉴스는 종목을 억지로 붙이지 않는다. 먼저 상위 사이클로 저장하고 노출도 규칙으로 종목 영향 후보를 만든다.</p>
-          </article>
-          <article className="cycle-playbook">
-            <span>전환 감시</span>
+            <span>상태 전환</span>
             <strong>{turningCycles.length.toLocaleString("ko-KR")}개 변화</strong>
-            <p>{turningCycles.length > 0 ? turningCycles.map((cycle) => koCode(cycle.theme_key)).join(" · ") : "오늘 상태가 바뀐 테마는 없다."}</p>
+            <p>{turningCycles.length > 0 ? turningCycles.map((cycle) => koCode(cycle.theme_key)).join(" · ") : "현재 상태가 바뀐 사이클은 없습니다."}</p>
           </article>
           <article className="cycle-playbook">
-            <span>뉴스 주도</span>
-            <strong>{eventLedCycles.length.toLocaleString("ko-KR")}개 상위</strong>
+            <span>뉴스 강도 상위</span>
+            <strong>{eventLedCycles.length.toLocaleString("ko-KR")}개 흐름</strong>
             <p>{eventLedCycles.map((cycle) => koCode(cycle.theme_key)).join(" · ")}</p>
           </article>
           <article className="cycle-playbook warning">
-            <span>데이터 공백</span>
-            <strong>{evidenceGapCount.toLocaleString("ko-KR")}개 · 노출 대기 {symbolGapCount.toLocaleString("ko-KR")}개</strong>
-            <p>뉴스, 가격, 기업 품질, 종목 노출 중 빈 축이 있으면 결론보다 수집·전파 보강이 먼저다.</p>
+            <span>근거 제한</span>
+            <strong>{evidenceGapCount.toLocaleString("ko-KR")}개 · 종목 연결 대기 {symbolGapCount.toLocaleString("ko-KR")}개</strong>
+            <p>가격, 뉴스 또는 종목 노출이 부족한 흐름은 확정 신호가 아닌 관찰 상태로 유지됩니다.</p>
           </article>
         </aside>
       </section>
@@ -343,8 +321,8 @@ export default async function CycleMapPage() {
       <section className="cycle-lane-board reveal delay-2" aria-labelledby="cycle-lane-title">
         <div className="section-heading stacked-heading">
           <span>계층 지도</span>
-          <h2 id="cycle-lane-title">사이클은 위에서 아래로 내려오며 종목 근거가 된다</h2>
-          <p>각 레인은 거시, 도메인, 섹터, 테마를 분리한다. 같은 줄에 있어도 의미가 다르므로 바로 종목 추천으로 해석하지 않는다.</p>
+          <h2 id="cycle-lane-title">거시에서 종목까지 이어지는 현재 위치</h2>
+          <p>각 단계의 상태와 강도를 비교해 상위 환경과 종목 흐름이 같은 방향인지 확인합니다.</p>
         </div>
         <div className="cycle-lanes">
           {groups.map((group) => (
@@ -379,11 +357,10 @@ export default async function CycleMapPage() {
         ) : null}
 
         <div className="section-heading stacked-heading">
-          <span>판단 경로</span>
-          <h2>흐름이 종목과 추천으로 내려가는 길</h2>
+          <span>영향 경로</span>
+          <h2>상위 흐름이 종목과 추천에 미친 영향</h2>
           <p>
-            각 행은 원인을 단정하지 않는다. 상위 흐름과 종목 노출이 같은 방향인지 확인하는 추적 경로다.
-            추천 점수와 실거래 경계는 추천 상세와 거래 안전 화면에서 따로 본다.
+            상위 흐름과 종목 노출이 같은 방향인지 비교합니다. 원인과 결과를 단정하지 않고 근거 강도를 함께 표시합니다.
           </p>
         </div>
 

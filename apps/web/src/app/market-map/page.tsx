@@ -3,6 +3,7 @@ import type { Route } from "next";
 
 import { getMarketMap } from "@/lib/frontend-api";
 import { koCode } from "@/lib/korean-labels";
+import { investorCopy } from "@/lib/presentation";
 import type { MarketMapData } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -181,7 +182,7 @@ function groupTone(group: MarketGroup) {
 function qualityCardText(data: MarketMapData) {
   const qualityIssueCount = data.summary.stale_indicator_count + data.summary.missing_indicator_count;
   if (qualityIssueCount > 0) {
-    return `${qualityIssueCount}개 지표는 추정하지 않는다. 오래됐거나 비어 있는 값은 판단에서 낮춰 본다.`;
+    return `${qualityIssueCount}개 지표는 최신성이 부족해 판단 신뢰도를 낮췄습니다.`;
   }
   return "시장 지표와 시장 체제 계산이 준비됐다. 추천 비중은 성과 검증 전까지 바꾸지 않는다.";
 }
@@ -276,7 +277,7 @@ function groupNewsLinks(links: MarketNewsLink[]) {
       current.relationships.add(marketRelationshipLabel(link.relationship));
     }
     if (link.source_name) {
-      current.sources.add(link.source_name);
+      current.sources.add(investorCopy(koCode(link.source_name)));
     }
     if (link.rationale) {
       current.rationales.add(humanizeNewsRationale(link.rationale));
@@ -320,7 +321,7 @@ function buildMarketReadout(data: MarketMapData, regimes: MarketRegime[]) {
   if (qualityIssueCount > 0) {
     return {
       tone: "is-watch",
-      title: "오래된 지표는 낮춰 본다.",
+      title: "오래된 지표는 판단에서 제외",
       copy: `${qualityIssueCount}개 지표가 오래됐거나 비어 있다. 시장 판단은 가능하지만 해당 지표는 추정하지 않고 신뢰도를 낮춘다.`,
       nextSteps: ["오래된 지표 분리", "추정값 사용 금지", "수집 재실행 후 재판단"],
     };
@@ -330,7 +331,7 @@ function buildMarketReadout(data: MarketMapData, regimes: MarketRegime[]) {
     return {
       tone: "is-watch",
       title: "시장 체제 신호가 켜져 있다.",
-      copy: `${regimeNames || "상위 체제"} 신호가 활성이다. 추천을 바로 바꾸지 말고 사이클 지도와 종목 노출도를 이어서 본다.`,
+      copy: `${regimeNames || "상위 체제"} 신호가 활성입니다. 추천 변경 전 사이클과 종목 노출의 일치 여부가 필요합니다.`,
       nextSteps: ["활성 시장 체제 확인", "영향받는 테마 확인", "추천·보유 근거와 충돌 확인"],
     };
   }
@@ -347,7 +348,7 @@ function buildMarketReadout(data: MarketMapData, regimes: MarketRegime[]) {
   return {
     tone: "is-good",
     title: "시장 배경은 판단 가능한 상태다.",
-    copy: "수집 품질이 안정적이고 강한 체제 신호는 없다. 종목별 뉴스·사이클·재무 근거를 중심으로 추천 후보를 본다.",
+    copy: "수집 품질은 안정적이며 강한 시장 체제 신호는 없습니다. 종목별 뉴스·사이클·재무 근거가 판단의 중심입니다.",
     nextSteps: ["종목별 직접 근거 확인", "상위 흐름 전파 확인", "추천 상세에서 리스크 확인"],
   };
 }
@@ -414,13 +415,13 @@ export default async function MarketMapPage() {
           <a className={data.summary.correlation_count > 0 ? "decision-card is-good" : "decision-card is-watch"} href="#market-correlations">
             <span>동조성</span>
             <strong>{data.summary.correlation_count.toLocaleString("ko-KR")}개 쌍 계산</strong>
-            <small>종목이 지수·금리·달러·원자재와 최근 같이 움직였는지 본다. 원인 단정은 하지 않는다.</small>
+            <small>지수·금리·달러·원자재와의 최근 동조성을 표시합니다. 인과관계를 단정하지 않습니다.</small>
             <b>동조성 보기</b>
           </a>
           <Link className="decision-card" href={"/cycle-map" as Route}>
             <span>사이클 연결</span>
             <strong>시장 → 흐름</strong>
-            <small>시장 지표 압력이 거시·테마·종목 사이클로 어떻게 내려가는지 이어서 본다.</small>
+            <small>시장 지표의 압력이 거시·테마·종목 사이클로 전파된 경로입니다.</small>
             <b>흐름 지도</b>
           </Link>
         </div>
@@ -506,7 +507,7 @@ export default async function MarketMapPage() {
             ))}
           </div>
         ) : (
-          <div className="empty-state">활성 또는 감시 중인 시장 체제가 아직 없다. 시장 지표 수집을 먼저 확인한다.</div>
+          <div className="empty-state">활성 또는 감시 중인 시장 체제가 없습니다. 시장 지표 최신성을 확인해 주세요.</div>
         )}
       </section>
 
@@ -514,7 +515,7 @@ export default async function MarketMapPage() {
         <div className="market-group-stack">
           {data.groups.length === 0 ? (
             <article className="empty-state">
-              표시할 시장 지표가 없다. 시장 지표 수집과 시장 체제 계산을 실행한 뒤 다시 확인한다.
+              표시할 시장 지표가 없습니다. 다음 수집과 시장 체제 계산 이후 갱신됩니다.
             </article>
           ) : null}
           {data.groups.map((group) => {

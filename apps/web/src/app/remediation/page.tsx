@@ -1,3 +1,6 @@
+import type { Route } from "next";
+
+import { OperationsConsoleHeader } from "@/components/operations/OperationsConsoleHeader";
 import { getRemediationTickets } from "@/lib/frontend-api";
 import { koCode, koLabel, koReason } from "@/lib/korean-labels";
 
@@ -133,14 +136,20 @@ export default async function RemediationPage() {
 
   return (
     <div className="terminal-page decision-page">
+      <OperationsConsoleHeader
+        section="보완 작업"
+        title="투자 판단에 남은 데이터·논리 공백"
+        description="내부 실행기가 아니라 종목, 위험, 필요한 투자 판단 기준으로 보완 우선순위를 정리합니다."
+        currentPath={"/remediation" as Route}
+      />
       <section className="decision-brief reveal" aria-labelledby="remediation-title">
         <div className="decision-brief-main">
           <span className="decision-brief-kicker">보완 큐 · {koLabel(data.portfolio_name)} · {koCode(data.status_filter)}</span>
           <h1 className="decision-brief-title" id="remediation-title">
-            먼저 정리해야 할 판단 공백 {data.ticket_count.toLocaleString("ko-KR")}개
+            우선 보완이 필요한 판단 공백 {data.ticket_count.toLocaleString("ko-KR")}개
           </h1>
           <p className="decision-brief-copy">
-            투자 논리 누락, 성과 측정 공백, 비중 검토처럼 자동으로 넘기면 안 되는 항목을 모은다. 실제 상태 변경은 감사 로그와 승인 경로가 준비된 뒤에만 다룬다.
+            투자 논리 누락, 성과 측정 공백과 비중 위험을 종목별로 묶었습니다. 실제 상태 변경은 승인과 감사 기록이 준비된 뒤에만 가능합니다.
           </p>
           <div className="decision-brief-meta" aria-label="보완 큐 핵심 상태">
             <span>열린 티켓 {data.ticket_count.toLocaleString("ko-KR")}개</span>

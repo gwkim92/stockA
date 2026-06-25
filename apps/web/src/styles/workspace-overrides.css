@@ -1,0 +1,489 @@
+.pageFrame,
+.shell {
+  width: auto;
+  max-width: none;
+  margin: 0;
+  padding: 0;
+}
+
+.terminal-page,
+.terminal-home,
+.decision-page,
+.pageStack {
+  display: grid;
+  gap: 0;
+}
+
+.reveal {
+  animation-name: workspaceReveal;
+  opacity: 1;
+}
+
+@keyframes workspaceReveal {
+  from {
+    transform: translateY(12px);
+  }
+
+  to {
+    transform: translateY(0);
+  }
+}
+
+.decision-brief,
+.workspace-brief,
+.research-command-deck {
+  display: grid;
+  overflow: hidden;
+  grid-template-columns: minmax(0, 1.55fr) minmax(280px, 0.75fr);
+  gap: 0;
+  padding: 0;
+  border: 0;
+  border-bottom: 1px solid var(--line-subtle);
+  border-radius: 0;
+  background: var(--surface-primary);
+  box-shadow: none;
+}
+
+.decision-brief > div:first-child,
+.workspace-brief > div:first-child {
+  display: grid;
+  align-content: end;
+  gap: var(--space-4);
+  min-height: 330px;
+  padding: clamp(var(--space-8), 5vw, var(--space-16));
+}
+
+.decision-brief-kicker,
+.eyebrow,
+.section-heading > span,
+.section-heading > p:first-child,
+.stacked-heading > span,
+.ledger-section-heading > span {
+  color: var(--accent-analysis);
+  font-size: var(--type-caption);
+  font-weight: 760;
+  letter-spacing: 0.06em;
+  text-transform: none;
+}
+
+.decision-brief-title,
+.page-title,
+.terminal-title {
+  max-width: 980px;
+  font-size: var(--type-h1) !important;
+  font-weight: 760;
+  letter-spacing: -0.045em;
+  line-height: 1.04;
+  overflow-wrap: normal;
+  text-wrap: balance;
+  word-break: keep-all;
+}
+
+.decision-brief-copy > p,
+.workspace-brief p,
+.page-lede,
+.board-intro,
+.compact-copy,
+.decision-copy {
+  max-width: var(--reading-max);
+  color: var(--ink-secondary);
+  font-size: var(--type-body);
+  line-height: 1.72;
+  word-break: keep-all;
+}
+
+.decision-brief-grid,
+.decision-brief-meta,
+.metricRail,
+.compact-rail,
+.runtime-grid,
+.analyst-fact-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 0;
+  align-self: stretch;
+  padding: 0;
+  border: 0;
+  border-left: 1px solid var(--line-subtle);
+  background: var(--surface-secondary);
+}
+
+.decision-brief-grid > *,
+.decision-brief-meta > *,
+.metricRail > *,
+.compact-rail > *,
+.runtime-grid > *,
+.analyst-fact-grid > * {
+  display: grid;
+  min-width: 0;
+  align-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-5);
+  border: 0;
+  border-bottom: 1px solid var(--line-subtle);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.decision-brief .decision-brief-meta > span,
+.workspace-brief .decision-brief-meta > span {
+  display: grid;
+  width: auto;
+  min-height: 0;
+  align-items: start;
+  padding: var(--space-5);
+  border: 0;
+  border-bottom: 1px solid var(--line-subtle);
+  border-radius: 0;
+  background: transparent;
+  color: var(--ink-secondary);
+  font-size: var(--type-small);
+  line-height: 1.5;
+}
+
+.decision-brief-grid strong,
+.decision-brief-meta strong,
+.metric-value,
+.rail-status-value {
+  color: var(--ink-primary);
+  font-family: var(--font-body);
+  font-size: clamp(1.35rem, 2.5vw, 2.15rem);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.04em;
+  line-height: 1.05;
+}
+
+.feature-map-panel,
+.ledger-section,
+.flow-panel,
+.evidence-workbench,
+.intelligence-board,
+.cycle-operating-board,
+.cycle-lane-board,
+.cycle-state-board,
+.paper-state-panel,
+.evidence-decision-card,
+.evidence-trace-panel,
+.source-review-panel,
+.source-document-section,
+.thesis-evidence-panel,
+.recommendation-waterfall-panel,
+.recommendation-focus-panel {
+  margin: 0;
+  padding: var(--space-12) 0;
+  border: 0;
+  border-bottom: 1px solid var(--line-subtle);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.research-lead-snapshot {
+  display: grid;
+  align-content: end;
+  gap: var(--space-3);
+  min-height: 100%;
+}
+
+.research-lead-snapshot > span {
+  color: color-mix(in srgb, var(--surface-primary) 62%, transparent);
+  font-size: var(--type-caption);
+  font-weight: 720;
+}
+
+.research-lead-snapshot > strong {
+  font-size: clamp(2rem, 4.4vw, 4.5rem);
+  letter-spacing: -0.055em;
+  line-height: 1;
+  overflow-wrap: anywhere;
+  word-break: keep-all;
+}
+
+.research-lead-snapshot > small {
+  color: color-mix(in srgb, var(--surface-primary) 72%, transparent);
+  line-height: 1.65;
+}
+
+.section-heading,
+.stacked-heading,
+.ledger-section-heading,
+.flow-heading,
+.analyst-section-heading {
+  display: grid;
+  max-width: 920px;
+  gap: var(--space-3);
+  margin-bottom: var(--space-8);
+}
+
+.section-heading h2,
+.stacked-heading h2,
+.ledger-section-heading h2,
+.flow-heading h2,
+.analyst-section-heading h2 {
+  font-size: var(--type-h2);
+  letter-spacing: -0.035em;
+  line-height: 1.15;
+}
+
+.feature-map-grid,
+.bento-grid,
+.analyst-flow-grid,
+.analyst-packet-grid,
+.detail-path-grid,
+.evidence-path-grid,
+.cycle-map-grid,
+.market-map-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr));
+  gap: 1px;
+  overflow: hidden;
+  border: 1px solid var(--line-subtle);
+  background: var(--line-subtle);
+}
+
+.feature-map-card,
+.bento-card,
+.ledger-panel,
+.analyst-flow-card,
+.analyst-packet-card,
+.detail-path-card,
+.evidence-path-card,
+.news-decision-card {
+  min-width: 0;
+  margin: 0;
+  padding: var(--space-6);
+  border: 0;
+  border-radius: 0;
+  background: var(--surface-primary);
+  box-shadow: none;
+  transition: background var(--duration-micro) ease-out, transform var(--duration-micro) ease-out;
+}
+
+a.feature-map-card:hover,
+a.analyst-flow-card:hover,
+a.analyst-packet-card:hover,
+a.detail-path-card:hover,
+a.evidence-path-card:hover {
+  z-index: 1;
+  transform: translateY(-2px);
+  background: color-mix(in srgb, var(--accent-analysis) 7%, var(--surface-primary));
+}
+
+.bento-list,
+.ledger-table,
+.news-event-list,
+.actionList {
+  display: grid;
+  overflow: hidden;
+  border: 1px solid var(--line-subtle);
+  background: var(--surface-primary);
+}
+
+.bento-list-item,
+.actionRow,
+.news-event-card,
+.ledger-row {
+  margin: 0;
+  padding: var(--space-5);
+  border: 0;
+  border-radius: 0;
+  background: var(--surface-primary);
+  box-shadow: none;
+}
+
+.bento-list-item + .bento-list-item,
+.actionRow + .actionRow,
+.news-event-card + .news-event-card,
+.ledger-row + .ledger-row {
+  border-top: 1px solid var(--line-subtle);
+}
+
+.btn,
+.button,
+.buttonRow a,
+.mini-link-stack a,
+.bento-list-action a {
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 var(--space-4);
+  border: 1px solid var(--line-strong);
+  border-radius: 0;
+  background: transparent;
+  color: var(--ink-primary);
+  font-size: var(--type-small);
+  font-weight: 720;
+  transition: transform var(--duration-micro) ease-out, background var(--duration-micro) ease-out;
+}
+
+.btn-primary,
+.button.primary {
+  border-color: var(--surface-inverse);
+  background: var(--surface-inverse);
+  color: var(--surface-primary);
+}
+
+.btn:hover,
+.button:hover,
+.buttonRow a:hover,
+.mini-link-stack a:hover,
+.bento-list-action a:hover {
+  transform: translateY(-2px);
+}
+
+.risk-tag,
+.status-indicator,
+.bento-badge {
+  display: inline-flex;
+  width: fit-content;
+  min-height: 26px;
+  align-items: center;
+  padding: 0 var(--space-3);
+  border: 0;
+  border-radius: 999px;
+  background: var(--surface-secondary);
+  color: var(--ink-secondary);
+  font-size: var(--type-caption);
+  font-weight: 740;
+  line-height: 1;
+}
+
+.risk-high,
+.is-blocked,
+.tone-block {
+  color: var(--signal-risk);
+}
+
+.risk-medium,
+.is-watch,
+.tone-watch {
+  color: var(--signal-caution);
+}
+
+.risk-low,
+.is-good,
+.tone-ok,
+.is-ready {
+  color: var(--signal-positive);
+}
+
+.empty-state {
+  display: grid;
+  min-height: 140px;
+  place-items: center;
+  padding: var(--space-8);
+  border: 1px dashed var(--line-strong);
+  background: color-mix(in srgb, var(--surface-secondary) 65%, transparent);
+  color: var(--ink-secondary);
+  font-size: var(--type-body);
+  text-align: center;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--surface-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+th,
+td {
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--line-subtle);
+  text-align: left;
+  vertical-align: top;
+}
+
+th {
+  color: var(--ink-muted);
+  font-size: var(--type-caption);
+  font-weight: 760;
+}
+
+td {
+  color: var(--ink-secondary);
+  font-size: var(--type-small);
+}
+
+details {
+  border-color: var(--line-subtle);
+}
+
+summary {
+  cursor: pointer;
+}
+
+@media (max-width: 860px) {
+  .decision-brief,
+  .workspace-brief,
+  .research-command-deck {
+    grid-template-columns: 1fr;
+  }
+
+  .decision-brief-grid,
+  .decision-brief-meta,
+  .metricRail,
+  .compact-rail,
+  .runtime-grid,
+  .analyst-fact-grid {
+    border-top: 1px solid var(--line-subtle);
+    border-left: 0;
+  }
+
+  .ledger-table-wrap::before {
+    display: block;
+    padding: var(--space-2) var(--space-3);
+    border-bottom: 1px solid var(--line-subtle);
+    color: var(--ink-muted);
+    content: "상세 표는 좌우로 이동할 수 있습니다.";
+    font-size: var(--type-small);
+  }
+
+  .data-health-table th:first-child,
+  .data-health-table td:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    background: var(--surface-primary);
+  }
+}
+
+@media (max-width: 560px) {
+  .decision-brief > div:first-child,
+  .workspace-brief > div:first-child {
+    min-height: auto;
+    padding: var(--space-6);
+  }
+
+  .feature-map-panel,
+  .ledger-section,
+  .flow-panel,
+  .evidence-workbench,
+  .intelligence-board,
+  .cycle-operating-board,
+  .cycle-lane-board,
+  .cycle-state-board,
+  .paper-state-panel,
+  .evidence-decision-card,
+  .evidence-trace-panel,
+  .source-review-panel,
+  .source-document-section,
+  .thesis-evidence-panel,
+  .recommendation-waterfall-panel,
+  .recommendation-focus-panel {
+    padding: var(--space-8) 0;
+  }
+
+  .feature-map-grid,
+  .bento-grid,
+  .analyst-flow-grid,
+  .analyst-packet-grid,
+  .detail-path-grid,
+  .evidence-path-grid,
+  .cycle-map-grid,
+  .market-map-grid {
+    grid-template-columns: 1fr;
+  }
+}

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Route } from "next";
 
+import { OperationsConsoleHeader } from "@/components/operations/OperationsConsoleHeader";
 import { getTradingReadiness } from "@/lib/frontend-api";
 import { koBlockedReason, koCode, koLabel, koReason } from "@/lib/korean-labels";
 import type { TradingGateStatus } from "@/lib/types";
@@ -174,6 +175,12 @@ export default async function TradingReadinessPage() {
 
   return (
     <div className="pageStack decision-page">
+      <OperationsConsoleHeader
+        section="거래 안전"
+        title="계좌 권한·주문 한도·킬 스위치"
+        description="가상 매매 검증과 실제 주문 제출 경계를 분리하고, 차단 사유와 감사 기록을 관리합니다."
+        currentPath={"/trading-readiness" as Route}
+      />
       <section className="decision-brief reveal" aria-labelledby="trading-readiness-title">
         <div className="decision-brief-main">
           <span className="decision-brief-kicker">거래 안전 점검 · 주문 전 차단 상태</span>

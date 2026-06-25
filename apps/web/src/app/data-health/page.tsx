@@ -1,4 +1,5 @@
 import type { Route } from "next";
+import { OperationsConsoleHeader } from "@/components/operations/OperationsConsoleHeader";
 import { getDataHealth } from "@/lib/frontend-api";
 import { koCode, koReason } from "@/lib/korean-labels";
 import type { DataHealthData } from "@/lib/types";
@@ -2977,15 +2978,24 @@ export default async function DataHealthPage() {
   ];
   return (
     <div className="terminal-page decision-page">
+      <OperationsConsoleHeader
+        section="데이터 상태"
+        title="수집·분석·자동 실행 상태"
+        description="투자 판단에 영향을 주는 데이터 지연, 공급자 제한, AI 중단과 다음 자동 재시도를 관리합니다."
+        currentPath={"/data-health" as Route}
+      />
       <section className="decision-brief workspace-brief data-health-brief reveal" aria-labelledby="data-health-title">
         <div className="decision-brief-main">
           <span className="decision-brief-kicker">데이터·자동화 · {data.as_of_date}</span>
           <h1 className="decision-brief-title" id="data-health-title">
-            수집 상태는 {koCode(data.overall_status)}, 주의 작업은 {failedPipelines.toLocaleString("ko-KR")}개다.
+            {failedPipelines > 0
+              ? `즉시 조치가 필요한 작업 ${failedPipelines.toLocaleString("ko-KR")}개`
+              : data.open_gates.length > 0
+                ? `자동화와 원천 제한 ${data.open_gates.length.toLocaleString("ko-KR")}개 관리 중`
+                : "수집·분석 상태 정상"}
           </h1>
           <p className="decision-brief-copy">
-            데이터가 정상인지, 자동 실행이 살아 있는지, 무료 API 예산과 AI 품질이
-            추천 판단을 믿을 수 있는 상태인지 본다.
+            최신성, 자동 실행, 무료 API 예산과 AI 품질을 기준으로 투자 화면의 신뢰도를 판단합니다.
           </p>
           <div className="decision-brief-meta" aria-label="데이터 상태 핵심 수치">
             <span>자동 실행 {automationStateLabel(schedulerActivation)}</span>
@@ -3337,7 +3347,7 @@ export default async function DataHealthPage() {
 	            <strong className={`risk-tag ${openAiProviderTone(openAiProviderHealth)}`}>
 	              {openAiProviderTitle(openAiProviderHealth)}
 	            </strong>
-	            <small>{openAiProviderHealth.status}</small>
+	            <small>{operationCopy(openAiProviderHealth.status)}</small>
 	          </article>
 	          <article className="rail-cell">
 	            <span>남은 잔액</span>
@@ -3352,7 +3362,7 @@ export default async function DataHealthPage() {
 	            <span>최근 비용</span>
 	            <strong>{formatUsdAmount(openAiProviderHealth.cost_status.total_cost_usd)}</strong>
 	            <small>
-	              최근 {openAiProviderHealth.cost_status.lookback_days}일 · {openAiProviderHealth.cost_status.status}
+	              최근 {openAiProviderHealth.cost_status.lookback_days}일 · {operationCopy(openAiProviderHealth.cost_status.status)}
 	            </small>
 	          </article>
 	          <article className="rail-cell">
@@ -3376,13 +3386,13 @@ export default async function DataHealthPage() {
 	          <article className="rail-cell">
 	            <span>Admin 비용 API</span>
 	            <strong>{openAiProviderHealth.admin_api_key_configured ? "설정됨" : "없음"}</strong>
-	            <small>{openAiProviderHealth.cost_status.message}</small>
+	            <small>{operationCopy(openAiProviderHealth.cost_status.message)}</small>
 	          </article>
 	        </div>
 	        <div className="empty-state">
 	          <strong>분기 원칙</strong>
 	          <p>
-		            화면 요청에서는 OpenAI를 호출하지 않는다. 배치 작업에서 중단이 감지되면 provider health cache에 기록하고,
+		            화면 요청에서는 OpenAI를 호출하지 않습니다. 배치 작업에서 중단이 감지되면 AI 상태 기록에 남기고,
 	            만료 전까지 OpenAI 직접 호출을 건너뛰어 {aiProviderLabel(openAiProviderHealth.fallback_provider)} 또는{" "}
 	            {aiProviderLabel(openAiProviderHealth.local_fallback_provider)}로 내려간다.
 	          </p>
@@ -3807,7 +3817,7 @@ export default async function DataHealthPage() {
         <div className="section-heading stacked-heading">
           <span>추천별 전문 감사</span>
           <h2 id="professional-recommendation-coverage-audit-title">
-            active 추천마다 전문 분석 근거가 실제로 붙었는지 본다.
+            활성 추천마다 전문 분석 근거가 실제로 연결됐는지 표시합니다.
           </h2>
         </div>
         <p className="board-intro">{operationCopy(professionalRecommendationAudit.summary)}</p>

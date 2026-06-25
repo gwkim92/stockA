@@ -7,6 +7,7 @@ import { ProfessionalResearchFlow, type ResearchFlowStep } from "@/components/pr
 import { ValuationTargetRangeCard } from "@/components/valuation-target-range-card";
 import { getRecommendationDetail } from "@/lib/frontend-api";
 import { koCode, koLabel } from "@/lib/korean-labels";
+import { recommendationCopy } from "@/lib/presentation";
 import type { RecommendationDetailData } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -42,64 +43,6 @@ type RecommendationFocusItem = {
   tone: "ready" | "watch" | "blocked";
 };
 
-const USER_FACING_TERM_REPLACEMENTS: Array<[string, string]> = [
-  ["DCF-lite", "간이 현금흐름 평가"],
-  ["paper validation", "가상 매매 검증"],
-  ["Paper validation", "가상 매매 검증"],
-  ["페이퍼 검증", "가상 매매 검증"],
-  ["broker submit", "증권사 주문 제출"],
-  ["broker flow", "실거래 연결"],
-  ["증권사 연결 경계", "증권사 연결 상태"],
-  ["source blocker", "원천 근거 부족"],
-  ["source data", "원천 데이터"],
-  ["source_run_id", "실행 기록"],
-  ["read_only_no_order", "읽기 전용, 실거래 주문 차단"],
-  ["source_data_blocked", "원천 근거 부족으로 차단"],
-  ["macro-flow", "상위 흐름"],
-  ["Macro-flow", "상위 흐름"],
-  ["sec_companyfacts_missing_us_gaap_facts", "SEC 표준 재무 항목 없음"],
-  ["ipo_prospectus_without_standard_periodic_financials", "정기 재무제표 전 공시만 존재"],
-  ["fund_company_financial_model_not_applicable", "ETF·펀드라 기업 재무 모델 비적용"],
-  ["accumulate_candidate", "분할 매수 신호"],
-  ["base case", "기준 시나리오"],
-  ["upside case", "상승 시나리오"],
-  ["downside case", "하락 시나리오"],
-  ["margin of safety", "안전마진"],
-  ["Margin of safety", "안전마진"],
-  ["confidence", "신뢰도"],
-  ["valuation_snapshot", "밸류에이션 스냅샷"],
-  ["valuation_margin_score", "밸류에이션 안전마진"],
-  ["total_score", "총점"],
-  ["recommendation_id", "추천 ID"],
-  ["뉴스·AI 해석", "뉴스·투자 근거"],
-  ["뉴스·AI", "뉴스 근거"],
-  ["AI 근거", "투자 근거"],
-  ["AI 검증", "품질 검증"],
-  ["주문 경계", "실거래 상태"],
-  ["거래 경계", "실거래 상태"],
-  ["추천 총점", "최종 추천 점수"],
-  ["총점 반영", "최종 점수 반영"],
-  ["총점 미반영", "최종 점수 미반영"],
-  ["점수 가중치", "점수 반영 비중"],
-  ["가중치", "반영 비중"],
-  ["financial statement model", "재무제표 모델"],
-  ["valuation target range", "밸류에이션 목표가 범위"],
-  ["industry competitive position", "산업 경쟁 위치"],
-  ["equity research artifact", "AI 기업 리서치"],
-  ["research artifact", "리서치 결과"],
-  ["artifact", "결과 기록"],
-  ["pipeline-run", "실행 기록"],
-  ["SEC/companyfacts", "SEC 표준 재무 원천"],
-  ["SEC companyfacts", "SEC 표준 재무 원천"],
-  ["segment", "사업부"],
-  ["footnote", "주석"],
-  ["guidance", "가이던스"],
-  ["fundamental 구성요소", "재무·밸류에이션 항목"],
-  ["투자 논리 lifecycle", "투자 논리 생애주기"],
-  ["source event/AI evidence", "원천 이벤트/투자 근거"],
-  [["페", "이퍼"].join(""), "가상 매매"],
-];
-
 const SCORE_COMPONENT_LABELS: Record<string, string> = {
   macro_regime_score: "거시 환경",
   domain_cycle_score: "산업·도메인 사이클",
@@ -128,20 +71,7 @@ const SOURCE_TYPE_LABELS: Record<string, string> = {
 };
 
 function userFacingRecommendationText(value: string | number | boolean | null | undefined) {
-  if (value === null || value === undefined || value === "") {
-    return "";
-  }
-  if (typeof value === "number") {
-    return value.toLocaleString("ko-KR");
-  }
-  if (typeof value === "boolean") {
-    return value ? "예" : "아니오";
-  }
-  let text = koLabel(koCode(value));
-  for (const [from, to] of USER_FACING_TERM_REPLACEMENTS) {
-    text = text.replaceAll(from, to);
-  }
-  return text;
+  return recommendationCopy(value);
 }
 
 function scoreComponentLabel(componentName: string) {
@@ -1056,7 +986,7 @@ function decisionCopy(value: string | null | undefined) {
     .replaceAll(`${reviewWord} 전`, "결정 전")
     .replaceAll(`${reviewWord} 비중`, "권고 비중")
     .replaceAll(`${reviewWord} 보기`, "근거 보기")
-    .replaceAll(`${reviewWord}한다`, "확인한다")
+    .replaceAll(`${reviewWord}한다`, "판단합니다")
     .replaceAll("US Core Financial Disclosure Coverage", "미국 핵심 공시 커버리지");
 }
 
@@ -1532,7 +1462,7 @@ function recommendationWaterfallCards({
           : "재무 원천 부족",
       body: sourceBlocked
         ? koLabel(professionalAudit.source_blocker.summary)
-        : `재무 품질·현금흐름·부채·희석 지표 ${data.financial_statement_model.computed_metric_count}개를 확인한다.`,
+        : `재무 품질·현금흐름·부채·희석 지표 ${data.financial_statement_model.computed_metric_count}개를 종합한 판단입니다.`,
       href: "#recommendation-financial-model",
       hrefLabel: "재무 근거 보기",
       tone: sourceBlocked
@@ -1546,7 +1476,7 @@ function recommendationWaterfallCards({
       label: "밸류에이션",
       title: valuationReady ? `${data.valuation_target_range.method_count}개 방법` : "가격 근거 대기",
       body: valuationReady
-        ? `기준 상승여지 ${formatOptionalPercent(data.valuation_target_range.upside_base)}와 안전마진 ${formatOptionalPercent(data.valuation_target_range.margin_of_safety)}를 확인한다.`
+        ? `기준 상승여지 ${formatOptionalPercent(data.valuation_target_range.upside_base)}와 안전마진 ${formatOptionalPercent(data.valuation_target_range.margin_of_safety)}를 반영한 가치 범위입니다.`
         : "목표가 범위나 안전마진이 충분히 연결되지 않았다.",
       href: "#recommendation-valuation",
       hrefLabel: "밸류에이션 보기",
@@ -1909,7 +1839,7 @@ export default async function RecommendationPage({ params }: RecommendationPageP
         </div>
         <p style={{ color: "var(--text-secondary)", marginTop: 0 }}>
           이 섹션은 추천 점수를 새로 만들지 않는다. 최근 수익률 동조성을 이용해 같은 방향으로 몰린 리스크,
-          헤지 필요성, 포트폴리오 집중 여부를 확인한다. 상관관계는 원인을 증명하지 않는다.
+          헤지 필요성과 포트폴리오 집중 위험을 함께 제시합니다. 상관관계는 원인을 증명하지 않습니다.
         </p>
         {data.market_correlations.length > 0 ? (
           <div className="detail-path-grid">
@@ -2134,7 +2064,7 @@ export default async function RecommendationPage({ params }: RecommendationPageP
             <span className="metric-sub">토스증권 실행 현실</span>
             <h2 style={{ fontSize: "1.5rem", marginTop: "6px" }}>이 추천을 실제 계좌에서 확인할 수 있는가</h2>
             <p style={{ color: "var(--text-secondary)", marginTop: "8px", maxWidth: "900px" }}>
-              토스증권 read-only 데이터로 호가, 체결가, 주의 표시, 가격 기준 차이를 따로 확인한다.
+              토스증권 읽기 전용 데이터의 호가, 체결가, 주의 표시, 가격 기준 차이를 별도로 표시합니다.
               이 항목은 현재 최종 추천 점수와 순위를 바꾸지 않고, 주문 전 현실 점검 근거로만 표시한다.
             </p>
           </div>
@@ -2287,7 +2217,7 @@ export default async function RecommendationPage({ params }: RecommendationPageP
           <h2 style={{ fontSize: "1.5rem", marginTop: "6px" }}>무엇을 보고 이 추천을 확인해야 하나</h2>
           <p style={{ color: "var(--text-secondary)", marginTop: "8px", maxWidth: "820px" }}>
             뉴스 근거는 바로 주문으로 이어지지 않는다. 직접 종목 뉴스, 시장·테마 흐름, 보유 상태를
-            분리한 뒤 추천 입력으로 쓸 수 있는지 확인한다.
+            분리해 추천 입력으로 사용할 수 있는지 결정합니다.
           </p>
         </div>
 

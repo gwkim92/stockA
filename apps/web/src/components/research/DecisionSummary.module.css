@@ -1,0 +1,143 @@
+.summary {
+  position: relative;
+  display: grid;
+  overflow: hidden;
+  grid-template-columns: minmax(0, 1.65fr) minmax(260px, 0.75fr);
+  background: var(--surface-inverse);
+  color: var(--surface-primary);
+}
+
+.summary::after {
+  position: absolute;
+  top: -30%;
+  right: -10%;
+  width: 42%;
+  aspect-ratio: 1;
+  background:
+    radial-gradient(circle, color-mix(in srgb, var(--accent-analysis) 62%, transparent), transparent 67%);
+  content: "";
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.copy {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  align-content: end;
+  gap: var(--space-5);
+  min-height: 410px;
+  padding: clamp(var(--space-8), 6vw, var(--space-16));
+}
+
+.eyebrow {
+  color: color-mix(in srgb, var(--surface-primary) 65%, transparent);
+  font-size: var(--type-caption);
+  font-weight: 760;
+  letter-spacing: 0.08em;
+}
+
+.title {
+  max-width: 840px;
+  font-size: var(--type-display);
+  font-weight: 780;
+  letter-spacing: -0.055em;
+  line-height: 0.98;
+  text-wrap: balance;
+  word-break: keep-all;
+}
+
+.description {
+  max-width: var(--reading-max);
+  color: color-mix(in srgb, var(--surface-primary) 76%, transparent);
+  font-size: var(--type-lead);
+  line-height: 1.7;
+  word-break: keep-all;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.primaryAction,
+.secondaryAction {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 var(--space-5);
+  font-size: var(--type-small);
+  font-weight: 760;
+  transition: transform var(--duration-micro) ease-out, background var(--duration-micro) ease-out;
+}
+
+.primaryAction {
+  background: var(--surface-primary);
+  color: var(--ink-primary);
+}
+
+.secondaryAction {
+  border: 1px solid color-mix(in srgb, var(--surface-primary) 34%, transparent);
+  color: var(--surface-primary);
+}
+
+.primaryAction:hover,
+.secondaryAction:hover {
+  transform: translateY(-2px);
+}
+
+.primaryAction:active,
+.secondaryAction:active {
+  transform: translateY(0);
+}
+
+.side {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  align-content: end;
+  gap: var(--space-6);
+  padding: clamp(var(--space-8), 4vw, var(--space-12));
+  border-left: 1px solid color-mix(in srgb, var(--surface-primary) 15%, transparent);
+  background: color-mix(in srgb, var(--surface-primary) 4%, transparent);
+}
+
+.side strong {
+  font-size: var(--type-h2);
+  line-height: 1.15;
+  word-break: keep-all;
+}
+
+.side p {
+  margin: 0;
+  color: color-mix(in srgb, var(--surface-primary) 72%, transparent);
+  line-height: 1.65;
+}
+
+@media (max-width: 860px) {
+  .summary {
+    grid-template-columns: 1fr;
+  }
+
+  .copy {
+    min-height: 360px;
+  }
+
+  .side {
+    border-top: 1px solid color-mix(in srgb, var(--surface-primary) 15%, transparent);
+    border-left: 0;
+  }
+}
+
+@media (max-width: 520px) {
+  .copy,
+  .side {
+    padding: var(--space-6);
+  }
+
+  .copy {
+    min-height: 340px;
+  }
+}

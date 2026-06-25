@@ -3,6 +3,7 @@ import type { Route } from "next";
 
 import { getPerformanceOutcomes } from "@/lib/frontend-api";
 import { koCode, koLabel } from "@/lib/korean-labels";
+import { investorCopy } from "@/lib/presentation";
 import type { PerformanceOutcomesData } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -48,31 +49,23 @@ function performanceCopy(value: string | null | undefined) {
   };
   const labelled = directLabels[value] ?? koLabel(value);
   const base = labelled === value ? koCode(value) : labelled;
-  return base
+  return investorCopy(base)
     .replaceAll("thesis", "투자 논리")
     .replaceAll("Thesis", "투자 논리")
-    .replaceAll("outcome window", "성과 측정창")
     .replaceAll("outcome", "성과")
-    .replaceAll("weight review", "추천 산식 변경 여부")
-    .replaceAll("weight", "추천 산식 반영 비중")
-    .replaceAll("quality gate", "품질 기준")
-    .replaceAll("gate", "기준")
     .replaceAll("coverage", "성과 연결 상태")
     .replaceAll("methodology", "측정 방식")
-    .replaceAll("source run", "산출 실행")
     .replaceAll("source", "원천")
     .replaceAll("feedback", "사후평가")
     .replaceAll("calibration", "누적평가")
     .replaceAll("broker", "증권사 연결")
-    .replaceAll("paper validation", "가상 매매 검증")
     .replaceAll("커버리지", "연결 상태")
-    .replaceAll("가중치", "반영 비중")
-    .replaceAll(["페", "이퍼"].join(""), "가상 매매");
+    .replaceAll("가중치", "반영 비중");
 }
 
 function executionIdLabel(value: string) {
   if (value.startsWith("pipeline-run-")) {
-    return `산출 실행 #${value.replace("pipeline-run-", "")}`;
+    return "성과 산출 기록";
   }
   return performanceCopy(value);
 }
@@ -200,7 +193,7 @@ export default async function PerformancePage() {
         ? `평균 알파 ${formatPercent(data.summary.average_alpha)} · 적중률 ${formatPercent(data.summary.hit_rate)}`
         : `측정 종료 ${data.measurement_end_date}`,
       body: hasMeasuredOutcomes
-        ? "측정 종료일이 지난 추천만 성과로 본다. 개별 추천과 투자 논리 링크를 열어 어떤 근거가 성과와 맞았는지 확인한다."
+        ? "측정 종료일이 지난 추천만 성과에 포함됩니다. 개별 추천과 투자 논리가 결과와 연결됩니다."
         : "아직 측정 가능한 추천 성과가 없다. 성과 측정창이 도래할 때까지 성과 해석과 추천 산식 변경을 보류한다.",
       href: "#performance-outcomes",
       cta: "성과 목록 보기",
@@ -213,7 +206,7 @@ export default async function PerformancePage() {
       metric: `${quality.measured_recommendation_count}개 추천 · ${quality.measured_thesis_count}개 투자 논리`,
       body:
         quality.status === "positive_alignment"
-          ? "성과 방향이 추천 점수와 대체로 맞는다. 그래도 표본 크기와 제외 항목을 같이 확인한다."
+          ? "성과 방향과 추천 점수가 대체로 일치합니다. 표본 크기와 제외 항목도 함께 표시됩니다."
           : "성과 표본이 부족하거나 성과 연결 보완이 필요하면 추천 산식 반영 비중을 바꾸면 안 된다.",
       href: "#performance-quality",
       cta: "품질 평가 보기",
@@ -246,7 +239,7 @@ export default async function PerformancePage() {
       body:
         data.summary.excluded_position_count > 0
           ? "성과 해석에서 빠진 포지션이 있으면 먼저 투자 논리, 성과 측정, 원천 데이터를 보완해야 한다."
-          : "현재 성과 귀속에서 제외된 포지션은 없다. 그래도 품질 기준은 계속 확인한다.",
+          : "현재 성과 귀속에서 제외된 포지션은 없습니다.",
       href: "#performance-exclusions",
       cta: "보완 항목 보기",
       tone: data.summary.excluded_position_count > 0 ? "block" : "ready",
@@ -261,10 +254,12 @@ export default async function PerformancePage() {
             성과 측정 · {koLabel(data.portfolio_name)} · {data.measurement_end_date}
           </span>
           <h1 className="decision-brief-title" id="performance-title">
-            성과 표본은 아직 산식 변경 근거가 아니다.
+            {hasMeasuredOutcomes
+              ? `측정된 추천 ${data.summary.measured_recommendation_count}개의 평균 알파는 ${formatPercent(data.summary.average_alpha)}입니다.`
+              : "추천 성과를 판단할 표본이 아직 충분하지 않습니다."}
           </h1>
           <p className="decision-brief-copy">
-            측정된 추천, 표본 품질, 성과 귀속, 제외·보완 항목을 분리해서 본다. 표본이 부족하면 추천 산식과 주문 판단은 그대로 잠근다.
+            벤치마크 대비 성과와 적중률, 종목·테마별 기여도를 비교합니다. 표본이 부족한 동안 추천 산식은 변경하지 않습니다.
           </p>
           <div className="decision-brief-meta" aria-label="성과 핵심 상태">
             <span>측정 구간 {data.measurement_start_date} ~ {data.measurement_end_date}</span>
@@ -385,7 +380,7 @@ export default async function PerformancePage() {
             <div>
               <span>측정된 성과</span>
               <h2>추천 책임 추적</h2>
-              <p>추천이 실제로 벤치마크를 이겼는지와 어떤 투자 논리로 연결되는지 확인한다.</p>
+              <p>추천의 벤치마크 대비 성과와 연결된 투자 논리를 표시합니다.</p>
             </div>
             <Link className="btn btn-secondary" href="/portfolio/coverage">
               보유·리스크 상태 열기
@@ -431,7 +426,7 @@ export default async function PerformancePage() {
             <div>
               <span>성과 해석 관점</span>
               <h2>합산값이 아니라 해석 관점</h2>
-              <p>종목·테마·현금이 결과를 어떻게 설명하는지 나눠 본다.</p>
+              <p>종목·테마·현금이 성과에 기여한 경로를 분리해 표시합니다.</p>
             </div>
           </div>
           <div className="performance-mini-card-grid">

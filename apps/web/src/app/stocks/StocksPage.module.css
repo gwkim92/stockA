@@ -1,0 +1,273 @@
+.page {
+  display: grid;
+  min-width: 0;
+}
+
+.leadSnapshot {
+  display: grid;
+  align-content: end;
+  gap: var(--space-3);
+  min-height: 100%;
+}
+
+.leadSnapshot span {
+  color: color-mix(in srgb, var(--surface-primary) 76%, transparent);
+  font-size: var(--type-caption);
+  font-weight: 720;
+}
+
+.leadSnapshot strong {
+  font-size: clamp(2.8rem, 7vw, 5.75rem);
+  letter-spacing: -0.065em;
+  line-height: 0.9;
+}
+
+.leadSnapshot small {
+  max-width: 28rem;
+  color: color-mix(in srgb, var(--surface-primary) 88%, transparent);
+  line-height: 1.6;
+  text-wrap: pretty;
+  word-break: keep-all;
+}
+
+.priorityGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  border-top: 1px solid var(--line-subtle);
+  border-left: 1px solid var(--line-subtle);
+}
+
+.priorityCard {
+  display: grid;
+  gap: var(--space-5);
+  padding: var(--space-6);
+  border-right: 1px solid var(--line-subtle);
+  border-bottom: 1px solid var(--line-subtle);
+  background: var(--surface-primary);
+}
+
+.cardHeader {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.cardHeader > div {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.cardHeader span {
+  color: var(--ink-muted);
+  font-size: var(--type-caption);
+}
+
+.cardHeader strong {
+  font-size: var(--type-h2);
+  letter-spacing: -0.04em;
+}
+
+.priorityCard p {
+  min-height: 3.2em;
+  margin: 0;
+  color: var(--ink-secondary);
+  line-height: 1.6;
+}
+
+.priorityCard dl {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 0;
+  border-top: 1px solid var(--line-subtle);
+}
+
+.priorityCard dl > div {
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-4) var(--space-3) 0 0;
+}
+
+.priorityCard dt {
+  color: var(--ink-muted);
+  font-size: var(--type-caption);
+}
+
+.priorityCard dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+  font-weight: 720;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.actions a,
+.rowAction {
+  display: inline-flex;
+  min-height: 38px;
+  align-items: center;
+  padding: 0 var(--space-4);
+  border: 1px solid var(--line-strong);
+  color: var(--ink-primary);
+  font-size: var(--type-small);
+  font-weight: 720;
+}
+
+.actions a:first-child {
+  border-color: var(--accent-analysis);
+  background: var(--accent-analysis);
+  color: white;
+}
+
+.tableFrame {
+  overflow-x: auto;
+  border: 1px solid var(--line-subtle);
+}
+
+.tableFrame table {
+  width: 100%;
+  min-width: 850px;
+  border-collapse: collapse;
+  background: var(--surface-primary);
+  text-align: left;
+}
+
+.tableFrame th,
+.tableFrame td {
+  padding: var(--space-4);
+  border-bottom: 1px solid var(--line-subtle);
+  font-variant-numeric: tabular-nums;
+  vertical-align: middle;
+}
+
+.tableFrame thead th {
+  color: var(--ink-muted);
+  font-size: var(--type-caption);
+  font-weight: 720;
+}
+
+.tableFrame tbody tr:last-child th,
+.tableFrame tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.tableFrame tbody tr:hover {
+  background: var(--surface-secondary);
+}
+
+.symbolLink {
+  display: grid;
+  gap: 2px;
+  color: var(--ink-primary);
+}
+
+.symbolLink strong {
+  font-size: 1rem;
+}
+
+.symbolLink small {
+  max-width: 20rem;
+  overflow: hidden;
+  color: var(--ink-muted);
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 800px) {
+  .priorityGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .tableFrame {
+    overflow-x: visible;
+    border: 0;
+  }
+
+  .tableFrame table,
+  .tableFrame tbody,
+  .tableFrame tr,
+  .tableFrame th,
+  .tableFrame td {
+    display: block;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .tableFrame thead {
+    display: none;
+  }
+
+  .tableFrame tbody {
+    display: grid;
+    gap: var(--space-3);
+  }
+
+  .tableFrame tr {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    border: 1px solid var(--line-subtle);
+    background: var(--surface-primary);
+  }
+
+  .tableFrame th,
+  .tableFrame td {
+    display: grid;
+    gap: var(--space-1);
+    padding: var(--space-3) var(--space-4);
+    border-bottom: 1px solid var(--line-subtle);
+  }
+
+  .tableFrame th {
+    grid-column: 1 / -1;
+  }
+
+  .tableFrame td::before {
+    color: var(--ink-muted);
+    font-size: var(--type-caption);
+    font-weight: 720;
+  }
+
+  .tableFrame td:nth-of-type(1)::before {
+    content: "현재가";
+  }
+
+  .tableFrame td:nth-of-type(2)::before {
+    content: "변동률";
+  }
+
+  .tableFrame td:nth-of-type(3)::before {
+    content: "추천";
+  }
+
+  .tableFrame td:nth-of-type(4)::before {
+    content: "보유 비중";
+  }
+
+  .tableFrame td:nth-of-type(5)::before {
+    content: "데이터 상태";
+  }
+
+  .tableFrame td:last-child {
+    grid-column: 1 / -1;
+    border-bottom: 0;
+  }
+
+  .rowAction {
+    justify-content: center;
+  }
+}
+
+@media (max-width: 520px) {
+  .priorityCard dl {
+    grid-template-columns: 1fr;
+  }
+
+  .priorityCard p {
+    min-height: 0;
+  }
+}

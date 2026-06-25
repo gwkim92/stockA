@@ -34,6 +34,8 @@ const KOREAN_LABELS: Record<string, string> = {
   CONSUMER_DISCRETIONARY: "임의소비재",
   "CONSUMER DISCRETIONARY": "임의소비재",
   "Macro Liquidity Regime": "유동성·신용",
+  "CHINA ADR COVERAGE": "중국 ADR 분석 범위",
+  CHINA_ADR_COVERAGE: "중국 ADR 분석 범위",
 
   Long: "장기",
   "Long Term Paper": "장기 가상 포트폴리오",
@@ -187,6 +189,8 @@ const KOREAN_LABELS: Record<string, string> = {
   measured: "측정됨",
   missing: "누락",
   missing_configuration: "설정 누락",
+  missing_api_key: "API 키 없음",
+  admin_key_missing: "관리자 비용 조회 키 없음",
   missing_outcome: "성과 측정 누락",
   missing_thesis: "투자 논리 누락",
   missing_weight: "비중 누락",

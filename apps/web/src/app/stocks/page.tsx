@@ -1,11 +1,27 @@
-import Link from "next/link";
 import type { Route } from "next";
+import Link from "next/link";
 
+import { DecisionSummary } from "@/components/research/DecisionSummary";
+import { MetricStrip } from "@/components/research/MetricStrip";
+import { ResearchSection } from "@/components/research/ResearchSection";
+import { StatusBadge } from "@/components/status/StatusBadge";
 import { getStocks } from "@/lib/frontend-api";
-import { koCode, koLabel } from "@/lib/korean-labels";
+import { formatPercent } from "@/lib/presentation";
+
+import styles from "./StocksPage.module.css";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "종목" };
+
+type StockRow = Awaited<ReturnType<typeof getStocks>>["data"]["stocks"][number];
+
+function stockHref(symbol: string) {
+  return `/stocks/${encodeURIComponent(symbol)}` as Route;
+}
+
+function recommendationHref(recommendationId: string) {
+  return `/recommendations/${encodeURIComponent(recommendationId)}` as Route;
+}
 
 function formatCurrency(value: number | null, currencyCode: string) {
   if (value === null) {
@@ -18,276 +34,185 @@ function formatCurrency(value: number | null, currencyCode: string) {
   }).format(value);
 }
 
-function formatPercent(value: number | null | undefined) {
-  if (value === null || value === undefined) {
-    return "미측정";
+function priorityScore(stock: StockRow) {
+  return Number(Boolean(stock.recommendation)) * 2 + Number(Boolean(stock.position));
+}
+
+function stockStatus(stock: StockRow, latestPriceDate: string | null) {
+  if (!stock.latest_price.trade_date || stock.latest_price.trade_date !== latestPriceDate) {
+    return { kind: "stale" as const, label: "가격 확인 필요" };
   }
-  return `${Math.round(value * 1000) / 10}%`;
-}
-
-function stockHref(symbol: string) {
-  return `/stocks/${encodeURIComponent(symbol)}` as Route;
-}
-
-function recommendationHref(recommendationId: string) {
-  return `/recommendations/${encodeURIComponent(recommendationId)}` as Route;
-}
-
-type StockRow = Awaited<ReturnType<typeof getStocks>>["data"]["stocks"][number];
-
-function stockPriorityReason(stock: StockRow) {
   if (stock.recommendation && stock.position) {
-    return "추천 판단과 실제 보유가 모두 연결된 종목이다. 추천 이유와 현재 보유 상태가 같은 방향인지 확인한다.";
+    return { kind: "watch" as const, label: "추천·보유 교차검토" };
   }
   if (stock.recommendation) {
-    return "추천 판단이 붙은 종목이다. 상세에서 뉴스, 사이클, 재무, 가격 근거가 충분한지 확인한다.";
+    return { kind: "ready" as const, label: "추천 근거 있음" };
   }
   if (stock.position) {
-    return "보유 중인 종목이다. 상세에서 상위 흐름, 투자 논리, 가상 매매 검증 상태를 확인한다.";
+    return { kind: "watch" as const, label: "보유 검토" };
   }
-  return "가격 데이터가 수집된 종목이다. 추천 전 단계의 관찰 대상으로 본다.";
+  return { kind: "empty" as const, label: "관찰 종목" };
 }
 
-function formatSymbolList(stocks: StockRow[]) {
-  if (stocks.length === 0) {
-    return "해당 없음";
+function priorityReason(stock: StockRow) {
+  if (stock.recommendation && stock.position) {
+    return "추천 방향과 현재 보유 비중이 함께 연결되어 있다.";
   }
-  return stocks
-    .slice(0, 4)
-    .map((stock) => stock.symbol)
-    .join(" · ");
+  if (stock.recommendation) {
+    return "추천 신호가 있어 재무·밸류에이션·뉴스 근거를 확인해야 한다.";
+  }
+  if (stock.position) {
+    return "현재 보유 중이므로 투자 논리와 위험 변화를 점검해야 한다.";
+  }
+  return "가격 흐름을 추적 중인 관찰 종목이다.";
 }
 
 export default async function StocksPage() {
-  const response = await getStocks();
-  const data = response.data;
+  const { data } = await getStocks();
   const recommendedStocks = data.stocks.filter((stock) => stock.recommendation);
   const heldStocks = data.stocks.filter((stock) => stock.position);
-  const watchOnlyStocks = data.stocks.filter((stock) => !stock.recommendation && !stock.position);
-  const staleOrMissingPriceStocks = data.stocks.filter(
+  const staleStocks = data.stocks.filter(
     (stock) => !stock.latest_price.trade_date || stock.latest_price.trade_date !== data.summary.latest_price_date,
   );
   const priorityStocks = data.stocks
     .slice()
-    .sort((left, right) => {
-      const leftScore = Number(Boolean(left.recommendation)) * 2 + Number(Boolean(left.position));
-      const rightScore = Number(Boolean(right.recommendation)) * 2 + Number(Boolean(right.position));
-      return rightScore - leftScore || left.symbol.localeCompare(right.symbol);
-    })
-    .slice(0, 3);
-  const stockCommandCards = [
-    {
-      index: "01",
-      label: "추천 연결",
-      title:
-        recommendedStocks.length > 0
-          ? `${recommendedStocks.length.toLocaleString("ko-KR")}개 종목`
-          : "추천 연결 없음",
-      metric: formatSymbolList(recommendedStocks),
-      body:
-        recommendedStocks.length > 0
-          ? "추천 판단이 붙은 종목이다. 상세에서 뉴스·사이클·재무·밸류에이션 근거가 같이 맞는지 본다."
-          : "현재 목록에는 추천 판단이 붙은 종목이 없다. 추천 생성 상태를 먼저 확인한다.",
-      href: "/recommendations",
-      cta: "추천 근거 보기",
-      tone: recommendedStocks.length > 0 ? "watch" : "block",
-    },
-    {
-      index: "02",
-      label: "보유 연결",
-      title:
-        heldStocks.length > 0
-          ? `${heldStocks.length.toLocaleString("ko-KR")}개 보유`
-          : "보유 연결 없음",
-      metric: formatSymbolList(heldStocks),
-      body:
-        heldStocks.length > 0
-          ? "포트폴리오에 연결된 종목이다. 추천 방향과 현재 보유 비중이 충돌하지 않는지 보유 상태 화면에서 확인한다."
-          : "현재 포트폴리오 스냅샷에 연결된 보유 종목이 없다.",
-      href: "/portfolio/coverage",
-      cta: "보유 상태 보기",
-      tone: heldStocks.length > 0 ? "ready" : "watch",
-    },
-    {
-      index: "03",
-      label: "관찰 종목",
-      title:
-        watchOnlyStocks.length > 0
-          ? `${watchOnlyStocks.length.toLocaleString("ko-KR")}개 관찰`
-          : "관찰 전용 없음",
-      metric: formatSymbolList(watchOnlyStocks),
-      body:
-        watchOnlyStocks.length > 0
-          ? "가격은 수집됐지만 추천이나 보유가 아직 붙지 않은 종목이다. 상세에서 차트와 상위 흐름을 먼저 확인한다."
-          : "모든 종목이 추천이나 보유 상태와 연결돼 있다.",
-      href: "#stock-list",
-      cta: "목록에서 찾기",
-      tone: watchOnlyStocks.length > 0 ? "watch" : "ready",
-    },
-    {
-      index: "04",
-      label: "데이터 점검",
-      title:
-        staleOrMissingPriceStocks.length > 0
-          ? "가격 갱신 확인"
-          : "가격일 일치",
-      metric: `${staleOrMissingPriceStocks.length.toLocaleString("ko-KR")}개 확인 · 최신 ${data.summary.latest_price_date || "없음"}`,
-      body:
-        staleOrMissingPriceStocks.length > 0
-          ? "최신 가격일과 다른 종목이 있다. 투자 판단 전에 수집 상태와 종목 상세의 데이터 기간을 확인한다."
-          : "목록의 가격 관측일이 최신 기준일과 맞는다. 그래도 재무·공시 근거 부족 여부는 종목 상세에서 본다.",
-      href: "/data-health",
-      cta: "수집 상태 보기",
-      tone: staleOrMissingPriceStocks.length > 0 ? "block" : "ready",
-    },
-  ];
+    .sort((left, right) => priorityScore(right) - priorityScore(left) || left.symbol.localeCompare(right.symbol))
+    .slice(0, 4);
+  const leadStock = priorityStocks[0] ?? null;
 
   return (
-    <div className="pageStack decision-page">
-      <section className="decision-brief reveal" aria-labelledby="stocks-title">
-        <div className="decision-brief-main">
-          <span className="decision-brief-kicker">종목 지도 · 추천·보유·관찰 분류</span>
-          <h1 className="decision-brief-title" id="stocks-title">
-            오늘 먼저 볼 종목: {priorityStocks[0]?.symbol ?? "대기"}
-          </h1>
-          <p className="decision-brief-copy">
-            추천이 붙은 종목, 실제 보유 종목, 관찰 종목, 데이터 점검 종목을 나눠 본다. 주문은 만들지 않고 종목 상세에서 재무·공시·AI 근거를 확인한다.
-          </p>
-          <div className="decision-brief-meta" aria-label="종목 목록 핵심 상태">
-            <span>총 {data.stock_count.toLocaleString("ko-KR")}개</span>
-            <span>추천 {recommendedStocks.length.toLocaleString("ko-KR")}개</span>
-            <span>보유 {heldStocks.length.toLocaleString("ko-KR")}개</span>
-            <span>가격 점검 {staleOrMissingPriceStocks.length.toLocaleString("ko-KR")}개</span>
+    <div className={styles.page}>
+      <DecisionSummary
+        eyebrow={`종목 리서치 · 가격 기준일 ${data.summary.latest_price_date || "미확인"}`}
+        title={leadStock ? `${leadStock.symbol}, 오늘 가장 먼저 확인할 종목` : "분석할 종목을 기다리고 있습니다"}
+        description="추천과 보유가 겹치는 종목을 먼저 보고, 가격 흐름과 투자 근거가 일치하는지 확인합니다."
+        primaryAction={{
+          href: leadStock ? stockHref(leadStock.symbol) : ("/data-health" as Route),
+          label: leadStock ? `${leadStock.symbol} 분석 열기` : "데이터 상태 확인",
+        }}
+        secondaryActions={[
+          { href: "/recommendations" as Route, label: "추천 보기" },
+          { href: "/portfolio/coverage" as Route, label: "포트폴리오 보기" },
+        ]}
+        side={
+          <div className={styles.leadSnapshot}>
+            <span>우선 검토</span>
+            <strong>{leadStock?.symbol ?? "대기"}</strong>
+            <small>{leadStock ? priorityReason(leadStock) : "가격과 추천 데이터가 준비되면 표시됩니다."}</small>
           </div>
-        </div>
-        <div className="decision-brief-grid">
-          {stockCommandCards.map((card) => (
-            <a
-              className={`decision-card ${
-                card.tone === "ready" ? "is-good" : card.tone === "watch" ? "is-watch" : "is-block"
-              }`}
-              href={card.href}
-              key={card.index}
-            >
-              <span>{card.label}</span>
-              <strong>{card.title}</strong>
-              <small>{card.metric} · {card.body}</small>
-              <b>{card.cta}</b>
-            </a>
-          ))}
-        </div>
-      </section>
+        }
+      />
 
-      <section className="feature-map-panel reveal delay-2" aria-labelledby="stock-priority-title">
-        <div className="section-heading">
-          <div>
-            <span className="metric-sub">오늘 먼저 볼 종목</span>
-            <h2 id="stock-priority-title">판단이 이미 걸린 종목부터 연다</h2>
-          </div>
-          <Link className="btn btn-secondary" href="/recommendations">
-            추천 후보 전체 보기
-          </Link>
-        </div>
-        <div className="insight-grid">
-          {priorityStocks.map((stock) => (
-            <article className="feature-map-card collection-map-card" key={`priority-${stock.symbol}`}>
-              <span>{stock.recommendation ? "추천 연결" : stock.position ? "보유 종목" : "관찰 종목"}</span>
-              <strong>{stock.symbol}</strong>
-              <small>{stock.name}</small>
-              <p>{stockPriorityReason(stock)}</p>
-              <div className="btn-row decision-actions">
-                <Link className="btn btn-primary" href={stockHref(stock.symbol)}>
-                  종목 상세 보기
-                </Link>
-                {stock.recommendation ? (
-                  <Link className="btn btn-secondary" href={recommendationHref(stock.recommendation.recommendation_id)}>
-                    추천 근거 보기
-                  </Link>
-                ) : null}
-              </div>
-            </article>
-          ))}
-        </div>
-      </section>
+      <MetricStrip
+        label="종목 리서치 현황"
+        items={[
+          { label: "추적 종목", value: `${data.stock_count}개`, context: "가격 데이터가 있는 전체 종목" },
+          { label: "추천 연결", value: `${recommendedStocks.length}개`, context: "추천 상세와 연결된 종목" },
+          { label: "보유 종목", value: `${heldStocks.length}개`, context: "포트폴리오에 포함된 종목" },
+          {
+            label: "가격 확인",
+            value: `${staleStocks.length}개`,
+            context: staleStocks.length > 0 ? "최신 기준일과 다른 종목" : "모든 가격일 일치",
+          },
+        ]}
+      />
 
-      <section className="bento-card span-4 reveal delay-3" id="stock-list" aria-labelledby="stock-list-title">
-        <div className="section-heading">
-          <div>
-            <span className="metric-sub">종목 목록</span>
-            <h2 id="stock-list-title">종목명과 버튼으로 필요한 화면만 연다</h2>
-          </div>
-          <Link className="btn btn-secondary" href="/data-health">
-            데이터 수집 상태 보기
-          </Link>
-        </div>
-        <p className="section-note">
-          행 전체가 눌리는 구조가 아니다. 종목명이나 오른쪽의 <strong>종목 상세 보기</strong> 버튼을 눌러 이동한다.
-          추천 판단이 붙은 종목은 <strong>추천 근거 보기</strong>로 바로 이어진다.
-        </p>
-
-        <div className="stock-table" role="table" aria-label="수집된 종목 목록">
-          <div className="stock-table-row stock-table-head" role="row">
-            <span role="columnheader">종목</span>
-            <span role="columnheader">최신 가격</span>
-            <span role="columnheader">가격일</span>
-            <span role="columnheader">수집 길이</span>
-            <span role="columnheader">추천 상태</span>
-            <span role="columnheader">보유 비중</span>
-            <span role="columnheader">상세 확인</span>
-          </div>
-          {data.stocks.map((stock) => {
-            const recommendationLink = stock.recommendation
-              ? recommendationHref(stock.recommendation.recommendation_id)
-              : null;
-
+      <ResearchSection
+        eyebrow="우선 검토"
+        title="추천과 보유가 걸린 종목"
+        description="투자 판단이 이미 연결된 종목만 앞에 배치했습니다."
+      >
+        <div className={styles.priorityGrid}>
+          {priorityStocks.map((stock) => {
+            const status = stockStatus(stock, data.summary.latest_price_date);
             return (
-              <div className="stock-table-row" key={stock.symbol} role="row">
-                <span role="cell">
-                  <Link
-                    aria-label={`${stock.symbol} 종목 상세 보기`}
-                    className="stock-symbol-link"
-                    href={stockHref(stock.symbol)}
-                  >
+              <article className={styles.priorityCard} key={stock.symbol}>
+                <div className={styles.cardHeader}>
+                  <div>
+                    <span>{stock.name}</span>
                     <strong>{stock.symbol}</strong>
-                    <small>{stock.name}</small>
-                  </Link>
-                </span>
-                <span role="cell">
-                  <strong>{formatCurrency(stock.latest_price.close, stock.currency_code)}</strong>
-                  <small>{formatPercent(stock.latest_price.change_pct)}</small>
-                </span>
-                <span role="cell">{stock.latest_price.trade_date || "없음"}</span>
-                <span role="cell">
-                  {stock.data_coverage.bar_count.toLocaleString("ko-KR")}일
-                  <small>{stock.data_coverage.first_trade_date || "시작일 없음"}</small>
-                </span>
-                <span role="cell">
-                  {stock.recommendation ? koCode(stock.recommendation.action) : "추천 없음"}
-                  <small>
-                    {stock.recommendation
-                      ? `${stock.recommendation.as_of_date} · 점수 ${formatPercent(stock.recommendation.score)}`
-                      : "추천 전"}
-                  </small>
-                </span>
-                <span role="cell">
-                  {stock.position ? formatPercent(stock.position.weight) : "미보유"}
-                  <small>{stock.position ? koLabel(stock.position.portfolio_name) : "포트폴리오 없음"}</small>
-                </span>
-                <span className="stock-action-cell" role="cell">
-                  <Link className="btn btn-primary" href={stockHref(stock.symbol)}>
-                    종목 상세 보기
-                  </Link>
-                  {recommendationLink ? (
-                    <Link className="btn btn-secondary" href={recommendationLink}>
-                      추천 근거 보기
-                    </Link>
+                  </div>
+                  <StatusBadge kind={status.kind} label={status.label} />
+                </div>
+                <p>{priorityReason(stock)}</p>
+                <dl>
+                  <div>
+                    <dt>현재가</dt>
+                    <dd>{formatCurrency(stock.latest_price.close, stock.currency_code)}</dd>
+                  </div>
+                  <div>
+                    <dt>추천 점수</dt>
+                    <dd>{stock.recommendation ? formatPercent(stock.recommendation.score) : "없음"}</dd>
+                  </div>
+                  <div>
+                    <dt>보유 비중</dt>
+                    <dd>{stock.position ? formatPercent(stock.position.weight) : "미보유"}</dd>
+                  </div>
+                </dl>
+                <div className={styles.actions}>
+                  <Link href={stockHref(stock.symbol)}>종목 분석</Link>
+                  {stock.recommendation ? (
+                    <Link href={recommendationHref(stock.recommendation.recommendation_id)}>추천 근거</Link>
                   ) : null}
-                </span>
-              </div>
+                </div>
+              </article>
             );
           })}
         </div>
-      </section>
+      </ResearchSection>
+
+      <ResearchSection eyebrow="전체 종목" title="추적 종목 현황" id="stock-list">
+        <div className={styles.tableFrame}>
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">종목</th>
+                <th scope="col">현재가</th>
+                <th scope="col">변동률</th>
+                <th scope="col">추천</th>
+                <th scope="col">보유 비중</th>
+                <th scope="col">데이터</th>
+                <th scope="col" aria-label="상세" />
+              </tr>
+            </thead>
+            <tbody>
+              {data.stocks.map((stock) => {
+                const status = stockStatus(stock, data.summary.latest_price_date);
+                return (
+                  <tr key={stock.symbol}>
+                    <th scope="row">
+                      <Link className={styles.symbolLink} href={stockHref(stock.symbol)}>
+                        <strong>{stock.symbol}</strong>
+                        <small>{stock.name}</small>
+                      </Link>
+                    </th>
+                    <td>{formatCurrency(stock.latest_price.close, stock.currency_code)}</td>
+                    <td>{formatPercent(stock.latest_price.change_pct)}</td>
+                    <td>
+                      {stock.recommendation ? (
+                        <Link href={recommendationHref(stock.recommendation.recommendation_id)}>
+                          {formatPercent(stock.recommendation.score)}
+                        </Link>
+                      ) : (
+                        "없음"
+                      )}
+                    </td>
+                    <td>{stock.position ? formatPercent(stock.position.weight) : "미보유"}</td>
+                    <td>
+                      <StatusBadge kind={status.kind} label={status.label} />
+                    </td>
+                    <td>
+                      <Link className={styles.rowAction} href={stockHref(stock.symbol)}>
+                        열기
+                      </Link>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </ResearchSection>
     </div>
   );
 }

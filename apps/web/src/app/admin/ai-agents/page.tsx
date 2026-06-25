@@ -1,7 +1,9 @@
 import Link from "next/link";
 import type { Route } from "next";
 
+import { OperationsConsoleHeader } from "@/components/operations/OperationsConsoleHeader";
 import { getAiAgentRegistry, getCodexOauthOperatorStatus } from "@/lib/frontend-api";
+import { koCode } from "@/lib/korean-labels";
 import type { AiAgentRegistryData, CodexOauthOperatorStatus } from "@/lib/types";
 import CodexOauthOperatorPanel from "./CodexOauthOperatorPanel";
 
@@ -243,30 +245,26 @@ export default async function AiAgentAdminPage() {
 
   return (
     <div className="terminal-page">
-      <section className="page-hero">
-        <div>
-          <p className="bento-badge">AI 운영 콘솔</p>
-          <h1 className="page-title">에이전트별 모델, 예비 경로, 안전 경계를 확인한다.</h1>
-        </div>
-        <p className="page-lede">
-          AI가 투자 운영에서 어떤 역할을 맡는지 보여주는 읽기 전용 콘솔이다. 모델 변경, 표준 저장소 쓰기,
-          추천 점수 비중 변경, 주문 제출은 아직 열지 않았다.
-        </p>
-      </section>
+      <OperationsConsoleHeader
+        section="AI 운영"
+        title="모델·인증·비용·예비 경로"
+        description="에이전트별 모델과 Codex OAuth 상태, API 비용, 실패 시 대체 경로를 관리합니다."
+        currentPath={"/admin/ai-agents" as Route}
+      />
 
       <section className="decision-brief" aria-label="AI runtime boundary">
         <div className="decision-brief-main">
           <span className="decision-brief-kicker">현재 실행 경계</span>
-          <h2 className="decision-brief-title">배치 AI는 허용, 화면 요청 중 실시간 AI 호출은 금지.</h2>
+          <h1 className="decision-brief-title">배치 AI는 허용, 화면 요청 중 실시간 AI 호출은 금지</h1>
           <p className="decision-brief-copy">
             {providerSummary(data)}. {runtimeStatusText(data)}
           </p>
           <div className="decision-brief-meta">
-            <span>설정 원천: {data.runtime_policy.configuration_source}</span>
-            <span>OpenAI 상태: {data.runtime_policy.primary_provider_status}</span>
-            <span>잔액 확인: {data.runtime_policy.openai_provider_health.balance_check_method}</span>
+            <span>설정 원천: {adminCopy(koCode(data.runtime_policy.configuration_source))}</span>
+            <span>OpenAI 상태: {adminCopy(koCode(data.runtime_policy.primary_provider_status))}</span>
+            <span>잔액 확인: {adminCopy(koCode(data.runtime_policy.openai_provider_health.balance_check_method))}</span>
             <span>Codex OAuth: {codexOauthStatus.label}</span>
-            <span>주문 경계: {data.runtime_policy.order_boundary}</span>
+            <span>주문 경계: {adminCopy(koCode(data.runtime_policy.order_boundary))}</span>
           </div>
         </div>
         <div className="decision-brief-grid">
@@ -301,7 +299,7 @@ export default async function AiAgentAdminPage() {
           <h2 className="decision-brief-title">{data.runtime_policy.openai_provider_health.label}</h2>
           <p className="decision-brief-copy">{adminCopy(data.runtime_policy.openai_provider_health.message)}</p>
           <div className="decision-brief-meta">
-            <span>상태 코드: {data.runtime_policy.openai_provider_health.status}</span>
+            <span>상태: {adminCopy(koCode(data.runtime_policy.openai_provider_health.status))}</span>
             <span>마지막 확인: {formatOptionalDate(data.runtime_policy.openai_provider_health.last_checked_at)}</span>
             <span>다음 재시도: {formatOptionalDate(data.runtime_policy.openai_provider_health.next_retry_at)}</span>
           </div>
@@ -323,7 +321,7 @@ export default async function AiAgentAdminPage() {
             <strong>{formatUsdAmount(data.runtime_policy.openai_provider_health.cost_status.total_cost_usd)}</strong>
             <small>
               최근 {data.runtime_policy.openai_provider_health.cost_status.lookback_days}일 · 상태{" "}
-              {data.runtime_policy.openai_provider_health.cost_status.status}
+              {adminCopy(koCode(data.runtime_policy.openai_provider_health.cost_status.status))}
             </small>
           </div>
           <div className="decision-card is-watch">
@@ -344,7 +342,7 @@ export default async function AiAgentAdminPage() {
             <small>외부 AI가 모두 중단돼도 규칙 기반 분석과 검증은 계속 진행한다.</small>
           </div>
           <div className="decision-card is-watch">
-            <span>Admin key</span>
+            <span>관리자 비용 조회 키</span>
             <strong>{data.runtime_policy.openai_provider_health.admin_api_key_configured ? "설정됨" : "없음"}</strong>
             <small>{adminCopy(data.runtime_policy.openai_provider_health.cost_status.message)}</small>
           </div>
@@ -387,7 +385,7 @@ export default async function AiAgentAdminPage() {
         {Object.entries(groupedAgents).map(([domain, agents]) => (
           <div className="decision-page" key={domain}>
             <div className="section-heading">
-              <span>{domain}</span>
+              <span>분석 영역</span>
               <h2>{domainLabel(domain)}</h2>
             </div>
             <div className="decision-brief-grid">

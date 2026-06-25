@@ -3,33 +3,11 @@ import type { Route } from "next";
 
 import { getPaperTradingPreview, getTradingReadiness } from "@/lib/frontend-api";
 import { koBlockedReason, koCode, koLabel, koReason } from "@/lib/korean-labels";
+import { investorCopy } from "@/lib/presentation";
 import type { TradingReadinessData } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "가상 매매 점검" };
-
-const USER_FACING_REPLACEMENTS: Array<[string, string]> = [
-  ["paper validation", "가상 매매 검증"],
-  ["Paper validation", "가상 매매 검증"],
-  ["paper trade", "가상 매매"],
-  ["가상 거래", "가상 매매"],
-  ["broker submit", "증권사 주문 제출"],
-  ["broker", "증권사"],
-  ["order boundary", "실거래 상태"],
-  ["order_boundary", "실거래 상태"],
-  ["read_only_no_order", "읽기 전용, 실거래 주문 차단"],
-  ["eval_run_id", "검증 기록"],
-  ["active share", "벤치마크와 다른 비중"],
-  ["drift", "벤치마크 괴리"],
-  ["runner", "실행 기록"],
-  ["artifact", "결과 기록"],
-  ["blocked", "차단"],
-  ["pending", "대기"],
-  ["approved", "허용"],
-  [["페", "이퍼"].join(""), "가상 매매"],
-  ["주문 경계", "실거래 상태"],
-  ["가중치", "반영 비중"],
-];
 
 function formatPercent(value: number | null | undefined) {
   if (value === null || value === undefined) {
@@ -91,11 +69,12 @@ function userFacingText(value: string | number | boolean | null | undefined) {
   if (typeof value === "boolean") {
     return value ? "예" : "아니오";
   }
-  let text = koLabel(koCode(value));
-  for (const [from, to] of USER_FACING_REPLACEMENTS) {
-    text = text.replaceAll(from, to);
-  }
-  return text;
+  return investorCopy(koLabel(koCode(value)))
+    .replaceAll("broker", "증권사")
+    .replaceAll("blocked", "차단")
+    .replaceAll("pending", "대기")
+    .replaceAll("approved", "허용")
+    .replaceAll("drift", "벤치마크 괴리");
 }
 
 function orderBoundaryLabel(value: string | null | undefined) {
@@ -237,10 +216,10 @@ export default async function PaperTradingPage() {
       metric: trading.gate_summary.blocked_count > 0 ? "차단 사유 우선" : "읽기 전용",
       body:
         trading.gate_summary.blocked_count > 0
-          ? "차단 사유를 먼저 본다. 실거래 상태는 계속 읽기 전용이다."
+          ? "차단 사유가 우선입니다. 실거래 상태는 계속 읽기 전용입니다."
           : simulatedActionCount > 0
             ? "항목별 추천서, 투자 논리, 종목 상세를 열어 근거가 맞는지 대조한다."
-            : "추천 신호와 보유 상태가 같은 방향인지 본다.",
+            : "추천 신호와 보유 상태의 방향 일치 여부를 표시합니다.",
       href: simulatedActionCount > 0 ? "#paper-action-candidates" : "/recommendations",
       cta: simulatedActionCount > 0 ? "항목 보기" : "추천 보기",
       tone: trading.gate_summary.blocked_count > 0 ? "block" : "watch",
@@ -307,10 +286,14 @@ export default async function PaperTradingPage() {
         <div className="decision-brief-main">
           <span className="decision-brief-kicker">가상 매매 · 주문 전 안전 점검</span>
           <h1 className="decision-brief-title" id="paper-title">
-            실거래 {liveSubmitCount.toLocaleString("ko-KR")}건, 가상 검증 {simulatedActionCount.toLocaleString("ko-KR")}건.
+            {liveSubmitCount > 0
+              ? "실제 주문 기록을 즉시 확인해야 합니다."
+              : trading.gate_summary.blocked_count > 0
+                ? `가상 매매 후보 ${simulatedActionCount.toLocaleString("ko-KR")}개, 안전장치가 주문을 차단하고 있습니다.`
+                : `가상 매매 후보 ${simulatedActionCount.toLocaleString("ko-KR")}개를 검증 중입니다.`}
           </h1>
           <p className="decision-brief-copy">
-            추천과 보유 내역을 대조해 실행 가능성을 점검한다. 차단 조건이 남아 있으면 실거래 전환은 닫힌 상태로 유지한다.
+            추천과 현재 보유 내역을 대조해 목표 비중의 현실성을 검증합니다. 이 화면의 결과는 실제 주문이 아닙니다.
           </p>
           <div className="decision-brief-meta" aria-label="가상 매매 핵심 상태">
             <span>추천 {summary.recommendation_count.toLocaleString("ko-KR")}개</span>
@@ -343,7 +326,7 @@ export default async function PaperTradingPage() {
         <div className="section-heading stacked-heading">
           <span>현재 결론</span>
           <h2 id="paper-current-state-title">{validationState.title}</h2>
-          <p>실제 주문 여부, 가상 검증 항목, 차단 조건을 분리해서 본다.</p>
+          <p>가상 매매 상태와 실제 주문 차단 사유를 분리해 표시합니다.</p>
         </div>
         <p className="board-intro">{validationState.detail}</p>
         <div className="paper-state-grid">
@@ -404,7 +387,7 @@ export default async function PaperTradingPage() {
             <div className="relationship-chip">
               <span>매도 가능</span>
               <strong>{tossOrderReadiness.sellable_quantity_count.toLocaleString("ko-KR")}개 종목</strong>
-              <small>보유 수량과 매도 가능 수량을 분리해서 실거래 가능성을 본다.</small>
+              <small>보유 수량과 매도 가능 수량을 분리해 실거래 가능성을 표시합니다.</small>
             </div>
             <div className="relationship-chip">
               <span>호가·체결</span>

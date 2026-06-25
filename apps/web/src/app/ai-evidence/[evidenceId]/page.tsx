@@ -4,6 +4,7 @@ import type { Route } from "next";
 import { NewsTitleBlock } from "@/components/news-title-block";
 import { getAiEvidenceDetail, getAiEvidenceNeighborhood } from "@/lib/frontend-api";
 import { koCode, koLabel } from "@/lib/korean-labels";
+import { evidenceCopy } from "@/lib/presentation";
 import type { AiEvidenceDetailData, AiEvidenceNeighborhoodData } from "@/lib/types";
 import { EvidencePathWorkbench, type EvidencePathStep, type EvidencePathTone } from "../_components/evidence-path-workbench";
 
@@ -49,27 +50,7 @@ function extractionRunLabel(data: AiEvidenceDetailData) {
 }
 
 function normalizeEvidenceSystemCopy(value: string | null | undefined) {
-  const oldNewsCandidate = ["뉴스", "AI", "후보"].join(" ");
-  const oldAiCandidate = ["AI", "후보"].join(" ");
-  const oldHoldingReview = ["보유", "검토"].join("");
-  const oldRecommendationTrace = ["추천", "연결 trace는 live DB에서 확인한다."].join(" ");
-  return koLabel(value)
-    .replaceAll("fixture에는 AI 근거 가시성 trace가 없어 기본 경로만 표시한다.", "저장된 상세 추적 정보가 부족해 확인 가능한 경로만 표시한다.")
-    .replaceAll("fixture에는 validator 상세 이유가 없다.", "품질 차단 상세 사유가 아직 저장되지 않았다.")
-    .replaceAll("fixture 기준 번역 trace가 없다.", "번역 추적 정보가 아직 저장되지 않았다.")
-    .replaceAll(oldRecommendationTrace, "추천 영향 정보는 최신 데이터에서 본다.")
-    .replaceAll("live DB", "최신 운영 데이터")
-    .replaceAll("validator", "품질 기준")
-    .replaceAll("trace", "추적 정보")
-    .replaceAll("fixture", "현재 데이터")
-    .replaceAll("write", "쓰기 작업")
-    .replaceAll(oldNewsCandidate, "뉴스 투자 근거")
-    .replaceAll(oldAiCandidate, "투자 근거")
-    .replaceAll(oldHoldingReview, "보유 상태 판단")
-    .replaceAll("입력 후보", "입력 항목")
-    .replaceAll("통과 후보", "통과 항목")
-    .replaceAll("검토 후보", "판단 항목")
-    .replaceAll("후보 상태", "항목 상태");
+  return evidenceCopy(value);
 }
 
 function isKnownCode(value: string | null | undefined) {
