@@ -95,7 +95,7 @@
 
 .metric strong {
   color: var(--ink-primary);
-  font-size: clamp(1.18rem, 1.8vw, 1.7rem);
+  font-size: var(--type-h3);
   font-variant-numeric: tabular-nums;
   line-height: 1.12;
 }

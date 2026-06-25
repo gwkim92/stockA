@@ -58,7 +58,7 @@ export function auditCopy(value: string | number | boolean | null | undefined): 
 }
 
 export function auditLayerDetailCopy(layerLabel: string, detail: string): string {
-  if ((layerLabel === "news evidence" || detail.length > 32) && !HANGUL_PATTERN.test(detail)) {
+  if ((layerLabel === "news evidence" || layerLabel === "뉴스·투자 근거") && !HANGUL_PATTERN.test(detail)) {
     return "뉴스 근거가 연결되어 있습니다. 원천 뉴스와 AI 해석은 관련 화면에서 확인합니다.";
   }
   return auditCopy(detail);

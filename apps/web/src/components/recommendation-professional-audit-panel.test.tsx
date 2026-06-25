@@ -111,5 +111,8 @@ describe("RecommendationProfessionalAuditPanel", () => {
     expect(auditLayerDetailCopy("뉴스·투자 근거", "Stock market today: Dow futures fall")).toBe(
       "뉴스 근거가 연결되어 있습니다. 원천 뉴스와 AI 해석은 관련 화면에서 확인합니다.",
     );
+    expect(auditLayerDetailCopy("valuation", "Long English valuation evidence sentence without Korean.")).toBe(
+      "Long English valuation 근거 sentence without Korean.",
+    );
   });
 });
