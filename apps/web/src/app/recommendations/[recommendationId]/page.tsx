@@ -13,6 +13,7 @@ import { getRecommendationDetail } from "@/lib/frontend-api";
 import { koCode, koLabel } from "@/lib/korean-labels";
 import { recommendationCopy } from "@/lib/presentation";
 import type { RecommendationDetailData } from "@/lib/types";
+import styles from "./RecommendationDetailPage.module.css";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "추천 상세" };
@@ -46,6 +47,14 @@ type RecommendationFocusItem = {
   hrefLabel: string;
   tone: "ready" | "watch" | "blocked";
 };
+type RecommendationProductProfile = {
+  kind: "fund_or_etf" | "company";
+  label: string;
+  headline: string;
+  primaryLens: string;
+  secondaryLens: string;
+  evidenceTitle: string;
+};
 
 const SCORE_COMPONENT_LABELS: Record<string, string> = {
   macro_regime_score: "거시 환경",
@@ -70,6 +79,27 @@ function userFacingRecommendationText(value: string | number | boolean | null | 
 
 function scoreComponentLabel(componentName: string) {
   return SCORE_COMPONENT_LABELS[componentName] ?? userFacingRecommendationText(componentName);
+}
+
+function recommendationProductProfile(data: RecommendationDetailData): RecommendationProductProfile {
+  if (data.fund_instrument_analysis || data.professional_evidence_audit.product_type === "fund_or_etf") {
+    return {
+      kind: "fund_or_etf",
+      label: "ETF·펀드형 상품",
+      headline: `${data.symbol}은 개별 기업이 아니라 지수·보유종목·비용·추적 품질로 판단한다`,
+      primaryLens: "보유종목과 벤치마크",
+      secondaryLens: "비용률·추적차이·NAV",
+      evidenceTitle: "ETF 추천 근거",
+    };
+  }
+  return {
+    kind: "company",
+    label: "개별 기업 주식",
+    headline: `${data.symbol}은 기업 실적·밸류에이션·경쟁력까지 함께 판단한다`,
+    primaryLens: "사업·재무·밸류에이션",
+    secondaryLens: "뉴스·사이클·포지션",
+    evidenceTitle: "기업 추천 근거",
+  };
 }
 
 function orderBoundaryLabel(value: string | null | undefined) {
@@ -395,6 +425,141 @@ function formatExpenseRatio(value: number | null | undefined) {
     minimumFractionDigits: 0,
     maximumFractionDigits: 4,
   })}%`;
+}
+
+function RecommendationProductOverview({
+  data,
+  productProfile,
+  qualityDecision,
+  decisionWaterfall,
+}: {
+  data: RecommendationDetailData;
+  productProfile: RecommendationProductProfile;
+  qualityDecision: RecommendationQualityDecision;
+  decisionWaterfall: RecommendationDetailData["professional_decision_waterfall"];
+}) {
+  const fundAnalysis = data.fund_instrument_analysis;
+  const position = data.position_context;
+  const held = position.status === "held";
+  const positionTitle = held ? "보유 중" : "현재 미보유";
+  const averageCostText = held ? formatFundCurrency(position.average_cost, position.currency_code) : "평단가 없음";
+  const marketValueText = held ? formatCurrency(position.market_value, position.currency_code) : "보유금액 없음";
+
+  return (
+    <section className={styles.productOverview} aria-label="추천 상품 유형과 핵심 판단">
+      <div className={styles.productLead}>
+        <span>{productProfile.label}</span>
+        <h2>{productProfile.headline}</h2>
+        <p>
+          {productProfile.kind === "fund_or_etf"
+            ? "이 추천은 기업 재무제표나 DCF보다 ETF가 실제로 무엇을 담고 있는지, 벤치마크를 얼마나 잘 따라가는지, 비용과 유동성이 보유에 적합한지를 먼저 봅니다."
+            : "이 추천은 뉴스 신호만 보지 않고 기업의 재무 품질, 가격 매력, 산업 내 위치, 투자 논리의 일관성을 함께 확인합니다."}
+        </p>
+      </div>
+
+      <div className={styles.productSummaryGrid}>
+        <article className={styles.productMetric}>
+          <span>현재 판단</span>
+          <strong>{qualityDecision.status}</strong>
+          <p>{qualityDecision.summary}</p>
+        </article>
+        <article className={styles.productMetric}>
+          <span>추천 점수</span>
+          <strong>{formatPercent(data.score)}</strong>
+          <p>권고 비중 {formatOptionalPercent(data.recommended_weight)} · {koCode(data.recommendation)}</p>
+        </article>
+        <article className={styles.productMetric}>
+          <span>포지션·평단가</span>
+          <strong>{positionTitle}</strong>
+          <p>
+            {averageCostText} · {marketValueText}
+            {position.summary ? ` · ${position.summary}` : ""}
+          </p>
+        </article>
+        <article className={styles.productMetric}>
+          <span>거래 경계</span>
+          <strong>{orderBoundaryLabel(decisionWaterfall.order_boundary)}</strong>
+          <p>
+            가상 매매 {decisionWaterfall.paper_validation_input_allowed ? "입력 가능" : "입력 차단"} · 실거래{" "}
+            {decisionWaterfall.broker_submit_allowed ? "허용" : "차단"}
+          </p>
+        </article>
+      </div>
+
+      {fundAnalysis ? (
+        <div className={styles.productEvidenceGrid} aria-label="ETF 추천 핵심 근거">
+          <article>
+            <span>구성</span>
+            <strong>{fundAnalysis.holding_count.toLocaleString("ko-KR")}개 보유종목</strong>
+            <p>
+              커버리지 {formatOptionalPercent(fundAnalysis.holdings_coverage_weight)} · 벤치마크{" "}
+              {fundAnalysis.benchmark_code || data.symbol}
+            </p>
+          </article>
+          <article>
+            <span>비용</span>
+            <strong>{formatExpenseRatio(fundAnalysis.expense_ratio.value)}</strong>
+            <p>{fundAnalysis.expense_ratio.source_name || "공식 원천"} · {fundAnalysis.expense_ratio.source_as_of_date || "기준일 미확인"}</p>
+          </article>
+          <article>
+            <span>추적 품질</span>
+            <strong>
+              {fundAnalysis.tracking_error.metric_type === "tracking_difference"
+                ? formatOptionalPercent(fundAnalysis.tracking_error.tracking_difference_value)
+                : koCode(fundAnalysis.tracking_error.status)}
+            </strong>
+            <p>{fundAnalysis.tracking_error.measurement_window || "기간 미확인"} · {fundAnalysis.tracking_error.benchmark_name || "벤치마크 미확인"}</p>
+          </article>
+          <article>
+            <span>NAV 괴리</span>
+            <strong>{formatOptionalPercent(fundAnalysis.nav_premium_discount.premium_discount_to_nav)}</strong>
+            <p>
+              NAV {formatFundCurrency(fundAnalysis.nav_premium_discount.nav_per_share, data.currency_code)} · 종가{" "}
+              {formatFundCurrency(fundAnalysis.nav_premium_discount.closing_price, data.currency_code)}
+            </p>
+          </article>
+          <article>
+            <span>유동성</span>
+            <strong>{koCode(fundAnalysis.liquidity.status)}</strong>
+            <p>
+              평균 거래량 {formatCompactNumber(fundAnalysis.liquidity.average_daily_volume)} · 평균 거래대금{" "}
+              {formatCurrency(fundAnalysis.liquidity.average_daily_dollar_volume, data.currency_code)}
+            </p>
+          </article>
+          <article>
+            <span>상위 보유</span>
+            <strong>{fundAnalysis.top_holdings.slice(0, 3).map((holding) => holding.symbol).join(" · ") || "미수집"}</strong>
+            <p>{fundAnalysis.portfolio_role.rationale || "포트폴리오 역할 설명이 아직 없다."}</p>
+          </article>
+        </div>
+      ) : (
+        <div className={styles.productEvidenceGrid} aria-label="개별 기업 추천 핵심 근거">
+          <article>
+            <span>재무 모델</span>
+            <strong>{data.financial_statement_model.status === "available" ? "연결" : koCode(data.financial_statement_model.status)}</strong>
+            <p>{data.financial_statement_model.computed_metric_count.toLocaleString("ko-KR")}개 지표 · {data.financial_statement_model.latest_period_end || "기간 미확인"}</p>
+          </article>
+          <article>
+            <span>밸류에이션</span>
+            <strong>{data.valuation_target_range.status === "available" ? "목표 범위 연결" : koCode(data.valuation_target_range.status)}</strong>
+            <p>
+              상승여지 {formatOptionalPercent(data.valuation_target_range.upside_base)} · 안전마진{" "}
+              {formatOptionalPercent(data.valuation_target_range.margin_of_safety)}
+            </p>
+          </article>
+          <article>
+            <span>산업 위치</span>
+            <strong>
+              {data.industry_competitive_position
+                ? competitivePositionLabel(data.industry_competitive_position.competitive_position)
+                : "미연결"}
+            </strong>
+            <p>{data.industry_competitive_position?.peer_group_name ?? "비교군 데이터가 아직 부족하다."}</p>
+          </article>
+        </div>
+      )}
+    </section>
+  );
 }
 
 function formatFinancialMetricValue(metric: FinancialMetricSnapshot) {
@@ -1017,6 +1182,7 @@ function qualityToneToFocusTone(tone: RecommendationQualityDecision["tone"]): Re
 
 function recommendationImmediateFocus({
   data,
+  productProfile,
   qualityDecision,
   decisionWaterfall,
   professionalAudit,
@@ -1028,6 +1194,7 @@ function recommendationImmediateFocus({
   fundamentalStack,
 }: {
   data: RecommendationDetailData;
+  productProfile: RecommendationProductProfile;
   qualityDecision: RecommendationQualityDecision;
   decisionWaterfall: RecommendationDetailData["professional_decision_waterfall"];
   professionalAudit: ProfessionalEvidenceAudit;
@@ -1043,6 +1210,7 @@ function recommendationImmediateFocus({
   const directEvidenceStatus = data.evidence_trace.direct_news_or_ai.status;
   const financialMetricCount = data.financial_statement_model.computed_metric_count;
   const sourceBlocked = professionalAudit.source_blocker.blocked || decisionWaterfall.status === "source_data_blocked";
+  const fundAnalysis = data.fund_instrument_analysis;
 
   if (sourceBlocked) {
     items.push({
@@ -1109,15 +1277,27 @@ function recommendationImmediateFocus({
     tone: aiEvidenceCount > 0 || macroFlowComponents.length > 0 ? "ready" : "watch",
   });
 
-  items.push({
-    label: "기업",
-    title: "재무·밸류에이션 근거",
-    body: "중장기 추천은 뉴스만으로 판단하지 않는다. 재무 품질, 밸류에이션, 피어 비교가 비어 있거나 차단됐는지 본다.",
-    metric: `재무 ${financialMetricCount.toLocaleString("ko-KR")}개 · 재무항목 ${fundamentalStack.length.toLocaleString("ko-KR")}개`,
-    href: financialMetricCount > 0 ? "#recommendation-financial-model" : "#recommendation-valuation",
-    hrefLabel: financialMetricCount > 0 ? "재무 모델 보기" : "밸류에이션 보기",
-    tone: financialMetricCount > 0 || fundamentalStack.length > 0 ? "ready" : "watch",
-  });
+  if (productProfile.kind === "fund_or_etf" && fundAnalysis) {
+    items.push({
+      label: "ETF",
+      title: "보유종목·비용·추적 품질",
+      body: "ETF 추천은 기업 실적표보다 보유종목 구성, 벤치마크 추적, 비용률, NAV 괴리와 유동성을 먼저 확인한다.",
+      metric: `${fundAnalysis.holding_count.toLocaleString("ko-KR")}개 보유 · 비용률 ${formatExpenseRatio(fundAnalysis.expense_ratio.value)}`,
+      href: "#recommendation-fund-analysis",
+      hrefLabel: "ETF 근거 보기",
+      tone: fundAnalysis.status === "available" || fundAnalysis.holding_count > 0 ? "ready" : "watch",
+    });
+  } else {
+    items.push({
+      label: "기업",
+      title: "재무·밸류에이션 근거",
+      body: "개별 회사 추천은 뉴스만으로 판단하지 않는다. 재무 품질, 밸류에이션, 피어 비교가 비어 있거나 차단됐는지 본다.",
+      metric: `재무 ${financialMetricCount.toLocaleString("ko-KR")}개 · 재무항목 ${fundamentalStack.length.toLocaleString("ko-KR")}개`,
+      href: financialMetricCount > 0 ? "#recommendation-financial-model" : "#recommendation-valuation",
+      hrefLabel: financialMetricCount > 0 ? "재무 모델 보기" : "밸류에이션 보기",
+      tone: financialMetricCount > 0 || fundamentalStack.length > 0 ? "ready" : "watch",
+    });
+  }
 
   items.push({
     label: "시장",
@@ -1233,6 +1413,7 @@ function evidenceTraceCards(data: RecommendationDetailData) {
 
 function recommendationWaterfallCards({
   data,
+  productProfile,
   cycleStack,
   macroFlowComponents,
   fundamentalStack,
@@ -1242,6 +1423,7 @@ function recommendationWaterfallCards({
   outcomeMeasured,
 }: {
   data: RecommendationDetailData;
+  productProfile: RecommendationProductProfile;
   cycleStack: ScoreComponent[];
   macroFlowComponents: ScoreComponent[];
   fundamentalStack: ScoreComponent[];
@@ -1256,6 +1438,84 @@ function recommendationWaterfallCards({
   const valuationReady = data.valuation_target_range.status === "available";
   const sourceBlocked = professionalAudit.source_blocker.blocked || data.professional_decision_waterfall.status === "source_data_blocked";
   const riskBlocked = professionalAudit.blocked_layer_count > 0 || reviewCount(data.evidence_review.summary.blocked_count) > 0;
+  const fundAnalysis = data.fund_instrument_analysis;
+  const productCards =
+    productProfile.kind === "fund_or_etf" && fundAnalysis
+      ? [
+          {
+            step: "03",
+            label: "ETF 구성",
+            title: `${fundAnalysis.holding_count.toLocaleString("ko-KR")}개 보유종목`,
+            body: `벤치마크 ${fundAnalysis.benchmark_code || data.symbol} 기준으로 보유 구성 커버리지 ${formatOptionalPercent(fundAnalysis.holdings_coverage_weight)}를 확인한다.`,
+            href: "#recommendation-fund-analysis",
+            hrefLabel: "ETF 구성 보기",
+            tone: fundAnalysis.holding_count > 0 ? "ready" : "watch",
+          },
+          {
+            step: "04",
+            label: "비용·추적",
+            title: `${formatExpenseRatio(fundAnalysis.expense_ratio.value)} · ${
+              fundAnalysis.tracking_error.metric_type === "tracking_difference"
+                ? formatOptionalPercent(fundAnalysis.tracking_error.tracking_difference_value)
+                : koCode(fundAnalysis.tracking_error.status)
+            }`,
+            body: "ETF는 기업 DCF가 아니라 비용률, 벤치마크 추적 차이, NAV 기준 괴리로 보유 품질을 확인한다.",
+            href: "#recommendation-fund-analysis",
+            hrefLabel: "비용·추적 보기",
+            tone: "ready",
+          },
+          {
+            step: "05",
+            label: "NAV·유동성",
+            title: `${formatOptionalPercent(fundAnalysis.nav_premium_discount.premium_discount_to_nav)} · ${koCode(fundAnalysis.liquidity.status)}`,
+            body: `NAV 괴리와 거래대금이 실제 편입·리밸런싱에 무리가 없는지 본다. 평균 거래대금 ${formatCurrency(fundAnalysis.liquidity.average_daily_dollar_volume, data.currency_code)}.`,
+            href: "#recommendation-fund-analysis",
+            hrefLabel: "NAV·유동성 보기",
+            tone: "ready",
+          },
+        ]
+      : [
+          {
+            step: "03",
+            label: "기업",
+            title: data.equity_research ? "리서치 연결" : "리서치 대기",
+            body: data.equity_research
+              ? "사업 설명, 촉매, 리스크, 무효화 조건이 기업 리서치로 연결됐다."
+              : "기업 리서치 결과가 아직 없어 사업 맥락은 제한적으로만 볼 수 있다.",
+            href: "#recommendation-equity-research",
+            hrefLabel: "기업 리서치 보기",
+            tone: data.equity_research ? "ready" : "watch",
+          },
+          {
+            step: "04",
+            label: "재무",
+            title:
+              data.financial_statement_model.status === "available" || data.financial_statement_model.status === "partial"
+                ? `${data.financial_statement_model.computed_metric_count}개 지표`
+                : "재무 원천 부족",
+            body: sourceBlocked
+              ? koLabel(professionalAudit.source_blocker.summary)
+              : `재무 품질·현금흐름·부채·희석 지표 ${data.financial_statement_model.computed_metric_count}개를 종합한 판단입니다.`,
+            href: "#recommendation-financial-model",
+            hrefLabel: "재무 근거 보기",
+            tone: sourceBlocked
+              ? "blocked"
+              : data.financial_statement_model.status === "available" || data.financial_statement_model.status === "partial"
+                ? "ready"
+                : "watch",
+          },
+          {
+            step: "05",
+            label: "밸류에이션",
+            title: valuationReady ? `${data.valuation_target_range.method_count}개 방법` : "가격 근거 대기",
+            body: valuationReady
+              ? `기준 상승여지 ${formatOptionalPercent(data.valuation_target_range.upside_base)}와 안전마진 ${formatOptionalPercent(data.valuation_target_range.margin_of_safety)}를 반영한 가치 범위입니다.`
+              : "목표가 범위나 안전마진이 충분히 연결되지 않았다.",
+            href: "#recommendation-valuation",
+            hrefLabel: "밸류에이션 보기",
+            tone: valuationReady ? "ready" : "watch",
+          },
+        ];
 
   return [
     {
@@ -1282,46 +1542,7 @@ function recommendationWaterfallCards({
       hrefLabel: "흐름 전파 보기",
       tone: themeComponent || macroFlowComponents.length > 0 ? "ready" : "watch",
     },
-    {
-      step: "03",
-      label: "기업",
-      title: data.equity_research ? "리서치 연결" : "리서치 대기",
-      body: data.equity_research
-        ? "사업 설명, 촉매, 리스크, 무효화 조건이 기업 리서치로 연결됐다."
-        : "기업 리서치 결과가 아직 없어 사업 맥락은 제한적으로만 볼 수 있다.",
-      href: "#recommendation-equity-research",
-      hrefLabel: "기업 리서치 보기",
-      tone: data.equity_research ? "ready" : "watch",
-    },
-    {
-      step: "04",
-      label: "재무",
-      title:
-        data.financial_statement_model.status === "available" || data.financial_statement_model.status === "partial"
-          ? `${data.financial_statement_model.computed_metric_count}개 지표`
-          : "재무 원천 부족",
-      body: sourceBlocked
-        ? koLabel(professionalAudit.source_blocker.summary)
-        : `재무 품질·현금흐름·부채·희석 지표 ${data.financial_statement_model.computed_metric_count}개를 종합한 판단입니다.`,
-      href: "#recommendation-financial-model",
-      hrefLabel: "재무 근거 보기",
-      tone: sourceBlocked
-        ? "blocked"
-        : data.financial_statement_model.status === "available" || data.financial_statement_model.status === "partial"
-          ? "ready"
-          : "watch",
-    },
-    {
-      step: "05",
-      label: "밸류에이션",
-      title: valuationReady ? `${data.valuation_target_range.method_count}개 방법` : "가격 근거 대기",
-      body: valuationReady
-        ? `기준 상승여지 ${formatOptionalPercent(data.valuation_target_range.upside_base)}와 안전마진 ${formatOptionalPercent(data.valuation_target_range.margin_of_safety)}를 반영한 가치 범위입니다.`
-        : "목표가 범위나 안전마진이 충분히 연결되지 않았다.",
-      href: "#recommendation-valuation",
-      hrefLabel: "밸류에이션 보기",
-      tone: valuationReady ? "ready" : "watch",
-    },
+    ...productCards,
     {
       step: "06",
       label: "리스크",
@@ -1501,6 +1722,7 @@ export default async function RecommendationPage({ params }: RecommendationPageP
   const blockedEvidenceCount = reviewCount(evidenceReview.summary.blocked_count);
   const decisionWaterfall = data.professional_decision_waterfall;
   const professionalAudit = data.professional_evidence_audit;
+  const productProfile = recommendationProductProfile(data);
   const readyDecisionStepCount = decisionWaterfall.steps.filter((step) => step.tone === "ready").length;
   const watchDecisionStepCount = decisionWaterfall.steps.filter((step) => step.tone === "watch" || step.tone === "neutral").length;
   const blockedDecisionStepCount = decisionWaterfall.steps.filter((step) => step.tone === "blocked").length;
@@ -1522,6 +1744,7 @@ export default async function RecommendationPage({ params }: RecommendationPageP
   }));
   const waterfallCards = recommendationWaterfallCards({
     data,
+    productProfile,
     cycleStack,
     macroFlowComponents,
     fundamentalStack,
@@ -1532,6 +1755,7 @@ export default async function RecommendationPage({ params }: RecommendationPageP
   });
   const immediateFocusItems = recommendationImmediateFocus({
     data,
+    productProfile,
     qualityDecision,
     decisionWaterfall,
     professionalAudit,
@@ -1548,15 +1772,16 @@ export default async function RecommendationPage({ params }: RecommendationPageP
       <section className="decision-brief workspace-brief recommendation-command-deck reveal" aria-labelledby="recommendation-detail-title">
         <div className="decision-brief-main">
           <span className="decision-brief-kicker">
-            추천 상세 · {koCode(data.strategy_name)} · {koCode(data.horizon_type)} · {data.as_of_date}
+            추천 리포트 · {productProfile.label} · {koCode(data.horizon_type)} · {data.as_of_date}
           </span>
           <h1 className="decision-brief-title" id="recommendation-detail-title">
-            {data.symbol} · {qualityDecision.status}
+            {data.symbol} · {productProfile.kind === "fund_or_etf" ? "ETF 추천 검토" : "기업 주식 추천 검토"}
           </h1>
           <p className="decision-brief-copy">
-            {qualityDecision.summary} 이 화면은 먼저 보유 여부와 평단가를 확인한 뒤, 근거·밸류에이션·가상 매매 경계를 순서대로 대조한다.
+            {productProfile.headline}. {qualityDecision.summary} 먼저 상품 유형과 포지션을 확인한 뒤, 근거와 거래 경계를 순서대로 대조한다.
           </p>
           <div className="decision-brief-meta" aria-label="추천 상세 핵심 상태">
+            <span>{productProfile.primaryLens}</span>
             <span>점수 {formatPercent(data.score)}</span>
             <span>추천 {koCode(data.recommendation)}</span>
             <span>포지션 {positionStatusLabel}</span>
@@ -1574,13 +1799,26 @@ export default async function RecommendationPage({ params }: RecommendationPageP
           <Link className="decision-card" href="#recommendation-position-reality">
             <span>포지션·평단가</span>
             <strong>{positionStatusLabel}</strong>
-            <small>수량, 평단가, 평가손익, 브로커 계좌 상태를 먼저 확인한다.</small>
+            <small>{positionStatusLabel === "보유 중" ? "수량, 평단가, 평가손익을 확인한다." : "미보유 추천은 평단가가 없으므로 신규 편입 후보로 본다."}</small>
           </Link>
           <Link className="decision-card" href="#recommendation-professional-flow">
             <span>분석 단계</span>
             <strong>{readyDecisionStepCount}/{decisionWaterfall.steps.length} 통과</strong>
             <small>주의 {watchDecisionStepCount}개 · 차단 {blockedDecisionStepCount}개</small>
           </Link>
+          {productProfile.kind === "fund_or_etf" ? (
+            <Link className="decision-card is-good" href="#recommendation-fund-analysis">
+              <span>ETF 핵심</span>
+              <strong>{data.fund_instrument_analysis ? `${data.fund_instrument_analysis.holding_count.toLocaleString("ko-KR")}개 보유` : "ETF 근거 대기"}</strong>
+              <small>보유종목, 비용률, 추적차이, NAV 괴리를 먼저 본다.</small>
+            </Link>
+          ) : (
+            <Link className="decision-card is-good" href="#recommendation-financial-model">
+              <span>기업 핵심</span>
+              <strong>{financialStatementModel.status === "available" ? `${financialStatementModel.computed_metric_count}개 지표` : "재무 근거 대기"}</strong>
+              <small>재무, 밸류에이션, 산업 경쟁 위치를 먼저 본다.</small>
+            </Link>
+          )}
           <Link className={marketCorrelationCount > 0 ? "decision-card is-good" : "decision-card is-watch"} href="#recommendation-market-correlations">
             <span>시장 동조성</span>
             <strong>{marketCorrelationCount.toLocaleString("ko-KR")}개 비교</strong>
@@ -1593,6 +1831,13 @@ export default async function RecommendationPage({ params }: RecommendationPageP
           </Link>
         </div>
       </section>
+
+      <RecommendationProductOverview
+        data={data}
+        productProfile={productProfile}
+        qualityDecision={qualityDecision}
+        decisionWaterfall={decisionWaterfall}
+      />
 
       <RecommendationExecutiveBrief data={data} />
 
@@ -1727,19 +1972,25 @@ export default async function RecommendationPage({ params }: RecommendationPageP
 
       <RecommendationProfessionalAuditPanel audit={professionalAudit} />
 
-      <section id="recommendation-financial-model">
-        <FinancialStatementModelPanel model={financialStatementModel} symbol={data.symbol} />
-      </section>
+      {data.fund_instrument_analysis ? (
+        <section id="recommendation-fund-analysis">
+          <FundInstrumentAnalysisPanel analysis={data.fund_instrument_analysis} />
+        </section>
+      ) : (
+        <>
+          <section id="recommendation-financial-model">
+            <FinancialStatementModelPanel model={financialStatementModel} symbol={data.symbol} />
+          </section>
 
-      <FundInstrumentAnalysisPanel analysis={data.fund_instrument_analysis} />
-
-      <section id="recommendation-valuation">
-        <ValuationTargetRangeCard
-          valuation={valuationTargetRange}
-          eyebrow="추천 가격 근거"
-          title={`${data.symbol} 목표가 범위와 상승여지`}
-        />
-      </section>
+          <section id="recommendation-valuation">
+            <ValuationTargetRangeCard
+              valuation={valuationTargetRange}
+              eyebrow="추천 가격 근거"
+              title={`${data.symbol} 목표가 범위와 상승여지`}
+            />
+          </section>
+        </>
+      )}
 
       {cycleStack.length > 0 ? (
         <section className="bento-card reveal delay-1" id="recommendation-cycle-stack" aria-label="계층형 사이클 추천 경로">
@@ -1789,7 +2040,7 @@ export default async function RecommendationPage({ params }: RecommendationPageP
         </section>
       ) : null}
 
-      {fundamentalStack.length > 0 ? (
+      {productProfile.kind === "company" && fundamentalStack.length > 0 ? (
         <section className="bento-card reveal delay-1" aria-label="재무와 밸류에이션 추천 근거">
           <div style={{ marginBottom: "22px" }}>
             <span className="metric-sub">재무·밸류에이션 근거</span>
@@ -1873,12 +2124,15 @@ export default async function RecommendationPage({ params }: RecommendationPageP
         </section>
       ) : null}
 
-      <IndustryCompetitivePositionPanel
-        position={industryPosition}
-        symbol={data.symbol}
-        peerComponent={peerComponent}
-      />
+      {productProfile.kind === "company" ? (
+        <IndustryCompetitivePositionPanel
+          position={industryPosition}
+          symbol={data.symbol}
+          peerComponent={peerComponent}
+        />
+      ) : null}
 
+      {productProfile.kind === "company" ? (
       <section className="bento-card reveal delay-1" id="recommendation-equity-research" aria-label="기업 리서치 연결">
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "18px", flexWrap: "wrap", marginBottom: "22px" }}>
           <div>
@@ -1983,6 +2237,7 @@ export default async function RecommendationPage({ params }: RecommendationPageP
           </div>
         )}
       </section>
+      ) : null}
 
       <section className="bento-card reveal delay-1" id="recommendation-evidence-trace" aria-label="추천 근거 흐름 요약">
         <div style={{ marginBottom: "20px" }}>
