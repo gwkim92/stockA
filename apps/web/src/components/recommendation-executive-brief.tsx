@@ -224,12 +224,12 @@ export function RecommendationExecutiveBrief({ data }: RecommendationExecutiveBr
       <div className={styles.header}>
         <span>투자 판단 요약</span>
         <h2 id="recommendation-executive-brief-title">
-          {fundOrEtf ? `${data.symbol} ETF 추천을 먼저 요약한다` : `${data.symbol} 기업 추천을 먼저 요약한다`}
+          {fundOrEtf ? `${data.symbol} ETF 추천 요약` : `${data.symbol} 개별 주식 추천 요약`}
         </h2>
         <p>
           {fundOrEtf
-            ? "점수, 보유 상태, ETF 구조, 근거 품질, 거래 경계를 먼저 대조한다. 보유종목·비용·추적 품질은 아래 ETF 근거에서 이어서 확인한다."
-            : "점수, 보유 상태, 가치 범위, 근거 품질, 거래 경계를 먼저 대조한다. 자세한 뉴스·사이클·재무 근거는 아래 리포트에서 이어서 확인한다."}
+            ? "보유 상태, ETF 구조, 근거 품질, 거래 경계를 한 화면에 정리했다. 보유종목·비용·추적 품질은 아래 ETF 근거로 이어진다."
+            : "보유 상태, 가치 범위, 근거 품질, 거래 경계를 한 화면에 정리했다. 뉴스·사이클·재무 근거는 아래 리포트로 이어진다."}
         </p>
       </div>
       <div className={styles.cards}>

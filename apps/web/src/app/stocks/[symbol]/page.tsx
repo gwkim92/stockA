@@ -7,10 +7,10 @@ import { NewsTitleBlock } from "@/components/news-title-block";
 import { ProfessionalResearchFlow, type ResearchFlowStep } from "@/components/professional-research-flow";
 import { SignedReturnBadge } from "@/components/research/SignedReturnBadge";
 import { ValuationTargetRangeCard } from "@/components/valuation-target-range-card";
-import { getAiEvidenceNeighborhood, getStockDetail } from "@/lib/frontend-api";
+import { getAiEvidenceNeighborhood, getRecommendationDetail, getStockDetail } from "@/lib/frontend-api";
 import { koCode, koLabel } from "@/lib/korean-labels";
 import { stockCopy } from "@/lib/presentation";
-import type { AiEvidenceNeighborhoodData, StockDetailData } from "@/lib/types";
+import type { AiEvidenceNeighborhoodData, RecommendationPositionReference, StockDetailData } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "종목 상세" };
@@ -71,6 +71,21 @@ function formatPercent(value: number | null | undefined) {
     return "미측정";
   }
   return `${Math.round(value * 1000) / 10}%`;
+}
+
+function latestDailyChangePct(data: StockDetailData) {
+  if (data.latest_price.change_pct !== null && data.latest_price.change_pct !== undefined) {
+    return data.latest_price.change_pct;
+  }
+  const latestBars = data.price_bars
+    .filter((bar) => bar.adjusted_close !== null && bar.adjusted_close !== undefined)
+    .slice(-2);
+  const previousClose = latestBars[0]?.adjusted_close;
+  const latestClose = latestBars[1]?.adjusted_close;
+  if (!previousClose || latestClose === null || latestClose === undefined) {
+    return null;
+  }
+  return (latestClose - previousClose) / previousClose;
 }
 
 function formatCoefficient(value: number | null | undefined) {
@@ -212,6 +227,18 @@ function sourceDocumentHref(documentId: string | null) {
   return documentId ? (`/source-documents/${documentId}` as Route) : null;
 }
 
+async function loadRecommendationPositionContext(recommendationId: string | null | undefined) {
+  if (!recommendationId) {
+    return null;
+  }
+  try {
+    const response = await getRecommendationDetail(recommendationId);
+    return response.data.position_context;
+  } catch {
+    return null;
+  }
+}
+
 function providerLabel(provider: string) {
   if (provider === "codex_oauth") {
     return "심화 근거 분석";
@@ -255,24 +282,24 @@ function stockDecisionOutcome(
     return {
       tone: "ready",
       label: "추천·보유 연결",
-      title: `${data.symbol} 상태: 추천과 보유 모두 연결`,
-      body: "추천 이유, 현재 보유 비중, 투자 논리, 가상 매매 검증 상태가 서로 맞는지 본다.",
+      title: `${data.symbol} 투자 리서치`,
+      body: "보유 중인 추천 관찰 종목이다. 가격, 포지션, 재무·밸류에이션, 뉴스·사이클 근거를 같은 화면에서 정리한다.",
     };
   }
   if (data.recommendation) {
     return {
       tone: "ready",
       label: "추천 근거 있음",
-      title: `${data.symbol} 상태: 추천 근거 있음`,
-      body: "추천 상세에서 점수 구성, 기업 분석, 뉴스·사이클 근거, 실거래 차단 상태를 함께 본다.",
+      title: `${data.symbol} 투자 리서치`,
+      body: "추천 근거가 있는 관찰 종목이다. 점수 구성, 기업 분석, 뉴스·사이클 근거, 실거래 차단 상태를 함께 정리한다.",
     };
   }
   if (data.position) {
     return {
       tone: "watch",
       label: "보유 상태",
-      title: `${data.symbol} 상태: 보유 중, 최신 추천 없음`,
-      body: "보유 이유와 최근 뉴스·상위 흐름이 유지 조건을 깨지 않는지 먼저 본다.",
+      title: `${data.symbol} 투자 리서치`,
+      body: "보유 포지션은 있으나 최신 추천이 없다. 보유 이유와 최근 뉴스·상위 흐름의 충돌 여부를 먼저 정리한다.",
     };
   }
   if (!hasPriceData) {
@@ -286,8 +313,8 @@ function stockDecisionOutcome(
   return {
     tone: "neutral",
     label: "관찰 종목",
-    title: `${data.symbol} 상태: 관찰 단계`,
-    body: "가격 데이터는 있으나 추천·보유 연결은 아직 없다. 뉴스와 사이클 근거가 쌓이는지 본다.",
+    title: `${data.symbol} 투자 리서치`,
+    body: "가격 데이터는 있으나 추천·보유 연결은 아직 없다. 뉴스와 사이클 근거가 쌓이는 관찰 단계다.",
   };
 }
 
@@ -305,7 +332,7 @@ function competitivePositionLabel(value: string) {
 function competitivePositionSummary(position: IndustryCompetitivePosition, symbol: string) {
   const peerGroup = userFacingStockText(position.peer_group_name ?? position.peer_group_code ?? "비교군");
   const sector = userFacingStockText(position.sector_name ?? position.sector_code ?? "섹터 미분류");
-  return `${symbol}은 ${peerGroup} 기준으로 ${competitivePositionLabel(position.competitive_position)} 상태다. ${sector} 안에서 수익성, 성장성, 재무 방어력, 가격 결정력 추정 지표를 함께 본다.`;
+  return `${symbol}은 ${peerGroup} 기준으로 ${competitivePositionLabel(position.competitive_position)} 상태다. ${sector} 안에서 수익성, 성장성, 재무 방어력, 가격 결정력 추정 지표를 함께 비교한다.`;
 }
 
 function FinancialStatementModelPanel({
@@ -1055,7 +1082,7 @@ function StockProfessionalEvidenceAuditPanel({
       </div>
 
       <div className="flow-steps" style={{ marginTop: "18px" }}>
-        {layers.map((layer) => (
+        {applicableLayers.map((layer) => (
           <article className="flow-step" key={layer.key}>
             <span>{layer.label}</span>
             <strong className={`risk-tag ${stockProfessionalLayerTone(layer.status)}`}>
@@ -1461,7 +1488,7 @@ export default async function StockDetailPage({ params }: StockDetailPageProps) 
       status: hasTargetRange ? `${valuationTargetRange.method_count}개 목표가 산출` : (valuationItems.length ? `${valuationItems.length}개 민감도` : "산출 대기"),
       tone: hasTargetRange || valuationItems.length ? "ready" : "watch",
       body: hasTargetRange
-        ? "현재가 대비 목표가 하단·기준·상단과 안전마진을 비교한다. 이 값은 추천 점수를 바로 바꾸지 않고 가격 근거로만 쓴다."
+        ? "현재가 대비 목표가 하단·기준·상단과 안전마진을 비교한다. 이 값은 추천 점수를 바로 바꾸지 않고 가격 근거로만 사용한다."
         : valuationItems.length
           ? "현금흐름, 상대 배수, 시나리오 범위가 추천 점수를 바로 바꾸지는 않지만, 비싸게 사는지 여부를 확인하는 핵심 입력이다."
         : "아직 목표가 범위, 안전마진, 시나리오 민감도가 충분히 저장되지 않았다.",
@@ -1487,7 +1514,7 @@ export default async function StockDetailPage({ params }: StockDetailPageProps) 
       tone: data.recent_events.length + data.macro_flow_impacts.length + marketCorrelationCount > 0 ? "ready" : "neutral",
       body:
         data.recent_events.length + data.macro_flow_impacts.length + marketCorrelationCount > 0
-          ? "직접 종목 뉴스, 거시·테마 흐름 전파, 시장 지표와의 동조성을 분리해서 본다. 동조성은 원인 단정이 아니라 리스크 점검 입력이다."
+          ? "직접 종목 뉴스, 거시·테마 흐름 전파, 시장 지표와의 동조성을 분리했다. 동조성은 원인 단정이 아니라 리스크 점검 입력이다."
           : "아직 이 종목에 연결된 직접 뉴스, 상위 흐름 전파, 시장 동조성 근거가 없다.",
       facts: [
         { label: "직접 뉴스", value: `${data.recent_events.length}개` },
@@ -1504,7 +1531,7 @@ export default async function StockDetailPage({ params }: StockDetailPageProps) 
       status: linkedThesisId ? "투자 논리 연결" : "투자 논리 없음",
       tone: linkedThesisId ? "ready" : "blocked",
       body: linkedThesisId
-        ? "왜 사는지, 무엇이 맞아야 하는지, 무엇이 틀리면 나가는지를 투자 논리 화면에서 본다."
+        ? "왜 사는지, 무엇이 맞아야 하는지, 무엇이 틀리면 나가는지가 투자 논리 화면에 연결됐다."
         : "중장기 투자 시스템에서는 투자 논리 없이 추천이나 보유 판단을 신뢰하면 안 된다.",
       href: linkedThesisId ? thesisHref(linkedThesisId) : undefined,
       hrefLabel: linkedThesisId ? "투자 논리 열기" : undefined,
@@ -1524,6 +1551,15 @@ export default async function StockDetailPage({ params }: StockDetailPageProps) 
   ];
   const stockOutcome = stockDecisionOutcome(data, sourceGuardrail, hasPriceData);
   const stockNewsCount = data.recent_events.length + data.macro_flow_impacts.length;
+  const latestChangePct = latestDailyChangePct(data);
+  const recommendationPositionContext: RecommendationPositionReference | null = await loadRecommendationPositionContext(
+    data.recommendation?.recommendation_id,
+  );
+  const portfolioQuantity = recommendationPositionContext?.quantity ?? data.position?.quantity ?? null;
+  const portfolioAverageCost = recommendationPositionContext?.average_cost ?? null;
+  const portfolioUnrealizedPnl = recommendationPositionContext?.unrealized_pnl ?? null;
+  const portfolioUnrealizedPnlPct = recommendationPositionContext?.unrealized_pnl_pct ?? null;
+  const portfolioMarketValue = recommendationPositionContext?.market_value ?? data.position?.market_value ?? null;
 
   return (
     <div className="pageStack decision-page">
@@ -1533,13 +1569,11 @@ export default async function StockDetailPage({ params }: StockDetailPageProps) 
           <h1 className="decision-brief-title" id="stock-detail-title">
             {stockOutcome.title}
           </h1>
-          <p className="decision-brief-copy">
-            {stockOutcome.body} 가격·추천·보유·뉴스·상위 흐름·투자 논리·가상 매매 상태를 한 종목 기준으로 대조한다.
-          </p>
+          <p className="decision-brief-copy">{stockOutcome.body}</p>
           <div className="decision-brief-meta" aria-label={`${data.symbol} 핵심 상태`}>
             <span>최신 종가 {hasPriceData ? formatCurrency(data.latest_price.close, data.currency_code) : "가격 미수집"}</span>
             <span>
-              전일 대비 <SignedReturnBadge value={data.latest_price.change_pct} />
+              전일 대비 <SignedReturnBadge value={latestChangePct} />
             </span>
             <span>추천 {data.recommendation ? koCode(data.recommendation.action) : "없음"}</span>
             <span>보유 {data.position ? formatPercent(data.position.weight) : "미보유"}</span>
@@ -1557,7 +1591,11 @@ export default async function StockDetailPage({ params }: StockDetailPageProps) 
           <Link className={data.position ? "decision-card is-good" : "decision-card is-watch"} href="/portfolio/coverage">
             <span>보유</span>
             <strong>{data.position ? formatPercent(data.position.weight) : "미보유"}</strong>
-            <small>{data.position ? `${koLabel(data.position.portfolio_name)} · ${formatCurrency(data.position.market_value, data.currency_code)}` : "포트폴리오 스냅샷에 보유 포지션이 없다."}</small>
+            <small>
+              {data.position
+                ? `수량 ${formatNumber(portfolioQuantity)} · 평단 ${portfolioAverageCost !== null ? formatCurrency(portfolioAverageCost, data.currency_code) : "추천 원장 대기"}`
+                : "포트폴리오 스냅샷에 보유 포지션이 없다."}
+            </small>
             <b>보유 상태</b>
           </Link>
           <a className={stockNewsCount > 0 ? "decision-card is-good" : "decision-card is-watch"} href={stockNewsCount > 0 ? "#stock-flow-impacts" : "/intelligence"}>
@@ -1569,31 +1607,31 @@ export default async function StockDetailPage({ params }: StockDetailPageProps) 
           <a className={marketCorrelationCount > 0 ? "decision-card is-good" : "decision-card is-watch"} href="#stock-market-correlations">
             <span>시장 동조성</span>
             <strong>{marketCorrelationCount.toLocaleString("ko-KR")}개 비교</strong>
-            <small>지수·섹터·금리·달러·원자재와 최근 같이 움직였는지 본다. 원인 단정은 하지 않는다.</small>
+            <small>지수·섹터·금리·달러·원자재와의 최근 동조성을 표시한다. 원인 단정은 하지 않는다.</small>
             <b>리스크 보기</b>
           </a>
           <Link className={linkedThesisId ? "decision-card is-good" : "decision-card is-block"} href={linkedThesisId ? thesisHref(linkedThesisId) : "/portfolio/coverage"}>
             <span>투자 논리</span>
             <strong>{linkedThesisId ? "연결됨" : "없음"}</strong>
-	            <small>{linkedThesisId ? "매수 이유, 유지 조건, 무효화 조건을 본다." : "중장기 판단 전 투자 논리 연결이 필요하다."}</small>
+	            <small>{linkedThesisId ? "매수 이유, 유지 조건, 무효화 조건이 연결됐다." : "중장기 판단 전 투자 논리 연결이 필요하다."}</small>
             <b>{linkedThesisId ? "논리 보기" : "보유 점검"}</b>
           </Link>
         </div>
       </section>
+
+      <ProfessionalResearchFlow
+        eyebrow="리서치 구조"
+        title={`${data.symbol} 투자 판단 지도`}
+        summary="사업, 재무, 비교군, 밸류에이션, 뉴스·사이클, 투자 논리, 가상 매매 검증을 한 종목 안에서 정렬했다."
+        footer="읽기 전용 리서치 화면이다. 추천 점수와 주문은 이 화면에서 바뀌지 않는다."
+        steps={professionalResearchSteps}
+      />
 
       <StockProfessionalEvidenceAuditPanel
         data={data}
         neighborhood={neighborhood}
         linkedThesisId={linkedThesisId}
         hasPriceData={hasPriceData}
-      />
-
-      <ProfessionalResearchFlow
-        eyebrow="전문 리서치 읽는 순서"
-        title={`${data.symbol} 분석은 종목 하나로 끝나지 않는다`}
-        summary="중장기 투자 판단은 뉴스 하나로 끝나지 않는다. 사업, 재무, 비교군, 밸류에이션, 사이클, 투자 논리, 가상 매매 검증을 같은 순서로 본다."
-        footer="저장된 데이터만 읽는다. 새 분석이나 주문 생성은 없다."
-        steps={professionalResearchSteps}
       />
 
       <ProfessionalSourceGuardrailPanel guardrail={sourceGuardrail} symbol={data.symbol} />
@@ -1647,7 +1685,7 @@ export default async function StockDetailPage({ params }: StockDetailPageProps) 
             <strong>{formatNumber(data.latest_price.volume)}</strong>
             <span>전일 대비</span>
             <strong>
-              <SignedReturnBadge value={data.latest_price.change_pct} />
+              <SignedReturnBadge value={latestChangePct} />
             </strong>
           </div>
           <div className="stock-meta-grid" style={{ marginTop: "1rem" }}>
@@ -1669,15 +1707,15 @@ export default async function StockDetailPage({ params }: StockDetailPageProps) 
       <section className="bento-card span-4 reveal delay-2" id="stock-market-correlations" aria-label="시장 동조성">
         <div className="section-heading">
           <div>
-            <span className="metric-sub">2. 시장 동조성</span>
-            <h2>{data.symbol}이 어떤 시장 변수와 같이 움직였는지 본다</h2>
+          <span className="metric-sub">2. 시장 동조성</span>
+            <h2>{data.symbol}과 같이 움직인 시장 변수</h2>
           </div>
           <Link className="btn btn-secondary" href="/market-map">
             시장 지도 보기
           </Link>
         </div>
         <p style={{ color: "var(--text-secondary)", marginTop: 0 }}>
-          상관관계는 최근 수익률이 같이 움직인 정도다. 원인을 단정하지 않고, 포트폴리오 집중·헤지 필요성·추천 리스크를 확인하는 보조 입력으로만 쓴다.
+          상관관계는 최근 수익률이 같이 움직인 정도다. 원인을 단정하지 않고, 포트폴리오 집중·헤지 필요성·추천 리스크의 보조 입력으로만 사용한다.
         </p>
         {data.market_correlations.length > 0 ? (
           <div className="detail-path-grid">
@@ -1713,7 +1751,7 @@ export default async function StockDetailPage({ params }: StockDetailPageProps) 
           <div className="section-heading">
             <div>
               <span className="metric-sub">3. 추천 판단</span>
-              <h2>추천은 상세 근거가 있을 때만 읽는다</h2>
+              <h2>추천 근거와 거래 경계</h2>
             </div>
             {data.recommendation ? (
               <Link className="btn btn-primary" href={recommendationHref(data.recommendation.recommendation_id)}>
@@ -1747,7 +1785,7 @@ export default async function StockDetailPage({ params }: StockDetailPageProps) 
           <div className="section-heading">
             <div>
               <span className="metric-sub">4. 보유 상태</span>
-              <h2>보유 중이면 추천·투자 논리와 충돌하는지 본다</h2>
+              <h2>보유 포지션과 평가손익</h2>
             </div>
             <Link className="btn btn-secondary" href="/portfolio/coverage">
               포트폴리오 보기
@@ -1758,11 +1796,19 @@ export default async function StockDetailPage({ params }: StockDetailPageProps) 
               <span>포트폴리오</span>
               <strong>{koLabel(data.position.portfolio_name)}</strong>
               <span>수량</span>
-              <strong>{formatNumber(data.position.quantity)}</strong>
+              <strong>{formatNumber(portfolioQuantity)}</strong>
+              <span>평단가</span>
+              <strong>{portfolioAverageCost !== null ? formatCurrency(portfolioAverageCost, data.currency_code) : "추천 원장 대기"}</strong>
               <span>평가액</span>
-              <strong>{formatCurrency(data.position.market_value, data.currency_code)}</strong>
+              <strong>{formatCurrency(portfolioMarketValue, data.currency_code)}</strong>
               <span>평가 가격</span>
               <strong>{formatCurrency(data.position.market_price, data.currency_code)}</strong>
+              <span>평가손익</span>
+              <strong>
+                {portfolioUnrealizedPnl !== null
+                  ? `${formatCurrency(portfolioUnrealizedPnl, data.currency_code)} · ${formatPercent(portfolioUnrealizedPnlPct)}`
+                  : "추천 원장 대기"}
+              </strong>
             </div>
           ) : (
             <div className="empty-state">현재 포트폴리오 스냅샷에는 보유 포지션이 없다.</div>
