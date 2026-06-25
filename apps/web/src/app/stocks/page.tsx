@@ -42,7 +42,7 @@ function priorityScore(stock: StockRow) {
 
 function stockStatus(stock: StockRow, latestPriceDate: string | null) {
   if (!stock.latest_price.trade_date || stock.latest_price.trade_date !== latestPriceDate) {
-    return { kind: "stale" as const, label: "가격 확인 필요" };
+    return { kind: "stale" as const, label: "가격 기준일 다름" };
   }
   if (stock.recommendation && stock.position) {
     return { kind: "watch" as const, label: "추천·보유 교차검토" };
@@ -61,7 +61,7 @@ function priorityReason(stock: StockRow) {
     return "추천 방향과 현재 보유 비중이 함께 연결되어 있다.";
   }
   if (stock.recommendation) {
-    return "추천 신호가 있어 재무·밸류에이션·뉴스 근거를 확인해야 한다.";
+    return "추천 신호가 있어 재무·밸류에이션·뉴스 근거를 함께 본다.";
   }
   if (stock.position) {
     return "현재 보유 중이므로 투자 논리와 위험 변화를 점검해야 한다.";
@@ -112,9 +112,9 @@ export default async function StocksPage() {
           { label: "추천 연결", value: `${recommendedStocks.length}개`, context: "추천 상세와 연결된 종목" },
           { label: "보유 종목", value: `${heldStocks.length}개`, context: "포트폴리오에 포함된 종목" },
           {
-            label: "가격 확인",
+            label: "가격 기준일",
             value: `${staleStocks.length}개`,
-            context: staleStocks.length > 0 ? "최신 기준일과 다른 종목" : "모든 가격일 일치",
+            context: staleStocks.length > 0 ? "기준일과 다른 종목" : "모든 종목 동일 기준일",
           },
         ]}
       />
