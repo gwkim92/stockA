@@ -40,6 +40,14 @@ function formatCurrency(value: number | null, currencyCode: string) {
   }).format(value);
 }
 
+function investorText(value: string) {
+  return value
+    .replaceAll("페이퍼", "가상 매매")
+    .replaceAll("valuation snapshot", "목표가 자료")
+    .replaceAll("professional analysis", "전문 분석")
+    .replaceAll("레이어", "근거 항목");
+}
+
 function positionLabel(status: string) {
   if (status === "held") {
     return "보유 중";
@@ -63,7 +71,7 @@ function valuationSummary(data: RecommendationDetailData) {
   if (valuation.status === "available") {
     return `기준 상승여지 ${formatPercent(valuation.upside_base)} · 안전마진 ${formatPercent(valuation.margin_of_safety)}`;
   }
-  return valuation.summary || "가치 범위 보강 필요";
+  return investorText(valuation.summary || "가치 범위 보강 필요");
 }
 
 function valuationValue(data: RecommendationDetailData) {
@@ -137,8 +145,8 @@ export function RecommendationExecutiveBrief({ data }: RecommendationExecutiveBr
   const cards = [
     {
       label: "현재 판정",
-      value: evidence.title || "추천 검토",
-      detail: evidence.summary || decision.summary,
+      value: investorText(evidence.title || "추천 검토"),
+      detail: investorText(evidence.summary || decision.summary),
       tone: evidenceTone(data),
     },
     {
