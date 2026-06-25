@@ -1,4 +1,10 @@
 import type { Route } from "next";
+import {
+  DataHealthOverview,
+  type DataHealthCollectionCard,
+  type DataHealthCommandCard,
+  type DataHealthTriageBucket,
+} from "@/components/operations/DataHealthOverview";
 import { OperationsConsoleHeader } from "@/components/operations/OperationsConsoleHeader";
 import { getDataHealth } from "@/lib/frontend-api";
 import { koCode, koReason } from "@/lib/korean-labels";
@@ -69,7 +75,7 @@ function isRecord(value: unknown): value is AuditSampleRecord {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function statusRiskClass(value: string) {
+function statusRiskClass(value: string): "risk-low" | "risk-medium" | "risk-high" {
   if (
     value === "healthy"
     || value === "succeeded"
@@ -92,7 +98,7 @@ function statusRiskClass(value: string) {
   return "risk-high";
 }
 
-function gateSeverityTone(severity: string) {
+function gateSeverityTone(severity: string): "risk-low" | "risk-medium" | "risk-high" {
   if (severity === "low") {
     return "risk-low";
   }
@@ -2470,7 +2476,7 @@ export default async function DataHealthPage() {
     outcomeWaitMonitor.weight_review_blocked
     && !outcomeWaitMonitor.automatic_weight_change_allowed
     && !outcomeWaitMonitor.broker_submit_allowed;
-  const commandCenterCards = [
+  const commandCenterCards: DataHealthCommandCard[] = [
     {
       label: "1. 지금 먼저",
       title:
@@ -2976,6 +2982,42 @@ export default async function DataHealthPage() {
       check: `${koCode(tossMarketData.sync.status)} · ${tossMarketData.sync.requested_symbol_count.toLocaleString("ko-KR")}개 요청`,
     },
   ];
+  const dataHealthHeadline = failedPipelines > 0
+    ? `즉시 조치가 필요한 작업 ${failedPipelines.toLocaleString("ko-KR")}개`
+    : data.open_gates.length > 0
+      ? `자동화와 원천 제한 ${data.open_gates.length.toLocaleString("ko-KR")}개 관리 중`
+      : "수집·분석 상태 정상";
+  const dataHealthMetaItems = [
+    `자동 실행 ${automationStateLabel(schedulerActivation)}`,
+    `보강 필요 항목 ${data.open_gates.length.toLocaleString("ko-KR")}개`,
+    `호출 예산 ${providerBudget.remaining_request_count}/${providerBudget.daily_budget}`,
+    `실거래 상태 ${koCode(outcomeWaitMonitor.order_boundary)}`,
+  ];
+  const triageOverviewBuckets: DataHealthTriageBucket[] = visibleGateTriageBuckets.map((bucket) => ({
+    description: bucket.description,
+    gates: bucket.gates.map((gate) => ({
+      id: gate.gate_id,
+      label: openGateCopy(gate.label),
+      nextAction: openGateCopy(gate.next_action),
+      statusLabel: openGateCopy(gate.status_label),
+      statusTone: gateSeverityTone(gate.severity),
+      summary: operationCopy(gate.summary),
+    })),
+    href: bucket.href,
+    key: bucket.key,
+    label: bucket.label,
+    title: bucket.title,
+    tone: bucket.tone,
+  }));
+  const overviewCollectionCards: DataHealthCollectionCard[] = collectionStatusCards.map((card) => ({
+    check: card.check,
+    finishedAt: finishedAtLabel(card.run),
+    index: card.index,
+    purpose: card.purpose,
+    statusLabel: runStateLabel(card.run),
+    statusTone: statusRiskClass(card.run?.health_status ?? "missing"),
+    title: card.title,
+  }));
   return (
     <div className="terminal-page decision-page">
       <OperationsConsoleHeader
@@ -2984,111 +3026,15 @@ export default async function DataHealthPage() {
         description="투자 판단에 영향을 주는 데이터 지연, 공급자 제한, AI 중단과 다음 자동 재시도를 관리합니다."
         currentPath={"/data-health" as Route}
       />
-      <section className="decision-brief workspace-brief data-health-brief reveal" aria-labelledby="data-health-title">
-        <div className="decision-brief-main">
-          <span className="decision-brief-kicker">데이터·자동화 · {data.as_of_date}</span>
-          <h1 className="decision-brief-title" id="data-health-title">
-            {failedPipelines > 0
-              ? `즉시 조치가 필요한 작업 ${failedPipelines.toLocaleString("ko-KR")}개`
-              : data.open_gates.length > 0
-                ? `자동화와 원천 제한 ${data.open_gates.length.toLocaleString("ko-KR")}개 관리 중`
-                : "수집·분석 상태 정상"}
-          </h1>
-          <p className="decision-brief-copy">
-            최신성, 자동 실행, 무료 API 예산과 AI 품질을 기준으로 투자 화면의 신뢰도를 판단합니다.
-          </p>
-          <div className="decision-brief-meta" aria-label="데이터 상태 핵심 수치">
-            <span>자동 실행 {automationStateLabel(schedulerActivation)}</span>
-            <span>보강 필요 항목 {data.open_gates.length.toLocaleString("ko-KR")}개</span>
-            <span>호출 예산 {providerBudget.remaining_request_count}/{providerBudget.daily_budget}</span>
-            <span>실거래 상태 {koCode(outcomeWaitMonitor.order_boundary)}</span>
-          </div>
-        </div>
-        <div className="decision-brief-grid workspace-command-grid data-health-command-grid" aria-label="데이터 상태 관제판">
-          {commandCenterCards.map((card, index) => (
-            <a
-              className={`decision-card data-health-command-card ${
-                index === 0 ? "is-priority" : ""
-              } ${
-                card.tone === "ready" || card.tone === "risk-low"
-                  ? "is-good"
-                  : card.tone === "watch" || card.tone === "risk-medium"
-                    ? "is-watch"
-                    : "is-block"
-              }`}
-              href={card.href}
-              key={card.label}
-            >
-              <span>{card.label}</span>
-              <strong>{card.title}</strong>
-              <small>{card.metric} · {card.body}</small>
-              <b>{card.cta}</b>
-            </a>
-          ))}
-        </div>
-      </section>
-
-      <section className="feature-map-panel reveal delay-1" aria-labelledby="open-gate-triage-title">
-        <div className="section-heading stacked-heading">
-          <span>열린 확인 항목</span>
-          <h2 id="open-gate-triage-title">장애, 대기, 원천 한계를 분리한다</h2>
-          <p>{gateTriageStatus}</p>
-        </div>
-        {visibleGateTriageBuckets.length > 0 ? (
-          <div className="data-health-triage-grid">
-            {visibleGateTriageBuckets.map((bucket) => (
-              <article className="data-health-triage-card" key={bucket.key}>
-                <div className="data-health-triage-head">
-                  <span>{bucket.label}</span>
-                  <strong className={`risk-tag ${bucket.tone}`}>{bucket.gates.length}개</strong>
-                </div>
-                <h3>{bucket.title}</h3>
-                <p>{bucket.description}</p>
-                <div className="data-health-triage-list">
-                  {bucket.gates.map((gate) => (
-                    <a href={bucket.href} key={gate.gate_id}>
-                      <span className={`risk-tag ${gateSeverityTone(gate.severity)}`}>{openGateCopy(gate.status_label)}</span>
-                      <strong>{openGateCopy(gate.label)}</strong>
-                      <small>{operationCopy(gate.summary)}</small>
-                      <small>다음 확인: {openGateCopy(gate.next_action)}</small>
-                    </a>
-                  ))}
-                </div>
-              </article>
-            ))}
-          </div>
-        ) : (
-          <div className="empty-state">
-            <strong>열린 확인 항목 없음</strong>
-            <p>현재 상단 기준에서 즉시 조치할 장애, 관리되지 않은 대기, 원천 한계가 없다.</p>
-          </div>
-        )}
-      </section>
-
-      <section className="feature-map-panel reveal delay-1" aria-labelledby="collection-status-title">
-        <div className="section-heading stacked-heading">
-          <span>수집/분석별 상태</span>
-          <h2 id="collection-status-title">무엇이 언제 실행됐고, 어디에 쓰이는지 본다</h2>
-	        </div>
-	        <p className="board-intro">
-	          주식 캔들, 뉴스 원문, 1차 분류, AI 분석, 추천 갱신, 보유 상태 판단이 각각 따로 돈다.
-	          문제가 있는 데이터가 있으면 해당 화면의 판단을 낮게 신뢰해야 한다.
-	        </p>
-	        <div className="feature-map-grid collection-map-grid">
-	          {collectionStatusCards.map((card) => (
-	            <article className="feature-map-card collection-map-card" key={card.index}>
-	              <span>{card.index}</span>
-	              <strong>{card.title}</strong>
-	              <em className={`risk-tag ${statusRiskClass(card.run?.health_status ?? "missing")}`}>
-	                {runStateLabel(card.run)}
-	              </em>
-	              <small>{card.purpose}</small>
-	              <small>{card.check}</small>
-	              <small>최근 완료: {finishedAtLabel(card.run)}</small>
-	            </article>
-	          ))}
-	        </div>
-	      </section>
+      <DataHealthOverview
+        asOfDate={data.as_of_date}
+        collectionCards={overviewCollectionCards}
+        commandCards={commandCenterCards}
+        headline={dataHealthHeadline}
+        metaItems={dataHealthMetaItems}
+        triageBuckets={triageOverviewBuckets}
+        triageStatus={gateTriageStatus}
+      />
 
       <section className="feature-map-panel reveal delay-1" id="toss-market-data" aria-labelledby="toss-market-data-title">
         <div className="section-heading stacked-heading">
