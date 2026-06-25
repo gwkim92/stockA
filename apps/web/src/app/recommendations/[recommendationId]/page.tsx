@@ -733,7 +733,7 @@ function FundInstrumentAnalysisPanel({ analysis }: { analysis: FundInstrumentAna
       <div style={{ marginBottom: "18px" }}>
         <span className="metric-sub">ETF·펀드 추천 근거</span>
         <h2 style={{ fontSize: "1.5rem", marginTop: "6px" }}>
-          {analysis.symbol}은 기업 밸류에이션 대신 보유종목과 포트폴리오 역할을 본다
+          ETF·펀드 상품 분석: {analysis.symbol}
         </h2>
         <p style={{ color: "var(--text-secondary)", marginTop: "8px" }}>
           {analysis.summary}
