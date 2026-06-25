@@ -5,6 +5,8 @@ import { NewsTitleBlock } from "@/components/news-title-block";
 import { ProfessionalResearchFlow, type ResearchFlowStep } from "@/components/professional-research-flow";
 import { RecommendationExecutiveBrief } from "@/components/recommendation-executive-brief";
 import { RecommendationPositionReality } from "@/components/recommendation-position-reality";
+import { RecommendationProfessionalAuditPanel } from "@/components/recommendation-professional-audit-panel";
+import { professionalAuditRiskClass } from "@/components/recommendation-professional-audit-model";
 import { RecommendationScoreAuditPanel } from "@/components/recommendation-score-audit-panel";
 import { ValuationTargetRangeCard } from "@/components/valuation-target-range-card";
 import { getRecommendationDetail } from "@/lib/frontend-api";
@@ -891,45 +893,6 @@ function researchFlowTone(tone: string): ResearchFlowStep["tone"] {
   return "neutral";
 }
 
-function professionalAuditTone(audit: ProfessionalEvidenceAudit) {
-  if (audit.status === "source_blocked" || audit.blocked_layer_count > 0) {
-    return "risk-high";
-  }
-  if (audit.status === "ready_for_review") {
-    return "risk-low";
-  }
-  return "risk-medium";
-}
-
-function professionalLayerTone(status: string) {
-  if (status === "complete") {
-    return "risk-low";
-  }
-  if (status === "blocked") {
-    return "risk-high";
-  }
-  return "risk-medium";
-}
-
-function professionalLayerStatusLabel(status: string) {
-  const labels: Record<string, string> = {
-    complete: "확인됨",
-    partial: "일부 확인",
-    missing: "부족",
-    blocked: "차단",
-    pending: "대기",
-    not_applicable: "비적용",
-  };
-  return labels[status] ?? koCode(status);
-}
-
-function professionalProductLabel(productType: string) {
-  if (productType === "fund_or_etf") {
-    return "ETF·펀드형";
-  }
-  return "일반 기업";
-}
-
 function gateStatusLabel(status: string) {
   if (status === "pass") {
     return "통과";
@@ -1762,79 +1725,7 @@ export default async function RecommendationPage({ params }: RecommendationPageP
         />
       </section>
 
-      <section className="bento-card reveal delay-1" aria-label="추천 전문 분석 감사">
-        <div className="section-heading">
-          <div>
-            <span className="metric-sub">추천 전문 분석 감사</span>
-            <h2 style={{ fontSize: "1.5rem", marginTop: "6px" }}>{professionalAudit.title}</h2>
-          </div>
-          <span className={`risk-tag ${professionalAuditTone(professionalAudit)}`}>
-            {userFacingRecommendationText(professionalAudit.status)}
-          </span>
-        </div>
-        <p style={{ color: "var(--text-secondary)", marginTop: 0, maxWidth: "920px" }}>
-          {userFacingRecommendationText(professionalAudit.summary)} {userFacingRecommendationText(professionalAudit.next_action)}
-        </p>
-
-        <div className="status-rail compact-rail" aria-label="추천 전문 분석 감사 요약">
-          <div className="rail-cell">
-            <span>분석 대상</span>
-            <strong>{professionalProductLabel(professionalAudit.product_type)}</strong>
-            <small>{professionalAudit.symbol} · {professionalAudit.as_of_date}</small>
-          </div>
-          <div className="rail-cell">
-            <span>근거 커버리지</span>
-            <strong>{formatPercent(professionalAudit.coverage_ratio)}</strong>
-            <small>
-              완료 {professionalAudit.available_layer_count}/{professionalAudit.expected_layer_count}
-              {professionalAudit.partial_layer_count > 0 ? ` · 일부 ${professionalAudit.partial_layer_count}` : ""}
-            </small>
-          </div>
-          <div className="rail-cell">
-            <span>차단·대기</span>
-            <strong>{professionalAudit.blocked_layer_count + professionalAudit.pending_layer_count}개</strong>
-            <small>누락 {professionalAudit.missing_layer_count}개</small>
-          </div>
-          <div className="rail-cell rail-critical">
-            <span>실거래 상태</span>
-            <strong>{orderBoundaryLabel(professionalAudit.order_boundary)}</strong>
-            <small>추천 산식 변경 {professionalAudit.automatic_weight_change_allowed ? "허용" : "금지"} · 실거래 주문 {professionalAudit.broker_submit_allowed ? "허용" : "금지"}</small>
-          </div>
-        </div>
-
-        {professionalAudit.source_blocker.blocked ? (
-          <div className="empty-state" style={{ marginTop: "18px" }}>
-            <strong>{professionalAudit.source_blocker.blocker_label || "원천 차단"}</strong>
-            <p style={{ margin: "8px 0 0", color: "var(--text-secondary)" }}>
-              {userFacingRecommendationText(professionalAudit.source_blocker.summary)} {userFacingRecommendationText(professionalAudit.source_blocker.next_action)}
-            </p>
-          </div>
-        ) : null}
-
-        {professionalAudit.missing_layer_labels.length > 0 ? (
-          <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginTop: "18px" }}>
-            {professionalAudit.missing_layer_labels.map((label) => (
-              <span className="risk-tag risk-medium" key={label}>{decisionCopy(label)}</span>
-            ))}
-          </div>
-        ) : null}
-
-        <div className="flow-steps" style={{ marginTop: "18px" }}>
-          {professionalAudit.layer_checks.map((layer) => (
-            <article className="flow-step" key={layer.key}>
-              <span>{decisionCopy(layer.label)}</span>
-              <strong className={`risk-tag ${professionalLayerTone(layer.status)}`}>
-                {professionalLayerStatusLabel(layer.status)}
-              </strong>
-              <p>{decisionCopy(layer.detail)}</p>
-              <small style={{ color: "var(--text-secondary)", fontWeight: 800 }}>
-                원천: {userFacingRecommendationText(layer.source)}
-              </small>
-              {layer.href ? <Link href={layer.href as Route}>관련 화면 열기</Link> : null}
-            </article>
-          ))}
-        </div>
-      </section>
+      <RecommendationProfessionalAuditPanel audit={professionalAudit} />
 
       <section id="recommendation-financial-model">
         <FinancialStatementModelPanel model={financialStatementModel} symbol={data.symbol} />
@@ -2178,7 +2069,7 @@ export default async function RecommendationPage({ params }: RecommendationPageP
       ) : null}
 
       <section
-        className={`recommendation-evidence-panel reveal delay-1 ${professionalAuditTone(professionalAudit)}`}
+        className={`recommendation-evidence-panel reveal delay-1 ${professionalAuditRiskClass(professionalAudit)}`}
         id="recommendation-evidence-review"
         aria-label="추천 근거 연결 점검"
       >

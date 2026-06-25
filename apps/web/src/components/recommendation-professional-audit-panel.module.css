@@ -1,0 +1,260 @@
+.panel {
+  display: grid;
+  gap: var(--space-6);
+  scroll-margin-top: 168px;
+  padding: var(--space-6);
+  border-top: 1px solid var(--line-strong);
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--surface-primary) 92%, transparent),
+      color-mix(in srgb, var(--surface-secondary) 54%, transparent)
+    ),
+    var(--surface-primary);
+}
+
+.ready {
+  border-color: color-mix(in srgb, var(--signal-positive) 36%, var(--line-strong));
+}
+
+.watch {
+  border-color: color-mix(in srgb, var(--signal-caution) 36%, var(--line-strong));
+}
+
+.blocked {
+  border-color: color-mix(in srgb, var(--signal-risk) 38%, var(--line-strong));
+}
+
+.header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-5);
+  align-items: start;
+}
+
+.header span,
+.metric span,
+.sourceBlocker span,
+.missingList span,
+.details small,
+.policyDetails small,
+.layerCard span,
+.policyNote span,
+.policyReady span,
+.policyBlocked span {
+  color: var(--ink-muted);
+  font-size: var(--type-caption);
+  font-weight: 760;
+  letter-spacing: 0.06em;
+}
+
+.header h2 {
+  margin: var(--space-2) 0 var(--space-3);
+  color: var(--ink-primary);
+  font-size: var(--type-h2);
+  line-height: 1.12;
+  text-wrap: balance;
+}
+
+.header p,
+.metric small,
+.sourceBlocker p,
+.layerCard p,
+.layerCard small,
+.policyNote p {
+  margin: 0;
+  color: var(--ink-secondary);
+  font-size: var(--type-small);
+  line-height: 1.58;
+}
+
+.status {
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  padding: var(--space-2) var(--space-3);
+  color: var(--ink-primary);
+  font-size: var(--type-small);
+  white-space: nowrap;
+}
+
+.metricGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.metric {
+  display: grid;
+  gap: var(--space-2);
+  min-height: 132px;
+  padding: var(--space-4);
+  border: 1px solid var(--line-subtle);
+  border-radius: 10px;
+  background: var(--surface-raised);
+}
+
+.metric strong {
+  color: var(--ink-primary);
+  font-size: clamp(1.18rem, 1.8vw, 1.7rem);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.12;
+}
+
+.criticalMetric {
+  border-color: color-mix(in srgb, var(--signal-risk) 34%, var(--line-subtle));
+}
+
+.sourceBlocker {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-5);
+  border: 1px solid color-mix(in srgb, var(--signal-risk) 34%, var(--line-subtle));
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--signal-risk) 7%, var(--surface-primary));
+}
+
+.sourceBlocker strong {
+  color: var(--ink-primary);
+  font-size: var(--type-h3);
+}
+
+.missingList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.missingList span {
+  border: 1px solid color-mix(in srgb, var(--signal-caution) 36%, var(--line-subtle));
+  border-radius: 999px;
+  padding: var(--space-1) var(--space-3);
+  background: color-mix(in srgb, var(--signal-caution) 8%, var(--surface-primary));
+}
+
+.details,
+.policyDetails {
+  border: 1px solid var(--line-subtle);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--surface-primary) 60%, transparent);
+  overflow: clip;
+}
+
+.details summary,
+.policyDetails summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-4);
+  align-items: center;
+  padding: var(--space-5);
+  cursor: pointer;
+  list-style: none;
+}
+
+.details summary::-webkit-details-marker,
+.policyDetails summary::-webkit-details-marker {
+  display: none;
+}
+
+.details summary > span,
+.policyDetails summary > span {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.details summary strong,
+.policyDetails summary strong {
+  color: var(--ink-primary);
+  font-size: var(--type-h3);
+}
+
+.details summary b,
+.policyDetails summary b {
+  color: var(--accent-analysis);
+  font-size: var(--type-small);
+}
+
+.openLabel {
+  display: none;
+}
+
+.details[open] .closedLabel,
+.policyDetails[open] .closedLabel {
+  display: none;
+}
+
+.details[open] .openLabel,
+.policyDetails[open] .openLabel {
+  display: inline;
+}
+
+.layerGrid,
+.policyGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--space-4);
+  padding: 0 var(--space-5) var(--space-5);
+}
+
+.layerCard,
+.policyReady,
+.policyBlocked,
+.policyNote {
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+  padding: var(--space-4);
+  border: 1px solid var(--line-subtle);
+  border-radius: 10px;
+  background: var(--surface-raised);
+}
+
+.layerCard div,
+.policyReady,
+.policyBlocked {
+  display: grid;
+  gap: var(--space-1);
+  align-content: start;
+}
+
+.layerCard strong,
+.policyReady strong,
+.policyBlocked strong {
+  color: var(--ink-primary);
+  font-size: var(--type-h3);
+}
+
+.layerCard a {
+  width: fit-content;
+  color: var(--accent-analysis);
+  font-size: var(--type-small);
+  font-weight: 760;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.policyBlocked {
+  border-color: color-mix(in srgb, var(--signal-risk) 32%, var(--line-subtle));
+}
+
+.policyReady {
+  border-color: color-mix(in srgb, var(--signal-positive) 28%, var(--line-subtle));
+}
+
+@media (max-width: 900px) {
+  .metricGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .panel {
+    padding: var(--space-4);
+  }
+
+  .header,
+  .details summary,
+  .policyDetails summary,
+  .metricGrid {
+    grid-template-columns: 1fr;
+  }
+}
