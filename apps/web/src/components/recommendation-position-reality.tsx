@@ -58,7 +58,7 @@ function averageCostNote(position: RecommendationPositionReference) {
   if (position.average_cost !== null || position.cost_basis_native !== null) {
     return "원장 기준";
   }
-  return "cost_basis 필요";
+  return "취득원가 필요";
 }
 
 function marketPrice(position: RecommendationPositionReference) {
@@ -94,6 +94,16 @@ function positionTone(status: string) {
   return styles.watch;
 }
 
+function portfolioDisplayName(name: string) {
+  if (name === "Long Term Paper") {
+    return "장기 가상 포트폴리오";
+  }
+  if (name === "Toss Real Readonly") {
+    return "토스 실계좌 읽기 전용";
+  }
+  return name;
+}
+
 function Metric({
   label,
   value,
@@ -118,7 +128,7 @@ function BrokerReference({ position }: { position: RecommendationPositionReferen
     <aside className={styles.broker}>
       <div>
         <span>브로커 계좌</span>
-        <strong>{position.portfolio_name}</strong>
+        <strong>{portfolioDisplayName(position.portfolio_name)}</strong>
         <p>{positionStatusLabel(position.status)}</p>
       </div>
       <div className={styles.brokerMetrics}>
@@ -158,7 +168,7 @@ export function RecommendationPositionReality({ data }: RecommendationPositionRe
       </div>
 
       <div className={styles.metrics} aria-label="추천 종목 보유 포지션과 평단가">
-        <Metric label="포트폴리오" value={position.portfolio_name} note={position.snapshot_date ?? "스냅샷 없음"} />
+        <Metric label="포트폴리오" value={portfolioDisplayName(position.portfolio_name)} note={position.snapshot_date ?? "스냅샷 없음"} />
         <Metric label="보유 수량" value={formatQuantity(position.quantity)} note={actionText} />
         <Metric label="평단가" value={formatCurrency(avg.value, avg.currencyCode)} note={averageCostNote(position)} />
         <Metric label="현재가" value={formatCurrency(price.value, price.currencyCode)} note="포지션 스냅샷 기준" />

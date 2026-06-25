@@ -20003,13 +20003,14 @@ def _build_recommendation_position_context_payload(
     )
     status = str(reference.get("status") or "not_held")
     portfolio_name = str(reference.get("portfolio_name") or default_portfolio_name)
+    portfolio_label = "장기 가상 포트폴리오" if portfolio_name == DEFAULT_PORTFOLIO_NAME else portfolio_name
     summary = (
-        f"{symbol}은 {portfolio_name}에 보유 중이다. 평단가와 평가손익은 포지션 원장에서 계산한다."
+        f"{symbol}는 {portfolio_label}에 보유 중이다. 평단가와 평가손익은 포지션 원장에서 계산한다."
         if status == "held"
-        else f"{symbol}은 {portfolio_name}에 현재 보유 포지션이 없다. 이 추천은 신규 편입 또는 관찰 후보로만 검토한다."
+        else f"{symbol}는 {portfolio_label}에 현재 보유 포지션이 없다. 이 추천은 신규 편입 또는 관찰 후보로만 검토한다."
     )
     if status == "held" and reference.get("average_cost") is None:
-        summary = f"{symbol}은 {portfolio_name}에 보유 중이지만 cost_basis 원장이 없어 평단가를 계산할 수 없다."
+        summary = f"{symbol}는 {portfolio_label}에 보유 중이지만 취득원가 원장이 없어 평단가를 계산할 수 없다."
     return {
         **reference,
         "summary": summary,
