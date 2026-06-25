@@ -26,6 +26,16 @@ function formatPercent(value: number | null) {
   }).format(value);
 }
 
+function formatWeightPercent(value: number | null) {
+  if (value === null) {
+    return "미측정";
+  }
+  return new Intl.NumberFormat("ko-KR", {
+    style: "percent",
+    maximumFractionDigits: 1,
+  }).format(value);
+}
+
 function formatCurrency(value: number | null, currencyCode: string) {
   if (value === null) {
     return "미수집";
@@ -174,7 +184,7 @@ export function RecommendationPositionReality({ data }: RecommendationPositionRe
         <Metric label="현재가" value={formatCurrency(price.value, price.currencyCode)} note="포지션 스냅샷 기준" />
         <Metric label="평가금액" value={formatCurrency(position.market_value, position.currency_code)} note={`비중 ${formatPercent(position.weight)}`} />
         <Metric label="평가손익" value={formatCurrency(position.unrealized_pnl, position.currency_code)} note={formatPercent(position.unrealized_pnl_pct)} />
-        <Metric label="추천 비중" value={formatPercent(data.recommended_weight)} note="점수와 분리된 목표 비중" />
+        <Metric label="추천 비중" value={formatWeightPercent(data.recommended_weight)} note="점수와 분리된 목표 비중" />
         <Metric label="주문 경계" value={position.broker_submit_allowed ? "주문 허용" : "실거래 차단"} note="읽기 전용" />
       </div>
 

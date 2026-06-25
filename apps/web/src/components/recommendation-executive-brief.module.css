@@ -1,0 +1,123 @@
+.brief {
+  display: grid;
+  gap: var(--space-6);
+  padding: clamp(var(--space-5), 3vw, var(--space-8));
+  border: 1px solid var(--line-subtle);
+  border-radius: 12px;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--surface-primary) 94%, var(--surface-secondary)), var(--surface-primary)),
+    var(--surface-primary);
+}
+
+.header {
+  max-width: 860px;
+}
+
+.header > span,
+.card > span {
+  color: var(--ink-muted);
+  font-size: var(--type-caption);
+  font-weight: 720;
+  letter-spacing: 0.08em;
+}
+
+.header h2 {
+  margin: var(--space-2) 0 0;
+  color: var(--ink-primary);
+  font-size: var(--type-h2);
+  letter-spacing: -0.04em;
+  text-wrap: balance;
+}
+
+.header p {
+  margin: var(--space-3) 0 0;
+  color: var(--ink-secondary);
+  font-size: var(--type-body);
+  line-height: 1.65;
+  word-break: keep-all;
+}
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(160px, 1fr));
+  gap: var(--space-3);
+}
+
+.card {
+  min-width: 0;
+  padding: var(--space-4);
+  border: 1px solid var(--line-subtle);
+  border-top: 4px solid var(--signal-neutral);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--surface-raised) 86%, var(--surface-secondary));
+}
+
+.card strong {
+  display: block;
+  margin-top: var(--space-2);
+  color: var(--ink-primary);
+  font-size: clamp(1.05rem, 1.8vw, 1.45rem);
+  line-height: 1.15;
+  word-break: keep-all;
+}
+
+.card p {
+  margin: var(--space-3) 0 0;
+  color: var(--ink-secondary);
+  font-size: var(--type-small);
+  line-height: 1.5;
+  word-break: keep-all;
+}
+
+.ready {
+  border-top-color: var(--signal-positive);
+}
+
+.watch {
+  border-top-color: var(--signal-caution);
+}
+
+.blocked {
+  border-top-color: var(--signal-risk);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.actions a {
+  color: var(--accent-analysis);
+  font-size: var(--type-small);
+  font-weight: 720;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.actions a:focus-visible {
+  outline: 2px solid var(--accent-analysis);
+  outline-offset: 4px;
+}
+
+@media (max-width: 1280px) {
+  .cards {
+    grid-template-columns: repeat(3, minmax(170px, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .cards {
+    grid-template-columns: repeat(2, minmax(150px, 1fr));
+  }
+}
+
+@media (max-width: 520px) {
+  .brief {
+    padding: var(--space-5);
+  }
+
+  .cards {
+    grid-template-columns: 1fr;
+  }
+}

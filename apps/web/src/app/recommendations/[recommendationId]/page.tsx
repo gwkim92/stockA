@@ -4,6 +4,7 @@ import { Fragment } from "react";
 import { AuditMetadata, type AuditMetadataItem } from "@/components/audit-metadata";
 import { NewsTitleBlock } from "@/components/news-title-block";
 import { ProfessionalResearchFlow, type ResearchFlowStep } from "@/components/professional-research-flow";
+import { RecommendationExecutiveBrief } from "@/components/recommendation-executive-brief";
 import { RecommendationPositionReality } from "@/components/recommendation-position-reality";
 import { ValuationTargetRangeCard } from "@/components/valuation-target-range-card";
 import { getRecommendationDetail } from "@/lib/frontend-api";
@@ -1754,6 +1755,8 @@ export default async function RecommendationPage({ params }: RecommendationPageP
           </Link>
         </div>
       </section>
+
+      <RecommendationExecutiveBrief data={data} />
 
       <RecommendationPositionReality data={data} />
 
