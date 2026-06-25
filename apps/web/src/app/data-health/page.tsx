@@ -3364,7 +3364,7 @@ export default async function DataHealthPage() {
                   <span>{group.label}</span>
                   <strong>{group.description}</strong>
                   {group.records.map((record, index) => (
-                    <small key={`${group.key}-${auditSampleValue(record, "event_id") || index}`}>
+                    <small key={`${group.key}-${auditSampleValue(record, "event_id") || "record"}-${index}`}>
                       {auditSampleHeadline(record)}
                       {auditSampleMeta(record) ? ` · ${auditSampleMeta(record)}` : ""}
                     </small>
