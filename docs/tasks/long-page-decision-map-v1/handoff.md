@@ -27,6 +27,8 @@
   - EC2 deploy commit `b67e444e`; `stockanalysis-web.service`, `stockanalysis-web-public-13000.service`, and `stockanalysis-frontend-api.service` all active.
   - EC2 internal `http://127.0.0.1:13000/portfolio/coverage` and `/data-health` returned 200 and rendered the new decision map copy.
   - Local tunnel `http://127.0.0.1:13000` Playwright smoke passed at 375px and 1280px with missing text `[]`, horizontal overflow `0`, console issues `[]`.
+  - Follow-up visual QA found `/portfolio/coverage` mobile showed the decision map too late. Commit `fc9ca55b` moved the portfolio decision map above the long hero/card stack and removed negative letter spacing from the component.
+  - Post-fix deployed Playwright smoke passed at 375px, 768px, and 1280px for `/portfolio/coverage` and `/data-health`; missing text `[]`, horizontal overflow `0`, console issues `[]`. The portfolio mobile decision-map title is visible at y=245px.
 
 ## Next Step
 
