@@ -32,9 +32,7 @@
 - Browser QA: 375px, 768px, and 1280px had no horizontal overflow, details were collapsed by default, expanded layer checks were visible, `pending`/internal terms were absent, and raw English news title was replaced with Korean fallback copy.
 - EC2 deploy: `develop` fast-forwarded to `38358bad`, `npm run build` passed, `stockanalysis-frontend-api.service` and `stockanalysis-web.service` were `active`.
 - EC2 route smoke: `http://127.0.0.1:13000/recommendations/recommendation-471#recommendation-professional-audit` panel showed `가상 매매 검증 대기`, collapsed details `[false,false]`, `읽기 전용, 실거래 주문 차단`, Korean news fallback copy, no panel-scoped internal terms, and no horizontal overflow.
-- Post-review fix: narrowed English news fallback to the news layer only so non-news SEC/valuation/peer details are not hidden, replaced raw `clamp(...)` metric type with `--type-h3`, and locked the non-news preservation case in the focused test.
-- Post-review verification: focused panel test, full web test suite, typecheck, build, frontend API contract, roadmap verification, and AWH verify all passed again after the fix.
-- Post-review fix: narrowed English news fallback to the news layer only so non-news SEC/valuation/peer details are not hidden, replaced raw `clamp(...)` metric type with `--type-h3`, and locked the non-news preservation case in the focused test.
+- Post-review fix: narrowed English news fallback to the news layer only so non-news SEC/valuation/peer details are not hidden, mapped the actual `news_ai` layer label, replaced raw `clamp(...)` metric type with `--type-h3`, and locked the non-news preservation case in the focused test.
 - Post-review verification: focused panel test, full web test suite, typecheck, build, frontend API contract, roadmap verification, and AWH verify all passed again after the fix.
 
 ## Next Step

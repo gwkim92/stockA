@@ -10,6 +10,7 @@ const AUDIT_COPY_LABELS: Readonly<Record<string, string>> = {
   "SEC companyfacts": "SEC 표준 재무 원천",
   "financial statement model": "재무제표 모델",
   "news evidence": "뉴스 근거",
+  news_ai: "뉴스·투자 근거",
   "peer comparison": "피어 비교",
   "automatic weight change is blocked until outcome maturity.": "성과 표본이 충분해질 때까지 추천 비중 변경은 금지됩니다.",
   paper_validation_pending: "가상 매매 검증 대기",
@@ -58,7 +59,11 @@ export function auditCopy(value: string | number | boolean | null | undefined): 
 }
 
 export function auditLayerDetailCopy(layerLabel: string, detail: string): string {
-  if ((layerLabel === "news evidence" || layerLabel === "뉴스·투자 근거") && !HANGUL_PATTERN.test(detail)) {
+  const displayLabel = auditCopy(layerLabel);
+  if (
+    (layerLabel === "news evidence" || displayLabel.includes("뉴스") || displayLabel.includes("투자 근거")) &&
+    !HANGUL_PATTERN.test(detail)
+  ) {
     return "뉴스 근거가 연결되어 있습니다. 원천 뉴스와 AI 해석은 관련 화면에서 확인합니다.";
   }
   return auditCopy(detail);
