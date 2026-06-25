@@ -10,8 +10,9 @@
 .terminal-home,
 .decision-page,
 .pageStack {
-  display: grid;
-  gap: 0;
+  display: flex;
+  flex-direction: column;
+  gap: clamp(var(--space-5), 3vw, var(--space-10));
 }
 
 .reveal {
