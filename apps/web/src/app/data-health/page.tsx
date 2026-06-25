@@ -1,5 +1,13 @@
 import type { Route } from "next";
 import {
+  DataHealthAutomationDetailSection,
+} from "@/components/operations/DataHealthAutomationDetailSection";
+import type { DataHealthAutomationDetailSectionProps } from "@/components/operations/DataHealthAutomationDetailTypes";
+import {
+  DataHealthExecutionHistoryPanel,
+  type DataHealthExecutionHistoryRow,
+} from "@/components/operations/DataHealthExecutionHistoryPanel";
+import {
   DataHealthOverview,
   type DataHealthCollectionCard,
   type DataHealthCommandCard,
@@ -3096,6 +3104,128 @@ export default async function DataHealthPage() {
       schedulerReadinessLabel: schedulerInstallLabel(data.scheduler.install_status),
     },
   };
+  const executionHistoryRows: DataHealthExecutionHistoryRow[] = data.pipeline_runs.map((run) => ({
+    cadenceLabel: koCode(run.cadence),
+    domainLabel: koCode(run.domain),
+    finishedAtLabel: run.finished_at,
+    freshnessLabel: koCode(run.health_status),
+    id: run.latest_run_id,
+    latestRunLabel: executionIdLabel(run.latest_run_id),
+    pipelineNameLabel: operationCopy(run.pipeline_name),
+    statusLabel: koCode(run.latest_status),
+    statusTone: statusRiskClass(run.latest_status),
+  }));
+  const automationDetailSection: DataHealthAutomationDetailSectionProps = {
+    automationCards: automationCards.map((card) => ({
+      cadenceLabel: cadenceLabel(card.run, card.fallbackCadence),
+      description: card.description,
+      detail: card.detail,
+      finishedAtLabel: finishedAtLabel(card.run),
+      stateLabel: runStateLabel(card.run),
+      title: card.title,
+    })),
+    automationStatusLabel: automationStateLabel(schedulerActivation),
+    localWorker: {
+      cycleRows: localWorker.cycles.map((cycle) => ({
+        artifactRunCountLabel: `${cycle.artifact_run_count}개 기록`,
+        jobCountLabel: `${cycle.job_count}개 · 중단 ${cycle.failed_job_count}개`,
+        smokeStatusLabel: koCode(cycle.smoke_status),
+        startedAtLabel: cycle.started_at || "시각 없음",
+        title: String(cycle.cycle_number),
+      })),
+      description: ec2SchedulerInstalled
+        ? "이 기록은 서버 예약 실행기를 붙이기 전 로컬 MVP 단계의 점검 결과다. 현재 자동 실행 판단은 위의 서버 반복 실행기와 작업 실행 이력을 우선한다."
+        : localWorkerExplanation(localWorker),
+      eyebrow: ec2SchedulerInstalled ? "과거 로컬 워커 기록" : "최근 자동 실행 결과",
+      factRows: [
+        { label: "상태", value: koCode(localWorker.status) },
+        { label: "실행 여부", value: localWorker.execute ? "실제 실행" : "미리보기" },
+        { label: "생성 시각", value: localWorker.generated_at || "기록 없음" },
+        {
+          label: "완료 회차",
+          value: `${localWorker.completed_cycle_count}/${localWorker.max_cycles || localWorker.completed_cycle_count}회`,
+        },
+        { label: "중단 회차", value: `${localWorker.failed_cycle_count}회` },
+        { label: "오류 시 중단", value: localWorker.stop_on_failure ? "예" : "아니오" },
+        {
+          label: "대상 작업",
+          value: localWorker.job_ids.length > 0
+            ? localWorker.job_ids.map((jobId) => koCode(jobId)).join(" · ")
+            : "연결된 작업 없음",
+        },
+        { label: "최신 수집 요약", value: summaryLocationLabel(localWorker.latest_smoke_output_path) },
+        { label: "다음 조치", value: localWorkerNextAction(localWorker) },
+      ],
+      title: ec2SchedulerInstalled ? "현재 서버 자동화의 주 근거가 아니다" : localWorkerTitle(localWorker),
+    },
+    manualSmoke: {
+      artifactRows: manualSmoke.artifact_runs.map((run) => ({
+        errorLabel: errorLogLabel(run.stderr_path),
+        exitCodeLabel: String(run.exit_code),
+        jobLabel: koCode(run.job_id),
+        pipelineLabel: operationCopy(run.pipeline_name),
+        statusLabel: koCode(run.status),
+      })),
+      description: ec2SchedulerInstalled
+        ? "이 기록은 수동으로 데이터 수집 경로를 검증했던 증거다. 현재 서버 운영 상태는 서버 반복 실행기와 최신 작업 실행 이력으로 판단한다."
+        : manualSmokeExplanation(manualSmoke),
+      eyebrow: ec2SchedulerInstalled ? "과거 수동 점검 증거" : "최근 수동 점검 증거",
+      factRows: [
+        { label: "상태", value: koCode(manualSmoke.status) },
+        { label: "실행 여부", value: manualSmoke.execute ? "실제 실행" : "미리보기" },
+        { label: "생성 시각", value: manualSmoke.generated_at || "기록 없음" },
+        { label: "실행 환경 상태", value: manualSmoke.runtime_status ? koCode(manualSmoke.runtime_status) : "미확인" },
+        {
+          label: "대상 작업",
+          value: manualSmoke.planned_job_ids.length > 0
+            ? manualSmoke.planned_job_ids.map((jobId) => koCode(jobId)).join(" · ")
+            : "연결된 작업 없음",
+        },
+        {
+          label: "실행 기록",
+          value: `${manualSmoke.artifact_runs.length}개 기록 · 중단 ${manualSmoke.failed_job_count}개`,
+        },
+        { label: "결과 위치", value: evidenceLocationLabel(manualSmoke.artifact_root) },
+        { label: "다음 조치", value: manualSmokeNextAction(manualSmoke) },
+      ],
+      title: ec2SchedulerInstalled ? "자동 운영 전 수동 검증 기록" : manualSmokeTitle(manualSmoke),
+    },
+    newsAfterAnalysisSteps: newsAfterAnalysisSteps.map((step) => ({
+      finishedAtLabel: finishedAtLabel(step.run),
+      index: step.index,
+      next: step.next,
+      output: step.output,
+      ownerLabel: koCode(step.owner),
+      statusLabel: runStateLabel(step.run),
+      title: step.title,
+      warningLabel:
+        step.run?.health_status === "degraded" || step.run?.latest_status === "succeeded_with_fallback"
+          ? runQualityExplanation(step.run)
+          : "",
+    })),
+    profileScheduler: {
+      activeTimerSummaryLabel: `${profileScheduler.active_timer_count}/${profileScheduler.timer_count}개 예약 실행 활성`,
+      timers: profileScheduler.timers.map((timer) => ({
+        activeStateLabel: koCode(timer.active_state),
+        lastResultLabel: koCode(timer.last_result || "unknown"),
+        nextElapseLabel: timer.next_elapse || "미확인",
+        profileLabel: koCode(timer.profile_id),
+        scheduleLabel: timer.schedule || "스케줄 미확인",
+      })),
+    },
+    schedulerDetail: {
+      description: schedulerReadinessExplanation(data.scheduler),
+      factRows: [
+        { label: "승인 조건", value: schedulerApprovalGateLabel(schedulerActivation.approval_gate) },
+        { label: "활성화 허용", value: schedulerActivation.activation_allowed ? "예" : "아니오" },
+        { label: "반복 실행 상태", value: schedulerInstallLabel(schedulerActivation.scheduler_activation) },
+        { label: "근거 생성 시각", value: schedulerActivation.generated_at || "미확인" },
+        { label: "결과 위치", value: evidenceLocationLabel(data.scheduler.latest_artifact_root) },
+        { label: "다음 조치", value: schedulerNextStepLabel(schedulerActivation) },
+      ],
+      title: schedulerReadinessTitle(data.scheduler),
+    },
+  };
   return (
     <div className="terminal-page decision-page">
       <OperationsConsoleHeader
@@ -4906,347 +5036,7 @@ export default async function DataHealthPage() {
         </section>
       ) : null}
 
-      <details className="operator-details-panel reveal delay-2">
-        <summary>
-          <span>상세 운영 기록</span>
-          <strong>스케줄, 실행 요약, 수동 점검, 작업별 실행 구조를 필요할 때만 펼친다</strong>
-        </summary>
-
-      <section className="flow-panel details-inner" aria-labelledby="automation-summary-title">
-        <div className="section-heading flow-heading">
-          <span>자동 수집 / 분석 상태</span>
-          <h2 id="automation-summary-title">최근 실행과 실제 반복 자동화를 분리해서 본다</h2>
-        </div>
-        <p className="page-lede" style={{ marginTop: 0, maxWidth: "980px" }}>
-          아래 작업은 최근 실행 이력과 반복 실행 상태를 같이 보여준다. 현재 반복 실행은{" "}
-          {automationStateLabel(schedulerActivation)} 상태이며, 수집 성공과 추천 근거는 별도로 검토한다.
-        </p>
-
-        <article className="ledger-panel" id="scheduler-detail" style={{ marginTop: "18px" }}>
-          <div className="section-heading stacked-heading">
-            <span>자동 반복 실행 상태</span>
-            <h3>{schedulerReadinessTitle(data.scheduler)}</h3>
-          </div>
-          <p style={{ color: "var(--text-secondary)", marginBottom: "16px" }}>
-            {schedulerReadinessExplanation(data.scheduler)}
-          </p>
-          <dl className="fact-list compact-facts">
-            <div>
-              <dt>승인 조건</dt>
-              <dd>{schedulerApprovalGateLabel(schedulerActivation.approval_gate)}</dd>
-            </div>
-            <div>
-              <dt>활성화 허용</dt>
-              <dd>{schedulerActivation.activation_allowed ? "예" : "아니오"}</dd>
-            </div>
-            <div>
-              <dt>반복 실행 상태</dt>
-              <dd>{schedulerInstallLabel(schedulerActivation.scheduler_activation)}</dd>
-            </div>
-            <div>
-              <dt>근거 생성 시각</dt>
-              <dd>{schedulerActivation.generated_at || "미확인"}</dd>
-            </div>
-            <div>
-              <dt>결과 위치</dt>
-              <dd>{evidenceLocationLabel(data.scheduler.latest_artifact_root)}</dd>
-            </div>
-            <div>
-              <dt>다음 조치</dt>
-              <dd>{schedulerNextStepLabel(schedulerActivation)}</dd>
-            </div>
-          </dl>
-        </article>
-
-        <article className="ledger-panel" style={{ marginTop: "18px" }}>
-          <div className="section-heading stacked-heading">
-            <span>실제 실행 구조</span>
-            <h3>웹 화면은 저장된 결과를 읽고, 서버 예약 작업이 수집·분석을 실행한다</h3>
-          </div>
-          <p style={{ color: "var(--text-secondary)", marginBottom: "16px" }}>
-            FastAPI와 Next.js는 저장된 결과를 읽어 보여준다. 뉴스 수집, 캔들 보강, AI 분석, 추천 갱신은
-            서버 예약 실행기가 백그라운드 작업 실행기를 호출해 수행하고, 결과는 서버 저장 기록과 실행 요약에 남긴다.
-          </p>
-          <dl className="fact-list compact-facts">
-            <div>
-              <dt>화면</dt>
-              <dd>Next.js 운영 화면</dd>
-            </div>
-            <div>
-              <dt>읽기 API</dt>
-              <dd>FastAPI 읽기 전용 백엔드</dd>
-            </div>
-            <div>
-              <dt>작업 실행</dt>
-              <dd>서버 예약 실행 → 백그라운드 작업 실행기</dd>
-            </div>
-            <div>
-              <dt>상태 저장</dt>
-              <dd>서버 저장 기록 + 저장소 밖 실행 요약</dd>
-            </div>
-          </dl>
-        </article>
-
-        <article className="ledger-panel" style={{ marginTop: "18px" }}>
-          <div className="section-heading stacked-heading">
-            <span>서버 반복 실행기</span>
-            <h3>
-              {profileScheduler.active_timer_count}/{profileScheduler.timer_count}개 예약 실행 활성
-            </h3>
-          </div>
-          <p style={{ color: "var(--text-secondary)", marginBottom: "16px" }}>
-            수집기는 하나로 묶여 있지 않다. 뉴스/AI는 짧은 주기, 캔들은 장 마감 후, 신호/추천은 캔들 이후,
-            거시·SEC·성과는 느린 주기로 분리되어 돈을 아끼면서도 필요한 데이터가 갱신되게 한다.
-          </p>
-          <div className="scheduler-timer-grid">
-            {profileScheduler.timers.map((timer) => (
-              <div className="scheduler-timer-card" key={timer.profile_id}>
-                <span>{koCode(timer.profile_id)}</span>
-                <strong>{koCode(timer.active_state)}</strong>
-                <small>{timer.schedule || "스케줄 미확인"}</small>
-                <dl>
-                  <div>
-                    <dt>다음 실행</dt>
-                    <dd>{timer.next_elapse || "미확인"}</dd>
-                  </div>
-                  <div>
-                    <dt>마지막 결과</dt>
-                    <dd>{koCode(timer.last_result || "unknown")}</dd>
-                  </div>
-                </dl>
-              </div>
-            ))}
-          </div>
-        </article>
-
-        <article className="ledger-panel" style={{ marginTop: "18px" }}>
-          <div className="section-heading stacked-heading">
-            <span>뉴스 분석 이후 운영 흐름</span>
-            <h3>AI 근거 이후에는 추천·투자 논리·보유 상태로 넘어간다</h3>
-          </div>
-          <p style={{ color: "var(--text-secondary)", marginBottom: "16px" }}>
-            뉴스 분석은 끝점이 아니다. 수집된 뉴스는 이벤트와 AI 근거가 되고, 이후 가격·테마·사이클 데이터와
-            결합되어 중장기 추천 항목, 투자 논리, 보유 상태 큐를 만든다. 주문은 자동 실행하지 않는다.
-          </p>
-          <div className="operating-flow-grid">
-            {newsAfterAnalysisSteps.map((step) => (
-            <div className="operating-flow-card" key={step.index}>
-              <b>{step.index}</b>
-              <span>{koCode(step.owner)}</span>
-              <strong>{step.title}</strong>
-              <p>{step.output}</p>
-              <small>{step.next}</small>
-              {step.run?.health_status === "degraded" || step.run?.latest_status === "succeeded_with_fallback" ? (
-                <small>{runQualityExplanation(step.run)}</small>
-              ) : null}
-              <dl>
-                  <div>
-                    <dt>상태</dt>
-                    <dd>{runStateLabel(step.run)}</dd>
-                  </div>
-                  <div>
-                    <dt>최근 완료</dt>
-                    <dd>{finishedAtLabel(step.run)}</dd>
-                  </div>
-                </dl>
-              </div>
-            ))}
-          </div>
-        </article>
-
-        <article className="ledger-panel" style={{ marginTop: "18px" }}>
-          <div className="section-heading stacked-heading">
-            <span>{ec2SchedulerInstalled ? "과거 로컬 워커 기록" : "최근 자동 실행 결과"}</span>
-	            <h3>{ec2SchedulerInstalled ? "현재 서버 자동화의 주 근거가 아니다" : localWorkerTitle(localWorker)}</h3>
-          </div>
-          <p style={{ color: "var(--text-secondary)", marginBottom: "16px" }}>
-            {ec2SchedulerInstalled
-              ? "이 기록은 서버 예약 실행기를 붙이기 전 로컬 MVP 단계의 점검 결과다. 현재 자동 실행 판단은 위의 서버 반복 실행기와 작업 실행 이력을 우선한다."
-              : localWorkerExplanation(localWorker)}
-          </p>
-          <dl className="fact-list compact-facts">
-            <div>
-              <dt>상태</dt>
-              <dd>{koCode(localWorker.status)}</dd>
-            </div>
-            <div>
-              <dt>실행 여부</dt>
-              <dd>{localWorker.execute ? "실제 실행" : "미리보기"}</dd>
-            </div>
-            <div>
-              <dt>생성 시각</dt>
-              <dd>{localWorker.generated_at || "기록 없음"}</dd>
-            </div>
-            <div>
-              <dt>완료 회차</dt>
-              <dd>
-                {localWorker.completed_cycle_count}/{localWorker.max_cycles || localWorker.completed_cycle_count}회
-              </dd>
-            </div>
-            <div>
-              <dt>중단 회차</dt>
-              <dd>{localWorker.failed_cycle_count}회</dd>
-            </div>
-            <div>
-              <dt>오류 시 중단</dt>
-              <dd>{localWorker.stop_on_failure ? "예" : "아니오"}</dd>
-            </div>
-            <div>
-              <dt>대상 작업</dt>
-              <dd>
-                {localWorker.job_ids.length > 0
-                  ? localWorker.job_ids.map((jobId) => koCode(jobId)).join(" · ")
-                  : "연결된 작업 없음"}
-              </dd>
-            </div>
-            <div>
-              <dt>최신 수집 요약</dt>
-              <dd>{summaryLocationLabel(localWorker.latest_smoke_output_path)}</dd>
-            </div>
-            <div>
-              <dt>다음 조치</dt>
-              <dd>{localWorkerNextAction(localWorker)}</dd>
-            </div>
-          </dl>
-          {localWorker.cycles.length > 0 ? (
-            <div className="ledger-table-wrap" style={{ marginTop: "16px" }}>
-              <table className="ledger-table data-health-table">
-                <thead>
-                  <tr>
-                    <th scope="col">회차</th>
-                    <th scope="col">단발 점검</th>
-                    <th scope="col">작업</th>
-                    <th scope="col">결과 기록</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {localWorker.cycles.map((cycle) => (
-                    <tr key={`${cycle.cycle_number}-${cycle.started_at}`}>
-                      <td>
-                        <strong>{cycle.cycle_number}</strong>
-                        <small>{cycle.started_at || "시각 없음"}</small>
-                      </td>
-                      <td>{koCode(cycle.smoke_status)}</td>
-                      <td>
-                        {cycle.job_count}개 · 중단 {cycle.failed_job_count}개
-                      </td>
-                    <td>{cycle.artifact_run_count}개 기록</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : null}
-        </article>
-
-        <article className="ledger-panel" style={{ marginTop: "18px" }}>
-          <div className="section-heading stacked-heading">
-            <span>{ec2SchedulerInstalled ? "과거 수동 점검 증거" : "최근 수동 점검 증거"}</span>
-            <h3>{ec2SchedulerInstalled ? "자동 운영 전 수동 검증 기록" : manualSmokeTitle(manualSmoke)}</h3>
-          </div>
-          <p style={{ color: "var(--text-secondary)", marginBottom: "16px" }}>
-            {ec2SchedulerInstalled
-              ? "이 기록은 수동으로 데이터 수집 경로를 검증했던 증거다. 현재 서버 운영 상태는 서버 반복 실행기와 최신 작업 실행 이력으로 판단한다."
-              : manualSmokeExplanation(manualSmoke)}
-          </p>
-          <dl className="fact-list compact-facts">
-            <div>
-              <dt>상태</dt>
-              <dd>{koCode(manualSmoke.status)}</dd>
-            </div>
-            <div>
-              <dt>실행 여부</dt>
-              <dd>{manualSmoke.execute ? "실제 실행" : "미리보기"}</dd>
-            </div>
-            <div>
-              <dt>생성 시각</dt>
-              <dd>{manualSmoke.generated_at || "기록 없음"}</dd>
-            </div>
-            <div>
-              <dt>실행 환경 상태</dt>
-              <dd>{manualSmoke.runtime_status ? koCode(manualSmoke.runtime_status) : "미확인"}</dd>
-            </div>
-            <div>
-              <dt>대상 작업</dt>
-              <dd>
-                {manualSmoke.planned_job_ids.length > 0
-                  ? manualSmoke.planned_job_ids.map((jobId) => koCode(jobId)).join(" · ")
-                  : "연결된 작업 없음"}
-              </dd>
-            </div>
-            <div>
-              <dt>실행 기록</dt>
-              <dd>
-                {manualSmoke.artifact_runs.length}개 기록 · 중단 {manualSmoke.failed_job_count}개
-              </dd>
-            </div>
-            <div>
-              <dt>결과 위치</dt>
-              <dd>{evidenceLocationLabel(manualSmoke.artifact_root)}</dd>
-            </div>
-            <div>
-              <dt>다음 조치</dt>
-              <dd>{manualSmokeNextAction(manualSmoke)}</dd>
-            </div>
-          </dl>
-          {manualSmoke.artifact_runs.length > 0 ? (
-            <div className="ledger-table-wrap" style={{ marginTop: "16px" }}>
-              <table className="ledger-table data-health-table">
-                <thead>
-                  <tr>
-                    <th scope="col">작업</th>
-                    <th scope="col">상태</th>
-                    <th scope="col">종료 코드</th>
-                    <th scope="col">오류 내용</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {manualSmoke.artifact_runs.map((run) => (
-                    <tr key={`${run.job_id}-${run.artifact_dir || run.exit_code}`}>
-                      <td>
-                        <strong>{koCode(run.job_id)}</strong>
-                        <small>{operationCopy(run.pipeline_name)}</small>
-                      </td>
-                      <td>{koCode(run.status)}</td>
-                      <td>{run.exit_code}</td>
-                      <td>{errorLogLabel(run.stderr_path)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : null}
-        </article>
-
-        <div className="flow-steps data-health-summary-grid" style={{ marginTop: "18px" }}>
-          {automationCards.map((card) => (
-            <article className="flow-step" key={card.title}>
-              <span>{card.title}</span>
-              <strong>{runStateLabel(card.run)}</strong>
-              <p>{card.description}</p>
-              <dl className="fact-list compact-facts" style={{ marginTop: "14px" }}>
-                <div>
-                  <dt>반복 기준</dt>
-                  <dd>{cadenceLabel(card.run, card.fallbackCadence)}</dd>
-                </div>
-                <div>
-                  <dt>최근 완료</dt>
-                  <dd>{finishedAtLabel(card.run)}</dd>
-                </div>
-                <div>
-                  <dt>자동화</dt>
-                  <dd>{automationStateLabel(schedulerActivation)}</dd>
-                </div>
-                <div>
-                  <dt>사용처</dt>
-                  <dd>{card.detail}</dd>
-                </div>
-              </dl>
-            </article>
-          ))}
-        </div>
-      </section>
-      </details>
+      <DataHealthAutomationDetailSection {...automationDetailSection} />
 
       <details className="operator-details-panel reveal delay-2" id="execution-log">
         <summary>
@@ -5255,45 +5045,7 @@ export default async function DataHealthPage() {
         </summary>
 
       <section className="split-ledger details-inner">
-        <article className="ledger-panel queue-panel">
-          <div className="section-heading">
-            <span>실행 이력</span>
-            <h2>작업 실행 이력</h2>
-          </div>
-          <div className="ledger-table-wrap">
-            <table className="ledger-table data-health-table">
-              <thead>
-                <tr>
-                  <th scope="col">작업</th>
-                  <th scope="col">도메인</th>
-                  <th scope="col">상태</th>
-                  <th scope="col">최신성</th>
-                  <th scope="col">최근 실행</th>
-                  <th scope="col">완료 시각</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.pipeline_runs.map((run) => (
-                  <tr key={run.latest_run_id}>
-                    <td>
-                      <strong>{operationCopy(run.pipeline_name)}</strong>
-                      <small>{koCode(run.cadence)}</small>
-                    </td>
-                    <td>{koCode(run.domain)}</td>
-                    <td>
-                      <span className={`risk-tag ${statusRiskClass(run.latest_status)}`}>
-                        {koCode(run.latest_status)}
-                      </span>
-                    </td>
-                    <td>{koCode(run.health_status)}</td>
-                    <td>{executionIdLabel(run.latest_run_id)}</td>
-                    <td>{run.finished_at}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </article>
+        <DataHealthExecutionHistoryPanel rows={executionHistoryRows} />
 
         <DataHealthRuntimeDetailPanels {...runtimeDetailPanels} />
       </section>

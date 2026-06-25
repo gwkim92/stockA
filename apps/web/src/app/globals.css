@@ -4019,6 +4019,23 @@ h6 {
   border-radius: 0;
 }
 
+.details-inner > .ledger-panel,
+.details-inner > .data-health-summary-grid {
+  margin-top: 18px;
+}
+
+.panel-support-copy {
+  max-width: 980px;
+  margin: 0 0 16px;
+  color: var(--text-secondary);
+  line-height: 1.65;
+  word-break: keep-all;
+}
+
+.table-section {
+  margin-top: 16px;
+}
+
 .screen-switchboard {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(168px, 1fr));
