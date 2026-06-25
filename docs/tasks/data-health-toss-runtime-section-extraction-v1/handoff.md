@@ -2,7 +2,7 @@
 
 ## Status
 
-- completed: local implementation, focused regression, build, API contract, roadmap, AWH, E2E route smoke, and browser desktop/mobile `/data-health` checks passed.
+- completed: local implementation, focused regression, build, API contract, roadmap, AWH, E2E route smoke, browser desktop/mobile `/data-health` checks, EC2 deploy, EC2 route smoke, and local tunnel smoke passed.
 - scope completed: Toss broker data section extraction from `apps/web/src/app/data-health/page.tsx`.
 
 ## Current Decision
@@ -54,6 +54,16 @@
   - result: `51 passed`
   - in-app browser `/data-health` desktop `1280x900`: overflow `0`, Toss title present, broker reality copy present, order blocked copy present, raw internal terms absent
   - in-app browser `/data-health` mobile `390x844`: overflow `0`, Toss title present, broker reality copy present, order blocked copy present, raw internal terms absent
+- EC2:
+  - commit deployed: `888fb771`
+  - `cd /opt/stockanalysis/app/apps/web && npm run typecheck`
+  - result: passed
+  - `cd /opt/stockanalysis/app/apps/web && npm run build`
+  - result: passed
+  - `systemctl is-active stockanalysis-frontend-api.service stockanalysis-web.service`
+  - result: `active`, `active`
+  - EC2 route smoke: `/` `200`, `/data-health` `200`, FastAPI `__ready.status=ok`
+  - local tunnel `http://127.0.0.1:13000/data-health` rendered `토스증권 브로커 데이터`, `브로커 현실 데이터`, and `증권사 주문 제출 차단`
 
 ## File Size Notes
 
@@ -64,4 +74,4 @@
 ## Risks
 
 - This is behavior-preserving and does not yet extract the bottom runtime/provider panels.
-- EC2 deployment evidence should be appended before closing this task.
+- React Doctor still reports pre-existing admin server-action auth findings outside this Toss rendering extraction.
