@@ -7531,6 +7531,26 @@ h6 {
   border-color: color-mix(in srgb, var(--accent-red) 42%, var(--border-light));
 }
 
+.stock-command-deck > .decision-brief-main,
+.recommendation-command-deck > .decision-brief-main {
+  align-content: center;
+  min-height: clamp(360px, 38vw, 520px);
+}
+
+.stock-command-deck .workspace-command-grid .decision-card,
+.recommendation-command-deck .workspace-command-grid .decision-card {
+  min-height: 116px;
+}
+
+.stock-command-deck .workspace-command-grid .decision-card.primary,
+.stock-command-deck .workspace-command-grid .decision-card:first-child,
+.recommendation-command-deck .workspace-command-grid .decision-card.primary,
+.recommendation-command-deck .workspace-command-grid .decision-card:first-child {
+  grid-row: span 1;
+  min-height: 180px;
+  align-content: end;
+}
+
 .recommendation-command-deck .workspace-command-grid .decision-card:nth-child(4),
 .stock-command-deck .workspace-command-grid .decision-card:nth-child(5) {
   border-color: color-mix(in srgb, var(--accent-red) 36%, var(--border-light));
