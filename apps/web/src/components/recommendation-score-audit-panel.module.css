@@ -1,0 +1,226 @@
+.panel {
+  display: grid;
+  gap: var(--space-6);
+  scroll-margin-top: 168px;
+  padding: var(--space-6);
+  border-top: 1px solid var(--line-strong);
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--surface-primary) 88%, transparent),
+      color-mix(in srgb, var(--surface-secondary) 58%, transparent)
+    ),
+    var(--surface-primary);
+}
+
+.header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-5);
+  align-items: start;
+}
+
+.header span,
+.metric span,
+.detailSummary span {
+  color: var(--ink-muted);
+  font-size: var(--type-caption);
+  font-weight: 760;
+  letter-spacing: 0.06em;
+}
+
+.header h2 {
+  margin: var(--space-2) 0 var(--space-3);
+  color: var(--ink-primary);
+  font-size: var(--type-h2);
+  line-height: 1.12;
+  text-wrap: balance;
+}
+
+.header p,
+.metric small,
+.detailSummary small {
+  margin: 0;
+  color: var(--ink-secondary);
+  font-size: var(--type-small);
+  line-height: 1.55;
+}
+
+.badge {
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  padding: var(--space-2) var(--space-3);
+  color: var(--ink-primary);
+  font-size: var(--type-small);
+  font-weight: 760;
+  white-space: nowrap;
+}
+
+.summaryGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.metric {
+  display: grid;
+  gap: var(--space-2);
+  min-height: 132px;
+  padding: var(--space-4);
+  background: var(--surface-raised);
+  border: 1px solid var(--line-subtle);
+  border-radius: 10px;
+}
+
+.metric strong {
+  color: var(--ink-primary);
+  font-size: clamp(1.35rem, 2vw, 2rem);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.details {
+  border: 1px solid var(--line-subtle);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--surface-primary) 58%, transparent);
+  overflow: clip;
+}
+
+.details summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-4);
+  align-items: center;
+  padding: var(--space-5);
+  cursor: pointer;
+  list-style: none;
+}
+
+.details summary::-webkit-details-marker {
+  display: none;
+}
+
+.detailSummary {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.detailSummary strong {
+  color: var(--ink-primary);
+  font-size: var(--type-h3);
+}
+
+.toggle {
+  color: var(--accent-analysis);
+  font-size: var(--type-small);
+  font-weight: 780;
+}
+
+.details[open] .toggle {
+  color: var(--ink-secondary);
+}
+
+.toggleOpen {
+  display: none;
+}
+
+.details[open] .toggleClosed {
+  display: none;
+}
+
+.details[open] .toggleOpen {
+  display: inline;
+}
+
+.scoreGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--space-4);
+  padding: 0 var(--space-5) var(--space-5);
+}
+
+.outcome {
+  display: grid;
+  gap: var(--space-5);
+  padding: var(--space-5);
+  border-radius: 12px;
+  background: var(--surface-inverse);
+  color: var(--surface-primary);
+}
+
+.outcomeHeader {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-4);
+  align-items: start;
+}
+
+.outcomeHeader span,
+.outcomeGrid span {
+  color: color-mix(in srgb, var(--surface-primary) 68%, transparent);
+  font-size: var(--type-caption);
+  font-weight: 760;
+  letter-spacing: 0.06em;
+}
+
+.outcomeHeader h3 {
+  margin: var(--space-2) 0 var(--space-2);
+  font-size: var(--type-h2);
+  line-height: 1.12;
+}
+
+.outcomeHeader p {
+  margin: 0;
+  color: color-mix(in srgb, var(--surface-primary) 76%, transparent);
+  font-size: var(--type-small);
+  line-height: 1.6;
+}
+
+.outcomeHeader a {
+  color: inherit;
+  font-weight: 760;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.outcomeGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.outcomeGrid div {
+  display: grid;
+  gap: var(--space-1);
+  padding-top: var(--space-3);
+  border-top: 1px solid color-mix(in srgb, var(--surface-primary) 22%, transparent);
+}
+
+.outcomeGrid strong {
+  font-size: var(--type-h3);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 900px) {
+  .summaryGrid,
+  .outcomeGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .panel {
+    padding: var(--space-4);
+  }
+
+  .header,
+  .details summary,
+  .outcomeHeader {
+    grid-template-columns: 1fr;
+  }
+
+  .summaryGrid,
+  .outcomeGrid {
+    grid-template-columns: 1fr;
+  }
+}

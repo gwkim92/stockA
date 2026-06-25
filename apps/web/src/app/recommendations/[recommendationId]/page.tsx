@@ -1,11 +1,11 @@
 import Link from "next/link";
 import type { Route } from "next";
 import { Fragment } from "react";
-import { AuditMetadata, type AuditMetadataItem } from "@/components/audit-metadata";
 import { NewsTitleBlock } from "@/components/news-title-block";
 import { ProfessionalResearchFlow, type ResearchFlowStep } from "@/components/professional-research-flow";
 import { RecommendationExecutiveBrief } from "@/components/recommendation-executive-brief";
 import { RecommendationPositionReality } from "@/components/recommendation-position-reality";
+import { RecommendationScoreAuditPanel } from "@/components/recommendation-score-audit-panel";
 import { ValuationTargetRangeCard } from "@/components/valuation-target-range-card";
 import { getRecommendationDetail } from "@/lib/frontend-api";
 import { koCode, koLabel } from "@/lib/korean-labels";
@@ -62,29 +62,12 @@ const SCORE_COMPONENT_LABELS: Record<string, string> = {
   broker_price_basis_risk: "브로커 가격 기준 차이",
 };
 
-const SOURCE_TYPE_LABELS: Record<string, string> = {
-  market_feature: "가격·거래 데이터",
-  strategy_universe_rank: "전략 종목군 순위",
-  event_or_ai_evidence: "뉴스·투자 근거",
-  macro_flow_propagation: "상위 흐름 전파",
-  cycle_stack_context: "계층형 사이클",
-  fundamental_context: "재무·밸류에이션 분석",
-  broker_reality_context: "토스증권 브로커 현실",
-};
-
 function userFacingRecommendationText(value: string | number | boolean | null | undefined) {
   return recommendationCopy(value);
 }
 
 function scoreComponentLabel(componentName: string) {
   return SCORE_COMPONENT_LABELS[componentName] ?? userFacingRecommendationText(componentName);
-}
-
-function sourceTypeLabel(sourceType: string | null | undefined) {
-  if (!sourceType) {
-    return "입력 출처 미기록";
-  }
-  return SOURCE_TYPE_LABELS[sourceType] ?? userFacingRecommendationText(sourceType);
 }
 
 function orderBoundaryLabel(value: string | null | undefined) {
@@ -795,97 +778,6 @@ function IndustryCompetitivePositionPanel({
   );
 }
 
-function provenanceBadges(component: ScoreComponent) {
-  const provenance = component.provenance;
-  if (!provenance) {
-    return ["출처 요약 대기"];
-  }
-
-  const badges = [sourceTypeLabel(provenance.source_type)];
-  if (provenance.feature_code) {
-    badges.push(userFacingRecommendationText(provenance.feature_code));
-  }
-  if (provenance.rank_position !== null && provenance.rank_position !== undefined) {
-    badges.push(
-      provenance.universe_member_count
-        ? `종목군 ${provenance.rank_position}/${provenance.universe_member_count}위`
-        : `종목군 ${provenance.rank_position}위`,
-    );
-  }
-  if (provenance.evidence?.first_trade_date && provenance.evidence.latest_trade_date) {
-    badges.push(`${provenance.evidence.first_trade_date}~${provenance.evidence.latest_trade_date}`);
-  } else if (provenance.latest_trade_date) {
-    badges.push(`최근 가격일 ${provenance.latest_trade_date}`);
-  }
-  if (provenance.source_type === "macro_flow_propagation") {
-    badges.push(`전파 근거 ${provenance.evidence?.propagated_impact_count ?? 0}개`);
-  }
-  if (provenance.source_type === "cycle_stack_context") {
-    const nodeCode = cycleStackNodeCode(component);
-    if (nodeCode) {
-      badges.push(`기준 노드 ${koCode(nodeCode)}`);
-    }
-    if (provenance.evidence?.cycle_stack_level) {
-      badges.push(userFacingRecommendationText(provenance.evidence.cycle_stack_level));
-    }
-  }
-  if (provenance.source_type === "fundamental_context") {
-    badges.push(isZeroWeight(component.weight) ? "현재 최종 점수 미반영" : "최종 점수 반영");
-    if (provenance.evidence?.as_of_date) {
-      badges.push(`기준일 ${provenance.evidence.as_of_date}`);
-    }
-  }
-  if (provenance.source_type === "broker_reality_context") {
-    badges.push("토스증권 read-only");
-    badges.push(isZeroWeight(component.weight) ? "현재 최종 점수 미반영" : "최종 점수 반영");
-    if (provenance.evidence?.as_of_date) {
-      badges.push(`기준일 ${provenance.evidence.as_of_date}`);
-    }
-  }
-  return badges;
-}
-
-function provenanceMetadata(component: ScoreComponent): AuditMetadataItem[] {
-  const provenance = component.provenance;
-  if (!provenance) {
-    return [
-      { label: "점수 항목", value: scoreComponentLabel(component.component) },
-      { label: "근거 연결 번호", value: component.evidence_id },
-    ];
-  }
-
-  return [
-    { label: "점수 항목", value: scoreComponentLabel(component.component) },
-    { label: "근거 연결 번호", value: component.evidence_id },
-    { label: "입력 종류", value: sourceTypeLabel(provenance.source_type) },
-    { label: "입력 설명", value: userFacingRecommendationText(provenance.label) },
-    { label: "가격 지표", value: provenance.feature_code ? userFacingRecommendationText(provenance.feature_code) : null },
-    { label: "가격 지표 이름", value: provenance.feature_name ? userFacingRecommendationText(provenance.feature_name) : null },
-    { label: "기준일", value: provenance.as_of_date },
-    { label: "계산 기록", value: provenance.source_run_id ? "있음" : null },
-    { label: "종목군 계산 기록", value: provenance.universe_batch_id ? "있음" : null },
-    { label: "가격 계산 기준", value: provenance.evidence?.feature_set_version ? "기록 있음" : null },
-    { label: "종목군 순위", value: provenance.rank_position },
-    { label: "종목군 전체 수", value: provenance.universe_member_count },
-    { label: "관측치 수", value: provenance.observation_count ?? provenance.evidence?.observation_count },
-    { label: "첫 가격일", value: provenance.evidence?.first_trade_date },
-    { label: "최근 가격일", value: provenance.latest_trade_date ?? provenance.evidence?.latest_trade_date },
-    { label: "사이클 계층", value: provenance.evidence?.cycle_stack_level ? userFacingRecommendationText(provenance.evidence.cycle_stack_level) : null },
-    { label: "선택 사이클 노드", value: provenance.evidence?.cycle_stack_node_code ? koCode(provenance.evidence.cycle_stack_node_code) : null },
-    { label: "사이클 설명", value: provenance.evidence?.cycle_stack_explanation ? userFacingRecommendationText(provenance.evidence.cycle_stack_explanation) : null },
-    { label: "적용 메모", value: provenance.evidence?.cycle_stack_note ? userFacingRecommendationText(provenance.evidence.cycle_stack_note) : null },
-    { label: "기업 분석 항목", value: provenance.evidence?.fundamental_component_name ? scoreComponentLabel(provenance.evidence.fundamental_component_name) : null },
-    { label: "기업 분석 설명", value: provenance.evidence?.fundamental_explanation ? userFacingRecommendationText(provenance.evidence.fundamental_explanation) : null },
-    { label: "기업 분석 메모", value: provenance.evidence?.fundamental_note ? userFacingRecommendationText(provenance.evidence.fundamental_note) : null },
-    { label: "브로커 확인 항목", value: provenance.evidence?.broker_component_name ? scoreComponentLabel(provenance.evidence.broker_component_name) : null },
-    { label: "브로커 확인 설명", value: provenance.evidence?.broker_explanation ? userFacingRecommendationText(provenance.evidence.broker_explanation) : null },
-    { label: "브로커 확인 메모", value: provenance.evidence?.broker_note ? userFacingRecommendationText(provenance.evidence.broker_note) : null },
-    { label: "전파 근거 수", value: provenance.evidence?.propagated_impact_count },
-    { label: "선정 규칙", value: provenance.selection_rule ? userFacingRecommendationText(provenance.selection_rule) : null },
-    { label: "편입 사유", value: provenance.inclusion_reason ? userFacingRecommendationText(provenance.inclusion_reason) : null },
-  ];
-}
-
 function provenanceDetail(component: ScoreComponent) {
   const provenance = component.provenance;
   if (!provenance) {
@@ -1072,23 +964,6 @@ function gateToneClass(status: string) {
     return "tone-blocked";
   }
   return "tone-watch";
-}
-
-function scoreComponentTone(component: ScoreComponent) {
-  if (isZeroWeight(component.weight)) {
-    return "tone-watch";
-  }
-  if (component.value < 0) {
-    return "tone-blocked";
-  }
-  return "tone-ready";
-}
-
-function outcomeTone(outcomeMeasured: boolean, alpha: number) {
-  if (!outcomeMeasured) {
-    return "tone-watch";
-  }
-  return alpha >= 0 ? "tone-ready" : "tone-blocked";
 }
 
 function recommendationQualityDecision(data: RecommendationDetailData): RecommendationQualityDecision {
@@ -2349,93 +2224,7 @@ export default async function RecommendationPage({ params }: RecommendationPageP
         </div>
       </section>
 
-      <section className="recommendation-score-audit-grid reveal delay-1" aria-label="추천 점수와 성과 측정">
-        <article className="recommendation-score-panel">
-          <div className="recommendation-evidence-head compact">
-            <div>
-              <span>점수 근거</span>
-              <h2>추천 점수 입력이 어디서 왔는가</h2>
-              <p>가격·뉴스·상위 흐름·재무 근거를 섞어 보지 않고, 각 점수 항목의 출처와 현재 반영 비중을 분리해 본다.</p>
-            </div>
-          </div>
-
-          <div className="recommendation-score-card-grid">
-            {data.score_components.map((component) => {
-              const href = evidenceHref(component.evidence_id, data.symbol);
-              const badges = provenanceBadges(component);
-              return (
-                <article className={`recommendation-score-card ${scoreComponentTone(component)}`} key={component.component}>
-                  <div className="recommendation-score-card-head">
-                    <span>{sourceTypeLabel(component.provenance?.source_type)}</span>
-                    <strong>{scoreComponentLabel(component.component)}</strong>
-                    <b>{formatPercent(component.value)}</b>
-                  </div>
-                  <p>{provenanceDetail(component)}</p>
-                  <div className="recommendation-score-badges">
-                    {badges.map((badge) => (
-                      <span key={`${component.component}-${badge}`}>{badge}</span>
-                    ))}
-                  </div>
-                  <div className="recommendation-score-metrics">
-                    <div>
-                      <span>현재 반영 비중</span>
-                      <strong>{formatPercent(component.weight)}</strong>
-                    </div>
-                    <div>
-                      <span>사용 경계</span>
-                      <strong>{isZeroWeight(component.weight) ? "설명용" : "점수 반영"}</strong>
-                    </div>
-                  </div>
-                  <div className="recommendation-score-links">
-                    {href ? (
-                      <Link href={href}>
-                        {evidenceLinkLabel(component.evidence_id)}
-                      </Link>
-                    ) : (
-                      <span>연결된 상세 근거 없음</span>
-                    )}
-                  </div>
-                  <AuditMetadata items={provenanceMetadata(component)} summary="계산 입력 출처 보기" />
-                </article>
-              );
-            })}
-          </div>
-        </article>
-
-        <article className={`recommendation-outcome-panel ${outcomeTone(outcomeMeasured, data.outcome.alpha)}`}>
-          <div className="recommendation-evidence-head compact">
-            <div>
-              <span>성과 측정</span>
-              <h2>{outcomeMeasured ? koCode(data.outcome.label) : "아직 성과 측정 전"}</h2>
-              <p>
-                추천이 맞았는지는 측정창이 끝난 뒤에만 판단한다. 성과가 없으면 추천 산식 반영 비중을 바꾸지 않는다.
-              </p>
-            </div>
-            <Link className="btn btn-primary" href={`/theses/${data.linked_thesis_id}`}>
-              연결된 투자 논리 열기
-            </Link>
-          </div>
-
-          <div className="recommendation-outcome-grid">
-            <div>
-              <span>알파</span>
-              <strong>{outcomeMeasured ? formatPercent(data.outcome.alpha) : "측정 전"}</strong>
-            </div>
-            <div>
-              <span>절대수익률</span>
-              <strong>{outcomeMeasured ? formatPercent(data.outcome.absolute_return) : "측정 전"}</strong>
-            </div>
-            <div>
-              <span>벤치마크 수익률</span>
-              <strong>{outcomeMeasured ? formatPercent(data.outcome.benchmark_return) : "측정 전"}</strong>
-            </div>
-            <div>
-              <span>측정 종료일</span>
-              <strong>{outcomeMeasured ? data.outcome.measurement_end_date : "성과 측정창 대기"}</strong>
-            </div>
-          </div>
-        </article>
-      </section>
+      <RecommendationScoreAuditPanel data={data} />
     </div>
   );
 }

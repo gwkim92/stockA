@@ -3479,9 +3479,7 @@ h6 {
   text-underline-offset: 3px;
 }
 
-.recommendation-evidence-panel,
-.recommendation-score-panel,
-.recommendation-outcome-panel {
+.recommendation-evidence-panel {
   min-width: 0;
   padding: clamp(20px, 2.5vw, 34px);
   background:
@@ -3493,22 +3491,19 @@ h6 {
 
 .recommendation-evidence-panel.risk-high,
 .recommendation-score-card.tone-blocked,
-.recommendation-gate-card.tone-blocked,
-.recommendation-outcome-panel.tone-blocked {
+.recommendation-gate-card.tone-blocked {
   border-color: color-mix(in srgb, var(--accent-red) 34%, var(--border-light));
 }
 
 .recommendation-evidence-panel.risk-medium,
 .recommendation-score-card.tone-watch,
-.recommendation-gate-card.tone-watch,
-.recommendation-outcome-panel.tone-watch {
+.recommendation-gate-card.tone-watch {
   border-color: color-mix(in srgb, var(--accent-amber) 36%, var(--border-light));
 }
 
 .recommendation-evidence-panel.risk-low,
 .recommendation-score-card.tone-ready,
-.recommendation-gate-card.tone-ready,
-.recommendation-outcome-panel.tone-ready {
+.recommendation-gate-card.tone-ready {
   border-color: color-mix(in srgb, var(--accent-green) 34%, var(--border-light));
 }
 
@@ -3594,8 +3589,7 @@ h6 {
   font-weight: 760;
 }
 
-.recommendation-gate-grid,
-.recommendation-score-card-grid {
+.recommendation-gate-grid {
   display: grid;
   gap: 12px;
   margin-top: 18px;
@@ -3645,16 +3639,6 @@ h6 {
 
 .recommendation-gate-card small {
   margin-top: 0;
-}
-
-.recommendation-score-audit-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.62fr);
-  gap: 18px;
-}
-
-.recommendation-score-card-grid {
-  grid-template-columns: 1fr;
 }
 
 .recommendation-score-card {
@@ -3717,12 +3701,6 @@ h6 {
   font-weight: 950;
   text-decoration: underline;
   text-underline-offset: 3px;
-}
-
-.recommendation-outcome-panel {
-  align-self: start;
-  position: sticky;
-  top: 18px;
 }
 
 .recommendation-outcome-grid {
@@ -10065,7 +10043,6 @@ h6 {
   .recommendation-evidence-summary,
   .recommendation-gate-grid,
   .recommendation-gate-card,
-  .recommendation-score-audit-grid,
   .recommendation-score-card-head,
   .recommendation-score-metrics,
   .recommendation-outcome-grid,
