@@ -5,6 +5,7 @@ import {
   type DataHealthCommandCard,
   type DataHealthTriageBucket,
 } from "@/components/operations/DataHealthOverview";
+import { DataHealthTossBrokerSection } from "@/components/operations/DataHealthTossBrokerSection";
 import { OperationsConsoleHeader } from "@/components/operations/OperationsConsoleHeader";
 import { getDataHealth } from "@/lib/frontend-api";
 import { koCode, koReason } from "@/lib/korean-labels";
@@ -3036,38 +3037,18 @@ export default async function DataHealthPage() {
         triageStatus={gateTriageStatus}
       />
 
-      <section className="feature-map-panel reveal delay-1" id="toss-market-data" aria-labelledby="toss-market-data-title">
-        <div className="section-heading stacked-heading">
-          <span>토스증권 브로커 데이터</span>
-          <h2 id="toss-market-data-title">{tossMarketDataTitle(tossMarketData)}</h2>
-          <p>
-            토스증권 데이터는 실제 계좌와 주문 가능성을 확인하는 브로커 현실 데이터다. 추천·사이클 계산은 계속
-            분석 기준 가격을 사용하고, 토스 가격은 가격 기준 차이와 최신 일봉 미완성 여부를 검증한 뒤 참고한다.
-          </p>
-        </div>
-        <div className="status-rail compact-rail">
-          <article className="rail-cell">
-            <span>수집 상태</span>
-            <strong className={`risk-tag ${tossMarketDataTone(tossMarketData)}`}>{koCode(tossMarketData.sync.status)}</strong>
-            <small>요청 종목 {tossMarketData.sync.requested_symbol_count.toLocaleString("ko-KR")}개 · 캔들 {tossMarketData.sync.candle_bar_count.toLocaleString("ko-KR")}개</small>
-          </article>
-          <article className="rail-cell">
-            <span>가격 기준 검증</span>
-            <strong className="risk-tag risk-medium">{koCode(tossMarketData.provider_comparison.status)}</strong>
-            <small>{tossMarketData.provider_comparison.lookback_days}거래일 · 허용 {tossMarketData.provider_comparison.max_diff_bps}bps</small>
-          </article>
-          <article className="rail-cell">
-            <span>수집 주기</span>
-            <strong>{Object.keys(tossMarketData.sync.collection_cadence).length.toLocaleString("ko-KR")}개</strong>
-            <small>한국/미국 기준정보, 일봉, 관심 종목 호가·체결, 계좌 읽기 전용</small>
-          </article>
-          <article className="rail-cell">
-            <span>실주문 상태</span>
-            <strong className="risk-tag risk-low">{koCode(tossMarketData.sync.order_boundary)}</strong>
-            <small>{tossMarketData.sync.broker_submit_allowed ? "증권사 주문 제출 가능" : "증권사 주문 제출 차단"}</small>
-          </article>
-        </div>
-      </section>
+      <DataHealthTossBrokerSection
+        cadenceCountLabel={`${Object.keys(tossMarketData.sync.collection_cadence).length.toLocaleString("ko-KR")}개`}
+        candleCountLabel={`${tossMarketData.sync.candle_bar_count.toLocaleString("ko-KR")}개`}
+        comparisonLookbackLabel={`${tossMarketData.provider_comparison.lookback_days}거래일 · 허용 ${tossMarketData.provider_comparison.max_diff_bps}bps`}
+        comparisonStatusLabel={koCode(tossMarketData.provider_comparison.status)}
+        orderBoundaryLabel={koCode(tossMarketData.sync.order_boundary)}
+        orderSubmitLabel={tossMarketData.sync.broker_submit_allowed ? "증권사 주문 제출 가능" : "증권사 주문 제출 차단"}
+        requestedSymbolCountLabel={`${tossMarketData.sync.requested_symbol_count.toLocaleString("ko-KR")}개`}
+        syncStatusLabel={koCode(tossMarketData.sync.status)}
+        syncStatusTone={tossMarketDataTone(tossMarketData)}
+        title={tossMarketDataTitle(tossMarketData)}
+      />
 
       <section className="feature-map-panel reveal delay-1" id="quality-audit" aria-labelledby="quality-audit-title">
         <div className="section-heading stacked-heading">
