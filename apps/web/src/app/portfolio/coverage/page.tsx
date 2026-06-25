@@ -353,45 +353,6 @@ export default async function PortfolioCoveragePage() {
 
   return (
     <div className="pageStack decision-page">
-      <section className="decision-brief reveal" aria-labelledby="portfolio-coverage-title">
-        <div className="decision-brief-main">
-          <span className="decision-brief-kicker">
-            보유·리스크 상태 · {userFacingText(data.portfolio_name)} · {userFacingText(data.strategy_name)} · {data.as_of_date}
-          </span>
-          <h1 className="decision-brief-title" id="portfolio-coverage-title">
-            {reviewCandidateTotal > 0
-              ? `${reviewCandidateTotal.toLocaleString("ko-KR")}개 보유 항목에 조정 검토가 필요합니다.`
-              : "현재 포트폴리오에 즉시 조정할 위험 신호는 없습니다."}
-          </h1>
-          <p className="decision-brief-copy">
-            투자 논리 누락, 집중도, 벤치마크 괴리와 성과 측정 상태를 함께 비교합니다. 성과 표본이 성숙하기 전에는 비중 정책을 변경하지 않습니다.
-          </p>
-          <div className="decision-brief-meta" aria-label="포트폴리오 핵심 상태">
-            <span>포지션 {data.summary.position_count.toLocaleString("ko-KR")}개</span>
-            <span>평가손익률 {portfolioReturnLabel.label}</span>
-            <span>투자 논리 누락 {data.summary.missing_thesis_count.toLocaleString("ko-KR")}개</span>
-            <span>측정 종료 {data.coverage_measurement_end_date}</span>
-            <span>실거래 {orderBoundaryLabel(reviewCalibration.guardrails.order_boundary)}</span>
-          </div>
-        </div>
-        <div className="decision-brief-grid">
-          {portfolioCommandCards.map((card) => (
-            <a
-              className={`decision-card ${
-                card.tone === "ready" ? "is-good" : card.tone === "watch" ? "is-watch" : "is-block"
-              }`}
-              href={card.href}
-              key={card.index}
-            >
-              <span>{card.label}</span>
-              <strong>{card.title}</strong>
-              <small>{card.metric} · {card.body}</small>
-              <b>{card.cta}</b>
-            </a>
-          ))}
-        </div>
-      </section>
-
       <PageDecisionMap
         eyebrow="화면 읽는 순서"
         title="수익률, 위험, 조정 후보만 먼저 본다"
@@ -439,6 +400,45 @@ export default async function PortfolioCoveragePage() {
           },
         ]}
       />
+
+      <section className="decision-brief reveal" aria-labelledby="portfolio-coverage-title">
+        <div className="decision-brief-main">
+          <span className="decision-brief-kicker">
+            보유·리스크 상태 · {userFacingText(data.portfolio_name)} · {userFacingText(data.strategy_name)} · {data.as_of_date}
+          </span>
+          <h1 className="decision-brief-title" id="portfolio-coverage-title">
+            {reviewCandidateTotal > 0
+              ? `${reviewCandidateTotal.toLocaleString("ko-KR")}개 보유 항목에 조정 검토가 필요합니다.`
+              : "현재 포트폴리오에 즉시 조정할 위험 신호는 없습니다."}
+          </h1>
+          <p className="decision-brief-copy">
+            투자 논리 누락, 집중도, 벤치마크 괴리와 성과 측정 상태를 함께 비교합니다. 성과 표본이 성숙하기 전에는 비중 정책을 변경하지 않습니다.
+          </p>
+          <div className="decision-brief-meta" aria-label="포트폴리오 핵심 상태">
+            <span>포지션 {data.summary.position_count.toLocaleString("ko-KR")}개</span>
+            <span>평가손익률 {portfolioReturnLabel.label}</span>
+            <span>투자 논리 누락 {data.summary.missing_thesis_count.toLocaleString("ko-KR")}개</span>
+            <span>측정 종료 {data.coverage_measurement_end_date}</span>
+            <span>실거래 {orderBoundaryLabel(reviewCalibration.guardrails.order_boundary)}</span>
+          </div>
+        </div>
+        <div className="decision-brief-grid">
+          {portfolioCommandCards.map((card) => (
+            <a
+              className={`decision-card ${
+                card.tone === "ready" ? "is-good" : card.tone === "watch" ? "is-watch" : "is-block"
+              }`}
+              href={card.href}
+              key={card.index}
+            >
+              <span>{card.label}</span>
+              <strong>{card.title}</strong>
+              <small>{card.metric} · {card.body}</small>
+              <b>{card.cta}</b>
+            </a>
+          ))}
+        </div>
+      </section>
 
       <section className="bento-grid reveal delay-1">
         <article className="bento-card">

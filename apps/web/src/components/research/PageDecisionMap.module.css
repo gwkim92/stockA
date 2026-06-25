@@ -28,7 +28,6 @@
   margin: 0;
   color: var(--ink-primary);
   font-size: var(--type-h2);
-  letter-spacing: -0.04em;
   line-height: 1.05;
   text-wrap: balance;
   word-break: keep-all;
@@ -91,7 +90,6 @@
 .step strong {
   color: var(--ink-primary);
   font-size: var(--type-h3);
-  letter-spacing: -0.02em;
   line-height: 1.25;
   word-break: keep-all;
 }
