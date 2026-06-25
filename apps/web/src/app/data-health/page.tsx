@@ -5,6 +5,11 @@ import {
   type DataHealthCommandCard,
   type DataHealthTriageBucket,
 } from "@/components/operations/DataHealthOverview";
+import {
+  DataHealthRuntimeDetailPanels,
+  type DataHealthRuntimeDetailPanelsProps,
+  type DataHealthRuntimeChip,
+} from "@/components/operations/DataHealthRuntimeDetailPanels";
 import { DataHealthTossBrokerSection } from "@/components/operations/DataHealthTossBrokerSection";
 import { OperationsConsoleHeader } from "@/components/operations/OperationsConsoleHeader";
 import { getDataHealth } from "@/lib/frontend-api";
@@ -2431,7 +2436,7 @@ export default async function DataHealthPage() {
   const sourceLimitGateCount = gateTriageBuckets.find((bucket) => bucket.key === "source-limit")?.gates.length ?? 0;
   const investmentReviewGateCount =
     gateTriageBuckets.find((bucket) => bucket.key === "investment-review")?.gates.length ?? 0;
-  const openGateChips = openGateDetails.length > 0
+  const openGateChips: DataHealthRuntimeChip[] = openGateDetails.length > 0
     ? openGateDetails.map((gate) => ({
         key: gate.gate_id,
         label: gate.label,
@@ -3019,6 +3024,78 @@ export default async function DataHealthPage() {
     statusTone: statusRiskClass(card.run?.health_status ?? "missing"),
     title: card.title,
   }));
+  const runtimeDetailPanels: DataHealthRuntimeDetailPanelsProps = {
+    providerBudget: {
+      budgetDateLabel: providerBudget.budget_date,
+      latestRunLabel: providerBudget.latest_run?.started_at ?? "오늘 실행 없음",
+      statusLabel: koCode(providerBudget.status),
+      usagePercent: budgetUsage,
+      usedRequestCountLabel: `${providerBudget.used_request_count.toLocaleString("ko-KR")}회`,
+    },
+    activeRecommendationPriceFreshness: {
+      latestTradeDateLabel: activeRecommendationPriceFreshness.global_latest_trade_date || "미확인",
+      nextActionLabel: operationCopy(activeRecommendationPriceFreshness.next_action),
+      orderBoundaryLabel: orderBoundaryCopy(activeRecommendationPriceFreshness.order_boundary),
+      staleSummaryLabel: `오래됨 ${activeRecommendationPriceFreshness.stale_symbol_count.toLocaleString("ko-KR")}개 · 없음 ${activeRecommendationPriceFreshness.missing_symbol_count.toLocaleString("ko-KR")}개`,
+      staleSymbols: activeRecommendationPriceFreshness.stale_symbols.slice(0, 8).map((item) => ({
+        activeRecommendationCountLabel: `연결 추천 ${item.active_recommendation_count.toLocaleString("ko-KR")}개`,
+        daysBehindLabel: `최신 기준보다 ${item.days_behind_latest.toLocaleString("ko-KR")}일 뒤처짐`,
+        href: item.detail_href || `/stocks/${item.symbol}`,
+        latestTradeDateLabel: `최근 가격 ${item.latest_trade_date || "없음"}`,
+        statusLabel: koCode(item.status),
+        symbol: item.symbol,
+      })),
+      statusLabel: activeRecommendationPriceFreshness.attention_required ? "가격 보강 필요" : "최신성 확인",
+      statusTone: activeRecommendationPriceFreshness.attention_required ? "risk-high" : "risk-low",
+      symbolCoverageLabel: `${activeRecommendationPriceFreshness.fresh_symbol_count.toLocaleString("ko-KR")}/${activeRecommendationPriceFreshness.active_symbol_count.toLocaleString("ko-KR")}개 최신`,
+    },
+    openGates: {
+      chips: openGateChips,
+      freshnessRows: data.freshness.map((item) => ({
+        datasetLabel: koCode(item.dataset),
+        valueLabel: `${koCode(item.status)} · ${item.latest_observation_date}`,
+      })),
+      gates: openGateDetails.map((gate) => ({
+        id: gate.gate_id,
+        label: gate.label,
+        nextActionLabel: openGateCopy(gate.next_action),
+        orderBoundaryLabel: orderBoundaryCopy(gate.order_boundary),
+        statusLabel: gate.status_label,
+        statusTone: gateSeverityTone(gate.severity),
+        summary: gate.summary,
+        typeLabel: gate.category_label,
+      })),
+    },
+    runtimeBoundary: {
+      apiNextActionLabel: operationCopy(productionApiServer.next_action),
+      apiReadinessLabel: productionApiServer.attention_required ? "보강 필요" : "운영 준비됨",
+      artifactEvidenceLabel: artifactRunner.attention_required ? "보강 필요" : "운영 증거 있음",
+      artifactLatestRootLabel: evidenceLocationLabel(artifactRunner.latest_artifact_root),
+      artifactNextActionLabel: operationCopy(artifactRunner.next_action),
+      artifactPolicyLabel: `${artifactRunner.artifact_policy_count.toLocaleString("ko-KR")}/${artifactRunner.job_count.toLocaleString("ko-KR")}개 · 최신 실행 ${artifactRunner.latest_run_count.toLocaleString("ko-KR")}개`,
+      authNextActionLabel: operationCopy(authRbac.next_action),
+      authReadinessLabel: authRbac.attention_required ? "보강 필요" : "읽기 전용 권한 준비",
+      brokerOrderLabel: `쓰기 ${authRbac.write_methods_allowed ? "허용됨" : "차단됨"} · 주문 ${authRbac.broker_submit_allowed ? "허용됨" : "차단됨"} · ${orderBoundaryCopy(authRbac.order_boundary)}`,
+      connectionLabel: `${koCode(productionApiServer.runtime_profile)} · ${koCode(productionApiServer.source_mode)} · ${koCode(productionApiServer.connection_boundary)}`,
+      environmentLabel: koCode(data.scheduler.runtime_env_readiness),
+      holidaySkipModeLabel: koCode(data.scheduler.holiday_skip_mode),
+      notificationMethodLabel: `${koCode(alertDestination.mode)} · 목적지 ${alertDestination.target_configured ? "설정됨" : "미설정"} · 테스트 ${
+        alertDestination.last_test_status === "passed" && alertDestination.test_recent ? "통과" : "미검증"
+      }`,
+      notificationNextActionLabel: operationCopy(alertDestination.next_action),
+      notificationReadinessLabel: alertDestination.attention_required ? "보강 필요" : "외부 알림 검증됨",
+      readProtectionLabel: `${koCode(productionApiServer.auth_mode)} · 읽기 토큰 ${
+        productionApiServer.read_token_configured ? "설정됨" : "미설정"
+      } · 허용 출처 ${productionApiServer.allowed_origin_configured ? "명시됨" : "미설정"}`,
+      readScopeLabel: `${koCode(authRbac.read_role)} · 보호된 화면 ${authRbac.protected_paths.length.toLocaleString("ko-KR")}개 · 읽기 요청만 허용`,
+      schedulerActivationAllowedLabel: schedulerActivation.activation_allowed ? "예" : "아니오",
+      schedulerApprovalGateLabel: schedulerApprovalGateLabel(schedulerActivation.approval_gate),
+      schedulerEnvironmentLabel: automationStateLabel(schedulerActivation),
+      schedulerJobLabel: koCode(schedulerActivation.job_id),
+      schedulerNextStepLabel: schedulerNextStepLabel(schedulerActivation),
+      schedulerReadinessLabel: schedulerInstallLabel(data.scheduler.install_status),
+    },
+  };
   return (
     <div className="terminal-page decision-page">
       <OperationsConsoleHeader
@@ -5218,264 +5295,7 @@ export default async function DataHealthPage() {
           </div>
         </article>
 
-        <aside className="side-ledger">
-          <article className="ledger-panel" id="provider-budget">
-            <div className="section-heading stacked-heading">
-              <span>무료 API 예산</span>
-              <h2>데이터 제공자 호출 예산</h2>
-            </div>
-            <div className="budget-meter" aria-label={`호출 예산 사용률 ${budgetUsage}%`}>
-              <div style={{ width: `${Math.min(100, Math.max(0, budgetUsage))}%` }} />
-            </div>
-            <dl className="fact-list">
-              <div>
-                <dt>상태</dt>
-                <dd>{koCode(providerBudget.status)}</dd>
-              </div>
-              <div>
-                <dt>사용</dt>
-                <dd>{providerBudget.used_request_count}회</dd>
-              </div>
-              <div>
-                <dt>기준일</dt>
-                <dd>{providerBudget.budget_date}</dd>
-              </div>
-              <div>
-                <dt>최근 실행</dt>
-                <dd>{providerBudget.latest_run?.started_at ?? "오늘 실행 없음"}</dd>
-              </div>
-            </dl>
-          </article>
-
-          <article className="ledger-panel" id="active-recommendation-price-freshness">
-            <div className="section-heading stacked-heading">
-              <span>추천 종목 가격</span>
-              <h2>추천에 쓰는 가격이 최신인지 확인</h2>
-              <p>
-                추천, 성과 측정, 가상 매매 검증은 종목별 가격을 읽는다. 여기서 오래된 종목이 보이면 가격 보강이 먼저다.
-              </p>
-            </div>
-            <dl className="fact-list">
-              <div>
-                <dt>상태</dt>
-                <dd>
-                  <span className={`risk-tag ${activeRecommendationPriceFreshness.attention_required ? "risk-high" : "risk-low"}`}>
-                    {activeRecommendationPriceFreshness.attention_required ? "가격 보강 필요" : "최신성 확인"}
-                  </span>
-                </dd>
-              </div>
-              <div>
-                <dt>추천 종목</dt>
-                <dd>
-                  {activeRecommendationPriceFreshness.fresh_symbol_count}/{activeRecommendationPriceFreshness.active_symbol_count}개 최신
-                </dd>
-              </div>
-              <div>
-                <dt>최신 가격일</dt>
-                <dd>{activeRecommendationPriceFreshness.global_latest_trade_date || "미확인"}</dd>
-              </div>
-              <div>
-                <dt>뒤처진 종목</dt>
-                <dd>
-                  오래됨 {activeRecommendationPriceFreshness.stale_symbol_count}개 · 없음{" "}
-                  {activeRecommendationPriceFreshness.missing_symbol_count}개
-                </dd>
-              </div>
-              <div>
-                <dt>거래 경계</dt>
-                <dd>{orderBoundaryCopy(activeRecommendationPriceFreshness.order_boundary)}</dd>
-              </div>
-            </dl>
-            <p className="panel-copy">{operationCopy(activeRecommendationPriceFreshness.next_action)}</p>
-            {activeRecommendationPriceFreshness.stale_symbols.length > 0 ? (
-              <div className="flow-steps data-health-summary-grid">
-                {activeRecommendationPriceFreshness.stale_symbols.slice(0, 8).map((item) => (
-                  <a className="flow-step" href={item.detail_href || `/stocks/${item.symbol}`} key={item.symbol}>
-                    <span>{koCode(item.status)}</span>
-                    <strong>{item.symbol}</strong>
-                    <p>
-                      최근 가격 {item.latest_trade_date || "없음"} · 최신 기준보다 {item.days_behind_latest}일 뒤처짐 ·
-                      연결 추천 {item.active_recommendation_count}개
-                    </p>
-                  </a>
-                ))}
-              </div>
-            ) : null}
-          </article>
-
-          <article className="ledger-panel" id="runtime-boundary">
-            <div className="section-heading stacked-heading">
-              <span>조건과 최신성</span>
-              <h2>조건과 데이터 최신성</h2>
-            </div>
-            {openGateDetails.length > 0 ? (
-              <div className="flow-steps data-health-summary-grid" style={{ marginBottom: "18px" }}>
-                {openGateDetails.map((gate) => (
-                  <div className="flow-step" key={gate.gate_id}>
-                    <span>{gate.category_label}</span>
-                    <strong>{gate.label}</strong>
-                    <p>{gate.summary}</p>
-                    <dl className="fact-list compact-facts">
-                      <div>
-                        <dt>상태</dt>
-                        <dd>
-                          <span className={`risk-tag risk-${gate.severity}`}>{gate.status_label}</span>
-                        </dd>
-                      </div>
-                      <div>
-                        <dt>다음 행동</dt>
-                        <dd>{openGateCopy(gate.next_action)}</dd>
-                      </div>
-                      <div>
-                        <dt>실거래 상태</dt>
-                        <dd>{orderBoundaryCopy(gate.order_boundary)}</dd>
-                      </div>
-                    </dl>
-                  </div>
-                ))}
-              </div>
-            ) : null}
-            <div className="tag-ledger">
-              {openGateChips.map((gate) => (
-                <span className={`risk-tag ${gate.tone}`} key={gate.key}>
-                  {gate.label}
-                </span>
-              ))}
-            </div>
-            <dl className="fact-list compact-facts">
-              {data.freshness.map((item) => (
-                <div key={item.dataset}>
-                  <dt>{koCode(item.dataset)}</dt>
-                  <dd>
-                    {koCode(item.status)} · {item.latest_observation_date}
-                  </dd>
-                </div>
-              ))}
-            </dl>
-          </article>
-
-          <article className="ledger-panel">
-            <div className="section-heading stacked-heading">
-              <span>자동 반복 실행</span>
-              <h2>반복 실행 준비 상태</h2>
-            </div>
-            <dl className="fact-list">
-              <div>
-                <dt>읽기 서버</dt>
-                <dd>{productionApiServer.attention_required ? "보강 필요" : "운영 준비됨"}</dd>
-              </div>
-              <div>
-                <dt>데이터 연결</dt>
-                <dd>
-                  {koCode(productionApiServer.runtime_profile)} · {koCode(productionApiServer.source_mode)} ·{" "}
-                  {koCode(productionApiServer.connection_boundary)}
-                </dd>
-              </div>
-              <div>
-                <dt>읽기 보호</dt>
-                <dd>
-                  {koCode(productionApiServer.auth_mode)} · 읽기 토큰{" "}
-                  {productionApiServer.read_token_configured ? "설정됨" : "미설정"} · 허용 출처{" "}
-                  {productionApiServer.allowed_origin_configured ? "명시됨" : "미설정"}
-                </dd>
-              </div>
-              <div>
-                <dt>조회 권한</dt>
-                <dd>{authRbac.attention_required ? "보강 필요" : "읽기 전용 권한 준비"}</dd>
-              </div>
-              <div>
-                <dt>읽기 범위</dt>
-                <dd>
-                  {koCode(authRbac.read_role)} · 보호된 화면 {authRbac.protected_paths.length.toLocaleString("ko-KR")}개 · 읽기 요청만 허용
-                </dd>
-              </div>
-              <div>
-                <dt>주문/쓰기 차단</dt>
-                <dd>
-                  쓰기 {authRbac.write_methods_allowed ? "허용됨" : "차단됨"} · 주문{" "}
-                  {authRbac.broker_submit_allowed ? "허용됨" : "차단됨"} · {orderBoundaryCopy(authRbac.order_boundary)}
-                </dd>
-              </div>
-              <div>
-                <dt>권한 다음 조치</dt>
-                <dd>{operationCopy(authRbac.next_action)}</dd>
-              </div>
-              <div>
-                <dt>API 다음 조치</dt>
-                <dd>{operationCopy(productionApiServer.next_action)}</dd>
-              </div>
-              <div>
-                <dt>알림 목적지</dt>
-                <dd>{alertDestination.attention_required ? "보강 필요" : "외부 알림 검증됨"}</dd>
-              </div>
-              <div>
-                <dt>알림 방식</dt>
-                <dd>
-                  {koCode(alertDestination.mode)} · 목적지{" "}
-                  {alertDestination.target_configured ? "설정됨" : "미설정"} · 테스트{" "}
-                  {alertDestination.last_test_status === "passed" && alertDestination.test_recent
-                    ? "통과"
-                    : "미검증"}
-                </dd>
-              </div>
-              <div>
-                <dt>알림 다음 조치</dt>
-                <dd>{operationCopy(alertDestination.next_action)}</dd>
-              </div>
-              <div>
-                <dt>자동 실행기</dt>
-                <dd>{schedulerInstallLabel(data.scheduler.install_status)}</dd>
-              </div>
-              <div>
-                <dt>환경</dt>
-                <dd>{koCode(data.scheduler.runtime_env_readiness)}</dd>
-              </div>
-              <div>
-                <dt>승인 상태</dt>
-                <dd>{automationStateLabel(schedulerActivation)}</dd>
-              </div>
-              <div>
-                <dt>대상 작업</dt>
-                <dd>{koCode(schedulerActivation.job_id)}</dd>
-              </div>
-              <div>
-                <dt>승인 조건</dt>
-                <dd>{schedulerApprovalGateLabel(schedulerActivation.approval_gate)}</dd>
-              </div>
-              <div>
-                <dt>활성화 가능</dt>
-                <dd>{schedulerActivation.activation_allowed ? "예" : "아니오"}</dd>
-              </div>
-              <div>
-                <dt>다음 단계</dt>
-                <dd>{schedulerNextStepLabel(schedulerActivation)}</dd>
-              </div>
-              <div>
-                <dt>휴장일 처리</dt>
-                <dd>{koCode(data.scheduler.holiday_skip_mode)}</dd>
-              </div>
-	            <div>
-	              <dt>실행 증거</dt>
-	              <dd>{artifactRunner.attention_required ? "보강 필요" : "운영 증거 있음"}</dd>
-	            </div>
-	            <div>
-	              <dt>저장 정책</dt>
-	              <dd>
-	                {artifactRunner.artifact_policy_count}/{artifactRunner.job_count}개 · 최신 실행{" "}
-	                {artifactRunner.latest_run_count}개
-	              </dd>
-	            </div>
-		            <div>
-		              <dt>실행 증거 경로</dt>
-		              <dd>{evidenceLocationLabel(artifactRunner.latest_artifact_root)}</dd>
-		            </div>
-	            <div>
-	              <dt>실행 증거 다음 조치</dt>
-	              <dd>{operationCopy(artifactRunner.next_action)}</dd>
-	            </div>
-            </dl>
-          </article>
-        </aside>
+        <DataHealthRuntimeDetailPanels {...runtimeDetailPanels} />
       </section>
       </details>
     </div>
