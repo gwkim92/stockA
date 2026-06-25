@@ -43,7 +43,9 @@ function formatCurrency(value: number | null, currencyCode: string) {
 function investorText(value: string) {
   return value
     .replaceAll("페이퍼", "가상 매매")
+    .replaceAll("valuation snapshot이", "목표가 자료가")
     .replaceAll("valuation snapshot", "목표가 자료")
+    .replaceAll("목표가 자료이", "목표가 자료가")
     .replaceAll("professional analysis", "전문 분석")
     .replaceAll("레이어", "근거 항목");
 }
