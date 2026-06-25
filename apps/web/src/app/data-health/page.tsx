@@ -20,6 +20,7 @@ import {
 } from "@/components/operations/DataHealthRuntimeDetailPanels";
 import { DataHealthTossBrokerSection } from "@/components/operations/DataHealthTossBrokerSection";
 import { OperationsConsoleHeader } from "@/components/operations/OperationsConsoleHeader";
+import { PageDecisionMap } from "@/components/research/PageDecisionMap";
 import { getDataHealth } from "@/lib/frontend-api";
 import { koCode, koReason } from "@/lib/korean-labels";
 import type { DataHealthData } from "@/lib/types";
@@ -3233,6 +3234,53 @@ export default async function DataHealthPage() {
         title="수집·분석·자동 실행 상태"
         description="투자 판단에 영향을 주는 데이터 지연, 공급자 제한, AI 중단과 다음 자동 재시도를 관리합니다."
         currentPath={"/data-health" as Route}
+      />
+      <PageDecisionMap
+        eyebrow="운영 화면 읽는 순서"
+        title="장애, 데이터, AI, 자동 실행만 먼저 본다"
+        description="세부 실행 기록은 뒤로 보내고, 투자 화면 신뢰도에 직접 영향을 주는 지점부터 확인한다."
+        steps={[
+          {
+            description: "열린 항목과 수집·분석 상태를 먼저 본다.",
+            href: "#data-health-title",
+            label: "상태",
+            status: dataHealthHeadline,
+            title: "전체 상태",
+            tone: failedPipelines > 0 ? "block" : data.open_gates.length > 0 ? "watch" : "ready",
+          },
+          {
+            description: "원천 데이터가 어느 투자 화면에 쓰이는지 확인한다.",
+            href: "#collection-status-title",
+            label: "커버리지",
+            status: `${overviewCollectionCards.length.toLocaleString("ko-KR")}개 영역`,
+            title: "수집·분석 연결",
+            tone: "ready",
+          },
+          {
+            description: "중복, 오분류, 근거 없는 연결이 있는지 확인한다.",
+            href: "#quality-audit",
+            label: "품질",
+            status: koCode(qualityAudit.status),
+            title: "품질 감사",
+            tone: qualityAudit.status === "attention_required" ? "watch" : "ready",
+          },
+          {
+            description: "실제 AI 호출, 무료 API 예산, 공급자 상태를 본다.",
+            href: "#live-ai-invocation-health",
+            label: "AI",
+            status: liveAiInvocationHealth.attention_required ? "확인 필요" : "호출 상태 확인",
+            title: "AI·공급자 상태",
+            tone: liveAiInvocationHealth.attention_required ? "watch" : "ready",
+          },
+          {
+            description: "다음 자동 실행 시각과 반복 실행 상태를 확인한다.",
+            href: "#scheduler-profile-title",
+            label: "자동 실행",
+            status: automationStateLabel(schedulerActivation),
+            title: "스케줄러",
+            tone: schedulerActivation.activation_allowed ? "ready" : "watch",
+          },
+        ]}
       />
       <DataHealthOverview
         asOfDate={data.as_of_date}

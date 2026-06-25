@@ -2,6 +2,7 @@ import type { Route } from "next";
 import Link from "next/link";
 
 import { PortfolioReturnSummaryPanel } from "@/components/portfolio/PortfolioReturnSummaryPanel";
+import { PageDecisionMap } from "@/components/research/PageDecisionMap";
 import { getPortfolioCoverage, getTradingReadiness } from "@/lib/frontend-api";
 import { koCode, koLabel } from "@/lib/korean-labels";
 import { calculatePortfolioReturnSummary, formatSignedPercent, portfolioCopy } from "@/lib/presentation";
@@ -390,6 +391,54 @@ export default async function PortfolioCoveragePage() {
           ))}
         </div>
       </section>
+
+      <PageDecisionMap
+        eyebrow="화면 읽는 순서"
+        title="수익률, 위험, 조정 후보만 먼저 본다"
+        description="긴 표와 감사 기록을 모두 읽기 전에 포트폴리오 판단에 직접 필요한 다섯 지점으로 이동한다."
+        steps={[
+          {
+            description: "평가손익률과 손익을 만든 포지션을 먼저 본다.",
+            href: "#portfolio-return-summary",
+            label: "수익률",
+            status: portfolioReturnLabel.label,
+            title: "평가손익",
+            tone: portfolioReturn.returnPct !== null && portfolioReturn.returnPct < 0 ? "watch" : "ready",
+          },
+          {
+            description: "단일 종목 한도, 집중도, 가상 매매 입력 차단 여부를 확인한다.",
+            href: "#portfolio-risk-budget",
+            label: "위험",
+            status: riskBudgetLabel(riskBudget.status),
+            title: "위험 예산",
+            tone: riskBudget.status === "needs_position_review" ? "watch" : "ready",
+          },
+          {
+            description: "벤치마크와 크게 다른 종목이 투자 논리와 맞는지 본다.",
+            href: "#portfolio-rebalance-review",
+            label: "조정 후보",
+            status: reviewCandidateTotal > 0 ? `${reviewCandidateTotal}개 후보` : "후보 없음",
+            title: "리밸런싱 검토",
+            tone: reviewCandidateTotal > 0 ? "watch" : "ready",
+          },
+          {
+            description: "작은 비중, 과대 비중, 보유 유지 조건을 종목별로 본다.",
+            href: "#portfolio-position-map",
+            label: "보유",
+            status: `${data.positions.length.toLocaleString("ko-KR")}개`,
+            title: "보유 포지션",
+            tone: data.positions.length > 0 ? "ready" : "watch",
+          },
+          {
+            description: "성과 표본이 성숙하기 전에는 추천 산식과 주문이 바뀌지 않는다.",
+            href: "#portfolio-outcome-boundary",
+            label: "경계",
+            status: orderBoundaryLabel(reviewCalibration.guardrails.order_boundary),
+            title: "성과·거래 경계",
+            tone: "block",
+          },
+        ]}
+      />
 
       <section className="bento-grid reveal delay-1">
         <article className="bento-card">
