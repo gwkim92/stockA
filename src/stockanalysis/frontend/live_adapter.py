@@ -791,7 +791,7 @@ def _build_open_gate_details(
                     "category": "operational_blocker",
                     "category_label": "운영 조건",
                     "severity": "high",
-                    "status_label": "AI 분석 실패",
+                    "status_label": "LLM/AI 분석 실패",
                     "summary": (
                         f"최근 실제 AI 분석 호출 성공 {success_count}건, 실패 {failed_count}건."
                         + (f" 최신 실패 작업은 {latest_failed_task}." if latest_failed_task else "")

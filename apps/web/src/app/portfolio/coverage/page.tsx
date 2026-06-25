@@ -1,9 +1,10 @@
 import type { Route } from "next";
 import Link from "next/link";
 
+import { PortfolioReturnSummaryPanel } from "@/components/portfolio/PortfolioReturnSummaryPanel";
 import { getPortfolioCoverage, getTradingReadiness } from "@/lib/frontend-api";
 import { koCode, koLabel } from "@/lib/korean-labels";
-import { portfolioCopy } from "@/lib/presentation";
+import { calculatePortfolioReturnSummary, formatSignedPercent, portfolioCopy } from "@/lib/presentation";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "보유·리스크 상태" };
@@ -285,6 +286,12 @@ export default async function PortfolioCoveragePage() {
   const reviewActionRouter = riskBudget.review_feedback_action_router;
   const concentration = riskBudget.concentration;
   const hasPositions = data.positions.length > 0;
+  const portfolioReturn = calculatePortfolioReturnSummary(data.positions);
+  const portfolioReturnLabel = formatSignedPercent(portfolioReturn.returnPct, {
+    metricLabel: "평가손익률",
+    upLabel: "수익",
+    downLabel: "손실",
+  });
   const investedWeight = Math.max(0, 1 - (data.summary.cash_weight ?? 0));
   const thesisCoverageRatio = investedWeight > 0
     ? Math.max(0, Math.min(1, (investedWeight - data.summary.missing_thesis_weight) / investedWeight))
@@ -297,12 +304,12 @@ export default async function PortfolioCoveragePage() {
       index: "01",
       label: "보유 상태",
       title: hasPositions ? `${data.summary.position_count}개 보유` : "보유 스냅샷 없음",
-      metric: `투자 논리 연결률 ${formatPercent(thesisCoverageRatio)} · 성과 측정 ${formatPercent(outcomeCoverageRatio)}`,
+      metric: `평가손익률 ${portfolioReturnLabel.label} · 투자 논리 ${formatPercent(thesisCoverageRatio)}`,
       body: hasPositions
         ? "보유 종목별 투자 논리와 성과 측정 상태입니다. 논리 누락 종목은 보유 근거가 약합니다."
         : "이 기준일에는 포지션 스냅샷이 없어 보유 상태를 만들 수 없습니다.",
-      href: "#portfolio-position-map",
-      cta: "보유 지도 보기",
+      href: "#portfolio-return-summary",
+      cta: "수익률 보기",
       tone: thesisReady ? "ready" : "watch",
     },
     {
@@ -360,6 +367,7 @@ export default async function PortfolioCoveragePage() {
           </p>
           <div className="decision-brief-meta" aria-label="포트폴리오 핵심 상태">
             <span>포지션 {data.summary.position_count.toLocaleString("ko-KR")}개</span>
+            <span>평가손익률 {portfolioReturnLabel.label}</span>
             <span>투자 논리 누락 {data.summary.missing_thesis_count.toLocaleString("ko-KR")}개</span>
             <span>측정 종료 {data.coverage_measurement_end_date}</span>
             <span>실거래 {orderBoundaryLabel(reviewCalibration.guardrails.order_boundary)}</span>
@@ -400,6 +408,16 @@ export default async function PortfolioCoveragePage() {
             {data.summary.missing_thesis_count}
           </strong>
           <span className="metric-sub">비중 {formatPercent(data.summary.missing_thesis_weight)}</span>
+        </article>
+
+        <article className="bento-card">
+          <span className="metric-label">평가손익률</span>
+          <strong className="metric-value">
+            {portfolioReturnLabel.label}
+          </strong>
+          <span className="metric-sub">
+            측정 포지션 {portfolioReturn.measuredPositionCount.toLocaleString("ko-KR")}개
+          </span>
         </article>
 
         <article className="bento-card">
@@ -1080,64 +1098,7 @@ export default async function PortfolioCoveragePage() {
           )}
         </article>
 
-        <article className="bento-card span-4">
-          <div style={{ marginBottom: "24px" }}>
-            <span className="metric-sub">보유 연결 상태</span>
-            <h2 style={{ fontSize: "1.5rem" }}>보유 종목 상태 지도</h2>
-          </div>
-          
-          <div className="bento-list" style={{ gap: "8px" }}>
-            <div className="bento-list-item" style={{ background: "transparent", borderBottom: "1px solid var(--border-light)", borderRadius: 0, paddingBottom: "16px" }}>
-              <div style={{ flexDirection: "row", width: "100%", gap: "24px" }}>
-                <span className="metric-sub" style={{ width: "100px" }}>심볼</span>
-                <span className="metric-sub" style={{ width: "100px" }}>비중</span>
-                <span className="metric-sub" style={{ width: "130px" }}>비중 한도</span>
-                <span className="metric-sub" style={{ width: "140px" }}>투자 논리</span>
-                <span className="metric-sub" style={{ width: "140px" }}>성과</span>
-                <span className="metric-sub" style={{ flex: 1 }}>필요 조치</span>
-              </div>
-            </div>
-
-            {!hasPositions ? (
-              <p className="empty-state">
-                이 기준일에 보유 포지션 스냅샷이 없어 연결 상태 표를 만들 수 없다. 포트폴리오 포지션 적재 배치가
-                최신 영업일 스냅샷을 저장하면 심볼, 비중, 투자 논리, 성과 측정 상태가 여기에 표시된다.
-              </p>
-            ) : null}
-            
-            {data.positions.map((position) => (
-              <div className="bento-list-item" key={position.instrument_id} style={{ alignItems: "flex-start" }}>
-                <div style={{ flexDirection: "row", width: "100%", gap: "24px", alignItems: "center" }}>
-                  <strong style={{ width: "100px", fontSize: "1.1rem" }}>{position.symbol}</strong>
-                  <span style={{ width: "100px", color: "var(--text-primary)", fontWeight: 500 }}>{formatPercent(position.weight)}</span>
-                  <span style={{ width: "130px" }}>
-                    <span className={`risk-tag ${sizeStatusClass(position.position_size_status)}`}>
-                      {sizeStatusLabel(position.position_size_status)}
-                    </span>
-                  </span>
-                  <span style={{ 
-                    width: "140px", 
-                    color: position.active_thesis_id ? 'var(--accent-green)' : 'var(--accent-red)'
-                  }}>
-                    {position.active_thesis_id ? "연결됨" : "논리 누락"}
-                  </span>
-                  <span style={{ 
-                    width: "140px", 
-                    color: position.coverage_status === 'covered' ? 'var(--accent-green)' : 'var(--text-secondary)'
-                  }}>
-                      {position.coverage_status === "missing_outcome" ? "측정 대기" : userFacingText(position.outcome_status)}
-                  </span>
-                  <span style={{ flex: 1, color: "var(--text-primary)", fontWeight: 500 }}>
-                    {userFacingText(position.action)}
-                    <small style={{ display: "block", color: "var(--text-secondary)", fontWeight: 400, marginTop: "4px" }}>
-                      {userFacingText(position.position_size_note)}
-                    </small>
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </article>
+        <PortfolioReturnSummaryPanel positions={data.positions} baseCurrency={data.base_currency} />
       </section>
     </div>
   );

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { DecisionSummary } from "@/components/research/DecisionSummary";
 import { MetricStrip } from "@/components/research/MetricStrip";
 import { ResearchSection } from "@/components/research/ResearchSection";
+import { SignedReturnBadge } from "@/components/research/SignedReturnBadge";
 import { StatusBadge } from "@/components/status/StatusBadge";
 import { getStocks } from "@/lib/frontend-api";
 import { formatPercent } from "@/lib/presentation";
@@ -141,6 +142,12 @@ export default async function StocksPage() {
                     <dd>{formatCurrency(stock.latest_price.close, stock.currency_code)}</dd>
                   </div>
                   <div>
+                    <dt>전일 대비</dt>
+                    <dd>
+                      <SignedReturnBadge value={stock.latest_price.change_pct} />
+                    </dd>
+                  </div>
+                  <div>
                     <dt>추천 점수</dt>
                     <dd>{stock.recommendation ? formatPercent(stock.recommendation.score) : "없음"}</dd>
                   </div>
@@ -168,7 +175,7 @@ export default async function StocksPage() {
               <tr>
                 <th scope="col">종목</th>
                 <th scope="col">현재가</th>
-                <th scope="col">변동률</th>
+                <th scope="col">전일 대비</th>
                 <th scope="col">추천</th>
                 <th scope="col">보유 비중</th>
                 <th scope="col">데이터</th>
@@ -187,7 +194,9 @@ export default async function StocksPage() {
                       </Link>
                     </th>
                     <td>{formatCurrency(stock.latest_price.close, stock.currency_code)}</td>
-                    <td>{formatPercent(stock.latest_price.change_pct)}</td>
+                    <td>
+                      <SignedReturnBadge value={stock.latest_price.change_pct} />
+                    </td>
                     <td>
                       {stock.recommendation ? (
                         <Link href={recommendationHref(stock.recommendation.recommendation_id)}>

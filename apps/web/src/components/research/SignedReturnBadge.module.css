@@ -1,0 +1,57 @@
+.badge {
+  display: inline-grid;
+  min-width: 82px;
+  gap: 2px;
+  padding: 7px 9px;
+  background: color-mix(in srgb, var(--text-tertiary) 7%, var(--bg-panel));
+  border: 1px solid color-mix(in srgb, var(--text-tertiary) 24%, var(--border-light));
+  border-radius: var(--radius-sm);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+  text-align: left;
+}
+
+.badge strong {
+  color: var(--text-primary);
+  font-size: 0.92rem;
+  font-weight: 950;
+}
+
+.badge small {
+  color: var(--text-secondary);
+  font-size: 0.64rem;
+  font-weight: 820;
+}
+
+.up {
+  background: color-mix(in srgb, var(--accent-green) 8%, var(--bg-panel));
+  border-color: color-mix(in srgb, var(--accent-green) 30%, var(--border-light));
+}
+
+.up strong {
+  color: var(--accent-green);
+}
+
+.down {
+  background: color-mix(in srgb, var(--accent-red) 7%, var(--bg-panel));
+  border-color: color-mix(in srgb, var(--accent-red) 28%, var(--border-light));
+}
+
+.down strong {
+  color: var(--accent-red);
+}
+
+.flat strong {
+  color: var(--text-primary);
+}
+
+.unknown strong {
+  color: var(--text-tertiary);
+}
+
+@media (max-width: 560px) {
+  .badge {
+    min-width: 74px;
+    padding: 6px 7px;
+  }
+}

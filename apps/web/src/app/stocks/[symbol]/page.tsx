@@ -5,6 +5,7 @@ import { Fragment } from "react";
 import { CandlestickChart } from "@/components/candlestick-chart";
 import { NewsTitleBlock } from "@/components/news-title-block";
 import { ProfessionalResearchFlow, type ResearchFlowStep } from "@/components/professional-research-flow";
+import { SignedReturnBadge } from "@/components/research/SignedReturnBadge";
 import { ValuationTargetRangeCard } from "@/components/valuation-target-range-card";
 import { getAiEvidenceNeighborhood, getStockDetail } from "@/lib/frontend-api";
 import { koCode, koLabel } from "@/lib/korean-labels";
@@ -1537,6 +1538,9 @@ export default async function StockDetailPage({ params }: StockDetailPageProps) 
           </p>
           <div className="decision-brief-meta" aria-label={`${data.symbol} 핵심 상태`}>
             <span>최신 종가 {hasPriceData ? formatCurrency(data.latest_price.close, data.currency_code) : "가격 미수집"}</span>
+            <span>
+              전일 대비 <SignedReturnBadge value={data.latest_price.change_pct} />
+            </span>
             <span>추천 {data.recommendation ? koCode(data.recommendation.action) : "없음"}</span>
             <span>보유 {data.position ? formatPercent(data.position.weight) : "미보유"}</span>
             <span>뉴스·흐름 {stockNewsCount.toLocaleString("ko-KR")}개</span>
@@ -1641,6 +1645,10 @@ export default async function StockDetailPage({ params }: StockDetailPageProps) 
             <strong>{formatCurrency(data.summary.high_close, data.currency_code)}</strong>
             <span>거래량</span>
             <strong>{formatNumber(data.latest_price.volume)}</strong>
+            <span>전일 대비</span>
+            <strong>
+              <SignedReturnBadge value={data.latest_price.change_pct} />
+            </strong>
           </div>
           <div className="stock-meta-grid" style={{ marginTop: "1rem" }}>
             <span>분석 기준</span>
