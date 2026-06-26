@@ -115,6 +115,9 @@ const EVIDENCE_TERMS = [
 ] as const;
 
 const PORTFOLIO_TERMS = [
+  ["not_available", "아직 없음"],
+  ["not available", "아직 없음"],
+  ["read-only", "읽기 전용"],
   ["read_only_no_order", "읽기 전용, 실거래 주문 차단"],
   ["broker submit", "증권사 주문 제출"],
   ["broker", "증권사"],
@@ -144,6 +147,7 @@ const PORTFOLIO_TERMS = [
 const PORTFOLIO_CODES: Record<string, string> = {
   add_blocked_until_evidence: "근거 보강 전 증액 금지",
   benchmark_drift_review: "벤치마크 괴리 확인",
+  "bootstrap-v1": "초기 장기 전략",
   contradicted: "반박됨",
   execute_calibration: "누적평가 실행",
   execute_feedback: "사후평가 실행",
@@ -152,6 +156,7 @@ const PORTFOLIO_CODES: Record<string, string> = {
   needs_more_data: "추가 성과 필요",
   needs_position_review: "비중 점검 필요",
   needs_thesis_update: "투자 논리 보강",
+  not_available: "아직 없음",
   no_op_wait_for_outcome_window: "성과 관찰 기간 대기",
   reduce_review: "축소 필요성 확인",
   reduce_watch: "축소 관찰",
@@ -160,6 +165,7 @@ const PORTFOLIO_CODES: Record<string, string> = {
   run_feedback_now: "사후평가 실행 필요",
   too_early: "관찰 기간 부족",
   validated: "검증됨",
+  wait: "대기",
   watch_small_position: "작은 비중 관찰",
   within_budget: "한도 내",
 };

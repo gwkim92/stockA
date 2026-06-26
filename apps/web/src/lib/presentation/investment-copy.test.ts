@@ -23,5 +23,9 @@ describe("investment presentation copy", () => {
 
   it("translates portfolio action codes without page-local replacements", () => {
     expect(portfolioCopy("no_op_wait_for_outcome_window")).toBe("성과 관찰 기간 대기");
+    expect(portfolioCopy("not available")).toBe("아직 없음");
+    expect(portfolioCopy("wait")).toBe("대기");
+    expect(portfolioCopy("bootstrap-v1")).toBe("초기 장기 전략");
+    expect(portfolioCopy("read-only")).toBe("읽기 전용");
   });
 });
