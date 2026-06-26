@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 
+import { koCode } from "@/lib/korean-labels";
 import type { StockMarketDataProvider, StockPrice, StockTossProviderEvidence } from "@/lib/types";
 
 type CandleRange = "1M" | "3M" | "6M" | "1Y";
@@ -43,6 +44,14 @@ function usableCandle(bar: StockPrice) {
     && bar.high >= bar.low
   );
 }
+
+function providerLabel(value: string | null | undefined) {
+  if (!value || value.toLowerCase() === "missing") {
+    return "원천 대기";
+  }
+  return koCode(value);
+}
+
 export function CandlestickChart({
   bars,
   currencyCode,
@@ -91,7 +100,7 @@ export function CandlestickChart({
       <div className="chart-toolbar">
         <div className="chart-provider-stack">
           <span className={`provider-chip is-${provider.freshness_status}`}>
-            {analysisSource.label} · {analysisSource.provider}
+            {analysisSource.label} · {providerLabel(analysisSource.provider)}
           </span>
           <span className="provider-note">
             {brokerSource.label} · {brokerStatus} · 추천 점수 미반영

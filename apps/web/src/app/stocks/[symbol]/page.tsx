@@ -108,7 +108,7 @@ function correlationTone(correlation: StockMarketCorrelation) {
 }
 
 function priceSourceProviderLabel(value: string | null | undefined) {
-  if (!value || value === "missing") {
+  if (!value || value.toLowerCase() === "missing") {
     return "원천 대기";
   }
   return userFacingStockText(koCode(value));
@@ -595,7 +595,7 @@ export default async function StockDetailPage({ params }: StockDetailPageProps) 
           </div>
           <div className="stock-meta-grid" style={{ marginTop: "1rem" }}>
             <span>분석 기준</span>
-            <strong>{data.market_data_provider.analysis_price_source.provider}</strong>
+            <strong>{priceSourceProviderLabel(data.market_data_provider.analysis_price_source.provider)}</strong>
             <span>계산 반영</span>
             <strong>{data.market_data_provider.analysis_price_source.used_for_scoring ? "추천·사이클 사용" : "미사용"}</strong>
             <span>브로커 참고</span>

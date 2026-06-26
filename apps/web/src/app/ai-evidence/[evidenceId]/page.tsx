@@ -389,7 +389,7 @@ function translationTraceStatus(preview: ReturnType<typeof primarySourcePreview>
   return {
     title: "한국어 번역 없음",
     status: "원문 대조 필요",
-    body: "아직 저장된 한국어 제목/요약이 없어 원문 제목과 해석값을 함께 봐야 한다.",
+    body: "아직 저장된 한국어 제목/요약이 없어 원문 제목과 해석값을 함께 비교합니다.",
     tone: "risk-medium" as const,
   };
 }
@@ -695,7 +695,7 @@ function AiEvidenceReviewBrief({
       body:
         sourcePreview.koreanSummary ||
         sourcePreview.koreanTitle ||
-        "저장된 한국어 제목·요약이 없으면 원문 제목과 투자 근거를 함께 봐야 한다.",
+        "저장된 한국어 제목·요약이 없으면 원문 제목과 투자 근거를 함께 비교합니다.",
       href: "#evidence-source-preview",
       cta: "번역 보기",
       tone: translation.tone,
@@ -981,7 +981,7 @@ export default async function AiEvidencePage({ params }: AiEvidencePageProps) {
       body:
         sourcePreview.koreanSummary ||
         sourcePreview.koreanTitle ||
-        "한국어 제목·요약이 없으면 원문 제목과 해석값을 함께 봐야 한다.",
+        "한국어 제목·요약이 없으면 원문 제목과 해석값을 함께 비교합니다.",
       tone: translation.tone === "risk-low" ? "ready" : "watch",
       href: "#evidence-source-preview",
       cta: "번역 보기",

@@ -136,6 +136,13 @@ class FrontendFixtureServerTests(unittest.TestCase):
         self.assertEqual(payload["data"]["paper_actions"][0]["paper_action"], "paper_sell_to_zero")
         self.assertTrue(payload["data"]["paper_actions"][0]["requires_human_approval"])
 
+    def test_recommendation_list_id_alias_returns_detail_fixture(self) -> None:
+        status, payload = self.fetch_json("/api/recommendations/recommendation-7101")
+
+        self.assertEqual(status, 200)
+        self.assertEqual(payload["data"]["recommendation_id"], "recommendation-7101")
+        self.assertEqual(payload["data"]["symbol"], "AAPL")
+
     def test_trading_readiness_path_returns_fixture_response(self) -> None:
         status, payload = self.fetch_json("/api/trading/readiness")
 

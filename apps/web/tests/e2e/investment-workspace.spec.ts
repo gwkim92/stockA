@@ -26,7 +26,7 @@ const operationsRoutes = [
 ] as const;
 
 const investorInternalCopyPattern =
-  /\b(?:pipeline|runner|artifact|monitor_or_accumulate|needs_thesis_review|missing_thesis)\b|CHINA ADR COVERAGE|coverage status/i;
+  /\b(?:pipeline|runner|artifact|fallback|canonical|shadow|missing|not available|wait|read-only|bootstrap-v1|monitor_or_accumulate|needs_thesis_review|missing_thesis|raw_[a-z0-9_]+|[a-z]+_[a-z0-9_]+)\b|CHINA ADR COVERAGE|coverage status|검토 가능|확인한다|봐야 한다|미수집/i;
 const rawStatusCodePattern =
   /\b(?:monitor_or_accumulate|needs_thesis_review|missing_thesis|equity_research|missing_api_key|admin_key_missing)\b|CHINA ADR COVERAGE/i;
 
@@ -51,8 +51,27 @@ test.describe("professional investment workspace", () => {
       await expect(page.locator("#main-content")).toContainText(expectedText);
       const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
       expect(overflow).toBeLessThanOrEqual(1);
+      const bodyText = await page.locator("body").innerText();
+      expect(bodyText).not.toMatch(investorInternalCopyPattern);
+      expect(bodyText).not.toMatch(rawStatusCodePattern);
     });
   }
+
+  test("live recommendation detail keeps internal terms out of the investor view", async ({ page }) => {
+    await page.goto("/recommendations");
+    const firstRecommendation = page.locator('a[href^="/recommendations/"]').first();
+    const href = await firstRecommendation.getAttribute("href");
+    if (!href) {
+      test.skip(true, "No live recommendation link is visible on the recommendation list.");
+      return;
+    }
+
+    await page.goto(href);
+    await expect(page.locator("#main-content")).toContainText("추천");
+    const bodyText = await page.locator("body").innerText();
+    expect(bodyText).not.toMatch(investorInternalCopyPattern);
+    expect(bodyText).not.toMatch(rawStatusCodePattern);
+  });
 
   for (const [route, expectedText] of operationsRoutes) {
     test(`${route} is visibly separated as operations`, async ({ page }) => {

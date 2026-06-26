@@ -73,6 +73,12 @@ class FrontendApiAdapterTests(unittest.TestCase):
         self.assertTrue(payload["data"]["paper_actions"][0]["requires_human_approval"])
         self.assertEqual(payload["pagination"]["limit"], 50)
 
+    def test_resolve_frontend_response_aliases_fixture_recommendation_list_id(self) -> None:
+        payload = resolve_frontend_response("/api/recommendations/recommendation-7101")
+
+        self.assertEqual(payload["data"]["recommendation_id"], "recommendation-7101")
+        self.assertEqual(payload["data"]["symbol"], "AAPL")
+
     def test_resolve_frontend_response_returns_trading_readiness_example(self) -> None:
         payload = resolve_frontend_response("/api/trading/readiness")
 

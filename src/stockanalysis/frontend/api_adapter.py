@@ -129,6 +129,8 @@ def _fixture_alias_path(api_path: str) -> str | None:
         return "/api/market-map?asOfDate=2026-06-05"
     if parsed.path.startswith("/api/themes/") and query.get("asOfDate"):
         return "/api/themes/ANNUAL_REPORTING?asOfDate=2024-11-01"
+    if parsed.path == "/api/recommendations/recommendation-7101":
+        return "/api/recommendations/AAPL-2024-11-01"
     if parsed.path.startswith("/api/portfolio/") and parsed.path.endswith("/coverage") and query.get("asOfDate"):
         return "/api/portfolio/Long%20Term%20Paper/coverage?asOfDate=2024-11-01"
     if (

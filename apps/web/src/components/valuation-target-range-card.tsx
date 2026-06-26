@@ -91,6 +91,8 @@ function userFacingValuationText(value: string) {
     .replace(/\bvaluation_snapshot\b/gi, "밸류에이션 스냅샷")
     .replace(/\bvaluation_margin_score\b/gi, "밸류에이션 안전마진")
     .replace(/검토 가능/g, "가정 확인 필요")
+    .replace(/미수집/g, "자료 대기")
+    .replace(/\bmissing\b/gi, "자료 대기")
     .replace(/\bforecast\b/gi, "재무 추정")
     .replace(/\bsegment\b/gi, "사업부")
     .replace(/\bfootnote\b/gi, "주석")
@@ -152,7 +154,7 @@ export function ValuationTargetRangeCard({
         </div>
         <div className="rail-cell">
           <span>가정 품질</span>
-          <strong>{valuation.valuation_quality.confidence_label}</strong>
+          <strong>{userFacingValuationText(valuation.valuation_quality.confidence_label)}</strong>
           <small>공백 {valuation.valuation_quality.data_gap_count}개 · 경고 {valuation.valuation_quality.warning_count}개</small>
         </div>
       </div>
