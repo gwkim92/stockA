@@ -28,7 +28,11 @@
   `RecommendationMarketCorrelationsPanel.tsx`,
   `RecommendationResearchList.tsx`,
   and `recommendation-panel-format.ts`.
-- Reduced `apps/web/src/app/recommendations/[recommendationId]/page.tsx` pure LOC from the 2,000+ line range to roughly 1,493 lines after this checkpoint. Remaining page size is still above the long-term target, but the top decision area, compatibility fallback, financial model, ETF/fund analysis, industry/peer analysis, waterfall, focus, evidence trace, and market-correlation render blocks are no longer owned directly by the route file.
+- Further extracted score and macro-flow sections into:
+  `RecommendationScoreComponentPanels.tsx`,
+  `RecommendationMacroFlowPanel.tsx`,
+  and `recommendation-score-component-model.ts`.
+- Reduced `apps/web/src/app/recommendations/[recommendationId]/page.tsx` pure LOC from the 2,000+ line range to roughly 1,114 lines after this checkpoint. Remaining page size is still above the long-term target, but the top decision area, compatibility fallback, financial model, ETF/fund analysis, industry/peer analysis, waterfall, focus, evidence trace, market-correlation render block, cycle/fundamental/broker score stack, and macro-flow render block are no longer owned directly by the route file.
 - Kept recommendation score, benchmark, position, broker/order boundary, DB schema, and API DTO unchanged.
 
 ## Verification
@@ -40,6 +44,9 @@
 - Post-decomposition checkpoint:
   `cd apps/web && npm run typecheck` passed,
   `cd apps/web && npm test` passed (`14` files, `36` tests).
+- Score/macro-flow decomposition checkpoint:
+  `cd apps/web && npm run typecheck` passed,
+  `cd apps/web && npm test` passed (`14` files, `36` tests).
 - Browser screenshot evidence:
   `/Users/woody/ai/stockanalysis/dogfood-output/professional-investment-ux-normalization-v1/screenshots/recommendation-aapl-desktop.png`
   and `recommendation-aapl-mobile.png`.
@@ -49,5 +56,5 @@
 
 ## Remaining
 
-- The recommendation detail page file is still oversized. Remaining extraction candidates are score component stack rendering, macro-flow rendering, equity research rendering, professional evidence review, and score audit placement.
+- The recommendation detail page file is still oversized. Remaining extraction candidates are equity research rendering, professional evidence review, and score audit placement.
 - The fixture fallback is intentionally basic because fixture data lacks the professional detail payload; live recommendation IDs should use the richer header and professional sections.

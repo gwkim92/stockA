@@ -1,7 +1,6 @@
 import Link from "next/link";
 import type { Route } from "next";
 import { Fragment } from "react";
-import { NewsTitleBlock } from "@/components/news-title-block";
 import { ProfessionalResearchFlow, type ResearchFlowStep } from "@/components/professional-research-flow";
 import { RecommendationExecutiveBrief } from "@/components/recommendation-executive-brief";
 import { RecommendationPositionReality } from "@/components/recommendation-position-reality";
@@ -31,7 +30,17 @@ import { RecommendationFinancialStatementModelPanel } from "./_components/Recomm
 import { RecommendationFundInstrumentAnalysisPanel } from "./_components/RecommendationFundInstrumentAnalysisPanel";
 import { RecommendationIndustryCompetitivePositionPanel } from "./_components/RecommendationIndustryCompetitivePositionPanel";
 import { RecommendationEvidenceTracePanel, type RecommendationEvidenceTraceCard } from "./_components/RecommendationEvidenceTracePanel";
+import { RecommendationMacroFlowPanel } from "./_components/RecommendationMacroFlowPanel";
 import { RecommendationMarketCorrelationsPanel } from "./_components/RecommendationMarketCorrelationsPanel";
+import { RecommendationScoreComponentPanels } from "./_components/RecommendationScoreComponentPanels";
+import {
+  brokerComponents,
+  cycleStackComponents,
+  fundamentalComponents,
+  isZeroWeight,
+  macroFlowRows,
+  type ScoreComponent,
+} from "./_components/recommendation-score-component-model";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "추천 상세" };
@@ -44,32 +53,10 @@ function formatPercent(value: number) {
   return `${Math.round(value * 1000) / 10}%`;
 }
 
-type ScoreComponent = RecommendationDetailData["score_components"][number];
 type ProfessionalEvidenceAudit = RecommendationDetailData["professional_evidence_audit"];
-
-const SCORE_COMPONENT_LABELS: Record<string, string> = {
-  macro_regime_score: "거시 환경",
-  domain_cycle_score: "산업·도메인 사이클",
-  theme_cycle_score: "테마 사이클",
-  instrument_cycle_score: "종목 자체 사이클",
-  cycle_conflict_penalty: "사이클 충돌 감점",
-  macro_flow_score: "상위 흐름 전파",
-  fundamental_quality_score: "재무 품질",
-  valuation_margin_score: "밸류에이션 안전마진",
-  peer_relative_score: "동종업계 비교",
-  balance_sheet_risk_penalty: "재무 안정성 리스크",
-  thesis_consistency_score: "투자 논리 일치도",
-  broker_execution_readiness_score: "브로커 실행 가능성",
-  broker_liquidity_warning: "브로커 유동성·주의사항",
-  broker_price_basis_risk: "브로커 가격 기준 차이",
-};
 
 function userFacingRecommendationText(value: string | number | boolean | null | undefined) {
   return recommendationCopy(value);
-}
-
-function scoreComponentLabel(componentName: string) {
-  return SCORE_COMPONENT_LABELS[componentName] ?? userFacingRecommendationText(componentName);
 }
 
 function recommendationProductProfile(data: RecommendationDetailData): RecommendationProductProfile {
@@ -101,177 +88,6 @@ function orderBoundaryLabel(value: string | null | undefined) {
     return "읽기 전용, 실거래 주문 차단";
   }
   return userFacingRecommendationText(value);
-}
-
-function isZeroWeight(value: number) {
-  return Math.abs(Number(value)) < 0.000001;
-}
-
-const CYCLE_STACK_COMPONENT_ORDER = [
-  "macro_regime_score",
-  "domain_cycle_score",
-  "theme_cycle_score",
-  "instrument_cycle_score",
-  "cycle_conflict_penalty",
-] as const;
-
-const CYCLE_STACK_COMPONENT_META: Record<string, { step: string; body: string }> = {
-  macro_regime_score: {
-    step: "1. 거시",
-    body: "금리, 물가, 유동성, 성장 같은 최상위 환경이 이 종목 분석의 배경으로 연결된다.",
-  },
-  domain_cycle_score: {
-    step: "2. 도메인",
-    body: "기술, 에너지, 금융처럼 더 넓은 사업 영역의 사이클이 종목 신호와 같은 방향인지 정리한다.",
-  },
-  theme_cycle_score: {
-    step: "3. 테마",
-    body: "AI 반도체, 양자컴퓨팅, 에너지 지정학 같은 구체 테마 흐름의 연결 여부를 분리한다.",
-  },
-  instrument_cycle_score: {
-    step: "4. 종목",
-    body: "종목 자체의 가격·사이클 상태가 상위 흐름과 충돌하는지 비교한다.",
-  },
-  cycle_conflict_penalty: {
-    step: "5. 충돌",
-    body: "상위 흐름과 종목 상태가 충돌하면 추천 점수에 감점 항목으로 남긴다.",
-  },
-};
-
-const CYCLE_STACK_COMPONENT_SET = new Set<string>(CYCLE_STACK_COMPONENT_ORDER);
-
-const FUNDAMENTAL_COMPONENT_ORDER = [
-  "fundamental_quality_score",
-  "valuation_margin_score",
-  "peer_relative_score",
-  "balance_sheet_risk_penalty",
-  "thesis_consistency_score",
-] as const;
-
-const FUNDAMENTAL_COMPONENT_META: Record<string, { lens: string; title: string; body: string }> = {
-  fundamental_quality_score: {
-    lens: "재무 품질",
-    title: "매출·마진·현금흐름이 투자 논리를 받치는가",
-    body: "정규화 재무지표와 현금흐름 품질을 바탕으로 기업 자체 체력이 충분한지 보는 항목이다.",
-  },
-  valuation_margin_score: {
-    lens: "밸류에이션",
-    title: "현재 가격에 안전마진이 있는가",
-    body: "간이 현금흐름 평가, 상대 배수, 시나리오 범위로 가격 부담을 분리한다.",
-  },
-  peer_relative_score: {
-    lens: "피어 비교",
-    title: "같은 그룹 안에서 상대적으로 우수한가",
-    body: "같은 산업·테마 비교군에서 성장성, 수익성, 안정성 위치가 어느 정도인지 보는 항목이다.",
-  },
-  balance_sheet_risk_penalty: {
-    lens: "재무 안정성",
-    title: "부채와 재무 압력이 과하지 않은가",
-    body: "레버리지와 재무 부담이 중장기 보유 리스크를 키우는지 분리한다.",
-  },
-  thesis_consistency_score: {
-    lens: "투자 논리",
-    title: "추천과 투자 논리가 서로 맞는가",
-    body: "활성 투자 논리, 무효화 조건, 보유 상태 맥락이 추천 방향과 충돌하는지 정리한다.",
-  },
-};
-
-const FUNDAMENTAL_COMPONENT_SET = new Set<string>(FUNDAMENTAL_COMPONENT_ORDER);
-
-const BROKER_COMPONENT_ORDER = [
-  "broker_execution_readiness_score",
-  "broker_liquidity_warning",
-  "broker_price_basis_risk",
-] as const;
-
-const BROKER_COMPONENT_META: Record<string, { lens: string; title: string; body: string }> = {
-  broker_execution_readiness_score: {
-    lens: "실행 가능성",
-    title: "토스증권 화면에서 체결·호가 근거가 보이는가",
-    body: "관심 종목의 최신 체결가, 매수·매도 호가, 계좌 읽기 결과로 실행 현실을 구분한다.",
-  },
-  broker_liquidity_warning: {
-    lens: "주의사항",
-    title: "토스증권 기준 주의 종목이나 유동성 경고가 있는가",
-    body: "브로커가 제공하는 주의 표시와 호가 데이터 부족 여부를 표시한다. 낮은 값은 주문 전 보강이 필요하다는 뜻이다.",
-  },
-  broker_price_basis_risk: {
-    lens: "가격 기준",
-    title: "분석 기준 가격과 토스증권 가격 차이를 설명할 수 있는가",
-    body: "장중 미완성 일봉, 가격 기준 차이, 누락 여부를 분리한다. 차이는 곧 오류가 아니라 해석 항목이다.",
-  },
-};
-
-const BROKER_COMPONENT_SET = new Set<string>(BROKER_COMPONENT_ORDER);
-
-function macroFlowRows(component: ScoreComponent) {
-  if (component.provenance?.source_type !== "macro_flow_propagation") {
-    return [];
-  }
-  return component.provenance.evidence?.recent_flows ?? [];
-}
-
-function cycleStackNodeCode(component: ScoreComponent) {
-  const explicitNode = component.provenance?.evidence?.cycle_stack_node_code;
-  if (explicitNode) {
-    return explicitNode;
-  }
-  const explanation = component.provenance?.evidence?.cycle_stack_explanation;
-  const match = explanation?.match(/Selected recommendation node: ([A-Z0-9_]+)/);
-  return match?.[1] ?? null;
-}
-
-function cycleStackLevel(component: ScoreComponent) {
-  return component.provenance?.evidence?.cycle_stack_level ?? CYCLE_STACK_COMPONENT_META[component.component]?.step ?? "사이클";
-}
-
-function isCycleStackComponent(component: ScoreComponent) {
-  return component.provenance?.source_type === "cycle_stack_context" || CYCLE_STACK_COMPONENT_SET.has(component.component);
-}
-
-function cycleStackOrder(componentName: string) {
-  const index = CYCLE_STACK_COMPONENT_ORDER.findIndex((item) => item === componentName);
-  return index === -1 ? CYCLE_STACK_COMPONENT_ORDER.length : index;
-}
-
-function cycleStackComponents(components: ScoreComponent[]) {
-  return components
-    .filter(isCycleStackComponent)
-    .sort((left, right) => cycleStackOrder(left.component) - cycleStackOrder(right.component));
-}
-
-function isFundamentalComponent(component: ScoreComponent) {
-  return component.provenance?.source_type === "fundamental_context" || FUNDAMENTAL_COMPONENT_SET.has(component.component);
-}
-
-function fundamentalOrder(componentName: string) {
-  const index = FUNDAMENTAL_COMPONENT_ORDER.findIndex((item) => item === componentName);
-  return index === -1 ? FUNDAMENTAL_COMPONENT_ORDER.length : index;
-}
-
-function fundamentalComponents(components: ScoreComponent[]) {
-  return components
-    .filter(isFundamentalComponent)
-    .sort((left, right) => fundamentalOrder(left.component) - fundamentalOrder(right.component));
-}
-
-function isBrokerComponent(component: ScoreComponent) {
-  return component.provenance?.source_type === "broker_reality_context" || BROKER_COMPONENT_SET.has(component.component);
-}
-
-function brokerOrder(componentName: string) {
-  const index = BROKER_COMPONENT_ORDER.findIndex((item) => item === componentName);
-  return index === -1 ? BROKER_COMPONENT_ORDER.length : index;
-}
-
-function brokerComponents(components: ScoreComponent[]) {
-  return components
-    .filter(isBrokerComponent)
-    .sort((left, right) => brokerOrder(left.component) - brokerOrder(right.component));
-}
-
-function themeHref(themeKey: string | null | undefined) {
-  return themeKey ? (`/themes/${encodeURIComponent(themeKey)}` as Route) : null;
 }
 
 function stockHref(symbol: string) {
@@ -381,51 +197,6 @@ function fundStatusLabel(status: string) {
     return "오래된 자료";
   }
   return koCode(status);
-}
-
-function provenanceDetail(component: ScoreComponent) {
-  const provenance = component.provenance;
-  if (!provenance) {
-    return "아직 이 점수의 입력 출처 요약이 붙지 않았다.";
-  }
-  if (provenance.source_type === "market_feature") {
-    const featureName = provenance.feature_code ? userFacingRecommendationText(provenance.feature_code) : userFacingRecommendationText(provenance.feature_name ?? "market_feature");
-    return `${featureName}: 원값 ${formatMetricValue(provenance.feature_value)}, 표준화 점수 ${formatMetricValue(provenance.zscore)}.`;
-  }
-  if (provenance.source_type === "strategy_universe_rank") {
-    const rankText =
-      provenance.rank_position !== null && provenance.rank_position !== undefined
-        ? `전략 종목군 ${provenance.rank_position}${provenance.universe_member_count ? `/${provenance.universe_member_count}` : ""}위`
-        : "전략 종목군 순위";
-    const observationText = provenance.observation_count ? `가격 관측치 ${provenance.observation_count}개` : "저장된 가격 관측치";
-    return `${rankText}와 ${observationText}를 점수 입력으로 사용했다.`;
-  }
-  if (provenance.source_type === "event_or_ai_evidence") {
-    return "뉴스, 공시, 투자 근거와 연결된 정성 근거다.";
-  }
-  if (provenance.source_type === "macro_flow_propagation") {
-    const count = provenance.evidence?.propagated_impact_count ?? 0;
-    const firstFlow = provenance.evidence?.recent_flows?.[0];
-    const flowText = firstFlow ? `${koCode(firstFlow.theme_key)} ${koCode(firstFlow.impact_direction)}` : "상위 흐름";
-    return `${flowText} 등 ${count}개 전파 근거를 추천 점수 입력으로 사용했다.`;
-  }
-  if (provenance.source_type === "cycle_stack_context") {
-    const nodeCode = cycleStackNodeCode(component);
-    const nodeText = nodeCode ? koCode(nodeCode) : "선택 노드 미기록";
-    const meta = CYCLE_STACK_COMPONENT_META[component.component];
-    return `${meta?.step ?? koCode(cycleStackLevel(component))}: 기준 노드 ${nodeText}. ${meta?.body ?? "계층형 사이클 점수의 출처를 설명한다."}`;
-  }
-  if (provenance.source_type === "fundamental_context") {
-    const meta = FUNDAMENTAL_COMPONENT_META[component.component];
-    const status = isZeroWeight(component.weight) ? "현재 최종 추천 점수에는 반영하지 않는 검증 항목" : "최종 추천 점수에 반영되는 항목";
-    return `${meta?.lens ?? "기업 분석"}: ${meta?.body ?? userFacingRecommendationText(provenance.label)} ${status}이다.`;
-  }
-  if (provenance.source_type === "broker_reality_context") {
-    const meta = BROKER_COMPONENT_META[component.component];
-    const status = isZeroWeight(component.weight) ? "현재 최종 추천 점수에는 반영하지 않는 실행 확인 항목" : "최종 추천 점수에 반영되는 실행 확인 항목";
-    return `${meta?.lens ?? "토스증권 확인"}: ${meta?.body ?? userFacingRecommendationText(provenance.label)} ${status}이다.`;
-  }
-  return userFacingRecommendationText(provenance.label);
 }
 
 function evidenceHref(evidenceId: string, symbol: string) {
@@ -1234,137 +1005,13 @@ export default async function RecommendationPage({ params }: RecommendationPageP
         </>
       )}
 
-      {cycleStack.length > 0 ? (
-        <section className="bento-card reveal delay-1" id="recommendation-cycle-stack" aria-label="계층형 사이클 추천 경로">
-          <div style={{ marginBottom: "22px" }}>
-            <span className="metric-sub">계층형 사이클 경로</span>
-            <h2 style={{ fontSize: "1.5rem", marginTop: "6px" }}>왜 {data.symbol}이 지금 추천 신호로 올라왔는가</h2>
-            <p style={{ color: "var(--text-secondary)", marginTop: "8px", maxWidth: "860px" }}>
-              추천 점수를 한 덩어리로 보지 않고 거시 환경, 도메인, 테마, 종목 자체 상태, 충돌 감점을 분리해 보여준다.
-              현재 반영 전 항목은 결과를 흔들지 않기 위한 설명·검증용 항목이며, 품질 검증 후 별도 승인으로만 반영한다.
-            </p>
-          </div>
-
-          <div style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))",
-            gap: "12px",
-          }}>
-            {cycleStack.map((component) => {
-              const meta = CYCLE_STACK_COMPONENT_META[component.component];
-              const nodeCode = cycleStackNodeCode(component);
-              return (
-                <article
-                  className="detail-path-card"
-                  key={`cycle-stack-${component.component}`}
-                  style={{
-                    background:
-                      component.component === "cycle_conflict_penalty"
-                        ? "linear-gradient(180deg, rgba(255,255,255,0.86), rgba(168,59,52,0.08))"
-                        : "linear-gradient(180deg, rgba(251,250,246,0.95), rgba(38,92,128,0.08))",
-                  }}
-                >
-                  <span>{meta?.step ?? koCode(component.component)}</span>
-                  <strong>{scoreComponentLabel(component.component)}</strong>
-                  <p>{meta?.body ?? "계층형 사이클 근거를 설명하는 점수 항목이다."}</p>
-                  <p style={{ marginTop: "8px", color: "var(--text-secondary)", fontSize: "0.78rem", fontWeight: 850 }}>
-                    {nodeCode ? `기준 노드: ${koCode(nodeCode)}` : "기준 노드 미기록"}
-                  </p>
-                  <div style={{ marginTop: "14px", display: "grid", gap: "6px", color: "var(--text-secondary)", fontSize: "0.8rem", fontWeight: 800 }}>
-                    <span>점수 {formatPercent(component.value)}</span>
-                    <span>현재 반영 비중 {formatPercent(component.weight)}</span>
-                    <span>{isZeroWeight(component.weight) ? "현재 최종 점수 영향 없음" : "최종 점수에 반영됨"}</span>
-                  </div>
-                </article>
-              );
-            })}
-          </div>
-        </section>
-      ) : null}
-
-      {productProfile.kind === "company" && fundamentalStack.length > 0 ? (
-        <section className="bento-card reveal delay-1" aria-label="재무와 밸류에이션 추천 근거">
-          <div style={{ marginBottom: "22px" }}>
-            <span className="metric-sub">재무·밸류에이션 근거</span>
-            <h2 style={{ fontSize: "1.5rem", marginTop: "6px" }}>뉴스가 아니라 기업 자체가 받쳐주는가</h2>
-            <p style={{ color: "var(--text-secondary)", marginTop: "8px", maxWidth: "900px" }}>
-              이 영역은 프로 애널리스트식 분석 축이다. 현재는 성과 표본이 부족하므로 최종 추천 점수에는 반영하지 않고,
-              재무 품질과 가격 매력도가 추천 논리를 보강하거나 반박하는지 확인하는 근거로만 쓴다.
-            </p>
-          </div>
-
-          <div style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))",
-            gap: "14px",
-          }}>
-            {fundamentalStack.map((component) => {
-              const meta = FUNDAMENTAL_COMPONENT_META[component.component];
-              return (
-                <article
-                  className="detail-path-card"
-                  key={`fundamental-${component.component}`}
-                  style={{
-                    background: "linear-gradient(180deg, rgba(251,250,246,0.96), rgba(96,70,35,0.08))",
-                    minHeight: "220px",
-                  }}
-                >
-                  <span>{meta?.lens ?? "기업 분석"}</span>
-                  <strong>{meta?.title ?? scoreComponentLabel(component.component)}</strong>
-                  <p>{meta?.body ?? provenanceDetail(component)}</p>
-                  <div style={{ marginTop: "14px", display: "grid", gap: "6px", color: "var(--text-secondary)", fontSize: "0.8rem", fontWeight: 800 }}>
-                    <span>분석 점수 {formatPercent(component.value)}</span>
-                    <span>{isZeroWeight(component.weight) ? "최종 추천 점수에는 아직 미반영" : `현재 반영 비중 ${formatPercent(component.weight)}`}</span>
-                    <span>{component.provenance?.label ? userFacingRecommendationText(component.provenance.label) : "기업 분석 근거"}</span>
-                  </div>
-                </article>
-              );
-            })}
-          </div>
-        </section>
-      ) : null}
-
-      {brokerStack.length > 0 ? (
-        <section className="bento-card reveal delay-1" aria-label="토스증권 브로커 현실 확인">
-          <div style={{ marginBottom: "22px" }}>
-            <span className="metric-sub">토스증권 실행 현실</span>
-            <h2 style={{ fontSize: "1.5rem", marginTop: "6px" }}>이 추천을 실제 계좌에서 확인할 수 있는가</h2>
-            <p style={{ color: "var(--text-secondary)", marginTop: "8px", maxWidth: "900px" }}>
-              토스증권 읽기 전용 데이터의 호가, 체결가, 주의 표시, 가격 기준 차이를 별도로 표시합니다.
-              이 항목은 현재 최종 추천 점수와 순위를 바꾸지 않고, 주문 전 현실 점검 근거로만 표시한다.
-            </p>
-          </div>
-
-          <div style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))",
-            gap: "14px",
-          }}>
-            {brokerStack.map((component) => {
-              const meta = BROKER_COMPONENT_META[component.component];
-              return (
-                <article
-                  className="detail-path-card"
-                  key={`broker-${component.component}`}
-                  style={{
-                    background: "linear-gradient(180deg, rgba(251,250,246,0.96), rgba(31,97,85,0.10))",
-                    minHeight: "220px",
-                  }}
-                >
-                  <span>{meta?.lens ?? "브로커 확인"}</span>
-                  <strong>{meta?.title ?? scoreComponentLabel(component.component)}</strong>
-                  <p>{meta?.body ?? provenanceDetail(component)}</p>
-                  <div style={{ marginTop: "14px", display: "grid", gap: "6px", color: "var(--text-secondary)", fontSize: "0.8rem", fontWeight: 800 }}>
-                    <span>확인 점수 {formatPercent(component.value)}</span>
-                    <span>{isZeroWeight(component.weight) ? "최종 추천 점수에는 미반영" : `현재 반영 비중 ${formatPercent(component.weight)}`}</span>
-                    <span>{component.provenance?.label ? userFacingRecommendationText(component.provenance.label) : "토스증권 브로커 데이터"}</span>
-                  </div>
-                </article>
-              );
-            })}
-          </div>
-        </section>
-      ) : null}
+      <RecommendationScoreComponentPanels
+        symbol={data.symbol}
+        isCompany={productProfile.kind === "company"}
+        cycleStack={cycleStack}
+        fundamentalStack={fundamentalStack}
+        brokerStack={brokerStack}
+      />
 
       {productProfile.kind === "company" ? (
         <RecommendationIndustryCompetitivePositionPanel
@@ -1483,66 +1130,7 @@ export default async function RecommendationPage({ params }: RecommendationPageP
 
       <RecommendationEvidenceTracePanel cards={traceCards} />
 
-      {macroFlowComponents.length > 0 ? (
-        <section className="bento-card reveal delay-1" id="recommendation-macro-flow" aria-label="상위 흐름 전파 경로">
-          <div style={{ marginBottom: "22px" }}>
-            <span className="metric-sub">상위 흐름 전파 경로</span>
-            <h2 style={{ fontSize: "1.5rem", marginTop: "6px" }}>시장·테마 뉴스가 {data.symbol} 점수에 들어간 방식</h2>
-            <p style={{ color: "var(--text-secondary)", marginTop: "8px", maxWidth: "820px" }}>
-              종목을 직접 언급하지 않은 뉴스가 테마와 종목 노출도에 의해 이 추천과 연결된 경로다.
-              전체 전파 근거 수와 아래 최근 사례 수는 다를 수 있다. 이 근거는 주문 결정이 아니라 점수 입력으로만 쓰인다.
-            </p>
-          </div>
-
-          <div className="bento-list">
-            {macroFlowComponents.map((component) => {
-              const rows = macroFlowRows(component);
-              return (
-                <div className="bento-list-item" key={component.component} style={{ alignItems: "flex-start", flexDirection: "column" }}>
-                  <div style={{ width: "100%", display: "flex", justifyContent: "space-between", gap: "16px", flexWrap: "wrap" }}>
-                    <div>
-                      <span className="metric-sub">{scoreComponentLabel(component.component)}</span>
-                      <strong>{formatPercent(component.value)} · 현재 반영 비중 {formatPercent(component.weight)}</strong>
-                    </div>
-                    <span style={{ color: "var(--text-secondary)" }}>
-                      전체 전파 근거 {component.provenance?.evidence?.propagated_impact_count ?? rows.length}개 · 최근 표시 {rows.length}개
-                    </span>
-                  </div>
-
-                  <div className="relationship-list" aria-label={`${data.symbol} 상위 흐름 전파 근거`}>
-                    {rows.map((flow) => {
-                      const href = themeHref(flow.theme_key);
-                      return (
-                        <div className="relationship-chip" key={`${component.component}-${flow.event_id}-${flow.theme_key}`}>
-                          <span>{koCode(flow.theme_key)}</span>
-                          <NewsTitleBlock
-                            compact
-                            title={flow.title}
-                            koreanTitle={flow.korean_title}
-                            koreanSummary={flow.korean_summary}
-                            translationConfidence={flow.translation_confidence}
-                            symbol={data.symbol}
-                            themeKey={flow.theme_key}
-                            impactDirection={flow.impact_direction}
-                            impactScore={flow.impact_strength}
-                          />
-                          <small>
-                            {koCode(flow.impact_direction)} · 강도 {formatMetricValue(flow.impact_strength)} · 자료 신뢰도 {formatMetricValue(flow.confidence)}
-                          </small>
-                          <small>
-                            노출도 {formatMetricValue(flow.exposure_weight)} · 발생 {flow.event_at}
-                          </small>
-                          {href ? <Link href={href}>테마 흐름 보기</Link> : null}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </section>
-      ) : null}
+      <RecommendationMacroFlowPanel symbol={data.symbol} components={macroFlowComponents} />
 
       <section
         className={`recommendation-evidence-panel reveal delay-1 ${professionalAuditRiskClass(professionalAudit)}`}
