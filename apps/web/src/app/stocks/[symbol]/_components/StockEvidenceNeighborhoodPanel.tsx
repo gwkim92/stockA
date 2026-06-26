@@ -3,8 +3,10 @@ import Link from "next/link";
 import { koCode, koLabel } from "@/lib/korean-labels";
 import type { AiEvidenceNeighborhoodData } from "@/lib/types";
 
+import { StockEvidenceDisclosure } from "./StockEvidenceDisclosure";
 import { StockEvidenceSourceSection } from "./StockEvidenceSourceSection";
 import { StockStoryGroupSection } from "./StockStoryGroupSection";
+import styles from "./StockEvidenceNeighborhoodPanel.module.css";
 import {
   stockEventsHref,
   stockEvidenceGuardrails,
@@ -78,79 +80,108 @@ export function StockEvidenceNeighborhoodPanel({ neighborhood }: StockEvidenceNe
         </div>
       </div>
 
-      <div className="stock-evidence-readiness" aria-label={`${neighborhood.symbol} 근거 준비 상태`}>
-        <div className="stock-evidence-readiness-copy">
+      <div className={styles.focusStrip} aria-label={`${neighborhood.symbol} 핵심 근거 경로`}>
+        <article className={styles.focusCard}>
           <span>추천 입력 전 확인</span>
           <strong>{readinessLabel}</strong>
           <p>{readinessCopy}</p>
-        </div>
-        <div className="stock-evidence-gate-grid">
-          {ragContext.quality_gates.map((gate) => (
-            <article className="stock-evidence-gate-card" data-status={gate.status} key={gate.gate}>
-              <span>{gate.status === "passed" ? "통과" : gate.status === "watch" ? "관찰" : "보강 필요"}</span>
-              <strong>{stockText(koCode(gate.gate))}</strong>
-              <p>{stockText(gate.message_ko)}</p>
-            </article>
-          ))}
-        </div>
-      </div>
+        </article>
 
-      <div className="stock-evidence-chain" aria-label={`${neighborhood.symbol} 뉴스 근거 관계 흐름`}>
-        <article className="stock-evidence-chain-card">
-          <span>1. 수집된 사건</span>
-          <strong>이벤트 {neighborhood.summary.event_count.toLocaleString("ko-KR")}개</strong>
-          <p>
-            {neighborhood.events[0]
-              ? koLabel(neighborhood.events[0].title)
-              : "아직 이 종목에 연결된 이벤트가 없다."}
-          </p>
-          <Link href={stockEventsHref(neighborhood.symbol)}>수집 뉴스 보기</Link>
-        </article>
-        <article className="stock-evidence-chain-card">
-          <span>2. 테마·노출</span>
-          <strong>{firstTheme ? koCode(firstTheme.theme_key) : "테마 없음"}</strong>
-          <p>
-            {firstTheme
-              ? `멤버십 ${koCode(firstTheme.membership_type)} · 신뢰도 ${formatPercent(firstTheme.confidence)}`
-              : "테마 연결이 쌓이면 이 위치에 표시된다."}
-          </p>
-        </article>
-        <article className="stock-evidence-chain-card">
-          <span>3. 투자 영향</span>
-          <strong>{firstArtifact ? koCode(firstArtifact.evidence_type) : "심화 근거 없음"}</strong>
-          <p>
-            {firstArtifact
-              ? `${stockEvidenceProviderLabel(firstArtifact.provider)} · 신뢰도 ${formatPercent(firstArtifact.confidence)}`
-              : "아직 저장된 투자 근거가 없다."}
-          </p>
-          {firstEvidenceHref ? <Link href={firstEvidenceHref}>근거 상세 열기</Link> : <small>근거 대기</small>}
-        </article>
-        <article className="stock-evidence-chain-card final">
-          <span>4. 투자 판단 연결</span>
-          <strong>{firstRecommendation ? koCode(firstRecommendation.action) : firstThesis ? "투자 논리만 있음" : "판단 대기"}</strong>
-          <p>
-            {firstRecommendation
-              ? `점수 ${formatPercent(firstRecommendation.total_score)} · 목표 비중 ${formatPercent(firstRecommendation.recommended_weight)}`
-              : firstThesis
-                ? `${stockText(firstThesis.title)} · 확신 ${formatPercent(firstThesis.conviction_score)}`
-                : "추천이나 보유 판단으로 연결되기 전 단계다."}
-          </p>
-          <div className="mini-link-stack">
-            {firstRecommendation ? <Link href={stockRecommendationHref(firstRecommendation.recommendation_id)}>추천 상세</Link> : null}
-            {firstThesis ? <Link href={stockThesisHref(firstThesis.thesis_id)}>투자 논리</Link> : null}
-          </div>
-        </article>
-      </div>
-
-      <StockStoryGroupSection neighborhood={neighborhood} storyGroups={storyGroups} />
-      <StockEvidenceSourceSection neighborhood={neighborhood} />
-      <div className="stock-guardrail-list" aria-label="종목 근거 화면 사용 경계">
-        {stockEvidenceGuardrails().map((guardrail) => (
-          <article key={guardrail}>
-            <span>사용 경계</span>
-            <p>{koLabel(guardrail)}</p>
+        <div className="stock-evidence-chain" aria-label={`${neighborhood.symbol} 뉴스 근거 관계 흐름`}>
+          <article className="stock-evidence-chain-card">
+            <span>1. 수집된 사건</span>
+            <strong>이벤트 {neighborhood.summary.event_count.toLocaleString("ko-KR")}개</strong>
+            <p>
+              {neighborhood.events[0]
+                ? koLabel(neighborhood.events[0].title)
+                : "아직 이 종목에 연결된 이벤트가 없다."}
+            </p>
+            <Link href={stockEventsHref(neighborhood.symbol)}>수집 뉴스 보기</Link>
           </article>
-        ))}
+          <article className="stock-evidence-chain-card">
+            <span>2. 테마·노출</span>
+            <strong>{firstTheme ? koCode(firstTheme.theme_key) : "테마 없음"}</strong>
+            <p>
+              {firstTheme
+                ? `멤버십 ${koCode(firstTheme.membership_type)} · 신뢰도 ${formatPercent(firstTheme.confidence)}`
+                : "테마 연결이 쌓이면 이 위치에 표시된다."}
+            </p>
+          </article>
+          <article className="stock-evidence-chain-card">
+            <span>3. 투자 영향</span>
+            <strong>{firstArtifact ? koCode(firstArtifact.evidence_type) : "심화 근거 없음"}</strong>
+            <p>
+              {firstArtifact
+                ? `${stockEvidenceProviderLabel(firstArtifact.provider)} · 신뢰도 ${formatPercent(firstArtifact.confidence)}`
+                : "아직 저장된 투자 근거가 없다."}
+            </p>
+            {firstEvidenceHref ? <Link href={firstEvidenceHref}>근거 상세 열기</Link> : <small>근거 대기</small>}
+          </article>
+          <article className="stock-evidence-chain-card final">
+            <span>4. 투자 판단 연결</span>
+            <strong>{firstRecommendation ? koCode(firstRecommendation.action) : firstThesis ? "투자 논리만 있음" : "판단 대기"}</strong>
+            <p>
+              {firstRecommendation
+                ? `점수 ${formatPercent(firstRecommendation.total_score)} · 목표 비중 ${formatPercent(firstRecommendation.recommended_weight)}`
+                : firstThesis
+                  ? `${stockText(firstThesis.title)} · 확신 ${formatPercent(firstThesis.conviction_score)}`
+                  : "추천이나 보유 판단으로 연결되기 전 단계다."}
+            </p>
+            <div className="mini-link-stack">
+              {firstRecommendation ? <Link href={stockRecommendationHref(firstRecommendation.recommendation_id)}>추천 상세</Link> : null}
+              {firstThesis ? <Link href={stockThesisHref(firstThesis.thesis_id)}>투자 논리</Link> : null}
+            </div>
+          </article>
+        </div>
+      </div>
+
+      <div className={styles.detailStack}>
+        <StockEvidenceDisclosure
+          eyebrow="자동 검증"
+          title="추천 입력 전 통과해야 하는 근거 조건"
+          summary="원문, 번역, 종목 연결, 추천 연결 상태를 자동 검증한 결과다. 통과하지 않은 항목은 투자 판단 입력에서 낮게 본다."
+        >
+          <div className="stock-evidence-gate-grid">
+            {ragContext.quality_gates.map((gate) => (
+              <article className="stock-evidence-gate-card" data-status={gate.status} key={gate.gate}>
+                <span>{gate.status === "passed" ? "통과" : gate.status === "watch" ? "관찰" : "보강 필요"}</span>
+                <strong>{stockText(koCode(gate.gate))}</strong>
+                <p>{stockText(gate.message_ko)}</p>
+              </article>
+            ))}
+          </div>
+        </StockEvidenceDisclosure>
+
+        <StockEvidenceDisclosure
+          eyebrow="뉴스 묶음"
+          title="같은 이슈로 묶인 뉴스와 대표 이벤트"
+          summary="같은 테마나 원천 문서에서 나온 뉴스를 묶어 시장 흐름으로 본다. 자세한 대표 뉴스는 펼쳐서 확인합니다."
+        >
+          <StockStoryGroupSection neighborhood={neighborhood} storyGroups={storyGroups} />
+        </StockEvidenceDisclosure>
+
+        <StockEvidenceDisclosure
+          eyebrow="원천 문서"
+          title="투자 근거가 참조한 원문 대조"
+          summary="영어 원문 전체를 바로 노출하지 않고, 출처와 본문 추출 상태만 먼저 보여준다."
+        >
+          <StockEvidenceSourceSection neighborhood={neighborhood} />
+        </StockEvidenceDisclosure>
+
+        <StockEvidenceDisclosure
+          eyebrow="사용 경계"
+          title="이 화면이 바꾸지 않는 것"
+          summary="이 섹션은 근거 확인 화면이다. 추천 점수, 보유 수량, 실제 주문 상태는 여기서 바뀌지 않는다."
+        >
+          <div className="stock-guardrail-list" aria-label="종목 근거 화면 사용 경계">
+            {stockEvidenceGuardrails().map((guardrail) => (
+              <article key={guardrail}>
+                <span>사용 경계</span>
+                <p>{koLabel(guardrail)}</p>
+              </article>
+            ))}
+          </div>
+        </StockEvidenceDisclosure>
       </div>
     </section>
   );
