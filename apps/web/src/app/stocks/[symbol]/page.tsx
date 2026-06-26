@@ -604,7 +604,7 @@ export default async function StockDetailPage({ params }: StockDetailPageProps) 
             <strong>{data.toss_provider_evidence.comparison.status_label}</strong>
           </div>
           <p style={{ color: "var(--text-secondary)", marginBottom: 0 }}>
-            {data.market_data_provider.price_basis_note} 토스증권 가격은 계좌·호가 현실 확인용이며 총점에는 아직 반영하지 않는다.
+            {stockCopy(data.market_data_provider.price_basis_note)} 토스증권 가격은 계좌·호가 현실 확인용이며 총점에는 아직 반영하지 않는다.
           </p>
         </article>
       </section>

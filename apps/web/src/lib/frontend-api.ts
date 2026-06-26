@@ -160,6 +160,23 @@ function withDefault<T>(record: MutableRecord, key: string, fallback: T) {
   }
 }
 
+function recommendationIdFromPath(path: string): string {
+  const rawId = path.split("/").pop() ?? "";
+  try {
+    return decodeURIComponent(rawId);
+  } catch (error) {
+    if (error instanceof URIError) {
+      return rawId;
+    }
+    throw error;
+  }
+}
+
+function recommendationSymbolFromId(recommendationId: string): string | null {
+  const match = recommendationId.match(/^([A-Z][A-Z0-9.]{0,9})(?:-\d{4}-\d{2}-\d{2}|-|$)/);
+  return match ? match[1] : null;
+}
+
 function defaultEvidenceReview() {
   return {
     quality_status: "not_available",
@@ -696,7 +713,7 @@ function normalizeFrontendPayload<TData>(path: string, payload: ApiResponse<TDat
   const mutablePayload = payload as ApiResponse<unknown>;
   const data = dataRecord(mutablePayload);
   if (path.startsWith("/api/recommendations/")) {
-    normalizeRecommendationDetail(data);
+    normalizeRecommendationDetail(data, path);
   } else if (path === "/api/recommendations") {
     normalizeRecommendationList(data);
   } else if (path.startsWith("/api/theses/")) {
@@ -858,10 +875,19 @@ function normalizeRecommendationList(data: MutableRecord) {
   }
 }
 
-function normalizeRecommendationDetail(data: MutableRecord) {
-  const symbol = typeof data.symbol === "string" ? data.symbol : "UNKNOWN";
-  const recommendationId = typeof data.recommendation_id === "string" ? data.recommendation_id : "";
+function normalizeRecommendationDetail(data: MutableRecord, path: string) {
+  const pathRecommendationId = recommendationIdFromPath(path);
+  const recommendationId =
+    typeof data.recommendation_id === "string" && data.recommendation_id.length > 0
+      ? data.recommendation_id
+      : pathRecommendationId;
+  const symbol =
+    typeof data.symbol === "string" && data.symbol.length > 0 && data.symbol !== "UNKNOWN"
+      ? data.symbol
+      : (recommendationSymbolFromId(recommendationId) ?? "UNKNOWN");
   const recommendation = typeof data.recommendation === "string" ? data.recommendation : "unknown";
+  data.recommendation_id = recommendationId;
+  data.symbol = symbol;
   withDefault(data, "currency_code", "USD");
   withDefault(data, "equity_research", null);
   withDefault(data, "industry_competitive_position", null);

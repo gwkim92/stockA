@@ -92,14 +92,14 @@ export function StockFinancialStatementModelPanel({ model, symbol }: StockFinanc
       <div className="bento-grid" style={{ marginTop: "18px" }}>
         {visibleSections.map((section) => (
           <article className="bento-card" key={section.section_key}>
-            <span className="metric-sub">{section.title}</span>
-            <h3 style={{ margin: "6px 0 8px" }}>{section.description}</h3>
+            <span className="metric-sub">{stockText(section.title)}</span>
+            <h3 style={{ margin: "6px 0 8px" }}>{stockText(section.description)}</h3>
             <div className="stock-meta-grid">
               {section.metrics.length > 0 ? (
                 section.metrics.map((metric) => (
                   <Fragment key={metric.metric_code}>
                     <span>
-                      {metric.label}
+                      {stockText(metric.label)}
                       <small style={{ display: "block", color: "var(--text-muted)" }}>{metric.period_end || "기간 없음"}</small>
                     </span>
                     <strong className={`risk-tag ${financialMetricTone(metric)}`}>{formatFinancialMetricValue(metric)}</strong>

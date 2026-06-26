@@ -12,6 +12,13 @@ type DataHealthSchedulerCadenceSectionProps = {
   readonly groups: readonly SchedulerCadenceGroup[];
 };
 
+function scheduleLabel(value: string): string {
+  if (!value) {
+    return "스케줄 미확인";
+  }
+  return value.replaceAll("America/New_York", "미국 동부시간").replaceAll("UTC", "UTC");
+}
+
 export function DataHealthSchedulerCadenceSection({
   ec2SchedulerInstalled,
   groups,
@@ -61,7 +68,7 @@ export function DataHealthSchedulerCadenceSection({
                 {group.timers.map((timer) => (
                   <div className="timer-chip" key={timer.profile_id}>
                     <b>{koCode(timer.profile_id)}</b>
-                    <span>{timer.schedule || "스케줄 미확인"}</span>
+                    <span>{scheduleLabel(timer.schedule)}</span>
                     <small>
                       {koCode(timer.active_state)} · {koCode(timer.last_result || "unknown")}
                     </small>

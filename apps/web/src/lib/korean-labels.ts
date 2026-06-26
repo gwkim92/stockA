@@ -19,6 +19,7 @@ const KOREAN_LABELS: Record<string, string> = {
   MACRO_INFLATION: "물가·인플레이션",
   MACRO_LIQUIDITY: "유동성·신용",
   MACRO_GROWTH: "성장·경기",
+  US_10Y_REAL_YIELD: "미국 10년 실질금리",
   TECH_DOMAIN: "기술 도메인",
   "Technology Domain": "기술 도메인",
   ENERGY_DOMAIN: "에너지 도메인",
@@ -138,6 +139,13 @@ const KOREAN_LABELS: Record<string, string> = {
   fred: "FRED",
   cboe_csv: "CBOE",
   "toss-candles-us-shadow-daily": "토스증권 미국 캔들 일간",
+  "ssga_spdr_spy_daily_holdings": "SSGA SPY 공식 보유종목 원천",
+  "invesco_qqq_daily_holdings": "Invesco QQQ 공식 보유종목 원천",
+  "multi_period_segment_trend_template": "여러 기간 사업부 추세 기반 산출",
+  "segment_operating_income": "사업부 영업이익",
+  "segment_revenue": "사업부 매출",
+  "coverage gap": "근거 공백",
+  "not collected": "아직 수집 전",
   "toss-candles-kr-daily": "토스증권 국내 캔들 일간",
   "toss-priority-microdata-intraday": "토스증권 우선 종목 장중 정보",
   news_ai_live_invocation_attention: "AI 실제 호출 확인 필요",
@@ -154,6 +162,7 @@ const KOREAN_LABELS: Record<string, string> = {
   configured: "설정됨",
   configure_scheduler_activation_gate_report: "자동 실행 승인 조건 설정 필요",
   covered: "커버됨",
+  basing: "바닥 형성",
   correcting: "조정 중",
   expanding: "확산",
   cycle: "사이클",
@@ -927,9 +936,23 @@ const EMBEDDED_LABEL_REPLACEMENTS: Array<[RegExp, string]> = [
   [/\bcredential-free news flow\b/g, "무료 출처 기반 뉴스 흐름"],
   [/\bcurrent_event_impacts\b/g, "현재 이벤트 영향"],
   [/\bMACRO_RATES_FED\b/g, "금리·연준"],
+  [/\bMACRO_LIQUIDITY\b/g, "유동성·신용"],
+  [/\bUS_10Y_REAL_YIELD\b/g, "미국 10년 실질금리"],
+  [/\bcycle_score\b/g, "사이클 점수"],
+  [/\bcycle_state\b/g, "사이클 상태"],
+  [/\bmulti_period_segment_trend_template\b/g, "여러 기간 사업부 추세 기반 산출"],
+  [/\bsegment_operating_income\b/g, "사업부 영업이익"],
+  [/\bsegment_revenue\b/g, "사업부 매출"],
+  [/\bssga_spdr_spy_daily_holdings\b/g, "SSGA SPY 공식 보유종목 원천"],
+  [/\binvesco_qqq_daily_holdings\b/g, "Invesco QQQ 공식 보유종목 원천"],
+  [/\bcoverage gap\b/g, "근거 공백"],
+  [/\bnot collected\b/g, "아직 수집 전"],
+  [/\bmissing or stale\b/g, "누락되었거나 오래된"],
+  [/\bmissing\b/g, "누락"],
   [/\bMARKET_NEWS_FLOW\b/g, "시장 뉴스 흐름"],
   [/\bactive\b/g, "활성"],
   [/\bforming\b/g, "형성 중"],
+  [/\bbasing\b/g, "바닥 형성"],
   [/\bcorrecting\b/g, "조정 중"],
   [/\bstructurally_broken\b/g, "구조 훼손"],
   [/\bstructurally broken\b/g, "구조 훼손"],
@@ -966,6 +989,10 @@ function translateEmbeddedLabels(value: string): string {
     .replace(/thesis review/g, "투자 논리 검토")
     .replace(/thesis(?=[가-힣])/g, "투자 논리")
     .replace(/안전마진\s+안전마진/g, "안전마진")
+    .replace(/확인한다\./g, "확인합니다.")
+    .replace(/확인한다/g, "확인합니다")
+    .replace(/봐야 한다\./g, "판단합니다.")
+    .replace(/봐야 한다/g, "판단합니다")
     .replace(/밸류에이션 스냅샷가/g, "밸류에이션 스냅샷이");
 }
 

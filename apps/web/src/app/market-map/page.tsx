@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { Route } from "next";
 
 import { getMarketMap } from "@/lib/frontend-api";
-import { koCode } from "@/lib/korean-labels";
+import { koCode, koLabel } from "@/lib/korean-labels";
 import { investorCopy } from "@/lib/presentation";
 import type { MarketMapData } from "@/lib/types";
 
@@ -226,12 +226,14 @@ function marketRelationshipLabel(relationship: string | null | undefined) {
 }
 
 function humanizeNewsRationale(rationale: string) {
-  return normalizeOperationalText(rationale)
+  return normalizeOperationalText(koLabel(rationale))
     .replaceAll("QUANTUM_COMPUTING_POLICY", koCode("QUANTUM_COMPUTING_POLICY"))
     .replaceAll("AI_SEMICONDUCTOR_CYCLE", koCode("AI_SEMICONDUCTOR_CYCLE"))
     .replaceAll("TECH_DOMAIN", koCode("TECH_DOMAIN"))
     .replaceAll("ENERGY_GEOPOLITICS", koCode("ENERGY_GEOPOLITICS"))
     .replaceAll("MACRO_RATES_FED", koCode("MACRO_RATES_FED"))
+    .replaceAll("MACRO_LIQUIDITY", koCode("MACRO_LIQUIDITY"))
+    .replaceAll("US_10Y_REAL_YIELD", koCode("US_10Y_REAL_YIELD"))
     .replaceAll("shock", "가격 충격")
     .replaceAll("사이클와", "사이클과")
     .replaceAll("도메인와", "도메인과");
@@ -547,7 +549,7 @@ export default async function MarketMapPage() {
                         {freshnessLabel(indicator.freshness_status)} · {indicatorPressureLabel(indicator)}
                       </span>
                       <strong>{indicator.display_name}</strong>
-                      <p>{indicator.quality_note_ko || indicator.note_ko}</p>
+                      <p>{normalizeOperationalText(koLabel(indicator.quality_note_ko || indicator.note_ko))}</p>
                       <div className="market-indicator-metrics">
                         <small>값 {formatValue(indicator.latest_value)}</small>
                         <small>20일 {formatPercent(indicator.return_20d)}</small>
@@ -559,7 +561,7 @@ export default async function MarketMapPage() {
                         <div className="relationship-list">
                           <div className="relationship-chip">
                             <span>{koCode(indicator.preferred_provider)}</span>
-                            <strong>{indicator.provider_symbol || indicator.indicator_code}</strong>
+                            <strong>{koCode(indicator.provider_symbol || indicator.indicator_code)}</strong>
                             <small>{sourcePolicyText(indicator)}</small>
                           </div>
                           <div className="relationship-chip">

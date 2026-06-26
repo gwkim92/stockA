@@ -55,7 +55,8 @@ function koreanDigest(props: NewsTitleBlockProps, rawTitle: string, summary: str
   const storedTitle = props.koreanTitle?.trim();
   const storedSummary = props.koreanSummary?.trim();
   if (storedTitle) {
-    return storedSummary && storedSummary !== storedTitle ? `${storedTitle} · ${storedSummary}` : storedTitle;
+    const storedDigest = storedSummary && storedSummary !== storedTitle ? `${storedTitle} · ${storedSummary}` : storedTitle;
+    return koLabel(storedDigest);
   }
 
   const candidate = summary?.trim() || rawTitle;

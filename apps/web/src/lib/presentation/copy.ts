@@ -14,6 +14,8 @@ const INTERNAL_TERM_REPLACEMENTS = [
   ["order_boundary", "실거래 제한"],
   ["read_only_no_order", "읽기 전용, 실거래 주문 차단"],
   ["source blocker", "원천 근거 부족"],
+  ["not collected", "아직 수집 전"],
+  ["missing", "자료 부족"],
   ["active share", "벤치마크와 다른 비중"],
   ["outcome window", "성과 측정 기간"],
   ["weight review", "추천 산식 검토"],
@@ -47,6 +49,10 @@ export function investorCopy(value: string | number | boolean | null | undefined
     value.replaceAll(/pipeline-run-\d+/g, "최근 작업 기록"),
   )
     .replaceAll(/\beval-run-\d+\b/g, "품질 평가 기록")
+    .replaceAll("확인한다.", "확인합니다.")
+    .replaceAll("확인한다", "확인합니다")
+    .replaceAll("봐야 한다.", "판단합니다.")
+    .replaceAll("봐야 한다", "판단합니다")
     .replaceAll(/\s+/g, " ")
     .trim();
 }

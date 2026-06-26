@@ -167,6 +167,10 @@ export function operationCopy(value: string) {
     .replaceAll("검토 가능", "근거 확인")
     .replaceAll("원천 차단 count가 있는 종목", "원천 차단 종목")
     .replaceAll("원천 차단 count", "원천 차단 수")
+    .replaceAll("확인한다.", "확인합니다.")
+    .replaceAll("확인한다", "확인합니다")
+    .replaceAll("봐야 한다.", "판단합니다.")
+    .replaceAll("봐야 한다", "판단합니다")
     .replaceAll("degraded", "주의");
 }
 

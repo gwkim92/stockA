@@ -164,7 +164,7 @@ export function RecommendationProductOverview({
           <article>
             <span>비용</span>
             <strong>{formatExpenseRatio(fundAnalysis.expense_ratio.value)}</strong>
-            <p>{fundAnalysis.expense_ratio.source_name || "공식 원천"} · {fundAnalysis.expense_ratio.source_as_of_date || "기준일 대기"}</p>
+            <p>{fundAnalysis.expense_ratio.source_name ? recommendationCopy(fundAnalysis.expense_ratio.source_name) : "공식 원천"} · {fundAnalysis.expense_ratio.source_as_of_date || "기준일 대기"}</p>
           </article>
           <article>
             <span>추적 품질</span>

@@ -8,6 +8,7 @@ import {
   formatPanelOptionalPercent,
   fundPanelStatusLabel,
   recommendationPanelOrderBoundaryLabel,
+  userFacingRecommendationText,
 } from "./recommendation-panel-format";
 
 type FundInstrumentAnalysis = RecommendationDetailData["fund_instrument_analysis"];
@@ -35,7 +36,7 @@ export function RecommendationFundInstrumentAnalysisPanel({ analysis }: Recommen
         <div className="rail-cell">
           <span>벤치마크</span>
           <strong>{analysis.benchmark_code || analysis.symbol}</strong>
-          <small>{analysis.benchmark_source || "원천 미확인"}</small>
+          <small>{analysis.benchmark_source ? userFacingRecommendationText(analysis.benchmark_source) : "원천 미확인"}</small>
         </div>
         <div className="rail-cell">
           <span>구성 커버리지</span>
@@ -71,7 +72,7 @@ export function RecommendationFundInstrumentAnalysisPanel({ analysis }: Recommen
               : fundPanelStatusLabel(analysis.tracking_error.status)}
           </strong>
           <p>
-            {analysis.tracking_error.summary}
+            {userFacingRecommendationText(analysis.tracking_error.summary)}
             {analysis.tracking_error.measurement_window
               ? ` 기간 ${analysis.tracking_error.measurement_window}`
               : ""}
@@ -93,8 +94,8 @@ export function RecommendationFundInstrumentAnalysisPanel({ analysis }: Recommen
           <span>비용률</span>
           <strong>{formatPanelExpenseRatio(analysis.expense_ratio.value)}</strong>
           <p>
-            {analysis.expense_ratio.summary} 상태 {fundPanelStatusLabel(analysis.expense_ratio.status)}
-            {analysis.expense_ratio.source_name ? ` · 원천 ${analysis.expense_ratio.source_name}` : ""}
+            {userFacingRecommendationText(analysis.expense_ratio.summary)} 상태 {fundPanelStatusLabel(analysis.expense_ratio.status)}
+            {analysis.expense_ratio.source_name ? ` · 원천 ${userFacingRecommendationText(analysis.expense_ratio.source_name)}` : ""}
             {analysis.expense_ratio.source_as_of_date ? ` · 기준일 ${analysis.expense_ratio.source_as_of_date}` : ""}
           </p>
           {analysis.expense_ratio.source_url ? (
@@ -107,7 +108,7 @@ export function RecommendationFundInstrumentAnalysisPanel({ analysis }: Recommen
           <span>NAV 괴리</span>
           <strong>{formatPanelOptionalPercent(analysis.nav_premium_discount.premium_discount_to_nav)}</strong>
           <p>
-            {analysis.nav_premium_discount.summary} NAV {formatPanelFundCurrency(analysis.nav_premium_discount.nav_per_share, "USD")} ·
+            {userFacingRecommendationText(analysis.nav_premium_discount.summary)} NAV {formatPanelFundCurrency(analysis.nav_premium_discount.nav_per_share, "USD")} ·
             종가 {formatPanelFundCurrency(analysis.nav_premium_discount.closing_price, "USD")}
             {analysis.nav_premium_discount.premium_discount_as_of_date
               ? ` · 기준일 ${analysis.nav_premium_discount.premium_discount_as_of_date}`
@@ -123,7 +124,7 @@ export function RecommendationFundInstrumentAnalysisPanel({ analysis }: Recommen
           <span>유동성</span>
           <strong>{fundPanelStatusLabel(analysis.liquidity.status)}</strong>
           <p>
-            {analysis.liquidity.summary} 평균 거래량 {formatPanelCompactNumber(analysis.liquidity.average_daily_volume)} ·
+            {userFacingRecommendationText(analysis.liquidity.summary)} 평균 거래량 {formatPanelCompactNumber(analysis.liquidity.average_daily_volume)} ·
             평균 거래대금 {formatPanelCurrency(analysis.liquidity.average_daily_dollar_volume, "USD")}
           </p>
         </article>

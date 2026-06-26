@@ -24,7 +24,7 @@ export default async function PortfolioCoveragePage() {
   const benchmarkDriftCalculated = benchmarkDrift?.drift_calculated === true;
   const benchmarkCode = recordString(benchmarkDrift, "benchmark_code") || "벤치마크";
   const benchmarkActiveShare = recordNumber(benchmarkDrift, "active_share");
-  const benchmarkSource = recordString(benchmarkDrift, "benchmark_source") || recordString(benchmarkDrift, "source_type");
+  const benchmarkSource = userFacingText(recordString(benchmarkDrift, "benchmark_source") || recordString(benchmarkDrift, "source_type"));
   const riskBudget = data.risk_budget;
   const candidateReview = riskBudget.rebalance_candidate_review;
   const positionSizingReview = riskBudget.position_sizing_review;
