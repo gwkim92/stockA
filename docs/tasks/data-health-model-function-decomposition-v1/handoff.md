@@ -2,9 +2,9 @@
 
 ## Status
 
-- status: in_progress_local_verification_passed_commit_push_ec2_pending
-- in progress: local typecheck, unit tests, build, frontend contract, roadmap verification, AWH, e2e, local route smoke, visual screenshot QA, and diff check passed. Commit, push, and EC2 smoke are pending.
-- current status: local verification is complete. Commit, push, and EC2 deployment/smoke remain.
+- status: completed_ec2_smoke_passed
+- completed: local typecheck, unit tests, build, frontend contract, roadmap verification, AWH, e2e, local route smoke, visual screenshot QA, diff check, commit, push, EC2 pull, EC2 build, service restart, and route smoke are complete.
+- current status: completed.
 
 ## Current Finding
 
@@ -38,10 +38,17 @@ UX/UI 정상화 기반 작업은 상당 부분 완료됐지만 `/data-health` �
 - passed: browser screenshot QA for `/data-health` at 375px, 768px, 1280px. Captures are in `output/playwright/data-health-model-function-decomposition-v1/`.
 - passed: `git diff --check`
 - passed: touched model files are under 250 pure LOC except existing `dataHealthDefaults.ts`, which was not changed in this task.
+- passed: local commit `69badcf4` pushed to `origin/develop`.
+- passed on EC2: `/opt/stockanalysis/app` fast-forwarded to `69badcf4`.
+- passed on EC2: `cd /opt/stockanalysis/app/apps/web && npm run typecheck && npm run build`.
+- passed on EC2: `stockanalysis-web.service` and `stockanalysis-frontend-api.service` are `active`.
+- passed on EC2: `/`, `/data-health`, `/portfolio/coverage`, `/paper-trading`, `/stocks/AAPL`, `/recommendations/AAPL-2024-11-01` returned `200`.
+- passed on EC2: FastAPI `http://127.0.0.1:8787/__ready` returned success.
+- passed via local tunnel: `http://127.0.0.1:13000/data-health` returned `200`.
 
 ## Exact Next Step
 
-- exact next step: commit and push the verified frontend refactor to `develop`, then deploy to EC2 with `git pull --ff-only origin develop`, rebuild/restart services, and smoke `http://127.0.0.1:13000/data-health`.
+- exact next step: continue with `/data-health/page.tsx` section decomposition or `dataHealthDefaults.ts` domain split if the next task remains operations-console cleanup; otherwise return to investor-page UX issues in recommendation/stock detail.
 
 ## Remaining Risk
 
