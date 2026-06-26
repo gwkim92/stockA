@@ -7559,11 +7559,28 @@ h6 {
 }
 
 .data-health-brief .workspace-command-grid .decision-card {
-  min-height: 168px;
+  min-height: 118px;
+  padding: clamp(12px, 1vw, 16px);
+}
+
+.data-health-brief .decision-brief-main {
+  align-content: start;
 }
 
 .data-health-brief .workspace-command-grid .decision-card.is-priority {
-  min-height: 326px;
+  grid-row: span 1;
+  min-height: 150px;
+  align-content: start;
+  padding: clamp(14px, 1.2vw, 18px);
+}
+
+.data-health-brief .workspace-command-grid .decision-card.is-priority strong {
+  font-size: clamp(1.28rem, 1.8vw, 1.9rem);
+  line-height: 1.05;
+}
+
+.data-health-brief .workspace-command-grid .decision-card.is-priority small {
+  font-size: var(--type-small);
 }
 
 @media (min-width: 1100px) {

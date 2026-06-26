@@ -16,6 +16,7 @@ export type PageDecisionMapProps = {
   readonly title: string;
   readonly description: string;
   readonly steps: readonly DecisionMapStep[];
+  readonly density?: "comfortable" | "compact";
 };
 
 const toneClassName: Record<DecisionMapTone, string> = {
@@ -24,9 +25,9 @@ const toneClassName: Record<DecisionMapTone, string> = {
   watch: styles.watch,
 };
 
-export function PageDecisionMap({ eyebrow, title, description, steps }: PageDecisionMapProps) {
+export function PageDecisionMap({ eyebrow, title, description, steps, density = "comfortable" }: PageDecisionMapProps) {
   return (
-    <section className={styles.map} aria-label={title}>
+    <section className={`${styles.map} ${density === "compact" ? styles.compact : ""}`} aria-label={title}>
       <div className={styles.copy}>
         <span>{eyebrow}</span>
         <h2>{title}</h2>

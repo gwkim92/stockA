@@ -54,6 +54,12 @@
   padding: clamp(var(--space-8), 5vw, var(--space-16));
 }
 
+.data-health-brief > div:first-child {
+  align-content: start;
+  min-height: 0;
+  padding: clamp(var(--space-5), 3vw, var(--space-8));
+}
+
 .decision-brief-kicker,
 .eyebrow,
 .section-heading > span,
