@@ -49,7 +49,14 @@
 - final visual smoke on the changed local production build saved viewport screenshots under `output/playwright/stock-detail-page-deep-section-cleanup-v1/final/`; representative desktop screenshots are:
   - `output/playwright/stock-detail-page-deep-section-cleanup-v1/final/stocks-AAPL-desktop.png`
   - `output/playwright/stock-detail-page-deep-section-cleanup-v1/final/stocks-SPY-desktop.png`
+- EC2 deploy evidence:
+  - `develop` fast-forwarded on EC2 from `47aa311f` to `582af149`.
+  - EC2 `cd /opt/stockanalysis/app/apps/web && npm run typecheck && npm run build` passed with temporary 2GB swap enabled for the build and removed after restart.
+  - `stockanalysis-web.service` and `stockanalysis-frontend-api.service` are `active`.
+  - EC2 localhost route smoke returned `200` for `/`, `/stocks/AAPL`, `/stocks/SPY`, `/data-health`; FastAPI `/__ready` returned `status=ok`, `source_mode=live`, `order_boundary=read_only_no_order`.
+  - local tunnel `http://127.0.0.1:13000` returned `200` for `/`, `/stocks/AAPL`, `/stocks/SPY`, `/data-health`.
+  - deployed visual smoke through `127.0.0.1:13000` reported `overflow=0`, duplicated top flow `false`, server error `false` for `/stocks/AAPL` and `/stocks/SPY`.
 
 ## Exact Next Step
 
-- exact next step: run final repository checks, commit the task, push `develop`, deploy via EC2 `git pull --ff-only origin develop`, rebuild/restart Next, and run route smoke on `/stocks/AAPL` and `/stocks/SPY`.
+- exact next step: continue the UX normalization by applying the same summary-first/progressive-disclosure cleanup to the deepest stock detail evidence/source sections, then move to recommendation detail residual decomposition.
