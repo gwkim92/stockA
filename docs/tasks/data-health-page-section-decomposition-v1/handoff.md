@@ -6,12 +6,17 @@
   - local implementation and verification are complete.
   - local commit `28844f24` was pushed to `origin/develop`.
   - EC2 `/opt/stockanalysis/app` fast-forward pulled `develop` to `28844f24`.
+  - follow-up commit `a186add0` was pushed to `origin/develop` and EC2 fast-forward pulled it.
+  - EC2 was recovered after the interrupted `next build`: personal AWS account `115623963546` was verified in Chrome, the instance was rebooted, then stopped/started when SSH remained stuck at banner exchange.
+  - EC2 public IPv4 changed from `34.206.72.213` to `100.58.167.160`.
+  - EC2 production build was regenerated successfully with temporary swap under `/opt/stockanalysis/runtime`, then swap was removed.
+  - EC2 `stockanalysis-web.service` and `stockanalysis-frontend-api.service` are both active.
   - `/data-health` 하단 투자 품질·성과·전문 분석·포트폴리오 검토 상세 JSX를 route-local 컴포넌트로 분리했다.
   - e2e에서 드러난 `/recommendations/AAPL-2024-11-01` fallback symbol 표시 문제와 `/data-health` tablet timestamp overflow를 같이 보정했다.
 - 진행 중:
-  - EC2 service restart and route smoke are pending because the EC2 `npm run build` step made the t3.small instance unresponsive.
+  - none.
 - 막힌 점:
-  - EC2 SSH returns `Connection timed out during banner exchange` and `http://127.0.0.1:13000/` times out through the tunnel after the interrupted remote Next build.
+  - none.
 - branch: `develop`
 
 ## Implementation Summary
@@ -59,6 +64,16 @@
 - passed: `git push origin develop` updated GitHub `develop` from `521830ef` to `28844f24`.
 - passed: EC2 `git pull --ff-only origin develop` updated `/opt/stockanalysis/app` to `28844f24`.
 - blocked: EC2 `cd /opt/stockanalysis/app/apps/web && npm run typecheck && npm run build` passed typecheck and compiled Next successfully, then stalled during the build TypeScript/route phase until SSH and HTTP became unresponsive.
+- passed: EC2 recovery through AWS Console personal account `115623963546`; new public IPv4 is `100.58.167.160`.
+- passed: EC2 `npm run build` completed after enabling temporary 2GB swap under `/opt/stockanalysis/runtime`; swap was removed after build.
+- passed: EC2 `systemctl is-active stockanalysis-frontend-api.service stockanalysis-web.service` returned `active active`.
+- passed: EC2 localhost route smoke returned `200` for `/`, `/data-health`, `/recommendations/AAPL-2024-11-01`, `/stocks/AAPL`, `/portfolio/coverage`, `/paper-trading`, and API `__ready`.
+- passed: local tunnel `http://127.0.0.1:13000` returned `200` for `/`, `/data-health`, `/recommendations/AAPL-2024-11-01`, `/stocks/AAPL`, `/portfolio/coverage`, `/paper-trading`.
+- passed: Playwright Chrome visual smoke captured `/data-health`, `/recommendations/AAPL-2024-11-01`, and `/stocks/AAPL` with Korean body text and no `pipeline|runner|artifact|canonical|shadow` matches in the captured body text.
+- evidence:
+  - `/Users/woody/ai/stockanalysis/output/playwright/ec2-recovery-ux-smoke-v1/data-health.png`
+  - `/Users/woody/ai/stockanalysis/output/playwright/ec2-recovery-ux-smoke-v1/recommendations_AAPL-2024-11-01.png`
+  - `/Users/woody/ai/stockanalysis/output/playwright/ec2-recovery-ux-smoke-v1/stocks_AAPL.png`
 - passed: Playwright screenshot smoke, overflow `0` at `375`, `768`, `1280` for `/data-health`.
 - evidence:
   - `/Users/woody/ai/stockanalysis/output/playwright/data-health-page-section-decomposition-v1/data-health-mobile.png`
@@ -72,8 +87,8 @@
 - `data-health/page.tsx` is still large at 1,467 pure LOC. This slice removed the investment-quality detail block; the upper command center, runtime, and scheduler sections still need future decomposition.
 - Some legacy global classes remain in `globals.css`/`workspace-overrides.css`. This task did not migrate the full page to CSS Modules.
 - `/recommendations/AAPL-2024-11-01` still receives incomplete live API data, but the user-visible symbol no longer collapses to `UNKNOWN`; deeper fixture-quality cleanup belongs to a separate API fixture task.
+- `/stocks/AAPL` full-page visual smoke shows the page is still very long and appears to repeat top-level analysis sections near the bottom. This is not a server outage, but it should be handled in the next stock-detail UX decomposition task.
 
 ## Next Step
 
-- exact next step: reboot EC2 `stockanalysis-mvp-20260520` in personal AWS account `115623963546`, then SSH in and kill any leftover `next build`/`node`/`npm` build process before restarting `stockanalysis-web.service` and `stockanalysis-frontend-api.service`.
-- After recovery, run route smoke for `/`, `/data-health`, `/recommendations/AAPL-2024-11-01`, `/stocks/AAPL`, `/portfolio/coverage`, `/paper-trading`.
+- exact next step: continue the UX normalization with stock-detail duplication/length cleanup, starting from `/stocks/AAPL` and ETF/company layout boundaries.
