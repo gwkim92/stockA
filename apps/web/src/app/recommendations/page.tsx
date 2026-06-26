@@ -33,7 +33,7 @@ function recommendationStatus(row: RecommendationRow) {
     return { kind: "watch" as const, label: "가상 매매 대기" };
   }
   if (row.decision_boundary.status === "decision_review_ready") {
-    return { kind: "ready" as const, label: "근거 검토 가능" };
+    return { kind: "ready" as const, label: "근거 연결됨" };
   }
   return { kind: "blocked" as const, label: "판단 보류" };
 }
@@ -71,7 +71,7 @@ export default async function RecommendationsPage() {
     <div className={styles.page}>
       <DecisionSummary
         eyebrow={`추천 · ${data.as_of_date || "기준일 미정"} · ${koCode(data.horizon_type)}`}
-        title={lead ? `${lead.symbol}, 현재 최상위 중장기 후보` : "검토 가능한 추천이 없습니다"}
+        title={lead ? `${lead.symbol}, 현재 최상위 중장기 후보` : "연결된 추천이 없습니다"}
         description="추천은 주문 지시가 아닙니다. 기대수익, 근거 충족도, 반대 신호와 가상 매매 상태를 함께 비교합니다."
         primaryAction={{
           href: lead ? recommendationHref(lead.recommendation_id) : ("/data-health" as Route),
@@ -93,8 +93,8 @@ export default async function RecommendationsPage() {
       <MetricStrip
         label="추천 현황"
         items={[
-          { label: "추천 후보", value: `${data.recommendation_count}개`, context: "현재 중장기 검토 대상" },
-          { label: "근거 검토 가능", value: `${decisionReady}개`, context: "핵심 판단 근거가 연결된 추천" },
+          { label: "추천 후보", value: `${data.recommendation_count}개`, context: "현재 중장기 판단 대상" },
+          { label: "근거 연결", value: `${decisionReady}개`, context: "핵심 판단 근거가 연결된 추천" },
           {
             label: "가상 매매 대기",
             value: `${data.summary.paper_validation_pending_count}개`,

@@ -38,7 +38,7 @@ function formatWeightPercent(value: number | null) {
 
 function formatCurrency(value: number | null, currencyCode: string) {
   if (value === null) {
-    return "미수집";
+    return "데이터 없음";
   }
   return new Intl.NumberFormat("ko-KR", {
     style: "currency",

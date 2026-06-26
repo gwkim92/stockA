@@ -23,6 +23,7 @@ import { OperationsConsoleHeader } from "@/components/operations/OperationsConso
 import { PageDecisionMap } from "@/components/research/PageDecisionMap";
 import { getDataHealth } from "@/lib/frontend-api";
 import { koCode, koReason } from "@/lib/korean-labels";
+import { buildOperationsViewModel } from "@/lib/presentation";
 import type { DataHealthData } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -911,22 +912,22 @@ function aiProviderLabel(provider: string) {
 
 function openAiProviderTitle(health: OpenAiProviderHealth) {
   if (health.status === "openai_insufficient_quota" || health.status === "openai_billing_unavailable") {
-    return "OpenAI 잔액·쿼터 없음";
+    return "잔액·쿼터 없음";
   }
   if (health.status === "openai_auth_invalid") {
-    return "OpenAI 인증 중단";
+    return "인증 중단";
   }
   if (health.status === "openai_provider_disabled") {
-    return "OpenAI 직접 호출 꺼짐";
+    return "직접 호출 꺼짐";
   }
   if (health.status === "missing_api_key") {
-    return "OpenAI API 키 없음";
+    return "API 키 없음";
   }
   if (health.cost_status.status === "costs_available") {
-    return "OpenAI 비용 조회됨";
+    return "비용 조회됨";
   }
   if (health.status === "key_configured_balance_unverified") {
-    return "OpenAI 키 있음 · 잔액 미확인";
+    return "키 있음 · 잔액 미확인";
   }
   return health.label || koCode(health.status);
 }
@@ -1568,7 +1569,7 @@ function orderBoundaryCopy(value: string | null | undefined) {
     return "실거래 상태 미확인";
   }
   if (value === "read_only_no_order") {
-    return "읽기 전용, 실거래 주문 차단";
+    return "주문 차단";
   }
   return operationCopy(value);
 }
@@ -2386,6 +2387,7 @@ const DEFAULT_ACTIVE_RECOMMENDATION_PRICE_FRESHNESS: ActiveRecommendationPriceFr
 export default async function DataHealthPage() {
   const response = await getDataHealth();
   const data = response.data;
+  const operationsViewModel = buildOperationsViewModel(data);
   const providerBudget = data.provider_budget;
   const productionApiServer = data.production_api_server ?? DEFAULT_PRODUCTION_API_SERVER;
   const authRbac = data.auth_rbac ?? DEFAULT_AUTH_RBAC;
@@ -3231,8 +3233,8 @@ export default async function DataHealthPage() {
     <div className="terminal-page decision-page">
       <OperationsConsoleHeader
         section="데이터 상태"
-        title="수집·분석·자동 실행 상태"
-        description="투자 판단에 영향을 주는 데이터 지연, 공급자 제한, AI 중단과 다음 자동 재시도를 관리합니다."
+        title={operationsViewModel.statusLabel}
+        description={`${operationsViewModel.summary}. ${operationsViewModel.nextAction}`}
         currentPath={"/data-health" as Route}
       />
       <PageDecisionMap

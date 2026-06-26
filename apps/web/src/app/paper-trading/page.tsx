@@ -3,8 +3,10 @@ import type { Route } from "next";
 
 import { getPaperTradingPreview, getTradingReadiness } from "@/lib/frontend-api";
 import { koBlockedReason, koCode, koLabel, koReason } from "@/lib/korean-labels";
-import { investorCopy } from "@/lib/presentation";
+import { buildPaperTradingViewModel, investorCopy } from "@/lib/presentation";
 import type { TradingReadinessData } from "@/lib/types";
+
+import styles from "./PaperTradingPage.module.css";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "가상 매매 점검" };
@@ -138,6 +140,7 @@ export default async function PaperTradingPage() {
   const [response, tradingResponse] = await Promise.all([getPaperTradingPreview(), getTradingReadiness()]);
   const data = response.data;
   const trading = tradingResponse.data;
+  const paperViewModel = buildPaperTradingViewModel(data);
   const summary = data.quality_summary;
   const validationState = paperValidationState(trading);
   const riskGuardrail = trading.portfolio_risk_budget_guardrail;
@@ -282,20 +285,24 @@ export default async function PaperTradingPage() {
   ];
   return (
     <div className="terminal-page decision-page">
-      <section className="decision-brief workspace-brief paper-command-deck reveal" aria-labelledby="paper-title">
+      <section
+        className={`decision-brief workspace-brief paper-command-deck reveal ${styles.paperHeader}`}
+        aria-labelledby="paper-title"
+      >
         <div className="decision-brief-main">
           <span className="decision-brief-kicker">가상 매매 · 주문 전 안전 점검</span>
           <h1 className="decision-brief-title" id="paper-title">
             {liveSubmitCount > 0
               ? "실제 주문 기록을 즉시 확인해야 합니다."
               : trading.gate_summary.blocked_count > 0
-                ? `가상 매매 후보 ${simulatedActionCount.toLocaleString("ko-KR")}개, 안전장치가 주문을 차단하고 있습니다.`
-                : `가상 매매 후보 ${simulatedActionCount.toLocaleString("ko-KR")}개를 검증 중입니다.`}
+                ? `${paperViewModel.statusLabel} · 가상 후보 ${simulatedActionCount.toLocaleString("ko-KR")}개`
+                : `${paperViewModel.statusLabel} · 가상 후보 ${simulatedActionCount.toLocaleString("ko-KR")}개`}
           </h1>
           <p className="decision-brief-copy">
-            추천과 현재 보유 내역을 대조해 목표 비중의 현실성을 검증합니다. 이 화면의 결과는 실제 주문이 아닙니다.
+            {paperViewModel.investmentImpact} {paperViewModel.nextAction}
           </p>
           <div className="decision-brief-meta" aria-label="가상 매매 핵심 상태">
+            <span>상태 {paperViewModel.statusLabel}</span>
             <span>추천 {summary.recommendation_count.toLocaleString("ko-KR")}개</span>
             <span>가상 항목 {simulatedActionCount.toLocaleString("ko-KR")}개</span>
             <span>차단 {trading.gate_summary.blocked_count.toLocaleString("ko-KR")}개</span>

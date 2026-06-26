@@ -1,0 +1,50 @@
+.compatibilityBrief {
+  align-items: start;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.compatibilityBrief :global(.decision-brief-main) {
+  align-content: start;
+  min-height: auto;
+}
+
+.compatibilityBrief :global(.decision-brief-title) {
+  max-width: 980px;
+}
+
+.compatibilityBrief :global(.decision-brief-copy) {
+  max-width: 860px;
+}
+
+.compatibilityBrief :global(.decision-brief-grid.workspace-command-grid) {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-top: var(--space-4);
+}
+
+.compatibilityBrief :global(.workspace-command-grid .decision-card),
+.compatibilityBrief :global(.workspace-command-grid .decision-card:first-child),
+.compatibilityBrief :global(.workspace-command-grid .decision-card.is-priority) {
+  align-content: space-between;
+  grid-column: span 1;
+  grid-row: span 1;
+  min-height: 180px;
+}
+
+.compatibilityBrief :global(.workspace-command-grid .decision-card strong),
+.compatibilityBrief :global(.workspace-command-grid .decision-card:first-child strong),
+.compatibilityBrief :global(.workspace-command-grid .decision-card.is-priority strong) {
+  font-size: clamp(1.35rem, 2vw, 2.2rem);
+  line-height: 1.02;
+}
+
+@media (max-width: 1024px) {
+  .compatibilityBrief :global(.decision-brief-grid.workspace-command-grid) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .compatibilityBrief :global(.decision-brief-grid.workspace-command-grid) {
+    grid-template-columns: 1fr;
+  }
+}

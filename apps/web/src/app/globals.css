@@ -8238,8 +8238,19 @@ h6 {
 }
 
 .compact-rail .rail-cell strong {
-  overflow-wrap: anywhere;
-  font-size: clamp(2rem, 4.5vw, 4.5rem);
+  overflow-wrap: break-word;
+  word-break: keep-all;
+  text-wrap: balance;
+  font-size: clamp(1.35rem, 2.8vw, 2.7rem);
+  line-height: 1.03;
+}
+
+.compact-rail .rail-cell.rail-critical strong {
+  overflow-wrap: normal;
+  word-break: keep-all;
+  white-space: nowrap;
+  font-size: clamp(1.35rem, 2.5vw, 2.8rem);
+  line-height: 1;
 }
 
 .compact-rail .rail-cell .rail-word-value {

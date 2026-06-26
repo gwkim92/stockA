@@ -16,8 +16,11 @@ import { RecommendationScoreAuditPanel } from "@/components/recommendation-score
 import { ValuationTargetRangeCard } from "@/components/valuation-target-range-card";
 import { getRecommendationDetail } from "@/lib/frontend-api";
 import { koCode, koLabel } from "@/lib/korean-labels";
-import { recommendationCopy } from "@/lib/presentation";
+import { buildRecommendationViewModel, recommendationCopy, recommendationProductKind } from "@/lib/presentation";
 import type { RecommendationDetailData } from "@/lib/types";
+
+import { RecommendationCompatibilityReport } from "./_components/RecommendationCompatibilityReport";
+import { RecommendationDecisionHeader } from "./_components/RecommendationDecisionHeader";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "추천 상세" };
@@ -388,7 +391,7 @@ function formatCompactNumber(value: number | null | undefined) {
 
 function formatCurrency(value: number | null | undefined, currencyCode: string) {
   if (value === null || value === undefined) {
-    return "미수집";
+    return "데이터 없음";
   }
   return new Intl.NumberFormat("ko-KR", {
     style: "currency",
@@ -399,7 +402,7 @@ function formatCurrency(value: number | null | undefined, currencyCode: string) 
 
 function formatFundCurrency(value: number | null | undefined, currencyCode: string) {
   if (value === null || value === undefined) {
-    return "미수집";
+    return "가격 자료 없음";
   }
   return new Intl.NumberFormat("ko-KR", {
     style: "currency",
@@ -410,7 +413,7 @@ function formatFundCurrency(value: number | null | undefined, currencyCode: stri
 
 function formatExpenseRatio(value: number | null | undefined) {
   if (value === null || value === undefined) {
-    return "미수집";
+    return "비용률 자료 없음";
   }
   return `${(value * 100).toLocaleString("ko-KR", {
     minimumFractionDigits: 0,
@@ -423,7 +426,7 @@ function fundStatusLabel(status: string) {
     return "수집 완료";
   }
   if (status === "missing") {
-    return "미수집";
+    return "데이터 없음";
   }
   if (status === "stale") {
     return "오래된 자료";
@@ -1039,6 +1042,15 @@ function recommendationQualityChecks(data: RecommendationDetailData) {
   ];
 }
 
+function hasProfessionalRecommendationDetail(data: RecommendationDetailData) {
+  return Boolean(
+    data.professional_decision_waterfall
+      && data.professional_evidence_audit
+      && data.position_context
+      && data.financial_statement_model,
+  );
+}
+
 function qualityToneToFocusTone(tone: RecommendationQualityDecision["tone"]): RecommendationFocusItem["tone"] {
   if (tone === "risk-high") {
     return "blocked";
@@ -1572,6 +1584,9 @@ export default async function RecommendationPage({ params }: RecommendationPageP
   const { recommendationId } = await params;
   const response = await getRecommendationDetail(recommendationId);
   const data = response.data;
+  if (!hasProfessionalRecommendationDetail(data)) {
+    return <RecommendationCompatibilityReport data={data} />;
+  }
   const evidenceReview = data.evidence_review;
   const qualityDecision = recommendationQualityDecision(data);
   const qualityChecks = recommendationQualityChecks(data);
@@ -1591,6 +1606,8 @@ export default async function RecommendationPage({ params }: RecommendationPageP
   const decisionWaterfall = data.professional_decision_waterfall;
   const professionalAudit = data.professional_evidence_audit;
   const productProfile = recommendationProductProfile(data);
+  const recommendationProduct = recommendationProductKind(data);
+  const recommendationViewModel = buildRecommendationViewModel(data);
   const readyDecisionStepCount = decisionWaterfall.steps.filter((step) => step.tone === "ready").length;
   const watchDecisionStepCount = decisionWaterfall.steps.filter((step) => step.tone === "watch" || step.tone === "neutral").length;
   const blockedDecisionStepCount = decisionWaterfall.steps.filter((step) => step.tone === "blocked").length;
@@ -1637,68 +1654,29 @@ export default async function RecommendationPage({ params }: RecommendationPageP
 
   return (
     <div className="pageStack">
-      <section className="decision-brief workspace-brief recommendation-command-deck reveal" aria-labelledby="recommendation-detail-title">
-        <div className="decision-brief-main">
-          <span className="decision-brief-kicker">
-            추천 리포트 · {productProfile.label} · {koCode(data.horizon_type)} · {data.as_of_date}
-          </span>
-          <h1 className="decision-brief-title" id="recommendation-detail-title">
-            {data.symbol} · {productProfile.kind === "fund_or_etf" ? "ETF 추천 검토" : "기업 주식 추천 검토"}
-          </h1>
-          <p className="decision-brief-copy">
-            {productProfile.headline}. {qualityDecision.summary} 상품 유형, 보유 포지션, 핵심 근거, 거래 경계를 한 화면에서 정리한다.
-          </p>
-          <div className="decision-brief-meta" aria-label="추천 상세 핵심 상태">
-            <span>{productProfile.primaryLens}</span>
-            <span>점수 {formatPercent(data.score)}</span>
-            <span>추천 {koCode(data.recommendation)}</span>
-            <span>포지션 {positionStatusLabel}</span>
-            <span>가상 매매 {decisionWaterfall.paper_validation_input_allowed ? "입력 가능" : "입력 차단"}</span>
-            <span>실거래 {decisionWaterfall.broker_submit_allowed ? "허용" : "차단"}</span>
-          </div>
-        </div>
-
-        <div className="decision-brief-grid workspace-command-grid" aria-label="추천 상세 판단 목차">
-          <Link className="decision-card primary" href="#recommendation-professional-flow">
-            <span>현재 결론</span>
-            <strong>{qualityDecision.status}</strong>
-            <small>추천 채택, 보류, 기록 전용 여부를 구분한다.</small>
-          </Link>
-          <Link className="decision-card" href="#recommendation-position-reality">
-            <span>포지션·평단가</span>
-            <strong>{positionStatusLabel}</strong>
-            <small>{positionStatusLabel === "보유 중" ? "수량, 평단가, 평가손익을 원장 기준으로 표시한다." : "미보유 추천은 신규 편입 후보로 분리한다."}</small>
-          </Link>
-          <Link className="decision-card" href="#recommendation-professional-flow">
-            <span>분석 단계</span>
-            <strong>{readyDecisionStepCount}/{decisionWaterfall.steps.length} 통과</strong>
-            <small>주의 {watchDecisionStepCount}개 · 차단 {blockedDecisionStepCount}개</small>
-          </Link>
-          {productProfile.kind === "fund_or_etf" ? (
-            <Link className="decision-card is-good" href="#recommendation-fund-analysis">
-              <span>ETF 핵심</span>
-              <strong>{data.fund_instrument_analysis ? `${data.fund_instrument_analysis.holding_count.toLocaleString("ko-KR")}개 보유` : "ETF 근거 대기"}</strong>
-              <small>보유종목, 비용률, 추적차이, NAV 괴리를 ETF 근거로 묶었다.</small>
-            </Link>
-          ) : (
-            <Link className="decision-card is-good" href="#recommendation-financial-model">
-              <span>기업 핵심</span>
-              <strong>{financialStatementModel.status === "available" ? `${financialStatementModel.computed_metric_count}개 지표` : "재무 근거 대기"}</strong>
-              <small>재무, 밸류에이션, 산업 경쟁 위치를 기업 근거로 묶었다.</small>
-            </Link>
-          )}
-          <Link className={marketCorrelationCount > 0 ? "decision-card is-good" : "decision-card is-watch"} href="#recommendation-market-correlations">
-            <span>시장 동조성</span>
-            <strong>{marketCorrelationCount.toLocaleString("ko-KR")}개 비교</strong>
-            <small>지수·섹터·금리·달러·원자재 민감도를 표시한다.</small>
-          </Link>
-          <Link className="decision-card" href="/paper-trading">
-            <span>거래 경계</span>
-            <strong>{orderBoundaryLabel(decisionWaterfall.order_boundary)}</strong>
-            <small>가상 매매 가능성과 실거래 제출 차단을 분리했다.</small>
-          </Link>
-        </div>
-      </section>
+      <RecommendationDecisionHeader
+        symbol={data.symbol}
+        asOfDate={data.as_of_date}
+        horizonLabel={koCode(data.horizon_type)}
+        recommendationLabel={koCode(data.recommendation)}
+        positionStatusLabel={positionStatusLabel}
+        productKind={recommendationProduct}
+        viewModel={recommendationViewModel}
+        counts={{
+          readyStepCount: readyDecisionStepCount,
+          watchStepCount: watchDecisionStepCount,
+          blockedStepCount: blockedDecisionStepCount,
+          totalStepCount: decisionWaterfall.steps.length,
+          marketCorrelationCount,
+          financialMetricCount: financialStatementModel.computed_metric_count,
+          fundHoldingCount: data.fund_instrument_analysis?.holding_count ?? null,
+        }}
+        execution={{
+          paperValidationAllowed: decisionWaterfall.paper_validation_input_allowed,
+          brokerSubmitAllowed: decisionWaterfall.broker_submit_allowed,
+          orderStatusLabel: orderBoundaryLabel(decisionWaterfall.order_boundary),
+        }}
+      />
 
       <RecommendationProductOverview
         data={data}

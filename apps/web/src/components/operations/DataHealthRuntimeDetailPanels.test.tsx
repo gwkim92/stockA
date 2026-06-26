@@ -10,7 +10,7 @@ describe("DataHealthRuntimeDetailPanels", () => {
         activeRecommendationPriceFreshness={{
           latestTradeDateLabel: "2026-06-24",
           nextActionLabel: "가격 보강 대기 없음",
-          orderBoundaryLabel: "읽기 전용, 실거래 주문 차단",
+          orderBoundaryLabel: "주문 차단",
           staleSummaryLabel: "오래됨 0개 · 없음 0개",
           staleSymbols: [
             {
@@ -34,7 +34,7 @@ describe("DataHealthRuntimeDetailPanels", () => {
               id: "outcome-wait",
               label: "성과 표본 대기",
               nextActionLabel: "다음 측정일까지 대기",
-              orderBoundaryLabel: "읽기 전용, 실거래 주문 차단",
+              orderBoundaryLabel: "주문 차단",
               statusLabel: "관리 중",
               statusTone: "risk-medium",
               summary: "추천 산식 변경 전 표본이 성숙해야 한다.",
@@ -58,7 +58,7 @@ describe("DataHealthRuntimeDetailPanels", () => {
           artifactPolicyLabel: "12/12개 · 최신 실행 12개",
           authNextActionLabel: "추가 조치 없음",
           authReadinessLabel: "읽기 전용 권한 준비",
-          brokerOrderLabel: "쓰기 차단됨 · 주문 차단됨 · 읽기 전용, 실거래 주문 차단",
+          brokerOrderLabel: "쓰기 차단됨 · 주문 차단됨 · 읽기 전용",
           connectionLabel: "운영 · 실데이터 · DB 연결",
           environmentLabel: "준비됨",
           holidaySkipModeLabel: "휴장일 제외",
@@ -81,7 +81,7 @@ describe("DataHealthRuntimeDetailPanels", () => {
     expect(screen.getByRole("heading", { name: "추천에 쓰는 가격이 최신인지 확인" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "조건과 데이터 최신성" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "반복 실행 준비 상태" })).toBeInTheDocument();
-    expect(screen.getAllByText("읽기 전용, 실거래 주문 차단").length).toBeGreaterThan(1);
+    expect(screen.getAllByText("주문 차단").length).toBeGreaterThan(1);
     expect(screen.queryByText(/broker_submit_allowed|read_only_no_order|pipeline-run/i)).not.toBeInTheDocument();
   });
 });

@@ -5,7 +5,7 @@ import { PortfolioReturnSummaryPanel } from "@/components/portfolio/PortfolioRet
 import { PageDecisionMap } from "@/components/research/PageDecisionMap";
 import { getPortfolioCoverage, getTradingReadiness } from "@/lib/frontend-api";
 import { koCode, koLabel } from "@/lib/korean-labels";
-import { calculatePortfolioReturnSummary, formatSignedPercent, portfolioCopy } from "@/lib/presentation";
+import { buildPortfolioCoverageViewModel, calculatePortfolioReturnSummary, formatSignedPercent, portfolioCopy } from "@/lib/presentation";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "보유·리스크 상태" };
@@ -47,7 +47,7 @@ function orderBoundaryLabel(value: string | null | undefined) {
     return "실거래 상태 미기록";
   }
   if (value === "read_only_no_order") {
-    return "읽기 전용, 실거래 주문 차단";
+    return "주문 차단";
   }
   return userFacingText(value);
 }
@@ -288,11 +288,14 @@ export default async function PortfolioCoveragePage() {
   const concentration = riskBudget.concentration;
   const hasPositions = data.positions.length > 0;
   const portfolioReturn = calculatePortfolioReturnSummary(data.positions);
+  const portfolioViewModel = buildPortfolioCoverageViewModel(data);
   const portfolioReturnLabel = formatSignedPercent(portfolioReturn.returnPct, {
     metricLabel: "평가손익률",
     upLabel: "수익",
     downLabel: "손실",
   });
+  const portfolioMarketValueMetric = portfolioViewModel.metrics.find((metric) => metric.label === "평가금액");
+  const portfolioPnlMetric = portfolioViewModel.metrics.find((metric) => metric.label === "평가손익");
   const investedWeight = Math.max(0, 1 - (data.summary.cash_weight ?? 0));
   const thesisCoverageRatio = investedWeight > 0
     ? Math.max(0, Math.min(1, (investedWeight - data.summary.missing_thesis_weight) / investedWeight))
@@ -409,13 +412,15 @@ export default async function PortfolioCoveragePage() {
           <h1 className="decision-brief-title" id="portfolio-coverage-title">
             {reviewCandidateTotal > 0
               ? `${reviewCandidateTotal.toLocaleString("ko-KR")}개 보유 항목에 조정 검토가 필요합니다.`
-              : "현재 포트폴리오에 즉시 조정할 위험 신호는 없습니다."}
+              : `${portfolioViewModel.statusLabel} · ${portfolioReturnLabel.label}`}
           </h1>
           <p className="decision-brief-copy">
-            투자 논리 누락, 집중도, 벤치마크 괴리와 성과 측정 상태를 함께 비교합니다. 성과 표본이 성숙하기 전에는 비중 정책을 변경하지 않습니다.
+            {portfolioViewModel.investmentImpact} {portfolioViewModel.nextAction}
           </p>
           <div className="decision-brief-meta" aria-label="포트폴리오 핵심 상태">
             <span>포지션 {data.summary.position_count.toLocaleString("ko-KR")}개</span>
+            <span>평가금액 {portfolioMarketValueMetric?.value ?? "미측정"}</span>
+            <span>평가손익 {portfolioPnlMetric?.value ?? "미측정"}</span>
             <span>평가손익률 {portfolioReturnLabel.label}</span>
             <span>투자 논리 누락 {data.summary.missing_thesis_count.toLocaleString("ko-KR")}개</span>
             <span>측정 종료 {data.coverage_measurement_end_date}</span>

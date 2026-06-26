@@ -87,7 +87,7 @@ export function PortfolioReturnSummaryPanel({ positions, baseCurrency }: Portfol
       <div className="section-heading">
         <div>
           <span className="metric-sub">포트폴리오 수익률</span>
-          <h2>보유 포지션의 평가손익을 먼저 확인한다</h2>
+          <h2>보유 포지션의 평가손익이 먼저 보인다</h2>
         </div>
         <SignedReturnBadge
           value={summary.returnPct}
@@ -159,7 +159,7 @@ export function PortfolioReturnSummaryPanel({ positions, baseCurrency }: Portfol
               )}
             </div>
           </section>
-          <div className={styles.tableWrap}>
+          <div className={styles.tableWrap} tabIndex={0} aria-label="보유 포지션 평가손익 표">
             <table className={styles.table}>
               <thead>
                 <tr>

@@ -60,7 +60,7 @@ export function RecommendationScoreAuditPanel({ data }: { readonly data: Recomme
           <span className={styles.detailSummary}>
             <span>상세 계산 입력</span>
             <strong>점수 항목 자세히 보기</strong>
-            <small>각 항목의 값, 최종 점수 반영 여부, 연결 근거, 계산 출처를 확인한다.</small>
+            <small>각 항목의 값, 최종 점수 반영 여부, 연결 근거, 계산 출처가 함께 표시된다.</small>
           </span>
           <span className={styles.toggle}>
             <span className={styles.toggleClosed}>펼치기</span>
