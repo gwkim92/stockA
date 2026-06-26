@@ -4,12 +4,14 @@
 
 - 완료:
   - local implementation and verification are complete.
+  - local commit `28844f24` was pushed to `origin/develop`.
+  - EC2 `/opt/stockanalysis/app` fast-forward pulled `develop` to `28844f24`.
   - `/data-health` 하단 투자 품질·성과·전문 분석·포트폴리오 검토 상세 JSX를 route-local 컴포넌트로 분리했다.
   - e2e에서 드러난 `/recommendations/AAPL-2024-11-01` fallback symbol 표시 문제와 `/data-health` tablet timestamp overflow를 같이 보정했다.
 - 진행 중:
-  - commit, push, and EC2 deploy are pending.
+  - EC2 service restart and route smoke are pending because the EC2 `npm run build` step made the t3.small instance unresponsive.
 - 막힌 점:
-  - none.
+  - EC2 SSH returns `Connection timed out during banner exchange` and `http://127.0.0.1:13000/` times out through the tunnel after the interrupted remote Next build.
 - branch: `develop`
 
 ## Implementation Summary
@@ -53,6 +55,10 @@
 - passed: `bash scripts/verify_project_execution_roadmap.sh`
 - passed: `PYTHONPATH=/Users/woody/ai/agent-work-harness/src python3 -m awh verify --repo . --task data-health-page-section-decomposition-v1`
 - passed: `git diff --check`
+- passed: `git commit -m "Split data health detail sections"` created `28844f24`.
+- passed: `git push origin develop` updated GitHub `develop` from `521830ef` to `28844f24`.
+- passed: EC2 `git pull --ff-only origin develop` updated `/opt/stockanalysis/app` to `28844f24`.
+- blocked: EC2 `cd /opt/stockanalysis/app/apps/web && npm run typecheck && npm run build` passed typecheck and compiled Next successfully, then stalled during the build TypeScript/route phase until SSH and HTTP became unresponsive.
 - passed: Playwright screenshot smoke, overflow `0` at `375`, `768`, `1280` for `/data-health`.
 - evidence:
   - `/Users/woody/ai/stockanalysis/output/playwright/data-health-page-section-decomposition-v1/data-health-mobile.png`
@@ -69,5 +75,5 @@
 
 ## Next Step
 
-- exact next step: commit and push the verified local changes to `develop`, then deploy EC2 with `git pull --ff-only origin develop` and run route smoke.
-- After commit/push, deploy `develop` to EC2 with `git pull --ff-only origin develop`, restart FastAPI/Next, and smoke `/`, `/data-health`, `/recommendations/AAPL-2024-11-01`, `/stocks/AAPL`, `/portfolio/coverage`, `/paper-trading`.
+- exact next step: reboot EC2 `stockanalysis-mvp-20260520` in personal AWS account `115623963546`, then SSH in and kill any leftover `next build`/`node`/`npm` build process before restarting `stockanalysis-web.service` and `stockanalysis-frontend-api.service`.
+- After recovery, run route smoke for `/`, `/data-health`, `/recommendations/AAPL-2024-11-01`, `/stocks/AAPL`, `/portfolio/coverage`, `/paper-trading`.
