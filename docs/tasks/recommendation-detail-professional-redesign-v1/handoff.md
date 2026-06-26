@@ -19,6 +19,16 @@
 - Reworded legacy/fallback recommendation copy from generic "기본 기록/확인한다" style to "요약형 추천 기록/판단 제한" style.
 - Reworded recommendation detail header and score audit copy to avoid ambiguous investor-facing phrases such as `확인한다` and `검토 가능`.
 - Replaced `미수집` visible fallbacks in recommendation price/fund helper copy with `데이터 없음`, `가격 자료 없음`, or `비용률 자료 없음`.
+- Decomposed large recommendation detail sections into route-local components:
+  `RecommendationFinancialStatementModelPanel.tsx`,
+  `RecommendationFundInstrumentAnalysisPanel.tsx`,
+  `RecommendationIndustryCompetitivePositionPanel.tsx`,
+  `RecommendationDecisionFlowPanels.tsx`,
+  `RecommendationEvidenceTracePanel.tsx`,
+  `RecommendationMarketCorrelationsPanel.tsx`,
+  `RecommendationResearchList.tsx`,
+  and `recommendation-panel-format.ts`.
+- Reduced `apps/web/src/app/recommendations/[recommendationId]/page.tsx` pure LOC from the 2,000+ line range to roughly 1,493 lines after this checkpoint. Remaining page size is still above the long-term target, but the top decision area, compatibility fallback, financial model, ETF/fund analysis, industry/peer analysis, waterfall, focus, evidence trace, and market-correlation render blocks are no longer owned directly by the route file.
 - Kept recommendation score, benchmark, position, broker/order boundary, DB schema, and API DTO unchanged.
 
 ## Verification
@@ -27,6 +37,9 @@
 - `cd apps/web && npm test`
 - `cd apps/web && npm run build`
 - `cd apps/web && STOCKANALYSIS_WEB_BASE_URL=http://127.0.0.1:13003 npm run test:e2e` (`51` passed)
+- Post-decomposition checkpoint:
+  `cd apps/web && npm run typecheck` passed,
+  `cd apps/web && npm test` passed (`14` files, `36` tests).
 - Browser screenshot evidence:
   `/Users/woody/ai/stockanalysis/dogfood-output/professional-investment-ux-normalization-v1/screenshots/recommendation-aapl-desktop.png`
   and `recommendation-aapl-mobile.png`.
@@ -36,5 +49,5 @@
 
 ## Remaining
 
-- The recommendation detail page file is still oversized and needs deeper component extraction.
+- The recommendation detail page file is still oversized. Remaining extraction candidates are score component stack rendering, macro-flow rendering, equity research rendering, professional evidence review, and score audit placement.
 - The fixture fallback is intentionally basic because fixture data lacks the professional detail payload; live recommendation IDs should use the richer header and professional sections.

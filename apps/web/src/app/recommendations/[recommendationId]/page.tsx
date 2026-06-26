@@ -21,6 +21,17 @@ import type { RecommendationDetailData } from "@/lib/types";
 
 import { RecommendationCompatibilityReport } from "./_components/RecommendationCompatibilityReport";
 import { RecommendationDecisionHeader } from "./_components/RecommendationDecisionHeader";
+import {
+  RecommendationDecisionWaterfall,
+  RecommendationFocusPanel,
+  type RecommendationFocusItem,
+  type RecommendationWaterfallCard,
+} from "./_components/RecommendationDecisionFlowPanels";
+import { RecommendationFinancialStatementModelPanel } from "./_components/RecommendationFinancialStatementModelPanel";
+import { RecommendationFundInstrumentAnalysisPanel } from "./_components/RecommendationFundInstrumentAnalysisPanel";
+import { RecommendationIndustryCompetitivePositionPanel } from "./_components/RecommendationIndustryCompetitivePositionPanel";
+import { RecommendationEvidenceTracePanel, type RecommendationEvidenceTraceCard } from "./_components/RecommendationEvidenceTracePanel";
+import { RecommendationMarketCorrelationsPanel } from "./_components/RecommendationMarketCorrelationsPanel";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "추천 상세" };
@@ -34,21 +45,7 @@ function formatPercent(value: number) {
 }
 
 type ScoreComponent = RecommendationDetailData["score_components"][number];
-type IndustryCompetitivePosition = NonNullable<RecommendationDetailData["industry_competitive_position"]>;
-type FinancialStatementModel = RecommendationDetailData["financial_statement_model"];
-type FinancialMetricSnapshot = FinancialStatementModel["metrics"][number];
-type FundInstrumentAnalysis = RecommendationDetailData["fund_instrument_analysis"];
 type ProfessionalEvidenceAudit = RecommendationDetailData["professional_evidence_audit"];
-type RecommendationMarketCorrelation = RecommendationDetailData["market_correlations"][number];
-type RecommendationFocusItem = {
-  label: string;
-  title: string;
-  body: string;
-  metric: string;
-  href: Route | `#${string}`;
-  hrefLabel: string;
-  tone: "ready" | "watch" | "blocked";
-};
 
 const SCORE_COMPONENT_LABELS: Record<string, string> = {
   macro_regime_score: "거시 환경",
@@ -335,43 +332,6 @@ function formatMetricValue(value: number | null | undefined) {
   return value.toLocaleString("ko-KR", { maximumFractionDigits: 4 });
 }
 
-function formatCoefficient(value: number | null | undefined) {
-  if (value === null || value === undefined || !Number.isFinite(value)) {
-    return "미측정";
-  }
-  return new Intl.NumberFormat("ko-KR", {
-    maximumFractionDigits: 2,
-    minimumFractionDigits: 2,
-    signDisplay: "exceptZero",
-  }).format(value);
-}
-
-function correlationRelationshipLabel(label: string) {
-  if (label === "strong_positive") {
-    return "강한 동행";
-  }
-  if (label === "strong_negative") {
-    return "강한 반대";
-  }
-  if (label === "moderate_positive") {
-    return "보통 동행";
-  }
-  if (label === "moderate_negative") {
-    return "보통 반대";
-  }
-  return "약하거나 불명확";
-}
-
-function correlationTone(correlation: RecommendationMarketCorrelation) {
-  if (correlation.relationship_label.includes("strong")) {
-    return "detail-path-card is-watch";
-  }
-  if (correlation.relationship_label.includes("moderate")) {
-    return "detail-path-card is-good";
-  }
-  return "detail-path-card";
-}
-
 function formatOptionalPercent(value: number | null | undefined) {
   if (value === null || value === undefined) {
     return "미측정";
@@ -400,17 +360,6 @@ function formatCurrency(value: number | null | undefined, currencyCode: string) 
   }).format(value);
 }
 
-function formatFundCurrency(value: number | null | undefined, currencyCode: string) {
-  if (value === null || value === undefined) {
-    return "가격 자료 없음";
-  }
-  return new Intl.NumberFormat("ko-KR", {
-    style: "currency",
-    currency: currencyCode,
-    maximumFractionDigits: 2,
-  }).format(value);
-}
-
 function formatExpenseRatio(value: number | null | undefined) {
   if (value === null || value === undefined) {
     return "비용률 자료 없음";
@@ -432,389 +381,6 @@ function fundStatusLabel(status: string) {
     return "오래된 자료";
   }
   return koCode(status);
-}
-
-function formatFinancialMetricValue(metric: FinancialMetricSnapshot) {
-  if (metric.metric_value === null) {
-    if (metric.metric_status === "insufficient_history") {
-      return "비교 기간 부족";
-    }
-    return "원천 데이터 부족";
-  }
-  if (metric.metric_unit === "ratio") {
-    return formatPercent(metric.metric_value);
-  }
-  return formatCompactNumber(metric.metric_value);
-}
-
-function financialMetricTone(metric: FinancialMetricSnapshot) {
-  if (metric.metric_status !== "computed" || metric.metric_value === null) {
-    return "risk-medium";
-  }
-  if (metric.polarity === "lower_is_better") {
-    return metric.metric_value <= 0.35 ? "risk-low" : metric.metric_value <= 0.75 ? "risk-medium" : "risk-high";
-  }
-  if (metric.polarity === "higher_is_better") {
-    return metric.metric_value >= 0.2 ? "risk-low" : metric.metric_value >= 0 ? "risk-medium" : "risk-high";
-  }
-  return "risk-medium";
-}
-
-function competitivePositionLabel(value: string) {
-  const labels: Record<string, string> = {
-    leader: "경쟁 우위",
-    advantaged: "우위 가능",
-    in_line: "평균권",
-    challenged: "열위 확인",
-    insufficient_data: "데이터 부족",
-  };
-  return labels[value] ?? koCode(value);
-}
-
-function competitivePositionSummary(position: IndustryCompetitivePosition, symbol: string) {
-  const peerGroup = position.peer_group_name ?? position.peer_group_code ?? "비교군";
-  const sector = position.sector_name ?? position.sector_code ?? "섹터 미분류";
-  return `${symbol}은 ${peerGroup} 기준으로 ${competitivePositionLabel(position.competitive_position)} 상태다. ${sector} 안에서 수익성, 성장성, 재무 방어력, 가격 결정력 추정 지표를 함께 본다.`;
-}
-
-function FinancialStatementModelPanel({
-  model,
-  symbol,
-}: {
-  model: FinancialStatementModel;
-  symbol: string;
-}) {
-  const prioritySections = ["growth", "profitability", "cash_flow", "balance_sheet", "earnings_quality", "dilution"];
-  const visibleSections = model.sections
-    .filter((section) => prioritySections.includes(section.section_key) && section.metrics.length > 0)
-    .sort((left, right) => prioritySections.indexOf(left.section_key) - prioritySections.indexOf(right.section_key));
-  const sourceBlocker = model.source_data_blocker;
-
-  if (model.status === "unavailable") {
-    return (
-      <section className="bento-card reveal delay-1" aria-label="추천 재무제표 모델">
-        <div style={{ marginBottom: "12px" }}>
-          <span className="metric-sub">추천 재무제표 모델</span>
-          <h2 style={{ fontSize: "1.5rem", marginTop: "6px" }}>
-            {sourceBlocker ? `${symbol} ${sourceBlocker.label}` : "재무 모델이 아직 추천에 연결되지 않았다"}
-          </h2>
-        </div>
-        <p style={{ color: "var(--text-secondary)", marginBottom: 0 }}>
-          {sourceBlocker
-            ? userFacingRecommendationText(model.summary)
-            : "추천서에서 매출, 마진, 현금흐름, 부채, 이익 품질을 확인하려면 SEC 표준 재무 원천과 재무 정규화가 먼저 필요하다. 이 값이 없으면 뉴스나 사이클만으로 중장기 결론을 확정하지 않는다."}
-        </p>
-        {sourceBlocker ? (
-          <div className="status-rail compact-rail" aria-label="추천 재무 원천 차단 사유" style={{ marginTop: "18px" }}>
-            <div className="rail-cell">
-              <span>차단 사유</span>
-              <strong>{userFacingRecommendationText(sourceBlocker.label)}</strong>
-              <small>{userFacingRecommendationText(sourceBlocker.blocker_code)}</small>
-            </div>
-            <div className="rail-cell">
-              <span>다음에 필요한 원천</span>
-              <strong>정기 재무제표 또는 표준 재무 항목</strong>
-              <small>{userFacingRecommendationText(sourceBlocker.source_pipeline) || "원천 분류 기록 있음"}</small>
-            </div>
-          </div>
-        ) : null}
-      </section>
-    );
-  }
-
-  return (
-    <section className="bento-card reveal delay-1" aria-label="추천 재무제표 모델">
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "18px", flexWrap: "wrap", marginBottom: "20px" }}>
-        <div>
-          <span className="metric-sub">추천 재무제표 모델</span>
-          <h2 style={{ fontSize: "1.5rem", marginTop: "6px" }}>이 추천의 숫자 근거가 무엇인가</h2>
-          <p style={{ color: "var(--text-secondary)", marginTop: "8px", maxWidth: "900px" }}>
-            {userFacingRecommendationText(model.summary)} 이 영역은 최종 추천 점수를 바꾸지 않는 읽기 전용 근거이며, 재무 모델이 추천 논리를 보강하는지
-            또는 반박하는지 확인하는 데 사용한다.
-          </p>
-        </div>
-        <span className={`risk-tag ${model.status === "available" ? "risk-low" : "risk-medium"}`}>
-          {model.status === "available" ? "재무 모델 연결" : "일부 지표 부족"}
-        </span>
-      </div>
-
-      <div className="status-rail compact-rail" aria-label="추천 재무 모델 요약">
-        <div className="rail-cell">
-          <span>최근 재무 기간</span>
-          <strong>{model.latest_period_end || "기간 없음"}</strong>
-          <small>{model.statement_scope === "annual" ? "연간 기준" : koCode(model.statement_scope)}</small>
-        </div>
-        <div className="rail-cell">
-          <span>계산 완료</span>
-          <strong>{model.computed_metric_count.toLocaleString("ko-KR")}개</strong>
-          <small>전체 {model.metric_count.toLocaleString("ko-KR")}개 지표</small>
-        </div>
-        <div className="rail-cell">
-          <span>데이터 공백</span>
-          <strong>{model.data_gap_count.toLocaleString("ko-KR")}개</strong>
-          <small>원천 부족 또는 비교 기간 부족</small>
-        </div>
-        <div className="rail-cell">
-          <span>주식수 변화</span>
-          <strong>{formatOptionalPercent(model.share_count.share_count_change_pct)}</strong>
-          <small>{model.share_count.latest_period_end || "주식수 데이터 없음"}</small>
-        </div>
-      </div>
-
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "14px", marginTop: "18px" }}>
-        {visibleSections.map((section) => (
-          <article className="detail-path-card" key={section.section_key} style={{ minHeight: "210px" }}>
-            <span>{section.title}</span>
-            <strong>{section.description}</strong>
-            <div style={{ marginTop: "14px", display: "grid", gap: "8px" }}>
-              {section.metrics.slice(0, 3).map((metric) => (
-                <p key={metric.metric_code} style={{ display: "flex", justifyContent: "space-between", gap: "12px", alignItems: "baseline" }}>
-                  <span>{metric.label}</span>
-                  <strong className={`risk-tag ${financialMetricTone(metric)}`}>
-                    {formatFinancialMetricValue(metric)}
-                  </strong>
-                </p>
-              ))}
-            </div>
-          </article>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function FundInstrumentAnalysisPanel({ analysis }: { analysis: FundInstrumentAnalysis }) {
-  if (!analysis) {
-    return null;
-  }
-  return (
-    <section className="bento-card reveal delay-1" aria-label="추천 ETF와 펀드형 상품 분석">
-      <div style={{ marginBottom: "18px" }}>
-        <span className="metric-sub">ETF·펀드 추천 근거</span>
-        <h2 style={{ fontSize: "1.5rem", marginTop: "6px" }}>
-          ETF·펀드 상품 분석: {analysis.symbol}
-        </h2>
-        <p style={{ color: "var(--text-secondary)", marginTop: "8px" }}>
-          {analysis.summary}
-        </p>
-      </div>
-      <div className="status-rail compact-rail" aria-label="추천 ETF와 펀드형 상품 분석 요약">
-        <div className="rail-cell">
-          <span>벤치마크</span>
-          <strong>{analysis.benchmark_code || analysis.symbol}</strong>
-          <small>{analysis.benchmark_source || "원천 미확인"}</small>
-        </div>
-        <div className="rail-cell">
-          <span>구성 커버리지</span>
-          <strong>{formatOptionalPercent(analysis.holdings_coverage_weight)}</strong>
-          <small>{analysis.holding_count.toLocaleString("ko-KR")}개 보유종목</small>
-        </div>
-        <div className="rail-cell">
-          <span>현재 비중</span>
-          <strong>{formatOptionalPercent(analysis.portfolio_role.current_weight)}</strong>
-          <small>{analysis.portfolio_role.portfolio_name}</small>
-        </div>
-        <div className="rail-cell">
-          <span>추천 비중</span>
-          <strong>{formatOptionalPercent(analysis.portfolio_role.recommended_weight)}</strong>
-          <small>읽기 전용</small>
-        </div>
-      </div>
-      <div className="detail-grid" style={{ marginTop: "18px" }}>
-        {analysis.top_holdings.slice(0, 6).map((holding) => (
-          <article className="detail-path-card" key={`fund-holding-${holding.symbol}`}>
-            <span>{holding.symbol}</span>
-            <strong>{holding.name || holding.symbol}</strong>
-            <p>보유 비중 {formatOptionalPercent(holding.target_weight)} · 자료 신뢰도 {formatOptionalPercent(holding.confidence)}</p>
-          </article>
-        ))}
-      </div>
-      <div className="flow-steps" style={{ marginTop: "18px" }}>
-        <article className="flow-step">
-          <span>추적오차/추적차이</span>
-          <strong>
-            {analysis.tracking_error.metric_type === "tracking_difference"
-              ? formatOptionalPercent(analysis.tracking_error.tracking_difference_value)
-              : koCode(analysis.tracking_error.status)}
-          </strong>
-          <p>
-            {analysis.tracking_error.summary}
-            {analysis.tracking_error.measurement_window
-              ? ` 기간 ${analysis.tracking_error.measurement_window}`
-              : ""}
-            {analysis.tracking_error.benchmark_name ? ` · 기준 ${analysis.tracking_error.benchmark_name}` : ""}
-            {analysis.tracking_error.fund_return !== null
-              ? ` · NAV 수익률 ${formatOptionalPercent(analysis.tracking_error.fund_return)}`
-              : ""}
-            {analysis.tracking_error.benchmark_return !== null
-              ? ` · 벤치마크 ${formatOptionalPercent(analysis.tracking_error.benchmark_return)}`
-              : ""}
-          </p>
-          {analysis.tracking_error.source_url ? (
-            <a href={analysis.tracking_error.source_url} target="_blank" rel="noreferrer">
-              추적차이 원천 열기
-            </a>
-          ) : null}
-        </article>
-        <article className="flow-step">
-          <span>비용률</span>
-          <strong>{formatExpenseRatio(analysis.expense_ratio.value)}</strong>
-          <p>
-            {analysis.expense_ratio.summary} 상태 {fundStatusLabel(analysis.expense_ratio.status)}
-            {analysis.expense_ratio.source_name ? ` · 원천 ${analysis.expense_ratio.source_name}` : ""}
-            {analysis.expense_ratio.source_as_of_date ? ` · 기준일 ${analysis.expense_ratio.source_as_of_date}` : ""}
-          </p>
-          {analysis.expense_ratio.source_url ? (
-            <a href={analysis.expense_ratio.source_url} target="_blank" rel="noreferrer">
-              비용률 원천 열기
-            </a>
-          ) : null}
-        </article>
-        <article className="flow-step">
-          <span>NAV 괴리</span>
-          <strong>{formatOptionalPercent(analysis.nav_premium_discount.premium_discount_to_nav)}</strong>
-          <p>
-            {analysis.nav_premium_discount.summary} NAV {formatFundCurrency(analysis.nav_premium_discount.nav_per_share, "USD")} ·
-            종가 {formatFundCurrency(analysis.nav_premium_discount.closing_price, "USD")}
-            {analysis.nav_premium_discount.premium_discount_as_of_date
-              ? ` · 기준일 ${analysis.nav_premium_discount.premium_discount_as_of_date}`
-              : ""}
-          </p>
-          {analysis.nav_premium_discount.source_url ? (
-            <a href={analysis.nav_premium_discount.source_url} target="_blank" rel="noreferrer">
-              NAV 원천 열기
-            </a>
-          ) : null}
-        </article>
-        <article className="flow-step">
-          <span>유동성</span>
-          <strong>{fundStatusLabel(analysis.liquidity.status)}</strong>
-          <p>
-            {analysis.liquidity.summary} 평균 거래량 {formatCompactNumber(analysis.liquidity.average_daily_volume)} ·
-            평균 거래대금 {formatCurrency(analysis.liquidity.average_daily_dollar_volume, "USD")}
-          </p>
-        </article>
-        <article className="flow-step">
-          <span>실거래 상태</span>
-          <strong>{orderBoundaryLabel(analysis.order_boundary)}</strong>
-          <p>펀드 분석은 추천 점수와 주문 가능 여부를 자동 변경하지 않는다.</p>
-        </article>
-      </div>
-    </section>
-  );
-}
-
-function IndustryCompetitivePositionPanel({
-  position,
-  symbol,
-  peerComponent,
-}: {
-  position: IndustryCompetitivePosition | null;
-  symbol: string;
-  peerComponent: ScoreComponent | undefined;
-}) {
-  if (!position) {
-    return (
-      <section className="bento-card reveal delay-1" aria-label="산업 경쟁 위치">
-        <div style={{ marginBottom: "12px" }}>
-          <span className="metric-sub">산업 경쟁 위치</span>
-          <h2 style={{ fontSize: "1.5rem", marginTop: "6px" }}>피어 기반 경쟁 위치가 아직 연결되지 않았다</h2>
-        </div>
-        <p style={{ color: "var(--text-secondary)", marginBottom: 0 }}>
-          산업 경쟁 위치 배치가 실행되면 비교군, 경쟁 위치, 강점, 리스크가 이곳에 표시된다.
-          추천 점수는 이 값만으로 바뀌지 않는다.
-        </p>
-      </section>
-    );
-  }
-
-  const scoreRows = [
-    { label: "종합 경쟁력", value: position.moat_score },
-    { label: "가격 결정력", value: position.pricing_power_score },
-    { label: "수익성 위치", value: position.profitability_score },
-    { label: "성장 위치", value: position.growth_position_score },
-    { label: "재무 방어력", value: position.financial_strength_score },
-  ];
-  const riskRows = [
-    { label: "동종업계 경쟁 강도", value: position.rivalry_risk_score },
-    { label: "고객 협상력 리스크", value: position.buyer_power_risk_score },
-    { label: "공급자 협상력 리스크", value: position.supplier_power_risk_score },
-    { label: "대체재 리스크", value: position.substitute_threat_risk_score },
-    { label: "신규 진입 리스크", value: position.new_entry_threat_risk_score },
-    { label: "공급·설비 사이클 리스크", value: position.capacity_cycle_risk_score },
-  ];
-
-  return (
-    <section className="bento-card reveal delay-1" aria-label="산업 경쟁 위치">
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "18px", flexWrap: "wrap", marginBottom: "20px" }}>
-        <div>
-          <span className="metric-sub">산업 경쟁 위치</span>
-          <h2 style={{ fontSize: "1.5rem", marginTop: "6px" }}>{symbol}이 같은 그룹 안에서 얼마나 강한가</h2>
-          <p style={{ color: "var(--text-secondary)", marginTop: "8px", maxWidth: "900px" }}>
-            {competitivePositionSummary(position, symbol)} 이 값은 무료 공개 재무 데이터와 피어 비교로 만든 추정 지표이며,
-            최종 추천 점수에는 평가 전까지 직접 반영하지 않는다.
-          </p>
-        </div>
-        <span className="bento-badge" style={{ margin: 0 }}>
-          {competitivePositionLabel(position.competitive_position)} • {position.as_of_date}
-        </span>
-      </div>
-
-      <div className="status-rail compact-rail" aria-label="산업 경쟁 위치 요약">
-        <div className="rail-cell">
-          <span>비교군</span>
-          <strong>{position.peer_group_name ?? position.peer_group_code ?? "미분류"}</strong>
-          <small>{position.peer_count.toLocaleString("ko-KR")}개 종목 기준</small>
-        </div>
-        <div className="rail-cell">
-          <span>경쟁 위치</span>
-          <strong>{competitivePositionLabel(position.competitive_position)}</strong>
-          <small>{koCode(position.methodology)}</small>
-        </div>
-        <div className="rail-cell">
-          <span>피어 점수 항목</span>
-          <strong>{peerComponent ? formatPercent(peerComponent.value) : "미연결"}</strong>
-          <small>{peerComponent ? "현재 최종 점수 미반영" : "추천 점수 항목 대기"}</small>
-        </div>
-        <div className="rail-cell">
-          <span>지표 커버리지</span>
-          <strong>{position.metric_coverage_count.toLocaleString("ko-KR")}</strong>
-          <small>{position.source_run_id ? "계산 기록 있음" : "계산 기록 없음"}</small>
-        </div>
-      </div>
-
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))", gap: "14px", marginTop: "18px" }}>
-        <article className="detail-path-card" style={{ minHeight: "220px" }}>
-          <span>경쟁력 점수</span>
-          {scoreRows.map((row) => (
-            <p key={row.label}>{row.label}: {formatOptionalPercent(row.value)}</p>
-          ))}
-        </article>
-        <article className="detail-path-card" style={{ minHeight: "220px" }}>
-          <span>경쟁 압력 리스크</span>
-          {riskRows.map((row) => (
-            <p key={row.label}>{row.label}: {formatOptionalPercent(row.value)}</p>
-          ))}
-        </article>
-        <ResearchList
-          title="강점"
-          items={position.key_strengths}
-          emptyText="강점이 아직 구조화되지 않았다."
-        />
-        <ResearchList
-          title="주의할 점"
-          items={position.key_risks}
-          emptyText="경쟁 리스크가 아직 구조화되지 않았다."
-        />
-      </div>
-
-      {position.rationale ? (
-        <p style={{ color: "var(--text-muted)", margin: "16px 0 0" }}>
-          계산 근거: {userFacingRecommendationText(position.rationale)}
-        </p>
-      ) : null}
-    </section>
-  );
 }
 
 function provenanceDetail(component: ScoreComponent) {
@@ -1221,7 +787,7 @@ function traceStatusLabel(status: string) {
   return koCode(status);
 }
 
-function evidenceTraceCards(data: RecommendationDetailData) {
+function evidenceTraceCards(data: RecommendationDetailData): RecommendationEvidenceTraceCard[] {
   const trace = data.evidence_trace;
   const direct = trace.direct_news_or_ai;
   const macroFlow = trace.macro_flow;
@@ -1312,7 +878,7 @@ function recommendationWaterfallCards({
   decisionWaterfall: RecommendationDetailData["professional_decision_waterfall"];
   professionalAudit: ProfessionalEvidenceAudit;
   outcomeMeasured: boolean;
-}) {
+}): RecommendationWaterfallCard[] {
   const macroComponent = cycleStack.find((component) => component.component === "macro_regime_score");
   const themeComponent =
     cycleStack.find((component) => component.component === "theme_cycle_score") ?? macroFlowComponents[0];
@@ -1320,7 +886,7 @@ function recommendationWaterfallCards({
   const sourceBlocked = professionalAudit.source_blocker.blocked || data.professional_decision_waterfall.status === "source_data_blocked";
   const riskBlocked = professionalAudit.blocked_layer_count > 0 || reviewCount(data.evidence_review.summary.blocked_count) > 0;
   const fundAnalysis = data.fund_instrument_analysis;
-  const productCards =
+  const productCards: RecommendationWaterfallCard[] =
     productProfile.kind === "fund_or_etf" && fundAnalysis
       ? [
           {
@@ -1449,135 +1015,6 @@ function recommendationWaterfallCards({
       tone: decisionWaterfall.paper_validation_input_allowed ? "watch" : "blocked",
     },
   ];
-}
-
-function RecommendationDecisionWaterfall({
-  data,
-  cards,
-  qualityDecision,
-  decisionWaterfall,
-}: {
-  data: RecommendationDetailData;
-  cards: ReturnType<typeof recommendationWaterfallCards>;
-  qualityDecision: RecommendationQualityDecision;
-  decisionWaterfall: RecommendationDetailData["professional_decision_waterfall"];
-}) {
-  return (
-    <section className={`recommendation-waterfall-panel ${qualityDecision.tone} reveal delay-1`} aria-labelledby="recommendation-waterfall-title">
-      <div className="recommendation-waterfall-lead">
-        <span>판단 흐름</span>
-        <h2 id="recommendation-waterfall-title">
-          {data.symbol} · {qualityDecision.status}
-        </h2>
-        <p>{qualityDecision.summary}</p>
-        <div className="recommendation-waterfall-metrics" aria-label="추천 핵심 지표">
-          <div>
-            <span>추천</span>
-            <strong>{koCode(data.recommendation)}</strong>
-          </div>
-          <div>
-            <span>점수</span>
-            <strong>{formatPercent(data.score)}</strong>
-          </div>
-          <div>
-            <span>가상 매매 검증</span>
-            <strong>{decisionWaterfall.paper_validation_input_allowed ? "입력 가능" : "입력 차단"}</strong>
-          </div>
-          <div>
-            <span>실거래 주문</span>
-            <strong>{decisionWaterfall.broker_submit_allowed ? "허용" : "차단"}</strong>
-          </div>
-        </div>
-        <div className="recommendation-waterfall-actions">
-          <Link className="btn btn-primary" href={stockHref(data.symbol)}>
-            종목 상세 보기
-          </Link>
-          <Link className="btn btn-secondary" href={`/theses/${data.linked_thesis_id}` as Route}>
-            투자 논리 보기
-          </Link>
-          <Link className="btn btn-secondary" href="/paper-trading">
-            가상 매매 상태
-          </Link>
-        </div>
-      </div>
-
-      <div className="recommendation-waterfall-track">
-        {cards.map((card) => (
-          <article className={`recommendation-waterfall-card tone-${card.tone}`} key={card.label}>
-            <span>{card.step} · {card.label}</span>
-            <strong>{card.title}</strong>
-            <p>{card.body}</p>
-            {card.href.startsWith("#") ? (
-              <a href={card.href}>{card.hrefLabel}</a>
-            ) : (
-              <Link href={card.href as Route}>{card.hrefLabel}</Link>
-            )}
-          </article>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function RecommendationFocusPanel({
-  data,
-  items,
-  qualityDecision,
-  decisionWaterfall,
-}: {
-  data: RecommendationDetailData;
-  items: RecommendationFocusItem[];
-  qualityDecision: RecommendationQualityDecision;
-  decisionWaterfall: RecommendationDetailData["professional_decision_waterfall"];
-}) {
-  const firstItem = items[0];
-  const focusTitle = firstItem ? `지금 확인할 항목: ${firstItem.title}` : "현재 결론";
-
-  return (
-    <section className={`recommendation-focus-panel ${qualityDecision.tone} reveal delay-1`} aria-labelledby="recommendation-focus-title">
-      <div className="recommendation-focus-lead">
-        <span>추천 판단 순서</span>
-        <h2 id="recommendation-focus-title">{focusTitle}</h2>
-        <p>
-          {data.symbol} 추천의 채택·보류·기록 판단을 원천 근거, 전문 분석, 가상 매매 경계 순서로 정리했다.
-        </p>
-        <div className="recommendation-focus-metrics" aria-label="추천서 핵심 상태">
-          <div>
-            <span>추천</span>
-            <strong>{koCode(data.recommendation)}</strong>
-          </div>
-          <div>
-            <span>점수</span>
-            <strong>{formatPercent(data.score)}</strong>
-          </div>
-          <div>
-            <span>전문 결론</span>
-            <strong>{qualityDecision.status}</strong>
-          </div>
-          <div>
-            <span>실거래</span>
-            <strong>{decisionWaterfall.broker_submit_allowed ? "허용" : "차단"}</strong>
-          </div>
-        </div>
-      </div>
-
-      <div className="recommendation-focus-list">
-        {items.map((item) => (
-          <article className={`recommendation-focus-card tone-${item.tone}`} key={`${item.label}-${item.title}`}>
-            <span>{item.label}</span>
-            <strong>{item.title}</strong>
-            <b>{item.metric}</b>
-            <p>{item.body}</p>
-            {item.href.startsWith("#") ? (
-              <a href={item.href}>{item.hrefLabel}</a>
-            ) : (
-              <Link href={item.href as Route}>{item.hrefLabel}</Link>
-            )}
-          </article>
-        ))}
-      </div>
-    </section>
-  );
 }
 
 export default async function RecommendationPage({ params }: RecommendationPageProps) {
@@ -1763,48 +1200,7 @@ export default async function RecommendationPage({ params }: RecommendationPageP
         </div>
       </section>
 
-      <section className="bento-card reveal delay-1" id="recommendation-market-correlations" aria-label="추천 시장 동조성 리스크">
-        <div className="section-heading">
-          <div>
-            <span className="metric-sub">시장 동조성 리스크</span>
-            <h2>{data.symbol} 추천과 같이 움직인 시장 변수</h2>
-          </div>
-          <Link className="btn btn-secondary" href="/market-map">
-            시장 지도 보기
-          </Link>
-        </div>
-        <p style={{ color: "var(--text-secondary)", marginTop: 0 }}>
-          이 섹션은 추천 점수를 새로 만들지 않는다. 최근 수익률 동조성을 이용해 같은 방향으로 몰린 리스크,
-          헤지 필요성과 포트폴리오 집중 위험을 함께 제시합니다. 상관관계는 원인을 증명하지 않습니다.
-        </p>
-        {data.market_correlations.length > 0 ? (
-          <div className="detail-path-grid">
-            {data.market_correlations.slice(0, 6).map((correlation) => (
-              <article
-                className={correlationTone(correlation)}
-                key={`${correlation.primary_asset_key}-${correlation.comparison_asset_key}-${correlation.lookback_days}`}
-              >
-                <span>
-                  {correlationRelationshipLabel(correlation.relationship_label)} · {correlation.lookback_days}일 · 신뢰도{" "}
-                  {formatOptionalPercent(correlation.confidence)}
-                </span>
-                <strong>
-                  {correlation.primary_display_name} ↔ {correlation.comparison_display_name}
-                </strong>
-                <small>
-                  상관계수 {formatCoefficient(correlation.correlation)} · 베타 {formatCoefficient(correlation.beta)} · 관측{" "}
-                  {correlation.observation_count.toLocaleString("ko-KR")}개
-                </small>
-                <p>{correlation.summary_ko}</p>
-              </article>
-            ))}
-          </div>
-        ) : (
-          <div className="empty-state">
-            아직 이 추천 종목의 시장 동조성이 계산되지 않았다. correlation-analysis-run이 실행되면 추천 리스크 확인용으로 표시된다.
-          </div>
-        )}
-      </section>
+      <RecommendationMarketCorrelationsPanel symbol={data.symbol} correlations={data.market_correlations} />
 
       <section id="recommendation-professional-flow">
         <ProfessionalResearchFlow
@@ -1820,12 +1216,12 @@ export default async function RecommendationPage({ params }: RecommendationPageP
 
       {data.fund_instrument_analysis ? (
         <section id="recommendation-fund-analysis">
-          <FundInstrumentAnalysisPanel analysis={data.fund_instrument_analysis} />
+          <RecommendationFundInstrumentAnalysisPanel analysis={data.fund_instrument_analysis} />
         </section>
       ) : (
         <>
           <section id="recommendation-financial-model">
-            <FinancialStatementModelPanel model={financialStatementModel} symbol={data.symbol} />
+            <RecommendationFinancialStatementModelPanel model={financialStatementModel} symbol={data.symbol} />
           </section>
 
           <section id="recommendation-valuation">
@@ -1971,7 +1367,7 @@ export default async function RecommendationPage({ params }: RecommendationPageP
       ) : null}
 
       {productProfile.kind === "company" ? (
-        <IndustryCompetitivePositionPanel
+        <RecommendationIndustryCompetitivePositionPanel
           position={industryPosition}
           symbol={data.symbol}
           peerComponent={peerComponent}
@@ -2085,28 +1481,7 @@ export default async function RecommendationPage({ params }: RecommendationPageP
       </section>
       ) : null}
 
-      <section className="bento-card reveal delay-1" id="recommendation-evidence-trace" aria-label="추천 근거 흐름 요약">
-        <div style={{ marginBottom: "20px" }}>
-          <span className="metric-sub">근거 흐름 요약</span>
-          <h2 style={{ fontSize: "1.5rem", marginTop: "6px" }}>무엇을 보고 이 추천을 확인해야 하나</h2>
-          <p style={{ color: "var(--text-secondary)", marginTop: "8px", maxWidth: "820px" }}>
-            뉴스 근거는 바로 주문으로 이어지지 않는다. 직접 종목 뉴스, 시장·테마 흐름, 보유 상태를
-            분리해 추천 입력으로 사용할 수 있는지 결정합니다.
-          </p>
-        </div>
-
-        <div className="flow-steps">
-          {traceCards.map((card) => (
-            <article className="flow-step" key={card.label}>
-              <span>{card.label}</span>
-              <strong>{card.value}</strong>
-              <p>{card.detail}</p>
-              {card.newsTitle ? <NewsTitleBlock compact {...card.newsTitle} /> : null}
-              {card.href && card.hrefLabel ? <Link href={card.href}>{card.hrefLabel}</Link> : null}
-            </article>
-          ))}
-        </div>
-      </section>
+      <RecommendationEvidenceTracePanel cards={traceCards} />
 
       {macroFlowComponents.length > 0 ? (
         <section className="bento-card reveal delay-1" id="recommendation-macro-flow" aria-label="상위 흐름 전파 경로">
