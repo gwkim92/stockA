@@ -1,0 +1,61 @@
+import type { DataHealthData } from "@/lib/types";
+
+export type { DataHealthData } from "@/lib/types";
+
+export type PipelineRun = DataHealthData["pipeline_runs"][number];
+export type SchedulerActivation = DataHealthData["scheduler"]["activation"];
+export type SchedulerStatus = DataHealthData["scheduler"];
+export type ProfileSchedulerStatus = NonNullable<DataHealthData["scheduler"]["profile_scheduler"]>;
+export type ProductionApiServer = DataHealthData["production_api_server"];
+export type AuthRbac = DataHealthData["auth_rbac"];
+export type AlertDestination = DataHealthData["alert_destination"];
+export type ManualIngestSmoke = DataHealthData["manual_local_ingest_smoke"];
+export type LocalIngestWorker = DataHealthData["local_ingest_worker"];
+export type CycleAiQualityAudit = DataHealthData["cycle_ai_quality_audit"];
+export type NewsAiEvalQuality = DataHealthData["news_ai_eval_quality"];
+export type LiveAiInvocationHealth = DataHealthData["live_ai_invocation_health"];
+export type OpenAiProviderHealth = DataHealthData["openai_provider_health"];
+export type TossInvestMarketData = DataHealthData["tossinvest_market_data"];
+export type DataOperationsArtifactRunner = DataHealthData["data_operations_artifact_runner"];
+export type ActiveRecommendationPriceFreshness = DataHealthData["active_recommendation_price_freshness"];
+export type BenchmarkDriftQuality = DataHealthData["benchmark_drift_quality"];
+export type PortfolioReviewDecisionHistory = DataHealthData["portfolio_review_decision_history"];
+export type PortfolioReviewDecisionFeedback = DataHealthData["portfolio_review_decision_feedback"];
+export type PortfolioReviewFeedbackCalibration = DataHealthData["portfolio_review_feedback_calibration"];
+export type PortfolioReviewFeedbackCadence = DataHealthData["portfolio_review_feedback_cadence"];
+export type PortfolioReviewFeedbackActionRouter = DataHealthData["portfolio_review_feedback_action_router"];
+export type RecommendationOutcomeCalibration = DataHealthData["recommendation_outcome_calibration"];
+export type RecommendationOutcomeMaturity = DataHealthData["recommendation_outcome_maturity"];
+export type RecommendationOutcomeDueActionRouter = DataHealthData["recommendation_outcome_due_action_router"];
+export type RecommendationWeightReviewReadiness = DataHealthData["recommendation_weight_review_readiness"];
+export type OutcomeMaturityWaitMonitor = DataHealthData["outcome_maturity_wait_monitor"];
+export type ProfessionalSourceGapPrioritization = DataHealthData["professional_source_gap_prioritization"];
+export type ProfessionalAnalysisQuality = DataHealthData["professional_analysis_quality"];
+export type ProfessionalRecommendationCoverageAudit = DataHealthData["professional_recommendation_coverage_audit"];
+export type ProfessionalAnalysisNextAction = DataHealthData["professional_analysis_next_action"];
+export type ProfessionalAnalysisDepth = DataHealthData["professional_analysis_depth"];
+export type OpenGateDetail = NonNullable<DataHealthData["open_gate_details"]>[number];
+export type ProfileTimer = ProfileSchedulerStatus["timers"][number];
+export type AuditSampleRecord = Record<string, unknown>;
+export type TimerGroupDefinition = {
+  key: string;
+  label: string;
+  title: string;
+  description: string;
+  profileIds: string[];
+};
+export type SchedulerCadenceGroup = TimerGroupDefinition & {
+  timers: ProfileTimer[];
+  activeCount: number;
+  successCount: number;
+  problemCount: number;
+};
+export type GateTriageBucket = {
+  key: string;
+  label: string;
+  title: string;
+  description: string;
+  tone: "risk-low" | "risk-medium" | "risk-high";
+  href: string;
+  gates: OpenGateDetail[];
+};
