@@ -73,6 +73,26 @@ test.describe("professional investment workspace", () => {
     expect(bodyText).not.toMatch(rawStatusCodePattern);
   });
 
+  test("recommendation detail keeps deep evidence collapsed by default", async ({ page }) => {
+    await page.goto("/recommendations/AAPL-2024-11-01");
+    const disclosures = page.locator(
+      [
+        "#recommendation-professional-flow",
+        "#recommendation-financial-model",
+        "#recommendation-valuation",
+        "#recommendation-equity-research",
+        "#recommendation-evidence-review",
+      ].join(", "),
+    );
+    await expect(disclosures.first()).toBeVisible();
+    expect(await disclosures.count()).toBeGreaterThanOrEqual(4);
+    const openStates = await disclosures.evaluateAll((items) =>
+      items.map((item) => item instanceof HTMLDetailsElement && item.open),
+    );
+    expect(openStates.every((isOpen) => !isOpen)).toBe(true);
+    await expect(page.locator("#recommendation-evidence-review")).toContainText("펼치기");
+  });
+
   for (const [route, expectedText] of operationsRoutes) {
     test(`${route} is visibly separated as operations`, async ({ page }) => {
       await page.goto(route);

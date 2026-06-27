@@ -75,7 +75,7 @@ export function RecommendationFinancialStatementModelPanel({
             <div className="rail-cell">
               <span>다음에 필요한 원천</span>
               <strong>정기 재무제표 또는 표준 재무 항목</strong>
-              <small>{userFacingRecommendationText(sourceBlocker.source_pipeline) || "원천 분류 기록 있음"}</small>
+              <small>투자 판단에 쓸 수 있는 표준 재무 원천이 들어오면 다시 연결된다.</small>
             </div>
           </div>
         ) : null}

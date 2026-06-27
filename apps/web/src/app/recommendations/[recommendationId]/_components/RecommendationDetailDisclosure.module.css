@@ -1,0 +1,125 @@
+.disclosure {
+  scroll-margin-top: 168px;
+  border-top: 1px solid var(--line-strong);
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--surface-primary) 92%, transparent),
+      color-mix(in srgb, var(--surface-secondary) 52%, transparent)
+    ),
+    var(--surface-primary);
+}
+
+.summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-5);
+  align-items: center;
+  padding: var(--space-6);
+  cursor: pointer;
+  list-style: none;
+}
+
+.summary::-webkit-details-marker {
+  display: none;
+}
+
+.copy {
+  display: grid;
+  gap: var(--space-2);
+  max-width: 900px;
+}
+
+.eyebrow {
+  color: var(--ink-muted);
+  font-size: var(--type-caption);
+  font-weight: 760;
+  letter-spacing: 0.06em;
+}
+
+.title {
+  margin: 0;
+  color: var(--ink-primary);
+  font-size: var(--type-h2);
+  line-height: 1.12;
+  text-wrap: balance;
+}
+
+.body {
+  margin: 0;
+  color: var(--ink-secondary);
+  font-size: var(--type-body);
+  line-height: 1.62;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.badge,
+.toggle {
+  border: 1px solid var(--line-subtle);
+  border-radius: 8px;
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--type-small);
+  font-weight: 760;
+  white-space: nowrap;
+}
+
+.badge {
+  color: var(--ink-primary);
+  background: var(--surface-raised);
+}
+
+.toggle {
+  color: var(--accent-analysis);
+}
+
+.toggleOpen {
+  display: none;
+}
+
+.disclosure[open] .toggleClosed {
+  display: none;
+}
+
+.disclosure[open] .toggleOpen {
+  display: inline;
+}
+
+.content {
+  display: grid;
+  gap: var(--space-6);
+  padding: 0 var(--space-6) var(--space-6);
+}
+
+.ready {
+  border-color: color-mix(in srgb, var(--signal-positive) 34%, var(--line-strong));
+}
+
+.watch {
+  border-color: color-mix(in srgb, var(--signal-caution) 34%, var(--line-strong));
+}
+
+.blocked {
+  border-color: color-mix(in srgb, var(--signal-risk) 38%, var(--line-strong));
+}
+
+@media (max-width: 760px) {
+  .summary {
+    grid-template-columns: 1fr;
+    padding: var(--space-5);
+  }
+
+  .actions {
+    justify-content: flex-start;
+  }
+
+  .content {
+    padding: 0 var(--space-5) var(--space-5);
+  }
+}

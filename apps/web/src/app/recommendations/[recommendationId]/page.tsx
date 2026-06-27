@@ -1,11 +1,8 @@
-import Link from "next/link";
 import type { Route } from "next";
-import { Fragment } from "react";
 import { ProfessionalResearchFlow, type ResearchFlowStep } from "@/components/professional-research-flow";
 import { RecommendationExecutiveBrief } from "@/components/recommendation-executive-brief";
 import { RecommendationPositionReality } from "@/components/recommendation-position-reality";
 import { RecommendationProfessionalAuditPanel } from "@/components/recommendation-professional-audit-panel";
-import { professionalAuditRiskClass } from "@/components/recommendation-professional-audit-model";
 import {
   RecommendationProductOverview,
   type RecommendationProductProfile,
@@ -26,12 +23,16 @@ import {
   type RecommendationFocusItem,
   type RecommendationWaterfallCard,
 } from "./_components/RecommendationDecisionFlowPanels";
+import { RecommendationDetailDisclosure } from "./_components/RecommendationDetailDisclosure";
+import { RecommendationEquityResearchPanel } from "./_components/RecommendationEquityResearchPanel";
+import { RecommendationEvidenceReviewPanel } from "./_components/RecommendationEvidenceReviewPanel";
 import { RecommendationFinancialStatementModelPanel } from "./_components/RecommendationFinancialStatementModelPanel";
 import { RecommendationFundInstrumentAnalysisPanel } from "./_components/RecommendationFundInstrumentAnalysisPanel";
 import { RecommendationIndustryCompetitivePositionPanel } from "./_components/RecommendationIndustryCompetitivePositionPanel";
 import { RecommendationEvidenceTracePanel, type RecommendationEvidenceTraceCard } from "./_components/RecommendationEvidenceTracePanel";
 import { RecommendationMacroFlowPanel } from "./_components/RecommendationMacroFlowPanel";
 import { RecommendationMarketCorrelationsPanel } from "./_components/RecommendationMarketCorrelationsPanel";
+import { RecommendationQualityBoundaryPanel } from "./_components/RecommendationQualityBoundaryPanel";
 import { RecommendationScoreComponentPanels } from "./_components/RecommendationScoreComponentPanels";
 import {
   brokerComponents,
@@ -90,24 +91,6 @@ function orderBoundaryLabel(value: string | null | undefined) {
   return userFacingRecommendationText(value);
 }
 
-function stockHref(symbol: string) {
-  return `/stocks/${encodeURIComponent(symbol)}` as Route;
-}
-
-function sourceDocumentHref(documentId: string) {
-  return `/source-documents/${documentId}` as Route;
-}
-
-function providerLabel(provider: string) {
-  if (provider === "codex_oauth") {
-    return "AI 분석";
-  }
-  if (provider === "fixture") {
-    return "검증용 샘플 분석";
-  }
-  return koCode(provider);
-}
-
 function valuationSensitivityItems(value: Record<string, unknown>) {
   return Object.entries(value)
     .map(([key, rawValue]) => {
@@ -125,19 +108,6 @@ function valuationSensitivityItems(value: Record<string, unknown>) {
     .filter((item): item is { key: string; value: string } => item !== null);
 }
 
-function ResearchList({ title, items, emptyText }: { title: string; items: string[]; emptyText: string }) {
-  return (
-    <article className="detail-path-card" style={{ minHeight: "180px" }}>
-      <span>{title}</span>
-      {items.length > 0 ? (
-        items.map((item) => <p key={item}>{userFacingRecommendationText(item)}</p>)
-      ) : (
-        <p>{emptyText}</p>
-      )}
-    </article>
-  );
-}
-
 function formatMetricValue(value: number | null | undefined) {
   if (value === null || value === undefined) {
     return "아직 계산되지 않음";
@@ -153,16 +123,6 @@ function formatOptionalPercent(value: number | null | undefined) {
     return "미측정";
   }
   return formatPercent(value);
-}
-
-function formatCompactNumber(value: number | null | undefined) {
-  if (value === null || value === undefined) {
-    return "없음";
-  }
-  return new Intl.NumberFormat("ko-KR", {
-    notation: "compact",
-    maximumFractionDigits: 2,
-  }).format(value);
 }
 
 function formatCurrency(value: number | null | undefined, currencyCode: string) {
@@ -265,42 +225,6 @@ function researchFlowTone(tone: string): ResearchFlowStep["tone"] {
     return tone;
   }
   return "neutral";
-}
-
-function gateStatusLabel(status: string) {
-  if (status === "pass") {
-    return "통과";
-  }
-  if (status === "warning") {
-    return "주의";
-  }
-  if (status === "blocked") {
-    return "차단";
-  }
-  return koCode(status);
-}
-
-function gateStatusColor(status: string) {
-  if (status === "pass") {
-    return "var(--accent-green)";
-  }
-  if (status === "warning") {
-    return "var(--accent-yellow)";
-  }
-  if (status === "blocked") {
-    return "var(--accent-red)";
-  }
-  return "var(--text-secondary)";
-}
-
-function gateToneClass(status: string) {
-  if (status === "pass") {
-    return "tone-ready";
-  }
-  if (status === "blocked") {
-    return "tone-blocked";
-  }
-  return "tone-watch";
 }
 
 function recommendationQualityDecision(data: RecommendationDetailData): RecommendationQualityDecision {
@@ -911,69 +835,34 @@ export default async function RecommendationPage({ params }: RecommendationPageP
         decisionWaterfall={decisionWaterfall}
       />
 
-      <section className="bento-card reveal delay-1" aria-label="중장기 추천 품질 상태">
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "20px", flexWrap: "wrap", marginBottom: "20px" }}>
-          <div>
-            <span className="metric-sub">중장기 품질 상태</span>
-            <h2 style={{ fontSize: "1.5rem", marginTop: "6px" }}>{qualityDecision.status}</h2>
-            <p style={{ color: "var(--text-secondary)", marginTop: "8px", maxWidth: "820px" }}>
-              {qualityDecision.summary}
-            </p>
-          </div>
-          <span className={`risk-tag ${qualityDecision.tone}`}>읽기 전용 평가</span>
-        </div>
-        <div className="flow-steps">
-          {qualityChecks.map((check) => (
-            <article className="flow-step" key={check.label}>
-              <span>{check.label}</span>
-              <strong>{check.value}</strong>
-              <p>{check.detail}</p>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      <section className="bento-card reveal delay-1" aria-label="추천 사용 가능 범위">
-        <div className="section-heading">
-          <div>
-            <span className="metric-sub">추천 사용 가능 범위</span>
-            <h2 style={{ fontSize: "1.5rem", marginTop: "6px" }}>이 추천을 어디까지 써도 되는가</h2>
-          </div>
-          <span className={`risk-tag ${blockedDecisionStepCount > 0 ? "risk-high" : decisionWaterfall.paper_validation_input_allowed ? "risk-low" : "risk-medium"}`}>
-            {blockedDecisionStepCount > 0 ? "입력 차단" : decisionWaterfall.paper_validation_input_allowed ? "분석 입력 가능" : "근거 대기"}
-          </span>
-        </div>
-        <p style={{ color: "var(--text-secondary)", marginTop: 0 }}>
-          {userFacingRecommendationText(decisionWaterfall.summary)} 이 결과는 추천 점수를 바꾸지 않고, 이 추천을 가상 매매 검증·보유 상태·실거래 차단 중 어디까지
-          넘길 수 있는지만 설명한다.
-        </p>
-        <div className="status-rail compact-rail" aria-label="추천 사용 가능 범위 요약">
-          <div className="rail-cell">
-            <span>전문 흐름</span>
-            <strong>{userFacingRecommendationText(decisionWaterfall.status)}</strong>
-            <small>{decisionWaterfall.as_of_date}</small>
-          </div>
-          <div className="rail-cell">
-            <span>단계 상태</span>
-            <strong>{readyDecisionStepCount}/{decisionWaterfall.steps.length}</strong>
-            <small>주의 {watchDecisionStepCount} · 차단 {blockedDecisionStepCount}</small>
-          </div>
-          <div className="rail-cell">
-            <span>가상 매매 입력</span>
-            <strong>{decisionWaterfall.paper_validation_input_allowed ? "허용" : "차단"}</strong>
-            <small>원천 차단이면 입력 금지</small>
-          </div>
-          <div className="rail-cell rail-critical">
-            <span>실거래 상태</span>
-            <strong>{orderBoundaryLabel(decisionWaterfall.order_boundary)}</strong>
-            <small>자동 주문 {decisionWaterfall.automatic_order_allowed || decisionWaterfall.broker_submit_allowed ? "허용" : "금지"}</small>
-          </div>
-        </div>
-      </section>
+      <RecommendationQualityBoundaryPanel
+        boundary={{
+          summary: userFacingRecommendationText(decisionWaterfall.summary),
+          status: userFacingRecommendationText(decisionWaterfall.status),
+          asOfDate: decisionWaterfall.as_of_date,
+          readyStepCount: readyDecisionStepCount,
+          watchStepCount: watchDecisionStepCount,
+          blockedStepCount: blockedDecisionStepCount,
+          totalStepCount: decisionWaterfall.steps.length,
+          paperValidationInputAllowed: decisionWaterfall.paper_validation_input_allowed,
+          automaticOrderAllowed: decisionWaterfall.automatic_order_allowed,
+          brokerSubmitAllowed: decisionWaterfall.broker_submit_allowed,
+          orderBoundaryLabel: orderBoundaryLabel(decisionWaterfall.order_boundary),
+        }}
+        qualityChecks={qualityChecks}
+        qualityDecision={qualityDecision}
+      />
 
       <RecommendationMarketCorrelationsPanel symbol={data.symbol} correlations={data.market_correlations} />
 
-      <section id="recommendation-professional-flow">
+      <RecommendationDetailDisclosure
+        badge={`${readyDecisionStepCount}/${decisionWaterfall.steps.length} 단계`}
+        eyebrow="심층 분석"
+        id="recommendation-professional-flow"
+        summary="전문 분석 흐름과 원천 감사는 추천을 채택하기 전에 필요한 경우 펼쳐서 대조한다."
+        title={`${data.symbol} 추천의 전문 분석 경로`}
+        tone={blockedDecisionStepCount > 0 ? "blocked" : watchDecisionStepCount > 0 ? "watch" : "ready"}
+      >
         <ProfessionalResearchFlow
           eyebrow="전문 분석 흐름"
           title={`${data.symbol} 추천을 분석서처럼 읽는다`}
@@ -981,27 +870,67 @@ export default async function RecommendationPage({ params }: RecommendationPageP
           footer={`추천 산식 정책: ${userFacingRecommendationText(decisionWaterfall.score_policy)}. 실거래 상태: ${orderBoundaryLabel(decisionWaterfall.order_boundary)}.`}
           steps={professionalResearchSteps}
         />
-      </section>
-
-      <RecommendationProfessionalAuditPanel audit={professionalAudit} />
+        <RecommendationProfessionalAuditPanel audit={professionalAudit} />
+      </RecommendationDetailDisclosure>
 
       {data.fund_instrument_analysis ? (
-        <section id="recommendation-fund-analysis">
+        <RecommendationDetailDisclosure
+          badge={`${data.fund_instrument_analysis.holding_count.toLocaleString("ko-KR")}개 보유`}
+          eyebrow="ETF·펀드 심층 근거"
+          id="recommendation-fund-analysis"
+          summary="ETF는 기업 실적보다 구성종목, 비용률, NAV 괴리, 유동성, 추적 품질로 판단한다."
+          title={`${data.symbol} 보유 구성과 추적 품질`}
+          tone={data.fund_instrument_analysis.holding_count > 0 ? "ready" : "watch"}
+        >
           <RecommendationFundInstrumentAnalysisPanel analysis={data.fund_instrument_analysis} />
-        </section>
+        </RecommendationDetailDisclosure>
       ) : (
         <>
-          <section id="recommendation-financial-model">
+          <RecommendationDetailDisclosure
+            badge={`${financialStatementModel.computed_metric_count}개 지표`}
+            eyebrow="기업 재무 심층 근거"
+            id="recommendation-financial-model"
+            summary="재무 품질, 현금흐름, 부채, 희석, 산업 내 위치를 추천 근거와 분리해 대조한다."
+            title={`${data.symbol} 재무·산업 근거`}
+            tone={financialStatementModel.status === "available" || financialStatementModel.status === "partial" ? "ready" : "watch"}
+          >
             <RecommendationFinancialStatementModelPanel model={financialStatementModel} symbol={data.symbol} />
-          </section>
+            <RecommendationIndustryCompetitivePositionPanel
+              peerComponent={peerComponent}
+              position={industryPosition}
+              symbol={data.symbol}
+            />
+          </RecommendationDetailDisclosure>
 
-          <section id="recommendation-valuation">
+          <RecommendationDetailDisclosure
+            badge={valuationTargetRange.status === "available" ? `${valuationTargetRange.method_count}개 방법` : "가격 근거 대기"}
+            eyebrow="밸류에이션 심층 근거"
+            id="recommendation-valuation"
+            summary="목표가 범위, 상승여지, 안전마진을 뉴스·사이클 신호와 분리해 대조한다."
+            title={`${data.symbol} 가치 범위`}
+            tone={valuationTargetRange.status === "available" ? "ready" : "watch"}
+          >
             <ValuationTargetRangeCard
               valuation={valuationTargetRange}
               eyebrow="가격·밸류에이션 근거"
               title={`${data.symbol} 목표가 범위와 상승여지`}
             />
-          </section>
+          </RecommendationDetailDisclosure>
+
+          <RecommendationDetailDisclosure
+            badge={equityResearch ? `${equityResearch.key_points.length}개 포인트` : "리서치 대기"}
+            eyebrow="기업 리서치"
+            id="recommendation-equity-research"
+            summary="사업 설명, 촉매, 리스크, 무효화 조건은 추천 채택 전에 별도로 펼쳐 원문과 대조한다."
+            title={`${data.symbol} 기업 리서치 연결`}
+            tone={equityResearch ? "ready" : "watch"}
+          >
+            <RecommendationEquityResearchPanel
+              equityResearch={equityResearch}
+              symbol={data.symbol}
+              valuationItems={valuationItems}
+            />
+          </RecommendationDetailDisclosure>
         </>
       )}
 
@@ -1013,173 +942,19 @@ export default async function RecommendationPage({ params }: RecommendationPageP
         brokerStack={brokerStack}
       />
 
-      {productProfile.kind === "company" ? (
-        <RecommendationIndustryCompetitivePositionPanel
-          position={industryPosition}
-          symbol={data.symbol}
-          peerComponent={peerComponent}
-        />
-      ) : null}
-
-      {productProfile.kind === "company" ? (
-      <section className="bento-card reveal delay-1" id="recommendation-equity-research" aria-label="기업 리서치 연결">
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "18px", flexWrap: "wrap", marginBottom: "22px" }}>
-          <div>
-            <span className="metric-sub">기업 리서치 연결</span>
-            <h2 style={{ fontSize: "1.5rem", marginTop: "6px" }}>
-              {equityResearch ? userFacingRecommendationText(equityResearch.title) : `${data.symbol} 기업 리서치가 아직 연결되지 않았다`}
-            </h2>
-            <p style={{ color: "var(--text-secondary)", marginTop: "8px", maxWidth: "900px" }}>
-              추천을 뉴스 신호만으로 보지 않기 위해 기업 분석 결과를 같이 보여준다.
-              이 리포트는 추천 점수와 주문을 직접 바꾸지 않고, 재무·밸류에이션 점수 항목을 해석하는 읽기 전용 근거다.
-            </p>
-          </div>
-          {equityResearch ? (
-            <span className="bento-badge" style={{ margin: 0 }}>
-              {providerLabel(equityResearch.provider)} • {equityResearch.as_of_date}
-            </span>
-          ) : null}
-        </div>
-
-        {equityResearch ? (
-          <>
-            <p style={{ color: "var(--text-secondary)", marginTop: 0 }}>
-              {userFacingRecommendationText(equityResearch.korean_summary)}
-            </p>
-            <div className="status-rail compact-rail" aria-label="기업 리서치 구성">
-              <div className="rail-cell">
-                <span>핵심 변화</span>
-                <strong>{equityResearch.key_points.length}</strong>
-                <small>사업·재무 포인트</small>
-              </div>
-              <div className="rail-cell">
-                <span>촉매</span>
-                <strong>{equityResearch.catalysts.length}</strong>
-                <small>좋아질 조건</small>
-              </div>
-              <div className="rail-cell">
-                <span>리스크</span>
-                <strong>{equityResearch.risks.length}</strong>
-                <small>틀릴 수 있는 이유</small>
-              </div>
-              <div className="rail-cell">
-                <span>무효화 조건</span>
-                <strong>{equityResearch.invalidation_conditions.length}</strong>
-                <small>투자 논리 재확인 기준</small>
-              </div>
-            </div>
-
-            <div style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))",
-              gap: "14px",
-              marginTop: "18px",
-            }}>
-              <ResearchList
-                title="핵심 포인트"
-                items={equityResearch.key_points}
-                emptyText="핵심 변화가 아직 구조화되지 않았다."
-              />
-              <ResearchList
-                title="촉매"
-                items={equityResearch.catalysts}
-                emptyText="상승 촉매가 아직 구조화되지 않았다."
-              />
-              <ResearchList
-                title="리스크"
-                items={equityResearch.risks}
-                emptyText="리스크가 아직 구조화되지 않았다."
-              />
-              <ResearchList
-                title="무효화 조건"
-                items={equityResearch.invalidation_conditions}
-                emptyText="투자 논리 무효화 조건이 아직 구조화되지 않았다."
-              />
-            </div>
-
-            {valuationItems.length > 0 ? (
-              <div className="stock-meta-grid" style={{ marginTop: "18px" }}>
-                {valuationItems.map((item) => (
-                  <Fragment key={item.key}>
-                    <span>{userFacingRecommendationText(item.key)}</span>
-                    <strong>{userFacingRecommendationText(item.value)}</strong>
-                  </Fragment>
-                ))}
-              </div>
-            ) : null}
-
-            <div className="btn-row" style={{ marginTop: "18px" }}>
-              <Link className="btn btn-primary" href={stockHref(data.symbol)}>
-                종목 리서치 전체 보기
-              </Link>
-              {equityResearch.source_document_ids.slice(0, 3).map((documentId, index) => (
-                <Link className="btn btn-secondary" href={sourceDocumentHref(documentId)} key={documentId}>
-                  원천 문서 {index + 1}
-                </Link>
-              ))}
-            </div>
-          </>
-        ) : (
-          <div className="empty-state">
-            아직 이 종목의 기업 리서치 결과가 없다. 기업 리서치 배치가 실행되면 사업 설명, 재무 변화,
-            촉매, 리스크, 무효화 조건이 이곳에 연결된다.
-          </div>
-        )}
-      </section>
-      ) : null}
-
-      <RecommendationEvidenceTracePanel cards={traceCards} />
-
-      <RecommendationMacroFlowPanel symbol={data.symbol} components={macroFlowComponents} />
-
-      <section
-        className={`recommendation-evidence-panel reveal delay-1 ${professionalAuditRiskClass(professionalAudit)}`}
+      <RecommendationDetailDisclosure
+        badge={`${traceCards.length}개 연결`}
+        eyebrow="뉴스·시장 근거"
         id="recommendation-evidence-review"
-        aria-label="추천 근거 연결 점검"
+        summary="뉴스, 상위 흐름, validator 결과, 점수 출처를 한곳에 묶되 기본 판단 흐름에서는 접어둔다."
+        title="이 추천에 붙은 근거를 원천까지 대조한다"
+        tone={blockedEvidenceCount > 0 ? "blocked" : "watch"}
       >
-        <div className="recommendation-evidence-head">
-          <div>
-            <span>근거 연결 점검</span>
-            <h2>{koCode(evidenceReview.quality_status)}</h2>
-            <p>
-              투자 논리, 점수 항목, 뉴스 근거, 성과 측정의 연결 상태를 정리한다. 연결이 약하면 추천을
-              채택하지 않고 기록으로만 남긴다.
-            </p>
-          </div>
-          <div className="recommendation-evidence-summary" aria-label="근거 연결 점검 요약">
-            <div>
-              <span>통과</span>
-              <strong>{reviewCount(evidenceReview.summary.pass_count)}</strong>
-              <small>기준 충족</small>
-            </div>
-            <div>
-              <span>주의</span>
-              <strong>{reviewCount(evidenceReview.summary.warning_count)}</strong>
-              <small>보강 필요</small>
-            </div>
-            <div>
-              <span>차단</span>
-              <strong>{reviewCount(evidenceReview.summary.blocked_count)}</strong>
-              <small>진행 금지</small>
-            </div>
-          </div>
-        </div>
-
-        <div className="recommendation-gate-grid">
-          {evidenceReview.gates.map((gate) => (
-            <article className={`recommendation-gate-card ${gateToneClass(gate.status)}`} key={gate.gate_key}>
-              <div>
-                <span style={{ color: gateStatusColor(gate.status) }}>{gateStatusLabel(gate.status)}</span>
-                <strong>{userFacingRecommendationText(gate.label)}</strong>
-                <p>{userFacingRecommendationText(gate.detail)}</p>
-              </div>
-              <small>{userFacingRecommendationText(gate.next_step)}</small>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      <RecommendationScoreAuditPanel data={data} />
+        <RecommendationEvidenceTracePanel cards={traceCards} />
+        <RecommendationMacroFlowPanel symbol={data.symbol} components={macroFlowComponents} />
+        <RecommendationEvidenceReviewPanel evidenceReview={evidenceReview} />
+        <RecommendationScoreAuditPanel data={data} />
+      </RecommendationDetailDisclosure>
     </div>
   );
 }

@@ -1,0 +1,129 @@
+.panel {
+  display: grid;
+  gap: var(--space-5);
+  padding: var(--space-6);
+  border-top: 1px solid var(--line-strong);
+  background: var(--surface-primary);
+}
+
+.head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-5);
+  align-items: start;
+}
+
+.head span,
+.metric span,
+.valuationGrid span {
+  color: var(--ink-muted);
+  font-size: var(--type-caption);
+  font-weight: 760;
+  letter-spacing: 0.06em;
+}
+
+.head h2 {
+  margin: var(--space-2) 0 var(--space-2);
+  color: var(--ink-primary);
+  font-size: var(--type-h2);
+  line-height: 1.12;
+  text-wrap: balance;
+}
+
+.head p,
+.summary,
+.metric small {
+  margin: 0;
+  color: var(--ink-secondary);
+  font-size: var(--type-small);
+  line-height: 1.58;
+}
+
+.badge {
+  border: 1px solid var(--line-subtle);
+  border-radius: 8px;
+  padding: var(--space-2) var(--space-3);
+  color: var(--ink-primary);
+  font-size: var(--type-small);
+  font-weight: 760;
+  white-space: nowrap;
+}
+
+.metricGrid,
+.researchGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.metric {
+  display: grid;
+  gap: var(--space-2);
+  min-height: 116px;
+  padding: var(--space-4);
+  border: 1px solid var(--line-subtle);
+  border-radius: 10px;
+  background: var(--surface-raised);
+}
+
+.metric strong {
+  color: var(--ink-primary);
+  font-size: var(--type-h3);
+  font-variant-numeric: tabular-nums;
+}
+
+.valuationGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 220px) minmax(0, 1fr);
+  gap: var(--space-2) var(--space-4);
+  padding: var(--space-4);
+  border: 1px solid var(--line-subtle);
+  border-radius: 10px;
+  background: var(--surface-raised);
+}
+
+.valuationGrid strong {
+  color: var(--ink-primary);
+  font-size: var(--type-small);
+  line-height: 1.5;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.actions a {
+  width: fit-content;
+}
+
+.empty {
+  padding: var(--space-5);
+  border: 1px dashed var(--line-strong);
+  border-radius: 12px;
+  color: var(--ink-secondary);
+  font-size: var(--type-body);
+  line-height: 1.65;
+  background: var(--surface-secondary);
+}
+
+@media (max-width: 1040px) {
+  .metricGrid,
+  .researchGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .panel {
+    padding: var(--space-5);
+  }
+
+  .head,
+  .metricGrid,
+  .researchGrid,
+  .valuationGrid {
+    grid-template-columns: 1fr;
+  }
+}
