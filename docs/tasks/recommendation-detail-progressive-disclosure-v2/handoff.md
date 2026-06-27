@@ -2,8 +2,9 @@
 
 ## Current Status
 
-- in progress: implemented locally; EC2 deployment pending.
+- completed: implemented, pushed to `develop`, deployed to EC2, and route/screenshot smoke passed.
 - branch: `develop`
+- commit: `9683f4b7`
 - target route: `/recommendations/[recommendationId]`
 
 ## Implementation Notes
@@ -27,7 +28,20 @@
   - `output/playwright/recommendation-detail-progressive-disclosure-v2/local/recommendation-AAPL-mobile.png`
   - `output/playwright/recommendation-detail-progressive-disclosure-v2/local/recommendation-AAPL-tablet.png`
   - `output/playwright/recommendation-detail-progressive-disclosure-v2/local/recommendation-AAPL-desktop.png`
+- `git diff --check`: passed.
+- `PYTHONPATH=/Users/woody/ai/agent-work-harness/src python3 -m awh verify --repo . --task recommendation-detail-progressive-disclosure-v2`: passed.
+- EC2 `git pull --ff-only origin develop`: fast-forwarded to `9683f4b7`.
+- EC2 `cd /opt/stockanalysis/app/apps/web && npm run typecheck`: passed.
+- EC2 `cd /opt/stockanalysis/app/apps/web && npm run build`: passed.
+- EC2 services after restart: `stockanalysis-web.service=active`, `stockanalysis-frontend-api.service=active`.
+- EC2 internal route smoke: `/`, `/recommendations/AAPL-2024-11-01`, `/recommendations`, `/data-health` all returned `200`.
+- Local tunnel route smoke: `http://127.0.0.1:13000/`, `/recommendations/AAPL-2024-11-01`, `/recommendations`, `/data-health` all returned `200`.
+- EC2 browser QA for `/recommendations/AAPL-2024-11-01` at 375px, 768px, 1280px: no horizontal overflow, 5 disclosure groups, 0 open by default, no forbidden copy, no server error.
+- EC2 screenshots:
+  - `output/playwright/recommendation-detail-progressive-disclosure-v2/ec2/recommendation-AAPL-mobile.png`
+  - `output/playwright/recommendation-detail-progressive-disclosure-v2/ec2/recommendation-AAPL-tablet.png`
+  - `output/playwright/recommendation-detail-progressive-disclosure-v2/ec2/recommendation-AAPL-desktop.png`
 
 ## Exact Next Step
 
-- exact next step: Run `git diff --check` and AWH verify, commit the scoped UX changes, push `develop`, deploy to EC2 with `git pull --ff-only origin develop`, then record EC2 route smoke and screenshot evidence in this handoff.
+- exact next step: Start the next UX slice by reducing first-half recommendation detail density: executive brief cards, decision waterfall, and position reality should become more visual and less card-heavy without changing backend DTOs or scoring.
