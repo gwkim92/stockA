@@ -2,8 +2,8 @@
 
 ## Status
 
-- completed: implementation, local route smoke, screenshot QA, frontend contract, roadmap verification, Next typecheck/build/test/e2e all passed.
-- pending rollout: commit, push, EC2 pull/build/restart/smoke.
+- completed: implementation, local route smoke, screenshot QA, frontend contract, roadmap verification, Next typecheck/build/test/e2e, commit/push, and EC2 rollout smoke all passed.
+- pending rollout: none.
 
 ## Current Status
 
@@ -46,7 +46,30 @@
 - final screenshot QA metrics after those fixes: overflow `0`, product overview count `0`, focus panel count `0`, decision line count `1`, position summary count `1`, waterfall cards `8`, unknown copy `false`, forbidden copy `false`, compact heading `true`, Korean evidence copy `true`, focus CSS leak `false` at 375/768/1280.
 - note: `RecommendationProductOverview` component remains in `apps/web/src/components/recommendation-product-overview.tsx` because this file still provides the `RecommendationQualityDecision` type used by active recommendation detail panels. The product overview render is not used in `/recommendations/[recommendationId]`.
 - first attempted full e2e failed because the local Next server lacked `STOCKANALYSIS_FRONTEND_API_READ_TOKEN` and FastAPI returned 401. After restarting the local Next server with the EC2 runtime read token injected into process env, the same suite passed. The token value was not printed.
+- EC2 deployed commit: `78e32dac`.
+- EC2 passed: `cd /opt/stockanalysis/app/apps/web && npm run typecheck && npm run build`.
+- EC2 services after restart: `stockanalysis-web.service=active`, `stockanalysis-frontend-api.service=active`.
+- EC2 route smoke passed:
+  - `/` -> `200`
+  - `/recommendations/AAPL-2024-11-01` -> `200`
+  - `/recommendations` -> `200`
+  - `/data-health` -> `200`
+- EC2 recommendation detail HTML checks:
+  - `데이터 서버 연결 중단=0`
+  - `UNKNOWN=0`
+  - `뉴스·사이클=0`
+  - `blocked until=0`
+  - `AAPL · 분석 입력 차단=0`
+  - `추천 상세 핵심 판단=2`
+  - `recommendation-focus-panel=0`
+- Local tunnel route `http://127.0.0.1:13000/recommendations/AAPL-2024-11-01` returned latest content with the same forbidden-copy checks passing.
+- EC2 screenshot QA:
+  - `/Users/woody/ai/stockanalysis/output/playwright/recommendation-detail-top-density-v1/ec2/mobile-375.png`
+  - `/Users/woody/ai/stockanalysis/output/playwright/recommendation-detail-top-density-v1/ec2/tablet-768.png`
+  - `/Users/woody/ai/stockanalysis/output/playwright/recommendation-detail-top-density-v1/ec2/desktop-1280.png`
+  - `/Users/woody/ai/stockanalysis/output/playwright/recommendation-detail-top-density-v1/ec2/qa.json`
+- EC2 screenshot QA metrics: overflow `0`, product overview count `0`, focus panel count `0`, decision line count `1`, position summary count `1`, waterfall cards `8`, unknown copy `false`, forbidden copy `false`, focus CSS leak `false` at 375/768/1280.
 
 ## Exact Next Step
 
-- exact next step: commit the scoped UX files, push `develop`, deploy to EC2 with `git pull --ff-only origin develop`, restart Next, and smoke `/recommendations/AAPL-2024-11-01`.
+- exact next step: continue the broader UX normalization on the next highest-traffic decision screen: `/stocks/[symbol]` top-density and company-vs-ETF distinction, using the same screenshot/e2e gate.
