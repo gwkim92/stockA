@@ -4,7 +4,6 @@ import { RecommendationExecutiveBrief } from "@/components/recommendation-execut
 import { RecommendationPositionReality } from "@/components/recommendation-position-reality";
 import { RecommendationProfessionalAuditPanel } from "@/components/recommendation-professional-audit-panel";
 import {
-  RecommendationProductOverview,
   type RecommendationProductProfile,
   type RecommendationQualityDecision,
 } from "@/components/recommendation-product-overview";
@@ -19,7 +18,6 @@ import { RecommendationCompatibilityReport } from "./_components/RecommendationC
 import { RecommendationDecisionHeader } from "./_components/RecommendationDecisionHeader";
 import {
   RecommendationDecisionWaterfall,
-  RecommendationFocusPanel,
   type RecommendationFocusItem,
   type RecommendationWaterfallCard,
 } from "./_components/RecommendationDecisionFlowPanels";
@@ -76,7 +74,7 @@ function recommendationProductProfile(data: RecommendationDetailData): Recommend
     label: "개별 기업 주식",
     headline: `${data.symbol}는 기업 실적·밸류에이션·경쟁력까지 함께 판단한다`,
     primaryLens: "사업·재무·밸류에이션",
-    secondaryLens: "뉴스·사이클·포지션",
+    secondaryLens: "뉴스와 사이클·포지션",
     evidenceTitle: "기업 추천 근거",
   };
 }
@@ -204,6 +202,13 @@ function portfolioCoverageHref(reviewDate: string | null | undefined) {
   return "/portfolio/coverage" as Route;
 }
 
+function recommendationRouteWithSymbol(href: string | null | undefined, symbol: string): Route | undefined {
+  if (!href) {
+    return undefined;
+  }
+  return href.replaceAll("UNKNOWN", encodeURIComponent(symbol)) as Route;
+}
+
 function reviewCount(value: number | boolean | undefined) {
   return typeof value === "number" ? value : value ? 1 : 0;
 }
@@ -217,6 +222,8 @@ function decisionCopy(value: string | null | undefined) {
     .replaceAll(`${reviewWord} 비중`, "권고 비중")
     .replaceAll(`${reviewWord} 보기`, "근거 보기")
     .replaceAll(`${reviewWord}한다`, "판단합니다")
+    .replaceAll("blocked until 근거 검토", "근거 검토 전까지 차단")
+    .replaceAll("blocked until 근거", "근거 확인 전까지 차단")
     .replaceAll("US Core Financial Disclosure Coverage", "미국 핵심 공시 커버리지");
 }
 
@@ -731,6 +738,10 @@ export default async function RecommendationPage({ params }: RecommendationPageP
   const industryPosition = data.industry_competitive_position;
   const financialStatementModel = data.financial_statement_model;
   const valuationTargetRange = data.valuation_target_range;
+  const displayValuationTargetRange = {
+    ...valuationTargetRange,
+    summary: valuationTargetRange.summary.replaceAll("UNKNOWN", data.symbol),
+  };
   const valuationItems = equityResearch ? valuationSensitivityItems(equityResearch.valuation_sensitivity) : [];
   const outcomeMeasured = data.outcome.label !== "unmeasured" && Boolean(data.outcome.measurement_end_date);
   const peerComponent = fundamentalStack.find((component) => component.component === "peer_relative_score");
@@ -756,7 +767,7 @@ export default async function RecommendationPage({ params }: RecommendationPageP
       label: decisionCopy(fact.label),
       value: decisionCopy(fact.value),
     })),
-    href: step.href ? (step.href as Route) : undefined,
+    href: recommendationRouteWithSymbol(step.href, data.symbol),
     hrefLabel: step.href_label ? decisionCopy(step.href_label) : undefined,
   }));
   const waterfallCards = recommendationWaterfallCards({
@@ -810,27 +821,14 @@ export default async function RecommendationPage({ params }: RecommendationPageP
         }}
       />
 
-      <RecommendationProductOverview
-        data={data}
-        productProfile={productProfile}
-        qualityDecision={qualityDecision}
-        decisionWaterfall={decisionWaterfall}
-      />
-
       <RecommendationExecutiveBrief data={data} />
 
       <RecommendationPositionReality data={data} />
 
-      <RecommendationFocusPanel
-        data={data}
-        items={immediateFocusItems}
-        qualityDecision={qualityDecision}
-        decisionWaterfall={decisionWaterfall}
-      />
-
       <RecommendationDecisionWaterfall
         data={data}
         cards={waterfallCards}
+        {...(immediateFocusItems[0] ? { focusItem: immediateFocusItems[0] } : {})}
         qualityDecision={qualityDecision}
         decisionWaterfall={decisionWaterfall}
       />
@@ -838,7 +836,7 @@ export default async function RecommendationPage({ params }: RecommendationPageP
       <RecommendationQualityBoundaryPanel
         boundary={{
           summary: userFacingRecommendationText(decisionWaterfall.summary),
-          status: userFacingRecommendationText(decisionWaterfall.status),
+          status: decisionCopy(decisionWaterfall.status),
           asOfDate: decisionWaterfall.as_of_date,
           readyStepCount: readyDecisionStepCount,
           watchStepCount: watchDecisionStepCount,
@@ -870,7 +868,7 @@ export default async function RecommendationPage({ params }: RecommendationPageP
           footer={`추천 산식 정책: ${userFacingRecommendationText(decisionWaterfall.score_policy)}. 실거래 상태: ${orderBoundaryLabel(decisionWaterfall.order_boundary)}.`}
           steps={professionalResearchSteps}
         />
-        <RecommendationProfessionalAuditPanel audit={professionalAudit} />
+        <RecommendationProfessionalAuditPanel audit={professionalAudit} symbol={data.symbol} />
       </RecommendationDetailDisclosure>
 
       {data.fund_instrument_analysis ? (
@@ -906,12 +904,12 @@ export default async function RecommendationPage({ params }: RecommendationPageP
             badge={valuationTargetRange.status === "available" ? `${valuationTargetRange.method_count}개 방법` : "가격 근거 대기"}
             eyebrow="밸류에이션 심층 근거"
             id="recommendation-valuation"
-            summary="목표가 범위, 상승여지, 안전마진을 뉴스·사이클 신호와 분리해 대조한다."
+            summary="목표가 범위, 상승여지, 안전마진을 뉴스와 사이클 신호와 분리해 대조한다."
             title={`${data.symbol} 가치 범위`}
             tone={valuationTargetRange.status === "available" ? "ready" : "watch"}
           >
             <ValuationTargetRangeCard
-              valuation={valuationTargetRange}
+              valuation={displayValuationTargetRange}
               eyebrow="가격·밸류에이션 근거"
               title={`${data.symbol} 목표가 범위와 상승여지`}
             />

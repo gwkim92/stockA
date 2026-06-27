@@ -13,6 +13,7 @@ const AUDIT_COPY_LABELS: Readonly<Record<string, string>> = {
   news_ai: "뉴스·투자 근거",
   "peer comparison": "피어 비교",
   "automatic weight change is blocked until outcome maturity.": "성과 표본이 충분해질 때까지 추천 비중 변경은 금지됩니다.",
+  blocked_until_thesis_or_evidence: "투자 논리와 근거 보강 전까지 차단",
   paper_validation_pending: "가상 매매 검증 대기",
   pending: "대기",
   source_limited: "원천 한계 관리",
@@ -48,11 +49,15 @@ export function auditCopy(value: string | number | boolean | null | undefined): 
     .replaceAll("사이클 사이클 스택", "사이클 스택")
     .replaceAll("equity research", "AI 리서치")
     .replaceAll("fund source layer", "펀드 원천 근거")
+    .replaceAll("blocked until 근거 검토", "근거 검토 전까지 차단")
+    .replaceAll("blocked until 투자 논리 or 근거", "투자 논리와 근거 보강 전까지 차단")
+    .replaceAll("blocked until", "보강 전까지 차단")
     .replaceAll("Gross Expense Ratio", "총 보수율")
     .replaceAll("총 보수율를", "총 보수율을")
     .replaceAll("tracking difference", "추적 차이")
     .replaceAll("기업 peer", "기업 피어")
     .replaceAll(" and ", " 및 ")
+    .replaceAll(" or ", " 또는 ")
     .replaceAll(`${reviewWord} 보기`, "근거 보기")
     .replaceAll(`${reviewWord}한다`, "판단합니다")
     .replaceAll("US Core Financial Disclosure Coverage", "미국 핵심 공시 커버리지");
@@ -92,6 +97,7 @@ export function professionalAuditRiskClass(audit: ProfessionalEvidenceAudit): Pr
 
 export function professionalAuditStatusLabel(status: string): string {
   const labels: Readonly<Record<string, string>> = {
+    blocked_until_thesis_or_evidence: "투자 논리와 근거 보강 전까지 차단",
     ready_for_review: "전문 근거 확인",
     source_blocked: "전문 원천 차단",
     source_limited: "원천 한계 관리",

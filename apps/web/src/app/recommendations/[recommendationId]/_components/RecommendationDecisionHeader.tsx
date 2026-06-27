@@ -58,7 +58,7 @@ function productEvidenceContext(productKind: RecommendationProductKind) {
   if (productKind === "fund_or_etf") {
     return "구성종목, 비용, NAV 괴리, 추적 품질이 판단의 중심이다.";
   }
-  return "재무, 밸류에이션, 산업 위치를 뉴스·사이클 근거와 분리한다.";
+  return "재무, 밸류에이션, 산업 위치를 뉴스와 사이클 근거와 분리한다.";
 }
 
 function productEvidenceHref(productKind: RecommendationProductKind) {

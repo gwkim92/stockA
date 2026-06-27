@@ -58,7 +58,7 @@ export function buildRecommendationViewModel(data: RecommendationDetailData): In
     investmentImpact:
       kind === "fund_or_etf"
         ? "구성종목, 추적차이, 비용률, NAV 괴리와 시장 노출을 먼저 봅니다."
-        : "가격, 재무 품질, 밸류에이션, 산업 위치, 뉴스·사이클 근거를 함께 봅니다.",
+        : "가격, 재무 품질, 밸류에이션, 산업 위치, 뉴스와 사이클 근거를 함께 봅니다.",
     nextAction: execution.nextAction,
     sourceLimitReason: sourceBlocked
       ? recommendationCopy(data.professional_evidence_audit.source_blocker.blocker_code)

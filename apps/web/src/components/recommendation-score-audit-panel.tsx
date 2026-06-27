@@ -50,7 +50,7 @@ export function RecommendationScoreAuditPanel({ data }: { readonly data: Recomme
 
       <div className={styles.summaryGrid} aria-label="추천 점수와 성과 요약">
         <Metric label="추천 점수" value={formatPercent(data.score)} note={`${data.symbol} 현재 추천 강도`} />
-        <Metric label="점수 항목" value={`${summary.totalComponents}개`} note="가격·뉴스·사이클·재무 입력" />
+        <Metric label="점수 항목" value={`${summary.totalComponents}개`} note="가격, 뉴스, 사이클, 재무 입력" />
         <Metric label="실제 반영" value={`${summary.activeComponents}개`} note={`판단 보조 ${summary.explanatoryComponents}개`} />
         <Metric label="성과 측정" value={summary.measured ? koCode(data.outcome.label) : "측정 전"} note={summary.measured ? data.outcome.measurement_end_date : "성과 측정창 대기"} />
       </div>

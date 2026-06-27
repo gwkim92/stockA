@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { koCode } from "@/lib/korean-labels";
 import type { RecommendationDetailData } from "@/lib/types";
 import styles from "./recommendation-executive-brief.module.css";
 
@@ -7,29 +8,25 @@ type RecommendationExecutiveBriefProps = {
 };
 
 type BriefTone = "ready" | "watch" | "blocked";
+type Metric = {
+  readonly label: string;
+  readonly value: string;
+  readonly detail: string;
+  readonly tone: BriefTone;
+};
 
-function formatPercent(value: number | null) {
+function formatRecommendationPercent(value: number | null, signDisplay?: "exceptZero") {
   if (value === null) {
     return "미측정";
   }
   return new Intl.NumberFormat("ko-KR", {
     style: "percent",
     maximumFractionDigits: 1,
-    signDisplay: "exceptZero",
+    ...(signDisplay ? { signDisplay } : {}),
   }).format(value);
 }
 
-function formatWeightPercent(value: number | null) {
-  if (value === null) {
-    return "미측정";
-  }
-  return new Intl.NumberFormat("ko-KR", {
-    style: "percent",
-    maximumFractionDigits: 1,
-  }).format(value);
-}
-
-function formatCurrency(value: number | null, currencyCode: string) {
+function formatRecommendationCurrency(value: number | null, currencyCode: string) {
   if (value === null) {
     return "데이터 없음";
   }
@@ -40,7 +37,7 @@ function formatCurrency(value: number | null, currencyCode: string) {
   }).format(value);
 }
 
-function investorText(value: string) {
+function investorRecommendationText(value: string) {
   return value
     .replaceAll("페이퍼", "가상 매매")
     .replaceAll("valuation snapshot이", "목표가 자료가")
@@ -50,6 +47,14 @@ function investorText(value: string) {
     .replaceAll("레이어", "근거 항목");
 }
 
+function formatPercent(value: number | null) {
+  return formatRecommendationPercent(value, "exceptZero");
+}
+
+function formatWeightPercent(value: number | null) {
+  return formatRecommendationPercent(value);
+}
+
 function positionLabel(status: string) {
   if (status === "held") {
     return "보유 중";
@@ -57,13 +62,13 @@ function positionLabel(status: string) {
   if (status === "not_held") {
     return "미보유";
   }
-  return "확인 필요";
+  return "상태 보류";
 }
 
 function positionSummary(data: RecommendationDetailData) {
   const position = data.position_context;
   if (position.status === "held") {
-    return `현재 비중 ${formatPercent(position.weight)} · 평단가 ${formatCurrency(position.average_cost, position.currency_code)}`;
+    return `현재 비중 ${formatPercent(position.weight)} · 평단가 ${formatRecommendationCurrency(position.average_cost, position.currency_code)}`;
   }
   return `현재 비중 없음 · 추천 비중 ${formatWeightPercent(data.recommended_weight)}`;
 }
@@ -73,16 +78,16 @@ function valuationSummary(data: RecommendationDetailData) {
   if (valuation.status === "available") {
     return `기준 상승여지 ${formatPercent(valuation.upside_base)} · 안전마진 ${formatPercent(valuation.margin_of_safety)}`;
   }
-  return investorText(valuation.summary || "가치 범위 보강 필요");
+  return investorRecommendationText(valuation.summary || "가치 범위 보강 필요").replaceAll("UNKNOWN", data.symbol);
 }
 
 function valuationValue(data: RecommendationDetailData) {
   const valuation = data.valuation_target_range;
   if (valuation.target_base !== null) {
-    return formatCurrency(valuation.target_base, valuation.currency_code);
+    return formatRecommendationCurrency(valuation.target_base, valuation.currency_code);
   }
   if (valuation.base_price !== null) {
-    return formatCurrency(valuation.base_price, valuation.currency_code);
+    return formatRecommendationCurrency(valuation.base_price, valuation.currency_code);
   }
   return "대기";
 }
@@ -101,7 +106,7 @@ function fundStatusLabel(status: string) {
   if (status === "stale") {
     return "오래된 자료";
   }
-  return investorText(status);
+  return investorRecommendationText(status);
 }
 
 function fundLensValue(data: RecommendationDetailData) {
@@ -152,22 +157,17 @@ function toneClassName(tone: BriefTone) {
   return styles.watch;
 }
 
-function BriefCard({
+function CompactMetric({
   label,
   value,
   detail,
   tone,
-}: {
-  label: string;
-  value: string;
-  detail: string;
-  tone: BriefTone;
-}) {
+}: Metric) {
   return (
-    <div className={`${styles.card} ${toneClassName(tone)}`}>
+    <div className={`${styles.metric} ${toneClassName(tone)}`}>
       <span>{label}</span>
       <strong>{value}</strong>
-      <p>{detail}</p>
+      <small>{detail}</small>
     </div>
   );
 }
@@ -178,15 +178,11 @@ export function RecommendationExecutiveBrief({ data }: RecommendationExecutiveBr
   const position = data.position_context;
   const fundOrEtf = isFundOrEtf(data);
   const hasOrderBlocked = !decision.broker_submit_allowed;
-  const cards = [
+  const cleanText = (value: string) => investorRecommendationText(value).replaceAll("UNKNOWN", data.symbol);
+  const evidenceSummary = cleanText(evidence.summary || decision.summary);
+  const metrics: readonly Metric[] = [
     {
-      label: "현재 판정",
-      value: investorText(evidence.title || "추천 검토"),
-      detail: investorText(evidence.summary || decision.summary),
-      tone: evidenceTone(data),
-    },
-    {
-      label: "포지션",
+      label: "보유 현실",
       value: positionLabel(position.status),
       detail: positionSummary(data),
       tone: position.status === "held" ? "ready" : "watch",
@@ -212,31 +208,52 @@ export function RecommendationExecutiveBrief({ data }: RecommendationExecutiveBr
       detail: decision.paper_validation_input_allowed ? "가상 매매 입력 가능 · 실거래는 별도 승인 필요" : "가상 매매 입력 전 보강 필요",
       tone: tradeTone(data),
     },
-  ] satisfies Array<{
-    label: string;
-    value: string;
-    detail: string;
-    tone: BriefTone;
-  }>;
+  ];
 
   return (
     <section className={styles.brief} aria-labelledby="recommendation-executive-brief-title">
-      <div className={styles.header}>
-        <span>투자 판단 요약</span>
-        <h2 id="recommendation-executive-brief-title">
-          {fundOrEtf ? `${data.symbol} ETF 추천 요약` : `${data.symbol} 개별 주식 추천 요약`}
-        </h2>
-        <p>
-          {fundOrEtf
-            ? "보유 상태, ETF 구조, 근거 품질, 거래 경계를 한 화면에 정리했다. 보유종목·비용·추적 품질은 아래 ETF 근거로 이어진다."
-            : "보유 상태, 가치 범위, 근거 품질, 거래 경계를 한 화면에 정리했다. 뉴스·사이클·재무 근거는 아래 리포트로 이어진다."}
-        </p>
+      <div className={styles.main}>
+        <div className={styles.header}>
+          <span>{fundOrEtf ? "ETF 추천 결론" : "개별 주식 추천 결론"}</span>
+          <h2 id="recommendation-executive-brief-title">{cleanText(evidence.title || `${data.symbol} 추천 판단`)}</h2>
+          <p>{evidenceSummary}</p>
+        </div>
+
+        <div className={styles.decisionLine} aria-label="추천 상세 핵심 판단">
+          <div>
+            <span>추천</span>
+            <strong>{koCode(data.recommendation)}</strong>
+          </div>
+          <div>
+            <span>점수</span>
+            <strong>{formatPercent(data.score)}</strong>
+          </div>
+          <div>
+            <span>포지션</span>
+            <strong>{positionLabel(position.status)}</strong>
+          </div>
+          <div>
+            <span>실거래</span>
+            <strong>{hasOrderBlocked ? "차단" : "허용"}</strong>
+          </div>
+        </div>
       </div>
-      <div className={styles.cards}>
-        {cards.map((card) => (
-          <BriefCard key={card.label} {...card} />
+
+      <aside className={styles.readingPath} aria-label="이 추천서를 읽는 순서">
+        <span>읽는 순서</span>
+        <ol>
+          <li>보유 여부와 평단가를 먼저 본다.</li>
+          <li>{fundOrEtf ? "보유 구성·비용·추적 품질을 대조한다." : "가치 범위와 재무 근거를 대조한다."}</li>
+          <li>근거 품질과 주문 차단 여부를 마지막에 대조한다.</li>
+        </ol>
+      </aside>
+
+      <div className={styles.metricStrip}>
+        {metrics.map((metric) => (
+          <CompactMetric key={metric.label} {...metric} />
         ))}
       </div>
+
       <div className={styles.actions}>
         <Link href="#recommendation-position-reality">포지션 확인</Link>
         <Link href={fundOrEtf ? "#recommendation-fund-analysis" : "#recommendation-valuation"}>

@@ -93,6 +93,15 @@ test.describe("professional investment workspace", () => {
     await expect(page.locator("#recommendation-evidence-review")).toContainText("펼치기");
   });
 
+  test("recommendation detail top half uses a compact decision board", async ({ page }) => {
+    await page.goto("/recommendations/AAPL-2024-11-01");
+    await expect(page.locator(".recommendation-focus-panel")).toHaveCount(0);
+    await expect(page.locator('[aria-label="추천 상세 핵심 판단"]')).toBeVisible();
+    await expect(page.locator('[aria-label="포지션 요약"]')).toBeVisible();
+    await expect(page.locator(".recommendation-waterfall-card").first()).toContainText("다음 확인");
+    await expect(page.locator("body")).not.toContainText("UNKNOWN");
+  });
+
   for (const [route, expectedText] of operationsRoutes) {
     test(`${route} is visibly separated as operations`, async ({ page }) => {
       await page.goto(route);

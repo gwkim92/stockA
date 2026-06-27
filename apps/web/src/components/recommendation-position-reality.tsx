@@ -94,7 +94,7 @@ function positionStatusLabel(status: string) {
   if (status === "not_held") {
     return "보유 없음";
   }
-  return "상태 확인 필요";
+  return "상태 보류";
 }
 
 function positionTone(status: string) {
@@ -186,8 +186,8 @@ export function RecommendationPositionReality({ data }: RecommendationPositionRe
   const tone = positionTone(position.status);
   const actionText =
     position.status === "held"
-      ? "기존 보유 포지션과 추천 방향이 충돌하는지 확인합니다."
-      : "현재 보유가 없으므로 신규 편입 후보로만 검토합니다.";
+      ? "기존 보유 포지션과 추천 방향의 충돌 여부를 본다."
+      : "현재 보유가 없으므로 신규 편입 후보로만 본다.";
 
   return (
     <section
@@ -200,15 +200,27 @@ export function RecommendationPositionReality({ data }: RecommendationPositionRe
         <h2 id="recommendation-position-reality-title">
           {data.symbol} · {positionStatusLabel(position.status)}
         </h2>
-        <p>{position.summary}</p>
+        <p>{position.summary.replaceAll("UNKNOWN", data.symbol)}</p>
         <div className={styles.actions}>
           <Link href="/portfolio/coverage">보유 현황 보기</Link>
           <Link href="/paper-trading">가상 매매 상태</Link>
         </div>
       </div>
 
+      <div className={styles.ledgerSummary} aria-label="포지션 요약">
+        <div>
+          <span>포트폴리오</span>
+          <strong>{portfolioDisplayName(position.portfolio_name)}</strong>
+          <small>{position.snapshot_date ?? "스냅샷 없음"}</small>
+        </div>
+        <div>
+          <span>주문 경계</span>
+          <strong>{position.broker_submit_allowed ? "주문 허용" : "실거래 차단"}</strong>
+          <small>읽기 전용</small>
+        </div>
+      </div>
+
       <div className={styles.metrics} aria-label="추천 종목 보유 포지션과 평단가">
-        <Metric label="포트폴리오" value={portfolioDisplayName(position.portfolio_name)} note={position.snapshot_date ?? "스냅샷 없음"} />
         <Metric label="보유 수량" value={formatQuantity(position.quantity)} note={actionText} />
         <Metric label="평단가" value={holdingCurrencyValue(position, avg.value, avg.currencyCode)} note={averageCostNote(position)} />
         <Metric
@@ -227,7 +239,6 @@ export function RecommendationPositionReality({ data }: RecommendationPositionRe
           note={hasOpenPosition(position) ? formatPercent(position.unrealized_pnl_pct) : "미보유"}
         />
         <Metric label="추천 비중" value={formatWeightPercent(data.recommended_weight)} note="점수와 분리된 목표 비중" />
-        <Metric label="주문 경계" value={position.broker_submit_allowed ? "주문 허용" : "실거래 차단"} note="읽기 전용" />
       </div>
 
       <BrokerReference position={position.broker_reference} />

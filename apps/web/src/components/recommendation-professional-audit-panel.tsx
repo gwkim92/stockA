@@ -40,8 +40,23 @@ function BooleanBoundary({ allowed, label }: { readonly allowed: boolean; readon
   );
 }
 
-export function RecommendationProfessionalAuditPanel({ audit }: { readonly audit: ProfessionalEvidenceAudit }) {
+function auditLayerHref(href: string | null | undefined, symbol: string) {
+  if (!href) {
+    return null;
+  }
+  return href.replaceAll("UNKNOWN", encodeURIComponent(symbol)) as Route;
+}
+
+export function RecommendationProfessionalAuditPanel({
+  audit,
+  symbol,
+}: {
+  readonly audit: ProfessionalEvidenceAudit;
+  readonly symbol?: string;
+}) {
   const summary = professionalAuditSummary(audit);
+  const displaySymbol = audit.symbol === "UNKNOWN" && symbol ? symbol : audit.symbol;
+  const cleanAuditCopy = (value: string) => auditCopy(value).replaceAll("UNKNOWN", displaySymbol);
   return (
     <section
       aria-labelledby="recommendation-professional-audit-title"
@@ -51,9 +66,9 @@ export function RecommendationProfessionalAuditPanel({ audit }: { readonly audit
       <div className={styles.header}>
         <div>
           <span>전문 분석 감사</span>
-          <h2 id="recommendation-professional-audit-title">{audit.title}</h2>
+          <h2 id="recommendation-professional-audit-title">{cleanAuditCopy(audit.title)}</h2>
           <p>
-            {auditCopy(audit.summary)} {auditCopy(audit.next_action)}
+            {cleanAuditCopy(audit.summary)} {cleanAuditCopy(audit.next_action)}
           </p>
         </div>
         <strong className={styles.status}>{professionalAuditStatusLabel(audit.status)}</strong>
@@ -62,7 +77,7 @@ export function RecommendationProfessionalAuditPanel({ audit }: { readonly audit
       <div className={styles.metricGrid} aria-label="전문 분석 감사 요약">
         <Metric
           label="분석 대상"
-          note={`${audit.symbol} · ${audit.as_of_date}`}
+          note={`${displaySymbol} · ${audit.as_of_date}`}
           value={professionalProductLabel(audit.product_type)}
         />
         <Metric
@@ -89,7 +104,7 @@ export function RecommendationProfessionalAuditPanel({ audit }: { readonly audit
           <span>원천 차단</span>
           <strong>{audit.source_blocker.blocker_label || "검증 가능한 원천 부족"}</strong>
           <p>
-            {auditCopy(audit.source_blocker.summary)} {auditCopy(audit.source_blocker.next_action)}
+            {cleanAuditCopy(audit.source_blocker.summary)} {cleanAuditCopy(audit.source_blocker.next_action)}
           </p>
         </article>
       ) : null}
@@ -116,15 +131,16 @@ export function RecommendationProfessionalAuditPanel({ audit }: { readonly audit
         <div className={styles.layerGrid}>
           {audit.layer_checks.map((layer) => {
             const tone = professionalLayerTone(layer.status);
+            const href = auditLayerHref(layer.href, displaySymbol);
             return (
               <article className={`${styles.layerCard} ${styles[tone]}`} key={layer.key}>
                 <div>
-                  <span>{auditCopy(layer.label)}</span>
+                  <span>{cleanAuditCopy(layer.label)}</span>
                   <strong>{professionalLayerStatusLabel(layer.status)}</strong>
                 </div>
-                <p>{auditLayerDetailCopy(layer.label, layer.detail)}</p>
-                <small>원천: {auditCopy(layer.source)}</small>
-                {layer.href ? <Link href={layer.href as Route}>관련 화면 열기</Link> : null}
+                <p>{cleanAuditCopy(auditLayerDetailCopy(layer.label, layer.detail))}</p>
+                <small>원천: {cleanAuditCopy(layer.source)}</small>
+                {href ? <Link href={href}>관련 화면 열기</Link> : null}
               </article>
             );
           })}
@@ -149,12 +165,12 @@ export function RecommendationProfessionalAuditPanel({ audit }: { readonly audit
           <BooleanBoundary allowed={audit.automatic_order_allowed || audit.broker_submit_allowed} label="주문 실행" />
           <div className={styles.policyNote}>
             <span>추천 산식 정책</span>
-            <p>{auditCopy(audit.score_policy)}</p>
+            <p>{cleanAuditCopy(audit.score_policy)}</p>
           </div>
           <div className={styles.policyNote}>
             <span>근거 품질 상태</span>
             <p>
-              {auditCopy(audit.evidence_quality_status)} · 차단 게이트 {audit.blocked_evidence_gate_count}개 · 주의 게이트{" "}
+              {cleanAuditCopy(audit.evidence_quality_status)} · 차단 게이트 {audit.blocked_evidence_gate_count}개 · 주의 게이트{" "}
               {audit.warning_evidence_gate_count}개
             </p>
           </div>

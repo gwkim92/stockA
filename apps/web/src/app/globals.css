@@ -3155,171 +3155,6 @@ h6 {
   text-underline-offset: 3px;
 }
 
-.recommendation-focus-panel {
-  display: grid;
-  grid-template-columns: minmax(300px, 0.72fr) minmax(0, 1.4fr);
-  gap: clamp(18px, 2.4vw, 34px);
-  padding: clamp(22px, 3vw, 38px);
-  background:
-    linear-gradient(135deg, rgba(255, 253, 247, 0.98), rgba(238, 242, 237, 0.9)),
-    radial-gradient(circle at 0% 0%, rgba(62, 95, 77, 0.16), transparent 34%),
-    radial-gradient(circle at 100% 10%, rgba(38, 92, 128, 0.14), transparent 34%);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-soft);
-}
-
-.recommendation-focus-panel.risk-high {
-  background:
-    linear-gradient(135deg, rgba(255, 253, 247, 0.98), rgba(244, 230, 226, 0.88)),
-    radial-gradient(circle at 0% 0%, rgba(168, 59, 52, 0.14), transparent 36%);
-}
-
-.recommendation-focus-panel.risk-medium {
-  background:
-    linear-gradient(135deg, rgba(255, 253, 247, 0.98), rgba(246, 238, 218, 0.9)),
-    radial-gradient(circle at 0% 0%, rgba(189, 112, 55, 0.16), transparent 36%);
-}
-
-.recommendation-focus-lead {
-  display: grid;
-  align-content: start;
-  gap: 14px;
-  min-width: 0;
-}
-
-.recommendation-focus-lead > span,
-.recommendation-focus-card > span {
-  width: fit-content;
-  padding: 5px 8px;
-  background: var(--text-primary);
-  color: var(--bg-panel);
-  font-size: 0.68rem;
-  font-weight: 950;
-  letter-spacing: 0.02em;
-}
-
-.recommendation-focus-lead h2 {
-  max-width: 760px;
-  margin: 0;
-  color: var(--text-primary);
-  font-family: var(--font-display);
-  font-size: clamp(2rem, 4vw, 4.5rem);
-  line-height: 0.88;
-  letter-spacing: -0.058em;
-  word-break: keep-all;
-}
-
-.recommendation-focus-lead p {
-  max-width: 780px;
-  margin: 0;
-  color: var(--text-secondary);
-  font-size: clamp(0.98rem, 1.35vw, 1.18rem);
-  font-weight: 780;
-  line-height: 1.58;
-  word-break: keep-all;
-}
-
-.recommendation-focus-metrics {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-  gap: 8px;
-}
-
-.recommendation-focus-metrics div {
-  min-width: 0;
-  padding: 12px;
-  background: rgba(255, 255, 255, 0.56);
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-sm);
-}
-
-.recommendation-focus-metrics span {
-  display: block;
-  color: var(--text-tertiary);
-  font-size: 0.68rem;
-  font-weight: 900;
-}
-
-.recommendation-focus-metrics strong {
-  display: block;
-  margin-top: 6px;
-  color: var(--text-primary);
-  font-family: var(--font-display);
-  font-size: clamp(1.06rem, 1.75vw, 1.7rem);
-  line-height: 0.92;
-  word-break: keep-all;
-}
-
-.recommendation-focus-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 12px;
-  align-content: stretch;
-}
-
-.recommendation-focus-card {
-  display: grid;
-  min-width: 0;
-  align-content: start;
-  gap: 10px;
-  min-height: 220px;
-  padding: 16px;
-  background: color-mix(in srgb, var(--bg-panel) 90%, white);
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-md);
-}
-
-.recommendation-focus-card.tone-ready {
-  border-color: color-mix(in oklch, var(--accent-green), transparent 62%);
-}
-
-.recommendation-focus-card.tone-watch {
-  border-color: color-mix(in oklch, var(--accent-amber), transparent 56%);
-}
-
-.recommendation-focus-card.tone-blocked {
-  border-color: color-mix(in oklch, var(--accent-red), transparent 52%);
-}
-
-.recommendation-focus-card strong {
-  color: var(--text-primary);
-  font-family: var(--font-display);
-  font-size: clamp(1.14rem, 1.65vw, 1.58rem);
-  line-height: 0.98;
-  word-break: keep-all;
-}
-
-.recommendation-focus-card b {
-  width: fit-content;
-  padding: 6px 8px;
-  background: color-mix(in srgb, var(--text-primary) 8%, transparent);
-  color: var(--text-primary);
-  font-size: 0.76rem;
-  font-weight: 950;
-  border: 1px solid var(--border-light);
-  border-radius: 999px;
-}
-
-.recommendation-focus-card p {
-  margin: 0;
-  color: var(--text-secondary);
-  font-size: 0.8rem;
-  font-weight: 760;
-  line-height: 1.55;
-  word-break: keep-all;
-}
-
-.recommendation-focus-card a {
-  width: fit-content;
-  margin-top: auto;
-  color: var(--accent-blue);
-  font-size: 0.76rem;
-  font-weight: 950;
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
-
 .recommendation-waterfall-panel {
   display: grid;
   grid-template-columns: minmax(300px, 0.66fr) minmax(0, 1.5fr);
@@ -9859,7 +9694,6 @@ h6 {
   .evidence-workbench,
   .evidence-path-workbench,
   .stock-decision-panel,
-  .recommendation-focus-panel,
   .recommendation-waterfall-panel,
   .ai-evidence-brief-panel,
   .intelligence-flow-panel,
@@ -9875,7 +9709,6 @@ h6 {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .recommendation-focus-list,
   .recommendation-waterfall-track {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -10259,8 +10092,6 @@ h6 {
   .theme-instrument-grid,
   .theme-event-grid,
   .theme-guardrail-grid,
-  .recommendation-focus-panel,
-  .recommendation-focus-list,
   .recommendation-waterfall-panel,
   .recommendation-waterfall-track,
   .ai-evidence-brief-panel,
@@ -10297,7 +10128,6 @@ h6 {
     width: 100%;
   }
 
-  .recommendation-focus-metrics,
   .recommendation-waterfall-metrics {
     grid-template-columns: 1fr;
   }

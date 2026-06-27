@@ -175,8 +175,7 @@
 .source-review-panel,
 .source-document-section,
 .thesis-evidence-panel,
-.recommendation-waterfall-panel,
-.recommendation-focus-panel {
+.recommendation-waterfall-panel {
   margin: 0;
   padding: var(--space-12) 0;
   border: 0;
@@ -478,13 +477,12 @@ summary {
   .cycle-lane-board,
   .cycle-state-board,
   .paper-state-panel,
-  .evidence-decision-card,
-  .evidence-trace-panel,
-  .source-review-panel,
-  .source-document-section,
-  .thesis-evidence-panel,
-  .recommendation-waterfall-panel,
-  .recommendation-focus-panel {
+.evidence-decision-card,
+.evidence-trace-panel,
+.source-review-panel,
+.source-document-section,
+.thesis-evidence-panel,
+.recommendation-waterfall-panel {
     padding: var(--space-8) 0;
   }
 
