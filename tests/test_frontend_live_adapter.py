@@ -5780,6 +5780,92 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertIn("2026-06-21", payload["summary"])
         self.assertNotIn("2026-07-19", payload["summary"])
 
+    def test_live_data_health_response_removes_stale_resolved_open_gates(self) -> None:
+        class StaleGateExecutor(FakeLiveExecutor):
+            def execute_scalar(self, sql: str) -> str:
+                payload = json.loads(super().execute_scalar(sql))
+                if sql.startswith("-- frontend data health state lookup"):
+                    payload["open_gates"] = [
+                        "portfolio_review_decision_feedback_attention",
+                        "portfolio_review_feedback_cadence_attention",
+                        "portfolio_review_feedback_action_router_attention",
+                        "recommendation_outcome_calibration_attention",
+                        "recommendation_outcome_due_action_router_attention",
+                    ]
+                return json.dumps(payload)
+
+        payload = resolve_live_frontend_response(
+            "/api/data-health",
+            config=type("Config", (), {"psql_command": "psql"})(),
+            executor=StaleGateExecutor(),
+            generated_at=datetime(2026, 5, 27, tzinfo=timezone.utc),
+        )
+
+        open_gates = set(payload["data"]["open_gates"])
+        self.assertNotIn("portfolio_review_decision_feedback_attention", open_gates)
+        self.assertNotIn("portfolio_review_feedback_cadence_attention", open_gates)
+        self.assertNotIn("portfolio_review_feedback_action_router_attention", open_gates)
+        self.assertNotIn("recommendation_outcome_calibration_attention", open_gates)
+        self.assertNotIn("recommendation_outcome_due_action_router_attention", open_gates)
+
+    def test_live_data_health_response_labels_due_open_gates_without_generic_fallback(self) -> None:
+        class DueGateExecutor(FakeLiveExecutor):
+            def execute_scalar(self, sql: str) -> str:
+                payload = json.loads(super().execute_scalar(sql))
+                if sql.startswith("-- frontend data health state lookup"):
+                    payload["portfolio_review_feedback_cadence"] = {
+                        **payload["portfolio_review_feedback_cadence"],
+                        "cadence_status": "run_feedback_now",
+                        "action_type": "execute_feedback",
+                        "should_run_now": True,
+                        "should_wait": False,
+                        "label": "포트폴리오 검토 feedback을 지금 실행한다.",
+                        "reason": "성과 관찰 기간이 끝난 검토 결정이 있다.",
+                        "command": "stockanalysis-operations portfolio-review-decision-outcome-feedback-run --execute",
+                    }
+                    payload["recommendation_outcome_calibration"] = {
+                        **payload["recommendation_outcome_calibration"],
+                        "status": "backfill_candidates_remain",
+                        "ready_for_backfill_count": 7,
+                        "next_action": "추천 outcome backfill을 실행한다.",
+                    }
+                    payload["recommendation_outcome_maturity"] = {
+                        **payload["recommendation_outcome_maturity"],
+                        "status": "overdue_outcomes_ready",
+                        "as_of_date": "2026-06-28",
+                        "ready_for_backfill_count": 7,
+                        "due_today_count": 2,
+                        "overdue_count": 5,
+                    }
+                    payload["recommendation_outcome_due_action_router"] = {
+                        **payload["recommendation_outcome_due_action_router"],
+                        "action_status": "execute_outcome_calibration_ready",
+                        "route_action": "execute_calibration",
+                        "reason": "성과 산출 가능한 추천 후보가 있다.",
+                        "next_action": "recommendation outcome calibration runner를 실행한다.",
+                    }
+                return json.dumps(payload)
+
+        payload = resolve_live_frontend_response(
+            "/api/data-health",
+            config=type("Config", (), {"psql_command": "psql"})(),
+            executor=DueGateExecutor(),
+            generated_at=datetime(2026, 6, 28, tzinfo=timezone.utc),
+        )
+
+        gate_details = {item["gate_id"]: item for item in payload["data"]["open_gate_details"]}
+        for gate in [
+            "portfolio_review_feedback_cadence_attention",
+            "recommendation_outcome_calibration_attention",
+            "recommendation_outcome_maturity_attention",
+            "recommendation_outcome_due_action_router_attention",
+        ]:
+            self.assertIn(gate, gate_details)
+            self.assertNotEqual(gate_details[gate]["status_label"], "조건 미충족")
+            self.assertNotEqual(gate_details[gate]["summary"], "운영 전제 조건이 아직 닫히지 않았다.")
+            self.assertEqual(gate_details[gate]["category"], "outcome_due")
+            self.assertFalse(gate_details[gate]["automatic_action_allowed"])
+
     def test_live_data_health_response_opens_gate_for_failed_live_codex_invocations(self) -> None:
         class FailingAiExecutor(FakeLiveExecutor):
             def execute_scalar(self, sql: str) -> str:

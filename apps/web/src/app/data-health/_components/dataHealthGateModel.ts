@@ -4,6 +4,9 @@ import { gateSeverityTone } from "./dataHealthCopyModel";
 
 export function gateTriageKey(gate: OpenGateDetail) {
   const text = `${gate.gate_id} ${gate.category} ${gate.label} ${gate.summary} ${gate.next_action}`.toLowerCase();
+  if (gate.category === "outcome_due") {
+    return "due-now";
+  }
   if (text.includes("outcome") || text.includes("성과") || text.includes("wait")) {
     return "managed-wait";
   }
@@ -33,6 +36,14 @@ export const GATE_TRIAGE_BUCKETS: Omit<GateTriageBucket, "gates">[] = [
     description: "서비스 신뢰도를 직접 낮추는 항목이다. 추천 화면을 보기 전에 먼저 닫는다.",
     tone: "risk-high",
     href: "#runtime-boundary",
+  },
+  {
+    key: "due-now",
+    label: "실행 기한",
+    title: "성과·검토 실행 필요",
+    description: "성과창이 열렸거나 사후평가 실행 조건이 충족됐다. 자동 주문 없이 검증 작업만 실행한다.",
+    tone: "risk-medium",
+    href: "#outcome-maturity-wait-monitor",
   },
   {
     key: "managed-wait",
@@ -80,10 +91,14 @@ export function buildGateTriageBuckets(gates: OpenGateDetail[]) {
 
 export function gateTriageSummary(buckets: GateTriageBucket[], rawOpenGateCount: number) {
   const fixNowCount = buckets.find((bucket) => bucket.key === "fix-now")?.gates.length ?? 0;
+  const dueNowCount = buckets.find((bucket) => bucket.key === "due-now")?.gates.length ?? 0;
   const managedWaitCount = buckets.find((bucket) => bucket.key === "managed-wait")?.gates.length ?? 0;
   const sourceLimitCount = buckets.find((bucket) => bucket.key === "source-limit")?.gates.length ?? 0;
   if (fixNowCount > 0) {
     return `즉시 조치 ${fixNowCount}개가 있다. 수집·AI·접근 장애를 먼저 닫아야 한다.`;
+  }
+  if (dueNowCount > 0) {
+    return `성과 실행 기한이 된 항목 ${dueNowCount}개가 있다. 주문 없이 검증·성과 산출 작업만 실행한다.`;
   }
   if (sourceLimitCount > 0) {
     return `열린 항목 ${rawOpenGateCount}개 중 핵심은 원천 한계다. 합성 재무를 만들지 않고 판단 입력에서 차단한 상태다.`;

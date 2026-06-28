@@ -206,6 +206,7 @@ export default async function DataHealthPage() {
   const visibleGateTriageBuckets = gateTriageBuckets.filter((bucket) => bucket.gates.length > 0);
   const gateTriageStatus = gateTriageSummary(gateTriageBuckets, data.open_gates.length);
   const fixNowGateCount = gateTriageBuckets.find((bucket) => bucket.key === "fix-now")?.gates.length ?? 0;
+  const dueNowGateCount = gateTriageBuckets.find((bucket) => bucket.key === "due-now")?.gates.length ?? 0;
   const managedWaitGateCount = gateTriageBuckets.find((bucket) => bucket.key === "managed-wait")?.gates.length ?? 0;
   const sourceLimitGateCount = gateTriageBuckets.find((bucket) => bucket.key === "source-limit")?.gates.length ?? 0;
   const investmentReviewGateCount =
@@ -273,6 +274,8 @@ export default async function DataHealthPage() {
       title:
         fixNowGateCount > 0
           ? `즉시 조치 ${fixNowGateCount}개`
+          : dueNowGateCount > 0
+            ? `성과 실행 ${dueNowGateCount}개`
           : sourceLimitGateCount > 0
             ? `원천 한계 ${sourceLimitGateCount}개 관리`
             : managedWaitGateCount > 0
@@ -283,6 +286,8 @@ export default async function DataHealthPage() {
       body:
         fixNowGateCount > 0
           ? "수집·AI·접근 장애가 있으면 추천 화면보다 먼저 복구해야 한다."
+        : dueNowGateCount > 0
+            ? "성과 측정창이 열렸거나 사후평가 실행 조건이 됐다. 주문 없이 검증 작업만 실행한다."
           : sourceLimitGateCount > 0
             ? "원천 한계는 오류를 숨기는 것이 아니라 합성 데이터를 만들지 않고 판단 입력에서 제외한 상태다."
             : managedWaitGateCount > 0
@@ -292,6 +297,8 @@ export default async function DataHealthPage() {
       href:
         fixNowGateCount > 0
           ? "#open-gate-triage-title"
+          : dueNowGateCount > 0
+            ? "#outcome-maturity-wait-monitor"
           : sourceLimitGateCount > 0
             ? "#professional-source-gaps"
             : managedWaitGateCount > 0
@@ -300,12 +307,18 @@ export default async function DataHealthPage() {
       cta:
         fixNowGateCount > 0
           ? "즉시 조치 보기"
+          : dueNowGateCount > 0
+            ? "성과 실행 보기"
           : sourceLimitGateCount > 0
             ? "원천 한계 보기"
             : managedWaitGateCount > 0
               ? "성과 대기 보기"
               : "실행 이력 보기",
-      tone: fixNowGateCount > 0 ? "block" : sourceLimitGateCount > 0 || managedWaitGateCount > 0 ? "watch" : "ready",
+      tone: fixNowGateCount > 0
+        ? "block"
+        : dueNowGateCount > 0 || sourceLimitGateCount > 0 || managedWaitGateCount > 0
+          ? "watch"
+          : "ready",
     },
     {
       label: "2. 자동 수집",

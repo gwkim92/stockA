@@ -707,9 +707,14 @@ def _build_open_gate_details(
     benchmark_drift_quality: Mapping[str, Any],
     data_operations_artifact_runner: Mapping[str, Any],
     portfolio_review_decision_history: Mapping[str, Any],
+    portfolio_review_decision_feedback: Mapping[str, Any],
     portfolio_review_feedback_calibration: Mapping[str, Any],
+    portfolio_review_feedback_cadence: Mapping[str, Any],
+    portfolio_review_feedback_action_router: Mapping[str, Any],
+    recommendation_outcome_calibration: Mapping[str, Any],
     professional_source_gap_prioritization: Mapping[str, Any],
     recommendation_outcome_maturity: Mapping[str, Any],
+    recommendation_outcome_due_action_router: Mapping[str, Any],
 ) -> list[dict[str, Any]]:
     details: list[dict[str, Any]] = []
     for gate in open_gates:
@@ -967,6 +972,103 @@ def _build_open_gate_details(
                 }
             )
             continue
+        if gate == "portfolio_review_decision_feedback_attention":
+            feedback_status = str(portfolio_review_decision_feedback.get("feedback_status") or "unknown")
+            feedback_status_label = _professional_code_label(feedback_status)
+            decision_count = int(portfolio_review_decision_feedback.get("decision_count") or 0)
+            details.append(
+                {
+                    "gate_id": gate,
+                    "label": "포트폴리오 검토 성과",
+                    "category": "outcome_due",
+                    "category_label": "성과 검증 필요",
+                    "severity": "high" if feedback_status == "has_contradictions" else "medium",
+                    "status_label": "검토 결과 대조 필요",
+                    "summary": f"포트폴리오 검토 결정 {decision_count}개가 성과 대조 상태 {feedback_status_label}로 남아 있다.",
+                    "next_action": str(
+                        portfolio_review_decision_feedback.get("next_action")
+                        or "성과 대조를 실행하고 thesis 유지/수정/축소 판단을 남긴다."
+                    ),
+                    "order_boundary": str(
+                        _as_dict(portfolio_review_decision_feedback.get("guardrails")).get("order_boundary")
+                        or "read_only_no_order"
+                    ),
+                    "automatic_action_allowed": False,
+                }
+            )
+            continue
+        if gate == "portfolio_review_feedback_cadence_attention":
+            cadence_status = str(portfolio_review_feedback_cadence.get("cadence_status") or "unknown")
+            should_run_now = portfolio_review_feedback_cadence.get("should_run_now") is True
+            details.append(
+                {
+                    "gate_id": gate,
+                    "label": "포트폴리오 검토 실행 주기",
+                    "category": "outcome_due" if should_run_now else "outcome_wait",
+                    "category_label": "성과 실행 필요" if should_run_now else "성과 관찰 대기",
+                    "severity": "medium",
+                    "status_label": "성과 사후평가 실행 필요" if should_run_now else "성과 관찰 상태 확인",
+                    "summary": str(
+                        portfolio_review_feedback_cadence.get("reason")
+                        or f"포트폴리오 검토 feedback cadence 상태는 {cadence_status}이다."
+                    ),
+                    "next_action": str(
+                        portfolio_review_feedback_cadence.get("next_action")
+                        or portfolio_review_feedback_cadence.get("label")
+                        or "포트폴리오 검토 사후평가 주기를 실행한다."
+                    ),
+                    "order_boundary": str(portfolio_review_feedback_cadence.get("order_boundary") or "read_only_no_order"),
+                    "automatic_action_allowed": False,
+                }
+            )
+            continue
+        if gate == "portfolio_review_feedback_action_router_attention":
+            action_status = str(portfolio_review_feedback_action_router.get("action_status") or "unknown")
+            details.append(
+                {
+                    "gate_id": gate,
+                    "label": "검토 실행 라우터",
+                    "category": "outcome_due",
+                    "category_label": "성과 실행 필요",
+                    "severity": "high" if action_status.startswith("blocked_") else "medium",
+                    "status_label": "성과 실행 라우터 확인 필요",
+                    "summary": str(
+                        portfolio_review_feedback_action_router.get("reason")
+                        or f"포트폴리오 검토 실행 라우터 상태는 {action_status}이다."
+                    ),
+                    "next_action": str(
+                        portfolio_review_feedback_action_router.get("next_action")
+                        or "라우터 차단 사유를 해소하고 필요한 사후평가/보정 실행 여부를 확인한다."
+                    ),
+                    "order_boundary": str(
+                        portfolio_review_feedback_action_router.get("order_boundary") or "read_only_no_order"
+                    ),
+                    "automatic_action_allowed": False,
+                }
+            )
+            continue
+        if gate == "recommendation_outcome_calibration_attention":
+            status = str(recommendation_outcome_calibration.get("status") or "unknown")
+            ready_count = int(recommendation_outcome_calibration.get("ready_for_backfill_count") or 0)
+            price_gap_count = int(recommendation_outcome_calibration.get("price_gap_count") or 0)
+            details.append(
+                {
+                    "gate_id": gate,
+                    "label": "추천 성과 보정",
+                    "category": "outcome_due",
+                    "category_label": "성과 실행 필요",
+                    "severity": "high" if price_gap_count else "medium",
+                    "status_label": "성과 표본 보강 필요",
+                    "summary": f"추천 성과 calibration 상태는 {status}이며 보강 후보 {ready_count}개가 남아 있다.",
+                    "next_action": str(
+                        recommendation_outcome_calibration.get("next_action")
+                        or "추천 성과 보정을 실행하고 반영 비중 변경은 계속 차단한다."
+                    ),
+                    "order_boundary": str(recommendation_outcome_calibration.get("order_boundary") or "read_only_no_order"),
+                    "automatic_action_allowed": False,
+                }
+            )
+            continue
         if gate == "professional_source_gap_attention":
             source_blockers = int(professional_source_gap_prioritization.get("source_blocker_count") or 0)
             top_score = _number(professional_source_gap_prioritization.get("top_priority_score"))
@@ -996,17 +1098,49 @@ def _build_open_gate_details(
             continue
         if gate == "recommendation_outcome_maturity_attention":
             next_due_date = str(recommendation_outcome_maturity.get("next_due_date") or "")
+            cadence_action = _as_dict(recommendation_outcome_maturity.get("cadence_action"))
+            should_run_now = cadence_action.get("should_run_now") is True
+            overdue_count = int(recommendation_outcome_maturity.get("overdue_count") or 0)
+            price_gap_count = int(recommendation_outcome_maturity.get("price_gap_count") or 0)
             details.append(
                 {
                     "gate_id": gate,
                     "label": "추천 성과 측정창",
-                    "category": "outcome_wait",
-                    "category_label": "성과 관찰 대기",
-                    "severity": "medium",
-                    "status_label": "성과 측정 필요",
+                    "category": "outcome_due" if should_run_now else "outcome_wait",
+                    "category_label": "성과 실행 필요" if should_run_now else "성과 관찰 대기",
+                    "severity": "high" if overdue_count or price_gap_count else "medium",
+                    "status_label": "성과 보정 실행 필요" if should_run_now else "성과 측정 필요",
                     "summary": f"다음 성과 측정일은 {next_due_date or '미정'}이다.",
-                    "next_action": "성과창이 열리면 outcome calibration을 실행하고 그 전에는 weight 변경을 막는다.",
+                    "next_action": str(
+                        cadence_action.get("label")
+                        or "성과창이 열리면 outcome calibration을 실행하고 그 전에는 weight 변경을 막는다."
+                    ),
                     "order_boundary": "read_only_no_order",
+                    "automatic_action_allowed": False,
+                }
+            )
+            continue
+        if gate == "recommendation_outcome_due_action_router_attention":
+            action_status = str(recommendation_outcome_due_action_router.get("action_status") or "unknown")
+            details.append(
+                {
+                    "gate_id": gate,
+                    "label": "추천 성과 실행 라우터",
+                    "category": "outcome_due",
+                    "category_label": "성과 실행 필요",
+                    "severity": "high" if action_status.startswith("blocked_") else "medium",
+                    "status_label": "성과 실행 라우터 확인 필요",
+                    "summary": str(
+                        recommendation_outcome_due_action_router.get("reason")
+                        or f"추천 성과 실행 라우터 상태는 {action_status}이다."
+                    ),
+                    "next_action": str(
+                        recommendation_outcome_due_action_router.get("next_action")
+                        or "추천 outcome due action router를 실행하거나 차단 사유를 해소한다."
+                    ),
+                    "order_boundary": str(
+                        recommendation_outcome_due_action_router.get("order_boundary") or "read_only_no_order"
+                    ),
                     "automatic_action_allowed": False,
                 }
             )
@@ -1115,6 +1249,14 @@ def _benchmark_drift_quality_attention_policy(
         "managed_review_status": "unmanaged_drift_review",
         "managed_review_reason": "큰 벤치마크 괴리가 아직 검토 이력과 안전한 후속 라우터로 관리되지 않는다.",
     }
+
+
+def _set_data_health_open_gate(open_gates: list[str], gate: str, *, enabled: bool) -> list[str]:
+    if enabled:
+        if gate in open_gates:
+            return open_gates
+        return [*open_gates, gate]
+    return [item for item in open_gates if item != gate]
 
 
 def _build_data_operations_artifact_runner_payload(
@@ -1588,109 +1730,105 @@ def build_live_data_health_response(
     professional_recommendation_coverage_audit = _build_professional_recommendation_coverage_audit_payload(
         _as_dict(state.get("professional_recommendation_coverage_audit"))
     )
-    if scheduler_activation["status"] == "pending_manual_approval":
-        gate = "scheduler_activation_manual_approval"
-        if gate not in open_gates:
-            open_gates.append(gate)
-    if cycle_ai_quality_audit["status"] in {"attention_required", "not_ready", "invalid_report", "missing_report"}:
-        gate = "cycle_ai_quality_audit_attention"
-        if gate not in open_gates:
-            open_gates.append(gate)
-    if news_ai_eval_quality["status"] in {"missing", "failed_regression", "not_ready"}:
-        gate = "news_ai_eval_quality_attention"
-        if gate not in open_gates:
-            open_gates.append(gate)
+    gate = "scheduler_activation_manual_approval"
+    open_gates = _set_data_health_open_gate(
+        open_gates,
+        gate,
+        enabled=scheduler_activation["status"] == "pending_manual_approval",
+    )
+    gate = "cycle_ai_quality_audit_attention"
+    open_gates = _set_data_health_open_gate(
+        open_gates,
+        gate,
+        enabled=cycle_ai_quality_audit["status"] in {"attention_required", "not_ready", "invalid_report", "missing_report"},
+    )
+    gate = "news_ai_eval_quality_attention"
+    open_gates = _set_data_health_open_gate(
+        open_gates,
+        gate,
+        enabled=news_ai_eval_quality["status"] in {"missing", "failed_regression", "not_ready"},
+    )
     gate = "live_ai_invocation_health_attention"
-    if live_ai_invocation_health["attention_required"]:
-        if gate not in open_gates:
-            open_gates.append(gate)
-    else:
-        open_gates = [item for item in open_gates if item != gate]
+    open_gates = _set_data_health_open_gate(open_gates, gate, enabled=live_ai_invocation_health["attention_required"])
     gate = "active_recommendation_price_freshness_attention"
-    if active_recommendation_price_freshness["attention_required"]:
-        if gate not in open_gates:
-            open_gates.append(gate)
-    else:
-        open_gates = [item for item in open_gates if item != gate]
+    open_gates = _set_data_health_open_gate(
+        open_gates,
+        gate,
+        enabled=active_recommendation_price_freshness["attention_required"],
+    )
     gate = "production_api_server"
-    if production_api_server["attention_required"]:
-        if gate not in open_gates:
-            open_gates.append(gate)
-    else:
-        open_gates = [item for item in open_gates if item != gate]
+    open_gates = _set_data_health_open_gate(open_gates, gate, enabled=production_api_server["attention_required"])
     gate = "auth_rbac"
-    if auth_rbac["attention_required"]:
-        if gate not in open_gates:
-            open_gates.append(gate)
-    else:
-        open_gates = [item for item in open_gates if item != gate]
+    open_gates = _set_data_health_open_gate(open_gates, gate, enabled=auth_rbac["attention_required"])
     gate = "alert_destination"
-    if alert_destination["attention_required"]:
-        if gate not in open_gates:
-            open_gates.append(gate)
-    else:
-        open_gates = [item for item in open_gates if item != gate]
+    open_gates = _set_data_health_open_gate(open_gates, gate, enabled=alert_destination["attention_required"])
     gate = "data_operations_artifact_runner"
-    if data_operations_artifact_runner["attention_required"]:
-        if gate not in open_gates:
-            open_gates.append(gate)
-    else:
-        open_gates = [item for item in open_gates if item != gate]
+    open_gates = _set_data_health_open_gate(
+        open_gates,
+        gate,
+        enabled=data_operations_artifact_runner["attention_required"],
+    )
     gate = "benchmark_drift_quality_attention"
-    if not benchmark_drift_quality["attention_required"]:
-        open_gates = [item for item in open_gates if item != gate]
-    else:
-        if gate not in open_gates:
-            open_gates.append(gate)
+    open_gates = _set_data_health_open_gate(open_gates, gate, enabled=benchmark_drift_quality["attention_required"])
     gate = "portfolio_review_decision_history_attention"
-    if not portfolio_review_decision_history["attention_required"]:
-        open_gates = [item for item in open_gates if item != gate]
-    else:
-        if gate not in open_gates:
-            open_gates.append(gate)
-    if portfolio_review_decision_feedback["feedback_status"] in {"has_contradictions", "needs_more_data", "missing_history"}:
-        gate = "portfolio_review_decision_feedback_attention"
-        if gate not in open_gates:
-            open_gates.append(gate)
+    open_gates = _set_data_health_open_gate(
+        open_gates,
+        gate,
+        enabled=portfolio_review_decision_history["attention_required"],
+    )
+    gate = "portfolio_review_decision_feedback_attention"
+    open_gates = _set_data_health_open_gate(
+        open_gates,
+        gate,
+        enabled=portfolio_review_decision_feedback["feedback_status"]
+        in {"has_contradictions", "needs_more_data", "missing_history"},
+    )
     gate = "portfolio_review_feedback_calibration_attention"
-    if portfolio_review_feedback_calibration["attention_required"]:
-        if gate not in open_gates:
-            open_gates.append(gate)
-    else:
-        open_gates = [item for item in open_gates if item != gate]
-    if portfolio_review_feedback_cadence["cadence_status"] in {
-        "run_feedback_now",
-        "run_calibration_now",
-        "missing_evidence_review_required",
-    }:
-        gate = "portfolio_review_feedback_cadence_attention"
-        if gate not in open_gates:
-            open_gates.append(gate)
-    if str(portfolio_review_feedback_action_router["action_status"]).startswith("blocked_"):
-        gate = "portfolio_review_feedback_action_router_attention"
-        if gate not in open_gates:
-            open_gates.append(gate)
-    if recommendation_outcome_calibration["status"] in {"missing", "backfill_candidates_remain", "price_history_gaps_remain"}:
-        gate = "recommendation_outcome_calibration_attention"
-        if gate not in open_gates:
-            open_gates.append(gate)
-    if recommendation_outcome_maturity["status"] in {"due_outcomes_ready", "overdue_outcomes_ready", "blocked_by_price_gaps"}:
-        gate = "recommendation_outcome_maturity_attention"
-        if gate not in open_gates:
-            open_gates.append(gate)
-    if recommendation_outcome_due_action_router["action_status"] in {
-        "missing",
-        "execute_outcome_calibration_ready",
-        "blocked_by_price_gaps",
-        "blocked_guardrail_violation",
-    }:
-        gate = "recommendation_outcome_due_action_router_attention"
-        if gate not in open_gates:
-            open_gates.append(gate)
-    if professional_source_gap_prioritization["attention_required"]:
-        gate = "professional_source_gap_attention"
-        if gate not in open_gates:
-            open_gates.append(gate)
+    open_gates = _set_data_health_open_gate(
+        open_gates,
+        gate,
+        enabled=portfolio_review_feedback_calibration["attention_required"],
+    )
+    gate = "portfolio_review_feedback_cadence_attention"
+    open_gates = _set_data_health_open_gate(
+        open_gates,
+        gate,
+        enabled=portfolio_review_feedback_cadence["cadence_status"]
+        in {"run_feedback_now", "run_calibration_now", "missing_evidence_review_required"},
+    )
+    gate = "portfolio_review_feedback_action_router_attention"
+    open_gates = _set_data_health_open_gate(
+        open_gates,
+        gate,
+        enabled=str(portfolio_review_feedback_action_router["action_status"]).startswith("blocked_"),
+    )
+    gate = "recommendation_outcome_calibration_attention"
+    open_gates = _set_data_health_open_gate(
+        open_gates,
+        gate,
+        enabled=recommendation_outcome_calibration["status"]
+        in {"missing", "backfill_candidates_remain", "price_history_gaps_remain"},
+    )
+    gate = "recommendation_outcome_maturity_attention"
+    open_gates = _set_data_health_open_gate(
+        open_gates,
+        gate,
+        enabled=recommendation_outcome_maturity["status"]
+        in {"due_outcomes_ready", "overdue_outcomes_ready", "blocked_by_price_gaps"},
+    )
+    gate = "recommendation_outcome_due_action_router_attention"
+    open_gates = _set_data_health_open_gate(
+        open_gates,
+        gate,
+        enabled=recommendation_outcome_due_action_router["action_status"]
+        in {"missing", "execute_outcome_calibration_ready", "blocked_by_price_gaps", "blocked_guardrail_violation"},
+    )
+    gate = "professional_source_gap_attention"
+    open_gates = _set_data_health_open_gate(
+        open_gates,
+        gate,
+        enabled=professional_source_gap_prioritization["attention_required"],
+    )
     gate = "tossinvest_market_data_attention"
     if (
         _as_dict(tossinvest_market_data.get("sync")).get("attention_required")
@@ -1710,9 +1848,14 @@ def build_live_data_health_response(
         benchmark_drift_quality=benchmark_drift_quality,
         data_operations_artifact_runner=data_operations_artifact_runner,
         portfolio_review_decision_history=portfolio_review_decision_history,
+        portfolio_review_decision_feedback=portfolio_review_decision_feedback,
         portfolio_review_feedback_calibration=portfolio_review_feedback_calibration,
+        portfolio_review_feedback_cadence=portfolio_review_feedback_cadence,
+        portfolio_review_feedback_action_router=portfolio_review_feedback_action_router,
+        recommendation_outcome_calibration=recommendation_outcome_calibration,
         professional_source_gap_prioritization=professional_source_gap_prioritization,
         recommendation_outcome_maturity=recommendation_outcome_maturity,
+        recommendation_outcome_due_action_router=recommendation_outcome_due_action_router,
     )
 
     return {
