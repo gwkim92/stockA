@@ -41,6 +41,11 @@
 - passed: `bash scripts/verify_project_execution_roadmap.sh`
 - passed: `PYTHONPATH=/Users/woody/ai/agent-work-harness/src python3 -m awh verify --repo . --task system-flow-map-and-data-catalog-v1`
 - passed: `git diff --check`
+- passed on EC2: pulled `develop` from `10c55200` to `a3471368` by `git pull --ff-only origin develop`.
+- passed on EC2: `PYTHONPATH=src /opt/stockanalysis/venv/bin/python -m unittest tests.test_frontend_api_adapter -v` (`19 tests`), `compileall`, `npm --prefix apps/web run typecheck`, and `npm --prefix apps/web run build`.
+- passed on EC2: restarted `stockanalysis-frontend-api.service` and `stockanalysis-web.service`; both services are `active` and listening on `127.0.0.1:8787` and `127.0.0.1:3000`.
+- passed on EC2: route smoke returned `200` for `/__ready`, `/`, `/data-health`, `/admin/ai-agents`, `/stocks/AAPL`, and `/stocks/SPY`.
+- observed on EC2: `/api/data-health` returned `overall_status=attention_required` with existing live open gates. This is an operating-data state, not a deployment failure, and this task did not change scoring weights, broker submit, or live data gates.
 
 ## Next Step
 
