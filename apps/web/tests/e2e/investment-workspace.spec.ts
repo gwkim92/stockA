@@ -1,5 +1,5 @@
 import AxeBuilder from "@axe-core/playwright";
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
 const investorRoutes = [
   ["/", "오늘"],
@@ -14,7 +14,9 @@ const investorRoutes = [
 
 const detailRoutes = [
   ["/stocks/AAPL", "AAPL"],
+  ["/stocks/SPY", "SPY"],
   ["/recommendations/AAPL-2024-11-01", "AAPL"],
+  ["/recommendations/AAPL-professional-2026-06-25", "AAPL"],
   ["/ai-evidence/sec-event-aapl-10k-20240928", "근거"],
 ] as const;
 
@@ -29,6 +31,13 @@ const investorInternalCopyPattern =
   /\b(?:pipeline|runner|artifact|fallback|canonical|shadow|missing|not available|wait|read-only|bootstrap-v1|monitor_or_accumulate|needs_thesis_review|missing_thesis|raw_[a-z0-9_]+|[a-z]+_[a-z0-9_]+)\b|CHINA ADR COVERAGE|coverage status|검토 가능|확인한다|봐야 한다|미수집/i;
 const rawStatusCodePattern =
   /\b(?:monitor_or_accumulate|needs_thesis_review|missing_thesis|equity_research|missing_api_key|admin_key_missing)\b|CHINA ADR COVERAGE/i;
+
+async function isSummaryRecommendationRecord(page: Page): Promise<boolean> {
+  const main = page.locator("#main-content");
+  await expect(main).toContainText("추천");
+  const mainText = await main.innerText();
+  return /요약형\s*(?:추천\s*)?기록|최신 전문 분석 항목이 붙기 전 생성된 추천/.test(mainText);
+}
 
 test.describe("professional investment workspace", () => {
   for (const [route, headingText] of investorRoutes) {
@@ -73,8 +82,18 @@ test.describe("professional investment workspace", () => {
     expect(bodyText).not.toMatch(rawStatusCodePattern);
   });
 
-  test("recommendation detail keeps deep evidence collapsed by default", async ({ page }) => {
+  test("summary recommendation record stays compact and links to the right follow-up screens", async ({ page }) => {
     await page.goto("/recommendations/AAPL-2024-11-01");
+    expect(await isSummaryRecommendationRecord(page)).toBe(true);
+    await expect(page.getByRole("region", { name: "AAPL 추천 판단서" })).toBeVisible();
+    await expect(page.locator("#main-content")).toContainText("최신 전문 분석 항목이 붙기 전 생성된 추천");
+    await expect(page.getByRole("link", { name: /종목 리서치/ })).toHaveAttribute("href", "/stocks/AAPL");
+    await expect(page.getByRole("link", { name: /가상 매매/ })).toHaveAttribute("href", "/paper-trading");
+  });
+
+  test("professional recommendation detail keeps deep evidence collapsed by default", async ({ page }) => {
+    await page.goto("/recommendations/AAPL-professional-2026-06-25");
+    expect(await isSummaryRecommendationRecord(page)).toBe(false);
     const disclosures = page.locator(
       [
         "#recommendation-professional-flow",
@@ -93,9 +112,10 @@ test.describe("professional investment workspace", () => {
     await expect(page.locator("#recommendation-evidence-review")).toContainText("펼치기");
   });
 
-  test("recommendation detail top half uses a compact decision board", async ({ page }) => {
-    await page.goto("/recommendations/AAPL-2024-11-01");
+  test("professional recommendation detail top half uses a compact decision board", async ({ page }) => {
+    await page.goto("/recommendations/AAPL-professional-2026-06-25");
     await expect(page.locator(".recommendation-focus-panel")).toHaveCount(0);
+    expect(await isSummaryRecommendationRecord(page)).toBe(false);
     await expect(page.locator('[aria-label="추천 상세 핵심 판단"]')).toBeVisible();
     await expect(page.locator('[aria-label="포지션 요약"]')).toBeVisible();
     await expect(page.locator(".recommendation-waterfall-card").first()).toContainText("다음 확인");

@@ -72,6 +72,45 @@ function priceSourceProviderLabel(value: string | null | undefined) {
   return userFacingStockText(koCode(value));
 }
 
+function priceSourceStatusLabel(value: string | null | undefined) {
+  const normalized = (value ?? "").trim().toLowerCase();
+  if (!normalized || normalized === "missing") {
+    return "가격 데이터 대기";
+  }
+  if (normalized === "fresh" || normalized === "available" || normalized === "succeeded" || normalized === "ok") {
+    return "사용 가능";
+  }
+  if (normalized === "stale") {
+    return "최신성 주의";
+  }
+  return userFacingStockText(koCode(value));
+}
+
+function brokerRealityStatusLabel(data: StockDetailData) {
+  if (data.toss_provider_evidence.status === "available" || data.toss_provider_evidence.used_for_account) {
+    return "토스증권 기준 수집됨";
+  }
+  const brokerStatus = data.market_data_provider.broker_price_source.status;
+  if (brokerStatus && brokerStatus !== "missing") {
+    return priceSourceStatusLabel(brokerStatus);
+  }
+  return "토스증권 데이터 대기";
+}
+
+function brokerRealityContextLabel(data: StockDetailData) {
+  const evidence = data.toss_provider_evidence;
+  if (evidence.used_for_scoring) {
+    return "추천 점수에 반영 중";
+  }
+  if (evidence.used_for_account) {
+    return "계좌·보유·가상 매매 검증 참고, 추천 점수 미반영";
+  }
+  if (evidence.status === "available") {
+    return "가격 기준 차이를 검증 중이며 추천 점수에는 반영하지 않습니다";
+  }
+  return "실제 증권사 기준 데이터가 들어오면 브로커 현실 확인에 사용합니다";
+}
+
 function recommendationHref(recommendationId: string) {
   return `/recommendations/${recommendationId}` as Route;
 }
@@ -148,6 +187,11 @@ export default async function StockDetailPage({ params }: StockDetailPageProps) 
   const stockViewModel = buildStockViewModel(data);
   const stockPriceLabel = hasPriceData ? formatCurrency(data.latest_price.close, data.currency_code) : "가격 없음";
   const stockPriceSourceLabel = `분석 기준 가격 · ${priceSourceProviderLabel(data.market_data_provider.analysis_price_source.provider)}`;
+  const analysisPriceStatusLabel = priceSourceStatusLabel(
+    data.market_data_provider.analysis_price_source.freshness_status || data.market_data_provider.freshness_status,
+  );
+  const brokerStatusLabel = brokerRealityStatusLabel(data);
+  const brokerContextLabel = brokerRealityContextLabel(data);
   const positionQuantityLabel = portfolioQuantity === null ? "수량 없음" : `수량 ${formatNumber(portfolioQuantity)}`;
   const positionAverageCostLabel = portfolioAverageCost === null ? "평단 대기" : formatCurrency(portfolioAverageCost, data.currency_code);
   const positionUnrealizedPnlLabel =
@@ -172,6 +216,9 @@ export default async function StockDetailPage({ params }: StockDetailPageProps) 
         linkedThesisHref={linkedThesisId ? thesisHref(linkedThesisId) : null}
         viewModel={stockViewModel}
         price={{
+          analysisStatusLabel: analysisPriceStatusLabel,
+          brokerContextLabel,
+          brokerStatusLabel,
           priceLabel: stockPriceLabel,
           changePct: latestChangePct,
           priceSourceLabel: stockPriceSourceLabel,

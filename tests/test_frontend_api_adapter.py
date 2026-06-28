@@ -63,6 +63,20 @@ class FrontendApiAdapterTests(unittest.TestCase):
         self.assertEqual(detail["data"]["symbol"], "AAPL")
         self.assertEqual(detail["data"]["price_bars"][-1]["close"], 300.23)
 
+    def test_resolve_frontend_response_returns_fixture_only_visual_qa_examples(self) -> None:
+        endpoints = list_frontend_endpoints()
+        public_paths = {endpoint.path for endpoint in endpoints}
+
+        spy = resolve_frontend_response("/api/stocks/SPY")
+        professional = resolve_frontend_response("/api/recommendations/AAPL-professional-2026-06-25")
+
+        self.assertNotIn("/api/stocks/SPY", public_paths)
+        self.assertNotIn("/api/recommendations/AAPL-professional-2026-06-25", public_paths)
+        self.assertEqual(spy["data"]["symbol"], "SPY")
+        self.assertEqual(spy["data"]["fund_instrument_analysis"]["status"], "available")
+        self.assertEqual(professional["data"]["recommendation_id"], "AAPL-professional-2026-06-25")
+        self.assertEqual(professional["data"]["position_context"]["status"], "held")
+
     def test_resolve_frontend_response_returns_paper_trading_preview_example(self) -> None:
         payload = resolve_frontend_response("/api/paper-trading/preview")
 

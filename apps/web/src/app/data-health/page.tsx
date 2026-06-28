@@ -23,6 +23,12 @@ import { buildOperationsViewModel } from "@/lib/presentation";
 import type { DataHealthData } from "@/lib/types";
 
 import { DataHealthAiFallbackWarning } from "./_components/DataHealthAiFallbackWarning";
+import { DataHealthDataGapScorecards } from "./_components/DataHealthDataGapScorecards";
+import {
+  buildDataHealthDataGapCards,
+  buildDataHealthDecisionFlowCards,
+} from "./_components/DataHealthDecisionFlowModel";
+import { DataHealthDecisionFlowStatus } from "./_components/DataHealthDecisionFlowStatus";
 import {
   DataHealthDetailDecisionCardsSection,
   type DataHealthDetailDecisionCard,
@@ -228,6 +234,17 @@ export default async function DataHealthPage() {
     data,
     "portfolio-remediation-daily",
     "portfolio_remediation_daily_automation",
+  );
+  const crossAssetRun = findPipelineRun(data, "cross-asset-regime-daily", "cross_asset_regime_snapshot");
+  const crossAssetIndicatorRun = findPipelineRun(
+    data,
+    "cross-asset-indicator-ingest-daily",
+    "cross_asset_indicator_ingest",
+  );
+  const recommendationOutcomeRun = findPipelineRun(
+    data,
+    "recommendation-outcome-backfill-daily",
+    "performance_outcome_schedule_bootstrap",
   );
   const tossMarketData = data.tossinvest_market_data;
   const budgetUsage =
@@ -767,6 +784,34 @@ export default async function DataHealthPage() {
     `호출 예산 ${providerBudget.remaining_request_count}/${providerBudget.daily_budget}`,
     `실거래 상태 ${koCode(outcomeWaitMonitor.order_boundary)}`,
   ];
+  const decisionFlowCards = buildDataHealthDecisionFlowCards({
+    aiAttentionRequired: liveAiInvocationHealth.attention_required,
+    aiInvocationLabel: liveAiInvocationTitle(liveAiInvocationHealth),
+    crossAssetHealthOk: crossAssetRun?.health_status === "ok",
+    crossAssetIndicatorRunLabel: runStateLabel(crossAssetIndicatorRun),
+    crossAssetRunLabel: runStateLabel(crossAssetRun),
+    dataQualityReady,
+    decisionRunLabel: runStateLabel(decisionRun),
+    latestPriceDateLabel: activeRecommendationPriceFreshness.global_latest_trade_date || "미확인",
+    manualWeightReviewAllowed: outcomeWaitMonitor.manual_weight_review_allowed,
+    marketPriceRunLabel: runStateLabel(marketPriceRun),
+    newsRunLabel: runStateLabel(newsRun),
+    nextRecommendationDueDateLabel: outcomeMaturity.next_due_date || "미확인",
+    outcomeWeightReviewBlocked: outcomeWaitMonitor.weight_review_blocked,
+    priceAttentionRequired: activeRecommendationPriceFreshness.attention_required,
+    recommendationOutcomeRunLabel: runStateLabel(recommendationOutcomeRun),
+    remediationRunLabel: runStateLabel(remediationRun),
+    safeInvestmentBoundary,
+    tossAttentionRequired: tossMarketData.sync.attention_required,
+    tossBrokerSubmitAllowed: tossMarketData.sync.broker_submit_allowed,
+    tossComparisonLabel: koCode(tossMarketData.provider_comparison.status),
+    tossSyncLabel: koCode(tossMarketData.sync.status),
+  });
+  const dataGapCards = buildDataHealthDataGapCards({
+    crossAssetHealthOk: crossAssetRun?.health_status === "ok",
+    fundSourceGapCount: professionalSourceGaps.fund_source_gap_count,
+    tossAttentionRequired: tossMarketData.sync.attention_required,
+  });
   const triageOverviewBuckets: DataHealthTriageBucket[] = visibleGateTriageBuckets.map((bucket) => ({
     description: bucket.description,
     gates: bucket.gates.map((gate) => ({
@@ -1042,6 +1087,8 @@ export default async function DataHealthPage() {
           },
         ]}
       />
+      <DataHealthDecisionFlowStatus cards={decisionFlowCards} />
+      <DataHealthDataGapScorecards cards={dataGapCards} />
       <DataHealthOverview
         asOfDate={data.as_of_date}
         collectionCards={overviewCollectionCards}

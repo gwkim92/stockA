@@ -215,6 +215,21 @@ function AgentCard({ agent }: { agent: Agent }) {
             {agent.model_policy.max_requests_per_run}회/run · {formatUsdCap(agent.model_policy.daily_usd_cap)}
           </dd>
         </div>
+        <div>
+          <dt>최근 실행</dt>
+          <dd>{adminCopy(koCode(agent.runtime_status.last_run_status || agent.runtime_status.status))}</dd>
+        </div>
+        <div>
+          <dt>최근 경로</dt>
+          <dd>
+            {providerLabel(agent.runtime_status.latest_provider || agent.model_policy.primary_provider)}
+            {agent.runtime_status.latest_model ? ` · ${agent.runtime_status.latest_model}` : ""}
+          </dd>
+        </div>
+        <div>
+          <dt>최근 오류</dt>
+          <dd>{agent.runtime_status.latest_error_code ? adminCopy(koCode(agent.runtime_status.latest_error_code)) : "없음"}</dd>
+        </div>
       </dl>
       <b>
         {agent.safety_boundary.can_trigger_order
@@ -242,6 +257,10 @@ export default async function AiAgentAdminPage() {
     groups[key] = [...(groups[key] ?? []), agent];
     return groups;
   }, {});
+  const schemaCount = new Set(data.agents.map((agent) => agent.output_schema_name).filter(Boolean)).size;
+  const promptVersionCount = new Set(data.agents.map((agent) => agent.prompt_version).filter(Boolean)).size;
+  const recentRuntimeCount = data.agents.filter((agent) => agent.runtime_status.last_run_at).length;
+  const latestErrorCount = data.agents.filter((agent) => agent.runtime_status.latest_error_code).length;
 
   return (
     <div className="terminal-page">
@@ -373,6 +392,46 @@ export default async function AiAgentAdminPage() {
               <p>{copy}</p>
             </div>
           ))}
+        </div>
+      </section>
+
+      <section className="decision-brief" aria-label="AI prompt and evaluation governance">
+        <div className="decision-brief-main">
+          <span className="decision-brief-kicker">프롬프트·평가 운영</span>
+          <h2 className="decision-brief-title">프롬프트는 문장 감각이 아니라 평가 기준으로 관리합니다</h2>
+          <p className="decision-brief-copy">
+            각 에이전트는 프롬프트 버전, 출력 스키마, 제공 경로, 요청 한도, 최근 실행 상태를 가집니다.
+            뉴스 AI 품질은 구조화 성공률, 근거 없는 종목 차단, 알 수 없는 테마 차단, 한국어 번역 준비도, 비용·지연 상태로
+            운영 콘솔에서 추적합니다.
+          </p>
+          <div className="decision-brief-meta">
+            <span>프롬프트 버전 {promptVersionCount}개</span>
+            <span>출력 스키마 {schemaCount}개</span>
+            <span>최근 실행 기록 {recentRuntimeCount}/{activeAgentCount}개</span>
+            <span>최근 오류 {latestErrorCount}개</span>
+          </div>
+        </div>
+        <div className="decision-brief-grid">
+          <div className={latestErrorCount > 0 ? "decision-card is-watch" : "decision-card is-good"}>
+            <span>최근 실행 상태</span>
+            <strong>{latestErrorCount > 0 ? "오류 기록 확인" : "중대한 오류 없음"}</strong>
+            <small>각 에이전트 카드에서 최근 제공 경로, 모델, 오류 코드를 확인할 수 있다.</small>
+          </div>
+          <div className="decision-card is-good">
+            <span>출력 스키마</span>
+            <strong>{schemaCount.toLocaleString("ko-KR")}개</strong>
+            <small>AI 자유문장을 바로 쓰지 않고 구조화 결과와 validator를 거친다.</small>
+          </div>
+          <div className="decision-card is-watch">
+            <span>평가 기준</span>
+            <strong>뉴스·리서치 회귀평가</strong>
+            <small>평가 결과와 실제 호출 상태는 데이터 상태 화면의 AI 품질 섹션과 함께 본다.</small>
+          </div>
+          <div className="decision-card is-good">
+            <span>실행 경계</span>
+            <strong>{data.runtime_policy.batch_invocation_only ? "배치 전용" : "경계 확인"}</strong>
+            <small>화면 요청 중 실시간 AI 호출은 하지 않는다. 주문 제출도 계속 차단된다.</small>
+          </div>
         </div>
       </section>
 

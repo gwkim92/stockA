@@ -1,0 +1,241 @@
+{
+  "contract_version": "frontend-api-v0.1",
+  "generated_at": "2026-06-28T00:00:00Z",
+  "data": {
+    "symbol": "SPY",
+    "name": "SPDR S&P 500 ETF Trust",
+    "instrument_id": "instrument-spy",
+    "market_code": "US",
+    "currency_code": "USD",
+    "as_of_date": "2026-06-25",
+    "latest_price": {
+      "trade_date": "2026-06-25",
+      "open": 612.1,
+      "high": 617.4,
+      "low": 610.8,
+      "close": 616.25,
+      "adjusted_close": 616.25,
+      "volume": 72123000,
+      "change_pct": 0.0068
+    },
+    "summary": {
+      "bar_count": 4,
+      "first_trade_date": "2026-06-20",
+      "last_trade_date": "2026-06-25",
+      "low_close": 604.9,
+      "high_close": 616.25,
+      "return_pct": 0.0188
+    },
+    "price_bars": [
+      {
+        "trade_date": "2026-06-20",
+        "open": 601.4,
+        "high": 607.2,
+        "low": 600.7,
+        "close": 604.9,
+        "adjusted_close": 604.9,
+        "volume": 80600000
+      },
+      {
+        "trade_date": "2026-06-23",
+        "open": 606.2,
+        "high": 611.6,
+        "low": 605.5,
+        "close": 610.4,
+        "adjusted_close": 610.4,
+        "volume": 77500000
+      },
+      {
+        "trade_date": "2026-06-24",
+        "open": 611.0,
+        "high": 613.2,
+        "low": 608.9,
+        "close": 612.1,
+        "adjusted_close": 612.1,
+        "volume": 74100000
+      },
+      {
+        "trade_date": "2026-06-25",
+        "open": 612.1,
+        "high": 617.4,
+        "low": 610.8,
+        "close": 616.25,
+        "adjusted_close": 616.25,
+        "volume": 72123000
+      }
+    ],
+    "market_data_provider": {
+      "canonical_provider": "twelve_data",
+      "provider_source_run_id": "pipeline-run-fixture-spy",
+      "latest_trade_date": "2026-06-25",
+      "freshness_status": "fresh",
+      "toss_shadow_status": "available",
+      "toss_shadow_reason": "broker_reference_collected",
+      "canonical_promotion_allowed": false,
+      "order_boundary": "read_only_no_order"
+    },
+    "toss_provider_evidence": {
+      "status": "available",
+      "status_label": "토스증권 가격 수집됨",
+      "source_role": "broker_reference",
+      "source_role_label": "토스증권 브로커 데이터",
+      "used_for_scoring": false,
+      "used_for_account": true,
+      "used_for_execution": false,
+      "latest_trade_date": "2026-06-25",
+      "latest_close": 616.1,
+      "latest_adjusted_close": 616.1,
+      "latest_volume": 340120,
+      "source_run_id": "toss-fixture-spy",
+      "observed_at": "2026-06-25T21:10:00Z",
+      "price_basis_note": "토스증권에서 실제 투자자가 보는 브로커 참고 가격이다. 추천 점수에는 반영하지 않는다.",
+      "comparison": {
+        "status": "matched",
+        "status_label": "분석 기준 가격과 큰 차이 없음",
+        "reason": "basis_aligned",
+        "reason_label": "가격 기준 차이 없음",
+        "comparison_basis_label": "분석 기준 가격과 토스증권 브로커 가격 비교",
+        "comparison_date": "2026-06-25",
+        "canonical_provider": "twelve_data",
+        "analysis_provider": "twelve_data",
+        "compared_provider": "tossinvest",
+        "broker_provider": "tossinvest",
+        "matched_bar_count": 4,
+        "missing_canonical_count": 0,
+        "missing_compared_count": 0,
+        "max_close_diff_bps": 3.0,
+        "median_close_diff_bps": 1.5
+      }
+    },
+    "freshness_status": "fresh",
+    "recommendation": null,
+    "position": {
+      "portfolio_name": "Long Term Paper",
+      "snapshot_date": "2026-06-25",
+      "quantity": 4,
+      "weight": 0.12,
+      "market_price": 616.25,
+      "market_value": 2465.0,
+      "linked_thesis_id": null
+    },
+    "fund_instrument_analysis": {
+      "status": "available",
+      "analysis_type": "fund_or_etf",
+      "symbol": "SPY",
+      "summary": "SPY는 개별 회사가 아니라 S&P 500 지수를 추적하는 ETF이므로 구성종목, 비용률, NAV 괴리, 유동성, 추적 품질로 판단한다.",
+      "benchmark_code": "SPX",
+      "benchmark_source": "ssga_spdr_spy_daily_holdings",
+      "source_type": "official_fund_provider",
+      "source_as_of_date": "2026-06-25",
+      "holding_count": 503,
+      "holdings_coverage_weight": 0.998,
+      "average_holding_confidence": 0.98,
+      "top_holdings": [
+        {
+          "symbol": "NVDA",
+          "name": "NVIDIA Corporation",
+          "target_weight": 0.071,
+          "confidence": 0.99,
+          "rationale": "S&P 500 내 대형 기술 비중을 대표한다."
+        },
+        {
+          "symbol": "AAPL",
+          "name": "Apple Inc.",
+          "target_weight": 0.064,
+          "confidence": 0.99,
+          "rationale": "지수 상위 구성종목이다."
+        },
+        {
+          "symbol": "MSFT",
+          "name": "Microsoft Corporation",
+          "target_weight": 0.061,
+          "confidence": 0.99,
+          "rationale": "지수 상위 구성종목이다."
+        }
+      ],
+      "portfolio_role": {
+        "portfolio_name": "Long Term Paper",
+        "current_weight": 0.12,
+        "recommended_weight": null,
+        "role": "core_index_exposure",
+        "rationale": "미국 대형주 시장 베타를 확인하는 핵심 ETF 노출이다."
+      },
+      "tracking_error": {
+        "status": "tracking_difference_collected",
+        "value": null,
+        "metric_type": "tracking_difference",
+        "tracking_difference_value": -0.0021,
+        "source_name": "ssga_spdr_product_page",
+        "source_as_of_date": "2026-04-30",
+        "source_url": "https://www.ssga.com/",
+        "measurement_window": "1 Year",
+        "measurement_basis": "fund_nav_return_vs_benchmark_return",
+        "benchmark_name": "S&P 500 Index",
+        "fund_return": 0.3084,
+        "benchmark_return": 0.3105,
+        "summary": "최근 1년 NAV 수익률은 벤치마크보다 0.21%p 낮다."
+      },
+      "expense_ratio": {
+        "status": "collected",
+        "value": 0.000945,
+        "source_name": "ssga_spdr_product_page",
+        "source_as_of_date": "2026-05-26",
+        "source_url": "https://www.ssga.com/",
+        "summary": "총보수는 0.0945% 수준이다."
+      },
+      "liquidity": {
+        "status": "collected",
+        "source_name": "market.daily_price_bar",
+        "source_as_of_date": "2026-06-25",
+        "observation_count": 100,
+        "latest_volume": 72123000,
+        "average_daily_volume": 76000000,
+        "average_daily_dollar_volume": 46835000000,
+        "summary": "거래대금과 거래량이 충분한 대형 ETF다."
+      },
+      "nav_premium_discount": {
+        "status": "collected",
+        "nav_per_share": 616.12,
+        "nav_as_of_date": "2026-06-25",
+        "bid_ask_midpoint": 616.2,
+        "closing_price": 616.25,
+        "market_price_as_of_date": "2026-06-25",
+        "premium_discount_to_nav": 0.0002,
+        "premium_discount_as_of_date": "2026-06-25",
+        "source_name": "ssga_spdr_product_page",
+        "source_url": "https://www.ssga.com/",
+        "summary": "NAV 대비 괴리는 미미하다."
+      },
+      "limitations": [
+        "무료 공식 원천 기준의 예시 fixture이며 실제 최신 보유 구성은 운영 수집 결과를 우선한다."
+      ],
+      "score_policy": "recommendation_weights_unchanged",
+      "automatic_order_allowed": false,
+      "broker_submit_allowed": false,
+      "order_boundary": "read_only_no_order"
+    },
+    "professional_source_guardrail": {
+      "status": "fund_or_etf_company_model_not_applicable",
+      "blocked": false,
+      "professional_decision_use_allowed": true,
+      "paper_validation_input_allowed": false,
+      "blocker_code": "fund_company_financial_model_not_applicable",
+      "blocker_label": "ETF는 회사 재무제표 모델 대상이 아님",
+      "source_data_blocker": null,
+      "summary": "ETF는 개별 회사 재무제표 대신 구성종목과 추적 품질로 판단한다.",
+      "next_action": "ETF 구성종목, 비용률, NAV 괴리, 유동성, 추적 품질을 확인한다.",
+      "score_policy": "recommendation_weights_unchanged",
+      "automatic_order_allowed": false,
+      "broker_submit_allowed": false,
+      "order_boundary": "read_only_no_order"
+    },
+    "market_correlations": [],
+    "macro_flow_impacts": [],
+    "recent_events": []
+  },
+  "links": {
+    "stocks": "/api/stocks",
+    "data_health": "/api/data-health",
+    "portfolio": "/api/portfolio/Long%20Term%20Paper/coverage?asOfDate=2026-06-25"
+  }
+}

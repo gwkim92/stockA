@@ -15,8 +15,8 @@ function formatQuantity(value: number | null) {
   }).format(value);
 }
 
-function formatPercent(value: number | null) {
-  if (value === null) {
+function formatPercent(value: number | null | undefined) {
+  if (value === null || value === undefined || !Number.isFinite(value)) {
     return "미측정";
   }
   return new Intl.NumberFormat("ko-KR", {
@@ -26,8 +26,8 @@ function formatPercent(value: number | null) {
   }).format(value);
 }
 
-function formatWeightPercent(value: number | null) {
-  if (value === null) {
+function formatWeightPercent(value: number | null | undefined) {
+  if (value === null || value === undefined || !Number.isFinite(value)) {
     return "미측정";
   }
   return new Intl.NumberFormat("ko-KR", {
@@ -109,6 +109,16 @@ function positionTone(status: string) {
 
 function hasOpenPosition(position: RecommendationPositionReference) {
   return position.status === "held" && position.quantity !== null && position.quantity !== 0;
+}
+
+function positionSummary(symbol: string, position: RecommendationPositionReference) {
+  if (position.status === "held") {
+    return `${symbol}은 이미 보유 중입니다. 평단가, 현재가, 평가손익을 추천 판단과 함께 봅니다.`;
+  }
+  if (position.status === "not_held") {
+    return `${symbol}은 현재 보유하지 않습니다. 신규 편입 후보인지와 필요한 안전 조건을 먼저 봅니다.`;
+  }
+  return `${symbol} 포지션 상태가 명확하지 않습니다. 보유 원장과 가상 매매 상태를 함께 대조합니다.`;
 }
 
 function holdingCurrencyValue(
@@ -200,7 +210,7 @@ export function RecommendationPositionReality({ data }: RecommendationPositionRe
         <h2 id="recommendation-position-reality-title">
           {data.symbol} · {positionStatusLabel(position.status)}
         </h2>
-        <p>{position.summary.replaceAll("UNKNOWN", data.symbol)}</p>
+        <p>{positionSummary(data.symbol, position)}</p>
         <div className={styles.actions}>
           <Link href="/portfolio/coverage">보유 현황 보기</Link>
           <Link href="/paper-trading">가상 매매 상태</Link>

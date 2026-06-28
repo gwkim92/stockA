@@ -7,6 +7,9 @@ import type { InvestmentViewModel, StockProductKind } from "@/lib/presentation";
 import styles from "./StockResearchHeader.module.css";
 
 type StockHeaderPrice = {
+  readonly analysisStatusLabel: string;
+  readonly brokerContextLabel: string;
+  readonly brokerStatusLabel: string;
   readonly priceLabel: string;
   readonly changePct: number | null;
   readonly priceSourceLabel: string;
@@ -146,11 +149,21 @@ export function StockResearchHeader({
             <strong>{recommendation.label}</strong>
             <small>{recommendation.context}</small>
           </article>
+          <article className={styles.metric}>
+            <span>분석 기준 가격 상태</span>
+            <strong>{price.analysisStatusLabel}</strong>
+            <small>차트, 사이클, 성과, 추천 점수의 기준 데이터</small>
+          </article>
+          <article className={styles.metric}>
+            <span>토스증권 브로커 현실</span>
+            <strong>{price.brokerStatusLabel}</strong>
+            <small>{price.brokerContextLabel}</small>
+          </article>
         </div>
       </div>
 
       <nav className={styles.map} aria-label={`${symbol} 종목 상세 읽는 순서`}>
-        <h2 className={styles.mapTitle}>이 종목에서 먼저 볼 것</h2>
+        <h2 className={styles.mapTitle}>이 종목의 판단 순서</h2>
         <Link className={recommendationCardClass} href={recommendationHref}>
           <span>1. 추천 연결</span>
           <strong>{recommendation.label}</strong>
@@ -165,8 +178,10 @@ export function StockResearchHeader({
         </Link>
         <a className={styles.mapCardPrimary} href="#stock-price-data">
           <span>3. 가격 출처</span>
-          <strong>{price.priceLabel}</strong>
-          <small>분석 기준 가격과 토스증권 브로커 데이터를 역할별로 분리한다.</small>
+          <strong>{price.analysisStatusLabel}</strong>
+          <small>
+            분석 기준 가격은 점수·성과에 쓰고, 토스증권 가격은 브로커 현실과 실행 가능성 검증에 사용합니다.
+          </small>
         </a>
         <a className={productKind === "fund_or_etf" ? styles.mapCardReady : styles.mapCard} href={productEvidenceHref(productKind)}>
           <span>4. {productEvidenceTitle(productKind)}</span>

@@ -90,6 +90,12 @@ def resolve_frontend_response(
             return _resolve_live_frontend_response(api_path, config=config, executor=executor)
 
         root = repo_root or resolve_repo_root()
+        direct_example_path = _fixture_direct_example_path(api_path)
+        if direct_example_path is not None:
+            with (root / direct_example_path).open("r", encoding="utf-8") as handle:
+                payload = json.load(handle)
+            return apply_frontend_pagination(api_path, payload)
+
         canonical_path = canonical_frontend_path_for_pagination(api_path)
         candidate_paths = [api_path]
         if canonical_path not in candidate_paths:
@@ -139,6 +145,15 @@ def _fixture_alias_path(api_path: str) -> str | None:
         and query.get("measurementEndDate")
     ):
         return "/api/performance/Long%20Term%20Paper/outcomes?measurementEndDate=2024-12-02"
+    return None
+
+
+def _fixture_direct_example_path(api_path: str) -> Path | None:
+    parsed = urlsplit(api_path)
+    if parsed.path == "/api/stocks/SPY":
+        return Path("docs/api/frontend/examples/stock-detail-spy.json")
+    if parsed.path == "/api/recommendations/AAPL-professional-2026-06-25":
+        return Path("docs/api/frontend/examples/recommendation-detail-professional.json")
     return None
 
 
