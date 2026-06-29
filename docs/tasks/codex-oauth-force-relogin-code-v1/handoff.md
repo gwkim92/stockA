@@ -2,7 +2,7 @@
 
 ## Current Status
 
-- status: implementation verified locally; commit/deploy/browser confirmation pending.
+- status: completed; deployed to EC2 and browser-confirmed.
 - completed: browser reproduction showed `새 로그인 코드 받기` calls the action but backend returns existing `healthy` status without a code.
 - completed: added regression coverage for explicit relogin from healthy Codex OAuth state.
 - completed: fixed backend relogin behavior so explicit relogin starts a fresh device-auth flow instead of returning existing healthy state.
@@ -16,7 +16,21 @@
   - `cd apps/web && npm run typecheck`
   - `cd apps/web && npm run build`
   - `bash scripts/verify_frontend_api_contract.sh`
+- commit: `9b2e78a1 fix(frontend): force codex oauth relogin code issuance`
+- EC2 deploy:
+  - `git pull --ff-only origin develop` fast-forwarded to `9b2e78a1`.
+  - `cd apps/web && npm run typecheck`
+  - `cd apps/web && npm run build`
+  - restarted `stockanalysis-frontend-api.service` and `stockanalysis-web.service`.
+  - `stockanalysis-frontend-api.service` active; `stockanalysis-web.service` active.
+  - `http://127.0.0.1:8787/__health` returned `200`.
+  - `http://127.0.0.1:3000/admin/ai-agents` returned `200`.
+- browser QA:
+  - route: `http://127.0.0.1:13000/admin/ai-agents`.
+  - clicked `새 로그인 코드 받기`.
+  - confirmed page shows `코드 입력 대기`, `브라우저에 입력할 코드`, and a fresh user code.
+  - screenshot artifact: `/tmp/codex-oauth-relogin-after-fix.png` (not committed).
 
 ## Exact Next Step
 
-- exact next step: commit, push `develop`, deploy to EC2, and confirm `/admin/ai-agents` displays a fresh code after clicking `새 로그인 코드 받기`.
+- exact next step: user should open the auth page from `/admin/ai-agents`, enter the displayed code, then click `로그인 확인` and `AI 응답 확인`.
