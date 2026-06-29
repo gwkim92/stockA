@@ -200,6 +200,68 @@ class CodexOauthOperatorTests(unittest.TestCase):
         self.assertEqual(events[-2]["event_type"], "logout_before_device_auth")
         self.assertEqual(events[-1]["event_type"], "device_auth_started")
 
+    def test_relogin_start_forces_new_device_code_when_existing_status_is_healthy(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            status_path = Path(tmpdir) / "status.json"
+            status_path.write_text(
+                json.dumps(
+                    {
+                        "updated_at": "2026-06-20T05:00:00Z",
+                        "events": [
+                            {
+                                "event_type": "direct_smoke",
+                                "status": "succeeded",
+                                "finished_at": "2026-06-20T05:00:00Z",
+                                "message": "Codex OAuth smoke succeeded.",
+                            }
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            class FakeProcess:
+                pid = 5252
+                stdout = None
+                stderr = None
+
+            def fake_popen(*args, **kwargs):
+                return FakeProcess()
+
+            with patch.dict("os.environ", {STATUS_PATH_ENV: str(status_path)}, clear=False):
+                with patch(
+                    "stockanalysis.frontend.codex_oauth_operator._probe_codex_login_status",
+                    return_value={
+                        "status": "logged_in",
+                        "checked_at": "2026-06-20T05:01:00Z",
+                        "message": "Logged in using ChatGPT",
+                    },
+                ):
+                    with patch(
+                        "stockanalysis.frontend.codex_oauth_operator._logout_codex_session",
+                        return_value={
+                            "event_type": "logout_before_device_auth",
+                            "status": "succeeded",
+                            "started_at": "2026-06-20T05:01:00Z",
+                            "finished_at": "2026-06-20T05:01:00Z",
+                            "message": "기존 Codex 세션을 정리했다.",
+                        },
+                    ):
+                        with patch(
+                            "stockanalysis.frontend.codex_oauth_operator._collect_process_output",
+                            return_value={
+                                "stdout": "Open https://auth.openai.com/codex/device and enter FR3S-HC0D3",
+                                "stderr": "",
+                            },
+                        ):
+                            status = start_codex_oauth_device_login(repo_root=tmpdir, popen_factory=fake_popen)
+                            events = json.loads(status_path.read_text(encoding="utf-8"))["events"]
+
+        self.assertEqual(status["status"], "device_auth_pending")
+        self.assertEqual(status["user_code"], "FR3S-HC0D3")
+        self.assertEqual(events[-2]["event_type"], "logout_before_device_auth")
+        self.assertEqual(events[-1]["event_type"], "device_auth_started")
+
     def test_auth_invalid_smoke_overrides_misleading_logged_in_probe(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             status_path = Path(tmpdir) / "status.json"

@@ -73,8 +73,6 @@ def start_codex_oauth_device_login(
     status_path = _status_path(repo_root=repo_root)
     existing = _read_status_payload(status_path)
     existing_status = load_codex_oauth_operator_status(repo_root=repo_root, now=current_now)
-    if existing_status["status"] in {"healthy", "authenticated_smoke_required"}:
-        return existing_status
 
     working_payload = existing
     if existing_status["status"] != "unknown":
@@ -420,12 +418,12 @@ def _public_status(
         status = "relogin_required"
     elif _status_from_event(latest_event, now=now) == "news_smoke_running":
         status = "news_smoke_running"
+    elif _status_from_event(latest_event, now=now) in {"device_auth_pending", "device_code_expired"} and probe_status != "logged_in":
+        status = _status_from_event(latest_event, now=now)
     elif latest_smoke and latest_smoke.get("status") == "succeeded":
         status = "healthy"
     elif probe_status == "logged_in":
         status = "authenticated_smoke_required"
-    elif _status_from_event(latest_event, now=now) in {"device_auth_pending", "device_code_expired"}:
-        status = _status_from_event(latest_event, now=now)
     error_visible = status not in {"healthy", "authenticated_smoke_required", "device_auth_pending", "news_smoke_running"}
     show_device_auth = status in {"device_auth_pending", "device_code_expired"}
 
