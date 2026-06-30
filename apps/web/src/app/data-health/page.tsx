@@ -2,7 +2,6 @@ import type { Route } from "next";
 import {
   DataHealthAutomationDetailSection,
 } from "@/components/operations/DataHealthAutomationDetailSection";
-import type { DataHealthAutomationDetailSectionProps } from "@/components/operations/DataHealthAutomationDetailTypes";
 import type { DataHealthExecutionHistoryRow } from "@/components/operations/DataHealthExecutionHistoryPanel";
 import {
   DataHealthOverview,
@@ -30,7 +29,6 @@ import {
 import { DataHealthDecisionFlowStatus } from "./_components/DataHealthDecisionFlowStatus";
 import {
   DataHealthDetailDecisionCardsSection,
-  type DataHealthDetailDecisionCard,
 } from "./_components/DataHealthDetailDecisionCardsSection";
 import { DataHealthExecutionLogDetails } from "./_components/DataHealthExecutionLogDetails";
 import { DataHealthInvestmentQualityDetails } from "./_components/DataHealthInvestmentQualityDetails";
@@ -39,6 +37,8 @@ import { DataHealthNewsAiEvalQualitySection } from "./_components/DataHealthNews
 import { DataHealthOpenAiProviderSection } from "./_components/DataHealthOpenAiProviderSection";
 import { DataHealthQualityAuditSection } from "./_components/DataHealthQualityAuditSection";
 import { DataHealthSchedulerCadenceSection } from "./_components/DataHealthSchedulerCadenceSection";
+import { buildDataHealthAutomationDetailSection } from "./_components/dataHealthAutomationDetailModel";
+import { buildDataHealthDetailDecisionCards } from "./_components/dataHealthDetailDecisionCardModel";
 import {
   buildDataHealthCommandCards,
   buildDataHealthHeadline,
@@ -73,70 +73,29 @@ import {
   DEFAULT_RECOMMENDATION_OUTCOME_DUE_ACTION_ROUTER,
   DEFAULT_RECOMMENDATION_OUTCOME_MATURITY,
   DEFAULT_RECOMMENDATION_WEIGHT_REVIEW_READINESS,
-  actionRouterStatusClass,
-  actionRouterTitle,
   automationStateLabel,
-  benchmarkDriftQualityExplanation,
-  benchmarkDriftQualityTitle,
-  benchmarkDriftQualityTone,
   buildGateTriageBuckets,
   buildSchedulerCadenceGroups,
-  cadenceLabel,
-  cadenceStatusClass,
-  calibrationStatusClass,
-  errorLogLabel,
   evidenceLocationLabel,
   executionIdLabel,
   findPipelineRun,
   finishedAtLabel,
-  formatPercent,
   gateSeverityTone,
   gateTriageSummary,
   isEc2ProfileSchedulerInstalled,
-  liveAiInvocationExplanation,
   liveAiInvocationTitle,
   liveAiInvocationTone,
-  localWorkerExplanation,
-  localWorkerNextAction,
-  localWorkerTitle,
-  manualSmokeExplanation,
-  manualSmokeNextAction,
-  manualSmokeTitle,
-  newsAiEvalExplanation,
-  newsAiEvalTitle,
   newsAiEvalTone,
-  openAiProviderExplanation,
-  openAiProviderTitle,
-  openAiProviderTone,
   openGateCopy,
   operationCopy,
   orderBoundaryCopy,
-  outcomeCalibrationExplanation,
-  outcomeCalibrationTitle,
-  outcomeCalibrationTone,
-  outcomeDueActionRouterTitle,
-  professionalDepthItemTone,
-  professionalDepthTitle,
-  professionalDepthTone,
-  professionalNextActionTone,
-  professionalQualityTone,
-  professionalRecommendationAuditTone,
-  professionalSourceGapExplanation,
-  professionalSourceGapTitle,
-  professionalSourceGapTone,
-  qualityAuditExplanation,
   qualityAuditSampleGroups,
-  qualityAuditTitle,
   qualityAuditTone,
-  runQualityExplanation,
   runStateLabel,
   schedulerApprovalGateLabel,
   schedulerInstallLabel,
   schedulerNextStepLabel,
-  schedulerReadinessExplanation,
-  schedulerReadinessTitle,
   statusRiskClass,
-  summaryLocationLabel,
   tossMarketDataTitle,
   tossMarketDataTone,
 } from "./_components/dataHealthModel";
@@ -283,351 +242,41 @@ export default async function DataHealthPage() {
     safeInvestmentBoundary,
     sourceLimitGateCount,
   });
-  const decisionCards: DataHealthDetailDecisionCard[] = [
-    {
-      label: "지금 판단",
-      title:
-        productionApiServer.attention_required
-          ? "읽기 서버 보강 필요"
-          : authRbac.attention_required
-          ? "조회 권한 보강 필요"
-          : alertDestination.attention_required
-          ? "운영 알림 보강 필요"
-          : failedPipelines > 0
-          ? "수집 문제 먼저 해결"
-          : data.overall_status === "healthy"
-            ? "수집 상태 정상"
-            : "주의 항목 있음",
-      body:
-        productionApiServer.attention_required
-	          ? operationCopy(productionApiServer.next_action)
-	          : authRbac.attention_required
-	          ? operationCopy(authRbac.next_action)
-	          : alertDestination.attention_required
-	          ? operationCopy(alertDestination.next_action)
-          : failedPipelines > 0
-          ? "중단 또는 오래된 작업이 있어 추천·보유 판단보다 수집 복구가 먼저다."
-          : "캔들, 뉴스, AI 분석, 추천 갱신이 현재 화면 기준으로 읽을 수 있는 상태다.",
-      href: productionApiServer.attention_required || authRbac.attention_required || alertDestination.attention_required ? "#scheduler-detail" : "#execution-log",
-      cta: productionApiServer.attention_required
-        ? "읽기 서버 보기"
-        : authRbac.attention_required
-          ? "권한 경계 보기"
-        : alertDestination.attention_required
-          ? "알림 설정 보기"
-          : "실행 이력 보기",
-      tone: productionApiServer.attention_required
-        ? "risk-high"
-        : authRbac.attention_required
-          ? "risk-high"
-        : alertDestination.attention_required
-          ? "risk-medium"
-          : failedPipelines > 0
-            ? "risk-high"
-            : "risk-low",
+  const detailDecisionCards = buildDataHealthDetailDecisionCards({
+    benchmarkDriftQuality,
+    liveAiInvocationHealth,
+    openAiProviderHealth,
+    outcomeCalibration,
+    outcomeDueActionRouter,
+    portfolioReviewActionRouter,
+    portfolioReviewCadence,
+    portfolioReviewCalibration,
+    portfolioReviewFeedback,
+    portfolioReviewHistory,
+    professionalDepth,
+    professionalNextAction,
+    professionalQuality,
+    professionalRecommendationAudit,
+    professionalSourceGaps,
+    tossMarketData,
+  });
+  const automationDetailSection = buildDataHealthAutomationDetailSection({
+    data,
+    ec2SchedulerInstalled,
+    localWorker,
+    manualSmoke,
+    profileScheduler,
+    provider: providerBudget.provider,
+    runs: {
+      aiRun,
+      decisionRun,
+      marketPriceRun,
+      newsEnrichmentRun,
+      newsRun,
+      remediationRun,
     },
-    {
-      label: "자동화",
-      title: artifactRunner.attention_required
-        ? "실행 증거 보강 필요"
-        : `${profileScheduler.active_timer_count}/${profileScheduler.timer_count}개 예약 실행`,
-      body: artifactRunner.attention_required
-        ? operationCopy(artifactRunner.next_action)
-        : `실행 증거 저장기가 ${artifactRunner.latest_run_count}개 최신 실행 증거와 ${artifactRunner.artifact_policy_count}/${artifactRunner.job_count}개 저장 정책을 남기고 있다.`,
-      href: "#scheduler-detail",
-      cta: "스케줄 보기",
-      tone: artifactRunner.attention_required
-        ? "risk-medium"
-        : profileScheduler.active_timer_count === profileScheduler.timer_count ? "risk-low" : "risk-medium",
-    },
-    {
-      label: "무료 API 예산",
-      title: `${providerBudget.remaining_request_count}/${providerBudget.daily_budget}회 남음`,
-      body: "가격 데이터는 무료 호출 한도 안에서 보강한다. 예산이 부족하면 캔들 보강을 줄여야 한다.",
-      href: "#provider-budget",
-      cta: "예산 보기",
-      tone: providerBudget.remaining_request_count > 0 ? "risk-low" : "risk-high",
-    },
-    {
-      label: "추천 가격",
-      title: activeRecommendationPriceFreshness.attention_required
-        ? `${activeRecommendationPriceFreshness.stale_symbol_count + activeRecommendationPriceFreshness.missing_symbol_count}개 가격 보강 필요`
-        : "추천 종목 가격 최신",
-      body: activeRecommendationPriceFreshness.attention_required
-        ? `추천에 쓰이는 종목 가격이 최신 가격일 ${activeRecommendationPriceFreshness.global_latest_trade_date || "미확인"}보다 뒤처져 있다. 가격 보강 전에는 성과·가상 매매 검증 해석 신뢰도가 낮아진다.`
-        : `활성 추천 ${activeRecommendationPriceFreshness.active_symbol_count}개 종목 가격이 최신 가격일 ${activeRecommendationPriceFreshness.global_latest_trade_date || "미확인"} 기준으로 맞춰져 있다.`,
-      href: "#active-recommendation-price-freshness",
-      cta: "가격 최신성 보기",
-      tone: activeRecommendationPriceFreshness.attention_required ? "risk-high" : "risk-low",
-    },
-    {
-      label: "토스증권 데이터",
-      title: tossMarketData.sync.status === "succeeded"
-        ? `캔들 ${tossMarketData.sync.candle_bar_count.toLocaleString("ko-KR")}개`
-        : koCode(tossMarketData.sync.status),
-      body: `토스증권 데이터는 브로커 현실 확인용이다. 분석 기준 가격 대체 전 검증 상태는 ${koCode(tossMarketData.provider_comparison.status)}이고 실주문은 차단된다.`,
-      href: "#toss-market-data",
-      cta: "토스 데이터 보기",
-      tone: tossMarketData.sync.attention_required ? "risk-medium" : "risk-low",
-    },
-    {
-      label: "품질 감사",
-      title: qualityAuditTitle(qualityAudit),
-      body: qualityAuditExplanation(qualityAudit),
-      href: "#quality-audit",
-      cta: "오염 점검 보기",
-      tone: qualityAuditTone(qualityAudit),
-    },
-    {
-      label: "실제 AI 호출",
-      title: liveAiInvocationTitle(liveAiInvocationHealth),
-      body: liveAiInvocationExplanation(liveAiInvocationHealth),
-      href: "#live-ai-invocation-health",
-      cta: "실제 호출 보기",
-      tone: liveAiInvocationTone(liveAiInvocationHealth),
-    },
-    {
-      label: "OpenAI 잔액",
-      title: openAiProviderTitle(openAiProviderHealth),
-      body: openAiProviderExplanation(openAiProviderHealth),
-      href: "#openai-provider-health",
-      cta: "잔액·예비 경로 보기",
-      tone: openAiProviderTone(openAiProviderHealth),
-    },
-    {
-      label: "AI 기준 평가",
-      title: newsAiEvalTitle(newsAiEvalQuality),
-      body: newsAiEvalExplanation(newsAiEvalQuality),
-      href: "#news-ai-eval-quality",
-      cta: "평가 항목 보기",
-      tone: newsAiEvalTone(newsAiEvalQuality),
-    },
-    {
-      label: "벤치마크 괴리",
-      title: benchmarkDriftQualityTitle(benchmarkDriftQuality),
-      body: benchmarkDriftQualityExplanation(benchmarkDriftQuality),
-      href: "#benchmark-drift-quality",
-      cta: "벤치마크 품질 보기",
-      tone: benchmarkDriftQualityTone(benchmarkDriftQuality),
-    },
-    {
-      label: "포트폴리오 검토 이력",
-      title:
-        portfolioReviewHistory.status === "loaded"
-          ? portfolioReviewHistory.attention_required
-            ? `${portfolioReviewHistory.decision_count}개 결정 저장됨`
-            : "검토 이력 관리 중"
-          : "검토 결정 이력 없음",
-      body:
-        portfolioReviewHistory.status === "loaded"
-          ? portfolioReviewHistory.attention_required
-            ? `최신 ${portfolioReviewHistory.as_of_date} 기준으로 벤치마크 ${portfolioReviewHistory.benchmark_decision_count}개, 포지션 크기 ${portfolioReviewHistory.position_sizing_decision_count}개 결정을 감사 이력으로 남겼다.`
-            : operationCopy(portfolioReviewHistory.managed_review_reason)
-	          : "현재 화면의 검토 후보는 보이지만 저장된 검토 이력으로는 아직 남지 않았다.",
-      href: "#portfolio-review-history",
-      cta: "검토 이력 보기",
-      tone: portfolioReviewHistory.attention_required ? "risk-medium" : "risk-low",
-    },
-    {
-      label: "검토 사후평가",
-      title:
-        portfolioReviewFeedback.status === "loaded"
-          ? `${portfolioReviewFeedback.validated_count}개 검증 · ${portfolioReviewFeedback.contradicted_count}개 반박`
-          : "사후평가 없음",
-      body:
-        portfolioReviewFeedback.status === "loaded"
-	          ? `저장된 검토 결정 ${portfolioReviewFeedback.decision_count}개를 후속 성과, 가상 매매 검증, 가격 변화와 대조했다.`
-	          : "검토 결정 이력은 저장됐지만 아직 이후 성과와 대조한 사후평가 기록이 없다.",
-      href: "#portfolio-review-feedback",
-      cta: "사후평가 보기",
-      tone:
-        portfolioReviewFeedback.feedback_status === "has_contradictions"
-          ? "risk-high"
-          : portfolioReviewFeedback.feedback_status === "needs_more_data"
-            ? "risk-medium"
-            : "risk-low",
-    },
-    {
-      label: "검토 신뢰도",
-      title:
-        portfolioReviewCalibration.status === "loaded"
-          ? portfolioReviewCalibration.managed_wait
-            ? "관리된 대기"
-            : portfolioReviewCalibration.weight_review_blocked
-              ? "추천 산식 변경 금지"
-              : "성과 표본 충족"
-          : "누적평가 없음",
-      body:
-        portfolioReviewCalibration.status === "loaded"
-	          ? `성숙 표본 ${portfolioReviewCalibration.mature_decision_count}/${portfolioReviewCalibration.min_mature_decisions}개, 사후평가 ${portfolioReviewCalibration.feedback_run_count}/${portfolioReviewCalibration.min_feedback_runs}회. ${portfolioReviewCalibration.estimated_maturity_date ? `예상 성숙일은 ${portfolioReviewCalibration.estimated_maturity_date}이다.` : operationCopy(portfolioReviewCalibration.weight_review_block_reason)}`
-	          : "단일 사후평가만으로 추천 산식 반영 비중을 바꾸지 않기 위해 누적평가가 필요하다.",
-      href: "#portfolio-review-calibration",
-      cta: "신뢰도 보기",
-      tone: portfolioReviewCalibration.managed_wait
-        ? "risk-low"
-        : calibrationStatusClass(portfolioReviewCalibration.calibration_status),
-    },
-    {
-      label: "검토 실행시점",
-      title:
-        portfolioReviewCadence.should_run_now
-          ? "지금 실행 필요"
-          : portfolioReviewCadence.should_wait
-            ? "대기"
-            : "상태 확인",
-      body:
-        portfolioReviewCadence.status === "loaded"
-	          ? operationCopy(portfolioReviewCadence.reason)
-          : "사후평가와 누적평가를 언제 다시 돌릴지 아직 계산되지 않았다.",
-      href: "#portfolio-review-cadence",
-      cta: "실행시점 보기",
-      tone: cadenceStatusClass(portfolioReviewCadence.cadence_status),
-    },
-    {
-      label: "검토 실행 라우터",
-      title: actionRouterTitle(portfolioReviewActionRouter),
-      body:
-        portfolioReviewActionRouter.status === "loaded"
-	          ? operationCopy(portfolioReviewActionRouter.reason)
-	          : "실행 주기 판단을 실제 사후평가/누적평가 실행 또는 대기로 변환한 기록이 아직 없다.",
-      href: "#portfolio-review-action-router",
-      cta: "라우터 판단 보기",
-      tone: actionRouterStatusClass(portfolioReviewActionRouter.action_status),
-    },
-    {
-      label: "성과검증",
-      title: outcomeCalibrationTitle(outcomeCalibration),
-      body: outcomeCalibrationExplanation(outcomeCalibration),
-      href: "#outcome-calibration",
-      cta: "표본 상태 보기",
-      tone: outcomeCalibrationTone(outcomeCalibration),
-    },
-    {
-      label: "성과 실행 라우터",
-      title: outcomeDueActionRouterTitle(outcomeDueActionRouter),
-      body:
-        outcomeDueActionRouter.status === "loaded"
-	          ? operationCopy(outcomeDueActionRouter.reason)
-	          : "성과 측정창 상태를 실제 누적평가 실행 또는 대기로 변환한 기록이 아직 없다.",
-      href: "#outcome-calibration",
-      cta: "라우터 보기",
-      tone: actionRouterStatusClass(outcomeDueActionRouter.action_status),
-    },
-    {
-      label: "전문 분석 소스",
-      title: professionalSourceGapTitle(professionalSourceGaps),
-      body: professionalSourceGapExplanation(professionalSourceGaps),
-      href: "#professional-source-gaps",
-      cta: "소스 공백 보기",
-      tone: professionalSourceGapTone(professionalSourceGaps),
-    },
-    {
-      label: "전문 분석 품질",
-      title: professionalQuality.title,
-      body: operationCopy(professionalQuality.summary),
-      href: "#professional-analysis-quality",
-      cta: "품질 판정 보기",
-      tone: professionalQualityTone(professionalQuality),
-    },
-    {
-      label: "추천별 전문 감사",
-      title: professionalRecommendationAudit.title,
-      body: operationCopy(professionalRecommendationAudit.summary),
-      href: "#professional-recommendation-coverage-audit",
-      cta: "추천별 감사 보기",
-      tone: professionalRecommendationAuditTone(professionalRecommendationAudit),
-    },
-    {
-      label: "전문 분석 다음 행동",
-      title: professionalNextAction.title,
-      body: operationCopy(professionalNextAction.summary),
-      href: "#professional-next-action",
-      cta: "다음 행동 보기",
-      tone: professionalNextActionTone(professionalNextAction),
-    },
-    {
-	      label: "전문 분석 깊이",
-	      title: professionalDepthTitle(professionalDepth),
-		      body: `활성 후보 ${professionalDepth.active_candidate_count}개 중 ${professionalDepth.complete_candidate_count}개가 필요한 전문 분석 근거를 채웠고, 평균 연결률은 ${formatPercent(professionalDepth.average_coverage_ratio)}이다.`,
-	      href: "#professional-analysis-depth",
-	      cta: "깊이 보기",
-	      tone: professionalDepthTone(professionalDepth),
-	    },
-	  ];
-	  const priorityDecisionLabels = new Set([
-	    "지금 판단",
-	    "자동화",
-	    "무료 API 예산",
-	    "추천 가격",
-	    "품질 감사",
-	    "AI 기준 평가",
-	  ]);
-  const detailDecisionCards = decisionCards.filter((card) => !priorityDecisionLabels.has(card.label));
-	  const automationCards = [
-    {
-      title: "주식 캔들 수집",
-      run: marketPriceRun,
-      fallbackCadence: "일간 · 18:30",
-      description: "무료 가격 데이터 제공자의 한도를 확인한 뒤 일봉 캔들을 서버에 저장한다.",
-      detail: `최근 가격 관측일 ${data.freshness.find((item) => item.dataset === "market.daily_price_bar")?.latest_observation_date ?? "미확인"} · 제공자 ${koCode(providerBudget.provider)}`,
-    },
-    {
-      title: "뉴스 수집",
-      run: newsRun,
-      fallbackCadence: "일간 · 08:30",
-      description: "저장소 밖 RSS 설정의 무료 뉴스 피드를 읽고 원문과 뉴스 이벤트로 저장한다.",
-      detail: "뉴스는 이벤트, 종목 상세, 분석 지도, 추천 근거 점검으로 연결된다.",
-    },
-    {
-      title: "AI 분석",
-      run: aiRun,
-      fallbackCadence: "장중 · 2시간마다",
-      description: "수집 문서를 구조화하고 AI 근거 기록을 남긴다. 중요 뉴스는 AI 배치 분석 후보로 처리하고, 뉴스 묶음은 무료 로컬 규칙 보조 증거로 남긴다.",
-      detail: "AI는 근거를 정리하지만 매수·매도·주문 결론을 자동 실행하지 않는다.",
-    },
-  ];
-  const newsAfterAnalysisSteps = [
-    {
-      index: "01",
-      title: "뉴스 원문 수집",
-      run: newsRun,
-      owner: "news-rss-daily",
-      output: "RSS/Atom 문서를 원문 저장소와 실행 기록에 저장한다.",
-      next: "중복과 원천 링크를 남긴 뒤 이벤트 구조화 단계로 넘긴다.",
-    },
-    {
-      index: "02",
-      title: "이벤트 구조화",
-      run: newsEnrichmentRun,
-      owner: "news-rss-enrichment-intraday",
-      output: "헤드라인과 본문을 종목·테마·영향 방향이 있는 뉴스 이벤트로 정리한다.",
-      next: "동일 테마/종목 관계를 만들고 뉴스, 종목, 뉴스·AI 화면이 읽는다.",
-    },
-    {
-      index: "03",
-      title: "AI 근거 생성",
-      run: aiRun,
-      owner: "event-intelligence-weekly",
-      output: "중요 뉴스만 AI 배치 분석으로 처리해 종목·테마·방향·근거 항목을 AI 분석 기록에 남긴다.",
-      next: "검증을 통과한 근거만 표준 뉴스 영향으로 반영한다. 매수·매도·주문 결론은 여기서 만들지 않는다.",
-    },
-    {
-      index: "04",
-      title: "신호와 추천 항목 갱신",
-      run: decisionRun,
-      owner: "decision-daily",
-      output: "가격, 테마 연결, 이벤트 강도, 사이클 상태를 합쳐 추천 항목과 투자 논리 입력을 만든다.",
-      next: "결정 로직은 재현 가능한 점수 계산이다. AI 근거는 설명 가능한 보조 근거로 붙는다.",
-    },
-    {
-      index: "05",
-      title: "보유 상태와 운영 큐",
-      run: remediationRun,
-      owner: "portfolio-remediation-daily",
-      output: "보유 투자 논리 유지 여부, 빈 가격/논리/성과 항목, 가상 거래 검증 문제를 큐로 만든다.",
-      next: "추천 상세, 투자 논리, 보유 상태, 가상 매매 화면에서 본다.",
-    },
-  ];
+    schedulerActivation,
+  });
   const collectionStatusCards = [
     {
       index: "01",
@@ -834,117 +483,6 @@ export default async function DataHealthPage() {
     statusLabel: koCode(run.latest_status),
     statusTone: statusRiskClass(run.latest_status),
   }));
-  const automationDetailSection: DataHealthAutomationDetailSectionProps = {
-    automationCards: automationCards.map((card) => ({
-      cadenceLabel: cadenceLabel(card.run, card.fallbackCadence),
-      description: card.description,
-      detail: card.detail,
-      finishedAtLabel: finishedAtLabel(card.run),
-      stateLabel: runStateLabel(card.run),
-      title: card.title,
-    })),
-    automationStatusLabel: automationStateLabel(schedulerActivation),
-    localWorker: {
-      cycleRows: localWorker.cycles.map((cycle) => ({
-        artifactRunCountLabel: `${cycle.artifact_run_count}개 기록`,
-        jobCountLabel: `${cycle.job_count}개 · 중단 ${cycle.failed_job_count}개`,
-        smokeStatusLabel: koCode(cycle.smoke_status),
-        startedAtLabel: cycle.started_at || "시각 없음",
-        title: String(cycle.cycle_number),
-      })),
-      description: ec2SchedulerInstalled
-        ? "이 기록은 서버 예약 실행기를 붙이기 전 로컬 MVP 단계의 점검 결과다. 현재 자동 실행 판단은 위의 서버 반복 실행기와 작업 실행 이력을 우선한다."
-        : localWorkerExplanation(localWorker),
-      eyebrow: ec2SchedulerInstalled ? "과거 로컬 워커 기록" : "최근 자동 실행 결과",
-      factRows: [
-        { label: "상태", value: koCode(localWorker.status) },
-        { label: "실행 여부", value: localWorker.execute ? "실제 실행" : "미리보기" },
-        { label: "생성 시각", value: localWorker.generated_at || "기록 없음" },
-        {
-          label: "완료 회차",
-          value: `${localWorker.completed_cycle_count}/${localWorker.max_cycles || localWorker.completed_cycle_count}회`,
-        },
-        { label: "중단 회차", value: `${localWorker.failed_cycle_count}회` },
-        { label: "오류 시 중단", value: localWorker.stop_on_failure ? "예" : "아니오" },
-        {
-          label: "대상 작업",
-          value: localWorker.job_ids.length > 0
-            ? localWorker.job_ids.map((jobId) => koCode(jobId)).join(" · ")
-            : "연결된 작업 없음",
-        },
-        { label: "최신 수집 요약", value: summaryLocationLabel(localWorker.latest_smoke_output_path) },
-        { label: "다음 조치", value: localWorkerNextAction(localWorker) },
-      ],
-      title: ec2SchedulerInstalled ? "현재 서버 자동화의 주 근거가 아니다" : localWorkerTitle(localWorker),
-    },
-    manualSmoke: {
-      artifactRows: manualSmoke.artifact_runs.map((run) => ({
-        errorLabel: errorLogLabel(run.stderr_path),
-        exitCodeLabel: String(run.exit_code),
-        jobLabel: koCode(run.job_id),
-        pipelineLabel: operationCopy(run.pipeline_name),
-        statusLabel: koCode(run.status),
-      })),
-      description: ec2SchedulerInstalled
-        ? "이 기록은 수동으로 데이터 수집 경로를 검증했던 증거다. 현재 서버 운영 상태는 서버 반복 실행기와 최신 작업 실행 이력으로 판단한다."
-        : manualSmokeExplanation(manualSmoke),
-      eyebrow: ec2SchedulerInstalled ? "과거 수동 점검 증거" : "최근 수동 점검 증거",
-      factRows: [
-        { label: "상태", value: koCode(manualSmoke.status) },
-        { label: "실행 여부", value: manualSmoke.execute ? "실제 실행" : "미리보기" },
-        { label: "생성 시각", value: manualSmoke.generated_at || "기록 없음" },
-        { label: "실행 환경 상태", value: manualSmoke.runtime_status ? koCode(manualSmoke.runtime_status) : "미확인" },
-        {
-          label: "대상 작업",
-          value: manualSmoke.planned_job_ids.length > 0
-            ? manualSmoke.planned_job_ids.map((jobId) => koCode(jobId)).join(" · ")
-            : "연결된 작업 없음",
-        },
-        {
-          label: "실행 기록",
-          value: `${manualSmoke.artifact_runs.length}개 기록 · 중단 ${manualSmoke.failed_job_count}개`,
-        },
-        { label: "결과 위치", value: evidenceLocationLabel(manualSmoke.artifact_root) },
-        { label: "다음 조치", value: manualSmokeNextAction(manualSmoke) },
-      ],
-      title: ec2SchedulerInstalled ? "자동 운영 전 수동 검증 기록" : manualSmokeTitle(manualSmoke),
-    },
-    newsAfterAnalysisSteps: newsAfterAnalysisSteps.map((step) => ({
-      finishedAtLabel: finishedAtLabel(step.run),
-      index: step.index,
-      next: step.next,
-      output: step.output,
-      ownerLabel: koCode(step.owner),
-      statusLabel: runStateLabel(step.run),
-      title: step.title,
-      warningLabel:
-        step.run?.health_status === "degraded" || step.run?.latest_status === "succeeded_with_fallback"
-          ? runQualityExplanation(step.run)
-          : "",
-    })),
-    profileScheduler: {
-      activeTimerSummaryLabel: `${profileScheduler.active_timer_count}/${profileScheduler.timer_count}개 예약 실행 활성`,
-      timers: profileScheduler.timers.map((timer) => ({
-        activeStateLabel: koCode(timer.active_state),
-        lastResultLabel: koCode(timer.last_result || "unknown"),
-        nextElapseLabel: timer.next_elapse || "미확인",
-        profileLabel: koCode(timer.profile_id),
-        scheduleLabel: timer.schedule || "스케줄 미확인",
-      })),
-    },
-    schedulerDetail: {
-      description: schedulerReadinessExplanation(data.scheduler),
-      factRows: [
-        { label: "승인 조건", value: schedulerApprovalGateLabel(schedulerActivation.approval_gate) },
-        { label: "활성화 허용", value: schedulerActivation.activation_allowed ? "예" : "아니오" },
-        { label: "반복 실행 상태", value: schedulerInstallLabel(schedulerActivation.scheduler_activation) },
-        { label: "근거 생성 시각", value: schedulerActivation.generated_at || "미확인" },
-        { label: "결과 위치", value: evidenceLocationLabel(data.scheduler.latest_artifact_root) },
-        { label: "다음 조치", value: schedulerNextStepLabel(schedulerActivation) },
-      ],
-      title: schedulerReadinessTitle(data.scheduler),
-    },
-  };
   return (
     <div className="terminal-page decision-page">
       <OperationsConsoleHeader
