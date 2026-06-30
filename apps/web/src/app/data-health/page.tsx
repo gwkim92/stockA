@@ -7,7 +7,6 @@ import type { DataHealthExecutionHistoryRow } from "@/components/operations/Data
 import {
   DataHealthOverview,
   type DataHealthCollectionCard,
-  type DataHealthCommandCard,
   type DataHealthTriageBucket,
 } from "@/components/operations/DataHealthOverview";
 import type {
@@ -35,7 +34,16 @@ import {
 } from "./_components/DataHealthDetailDecisionCardsSection";
 import { DataHealthExecutionLogDetails } from "./_components/DataHealthExecutionLogDetails";
 import { DataHealthInvestmentQualityDetails } from "./_components/DataHealthInvestmentQualityDetails";
+import { DataHealthLiveAiInvocationSection } from "./_components/DataHealthLiveAiInvocationSection";
+import { DataHealthNewsAiEvalQualitySection } from "./_components/DataHealthNewsAiEvalQualitySection";
+import { DataHealthOpenAiProviderSection } from "./_components/DataHealthOpenAiProviderSection";
+import { DataHealthQualityAuditSection } from "./_components/DataHealthQualityAuditSection";
 import { DataHealthSchedulerCadenceSection } from "./_components/DataHealthSchedulerCadenceSection";
+import {
+  buildDataHealthCommandCards,
+  buildDataHealthHeadline,
+  buildDataHealthMetaItems,
+} from "./_components/dataHealthOverviewCardModel";
 import {
   DEFAULT_ACTIVE_RECOMMENDATION_PRICE_FRESHNESS,
   DEFAULT_ALERT_DESTINATION,
@@ -67,11 +75,6 @@ import {
   DEFAULT_RECOMMENDATION_WEIGHT_REVIEW_READINESS,
   actionRouterStatusClass,
   actionRouterTitle,
-  aiInvocationErrorCopy,
-  aiProviderLabel,
-  auditSampleHeadline,
-  auditSampleMeta,
-  auditSampleValue,
   automationStateLabel,
   benchmarkDriftQualityExplanation,
   benchmarkDriftQualityTitle,
@@ -87,15 +90,10 @@ import {
   findPipelineRun,
   finishedAtLabel,
   formatPercent,
-  formatUsdAmount,
   gateSeverityTone,
   gateTriageSummary,
   isEc2ProfileSchedulerInstalled,
-  liveAiCurrentFailureCount,
-  liveAiCurrentFailureDetail,
   liveAiInvocationExplanation,
-  liveAiInvocationHistoryLabel,
-  liveAiInvocationQualityMetric,
   liveAiInvocationTitle,
   liveAiInvocationTone,
   localWorkerExplanation,
@@ -112,7 +110,6 @@ import {
   openAiProviderTone,
   openGateCopy,
   operationCopy,
-  optionalTimestamp,
   orderBoundaryCopy,
   outcomeCalibrationExplanation,
   outcomeCalibrationTitle,
@@ -131,7 +128,6 @@ import {
   qualityAuditSampleGroups,
   qualityAuditTitle,
   qualityAuditTone,
-  qualityMetric,
   runQualityExplanation,
   runStateLabel,
   schedulerApprovalGateLabel,
@@ -268,119 +264,25 @@ export default async function DataHealthPage() {
     outcomeWaitMonitor.weight_review_blocked
     && !outcomeWaitMonitor.automatic_weight_change_allowed
     && !outcomeWaitMonitor.broker_submit_allowed;
-  const commandCenterCards: DataHealthCommandCard[] = [
-    {
-      label: "1. 지금 먼저",
-      title:
-        fixNowGateCount > 0
-          ? `즉시 조치 ${fixNowGateCount}개`
-          : dueNowGateCount > 0
-            ? `성과 실행 ${dueNowGateCount}개`
-          : sourceLimitGateCount > 0
-            ? `원천 한계 ${sourceLimitGateCount}개 관리`
-            : managedWaitGateCount > 0
-              ? `성과 대기 ${managedWaitGateCount}개`
-              : data.open_gates.length > 0
-                ? `점검 항목 ${data.open_gates.length}개`
-                : "열린 항목 없음",
-      body:
-        fixNowGateCount > 0
-          ? "수집·AI·접근 장애가 있으면 추천 화면보다 먼저 복구해야 한다."
-        : dueNowGateCount > 0
-            ? "성과 측정창이 열렸거나 사후평가 실행 조건이 됐다. 주문 없이 검증 작업만 실행한다."
-          : sourceLimitGateCount > 0
-            ? "원천 한계는 오류를 숨기는 것이 아니라 합성 데이터를 만들지 않고 판단 입력에서 제외한 상태다."
-            : managedWaitGateCount > 0
-              ? "성과 측정창이 끝날 때까지 기다리는 설계된 대기다. 추천 산식 변경은 계속 막는다."
-              : "즉시 조치할 장애는 없다. 최신 실행과 품질 샘플만 아래에서 보면 된다.",
-      metric: `${data.open_gates.length.toLocaleString("ko-KR")}개 열린 항목`,
-      href:
-        fixNowGateCount > 0
-          ? "#open-gate-triage-title"
-          : dueNowGateCount > 0
-            ? "#outcome-maturity-wait-monitor"
-          : sourceLimitGateCount > 0
-            ? "#professional-source-gaps"
-            : managedWaitGateCount > 0
-              ? "#outcome-maturity-wait-monitor"
-              : "#execution-log",
-      cta:
-        fixNowGateCount > 0
-          ? "즉시 조치 보기"
-          : dueNowGateCount > 0
-            ? "성과 실행 보기"
-          : sourceLimitGateCount > 0
-            ? "원천 한계 보기"
-            : managedWaitGateCount > 0
-              ? "성과 대기 보기"
-              : "실행 이력 보기",
-      tone: fixNowGateCount > 0
-        ? "block"
-        : dueNowGateCount > 0 || sourceLimitGateCount > 0 || managedWaitGateCount > 0
-          ? "watch"
-          : "ready",
-    },
-    {
-      label: "2. 자동 수집",
-      title: allTimersActive && failedPipelines === 0 ? "자동 수집 작동 중" : "자동 수집 증거 부족",
-      body: allTimersActive
-        ? "뉴스, 가격, 추천, 성과 측정 작업이 각각의 서버 예약 실행기로 분리되어 돈다."
-        : "예약 실행기 일부가 꺼졌거나 실행 증거가 부족하다. 멈춘 작업 묶음을 먼저 찾는다.",
-      metric: `${profileScheduler.active_timer_count}/${profileScheduler.timer_count}개 활성 · 문제 실행 ${failedPipelines}개`,
-      href: "#scheduler-detail",
-      cta: "자동화 보기",
-      tone: allTimersActive && failedPipelines === 0 ? "ready" : "watch",
-    },
-    {
-      label: "3. 뉴스·AI 품질",
-      title: dataQualityReady
-        ? "품질 기준 통과"
-        : liveAiInvocationHealth.attention_required
-          ? "실제 AI 호출 증거 부족"
-        : qualityAudit.issue_count > 0 || newsAiEvalQuality.failed_case_count > 0
-          ? "오염 의심 항목 있음"
-          : "품질 근거 보강 중",
-      body: dataQualityReady
-        ? "뉴스 오염 감사, AI 기준 평가, 실제 Codex OAuth 호출이 모두 통과했다. 벤치마크 괴리 품질과 세부 샘플은 아래에서 본다."
-        : liveAiInvocationHealth.attention_required
-          ? "기준 세트 평가가 통과해도 실제 AI 호출이 중단되면 뉴스 번역과 AI 구조화는 규칙 기반 대체 결과일 수 있다. 실제 호출 상태를 먼저 본다."
-        : qualityAudit.issue_count > 0 || newsAiEvalQuality.failed_case_count > 0
-          ? "중복 뉴스, 오분류, AI 기준 평가 중단, 벤치마크 괴리 품질 중 확인할 항목이 있다. 추천 입력 전에 품질 근거를 본다."
-          : "큰 오염은 없지만 번역, 전파, 사이클 스냅샷, 가상 매매 검증 근거가 아직 부족하다. 벤치마크 괴리 품질도 함께 본다.",
-      metric: liveAiInvocationQualityMetric(liveAiInvocationHealth, newsAiEvalQuality),
-      href: "#quality-audit",
-      cta: "품질 감사 보기",
-      tone: dataQualityReady ? "ready" : "watch",
-    },
-    {
-      label: "4. 투자 안전",
-      title: safeInvestmentBoundary ? "추천 산식·실거래 차단" : "투자 경계 불일치",
-      body: safeInvestmentBoundary
-        ? "성과 표본이 성숙하기 전까지 추천 산식 반영 비중 변경과 실거래 주문 제출은 막혀 있다."
-        : "추천 산식 검토나 실거래 상태 조건이 예상과 다르다. 추천 산식/거래 안전 상태를 먼저 본다.",
-      metric: outcomeWaitMonitor.weight_review_blocked ? "반영 비중 변경 금지 · 주문 차단" : "투자 경계 불일치",
-      href: "#outcome-maturity-wait-monitor",
-      cta: "투자 경계 보기",
-      tone: safeInvestmentBoundary ? "ready" : "block",
-    },
-    {
-      label: "5. 원천·전문분석",
-      title:
-        professionalSourceGaps.source_blocker_count > 0
-          ? `원천 차단 ${professionalSourceGaps.source_blocker_count}개`
-          : professionalQuality.status === "managed_source_limited"
-            ? "원천 한계 관리 중"
-            : "전문 분석 연결 상태",
-      body:
-        professionalSourceGaps.source_blocker_count > 0
-          ? "표준 재무 원천이 부족한 종목은 전문 판단과 가상 매매 입력에서 제외한다."
-          : "재무·피어·밸류에이션·산업·AI 리서치 근거가 추천별로 얼마나 채워졌는지 본다.",
-      metric: `평균 연결률 ${formatPercent(professionalQuality.average_coverage_ratio)} · 투자 검토 ${investmentReviewGateCount}개`,
-      href: "#professional-analysis-quality",
-      cta: "전문 분석 보기",
-      tone: professionalSourceGaps.source_blocker_count > 0 || professionalQuality.status === "managed_source_limited" ? "watch" : "ready",
-    },
-  ];
+  const commandCenterCards = buildDataHealthCommandCards({
+    allTimersActive,
+    dataQualityReady,
+    dueNowGateCount,
+    failedPipelines,
+    fixNowGateCount,
+    investmentReviewGateCount,
+    liveAiInvocationHealth,
+    managedWaitGateCount,
+    newsAiEvalQuality,
+    openGateCount: data.open_gates.length,
+    outcomeWaitMonitor,
+    professionalQuality,
+    professionalSourceGaps,
+    profileScheduler,
+    qualityAudit,
+    safeInvestmentBoundary,
+    sourceLimitGateCount,
+  });
   const decisionCards: DataHealthDetailDecisionCard[] = [
     {
       label: "지금 판단",
@@ -786,17 +688,16 @@ export default async function DataHealthPage() {
       check: `${koCode(tossMarketData.sync.status)} · ${tossMarketData.sync.requested_symbol_count.toLocaleString("ko-KR")}개 요청`,
     },
   ];
-  const dataHealthHeadline = failedPipelines > 0
-    ? `즉시 조치가 필요한 작업 ${failedPipelines.toLocaleString("ko-KR")}개`
-    : data.open_gates.length > 0
-      ? `자동화와 원천 제한 ${data.open_gates.length.toLocaleString("ko-KR")}개 관리 중`
-      : "수집·분석 상태 정상";
-  const dataHealthMetaItems = [
-    `자동 실행 ${automationStateLabel(schedulerActivation)}`,
-    `보강 필요 항목 ${data.open_gates.length.toLocaleString("ko-KR")}개`,
-    `호출 예산 ${providerBudget.remaining_request_count}/${providerBudget.daily_budget}`,
-    `실거래 상태 ${koCode(outcomeWaitMonitor.order_boundary)}`,
-  ];
+  const dataHealthHeadline = buildDataHealthHeadline({
+    failedPipelines,
+    openGateCount: data.open_gates.length,
+  });
+  const dataHealthMetaItems = buildDataHealthMetaItems({
+    openGateCount: data.open_gates.length,
+    outcomeWaitMonitor,
+    providerBudget,
+    schedulerActivation,
+  });
   const decisionFlowCards = buildDataHealthDecisionFlowCards({
     aiAttentionRequired: liveAiInvocationHealth.attention_required,
     aiInvocationLabel: liveAiInvocationTitle(liveAiInvocationHealth),
@@ -1125,402 +1026,20 @@ export default async function DataHealthPage() {
         title={tossMarketDataTitle(tossMarketData)}
       />
 
-      <section className="feature-map-panel reveal delay-1" id="quality-audit" aria-labelledby="quality-audit-title">
-        <div className="section-heading stacked-heading">
-          <span>품질 감사</span>
-          <h2 id="quality-audit-title">수집·번역·AI·전파·추천 입력의 오염 여부</h2>
-        </div>
-        <p className="board-intro">{qualityAuditExplanation(qualityAudit)}</p>
-        <div className="status-rail compact-rail">
-          <article className="rail-cell">
-            <span>감사 결과</span>
-            <strong className={`risk-tag ${qualityAuditTone(qualityAudit)}`}>{qualityAuditTitle(qualityAudit)}</strong>
-            <small>{qualityAudit.generated_at || "최근 결과 없음"}</small>
-          </article>
-          <article className="rail-cell">
-            <span>감사 점수</span>
-            <strong>{qualityAudit.audit_score}</strong>
-            <small>{qualityAudit.lookback_days ? `${qualityAudit.lookback_days}일 기준` : "기간 미확인"}</small>
-          </article>
-          <article className="rail-cell rail-critical">
-            <span>오염 의심</span>
-            <strong>{qualityAudit.issue_count}</strong>
-            <small>중복·오분류·근거 없음</small>
-          </article>
-          <article className="rail-cell">
-            <span>한국어 번역</span>
-            <strong>
-              {qualityMetric(qualityAudit, "translated_document_count")}/
-              {qualityMetric(qualityAudit, "rss_document_count")}
-            </strong>
-            <small>원천 뉴스</small>
-          </article>
-          <article className="rail-cell">
-            <span>가상 매매 검증</span>
-            <strong>{qualityMetric(qualityAudit, "paper_validation_passed_count")}</strong>
-            <small>{qualityMetric(qualityAudit, "paper_validation_count")}회 중 통과</small>
-          </article>
-        </div>
-        <div className="insight-grid">
-          <article className="insight-card">
-            <span>누락 실행 단계</span>
-            <strong>{qualityAudit.readiness_gap_count}</strong>
-            <p>
-              {qualityAudit.readiness_gaps[0]
-                ? `${qualityAudit.readiness_gaps[0].label} 때문에 감사 상태가 낮아졌다.`
-                : "감사 기준에 필요한 수집·분석·전파·스냅샷 누락 수다."}
-            </p>
-          </article>
-          <article className="insight-card">
-            <span>중복 뉴스 묶음</span>
-            <strong>{qualityMetric(qualityAudit, "duplicate_title_count")}</strong>
-            <p>같은 제목이 반복 수집되어 같은 뉴스가 여러 근거처럼 보일 위험이다.</p>
-          </article>
-          <article className="insight-card">
-            <span>근거 없는 종목 연결</span>
-            <strong>{qualityMetric(qualityAudit, "ungrounded_direct_ticker_count")}</strong>
-            <p>원문 제목이나 요약에서 확인되지 않는 직접 종목 영향이다.</p>
-          </article>
-          <article className="insight-card">
-            <span>양자→에너지 오분류</span>
-            <strong>{qualityMetric(qualityAudit, "quantum_energy_mislink_count")}</strong>
-            <p>양자컴퓨팅 뉴스가 에너지 테마나 XOM/XLE로 잘못 묶인 사례다.</p>
-          </article>
-          <article className="insight-card">
-            <span>교차 테마 불일치</span>
-            <strong>{qualityMetric(qualityAudit, "cross_theme_mismatch_count")}</strong>
-            <p>뉴스 내용과 연결된 사이클 흐름이 강하게 어긋나는 후보 수다.</p>
-          </article>
-          <article className="insight-card">
-            <span>중복 흐름 근거</span>
-            <strong>{qualityMetric(qualityAudit, "duplicate_flow_evidence_count")}</strong>
-            <p>같은 뉴스가 여러 이벤트나 흐름으로 나뉘어 근거가 부풀려질 위험이다.</p>
-          </article>
-          <article className="insight-card">
-            <span>약한 전파 근거</span>
-            <strong>{qualityMetric(qualityAudit, "weak_propagation_evidence_count")}</strong>
-            <p>상위 흐름에서 종목으로 내려가는 경로의 신뢰도·강도·경로 가중치가 낮다.</p>
-          </article>
-          <article className="insight-card">
-            <span>정상 거시 흐름</span>
-            <strong>{qualityMetric(qualityAudit, "normal_macro_flow_count")}</strong>
-            <p>종목을 억지로 붙이지 않고 상위 흐름으로 남겨둔 뉴스다.</p>
-          </article>
-        </div>
-        {qualityAudit.readiness_gaps.length > 0 ? (
-          <div className="relationship-panel">
-            <span>부족한 실행 단계</span>
-            <div className="relationship-list">
-              {qualityAudit.readiness_gaps.map((gap) => (
-                <article className="relationship-chip" key={gap.gap_key}>
-                  <span>{gap.label}</span>
-                  <strong>
-                    {gap.metric_key}: {String(gap.current_value ?? 0)}
-                  </strong>
-                  <small>다음 조치: {operationCopy(gap.next_action)}</small>
-                </article>
-              ))}
-            </div>
-          </div>
-        ) : null}
-        {qualityAuditSamples.length > 0 ? (
-          <div className="relationship-panel">
-            <span>감사 샘플</span>
-            <div className="relationship-list">
-              {qualityAuditSamples.map((group) => (
-                <article className="relationship-chip" key={group.key}>
-                  <span>{group.label}</span>
-                  <strong>{group.description}</strong>
-                  {group.records.map((record, index) => (
-                    <small key={`${group.key}-${auditSampleValue(record, "event_id") || "record"}-${index}`}>
-                      {auditSampleHeadline(record)}
-                      {auditSampleMeta(record) ? ` · ${auditSampleMeta(record)}` : ""}
-                    </small>
-                  ))}
-                </article>
-              ))}
-            </div>
-          </div>
-        ) : null}
-        <div className="empty-state">
-          <strong>다음 조치</strong>
-          <p>{qualityAudit.next_actions[0] ? operationCopy(qualityAudit.next_actions[0]) : "현재 추가 조치 없음"}</p>
-        </div>
-      </section>
+      <DataHealthQualityAuditSection
+        qualityAudit={qualityAudit}
+        qualityAuditSamples={qualityAuditSamples}
+      />
 
-	      <section
-	        className="feature-map-panel reveal delay-1"
-	        id="live-ai-invocation-health"
-	        aria-labelledby="live-ai-invocation-health-title"
-	      >
-	        <div className="section-heading stacked-heading">
-	          <span>실제 AI 호출 상태</span>
-	          <h2 id="live-ai-invocation-health-title">
-            기준 세트 통과와 별개로, 운영 배치가 실제 AI를 호출했는지 본다.
-	          </h2>
-	        </div>
-	        <p className="board-intro">{liveAiInvocationExplanation(liveAiInvocationHealth)}</p>
-	        <div className="status-rail compact-rail">
-	          <article className="rail-cell">
-	            <span>판정</span>
-	            <strong className={`risk-tag ${liveAiInvocationTone(liveAiInvocationHealth)}`}>
-	              {liveAiInvocationTitle(liveAiInvocationHealth)}
-	            </strong>
-	            <small>최근 {liveAiInvocationHealth.window_hours}시간</small>
-	          </article>
-	          <article className="rail-cell">
-	            <span>최근 호출</span>
-	            <strong>{liveAiInvocationHealth.recent_invocation_count}</strong>
-	            <small>{liveAiInvocationHistoryLabel(liveAiInvocationHealth)}</small>
-	          </article>
-	          <article className="rail-cell">
-	            <span>현재 중단 작업</span>
-	            <strong>{liveAiCurrentFailureCount(liveAiInvocationHealth)}</strong>
-	            <small>{liveAiCurrentFailureDetail(liveAiInvocationHealth)}</small>
-	          </article>
-	          <article className="rail-cell">
-	            <span>최신 중단 작업</span>
-	            <strong>{koCode(liveAiInvocationHealth.latest_failed_task_name) || "없음"}</strong>
-	            <small>{liveAiInvocationHealth.latest_failed_at || "최근 중단 없음"}</small>
-	          </article>
-	        </div>
-	        <div className="simple-table-wrap">
-	          <table className="simple-table">
-	            <thead>
-	              <tr>
-	                <th>작업</th>
-	                <th>최근 상태</th>
-	                <th>성공/중단</th>
-	                <th>최신 오류</th>
-	              </tr>
-	            </thead>
-	            <tbody>
-	              {liveAiInvocationHealth.task_health.map((task) => (
-	                <tr key={task.task_name}>
-	                  <td>
-	                    <strong>{task.label || koCode(task.task_name)}</strong>
-	                    <small>{task.critical ? "핵심 AI 작업" : "보조 AI 작업"}</small>
-	                  </td>
-	                  <td>{koCode(task.latest_status)}</td>
-	                  <td>{task.recent_success_count}/{task.recent_failed_count}</td>
-	                  <td>
-	                    {task.latest_error_summary
-	                      ? aiInvocationErrorCopy(task.latest_error_summary, task.latest_error_code)
-	                      : task.latest_created_at || "최근 호출 없음"}
-	                  </td>
-	                </tr>
-	              ))}
-	              {liveAiInvocationHealth.task_health.length === 0 ? (
-	                <tr>
-	                  <td colSpan={4}>최근 실제 AI 호출 기록이 없다.</td>
-	                </tr>
-	              ) : null}
-	            </tbody>
-	          </table>
-	        </div>
-	        <div className="empty-state">
-	          <strong>다음 조치</strong>
-	          <p>{operationCopy(liveAiInvocationHealth.next_action)}</p>
-	          <p>
-	            Codex OAuth 만료 여부, 재로그인 device code, 재로그인 후 smoke는{" "}
-	            <a className="text-link" href={"/admin/ai-agents#codex-oauth-operator" as Route}>
-	              AI 운영 콘솔
-	            </a>
-	            에서 실행한다.
-	          </p>
-	        </div>
-	      </section>
+      <DataHealthLiveAiInvocationSection liveAiInvocationHealth={liveAiInvocationHealth} />
 
-	      <section
-	        className="feature-map-panel reveal delay-1"
-	        id="openai-provider-health"
-	        aria-labelledby="openai-provider-health-title"
-	      >
-	        <div className="section-heading stacked-heading">
-	          <span>OpenAI 잔액·쿼터 상태</span>
-	          <h2 id="openai-provider-health-title">
-	            OpenAI API를 바로 쓸 수 있는지와 중단 시 어떤 경로로 우회하는지 본다.
-	          </h2>
-	        </div>
-	        <p className="board-intro">{openAiProviderExplanation(openAiProviderHealth)}</p>
-	        <div className="status-rail compact-rail">
-	          <article className="rail-cell">
-	            <span>판정</span>
-	            <strong className={`risk-tag ${openAiProviderTone(openAiProviderHealth)}`}>
-	              {openAiProviderTitle(openAiProviderHealth)}
-	            </strong>
-	            <small>{operationCopy(openAiProviderHealth.status)}</small>
-	          </article>
-	          <article className="rail-cell">
-	            <span>남은 잔액</span>
-	            <strong>
-	              {openAiProviderHealth.remaining_balance_usd === null
-	                ? "공식 API 없음"
-	                : `$${openAiProviderHealth.remaining_balance_usd.toFixed(2)}`}
-	            </strong>
-	            <small>실제 잔액은 Billing Overview에서 확인</small>
-	          </article>
-	          <article className="rail-cell">
-	            <span>최근 비용</span>
-	            <strong>{formatUsdAmount(openAiProviderHealth.cost_status.total_cost_usd)}</strong>
-	            <small>
-	              최근 {openAiProviderHealth.cost_status.lookback_days}일 · {operationCopy(openAiProviderHealth.cost_status.status)}
-	            </small>
-	          </article>
-	          <article className="rail-cell">
-	            <span>최근 1일 비용</span>
-	            <strong>{formatUsdAmount(openAiProviderHealth.cost_status.latest_day_cost_usd)}</strong>
-	            <small>
-	              {openAiProviderHealth.cost_status.period_start || "기간 미확인"} →{" "}
-	              {openAiProviderHealth.cost_status.period_end || "기간 미확인"}
-	            </small>
-	          </article>
-	          <article className="rail-cell">
-	            <span>다음 재시도</span>
-	            <strong>{optionalTimestamp(openAiProviderHealth.next_retry_at)}</strong>
-	            <small>마지막 확인 {optionalTimestamp(openAiProviderHealth.last_checked_at)}</small>
-	          </article>
-	          <article className="rail-cell">
-	            <span>우회 경로</span>
-	            <strong>{aiProviderLabel(openAiProviderHealth.fallback_provider)}</strong>
-	            <small>최종 대체 {aiProviderLabel(openAiProviderHealth.local_fallback_provider)}</small>
-	          </article>
-	          <article className="rail-cell">
-	            <span>Admin 비용 API</span>
-	            <strong>{openAiProviderHealth.admin_api_key_configured ? "설정됨" : "없음"}</strong>
-	            <small>{operationCopy(openAiProviderHealth.cost_status.message)}</small>
-	          </article>
-	        </div>
-	        <div className="empty-state">
-	          <strong>분기 원칙</strong>
-	          <p>
-		            화면 요청에서는 OpenAI를 호출하지 않습니다. 배치 작업에서 중단이 감지되면 AI 상태 기록에 남기고,
-	            만료 전까지 OpenAI 직접 호출을 건너뛰어 {aiProviderLabel(openAiProviderHealth.fallback_provider)} 또는{" "}
-	            {aiProviderLabel(openAiProviderHealth.local_fallback_provider)}로 내려간다.
-	          </p>
-	          <p>
-	            Admin Costs API는 사용 비용만 제공한다. 잔액 자체는{" "}
-	            <a href={openAiProviderHealth.cost_status.billing_overview_url}>OpenAI Billing Overview</a>에서 직접 본다.
-	          </p>
-	        </div>
-	      </section>
+      <DataHealthOpenAiProviderSection openAiProviderHealth={openAiProviderHealth} />
 
-	      <section
-	        className="feature-map-panel reveal delay-1"
-	        id="news-ai-eval-quality"
-        aria-labelledby="news-ai-eval-quality-title"
-      >
-        <div className="section-heading stacked-heading">
-	          <span>뉴스 AI 기준 평가</span>
-          <h2 id="news-ai-eval-quality-title">
-            AI가 뉴스에서 테마와 종목을 잘못 뽑기 시작했는지 기준 세트로 본다.
-          </h2>
-        </div>
-        <p className="board-intro">{newsAiEvalExplanation(newsAiEvalQuality)}</p>
-        <div className="status-rail compact-rail">
-          <article className="rail-cell">
-            <span>평가 결과</span>
-            <strong className={`risk-tag ${newsAiEvalTone(newsAiEvalQuality)}`}>
-              {newsAiEvalTitle(newsAiEvalQuality)}
-            </strong>
-            <small>{newsAiEvalQuality.created_at || "최근 결과 없음"}</small>
-          </article>
-          <article className="rail-cell">
-            <span>통과 항목</span>
-            <strong>
-              {newsAiEvalQuality.passed_case_count}/{newsAiEvalQuality.case_count}
-            </strong>
-            <small>{executionIdLabel(newsAiEvalQuality.eval_run_id)}</small>
-          </article>
-          <article className="rail-cell">
-            <span>테마 정밀도</span>
-            <strong>{formatPercent(newsAiEvalQuality.theme_precision)}</strong>
-            <small>금리·양자·에너지 등</small>
-          </article>
-          <article className="rail-cell">
-            <span>종목 근거 정밀도</span>
-            <strong>{formatPercent(newsAiEvalQuality.direct_ticker_grounding_precision)}</strong>
-            <small>원문 없는 종목 코드 차단</small>
-          </article>
-          <article className="rail-cell">
-            <span>한국어 준비</span>
-            <strong>{formatPercent(newsAiEvalQuality.korean_translation_availability)}</strong>
-            <small>제목·요약 기준</small>
-          </article>
-        </div>
-        <div className="insight-grid">
-          <article className="insight-card">
-            <span>거시 뉴스 종목 오부착</span>
-            <strong>{newsAiEvalQuality.macro_only_false_ticker_count}</strong>
-            <p>금리·물가 같은 상위 흐름 뉴스를 억지로 개별 종목에 붙이면 추천 근거가 오염된다.</p>
-          </article>
-          <article className="insight-card">
-            <span>양자→에너지 오분류</span>
-            <strong>{newsAiEvalQuality.quantum_energy_misclassification_count}</strong>
-            <p>양자컴퓨팅 정책 뉴스가 XOM/XLE 또는 에너지 테마로 잘못 흐르는지 본다.</p>
-          </article>
-          <article className="insight-card">
-            <span>차단 후보 정확도</span>
-            <strong>{formatPercent(newsAiEvalQuality.blocked_candidate_correctness)}</strong>
-            <p>자동 검증이 낮은 신뢰도, 원문 근거 없는 종목 코드, 알 수 없는 테마를 제대로 막는지 본다.</p>
-          </article>
-          <article className="insight-card">
-            <span>평가 방식</span>
-            <strong>{koCode(newsAiEvalQuality.provider)}</strong>
-	            <p>기본 평가는 무료 기준 정답 뉴스 세트로 돈다. 실시간 유료 AI 호출이 아니라 저장된 기준 세트 검증이다.</p>
-          </article>
-        </div>
-        <div className="simple-table-wrap">
-          <table className="simple-table">
-            <thead>
-              <tr>
-                <th>평가 항목</th>
-                <th>결과</th>
-                <th>테마</th>
-                <th>직접 종목</th>
-                <th>차단/오류</th>
-              </tr>
-            </thead>
-            <tbody>
-              {newsAiEvalQuality.case_results.slice(0, 6).map((item) => (
-                <tr key={item.case_id}>
-                  <td>
-                    <strong>{koCode(item.case_id)}</strong>
-                    <small>{koCode(item.category)}</small>
-                  </td>
-                  <td>{item.passed ? "통과" : "중단"}</td>
-                  <td>{item.accepted_theme_codes.map(koCode).join(" · ") || "없음"}</td>
-                  <td>{item.accepted_direct_symbols.join(" · ") || "없음"}</td>
-                  <td>
-                    {[
-                      ...item.missing_theme_codes,
-                      ...item.missing_direct_symbols,
-                      ...item.forbidden_theme_hits,
-                      ...item.forbidden_symbol_hits,
-                      ...item.blocked_symbols_accepted,
-                    ]
-                      .map(koCode)
-                      .join(" · ") || "없음"}
-                  </td>
-                </tr>
-              ))}
-              {newsAiEvalQuality.case_results.length === 0 ? (
-                <tr>
-                  <td colSpan={5}>저장된 평가 항목이 없다.</td>
-                </tr>
-              ) : null}
-            </tbody>
-          </table>
-        </div>
-        <div className="empty-state">
-          <strong>다음 조치</strong>
-          <p>{operationCopy(newsAiEvalQuality.next_action)}</p>
-	        </div>
-	      </section>
+      <DataHealthNewsAiEvalQualitySection newsAiEvalQuality={newsAiEvalQuality} />
 
       <DataHealthDetailDecisionCardsSection cards={detailDecisionCards} />
 
-	      <DataHealthInvestmentQualityDetails data={data} />
+      <DataHealthInvestmentQualityDetails data={data} />
 
       <DataHealthSchedulerCadenceSection
         ec2SchedulerInstalled={ec2SchedulerInstalled}
