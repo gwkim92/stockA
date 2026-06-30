@@ -2,7 +2,7 @@
 
 ## Status
 
-- in progress: implementation complete locally; verification and rollout are pending.
+- completed: implementation, local verification, browser QA, commit, push, EC2 deployment, and 13000 smoke passed.
 
 ## Current Status
 
@@ -42,6 +42,17 @@
   - `/Users/woody/ai/stockanalysis/output/playwright/recommendation-detail-route-helper-decomposition-v1/local/summary-tablet.png`
   - `/Users/woody/ai/stockanalysis/output/playwright/recommendation-detail-route-helper-decomposition-v1/local/summary-desktop.png`
   - `/Users/woody/ai/stockanalysis/output/playwright/recommendation-detail-route-helper-decomposition-v1/local/summary.json`
+- EC2 deployed commit: `0f3c5936`
+- EC2 passed: `cd /opt/stockanalysis/app/apps/web && npm run typecheck && npm run build`
+- EC2 services after restart: `stockanalysis-frontend-api.service=active`, `stockanalysis-web.service=active`, `stockanalysis-web-public-13000.service=active`
+- EC2 internal route smoke passed: `/`, `/recommendations`, `/recommendations/recommendation-522`, `/stocks/AAPL`, `/data-health` all returned `200`.
+- Local tunnel `http://127.0.0.1:13000` route smoke passed for the same routes.
+- EC2 browser QA passed for `/recommendations/recommendation-522` at 375px, 768px, and 1280px: overflow `0`, recommendation content present, forbidden internal copy absent.
+- EC2 screenshot evidence:
+  - `/Users/woody/ai/stockanalysis/output/playwright/recommendation-detail-route-helper-decomposition-v1/ec2/recommendation-522-mobile.png`
+  - `/Users/woody/ai/stockanalysis/output/playwright/recommendation-detail-route-helper-decomposition-v1/ec2/recommendation-522-tablet.png`
+  - `/Users/woody/ai/stockanalysis/output/playwright/recommendation-detail-route-helper-decomposition-v1/ec2/recommendation-522-desktop.png`
+  - `/Users/woody/ai/stockanalysis/output/playwright/recommendation-detail-route-helper-decomposition-v1/ec2/summary.json`
 
 ## Remaining Risks
 
@@ -50,4 +61,4 @@
 
 ## Exact Next Step
 
-- exact next step: commit the behavior-preserving helper split, push `develop`, deploy by EC2 `git pull --ff-only origin develop`, then run 13000 route smoke.
+- exact next step: continue the UX normalization queue outside recommendation detail, with the next highest-value slice likely `/data-health` operations console decomposition or `/stocks/[symbol]` deep helper extraction.
