@@ -3,7 +3,7 @@ import Link from "next/link";
 import { CandlestickChart } from "@/components/candlestick-chart";
 import { SignedReturnBadge } from "@/components/research/SignedReturnBadge";
 import { koCode } from "@/lib/korean-labels";
-import { stockCopy } from "@/lib/presentation";
+import { brokerDataUseLabel, formatBasisPointDiff, stockCopy } from "@/lib/presentation";
 import type { StockDetailData } from "@/lib/types";
 
 import { formatCurrency, formatPercent } from "./stock-detail-panel-format";
@@ -31,6 +31,19 @@ function priceSourceProviderLabel(value: string | null | undefined) {
     return "원천 대기";
   }
   return userFacingStockText(koCode(value));
+}
+
+function compactTossComparisonLabel(value: string) {
+  if (value.includes("비교 완료")) {
+    return "비교 완료";
+  }
+  if (value.includes("검토")) {
+    return "차이 검토";
+  }
+  if (value.includes("대기")) {
+    return "비교 대기";
+  }
+  return value;
 }
 
 function formatCoefficient(value: number | null | undefined) {
@@ -116,10 +129,42 @@ export function StockPriceAndMarketSections({ data, latestChangePct }: StockPric
             <span>브로커 참고</span>
             <strong>{data.market_data_provider.broker_price_source.label}</strong>
             <span>토스 상태</span>
-            <strong>{data.toss_provider_evidence.comparison.status_label}</strong>
+            <strong>{compactTossComparisonLabel(data.toss_provider_evidence.comparison.status_label)}</strong>
           </div>
           <p style={{ color: "var(--text-secondary)", marginBottom: 0 }}>
             {stockCopy(data.market_data_provider.price_basis_note)} 토스증권 가격은 계좌·호가 현실 확인용이며 총점에는 아직 반영하지 않는다.
+          </p>
+        </article>
+
+        <article className="bento-card">
+          <span className="metric-label">토스증권 브로커 현실</span>
+          <strong className="metric-value">{data.toss_provider_evidence.status_label}</strong>
+          <span className="metric-sub">
+            {brokerDataUseLabel(data.toss_provider_evidence)} · {data.toss_provider_evidence.comparison.status_label}
+          </span>
+          <div className="stock-meta-grid">
+            <span>토스 기준일</span>
+            <strong>{data.toss_provider_evidence.latest_trade_date || "기준일 대기"}</strong>
+            <span>토스 종가</span>
+            <strong>{formatCurrency(data.toss_provider_evidence.latest_close, data.currency_code)}</strong>
+            <span>토스 거래량</span>
+            <strong>{formatNumber(data.toss_provider_evidence.latest_volume)}</strong>
+            <span>비교일</span>
+            <strong>{data.toss_provider_evidence.comparison.comparison_date || "비교 대기"}</strong>
+          </div>
+          <div className="stock-meta-grid" style={{ marginTop: "1rem" }}>
+            <span>비교 봉</span>
+            <strong>{formatNumber(data.toss_provider_evidence.comparison.matched_bar_count)}</strong>
+            <span>중앙 차이</span>
+            <strong>{formatBasisPointDiff(data.toss_provider_evidence.comparison.median_close_diff_bps)}</strong>
+            <span>최대 차이</span>
+            <strong>{formatBasisPointDiff(data.toss_provider_evidence.comparison.max_close_diff_bps)}</strong>
+            <span>추천 반영</span>
+            <strong>{data.toss_provider_evidence.used_for_scoring ? "반영 중" : "미반영"}</strong>
+          </div>
+          <p style={{ color: "var(--text-secondary)", marginBottom: 0 }}>
+            {stockCopy(data.toss_provider_evidence.price_basis_note)} 토스와 글로벌 가격이 다를 수 있으므로 차이를 오류로
+            단정하지 않고 계좌 현실, 가격 기준 차이, 미완성 최신 일봉 여부를 따로 본다.
           </p>
         </article>
       </section>
@@ -168,4 +213,3 @@ export function StockPriceAndMarketSections({ data, latestChangePct }: StockPric
     </>
   );
 }
-

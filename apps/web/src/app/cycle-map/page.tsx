@@ -64,6 +64,10 @@ function shortText(value: string | null | undefined, fallback: string) {
   return text.length > 140 ? `${text.slice(0, 140)}...` : text;
 }
 
+function cycleText(value: string | null | undefined, fallback: string) {
+  return koLabel(value || fallback).trim();
+}
+
 function cycleAttentionScore(node: CycleNode) {
   const heat = node.event_heat_score ?? 0;
   const cycleScore = node.cycle_score ?? 0;
@@ -370,7 +374,7 @@ export default async function CycleMapPage() {
               <div className="cycle-path-cell">
                 <span>상위 흐름</span>
                 <strong>{nodeDriverText(node)}</strong>
-                <small>{node.recent_event_titles[0] ? koLabel(node.recent_event_titles[0]) : "최근 뉴스 원천은 뉴스 근거 화면에 있다."}</small>
+                <small>{cycleText(node.recent_event_titles[0], "최근 뉴스 원천은 뉴스 근거 화면에 있다.")}</small>
               </div>
               <div className="cycle-path-cell emphasis">
                 <span>현재 사이클</span>

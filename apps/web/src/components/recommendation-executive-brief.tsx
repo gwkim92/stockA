@@ -255,10 +255,12 @@ export function RecommendationExecutiveBrief({ data }: RecommendationExecutiveBr
       </div>
 
       <div className={styles.actions}>
+        <Link href={`/stocks/${encodeURIComponent(data.symbol)}`}>종목 리서치</Link>
         <Link href="#recommendation-position-reality">포지션 확인</Link>
         <Link href={fundOrEtf ? "#recommendation-fund-analysis" : "#recommendation-valuation"}>
           {fundOrEtf ? "ETF 근거" : "밸류에이션"}
         </Link>
+        <Link href="/paper-trading">가상 매매</Link>
         <Link href="#recommendation-professional-flow">전문 분석 흐름</Link>
       </div>
     </section>
