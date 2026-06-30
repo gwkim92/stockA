@@ -2,8 +2,8 @@
 
 ## Status
 
-- completed: implementation, typecheck, unit tests, frontend API contract, build, e2e, browser QA, and diff check passed.
-- pending rollout: commit, push, EC2 deployment.
+- completed: implementation, typecheck, unit tests, frontend API contract, build, e2e, browser QA, commit, push, EC2 deployment, and 13000 smoke passed.
+- pending rollout: none.
 
 ## Current Status
 
@@ -37,6 +37,17 @@
   - `/Users/woody/ai/stockanalysis/output/playwright/recommendation-detail-deep-section-decomposition-v1/local/summary-tablet.png`
   - `/Users/woody/ai/stockanalysis/output/playwright/recommendation-detail-deep-section-decomposition-v1/local/summary-desktop.png`
   - `/Users/woody/ai/stockanalysis/output/playwright/recommendation-detail-deep-section-decomposition-v1/local/summary.json`
+- EC2 deployed commit: `09168f4f`
+- EC2 passed: `cd /opt/stockanalysis/app/apps/web && npm run typecheck && npm run build`
+- EC2 services after restart: `stockanalysis-frontend-api.service=active`, `stockanalysis-web.service=active`, `stockanalysis-web-public-13000.service=active`
+- EC2 internal route smoke passed: `/`, `/recommendations`, `/recommendations/recommendation-522`, `/stocks/AAPL`, `/data-health` all returned `200`.
+- Local tunnel `http://127.0.0.1:13000` route smoke passed for the same routes.
+- EC2 browser QA passed for `/recommendations/recommendation-522` at 375px, 768px, and 1280px: overflow `0`, recommendation content present, no visible `TECH_DOMAIN`, `DOMAIN TO SECTOR`, `canonical`, `shadow`, `runner`, `artifact`, `검토 가능`, `확인한다`, `봐야 한다`, or `미수집`.
+- EC2 screenshot evidence:
+  - `/Users/woody/ai/stockanalysis/output/playwright/recommendation-detail-deep-section-decomposition-v1/ec2/recommendation-522-mobile.png`
+  - `/Users/woody/ai/stockanalysis/output/playwright/recommendation-detail-deep-section-decomposition-v1/ec2/recommendation-522-tablet.png`
+  - `/Users/woody/ai/stockanalysis/output/playwright/recommendation-detail-deep-section-decomposition-v1/ec2/recommendation-522-desktop.png`
+  - `/Users/woody/ai/stockanalysis/output/playwright/recommendation-detail-deep-section-decomposition-v1/ec2/summary.json`
 
 ## Remaining Risks
 
@@ -45,4 +56,4 @@
 
 ## Exact Next Step
 
-- exact next step: commit and push `develop`, then deploy to EC2 with `git pull --ff-only origin develop`, build, restart services, and smoke `http://127.0.0.1:13000`.
+- exact next step: continue splitting `apps/web/src/app/recommendations/[recommendationId]/page.tsx` by moving quality-decision and waterfall-card construction into route-local model modules.
