@@ -2,16 +2,11 @@ import type { Route } from "next";
 import {
   DataHealthAutomationDetailSection,
 } from "@/components/operations/DataHealthAutomationDetailSection";
-import type { DataHealthExecutionHistoryRow } from "@/components/operations/DataHealthExecutionHistoryPanel";
 import {
   DataHealthOverview,
-  type DataHealthCollectionCard,
   type DataHealthTriageBucket,
 } from "@/components/operations/DataHealthOverview";
-import type {
-  DataHealthRuntimeDetailPanelsProps,
-  DataHealthRuntimeChip,
-} from "@/components/operations/DataHealthRuntimeDetailPanels";
+import type { DataHealthRuntimeChip } from "@/components/operations/DataHealthRuntimeDetailPanels";
 import { DataHealthTossBrokerSection } from "@/components/operations/DataHealthTossBrokerSection";
 import { OperationsConsoleHeader } from "@/components/operations/OperationsConsoleHeader";
 import { PageDecisionMap } from "@/components/research/PageDecisionMap";
@@ -38,12 +33,15 @@ import { DataHealthOpenAiProviderSection } from "./_components/DataHealthOpenAiP
 import { DataHealthQualityAuditSection } from "./_components/DataHealthQualityAuditSection";
 import { DataHealthSchedulerCadenceSection } from "./_components/DataHealthSchedulerCadenceSection";
 import { buildDataHealthAutomationDetailSection } from "./_components/dataHealthAutomationDetailModel";
+import { buildDataHealthOverviewCollectionCards } from "./_components/dataHealthCollectionStatusModel";
 import { buildDataHealthDetailDecisionCards } from "./_components/dataHealthDetailDecisionCardModel";
+import { buildDataHealthExecutionHistoryRows } from "./_components/dataHealthExecutionHistoryModel";
 import {
   buildDataHealthCommandCards,
   buildDataHealthHeadline,
   buildDataHealthMetaItems,
 } from "./_components/dataHealthOverviewCardModel";
+import { buildDataHealthRuntimeDetailPanels } from "./_components/dataHealthRuntimeDetailPanelModel";
 import {
   DEFAULT_ACTIVE_RECOMMENDATION_PRICE_FRESHNESS,
   DEFAULT_ALERT_DESTINATION,
@@ -76,10 +74,7 @@ import {
   automationStateLabel,
   buildGateTriageBuckets,
   buildSchedulerCadenceGroups,
-  evidenceLocationLabel,
-  executionIdLabel,
   findPipelineRun,
-  finishedAtLabel,
   gateSeverityTone,
   gateTriageSummary,
   isEc2ProfileSchedulerInstalled,
@@ -88,14 +83,9 @@ import {
   newsAiEvalTone,
   openGateCopy,
   operationCopy,
-  orderBoundaryCopy,
   qualityAuditSampleGroups,
   qualityAuditTone,
   runStateLabel,
-  schedulerApprovalGateLabel,
-  schedulerInstallLabel,
-  schedulerNextStepLabel,
-  statusRiskClass,
   tossMarketDataTitle,
   tossMarketDataTone,
 } from "./_components/dataHealthModel";
@@ -277,66 +267,18 @@ export default async function DataHealthPage() {
     },
     schedulerActivation,
   });
-  const collectionStatusCards = [
-    {
-      index: "01",
-      title: "주식 캔들",
-      run: marketPriceRun,
-      purpose: "종목 가격과 차트, 모멘텀 지표의 원천이다.",
-      check: `최근 가격일 ${
-        data.freshness.find((item) => item.dataset === "market.daily_price_bar")?.latest_observation_date ?? "미확인"
-      }`,
+  const overviewCollectionCards = buildDataHealthOverviewCollectionCards({
+    data,
+    runs: {
+      aiRun,
+      decisionRun,
+      marketPriceRun,
+      newsEnrichmentRun,
+      newsRun,
+      remediationRun,
     },
-    {
-      index: "02",
-      title: "뉴스 원문",
-      run: newsRun,
-      purpose: "수집된 뉴스와 원문 화면의 원천이다.",
-      check: "수집 뉴스는 뉴스 화면에서 시간순으로 본다.",
-    },
-    {
-      index: "03",
-      title: "1차 분류 태깅",
-      run: newsEnrichmentRun,
-      purpose: "뉴스를 종목, 테마, 방향 태그로 1차 정리한다.",
-      check: "AI 전 단계이므로 틀릴 수 있고, 이후 AI 분석과 검증이 보강한다.",
-    },
-    {
-      index: "04",
-      title: "AI 배치 분석",
-      run: aiRun,
-      purpose: "중요 뉴스를 구조화해 근거 항목을 만든다.",
-      check: "화면을 열 때마다 AI를 새로 호출하지 않고 저장된 결과만 읽는다.",
-    },
-    {
-      index: "05",
-      title: "AI 결과 검증",
-      run: aiRun,
-      purpose: "낮은 신뢰도, 알 수 없는 종목/테마, 저신호 뉴스를 차단한다.",
-      check: "차단 항목은 AI 차단 항목 화면에서 본다.",
-    },
-    {
-      index: "06",
-      title: "추천 신호",
-      run: decisionRun,
-      purpose: "가격, 뉴스, 사이클, 상위 흐름을 추천 점수로 합친다.",
-      check: "추천은 주문이 아니라 읽어야 할 상세 근거다.",
-    },
-    {
-      index: "07",
-      title: "보유 상태",
-      run: remediationRun,
-      purpose: "투자 논리 공백, 성과 미측정, 보유 충돌을 운영 큐로 만든다.",
-      check: "보유 상태와 가상 매매 검증으로 이어진다.",
-    },
-    {
-      index: "08",
-      title: "토스증권 브로커 데이터",
-      run: findPipelineRun(data, "toss-candles-us-shadow-daily", "tossinvest_market_data_sync"),
-      purpose: "실제 증권사 화면에서 볼 가격·호가·체결·주의사항을 본다.",
-      check: `${koCode(tossMarketData.sync.status)} · ${tossMarketData.sync.requested_symbol_count.toLocaleString("ko-KR")}개 요청`,
-    },
-  ];
+    tossMarketData,
+  });
   const dataHealthHeadline = buildDataHealthHeadline({
     failedPipelines,
     openGateCount: data.open_gates.length,
@@ -391,98 +333,20 @@ export default async function DataHealthPage() {
     title: bucket.title,
     tone: bucket.tone,
   }));
-  const overviewCollectionCards: DataHealthCollectionCard[] = collectionStatusCards.map((card) => ({
-    check: card.check,
-    finishedAt: finishedAtLabel(card.run),
-    index: card.index,
-    purpose: card.purpose,
-    statusLabel: runStateLabel(card.run),
-    statusTone: statusRiskClass(card.run?.health_status ?? "missing"),
-    title: card.title,
-  }));
-  const runtimeDetailPanels: DataHealthRuntimeDetailPanelsProps = {
-    providerBudget: {
-      budgetDateLabel: providerBudget.budget_date,
-      latestRunLabel: providerBudget.latest_run?.started_at ?? "오늘 실행 없음",
-      statusLabel: koCode(providerBudget.status),
-      usagePercent: budgetUsage,
-      usedRequestCountLabel: `${providerBudget.used_request_count.toLocaleString("ko-KR")}회`,
-    },
-    activeRecommendationPriceFreshness: {
-      latestTradeDateLabel: activeRecommendationPriceFreshness.global_latest_trade_date || "미확인",
-      nextActionLabel: operationCopy(activeRecommendationPriceFreshness.next_action),
-      orderBoundaryLabel: orderBoundaryCopy(activeRecommendationPriceFreshness.order_boundary),
-      staleSummaryLabel: `오래됨 ${activeRecommendationPriceFreshness.stale_symbol_count.toLocaleString("ko-KR")}개 · 없음 ${activeRecommendationPriceFreshness.missing_symbol_count.toLocaleString("ko-KR")}개`,
-      staleSymbols: activeRecommendationPriceFreshness.stale_symbols.slice(0, 8).map((item) => ({
-        activeRecommendationCountLabel: `연결 추천 ${item.active_recommendation_count.toLocaleString("ko-KR")}개`,
-        daysBehindLabel: `최신 기준보다 ${item.days_behind_latest.toLocaleString("ko-KR")}일 뒤처짐`,
-        href: item.detail_href || `/stocks/${item.symbol}`,
-        latestTradeDateLabel: `최근 가격 ${item.latest_trade_date || "없음"}`,
-        statusLabel: koCode(item.status),
-        symbol: item.symbol,
-      })),
-      statusLabel: activeRecommendationPriceFreshness.attention_required ? "가격 보강 필요" : "최신성 확인",
-      statusTone: activeRecommendationPriceFreshness.attention_required ? "risk-high" : "risk-low",
-      symbolCoverageLabel: `${activeRecommendationPriceFreshness.fresh_symbol_count.toLocaleString("ko-KR")}/${activeRecommendationPriceFreshness.active_symbol_count.toLocaleString("ko-KR")}개 최신`,
-    },
-    openGates: {
-      chips: openGateChips,
-      freshnessRows: data.freshness.map((item) => ({
-        datasetLabel: koCode(item.dataset),
-        valueLabel: `${koCode(item.status)} · ${item.latest_observation_date}`,
-      })),
-      gates: openGateDetails.map((gate) => ({
-        id: gate.gate_id,
-        label: gate.label,
-        nextActionLabel: openGateCopy(gate.next_action),
-        orderBoundaryLabel: orderBoundaryCopy(gate.order_boundary),
-        statusLabel: gate.status_label,
-        statusTone: gateSeverityTone(gate.severity),
-        summary: gate.summary,
-        typeLabel: gate.category_label,
-      })),
-    },
-    runtimeBoundary: {
-      apiNextActionLabel: operationCopy(productionApiServer.next_action),
-      apiReadinessLabel: productionApiServer.attention_required ? "보강 필요" : "운영 준비됨",
-      artifactEvidenceLabel: artifactRunner.attention_required ? "보강 필요" : "운영 증거 있음",
-      artifactLatestRootLabel: evidenceLocationLabel(artifactRunner.latest_artifact_root),
-      artifactNextActionLabel: operationCopy(artifactRunner.next_action),
-      artifactPolicyLabel: `${artifactRunner.artifact_policy_count.toLocaleString("ko-KR")}/${artifactRunner.job_count.toLocaleString("ko-KR")}개 · 최신 실행 ${artifactRunner.latest_run_count.toLocaleString("ko-KR")}개`,
-      authNextActionLabel: operationCopy(authRbac.next_action),
-      authReadinessLabel: authRbac.attention_required ? "보강 필요" : "읽기 전용 권한 준비",
-      brokerOrderLabel: `쓰기 ${authRbac.write_methods_allowed ? "허용됨" : "차단됨"} · 주문 ${authRbac.broker_submit_allowed ? "허용됨" : "차단됨"} · ${orderBoundaryCopy(authRbac.order_boundary)}`,
-      connectionLabel: `${koCode(productionApiServer.runtime_profile)} · ${koCode(productionApiServer.source_mode)} · ${koCode(productionApiServer.connection_boundary)}`,
-      environmentLabel: koCode(data.scheduler.runtime_env_readiness),
-      holidaySkipModeLabel: koCode(data.scheduler.holiday_skip_mode),
-      notificationMethodLabel: `${koCode(alertDestination.mode)} · 목적지 ${alertDestination.target_configured ? "설정됨" : "미설정"} · 테스트 ${
-        alertDestination.last_test_status === "passed" && alertDestination.test_recent ? "통과" : "미검증"
-      }`,
-      notificationNextActionLabel: operationCopy(alertDestination.next_action),
-      notificationReadinessLabel: alertDestination.attention_required ? "보강 필요" : "외부 알림 검증됨",
-      readProtectionLabel: `${koCode(productionApiServer.auth_mode)} · 읽기 토큰 ${
-        productionApiServer.read_token_configured ? "설정됨" : "미설정"
-      } · 허용 출처 ${productionApiServer.allowed_origin_configured ? "명시됨" : "미설정"}`,
-      readScopeLabel: `${koCode(authRbac.read_role)} · 보호된 화면 ${authRbac.protected_paths.length.toLocaleString("ko-KR")}개 · 읽기 요청만 허용`,
-      schedulerActivationAllowedLabel: schedulerActivation.activation_allowed ? "예" : "아니오",
-      schedulerApprovalGateLabel: schedulerApprovalGateLabel(schedulerActivation.approval_gate),
-      schedulerEnvironmentLabel: automationStateLabel(schedulerActivation),
-      schedulerJobLabel: koCode(schedulerActivation.job_id),
-      schedulerNextStepLabel: schedulerNextStepLabel(schedulerActivation),
-      schedulerReadinessLabel: schedulerInstallLabel(data.scheduler.install_status),
-    },
-  };
-  const executionHistoryRows: DataHealthExecutionHistoryRow[] = data.pipeline_runs.map((run) => ({
-    cadenceLabel: koCode(run.cadence),
-    domainLabel: koCode(run.domain),
-    finishedAtLabel: run.finished_at,
-    freshnessLabel: koCode(run.health_status),
-    id: run.latest_run_id,
-    latestRunLabel: executionIdLabel(run.latest_run_id),
-    pipelineNameLabel: operationCopy(run.pipeline_name),
-    statusLabel: koCode(run.latest_status),
-    statusTone: statusRiskClass(run.latest_status),
-  }));
+  const runtimeDetailPanels = buildDataHealthRuntimeDetailPanels({
+    activeRecommendationPriceFreshness,
+    alertDestination,
+    artifactRunner,
+    authRbac,
+    budgetUsage,
+    data,
+    openGateChips,
+    openGateDetails,
+    productionApiServer,
+    providerBudget,
+    schedulerActivation,
+  });
+  const executionHistoryRows = buildDataHealthExecutionHistoryRows(data);
   return (
     <div className="terminal-page decision-page">
       <OperationsConsoleHeader
