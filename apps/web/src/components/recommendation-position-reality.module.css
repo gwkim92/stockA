@@ -120,11 +120,12 @@
   display: block;
   margin-top: var(--space-2);
   color: var(--ink-primary);
-  font-family: "SFMono-Regular", "Roboto Mono", Consolas, monospace;
+  font-family: var(--font-body);
   font-size: clamp(1rem, 2vw, 1.35rem);
   font-variant-numeric: tabular-nums;
-  line-height: 1.15;
-  overflow-wrap: anywhere;
+  line-height: 1.25;
+  overflow-wrap: break-word;
+  word-break: keep-all;
 }
 
 .metric small {
@@ -156,7 +157,7 @@
 
 .brokerMetrics {
   display: grid;
-  grid-template-columns: repeat(2, minmax(140px, 1fr));
+  grid-template-columns: repeat(2, minmax(180px, 1fr));
   gap: var(--space-3);
 }
 

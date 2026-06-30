@@ -311,8 +311,11 @@ function recommendationQualityChecks(data: RecommendationDetailData) {
 }
 
 function hasProfessionalRecommendationDetail(data: RecommendationDetailData) {
+  const isLegacySummaryRecord = !data.as_of_date && !data.recommendation_id.includes("-professional-");
+
   return Boolean(
-    data.professional_decision_waterfall
+    !isLegacySummaryRecord
+      && data.professional_decision_waterfall
       && data.professional_evidence_audit
       && data.position_context
       && data.financial_statement_model,

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { RecommendationDetailData, RecommendationPositionReference } from "@/lib/types";
+import { RecommendationBrokerReality } from "./recommendation-broker-reality";
 import styles from "./recommendation-position-reality.module.css";
 
 type RecommendationPositionRealityProps = {
@@ -167,28 +168,6 @@ function Metric({
   );
 }
 
-function BrokerReference({ position }: { position: RecommendationPositionReference }) {
-  const price = marketPrice(position);
-  const hasPosition = hasOpenPosition(position);
-  return (
-    <aside className={styles.broker}>
-      <div>
-        <span>브로커 계좌</span>
-        <strong>{portfolioDisplayName(position.portfolio_name)}</strong>
-        <p>{positionStatusLabel(position.status)}</p>
-      </div>
-      <div className={styles.brokerMetrics}>
-        <Metric label="보유 수량" value={formatQuantity(position.quantity)} note={position.snapshot_date ?? "스냅샷 없음"} />
-        <Metric
-          label="브로커 가격"
-          value={hasPosition ? formatCurrency(price.value, price.currencyCode) : "해당 없음"}
-          note={hasPosition ? position.native_currency_code : "미보유 계좌"}
-        />
-      </div>
-    </aside>
-  );
-}
-
 export function RecommendationPositionReality({ data }: RecommendationPositionRealityProps) {
   const position = data.position_context;
   const avg = averageCost(position);
@@ -251,7 +230,11 @@ export function RecommendationPositionReality({ data }: RecommendationPositionRe
         <Metric label="추천 비중" value={formatWeightPercent(data.recommended_weight)} note="점수와 분리된 목표 비중" />
       </div>
 
-      <BrokerReference position={position.broker_reference} />
+      <RecommendationBrokerReality
+        brokerSubmitAllowed={position.broker_submit_allowed}
+        orderBoundary={position.order_boundary}
+        position={position.broker_reference}
+      />
     </section>
   );
 }

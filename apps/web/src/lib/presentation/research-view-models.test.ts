@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
 
-import { paperTradingStateLabel, recommendationExecutionStatus, recommendationProductLabel, stockProductLabel } from "./index";
+import {
+  brokerDataUseLabel,
+  brokerOrderBoundaryLabel,
+  formatBasisPointDiff,
+  paperTradingStateLabel,
+  recommendationExecutionStatus,
+  recommendationProductLabel,
+  stockProductLabel,
+} from "./index";
 
 describe("professional investment view models", () => {
   it("separates company and ETF/fund product labels", () => {
@@ -29,5 +37,18 @@ describe("professional investment view models", () => {
     expect(paperTradingStateLabel("data_limited")).toEqual({ label: "데이터 부족", tone: "source_limited" });
     expect(paperTradingStateLabel("approval_required")).toEqual({ label: "승인 필요", tone: "watch" });
     expect(paperTradingStateLabel("live_trading_disabled")).toEqual({ label: "실거래 비활성", tone: "blocked" });
+  });
+
+  it("uses one broker reality vocabulary across investor pages", () => {
+    expect(
+      brokerDataUseLabel({
+        used_for_account: true,
+        used_for_execution: false,
+        used_for_scoring: false,
+      }),
+    ).toBe("계좌 검증");
+    expect(brokerOrderBoundaryLabel("read_only_no_order")).toBe("읽기 전용, 실거래 주문 차단");
+    expect(formatBasisPointDiff(0.123456)).toBe("0.123bp");
+    expect(formatBasisPointDiff(null)).toBe("미측정");
   });
 });
