@@ -24,6 +24,12 @@ import type {
   ThesisDetailData,
   TradingReadinessData,
 } from "./types";
+import { normalizeAiEvidenceDetailPayload } from "./frontend-normalizers-ai-evidence";
+import { normalizeMarketMapPayload } from "./frontend-normalizers-market";
+import { normalizeDataHealthPayload } from "./frontend-normalizers-operations";
+import { normalizePaperTradingPreviewPayload } from "./frontend-normalizers-paper";
+import { normalizePerformanceOutcomesPayload } from "./frontend-normalizers-performance";
+import { ensureArray, ensureRecord, isRecord, type MutableRecord, withDefault } from "./frontend-normalizer-utils";
 
 const DEFAULT_FIXTURE_BASE_URL = "http://127.0.0.1:8765";
 const ADMIN_ACTION_TOKEN_HEADER = "X-Stockanalysis-Admin-Action-Token";
@@ -127,37 +133,11 @@ export async function postFrontendAdminAction<TData>(path: string): Promise<TDat
   return (await response.json()) as TData;
 }
 
-type MutableRecord = Record<string, unknown>;
-
-function isRecord(value: unknown): value is MutableRecord {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
 function dataRecord(payload: ApiResponse<unknown>) {
   if (!isRecord(payload.data)) {
     payload.data = {} as never;
   }
   return payload.data as MutableRecord;
-}
-
-function ensureRecord(parent: MutableRecord, key: string) {
-  if (!isRecord(parent[key])) {
-    parent[key] = {};
-  }
-  return parent[key] as MutableRecord;
-}
-
-function ensureArray(parent: MutableRecord, key: string) {
-  if (!Array.isArray(parent[key])) {
-    parent[key] = [];
-  }
-  return parent[key] as unknown[];
-}
-
-function withDefault<T>(record: MutableRecord, key: string, fallback: T) {
-  if (record[key] === undefined || record[key] === null) {
-    record[key] = fallback;
-  }
 }
 
 function recommendationIdFromPath(path: string): string {
@@ -665,50 +645,6 @@ function defaultProfessionalLifecycleGates() {
   };
 }
 
-function defaultTossInvestMarketData() {
-  return {
-    sync: {
-      status: "not_configured",
-      latest_status: "missing",
-      latest_run_id: null,
-      finished_at: "",
-      provider: "tossinvest",
-      sync_mode: "not_available",
-      market_code: "",
-      requested_symbol_count: 0,
-      candle_symbol_count: 0,
-      candle_bar_count: 0,
-      stock_warning_symbol_count: 0,
-      market_microdata_symbol_count: 0,
-      unresolved_symbol_count: 0,
-      collection_cadence: {},
-      credentials_configured: false,
-      missing_env_vars: [],
-      operator_action: "Toss 시장 데이터 수집 설정과 최신 실행 상태를 확인한다.",
-      attention_required: true,
-      broker_submit_allowed: false,
-      submitted_to_broker: false,
-      order_boundary: "read_only_no_order",
-      secret_free: true,
-    },
-    provider_comparison: {
-      status: "missing",
-      latest_status: "missing",
-      latest_run_id: null,
-      finished_at: "",
-      symbol_count: 0,
-      comparison_date: "",
-      lookback_days: 5,
-      max_diff_bps: "50",
-      canonical_promotion_blocked: true,
-      attention_required: true,
-      broker_submit_allowed: false,
-      submitted_to_broker: false,
-      secret_free: true,
-    },
-  };
-}
-
 function normalizeFrontendPayload<TData>(path: string, payload: ApiResponse<TData>) {
   const mutablePayload = payload as ApiResponse<unknown>;
   const data = dataRecord(mutablePayload);
@@ -725,89 +661,17 @@ function normalizeFrontendPayload<TData>(path: string, payload: ApiResponse<TDat
   } else if (path === "/api/trading/readiness") {
     normalizeTradingReadiness(data);
   } else if (path === "/api/paper-trading/preview") {
-    normalizePaperTradingPreview(data);
+    normalizePaperTradingPreviewPayload(data);
   } else if (path === "/api/data-health") {
-    normalizeDataHealth(data);
+    normalizeDataHealthPayload(data);
   } else if (path.startsWith("/api/market-map")) {
-    normalizeMarketMap(data);
+    normalizeMarketMapPayload(data);
   } else if (path.startsWith("/api/performance/")) {
-    normalizePerformanceOutcomes(data);
+    normalizePerformanceOutcomesPayload(data);
   } else if (path.startsWith("/api/ai-evidence/")) {
-    normalizeAiEvidenceDetail(data);
+    normalizeAiEvidenceDetailPayload(data);
   }
   return mutablePayload as ApiResponse<TData>;
-}
-
-function normalizeMarketMap(data: MutableRecord) {
-  withDefault(data, "as_of_date", currentIsoDate());
-  withDefault(data, "snapshot_as_of_date", null);
-  const summary = ensureRecord(data, "summary");
-  for (const key of [
-    "indicator_count",
-    "fresh_indicator_count",
-    "stale_indicator_count",
-    "missing_indicator_count",
-    "shock_indicator_count",
-    "regime_count",
-    "active_regime_count",
-    "watch_regime_count",
-    "conflict_regime_count",
-    "news_link_count",
-    "correlation_count",
-    "strong_correlation_count",
-    "moderate_correlation_count",
-  ]) {
-    withDefault(summary, key, 0);
-  }
-  withDefault(summary, "status", "missing");
-  withDefault(summary, "correlation_as_of_date", null);
-  withDefault(summary, "latest_observation_date", null);
-  withDefault(summary, "next_action", "시장 지표 수집과 상관관계 분석을 실행한 뒤 다시 확인한다.");
-  withDefault(summary, "recommendation_scoring_mutated", false);
-  withDefault(summary, "automatic_weight_change_allowed", false);
-  withDefault(summary, "broker_submit_allowed", false);
-  withDefault(summary, "order_boundary", "read_only_no_order");
-
-  for (const rawGroup of ensureArray(data, "groups")) {
-    if (!isRecord(rawGroup)) {
-      continue;
-    }
-    withDefault(rawGroup, "group_code", "UNKNOWN");
-    withDefault(rawGroup, "group_name", "시장 지표");
-    withDefault(rawGroup, "indicator_count", 0);
-    withDefault(rawGroup, "fresh_count", 0);
-    withDefault(rawGroup, "stale_count", 0);
-    withDefault(rawGroup, "missing_count", 0);
-    withDefault(rawGroup, "shock_count", 0);
-    withDefault(rawGroup, "latest_observation_date", null);
-    withDefault(rawGroup, "strongest_indicator_code", null);
-    ensureArray(rawGroup, "indicators");
-  }
-
-  for (const rawRegime of ensureArray(data, "regimes")) {
-    if (!isRecord(rawRegime)) {
-      continue;
-    }
-    withDefault(rawRegime, "driver_indicator_codes", []);
-    withDefault(rawRegime, "conflict_flags", []);
-    withDefault(rawRegime, "summary_ko", "시장 체제 설명이 아직 충분히 연결되지 않았다.");
-  }
-
-  for (const rawLink of ensureArray(data, "news_links")) {
-    if (!isRecord(rawLink)) {
-      continue;
-    }
-    withDefault(rawLink, "title_ko", "제목 미수집");
-    withDefault(rawLink, "source_name", "");
-    withDefault(rawLink, "source_url", "");
-    withDefault(rawLink, "rationale", "");
-    withDefault(rawLink, "relationship", "temporal_evidence");
-    withDefault(rawLink, "confidence", 0);
-  }
-
-  ensureArray(data, "correlations");
-  ensureArray(data, "quality_flags");
-  ensureArray(data, "guardrails");
 }
 
 function normalizeRecommendationList(data: MutableRecord) {
@@ -1231,10 +1095,6 @@ function normalizePortfolioCoverage(data: MutableRecord) {
   }
 }
 
-function normalizeDataHealth(data: MutableRecord) {
-  withDefault(data, "tossinvest_market_data", defaultTossInvestMarketData());
-}
-
 function normalizeTradingReadiness(data: MutableRecord) {
   withDefault(data, "execution_boundary", {
     paper_portfolio_name: "Long Term Paper",
@@ -1247,113 +1107,6 @@ function normalizeTradingReadiness(data: MutableRecord) {
   });
   withDefault(data, "portfolio_risk_budget_guardrail", defaultPortfolioRiskBudgetGuardrail());
   withDefault(data, "tossinvest_order_readiness", defaultTossInvestOrderReadiness());
-}
-
-function normalizePaperTradingPreview(data: MutableRecord) {
-  const summary = ensureRecord(data, "quality_summary");
-  withDefault(summary, "recommendation_count", 0);
-  withDefault(summary, "measured_recommendation_count", 0);
-  withDefault(summary, "unmeasured_recommendation_count", 0);
-  withDefault(summary, "hit_rate", null);
-  withDefault(summary, "average_alpha", null);
-  withDefault(summary, "position_recommendation_conflict_count", 0);
-  withDefault(summary, "paper_action_count", 0);
-  withDefault(summary, "requires_human_approval_count", 0);
-  withDefault(data, "execution_boundary", {
-    mode: "simulated_paper_validation",
-    portfolio_kind: "paper",
-    live_account_provider: "tossinvest",
-    live_account_used_for_recommendation_scoring: false,
-    broker_submit_allowed: false,
-    submitted_to_broker: false,
-    order_boundary: "read_only_no_order",
-  });
-  withDefault(data, "paper_actions", []);
-  withDefault(data, "guardrails", []);
-}
-
-function normalizePerformanceOutcomes(data: MutableRecord) {
-  const summary = ensureRecord(data, "summary");
-  withDefault(data, "quality_evaluation", {
-    status: "not_available",
-    sample_size_status: "not_available",
-    score_outcome_alignment: "not_available",
-    review_outcome_mismatch_count: 0,
-    measured_recommendation_count: summary.measured_recommendation_count ?? 0,
-    measured_thesis_count: summary.measured_thesis_count ?? 0,
-    average_alpha: summary.average_alpha ?? null,
-    hit_rate: summary.hit_rate ?? null,
-    high_score_recommendation_count: 0,
-    high_score_average_alpha: null,
-    coverage_exclusion_count: summary.excluded_position_count ?? 0,
-    checks: [],
-  });
-}
-
-function normalizeAiEvidenceDetail(data: MutableRecord) {
-  withDefault(data, "cluster_summary", null);
-  withDefault(data, "cluster_events", []);
-  withDefault(data, "retrieval_context_summary", {
-    as_of_date: "",
-    known_themes: [],
-    theme_edges: [],
-    current_event_impacts: [],
-    recent_similar_events: [],
-  });
-  withDefault(data, "audit_notes", []);
-  withDefault(data, "extracted_fields", []);
-  withDefault(data, "visibility_trace", {
-    summary_ko: "AI 근거 가시성 경로가 아직 충분히 연결되지 않아 기본 경로만 표시한다.",
-    source: {
-      status: data.source_document_id ? "linked" : "missing",
-      source_document_id: typeof data.source_document_id === "string" ? data.source_document_id : "",
-      source_document_count: data.source_document_id ? 1 : 0,
-      source_chunk_count: Array.isArray(data.source_chunks) ? data.source_chunks.length : 0,
-      message_ko: data.source_document_id ? "원천 문서가 연결되어 있다." : "원천 문서 연결이 아직 없다.",
-    },
-    translation: {
-      status: data.korean_title || data.korean_summary ? "translated" : "missing",
-      translated_event_count: data.korean_title || data.korean_summary ? 1 : 0,
-      translation_confidence: typeof data.translation_confidence === "number" ? data.translation_confidence : null,
-      message_ko: "번역 추적 정보가 아직 충분히 연결되지 않았다.",
-    },
-    ai_structure: {
-      status: "stored",
-      provider: isRecord(data.extraction_run) && typeof data.extraction_run.provider === "string" ? data.extraction_run.provider : "not_available",
-      model_id: isRecord(data.extraction_run) && typeof data.extraction_run.model_id === "string" ? data.extraction_run.model_id : "not_available",
-      evidence_type: typeof data.evidence_type === "string" ? data.evidence_type : "unknown",
-      extracted_field_count: Array.isArray(data.extracted_fields) ? data.extracted_fields.length : 0,
-      theme_impact_count: 0,
-      instrument_impact_count: 0,
-      cluster_event_count: 0,
-      message_ko: "저장된 구조화 근거를 표시한다.",
-    },
-    validator: {
-      status: "not_available",
-      quality_gate: isRecord(data.extraction_run) && typeof data.extraction_run.quality_gate === "string" ? data.extraction_run.quality_gate : "not_available",
-      blocked: false,
-      decision_ko: "검증 추적 정보 없음",
-      reasons_ko: ["검증 상세 이유가 아직 충분히 연결되지 않았다."],
-    },
-    recommendation_linkage: {
-      status: "not_available",
-      target_symbol: isRecord(data.instrument) && typeof data.instrument.symbol === "string" ? data.instrument.symbol : "",
-      theme_key: isRecord(data.classification) && typeof data.classification.theme_key === "string" ? data.classification.theme_key : "",
-      message_ko: "추천 연결 경로가 아직 충분히 연결되지 않았다.",
-    },
-    steps: [],
-    read_only_boundary: {
-      live_llm_call_enabled: false,
-      write_enabled: false,
-      broker_submit_allowed: false,
-      order_boundary: "read_only_no_order",
-    },
-  });
-  const candidate = data.news_candidate;
-  if (isRecord(candidate)) {
-    withDefault(candidate, "theme_impacts", []);
-    withDefault(candidate, "instrument_impacts", []);
-  }
 }
 
 export async function getCockpitSnapshot() {
