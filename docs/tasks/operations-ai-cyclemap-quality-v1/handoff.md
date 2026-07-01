@@ -65,6 +65,24 @@
   - `systemctl is-active stockanalysis-web.service stockanalysis-web-public-13000.service stockanalysis-frontend-api.service`: all active.
   - `http://127.0.0.1:8787/__ready`: 200, `ready_time=0.003947`.
   - `http://127.0.0.1:13000/`: 200, `web13000_time=1.713448`.
+- EC2 deploy and production build recovery:
+  - `develop` was pushed at commit `87f9b3c7` and EC2 `/opt/stockanalysis/app` fast-forwarded to the same commit.
+  - First EC2 Next build was interrupted and left `.next` without `BUILD_ID`, causing `stockanalysis-web*` services to restart with `production-start-no-build-id`.
+  - Fixed by stopping `stockanalysis-web.service` and `stockanalysis-web-public-13000.service`, removing incomplete `.next`, running `NEXT_TELEMETRY_DISABLED=1 npm run build`, then restarting web/API services.
+  - Post-recovery EC2 smoke: `stockanalysis-web.service`, `stockanalysis-web-public-13000.service`, `stockanalysis-frontend-api.service` all `active`; `http://127.0.0.1:8787/__ready` 200; `http://127.0.0.1:3000/` 200; `http://127.0.0.1:13000/` 200; `http://127.0.0.1:13000/cycle-map` 200.
+- EC2 Codex OAuth relogin and AI smoke recovery:
+  - Root cause after deployment was a revoked EC2 Codex OAuth refresh token; `news-rss-translation-run` and `news-rss-ai-extract-run` failed with `token_invalidated` / `refresh_token_invalidated`.
+  - Browser-side prerequisite was enabling `ChatGPT > Settings > Security > Codex용 장치 코드 인증 활성화`.
+  - New device code `HBGP-ITM5R` was submitted at `https://auth.openai.com/codex/device`; browser confirmed `Codex에 로그인됨`.
+  - `GET /__admin/codex-oauth/status` then reported `status=healthy`, `login_probe_status=logged_in`, `login_probe_message="Logged in using ChatGPT"`, `order_boundary=read_only_no_order`.
+  - `POST /__admin/codex-oauth/smoke/direct` succeeded at `2026-07-01T04:39:03Z`.
+  - `news-rss-translation-run --provider codex_oauth --limit 1 --execute` completed with `run_id=8798`, `invocation_id=12636`, `failed_document_count=0`.
+  - `news-rss-ai-extract-run --provider codex_oauth --limit 1 --execute` completed with `run_id=8799`, `invocation_id=12637`, `status=inserted_validated`, `validated_theme_impact_count=2`, `validated_instrument_impact_count=1`, `failed_candidate_count=0`.
+  - `/api/data-health.live_ai_invocation_health.status=recovered_with_recent_failures`, `attention_required=false`, `critical_latest_unhealthy_count=0`; old failed invocations remain as audit history.
+- Local tunnel smoke:
+  - A fresh SSH tunnel to EC2 was opened for `127.0.0.1:13000` and `127.0.0.1:8787`.
+  - Local `http://127.0.0.1:13000/`: 200.
+  - Local `http://127.0.0.1:13000/data-health`: 200.
 
 ## Performance Baseline
 
@@ -92,5 +110,12 @@ Build baseline:
 
 ## Remaining Work
 
-- Commit/merge to `develop`, push, pull on EC2, restart services, and repeat EC2 route smoke.
-- The remaining open gates are legitimate managed-review or outcome-maturity gates. Do not close them by hiding them; they need either more outcome data or explicit review tasks.
+- The code commit has been merged/pushed to `develop` and deployed to EC2.
+- AI invocation health is recovered, but `overall_status=attention_required` remains because of managed review/outcome gates:
+  - `benchmark_drift_quality_attention`
+  - `portfolio_review_decision_history_attention`
+  - `portfolio_review_feedback_calibration_attention`
+  - `portfolio_review_feedback_cadence_attention`
+  - `recommendation_outcome_calibration_attention`
+  - `recommendation_outcome_maturity_attention`
+- Do not hide these gates. They require more outcome data or explicit review tasks, not UI suppression.
