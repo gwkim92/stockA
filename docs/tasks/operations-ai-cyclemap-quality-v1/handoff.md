@@ -83,6 +83,18 @@
   - A fresh SSH tunnel to EC2 was opened for `127.0.0.1:13000` and `127.0.0.1:8787`.
   - Local `http://127.0.0.1:13000/`: 200.
   - Local `http://127.0.0.1:13000/data-health`: 200.
+- 2026-07-02 EC2 follow-up recovery:
+  - `news-rss-translation-run --provider codex_oauth --limit 1 --execute` completed with `run_id=9010`, `invocation_id=13006`, `failed_document_count=0`.
+  - `news-rss-ai-extract-run --provider codex_oauth --limit 1 --execute` completed with `run_id=9011`, `invocation_id=13007`, `status=inserted_validated`, `validated_theme_impact_count=1`, `failed_candidate_count=0`.
+  - Active recommendation price freshness had 21 stale symbols. A fresh EC2 watchlist was generated from `/api/data-health.active_recommendation_price_freshness.stale_symbols`.
+  - `market-price-free-backfill-run` refreshed `ADI`, `ALAB`, `ARM`, `AVGO`, `BE`, `COST`, `DG`, `DIS`, `ELF`, `EROK`, `FANG`, `GILD`, `GOOG`, `INTU`, `LDOS`, `LLY`, `META`, `QUBT`, `TGT`, `TSLA`, and final `XOM` to latest trade date `2026-07-01`.
+  - Twelve Data budget ledger for `2026-07-02`: `used_request_count_after=23`, `budget_remaining_after=1`.
+  - `recommendation-outcome-due-action-router-run --as-of-date 2026-07-02 --execute` completed with parent `run_id=9051`, `eval_run_id=654`, child `run_id=9052`, `eval_run_id=653`, `calibration_status=ready_for_manual_weight_review`, `outcome_count=95`, `ready_for_backfill_count=0`.
+  - `portfolio-review-feedback-calibration-run --as-of-date 2026-07-02 --execute` completed with `run_id=9012`, `eval_run_id=646`, `calibration_status=collect_more_feedback`, `feedback_run_count=8`, `mature_decision_count=75`.
+  - `portfolio-review-feedback-cadence-run --as-of-date 2026-07-02 --execute` completed with `run_id=9049`, `eval_run_id=650`, `cadence_status=calibration_current`.
+  - `portfolio-review-feedback-action-router-run --as-of-date 2026-07-02 --execute` completed with `run_id=9050`, `eval_run_id=651`, `action_status=no_op_calibration_current`.
+  - Final `/api/data-health`: active recommendation price freshness `status=fresh`, `stale_symbol_count=0`, `fresh_symbol_count=28`; live AI `status=recovered_with_recent_failures`, `attention_required=false`; recommendation outcome calibration `status=ready_for_manual_weight_review`, `automatic_weight_change_allowed=false`.
+  - Final local tunnel smoke: `http://127.0.0.1:13000/` 200 and `http://127.0.0.1:13000/data-health` 200.
 
 ## Performance Baseline
 
@@ -115,7 +127,5 @@ Build baseline:
   - `benchmark_drift_quality_attention`
   - `portfolio_review_decision_history_attention`
   - `portfolio_review_feedback_calibration_attention`
-  - `portfolio_review_feedback_cadence_attention`
-  - `recommendation_outcome_calibration_attention`
-  - `recommendation_outcome_maturity_attention`
-- Do not hide these gates. They require more outcome data or explicit review tasks, not UI suppression.
+- Do not hide these gates. `benchmark_drift_quality_attention` and `portfolio_review_decision_history_attention` are investment review visibility gates. `portfolio_review_feedback_calibration_attention` is now `collect_more_feedback`; cadence is current, but more feedback windows are needed before weight review should be considered.
+- `recommendation_outcome_calibration` is now `ready_for_manual_weight_review`, but automatic weight changes remain forbidden. Start `manual-weight-review-pilot-v1` only with explicit user approval.
