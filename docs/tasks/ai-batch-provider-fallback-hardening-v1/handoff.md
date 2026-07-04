@@ -2,6 +2,11 @@
 
 ## 2026-07-04
 
+- completed: `ai-batch-provider-fallback-hardening-v1` implemented, deployed, and smoke tested on EC2.
+- exact next step: Continue with `manual-weight-review-pilot-decision-v1`; do not start `manual-weight-review-pilot-v1` until the user explicitly approves the pilot scope and read-only/no-order boundary.
+
+Current status: complete and deployed to EC2.
+
 Current EC2 AI state before code deploy:
 
 - `openai_provider_health.status=openai_insufficient_quota`
@@ -27,14 +32,37 @@ Evidence:
 
 Pending:
 
-- Commit, push, EC2 pull/restart.
-- EC2 smoke:
-  - `stockanalysis-operations ai-agent-registry-report --env-file /opt/stockanalysis/runtime/data-operations.env`
-  - `stockanalysis-operations openai-provider-health-report --env-file /opt/stockanalysis/runtime/data-operations.env`
-  - `/api/data-health` confirms fallback visibility and `open_gates=[]`.
+- completed: commit `81a77c1b` pushed to `develop`.
+- completed: EC2 `git pull --ff-only origin develop`.
+- completed: restarted `stockanalysis-frontend-api.service` and `stockanalysis-web.service`; both `active`.
+- completed: EC2 deployed commit `81a77c1b`.
+- completed: `stockanalysis-operations ai-agent-registry-report --env-file /opt/stockanalysis/runtime/data-operations.env`
+  - `agent_count=13`
+  - `default_primary_provider=agents_sdk_openai`
+  - `default_fallback_provider=codex_oauth`
+  - `default_local_fallback_provider=local_rules`
+  - `order_boundary=read_only_no_order`
+- completed: `stockanalysis-operations openai-provider-health-report --env-file /opt/stockanalysis/runtime/data-operations.env`
+  - `status=openai_insufficient_quota`
+  - `fallback_required=true`
+  - `fallback_provider=codex_oauth`
+  - `local_fallback_provider=local_rules`
+- completed: authenticated `/api/data-health`
+  - `overall_status=healthy`
+  - `open_gates=[]`
+  - `live_ai_invocation_health.status=recovered_with_recent_failures`
+  - `live_ai_invocation_health.attention_required=false`
+  - `openai_provider_health.status=openai_insufficient_quota`
+- completed: local tunnel route smoke
+  - `http://127.0.0.1:13000/` returned `200`
+  - `http://127.0.0.1:13000/data-health` returned `200`
 
 Boundaries:
 
 - No recommendation weight change.
 - No AI-driven order decision.
 - No broker submit.
+
+Exact next step:
+
+- Continue with `manual-weight-review-pilot-decision-v1`; do not start `manual-weight-review-pilot-v1` until the user explicitly approves the pilot scope and read-only/no-order boundary.
