@@ -99,8 +99,8 @@ export function RecommendationBrokerReality({
         <span>토스증권 브로커 현실</span>
         <strong>{portfolioDisplayName(position.portfolio_name)}</strong>
         <p>
-          읽기 전용 계좌 기준 {positionStatusLabel(position.status)} 상태다. 이 값은 보유 현실과 가상 매매 검증에는
-          쓰지만 추천 점수 자체를 바꾸지는 않는다.
+          읽기 전용 계좌 기준 {positionStatusLabel(position.status)} 상태입니다. 이 값은 보유 현실과 가상 매매
+          검증에만 쓰이며 추천 점수는 바꾸지 않습니다.
         </p>
       </div>
       <div className={styles.brokerMetrics}>
@@ -116,9 +116,13 @@ export function RecommendationBrokerReality({
           note={brokerOrderBoundaryLabel(orderBoundary)}
         />
         <BrokerMetric
-          label="원천 실행"
-          value={position.source_run_id ? "계좌 원장 연결" : "원천 대기"}
-          note={position.source_run_id ?? "계좌 스냅샷 원천 없음"}
+          label="계좌 스냅샷"
+          value={position.source_run_id ? "연결됨" : "대기"}
+          note={
+            position.snapshot_date
+              ? `${position.snapshot_date} 기준 토스증권 읽기 전용 원장`
+              : "토스증권 원장 스냅샷 대기"
+          }
         />
       </div>
     </aside>

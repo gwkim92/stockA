@@ -114,10 +114,10 @@ function hasOpenPosition(position: RecommendationPositionReference) {
 
 function positionSummary(symbol: string, position: RecommendationPositionReference) {
   if (position.status === "held") {
-    return `${symbol}은 이미 보유 중입니다. 평단가, 현재가, 평가손익을 추천 판단과 함께 봅니다.`;
+    return `${symbol}은 이미 보유 중입니다. 평단가, 현재가, 평가손익을 추천 방향과 함께 대조합니다.`;
   }
   if (position.status === "not_held") {
-    return `${symbol}은 현재 보유하지 않습니다. 신규 편입 후보인지와 필요한 안전 조건을 먼저 봅니다.`;
+    return `${symbol}은 현재 보유하지 않습니다. 신규 편입 후보 조건과 안전 차단 상태를 먼저 분리합니다.`;
   }
   return `${symbol} 포지션 상태가 명확하지 않습니다. 보유 원장과 가상 매매 상태를 함께 대조합니다.`;
 }
@@ -175,8 +175,8 @@ export function RecommendationPositionReality({ data }: RecommendationPositionRe
   const tone = positionTone(position.status);
   const actionText =
     position.status === "held"
-      ? "기존 보유 포지션과 추천 방향의 충돌 여부를 본다."
-      : "현재 보유가 없으므로 신규 편입 후보로만 본다.";
+      ? "보유 수량과 추천 방향의 충돌 여부"
+      : "신규 편입 후보 상태";
 
   return (
     <section
