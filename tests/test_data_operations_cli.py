@@ -77,6 +77,31 @@ class DataOperationsCliTests(unittest.TestCase):
         self.assertEqual(payload["health"]["fallback_provider"], "codex_oauth")
         self.assertFalse(payload["health"]["balance_known"])
 
+    def test_ai_agent_registry_report_accepts_repo_outside_env_without_secrets(self) -> None:
+        with tempfile.TemporaryDirectory() as repo_root, tempfile.TemporaryDirectory() as runtime_root:
+            env_file = Path(runtime_root) / "data-operations.env"
+            env_file.write_text('OPENAI_API_KEY="sk-test-do-not-print"\n', encoding="utf-8")
+            stdout = io.StringIO()
+
+            exit_code = main(
+                [
+                    "ai-agent-registry-report",
+                    "--repo-root",
+                    repo_root,
+                    "--env-file",
+                    str(env_file),
+                ],
+                stdout=stdout,
+            )
+
+        self.assertEqual(exit_code, 0)
+        output = stdout.getvalue()
+        self.assertNotIn("sk-test-do-not-print", output)
+        payload = json.loads(output)
+        self.assertEqual(payload["report_name"], "ai_agent_registry")
+        self.assertEqual(payload["default_fallback_provider"], "codex_oauth")
+        self.assertEqual(payload["default_local_fallback_provider"], "local_rules")
+
     def test_openai_admin_cost_refresh_run_writes_secret_free_cost_artifact(self) -> None:
         class FakeResponse:
             def read(self) -> bytes:
@@ -4506,6 +4531,8 @@ def _write_runtime_env_file(root: Path) -> Path:
                 'STOCKANALYSIS_LLM_PROVIDER="openai"',
                 'OPENAI_API_KEY="openai-key-12345"',
                 f'STOCKANALYSIS_DATA_OPERATIONS_ARTIFACT_ROOT="{artifact_root}"',
+                'STOCKANALYSIS_TOSSINVEST_CLIENT_ID="toss-client-id-12345"',
+                'STOCKANALYSIS_TOSSINVEST_CLIENT_SECRET="toss-client-secret-12345"',
             ]
         )
         + "\n",

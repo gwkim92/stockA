@@ -383,7 +383,9 @@ def build_parser() -> argparse.ArgumentParser:
         "ai-agent-registry-report",
         help="Print the configured AI agent catalog, model policies, prompt versions, and safety boundaries.",
     )
+    ai_agent_registry.add_argument("--env-file")
     ai_agent_registry.add_argument("--include-prompts", action="store_true")
+    ai_agent_registry.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
     ai_agent_registry.set_defaults(handler=_handle_ai_agent_registry_report)
 
     openai_provider_health = subparsers.add_parser(
@@ -2059,6 +2061,7 @@ def _handle_tossinvest_provider_comparison_run(args: argparse.Namespace, *, stdo
 
 
 def _handle_ai_agent_registry_report(args: argparse.Namespace, *, stdout: TextIO) -> int:
+    _load_optional_env_mapping(args.env_file, repo_root=args.repo_root)
     report = build_ai_agent_registry_report(include_prompts=bool(args.include_prompts))
     print_json(report, stdout=stdout, sort_keys=False)
     return 0

@@ -34,6 +34,9 @@ PORTFOLIO_POSITIONS_CSV_ENV = "STOCKANALYSIS_PORTFOLIO_POSITIONS_CSV"
 LLM_PROVIDER_ENV = "STOCKANALYSIS_LLM_PROVIDER"
 OPENAI_API_KEY_ENV = "OPENAI_API_KEY"
 CODEX_CLI_COMMAND_ENV = "STOCKANALYSIS_CODEX_CLI_COMMAND"
+TOSSINVEST_CLIENT_ID_ENV = "STOCKANALYSIS_TOSSINVEST_CLIENT_ID"
+TOSSINVEST_CLIENT_SECRET_ENV = "STOCKANALYSIS_TOSSINVEST_CLIENT_SECRET"
+TOSSINVEST_ACCOUNT_SEQ_ENV = "STOCKANALYSIS_TOSSINVEST_ACCOUNT_SEQ"
 
 _LLM_PROVIDER_KEY_ENVS = (
     OPENAI_API_KEY_ENV,
@@ -65,6 +68,7 @@ _SUPPORTED_ENV_GROUPS = (
     "openai_or_llm_provider",
     "market_price_history",
     "artifact_root",
+    "tossinvest",
 )
 
 
@@ -110,6 +114,11 @@ def render_data_operations_env_template() -> str:
             "# Data operations artifact root. Keep stdout/stderr/metadata outside the repository.",
             'STOCKANALYSIS_DATA_OPERATIONS_ARTIFACT_ROOT="/absolute/path/to/data-operations-artifacts"',
             "",
+            "# TossInvest broker reality data. Required for Toss profiles; account seq is optional.",
+            'STOCKANALYSIS_TOSSINVEST_CLIENT_ID="CHANGE_ME_TOSSINVEST_CLIENT_ID"',
+            'STOCKANALYSIS_TOSSINVEST_CLIENT_SECRET="CHANGE_ME_TOSSINVEST_CLIENT_SECRET"',
+            '# STOCKANALYSIS_TOSSINVEST_ACCOUNT_SEQ="OPTIONAL_ACCOUNT_SEQ"',
+            "",
         )
     )
 
@@ -146,6 +155,7 @@ def check_data_operations_runtime_env(
         _validate_llm_provider,
         lambda mapping: _validate_market_price_history(mapping, database_ready=database_ready),
         lambda mapping: _validate_artifact_root(mapping, repo_root=root),
+        _validate_tossinvest,
     ):
         group = validator(env_mapping)
         groups.append(group)
@@ -676,6 +686,68 @@ def _validate_artifact_root(env: Mapping[str, str], *, repo_root: Path) -> dict[
         required_env=[DATA_OPERATIONS_ARTIFACT_ROOT_ENV],
         configured_env=[DATA_OPERATIONS_ARTIFACT_ROOT_ENV],
         details={"artifact_root_configured": True},
+    )
+
+
+def _validate_tossinvest(env: Mapping[str, str]) -> dict[str, object]:
+    client_id = _env_value(env, TOSSINVEST_CLIENT_ID_ENV)
+    client_secret = _env_value(env, TOSSINVEST_CLIENT_SECRET_ENV)
+    account_seq = _env_value(env, TOSSINVEST_ACCOUNT_SEQ_ENV)
+    configured = [
+        name
+        for name, value in (
+            (TOSSINVEST_CLIENT_ID_ENV, client_id),
+            (TOSSINVEST_CLIENT_SECRET_ENV, client_secret),
+            (TOSSINVEST_ACCOUNT_SEQ_ENV, account_seq),
+        )
+        if value
+    ]
+    required = [TOSSINVEST_CLIENT_ID_ENV, TOSSINVEST_CLIENT_SECRET_ENV]
+    missing = [
+        name
+        for name, value in (
+            (TOSSINVEST_CLIENT_ID_ENV, client_id),
+            (TOSSINVEST_CLIENT_SECRET_ENV, client_secret),
+        )
+        if not value
+    ]
+    if missing:
+        return _failed_group(
+            "tossinvest",
+            required_env=required,
+            configured_env=configured,
+            message=f"Missing required TossInvest environment variables: {', '.join(missing)}.",
+        )
+
+    for env_name, value in (
+        (TOSSINVEST_CLIENT_ID_ENV, client_id),
+        (TOSSINVEST_CLIENT_SECRET_ENV, client_secret),
+    ):
+        issue = _placeholder_issue(env_name, value)
+        if issue:
+            return _failed_group(
+                "tossinvest",
+                required_env=required,
+                configured_env=configured,
+                message=issue,
+            )
+        if len(value) < 8:
+            return _failed_group(
+                "tossinvest",
+                required_env=required,
+                configured_env=configured,
+                message=f"{env_name} must not be a short placeholder-like value.",
+            )
+
+    return _passed_group(
+        "tossinvest",
+        required_env=required,
+        configured_env=configured,
+        details={
+            "credential_configured": True,
+            "selected_account_seq_configured": bool(account_seq),
+            "account_seq_policy": "optional_select_first_account_if_absent",
+        },
     )
 
 
