@@ -1162,22 +1162,44 @@ def _build_open_gate_details(
     return details
 
 
-def _portfolio_review_router_is_safe_wait(router: Mapping[str, Any]) -> bool:
+def _portfolio_review_cadence_is_safe_current(cadence: Mapping[str, Any] | None) -> bool:
+    if cadence is None or cadence.get("status") != "loaded":
+        return False
+    if cadence.get("automatic_order_allowed") is True or cadence.get("broker_submit_allowed") is True:
+        return False
+    if str(cadence.get("order_boundary") or "read_only_no_order") != "read_only_no_order":
+        return False
+    return str(cadence.get("cadence_status") or "") in {
+        "calibration_current",
+        "wait_for_outcome_window",
+    }
+
+
+def _portfolio_review_router_is_safe_wait(
+    router: Mapping[str, Any],
+    cadence: Mapping[str, Any] | None = None,
+) -> bool:
     if router.get("status") != "loaded":
         return False
     if router.get("automatic_order_allowed") is True or router.get("broker_submit_allowed") is True:
         return False
+    if router.get("automatic_weight_change_allowed") is True:
+        return False
     if str(router.get("order_boundary") or "") != "read_only_no_order":
         return False
-    return str(router.get("action_status") or "") in {
+    action_status = str(router.get("action_status") or "")
+    if action_status in {
         "no_op_wait_for_outcome_window",
         "no_op_current_window_complete",
-    }
+    }:
+        return True
+    return _portfolio_review_cadence_is_safe_current(cadence)
 
 
 def _portfolio_review_decision_history_attention_policy(
     history: Mapping[str, Any],
     action_router: Mapping[str, Any],
+    feedback_cadence: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     status = str(history.get("status") or "missing")
     decision_status = str(history.get("decision_status") or "missing")
@@ -1196,13 +1218,26 @@ def _portfolio_review_decision_history_attention_policy(
         and review_required_count > 0
         and decision_status == "review_required"
         and not unsafe_guardrail
-        and _portfolio_review_router_is_safe_wait(action_router)
+        and _portfolio_review_router_is_safe_wait(action_router, feedback_cadence)
     )
     if managed:
+        managed_status = (
+            "current_feedback_cadence"
+            if _portfolio_review_cadence_is_safe_current(feedback_cadence)
+            and str(action_router.get("action_status") or "") not in {
+                "no_op_wait_for_outcome_window",
+                "no_op_current_window_complete",
+            }
+            else "waiting_for_outcome_window"
+        )
         return {
             "attention_required": False,
-            "managed_review_status": "waiting_for_outcome_window",
-            "managed_review_reason": "검토 결정은 저장됐고 자동 주문은 차단됐으며 성과 관찰 기간을 기다리는 중이다.",
+            "managed_review_status": managed_status,
+            "managed_review_reason": (
+                "검토 결정은 저장됐고 최신 feedback cadence가 현재 상태이며 자동 주문과 weight 변경은 차단됐다."
+                if managed_status == "current_feedback_cadence"
+                else "검토 결정은 저장됐고 자동 주문은 차단됐으며 성과 관찰 기간을 기다리는 중이다."
+            ),
         }
     return {
         "attention_required": decision_status == "review_required" or status != "loaded" or unsafe_guardrail,
@@ -1236,7 +1271,10 @@ def _benchmark_drift_quality_attention_policy(
         and outlier_decision_count > 0
         and review_candidate_count > 0
         and history.get("attention_required") is False
-        and _portfolio_review_router_is_safe_wait(action_router)
+        and (
+            _portfolio_review_router_is_safe_wait(action_router)
+            or str(history.get("managed_review_status") or "") == "current_feedback_cadence"
+        )
     )
     if managed:
         return {
@@ -1680,6 +1718,7 @@ def build_live_data_health_response(
         _portfolio_review_decision_history_attention_policy(
             portfolio_review_decision_history,
             portfolio_review_feedback_action_router,
+            portfolio_review_feedback_cadence,
         )
     )
     benchmark_drift_quality.update(
@@ -1777,11 +1816,16 @@ def build_live_data_health_response(
         enabled=portfolio_review_decision_history["attention_required"],
     )
     gate = "portfolio_review_decision_feedback_attention"
+    feedback_status = str(portfolio_review_decision_feedback["feedback_status"])
+    feedback_has_managed_collection = (
+        feedback_status == "needs_more_data"
+        and portfolio_review_feedback_calibration.get("managed_gate_status") == "managed_current_feedback_collection"
+    )
     open_gates = _set_data_health_open_gate(
         open_gates,
         gate,
-        enabled=portfolio_review_decision_feedback["feedback_status"]
-        in {"has_contradictions", "needs_more_data", "missing_history"},
+        enabled=feedback_status in {"has_contradictions", "needs_more_data", "missing_history"}
+        and not feedback_has_managed_collection,
     )
     gate = "portfolio_review_feedback_calibration_attention"
     open_gates = _set_data_health_open_gate(
@@ -17215,14 +17259,26 @@ def _apply_portfolio_review_feedback_managed_wait_policy(
         or cadence_status == "wait_for_outcome_window"
         or action_status == "no_op_wait_for_outcome_window"
     )
-    managed_wait = bool(
+    current_collection = bool(
         result.get("weight_review_blocked") is True
-        and wait_evidence
+        and cadence_status == "calibration_current"
         and safe_order_boundary
-        and (
-            cadence.get("should_wait") is True
-            or action_status == "no_op_wait_for_outcome_window"
+        and int(_safe_number(result.get("feedback_run_gap")) or 0) == 0
+        and int(_safe_number(result.get("mature_decision_gap")) or 0) == 0
+        and int(_safe_number(result.get("contradicted_count")) or 0) == 0
+        and cadence.get("should_run_now") is not True
+    )
+    managed_wait = bool(
+        (
+            result.get("weight_review_blocked") is True
+            and wait_evidence
+            and safe_order_boundary
+            and (
+                cadence.get("should_wait") is True
+                or action_status == "no_op_wait_for_outcome_window"
+            )
         )
+        or current_collection
     )
     wait_until = str(result.get("estimated_maturity_date") or cadence.get("wait_until") or "")
     reason = (
@@ -17234,8 +17290,20 @@ def _apply_portfolio_review_feedback_managed_wait_policy(
     result.update(
         {
             "managed_wait": managed_wait,
-            "managed_gate_status": "managed_wait_until_outcome_window" if managed_wait else "unmanaged_attention",
-            "managed_gate_reason": reason if managed_wait else "",
+            "managed_gate_status": (
+                "managed_current_feedback_collection"
+                if current_collection
+                else "managed_wait_until_outcome_window"
+                if managed_wait
+                else "unmanaged_attention"
+            ),
+            "managed_gate_reason": (
+                "성과 사후평가는 최신 상태이며 부족한 항목은 표본 보강 대상으로 관리한다. 추천 weight 변경과 주문은 계속 차단한다."
+                if current_collection
+                else reason
+                if managed_wait
+                else ""
+            ),
             "attention_required": False if managed_wait else result.get("attention_required") is True,
             "weight_review_blocked": result.get("weight_review_blocked") is True,
             "weight_review_block_reason": str(result.get("weight_review_block_reason") or reason),

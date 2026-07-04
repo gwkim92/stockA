@@ -5602,6 +5602,57 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         )
         self.assertTrue(unmanaged_drift_policy["attention_required"])
 
+        current_cadence = {
+            "status": "loaded",
+            "cadence_status": "calibration_current",
+            "should_run_now": False,
+            "should_wait": True,
+            "automatic_order_allowed": False,
+            "broker_submit_allowed": False,
+            "order_boundary": "read_only_no_order",
+        }
+        executed_router = {
+            **safe_router,
+            "action_status": "feedback_executed",
+            "automatic_weight_change_allowed": False,
+        }
+        current_history_policy = _portfolio_review_decision_history_attention_policy(
+            managed_history,
+            executed_router,
+            current_cadence,
+        )
+        self.assertFalse(current_history_policy["attention_required"])
+        self.assertEqual(current_history_policy["managed_review_status"], "current_feedback_cadence")
+
+        managed_current_calibration = _apply_portfolio_review_feedback_managed_wait_policy(
+            calibration={
+                "status": "loaded",
+                "calibration_status": "collect_more_feedback",
+                "maturity_status": "",
+                "feedback_run_gap": 0,
+                "mature_decision_gap": 0,
+                "feedback_run_count": 10,
+                "min_feedback_runs": 3,
+                "mature_decision_count": 93,
+                "min_mature_decisions": 10,
+                "contradicted_count": 0,
+                "weight_review_blocked": True,
+                "guardrails": {
+                    "automatic_order_allowed": False,
+                    "broker_submit_allowed": False,
+                    "order_boundary": "read_only_no_order",
+                },
+            },
+            cadence=current_cadence,
+            action_router=executed_router,
+        )
+        self.assertFalse(managed_current_calibration["attention_required"])
+        self.assertTrue(managed_current_calibration["managed_wait"])
+        self.assertEqual(
+            managed_current_calibration["managed_gate_status"],
+            "managed_current_feedback_collection",
+        )
+
     def test_recommendation_outcome_maturity_due_state_requests_calibration_now(self) -> None:
         payload = _build_recommendation_outcome_maturity_payload(
             {
