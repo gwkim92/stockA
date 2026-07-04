@@ -95,6 +95,18 @@
   - `portfolio-review-feedback-action-router-run --as-of-date 2026-07-02 --execute` completed with `run_id=9050`, `eval_run_id=651`, `action_status=no_op_calibration_current`.
   - Final `/api/data-health`: active recommendation price freshness `status=fresh`, `stale_symbol_count=0`, `fresh_symbol_count=28`; live AI `status=recovered_with_recent_failures`, `attention_required=false`; recommendation outcome calibration `status=ready_for_manual_weight_review`, `automatic_weight_change_allowed=false`.
   - Final local tunnel smoke: `http://127.0.0.1:13000/` 200 and `http://127.0.0.1:13000/data-health` 200.
+- 2026-07-04 EC2 access and gate follow-up recovery:
+  - Current local public IP was `211.106.102.102`. Personal AWS account `115623963546` and target EC2 `i-029d51b163fb07b61` were verified in Chrome before changing AWS state.
+  - Added one SSH inbound rule to security group `sg-0a2d52009e73a59e3` (`stockanalysis-mvp-ssh-20260520`): TCP `22`, source `211.106.102.102/32`, description `stockanalysis ssh 2026-07-04`.
+  - SSH to `3.211.40.142` recovered; EC2 remained at commit `b0586c94`; `stockanalysis-web.service` and `stockanalysis-frontend-api.service` were `active`; FastAPI `__ready` returned `read_only_no_order`.
+  - Reopened local SSH tunnel for `127.0.0.1:13000` and `127.0.0.1:8787`; local `http://127.0.0.1:13000/` and `/data-health` returned 200.
+  - `news-rss-translation-run --provider codex_oauth --limit 1 --execute` completed with `run_id=9509`, `invocation_id=13841`, `failed_document_count=0`.
+  - `news-rss-ai-extract-run --provider codex_oauth --limit 1 --execute` completed with `run_id=9510`, `invocation_id=13842`, `status=rejected_no_validated_impacts`. This was an AI invocation success but the validator rejected the candidate as non-actionable evidence.
+  - `recommendation-outcome-due-action-router-run --as-of-date 2026-07-04 --execute` completed with parent `run_id=9513`, `eval_run_id=693`, child `run_id=9514`, `eval_run_id=692`, `calibration_status=ready_for_manual_weight_review`, `outcome_count=95`, `ready_for_backfill_count=24` before child execution.
+  - `portfolio-review-feedback-action-router-run --as-of-date 2026-07-04 --execute` completed with `run_id=9524`, `eval_run_id=695`, `action_status=feedback_executed`, child feedback `eval_run_id=694`, `feedback_status=needs_more_data`.
+  - `portfolio-review-feedback-calibration-run --as-of-date 2026-07-04 --execute` completed with `run_id=9527`, `eval_run_id=697`, `calibration_status=collect_more_feedback`, `feedback_run_count=10`, `mature_decision_count=93`, `validated_count=93`, `contradicted_count=0`.
+  - Final `portfolio-review-feedback-cadence-run --as-of-date 2026-07-04 --execute` completed with `run_id=9528`, `eval_run_id=698`, `cadence_status=calibration_current`.
+  - Final `/api/data-health`: open gates reduced from 7 to 4; active recommendation price freshness `status=fresh`, `stale_symbol_count=0`; live AI `status=recovered_with_recent_failures`, `attention_required=false`; recommendation outcome calibration `status=ready_for_manual_weight_review`; auth `status=read_only_rbac_ready`, `order_boundary=read_only_no_order`, `broker_submit_allowed=false`, `automatic_weight_change_allowed=false`.
 
 ## Performance Baseline
 
@@ -126,6 +138,7 @@ Build baseline:
 - AI invocation health is recovered, but `overall_status=attention_required` remains because of managed review/outcome gates:
   - `benchmark_drift_quality_attention`
   - `portfolio_review_decision_history_attention`
+  - `portfolio_review_decision_feedback_attention`
   - `portfolio_review_feedback_calibration_attention`
-- Do not hide these gates. `benchmark_drift_quality_attention` and `portfolio_review_decision_history_attention` are investment review visibility gates. `portfolio_review_feedback_calibration_attention` is now `collect_more_feedback`; cadence is current, but more feedback windows are needed before weight review should be considered.
+- Do not hide these gates. `benchmark_drift_quality_attention`, `portfolio_review_decision_history_attention`, and `portfolio_review_decision_feedback_attention` are investment review/outcome visibility gates. `portfolio_review_feedback_calibration_attention` is still `collect_more_feedback`; cadence is current, but more feedback windows are needed before weight review should be considered.
 - `recommendation_outcome_calibration` is now `ready_for_manual_weight_review`, but automatic weight changes remain forbidden. Start `manual-weight-review-pilot-v1` only with explicit user approval.
