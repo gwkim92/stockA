@@ -32,7 +32,6 @@ import { normalizePerformanceOutcomesPayload } from "./frontend-normalizers-perf
 import { ensureArray, ensureRecord, isRecord, type MutableRecord, withDefault } from "./frontend-normalizer-utils";
 
 const DEFAULT_FIXTURE_BASE_URL = "http://127.0.0.1:8765";
-const ADMIN_ACTION_TOKEN_HEADER = "X-Stockanalysis-Admin-Action-Token";
 
 export class FrontendApiError extends Error {
   constructor(
@@ -74,63 +73,6 @@ export async function fetchFrontendPayload<TData>(path: string): Promise<ApiResp
 
   const payload = (await response.json()) as ApiResponse<TData>;
   return normalizeFrontendPayload(path, payload) as ApiResponse<TData>;
-}
-
-export async function fetchFrontendRaw<TData>(path: string): Promise<TData> {
-  const headers: Record<string, string> = { Accept: "application/json" };
-  const readToken = process.env.STOCKANALYSIS_FRONTEND_API_READ_TOKEN;
-  if (readToken) {
-    headers.Authorization = `Bearer ${readToken}`;
-  }
-
-  const response = await fetch(`${fixtureBaseUrl()}${path}`, {
-    cache: "no-store",
-    headers,
-  });
-
-  if (!response.ok) {
-    let message = `Frontend API request failed for ${path}`;
-    try {
-      const payload = (await response.json()) as { error?: { message?: string } };
-      message = payload.error?.message ?? message;
-    } catch {
-      message = `${message}: HTTP ${response.status}`;
-    }
-    throw new FrontendApiError(message, response.status, path);
-  }
-
-  return (await response.json()) as TData;
-}
-
-export async function postFrontendAdminAction<TData>(path: string): Promise<TData> {
-  const headers: Record<string, string> = { Accept: "application/json" };
-  const readToken = process.env.STOCKANALYSIS_FRONTEND_API_READ_TOKEN;
-  if (readToken) {
-    headers.Authorization = `Bearer ${readToken}`;
-  }
-  const adminActionToken = process.env.STOCKANALYSIS_FRONTEND_API_ADMIN_ACTION_TOKEN;
-  if (adminActionToken) {
-    headers[ADMIN_ACTION_TOKEN_HEADER] = adminActionToken;
-  }
-
-  const response = await fetch(`${fixtureBaseUrl()}${path}`, {
-    method: "POST",
-    cache: "no-store",
-    headers,
-  });
-
-  if (!response.ok) {
-    let message = `Frontend admin action failed for ${path}`;
-    try {
-      const payload = (await response.json()) as { error?: { message?: string } };
-      message = payload.error?.message ?? message;
-    } catch {
-      message = `${message}: HTTP ${response.status}`;
-    }
-    throw new FrontendApiError(message, response.status, path);
-  }
-
-  return (await response.json()) as TData;
 }
 
 function dataRecord(payload: ApiResponse<unknown>) {
@@ -1142,22 +1084,6 @@ export async function getAiAgentRegistry() {
   }
 }
 
-export function getCodexOauthOperatorStatus() {
-  return fetchFrontendRaw<CodexOauthOperatorStatus>("/__admin/codex-oauth/status");
-}
-
-export function startCodexOauthRelogin() {
-  return postFrontendAdminAction<CodexOauthOperatorStatus>("/__admin/codex-oauth/relogin/start");
-}
-
-export function runCodexOauthDirectSmoke() {
-  return postFrontendAdminAction<CodexOauthOperatorStatus>("/__admin/codex-oauth/smoke/direct");
-}
-
-export function runCodexOauthNewsSmoke() {
-  return postFrontendAdminAction<CodexOauthOperatorStatus>("/__admin/codex-oauth/smoke/news");
-}
-
 export function getStocks() {
   return fetchFrontendPayload<StockListData>("/api/stocks");
 }
@@ -1506,7 +1432,7 @@ function buildAiAgentRegistryFallback(): ApiResponse<AiAgentRegistryData> {
     },
     links: {
       data_health: "/api/data-health",
-      codex_oauth_status: "/__admin/codex-oauth/status",
+      codex_oauth_status: "/api/admin/ai-agents",
     },
   };
 }

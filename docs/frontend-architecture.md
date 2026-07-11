@@ -126,6 +126,9 @@ Token/cost controls:
 - read-only first release.
 - authentication required before any non-local deployment.
 - role-based permissions: viewer, analyst, operator, admin.
+- browser-reachable Next Server Actions are prohibited until an authenticated, authorized, CSRF-protected, and audited admin session boundary exists.
+- Codex OAuth mutations are server CLI/SSH-only; the web application may render only an allowlisted status DTO.
+- one-time auth URLs/codes, process ids, filesystem paths, raw probe/error messages, and admin tokens must not cross the browser serialization boundary.
 - no database credentials in browser.
 - no API keys in frontend bundle.
 - all ticket status changes and generated notes require audit trail.

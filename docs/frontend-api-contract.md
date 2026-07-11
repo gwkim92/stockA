@@ -201,6 +201,12 @@ Rules:
 
 Initial frontend release is read-only.
 
+Current enforcement:
+
+- `apps/web` exposes no Server Action or browser-side write proxy.
+- internal Codex OAuth relogin and smoke operations remain out-of-band server CLI/SSH actions and must not be proxied with server-held admin tokens.
+- browser view models use explicit allowlists and exclude one-time auth data, process ids, filesystem paths, and raw diagnostic strings.
+
 Allowed later:
 
 - remediation ticket status update with actor and reason.

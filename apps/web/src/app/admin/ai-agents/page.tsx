@@ -2,10 +2,11 @@ import Link from "next/link";
 import type { Route } from "next";
 
 import { OperationsConsoleHeader } from "@/components/operations/OperationsConsoleHeader";
-import { getAiAgentRegistry, getCodexOauthOperatorStatus } from "@/lib/frontend-api";
+import { getAiAgentRegistry } from "@/lib/frontend-api";
 import { koCode } from "@/lib/korean-labels";
-import type { AiAgentRegistryData, CodexOauthOperatorStatus } from "@/lib/types";
+import type { AiAgentRegistryData } from "@/lib/types";
 import CodexOauthOperatorPanel from "./CodexOauthOperatorPanel";
+import { buildCodexOauthStatusView } from "./codex-oauth-status-view";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "AI 에이전트 운영" };
@@ -151,33 +152,6 @@ function formatOptionalDate(value: string) {
   return value.replace("T", " ").replace("+00:00", " UTC");
 }
 
-function defaultCodexOauthStatus(status: string): CodexOauthOperatorStatus {
-  return {
-    status: status || "unknown",
-    label: status === "healthy" ? "정상" : status === "relogin_required" ? "재로그인 필요" : "미확인",
-    summary: "Codex OAuth 운영 상태 endpoint가 아직 연결되지 않았다.",
-    auth_url: "",
-    user_code: "",
-    expires_at: "",
-    device_auth_pid: null,
-    last_checked_at: "",
-    last_event_type: "",
-    last_smoke_status: "",
-    last_smoke_at: "",
-    last_error_code: "",
-    last_error_summary: "",
-    next_action: "Codex OAuth 운영 상태 endpoint와 admin action token 설정을 확인한다.",
-    login_probe_status: "not_checked",
-    login_probe_message: "",
-    status_path: "",
-    admin_action_required: true,
-    read_only: true,
-    broker_submit_allowed: false,
-    automatic_order_allowed: false,
-    order_boundary: "read_only_no_order",
-  };
-}
-
 function AgentCard({ agent }: { agent: Agent }) {
   return (
     <article className={boundaryTone(agent)}>
@@ -243,12 +217,8 @@ function AgentCard({ agent }: { agent: Agent }) {
 }
 
 export default async function AiAgentAdminPage() {
-  const [{ data }, codexOauthStatusResult] = await Promise.all([
-    getAiAgentRegistry(),
-    getCodexOauthOperatorStatus().catch(() => null),
-  ]);
-  const codexOauthStatus =
-    codexOauthStatusResult ?? data.runtime_policy.codex_oauth_operator ?? defaultCodexOauthStatus(data.runtime_policy.codex_oauth_status);
+  const { data } = await getAiAgentRegistry();
+  const codexOauthStatus = buildCodexOauthStatusView(data.runtime_policy.codex_oauth_operator);
   const activeAgentCount = data.agents.length;
   const blockedOrderRatio =
     activeAgentCount > 0 ? Math.round((data.blocked_order_agent_count / activeAgentCount) * 100) : 0;
@@ -267,14 +237,16 @@ export default async function AiAgentAdminPage() {
       <OperationsConsoleHeader
         section="AI 운영"
         title="모델·인증·비용·예비 경로"
-        description="에이전트별 모델과 Codex OAuth 상태, API 비용, 실패 시 대체 경로를 관리합니다."
+        description="에이전트별 모델과 Codex OAuth 상태, API 비용, 중단 시 대체 경로를 읽기 전용으로 확인합니다."
         currentPath={"/admin/ai-agents" as Route}
       />
 
       <section className="decision-brief" aria-label="AI runtime boundary">
         <div className="decision-brief-main">
           <span className="decision-brief-kicker">현재 실행 경계</span>
-          <h1 className="decision-brief-title">배치 AI는 허용, 화면 요청 중 실시간 AI 호출은 금지</h1>
+          <h1 className="decision-brief-title">
+            배치 AI는 허용, {"화면\u00a0요청\u00a0중"} 실시간 AI 호출은 금지
+          </h1>
           <p className="decision-brief-copy">
             {providerSummary(data)}. {runtimeStatusText(data)}
           </p>
@@ -282,7 +254,7 @@ export default async function AiAgentAdminPage() {
             <span>설정 원천: {adminCopy(koCode(data.runtime_policy.configuration_source))}</span>
             <span>OpenAI 상태: {adminCopy(koCode(data.runtime_policy.primary_provider_status))}</span>
             <span>잔액 확인: {adminCopy(koCode(data.runtime_policy.openai_provider_health.balance_check_method))}</span>
-            <span>Codex OAuth: {codexOauthStatus.label}</span>
+            <span>Codex OAuth: {codexOauthStatus.statusLabel}</span>
             <span>주문 경계: {adminCopy(koCode(data.runtime_policy.order_boundary))}</span>
           </div>
         </div>
@@ -310,7 +282,7 @@ export default async function AiAgentAdminPage() {
         </div>
       </section>
 
-      <CodexOauthOperatorPanel initialStatus={codexOauthStatus} />
+      <CodexOauthOperatorPanel status={codexOauthStatus} />
 
       <section className="decision-brief" aria-label="openai billing status">
         <div className="decision-brief-main">

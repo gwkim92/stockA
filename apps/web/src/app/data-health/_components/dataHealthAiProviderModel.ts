@@ -54,7 +54,7 @@ export function liveAiInvocationTitle(health: LiveAiInvocationHealth) {
     return "AI 호출 복구됨";
   }
   if (health.status === "missing_recent_invocations") {
-    return "최근 AI 호출 없음";
+    return "최근 AI\u00a0호출 없음";
   }
   return koCode(health.status);
 }

@@ -1,0 +1,204 @@
+.panel {
+  display: grid;
+  gap: var(--space-8);
+  padding: clamp(var(--space-8), 4vw, var(--space-12));
+  background: var(--surface-primary);
+  border: 1px solid var(--line-strong);
+  border-top: 4px solid var(--accent-analysis);
+  box-shadow: var(--shadow-floating);
+}
+
+.header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-8);
+  align-items: start;
+}
+
+.header > div {
+  min-width: 0;
+}
+
+.kicker,
+.summaryGrid article > span,
+.nextAction span {
+  color: var(--accent-analysis);
+  font-size: var(--type-caption);
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.header h2 {
+  margin: var(--space-3) 0 0;
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 4vw, 4rem);
+  letter-spacing: -0.045em;
+  line-height: 0.98;
+  word-break: keep-all;
+}
+
+.header p,
+.summaryGrid p {
+  max-width: 760px;
+  margin: var(--space-4) 0 0;
+  color: var(--ink-secondary);
+  font-size: var(--type-body);
+  line-height: 1.7;
+  word-break: keep-all;
+}
+
+.status {
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  font-size: var(--type-small);
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.ready {
+  background: color-mix(in srgb, var(--signal-positive) 12%, var(--surface-primary));
+  color: var(--signal-positive);
+}
+
+.waiting {
+  background: color-mix(in srgb, var(--signal-caution) 14%, var(--surface-primary));
+  color: var(--signal-caution);
+}
+
+.blocked {
+  background: color-mix(in srgb, var(--signal-risk) 12%, var(--surface-primary));
+  color: var(--signal-risk);
+}
+
+.summaryGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  background: var(--line-subtle);
+  border: 1px solid var(--line-subtle);
+}
+
+.summaryGrid article {
+  display: grid;
+  min-width: 0;
+  align-content: start;
+  gap: var(--space-3);
+  padding: var(--space-6);
+  background: var(--surface-secondary);
+}
+
+.summaryGrid article strong {
+  color: var(--ink-primary);
+  font-family: var(--font-display);
+  font-size: clamp(1.4rem, 2.4vw, 2.2rem);
+  line-height: 1.05;
+  word-break: keep-all;
+}
+
+.channelCard {
+  box-shadow: inset 4px 0 0 var(--accent-analysis);
+}
+
+.boundaryGrid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  margin: 0;
+  border-top: 1px solid var(--line-subtle);
+  border-left: 1px solid var(--line-subtle);
+}
+
+.boundaryGrid > div {
+  display: grid;
+  min-width: 0;
+  gap: var(--space-3);
+  padding: var(--space-5);
+  background: var(--surface-primary);
+  border-right: 1px solid var(--line-subtle);
+  border-bottom: 1px solid var(--line-subtle);
+}
+
+.boundaryGrid dt {
+  color: var(--ink-muted);
+  font-size: var(--type-caption);
+  font-weight: 700;
+}
+
+.boundaryGrid dd {
+  margin: 0;
+  color: var(--ink-primary);
+  font-size: var(--type-body);
+  font-weight: 750;
+  line-height: 1.4;
+  overflow-wrap: break-word;
+  word-break: keep-all;
+}
+
+.blockedBoundary {
+  background: color-mix(in srgb, var(--signal-risk) 10%, var(--surface-primary)) !important;
+}
+
+.nextAction {
+  display: flex;
+  gap: var(--space-6);
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-5) 0 0;
+  border-top: 1px solid var(--line-strong);
+}
+
+.nextAction > div {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.nextAction strong {
+  max-width: 780px;
+  color: var(--ink-primary);
+  font-size: var(--type-body);
+  line-height: 1.55;
+  word-break: keep-all;
+}
+
+.nextAction a {
+  flex: 0 0 auto;
+  padding-bottom: 2px;
+  color: var(--accent-analysis);
+  border-bottom: 1px solid currentColor;
+  font-weight: 800;
+}
+
+@media (max-width: 960px) {
+  .boundaryGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .boundaryGrid > div:last-child {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 640px) {
+  .header,
+  .summaryGrid,
+  .boundaryGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .status {
+    justify-self: start;
+    white-space: normal;
+  }
+
+  .boundaryGrid > div:last-child {
+    grid-column: auto;
+  }
+
+  .nextAction {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}

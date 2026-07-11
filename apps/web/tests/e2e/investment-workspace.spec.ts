@@ -190,6 +190,18 @@ test.describe("professional investment workspace", () => {
     }
   });
 
+  test("AI operations page exposes status without browser mutation controls", async ({ page }) => {
+    await page.goto("/admin/ai-agents");
+    const statusPanel = page.getByRole("region", { name: "예비 AI 연결 상태" });
+    await expect(statusPanel).toBeVisible();
+    await expect(statusPanel).toContainText("상태 조회 전용");
+    await expect(statusPanel).toContainText("서버 CLI/SSH 전용");
+    await expect(statusPanel.locator("button, form")).toHaveCount(0);
+    await expect(statusPanel.locator('a[href^="http"]')).toHaveCount(0);
+    const text = await statusPanel.innerText();
+    expect(text).not.toMatch(/auth_url|user_code|device_auth_pid|status_path|\/opt\/|admin action token/i);
+  });
+
   test("investor and operations pages have no serious accessibility violations", async ({ page }) => {
     for (const [route] of [...investorRoutes, ...operationsRoutes]) {
       await page.goto(route);

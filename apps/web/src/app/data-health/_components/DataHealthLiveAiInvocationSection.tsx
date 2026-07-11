@@ -28,7 +28,7 @@ export function DataHealthLiveAiInvocationSection({
       <div className="section-heading stacked-heading">
         <span>실제 AI 호출 상태</span>
         <h2 id="live-ai-invocation-health-title">
-          기준 세트 통과와 별개로, 운영 배치가 실제 AI를 호출했는지 본다.
+          기준 세트 통과와 별개로, {"운영\u00a0배치가"} 실제 AI를 호출했는지 본다.
         </h2>
       </div>
       <p className="board-intro">{liveAiInvocationExplanation(liveAiInvocationHealth)}</p>
@@ -94,11 +94,12 @@ export function DataHealthLiveAiInvocationSection({
         <strong>다음 조치</strong>
         <p>{operationCopy(liveAiInvocationHealth.next_action)}</p>
         <p>
-          Codex OAuth 만료 여부, 재로그인 device code, 재로그인 후 smoke는{" "}
+          Codex OAuth 연결 상태는{" "}
           <a className="text-link" href="/admin/ai-agents#codex-oauth-operator">
-            AI 운영 콘솔
+            AI 운영 상태 화면
           </a>
-          에서 실행한다.
+          에서 읽기 전용으로 확인합니다. 재로그인과 {"실제\u00a0AI\u00a0호출\u00a0점검"}은 서버 CLI/SSH에서만
+          실행합니다.
         </p>
       </div>
     </section>
