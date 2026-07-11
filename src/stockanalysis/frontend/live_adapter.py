@@ -1740,6 +1740,11 @@ def build_live_data_health_response(
     recommendation_weight_review_readiness = _build_recommendation_weight_review_readiness_payload(
         _as_dict(state.get("recommendation_weight_review_readiness"))
     )
+    recommendation_weight_review_readiness_semantics_v2 = (
+        _build_recommendation_weight_review_readiness_semantics_v2_payload(
+            _as_dict(state.get("recommendation_weight_review_readiness_semantics_v2"))
+        )
+    )
     outcome_maturity_wait_monitor = _build_outcome_maturity_wait_monitor_payload(
         portfolio_review_feedback_calibration=portfolio_review_feedback_calibration,
         recommendation_outcome_maturity=recommendation_outcome_maturity,
@@ -1941,6 +1946,9 @@ def build_live_data_health_response(
             "recommendation_outcome_maturity": recommendation_outcome_maturity,
             "recommendation_outcome_due_action_router": recommendation_outcome_due_action_router,
             "recommendation_weight_review_readiness": recommendation_weight_review_readiness,
+            "recommendation_weight_review_readiness_semantics_v2": (
+                recommendation_weight_review_readiness_semantics_v2
+            ),
             "outcome_maturity_wait_monitor": outcome_maturity_wait_monitor,
             "professional_source_gap_prioritization": professional_source_gap_prioritization,
             "professional_analysis_quality": professional_analysis_quality,
@@ -6661,6 +6669,17 @@ selected_recommendation_weight_review_readiness as (
         eval_run.created_at desc,
         eval_run.eval_run_id desc
     limit 1
+),
+selected_recommendation_weight_review_readiness_semantics_v2 as (
+    select eval_run.*
+    from ai.eval_run eval_run
+    where eval_run.eval_name = 'recommendation_weight_review_readiness_semantics_v2'
+      and eval_run.dataset_version = 'recommendation-weight-review-readiness-semantics-v2'
+    order by
+        nullif(eval_run.score_json->>'as_of_date', '')::date desc nulls last,
+        eval_run.created_at desc,
+        eval_run.eval_run_id desc
+    limit 1
 )
 select json_build_object(
     'overall_status',
@@ -7703,6 +7722,76 @@ select json_build_object(
             'automatic_weight_change_allowed', false,
             'automatic_order_allowed', false,
             'broker_submit_allowed', false
+        )
+    ),
+    'recommendation_weight_review_readiness_semantics_v2',
+    coalesce(
+        (
+            select json_build_object(
+                'status', 'loaded',
+                'eval_run_id', eval_run_id,
+                'created_at', created_at,
+                'mode', score_json->>'mode',
+                'authoritative', coalesce((score_json->>'authoritative')::boolean, false),
+                'decision', score_json->>'decision',
+                'evidence_sufficient_for_pilot_request',
+                    coalesce((score_json->>'evidence_sufficient_for_pilot_request')::boolean, false),
+                'manual_review_eligible',
+                    coalesce((score_json->>'manual_review_eligible')::boolean, false),
+                'pilot_scope_defined', coalesce((score_json->>'pilot_scope_defined')::boolean, false),
+                'explicit_user_approval_present',
+                    coalesce((score_json->>'explicit_user_approval_present')::boolean, false),
+                'read_only_pilot_start_allowed',
+                    coalesce((score_json->>'read_only_pilot_start_allowed')::boolean, false),
+                'proposal_generation_allowed',
+                    coalesce((score_json->>'proposal_generation_allowed')::boolean, false),
+                'weight_mutation_allowed',
+                    coalesce((score_json->>'weight_mutation_allowed')::boolean, false),
+                'automatic_weight_change_allowed',
+                    coalesce((score_json->>'automatic_weight_change_allowed')::boolean, false),
+                'portfolio_position_mutation_allowed',
+                    coalesce((score_json->>'portfolio_position_mutation_allowed')::boolean, false),
+                'automatic_order_allowed', coalesce((score_json->>'automatic_order_allowed')::boolean, false),
+                'broker_submit_allowed', coalesce((score_json->>'broker_submit_allowed')::boolean, false),
+                'order_boundary', coalesce(score_json->>'order_boundary', 'read_only_no_order'),
+                'source_snapshot', coalesce(score_json->'source_snapshot', '{{}}'::jsonb),
+                'sample_identity', coalesce(score_json->'sample_identity', '{{}}'::jsonb),
+                'horizon_evidence', coalesce(score_json->'horizon_evidence', '{{}}'::jsonb),
+                'evidence_readiness', coalesce(score_json->'evidence_readiness', '{{}}'::jsonb),
+                'manual_review_eligibility', coalesce(score_json->'manual_review_eligibility', '{{}}'::jsonb),
+                'explicit_user_authorization', coalesce(score_json->'explicit_user_authorization', '{{}}'::jsonb),
+                'pilot', coalesce(score_json->'pilot', '{{}}'::jsonb),
+                'mutation_boundary', coalesce(score_json->'mutation_boundary', '{{}}'::jsonb),
+                'legacy_comparison', coalesce(score_json->'legacy_comparison', '{{}}'::jsonb)
+            )
+            from selected_recommendation_weight_review_readiness_semantics_v2
+        ),
+        json_build_object(
+            'status', 'missing',
+            'mode', 'shadow_read_only',
+            'authoritative', false,
+            'decision', 'missing_shadow_evidence',
+            'evidence_sufficient_for_pilot_request', false,
+            'manual_review_eligible', false,
+            'pilot_scope_defined', false,
+            'explicit_user_approval_present', false,
+            'read_only_pilot_start_allowed', false,
+            'proposal_generation_allowed', false,
+            'weight_mutation_allowed', false,
+            'automatic_weight_change_allowed', false,
+            'portfolio_position_mutation_allowed', false,
+            'automatic_order_allowed', false,
+            'broker_submit_allowed', false,
+            'order_boundary', 'read_only_no_order',
+            'source_snapshot', '{{}}'::json,
+            'sample_identity', '{{}}'::json,
+            'horizon_evidence', '{{}}'::json,
+            'evidence_readiness', json_build_object('status', 'missing', 'blockers', json_build_array('missing_shadow_evidence')),
+            'manual_review_eligibility', json_build_object('eligible', false, 'status', 'not_eligible'),
+            'explicit_user_authorization', json_build_object('status', 'explicit_approval_required', 'required', true, 'present', false),
+            'pilot', json_build_object('status', 'not_eligible', 'started', false),
+            'mutation_boundary', json_build_object('status', 'blocked_read_only_shadow', 'order_boundary', 'read_only_no_order'),
+            'legacy_comparison', '{{}}'::json
         )
     ),
     'professional_analysis_depth',
@@ -18424,6 +18513,353 @@ def _build_recommendation_weight_review_readiness_payload(payload: dict[str, Any
         "automatic_order_allowed": payload.get("automatic_order_allowed") is True,
         "broker_submit_allowed": payload.get("broker_submit_allowed") is True,
     }
+
+
+def _build_recommendation_weight_review_readiness_semantics_v2_payload(
+    payload: dict[str, Any],
+) -> dict[str, Any]:
+    loaded = payload.get("status") == "loaded"
+    source_snapshot = _project_weight_review_v2_source_snapshot(
+        payload.get("source_snapshot")
+    )
+    sample_identity = _project_weight_review_v2_sample_identity(
+        payload.get("sample_identity")
+    )
+    horizon_evidence = _project_weight_review_v2_horizon_evidence(
+        payload.get("horizon_evidence")
+    )
+    legacy_integrity_attested = (
+        sample_identity["stable_row_level_sample_identity_attested"] is True
+        and sample_identity["feedback_deduplication_attested"] is True
+        and sample_identity["versioned_component_snapshot_integrity_attested"] is True
+        and sample_identity["freshness_policy_attested"] is True
+        and horizon_evidence["approved_horizon_policy_attested"] is True
+    )
+    portfolio_source = _as_dict(source_snapshot.get("portfolio_feedback"))
+    portfolio_filters = _as_dict(portfolio_source.get("source_filters"))
+    portfolio_scope_matches = (
+        portfolio_filters.get("portfolio_name") == DEFAULT_PORTFOLIO_NAME
+    )
+    raw_evidence_readiness = _as_dict(payload.get("evidence_readiness"))
+    evidence_readiness = _project_weight_review_v2_evidence_readiness(
+        raw_evidence_readiness
+    )
+    evidence_readiness["legacy_integrity_attested"] = legacy_integrity_attested
+    raw_manual_review_eligibility = _as_dict(
+        payload.get("manual_review_eligibility")
+    )
+    manual_review_eligible = (
+        loaded
+        and portfolio_scope_matches
+        and payload.get("manual_review_eligible") is True
+        and raw_manual_review_eligibility.get("eligible") is True
+        and evidence_readiness["source_coherent"] is True
+        and evidence_readiness["threshold_evidence_ready"] is True
+        and evidence_readiness["portfolio_feedback_ready"] is True
+        and evidence_readiness["legacy_integrity_attested"] is True
+    )
+    manual_review_eligibility = {
+        "eligible": manual_review_eligible,
+        "scope": "read_only_human_evidence_review",
+        "requires_source_coherence": True,
+        "requires_legacy_readiness": True,
+        "requires_portfolio_feedback": True,
+        "requires_attested_sample_integrity": True,
+        "requires_approved_horizon_policy": True,
+        "reason": str(
+            raw_manual_review_eligibility.get("reason")
+            or "Shadow evidence does not establish read-only review eligibility."
+        ),
+    }
+    allowed_decisions = {
+        "evidence_incoherent_fail_closed",
+        "read_only_manual_review_not_eligible",
+        "wait_for_portfolio_feedback",
+        "legacy_thresholds_met_integrity_not_attested",
+        "eligible_for_read_only_manual_review_no_authorization",
+    }
+    raw_decision = str(payload.get("decision") or "missing_shadow_evidence")
+    decision = raw_decision if raw_decision in allowed_decisions else "unknown_shadow_decision_fail_closed"
+    if decision == "eligible_for_read_only_manual_review_no_authorization" and not manual_review_eligible:
+        decision = "shadow_decision_inconsistent_fail_closed"
+    return {
+        "status": decision if loaded else "missing",
+        "eval_run_id": _opaque_id("eval-run", payload.get("eval_run_id"), None),
+        "created_at": _timestamp(payload.get("created_at")),
+        "mode": "shadow_read_only",
+        "authoritative": False,
+        "decision": decision,
+        "evidence_sufficient_for_pilot_request": False,
+        "manual_review_eligible": manual_review_eligible,
+        "pilot_scope_defined": False,
+        "explicit_user_approval_present": False,
+        "read_only_pilot_start_allowed": False,
+        "proposal_generation_allowed": False,
+        "weight_mutation_allowed": False,
+        "automatic_weight_change_allowed": False,
+        "portfolio_position_mutation_allowed": False,
+        "automatic_order_allowed": False,
+        "broker_submit_allowed": False,
+        "order_boundary": "read_only_no_order",
+        "source_snapshot": source_snapshot,
+        "sample_identity": sample_identity,
+        "horizon_evidence": horizon_evidence,
+        "evidence_readiness": evidence_readiness,
+        "manual_review_eligibility": manual_review_eligibility,
+        "explicit_user_authorization": {
+            "status": "explicit_approval_required",
+            "required": True,
+            "present": False,
+            "scope_defined": False,
+            "approval_reference": None,
+            "reason": "This shadow audit cannot record or infer scoped user approval.",
+        },
+        "pilot": {
+            "status": "not_started_not_authorized",
+            "pilot_scope_defined": False,
+            "read_only_pilot_start_allowed": False,
+            "proposal_generation_allowed": False,
+            "started": False,
+            "reason": "No pilot is authorized or started by this audit.",
+        },
+        "mutation_boundary": {
+            "status": "blocked_read_only_shadow",
+            "recommendation_scoring_mutated": False,
+            "weight_mutation_allowed": False,
+            "automatic_weight_change_allowed": False,
+            "portfolio_position_mutation_allowed": False,
+            "automatic_order_allowed": False,
+            "broker_submit_allowed": False,
+            "order_boundary": "read_only_no_order",
+        },
+        "legacy_comparison": _project_weight_review_v2_legacy_comparison(
+            payload.get("legacy_comparison")
+        ),
+    }
+
+
+def _project_weight_review_v2_source_snapshot(value: Any) -> dict[str, Any]:
+    raw_sources = _as_dict(value)
+    result: dict[str, Any] = {}
+    for source_name in ("readiness", "quality", "outcome", "portfolio_feedback"):
+        if source_name not in raw_sources:
+            continue
+        source = _as_dict(raw_sources.get(source_name))
+        result[source_name] = {
+            "eval_run_id": _opaque_id("eval-run", source.get("eval_run_id"), None),
+            "eval_name": str(source.get("eval_name") or ""),
+            "dataset_version": str(source.get("dataset_version") or ""),
+            "provider": str(source.get("provider") or ""),
+            "model_name": str(source.get("model_name") or ""),
+            "score_as_of_date": str(source.get("score_as_of_date") or ""),
+            "created_at": _timestamp(source.get("created_at")),
+            "legacy_status": str(source.get("legacy_status") or "missing"),
+            "source_filters": _project_weight_review_v2_filters(
+                source.get("source_filters")
+            ),
+            "score_sha256": str(source.get("score_sha256") or ""),
+        }
+    return result
+
+
+def _project_weight_review_v2_filters(value: Any) -> dict[str, Any]:
+    raw_filters = _as_dict(value)
+    result: dict[str, Any] = {}
+    for key in (
+        "market_code",
+        "strategy_name",
+        "horizon_type",
+        "universe_version",
+        "outcome_version",
+        "portfolio_name",
+    ):
+        raw_value = raw_filters.get(key)
+        if isinstance(raw_value, str):
+            result[key] = raw_value
+    if "limit" in raw_filters:
+        raw_limit = raw_filters.get("limit")
+        if raw_limit is None:
+            result["limit"] = None
+        else:
+            limit = _weight_review_v2_non_negative_int(raw_limit)
+            if limit is not None:
+                result["limit"] = limit
+    return result
+
+
+def _project_weight_review_v2_sample_identity(value: Any) -> dict[str, Any]:
+    raw = _as_dict(value)
+    count_keys = (
+        "quality_recommendation_count",
+        "quality_outcome_count",
+        "recommendation_horizon_observation_count",
+        "horizon_outcome_observation_count",
+        "portfolio_feedback_run_count",
+        "portfolio_feedback_decision_count",
+        "portfolio_feedback_mature_decision_count",
+    )
+    result: dict[str, Any] = {
+        "status": str(raw.get("status") or "missing"),
+        "identity_attested": False,
+        "quality_observation_unit": str(raw.get("quality_observation_unit") or ""),
+        "horizon_observation_unit": str(raw.get("horizon_observation_unit") or ""),
+        "portfolio_feedback_observation_unit": str(
+            raw.get("portfolio_feedback_observation_unit") or ""
+        ),
+        "quality_component_metrics_sha256": str(
+            raw.get("quality_component_metrics_sha256") or ""
+        ),
+        "outcome_horizon_coverage_sha256": str(
+            raw.get("outcome_horizon_coverage_sha256") or ""
+        ),
+        "portfolio_feedback_evidence_sha256": str(
+            raw.get("portfolio_feedback_evidence_sha256") or ""
+        ),
+        "stable_row_level_sample_identity_attested": False,
+        "feedback_deduplication_attested": False,
+        "versioned_component_snapshot_integrity_attested": False,
+        "freshness_policy_attested": False,
+        "temporal_freshness_status": str(
+            raw.get("temporal_freshness_status") or "policy_not_defined"
+        ),
+        "source_age_days": _project_weight_review_v2_source_age_days(
+            raw.get("source_age_days")
+        ),
+        "limitations": [
+            item
+            for item in _as_scalar_list(raw.get("limitations"))[:8]
+            if isinstance(item, str)
+        ],
+    }
+    for key in count_keys:
+        result[key] = _weight_review_v2_non_negative_int(raw.get(key))
+    return result
+
+
+def _project_weight_review_v2_source_age_days(value: Any) -> dict[str, int | None]:
+    raw = _as_dict(value)
+    return {
+        key: _weight_review_v2_non_negative_int(raw.get(key))
+        for key in ("readiness", "quality", "outcome", "portfolio_feedback")
+    }
+
+
+def _project_weight_review_v2_horizon_evidence(value: Any) -> dict[str, Any]:
+    raw = _as_dict(value)
+    rows: list[dict[str, int | None]] = []
+    for row in _as_list(raw.get("rows"))[:16]:
+        rows.append(
+            {
+                key: _weight_review_v2_non_negative_int(row.get(key))
+                for key in (
+                    "horizon_day",
+                    "recommendation_horizon_count",
+                    "outcome_count",
+                    "ready_for_backfill_count",
+                    "not_due_count",
+                    "price_gap_count",
+                )
+            }
+        )
+    summary = _as_dict(raw.get("aggregate_summary"))
+    aggregate_summary: dict[str, Any] = {
+        key: _weight_review_v2_non_negative_int(summary.get(key))
+        for key in (
+            "recommendation_count",
+            "recommendation_horizon_count",
+            "outcome_count",
+            "ready_for_backfill_count",
+            "not_due_count",
+            "missing_entry_price_count",
+            "missing_exit_price_count",
+            "benchmark_warning_count",
+        )
+    }
+    aggregate_summary["outcome_coverage_rate"] = _weight_review_v2_non_negative_number(
+        summary.get("outcome_coverage_rate")
+    )
+    horizon_days = [
+        item
+        for item in (
+            _weight_review_v2_non_negative_int(raw_item)
+            for raw_item in _as_scalar_list(raw.get("horizon_days"))[:16]
+        )
+        if item is not None and item > 0
+    ]
+    return {
+        "horizon_days": horizon_days,
+        "observation_unit": str(raw.get("observation_unit") or "recommendation_x_horizon"),
+        "filters": _project_weight_review_v2_filters(raw.get("filters")),
+        "rows": rows,
+        "aggregate_summary": aggregate_summary,
+        "aggregate_consistent": raw.get("aggregate_consistent") is True,
+        "approved_horizon_policy_attested": False,
+        "policy_limitation": str(raw.get("policy_limitation") or ""),
+    }
+
+
+def _project_weight_review_v2_evidence_readiness(value: Any) -> dict[str, Any]:
+    raw = _as_dict(value)
+    blockers = [
+        {
+            "code": str(item.get("code") or "unknown_blocker"),
+            "message": str(item.get("message") or ""),
+        }
+        for item in _as_list(raw.get("blockers"))[:32]
+    ]
+    return {
+        "status": str(raw.get("status") or "missing"),
+        "source_coherent": raw.get("source_coherent") is True,
+        "legacy_readiness_ready": raw.get("legacy_readiness_ready") is True,
+        "quality_threshold_ready": raw.get("quality_threshold_ready") is True,
+        "outcome_calibration_ready": raw.get("outcome_calibration_ready") is True,
+        "threshold_evidence_ready": raw.get("threshold_evidence_ready") is True,
+        "portfolio_feedback_ready": raw.get("portfolio_feedback_ready") is True,
+        "legacy_integrity_attested": False,
+        "blockers": blockers,
+    }
+
+
+def _project_weight_review_v2_legacy_comparison(value: Any) -> dict[str, Any]:
+    raw = _as_dict(value)
+    return {
+        "readiness_eval_run_id": _opaque_id(
+            "eval-run", raw.get("readiness_eval_run_id"), None
+        ),
+        "readiness_decision": str(raw.get("readiness_decision") or "missing"),
+        "legacy_manual_weight_review_allowed": (
+            raw.get("manual_weight_review_allowed") is True
+        ),
+        "quality_eval_run_id": _opaque_id(
+            "eval-run", raw.get("quality_eval_run_id"), None
+        ),
+        "quality_status": str(raw.get("quality_status") or "unknown"),
+        "outcome_eval_run_id": _opaque_id(
+            "eval-run", raw.get("outcome_eval_run_id"), None
+        ),
+        "outcome_status": str(raw.get("outcome_status") or "missing"),
+        "portfolio_feedback_eval_run_id": _opaque_id(
+            "eval-run", raw.get("portfolio_feedback_eval_run_id"), None
+        ),
+        "portfolio_feedback_status": str(
+            raw.get("portfolio_feedback_status") or "missing"
+        ),
+        "interpretation": str(raw.get("interpretation") or ""),
+    }
+
+
+def _weight_review_v2_non_negative_int(value: Any) -> int | None:
+    number = _safe_number(value)
+    if number is None or number < 0 or int(number) != number:
+        return None
+    return int(number)
+
+
+def _weight_review_v2_non_negative_number(value: Any) -> float | None:
+    number = _safe_number(value)
+    if number is None or number < 0:
+        return None
+    return float(number)
 
 
 def _build_professional_source_gap_prioritization_payload(payload: dict[str, Any]) -> dict[str, Any]:

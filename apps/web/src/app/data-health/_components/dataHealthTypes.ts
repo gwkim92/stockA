@@ -28,6 +28,8 @@ export type RecommendationOutcomeCalibration = DataHealthData["recommendation_ou
 export type RecommendationOutcomeMaturity = DataHealthData["recommendation_outcome_maturity"];
 export type RecommendationOutcomeDueActionRouter = DataHealthData["recommendation_outcome_due_action_router"];
 export type RecommendationWeightReviewReadiness = DataHealthData["recommendation_weight_review_readiness"];
+export type RecommendationWeightReviewReadinessSemanticsV2 =
+  DataHealthData["recommendation_weight_review_readiness_semantics_v2"];
 export type OutcomeMaturityWaitMonitor = DataHealthData["outcome_maturity_wait_monitor"];
 export type ProfessionalSourceGapPrioritization = DataHealthData["professional_source_gap_prioritization"];
 export type ProfessionalAnalysisQuality = DataHealthData["professional_analysis_quality"];

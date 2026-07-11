@@ -135,6 +135,9 @@ from stockanalysis.operations.recommendation_weight_review_readiness_audit impor
     DEFAULT_MIN_COMPONENT_OUTCOME_COUNT as DEFAULT_WEIGHT_REVIEW_MIN_COMPONENT_OUTCOME_COUNT,
     run_recommendation_weight_review_readiness_audit,
 )
+from stockanalysis.operations.recommendation_weight_review_readiness_semantics import (
+    run_recommendation_weight_review_readiness_semantics_v2,
+)
 from stockanalysis.operations.manual_weight_review_calibration_report import (
     DEFAULT_FAILURE_CASE_LIMIT as DEFAULT_MANUAL_WEIGHT_REVIEW_FAILURE_CASE_LIMIT,
     run_manual_weight_review_calibration_report,
@@ -1258,6 +1261,30 @@ def build_parser() -> argparse.ArgumentParser:
     recommendation_weight_review_audit.add_argument("--output")
     recommendation_weight_review_audit.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
     recommendation_weight_review_audit.set_defaults(handler=_handle_recommendation_weight_review_readiness_audit_run)
+
+    recommendation_weight_review_readiness_semantics_v2 = subparsers.add_parser(
+        "recommendation-weight-review-readiness-semantics-v2-run",
+        help="Record a read-only shadow audit that separates evidence readiness from weight-change authorization.",
+    )
+    recommendation_weight_review_readiness_semantics_v2.add_argument("--env-file")
+    recommendation_weight_review_readiness_semantics_v2.add_argument("--as-of-date", required=True)
+    recommendation_weight_review_readiness_semantics_v2.add_argument("--readiness-eval-run-id", type=int)
+    recommendation_weight_review_readiness_semantics_v2.add_argument("--quality-eval-run-id", type=int)
+    recommendation_weight_review_readiness_semantics_v2.add_argument("--outcome-eval-run-id", type=int)
+    recommendation_weight_review_readiness_semantics_v2.add_argument(
+        "--portfolio-feedback-eval-run-id",
+        type=int,
+    )
+    recommendation_weight_review_readiness_semantics_v2.add_argument("--execute", action="store_true")
+    recommendation_weight_review_readiness_semantics_v2.add_argument("--dry-run", action="store_true")
+    recommendation_weight_review_readiness_semantics_v2.add_argument("--output")
+    recommendation_weight_review_readiness_semantics_v2.add_argument(
+        "--repo-root",
+        default=str(DEFAULT_REPO_ROOT),
+    )
+    recommendation_weight_review_readiness_semantics_v2.set_defaults(
+        handler=_handle_recommendation_weight_review_readiness_semantics_v2_run
+    )
 
     manual_weight_review_calibration = subparsers.add_parser(
         "recommendation-weight-review-calibration-report-run",
@@ -3012,6 +3039,38 @@ def _handle_recommendation_weight_review_readiness_audit_run(
         output_path = resolve_output_path(
             args.output,
             label="recommendation weight review readiness audit output",
+            repo_root=args.repo_root,
+            require_repo_outside=True,
+        )
+        write_json_report(report, output_path=output_path, stdout=stdout)
+    else:
+        print_json(report, stdout=stdout, sort_keys=False)
+    return 0
+
+
+def _handle_recommendation_weight_review_readiness_semantics_v2_run(
+    args: argparse.Namespace,
+    *,
+    stdout: TextIO,
+) -> int:
+    if bool(args.execute) and bool(args.dry_run):
+        raise ValueError("--execute and --dry-run cannot be used together.")
+    env_mapping = _load_optional_env_mapping(args.env_file, repo_root=args.repo_root)
+    as_of_date = date.fromisoformat(args.as_of_date)
+    with _temporary_environ(env_mapping):
+        report = run_recommendation_weight_review_readiness_semantics_v2(
+            config=RuntimeConfig.from_env(),
+            as_of_date=as_of_date,
+            readiness_eval_run_id=args.readiness_eval_run_id,
+            quality_eval_run_id=args.quality_eval_run_id,
+            outcome_eval_run_id=args.outcome_eval_run_id,
+            portfolio_feedback_eval_run_id=args.portfolio_feedback_eval_run_id,
+            execute=bool(args.execute) and not bool(args.dry_run),
+        )
+    if args.output:
+        output_path = resolve_output_path(
+            args.output,
+            label="recommendation weight review readiness semantics v2 output",
             repo_root=args.repo_root,
             require_repo_outside=True,
         )

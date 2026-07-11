@@ -84,8 +84,10 @@ Remediation tickets:
 Data health:
 
 - owner route: `/data-health`
-- source concepts: pipeline run history, expected operation cadence, job health status, scheduler activation approval gate, manual local ingest smoke summary, local ingest worker summary, artifact roots, data freshness, free-tier provider budget ledger status.
-- example: `docs/api/frontend/examples/data-health.json`
+- source concepts: pipeline run history, expected operation cadence, job health status, scheduler activation approval gate, manual local ingest smoke summary, local ingest worker summary, artifact roots, data freshness, free-tier provider budget ledger status, and the additive recommendation-weight readiness semantics v2 shadow artifact.
+- shadow boundary: `recommendation_weight_review_readiness_semantics_v2` is non-authoritative visibility only. It separates evidence, read-only review eligibility, explicit authorization, pilot state, and mutation boundaries without feeding the existing readiness, outcome-router, open-gate, scoring, portfolio, or order decisions. `threshold_evidence_ready=true` does not make `manual_review_eligible=true`: stable row identity, feedback deduplication, versioned component snapshots, an approved horizon policy, and an approved freshness policy must all be attested first.
+- projection boundary: the API reconstructs an exact nested allowlist. Raw nested authorization, pilot, mutation, order, and broker keys are discarded, while the exposed authorization/pilot/mutation fields are fixed to the read-only blocked state.
+- example: `docs/api/frontend/examples/data-health.json` is illustrative and may omit this additive sibling; clients must use the documented fail-closed default when it is absent.
 
 Stock list:
 

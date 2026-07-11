@@ -34,6 +34,7 @@ from stockanalysis.frontend.live_adapter import (
     _build_recommendation_evidence_review_payload,
     _build_recommendation_outcome_due_action_router_payload,
     _build_recommendation_outcome_maturity_payload,
+    _build_recommendation_weight_review_readiness_semantics_v2_payload,
     _build_recommendation_professional_decision_waterfall_payload,
     _build_recommendation_professional_evidence_audit_payload,
     _build_stock_toss_provider_evidence_payload,
@@ -723,6 +724,65 @@ class FakeLiveExecutor:
                         "automatic_weight_change_allowed": False,
                         "automatic_order_allowed": False,
                         "broker_submit_allowed": False,
+                    },
+                    "recommendation_weight_review_readiness_semantics_v2": {
+                        "status": "loaded",
+                        "eval_run_id": 72,
+                        "created_at": "2026-07-11T01:00:00+00:00",
+                        "mode": "shadow_read_only",
+                        "authoritative": False,
+                        "decision": "wait_for_portfolio_feedback",
+                        "evidence_sufficient_for_pilot_request": False,
+                        "manual_review_eligible": False,
+                        "pilot_scope_defined": False,
+                        "explicit_user_approval_present": False,
+                        "read_only_pilot_start_allowed": False,
+                        "proposal_generation_allowed": False,
+                        "weight_mutation_allowed": False,
+                        "automatic_weight_change_allowed": False,
+                        "portfolio_position_mutation_allowed": False,
+                        "automatic_order_allowed": False,
+                        "broker_submit_allowed": False,
+                        "order_boundary": "read_only_no_order",
+                        "source_snapshot": {
+                            "readiness": {"eval_run_id": 41},
+                            "outcome": {"eval_run_id": 31},
+                        },
+                        "sample_identity": {
+                            "status": "legacy_aggregate_only_not_attested",
+                            "identity_attested": False,
+                        },
+                        "horizon_evidence": {
+                            "horizon_days": [30, 90, 180, 365],
+                            "observation_unit": "recommendation_x_horizon",
+                            "rows": [],
+                        },
+                        "evidence_readiness": {
+                            "status": "coherent_thresholds_met",
+                            "portfolio_feedback_ready": False,
+                            "blockers": [],
+                        },
+                        "manual_review_eligibility": {
+                            "eligible": False,
+                            "scope": "read_only_human_evidence_review",
+                        },
+                        "explicit_user_authorization": {
+                            "status": "explicit_approval_required",
+                            "required": True,
+                            "present": False,
+                        },
+                        "pilot": {"status": "not_started_not_authorized", "started": False},
+                        "mutation_boundary": {
+                            "status": "blocked_read_only_shadow",
+                            "weight_mutation_allowed": False,
+                            "automatic_order_allowed": False,
+                            "broker_submit_allowed": False,
+                            "order_boundary": "read_only_no_order",
+                        },
+                        "legacy_comparison": {
+                            "manual_weight_review_allowed": True,
+                            "portfolio_feedback_status": "collect_more_feedback",
+                        },
                     },
                     "professional_source_gap_prioritization": {
                         "status": "source_blockers_present",
@@ -5059,6 +5119,21 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertEqual(weight_review["outcome_calibration_status"], "no_due_outcome_window")
         self.assertFalse(weight_review["manual_weight_review_allowed"])
         self.assertFalse(weight_review["automatic_weight_change_allowed"])
+        semantics_v2 = payload["data"]["recommendation_weight_review_readiness_semantics_v2"]
+        self.assertEqual(semantics_v2["status"], "wait_for_portfolio_feedback")
+        self.assertEqual(semantics_v2["eval_run_id"], "eval-run-72")
+        self.assertEqual(semantics_v2["mode"], "shadow_read_only")
+        self.assertFalse(semantics_v2["authoritative"])
+        self.assertFalse(semantics_v2["evidence_sufficient_for_pilot_request"])
+        self.assertFalse(semantics_v2["manual_review_eligible"])
+        self.assertFalse(semantics_v2["explicit_user_approval_present"])
+        self.assertFalse(semantics_v2["read_only_pilot_start_allowed"])
+        self.assertFalse(semantics_v2["weight_mutation_allowed"])
+        self.assertFalse(semantics_v2["automatic_order_allowed"])
+        self.assertFalse(semantics_v2["broker_submit_allowed"])
+        self.assertEqual(semantics_v2["order_boundary"], "read_only_no_order")
+        self.assertEqual(semantics_v2["horizon_evidence"]["horizon_days"], [30, 90, 180, 365])
+        self.assertFalse(semantics_v2["sample_identity"]["identity_attested"])
         wait_monitor = payload["data"]["outcome_maturity_wait_monitor"]
         self.assertEqual(wait_monitor["status"], "managed_wait")
         self.assertEqual(wait_monitor["recommendation_next_due_date"], "2026-06-01")
@@ -5780,6 +5855,225 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertEqual(payload["child_runner"]["run_id"], "pipeline-run-9801")
         self.assertFalse(payload["automatic_weight_change_allowed"])
         self.assertFalse(payload["broker_submit_allowed"])
+
+    def test_weight_review_semantics_v2_missing_payload_is_fail_closed(self) -> None:
+        payload = _build_recommendation_weight_review_readiness_semantics_v2_payload({})
+
+        self.assertEqual(payload["status"], "missing")
+        self.assertEqual(payload["mode"], "shadow_read_only")
+        self.assertFalse(payload["authoritative"])
+        self.assertFalse(payload["manual_review_eligible"])
+        self.assertFalse(payload["explicit_user_approval_present"])
+        self.assertFalse(payload["read_only_pilot_start_allowed"])
+        self.assertFalse(payload["proposal_generation_allowed"])
+        self.assertFalse(payload["weight_mutation_allowed"])
+        self.assertFalse(payload["automatic_weight_change_allowed"])
+        self.assertFalse(payload["portfolio_position_mutation_allowed"])
+        self.assertFalse(payload["automatic_order_allowed"])
+        self.assertFalse(payload["broker_submit_allowed"])
+        self.assertEqual(payload["order_boundary"], "read_only_no_order")
+
+    def test_weight_review_semantics_v2_raw_permissions_cannot_escalate(self) -> None:
+        danger = {
+            "danger_sentinel": "must_not_survive",
+            "authorized": True,
+            "approval_granted": True,
+            "pilot_active": True,
+            "trade_enabled": True,
+            "can_mutate": True,
+            "submit_allowed": True,
+        }
+        payload = _build_recommendation_weight_review_readiness_semantics_v2_payload(
+            {
+                "status": "loaded",
+                "eval_run_id": 99,
+                "decision": "eligible_for_read_only_manual_review_no_authorization",
+                "mode": "authoritative",
+                "authoritative": True,
+                "evidence_sufficient_for_pilot_request": True,
+                "manual_review_eligible": True,
+                "pilot_scope_defined": True,
+                "explicit_user_approval_present": True,
+                "read_only_pilot_start_allowed": True,
+                "proposal_generation_allowed": True,
+                "weight_mutation_allowed": True,
+                "automatic_weight_change_allowed": True,
+                "portfolio_position_mutation_allowed": True,
+                "automatic_order_allowed": True,
+                "broker_submit_allowed": True,
+                "order_boundary": "submit_allowed",
+                "source_snapshot": {
+                    "readiness": {
+                        "eval_run_id": 41,
+                        "eval_name": "recommendation_weight_review_readiness_audit",
+                        "source_filters": {"market_code": "US", **danger},
+                        **danger,
+                    },
+                    "portfolio_feedback": {
+                        "eval_run_id": 101,
+                        "source_filters": {
+                            "portfolio_name": "Long Term Paper",
+                            **danger,
+                        },
+                        **danger,
+                    },
+                    "unauthorized_source": danger,
+                },
+                "sample_identity": {
+                    "identity_attested": True,
+                    "stable_row_level_sample_identity_attested": True,
+                    "feedback_deduplication_attested": True,
+                    "versioned_component_snapshot_integrity_attested": True,
+                    "freshness_policy_attested": True,
+                    "source_age_days": {"quality": 7, **danger},
+                    "limitations": ["known limitation", danger],
+                    **danger,
+                },
+                "horizon_evidence": {
+                    "horizon_days": [30],
+                    "filters": {"market_code": "US", **danger},
+                    "rows": [{"horizon_day": 30, "outcome_count": 1, **danger}],
+                    "aggregate_summary": {"outcome_count": 1, **danger},
+                    "approved_horizon_policy_attested": True,
+                    **danger,
+                },
+                "evidence_readiness": {
+                    "source_coherent": True,
+                    "threshold_evidence_ready": True,
+                    "portfolio_feedback_ready": True,
+                    "legacy_integrity_attested": True,
+                    "blockers": [{"code": "sample_integrity_unattested", **danger}],
+                    **danger,
+                },
+                "manual_review_eligibility": {"eligible": True, **danger},
+                "explicit_user_authorization": {
+                    "present": True,
+                    "scope_defined": True,
+                    **danger,
+                },
+                "pilot": {
+                    "started": True,
+                    "read_only_pilot_start_allowed": True,
+                    **danger,
+                },
+                "mutation_boundary": {
+                    "weight_mutation_allowed": True,
+                    "automatic_order_allowed": True,
+                    "broker_submit_allowed": True,
+                    "order_boundary": "submit_allowed",
+                    **danger,
+                },
+                "legacy_comparison": {
+                    "manual_weight_review_allowed": True,
+                    "readiness_eval_run_id": 41,
+                    **danger,
+                },
+            }
+        )
+
+        self.assertEqual(payload["status"], "shadow_decision_inconsistent_fail_closed")
+        self.assertFalse(payload["manual_review_eligible"])
+        self.assertFalse(payload["authoritative"])
+        self.assertFalse(payload["evidence_sufficient_for_pilot_request"])
+        self.assertFalse(payload["pilot_scope_defined"])
+        self.assertFalse(payload["explicit_user_approval_present"])
+        self.assertFalse(payload["read_only_pilot_start_allowed"])
+        self.assertFalse(payload["proposal_generation_allowed"])
+        self.assertFalse(payload["weight_mutation_allowed"])
+        self.assertFalse(payload["automatic_weight_change_allowed"])
+        self.assertFalse(payload["portfolio_position_mutation_allowed"])
+        self.assertFalse(payload["automatic_order_allowed"])
+        self.assertFalse(payload["broker_submit_allowed"])
+        self.assertFalse(payload["explicit_user_authorization"]["present"])
+        self.assertFalse(payload["pilot"]["started"])
+        self.assertFalse(payload["mutation_boundary"]["weight_mutation_allowed"])
+        self.assertEqual(payload["mutation_boundary"]["order_boundary"], "read_only_no_order")
+        self.assertFalse(payload["manual_review_eligibility"]["eligible"])
+        self.assertFalse(payload["sample_identity"]["identity_attested"])
+        self.assertFalse(payload["sample_identity"]["freshness_policy_attested"])
+        self.assertFalse(
+            payload["horizon_evidence"]["approved_horizon_policy_attested"]
+        )
+        self.assertFalse(payload["evidence_readiness"]["legacy_integrity_attested"])
+        self.assertTrue(
+            payload["legacy_comparison"]["legacy_manual_weight_review_allowed"]
+        )
+
+        self.assertEqual(
+            set(payload["explicit_user_authorization"]),
+            {"status", "required", "present", "scope_defined", "approval_reference", "reason"},
+        )
+        self.assertEqual(
+            set(payload["pilot"]),
+            {
+                "status",
+                "pilot_scope_defined",
+                "read_only_pilot_start_allowed",
+                "proposal_generation_allowed",
+                "started",
+                "reason",
+            },
+        )
+        self.assertEqual(
+            set(payload["mutation_boundary"]),
+            {
+                "status",
+                "recommendation_scoring_mutated",
+                "weight_mutation_allowed",
+                "automatic_weight_change_allowed",
+                "portfolio_position_mutation_allowed",
+                "automatic_order_allowed",
+                "broker_submit_allowed",
+                "order_boundary",
+            },
+        )
+        self.assertEqual(
+            set(payload["source_snapshot"]),
+            {"readiness", "portfolio_feedback"},
+        )
+        self.assertEqual(
+            set(payload["source_snapshot"]["readiness"]["source_filters"]),
+            {"market_code"},
+        )
+        self.assertEqual(
+            set(payload["horizon_evidence"]["rows"][0]),
+            {
+                "horizon_day",
+                "recommendation_horizon_count",
+                "outcome_count",
+                "ready_for_backfill_count",
+                "not_due_count",
+                "price_gap_count",
+            },
+        )
+        self.assertEqual(
+            set(payload["evidence_readiness"]["blockers"][0]),
+            {"code", "message"},
+        )
+
+        def collect_keys(value: object) -> set[str]:
+            if isinstance(value, dict):
+                return set(value).union(
+                    *(collect_keys(item) for item in value.values())
+                )
+            if isinstance(value, list):
+                return set().union(*(collect_keys(item) for item in value))
+            return set()
+
+        all_keys = collect_keys(payload)
+        for forbidden_key in (
+            "danger_sentinel",
+            "authorized",
+            "approval_granted",
+            "pilot_active",
+            "trade_enabled",
+            "can_mutate",
+            "submit_allowed",
+            "unauthorized_source",
+        ):
+            with self.subTest(forbidden_key=forbidden_key):
+                self.assertNotIn(forbidden_key, all_keys)
+        self.assertNotIn("must_not_survive", json.dumps(payload, sort_keys=True))
 
     def test_outcome_maturity_wait_monitor_ignores_stale_due_router_wait_until(self) -> None:
         maturity = _build_recommendation_outcome_maturity_payload(
@@ -6682,6 +6976,9 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertIn("selected_recommendation_weight_review_readiness", sql)
         self.assertIn("recommendation_weight_review_readiness_audit", sql)
         self.assertIn("recommendation-weight-review-readiness-v1", sql)
+        self.assertIn("selected_recommendation_weight_review_readiness_semantics_v2", sql)
+        self.assertIn("recommendation_weight_review_readiness_semantics_v2", sql)
+        self.assertIn("recommendation-weight-review-readiness-semantics-v2", sql)
         self.assertIn("professional_gap_active_recommendations", sql)
         self.assertIn("professional_source_gap_prioritization", sql)
         self.assertIn("professional_analysis_depth", sql)

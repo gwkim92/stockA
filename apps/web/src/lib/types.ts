@@ -374,6 +374,165 @@ export type AiAgentRegistryData = {
   }>;
 };
 
+export type RecommendationWeightReviewReadinessSemanticsV2 = {
+  status: string;
+  eval_run_id: string;
+  created_at: string;
+  mode: "shadow_read_only";
+  authoritative: false;
+  decision: string;
+  evidence_sufficient_for_pilot_request: false;
+  manual_review_eligible: boolean;
+  pilot_scope_defined: false;
+  explicit_user_approval_present: false;
+  read_only_pilot_start_allowed: false;
+  proposal_generation_allowed: false;
+  weight_mutation_allowed: false;
+  automatic_weight_change_allowed: false;
+  portfolio_position_mutation_allowed: false;
+  automatic_order_allowed: false;
+  broker_submit_allowed: false;
+  order_boundary: "read_only_no_order";
+  source_snapshot: Partial<Record<"readiness" | "quality" | "outcome" | "portfolio_feedback", {
+    eval_run_id: string;
+    eval_name: string;
+    dataset_version: string;
+    provider: string;
+    model_name: string;
+    score_as_of_date: string;
+    created_at: string;
+    legacy_status: string;
+    source_filters: Partial<{
+      market_code: string;
+      strategy_name: string;
+      horizon_type: string;
+      universe_version: string;
+      outcome_version: string;
+      portfolio_name: string;
+      limit: number | null;
+    }>;
+    score_sha256: string;
+  }>>;
+  sample_identity: {
+    status: string;
+    identity_attested: false;
+    quality_observation_unit: string;
+    quality_recommendation_count: number | null;
+    quality_outcome_count: number | null;
+    horizon_observation_unit: string;
+    recommendation_horizon_observation_count: number | null;
+    horizon_outcome_observation_count: number | null;
+    portfolio_feedback_observation_unit: string;
+    portfolio_feedback_run_count: number | null;
+    portfolio_feedback_decision_count: number | null;
+    portfolio_feedback_mature_decision_count: number | null;
+    quality_component_metrics_sha256: string;
+    outcome_horizon_coverage_sha256: string;
+    portfolio_feedback_evidence_sha256: string;
+    stable_row_level_sample_identity_attested: false;
+    feedback_deduplication_attested: false;
+    versioned_component_snapshot_integrity_attested: false;
+    freshness_policy_attested: false;
+    temporal_freshness_status: string;
+    source_age_days: Record<"readiness" | "quality" | "outcome" | "portfolio_feedback", number | null>;
+    limitations: string[];
+  };
+  horizon_evidence: {
+    horizon_days: number[];
+    observation_unit: string;
+    filters: Partial<{
+      market_code: string;
+      strategy_name: string;
+      horizon_type: string;
+      universe_version: string;
+      outcome_version: string;
+      portfolio_name: string;
+      limit: number | null;
+    }>;
+    rows: Array<{
+      horizon_day: number | null;
+      recommendation_horizon_count: number | null;
+      outcome_count: number | null;
+      ready_for_backfill_count: number | null;
+      not_due_count: number | null;
+      price_gap_count: number | null;
+    }>;
+    aggregate_summary: {
+      recommendation_count: number | null;
+      recommendation_horizon_count: number | null;
+      outcome_count: number | null;
+      ready_for_backfill_count: number | null;
+      not_due_count: number | null;
+      missing_entry_price_count: number | null;
+      missing_exit_price_count: number | null;
+      benchmark_warning_count: number | null;
+      outcome_coverage_rate: number | null;
+    };
+    aggregate_consistent: boolean;
+    approved_horizon_policy_attested: false;
+    policy_limitation: string;
+  };
+  evidence_readiness: {
+    status: string;
+    source_coherent: boolean;
+    legacy_readiness_ready: boolean;
+    quality_threshold_ready: boolean;
+    outcome_calibration_ready: boolean;
+    threshold_evidence_ready: boolean;
+    portfolio_feedback_ready: boolean;
+    legacy_integrity_attested: false;
+    blockers: Array<{ code: string; message: string }>;
+  };
+  manual_review_eligibility: {
+    eligible: boolean;
+    scope: "read_only_human_evidence_review";
+    requires_source_coherence: true;
+    requires_legacy_readiness: true;
+    requires_portfolio_feedback: true;
+    requires_attested_sample_integrity: true;
+    requires_approved_horizon_policy: true;
+    reason: string;
+  };
+  explicit_user_authorization: {
+    status: "explicit_approval_required";
+    required: true;
+    present: false;
+    scope_defined: false;
+    approval_reference: null;
+    reason: string;
+  };
+  pilot: {
+    status: "not_started_not_authorized";
+    pilot_scope_defined: false;
+    read_only_pilot_start_allowed: false;
+    proposal_generation_allowed: false;
+    started: false;
+    reason: string;
+  };
+  mutation_boundary: {
+    status: "blocked_read_only_shadow";
+    recommendation_scoring_mutated: false;
+    weight_mutation_allowed: false;
+    automatic_weight_change_allowed: false;
+    portfolio_position_mutation_allowed: false;
+    automatic_order_allowed: false;
+    broker_submit_allowed: false;
+    order_boundary: "read_only_no_order";
+  };
+  legacy_comparison: {
+    readiness_eval_run_id: string;
+    readiness_decision: string;
+    legacy_manual_weight_review_allowed: boolean;
+    quality_eval_run_id: string;
+    quality_status: string;
+    outcome_eval_run_id: string;
+    outcome_status: string;
+    portfolio_feedback_eval_run_id: string;
+    portfolio_feedback_status: string;
+    interpretation: string;
+  };
+};
+
 export type DataHealthData = {
   overall_status: string;
   as_of_date: string;
@@ -832,6 +991,7 @@ export type DataHealthData = {
     automatic_order_allowed: boolean;
     broker_submit_allowed: boolean;
   };
+  recommendation_weight_review_readiness_semantics_v2: RecommendationWeightReviewReadinessSemanticsV2;
   outcome_maturity_wait_monitor: OutcomeMaturityWaitMonitor;
   professional_source_gap_prioritization: {
     status: string;

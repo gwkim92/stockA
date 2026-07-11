@@ -2341,6 +2341,61 @@ class DataOperationsCliTests(unittest.TestCase):
             self.assertEqual(call_kwargs["min_component_outcome_count"], 4)
             self.assertTrue(call_kwargs["execute"])
 
+    def test_recommendation_weight_review_readiness_semantics_v2_command_passes_source_ids_and_env(self) -> None:
+        with tempfile.TemporaryDirectory() as repo_root, tempfile.TemporaryDirectory() as outside_root:
+            env_file = Path(outside_root) / "data-operations.env"
+            output_path = Path(outside_root) / "recommendation-weight-review-readiness-semantics-v2.json"
+            env_file.write_text('STOCKANALYSIS_PSQL_COMMAND="docker exec psql"\n', encoding="utf-8")
+            stdout = io.StringIO()
+
+            with patch(
+                "stockanalysis.operations.cli.run_recommendation_weight_review_readiness_semantics_v2"
+            ) as runner_mock:
+                runner_mock.return_value = {
+                    "report_name": "recommendation_weight_review_readiness_semantics_v2",
+                    "status": "completed",
+                    "mode": "shadow_read_only",
+                    "authoritative": False,
+                }
+                exit_code = main(
+                    [
+                        "recommendation-weight-review-readiness-semantics-v2-run",
+                        "--repo-root",
+                        repo_root,
+                        "--env-file",
+                        str(env_file),
+                        "--as-of-date",
+                        "2026-07-11",
+                        "--readiness-eval-run-id",
+                        "41",
+                        "--quality-eval-run-id",
+                        "42",
+                        "--outcome-eval-run-id",
+                        "43",
+                        "--portfolio-feedback-eval-run-id",
+                        "44",
+                        "--execute",
+                        "--output",
+                        str(output_path),
+                    ],
+                    stdout=stdout,
+                )
+
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(stdout.getvalue().strip(), str(output_path.resolve()))
+            payload = json.loads(output_path.read_text(encoding="utf-8"))
+            self.assertEqual(payload["report_name"], "recommendation_weight_review_readiness_semantics_v2")
+            self.assertEqual(payload["mode"], "shadow_read_only")
+            self.assertFalse(payload["authoritative"])
+            call_kwargs = runner_mock.call_args.kwargs
+            self.assertEqual(call_kwargs["config"].psql_command, "docker exec psql")
+            self.assertEqual(call_kwargs["as_of_date"], date(2026, 7, 11))
+            self.assertEqual(call_kwargs["readiness_eval_run_id"], 41)
+            self.assertEqual(call_kwargs["quality_eval_run_id"], 42)
+            self.assertEqual(call_kwargs["outcome_eval_run_id"], 43)
+            self.assertEqual(call_kwargs["portfolio_feedback_eval_run_id"], 44)
+            self.assertTrue(call_kwargs["execute"])
+
     def test_manual_weight_review_calibration_report_run_command_passes_env_and_writes_output(self) -> None:
         with tempfile.TemporaryDirectory() as repo_root, tempfile.TemporaryDirectory() as outside_root:
             env_file = Path(outside_root) / "data-operations.env"
