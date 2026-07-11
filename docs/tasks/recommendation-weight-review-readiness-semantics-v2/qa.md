@@ -2,7 +2,7 @@
 
 ## Status
 
-- local verification completed; live DB execution, push, deployment, and EC2 smoke were not performed.
+- local and EC2 verification completed; v2 remains a non-authoritative fail-closed shadow.
 
 ## Semantic and Security Cases
 
@@ -27,6 +27,12 @@
 - `PYTHONPATH=src .venv/bin/python -m compileall -q src tests`: passed.
 - `git diff --exit-code -- db/migrations`: passed.
 - `git diff --check`: passed.
+- EC2 `develop` fast-forwarded from `817bd3b3` to `83e28638`; Python compile and direct v2 regression 40/40 passed.
+- EC2 Next typecheck/build passed; API and both web services plus the public-13000 service are active.
+- auto/pinned dry-run semantics matched exactly; execute wrote pipeline `10991` and eval `809`, both read back with expected identity/status.
+- authenticated `/api/data-health` exposes `eval-run-809`, `evidence_incoherent_fail_closed`, `manual_review_eligible=false`, all mutation/order/broker flags false, and `read_only_no_order`.
+- pre/post v1 payload and `open_gates` were byte-equivalent after canonical JSON normalization; v2 is absent from `open_gates`.
+- `bash scripts/verify_ec2_access_stability.sh`: passed at `83e28638`; current unrelated runtime state remains `overall_status=attention_required` with existing open gates.
 
 ## Full-Suite Exception
 
@@ -34,8 +40,9 @@
 - all five are outside this task: four `test_data_operations_env_readiness` cases and one ingest-CLI env-readiness assertion now require TossInvest client ID/secret fixtures.
 - `src/stockanalysis/operations/env_readiness.py`, `tests/test_data_operations_env_readiness.py`, and `tests/test_ingest_cli.py` have no diff from base `6a397511`; the failures reproduce in an isolated focused command.
 
-## Not Verified
+## Deployment Notes
 
-- no live Postgres source selection or v2 append was executed.
-- no EC2 runtime, scheduler, FastAPI, or route smoke was run on 2026-07-11.
+- EC2 does not have `rg`, so the task shell verifier stopped at its first `rg` call. The same 40 Python/CLI checks were run directly and passed; no EC2 package installation was introduced.
+- live source selection is fail-closed because v1 readiness `28` references quality/outcome `26`/`27`, while latest source selection returns `801`/`692`; outcome `692` also lacks required filters and nested-quality identity.
+- external public-internet routing was not used for mutation or auth tests; loopback ports 3000/13000 and authenticated FastAPI were smoked.
 - no UI rendering changed, so no new visual QA capture was required.

@@ -27,5 +27,6 @@
 ## Remaining Review Risks
 
 - row-level cohort identity, feedback deduplication, component versioning, approved horizon policy, and approved freshness policy are intentionally not implemented; they block eligibility.
-- local DB and EC2 artifacts were not generated, so source-shape comparison against live history remains a deployment-stage check.
+- live eval `809` proves source-lineage reconciliation is still required: readiness `28` references quality/outcome `26`/`27`, not latest `801`/`692`, and outcome `692` does not attest required cohort filters or the selected nested-quality identity.
+- the current runtime has unrelated existing operational attention gates. They were unchanged by v2 and remain separate remediation work.
 - the full Python discovery has five unrelated existing env-readiness failures; focused and adjacent task regressions pass.
