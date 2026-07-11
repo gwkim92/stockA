@@ -27,6 +27,7 @@
 .copy {
   display: grid;
   gap: var(--space-2);
+  min-width: 0;
   max-width: 900px;
 }
 
@@ -42,14 +43,20 @@
   color: var(--ink-primary);
   font-size: var(--type-h2);
   line-height: 1.12;
+  overflow-wrap: break-word;
   text-wrap: balance;
+  word-break: keep-all;
 }
 
 .body {
+  min-width: 0;
   margin: 0;
   color: var(--ink-secondary);
   font-size: var(--type-body);
   line-height: 1.62;
+  overflow-wrap: break-word;
+  text-wrap: pretty;
+  word-break: keep-all;
 }
 
 .actions {

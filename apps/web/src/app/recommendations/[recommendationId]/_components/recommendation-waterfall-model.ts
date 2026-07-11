@@ -99,7 +99,7 @@ function companyProductWaterfallCards({
       title: data.equity_research ? "리서치 연결" : "리서치 대기",
       body: data.equity_research
         ? "사업 설명, 촉매, 리스크, 무효화 조건이 기업 리서치로 연결됐다."
-        : "기업 리서치 결과가 아직 없어 사업 맥락은 제한적으로만 볼 수 있다.",
+        : "기업 리서치 결과가 아직 없어 사업 맥락 확인이 제한된다.",
       href: "#recommendation-equity-research",
       hrefLabel: "기업 리서치 보기",
       tone: data.equity_research ? "ready" : "watch",

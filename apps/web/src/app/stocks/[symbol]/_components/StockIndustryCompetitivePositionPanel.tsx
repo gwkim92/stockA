@@ -36,7 +36,7 @@ export function StockIndustryCompetitivePositionPanel({ position, symbol }: Stoc
       <section className="bento-card span-4 reveal delay-3" id="stock-industry-position" aria-label="산업 경쟁 위치">
         <div className="section-heading stacked-heading">
           <span className="metric-sub">산업 경쟁 위치</span>
-          <h2>동종업계 비교가 아직 이 종목에 연결되지 않았다</h2>
+          <h2>동종업계 비교가 아직 <span className="keep-phrase">이 종목</span>에 연결되지 않았다</h2>
         </div>
         <p style={{ color: "var(--text-secondary)", marginBottom: 0 }}>
           산업 경쟁 위치 배치가 실행되면 피어 그룹, 경쟁 위치, 가격 결정력, 재무 방어력, 경쟁 압력 추정 지표가

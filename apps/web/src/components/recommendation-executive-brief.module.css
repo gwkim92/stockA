@@ -79,6 +79,7 @@
   font-variant-numeric: tabular-nums;
   line-height: 1.15;
   overflow-wrap: break-word;
+  text-wrap: pretty;
   word-break: keep-all;
 }
 

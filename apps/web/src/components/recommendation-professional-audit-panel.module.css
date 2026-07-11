@@ -54,6 +54,7 @@
   font-size: var(--type-h2);
   line-height: 1.12;
   text-wrap: balance;
+  word-break: keep-all;
 }
 
 .header p,
@@ -66,6 +67,8 @@
   color: var(--ink-secondary);
   font-size: var(--type-small);
   line-height: 1.58;
+  text-wrap: pretty;
+  word-break: keep-all;
 }
 
 .status {
@@ -98,6 +101,8 @@
   font-size: var(--type-h3);
   font-variant-numeric: tabular-nums;
   line-height: 1.12;
+  text-wrap: pretty;
+  word-break: keep-all;
 }
 
 .criticalMetric {
@@ -116,6 +121,8 @@
 .sourceBlocker strong {
   color: var(--ink-primary);
   font-size: var(--type-h3);
+  text-wrap: pretty;
+  word-break: keep-all;
 }
 
 .missingList {
@@ -159,12 +166,16 @@
 .policyDetails summary > span {
   display: grid;
   gap: var(--space-2);
+  min-width: 0;
 }
 
 .details summary strong,
 .policyDetails summary strong {
   color: var(--ink-primary);
   font-size: var(--type-h3);
+  overflow-wrap: break-word;
+  text-wrap: pretty;
+  word-break: keep-all;
 }
 
 .details summary b,

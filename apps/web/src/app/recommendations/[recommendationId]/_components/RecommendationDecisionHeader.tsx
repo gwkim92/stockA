@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import type { InvestmentViewModel, RecommendationProductKind } from "@/lib/presentation";
 
 import styles from "./RecommendationDecisionHeader.module.css";
@@ -138,13 +140,13 @@ export function RecommendationDecisionHeader({
         <a className={counts.marketCorrelationCount > 0 ? styles.mapCardReady : styles.mapCardWatch} href="#recommendation-market-correlations">
           <span>5. 시장 민감도</span>
           <strong>{counts.marketCorrelationCount.toLocaleString("ko-KR")}개 비교</strong>
-          <small>지수, 금리, 달러, 원자재와 함께 움직인 정도를 보여준다.</small>
+          <small>지수, 금리, 달러, 원자재와 함께 움직인 정도를 본다.</small>
         </a>
-        <a className={styles.mapCard} href="/paper-trading">
+        <Link className={styles.mapCard} href="/paper-trading">
           <span>6. 실행 가능성</span>
           <strong>{execution.paperValidationAllowed ? "가상 검증 가능" : "가상 검증 차단"}</strong>
           <small>실거래 주문 제출은 별도 승인 전까지 차단한다.</small>
-        </a>
+        </Link>
       </nav>
     </section>
   );

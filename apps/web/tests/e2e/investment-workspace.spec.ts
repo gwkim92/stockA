@@ -66,6 +66,50 @@ test.describe("professional investment workspace", () => {
     });
   }
 
+  test("mobile stock audit keeps the execution boundary fully visible", async ({ page }) => {
+    test.skip((page.viewportSize()?.width ?? 0) > 560, "Mobile-only execution-boundary regression check.");
+    await page.goto("/stocks/AAPL");
+
+    const audit = page.getByRole("region", { name: "종목 전문 근거 감사", exact: true });
+    const rail = audit.locator(".decision-boundary-rail");
+    const executionStatus = rail.locator(".rail-status-value");
+    await expect(executionStatus).toHaveText("읽기 전용, 주문 차단");
+
+    const layout = await rail.evaluate((element) => getComputedStyle(element).gridTemplateColumns);
+    expect(layout.trim().split(/\s+/)).toHaveLength(1);
+    const isContained = await executionStatus.evaluate((element) => {
+      const value = element.getBoundingClientRect();
+      const cell = element.parentElement?.getBoundingClientRect();
+      return Boolean(cell && value.left >= cell.left && value.right <= cell.right);
+    });
+    expect(isContained).toBe(true);
+  });
+
+  test("tablet summary and price layouts do not leave unassigned grid cells", async ({ page }) => {
+    const viewportWidth = page.viewportSize()?.width ?? 0;
+    test.skip(viewportWidth <= 640 || viewportWidth > 1024, "Tablet-only grid-fill regression check.");
+
+    await page.goto("/recommendations/AAPL-2024-11-01");
+    const commandGrid = page.locator(".workspace-command-grid");
+    const executionCard = commandGrid.locator(".decision-card").last();
+    await expect(commandGrid).toBeVisible();
+    const commandGridBox = await commandGrid.boundingBox();
+    const executionCardBox = await executionCard.boundingBox();
+    expect(commandGridBox).not.toBeNull();
+    expect(executionCardBox).not.toBeNull();
+    expect(Math.abs((commandGridBox?.width ?? 0) - (executionCardBox?.width ?? 0))).toBeLessThanOrEqual(1);
+
+    await page.goto("/stocks/AAPL");
+    const priceGrid = page.locator("#stock-price-data");
+    const priceSummary = priceGrid.locator(":scope > article").nth(1);
+    await expect(priceGrid).toBeVisible();
+    const priceGridBox = await priceGrid.boundingBox();
+    const priceSummaryBox = await priceSummary.boundingBox();
+    expect(priceGridBox).not.toBeNull();
+    expect(priceSummaryBox).not.toBeNull();
+    expect(Math.abs((priceGridBox?.width ?? 0) - (priceSummaryBox?.width ?? 0))).toBeLessThanOrEqual(2);
+  });
+
   test("live recommendation detail keeps internal terms out of the investor view", async ({ page }) => {
     await page.goto("/recommendations");
     const firstRecommendation = page.locator('a[href^="/recommendations/"]').first();

@@ -3,6 +3,7 @@ import type { RecommendationDetailData } from "@/lib/types";
 
 import { formatPanelOptionalPercent, formatPanelPercent, userFacingRecommendationText } from "./recommendation-panel-format";
 import { RecommendationResearchList } from "./RecommendationResearchList";
+import styles from "./RecommendationIndustryCompetitivePositionPanel.module.css";
 
 type ScoreComponent = RecommendationDetailData["score_components"][number];
 type IndustryCompetitivePosition = NonNullable<RecommendationDetailData["industry_competitive_position"]>;
@@ -37,12 +38,12 @@ export function RecommendationIndustryCompetitivePositionPanel({
 }: RecommendationIndustryCompetitivePositionPanelProps) {
   if (!position) {
     return (
-      <section className="bento-card reveal delay-1" aria-label="산업 경쟁 위치">
-        <div style={{ marginBottom: "12px" }}>
+      <section className="bento-card" aria-label="산업 경쟁 위치">
+        <div className={styles.emptyHead}>
           <span className="metric-sub">산업 경쟁 위치</span>
-          <h2 style={{ fontSize: "1.5rem", marginTop: "6px" }}>피어 기반 경쟁 위치가 아직 연결되지 않았다</h2>
+          <h2 className={styles.title}>피어 기반 경쟁 위치 연결 대기</h2>
         </div>
-        <p style={{ color: "var(--text-secondary)", marginBottom: 0 }}>
+        <p className={styles.emptyCopy}>
           산업 경쟁 위치 배치가 실행되면 비교군, 경쟁 위치, 강점, 리스크가 이곳에 표시된다.
           추천 점수는 이 값만으로 바뀌지 않는다.
         </p>
@@ -67,17 +68,17 @@ export function RecommendationIndustryCompetitivePositionPanel({
   ];
 
   return (
-    <section className="bento-card reveal delay-1" aria-label="산업 경쟁 위치">
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "18px", flexWrap: "wrap", marginBottom: "20px" }}>
+    <section className="bento-card" aria-label="산업 경쟁 위치">
+      <div className={styles.head}>
         <div>
           <span className="metric-sub">산업 경쟁 위치</span>
-          <h2 style={{ fontSize: "1.5rem", marginTop: "6px" }}>{symbol}이 같은 그룹 안에서 얼마나 강한가</h2>
-          <p style={{ color: "var(--text-secondary)", marginTop: "8px", maxWidth: "900px" }}>
+          <h2 className={styles.title}>{symbol}이 같은 그룹 안에서 얼마나 강한가</h2>
+          <p className={styles.summary}>
             {competitivePositionSummary(position, symbol)} 이 값은 무료 공개 재무 데이터와 피어 비교로 만든 추정 지표이며,
             최종 추천 점수에는 평가 전까지 직접 반영하지 않는다.
           </p>
         </div>
-        <span className="bento-badge" style={{ margin: 0 }}>
+        <span className={`bento-badge ${styles.badge}`}>
           {competitivePositionLabel(position.competitive_position)} • {position.as_of_date}
         </span>
       </div>
@@ -105,14 +106,14 @@ export function RecommendationIndustryCompetitivePositionPanel({
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))", gap: "14px", marginTop: "18px" }}>
-        <article className="detail-path-card" style={{ minHeight: "220px" }}>
+      <div className={styles.grid}>
+        <article className={`detail-path-card ${styles.scoreCard}`}>
           <span>경쟁력 점수</span>
           {scoreRows.map((row) => (
             <p key={row.label}>{row.label}: {formatPanelOptionalPercent(row.value)}</p>
           ))}
         </article>
-        <article className="detail-path-card" style={{ minHeight: "220px" }}>
+        <article className={`detail-path-card ${styles.scoreCard}`}>
           <span>경쟁 압력 리스크</span>
           {riskRows.map((row) => (
             <p key={row.label}>{row.label}: {formatPanelOptionalPercent(row.value)}</p>
@@ -131,7 +132,7 @@ export function RecommendationIndustryCompetitivePositionPanel({
       </div>
 
       {position.rationale ? (
-        <p style={{ color: "var(--text-muted)", margin: "16px 0 0" }}>
+        <p className={styles.rationale}>
           계산 근거: {userFacingRecommendationText(position.rationale)}
         </p>
       ) : null}

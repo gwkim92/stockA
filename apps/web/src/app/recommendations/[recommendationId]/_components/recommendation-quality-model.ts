@@ -62,14 +62,14 @@ export function recommendationQualityDecision(data: RecommendationDetailData): R
     return {
       status: "전문 재무 원천 차단",
       tone: "risk-high",
-      summary: "정기 재무제표나 검증된 해석기가 없어 이 추천은 기록으로만 보존한다. 뉴스·가격 근거가 있어도 전문 분석이나 가상 매매 검증 입력으로 넘기면 안 된다.",
+      summary: "정기 재무제표나 검증된 해석기가 없어 이 추천은 기록으로만 보존한다. 뉴스·가격 근거가 있어도 전문 판단 입력이나 가상 매매 검증 입력으로 넘기면 안 된다.",
     };
   }
   if (blockedCount > 0) {
     return {
-      status: "분석 입력 차단",
+      status: "전문 판단 입력 차단",
       tone: "risk-high",
-      summary: "연결된 투자 논리, 점수 구성요소, 성과 측정 중 차단 조건이 있어 투자 분석 입력으로 넘기면 안 된다.",
+      summary: "연결된 투자 논리, 점수 구성요소, 성과 측정 중 차단 조건이 있어 전문 판단 입력으로 넘기면 안 된다.",
     };
   }
   if (adverseRecommendation || weakScore) {
@@ -235,7 +235,7 @@ export function recommendationImmediateFocus({
   items.push({
     label: "시장",
     title: "시장 동조성과 외부 지표",
-    body: "지수·섹터·금리·달러·원자재와의 동조성을 함께 두면 종목 단독 착시를 줄일 수 있다.",
+    body: "지수·섹터·금리·달러·원자재와 함께 비교하면 종목 단독 착시가 줄어든다.",
     metric: `비교 ${marketCorrelationCount.toLocaleString("ko-KR")}개`,
     href: "#recommendation-market-correlations",
     hrefLabel: "시장 동조성 보기",

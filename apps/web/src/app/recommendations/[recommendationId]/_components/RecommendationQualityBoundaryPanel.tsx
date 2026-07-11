@@ -96,8 +96,8 @@ export function RecommendationQualityBoundaryPanel({
       </div>
 
       <p className={styles.boundaryNote}>
-        {boundary.summary} 이 결과는 추천 점수를 바꾸지 않고, 이 추천을 가상 매매 검증·보유 상태·실거래 차단 중 어디까지 넘길 수 있는지만
-        설명한다.
+        {boundary.summary} 이 결과는 추천 점수를 바꾸지 않고, 이 추천을 가상 매매 검증·보유 상태·실거래 차단 중 어디까지
+        넘길 수 있는지 설명한다.
       </p>
     </section>
   );

@@ -42,7 +42,10 @@ export function StockEvidenceNeighborhoodPanel({ neighborhood }: StockEvidenceNe
       <div className="stock-evidence-head">
         <div>
           <span className="metric-sub">뉴스·투자 근거 연결</span>
-          <h2>{neighborhood.symbol}에 영향을 줄 수 있는 뉴스가 어디서 왔고, 어떻게 연결됐는지 본다</h2>
+          <h2>
+            {neighborhood.symbol}에 영향을 <span className="keep-phrase">줄 수 있는</span> 뉴스가 어디서 왔고,
+            어떻게 연결됐는지 본다
+          </h2>
           <p>
             수집 뉴스, 한국어 요약, 종목·테마 영향, 원문 근거, 추천·투자 논리 연결을 한 흐름으로 정리했다.
             저장된 분석만 읽고 새 추천이나 주문은 만들지 않는다.

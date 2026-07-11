@@ -31,17 +31,17 @@ export function CycleImpactPathSection({
   readonly pathNodes: readonly CycleNode[];
 }) {
   return (
-    <section className="cycle-path-workbench reveal delay-3" id="cycle-map-layers" aria-label="계층형 사이클 판단 경로">
+    <section className="cycle-path-workbench" id="cycle-map-layers" aria-label="계층형 사이클 판단 경로">
       {groups.length === 0 ? (
         <article className="empty-state">
-          아직 표시할 계층형 사이클 스냅샷이 없습니다. 뉴스 근거, 상위 흐름 영향, 사이클 상태가 쌓이면 거시→섹터→테마→종목 경로로 표시됩니다.
+          아직 계층형 사이클 스냅샷이 없습니다. 뉴스 근거, 상위 흐름 영향, 사이클 상태가 쌓이면 거시→섹터→테마→종목 경로가 열립니다.
         </article>
       ) : null}
 
       <div className="section-heading stacked-heading">
         <span>영향 경로</span>
         <h2>상위 흐름이 종목과 추천에 미친 영향</h2>
-        <p>상위 흐름과 종목 노출이 같은 방향인지 비교합니다. 원인과 결과를 단정하지 않고 근거 강도를 함께 표시합니다.</p>
+        <p>상위 흐름과 종목 노출의 방향, 근거 강도를 함께 표시합니다. 원인과 결과는 단정하지 않습니다.</p>
       </div>
 
       <div className="cycle-path-table">

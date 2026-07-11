@@ -8,11 +8,38 @@ import {
   professionalGuardrailTone,
 } from "./stock-professional-audit-model";
 import { stockSourceLabel, stockText } from "./stock-detail-panel-format";
+import styles from "./StockProfessionalSourceGuardrailPanel.module.css";
 
 type StockProfessionalSourceGuardrailPanelProps = {
   readonly guardrail: StockDetailData["professional_source_guardrail"];
   readonly symbol: string;
 };
+
+function isFundCompanyModelBoundary(guardrail: StockDetailData["professional_source_guardrail"]) {
+  return guardrail.blocker_code === "fund_company_financial_model_not_applicable"
+    || guardrail.status === "fund_or_etf_company_model_not_applicable";
+}
+
+function blockerLabel(guardrail: StockDetailData["professional_source_guardrail"]) {
+  if (isFundCompanyModelBoundary(guardrail)) {
+    return "회사 재무모델 비대상";
+  }
+  return guardrail.blocker_label ? stockText(guardrail.blocker_label) : "없음";
+}
+
+function blockerDetail(guardrail: StockDetailData["professional_source_guardrail"]) {
+  if (isFundCompanyModelBoundary(guardrail)) {
+    return "개별 기업 재무제표 대신 보유 구성으로 판단";
+  }
+  return guardrail.blocker_code ? stockSourceLabel(guardrail.blocker_code) : "추가 보강 필요 없음";
+}
+
+function guardrailStatusDetail(guardrail: StockDetailData["professional_source_guardrail"]) {
+  if (isFundCompanyModelBoundary(guardrail)) {
+    return "펀드형 상품 분석 경계";
+  }
+  return stockSourceLabel(guardrail.status);
+}
 
 export function StockProfessionalSourceGuardrailPanel({
   guardrail,
@@ -22,7 +49,7 @@ export function StockProfessionalSourceGuardrailPanel({
   const brokerSubmitDetail = guardrail.broker_submit_allowed ? "증권사 주문 전송 허용" : "증권사 주문 전송 금지";
 
   return (
-    <section className="bento-card span-4 reveal delay-2" aria-label="투자 판단 사용 가능 여부">
+    <section className="bento-card span-4" aria-label="투자 판단 사용 가능 여부">
       <div className="section-heading">
         <div>
           <span className="metric-sub">투자 판단 사용 여부</span>
@@ -30,15 +57,15 @@ export function StockProfessionalSourceGuardrailPanel({
         </div>
         <span className={`risk-tag ${professionalGuardrailTone(guardrail)}`}>{professionalGuardrailTitle(guardrail)}</span>
       </div>
-      <p style={{ color: "var(--text-secondary)", marginTop: 0 }}>
+      <p className={styles.copy}>
         {stockText(guardrail.summary)} 추천 점수나 보유 비중을 바꾸지 않고, 투자 판단·가상 매매 검증·실거래 가능 여부를
         분리해서 보여준다.
       </p>
-      <div className="status-rail compact-rail decision-boundary-rail" aria-label="투자 판단 사용 가능 여부 요약">
+      <div className={`status-rail compact-rail decision-boundary-rail ${styles.rail}`} aria-label="투자 판단 사용 가능 여부 요약">
         <div className="rail-cell">
           <span>투자 판단 입력</span>
           <strong>{guardrail.professional_decision_use_allowed ? "가능" : "차단"}</strong>
-          <small>{stockSourceLabel(guardrail.status)}</small>
+          <small>{guardrailStatusDetail(guardrail)}</small>
         </div>
         <div className="rail-cell">
           <span>가상 매매 검증</span>
@@ -47,8 +74,8 @@ export function StockProfessionalSourceGuardrailPanel({
         </div>
         <div className="rail-cell">
           <span>부족한 근거</span>
-          <strong>{guardrail.blocker_label || "없음"}</strong>
-          <small>{guardrail.blocker_code ? stockSourceLabel(guardrail.blocker_code) : "추가 보강 필요 없음"}</small>
+          <strong>{blockerLabel(guardrail)}</strong>
+          <small>{blockerDetail(guardrail)}</small>
         </div>
         <div className="rail-cell rail-critical">
           <span>실거래 상태</span>
@@ -56,7 +83,7 @@ export function StockProfessionalSourceGuardrailPanel({
           <small>{brokerSubmitDetail} · {orderBoundaryLabel(guardrail.order_boundary)}</small>
         </div>
       </div>
-      <div className="empty-state" style={{ marginTop: "18px" }}>
+      <div className={`empty-state ${styles.next}`}>
         <strong>다음 확인</strong>
         <p>{stockText(guardrail.next_action)}</p>
         <div className="btn-row">

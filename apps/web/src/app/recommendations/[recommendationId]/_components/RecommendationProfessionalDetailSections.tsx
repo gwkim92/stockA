@@ -126,7 +126,7 @@ export function RecommendationProfessionalDetailSections({
         badge={`${readyDecisionStepCount}/${decisionWaterfall.steps.length} 단계`}
         eyebrow="심층 분석"
         id="recommendation-professional-flow"
-        summary="전문 분석 흐름과 원천 감사는 추천을 채택하기 전에 필요한 경우 펼쳐서 대조한다."
+        summary="전문 분석 흐름과 원천 감사는 추천 채택 전에 필요한 경우 펼쳐서 대조합니다."
         title={`${data.symbol} 추천의 전문 분석 경로`}
         tone={blockedDecisionStepCount > 0 ? "blocked" : watchDecisionStepCount > 0 ? "watch" : "ready"}
       >
@@ -173,7 +173,7 @@ export function RecommendationProfessionalDetailSections({
             badge={valuationTargetRange.status === "available" ? `${valuationTargetRange.method_count}개 방법` : "가격 근거 대기"}
             eyebrow="밸류에이션 심층 근거"
             id="recommendation-valuation"
-            summary="목표가 범위, 상승여지, 안전마진을 뉴스와 사이클 신호와 분리해 대조한다."
+            summary="목표가 범위, 상승여지, 안전마진을 뉴스와 사이클 신호와 분리해 대조합니다."
             title={`${data.symbol} 가치 범위`}
             tone={valuationTargetRange.status === "available" ? "ready" : "watch"}
           >
@@ -188,7 +188,7 @@ export function RecommendationProfessionalDetailSections({
             badge={equityResearch ? `${equityResearch.key_points.length}개 포인트` : "리서치 대기"}
             eyebrow="기업 리서치"
             id="recommendation-equity-research"
-            summary="사업 설명, 촉매, 리스크, 무효화 조건은 추천 채택 전에 별도로 펼쳐 원문과 대조한다."
+            summary="사업 설명, 촉매, 리스크, 무효화 조건은 추천 채택 전에 별도로 펼쳐 원문과 대조합니다."
             title={`${data.symbol} 기업 리서치 연결`}
             tone={equityResearch ? "ready" : "watch"}
           >
@@ -213,8 +213,8 @@ export function RecommendationProfessionalDetailSections({
         badge={`${traceCards.length}개 연결`}
         eyebrow="뉴스·시장 근거"
         id="recommendation-evidence-review"
-        summary="뉴스, 상위 흐름, validator 결과, 점수 출처를 한곳에 묶되 기본 판단 흐름에서는 접어둔다."
-        title="이 추천에 붙은 근거를 원천까지 대조한다"
+        summary="뉴스, 상위 흐름, 검증 결과와 점수 출처를 한곳에 묶습니다. 기본 판단 흐름에서는 접어둡니다."
+        title="추천 근거와 원천 대조"
         tone={blockedEvidenceCount > 0 ? "blocked" : qualityDecision.tone === "risk-high" ? "blocked" : "watch"}
       >
         <RecommendationEvidenceTracePanel cards={traceCards} />

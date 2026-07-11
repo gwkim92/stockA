@@ -1,0 +1,78 @@
+.priceSummaryLead {
+  display: grid;
+  min-width: 0;
+  gap: 10px;
+}
+
+.priceSummaryCopy {
+  min-width: 0;
+  margin: 0;
+  color: var(--text-secondary);
+  line-height: 1.65;
+  overflow-wrap: break-word;
+  word-break: keep-all;
+}
+
+.broker {
+  display: grid;
+  grid-template-columns: minmax(210px, 0.72fr) minmax(420px, 1.55fr) minmax(260px, 1fr);
+  gap: clamp(20px, 3vw, 44px);
+  align-items: start;
+}
+
+.brokerSummary {
+  display: grid;
+  min-width: 0;
+  gap: 10px;
+}
+
+.brokerMetrics {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(16px, 2vw, 28px);
+}
+
+.brokerCopy {
+  min-width: 0;
+  margin: 0;
+  color: var(--text-secondary);
+  line-height: 1.65;
+  overflow-wrap: break-word;
+  word-break: keep-all;
+}
+
+@media (max-width: 1024px) {
+  .priceSummary {
+    display: grid;
+    grid-column: 1 / -1;
+    grid-template-columns: minmax(180px, 0.72fr) repeat(2, minmax(0, 1fr));
+    gap: clamp(18px, 3vw, 32px);
+    align-items: start;
+  }
+
+  .priceSummaryCopy {
+    grid-column: 1 / -1;
+  }
+
+  .broker {
+    grid-template-columns: minmax(200px, 0.72fr) minmax(0, 1.55fr);
+  }
+
+  .brokerCopy {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 640px) {
+  .priceSummary,
+  .broker,
+  .brokerMetrics {
+    grid-template-columns: 1fr;
+  }
+
+  .priceSummaryCopy,
+  .brokerCopy {
+    grid-column: auto;
+  }
+}

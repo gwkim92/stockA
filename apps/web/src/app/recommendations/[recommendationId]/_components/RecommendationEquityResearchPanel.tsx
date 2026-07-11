@@ -47,9 +47,9 @@ export function RecommendationEquityResearchPanel({
       <div className={styles.head}>
         <div>
           <span>기업 리서치 연결</span>
-          <h2>{equityResearch ? userFacingRecommendationText(equityResearch.title) : `${symbol} 기업 리서치가 아직 연결되지 않았다`}</h2>
+          <h2>{equityResearch ? userFacingRecommendationText(equityResearch.title) : `${symbol} 기업 리서치 연결 대기`}</h2>
           <p>
-            추천을 뉴스 신호만으로 보지 않기 위해 기업 분석 결과를 같이 보여준다. 이 리포트는 추천 점수와 주문을 직접 바꾸지 않고,
+            추천을 뉴스 신호만으로 보지 않기 위해 기업 분석 결과를 같이 보여준다. 이 리포트는 추천 점수와 주문을 직접 변경하지 않고,
             재무·밸류에이션 점수 항목을 해석하는 읽기 전용 근거다.
           </p>
         </div>

@@ -50,6 +50,7 @@
   display: grid;
   align-content: end;
   gap: var(--space-4);
+  min-width: 0;
   min-height: 330px;
   padding: clamp(var(--space-8), 5vw, var(--space-16));
 }
@@ -76,12 +77,13 @@
 .decision-brief-title,
 .page-title,
 .terminal-title {
-  max-width: 980px;
+  min-width: 0;
+  max-width: min(980px, 100%);
   font-size: var(--type-h1) !important;
   font-weight: 760;
   letter-spacing: -0.045em;
   line-height: 1.04;
-  overflow-wrap: normal;
+  overflow-wrap: break-word;
   text-wrap: balance;
   word-break: keep-all;
 }
@@ -462,6 +464,10 @@ summary {
 }
 
 @media (max-width: 560px) {
+  .compact-rail.decision-boundary-rail {
+    grid-template-columns: 1fr;
+  }
+
   .decision-brief > div:first-child,
   .workspace-brief > div:first-child {
     min-height: auto;

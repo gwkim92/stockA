@@ -66,33 +66,44 @@ export function ProfessionalResearchFlow({
       </div>
 
       <div className="research-flow-track">
-        {steps.map((step) => (
-          <article className={`research-flow-step tone-${step.tone ?? "neutral"}`} key={step.id}>
-            <div className="research-flow-index">{step.label}</div>
-            <div className="research-flow-copy">
-              <div className="research-flow-step-heading">
-                <strong>{step.title}</strong>
-                <span>{step.status}</span>
+        {steps.length > 0 ? (
+          steps.map((step) => (
+            <article className={`research-flow-step tone-${step.tone ?? "neutral"}`} key={step.id}>
+              <div className="research-flow-index">{step.label}</div>
+              <div className="research-flow-copy">
+                <div className="research-flow-step-heading">
+                  <strong>{step.title}</strong>
+                  <span>{step.status}</span>
+                </div>
+                <p>{step.body}</p>
+                {step.facts && step.facts.length > 0 ? (
+                  <dl className="research-flow-facts">
+                    {step.facts.map((fact) => (
+                      <div key={`${step.id}-${fact.label}`}>
+                        <dt>{fact.label}</dt>
+                        <dd>{fact.value}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                ) : null}
+                {step.href && step.hrefLabel ? (
+                  <Link className="research-flow-link" href={step.href}>
+                    {step.hrefLabel}
+                  </Link>
+                ) : null}
               </div>
-              <p>{step.body}</p>
-              {step.facts && step.facts.length > 0 ? (
-                <dl className="research-flow-facts">
-                  {step.facts.map((fact) => (
-                    <div key={`${step.id}-${fact.label}`}>
-                      <dt>{fact.label}</dt>
-                      <dd>{fact.value}</dd>
-                    </div>
-                  ))}
-                </dl>
-              ) : null}
-              {step.href && step.hrefLabel ? (
-                <Link className="research-flow-link" href={step.href}>
-                  {step.hrefLabel}
-                </Link>
-              ) : null}
-            </div>
-          </article>
-        ))}
+            </article>
+          ))
+        ) : (
+          <div className="research-flow-empty" role="status">
+            <span className="metric-sub">분석 단계 대기</span>
+            <strong>연결된 전문 분석 단계가 아직 없습니다.</strong>
+            <p>
+              재무·밸류에이션·뉴스·사이클 근거가 연결되면 판단 순서대로 표시합니다. 이 화면에서는 주문을 만들지
+              않습니다.
+            </p>
+          </div>
+        )}
       </div>
     </section>
   );

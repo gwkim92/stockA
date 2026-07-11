@@ -38,6 +38,9 @@
   color: var(--ink-secondary);
   font-size: var(--type-small);
   line-height: 1.58;
+  overflow-wrap: break-word;
+  text-wrap: pretty;
+  word-break: keep-all;
 }
 
 .badge {
@@ -61,6 +64,7 @@
 .check {
   display: grid;
   gap: var(--space-2);
+  min-width: 0;
   min-height: 128px;
   padding: var(--space-4);
   border: 1px solid var(--line-subtle);
@@ -74,6 +78,8 @@
   font-size: var(--type-h3);
   font-variant-numeric: tabular-nums;
   line-height: 1.18;
+  overflow-wrap: break-word;
+  word-break: keep-all;
 }
 
 .critical {

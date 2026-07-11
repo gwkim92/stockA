@@ -40,6 +40,17 @@ function BooleanBoundary({ allowed, label }: { readonly allowed: boolean; readon
   );
 }
 
+const PROFESSIONAL_DECISION_INPUT_ALLOWED_STATUSES = new Set([
+  "paper_validation_required",
+  "position_context_missing",
+  "review_required",
+  "decision_review_ready",
+]);
+
+function professionalDecisionInputAllowed(status: string) {
+  return PROFESSIONAL_DECISION_INPUT_ALLOWED_STATUSES.has(status);
+}
+
 function auditLayerHref(href: string | null | undefined, symbol: string) {
   if (!href) {
     return null;
@@ -121,7 +132,7 @@ export function RecommendationProfessionalAuditPanel({
         <summary>
           <span>
             <small>세부 검증</small>
-            <strong>전문 분석 레이어 자세히 보기</strong>
+            <strong>전문 분석 레이어 보기</strong>
           </span>
           <b>
             <span className={styles.closedLabel}>펼치기</span>
@@ -159,7 +170,7 @@ export function RecommendationProfessionalAuditPanel({
           </b>
         </summary>
         <div className={styles.policyGrid}>
-          <BooleanBoundary allowed={audit.professional_decision_status !== "blocked"} label="전문 판단 입력" />
+          <BooleanBoundary allowed={professionalDecisionInputAllowed(audit.professional_decision_status)} label="전문 판단 입력" />
           <BooleanBoundary allowed={audit.paper_validation_input_allowed} label="가상 매매 검증 입력" />
           <BooleanBoundary allowed={audit.recommendation_scoring_mutated} label="추천 점수 변경" />
           <BooleanBoundary allowed={audit.automatic_order_allowed || audit.broker_submit_allowed} label="주문 실행" />

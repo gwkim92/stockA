@@ -3,6 +3,7 @@ import Link from "next/link";
 import type { RecommendationDetailData } from "@/lib/types";
 
 import { formatPanelOptionalPercent } from "./recommendation-panel-format";
+import styles from "./RecommendationMarketCorrelationsPanel.module.css";
 
 type RecommendationMarketCorrelation = RecommendationDetailData["market_correlations"][number];
 
@@ -53,7 +54,7 @@ export function RecommendationMarketCorrelationsPanel({
   correlations,
 }: RecommendationMarketCorrelationsPanelProps) {
   return (
-    <section className="bento-card reveal delay-1" id="recommendation-market-correlations" aria-label="추천 시장 동조성 리스크">
+    <section className="bento-card" id="recommendation-market-correlations" aria-label="추천 시장 동조성 리스크">
       <div className="section-heading">
         <div>
           <span className="metric-sub">시장 동조성 리스크</span>
@@ -63,9 +64,9 @@ export function RecommendationMarketCorrelationsPanel({
           시장 지도 보기
         </Link>
       </div>
-      <p style={{ color: "var(--text-secondary)", marginTop: 0 }}>
-        이 섹션은 추천 점수를 새로 만들지 않는다. 최근 수익률 동조성을 이용해 같은 방향으로 몰린 리스크,
-        헤지 필요성과 포트폴리오 집중 위험을 함께 제시합니다. 상관관계는 원인을 증명하지 않습니다.
+      <p className={styles.copy}>
+        이 영역은 추천 점수를 바꾸지 않습니다. 최근 수익률 동조성으로 포트폴리오 집중도, 헤지 필요성, 동행 위험을
+        점검합니다. 상관관계만으로 원인을 확정하지 않습니다.
       </p>
       {correlations.length > 0 ? (
         <div className="detail-path-grid">
@@ -90,8 +91,8 @@ export function RecommendationMarketCorrelationsPanel({
           ))}
         </div>
       ) : (
-        <div className="empty-state">
-          아직 이 추천 종목의 시장 동조성이 계산되지 않았다. 상관관계 분석이 실행되면 추천 리스크 확인용으로 표시된다.
+        <div className={`empty-state ${styles.empty}`}>
+          아직 이 추천 종목의 시장 동조성이 계산되지 않았습니다. 계산 후 추천 리스크 점검에 활용합니다.
         </div>
       )}
     </section>

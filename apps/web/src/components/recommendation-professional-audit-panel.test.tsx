@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { RecommendationProfessionalAuditPanel } from "./recommendation-professional-audit-panel";
 import {
@@ -50,7 +50,7 @@ const audit: ProfessionalEvidenceAudit = {
   partial_layer_count: 1,
   pending_layer_count: 2,
   product_type: "operating_company",
-  professional_decision_status: "blocked",
+  professional_decision_status: "source_data_blocked",
   recommendation: "watch",
   recommendation_id: "recommendation-67",
   recommendation_scoring_mutated: false,
@@ -85,10 +85,28 @@ describe("RecommendationProfessionalAuditPanel", () => {
     expect(screen.queryByText(/automatic/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/source_limited/i)).not.toBeInTheDocument();
 
-    const layerDetails = screen.getByText("전문 분석 레이어 자세히 보기").closest("details");
+    const layerDetails = screen.getByText("전문 분석 레이어 보기").closest("details");
     const policyDetails = screen.getByText("추천 산식과 주문 경계 확인").closest("details");
     expect(layerDetails?.hasAttribute("open")).toBe(false);
     expect(policyDetails?.hasAttribute("open")).toBe(false);
+    const professionalDecisionBoundary = within(policyDetails as HTMLDetailsElement)
+      .getByText("전문 판단 입력")
+      .closest("div");
+    expect(within(professionalDecisionBoundary as HTMLDivElement).getByText("차단")).toBeInTheDocument();
+  });
+
+  it("allows professional decision input only for an explicit review-ready status", () => {
+    render(
+      <RecommendationProfessionalAuditPanel
+        audit={{ ...audit, professional_decision_status: "decision_review_ready" }}
+      />,
+    );
+
+    const policyDetails = screen.getByText("추천 산식과 주문 경계 확인").closest("details");
+    const professionalDecisionBoundary = within(policyDetails as HTMLDetailsElement)
+      .getByText("전문 판단 입력")
+      .closest("div");
+    expect(within(professionalDecisionBoundary as HTMLDivElement).getByText("허용")).toBeInTheDocument();
   });
 
   it("keeps deterministic professional audit summary counts", () => {

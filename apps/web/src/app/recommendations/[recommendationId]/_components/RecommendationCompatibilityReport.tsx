@@ -32,7 +32,7 @@ export function RecommendationCompatibilityReport({ data }: RecommendationCompat
           </h1>
           <p className="decision-brief-copy">
             이 기록은 최신 전문 분석 항목이 붙기 전 생성된 추천이다. 점수와 성과는 참고할 수 있지만,
-            재무·ETF 구성·브로커 현실·전문 감사가 필요한 판단은 최신 추천 리포트에서 다룬다.
+            재무, ETF 구성, 브로커 현실과 전문 감사가 필요한 판단은 최신 추천 리포트에서 다룬다.
           </p>
           <div className="decision-brief-meta" aria-label="추천 기본 상태">
             <span>추천 {koCode(data.recommendation)}</span>

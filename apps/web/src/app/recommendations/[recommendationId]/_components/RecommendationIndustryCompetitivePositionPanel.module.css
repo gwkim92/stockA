@@ -1,0 +1,59 @@
+.emptyHead {
+  margin-bottom: var(--space-3);
+}
+
+.head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-5);
+  margin-bottom: var(--space-5);
+}
+
+.title {
+  margin-top: var(--space-2);
+  font-size: var(--type-h2);
+}
+
+.summary,
+.emptyCopy,
+.rationale {
+  overflow-wrap: break-word;
+  text-wrap: pretty;
+  word-break: keep-all;
+}
+
+.summary {
+  max-width: 900px;
+  margin: var(--space-2) 0 0;
+  color: var(--text-secondary);
+  line-height: 1.58;
+}
+
+.emptyCopy {
+  margin: 0;
+  color: var(--text-secondary);
+  line-height: 1.58;
+}
+
+.badge {
+  margin: 0;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: var(--space-4);
+  margin-top: var(--space-5);
+}
+
+.scoreCard {
+  min-height: 220px;
+}
+
+.rationale {
+  margin: var(--space-4) 0 0;
+  color: var(--text-muted);
+  line-height: 1.58;
+}

@@ -1,0 +1,34 @@
+.copy {
+  margin-top: 0;
+  color: var(--text-secondary);
+  overflow-wrap: break-word;
+  text-wrap: pretty;
+  word-break: keep-all;
+}
+
+.rail.rail {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.rail strong,
+.rail small {
+  overflow-wrap: break-word;
+  text-wrap: pretty;
+  word-break: keep-all;
+}
+
+.next {
+  margin-top: var(--space-5);
+}
+
+@media (max-width: 900px) {
+  .rail.rail {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .rail.rail {
+    grid-template-columns: 1fr;
+  }
+}

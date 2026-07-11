@@ -62,7 +62,7 @@ export default async function CycleMapPage() {
       <DecisionSummary
         eyebrow={`사이클 지도 · ${data.as_of_date}`}
         title={`${topNodeLabel(hotNode)} 흐름이 현재 시장을 주도합니다.`}
-        description="거시 환경에서 시작된 변화가 산업·테마·종목으로 어떻게 확산되는지, 충돌 신호와 함께 보여줍니다."
+        description="거시 변화가 산업·테마·종목으로 번지는 경로와 충돌 신호를 함께 봅니다."
         primaryAction={{
           href: hotNode ? nodeHref(hotNode.node_code) : ("/intelligence" as Route),
           label: hotNode ? "주도 흐름 분석" : "뉴스 근거 보기",
@@ -92,14 +92,12 @@ export default async function CycleMapPage() {
         ]}
       />
 
-      <section className="cycle-operating-board reveal delay-1" aria-labelledby="cycle-operating-title">
+      <section className="cycle-operating-board" aria-labelledby="cycle-operating-title">
         <div className="cycle-attention-panel">
           <div className="section-heading stacked-heading">
             <span>주도 사이클</span>
             <h2 id="cycle-operating-title">시장 영향력이 큰 흐름</h2>
-            <p>
-              뉴스 강도, 하위 전파, 추천 영향과 충돌 신호를 합산해 중요도 순으로 정렬했습니다.
-            </p>
+            <p>뉴스 강도, 사이클 상태, 하위 전파, 추천 영향, 충돌 신호를 합산한 순위입니다.</p>
           </div>
           <div className="cycle-attention-list">
             {attentionNodes.map((node, index) => {
@@ -166,7 +164,7 @@ export default async function CycleMapPage() {
         </aside>
       </section>
 
-      <section className="cycle-lane-board reveal delay-2" aria-labelledby="cycle-lane-title">
+      <section className="cycle-lane-board" aria-labelledby="cycle-lane-title">
         <div className="section-heading stacked-heading">
           <span>계층 지도</span>
           <h2 id="cycle-lane-title">거시에서 종목까지 이어지는 현재 위치</h2>
@@ -199,11 +197,11 @@ export default async function CycleMapPage() {
 
       <CycleImpactPathSection groups={groups} pathNodes={pathNodes} />
 
-      <section className="bento-card reveal delay-3" aria-label="흐름 관계">
+      <section className="bento-card" aria-label="흐름 관계">
         <div className="section-heading stacked-heading">
           <span>관계선</span>
-          <h2>상위 흐름이 아래 흐름으로 이어지는 규칙</h2>
-          <p>관계선은 사전에 정한 시장 분류 지도입니다. 상위 흐름이 이어질 수 있는 하위 대상을 보여줍니다.</p>
+          <h2>상위 흐름이 <span className="keep-phrase">아래 흐름</span>으로 이어지는 규칙</h2>
+          <p>관계선은 사전에 정한 시장 분류 지도입니다. 상위 흐름과 연결된 하위 대상을 보여줍니다.</p>
         </div>
         {data.edges.length > 0 ? (
           <div className="relationship-list">

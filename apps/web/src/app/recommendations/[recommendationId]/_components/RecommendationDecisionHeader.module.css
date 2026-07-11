@@ -32,6 +32,7 @@
   letter-spacing: -0.04em;
   line-height: 1.05;
   text-wrap: balance;
+  word-break: keep-all;
 }
 
 .summary {
@@ -41,6 +42,7 @@
   font-size: var(--type-lead);
   line-height: 1.7;
   text-wrap: pretty;
+  word-break: keep-all;
 }
 
 .statusLine {
@@ -107,12 +109,16 @@
   font-size: var(--type-h3);
   font-variant-numeric: tabular-nums;
   line-height: 1.25;
+  text-wrap: pretty;
+  word-break: keep-all;
 }
 
 .metric small {
   color: var(--ink-secondary);
   font-size: var(--type-small);
   line-height: 1.45;
+  text-wrap: pretty;
+  word-break: keep-all;
 }
 
 .map {
@@ -125,6 +131,8 @@
   margin: 0;
   color: var(--ink-primary);
   font-size: var(--type-h3);
+  text-wrap: pretty;
+  word-break: keep-all;
 }
 
 .mapCard,
@@ -193,6 +201,8 @@
   font-size: var(--type-body);
   font-weight: 720;
   line-height: 1.35;
+  text-wrap: pretty;
+  word-break: keep-all;
 }
 
 .mapCard small,
@@ -202,6 +212,8 @@
   color: var(--ink-secondary);
   font-size: var(--type-small);
   line-height: 1.45;
+  text-wrap: pretty;
+  word-break: keep-all;
 }
 
 @media (max-width: 1024px) {

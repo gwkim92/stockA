@@ -162,7 +162,7 @@ export function nodeEvidenceLine(node: CycleNode) {
 
 export function nodeNextAction(node: CycleNode) {
   if (node.counts.recommendation_count > 0) {
-    return "이 흐름이 추천 점수와 근거에 미친 영향을 확인할 수 있습니다.";
+    return "추천 점수와 근거에 미친 영향을 확인합니다.";
   }
   if (node.top_symbols.length > 0) {
     return "대표 종목의 직접 뉴스, 상위 흐름과 시장 동조성이 연결됩니다.";
