@@ -1,0 +1,58 @@
+name: Analysis Integrity
+
+on:
+  pull_request:
+    branches:
+      - develop
+      - main
+    paths:
+      - ".github/workflows/analysis-integrity.yml"
+      - "pyproject.toml"
+      - "scripts/verify_analysis_integrity_ci.sh"
+      - "scripts/verify_recommendation_weight_review_*.sh"
+      - "src/stockanalysis/operations/recommendation_weight_review_*.py"
+      - "tests/test_recommendation_weight_review_*.py"
+  push:
+    branches:
+      - develop
+      - main
+    paths:
+      - ".github/workflows/analysis-integrity.yml"
+      - "pyproject.toml"
+      - "scripts/verify_analysis_integrity_ci.sh"
+      - "scripts/verify_recommendation_weight_review_*.sh"
+      - "src/stockanalysis/operations/recommendation_weight_review_*.py"
+      - "tests/test_recommendation_weight_review_*.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: analysis-integrity-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analysis-integrity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install package
+        run: |
+          python -m pip install --upgrade pip setuptools wheel
+          python -m pip install -e .
+
+      - name: Verify analysis integrity
+        env:
+          PYTHON_BIN: python
+        run: bash scripts/verify_analysis_integrity_ci.sh
