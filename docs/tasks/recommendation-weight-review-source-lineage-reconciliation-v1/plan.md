@@ -2,7 +2,7 @@
 
 ## Status
 
-- state: implementation complete; pull request pending
+- state: implementation complete; integration tracked in PR `#21`
 - base branch: `develop`
 - base commit: `366abe812d20fbe059ad5a5b62c501c0107ee9ae`
 - work branch: `codex/recommendation-weight-review-source-lineage-reconciliation-v1`
@@ -16,7 +16,7 @@
 5. Fourteen adversarial unit tests cover independent-latest drift, missing references, wrong source identity, future dates, filter mismatch, nested-quality mismatch, and permission escalation attempts.
 6. A repository verifier and operator document are present.
 7. Task handoff, review, and QA evidence are recorded.
-8. The branch will be compared with `develop`, submitted as a pull request, reviewed, and manually merged only after available checks are green.
+8. The branch was compared with `develop`, submitted as PR `#21`, and checked for mergeability and unexpected paths before manual integration.
 
 ## Deferred To The Next Task
 
