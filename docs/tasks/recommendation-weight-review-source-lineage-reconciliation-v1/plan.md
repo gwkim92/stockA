@@ -2,28 +2,33 @@
 
 ## Status
 
-- state: in progress
+- state: implementation complete; pull request pending
 - base branch: `develop`
 - base commit: `366abe812d20fbe059ad5a5b62c501c0107ee9ae`
 - work branch: `codex/recommendation-weight-review-source-lineage-reconciliation-v1`
 
-## Steps
+## Completed Steps
 
-1. Freeze the readiness-anchored source-selection and fail-closed contract.
-2. Implement one atomic read bundle for readiness, exact referenced quality/outcome, and latest drift observations.
-3. Implement a pure reconciliation builder with source identity, date, status, cohort-filter, nested-quality, and canonical-hash validation.
-4. Add a narrow executable module and append-only execute path.
-5. Add adversarial unit tests for independent-latest drift, missing references, wrong source identity, future dates, filter mismatch, nested-quality mismatch, and permission escalation attempts.
-6. Add a repository verifier and operator documentation.
-7. Update roadmap and task handoff/review/QA after verification.
-8. Push each coherent commit, open a pull request to `develop`, inspect the diff, and merge only after the available checks are green.
+1. Readiness-anchored source selection and fail-closed behavior are frozen in the task contract.
+2. One atomic read bundle resolves readiness, exact referenced quality/outcome, and latest drift observations.
+3. A pure reconciliation builder validates source identity, dates, statuses, cohort filters, nested quality, and canonical hashes.
+4. A narrow executable module supports one-read dry-run and append-only execute mode.
+5. Fourteen adversarial unit tests cover independent-latest drift, missing references, wrong source identity, future dates, filter mismatch, nested-quality mismatch, and permission escalation attempts.
+6. A repository verifier and operator document are present.
+7. Task handoff, review, and QA evidence are recorded.
+8. The branch will be compared with `develop`, submitted as a pull request, reviewed, and manually merged only after available checks are green.
 
-## Non-Goals
+## Deferred To The Next Task
 
-- rerunning or rewriting readiness, quality, or outcome artifacts
-- adding prospective row-level cohort identity
-- adding feedback deduplication or a freshness policy
-- defining an authoritative horizon or pilot policy
-- starting a manual weight-review pilot
-- changing any recommendation component weight
-- changing portfolio positions, orders, broker integration, scheduler, or deployment
+- prospective row-level recommendation cohort identity
+- versioned component snapshots
+- portfolio-feedback deduplication
+- explicit source-freshness policy
+- authoritative horizon or pilot policy
+
+## Non-Goals Preserved
+
+- no readiness, quality, or outcome artifact was rewritten
+- no recommendation component weight changed
+- no portfolio position, order, broker integration, scheduler, or deployment changed
+- no manual weight-review pilot was started
