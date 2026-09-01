@@ -2,7 +2,7 @@
 
 ## Status
 
-- implementation complete and ready for pull-request review
+- implementation complete; integration tracked in PR `#21`
 - base branch: `develop`
 - base commit: `366abe812d20fbe059ad5a5b62c501c0107ee9ae`
 - work branch: `codex/recommendation-weight-review-source-lineage-reconciliation-v1`
@@ -38,13 +38,15 @@ recommendation weight review source lineage reconciliation v1 verification passe
 pyproject entry point verified
 ```
 
-Remote branch comparison before completion documentation:
+PR `#21` review state before integration:
 
-- status: ahead of `develop`
-- behind by: 0
+- mergeable: true
+- behind `develop`: 0
+- changed paths: 13 expected files
 - migrations changed: 0
 - core recommendation scoring changed: 0
 - portfolio/broker/scheduler/deployment paths changed: 0
+- GitHub workflow runs/status contexts: none configured for the PR head
 
 ## Safety Boundary
 
