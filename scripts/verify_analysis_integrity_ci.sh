@@ -19,6 +19,9 @@ bash -n scripts/verify_analysis_integrity_ci.sh
   src/stockanalysis/operations/recommendation_weight_review_prospective_evidence_lookup.py \
   src/stockanalysis/operations/recommendation_weight_review_prospective_evidence_foundation.py \
   src/stockanalysis/operations/recommendation_weight_review_prospective_evidence_foundation_cli.py \
+  src/stockanalysis/operations/recommendation_weight_review_prospective_evidence_live_observation_contract.py \
+  src/stockanalysis/operations/recommendation_weight_review_prospective_evidence_live_observation.py \
+  src/stockanalysis/operations/recommendation_weight_review_prospective_evidence_live_observation_cli.py \
   src/stockanalysis/operations/recommendation_weight_review_readiness_semantics.py \
   src/stockanalysis/operations/recommendation_weight_review_readiness_audit.py \
   tests/test_recommendation_weight_review_source_lineage_reconciliation.py \
@@ -26,6 +29,7 @@ bash -n scripts/verify_analysis_integrity_ci.sh
   tests/test_recommendation_weight_review_prospective_evidence_identity.py \
   tests/test_recommendation_weight_review_prospective_evidence_feedback.py \
   tests/test_recommendation_weight_review_prospective_evidence_runtime.py \
+  tests/test_recommendation_weight_review_prospective_evidence_live_observation.py \
   tests/test_recommendation_weight_review_readiness_semantics.py \
   tests/test_recommendation_weight_review_readiness_audit.py
 
@@ -34,6 +38,7 @@ bash -n scripts/verify_analysis_integrity_ci.sh
   tests.test_recommendation_weight_review_prospective_evidence_identity \
   tests.test_recommendation_weight_review_prospective_evidence_feedback \
   tests.test_recommendation_weight_review_prospective_evidence_runtime \
+  tests.test_recommendation_weight_review_prospective_evidence_live_observation \
   tests.test_recommendation_weight_review_readiness_semantics \
   tests.test_recommendation_weight_review_readiness_audit -v
 
@@ -54,6 +59,10 @@ required = {
     "stockanalysis-weight-prospective-evidence": (
         "stockanalysis.operations."
         "recommendation_weight_review_prospective_evidence_foundation_cli:main_entry"
+    ),
+    "stockanalysis-weight-prospective-evidence-live-observation": (
+        "stockanalysis.operations."
+        "recommendation_weight_review_prospective_evidence_live_observation_cli:main_entry"
     ),
 }
 for name, target in required.items():
