@@ -18,9 +18,11 @@ The runner never falls back to an independently selected latest lineage or feedb
 
 ## Database Identity Contract
 
-The target is identified from `current_database()`, `current_user`, `server_version_num`, server address/port when available, and required relation presence. The canonical payload is SHA-256 hashed.
+The initial identity query reads `current_database()`, `current_user`, `server_version_num`, server address/port when available, and required relation presence. The canonical payload is SHA-256 hashed.
 
-The observation fails closed before domain reads or writes unless the identity is complete and equals the operator-supplied expected SHA-256. PostgreSQL commands, DSNs, passwords, and environment variables are never persisted.
+Because the repository executor opens a new `psql` process for each command, the initial preflight alone is not treated as sufficient. The exact bundle lookup begins with a same-connection PostgreSQL guard block, and every pipeline/eval insert or pipeline-status update carries the same identity predicates in that write statement. A changed endpoint, role, version, address, port, or required relation therefore fails inside the command before its protected read or write proceeds.
+
+The observation fails closed before domain access unless the initial identity is complete and equals the operator-supplied expected SHA-256. PostgreSQL commands, DSNs, passwords, and environment variables are never persisted.
 
 ## Legacy Surface Contract
 
@@ -30,9 +32,9 @@ Execute mode computes the surface before and after creating the allowed pipeline
 
 ## Read/Write Boundary
 
-Dry-run performs an identity read plus one exact-reference evidence read and no writes.
+Dry-run performs an identity read plus one same-command guarded exact-reference evidence read and no writes.
 
-Execute may write only one `ops.pipeline_run` lifecycle and one append-only `ai.eval_run` artifact. No other write is allowed.
+Successful execute mode performs one logical `ops.pipeline_run` lifecycle and one append-only `ai.eval_run` artifact through three guarded SQL write statements: pipeline insert, eval insert, and pipeline success update. A failed observation may perform only the guarded pipeline insert and guarded pipeline failure update. No legacy domain write is allowed.
 
 ## Result States
 
@@ -48,6 +50,7 @@ No state grants pilot, proposal, scoring, weight, portfolio, rebalance, order, o
 
 - exact source IDs and expected database SHA-256 are mandatory;
 - wrong or incomplete targets stop before domain reads and writes;
+- every protected domain lookup and write SQL carries the database identity guard in the same command;
 - dry-run is zero-write;
 - execute writes only the allowed pipeline lifecycle and one append-only eval;
 - recommendation score, recommended weight, component, source score, cohort, outcome, feedback, or permission drift changes the legacy hash;

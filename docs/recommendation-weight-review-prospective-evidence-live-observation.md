@@ -8,19 +8,11 @@ It is an observation boundary, not a pilot boundary. It cannot approve a policy,
 
 ## Exact Inputs
 
-Every observation requires:
-
-- an `as_of_date`;
-- the exact source-lineage reconciliation `eval_run_id`;
-- the exact `Long Term Paper` feedback-calibration `eval_run_id`;
-- a non-secret environment label;
-- the expected canonical database-identity SHA-256.
-
-There is no fallback to independently selected latest lineage or feedback artifacts.
+Every observation requires an `as_of_date`, the exact source-lineage reconciliation `eval_run_id`, the exact `Long Term Paper` feedback-calibration `eval_run_id`, a non-secret environment label, and the expected canonical database-identity SHA-256. There is no fallback to independently selected latest lineage or feedback artifacts.
 
 ## Database Identity Gate
 
-Before any domain query or write, the runner reads:
+The initial preflight reads:
 
 - `current_database()`;
 - `current_user`;
@@ -30,45 +22,39 @@ Before any domain query or write, the runner reads:
 
 The canonical payload is hashed with SHA-256. If required relations are missing or the hash differs from the expected target, the runner returns a blocked, zero-write result and does not query the recommendation evidence tables.
 
-The output never contains the PostgreSQL command, DSN, password, or environment-variable values.
+`PsqlCommandExecutor` opens a separate `psql` process for each SQL command. To prevent a later connection from reaching a different target, the exact evidence lookup starts with an identity assertion in the same PostgreSQL command. Pipeline insertion, observation insertion, and pipeline status updates also repeat the exact database name, role, version, address, port, and required-relation predicates inside their own SQL statements. A target switch therefore stops inside the affected command.
+
+The output and persisted artifact never contain the PostgreSQL command, DSN, password, or environment-variable values.
 
 ### Establishing the Expected Fingerprint
 
-A first dry-run may use 64 zeroes as the expected hash. It will stop after the identity query and print the observed canonical payload and SHA-256 without querying domain evidence or writing anything. Verify the database name, role, version, address, port, and required relations, then rerun with that observed SHA-256.
+A first dry-run may use 64 zeroes as the expected hash. It stops after the identity query and prints the observed canonical payload and SHA-256 without querying domain evidence or writing anything. Verify the database name, role, version, address, port, and required relations, then rerun with that observed SHA-256.
 
 ## Legacy-Surface Stability
 
-The legacy surface binds:
+The legacy surface binds the exact lineage, quality, outcome, feedback-calibration, and feedback-run eval IDs; canonical hashes of their score payloads; cohort filters and source metadata; recommendation rows, total scores, recommended weights, and component snapshots; outcome observations; deduplicated feedback identity; cohort/freshness snapshots; and every hard-false mutation or trading permission.
 
-- the exact lineage, quality, outcome, feedback-calibration, and feedback-run eval IDs;
-- canonical hashes of their score payloads;
-- cohort filters and source metadata;
-- deterministic recommendation rows, total scores, recommended weights, and component snapshots;
-- deterministic outcome observations;
-- deduplicated feedback identity;
-- cohort and freshness snapshots;
-- every hard-false mutation and trading permission.
-
-During execute mode, the runner computes this surface before creating the pipeline row and again immediately after. If the hashes differ, the pipeline is marked failed and no live-observation `ai.eval_run` artifact is inserted.
+During execute mode, the runner computes this surface before creating the pipeline row and again immediately after. If the hashes differ, the guarded pipeline failure update is attempted and no live-observation `ai.eval_run` artifact is inserted.
 
 ## Execution Boundary
 
 Dry-run:
 
-1. validate the database identity;
-2. read the exact prospective-evidence bundle once;
+1. validate the initial database identity;
+2. run one same-command guarded exact-reference evidence lookup;
 3. build the foundation and legacy-surface hash;
 4. write nothing.
 
 Execute:
 
 1. perform the dry-run preflight;
-2. create one `ops.pipeline_run` lifecycle;
-3. reread the same exact bundle and compare legacy-surface hashes;
-4. insert one append-only live-observation artifact in `ai.eval_run` only when stable;
-5. finish the pipeline lifecycle.
+2. create one guarded `ops.pipeline_run` row;
+3. run a second same-command guarded exact bundle lookup;
+4. compare legacy-surface hashes;
+5. insert one guarded append-only live-observation artifact only when stable;
+6. finish the pipeline through a guarded status update.
 
-No existing eval, recommendation, score component, outcome, portfolio, or trading row is updated or deleted.
+A successful execute uses three SQL write statements for one pipeline lifecycle and one append-only eval. No existing eval, recommendation, score component, outcome, portfolio, or trading row is updated or deleted.
 
 ## Result States
 

@@ -2,21 +2,22 @@
 
 ```text
 PostgreSQL target
-  └─ identity query
+  └─ initial identity query
        ├─ mismatch / missing relations
        │    └─ blocked, zero domain reads, zero writes
-       └─ attested target
+       └─ attested target identity
             └─ exact lineage ID + exact feedback-calibration ID
-                 └─ prospective evidence bundle #1
+                 └─ same-command identity guard + exact bundle #1
                       └─ foundation + legacy surface SHA-256
-                           └─ dry-run: return, zero writes
-                           └─ execute: create ops.pipeline_run
-                                └─ exact bundle #2
-                                     ├─ surface changed
-                                     │    └─ mark pipeline failed; no eval artifact
-                                     └─ surface unchanged
-                                          └─ append one ai.eval_run observation
-                                               └─ mark pipeline succeeded
+                           ├─ dry-run: return, zero writes
+                           └─ execute
+                                └─ guarded ops.pipeline_run insert
+                                     └─ same-command identity guard + exact bundle #2
+                                          ├─ surface changed
+                                          │    └─ guarded failed update; no eval artifact
+                                          └─ surface unchanged
+                                               └─ guarded ai.eval_run append
+                                                    └─ guarded succeeded update
 ```
 
-No recommendation, component, outcome, portfolio, rebalance, order, broker, scheduler, deployment, or schema mutation is connected to this topology.
+Every protected SQL command repeats the observed target identity. No recommendation, component, outcome, portfolio, rebalance, order, broker, scheduler, deployment, or schema mutation is connected to this topology.
