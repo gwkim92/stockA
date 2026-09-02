@@ -46,11 +46,16 @@ if grep -E -- '--(approve|authorize|pilot|weight-delta|component-weight|recommen
 fi
 
 "$PYTHON_BIN" - <<'PY'
+from datetime import date
+
 from stockanalysis.operations.recommendation_weight_review_prospective_evidence_live_observation import (
     DATABASE_IDENTITY_CONTRACT_VERSION,
     normalize_live_observation_database_identity,
     render_live_observation_database_identity_sql,
     render_live_observation_eval_insert_sql,
+    render_live_observation_guarded_bundle_lookup_sql,
+    render_live_observation_pipeline_run_insert_sql,
+    render_live_observation_pipeline_run_status_sql,
 )
 
 identity_sql = render_live_observation_database_identity_sql().lower()
@@ -90,15 +95,52 @@ identity = normalize_live_observation_database_identity(
 assert identity["complete"] is True
 assert len(str(identity["sha256"])) == 64
 
-insert_sql = render_live_observation_eval_insert_sql(
-    score_json={"status": "live_observation_complete_fresh_read_only"}
+lookup_sql = render_live_observation_guarded_bundle_lookup_sql(
+    as_of_date=date(2026, 7, 15),
+    lineage_eval_run_id=501,
+    portfolio_feedback_calibration_eval_run_id=601,
+    portfolio_name="Long Term Paper",
+    database_identity=identity,
 ).lower()
+for required in (
+    "do $stockanalysis_live_observation_guard$",
+    "current_database() = 'stockanalysis'",
+    "current_user::text = 'stockanalysis_app'",
+    "to_regclass('signal.recommendation') is not null",
+    "prospective evidence foundation v1 atomic lookup",
+    "eval_run.eval_run_id = 501",
+    "eval_run.eval_run_id = 601",
+):
+    assert required in lookup_sql, required
+for prohibited in ("insert into", "update ", "delete from", "truncate "):
+    assert prohibited not in lookup_sql, prohibited
+
+write_statements = (
+    render_live_observation_pipeline_run_insert_sql(
+        config_json={"mode": "test"},
+        database_identity=identity,
+    ),
+    render_live_observation_eval_insert_sql(
+        score_json={"status": "live_observation_complete_fresh_read_only"},
+        database_identity=identity,
+    ),
+    render_live_observation_pipeline_run_status_sql(
+        run_id=99,
+        status="succeeded",
+        database_identity=identity,
+    ),
+)
+for statement in write_statements:
+    lowered = statement.lower()
+    assert "current_database() = 'stockanalysis'" in lowered
+    assert "current_user::text = 'stockanalysis_app'" in lowered
+    assert "to_regclass('signal.recommendation') is not null" in lowered
+
+insert_sql = write_statements[1].lower()
 assert insert_sql.count("insert into") == 1
 assert "insert into ai.eval_run" in insert_sql
 for prohibited in (
-    "update ",
     "delete from",
-    "signal.recommendation",
     "portfolio.position",
     "broker.",
     "postgresql://",
