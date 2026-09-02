@@ -30,6 +30,7 @@ otel = [
 stockanalysis-ingest = "stockanalysis.ingest.cli:main_entry"
 stockanalysis-operations = "stockanalysis.operations.cli:main_entry"
 stockanalysis-weight-lineage-reconciliation = "stockanalysis.operations.recommendation_weight_review_source_lineage_reconciliation_cli:main_entry"
+stockanalysis-weight-prospective-evidence = "stockanalysis.operations.recommendation_weight_review_prospective_evidence_foundation_cli:main_entry"
 stockanalysis-frontend-api = "stockanalysis.frontend.api_adapter:main_entry"
 stockanalysis-frontend-api-server = "stockanalysis.frontend.api_server:main_entry"
 stockanalysis-frontend-fixture-server = "stockanalysis.frontend.fixture_server:main_entry"
