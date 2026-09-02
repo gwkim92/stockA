@@ -16,6 +16,9 @@ from stockanalysis.operations.recommendation_weight_review_prospective_evidence_
     normalize_live_observation_database_identity,
     render_live_observation_database_identity_sql,
     render_live_observation_eval_insert_sql,
+    render_live_observation_guarded_bundle_lookup_sql,
+    render_live_observation_pipeline_run_insert_sql,
+    render_live_observation_pipeline_run_status_sql,
     run_recommendation_weight_review_prospective_evidence_live_observation,
 )
 from tests.recommendation_weight_review_prospective_evidence_fixtures import (
@@ -34,7 +37,9 @@ class LiveObservationFakeExecutor:
         database_identity: dict[str, object] | None = None,
     ) -> None:
         self.bundle = copy.deepcopy(bundle or _bundle())
-        self.bundle_after = copy.deepcopy(bundle_after) if bundle_after is not None else None
+        self.bundle_after = (
+            copy.deepcopy(bundle_after) if bundle_after is not None else None
+        )
         self.database_identity = copy.deepcopy(
             database_identity or _database_identity_payload()
         )
@@ -56,6 +61,8 @@ class LiveObservationFakeExecutor:
             return "9901"
         if "insert into ai.eval_run" in lowered:
             return "8901"
+        if "update ops.pipeline_run" in lowered:
+            return "9901"
         raise AssertionError(f"Unexpected scalar SQL: {sql[:200]}")
 
     def execute_non_query(self, sql: str) -> None:
@@ -87,6 +94,60 @@ class ProspectiveEvidenceLiveObservationTests(unittest.TestCase):
 
         self.assertTrue(first["complete"])
         self.assertEqual(first["sha256"], second["sha256"])
+
+    def test_guarded_bundle_lookup_asserts_identity_in_same_psql_statement(self) -> None:
+        identity = _normalized_database_identity()
+        sql = render_live_observation_guarded_bundle_lookup_sql(
+            as_of_date=AUDIT_DATE,
+            lineage_eval_run_id=501,
+            portfolio_feedback_calibration_eval_run_id=601,
+            portfolio_name="Long Term Paper",
+            database_identity=identity,
+        )
+        lowered = sql.lower()
+
+        self.assertTrue(lowered.startswith("do $stockanalysis_live_observation_guard$"))
+        self.assertIn("current_database() = 'stockanalysis'", lowered)
+        self.assertIn("current_user::text = 'stockanalysis_app'", lowered)
+        self.assertIn("to_regclass('signal.recommendation') is not null", lowered)
+        self.assertIn("eval_run.eval_run_id = 501", lowered)
+        self.assertIn("eval_run.eval_run_id = 601", lowered)
+        self.assertFalse(_contains_write(sql))
+
+    def test_every_allowed_write_statement_contains_database_identity_guard(self) -> None:
+        identity = _normalized_database_identity()
+        statements = (
+            render_live_observation_pipeline_run_insert_sql(
+                config_json={"mode": "test"},
+                database_identity=identity,
+            ),
+            render_live_observation_eval_insert_sql(
+                score_json={"status": "live_observation_complete_fresh_read_only"},
+                database_identity=identity,
+            ),
+            render_live_observation_pipeline_run_status_sql(
+                run_id=9901,
+                status="succeeded",
+                database_identity=identity,
+            ),
+            render_live_observation_pipeline_run_status_sql(
+                run_id=9901,
+                status="failed",
+                database_identity=identity,
+                error_summary="test failure",
+            ),
+        )
+
+        for sql in statements:
+            with self.subTest(statement=sql.splitlines()[0]):
+                lowered = sql.lower()
+                self.assertIn("current_database() = 'stockanalysis'", lowered)
+                self.assertIn("current_user::text = 'stockanalysis_app'", lowered)
+                self.assertIn(
+                    "to_regclass('signal.recommendation') is not null",
+                    lowered,
+                )
+                self.assertTrue(_contains_write(sql))
 
     def test_legacy_surface_changes_when_recommendation_weight_changes(self) -> None:
         bundle = _bundle()
@@ -163,12 +224,17 @@ class ProspectiveEvidenceLiveObservationTests(unittest.TestCase):
         self.assertEqual(executor.non_query_sql, [])
         self.assertTrue(all(not _contains_write(sql) for sql in executor.scalar_sql))
         lookup = executor.scalar_sql[1]
+        self.assertIn("do $stockanalysis_live_observation_guard$", lookup.lower())
         self.assertIn("eval_run.eval_run_id = 501", lookup)
         self.assertIn("eval_run.eval_run_id = 601", lookup)
         self.assertTrue(report["observation"]["database_identity"]["attested"])
         self.assertFalse(report["observation"]["proposal_generation_allowed"])
+        self.assertEqual(
+            report["write_boundary"]["sql_write_statement_count"],
+            0,
+        )
 
-    def test_execute_writes_only_pipeline_lifecycle_and_one_eval(self) -> None:
+    def test_execute_writes_only_guarded_pipeline_lifecycle_and_one_eval(self) -> None:
         executor = LiveObservationFakeExecutor()
         expected_sha256 = _database_identity_sha256(executor.database_identity)
 
@@ -188,21 +254,46 @@ class ProspectiveEvidenceLiveObservationTests(unittest.TestCase):
         self.assertEqual(report["eval_run_id"], 8901)
         self.assertEqual(executor.bundle_read_count, 2)
         self.assertEqual(
-            sum("insert into ops.pipeline_run" in sql.lower() for sql in executor.scalar_sql),
+            sum(
+                "insert into ops.pipeline_run" in sql.lower()
+                for sql in executor.scalar_sql
+            ),
             1,
         )
         self.assertEqual(
-            sum("insert into ai.eval_run" in sql.lower() for sql in executor.scalar_sql),
+            sum(
+                "insert into ai.eval_run" in sql.lower()
+                for sql in executor.scalar_sql
+            ),
             1,
         )
-        self.assertEqual(len(executor.non_query_sql), 1)
-        all_writes = [
-            sql
-            for sql in (*executor.scalar_sql, *executor.non_query_sql)
-            if _contains_write(sql)
-        ]
+        self.assertEqual(
+            sum(
+                "update ops.pipeline_run" in sql.lower()
+                for sql in executor.scalar_sql
+            ),
+            1,
+        )
+        self.assertEqual(executor.non_query_sql, [])
+        all_writes = [sql for sql in executor.scalar_sql if _contains_write(sql)]
+        self.assertEqual(len(all_writes), 3)
         self.assertTrue(
-            all("ops.pipeline_run" in sql or "ai.eval_run" in sql for sql in all_writes)
+            all(
+                "current_database() = 'stockanalysis'" in sql.lower()
+                for sql in all_writes
+            )
+        )
+        self.assertTrue(
+            all(
+                "ops.pipeline_run" in sql or "ai.eval_run" in sql
+                for sql in all_writes
+            )
+        )
+        self.assertEqual(report["write_boundary"]["pipeline_lifecycle_count"], 1)
+        self.assertEqual(report["write_boundary"]["append_only_eval_count"], 1)
+        self.assertEqual(
+            report["write_boundary"]["sql_write_statement_count"],
+            3,
         )
         observation = report["observation"]
         self.assertTrue(observation["legacy_surface"]["unchanged"])
@@ -225,7 +316,10 @@ class ProspectiveEvidenceLiveObservationTests(unittest.TestCase):
         )
 
         self.assertEqual(report["status"], "blocked")
-        self.assertEqual(report["write_count"], 0)
+        self.assertEqual(
+            report["write_boundary"]["sql_write_statement_count"],
+            0,
+        )
         self.assertEqual(len(executor.scalar_sql), 1)
         self.assertEqual(executor.bundle_read_count, 0)
         self.assertEqual(executor.non_query_sql, [])
@@ -274,33 +368,47 @@ class ProspectiveEvidenceLiveObservationTests(unittest.TestCase):
             )
 
         self.assertEqual(
-            sum("insert into ops.pipeline_run" in sql.lower() for sql in executor.scalar_sql),
+            sum(
+                "insert into ops.pipeline_run" in sql.lower()
+                for sql in executor.scalar_sql
+            ),
             1,
         )
         self.assertEqual(
-            sum("insert into ai.eval_run" in sql.lower() for sql in executor.scalar_sql),
+            sum(
+                "insert into ai.eval_run" in sql.lower()
+                for sql in executor.scalar_sql
+            ),
             0,
         )
-        self.assertEqual(len(executor.non_query_sql), 1)
-        self.assertIn("status = 'failed'", executor.non_query_sql[0].lower())
+        failed_updates = [
+            sql
+            for sql in executor.scalar_sql
+            if "update ops.pipeline_run" in sql.lower()
+        ]
+        self.assertEqual(len(failed_updates), 1)
+        self.assertIn("status = 'failed'", failed_updates[0].lower())
+        self.assertIn("current_database() = 'stockanalysis'", failed_updates[0].lower())
+        self.assertEqual(executor.non_query_sql, [])
 
-    def test_eval_insert_is_append_only_and_contains_no_connection_secret(self) -> None:
+    def test_eval_insert_is_append_only_guarded_and_secret_free(self) -> None:
         sql = render_live_observation_eval_insert_sql(
             score_json={
                 "status": "live_observation_complete_fresh_read_only",
                 "database_identity": {"sha256": "a" * 64},
-            }
+            },
+            database_identity=_normalized_database_identity(),
         )
         lowered = sql.lower()
 
         self.assertEqual(lowered.count("insert into"), 1)
         self.assertIn("insert into ai.eval_run", lowered)
         self.assertIn("prospective_evidence_live_observation_v1", lowered)
+        self.assertIn("current_database() = 'stockanalysis'", lowered)
         self.assertNotIn("update ", lowered)
         self.assertNotIn("delete from", lowered)
         self.assertNotIn("postgresql://", lowered)
         self.assertNotIn("password", lowered)
-        self.assertNotIn("signal.recommendation", lowered)
         self.assertNotIn("portfolio.position", lowered)
         self.assertNotIn("broker.", lowered)
 
@@ -349,6 +457,10 @@ def _database_identity_payload() -> dict[str, object]:
             "signal.recommendation_batch": True,
         },
     }
+
+
+def _normalized_database_identity() -> dict[str, object]:
+    return normalize_live_observation_database_identity(_database_identity_payload())
 
 
 def _database_identity_sha256(payload: dict[str, object]) -> str:
