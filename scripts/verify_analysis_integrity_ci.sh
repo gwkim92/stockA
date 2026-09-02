@@ -12,14 +12,28 @@ bash -n scripts/verify_analysis_integrity_ci.sh
 "$PYTHON_BIN" -m compileall -q \
   src/stockanalysis/operations/recommendation_weight_review_source_lineage_reconciliation.py \
   src/stockanalysis/operations/recommendation_weight_review_source_lineage_reconciliation_cli.py \
+  src/stockanalysis/operations/recommendation_weight_review_prospective_evidence_contract.py \
+  src/stockanalysis/operations/recommendation_weight_review_prospective_evidence_recommendation.py \
+  src/stockanalysis/operations/recommendation_weight_review_prospective_evidence_outcome.py \
+  src/stockanalysis/operations/recommendation_weight_review_prospective_evidence_feedback.py \
+  src/stockanalysis/operations/recommendation_weight_review_prospective_evidence_lookup.py \
+  src/stockanalysis/operations/recommendation_weight_review_prospective_evidence_foundation.py \
+  src/stockanalysis/operations/recommendation_weight_review_prospective_evidence_foundation_cli.py \
   src/stockanalysis/operations/recommendation_weight_review_readiness_semantics.py \
   src/stockanalysis/operations/recommendation_weight_review_readiness_audit.py \
   tests/test_recommendation_weight_review_source_lineage_reconciliation.py \
+  tests/recommendation_weight_review_prospective_evidence_fixtures.py \
+  tests/test_recommendation_weight_review_prospective_evidence_identity.py \
+  tests/test_recommendation_weight_review_prospective_evidence_feedback.py \
+  tests/test_recommendation_weight_review_prospective_evidence_runtime.py \
   tests/test_recommendation_weight_review_readiness_semantics.py \
   tests/test_recommendation_weight_review_readiness_audit.py
 
 "$PYTHON_BIN" -m unittest \
   tests.test_recommendation_weight_review_source_lineage_reconciliation \
+  tests.test_recommendation_weight_review_prospective_evidence_identity \
+  tests.test_recommendation_weight_review_prospective_evidence_feedback \
+  tests.test_recommendation_weight_review_prospective_evidence_runtime \
   tests.test_recommendation_weight_review_readiness_semantics \
   tests.test_recommendation_weight_review_readiness_audit -v
 
@@ -36,6 +50,10 @@ required = {
     "stockanalysis-weight-lineage-reconciliation": (
         "stockanalysis.operations."
         "recommendation_weight_review_source_lineage_reconciliation_cli:main_entry"
+    ),
+    "stockanalysis-weight-prospective-evidence": (
+        "stockanalysis.operations."
+        "recommendation_weight_review_prospective_evidence_foundation_cli:main_entry"
     ),
 }
 for name, target in required.items():
