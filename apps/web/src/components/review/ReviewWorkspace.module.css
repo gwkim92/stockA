@@ -18,6 +18,9 @@
 .metrics dt { font-size:12px; color:var(--ink-secondary); }
 .metrics dd { margin:8px 0 6px; font-size:23px; font-weight:700; font-variant-numeric:tabular-nums; overflow-wrap:anywhere; }
 .metrics small { font-size:11px; color:var(--ink-muted); }
+.summaryNotes { margin-top:6px; font-size:12px; color:var(--ink-secondary); line-height:1.7; }
+.summaryNotes summary { min-height:32px; cursor:pointer; padding:5px 0; }
+.summaryNotes p { margin:0 0 10px; }
 .panel { min-width:0; border:1px solid var(--line-subtle); background:white; border-radius:12px; overflow:hidden; }
 .panelHeading { padding:18px 20px 10px; }
 .panelHeading > span { font-size:11px; color:var(--accent-analysis); }
@@ -73,4 +76,22 @@
 .empty p { font-size:13px; line-height:1.8; }
 @media(max-width:1100px) { .header { align-items:start; } .holding, .outcome { grid-template-columns:minmax(150px,.8fr) minmax(0,1.2fr); } .reviewReason, .alpha { grid-column:2; } .metrics dd { font-size:20px; } }
 @media(max-width:760px) { .header { display:block; } .dateForm { margin-top:14px; } .dateForm label { display:flex; align-items:center; gap:8px; } .tabs { gap:16px; margin-top:12px; } .tabs a { font-size:12px; } .supportGrid { grid-template-columns:1fr; } .metrics { grid-template-columns:repeat(2,minmax(0,1fr)); } .metrics > div { padding:12px 14px; } .metrics > div:nth-child(3) { border-left:0; } .metrics > div:nth-child(n+3) { border-top:1px solid var(--line-subtle); } }
-@media(max-width:480px) { .header h1 { font-size:26px; } .header p { font-size:12px; } .holding, .outcome { display:grid; grid-template-columns:1fr; padding:16px; gap:16px; } .reviewReason, .alpha { grid-column:auto; } .holdingFacts { padding:12px; background:var(--surface-canvas); border-radius:8px; } .holdingFacts dl { gap:22px; } .controls, .panelHeading { padding-inline:16px; } .filterRow { gap:1px; } .controls button { padding:7px 8px; font-size:11px; } .searchRow { gap:8px; } .search input { width:130px; } .metrics dd { font-size:19px; } .metrics small { font-size:10px; } .outcome .identity { gap:7px; } .outcome .links a { font-size:11px; } }
+@media(max-width:480px) {
+ .header h1 { font-size:26px; } .header p { font-size:12px; }
+ .holding, .outcome { grid-template-columns:1fr; padding:16px; gap:16px; }
+ .reviewReason, .alpha { grid-column:auto; }
+ .holdingFacts { padding:12px; background:var(--surface-canvas); border-radius:8px; }
+ .holdingFacts dl { gap:22px; }
+ .controls, .panelHeading { padding-inline:16px; }
+ .panelHeading { padding-top:14px; padding-bottom:6px; }
+ .filterRow { gap:1px; margin-bottom:6px; }
+ .controls button { padding:7px 8px; font-size:11px; }
+ .searchRow { gap:8px; } .search input { width:130px; }
+ .metricBlock { margin:12px 0; }
+ .metrics > div { padding:8px 12px; }
+ .metrics dd { margin:4px 0; font-size:18px; }
+ .metrics small { font-size:11px; line-height:1.6; }
+ .metrics dt { font-size:11px; }
+ .context { margin:8px 0; font-size:11px; }
+ .outcome .identity { gap:7px; } .outcome .links a { font-size:11px; }
+}

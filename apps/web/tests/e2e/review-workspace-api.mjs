@@ -12,7 +12,7 @@ const server = createServer(async (req, res) => {
   requests.push({ path, query: url.search, method: req.method });
   if (req.headers.authorization !== "Bearer review-test-only") return send(401, { error: "fixture authentication" });
   if (scenario === "all-down") return send(503, { error: "do-not-expose-private-error" });
-  if (path === "/api/trading-readiness") return send(200, sample("trading-readiness"));
+  if (path === "/api/trading/readiness") return send(200, sample("trading-readiness"));
   const isPortfolio = path === "/api/portfolio/Long%20Term%20Paper/coverage", isPerformance = path === "/api/performance/Long%20Term%20Paper/outcomes";
   if (!isPortfolio && !isPerformance) return send(404, { error: "fixture endpoint unavailable" });
   const date = url.searchParams.get(isPortfolio ? "asOfDate" : "measurementEndDate") || new Date().toISOString().slice(0, 10);

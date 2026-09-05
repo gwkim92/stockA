@@ -6,9 +6,12 @@ for (const [path, title, file] of [["/portfolio/coverage", "보유 검토", "hol
     const errors: string[] = []; page.on("pageerror", error => errors.push(error.message));
     await page.goto(path); const workspace = page.getByTestId("review-workspace");
     await expect(workspace.getByRole("heading", { name: title, exact: true, level: 1 })).toBeVisible();
-    await expect(workspace.getByRole("article").first()).toBeVisible();
+    const firstRecord = workspace.getByRole("article").first();
+    await expect(firstRecord).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
     const axe = await new AxeBuilder({ page }).analyze(); expect(axe.violations).toEqual([]); expect(errors).toEqual([]);
+    const bounds = await firstRecord.boundingBox();
+    expect(bounds!.y).toBeLessThan(info.project.name === "mobile" ? 780 : 900);
     await page.screenshot({ path: info.outputPath(`review-${file}-${info.project.name}.png`), fullPage: true, animations: "disabled" });
     await page.screenshot({ path: info.outputPath(`review-${file}-${info.project.name}-viewport.png`), animations: "disabled" });
   });
@@ -25,7 +28,7 @@ test("holding filters preserve date/history and never combine native currency va
   await page.goBack(); await expect(list.getByRole("article")).toHaveCount(1);
   await list.getByRole("button", { name: "필터 초기화" }).click(); await expect(list.getByRole("article")).toHaveCount(4);
   const requests = await (await request.get("http://127.0.0.1:18766/__requests")).json();
-  expect(requests.some((r: { path: string }) => r.path.includes("trading-readiness"))).toBe(false);
+  expect(requests.some((r: { path: string }) => r.path === "/api/trading/readiness")).toBe(false);
   expect(requests.every((r: { method: string }) => r.method === "GET")).toBe(true);
 });
 test("performance filters separate horizons and retain report-level summary", async ({ page }) => {

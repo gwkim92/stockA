@@ -37,21 +37,19 @@ export function ReviewFrame({ kind, result, children }: {
       <nav className={styles.tabs} aria-label="보유와 성과">
         <Link href={`/portfolio/coverage?date=${result.requestedDate}`} aria-current={portfolio ? "page" : undefined}>보유 검토</Link>
         <Link href={`/performance?date=${result.requestedDate}`} aria-current={!portfolio ? "page" : undefined}>판단 성과</Link>
-        {portfolio && <Link href="/portfolio/coverage/details" prefetch={false}>위험예산·분석 상세 ↗</Link>}
       </nav>
-      <p className={styles.context}>{words(report?.raw.portfolio_name, "Long Term Paper")} · 페이퍼 포트폴리오 · 실거래 주문 비활성</p>
-      {report ? (
-        <>
-          <p className={styles.context}>{dateContext(portfolio ? report.raw.as_of_date : report.raw.measurement_end_date, result.requestedDate)}{report.partial ? " · 일부 결과" : ""}</p>
-          {children}
-        </>
-      ) : (
+      <p className={styles.context}>
+        {words(report?.raw.portfolio_name, "Long Term Paper")} · 페이퍼 포트폴리오 · 실거래 주문 비활성
+        {report && <><br />{dateContext(portfolio ? report.raw.as_of_date : report.raw.measurement_end_date, result.requestedDate)}{report.partial ? " · 일부 결과" : ""}</>}
+      </p>
+      {report ? children : (
         <section className={styles.empty} role="status">
           <h2>{errors[result.issue ?? "network"]}</h2>
           <p>{result.issue === "date" ? "유효한 날짜 한 개를 입력하세요. 미래 날짜는 조회하지 않습니다." : "불러오지 못한 자료를 빈 포트폴리오나 수익률 0으로 표시하지 않습니다."}</p>
           <Link href={portfolio ? "/portfolio/coverage" : "/performance"}>최신 기준 다시 조회</Link>
         </section>
       )}
+      {portfolio && <p className={styles.note}><Link href="/portfolio/coverage/details" prefetch={false}>위험예산·분석 상세 ↗</Link></p>}
     </div>
   );
 }
@@ -70,7 +68,10 @@ export function ReviewMetrics({ items, note }: {
           </div>
         ))}
       </dl>
-      <p className={styles.context}>{note}</p>
+      <details className={styles.summaryNotes}>
+        <summary>집계 범위·해석 안내</summary>
+        <p>{note}</p>
+      </details>
     </section>
   );
 }

@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 type LoggedRequest = { path: string; query: string; method: string };
+const readinessPath = "/api/trading/readiness";
 
 test.beforeEach(async ({ request }) => {
   await request.post("http://127.0.0.1:18766/__scenario", { data: { scenario: "healthy" } });
@@ -29,7 +30,7 @@ test("scrolling and hovering both detail links do not request trading readiness"
   // Allow the production router's viewport/hover prefetch queue to settle.
   await page.waitForTimeout(600);
   const requests: LoggedRequest[] = await (await request.get("http://127.0.0.1:18766/__requests")).json();
-  expect(requests.some(row => row.path.includes("trading-readiness"))).toBe(false);
+  expect(requests.some(row => row.path === readinessPath)).toBe(false);
 });
 
 test("the preserved policy page still renders when deliberately opened", async ({ page, request }) => {
@@ -39,7 +40,7 @@ test("the preserved policy page still renders when deliberately opened", async (
   await expect(page.locator("#portfolio-coverage-title")).toBeVisible();
   await expect(page.getByText("최신 정책·운영 상세입니다.", { exact: false })).toBeVisible();
   const requests: LoggedRequest[] = await (await request.get("http://127.0.0.1:18766/__requests")).json();
-  expect(requests.some(row => row.path.includes("trading-readiness"))).toBe(true);
+  expect(requests.some(row => row.path === readinessPath)).toBe(true);
   await page.getByRole("link", { name: "← 보유 검토로 돌아가기", exact: true }).click();
   await expect(page.getByTestId("holdings-review")).toBeVisible();
 });
