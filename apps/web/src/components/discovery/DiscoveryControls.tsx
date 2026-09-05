@@ -35,7 +35,7 @@ export function DiscoveryToolbar({ kind, control, counts, total, shown, children
       <label className={styles.search}><WorkspaceIcon name="search" /><input aria-label={`${name} 검색`} placeholder={kind === "stocks" ? "기업명, 코드, 시장" : kind === "cycles" ? "테마 또는 관련 종목" : "지표명 또는 코드"} value={control.query} maxLength={100} onChange={e => control.update({ q: e.target.value })} /></label>
     </div>
     {children && <div className={styles.secondaryControls}>{children}</div>}
-    <p className={styles.resultCount} role="status">수신된 {total}개 중 {shown}개 표시 · 원래 목록 순서 유지 <button type="button" onClick={control.reset}>필터 초기화</button></p>
+    <p className={styles.resultCount} role="status">수신 {total}개 · 표시 {shown}개 <button type="button" onClick={control.reset}>필터 초기화</button></p>
   </>;
 }
 export function EmptyDiscovery({ hasRows, reset }: { hasRows: boolean; reset: () => void }) {
