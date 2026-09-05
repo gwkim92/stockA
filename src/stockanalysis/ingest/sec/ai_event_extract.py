@@ -13,6 +13,8 @@ from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Callable
 
+from stockanalysis.ai_agents.prompt_contract import strict_json_object, validate_output
+from stockanalysis.ai_agents.source_validation import probability, same_document
 from stockanalysis.ingest.config import RuntimeConfig
 from stockanalysis.ingest.macro.sql import sql_literal
 from stockanalysis.ingest.psql import PsqlCommandExecutor
@@ -28,7 +30,7 @@ from stockanalysis.ingest.sec.sql import render_sec_event_extract_sql
 
 DEFAULT_TASK_NAME = "event-intelligence-llm-extract"
 DEFAULT_PIPELINE_NAME = "event_intelligence_llm_extract"
-DEFAULT_TEMPLATE_VERSION = "2026-04-23"
+DEFAULT_TEMPLATE_VERSION = "2026-09-06-sec-scalar-contract-v2"
 DEFAULT_PROVIDER = "fixture"
 CODEX_OAUTH_PROVIDER = "codex_oauth"
 DEFAULT_MODEL_NAME = "gpt-5.4-nano"
@@ -136,10 +138,9 @@ def run_event_intelligence_llm_extract(
     executor: PsqlCommandExecutor | None = None,
     provider_runner: StructuredEventProviderRunner | None = None,
 ) -> dict[str, object]:
-    if max_input_chars <= 0:
-        raise ValueError("max_input_chars must be greater than 0")
-    if min_confidence < 0 or min_confidence > 1:
-        raise ValueError("min_confidence must be between 0 and 1")
+    if type(max_input_chars) is not int or max_input_chars <= 0:
+        raise ValueError("max_input_chars must be a positive integer")
+    min_confidence = probability(min_confidence)
     if provider not in {DEFAULT_PROVIDER, CODEX_OAUTH_PROVIDER}:
         raise ValueError("Supported event intelligence providers are fixture and codex_oauth.")
     if provider == DEFAULT_PROVIDER and not llm_output_json_path:
@@ -268,6 +269,8 @@ def build_ai_document_chunk(
     *,
     max_input_chars: int,
 ) -> AiDocumentChunk:
+    if type(max_input_chars) is not int or max_input_chars <= 0:
+        raise ValueError("max_input_chars must be a positive integer")
     if not source_document.raw_storage_uri:
         raise ValueError(
             f"SEC source_document `{source_document.external_document_id}` does not have raw_storage_uri."
@@ -302,7 +305,7 @@ def load_structured_event_provider_response(
     model_name: str,
     reasoning_effort: str | None,
 ) -> StructuredEventProviderResponse:
-    payload = json.loads(Path(llm_output_json_path).read_text(encoding="utf-8"))
+    payload = _loads_json_object(Path(llm_output_json_path).read_text(encoding="utf-8"))
     return build_structured_event_provider_response_from_payload(
         payload,
         provider=provider,
@@ -421,6 +424,7 @@ def invoke_codex_oauth_structured_event_provider(
 
 
 def build_codex_oauth_event_prompt(source_document: SecEventSourceDocumentRecord, chunk: AiDocumentChunk) -> str:
+    same_document(source_document.document_id, chunk.document_id)
     return "\n".join(
         (
             "You are an investment evidence extraction engine.",
@@ -462,6 +466,7 @@ def build_codex_oauth_output_schema() -> dict[str, object]:
 
 
 def parse_structured_event_output(payload: dict[str, object]) -> StructuredEventOutput:
+    validate_output(payload, EVENT_OUTPUT_SCHEMA)
     event_type = _required_text(payload, "event_type")
     title = _required_text(payload, "title")
     summary = _required_text(payload, "summary")
@@ -477,8 +482,8 @@ def parse_structured_event_output(payload: dict[str, object]) -> StructuredEvent
         title=title,
         summary=summary,
         event_at=event_at,
-        time_horizon=_optional_text(payload.get("time_horizon")),
-        impact_polarity=_optional_text(payload.get("impact_polarity")),
+        time_horizon=payload["time_horizon"].strip(),
+        impact_polarity=payload["impact_polarity"].strip(),
         significance_score=significance_score,
         confidence=confidence,
         evidence_summary=_required_text(payload, "evidence_summary"),
@@ -492,6 +497,11 @@ def build_sec_event_candidate_from_structured_output(
     *,
     min_confidence: float,
 ) -> SecExtractedEventCandidate:
+    min_confidence = probability(min_confidence)
+    # Injected provider runners also cross this final canonical-write boundary.
+    if not isinstance(event_output.event_at, datetime):
+        raise ValueError("event_at must be a timezone-aware datetime")
+    event_output = parse_structured_event_output(event_output.as_artifact_json())
     if event_output.confidence < min_confidence:
         raise ValueError(
             f"LLM event confidence {event_output.confidence:.4f} is below min_confidence {min_confidence:.4f}."
@@ -753,7 +763,4 @@ def _loads_json_object(text: str) -> dict[str, object]:
         if lines and lines[-1].startswith("```"):
             lines = lines[:-1]
         cleaned = "\n".join(lines).strip()
-    payload = json.loads(cleaned)
-    if not isinstance(payload, dict):
-        raise ValueError("Codex OAuth provider output must be a JSON object.")
-    return payload
+    return strict_json_object(cleaned)

@@ -13,7 +13,7 @@ from unittest.mock import patch
 ROOT = Path(__file__).resolve().parents[1]
 sys.path[:0] = [str(ROOT), str(ROOT / "src")]
 SUITES = (
-    "tests.test_analysis_prompt_contract", "tests.test_agents_sdk_provider",
+    "tests.test_analysis_prompt_contract", "tests.test_sec_prompt_hardening_v2", "tests.test_news_prompt_hardening_v2", "tests.test_agents_sdk_provider",
     "tests.test_ai_agent_registry", "tests.test_news_rss_ai_extract",
     "tests.test_news_rss_translation", "tests.test_cycle_community_ai_summary",
     "tests.test_equity_research_reporting", "tests.test_sec_ai_event_extract",

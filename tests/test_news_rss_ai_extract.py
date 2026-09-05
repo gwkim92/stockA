@@ -333,7 +333,8 @@ class NewsRssAiExtractTests(unittest.TestCase):
             },
         )
 
-        self.assertIn("Write all human-readable natural-language fields in Korean.", prompt)
+        self.assertIn("Write explanatory natural-language fields in Korean", prompt)
+        self.assertIn("exact original-language source phrase", prompt)
         self.assertIn("event_summary, rationale, evidence_summary, uncertainty_notes, causal_paths rationale", prompt)
         self.assertIn("Separate impacts into macro_regime_impacts, domain_impacts, theme_impacts", prompt)
         self.assertIn("Do not force macro or domain news onto a stock", prompt)

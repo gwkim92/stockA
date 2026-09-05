@@ -8,7 +8,7 @@ import shlex
 import subprocess
 import tempfile
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
@@ -25,6 +25,8 @@ from stockanalysis.ai_agents.runtime_policy import (
     CODEX_OAUTH_PROVIDER as RUNTIME_CODEX_OAUTH_PROVIDER,
     resolve_runner_model_name,
 )
+from stockanalysis.ai_agents.prompt_contract import PromptContractError, analysis_instructions, render_source_data, strict_json_object
+from stockanalysis.ai_agents.source_validation import probability, same_document, validate_literal_spans
 from stockanalysis.ingest.config import RuntimeConfig
 from stockanalysis.ingest.macro.sql import sql_literal
 from stockanalysis.ingest.news.enrichment import (
@@ -55,7 +57,7 @@ from stockanalysis.ingest.sec.sql import (
 
 DEFAULT_TASK_NAME = "news-rss-ai-extract"
 DEFAULT_PIPELINE_NAME = "event_intelligence_llm_extract"
-DEFAULT_TEMPLATE_VERSION = "2026-05-23-hierarchical-ko-v3"
+DEFAULT_TEMPLATE_VERSION = "2026-09-06-news-source-contract-v4"
 DEFAULT_AGENT_KEY = "news_structuring_agent"
 FIXTURE_PROVIDER = "fixture"
 CODEX_OAUTH_PROVIDER = RUNTIME_CODEX_OAUTH_PROVIDER
@@ -438,8 +440,7 @@ def run_news_rss_ai_extract(
         raise ValueError("limit must be greater than 0")
     if max_input_chars <= 0:
         raise ValueError("max_input_chars must be greater than 0")
-    if min_confidence < 0 or min_confidence > 1:
-        raise ValueError("min_confidence must be between 0 and 1")
+    min_confidence = probability(min_confidence)
     provider = normalize_news_ai_provider(provider)
     if provider not in SUPPORTED_PROVIDERS:
         raise ValueError("Supported news AI providers are fixture, codex_oauth, and agents_sdk_openai.")
@@ -548,6 +549,12 @@ def run_news_rss_ai_extract(
                     reasoning_effort=reasoning_effort,
                     llm_output_json_path=llm_output_json_path,
                     provider_runner=provider_runner,
+                )
+                # Revalidate injected providers before success or canonical writes.
+                response = replace(response, output=parse_news_ai_output(response.output.as_artifact_json()))
+                validate_literal_spans(
+                    (span.span_text for span in response.output.evidence_spans),
+                    title=candidate.title, summary=candidate.summary,
                 )
                 invocation_id = int(
                     sql_executor.execute_scalar(
@@ -917,6 +924,7 @@ def validate_news_ai_output(
     executor: PsqlCommandExecutor,
     source_text: str | None = None,
 ) -> ValidatedNewsAiOutput:
+    min_confidence = probability(min_confidence)
     validated_themes: list[ValidatedThemeImpact] = []
     validated_instruments: list[ValidatedInstrumentImpact] = []
     rejected = 0
@@ -1027,7 +1035,7 @@ def build_news_ai_provider_response_from_payload(
     model_name: str,
     reasoning_effort: str | None,
 ) -> NewsAiProviderResponse:
-    candidate_payload = payload.get("candidate") or payload.get("news_event_candidate")
+    candidate_payload = payload["candidate"] if "candidate" in payload else payload.get("news_event_candidate")
     if not isinstance(candidate_payload, dict):
         raise ValueError("News AI output must contain an object field named `candidate`.")
     usage_payload = payload.get("usage") or {}
@@ -1053,6 +1061,7 @@ def invoke_agents_sdk_openai_news_ai_provider(
     model_name: str,
     reasoning_effort: str | None,
 ) -> NewsAiProviderResponse:
+    same_document(candidate.document_id, chunk.document_id)
     response = run_agents_sdk_structured_request(
         AgentsSdkStructuredRequest(
             agent_key=DEFAULT_AGENT_KEY,
@@ -1100,6 +1109,7 @@ def invoke_agents_sdk_openai_news_ai_provider(
         model_name=response.model_name,
         reasoning_effort=response.reasoning_effort,
     )
+    validate_literal_spans((span.span_text for span in parsed.output.evidence_spans), title=candidate.title, summary=candidate.summary)
     return NewsAiProviderResponse(
         provider=response.provider,
         model_name=parsed.model_name,
@@ -1190,6 +1200,7 @@ def invoke_codex_oauth_news_ai_provider(
         model_name=model_name or DEFAULT_MODEL_NAME,
         reasoning_effort=reasoning_effort,
     )
+    validate_literal_spans((span.span_text for span in response.output.evidence_spans), title=candidate.title, summary=candidate.summary)
     return NewsAiProviderResponse(
         provider=CODEX_OAUTH_PROVIDER,
         model_name=response.model_name,
@@ -1222,48 +1233,36 @@ def build_codex_oauth_news_ai_prompt(
     chunk: NewsAiDocumentChunk,
     retrieval_context: dict[str, object],
 ) -> str:
-    return "\n".join(
-        (
-            "You are an investment news evidence extraction engine.",
-            "Use only the RSS news item and retrieval context below.",
-            "Do not browse, do not call tools, and do not make buy/sell/order recommendations.",
-            "Return exactly one JSON object matching the provided output schema.",
-            "Write all human-readable natural-language fields in Korean.",
-            "This includes event_summary, rationale, evidence_summary, uncertainty_notes, causal_paths rationale, evidence_spans span_text, and recommendation_relevance.",
-            "Separate impacts into macro_regime_impacts, domain_impacts, theme_impacts, and direct_instrument_impacts.",
-            "Do not force macro or domain news onto a stock. Use direct_instrument_impacts only when the text clearly names a listed company or ticker.",
-            "Keep machine codes and market identifiers unchanged, including node_code, impact_direction, and ticker symbols.",
-            "Use only node_code values present in known_themes for macro_regime_impacts, domain_impacts, and theme_impacts.",
-            "Use only exchange symbols directly supported by the text or current_event_impacts for direct_instrument_impacts.",
-            f"Allowed impact_direction values: {', '.join(ALLOWED_IMPACT_DIRECTIONS)}.",
-            "Use causal_paths to explain the chain, for example MACRO_RATES_FED -> TECH_DOMAIN -> QQQ.",
-            "Use evidence_spans to quote or paraphrase the short source phrase that supports each impact.",
-            "If the item is ambiguous, lower confidence and explain uncertainty.",
-            "",
-            "News metadata:",
-            json.dumps(
-                {
-                    "event_id": candidate.event_id,
-                    "document_id": candidate.document_id,
-                    "title": candidate.title,
-                    "summary": candidate.summary,
-                    "event_at": candidate.event_at,
-                    "source_name": candidate.source_name,
-                    "source_url": candidate.source_url,
-                    "existing_theme_code": candidate.existing_theme_code,
-                    "existing_instrument_symbol": candidate.existing_instrument_symbol,
-                },
-                ensure_ascii=False,
-                sort_keys=True,
-            ),
-            "",
-            "Retrieval context summary:",
-            json.dumps(summarize_retrieval_context(retrieval_context), ensure_ascii=False, sort_keys=True),
-            "",
-            "Bounded analysis context:",
-            chunk.text,
-        )
-    )
+    same_document(candidate.document_id, chunk.document_id)
+    source = {
+        "news_metadata": {
+            "event_id": candidate.event_id, "document_id": candidate.document_id,
+            "title": candidate.title, "summary": candidate.summary, "event_at": candidate.event_at,
+            "source_name": candidate.source_name, "source_url": candidate.source_url,
+            "existing_theme_code": candidate.existing_theme_code,
+            "existing_instrument_symbol": candidate.existing_instrument_symbol,
+        },
+        "retrieval_context_summary": summarize_retrieval_context(retrieval_context),
+        "bounded_analysis_context": chunk.text,
+    }
+    return "\n".join((
+        analysis_instructions(DEFAULT_AGENT_KEY, "You are an investment news evidence extraction engine."),
+        "Use only the RSS news item and retrieval context below.",
+        "Do not browse, do not call tools, and do not make buy/sell/order recommendations.",
+        "Return exactly one JSON object matching the provided output schema.",
+        "Write explanatory natural-language fields in Korean: event_summary, rationale, evidence_summary, uncertainty_notes, causal_paths rationale, and recommendation_relevance.",
+        "Keep evidence_spans.span_text as an exact original-language source phrase from the original RSS title or summary. Preserve negation, numbers and attribution; do not translate or paraphrase quotations.",
+        "Separate impacts into macro_regime_impacts, domain_impacts, theme_impacts, and direct_instrument_impacts.",
+        "Do not force macro or domain news onto a stock. Use direct_instrument_impacts only when the original text clearly names a listed company or ticker.",
+        "Keep machine codes and market identifiers unchanged, including node_code, impact_direction, and ticker symbols.",
+        "Use only node_code values present in known_themes for macro_regime_impacts, domain_impacts, and theme_impacts.",
+        "current_event_impacts, classification metadata and similar events are contextual hypotheses, not direct source evidence and not original quotations.",
+        f"Allowed impact_direction values: {', '.join(ALLOWED_IMPACT_DIRECTIONS)}.",
+        "Explain supported causal paths as hypotheses with conditions and counterevidence. Correlation or co-mention alone is not proof of causation.",
+        "Leave unsupported impact lists empty; do not manufacture a company link or certainty. Describe uncertainty and next verification in uncertainty_notes.",
+        "", "Bounded analysis context:",
+        render_source_data(source, max_chars=build_agent_runtime_policy(DEFAULT_AGENT_KEY).max_input_chars),
+    ))
 
 
 def build_codex_oauth_news_ai_output_schema() -> dict[str, object]:
@@ -1693,8 +1692,13 @@ def _parse_evidence_span(payload: object) -> NewsAiEvidenceSpanOutput:
 
 
 def _impact_is_valid(impact: NewsAiImpactOutput, *, min_confidence: float) -> bool:
+    try:
+        confidence = probability(impact.confidence)
+        probability(impact.impact_strength)
+    except PromptContractError:
+        return False
     return (
-        impact.confidence >= min_confidence
+        confidence >= min_confidence
         and impact.impact_direction in ALLOWED_IMPACT_DIRECTIONS
         and bool(impact.rationale.strip())
         and bool(impact.evidence_summary.strip())
@@ -1828,10 +1832,7 @@ def _optional_text(value: object) -> str | None:
 
 
 def _required_float(payload: dict[str, object], key: str) -> float:
-    value = payload.get(key)
-    if value is None:
-        raise ValueError(f"News AI output field `{key}` is required.")
-    return float(value)
+    return probability(payload.get(key))
 
 
 def _optional_int(value: object) -> int | None:
@@ -1858,10 +1859,7 @@ def _loads_json_object(text: str) -> dict[str, object]:
         if lines and lines[-1].startswith("```"):
             lines = lines[:-1]
         cleaned = "\n".join(lines).strip()
-    payload = json.loads(cleaned)
-    if not isinstance(payload, dict):
-        raise ValueError("News AI provider output must be a JSON object.")
-    return payload
+    return strict_json_object(cleaned)
 
 
 def _bounded_list(value: object, limit: int) -> list[object]:
