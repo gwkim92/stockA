@@ -9,6 +9,7 @@ on:
       - 'docs/tasks/investor-home-reliability-v1/**'
       - 'docs/tasks/web-dependency-remediation-v1/**'
       - 'docs/tasks/recommendation-investment-memo-v1/**'
+      - 'docs/tasks/research-workspace-redesign-v1/**'
   push:
     branches: [develop, main]
     paths:
@@ -17,6 +18,7 @@ on:
       - 'docs/tasks/investor-home-reliability-v1/**'
       - 'docs/tasks/web-dependency-remediation-v1/**'
       - 'docs/tasks/recommendation-investment-memo-v1/**'
+      - 'docs/tasks/research-workspace-redesign-v1/**'
   workflow_dispatch:
 
 permissions:
