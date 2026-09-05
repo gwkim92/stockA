@@ -1,0 +1,13 @@
+.sourcePanel {
+  margin-top: var(--space-8);
+  padding: var(--space-5);
+  border: 1px solid var(--line-subtle);
+  background: var(--surface-secondary);
+}
+.sourcePanel h2 { margin: 0 0 var(--space-2); font-size: var(--type-h3); }
+.sourcePanel p { margin: 0 0 var(--space-4); color: var(--ink-secondary); }
+.sourceGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4); }
+.sourceGrid div { display: grid; gap: var(--space-1); min-width: 0; }
+.sourceGrid span, .sourceNote { color: var(--ink-secondary); font-size: var(--type-small); overflow-wrap: anywhere; }
+.sourceNote { padding-bottom: var(--space-3); border-bottom: 1px solid var(--line-subtle); }
+@media (max-width: 560px) { .sourceGrid { grid-template-columns: 1fr; } }

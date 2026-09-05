@@ -1,243 +1,158 @@
 import type { Route } from "next";
 import Link from "next/link";
 
-import { DecisionList } from "@/components/research/DecisionList";
-import type { DecisionListItem } from "@/components/research/DecisionList";
+import { DecisionList, type DecisionListItem } from "@/components/research/DecisionList";
 import { DecisionSummary } from "@/components/research/DecisionSummary";
-import { MetricStrip } from "@/components/research/MetricStrip";
-import type { MetricItem } from "@/components/research/MetricStrip";
+import { MetricStrip, type MetricItem } from "@/components/research/MetricStrip";
 import { ResearchSection } from "@/components/research/ResearchSection";
-import { StatusBadge } from "@/components/status/StatusBadge";
-import {
-  getAiNewsClusters,
-  getCockpitSnapshot,
-  getEvents,
-  getRecommendations,
-  getTradingReadiness,
-} from "@/lib/frontend-api";
 import { koCode, koReason } from "@/lib/korean-labels";
-import { formatCount, formatPercent, investorCopy } from "@/lib/presentation";
-import type { DisplayStatusKind } from "@/lib/presentation";
+import { investorCopy } from "@/lib/presentation";
+import { loadResearchHomeSnapshot } from "@/lib/research-home-data";
+import {
+  HOME_FEEDS, FEED_LABELS, changedCycles, count, feedCaption, fraction,
+  homeHealth, recommendationStatus, record, rows, text, type HomeFeed,
+} from "@/lib/research-home-model";
 
 import styles from "./HomePage.module.css";
+import research from "./ResearchHome.module.css";
 
 export const dynamic = "force-dynamic";
 
-type DailyFocus = {
-  readonly title: string;
-  readonly description: string;
-  readonly href: Route;
-  readonly actionLabel: string;
-  readonly status: DisplayStatusKind;
-  readonly sideTitle: string;
-  readonly sideDescription: string;
+const countLabel = (value: unknown) => {
+  const number = count(value);
+  return number === null ? "미확인" : `${number.toLocaleString("ko-KR")}개`;
 };
-
-function safeCount(value: unknown): number {
-  return typeof value === "number" && Number.isFinite(value) ? value : 0;
-}
-
-function dailyFocus({
-  failedJobCount,
-  openTicketCount,
-  newEvidenceCount,
-}: {
-  readonly failedJobCount: number;
-  readonly openTicketCount: number;
-  readonly newEvidenceCount: number;
-}): DailyFocus {
-  if (failedJobCount > 0) {
-    return {
-      title: "데이터 이상을 먼저 해소해야 한다",
-      description: `${failedJobCount}개 수집·분석 작업에 이상이 있다. 시장과 추천은 볼 수 있지만 새 판단은 데이터가 안정된 뒤 확정한다.`,
-      href: "/data-health",
-      actionLabel: "데이터 이상 보기",
-      status: "error",
-      sideTitle: "새 판단 보류",
-      sideDescription: "기존 분석은 유지하되, 문제가 생긴 데이터가 영향을 주는 범위를 먼저 파악한다.",
-    };
-  }
-  if (openTicketCount > 0) {
-    return {
-      title: "보유 논리의 빈틈을 먼저 줄인다",
-      description: `${openTicketCount}개 보완 항목이 남아 있다. 신규 후보보다 기존 보유와 추천의 논리·성과 공백이 우선이다.`,
-      href: "/portfolio/coverage",
-      actionLabel: "보유 위험 보기",
-      status: "watch",
-      sideTitle: "보유 위험 우선",
-      sideDescription: "보유 비중, 투자 논리, 벤치마크 괴리와 성과 측정 상태를 함께 비교합니다.",
-    };
-  }
-  return {
-    title: "새 근거가 바꾼 종목부터 본다",
-    description: `${newEvidenceCount}개 뉴스 근거가 현재 분석에 연결됐다. 시장 배경과 같은 방향인지 본 뒤 추천 후보로 내려간다.`,
-    href: "/intelligence",
-    actionLabel: "새 투자 근거 보기",
-    status: "ready",
-    sideTitle: "리서치 진행 가능",
-    sideDescription: "새 뉴스 흐름, 관련 종목, 반대 근거를 먼저 읽고 추천과 보유 영향으로 이어간다.",
-  };
+const ratioLabel = (value: unknown) => {
+  const number = fraction(value);
+  return number === null ? "미확인" : `${(number * 100).toFixed(1)}%`;
+};
+function SourceNote({ feed }: { feed: HomeFeed }) {
+  return <p className={research.sourceNote} role="status">{feedCaption(feed)}</p>;
 }
 
 export default async function HomePage() {
-  const [snapshot, eventsResponse, clustersResponse, recommendationsResponse, tradingResponse] =
-    await Promise.all([
-      getCockpitSnapshot(),
-      getEvents({ limit: 8 }),
-      getAiNewsClusters({ limit: 4 }),
-      getRecommendations(),
-      getTradingReadiness(),
-    ]);
-
-  const dashboard = snapshot.dashboard.data;
-  const health = snapshot.health.data;
-  const tickets = snapshot.tickets.data;
-  const events = eventsResponse.data;
-  const clusters = clustersResponse.data;
-  const recommendations = recommendationsResponse.data;
-  const trading = tradingResponse.data;
-  const failedJobCount = safeCount(dashboard.attention_summary.failed_pipeline_count);
-  const openTicketCount = safeCount(dashboard.attention_summary.open_ticket_count);
-  const newEvidenceCount = safeCount(events.summary.ai_extracted_count);
-  const focus = dailyFocus({ failedJobCount, openTicketCount, newEvidenceCount });
-  const firstRecommendation = recommendations.recommendations[0];
-  const primaryRecommendationHref = firstRecommendation
-    ? (`/recommendations/${encodeURIComponent(firstRecommendation.recommendation_id)}` as Route)
-    : ("/recommendations" as Route);
+  const snapshot = await loadResearchHomeSnapshot();
+  const { cycles, recommendations, news, portfolio } = snapshot.feeds;
+  const dashboard = record(portfolio.data);
+  const attention = record(dashboard.attention_summary);
+  const transitions = changedCycles(cycles);
+  const cycleRows = rows(cycles.data?.cycle_states);
+  const recommendationRows = rows(recommendations.data?.recommendations);
+  const newsRows = rows(news.data?.clusters);
+  const loadedCount = HOME_FEEDS.filter((key) => snapshot.feeds[key].data !== null).length;
+  const historicalCount = HOME_FEEDS.filter((key) => snapshot.feeds[key].dateState === "historical").length;
 
   const metrics: readonly MetricItem[] = [
-    {
-      label: "새 투자 근거",
-      value: formatCount(newEvidenceCount),
-      context: `${formatCount(clusters.summary.cluster_count, "개")} 주요 뉴스 흐름`,
-    },
-    {
-      label: "추천 판단 후보",
-      value: formatCount(recommendations.summary.decision_review_ready_count, "개"),
-      context: `${formatCount(recommendations.summary.decision_blocked_count, "개")} 판단 차단`,
-    },
-    {
-      label: "보유 분석 커버리지",
-      value: formatPercent(dashboard.latest_metrics.weight_coverage_ratio),
-      context: `${formatCount(openTicketCount, "개")} 보완 항목`,
-    },
-    {
-      label: "가상 검증",
-      value: trading.readiness_status === "blocked" ? "안전 차단" : "검증 가능",
-      context: "실거래 주문은 비활성",
-    },
+    { label: "관측된 사이클 전환", value: cycles.data ? countLabel(transitions.length) : "미확인", context: "이전·현재 상태가 모두 있는 테마" },
+    { label: "수신된 투자 후보", value: recommendations.data ? countLabel(recommendationRows.length) : "미확인", context: "원래 추천 순위 유지 · 주문 신호 아님" },
+    { label: "보유 분석 커버리지", value: ratioLabel(record(dashboard.latest_metrics).weight_coverage_ratio), context: `${countLabel(attention.open_ticket_count)} 보완 항목` },
+    { label: "리서치 데이터 연결", value: `${loadedCount} / ${HOME_FEEDS.length}`, context: historicalCount > 0 ? `${historicalCount}개 영역은 과거 기준` : "연결 성공과 근거 최신성은 별개" },
   ];
 
-  const evidenceItems: readonly DecisionListItem[] = clusters.clusters.slice(0, 4).map((cluster) => ({
-    key: cluster.evidence_id,
-    label: cluster.theme_name || "시장 흐름",
-    subject: cluster.symbols.filter((symbol) => symbol && symbol !== "UNCLASSIFIED").slice(0, 3).join(" · ") || "시장 전반",
-    title: cluster.story_label || cluster.title,
-    description: `${formatCount(cluster.event_count)} 뉴스가 묶였다. 신뢰도 ${formatPercent(cluster.confidence)}이며 원문과 반대 근거를 상세에서 함께 읽는다.`,
-    status: cluster.confidence !== null && cluster.confidence >= 0.7 ? "ready" : "watch",
-    href: `/ai-evidence/${encodeURIComponent(cluster.evidence_id)}` as Route,
-    actionLabel: "근거 읽기",
-  }));
-
-  const recommendationItems: readonly DecisionListItem[] = recommendations.recommendations
-    .slice(0, 5)
-    .map((recommendation) => ({
-      key: recommendation.recommendation_id,
-      label: `${recommendation.rank_position}위 · ${investorCopy(koCode(recommendation.action))}`,
-      subject: recommendation.symbol,
-      title: recommendation.evidence_quality.title || `${recommendation.name} 투자 판단`,
-      description: recommendation.evidence_quality.summary,
-      status: recommendation.decision_boundary.paper_validation_input_allowed
-        ? "ready"
-        : recommendation.evidence_quality.source_blocker.blocked
-          ? "source_limited"
-          : "blocked",
-      href: `/recommendations/${encodeURIComponent(recommendation.recommendation_id)}` as Route,
-      actionLabel: "판단서 읽기",
+  // Surface state transitions, not an invented buy signal or a new score ranking.
+  const selectedCycles = [...transitions, ...cycleRows.filter((row) => !transitions.includes(row))];
+  const cycleItems: readonly DecisionListItem[] = selectedCycles
+    .filter((row) => text(row.theme_key, ""))
+    .slice(0, 4).map((row, index) => ({
+      key: `${text(row.theme_key)}-${index}`,
+      label: transitions.includes(row) ? "사이클 상태 전환" : "사이클 현황",
+      subject: koCode(text(row.theme_key)),
+      title: transitions.includes(row) ? `${koCode(text(row.previous_state))} → ${koCode(text(row.state))}` : koCode(text(row.state)),
+      description: `연결 종목 ${countLabel(row.instrument_count)} · 모델 신뢰도 ${ratioLabel(row.confidence)}. 테마의 근거와 관련 종목을 함께 확인하세요.`,
+      status: "watch",
+      href: `/themes/${encodeURIComponent(text(row.theme_key))}` as Route,
+      actionLabel: "테마 근거 보기",
     }));
 
-  const riskItems: readonly DecisionListItem[] = dashboard.top_actions.slice(0, 5).map((action) => ({
-    key: `${action.rank}-${action.symbol}-${action.action}`,
-    label: `우선순위 ${action.rank}`,
-    subject: action.symbol,
-    title: investorCopy(koCode(action.action)),
-    description: koReason(action.reason),
-    status: action.risk_level === "high" ? "blocked" : "watch",
-    href: "/remediation",
-    actionLabel: "보완 항목 보기",
+  const recommendationItems: readonly DecisionListItem[] = recommendationRows
+    .filter((row) => text(row.recommendation_id, ""))
+    .slice(0, 5).map((row, index) => {
+      const evidence = record(row.evidence_quality);
+      const boundary = record(row.decision_boundary);
+      const status = recommendationStatus(row, recommendations);
+      return {
+        key: `${text(row.recommendation_id)}-${index}`,
+        label: `${count(row.rank_position) ?? "미확인"}위 · ${status === "source_limited" ? "원천 제한" : status === "ready" ? "페이퍼 검토 입력 허용" : "근거 확인 필요"}`,
+        subject: text(row.symbol),
+        title: text(evidence.title, `${text(row.name, text(row.symbol))} 투자 판단서`),
+        description: `${text(evidence.summary, "투자 논리·촉매·반대 근거·무효화 조건을 상세에서 확인하세요.")} ${text(boundary.reason, "이 화면에서 주문이나 비중 변경은 실행하지 않습니다.")}`,
+        status,
+        href: `/recommendations/${encodeURIComponent(text(row.recommendation_id))}` as Route,
+        actionLabel: "투자 판단서 읽기",
+      };
+    });
+
+  const evidenceItems: readonly DecisionListItem[] = newsRows
+    .filter((row) => text(row.evidence_id, ""))
+    .slice(0, 4).map((row, index) => ({
+      key: `${text(row.evidence_id)}-${index}`,
+      label: text(row.theme_name, "시장 흐름"),
+      subject: Array.isArray(row.symbols) ? row.symbols.filter((symbol) => typeof symbol === "string" && symbol && symbol !== "UNCLASSIFIED").slice(0, 3).join(" · ") || "시장 전반" : "연결 종목 미확인",
+      title: text(row.story_label, text(row.title, "뉴스 근거 확인")),
+      description: `관련 뉴스 ${countLabel(row.event_count)} · 모델 신뢰도 ${ratioLabel(row.confidence)}. 요약만으로 판단하지 말고 원문과 반대 근거를 확인하세요.`,
+      status: "watch",
+      href: `/ai-evidence/${encodeURIComponent(text(row.evidence_id))}` as Route,
+      actionLabel: "원문·근거 읽기",
+    }));
+
+  const riskItems: readonly DecisionListItem[] = rows(dashboard.top_actions).slice(0, 5).map((row, index) => ({
+    key: `review-${index}-${text(row.symbol)}`,
+    label: `검토 우선순위 ${count(row.rank) ?? "미확인"}`,
+    subject: text(row.symbol),
+    title: investorCopy(koCode(text(row.action))),
+    description: koReason(text(row.reason, "보유 논리와 검토 근거를 확인하세요.")),
+    status: row.risk_level === "high" ? "blocked" : "watch",
+    href: "/portfolio/coverage",
+    actionLabel: "보유 논리 점검",
   }));
 
   return (
-    <div className={styles.page}>
+    <div className={styles.page} data-testid="research-home">
       <DecisionSummary
-        eyebrow={`오늘의 투자 판단 · ${dashboard.as_of_date}`}
-        title={focus.title}
-        description={focus.description}
-        primaryAction={{ href: focus.href, label: focus.actionLabel }}
+        eyebrow={`중장기 투자 리서치 · 조회 기준 ${snapshot.requestedDate} UTC`}
+        title="시장 변화에서 투자 판단까지"
+        description="어떤 테마가 바뀌었는지, 어떤 기업의 투자 논리가 유효한지, 보유 판단을 다시 볼 이유가 있는지 확인하세요. 3개월부터 1년 이상을 보는 리서치 화면입니다."
+        primaryAction={{ href: "/cycle-map", label: "사이클 지도 보기" }}
         secondaryActions={[
-          { href: "/market-map", label: "시장 지도" },
-          { href: primaryRecommendationHref, label: "대표 추천" },
+          { href: "/recommendations", label: "투자 후보 검토" },
+          { href: "/portfolio/coverage", label: "보유 논리 점검" },
         ]}
-        side={
-          <>
-            <StatusBadge kind={focus.status} />
-            <strong>{focus.sideTitle}</strong>
-            <p>{focus.sideDescription}</p>
-          </>
-        }
+        side={<><strong>{homeHealth(snapshot)}</strong><p>실제 주문과 자동 비중 변경은 실행하지 않습니다. 연결된 자료만 표시하며, 조회 실패는 0건으로 바꾸지 않습니다.</p></>}
       />
-
-      <MetricStrip items={metrics} label="오늘의 핵심 투자 지표" />
-
+      <MetricStrip items={metrics} label="리서치 현황" />
       <nav className={styles.decisionLine} aria-label="투자 판단 경로">
         {[
-          ["/market-map", "시장", "자산군 압력"],
-          ["/cycle-map", "사이클", "상위 흐름"],
-          ["/intelligence", "뉴스", "새 근거"],
-          ["/stocks", "종목", "기업 분석"],
-          ["/recommendations", "추천", "판단 경계"],
-          ["/portfolio/coverage", "포트폴리오", "보유 위험"],
-        ].map(([href, label, context]) => (
-          <Link href={href as Route} key={href}>
-            <span>{label}</span>
-            <small>{context}</small>
-          </Link>
-        ))}
+          ["/market-map", "시장", "거시 배경"], ["/cycle-map", "사이클", "테마 변화"],
+          ["/intelligence", "뉴스", "원문 근거"], ["/stocks", "종목", "기업 분석"],
+          ["/recommendations", "투자 후보", "논리·무효화 조건"], ["/portfolio/coverage", "포트폴리오", "보유 재검토"],
+        ].map(([href, label, context]) => <Link href={href as Route} key={href}><span>{label}</span><small>{context}</small></Link>)}
       </nav>
-
-      <ResearchSection
-        eyebrow="새로운 시장 근거"
-        title="오늘 새로 연결된 뉴스 흐름"
-        description="원문이 같은 사건을 설명하는지, 방향이 일관되는지, 어떤 종목에 직접 또는 간접 영향을 주는지 순서대로 읽는다."
-      >
-        <DecisionList items={evidenceItems} emptyText="오늘 새로 구조화된 뉴스 흐름이 없다." />
+      <section className={research.sourcePanel} aria-label="영역별 데이터 상태">
+        <h2>영역별 데이터 상태</h2>
+        <p>아래 날짜는 API가 제공한 분석 기준일입니다. 응답을 방금 받았다는 이유로 자료를 최신으로 간주하지 않습니다.</p>
+        <div className={research.sourceGrid}>{HOME_FEEDS.map((key) => <div key={key}>
+          <strong>{FEED_LABELS[key]}</strong><span>{feedCaption(snapshot.feeds[key])}</span>
+        </div>)}</div>
+      </section>
+      <ResearchSection eyebrow="시장 → 테마" title="어떤 사이클이 바뀌었나" description="관측된 상태 전환을 먼저 봅니다. 전환 방향만으로 상승 가능성이나 매수 적합성을 단정하지 않습니다.">
+        <SourceNote feed={cycles} />
+        {cycles.data && <DecisionList items={cycleItems} emptyText="조회된 사이클 목록이 비어 있습니다." />}
       </ResearchSection>
-
-      <ResearchSection
-        eyebrow="추천 변화"
-        title="현재 판단 단계에 있는 종목"
-        description="점수 순위보다 근거 충족도, 원천 제한과 가상 매매 가능 여부가 중요합니다."
-      >
-        <DecisionList items={recommendationItems} emptyText="현재 표시할 추천 판단 후보가 없다." />
+      <ResearchSection eyebrow="테마 → 기업 → 투자 논리" title="검토할 투자 후보와 판단 근거" description="기존 추천 순위를 유지합니다. 원천 제한, 투자 논리와 무효화 조건을 읽은 뒤 판단하세요.">
+        <SourceNote feed={recommendations} />
+        {recommendations.data && <DecisionList items={recommendationItems} emptyText="조회된 투자 후보 목록이 비어 있습니다." />}
       </ResearchSection>
-
-      <ResearchSection
-        eyebrow="보유 위험"
-        title="기존 판단에서 먼저 메울 공백"
-        description={`${tickets.ticket_count.toLocaleString("ko-KR")}개 보완 기록 중 투자 논리와 보유 위험에 직접 연결된 항목을 우선 표시한다.`}
-      >
-        <DecisionList items={riskItems} emptyText="현재 우선 처리할 보유 위험이 없다." />
+      <ResearchSection eyebrow="판단을 뒷받침하는 자료" title="연결된 뉴스와 원문 근거" description="이미 연결된 근거를 보여줍니다. 이전 조회와 비교하지 않은 자료를 ‘오늘 새 뉴스’라고 부르지 않습니다.">
+        <SourceNote feed={news} />
+        {news.data && <DecisionList items={evidenceItems} emptyText="조회된 뉴스 근거 목록이 비어 있습니다." />}
       </ResearchSection>
-
+      <ResearchSection eyebrow="추천 이후의 검토" title="기존 보유 논리를 다시 볼 항목" description="보유 비중, 투자 논리, 성과 측정의 공백을 확인하세요. 표시할 항목이 없다는 것이 위험이 없다는 뜻은 아닙니다.">
+        <SourceNote feed={portfolio} />
+        {portfolio.data && <DecisionList items={riskItems} emptyText="조회된 우선 검토 항목이 없습니다. 전체 위험 평가는 포트폴리오 상세에서 확인하세요." />}
+      </ResearchSection>
       <section className={styles.systemNotice} aria-label="시스템 신뢰 상태">
-        <div>
-          <span>시스템 신뢰 상태</span>
-          <strong>{failedJobCount > 0 ? "일부 데이터 주의" : "최근 자동 작업 정상"}</strong>
-          <p>
-            투자 화면에는 판단에 영향을 주는 이상만 표시한다. 수집 주기, AI 인증, 실행 기록은 데이터 상태에서 분리해 관리한다.
-          </p>
-        </div>
-        <Link href="/data-health">운영 상태 열기</Link>
+        <div><span>리서치와 운영 상태 구분</span><strong>{homeHealth(snapshot)}</strong><p>수집 실패의 영향 범위와 근거 기준일은 데이터 상태에서 확인하세요. 일부 장애로 나머지 리서치 화면을 숨기지 않습니다.</p></div>
+        <Link href="/data-health">데이터 상태 확인</Link>
       </section>
     </div>
   );
