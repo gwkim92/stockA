@@ -7,12 +7,16 @@ on:
       - 'apps/web/**'
       - '.github/workflows/web-product-quality.yml'
       - 'docs/tasks/investor-home-reliability-v1/**'
+      - 'docs/tasks/web-dependency-remediation-v1/**'
+      - 'docs/tasks/recommendation-investment-memo-v1/**'
   push:
     branches: [develop, main]
     paths:
       - 'apps/web/**'
       - '.github/workflows/web-product-quality.yml'
       - 'docs/tasks/investor-home-reliability-v1/**'
+      - 'docs/tasks/web-dependency-remediation-v1/**'
+      - 'docs/tasks/recommendation-investment-memo-v1/**'
   workflow_dispatch:
 
 permissions:
@@ -33,6 +37,8 @@ jobs:
       NEXT_TELEMETRY_DISABLED: '1'
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -40,9 +46,11 @@ jobs:
           cache-dependency-path: apps/web/package-lock.json
       - name: Install locked dependencies
         run: npm ci
-      - name: Inventory dependency advisories (not release clearance)
-        continue-on-error: true
-        run: npm audit --json > dependency-audit.json
+      - name: Audit all dependencies (high and critical block CI)
+        run: npm audit --audit-level=high --json > dependency-audit.json
+      - name: Audit production dependencies
+        if: always()
+        run: npm audit --omit=dev --audit-level=high --json > dependency-audit-production.json
       - name: Frontend unit regression
         run: npm test
       - name: Production build
@@ -51,7 +59,7 @@ jobs:
         run: npm run typecheck
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
-      - name: Investor home browser verification
+      - name: Investor browser verification
         run: npx playwright test --config=playwright.home.config.ts
       - name: Preserve browser and dependency evidence
         if: always()
@@ -62,5 +70,6 @@ jobs:
             apps/web/test-results/home/
             apps/web/playwright-home-report/
             apps/web/dependency-audit.json
+            apps/web/dependency-audit-production.json
           if-no-files-found: ignore
           retention-days: 7
