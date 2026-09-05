@@ -8,6 +8,7 @@ for (const [path, title, kind] of [["/theses/thesis-1", "AAPL 투자 논리", "t
     const errors: string[] = []; page.on("pageerror", error => errors.push(error.message));
     await page.goto(path); const reader = page.getByTestId("research-reader");
     await expect(reader.getByRole("heading", { level: 1, name: title })).toBeVisible();
+    if (kind === "thesis") await expect(reader.locator("header").first()).toContainText("다음 확인 2026-10-20");
     const first = reader.locator("#thesis-claims > p, [data-testid=source-excerpts] article").first();
     await expect(first).toBeVisible(); expect((await first.boundingBox())!.y).toBeLessThan(700);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
@@ -66,7 +67,12 @@ test("chapter links resolve and existing detailed valuation remains readable", a
   await expect(page.locator("#thesis-conditions")).toBeInViewport();
   const disclosure = reader.locator("details").filter({ has: page.locator("summary", { hasText: "기존 전문 가치평가·사업부 모델 전체 보기" }) });
   await disclosure.locator("summary").first().click();
-  await expect(disclosure).toContainText("매출 성장률"); await expect(disclosure).toContainText("할인율");
+  await expect(disclosure.getByText("매출 성장률", { exact: true }).first()).toBeVisible();
+  await expect(disclosure.getByText("할인율", { exact: true }).first()).toBeVisible();
+  await reader.locator("summary").filter({ hasText: "전문 검토 세부 항목" }).click();
+  await expect(reader.getByRole("heading", { name: "저장된 가치평가 가정 확인", exact: true })).toBeVisible();
+  await expect(reader.getByText("다음 확인: 다음 공시와 가정을 대조한다.", { exact: true })).toBeVisible();
+  await expect(reader.getByText("검증용 가정 2개", { exact: true })).toBeVisible();
 });
 test("missing translation does not invent a Korean market interpretation", async ({ page, request }) => {
   await request.post("http://127.0.0.1:18767/__scenario", { data: { scenario: "untranslated" } });

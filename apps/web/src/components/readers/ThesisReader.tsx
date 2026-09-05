@@ -1,13 +1,24 @@
 import { ValuationTargetRangeCard } from "@/components/valuation-target-range-card";
 import { koCode, koReason } from "@/lib/korean-labels";
-import { conditionLabel, count, currencyValue, fullValuation, nextReview, object, recordedDate, route, rows, shortDate, strings, text, thesisAttention, type Row, type ThesisReaderData } from "@/lib/research-reader-model";
+import { conditionLabel, count, currencyValue, fullValuation, nextReview, object, route, rows, shortDate, strings, text, thesisAttention, type Row, type ThesisReaderData } from "@/lib/research-reader-model";
 import { ReaderFacts, ReaderFrame, ReaderLink, ReaderSection, StoredList } from "./ReaderFrame";
 import styles from "./ResearchReader.module.css";
 const counted = (v: unknown) => count(v) === null ? "미확인" : `${count(v)}개`;
 const scalar = (v: unknown): string => typeof v === "string" ? v : typeof v === "number" && Number.isFinite(v) ? String(v) : typeof v === "boolean" ? v ? "예" : "아니오" : "미제공";
 function GateRecords({ value }: { value: unknown }) {
   const gates = rows(value);
-  return gates?.length ? <div>{gates.map((gate, i) => <article className={styles.evidence} key={i}><span className={styles.tag}>{koCode(text(gate.status))}</span><h3>{text(gate.label, text(gate.gate, `검토 항목 ${i + 1}`))}</h3><p className={styles.prose}>{text(gate.detail, text(gate.message, text(gate.reason, "설명 미제공")))}</p></article>)}</div> : <p className={styles.empty}>{gates === null ? "검토 항목 미제공" : "기록된 검토 항목이 없습니다."}</p>;
+  if (!gates?.length) return <p className={styles.empty}>{gates === null ? "검토 항목 미제공" : "기록된 검토 항목이 없습니다."}</p>;
+  return <div>{gates.map((gate, i) => {
+    const facts = rows(gate.facts);
+    return <article className={styles.evidence} key={i}>
+      <span className={styles.tag}>{koCode(text(gate.status))}</span>
+      <h3>{text(gate.title, text(gate.label, text(gate.gate_key, `검토 항목 ${i + 1}`)))}</h3>
+      {text(gate.decision, "") && <p className={styles.prose}>{text(gate.decision)}</p>}
+      <p className={styles.prose}>{text(gate.detail, text(gate.message, text(gate.reason, "설명 미제공")))}</p>
+      {text(gate.next_step, "") && <p className={styles.caption}>다음 확인: {text(gate.next_step)}</p>}
+      {facts && <ReaderFacts items={facts.map(fact => [text(fact.label), scalar(fact.value)] as const)} />}
+    </article>;
+  })}</div>;
 }
 function ValuationRecords({ value }: { value: Row }) {
   const methods = rows(value.methods), complete = fullValuation(value);
@@ -23,7 +34,7 @@ export function ThesisReader({ data, today }: { data: ThesisReaderData; today: s
   const hasReview = !!data.review.id && !!data.review.date;
   const reviewFuture = !!data.review.date && data.review.date.slice(0, 10) > today;
   return <ReaderFrame eyebrow={`INVESTMENT THESIS · ${data.version}`} title={`${data.symbol} 투자 논리`}
-    subtitle={`${koCode(data.status)} · ${thesisAttention(data)}`}
+    subtitle={`${koCode(data.status)} · ${thesisAttention(data)} · 다음 확인 ${nextReview(data.review.next, today)}`}
     chapters={[["thesis-claims", "핵심 주장"], ["thesis-conditions", "촉매·무효화"], ["thesis-review", "최근 검토"], ["thesis-evidence", "연결 근거"], ["thesis-valuation", "가치평가"], ["thesis-checks", "검토 기록"]]}
     aside={<>
       <section className={styles.contextCard}><h2>다음 판단을 위한 맥락</h2><ReaderFacts items={[["최근 검토일", shortDate(data.review.date, "미기록")], ["기록된 조치", hasReview ? koCode(data.review.action) : "미확인"], ["기록된 위험도", hasReview ? koCode(data.review.risk) : "미확인"], ["다음 확인일", nextReview(data.review.next, today)]]} />{reviewFuture && <p className={styles.warning}>검토 기록이 현재보다 미래입니다. 기준일을 확인하세요.</p>}<ReaderLink href={route("stocks", data.symbol)}>기업 분석 →</ReaderLink><ReaderLink href={data.recommendationHref}>연결 추천 판단서 →</ReaderLink><ReaderLink href="/portfolio/coverage">보유 검토 →</ReaderLink></section>

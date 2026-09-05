@@ -58,7 +58,7 @@ const server = createServer(async (req, res) => {
     data.latest_review = { review_id: "review-1", reviewed_at: "2026-09-04T12:00:00Z", action: "monitor", risk_level: "medium", summary: "성장 근거를 다시 확인하는 검토 기록입니다.", change_notes: "원문 검토 기록: 현금흐름과 수익성 가정을 다음 실적에서 대조한다.", next_review_date: "2026-10-20" };
     data.evidence = [{ evidence_id: "event-1", type: "source_document_event", title: "서비스 매출과 사업 위험 발췌", observed_at: "2026-09-03T09:00:00Z" }];
     data.valuation_target_range = structuredClone(memo.recommendation.valuation_target_range);
-    data.professional_lifecycle_gates = { status: "warning", gate_count: 1, pass_count: 0, blocked_count: 0, gates: [{ label: "저장된 가치평가 가정 확인", status: "warning", detail: "테스트용 가정이며 투자 성능 검증 결과가 아닙니다." }] };
+    data.professional_lifecycle_gates = { status: "warning", gate_count: 1, pass_count: 0, blocked_count: 0, gates: [{ gate_key: "valuation_assumptions", title: "저장된 가치평가 가정 확인", status: "warning", decision: "원천과 평가 가정을 분리해서 확인한다.", detail: "테스트용 가정이며 투자 성능 검증 결과가 아닙니다.", next_step: "다음 공시와 가정을 대조한다.", facts: [{ label: "저장 근거", value: "검증용 가정 2개" }] }] };
     payload.links.recommendation = "/api/recommendations/recommendation-1";
     if (scenario === "triggered") data.lifecycle.invalidation_conditions[0].current_status = "triggered";
     if (scenario === "unknown") { delete data.latest_review; delete data.professional_lifecycle_gates; delete data.valuation_target_range.currency_code; }
