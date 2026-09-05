@@ -11,7 +11,7 @@ test("investor journey renders with evidence links on desktop and mobile", async
   const response = await page.goto("/");
   expect(response?.status()).toBe(200);
   const home = page.getByTestId("research-home");
-  await expect(home.getByRole("heading", { name: "시장 변화에서 투자 판단까지" })).toBeVisible();
+  await expect(home.getByRole("heading", { name: "리서치 브리핑" })).toBeVisible();
   await expect(home.getByRole("link", { name: "투자 판단서 읽기" }).first()).toHaveAttribute("href", "/recommendations/recommendation-1");
   await expect(home.getByRole("link", { name: "테마 근거 보기" }).first()).toHaveAttribute("href", "/themes/semiconductor");
   await expect(home.getByText("반도체 설비 투자 확대", { exact: true })).toBeVisible();
@@ -19,7 +19,7 @@ test("investor journey renders with evidence links on desktop and mobile", async
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
   const accessibility = await new AxeBuilder({ page }).include('[data-testid="research-home"]').analyze();
   expect(accessibility.violations).toEqual([]);
-  await expect(home.getByRole("link", { name: "지난 판단의 수익률·벤치마크 대비 성과 확인" })).toHaveAttribute("href", "/performance");
+  await expect(home.getByRole("link", { name: /지난 판단의 수익률·벤치마크 대비 성과 확인/ })).toHaveAttribute("href", "/performance");
   await expect(home.locator("details")).not.toHaveAttribute("open", "");
   expect(errors).toEqual([]);
   await page.screenshot({ path: info.outputPath(`research-home-${info.project.name}.png`), fullPage: true });

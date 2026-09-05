@@ -24,7 +24,6 @@
   from {
     transform: translateY(12px);
   }
-
   to {
     transform: translateY(0);
   }
@@ -40,7 +39,7 @@
   padding: 0;
   border: 0;
   border-bottom: 1px solid var(--line-subtle);
-  border-radius: 0;
+  border-radius: var(--radius-lg);
   background: var(--surface-primary);
   box-shadow: none;
 }
@@ -51,8 +50,8 @@
   align-content: end;
   gap: var(--space-4);
   min-width: 0;
-  min-height: 330px;
-  padding: clamp(var(--space-8), 5vw, var(--space-16));
+  min-height: 0;
+  padding: var(--space-6);
 }
 
 .data-health-brief > div:first-child {
@@ -130,7 +129,7 @@
   padding: var(--space-5);
   border: 0;
   border-bottom: 1px solid var(--line-subtle);
-  border-radius: 0;
+  border-radius: var(--radius-lg);
   background: transparent;
   box-shadow: none;
 }
@@ -144,7 +143,7 @@
   padding: var(--space-5);
   border: 0;
   border-bottom: 1px solid var(--line-subtle);
-  border-radius: 0;
+  border-radius: var(--radius-lg);
   background: transparent;
   color: var(--ink-secondary);
   font-size: var(--type-small);
@@ -179,10 +178,10 @@
 .thesis-evidence-panel,
 .recommendation-waterfall-panel {
   margin: 0;
-  padding: var(--space-12) 0;
+  padding: var(--space-6);
   border: 0;
   border-bottom: 1px solid var(--line-subtle);
-  border-radius: 0;
+  border-radius: var(--radius-lg);
   background: transparent;
   box-shadow: none;
 }
@@ -195,13 +194,13 @@
 }
 
 .research-lead-snapshot > span {
-  color: color-mix(in srgb, var(--surface-primary) 62%, transparent);
+  color: var(--ink-secondary);
   font-size: var(--type-caption);
   font-weight: 720;
 }
 
 .research-lead-snapshot > strong {
-  font-size: clamp(2rem, 4.4vw, 4.5rem);
+  font-size: clamp(1.5rem, 3vw, 2.25rem);
   letter-spacing: -0.055em;
   line-height: 1;
   overflow-wrap: anywhere;
@@ -209,7 +208,7 @@
 }
 
 .research-lead-snapshot > small {
-  color: color-mix(in srgb, var(--surface-primary) 72%, transparent);
+  color: var(--ink-secondary);
   line-height: 1.65;
 }
 
@@ -221,7 +220,7 @@
   display: grid;
   max-width: 920px;
   gap: var(--space-3);
-  margin-bottom: var(--space-8);
+  margin-bottom: var(--space-5);
 }
 
 .section-heading h2,
@@ -244,10 +243,10 @@
 .market-map-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr));
-  gap: 1px;
+  gap: var(--space-4);
   overflow: hidden;
   border: 1px solid var(--line-subtle);
-  background: var(--line-subtle);
+  background: transparent;
 }
 
 .feature-map-card,
@@ -262,7 +261,7 @@
   margin: 0;
   padding: var(--space-6);
   border: 0;
-  border-radius: 0;
+  border-radius: var(--radius-lg);
   background: var(--surface-primary);
   box-shadow: none;
   transition: background var(--duration-micro) ease-out, transform var(--duration-micro) ease-out;
@@ -274,7 +273,7 @@ a.analyst-packet-card:hover,
 a.detail-path-card:hover,
 a.evidence-path-card:hover {
   z-index: 1;
-  transform: translateY(-2px);
+  transform: none;
   background: color-mix(in srgb, var(--accent-analysis) 7%, var(--surface-primary));
 }
 
@@ -300,7 +299,7 @@ a.evidence-path-card:hover {
   margin: 0;
   padding: var(--space-5);
   border: 0;
-  border-radius: 0;
+  border-radius: var(--radius-lg);
   background: var(--surface-primary);
   box-shadow: none;
 }
@@ -323,7 +322,7 @@ a.evidence-path-card:hover {
   justify-content: center;
   padding: 0 var(--space-4);
   border: 1px solid var(--line-strong);
-  border-radius: 0;
+  border-radius: var(--radius-lg);
   background: transparent;
   color: var(--ink-primary);
   font-size: var(--type-small);
@@ -343,7 +342,7 @@ a.evidence-path-card:hover {
 .buttonRow a:hover,
 .mini-link-stack a:hover,
 .bento-list-action a:hover {
-  transform: translateY(-2px);
+  transform: none;
 }
 
 .risk-tag,
@@ -434,7 +433,6 @@ summary {
   .research-command-deck {
     grid-template-columns: 1fr;
   }
-
   .decision-brief-grid,
   .decision-brief-meta,
   .metricRail,
@@ -444,7 +442,6 @@ summary {
     border-top: 1px solid var(--line-subtle);
     border-left: 0;
   }
-
   .ledger-table-wrap::before {
     display: block;
     padding: var(--space-2) var(--space-3);
@@ -453,7 +450,6 @@ summary {
     content: "상세 표는 좌우로 이동할 수 있습니다.";
     font-size: var(--type-small);
   }
-
   .data-health-table th:first-child,
   .data-health-table td:first-child {
     position: sticky;
@@ -467,13 +463,11 @@ summary {
   .compact-rail.decision-boundary-rail {
     grid-template-columns: 1fr;
   }
-
   .decision-brief > div:first-child,
   .workspace-brief > div:first-child {
     min-height: auto;
     padding: var(--space-6);
   }
-
   .feature-map-panel,
   .ledger-section,
   .flow-panel,
@@ -491,7 +485,6 @@ summary {
 .recommendation-waterfall-panel {
     padding: var(--space-8) 0;
   }
-
   .feature-map-grid,
   .bento-grid,
   .analyst-flow-grid,
@@ -502,4 +495,64 @@ summary {
   .market-map-grid {
     grid-template-columns: 1fr;
   }
+}
+
+/* Shared research surfaces: keep legacy domain markup, unify its reading hierarchy. */
+.feature-map-panel, .ledger-section, .flow-panel, .evidence-workbench, .intelligence-board,
+.cycle-operating-board, .cycle-lane-board, .cycle-state-board, .paper-state-panel,
+.evidence-decision-card, .evidence-trace-panel, .source-review-panel, .source-document-section,
+.thesis-evidence-panel, .recommendation-waterfall-panel {
+  border: 1px solid var(--line-subtle);
+  background: var(--surface-primary);
+}
+
+.feature-map-grid, .bento-grid, .analyst-flow-grid, .analyst-packet-grid, .detail-path-grid,
+.evidence-path-grid, .cycle-map-grid, .market-map-grid {
+  border: 0;
+  overflow: visible;
+}
+
+.feature-map-card, .bento-card, .ledger-panel, .analyst-flow-card, .analyst-packet-card,
+.detail-path-card, .evidence-path-card, .news-decision-card {
+  border: 1px solid var(--line-subtle);
+  box-shadow: var(--shadow-soft);
+}
+
+.btn, .button, .buttonRow a, .mini-link-stack a, .bento-list-action a {
+  border-radius: 7px;
+  min-height: 40px;
+}
+
+.btn-primary, .button.primary {
+  border-color: var(--accent-analysis);
+  background: var(--accent-analysis);
+  color: white;
+}
+
+.terminal-page, .terminal-home, .decision-page, .pageStack {
+  gap: 24px;
+  min-width: 0;
+}
+
+.ledger-table-wrap {
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+th {
+  background: var(--surface-canvas);
+  text-transform: none;
+  font-weight: 600;
+}
+
+tbody tr:hover {
+  background: #fafbff;
+}
+
+.decision-brief-title, .page-title, .terminal-title {
+  line-height: 1.3;
+}
+
+.reveal {
+  animation: none;
 }

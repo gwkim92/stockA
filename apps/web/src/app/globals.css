@@ -1,39 +1,4 @@
-:root {
-  --bg-main: #f3f4f0;
-  --bg: var(--bg-main);
-  --bg-panel: #fbfaf6;
-  --bg-card: rgba(17, 17, 17, 0.025);
-  --bg-card-hover: rgba(17, 17, 17, 0.055);
-
-  --text-primary: #11120f;
-  --text-secondary: #5d625c;
-  --text-tertiary: #8a8d86;
-  --text-muted: var(--text-tertiary);
-
-  --border-light: rgba(17, 18, 15, 0.16);
-  --border-focus: rgba(17, 18, 15, 0.45);
-  --border-strong: #11120f;
-
-  --accent-blue: #265c80;
-  --accent-green: #23744e;
-  --accent-amber: #9b6517;
-  --accent-red: #a83b34;
-
-  --font-display: "Plus Jakarta Sans", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
-  --font-body: "Space Grotesk", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
-
-  --radius-sm: 4px;
-  --radius-md: 6px;
-  --radius-lg: 8px;
-  --radius-xl: 14px;
-
-  --shadow-soft: 0 18px 46px rgba(47, 42, 30, 0.08);
-  --shadow-lift: 0 22px 60px rgba(47, 42, 30, 0.12);
-
-  --gap: clamp(12px, 1.6vw, 20px);
-  --page-edge: clamp(18px, 5vw, 72px);
-}
-
+/* Legacy domain layouts; theme variables are owned by styles/tokens.css. */
 * {
   box-sizing: border-box;
 }

@@ -60,14 +60,14 @@ const server = createServer(async (request, response) => {
   const asOf = scenario === "historical" ? "2001-01-01" : today;
   const data = {
     "/api/cycles": { as_of_date: asOf, cycle_states: [
-      { theme_key: "semiconductor", state: "expanding", previous_state: "forming", instrument_count: 12, confidence: 0.81 },
-      { theme_key: "power_infrastructure", state: "confirming", previous_state: "expanding", instrument_count: 6, confidence: 0.76 },
+      { theme_key: "semiconductor", theme_name: "반도체", state: "expanding", previous_state: "forming", instrument_count: 12, confidence: 0.81 },
+      { theme_key: "power_infrastructure", theme_name: "전력 인프라", state: "confirming", previous_state: "expanding", instrument_count: 6, confidence: 0.76 },
     ] },
     "/api/recommendations": { as_of_date: asOf, recommendations: [
-      { recommendation_id: "recommendation-1", symbol: "AAPL", name: "Apple", rank_position: 1,
+      { recommendation_id: "recommendation-1", symbol: "AAPL", name: "Apple", rank_position: 1, score: 0.82, linked_thesis_id: "thesis-1",
         evidence_quality: { title: "현금흐름과 서비스 성장 검토", summary: "서비스 매출과 현금흐름을 확인하고 성장 둔화 가능성을 비교합니다.", source_blocker: { blocked: false } },
         decision_boundary: { paper_validation_input_allowed: true, reason: "실거래가 아닌 페이퍼 검토 입력입니다." } },
-      { recommendation_id: "recommendation-2", symbol: "EROK", name: "EROK", rank_position: 2,
+      { recommendation_id: "recommendation-2", symbol: "EROK", name: "EROK", rank_position: 2, score: 0.63, linked_thesis_id: "",
         evidence_quality: { title: "정기 재무 공시 확인 필요", summary: "원천 공시가 충분하지 않아 전문 판단에 사용하지 않습니다.", source_blocker: { blocked: true } },
         decision_boundary: { paper_validation_input_allowed: true, reason: "원천 제한 상태를 우선 확인합니다." } },
     ] },
