@@ -19,6 +19,7 @@ from stockanalysis.ai.cycle_graph_context import (
     load_cycle_graph_context,
     load_cycle_graph_context_node_codes,
 )
+from stockanalysis.ai_agents.prompt_contract import PromptContractError, analysis_instructions, render_source_data
 from stockanalysis.ingest.config import RuntimeConfig
 from stockanalysis.ingest.macro.sql import sql_date, sql_literal
 from stockanalysis.ingest.psql import PsqlCommandExecutor
@@ -31,7 +32,7 @@ from stockanalysis.signal.universe import (
 
 DEFAULT_PIPELINE_NAME = "cycle_community_ai_summary"
 DEFAULT_TASK_NAME = "cycle-community-ai-summary-v2"
-DEFAULT_TEMPLATE_VERSION = "2026-05-24-cycle-community-ai-v2"
+DEFAULT_TEMPLATE_VERSION = "2026-09-06-cycle-evidence-v3"
 SUMMARY_TYPE = "cycle_community_ai_v2"
 FIXTURE_PROVIDER = "fixture"
 CODEX_OAUTH_PROVIDER = "codex_oauth"
@@ -85,20 +86,23 @@ def build_codex_oauth_cycle_community_ai_prompt(context: dict[str, object], *, m
     bounded_context = _bounded_context_for_prompt(context, max_context_chars=max_context_chars)
     return "\n".join(
         (
-            "You are a cycle-level investment intelligence summarizer.",
+            analysis_instructions("cycle_analyst_agent", "You are a cycle-level investment intelligence summarizer."),
             "Use only the supplied Postgres graph context. Do not browse, do not call tools, and do not make buy/sell/order decisions.",
             "Return exactly one JSON object matching the provided output schema.",
-            "Write every human-readable field in Korean.",
+            "Write every human-readable field in Korean except exact source titles and identifiers, which remain verbatim.",
             "Keep machine identifiers unchanged: node codes, event ids, and ticker symbols.",
             "Summarize the node as a market/cycle community: macro/domain/theme flow, evidence, conflicts, uncertainty, and watchlist symbols.",
             "Ground every watchlist symbol in exposed_instruments, propagated_impacts, or recommendations from the context.",
             "Ground supporting_events in direct_events or propagated_impacts from the context.",
+            "Copy each supporting event_id together with that same record's exact title or korean_title. Never attach a familiar title to another event_id.",
+            "Preserve original source titles verbatim even when they are not Korean; write the supporting reason in Korean.",
+            "Previous summaries and recommendations are hypotheses, not independent source confirmation. Correlation and graph membership alone do not prove causation.",
             "If the context is weak, say so in uncertainty instead of inventing facts.",
             "Do not change recommendation scores. The output is explanatory context for later deterministic scoring.",
             "",
             "Output schema intent:",
             "- korean_summary: one concise Korean paragraph explaining the cycle community.",
-            "- key_drivers: 2-6 Korean bullets describing what is moving the flow.",
+            "- key_drivers: 0-6 supported Korean drivers. Do not invent claims to fill a minimum.",
             "- causal_paths: Korean explanations of macro/domain/theme -> symbol or child-node paths.",
             "- supporting_events: event ids/titles from the context that justify the summary.",
             "- conflicts: conflicting signals or missing evidence.",
@@ -106,7 +110,7 @@ def build_codex_oauth_cycle_community_ai_prompt(context: dict[str, object], *, m
             "- watchlist_symbols: only grounded ticker symbols from context.",
             "",
             "Postgres graph context:",
-            json.dumps(bounded_context, ensure_ascii=False, sort_keys=True),
+            render_source_data(bounded_context, max_chars=max_context_chars),
         )
     )
 
@@ -236,7 +240,8 @@ def invoke_codex_oauth_cycle_community_ai_provider(
     if timeout_seconds <= 0:
         raise ValueError("STOCKANALYSIS_CODEX_TIMEOUT_SECONDS must be greater than 0.")
 
-    prompt = build_codex_oauth_cycle_community_ai_prompt(context, max_context_chars=max_context_chars)
+    prompt_context = _bounded_context_for_prompt(context, max_context_chars=max_context_chars)
+    prompt = build_codex_oauth_cycle_community_ai_prompt(prompt_context, max_context_chars=max_context_chars)
     output_schema = build_codex_oauth_cycle_community_ai_output_schema()
     started = time.monotonic()
     with tempfile.TemporaryDirectory(prefix="stockanalysis-cycle-community-codex-oauth.") as tmpdir:
@@ -286,7 +291,7 @@ def invoke_codex_oauth_cycle_community_ai_provider(
                 f"(exit_code={completed.returncode}): {_diagnostic_excerpt(stderr, 2000)}"
             )
         output_text = output_path.read_text(encoding="utf-8") if output_path.exists() else completed.stdout
-    parsed = parse_cycle_community_ai_response_payload(_loads_json_object(output_text), context=context)
+    parsed = parse_cycle_community_ai_response_payload(_loads_json_object(output_text), context=prompt_context)
     return CycleCommunityAiProviderResponse(
         provider=CODEX_OAUTH_PROVIDER,
         model_name=parsed.model_name,
@@ -478,7 +483,7 @@ def run_cycle_community_ai_summary_v2(
                         )
                     )
                 )
-                rows.append(_build_summary_row(context, response=response, as_of_date=as_of_date, invocation_id=invocation_id))
+                rows.append(_build_summary_row(context, response=response, as_of_date=as_of_date, invocation_id=invocation_id, max_context_chars=max_context_chars))
                 results.append({"node_code": node_code, "status": "summarized", "invocation_id": invocation_id})
             except Exception as exc:
                 failed += 1
@@ -498,7 +503,7 @@ def run_cycle_community_ai_summary_v2(
                     reasoning_effort=None,
                     max_context_chars=max_context_chars,
                 )
-                rows.append(_build_summary_row(context, response=fallback_response, as_of_date=as_of_date, invocation_id=None))
+                rows.append(_build_summary_row(context, response=fallback_response, as_of_date=as_of_date, invocation_id=None, max_context_chars=max_context_chars))
                 results.append({"node_code": node_code, "status": "summarized_with_fallback", "error": _diagnostic_excerpt(str(exc), 500)})
         if rows:
             sql_executor.execute_non_query(render_cycle_community_ai_summary_upsert_sql(tuple(rows), as_of_date=as_of_date, source_run_id=run_id))
@@ -673,6 +678,7 @@ def _build_summary_row(
     response: CycleCommunityAiProviderResponse,
     as_of_date: date,
     invocation_id: int | None,
+    max_context_chars: int = DEFAULT_MAX_CONTEXT_CHARS,
 ) -> _SummaryRow:
     target_node = _as_dict(context.get("target_node"))
     deterministic = build_cycle_community_summary(context)
@@ -700,7 +706,7 @@ def _build_summary_row(
         "llm_used": response.provider == CODEX_OAUTH_PROVIDER and invocation_id is not None,
         "invocation_id": invocation_id,
         "prompt_template_version": DEFAULT_TEMPLATE_VERSION,
-        "context_hash": hashlib.sha256(json.dumps(_bounded_context_for_prompt(context, max_context_chars=DEFAULT_MAX_CONTEXT_CHARS), ensure_ascii=False, sort_keys=True).encode("utf-8")).hexdigest(),
+        "context_hash": hashlib.sha256(json.dumps(_bounded_context_for_prompt(context, max_context_chars=max_context_chars), ensure_ascii=False, sort_keys=True).encode("utf-8")).hexdigest(),
     }
     return _SummaryRow(
         node_id=int(target_node["node_id"]),
@@ -723,48 +729,56 @@ def _render_summary_value_tuple(row: _SummaryRow, *, as_of_date: date, source_ru
 
 
 def _bounded_context_for_prompt(context: dict[str, object], *, max_context_chars: int) -> dict[str, object]:
-    bounded = {
-        "query": context.get("query"),
-        "target_node": context.get("target_node"),
-        "latest_snapshot": context.get("latest_snapshot"),
-        "parent_edges": _limit_list(context.get("parent_edges"), 8),
-        "child_edges": _limit_list(context.get("child_edges"), 10),
-        "direct_events": _limit_list(context.get("direct_events"), 12),
-        "propagated_impacts": _limit_list(context.get("propagated_impacts"), 12),
-        "exposed_instruments": _limit_list(context.get("exposed_instruments"), 12),
-        "ai_artifacts": _limit_list(context.get("ai_artifacts"), 8),
-        "recommendations": _limit_list(context.get("recommendations"), 8),
-        "theses": _limit_list(context.get("theses"), 8),
-        "previous_summary": context.get("previous_summary"),
+    limits = {
+        "parent_edges": 8, "child_edges": 10, "direct_events": 12,
+        "propagated_impacts": 12, "exposed_instruments": 12, "ai_artifacts": 8,
+        "recommendations": 8, "theses": 8,
     }
-    text = json.dumps(bounded, ensure_ascii=False, sort_keys=True)
-    if len(text) <= max_context_chars:
+    bounded = {key: context.get(key) for key in ("query", "target_node", "latest_snapshot", "previous_summary")}
+    bounded.update({key: _limit_list(context.get(key), limit) for key, limit in limits.items()})
+    bounded["context_scope"] = "bounded_selection_not_complete_history"
+    # No character slicing: retain complete records or fail before a model call.
+    # The renderer checks the exact escaped/framed size, including long nested text.
+    try:
+        render_source_data(bounded, max_chars=max_context_chars)
         return bounded
-    bounded["direct_events"] = _limit_list(context.get("direct_events"), 5)
-    bounded["propagated_impacts"] = _limit_list(context.get("propagated_impacts"), 5)
-    bounded["exposed_instruments"] = _limit_list(context.get("exposed_instruments"), 8)
-    bounded["recommendations"] = _limit_list(context.get("recommendations"), 4)
-    bounded["theses"] = _limit_list(context.get("theses"), 4)
+    except PromptContractError as exc:
+        if str(exc) != "input_budget_exceeded":
+            raise
+    for key, limit in {"direct_events": 5, "propagated_impacts": 5, "exposed_instruments": 8, "recommendations": 4, "theses": 4}.items():
+        bounded[key] = _limit_list(context.get(key), limit)
+    render_source_data(bounded, max_chars=max_context_chars)
     return bounded
 
 
 def _sanitize_output(output: CycleCommunityAiSummaryOutput, *, context: dict[str, object]) -> CycleCommunityAiSummaryOutput:
     allowed_symbols = set(_context_symbols(context))
-    event_ids = set(_context_event_ids(context))
-    event_titles = set(_context_event_titles(context))
+    source_events = (*_as_list(context.get("direct_events")), *_as_list(context.get("propagated_impacts")))
     supporting_events = []
+    seen = set()
     for event in output.supporting_events:
         event_id = event.get("event_id")
         title = str(event.get("title") or "").strip()
-        if isinstance(event_id, int) and event_id in event_ids or title in event_titles:
+        # bool is an int subclass; model identifiers must not be coerced to IDs.
+        matches = type(event_id) is int and event_id > 0 and any(
+            type(source.get("event_id")) is int and source["event_id"] == event_id
+            and title in {str(source.get("title") or "").strip(), str(source.get("korean_title") or "").strip()}
+            for source in source_events
+        )
+        if matches and event_id not in seen:
             supporting_events.append(event)
+            seen.add(event_id)
+    removed_count = len(output.supporting_events) - len(supporting_events)
+    uncertainty = output.uncertainty
+    if removed_count:
+        uncertainty += f" 원천 ID·제목 불일치 또는 중복 근거 {removed_count}개를 검증에서 제외했습니다."
     return CycleCommunityAiSummaryOutput(
         korean_summary=output.korean_summary,
         key_drivers=output.key_drivers,
         causal_paths=output.causal_paths,
         supporting_events=tuple(supporting_events[:8]),
         conflicts=output.conflicts,
-        uncertainty=output.uncertainty,
+        uncertainty=uncertainty,
         watchlist_symbols=tuple(symbol for symbol in output.watchlist_symbols if symbol in allowed_symbols)[:12],
     )
 
@@ -977,7 +991,7 @@ def _supporting_event_tuple(value: object, *, limit: int) -> tuple[dict[str, obj
         title = _optional_text(item.get("title"))
         reason = _optional_text(item.get("reason"))
         if title and reason:
-            result.append({"event_id": _optional_int(item.get("event_id")), "title": title, "reason": reason})
+            result.append({"event_id": item.get("event_id"), "title": title, "reason": reason})
     return tuple(result[:limit])
 
 

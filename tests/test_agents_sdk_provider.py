@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import builtins
 import json
 import tempfile
 import unittest
@@ -104,7 +105,14 @@ class AgentsSdkProviderTests(unittest.TestCase):
             output_schema={"type": "object"},
         )
 
-        with patch("builtins.__import__", side_effect=ImportError("missing")):
+        real_import = builtins.__import__
+
+        def missing_agents(name, *args, **kwargs):
+            if name == "agents" or name.startswith("agents."):
+                raise ImportError("missing")
+            return real_import(name, *args, **kwargs)
+
+        with patch("builtins.__import__", side_effect=missing_agents):
             with self.assertRaisesRegex(AgentsSdkProviderUnavailable, "openai-agents is not installed"):
                 run_agents_sdk_structured_request(request)
 

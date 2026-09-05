@@ -8,6 +8,10 @@ from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
 from typing import Any
 
+from stockanalysis.ai_agents.prompt_contract import (
+    PromptContractError, analysis_instructions, check_schema, is_strict_schema,
+    render_source_data, strict_json_object, validate_output,
+)
 from stockanalysis.ai_agents.registry import get_agent_definition
 from stockanalysis.ai_agents.provider_health import load_cached_openai_provider_block, record_provider_failure
 from stockanalysis.ai_agents.runtime_policy import AgentRuntimePolicy, build_agent_runtime_policy
@@ -110,12 +114,21 @@ def run_agents_sdk_structured_request(
             raise provider_error from exc
 
     latency_ms = int((time.monotonic() - started) * 1000)
-    payload = _coerce_json_object(raw_output)
+    payload = strict_json_object(raw_output)
+    # A declared field named output/result belongs to the contract, not an envelope.
+    properties = request.output_schema.get("properties", {})
+    if "output" in payload and "output" not in properties:
+        output = strict_json_object(payload["output"])
+    elif "result" in payload and "result" not in properties:
+        output = strict_json_object(payload["result"])
+    else:
+        output = payload
+    validate_output(output, request.output_schema)
     return AgentsSdkStructuredResponse(
         provider=DEFAULT_PROVIDER_NAME,
         model_name=_optional_text(payload.get("model_name") or payload.get("model")) or model_name,
         reasoning_effort=_optional_text(payload.get("reasoning_effort")) or reasoning_effort,
-        output=_coerce_json_object(payload.get("output") or payload.get("result") or payload),
+        output=output,
         input_token_count=_optional_int(_usage_payload(payload).get("input_tokens")),
         output_token_count=_optional_int(_usage_payload(payload).get("output_tokens")),
         cached_input_token_count=_optional_int(_usage_payload(payload).get("cached_input_tokens")),
@@ -126,12 +139,14 @@ def run_agents_sdk_structured_request(
 
 def build_agents_sdk_prompt(*, request: AgentsSdkStructuredRequest, policy: AgentRuntimePolicy) -> str:
     agent = get_agent_definition(request.agent_key)
-    bounded_payload = json.dumps(request.input_payload, ensure_ascii=False, sort_keys=True)
-    max_chars = request.max_input_chars or policy.max_input_chars
-    bounded_payload = bounded_payload[:max_chars]
+    check_schema(request.output_schema)
+    requested_limit = request.max_input_chars if request.max_input_chars is not None else policy.max_input_chars
+    if type(requested_limit) is not int or requested_limit <= 0:
+        raise PromptContractError("invalid_input_budget")
+    bounded_payload = render_source_data(request.input_payload, max_chars=min(requested_limit, policy.max_input_chars))
     return "\n".join(
         (
-            agent.prompt.instructions,
+            analysis_instructions(request.agent_key, agent.prompt.instructions),
             "",
             "Output contract:",
             json.dumps(request.output_schema, ensure_ascii=False, sort_keys=True),
@@ -154,16 +169,44 @@ def _run_openai_agents_sdk(
 ) -> Mapping[str, object] | str:
     try:
         from agents import Agent, Runner
+        from agents.agent_output import AgentOutputSchemaBase
+        from agents.exceptions import ModelBehaviorError
     except Exception as exc:  # pragma: no cover - depends on optional package installation.
         raise AgentsSdkProviderUnavailable(
             "openai-agents is not installed. Install the optional `agents` extra before using agents_sdk_openai."
         ) from exc
 
+    if not is_strict_schema(request.output_schema):
+        raise PromptContractError("generation_requires_strict_schema")
+
+    class ContractOutput(AgentOutputSchemaBase):
+        def is_plain_text(self) -> bool:
+            return False
+
+        def name(self) -> str:
+            return policy.output_schema_name
+
+        def json_schema(self) -> dict[str, Any]:
+            return json.loads(json.dumps(request.output_schema))
+
+        def is_strict_json_schema(self) -> bool:
+            return True
+
+        def validate_json(self, json_str: str) -> dict[str, Any]:
+            try:
+                output = strict_json_object(json_str)
+                validate_output(output, request.output_schema)
+                return output
+            except PromptContractError as exc:
+                raise ModelBehaviorError("Structured analysis output failed its contract.") from exc
+
     agent_definition = get_agent_definition(request.agent_key)
     agent = Agent(
         name=agent_definition.display_name,
-        instructions=agent_definition.prompt.instructions,
+        instructions=analysis_instructions(request.agent_key, agent_definition.prompt.instructions),
         model=model_name,
+        tools=[],
+        output_type=ContractOutput(),
     )
     try:
         result = Runner.run_sync(agent, prompt)
