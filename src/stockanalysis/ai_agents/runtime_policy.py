@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from stockanalysis.ai_agents.registry import AgentDefinition, get_agent_definition
+from stockanalysis.ai_agents.prompt_contract import PROMPT_CONTRACT_VERSION
 
 
 AGENTS_SDK_OPENAI_PROVIDER = "agents_sdk_openai"
@@ -35,6 +36,7 @@ class AgentRuntimePolicy:
             "agent_key": self.agent_key,
             "agent_role": self.agent_role,
             "agent_prompt_version": self.prompt_version,
+            "agent_prompt_contract_version": PROMPT_CONTRACT_VERSION,
             "agent_prompt_cache_key": self.prompt_cache_key,
             "agent_output_schema_name": self.output_schema_name,
             "agent_primary_provider": self.primary_provider,
@@ -62,8 +64,8 @@ def build_agent_runtime_policy_from_definition(agent: AgentDefinition) -> AgentR
     return AgentRuntimePolicy(
         agent_key=agent.agent_key,
         agent_role=agent.agent_role,
-        prompt_version=agent.prompt.prompt_version,
-        prompt_cache_key=agent.prompt.prompt_cache_key,
+        prompt_version=f"{agent.prompt.prompt_version}+{PROMPT_CONTRACT_VERSION}",
+        prompt_cache_key=f"{agent.prompt.prompt_cache_key}:{PROMPT_CONTRACT_VERSION}",
         output_schema_name=agent.prompt.output_schema_name,
         primary_provider=policy.primary_provider,
         primary_model=policy.primary_model,
