@@ -13,6 +13,8 @@ on:
       - 'tests/test_ai_agent_registry.py'
       - 'tests/test_news*'
       - 'tests/test_cycle*'
+      - 'tests/test_agent_market_context.py'
+      - 'tests/test_ai_ontology_validation.py'
       - 'tests/test_equity_research_reporting.py'
       - 'tests/test_sec_ai_event_extract.py'
       - 'scripts/verify_analysis_prompt_contract.py'
@@ -31,6 +33,8 @@ on:
       - 'tests/test_ai_agent_registry.py'
       - 'tests/test_news*'
       - 'tests/test_cycle*'
+      - 'tests/test_agent_market_context.py'
+      - 'tests/test_ai_ontology_validation.py'
       - 'tests/test_equity_research_reporting.py'
       - 'tests/test_sec_ai_event_extract.py'
       - 'scripts/verify_analysis_prompt_contract.py'
@@ -56,7 +60,6 @@ jobs:
         python-version: ['3.11', '3.13']
     env:
       OPENAI_AGENTS_DISABLE_TRACING: '1'
-      STOCKANALYSIS_AI_PROVIDER_HEALTH_PATH: ${{ runner.temp }}/prompt-test-provider-health.json
     steps:
       - uses: actions/checkout@v4
         with:
@@ -71,6 +74,8 @@ jobs:
       - name: Compile changed runtime modules
         run: python -m compileall -q src/stockanalysis/ai_agents src/stockanalysis/ai
       - name: Verify offline prompts and real SDK contract objects
+        env:
+          STOCKANALYSIS_AI_PROVIDER_HEALTH_PATH: ${{ runner.temp }}/prompt-test-provider-health.json
         shell: bash
         run: |
           set -o pipefail
