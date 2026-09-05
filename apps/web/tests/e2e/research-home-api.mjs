@@ -1,3 +1,4 @@
+import { discoveryFixture } from "./discovery-fixtures.mjs";
 // Isolated localhost fixture API for SSR browser tests. Never connects to a database.
 import { createServer } from "node:http";
 import { readFileSync } from "node:fs";
@@ -56,6 +57,8 @@ const server = createServer(async (request, response) => {
     }
     return send(200, { contract_version: "frontend-api-v0.1", generated_at: new Date().toISOString(), data: path.startsWith("/api/theses/") ? sample.thesis : data, links: {} });
   }
+  const discovery = discoveryFixture(path, scenario);
+  if (discovery) return send(200, discovery);
   const today = new Date().toISOString().slice(0, 10);
   const asOf = scenario === "historical" ? "2001-01-01" : today;
   const data = {

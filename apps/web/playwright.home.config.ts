@@ -2,7 +2,7 @@ import { defineConfig, devices } from "@playwright/test";
 
 export default defineConfig({
   testDir: "./tests/e2e",
-  testMatch: ["research-home.home.ts", "recommendation-memo.home.ts", "workspace-redesign.home.ts"],
+  testMatch: ["research-home.home.ts", "recommendation-memo.home.ts", "workspace-redesign.home.ts", "discovery-workspace.home.ts"],
   fullyParallel: false,
   workers: 1,
   timeout: 30_000,
