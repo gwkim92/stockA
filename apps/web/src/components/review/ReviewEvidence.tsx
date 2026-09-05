@@ -18,7 +18,7 @@ export function RecordedPortfolioReview({ report }: { report: ReviewReport }) {
       <dl className={styles.factList}><div><dt>위험예산 원천 판정</dt><dd>{koCode(words(risk.status))}</dd></div><div><dt>단일 종목 한도 초과</dt><dd>{countLabel(risk.over_single_position_limit_count)}</dd></div><div><dt>집중도 한도 초과</dt><dd>{countLabel(record(risk.concentration).over_limit_count)}</dd></div></dl>
       {feedbackLinked && items !== null ? <div className={styles.evidenceItem}><h3>연결된 검토의 사후 평가</h3><p>{koCode(words(feedback.feedback_status))}</p><small>{words(feedback.as_of_date)} · 원본 검토 {words(feedback.source_history_eval_run_id)}</small><dl className={styles.factList}><div><dt>관찰 기간 대기</dt><dd>{countLabel(feedback.too_early_count)}</dd></div><div><dt>반대 결과 기록</dt><dd>{countLabel(feedback.contradicted_count)}</dd></div></dl></div>
         : <p className={styles.note}>동일한 검토 기록을 참조한 사후 평가가 확인되지 않았습니다. 다른 실행의 결과를 합쳐 보여주지 않습니다.</p>}
-      <p className={styles.note}><Link href="/portfolio/coverage/details">위험예산·리밸런싱 후보·성과 대기 상세 →</Link></p>
+      <p className={styles.note}><Link href="/portfolio/coverage/details" prefetch={false}>위험예산·리밸런싱 후보·성과 대기 상세 →</Link></p>
     </section>
   </div>;
 }
