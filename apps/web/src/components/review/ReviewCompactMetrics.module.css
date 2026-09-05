@@ -1,0 +1,23 @@
+/* Short outcome counts/percentages fit one mobile scan row; currency amounts do not. */
+@media (max-width: 480px) {
+  .strip[data-compact="true"] {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  .strip[data-compact="true"] > div {
+    padding: 10px 8px;
+  }
+  .strip[data-compact="true"] > div:nth-child(n+2) {
+    border-left: 1px solid var(--line-subtle);
+  }
+  .strip[data-compact="true"] > div:nth-child(n+3) {
+    border-top: 0;
+  }
+  .strip[data-compact="true"] dt {
+    font-size: 11px;
+    line-height: 1.7;
+  }
+  .strip[data-compact="true"] dd {
+    font-size: 18px;
+    margin: 4px 0;
+  }
+}

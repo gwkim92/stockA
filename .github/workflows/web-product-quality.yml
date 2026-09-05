@@ -11,9 +11,12 @@ on:
       - 'docs/tasks/recommendation-investment-memo-v1/**'
       - 'docs/tasks/research-workspace-redesign-v1/**'
       - 'docs/tasks/research-discovery-workspace-v1/**'
+      - 'docs/tasks/portfolio-performance-workspace-v1/**'
       - 'docs/api/frontend/examples/stock-list.json'
       - 'docs/api/frontend/examples/cycle-state-list.json'
       - 'docs/api/frontend/examples/market-map.json'
+      - 'docs/api/frontend/examples/portfolio-coverage.json'
+      - 'docs/api/frontend/examples/performance-outcomes.json'
   push:
     branches: [develop, main]
     paths:
@@ -24,9 +27,12 @@ on:
       - 'docs/tasks/recommendation-investment-memo-v1/**'
       - 'docs/tasks/research-workspace-redesign-v1/**'
       - 'docs/tasks/research-discovery-workspace-v1/**'
+      - 'docs/tasks/portfolio-performance-workspace-v1/**'
       - 'docs/api/frontend/examples/stock-list.json'
       - 'docs/api/frontend/examples/cycle-state-list.json'
       - 'docs/api/frontend/examples/market-map.json'
+      - 'docs/api/frontend/examples/portfolio-coverage.json'
+      - 'docs/api/frontend/examples/performance-outcomes.json'
   workflow_dispatch:
 
 permissions:
@@ -71,6 +77,8 @@ jobs:
         run: npx playwright install --with-deps chromium
       - name: Investor browser verification
         run: npx playwright test --config=playwright.home.config.ts
+      - name: Holdings and outcomes browser verification
+        run: npx playwright test --config=playwright.review.config.ts
       - name: Preserve browser and dependency evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -79,6 +87,8 @@ jobs:
           path: |
             apps/web/test-results/home/
             apps/web/playwright-home-report/
+            apps/web/test-results/review/
+            apps/web/playwright-review-report/
             apps/web/dependency-audit.json
             apps/web/dependency-audit-production.json
           if-no-files-found: ignore
