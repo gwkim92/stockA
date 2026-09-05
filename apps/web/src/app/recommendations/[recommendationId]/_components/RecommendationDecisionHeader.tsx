@@ -31,41 +31,23 @@ type RecommendationDecisionHeaderProps = {
 };
 
 function executionStatusClass({ paperValidationAllowed, brokerSubmitAllowed }: RecommendationExecution) {
-  if (brokerSubmitAllowed) {
-    return styles.statusReady;
-  }
-  if (paperValidationAllowed) {
-    return styles.statusWatch;
-  }
+  if (brokerSubmitAllowed) return styles.statusReady;
+  if (paperValidationAllowed) return styles.statusWatch;
   return styles.statusBlocked;
 }
 
 function productEvidenceLabel(productKind: RecommendationProductKind) {
-  if (productKind === "fund_or_etf") {
-    return "ETF·펀드 핵심";
-  }
-  return "기업 핵심";
-}
-
-function productEvidenceValue(productKind: RecommendationProductKind, counts: RecommendationHeaderCounts) {
-  if (productKind === "fund_or_etf") {
-    return counts.fundHoldingCount === null ? "보유 구성 대기" : `${counts.fundHoldingCount.toLocaleString("ko-KR")}개 보유 구성`;
-  }
-  return counts.financialMetricCount > 0 ? `${counts.financialMetricCount.toLocaleString("ko-KR")}개 재무 지표` : "재무 근거 대기";
+  return productKind === "fund_or_etf" ? "ETF·펀드 핵심" : "기업 핵심";
 }
 
 function productEvidenceContext(productKind: RecommendationProductKind) {
-  if (productKind === "fund_or_etf") {
-    return "구성종목, 비용, NAV 괴리, 추적 품질이 판단의 중심이다.";
-  }
-  return "재무, 밸류에이션, 산업 위치를 뉴스와 사이클 근거와 분리한다.";
+  return productKind === "fund_or_etf"
+    ? "구성종목, 비용, NAV 괴리, 추적 품질이 판단의 중심이다."
+    : "재무, 밸류에이션, 산업 위치를 뉴스와 사이클 근거와 분리한다.";
 }
 
 function productEvidenceHref(productKind: RecommendationProductKind) {
-  if (productKind === "fund_or_etf") {
-    return "#recommendation-fund-analysis";
-  }
-  return "#recommendation-financial-model";
+  return productKind === "fund_or_etf" ? "#recommendation-fund-analysis" : "#recommendation-financial-model";
 }
 
 export function RecommendationDecisionHeader({
@@ -76,7 +58,6 @@ export function RecommendationDecisionHeader({
   positionStatusLabel,
   productKind,
   viewModel,
-  counts,
   execution,
 }: RecommendationDecisionHeaderProps) {
   const executionClassName = executionStatusClass(execution);
@@ -92,6 +73,7 @@ export function RecommendationDecisionHeader({
           {symbol} 추천 판단서
         </h1>
         <p className={styles.summary}>{viewModel.summary}</p>
+        <p className={styles.summary}>{productEvidenceContext(productKind)}</p>
         <div className={styles.statusLine} aria-label="추천 상세 핵심 상태">
           <span className={styles.status}>{viewModel.statusLabel}</span>
           <span className={styles.status}>추천 {recommendationLabel}</span>
