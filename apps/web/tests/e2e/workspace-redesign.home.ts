@@ -55,10 +55,14 @@ test("memo chapter links resolve and shared redesign does not obscure the eviden
   for(const link of await nav.getByRole("link").all()) {
     const href=await link.getAttribute("href");expect(href).toMatch(/^#memo-/);await expect(page.locator(href!)).toHaveCount(1);
   }
+  // Capture the initial reading state before anchor navigation changes focus/scroll.
+  await page.waitForFunction(() => window.scrollY === 0);
+  const titleSize = await page.locator("#recommendation-detail-title").evaluate(el => parseFloat(getComputedStyle(el).fontSize));
+  expect(titleSize).toBeLessThanOrEqual(34);
+  await page.screenshot({path:info.outputPath(`workspace-memo-${info.project.name}.png`),fullPage:true,animations:"disabled"});
+  await page.screenshot({path:info.outputPath(`workspace-memo-${info.project.name}-viewport.png`),animations:"disabled"});
   await nav.getByRole("link",{name:"무효화",exact:true}).click();
   await expect(page.locator("#memo-conditions")).toBeInViewport();
-  await page.evaluate(()=>window.scrollTo({top:0,behavior:"instant"}));
-  await page.screenshot({path:info.outputPath(`workspace-memo-${info.project.name}.png`),fullPage:true,animations:"disabled"});
 });
 
 test("all menus remain discoverable and selection closes the modal",async({page})=>{
