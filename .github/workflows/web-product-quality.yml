@@ -1,0 +1,66 @@
+name: Web Product Quality
+
+on:
+  pull_request:
+    branches: [develop, main]
+    paths:
+      - 'apps/web/**'
+      - '.github/workflows/web-product-quality.yml'
+      - 'docs/tasks/investor-home-reliability-v1/**'
+  push:
+    branches: [develop, main]
+    paths:
+      - 'apps/web/**'
+      - '.github/workflows/web-product-quality.yml'
+      - 'docs/tasks/investor-home-reliability-v1/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: web-product-quality-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  research-home:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: apps/web
+    env:
+      NEXT_TELEMETRY_DISABLED: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Inventory dependency advisories (not release clearance)
+        continue-on-error: true
+        run: npm audit --json > dependency-audit.json
+      - name: Frontend unit regression
+        run: npm test
+      - name: Production build
+        run: npm run build
+      - name: Type check including generated routes
+        run: npm run typecheck
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Investor home browser verification
+        run: npx playwright test --config=playwright.home.config.ts
+      - name: Preserve browser and dependency evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: research-home-browser-evidence
+          path: |
+            apps/web/test-results/home/
+            apps/web/playwright-home-report/
+            apps/web/dependency-audit.json
+          if-no-files-found: ignore
+          retention-days: 7
