@@ -134,3 +134,11 @@
  .resultCount { font-size: 11px; gap: 6px; padding-top: 4px; padding-bottom: 10px; }
  .toolbar { gap: 8px; }
 }
+
+/* Small-screen summaries stay a single scan line rather than delaying the records. */
+@media(max-width: 600px) {
+ .metrics { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+ .metrics > div { padding: 9px 8px; }
+ .metrics > div:nth-child(3) { border-left: 1px solid var(--line-subtle); }
+ .metrics > div:nth-child(n+3) { border-top: none; }
+}
