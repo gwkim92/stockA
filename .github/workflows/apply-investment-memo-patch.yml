@@ -1,0 +1,86 @@
+name: Apply Exact Investment Memo Patch
+on:
+  push:
+    branches: ['codex/recommendation-investment-memo-v1']
+    paths: ['.github/workflows/apply-investment-memo-patch.yml']
+permissions:
+  contents: read
+jobs:
+  apply:
+    if: github.repository == 'gwkim92/stockA' && github.ref == 'refs/heads/codex/recommendation-investment-memo-v1'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Apply exact locally reviewed source bytes without executing project code
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import base64, gzip, hashlib, json, pathlib, subprocess
+          folder = pathlib.Path('docs/tasks/recommendation-investment-memo-v1')
+          data = gzip.decompress(base64.b64decode(''.join((folder/f'transfer-{i}.b64').read_text() for i in range(3)), validate=True))
+          assert hashlib.sha256(data).hexdigest() == 'e1e3d2cf15835c590890e78df19c470652c53db7f1827b11dc8c4f329f2b3dc2'
+          entries = json.loads(data)
+          expected = {
+            'apps/web/playwright.home.config.ts',
+            'apps/web/src/app/recommendations/[recommendationId]/_components/RecommendationDecisionHeader.tsx',
+            'apps/web/src/app/recommendations/[recommendationId]/_components/recommendation-quality-model.ts',
+            'apps/web/src/app/recommendations/[recommendationId]/page.tsx',
+            'apps/web/src/components/recommendation-broker-reality.tsx',
+            'apps/web/src/components/recommendation-executive-brief.module.css',
+            'apps/web/src/components/recommendation-executive-brief.tsx',
+            'apps/web/src/components/recommendation-position-reality.tsx',
+            'apps/web/src/lib/frontend-api.ts',
+            'apps/web/src/lib/presentation/recommendation.ts',
+            'apps/web/src/lib/recommendation-memo-data.ts',
+            'apps/web/src/lib/recommendation-memo-model.ts',
+            'apps/web/src/lib/recommendation-memo.test.tsx',
+            'apps/web/tests/e2e/recommendation-memo-fixture.json',
+            'apps/web/tests/e2e/recommendation-memo.home.ts',
+            'apps/web/tests/e2e/research-home-api.mjs',
+          }
+          assert len(entries) == len(expected) and {e['path'] for e in entries} == expected
+          for e in entries:
+            path = pathlib.Path(e['path'])
+            assert not path.is_symlink()
+            before = path.read_bytes() if path.exists() else b''
+            assert hashlib.sha256(before).hexdigest() == e['before'], ('base drift', str(path))
+            lines = before.decode('utf-8').splitlines(keepends=True)
+            for start, end, text in reversed(e['edits']):
+              assert 0 <= start <= end <= len(lines)
+              lines[start:end] = text.splitlines(keepends=True)
+            after = ''.join(lines).encode('utf-8')
+            assert hashlib.sha256(after).hexdigest() == e['after'], ('transfer drift', str(path))
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(after)
+          subprocess.run(['git','add','--',*sorted(expected)], check=True)
+          subprocess.run(['git','rm','--','.github/workflows/apply-investment-memo-patch.yml',*[str(folder/f'transfer-{i}.b64') for i in range(3)]], check=True)
+          PY
+          git diff --cached --check
+          git diff --cached --stat
+      - name: Commit source and remove transfer helper from this branch only
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = 'refs/heads/codex/recommendation-investment-memo-v1'
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'feat(web): connect recommendation thesis, valuation and review into investment memo'
+          gh auth setup-git
+          git push origin HEAD:refs/heads/codex/recommendation-investment-memo-v1
+          mkdir -p "$RUNNER_TEMP/memo-source"
+          git rev-parse HEAD > "$RUNNER_TEMP/memo-source/commit.txt"
+          git archive --format=tar.gz HEAD apps/web > "$RUNNER_TEMP/memo-source/web-source.tar.gz"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: investment-memo-source
+          path: ${{ runner.temp }}/memo-source/
+          retention-days: 7
