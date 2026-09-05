@@ -1,0 +1,26 @@
+name: Export Prompt Hardening Source
+on:
+  push:
+    branches: [codex/analysis-prompt-hardening-v2]
+    paths: [.github/workflows/export-prompt-hardening-source.yml]
+permissions:
+  contents: read
+jobs:
+  source:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Export tracked source and test fixtures only
+        run: |
+          mkdir -p /tmp/prompt-hardening-source
+          git archive --format=tar.gz HEAD src tests scripts db docs AGENTS.md README.md pyproject.toml .github/workflows > /tmp/prompt-hardening-source/source.tar.gz
+          git rev-parse HEAD > /tmp/prompt-hardening-source/commit.txt
+          sha256sum /tmp/prompt-hardening-source/source.tar.gz > /tmp/prompt-hardening-source/sha256.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: prompt-hardening-source
+          path: /tmp/prompt-hardening-source/
+          retention-days: 3
