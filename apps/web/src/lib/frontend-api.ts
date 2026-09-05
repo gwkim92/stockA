@@ -48,7 +48,7 @@ function fixtureBaseUrl(): string {
   return (process.env.STOCKANALYSIS_FRONTEND_API_BASE_URL ?? DEFAULT_FIXTURE_BASE_URL).replace(/\/$/, "");
 }
 
-export async function fetchFrontendPayload<TData>(path: string): Promise<ApiResponse<TData>> {
+export async function fetchFrontendPayload<TData>(path: string, options: { signal?: AbortSignal } = {}): Promise<ApiResponse<TData>> {
   const headers: Record<string, string> = { Accept: "application/json" };
   const readToken = process.env.STOCKANALYSIS_FRONTEND_API_READ_TOKEN;
   if (readToken) {
@@ -57,6 +57,7 @@ export async function fetchFrontendPayload<TData>(path: string): Promise<ApiResp
 
   const response = await fetch(`${fixtureBaseUrl()}${path}`, {
     cache: "no-store",
+    ...(options.signal ? { signal: options.signal } : {}),
     headers,
   });
 
@@ -1172,11 +1173,11 @@ export function getRecommendations() {
 }
 
 export function getRecommendationDetail(recommendationId: string) {
-  return fetchFrontendPayload<RecommendationDetailData>(`/api/recommendations/${recommendationId}`);
+  return fetchFrontendPayload<RecommendationDetailData>(`/api/recommendations/${encodeURIComponent(recommendationId)}`);
 }
 
-export function getThesisDetail(thesisId: string) {
-  return fetchFrontendPayload<ThesisDetailData>(`/api/theses/${thesisId}`);
+export function getThesisDetail(thesisId: string, options: { signal?: AbortSignal } = {}) {
+  return fetchFrontendPayload<ThesisDetailData>(`/api/theses/${encodeURIComponent(thesisId)}`, options);
 }
 
 export function getPortfolioCoverage(asOfDate = currentIsoDate()) {

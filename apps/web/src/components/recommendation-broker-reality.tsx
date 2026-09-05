@@ -1,11 +1,12 @@
+import { finiteNumber, memoCurrency, memoPositionLabel } from "@/lib/recommendation-memo-model";
 import { brokerOrderBoundaryLabel } from "@/lib/presentation";
 import type { RecommendationPositionReference } from "@/lib/types";
 
 import styles from "./recommendation-position-reality.module.css";
 
 function formatQuantity(value: number | null) {
-  if (value === null) {
-    return "없음";
+  if (value === null || !Number.isFinite(value)) {
+    return "미확인";
   }
   return new Intl.NumberFormat("ko-KR", {
     maximumFractionDigits: value < 1 ? 6 : 2,
@@ -13,14 +14,7 @@ function formatQuantity(value: number | null) {
 }
 
 function formatCurrency(value: number | null, currencyCode: string) {
-  if (value === null) {
-    return "데이터 없음";
-  }
-  return new Intl.NumberFormat("ko-KR", {
-    style: "currency",
-    currency: currencyCode,
-    maximumFractionDigits: currencyCode === "KRW" ? 0 : 2,
-  }).format(value);
+  return memoCurrency(value, currencyCode);
 }
 
 function priceCurrency(position: RecommendationPositionReference) {
@@ -28,7 +22,7 @@ function priceCurrency(position: RecommendationPositionReference) {
 }
 
 function marketPrice(position: RecommendationPositionReference) {
-  if (position.market_price_native !== null) {
+  if (finiteNumber(position.market_price_native) !== null) {
     return {
       value: position.market_price_native,
       currencyCode: priceCurrency(position),
@@ -41,17 +35,11 @@ function marketPrice(position: RecommendationPositionReference) {
 }
 
 function positionStatusLabel(status: string) {
-  if (status === "held") {
-    return "보유 중";
-  }
-  if (status === "not_held") {
-    return "보유 없음";
-  }
-  return "상태 보류";
+  return memoPositionLabel(status);
 }
 
 function hasOpenPosition(position: RecommendationPositionReference) {
-  return position.status === "held" && position.quantity !== null && position.quantity !== 0;
+  return position.status === "held" && finiteNumber(position.quantity) !== null && position.quantity !== 0;
 }
 
 function portfolioDisplayName(name: string) {
@@ -107,8 +95,8 @@ export function RecommendationBrokerReality({
         <BrokerMetric label="보유 수량" value={formatQuantity(position.quantity)} note={position.snapshot_date ?? "스냅샷 없음"} />
         <BrokerMetric
           label="브로커 가격"
-          value={hasPosition ? formatCurrency(price.value, price.currencyCode) : "해당 없음"}
-          note={hasPosition ? position.native_currency_code : "미보유 계좌"}
+          value={hasPosition ? formatCurrency(price.value, price.currencyCode) : position.status === "not_held" ? "해당 없음" : "미확인"}
+          note={hasPosition ? position.native_currency_code : position.status === "not_held" ? "미보유 계좌" : "보유 원장 확인 필요"}
         />
         <BrokerMetric
           label="주문 제출"

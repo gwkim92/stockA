@@ -1,268 +1,76 @@
 import Link from "next/link";
+import type { Route } from "next";
 import { koCode } from "@/lib/korean-labels";
 import type { RecommendationDetailData } from "@/lib/types";
+import { buildRecommendationMemo, NO_LINKED_THESIS, type MemoThesisResult } from "@/lib/recommendation-memo-model";
 import styles from "./recommendation-executive-brief.module.css";
 
-type RecommendationExecutiveBriefProps = {
+function Points({ values, empty }: { values: readonly string[]; empty: string }) {
+  return values.length ? <ul>{values.map((value, i) => <li key={`${i}-${value}`}>{value}</li>)}</ul> : <p className={styles.missing}>{empty}</p>;
+}
+
+export function RecommendationExecutiveBrief({ data, thesis = NO_LINKED_THESIS }: {
   data: RecommendationDetailData;
-};
-
-type BriefTone = "ready" | "watch" | "blocked";
-type Metric = {
-  readonly label: string;
-  readonly value: string;
-  readonly detail: string;
-  readonly tone: BriefTone;
-};
-
-function formatRecommendationPercent(value: number | null, signDisplay?: "exceptZero") {
-  if (value === null) {
-    return "미측정";
-  }
-  return new Intl.NumberFormat("ko-KR", {
-    style: "percent",
-    maximumFractionDigits: 1,
-    ...(signDisplay ? { signDisplay } : {}),
-  }).format(value);
-}
-
-function formatRecommendationCurrency(value: number | null, currencyCode: string) {
-  if (value === null) {
-    return "데이터 없음";
-  }
-  return new Intl.NumberFormat("ko-KR", {
-    style: "currency",
-    currency: currencyCode,
-    maximumFractionDigits: currencyCode === "KRW" ? 0 : 2,
-  }).format(value);
-}
-
-function investorRecommendationText(value: string) {
-  return value
-    .replaceAll("페이퍼", "가상 매매")
-    .replaceAll("valuation snapshot이", "목표가 자료가")
-    .replaceAll("valuation snapshot", "목표가 자료")
-    .replaceAll("목표가 자료이", "목표가 자료가")
-    .replaceAll("professional analysis", "전문 분석")
-    .replaceAll("레이어", "근거 항목");
-}
-
-function formatPercent(value: number | null) {
-  return formatRecommendationPercent(value, "exceptZero");
-}
-
-function formatWeightPercent(value: number | null) {
-  return formatRecommendationPercent(value);
-}
-
-function positionLabel(status: string) {
-  if (status === "held") {
-    return "보유 중";
-  }
-  if (status === "not_held") {
-    return "미보유";
-  }
-  return "상태 보류";
-}
-
-function positionSummary(data: RecommendationDetailData) {
-  const position = data.position_context;
-  if (position.status === "held") {
-    return `현재 비중 ${formatPercent(position.weight)} · 평단가 ${formatRecommendationCurrency(position.average_cost, position.currency_code)}`;
-  }
-  return `현재 비중 없음 · 추천 비중 ${formatWeightPercent(data.recommended_weight)}`;
-}
-
-function valuationSummary(data: RecommendationDetailData) {
-  const valuation = data.valuation_target_range;
-  if (valuation.status === "available") {
-    return `기준 상승여지 ${formatPercent(valuation.upside_base)} · 안전마진 ${formatPercent(valuation.margin_of_safety)}`;
-  }
-  return investorRecommendationText(valuation.summary || "가치 범위 보강 필요").replaceAll("UNKNOWN", data.symbol);
-}
-
-function valuationValue(data: RecommendationDetailData) {
-  const valuation = data.valuation_target_range;
-  if (valuation.target_base !== null) {
-    return formatRecommendationCurrency(valuation.target_base, valuation.currency_code);
-  }
-  if (valuation.base_price !== null) {
-    return formatRecommendationCurrency(valuation.base_price, valuation.currency_code);
-  }
-  return "대기";
-}
-
-function isFundOrEtf(data: RecommendationDetailData) {
-  return Boolean(data.fund_instrument_analysis) || data.professional_evidence_audit.product_type === "fund_or_etf";
-}
-
-function fundStatusLabel(status: string) {
-  if (status === "collected" || status === "available") {
-    return "수집 완료";
-  }
-  if (status === "missing") {
-    return "데이터 없음";
-  }
-  if (status === "stale") {
-    return "오래된 자료";
-  }
-  return investorRecommendationText(status);
-}
-
-function fundLensValue(data: RecommendationDetailData) {
-  const fund = data.fund_instrument_analysis;
-  if (!fund) {
-    return "ETF 근거 대기";
-  }
-  return `${fund.holding_count.toLocaleString("ko-KR")}개 보유`;
-}
-
-function fundLensSummary(data: RecommendationDetailData) {
-  const fund = data.fund_instrument_analysis;
-  if (!fund) {
-    return "ETF 보유종목, 비용률, 추적차이 자료가 아직 연결되지 않았다.";
-  }
-  return `커버리지 ${formatWeightPercent(fund.holdings_coverage_weight)} · 비용률 ${formatWeightPercent(fund.expense_ratio.value)} · 유동성 ${fundStatusLabel(fund.liquidity.status)}`;
-}
-
-function evidenceTone(data: RecommendationDetailData): BriefTone {
-  const audit = data.professional_evidence_audit;
-  if (audit.source_blocker.blocked || audit.blocked_layer_count > 0) {
-    return "blocked";
-  }
-  if (audit.missing_layer_count > 0 || audit.pending_layer_count > 0) {
-    return "watch";
-  }
-  return "ready";
-}
-
-function tradeTone(data: RecommendationDetailData): BriefTone {
-  const decision = data.professional_decision_waterfall;
-  if (decision.broker_submit_allowed) {
-    return "ready";
-  }
-  if (decision.paper_validation_input_allowed) {
-    return "watch";
-  }
-  return "blocked";
-}
-
-function toneClassName(tone: BriefTone) {
-  if (tone === "ready") {
-    return styles.ready;
-  }
-  if (tone === "blocked") {
-    return styles.blocked;
-  }
-  return styles.watch;
-}
-
-function CompactMetric({
-  label,
-  value,
-  detail,
-  tone,
-}: Metric) {
+  thesis?: MemoThesisResult;
+}) {
+  const memo = buildRecommendationMemo(data, thesis);
   return (
-    <div className={`${styles.metric} ${toneClassName(tone)}`}>
-      <span>{label}</span>
-      <strong>{value}</strong>
-      <small>{detail}</small>
-    </div>
-  );
-}
-
-export function RecommendationExecutiveBrief({ data }: RecommendationExecutiveBriefProps) {
-  const evidence = data.professional_evidence_audit;
-  const decision = data.professional_decision_waterfall;
-  const position = data.position_context;
-  const fundOrEtf = isFundOrEtf(data);
-  const hasOrderBlocked = !decision.broker_submit_allowed;
-  const cleanText = (value: string) => investorRecommendationText(value).replaceAll("UNKNOWN", data.symbol);
-  const evidenceSummary = cleanText(evidence.summary || decision.summary);
-  const metrics: readonly Metric[] = [
-    {
-      label: "보유 현실",
-      value: positionLabel(position.status),
-      detail: positionSummary(data),
-      tone: position.status === "held" ? "ready" : "watch",
-    },
-    {
-      label: fundOrEtf ? "ETF 구조" : "가치 범위",
-      value: fundOrEtf ? fundLensValue(data) : valuationValue(data),
-      detail: fundOrEtf ? fundLensSummary(data) : valuationSummary(data),
-      tone: fundOrEtf || data.valuation_target_range.status === "available" ? "ready" : "watch",
-    },
-    {
-      label: "근거 품질",
-      value: `${evidence.available_layer_count}/${evidence.expected_layer_count}개 충족`,
-      detail:
-        evidence.missing_layer_count > 0
-          ? `보강 필요 ${evidence.missing_layer_count}개 · 차단 ${evidence.blocked_layer_count}개`
-          : "전문 근거 레이어가 연결됐다.",
-      tone: evidenceTone(data),
-    },
-    {
-      label: "거래 경계",
-      value: hasOrderBlocked ? "실거래 차단" : "주문 가능",
-      detail: decision.paper_validation_input_allowed ? "가상 매매 입력 가능 · 실거래는 별도 승인 필요" : "가상 매매 입력 전 보강 필요",
-      tone: tradeTone(data),
-    },
-  ];
-
-  return (
-    <section className={styles.brief} aria-labelledby="recommendation-executive-brief-title">
-      <div className={styles.main}>
-        <div className={styles.header}>
-          <span>{fundOrEtf ? "ETF 추천 결론" : "개별 주식 추천 결론"}</span>
-          <h2 id="recommendation-executive-brief-title">{cleanText(evidence.title || `${data.symbol} 추천 판단`)}</h2>
-          <p>{evidenceSummary}</p>
+    <section className={styles.brief} id="recommendation-investment-memo" aria-labelledby="recommendation-executive-brief-title" data-testid="investment-memo">
+      <header className={styles.header}>
+        <span>{memo.isFund ? "ETF·펀드 투자 판단" : "기업 투자 판단"} · 분석 기준 {memo.analysisDate ?? "미확인"}</span>
+        <h2 id="recommendation-executive-brief-title">투자 논리와 판단 조건</h2>
+        <p>요약과 원천을 함께 읽고, 어떤 조건에서 판단을 바꿀지 확인하세요. 실거래 주문과 자동 비중 변경은 실행하지 않습니다.</p>
+      </header>
+      <div className={styles.overview}>
+        <div><span>보유 상태</span><strong>{memo.positionLabel}</strong><p>{memo.positionSummary}</p></div>
+        <div data-tone={memo.evidence.tone}><span>근거 연결 상태</span><strong>{memo.evidence.label}</strong><p>{memo.evidence.detail}</p></div>
+      </div>
+      <p className={styles.notice} role="status">{memo.notice}</p>
+      <article className={styles.claim}>
+        <h3>왜 투자 후보인가</h3><small>{memo.claimSource}</small>
+        <p>{memo.summary}</p>
+        <Points values={memo.claims} empty="뒷받침하는 핵심 주장이 기록되지 않았습니다." />
+      </article>
+      <div className={styles.grid}>
+        <article><h3>어떤 변화가 촉매인가</h3><small>{memo.catalystSource}</small><Points values={memo.catalysts} empty="확인할 촉매가 기록되지 않았습니다." /></article>
+        <article><h3>반대 근거와 주요 위험</h3><small>{memo.riskSource}</small><Points values={memo.risks} empty="반대 근거와 위험이 기록되지 않았습니다. 위험이 없다는 뜻은 아닙니다." /></article>
+        <article><h3>언제 판단을 철회하나</h3><small>{memo.conditionSource}</small>
+          {memo.conditions.length ? <ul>{memo.conditions.map((item, i) => <li key={i}>{item.condition}<small className={styles.conditionStatus}>기록 상태: {koCode(item.status)}</small></li>)}</ul>
+            : <p className={styles.missing}>무효화 조건이 기록되지 않았습니다.</p>}
+        </article>
+        <article><h3>다음 검토에서 무엇을 확인하나</h3>
+          <dl><div><dt>최근 검토</dt><dd>{memo.reviewedAt ?? "미기록"}</dd></div><div><dt>기록된 다음 검토일</dt><dd>{memo.nextReview ?? "미지정"}</dd></div></dl>
+          <p>{memo.reviewSummary}</p><small>저장된 검토 일정이며, 이 화면에서 새 실행 일정을 만들지 않습니다.</small>
+          {memo.thesisHref && <Link href={memo.thesisHref as Route}>전체 투자 논리와 검토 이력</Link>}
+        </article>
+      </div>
+      {memo.isFund ? <article className={styles.valuation}>
+        <h3>ETF 구성과 비용을 어떻게 볼 것인가</h3>
+        <small>보유 구성 기준 {memo.fund.date ?? "미확인"} · 비용 기준 {memo.fund.expenseDate ?? "미확인"}</small>
+        <dl><div><dt>보유 구성</dt><dd>{memo.fund.count === null ? "미확인" : `${memo.fund.count}개`}</dd></div>
+          <div><dt>구성 커버리지</dt><dd>{memo.fund.coverage}</dd></div><div><dt>비용률</dt><dd>{memo.fund.expense}</dd></div><div><dt>벤치마크</dt><dd>{memo.fund.benchmark}</dd></div></dl>
+        <p>ETF에는 개별 기업의 목표 가치를 대신 적용하지 않습니다. NAV 괴리와 추적 품질은 원천 자료에서 함께 확인하세요.</p>
+        <Link href="#recommendation-fund-analysis">ETF 구성·비용·추적 근거</Link>
+      </article> : <article className={styles.valuation}>
+        <h3>가격과 추정 가치는 어떻게 다른가</h3>
+        <small>가치평가 기준 {memo.valuation.date ?? "미확인"} · 기준 주가는 추정 가치가 아닙니다.</small>
+        <dl><div><dt>분석 기준 주가</dt><dd>{memo.valuation.referencePrice}</dd></div><div><dt>모형 추정 가치</dt><dd>{memo.valuation.target}</dd></div>
+          <div><dt>추정 범위 하단</dt><dd>{memo.valuation.low}</dd></div><div><dt>추정 범위 상단</dt><dd>{memo.valuation.high}</dd></div></dl>
+        <details><summary>모형별 핵심 가정</summary>{memo.valuation.methods.length ? memo.valuation.methods.map((method, i) => <div key={i} className={styles.method}>
+          <strong>{method.name}</strong><small>기준 {method.date ?? "미확인"}</small>
+          {method.assumptions.length ? <ul>{method.assumptions.map((item, j) => <li key={j}>{item.label}: {item.value}{item.interpretation ? ` · ${item.interpretation}` : ""}</li>)}</ul> : <p>가정이 기록되지 않았습니다.</p>}
+        </div>) : <p>연결된 가치평가 모형이 없습니다.</p>}</details>
+        <Link href="#recommendation-valuation">가치평가 전체 근거</Link>
+      </article>}
+      <footer className={styles.sources}>
+        <h3>원문과 상세 근거</h3>
+        <small>{memo.isFund ? "상품 원천은 ETF 상세 근거에서 확인하세요." : `기업 리서치 기준 ${memo.researchDate ?? "미확인"}. 아래는 리서치에 연결된 원문 목록이며, 모든 주장에 대한 개별 검증을 뜻하지 않습니다.`}</small>
+        <div>{memo.sources.map((source, i) => <Link key={source.id} href={source.href as Route}>연결 원문 {i + 1}</Link>)}
+          <Link href={`/stocks/${encodeURIComponent(data.symbol)}` as Route}>종목 리서치</Link>
+          <Link href="#recommendation-evidence-review">뉴스·점수 출처 대조</Link>
         </div>
-
-        <div className={styles.decisionLine} aria-label="추천 상세 핵심 판단">
-          <div>
-            <span>추천</span>
-            <strong>{koCode(data.recommendation)}</strong>
-          </div>
-          <div>
-            <span>점수</span>
-            <strong>{formatPercent(data.score)}</strong>
-          </div>
-          <div>
-            <span>포지션</span>
-            <strong>{positionLabel(position.status)}</strong>
-          </div>
-          <div>
-            <span>실거래</span>
-            <strong>{hasOrderBlocked ? "차단" : "허용"}</strong>
-          </div>
-        </div>
-      </div>
-
-      <aside className={styles.readingPath} aria-label="이 추천서를 읽는 순서">
-        <span>읽는 순서</span>
-        <ol>
-          <li>보유 여부와 평단가를 먼저 본다.</li>
-          <li>{fundOrEtf ? "보유 구성·비용·추적 품질을 대조한다." : "가치 범위와 재무 근거를 대조한다."}</li>
-          <li>근거 품질과 주문 차단 여부를 마지막에 대조한다.</li>
-        </ol>
-      </aside>
-
-      <div className={styles.metricStrip}>
-        {metrics.map((metric) => (
-          <CompactMetric key={metric.label} {...metric} />
-        ))}
-      </div>
-
-      <div className={styles.actions}>
-        <Link href={`/stocks/${encodeURIComponent(data.symbol)}`}>종목 리서치</Link>
-        <Link href="#recommendation-position-reality">포지션 확인</Link>
-        <Link href={fundOrEtf ? "#recommendation-fund-analysis" : "#recommendation-valuation"}>
-          {fundOrEtf ? "ETF 근거" : "밸류에이션"}
-        </Link>
-        <Link href="/paper-trading">가상 매매</Link>
-        <Link href="#recommendation-professional-flow">전문 분석 흐름</Link>
-      </div>
+        {!memo.isFund && memo.sources.length === 0 && <p className={styles.missing}>연결된 기업 리서치 원문이 없습니다.</p>}
+      </footer>
     </section>
   );
 }

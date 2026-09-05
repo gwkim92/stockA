@@ -1,6 +1,8 @@
 import { RecommendationExecutiveBrief } from "@/components/recommendation-executive-brief";
 import { RecommendationPositionReality } from "@/components/recommendation-position-reality";
 import { getRecommendationDetail } from "@/lib/frontend-api";
+import { loadRecommendationThesis } from "@/lib/recommendation-memo-data";
+import { memoPositionLabel } from "@/lib/recommendation-memo-model";
 import { koCode } from "@/lib/korean-labels";
 import { buildRecommendationViewModel, recommendationProductKind } from "@/lib/presentation";
 
@@ -45,6 +47,7 @@ export default async function RecommendationPage({ params }: RecommendationPageP
   if (!hasProfessionalRecommendationDetail(data)) {
     return <RecommendationCompatibilityReport data={data} />;
   }
+  const linkedThesis = await loadRecommendationThesis(data);
   const qualityDecision = recommendationQualityDecision(data);
   const qualityChecks = recommendationQualityChecks(data);
   const traceCards = recommendationEvidenceTraceCards(data);
@@ -54,7 +57,12 @@ export default async function RecommendationPage({ params }: RecommendationPageP
   const brokerStack = brokerComponents(data.score_components);
   const financialStatementModel = data.financial_statement_model;
   const outcomeMeasured = data.outcome.label !== "unmeasured" && Boolean(data.outcome.measurement_end_date);
-  const decisionWaterfall = data.professional_decision_waterfall;
+  const sourceBlocked = data.professional_evidence_audit.source_blocker.blocked === true
+    || data.professional_source_guardrail?.blocked === true
+    || data.professional_decision_waterfall.status === "source_data_blocked";
+  const decisionWaterfall = sourceBlocked
+    ? { ...data.professional_decision_waterfall, paper_validation_input_allowed: false }
+    : data.professional_decision_waterfall;
   const professionalAudit = data.professional_evidence_audit;
   const productProfile = recommendationProductProfile(data);
   const recommendationProduct = recommendationProductKind(data);
@@ -63,7 +71,7 @@ export default async function RecommendationPage({ params }: RecommendationPageP
   const watchDecisionStepCount = decisionWaterfall.steps.filter((step) => step.tone === "watch" || step.tone === "neutral").length;
   const blockedDecisionStepCount = decisionWaterfall.steps.filter((step) => step.tone === "blocked").length;
   const marketCorrelationCount = data.market_correlations.length;
-  const positionStatusLabel = data.position_context.status === "held" ? "보유 중" : "미보유";
+  const positionStatusLabel = memoPositionLabel(data.position_context.status);
   const waterfallCards = recommendationWaterfallCards({
     data,
     productProfile,
@@ -114,7 +122,7 @@ export default async function RecommendationPage({ params }: RecommendationPageP
         }}
       />
 
-      <RecommendationExecutiveBrief data={data} />
+      <RecommendationExecutiveBrief data={data} thesis={linkedThesis} />
 
       <RecommendationPositionReality data={data} />
 

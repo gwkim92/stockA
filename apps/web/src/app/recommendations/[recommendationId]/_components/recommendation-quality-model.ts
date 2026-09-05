@@ -1,3 +1,4 @@
+import { memoEvidenceAssessment } from "@/lib/recommendation-memo-model";
 import type {
   RecommendationProductProfile,
   RecommendationQualityDecision,
@@ -52,7 +53,7 @@ function qualityToneToFocusTone(tone: RecommendationQualityDecision["tone"]): Re
 export function recommendationQualityDecision(data: RecommendationDetailData): RecommendationQualityDecision {
   const blockedCount = reviewCount(data.evidence_review.summary.blocked_count);
   const warningCount = reviewCount(data.evidence_review.summary.warning_count);
-  const sourceDataBlocked = data.professional_decision_waterfall.status === "source_data_blocked";
+  const sourceDataBlocked = data.professional_decision_waterfall.status === "source_data_blocked" || data.professional_evidence_audit.source_blocker.blocked === true || data.professional_source_guardrail?.blocked === true;
   const adverseRecommendation = ["avoid", "exclude", "sell", "exit"].includes(data.recommendation);
   const weakScore = data.score < 0.35;
   const outcomeMeasured = data.outcome.label !== "unmeasured" && Boolean(data.outcome.measurement_end_date);
@@ -64,6 +65,9 @@ export function recommendationQualityDecision(data: RecommendationDetailData): R
       tone: "risk-high",
       summary: "정기 재무제표나 검증된 해석기가 없어 이 추천은 기록으로만 보존한다. 뉴스·가격 근거가 있어도 전문 판단 입력이나 가상 매매 검증 입력으로 넘기면 안 된다.",
     };
+  }
+  if (memoEvidenceAssessment(data.professional_evidence_audit).label === "근거 상태 미확인") {
+    return { status: "근거 상태 미확인", tone: "risk-medium", summary: "기대 근거 수와 감사 상태가 확인되지 않아 품질 통과로 간주하지 않습니다." };
   }
   if (blockedCount > 0) {
     return {

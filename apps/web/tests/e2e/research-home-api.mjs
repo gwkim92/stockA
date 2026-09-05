@@ -1,5 +1,7 @@
 // Isolated localhost fixture API for SSR browser tests. Never connects to a database.
 import { createServer } from "node:http";
+import { readFileSync } from "node:fs";
+const memoFixture = JSON.parse(readFileSync(new URL('./recommendation-memo-fixture.json', import.meta.url), 'utf8'));
 let scenario = "healthy";
 const server = createServer(async (request, response) => {
   const path = new URL(request.url, "http://127.0.0.1").pathname;
@@ -17,6 +19,42 @@ const server = createServer(async (request, response) => {
     response.writeHead(200, { "Content-Type": "application/json" }); response.write('{"data":');
     const timer = setTimeout(() => response.end("{}}"), 30_000);
     response.on("close", () => clearTimeout(timer)); return;
+  }
+  if (path === "/api/recommendations/recommendation-1" || path === "/api/theses/thesis-1") {
+    const sample = structuredClone(memoFixture);
+    if (path.startsWith("/api/theses/")) {
+      if (scenario === "memo-thesis-down") return send(503, { error: { message: "secret-thesis-password" } });
+      if (scenario === "memo-thesis-mismatch") { sample.thesis.instrument_id = "wrong-instrument"; sample.thesis.summary = "ALIEN-CLAIM"; }
+      if (scenario === "memo-no-review") sample.thesis.latest_review.next_review_date = "";
+      if (scenario === "memo-thesis-slow") {
+        response.writeHead(200, { "Content-Type": "application/json" }); response.write('{"data":');
+        const timer = setTimeout(() => response.end("{}}"), 30_000); response.on("close", () => clearTimeout(timer)); return;
+      }
+    }
+    const data = sample.recommendation;
+    if (scenario === "memo-source-blocked") { data.professional_evidence_audit.source_blocker.blocked = true; data.professional_evidence_audit.source_blocker.summary = "정기 재무 원천이 없어 투자 판단을 보류합니다."; }
+    if (scenario === "memo-unknown") {
+      data.linked_thesis_id = ""; data.equity_research = null;
+      data.professional_evidence_audit.status = "not_available";
+      data.professional_evidence_audit.available_layer_count = 0; data.professional_evidence_audit.expected_layer_count = 0;
+      data.valuation_target_range.status = "unavailable"; data.valuation_target_range.target_base = null; data.valuation_target_range.methods = [];
+      for (const p of [data.position_context, data.position_context.broker_reference]) { p.status = "unknown"; p.quantity = null; p.average_cost = null; p.cost_basis_native = null; }
+    }
+    if (scenario === "memo-fund") {
+      data.symbol = "SPY"; data.instrument_id = "instrument-2"; data.linked_thesis_id = "";
+      data.professional_evidence_audit.product_type = "fund_or_etf";
+      data.fund_instrument_analysis = {
+        status: "available", analysis_type: "fund", symbol: "SPY", summary: "지수 노출과 비용·추적 품질을 검토합니다.", benchmark_code: "S&P 500", benchmark_source: "fixture", source_type: "fixture", source_as_of_date: "2026-09-04",
+        holding_count: 500, holdings_coverage_weight: 0.99, average_holding_confidence: 0.9, top_holdings: [],
+        portfolio_role: { portfolio_name: "Long Term Paper", current_weight: null, recommended_weight: null, role: "core", rationale: "지수 노출" },
+        tracking_error: { status: "missing", value: null, metric_type: "tracking_difference", tracking_difference_value: null, source_name: "", source_as_of_date: "", source_url: "", measurement_window: "", measurement_basis: "", benchmark_name: "S&P 500", fund_return: null, benchmark_return: null, summary: "추적 자료 대기" },
+        expense_ratio: { status: "collected", value: 0.0009, source_name: "fixture", source_as_of_date: "2026-09-03", source_url: "", summary: "검증용 비용률" },
+        liquidity: { status: "missing", source_name: "", source_as_of_date: "", observation_count: 0, latest_volume: null, average_daily_volume: null, average_daily_dollar_volume: null, summary: "유동성 자료 대기" },
+        nav_premium_discount: { status: "missing", nav_per_share: null, nav_as_of_date: "", bid_ask_midpoint: null, closing_price: null, market_price_as_of_date: "", premium_discount_to_nav: null, premium_discount_as_of_date: "", source_name: "", source_url: "", summary: "NAV 자료 대기" },
+        limitations: ["지수 구성 집중 위험"], score_policy: "recommendation_weights_unchanged", automatic_order_allowed: false, broker_submit_allowed: false, order_boundary: "read_only_no_order",
+      };
+    }
+    return send(200, { contract_version: "frontend-api-v0.1", generated_at: new Date().toISOString(), data: path.startsWith("/api/theses/") ? sample.thesis : data, links: {} });
   }
   const today = new Date().toISOString().slice(0, 10);
   const asOf = scenario === "historical" ? "2001-01-01" : today;
