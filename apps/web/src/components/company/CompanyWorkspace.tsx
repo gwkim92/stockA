@@ -27,10 +27,10 @@ export function CompanyWorkspace({ data }: { data: CompanyData }) {
     <nav className={styles.chapters} aria-label="기업 리서치 목차">{chapters.map(([id, label]) => <a key={id} href={`#${id}`}>{label}</a>)}</nav>
     <div className={styles.signal} data-blocked={data.blocked} role="status"><strong>{data.blocked ? '원천 제한 · 투자 근거 보완 필요' : sourceKnown ? '원천 판정과 투자 논리를 함께 확인하세요' : '전문 원천 판정 미확인'}</strong><p>{text(data.guard.summary, '자료가 연결되었다는 것만으로 검토 통과나 주문 가능 상태를 뜻하지 않습니다.')}</p>{text(data.guard.blocker_label, '') && <p>{text(data.guard.blocker_label)}</p>}</div>
     <dl className={styles.metrics}>
-      <div><dt>기록된 종가</dt><dd>{currencyValue(data.price, data.currency)}</dd><small>관측일 {data.priceDate ?? '미확인'}</small></div>
-      <div><dt>보고된 1일 변화</dt><dd>{percentage(data.daily)}</dd><small>누락된 변화율을 보간하지 않음</small></div>
-      <div><dt>보유 기록</dt><dd>{data.positionState === 'held' ? '보유 연결' : data.positionState === 'none' ? '보유 수량 없음' : '미확인'}</dd><small>{data.position ? `${text(data.position.portfolio_name)} · ${shortDate(data.position.snapshot_date, '기준일 미확인')}` : '반환된 기록 기준'}</small></div>
-      <div><dt>추천 기록</dt><dd>{data.recommendationState === 'linked' ? '판단서 연결' : data.recommendationState === 'none' ? '연결 없음' : '미확인'}</dd><small>{recommendation ? `모델 점수 ${decimal(recommendation.score)} · 수익률 아님` : '없음과 미확인을 구분'}</small></div>
+      <div><dt>기록된 종가</dt><dd>{currencyValue(data.price, data.currency)}<small>관측일 {data.priceDate ?? '미확인'}</small></dd></div>
+      <div><dt>보고된 1일 변화</dt><dd>{percentage(data.daily)}<small>누락된 변화율을 보간하지 않음</small></dd></div>
+      <div><dt>보유 기록</dt><dd>{data.positionState === 'held' ? '보유 연결' : data.positionState === 'none' ? '보유 수량 없음' : '미확인'}<small>{data.position ? `${text(data.position.portfolio_name)} · ${shortDate(data.position.snapshot_date, '기준일 미확인')}` : '반환된 기록 기준'}</small></dd></div>
+      <div><dt>추천 기록</dt><dd>{data.recommendationState === 'linked' ? '판단서 연결' : data.recommendationState === 'none' ? '연결 없음' : '미확인'}<small>{recommendation ? `모델 점수 ${decimal(recommendation.score)} · 수익률 아님` : '없음과 미확인을 구분'}</small></dd></div>
     </dl>
     <div className={styles.workbench}><div className={styles.main}>
       <Section id="company-case" title={data.fundKind ? '어떤 노출을 위한 상품인가' : '왜 이 기업을 검토하는가'}>

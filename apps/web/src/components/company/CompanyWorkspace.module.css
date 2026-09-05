@@ -14,7 +14,7 @@
 .metrics { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); margin: 0 0 22px; border: 1px solid var(--line-subtle); border-radius: 10px; background: white; }
 .metrics > div { padding: 16px 18px; min-width: 0; }.metrics > div + div { border-left: 1px solid var(--line-subtle); }
 .metrics dt { font-size: 12px; color: var(--ink-secondary); }.metrics dd { font-size: 21px; font-weight: 700; margin: 7px 0; font-variant-numeric: tabular-nums; }
-.metrics small { font-size: 11px; color: var(--ink-muted); line-height: 1.7; display: block; }
+.metrics small { font-weight: 400; margin-top: 6px; font-size: 11px; color: var(--ink-muted); line-height: 1.7; display: block; }
 .workbench { display: grid; grid-template-columns: minmax(0,2.5fr) minmax(245px,1fr); align-items: start; gap: 22px; }
 .main, .side { display: grid; gap: 22px; min-width: 0; }
 .side { position: sticky; top: 84px; }
