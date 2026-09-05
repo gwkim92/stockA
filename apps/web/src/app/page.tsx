@@ -2,9 +2,10 @@ import type { Route } from "next";
 import Link from "next/link";
 
 import { DecisionList, type DecisionListItem } from "@/components/research/DecisionList";
-import { DecisionSummary } from "@/components/research/DecisionSummary";
+import { WorkspaceIcon } from "@/components/shell/WorkspaceIcon";
+import { StatusBadge } from "@/components/status/StatusBadge";
 import { MetricStrip, type MetricItem } from "@/components/research/MetricStrip";
-import { ResearchSection } from "@/components/research/ResearchSection";
+
 import { koCode, koReason } from "@/lib/korean-labels";
 import { investorCopy } from "@/lib/presentation";
 import { loadResearchHomeSnapshot } from "@/lib/research-home-data";
@@ -13,8 +14,7 @@ import {
   homeHealth, recommendationStatus, record, rows, text, type HomeFeed,
 } from "@/lib/research-home-model";
 
-import styles from "./HomePage.module.css";
-import research from "./ResearchHome.module.css";
+import styles from "./ResearchHome.module.css";
 
 export const dynamic = "force-dynamic";
 
@@ -27,7 +27,7 @@ const ratioLabel = (value: unknown) => {
   return number === null ? "미확인" : `${(number * 100).toFixed(1)}%`;
 };
 function SourceNote({ feed }: { feed: HomeFeed }) {
-  return <p className={research.sourceNote} role="status">{feedCaption(feed)}</p>;
+  return <p className={styles.sourceNote} role="status">{feedCaption(feed)}</p>;
 }
 
 export default async function HomePage() {
@@ -108,53 +108,56 @@ export default async function HomePage() {
 
   return (
     <div className={styles.page} data-testid="research-home">
-      <div className={research.intro}><DecisionSummary
-        eyebrow={`중장기 투자 리서치 · 조회 기준 ${snapshot.requestedDate} UTC`}
-        title="시장 변화에서 투자 판단까지"
-        description="어떤 테마가 바뀌었는지, 어떤 기업의 투자 논리가 유효한지, 보유 판단을 다시 볼 이유가 있는지 확인하세요. 3개월부터 1년 이상을 보는 리서치 화면입니다."
-        primaryAction={{ href: "/cycle-map", label: "사이클 지도 보기" }}
-        secondaryActions={[
-          { href: "/recommendations", label: "투자 후보 검토" },
-          { href: "/portfolio/coverage", label: "보유 논리 점검" },
-        ]}
-        side={<><strong>{loadedCount === 0 ? "분석 데이터 연결을 확인해 주세요" : "논리·촉매·무효화 조건"}</strong><p>후보를 검토한 뒤 보유 논리가 유지되는지 계속 점검합니다. 실거래 주문은 비활성입니다.</p></>}
-      /></div>
-      <div className={research.metrics}><MetricStrip items={metrics} label="리서치 현황" /></div>
-      <nav className={styles.decisionLine} aria-label="투자 판단 경로">
-        {[
-          ["/market-map", "시장", "거시 배경"], ["/cycle-map", "사이클", "테마 변화"],
-          ["/intelligence", "뉴스", "원문 근거"], ["/stocks", "종목", "기업 분석"],
-          ["/recommendations", "투자 후보", "논리·무효화 조건"], ["/portfolio/coverage", "포트폴리오", "보유 재검토"],
-        ].map(([href, label, context]) => <Link href={href as Route} key={href}><span>{label}</span><small>{context}</small></Link>)}
+      <header className={styles.heading}>
+        <div><p className={styles.eyebrow}>RESEARCH OVERVIEW</p><h1>리서치 브리핑</h1><p>시장 변화에서 기업의 근거까지, 오늘 살펴볼 흐름을 연결합니다.</p></div>
+        <div className={styles.headingActions}><span className={styles.date}>{snapshot.requestedDate} <small>UTC</small></span><Link href="/recommendations">투자 후보 보기 <WorkspaceIcon name="arrow" /></Link></div>
+      </header>
+      <MetricStrip items={metrics} label="리서치 현황" />
+      {loadedCount < HOME_FEEDS.length && <p className={styles.connectionNotice} role="status"><WorkspaceIcon name="health" />{homeHealth(snapshot)} · 연결된 영역은 계속 표시합니다.</p>}
+      <div className={styles.workbench}>
+        <div className={styles.primaryColumn}>
+          <section className={styles.panel} aria-labelledby="home-cycle-title">
+            <header className={styles.panelHeader}><div><span>01 / MARKET CYCLES</span><h2 id="home-cycle-title">지금 살펴볼 테마</h2></div><Link href="/cycle-map">사이클 지도 <WorkspaceIcon name="arrow" /></Link></header>
+            <SourceNote feed={cycles} />
+            {cycles.data && (cycleItems.length ? <div className={styles.cycleGrid}>{cycleItems.slice(0,3).map((item, index) => <article key={item.key} className={styles.cycleCard}>
+              <div className={styles.cycleTop}><span className={styles.cycleIcon}><WorkspaceIcon name="cycle" /></span><span>{item.label}</span></div>
+              <h3>{text(selectedCycles[index]?.theme_name, item.subject)}</h3>
+              <p className={styles.cycleState}>{item.title}</p>
+              <p>연결 종목 {countLabel(selectedCycles[index]?.instrument_count)}</p>
+              <Link href={item.href}>테마 근거 보기 <WorkspaceIcon name="arrow" /></Link>
+            </article>)}</div> : <p className={styles.empty}>조회된 사이클 목록이 비어 있습니다.</p>)}
+            <p className={styles.panelFootnote}>상태 전환은 관측 결과이며 매수 신호가 아닙니다.</p>
+          </section>
+          <section className={styles.panel} aria-labelledby="home-candidates-title">
+            <header className={styles.panelHeader}><div><span>02 / INVESTMENT RESEARCH</span><h2 id="home-candidates-title">검토할 투자 후보</h2></div><Link href="/recommendations">전체 후보 <WorkspaceIcon name="arrow" /></Link></header>
+            <SourceNote feed={recommendations} />
+            {recommendations.data && <DecisionList items={recommendationItems} emptyText="조회된 투자 후보 목록이 비어 있습니다." />}
+            <p className={styles.panelFootnote}>원래 추천 순위를 유지합니다. 점수보다 논리·원천·무효화 조건을 확인하세요.</p>
+          </section>
+        </div>
+        <aside className={styles.secondaryColumn} aria-label="함께 확인할 리서치">
+          <section className={styles.panel} aria-labelledby="home-review-title">
+            <header className={styles.panelHeader}><div><span>PORTFOLIO REVIEW</span><h2 id="home-review-title">보유 논리 재검토</h2></div><WorkspaceIcon name="portfolio" /></header>
+            <SourceNote feed={portfolio} />
+            {portfolio.data && (riskItems.length ? riskItems.map((item) => <article className={styles.sideItem} key={item.key}>
+              <div className={styles.sideIdentity}><strong>{item.subject}</strong><StatusBadge kind={item.status} label="검토 필요" /></div><h3>{item.title}</h3><p>{item.description}</p><Link href={item.href}>{item.actionLabel} <WorkspaceIcon name="arrow" /></Link>
+            </article>) : <p className={styles.empty}>조회된 우선 검토 항목이 없습니다. 전체 위험 평가는 포트폴리오 상세에서 확인하세요.</p>)}
+          </section>
+          <section className={styles.panel} aria-labelledby="home-news-title">
+            <header className={styles.panelHeader}><div><span>CONNECTED EVIDENCE</span><h2 id="home-news-title">연결된 뉴스</h2></div><WorkspaceIcon name="news" /></header>
+            <SourceNote feed={news} />
+            {news.data && (evidenceItems.length ? evidenceItems.map((item) => <article className={styles.sideItem} key={item.key}>
+              <span className={styles.newsTag}>{item.label}</span><h3>{item.title}</h3><p>{item.description}</p><div className={styles.newsBottom}><span>{item.subject}</span><Link href={item.href}>{item.actionLabel} <WorkspaceIcon name="arrow" /></Link></div>
+            </article>) : <p className={styles.empty}>조회된 뉴스 근거 목록이 비어 있습니다.</p>)}
+          </section>
+          <Link href="/performance" className={styles.performanceCard}><WorkspaceIcon name="performance" /><span><strong>지난 판단은 어땠을까요?</strong><small>지난 판단의 수익률·벤치마크 대비 성과 확인</small></span><WorkspaceIcon name="arrow" /></Link>
+        </aside>
+      </div>
+      <nav className={styles.journey} aria-label="투자 판단 경로">
+        {[["/market-map","시장 읽기"],["/cycle-map","테마 탐색"],["/stocks","기업 분석"],["/recommendations","판단서 읽기"],["/portfolio/coverage","보유 재검토"]].map(([href,label],index) => <Link href={href as Route} key={href}><span>0{index+1}</span>{label}<WorkspaceIcon name="arrow" /></Link>)}
       </nav>
-      <ResearchSection eyebrow="시장 → 테마" title="어떤 사이클이 바뀌었나" description="관측된 상태 전환을 먼저 봅니다. 전환 방향만으로 상승 가능성이나 매수 적합성을 단정하지 않습니다.">
-        <SourceNote feed={cycles} />
-        {cycles.data && <DecisionList items={cycleItems} emptyText="조회된 사이클 목록이 비어 있습니다." />}
-      </ResearchSection>
-      <ResearchSection eyebrow="테마 → 기업 → 투자 논리" title="검토할 투자 후보와 판단 근거" description="기존 추천 순위를 유지합니다. 원천 제한, 투자 논리와 무효화 조건을 읽은 뒤 판단하세요.">
-        <SourceNote feed={recommendations} />
-        {recommendations.data && <DecisionList items={recommendationItems} emptyText="조회된 투자 후보 목록이 비어 있습니다." />}
-      </ResearchSection>
-      <ResearchSection eyebrow="판단을 뒷받침하는 자료" title="연결된 뉴스와 원문 근거" description="관련 기업과 원문을 함께 읽고, 현재 투자 논리를 강화하는지 약화하는지 비교하세요.">
-        <SourceNote feed={news} />
-        {news.data && <DecisionList items={evidenceItems} emptyText="조회된 뉴스 근거 목록이 비어 있습니다." />}
-      </ResearchSection>
-      <ResearchSection eyebrow="추천 이후의 검토" title="기존 보유 논리를 다시 볼 항목" description="보유 비중, 투자 논리, 성과 측정의 공백을 확인하세요. 표시할 항목이 없다는 것이 위험이 없다는 뜻은 아닙니다.">
-        <SourceNote feed={portfolio} />
-        {portfolio.data && <DecisionList items={riskItems} emptyText="조회된 우선 검토 항목이 없습니다. 전체 위험 평가는 포트폴리오 상세에서 확인하세요." />}
-      </ResearchSection>
-      <p className={research.performanceLink}><Link href="/performance">지난 판단의 수익률·벤치마크 대비 성과 확인</Link></p>
-      <details className={research.sourcePanel}>
-        <summary>영역별 데이터 상태 · {loadedCount}/{HOME_FEEDS.length} 연결</summary>
-        <p>API가 제공한 분석 기준일입니다. 개별 원천의 관측일과 최신성은 상세 근거에서 확인하세요.</p>
-        <div className={research.sourceGrid}>{HOME_FEEDS.map((key) => <div key={key}>
-          <strong>{FEED_LABELS[key]}</strong><span>{feedCaption(snapshot.feeds[key])}</span>
-        </div>)}</div>
-      </details>
-      <section className={styles.systemNotice} aria-label="시스템 신뢰 상태">
-        <div><span>리서치와 운영 상태 구분</span><strong>{homeHealth(snapshot)}</strong><p>수집 실패의 영향 범위, 원천 기준일, 성과 측정 대기 항목을 확인하세요.</p></div>
-        <Link href="/data-health">데이터 상태 확인</Link>
-      </section>
+      <details className={styles.sourcePanel}><summary>영역별 데이터 상태 · {loadedCount}/{HOME_FEEDS.length} 연결</summary><p>분석 기준일과 원천 관측일은 다를 수 있습니다. 개별 원천은 상세 근거에서 확인하세요.</p><div className={styles.sourceGrid}>{HOME_FEEDS.map((key) => <div key={key}><strong>{FEED_LABELS[key]}</strong><span>{feedCaption(snapshot.feeds[key])}</span></div>)}</div></details>
+      <section className={styles.systemNotice} aria-label="시스템 신뢰 상태"><p><strong>{homeHealth(snapshot)}</strong><span> · 실거래 주문과 자동 비중 변경은 실행하지 않습니다.</span></p><Link href="/data-health">데이터 상태 확인 <WorkspaceIcon name="arrow" /></Link></section>
     </div>
   );
 }

@@ -11,20 +11,20 @@
 }
 
 .leadSnapshot span {
-  color: color-mix(in srgb, var(--surface-primary) 76%, transparent);
+  color: var(--ink-secondary);
   font-size: var(--type-caption);
   font-weight: 720;
 }
 
 .leadSnapshot strong {
-  font-size: clamp(2.8rem, 7vw, 5.75rem);
+  font-size: clamp(1.5rem, 3vw, 2.25rem);
   letter-spacing: -0.065em;
   line-height: 0.9;
 }
 
 .leadSnapshot small {
   max-width: 28rem;
-  color: color-mix(in srgb, var(--surface-primary) 88%, transparent);
+  color: var(--ink-secondary);
   line-height: 1.6;
   text-wrap: pretty;
   word-break: keep-all;
@@ -182,12 +182,10 @@
   .priorityGrid {
     grid-template-columns: 1fr;
   }
-
   .tableFrame {
     overflow-x: visible;
     border: 0;
   }
-
   .tableFrame table,
   .tableFrame tbody,
   .tableFrame tr,
@@ -197,23 +195,19 @@
     width: 100%;
     min-width: 0;
   }
-
   .tableFrame thead {
     display: none;
   }
-
   .tableFrame tbody {
     display: grid;
     gap: var(--space-3);
   }
-
   .tableFrame tr {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     border: 1px solid var(--line-subtle);
     background: var(--surface-primary);
   }
-
   .tableFrame th,
   .tableFrame td {
     display: grid;
@@ -221,42 +215,33 @@
     padding: var(--space-3) var(--space-4);
     border-bottom: 1px solid var(--line-subtle);
   }
-
   .tableFrame th {
     grid-column: 1 / -1;
   }
-
   .tableFrame td::before {
     color: var(--ink-muted);
     font-size: var(--type-caption);
     font-weight: 720;
   }
-
   .tableFrame td:nth-of-type(1)::before {
     content: "현재가";
   }
-
   .tableFrame td:nth-of-type(2)::before {
     content: "전일 대비";
   }
-
   .tableFrame td:nth-of-type(3)::before {
     content: "추천";
   }
-
   .tableFrame td:nth-of-type(4)::before {
     content: "보유 비중";
   }
-
   .tableFrame td:nth-of-type(5)::before {
     content: "데이터 상태";
   }
-
   .tableFrame td:last-child {
     grid-column: 1 / -1;
     border-bottom: 0;
   }
-
   .rowAction {
     justify-content: center;
   }
@@ -266,7 +251,6 @@
   .priorityCard dl {
     grid-template-columns: 1fr;
   }
-
   .priorityCard p {
     min-height: 0;
   }

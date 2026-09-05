@@ -1,0 +1,110 @@
+.state {
+  min-height: 360px;
+  border: 1px solid var(--line-subtle);
+  border-radius: 12px;
+  background: white;
+  padding: 48px 24px;
+  text-align: center;
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: 14px;
+}
+
+.icon {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
+  background: var(--accent-soft);
+  color: var(--accent-analysis);
+}
+
+.state h1 {
+  font-size: clamp(20px,2.5vw,28px);
+  font-weight: 700;
+  letter-spacing: -.04em;
+}
+
+.state p {
+  color: var(--ink-secondary);
+  font-size: 13px;
+  max-width: 460px;
+  margin: 0;
+  line-height: 1.8;
+}
+
+.actions {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.actions button, .actions a {
+  display: inline-flex;
+  min-height: 44px;
+  padding: 8px 16px;
+  align-items: center;
+  border: 1px solid var(--line-subtle);
+  border-radius: 7px;
+  font-size: 13px;
+  font-weight: 600;
+  background: white;
+  color: var(--ink-primary);
+  cursor: pointer;
+}
+
+.actions button {
+  background: var(--accent-analysis);
+  color: white;
+  border-color: var(--accent-analysis);
+}
+
+.skeleton {
+  display: grid;
+  gap: 18px;
+}
+
+.skeletonTitle {
+  width: 44%;
+  height: 28px;
+  background: var(--line-subtle);
+  border-radius: 6px;
+}
+
+.skeletonCards {
+  display: grid;
+  grid-template-columns: repeat(4,minmax(0,1fr));
+  gap: 16px;
+}
+
+.skeletonCards > div {
+  height: 105px;
+  border: 1px solid var(--line-subtle);
+  border-radius: 10px;
+  background: white;
+}
+
+.skeletonContent {
+  height: 260px;
+  border: 1px solid var(--line-subtle);
+  border-radius: 12px;
+  background: white;
+}
+
+.loadingLabel {
+  font-size: 13px;
+  color: var(--ink-secondary);
+}
+
+@media(max-width: 600px) {
+  .skeletonCards {
+    grid-template-columns: repeat(2,minmax(0,1fr));
+  }
+  .state {
+    min-height: 320px;
+  }
+}

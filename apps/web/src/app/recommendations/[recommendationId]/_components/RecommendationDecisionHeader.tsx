@@ -1,5 +1,3 @@
-import Link from "next/link";
-
 import type { InvestmentViewModel, RecommendationProductKind } from "@/lib/presentation";
 
 import styles from "./RecommendationDecisionHeader.module.css";
@@ -33,41 +31,23 @@ type RecommendationDecisionHeaderProps = {
 };
 
 function executionStatusClass({ paperValidationAllowed, brokerSubmitAllowed }: RecommendationExecution) {
-  if (brokerSubmitAllowed) {
-    return styles.statusReady;
-  }
-  if (paperValidationAllowed) {
-    return styles.statusWatch;
-  }
+  if (brokerSubmitAllowed) return styles.statusReady;
+  if (paperValidationAllowed) return styles.statusWatch;
   return styles.statusBlocked;
 }
 
 function productEvidenceLabel(productKind: RecommendationProductKind) {
-  if (productKind === "fund_or_etf") {
-    return "ETF·펀드 핵심";
-  }
-  return "기업 핵심";
-}
-
-function productEvidenceValue(productKind: RecommendationProductKind, counts: RecommendationHeaderCounts) {
-  if (productKind === "fund_or_etf") {
-    return counts.fundHoldingCount === null ? "보유 구성 대기" : `${counts.fundHoldingCount.toLocaleString("ko-KR")}개 보유 구성`;
-  }
-  return counts.financialMetricCount > 0 ? `${counts.financialMetricCount.toLocaleString("ko-KR")}개 재무 지표` : "재무 근거 대기";
+  return productKind === "fund_or_etf" ? "ETF·펀드 핵심" : "기업 핵심";
 }
 
 function productEvidenceContext(productKind: RecommendationProductKind) {
-  if (productKind === "fund_or_etf") {
-    return "구성종목, 비용, NAV 괴리, 추적 품질이 판단의 중심이다.";
-  }
-  return "재무, 밸류에이션, 산업 위치를 뉴스와 사이클 근거와 분리한다.";
+  return productKind === "fund_or_etf"
+    ? "구성종목, 비용, NAV 괴리, 추적 품질이 판단의 중심이다."
+    : "재무, 밸류에이션, 산업 위치를 뉴스와 사이클 근거와 분리한다.";
 }
 
 function productEvidenceHref(productKind: RecommendationProductKind) {
-  if (productKind === "fund_or_etf") {
-    return "#recommendation-fund-analysis";
-  }
-  return "#recommendation-financial-model";
+  return productKind === "fund_or_etf" ? "#recommendation-fund-analysis" : "#recommendation-financial-model";
 }
 
 export function RecommendationDecisionHeader({
@@ -78,7 +58,6 @@ export function RecommendationDecisionHeader({
   positionStatusLabel,
   productKind,
   viewModel,
-  counts,
   execution,
 }: RecommendationDecisionHeaderProps) {
   const executionClassName = executionStatusClass(execution);
@@ -94,6 +73,7 @@ export function RecommendationDecisionHeader({
           {symbol} 추천 판단서
         </h1>
         <p className={styles.summary}>{viewModel.summary}</p>
+        <p className={styles.summary}>{productEvidenceContext(productKind)}</p>
         <div className={styles.statusLine} aria-label="추천 상세 핵심 상태">
           <span className={styles.status}>{viewModel.statusLabel}</span>
           <span className={styles.status}>추천 {recommendationLabel}</span>
@@ -112,41 +92,11 @@ export function RecommendationDecisionHeader({
       </div>
 
       <nav className={styles.map} aria-label="추천 상세 읽는 순서">
-        <h2 className={styles.mapTitle}>이 화면의 판단 순서</h2>
-        <a className={styles.mapCardPrimary} href="#recommendation-investment-memo">
-          <span>1. 투자 논리와 판단 조건</span>
-          <strong>{viewModel.investmentImpact}</strong>
-          <small>{viewModel.nextAction}</small>
-        </a>
-        <a className={styles.mapCard} href="#recommendation-position-reality">
-          <span>2. 포지션 현실</span>
-          <strong>{positionStatusLabel}</strong>
-          <small>보유 중이면 수량, 평단가, 평가손익이 판단의 출발점이다.</small>
-        </a>
-        <a className={counts.blockedStepCount > 0 ? styles.mapCardWatch : styles.mapCardReady} href="#recommendation-professional-flow">
-          <span>3. 판단 단계</span>
-          <strong>
-            {counts.totalStepCount > 0 ? `${counts.readyStepCount}/${counts.totalStepCount} 통과` : "판단 단계 미확인"}
-          </strong>
-          <small>
-            주의 {counts.watchStepCount}개 · 차단 {counts.blockedStepCount}개
-          </small>
-        </a>
-        <a className={styles.mapCardReady} href={productEvidenceHref(productKind)}>
-          <span>4. {productEvidenceLabel(productKind)}</span>
-          <strong>{productEvidenceValue(productKind, counts)}</strong>
-          <small>{productEvidenceContext(productKind)}</small>
-        </a>
-        <a className={counts.marketCorrelationCount > 0 ? styles.mapCardReady : styles.mapCardWatch} href="#recommendation-market-correlations">
-          <span>5. 시장 민감도</span>
-          <strong>{counts.marketCorrelationCount.toLocaleString("ko-KR")}개 비교</strong>
-          <small>지수, 금리, 달러, 원자재와 함께 움직인 정도를 본다.</small>
-        </a>
-        <Link className={styles.mapCard} href="/paper-trading">
-          <span>6. 실행 가능성</span>
-          <strong>{execution.paperValidationAllowed ? "가상 검증 가능" : "가상 검증 차단"}</strong>
-          <small>실거래 주문 제출은 별도 승인 전까지 차단한다.</small>
-        </Link>
+        <a href="#recommendation-investment-memo" className={styles.mapCardPrimary}>01 투자 판단서</a>
+        <a href="#recommendation-position-reality" className={styles.mapCard}>02 보유 점검</a>
+        <a href={productEvidenceHref(productKind)} className={styles.mapCard}>03 {productEvidenceLabel(productKind)}</a>
+        <a href="#recommendation-market-correlations" className={styles.mapCard}>04 시장 민감도</a>
+        <a href="#recommendation-professional-flow" className={styles.mapCard}>05 분석 단계</a>
       </nav>
     </section>
   );

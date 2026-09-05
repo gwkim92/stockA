@@ -1,143 +1,117 @@
 .summary {
-  position: relative;
   display: grid;
-  overflow: hidden;
-  grid-template-columns: minmax(0, 1.65fr) minmax(260px, 0.75fr);
-  background: var(--surface-inverse);
-  color: var(--surface-primary);
-}
-
-.summary::after {
-  position: absolute;
-  top: -30%;
-  right: -10%;
-  width: 42%;
-  aspect-ratio: 1;
-  background:
-    radial-gradient(circle, color-mix(in srgb, var(--accent-analysis) 62%, transparent), transparent 67%);
-  content: "";
-  opacity: 0.55;
-  pointer-events: none;
+  grid-template-columns: minmax(0, 1fr) minmax(200px, .4fr);
+  gap: 28px;
+  padding: 4px 0 26px;
+  color: var(--ink-primary);
+  border-bottom: 1px solid var(--line-subtle);
 }
 
 .copy {
-  position: relative;
-  z-index: 1;
   display: grid;
-  align-content: end;
-  gap: var(--space-5);
-  min-height: 410px;
-  padding: clamp(var(--space-8), 6vw, var(--space-16));
+  gap: 12px;
+  min-width: 0;
+  align-content: start;
 }
 
 .eyebrow {
-  color: color-mix(in srgb, var(--surface-primary) 65%, transparent);
-  font-size: var(--type-caption);
-  font-weight: 760;
-  letter-spacing: 0.08em;
+  color: var(--accent-analysis);
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: .03em;
 }
 
 .title {
-  max-width: 840px;
-  font-size: var(--type-display);
-  font-weight: 780;
-  letter-spacing: -0.055em;
-  line-height: 0.98;
-  text-wrap: balance;
+  max-width: 900px;
+  font-size: var(--type-h1);
+  font-weight: 750;
+  letter-spacing: -.045em;
+  line-height: 1.3;
   word-break: keep-all;
 }
 
 .description {
+  margin: 0;
   max-width: var(--reading-max);
-  color: color-mix(in srgb, var(--surface-primary) 76%, transparent);
-  font-size: var(--type-lead);
-  line-height: 1.7;
-  word-break: keep-all;
+  color: var(--ink-secondary);
+  font-size: var(--type-body);
+  line-height: 1.75;
 }
 
 .actions {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-2);
+  gap: 8px;
+  margin-top: 6px;
 }
 
-.primaryAction,
-.secondaryAction {
+.primaryAction, .secondaryAction {
   display: inline-flex;
-  min-height: 44px;
+  min-height: 40px;
   align-items: center;
   justify-content: center;
-  padding: 0 var(--space-5);
-  font-size: var(--type-small);
-  font-weight: 760;
-  transition: transform var(--duration-micro) ease-out, background var(--duration-micro) ease-out;
+  padding: 8px 14px;
+  border-radius: 7px;
+  font-size: 12px;
+  font-weight: 650;
 }
 
 .primaryAction {
-  background: var(--surface-primary);
-  color: var(--ink-primary);
+  background: var(--accent-analysis);
+  color: white;
+  border: 1px solid var(--accent-analysis);
 }
 
 .secondaryAction {
-  border: 1px solid color-mix(in srgb, var(--surface-primary) 34%, transparent);
-  color: var(--surface-primary);
+  background: white;
+  color: var(--ink-secondary);
+  border: 1px solid var(--line-subtle);
 }
 
-.primaryAction:hover,
+.primaryAction:hover {
+  filter: brightness(.93);
+}
+
 .secondaryAction:hover {
-  transform: translateY(-2px);
-}
-
-.primaryAction:active,
-.secondaryAction:active {
-  transform: translateY(0);
+  background: var(--accent-soft);
 }
 
 .side {
-  position: relative;
-  z-index: 1;
-  display: grid;
-  align-content: end;
-  gap: var(--space-6);
-  padding: clamp(var(--space-8), 4vw, var(--space-12));
-  border-left: 1px solid color-mix(in srgb, var(--surface-primary) 15%, transparent);
-  background: color-mix(in srgb, var(--surface-primary) 4%, transparent);
+  padding: 18px 20px;
+  border: 1px solid var(--line-subtle);
+  border-radius: 10px;
+  background: white;
+  min-width: 0;
+  align-self: start;
 }
 
 .side strong {
-  font-size: var(--type-h2);
-  line-height: 1.15;
-  word-break: keep-all;
+  font-size: 25px;
+  line-height: 1.3;
+  letter-spacing: -.04em;
+  color: var(--ink-primary);
 }
 
-.side p {
-  margin: 0;
-  color: color-mix(in srgb, var(--surface-primary) 72%, transparent);
-  line-height: 1.65;
+.side p, .side small {
+  margin: 6px 0 0;
+  color: var(--ink-secondary);
+  font-size: 12px;
+  line-height: 1.7;
 }
 
-@media (max-width: 860px) {
+.side span {
+  color: var(--ink-muted);
+}
+
+@media(max-width: 900px) {
   .summary {
     grid-template-columns: 1fr;
+    gap: 18px;
   }
-
-  .copy {
-    min-height: 360px;
-  }
-
   .side {
-    border-top: 1px solid color-mix(in srgb, var(--surface-primary) 15%, transparent);
-    border-left: 0;
+    padding: 16px;
   }
-}
-
-@media (max-width: 520px) {
-  .copy,
-  .side {
-    padding: var(--space-6);
-  }
-
-  .copy {
-    min-height: 340px;
+  .side strong {
+    font-size: 22px;
   }
 }

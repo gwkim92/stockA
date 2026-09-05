@@ -1,29 +1,9 @@
 "use client";
-
-export default function ErrorPage({
-  error,
-  reset,
-}: {
-  error: Error & { digest?: string };
-  reset: () => void;
-}) {
-  return (
-    <section className="bento-card reveal" style={{ 
-      minHeight: "400px", 
-      display: "flex", 
-      flexDirection: "column", 
-      alignItems: "center", 
-      justifyContent: "center",
-      textAlign: "center",
-      borderColor: "var(--accent-amber)",
-      background: "rgba(245, 158, 11, 0.05)"
-    }}>
-      <div className="bento-badge" style={{ color: "var(--accent-amber)", borderColor: "var(--accent-amber)", marginBottom: "16px" }}>데이터 서버 연결 중단</div>
-      <h1 style={{ fontSize: "clamp(2rem, 3vw, 3rem)", marginBottom: "16px" }}>투자 운영 데이터를 불러오지 못했다</h1>
-      <p style={{ color: "var(--text-secondary)", fontSize: "1.1rem", marginBottom: "32px", maxWidth: "600px" }}>{error.message}</p>
-      <button className="btn btn-primary" onClick={() => reset()} type="button">
-        다시 연결
-      </button>
-    </section>
-  );
+import Link from "next/link";
+import { WorkspaceIcon } from "@/components/shell/WorkspaceIcon";
+import styles from "@/components/research/WorkspaceState.module.css";
+/** Never render raw server exceptions, DSNs, provider text or credentials. */
+export default function ErrorPage({ reset, unstable_retry }: { error: Error & { digest?: string }; reset?: () => void; unstable_retry?: () => void }) {
+  const retry = () => { if (unstable_retry) unstable_retry(); else if (reset) reset(); else window.location.reload(); };
+  return <section className={styles.state} aria-labelledby="workspace-error-title"><span className={styles.icon}><WorkspaceIcon name="health" /></span><h1 id="workspace-error-title">이 화면의 자료를 불러오지 못했습니다</h1><p>연결 상태나 응답을 확인해야 합니다. 다시 시도하거나 다른 리서치를 살펴보세요. 조회 실패를 데이터 없음으로 판단하지 마세요.</p><div className={styles.actions}><button type="button" onClick={retry}>다시 시도</button><Link href="/">리서치 홈으로</Link></div></section>;
 }
