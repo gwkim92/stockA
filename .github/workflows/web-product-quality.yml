@@ -13,6 +13,7 @@ on:
       - 'docs/tasks/research-discovery-workspace-v1/**'
       - 'docs/tasks/portfolio-performance-workspace-v1/**'
       - 'docs/tasks/thesis-source-reader-v1/**'
+      - 'docs/tasks/company-evidence-workspace-v1/**'
       - 'docs/api/frontend/examples/stock-list.json'
       - 'docs/api/frontend/examples/cycle-state-list.json'
       - 'docs/api/frontend/examples/market-map.json'
@@ -21,6 +22,7 @@ on:
       - 'docs/api/frontend/examples/thesis-detail.json'
       - 'docs/api/frontend/examples/source-document-detail.json'
       - 'docs/api/frontend/examples/stock-detail.json'
+      - 'docs/api/frontend/examples/stock-detail-spy.json'
       - 'docs/api/frontend/examples/ai-evidence-detail.json'
   push:
     branches: [develop, main]
@@ -34,6 +36,7 @@ on:
       - 'docs/tasks/research-discovery-workspace-v1/**'
       - 'docs/tasks/portfolio-performance-workspace-v1/**'
       - 'docs/tasks/thesis-source-reader-v1/**'
+      - 'docs/tasks/company-evidence-workspace-v1/**'
       - 'docs/api/frontend/examples/stock-list.json'
       - 'docs/api/frontend/examples/cycle-state-list.json'
       - 'docs/api/frontend/examples/market-map.json'
@@ -42,6 +45,7 @@ on:
       - 'docs/api/frontend/examples/thesis-detail.json'
       - 'docs/api/frontend/examples/source-document-detail.json'
       - 'docs/api/frontend/examples/stock-detail.json'
+      - 'docs/api/frontend/examples/stock-detail-spy.json'
       - 'docs/api/frontend/examples/ai-evidence-detail.json'
   workflow_dispatch:
 
@@ -91,6 +95,8 @@ jobs:
         run: npx playwright test --config=playwright.review.config.ts
       - name: Thesis and source reading browser verification
         run: npx playwright test --config=playwright.readers.config.ts
+      - name: Company and evidence browser verification
+        run: npx playwright test --config=playwright.company.config.ts
       - name: Preserve browser and dependency evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -103,6 +109,8 @@ jobs:
             apps/web/playwright-review-report/
             apps/web/test-results/readers/
             apps/web/playwright-readers-report/
+            apps/web/test-results/company/
+            apps/web/playwright-company-report/
             apps/web/dependency-audit.json
             apps/web/dependency-audit-production.json
           if-no-files-found: ignore
