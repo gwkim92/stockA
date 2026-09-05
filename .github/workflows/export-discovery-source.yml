@@ -1,0 +1,26 @@
+name: Export Discovery Source
+on:
+  push:
+    branches: [codex/research-discovery-workspace-v1]
+    paths: [.github/workflows/export-discovery-source.yml]
+permissions:
+  contents: read
+jobs:
+  source:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Export tracked application and contract source
+        run: |
+          mkdir -p /tmp/discovery-source
+          git archive --format=tar.gz HEAD apps/web src/stockanalysis/frontend tests docs AGENTS.md .github/workflows/web-product-quality.yml > /tmp/discovery-source/source.tar.gz
+          git rev-parse HEAD > /tmp/discovery-source/commit.txt
+          sha256sum /tmp/discovery-source/source.tar.gz > /tmp/discovery-source/sha256.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: discovery-source
+          path: /tmp/discovery-source/
+          retention-days: 3
