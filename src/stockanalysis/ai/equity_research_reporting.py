@@ -1087,6 +1087,13 @@ def _source_document_ids_from_context(context: dict[str, object]) -> list[int]:
 
 
 def _output_to_json(output: EquityResearchOutput) -> dict[str, object]:
+    # Typed provider hooks must not turn a string/dict into a valid-looking list
+    # of character/key claims before schema validation.
+    if not isinstance(output, EquityResearchOutput) or any(
+        type(getattr(output, field)) not in (tuple, list)
+        for field in ("key_points", "catalysts", "risks", "invalidation_conditions")
+    ):
+        raise PromptContractError("invalid_research_collections")
     return {
         "title": output.title,
         "korean_summary": output.korean_summary,
