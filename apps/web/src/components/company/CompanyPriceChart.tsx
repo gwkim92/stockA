@@ -4,6 +4,8 @@ import { currencyValue } from '@/lib/research-reader-model';
 import type { PricePoint } from '@/lib/company-evidence-model';
 import styles from './CompanyWorkspace.module.css';
 
+const axisLabel = (value: number) => new Intl.NumberFormat('ko-KR', { notation: value < 0.01 || value > 1e8 ? 'scientific' : value >= 10000 ? 'compact' : 'standard', maximumSignificantDigits: 3 }).format(value);
+
 export function CompanyPriceChart({ points, currency, excluded }: { points: PricePoint[] | null; currency: string | null; excluded: number | null }) {
   const [limit, setLimit] = useState(30);
   if (!points?.length) return <p className={styles.empty}>{points === null ? '가격 관측 목록 미제공' : '그릴 수 있는 날짜별 가격 기록이 없습니다.'}</p>;
@@ -12,8 +14,8 @@ export function CompanyPriceChart({ points, currency, excluded }: { points: Pric
   const min = Math.min(...measured.map(point => point.close));
   const max = Math.max(...measured.map(point => point.close));
   const from = Date.parse(visible[0].date), to = Date.parse(visible[visible.length - 1].date);
-  const x = (date: string) => 72 + (Date.parse(date) - from) / Math.max(to - from, 1) * 650;
-  const y = (close: number) => max === min ? 110 : 30 + (max - close) / (max - min) * 160;
+  const x = (date: string) => 124 + (Date.parse(date) - from) / Math.max(to - from, 1) * 598;
+  const y = (close: number) => max === min ? 148 : 36 + (max - close) / (max - min) * 224;
   let newSegment = true;
   const path = visible.map(point => {
     if (point.close === null) { newSegment = true; return ''; }
@@ -26,13 +28,13 @@ export function CompanyPriceChart({ points, currency, excluded }: { points: Pric
       {[[30, '최근 30개 관측'], [90, '최근 90개 관측'], [0, '수신 전체']].map(([value, label]) => <button key={value} type="button" aria-pressed={limit === value} onClick={() => setLimit(Number(value))}>{label}</button>)}
     </div>
     {measured.length >= 2 ? <figure className={styles.priceFigure}>
-      <svg viewBox="0 0 760 232" role="img" aria-label={`${visible[0].date}부터 ${visible[visible.length - 1].date}까지 저장된 종가. 유효한 가격 ${measured.length}개.`}>
-        {[30, 110, 190].map(py => <line key={py} x1="72" y1={py} x2="722" y2={py} className={styles.gridLine} />)}
-        <text x="8" y="35">{max.toLocaleString('ko-KR', { maximumFractionDigits: 2 })}</text>
-        <text x="8" y="195">{min.toLocaleString('ko-KR', { maximumFractionDigits: 2 })}</text>
+      <svg viewBox="0 0 760 300" role="img" aria-label={`${visible[0].date}부터 ${visible[visible.length - 1].date}까지 저장된 종가. 유효한 가격 ${measured.length}개.`}>
+        {[36, 148, 260].map(py => <line key={py} x1="124" y1={py} x2="722" y2={py} className={styles.gridLine} />)}
+        <text x="104" y="41" textAnchor="end">{axisLabel(max)}</text>
+        <text x="104" y="265" textAnchor="end">{axisLabel(min)}</text>
         <path d={path} className={styles.priceLine} />
         {measured.length <= 90 && measured.map(point => <circle key={point.date} cx={x(point.date)} cy={y(point.close)} r="3" className={styles.priceDot} />)}
-        <text x="72" y="224">{visible[0].date}</text><text x="722" y="224" textAnchor="end">{visible[visible.length - 1].date}</text>
+        <text x="124" y="290">{visible[0].date}</text><text x="722" y="290" textAnchor="end">{visible[visible.length - 1].date}</text>
       </svg>
       <figcaption>저장된 종가 · {currency ?? '통화 미확인'} · {measured.length}/{visible.length}개 측정. 수신 구간만 표시하며 거래일 연속성을 보장하지 않습니다.</figcaption>
     </figure> : <p className={styles.empty}>차트를 그리기에 유효한 가격 관측이 부족합니다.</p>}

@@ -1,0 +1,7 @@
+# Visual verification follow-up
+
+The first run (`33969941025`) passed all 164 then-present browser cases. Actual mobile capture review led to compacting company notes/metrics and moving the source action next to interpretation. Initial full mobile capture also showed overly small scaled SVG ticks; the chart now reserves axis label space and keeps readable tick/stroke sizing without changing the observed data.
+
+The expanded final-document run (`33970580197`, head `aafb25c1708bed6f8f6bc00de52f37e130ea0578`) passed unit/build/type/audit and all 130 existing browser cases. The expanded company suite passed 40 of 42 cases, including the saved complete fund and financial summary-to-detail tests. Two newly added desktop position checks failed because boundingBox returned null before the streamed content was visible. The checks now explicitly wait for that content to be visible before taking its position; the <700px assertion remains unchanged, with no arbitrary sleep or retry policy change. An additional browser case verifies that explicit source blockers stay expanded after general notes become collapsible.
+
+Run artifact `9970850330`, SHA-256 `e7efc58d7f3c54f33d37a66166ed0c2d03dd866a1d99062c6531fbc7e0404a87`, was downloaded and inspected for the exact failure report. This failure is recorded rather than described as a successful final check. The current PR head must pass the complete workflow and have its actual captures inspected before integration. PR #33 carries the final head/run/merge record.

@@ -57,3 +57,8 @@
  .metrics dd { margin: 4px 0; font-size: 18px; line-height: 1.4; }
  .metrics small { margin-top: 4px; line-height: 1.5; }
 }
+
+/* Keep graph strokes and tick labels legible after mobile SVG scaling. */
+.priceLine { vector-effect: non-scaling-stroke; }
+.priceFigure svg text { font-size: 16px; }
+@media(max-width:600px) { .priceFigure svg { min-height: 0; }.priceFigure svg text { font-size: 26px; } }
