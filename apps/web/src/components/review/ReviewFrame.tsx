@@ -24,7 +24,6 @@ export function ReviewFrame({ kind, result, children }: {
         <div>
           <span>{portfolio ? "HOLDINGS REVIEW" : "DECISION OUTCOMES"}</span>
           <h1>{portfolio ? "보유 검토" : "판단 성과"}</h1>
-          <p>{portfolio ? "보유 논리의 공백과 기록된 검토 사유를 확인하세요." : "추천 이후의 실제 측정값을 벤치마크와 비교하세요."}</p>
         </div>
         <form method="get" className={styles.dateForm} aria-label="보고서 기준일 선택">
           <label>
@@ -55,7 +54,7 @@ export function ReviewFrame({ kind, result, children }: {
 }
 
 export function ReviewMetrics({ items, note }: {
-  items: readonly { label: string; value: string; detail: string }[];
+  items: readonly { label: string; value: string; detail: string; hint?: string }[];
   note: string;
 }) {
   return (
@@ -64,13 +63,16 @@ export function ReviewMetrics({ items, note }: {
         {items.map(item => (
           <div key={item.label}>
             <dt>{item.label}</dt>
-            <dd>{item.value}<small style={{ display: "block", fontWeight: 400, marginTop: 6 }}>{item.detail}</small></dd>
+            <dd>{item.value}{item.hint && <small style={{ display: "block", fontWeight: 400, marginTop: 4 }}>{item.hint}</small>}</dd>
           </div>
         ))}
       </dl>
       <details className={styles.summaryNotes}>
         <summary>집계 범위·해석 안내</summary>
         <p>{note}</p>
+        <dl className={styles.factList}>{items.map(item => (
+          <div key={item.label}><dt>{item.label}</dt><dd>{item.detail}</dd></div>
+        ))}</dl>
       </details>
     </section>
   );
