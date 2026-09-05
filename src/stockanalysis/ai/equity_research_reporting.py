@@ -9,12 +9,15 @@ import subprocess
 import tempfile
 import time
 from collections.abc import Callable, Iterable, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any
 
+from stockanalysis.ai_agents.prompt_contract import (
+    PromptContractError, analysis_instructions, render_source_data, strict_json_object, validate_output,
+)
 from stockanalysis.ingest.config import RuntimeConfig
 from stockanalysis.ingest.macro.sql import sql_date, sql_literal
 from stockanalysis.ingest.psql import PsqlCommandExecutor
@@ -27,7 +30,7 @@ from stockanalysis.signal.universe import (
 
 DEFAULT_PIPELINE_NAME = "equity_research_reporting"
 DEFAULT_TASK_NAME = "ai-equity-research-reporting"
-DEFAULT_TEMPLATE_VERSION = "2026-05-25-equity-research-v1"
+DEFAULT_TEMPLATE_VERSION = "2026-09-06-equity-contract-v3"
 ARTIFACT_TYPE = "full_equity_research"
 FIXTURE_PROVIDER = "fixture"
 CODEX_OAUTH_PROVIDER = "codex_oauth"
@@ -312,26 +315,28 @@ def build_codex_oauth_equity_research_prompt(context: dict[str, object], *, max_
     bounded_context = _bounded_context_for_prompt(context, max_context_chars=max_context_chars)
     return "\n".join(
         (
-            "You are an equity research analyst for a medium-to-long-term investment operating system.",
+            analysis_instructions("equity_research_agent", "You are an equity research analyst for a medium-to-long-term investment operating system."),
             "Use only the supplied Postgres context. Do not browse, do not call tools, and do not make order decisions.",
             "Return exactly one JSON object matching the output schema.",
             "Write every human-readable field in Korean.",
             "Keep ticker symbols, ids, method names, and machine codes unchanged.",
             "Separate story from numbers: business/fundamental quality, peer position, valuation, thesis, catalysts, risks, and invalidation.",
             "If a field is missing or weak, explicitly say the evidence is missing instead of inventing facts.",
+            "Separate source financial facts, valuation assumptions and previous model/recommendation hypotheses; repeated summaries are not independent corroboration.",
+            "Do not invent a price, currency, return, confidence or numerical invalidation threshold. State missing support and observable next checks.",
             "Do not change recommendation scores or weights. This output is an explanatory research artifact only.",
             "",
             "Output schema intent:",
             "- title: short Korean report title including the ticker.",
             "- korean_summary: one concise Korean paragraph.",
-            "- key_points: 3-7 bullets about business/fundamental/peer/valuation/thesis context.",
+            "- key_points: 0-7 supported points about business/fundamental/peer/valuation/thesis context; never invent claims to meet a minimum.",
             "- catalysts: observable catalysts grounded in recent_events, cycle_summaries, recommendation, or thesis.",
             "- risks: risks, data gaps, valuation pressure, balance-sheet concerns, or cycle conflicts.",
             "- invalidation_conditions: conditions that would weaken or invalidate the thesis.",
             "- valuation_sensitivity: object with base_case, upside_case, downside_case, margin_of_safety_view, confidence.",
             "",
             "Postgres equity research context:",
-            json.dumps(bounded_context, ensure_ascii=False, sort_keys=True),
+            render_source_data(bounded_context, max_chars=max_context_chars),
         )
     )
 
@@ -396,6 +401,7 @@ def parse_equity_research_response_payload(
     *,
     context: dict[str, object],
 ) -> EquityResearchProviderResponse:
+    payload = strict_json_object(payload)
     research_payload = payload.get("research")
     if not isinstance(research_payload, dict):
         raise ValueError("Equity research AI output must contain a research object.")
@@ -414,6 +420,7 @@ def parse_equity_research_response_payload(
 
 
 def parse_equity_research_output(payload: Mapping[str, object]) -> EquityResearchOutput:
+    validate_output(dict(payload), build_codex_oauth_equity_research_output_schema()["properties"]["research"])
     return EquityResearchOutput(
         title=_required_text(payload, "title"),
         korean_summary=_required_text(payload, "korean_summary"),
@@ -512,6 +519,7 @@ def build_fixture_equity_research_response(
     reasoning_effort: str | None,
     max_context_chars: int,
 ) -> EquityResearchProviderResponse:
+    context = _bounded_context_for_prompt(context, max_context_chars=max_context_chars)
     instrument = _as_dict(context.get("instrument"))
     symbol = str(instrument.get("primary_symbol") or _as_dict(context.get("query")).get("symbol") or "UNKNOWN").upper()
     name = str(instrument.get("name") or symbol)
@@ -602,19 +610,24 @@ def run_equity_research_reporting(
 ) -> dict[str, object]:
     if limit < 1 or limit > 50:
         raise ValueError("limit must be between 1 and 50.")
-    if max_context_chars < 2000 or max_context_chars > 100000:
+    if type(max_context_chars) is not int or not 2000 <= max_context_chars <= 100000:
         raise ValueError("max_context_chars must be between 2000 and 100000.")
     if provider not in {FIXTURE_PROVIDER, CODEX_OAUTH_PROVIDER}:
         raise ValueError("Supported equity research providers are fixture and codex_oauth.")
     sql_executor = executor or PsqlCommandExecutor.from_config(config)
     selected_symbols = _load_equity_research_symbols(sql_executor, as_of_date=as_of_date, symbols=symbols, limit=limit)
+    # Every downstream provider/hash/artifact receives the same bounded selection.
+    # Reject oversize data before recording an invocation or writing an artifact.
     contexts = tuple(
-        load_equity_research_context(
-            config=config,
-            symbol=symbol,
-            as_of_date=as_of_date,
-            limit=8,
-            executor=sql_executor,
+        _bounded_context_for_prompt(
+            load_equity_research_context(
+                config=config,
+                symbol=symbol,
+                as_of_date=as_of_date,
+                limit=8,
+                executor=sql_executor,
+            ),
+            max_context_chars=max_context_chars,
         )
         for symbol in selected_symbols
     )
@@ -948,10 +961,14 @@ def _invoke_provider(
     provider_runner: EquityResearchProviderRunner | None,
 ) -> EquityResearchProviderResponse:
     if provider_runner is not None:
-        return provider_runner(context, model_name, reasoning_effort, max_context_chars)
-    if provider == FIXTURE_PROVIDER:
-        return build_fixture_equity_research_response(context, model_name, reasoning_effort, max_context_chars)
-    return invoke_codex_oauth_equity_research_provider(context, model_name, reasoning_effort, max_context_chars)
+        response = provider_runner(context, model_name, reasoning_effort, max_context_chars)
+    elif provider == FIXTURE_PROVIDER:
+        response = build_fixture_equity_research_response(context, model_name, reasoning_effort, max_context_chars)
+    else:
+        response = invoke_codex_oauth_equity_research_provider(context, model_name, reasoning_effort, max_context_chars)
+    # Injected/typed responses can bypass JSON parsing. Check them before the
+    # caller records model success or persists the research artifact.
+    return replace(response, output=_sanitize_output(response.output, context=context))
 
 
 def _mark_pipeline_run_succeeded_with_fallback(
@@ -1005,7 +1022,10 @@ def _record_failed_invocation(
 
 
 def _bounded_context_for_prompt(context: dict[str, object], *, max_context_chars: int) -> dict[str, object]:
+    if type(max_context_chars) is not int or not 2000 <= max_context_chars <= 100000:
+        raise PromptContractError("invalid_input_budget")
     bounded = {
+        "context_scope": "bounded_selection_not_complete_source_history",
         "query": context.get("query"),
         "instrument": context.get("instrument"),
         "financial_metrics": _limit_list(context.get("financial_metrics"), 12),
@@ -1018,17 +1038,24 @@ def _bounded_context_for_prompt(context: dict[str, object], *, max_context_chars
         "recent_events": _limit_list(context.get("recent_events"), 8),
         "cycle_summaries": _limit_list(context.get("cycle_summaries"), 8),
     }
-    text = json.dumps(bounded, ensure_ascii=False, sort_keys=True)
-    if len(text) <= max_context_chars:
+    try:
+        render_source_data(bounded, max_chars=max_context_chars)
         return bounded
+    except PromptContractError as exc:
+        if str(exc) != "input_budget_exceeded":
+            raise
     bounded["financial_metrics"] = _limit_list(context.get("financial_metrics"), 8)
     bounded["peer_relative"] = _limit_list(context.get("peer_relative"), 8)
     bounded["recent_events"] = _limit_list(context.get("recent_events"), 4)
     bounded["cycle_summaries"] = _limit_list(context.get("cycle_summaries"), 4)
+    # Retain complete source records or fail; do not slice text or discard the
+    # thesis/risk tail just to make an apparently complete prompt fit.
+    render_source_data(bounded, max_chars=max_context_chars)
     return bounded
 
 
 def _sanitize_output(output: EquityResearchOutput, *, context: dict[str, object]) -> EquityResearchOutput:
+    validate_output(_output_to_json(output), build_codex_oauth_equity_research_output_schema()["properties"]["research"])
     symbol = _symbol_from_context(context)
     title = output.title if symbol in output.title else f"{symbol} {output.title}"
     return EquityResearchOutput(
@@ -1043,13 +1070,11 @@ def _sanitize_output(output: EquityResearchOutput, *, context: dict[str, object]
 
 
 def _sanitize_valuation_sensitivity(value: dict[str, object]) -> dict[str, object]:
-    allowed = {"base_case", "upside_case", "downside_case", "margin_of_safety_view", "confidence"}
-    sanitized = {key: value.get(key) for key in allowed if key in value}
-    for key in ("base_case", "upside_case", "downside_case", "margin_of_safety_view"):
-        sanitized[key] = str(sanitized.get(key) or "근거 부족").strip()[:500]
-    confidence = _optional_decimal(sanitized.get("confidence"))
-    sanitized["confidence"] = float(max(Decimal("0"), min(Decimal("1"), confidence or Decimal("0.35"))))
-    return sanitized
+    schema = build_codex_oauth_equity_research_output_schema()["properties"]["research"]["properties"]["valuation_sensitivity"]
+    validate_output(value, schema)
+    # Preserve zero and valid empty strings. An absent/invalid model value is an
+    # error, not a fabricated probability, a clipped extreme or guessed prose.
+    return {**value, "confidence": float(value["confidence"])}
 
 
 def _source_document_ids_from_context(context: dict[str, object]) -> list[int]:
@@ -1062,6 +1087,13 @@ def _source_document_ids_from_context(context: dict[str, object]) -> list[int]:
 
 
 def _output_to_json(output: EquityResearchOutput) -> dict[str, object]:
+    # Typed provider hooks must not turn a string/dict into a valid-looking list
+    # of character/key claims before schema validation.
+    if not isinstance(output, EquityResearchOutput) or any(
+        type(getattr(output, field)) not in (tuple, list)
+        for field in ("key_points", "catalysts", "risks", "invalidation_conditions")
+    ):
+        raise PromptContractError("invalid_research_collections")
     return {
         "title": output.title,
         "korean_summary": output.korean_summary,
@@ -1143,10 +1175,7 @@ def _normalize_symbols(values: Iterable[str]) -> tuple[str, ...]:
 
 
 def _loads_json_object(value: str) -> dict[str, object]:
-    parsed = json.loads(value)
-    if not isinstance(parsed, dict):
-        raise ValueError("Expected a JSON object.")
-    return parsed
+    return strict_json_object(value)
 
 
 def _as_dict(value: object) -> dict[str, Any]:

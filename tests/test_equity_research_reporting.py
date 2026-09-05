@@ -87,7 +87,7 @@ class EquityResearchReportingTests(unittest.TestCase):
         self.assertFalse(research_schema["additionalProperties"])
         self.assertIn("cached_input_tokens", schema["properties"]["usage"]["required"])
 
-    def test_parse_sanitizes_title_and_valuation_sensitivity(self) -> None:
+    def test_parse_sanitizes_title_and_preserves_valid_sensitivity(self) -> None:
         response = parse_equity_research_response_payload(
             {
                 "provider": CODEX_OAUTH_PROVIDER,
@@ -104,7 +104,7 @@ class EquityResearchReportingTests(unittest.TestCase):
                         "upside_case": "상단",
                         "downside_case": "하단",
                         "margin_of_safety_view": "제한적",
-                        "confidence": 1.3,
+                        "confidence": 0.93,
                     },
                 },
                 "usage": {"input_tokens": 100, "output_tokens": 20, "cached_input_tokens": 50},
@@ -114,7 +114,7 @@ class EquityResearchReportingTests(unittest.TestCase):
 
         self.assertEqual(response.provider, CODEX_OAUTH_PROVIDER)
         self.assertTrue(response.output.title.startswith("NVDA"))
-        self.assertEqual(response.output.valuation_sensitivity["confidence"], 1.0)
+        self.assertEqual(response.output.valuation_sensitivity["confidence"], 0.93)
         self.assertEqual(response.input_token_count, 100)
 
     def test_run_dry_run_builds_preview_without_writes(self) -> None:
