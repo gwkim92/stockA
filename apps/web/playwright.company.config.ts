@@ -1,6 +1,6 @@
 import { defineConfig, devices } from '@playwright/test';
 export default defineConfig({
-  testDir: './tests/e2e', testMatch: 'company-evidence.home.ts', workers: 1, fullyParallel: false,
+  testDir: './tests/e2e', testMatch: ['company-evidence.home.ts', 'company-analysis-integration.home.ts'], workers: 1, fullyParallel: false,
   timeout: 30_000, expect: { timeout: 10_000 },
   reporter: [['list'], ['html', { outputFolder: 'playwright-company-report', open: 'never' }]], outputDir: 'test-results/company',
   use: { baseURL: 'http://127.0.0.1:13007', trace: 'retain-on-failure', screenshot: 'only-on-failure' },

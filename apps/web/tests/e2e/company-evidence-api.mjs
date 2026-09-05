@@ -23,12 +23,24 @@ const server = createServer(async (req, res) => {
     d.position.linked_thesis_id = 'thesis-1';
     d.price_bars = Array.from({ length: 45 }, (_, index) => ({ trade_date: new Date(Date.UTC(2026, 6, 20 + index)).toISOString().slice(0, 10), close: index === 30 ? null : 290 + index / 4 + Math.sin(index) * 3 }));
     d.equity_research = { title: 'Apple 기업 리서치', artifact_id: 'research-1', provider: 'fixture', model_name: 'fixture', source_document_ids: [], as_of_date: '2026-09-03', korean_summary: '서비스의 반복 매출과 현금흐름을 함께 살펴보는 검증용 투자 가설입니다.', key_points: ['매출 성장과 고객 유지율의 관계를 확인한다.'], catalysts: ['다음 실적 발표에서 서비스 매출과 마진을 검토한다.'], risks: ['규제 비용과 고객 유지율 하락 가능성'], invalidation_conditions: ['현금흐름이 비용 증가를 흡수하지 못할 때 재검토한다.'], valuation_sensitivity: {} };
-    d.financial_statement_model = structuredClone(memo.recommendation.financial_statement_model);
+    const metrics = [
+      { metric_code: 'revenue_growth', label: '매출 성장률', metric_value: 0.12, metric_unit: 'ratio' },
+      { metric_code: 'operating_margin', label: '영업이익률', metric_value: 0.27, metric_unit: 'ratio' },
+      { metric_code: 'fcf_margin', label: '현금흐름 마진', metric_value: 0.18, metric_unit: 'ratio' },
+      { metric_code: 'net_debt_to_ebitda', label: '순부채 배수', metric_value: 1.2, metric_unit: 'multiple' },
+    ].map(row => ({ ...row, period_end: '2025-12-31', as_of_date: '2026-03-01', metric_status: 'computed', history: [], polarity: 'context_dependent', description: '합성 테스트 지표', rationale: '화면 검증용', source_run_id: null }));
+    d.financial_statement_model = { status: 'partial', symbol: d.symbol, as_of_date: d.as_of_date, latest_period_end: '2025-12-31', statement_scope: 'annual', metric_count: 4, computed_metric_count: 4, data_gap_count: 0, source_data_blocker: null, summary: '합성 테스트용 재무 지표입니다. 실제 기업 재무가 아닙니다.', metrics,
+      sections: [{ section_key: 'model_metrics', title: '검증용 재무 지표', description: '단위와 기준일 대조', status: 'available', metrics, computed_metric_count: 4, data_gap_count: 0 }], share_count: { latest_period_end: '', share_count_change_pct: null }, source_run_ids: [] };
     d.valuation_target_range = structuredClone(memo.recommendation.valuation_target_range);
     d.professional_source_guardrail = { blocked: false, status: 'available', summary: '검증용 원천 판정입니다. 실거래 주문은 생성하지 않습니다.' };
     d.market_data_provider = { analysis_price_source: { provider: 'fixture', freshness_status: 'fresh', used_for_scoring: false } };
     d.recent_events = [{ event_id: 'event-1', ai_evidence_id: 'ai-evidence-1', title: 'Service revenue and risks', korean_title: '서비스 매출과 사업 위험', event_at: '2026-09-03T00:00:00Z', impact_direction: 'mixed', source_document_id: 'source-document-1' }];
-    if (fund) { d.fund_instrument_analysis = { analysis_type: 'fund', symbol: 'SPY', status: 'available', summary: '지수 노출과 비용을 검토하는 테스트용 펀드 기록입니다.', benchmark_code: 'S&P 500', holding_count: 500, source_as_of_date: '2026-09-03', expense_ratio: { value: 0.0009, source_as_of_date: '2026-09-03', source_name: 'fixture' }, top_holdings: [{ symbol: 'AAPL', name: 'Apple', target_weight: 0.06 }], limitations: ['구성 종목 집중 위험'] }; }
+    if (fund) {
+      d.fund_instrument_analysis = example('stock-detail-spy').data.fund_instrument_analysis;
+      Object.assign(d.fund_instrument_analysis, { benchmark_code: 'S&P 500', summary: '합성 테스트: 지수 노출과 비용 대조', source_as_of_date: '2026-09-03' });
+      Object.assign(d.fund_instrument_analysis.expense_ratio, { value: 0.0009, source_name: 'fixture', summary: '합성 테스트 비용률', source_as_of_date: '2026-09-03' });
+      d.recommendation = null; d.position = null;
+    }
     if (scenario === 'stock-unknown') { delete d.currency_code; delete d.recommendation; delete d.position; delete d.latest_price; delete d.price_bars; }
     if (scenario === 'stock-wrong') d.symbol = 'MSFT';
     if (scenario === 'blocked') d.professional_source_guardrail = { blocked: true, summary: '정기 공시 자료 부족', blocker_label: '재무 원천 보완 필요' };

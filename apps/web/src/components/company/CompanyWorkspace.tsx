@@ -25,7 +25,7 @@ export function CompanyWorkspace({ data }: { data: CompanyData }) {
   return <div data-testid="company-workspace" className={styles.page}>
     <header className={styles.header}><div><span className={styles.eyebrow}>{data.fundKind ? 'FUND RESEARCH' : 'COMPANY RESEARCH'} · {data.market}</span><h1>{data.symbol} <span>{data.name}</span></h1><p>분석 기준 {data.asOf ?? '미확인'} · 저장된 분석과 근거를 함께 읽습니다.</p></div><ReaderLink href={`/stocks/${encodeURIComponent(data.symbol)}/details`}>전문 분석 전체 보기 →</ReaderLink></header>
     <nav className={styles.chapters} aria-label="기업 리서치 목차">{chapters.map(([id, label]) => <a key={id} href={`#${id}`}>{label}</a>)}</nav>
-    <div className={styles.signal} data-blocked={data.blocked} role="status"><strong>{data.blocked ? '원천 제한 · 투자 근거 보완 필요' : sourceKnown ? '원천 판정과 투자 논리를 함께 확인하세요' : '전문 원천 판정 미확인'}</strong><p>{text(data.guard.summary, '자료가 연결되었다는 것만으로 검토 통과나 주문 가능 상태를 뜻하지 않습니다.')}</p>{text(data.guard.blocker_label, '') && <p>{text(data.guard.blocker_label)}</p>}</div>
+    <details className={styles.signal} data-blocked={data.blocked} open={data.blocked}><summary>{data.blocked ? '원천 제한 · 투자 근거 보완 필요' : sourceKnown ? '원천 판정과 투자 논리를 함께 확인하세요' : '전문 원천 판정 미확인'}</summary><p>{text(data.guard.summary, '자료가 연결되었다는 것만으로 검토 통과나 주문 가능 상태를 뜻하지 않습니다.')}</p>{text(data.guard.blocker_label, '') && <p>{text(data.guard.blocker_label)}</p>}</details>
     <dl className={styles.metrics}>
       <div><dt>기록된 종가</dt><dd>{currencyValue(data.price, data.currency)}<small>관측일 {data.priceDate ?? '미확인'}</small></dd></div>
       <div><dt>보고된 1일 변화</dt><dd>{percentage(data.daily)}<small>누락된 변화율을 보간하지 않음</small></dd></div>

@@ -14,3 +14,6 @@
 .clusterEvent { border-top: 1px solid var(--line-subtle); margin-top: 14px; padding-top: 14px; }.clusterEvent p { color: var(--ink-secondary); font-size: 12px; }.clusterEvent h3 { margin: 0; }
 .contextGrid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 16px; }.contextItem { padding: 10px; margin-bottom: 12px; background: var(--surface-canvas); border-radius: 6px; }
 @media(max-width:600px) { .impactGrid,.contextGrid { grid-template-columns: 1fr; }.field a { margin-left: 0; display: flex; }.card { padding: 18px; } }
+
+.quickFacts > dl { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 16px; padding: 14px; margin: 14px 0; background: var(--surface-canvas); border-radius: 8px; }
+@media(max-width:600px) { .quickFacts > dl { gap: 10px; padding: 10px; }.quickFacts dd { font-size: 12px; } }

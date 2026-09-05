@@ -22,6 +22,7 @@ on:
       - 'docs/api/frontend/examples/thesis-detail.json'
       - 'docs/api/frontend/examples/source-document-detail.json'
       - 'docs/api/frontend/examples/stock-detail.json'
+      - 'docs/api/frontend/examples/stock-detail-spy.json'
       - 'docs/api/frontend/examples/ai-evidence-detail.json'
   push:
     branches: [develop, main]
@@ -44,6 +45,7 @@ on:
       - 'docs/api/frontend/examples/thesis-detail.json'
       - 'docs/api/frontend/examples/source-document-detail.json'
       - 'docs/api/frontend/examples/stock-detail.json'
+      - 'docs/api/frontend/examples/stock-detail-spy.json'
       - 'docs/api/frontend/examples/ai-evidence-detail.json'
   workflow_dispatch:
 

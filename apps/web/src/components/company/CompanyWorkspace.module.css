@@ -48,3 +48,12 @@
 .empty { padding: 10px 0; font-size: 13px; color: var(--ink-muted); line-height: 1.9; }
 @media(max-width: 1100px) { .workbench { grid-template-columns: 1fr; }.side { position: static; grid-template-columns: repeat(2,minmax(0,1fr)); }.header { align-items: start; }.metrics dd { font-size: 18px; } }
 @media(max-width: 600px) { .header { display: block; }.header h1 { font-size: 27px; }.header h1 span { display: block; font-size: 15px; margin: 2px 0; }.header > a { min-height: 36px; }.chapters { gap: 4px 16px; margin-top: 8px; }.chapters a { font-size: 12px; min-height: 36px; }.metrics { grid-template-columns: repeat(2,minmax(0,1fr)); }.metrics > div { padding: 12px; }.metrics > div:nth-child(3) { border-left: 0; }.metrics > div:nth-child(n+3) { border-top: 1px solid var(--line-subtle); }.metrics small { font-size: 11px; }.panel { padding: 18px; }.side,.twoColumns,.related { grid-template-columns: 1fr; }.panel h2 { font-size: 17px; }.signal { padding: 10px 12px; }.signal p { font-size: 11px; }.lead { font-size: 14px; } }
+
+.signal summary { cursor: pointer; font-size: 12px; font-weight: 650; min-height: 24px; line-height: 1.8; }
+.signal[data-blocked=true] summary { color: var(--signal-risk); }
+@media(max-width:600px) {
+ .header h1 span { display: inline; margin-left: 8px; }
+ .metrics > div { padding: 8px 12px; }
+ .metrics dd { margin: 4px 0; font-size: 18px; line-height: 1.4; }
+ .metrics small { margin-top: 4px; line-height: 1.5; }
+}
