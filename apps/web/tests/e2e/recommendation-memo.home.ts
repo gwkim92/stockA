@@ -1,5 +1,18 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page, type TestInfo } from "@playwright/test";
+import { writeFile } from "node:fs/promises";
 import AxeBuilder from "@axe-core/playwright";
+
+async function captureMemo(page: Page, info: TestInfo, name: string) {
+  // Element screenshots scroll a tall section and can put the sticky site header
+  // across the middle of the image. Capture the unchanged full page from its top
+  // and preserve section bounds for an honest offline crop instead.
+  await page.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
+  await page.waitForFunction(() => window.scrollY === 0);
+  const bounds = await page.getByTestId("investment-memo").boundingBox();
+  expect(bounds).not.toBeNull();
+  await writeFile(info.outputPath(`${name}-${info.project.name}-bounds.json`), JSON.stringify(bounds));
+  await page.screenshot({ path: info.outputPath(`${name}-${info.project.name}-page.png`), fullPage: true, animations: "disabled" });
+}
 
 test.beforeEach(async ({ request }) => { await request.post("http://127.0.0.1:18765/__scenario", { data: { scenario: "healthy" } }); });
 
@@ -16,7 +29,7 @@ test("company memo connects investment claim, source, assumption and review", as
   expect((await new AxeBuilder({ page }).include('[data-testid="investment-memo"]').analyze()).violations).toEqual([]);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
   expect(errors).toEqual([]);
-  await memo.screenshot({ path: info.outputPath(`investment-memo-${info.project.name}.png`) });
+  await captureMemo(page, info, "investment-memo");
 });
 
 for (const scenario of ["memo-thesis-down", "memo-thesis-mismatch", "memo-thesis-slow"]) {
@@ -50,7 +63,7 @@ test("ETF memo does not reuse company target values or research claims", async (
   await expect(memo).toContainText("500개"); await expect(memo).toContainText("0.09%");
   await expect(memo).not.toContainText("모형 추정 가치"); await expect(memo).not.toContainText("서비스 매출");
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
-  await memo.screenshot({ path: info.outputPath(`fund-memo-${info.project.name}.png`) });
+  await captureMemo(page, info, "fund-memo");
 });
 
 test("source-blocked candidate stays restricted", async ({ page, request }) => {
