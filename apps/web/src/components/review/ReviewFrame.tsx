@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import type { ReviewResult } from "@/lib/review-workspace-data";
 import { dateContext, words } from "@/lib/review-workspace-model";
 import styles from "./ReviewWorkspace.module.css";
+import compactStyles from "./ReviewCompactMetrics.module.css";
 
 export function ReviewFrame({ kind, result, children }: {
   kind: "portfolio" | "performance";
@@ -53,13 +54,14 @@ export function ReviewFrame({ kind, result, children }: {
   );
 }
 
-export function ReviewMetrics({ items, note }: {
+export function ReviewMetrics({ items, note, compact = false }: {
   items: readonly { label: string; value: string; detail: string; hint?: string }[];
   note: string;
+  compact?: boolean;
 }) {
   return (
     <section className={styles.metricBlock} aria-label="보고서 요약">
-      <dl className={styles.metrics}>
+      <dl className={`${styles.metrics} ${compact ? compactStyles.strip : ""}`} data-compact={compact}>
         {items.map(item => (
           <div key={item.label}>
             <dt>{item.label}</dt>

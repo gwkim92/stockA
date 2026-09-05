@@ -11,7 +11,7 @@ export default async function PerformancePage({ searchParams }: { searchParams: 
   const headline = report ? performanceHeadline(report) : null;
   return <ReviewFrame kind="performance" result={result}>{report && headline && <>
     <p className={styles.context}>보고서 측정 구간 {isoDate(report.raw.measurement_start_date) ?? "미확인"} ~ {isoDate(report.raw.measurement_end_date) ?? "미확인"} · 벤치마크 {words(report.raw.benchmark_code)}</p>
-    <ReviewMetrics items={[
+    <ReviewMetrics compact items={[
       { label: "측정 추천", value: headline.measured === null ? "미확인" : `${headline.measured}개`, detail: `수신된 결과 ${report.rows.length}개` },
       { label: "평균 초과수익", value: percent(headline.alpha, true), detail: "저장된 전체 보고서 기준" },
       { label: "보고된 적중률", value: weight(headline.hitRate), detail: "표본·평가 기준 함께 확인" },
