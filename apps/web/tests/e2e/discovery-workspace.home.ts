@@ -10,6 +10,9 @@ for (const [path, title, name] of [["/stocks", "종목 탐색", "stocks"], ["/cy
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
     const axe = await new AxeBuilder({ page }).analyze(); expect(axe.violations).toEqual([]);
     expect(errors).toEqual([]);
+    const first = workspace.getByRole("article").first();
+    const bounds = await first.boundingBox();
+    expect(bounds!.y).toBeLessThan(info.project.name === "mobile" ? 780 : 850);
     await page.screenshot({ path: info.outputPath(`discovery-${name}-${info.project.name}.png`), fullPage: true, animations: "disabled" });
     await page.screenshot({ path: info.outputPath(`discovery-${name}-${info.project.name}-viewport.png`), animations: "disabled" });
   });
@@ -34,7 +37,8 @@ test("cycle change and history filters keep unknown history out of observed chan
   await explorer.getByRole("button", { name: /이전 상태 미확인/ }).click(); await expect(explorer.getByRole("article")).toHaveCount(1);
   await expect(explorer.getByRole("heading", { name: "헬스케어" })).toBeVisible();
   await expect(explorer).toContainText("0%"); await expect(explorer).toContainText("미측정");
-  await expect(page.getByTestId("discovery-workspace")).toContainText("중복 포함 · 고유 종목 수가 아님");
+  await page.getByTestId("discovery-workspace").locator("summary").filter({ hasText: "지표 집계·기준일 안내" }).click();
+  await expect(page.getByText("중복 포함 · 고유 종목 수가 아님", { exact: true })).toBeVisible();
 });
 test("market group and lookback selections are real and retain source limitations", async ({ page }) => {
   await page.goto("/market-map"); const explorer = page.getByTestId("market-explorer");
@@ -47,6 +51,9 @@ test("market group and lookback selections are real and retain source limitation
   await expect(explorer).toContainText("미측정");
   await explorer.getByRole("button", { name: "필터 초기화" }).click();
   await expect(explorer.getByRole("article")).toHaveCount(4);
+  await explorer.getByRole("article").first().locator("summary").click();
+  await expect(explorer.getByText("252일 고점 대비 낙폭", { exact: true }).first()).toBeVisible();
+  await expect(explorer.getByText("충격 강도 / 모델 신뢰도", { exact: true }).first()).toBeVisible();
   await expect(page.getByRole("table")).toHaveAccessibleName("저장된 상관관계 · 원래 반환 순서");
 });
 for (const [scenario, path, expected] of [["all-down", "/market-map", "이 화면의 자료를 불러오지 못했습니다"], ["empty", "/stocks", "수신된 목록이 비어 있습니다"], ["discovery-invalid", "/cycles", "이 화면의 자료를 불러오지 못했습니다"], ["discovery-unknown", "/market-map", "상관관계 자료 미제공"]]) {

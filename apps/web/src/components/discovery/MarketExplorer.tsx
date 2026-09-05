@@ -29,9 +29,12 @@ export function MarketExplorer({ data, requestedDate }: { data: DiscoveryData; r
         <p className={styles.note}>{label(row.quality_note_ko, label(row.note_ko, "원천 설명 미제공"))}</p>
         <details className={styles.details}><summary>지표 특징·원천 정책</summary><dl className={styles.sourceFacts}>
           <div><dt>원천 심볼</dt><dd>{label(row.provider_symbol)}</dd></div><div><dt>원천 최신성 판정</dt><dd>{koCode(label(row.freshness_status))}</dd></div>
-          <div><dt>1 / 5 / 20 / 60일 변화</dt><dd>{["1d", "5d", "20d", "60d"].map(window => <span key={window}>{window}: {finite(row[`return_${window}`]) === null ? "미측정" : `${numberLabel(Number(row[`return_${window}`]) * 100)}%`} </span>)}</dd></div>
+          <div><dt>1 / 5 / 20 / 60 / 120일 변화</dt><dd>{["1d", "5d", "20d", "60d", "120d"].map(window => <span key={window}>{window}: {finite(row[`return_${window}`]) === null ? "미측정" : `${numberLabel(Number(row[`return_${window}`]) * 100)}%`} </span>)}</dd></div>
           <div><dt>252일 위치 / Z-score</dt><dd>{ratioLabel(row.percentile_252d)} / {numberLabel(row.z_score_252d)}</dd></div>
+          <div><dt>252일 고점 대비 낙폭</dt><dd>{finite(row.drawdown_252d) === null ? "미측정" : `${numberLabel(Number(row.drawdown_252d) * 100)}%`}</dd></div>
           <div><dt>추세 / 충격 방향</dt><dd>{koCode(label(row.trend_state))} / {koCode(label(row.shock_direction))}</dd></div>
+          <div><dt>충격 강도 / 모델 신뢰도</dt><dd>{ratioLabel(row.shock_magnitude)} / {ratioLabel(row.confidence)}</dd></div>
+          <div><dt>대체 원천 / 품질 정책</dt><dd>{koCode(label(row.fallback_provider, "미지정"))} / {koCode(label(row.quality_policy, "미제공"))}</dd></div>
           <div><dt>원천·이용 조건</dt><dd>{label(source.license_note, "미제공")}</dd></div><div><dt>재배포 조건</dt><dd>{label(source.redistribution_allowed_note, "미제공")}</dd></div>
           <div><dt>지연 처리 정책</dt><dd>{label(row.stale_policy, "미제공")}</dd></div>
         </dl></details>
@@ -49,7 +52,7 @@ export function MarketEvidence({ data }: { data: DiscoveryData }) {
       {!regimes.length && <p className={styles.emptyText}>{data.raw.regimes == null ? "시장 체제 자료 미제공" : "기록된 시장 체제가 없습니다."}</p>}
     </section>
     <section className={styles.panel} aria-labelledby="market-correlation-title"><header className={styles.sectionHead}><span>동조성</span><h2 id="market-correlation-title">종목과 시장은 어떻게 같이 움직였나</h2><p>상관관계는 인과관계나 매수·매도 이유를 뜻하지 않습니다. 관측 기간·표본 수를 함께 비교하세요.</p></header>
-      {correlations.length > 0 ? <div className={styles.tableScroll} role="region" aria-label="상관관계 표 가로 스크롤" tabIndex={0}><table><caption>저장된 상관관계 · 원래 반환 순서</caption><thead><tr><th scope="col">비교 쌍</th><th scope="col">기준일 / 기간</th><th scope="col">상관계수</th><th scope="col">베타</th><th scope="col">관측 수</th></tr></thead><tbody>{correlations.map((row, i) => <tr key={i}><th scope="row">{label(row.primary_display_name)} ↔ {label(row.comparison_display_name)}<small>{label(row.summary_ko, "해석 미제공")}</small></th><td>{label(row.as_of_date)}<small>{numberLabel(row.lookback_days, 0)}일</small></td><td>{numberLabel(row.correlation)}</td><td>{numberLabel(row.beta)}</td><td>{numberLabel(row.observation_count, 0)}</td></tr>)}</tbody></table></div> : <p className={styles.emptyText}>{data.raw.correlations == null ? "상관관계 자료 미제공" : "저장된 상관관계가 없습니다."}</p>}
+      {correlations.length > 0 ? <div className={styles.tableScroll} role="region" aria-label="상관관계 표 가로 스크롤" tabIndex={0}><table><caption>저장된 상관관계 · 원래 반환 순서</caption><thead><tr><th scope="col">비교 쌍</th><th scope="col">기준일 / 기간</th><th scope="col">상관계수</th><th scope="col">베타</th><th scope="col">관측 수 / 모델 신뢰도</th></tr></thead><tbody>{correlations.map((row, i) => <tr key={i}><th scope="row">{label(row.primary_display_name)} ↔ {label(row.comparison_display_name)}<small>{label(row.summary_ko, "해석 미제공")}</small></th><td>{label(row.as_of_date)}<small>{numberLabel(row.lookback_days, 0)}일</small></td><td>{numberLabel(row.correlation)}</td><td>{numberLabel(row.beta)}</td><td>{numberLabel(row.observation_count, 0)}<small>{ratioLabel(row.confidence)}</small></td></tr>)}</tbody></table></div> : <p className={styles.emptyText}>{data.raw.correlations == null ? "상관관계 자료 미제공" : "저장된 상관관계가 없습니다."}</p>}
     </section>
     <div className={styles.regimeGrid}>
       <section className={styles.panel}><header className={styles.sectionHead}><h2>연결된 뉴스 근거</h2><p>동시 관찰 기록이며 원인을 확정하지 않습니다.</p></header>{news.map((row, i) => {

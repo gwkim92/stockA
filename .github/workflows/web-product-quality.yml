@@ -11,6 +11,9 @@ on:
       - 'docs/tasks/recommendation-investment-memo-v1/**'
       - 'docs/tasks/research-workspace-redesign-v1/**'
       - 'docs/tasks/research-discovery-workspace-v1/**'
+      - 'docs/api/frontend/examples/stock-list.json'
+      - 'docs/api/frontend/examples/cycle-state-list.json'
+      - 'docs/api/frontend/examples/market-map.json'
   push:
     branches: [develop, main]
     paths:
@@ -21,6 +24,9 @@ on:
       - 'docs/tasks/recommendation-investment-memo-v1/**'
       - 'docs/tasks/research-workspace-redesign-v1/**'
       - 'docs/tasks/research-discovery-workspace-v1/**'
+      - 'docs/api/frontend/examples/stock-list.json'
+      - 'docs/api/frontend/examples/cycle-state-list.json'
+      - 'docs/api/frontend/examples/market-map.json'
   workflow_dispatch:
 
 permissions:

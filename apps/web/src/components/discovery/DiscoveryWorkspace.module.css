@@ -10,9 +10,10 @@
 .contextNav { display: flex; gap: 24px; margin-top: 22px; border-bottom: 1px solid var(--line-subtle); }
 .contextNav a { min-height: 44px; display: inline-flex; align-items: center; color: var(--ink-secondary); font-size: 13px; }
 .contextNav a:hover { color: var(--accent-analysis); }
+.contextNav a[aria-current="page"] { color: var(--accent-analysis); box-shadow: inset 0 -2px var(--accent-analysis); font-weight: 650; }
 .dateContext { color: var(--ink-secondary); font-size: 12px; margin: 16px 0; line-height: 1.8; }
 .dateContext small { color: var(--ink-muted); font-size: 12px; }
-.metrics { margin: 20px 0 24px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); background: var(--surface-primary); border: 1px solid var(--line-subtle); border-radius: 10px; }
+.metrics { margin: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); background: var(--surface-primary); border: 1px solid var(--line-subtle); border-radius: 10px; }
 .metrics > div { min-width: 0; padding: 18px 20px; }
 .metrics > div + div { border-left: 1px solid var(--line-subtle); }
 .metrics dt { color: var(--ink-secondary); font-size: 12px; }
@@ -110,3 +111,26 @@
 @media(max-width: 1200px) { .marketGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .stockRow { grid-template-columns: minmax(140px, 1fr) minmax(170px, 1fr); } .stockColumns { display: none; } .rowActions { flex-direction: row; gap: 16px; } }
 @media(max-width: 850px) { .cycleGrid, .regimeGrid { grid-template-columns: 1fr; } .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); } .metrics > div:nth-child(3) { border-left: none; } .metrics > div:nth-child(n+3) { border-top: 1px solid var(--line-subtle); } }
 @media(max-width: 600px) { .heading { display: block; } .heading h1 { font-size: 26px; } .heading > a { margin-top: 10px; } .marketGrid { grid-template-columns: 1fr; padding: 0 14px 14px; } .search { width: 100%; } .search input { width: 100%; } .toolbar { padding: 14px 14px 4px; } .resultCount, .secondaryControls { padding-inline: 14px; } .secondaryControls label { flex: 1; } .stockRow { grid-template-columns: 1fr; padding: 18px; gap: 14px; } .stockRow .price { padding: 12px; border-radius: 7px; background: var(--surface-canvas); } .cycleGrid { padding: 0 14px 14px; } .cycleCard { padding: 16px; } .metrics > div { padding: 16px; } .metrics dd { font-size: 22px; } .featureList > div { grid-template-columns: 86px minmax(20px, 1fr) 48px; gap: 7px; } .contextNav { gap: 20px; } }
+
+.metricBlock { margin: 16px 0 20px; }
+.metricNotes { font-size: 12px; color: var(--ink-secondary); margin-top: 6px; }
+.metricNotes summary { min-height: 32px; padding: 6px 2px; cursor: pointer; }
+.metricNotes p { font-size: 12px; line-height: 1.8; }
+.metricNotes dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; padding: 16px; border: 1px solid var(--line-subtle); border-radius: 8px; background: white; }
+.metricNotes dt { font-weight: 650; }
+.metricNotes dd { margin: 4px 0 0; font-size: 12px; }
+.price > span:not(:first-child) { justify-self: start; }
+@media(max-width: 600px) {
+ .heading p { font-size: 12px; margin-top: 7px; }
+ .contextNav { margin-top: 8px; }
+ .dateContext { margin: 10px 0; }
+ .metricBlock { margin: 12px 0 16px; }
+ .metrics > div { padding: 9px 12px; }
+ .metrics dt { font-size: 11px; }
+ .metrics dd { margin: 3px 0 0; font-size: 20px; }
+ .metricNotes dl { grid-template-columns: 1fr; }
+ .filters { gap: 2px; }
+ .filters button { padding: 7px 8px; }
+ .resultCount { font-size: 11px; gap: 6px; padding-top: 4px; padding-bottom: 10px; }
+ .toolbar { gap: 8px; }
+}
