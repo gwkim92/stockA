@@ -15,7 +15,7 @@ jobs:
         with:
           ref: codex/research-workspace-redesign-v1
           fetch-depth: 0
-      - name: Verify and apply reviewed source manifest
+      - name: Verify and apply reviewed application source manifest
         run: |
           python3 - <<'PY'
           import base64, hashlib, json, lzma, subprocess
@@ -25,8 +25,11 @@ jobs:
           manifest = json.loads(raw)
           assert manifest['base'] == '3de180d259ce65787e307d85885b8524bf209d66'
           subprocess.run(['git', 'merge-base', '--is-ancestor', manifest['base'], 'HEAD'], check=True)
-          changes = manifest['changes']
-          assert len(changes) == 37
+          assert len(manifest['changes']) == 37
+          # Workflow updates require the connected GitHub application's workflow permission.
+          # This task runner only changes application source and deletes its temporary helpers.
+          changes = [c for c in manifest['changes'] if c['path'].startswith('apps/web/')]
+          assert len(changes) == 36
           paths = [c['path'] for c in changes]
           assert len(set(paths)) == len(paths)
           def digest(path):
@@ -35,7 +38,6 @@ jobs:
           for c in changes:
               p = Path(c['path'])
               assert not p.is_absolute() and '..' not in p.parts and not p.is_symlink()
-              assert c['path'].startswith('apps/web/') or c['path'] == '.github/workflows/web-product-quality.yml'
               assert c['path'] not in ('apps/web/package.json', 'apps/web/package-lock.json')
               assert digest(c['path']) == c['before'], f"source changed: {c['path']}"
           for c in changes:
