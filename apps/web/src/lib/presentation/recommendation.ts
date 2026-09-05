@@ -1,4 +1,5 @@
 import type { RecommendationDetailData } from "../types";
+import { memoPositionLabel, memoEvidenceAssessment } from "../recommendation-memo-model";
 
 import { recommendationCopy } from "./investment-copy";
 import { formatPercent } from "./format";
@@ -6,8 +7,8 @@ import type { InvestmentViewModel } from "./view-model";
 
 export type RecommendationProductKind = "company_stock" | "fund_or_etf";
 
-export function recommendationProductKind(data: Pick<RecommendationDetailData, "fund_instrument_analysis">): RecommendationProductKind {
-  return data.fund_instrument_analysis ? "fund_or_etf" : "company_stock";
+export function recommendationProductKind(data: Pick<RecommendationDetailData, "fund_instrument_analysis"> & Partial<Pick<RecommendationDetailData, "professional_evidence_audit">>): RecommendationProductKind {
+  return data.fund_instrument_analysis || data.professional_evidence_audit?.product_type === "fund_or_etf" ? "fund_or_etf" : "company_stock";
 }
 
 export function recommendationProductLabel(kind: RecommendationProductKind): string {
@@ -46,8 +47,9 @@ export function buildRecommendationViewModel(data: RecommendationDetailData): In
   const execution = recommendationExecutionStatus(data.professional_decision_waterfall);
   const sourceBlocked =
     data.professional_evidence_audit.source_blocker.blocked
+    || data.professional_source_guardrail?.blocked === true
     || data.professional_decision_waterfall.status === "source_data_blocked";
-  const positionLabel = data.position_context.status === "held" ? "보유 중" : "미보유";
+  const positionLabel = memoPositionLabel(data.position_context.status);
   const scoreLabel = formatPercent(data.score);
 
   return {
@@ -59,10 +61,10 @@ export function buildRecommendationViewModel(data: RecommendationDetailData): In
       kind === "fund_or_etf"
         ? "구성종목, 추적차이, 비용률, NAV 괴리와 시장 노출을 먼저 봅니다."
         : "가격, 재무 품질, 밸류에이션, 산업 위치, 뉴스와 사이클 근거를 함께 봅니다.",
-    nextAction: execution.nextAction,
+    nextAction: sourceBlocked ? "원천 제한을 확인하고 투자 판단과 가상 검증 입력을 보류합니다." : execution.nextAction,
     sourceLimitReason: sourceBlocked
       ? recommendationCopy(data.professional_evidence_audit.source_blocker.blocker_code)
-      : "추천 판단에 필요한 핵심 원천 근거가 연결되어 있습니다.",
+      : memoEvidenceAssessment(data.professional_evidence_audit).detail,
     metrics: [
       { label: "추천 점수", value: scoreLabel, context: "최종 점수 변경 없이 표시" },
       {

@@ -113,8 +113,8 @@ export function RecommendationDecisionHeader({
 
       <nav className={styles.map} aria-label="추천 상세 읽는 순서">
         <h2 className={styles.mapTitle}>이 화면의 판단 순서</h2>
-        <a className={styles.mapCardPrimary} href="#recommendation-professional-flow">
-          <span>1. 추천 결론</span>
+        <a className={styles.mapCardPrimary} href="#recommendation-investment-memo">
+          <span>1. 투자 논리와 판단 조건</span>
           <strong>{viewModel.investmentImpact}</strong>
           <small>{viewModel.nextAction}</small>
         </a>
@@ -126,7 +126,7 @@ export function RecommendationDecisionHeader({
         <a className={counts.blockedStepCount > 0 ? styles.mapCardWatch : styles.mapCardReady} href="#recommendation-professional-flow">
           <span>3. 판단 단계</span>
           <strong>
-            {counts.readyStepCount}/{counts.totalStepCount} 통과
+            {counts.totalStepCount > 0 ? `${counts.readyStepCount}/${counts.totalStepCount} 통과` : "판단 단계 미확인"}
           </strong>
           <small>
             주의 {counts.watchStepCount}개 · 차단 {counts.blockedStepCount}개

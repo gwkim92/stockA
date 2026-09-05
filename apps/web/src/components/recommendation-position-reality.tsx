@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { finiteNumber, memoCurrency, memoPositionLabel } from "@/lib/recommendation-memo-model";
 import type { RecommendationDetailData, RecommendationPositionReference } from "@/lib/types";
 import { RecommendationBrokerReality } from "./recommendation-broker-reality";
 import styles from "./recommendation-position-reality.module.css";
@@ -8,8 +9,8 @@ type RecommendationPositionRealityProps = {
 };
 
 function formatQuantity(value: number | null) {
-  if (value === null) {
-    return "없음";
+  if (value === null || !Number.isFinite(value)) {
+    return "미확인";
   }
   return new Intl.NumberFormat("ko-KR", {
     maximumFractionDigits: value < 1 ? 6 : 2,
@@ -38,14 +39,7 @@ function formatWeightPercent(value: number | null | undefined) {
 }
 
 function formatCurrency(value: number | null, currencyCode: string) {
-  if (value === null) {
-    return "데이터 없음";
-  }
-  return new Intl.NumberFormat("ko-KR", {
-    style: "currency",
-    currency: currencyCode,
-    maximumFractionDigits: currencyCode === "KRW" ? 0 : 2,
-  }).format(value);
+  return memoCurrency(value, currencyCode);
 }
 
 function priceCurrency(position: RecommendationPositionReference) {
@@ -53,9 +47,9 @@ function priceCurrency(position: RecommendationPositionReference) {
 }
 
 function averageCost(position: RecommendationPositionReference) {
-  if (position.cost_basis_native !== null && position.quantity !== null && position.quantity !== 0) {
+  if (finiteNumber(position.cost_basis_native) !== null && finiteNumber(position.quantity) !== null && position.quantity !== 0) {
     return {
-      value: position.cost_basis_native / position.quantity,
+      value: (position.cost_basis_native as number) / (position.quantity as number),
       currencyCode: priceCurrency(position),
     };
   }
@@ -69,14 +63,15 @@ function averageCostNote(position: RecommendationPositionReference) {
   if (position.status === "not_held") {
     return "미보유라 취득원가 없음";
   }
-  if (position.average_cost !== null || position.cost_basis_native !== null) {
+  if (position.status !== "held") return "보유 원장 확인 필요";
+  if (finiteNumber(position.average_cost) !== null || finiteNumber(position.cost_basis_native) !== null) {
     return "원장 기준";
   }
   return "취득원가 필요";
 }
 
 function marketPrice(position: RecommendationPositionReference) {
-  if (position.market_price_native !== null) {
+  if (finiteNumber(position.market_price_native) !== null) {
     return {
       value: position.market_price_native,
       currencyCode: priceCurrency(position),
@@ -89,13 +84,7 @@ function marketPrice(position: RecommendationPositionReference) {
 }
 
 function positionStatusLabel(status: string) {
-  if (status === "held") {
-    return "보유 중";
-  }
-  if (status === "not_held") {
-    return "보유 없음";
-  }
-  return "상태 보류";
+  return memoPositionLabel(status);
 }
 
 function positionTone(status: string) {
@@ -109,7 +98,7 @@ function positionTone(status: string) {
 }
 
 function hasOpenPosition(position: RecommendationPositionReference) {
-  return position.status === "held" && position.quantity !== null && position.quantity !== 0;
+  return position.status === "held" && finiteNumber(position.quantity) !== null && position.quantity !== 0;
 }
 
 function positionSummary(symbol: string, position: RecommendationPositionReference) {
@@ -127,16 +116,14 @@ function holdingCurrencyValue(
   value: number | null,
   currencyCode: string,
 ) {
-  if (!hasOpenPosition(position)) {
-    return "해당 없음";
-  }
+  if (position.status === "not_held") return "해당 없음";
+  if (!hasOpenPosition(position)) return "미확인";
   return formatCurrency(value, currencyCode);
 }
 
 function holdingMetricNote(position: RecommendationPositionReference, heldNote: string) {
-  if (!hasOpenPosition(position)) {
-    return "미보유라 계산하지 않음";
-  }
+  if (position.status === "not_held") return "미보유라 계산하지 않음";
+  if (!hasOpenPosition(position)) return "보유 원장 확인 필요";
   return heldNote;
 }
 
@@ -176,7 +163,7 @@ export function RecommendationPositionReality({ data }: RecommendationPositionRe
   const actionText =
     position.status === "held"
       ? "보유 수량과 추천 방향의 충돌 여부"
-      : "신규 편입 후보 상태";
+      : position.status === "not_held" ? "신규 편입 후보 상태" : "보유 원장 확인 필요";
 
   return (
     <section
@@ -220,12 +207,12 @@ export function RecommendationPositionReality({ data }: RecommendationPositionRe
         <Metric
           label="평가금액"
           value={holdingCurrencyValue(position, position.market_value, position.currency_code)}
-          note={hasOpenPosition(position) ? `비중 ${formatPercent(position.weight)}` : "미보유"}
+          note={hasOpenPosition(position) ? `비중 ${formatPercent(position.weight)}` : position.status === "not_held" ? "미보유" : "보유 원장 확인 필요"}
         />
         <Metric
           label="평가손익"
           value={holdingCurrencyValue(position, position.unrealized_pnl, position.currency_code)}
-          note={hasOpenPosition(position) ? formatPercent(position.unrealized_pnl_pct) : "미보유"}
+          note={hasOpenPosition(position) ? formatPercent(position.unrealized_pnl_pct) : position.status === "not_held" ? "미보유" : "보유 원장 확인 필요"}
         />
         <Metric label="추천 비중" value={formatWeightPercent(data.recommended_weight)} note="점수와 분리된 목표 비중" />
       </div>
