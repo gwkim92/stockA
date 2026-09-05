@@ -1,10 +1,9 @@
 from __future__ import annotations
 
 import json
-import sys
-import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from stockanalysis.ingest.sec.ai_event_extract import (
@@ -103,32 +102,30 @@ class SecAiEventExtractTests(unittest.TestCase):
             "event": json.loads(LLM_FIXTURE.read_text(encoding="utf-8"))["event"],
             "usage": {"output_tokens": 120},
         }
-        with tempfile.TemporaryDirectory() as tmpdir:
-            runner = Path(tmpdir) / "fake-codex.py"
-            runner.write_text(
-                "\n".join(
-                    [
-                        "import pathlib, sys",
-                        "args = sys.argv[1:]",
-                        "assert 'exec' in args",
-                        "assert '--ephemeral' in args",
-                        "assert '--sandbox' in args and 'read-only' in args",
-                        "assert '-c' in args and 'approval_policy=\"never\"' in args",
-                        "assert 'auth.json' not in ' '.join(args)",
-                        "output = pathlib.Path(args[args.index('--output-last-message') + 1])",
-                        f"output.write_text({json.dumps(json.dumps(payload))}, encoding='utf-8')",
-                    ]
-                ),
-                encoding="utf-8",
-            )
-            command = f"{sys.executable} {runner}"
-            with patch.dict("os.environ", {"STOCKANALYSIS_CODEX_CLI_COMMAND": command}):
-                response = invoke_codex_oauth_structured_event_provider(
-                    record,
-                    chunk,
-                    "codex-cli-default",
-                    "low",
-                )
+
+        def fake_run(command, **kwargs):
+            # Keep the CLI/schema/file boundary assertions without launching a
+            # child interpreter. The offline regression guard denies real IO.
+            self.assertIn("exec", command)
+            self.assertIn("--ephemeral", command)
+            self.assertIn("--sandbox", command)
+            self.assertEqual(command[command.index("--sandbox") + 1], "read-only")
+            self.assertIn('approval_policy="never"', command)
+            self.assertNotIn("auth.json", " ".join(command))
+            self.assertTrue(kwargs["capture_output"])
+            self.assertFalse(kwargs["check"])
+            self.assertGreater(kwargs["timeout"], 0)
+            self.assertIn("Bounded SEC filing context", kwargs["input"])
+            schema = Path(command[command.index("--output-schema") + 1])
+            self.assertEqual(json.loads(schema.read_text(encoding="utf-8")), build_codex_oauth_output_schema())
+            output = Path(command[command.index("--output-last-message") + 1])
+            output.write_text(json.dumps(payload), encoding="utf-8")
+            return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+        with patch.dict("os.environ", {"STOCKANALYSIS_CODEX_CLI_COMMAND": "codex-test-only"}):
+            with patch("stockanalysis.ingest.sec.ai_event_extract.subprocess.run", side_effect=fake_run) as runner:
+                response = invoke_codex_oauth_structured_event_provider(record, chunk, "codex-cli-default", "low")
+                runner.assert_called_once()
 
         self.assertEqual(response.provider, CODEX_OAUTH_PROVIDER)
         self.assertEqual(response.model_name, "codex-cli-default")
