@@ -10,7 +10,7 @@ export function NewsInbox({ data, query }: { data: NewsPage; query: NewsQuery })
   const scope = NEWS_SCOPES.some(([key]) => key === params.get('scope')) ? params.get('scope')! : 'all';
   const filtered = filterNews(data.items, q, scope);
   return <section className={styles.panel} aria-label="뉴스 검토 목록" data-testid="news-inbox">
-    <div className={styles.panelHead}><h2>검토할 뉴스와 공시</h2><p>원문을 읽고, 연결된 해석·기업·테마로 이어가세요.</p></div>
+    <div className={styles.panelHead}><h2>검토할 뉴스와 공시</h2></div>
     <div className={styles.toolbar}>
       <div className={styles.scopes} role="group" aria-label="현재 페이지 선별">
         {NEWS_SCOPES.map(([key, label]) => <button type="button" key={key} aria-pressed={scope === key} onClick={() => update({ scope: key }, true)}>{label}<span>{filterNews(data.items, '', key).length}</span></button>)}

@@ -1,6 +1,6 @@
 import { defineConfig, devices } from '@playwright/test';
 export default defineConfig({
-  testDir: './tests/e2e', testMatch: 'news-theme.home.ts', workers: 1, fullyParallel: false,
+  testDir: './tests/e2e', testMatch: ['news-theme.home.ts', 'news-theme-integration.home.ts'], workers: 1, fullyParallel: false,
   timeout: 30_000, expect: { timeout: 10_000 },
   reporter: [['list'], ['html', { outputFolder: 'playwright-signals-report', open: 'never' }]], outputDir: 'test-results/signals',
   use: { baseURL: 'http://127.0.0.1:13008', trace: 'retain-on-failure', screenshot: 'only-on-failure' },

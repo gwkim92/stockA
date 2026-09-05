@@ -10,9 +10,10 @@ export default async function EventsPage({ searchParams }: { searchParams: Promi
   const result = await loadNews(await searchParams);
   const query = result.query ?? { date: result.today, symbol: '', theme: '', cursor: '' };
   return <div className={styles.page} data-testid="news-workspace">
-    <header className={styles.header}><div><span className={styles.eyebrow}>NEWS INBOX</span><h1>뉴스 선별</h1><p>확인할 뉴스와 공시를 좁히고, 다음 투자 검토로 이어가세요.</p></div><SignalLink href="/cycles">테마 사이클 →</SignalLink></header>
+    <header className={styles.header}><div><span className={styles.eyebrow}>NEWS INBOX</span><h1>뉴스 선별</h1><p>확인할 뉴스와 공시를 좁히고, 다음 투자 검토로 이어가세요.</p></div></header>
     <NewsRequestForm query={query} today={result.today} />
-    {result.data && result.query ? <><p className={styles.context}>요청 기준일 {result.requestedDate} · API 반환 기준 {result.data.asOf ?? '미확인'}<br /><small>해당 날짜까지의 기록이며 모두 당일 뉴스라는 뜻은 아닙니다. 기본 조회 날짜는 API 기준인 UTC를 사용합니다.</small></p><NewsInbox data={result.data} query={result.query} /></> : <SignalError issue={result.issue} home="/events" />}
-    <footer className={styles.footer}><SignalLink href="/events/classification">기존 분류 상세</SignalLink><SignalLink href="/ai-evidence">전체 분석 근거</SignalLink><SignalLink href="/ai-evidence/blocked">보류된 근거</SignalLink></footer>
+    {result.data && result.query ? <><p className={styles.context}>요청 기준일 {result.requestedDate} · API 반환 기준 {result.data.asOf ?? '미확인'}</p><NewsInbox data={result.data} query={result.query} /></> : <SignalError issue={result.issue} home="/events" />}
+    <p className={styles.note}>기준일까지의 기록이며 모두 당일 뉴스라는 뜻은 아닙니다. 기본 조회 날짜는 API 기준인 UTC를 사용합니다.</p>
+    <footer className={styles.footer}><SignalLink href="/cycles">테마 사이클 →</SignalLink><SignalLink href="/events/classification">기존 분류 상세</SignalLink><SignalLink href="/ai-evidence">전체 분석 근거</SignalLink><SignalLink href="/ai-evidence/blocked">보류된 근거</SignalLink></footer>
   </div>;
 }
