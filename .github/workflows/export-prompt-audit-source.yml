@@ -1,0 +1,26 @@
+name: Export Prompt Audit Source
+on:
+  push:
+    branches: [codex/analysis-prompt-contract-v1]
+    paths: [.github/workflows/export-prompt-audit-source.yml]
+permissions:
+  contents: read
+jobs:
+  source:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Export tracked code and test contracts
+        run: |
+          mkdir -p /tmp/prompt-audit-source
+          git archive --format=tar.gz HEAD src tests scripts docs AGENTS.md README.md pyproject.toml .github/workflows > /tmp/prompt-audit-source/source.tar.gz
+          git rev-parse HEAD > /tmp/prompt-audit-source/commit.txt
+          sha256sum /tmp/prompt-audit-source/source.tar.gz > /tmp/prompt-audit-source/sha256.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: prompt-audit-source
+          path: /tmp/prompt-audit-source/
+          retention-days: 3
