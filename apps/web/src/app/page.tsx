@@ -108,7 +108,7 @@ export default async function HomePage() {
 
   return (
     <div className={styles.page} data-testid="research-home">
-      <DecisionSummary
+      <div className={research.intro}><DecisionSummary
         eyebrow={`중장기 투자 리서치 · 조회 기준 ${snapshot.requestedDate} UTC`}
         title="시장 변화에서 투자 판단까지"
         description="어떤 테마가 바뀌었는지, 어떤 기업의 투자 논리가 유효한지, 보유 판단을 다시 볼 이유가 있는지 확인하세요. 3개월부터 1년 이상을 보는 리서치 화면입니다."
@@ -117,9 +117,9 @@ export default async function HomePage() {
           { href: "/recommendations", label: "투자 후보 검토" },
           { href: "/portfolio/coverage", label: "보유 논리 점검" },
         ]}
-        side={<><strong>{homeHealth(snapshot)}</strong><p>실제 주문과 자동 비중 변경은 실행하지 않습니다. 연결된 자료만 표시하며, 조회 실패는 0건으로 바꾸지 않습니다.</p></>}
-      />
-      <MetricStrip items={metrics} label="리서치 현황" />
+        side={<><strong>{loadedCount === 0 ? "분석 데이터 연결을 확인해 주세요" : "논리·촉매·무효화 조건"}</strong><p>후보를 검토한 뒤 보유 논리가 유지되는지 계속 점검합니다. 실거래 주문은 비활성입니다.</p></>}
+      /></div>
+      <div className={research.metrics}><MetricStrip items={metrics} label="리서치 현황" /></div>
       <nav className={styles.decisionLine} aria-label="투자 판단 경로">
         {[
           ["/market-map", "시장", "거시 배경"], ["/cycle-map", "사이클", "테마 변화"],
@@ -127,13 +127,6 @@ export default async function HomePage() {
           ["/recommendations", "투자 후보", "논리·무효화 조건"], ["/portfolio/coverage", "포트폴리오", "보유 재검토"],
         ].map(([href, label, context]) => <Link href={href as Route} key={href}><span>{label}</span><small>{context}</small></Link>)}
       </nav>
-      <section className={research.sourcePanel} aria-label="영역별 데이터 상태">
-        <h2>영역별 데이터 상태</h2>
-        <p>아래 날짜는 API가 제공한 분석 기준일입니다. 응답을 방금 받았다는 이유로 자료를 최신으로 간주하지 않습니다.</p>
-        <div className={research.sourceGrid}>{HOME_FEEDS.map((key) => <div key={key}>
-          <strong>{FEED_LABELS[key]}</strong><span>{feedCaption(snapshot.feeds[key])}</span>
-        </div>)}</div>
-      </section>
       <ResearchSection eyebrow="시장 → 테마" title="어떤 사이클이 바뀌었나" description="관측된 상태 전환을 먼저 봅니다. 전환 방향만으로 상승 가능성이나 매수 적합성을 단정하지 않습니다.">
         <SourceNote feed={cycles} />
         {cycles.data && <DecisionList items={cycleItems} emptyText="조회된 사이클 목록이 비어 있습니다." />}
@@ -142,7 +135,7 @@ export default async function HomePage() {
         <SourceNote feed={recommendations} />
         {recommendations.data && <DecisionList items={recommendationItems} emptyText="조회된 투자 후보 목록이 비어 있습니다." />}
       </ResearchSection>
-      <ResearchSection eyebrow="판단을 뒷받침하는 자료" title="연결된 뉴스와 원문 근거" description="이미 연결된 근거를 보여줍니다. 이전 조회와 비교하지 않은 자료를 ‘오늘 새 뉴스’라고 부르지 않습니다.">
+      <ResearchSection eyebrow="판단을 뒷받침하는 자료" title="연결된 뉴스와 원문 근거" description="관련 기업과 원문을 함께 읽고, 현재 투자 논리를 강화하는지 약화하는지 비교하세요.">
         <SourceNote feed={news} />
         {news.data && <DecisionList items={evidenceItems} emptyText="조회된 뉴스 근거 목록이 비어 있습니다." />}
       </ResearchSection>
@@ -150,8 +143,16 @@ export default async function HomePage() {
         <SourceNote feed={portfolio} />
         {portfolio.data && <DecisionList items={riskItems} emptyText="조회된 우선 검토 항목이 없습니다. 전체 위험 평가는 포트폴리오 상세에서 확인하세요." />}
       </ResearchSection>
+      <p className={research.performanceLink}><Link href="/performance">지난 판단의 수익률·벤치마크 대비 성과 확인</Link></p>
+      <details className={research.sourcePanel}>
+        <summary>영역별 데이터 상태 · {loadedCount}/{HOME_FEEDS.length} 연결</summary>
+        <p>API가 제공한 분석 기준일입니다. 개별 원천의 관측일과 최신성은 상세 근거에서 확인하세요.</p>
+        <div className={research.sourceGrid}>{HOME_FEEDS.map((key) => <div key={key}>
+          <strong>{FEED_LABELS[key]}</strong><span>{feedCaption(snapshot.feeds[key])}</span>
+        </div>)}</div>
+      </details>
       <section className={styles.systemNotice} aria-label="시스템 신뢰 상태">
-        <div><span>리서치와 운영 상태 구분</span><strong>{homeHealth(snapshot)}</strong><p>수집 실패의 영향 범위와 근거 기준일은 데이터 상태에서 확인하세요. 일부 장애로 나머지 리서치 화면을 숨기지 않습니다.</p></div>
+        <div><span>리서치와 운영 상태 구분</span><strong>{homeHealth(snapshot)}</strong><p>수집 실패의 영향 범위, 원천 기준일, 성과 측정 대기 항목을 확인하세요.</p></div>
         <Link href="/data-health">데이터 상태 확인</Link>
       </section>
     </div>

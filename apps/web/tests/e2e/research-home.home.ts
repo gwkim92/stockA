@@ -19,6 +19,8 @@ test("investor journey renders with evidence links on desktop and mobile", async
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
   const accessibility = await new AxeBuilder({ page }).include('[data-testid="research-home"]').analyze();
   expect(accessibility.violations).toEqual([]);
+  await expect(home.getByRole("link", { name: "지난 판단의 수익률·벤치마크 대비 성과 확인" })).toHaveAttribute("href", "/performance");
+  await expect(home.locator("details")).not.toHaveAttribute("open", "");
   expect(errors).toEqual([]);
   await page.screenshot({ path: info.outputPath(`research-home-${info.project.name}.png`), fullPage: true });
 });

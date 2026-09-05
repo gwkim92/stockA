@@ -37,12 +37,15 @@ describe("honest research presentation", () => {
     expect(unavailableFeed("news", "http").data).toBeNull();
   });
   it.each([{}, null, { data: {} }, { data: { clusters: [null] } }])("rejects malformed envelopes", (payload) => expect(() => parseHomeFeed("news", payload, date)).toThrow());
+  it.each(HOME_FEEDS)("rejects unidentifiable %s rows instead of displaying a false empty result", (key) => {
+    expect(() => parseHomeFeed(key, envelope(key, { [FEED_LISTS[key]]: [{}] }), date)).toThrow();
+  });
   it("requires both cycle states before claiming a transition", () => {
     const feed = parseHomeFeed("cycles", envelope("cycles", { cycle_states: [
-      { state: "expanding", previous_state: "forming" },
-      { state: "expanding", previous_state: "expanding" },
-      { state: "expanding", previous_state: null },
-      { state: "expanding", previous_state: "unknown" },
+      { theme_key: "test-theme", state: "expanding", previous_state: "forming" },
+      { theme_key: "test-theme", state: "expanding", previous_state: "expanding" },
+      { theme_key: "test-theme", state: "expanding", previous_state: null },
+      { theme_key: "test-theme", state: "expanding", previous_state: "unknown" },
     ] }), date);
     expect(changedCycles(feed)).toHaveLength(1);
   });

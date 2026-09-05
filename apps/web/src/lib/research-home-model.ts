@@ -51,6 +51,10 @@ export function parseHomeFeed(key: HomeFeedKey, payload: unknown, requestedDate:
   const data = record(envelope.data);
   const list = data[FEED_LISTS[key]];
   if (!Array.isArray(list) || rows(list).length !== list.length) throw new Error("invalid home feed");
+  const identityField: Record<HomeFeedKey, string> = {
+    cycles: "theme_key", recommendations: "recommendation_id", news: "evidence_id", portfolio: "symbol",
+  };
+  if (rows(list).some((row) => !text(row[identityField[key]], ""))) throw new Error("missing row identity");
   // A response-generation timestamp is NOT the date of its underlying evidence.
   const asOfDate = isoDate(data.as_of_date);
   const dateState = !asOfDate ? "unknown" : asOfDate > requestedDate ? "future"
