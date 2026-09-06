@@ -1,0 +1,63 @@
+.page { min-width: 0; }
+.header { display: flex; justify-content: space-between; align-items: center; gap: 24px; margin-bottom: 18px; }
+.kicker { color: var(--accent-analysis); letter-spacing: .1em; font-size: 10px; font-weight: 700; }
+.header h1 { margin: 4px 0; font-size: 32px; line-height: 1.4; letter-spacing: -.03em; }
+.header h1 span { margin-left: 14px; font-weight: 450; font-size: 25px; }
+.header p { margin: 0; font-size: 13px; color: var(--ink-secondary); line-height: 1.8; }
+.steps { display: flex; gap: 28px; border-bottom: 1px solid var(--line-strong); }
+.steps a { display: inline-flex; gap: 8px; align-items: center; min-height: 44px; font-weight: 600; font-size: 13px; }
+.steps span { font-size: 11px; color: var(--accent-analysis); }
+.context { display: flex; gap: 8px 20px; flex-wrap: wrap; font-size: 11px; color: var(--ink-secondary); padding: 14px 0; }
+.context strong { margin-left: auto; font-weight: 550; color: var(--accent-analysis); }
+.compare { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 22px; align-items: start; }
+.analysisPanel, .sourcePanel, .notePanel { min-width: 0; border: 1px solid var(--line-subtle); background: var(--surface-primary); border-radius: 12px; padding: 24px; }
+.sourcePanel { position: sticky; top: 88px; border-top: 3px solid var(--accent-analysis); }
+.sectionHead { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+.sectionHead h2 { font-size: 18px; line-height: 1.6; margin-top: 4px; letter-spacing: -.02em; }
+.localBadge { font-size: 11px; color: var(--ink-secondary); background: var(--surface-canvas); padding: 5px 9px; border-radius: 5px; white-space: normal; }
+.lead { font-size: 14px; line-height: 1.95; margin: 0 0 22px; }
+.claimGroup { border-top: 1px solid var(--line-subtle); padding: 18px 0 6px; }
+.claimGroup h3 { font-size: 14px; line-height: 1.7; display: flex; gap: 10px; align-items: start; }
+.claimGroup h3 span { font-size: 11px; color: var(--ink-muted); font-weight: 450; padding-top: 3px; }
+.claimGroup ul { padding-left: 18px; margin: 12px 0 10px; }
+.claimGroup li { font-size: 13px; line-height: 1.9; padding-left: 3px; margin: 8px 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.caption, .empty { font-size: 12px; line-height: 1.85; color: var(--ink-secondary); margin: 10px 0; }
+.sourcePicker { display: grid; gap: 6px; font-size: 11px; color: var(--ink-secondary); margin-bottom: 20px; }
+.sourcePicker select { max-width: 100%; width: 100%; min-width: 0; padding: 10px; min-height: 44px; border: 1px solid var(--line-strong); border-radius: 7px; background: var(--surface-canvas); color: var(--ink-primary); font-size: 12px; }
+.sourceMeta { display: flex; flex-wrap: wrap; gap: 8px 16px; color: var(--ink-secondary); font-size: 11px; }
+.sourceTitle { margin-top: 10px; font-size: 16px; line-height: 1.8; }
+.excerpt { border-top: 1px solid var(--line-subtle); margin-top: 18px; padding-top: 16px; }
+.excerpt > span { font-size: 11px; color: var(--accent-analysis); }
+.excerpt h4 { font-size: 13px; line-height: 1.8; margin-top: 4px; }
+.excerpt p, .details p { font-size: 13px; line-height: 1.95; white-space: pre-wrap; overflow-wrap: anywhere; }
+.details { border-top: 1px solid var(--line-subtle); margin-top: 16px; padding-top: 6px; }
+.details summary { cursor: pointer; font-size: 12px; min-height: 44px; padding: 11px 0; color: var(--ink-secondary); }
+.details dl { font-size: 12px; line-height: 1.9; }.details dt { color: var(--ink-muted); }.details dd { margin: 4px 0 12px; overflow-wrap: anywhere; }
+.notePanel { margin-top: 24px; border-top: 3px solid var(--ink-primary); }
+.noteGrid { display: grid; grid-template-columns: minmax(0,1.15fr) minmax(0,1fr); gap: 28px; margin-top: 22px; }
+.noteFields, .nextFields { min-width: 0; display: grid; gap: 18px; align-content: start; }
+.noteFields > label, .nextFields > label { display: grid; gap: 8px; font-size: 13px; font-weight: 600; }
+.notePanel textarea, .notePanel input[type=date] { padding: 12px; border: 1px solid var(--line-strong); background: var(--surface-canvas); color: var(--ink-primary); width: 100%; min-width: 0; border-radius: 8px; line-height: 1.8; font-size: 14px; font-weight: 400; }
+.notePanel textarea { resize: vertical; min-height: 80px; }
+.notePanel fieldset { padding: 0; border: 0; margin: 0; }
+.notePanel legend { font-size: 13px; font-weight: 600; margin-bottom: 8px; }
+.notePanel fieldset label { display: flex; align-items: center; gap: 10px; font-size: 12px; min-height: 42px; }
+.notePanel input[type=checkbox] { width: 17px; height: 17px; flex-shrink: 0; accent-color: var(--accent-analysis); }
+.saveBar { border-top: 1px solid var(--line-subtle); padding-top: 16px; margin-top: 24px; }
+.actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; }
+.page button { min-height: 44px; border: 1px solid var(--line-strong); border-radius: 7px; padding: 9px 12px; background: white; color: var(--ink-secondary); cursor: pointer; font-size: 12px; }
+.page .primary { background: var(--accent-analysis); color: white; border-color: var(--accent-analysis); }
+.saveStatus { font-size: 12px; line-height: 1.9; color: var(--ink-secondary); }
+.warning { padding: 14px 16px; background: #fff8ec; border: 1px solid #e9d4ab; border-radius: 8px; color: #73501b; font-size: 12px; line-height: 1.85; margin: 12px 0; }
+.warning p { margin: 4px 0 10px; }.warning button + button { margin-left: 10px; }
+.link { display: inline-flex; min-height: 44px; align-items: center; color: var(--accent-analysis); }
+.footer { font-size: 12px; line-height: 1.9; color: var(--ink-muted); margin: 20px 0; }
+@media(max-width:1050px) { .compare { grid-template-columns: 1fr; }.sourcePanel { position: static; }.noteGrid { grid-template-columns: 1fr; } }
+@media(max-width:600px) {
+ .header { display: block; margin-bottom: 8px; }.header h1 { font-size: 27px; }.header h1 span { font-size: 22px; margin-left: 10px; }.header p { font-size: 12px; }
+ .steps { gap: 14px; }.steps a { font-size: 12px; gap: 5px; }.steps span { font-size: 10px; }.context { gap: 6px 12px; }.context strong { margin-left: 0; }
+ .analysisPanel,.sourcePanel,.notePanel { padding: 18px; }.sectionHead h2 { font-size: 17px; }.lead { font-size: 14px; }
+ .sourcePicker select,.notePanel textarea,.notePanel input[type=date] { font-size: 16px; }
+ .compare { gap: 18px; }.notePanel { margin-top: 18px; }.noteGrid { gap: 20px; }
+ .saveBar .actions { gap: 8px; }.saveBar .primary { width: 100%; }.saveBar button { flex: 1; }
+}
