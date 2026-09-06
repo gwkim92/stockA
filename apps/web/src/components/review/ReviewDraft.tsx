@@ -16,6 +16,11 @@ export function ReviewDraft({ model, snapshot }: { model: ReviewModel; snapshot:
   const [dirty, setDirty] = useState(false), [message, setMessage] = useState('초안 저장소를 확인하는 중입니다.');
   const [deleting, setDeleting] = useState(false);
   const stale = draft.snapshot !== snapshot;
+  const storageWarning = storage === 'conflict'
+    ? '다른 탭에서 초안이 변경됐습니다. 현재 메모를 내보낸 뒤 저장된 초안을 다시 읽으세요.'
+    : storage === 'corrupt'
+      ? '저장된 초안을 읽을 수 없습니다. 원본을 보관하거나 삭제하기 전에는 덮어쓰지 않습니다.'
+      : '브라우저 저장소를 사용할 수 없습니다. 작성 중인 메모는 화면에만 있으며 파일로 내보낼 수 있습니다.';
   const load = () => {
     try {
       raw.current = window.localStorage.getItem(key);
@@ -74,18 +79,18 @@ export function ReviewDraft({ model, snapshot }: { model: ReviewModel; snapshot:
     {stale && <div className={styles.warning} role="status"><strong>분석 묶음이 바뀌었습니다.</strong><p>이전 초안 기준: {draft.asOf ?? '미확인'}. 현재 주장에 예전 체크 표시를 적용하지 않았습니다.</p>
       <button type="button" onClick={() => { setDraft(d => ({ ...d, snapshot, asOf: model.asOf, checks: [], savedAt: '' })); setDirty(true); setMessage('기존 메모를 가져오고 체크 표시를 초기화했습니다. 저장 전까지 이전 초안은 그대로 보관됩니다.'); }}>메모만 가져와 새 기준으로 검토</button></div>}
     {(storage === 'conflict' || storage === 'corrupt' || storage === 'unavailable') && <div className={styles.warning}>
-      <p>{message}</p><button type="button" onClick={() => { if (!dirty || window.confirm('현재 미저장 메모 대신 저장된 초안을 불러올까요?')) load(); }}>저장된 초안 다시 읽기</button>
+      <p>{storageWarning}</p><button type="button" onClick={() => { if (!dirty || window.confirm('현재 미저장 메모 대신 저장된 초안을 불러올까요?')) load(); }}>저장된 초안 다시 읽기</button>
       {storage === 'corrupt' && raw.current !== null && <button type="button" onClick={() => download(raw.current!, `${model.symbol}-review-stored.txt`)}>읽지 못한 초안 원본 내보내기</button>}
     </div>}
     <div className={styles.noteGrid}>
       <div className={styles.noteFields}>
-        <label>내 판단과 근거<textarea rows={4} maxLength={4000} value={draft.note} disabled={!editable} placeholder="어떤 주장을 받아들이거나 보류하는가? 원천 문서·구간과 함께 적으세요." onChange={e => edit({ note: e.target.value })} /></label>
-        <label>반대 근거와 남은 의문<textarea rows={3} maxLength={3000} value={draft.opposition} disabled={!editable} placeholder="주장에 맞지 않는 자료, 다른 설명, 확인하지 못한 부분" onChange={e => edit({ opposition: e.target.value })} /></label>
+        <div className={styles.field}><label htmlFor="review-note-text">내 판단과 근거</label><textarea id="review-note-text" rows={4} maxLength={4000} value={draft.note} disabled={!editable} placeholder="어떤 주장을 받아들이거나 보류하는가? 원천 문서·구간과 함께 적으세요." onChange={e => edit({ note: e.target.value })} /></div>
+        <div className={styles.field}><label htmlFor="review-opposition">반대 근거와 남은 의문</label><textarea id="review-opposition" rows={3} maxLength={3000} value={draft.opposition} disabled={!editable} placeholder="주장에 맞지 않는 자료, 다른 설명, 확인하지 못한 부분" onChange={e => edit({ opposition: e.target.value })} /></div>
       </div>
       <div className={styles.nextFields}>
         <fieldset disabled={!editable}><legend>내가 확인한 항목</legend>{CHECKS.map(([item,label]) => <label key={item}><input type="checkbox" checked={draft.checks.includes(item)} onChange={e => edit({ checks: e.target.checked ? [...draft.checks, item] : draft.checks.filter(key => key !== item) })} />{label}</label>)}<p className={styles.caption}>직접 남기는 표시입니다. 시스템의 근거 검증·추천 승인과는 무관합니다.</p></fieldset>
-        <label>다음에 확인할 사항<textarea rows={2} maxLength={2000} disabled={!editable} value={draft.nextAction} placeholder="예: 다음 실적에서 서비스 매출과 현금흐름을 대조" onChange={e => edit({ nextAction: e.target.value })} /></label>
-        <label>직접 정한 확인 날짜<input type="date" value={draft.nextDate} disabled={!editable} onChange={e => edit({ nextDate: e.target.value })} /></label><p className={styles.caption}>날짜 메모만 저장합니다. 캘린더 등록·자동 알림은 없습니다.</p>
+        <div className={styles.field}><label htmlFor="review-next-action">다음에 확인할 사항</label><textarea id="review-next-action" rows={2} maxLength={2000} disabled={!editable} value={draft.nextAction} placeholder="예: 다음 실적에서 서비스 매출과 현금흐름을 대조" onChange={e => edit({ nextAction: e.target.value })} /></div>
+        <div className={styles.field}><label htmlFor="review-next-date">직접 정한 확인 날짜</label><input id="review-next-date" type="date" value={draft.nextDate} disabled={!editable} onChange={e => edit({ nextDate: e.target.value })} /></div><p className={styles.caption}>날짜 메모만 저장합니다. 캘린더 등록·자동 알림은 없습니다.</p>
       </div>
     </div>
     <div className={styles.saveBar}><div className={styles.actions}>

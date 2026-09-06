@@ -20,7 +20,7 @@ const server=createServer(async(req,res)=>{
     key_points:['서비스 매출 성장과 고객 유지율을 함께 확인한다.','매출 증가가 현금흐름 개선으로 이어지는지 확인한다.'],
     risks:['규제 비용이 늘거나 고객 유지율이 낮아지면 수익성 가정을 재검토한다.'],
     invalidation_conditions:['현금흐름이 비용 증가를 흡수하지 못하면 기존 판단을 보류한다.'],
-    catalysts:['다음 실적에서 서비스 매출와 현금흐름을 다시 대조한다.'],
+    catalysts:['다음 실적에서 서비스 매출과 현금흐름을 다시 대조한다.'],
     source_document_ids:['source-document-1','source-document-2']};
   d.recommendation={recommendation_id:'recommendation-1',linked_thesis_id:'thesis-1',score:0.7};
   d.recent_events=[{event_id:'event-1',title:'Service growth and cash flow',korean_title:'서비스 성장과 현금흐름',source_document_id:'source-document-1',ai_evidence_id:'ai-evidence-1',event_at:'2026-09-03T00:00:00Z'},

@@ -8,7 +8,11 @@ test('real source comparison and notebook are accessible without width overflow'
  await page.goto(route);await expect(page.getByTestId('review-source-content')).toContainText('12%');
  await expect(page.getByRole('button',{name:'이 브라우저에 저장',exact:true})).toBeEnabled();
  expect((await page.locator('#review-claims h2').boundingBox())!.y).toBeLessThan(650);
- expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBe(true);
+ const geometry = await page.evaluate(() => ({ width: document.documentElement.scrollWidth, viewport: innerWidth,
+  overflow: [...document.querySelectorAll('main *')].map(e => ({ tag:e.tagName, cls:e.className, right:e.getBoundingClientRect().right, left:e.getBoundingClientRect().left })).filter(e=>e.right>innerWidth+1 || e.left < -1).slice(0,12) }));
+ await info.attach('layout-geometry', { body: JSON.stringify(geometry), contentType:'application/json' });
+ await page.screenshot({path:info.outputPath(`notebook-${info.project.name}-layout.png`),fullPage:true,animations:'disabled'});
+ expect(geometry.width, JSON.stringify(geometry)).toBeLessThanOrEqual(geometry.viewport+1);
  expect((await new AxeBuilder({page}).analyze()).violations).toEqual([]);expect(errors).toEqual([]);
  await page.screenshot({path:info.outputPath(`notebook-${info.project.name}.png`),fullPage:true,animations:'disabled'});
  await page.screenshot({path:info.outputPath(`notebook-${info.project.name}-viewport.png`),animations:'disabled'});
@@ -19,6 +23,7 @@ test('real source comparison and notebook are accessible without width overflow'
  await page.getByLabel('직접 정한 확인 날짜',{exact:true}).fill('2026-10-01');
  await page.getByRole('button',{name:'이 브라우저에 저장',exact:true}).click();
  await page.screenshot({path:info.outputPath(`notebook-${info.project.name}-note.png`),animations:'disabled'});
+ await page.getByTestId('review-draft').screenshot({path:info.outputPath(`notebook-${info.project.name}-note-full.png`),animations:'disabled'});
 });
 test('news to company to notebook to source and back is real navigation',async({page,request})=>{
  await page.goto('/events');await page.getByRole('link',{name:'기업 분석 →',exact:true}).first().click();
@@ -130,4 +135,24 @@ for(const [scenario,text] of [['no-sources','반환된 연결 문서가 없습�
 test('fund review uses exposure and limitations without company claim substitution',async({page})=>{
  await page.goto('/stocks/SPY/review');await expect(page.locator('#review-claims')).toContainText('노출·비용·제한');
  await expect(page.locator('#review-claims')).not.toContainText('서비스 매출 성장');
+});
+
+test('blocked storage reads retain a visible warning during further edits',async({page})=>{
+ await page.addInitScript(()=>{Storage.prototype.getItem=()=>{throw new DOMException('unavailable','SecurityError');};});
+ await page.goto(route);await expect(page.getByTestId('review-draft')).toContainText('브라우저 저장소를 사용할 수 없습니다');
+ await page.getByLabel('내 판단과 근거',{exact:true}).fill('저장 없이 원천을 검토 중');
+ await expect(page.getByTestId('review-draft')).toContainText('브라우저 저장소를 사용할 수 없습니다');
+ await expect(page.getByRole('button',{name:'이 브라우저에 저장',exact:true})).toBeDisabled();
+ const waiting=page.waitForEvent('download');await page.getByRole('button',{name:'검토 노트 내보내기',exact:true}).click();
+ expect(readFileSync((await(await waiting).path())!,'utf8')).toContain('저장 없이 원천을 검토 중');
+});
+test('unsaved navigation can be cancelled without losing the review',async({page})=>{
+ await page.goto(route);await page.getByLabel('내 판단과 근거',{exact:true}).fill('떠나기 전 저장할 메모');
+ page.once('dialog',dialog=>dialog.dismiss());
+ await page.getByRole('link',{name:'← 기업 리서치',exact:true}).click();
+ await expect(page).toHaveURL(/stocks\/AAPL\/review$/);
+ await expect(page.getByLabel('내 판단과 근거',{exact:true})).toHaveValue('떠나기 전 저장할 메모');
+ await page.getByRole('button',{name:'이 브라우저에 저장',exact:true}).click();
+ await page.getByRole('link',{name:'← 기업 리서치',exact:true}).click();
+ await expect(page.getByTestId('company-workspace')).toBeVisible();
 });
