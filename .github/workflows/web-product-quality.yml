@@ -15,6 +15,7 @@ on:
       - 'docs/tasks/thesis-source-reader-v1/**'
       - 'docs/tasks/company-evidence-workspace-v1/**'
       - 'docs/tasks/news-theme-triage-v1/**'
+      - 'docs/tasks/company-review-notebook-v1/**'
       - 'docs/api/frontend/examples/stock-list.json'
       - 'docs/api/frontend/examples/cycle-state-list.json'
       - 'docs/api/frontend/examples/market-map.json'
@@ -41,6 +42,7 @@ on:
       - 'docs/tasks/thesis-source-reader-v1/**'
       - 'docs/tasks/company-evidence-workspace-v1/**'
       - 'docs/tasks/news-theme-triage-v1/**'
+      - 'docs/tasks/company-review-notebook-v1/**'
       - 'docs/api/frontend/examples/stock-list.json'
       - 'docs/api/frontend/examples/cycle-state-list.json'
       - 'docs/api/frontend/examples/market-map.json'
@@ -94,7 +96,9 @@ jobs:
       - name: Type check including generated routes
         run: npm run typecheck
       - name: Install Chromium
-        run: npx playwright install --with-deps chromium
+        run: npx playwright install --with-deps chromium webkit
+      - name: Company review notebook browser verification
+        run: npx playwright test --config=playwright.notebook.config.ts
       - name: Investor browser verification
         run: npx playwright test --config=playwright.home.config.ts
       - name: Holdings and outcomes browser verification
@@ -121,6 +125,8 @@ jobs:
             apps/web/playwright-company-report/
             apps/web/test-results/signals/
             apps/web/playwright-signals-report/
+            apps/web/test-results/notebook/
+            apps/web/playwright-notebook-report/
             apps/web/dependency-audit.json
             apps/web/dependency-audit-production.json
           if-no-files-found: ignore
