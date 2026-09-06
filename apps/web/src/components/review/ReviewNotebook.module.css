@@ -71,5 +71,6 @@
 .steps a:hover { color: var(--accent-analysis); }
 
 .notePanel input[type=date] { display: block; min-inline-size: 0; max-inline-size: 100%; box-sizing: border-box; -webkit-appearance: none; appearance: none; }
-.sourcePicker { min-width: 0; }
-.sourcePicker select { min-inline-size: 0; max-inline-size: 100%; text-overflow: ellipsis; }
+.sourcePicker { min-width: 0; grid-template-columns: minmax(0, 1fr); position: relative; }
+.sourcePicker select { min-inline-size: 0; max-inline-size: 100%; text-overflow: ellipsis; -webkit-appearance: none; appearance: none; padding-right: 32px; }
+.sourcePicker::after { content: ""; position: absolute; pointer-events: none; right: 14px; bottom: 19px; width: 7px; height: 7px; border-right: 1.5px solid var(--ink-secondary); border-bottom: 1.5px solid var(--ink-secondary); transform: rotate(45deg); }

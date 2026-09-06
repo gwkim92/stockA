@@ -24,10 +24,10 @@ export function ReviewNotebook({ model, snapshot, source, sourcePanel }: { model
       </section>
       <section id="review-source" className={styles.sourcePanel} aria-labelledby="review-source-title">
         <div className={styles.sectionHead}><div><span className={styles.kicker}>02 · SOURCE COMPARISON</span><h2 id="review-source-title">연결 원천 대조</h2></div><span className={styles.localBadge}>{model.sources.length}개 연결 문서</span></div>
-        <label className={styles.sourcePicker}>대조할 문서<select aria-label="대조할 문서" value={selected.id ?? ''} onChange={e => {
+        <div className={styles.sourcePicker}><label htmlFor="review-source-select">대조할 문서</label><select id="review-source-select" aria-label="대조할 문서" value={selected.id ?? ''} onChange={e => {
           const params = new URLSearchParams(window.location.search); params.set('source', e.target.value);
           router.push(`/stocks/${encodeURIComponent(model.symbol)}/review?${params}` as Route, { scroll: false });
-        }}><option value="" disabled>{model.sources.length ? '연결 문서를 선택하세요' : '연결 문서 없음'}</option>{model.sources.map(s => <option key={s.id} value={s.id}>{s.title} · {s.context}</option>)}</select></label>
+        }}><option value="" disabled>{model.sources.length ? '연결 문서를 선택하세요' : '연결 문서 없음'}</option>{model.sources.map(s => <option key={s.id} value={s.id}>{s.title} · {s.context}</option>)}</select></div>
         {sourcePanel}
       </section>
     </div>

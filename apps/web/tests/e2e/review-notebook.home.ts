@@ -8,8 +8,18 @@ test('real source comparison and notebook are accessible without width overflow'
  await page.goto(route);await expect(page.getByTestId('review-source-content')).toContainText('12%');
  await expect(page.getByRole('button',{name:'이 브라우저에 저장',exact:true})).toBeEnabled();
  expect((await page.locator('#review-claims h2').boundingBox())!.y).toBeLessThan(650);
- const geometry = await page.evaluate(() => ({ width: document.documentElement.scrollWidth, viewport: innerWidth,
-  overflow: [...document.querySelectorAll('main *')].map(e => ({ tag:e.tagName, cls:e.className, right:e.getBoundingClientRect().right, left:e.getBoundingClientRect().left })).filter(e=>e.right>innerWidth+1 || e.left < -1).slice(0,12) }));
+ const geometry = await page.evaluate(() => {
+  const elements: Element[] = [];
+  const visit = (root: Document | ShadowRoot) => { for (const el of root.querySelectorAll('*')) { elements.push(el); if (el.shadowRoot) visit(el.shadowRoot); } };
+  visit(document);
+  const measure = (el: Element) => { const rect=el.getBoundingClientRect(), css=getComputedStyle(el);
+   return {tag:el.tagName,id:el.id,cls:typeof el.className==='string'?el.className:'svg',right:rect.right,left:rect.left,width:rect.width,
+    scroll:el.scrollWidth,client:el.clientWidth,display:css.display,position:css.position,overflowX:css.overflowX,minWidth:css.minWidth,
+    text:el.children.length===0?(el.textContent??'').slice(0,90):''}; };
+  return {width:document.documentElement.scrollWidth,viewport:innerWidth,
+   roots:[document.documentElement,document.body,...document.body.children].map(measure),
+   overflow:elements.map(measure).filter(e=>e.display!=='none' && (e.right>innerWidth+1 || e.left < -1 || e.scroll>e.client+1)).slice(0,40)};
+ });
  await info.attach('layout-geometry', { body: JSON.stringify(geometry), contentType:'application/json' });
  await page.screenshot({path:info.outputPath(`notebook-${info.project.name}-layout.png`),fullPage:true,animations:'disabled'});
  expect(geometry.width, JSON.stringify(geometry)).toBeLessThanOrEqual(geometry.viewport+1);
@@ -23,7 +33,12 @@ test('real source comparison and notebook are accessible without width overflow'
  await page.getByLabel('직접 정한 확인 날짜',{exact:true}).fill('2026-10-01');
  await page.getByRole('button',{name:'이 브라우저에 저장',exact:true}).click();
  await page.screenshot({path:info.outputPath(`notebook-${info.project.name}-note.png`),animations:'disabled'});
- await page.getByTestId('review-draft').screenshot({path:info.outputPath(`notebook-${info.project.name}-note-full.png`),animations:'disabled'});
+ // Full-page capture from the page origin keeps fixed navigation at the top,
+ // rather than painting it across a tall element screenshot. No UI is hidden.
+ await page.evaluate(() => window.scrollTo({top:0, behavior:'instant'}));
+ const noteBounds = await page.getByTestId('review-draft').boundingBox();
+ await info.attach('note-bounds', {body:JSON.stringify({bounds:noteBounds,viewport:page.viewportSize()}),contentType:'application/json'});
+ await page.screenshot({path:info.outputPath(`notebook-${info.project.name}-completed.png`),fullPage:true,animations:'disabled'});
 });
 test('news to company to notebook to source and back is real navigation',async({page,request})=>{
  await page.goto('/events');await page.getByRole('link',{name:'기업 분석 →',exact:true}).first().click();
