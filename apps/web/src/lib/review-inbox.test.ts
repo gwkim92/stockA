@@ -45,7 +45,7 @@ describe('bounded read-only storage discovery', () => {
   });
   it('distinguishes complete empty storage from unavailable storage', () => {
     expect(readReviewInbox(store([]))).toEqual({state:'ready',notes:[],problems:[]});
-    expect(readReviewInbox({get length(){throw Error('denied');}, key:()=>null, getItem:()=>null}).state).toBe('unavailable');
+    expect(readReviewInbox({get length(): number {throw Error('denied');}, key:()=>null, getItem:()=>null}).state).toBe('unavailable');
   });
   it('keeps valid notes beside corrupt and unsupported entries', () => {
     const s = store([...entries([item()]), ['stocka:company-review:v1:MSFT:instrument-msft','broken'], ['stocka:company-review:v2:SPY:instrument-spy','future']]);
