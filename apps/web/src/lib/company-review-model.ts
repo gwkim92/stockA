@@ -66,7 +66,7 @@ export function emptyDraft(model: ReviewModel, snapshot: string): Draft {
     savedAt: '', note: '', opposition: '', nextAction: '', nextDate: '', checks: [] };
 }
 const keys = ['version','symbol','instrumentId','snapshot','asOf','savedAt','note','opposition','nextAction','nextDate','checks'].sort().join(',');
-export function parseDraft(raw: string, model: ReviewModel): Draft | null {
+export function parseDraft(raw: string, model: Pick<ReviewModel, 'symbol' | 'instrumentId'>): Draft | null {
   if (raw.length > 24000) return null;
   try {
     const d = object(JSON.parse(raw));
