@@ -35,7 +35,8 @@ export function readReviewInbox(store: ReviewStore): InboxRead {
     const keys = new Set<string>();
     for (let index = 0; index < Math.min(length, INBOX_LIMITS.keys); index++) {
       const key = store.key(index);
-      if (key?.startsWith(REVIEW_STORAGE_PREFIX)) keys.add(key);
+      if (key === null) result.state = 'partial';
+      else if (key.startsWith(REVIEW_STORAGE_PREFIX)) keys.add(key);
     }
     if (keys.size > INBOX_LIMITS.reviews || store.length !== length) result.state = 'partial';
     let characters = 0;

@@ -57,8 +57,12 @@ describe('bounded read-only storage discovery', () => {
     s.getItem=vi.fn(key=>{if(key.includes('MSFT'))throw Error('denied');return JSON.stringify(draft());});
     const result=readReviewInbox(s);expect(result.state).toBe('partial');expect(result.notes).toHaveLength(1);expect(result.problems[0].reason).toBe('unreadable');
   });
-  it('detects a disappearing key during enumeration', () => {
+  it('detects a disappearing value during enumeration', () => {
     const s=store(entries([item()]));s.getItem=()=>null;expect(readReviewInbox(s).state).toBe('partial');
+  });
+  it('does not call a disappearing key index a complete empty read', () => {
+    const s=store(entries([item()]));s.key=()=>null;
+    expect(readReviewInbox(s)).toEqual({state:'partial',notes:[],problems:[]});
   });
   it('caps total key enumeration without probing unrelated values', () => {
     const s={length:3000,key:vi.fn(i=>`other-${i}`),getItem:vi.fn()};
@@ -84,14 +88,15 @@ describe('user dates, literal search and notes-only export', () => {
     expect(localReviewDay(new Date(2026,8,7,0,10))).toBe('2026-09-07');expect(localReviewDay(new Date('bad'))).toBe('');
   });
   it('sorts dated notes before undated notes without mutating the source', () => {
-    const notes=[item({symbol:'SPY',nextDate:''}),item({symbol:'MSFT',nextDate:'2026-09-09'}),item({symbol:'AAPL',nextDate:'2026-09-06'})];
+    const notes=[item({symbol:'SPY',instrumentId:'instrument-spy',nextDate:''}),item({symbol:'MSFT',instrumentId:'instrument-msft',nextDate:'2026-09-09'}),item({symbol:'AAPL',nextDate:'2026-09-06'})];
     const before=JSON.stringify(notes);expect(filterSavedReviews(notes,'all','','2026-09-07').map(n=>n.draft.symbol)).toEqual(['AAPL','MSFT','SPY']);expect(JSON.stringify(notes)).toBe(before);
   });
   it('combines literal private search with date filters', () => {
-    const notes=[item(),item({symbol:'MSFT',note:'literal [x]',nextDate:'2026-09-08'})];
+    const notes=[item(),item({symbol:'MSFT',instrumentId:'instrument-msft',note:'literal [x]',nextDate:'2026-09-08'})];
     expect(filterSavedReviews(notes,'planned',' [x] ','2026-09-07').map(n=>n.draft.symbol)).toEqual(['MSFT']);
     expect(filterSavedReviews(notes,'today','[x]','2026-09-07')).toEqual([]);
     expect(filterSavedReviews(notes,'all','aapl','2026-09-07')).toHaveLength(1);
+    expect(filterSavedReviews(notes,'all','instrument-msft','2026-09-07').map(n=>n.draft.symbol)).toEqual(['MSFT']);
   });
   it('exports literal notes and saved IDs without inventing current company/source data', () => {
     const text=exportSavedReview(draft({note:'<script>bad()</script>\n# not a heading'}));
