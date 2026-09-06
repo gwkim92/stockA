@@ -26,6 +26,10 @@ class FakeEquityResearchExecutor:
 
     def execute_scalar(self, sql: str) -> str:
         self.scalar_sql.append(sql)
+        if sql.startswith("-- equity atomic result v1"):
+            from tests.equity_persistence_fakes import fake_atomic_ack
+            self.invocation_id += 1
+            return fake_atomic_ack(sql, invocation_id=self.invocation_id)
         if sql.startswith("-- equity research symbol lookup"):
             return json.dumps(["NVDA"])
         if sql.startswith("-- equity research context lookup"):

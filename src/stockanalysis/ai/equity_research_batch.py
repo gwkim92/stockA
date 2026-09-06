@@ -15,6 +15,9 @@ import re
 from typing import Any
 
 from stockanalysis.ai_agents.prompt_contract import PromptContractError
+from stockanalysis.ai.equity_research_persistence import (
+    POLICY as PERSISTENCE_POLICY, render_atomic_result_sql, parse_acknowledgement,
+)
 
 
 class EquityResearchBatchError(PromptContractError):
@@ -32,6 +35,10 @@ class EquityResearchBatchError(PromptContractError):
         )}
         diagnostic["results"] = [{key: value for key, value in row.items() if key != "provider"}
                                  for row in diagnostic["results"]]
+        for row in diagnostic["results"]:
+            if "result_receipt" in row:
+                row["result_receipt"] = {key: value for key, value in row["result_receipt"].items()
+                                         if key not in ("provider", "model_name")}
         super().__init__(json.dumps(diagnostic, ensure_ascii=False, allow_nan=False))
 
 
@@ -96,6 +103,7 @@ def run_batch(
         "preview_error_count": 0, "artifact_preview": [], "preview_symbols": [],
         "results": [], "run_id": None, "batch_policy": "per_symbol_failure_isolation_v1",
         "recommendation_scoring_mutated": False, "broker_order_submit_enabled": False,
+        "persistence_policy": PERSISTENCE_POLICY,
     }
     run_id: int | None = None
     stage, current = "symbol_lookup", None
@@ -180,7 +188,7 @@ def run_batch(
                 context=context, provider=provider, model_name=model_name,
                 prompt_template_id=prompt_id, max_context_chars=max_context_chars,
             )
-            invocation_id: int | None = None
+            row["request_hash"] = request_hash
             fallback = False
             try:
                 stage = "provider"
@@ -216,26 +224,27 @@ def run_batch(
                     row.update(status="failed", stage="fallback", error_code="fallback_failed", provider_error_code=code)
                     continue
 
-            # Serialization/persistence is deliberately outside provider recovery.
-            # SQL operations may have committed even when their response is lost.
-            stage = "artifact_serialization"
-            artifact_sql = equity.render_equity_research_artifact_upsert_sql(
-                context=context, response=response, as_of_date=as_of_date, source_run_id=run_id,
+            # Serialize before IO; commit result/log/receipt as one SQL statement.
+            # Keep the original failed model audit independent on fallback paths.
+            stage = "result_serialization"
+            result_sql = render_atomic_result_sql(
+                context=context, response=response, as_of_date=as_of_date,
+                run_id=run_id, prompt_template_id=prompt_id, request_hash=request_hash,
+                failed_invocation_id=row["failed_invocation_id"] if fallback else None,
             )
-            if not fallback:
-                stage = "success_record"
-                invocation_id = int(sql_executor.execute_scalar(equity.render_equity_research_model_invocation_insert_sql(
-                    run_id=run_id, provider=response.provider, model_name=response.model_name,
-                    reasoning_effort=response.reasoning_effort, prompt_template_id=prompt_id,
-                    input_token_count=response.input_token_count, output_token_count=response.output_token_count,
-                    cached_input_token_count=response.cached_input_token_count, estimated_cost_usd=response.estimated_cost_usd,
-                    latency_ms=response.latency_ms, status="succeeded", error_summary=None, request_hash=request_hash,
-                )))
-                row["invocation_id"] = invocation_id
-            stage = "artifact_write"
-            artifact_id = int(sql_executor.execute_scalar(artifact_sql))
+            stage = "result_write"
+            raw_receipt = sql_executor.execute_scalar(result_sql)
+            stage = "result_acknowledgement"
+            receipt = parse_acknowledgement(raw_receipt, run_id=run_id, request_hash=request_hash)
+            if (receipt["instrument_id"] != context["instrument"]["instrument_id"]
+                or receipt["as_of_date"] != as_of_date.isoformat()
+                or receipt["provider"] != response.provider or receipt["model_name"] != response.model_name
+                or receipt["outcome"] != ("fallback" if fallback else "primary")
+                or receipt["failed_invocation_id"] != (row["failed_invocation_id"] if fallback else None)):
+                raise PromptContractError("result_receipt_mismatch")
             row.update(status="reported_with_fallback" if fallback else "reported", stage="complete",
-                       invocation_id=invocation_id, artifact_id=artifact_id, provider=response.provider)
+                       invocation_id=receipt["invocation_id"], artifact_id=receipt["artifact_id"],
+                       provider=response.provider, result_receipt=receipt)
 
         current, stage = None, "pipeline_finish"
         _counts(report)
@@ -260,7 +269,7 @@ def run_batch(
             if row["status"] == "prepared":
                 row["status"] = "not_attempted"
         report.update(status="failed", fatal_error={"stage": stage, "error_code": "batch_stage_failed",
-            "persistence_outcome_unknown": stage in {"pipeline_start", "prompt_registration", "failure_record", "success_record", "artifact_write", "pipeline_finish"}})
+            "persistence_outcome_unknown": stage in {"pipeline_start", "prompt_registration", "failure_record", "result_write", "result_acknowledgement", "pipeline_finish"}})
         if execute:
             _counts(report)
         if run_id is not None:

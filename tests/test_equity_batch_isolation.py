@@ -57,6 +57,7 @@ class BatchExecutor(FakeEquityResearchExecutor):
                 raise value
             return value if isinstance(value, str) else json.dumps(value)
         stage = next((key for key, marker in (
+            ('result_write', '-- equity atomic result v1'),
             ('pipeline_start', 'insert into ops.pipeline_run'),
             ('prompt_registration', 'insert into ai.prompt_template'),
             ('artifact_write', 'insert into research.equity_research_artifact'),
@@ -92,7 +93,7 @@ def provider(seen, fail=()):
 
 
 def artifact_sql(executor):
-    return [sql for stage, sql in executor.writes if stage == 'artifact_write']
+    return [sql for stage, sql in executor.writes if stage in ('artifact_write', 'result_write')]
 
 
 class BatchInputTests(unittest.TestCase):
@@ -319,7 +320,7 @@ class BatchProviderTests(unittest.TestCase):
 
 class BatchPersistenceTests(unittest.TestCase):
     def test_write_failure_is_never_treated_as_provider_failure(self):
-        for stage in ['pipeline_start', 'prompt_registration', 'success_record', 'artifact_write', 'pipeline_finish']:
+        for stage in ['pipeline_start', 'prompt_registration', 'result_write', 'pipeline_finish']:
             with self.subTest(stage=stage):
                 executor = BatchExecutor(('AAPL', 'NVDA'), fail_stage=stage); seen = []
                 with patch.object(equity, 'build_fixture_equity_research_response', side_effect=AssertionError('fallback must not run')):
