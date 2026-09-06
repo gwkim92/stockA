@@ -17,11 +17,15 @@ on:
       - 'tests/test_ai_ontology_validation.py'
       - 'tests/test_equity_research_reporting.py'
       - 'tests/test_equity_research_contract_v3.py'
+      - 'tests/test_equity_context_cutoff*'
+      - 'tests/fixtures/equity-cutoff-*.sql'
       - 'tests/test_sec_ai_event_extract.py'
       - 'scripts/verify_analysis_prompt_contract.py'
+      - 'scripts/verify_equity_context_cutoff.py'
       - 'docs/tasks/analysis-prompt-contract-v1/**'
       - 'docs/tasks/analysis-prompt-hardening-v2/**'
       - 'docs/tasks/equity-research-contract-v3/**'
+      - 'docs/tasks/equity-context-cutoff-v1/**'
       - 'pyproject.toml'
       - '.github/workflows/analysis-prompt-quality.yml'
   push:
@@ -40,11 +44,15 @@ on:
       - 'tests/test_ai_ontology_validation.py'
       - 'tests/test_equity_research_reporting.py'
       - 'tests/test_equity_research_contract_v3.py'
+      - 'tests/test_equity_context_cutoff*'
+      - 'tests/fixtures/equity-cutoff-*.sql'
       - 'tests/test_sec_ai_event_extract.py'
       - 'scripts/verify_analysis_prompt_contract.py'
+      - 'scripts/verify_equity_context_cutoff.py'
       - 'docs/tasks/analysis-prompt-contract-v1/**'
       - 'docs/tasks/analysis-prompt-hardening-v2/**'
       - 'docs/tasks/equity-research-contract-v3/**'
+      - 'docs/tasks/equity-context-cutoff-v1/**'
       - 'pyproject.toml'
       - '.github/workflows/analysis-prompt-quality.yml'
   workflow_dispatch:
@@ -94,5 +102,45 @@ jobs:
           path: |
             prompt-contract-report.json
             prompt-contract-tests.log
+          retention-days: 7
+          if-no-files-found: warn
+
+  postgres-cutoff:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: stocka_cutoff_test
+          POSTGRES_PASSWORD: synthetic-ci-only
+        options: >-
+          --health-cmd "pg_isready -U postgres -d stocka_cutoff_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Execute production SELECT against rollback-only fixtures
+        env:
+          STOCKA_CUTOFF_TEST_CONTAINER: ${{ job.services.postgres.id }}
+          OPENAI_AGENTS_DISABLE_TRACING: '1'
+        shell: bash
+        run: |
+          set -o pipefail
+          PYTHONPATH=src python scripts/verify_equity_context_cutoff.py 2>&1 | tee equity-cutoff-tests.log
+      - name: Preserve SQL execution evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: equity-cutoff-postgres
+          path: |
+            equity-cutoff-report.json
+            equity-cutoff-tests.log
           retention-days: 7
           if-no-files-found: warn
