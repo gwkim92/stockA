@@ -626,160 +626,16 @@ def run_equity_research_reporting(
     executor: PsqlCommandExecutor | None = None,
     provider_runner: EquityResearchProviderRunner | None = None,
 ) -> dict[str, object]:
-    if limit < 1 or limit > 50:
-        raise ValueError("limit must be between 1 and 50.")
-    if type(max_context_chars) is not int or not 2000 <= max_context_chars <= 100000:
-        raise ValueError("max_context_chars must be between 2000 and 100000.")
-    if provider not in {FIXTURE_PROVIDER, CODEX_OAUTH_PROVIDER}:
-        raise ValueError("Supported equity research providers are fixture and codex_oauth.")
-    sql_executor = executor or PsqlCommandExecutor.from_config(config)
-    selected_symbols = _load_equity_research_symbols(sql_executor, as_of_date=as_of_date, symbols=symbols, limit=limit)
-    # Every downstream provider/hash/artifact receives the same bounded selection.
-    # Reject oversize data before recording an invocation or writing an artifact.
-    contexts = tuple(
-        _bounded_context_for_prompt(
-            load_equity_research_context(
-                config=config,
-                symbol=symbol,
-                as_of_date=as_of_date,
-                limit=8,
-                executor=sql_executor,
-            ),
-            max_context_chars=max_context_chars,
-        )
-        for symbol in selected_symbols
-    )
-    preview = tuple(build_fixture_equity_research_response(context, model_name, reasoning_effort, max_context_chars) for context in contexts[:3])
-    report: dict[str, object] = {
-        "report_name": DEFAULT_PIPELINE_NAME,
-        "status": "planned" if not execute else "running",
-        "execute": execute,
-        "pipeline_name": DEFAULT_PIPELINE_NAME,
-        "artifact_type": ARTIFACT_TYPE,
-        "as_of_date": as_of_date.isoformat(),
-        "provider": provider,
-        "model_name": model_name,
-        "symbol_count": len(contexts),
-        "symbol_preview": selected_symbols[:10],
-        "artifact_preview": [_output_to_json(response.output) for response in preview],
-        "recommendation_scoring_mutated": False,
-        "broker_order_submit_enabled": False,
-    }
-    if not execute:
-        return report
-    if not contexts:
-        return {**report, "status": "completed", "run_id": None, "inserted_artifact_count": 0}
+    # Preserve this public entrypoint while keeping orchestration separate from
+    # the unchanged research prompt, financial context SQL and artifact schema.
+    from stockanalysis.ai.equity_research_batch import run_batch
 
-    run_id = _create_pipeline_run(
-        sql_executor,
-        pipeline_name=DEFAULT_PIPELINE_NAME,
-        config_json={
-            "as_of_date": as_of_date.isoformat(),
-            "artifact_type": ARTIFACT_TYPE,
-            "provider": provider,
-            "model_name": model_name,
-            "reasoning_effort": reasoning_effort,
-            "limit": limit,
-            "symbols": selected_symbols,
-            "max_context_chars": max_context_chars,
-            "offline_batch_only": True,
-            "recommendation_scoring_mutated": False,
-            "broker_order_submit_enabled": False,
-        },
+    return run_batch(
+        config=config, as_of_date=as_of_date, symbols=symbols, limit=limit,
+        provider=provider, model_name=model_name, reasoning_effort=reasoning_effort,
+        max_context_chars=max_context_chars, execute=execute, executor=executor,
+        provider_runner=provider_runner,
     )
-    inserted = 0
-    failed = 0
-    results = []
-    try:
-        prompt_template_id = int(sql_executor.execute_scalar(render_equity_research_prompt_template_upsert_sql()))
-        for context in contexts:
-            symbol = _symbol_from_context(context)
-            request_hash = build_equity_research_request_hash(
-                context=context,
-                provider=provider,
-                model_name=model_name,
-                prompt_template_id=prompt_template_id,
-                max_context_chars=max_context_chars,
-            )
-            invocation_id: int | None = None
-            try:
-                response = _invoke_provider(
-                    context,
-                    provider=provider,
-                    model_name=model_name,
-                    reasoning_effort=reasoning_effort,
-                    max_context_chars=max_context_chars,
-                    provider_runner=provider_runner,
-                )
-                invocation_id = int(
-                    sql_executor.execute_scalar(
-                        render_equity_research_model_invocation_insert_sql(
-                            run_id=run_id,
-                            provider=response.provider,
-                            model_name=response.model_name,
-                            reasoning_effort=response.reasoning_effort,
-                            prompt_template_id=prompt_template_id,
-                            input_token_count=response.input_token_count,
-                            output_token_count=response.output_token_count,
-                            cached_input_token_count=response.cached_input_token_count,
-                            estimated_cost_usd=response.estimated_cost_usd,
-                            latency_ms=response.latency_ms,
-                            status="succeeded",
-                            error_summary=None,
-                            request_hash=request_hash,
-                        )
-                    )
-                )
-            except Exception as exc:
-                failed += 1
-                _record_failed_invocation(
-                    sql_executor,
-                    run_id=run_id,
-                    prompt_template_id=prompt_template_id,
-                    provider=provider,
-                    model_name=model_name,
-                    reasoning_effort=reasoning_effort,
-                    error_summary=str(exc),
-                    request_hash=request_hash,
-                )
-                response = build_fixture_equity_research_response(
-                    context,
-                    model_name="equity-research-fallback-v1",
-                    reasoning_effort=None,
-                    max_context_chars=max_context_chars,
-                )
-            sql_executor.execute_scalar(
-                render_equity_research_artifact_upsert_sql(
-                    context=context,
-                    response=response,
-                    as_of_date=as_of_date,
-                    source_run_id=run_id,
-                )
-            )
-            inserted += 1
-            results.append(
-                {
-                    "symbol": symbol,
-                    "status": "reported" if invocation_id is not None or provider == FIXTURE_PROVIDER else "reported_with_fallback",
-                    "invocation_id": invocation_id,
-                    "provider": response.provider,
-                }
-            )
-        if failed:
-            _mark_pipeline_run_succeeded_with_fallback(sql_executor, run_id, failed_report_count=failed)
-        else:
-            _mark_pipeline_run_succeeded(sql_executor, run_id)
-    except Exception as exc:
-        _mark_pipeline_run_failed(sql_executor, run_id, str(exc))
-        raise
-    return {
-        **report,
-        "status": "completed" if failed == 0 else "completed_with_fallback",
-        "run_id": run_id,
-        "inserted_artifact_count": inserted,
-        "failed_artifact_count": failed,
-        "results": results,
-    }
 
 
 def load_equity_research_context(
@@ -791,11 +647,11 @@ def load_equity_research_context(
     executor: PsqlCommandExecutor | None = None,
 ) -> dict[str, object]:
     sql_executor = executor or PsqlCommandExecutor.from_config(config)
-    payload = json.loads(sql_executor.execute_scalar(render_equity_research_context_sql(symbol=symbol, as_of_date=as_of_date, limit=limit)))
-    if not isinstance(payload, dict):
-        raise ValueError("Equity research context lookup did not return a JSON object.")
+    # Keep executor exceptions fatal; only malformed source data is item-local.
+    raw = sql_executor.execute_scalar(render_equity_research_context_sql(symbol=symbol, as_of_date=as_of_date, limit=limit))
+    payload = strict_json_object(raw)
     if not payload.get("instrument"):
-        raise ValueError(f"No active instrument found for symbol: {symbol}.")
+        raise PromptContractError("context_instrument_missing")
     return payload
 
 
