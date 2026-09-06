@@ -30,7 +30,7 @@ from stockanalysis.signal.universe import (
 
 DEFAULT_PIPELINE_NAME = "equity_research_reporting"
 DEFAULT_TASK_NAME = "ai-equity-research-reporting"
-DEFAULT_TEMPLATE_VERSION = "2026-09-06-equity-contract-v3"
+DEFAULT_TEMPLATE_VERSION = "2026-09-06-equity-cutoff-v1"
 ARTIFACT_TYPE = "full_equity_research"
 FIXTURE_PROVIDER = "fixture"
 CODEX_OAUTH_PROVIDER = "codex_oauth"
@@ -113,9 +113,14 @@ from ranked;"""
 
 
 def render_equity_research_context_sql(*, symbol: str, as_of_date: date, limit: int = 8) -> str:
-    if limit < 1 or limit > 50:
+    if type(as_of_date) is not date:
+        raise ValueError("as_of_date must be a date without a time component.")
+    if type(limit) is not int or not 1 <= limit <= 50:
         raise ValueError("limit must be between 1 and 50.")
     symbol_literal = sql_literal(symbol.upper())
+    # Explicit timestamptz boundary: independent of the database session zone.
+    # Do not cast a timestamptz column to date (that also uses the session zone).
+    cutoff = f"(({sql_date(as_of_date)} + 1)::timestamp at time zone 'UTC')"
     return f"""-- equity research context lookup
 with target as (
     select
@@ -229,19 +234,22 @@ latest_thesis as (
         thesis.thesis_id,
         thesis.title,
         thesis.summary,
-        thesis.status,
+        case when thesis.closed_at >= {cutoff} then null else thesis.status end as status,
+        'current_record_not_versioned' as status_scope,
         thesis.conviction_score,
         thesis.expected_holding_days,
         thesis.benchmark_code,
         thesis.entry_conditions,
         thesis.invalidation_conditions,
         thesis.exit_conditions,
+        thesis.created_at,
+        case when thesis.closed_at < {cutoff} then thesis.closed_at end as closed_at,
         thesis.created_by_run_id
     from signal.investment_thesis thesis
     join target on target.instrument_id = thesis.instrument_id
+    where thesis.created_at < {cutoff}
     order by
         case when thesis.thesis_id = (select thesis_id from latest_recommendation) then 0 else 1 end,
-        case when thesis.status = 'active' then 0 else 1 end,
         thesis.created_at desc,
         thesis.thesis_id desc
     limit 1
@@ -268,7 +276,7 @@ recent_events as (
       on document_link.event_id = event_row.event_id
      and document_link.link_type = 'source'
     left join ingest.source_document source_document on source_document.document_id = document_link.document_id
-    where event_row.event_at <= ({sql_date(as_of_date)}::date + interval '1 day')
+    where event_row.event_at < {cutoff}
     order by event_row.event_at desc, event_row.event_id desc
     limit {limit}
 ),
@@ -297,7 +305,14 @@ cycle_summaries as (
     limit {limit}
 )
 select json_build_object(
-    'query', json_build_object('symbol', {symbol_literal}, 'as_of_date', {sql_literal(as_of_date.isoformat())}, 'limit', {limit}),
+    'query', json_build_object(
+        'symbol', {symbol_literal}, 'as_of_date', {sql_literal(as_of_date.isoformat())}, 'limit', {limit},
+        'temporal_policy', 'utc_creation_event_cutoff_v1',
+        'cutoff_timezone', 'UTC',
+        'thesis_selection', 'linked_eligible_then_latest_created',
+        'point_in_time_complete', false,
+        'historical_limitations', 'Current stored thesis bodies/status, event enrichment and other snapshots are not immutable historical versions; ingestion-time availability is not established.'
+    ),
     'instrument', (select row_to_json(target) from target),
     'financial_metrics', coalesce((select json_agg(row_to_json(latest_financial_metrics) order by metric_code) from latest_financial_metrics), '[]'::json),
     'financial_metric_status_counts', coalesce((select json_agg(row_to_json(financial_metric_status_counts) order by metric_status) from financial_metric_status_counts), '[]'::json),
@@ -324,6 +339,9 @@ def build_codex_oauth_equity_research_prompt(context: dict[str, object], *, max_
             "If a field is missing or weak, explicitly say the evidence is missing instead of inventing facts.",
             "Separate source financial facts, valuation assumptions and previous model/recommendation hypotheses; repeated summaries are not independent corroboration.",
             "Do not invent a price, currency, return, confidence or numerical invalidation threshold. State missing support and observable next checks.",
+            "Treat query.as_of_date as a UTC end-of-day creation/event cutoff, not a complete knowledge-at-the-time snapshot.",
+            "Thesis created_at and closed_at are source timestamps. Its current stored body/status and later enrichments are not proven historical versions; never describe them as known at the cutoff.",
+            "Missing eligible thesis is a data limitation, not proof that no investment case existed. Separate current-record context from contemporaneous evidence in the report.",
             "Do not change recommendation scores or weights. This output is an explanatory research artifact only.",
             "",
             "Output schema intent:",
@@ -750,6 +768,7 @@ def run_equity_research_reporting(
         if failed:
             _mark_pipeline_run_succeeded_with_fallback(sql_executor, run_id, failed_report_count=failed)
         else:
+            _mark_pipeline_run_failed
             _mark_pipeline_run_succeeded(sql_executor, run_id)
     except Exception as exc:
         _mark_pipeline_run_failed(sql_executor, run_id, str(exc))
