@@ -97,6 +97,8 @@ jobs:
         run: npm run typecheck
       - name: Install Chromium
         run: npx playwright install --with-deps chromium webkit
+      - name: Company review notebook browser verification
+        run: npx playwright test --config=playwright.notebook.config.ts
       - name: Investor browser verification
         run: npx playwright test --config=playwright.home.config.ts
       - name: Holdings and outcomes browser verification
@@ -107,8 +109,6 @@ jobs:
         run: npx playwright test --config=playwright.company.config.ts
       - name: News triage and theme browser verification
         run: npx playwright test --config=playwright.signals.config.ts
-      - name: Company review notebook browser verification
-        run: npx playwright test --config=playwright.notebook.config.ts
       - name: Preserve browser and dependency evidence
         if: always()
         uses: actions/upload-artifact@v4
