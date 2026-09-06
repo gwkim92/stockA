@@ -1,0 +1,26 @@
+name: Export Equity Check Source
+on:
+  push:
+    branches: [codex/equity-result-check-v1]
+    paths: [.github/workflows/export-equity-check-source.yml]
+permissions:
+  contents: read
+jobs:
+  source:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Export tracked source only
+        run: |
+          mkdir -p /tmp/equity-check-source
+          git archive --format=tar.gz HEAD src tests scripts db/migrations db/seeds docs AGENTS.md README.md pyproject.toml .github/workflows/analysis-prompt-quality.yml > /tmp/equity-check-source/source.tar.gz
+          git rev-parse HEAD > /tmp/equity-check-source/commit.txt
+          sha256sum /tmp/equity-check-source/source.tar.gz > /tmp/equity-check-source/sha256.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: equity-check-source
+          path: /tmp/equity-check-source/
+          retention-days: 3
