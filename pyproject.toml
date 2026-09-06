@@ -29,6 +29,7 @@ otel = [
 [project.scripts]
 stockanalysis-ingest = "stockanalysis.ingest.cli:main_entry"
 stockanalysis-operations = "stockanalysis.operations.cli:main_entry"
+stockanalysis-equity-result-check = "stockanalysis.operations.equity_result_check:main_entry"
 stockanalysis-weight-lineage-reconciliation = "stockanalysis.operations.recommendation_weight_review_source_lineage_reconciliation_cli:main_entry"
 stockanalysis-weight-prospective-evidence = "stockanalysis.operations.recommendation_weight_review_prospective_evidence_foundation_cli:main_entry"
 stockanalysis-weight-prospective-evidence-live-observation = "stockanalysis.operations.recommendation_weight_review_prospective_evidence_live_observation_cli:main_entry"

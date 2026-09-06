@@ -16,6 +16,7 @@ SUITES = (
     "tests.test_analysis_prompt_contract", "tests.test_sec_prompt_hardening_v2", "tests.test_news_prompt_hardening_v2", "tests.test_agents_sdk_provider",
     "tests.test_equity_research_contract_v3", "tests.test_equity_context_cutoff",
     "tests.test_equity_batch_isolation", "tests.test_equity_atomic_persistence",
+    "tests.test_equity_result_check",
     "tests.test_ai_agent_registry", "tests.test_news_rss_ai_extract",
     "tests.test_news_rss_translation", "tests.test_cycle_community_ai_summary",
     "tests.test_equity_research_reporting", "tests.test_sec_ai_event_extract",
