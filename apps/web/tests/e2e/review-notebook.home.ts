@@ -50,7 +50,7 @@ test('news to company to notebook to source and back is real navigation',async({
 });
 test('edits survive source selection and explicit save reload with no server writes',async({page,request})=>{
  await page.goto(route);await page.getByLabel('내 판단과 근거',{exact:true}).fill('내 미저장 메모');
- await page.getByRole('combobox',{name:'대조할 문서'}).selectOption('source-document-2');
+ await page.getByRole('radio',{name:/규제 비용과 반대 가능성/}).check();
  await expect(page.getByTestId('review-source-content')).toContainText('regulatory costs');
  await expect(page.getByLabel('내 판단과 근거',{exact:true})).toHaveValue('내 미저장 메모');
  await page.getByLabel('숫자·통화·기간을 원천과 대조했다',{exact:true}).check();
@@ -65,7 +65,7 @@ test('unlinked source query is rejected without fetching or substituting another
  await page.goto(`${route}?source=private-document`);
  await expect(page.locator('#review-source')).toContainText('명시적으로 연결되지 않은 문서');
  const calls=await(await request.get(`${api}/__requests`)).json();expect(calls.some((r:{path:string})=>r.path.startsWith('/api/source-documents'))).toBe(false);
- await page.getByRole('combobox',{name:'대조할 문서'}).selectOption('source-document-1');await expect(page.getByTestId('review-source-content')).toContainText('12%');
+ await page.getByRole('radio',{name:/서비스 성장과 현금흐름/}).check();await expect(page.getByTestId('review-source-content')).toContainText('12%');
 });
 test('repeated source parameters cannot choose a source silently',async({page,request})=>{
  await page.goto(`${route}?source=source-document-1&source=source-document-2`);

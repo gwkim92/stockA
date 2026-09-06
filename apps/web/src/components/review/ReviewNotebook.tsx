@@ -1,13 +1,15 @@
 'use client';
 import { useRouter } from 'next/navigation';
 import type { Route } from 'next';
-import type { ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { selectReviewSource, type ReviewModel } from '@/lib/company-review-model';
 import { ReaderLink } from '@/components/readers/ReaderFrame';
 import { ReviewDraft } from './ReviewDraft';
 import styles from './ReviewNotebook.module.css';
 export function ReviewNotebook({ model, snapshot, source, sourcePanel }: { model: ReviewModel; snapshot: string; source: unknown; sourcePanel: ReactNode }) {
   const router = useRouter(), selected = selectReviewSource(model, source);
+  const [choice, setChoice] = useState(selected.id);
+  useEffect(() => { setChoice(selected.id); }, [selected.id]);
   return <div className={styles.page} data-testid="company-review-notebook">
     <header className={styles.header}><div><span className={styles.kicker}>RESEARCH NOTEBOOK</span><h1>{model.symbol}<span>검토 노트</span></h1><p>{model.name} · 읽은 근거와 내 판단을 구분해 남깁니다.</p></div><ReaderLink href={`/stocks/${encodeURIComponent(model.symbol)}`}>← 기업 리서치</ReaderLink></header>
     <nav className={styles.steps} aria-label="검토 순서"><a href="#review-claims"><span>01</span>주장 확인</a><a href="#review-source"><span>02</span>원천 대조</a><a href="#review-note"><span>03</span>내 검토 작성</a></nav>
@@ -24,10 +26,16 @@ export function ReviewNotebook({ model, snapshot, source, sourcePanel }: { model
       </section>
       <section id="review-source" className={styles.sourcePanel} aria-labelledby="review-source-title">
         <div className={styles.sectionHead}><div><span className={styles.kicker}>02 · SOURCE COMPARISON</span><h2 id="review-source-title">연결 원천 대조</h2></div><span className={styles.localBadge}>{model.sources.length}개 연결 문서</span></div>
-        <div className={styles.sourcePicker}><label htmlFor="review-source-select">대조할 문서</label><select id="review-source-select" aria-label="대조할 문서" value={selected.id ?? ''} onChange={e => {
-          const params = new URLSearchParams(window.location.search); params.set('source', e.target.value);
-          router.push(`/stocks/${encodeURIComponent(model.symbol)}/review?${params}` as Route, { scroll: false });
-        }}><option value="" disabled>{model.sources.length ? '연결 문서를 선택하세요' : '연결 문서 없음'}</option>{model.sources.map(s => <option key={s.id} value={s.id}>{s.title} · {s.context}</option>)}</select></div>
+        <div className={styles.sourcePicker}><span id="review-source-label">대조할 문서</span>
+          <div className={styles.sourceChoices} role="radiogroup" aria-labelledby="review-source-label">
+            {model.sources.map(s => <label key={s.id}><input type="radio" name="review-source" value={s.id} checked={choice === s.id} onChange={() => {
+              setChoice(s.id);
+              const params = new URLSearchParams(window.location.search); params.set('source', s.id);
+              router.push(`/stocks/${encodeURIComponent(model.symbol)}/review?${params}` as Route, { scroll: false });
+            }} /><span><strong>{s.title}</strong><small>{s.context}</small></span></label>)}
+            {!model.sources.length && <p className={styles.empty}>선택할 연결 문서가 없습니다.</p>}
+          </div>
+        </div>
         {sourcePanel}
       </section>
     </div>
