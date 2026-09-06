@@ -768,7 +768,6 @@ def run_equity_research_reporting(
         if failed:
             _mark_pipeline_run_succeeded_with_fallback(sql_executor, run_id, failed_report_count=failed)
         else:
-            _mark_pipeline_run_failed
             _mark_pipeline_run_succeeded(sql_executor, run_id)
     except Exception as exc:
         _mark_pipeline_run_failed(sql_executor, run_id, str(exc))
