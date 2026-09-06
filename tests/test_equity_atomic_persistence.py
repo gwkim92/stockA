@@ -133,6 +133,9 @@ class ReconciliationTests(unittest.TestCase):
         self.assertIn('request_hash', sql)
         self.assertIn('result_fingerprint', sql)
         self.assertIn('invocation_fingerprint', sql)
+        self.assertNotIn('i.invocation_id::text', sql)
+        self.assertNotIn('a.artifact_id::text', sql)
+        self.assertIn('9223372036854775807', sql)
 
     def test_matching_missing_and_conflicting_do_not_authorize_retry(self):
         for state in ('matching', 'not_observed', 'conflicting'):

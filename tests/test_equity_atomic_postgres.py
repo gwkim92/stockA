@@ -237,6 +237,14 @@ class EquityAtomicPostgresTests(unittest.TestCase):
         self.db.execute_non_query("update ai.model_invocation set status='failed';")
         self.assertEqual(reconcile_result(self.db,run_id=901,request_hash='2'*64)['status'],'conflicting')
 
+    def test_malformed_receipt_identifiers_fail_validation_without_sql_cast_errors(self):
+        self.persist()
+        for bad in (True, 10**100, 'not-an-id', [1,2]):
+            value=json.dumps(bad).replace("'", "''")
+            self.db.execute_non_query(f"update ops.pipeline_run set config_json=jsonb_set(config_json,'{{{RECEIPTS_KEY},{HASH},invocation_id}}','{value}'::jsonb) where run_id=901;")
+            with self.assertRaises(PromptContractError):
+                reconcile_result(self.db,run_id=901,request_hash=HASH)
+
     def test_later_run_overwrite_is_not_mistaken_for_prior_result(self):
         first=self.persist()
         self.persist(run_id=902,request_hash='2'*64)

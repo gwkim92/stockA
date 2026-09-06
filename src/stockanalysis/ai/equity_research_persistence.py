@@ -153,6 +153,16 @@ def parse_acknowledgement(raw: object, *, run_id: int, request_hash: str) -> dic
     return validate_receipt(data['receipt'], run_id=run_id, request_hash=request_hash)
 
 
+def _receipt_id(key: str) -> str:
+    # Cast only the one receipt value, never the indexed bigint table column.
+    # Nested CASE protects against booleans, oversized integers and junk JSON.
+    value = f"e.receipt->>'{key}'"
+    return f"""case when jsonb_typeof(e.receipt->'{key}') = 'number'
+        and ({value}) ~ '^[1-9][0-9]{{0,18}}$'
+        then case when ({value})::numeric <= 9223372036854775807
+             then ({value})::bigint end end"""
+
+
 def render_reconciliation_sql(*, run_id: int, request_hash: str) -> str:
     from stockanalysis.ai import equity_research_reporting as equity
     _identity(run_id, request_hash)
@@ -161,6 +171,11 @@ with expected as (
     select (select p.config_json->'{RECEIPTS_KEY}'->{sql_literal(request_hash)}
             from ops.pipeline_run p where p.run_id = {run_id}
             and p.pipeline_name = {sql_literal(equity.DEFAULT_PIPELINE_NAME)}) as receipt
+), parsed as (
+    select e.receipt,
+        coalesce({_receipt_id('invocation_id')}, {_receipt_id('failed_invocation_id')}) as log_id,
+        {_receipt_id('artifact_id')} as report_id
+    from expected e
 ), observed as (
     select e.receipt, i.invocation_id, a.artifact_id,
         coalesce(
@@ -181,10 +196,9 @@ with expected as (
             and {_fingerprint('i')} = e.receipt->>'invocation_fingerprint'
             and {_fingerprint('a')} = e.receipt->>'result_fingerprint', false
         ) as matches
-    from expected e
-    left join ai.model_invocation i on i.invocation_id::text =
-        coalesce(e.receipt->>'invocation_id', e.receipt->>'failed_invocation_id')
-    left join research.equity_research_artifact a on a.artifact_id::text = e.receipt->>'artifact_id'
+    from parsed e
+    left join ai.model_invocation i on i.invocation_id = e.log_id
+    left join research.equity_research_artifact a on a.artifact_id = e.report_id
 )
 select jsonb_build_object(
     'status', case when receipt is null then 'not_observed' when matches then 'matching' else 'conflicting' end,

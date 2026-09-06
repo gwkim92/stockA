@@ -32,6 +32,9 @@ on:
       - 'docs/tasks/equity-context-cutoff-v1/**'
       - 'docs/tasks/equity-batch-isolation-v1/**'
       - 'docs/tasks/equity-atomic-persistence-v1/**'
+      - 'db/migrations/0002_priority_1_tables.sql'
+      - 'db/migrations/0005_ai_intelligence.sql'
+      - 'db/migrations/0021_professional_equity_analysis.sql'
       - 'pyproject.toml'
       - '.github/workflows/analysis-prompt-quality.yml'
   push:
@@ -65,6 +68,9 @@ on:
       - 'docs/tasks/equity-context-cutoff-v1/**'
       - 'docs/tasks/equity-batch-isolation-v1/**'
       - 'docs/tasks/equity-atomic-persistence-v1/**'
+      - 'db/migrations/0002_priority_1_tables.sql'
+      - 'db/migrations/0005_ai_intelligence.sql'
+      - 'db/migrations/0021_professional_equity_analysis.sql'
       - 'pyproject.toml'
       - '.github/workflows/analysis-prompt-quality.yml'
   workflow_dispatch:
