@@ -1,0 +1,26 @@
+name: Export Equity Batch Source
+on:
+  push:
+    branches: [codex/equity-batch-isolation-v1]
+    paths: [.github/workflows/export-equity-batch-source.yml]
+permissions:
+  contents: read
+jobs:
+  source:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Export tracked code and test contracts only
+        run: |
+          mkdir -p /tmp/equity-batch-source
+          git archive --format=tar.gz HEAD src tests scripts db/migrations db/seeds docs/verification-plan.md docs/project-execution-roadmap.md docs/tasks/equity-batch-isolation-v1 AGENTS.md pyproject.toml .github/workflows/analysis-prompt-quality.yml > /tmp/equity-batch-source/source.tar.gz
+          git rev-parse HEAD > /tmp/equity-batch-source/commit.txt
+          sha256sum /tmp/equity-batch-source/source.tar.gz > /tmp/equity-batch-source/sha256.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: equity-batch-source
+          path: /tmp/equity-batch-source/
+          retention-days: 3
