@@ -179,7 +179,8 @@ class EquityResearchReportingTests(unittest.TestCase):
 
         self.assertEqual(report["status"], "completed_with_fallback")
         self.assertEqual(report["failed_artifact_count"], 1)
-        self.assertTrue(any("provider down" in sql for sql in executor.scalar_sql))
+        self.assertTrue(any("provider_failed" in sql for sql in executor.scalar_sql))
+        self.assertFalse(any("provider down" in sql for sql in executor.scalar_sql))
         self.assertTrue(any("status = 'succeeded_with_fallback'" in sql for sql in executor.non_query_sql))
 
 

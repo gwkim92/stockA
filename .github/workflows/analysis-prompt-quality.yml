@@ -18,6 +18,7 @@ on:
       - 'tests/test_equity_research_reporting.py'
       - 'tests/test_equity_research_contract_v3.py'
       - 'tests/test_equity_context_cutoff*'
+      - 'tests/test_equity_batch_isolation.py'
       - 'tests/fixtures/equity-cutoff-*.sql'
       - 'tests/test_sec_ai_event_extract.py'
       - 'scripts/verify_analysis_prompt_contract.py'
@@ -26,6 +27,7 @@ on:
       - 'docs/tasks/analysis-prompt-hardening-v2/**'
       - 'docs/tasks/equity-research-contract-v3/**'
       - 'docs/tasks/equity-context-cutoff-v1/**'
+      - 'docs/tasks/equity-batch-isolation-v1/**'
       - 'pyproject.toml'
       - '.github/workflows/analysis-prompt-quality.yml'
   push:
@@ -45,6 +47,7 @@ on:
       - 'tests/test_equity_research_reporting.py'
       - 'tests/test_equity_research_contract_v3.py'
       - 'tests/test_equity_context_cutoff*'
+      - 'tests/test_equity_batch_isolation.py'
       - 'tests/fixtures/equity-cutoff-*.sql'
       - 'tests/test_sec_ai_event_extract.py'
       - 'scripts/verify_analysis_prompt_contract.py'
@@ -53,6 +56,7 @@ on:
       - 'docs/tasks/analysis-prompt-hardening-v2/**'
       - 'docs/tasks/equity-research-contract-v3/**'
       - 'docs/tasks/equity-context-cutoff-v1/**'
+      - 'docs/tasks/equity-batch-isolation-v1/**'
       - 'pyproject.toml'
       - '.github/workflows/analysis-prompt-quality.yml'
   workflow_dispatch:
