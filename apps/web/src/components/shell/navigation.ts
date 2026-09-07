@@ -10,6 +10,7 @@ export const PRIMARY_NAVIGATION = [
   { href: "/recommendations", label: "투자 후보", description: "판단서·핵심 근거·무효화 조건", icon: "memo" },
 ] as const satisfies readonly NavigationItem[];
 export const RESEARCH_NAVIGATION = [
+  { href: "/research-notes", label: "내 검토함", description: "브라우저에 저장한 메모·다음 확인 사항", icon: "memo" },
   { href: "/cycles", label: "사이클 목록", description: "테마별 상태를 목록으로 비교", icon: "cycle" },
   { href: "/events", label: "원천 뉴스", description: "수집된 뉴스와 공시", icon: "news" },
   { href: "/ai-evidence", label: "분석 근거", description: "구조화된 근거와 원문 대조", icon: "source" },
