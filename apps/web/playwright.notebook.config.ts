@@ -1,6 +1,6 @@
 import { defineConfig, devices } from '@playwright/test';
 export default defineConfig({
- testDir:'./tests/e2e',testMatch:['review-notebook.home.ts','review-inbox.home.ts','review-continuity.home.ts'],workers:1,fullyParallel:false,
+ testDir:'./tests/e2e',testMatch:['review-notebook.home.ts','review-inbox.home.ts','review-continuity.home.ts','review-continuity-safety.home.ts'],workers:1,fullyParallel:false,
  timeout:30_000,expect:{timeout:10_000},
  reporter:[['list'],['html',{outputFolder:'playwright-notebook-report',open:'never'}]],outputDir:'test-results/notebook',
  use:{baseURL:'http://127.0.0.1:13009',trace:'retain-on-failure',screenshot:'only-on-failure'},
