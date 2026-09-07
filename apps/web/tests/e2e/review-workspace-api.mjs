@@ -38,12 +38,13 @@ const server = createServer(async (req, res) => {
     const base = data.outcomes[0];
     data.measurement_end_date = date; data.measurement_start_date = "2025-01-01";
     data.outcomes = [
-      { ...base, outcome_id: "o1", recommendation_id: "recommendation-1", thesis_id: "thesis-1", symbol: "AAPL", horizon_days: 90, absolute_return: 0.1, benchmark_return: 0.04, alpha: 0.06 },
-      { ...base, outcome_id: "o2", recommendation_id: "recommendation-2", thesis_id: null, symbol: "SPY", horizon_days: 365, absolute_return: 0.02, benchmark_return: 0.04, alpha: -0.02, label: "underperform", security_contribution_bps: -20 },
-      { ...base, outcome_id: "o3", recommendation_id: null, thesis_id: null, symbol: "EROK", horizon_days: null, absolute_return: null, benchmark_return: null, alpha: null, security_contribution_bps: null, label: "not_available" },
+      { ...base, outcome_id: "o1", recommendation_id: "recommendation-1", thesis_id: "thesis-1", symbol: "AAPL", recommendation: "accumulate", horizon_days: 90, absolute_return: 0.1, benchmark_return: 0.04, alpha: 0.06 },
+      { ...base, outcome_id: "o2", recommendation_id: "recommendation-2", thesis_id: null, symbol: "SPY", recommendation: "monitor", horizon_days: 365, absolute_return: 0.02, benchmark_return: 0.04, alpha: -0.02, label: "underperform", security_contribution_bps: -20 },
+      { ...base, outcome_id: "o3", recommendation_id: null, thesis_id: null, symbol: "EROK", recommendation: "monitor", horizon_days: null, absolute_return: null, benchmark_return: null, alpha: null, security_contribution_bps: null, label: "not_available" },
     ];
     data.summary.measured_recommendation_count = 2; data.summary.average_alpha = 0.02; data.summary.hit_rate = 0.5;
     data.quality_evaluation = { status: "insufficient_sample", sample_size_status: "insufficient_sample", review_outcome_mismatch_count: 0, checks: [{ label: "표본 관찰", status: "watch", detail: "합성 테스트 표본입니다. 투자 성능 검증 자료가 아닙니다.", next_step: "관찰 기간별 측정 확인" }] };
+    if (scenario === "summary-mismatch") { data.summary.measured_recommendation_count = 3; data.summary.average_alpha = 0.5; data.summary.hit_rate = 1; }
     if (scenario === "summary-missing") { delete data.summary; delete data.quality_evaluation; }
   }
   if (scenario === "empty") { data[isPortfolio ? "positions" : "outcomes"] = []; if (!isPortfolio) data.summary.measured_recommendation_count = 0; }

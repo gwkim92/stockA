@@ -41,6 +41,33 @@ test("performance filters separate horizons and retain report-level summary", as
   await expect(list.getByRole("link", { name: "당시 추천 →" })).toHaveAttribute("href", "/recommendations/recommendation-2");
   await expect(page.getByRole("region", { name: "관점별 기여도" })).toContainText("합산해 총수익률을 만들지 않습니다");
 });
+test("recommendation quality audit separates stored summary from row-derived evidence", async ({ page }, info) => {
+  await page.goto("/performance"); const audit = page.getByTestId("decision-quality-audit");
+  await expect(audit).toBeVisible();
+  await expect(audit.getByRole("heading", { name: "추천 품질 감사", exact: true })).toBeVisible();
+  await expect(audit.getByRole("region", { name: "추천 품질 핵심 지표" })).toContainText("3개");
+  await expect(audit).toContainText("2개");
+  await expect(audit).toContainText("+2%p");
+  await expect(audit).toContainText("50%");
+  await expect(audit).toContainText("확인된 불일치 없음");
+  await expect(audit).toContainText("90일"); await expect(audit).toContainText("365일");
+  await expect(audit).toContainText("추천 링크 유지"); await expect(audit).toContainText("2/2 · 100%");
+  await expect(audit).toContainText("투자 논리 링크 유지"); await expect(audit).toContainText("1/2 · 50%");
+  await expect(audit).toContainText("BABA"); await expect(audit).toContainText("측정 제외");
+  await expect(audit).toContainText("보안 선택"); await expect(audit).toContainText("합산해 총수익률을 만들지 않습니다");
+  expect((await new AxeBuilder({ page }).include('[data-testid="decision-quality-audit"]').analyze()).violations).toEqual([]);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+  await audit.screenshot({ path: info.outputPath(`decision-quality-${info.project.name}.png`), animations: "disabled" });
+});
+test("summary mismatch is an audit finding, not an automatic correction", async ({ page, request }) => {
+  await request.post("http://127.0.0.1:18766/__scenario", { data: { scenario: "summary-mismatch" } });
+  await page.goto("/performance"); const audit = page.getByTestId("decision-quality-audit");
+  await expect(page.getByRole("region", { name: "보고서 요약" })).toContainText("+50%p");
+  await expect(audit).toContainText("3개 불일치");
+  await expect(audit).toContainText("저장 보고서"); await expect(audit).toContainText("수신 행 재계산");
+  await expect(audit).toContainText("+2%p"); await expect(audit).toContainText("50%");
+  await expect(audit).not.toContainText("자동 수정 완료");
+});
 test("date form requests a new report, not merely a different label", async ({ page, request }) => {
   await page.goto("/performance"); await page.getByLabel("성과 종료 기준일").fill("2025-02-03");
   await page.getByRole("button", { name: "조회", exact: true }).click(); await expect(page).toHaveURL(/date=2025-02-03/);
@@ -53,7 +80,11 @@ for (const [scenario, path, expected] of [["empty", "/performance", "수신된 �
     const workspace = page.getByTestId("review-workspace"); await expect(workspace).toContainText(expected);
     await expect(workspace).not.toContainText("do-not-expose-private-error");
     if (scenario === "feedback-mismatch") await expect(workspace).not.toContainText("999개");
-    if (scenario === "empty") await expect(page.getByRole("region", { name: "보고서 요약" })).not.toContainText("100%");
+    if (scenario === "empty") {
+      await expect(page.getByRole("region", { name: "보고서 요약" })).not.toContainText("100%");
+      await expect(page.getByTestId("decision-quality-audit")).toContainText("미측정");
+      await expect(page.getByTestId("decision-quality-audit")).not.toContainText("행 기준 적중률 0%");
+    }
   });
 }
 test("invalid date never calls the report backend", async ({ page, request }) => {
