@@ -1,0 +1,20 @@
+.panel { min-width: 0; margin-top: 24px; padding: 24px; border: 1px solid var(--line-subtle); border-top: 3px solid var(--accent-analysis); border-radius: 12px; background: var(--surface-primary); }
+.header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; }
+.header h2 { margin: 4px 0 0; font-size: 21px; line-height: 1.6; }
+.kicker { color: var(--accent-analysis); font-size: 10px; font-weight: 700; letter-spacing: .08em; }
+.notice { padding: 14px 16px; border-left: 3px solid var(--signal-caution); background: var(--surface-canvas); margin: 18px 0; font-size: 14px; line-height: 1.85; }
+.notice strong { color: var(--ink-primary); }.notice p { margin: 4px 0 0; }
+.columns { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 24px; margin-top: 24px; }
+.columns article { min-width: 0; }.columns article + article { border-left: 1px solid var(--line-subtle); padding-left: 24px; }
+.columns h3 { font-size: 17px; line-height: 1.8; }.columns h4 { font-size: 14px; margin-top: 18px; line-height: 1.8; }
+.meta { display: flex; flex-wrap: wrap; gap: 12px 20px; font-size: 12px; line-height: 1.85; padding: 14px 0; border-bottom: 1px solid var(--line-subtle); }
+.meta div { min-width: 0; }.meta dt { color: var(--ink-secondary); }.meta dd { margin: 4px 0 0; overflow-wrap: anywhere; }
+.body, .columns li { font-size: 14px; line-height: 1.95; white-space: pre-wrap; overflow-wrap: anywhere; }
+.columns ul { padding-left: 20px; }.columns li { margin: 8px 0; }
+.caption { font-size: 12px; line-height: 1.9; color: var(--ink-secondary); }
+.actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--line-subtle); }
+.panel a { display: inline-flex; align-items: center; min-height: 44px; color: var(--accent-analysis); font-size: 13px; }
+.panel :is(a,button):focus-visible { outline: 2px solid var(--accent-analysis); outline-offset: 3px; }
+.blocked { margin: 18px 0; padding: 16px; color: var(--signal-caution); border-left: 3px solid var(--signal-caution); font-size: 14px; line-height: 1.9; }
+@media(max-width:800px) { .columns { grid-template-columns: 1fr; }.columns article + article { border-left: 0; border-top: 1px solid var(--line-subtle); padding: 20px 0 0; } }
+@media(max-width:600px) { .panel { padding: 18px; }.header h2 { font-size: 19px; }.notice { padding: 12px; }.header, .actions { gap: 8px 12px; } }
