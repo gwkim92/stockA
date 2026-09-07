@@ -5,6 +5,12 @@ on:
     branches: [develop, main]
     paths:
       - 'apps/web/**'
+      - 'src/stockanalysis/frontend/live_adapter.py'
+      - 'src/stockanalysis/frontend/research_display_contract.py'
+      - 'tests/test_research_display*.py'
+      - 'tests/test_frontend_live_adapter.py'
+      - 'scripts/verify_research_display_contract.py'
+      - 'docs/tasks/research-payload-contract-v1/**'
       - '.github/workflows/web-product-quality.yml'
       - 'docs/tasks/investor-home-reliability-v1/**'
       - 'docs/tasks/web-dependency-remediation-v1/**'
@@ -32,6 +38,12 @@ on:
     branches: [develop, main]
     paths:
       - 'apps/web/**'
+      - 'src/stockanalysis/frontend/live_adapter.py'
+      - 'src/stockanalysis/frontend/research_display_contract.py'
+      - 'tests/test_research_display*.py'
+      - 'tests/test_frontend_live_adapter.py'
+      - 'scripts/verify_research_display_contract.py'
+      - 'docs/tasks/research-payload-contract-v1/**'
       - '.github/workflows/web-product-quality.yml'
       - 'docs/tasks/investor-home-reliability-v1/**'
       - 'docs/tasks/web-dependency-remediation-v1/**'
@@ -89,6 +101,13 @@ jobs:
       - name: Audit production dependencies
         if: always()
         run: npm audit --omit=dev --audit-level=high --json > dependency-audit-production.json
+      - name: Python display and existing adapter regression without external IO
+        working-directory: .
+        env:
+          OPENAI_AGENTS_DISABLE_TRACING: '1'
+        run: |
+          set -o pipefail
+          python3 scripts/verify_research_display_contract.py 2>&1 | tee research-display-tests.log
       - name: Frontend unit regression
         run: npm test
       - name: Production build
@@ -115,6 +134,8 @@ jobs:
         with:
           name: research-home-browser-evidence
           path: |
+            research-display-report.json
+            research-display-tests.log
             apps/web/test-results/home/
             apps/web/playwright-home-report/
             apps/web/test-results/review/

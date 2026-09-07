@@ -2,16 +2,18 @@
 import { dateOnly, recordedDate, object, rows, strings, text } from './research-reader-model';
 import { resourceId, recordHref } from './news-theme-model';
 import type { CompanyData } from './company-evidence-model';
+import { researchDisplayIssue, type ResearchDisplayIssue } from './research-display-contract';
 export type ReviewSource = { id: string; title: string; context: string };
 export type ReviewGroup = { key: string; title: string; items: string[] | null };
 export type ReviewModel = {
   symbol: string; instrumentId: string; name: string; asOf: string | null; researchDate: string | null;
   artifactId: string | null; summary: string; origin: string; fund: boolean; blocked: boolean;
   groups: ReviewGroup[]; sources: ReviewSource[]; sourcesKnown: boolean;
-  thesisHref: string | null; recommendationHref: string | null;
+  thesisHref: string | null; recommendationHref: string | null; researchIssue?: ResearchDisplayIssue;
 };
 export function reviewModel(company: CompanyData): ReviewModel {
   const r = company.research, fund = company.fund;
+  const issue = company.fundKind ? null : researchDisplayIssue(r);
   const researchIds = strings(r.source_document_ids);
   const sources = new Map<string, ReviewSource>();
   for (const raw of researchIds ?? []) {
@@ -45,6 +47,7 @@ export function reviewModel(company: CompanyData): ReviewModel {
     ],
     sources: [...sources.values()], sourcesKnown: researchIds !== null || company.events !== null || company.macro !== null,
     thesisHref: company.thesisHref, recommendationHref: recordHref('recommendations', company.recommendation?.recommendation_id),
+    ...(issue ? { researchIssue: issue } : {}),
   };
 }
 /** Selector is an allowlist, not a general document lookup. Never replace bad requests with another source. */

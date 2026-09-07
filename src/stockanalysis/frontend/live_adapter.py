@@ -14650,6 +14650,8 @@ def _build_stock_equity_research_payload(artifact: dict[str, Any]) -> dict[str, 
     raw_id = artifact.get("artifact_id")
     if raw_id is None:
         return None
+    from stockanalysis.frontend.research_display_contract import prepare_equity_display
+    artifact, data_quality = prepare_equity_display(artifact)
     source_run_id = artifact.get("source_run_id")
     source_document_ids = [
         _opaque_id("source-document", item, None)
@@ -14676,6 +14678,7 @@ def _build_stock_equity_research_payload(artifact: dict[str, Any]) -> dict[str, 
         if source_run_id is not None
         else None,
         "created_at": _timestamp(artifact.get("created_at")),
+        "data_quality": data_quality,
     }
 
 

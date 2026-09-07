@@ -4,6 +4,8 @@ import { currencyValue, route, shortDate } from '@/lib/research-reader-model';
 import { count, decimal, measuredConfidence, object, percentage, rows, strings, text, type CompanyData } from '@/lib/company-evidence-model';
 import { loadCompanyNeighborhood } from '@/lib/company-evidence-data';
 import { ReaderFacts, ReaderLink, StoredList } from '@/components/readers/ReaderFrame';
+import { researchDisplayIssue } from '@/lib/research-display-contract';
+import { ResearchDataNotice } from '@/components/review/ResearchDataNotice';
 import { CompanyPriceChart } from './CompanyPriceChart';
 import styles from './CompanyWorkspace.module.css';
 
@@ -34,6 +36,7 @@ export function CompanyWorkspace({ data }: { data: CompanyData }) {
     </dl>
     <div className={styles.workbench}><div className={styles.main}>
       <Section id="company-case" title={data.fundKind ? '어떤 노출을 위한 상품인가' : '왜 이 기업을 검토하는가'}>
+        {!data.fundKind && <ResearchDataNotice issue={researchDisplayIssue(research)} />}
         <p className={styles.lead}>{data.fundKind ? text(fund?.summary, '펀드 분석 요약 미제공') : text(research.korean_summary, '저장된 기업 리서치 요약이 없습니다. 추천 연결과 실제 분석 근거를 구분해서 확인하세요.')}</p>
         {!data.fundKind && <><p className={styles.caption}>리서치 기준 {shortDate(research.as_of_date, '미기록')}</p><StoredList items={strings(research.key_points)} missing="핵심 주장 목록 미제공" /><div className={styles.twoColumns}><div><h3>성립 조건·촉매</h3><StoredList items={strings(research.catalysts)} missing="촉매 미제공" /></div><div><h3>반대 근거·위험</h3><StoredList items={strings(research.risks)} missing="위험 미제공" /></div></div></>}
         <div className={styles.actions}><ReaderLink href={data.thesisHref}>투자 논리 열기</ReaderLink><ReaderLink href={route('recommendations', recommendation?.recommendation_id)}>추천 판단서 열기</ReaderLink><ReaderLink href={`/stocks/${encodeURIComponent(data.symbol)}/review`}>근거 대조 · 검토 노트 →</ReaderLink></div>

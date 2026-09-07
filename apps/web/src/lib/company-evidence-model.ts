@@ -1,5 +1,6 @@
 /** Read-only presentation: source values, not investment decisions or inferred translations. */
 import { count, dateOnly, identifier, knownSymbol, numeric, object, recordedDate, route, rows, safeApiLink, strings, text, type Row } from './research-reader-model';
+import { projectResearchForReader } from './research-display-contract';
 export { count, object, rows, strings, text };
 export const fraction = (value: unknown) => {
   const n = numeric(value);
@@ -64,7 +65,7 @@ export function parseCompany(payload: unknown, requested: string): CompanyData {
     thesisHref: route('theses', recommendation.linked_thesis_id) ?? route('theses', position.linked_thesis_id),
     position: Object.keys(position).length ? position : null,
     positionState: qty !== null && qty !== 0 ? 'held' : raw.position === null || qty === 0 ? 'none' : 'unknown',
-    research: object(raw.equity_research), financial: object(raw.financial_statement_model), valuation: object(raw.valuation_target_range),
+    research: projectResearchForReader(raw.equity_research), financial: object(raw.financial_statement_model), valuation: object(raw.valuation_target_range),
     industry: object(raw.industry_competitive_position), fund,
     fundKind: !!fund || guard.status === 'fund_or_etf_company_model_not_applicable',
     guard, blocked: guard.blocked === true || ['blocked', 'source_blocked', 'blocked_source'].includes(text(guard.status, '')),
