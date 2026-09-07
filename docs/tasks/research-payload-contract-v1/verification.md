@@ -1,0 +1,7 @@
+# Verification checkpoints and corrected assumptions
+
+Head 633511935e6d925966b8dda4f414e6d125d1a626, Web Product Quality 34082720226, job 101620999732, reached the new guarded Python regression. All 11 new helper/producer cases passed. The existing adapter suite exposed two genuine compatibility failures: the first source-ID validator rejected an already-supported named opaque alias, source-document-aapl-2024-10k-20240928. The previous numeric-only assumption was too restrictive. Existing tests and fixtures are NOT changed. The validator is extended to preserve documented prefixed source aliases as well as numeric IDs, while rejecting bool/float/zero/negative/malformed/sentinel inputs. The helper still checks syntax, not document existence or ownership.
+
+The same run reported 118 cases, two failed assertions and three blocked external-IO attempts. The guard prevented execution, but the report correctly failed rather than claiming offline completeness. Function/line call sites are added to diagnose those attempts without printing command values or credentials. No network guard is relaxed. Downstream frontend/build/browser steps did not execute in this failed run and are not counted as passed. Both dependency audit steps succeeded.
+
+The alias follow-up adds two cases and keeps all existing tests. Exact current-head results must be observed. Local execution, raw artifact hash verification and manual pixel inspection remain unavailable; do not substitute pipeline status for these claims.
