@@ -36,12 +36,13 @@ export function ReviewContinuity({ model, snapshot, requested, children }: {
   const basis = saved ? compareReviewBasis(saved, model, snapshot) : null;
   const editable = basis === 'same_basis' || basis === 'changed_basis';
   const conditions = model.groups.find(group => group.key === (model.fund ? 'limits' : 'conditions'))?.items;
-  const unavailable = result.status !== 'loaded' && result.status !== 'direct';
+  const status = result.status;
+  const readMessage = status === 'loaded' || status === 'direct' ? null : REVIEW_READ_COPY[status];
   return <>
     <section className={styles.panel} id="saved-review-comparison" aria-labelledby="saved-comparison-title" data-testid="saved-review-comparison">
       <header className={styles.header}><div><span className={styles.kicker}>SAVED JUDGMENT / CURRENT RESEARCH</span><h2 id="saved-comparison-title">저장한 판단과 현재 분석</h2></div><ReaderLink href="/research-notes">검토함으로 돌아가기 →</ReaderLink></header>
       {basis && <div className={styles.notice} role="status"><strong>{REVIEW_BASIS_COPY[basis].title}</strong><p>{REVIEW_BASIS_COPY[basis].explanation}</p></div>}
-      {unavailable && <p className={styles.notice} role="status">{REVIEW_READ_COPY[result.status]}</p>}
+      {readMessage !== null && <p className={styles.notice} role="status">{readMessage}</p>}
       {externallyChanged && <p className={styles.notice} role="status">다른 탭에서 선택한 메모가 변경됐습니다. 비교 중인 내용은 자동으로 바꾸지 않았습니다. 편집기의 저장 충돌도 별도로 확인하세요.</p>}
       {saved && <div className={styles.columns}>
         <article><h3>저장 당시의 내 판단</h3><dl className={styles.meta}><div><dt>기업 ID</dt><dd>{saved.instrumentId}</dd></div><div><dt>분석 기준</dt><dd>{saved.asOf ?? '미확인'}</dd></div><div><dt>저장 시각</dt><dd>{saved.savedAt}</dd></div></dl>
