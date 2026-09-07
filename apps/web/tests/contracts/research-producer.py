@@ -21,6 +21,9 @@ with ExitStack() as guards:
                  'source_document_ids': [7001, True]}
     partial = {**raw}; partial.pop('risks')
     empty = {**raw, 'key_points': [], 'source_document_ids': []}
+    missing_sources = {**raw}; missing_sources.pop('source_document_ids')
+    bad_summary = {**raw, 'korean_summary': {'bad': 'synthetic-summary'}}
     result = {name: _build_stock_equity_research_payload(value) for name, value in
-              [('valid', raw), ('malformed', malformed), ('partial', partial), ('empty', empty)]}
+              [('valid', raw), ('malformed', malformed), ('partial', partial), ('empty', empty),
+               ('missing-sources', missing_sources), ('bad-summary', bad_summary)]}
 print(json.dumps(result, ensure_ascii=False, allow_nan=False))

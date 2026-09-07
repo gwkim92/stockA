@@ -36,6 +36,16 @@ const server=createServer(async(req,res)=>{
   if(scenario.startsWith('producer-') && Object.hasOwn(produced,scenario.slice(9))){
     d.equity_research=structuredClone(produced[scenario.slice(9)]);d.recent_events=[];d.macro_flow_impacts=[];
   }
+  if(scenario==='producer-malformed-events'){
+    d.equity_research=structuredClone(produced.malformed);
+    d.macro_flow_impacts=[{source_document_id:'source-document-3',korean_title:'별도 시장 배경 자료'}];
+  }
+  // Deliberately corrupt transport metadata, not the producer's validation result.
+  if(scenario==='producer-metadata-invalid'){
+    d.equity_research=structuredClone(produced.valid);
+    d.equity_research.data_quality={policy:'unexpected-private-metadata'};
+    d.recent_events=[];d.macro_flow_impacts=[];
+  }
   if(symbol==='SPY'){delete d.equity_research;d.recent_events=[];}
   return send(200,p);
  }
