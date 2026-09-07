@@ -47,6 +47,11 @@ bash -n scripts/verify_analysis_integrity_ci.sh
   tests.test_recommendation_weight_review_readiness_semantics \
   tests.test_recommendation_weight_review_readiness_audit -v
 
+# The public recommendation evaluator is imported by the main operations CLI.
+# Run its existing CLI regression suite so the persistence wrapper cannot
+# silently break command registration, argument handling, or dry-run behavior.
+"$PYTHON_BIN" -m unittest tests.test_data_operations_cli -v
+
 "$PYTHON_BIN" - <<'PY'
 import tomllib
 from pathlib import Path
