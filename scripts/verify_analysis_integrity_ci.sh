@@ -10,6 +10,9 @@ export PYTHONPATH="$ROOT_DIR/src${PYTHONPATH:+:$PYTHONPATH}"
 bash -n scripts/verify_analysis_integrity_ci.sh
 
 "$PYTHON_BIN" -m compileall -q \
+  src/stockanalysis/operations/recommendation_eval_persistence.py \
+  src/stockanalysis/operations/recommendation_quality_eval.py \
+  src/stockanalysis/operations/recommendation_quality_eval_legacy.py \
   src/stockanalysis/operations/recommendation_weight_review_source_lineage_reconciliation.py \
   src/stockanalysis/operations/recommendation_weight_review_source_lineage_reconciliation_cli.py \
   src/stockanalysis/operations/recommendation_weight_review_prospective_evidence_contract.py \
@@ -24,6 +27,7 @@ bash -n scripts/verify_analysis_integrity_ci.sh
   src/stockanalysis/operations/recommendation_weight_review_prospective_evidence_live_observation_cli.py \
   src/stockanalysis/operations/recommendation_weight_review_readiness_semantics.py \
   src/stockanalysis/operations/recommendation_weight_review_readiness_audit.py \
+  tests/test_recommendation_quality_eval.py \
   tests/test_recommendation_weight_review_source_lineage_reconciliation.py \
   tests/recommendation_weight_review_prospective_evidence_fixtures.py \
   tests/test_recommendation_weight_review_prospective_evidence_identity.py \
@@ -34,6 +38,7 @@ bash -n scripts/verify_analysis_integrity_ci.sh
   tests/test_recommendation_weight_review_readiness_audit.py
 
 "$PYTHON_BIN" -m unittest \
+  tests.test_recommendation_quality_eval \
   tests.test_recommendation_weight_review_source_lineage_reconciliation \
   tests.test_recommendation_weight_review_prospective_evidence_identity \
   tests.test_recommendation_weight_review_prospective_evidence_feedback \
@@ -83,6 +88,9 @@ required_fragments = (
     "actions/checkout@v4",
     "actions/setup-python@v5",
     "bash scripts/verify_analysis_integrity_ci.sh",
+    "src/stockanalysis/operations/recommendation_quality_eval*.py",
+    "src/stockanalysis/operations/recommendation_eval_persistence.py",
+    "tests/test_recommendation_quality_eval.py",
 )
 for fragment in required_fragments:
     if fragment not in workflow:
