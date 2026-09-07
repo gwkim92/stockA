@@ -1,5 +1,5 @@
 /** Read-only audit projections over the stored performance report. */
-import { count, fraction, list, number, positiveHorizon, record, words, type Outcome, type ReviewReport } from './review-workspace-model';
+import { count, fraction, list, number, record, words, type Outcome, type ReviewReport } from './review-workspace-model';
 
 export type AuditCheck = { key: string; label: string; status: 'match' | 'mismatch' | 'unavailable'; stored: number | null; derived: number | null };
 export type QualityCohort = { key: string; label: string; measured: number; total: number; averageAlpha: number | null; hitRate: number | null };
