@@ -1,0 +1,40 @@
+name: Research Payload Source Audit
+on:
+  push:
+    branches: [codex/research-payload-contract-v1]
+    paths: [.github/workflows/research-payload-source-audit.yml]
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Inspect checked-in producer functions only
+        run: |
+          python - <<'PY'
+          import ast
+          from pathlib import Path
+          path = Path('src/stockanalysis/frontend/live_adapter.py')
+          source = path.read_text()
+          lines = source.splitlines()
+          tree = ast.parse(source)
+          functions = [n for n in ast.walk(tree) if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))]
+          terms = ('equity_research', 'key_points_json', 'source_document_ids')
+          selected = set()
+          for node in functions:
+              body = '\n'.join(lines[node.lineno-1:node.end_lineno])
+              if ('equity_research' in node.name or 'stock_detail' in node.name):
+                  print('FUNCTION', node.name, node.lineno, node.end_lineno)
+                  if node.end_lineno - node.lineno < 180:
+                      selected.update(range(node.lineno-1, node.end_lineno))
+              for offset, line in enumerate(lines[node.lineno-1:node.end_lineno], node.lineno-1):
+                  if any(term in line for term in terms):
+                      selected.update(range(max(node.lineno-1, offset-8), min(node.end_lineno, offset+15)))
+          for index in sorted(selected)[:1400]:
+              print(f'{index+1}: {lines[index]}')
+          print('SELECTED_LINE_COUNT', len(selected))
+          PY
