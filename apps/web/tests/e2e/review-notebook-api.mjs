@@ -1,6 +1,9 @@
 // Synthetic data only. No model calls, account access or production database.
 import {createServer} from 'node:http';
 import {readFileSync} from 'node:fs';
+import {execFileSync} from 'node:child_process';
+import {fileURLToPath} from 'node:url';
+const produced=JSON.parse(execFileSync('python3',[fileURLToPath(new URL('../contracts/research-producer.py',import.meta.url))],{encoding:'utf8',timeout:15000,maxBuffer:1000000}));
 const example=name=>JSON.parse(readFileSync(new URL(`../../../../docs/api/frontend/examples/${name}.json`,import.meta.url),'utf8'));
 let scenario='healthy',requests=[];
 const server=createServer(async(req,res)=>{
@@ -30,6 +33,9 @@ const server=createServer(async(req,res)=>{
   if(scenario==='no-research'){delete d.equity_research;d.recent_events=[];}
   if(scenario==='blocked')d.professional_source_guardrail={blocked:true,status:'blocked_source'};
   if(scenario==='wrong-company')d.symbol='OTHER';
+  if(scenario.startsWith('producer-') && Object.hasOwn(produced,scenario.slice(9))){
+    d.equity_research=structuredClone(produced[scenario.slice(9)]);d.recent_events=[];d.macro_flow_impacts=[];
+  }
   if(symbol==='SPY'){delete d.equity_research;d.recent_events=[];}
   return send(200,p);
  }
