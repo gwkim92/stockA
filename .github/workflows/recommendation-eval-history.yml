@@ -55,6 +55,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+          fetch-depth: 2
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
@@ -103,8 +104,8 @@ jobs:
           print(json.dumps(report, sort_keys=True))
           sys.exit(0 if result.wasSuccessful() and not result.skipped else 1)
           PY
-      - name: Check whitespace
-        run: git diff --check
+      - name: Check committed diff whitespace
+        run: git diff --check HEAD^ HEAD
       - name: Retain test summary
         if: always()
         uses: actions/upload-artifact@v4
