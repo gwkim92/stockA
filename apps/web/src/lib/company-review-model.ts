@@ -2,6 +2,7 @@
 import { dateOnly, recordedDate, object, rows, strings, text } from './research-reader-model';
 import { resourceId, recordHref } from './news-theme-model';
 import type { CompanyData } from './company-evidence-model';
+import { reviewGroupMessage, reviewQualityMessages, reviewSourcePresentation, reviewSummaryText } from './review-data-presentation';
 import { researchDisplayIssue, type ResearchDisplayIssue } from './research-display-contract';
 export type ReviewSource = { id: string; title: string; context: string };
 export type ReviewGroup = { key: string; title: string; items: string[] | null };
@@ -95,9 +96,13 @@ export function exportReview(draft: Draft, model: ReviewModel, currentSnapshot: 
     '## 다음 확인 사항', literal(draft.nextAction || '미작성'), literal(`직접 정한 날짜: ${draft.nextDate || '미지정'} (알림 없음)`),
     '## 사람의 체크 표시', literal(CHECKS.map(([key,label]) => `${draft.checks.includes(key) ? '[x]' : '[ ]'} ${label}`).join('\n'))];
   if (current) {
-    parts.push('## 화면에 저장된 분석 — 개인 메모와 별개', literal(model.origin), literal(model.summary));
-    for (const group of model.groups) parts.push(`### ${group.title}`, literal(group.items === null ? '목록 미제공' : group.items.length ? group.items.join('\n\n') : '반환된 목록이 비어 있음'));
-    parts.push('## 연결 문서 목록 — 개별 주장을 입증하는 인용 목록이 아님', literal(model.sources.map(s => `${s.title}\nID: ${s.id}\n/source-documents/${encodeURIComponent(s.id)}`).join('\n\n') || '연결 문서 미제공'));
+    const quality = reviewQualityMessages(model), inventory = reviewSourcePresentation(model);
+    if (quality.length) parts.push('## 리서치 데이터 상태', literal(quality.join('\n')));
+    parts.push('## 화면에 저장된 분석 — 개인 메모와 별개', literal(model.origin), literal(reviewSummaryText(model)));
+    for (const group of model.groups) parts.push(`### ${group.title}`, literal(reviewGroupMessage(model, group) ?? group.items!.join('\n\n')));
+    parts.push('## 연결 문서 목록 — 개별 주장을 입증하는 인용 목록이 아님', literal(inventory.badge));
+    if (inventory.notice) parts.push(literal(inventory.notice));
+    parts.push(literal(model.sources.map(s => `${s.title}\n연결 경로: ${s.context}\nID: ${s.id}\n/source-documents/${encodeURIComponent(s.id)}`).join('\n\n') || inventory.empty));
   }
   return parts.join('\n\n') + '\n';
 }
