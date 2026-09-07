@@ -6,6 +6,7 @@ import { selectReviewSource, type ReviewModel } from '@/lib/company-review-model
 import { ReaderLink } from '@/components/readers/ReaderFrame';
 import { ReviewDraft } from './ReviewDraft';
 import { ReviewContinuity } from './ReviewContinuity';
+import { ResearchDataNotice } from './ResearchDataNotice';
 import styles from './ReviewNotebook.module.css';
 export function ReviewNotebook({ model, snapshot, source, sourcePanel, savedInstrument }: { model: ReviewModel; snapshot: string; source: unknown; sourcePanel: ReactNode; savedInstrument?: unknown }) {
   const router = useRouter(), selected = selectReviewSource(model, source);
@@ -15,6 +16,7 @@ export function ReviewNotebook({ model, snapshot, source, sourcePanel, savedInst
     <header className={styles.header}><div><span className={styles.kicker}>RESEARCH NOTEBOOK</span><h1>{model.symbol}<span>검토 노트</span></h1><p>{model.name} · 읽은 근거와 내 판단을 구분해 남깁니다.</p></div><ReaderLink href={`/stocks/${encodeURIComponent(model.symbol)}`}>← 기업 리서치</ReaderLink><ReaderLink href="/research-notes">내 검토함 →</ReaderLink></header>
     <nav className={styles.steps} style={{ flexWrap: 'wrap' }} aria-label="검토 순서"><a href="#review-claims"><span>01</span>주장 확인</a><a href="#review-source"><span>02</span>원천 대조</a><a href="#review-note"><span>03</span>내 검토 작성</a>{savedInstrument !== undefined && <a href="#saved-review-comparison">저장한 판단 대조</a>}</nav>
     <div className={styles.context}><span>기업 분석 {model.asOf ?? '미확인'}</span><span>리서치 기록 {model.researchDate ?? '미확인'}</span><strong>{model.origin}</strong></div>
+    <ResearchDataNotice issue={model.researchIssue} />
     {model.blocked && <p className={styles.warning} role="status">원천 제한이 있는 분석입니다. 개인 체크 표시나 메모 작성으로 제한이 해제되지 않습니다.</p>}
     <div className={styles.compare}>
       <section id="review-claims" className={styles.analysisPanel} aria-labelledby="review-claims-title">
