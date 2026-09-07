@@ -5,14 +5,15 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { selectReviewSource, type ReviewModel } from '@/lib/company-review-model';
 import { ReaderLink } from '@/components/readers/ReaderFrame';
 import { ReviewDraft } from './ReviewDraft';
+import { ReviewContinuity } from './ReviewContinuity';
 import styles from './ReviewNotebook.module.css';
-export function ReviewNotebook({ model, snapshot, source, sourcePanel }: { model: ReviewModel; snapshot: string; source: unknown; sourcePanel: ReactNode }) {
+export function ReviewNotebook({ model, snapshot, source, sourcePanel, savedInstrument }: { model: ReviewModel; snapshot: string; source: unknown; sourcePanel: ReactNode; savedInstrument?: unknown }) {
   const router = useRouter(), selected = selectReviewSource(model, source);
   const [choice, setChoice] = useState(selected.id);
   useEffect(() => { setChoice(selected.id); }, [selected.id]);
   return <div className={styles.page} data-testid="company-review-notebook">
     <header className={styles.header}><div><span className={styles.kicker}>RESEARCH NOTEBOOK</span><h1>{model.symbol}<span>검토 노트</span></h1><p>{model.name} · 읽은 근거와 내 판단을 구분해 남깁니다.</p></div><ReaderLink href={`/stocks/${encodeURIComponent(model.symbol)}`}>← 기업 리서치</ReaderLink><ReaderLink href="/research-notes">내 검토함 →</ReaderLink></header>
-    <nav className={styles.steps} aria-label="검토 순서"><a href="#review-claims"><span>01</span>주장 확인</a><a href="#review-source"><span>02</span>원천 대조</a><a href="#review-note"><span>03</span>내 검토 작성</a></nav>
+    <nav className={styles.steps} style={{ flexWrap: 'wrap' }} aria-label="검토 순서"><a href="#review-claims"><span>01</span>주장 확인</a><a href="#review-source"><span>02</span>원천 대조</a><a href="#review-note"><span>03</span>내 검토 작성</a>{savedInstrument !== undefined && <a href="#saved-review-comparison">저장한 판단 대조</a>}</nav>
     <div className={styles.context}><span>기업 분석 {model.asOf ?? '미확인'}</span><span>리서치 기록 {model.researchDate ?? '미확인'}</span><strong>{model.origin}</strong></div>
     {model.blocked && <p className={styles.warning} role="status">원천 제한이 있는 분석입니다. 개인 체크 표시나 메모 작성으로 제한이 해제되지 않습니다.</p>}
     <div className={styles.compare}>
@@ -39,7 +40,9 @@ export function ReviewNotebook({ model, snapshot, source, sourcePanel }: { model
         {sourcePanel}
       </section>
     </div>
-    <ReviewDraft model={model} snapshot={snapshot} />
+    <ReviewContinuity model={model} snapshot={snapshot} requested={savedInstrument}>
+      <ReviewDraft model={model} snapshot={snapshot} />
+    </ReviewContinuity>
     <p className={styles.footer}>화면의 분석 기준은 완전한 과거 시점 복원이 아닙니다. 문서 목록과 개인 체크 표시는 주장 검증·투자 추천·거래 승인이 아닙니다.</p>
   </div>;
 }

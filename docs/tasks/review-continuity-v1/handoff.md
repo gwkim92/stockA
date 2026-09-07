@@ -1,0 +1,17 @@
+# Saved-review continuity v1 — implementation handoff
+
+Base develop@80bf691b7a5d4a51485dd508b276c2a84148b3db. The completed PR #43 inbox preserved symbol/instrument identities in storage but omitted the instrument in its current-research link. This task fixes the missing identity handoff and adds a saved-human-judgment/current-analysis comparison.
+
+The link includes only the selected savedInstrument identifier. It never contains note text, search terms, checklists or a snapshot hash. The server validates its shape before serializing the reference to the client; invalid/repeated parameters remain invalid, not a default selection. The comparison uses one lazy getItem against a canonical selected key and the existing strict v1 parser. No additional company/source API request is needed. A missing or damaged selected old note cannot be replaced with the current instrument's note.
+
+Same displayed bundle, changed displayed bundle and different instrument are distinct. The first two can render the existing editor without altering its save/migration rules. A different instrument or unresolved reference does not mount that editor. The user can deliberately open current research separately; that path never transfers the old text or checks. Current analysis and the saved person's words are labeled and presented separately. No previous report body exists in these drafts, so no old/new report diff is manufactured.
+
+Source-query navigation preserves savedInstrument and editor state. Updating only the server analysis basis does not trigger a saved-note reload or remount the editor. Observed cross-tab modifications mark the saved comparison baseline changed but leave its current text visible until explicit reload. The existing editor handles its own conflicts separately. The comparison does not write localStorage. Full application termination, exact concurrent snapshots and account isolation are still outside the browser-local design.
+
+The inbox now labels duplicate-symbol entries by instrument and stops displaying a selected note when that note no longer matches the user's search/date filter. Clearing the filter restores the selection; no saved data is changed.
+
+Verification is through model tests and a new actual browser file in the existing notebook configuration, with all prior suites retained. It covers the real save/inbox/research path, identity mismatch, changed basis, missing/corrupt/denied storage, duplicate/invalid selectors with zero review-key reads, source changes retaining unsaved notes, external changes and filtered selection. Existing fixtures and financial/evaluation data are not modified. Exact observed CI outcomes and integration evidence must be recorded on the PR; no expected count is a pass.
+
+Local execution still fails with ClientError. A merged PR #43 artifact was retrieved, but Files has no readable ZIP pixels. No new screenshot has been manually inspected in this task so far. Browser accessibility/width results and capture creation are not substitutes for manual visual review. This release boundary remains open.
+
+No main, backend/schema/migrations/seeds, dependency/lockfile, financial rules/weights/thresholds, benchmark/evaluation data, portfolio/order/broker, paid model generation, accounts/secrets/AWS, production EC2/data, scheduler or deployment changes. No new storage format, server synchronization, encryption, import, reminder or investment approval. No independent reviewer approval is claimed.

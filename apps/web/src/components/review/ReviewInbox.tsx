@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { ReaderLink } from '@/components/readers/ReaderFrame';
 import { CHECKS } from '@/lib/company-review-model';
+import { savedReviewHref } from '@/lib/review-continuity-model';
 import { REVIEW_STORAGE_PREFIX, INBOX_FILTERS, dueBucket, exportInboxNotes, exportSavedReview,
   filterSavedReviews, localReviewDay, readReviewInbox, unavailableInbox, type InboxFilter, type InboxRead } from '@/lib/review-inbox-model';
 import styles from './ReviewInbox.module.css';
@@ -39,8 +40,11 @@ export function ReviewInbox() {
     return () => { window.clearInterval(timer); window.removeEventListener('storage', storageChanged); document.removeEventListener('visibilitychange', visible); };
   }, []);
   const notes = read?.notes ?? [], visible = filterSavedReviews(notes, filter, query, today);
-  const active = notes.find(note => note.key === selected);
+  const active = visible.find(note => note.key === selected);
+  const filteredOut = !active && notes.some(note => note.key === selected);
   const counts = Object.fromEntries(INBOX_FILTERS.map(([key]) => [key, key === 'all' ? notes.length : notes.filter(note => dueBucket(note.draft.nextDate, today) === key).length]));
+  const symbolCounts = new Map<string, number>();
+  for (const { draft } of notes) symbolCounts.set(draft.symbol, (symbolCounts.get(draft.symbol) ?? 0) + 1);
   const open = (key: string) => {
     setSelected(key);
     requestAnimationFrame(() => title.current?.focus());
@@ -68,7 +72,7 @@ export function ReviewInbox() {
     {!!read?.problems.length && <details className={styles.problems}><summary>읽지 못한 초안 {read.problems.length}개 · 원본은 보존됩니다</summary><p>다른 버전·잘못된 형식·식별 정보 불일치 또는 접근 실패가 있는 항목입니다. 정상 초안으로 바꾸거나 삭제하지 않았습니다.</p>{read.problems.map(problem => <div key={problem.key}><code>{problem.key}</code><button type="button" onClick={() => exportRaw(problem.key)}>현재 저장된 원본 내보내기</button></div>)}</details>}
     {read && read.state !== 'unavailable' && <div className={styles.workspace}>
       <section className={styles.listPanel} aria-labelledby="review-list-title"><div className={styles.sectionHead}><h2 id="review-list-title">저장된 검토</h2><span>{visible.length}개 표시</span></div>
-        {visible.length ? <ul className={styles.list}>{visible.map(({key, draft}) => <li key={key}><button type="button" aria-pressed={selected === key} aria-label={`${draft.symbol} 저장된 메모 열기`} onClick={() => open(key)}><div className={styles.rowHead}><strong>{draft.symbol}</strong><span data-bucket={dueBucket(draft.nextDate, today)}>{bucketLabel(draft.nextDate, today)}</span></div><p className={styles.preview}>{draft.nextAction || draft.note || '작성된 질문이나 판단 메모가 없습니다.'}</p><div className={styles.rowMeta}><span>확인 {draft.nextDate || '날짜 미지정'}</span><span>분석 {draft.asOf ?? '미확인'}</span></div></button></li>)}</ul>
+        {visible.length ? <ul className={styles.list}>{visible.map(({key, draft}) => <li key={key}><button type="button" aria-pressed={selected === key} aria-label={`${draft.symbol}${(symbolCounts.get(draft.symbol) ?? 0) > 1 ? ` · ${draft.instrumentId}` : ''} 저장된 메모 열기`} onClick={() => open(key)}><div className={styles.rowHead}><strong>{draft.symbol}</strong><span data-bucket={dueBucket(draft.nextDate, today)}>{bucketLabel(draft.nextDate, today)}</span></div><p className={styles.preview}>{draft.nextAction || draft.note || '작성된 질문이나 판단 메모가 없습니다.'}</p><div className={styles.rowMeta}><span>확인 {draft.nextDate || '날짜 미지정'}</span><span>분석 {draft.asOf ?? '미확인'}</span>{(symbolCounts.get(draft.symbol) ?? 0) > 1 && <span>기업 ID {draft.instrumentId}</span>}</div></button></li>)}</ul>
         : <div className={styles.empty}><h3>{notes.length ? '조건에 맞는 메모가 없습니다' : read.problems.length || read.state === 'partial' ? '읽을 수 있는 초안이 없습니다' : '아직 저장한 검토가 없습니다'}</h3><p>{notes.length ? '검색어나 날짜 필터를 바꿔 확인하세요.' : '기업 검토 화면에서 메모를 작성하고 “이 브라우저에 저장”을 누르면 여기에 나타납니다.'}</p>{notes.length > 0 && <button type="button" onClick={() => { setFilter('all'); setQuery(''); }}>검색·필터 초기화</button>}<ReaderLink href="/stocks">기업 탐색 →</ReaderLink></div>}
       </section>
       <section className={styles.reader} aria-labelledby="saved-review-title" data-testid="saved-review-reader"><h2 id="saved-review-title" tabIndex={-1} ref={title}>{active ? `${active.draft.symbol} · 저장된 내 검토` : '메모를 선택해 이어서 읽으세요'}</h2>
@@ -79,8 +83,8 @@ export function ReviewInbox() {
           <section className={styles.note}><h3>내 판단과 근거</h3><p>{active.draft.note || '아직 적지 않았습니다.'}</p></section>
           <section className={styles.note}><h3>반대 근거와 남은 의문</h3><p>{active.draft.opposition || '아직 적지 않았습니다.'}</p></section>
           <details className={styles.details}><summary>저장 당시 체크와 식별 정보</summary><ul>{CHECKS.map(([key, label]) => <li key={key}>{active.draft.checks.includes(key) ? '표시함' : '미표시'} · {label}</li>)}</ul><dl><dt>기업 ID</dt><dd>{active.draft.instrumentId}</dd><dt>저장 시각</dt><dd>{active.draft.savedAt}</dd><dt>분석 묶음 ID</dt><dd>{active.draft.snapshot}</dd></dl></details>
-          <div className={styles.readerActions}><ReaderLink href={`/stocks/${encodeURIComponent(active.draft.symbol)}/review`}>현재 분석과 다시 검토 →</ReaderLink><button type="button" onClick={() => download(exportSavedReview(active.draft), `${active.draft.symbol}-saved-review.md`)}>이 메모 내보내기</button></div>
-        </> : <p className={styles.empty}>{selected ? '선택했던 초안이 현재 읽은 목록에 없습니다. 다른 탭에서 삭제·변경됐거나 읽을 수 없게 되었을 수 있습니다.' : '목록에서 기업을 고르면 판단·반대 근거·다음 질문을 읽을 수 있습니다. 기업 API를 조회하지 않습니다.'}</p>}
+          <div className={styles.readerActions}><ReaderLink href={savedReviewHref(active.draft)}>현재 분석과 다시 검토 →</ReaderLink><button type="button" onClick={() => download(exportSavedReview(active.draft), `${active.draft.symbol}-saved-review.md`)}>이 메모 내보내기</button></div>
+        </> : <p className={styles.empty}>{filteredOut ? '선택했던 메모가 현재 검색·날짜 필터에 포함되지 않습니다. 메모를 삭제하지 않았으며 필터를 바꾸면 다시 읽을 수 있습니다.' : selected ? '선택했던 초안이 현재 읽은 목록에 없습니다. 다른 탭에서 삭제·변경됐거나 읽을 수 없게 되었을 수 있습니다.' : '목록에서 기업을 고르면 판단·반대 근거·다음 질문을 읽을 수 있습니다. 기업 API를 조회하지 않습니다.'}</p>}
       </section>
     </div>}
     <details className={styles.storageBoundary}><summary>저장과 내보내기 범위</summary><p>공용 기기에서는 저장하지 마세요. 초안은 암호화·계정 분리되지 않으며 브라우저 데이터 삭제 시 사라질 수 있습니다. 이 화면은 읽기 전용이고, 메모 수정은 기업 검토 화면에서 합니다.</p><p>묶음 내보내기는 현재 읽은 정상 초안만 포함합니다. 손상된 항목은 별도로 원본을 보관하세요. 파일을 자동 복원하는 기능은 없습니다. 회사명·현재 분석·원천 본문은 저장된 초안에 없으므로 만들어 넣지 않습니다.</p><p>기업 API 장애와 별개로 메모를 읽을 수 있지만 앱 서버에는 접속할 수 있어야 합니다. 이 화면이 오프라인 앱이나 동시 변경의 원자적 기록을 보장하지는 않습니다.</p></details>
