@@ -19,8 +19,8 @@ export default async function PerformancePage({ searchParams }: { searchParams: 
       { label: "보고된 적중률", value: weight(headline.hitRate), detail: "표본·평가 기준 함께 확인" },
       { label: "측정 제외 비중", value: weight(headline.excludedWeight), detail: "제외 사유는 아래 상세" },
     ]} note="요약은 저장된 전체 보고서 값입니다. 서로 다른 관찰 기간을 한 전략의 수익률로 해석하지 마세요." />
-    <DecisionQualityAudit report={report} outcomes={outcomes} />
     <OutcomeExplorer rows={outcomes} benchmark={words(report.raw.benchmark_code)} />
+    <DecisionQualityAudit report={report} outcomes={outcomes} />
     <PerformanceEvidence report={report} />
   </>}</ReviewFrame>;
 }
