@@ -1,12 +1,13 @@
 import { loadReviewSource } from '@/lib/company-review-data';
 import type { ReviewModel } from '@/lib/company-review-model';
+import { reviewSourcePresentation } from '@/lib/review-data-presentation';
 import { shortDate } from '@/lib/research-reader-model';
 import { ReaderLink } from '@/components/readers/ReaderFrame';
 import styles from './ReviewNotebook.module.css';
 export async function ReviewSource({ model, requested }: { model: ReviewModel; requested: unknown }) {
   const result = await loadReviewSource(model, requested);
   if (result.invalid) return <p role="status" className={styles.warning}>이 기업에 명시적으로 연결되지 않은 문서입니다. 다른 자료로 대체하지 않았습니다. 아래 문서 선택에서 연결 자료를 골라 주세요.</p>;
-  if (!result.id) return <p className={styles.empty}>{model.sourcesKnown ? '반환된 연결 문서가 없습니다.' : '원천 문서 목록 미제공'} 주장별 근거가 없다고 단정하지 않고 추가 자료를 확인하세요.</p>;
+  if (!result.id) return <p className={styles.empty}>{reviewSourcePresentation(model).empty} 주장별 근거가 없다고 단정하지 않고 추가 자료를 확인하세요.</p>;
   if (!result.data) return <div role="status" className={styles.warning}><p>선택한 원천을 불러오지 못했습니다. 분석 내용과 작성 중인 메모는 유지됩니다.</p><a href="" className={styles.link}>현재 문서 다시 조회</a></div>;
   const source = result.data;
   return <div data-testid="review-source-content">
