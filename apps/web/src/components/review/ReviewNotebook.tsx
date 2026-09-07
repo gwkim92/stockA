@@ -3,6 +3,7 @@ import { useRouter } from 'next/navigation';
 import type { Route } from 'next';
 import { useEffect, useState, type ReactNode } from 'react';
 import { selectReviewSource, type ReviewModel } from '@/lib/company-review-model';
+import { reviewGroupMessage, reviewSourcePresentation, reviewSummaryText } from '@/lib/review-data-presentation';
 import { ReaderLink } from '@/components/readers/ReaderFrame';
 import { ReviewDraft } from './ReviewDraft';
 import { ReviewContinuity } from './ReviewContinuity';
@@ -10,6 +11,7 @@ import { ResearchDataNotice } from './ResearchDataNotice';
 import styles from './ReviewNotebook.module.css';
 export function ReviewNotebook({ model, snapshot, source, sourcePanel, savedInstrument }: { model: ReviewModel; snapshot: string; source: unknown; sourcePanel: ReactNode; savedInstrument?: unknown }) {
   const router = useRouter(), selected = selectReviewSource(model, source);
+  const inventory = reviewSourcePresentation(model);
   const [choice, setChoice] = useState(selected.id);
   useEffect(() => { setChoice(selected.id); }, [selected.id]);
   return <div className={styles.page} data-testid="company-review-notebook">
@@ -21,14 +23,17 @@ export function ReviewNotebook({ model, snapshot, source, sourcePanel, savedInst
     <div className={styles.compare}>
       <section id="review-claims" className={styles.analysisPanel} aria-labelledby="review-claims-title">
         <div className={styles.sectionHead}><div><span className={styles.kicker}>01 · STORED ANALYSIS</span><h2 id="review-claims-title">{model.fund ? '노출·비용·제한' : '투자 주장과 반대 근거'}</h2></div></div>
-        <p className={styles.lead}>{model.summary}</p>
-        {model.groups.map((group, index) => <section className={styles.claimGroup} key={group.key}><h3><span>{String(index+1).padStart(2,'0')}</span>{group.title}</h3>
-          {group.items?.length ? <ul>{group.items.map((item,i) => <li key={i}>{item}</li>)}</ul> : <p className={styles.empty}>{group.items === null ? '목록 미제공' : '반환된 목록이 비어 있습니다.'} 근거가 충분하다는 뜻은 아닙니다.</p>}
-        </section>)}
+        <p className={styles.lead}>{reviewSummaryText(model)}</p>
+        {model.groups.map((group, index) => {
+          const message = reviewGroupMessage(model, group);
+          return <section className={styles.claimGroup} key={group.key} data-testid={`review-group-${group.key}`}><h3><span>{String(index+1).padStart(2,'0')}</span>{group.title}</h3>
+          {message ? <p className={styles.empty}>{message}</p> : <ul>{group.items?.map((item,i) => <li key={i}>{item}</li>)}</ul>}
+        </section>; })}
         <div className={styles.actions}><ReaderLink href={model.thesisHref}>연결 투자 논리 →</ReaderLink><ReaderLink href={model.recommendationHref}>추천 판단서 →</ReaderLink><ReaderLink href={`/stocks/${encodeURIComponent(model.symbol)}/details`}>수치·전문 분석 →</ReaderLink></div>
       </section>
       <section id="review-source" className={styles.sourcePanel} aria-labelledby="review-source-title">
-        <div className={styles.sectionHead}><div><span className={styles.kicker}>02 · SOURCE COMPARISON</span><h2 id="review-source-title">연결 원천 대조</h2></div><span className={styles.localBadge}>{model.sources.length}개 연결 문서</span></div>
+        <div className={styles.sectionHead}><div><span className={styles.kicker}>02 · SOURCE COMPARISON</span><h2 id="review-source-title">연결 원천 대조</h2></div><span className={styles.localBadge} data-testid="review-source-count">{inventory.badge}</span></div>
+        {inventory.notice && <p className={styles.caption} data-testid="review-source-scope">{inventory.notice}</p>}
         <div className={styles.sourcePicker}><span id="review-source-label">대조할 문서</span>
           <div className={styles.sourceChoices} role="radiogroup" aria-labelledby="review-source-label">
             {model.sources.map(s => <label key={s.id}><input type="radio" name="review-source" value={s.id} checked={choice === s.id} onChange={() => {
@@ -36,7 +41,7 @@ export function ReviewNotebook({ model, snapshot, source, sourcePanel, savedInst
               const params = new URLSearchParams(window.location.search); params.set('source', s.id);
               router.push(`/stocks/${encodeURIComponent(model.symbol)}/review?${params}` as Route, { scroll: false });
             }} /><span><strong>{s.title}</strong><small>{s.context}</small></span></label>)}
-            {!model.sources.length && <p className={styles.empty}>선택할 연결 문서가 없습니다.</p>}
+            {!model.sources.length && <p className={styles.empty}>현재 선택할 수 있는 연결 문서가 없습니다.</p>}
           </div>
         </div>
         {sourcePanel}
