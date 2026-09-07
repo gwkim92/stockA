@@ -50,6 +50,9 @@ def _positive_id(value: object) -> int:
 
 def parse_evaluation_history_request(api_path: str) -> HistoryRequest:
     try:
+        # urlsplit removes some raw controls; do not normalize invalid selectors.
+        if any(ord(character) <= 32 or ord(character) == 127 for character in api_path):
+            raise _invalid()
         parsed = urlsplit(api_path)
         if parsed.scheme or parsed.netloc or parsed.fragment:
             raise _invalid()
@@ -234,7 +237,11 @@ def resolve_evaluation_history(
             result["runs"] = [_run_metadata(row) for row in rows]
             direction = "before"
         else:
-            if raw.get("run") is None:
+            if "run" not in raw or "snapshots" not in raw:
+                raise _unavailable()
+            if raw["run"] is None:
+                if raw["snapshots"] != []:
+                    raise _unavailable()
                 raise EvaluationHistoryError("The requested recommendation evaluation was not found.", code="FrontendApiPathNotFound")
             run = _run_metadata(raw["run"])
             if run["eval_run_id"] != str(request.eval_run_id):
