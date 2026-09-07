@@ -11,6 +11,9 @@ async function seed(page:Page,notes:Draft[]=samples()) {
  await page.addInitScript(entries=>{for(const [key,value] of entries)localStorage.setItem(key,value);},notes.map(note=>[draftKey(note),JSON.stringify(note)]));
 }
 const filters=(page:Page)=>page.getByRole('group',{name:'직접 정한 확인 날짜로 필터',exact:true});
+// Next also exposes an alert for route announcements. Assert the application's
+// warning within its own boundary, not whichever global alert appears first.
+const inboxAlert=(page:Page)=>page.getByTestId('review-inbox').getByRole('alert');
 async function noCompanyFetch(request:APIRequestContext) {
  const calls:{path:string}[]=await(await request.get(`${api}/__requests`)).json();
  expect(calls.filter(call=>/^\/api\/(stocks|source-documents)\//.test(call.path))).toEqual([]);
@@ -66,7 +69,8 @@ test('company API failure does not block reading or export and does not cause co
 test('complete empty storage differs from denied storage',async({page})=>{
  await page.goto(route);await expect(page.getByTestId('review-inbox')).toContainText('아직 저장한 검토가 없습니다');
  await page.addInitScript(()=>{Object.defineProperty(window,'localStorage',{get(){throw new DOMException('denied','SecurityError');}});});
- await page.reload();await expect(page.getByRole('alert')).toContainText('저장소를 읽을 수 없습니다');await expect(page.getByTestId('review-inbox')).not.toContainText('아직 저장한 검토가 없습니다');
+ await page.reload();await expect(inboxAlert(page)).toHaveCount(1);await expect(inboxAlert(page)).toBeVisible();
+ await expect(inboxAlert(page)).toContainText('저장소를 읽을 수 없습니다');await expect(page.getByTestId('review-inbox')).not.toContainText('아직 저장한 검토가 없습니다');
  await expect(page.getByRole('button',{name:'읽은 초안 묶음 내보내기',exact:true})).toBeDisabled();
 });
 
@@ -95,7 +99,8 @@ test('another tab updates saved notes and deletion is visible without a phantom 
 
 test('large inventories are explicitly partial instead of being reported as a complete backup',async({page})=>{
  const notes=Array.from({length:201},(_,i)=>draft(`S${i}`,''));await seed(page,notes);await page.goto(route);
- await expect(page.getByRole('alert')).toContainText('일부 항목만 읽었습니다');await expect(page.getByRole('button',{name:/저장된 메모 열기$/})).toHaveCount(200);
+ await expect(inboxAlert(page)).toHaveCount(1);await expect(inboxAlert(page)).toBeVisible();
+ await expect(inboxAlert(page)).toContainText('일부 항목만 읽었습니다');await expect(page.getByRole('button',{name:/저장된 메모 열기$/})).toHaveCount(200);
  const pending=page.waitForEvent('download');await page.getByRole('button',{name:'읽은 초안 묶음 내보내기',exact:true}).click();
  const data=JSON.parse(readFileSync((await(await pending).path())!,'utf8'));expect(data.completeRead).toBe(false);expect(data.notes).toHaveLength(200);
 });
