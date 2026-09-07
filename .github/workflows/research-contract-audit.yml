@@ -1,0 +1,36 @@
+name: Research Contract Audit
+on:
+  push:
+    branches: [codex/research-payload-contract-v1]
+    paths: [.github/workflows/research-contract-audit.yml]
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Inspect checked-in stock research projection only
+        run: |
+          python - <<'PY'
+          import ast
+          from pathlib import Path
+          path = Path('src/stockanalysis/frontend/live_adapter.py')
+          text = path.read_text()
+          lines = text.splitlines()
+          tree = ast.parse(text)
+          selected = set()
+          for node in ast.walk(tree):
+              if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and any(word in node.name for word in ('equity_research', 'stock_detail')):
+                  print('FUNCTION', node.name, 'LINES', node.lineno, node.end_lineno)
+                  if node.end_lineno - node.lineno < 200:
+                      selected.update(range(node.lineno, node.end_lineno + 1))
+          for index, line in enumerate(lines, 1):
+              if ('equity_research' in line or 'source_document_ids' in line or 'key_points_json' in line):
+                  selected.update(range(max(1, index - 8), min(len(lines), index + 14) + 1))
+          for index in sorted(selected):
+              print(f'{index}: {lines[index - 1]}')
+          PY
