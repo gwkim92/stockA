@@ -1,0 +1,62 @@
+name: Stage Research Producer Patch
+on:
+  push:
+    branches: [codex/research-payload-contract-v1]
+    paths: [.github/workflows/research-producer-patch.yml]
+permissions:
+  contents: read
+jobs:
+  stage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Stage one bounded adapter change as an unreferenced commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python - <<'PY'
+          import ast, base64, hashlib, json, os, subprocess, urllib.request
+          from pathlib import Path
+          assert os.environ['GITHUB_REPOSITORY'] == 'gwkim92/stockA'
+          assert os.environ['GITHUB_REF'] == 'refs/heads/codex/research-payload-contract-v1'
+          path = 'src/stockanalysis/frontend/live_adapter.py'
+          source = Path(path).read_text()
+          assert subprocess.check_output(['git','hash-object',path],text=True).strip() == '5bb5bbfb68a7fa3438d7c3f6475ac7c2a394afdc'
+          tree = ast.parse(source)
+          funcs = [n for n in tree.body if isinstance(n,ast.FunctionDef) and n.name == '_build_stock_equity_research_payload']
+          assert len(funcs) == 1
+          node = funcs[0]
+          lines = source.splitlines(keepends=True)
+          old = ''.join(lines[node.lineno-1:node.end_lineno])
+          marker = '    source_run_id = artifact.get("source_run_id")\n'
+          assert old.count(marker) == 1
+          new = old.replace(marker, '    from stockanalysis.frontend.research_display_contract import prepare_equity_display\n    artifact, data_quality = prepare_equity_display(artifact)\n' + marker)
+          tail = '        "created_at": _timestamp(artifact.get("created_at")),\n'
+          assert new.count(tail) == 1
+          new = new.replace(tail, tail + '        "data_quality": data_quality,\n')
+          updated = ''.join(lines[:node.lineno-1]) + new + ''.join(lines[node.end_lineno:])
+          after = ast.parse(updated)
+          old_nodes = {n.name:ast.dump(n,include_attributes=False) for n in tree.body if isinstance(n,(ast.FunctionDef,ast.ClassDef))}
+          new_nodes = {n.name:ast.dump(n,include_attributes=False) for n in after.body if isinstance(n,(ast.FunctionDef,ast.ClassDef))}
+          assert old_nodes.keys() == new_nodes.keys()
+          assert [name for name in old_nodes if old_nodes[name] != new_nodes[name]] == ['_build_stock_equity_research_payload']
+          def api(endpoint, payload):
+              req = urllib.request.Request('https://api.github.com/repos/gwkim92/stockA/git/' + endpoint,
+                  data=json.dumps(payload).encode(), headers={'Authorization':'Bearer '+os.environ['GH_TOKEN'], 'Content-Type':'application/json', 'Accept':'application/vnd.github+json'}, method='POST')
+              with urllib.request.urlopen(req,timeout=20) as reply: return json.load(reply)
+          blob = api('blobs',{'content':base64.b64encode(updated.encode()).decode(),'encoding':'base64'})
+          expected_blob = hashlib.sha1(b'blob '+str(len(updated.encode())).encode()+b'\0'+updated.encode()).hexdigest()
+          assert blob['sha'] == expected_blob
+          base_tree = subprocess.check_output(['git','rev-parse','HEAD^{tree}'],text=True).strip()
+          staged_tree = api('trees',{'base_tree':base_tree,'tree':[{'path':path,'mode':'100644','type':'blob','sha':blob['sha']}]})
+          commit = api('commits',{'message':'fix(research): validate display fields before legacy string conversion','tree':staged_tree['sha'],'parents':[os.environ['GITHUB_SHA']]})
+          print('STAGED_COMMIT='+commit['sha'])
+          print('ADAPTER_BLOB='+blob['sha'])
+          print('ONLY_CHANGED_FUNCTION=_build_stock_equity_research_payload')
+          print('NO_BRANCH_REF_UPDATED')
+          PY
