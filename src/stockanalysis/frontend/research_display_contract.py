@@ -12,6 +12,8 @@ POLICY = 'equity_display_contract_v1'
 TEXT_FIELDS = ('title', 'korean_summary')
 CLAIM_FIELDS = ('key_points', 'catalysts', 'risks', 'invalidation_conditions')
 MAX_DATABASE_ID = 9223372036854775807
+SOURCE_PREFIX = 'source-document-'
+_RESERVED_IDS = {'unknown', 'true', 'false', 'none', 'null', 'nan', 'infinity'}
 
 
 def _positive_decimal(value: str) -> bool:
@@ -24,18 +26,19 @@ def _document_id(value: object) -> bool:
         return 0 < value <= MAX_DATABASE_ID
     if type(value) is not str:
         return False
-    if _positive_decimal(value):
-        return True
-    # Existing display contracts also carry prefixed source aliases, not only
-    # numeric database IDs. Preserve them exactly; never guess an alias or URL.
-    prefix = 'source-document-'
-    if not value.startswith(prefix) or len(value) > 240:
+    # The existing adapter accepts raw named IDs as well as numeric DB IDs.
+    # Public prefixed IDs are unwrapped once before its own prefix conversion.
+    raw = value[len(SOURCE_PREFIX):] if value.startswith(SOURCE_PREFIX) else value
+    if not raw or len(raw) + len(SOURCE_PREFIX) > 240 or raw.startswith(SOURCE_PREFIX):
         return False
-    suffix = value[len(prefix):]
-    if suffix.isdecimal():
-        return _positive_decimal(suffix)
-    return (suffix.lower() not in {'unknown', 'true', 'false', 'none', 'null', 'nan', 'infinity'}
-            and re.fullmatch(r'[A-Za-z][A-Za-z0-9_-]*', suffix) is not None)
+    if raw.isdecimal():
+        return _positive_decimal(raw)
+    return (raw.lower() not in _RESERVED_IDS
+            and re.fullmatch(r'[A-Za-z][A-Za-z0-9_-]*', raw) is not None)
+
+
+def _adapter_document_id(value: int | str) -> int | str:
+    return value[len(SOURCE_PREFIX):] if isinstance(value, str) and value.startswith(SOURCE_PREFIX) else value
 
 
 def prepare_equity_display(artifact: dict[str, Any]) -> tuple[dict[str, Any], dict[str, object]]:
@@ -64,7 +67,7 @@ def prepare_equity_display(artifact: dict[str, Any]) -> tuple[dict[str, Any], di
             invalid.append(field)
             safe[field] = []
         else:
-            safe[field] = list(value)
+            safe[field] = [_adapter_document_id(item) for item in value] if field == 'source_document_ids' else list(value)
     quality: dict[str, object] = {
         'policy': POLICY,
         'status': 'invalid_fields' if invalid else 'partial' if unavailable else 'complete',

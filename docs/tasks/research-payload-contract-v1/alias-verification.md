@@ -1,0 +1,9 @@
+# Final integration follow-up
+
+At head 81fe087a576208a32fa82aee77f1a0e64d4c50de, run 34083569324 failed the new Python gate: 120 tests ran, three failed and three blocked process attempts were recorded. Build/browser steps did not execute, and are not counted as passed.
+
+The failures expose a compatibility defect in this feature: the original producer expects raw named IDs such as aapl-2024-10k-20240928 and adds source-document-. The first validator accepted only numbers/prefixed aliases, rejecting raw names; already-prefixed IDs were double-prefixed. Existing stock/recommendation assertions remained unchanged and caught the regression. The corrected validator accepts bounded safe raw names and positive numeric IDs, unwraps at most one already-present prefix for the existing formatter, and refuses repeated prefixes or malformed identifiers. Added tests preserve the exact old expected URL, test raw/prefixed equivalence and input nonmutation. This does not create a new external source resolver.
+
+The three blocked process attempts came from unrelated existing agent-registry tests invoking the real Codex login-status probe. The verification harness now supplies a deterministic not-logged-in result only for the exact codex login status process boundary. Any other command still fails the IO guard. All socket/process blocking remains, all original tests still execute, and the number of mocked login probes is separately reported. This is not live authentication verification.
+
+The branch-only read-only source audit workflow has been removed again. It inspected only tracked source, not production data or secrets. The preexisting one-shot large-file staging workflow remains removed. Final refined-head CI must pass before integration. Manual screenshot inspection and local execution remain unavailable and are not claimed.

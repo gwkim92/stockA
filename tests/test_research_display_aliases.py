@@ -1,4 +1,5 @@
 from __future__ import annotations
+from copy import deepcopy
 import unittest
 from stockanalysis.frontend.research_display_contract import prepare_equity_display
 from stockanalysis.frontend.live_adapter import _build_stock_equity_research_payload
@@ -12,6 +13,29 @@ class ResearchDisplayAliasTests(unittest.TestCase):
         result = _build_stock_equity_research_payload(data)
         self.assertEqual(result['source_document_ids'], ids[:2] + ['source-document-7003'])
         self.assertEqual(result['data_quality']['status'], 'complete')
+
+    def test_raw_named_source_matches_its_explicit_prefixed_form(self):
+        raw = 'aapl-2024-10k-20240928'
+        first = _build_stock_equity_research_payload({**artifact(), 'source_document_ids': [raw]})
+        second = _build_stock_equity_research_payload({**artifact(), 'source_document_ids': ['source-document-' + raw]})
+        self.assertEqual(first['source_document_ids'], ['source-document-' + raw])
+        self.assertEqual(second['source_document_ids'], first['source_document_ids'])
+        self.assertEqual(first['data_quality']['status'], 'complete')
+
+    def test_normalization_does_not_mutate_the_stored_input(self):
+        data = {**artifact(), 'source_document_ids': ['source-document-7001']}
+        before = deepcopy(data)
+        safe, _ = prepare_equity_display(data)
+        self.assertEqual(safe['source_document_ids'], ['7001'])
+        self.assertEqual(data, before)
+        self.assertEqual(_build_stock_equity_research_payload(data)['source_document_ids'], ['source-document-7001'])
+
+    def test_repeated_prefix_and_oversized_public_ids_are_rejected_not_repaired(self):
+        for value in ('source-document-source-document-7001', 'a' * 225, 'source-document-' + 'a' * 225):
+            with self.subTest(value=value):
+                safe, quality = prepare_equity_display({**artifact(), 'source_document_ids': [value]})
+                self.assertEqual(safe['source_document_ids'], [])
+                self.assertIn('source_document_ids', quality['invalid_fields'])
 
     def test_opaque_prefix_does_not_make_bad_identifiers_valid(self):
         for suffix in ('unknown', 'True', 'False', 'None', 'null', '0', '-1', '01', 'a/b', '..', 'a?x', 'a%20b', 'a b'):
