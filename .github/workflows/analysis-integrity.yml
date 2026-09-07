@@ -9,11 +9,16 @@ on:
       - ".github/workflows/analysis-integrity.yml"
       - "docs/analysis-integrity-ci.md"
       - "docs/tasks/analysis-integrity-ci-v1/**"
+      - "docs/tasks/recommendation-eval-persistence-v1/**"
       - "pyproject.toml"
+      - "db/migrations/0035_recommendation_eval_persistence.sql"
       - "scripts/verify_analysis_integrity_ci.sh"
       - "scripts/verify_recommendation_weight_review_*.sh"
       - "src/stockanalysis/operations/recommendation_weight_review_*.py"
+      - "src/stockanalysis/operations/recommendation_quality_eval*.py"
+      - "src/stockanalysis/operations/recommendation_eval_persistence.py"
       - "tests/test_recommendation_weight_review_*.py"
+      - "tests/test_recommendation_quality_eval.py"
   push:
     branches:
       - develop
@@ -22,11 +27,16 @@ on:
       - ".github/workflows/analysis-integrity.yml"
       - "docs/analysis-integrity-ci.md"
       - "docs/tasks/analysis-integrity-ci-v1/**"
+      - "docs/tasks/recommendation-eval-persistence-v1/**"
       - "pyproject.toml"
+      - "db/migrations/0035_recommendation_eval_persistence.sql"
       - "scripts/verify_analysis_integrity_ci.sh"
       - "scripts/verify_recommendation_weight_review_*.sh"
       - "src/stockanalysis/operations/recommendation_weight_review_*.py"
+      - "src/stockanalysis/operations/recommendation_quality_eval*.py"
+      - "src/stockanalysis/operations/recommendation_eval_persistence.py"
       - "tests/test_recommendation_weight_review_*.py"
+      - "tests/test_recommendation_quality_eval.py"
   workflow_dispatch:
 
 permissions:
