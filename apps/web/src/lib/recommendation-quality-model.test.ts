@@ -24,7 +24,8 @@ const outcomes = (value: ReviewReport) => value.rows.map(outcome);
 describe('recommendation quality audit', () => {
   it('derives measurable rows without rewriting report-level summary', () => {
     const source=report(), before=JSON.stringify(source), audit=recommendationQualityAudit(source,outcomes(source));
-    expect(audit.derived).toMatchObject({received:3,measured:2,unmeasured:1,averageAlpha:0.02,hitRate:0.5,recommendationLinked:2,thesisLinked:1,benchmarkMeasured:2});
+    expect(audit.derived).toMatchObject({received:3,measured:2,unmeasured:1,hitRate:0.5,recommendationLinked:2,thesisLinked:1,benchmarkMeasured:2});
+    expect(audit.derived.averageAlpha).toBeCloseTo(0.02,12);
     expect(audit.mismatchCount).toBe(0);expect(JSON.stringify(source)).toBe(before);
   });
   it('reports summary disagreement instead of silently correcting it', () => {
