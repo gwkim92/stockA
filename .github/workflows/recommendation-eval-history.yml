@@ -9,6 +9,7 @@ on:
       - 'db/migrations/**'
       - 'tests/test_recommendation_eval_history*.py'
       - 'tests/test_frontend_api_server.py'
+      - 'tests/test_evaluation_history_completion.py'
       - '.github/workflows/recommendation-eval-history.yml'
       - 'pyproject.toml'
   push:
@@ -19,6 +20,7 @@ on:
       - 'db/migrations/**'
       - 'tests/test_recommendation_eval_history*.py'
       - 'tests/test_frontend_api_server.py'
+      - 'tests/test_evaluation_history_completion.py'
       - '.github/workflows/recommendation-eval-history.yml'
       - 'pyproject.toml'
   workflow_dispatch:
@@ -78,6 +80,7 @@ jobs:
           assert os.environ.get('GITHUB_ACTIONS') == 'true'
           assert os.environ.get('STOCKANALYSIS_EVAL_HISTORY_CI') == '1'
           names = [
+              'tests.test_evaluation_history_completion',
               'tests.test_recommendation_eval_history',
               'tests.test_recommendation_eval_history_postgres',
               'tests.test_frontend_api_server',

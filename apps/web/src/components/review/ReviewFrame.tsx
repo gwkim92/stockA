@@ -37,6 +37,7 @@ export function ReviewFrame({ kind, result, children }: {
       <nav className={styles.tabs} aria-label="보유와 성과">
         <Link href={`/portfolio/coverage?date=${result.requestedDate}`} aria-current={portfolio ? "page" : undefined}>보유 검토</Link>
         <Link href={`/performance?date=${result.requestedDate}`} aria-current={!portfolio ? "page" : undefined}>판단 성과</Link>
+        <Link href="/performance/evaluations" prefetch={false}>평가 이력</Link>
       </nav>
       <p className={styles.context}>
         {words(report?.raw.portfolio_name, "Long Term Paper")} · 페이퍼 포트폴리오 · 실거래 주문 비활성

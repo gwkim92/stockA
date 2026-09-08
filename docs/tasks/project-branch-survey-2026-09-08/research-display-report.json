@@ -1,0 +1,18 @@
+{
+  "verification": "research-display-contract-v1",
+  "suites": [
+    "tests.test_research_display_contract",
+    "tests.test_research_display_aliases",
+    "tests.test_frontend_live_adapter"
+  ],
+  "tests_run": 123,
+  "failures": 0,
+  "errors": 0,
+  "skipped": 0,
+  "unexpected_io_attempts": 0,
+  "io_call_sites": [],
+  "mocked_login_status_probes": 3,
+  "passed": true,
+  "production_database_access": false,
+  "live_model_calls": 0
+}

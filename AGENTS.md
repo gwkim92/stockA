@@ -49,6 +49,8 @@
 
 ## Working Rules
 
+- 2026-09-08 브랜치 정리/평가 이력 후속 구현의 인계는 `docs/tasks/evaluation-history-completion-v1/handoff.md`를 참고한다. 6월의 아래 runtime 수치·IP·대기일은 당시 증거이며 현재 서버 상태는 재확인해야 한다. 로컬 GitHub SSH 인증은 지정 key와 `IdentitiesOnly=yes`를 함께 사용해 ssh-agent의 다른 계정 선택을 막는다.
+
 - 현재 작업에 필요한 최소한의 문서만 읽는다.
 - 멀티파일, 위험 작업, 장기 작업은 먼저 `docs/tasks/<task-slug>/contract.md`를 만든다.
 - 세션을 끊기기 전 `docs/tasks/<task-slug>/handoff.md`를 갱신한다.
