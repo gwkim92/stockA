@@ -49,6 +49,8 @@
 
 ## Working Rules
 
+- 2026-09-08 실제 EC2 배포/백업/장애 원인은 `docs/tasks/runtime-deploy-20260908/handoff.md`를 참고한다. 개인 계정 us-east-1, `3.211.40.142`, `/opt/stockanalysis/app`에서 확인했으며 7월 코드에서 평가 이력 포함 최신 develop으로 업데이트했다. AI 인증/할당량과 가격 수집 잔여 상태는 인계의 검증 범위를 따른다.
+
 - 2026-09-08 브랜치 정리/평가 이력 후속 구현의 인계는 `docs/tasks/evaluation-history-completion-v1/handoff.md`를 참고한다. 6월의 아래 runtime 수치·IP·대기일은 당시 증거이며 현재 서버 상태는 재확인해야 한다. 로컬 GitHub SSH 인증은 지정 key와 `IdentitiesOnly=yes`를 함께 사용해 ssh-agent의 다른 계정 선택을 막는다.
 
 - 현재 작업에 필요한 최소한의 문서만 읽는다.
