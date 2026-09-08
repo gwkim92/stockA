@@ -230,6 +230,19 @@ def run_market_price_daily_from_env(
     )
     watchlist_path = _required_env_value(env_mapping, MARKET_PRICE_WATCHLIST_CSV_ENV)
     ledger_path = _required_env_value(env_mapping, MARKET_PRICE_BUDGET_LEDGER_PATH_ENV)
+    selection = None
+    include_active = str(env_mapping.get("STOCKANALYSIS_MARKET_PRICE_INCLUDE_ACTIVE_RECOMMENDATIONS", "false")).strip().lower()
+    if include_active not in {"true", "1", "yes", "false", "0", "no"}:
+        raise ValueError("Invalid active recommendation price watchlist setting.")
+    if include_active in {"true", "1", "yes"}:
+        from stockanalysis.operations.market_price_watchlist import prepare_priority_watchlist
+
+        executor = executor or PsqlCommandExecutor.from_config(config)
+        generated = Path(ledger_path).with_name("market-price-active-priority-watchlist.csv")
+        if generated.resolve() == Path(watchlist_path).resolve():
+            raise ValueError("Configured and generated price watchlists must be different files.")
+        selection = prepare_priority_watchlist(source_path=watchlist_path, destination=generated, executor=executor)
+        watchlist_path = str(generated)
     resolved_budget_date = budget_date or _optional_env_date(env_mapping, DATA_OPERATIONS_SCHEDULER_RUN_DATE_ENV)
     freshness_resolution = resolve_market_price_freshness_date(
         env=env_mapping,
@@ -267,6 +280,8 @@ def run_market_price_daily_from_env(
         freshness_date=freshness_resolution.freshness_date,
         executor=executor,
     )
+    if selection is not None:
+        summary["watchlist_selection"] = selection
     summary["freshness_policy"] = freshness_resolution.policy
     summary["freshness_date_source"] = freshness_resolution.source
     summary["freshness_date"] = (
