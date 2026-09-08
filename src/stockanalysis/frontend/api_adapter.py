@@ -13,6 +13,11 @@ from stockanalysis.frontend.pagination import (
     apply_frontend_pagination,
     canonical_frontend_path_for_pagination,
 )
+from stockanalysis.frontend.recommendation_eval_history import (
+    EvaluationHistoryError,
+    is_evaluation_history_path,
+    resolve_evaluation_history,
+)
 
 
 CONTRACT_INDEX_PATH = Path("docs/api/frontend/contract-index.json")
@@ -84,6 +89,11 @@ def resolve_frontend_response(
     try:
         if source not in {"fixture", "live", "auto"}:
             raise FrontendApiAdapterError(f"Unsupported frontend API source: {source}", code="FrontendApiSourceInvalid")
+        if is_evaluation_history_path(api_path):
+            try:
+                return resolve_evaluation_history(api_path, source=source, config=config, executor=executor)
+            except EvaluationHistoryError as exc:
+                raise FrontendApiAdapterError(str(exc), code=exc.code) from exc
         if source == "live":
             return _resolve_live_frontend_response(api_path, config=config, executor=executor)
         if source == "auto" and _should_try_live_source(api_path, config=config, executor=executor):
