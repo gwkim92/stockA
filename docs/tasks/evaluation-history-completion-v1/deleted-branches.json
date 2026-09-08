@@ -1,0 +1,247 @@
+[
+  {
+    "branch": "codex/ai-news-evidence-flow-clarity-v1",
+    "sha": "f0aaf010f202f1c53effdf70ae5c281303f3fa0a",
+    "proof": "ancestor"
+  },
+  {
+    "branch": "codex/analysis-prompt-contract-v1",
+    "sha": "cd6a6c154d7c0b4e9185d194b2c777266624014d",
+    "proof": "ancestor"
+  },
+  {
+    "branch": "codex/analysis-prompt-hardening-v2",
+    "sha": "b49c9dfc0a546336cd7b2acad7fdda3b846c631c",
+    "proof": "ancestor"
+  },
+  {
+    "branch": "codex/ci-fast-integrity-v1",
+    "sha": "65aabbb89b539c3392fd0c2dce81c7c548fde5de",
+    "proof": "ancestor"
+  },
+  {
+    "branch": "codex/company-evidence-workspace-v1",
+    "sha": "37cf30c948dbf896f9933464c4c45c9be0466269",
+    "proof": "ancestor"
+  },
+  {
+    "branch": "codex/company-review-notebook-v1",
+    "sha": "bcc08a706c1bee8e1195c8b8a22cc14a0a7f22ed",
+    "proof": "ancestor"
+  },
+  {
+    "branch": "codex/cross-asset-provider-quality-and-market-map-v1",
+    "sha": "2393fa6c8ab87423eafbe2041392a0859dd7fe23",
+    "proof": "ancestor"
+  },
+  {
+    "branch": "codex/cycle-operating-board-v1",
+    "sha": "562bbb4611ebb717b47d91d91299c4eb2d963cda",
+    "proof": "ancestor"
+  },
+  {
+    "branch": "codex/cycle-quality-audit-hardening-v1",
+    "sha": "c84ec4fbbdfcdf151ed7178e70ac17c28615b188",
+    "proof": "ancestor"
+  },
+  {
+    "branch": "codex/cycle-screen-entry-clarity-v1",
+    "sha": "0dbb47e4bac9aff454ff8f950aecbece95d8ec43",
+    "proof": "ancestor"
+  },
+  {
+    "branch": "codex/data-health-decision-clarity-v1",
+    "sha": "5f1e8fd84faaceb3aea7423f70a0f53d855f120a",
+    "proof": "ancestor"
+  },
+  {
+    "branch": "codex/equity-atomic-persistence-v1",
+    "sha": "8de716fa1fd1509934a6cd83c00ba18ab66fdd89",
+    "proof": "ancestor"
+  },
+  {
+    "branch": "codex/equity-batch-isolation-v1",
+    "sha": "260d6e90462ccd023a3f5d16c5e19c465c447155",
+    "proof": "ancestor"
+  },
+  {
+    "branch": "codex/equity-context-cutoff-v1",
+    "sha": "001e726db37727fd4a351cdff753c696b915cc93",
+    "proof": "ancestor"
+  },
+  {
+    "branch": "codex/equity-research-contract-v3",
+    "sha": "c71e3f311d5c72b5b64d8c0d352bcc599f58e44d",
+    "proof": "ancestor"
+  },
+  {
+    "branch": "codex/equity-result-check-v1",
+    "sha": "f85005a4f5281110ba3cf0ce8d9c722d5542cf31",
+    "proof": "ancestor"
+  },
+  {
+    "branch": "codex/fred-dollar-index-lag-policy-handoff-final-v1",
+    "sha": "76c02682c235ce15acab3a76e067b9cf8dec64f7",
+    "proof": "ancestor"
+  },
+  {
+    "branch": "codex/fred-dollar-index-lag-policy-v1",
+    "sha": "2af44e934f9ecc6c7acf4469890903974e94ecee",
+    "proof": "ancestor"
+  },
+  {
+    "branch": "codex/investor-home-reliability-v1",
+    "sha": "02f52d9eaf0d9210088a43ab3f6caa88578557e0",
+    "proof": "ancestor"
+  },
+  {
+    "branch": "codex/local-mvp-runtime-aws-bootstrap",
+    "sha": "80869764ed3d6f1d28839f4731dfce655a59922e",
+    "proof": "ancestor"
+  },
+  {
+    "branch": "codex/market-map-decision-clarity-v1",
+    "sha": "5f3aacf5efc25e1e8a5bd28a8c1560fd7d267c95",
+    "proof": "ancestor"
+  },
+  {
+    "branch": "codex/market-map-ec2-smoke-fix-v1",
+    "sha": "eb47ba628f69f2d983982d4398a7dd6e319d011e",
+    "proof": "ancestor"
+  },
+  {
+    "branch": "codex/market-map-user-wording-v1",
+    "sha": "80a291f91f577357c11e794ff5cde880cb7ed9e2",
+    "proof": "ancestor"
+  },
+  {
+    "branch": "codex/market-map-wording-polish-v1",
+    "sha": "2515431f7487f784ab1fafd2096895788fbe8fc2",
+    "proof": "ancestor"
+  },
+  {
+    "branch": "codex/news-theme-triage-v1",
+    "sha": "72577ad20d4b48b0d8f45594a4dd5484f79ac89c",
+    "proof": "ancestor"
+  },
+  {
+    "branch": "codex/personal-review-inbox-v1",
+    "sha": "471b566db5b20c0bede764bcda1a2248bfc1a131",
+    "proof": "ancestor"
+  },
+  {
+    "branch": "codex/portfolio-performance-workspace-v1",
+    "sha": "6fa2a755aa77a6ea67419129a29a600ff358cbae",
+    "proof": "ancestor"
+  },
+  {
+    "branch": "codex/professional-investment-workspace-redesign-v3",
+    "sha": "e8964a8a6ff7fa249e3d5d54540b58c51faf129a",
+    "proof": "ancestor"
+  },
+  {
+    "branch": "codex/professional-source-gap-actionable-remediation-v1",
+    "sha": "aed06a61f9bbf46433791149935eec0428913d67",
+    "proof": "ancestor"
+  },
+  {
+    "branch": "codex/recommendation-eval-history-v1",
+    "sha": "745bef3340f316bb843bc4e1d50fe33d39f553b0",
+    "proof": "ancestor"
+  },
+  {
+    "branch": "codex/recommendation-eval-persistence-v1",
+    "sha": "b8118e2694202fd4e7b359a7092ebd3989136780",
+    "proof": "identical_squash_tree"
+  },
+  {
+    "branch": "codex/recommendation-investment-memo-v1",
+    "sha": "08601f956295a869f14e32492435f459bed5e71c",
+    "proof": "ancestor"
+  },
+  {
+    "branch": "codex/recommendation-quality-audit-v1",
+    "sha": "d85ff13069e6c990f2a74217816c10657cfe4472",
+    "proof": "identical_squash_tree"
+  },
+  {
+    "branch": "codex/recommendation-weight-review-prospective-evidence-foundation-v1",
+    "sha": "d6f708486a250fc5fc591b42327de28263f39d12",
+    "proof": "ancestor"
+  },
+  {
+    "branch": "codex/recommendation-weight-review-prospective-evidence-live-observation-v1",
+    "sha": "abb6f303b16a89b46a96d366be728aa05bc33be1",
+    "proof": "ancestor"
+  },
+  {
+    "branch": "codex/recommendation-weight-review-source-lineage-reconciliation-v1",
+    "sha": "e20a68d5234c6c0fa29dbde71ff8f8f3b7358692",
+    "proof": "ancestor"
+  },
+  {
+    "branch": "codex/research-discovery-workspace-v1",
+    "sha": "e2f603c198ef8161c072d226738c45f91801adef",
+    "proof": "ancestor"
+  },
+  {
+    "branch": "codex/research-payload-contract-v1",
+    "sha": "d65a6c89d9828227dbc0b3fbb6a98aa24e5be05a",
+    "proof": "ancestor"
+  },
+  {
+    "branch": "codex/research-review-state-continuity-v1",
+    "sha": "f661bb5b90a36839340b220ad1a1788c15a180b0",
+    "proof": "ancestor"
+  },
+  {
+    "branch": "codex/research-workspace-redesign-v1",
+    "sha": "dd4b5b024d58dd4ab1aff53bd18b86ff39cfd5f8",
+    "proof": "ancestor"
+  },
+  {
+    "branch": "codex/review-continuity-v1",
+    "sha": "fcf4a3186c2595c81513cd088103b66d29362ae8",
+    "proof": "ancestor"
+  },
+  {
+    "branch": "codex/thesis-source-reader-v1",
+    "sha": "569ca6f67b59c3535bae6f1feb137ed878ee732e",
+    "proof": "ancestor"
+  },
+  {
+    "branch": "codex/tossinvest-market-data-agent-context-v1",
+    "sha": "343ad83fe897533ad00998de34d4da37d7b31d88",
+    "proof": "ancestor"
+  },
+  {
+    "branch": "codex/web-dependency-remediation-v1",
+    "sha": "91c851fb68239e69509b07a4647d0e491f247697",
+    "proof": "ancestor"
+  },
+  {
+    "branch": "codex/xag-fred-silver-proxy-auto-refresh-v1",
+    "sha": "97e32b6a14629d881d7050a09bf09d36b6b1a267",
+    "proof": "ancestor"
+  },
+  {
+    "branch": "codex/xag-fred-silver-proxy-handoff-final-v1",
+    "sha": "c98406ea24ed7ee0f4351835ca47a9c7fcee8045",
+    "proof": "ancestor"
+  },
+  {
+    "branch": "codex/xag-fred-silver-proxy-provider-v1",
+    "sha": "7ba6f9bf520a14c7a309620347c539f4bcca8fb8",
+    "proof": "ancestor"
+  },
+  {
+    "branch": "codex/xag-provider-policy-visibility-v1",
+    "sha": "be93df98040c66e7090a49fa7984d8902bb5ac46",
+    "proof": "ancestor"
+  },
+  {
+    "branch": "feature/frontend-detail-routes",
+    "sha": "45fc2db5a131b400042202362315383571719d61",
+    "proof": "identical_squash_tree"
+  }
+]

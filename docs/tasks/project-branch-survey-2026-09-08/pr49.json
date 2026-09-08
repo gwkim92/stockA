@@ -1,0 +1,30 @@
+{
+  "body": "## Read-only evaluation history foundation\n\nBase: develop@1d9d8dcc3699152a1fe435a304d95d96d930b9b1 (merged persistence PR #48).\n\nImplemented through the existing authenticated GET boundary:\n\n- `/api/recommendation-evaluations?limit=25&before=<run ID>`\n- `/api/recommendation-evaluations/eval-run-<ID>?limit=25&after=<snapshot ID>`\n\nCanonical bigint selectors, bounded keyset pagination, eval-family isolation, string source IDs, distinct legacy-unavailable / recorded-empty / count-mismatch states, and no reconstruction from mutable recommendation/thesis/outcome tables. Invalid selectors fail before database access. Missing schema/source is unavailable, not a successful empty history; missing run IDs are not replaced with the newest run.\n\nThe response is a dedicated top-level `recommendation-eval-history-v1` DTO. No UI is connected in this slice. Existing endpoint dispatch, bearer authentication, no-store, timeout and write-method denial boundaries remain intact.\n\n## Observed verification\n\nBoth workflows passed at implementation/CI-fix head `ad366a6aa8baeeb39c626a63610044f294d7da3f` (PR merge ref `9fa2f8a27666da825e7497c4101c86f383a5f784`):\n\n- [Evaluation History](https://github.com/gwkim92/stockA/actions/runs/34097907034)\n- [Evaluation History Read Contract](https://github.com/gwkim92/stockA/actions/runs/34097907053)\n\nThe following handoff commit is documentation-only; current-head checks remain visible in the PR Checks tab.\n\nVerified suites: 93 existing analysis integrity tests, 107 operations CLI tests, 19 history unit/HTTP tests, 18 existing frontend API server tests, 9 real-pool PostgreSQL tests, 27 supplemental reader/HTTP contract tests and 8 supplemental PostgreSQL tests. The combined 46-test primary history/server/PG suite reported zero failures, zero errors and zero skips. Shared regression tests execute in both workflows and are not counted as new unique coverage.\n\nReal PostgreSQL verification applied all 35 existing migrations only to disposable CI databases. It exercised the actual PsycopgPoolExecutor with SELECT-only/read-only permissions, keyset paging, absent source IDs, bigint limits, zero/null preservation, family isolation, missing schema/children, pool recovery after denied writes, repeated-read nonmutation and unchanged frozen history after actual synthetic source recommendation UPDATE and DELETE.\n\nFixed a depth-one checkout that made the supplemental workflow's final `HEAD^` diff check fail after functional tests had passed. Both workflows now fetch the parent commit and inspect committed changes; the formerly failing step was observed green. Test result JSON is retained by the Evaluation History workflow.\n\n## Scope and remaining work\n\n`history_basis` explicitly denotes evaluation-time capture, NOT recommendation-creation-time provenance. Stored SHA is an identity only: `snapshot_hash_verification=not_performed`. Hash re-verification, historical/current drift UI and later-outcome comparison remain unimplemented; they are not silently reported as complete.\n\nNo new/changed schema, migration or seed files; no scoring/weight/benchmark/policy changes, backfill, snapshot rewrite, order/broker, secrets, paid/live model calls, production database, scheduler, main or deployment changes. No local test, frontend build, browser or production-load pass is claimed.\n\nContract and detailed evidence: `docs/tasks/recommendation-eval-history-v1/contract.md` and `handoff.md`.",
+  "headRefOid": "745bef3340f316bb843bc4e1d50fe33d39f553b0",
+  "mergeStateStatus": "CLEAN",
+  "mergeable": "MERGEABLE",
+  "number": 49,
+  "statusCheckRollup": [
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-09-07T07:59:18Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/gwkim92/stockA/actions/runs/34098152523/job/101666283726",
+      "name": "history",
+      "startedAt": "2026-09-07T07:58:42Z",
+      "status": "COMPLETED",
+      "workflowName": "Evaluation History"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-09-07T07:59:17Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/gwkim92/stockA/actions/runs/34098152398/job/101666283584",
+      "name": "history",
+      "startedAt": "2026-09-07T07:58:41Z",
+      "status": "COMPLETED",
+      "workflowName": "Evaluation History Read Contract"
+    }
+  ],
+  "title": "feat(eval): expose read-only recommendation evaluation history"
+}

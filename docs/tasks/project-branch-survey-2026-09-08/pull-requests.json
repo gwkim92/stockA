@@ -1,0 +1,576 @@
+[
+  {
+    "baseRefName": "develop",
+    "headRefName": "codex/recommendation-eval-history-v1",
+    "mergeCommit": null,
+    "mergedAt": null,
+    "number": 49,
+    "state": "OPEN",
+    "title": "feat(eval): expose read-only recommendation evaluation history",
+    "url": "https://github.com/gwkim92/stockA/pull/49"
+  },
+  {
+    "baseRefName": "develop",
+    "headRefName": "codex/recommendation-eval-persistence-v1",
+    "mergeCommit": {
+      "oid": "1d9d8dcc3699152a1fe435a304d95d96d930b9b1"
+    },
+    "mergedAt": "2026-09-07T07:21:05Z",
+    "number": 48,
+    "state": "MERGED",
+    "title": "feat(eval): persist immutable recommendation evaluation snapshots",
+    "url": "https://github.com/gwkim92/stockA/pull/48"
+  },
+  {
+    "baseRefName": "develop",
+    "headRefName": "codex/recommendation-quality-audit-v1",
+    "mergeCommit": {
+      "oid": "b5df652f591c5bf3710b772445a2843461cb2bc0"
+    },
+    "mergedAt": "2026-09-07T06:58:03Z",
+    "number": 47,
+    "state": "MERGED",
+    "title": "feat(performance): add recommendation quality audit dashboard",
+    "url": "https://github.com/gwkim92/stockA/pull/47"
+  },
+  {
+    "baseRefName": "develop",
+    "headRefName": "codex/research-review-state-continuity-v1",
+    "mergeCommit": {
+      "oid": "db933728934078f8de099685883fbc9a5bd3cdd7"
+    },
+    "mergedAt": "2026-09-07T05:53:23Z",
+    "number": 46,
+    "state": "MERGED",
+    "title": "fix(review): preserve field errors and source context through notebook exports",
+    "url": "https://github.com/gwkim92/stockA/pull/46"
+  },
+  {
+    "baseRefName": "develop",
+    "headRefName": "codex/research-payload-contract-v1",
+    "mergeCommit": {
+      "oid": "22727df0a41971b94ea9e061f3387299e5c96c08"
+    },
+    "mergedAt": "2026-09-07T05:06:41Z",
+    "number": 45,
+    "state": "MERGED",
+    "title": "fix(research): validate stored narrative fields across producer and reader",
+    "url": "https://github.com/gwkim92/stockA/pull/45"
+  },
+  {
+    "baseRefName": "develop",
+    "headRefName": "codex/review-continuity-v1",
+    "mergeCommit": {
+      "oid": "45a33cfd281ce21c31246a039bff93f0924770f7"
+    },
+    "mergedAt": "2026-09-07T03:08:46Z",
+    "number": 44,
+    "state": "MERGED",
+    "title": "feat(research): preserve saved review identity and compare prior judgment",
+    "url": "https://github.com/gwkim92/stockA/pull/44"
+  },
+  {
+    "baseRefName": "develop",
+    "headRefName": "codex/personal-review-inbox-v1",
+    "mergeCommit": {
+      "oid": "80bf691b7a5d4a51485dd508b276c2a84148b3db"
+    },
+    "mergedAt": "2026-09-07T00:58:28Z",
+    "number": 43,
+    "state": "MERGED",
+    "title": "feat(research): personal review inbox and saved-note recovery",
+    "url": "https://github.com/gwkim92/stockA/pull/43"
+  },
+  {
+    "baseRefName": "develop",
+    "headRefName": "codex/company-review-notebook-v1",
+    "mergeCommit": {
+      "oid": "b1bbba534d26ee95a1ff612bb66c344107a021b7"
+    },
+    "mergedAt": "2026-09-06T16:38:41Z",
+    "number": 42,
+    "state": "MERGED",
+    "title": "feat(research): source comparison and personal company review notebook",
+    "url": "https://github.com/gwkim92/stockA/pull/42"
+  },
+  {
+    "baseRefName": "develop",
+    "headRefName": "codex/equity-result-check-v1",
+    "mergeCommit": {
+      "oid": "d9a154d6cb70c5e2ef817c755baa7e514bfe7df3"
+    },
+    "mergedAt": "2026-09-06T13:31:42Z",
+    "number": 41,
+    "state": "MERGED",
+    "title": "feat(operations): bounded read-only equity result diagnostics",
+    "url": "https://github.com/gwkim92/stockA/pull/41"
+  },
+  {
+    "baseRefName": "develop",
+    "headRefName": "codex/equity-atomic-persistence-v1",
+    "mergeCommit": {
+      "oid": "1981d140bf119045d7fc329736d7deb72126615c"
+    },
+    "mergedAt": "2026-09-06T09:46:03Z",
+    "number": 40,
+    "state": "MERGED",
+    "title": "fix(research): atomic result persistence and durable receipt reconciliation",
+    "url": "https://github.com/gwkim92/stockA/pull/40"
+  },
+  {
+    "baseRefName": "develop",
+    "headRefName": "codex/equity-batch-isolation-v1",
+    "mergeCommit": {
+      "oid": "e6343653fc364641ab0ee09fd75132fa1d538cfc"
+    },
+    "mergedAt": "2026-09-06T08:10:26Z",
+    "number": 39,
+    "state": "MERGED",
+    "title": "fix(research): isolate per-symbol batch failures and preserve fatal storage boundaries",
+    "url": "https://github.com/gwkim92/stockA/pull/39"
+  },
+  {
+    "baseRefName": "develop",
+    "headRefName": "codex/equity-context-cutoff-v1",
+    "mergeCommit": {
+      "oid": "5a76baa63011b984b9cb757cc9492989e2c1b7e0"
+    },
+    "mergedAt": "2026-09-06T05:33:40Z",
+    "number": 38,
+    "state": "MERGED",
+    "title": "fix(research): bound historical equity context by explicit UTC cutoffs",
+    "url": "https://github.com/gwkim92/stockA/pull/38"
+  },
+  {
+    "baseRefName": "develop",
+    "headRefName": "codex/equity-research-contract-v3",
+    "mergeCommit": {
+      "oid": "d7ad05cbd7599d5cdb5fb8782b84b4cdca945448"
+    },
+    "mergedAt": "2026-09-05T18:58:52Z",
+    "number": 37,
+    "state": "MERGED",
+    "title": "fix(ai): preserve equity confidence and validate research provenance",
+    "url": "https://github.com/gwkim92/stockA/pull/37"
+  },
+  {
+    "baseRefName": "develop",
+    "headRefName": "codex/analysis-prompt-hardening-v2",
+    "mergeCommit": {
+      "oid": "9c90f5f7220861a2f57d4ee7e5e5dd72d588fa83"
+    },
+    "mergedAt": "2026-09-05T18:29:56Z",
+    "number": 36,
+    "state": "MERGED",
+    "title": "fix(ai): harden SEC scalars and Codex news source boundaries",
+    "url": "https://github.com/gwkim92/stockA/pull/36"
+  },
+  {
+    "baseRefName": "develop",
+    "headRefName": "codex/analysis-prompt-contract-v1",
+    "mergeCommit": {
+      "oid": "04c6c3799625f2d808e256ca219b097ddc990f34"
+    },
+    "mergedAt": "2026-09-05T17:10:25Z",
+    "number": 35,
+    "state": "MERGED",
+    "title": "fix(ai): enforce analysis prompt contracts and exact cycle evidence references",
+    "url": "https://github.com/gwkim92/stockA/pull/35"
+  },
+  {
+    "baseRefName": "develop",
+    "headRefName": "codex/news-theme-triage-v1",
+    "mergeCommit": {
+      "oid": "e6ae966d4cdd0aafd03446c3674b4eb6fd62e23f"
+    },
+    "mergedAt": "2026-09-05T15:14:02Z",
+    "number": 34,
+    "state": "MERGED",
+    "title": "feat(research): dated news triage and connected theme review",
+    "url": "https://github.com/gwkim92/stockA/pull/34"
+  },
+  {
+    "baseRefName": "develop",
+    "headRefName": "codex/company-evidence-workspace-v1",
+    "mergeCommit": {
+      "oid": "861f7f09402b342dd94a190b4767a010be906892"
+    },
+    "mergedAt": "2026-09-05T14:19:46Z",
+    "number": 33,
+    "state": "MERGED",
+    "title": "feat(research): company analysis and evidence interpretation workspaces",
+    "url": "https://github.com/gwkim92/stockA/pull/33"
+  },
+  {
+    "baseRefName": "develop",
+    "headRefName": "codex/thesis-source-reader-v1",
+    "mergeCommit": {
+      "oid": "4b8d05aca22a0bedf2dd999f22e2b6ad59480802"
+    },
+    "mergedAt": "2026-09-05T11:35:58Z",
+    "number": 32,
+    "state": "MERGED",
+    "title": "feat(research): evidence-first thesis and source reading workspaces",
+    "url": "https://github.com/gwkim92/stockA/pull/32"
+  },
+  {
+    "baseRefName": "develop",
+    "headRefName": "codex/portfolio-performance-workspace-v1",
+    "mergeCommit": {
+      "oid": "165f7a722d21539d6ad64a076159e60338e33e9e"
+    },
+    "mergedAt": "2026-09-05T10:40:13Z",
+    "number": 31,
+    "state": "MERGED",
+    "title": "feat(review): complete holdings and measured-outcome workspaces",
+    "url": "https://github.com/gwkim92/stockA/pull/31"
+  },
+  {
+    "baseRefName": "develop",
+    "headRefName": "codex/research-discovery-workspace-v1",
+    "mergeCommit": {
+      "oid": "9b1717d13989a2c584aa8aafbb1b3bb01887880b"
+    },
+    "mergedAt": "2026-09-05T09:19:54Z",
+    "number": 30,
+    "state": "MERGED",
+    "title": "feat(research): extend discovery UX to stocks, cycles and market context",
+    "url": "https://github.com/gwkim92/stockA/pull/30"
+  },
+  {
+    "baseRefName": "develop",
+    "headRefName": "codex/research-workspace-redesign-v1",
+    "mergeCommit": {
+      "oid": "5aee8063db146c6eb03ad33492f7da3440d9d443"
+    },
+    "mergedAt": "2026-09-05T08:01:29Z",
+    "number": 29,
+    "state": "MERGED",
+    "title": "feat(design): overhaul stockA into a responsive research workspace",
+    "url": "https://github.com/gwkim92/stockA/pull/29"
+  },
+  {
+    "baseRefName": "develop",
+    "headRefName": "codex/recommendation-investment-memo-v1",
+    "mergeCommit": {
+      "oid": "9aa401882cd9b8b1a5b4a50d0673966c1f2b2e20"
+    },
+    "mergedAt": "2026-09-05T05:31:48Z",
+    "number": 28,
+    "state": "MERGED",
+    "title": "feat(web): turn recommendation detail into an evidence-linked investment memo",
+    "url": "https://github.com/gwkim92/stockA/pull/28"
+  },
+  {
+    "baseRefName": "develop",
+    "headRefName": "codex/web-dependency-remediation-v1",
+    "mergeCommit": {
+      "oid": "8cfe7abba3213bd30bdc6c85148e88ceaaae30f0"
+    },
+    "mergedAt": "2026-09-05T05:01:51Z",
+    "number": 27,
+    "state": "MERGED",
+    "title": "fix(deps): remediate frontend advisories and enforce audit gates",
+    "url": "https://github.com/gwkim92/stockA/pull/27"
+  },
+  {
+    "baseRefName": "develop",
+    "headRefName": "codex/investor-home-reliability-v1",
+    "mergeCommit": {
+      "oid": "ac8b552d5ed7b1e92307a3bf55f908297421eb21"
+    },
+    "mergedAt": "2026-09-05T04:37:43Z",
+    "number": 25,
+    "state": "MERGED",
+    "title": "Restore investor-first home with independent, honest research feeds",
+    "url": "https://github.com/gwkim92/stockA/pull/25"
+  },
+  {
+    "baseRefName": "develop",
+    "headRefName": "codex/recommendation-weight-review-prospective-evidence-live-observation-v1",
+    "mergeCommit": {
+      "oid": "7907caa3dbcd2d571bb066f173e7ec9225409284"
+    },
+    "mergedAt": "2026-09-02T08:20:45Z",
+    "number": 24,
+    "state": "MERGED",
+    "title": "Add prospective evidence live observation boundary",
+    "url": "https://github.com/gwkim92/stockA/pull/24"
+  },
+  {
+    "baseRefName": "develop",
+    "headRefName": "codex/recommendation-weight-review-prospective-evidence-foundation-v1",
+    "mergeCommit": {
+      "oid": "81f1339be2c332068dca679dc741fe50154e139e"
+    },
+    "mergedAt": "2026-09-02T07:32:22Z",
+    "number": 23,
+    "state": "MERGED",
+    "title": "feat(analysis): add prospective weight evidence foundation",
+    "url": "https://github.com/gwkim92/stockA/pull/23"
+  },
+  {
+    "baseRefName": "develop",
+    "headRefName": "codex/ci-fast-integrity-v1",
+    "mergeCommit": {
+      "oid": "ba2b32ce71d15b772e401c72d7a79fb24018a392"
+    },
+    "mergedAt": "2026-09-01T09:02:35Z",
+    "number": 22,
+    "state": "MERGED",
+    "title": "ci: add conservative analysis integrity check",
+    "url": "https://github.com/gwkim92/stockA/pull/22"
+  },
+  {
+    "baseRefName": "develop",
+    "headRefName": "codex/recommendation-weight-review-source-lineage-reconciliation-v1",
+    "mergeCommit": {
+      "oid": "229758bbf92ac9843b1aa55e5c96a91868c9513b"
+    },
+    "mergedAt": "2026-09-01T08:55:52Z",
+    "number": 21,
+    "state": "MERGED",
+    "title": "feat(analysis): reconcile recommendation weight source lineage",
+    "url": "https://github.com/gwkim92/stockA/pull/21"
+  },
+  {
+    "baseRefName": "develop",
+    "headRefName": "codex/local-mvp-runtime-aws-bootstrap",
+    "mergeCommit": {
+      "oid": "b437f912ab77dd1ee397adec1cb642ba4229849f"
+    },
+    "mergedAt": "2026-06-05T16:44:31Z",
+    "number": 20,
+    "state": "MERGED",
+    "title": "[codex] Prepare local MVP runtime and intelligence cockpit",
+    "url": "https://github.com/gwkim92/stockA/pull/20"
+  },
+  {
+    "baseRefName": "develop",
+    "headRefName": "codex/frontend-api-otel-exporter-pilot",
+    "mergeCommit": {
+      "oid": "d53fd87f80b86faba336385f67d41c2f9efb813b"
+    },
+    "mergedAt": "2026-05-03T10:40:49Z",
+    "number": 19,
+    "state": "MERGED",
+    "title": "Add frontend API OTLP exporter pilot",
+    "url": "https://github.com/gwkim92/stockA/pull/19"
+  },
+  {
+    "baseRefName": "develop",
+    "headRefName": "codex/frontend-api-observability-sink-decision",
+    "mergeCommit": {
+      "oid": "948f1e7ee94c2fcb22eca8df2165735a7ea59c67"
+    },
+    "mergedAt": "2026-05-03T09:35:53Z",
+    "number": 18,
+    "state": "MERGED",
+    "title": "Define frontend API observability sink boundary",
+    "url": "https://github.com/gwkim92/stockA/pull/18"
+  },
+  {
+    "baseRefName": "develop",
+    "headRefName": "codex/frontend-api-pagination-conventions",
+    "mergeCommit": {
+      "oid": "c5d4ea5d6fd8e74c3553c9a7a25c9dc040ccd094"
+    },
+    "mergedAt": "2026-05-03T09:24:01Z",
+    "number": 17,
+    "state": "MERGED",
+    "title": "Add frontend API pagination conventions",
+    "url": "https://github.com/gwkim92/stockA/pull/17"
+  },
+  {
+    "baseRefName": "develop",
+    "headRefName": "codex/frontend-api-server-deployment-boundary",
+    "mergeCommit": {
+      "oid": "3d3e2f7887f8795512f2f436229132c873409960"
+    },
+    "mergedAt": "2026-05-03T09:09:10Z",
+    "number": 16,
+    "state": "MERGED",
+    "title": "Define frontend API server deployment boundary",
+    "url": "https://github.com/gwkim92/stockA/pull/16"
+  },
+  {
+    "baseRefName": "develop",
+    "headRefName": "codex/frontend-api-server-observability-hardening",
+    "mergeCommit": {
+      "oid": "691ecd76a1e03cfbd6ed5164cce16de44f7c526b"
+    },
+    "mergedAt": "2026-05-03T03:01:25Z",
+    "number": 15,
+    "state": "MERGED",
+    "title": "Harden frontend API server observability",
+    "url": "https://github.com/gwkim92/stockA/pull/15"
+  },
+  {
+    "baseRefName": "develop",
+    "headRefName": "codex/frontend-api-server-framework-decision",
+    "mergeCommit": {
+      "oid": "a8d3e92d78114870d10b50893994de90a73c865e"
+    },
+    "mergedAt": "2026-05-03T02:47:16Z",
+    "number": 14,
+    "state": "MERGED",
+    "title": "[codex] add FastAPI frontend read server",
+    "url": "https://github.com/gwkim92/stockA/pull/14"
+  },
+  {
+    "baseRefName": "develop",
+    "headRefName": "codex/frontend-runtime-db-smoke",
+    "mergeCommit": {
+      "oid": "83367b935cb58e7d5c5318f0e9428009fa8b2db8"
+    },
+    "mergedAt": "2026-05-02T15:53:46Z",
+    "number": 13,
+    "state": "MERGED",
+    "title": "[codex] add frontend runtime DB smoke",
+    "url": "https://github.com/gwkim92/stockA/pull/13"
+  },
+  {
+    "baseRefName": "develop",
+    "headRefName": "codex/frontend-api-runtime-boundary",
+    "mergeCommit": {
+      "oid": "bc886901e8f8c3aa10c069c158506493d505793e"
+    },
+    "mergedAt": "2026-05-02T15:43:19Z",
+    "number": 12,
+    "state": "MERGED",
+    "title": "[codex] add frontend API runtime boundary",
+    "url": "https://github.com/gwkim92/stockA/pull/12"
+  },
+  {
+    "baseRefName": "develop",
+    "headRefName": "codex/frontend-live-read-cycle-list",
+    "mergeCommit": {
+      "oid": "dd4b19d5676c076a76eb1f9f8c3a0b8523c7589a"
+    },
+    "mergedAt": "2026-05-01T18:42:42Z",
+    "number": 11,
+    "state": "MERGED",
+    "title": "[codex] add frontend cycle live read",
+    "url": "https://github.com/gwkim92/stockA/pull/11"
+  },
+  {
+    "baseRefName": "develop",
+    "headRefName": "codex/frontend-live-read-detail-endpoints",
+    "mergeCommit": {
+      "oid": "f0f058bc11aab6d66326e19b330712adbc606600"
+    },
+    "mergedAt": "2026-05-01T18:32:58Z",
+    "number": 10,
+    "state": "MERGED",
+    "title": "[codex] add frontend detail live reads",
+    "url": "https://github.com/gwkim92/stockA/pull/10"
+  },
+  {
+    "baseRefName": "develop",
+    "headRefName": "codex/frontend-live-read-event-theme-performance",
+    "mergeCommit": {
+      "oid": "594f279e07d932ab506967e60ac4895a203c0305"
+    },
+    "mergedAt": "2026-05-01T18:11:28Z",
+    "number": 9,
+    "state": "MERGED",
+    "title": "[codex] add frontend event theme performance live reads",
+    "url": "https://github.com/gwkim92/stockA/pull/9"
+  },
+  {
+    "baseRefName": "develop",
+    "headRefName": "codex/frontend-live-read-expansion",
+    "mergeCommit": {
+      "oid": "6543dd071a3cc60fa9455cf420cfc52136fc77c5"
+    },
+    "mergedAt": "2026-05-01T18:00:40Z",
+    "number": 8,
+    "state": "MERGED",
+    "title": "[codex] expand frontend live dashboard reads",
+    "url": "https://github.com/gwkim92/stockA/pull/8"
+  },
+  {
+    "baseRefName": "develop",
+    "headRefName": "codex/project-execution-roadmap",
+    "mergeCommit": {
+      "oid": "778c3dbcb8d247c3eb3193ce214ca470276ee79b"
+    },
+    "mergedAt": "2026-05-01T13:26:04Z",
+    "number": 7,
+    "state": "MERGED",
+    "title": "docs: fix project execution roadmap",
+    "url": "https://github.com/gwkim92/stockA/pull/7"
+  },
+  {
+    "baseRefName": "develop",
+    "headRefName": "codex/frontend-api-runtime-source-mode",
+    "mergeCommit": {
+      "oid": "1204468feaa8a9262883603673cd43f02141798b"
+    },
+    "mergedAt": "2026-05-01T13:11:32Z",
+    "number": 6,
+    "state": "MERGED",
+    "title": "feat: add frontend api runtime source mode",
+    "url": "https://github.com/gwkim92/stockA/pull/6"
+  },
+  {
+    "baseRefName": "develop",
+    "headRefName": "codex/frontend-live-read-adapter",
+    "mergeCommit": {
+      "oid": "3046c0b725761a8bbd917804251d4cebf6c77f48"
+    },
+    "mergedAt": "2026-05-01T12:49:40Z",
+    "number": 5,
+    "state": "MERGED",
+    "title": "feat: add frontend live read adapter",
+    "url": "https://github.com/gwkim92/stockA/pull/5"
+  },
+  {
+    "baseRefName": "develop",
+    "headRefName": "feature/frontend-browser-visual-qa",
+    "mergeCommit": {
+      "oid": "79501acb1fd956e3ed610da79351d1a734c0df69"
+    },
+    "mergedAt": "2026-05-01T12:18:39Z",
+    "number": 4,
+    "state": "MERGED",
+    "title": "[codex] frontend browser visual QA",
+    "url": "https://github.com/gwkim92/stockA/pull/4"
+  },
+  {
+    "baseRefName": "develop",
+    "headRefName": "feature/frontend-performance-outcomes",
+    "mergeCommit": {
+      "oid": "81ed05ba2880160188f7b915f744f3de16759721"
+    },
+    "mergedAt": "2026-05-01T11:47:20Z",
+    "number": 3,
+    "state": "MERGED",
+    "title": "[codex] frontend performance outcomes",
+    "url": "https://github.com/gwkim92/stockA/pull/3"
+  },
+  {
+    "baseRefName": "develop",
+    "headRefName": "feature/frontend-event-theme-explorer",
+    "mergeCommit": {
+      "oid": "9a8ce0b12261ebaaf54ecbd846d4bb81e95d7b7b"
+    },
+    "mergedAt": "2026-05-01T11:36:17Z",
+    "number": 2,
+    "state": "MERGED",
+    "title": "[codex] frontend event theme explorer",
+    "url": "https://github.com/gwkim92/stockA/pull/2"
+  },
+  {
+    "baseRefName": "develop",
+    "headRefName": "feature/frontend-detail-routes",
+    "mergeCommit": {
+      "oid": "d1ac52c608436ae9b0df91f33eee6e7e1a75e36e"
+    },
+    "mergedAt": "2026-05-01T11:01:47Z",
+    "number": 1,
+    "state": "MERGED",
+    "title": "[codex] frontend detail and AI evidence cockpit",
+    "url": "https://github.com/gwkim92/stockA/pull/1"
+  }
+]

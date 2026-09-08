@@ -1,0 +1,202 @@
+[
+  {
+    "conclusion": "success",
+    "createdAt": "2026-09-07T07:58:39Z",
+    "databaseId": 34098152523,
+    "headBranch": "codex/recommendation-eval-history-v1",
+    "headSha": "745bef3340f316bb843bc4e1d50fe33d39f553b0",
+    "name": "Evaluation History",
+    "status": "completed",
+    "url": "https://github.com/gwkim92/stockA/actions/runs/34098152523"
+  },
+  {
+    "conclusion": "success",
+    "createdAt": "2026-09-07T07:58:39Z",
+    "databaseId": 34098152398,
+    "headBranch": "codex/recommendation-eval-history-v1",
+    "headSha": "745bef3340f316bb843bc4e1d50fe33d39f553b0",
+    "name": "Evaluation History Read Contract",
+    "status": "completed",
+    "url": "https://github.com/gwkim92/stockA/actions/runs/34098152398"
+  },
+  {
+    "conclusion": "success",
+    "createdAt": "2026-09-07T07:55:39Z",
+    "databaseId": 34097907053,
+    "headBranch": "codex/recommendation-eval-history-v1",
+    "headSha": "ad366a6aa8baeeb39c626a63610044f294d7da3f",
+    "name": "Evaluation History Read Contract",
+    "status": "completed",
+    "url": "https://github.com/gwkim92/stockA/actions/runs/34097907053"
+  },
+  {
+    "conclusion": "success",
+    "createdAt": "2026-09-07T07:55:39Z",
+    "databaseId": 34097907034,
+    "headBranch": "codex/recommendation-eval-history-v1",
+    "headSha": "ad366a6aa8baeeb39c626a63610044f294d7da3f",
+    "name": "Evaluation History",
+    "status": "completed",
+    "url": "https://github.com/gwkim92/stockA/actions/runs/34097907034"
+  },
+  {
+    "conclusion": "success",
+    "createdAt": "2026-09-07T07:54:52Z",
+    "databaseId": 34097840241,
+    "headBranch": "codex/recommendation-eval-history-v1",
+    "headSha": "39c47b94d7d7b47789e41fe305326afa14a97e00",
+    "name": "Evaluation History Read Contract",
+    "status": "completed",
+    "url": "https://github.com/gwkim92/stockA/actions/runs/34097840241"
+  },
+  {
+    "conclusion": "success",
+    "createdAt": "2026-09-07T07:54:52Z",
+    "databaseId": 34097840237,
+    "headBranch": "codex/recommendation-eval-history-v1",
+    "headSha": "39c47b94d7d7b47789e41fe305326afa14a97e00",
+    "name": "Evaluation History",
+    "status": "completed",
+    "url": "https://github.com/gwkim92/stockA/actions/runs/34097840237"
+  },
+  {
+    "conclusion": "success",
+    "createdAt": "2026-09-07T07:49:56Z",
+    "databaseId": 34097418721,
+    "headBranch": "codex/recommendation-eval-history-v1",
+    "headSha": "47b7c4c63427bdfdefc8e3bd401d9d795a7449b7",
+    "name": "Evaluation History",
+    "status": "completed",
+    "url": "https://github.com/gwkim92/stockA/actions/runs/34097418721"
+  },
+  {
+    "conclusion": "failure",
+    "createdAt": "2026-09-07T07:49:56Z",
+    "databaseId": 34097418643,
+    "headBranch": "codex/recommendation-eval-history-v1",
+    "headSha": "47b7c4c63427bdfdefc8e3bd401d9d795a7449b7",
+    "name": "Evaluation History Read Contract",
+    "status": "completed",
+    "url": "https://github.com/gwkim92/stockA/actions/runs/34097418643"
+  },
+  {
+    "conclusion": "failure",
+    "createdAt": "2026-09-07T07:49:06Z",
+    "databaseId": 34097348589,
+    "headBranch": "codex/recommendation-eval-history-v1",
+    "headSha": "58d670cf1e7f85257fd71add6d764ff7fcf48fb1",
+    "name": "Evaluation History Read Contract",
+    "status": "completed",
+    "url": "https://github.com/gwkim92/stockA/actions/runs/34097348589"
+  },
+  {
+    "conclusion": "failure",
+    "createdAt": "2026-09-07T07:47:44Z",
+    "databaseId": 34097236080,
+    "headBranch": "codex/recommendation-eval-history-v1",
+    "headSha": "10d3f983f1af3196d063657f03176a0d3ae4f3d6",
+    "name": "Evaluation History Read Contract",
+    "status": "completed",
+    "url": "https://github.com/gwkim92/stockA/actions/runs/34097236080"
+  },
+  {
+    "conclusion": "success",
+    "createdAt": "2026-09-07T07:21:08Z",
+    "databaseId": 34095045362,
+    "headBranch": "develop",
+    "headSha": "1d9d8dcc3699152a1fe435a304d95d96d930b9b1",
+    "name": "Analysis Integrity",
+    "status": "completed",
+    "url": "https://github.com/gwkim92/stockA/actions/runs/34095045362"
+  },
+  {
+    "conclusion": "success",
+    "createdAt": "2026-09-07T07:18:58Z",
+    "databaseId": 34094872066,
+    "headBranch": "codex/recommendation-eval-persistence-v1",
+    "headSha": "b8118e2694202fd4e7b359a7092ebd3989136780",
+    "name": "Analysis Integrity",
+    "status": "completed",
+    "url": "https://github.com/gwkim92/stockA/actions/runs/34094872066"
+  },
+  {
+    "conclusion": "success",
+    "createdAt": "2026-09-07T07:17:47Z",
+    "databaseId": 34094775478,
+    "headBranch": "codex/recommendation-eval-persistence-v1",
+    "headSha": "c7b14f245456bebe9723cda454614d47d5c8347c",
+    "name": "Analysis Integrity",
+    "status": "completed",
+    "url": "https://github.com/gwkim92/stockA/actions/runs/34094775478"
+  },
+  {
+    "conclusion": "success",
+    "createdAt": "2026-09-07T07:15:54Z",
+    "databaseId": 34094623875,
+    "headBranch": "codex/recommendation-eval-persistence-v1",
+    "headSha": "a70abe1600f2e280cb053b63347f0f8b54ac75fe",
+    "name": "Analysis Integrity",
+    "status": "completed",
+    "url": "https://github.com/gwkim92/stockA/actions/runs/34094623875"
+  },
+  {
+    "conclusion": "success",
+    "createdAt": "2026-09-07T07:15:29Z",
+    "databaseId": 34094587219,
+    "headBranch": "codex/recommendation-eval-persistence-v1",
+    "headSha": "670afe535e0cd3ee34f3dccadb69960c72923cca",
+    "name": "Analysis Integrity",
+    "status": "completed",
+    "url": "https://github.com/gwkim92/stockA/actions/runs/34094587219"
+  },
+  {
+    "conclusion": "success",
+    "createdAt": "2026-09-07T06:58:06Z",
+    "databaseId": 34093196302,
+    "headBranch": "develop",
+    "headSha": "b5df652f591c5bf3710b772445a2843461cb2bc0",
+    "name": "Web Product Quality",
+    "status": "completed",
+    "url": "https://github.com/gwkim92/stockA/actions/runs/34093196302"
+  },
+  {
+    "conclusion": "success",
+    "createdAt": "2026-09-07T06:47:05Z",
+    "databaseId": 34092373555,
+    "headBranch": "codex/recommendation-quality-audit-v1",
+    "headSha": "d85ff13069e6c990f2a74217816c10657cfe4472",
+    "name": "Web Product Quality",
+    "status": "completed",
+    "url": "https://github.com/gwkim92/stockA/actions/runs/34092373555"
+  },
+  {
+    "conclusion": "cancelled",
+    "createdAt": "2026-09-07T06:46:43Z",
+    "databaseId": 34092347904,
+    "headBranch": "codex/recommendation-quality-audit-v1",
+    "headSha": "ad190dc0d1541ed9a7afbe1db72cc087e1b5156b",
+    "name": "Web Product Quality",
+    "status": "completed",
+    "url": "https://github.com/gwkim92/stockA/actions/runs/34092347904"
+  },
+  {
+    "conclusion": "cancelled",
+    "createdAt": "2026-09-07T06:46:17Z",
+    "databaseId": 34092314682,
+    "headBranch": "codex/recommendation-quality-audit-v1",
+    "headSha": "1c59cdd2c2f62d09d1a0604fe70a49ed0da1b12f",
+    "name": "Web Product Quality",
+    "status": "completed",
+    "url": "https://github.com/gwkim92/stockA/actions/runs/34092314682"
+  },
+  {
+    "conclusion": "failure",
+    "createdAt": "2026-09-07T06:35:39Z",
+    "databaseId": 34091534954,
+    "headBranch": "codex/recommendation-quality-audit-v1",
+    "headSha": "92656f66cf1869c8ac9deeae467f5c7c82616622",
+    "name": "Web Product Quality",
+    "status": "completed",
+    "url": "https://github.com/gwkim92/stockA/actions/runs/34091534954"
+  }
+]

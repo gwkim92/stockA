@@ -1,0 +1,26 @@
+{
+  "date": "2026-09-08",
+  "base_commit": "44e7f4058fc6c5ecd915a24f75d4659e197d93b5",
+  "deleted_remote_branches": 49,
+  "preserved_branches": [
+    "main",
+    "develop"
+  ],
+  "pr49": "merged",
+  "backend_unit_http_tests": 72,
+  "analysis_integrity_tests": 93,
+  "operations_cli_tests": 107,
+  "disposable_postgres_tests": 10,
+  "migrations_applied_to_disposable_db": 35,
+  "web_unit_tests": 517,
+  "existing_browser_regression_tests": 36,
+  "new_browser_states": 51,
+  "build": "passed",
+  "typecheck": "passed",
+  "functional_review": "PASS",
+  "visual_review": "PASS",
+  "production_deployed": false,
+  "runtime_data_refreshed": false,
+  "scoring_or_schema_changed": false,
+  "remote_ci": "See GitHub PR checks; integration receipt is stored in artifacts/evaluation-history/integration.json after merge."
+}

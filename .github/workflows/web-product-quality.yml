@@ -5,6 +5,7 @@ on:
     branches: [develop, main]
     paths:
       - 'apps/web/**'
+      - 'scripts/verify_evaluation_history_browser.mjs'
       - 'src/stockanalysis/frontend/live_adapter.py'
       - 'src/stockanalysis/frontend/research_display_contract.py'
       - 'tests/test_research_display*.py'
@@ -38,6 +39,7 @@ on:
     branches: [develop, main]
     paths:
       - 'apps/web/**'
+      - 'scripts/verify_evaluation_history_browser.mjs'
       - 'src/stockanalysis/frontend/live_adapter.py'
       - 'src/stockanalysis/frontend/research_display_contract.py'
       - 'tests/test_research_display*.py'
@@ -118,6 +120,9 @@ jobs:
         run: npx playwright install --with-deps chromium webkit
       - name: Company review notebook browser verification
         run: npx playwright test --config=playwright.notebook.config.ts
+      - name: Evaluation history browser verification
+        working-directory: .
+        run: node scripts/verify_evaluation_history_browser.mjs
       - name: Investor browser verification
         run: npx playwright test --config=playwright.home.config.ts
       - name: Holdings and outcomes browser verification
@@ -150,5 +155,6 @@ jobs:
             apps/web/playwright-notebook-report/
             apps/web/dependency-audit.json
             apps/web/dependency-audit-production.json
+            artifacts/evaluation-history/browser/
           if-no-files-found: ignore
           retention-days: 7
