@@ -23,6 +23,7 @@ SUITES = (
     "tests.test_news_ai_eval", "tests.test_agent_market_context",
     "tests.test_ai_ontology_validation", "tests.test_cycle_graph_context",
     "tests.test_news_runtime_input_budget_recovery",
+    "tests.test_ai_model_settings",
 )
 
 

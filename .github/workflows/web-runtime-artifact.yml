@@ -1,0 +1,49 @@
+name: Web Runtime Artifact
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [develop]
+    paths: ['.github/workflows/web-runtime-artifact.yml']
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      NEXT_TELEMETRY_DISABLED: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - name: Install locked dependencies
+        working-directory: apps/web
+        run: npm ci
+      - name: Build and typecheck
+        working-directory: apps/web
+        run: |
+          npm run build
+          npm run typecheck
+      - name: Package runtime without credentials or build cache
+        run: |
+          mkdir web-runtime-artifact
+          tar -C apps/web --exclude='.next/cache' -czf web-runtime-artifact/web-runtime.tar.gz .next
+          cp apps/web/.next/BUILD_ID web-runtime-artifact/BUILD_ID
+          printf '%s\n' "$GITHUB_SHA" > web-runtime-artifact/COMMIT
+          sha256sum apps/web/package-lock.json > web-runtime-artifact/PACKAGE_LOCK_SHA256
+          cd web-runtime-artifact
+          sha256sum web-runtime.tar.gz > SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: web-runtime-${{ github.sha }}
+          path: web-runtime-artifact/
+          if-no-files-found: error
+          retention-days: 7
