@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from stockanalysis.ai.model_settings import CodexModelInvocation
+
 import hashlib
 import json
 import os
@@ -346,81 +348,83 @@ def invoke_codex_oauth_structured_event_provider(
     model_name: str,
     reasoning_effort: str | None,
 ) -> StructuredEventProviderResponse:
-    command_text = os.getenv("STOCKANALYSIS_CODEX_CLI_COMMAND", "codex").strip() or "codex"
-    try:
-        base_command = shlex.split(command_text)
-    except ValueError as exc:
-        raise ValueError(f"Invalid STOCKANALYSIS_CODEX_CLI_COMMAND: {exc}.") from exc
-    if not base_command:
-        raise ValueError("STOCKANALYSIS_CODEX_CLI_COMMAND must not be empty.")
+    with CodexModelInvocation(DEFAULT_TASK_NAME, model_name) as invocation:
+        model_name = invocation.model
+        command_text = os.getenv("STOCKANALYSIS_CODEX_CLI_COMMAND", "codex").strip() or "codex"
+        try:
+            base_command = shlex.split(command_text)
+        except ValueError as exc:
+            raise ValueError(f"Invalid STOCKANALYSIS_CODEX_CLI_COMMAND: {exc}.") from exc
+        if not base_command:
+            raise ValueError("STOCKANALYSIS_CODEX_CLI_COMMAND must not be empty.")
 
-    prompt = build_codex_oauth_event_prompt(source_document, chunk)
-    output_schema = build_codex_oauth_output_schema()
-    timeout_seconds = int(os.getenv("STOCKANALYSIS_CODEX_TIMEOUT_SECONDS", "300"))
-    if timeout_seconds <= 0:
-        raise ValueError("STOCKANALYSIS_CODEX_TIMEOUT_SECONDS must be greater than 0.")
+        prompt = build_codex_oauth_event_prompt(source_document, chunk)
+        output_schema = build_codex_oauth_output_schema()
+        timeout_seconds = int(os.getenv("STOCKANALYSIS_CODEX_TIMEOUT_SECONDS", "300"))
+        if timeout_seconds <= 0:
+            raise ValueError("STOCKANALYSIS_CODEX_TIMEOUT_SECONDS must be greater than 0.")
 
-    started = time.monotonic()
-    with tempfile.TemporaryDirectory(prefix="stockanalysis-codex-oauth.") as tmpdir:
-        tmp_path = Path(tmpdir)
-        schema_path = tmp_path / "event-output.schema.json"
-        output_path = tmp_path / "last-message.json"
-        schema_path.write_text(json.dumps(output_schema, ensure_ascii=False, sort_keys=True), encoding="utf-8")
+        started = time.monotonic()
+        with tempfile.TemporaryDirectory(prefix="stockanalysis-codex-oauth.") as tmpdir:
+            tmp_path = Path(tmpdir)
+            schema_path = tmp_path / "event-output.schema.json"
+            output_path = tmp_path / "last-message.json"
+            schema_path.write_text(json.dumps(output_schema, ensure_ascii=False, sort_keys=True), encoding="utf-8")
 
-        cwd = os.getenv("STOCKANALYSIS_CODEX_WORKDIR") or str(Path.cwd())
-        command = [
-            *base_command,
-            "-c",
-            'approval_policy="never"',
-            "--sandbox",
-            "read-only",
-            "--cd",
-            cwd,
-            "exec",
-            "--ephemeral",
-            "--ignore-user-config",
-            "--ignore-rules",
-            "--output-schema",
-            str(schema_path),
-            "--output-last-message",
-            str(output_path),
-        ]
-        if model_name and model_name not in {DEFAULT_CODEX_MODEL_NAME, "default"}:
-            command.extend(["--model", model_name])
-        command.append("-")
+            cwd = os.getenv("STOCKANALYSIS_CODEX_WORKDIR") or str(Path.cwd())
+            command = [
+                *base_command,
+                "-c",
+                'approval_policy="never"',
+                "--sandbox",
+                "read-only",
+                "--cd",
+                cwd,
+                "exec",
+                "--ephemeral",
+                "--ignore-user-config",
+                "--ignore-rules",
+                "--output-schema",
+                str(schema_path),
+                "--output-last-message",
+                str(output_path),
+            ]
+            if model_name and model_name not in {DEFAULT_CODEX_MODEL_NAME, "default"}:
+                command.extend(["--model", model_name])
+            command.append("-")
 
-        completed = subprocess.run(
-            command,
-            input=prompt,
-            text=True,
-            capture_output=True,
-            timeout=timeout_seconds,
-            check=False,
+            completed = invocation.run(subprocess.run,
+                command,
+                input=prompt,
+                text=True,
+                capture_output=True,
+                timeout=timeout_seconds,
+                check=False,
+            )
+            latency_ms = int((time.monotonic() - started) * 1000)
+            if completed.returncode != 0:
+                stderr = (completed.stderr or completed.stdout or "codex exec failed").strip()
+                raise RuntimeError(f"codex_oauth provider failed: {_truncate(stderr, 2000)}")
+            output_text = output_path.read_text(encoding="utf-8") if output_path.exists() else completed.stdout
+
+        payload = _loads_json_object(output_text)
+        response = build_structured_event_provider_response_from_payload(
+            payload,
+            provider=CODEX_OAUTH_PROVIDER,
+            model_name=model_name or DEFAULT_CODEX_MODEL_NAME,
+            reasoning_effort=reasoning_effort,
         )
-        latency_ms = int((time.monotonic() - started) * 1000)
-        if completed.returncode != 0:
-            stderr = (completed.stderr or completed.stdout or "codex exec failed").strip()
-            raise RuntimeError(f"codex_oauth provider failed: {_truncate(stderr, 2000)}")
-        output_text = output_path.read_text(encoding="utf-8") if output_path.exists() else completed.stdout
-
-    payload = _loads_json_object(output_text)
-    response = build_structured_event_provider_response_from_payload(
-        payload,
-        provider=CODEX_OAUTH_PROVIDER,
-        model_name=model_name or DEFAULT_CODEX_MODEL_NAME,
-        reasoning_effort=reasoning_effort,
-    )
-    return StructuredEventProviderResponse(
-        provider=CODEX_OAUTH_PROVIDER,
-        model_name=response.model_name,
-        reasoning_effort=response.reasoning_effort,
-        event=response.event,
-        input_token_count=response.input_token_count or chunk.token_count,
-        output_token_count=response.output_token_count,
-        cached_input_token_count=response.cached_input_token_count,
-        estimated_cost_usd=response.estimated_cost_usd,
-        latency_ms=response.latency_ms or latency_ms,
-    )
+        return StructuredEventProviderResponse(
+            provider=CODEX_OAUTH_PROVIDER,
+            model_name=invocation.actual_model or model_name,
+            reasoning_effort=invocation.actual_reasoning or reasoning_effort,
+            event=response.event,
+            input_token_count=response.input_token_count or chunk.token_count,
+            output_token_count=response.output_token_count,
+            cached_input_token_count=response.cached_input_token_count,
+            estimated_cost_usd=response.estimated_cost_usd,
+            latency_ms=response.latency_ms or latency_ms,
+        )
 
 
 def build_codex_oauth_event_prompt(source_document: SecEventSourceDocumentRecord, chunk: AiDocumentChunk) -> str:

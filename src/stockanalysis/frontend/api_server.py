@@ -36,6 +36,7 @@ from stockanalysis.frontend.codex_oauth_operator import (
     start_codex_oauth_device_login,
 )
 from stockanalysis.frontend.db_pool import PsycopgPoolExecutor
+from stockanalysis.frontend.model_settings_api import register_model_settings_routes
 from stockanalysis.frontend.fixture_server import build_server_error_payload
 from stockanalysis.frontend.observability import (
     OBSERVABILITY_MODE_CHOICES,
@@ -291,6 +292,8 @@ def create_app(
         if payload.get("background_job_started"):
             _launch_codex_oauth_news_smoke_background(resolved_repo_root)
         return _json_response(payload)
+
+    register_model_settings_routes(app, lambda request: _unauthorized_response_if_needed(request, selected_policy))
 
     @app.get("/api/{path:path}")
     async def read_api(path: str, request: Request) -> JSONResponse:

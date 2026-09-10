@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from stockanalysis.ai.model_settings import CodexModelInvocation
+
 import hashlib
 import json
 import os
@@ -231,80 +233,82 @@ def invoke_codex_oauth_cycle_community_ai_provider(
     reasoning_effort: str | None,
     max_context_chars: int,
 ) -> CycleCommunityAiProviderResponse:
-    command_text = os.getenv("STOCKANALYSIS_CODEX_CLI_COMMAND", "codex").strip() or "codex"
-    try:
-        base_command = shlex.split(command_text)
-    except ValueError as exc:
-        raise ValueError(f"Invalid STOCKANALYSIS_CODEX_CLI_COMMAND: {exc}.") from exc
-    if not base_command:
-        raise ValueError("STOCKANALYSIS_CODEX_CLI_COMMAND must not be empty.")
-    timeout_seconds = int(os.getenv("STOCKANALYSIS_CODEX_TIMEOUT_SECONDS", "300"))
-    if timeout_seconds <= 0:
-        raise ValueError("STOCKANALYSIS_CODEX_TIMEOUT_SECONDS must be greater than 0.")
+    with CodexModelInvocation(DEFAULT_TASK_NAME, model_name) as invocation:
+        model_name = invocation.model
+        command_text = os.getenv("STOCKANALYSIS_CODEX_CLI_COMMAND", "codex").strip() or "codex"
+        try:
+            base_command = shlex.split(command_text)
+        except ValueError as exc:
+            raise ValueError(f"Invalid STOCKANALYSIS_CODEX_CLI_COMMAND: {exc}.") from exc
+        if not base_command:
+            raise ValueError("STOCKANALYSIS_CODEX_CLI_COMMAND must not be empty.")
+        timeout_seconds = int(os.getenv("STOCKANALYSIS_CODEX_TIMEOUT_SECONDS", "300"))
+        if timeout_seconds <= 0:
+            raise ValueError("STOCKANALYSIS_CODEX_TIMEOUT_SECONDS must be greater than 0.")
 
-    prompt_context = _bounded_context_for_prompt(context, max_context_chars=max_context_chars)
-    prompt = build_codex_oauth_cycle_community_ai_prompt(prompt_context, max_context_chars=max_context_chars)
-    output_schema = build_codex_oauth_cycle_community_ai_output_schema()
-    started = time.monotonic()
-    with tempfile.TemporaryDirectory(prefix="stockanalysis-cycle-community-codex-oauth.") as tmpdir:
-        tmp_path = Path(tmpdir)
-        schema_path = tmp_path / "cycle-community-ai-summary.schema.json"
-        output_path = tmp_path / "last-message.json"
-        schema_path.write_text(json.dumps(output_schema, ensure_ascii=False, sort_keys=True), encoding="utf-8")
-        command = [
-            *base_command,
-            "-c",
-            'approval_policy="never"',
-            "--sandbox",
-            "read-only",
-            "--cd",
-            os.getenv("STOCKANALYSIS_CODEX_WORKDIR") or _default_codex_workdir(),
-            "exec",
-        ]
-        if _bool_env("STOCKANALYSIS_CODEX_SKIP_GIT_REPO_CHECK", default=True):
-            command.append("--skip-git-repo-check")
-        command.extend(
-            [
-                "--ephemeral",
-                "--ignore-user-config",
-                "--ignore-rules",
-                "--output-schema",
-                str(schema_path),
-                "--output-last-message",
-                str(output_path),
+        prompt_context = _bounded_context_for_prompt(context, max_context_chars=max_context_chars)
+        prompt = build_codex_oauth_cycle_community_ai_prompt(prompt_context, max_context_chars=max_context_chars)
+        output_schema = build_codex_oauth_cycle_community_ai_output_schema()
+        started = time.monotonic()
+        with tempfile.TemporaryDirectory(prefix="stockanalysis-cycle-community-codex-oauth.") as tmpdir:
+            tmp_path = Path(tmpdir)
+            schema_path = tmp_path / "cycle-community-ai-summary.schema.json"
+            output_path = tmp_path / "last-message.json"
+            schema_path.write_text(json.dumps(output_schema, ensure_ascii=False, sort_keys=True), encoding="utf-8")
+            command = [
+                *base_command,
+                "-c",
+                'approval_policy="never"',
+                "--sandbox",
+                "read-only",
+                "--cd",
+                os.getenv("STOCKANALYSIS_CODEX_WORKDIR") or _default_codex_workdir(),
+                "exec",
             ]
-        )
-        if model_name and model_name not in {DEFAULT_MODEL_NAME, "default"}:
-            command.extend(["--model", model_name])
-        command.append("-")
-        completed = subprocess.run(
-            command,
-            input=prompt,
-            text=True,
-            capture_output=True,
-            timeout=timeout_seconds,
-            check=False,
-        )
-        latency_ms = int((time.monotonic() - started) * 1000)
-        if completed.returncode != 0:
-            stderr = (completed.stderr or completed.stdout or "codex exec failed").strip()
-            raise RuntimeError(
-                f"codex_oauth cycle community provider failed "
-                f"(exit_code={completed.returncode}): {_diagnostic_excerpt(stderr, 2000)}"
+            if _bool_env("STOCKANALYSIS_CODEX_SKIP_GIT_REPO_CHECK", default=True):
+                command.append("--skip-git-repo-check")
+            command.extend(
+                [
+                    "--ephemeral",
+                    "--ignore-user-config",
+                    "--ignore-rules",
+                    "--output-schema",
+                    str(schema_path),
+                    "--output-last-message",
+                    str(output_path),
+                ]
             )
-        output_text = output_path.read_text(encoding="utf-8") if output_path.exists() else completed.stdout
-    parsed = parse_cycle_community_ai_response_payload(_loads_json_object(output_text), context=prompt_context)
-    return CycleCommunityAiProviderResponse(
-        provider=CODEX_OAUTH_PROVIDER,
-        model_name=parsed.model_name,
-        reasoning_effort=parsed.reasoning_effort or reasoning_effort,
-        output=parsed.output,
-        input_token_count=parsed.input_token_count or _token_count(prompt),
-        output_token_count=parsed.output_token_count,
-        cached_input_token_count=parsed.cached_input_token_count,
-        estimated_cost_usd=parsed.estimated_cost_usd,
-        latency_ms=parsed.latency_ms or latency_ms,
-    )
+            if model_name and model_name not in {DEFAULT_MODEL_NAME, "default"}:
+                command.extend(["--model", model_name])
+            command.append("-")
+            completed = invocation.run(subprocess.run,
+                command,
+                input=prompt,
+                text=True,
+                capture_output=True,
+                timeout=timeout_seconds,
+                check=False,
+            )
+            latency_ms = int((time.monotonic() - started) * 1000)
+            if completed.returncode != 0:
+                stderr = (completed.stderr or completed.stdout or "codex exec failed").strip()
+                raise RuntimeError(
+                    f"codex_oauth cycle community provider failed "
+                    f"(exit_code={completed.returncode}): {_diagnostic_excerpt(stderr, 2000)}"
+                )
+            output_text = output_path.read_text(encoding="utf-8") if output_path.exists() else completed.stdout
+        parsed = parse_cycle_community_ai_response_payload(_loads_json_object(output_text), context=prompt_context)
+        return CycleCommunityAiProviderResponse(
+            provider=CODEX_OAUTH_PROVIDER,
+            model_name=invocation.actual_model or model_name,
+            reasoning_effort=invocation.actual_reasoning or reasoning_effort,
+            output=parsed.output,
+            input_token_count=parsed.input_token_count or _token_count(prompt),
+            output_token_count=parsed.output_token_count,
+            cached_input_token_count=parsed.cached_input_token_count,
+            estimated_cost_usd=parsed.estimated_cost_usd,
+            latency_ms=parsed.latency_ms or latency_ms,
+        )
 
 
 def build_fixture_cycle_community_ai_response(

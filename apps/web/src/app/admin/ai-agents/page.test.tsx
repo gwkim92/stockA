@@ -11,6 +11,8 @@ vi.mock("@/lib/frontend-api", () => ({
   getAiAgentRegistry: getAiAgentRegistryMock,
 }));
 
+vi.mock("./ModelSettingsPanel", () => ({ default: () => <section>모델 설정 패널</section> }));
+
 import AiAgentAdminPage from "./page";
 
 const rawOperatorStatus: CodexOauthOperatorStatus = {

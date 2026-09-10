@@ -6,6 +6,7 @@ import { getAiAgentRegistry } from "@/lib/frontend-api";
 import { koCode } from "@/lib/korean-labels";
 import type { AiAgentRegistryData } from "@/lib/types";
 import CodexOauthOperatorPanel from "./CodexOauthOperatorPanel";
+import ModelSettingsPanel from "./ModelSettingsPanel";
 import { buildCodexOauthStatusView } from "./codex-oauth-status-view";
 
 export const dynamic = "force-dynamic";
@@ -217,7 +218,16 @@ function AgentCard({ agent }: { agent: Agent }) {
 }
 
 export default async function AiAgentAdminPage() {
-  const { data } = await getAiAgentRegistry();
+  let data: AiAgentRegistryData;
+  try {
+    data = (await getAiAgentRegistry()).data;
+  } catch {
+    return <div className="terminal-page">
+      <OperationsConsoleHeader section="AI 운영" title="AI 모델 설정" description="실행 모델과 작업별 설정을 관리합니다." currentPath={"/admin/ai-agents" as Route} />
+      <ModelSettingsPanel />
+      <p role="status">역할별 설계 정책과 인증 상태를 불러오지 못했습니다. 모델 설정은 위에서 별도로 확인할 수 있습니다.</p>
+    </div>;
+  }
   const codexOauthStatus = buildCodexOauthStatusView(data.runtime_policy.codex_oauth_operator);
   const activeAgentCount = data.agents.length;
   const blockedOrderRatio =
@@ -237,18 +247,20 @@ export default async function AiAgentAdminPage() {
       <OperationsConsoleHeader
         section="AI 운영"
         title="모델·인증·비용·예비 경로"
-        description="에이전트별 모델과 Codex OAuth 상태, API 비용, 중단 시 대체 경로를 읽기 전용으로 확인합니다."
+        description="AI 사용처와 실행 모델을 확인하고, 관리자 세션에서 작업별 모델을 변경합니다."
         currentPath={"/admin/ai-agents" as Route}
       />
 
+      <ModelSettingsPanel />
+
       <section className="decision-brief" aria-label="AI runtime boundary">
         <div className="decision-brief-main">
-          <span className="decision-brief-kicker">현재 실행 경계</span>
+          <span className="decision-brief-kicker">등록 정책과 처리 경계</span>
           <h1 className="decision-brief-title">
             배치 AI는 허용, {"화면\u00a0요청\u00a0중"} 실시간 AI 호출은 금지
           </h1>
           <p className="decision-brief-copy">
-            {providerSummary(data)}. {runtimeStatusText(data)}
+            등록 정책: {providerSummary(data)}. 실제 작업의 제공자와 모델은 상단 실행 이력에서 확인한다. {runtimeStatusText(data)}
           </p>
           <div className="decision-brief-meta">
             <span>설정 원천: {adminCopy(koCode(data.runtime_policy.configuration_source))}</span>
@@ -276,8 +288,8 @@ export default async function AiAgentAdminPage() {
           </div>
           <div className="decision-card is-watch">
             <span>모델 변경</span>
-            <strong>{data.runtime_policy.model_editing_enabled ? "활성" : "비활성"}</strong>
-            <small>모델 지정 UI는 감사 로그와 승인 경계가 붙기 전까지 열지 않는다.</small>
+            <strong>상단 설정에서 관리</strong>
+            <small>현재 실행 모델과 변경 권한은 상단의 서버 모델 설정을 기준으로 확인한다.</small>
           </div>
         </div>
       </section>
@@ -407,11 +419,12 @@ export default async function AiAgentAdminPage() {
         </div>
       </section>
 
-      <section className="decision-page" aria-label="agent cards">
+      <details className="decision-page" aria-label="agent cards">
+        <summary>역할별 설계 정책 {activeAgentCount}개 보기</summary>
         <div className="section-heading">
           <span>에이전트 목록</span>
           <h2>각 에이전트의 역할과 모델 정책</h2>
-          <p>현재는 읽기 전용이다. 모델 교체는 별도 write API, RBAC, audit log가 붙은 뒤에만 허용한다.</p>
+          <p>등록된 역할의 설계 정책이다. 실제 호출 여부와 현재 Codex 모델은 상단의 AI 사용처에서 확인한다.</p>
         </div>
         {Object.entries(groupedAgents).map(([domain, agents]) => (
           <div className="decision-page" key={domain}>
@@ -426,7 +439,7 @@ export default async function AiAgentAdminPage() {
             </div>
           </div>
         ))}
-      </section>
+      </details>
 
       <section className="bento-grid" aria-label="related routes">
         <Link className="route-card" href={"/data-health" as Route}>
