@@ -32,3 +32,15 @@ Chrome is open to the personal instance console but AWS requested login. The use
 Local test-only services: API 127.0.0.1:8795 and Next 127.0.0.1:13003, SQLite `/private/tmp/stocka-model-settings-qa.sqlite3`, Playwright session `stocka-models`. Its saved Luna override is local QA data, not a production setting. Temporary screenshots `/private/tmp/stocka-model-settings-{desktop,mobile-top,mobile-control}.png` were visually inspected.
 
 Unrelated pre-existing `docs/tasks/runtime-deploy-20260908/handoff.md` and prior-turn runtime-evidence-recovery docs remain uncommitted and must be preserved.
+
+## Recovery preparation follow-up
+
+Latest implementation/build-support commit is `5e549e38`. The fixed provider observation passed SDK-installed CI `34454568956`. Model settings tests were added to continuous prompt regression (277 local tests, one missing-SDK skip). Web Runtime Artifact CI `34454905757` succeeded and its artifact was downloaded and hash/path verified: `artifacts/ai-model-settings-v1/linux-runtime/`, build ID `Hn2ruTFaLHoyn1uX8YDDc`. This removes the need to build again on the small EC2 host.
+
+Prepared activation script `/private/tmp/stocka-activate-model-artifact.py` verifies artifact digest, build ID, package lock and source-tree equivalence, refreshes the authenticated model catalog, initializes the shared Terra setting if needed, and switches `.next` with backups and timer restoration. It is **not executed**. It expects the verified artifact directory at `/opt/stockanalysis/runtime/model-settings-20260910/artifact`. Inspect the old deployment process and server state first; do not run it alongside the old build. The script allows documentation-only commits newer than the artifact, but rejects runtime/web source differences.
+
+The existing multiplexed diagnostic channel eventually failed with broken pipe; a fresh SSH attempt still timed out during banner exchange. The pending swap command has not reported success. The original deployment's remote state remains unknown. The AWS login form initially had the company account prefilled; it was changed to personal account `115623963546`, and no sign-in or AWS write action was performed. User login remains required for console recovery.
+
+The two remaining task SSH clients (deployment and queued swap) were terminated locally to prevent a delayed activation after handing off. This does **not** prove the remote build process stopped. Inspect/stop the task-specific build or reboot the verified personal instance if it remains unresponsive. The original script prints and flushes a build-completed result before any activation; its stdout transport is now closed. No further automatic deployment command is pending locally.
+
+Copies of the prepared activation and synthetic smoke scripts are retained in `artifacts/ai-model-settings-v1/activate-model-artifact.py` and `web-model-smoke.py`. They have not been executed in production. Latest CI `34454905672` (all four prompt/DB jobs) and `34454147709` (full web quality/browser flow) passed. Runtime recovery, model catalog/store activation, owner browser session and real model selection verification are the remaining work.
