@@ -1,4 +1,4 @@
-import { koCode } from '@/lib/korean-labels';
+import { koCode, koReason } from '@/lib/korean-labels';
 import { percent, weight, type Outcome, type ReviewReport } from '@/lib/review-workspace-model';
 import { recommendationQualityAudit } from '@/lib/recommendation-quality-model';
 import styles from './DecisionQualityAudit.module.css';
@@ -39,8 +39,8 @@ export function DecisionQualityAudit({ report, outcomes }: { report: ReviewRepor
     </section>
 
     <div className={styles.grid}>
-      <section className={styles.panel} aria-labelledby="gate-title"><div className={styles.panelHead}><h3 id="gate-title">품질 게이트</h3></div>{audit.gates.length ? <ul className={styles.gates}>{audit.gates.map((gate,index)=><li key={`${gate.gate}-${index}`}><div><strong>{koCode(gate.gate)}</strong><span>{koCode(gate.status)}</span></div><p>{gate.reason}</p></li>)}</ul> : <p className={styles.empty}>저장된 품질 게이트가 없습니다.</p>}</section>
-      <section className={styles.panel} aria-labelledby="lens-title"><div className={styles.panelHead}><h3 id="lens-title">관점별 기여 렌즈</h3></div>{audit.lenses.length ? <ul className={styles.gates}>{audit.lenses.map((lens,index)=><li key={`${lens.type}-${index}`}><div><strong>{lens.label}</strong><span>{bps(lens.contributionBps)}</span></div><p>{koCode(lens.type)}{lens.symbol ? ` · ${lens.symbol}`:''}{lens.theme ? ` · ${lens.theme}`:''} · alpha {percent(lens.alpha,true)}</p></li>)}</ul> : <p className={styles.empty}>저장된 기여도 렌즈가 없습니다.</p>}<p className={styles.note}>보안 선택·테마 노출·현금 타이밍은 설명 렌즈이며 서로 합산해 총수익률을 만들지 않습니다.</p></section>
+      <section className={styles.panel} aria-labelledby="gate-title"><div className={styles.panelHead}><h3 id="gate-title">품질 게이트</h3></div>{audit.gates.length ? <ul className={styles.gates}>{audit.gates.map((gate,index)=><li key={`${gate.gate}-${index}`}><div><strong>{koCode(gate.gate)}</strong><span>{koCode(gate.status)}</span></div><p>{koReason(gate.reason)}</p></li>)}</ul> : <p className={styles.empty}>저장된 품질 게이트가 없습니다.</p>}</section>
+      <section className={styles.panel} aria-labelledby="lens-title"><div className={styles.panelHead}><h3 id="lens-title">관점별 기여 렌즈</h3></div>{audit.lenses.length ? <ul className={styles.gates}>{audit.lenses.map((lens,index)=><li key={`${lens.type}-${index}`}><div><strong>{lens.label}</strong><span>{bps(lens.contributionBps)}</span></div><p>{koCode(lens.type)}{lens.symbol ? ` · ${lens.symbol}`:''}{lens.theme ? ` · ${lens.theme}`:''} · alpha {percent(lens.alpha,true)}</p></li>)}</ul> : <p className={styles.empty}>저장된 기여도 렌즈가 없습니다.</p>}<p className={styles.note}>종목 선택·테마 노출·현금 타이밍은 설명 렌즈이며 서로 합산해 총수익률을 만들지 않습니다.</p></section>
     </div>
   </section>;
 }

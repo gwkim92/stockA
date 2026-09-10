@@ -61,7 +61,7 @@ export default async function CycleMapPage() {
     <div className="terminal-page decision-page cycle-map-page research-command-page">
       <DecisionSummary
         eyebrow={`사이클 지도 · ${data.as_of_date}`}
-        title={`${topNodeLabel(hotNode)} 흐름이 현재 시장을 주도합니다.`}
+        title={`${topNodeLabel(hotNode)}의 관측 점수가 가장 높습니다.`}
         description="거시 변화가 산업·테마·종목으로 번지는 경로와 충돌 신호를 함께 봅니다."
         primaryAction={{
           href: hotNode ? nodeHref(hotNode.node_code) : ("/intelligence" as Route),

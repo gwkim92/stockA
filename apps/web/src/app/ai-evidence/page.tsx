@@ -1,3 +1,4 @@
+import { CollectionPagination } from "@/components/CollectionPagination";
 import Link from "next/link";
 import type { Route } from "next";
 
@@ -167,9 +168,10 @@ function CandidateCard({ event }: { event: NewsCandidateEvent }) {
   );
 }
 
-export default async function AiEvidenceIndexPage() {
+export default async function AiEvidenceIndexPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
+  const search = await searchParams;
   const [response, allEventsResponse, rejectedResponse, suppressedResponse] = await Promise.all([
-    getEvents({ evidenceType: "news_event_candidate", limit: 50 }),
+    getEvents({ evidenceType: "news_event_candidate", limit: 10, cursor: search.cursor }),
     getEvents({ limit: 1 }),
     getEvents({ evidenceType: "news_event_candidate_rejected", limit: 30 }),
     getEvents({ evidenceType: "news_event_candidate_suppressed", limit: 30 }),
@@ -190,35 +192,30 @@ export default async function AiEvidenceIndexPage() {
   const suppressedEventCount = suppressedData.events.filter((event) => isLowSignalSuppressedEvent(event) && !isValidatorBlockedEvent(event)).length;
   const suppressedLowSignalCount = suppressedEventCount || safeCount(dataSummaryFields.suppressed_low_signal_candidate_count);
   const blockedCandidateCount = rejectedEventCount + suppressedEventCount;
-  const otherAiEvidenceCount = Math.max(0, aiExtractedCount - newsCandidates.length - clusterEvidenceCount);
+  const otherAiEvidenceCount = Math.max(0, aiExtractedCount - safeCount(allSummaryFields.news_event_candidate_count) - clusterEvidenceCount);
   const translatedCandidateCount = newsCandidates.filter((event) => event.korean_title || event.korean_summary).length;
   const firstCandidateLink = candidates[0]?.ai_evidence_id ? evidenceHref(candidates[0].ai_evidence_id) : null;
-  const titleText =
-    newsCandidates.length > 0
-      ? `뉴스 근거는 직접 종목 ${directNewsCandidates.length.toLocaleString("ko-KR")}개, 상위 흐름 ${macroNewsCandidates.length.toLocaleString("ko-KR")}개로 나눠 본다.`
-      : otherAiEvidenceCount > 0
-        ? `뉴스 근거 후보는 없고, 공시·기타 근거 ${otherAiEvidenceCount.toLocaleString("ko-KR")}건이 있다.`
-        : "뉴스 투자 근거 후보는 아직 없다.";
+
 
   return (
-    <div className="pageStack decision-page">
+    <div className="pageStack compact-review-page decision-page">
       <section className="decision-brief workspace-brief evidence-command-deck reveal" aria-labelledby="ai-evidence-index-title">
         <div className="decision-brief-main">
           <span className="decision-brief-kicker">뉴스 투자 근거 · {data.as_of_date}</span>
-          <h1 className="decision-brief-title" id="ai-evidence-index-title">{titleText}</h1>
+          <h1 className="decision-brief-title" id="ai-evidence-index-title">뉴스 투자 근거</h1>
           <p className="decision-brief-copy">
             여기서는 내부 처리 결과가 아니라 투자 판단에 쓸 수 있는 근거만 분리한다. 종목에 바로 붙는 근거,
             거시·테마 근거, 추천에서 제외할 근거를 나눠 본다.
           </p>
           <div className="decision-brief-meta" aria-label="뉴스 투자 근거 핵심 수치">
-            <span>뉴스 후보 {newsCandidates.length.toLocaleString("ko-KR")}건</span>
-            <span>기타 근거 {otherAiEvidenceCount.toLocaleString("ko-KR")}건</span>
+            <span>이 페이지 뉴스 후보 {newsCandidates.length.toLocaleString("ko-KR")}건</span>
+            <span>전체 기타 근거 {otherAiEvidenceCount.toLocaleString("ko-KR")}건</span>
             <span>한국어 {translatedCandidateCount.toLocaleString("ko-KR")}/{newsCandidates.length.toLocaleString("ko-KR")}</span>
             <span>뉴스 묶음 {clusterEvidenceCount.toLocaleString("ko-KR")}개</span>
             <span>차단·보류 {blockedCandidateCount.toLocaleString("ko-KR")}개</span>
           </div>
         </div>
-        <div className="decision-brief-grid workspace-command-grid">
+        <details className="compact-review-guide"><summary>상태 지표·운영 안내</summary><div className="decision-brief-grid workspace-command-grid">
           <a className="decision-card is-good" href="#accepted-candidates">
             <span>먼저 볼 근거</span>
             <strong>{directNewsCandidates.length.toLocaleString("ko-KR")}개</strong>
@@ -243,7 +240,7 @@ export default async function AiEvidenceIndexPage() {
             <small>저신호 {suppressedLowSignalCount.toLocaleString("ko-KR")}개 · 검증 차단 {rejectedEventCount.toLocaleString("ko-KR")}개</small>
             <b>차단 보기</b>
           </Link>
-        </div>
+        </div></details>
       </section>
 
       <section className="decision-flow-nav reveal delay-1" aria-label="뉴스 처리 단계">
@@ -274,7 +271,7 @@ export default async function AiEvidenceIndexPage() {
         </Link>
       </section>
 
-      <section className="evidence-workbench reveal delay-1" aria-labelledby="ai-evidence-workbench-title">
+      <details className="compact-review-guide"><summary>근거 확인 방법</summary><section className="evidence-workbench reveal delay-1" aria-labelledby="ai-evidence-workbench-title">
         <div>
           <span>판정 기준</span>
           <h2 id="ai-evidence-workbench-title">원천 뉴스와 투자 영향이 같은 방향인지 대조한다</h2>
@@ -305,8 +302,9 @@ export default async function AiEvidenceIndexPage() {
             <small>통과한 근거만 추천 상세와 종목 상세의 후보로 이어진다.</small>
           </li>
         </ol>
-      </section>
+      </section></details>
 
+      <CollectionPagination path="/ai-evidence" search={search} pagination={response.pagination} label="뉴스 근거" />
       <section className="ledger-section reveal delay-2" id="accepted-candidates" aria-labelledby="ai-evidence-candidate-list-title">
         <div className="ledger-section-head">
           <div>
@@ -353,6 +351,7 @@ export default async function AiEvidenceIndexPage() {
         )}
       </section>
 
+      <CollectionPagination path="/ai-evidence" search={search} pagination={response.pagination} label="뉴스 근거" />
       {firstCandidateLink ? (
         <section className="where-grid reveal delay-3" aria-label="AI 상세 추적">
           <Link className="where-card" href={firstCandidateLink}>

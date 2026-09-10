@@ -20,13 +20,14 @@ for (const [path, title, name] of [["/stocks", "종목 탐색", "stocks"], ["/cy
 test("stock search and relation filter survive refresh and history navigation", async ({ page }) => {
   await page.goto("/stocks"); const explorer = page.getByTestId("stock-explorer");
   await explorer.getByRole("textbox", { name: "종목 검색" }).fill("AAPL");
+  await explorer.getByRole("textbox", { name: "종목 검색" }).press("Enter");
   await expect(explorer.getByRole("article")).toHaveCount(1); await expect(page).toHaveURL(/q=AAPL/);
-  await explorer.getByRole("button", { name: /보유 연결/ }).click(); await expect(page).toHaveURL(/scope=held/);
+  await explorer.getByRole("link", { name: /보유 연결/ }).click(); await expect(page).toHaveURL(/scope=held/);
   await page.reload(); await expect(explorer.getByRole("textbox")).toHaveValue("AAPL");
   await expect(explorer.getByRole("article")).toHaveCount(1);
-  await explorer.getByRole("button", { name: /가격 확인/ }).click(); await expect(explorer).toContainText("조건에 맞는 결과가 없습니다");
+  await explorer.getByRole("link", { name: /가격 확인/ }).click(); await expect(explorer).toContainText("조건에 맞는 결과가 없습니다");
   await page.goBack(); await expect(explorer.getByRole("article")).toHaveCount(1);
-  await explorer.getByRole("button", { name: "필터 초기화" }).click(); await expect(explorer.getByRole("article")).toHaveCount(4);
+  await explorer.getByRole("link", { name: "필터 초기화" }).click(); await expect(explorer.getByRole("article")).toHaveCount(4);
   await expect(explorer).toContainText("가격 미확인"); await expect(explorer).toContainText("보유 연결 미확인");
   await expect(explorer).not.toContainText("오늘 가장 먼저 확인");
   await expect(explorer.getByRole("link", { name: "AAPL 종목 분석 열기" })).toHaveAttribute("href", "/stocks/AAPL");
@@ -56,7 +57,7 @@ test("market group and lookback selections are real and retain source limitation
   await expect(explorer.getByText("충격 강도 / 모델 신뢰도", { exact: true }).first()).toBeVisible();
   await expect(page.getByRole("table")).toHaveAccessibleName("저장된 상관관계 · 원래 반환 순서");
 });
-for (const [scenario, path, expected] of [["all-down", "/market-map", "이 화면의 자료를 불러오지 못했습니다"], ["empty", "/stocks", "수신된 목록이 비어 있습니다"], ["discovery-invalid", "/cycles", "이 화면의 자료를 불러오지 못했습니다"], ["discovery-unknown", "/market-map", "상관관계 자료 미제공"]]) {
+for (const [scenario, path, expected] of [["all-down", "/market-map", "이 화면의 자료를 불러오지 못했습니다"], ["empty", "/stocks", "조건에 맞는 결과가 없습니다"], ["discovery-invalid", "/cycles", "이 화면의 자료를 불러오지 못했습니다"], ["discovery-unknown", "/market-map", "상관관계 자료 미제공"]]) {
   test(`${scenario} does not imply healthy or fabricate records`, async ({ page, request }) => {
     await request.post("http://127.0.0.1:18765/__scenario", { data: { scenario } });
     await page.goto(path); const workspace = page.getByTestId("discovery-workspace");
@@ -65,3 +66,17 @@ for (const [scenario, path, expected] of [["all-down", "/market-map", "이 화�
     if (scenario === "discovery-unknown") { await expect(workspace).toContainText("기준일 미확인"); await expect(workspace).not.toContainText("수집 품질은 안정적"); }
   });
 }
+
+test("server search finds NVDA beyond the first 50 and pagination retains query state", async ({ page, request }) => {
+  await request.post("http://127.0.0.1:18765/__scenario", { data: { scenario: "stock-large" } });
+  await page.goto("/stocks");
+  const explorer = page.getByTestId("stock-explorer");
+  await expect(explorer.getByRole("article")).toHaveCount(50);
+  await explorer.getByRole("link", {name:"다음 종목"}).click();
+  await expect(explorer.getByRole("article")).toHaveCount(11);
+  await expect(explorer.getByRole("link", { name: "NVDA 종목 분석 열기" })).toBeVisible();
+  await explorer.getByRole("textbox").fill("NVDA"); await explorer.getByRole("textbox").press("Enter");
+  await expect(page).toHaveURL(/q=NVDA/); expect(page.url()).not.toContain("cursor=");
+  await expect(explorer.getByRole("article")).toHaveCount(1);
+  await page.reload(); await expect(explorer.getByRole("link", { name: "NVDA 종목 분석 열기" })).toHaveAttribute("href", "/stocks/NVDA");
+});

@@ -48,6 +48,11 @@ export function knownSymbol(value: unknown): string | null {
   return symbol && !["UNKNOWN", "UNCLASSIFIED"].includes(symbol.toUpperCase()) && identifier(symbol) ? symbol : null;
 }
 export type Resolution = "exact" | "alias";
+/** Next may supply an encoded dynamic segment. Decode once, then enforce the ID boundary. */
+export function sourceRouteIdentifier(segment: string): string | null {
+  try { return identifier(decodeURIComponent(segment)); }
+  catch { return null; }
+}
 /** Aliases follow the existing backend resolver, not a guessed latest source. */
 export function resolveIdentity(kind: ReaderKind, requested: string, data: Row, links: Row): Resolution | null {
   const resolved = identifier(data[kind === "thesis" ? "thesis_id" : "document_id"]);

@@ -80,6 +80,21 @@ def apply_frontend_pagination(api_path: str, payload: dict[str, Any]) -> dict[st
     if not isinstance(raw_items, list):
         return payload
 
+    if parsed.path == "/api/stocks":
+        needle = query.get("q", "").strip()[:100].lower()
+        scope = query.get("scope", "all")
+        reference = data.get("as_of_date")
+        def matches(item: dict[str, Any]) -> bool:
+            price = item.get("latest_price") or {}
+            scope_match = {
+                "recommended": bool((item.get("recommendation") or {}).get("recommendation_id")),
+                "held": bool((item.get("position") or {}).get("snapshot_date")),
+                "attention": price.get("close") is None or price.get("close", 0) <= 0 or price.get("trade_date") != reference,
+            }.get(scope, True)
+            return scope_match and needle in " ".join(str(item.get(key) or "") for key in ("symbol", "name", "market_code")).lower()
+        raw_items = [item for item in raw_items if matches(item)]
+        data = {**data, "matched_stock_count": len(raw_items)}
+
     items = raw_items[params.offset : params.offset + params.limit]
     next_offset = params.offset + params.limit
     has_more = next_offset < len(raw_items)

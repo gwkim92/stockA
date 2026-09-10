@@ -1,7 +1,7 @@
 // Synthetic browser data derived from the repository's API contract examples, never a live source.
 import { readFileSync } from "node:fs";
 const example = name => JSON.parse(readFileSync(new URL(`../../../../docs/api/frontend/examples/${name}.json`, import.meta.url), "utf8"));
-export function discoveryFixture(path, scenario) {
+export function discoveryFixture(path, scenario, query = new URLSearchParams()) {
   if (!["/api/stocks", "/api/cycles", "/api/market-map"].includes(path)) return null;
   const today = new Date().toISOString().slice(0, 10), asOf = scenario === "historical" ? "2001-01-01" : today;
   let envelope;
@@ -15,7 +15,24 @@ export function discoveryFixture(path, scenario) {
       { ...structuredClone(base), symbol: "005930", name: "삼성전자", instrument_id: "instrument-504", market_code: "KR", currency_code: "KRW", latest_price: { trade_date: asOf, close: 72000, change_pct: 0 }, recommendation: null, position: null },
     ];
     delete envelope.data.stocks[2].position;
-    envelope.data.stock_count = 4;
+    if (scenario === "stock-large") {
+      envelope.data.stocks = Array.from({length: 60}, (_, i) => ({...structuredClone(base), instrument_id: `instrument-QA-${i}`, symbol: `AAA${String(i).padStart(3,"0")}`, name: `검색 검증 ${i}`}));
+      envelope.data.stocks.push({...structuredClone(base), instrument_id: "instrument-NVDA", symbol: "NVDA", name: "NVIDIA"});
+    }
+    const all = envelope.data.stocks;
+    envelope.data.stock_count = all.length;
+    envelope.data.summary = {...envelope.data.summary,
+      recommended_stock_count: all.filter(r=>r.recommendation?.recommendation_id).length,
+      held_stock_count: all.filter(r=>r.position?.snapshot_date).length,
+      attention_stock_count: all.filter(r=>!r.latest_price?.close || r.latest_price?.trade_date !== asOf).length,
+    };
+    const q = (query.get("q") ?? "").trim().toLowerCase(), scope = query.get("scope");
+    const filtered = all.filter(r => [r.symbol,r.name,r.market_code].join(" ").toLowerCase().includes(q)
+      && (scope === "held" ? !!r.position?.snapshot_date : scope === "recommended" ? !!r.recommendation?.recommendation_id : scope === "attention" ? !r.latest_price?.close || r.latest_price?.trade_date !== asOf : true));
+    const offset = query.get("cursor") ? JSON.parse(Buffer.from(query.get("cursor"),"base64url").toString()).offset : 0;
+    envelope.data.matched_stock_count = filtered.length;
+    envelope.data.stocks = filtered.slice(offset,offset+50);
+    envelope.pagination = {limit:50,cursor:query.get("cursor"),next_cursor:offset+50<filtered.length ? Buffer.from(JSON.stringify({v:1,offset:offset+50})).toString("base64url") : null,has_more:offset+50<filtered.length,item_count:envelope.data.stocks.length};
     envelope.data.summary.latest_price_date = asOf;
   } else if (path === "/api/cycles") {
     envelope = example("cycle-state-list");

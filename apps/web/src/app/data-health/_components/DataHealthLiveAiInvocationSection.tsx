@@ -56,7 +56,7 @@ export function DataHealthLiveAiInvocationSection({
           <small>{liveAiInvocationHealth.latest_failed_at || "최근 중단 없음"}</small>
         </article>
       </div>
-      <div className="simple-table-wrap">
+      <div className="simple-table-wrap" role="region" aria-label="AI 작업별 최근 호출 표" tabIndex={0}>
         <table className="simple-table">
           <thead>
             <tr>

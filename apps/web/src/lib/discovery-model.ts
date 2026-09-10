@@ -3,7 +3,15 @@ import { count, fraction, isoDate, record, text } from "./research-home-model";
 export { count, fraction, isoDate };
 export type Obj = Record<string, unknown>;
 export type DiscoveryKind = "stocks" | "cycles" | "market";
-export type DiscoveryData = { kind: DiscoveryKind; asOfDate: string | null; partial: boolean; raw: Obj; rows: Obj[] };
+export type DiscoveryData = { kind: DiscoveryKind; asOfDate: string | null; partial: boolean; nextCursor: string | null; raw: Obj; rows: Obj[] };
+export type StockSearch = { q?: string; scope?: string; cursor?: string };
+export function stockSearchPath(search: StockSearch, resource = "/stocks"): string {
+  const params = new URLSearchParams();
+  if (search.q?.trim()) params.set("q", search.q.trim().slice(0, 100));
+  if (["recommended", "held", "attention"].includes(search.scope ?? "")) params.set("scope", search.scope!);
+  if (search.cursor) params.set("cursor", search.cursor);
+  return `${resource}${params.size ? `?${params}` : ""}`;
+}
 export type ObservationState = "matching" | "historical" | "future" | "unknown";
 export const finite = (v: unknown): number | null => typeof v === "number" && Number.isFinite(v) ? v : null;
 export const label = (v: unknown, fallback = "미확인") => text(v, fallback);
@@ -27,7 +35,10 @@ export function parseDiscovery(kind: DiscoveryKind, payload: unknown): Discovery
     for (const group of rows) unique(objectRows(group.indicators, true), "indicator_code");
     for (const field of ["regimes", "correlations", "news_links", "quality_flags"]) objectRows(raw[field]);
   }
-  return { kind, rows, raw, partial: record(envelope.pagination).has_more === true,
+  const pagination = record(envelope.pagination);
+  const nextCursor = typeof pagination.next_cursor === "string" && pagination.next_cursor ? pagination.next_cursor : null;
+  if (pagination.has_more === true && !nextCursor) throw new Error("missing next page cursor");
+  return { kind, rows, raw, partial: pagination.has_more === true, nextCursor,
     asOfDate: isoDate(kind === "market" ? raw.snapshot_as_of_date : raw.as_of_date) };
 }
 export function observationState(value: unknown, reference: unknown): ObservationState {

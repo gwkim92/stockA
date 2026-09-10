@@ -142,3 +142,11 @@
  .metrics > div:nth-child(3) { border-left: 1px solid var(--line-subtle); }
  .metrics > div:nth-child(n+3) { border-top: none; }
 }
+
+.filters a { display: inline-flex; align-items: center; gap: 7px; padding: 9px 11px; border-radius: 7px; color: var(--ink-secondary); font-size: 12px; min-height: 40px; }
+.filters a[aria-current="page"] { background: var(--accent-analysis-soft, #eeedff); color: var(--accent-analysis); }
+.stockSearch { display: flex; gap: 8px; flex-wrap: wrap; }
+.stockSearch input:not([type="hidden"]) { min-width: 0; width: 210px; max-width: 100%; border: 1px solid var(--line-subtle); border-radius: 7px; padding: 10px; background: var(--surface-canvas); font: inherit; font-size: 12px; }
+.stockSearch button, .stockPagination a { border: 1px solid var(--line-subtle); border-radius: 7px; padding: 10px 14px; min-height: 40px; background: var(--surface-primary); color: var(--accent-analysis); font-size: 12px; }
+.stockPagination { display: flex; justify-content: flex-end; gap: 12px; padding: 16px 20px; }
+@media (max-width: 600px) { .stockSearch { width: 100%; } .stockSearch input:not([type="hidden"]) { flex: 1; } }

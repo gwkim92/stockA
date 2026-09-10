@@ -1,3 +1,4 @@
+import { CollectionPagination } from "@/components/CollectionPagination";
 import Link from "next/link";
 import type { Route } from "next";
 
@@ -47,10 +48,11 @@ function clusterTranslatedCount(cluster: Awaited<ReturnType<typeof getAiNewsClus
     || cluster.events.filter((event) => event.korean_title || event.korean_summary).length;
 }
 
-export default async function StructuredResultsPage() {
+export default async function StructuredResultsPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
+  const search = await searchParams;
   const [candidateResponse, clusterResponse] = await Promise.all([
-    getEvents({ evidenceType: "news_event_candidate", limit: 80 }),
-    getAiNewsClusters({ limit: 12 }),
+    getEvents({ evidenceType: "news_event_candidate", limit: 10, cursor: search.cursor }),
+    getAiNewsClusters({ limit: 3, cursor: search.clusterCursor }),
   ]);
   const candidateData = candidateResponse.data;
   const clusterData = clusterResponse.data;
@@ -109,25 +111,23 @@ export default async function StructuredResultsPage() {
   ];
 
   return (
-    <div className="pageStack decision-page structured-results-page">
+    <div className="pageStack compact-review-page decision-page structured-results-page">
       <section className="decision-brief reveal" aria-labelledby="structured-results-title">
         <div className="decision-brief-main">
           <span className="decision-brief-kicker">통과한 뉴스 근거 · {candidateData.as_of_date}</span>
-          <h1 className="decision-brief-title" id="structured-results-title">
-            추천 입력 후보는 {acceptedCandidates.length.toLocaleString("ko-KR")}개지만, 주문 결정은 아니다.
-          </h1>
+          <h1 className="decision-brief-title" id="structured-results-title">통과한 뉴스 근거</h1>
           <p className="decision-brief-copy">
             통과한 뉴스 근거도 바로 매수·매도 신호가 아니다. 직접 종목, 상위 흐름, 뉴스 묶음을 분리해서 보고
             추천 상세에서 가격·사이클·재무·가상 매매 검증과 다시 합친다.
           </p>
           <div className="decision-brief-meta" aria-label="통과한 뉴스 근거 핵심 수치">
-            <span>직접 종목 {directCandidates.length.toLocaleString("ko-KR")}개</span>
-            <span>상위 흐름 {macroCandidates.length.toLocaleString("ko-KR")}개</span>
-            <span>뉴스 묶음 {clusterData.summary.cluster_count.toLocaleString("ko-KR")}개</span>
+            <span>이 페이지 직접 종목 {directCandidates.length.toLocaleString("ko-KR")}개</span>
+            <span>이 페이지 상위 흐름 {macroCandidates.length.toLocaleString("ko-KR")}개</span>
+            <span>전체 뉴스 묶음 {clusterData.summary.cluster_count.toLocaleString("ko-KR")}개</span>
             <span>{latestAiRunStatus}</span>
           </div>
         </div>
-        <div className="decision-brief-grid">
+        <details className="compact-review-guide"><summary>상태 지표·운영 안내</summary><div className="decision-brief-grid">
           <a className="decision-card is-good" href="#accepted-results">
             <span>직접 종목</span>
             <strong>{directCandidates.length.toLocaleString("ko-KR")}개</strong>
@@ -152,7 +152,7 @@ export default async function StructuredResultsPage() {
             <small>AI 결과는 추천 입력 후보일 뿐이며, 거래 안전 경계에서 다시 차단된다.</small>
             <b>추천 보기</b>
           </Link>
-        </div>
+        </div></details>
       </section>
 
       <section className="decision-flow-nav reveal delay-1" aria-label="뉴스 처리 단계">
@@ -183,15 +183,16 @@ export default async function StructuredResultsPage() {
         </Link>
       </section>
 
-      <EvidencePathWorkbench
+      <details className="compact-review-guide"><summary>통과 근거 검토 방법</summary><EvidencePathWorkbench
         eyebrow="통과 근거 검토"
         title="통과한 뉴스도 바로 추천이나 주문이 아니다"
         summary="먼저 원천과 한국어 요약을 보고, 종목 뉴스와 상위 흐름 뉴스가 올바르게 나뉘었는지 본다. 그 다음 추천 상세에서 다른 근거와 합쳐졌는지 본다."
         verdict={`현재 통과 후보 ${acceptedCandidates.length.toLocaleString("ko-KR")}개 · 주문 경계는 계속 읽기 전용이다.`}
         verdictTone={acceptedCandidates.length > 0 ? "ready" : "watch"}
         steps={pathSteps}
-      />
+      /></details>
 
+      <CollectionPagination path="/ai-evidence/results" search={search} pagination={candidateResponse.pagination} label="통과 근거" />
       <section className="ledger-section reveal delay-2" id="accepted-results" aria-labelledby="structured-direct-title">
         <div className="ledger-section-head">
           <div>
@@ -234,6 +235,8 @@ export default async function StructuredResultsPage() {
         </div>
       </section>
 
+      <CollectionPagination path="/ai-evidence/results" search={search} pagination={candidateResponse.pagination} label="통과 근거" />
+      <CollectionPagination path="/ai-evidence/results" pageKey="clusterCursor" search={search} pagination={clusterResponse.pagination} label="뉴스 묶음" />
       <section className="ledger-section reveal delay-3" id="cluster-results" aria-labelledby="structured-cluster-title">
         <div className="ledger-section-head">
           <div>

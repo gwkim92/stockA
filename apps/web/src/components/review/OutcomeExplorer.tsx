@@ -18,7 +18,7 @@ export function OutcomeExplorer({ rows, benchmark }: { rows: readonly Outcome[];
       <dl className={styles.returnComparison}><div><dt>절대수익률</dt><dd>{percent(row.absolute)}</dd></div><div><dt>벤치마크 · {benchmark}</dt><dd>{percent(row.benchmark)}</dd></div></dl>
       <div className={styles.alpha} data-tone={row.alpha === null ? "unknown" : row.alpha > 0 ? "positive" : row.alpha < 0 ? "negative" : "flat"}><span>벤치마크 초과수익</span><strong>{percent(row.alpha, true)}</strong><small>종목 관점 기여 {row.contribution === null ? "미측정" : `${row.contribution.toLocaleString("ko-KR", { maximumFractionDigits: 2 })}bp`}</small></div>
     </article>)}
-    {!filtered.length && <div className={styles.empty}><h3>{rows.length ? "조건에 맞는 성과가 없습니다" : "수신된 측정 결과가 없습니다"}</h3><p>측정 대기·자료 누락과 수익률 0은 다른 상태입니다.</p></div>}
+    {!filtered.length && <div className={styles.empty}><h3>{rows.length ? "조건에 맞는 성과가 없습니다" : "수신된 측정 결과가 없습니다"}</h3><p>측정 대기·자료 누락과 수익률 0은 다른 상태입니다.</p>{!rows.length && <div className={styles.links}><Link href="/performance/evaluations">저장된 평가 이력 확인 →</Link><Link href="/data-health">성과 측정·수집 상태 확인 →</Link></div>}</div>}
     <p className={styles.note}>목록 필터는 전체 보고서 요약값을 바꾸지 않습니다.</p>
   </section>;
 }

@@ -422,6 +422,11 @@ const KOREAN_LABELS: Record<string, string> = {
   "sec 10k filing": "SEC 10-K 공시",
   sec_annual_report_filed: "SEC 연간보고서 제출",
   "sec annual report filed": "SEC 연간보고서 제출",
+  not_loaded_in_this_view: "실행 이력 미조회",
+  no_outcome_data: "측정 성과 없음",
+  not_evaluated: "미평가",
+  within_budget: "한도 내",
+  allocation_policy: "비중 배분 정책",
   security_selection: "종목 선택",
   same_source_document: "같은 원천 문서",
   same_symbol: "같은 종목",
@@ -737,6 +742,8 @@ const KOREAN_LABELS: Record<string, string> = {
   "Portfolio positions have thesis/outcome coverage.": "포트폴리오 포지션에 투자 논리/성과 커버리지가 있습니다.",
   "Position-weighted alpha contribution for the covered AAPL thesis.":
     "커버된 AAPL 투자 논리에 대한 포지션 비중 가중 알파 기여입니다.",
+  "No recommendation outcomes exist for the measurement window.": "이 측정 구간에 저장된 추천 성과가 없습니다.",
+  "Recommendation outcomes exist for the measurement window.": "이 측정 구간의 추천 성과가 저장되어 있습니다.",
   "Security and theme components are explanatory lenses, not additive totals.":
     "종목/테마 구성요소는 설명 관점이며 단순 합산 총액이 아닙니다.",
   "Some positions are excluded from attribution coverage.": "일부 포지션은 성과 귀속 커버리지에서 제외되었습니다.",

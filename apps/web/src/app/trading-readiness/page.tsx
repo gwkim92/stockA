@@ -174,7 +174,7 @@ export default async function TradingReadinessPage() {
   ];
 
   return (
-    <div className="pageStack decision-page">
+    <div className="pageStack compact-review-page decision-page">
       <OperationsConsoleHeader
         section="거래 안전"
         title="계좌 권한·주문 한도·킬 스위치"
@@ -184,9 +184,7 @@ export default async function TradingReadinessPage() {
       <section className="decision-brief reveal" aria-labelledby="trading-readiness-title">
         <div className="decision-brief-main">
           <span className="decision-brief-kicker">거래 안전 점검 · 주문 전 차단 상태</span>
-          <h1 className="decision-brief-title" id="trading-readiness-title">
-            현재 실거래는 {liveSubmitCount > 0 ? "주문 기록 확인 필요" : data.gate_summary.blocked_count > 0 ? "차단 중" : "별도 승인 필요"}
-          </h1>
+          <h1 className="decision-brief-title" id="trading-readiness-title">거래 안전 조건</h1>
           <p className="decision-brief-copy">
             주문 버튼이 아니라 실거래 전환 가능성을 점검하는 안전판이다. 증권사 연결, 계좌 권한, 주문 한도, 킬 스위치, 가상 매매 검증, 결정 기록 중 무엇이 막혀 있는지 확인한다.
           </p>
@@ -197,7 +195,7 @@ export default async function TradingReadinessPage() {
             <span>실제 주문 {liveSubmitCount.toLocaleString("ko-KR")}건</span>
           </div>
         </div>
-        <div className="decision-brief-grid">
+        <details className="compact-review-guide"><summary>상태 지표·운영 안내</summary><div className="decision-brief-grid">
           {tradingCommandCards.map((card) => (
             <a
               className={`decision-card ${
@@ -212,7 +210,7 @@ export default async function TradingReadinessPage() {
               <b>{card.cta}</b>
             </a>
           ))}
-        </div>
+        </div></details>
       </section>
 
       <section className="split-ledger reveal delay-2" id="trading-gates">

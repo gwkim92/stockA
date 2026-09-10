@@ -1989,6 +1989,8 @@ def build_live_stock_list_response(
         as_of_date=as_of_date,
         page_limit=page_limit,
         page_offset=page_offset,
+        search_query=parsed.query.get("q", "").strip()[:100],
+        scope=parsed.query.get("scope", "all"),
     )
     stocks = [_build_stock_list_item_payload(item) for item in _as_list(state.get("stocks"))]
     summary = _as_dict(state.get("summary"))
@@ -1999,11 +2001,13 @@ def build_live_stock_list_response(
         "data": {
             "as_of_date": str(state.get("as_of_date") or (as_of_date.isoformat() if as_of_date else "")),
             "stock_count": int(state.get("stock_count") or len(stocks)),
+            "matched_stock_count": int(state.get("matched_stock_count", state.get("stock_count", len(stocks)))),
             "summary": {
                 "latest_price_date": str(summary.get("latest_price_date") or ""),
                 "priced_stock_count": int(summary.get("priced_stock_count") or 0),
                 "recommended_stock_count": int(summary.get("recommended_stock_count") or 0),
                 "held_stock_count": int(summary.get("held_stock_count") or 0),
+                "attention_stock_count": summary.get("attention_stock_count"),
             },
             "stocks": stocks,
         },
@@ -5147,6 +5151,8 @@ def load_frontend_stock_list_state(
     as_of_date: date | None,
     page_limit: int,
     page_offset: int,
+    search_query: str = "",
+    scope: str = "all",
 ) -> dict[str, Any]:
     sql_executor = executor or PsqlCommandExecutor.from_config(config)
     payload = sql_executor.execute_scalar(
@@ -5154,6 +5160,8 @@ def load_frontend_stock_list_state(
             as_of_date=as_of_date,
             page_limit=page_limit,
             page_offset=page_offset,
+            search_query=search_query,
+            scope=scope,
         )
     )
     return json_loads_object(payload, "Frontend stock list state lookup")
@@ -5478,6 +5486,14 @@ open_tickets as (
     join ref.instrument instrument on instrument.instrument_id = ticket.instrument_id
     where ticket.status = 'open'
 ),
+current_tickets as (
+    select * from (
+        select ticket.*,
+            count(*) over (partition by primary_symbol, action, remediation_type)::int as occurrence_count,
+            row_number() over (partition by primary_symbol, action, remediation_type order by review_date desc, remediation_ticket_id desc) as current_rank
+        from open_tickets ticket
+    ) ranked where current_rank = 1
+),
 ticket_counts as (
     select
         count(*)::int as open_ticket_count,
@@ -5515,14 +5531,16 @@ select json_build_object(
                     'action', action,
                     'reason', latest_reason,
                     'suggested_runner', suggested_runner,
-                    'risk_level', risk_level
+                    'risk_level', risk_level,
+                    'review_date', review_date,
+                    'occurrence_count', occurrence_count
                 )
                 order by
                     case risk_level when 'critical' then 1 when 'high' then 2 when 'medium' then 3 else 4 end,
                     review_date desc,
                     remediation_ticket_id desc
             )
-            from open_tickets
+            from current_tickets
         ),
         '[]'::json
     ),
@@ -8149,9 +8167,17 @@ def render_frontend_stock_list_state_sql(
     as_of_date: date | None,
     page_limit: int = 51,
     page_offset: int = 0,
+    search_query: str = "",
+    scope: str = "all",
 ) -> str:
     _validate_sql_pagination_window(page_limit=page_limit, page_offset=page_offset)
     target_date_sql = sql_date(as_of_date) if as_of_date is not None else "current_date"
+    search_sql = sql_literal(search_query.strip()[:100].lower())
+    scope_sql = {
+        "recommended": "recommendation_id is not null",
+        "held": "position_snapshot_date is not null",
+        "attention": "close is null or close <= 0 or trade_date is distinct from (select as_of_date from target_date)",
+    }.get(scope, "true")
     return f"""-- frontend stock list state lookup
 with target_date as (
     select {target_date_sql}::date as as_of_date
@@ -8264,29 +8290,36 @@ stock_rows as (
         position.market_value,
         position.linked_thesis_id
     from ref.instrument instrument
-    join latest_price latest on latest.instrument_id = instrument.instrument_id
-    join price_coverage coverage on coverage.instrument_id = instrument.instrument_id
+    left join latest_price latest on latest.instrument_id = instrument.instrument_id
+    left join price_coverage coverage on coverage.instrument_id = instrument.instrument_id
     left join previous_price previous on previous.instrument_id = instrument.instrument_id
     left join latest_recommendation recommendation on recommendation.instrument_id = instrument.instrument_id
     left join latest_position position on position.instrument_id = instrument.instrument_id
     where instrument.is_active
 ),
+filtered_stocks as (
+    select * from stock_rows
+    where strpos(lower(concat_ws(' ', primary_symbol, name, market_code)), {search_sql}) > 0
+      and ({scope_sql})
+),
 stock_page as (
     select *
-    from stock_rows
-    order by primary_symbol
+    from filtered_stocks
+    order by primary_symbol, instrument_id
     limit {page_limit}
     offset {page_offset}
 )
 select json_build_object(
     'as_of_date', (select as_of_date::text from target_date),
     'stock_count', (select count(*)::int from stock_rows),
+    'matched_stock_count', (select count(*)::int from filtered_stocks),
     'summary',
     json_build_object(
         'latest_price_date', (select max(trade_date)::text from stock_rows),
-        'priced_stock_count', (select count(*)::int from stock_rows),
+        'priced_stock_count', (select count(*)::int from stock_rows where trade_date is not null and close > 0),
         'recommended_stock_count', (select count(*) filter (where recommendation_id is not null)::int from stock_rows),
-        'held_stock_count', (select count(*) filter (where weight is not null and weight <> 0)::int from stock_rows)
+        'held_stock_count', (select count(*) filter (where position_snapshot_date is not null)::int from stock_rows),
+        'attention_stock_count', (select count(*) filter (where close is null or close <= 0 or trade_date is distinct from (select as_of_date from target_date))::int from stock_rows)
     ),
     'stocks',
     coalesce(
@@ -8341,7 +8374,7 @@ select json_build_object(
                         )
                     end
                 )
-                order by primary_symbol
+                order by primary_symbol, instrument_id
             )
             from stock_page
         ),
@@ -8928,13 +8961,23 @@ financial_metric_window as (
     from financial_metric_ranked
     where metric_period_rank = 1
 ),
+financial_reference_period as (
+    select coalesce((
+        select max(period.period_end)
+        from market.financial_statement_period period
+        join market.financial_metric_value revenue on revenue.period_id = period.period_id and revenue.metric_code = 'revenue'
+        where period.instrument_id in (select instrument_id from financial_metric_ranked)
+          and period.statement_scope = 'annual'
+          and period.period_end <= (select as_of_date from target_date)
+    ), (select max(period_end) from financial_metric_window)) as period_end
+),
 latest_financial_metrics as (
     select distinct on (metric.metric_code)
         metric.*
     from financial_metric_window metric
+    where metric.period_end = (select period_end from financial_reference_period)
     order by
         metric.metric_code,
-        case when metric.metric_status = 'computed' then 0 else 1 end,
         metric.period_end desc,
         metric.as_of_date desc,
         metric.created_at desc
@@ -9361,7 +9404,7 @@ select json_build_object(
     'financial_statement_model',
     json_build_object(
         'statement_scope', 'annual',
-        'latest_period_end', (select max(period_end) from financial_metric_window),
+        'latest_period_end', (select period_end from financial_reference_period),
         'latest_as_of_date', (select max(as_of_date) from latest_financial_metrics),
         'latest_fiscal_year', (select fiscal_year from latest_financial_metrics order by period_end desc, as_of_date desc limit 1),
         'latest_fiscal_quarter', (select fiscal_quarter from latest_financial_metrics order by period_end desc, as_of_date desc limit 1),
@@ -11813,6 +11856,14 @@ selected_run as (
     order by run.snapshot_date desc, run.attribution_run_id desc
     limit 1
 ),
+coverage_targets as (
+    select position.*
+    from selected_run run
+    join portfolio.position_snapshot position
+      on position.portfolio_id = run.portfolio_id
+     and position.snapshot_date = run.snapshot_date
+    where position.quantity <> 0
+),
 outcome_rows as (
     select
         outcome.outcome_id,
@@ -11966,7 +12017,7 @@ select json_build_object(
         'cash_timing_contribution_bps', coalesce((select sum(contribution_bps) from component_rows where component_type = 'cash_timing'), 0),
         'attribution_component_count', (select count(*)::int from component_rows),
         'excluded_position_count', (select count(*)::int from coverage_exclusions),
-        'excluded_weight', coalesce((select sum(weight) from coverage_exclusions), 0),
+        'excluded_weight', case when not exists (select 1 from coverage_targets) or exists (select 1 from coverage_exclusions where weight is null) then null else coalesce((select sum(weight) from coverage_exclusions), 0) end,
         'cash_weight', coalesce((select weight from component_rows where component_type = 'cash_timing' limit 1), 0)
     ),
     'quality_evaluation',
@@ -12086,8 +12137,15 @@ select json_build_object(
     json_build_array(
         json_build_object(
             'gate', 'coverage_ready',
-            'status', case when (select count(*) from coverage_exclusions) = 0 then 'passed' else 'blocked' end,
-            'reason', case when (select count(*) from coverage_exclusions) = 0 then 'Portfolio positions have thesis/outcome coverage.' else 'Some positions are excluded from attribution coverage.' end
+            'status', case
+                when not exists (select 1 from selected_run) or not exists (select 1 from coverage_targets) then 'not_evaluated'
+                when exists (select 1 from coverage_exclusions) then 'blocked'
+                else 'passed' end,
+            'reason', case
+                when not exists (select 1 from selected_run) then '요청한 측정 종료일의 성과 실행이 없어 커버리지를 평가하지 않았습니다.'
+                when not exists (select 1 from coverage_targets) then '해당 성과 실행에 검증할 보유 종목이 없습니다.'
+                when exists (select 1 from coverage_exclusions) then '일부 보유 종목이 성과 귀속 대상에서 제외되었습니다.'
+                else '검증 대상 보유 종목에 투자 논리와 성과 기록이 연결되어 있습니다.' end
         ),
         json_build_object(
             'gate', 'outcome_run',
@@ -12747,13 +12805,23 @@ financial_metric_window as (
     from financial_metric_ranked
     where metric_period_rank = 1
 ),
+financial_reference_period as (
+    select coalesce((
+        select max(period.period_end)
+        from market.financial_statement_period period
+        join market.financial_metric_value revenue on revenue.period_id = period.period_id and revenue.metric_code = 'revenue'
+        where period.instrument_id in (select instrument_id from financial_metric_ranked)
+          and period.statement_scope = 'annual'
+          and period.period_end <= (select as_of_date from selected_recommendation)
+    ), (select max(period_end) from financial_metric_window)) as period_end
+),
 latest_financial_metrics as (
     select distinct on (metric.metric_code)
         metric.*
     from financial_metric_window metric
+    where metric.period_end = (select period_end from financial_reference_period)
     order by
         metric.metric_code,
-        case when metric.metric_status = 'computed' then 0 else 1 end,
         metric.period_end desc,
         metric.as_of_date desc,
         metric.created_at desc
@@ -13251,7 +13319,7 @@ select json_build_object(
     'financial_statement_model',
     json_build_object(
         'statement_scope', 'annual',
-        'latest_period_end', (select max(period_end) from financial_metric_window),
+        'latest_period_end', (select period_end from financial_reference_period),
         'latest_as_of_date', (select max(as_of_date) from latest_financial_metrics),
         'latest_fiscal_year', (select fiscal_year from latest_financial_metrics order by period_end desc, as_of_date desc limit 1),
         'latest_fiscal_quarter', (select fiscal_quarter from latest_financial_metrics order by period_end desc, as_of_date desc limit 1),
@@ -14549,6 +14617,8 @@ def _build_dashboard_action_payload(action: dict[str, Any], *, index: int) -> di
         "reason": str(action.get("reason") or action.get("latest_reason") or ""),
         "suggested_runner": str(action.get("suggested_runner") or "manual_review"),
         "risk_level": str(action.get("risk_level") or "watch"),
+        "review_date": action.get("review_date"),
+        "occurrence_count": action.get("occurrence_count"),
     }
 
 
@@ -14832,6 +14902,8 @@ def _build_financial_source_data_blocker_payload(blocker: dict[str, Any]) -> dic
 
 
 def _financial_source_data_blocker_label(blocker_code: str) -> str:
+    if blocker_code == "financial_current_period_inputs_missing":
+        return "최신 기간 재무 입력 미확보"
     if blocker_code == "sec_companyfacts_missing_us_gaap_facts":
         return "SEC 재무 facts 없음"
     if blocker_code == "sec_companyfacts_not_found":
@@ -14884,7 +14956,10 @@ def _build_professional_source_guardrail_payload(
     source_blocker = _as_dict(financial_model.get("source_data_blocker"))
     blocker_code = str(source_blocker.get("blocker_code") or "")
     is_fund_boundary = blocker_code == "fund_company_financial_model_not_applicable" or bool(fund_analysis)
-    blocks_professional_use = blocker_code in _PROFESSIONAL_USE_BLOCKER_CODES and not is_fund_boundary
+    if not blocker_code and financial_model.get("status") in {"data_gap", "unavailable"} and not is_fund_boundary:
+        blocker_code = "financial_current_period_inputs_missing"
+        source_blocker = {"blocker_code": blocker_code, "status": "unavailable", "summary": "최신 연간 매출 기간에 사용할 수 있는 정규화 재무 지표가 없습니다."}
+    blocks_professional_use = (blocker_code in _PROFESSIONAL_USE_BLOCKER_CODES or blocker_code == "financial_current_period_inputs_missing") and not is_fund_boundary
 
     if blocks_professional_use:
         return {
@@ -14895,11 +14970,11 @@ def _build_professional_source_guardrail_payload(
             "blocker_code": blocker_code,
             "blocker_label": _financial_source_data_blocker_label(blocker_code),
             "source_data_blocker": source_blocker,
-            "summary": (
+            "summary": "최신 연간 매출 기간에 사용할 수 있는 재무 지표가 없습니다. 해당 기간 원천과 정규화 결과를 확인할 때까지 전문 판단·페이퍼 입력을 보류합니다." if blocker_code == "financial_current_period_inputs_missing" else (
                 "표준 재무제표 원천이 차단된 일반 기업 추천이다. 뉴스, AI 요약, 가격 점수가 있어도 "
                 "지원되는 정기 공시 또는 안전한 파서가 생기기 전까지 전문 투자 판단 입력으로 쓰면 안 된다."
             ),
-            "next_action": (
+            "next_action": "최신 매출 보고 기간의 재무 원천을 수집하고 정규화 결과를 확인합니다." if blocker_code == "financial_current_period_inputs_missing" else (
                 "첫 10-Q/10-K/20-F/40-F, SEC us-gaap companyfacts, 또는 별도 검증된 투자설명서/pro-forma 파서가 "
                 "확보될 때까지 추천은 기록으로만 보존한다."
             ),
@@ -15378,6 +15453,12 @@ def _valuation_method_data_quality(
     present_count = sum(1 for key in expected_keys if assumptions.get(key) is not None)
     data_gap_count = max(0, len(expected_keys) - present_count)
     warnings: list[str] = []
+    component_assumptions = [_as_dict(item.get("assumptions") or item.get("assumptions_json")) for item in _as_list(assumptions.get("sotp_components"))]
+    nested_legacy = any((_integer(item.get("forecast_row_count")) or 0) > 0 and item.get("forecast_input_period_policy") != "same_revenue_period_v1" for item in component_assumptions)
+    uses_forecast = (_integer(assumptions.get("forecast_row_count")) or 0) > 0 or bool(assumptions.get("forecast_scenarios"))
+    legacy_forecast = nested_legacy or (uses_forecast and assumptions.get("forecast_input_period_policy") != "same_revenue_period_v1")
+    if legacy_forecast:
+        warnings.append("저장된 추정의 지표별 원천 기간이 검증되지 않았습니다. 과거 평가 기록이며 최신 재무 입력으로 재사용하지 않습니다.")
     if data_gap_count > 0:
         warnings.append(f"핵심 입력 {data_gap_count}개가 assumptions_json에 없다.")
     if confidence is None:
@@ -15387,7 +15468,9 @@ def _valuation_method_data_quality(
     if margin_of_safety is not None and margin_of_safety < 0:
         warnings.append("기준 목표가가 현재가보다 낮아 안전마진이 음수다.")
 
-    if confidence is not None and confidence >= 0.55 and data_gap_count == 0:
+    if legacy_forecast:
+        status = "limited"
+    elif confidence is not None and confidence >= 0.55 and data_gap_count == 0:
         status = "strong"
     elif confidence is not None and confidence >= 0.35:
         status = "usable"
@@ -15396,6 +15479,7 @@ def _valuation_method_data_quality(
 
     return {
         "status": status,
+        "input_period_status": "unverified_legacy" if legacy_forecast else "verified" if uses_forecast else "not_applicable",
         "label": {
             "strong": "입력 충분",
             "usable": "검토 가능",

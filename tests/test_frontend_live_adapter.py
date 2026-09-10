@@ -7206,7 +7206,8 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertFalse(financial_model["automatic_order_allowed"])
         self.assertEqual(financial_model["score_policy"], "recommendation_weights_unchanged")
         target_range = payload["data"]["valuation_target_range"]
-        self.assertValuationTargetRangeQuality(target_range, expected_status="usable")
+        self.assertValuationTargetRangeQuality(target_range, expected_status="review_required")
+        self.assertEqual(target_range["methods"][0]["data_quality"]["input_period_status"], "unverified_legacy")
         self.assertEqual(target_range["method_count"], 4)
         self.assertEqual(target_range["base_price"], 240.0)
         self.assertEqual(target_range["target_low"], 198.0)
@@ -7214,7 +7215,7 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertEqual(target_range["target_high"], 340.0)
         self.assertAlmostEqual(target_range["upside_base"], 0.09375)
         self.assertEqual(target_range["methods"][0]["method"], "dcf_lite")
-        self.assertEqual(target_range["methods"][0]["data_quality"]["status"], "strong")
+        self.assertEqual(target_range["methods"][0]["data_quality"]["status"], "limited")
         self.assertEqual(target_range["methods"][0]["data_quality"]["data_gap_count"], 0)
         self.assertEqual(target_range["methods"][0]["assumption_items"][0]["label"], "가격 기준일")
         self.assertEqual(target_range["methods"][0]["assumption_items"][2]["value"], "2.8%")

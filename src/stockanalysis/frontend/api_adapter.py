@@ -139,6 +139,8 @@ def _fixture_alias_path(api_path: str) -> str | None:
     """
     parsed = urlsplit(api_path)
     query = _single_value_query(parsed.query)
+    if parsed.path == "/api/stocks":
+        return "/api/stocks"
     if parsed.path == "/api/events" and query.get("asOfDate"):
         return "/api/events?asOfDate=2024-11-01"
     if parsed.path == "/api/ai/news-clusters":

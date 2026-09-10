@@ -5,7 +5,7 @@ import { readFileSync } from "node:fs";
 const memoFixture = JSON.parse(readFileSync(new URL('./recommendation-memo-fixture.json', import.meta.url), 'utf8'));
 let scenario = "healthy";
 const server = createServer(async (request, response) => {
-  const path = new URL(request.url, "http://127.0.0.1").pathname;
+  const url = new URL(request.url, "http://127.0.0.1"), path = url.pathname;
   const send = (status, value) => { response.writeHead(status, { "Content-Type": "application/json" }); response.end(JSON.stringify(value)); };
   if (path === "/__health") return send(200, { ok: true });
   if (path === "/__scenario" && request.method === "POST") {
@@ -57,7 +57,7 @@ const server = createServer(async (request, response) => {
     }
     return send(200, { contract_version: "frontend-api-v0.1", generated_at: new Date().toISOString(), data: path.startsWith("/api/theses/") ? sample.thesis : data, links: {} });
   }
-  const discovery = discoveryFixture(path, scenario);
+  const discovery = discoveryFixture(path, scenario, url.searchParams);
   if (discovery) return send(200, discovery);
   const today = new Date().toISOString().slice(0, 10);
   const asOf = scenario === "historical" ? "2001-01-01" : today;

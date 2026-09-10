@@ -1099,14 +1099,26 @@ def render_financial_forecast_inputs_preview_sql(
 ) -> str:
     _validate_valuation_args(statement_scope=statement_scope)
     return f"""-- financial forecast inputs preview
-with latest_raw_metric_rows as (
+with input_periods as (
+    select period.instrument_id, max(period.period_end) as period_end
+    from market.financial_statement_period period
+    join market.financial_metric_value revenue on revenue.period_id = period.period_id and revenue.metric_code = 'revenue'
+    where period.period_end <= {sql_date(as_of_date)}
+      and period.statement_scope = {sql_literal(statement_scope)}
+    group by period.instrument_id
+),
+latest_raw_metric_rows as (
     select distinct on (period.instrument_id, metric.metric_code)
         period.instrument_id,
         metric.metric_code,
         metric.metric_value,
-        period.period_end
+        period.period_end,
+        period.period_id,
+        metric.source_run_id,
+        period.source_document_id
     from market.financial_statement_period period
     join market.financial_metric_value metric on metric.period_id = period.period_id
+    join input_periods reference on reference.instrument_id = period.instrument_id and reference.period_end = period.period_end
     where period.period_end <= {sql_date(as_of_date)}
       and period.statement_scope = {sql_literal(statement_scope)}
       and metric.metric_code in (
@@ -1129,11 +1141,11 @@ latest_normalized_rows as (
     select distinct on (normalized.instrument_id, normalized.metric_code)
         normalized.instrument_id,
         normalized.metric_code,
-        normalized.metric_value
+        case when normalized.metric_status = 'computed' then normalized.metric_value else null end as metric_value
     from market.financial_metric_normalized normalized
+    join input_periods reference on reference.instrument_id = normalized.instrument_id and reference.period_end = normalized.period_end
     where normalized.as_of_date <= {sql_date(as_of_date)}
       and normalized.statement_scope = {sql_literal(statement_scope)}
-      and normalized.metric_status = 'computed'
       and normalized.metric_code in (
         'revenue_growth_yoy',
         'operating_margin',
@@ -1145,7 +1157,9 @@ latest_normalized_rows as (
         normalized.instrument_id,
         normalized.metric_code,
         normalized.as_of_date desc,
-        normalized.period_end desc
+        normalized.period_end desc,
+        normalized.created_at desc,
+        normalized.source_run_id desc nulls last
 ),
 normalized_inputs as (
     select
@@ -1201,14 +1215,26 @@ def render_financial_forecast_inputs_upsert_sql(
 ) -> str:
     _validate_valuation_args(statement_scope=statement_scope)
     return f"""-- financial forecast inputs upsert
-with latest_raw_metric_rows as (
+with input_periods as (
+    select period.instrument_id, max(period.period_end) as period_end
+    from market.financial_statement_period period
+    join market.financial_metric_value revenue on revenue.period_id = period.period_id and revenue.metric_code = 'revenue'
+    where period.period_end <= {sql_date(as_of_date)}
+      and period.statement_scope = {sql_literal(statement_scope)}
+    group by period.instrument_id
+),
+latest_raw_metric_rows as (
     select distinct on (period.instrument_id, metric.metric_code)
         period.instrument_id,
         metric.metric_code,
         metric.metric_value,
-        period.period_end
+        period.period_end,
+        period.period_id,
+        metric.source_run_id,
+        period.source_document_id
     from market.financial_statement_period period
     join market.financial_metric_value metric on metric.period_id = period.period_id
+    join input_periods reference on reference.instrument_id = period.instrument_id and reference.period_end = period.period_end
     where period.period_end <= {sql_date(as_of_date)}
       and period.statement_scope = {sql_literal(statement_scope)}
       and metric.metric_code in (
@@ -1224,7 +1250,8 @@ raw_inputs as (
         max(metric_value) filter (where metric_code = 'revenue') as revenue,
         max(metric_value) filter (where metric_code = 'operating_cash_flow') as operating_cash_flow,
         max(metric_value) filter (where metric_code = 'capital_expenditure') as capital_expenditure,
-        max(period_end) as latest_raw_period_end
+        max(period_end) as latest_raw_period_end,
+        jsonb_object_agg(metric_code, jsonb_build_object('period_id', period_id, 'period_end', period_end, 'source_run_id', source_run_id, 'source_document_id', source_document_id, 'value', metric_value)) as raw_lineage
     from latest_raw_metric_rows
     group by instrument_id
 ),
@@ -1232,12 +1259,16 @@ latest_normalized_rows as (
     select distinct on (normalized.instrument_id, normalized.metric_code)
         normalized.instrument_id,
         normalized.metric_code,
-        normalized.metric_value,
-        normalized.period_end
+        case when normalized.metric_status = 'computed' then normalized.metric_value else null end as metric_value,
+        normalized.period_end,
+        normalized.period_id,
+        normalized.as_of_date,
+        normalized.source_run_id,
+        normalized.metric_status
     from market.financial_metric_normalized normalized
+    join input_periods reference on reference.instrument_id = normalized.instrument_id and reference.period_end = normalized.period_end
     where normalized.as_of_date <= {sql_date(as_of_date)}
       and normalized.statement_scope = {sql_literal(statement_scope)}
-      and normalized.metric_status = 'computed'
       and normalized.metric_code in (
         'revenue_growth_yoy',
         'operating_margin',
@@ -1249,7 +1280,9 @@ latest_normalized_rows as (
         normalized.instrument_id,
         normalized.metric_code,
         normalized.as_of_date desc,
-        normalized.period_end desc
+        normalized.period_end desc,
+        normalized.created_at desc,
+        normalized.source_run_id desc nulls last
 ),
 normalized_inputs as (
     select
@@ -1259,13 +1292,21 @@ normalized_inputs as (
         max(metric_value) filter (where metric_code = 'free_cash_flow_margin') as free_cash_flow_margin,
         max(metric_value) filter (where metric_code = 'capex_intensity') as capex_intensity,
         max(metric_value) filter (where metric_code = 'cash_flow_quality') as cash_flow_quality,
-        max(period_end) as latest_normalized_period_end
+        max(period_end) as latest_normalized_period_end,
+        jsonb_object_agg(metric_code, jsonb_build_object('period_id', period_id, 'period_end', period_end, 'as_of_date', as_of_date, 'source_run_id', source_run_id, 'status', metric_status, 'value', metric_value)) as normalized_lineage
     from latest_normalized_rows
     group by instrument_id
 ),
 forecast_context as (
     select
         raw.instrument_id,
+        jsonb_build_object('raw', raw.raw_lineage, 'normalized', coalesce(normalized.normalized_lineage, '{{}}'::jsonb)) as input_lineage,
+        to_jsonb(array_remove(array[
+            case when normalized.revenue_growth_yoy is null then 'revenue_growth_rate' end,
+            case when normalized.operating_margin is null then 'operating_margin' end,
+            case when normalized.free_cash_flow_margin is null and (raw.operating_cash_flow is null or raw.capital_expenditure is null) then 'free_cash_flow_margin' end,
+            case when normalized.capex_intensity is null and raw.capital_expenditure is null then 'capex_intensity' end
+        ], null)) as defaulted_inputs,
         raw.latest_raw_period_end,
         normalized.latest_normalized_period_end,
         raw.revenue as base_revenue,
@@ -1344,6 +1385,8 @@ forecast_rows as (
         least(0.6500::numeric, greatest(-0.2500::numeric, context.base_operating_margin + scenario.operating_margin_adjustment)) as operating_margin,
         least(0.5500::numeric, greatest(-0.2500::numeric, context.base_free_cash_flow_margin + scenario.fcf_margin_adjustment)) as free_cash_flow_margin,
         least(0.4000::numeric, greatest(0::numeric, context.base_capex_intensity + scenario.capex_intensity_adjustment)) as capex_intensity,
+        context.input_lineage,
+        context.defaulted_inputs,
         context.latest_raw_period_end,
         context.latest_normalized_period_end,
         context.latest_free_cash_flow,
@@ -1372,6 +1415,9 @@ computed_forecast_rows as (
             'forecast_year', row.forecast_year,
             'forecast_years', {FINANCIAL_FORECAST_YEARS},
             'source_statement_scope', row.statement_scope,
+            'input_period_policy', 'same_revenue_period_v1',
+            'input_lineage', row.input_lineage,
+            'defaulted_inputs', row.defaulted_inputs,
             'latest_raw_period_end', row.latest_raw_period_end,
             'latest_normalized_period_end', row.latest_normalized_period_end,
             'base_revenue', row.base_revenue,
@@ -2372,6 +2418,17 @@ latest_raw_metric_rows as (
     join market.financial_metric_value metric on metric.period_id = period.period_id
     where period.period_end <= {sql_date(as_of_date)}
       and period.statement_scope = {sql_literal(statement_scope)}
+      and (
+          metric.metric_code not in ('operating_cash_flow', 'capital_expenditure')
+          or period.period_end = (
+              select max(reference.period_end)
+              from market.financial_statement_period reference
+              join market.financial_metric_value revenue on revenue.period_id = reference.period_id and revenue.metric_code = 'revenue'
+              where reference.instrument_id = period.instrument_id
+                and reference.statement_scope = {sql_literal(statement_scope)}
+                and reference.period_end <= {sql_date(as_of_date)}
+          )
+      )
       and metric.metric_code in (
         'operating_cash_flow',
         'capital_expenditure',
@@ -2405,6 +2462,16 @@ latest_forecast_rows as (
     from market.financial_forecast_input forecast
     where forecast.as_of_date <= {sql_date(as_of_date)}
       and forecast.statement_scope = {sql_literal(statement_scope)}
+      and forecast.assumptions_json ->> 'input_period_policy' = 'same_revenue_period_v1'
+      and jsonb_typeof(forecast.assumptions_json -> 'input_lineage') = 'object'
+      and forecast.assumptions_json ->> 'latest_raw_period_end' = (
+          select max(period.period_end)::text
+          from market.financial_statement_period period
+          join market.financial_metric_value revenue on revenue.period_id = period.period_id and revenue.metric_code = 'revenue'
+          where period.instrument_id = forecast.instrument_id
+            and period.statement_scope = {sql_literal(statement_scope)}
+            and period.period_end <= {sql_date(as_of_date)}
+      )
     order by
         forecast.instrument_id,
         forecast.scenario_key,
@@ -2596,6 +2663,17 @@ latest_raw_metric_rows as (
     join market.financial_metric_value metric on metric.period_id = period.period_id
     where period.period_end <= {sql_date(as_of_date)}
       and period.statement_scope = {sql_literal(statement_scope)}
+      and (
+          metric.metric_code not in ('operating_cash_flow', 'capital_expenditure')
+          or period.period_end = (
+              select max(reference.period_end)
+              from market.financial_statement_period reference
+              join market.financial_metric_value revenue on revenue.period_id = reference.period_id and revenue.metric_code = 'revenue'
+              where reference.instrument_id = period.instrument_id
+                and reference.statement_scope = {sql_literal(statement_scope)}
+                and reference.period_end <= {sql_date(as_of_date)}
+          )
+      )
       and metric.metric_code in (
         'operating_cash_flow',
         'capital_expenditure',
@@ -2631,6 +2709,16 @@ latest_forecast_rows as (
     from market.financial_forecast_input forecast
     where forecast.as_of_date <= {sql_date(as_of_date)}
       and forecast.statement_scope = {sql_literal(statement_scope)}
+      and forecast.assumptions_json ->> 'input_period_policy' = 'same_revenue_period_v1'
+      and jsonb_typeof(forecast.assumptions_json -> 'input_lineage') = 'object'
+      and forecast.assumptions_json ->> 'latest_raw_period_end' = (
+          select max(period.period_end)::text
+          from market.financial_statement_period period
+          join market.financial_metric_value revenue on revenue.period_id = period.period_id and revenue.metric_code = 'revenue'
+          where period.instrument_id = forecast.instrument_id
+            and period.statement_scope = {sql_literal(statement_scope)}
+            and period.period_end <= {sql_date(as_of_date)}
+      )
     order by
         forecast.instrument_id,
         forecast.scenario_key,
@@ -3128,6 +3216,15 @@ component_rows as (
             'base_multiple', 18.0000,
             'high_multiple', 22.0000,
             'latest_forecast_as_of_date', input.latest_forecast_as_of_date,
+            'forecast_input_period_policy', 'same_revenue_period_v1',
+            'reference_revenue_period_end', (
+                select max(reference.period_end)
+                from market.financial_statement_period reference
+                join market.financial_metric_value revenue on revenue.period_id = reference.period_id and revenue.metric_code = 'revenue'
+                where reference.instrument_id = input.instrument_id
+                  and reference.statement_scope = {sql_literal(statement_scope)}
+                  and reference.period_end <= {sql_date(as_of_date)}
+            ),
             'forecast_row_count', coalesce(input.forecast_row_count, 0),
             'latest_raw_period_end', input.latest_raw_period_end
             , 'reported_segment_allocation_source', 'research.segment_footnote_evidence'
@@ -3496,6 +3593,17 @@ latest_raw_metric_rows as (
     join market.financial_metric_value metric on metric.period_id = period.period_id
     where period.period_end <= {sql_date(as_of_date)}
       and period.statement_scope = {sql_literal(statement_scope)}
+      and (
+          metric.metric_code not in ('operating_cash_flow', 'capital_expenditure')
+          or period.period_end = (
+              select max(reference.period_end)
+              from market.financial_statement_period reference
+              join market.financial_metric_value revenue on revenue.period_id = reference.period_id and revenue.metric_code = 'revenue'
+              where reference.instrument_id = period.instrument_id
+                and reference.statement_scope = {sql_literal(statement_scope)}
+                and reference.period_end <= {sql_date(as_of_date)}
+          )
+      )
       and metric.metric_code in (
         'operating_cash_flow',
         'capital_expenditure',
@@ -3518,11 +3626,18 @@ latest_normalized_rows as (
     select distinct on (normalized.instrument_id, normalized.metric_code)
         normalized.instrument_id,
         normalized.metric_code,
-        normalized.metric_value
+        case when normalized.metric_status = 'computed' then normalized.metric_value else null end as metric_value
     from market.financial_metric_normalized normalized
     where normalized.as_of_date <= {sql_date(as_of_date)}
       and normalized.statement_scope = {sql_literal(statement_scope)}
-      and normalized.metric_status = 'computed'
+      and normalized.period_end = (
+          select max(reference.period_end)
+          from market.financial_statement_period reference
+          join market.financial_metric_value revenue on revenue.period_id = reference.period_id and revenue.metric_code = 'revenue'
+          where reference.instrument_id = normalized.instrument_id
+            and reference.statement_scope = {sql_literal(statement_scope)}
+            and reference.period_end <= {sql_date(as_of_date)}
+      )
       and normalized.metric_code in (
         'revenue_growth_yoy',
         'net_margin',
@@ -3534,7 +3649,9 @@ latest_normalized_rows as (
         normalized.instrument_id,
         normalized.metric_code,
         normalized.as_of_date desc,
-        normalized.period_end desc
+        normalized.period_end desc,
+        normalized.created_at desc,
+        normalized.source_run_id desc nulls last
 ),
 normalized_inputs as (
     select
@@ -3594,6 +3711,16 @@ latest_forecast_rows as (
     from market.financial_forecast_input forecast
     where forecast.as_of_date <= {sql_date(as_of_date)}
       and forecast.statement_scope = {sql_literal(statement_scope)}
+      and forecast.assumptions_json ->> 'input_period_policy' = 'same_revenue_period_v1'
+      and jsonb_typeof(forecast.assumptions_json -> 'input_lineage') = 'object'
+      and forecast.assumptions_json ->> 'latest_raw_period_end' = (
+          select max(period.period_end)::text
+          from market.financial_statement_period period
+          join market.financial_metric_value revenue on revenue.period_id = period.period_id and revenue.metric_code = 'revenue'
+          where period.instrument_id = forecast.instrument_id
+            and period.statement_scope = {sql_literal(statement_scope)}
+            and period.period_end <= {sql_date(as_of_date)}
+      )
     order by
         forecast.instrument_id,
         forecast.scenario_key,
@@ -3644,6 +3771,20 @@ latest_sotp_components as (
     from market.sum_of_parts_component component
     where component.as_of_date <= {sql_date(as_of_date)}
       and component.statement_scope = {sql_literal(statement_scope)}
+      and (
+          component.component_key <> 'operating_business_fcf'
+          or (
+              component.assumptions_json ->> 'forecast_input_period_policy' = 'same_revenue_period_v1'
+              and component.assumptions_json ->> 'reference_revenue_period_end' = (
+                  select max(reference.period_end)::text
+                  from market.financial_statement_period reference
+                  join market.financial_metric_value revenue on revenue.period_id = reference.period_id and revenue.metric_code = 'revenue'
+                  where reference.instrument_id = component.instrument_id
+                    and reference.statement_scope = {sql_literal(statement_scope)}
+                    and reference.period_end <= {sql_date(as_of_date)}
+              )
+          )
+      )
     order by
         component.instrument_id,
         component.component_key,
@@ -3748,6 +3889,17 @@ latest_raw_metric_rows as (
     join market.financial_metric_value metric on metric.period_id = period.period_id
     where period.period_end <= {sql_date(as_of_date)}
       and period.statement_scope = {sql_literal(statement_scope)}
+      and (
+          metric.metric_code not in ('operating_cash_flow', 'capital_expenditure')
+          or period.period_end = (
+              select max(reference.period_end)
+              from market.financial_statement_period reference
+              join market.financial_metric_value revenue on revenue.period_id = reference.period_id and revenue.metric_code = 'revenue'
+              where reference.instrument_id = period.instrument_id
+                and reference.statement_scope = {sql_literal(statement_scope)}
+                and reference.period_end <= {sql_date(as_of_date)}
+          )
+      )
       and metric.metric_code in (
         'operating_cash_flow',
         'capital_expenditure',
@@ -3771,12 +3923,19 @@ latest_normalized_rows as (
     select distinct on (normalized.instrument_id, normalized.metric_code)
         normalized.instrument_id,
         normalized.metric_code,
-        normalized.metric_value,
+        case when normalized.metric_status = 'computed' then normalized.metric_value else null end as metric_value,
         normalized.period_end
     from market.financial_metric_normalized normalized
     where normalized.as_of_date <= {sql_date(as_of_date)}
       and normalized.statement_scope = {sql_literal(statement_scope)}
-      and normalized.metric_status = 'computed'
+      and normalized.period_end = (
+          select max(reference.period_end)
+          from market.financial_statement_period reference
+          join market.financial_metric_value revenue on revenue.period_id = reference.period_id and revenue.metric_code = 'revenue'
+          where reference.instrument_id = normalized.instrument_id
+            and reference.statement_scope = {sql_literal(statement_scope)}
+            and reference.period_end <= {sql_date(as_of_date)}
+      )
       and normalized.metric_code in (
         'revenue_growth_yoy',
         'net_margin',
@@ -3788,7 +3947,9 @@ latest_normalized_rows as (
         normalized.instrument_id,
         normalized.metric_code,
         normalized.as_of_date desc,
-        normalized.period_end desc
+        normalized.period_end desc,
+        normalized.created_at desc,
+        normalized.source_run_id desc nulls last
 ),
 normalized_inputs as (
     select
@@ -3849,6 +4010,16 @@ latest_forecast_rows as (
     from market.financial_forecast_input forecast
     where forecast.as_of_date <= {sql_date(as_of_date)}
       and forecast.statement_scope = {sql_literal(statement_scope)}
+      and forecast.assumptions_json ->> 'input_period_policy' = 'same_revenue_period_v1'
+      and jsonb_typeof(forecast.assumptions_json -> 'input_lineage') = 'object'
+      and forecast.assumptions_json ->> 'latest_raw_period_end' = (
+          select max(period.period_end)::text
+          from market.financial_statement_period period
+          join market.financial_metric_value revenue on revenue.period_id = period.period_id and revenue.metric_code = 'revenue'
+          where period.instrument_id = forecast.instrument_id
+            and period.statement_scope = {sql_literal(statement_scope)}
+            and period.period_end <= {sql_date(as_of_date)}
+      )
     order by
         forecast.instrument_id,
         forecast.scenario_key,
@@ -3902,6 +4073,20 @@ latest_sotp_components as (
     from market.sum_of_parts_component component
     where component.as_of_date <= {sql_date(as_of_date)}
       and component.statement_scope = {sql_literal(statement_scope)}
+      and (
+          component.component_key <> 'operating_business_fcf'
+          or (
+              component.assumptions_json ->> 'forecast_input_period_policy' = 'same_revenue_period_v1'
+              and component.assumptions_json ->> 'reference_revenue_period_end' = (
+                  select max(reference.period_end)::text
+                  from market.financial_statement_period reference
+                  join market.financial_metric_value revenue on revenue.period_id = reference.period_id and revenue.metric_code = 'revenue'
+                  where reference.instrument_id = component.instrument_id
+                    and reference.statement_scope = {sql_literal(statement_scope)}
+                    and reference.period_end <= {sql_date(as_of_date)}
+              )
+          )
+      )
     order by
         component.instrument_id,
         component.component_key,
@@ -4135,6 +4320,7 @@ scenario_range_rows as (
             'normalized_metric_count', input.normalized_metric_count,
             'forecast_input_source', case when coalesce(input.forecast_row_count, 0) > 0 then 'market.financial_forecast_input' else null end,
             'latest_forecast_as_of_date', input.latest_forecast_as_of_date,
+            'forecast_input_period_policy', 'same_revenue_period_v1',
             'forecast_row_count', coalesce(input.forecast_row_count, 0),
             'forecast_confidence', input.forecast_confidence,
             'forecast_scenarios', coalesce(input.forecast_rows_json, '[]'::jsonb),
@@ -4142,7 +4328,8 @@ scenario_range_rows as (
             'data_quality', json_build_object(
                 'normalized_metric_count', input.normalized_metric_count,
                 'latest_normalized_period_end', input.latest_normalized_period_end,
-                'forecast_row_count', coalesce(input.forecast_row_count, 0)
+                'forecast_input_period_policy', 'same_revenue_period_v1',
+            'forecast_row_count', coalesce(input.forecast_row_count, 0)
             ),
             'limitations', json_build_array(
                 '보수·기준·낙관 case를 가격 앵커와 품질 점수로 만든 단순 범위다.',
@@ -4189,6 +4376,7 @@ dcf_lite_rows as (
             'free_cash_flow', input.free_cash_flow,
             'forecast_input_source', case when coalesce(input.forecast_row_count, 0) > 0 then 'market.financial_forecast_input' else null end,
             'latest_forecast_as_of_date', input.latest_forecast_as_of_date,
+            'forecast_input_period_policy', 'same_revenue_period_v1',
             'forecast_row_count', coalesce(input.forecast_row_count, 0),
             'forecast_confidence', input.forecast_confidence,
             'forecast_base_free_cash_flow', input.base_forecast_free_cash_flow,
@@ -4202,7 +4390,8 @@ dcf_lite_rows as (
             'key_variables', json_build_array('fcf_per_share', 'growth_rate', 'discount_rate', 'terminal_growth_rate', 'forecast_scenarios'),
             'data_quality', json_build_object(
                 'free_cash_flow_present', input.free_cash_flow is not null,
-                'forecast_row_count', coalesce(input.forecast_row_count, 0),
+                'forecast_input_period_policy', 'same_revenue_period_v1',
+            'forecast_row_count', coalesce(input.forecast_row_count, 0),
                 'shares_outstanding_present', input.shares_outstanding is not null,
                 'normalized_metric_count', input.normalized_metric_count
             ),

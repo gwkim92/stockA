@@ -1,3 +1,4 @@
+import { CollectionPagination } from "@/components/CollectionPagination";
 import Link from "next/link";
 import type { Route } from "next";
 
@@ -71,8 +72,9 @@ function safeCount(value: unknown) {
   return typeof value === "number" && Number.isFinite(value) ? value : 0;
 }
 
-export default async function ClassificationPage() {
-  const response = await getEvents({ limit: 100 });
+export default async function ClassificationPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
+  const search = await searchParams;
+  const response = await getEvents({ limit: 20, cursor: search.cursor });
   const data = response.data;
   const groups = buildThemeGroups(data.events);
   const directSymbolCount = data.events.filter((event) => isKnownNewsCode(event.symbol)).length;
@@ -139,24 +141,22 @@ export default async function ClassificationPage() {
   ];
 
   return (
-    <div className="pageStack classification-page decision-page">
+    <div className="pageStack compact-review-page classification-page decision-page">
       <section className="decision-brief reveal" aria-labelledby="classification-title">
         <div className="decision-brief-main">
           <span className="decision-brief-kicker">1차 분류 태그 · {data.as_of_date}</span>
-          <h1 className="decision-brief-title" id="classification-title">
-            1차 태그 {groups.length.toLocaleString("ko-KR")}개, 투자 근거 연결 {aiLinkedCount.toLocaleString("ko-KR")}건
-          </h1>
+          <h1 className="decision-brief-title" id="classification-title">뉴스 1차 분류</h1>
           <p className="decision-brief-copy">
             1차 태그는 최종 투자 판단이 아니라 첫 해석이다. 테마가 맞는지, 종목을 억지로 붙였는지 원문 근거와 품질 결과로 대조한다.
           </p>
           <div className="decision-brief-meta" aria-label="1차 분류 핵심 상태">
-            <span>직접 종목 {directSymbolCount.toLocaleString("ko-KR")}건</span>
-            <span>상위 흐름 {macroOnlyCount.toLocaleString("ko-KR")}건</span>
-            <span>규칙만 {ruleCheckCount.toLocaleString("ko-KR")}건</span>
-            <span>근거 미연결 {unreviewedCount.toLocaleString("ko-KR")}건</span>
+            <span>이 페이지 직접 종목 {directSymbolCount.toLocaleString("ko-KR")}건</span>
+            <span>이 페이지 상위 흐름 {macroOnlyCount.toLocaleString("ko-KR")}건</span>
+            <span>이 페이지 규칙만 {ruleCheckCount.toLocaleString("ko-KR")}건</span>
+            <span>전체 근거 미연결 {unreviewedCount.toLocaleString("ko-KR")}건</span>
           </div>
         </div>
-        <div className="decision-brief-grid">
+        <details className="compact-review-guide"><summary>상태 지표·운영 안내</summary><div className="decision-brief-grid">
           {classificationCommandCards.map((card) => (
             <a
               className={`decision-card ${
@@ -171,7 +171,7 @@ export default async function ClassificationPage() {
               <b>{card.cta}</b>
             </a>
           ))}
-        </div>
+        </div></details>
       </section>
 
       <section className="screen-switchboard reveal delay-1" aria-label="뉴스 처리 단계 바로가기">
@@ -197,7 +197,7 @@ export default async function ClassificationPage() {
         </Link>
       </section>
 
-      <section className="ledger-guide reveal delay-2" aria-labelledby="classification-guide-title">
+      <details className="compact-review-guide"><summary>근거 확인 방법</summary><section className="ledger-guide reveal delay-2" aria-labelledby="classification-guide-title">
         <div>
           <span>읽는 순서</span>
           <h2 id="classification-guide-title">태그 화면에서는 오류를 찾는다</h2>
@@ -207,8 +207,9 @@ export default async function ClassificationPage() {
           <li>종목이 있으면 직접 종목 뉴스, 없으면 상위 흐름 뉴스로 본다.</li>
           <li>이상한 태그는 투자 근거 화면에서 한 번 더 비교한다.</li>
         </ol>
-      </section>
+      </section></details>
 
+      <CollectionPagination path="/events/classification" search={search} pagination={response.pagination} label="뉴스 분류" />
       <section className="classification-grid reveal delay-2" id="classification-groups" aria-label="테마별 1차 분류">
         {groups.map((group) => (
           <article className="classification-card" key={group.themeKey}>
@@ -227,7 +228,7 @@ export default async function ClassificationPage() {
               {group.symbols.size === 0 ? <span>시장/테마 뉴스</span> : null}
             </div>
             <div className="news-row-list compact-news-row-list">
-              {group.events.slice(0, 3).map((event) => (
+              {group.events.map((event) => (
                 <NewsEventCard compact event={event} key={event.event_id} mode="classification" />
               ))}
             </div>

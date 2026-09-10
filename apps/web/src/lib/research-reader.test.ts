@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { readFileSync } from "node:fs";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { conditionState, currencyValue, filterExcerpts, fullValuation, identifier, nextReview, parseSource, parseThesis, recordedDate, resolveIdentity, safeApiLink, thesisAttention } from "./research-reader-model";
+import { sourceRouteIdentifier, conditionState, currencyValue, filterExcerpts, fullValuation, identifier, nextReview, parseSource, parseThesis, recordedDate, resolveIdentity, safeApiLink, thesisAttention } from "./research-reader-model";
 import { loadReader } from "./research-reader-data";
 const example = (name: string) => JSON.parse(readFileSync(`../../docs/api/frontend/examples/${name}.json`, "utf8"));
 const source = () => example("source-document-detail");
@@ -129,4 +129,10 @@ describe("existing deep valuation remains reachable", () => {
     const noCurrency = valuation(); delete noCurrency.currency_code; expect(fullValuation(noCurrency)).toBeNull();
     const missing = valuation(); delete missing.methods[0].forecast_evidence.scenarios; expect(fullValuation(missing)).toBeNull();
   });
+});
+
+it("decodes a single source route segment but rejects encoded path delimiters", () => {
+  expect(sourceRouteIdentifier("rss%3Ayahoo%3Aabc")).toBe("rss:yahoo:abc");
+  expect(sourceRouteIdentifier("source-document-rss%3Ayahoo%3Aabc")).toBe("source-document-rss:yahoo:abc");
+  for (const value of ["%", "a%2Fb", "a%5Cb", "a%3Fb", "a%252Fb", "%2E%2E", "%00"]) expect(sourceRouteIdentifier(value)).toBeNull();
 });

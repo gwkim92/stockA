@@ -41,6 +41,8 @@ export type DailyCockpitData = {
     reason: string;
     suggested_runner: string;
     risk_level: RiskLevel;
+    review_date?: string | null;
+    occurrence_count?: number;
   }>;
   latest_metrics: {
     covered_weight: number;
@@ -1589,11 +1591,13 @@ export type AssetCorrelation = {
 export type StockListData = {
   as_of_date: string;
   stock_count: number;
+  matched_stock_count?: number;
   summary: {
     latest_price_date: string;
     priced_stock_count: number;
     recommended_stock_count: number;
     held_stock_count: number;
+    attention_stock_count?: number;
   };
   stocks: Array<{
     symbol: string;
@@ -4019,7 +4023,7 @@ export type PerformanceOutcomesData = {
     cash_timing_contribution_bps: number;
     attribution_component_count: number;
     excluded_position_count: number;
-    excluded_weight: number;
+    excluded_weight: number | null;
     cash_weight: number;
   };
   quality_evaluation: {

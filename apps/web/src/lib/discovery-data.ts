@@ -1,9 +1,9 @@
-import { parseDiscovery, type DiscoveryData, type DiscoveryKind } from "./discovery-model";
+import { parseDiscovery, stockSearchPath, type StockSearch, type DiscoveryData, type DiscoveryKind } from "./discovery-model";
 export type DiscoveryResult = { data: DiscoveryData | null; issue: "timeout" | "http" | "invalid" | "network" | null; requestedDate: string };
 /** A response-body deadline, authenticated read only, and no fixture-on-error fallback. */
-export async function loadDiscovery(kind: DiscoveryKind, options: { now?: Date; timeoutMs?: number; fetcher?: typeof fetch } = {}): Promise<DiscoveryResult> {
+export async function loadDiscovery(kind: DiscoveryKind, options: { now?: Date; timeoutMs?: number; fetcher?: typeof fetch; search?: StockSearch } = {}): Promise<DiscoveryResult> {
   const requestedDate = (options.now ?? new Date()).toISOString().slice(0, 10);
-  const path = kind === "stocks" ? "/api/stocks" : `/api/${kind === "cycles" ? "cycles" : "market-map"}?asOfDate=${requestedDate}`;
+  const path = kind === "stocks" ? stockSearchPath(options.search ?? {}, "/api/stocks") : `/api/${kind === "cycles" ? "cycles" : "market-map"}?asOfDate=${requestedDate}`;
   const base = (process.env.STOCKANALYSIS_FRONTEND_API_BASE_URL ?? "http://127.0.0.1:8765").replace(/\/$/, "");
   const token = process.env.STOCKANALYSIS_FRONTEND_API_READ_TOKEN;
   const controller = new AbortController();

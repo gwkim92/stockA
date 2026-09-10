@@ -1109,12 +1109,14 @@ export function getAiNewsClusters({
   asOfDate = currentIsoDate(),
   themeKey,
   symbol,
+  cursor,
   limit = 4,
 }: {
   asOfDate?: string;
   themeKey?: string;
   symbol?: string;
   limit?: number;
+  cursor?: string;
 } = {}) {
   const params = new URLSearchParams({
     asOfDate,
@@ -1126,6 +1128,7 @@ export function getAiNewsClusters({
   if (symbol) {
     params.set("symbol", symbol);
   }
+  if (cursor) params.set("cursor", cursor);
   return fetchFrontendPayload<AiNewsClusterListData>(`/api/ai/news-clusters?${params.toString()}`);
 }
 
@@ -1199,12 +1202,14 @@ export function getEvents({
   asOfDate = currentIsoDate(),
   eventType = "all",
   evidenceType = "all",
+  cursor,
   limit = 20,
 }: {
   asOfDate?: string;
   eventType?: string;
   evidenceType?: string;
   limit?: number;
+  cursor?: string;
 } = {}) {
   const params = new URLSearchParams({
     asOfDate,
@@ -1212,6 +1217,7 @@ export function getEvents({
     evidenceType,
     limit: String(limit),
   });
+  if (cursor) params.set("cursor", cursor);
   return fetchFrontendPayload<EventListData>(`/api/events?${params.toString()}`);
 }
 

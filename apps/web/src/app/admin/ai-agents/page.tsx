@@ -195,7 +195,7 @@ function AgentCard({ agent }: { agent: Agent }) {
           <dd>{adminCopy(koCode(agent.runtime_status.last_run_status || agent.runtime_status.status))}</dd>
         </div>
         <div>
-          <dt>최근 경로</dt>
+          <dt>설정된 제공 경로</dt>
           <dd>
             {providerLabel(agent.runtime_status.latest_provider || agent.model_policy.primary_provider)}
             {agent.runtime_status.latest_model ? ` · ${agent.runtime_status.latest_model}` : ""}
@@ -203,7 +203,7 @@ function AgentCard({ agent }: { agent: Agent }) {
         </div>
         <div>
           <dt>최근 오류</dt>
-          <dd>{agent.runtime_status.latest_error_code ? adminCopy(koCode(agent.runtime_status.latest_error_code)) : "없음"}</dd>
+          <dd>{agent.runtime_status.last_run_status === "not_loaded_in_this_view" ? "미조회" : agent.runtime_status.latest_error_code ? adminCopy(koCode(agent.runtime_status.latest_error_code)) : "없음"}</dd>
         </div>
       </dl>
       <b>
@@ -239,8 +239,6 @@ export default async function AiAgentAdminPage() {
   }, {});
   const schemaCount = new Set(data.agents.map((agent) => agent.output_schema_name).filter(Boolean)).size;
   const promptVersionCount = new Set(data.agents.map((agent) => agent.prompt_version).filter(Boolean)).size;
-  const recentRuntimeCount = data.agents.filter((agent) => agent.runtime_status.last_run_at).length;
-  const latestErrorCount = data.agents.filter((agent) => agent.runtime_status.latest_error_code).length;
 
   return (
     <div className="terminal-page">
@@ -391,15 +389,14 @@ export default async function AiAgentAdminPage() {
           <div className="decision-brief-meta">
             <span>프롬프트 버전 {promptVersionCount}개</span>
             <span>출력 스키마 {schemaCount}개</span>
-            <span>최근 실행 기록 {recentRuntimeCount}/{activeAgentCount}개</span>
-            <span>최근 오류 {latestErrorCount}개</span>
+            <span>역할별 실행 이력 미연결</span>
           </div>
         </div>
         <div className="decision-brief-grid">
-          <div className={latestErrorCount > 0 ? "decision-card is-watch" : "decision-card is-good"}>
-            <span>최근 실행 상태</span>
-            <strong>{latestErrorCount > 0 ? "오류 기록 확인" : "중대한 오류 없음"}</strong>
-            <small>각 에이전트 카드에서 최근 제공 경로, 모델, 오류 코드를 확인할 수 있다.</small>
+          <div className="decision-card is-watch">
+            <span>역할 등록 정책</span>
+            <strong>실행 상태 미조회</strong>
+            <small>이 영역은 등록된 역할과 정책입니다. 실제 호출 결과와 오류는 위의 작업별 모델 설정에서 확인하세요.</small>
           </div>
           <div className="decision-card is-good">
             <span>출력 스키마</span>

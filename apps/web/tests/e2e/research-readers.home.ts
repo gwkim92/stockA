@@ -109,3 +109,10 @@ for (const [scenario, expected] of [["empty", "이 문서에 공개된 발췌가
     await expect(page.locator("main")).not.toContainText("private-error-must-not-render");
   });
 }
+
+for (const prefix of ["", "source-document-"]) test(`encoded RSS source ID resolves (${prefix || "canonical"})`, async ({ page, request }) => {
+  await request.post("http://127.0.0.1:18767/__scenario", { data: { scenario: "rss-id" } });
+  await page.goto(`/source-documents/${prefix}rss%3Ayahoo-finance-news%3Abc514fa20dd706c5cdd354a6`);
+  await expect(page.getByRole("heading", {name:"서비스 매출과 사업 위험 · 원천 발췌"})).toBeVisible();
+  await expect(page.getByText("찾는 화면이 없습니다")).toHaveCount(0);
+});

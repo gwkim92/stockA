@@ -388,8 +388,8 @@ export default async function IntelligencePage() {
   return (
     <div className="terminal-page decision-page intelligence-page research-command-page">
       <DecisionSummary
-        eyebrow={`뉴스 인텔리전스 · ${dashboard.as_of_date}`}
-        title={`${clusterCount.toLocaleString("ko-KR")}개 핵심 흐름이 시장 판단을 바꾸고 있습니다.`}
+        eyebrow={`뉴스 인텔리전스 · 뉴스 조회 기준 ${events.as_of_date}`}
+        title={`수집 뉴스에서 ${clusterCount.toLocaleString("ko-KR")}개 묶음을 확인했습니다.`}
         description="반복된 뉴스의 공통 원인과 영향을 묶어 보고, 반대 근거와 종목 연결까지 함께 확인합니다."
         primaryAction={{ href: firstFlowHref, label: firstCluster ? "주요 흐름 분석" : "사이클 지도" }}
         secondaryActions={[
@@ -400,7 +400,7 @@ export default async function IntelligencePage() {
           <div className="research-lead-snapshot">
             <span>가장 큰 뉴스 흐름</span>
             <strong>{firstFlowTitle}</strong>
-            <small>{firstFlowTarget} · 추천 근거 연결률 {formatPercent(dashboard.latest_metrics.weight_coverage_ratio)}</small>
+            <small>{firstFlowTarget} · 뉴스 묶음 기준 {storedNewsClusters.as_of_date}</small>
           </div>
         }
       />
@@ -719,9 +719,9 @@ export default async function IntelligencePage() {
 
           <article className="decision-triage-column">
             <div className="decision-triage-head">
-              <span>추천 연결</span>
+              <span>보유 비중 중 투자 논리 연결 비율</span>
               <strong>{formatPercent(dashboard.latest_metrics.weight_coverage_ratio)}</strong>
-              <p>추천 상세에서는 직접 뉴스, 상위 흐름, 가격·사이클 근거가 분리되어 표시됩니다.</p>
+              <p>포트폴리오 기준 {dashboard.as_of_date} · 전체 보유 비중 중 투자 논리(thesis)가 연결된 비중입니다.</p>
             </div>
             <div className="decision-triage-stack">
               <article className="brief-signal-card watch">

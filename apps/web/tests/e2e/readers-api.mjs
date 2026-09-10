@@ -68,7 +68,7 @@ const server = createServer(async (req, res) => {
   }
   if (isSource) {
     const payload = example("source-document-detail"), data = payload.data;
-    data.document_id = "source-document-1";
+    data.document_id = scenario === "rss-id" ? decodeURIComponent(path.split("/").at(-1)).replace(/^source-document-/, "") : "source-document-1";
     data.title = "Business overview and service revenue — synthetic filing excerpt";
     data.korean_title = "서비스 매출과 사업 위험 · 원천 발췌";
     data.korean_summary = "저장된 요약: 반복 매출과 비용 구조를 확인하는 검증용 문서입니다.";

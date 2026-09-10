@@ -3,15 +3,23 @@ import Link from "next/link";
 import type { Route } from "next";
 import { SignedReturnBadge } from "@/components/research/SignedReturnBadge";
 import { StatusBadge } from "@/components/status/StatusBadge";
-import { label, object, linked, currency, finite, ratioLabel, numberLabel, dateLabel, filterDiscovery, type DiscoveryData } from "@/lib/discovery-model";
-import { DiscoveryToolbar, EmptyDiscovery, useDiscoveryQuery } from "./DiscoveryControls";
+import { label, object, linked, currency, finite, ratioLabel, numberLabel, dateLabel, count, scopesFor, stockSearchPath, type DiscoveryData, type StockSearch } from "@/lib/discovery-model";
 import styles from "./DiscoveryWorkspace.module.css";
-export function StockExplorer({ data }: { data: DiscoveryData }) {
-  const control = useDiscoveryQuery("stocks"), reference = data.asOfDate;
-  const rows = filterDiscovery(data.rows, "stocks", control.query, control.scope, "", reference);
-  const counts = Object.fromEntries(control.scopes.map(item => [item.key, filterDiscovery(data.rows, "stocks", "", item.key, "", reference).length]));
+export function StockExplorer({ data, search = {} }: { data: DiscoveryData; search?: StockSearch }) {
+  const reference = data.asOfDate, rows = data.rows;
+  const scope = scopesFor("stocks").some(item => item.key === search.scope) ? search.scope! : "all";
+  const summary = object(data.raw.summary);
+  const counts: Record<string, unknown> = { all: data.raw.stock_count, recommended: summary.recommended_stock_count, held: summary.held_stock_count, attention: summary.attention_stock_count };
   return <section className={styles.panel} aria-label="종목 탐색 결과" data-testid="stock-explorer">
-    <DiscoveryToolbar kind="stocks" control={control} counts={counts} total={data.rows.length} shown={rows.length} />
+    <div className={styles.toolbar}>
+      <nav className={styles.filters} aria-label="종목 조건">{scopesFor("stocks").map(item => <Link key={item.key} href={stockSearchPath({ q: search.q, scope: item.key }) as Route} aria-current={scope === item.key ? "page" : undefined}>{item.name}<span>{count(counts[item.key]) ?? "미확인"}</span></Link>)}</nav>
+      <form className={styles.stockSearch} action="/stocks" key={`${search.q}-${scope}`} role="search" aria-label="전체 조회 대상 종목 검색">
+        <input type="hidden" name="scope" value={scope} />
+        <input aria-label="종목 검색" name="q" defaultValue={search.q ?? ""} maxLength={100} placeholder="기업명, 코드, 시장" />
+        <button type="submit">검색</button>
+      </form>
+    </div>
+    <p className={styles.resultCount} role="status">검색 결과 {count(data.raw.matched_stock_count) ?? "미확인"}개 · 이 페이지 {rows.length}개 <Link href="/stocks">필터 초기화</Link></p>
     <div className={styles.stockColumns} aria-hidden="true"><span>기업 / 시장</span><span>가격과 관측일</span><span>추천·보유 연결</span><span>리서치</span></div>
     {rows.map(row => { const p = object(row.latest_price), r = object(row.recommendation), h = object(row.position);
       const symbol = label(row.symbol), recommendation = linked(row, "recommendation"), held = linked(row, "position");
@@ -26,7 +34,11 @@ export function StockExplorer({ data }: { data: DiscoveryData }) {
         <div className={styles.rowActions}><Link href={`/stocks/${encodeURIComponent(symbol)}` as Route} aria-label={`${symbol} 종목 분석 열기`}>종목 분석 →</Link>{recommendation && <Link href={`/recommendations/${encodeURIComponent(label(r.recommendation_id))}` as Route}>추천 판단서</Link>}</div>
       </article>;
     })}
-    {!rows.length && <EmptyDiscovery hasRows={data.rows.length > 0} reset={control.reset} />}
+    {!rows.length && <div className={styles.empty}><h2>조건에 맞는 결과가 없습니다</h2><p>조회 대상 전체에서 검색했습니다. 검색어나 필터를 바꿔보세요.</p><Link href="/stocks">조건 초기화</Link></div>}
+    <nav className={styles.stockPagination} aria-label="종목 목록 페이지">
+      {search.cursor && <Link href={stockSearchPath({ q: search.q, scope }) as Route}>처음 페이지</Link>}
+      {data.nextCursor && <Link href={stockSearchPath({ q: search.q, scope, cursor: data.nextCursor }) as Route}>다음 종목</Link>}
+    </nav>
     <p className={styles.footnote}>가격은 실시간 시세가 아닙니다. 추천 연결은 자료의 존재를 뜻하며, 근거 충족이나 매수 적합성을 확인한 결과가 아닙니다. 모델 점수는 수익률·성공 확률이 아닙니다.</p>
   </section>;
 }
