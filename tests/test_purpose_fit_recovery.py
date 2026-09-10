@@ -8,12 +8,19 @@ from stockanalysis.frontend.live_adapter import (
     _build_recommendation_professional_decision_waterfall_payload,
     _build_stock_equity_research_payload,
     _build_stock_market_data_provider_payload,
+    _build_cycle_state_item_payload,
 )
 from tests.test_equity_research_reporting import _context_payload
 from tests.test_equity_research_contract_v3 import response
 
 
 class PurposeFitRecoveryTests(unittest.TestCase):
+    def test_cycle_list_preserves_breadth_as_its_own_metric(self):
+        row = _build_cycle_state_item_payload({'features': {'market_breadth': 0, 'valuation_score': .7}})
+        self.assertEqual(row['features']['market_breadth'], 0)
+        self.assertIsNone(row['features']['fundamental_quality'])
+        self.assertEqual(row['features']['valuation_score'], .7)
+
     def test_oversized_valuation_is_omitted_whole_and_disclosed_without_losing_thesis(self):
         context = _context_payload()
         context['valuations'] = [{'method': 'sotp', 'full_evidence': 'x' * 42000}]

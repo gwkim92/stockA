@@ -37,9 +37,9 @@ export function discoveryFixture(path, scenario, query = new URLSearchParams()) 
   } else if (path === "/api/cycles") {
     envelope = example("cycle-state-list");
     envelope.data.cycle_states = [
-      { theme_key: "semiconductor", theme_name: "반도체", state: "expanding", previous_state: "forming", confidence: 0.81, instrument_count: 12, top_symbols: ["AAPL", "NVDA"], features: { event_intensity: 0.8, price_momentum: 0.6, fundamental_quality: 0.73 } },
-      { theme_key: "power_infrastructure", theme_name: "전력 인프라", state: "confirming", previous_state: "expanding", confidence: 0.76, instrument_count: 6, top_symbols: ["GEV"], features: { event_intensity: 0.72, price_momentum: 0.55, fundamental_quality: 0.6 } },
-      { theme_key: "healthcare", theme_name: "헬스케어", state: "forming", previous_state: "unknown", confidence: null, instrument_count: 3, top_symbols: ["LLY"], features: { event_intensity: 0, price_momentum: null, fundamental_quality: null } },
+      { theme_key: "semiconductor", theme_name: "반도체", state: "expanding", previous_state: "forming", confidence: 0.81, instrument_count: 12, top_symbols: ["AAPL", "NVDA"], features: { event_intensity: 0.8, price_momentum: 0.6, market_breadth: 0.73 } },
+      { theme_key: "power_infrastructure", theme_name: "전력 인프라", state: "confirming", previous_state: "expanding", confidence: 0.76, instrument_count: 6, top_symbols: ["GEV"], features: { event_intensity: 0.72, price_momentum: 0.55, market_breadth: 0.6 } },
+      { theme_key: "healthcare", theme_name: "헬스케어", state: "forming", previous_state: "unknown", confidence: null, instrument_count: 3, top_symbols: ["LLY"], features: { event_intensity: 0, price_momentum: null, market_breadth: null } },
     ];
   } else {
     envelope = example("market-map");

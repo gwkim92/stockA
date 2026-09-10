@@ -19938,6 +19938,8 @@ def _build_cycle_state_item_payload(item: dict[str, Any]) -> dict[str, Any]:
             "event_intensity": _number(features.get("event_intensity")),
             "price_momentum": _number(features.get("price_momentum")),
             "fundamental_quality": _number(features.get("fundamental_quality")),
+            "market_breadth": _number(features.get("market_breadth")),
+            "valuation_score": _number(features.get("valuation_score")),
         },
     }
 

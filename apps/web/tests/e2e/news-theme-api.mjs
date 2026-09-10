@@ -40,7 +40,7 @@ const server = createServer(async (req, res) => {
   }
   if (path.startsWith('/api/themes/')) {
     const p = example('theme-detail'), d = p.data;
-    Object.assign(d, { theme_key: decodeURIComponent(path.split('/').pop()), theme_name: '반도체', as_of_date: date, state: 'expanding', previous_state: 'unknown', confidence: 0.72, cycle_score: 0.74, features: { event_intensity: 0, price_momentum: 0.61, fundamental_quality: null } });
+    Object.assign(d, { theme_key: decodeURIComponent(path.split('/').pop()), theme_name: '반도체', as_of_date: date, state: 'expanding', previous_state: 'unknown', confidence: 0.72, cycle_score: 0.74, features: { event_intensity: 0, price_momentum: 0.61, market_breadth: null } });
     d.cycle_history = [{ as_of_date: day(date, -10), state: 'forming', confidence: 0.6 }, { as_of_date: day(date, -5), state: 'unknown', confidence: null }, { as_of_date: date, state: 'expanding', confidence: 0.72 }];
     d.linked_instruments = [{ symbol: 'AAPL', instrument_id: 'instrument-aapl', membership_strength: 0.86, active_thesis_id: 'thesis-1', latest_recommendation_id: null }, { symbol: 'MSFT', instrument_id: 'instrument-msft', membership_strength: null, active_thesis_id: null, latest_recommendation_id: null }];
     d.supporting_events = [event('event-1', 'AAPL'), event('event-4', 'NVDA', { quality_gate: 'validator_blocked' })];
