@@ -11,15 +11,15 @@ test("investor journey renders with evidence links on desktop and mobile", async
   const response = await page.goto("/");
   expect(response?.status()).toBe(200);
   const home = page.getByTestId("research-home");
-  await expect(home.getByRole("heading", { name: "리서치 브리핑" })).toBeVisible();
-  await expect(home.getByRole("link", { name: "투자 판단서 읽기" }).first()).toHaveAttribute("href", "/recommendations/recommendation-1");
-  await expect(home.getByRole("link", { name: "테마 근거 보기" }).first()).toHaveAttribute("href", "/themes/semiconductor");
+  await expect(home.getByRole("heading", { name: "오늘 살펴볼 것" })).toBeVisible();
+  await expect(home.locator('a[href="/recommendations/recommendation-1"]').first()).toHaveAttribute("href", "/recommendations/recommendation-1");
+  await expect(home.locator('a[href="/themes/semiconductor"]').first()).toHaveAttribute("href", "/themes/semiconductor");
   await expect(home.getByText("반도체 설비 투자 확대", { exact: true })).toBeVisible();
   await expect(home.getByText("2위 · 원천 제한", { exact: true })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
   const accessibility = await new AxeBuilder({ page }).include('[data-testid="research-home"]').analyze();
   expect(accessibility.violations).toEqual([]);
-  await expect(home.getByRole("link", { name: /지난 판단의 수익률·벤치마크 대비 성과 확인/ })).toHaveAttribute("href", "/performance");
+  await expect(home.getByRole("link", { name: "판단 성과 →" })).toHaveAttribute("href", "/performance");
   await expect(home.locator("details")).not.toHaveAttribute("open", "");
   expect(errors).toEqual([]);
   await page.screenshot({ path: info.outputPath(`research-home-${info.project.name}.png`), fullPage: true });
@@ -69,4 +69,14 @@ test("empty successful feeds render different copy from failures", async ({ page
   await page.goto("/");
   await expect(page.getByTestId("research-home")).toContainText("조회된 투자 후보 목록이 비어 있습니다");
   await expect(page.getByTestId("research-home")).not.toContainText("이 영역만 불러오지 못했습니다");
+});
+
+test("selected review survives reload and browser history without changing the underlying ranking", async ({ page }) => {
+  await page.goto('/'); const queue = page.getByTestId('home-review-queue');
+  const choices = queue.getByRole('button'); await expect(choices.first()).toBeVisible(); expect(await choices.count()).toBeGreaterThan(1);
+  const labels = await choices.allTextContents(); await choices.nth(1).click();
+  await expect(page).toHaveURL(/review=/); await page.reload();
+  await expect(choices.nth(1)).toHaveAttribute('aria-pressed', 'true');
+  expect(await choices.allTextContents()).toEqual(labels);
+  await page.goBack(); await expect(choices.first()).toHaveAttribute('aria-pressed', 'true');
 });

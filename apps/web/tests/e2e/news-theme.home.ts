@@ -124,3 +124,24 @@ test('stored markup stays literal rather than becoming executable content', asyn
   await expect(page.getByTestId('news-inbox')).toContainText('<script>window.newsInjection=true</script>');
   expect(await page.evaluate(() => (window as unknown as { newsInjection?: boolean }).newsInjection)).toBeUndefined();
 });
+
+test('research news keeps search and selection through reload, source drawer and mobile return', async ({ page }, info) => {
+  await page.goto('/intelligence'); const view = page.getByTestId('news-workspace');
+  await view.getByRole('searchbox', { name: '뉴스 검색' }).fill('AAPL');
+  const row = view.getByRole('button', { name: /AAPL 설비 투자/ }); await row.click();
+  await expect(page.getByRole('article', { name: '선택한 뉴스 해석' })).toContainText('공급 계획과 실제 수요');
+  await page.reload(); await expect(view.getByRole('searchbox')).toHaveValue('AAPL');
+  await expect(page.getByRole('article', { name: '선택한 뉴스 해석' })).toBeVisible();
+  await page.getByRole('button', { name: '원천 발췌 읽기 ↗', exact: true }).click();
+  const drawer = page.getByRole('dialog'); await expect(drawer).toContainText('API가 제공한 발췌·요약');
+  await page.keyboard.press('Escape'); await expect(drawer).not.toBeVisible();
+  if (info.project.name === 'mobile') { await page.getByRole('button', { name: '← 뉴스 목록으로' }).click(); await expect(row).toBeFocused(); }
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+});
+
+test('research news preserves rejected evidence even when an older quality field says passed', async ({ page }) => {
+  await page.goto('/intelligence?q=NVDA');
+  await page.getByRole('button', { name: /근거가 부족하여 입력에서 제외된 뉴스/ }).click();
+  await expect(page.getByRole('article', { name: '선택한 뉴스 해석' })).toContainText('추천 입력 차단·보류');
+});

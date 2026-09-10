@@ -1,10 +1,10 @@
 import type { Route } from "next";
 import Link from "next/link";
 
-import { DecisionList, type DecisionListItem } from "@/components/research/DecisionList";
+import { type DecisionListItem } from "@/components/research/DecisionList";
 import { WorkspaceIcon } from "@/components/shell/WorkspaceIcon";
-import { StatusBadge } from "@/components/status/StatusBadge";
-import { MetricStrip, type MetricItem } from "@/components/research/MetricStrip";
+import { ReviewQueue } from "@/components/research/ReviewQueue";
+import { type MetricItem } from "@/components/research/MetricStrip";
 
 import { koCode, koReason } from "@/lib/korean-labels";
 import { investorCopy } from "@/lib/presentation";
@@ -102,62 +102,27 @@ export default async function HomePage() {
     title: investorCopy(koCode(text(row.action))),
     description: `${koReason(text(row.reason, "보유 논리와 검토 근거를 확인하세요."))}${row.review_date ? ` · 최근 검토 ${row.review_date}` : ""}${count(row.occurrence_count) ? ` · 미종결 이력 ${row.occurrence_count}건` : ""}`,
     status: row.risk_level === "high" ? "blocked" : "watch",
-    href: "/portfolio/coverage",
+    href: `/portfolio/coverage?q=${encodeURIComponent(text(row.symbol))}` as Route,
     actionLabel: "보유 논리 점검",
   }));
 
-  return (
-    <div className={styles.page} data-testid="research-home">
-      <header className={styles.heading}>
-        <div><p className={styles.eyebrow}>RESEARCH OVERVIEW</p><h1>리서치 브리핑</h1><p>시장 변화에서 기업의 근거까지, 오늘 살펴볼 흐름을 연결합니다.</p></div>
-        <div className={styles.headingActions}><span className={styles.date}>{snapshot.requestedDate} <small>UTC</small></span><Link href="/recommendations">투자 후보 보기 <WorkspaceIcon name="arrow" /></Link></div>
-      </header>
-      <MetricStrip items={metrics} label="리서치 현황" />
-      {loadedCount < HOME_FEEDS.length && <p className={styles.connectionNotice} role="status"><WorkspaceIcon name="health" />{homeHealth(snapshot)} · 연결된 영역은 계속 표시합니다.</p>}
-      <div className={styles.workbench}>
-        <div className={styles.primaryColumn}>
-          <section className={styles.panel} aria-labelledby="home-cycle-title">
-            <header className={styles.panelHeader}><div><span>01 / MARKET CYCLES</span><h2 id="home-cycle-title">지금 살펴볼 테마</h2></div><Link href="/cycle-map">사이클 지도 <WorkspaceIcon name="arrow" /></Link></header>
-            <SourceNote feed={cycles} />
-            {cycles.data && (cycleItems.length ? <div className={styles.cycleGrid}>{cycleItems.slice(0,3).map((item, index) => <article key={item.key} className={styles.cycleCard}>
-              <div className={styles.cycleTop}><span className={styles.cycleIcon}><WorkspaceIcon name="cycle" /></span><span>{item.label}</span></div>
-              <h3>{text(selectedCycles[index]?.theme_name, item.subject)}</h3>
-              <p className={styles.cycleState}>{item.title}</p>
-              <p>연결 종목 {countLabel(selectedCycles[index]?.instrument_count)}</p>
-              <Link href={item.href}>테마 근거 보기 <WorkspaceIcon name="arrow" /></Link>
-            </article>)}</div> : <p className={styles.empty}>조회된 사이클 목록이 비어 있습니다.</p>)}
-            <p className={styles.panelFootnote}>상태 전환은 관측 결과이며 매수 신호가 아닙니다.</p>
-          </section>
-          <section className={styles.panel} aria-labelledby="home-candidates-title">
-            <header className={styles.panelHeader}><div><span>02 / INVESTMENT RESEARCH</span><h2 id="home-candidates-title">검토할 투자 후보</h2></div><Link href="/recommendations">전체 후보 <WorkspaceIcon name="arrow" /></Link></header>
-            <SourceNote feed={recommendations} />
-            {recommendations.data && <DecisionList items={recommendationItems} emptyText="조회된 투자 후보 목록이 비어 있습니다." />}
-            <p className={styles.panelFootnote}>원래 추천 순위를 유지합니다. 점수보다 논리·원천·무효화 조건을 확인하세요.</p>
-          </section>
-        </div>
-        <aside className={styles.secondaryColumn} aria-label="함께 확인할 리서치">
-          <section className={styles.panel} aria-labelledby="home-review-title">
-            <header className={styles.panelHeader}><div><span>PORTFOLIO REVIEW</span><h2 id="home-review-title">보유 논리 재검토</h2></div><WorkspaceIcon name="portfolio" /></header>
-            <SourceNote feed={portfolio} />
-            {portfolio.data && (riskItems.length ? riskItems.map((item) => <article className={styles.sideItem} key={item.key}>
-              <div className={styles.sideIdentity}><strong>{item.subject}</strong><StatusBadge kind={item.status} label="검토 필요" /></div><h3>{item.title}</h3><p>{item.description}</p><Link href={item.href}>{item.actionLabel} <WorkspaceIcon name="arrow" /></Link>
-            </article>) : <p className={styles.empty}>조회된 우선 검토 항목이 없습니다. 전체 위험 평가는 포트폴리오 상세에서 확인하세요.</p>)}
-          </section>
-          <section className={styles.panel} aria-labelledby="home-news-title">
-            <header className={styles.panelHeader}><div><span>CONNECTED EVIDENCE</span><h2 id="home-news-title">연결된 뉴스</h2></div><WorkspaceIcon name="news" /></header>
-            <SourceNote feed={news} />
-            {news.data && (evidenceItems.length ? evidenceItems.map((item) => <article className={styles.sideItem} key={item.key}>
-              <span className={styles.newsTag}>{item.label}</span><h3>{item.title}</h3><p>{item.description}</p><div className={styles.newsBottom}><span>{item.subject}</span><Link href={item.href}>{item.actionLabel} <WorkspaceIcon name="arrow" /></Link></div>
-            </article>) : <p className={styles.empty}>조회된 뉴스 근거 목록이 비어 있습니다.</p>)}
-          </section>
-          <Link href="/performance" className={styles.performanceCard}><WorkspaceIcon name="performance" /><span><strong>지난 판단은 어땠을까요?</strong><small>지난 판단의 수익률·벤치마크 대비 성과 확인</small></span><WorkspaceIcon name="arrow" /></Link>
-        </aside>
-      </div>
-      <nav className={styles.journey} aria-label="투자 판단 경로">
-        {[["/market-map","시장 읽기"],["/cycle-map","테마 탐색"],["/stocks","기업 분석"],["/recommendations","판단서 읽기"],["/portfolio/coverage","보유 재검토"]].map(([href,label],index) => <Link href={href as Route} key={href}><span>0{index+1}</span>{label}<WorkspaceIcon name="arrow" /></Link>)}
-      </nav>
-      <details className={styles.sourcePanel}><summary>영역별 데이터 상태 · {loadedCount}/{HOME_FEEDS.length} 연결</summary><p>분석 기준일과 원천 관측일은 다를 수 있습니다. 개별 원천은 상세 근거에서 확인하세요.</p><div className={styles.sourceGrid}>{HOME_FEEDS.map((key) => <div key={key}><strong>{FEED_LABELS[key]}</strong><span>{feedCaption(snapshot.feeds[key])}</span></div>)}</div></details>
-      <section className={styles.systemNotice} aria-label="시스템 신뢰 상태"><p><strong>{homeHealth(snapshot)}</strong><span> · 실거래 주문과 자동 비중 변경은 실행하지 않습니다.</span></p><Link href="/data-health">데이터 상태 확인 <WorkspaceIcon name="arrow" /></Link></section>
+  const reviewItems = [...riskItems, ...cycleItems.filter(item => item.label === "사이클 상태 전환")].slice(0, 8);
+  return <div className={styles.page} data-testid="research-home">
+    <header className={styles.heading}><div><p className={styles.eyebrow}>DAILY RESEARCH</p><h1>오늘 살펴볼 것</h1><p>보유 논리의 공백과 관측된 변화를 먼저 확인합니다.</p></div><div className={styles.headingActions}><span className={styles.date}>{snapshot.requestedDate} <small>UTC 조회</small></span><Link href="/research-notes">내 검토함 <WorkspaceIcon name="arrow" /></Link></div></header>
+    <dl className={styles.statusStrip} aria-label="리서치 현황">{metrics.map(item => <div key={item.label}><dt>{item.label}</dt><dd>{item.value}</dd></div>)}</dl>
+    {loadedCount < HOME_FEEDS.length && <p className={styles.connectionNotice} role="status">{homeHealth(snapshot)} · 연결된 영역은 계속 표시합니다.</p>}
+    <section className={styles.priority} aria-labelledby="home-review-title"><header className={styles.sectionHeader}><div><h2 id="home-review-title">우선 확인할 기록 <span>{reviewItems.length}</span></h2><p>보유 검토 순서, 그다음 사이클 전환 · 새로운 투자 순위를 만들지 않습니다.</p></div><Link href="/portfolio/coverage">전체 보유 검토 →</Link></header><ReviewQueue items={reviewItems} /><div className={styles.feedDates}><SourceNote feed={portfolio} /><SourceNote feed={cycles} /></div></section>
+    <div className={styles.lowerGrid}>
+      <section className={styles.plainPanel} aria-labelledby="home-candidates-title"><header className={styles.sectionHeader}><h2 id="home-candidates-title">검토할 투자 후보</h2><Link href="/recommendations">전체 후보 →</Link></header><SourceNote feed={recommendations} />
+        {recommendations.data && (recommendationItems.length ? <div>{recommendationItems.map(item => <Link href={item.href} key={item.key} className={styles.compactRow} prefetch={false}><span><strong>{item.subject}</strong><small>{item.label}</small></span><span><strong>{item.title}</strong><small>{item.description}</small></span><span aria-hidden="true">→</span></Link>)}</div> : <p className={styles.empty}>조회된 투자 후보 목록이 비어 있습니다.</p>)}<p className={styles.panelFootnote}>원래 추천 순위 유지 · 주문 신호 아님</p>
+      </section>
+      <section className={styles.plainPanel} aria-labelledby="home-cycle-title"><header className={styles.sectionHeader}><h2 id="home-cycle-title">지금 살펴볼 테마</h2><Link href="/cycle-map">사이클 지도 →</Link></header><SourceNote feed={cycles} />
+        {cycles.data && (cycleItems.length ? cycleItems.map(item => <Link href={item.href} key={item.key} className={styles.themeRow}><span>{item.subject}<small>{item.label}</small></span><strong>{item.title} →</strong></Link>) : <p className={styles.empty}>조회된 사이클 목록이 비어 있습니다.</p>)}<p className={styles.panelFootnote}>상태 전환은 관측 결과이며 매수 신호가 아닙니다.</p>
+      </section>
     </div>
-  );
+    <section className={styles.plainPanel} aria-labelledby="home-news-title"><header className={styles.sectionHeader}><h2 id="home-news-title">연결된 뉴스</h2><Link href="/intelligence">뉴스 리서치 →</Link></header><SourceNote feed={news} />{news.data && (evidenceItems.length ? evidenceItems.map(item => <Link key={item.key} href={item.href} className={styles.compactRow} prefetch={false}><span><strong>{item.subject}</strong><small>{item.label}</small></span><span><strong>{item.title}</strong><small>{item.description}</small></span><span aria-hidden="true">→</span></Link>) : <p className={styles.empty}>조회된 뉴스 근거 목록이 비어 있습니다.</p>)}</section>
+    <nav className={styles.journey} aria-label="투자 판단 경로"><Link href="/market-map">시장 읽기 →</Link><Link href="/stocks">기업 분석 →</Link><Link href="/portfolio/coverage">보유 재검토 →</Link><Link href="/performance">판단 성과 →</Link></nav>
+    <details className={styles.sourcePanel}><summary>영역별 데이터 상태 · {loadedCount}/{HOME_FEEDS.length} 연결</summary><p>분석 기준일과 원천 관측일은 다를 수 있습니다. 개별 원천은 상세 근거에서 확인하세요.</p><div className={styles.sourceGrid}>{HOME_FEEDS.map(key => <div key={key}><strong>{FEED_LABELS[key]}</strong><span>{feedCaption(snapshot.feeds[key])}</span></div>)}</div><p>{metrics.map(item => `${item.label}: ${item.context}`).join(" · ")}</p></details>
+    <section className={styles.systemNotice} aria-label="시스템 신뢰 상태"><p>{homeHealth(snapshot)} · 실거래 주문과 자동 비중 변경은 실행하지 않습니다.</p><Link href="/data-health">데이터 상태 확인 →</Link></section>
+  </div>;
 }

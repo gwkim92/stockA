@@ -4,7 +4,7 @@ test.beforeEach(async ({request}) => { await request.post("http://127.0.0.1:1876
 
 test("global research shell is accessible and captures actual viewport", async ({page},info) => {
   await page.goto("/");
-  await expect(page.getByRole("heading",{name:"리서치 브리핑",exact:true})).toBeVisible();
+  await expect(page.getByRole("heading",{name:"오늘 살펴볼 것",exact:true})).toBeVisible();
   if(info.project.name === "mobile") {
     await expect(page.getByRole("navigation",{name:"모바일 주요 메뉴"})).toBeVisible();
     await expect(page.getByRole("complementary",{name:"리서치 사이드바"})).not.toBeVisible();
