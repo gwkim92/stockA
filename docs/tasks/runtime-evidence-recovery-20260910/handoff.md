@@ -4,7 +4,7 @@
 
 사용자의 프로젝트 분석 후속 실행 요청으로 진행했다. 기존 `runtime-deploy-20260908/handoff.md`의 로컬 수정은 보존했다. 작업 브랜치는 `fiture/runtime-evidence-recovery-20260910`이다.
 
-코드 수정·회귀 검증·develop 푸시·EC2 배포·배포 후 읽기 검증을 완료했다. 실제 AI 성공과 전체 일일 판단 실행은 사용자 인증 및 API 할당량 문제 때문에 미완료다.
+코드 수정·회귀 검증·develop 푸시·EC2 배포·배포 후 읽기 검증을 완료했다. 사용자 재인증 후 실제 Codex 뉴스 번역·구조화·사이클 요약 각 1건도 성공했다. 자동 뉴스 작업은 API 제공자 설정이 남아 있어 아직 복구 완료가 아니며 전체 일일 판단 profile도 재실행하지 않았다.
 
 ## 현재 상태와 원인
 
@@ -57,7 +57,17 @@
 
 ## 다음 실행 순서
 
-1. 사용자가 공식 device-auth 로그인을 마치면 서버 login 상태를 확인하고 기존 direct smoke를 한 번 수행한다. 만료 코드를 재사용하거나 토큰을 다른 기기에서 복사하지 않는다.
-2. 인증 성공 후 기존 Codex 경로의 제한된 사이클/뉴스 실행을 검증한다. 뉴스 scheduler의 실제 provider는 `agents_sdk_openai`이므로 Codex 로그인만으로 API quota 문제가 해결됐다고 판단하지 않는다. 과금/키/provider 설정 변경은 별도 범위를 확인한다.
+1. 사용자 재인증과 direct smoke, 제한된 사이클/뉴스 실제 실행은 완료했다. 아래 증거를 재사용하고 같은 one-shot 실행을 반복하지 않는다.
+2. 뉴스 scheduler의 실제 provider는 `agents_sdk_openai`이므로 Codex 로그인만으로 API quota 문제가 해결됐다고 판단하지 않는다. `/opt/stockanalysis/runtime/data-operations.env:16`의 `STOCKANALYSIS_LLM_PROVIDER`를 `codex_oauth`로 바꾸는 단일 변경을 제시하고 승인을 요청했다. 당시 설정 변경은 미실행이다. 이 값은 자동 뉴스 번역(20건)과 구조화(10건)에 적용되며 기존 주기·건수는 유지한다.
 3. 허용된 AI provider가 준비된 뒤 일일 profile을 기존 제한으로 실행하고, 마지막 성공 단계·pipeline 결과·저장된 AI 결과를 확인한다.
 4. 평가 연결은 readiness 28이 참조한 quality 26/outcome 27의 cohort 누락을 해결할 별도 작업으로 다룬다. 유효한 연결 근거가 생기기 전 prospective observation과 가중치 pilot을 시작하지 않는다.
+
+## 사용자 재인증 후 실제 실행
+
+- 사용자 `인증 완료했다` 이후 서버 login probe는 `logged_in`, direct smoke는 06:41 UTC `succeeded`, 최종 OAuth 상태는 `healthy`였다.
+- 뉴스 번역: pipeline `23557`, invocation `40768`, document `41339`, `updated_document_count=1`, 실패 0. DB에서 한국어 제목·요약 존재와 `translation_provider=codex_oauth`를 확인했다.
+- 뉴스 구조화: pipeline `23558`, invocation `40769`, artifact `3665`, event `26979`, `inserted_artifact_count=1`, 실패 0. DB의 validator accepted는 true, 검증된 종목 영향 1개다.
+- 사이클 요약: 이전 입력 초과 대상 `AI_LABOR_PRODUCTIVITY`, 기준일 2026-09-09, pipeline `23559`, invocation `40770`, 요약 1개, 실패 0. DB에서 `llm_used=true`, `source_provider=codex_oauth`, 템플릿 `2026-09-10-cycle-evidence-v4`, 한국어 요약 존재를 확인했다. fixture fallback이 아니다.
+- 3개 pipeline 및 invocation 모두 `succeeded`, error 없음. 키·할당량·배포 설정·가중치·주문 권한은 변경하지 않았다.
+- 06:45 UTC live AI health는 `critical_ai_failed`에서 `degraded`로 변경됐다. 최근 48시간 성공 3개, 과거 실패 720개가 남는다. 뉴스 두 작업과 사이클 최신 상태는 succeeded이고 기업 리서치는 최근 실행 없음이다. 과거 실패를 지우거나 전체 상태를 강제로 정상으로 바꾸지 않았다.
+- 로컬 증거: `codex-authenticated-direct-smoke.json`, `authenticated-live-smoke.jsonl`, `authenticated-db-readback.json`. 전체 실행 보고서는 서버 내부 `/opt/stockanalysis/runtime/recovery-20260910-25d1ace3/authenticated-smoke/`에만 보관했다.
