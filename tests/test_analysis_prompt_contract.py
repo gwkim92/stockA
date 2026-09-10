@@ -235,7 +235,7 @@ class CycleGroundingTests(unittest.TestCase):
         self.assertEqual(prompt.count("</source_data>"), 1)
         self.assertIn("exact title", prompt)
         self.assertEqual(context, original)
-        self.assertEqual(DEFAULT_TEMPLATE_VERSION, "2026-09-06-cycle-evidence-v3")
+        self.assertEqual(DEFAULT_TEMPLATE_VERSION, "2026-09-10-cycle-evidence-v4")
 
     def test_cycle_extreme_nested_text_is_not_sent_over_its_limit(self):
         context = _context_payload()

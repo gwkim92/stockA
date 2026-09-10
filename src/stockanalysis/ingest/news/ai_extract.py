@@ -8,7 +8,7 @@ import shlex
 import subprocess
 import tempfile
 import time
-from dataclasses import dataclass, replace
+from dataclasses import asdict, dataclass, replace
 from datetime import date
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
@@ -27,6 +27,7 @@ from stockanalysis.ai_agents.runtime_policy import (
 )
 from stockanalysis.ai_agents.prompt_contract import PromptContractError, analysis_instructions, render_source_data, strict_json_object
 from stockanalysis.ai_agents.source_validation import probability, same_document, validate_literal_spans
+from stockanalysis.ai_agents.source_budget import select_source_records
 from stockanalysis.ingest.config import RuntimeConfig
 from stockanalysis.ingest.macro.sql import sql_literal
 from stockanalysis.ingest.news.enrichment import (
@@ -57,7 +58,7 @@ from stockanalysis.ingest.sec.sql import (
 
 DEFAULT_TASK_NAME = "news-rss-ai-extract"
 DEFAULT_PIPELINE_NAME = "event_intelligence_llm_extract"
-DEFAULT_TEMPLATE_VERSION = "2026-09-06-news-source-contract-v4"
+DEFAULT_TEMPLATE_VERSION = "2026-09-10-news-source-contract-v5"
 DEFAULT_AGENT_KEY = "news_structuring_agent"
 FIXTURE_PROVIDER = "fixture"
 CODEX_OAUTH_PROVIDER = RUNTIME_CODEX_OAUTH_PROVIDER
@@ -515,6 +516,7 @@ def run_news_rss_ai_extract(
                 request_hash = build_news_ai_request_hash(
                     candidate=candidate,
                     chunk=chunk,
+                    retrieval_context=retrieval_context,
                     provider=provider,
                     model_name=model_name,
                     prompt_template_id=prompt_template_id,
@@ -1062,42 +1064,19 @@ def invoke_agents_sdk_openai_news_ai_provider(
     reasoning_effort: str | None,
 ) -> NewsAiProviderResponse:
     same_document(candidate.document_id, chunk.document_id)
+    input_limit = min(
+        max(len(chunk.text) + 5000, 6000),
+        build_agent_runtime_policy(DEFAULT_AGENT_KEY).max_input_chars,
+    )
     response = run_agents_sdk_structured_request(
         AgentsSdkStructuredRequest(
             agent_key=DEFAULT_AGENT_KEY,
             task_name=DEFAULT_TASK_NAME,
-            input_payload={
-                "rss_news_item": {
-                    "event_id": candidate.event_id,
-                    "document_id": candidate.document_id,
-                    "title": candidate.title,
-                    "summary": candidate.summary,
-                    "event_at": candidate.event_at,
-                    "source_name": candidate.source_name,
-                    "source_url": candidate.source_url,
-                    "existing_theme_code": candidate.existing_theme_code,
-                    "existing_instrument_symbol": candidate.existing_instrument_symbol,
-                },
-                "document_chunk": {
-                    "chunk_index": chunk.chunk_index,
-                    "content_hash": chunk.content_hash,
-                    "text_preview": chunk.text_preview,
-                    "token_count": chunk.token_count,
-                    "chunk_metadata": chunk.chunk_metadata,
-                    "text": chunk.text,
-                },
-                "retrieval_context": summarize_retrieval_context(retrieval_context),
-                "validator_contract": {
-                    "allowed_impact_directions": list(ALLOWED_IMPACT_DIRECTIONS),
-                    "min_confidence": DEFAULT_MIN_CONFIDENCE,
-                    "direct_instrument_rule": "Only attach a ticker when it is explicitly grounded in the RSS text.",
-                    "macro_news_rule": "Macro-only news should use macro/domain/theme impacts and no forced ticker.",
-                },
-            },
+            input_payload=_bounded_news_ai_source(candidate, chunk, retrieval_context, max_chars=input_limit),
             output_schema=NEWS_AI_OUTPUT_SCHEMA,
             model_name=model_name,
             reasoning_effort=reasoning_effort,
-            max_input_chars=max(len(chunk.text) + 5000, 6000),
+            max_input_chars=input_limit,
         )
     )
     payload: dict[str, object] = dict(response.output)
@@ -1228,23 +1207,58 @@ def _bool_env(name: str, *, default: bool) -> bool:
     return value.strip().lower() in {"1", "true", "yes", "y", "on"}
 
 
-def build_codex_oauth_news_ai_prompt(
+def _bounded_news_ai_source(
     candidate: NewsRssAiExtractionCandidate,
     chunk: NewsAiDocumentChunk,
     retrieval_context: dict[str, object],
-) -> str:
+    *,
+    max_chars: int,
+) -> dict[str, object]:
     same_document(candidate.document_id, chunk.document_id)
+    # The persisted chunk is a generated concatenation of these same RSS fields
+    # and retrieval rows, not an additional source. Send each source once and
+    # retain the chunk identity for traceability; never trim the original quote.
     source = {
-        "news_metadata": {
+        "rss_news_item": {
             "event_id": candidate.event_id, "document_id": candidate.document_id,
             "title": candidate.title, "summary": candidate.summary, "event_at": candidate.event_at,
             "source_name": candidate.source_name, "source_url": candidate.source_url,
             "existing_theme_code": candidate.existing_theme_code,
             "existing_instrument_symbol": candidate.existing_instrument_symbol,
         },
-        "retrieval_context_summary": summarize_retrieval_context(retrieval_context),
-        "bounded_analysis_context": chunk.text,
+        "document_chunk": {
+            "document_id": chunk.document_id, "chunk_index": chunk.chunk_index,
+            "content_hash": chunk.content_hash,
+            "source_text_kind": "news_ai_candidate_context",
+        },
+        "retrieval_context": summarize_retrieval_context(retrieval_context),
+        "validator_contract": {
+            "allowed_impact_directions": list(ALLOWED_IMPACT_DIRECTIONS),
+            "min_confidence": DEFAULT_MIN_CONFIDENCE,
+            "direct_instrument_rule": "Only attach a ticker when it is explicitly grounded in the RSS text.",
+            "macro_news_rule": "Macro-only news should use macro/domain/theme impacts and no forced ticker.",
+            "coverage_rule": "Disclose input_selection omissions in uncertainty_notes; omitted context was not reviewed.",
+        },
     }
+    return select_source_records(
+        source,
+        record_paths=tuple(("retrieval_context", key) for key in (
+            "known_themes", "current_event_impacts", "theme_edges", "recent_similar_events",
+        )),
+        max_chars=max_chars,
+    )
+
+
+def build_codex_oauth_news_ai_prompt(
+    candidate: NewsRssAiExtractionCandidate,
+    chunk: NewsAiDocumentChunk,
+    retrieval_context: dict[str, object],
+) -> str:
+    same_document(candidate.document_id, chunk.document_id)
+    source = _bounded_news_ai_source(
+        candidate, chunk, retrieval_context,
+        max_chars=build_agent_runtime_policy(DEFAULT_AGENT_KEY).max_input_chars,
+    )
     return "\n".join((
         analysis_instructions(DEFAULT_AGENT_KEY, "You are an investment news evidence extraction engine."),
         "Use only the RSS news item and retrieval context below.",
@@ -1436,6 +1450,7 @@ def build_news_ai_request_hash(
     model_name: str,
     prompt_template_id: int,
     agent_prompt_version: str | None = None,
+    retrieval_context: dict[str, object] | None = None,
 ) -> str:
     payload = {
         "event_id": candidate.event_id,
@@ -1447,6 +1462,8 @@ def build_news_ai_request_hash(
         "prompt_template_id": prompt_template_id,
         "agent_prompt_version": agent_prompt_version,
         "schema": DEFAULT_TEMPLATE_VERSION,
+        "source_metadata": asdict(candidate),
+        "retrieval_context": summarize_retrieval_context(retrieval_context or {}),
     }
     return hashlib.sha256(json.dumps(payload, sort_keys=True).encode("utf-8")).hexdigest()
 

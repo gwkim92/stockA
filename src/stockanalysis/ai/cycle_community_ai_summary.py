@@ -19,7 +19,8 @@ from stockanalysis.ai.cycle_graph_context import (
     load_cycle_graph_context,
     load_cycle_graph_context_node_codes,
 )
-from stockanalysis.ai_agents.prompt_contract import PromptContractError, analysis_instructions, render_source_data
+from stockanalysis.ai_agents.prompt_contract import analysis_instructions, render_source_data
+from stockanalysis.ai_agents.source_budget import select_source_records
 from stockanalysis.ingest.config import RuntimeConfig
 from stockanalysis.ingest.macro.sql import sql_date, sql_literal
 from stockanalysis.ingest.psql import PsqlCommandExecutor
@@ -32,7 +33,7 @@ from stockanalysis.signal.universe import (
 
 DEFAULT_PIPELINE_NAME = "cycle_community_ai_summary"
 DEFAULT_TASK_NAME = "cycle-community-ai-summary-v2"
-DEFAULT_TEMPLATE_VERSION = "2026-09-06-cycle-evidence-v3"
+DEFAULT_TEMPLATE_VERSION = "2026-09-10-cycle-evidence-v4"
 SUMMARY_TYPE = "cycle_community_ai_v2"
 FIXTURE_PROVIDER = "fixture"
 CODEX_OAUTH_PROVIDER = "codex_oauth"
@@ -98,6 +99,7 @@ def build_codex_oauth_cycle_community_ai_prompt(context: dict[str, object], *, m
             "Preserve original source titles verbatim even when they are not Korean; write the supporting reason in Korean.",
             "Previous summaries and recommendations are hypotheses, not independent source confirmation. Correlation and graph membership alone do not prove causation.",
             "If the context is weak, say so in uncertainty instead of inventing facts.",
+            "When input_selection reports omissions, disclose the limited coverage in uncertainty; do not treat omitted records as reviewed.",
             "Do not change recommendation scores. The output is explanatory context for later deterministic scoring.",
             "",
             "Output schema intent:",
@@ -737,18 +739,18 @@ def _bounded_context_for_prompt(context: dict[str, object], *, max_context_chars
     bounded = {key: context.get(key) for key in ("query", "target_node", "latest_snapshot", "previous_summary")}
     bounded.update({key: _limit_list(context.get(key), limit) for key, limit in limits.items()})
     bounded["context_scope"] = "bounded_selection_not_complete_history"
-    # No character slicing: retain complete records or fail before a model call.
-    # The renderer checks the exact escaped/framed size, including long nested text.
-    try:
-        render_source_data(bounded, max_chars=max_context_chars)
-        return bounded
-    except PromptContractError as exc:
-        if str(exc) != "input_budget_exceeded":
-            raise
-    for key, limit in {"direct_events": 5, "propagated_impacts": 5, "exposed_instruments": 8, "recommendations": 4, "theses": 4}.items():
-        bounded[key] = _limit_list(context.get(key), limit)
-    render_source_data(bounded, max_chars=max_context_chars)
-    return bounded
+    # The provider also uses this selection for output grounding; preserve its
+    # omission accounting if a previously bounded context is rendered again.
+    if "input_selection" in context:
+        bounded["input_selection"] = context["input_selection"]
+    return select_source_records(
+        bounded,
+        record_paths=tuple((key,) for key in (
+            "direct_events", "propagated_impacts", "exposed_instruments",
+            "parent_edges", "child_edges", "ai_artifacts", "recommendations", "theses",
+        )),
+        max_chars=max_context_chars,
+    )
 
 
 def _sanitize_output(output: CycleCommunityAiSummaryOutput, *, context: dict[str, object]) -> CycleCommunityAiSummaryOutput:
