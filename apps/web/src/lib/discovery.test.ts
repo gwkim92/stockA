@@ -34,7 +34,7 @@ describe("no synthetic investment conclusions", () => {
     expect(changedCycle({ state: "forming", previous_state: "forming" })).toBe(false);
   });
   it("keeps missing features different from measured zero", () => {
-    expect(cycleGap({ features: { event_intensity: 0, price_momentum: 0, fundamental_quality: 0 } })).toBe(false);
+    expect(cycleGap({ features: { event_intensity: 0, price_momentum: 0, market_breadth: 0 } })).toBe(false);
     expect(cycleGap({ features: { event_intensity: 0 } })).toBe(true);
     expect(ratioLabel(0)).toBe("0%"); expect(ratioLabel(null)).toBe("미측정");
   });

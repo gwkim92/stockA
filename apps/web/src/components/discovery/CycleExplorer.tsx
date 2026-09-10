@@ -6,7 +6,7 @@ import { StatusBadge } from "@/components/status/StatusBadge";
 import { changedCycle, count, cycleGap, FEATURE_KEYS, filterDiscovery, fraction, label, object, ratioLabel, validState, type DiscoveryData } from "@/lib/discovery-model";
 import { DiscoveryToolbar, EmptyDiscovery, useDiscoveryQuery } from "./DiscoveryControls";
 import styles from "./DiscoveryWorkspace.module.css";
-const names = { event_intensity: "뉴스 특징", price_momentum: "가격 특징", fundamental_quality: "기업 품질 특징" };
+const names = { event_intensity: "뉴스 특징", price_momentum: "가격 특징", market_breadth: "시장 참여도" };
 export function CycleExplorer({ data }: { data: DiscoveryData }) {
   const control = useDiscoveryQuery("cycles");
   const rows = filterDiscovery(data.rows, "cycles", control.query, control.scope, "", data.asOfDate);

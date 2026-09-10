@@ -114,7 +114,7 @@ export function parseTheme(payload: unknown, requested: string): ThemeData {
   return {
     key: requested, name: text(raw.theme_name, requested), asOf: dateOnly(raw.as_of_date), strategy: text(raw.strategy_name), horizon: text(raw.horizon_type),
     state: stateValue(raw.state), previous: stateValue(raw.previous_state), score: numeric(raw.cycle_score), confidence: fraction(raw.confidence),
-    features: [['event_intensity', '뉴스 특징'], ['price_momentum', '가격 특징'], ['fundamental_quality', '기업 품질 특징']].map(([key, name]) => ({ key, name, value: fraction(object(raw.features)[key]) })),
+    features: [['event_intensity', '뉴스 특징'], ['price_momentum', '가격 특징'], ['market_breadth', '시장 참여도']].map(([key, name]) => ({ key, name, value: fraction(object(raw.features)[key]) })),
     history: rows(raw.cycle_history)?.map(row => ({ date: dateOnly(row.as_of_date), state: stateValue(row.state), confidence: fraction(row.confidence) })) ?? null,
     companies: companies?.map(row => ({ id: row.instrument_id as string, symbol: symbolCode(row.symbol), strength: fraction(row.membership_strength), thesis: resourceId(row.active_thesis_id), recommendation: resourceId(row.latest_recommendation_id) })) ?? null,
     events: rows(raw.supporting_events)?.map(newsItem) ?? null, notes: strings(raw.operator_notes),

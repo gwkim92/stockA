@@ -78,7 +78,7 @@ export function changedCycle(row: Obj): boolean {
   const before = validState(row.previous_state), after = validState(row.state);
   return !!before && !!after && before !== after;
 }
-export const FEATURE_KEYS = ["event_intensity", "price_momentum", "fundamental_quality"] as const;
+export const FEATURE_KEYS = ["event_intensity", "price_momentum", "market_breadth"] as const;
 export function cycleGap(row: Obj): boolean {
   return FEATURE_KEYS.some(key => fraction(record(row.features)[key]) === null);
 }

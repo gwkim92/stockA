@@ -7,6 +7,7 @@ import { ReaderFacts, ReaderLink, StoredList } from '@/components/readers/Reader
 import { researchDisplayIssue } from '@/lib/research-display-contract';
 import { ResearchDataNotice } from '@/components/review/ResearchDataNotice';
 import { CompanyPriceChart } from './CompanyPriceChart';
+import { ResearchProvenance } from './ResearchProvenance';
 import { ResearchTabs } from '@/components/research/ResearchTabs';
 import { SourcePeek } from '@/components/research/SourcePeek';
 import styles from './CompanyWorkspace.module.css';
@@ -38,6 +39,7 @@ export function CompanyWorkspace({ data }: { data: CompanyData }) {
     <div className={styles.workbench}><div className={styles.main}><ResearchTabs tabs={chapters}>
       <Section id="company-case" title={data.fundKind ? '어떤 노출을 위한 상품인가' : '왜 이 기업을 검토하는가'}>
         {!data.fundKind && <ResearchDataNotice issue={researchDisplayIssue(research)} />}
+        {!data.fundKind && <ResearchProvenance research={research} />}
         <p className={styles.lead}>{data.fundKind ? text(fund?.summary, '펀드 분석 요약 미제공') : koLabel(text(research.korean_summary, '저장된 기업 리서치 요약이 없습니다. 추천 연결과 실제 분석 근거를 구분해서 확인하세요.'))}</p>
         {!data.fundKind && <><p className={styles.caption}>리서치 기준 {shortDate(research.as_of_date, '미기록')}</p><StoredList items={strings(research.key_points)?.map(koLabel) ?? null} missing="핵심 주장 목록 미제공" /><div className={styles.twoColumns}><div><h3>성립 조건·촉매</h3><StoredList items={strings(research.catalysts)?.map(koLabel) ?? null} missing="촉매 미제공" /></div><div><h3>반대 근거·위험</h3><StoredList items={strings(research.risks)?.map(koLabel) ?? null} missing="위험 미제공" /></div></div></>}
         <div className={styles.actions}><ReaderLink href={data.thesisHref}>투자 논리 열기</ReaderLink><ReaderLink href={route('recommendations', recommendation?.recommendation_id)}>추천 판단서 열기</ReaderLink><ReaderLink href={`/stocks/${encodeURIComponent(data.symbol)}/review`}>근거 대조 · 검토 노트 →</ReaderLink></div>
@@ -63,7 +65,7 @@ export function CompanyWorkspace({ data }: { data: CompanyData }) {
       <Section id="company-context" title="연결된 시장 문맥"><Suspense fallback={<p className={styles.empty}>추가 시장 문맥을 불러오는 중입니다.</p>}><RelatedContext data={data} /></Suspense></Section>
     </ResearchTabs></div><aside className={styles.side} aria-label="기업 검토 맥락">
       <section className={styles.panel}><h2>판단을 바꿀 조건</h2><StoredList items={data.fundKind ? strings(fund?.limitations) : strings(research.invalidation_conditions)?.map(koLabel) ?? null} missing="무효화 조건·제한 사항 미제공" /><ReaderLink href={data.thesisHref}>투자 논리와 조건 →</ReaderLink></section>
-      <section className={styles.panel}><h2>가격 원천</h2><ReaderFacts items={[["분석 원천", koCode(text(data.provider.provider))], ["원천 최신성 판정", data.provider.freshness_status === 'fresh' ? '최신으로 판정' : koCode(text(data.provider.freshness_status))], ["분석 사용 기록", typeof data.provider.used_for_scoring === 'boolean' ? data.provider.used_for_scoring ? '분석 입력에 사용' : '미사용 기록' : '미확인'], ["브로커 자료 판정", koCode(text(data.broker.status))]]} /><p className={styles.caption}>원천 자료의 존재를 계좌 상태나 실거래 가능 여부로 해석하지 않습니다.</p></section>
+      <section className={styles.panel}><h2>가격 원천</h2><ReaderFacts items={[["분석 원천", koCode(text(data.provider.provider))], ["수집 시차 판정", data.provider.freshness_status === 'fresh' ? (data.provider.freshness_policy === 'calendar_age_within_7_days' ? '7일 이내 수집 · 실시간 아님' : '원천의 최신성 판정') : koCode(text(data.provider.freshness_status))], ["관측일", data.priceDate ?? '미확인'], ["분석 사용 기록", typeof data.provider.used_for_scoring === 'boolean' ? data.provider.used_for_scoring ? '분석 입력에 사용' : '미사용 기록' : '미확인'], ["브로커 자료 판정", koCode(text(data.broker.status))]]} /><p className={styles.caption}>원천 자료의 존재를 계좌 상태나 실거래 가능 여부로 해석하지 않습니다.</p></section>
     </aside></div>
   </div>;
 }

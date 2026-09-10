@@ -11,12 +11,15 @@ def select_source_records(
     *,
     record_paths: tuple[tuple[str, ...], ...],
     max_chars: int,
+    max_record_chars: int | None = None,
 ) -> dict[str, object]:
     """Keep required fields intact, then fit records in deterministic round-robin order.
 
     Validate all input before selection. Oversized metadata still fails closed;
     only the caller's explicit record collections can be reduced. Every omitted
     record is counted in the framed source and therefore in its fingerprint.
+    When reducing oversized input, an optional whole-record cap prevents a single
+    nested artifact from consuming most of the shared budget.
     """
     try:
         render_source_data(payload, max_chars=max_chars)
@@ -48,6 +51,13 @@ def select_source_records(
         for key, selected, rows in collections:
             if index >= len(rows):
                 continue
+            if max_record_chars is not None:
+                try:
+                    render_source_data({"record": rows[index]}, max_chars=max_record_chars)
+                except PromptContractError as exc:
+                    if str(exc) != "input_budget_exceeded":
+                        raise
+                    continue
             selected.append(rows[index])
             selection["omitted"][key] -= 1
             try:

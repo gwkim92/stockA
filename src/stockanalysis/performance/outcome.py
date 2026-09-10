@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from datetime import date, timedelta
 from decimal import Decimal, ROUND_HALF_UP
 
+from stockanalysis.performance.outcome_window import outcome_window_match_sql
 from stockanalysis.ingest.config import RuntimeConfig
 from stockanalysis.ingest.macro.sql import sql_date, sql_literal, sql_numeric
 from stockanalysis.ingest.psql import PsqlCommandExecutor
@@ -101,6 +102,7 @@ def load_performance_outcome_candidates(
     universe_version: str,
     market_code: str = _DEFAULT_MARKET_CODE,
     executor: PsqlCommandExecutor | None = None,
+    preserve_existing: bool = False,
 ) -> tuple[PerformanceOutcomeCandidate, ...]:
     if measurement_end_date < as_of_date:
         raise ValueError("measurement_end_date must be greater than or equal to as_of_date.")
@@ -113,6 +115,7 @@ def load_performance_outcome_candidates(
             strategy_name=strategy_name,
             horizon_type=horizon_type,
             universe_version=universe_version,
+            preserve_existing=preserve_existing,
         )
     )
     payload = json.loads(payload_text)
@@ -146,7 +149,7 @@ def load_performance_outcome_candidates(
             )
         )
 
-    if not candidates:
+    if not candidates and not preserve_existing:
         raise ValueError("No performance outcome candidates matched the requested recommendation batch identity.")
     return tuple(candidates)
 
@@ -209,7 +212,13 @@ def render_performance_outcome_candidate_lookup_sql(
     strategy_name: str,
     horizon_type: str,
     universe_version: str,
+    preserve_existing: bool = False,
 ) -> str:
+    existing_match = outcome_window_match_sql(
+        recommendation_id="recommendation.recommendation_id", recommendation_date="batch.as_of_date",
+        horizon_days=str((measurement_end_date - as_of_date).days), end_date=sql_date(measurement_end_date),
+    )
+    missing_only = f"and not exists (select 1 from performance.recommendation_outcome outcome where {existing_match})" if preserve_existing else ""
     return f"""-- performance outcome candidate lookup
 with selected_batch as (
     select batch_id, as_of_date
@@ -241,6 +250,7 @@ recommendation_rows as (
     join ref.instrument instrument on instrument.instrument_id = recommendation.instrument_id
     left join signal.investment_thesis thesis on thesis.thesis_id = recommendation.thesis_id
     where recommendation.status = 'active'
+      {missing_only}
 ),
 candidate_rows as (
     select
@@ -357,6 +367,10 @@ def render_performance_outcome_schedule_candidate_lookup_sql(
         universe_version=universe_version,
     )
     limit_clause = "" if limit is None else f"\n    limit {limit}"
+    existing_match = outcome_window_match_sql(
+        recommendation_id="recommendation.recommendation_id", recommendation_date="batch_horizons.as_of_date",
+        horizon_days="batch_horizons.horizon_day", end_date="batch_horizons.measurement_end_date",
+    )
     return f"""-- performance outcome schedule candidate lookup
 with horizon_days(horizon_day) as (
     values
@@ -405,9 +419,12 @@ outcome_status as (
     join signal.recommendation recommendation
       on recommendation.batch_id = batch_horizons.batch_id
      and recommendation.status = 'active'
-    left join performance.recommendation_outcome outcome
-      on outcome.recommendation_id = recommendation.recommendation_id
-     and outcome.measurement_end_date = batch_horizons.measurement_end_date
+    left join lateral (
+        select outcome_id from performance.recommendation_outcome outcome
+        where {existing_match}
+        order by abs(outcome.horizon_days - batch_horizons.horizon_day), outcome.measurement_end_date desc
+        limit 1
+    ) outcome on true
     group by
         batch_horizons.batch_id,
         batch_horizons.as_of_date,
@@ -509,6 +526,7 @@ def render_performance_outcome_upsert_sql(
     thesis_rows: tuple[ThesisOutcomeRow, ...],
     *,
     source_run_id: int,
+    preserve_existing: bool = False,
 ) -> str:
     if not recommendation_rows:
         raise ValueError("At least one recommendation outcome row is required.")
@@ -583,6 +601,7 @@ upsert_recommendation_outcomes as (
         max_drawdown_pct = excluded.max_drawdown_pct,
         outcome_label = excluded.outcome_label,
         source_run_id = excluded.source_run_id
+    where not {str(preserve_existing).lower()}
     returning outcome_id
 ),
 {thesis_source_cte},
@@ -630,6 +649,7 @@ upsert_thesis_outcomes as (
         success_grade = excluded.success_grade,
         summary = excluded.summary,
         source_run_id = excluded.source_run_id
+    where not {str(preserve_existing).lower()}
     returning outcome_id
 )
 select json_build_object(
@@ -652,6 +672,7 @@ def run_performance_outcome_bootstrap(
     market_code: str = _DEFAULT_MARKET_CODE,
     outcome_version: str = _DEFAULT_OUTCOME_VERSION,
     executor: PsqlCommandExecutor | None = None,
+    preserve_existing: bool = False,
 ) -> dict[str, object]:
     sql_executor = executor or PsqlCommandExecutor.from_config(config)
     candidates = load_performance_outcome_candidates(
@@ -663,7 +684,10 @@ def run_performance_outcome_bootstrap(
         universe_version=universe_version,
         market_code=market_code,
         executor=sql_executor,
+        preserve_existing=preserve_existing,
     )
+    if preserve_existing and not candidates:
+        return {"run_id": None, "recommendation_outcome_count": 0, "thesis_outcome_count": 0, "label_counts": {}, "status": "already_recorded_or_missing_prices"}
     recommendation_rows, thesis_rows = build_performance_outcome_rows(candidates)
     batch_id = candidates[0].batch_id
     run_id = _create_pipeline_run(
@@ -685,7 +709,7 @@ def run_performance_outcome_bootstrap(
     try:
         result = json.loads(
             sql_executor.execute_scalar(
-                render_performance_outcome_upsert_sql(recommendation_rows, thesis_rows, source_run_id=run_id)
+                render_performance_outcome_upsert_sql(recommendation_rows, thesis_rows, source_run_id=run_id, preserve_existing=preserve_existing)
             )
         )
         _mark_pipeline_run_succeeded(sql_executor, run_id)
@@ -871,6 +895,7 @@ def run_performance_outcome_schedule_bootstrap(
                     market_code=candidate.market_code,
                     outcome_version=outcome_version,
                     executor=sql_executor,
+                    preserve_existing=True,
                 )
                 recommendation_outcome_count += int(result["recommendation_outcome_count"])
                 thesis_outcome_count += int(result["thesis_outcome_count"])

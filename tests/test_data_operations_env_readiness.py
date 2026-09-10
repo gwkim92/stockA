@@ -45,6 +45,7 @@ class DataOperationsEnvReadinessTests(unittest.TestCase):
             self.assertNotIn(env[TWELVE_DATA_API_KEY_ENV], report_text)
             self.assertNotIn(env[OPENAI_API_KEY_ENV], report_text)
             self.assertNotIn(env[SEC_USER_AGENT_ENV], report_text)
+            self.assertNotIn(env["STOCKANALYSIS_TOSSINVEST_CLIENT_SECRET"], report_text)
 
     def test_database_can_use_legacy_psql_command_boundary(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -211,6 +212,8 @@ class DataOperationsEnvReadinessTests(unittest.TestCase):
             encoding="utf-8",
         )
         return {
+            "STOCKANALYSIS_TOSSINVEST_CLIENT_ID": "unit-fixture-client-id",
+            "STOCKANALYSIS_TOSSINVEST_CLIENT_SECRET": "unit-fixture-client-secret",
             DATABASE_URL_ENV: "postgresql://runtime_user:runtime_pass@db.internal:5432/stockanalysis",
             FRED_API_KEY_ENV: "fred-runtime-token-123",
             MARKET_PRICE_PROVIDER_ENV: "alpha_vantage",

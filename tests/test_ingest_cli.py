@@ -275,6 +275,8 @@ class IngestCliTests(unittest.TestCase):
             env_file = tmp_path / "data-operations.env"
             env_file.write_text("# trusted temp env for CLI smoke\n", encoding="utf-8")
             fake_env = {
+                "STOCKANALYSIS_TOSSINVEST_CLIENT_ID": "unit-fixture-client-id",
+                "STOCKANALYSIS_TOSSINVEST_CLIENT_SECRET": "unit-fixture-client-secret",
                 "STOCKANALYSIS_DATABASE_URL": "postgresql://runtime_user:runtime_pass@db.internal:5432/stockanalysis",
                 "STOCKANALYSIS_FRED_API_KEY": "fred-runtime-token-123",
                 "STOCKANALYSIS_MARKET_PRICE_PROVIDER": "twelve_data",
@@ -311,6 +313,7 @@ class IngestCliTests(unittest.TestCase):
             self.assertNotIn(fake_env["STOCKANALYSIS_TWELVE_DATA_API_KEY"], output_text)
             self.assertNotIn(fake_env["STOCKANALYSIS_ALPHA_VANTAGE_API_KEY"], output_text)
             self.assertNotIn(fake_env["OPENAI_API_KEY"], output_text)
+            self.assertNotIn(fake_env["STOCKANALYSIS_TOSSINVEST_CLIENT_SECRET"], output_text)
 
     def test_build_request_allows_placeholder_credentials(self) -> None:
         stdout = io.StringIO()

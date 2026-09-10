@@ -20,6 +20,7 @@ from typing import Any
 from stockanalysis.ai_agents.prompt_contract import (
     PromptContractError, analysis_instructions, render_source_data, strict_json_object, validate_output,
 )
+from stockanalysis.ai_agents.source_budget import select_source_records
 from stockanalysis.ingest.config import RuntimeConfig
 from stockanalysis.ingest.macro.sql import sql_date, sql_literal
 from stockanalysis.ingest.psql import PsqlCommandExecutor
@@ -32,7 +33,7 @@ from stockanalysis.signal.universe import (
 
 DEFAULT_PIPELINE_NAME = "equity_research_reporting"
 DEFAULT_TASK_NAME = "ai-equity-research-reporting"
-DEFAULT_TEMPLATE_VERSION = "2026-09-06-equity-cutoff-v1"
+DEFAULT_TEMPLATE_VERSION = "2026-09-11-equity-evidence-selection-v1"
 ARTIFACT_TYPE = "full_equity_research"
 FIXTURE_PROVIDER = "fixture"
 CODEX_OAUTH_PROVIDER = "codex_oauth"
@@ -340,6 +341,8 @@ def build_codex_oauth_equity_research_prompt(context: dict[str, object], *, max_
             "Separate story from numbers: business/fundamental quality, peer position, valuation, thesis, catalysts, risks, and invalidation.",
             "If a field is missing or weak, explicitly say the evidence is missing instead of inventing facts.",
             "Separate source financial facts, valuation assumptions and previous model/recommendation hypotheses; repeated summaries are not independent corroboration.",
+            "For each material claim, name the supplied metric and period, or event/document id and date when available. A linked document is not proof that every claim is supported.",
+            "When input_selection reports omissions, disclose the affected evidence categories in risks. Omitted records were not reviewed.",
             "Do not invent a price, currency, return, confidence or numerical invalidation threshold. State missing support and observable next checks.",
             "Treat query.as_of_date as a UTC end-of-day creation/event cutoff, not a complete knowledge-at-the-time snapshot.",
             "Thesis created_at and closed_at are source timestamps. Its current stored body/status and later enrichments are not proven historical versions; never describe them as known at the cutoff.",
@@ -350,9 +353,9 @@ def build_codex_oauth_equity_research_prompt(context: dict[str, object], *, max_
             "- title: short Korean report title including the ticker.",
             "- korean_summary: one concise Korean paragraph.",
             "- key_points: 0-7 supported points about business/fundamental/peer/valuation/thesis context; never invent claims to meet a minimum.",
-            "- catalysts: observable catalysts grounded in recent_events, cycle_summaries, recommendation, or thesis.",
+            "- catalysts: observable business developments supported by supplied events or thesis. A report date, batch refresh, model score, or generic future news is not a business catalyst; return an empty list if none is supported.",
             "- risks: risks, data gaps, valuation pressure, balance-sheet concerns, or cycle conflicts.",
-            "- invalidation_conditions: conditions that would weaken or invalidate the thesis.",
+            "- invalidation_conditions: link each condition to a specific supported business hypothesis and the observable source to check next. Distinguish a proposed check from an event that has happened.",
             "- valuation_sensitivity: object with base_case, upside_case, downside_case, margin_of_safety_view, confidence.",
             "",
             "Postgres equity research context:",
@@ -916,32 +919,36 @@ def _bounded_context_for_prompt(context: dict[str, object], *, max_context_chars
         "recent_events": _limit_list(context.get("recent_events"), 8),
         "cycle_summaries": _limit_list(context.get("cycle_summaries"), 8),
     }
-    try:
-        render_source_data(bounded, max_chars=max_context_chars)
-        return bounded
-    except PromptContractError as exc:
-        if str(exc) != "input_budget_exceeded":
-            raise
-    bounded["financial_metrics"] = _limit_list(context.get("financial_metrics"), 8)
-    bounded["peer_relative"] = _limit_list(context.get("peer_relative"), 8)
-    bounded["recent_events"] = _limit_list(context.get("recent_events"), 4)
-    bounded["cycle_summaries"] = _limit_list(context.get("cycle_summaries"), 4)
-    # Retain complete source records or fail; do not slice text or discard the
-    # thesis/risk tail just to make an apparently complete prompt fit.
-    render_source_data(bounded, max_chars=max_context_chars)
-    return bounded
+    if "input_selection" in context:
+        bounded["input_selection"] = context["input_selection"]
+    return select_source_records(
+        bounded,
+        record_paths=tuple((key,) for key in (
+            "financial_metrics", "recent_events", "peer_relative", "valuations",
+            "fundamental_components", "cycle_summaries",
+        )),
+        max_chars=max_context_chars,
+        # A single nested valuation artifact must not crowd out the financial
+        # facts, source events and counterevidence in an already oversized input.
+        max_record_chars=max_context_chars // 4,
+    )
 
 
 def _sanitize_output(output: EquityResearchOutput, *, context: dict[str, object]) -> EquityResearchOutput:
     validate_output(_output_to_json(output), build_codex_oauth_equity_research_output_schema()["properties"]["research"])
     symbol = _symbol_from_context(context)
     title = output.title if symbol in output.title else f"{symbol} {output.title}"
+    omissions = _as_dict(_as_dict(context.get("input_selection")).get("omitted"))
+    omitted_categories = [str(key) for key, value in omissions.items() if type(value) is int and value > 0]
+    coverage_note = (
+        "입력 범위 제한: " + ", ".join(omitted_categories) + "의 일부 자료는 입력 한도로 제외되어 검토하지 못했습니다."
+    ) if omitted_categories else None
     return EquityResearchOutput(
         title=title[:200],
         korean_summary=output.korean_summary[:2000],
         key_points=_non_empty_tuple(output.key_points, limit=7),
         catalysts=_non_empty_tuple(output.catalysts, limit=6),
-        risks=_non_empty_tuple(output.risks, limit=8),
+        risks=((coverage_note,) + _non_empty_tuple(tuple(risk for risk in output.risks if risk != coverage_note), limit=7)) if coverage_note else _non_empty_tuple(output.risks, limit=8),
         invalidation_conditions=_non_empty_tuple(output.invalidation_conditions, limit=8),
         valuation_sensitivity=_sanitize_valuation_sensitivity(output.valuation_sensitivity),
     )
