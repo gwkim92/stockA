@@ -1,6 +1,6 @@
 # Frontend API Contract
 
-이 문서는 frontend scaffold 전에 고정하는 read model API contract다. 현재 production API server는 없고, 이 문서와 `docs/api/frontend/` examples가 다음 구현의 기준이다. local fixture HTTP server는 `docs/frontend-fixture-server.md`에 정의되어 있다.
+이 문서는 Python/Postgres의 읽기 모델을 웹에 전달하는 API contract다. 현재 운영 API와 local fixture HTTP server가 있으며, 초기 examples는 저장된 계약 예시다. 운영 배포 상태는 최신 task handoff와 실제 조회로 확인한다. local fixture HTTP server는 `docs/frontend-fixture-server.md`에 정의되어 있다.
 
 ## Contract Version
 
@@ -288,3 +288,12 @@ Live read adapter pilot:
 - source mode: `--source auto` uses live only when `STOCKANALYSIS_PSQL_COMMAND` is configured; otherwise it falls back to fixture examples.
 
 FastAPI read-only server, deployment boundary, and pagination conventions are now defined. SQL-level cursor seek optimization remains a later scaling task.
+
+## 2026-09-11 판단 상태와 리서치 근거 보정
+
+`purpose-fit-recovery-20260911`은 잘못된 대체값과 목록/상세의 불일치를 수정한다. 실제 운영 반영 여부는 해당 task handoff를 확인한다.
+
+- `decision_boundary.paper_validation_input_allowed`는 가상 검증에 필요한 thesis·점수·뉴스/AI 입력과 원천 차단 여부로 정한다. 성과 측정 완료를 의미하지 않으며, 목록·상세는 동일 정책을 사용한다. 전문 내용 검토·투자 판단 채택·주문은 별도다. `paper_validation_pending`에서도 입력은 가능할 수 있다.
+- 기업/추천 `equity_research.generation`은 `mode` (`ai`/`fallback`/`unknown`), `structural_status`, `content_review_status`, `source_document_count`, `source_scope`를 추가한다. 필수 자료형 충족은 내용 검증이 아니며 원천 문서 연결은 주장별 입증이 아니다. 내용 검토 저장 기록이 없으면 `not_recorded`다.
+- 가격 `freshness_policy=calendar_age_within_7_days`와 `freshness_age_days`는 기존 7일 수집 시차 판정의 의미를 드러낸다. `fresh`는 실시간 가격 판정이 아니다. 명시적인 최신성 정보 없이 가격 행만 있으면 `unknown`이다.
+- 사이클·테마의 `features.market_breadth`, `features.valuation_score`는 각각 독립 지표다. 직접적인 재무 품질 측정이 없을 때 `fundamental_quality`는 null이며 다른 지표를 대신 넣지 않는다.
