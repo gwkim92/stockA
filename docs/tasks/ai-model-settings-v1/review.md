@@ -10,3 +10,5 @@
 Local review found the old registry page assumed there could be no buttons. Its secret-serialization test now isolates the unchanged OAuth panel, while separate model settings component/API tests exercise the new authorized controls. Legacy role cards are collapsed and relabelled as design policy to avoid confusing them with serving evidence.
 
 Deployment and final browser evidence are recorded in `qa.md` and `handoff.md`.
+
+Final production review found a JSONB/text mismatch in business history retrieval. The backend query now explicitly casts JSON to text for the shared pool executor. Live readback confirms four historic records and an absent SEC record without guessed model names. Actual browser-driven Luna/Terra calls, session persistence, revision audit and timer restoration passed. Prior interrupted deployment and harness failures are retained in the handoff rather than presented as success.
