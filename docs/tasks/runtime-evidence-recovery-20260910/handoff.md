@@ -4,7 +4,7 @@
 
 사용자의 프로젝트 분석 후속 실행 요청으로 진행했다. 기존 `runtime-deploy-20260908/handoff.md`의 로컬 수정은 보존했다. 작업 브랜치는 `fiture/runtime-evidence-recovery-20260910`이다.
 
-코드 수정·회귀 검증·develop 푸시·EC2 배포·배포 후 읽기 검증을 완료했다. 사용자 재인증 후 실제 Codex 뉴스 번역·구조화·사이클 요약 각 1건도 성공했다. 자동 뉴스 작업은 API 제공자 설정이 남아 있어 아직 복구 완료가 아니며 전체 일일 판단 profile도 재실행하지 않았다.
+코드 수정·회귀 검증·develop 푸시·EC2 배포·배포 후 읽기 검증을 완료했다. 사용자 재인증 후 실제 Codex 뉴스 번역·구조화·사이클 요약 각 1건도 성공했다. 이후 사용자 승인을 받아 자동 뉴스 제공자도 Codex로 전환했고, 기존 systemd 뉴스 profile 한 주기의 10개 단계와 AI 번역 20건·구조화 10건 모두 성공했다. 전체 일일 판단 profile은 재실행하지 않았다.
 
 ## 현재 상태와 원인
 
@@ -58,7 +58,7 @@
 ## 다음 실행 순서
 
 1. 사용자 재인증과 direct smoke, 제한된 사이클/뉴스 실제 실행은 완료했다. 아래 증거를 재사용하고 같은 one-shot 실행을 반복하지 않는다.
-2. 뉴스 scheduler의 실제 provider는 `agents_sdk_openai`이므로 Codex 로그인만으로 API quota 문제가 해결됐다고 판단하지 않는다. `/opt/stockanalysis/runtime/data-operations.env:16`의 `STOCKANALYSIS_LLM_PROVIDER`를 `codex_oauth`로 바꾸는 단일 변경을 제시하고 승인을 요청했다. 당시 설정 변경은 미실행이다. 이 값은 자동 뉴스 번역(20건)과 구조화(10건)에 적용되며 기존 주기·건수는 유지한다.
+2. 사용자 승인 후 `/opt/stockanalysis/runtime/data-operations.env:16`의 `STOCKANALYSIS_LLM_PROVIDER`를 `codex_oauth`로 변경했다. 이 값은 자동 뉴스 번역(20건)과 구조화(10건)에 적용되며 기존 주기·건수는 유지한다. 기존 OpenAI API quota를 복구한 것은 아니다.
 3. 허용된 AI provider가 준비된 뒤 일일 profile을 기존 제한으로 실행하고, 마지막 성공 단계·pipeline 결과·저장된 AI 결과를 확인한다.
 4. 평가 연결은 readiness 28이 참조한 quality 26/outcome 27의 cohort 누락을 해결할 별도 작업으로 다룬다. 유효한 연결 근거가 생기기 전 prospective observation과 가중치 pilot을 시작하지 않는다.
 
@@ -71,3 +71,24 @@
 - 3개 pipeline 및 invocation 모두 `succeeded`, error 없음. 키·할당량·배포 설정·가중치·주문 권한은 변경하지 않았다.
 - 06:45 UTC live AI health는 `critical_ai_failed`에서 `degraded`로 변경됐다. 최근 48시간 성공 3개, 과거 실패 720개가 남는다. 뉴스 두 작업과 사이클 최신 상태는 succeeded이고 기업 리서치는 최근 실행 없음이다. 과거 실패를 지우거나 전체 상태를 강제로 정상으로 바꾸지 않았다.
 - 로컬 증거: `codex-authenticated-direct-smoke.json`, `authenticated-live-smoke.jsonl`, `authenticated-db-readback.json`. 전체 실행 보고서는 서버 내부 `/opt/stockanalysis/runtime/recovery-20260910-25d1ace3/authenticated-smoke/`에만 보관했다.
+
+## 자동 뉴스 제공자 전환과 실제 모델
+
+- 사용자가 `그래 진행해라`로 제공자 전환을 승인하고 인증을 통해 사용하는 모델을 보고하도록 요청했다.
+- 06:50 UTC 데이터 운영 env의 제공자 한 줄을 변경했다. 변경 전 파일은 서버 내부 `recovery-20260910-25d1ace3/data-operations-before-codex.env`에 0600 권한으로 백업했으며, 파싱된 설정의 차이가 해당 키 하나뿐임을 확인했다.
+- provider override 없이 운영 CLI를 실행한 번역 `23560`은 `codex_oauth`, 갱신 1건, 실패 0건이다.
+- 실행 헤더에서 실제 모델 `gpt-5.5`, provider `openai`, reasoning effort `none`을 확인했다. DB의 `codex-cli-default`는 실제 모델명이 아니다. 상세 근거와 작업별 확인 범위는 [모델 사용 보고서](model-usage-report.md)에 정리했다.
+- 네 Codex 어댑터가 model/effort 기본값을 CLI에 명시하지 않아 DB의 `reasoning_effort=low`와 실제 `none`이 다르다. 이번 작업에서 모델이나 추론 강도를 임의로 바꾸지 않았다.
+- 스케줄러 preview의 뉴스 번역·구조화 명령에 `--provider codex_oauth`가 적용됐다. timer는 기존 2시간 간격이며 다음 예정 시각은 08:00 UTC였다.
+- 06:53 UTC `stockanalysis-operating-data-news-intraday.service`를 기존 제한 그대로 수동 시작했고 07:03:14 UTC에 `Result=success`, `ExecMainStatus=0`으로 종료했다. profile `run_status=completed`, 10개 단계 모두 succeeded, `failed_step_count=0`이다. 수동 실행 성공과 다음 timer의 자발 실행은 구분한다.
+- 증거: `provider-switch.json`, `scheduler-provider-preview.json`, `model-provider-preflight.json`, `configured-provider-model-audit.json`.
+
+## 전환 후 자동 작업 경로의 최종 검증
+
+- 뉴스 번역 pipeline `23567`: Codex invocation 20개 모두 succeeded, failed 0. DB의 한국어 제목·요약과 invocation 연결을 갖춘 저장 문서도 20개다.
+- 뉴스 구조화 pipeline `23569`: Codex invocation 10개 모두 succeeded, failed 0. 근거 artifact 10개 모두 validator accepted, 검증된 테마 영향 17개와 종목 영향 6개, 거부된 영향 0개다.
+- 원천 4개 feed 수집, 종목 확인, 이벤트 분류, 규칙 군집 요약, 중복 정리, 회귀평가, 거시/계층 영향 전파까지 10개 단계가 모두 끝났다. 중복 삭제 대상은 0개였다.
+- 뉴스 회귀평가 `eval-run-1746`은 fixture 기준 5/5개 통과다. 이는 고정 정답 세트의 검증이며 실시간 GPT-5.5 전체 정확도를 100%라고 평가한 결과가 아니다.
+- 07:04 UTC API readiness `ok`, timer active, 다음 예약은 08:00 UTC(17:00 KST)다. 주기와 처리 건수는 이전 설정 그대로다. 다음 예약 실행은 아직 관찰하지 않았다.
+- 전체 health는 여전히 `attention_required`, live AI health는 `degraded`다. 48시간 기준 성공 34개와 과거 실패 720개가 있고 기업 리서치의 최근 실행이 없다. 이전 decision-daily 실패 및 투자 검토/성과 근거 문제까지 이번 뉴스 복구로 해결했다고 표현하지 않는다.
+- 최종 DB·API·systemd 증거는 `artifacts/runtime-evidence-recovery-20260910/news-profile-final-readback.json`이다. 코드 검증 결과는 기존 272개 회귀와 CI를 재사용하며, 이번 후속 작업의 변경은 승인된 env 한 줄과 문서뿐이다.
