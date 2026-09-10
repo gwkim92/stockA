@@ -10,7 +10,7 @@ Python 195개, 웹 단위 523개, 종목/원천 브라우저 60개, 타입/produ
 
 ## 공개 전송/배포 진행
 
-`gwkim92/stockA`는 공개 저장소다. 작업 커밋의 코드·테스트·평가 문서 51개를 작업 브랜치로 push하는 작업을 자동 승인 검토가 거부했다. 사유는 이 payload를 공개 목적지에 전송하는 명시적 승인이 없다는 것이다. 이후 사용자가 “진행해라”로 공개 푸시 및 CI 통과 후 기존 개인 EC2 배포를 승인했다. 72d59535의 작업 브랜치 푸시가 완료됐고 Linux artifact CI 34479374219는 성공했다. Web Product Quality 34479377494가 실행 중이며 운영 반영은 아직 하지 않았다.
+`gwkim92/stockA`는 공개 저장소다. 작업 커밋의 코드·테스트·평가 문서 51개를 작업 브랜치로 push하는 작업을 자동 승인 검토가 거부했다. 사유는 이 payload를 공개 목적지에 전송하는 명시적 승인이 없다는 것이다. 이후 사용자가 “진행해라”로 공개 푸시 및 CI 통과 후 기존 개인 EC2 배포를 승인했다. 72d59535의 작업 브랜치 푸시가 완료됐고 Linux artifact CI 34479374219는 성공했다. 최초 웹 CI의 오역 기대값을 7a4d46b7로 수정하고 전체 Web Product Quality 34480578643과 최종 Linux artifact 34480582112가 모두 성공했다. 운영 반영을 진행한다.
 
 현재 운영 서비스는 기존 `develop@f9f1d5ee`이며 API와 웹 두 서비스가 모두 active다. 승인 후 기존 개인 EC2에만 반영한다. 원격 develop은 조회 시 `80769207`이었다. GitHub 계정은 개인 gwkim92, Git SSH는 지정 id_ed25519_pusan/IdentitiesOnly=yes를 사용한다. Linux CI artifact의 hash·소스·package-lock·build ID 확인, 소스/.next rollback backup, 환경·모델 저장소 보존, API/웹/타이머 및 사용자 터널 확인이 필요하다. 작은 EC2 안에서 Next build하지 않는다.
 
