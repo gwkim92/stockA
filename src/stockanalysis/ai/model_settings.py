@@ -228,7 +228,7 @@ class CodexModelInvocation:
     def run(self, runner: Any, *args: Any, **kwargs: Any) -> Any:
         completed = runner(*args, **kwargs)
         # The first CLI header is authoritative; never trust generated JSON model labels.
-        header = str(completed.stderr or "")[:4096].split("\nuser\n", 1)[0]
+        header = str(getattr(completed, "stderr", "") or "")[:4096].split("\nuser\n", 1)[0]
         match = re.search(r"(?m)^model: ([A-Za-z0-9._-]+)\s*$", header)
         self.actual_model = match.group(1) if match else None
         effort = re.search(r"(?m)^reasoning effort: ([a-z]+)\s*$", header)
