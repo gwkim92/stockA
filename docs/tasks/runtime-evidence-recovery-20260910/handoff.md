@@ -4,7 +4,7 @@
 
 사용자의 프로젝트 분석 후속 실행 요청으로 진행했다. 기존 `runtime-deploy-20260908/handoff.md`의 로컬 수정은 보존했다. 작업 브랜치는 `fiture/runtime-evidence-recovery-20260910`이다.
 
-운영 코드 배포 전 후보 검증까지 완료했다. 최종 배포·인증 결과는 아래 후속 기록으로 갱신한다.
+코드 수정·회귀 검증·develop 푸시·EC2 배포·배포 후 읽기 검증을 완료했다. 실제 AI 성공과 전체 일일 판단 실행은 사용자 인증 및 API 할당량 문제 때문에 미완료다.
 
 ## 현재 상태와 원인
 
@@ -42,3 +42,22 @@
 자동 승인 검토가 원격 DB 오류·전체 journal을 로컬로 복사하는 진단을 거부했다. 이후에는 원문을 서버에 두고 오류 분류·코드 위치·상태·개수만 추출하는 작업으로 좁혀 승인받았다.
 
 사용자 인증 전 실제 AI 회복이나 전체 일일 판단 성공을 주장하지 않는다. API 할당량/결제/키는 변경하지 않는다. 가중치 pilot은 시작하지 않으며, 평가 원천의 cohort 식별과 별도 정책 결정을 후속으로 남긴다. 대형 live adapter 분해는 현재 장애 복구와 분리한다.
+
+## 배포와 최종 확인
+
+- 코드 커밋 `25d1ace3da5d3c6302b327b8363e0c99bf77c737`을 develop에 fast-forward 반영하고 GitHub에 푸시했다.
+- [Analysis Prompt Quality CI](https://github.com/gwkim92/stockA/actions/runs/34445485819)는 Python 3.11/3.13 offline contract와 PostgreSQL cutoff/atomic 4개 job 모두 통과했다.
+- EC2 tracked 변경 없음과 실행 중인 data operations service 없음, 여유 디스크 6.8GB를 확인했다. 기존 untracked `dogfood-output/`은 보존했다.
+- 서버 내부 `/opt/stockanalysis/runtime/recovery-20260910-25d1ace3/`에 이전 커밋과 코드 tar, timer 상태를 백업했다. 코드 tar SHA-256은 `1b5b1c0427e39a31b15d7586f975dd92fa963557240799941f151106a8cf6772`이다.
+- EC2는 `git pull --ff-only origin develop`로 해당 커밋을 받았고 API 서비스만 재시작했다. DB migration, 웹 코드/build, scheduler 설정은 변경하지 않았다.
+- 2026-09-10 06:36 UTC 배포 후 확인: API readiness `ok`, live DB pool `ok`, API/웹 두 서비스 모두 active, 가격 32/32개 fresh. `deployed-readback.json`에 기록했다.
+- 배포된 실제 코드의 `cycle-community-ai-summary-v2` dry-run은 `status=planned`, `execute=false`, `node_count=17`이다. 모델 호출·업무 DB 쓰기는 0회다. `decision-daily`의 과거 실패 상태를 성공으로 덮거나 실패 flag만 초기화하지 않았다.
+- Mac SSH 터널을 `127.0.0.1:13309 → EC2 127.0.0.1:3000`으로 복구했다. 브라우저에서 `/performance/evaluations`의 평가 1720/기록 1,335개와 `/performance/evaluations/1720`의 저장 내용 일치, 평가 당시 근거, 후속 성과 미측정 표시를 확인했다. 터널은 현재 Mac 세션용이며 재부팅 후 지속성을 설정한 것은 아니다.
+- 06:36 UTC 인증은 `device_code_expired`, `login_probe_status=not_logged_in`이었다. 사용자 인증이 끝나야 direct smoke와 제한된 실제 AI 실행을 진행할 수 있다. 일회용 인증 코드는 이 문서에 보관하지 않는다.
+
+## 다음 실행 순서
+
+1. 사용자가 공식 device-auth 로그인을 마치면 서버 login 상태를 확인하고 기존 direct smoke를 한 번 수행한다. 만료 코드를 재사용하거나 토큰을 다른 기기에서 복사하지 않는다.
+2. 인증 성공 후 기존 Codex 경로의 제한된 사이클/뉴스 실행을 검증한다. 뉴스 scheduler의 실제 provider는 `agents_sdk_openai`이므로 Codex 로그인만으로 API quota 문제가 해결됐다고 판단하지 않는다. 과금/키/provider 설정 변경은 별도 범위를 확인한다.
+3. 허용된 AI provider가 준비된 뒤 일일 profile을 기존 제한으로 실행하고, 마지막 성공 단계·pipeline 결과·저장된 AI 결과를 확인한다.
+4. 평가 연결은 readiness 28이 참조한 quality 26/outcome 27의 cohort 누락을 해결할 별도 작업으로 다룬다. 유효한 연결 근거가 생기기 전 prospective observation과 가중치 pilot을 시작하지 않는다.
