@@ -54,7 +54,7 @@ test("recommendation quality audit separates stored summary from row-derived evi
   await expect(audit).toContainText("추천 링크 유지"); await expect(audit).toContainText("2/2 · 100%");
   await expect(audit).toContainText("투자 논리 링크 유지"); await expect(audit).toContainText("1/2 · 50%");
   await expect(audit).toContainText("BABA"); await expect(audit).toContainText("측정 제외");
-  await expect(audit).toContainText("보안 선택"); await expect(audit).toContainText("합산해 총수익률을 만들지 않습니다");
+  await expect(audit).toContainText("종목 선택"); await expect(audit).toContainText("합산해 총수익률을 만들지 않습니다");
   expect((await new AxeBuilder({ page }).include('[data-testid="decision-quality-audit"]').analyze()).violations).toEqual([]);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
   await audit.screenshot({ path: info.outputPath(`decision-quality-${info.project.name}.png`), animations: "disabled" });
