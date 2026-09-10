@@ -28,7 +28,7 @@ def register_model_settings_routes(app: FastAPI, authorize_read: Callable[..., A
                 if executor is not None:
                     try:
                         history = json.loads(await run_in_threadpool(executor.execute_scalar, """
-                            select coalesce(jsonb_agg(to_jsonb(x)), '[]'::jsonb) from (
+                            select coalesce(jsonb_agg(to_jsonb(x)), '[]'::jsonb)::text from (
                               select i.invocation_id, i.task_name, i.provider, i.model_name, i.status, i.created_at
                               from (values ('news-rss-korean-translation'), ('news-rss-ai-extract'),
                                 ('event-intelligence-llm-extract'), ('cycle-community-ai-summary-v2'),

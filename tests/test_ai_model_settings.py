@@ -98,6 +98,24 @@ class ModelSettingsTests(unittest.TestCase):
             self.assertEqual(client.delete("/__admin/model-settings/session", headers=headers).status_code, 200)
             self.assertEqual(client.patch("/__admin/model-settings", headers=headers, json=self.change(revision=1)).status_code, 403)
 
+    def test_inventory_includes_business_history_and_survives_history_failure(self):
+        recorded = {"invocation_id": 42, "task_name": WORKLOADS[0][0],
+                    "provider": "codex_oauth", "model_name": "codex-cli-default",
+                    "status": "succeeded", "created_at": "2026-09-10T00:00:00Z"}
+        policy = FrontendRuntimePolicy(profile="local", source="fixture", auth_mode="read-token", read_token="test-read")
+        executor = SimpleNamespace(execute_scalar=lambda sql: json.dumps([recorded]))
+        with TestClient(create_app(runtime_policy=policy, executor=executor)) as client:
+            response = client.get("/__admin/model-settings", headers={"Authorization": "Bearer test-read"})
+            self.assertTrue(response.json()["history_available"])
+            self.assertEqual(response.json()["workloads"][0]["business_history"], recorded)
+            self.assertIsNone(response.json()["workloads"][1]["business_history"])
+            with patch.object(executor, "execute_scalar", side_effect=RuntimeError("private database detail")):
+                response = client.get("/__admin/model-settings", headers={"Authorization": "Bearer test-read"})
+            self.assertEqual(response.status_code, 200)
+            self.assertFalse(response.json()["history_available"])
+            self.assertEqual(response.json()["default_model"], "gpt-5.6-terra")
+            self.assertNotIn("private database detail", response.text)
+
     def test_all_five_adapters_apply_saved_model_and_trust_cli_metadata(self):
         self.store.update(self.change(), self.session)
         cases = [
