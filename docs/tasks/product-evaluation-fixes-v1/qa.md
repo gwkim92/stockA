@@ -2,7 +2,7 @@
 
 ## 범위와 상태
 
-2026-09-10 평가의 ISSUE-001~010의 코드 수정을 완료했다. 현재 증거는 로컬 코드/빌드와 운영 데이터의 읽기 전용 조회다. 이 문서 작성 시점에 변경 코드를 운영 서비스에 적용하지 않았다. 기존 모델 Terra/revision 2, 인증 설정, 추천 weight, benchmark, 평가 데이터 분할, 주문 실행은 바꾸지 않았다.
+2026-09-10 평가의 ISSUE-001~010의 코드 수정을 완료했다. 로컬 코드/빌드, 전체 CI, 실제 운영 API와 사용자 터널의 브라우저 검증을 완료했고 운영 서비스에 적용했다. 기존 모델 Terra/revision 2, 인증 설정, 추천 weight, benchmark, 평가 데이터 분할, 주문 실행은 바꾸지 않았다.
 
 ## 수정과 회귀
 
@@ -31,7 +31,7 @@
 
 ## 운영 데이터 읽기 증거
 
-`artifacts/product-evaluation-fixes-v1/`에 JSON·로그·화면을 보존한다. 공개 배포/실제 AI 호출 증거가 아니다.
+`artifacts/product-evaluation-fixes-v1/`에 JSON·로그·화면을 보존한다. 아래 초기 JSON은 배포 전 읽기 증거이며, 배포 후 검증은 production-readback.json과 production/에 따로 보존한다. 수동 AI 호출은 없다.
 
 - `financial-live-before.json`: NVDA 2026-09-07 forecast_input_id 12876, source_run_id 22948, FCF margin 0.192705 / CAPEX intensity 0.034702. 지표별 기간·행 계보가 없어 특정 2012 행이 직접 부모였다는 주장은 하지 않는다.
 - `financial-current-code-live-read.json`: 최신 매출 기간 2026-01-25, computed 9 / data gap 5. FCF/CAPEX/FCF-to-income 결측 유지. DCF/scenario/SOTP 기존 평가의 입력 기간은 미검증으로 표시한다.
@@ -55,7 +55,7 @@
 
 ## 남은 범위
 
-사용자가 공개 푸시 및 CI 후 배포를 승인해 커밋 72d59535의 작업 브랜치 푸시를 완료했다. Linux runtime artifact와 전체 웹 품질 CI가 통과했다. 운영 반영을 진행한다. 과거 저장 valuation/forecast를 수동 재생성하거나 소급 수정하지 않는다. 새 계산은 기존 시나리오 수치/가정을 유지하지만 같은 재무 기간의 입력만 사용하므로 계산 값과 입력 가능 상태가 달라질 수 있다. 이것은 입력 정합성 수정이며 투자 성능 개선의 증거가 아니다.
+사용자가 공개 푸시 및 CI 후 배포를 승인했고 전체 CI와 운영 반영을 완료했다. 과거 저장 valuation/forecast를 수동 재생성하거나 소급 수정하지 않는다. 새 계산은 기존 시나리오 수치/가정을 유지하지만 같은 재무 기간의 입력만 사용하므로 계산 값과 입력 가능 상태가 달라질 수 있다. 이것은 입력 정합성 수정이며 투자 성능 개선의 증거가 아니다.
 
 ## 추가 계약 검사
 
@@ -67,3 +67,15 @@
 - 최초 CI에서 이후 단계가 건너뛰어졌으므로 기업/근거 44개와 뉴스/테마 42개를 로컬에서 추가 확인했고 모두 통과했다.
 - 최종 Linux artifact CI 34480582112는 성공했다. 전체 Web Product Quality 34480578643도 최종 성공했다.
 - 파일 전송 중 기존 SSH multiplex 세션이 지연되어 해당 전송만 중단하고 별도 연결로 전송했다. 서버 load 0.02, 가용 메모리 약 1GB, 웹 직접 응답 200을 확인했다. 기존 사용자 터널과 모델 관리자 세션은 유지됐다.
+
+## 실제 배포 검증
+
+- 배포 source develop `fd73778a`, artifact source `7a4d46b7`, build ID `0rlLlUJzuSCAWSz0Soz6Q`. artifact hash/경로/lockfile/소스 동일성 확인. `activation.json`에 계정·서비스·백업·환경 보존과 타이머 13개 복구를 기록했다.
+- 첫 시도는 API 기동 직후 웹 포트의 ConnectionRefused로 자동 rollback됐다. 이전 source/service 복원을 확인하고 포트 기동을 최대 40초 기다리도록 수정해 재배포에 성공했다. `activation-attempt-1.log`와 서버 attempt-1/을 보존했다.
+- 최종 전체 CI 브라우저 394개와 평가 이력 검증 성공. `ci-final.log`에 단계별 결과가 있다.
+- `production-readback.json`: NVDA 전체 검색, 최신 검토 집계, 성과 not_evaluated/null, 최신 재무 기간과 결측, legacy valuation 경고, Terra/revision 2/5개 workload 확인.
+- `production/final-interactions.json`: 운영 22개 화면 모두 HTTP 200·정상 제목·페이지 오류 없음·문서 가로 넘침 없음. 검색/새로고침, 10개씩 중복 없는 페이지 이동, RSS 원천 두 viewport 클릭 성공, 모바일 표 scrollLeft 0→204 확인. 원천 화면까지 합쳐 12개 경로를 확인했다.
+- 사용자 Chrome 탭 1527793421을 reload한 뒤 기존 관리자 세션과 설정, 미조회 역할 정책을 확인했다. 인증/모델 변경을 제출하지 않았다.
+- `production-health-attention.json`: artifact runner의 7개 stale 항목은 모두 latest_status=succeeded이며 run IDs 23067/23071/23073/23077/23079/23080/23131이다. 실제 예약 타이머 복구와 저장된 과거 scheduler 요약(14/12)을 구분한다. API의 9개 운영·자료 주의 gate는 유지하며 전체 데이터 건강 완료로 주장하지 않는다.
+
+- develop 자동 CI도 최종 성공: Web Product Quality `34481915252`, Evaluation History Read Contract `34481915254`, Evaluation History `34481915268` (검증 SHA `fd73778a`). 이후 변경은 배포 증거 문서뿐이다.

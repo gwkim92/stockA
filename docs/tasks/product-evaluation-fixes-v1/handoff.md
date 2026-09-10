@@ -1,21 +1,32 @@
-# 수정 결과 인계
+# 수정·배포 완료 인계
 
-현재 branch `fiture/product-evaluation-fixes-v1`, 수정 커밋 `72d59535e3eeae7da06f557979dd560d7247788a`, 시작 develop `80769207`. 평가 10개 항목의 구현·로컬 검증·독립 구현/화면 검토를 완료했다. 수정 범위와 증거는 `contract.md`, `qa.md`, `review.md`를 따른다.
+2026-09-10 평가의 10개 기능·화면 항목을 수정하고 개인 EC2에 배포했다. 기능 커밋은 `72d59535`, 브라우저 기대 문구 후속 수정은 `7a4d46b7`이다. 배포 당시 develop은 `fd73778a31559f45be46336429d3a822b54af426`이며 CI artifact는 `7a4d46b7f8e93588c44b9264d400f13d76588b21`에서 생성했다. 두 버전의 앱·backend·dependency·DB 경로가 동일함을 검증했다. 이후 커밋은 이 배포의 증거 문서만 갱신한다.
+
+## 실제 접속과 결과
+
+사용자 접속 주소는 http://127.0.0.1:13309 이다. 기존 Chrome 모델 관리자 탭을 새로고침해 Terra, 설정 revision 2, 관리자 권한 및 기존 만료일을 확인했다. 역할 정책의 `실행 상태 미조회`도 반영됐다. 작업별 5개 모델 설정과 인증·환경을 바꾸지 않았다.
+
+실제 API에서 등록 종목 8,038개 전체의 NVDA 검색 1개, 홈 최신 검토 3개, 실행 없는 성과의 not_evaluated/null, NVDA 최신 매출 기간 2026-01-25 및 결측 5개, 기존 DCF/scenario/SOTP의 unverified_legacy를 확인했다. 새 재무 계산은 동일 매출 기간의 입력만 사용하고 기존 forecast/valuation을 소급 재생성하지 않았다.
+
+운영 웹 11개 경로 × 데스크톱/모바일 22건과 두 viewport의 RSS 원천 클릭을 확인했다. 모두 정상 렌더링·문서 가로 넘침 없음이다. NVDA 검색/새로고침, 근거 10개→다음 10개/복귀/새로고침, 인코딩된 원천 링크, 표 내부 키보드 가로 스크롤이 통과했다.
 
 ## 검증
 
-Python 195개, 웹 단위 523개, 종목/원천 브라우저 60개, 타입/production build가 통과했다. 추가 display 계약 검사 123개도 외부 I/O 0건으로 통과했다(기존 Python 검사와 일부 중복). 영향 12개 경로를 desktop/mobile로 확인했고 마지막 문구 수정 후 6개 경로를 다시 캡처했다. 실제 페이지 이동, RSS 원천 클릭, 모바일 표의 키보드 스크롤이 통과했다.
+- Python 연관 195개, 웹 단위 523개, 타입/production build 통과.
+- 전체 Web Product Quality `34480578643` 성공: 검토 노트 168, 투자 화면 66, 보유/성과 36, 원천 읽기 38, 기업/근거 44, 뉴스/테마 42개(합계 394개), 별도 평가 이력 브라우저 검사도 성공.
+- Linux runtime artifact `34480582112` 성공. build ID `0rlLlUJzuSCAWSz0Soz6Q`, SHA-256 `f65d9844dc55b4510a11d38656d175264289165dd5ab00d89a84b72a872d15a8`.
+- develop 후속 Web Product Quality `34481915252`, Evaluation History `34481915268`, Read Contract `34481915254` CI도 모두 성공했다.
 
-운영 데이터는 읽기 전용으로 새 SQL과 대조했다. 과거 재무 forecast/valuation은 재생성하지 않았다. 이전 값의 계보 미검증 상태를 드러내고 새 계산은 같은 매출 기간 입력만 소비한다. 이것은 투자 성능 개선의 증거가 아니다.
+## 배포와 복원
 
-## 공개 전송/배포 진행
+개인 계정 `115623963546`, instance `i-029d51b163fb07b61`, us-east-1을 IMDS로 확인했다. EC2에서 build하지 않고 검증 artifact만 전송했다. 첫 시도는 Next 포트가 열리기 전에 점검이 실행되어 이전 `f9f1d5ee`로 자동 복원됐다. 기동 완료 대기를 보완한 두 번째 시도가 성공했다. 웹 기동 대기 절차의 문제였으며 첫 로그도 보존했다.
 
-`gwkim92/stockA`는 공개 저장소다. 작업 커밋의 코드·테스트·평가 문서 51개를 작업 브랜치로 push하는 작업을 자동 승인 검토가 거부했다. 사유는 이 payload를 공개 목적지에 전송하는 명시적 승인이 없다는 것이다. 이후 사용자가 “진행해라”로 공개 푸시 및 CI 통과 후 기존 개인 EC2 배포를 승인했다. 72d59535의 작업 브랜치 푸시가 완료됐고 Linux artifact CI 34479374219는 성공했다. 최초 웹 CI의 오역 기대값을 7a4d46b7로 수정하고 전체 Web Product Quality 34480578643과 최종 Linux artifact 34480582112가 모두 성공했다. 운영 반영을 진행한다.
+API와 웹 두 서비스가 active, API ready=ok, 3000/13000 웹 smoke=200이다. 기존 활성 타이머 13개를 복구했고 최종 systemd 상태도 확인했다. frontend-api.env, web.env, data-operations.env의 hash/mode가 전후 동일하다. 모델 revision 2 / gpt-5.6-terra / override 없음 / mode 0600이 유지됐다. 스키마 migration, 수동 AI 호출, 금융 데이터 재생성, 주문 실행은 하지 않았다.
 
-현재 운영 서비스는 기존 `develop@f9f1d5ee`이며 API와 웹 두 서비스가 모두 active다. 승인 후 기존 개인 EC2에만 반영한다. 원격 develop은 조회 시 `80769207`이었다. GitHub 계정은 개인 gwkim92, Git SSH는 지정 id_ed25519_pusan/IdentitiesOnly=yes를 사용한다. Linux CI artifact의 hash·소스·package-lock·build ID 확인, 소스/.next rollback backup, 환경·모델 저장소 보존, API/웹/타이머 및 사용자 터널 확인이 필요하다. 작은 EC2 안에서 Next build하지 않는다.
+서버 전용 기록은 `/opt/stockanalysis/runtime/product-evaluation-fixes-v1/` 아래 activation.json, preflight.json, previous-source.tar.gz, previous-next, attempt-1에 있다. 자동 재실행을 막는 activation marker가 있으므로 배포 스크립트를 그대로 재실행하지 않는다. 기존 설정이나 백업을 삭제하지 않는다.
 
-## 보존한 상태
+## 남은 운영 상태와 보존한 작업
 
-기존 runtime-deploy-20260908 / runtime-evidence-recovery-20260910 문서 변경은 사용자 작업으로 남겼다. 생성 next-env.d.ts 변경과 Playwright 출력은 커밋하지 않았다. 모든 로컬 증거는 ignored `artifacts/product-evaluation-fixes-v1/`에 있다.
+검증 시점의 데이터 상태 API는 attention_required이며 9개 gate가 남는다. 특히 artifact runner의 7개 항목은 최근 실행 자체는 succeeded지만 기록이 stale인 상태다. 이것을 새 배포 실패나 데이터 정상으로 표현하지 않는다. 저장된 scheduler 요약의 14개/12개와 실제 systemd 활성 13개도 구분한다. 알림 목적지·AI 이력·투자 검토·성과 성숙 관련 주의는 원천 데이터/운영 후속 범위이며 이번 배포에서 배치를 재실행하거나 임의로 닫지 않았다.
 
-로컬 검토용 API 18779, 웹 13014는 읽기 전용 미리보기다. data-health와 AI 운영 DTO는 기존 운영 API에서 GET으로 읽고, 변경 SQL 경로는 현재 코드를 이용해 운영 DB를 read-only 조회한다. 사용자 터널 13309 및 Chrome 모델 관리자 세션은 유지한다. 모델 Terra/revision 2와 인증·추천 weight·benchmark·주문 설정은 변경하지 않았다.
+기존 runtime-deploy-20260908 / runtime-evidence-recovery-20260910 문서 변경은 사용자 작업으로 남겼다. 생성 next-env.d.ts와 Playwright 출력은 커밋하지 않았다. 로컬 증거는 ignored `artifacts/product-evaluation-fixes-v1/`, 운영 화면 증거는 그 아래 `production/`에 있다. 임시 Postgres는 종료했다. 이전 로컬 미리보기 대신 실제 사용자 터널을 최종 검증에 사용했다.
