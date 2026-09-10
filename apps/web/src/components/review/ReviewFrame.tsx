@@ -20,7 +20,7 @@ export function ReviewFrame({ kind, result, children }: {
     network: "이 화면의 자료를 불러오지 못했습니다",
   };
   return (
-    <div className={styles.page} data-testid="review-workspace">
+    <div className={styles.page} data-testid="review-workspace" data-kind={kind}>
       <header className={styles.header}>
         <div>
           <span>{portfolio ? "HOLDINGS REVIEW" : "DECISION OUTCOMES"}</span>

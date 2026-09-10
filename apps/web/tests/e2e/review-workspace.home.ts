@@ -6,7 +6,7 @@ for (const [path, title, file] of [["/portfolio/coverage", "보유 검토", "hol
     const errors: string[] = []; page.on("pageerror", error => errors.push(error.message));
     await page.goto(path); const workspace = page.getByTestId("review-workspace");
     await expect(workspace.getByRole("heading", { name: title, exact: true, level: 1 })).toBeVisible();
-    const firstRecord = workspace.getByRole("article").first();
+    const firstRecord = file === "holdings" ? workspace.locator("tbody tr").first() : workspace.getByRole("article").first();
     await expect(firstRecord).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
     const axe = await new AxeBuilder({ page }).analyze(); expect(axe.violations).toEqual([]); expect(errors).toEqual([]);
@@ -21,12 +21,12 @@ test("holding filters preserve date/history and never combine native currency va
   const summary = page.getByRole("region", { name: "보고서 요약" });
   await expect(summary).toContainText("3,100"); await expect(summary).not.toContainText("500,000");
   await expect(summary).toContainText("2/4개");
-  await list.getByRole("button", { name: "투자 논리 확인" }).click(); await expect(list.getByRole("article")).toHaveCount(2);
-  await list.getByRole("textbox").fill("SPY"); await page.reload(); await expect(list.getByRole("article")).toHaveCount(1);
+  await list.getByRole("button", { name: "투자 논리 확인" }).click(); await expect(list.locator("tbody tr")).toHaveCount(2);
+  await list.getByRole("textbox").fill("SPY"); await page.reload(); await expect(list.locator("tbody tr")).toHaveCount(1);
   await expect(page).toHaveURL(/date=2025-01-15/); await expect(list.getByRole("textbox")).toHaveValue("SPY");
   await list.getByRole("button", { name: "평가자료 확인" }).click(); await expect(list).toContainText("조건에 맞는 보유 종목이 없습니다");
-  await page.goBack(); await expect(list.getByRole("article")).toHaveCount(1);
-  await list.getByRole("button", { name: "필터 초기화" }).click(); await expect(list.getByRole("article")).toHaveCount(4);
+  await page.goBack(); await expect(list.locator("tbody tr")).toHaveCount(1);
+  await list.getByRole("button", { name: "필터 초기화" }).click(); await expect(list.locator("tbody tr")).toHaveCount(4);
   const requests = await (await request.get("http://127.0.0.1:18766/__requests")).json();
   expect(requests.some((r: { path: string }) => r.path === "/api/trading/readiness")).toBe(false);
   expect(requests.every((r: { method: string }) => r.method === "GET")).toBe(true);

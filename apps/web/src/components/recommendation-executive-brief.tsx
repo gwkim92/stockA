@@ -3,6 +3,7 @@ import type { Route } from "next";
 import { koCode } from "@/lib/korean-labels";
 import type { RecommendationDetailData } from "@/lib/types";
 import { buildRecommendationMemo, NO_LINKED_THESIS, type MemoThesisResult } from "@/lib/recommendation-memo-model";
+import { ResearchProvenance } from "@/components/company/ResearchProvenance";
 import styles from "./recommendation-executive-brief.module.css";
 
 function Points({ values, empty }: { values: readonly string[]; empty: string }) {
@@ -29,6 +30,7 @@ export function RecommendationExecutiveBrief({ data, thesis = NO_LINKED_THESIS }
         <div data-tone={memo.evidence.tone}><span>근거 연결 상태</span><strong>{memo.evidence.label}</strong><p>{memo.evidence.detail}</p></div>
       </div>
       <p className={styles.notice} role="status">{memo.notice}</p>
+      {!memo.isFund && <ResearchProvenance research={data.equity_research} />}
       <article className={styles.claim} id="memo-claim">
         <h3>왜 투자 후보인가</h3><small>{memo.claimSource}</small>
         <p>{memo.summary}</p>

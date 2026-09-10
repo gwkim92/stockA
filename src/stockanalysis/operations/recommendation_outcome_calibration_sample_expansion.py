@@ -4,6 +4,7 @@ import json
 from datetime import date
 from typing import Any
 
+from stockanalysis.performance.outcome_window import outcome_window_match_sql
 from stockanalysis.ingest.config import RuntimeConfig
 from stockanalysis.ingest.macro.sql import sql_date, sql_literal
 from stockanalysis.ingest.psql import PsqlCommandExecutor
@@ -176,10 +177,7 @@ classified_outcomes as (
             horizon_days,
             measurement_end_date
         from performance.recommendation_outcome outcome
-        where outcome.recommendation_id = recommendation.recommendation_id
-          and outcome.measurement_end_date <= least(recommendation.expected_measurement_end_date, (select as_of_date from target_date))
-          and outcome.measurement_end_date >= recommendation.as_of_date
-          and outcome.horizon_days between greatest(recommendation.horizon_day - 7, 0) and recommendation.horizon_day + 7
+        where {outcome_window_match_sql(recommendation_id="recommendation.recommendation_id", recommendation_date="recommendation.as_of_date", horizon_days="recommendation.horizon_day", end_date="least(recommendation.expected_measurement_end_date, (select as_of_date from target_date))")}
         order by abs(outcome.horizon_days - recommendation.horizon_day), outcome.measurement_end_date desc
         limit 1
     ) outcome on true

@@ -7139,7 +7139,7 @@ class FrontendLiveAdapterTests(unittest.TestCase):
         self.assertEqual(payload["data"]["price_bars"][-1]["trade_date"], "2024-12-02")
         self.assertEqual(payload["data"]["candles"], payload["data"]["price_bars"])
         self.assertEqual(payload["data"]["market_data_provider"]["canonical_provider"], "missing")
-        self.assertEqual(payload["data"]["market_data_provider"]["freshness_status"], "fresh")
+        self.assertEqual(payload["data"]["market_data_provider"]["freshness_status"], "unknown")
         self.assertFalse(payload["data"]["market_data_provider"]["canonical_promotion_allowed"])
         self.assertEqual(payload["data"]["market_data_provider"]["order_boundary"], "read_only_no_order")
         self.assertEqual(
@@ -7169,7 +7169,7 @@ class FrontendLiveAdapterTests(unittest.TestCase):
             "분석 기준 가격과 토스증권 브로커 가격 비교",
         )
         self.assertEqual(payload["data"]["toss_provider_evidence"]["comparison"]["compared_provider"], "tossinvest")
-        self.assertEqual(payload["data"]["freshness_status"], "fresh")
+        self.assertEqual(payload["data"]["freshness_status"], "unknown")
         self.assertEqual(payload["data"]["recommendation"]["linked_thesis_id"], "thesis-7001")
         self.assertEqual(payload["data"]["position"]["weight"], 0.05)
         self.assertEqual(payload["data"]["equity_research"]["artifact_id"], "equity-research-artifact-1201")

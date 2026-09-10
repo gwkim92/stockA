@@ -2154,6 +2154,8 @@ export type CycleStateListData = {
       event_intensity: number | null;
       price_momentum: number | null;
       fundamental_quality: number | null;
+      market_breadth?: number | null;
+      valuation_score?: number | null;
     };
   }>;
 };
@@ -3982,6 +3984,8 @@ export type ThemeDetailData = {
     event_intensity: number | null;
     price_momentum: number | null;
     fundamental_quality: number | null;
+      market_breadth?: number | null;
+      valuation_score?: number | null;
   };
   linked_instruments: Array<{
     symbol: string;

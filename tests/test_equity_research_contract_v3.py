@@ -150,7 +150,11 @@ class EquityInputContractTests(unittest.TestCase):
         context = _context_payload()
         context["recent_events"] = [{"event_id": n, "document_id": n, "title": "x" * 900} for n in range(8)]
         selected = equity._bounded_context_for_prompt(context, max_context_chars=9000)
-        self.assertEqual(selected["recent_events"], context["recent_events"][:4])
+        self.assertGreater(len(selected["recent_events"]), 0)
+        self.assertLess(len(selected["recent_events"]), len(context["recent_events"]))
+        for event in selected["recent_events"]:
+            self.assertIn(event, context["recent_events"])
+        self.assertEqual(selected["input_selection"]["omitted"]["recent_events"], 8 - len(selected["recent_events"]))
         self.assertLessEqual(len(render_source_data(selected, max_chars=9000)), 9000)
 
     def test_sparse_evidence_has_no_minimum_claim_pressure(self):

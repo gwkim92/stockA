@@ -130,8 +130,8 @@ class OperatingDataOrchestratorTests(unittest.TestCase):
         macro_command = " ".join(macro_step["command_argv"])
         self.assertIn("--series-id NASDAQQSLVO", macro_command)
         self.assertLess(
-            step_ids.index("paper-validation-audit"),
-            step_ids.index("recommendation-outcome-backfill"),
+            step_ids.index("recommendation-outcome-due-action-router"),
+            step_ids.index("cycle-community-ai-summary-v2"),
         )
         self.assertLess(
             step_ids.index("sec-companyfacts-weekly"),
@@ -460,7 +460,7 @@ class OperatingDataOrchestratorTests(unittest.TestCase):
 
         step_ids = [step["step_id"] for step in report["planned_steps"]]
         self.assertEqual(report["profile"], "decision-daily")
-        self.assertEqual(step_ids[0], "missing-symbol-price-backfill")
+        self.assertEqual(step_ids[0], "recommendation-outcome-backfill")
         self.assertIn("cycle-hierarchy-snapshot-v2", step_ids)
         self.assertIn("cycle-graph-context-summary", step_ids)
         self.assertIn("cycle-community-ai-summary-v2", step_ids)
@@ -531,6 +531,25 @@ class OperatingDataOrchestratorTests(unittest.TestCase):
             step_ids.index("portfolio-review-feedback-cadence"),
             step_ids.index("portfolio-review-feedback-action-router"),
         )
+
+    def test_outcome_recovery_covers_historical_universes_before_daily_ai(self) -> None:
+        with tempfile.TemporaryDirectory() as repo_root, tempfile.TemporaryDirectory() as outside_root:
+            runtime_root, env_file = _write_runtime_files(Path(outside_root))
+            report = build_operating_data_run_report(
+                repo_root=repo_root, runtime_root=runtime_root, data_operations_env_file=env_file,
+                profile="decision-daily", execute=False, python_executable="/usr/bin/python3",
+                executor=FakeOperatingDataExecutor(), runner=FakeArtifactRunner(),
+                generated_at=datetime(2026, 9, 10, tzinfo=timezone.utc),
+            )
+        steps = report["planned_steps"]
+        self.assertEqual([step["step_id"] for step in steps[:2]],
+                         ["recommendation-outcome-backfill", "recommendation-outcome-due-action-router"])
+        for step in steps[:2]:
+            command = step["command_argv"]
+            self.assertNotIn("--universe-version", command)
+            self.assertNotIn("--horizon-day", command)
+            self.assertEqual(command[command.index("--limit") + 1], "20")
+            self.assertIn("--strategy-name", command)
 
     def test_performance_monthly_profile_runs_outcome_then_attribution_without_positions(self) -> None:
         with tempfile.TemporaryDirectory() as repo_root, tempfile.TemporaryDirectory() as outside_root:

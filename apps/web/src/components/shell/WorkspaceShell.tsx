@@ -34,6 +34,7 @@ export function WorkspaceShell({ children }: { readonly children: ReactNode }) {
   useEffect(() => { dialog.current?.close(); }, [pathname]);
   const results = navigationResults(query);
   const symbol = symbolDestination(query);
+  const workMenus = [PRIMARY_NAVIGATION[0], PRIMARY_NAVIGATION[2], PRIMARY_NAVIGATION[3], PRIMARY_NAVIGATION[4], PORTFOLIO_NAVIGATION[0], PORTFOLIO_NAVIGATION[1]];
   const inOperations = OPERATIONS_NAVIGATION.some((item) => item.href === active.href);
   return <div className={styles.frame} data-testid="workspace-shell">
     <a className={styles.skipLink} href="#main-content">본문으로 바로가기</a>
@@ -41,13 +42,14 @@ export function WorkspaceShell({ children }: { readonly children: ReactNode }) {
       <Brand />
       <button className={styles.searchButton} onClick={open} type="button"><WorkspaceIcon name="search" /><span>빠른 이동</span><kbd>⌘ K</kbd></button>
       <nav aria-label="투자 리서치 주요 메뉴">
-        <NavGroup label="탐색과 판단" items={PRIMARY_NAVIGATION} active={active.href} />
-        <NavGroup label="검토와 성과" items={PORTFOLIO_NAVIGATION} active={active.href} />
+        <NavGroup label="리서치" items={workMenus} active={active.href} />
+        <NavGroup label="시장과 검증" items={[PRIMARY_NAVIGATION[1], PRIMARY_NAVIGATION[5], PORTFOLIO_NAVIGATION[2]]} active={active.href} />
       </nav>
       <details className={styles.secondaryNav} open={inOperations || RESEARCH_NAVIGATION.some((item) => item.href === active.href) ? true : undefined}>
         <summary>근거·운영 도구</summary>
         <nav aria-label="근거와 운영 도구"><NavGroup label="근거 자료" items={RESEARCH_NAVIGATION} active={active.href} /><NavGroup label="운영" items={OPERATIONS_NAVIGATION} active={active.href} /></nav>
       </details>
+      <Link className={styles.settingsLink} href="/admin/ai-agents"><WorkspaceIcon name="settings" />AI 모델 설정</Link>
       <div className={styles.sidebarFooter}><WorkspaceIcon name="shield" /><div><strong>리서치 전용</strong><small>실거래 주문 비활성</small></div></div>
     </aside>
     <div className={styles.workspace}>
@@ -60,7 +62,7 @@ export function WorkspaceShell({ children }: { readonly children: ReactNode }) {
       <footer className={styles.pageFooter}><span>stockA · 근거를 읽고, 판단을 기록합니다.</span><Link href="/data-health">데이터 상태</Link></footer>
     </div>
     <nav className={styles.mobileDock} aria-label="모바일 주요 메뉴">
-      {[PRIMARY_NAVIGATION[0], PRIMARY_NAVIGATION[2], PRIMARY_NAVIGATION[5], PORTFOLIO_NAVIGATION[0]].map((item) => <Link key={item.href} href={item.href} aria-current={active.href === item.href ? "page" : undefined}><WorkspaceIcon name={item.icon} /><span>{item.label}</span></Link>)}
+      {[PRIMARY_NAVIGATION[0], PRIMARY_NAVIGATION[3], PRIMARY_NAVIGATION[4], PORTFOLIO_NAVIGATION[0]].map((item) => <Link key={item.href} href={item.href} aria-current={active.href === item.href ? "page" : undefined}><WorkspaceIcon name={item.icon} /><span>{item.label}</span></Link>)}
       <button type="button" onClick={open}><WorkspaceIcon name="menu" /><span>전체 메뉴</span></button>
     </nav>
     <dialog className={styles.commandDialog} ref={dialog} aria-labelledby="workspace-search-title" onClick={(event) => { if (event.target === dialog.current) close(); }}>

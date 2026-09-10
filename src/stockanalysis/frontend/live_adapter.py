@@ -12,6 +12,8 @@ from urllib.parse import parse_qs, quote, unquote, urlsplit
 
 from stockanalysis.ai.evidence_graph import render_instrument_evidence_neighborhood_sql
 from stockanalysis.ai.internal_rag import build_internal_rag_context_package
+from stockanalysis.performance.outcome_window import outcome_window_match_sql
+from stockanalysis.frontend.recommendation_boundary import recommendation_boundary
 from stockanalysis.ingest.config import RuntimeConfig
 from stockanalysis.ingest.macro.sql import sql_date, sql_literal
 from stockanalysis.ingest.psql import PsqlCommandExecutor
@@ -2826,6 +2828,8 @@ def build_live_theme_detail_response(
                 "event_intensity": _number(features.get("event_intensity")),
                 "price_momentum": _number(features.get("price_momentum")),
                 "fundamental_quality": _number(features.get("fundamental_quality")),
+                "market_breadth": _number(features.get("market_breadth")),
+                "valuation_score": _number(features.get("valuation_score")),
             },
             "linked_instruments": linked_instruments,
             "supporting_events": supporting_events,
@@ -6069,10 +6073,7 @@ outcome_maturity_classified as (
     left join lateral (
         select outcome_id
         from performance.recommendation_outcome outcome
-        where outcome.recommendation_id = recommendation.recommendation_id
-          and outcome.measurement_end_date <= least(recommendation.expected_measurement_end_date, current_date)
-          and outcome.measurement_end_date >= recommendation.as_of_date
-          and outcome.horizon_days between greatest(recommendation.horizon_day - 7, 0) and recommendation.horizon_day + 7
+        where {outcome_window_match_sql(recommendation_id="recommendation.recommendation_id", recommendation_date="recommendation.as_of_date", horizon_days="recommendation.horizon_day", end_date="least(recommendation.expected_measurement_end_date, current_date)")}
         order by abs(outcome.horizon_days - recommendation.horizon_day), outcome.measurement_end_date desc
         limit 1
     ) outcome on true
@@ -9061,9 +9062,12 @@ select json_build_object(
         'freshness_status',
             case
                 when (select trade_date from latest_price) is null then 'missing'
+                when (select trade_date from latest_price) > (select as_of_date from target_date) then 'unknown'
                 when (select trade_date from latest_price) < (select as_of_date from target_date) - 7 then 'stale'
                 else 'fresh'
             end,
+        'freshness_policy', 'calendar_age_within_7_days',
+        'freshness_age_days', (select as_of_date from target_date) - (select trade_date from latest_price),
         'toss_shadow_status', coalesce((select status from toss_provider_comparison_latest), 'missing'),
         'toss_shadow_reason', coalesce((select reason from toss_provider_comparison_latest), ''),
         'canonical_promotion_allowed', false,
@@ -10206,11 +10210,9 @@ select json_build_object(
                             nullif(current_cycle.evidence_json ->> 'trend_score', '')::numeric
                         ),
                         'fundamental_quality',
-                        coalesce(
-                            current_cycle.valuation_score,
-                            current_cycle.breadth_score,
-                            nullif(current_cycle.evidence_json ->> 'breadth_score', '')::numeric
-                        )
+                        null::numeric,
+                        'market_breadth', coalesce(current_cycle.breadth_score, nullif(current_cycle.evidence_json ->> 'breadth_score', '')::numeric),
+                        'valuation_score', current_cycle.valuation_score
                     )
                 )
                 order by current_cycle.cycle_score desc nulls last, current_cycle.theme_key
@@ -11790,7 +11792,9 @@ select json_build_object(
     json_build_object(
         'event_intensity', (select event_heat_score from current_cycle),
         'price_momentum', (select trend_score from current_cycle),
-        'fundamental_quality', coalesce((select valuation_score from current_cycle), (select breadth_score from current_cycle))
+        'fundamental_quality', null::numeric,
+        'market_breadth', (select breadth_score from current_cycle),
+        'valuation_score', (select valuation_score from current_cycle)
     ),
     'linked_instruments',
     coalesce(
@@ -13771,8 +13775,7 @@ recommendation_rows as (
             when coalesce(outcome.outcome_label, 'unmeasured') = 'unmeasured' then '근거는 있으나 성과 측정창이 아직 끝나지 않았다. 페이퍼 검증 대기 상태다.'
             else '근거와 투자 논리가 연결되어 추천 상세 검토로 들어갈 수 있다.'
         end as decision_boundary_reason,
-        coalesce(outcome.outcome_label, 'unmeasured') <> 'unmeasured'
-          and recommendation.thesis_id is not null
+        recommendation.thesis_id is not null
           and coalesce(component_count.score_component_count, 0) > 0
           and coalesce(component_count.ai_or_event_component_count, 0) > 0
             as paper_validation_input_allowed,
@@ -14749,6 +14752,14 @@ def _build_stock_equity_research_payload(artifact: dict[str, Any]) -> dict[str, 
         else None,
         "created_at": _timestamp(artifact.get("created_at")),
         "data_quality": data_quality,
+        "generation": {
+            "mode": "fallback" if artifact.get("provider") == "fixture" or "fallback" in str(artifact.get("model_name") or "").lower()
+                    else "ai" if artifact.get("provider") == "codex_oauth" else "unknown",
+            "content_review_status": "not_recorded",
+            "structural_status": data_quality["status"],
+            "source_document_count": len(source_document_ids),
+            "source_scope": "selected_input_documents_not_claim_level_verification",
+        },
     }
 
 
@@ -15980,7 +15991,7 @@ def _build_stock_market_data_provider_payload(
         None,
     )
     latest_trade_date = str(payload.get("latest_trade_date") or latest.get("trade_date") or "")
-    freshness_status = str(payload.get("freshness_status") or ("fresh" if latest else "missing"))
+    freshness_status = str(payload.get("freshness_status") or ("unknown" if latest else "missing"))
     toss_status = str(payload.get("toss_shadow_status") or "missing")
     toss_reason = str(payload.get("toss_shadow_reason") or "")
     canonical_promotion_allowed = payload.get("canonical_promotion_allowed") is True
@@ -15992,6 +16003,8 @@ def _build_stock_market_data_provider_payload(
         "provider_source_run_id": provider_source_run_id,
         "latest_trade_date": latest_trade_date,
         "freshness_status": freshness_status,
+        "freshness_policy": payload.get("freshness_policy"),
+        "freshness_age_days": payload.get("freshness_age_days"),
         "toss_shadow_status": toss_status,
         "toss_shadow_reason": toss_reason,
         "canonical_promotion_allowed": canonical_promotion_allowed,
@@ -16003,6 +16016,8 @@ def _build_stock_market_data_provider_payload(
             "source_run_id": provider_source_run_id,
             "latest_trade_date": latest_trade_date,
             "freshness_status": freshness_status,
+            "freshness_policy": payload.get("freshness_policy"),
+            "freshness_age_days": payload.get("freshness_age_days"),
             "status": freshness_status,
             "reason": "",
             "reason_label": "추천·사이클·성과 계산 기준으로 쓰는 글로벌 가격 데이터다.",
@@ -19923,6 +19938,8 @@ def _build_cycle_state_item_payload(item: dict[str, Any]) -> dict[str, Any]:
             "event_intensity": _number(features.get("event_intensity")),
             "price_momentum": _number(features.get("price_momentum")),
             "fundamental_quality": _number(features.get("fundamental_quality")),
+            "market_breadth": _number(features.get("market_breadth")),
+            "valuation_score": _number(features.get("valuation_score")),
         },
     }
 
@@ -20975,6 +20992,11 @@ def _build_recommendation_professional_decision_waterfall_payload(
     valuation_method_count = _integer(target_range.get("method_count")) or 0
     outcome_measured = bool(outcome.get("measurement_end_date")) and str(outcome.get("label") or "unmeasured") != "unmeasured"
     position_linked = holding_review.get("status") in {"review_linked", "position_without_review"}
+    decision_boundary = recommendation_boundary(
+        has_thesis=linked_thesis_id is not None, component_count=score_component_count,
+        evidence_count=ai_or_event_count, source_blocked=source_blocked,
+        outcome_measured=outcome_measured,
+    )
 
     if source_blocked:
         status = "source_data_blocked"
@@ -21196,8 +21218,8 @@ def _build_recommendation_professional_decision_waterfall_payload(
         _professional_decision_step(
             step_key="paper_validation",
             title="페이퍼 검증·거래 경계",
-            status="전문 원천 차단" if source_blocked else ("성과 측정됨" if outcome_measured else "성과 측정 대기"),
-            tone="blocked" if source_blocked else ("ready" if outcome_measured else "watch"),
+            status="가상 검증 입력 차단" if not decision_boundary["paper_validation_input_allowed"] else ("성과 측정됨" if outcome_measured else "성과 측정 대기"),
+            tone="blocked" if not decision_boundary["paper_validation_input_allowed"] else ("ready" if outcome_measured else "watch"),
             decision="검증 전까지 실거래로 넘기지 않는다",
             detail=(
                 str(source_guardrail.get("next_action") or "")
@@ -21215,6 +21237,7 @@ def _build_recommendation_professional_decision_waterfall_payload(
                 _professional_fact("성과", _professional_code_label(outcome.get("label") or "unmeasured")),
                 _professional_fact("알파", _format_signed_percent_text(_number(outcome.get("alpha")))),
                 _professional_fact("주문", "읽기 전용 차단"),
+                _professional_fact("가상 검증 입력", "가능 · 검증 완료와 별개" if decision_boundary["paper_validation_input_allowed"] else "근거 보강 필요"),
             ],
         ),
     ]
@@ -21227,7 +21250,8 @@ def _build_recommendation_professional_decision_waterfall_payload(
         "recommendation": recommendation,
         "score": score,
         "score_component_count": score_component_count,
-        "paper_validation_input_allowed": False if source_blocked else True,
+        "paper_validation_input_allowed": decision_boundary["paper_validation_input_allowed"],
+        "decision_boundary": decision_boundary,
         "automatic_order_allowed": False,
         "broker_submit_allowed": False,
         "order_boundary": "read_only_no_order",
@@ -22023,6 +22047,7 @@ def _build_recommendation_list_item_payload(item: dict[str, Any]) -> dict[str, A
             linked_thesis_id=linked_thesis_id,
             evidence=evidence,
             outcome=outcome,
+            source_blocked=_as_dict(evidence_quality.get("source_blocker")).get("blocked") is True,
         ),
     }
 
@@ -22102,41 +22127,17 @@ def _recommendation_list_evidence_quality_summary(
 
 
 def _build_recommendation_list_boundary_payload(
-    boundary: dict[str, Any],
-    *,
-    linked_thesis_id: Any,
-    evidence: Mapping[str, Any],
-    outcome: Mapping[str, Any],
+    boundary: dict[str, Any], *, linked_thesis_id: Any,
+    evidence: Mapping[str, Any], outcome: Mapping[str, Any], source_blocked: bool = False,
 ) -> dict[str, Any]:
-    status = str(boundary.get("status") or "")
-    if not status:
-        if linked_thesis_id is None:
-            status = "blocked_missing_thesis"
-        elif int(evidence.get("score_component_count") or 0) <= 0:
-            status = "blocked_missing_score_components"
-        elif int(evidence.get("ai_or_event_component_count") or 0) <= 0:
-            status = "blocked_missing_ai_or_event_evidence"
-        elif str(outcome.get("label") or "unmeasured") == "unmeasured":
-            status = "paper_validation_pending"
-        else:
-            status = "decision_review_ready"
-    reason = str(boundary.get("reason") or "")
-    if not reason:
-        reason = {
-            "blocked_missing_thesis": "투자 논리가 없어 추천 검토 입력으로 쓰면 안 된다.",
-            "blocked_missing_score_components": "추천 점수 구성요소가 없어 검토 입력으로 쓰면 안 된다.",
-            "blocked_missing_ai_or_event_evidence": "뉴스·공시·AI 근거가 부족해 먼저 근거를 확인해야 한다.",
-            "paper_validation_pending": "근거는 있으나 성과 측정창이 아직 끝나지 않았다. 페이퍼 검증 대기 상태다.",
-            "decision_review_ready": "근거와 투자 논리가 연결되어 추천 상세 검토로 들어갈 수 있다.",
-        }.get(status, "추천 상세에서 판단 경계를 확인한다.")
-    return {
-        "status": status,
-        "reason": reason,
-        "paper_validation_input_allowed": boundary.get("paper_validation_input_allowed") is True,
-        "automatic_order_allowed": boundary.get("automatic_order_allowed") is True,
-        "broker_submit_allowed": boundary.get("broker_submit_allowed") is True,
-        "order_boundary": str(boundary.get("order_boundary") or "read_only_no_order"),
-    }
+    return recommendation_boundary(
+        has_thesis=linked_thesis_id is not None,
+        component_count=int(evidence.get("score_component_count") or 0),
+        evidence_count=int(evidence.get("ai_or_event_component_count") or 0),
+        source_blocked=source_blocked or str(boundary.get("status") or "") in {"blocked_source", "source_data_blocked"},
+        outcome_measured=bool(outcome.get("measurement_end_date")) and str(outcome.get("label") or "unmeasured") != "unmeasured",
+        evidence_blocked=evidence.get("quality_status") == "blocked",
+    )
 
 
 def _recommendation_detail_id(state: dict[str, Any], identifier: str) -> str:

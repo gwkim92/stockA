@@ -15,7 +15,7 @@ for (const [path, name, id] of [['/stocks/AAPL', 'company', 'company-workspace']
   });
 }
 test('price observation controls do not relabel sparse history as daily change', async ({ page }) => {
-  await page.goto('/stocks/AAPL'); const chart = page.getByTestId('company-price-chart');
+  await page.goto('/stocks/AAPL'); await page.getByRole('tab', { name: '가격 기록', exact: true }).click(); const chart = page.getByTestId('company-price-chart');
   await expect(page.getByTestId('company-workspace').locator('dl').first()).toContainText('보고된 1일 변화');
   await expect(chart).toContainText('29/30개 측정');
   await chart.getByRole('button', { name: '수신 전체', exact: true }).click(); await expect(chart).toContainText('44/45개 측정');
@@ -28,8 +28,10 @@ for (const scenario of ['context-down', 'context-wrong', 'context-slow']) {
     await page.goto('/stocks/AAPL', { waitUntil: 'domcontentloaded' });
     const view = page.getByTestId('company-workspace');
     await expect(view.locator('#company-case')).toContainText('서비스의 반복 매출');
+    await page.getByRole('tab', { name: '시장 문맥', exact: true }).click();
     await expect(view.locator('#company-context')).toContainText('추가 시장 문맥을 불러오지 못했습니다');
     await expect(view).not.toContainText('unrelated-first-thesis'); await expect(view).not.toContainText('optional-private-error');
+    await page.getByRole('tab', { name: '핵심 논리', exact: true }).click();
     await expect(view.getByRole('link', { name: '투자 논리 열기', exact: true })).toHaveAttribute('href', '/theses/thesis-1');
   });
 }
@@ -45,7 +47,7 @@ test('fund primary page shows composition rather than company target values', as
   await expect(view).toContainText('0.09%'); await expect(view).not.toContainText('중앙 추정 가치');
 });
 test('company to interpretation to original source and back is actual navigation', async ({ page, request }) => {
-  await page.goto('/stocks/AAPL'); await page.getByRole('link', { name: '근거 해석 열기 →', exact: true }).click();
+  await page.goto('/stocks/AAPL'); await page.getByRole('tab', { name: '뉴스 근거', exact: true }).click(); await page.getByRole('link', { name: '근거 해석 열기 →', exact: true }).click();
   await expect(page).toHaveURL(/ai-evidence\/ai-evidence-1$/);
   await page.getByTestId('research-reader').getByRole('link', { name: '원천 문서 열기', exact: true }).click();
   await expect(page).toHaveURL(/source-documents\/source-document-1$/); await expect(page.getByTestId('source-excerpts')).toBeVisible();
@@ -80,3 +82,32 @@ for (const [scenario, expected] of [['chunk-missing', '대응하는 발췌를 �
     await expect(page.locator('main')).toContainText(expected); await expect(page.locator('main')).not.toContainText('private-error-must-not-render');
   });
 }
+
+test('company tabs preserve URL and keyboard focus, including legacy chapter links', async ({ page }) => {
+  await page.goto('/stocks/AAPL#company-analysis');
+  const financial = page.getByRole('tab', { name: '재무·가치', exact: true });
+  await expect(financial).toHaveAttribute('aria-selected', 'true');
+  await expect(page.locator('#company-analysis table')).toBeVisible();
+  await financial.focus(); await page.keyboard.press('ArrowRight');
+  await expect(page.getByRole('tab', { name: '뉴스 근거', exact: true })).toBeFocused();
+  await page.reload(); await expect(page.getByRole('tab', { name: '뉴스 근거', exact: true })).toHaveAttribute('aria-selected', 'true');
+  await page.goBack(); await expect(financial).toHaveAttribute('aria-selected', 'true');
+});
+
+test('source drawer retains chapter, verifies the exact source, recovers after error and restores focus', async ({ page, request }) => {
+  await page.goto('/stocks/AAPL?view=company-evidence');
+  const trigger = page.getByRole('button', { name: '원천 발췌 읽기 ↗', exact: true }).first();
+  await page.route('**/api/research-source/*', route => route.fulfill({ status: 502, body: '{}' }));
+  await trigger.click(); const drawer = page.getByRole('dialog');
+  await expect(drawer).toContainText('원천을 불러오지 못했습니다');
+  await page.unroute('**/api/research-source/*'); await drawer.getByRole('button', { name: '다시 시도', exact: true }).click();
+  await expect(drawer).toContainText('문서 상세와 수집 기록');
+  await expect(drawer.getByRole('link')).toHaveAttribute('href', '/source-documents/source-document-1');
+  await expect(drawer).not.toContainText('불러오는 중'); await expect(drawer).not.toContainText('원천을 불러오지 못했습니다');
+  expect((await new AxeBuilder({ page }).include('dialog').analyze()).violations).toEqual([]);
+  await page.keyboard.press('Escape'); await expect(drawer).not.toBeVisible(); await expect(trigger).toBeFocused();
+  await expect(page).toHaveURL(/view=company-evidence/);
+  const calls = await (await request.get('http://127.0.0.1:18768/__requests')).json();
+  expect(calls.some((row: {path:string}) => row.path === '/api/source-documents/source-document-1')).toBe(true);
+  expect(calls.every((row: {method:string}) => row.method === 'GET')).toBe(true);
+});
