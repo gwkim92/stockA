@@ -78,4 +78,4 @@ class EquityCutoffContractTests(unittest.TestCase):
         self.assertNotEqual(initial, build_equity_research_request_hash(context=context, **args))
 
     def test_prompt_template_version_changes_with_temporal_contract(self):
-        self.assertEqual(DEFAULT_TEMPLATE_VERSION, '2026-09-11-equity-evidence-selection-v1')
+        self.assertEqual(DEFAULT_TEMPLATE_VERSION, '2026-09-11-equity-financial-period-quality-v1')

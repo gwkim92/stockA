@@ -20,6 +20,58 @@ POSTGRES_VERSION = None
 
 
 class EquityCutoffPostgresTests(unittest.TestCase):
+    def test_shares_only_later_date_does_not_replace_financial_statement(self):
+        setup = """
+insert into market.financial_statement_period values
+(1,101,'annual','2025-09-27','2025-10-31',null),
+(2,101,'annual','2025-10-17','2025-10-31',null);
+insert into market.financial_metric_value values (1,'revenue',100),(2,'shares_outstanding',50);
+insert into market.financial_metric_normalized (instrument_id,metric_code,metric_value,metric_status,statement_scope,period_end,as_of_date,period_id) values
+(101,'net_margin',0.2,'computed','annual','2025-09-27','2026-09-01',1),
+(101,'net_margin',null,'unavailable','annual','2025-10-17','2026-09-01',2);
+"""
+        row = self.context(setup=setup)['financial_metrics'][0]
+        self.assertEqual(row['period_end'], '2025-09-27')
+        self.assertEqual(row['metric_value'], 0.2)
+        self.assertEqual(row['report_date'], '2025-10-31')
+        self.assertIsNone(row['source_document_id'])
+
+    def test_genuine_latest_period_keeps_missing_metrics_instead_of_cherry_picking(self):
+        setup = """
+insert into market.financial_statement_period values
+(1,101,'annual','2024-09-28','2024-10-31',null),
+(2,101,'annual','2025-09-27','2025-10-31',null);
+insert into market.financial_metric_value values (1,'revenue',100),(2,'revenue',120);
+insert into market.financial_metric_normalized (instrument_id,metric_code,metric_value,metric_status,statement_scope,period_end,as_of_date,period_id) values
+(101,'net_margin',0.2,'computed','annual','2024-09-28','2026-09-01',1),
+(101,'net_margin',null,'unavailable','annual','2025-09-27','2026-09-01',2);
+"""
+        row = self.context(setup=setup)['financial_metrics'][0]
+        self.assertEqual(row['period_end'], '2025-09-27')
+        self.assertIsNone(row['metric_value'])
+
+    def test_unknown_or_later_report_date_is_not_historical_evidence(self):
+        setup = """
+insert into market.financial_statement_period values
+(1,101,'annual','2025-12-31','2026-09-06',null),
+(2,101,'annual','2025-11-30',null,null);
+insert into market.financial_metric_value values (1,'revenue',100),(2,'revenue',100);
+insert into market.financial_metric_normalized (instrument_id,metric_code,metric_status,statement_scope,period_end,as_of_date,period_id) values
+(101,'net_margin','unavailable','annual','2025-12-31','2026-09-01',1),
+(101,'net_margin','unavailable','annual','2025-11-30','2026-09-01',2);
+"""
+        self.assertEqual(self.context(setup=setup)['financial_metrics'], [])
+
+    def test_theme_percentile_is_explicitly_not_a_validated_business_peer(self):
+        setup = """
+insert into ref.peer_group values (1,'THEME','Macro Rates','classification membership: internal_theme/subtheme/MACRO');
+insert into market.peer_relative_snapshot values (101,1,'net_margin',0.2,1,'above_peer','2026-09-01',null,1);
+"""
+        row = self.context(setup=setup)['peer_relative'][0]
+        self.assertFalse(row['business_peer_comparison_verified'])
+        self.assertIn('subtheme', row['peer_group_methodology'])
+        self.assertEqual(row['metric_value'], 0.2)
+
     @classmethod
     def setUpClass(cls):
         service = os.getenv('STOCKA_CUTOFF_TEST_CONTAINER', '')

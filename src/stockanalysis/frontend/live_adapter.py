@@ -14738,7 +14738,7 @@ def _build_stock_equity_research_payload(artifact: dict[str, Any]) -> dict[str, 
         for item in _as_scalar_list(artifact.get("source_document_ids"))
         if item is not None
     ]
-    return {
+    payload = {
         "artifact_id": _opaque_id("equity-research-artifact", raw_id, None),
         "as_of_date": str(artifact.get("as_of_date") or ""),
         "artifact_type": str(artifact.get("artifact_type") or "full_equity_research"),
@@ -14768,6 +14768,10 @@ def _build_stock_equity_research_payload(artifact: dict[str, Any]) -> dict[str, 
             "source_scope": "selected_input_documents_not_claim_level_verification",
         },
     }
+    from stockanalysis.frontend.research_content_review import content_review_for
+    payload['content_review'] = content_review_for(payload)
+    payload['generation']['content_review_status'] = payload['content_review']['status']
+    return payload
 
 
 def _build_financial_statement_model_payload(
