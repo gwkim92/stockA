@@ -88,7 +88,7 @@ class SecCompanyFactsTests(unittest.TestCase):
         self.assertTrue(all(value.fiscal_quarter is None for value in result.values))
         self.assertTrue(all(value.is_audited for value in result.values))
 
-    def test_normalize_companyfacts_maps_common_stock_shares_outstanding(self) -> None:
+    def test_shares_only_date_does_not_create_a_financial_statement(self) -> None:
         result = normalize_companyfacts_payload(
             {
                 "cik": 1652044,
@@ -115,9 +115,8 @@ class SecCompanyFactsTests(unittest.TestCase):
             }
         )
 
-        self.assertEqual(result.summary()["metric_codes"], ["shares_outstanding"])
-        self.assertEqual(result.values[0].metric_code, "shares_outstanding")
-        self.assertEqual(result.values[0].unit, "shares")
+        self.assertEqual(result.values, ())
+        self.assertEqual(result.excluded_facts[0]["exclusion_reason"], "unresolved_fiscal_period")
 
     def test_render_sec_companyfacts_upsert_sql(self) -> None:
         result = load_sec_companyfacts_sync_result(

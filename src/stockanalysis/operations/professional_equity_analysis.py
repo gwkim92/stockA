@@ -20,7 +20,7 @@ from stockanalysis.signal.universe import (
 
 
 DEFAULT_PIPELINE_NAME = "financial_metric_normalization"
-DEFAULT_MODEL_NAME = "deterministic-financial-sql-v1"
+DEFAULT_MODEL_NAME = "deterministic-financial-sql-v2"
 DEFAULT_PEER_RELATIVE_PIPELINE_NAME = "peer_relative_analysis"
 DEFAULT_PEER_RELATIVE_MODEL_NAME = "deterministic-peer-relative-sql-v1"
 DEFAULT_VALUATION_PIPELINE_NAME = "valuation_snapshot"
@@ -96,7 +96,16 @@ class HtmlTableContext:
     context_text: str
 
 
-def render_financial_metric_normalization_preview_sql(*, as_of_date: date, limit: int | None = None) -> str:
+def _financial_symbol_filter(symbols: tuple[str, ...]) -> str:
+    if not symbols:
+        return ""
+    normalized = sorted({symbol.strip().upper() for symbol in symbols})
+    if any(not re.fullmatch(r"[A-Z0-9.^-]{1,20}", symbol) for symbol in normalized):
+        raise ValueError("Invalid financial normalization symbol")
+    return "and instrument.primary_symbol in (" + ", ".join(sql_literal(symbol) for symbol in normalized) + ")"
+
+
+def render_financial_metric_normalization_preview_sql(*, as_of_date: date, limit: int | None = None, symbols: tuple[str, ...] = ()) -> str:
     limit_clause = "" if limit is None else f"\n    limit {int(limit)}"
     if limit is not None and limit <= 0:
         raise ValueError("limit must be greater than 0.")
@@ -113,6 +122,10 @@ with scoped_periods as (
     from market.financial_statement_period period
     join ref.instrument instrument on instrument.instrument_id = period.instrument_id
     where period.period_end <= {sql_date(as_of_date)}
+      and period.report_date <= {sql_date(as_of_date)}
+      and ((period.statement_scope = 'annual' and period.period_end - period.period_start between 334 and 394)
+        or (period.statement_scope = 'quarterly' and period.period_end - period.period_start between 74 and 109))
+      {_financial_symbol_filter(symbols)}
     order by period.period_end desc, instrument.primary_symbol asc, period.period_id desc{limit_clause}
 ),
 metric_codes as (
@@ -124,6 +137,7 @@ normalized_rows as (
     select *
     from market.financial_metric_normalized normalized
     where normalized.as_of_date = {sql_date(as_of_date)}
+      and normalized.period_id in (select period_id from scoped_periods)
 )
 select json_build_object(
     'as_of_date', {sql_literal(as_of_date.isoformat())},
@@ -143,6 +157,7 @@ def render_financial_metric_normalization_upsert_sql(
     as_of_date: date,
     source_run_id: int,
     limit: int | None = None,
+    symbols: tuple[str, ...] = (),
 ) -> str:
     if limit is not None and limit <= 0:
         raise ValueError("limit must be greater than 0.")
@@ -161,6 +176,10 @@ with scoped_periods as (
     from market.financial_statement_period period
     join ref.instrument instrument on instrument.instrument_id = period.instrument_id
     where period.period_end <= {sql_date(as_of_date)}
+      and period.report_date <= {sql_date(as_of_date)}
+      and ((period.statement_scope = 'annual' and period.period_end - period.period_start between 334 and 394)
+        or (period.statement_scope = 'quarterly' and period.period_end - period.period_start between 74 and 109))
+      {_financial_symbol_filter(symbols)}
     order by period.period_end desc, instrument.primary_symbol asc, period.period_id desc{limit_clause}
 ),
 period_metrics as (
@@ -578,11 +597,12 @@ def load_financial_metric_normalization_preview(
     config: RuntimeConfig,
     as_of_date: date,
     limit: int | None = None,
+    symbols: tuple[str, ...] = (),
     executor: PsqlCommandExecutor | None = None,
 ) -> dict[str, object]:
     sql_executor = executor or PsqlCommandExecutor.from_config(config)
     payload = json.loads(
-        sql_executor.execute_scalar(render_financial_metric_normalization_preview_sql(as_of_date=as_of_date, limit=limit))
+        sql_executor.execute_scalar(render_financial_metric_normalization_preview_sql(as_of_date=as_of_date, limit=limit, symbols=symbols))
     )
     if not isinstance(payload, dict):
         raise ValueError("Financial metric normalization preview did not return a JSON object.")
@@ -594,6 +614,7 @@ def run_financial_metric_normalization(
     config: RuntimeConfig,
     as_of_date: date,
     limit: int | None = None,
+    symbols: tuple[str, ...] = (),
     execute: bool = False,
     executor: PsqlCommandExecutor | None = None,
 ) -> dict[str, object]:
@@ -602,6 +623,7 @@ def run_financial_metric_normalization(
         config=config,
         as_of_date=as_of_date,
         limit=limit,
+        symbols=symbols,
         executor=sql_executor,
     )
     report: dict[str, object] = {
@@ -611,6 +633,7 @@ def run_financial_metric_normalization(
         "pipeline_name": DEFAULT_PIPELINE_NAME,
         "as_of_date": as_of_date.isoformat(),
         "limit": limit,
+        "symbols": list(symbols),
         "model_name": DEFAULT_MODEL_NAME,
         "standard_metric_codes": list(STANDARD_FINANCIAL_METRICS),
         "preview": preview,
@@ -625,6 +648,7 @@ def run_financial_metric_normalization(
         config_json={
             "as_of_date": as_of_date.isoformat(),
             "limit": limit,
+            "symbols": list(symbols),
             "model_name": DEFAULT_MODEL_NAME,
             "recommendation_scoring_mutated": False,
         },
@@ -636,6 +660,7 @@ def run_financial_metric_normalization(
                     as_of_date=as_of_date,
                     source_run_id=run_id,
                     limit=limit,
+                    symbols=symbols,
                 )
             )
         )

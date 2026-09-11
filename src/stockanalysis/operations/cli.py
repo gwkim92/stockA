@@ -1624,6 +1624,7 @@ def build_parser() -> argparse.ArgumentParser:
     financial_metric_normalization.add_argument("--env-file")
     financial_metric_normalization.add_argument("--as-of-date", required=True)
     financial_metric_normalization.add_argument("--limit", type=int)
+    financial_metric_normalization.add_argument("--symbol", action="append", default=[])
     financial_metric_normalization.add_argument("--execute", action="store_true")
     financial_metric_normalization.add_argument("--dry-run", action="store_true")
     financial_metric_normalization.add_argument("--output")
@@ -3574,6 +3575,7 @@ def _handle_financial_metric_normalization_run(args: argparse.Namespace, *, stdo
             config=RuntimeConfig.from_env(),
             as_of_date=as_of_date,
             limit=args.limit,
+            symbols=tuple(args.symbol),
             execute=bool(args.execute) and not bool(args.dry_run),
         )
     if args.output:

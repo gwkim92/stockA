@@ -1,0 +1,60 @@
+name: Financial Period Integrity
+
+on:
+  pull_request:
+    branches: [develop, main]
+    paths:
+      - 'src/stockanalysis/ingest/sec/**'
+      - 'src/stockanalysis/operations/professional_equity_analysis.py'
+      - 'src/stockanalysis/operations/cli.py'
+      - 'tests/test_financial_period*'
+      - 'tests/test_sec_companyfacts.py'
+      - 'tests/fixtures/sec*'
+      - 'db/migrations/0002_priority_1_tables.sql'
+      - 'db/migrations/0021_professional_equity_analysis.sql'
+      - 'scripts/verify_financial_period_integrity.sh'
+      - '.github/workflows/financial-period-integrity.yml'
+  push:
+    branches: [develop]
+    paths:
+      - 'src/stockanalysis/ingest/sec/**'
+      - 'src/stockanalysis/operations/professional_equity_analysis.py'
+      - 'src/stockanalysis/operations/cli.py'
+      - 'tests/test_financial_period*'
+      - 'tests/test_sec_companyfacts.py'
+      - 'tests/fixtures/sec*'
+      - 'db/migrations/0002_priority_1_tables.sql'
+      - 'db/migrations/0021_professional_equity_analysis.sql'
+      - 'scripts/verify_financial_period_integrity.sh'
+      - '.github/workflows/financial-period-integrity.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: financial-period-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  financial-period:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Verify parser and real PostgreSQL persistence
+        shell: bash
+        run: |
+          set -o pipefail
+          bash scripts/verify_financial_period_integrity.sh 2>&1 | tee financial-period-tests.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: financial-period-tests
+          path: financial-period-tests.log
+          retention-days: 7
