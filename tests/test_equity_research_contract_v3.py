@@ -117,14 +117,14 @@ class EquityInputContractTests(unittest.TestCase):
         self.assertEqual(context, original)
 
     def test_final_nested_source_size_is_enforced_before_process_io(self):
-        context = _context_payload(); context["thesis"]["summary"] = "x" * 20000
+        context = _context_payload(); context["instrument"]["name"] = "x" * 20000
         with patch.object(equity.subprocess, "run") as process:
             with self.assertRaisesRegex(PromptContractError, "input_budget_exceeded"):
                 equity.invoke_codex_oauth_equity_research_provider(context, "default", "low", 16000)
             process.assert_not_called()
 
     def test_escaped_not_raw_character_size_determines_the_limit(self):
-        context = _context_payload(); context["thesis"]["summary"] = "<" * 3000
+        context = _context_payload(); context["instrument"]["name"] = "<" * 3000
         with self.assertRaisesRegex(PromptContractError, "input_budget_exceeded"):
             equity.build_codex_oauth_equity_research_prompt(context, max_context_chars=16000)
 
@@ -243,7 +243,7 @@ class EquityPipelineContractTests(unittest.TestCase):
         self.assertNotIn("1011", artifact)
 
     def test_overbudget_context_fails_before_any_write(self):
-        context = _context_payload(); context["thesis"]["summary"] = "x" * 50000
+        context = _context_payload(); context["instrument"]["name"] = "x" * 50000
         class ContextExecutor(FakeEquityResearchExecutor):
             def execute_scalar(self, sql):
                 if sql.startswith("-- equity research context lookup"):
