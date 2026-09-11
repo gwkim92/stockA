@@ -10,7 +10,7 @@ test.beforeEach(async ({ request }) => {
 test("tab navigation preserves the selected report date", async ({ page, request }) => {
   await page.goto("/portfolio/coverage?date=2025-01-15");
   const tabs = page.getByRole("navigation", { name: "보유와 성과" });
-  await tabs.getByRole("link", { name: "판단 성과", exact: true }).click();
+  await tabs.getByRole("link", { name: "보유 성과귀속", exact: true }).click();
   await expect(page).toHaveURL(/\/performance\?date=2025-01-15$/);
   await expect(page.getByLabel("성과 종료 기준일")).toHaveValue("2025-01-15");
   await tabs.getByRole("link", { name: "보유 검토", exact: true }).click();
