@@ -13,6 +13,7 @@ export async function ReviewSource({ model, requested }: { model: ReviewModel; r
   return <div data-testid="review-source-content">
     <div className={styles.sourceMeta}><span>{source.publisher} · {source.form || source.type}</span><span>공개일 {shortDate(source.filedAt, '미기록')}</span></div>
     <h3 className={styles.sourceTitle}>{source.koreanTitle ?? source.title}</h3>
+    {source.integrityNotice && <p role="status" className={styles.warning}>{source.integrityNotice}</p>}
     <p className={styles.caption}>API가 제공한 발췌·요약입니다. 완전한 원문이나 직접 인용으로 보장하지 않습니다.</p>
     {model.asOf && source.filedAt && source.filedAt.slice(0,10) > model.asOf && <p className={styles.warning}>문서 공개일이 기업 분석 기준일 이후입니다. 당시 알려진 근거로 취급하지 마세요.</p>}
     {source.excerpts?.map(chunk => <article className={styles.excerpt} key={chunk.id}><span>{chunk.locator}</span><h4>{chunk.section}</h4><p>{chunk.summary}</p></article>)}

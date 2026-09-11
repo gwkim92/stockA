@@ -3837,6 +3837,12 @@ def build_live_source_document_detail_response(
     identifier = _parse_detail_identifier(parsed.path, "/api/source-documents/")
     state = load_frontend_source_document_detail_state(config=config, executor=executor, identifier=identifier)
     retrieval = _as_dict(state.get("retrieval"))
+    quarantined = state.get("source_type") == "news_rss_identity_conflict"
+    if quarantined:
+        # Preserve stored history, but do not present mixed revisions as evidence.
+        state = {**state, "korean_title": None, "korean_summary": None,
+                 "translation_confidence": None, "translation_provider": None,
+                 "excerpts": [], "symbol": None}
 
     return {
         "contract_version": CONTRACT_VERSION,
@@ -3849,6 +3855,7 @@ def build_live_source_document_detail_response(
             "translation_confidence": _number(state.get("translation_confidence")),
             "translation_provider": _optional_text(state.get("translation_provider")),
             "source_type": str(state.get("source_type") or "source_document"),
+            "integrity_status": "quarantined_identity_conflict" if quarantined else "not_reviewed",
             "publisher": str(state.get("publisher") or "unknown"),
             "symbol": str(state.get("symbol") or "UNKNOWN").upper(),
             "cik": str(state.get("cik") or ""),

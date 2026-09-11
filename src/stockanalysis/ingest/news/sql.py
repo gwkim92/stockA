@@ -118,6 +118,7 @@ upserted_documents as (
         checksum = excluded.checksum,
         ingested_at = now(),
         ingested_by_run_id = excluded.ingested_by_run_id
+    where ingest.source_document.document_type <> 'news_rss_identity_conflict'
     returning
         document_id,
         external_document_id,

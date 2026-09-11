@@ -82,17 +82,20 @@ export type SourceReaderData = {
   filedAt: string | null; fetchedAt: string | null; parser: string; accession: string; checksum: string;
   download: "restricted" | "unavailable" | "unknown"; excerpts: Excerpt[] | null; evidence: Evidence[] | null;
   thesisHref: string | null;
+  integrityNotice?: string | null;
 };
 export function parseSource(payload: unknown, requested: string): SourceReaderData {
   const envelope = object(payload), data = object(envelope.data), links = object(envelope.links);
   const resolution = resolveIdentity("source", requested, data, links);
   if (!resolution || !text(data.title, "")) throw new Error("source identity or title unavailable");
-  const excerpts = rows(data.excerpts);
+  const quarantined = data.source_type === "news_rss_identity_conflict" || data.integrity_status === "quarantined_identity_conflict";
+  const excerpts = quarantined ? [] : rows(data.excerpts);
   if (excerpts && (excerpts.some(row => !identifier(row.chunk_id)) || new Set(excerpts.map(row => row.chunk_id)).size !== excerpts.length)) throw new Error("invalid excerpt identity");
   const retrieval = object(data.retrieval), policy = object(data.access_policy);
   return {
-    id: text(data.document_id), resolution, title: text(data.title), koreanTitle: text(data.korean_title, "") || null,
-    koreanSummary: text(data.korean_summary, "") || null, symbol: knownSymbol(data.symbol), publisher: text(data.publisher),
+    id: text(data.document_id), resolution, title: text(data.title), koreanTitle: quarantined ? null : text(data.korean_title, "") || null,
+    koreanSummary: quarantined ? null : text(data.korean_summary, "") || null, symbol: quarantined ? null : knownSymbol(data.symbol), publisher: text(data.publisher),
+    integrityNotice: quarantined ? "원천 불일치 · 분석 입력 제외. 서로 다른 기사가 같은 식별자로 저장되어 원문·번역·종목 연결이 섞였습니다. 기존 기록은 보존하며 번역과 발췌는 표시하지 않습니다. 이 문서를 사용한 과거 분석은 재검토가 필요합니다." : null,
     type: text(data.source_type), form: text(data.form_type, ""), periodEnd: dateOnly(data.period_end),
     filedAt: recordedDate(data.filed_at), fetchedAt: recordedDate(retrieval.fetched_at), parser: text(retrieval.parser_version),
     accession: text(data.accession_id), checksum: text(data.checksum),
