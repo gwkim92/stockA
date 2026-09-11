@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any, Iterable, Mapping
 from urllib.parse import parse_qs, quote, unquote, urlsplit
 
+from stockanalysis.ai.research_source_version import freshness_sql, public_freshness
 from stockanalysis.ai.evidence_graph import render_instrument_evidence_neighborhood_sql
 from stockanalysis.ai.internal_rag import build_internal_rag_context_package
 from stockanalysis.performance.outcome_window import outcome_window_match_sql
@@ -8908,6 +8909,7 @@ latest_equity_research as (
         artifact.valuation_sensitivity_json,
         artifact.source_document_ids,
         artifact.source_run_id,
+        {freshness_sql()} as financial_source_freshness,
         artifact.created_at
     from research.equity_research_artifact artifact
     join target_instrument instrument on instrument.instrument_id = artifact.instrument_id
@@ -9388,6 +9390,7 @@ select json_build_object(
             'valuation_sensitivity', valuation_sensitivity_json,
             'source_document_ids', source_document_ids,
             'source_run_id', source_run_id,
+            'financial_source_freshness', financial_source_freshness,
             'created_at', created_at
         )
         from latest_equity_research
@@ -12756,6 +12759,7 @@ latest_equity_research as (
         artifact.valuation_sensitivity_json,
         artifact.source_document_ids,
         artifact.source_run_id,
+        {freshness_sql()} as financial_source_freshness,
         artifact.created_at
     from research.equity_research_artifact artifact
     join selected_recommendation recommendation on recommendation.instrument_id = artifact.instrument_id
@@ -13145,6 +13149,7 @@ select json_build_object(
             'valuation_sensitivity', valuation_sensitivity_json,
             'source_document_ids', source_document_ids,
             'source_run_id', source_run_id,
+            'financial_source_freshness', financial_source_freshness,
             'created_at', created_at
         )
         from latest_equity_research
@@ -14173,6 +14178,7 @@ latest_equity_research as (
         artifact.valuation_sensitivity_json,
         artifact.source_document_ids,
         artifact.source_run_id,
+        {freshness_sql()} as financial_source_freshness,
         artifact.created_at
     from research.equity_research_artifact artifact
     join selected_thesis thesis on thesis.instrument_id = artifact.instrument_id
@@ -14296,6 +14302,7 @@ select json_build_object(
             'valuation_sensitivity', valuation_sensitivity_json,
             'source_document_ids', source_document_ids,
             'source_run_id', source_run_id,
+            'financial_source_freshness', financial_source_freshness,
             'created_at', created_at
         )
         from latest_equity_research
@@ -14796,6 +14803,7 @@ def _build_stock_equity_research_payload(artifact: dict[str, Any]) -> dict[str, 
         else None,
         "created_at": _timestamp(artifact.get("created_at")),
         "data_quality": data_quality,
+        "financial_source_freshness": public_freshness(artifact.get("financial_source_freshness")),
         "generation": {
             "mode": "fallback" if artifact.get("provider") == "fixture" or "fallback" in str(artifact.get("model_name") or "").lower()
                     else "ai" if artifact.get("provider") == "codex_oauth" else "unknown",
