@@ -1,0 +1,15 @@
+{
+  "identity": {
+    "accountId": "115623963546",
+    "instanceId": "i-029d51b163fb07b61",
+    "region": "us-east-1"
+  },
+  "commit": "ba63c79cdbb1fcc75a67673975f315dbce8948cf",
+  "previous": "1abc9a2aec66973272458d14aab64fee205a41f8",
+  "build_id": "7b4tP9Y3GJ9J_hfn1a-5s",
+  "settings_unchanged": true,
+  "timers_restored": 14,
+  "services_active": true,
+  "routes_200": true,
+  "activated_at": "2026-09-11T14:59:40.514640+00:00"
+}

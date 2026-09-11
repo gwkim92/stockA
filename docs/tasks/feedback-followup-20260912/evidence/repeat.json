@@ -1,0 +1,126 @@
+{
+  "as_of_date": "2026-09-11",
+  "automatic_weight_change_allowed": false,
+  "broker_submit_allowed": false,
+  "execute": true,
+  "maximum_child_actions": 2,
+  "order_boundary": "read_only_no_order",
+  "portfolio_name": "Long Term Paper",
+  "reason": "no_op_calibration_current",
+  "report_name": "portfolio_review_feedback_maintenance",
+  "rounds": [
+    {
+      "action": {
+        "action_status": "no_op_calibration_current",
+        "as_of_date": "2026-09-11",
+        "automatic_order_allowed": false,
+        "automatic_rebalance_allowed": false,
+        "automatic_weight_change_allowed": false,
+        "benchmark_definition_mutated": false,
+        "broker_submit_allowed": false,
+        "cadence_status": "calibration_current",
+        "calibration_eval_run_id": 1771,
+        "child_runner": {
+          "eval_run_id": null,
+          "executed": false,
+          "report_name": "",
+          "run_id": null,
+          "status": "not_run"
+        },
+        "dataset_version": "portfolio-review-feedback-action-router-v1",
+        "eval_name": "portfolio_review_feedback_action_router",
+        "feedback_eval_run_id": 1768,
+        "history_eval_run_id": 31,
+        "next_action": "다음 daily cadence까지 모니터링한다.",
+        "order_boundary": "read_only_no_order",
+        "portfolio_name": "Long Term Paper",
+        "portfolio_position_mutated": false,
+        "reason": "latest feedback and calibration are current.",
+        "recommendation_scoring_mutated": false,
+        "route_action": "no_op",
+        "source_action_type": "monitor",
+        "source_cadence": {
+          "action_type": "monitor",
+          "as_of_date": "2026-09-11",
+          "cadence_status": "calibration_current",
+          "calibration": {
+            "as_of_date": "2026-09-11",
+            "calibration_status": "collect_more_feedback",
+            "contradicted_count": 33,
+            "created_at": "2026-09-11T15:05:22.353952+00:00",
+            "decision_count": 550,
+            "eval_run_id": 1771,
+            "feedback_run_count": 50,
+            "latest_feedback_run_ids": [
+              1768,
+              1715,
+              1674,
+              1657,
+              1640,
+              1623,
+              1606,
+              1565,
+              1548,
+              1531
+            ],
+            "mature_decision_count": 454,
+            "needs_more_data_count": 96,
+            "status": "loaded",
+            "too_early_count": 0,
+            "validated_count": 421
+          },
+          "command": "stockanalysis-operations portfolio-review-feedback-calibration-run --env-file <ENV> --portfolio-name \"Long Term Paper\" --as-of-date 2026-09-11 --execute",
+          "evidence": {
+            "decision_count": 11,
+            "history_age_days": 109,
+            "paper_validation": {
+              "approved_action_count": 0,
+              "conflict_count": 0,
+              "paper_validation_run_id": 90,
+              "recommendation_count": 24,
+              "status": "failed",
+              "validation_date": "2026-09-11"
+            },
+            "price_evidence_count": 11,
+            "recommendation_link_count": 6,
+            "recommendation_outcome_count": 6
+          },
+          "feedback": {
+            "as_of_date": "2026-09-11",
+            "contradicted_count": 4,
+            "created_at": "2026-09-11T14:48:50.00448+00:00",
+            "decision_count": 11,
+            "eval_run_id": 1768,
+            "feedback_status": "has_contradictions",
+            "needs_more_data_count": 1,
+            "source_history_as_of_date": "2026-05-25",
+            "source_history_eval_run_id": 31,
+            "status": "loaded",
+            "too_early_count": 0,
+            "validated_count": 6
+          },
+          "follow_up_command": "",
+          "history": {
+            "as_of_date": "2026-05-25",
+            "created_at": "2026-05-26T20:19:41.323267+00:00",
+            "decision_count": 11,
+            "decision_status": "review_required",
+            "eval_run_id": 31,
+            "review_required_count": 10,
+            "status": "loaded"
+          },
+          "should_run_now": false,
+          "should_wait": true
+        },
+        "source_cadence_as_of_date": "2026-09-11",
+        "source_cadence_created_at": "2026-09-11T15:05:24.502284+00:00",
+        "source_cadence_eval_run_id": 1775,
+        "source_cadence_status": "loaded",
+        "source_should_run_now": false
+      },
+      "cadence_eval_run_id": 1775,
+      "router_eval_run_id": 1776
+    }
+  ],
+  "status": "completed"
+}

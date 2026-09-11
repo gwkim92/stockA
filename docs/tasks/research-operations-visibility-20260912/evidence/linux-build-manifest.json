@@ -1,0 +1,9 @@
+{
+  "source_commit": "79944a12c5ace49a2c42dea982387c8fd4ef0067",
+  "web_tree": "8012abbbc7c769a3d75235d736aab12ffb30d91c",
+  "archive_name": "web-runtime.tar.gz",
+  "sha256": "dad7ce22ec8a442bb7492bfaf2c067ee1ac6fff3d05d2a50c8af5098a7600dba",
+  "package_lock_sha256": "7ba83536a87cfa48d6a542dbdb0f3eddca7436d113d19fb835f67338cc4ccded",
+  "build_id": "7b4tP9Y3GJ9J_hfn1a-5s",
+  "platform": "linux/amd64"
+}

@@ -1,0 +1,28 @@
+const ROOT=require('path').resolve(__dirname,'../../..');
+const {chromium,expect}=require(ROOT+'/apps/web/node_modules/@playwright/test');
+const path=__dirname+'/evidence';
+(async()=>{ const browser=await chromium.launch({headless:true});const results=[];
+for(const [name,width,height] of [['desktop',1440,1000],['mobile',390,844]]){
+ const page=await browser.newPage({viewport:{width,height},isMobile:name==='mobile',hasTouch:name==='mobile'});
+ const response=await page.goto('http://127.0.0.1:13309/data-health#research-refresh',{waitUntil:'networkidle'});
+ if(response.status()!==200)throw Error('HTTP '+response.status());
+ const section=page.locator('#research-refresh');await section.getByRole('heading',{name:'보고서 갱신 현황'}).waitFor();
+ if(!await section.locator('details').getAttribute('open').then(v=>v!==null)) await section.locator('summary').click();
+ const before=await section.getByRole('link',{name:'EROK',exact:true}).count();
+ await section.getByLabel('기업 찾기').fill('EROK');
+ await expect(section.getByRole('link',{name:'EROK',exact:true})).toHaveCount(1);
+ await section.getByLabel('기업 찾기').fill('');
+ await section.getByRole('combobox',{name:'상태',exact:true}).selectOption('waiting_for_source');
+ await expect(section.getByRole('link',{name:'AAPL',exact:true})).toHaveCount(1);
+ await section.getByRole('combobox',{name:'상태',exact:true}).selectOption('all');
+ const metrics=await section.evaluate(el=>({width:el.clientWidth,scrollWidth:el.scrollWidth}));
+ if(metrics.scrollWidth>metrics.width)throw Error('horizontal overflow');
+ await section.screenshot({path:`${path}/production-${name}.png`});
+ await section.getByLabel('기업 찾기').fill('AAPL');
+ await expect(section.locator('li')).toHaveCount(1);
+ await page.setViewportSize({width,height:1600});
+ await section.getByRole('heading',{name:'보고서 갱신 현황'}).click();
+ await section.screenshot({path:`${path}/production-focus-${name}.png`});
+ results.push({name,http:response.status(),filterPassed:true,metrics,text:(await section.innerText()).slice(0,1000)});await page.close();
+} await browser.close();require('fs').writeFileSync(path+'/production-ui.json',JSON.stringify(results,null,2));console.log(JSON.stringify(results));
+})().catch(err=>{console.error(err);process.exit(1)});

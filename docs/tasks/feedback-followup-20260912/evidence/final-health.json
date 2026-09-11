@@ -1,0 +1,34 @@
+{
+  "commit": "77b6b32748676908672fb879be3c3e4a847bc582",
+  "batch_guard": {
+    "status": "protected",
+    "shared_limits_applied": true,
+    "database_limits_applied": true,
+    "database_memory_max_bytes": 3221225472,
+    "monitored_profile_count": 13,
+    "protected_profile_count": 13,
+    "attention_profile_count": 0,
+    "observation_age_seconds": 27
+  },
+  "timer_count": 14,
+  "stale_or_failed_jobs": [],
+  "gates": [
+    "alert_destination",
+    "portfolio_review_decision_feedback_attention",
+    "portfolio_review_feedback_calibration_attention",
+    "professional_source_gap_attention"
+  ],
+  "queue": {
+    "current": 2,
+    "due": 13,
+    "waiting_for_source": 18
+  },
+  "calibration_eval": "eval-run-1771",
+  "cadence": "calibration_current",
+  "automatic_weight_change_allowed": false,
+  "http": {
+    "8787": 200,
+    "3000": 200,
+    "13000": 200
+  }
+}
