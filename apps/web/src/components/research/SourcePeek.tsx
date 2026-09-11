@@ -33,7 +33,7 @@ export function SourcePeek({ documentId, label = "원천 발췌 읽기" }: { doc
           {data.integrityNotice && <p role="status" className={styles.note}><strong>{data.integrityNotice}</strong></p>}
           <p className={styles.note}>API가 제공한 발췌·요약입니다. 기사 전문 또는 검증이 끝난 투자 근거를 뜻하지 않습니다.</p>
           {data.excerpts?.map(excerpt => <section className={styles.excerpt} key={excerpt.id}><h4>{excerpt.section}</h4><small>{excerpt.locator}</small><p>{excerpt.summary}</p></section>)}
-          {!data.excerpts?.length && <p className={styles.empty}>{data.excerpts === null ? "발췌 목록 미제공" : "저장된 발췌가 없습니다."}</p>}
+          {!data.excerpts?.length && <p className={styles.empty}>{data.excerpts === null ? "발췌 목록 미제공" : "표시할 발췌가 없습니다."}</p>}
           {data.koreanSummary && <section className={styles.excerpt}><h4>저장된 한국어 요약</h4><p>{data.koreanSummary}</p></section>}
           <p className={styles.meta}>{data.download === "restricted" ? "원문 다운로드 제한" : data.download === "unavailable" ? "원문 전달 경로 미제공" : "원문 접근 정책 미확인"}</p>
         </>}

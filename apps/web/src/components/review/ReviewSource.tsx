@@ -11,7 +11,7 @@ export async function ReviewSource({ model, requested }: { model: ReviewModel; r
   if (!result.data) return <div role="status" className={styles.warning}><p>선택한 원천을 불러오지 못했습니다. 분석 내용과 작성 중인 메모는 유지됩니다.</p><a href="" className={styles.link}>현재 문서 다시 조회</a></div>;
   const source = result.data;
   return <div data-testid="review-source-content">
-    <div className={styles.sourceMeta}><span>{source.publisher} · {source.form || source.type}</span><span>공개일 {shortDate(source.filedAt, '미기록')}</span></div>
+    <div className={styles.sourceMeta}><span>{source.publisher} · {source.integrityNotice ? '원천 식별자 불일치' : source.form || source.type}</span><span>공개일 {shortDate(source.filedAt, '미기록')}</span></div>
     <h3 className={styles.sourceTitle}>{source.koreanTitle ?? source.title}</h3>
     {source.integrityNotice && <p role="status" className={styles.warning}>{source.integrityNotice}</p>}
     <p className={styles.caption}>API가 제공한 발췌·요약입니다. 완전한 원문이나 직접 인용으로 보장하지 않습니다.</p>
