@@ -19,8 +19,9 @@ def render_sec_filings_upsert_sql(
     *,
     ingested_by_run_id: int | None = None,
     chunk_size: int = 200,
+    include_transaction: bool = True,
 ) -> str:
-    lines = ["begin;"]
+    lines = ["begin;"] if include_transaction else []
     for chunk in _chunk(result.filings, chunk_size):
         lines.extend(
             [
@@ -28,7 +29,8 @@ def render_sec_filings_upsert_sql(
                 _render_document_upsert(chunk, ingested_by_run_id=ingested_by_run_id),
             ]
         )
-    lines.extend(["", "commit;"])
+    if include_transaction:
+        lines.extend(["", "commit;"])
     return "\n".join(lines) + "\n"
 
 
@@ -418,8 +420,9 @@ def render_sec_companyfacts_upsert_sql(
     instrument_id: int,
     source_run_id: int | None = None,
     chunk_size: int = 200,
+    include_transaction: bool = True,
 ) -> str:
-    lines = ["begin;"]
+    lines = ["begin;"] if include_transaction else []
     for chunk in _chunk_companyfacts(result.values, chunk_size):
         lines.extend(
             [
@@ -432,7 +435,8 @@ def render_sec_companyfacts_upsert_sql(
                 ),
             ]
         )
-    lines.extend(["", "commit;"])
+    if include_transaction:
+        lines.extend(["", "commit;"])
     return "\n".join(lines) + "\n"
 
 

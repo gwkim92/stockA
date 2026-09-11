@@ -86,6 +86,7 @@ export function errorLogLabel(value: string | null | undefined) {
 }
 
 export function operationCopy(value: string) {
+  if (value === "research_maintenance") return "재무 자료 자동 점검·갱신";
   const oldHoldingReviewCompact = ["보유", "검토"].join("");
   const oldHoldingReview = ["보유", "검토"].join(" ");
   const oldReviewCandidate = ["검토", "후보"].join(" ");

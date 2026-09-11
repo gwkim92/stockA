@@ -33,15 +33,16 @@ class OperatingDataProfileSchedulerTests(unittest.TestCase):
         self.assertEqual(report["scheduler_target"], "cron")
         self.assertEqual(report["scheduler_job_name"], "stockanalysis-operating-data")
         self.assertFalse(report["include_full_recovery"])
-        self.assertEqual(report["total_profile_count"], 14)
+        self.assertEqual(report["total_profile_count"], 15)
         profile_ids = [profile["profile_id"] for profile in report["profiles"]]
-        self.assertEqual(profile_ids[0], "market-universe-weekly")
-        self.assertEqual(profile_ids[1], "sec-filings-weekly")
+        self.assertEqual(profile_ids[0], "research-maintenance")
+        self.assertEqual(profile_ids[1], "market-universe-weekly")
+        self.assertEqual(profile_ids[2], "sec-filings-weekly")
         self.assertIn("cross-asset-daily", profile_ids)
         self.assertIn("toss-candles-us-shadow-daily", profile_ids)
         self.assertIn("toss-live-account-readonly", profile_ids)
         self.assertNotIn("full-recovery", profile_ids)
-        self.assertEqual(report["schedules"][0]["schedule"], "0 7 * * 1")
+        self.assertEqual(report["schedules"][0]["schedule"], "20 0,6,12,18 * * *")
         self.assertNotIn("hidden-profile-pass", json.dumps(report))
         self.assertNotIn("postgresql://", json.dumps(report))
 
@@ -186,7 +187,7 @@ class OperatingDataProfileSchedulerTests(unittest.TestCase):
                 python_executable="/usr/bin/python3",
             )
 
-            self.assertEqual(report["total_profile_count"], 14)
+            self.assertEqual(report["total_profile_count"], 15)
             calendars = {}
             for profile in report["profiles"]:
                 profile_payload = dict(profile)

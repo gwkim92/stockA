@@ -5,7 +5,7 @@ import csv
 import os
 import sys
 from contextlib import contextmanager
-from datetime import date
+from datetime import date, datetime, timezone
 from decimal import Decimal
 from pathlib import Path
 from typing import Iterator, Mapping, Sequence, TextIO
@@ -206,6 +206,7 @@ from stockanalysis.operations.professional_coverage_expansion import (
     SUPPORTED_RESEARCH_PROVIDERS as PROFESSIONAL_COVERAGE_RESEARCH_PROVIDERS,
     run_professional_coverage_expansion,
 )
+from stockanalysis.operations.research_maintenance import run_research_maintenance
 from stockanalysis.operations.professional_source_gap_remediation_decision import (
     run_professional_source_gap_remediation_decision,
 )
@@ -1004,6 +1005,17 @@ def build_parser() -> argparse.ArgumentParser:
     equity_research_reporting.add_argument("--output")
     equity_research_reporting.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
     equity_research_reporting.set_defaults(handler=_handle_equity_research_reporting_run)
+
+    research_maintenance = subparsers.add_parser(
+        "research-maintenance-run", help="Automatically rotate SEC statements, normalize and reconcile interrupted refreshes.",
+    )
+    research_maintenance.add_argument("--env-file")
+    research_maintenance.add_argument("--as-of-date")
+    research_maintenance.add_argument("--artifact-root", required=True)
+    research_maintenance.add_argument("--limit", type=int, default=3)
+    research_maintenance.add_argument("--execute", action="store_true")
+    research_maintenance.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
+    research_maintenance.set_defaults(handler=_handle_research_maintenance_run)
 
     professional_coverage_expansion = subparsers.add_parser(
         "professional-coverage-expansion-run",
@@ -3563,6 +3575,18 @@ def _handle_fund_tracking_difference_ssga_spdr_import_run(args: argparse.Namespa
     else:
         print_json(report, stdout=stdout, sort_keys=False)
     return 0
+
+
+def _handle_research_maintenance_run(args: argparse.Namespace, *, stdout: TextIO) -> int:
+    env_mapping = _load_optional_env_mapping(args.env_file, repo_root=args.repo_root)
+    root = resolve_output_path(args.artifact_root, label="research maintenance artifacts",
+                               repo_root=args.repo_root, require_repo_outside=True)
+    with _temporary_environ(env_mapping):
+        report = run_research_maintenance(config=RuntimeConfig.from_env(),
+            as_of_date=date.fromisoformat(args.as_of_date) if args.as_of_date else datetime.now(timezone.utc).date(), artifact_root=root,
+            limit=args.limit, execute=args.execute)
+    print_json(report, stdout=stdout, sort_keys=False)
+    return 1 if report["status"] == "attention" else 0
 
 
 def _handle_financial_metric_normalization_run(args: argparse.Namespace, *, stdout: TextIO) -> int:

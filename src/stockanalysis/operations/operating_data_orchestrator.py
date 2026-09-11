@@ -188,7 +188,6 @@ DECISION_DAILY_STEP_IDS = (
     "recommendation-fundamental-components",
     "thesis-bootstrap",
     "thesis-review-bootstrap",
-    "equity-research-reporting",
     "portfolio-position-snapshot",
     "portfolio-holding-thesis-bootstrap",
     "portfolio-remediation-daily",
@@ -197,6 +196,7 @@ DECISION_DAILY_STEP_IDS = (
     "recommendation-quality-eval",
     "portfolio-review-feedback-cadence",
     "portfolio-review-feedback-action-router",
+    "equity-research-reporting",
 )
 MACRO_WEEKLY_STEP_IDS = (
     "macro-weekly",
@@ -226,6 +226,12 @@ SOURCE_POSITION_STEP_IDS = {
     "portfolio-position-snapshot",
 }
 OPERATING_DATA_RUN_PROFILES: tuple[OperatingDataRunProfile, ...] = (
+    OperatingDataRunProfile(
+        profile_id="research-maintenance", label="재무 자료 자동 점검·갱신",
+        cadence="intraday", recommended_schedule="every 6 hours",
+        description="Rotate tracked US company statements with same-host backups, atomic normalization and automatic receipt reconciliation.",
+        step_ids=("research-maintenance",),
+    ),
     OperatingDataRunProfile(
         profile_id="market-universe-weekly",
         label="Weekly listed stock universe refresh",
@@ -699,6 +705,13 @@ def _build_planned_steps(
     ]
     steps: list[dict[str, object]] = [
         {
+            "step_id": "research-maintenance", "artifact_job_id": "research-maintenance",
+            "label": "재무 자료 자동 점검·갱신", "skip_reason": "",
+            "command_argv": (python_executable, "-m", "stockanalysis.operations.cli",
+                "research-maintenance-run", "--env-file", str(env_file),
+                "--artifact-root", str(ledger_path.parent / "research-automation-artifacts"), "--limit", "3", "--execute"),
+        },
+        {
             "step_id": "market-universe-weekly",
             "artifact_job_id": "market-universe-weekly",
             "label": "Refresh active Nasdaq/NYSE instrument universe",
@@ -788,7 +801,7 @@ def _build_planned_steps(
                 "--companyfacts-limit",
                 "5",
                 "--research-limit",
-                "5",
+                "0",
                 "--research-provider",
                 "fixture",
                 "--execute",
