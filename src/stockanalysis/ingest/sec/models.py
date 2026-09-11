@@ -203,6 +203,7 @@ class SecCompanyFactsValueRecord:
     metric_code: str
     metric_value: Decimal
     unit: str
+    source_evidence: dict[str, object] | None = None
 
 
 @dataclass(frozen=True)
@@ -211,6 +212,8 @@ class SecCompanyFactsSyncResult:
     company_name: str
     values: tuple[SecCompanyFactsValueRecord, ...]
     skipped_count: int = 0
+    period_policy: str | None = None
+    excluded_facts: tuple[dict[str, object], ...] = ()
 
     def summary(self) -> dict[str, object]:
         metric_codes = sorted({record.metric_code for record in self.values})
@@ -230,4 +233,6 @@ class SecCompanyFactsSyncResult:
             "period_count": len(period_keys),
             "metric_codes": metric_codes,
             "skipped_count": self.skipped_count,
+            "period_policy": self.period_policy,
+            "excluded_fact_count": len(self.excluded_facts),
         }

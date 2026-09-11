@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from datetime import datetime, timezone
+from itertools import groupby
 
 from stockanalysis.ingest.macro.sql import sql_literal
 from stockanalysis.ingest.sec.models import (
@@ -427,6 +428,7 @@ def render_sec_companyfacts_upsert_sql(
                     chunk,
                     instrument_id=instrument_id,
                     source_run_id=source_run_id,
+                    replace_statement=result.period_policy == "sec-statement-duration-v2",
                 ),
             ]
         )
@@ -501,9 +503,24 @@ def _render_companyfacts_upsert_chunk(
     *,
     instrument_id: int,
     source_run_id: int | None,
+    replace_statement: bool = False,
 ) -> str:
     run_literal = "null::bigint" if source_run_id is None else f"{source_run_id}::bigint"
     value_rows = ",\n        ".join(_render_companyfacts_value_tuple(record) for record in records)
+    # A validated complete statement replaces its supported metrics atomically;
+    # otherwise a previously imported YTD cash flow survives the corrected import.
+    cleanup = """,
+removed_incompatible_metrics as (
+    delete from market.financial_metric_value old
+    using upsert_periods p
+    where old.period_id = p.period_id
+      and old.metric_code in ('revenue', 'gross_profit', 'net_income', 'operating_income',
+          'operating_cash_flow', 'capital_expenditure', 'total_assets', 'total_liabilities',
+          'shareholders_equity', 'shares_outstanding')
+      and not exists (select 1 from source_metrics m
+                      where m.period_id = old.period_id and m.metric_code = old.metric_code)
+    returning old.period_id
+)""" if replace_statement else ""
     return f"""with sec_source as (
     select data_source_id
     from ingest.data_source
@@ -620,7 +637,7 @@ source_metrics as (
         r.metric_code,
         r.report_date desc nulls last,
         r.period_start asc
-)
+){cleanup}
 insert into market.financial_metric_value (
     period_id,
     metric_code,
@@ -700,5 +717,15 @@ def _chunk_companyfacts(
     records: tuple[SecCompanyFactsValueRecord, ...],
     size: int,
 ) -> Iterable[list[SecCompanyFactsValueRecord]]:
-    for index in range(0, len(records), size):
-        yield list(records[index : index + size])
+    if size <= 0:
+        raise ValueError("chunk size must be positive")
+    key = lambda record: (record.statement_scope, record.period_end)
+    chunk: list[SecCompanyFactsValueRecord] = []
+    for _, period in groupby(sorted(records, key=key), key=key):
+        group = list(period)
+        if chunk and len(chunk) + len(group) > size:
+            yield chunk
+            chunk = []
+        chunk.extend(group)
+    if chunk:
+        yield chunk
