@@ -6,3 +6,7 @@
 - 전용 PostgreSQL 17 포트 55488의 실제 migration 기반 4개 통과: 서로 다른 기사와 멱등 수집, 격리 전 기록 보존, 재실행 no-op, stale preview 원자적 실패, 복수 원천 이벤트 거부.
 - 원천 reader 검증 56개 통과, Next typecheck/build 통과.
 - 결과 파일: output/news-source-consistency-20260911/. 운영 적용과 Chrome 증거는 인계에 별도 기록한다.
+
+- 전체 웹 단위 검사 42 files / 524 tests 통과. 전용 임시 PostgreSQL은 검사 후 종료했다.
+- 변경 전 실제 Chrome 캡처 `output/playwright/news-integrity-before.png`: 한국어 제목은 5월 시장 뉴스, 발췌는 Google Cloud, 영문 원제는 AeroVironment로 세 원문이 섞인 상태를 확인했다.
+- CI Linux artifact run 34549050262 성공. PR #54의 전체 브라우저 회귀는 진행 중이며 최종 결과는 handoff에 기록한다.
