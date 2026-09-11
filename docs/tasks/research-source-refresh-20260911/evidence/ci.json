@@ -1,0 +1,61 @@
+{
+  "pr_url": "https://github.com/gwkim92/stockA/pull/65",
+  "head_sha": "7f64e44812bc42c004b7673a4826b28c84506a88",
+  "merge_sha": "47afdd7e8edf4bb9a4d5b3fb812bee7400f206f0",
+  "checks": [
+    {
+      "name": "offline-contract (3.11)",
+      "status": "COMPLETED",
+      "conclusion": "SUCCESS",
+      "url": "https://github.com/gwkim92/stockA/actions/runs/34606381284/job/103285704543"
+    },
+    {
+      "name": "batch-runtime",
+      "status": "COMPLETED",
+      "conclusion": "SUCCESS",
+      "url": "https://github.com/gwkim92/stockA/actions/runs/34606381306/job/103285703512"
+    },
+    {
+      "name": "history",
+      "status": "COMPLETED",
+      "conclusion": "SUCCESS",
+      "url": "https://github.com/gwkim92/stockA/actions/runs/34606381288/job/103285703971"
+    },
+    {
+      "name": "financial-period",
+      "status": "COMPLETED",
+      "conclusion": "SUCCESS",
+      "url": "https://github.com/gwkim92/stockA/actions/runs/34606381343/job/103285704165"
+    },
+    {
+      "name": "research-home",
+      "status": "COMPLETED",
+      "conclusion": "SUCCESS",
+      "url": "https://github.com/gwkim92/stockA/actions/runs/34606381214/job/103286069928"
+    },
+    {
+      "name": "build",
+      "status": "COMPLETED",
+      "conclusion": "SUCCESS",
+      "url": "https://github.com/gwkim92/stockA/actions/runs/34606381310/job/103285703794"
+    },
+    {
+      "name": "offline-contract (3.13)",
+      "status": "COMPLETED",
+      "conclusion": "SUCCESS",
+      "url": "https://github.com/gwkim92/stockA/actions/runs/34606381284/job/103285704723"
+    },
+    {
+      "name": "postgres-cutoff",
+      "status": "COMPLETED",
+      "conclusion": "SUCCESS",
+      "url": "https://github.com/gwkim92/stockA/actions/runs/34606381284/job/103285704595"
+    },
+    {
+      "name": "postgres-atomic",
+      "status": "COMPLETED",
+      "conclusion": "SUCCESS",
+      "url": "https://github.com/gwkim92/stockA/actions/runs/34606381284/job/103285704316"
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "overall_status": "attention_required",
+  "open_gates": [
+    "alert_destination",
+    "data_operations_artifact_runner",
+    "benchmark_drift_quality_attention",
+    "portfolio_review_decision_history_attention",
+    "portfolio_review_decision_feedback_attention",
+    "portfolio_review_feedback_calibration_attention",
+    "portfolio_review_feedback_cadence_attention",
+    "recommendation_outcome_maturity_attention"
+  ],
+  "queue_counts": {
+    "current": 1,
+    "due": 14,
+    "waiting_for_source": 17
+  },
+  "daily_used": 1,
+  "daily_limit": 5,
+  "next_symbols": [
+    "ADBE",
+    "ADI",
+    "ADSK"
+  ]
+}

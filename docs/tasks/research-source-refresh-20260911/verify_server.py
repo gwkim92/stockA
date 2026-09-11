@@ -8,6 +8,7 @@ import re
 from pathlib import Path
 import subprocess
 import sys
+import time
 import urllib.request
 
 from stockanalysis.ai.model_settings import inventory
@@ -22,7 +23,13 @@ BASE = Path('/opt/stockanalysis/runtime/research-source-refresh-20260911')
 
 
 def capture(argv):
-    return subprocess.check_output(argv, text=True, timeout=90).strip()
+    deadline = time.monotonic() + 30
+    while True:
+        output = subprocess.check_output(argv, text=True, timeout=90).strip()
+        if (not output or argv[:2] != ['systemctl', 'list-units']
+            or '--state=running,activating' not in argv or time.monotonic() >= deadline):
+            return output
+        time.sleep(0.5)
 
 
 def save(name, data):
@@ -85,6 +92,7 @@ def main():
     timers = [line.split()[0] for line in capture(['systemctl', 'list-units', '--type=timer', '--state=active',
         '--plain', '--no-legend', 'stockanalysis-*']).splitlines()]
     assert len(timers) == 14, 'Timer inventory changed; review first'
+    save('canary-started.json', {'timers': timers, 'stage': 'before_model_call', 'as_of_date': str(day)})
     try:
         subprocess.run(['sudo', '-n', 'systemctl', 'stop', *timers], check=True, timeout=90)
         assert not capture(['systemctl', 'list-units', '--type=service', '--state=running,activating',
