@@ -33,7 +33,7 @@ from stockanalysis.signal.universe import (
 
 DEFAULT_PIPELINE_NAME = "equity_research_reporting"
 DEFAULT_TASK_NAME = "ai-equity-research-reporting"
-DEFAULT_TEMPLATE_VERSION = "2026-09-11-equity-evidence-selection-v1"
+DEFAULT_TEMPLATE_VERSION = "2026-09-11-equity-financial-period-quality-v1"
 ARTIFACT_TYPE = "full_equity_research"
 FIXTURE_PROVIDER = "fixture"
 CODEX_OAUTH_PROVIDER = "codex_oauth"
@@ -138,6 +138,28 @@ with target as (
     order by instrument.instrument_id desc
     limit 1
 ),
+eligible_financial_period as (
+    -- A cover-page shares-outstanding date is not a financial statement.
+    -- Select one actual annual period; never mix older computed metrics into it.
+    select period.period_id, period.period_end, period.report_date, period.source_document_id
+    from market.financial_statement_period period
+    join target on target.instrument_id = period.instrument_id
+    where period.statement_scope = 'annual'
+      and period.period_end <= {sql_date(as_of_date)}
+      and period.report_date <= {sql_date(as_of_date)}
+      and exists (
+          select 1 from market.financial_metric_value metric
+          where metric.period_id = period.period_id
+            and metric.metric_code in ('revenue', 'gross_profit', 'net_income', 'operating_income', 'operating_cash_flow')
+      )
+      and exists (
+          select 1 from market.financial_metric_normalized normalized
+          where normalized.period_id = period.period_id
+            and normalized.as_of_date <= {sql_date(as_of_date)}
+      )
+    order by period.period_end desc, period.period_id desc
+    limit 1
+),
 latest_financial_metrics as (
     select distinct on (normalized.metric_code)
         normalized.metric_code,
@@ -147,9 +169,12 @@ latest_financial_metrics as (
         normalized.rationale,
         normalized.statement_scope,
         normalized.period_end,
-        normalized.source_run_id
+        normalized.source_run_id,
+        period.report_date,
+        period.source_document_id
     from market.financial_metric_normalized normalized
     join target on target.instrument_id = normalized.instrument_id
+    join eligible_financial_period period on period.period_id = normalized.period_id
     where normalized.as_of_date <= {sql_date(as_of_date)}
       and normalized.statement_scope = 'annual'
     order by normalized.metric_code, normalized.as_of_date desc, normalized.period_end desc
@@ -165,6 +190,9 @@ latest_peer_rows as (
     select distinct on (snapshot.metric_code)
         peer_group.group_code as peer_group_code,
         peer_group.name as peer_group_name,
+        peer_group.methodology as peer_group_methodology,
+        'comparison_group_not_validated_business_peers'::text as evidence_scope,
+        false as business_peer_comparison_verified,
         snapshot.metric_code,
         snapshot.instrument_value as metric_value,
         snapshot.percentile_rank,
@@ -341,6 +369,8 @@ def build_codex_oauth_equity_research_prompt(context: dict[str, object], *, max_
             "Separate story from numbers: business/fundamental quality, peer position, valuation, thesis, catalysts, risks, and invalidation.",
             "If a field is missing or weak, explicitly say the evidence is missing instead of inventing facts.",
             "Separate source financial facts, valuation assumptions and previous model/recommendation hypotheses; repeated summaries are not independent corroboration.",
+            "Financial metrics share one reported annual period. Missing metrics in that period stay missing; source_document_id null means filing linkage is unverified, not that SEC has no facts.",
+            "peer_relative rows are stored comparison groups, not validated business competitors. Their methodology may be a macro/theme overlap or broad fallback. Do not infer business superiority, valuation reliability, or a competitive moat from their percentile ranks.",
             "For each material claim, name the supplied metric and period, or event/document id and date when available. A linked document is not proof that every claim is supported.",
             "When input_selection reports omissions, disclose the affected evidence categories in risks. Omitted records were not reviewed.",
             "Do not invent a price, currency, return, confidence or numerical invalidation threshold. State missing support and observable next checks.",
