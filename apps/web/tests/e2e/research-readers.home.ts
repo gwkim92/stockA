@@ -77,7 +77,7 @@ test("chapter links resolve and existing detailed valuation remains readable", a
 test("missing translation does not invent a Korean market interpretation", async ({ page, request }) => {
   await request.post("http://127.0.0.1:18767/__scenario", { data: { scenario: "untranslated" } });
   await page.goto("/source-documents/source-document-1"); const reader = page.getByTestId("research-reader");
-  await expect(reader).toContainText("저장된 한국어 요약이 없습니다");
+  await expect(reader).toContainText("표시할 한국어 요약이 없습니다");
   await expect(reader.getByRole("heading", { level: 1 })).toHaveText("Business overview and service revenue — synthetic filing excerpt");
   await expect(reader).not.toContainText("시장 뉴스 흐름 문서다");
 });
