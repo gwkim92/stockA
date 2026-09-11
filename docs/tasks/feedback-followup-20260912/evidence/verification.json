@@ -1,0 +1,950 @@
+{
+  "verified_at": "2026-09-11T15:05:54.810442+00:00",
+  "identity": {
+    "accountId": "115623963546",
+    "instanceId": "i-029d51b163fb07b61",
+    "region": "us-east-1"
+  },
+  "commit": "77b6b32748676908672fb879be3c3e4a847bc582",
+  "reports": [
+    {
+      "as_of_date": "2026-09-11",
+      "automatic_weight_change_allowed": false,
+      "broker_submit_allowed": false,
+      "execute": true,
+      "maximum_child_actions": 2,
+      "order_boundary": "read_only_no_order",
+      "portfolio_name": "Long Term Paper",
+      "reason": "no_op_calibration_current",
+      "report_name": "portfolio_review_feedback_maintenance",
+      "rounds": [
+        {
+          "action": {
+            "action_status": "calibration_executed",
+            "as_of_date": "2026-09-11",
+            "automatic_order_allowed": false,
+            "automatic_rebalance_allowed": false,
+            "automatic_weight_change_allowed": false,
+            "benchmark_definition_mutated": false,
+            "broker_submit_allowed": false,
+            "cadence_status": "run_calibration_now",
+            "calibration_eval_run_id": 697,
+            "child_runner": {
+              "calibration_status": "collect_more_feedback",
+              "eval_run_id": 1771,
+              "executed": true,
+              "feedback_status": "",
+              "report_name": "portfolio_review_feedback_calibration",
+              "run_id": 23960,
+              "status": "completed"
+            },
+            "dataset_version": "portfolio-review-feedback-action-router-v1",
+            "eval_name": "portfolio_review_feedback_action_router",
+            "feedback_eval_run_id": 1768,
+            "history_eval_run_id": 31,
+            "next_action": "calibration 결과를 data-health와 portfolio coverage에서 확인한다.",
+            "order_boundary": "read_only_no_order",
+            "portfolio_name": "Long Term Paper",
+            "portfolio_position_mutated": false,
+            "reason": "cadence says feedback exists and calibration is missing or stale.",
+            "recommendation_scoring_mutated": false,
+            "route_action": "execute_calibration",
+            "source_action_type": "execute_calibration",
+            "source_cadence": {
+              "action_type": "execute_calibration",
+              "as_of_date": "2026-09-11",
+              "cadence_status": "run_calibration_now",
+              "calibration": {
+                "as_of_date": "2026-07-04",
+                "calibration_status": "collect_more_feedback",
+                "contradicted_count": 0,
+                "created_at": "2026-07-04T04:54:24.09353+00:00",
+                "decision_count": 110,
+                "eval_run_id": 697,
+                "feedback_run_count": 10,
+                "latest_feedback_run_ids": [
+                  694,
+                  684,
+                  595,
+                  590,
+                  583,
+                  566,
+                  525,
+                  508,
+                  491,
+                  32
+                ],
+                "mature_decision_count": 93,
+                "needs_more_data_count": 6,
+                "status": "loaded",
+                "too_early_count": 11,
+                "validated_count": 93
+              },
+              "command": "stockanalysis-operations portfolio-review-feedback-calibration-run --env-file <ENV> --portfolio-name \"Long Term Paper\" --as-of-date 2026-09-11 --execute",
+              "evidence": {
+                "decision_count": 11,
+                "history_age_days": 109,
+                "paper_validation": {
+                  "approved_action_count": 0,
+                  "conflict_count": 0,
+                  "paper_validation_run_id": 90,
+                  "recommendation_count": 24,
+                  "status": "failed",
+                  "validation_date": "2026-09-11"
+                },
+                "price_evidence_count": 11,
+                "recommendation_link_count": 6,
+                "recommendation_outcome_count": 6
+              },
+              "feedback": {
+                "as_of_date": "2026-09-11",
+                "contradicted_count": 4,
+                "created_at": "2026-09-11T14:48:50.00448+00:00",
+                "decision_count": 11,
+                "eval_run_id": 1768,
+                "feedback_status": "has_contradictions",
+                "needs_more_data_count": 1,
+                "source_history_as_of_date": "2026-05-25",
+                "source_history_eval_run_id": 31,
+                "status": "loaded",
+                "too_early_count": 0,
+                "validated_count": 6
+              },
+              "follow_up_command": "",
+              "history": {
+                "as_of_date": "2026-05-25",
+                "created_at": "2026-05-26T20:19:41.323267+00:00",
+                "decision_count": 11,
+                "decision_status": "review_required",
+                "eval_run_id": 31,
+                "review_required_count": 10,
+                "status": "loaded"
+              },
+              "should_run_now": true,
+              "should_wait": false
+            },
+            "source_cadence_as_of_date": "2026-09-11",
+            "source_cadence_created_at": "2026-09-11T15:05:21.424658+00:00",
+            "source_cadence_eval_run_id": 1770,
+            "source_cadence_status": "loaded",
+            "source_should_run_now": true
+          },
+          "cadence_eval_run_id": 1770,
+          "router_eval_run_id": 1772
+        },
+        {
+          "action": {
+            "action_status": "no_op_calibration_current",
+            "as_of_date": "2026-09-11",
+            "automatic_order_allowed": false,
+            "automatic_rebalance_allowed": false,
+            "automatic_weight_change_allowed": false,
+            "benchmark_definition_mutated": false,
+            "broker_submit_allowed": false,
+            "cadence_status": "calibration_current",
+            "calibration_eval_run_id": 1771,
+            "child_runner": {
+              "eval_run_id": null,
+              "executed": false,
+              "report_name": "",
+              "run_id": null,
+              "status": "not_run"
+            },
+            "dataset_version": "portfolio-review-feedback-action-router-v1",
+            "eval_name": "portfolio_review_feedback_action_router",
+            "feedback_eval_run_id": 1768,
+            "history_eval_run_id": 31,
+            "next_action": "다음 daily cadence까지 모니터링한다.",
+            "order_boundary": "read_only_no_order",
+            "portfolio_name": "Long Term Paper",
+            "portfolio_position_mutated": false,
+            "reason": "latest feedback and calibration are current.",
+            "recommendation_scoring_mutated": false,
+            "route_action": "no_op",
+            "source_action_type": "monitor",
+            "source_cadence": {
+              "action_type": "monitor",
+              "as_of_date": "2026-09-11",
+              "cadence_status": "calibration_current",
+              "calibration": {
+                "as_of_date": "2026-09-11",
+                "calibration_status": "collect_more_feedback",
+                "contradicted_count": 33,
+                "created_at": "2026-09-11T15:05:22.353952+00:00",
+                "decision_count": 550,
+                "eval_run_id": 1771,
+                "feedback_run_count": 50,
+                "latest_feedback_run_ids": [
+                  1768,
+                  1715,
+                  1674,
+                  1657,
+                  1640,
+                  1623,
+                  1606,
+                  1565,
+                  1548,
+                  1531
+                ],
+                "mature_decision_count": 454,
+                "needs_more_data_count": 96,
+                "status": "loaded",
+                "too_early_count": 0,
+                "validated_count": 421
+              },
+              "command": "stockanalysis-operations portfolio-review-feedback-calibration-run --env-file <ENV> --portfolio-name \"Long Term Paper\" --as-of-date 2026-09-11 --execute",
+              "evidence": {
+                "decision_count": 11,
+                "history_age_days": 109,
+                "paper_validation": {
+                  "approved_action_count": 0,
+                  "conflict_count": 0,
+                  "paper_validation_run_id": 90,
+                  "recommendation_count": 24,
+                  "status": "failed",
+                  "validation_date": "2026-09-11"
+                },
+                "price_evidence_count": 11,
+                "recommendation_link_count": 6,
+                "recommendation_outcome_count": 6
+              },
+              "feedback": {
+                "as_of_date": "2026-09-11",
+                "contradicted_count": 4,
+                "created_at": "2026-09-11T14:48:50.00448+00:00",
+                "decision_count": 11,
+                "eval_run_id": 1768,
+                "feedback_status": "has_contradictions",
+                "needs_more_data_count": 1,
+                "source_history_as_of_date": "2026-05-25",
+                "source_history_eval_run_id": 31,
+                "status": "loaded",
+                "too_early_count": 0,
+                "validated_count": 6
+              },
+              "follow_up_command": "",
+              "history": {
+                "as_of_date": "2026-05-25",
+                "created_at": "2026-05-26T20:19:41.323267+00:00",
+                "decision_count": 11,
+                "decision_status": "review_required",
+                "eval_run_id": 31,
+                "review_required_count": 10,
+                "status": "loaded"
+              },
+              "should_run_now": false,
+              "should_wait": true
+            },
+            "source_cadence_as_of_date": "2026-09-11",
+            "source_cadence_created_at": "2026-09-11T15:05:23.073794+00:00",
+            "source_cadence_eval_run_id": 1773,
+            "source_cadence_status": "loaded",
+            "source_should_run_now": false
+          },
+          "cadence_eval_run_id": 1773,
+          "router_eval_run_id": 1774
+        }
+      ],
+      "status": "completed"
+    },
+    {
+      "as_of_date": "2026-09-11",
+      "automatic_weight_change_allowed": false,
+      "broker_submit_allowed": false,
+      "execute": true,
+      "maximum_child_actions": 2,
+      "order_boundary": "read_only_no_order",
+      "portfolio_name": "Long Term Paper",
+      "reason": "no_op_calibration_current",
+      "report_name": "portfolio_review_feedback_maintenance",
+      "rounds": [
+        {
+          "action": {
+            "action_status": "no_op_calibration_current",
+            "as_of_date": "2026-09-11",
+            "automatic_order_allowed": false,
+            "automatic_rebalance_allowed": false,
+            "automatic_weight_change_allowed": false,
+            "benchmark_definition_mutated": false,
+            "broker_submit_allowed": false,
+            "cadence_status": "calibration_current",
+            "calibration_eval_run_id": 1771,
+            "child_runner": {
+              "eval_run_id": null,
+              "executed": false,
+              "report_name": "",
+              "run_id": null,
+              "status": "not_run"
+            },
+            "dataset_version": "portfolio-review-feedback-action-router-v1",
+            "eval_name": "portfolio_review_feedback_action_router",
+            "feedback_eval_run_id": 1768,
+            "history_eval_run_id": 31,
+            "next_action": "다음 daily cadence까지 모니터링한다.",
+            "order_boundary": "read_only_no_order",
+            "portfolio_name": "Long Term Paper",
+            "portfolio_position_mutated": false,
+            "reason": "latest feedback and calibration are current.",
+            "recommendation_scoring_mutated": false,
+            "route_action": "no_op",
+            "source_action_type": "monitor",
+            "source_cadence": {
+              "action_type": "monitor",
+              "as_of_date": "2026-09-11",
+              "cadence_status": "calibration_current",
+              "calibration": {
+                "as_of_date": "2026-09-11",
+                "calibration_status": "collect_more_feedback",
+                "contradicted_count": 33,
+                "created_at": "2026-09-11T15:05:22.353952+00:00",
+                "decision_count": 550,
+                "eval_run_id": 1771,
+                "feedback_run_count": 50,
+                "latest_feedback_run_ids": [
+                  1768,
+                  1715,
+                  1674,
+                  1657,
+                  1640,
+                  1623,
+                  1606,
+                  1565,
+                  1548,
+                  1531
+                ],
+                "mature_decision_count": 454,
+                "needs_more_data_count": 96,
+                "status": "loaded",
+                "too_early_count": 0,
+                "validated_count": 421
+              },
+              "command": "stockanalysis-operations portfolio-review-feedback-calibration-run --env-file <ENV> --portfolio-name \"Long Term Paper\" --as-of-date 2026-09-11 --execute",
+              "evidence": {
+                "decision_count": 11,
+                "history_age_days": 109,
+                "paper_validation": {
+                  "approved_action_count": 0,
+                  "conflict_count": 0,
+                  "paper_validation_run_id": 90,
+                  "recommendation_count": 24,
+                  "status": "failed",
+                  "validation_date": "2026-09-11"
+                },
+                "price_evidence_count": 11,
+                "recommendation_link_count": 6,
+                "recommendation_outcome_count": 6
+              },
+              "feedback": {
+                "as_of_date": "2026-09-11",
+                "contradicted_count": 4,
+                "created_at": "2026-09-11T14:48:50.00448+00:00",
+                "decision_count": 11,
+                "eval_run_id": 1768,
+                "feedback_status": "has_contradictions",
+                "needs_more_data_count": 1,
+                "source_history_as_of_date": "2026-05-25",
+                "source_history_eval_run_id": 31,
+                "status": "loaded",
+                "too_early_count": 0,
+                "validated_count": 6
+              },
+              "follow_up_command": "",
+              "history": {
+                "as_of_date": "2026-05-25",
+                "created_at": "2026-05-26T20:19:41.323267+00:00",
+                "decision_count": 11,
+                "decision_status": "review_required",
+                "eval_run_id": 31,
+                "review_required_count": 10,
+                "status": "loaded"
+              },
+              "should_run_now": false,
+              "should_wait": true
+            },
+            "source_cadence_as_of_date": "2026-09-11",
+            "source_cadence_created_at": "2026-09-11T15:05:24.502284+00:00",
+            "source_cadence_eval_run_id": 1775,
+            "source_cadence_status": "loaded",
+            "source_should_run_now": false
+          },
+          "cadence_eval_run_id": 1775,
+          "router_eval_run_id": 1776
+        }
+      ],
+      "status": "completed"
+    }
+  ],
+  "protected_table_hashes": {
+    "signal.recommendation": "6486255d298469181a45cee616a82b0d",
+    "signal.recommendation_score_component": "bd9d4027c2d9abb25cc95e57620c3541",
+    "portfolio.position_snapshot": "bb6dac950ae64d5a043800c5ebe3fa8f",
+    "ref.benchmark_composition": "458d54d4c8e3c94340489bc893f6178d",
+    "performance.recommendation_outcome": "ffaa32be4502b847b266b7dfff15ecc3",
+    "market.financial_statement_period": "c5fbe1dc8cf99fe2cbf7b8c854a07197",
+    "market.financial_metric_value": "2daf8c1531f4e65bdb3b0f0e92d1295d",
+    "market.financial_metric_normalized": "7f5e97a4e0f4ea855c8c33b4b2f469fd",
+    "other_reports": "721ee799a5f292ddd8a07a2787286863"
+  },
+  "protected_tables_unchanged": true,
+  "ai_invocations_unchanged": "41087",
+  "model_settings_unchanged": true,
+  "live": {
+    "portfolio_review_feedback_calibration": {
+      "status": "loaded",
+      "eval_run_id": "eval-run-1771",
+      "created_at": "2026-09-11T15:05:22.353952Z",
+      "eval_name": "portfolio_review_feedback_calibration",
+      "dataset_version": "portfolio-review-feedback-calibration-v1",
+      "as_of_date": "2026-09-11",
+      "portfolio_name": "Long Term Paper",
+      "lookback_days": 365,
+      "min_feedback_runs": 3,
+      "min_mature_decisions": 10,
+      "max_contradiction_rate": 0.15,
+      "calibration_status": "collect_more_feedback",
+      "maturity_status": "collect_more_feedback",
+      "feedback_run_count": 50,
+      "decision_count": 550,
+      "mature_decision_count": 454,
+      "too_early_count": 0,
+      "validated_count": 421,
+      "contradicted_count": 33,
+      "needs_more_data_count": 96,
+      "contradiction_rate": 0.072687,
+      "validated_rate": 0.927313,
+      "feedback_run_gap": 0,
+      "mature_decision_gap": 0,
+      "estimated_maturity_date": "2026-06-24",
+      "days_until_maturity": 0,
+      "attention_required": true,
+      "weight_review_blocked": true,
+      "weight_review_block_reason": "검토 성과 누적평가 상태가 명확히 성숙하지 않아 추천 weight 검토를 막는다.",
+      "status_counts": {
+        "validated": 421,
+        "contradicted": 33,
+        "needs_more_data": 96
+      },
+      "family_summaries": [
+        {
+          "decision_family": "benchmark_drift",
+          "decision_count": 350,
+          "mature_decision_count": 288,
+          "too_early_count": 0,
+          "validated_count": 271,
+          "contradicted_count": 17,
+          "needs_more_data_count": 62,
+          "contradiction_rate": 0.059028,
+          "status_counts": {
+            "validated": 271,
+            "contradicted": 17,
+            "needs_more_data": 62
+          }
+        },
+        {
+          "decision_family": "position_sizing",
+          "decision_count": 200,
+          "mature_decision_count": 166,
+          "too_early_count": 0,
+          "validated_count": 150,
+          "contradicted_count": 16,
+          "needs_more_data_count": 34,
+          "contradiction_rate": 0.096386,
+          "status_counts": {
+            "validated": 150,
+            "contradicted": 16,
+            "needs_more_data": 34
+          }
+        }
+      ],
+      "decision_type_summaries": [
+        {
+          "decision_type": "reduce_review",
+          "decision_count": 150,
+          "mature_decision_count": 116,
+          "too_early_count": 0,
+          "validated_count": 100,
+          "contradicted_count": 16,
+          "needs_more_data_count": 34,
+          "contradiction_rate": 0.137931,
+          "status_counts": {
+            "validated": 100,
+            "contradicted": 16,
+            "needs_more_data": 34
+          }
+        },
+        {
+          "decision_type": "reduce_watch",
+          "decision_count": 150,
+          "mature_decision_count": 116,
+          "too_early_count": 0,
+          "validated_count": 100,
+          "contradicted_count": 16,
+          "needs_more_data_count": 34,
+          "contradiction_rate": 0.137931,
+          "status_counts": {
+            "validated": 100,
+            "contradicted": 16,
+            "needs_more_data": 34
+          }
+        },
+        {
+          "decision_type": "needs_thesis_update",
+          "decision_count": 150,
+          "mature_decision_count": 122,
+          "too_early_count": 0,
+          "validated_count": 121,
+          "contradicted_count": 1,
+          "needs_more_data_count": 28,
+          "contradiction_rate": 0.008197,
+          "status_counts": {
+            "validated": 121,
+            "contradicted": 1,
+            "needs_more_data": 28
+          }
+        },
+        {
+          "decision_type": "hold_review",
+          "decision_count": 50,
+          "mature_decision_count": 50,
+          "too_early_count": 0,
+          "validated_count": 50,
+          "contradicted_count": 0,
+          "needs_more_data_count": 0,
+          "contradiction_rate": 0.0,
+          "status_counts": {
+            "validated": 50
+          }
+        },
+        {
+          "decision_type": "hold_with_thesis",
+          "decision_count": 50,
+          "mature_decision_count": 50,
+          "too_early_count": 0,
+          "validated_count": 50,
+          "contradicted_count": 0,
+          "needs_more_data_count": 0,
+          "contradiction_rate": 0.0,
+          "status_counts": {
+            "validated": 50
+          }
+        }
+      ],
+      "symbol_summaries": [
+        {
+          "symbol": "AAPL",
+          "decision_count": 100,
+          "mature_decision_count": 32,
+          "too_early_count": 0,
+          "validated_count": 2,
+          "contradicted_count": 30,
+          "needs_more_data_count": 68,
+          "contradiction_rate": 0.9375,
+          "status_counts": {
+            "validated": 2,
+            "contradicted": 30,
+            "needs_more_data": 68
+          }
+        },
+        {
+          "symbol": "MSFT",
+          "decision_count": 100,
+          "mature_decision_count": 100,
+          "too_early_count": 0,
+          "validated_count": 98,
+          "contradicted_count": 2,
+          "needs_more_data_count": 0,
+          "contradiction_rate": 0.02,
+          "status_counts": {
+            "validated": 98,
+            "contradicted": 2
+          }
+        },
+        {
+          "symbol": "AMZN",
+          "decision_count": 50,
+          "mature_decision_count": 22,
+          "too_early_count": 0,
+          "validated_count": 21,
+          "contradicted_count": 1,
+          "needs_more_data_count": 28,
+          "contradiction_rate": 0.045455,
+          "status_counts": {
+            "validated": 21,
+            "contradicted": 1,
+            "needs_more_data": 28
+          }
+        },
+        {
+          "symbol": "NVDA",
+          "decision_count": 100,
+          "mature_decision_count": 100,
+          "too_early_count": 0,
+          "validated_count": 100,
+          "contradicted_count": 0,
+          "needs_more_data_count": 0,
+          "contradiction_rate": 0.0,
+          "status_counts": {
+            "validated": 100
+          }
+        },
+        {
+          "symbol": "TSLA",
+          "decision_count": 100,
+          "mature_decision_count": 100,
+          "too_early_count": 0,
+          "validated_count": 100,
+          "contradicted_count": 0,
+          "needs_more_data_count": 0,
+          "contradiction_rate": 0.0,
+          "status_counts": {
+            "validated": 100
+          }
+        },
+        {
+          "symbol": "AVGO",
+          "decision_count": 50,
+          "mature_decision_count": 50,
+          "too_early_count": 0,
+          "validated_count": 50,
+          "contradicted_count": 0,
+          "needs_more_data_count": 0,
+          "contradiction_rate": 0.0,
+          "status_counts": {
+            "validated": 50
+          }
+        },
+        {
+          "symbol": "GOOGL",
+          "decision_count": 50,
+          "mature_decision_count": 50,
+          "too_early_count": 0,
+          "validated_count": 50,
+          "contradicted_count": 0,
+          "needs_more_data_count": 0,
+          "contradiction_rate": 0.0,
+          "status_counts": {
+            "validated": 50
+          }
+        }
+      ],
+      "latest_feedback_runs": [
+        {
+          "eval_run_id": "eval-run-1768",
+          "created_at": "2026-09-11T14:48:50.00448Z",
+          "as_of_date": "2026-09-11",
+          "feedback_status": "has_contradictions",
+          "decision_count": 11,
+          "too_early_count": 0,
+          "validated_count": 6,
+          "contradicted_count": 4,
+          "needs_more_data_count": 1
+        },
+        {
+          "eval_run_id": "eval-run-1715",
+          "created_at": "2026-09-07T23:02:37.152573Z",
+          "as_of_date": "2026-09-07",
+          "feedback_status": "needs_more_data",
+          "decision_count": 11,
+          "too_early_count": 0,
+          "validated_count": 8,
+          "contradicted_count": 0,
+          "needs_more_data_count": 3
+        },
+        {
+          "eval_run_id": "eval-run-1674",
+          "created_at": "2026-09-04T23:02:29.492184Z",
+          "as_of_date": "2026-09-04",
+          "feedback_status": "needs_more_data",
+          "decision_count": 11,
+          "too_early_count": 0,
+          "validated_count": 8,
+          "contradicted_count": 0,
+          "needs_more_data_count": 3
+        },
+        {
+          "eval_run_id": "eval-run-1657",
+          "created_at": "2026-09-03T23:02:30.63907Z",
+          "as_of_date": "2026-09-03",
+          "feedback_status": "has_contradictions",
+          "decision_count": 11,
+          "too_early_count": 0,
+          "validated_count": 8,
+          "contradicted_count": 2,
+          "needs_more_data_count": 1
+        },
+        {
+          "eval_run_id": "eval-run-1640",
+          "created_at": "2026-09-02T23:02:32.75139Z",
+          "as_of_date": "2026-09-02",
+          "feedback_status": "has_contradictions",
+          "decision_count": 11,
+          "too_early_count": 0,
+          "validated_count": 8,
+          "contradicted_count": 2,
+          "needs_more_data_count": 1
+        },
+        {
+          "eval_run_id": "eval-run-1623",
+          "created_at": "2026-09-01T23:02:31.311401Z",
+          "as_of_date": "2026-09-01",
+          "feedback_status": "has_contradictions",
+          "decision_count": 11,
+          "too_early_count": 0,
+          "validated_count": 8,
+          "contradicted_count": 2,
+          "needs_more_data_count": 1
+        },
+        {
+          "eval_run_id": "eval-run-1606",
+          "created_at": "2026-08-31T23:02:33.252018Z",
+          "as_of_date": "2026-08-31",
+          "feedback_status": "needs_more_data",
+          "decision_count": 11,
+          "too_early_count": 0,
+          "validated_count": 8,
+          "contradicted_count": 0,
+          "needs_more_data_count": 3
+        },
+        {
+          "eval_run_id": "eval-run-1565",
+          "created_at": "2026-08-28T23:02:32.015208Z",
+          "as_of_date": "2026-08-28",
+          "feedback_status": "needs_more_data",
+          "decision_count": 11,
+          "too_early_count": 0,
+          "validated_count": 8,
+          "contradicted_count": 0,
+          "needs_more_data_count": 3
+        },
+        {
+          "eval_run_id": "eval-run-1548",
+          "created_at": "2026-08-27T23:02:26.841093Z",
+          "as_of_date": "2026-08-27",
+          "feedback_status": "needs_more_data",
+          "decision_count": 11,
+          "too_early_count": 0,
+          "validated_count": 8,
+          "contradicted_count": 0,
+          "needs_more_data_count": 3
+        },
+        {
+          "eval_run_id": "eval-run-1531",
+          "created_at": "2026-08-26T23:02:24.542487Z",
+          "as_of_date": "2026-08-26",
+          "feedback_status": "needs_more_data",
+          "decision_count": 11,
+          "too_early_count": 0,
+          "validated_count": 8,
+          "contradicted_count": 0,
+          "needs_more_data_count": 3
+        }
+      ],
+      "guardrails": {
+        "recommendation_scoring_mutated": false,
+        "benchmark_definition_mutated": false,
+        "portfolio_position_mutated": false,
+        "automatic_rebalance_allowed": false,
+        "automatic_order_allowed": false,
+        "broker_submit_allowed": false,
+        "order_boundary": "read_only_no_order"
+      },
+      "next_action": "성과 window가 끝난 feedback을 더 누적한 뒤 calibration을 재실행한다.",
+      "next_calibration_action": "성과 window가 끝난 feedback을 더 누적한 뒤 calibration을 재실행한다.",
+      "managed_wait": false,
+      "managed_gate_status": "unmanaged_attention",
+      "managed_gate_reason": ""
+    },
+    "portfolio_review_feedback_cadence": {
+      "status": "loaded",
+      "eval_run_id": "eval-run-1775",
+      "created_at": "2026-09-11T15:05:24.502284Z",
+      "eval_name": "portfolio_review_feedback_cadence",
+      "dataset_version": "portfolio-review-feedback-cadence-v1",
+      "as_of_date": "2026-09-11",
+      "portfolio_name": "Long Term Paper",
+      "min_horizon_days": 30,
+      "cadence_status": "calibration_current",
+      "action_type": "monitor",
+      "should_run_now": false,
+      "should_wait": true,
+      "wait_until": "",
+      "command": "stockanalysis-operations portfolio-review-feedback-calibration-run --env-file <ENV> --portfolio-name \"Long Term Paper\" --as-of-date 2026-09-11 --execute",
+      "follow_up_command": "",
+      "label": "검토 feedback cadence는 현재 최신 상태다.",
+      "reason": "최신 history, feedback, calibration이 서로 연결되어 있다.",
+      "history": {
+        "status": "loaded",
+        "eval_run_id": "eval-run-31",
+        "created_at": "2026-05-26T20:19:41.323267Z",
+        "as_of_date": "2026-05-25",
+        "decision_status": "review_required",
+        "decision_count": 11,
+        "review_required_count": 10
+      },
+      "feedback": {
+        "status": "loaded",
+        "eval_run_id": "eval-run-1768",
+        "created_at": "2026-09-11T14:48:50.00448Z",
+        "as_of_date": "2026-09-11",
+        "source_history_eval_run_id": "eval-run-31",
+        "source_history_as_of_date": "2026-05-25",
+        "feedback_status": "has_contradictions",
+        "decision_count": 11,
+        "too_early_count": 0,
+        "validated_count": 6,
+        "contradicted_count": 4,
+        "needs_more_data_count": 1
+      },
+      "calibration": {
+        "status": "loaded",
+        "eval_run_id": "eval-run-1771",
+        "created_at": "2026-09-11T15:05:22.353952Z",
+        "as_of_date": "2026-09-11",
+        "calibration_status": "collect_more_feedback",
+        "feedback_run_count": 50,
+        "decision_count": 550,
+        "mature_decision_count": 454,
+        "too_early_count": 0,
+        "validated_count": 421,
+        "contradicted_count": 33,
+        "needs_more_data_count": 96,
+        "latest_feedback_run_ids": [
+          "eval-run-1768",
+          "eval-run-1715",
+          "eval-run-1674",
+          "eval-run-1657",
+          "eval-run-1640",
+          "eval-run-1623",
+          "eval-run-1606",
+          "eval-run-1565",
+          "eval-run-1548",
+          "eval-run-1531"
+        ]
+      },
+      "evidence": {
+        "history_age_days": 109,
+        "decision_count": 11,
+        "recommendation_link_count": 6,
+        "recommendation_outcome_count": 6,
+        "price_evidence_count": 11,
+        "paper_validation": {
+          "paper_validation_run_id": "paper-validation-90",
+          "validation_date": "2026-09-11",
+          "status": "failed",
+          "recommendation_count": 24,
+          "conflict_count": 0,
+          "approved_action_count": 0
+        }
+      },
+      "blocks_weight_review": true,
+      "recommendation_scoring_mutated": false,
+      "benchmark_definition_mutated": false,
+      "portfolio_position_mutated": false,
+      "automatic_weight_change_allowed": false,
+      "automatic_rebalance_allowed": false,
+      "automatic_order_allowed": false,
+      "broker_submit_allowed": false,
+      "order_boundary": "read_only_no_order",
+      "next_action": "검토 feedback cadence는 현재 최신 상태다."
+    },
+    "portfolio_review_feedback_action_router": {
+      "status": "loaded",
+      "eval_run_id": "eval-run-1776",
+      "created_at": "2026-09-11T15:05:25.034905Z",
+      "eval_name": "portfolio_review_feedback_action_router",
+      "dataset_version": "portfolio-review-feedback-action-router-v1",
+      "as_of_date": "2026-09-11",
+      "portfolio_name": "Long Term Paper",
+      "source_cadence_status": "loaded",
+      "source_cadence_eval_run_id": "eval-run-1775",
+      "source_cadence_created_at": "2026-09-11T15:05:24.502284Z",
+      "source_cadence_as_of_date": "2026-09-11",
+      "cadence_status": "calibration_current",
+      "source_action_type": "monitor",
+      "source_should_run_now": false,
+      "route_action": "no_op",
+      "action_status": "no_op_calibration_current",
+      "reason": "latest feedback and calibration are current.",
+      "history_eval_run_id": "eval-run-31",
+      "feedback_eval_run_id": "eval-run-1768",
+      "calibration_eval_run_id": "eval-run-1771",
+      "source_cadence": {
+        "as_of_date": "2026-09-11",
+        "cadence_status": "calibration_current",
+        "action_type": "monitor",
+        "should_run_now": false,
+        "should_wait": true,
+        "command": "stockanalysis-operations portfolio-review-feedback-calibration-run --env-file <ENV> --portfolio-name \"Long Term Paper\" --as-of-date 2026-09-11 --execute",
+        "follow_up_command": ""
+      },
+      "child_runner": {
+        "executed": false,
+        "report_name": "",
+        "status": "not_run",
+        "run_id": "pipeline-run-unknown",
+        "eval_run_id": "eval-run-unknown",
+        "feedback_status": "",
+        "calibration_status": ""
+      },
+      "recommendation_scoring_mutated": false,
+      "benchmark_definition_mutated": false,
+      "portfolio_position_mutated": false,
+      "automatic_weight_change_allowed": false,
+      "automatic_rebalance_allowed": false,
+      "automatic_order_allowed": false,
+      "broker_submit_allowed": false,
+      "order_boundary": "read_only_no_order",
+      "next_action": "다음 daily cadence까지 모니터링한다."
+    }
+  },
+  "open_gates": [
+    {
+      "gate_id": "alert_destination",
+      "label": "알림 목적지",
+      "category": "operational_blocker",
+      "category_label": "운영 조건",
+      "severity": "medium",
+      "status_label": "외부 알림 미검증",
+      "summary": "ntfy 알림 테스트가 없거나 168시간 기준보다 오래됐다.",
+      "next_action": "알림 도달 테스트를 다시 실행해 최신 status artifact를 남긴다.",
+      "order_boundary": "read_only_no_order",
+      "automatic_action_allowed": false
+    },
+    {
+      "gate_id": "portfolio_review_decision_feedback_attention",
+      "label": "포트폴리오 검토 성과",
+      "category": "outcome_due",
+      "category_label": "성과 검증 필요",
+      "severity": "high",
+      "status_label": "검토 결과 대조 필요",
+      "summary": "포트폴리오 검토 결정 11개가 성과 대조 상태 has_contradictions로 남아 있다.",
+      "next_action": "contradicted 항목의 thesis, valuation, 포지션 크기 판단을 우선 재검토한다.",
+      "order_boundary": "read_only_no_order",
+      "automatic_action_allowed": false
+    },
+    {
+      "gate_id": "portfolio_review_feedback_calibration_attention",
+      "label": "검토 성과 표본",
+      "category": "outcome_wait",
+      "category_label": "성과 관찰 대기",
+      "severity": "medium",
+      "status_label": "weight 변경 차단",
+      "summary": "성숙한 검토 표본 454/10개, feedback 50/3회. 예상 성숙일 2026-06-24.",
+      "next_action": "검토 성과 누적평가 상태가 명확히 성숙하지 않아 추천 weight 검토를 막는다.",
+      "order_boundary": "read_only_no_order",
+      "automatic_action_allowed": false
+    },
+    {
+      "gate_id": "professional_source_gap_attention",
+      "label": "전문 분석 원천 한계",
+      "category": "source_limit",
+      "category_label": "원천 데이터 한계",
+      "severity": "high",
+      "status_label": "재무 원천 차단",
+      "summary": "원천 차단 종목 1개, 최고 우선순위 412.1.",
+      "next_action": "source_blocker_count가 있는 종목부터 원천 공시/CIK/무료 데이터 가능 여부를 확인한다.",
+      "order_boundary": "read_only_no_order",
+      "automatic_action_allowed": false
+    }
+  ]
+}

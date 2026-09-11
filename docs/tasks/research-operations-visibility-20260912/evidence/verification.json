@@ -1,0 +1,562 @@
+{
+  "verified_at": "2026-09-11T15:01:36.788550+00:00",
+  "commit": "ba63c79cdbb1fcc75a67673975f315dbce8948cf",
+  "research_refresh": {
+    "observed_at": "2026-09-11T15:01:14.570687+00:00",
+    "as_of_date": "2026-09-11",
+    "scope": "financial_source_only",
+    "read_only": true,
+    "maximum_calls_per_run": 1,
+    "budget_resets_at": "2026-09-12T00:00:00+00:00",
+    "status": "loaded",
+    "model_name": "gpt-5.6-terra",
+    "daily_used": 2,
+    "daily_limit": 5,
+    "daily_remaining": 3,
+    "counts": {
+      "current": 2,
+      "due": 13,
+      "waiting_for_source": 18
+    },
+    "attention_count": 0,
+    "total_count": 33,
+    "rows": [
+      {
+        "symbol": "A",
+        "state": "current",
+        "source_run_id": 23866,
+        "source_collected_at": "2026-09-11T09:04:42.274375+00:00",
+        "claim_id": 23927,
+        "retry_after": null,
+        "failure_code": null
+      },
+      {
+        "symbol": "ADBE",
+        "state": "current",
+        "source_run_id": 23867,
+        "source_collected_at": "2026-09-11T09:04:43.932444+00:00",
+        "claim_id": 23956,
+        "retry_after": null,
+        "failure_code": null
+      },
+      {
+        "symbol": "ADI",
+        "state": "due",
+        "source_run_id": 23868,
+        "source_collected_at": "2026-09-11T09:04:45.703134+00:00",
+        "claim_id": null,
+        "retry_after": null,
+        "failure_code": null
+      },
+      {
+        "symbol": "ADSK",
+        "state": "due",
+        "source_run_id": 23870,
+        "source_collected_at": "2026-09-11T09:04:53.423984+00:00",
+        "claim_id": null,
+        "retry_after": null,
+        "failure_code": null
+      },
+      {
+        "symbol": "AEIS",
+        "state": "due",
+        "source_run_id": 23871,
+        "source_collected_at": "2026-09-11T09:04:55.324230+00:00",
+        "claim_id": null,
+        "retry_after": null,
+        "failure_code": null
+      },
+      {
+        "symbol": "ALAB",
+        "state": "due",
+        "source_run_id": 23872,
+        "source_collected_at": "2026-09-11T09:04:56.684469+00:00",
+        "claim_id": null,
+        "retry_after": null,
+        "failure_code": null
+      },
+      {
+        "symbol": "AMD",
+        "state": "due",
+        "source_run_id": 23887,
+        "source_collected_at": "2026-09-11T10:20:33.592924+00:00",
+        "claim_id": null,
+        "retry_after": null,
+        "failure_code": null
+      },
+      {
+        "symbol": "AVGO",
+        "state": "due",
+        "source_run_id": 23888,
+        "source_collected_at": "2026-09-11T10:20:34.955057+00:00",
+        "claim_id": null,
+        "retry_after": null,
+        "failure_code": null
+      },
+      {
+        "symbol": "BE",
+        "state": "due",
+        "source_run_id": 23889,
+        "source_collected_at": "2026-09-11T10:20:36.344636+00:00",
+        "claim_id": null,
+        "retry_after": null,
+        "failure_code": null
+      },
+      {
+        "symbol": "BMNR",
+        "state": "due",
+        "source_run_id": 23906,
+        "source_collected_at": "2026-09-11T13:02:11.413081+00:00",
+        "claim_id": null,
+        "retry_after": null,
+        "failure_code": null
+      },
+      {
+        "symbol": "COST",
+        "state": "due",
+        "source_run_id": 23907,
+        "source_collected_at": "2026-09-11T13:02:12.753391+00:00",
+        "claim_id": null,
+        "retry_after": null,
+        "failure_code": null
+      },
+      {
+        "symbol": "DG",
+        "state": "due",
+        "source_run_id": 23908,
+        "source_collected_at": "2026-09-11T13:02:14.413014+00:00",
+        "claim_id": null,
+        "retry_after": null,
+        "failure_code": null
+      },
+      {
+        "symbol": "DIS",
+        "state": "due",
+        "source_run_id": 23910,
+        "source_collected_at": "2026-09-11T13:02:25.023312+00:00",
+        "claim_id": null,
+        "retry_after": null,
+        "failure_code": null
+      },
+      {
+        "symbol": "ELF",
+        "state": "due",
+        "source_run_id": 23911,
+        "source_collected_at": "2026-09-11T13:02:27.183618+00:00",
+        "claim_id": null,
+        "retry_after": null,
+        "failure_code": null
+      },
+      {
+        "symbol": "EROK",
+        "state": "due",
+        "source_run_id": 23912,
+        "source_collected_at": "2026-09-11T13:02:28.714093+00:00",
+        "claim_id": null,
+        "retry_after": null,
+        "failure_code": null
+      },
+      {
+        "symbol": "AAPL",
+        "state": "waiting_for_source",
+        "source_run_id": null,
+        "source_collected_at": null,
+        "claim_id": null,
+        "retry_after": null,
+        "failure_code": null
+      },
+      {
+        "symbol": "AMZN",
+        "state": "waiting_for_source",
+        "source_run_id": null,
+        "source_collected_at": null,
+        "claim_id": null,
+        "retry_after": null,
+        "failure_code": null
+      },
+      {
+        "symbol": "ARM",
+        "state": "waiting_for_source",
+        "source_run_id": null,
+        "source_collected_at": null,
+        "claim_id": null,
+        "retry_after": null,
+        "failure_code": null
+      },
+      {
+        "symbol": "FANG",
+        "state": "waiting_for_source",
+        "source_run_id": null,
+        "source_collected_at": null,
+        "claim_id": null,
+        "retry_after": null,
+        "failure_code": null
+      },
+      {
+        "symbol": "GILD",
+        "state": "waiting_for_source",
+        "source_run_id": null,
+        "source_collected_at": null,
+        "claim_id": null,
+        "retry_after": null,
+        "failure_code": null
+      },
+      {
+        "symbol": "GOOG",
+        "state": "waiting_for_source",
+        "source_run_id": null,
+        "source_collected_at": null,
+        "claim_id": null,
+        "retry_after": null,
+        "failure_code": null
+      },
+      {
+        "symbol": "GOOGL",
+        "state": "waiting_for_source",
+        "source_run_id": null,
+        "source_collected_at": null,
+        "claim_id": null,
+        "retry_after": null,
+        "failure_code": null
+      },
+      {
+        "symbol": "INTU",
+        "state": "waiting_for_source",
+        "source_run_id": null,
+        "source_collected_at": null,
+        "claim_id": null,
+        "retry_after": null,
+        "failure_code": null
+      },
+      {
+        "symbol": "LDOS",
+        "state": "waiting_for_source",
+        "source_run_id": null,
+        "source_collected_at": null,
+        "claim_id": null,
+        "retry_after": null,
+        "failure_code": null
+      },
+      {
+        "symbol": "LLY",
+        "state": "waiting_for_source",
+        "source_run_id": null,
+        "source_collected_at": null,
+        "claim_id": null,
+        "retry_after": null,
+        "failure_code": null
+      },
+      {
+        "symbol": "META",
+        "state": "waiting_for_source",
+        "source_run_id": null,
+        "source_collected_at": null,
+        "claim_id": null,
+        "retry_after": null,
+        "failure_code": null
+      },
+      {
+        "symbol": "MSFT",
+        "state": "waiting_for_source",
+        "source_run_id": null,
+        "source_collected_at": null,
+        "claim_id": null,
+        "retry_after": null,
+        "failure_code": null
+      },
+      {
+        "symbol": "NVDA",
+        "state": "waiting_for_source",
+        "source_run_id": null,
+        "source_collected_at": null,
+        "claim_id": null,
+        "retry_after": null,
+        "failure_code": null
+      },
+      {
+        "symbol": "QUBT",
+        "state": "waiting_for_source",
+        "source_run_id": null,
+        "source_collected_at": null,
+        "claim_id": null,
+        "retry_after": null,
+        "failure_code": null
+      },
+      {
+        "symbol": "SPCX",
+        "state": "waiting_for_source",
+        "source_run_id": null,
+        "source_collected_at": null,
+        "claim_id": null,
+        "retry_after": null,
+        "failure_code": null
+      },
+      {
+        "symbol": "TGT",
+        "state": "waiting_for_source",
+        "source_run_id": null,
+        "source_collected_at": null,
+        "claim_id": null,
+        "retry_after": null,
+        "failure_code": null
+      },
+      {
+        "symbol": "TSLA",
+        "state": "waiting_for_source",
+        "source_run_id": null,
+        "source_collected_at": null,
+        "claim_id": null,
+        "retry_after": null,
+        "failure_code": null
+      },
+      {
+        "symbol": "XOM",
+        "state": "waiting_for_source",
+        "source_run_id": null,
+        "source_collected_at": null,
+        "claim_id": null,
+        "retry_after": null,
+        "failure_code": null
+      }
+    ]
+  },
+  "matches_worker_queue": true,
+  "repeated_get_no_claim_or_invocation": true,
+  "model_settings_unchanged": true,
+  "read_counts": {
+    "claims": 2,
+    "invocations": 41087
+  },
+  "timer_count": 14,
+  "batch_guard": {
+    "status": "protected",
+    "shared_limits_applied": true,
+    "database_limits_applied": true,
+    "database_memory_max_bytes": 3221225472,
+    "monitored_profile_count": 13,
+    "protected_profile_count": 13,
+    "attention_profile_count": 0,
+    "observation_age_seconds": 30
+  },
+  "html": {
+    "3000": {
+      "status": 200,
+      "research_refresh_rendered": true
+    },
+    "13000": {
+      "status": 200,
+      "research_refresh_rendered": true
+    }
+  },
+  "recovery": {
+    "generated_at": "2026-09-11T14:42:08Z",
+    "run_status": "completed",
+    "failed_step_count": 0,
+    "broker_submission_allowed": false,
+    "steps": [
+      {
+        "step_id": "recommendation-outcome-backfill",
+        "status": "succeeded",
+        "exit_code": 0
+      },
+      {
+        "step_id": "recommendation-outcome-due-action-router",
+        "status": "succeeded",
+        "exit_code": 0
+      },
+      {
+        "step_id": "missing-symbol-price-backfill",
+        "status": "succeeded",
+        "exit_code": 0
+      },
+      {
+        "step_id": "strategy-universe-slice",
+        "status": "succeeded",
+        "exit_code": 0
+      },
+      {
+        "step_id": "market-feature-snapshot",
+        "status": "succeeded",
+        "exit_code": 0
+      },
+      {
+        "step_id": "instrument-theme-enrichment",
+        "status": "succeeded",
+        "exit_code": 0
+      },
+      {
+        "step_id": "cycle-state-snapshot",
+        "status": "succeeded",
+        "exit_code": 0
+      },
+      {
+        "step_id": "cycle-hierarchy-snapshot-v2",
+        "status": "succeeded",
+        "exit_code": 0
+      },
+      {
+        "step_id": "cycle-graph-context-summary",
+        "status": "succeeded",
+        "exit_code": 0
+      },
+      {
+        "step_id": "cycle-community-ai-summary-v2",
+        "status": "succeeded",
+        "exit_code": 0
+      },
+      {
+        "step_id": "recommendation-bootstrap",
+        "status": "succeeded",
+        "exit_code": 0
+      },
+      {
+        "step_id": "recommendation-fundamental-components",
+        "status": "succeeded",
+        "exit_code": 0
+      },
+      {
+        "step_id": "thesis-bootstrap",
+        "status": "succeeded",
+        "exit_code": 0
+      },
+      {
+        "step_id": "thesis-review-bootstrap",
+        "status": "succeeded",
+        "exit_code": 0
+      },
+      {
+        "step_id": "portfolio-position-snapshot",
+        "status": "succeeded",
+        "exit_code": 0
+      },
+      {
+        "step_id": "portfolio-holding-thesis-bootstrap",
+        "status": "succeeded",
+        "exit_code": 0
+      },
+      {
+        "step_id": "portfolio-remediation-daily",
+        "status": "succeeded",
+        "exit_code": 0
+      },
+      {
+        "step_id": "paper-safety-bootstrap",
+        "status": "succeeded",
+        "exit_code": 0
+      },
+      {
+        "step_id": "paper-validation-audit",
+        "status": "succeeded",
+        "exit_code": 0
+      },
+      {
+        "step_id": "recommendation-quality-eval",
+        "status": "succeeded",
+        "exit_code": 0
+      },
+      {
+        "step_id": "portfolio-review-feedback-cadence",
+        "status": "succeeded",
+        "exit_code": 0
+      },
+      {
+        "step_id": "portfolio-review-feedback-action-router",
+        "status": "succeeded",
+        "exit_code": 0
+      },
+      {
+        "step_id": "equity-research-reporting",
+        "status": "succeeded",
+        "exit_code": 0
+      }
+    ]
+  },
+  "overall_status": "attention_required",
+  "open_gates": [
+    {
+      "gate_id": "alert_destination",
+      "label": "알림 목적지",
+      "category": "operational_blocker",
+      "category_label": "운영 조건",
+      "severity": "medium",
+      "status_label": "외부 알림 미검증",
+      "summary": "ntfy 알림 테스트가 없거나 168시간 기준보다 오래됐다.",
+      "next_action": "알림 도달 테스트를 다시 실행해 최신 status artifact를 남긴다.",
+      "order_boundary": "read_only_no_order",
+      "automatic_action_allowed": false
+    },
+    {
+      "gate_id": "benchmark_drift_quality_attention",
+      "label": "벤치마크 괴리 검토",
+      "category": "investment_review",
+      "category_label": "투자 검토",
+      "severity": "high",
+      "status_label": "포트폴리오 비중 점검 필요",
+      "summary": "벤치마크 대비 active share 77.9%, 검토 후보 7개.",
+      "next_action": "자동 주문하지 말고 thesis, 밸류에이션, 집중도를 확인해 비중 유지/축소 판단을 남긴다.",
+      "order_boundary": "read_only_no_order",
+      "automatic_action_allowed": false
+    },
+    {
+      "gate_id": "portfolio_review_decision_history_attention",
+      "label": "포트폴리오 검토 결정",
+      "category": "investment_review",
+      "category_label": "투자 검토",
+      "severity": "medium",
+      "status_label": "검토 결정 기록됨",
+      "summary": "최근 포트폴리오 검토 결정 11개가 성과 대조를 기다린다.",
+      "next_action": "결정을 지우지 말고 후속 성과와 thesis 변화를 대조한다.",
+      "order_boundary": "read_only_no_order",
+      "automatic_action_allowed": false
+    },
+    {
+      "gate_id": "portfolio_review_decision_feedback_attention",
+      "label": "포트폴리오 검토 성과",
+      "category": "outcome_due",
+      "category_label": "성과 검증 필요",
+      "severity": "high",
+      "status_label": "검토 결과 대조 필요",
+      "summary": "포트폴리오 검토 결정 11개가 성과 대조 상태 has_contradictions로 남아 있다.",
+      "next_action": "contradicted 항목의 thesis, valuation, 포지션 크기 판단을 우선 재검토한다.",
+      "order_boundary": "read_only_no_order",
+      "automatic_action_allowed": false
+    },
+    {
+      "gate_id": "portfolio_review_feedback_calibration_attention",
+      "label": "검토 성과 표본",
+      "category": "outcome_wait",
+      "category_label": "성과 관찰 대기",
+      "severity": "medium",
+      "status_label": "weight 변경 차단",
+      "summary": "성숙한 검토 표본 93/10개, feedback 10/3회. 예상 성숙일 2026-06-24.",
+      "next_action": "검토 성과 누적평가 상태가 명확히 성숙하지 않아 추천 weight 검토를 막는다.",
+      "order_boundary": "read_only_no_order",
+      "automatic_action_allowed": false
+    },
+    {
+      "gate_id": "portfolio_review_feedback_cadence_attention",
+      "label": "포트폴리오 검토 실행 주기",
+      "category": "outcome_due",
+      "category_label": "성과 실행 필요",
+      "severity": "medium",
+      "status_label": "성과 사후평가 실행 필요",
+      "summary": "검토 이력이 성숙했지만 최신 feedback이 없거나 stale 상태다.",
+      "next_action": "검토 결정 사후평가를 지금 실행한다.",
+      "order_boundary": "read_only_no_order",
+      "automatic_action_allowed": false
+    },
+    {
+      "gate_id": "professional_source_gap_attention",
+      "label": "전문 분석 원천 한계",
+      "category": "source_limit",
+      "category_label": "원천 데이터 한계",
+      "severity": "high",
+      "status_label": "재무 원천 차단",
+      "summary": "원천 차단 종목 1개, 최고 우선순위 412.1.",
+      "next_action": "source_blocker_count가 있는 종목부터 원천 공시/CIK/무료 데이터 가능 여부를 확인한다.",
+      "order_boundary": "read_only_no_order",
+      "automatic_action_allowed": false
+    }
+  ],
+  "stale_or_failed_jobs": []
+}
