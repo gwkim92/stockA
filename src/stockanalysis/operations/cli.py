@@ -207,6 +207,7 @@ from stockanalysis.operations.professional_coverage_expansion import (
     run_professional_coverage_expansion,
 )
 from stockanalysis.operations.research_maintenance import run_research_maintenance
+from stockanalysis.operations.research_report_refresh import run_research_report_refresh
 from stockanalysis.operations.professional_source_gap_remediation_decision import (
     run_professional_source_gap_remediation_decision,
 )
@@ -1017,6 +1018,13 @@ def build_parser() -> argparse.ArgumentParser:
     research_maintenance.add_argument("--execute", action="store_true")
     research_maintenance.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
     research_maintenance.set_defaults(handler=_handle_research_maintenance_run)
+    research_refresh = subparsers.add_parser('research-report-refresh-run', help='Generate at most one report for changed financial sources within the existing daily budget.')
+    research_refresh.add_argument('--env-file')
+    research_refresh.add_argument('--as-of-date')
+    research_refresh.add_argument('--symbol')
+    research_refresh.add_argument('--execute', action='store_true')
+    research_refresh.add_argument('--repo-root', default=str(DEFAULT_REPO_ROOT))
+    research_refresh.set_defaults(handler=_handle_research_report_refresh_run)
 
     professional_coverage_expansion = subparsers.add_parser(
         "professional-coverage-expansion-run",
@@ -3592,6 +3600,16 @@ def _handle_research_maintenance_run(args: argparse.Namespace, *, stdout: TextIO
             limit=args.limit, execute=args.execute)
     print_json(report, stdout=stdout, sort_keys=False)
     return 1 if report["status"] == "attention" else 0
+
+
+def _handle_research_report_refresh_run(args: argparse.Namespace, *, stdout: TextIO) -> int:
+    env_mapping = _load_optional_env_mapping(args.env_file, repo_root=args.repo_root)
+    with _temporary_environ(env_mapping):
+        report = run_research_report_refresh(config=RuntimeConfig.from_env(),
+            as_of_date=date.fromisoformat(args.as_of_date) if args.as_of_date else datetime.now(timezone.utc).date(),
+            execute=args.execute, symbol=args.symbol.upper() if args.symbol else None)
+    print_json(report, stdout=stdout, sort_keys=False)
+    return 1 if report['status'] in ('failed', 'reconcile') or report.get('attention_required') else 0
 
 
 def _handle_financial_metric_normalization_run(args: argparse.Namespace, *, stdout: TextIO) -> int:

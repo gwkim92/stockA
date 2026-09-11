@@ -1,6 +1,28 @@
 import { test, expect } from '@playwright/test';
 test.beforeEach(async ({ request }) => { await request.post('http://127.0.0.1:18768/__scenario', { data: { scenario: 'healthy' } }); });
 
+test('changed financial source opens the old report warning on desktop and mobile', async ({ page, request }, testInfo) => {
+  await request.post('http://127.0.0.1:18768/__scenario', { data: { scenario: 'financial-source-source_changed' } });
+  await page.goto('/stocks/AAPL');
+  const warning = page.getByRole('status').filter({ hasText: '갱신 전 자료' });
+  await expect(warning).toBeVisible();
+  await expect(warning).toContainText('뉴스·밸류에이션');
+  await expect(warning.locator('..')).toHaveAttribute('open', '');
+  await warning.scrollIntoViewIfNeeded();
+  await page.screenshot({ path: testInfo.outputPath('financial-source-changed.png'), fullPage: true });
+});
+
+test('matching financial source is scoped and legacy reports remain unverified', async ({ page, request }) => {
+  await request.post('http://127.0.0.1:18768/__scenario', { data: { scenario: 'financial-source-current' } });
+  await page.goto('/stocks/AAPL');
+  await page.getByText('AI 생성 보고서 · 내용 검토 미기록', { exact: true }).click();
+  await expect(page.getByText(/재무 입력 버전이 현재 수집 자료와 일치/)).toBeVisible();
+  await request.post('http://127.0.0.1:18768/__scenario', { data: { scenario: 'financial-source-not_recorded' } });
+  await page.reload();
+  await page.getByText('AI 생성 보고서 · 내용 검토 미기록', { exact: true }).click();
+  await expect(page.getByText(/재무 입력 버전이 기록되지 않아/)).toBeVisible();
+});
+
 test('complete stored fund analysis remains reachable without company model substitution', async ({ page }) => {
   await page.goto('/stocks/SPY/details');
   const report = page.getByTestId('company-full-analysis');

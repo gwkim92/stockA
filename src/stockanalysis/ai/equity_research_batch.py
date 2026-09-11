@@ -15,6 +15,7 @@ import re
 from typing import Any
 
 from stockanalysis.ai_agents.prompt_contract import PromptContractError
+from stockanalysis.ai.research_source_version import VERSION_KEY, validated_version, same_version, generation_policy
 from stockanalysis.ai.equity_research_persistence import (
     POLICY as PERSISTENCE_POLICY, render_atomic_result_sql, parse_acknowledgement,
 )
@@ -81,6 +82,7 @@ def run_batch(
     provider: str, model_name: str, reasoning_effort: str | None,
     max_context_chars: int, execute: bool, executor: Any,
     provider_runner: Callable[..., Any] | None,
+    source_refresh_claim: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     # Import only on invocation, keeping the public reporting module compatible.
     from stockanalysis.ai import equity_research_reporting as equity
@@ -93,6 +95,11 @@ def run_batch(
         raise ValueError("max_context_chars must be between 2000 and 100000.")
     if provider not in {equity.FIXTURE_PROVIDER, equity.CODEX_OAUTH_PROVIDER}:
         raise ValueError("Supported equity research providers are fixture and codex_oauth.")
+    if source_refresh_claim is not None:
+        if (type(source_refresh_claim.get('claim_id')) is not int
+            or source_refresh_claim['claim_id'] <= 0 or limit != 1 or not execute):
+            raise ValueError('invalid_source_refresh_claim')
+        validated_version(source_refresh_claim.get('source_version'))
     sql_executor = executor or equity.PsqlCommandExecutor.from_config(config)
     report: dict[str, Any] = {
         "report_name": equity.DEFAULT_PIPELINE_NAME, "pipeline_name": equity.DEFAULT_PIPELINE_NAME,
@@ -125,6 +132,10 @@ def run_batch(
                     config=config, symbol=symbol, as_of_date=as_of_date, limit=8, executor=sql_executor,
                 )
                 _context_identity(context, symbol, as_of_date)
+                if source_refresh_claim is not None and not same_version(
+                    context.get('financial_source_version'), source_refresh_claim['source_version']
+                ):
+                    raise PromptContractError('financial_source_changed_before_generation')
                 contexts[index] = equity._bounded_context_for_prompt(context, max_context_chars=max_context_chars)
                 report["results"][index]["status"] = "prepared"
                 report["prepared_symbol_count"] += 1
@@ -169,6 +180,11 @@ def run_batch(
             "offline_batch_only": True, "recommendation_scoring_mutated": False,
             "broker_order_submit_enabled": False, "batch_policy": report["batch_policy"],
             "input_failures": [row for row in report["results"] if row["status"] == "failed"],
+            VERSION_KEY: {selected[index]: validated_version(context.get('financial_source_version'))
+                          for index, context in contexts.items()},
+            'source_generation_policy': generation_policy(model=model_name, template=equity.DEFAULT_TEMPLATE_VERSION,
+                reasoning=reasoning_effort, context_limit=max_context_chars),
+            **({'source_refresh_claim_id': source_refresh_claim['claim_id']} if source_refresh_claim is not None else {}),
         })
         report["run_id"] = run_id
         stage = "prompt_registration"

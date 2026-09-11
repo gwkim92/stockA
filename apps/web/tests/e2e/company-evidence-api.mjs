@@ -23,6 +23,12 @@ const server = createServer(async (req, res) => {
     d.position.linked_thesis_id = 'thesis-1';
     d.price_bars = Array.from({ length: 45 }, (_, index) => ({ trade_date: new Date(Date.UTC(2026, 6, 20 + index)).toISOString().slice(0, 10), close: index === 30 ? null : 290 + index / 4 + Math.sin(index) * 3 }));
     d.equity_research = { title: 'Apple 기업 리서치', artifact_id: 'research-1', provider: 'fixture', model_name: 'fixture', source_document_ids: [], as_of_date: '2026-09-03', korean_summary: '서비스의 반복 매출과 현금흐름을 함께 살펴보는 검증용 투자 가설입니다.', key_points: ['매출 성장과 고객 유지율의 관계를 확인한다.'], catalysts: ['다음 실적 발표에서 서비스 매출과 마진을 검토한다.'], risks: ['규제 비용과 고객 유지율 하락 가능성'], invalidation_conditions: ['현금흐름이 비용 증가를 흡수하지 못할 때 재검토한다.'], valuation_sensitivity: {} };
+    if (scenario.startsWith('financial-source-')) {
+      d.equity_research.provider = 'codex_oauth';
+      d.equity_research.model_name = 'synthetic-no-model-call';
+      d.equity_research.generation = { mode: 'ai', structural_status: 'complete' };
+      d.equity_research.financial_source_freshness = { status: scenario.slice('financial-source-'.length) };
+    }
     const metrics = [
       { metric_code: 'revenue_growth', label: '매출 성장률', metric_value: 0.12, metric_unit: 'ratio' },
       { metric_code: 'operating_margin', label: '영업이익률', metric_value: 0.27, metric_unit: 'ratio' },

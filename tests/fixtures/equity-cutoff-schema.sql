@@ -6,6 +6,8 @@ create schema signal;
 create schema event;
 create schema ingest;
 create schema ai;
+create schema ops;
+create table ops.pipeline_run (run_id bigint primary key, pipeline_name text, status text, config_json jsonb, ended_at timestamptz);
 create table ref.instrument (instrument_id bigint primary key, primary_symbol text, name text, market_code text, currency_code text, is_active boolean);
 create table market.financial_statement_period (period_id bigint, instrument_id bigint, statement_scope text, period_end date, report_date date, source_document_id bigint);
 create table market.financial_metric_value (period_id bigint, metric_code text, metric_value numeric);

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from stockanalysis.ai.model_settings import CodexModelInvocation
+from stockanalysis.ai.research_source_version import latest_source_sql
 
 import hashlib
 import json
@@ -362,6 +363,9 @@ select json_build_object(
         'historical_limitations', 'Current stored thesis bodies/status, event enrichment and other snapshots are not immutable historical versions; ingestion-time availability is not established.'
     ),
     'instrument', (select row_to_json(target) from target),
+    'financial_source_version', (select to_jsonb(s) from target cross join lateral (
+        {latest_source_sql('target.instrument_id', cutoff_sql=cutoff)}
+    ) s),
     'financial_metrics', coalesce((select json_agg(row_to_json(latest_financial_metrics) order by metric_code) from latest_financial_metrics), '[]'::json),
     'financial_metric_status_counts', coalesce((select json_agg(row_to_json(financial_metric_status_counts) order by metric_status) from financial_metric_status_counts), '[]'::json),
     'peer_relative', coalesce((select json_agg(row_to_json(latest_peer_rows) order by metric_code) from latest_peer_rows), '[]'::json),
@@ -679,6 +683,7 @@ def run_equity_research_reporting(
     execute: bool = False,
     executor: PsqlCommandExecutor | None = None,
     provider_runner: EquityResearchProviderRunner | None = None,
+    source_refresh_claim: dict[str, object] | None = None,
 ) -> dict[str, object]:
     # Preserve this public entrypoint while keeping orchestration separate from
     # the unchanged research prompt, financial context SQL and artifact schema.
@@ -689,6 +694,7 @@ def run_equity_research_reporting(
         provider=provider, model_name=model_name, reasoning_effort=reasoning_effort,
         max_context_chars=max_context_chars, execute=execute, executor=executor,
         provider_runner=provider_runner,
+        source_refresh_claim=source_refresh_claim,
     )
 
 
@@ -956,6 +962,7 @@ def _bounded_context_for_prompt(context: dict[str, object], *, max_context_chars
         "context_scope": "bounded_selection_not_complete_source_history",
         "query": context.get("query"),
         "instrument": context.get("instrument"),
+        "financial_source_version": context.get("financial_source_version"),
         "financial_metrics": _limit_list(context.get("financial_metrics"), 12),
         "financial_metric_status_counts": context.get("financial_metric_status_counts"),
         "peer_relative": _limit_list(context.get("peer_relative"), 12),

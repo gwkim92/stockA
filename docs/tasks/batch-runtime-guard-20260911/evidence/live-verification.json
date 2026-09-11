@@ -1,0 +1,49 @@
+{
+  "evidence_source": "Authenticated Chrome EC2 Instance Connect terminal; activation.json, verification.json and canary-result.json read back from /opt/stockanalysis/runtime/batch-guard-20260911",
+  "observed_at": "2026-09-11T13:03:00.880678+00:00",
+  "identity": {"accountId": "115623963546", "instanceId": "i-029d51b163fb07b61", "instanceType": "t3.large", "region": "us-east-1"},
+  "activation": {
+    "commit": "3692adcda9203e67d967a4873775e2711ba0d172",
+    "previous": "502eb6795dbcd328ea5a9b6bc6aa503be0061408",
+    "build_id_unchanged": "WcwTXPpZJZtUkdFHyJ8-t",
+    "settings_unchanged": true,
+    "routes_200": true,
+    "restored_timer_count": 14,
+    "protected_service_count": 13,
+    "database_memory_limit": 3221225472,
+    "activated_at": "2026-09-11T13:01:12.290339+00:00"
+  },
+  "before_probes": {"8787": 200, "3000": 200, "13000": 200},
+  "smokes": [
+    {"kind": "timeout", "returncode": 1, "properties": {"Result": "timeout", "ExecMainStatus": "15", "ControlGroup": "", "MemoryMax": "67108864"}, "web_api_probes": {"8787": 200, "3000": 200, "13000": 200}},
+    {"kind": "memory", "returncode": 1, "properties": {"Result": "oom-kill", "ExecMainStatus": "9", "ControlGroup": "", "MemoryMax": "67108864"}, "web_api_probes": {"8787": 200, "3000": 200, "13000": 200}}
+  ],
+  "kernel_limits": {"memory.max": "2147483648", "memory.high": "1610612736", "memory.swap.max": "0", "cpu.max": "100000 100000", "pids.max": "512"},
+  "after_cycle_1": {"8787": 200, "3000": 200, "13000": 200},
+  "after_cycle_2": {"8787": 200, "3000": 200, "13000": 200},
+  "timers_restored": true,
+  "api_guard": {"status": "protected", "shared_limits_applied": true, "database_limits_applied": true, "database_memory_max_bytes": 3221225472, "monitored_profile_count": 13, "protected_profile_count": 13, "attention_profile_count": 0, "observation_age_seconds": 2},
+  "research_progress": {"status": "succeeded", "resource_limits_applied": true, "attention_required": false, "memory_current_bytes": null, "memory_max_bytes": 1073741824, "step_elapsed_seconds": null, "completed_steps": 1, "step_id": ""},
+  "research": {
+    "parents": [
+      {"run_id": 23905, "status": "succeeded", "queue_counts": {"due": 17, "fresh": 15, "reconcile": 0, "retry_wait": 0}},
+      {"run_id": 23909, "status": "succeeded", "queue_counts": {"due": 14, "fresh": 18, "reconcile": 0, "retry_wait": 0}}
+    ],
+    "refreshes": [
+      {"run_id": 23906, "status": "succeeded", "symbol": "BMNR", "fact_count": 148, "period_policy": "sec-statement-duration-v2", "before_image_present": true},
+      {"run_id": 23907, "status": "succeeded", "symbol": "COST", "fact_count": 428, "period_policy": "sec-statement-duration-v2", "before_image_present": true},
+      {"run_id": 23908, "status": "succeeded", "symbol": "DG", "fact_count": 291, "period_policy": "sec-statement-duration-v2", "before_image_present": true},
+      {"run_id": 23910, "status": "succeeded", "symbol": "DIS", "fact_count": 144, "period_policy": "sec-statement-duration-v2", "before_image_present": true},
+      {"run_id": 23911, "status": "succeeded", "symbol": "ELF", "fact_count": 364, "period_policy": "sec-statement-duration-v2", "before_image_present": true},
+      {"run_id": 23912, "status": "succeeded", "symbol": "EROK", "fact_count": 7, "period_policy": "sec-statement-duration-v2", "before_image_present": true}
+    ],
+    "two_cycles_no_duplicate": true,
+    "protected_data_unchanged": true,
+    "before_images_same_database": true,
+    "queue_counts": {"due": 14, "fresh": 18, "retry_wait": 0, "reconcile": 0}
+  },
+  "automatic_monitor_readback": {"generated_at": "2026-09-11T13:04:14Z", "status": "protected", "protected_profile_count": 13, "attention_profile_count": 0},
+  "overall_data_health": "attention_required",
+  "verified": true,
+  "network": {"aws_status_checks": "3/3 passed", "local_public_ip": "14.32.108.104", "local_ip_in_existing_ssh_allowlist": false, "aws_browser_ssh_succeeded": true, "security_group_changed": false, "instance_rebooted_this_deployment": false}
+}
