@@ -28,7 +28,7 @@ test("quick navigation searches, rejects unsafe symbols and closes with focus re
   const input=dialog.getByRole("textbox");await expect(input).toBeFocused();
   await input.fill("aapl");await expect(dialog.getByRole("link",{name:/AAPL 종목 리서치/})).toHaveAttribute("href","/stocks/AAPL");
   await input.fill("https://bad.test");await expect(dialog.getByRole("link")).toHaveCount(0);
-  await input.fill("성과");await expect(dialog.getByRole("link",{name:/판단 성과/})).toHaveAttribute("href","/performance");
+  await input.fill("성과");await expect(dialog.getByRole("link",{name:/판단 성과/})).toHaveAttribute("href","/performance/recommendations");
   const axe = await new AxeBuilder({page}).include("dialog").analyze();expect(axe.violations).toEqual([]);
   await page.keyboard.press("Escape");await expect(dialog).not.toBeVisible();await expect(trigger).toBeFocused();
   await page.keyboard.press("Control+k");await expect(dialog).toBeVisible();await page.keyboard.press("Escape");

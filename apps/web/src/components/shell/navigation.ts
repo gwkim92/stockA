@@ -20,7 +20,7 @@ export const RESEARCH_NAVIGATION = [
 ] as const satisfies readonly NavigationItem[];
 export const PORTFOLIO_NAVIGATION = [
   { href: "/portfolio/coverage", label: "보유 검토", description: "보유 논리·위험·분석 공백", icon: "portfolio" },
-  { href: "/performance", label: "판단 성과", description: "수익률과 벤치마크 비교", icon: "performance" },
+  { href: "/performance/recommendations", label: "판단 성과", description: "전체 추천 성과·벤치마크·평가 기록", icon: "performance" },
   { href: "/paper-trading", label: "가상 검증", description: "실거래 없는 검증 기록", icon: "shield" },
 ] as const satisfies readonly NavigationItem[];
 export const OPERATIONS_NAVIGATION = [
@@ -36,7 +36,8 @@ export function routeIsActive(pathname: string, href: Route): boolean {
 /** Explicit parents for detail routes; choose one most-specific location. */
 export function navigationContext(pathname: string): NavigationItem {
   const alias = pathname.startsWith("/themes/") ? "/cycle-map" : pathname.startsWith("/theses/") ? "/recommendations"
-    : pathname.startsWith("/source-documents/") ? "/ai-evidence" : pathname;
+    : pathname.startsWith("/source-documents/") ? "/ai-evidence"
+    : pathname === "/performance" || pathname.startsWith("/performance/") ? "/performance/recommendations" : pathname;
   return [...ALL_NAVIGATION].sort((a, b) => b.href.length - a.href.length).find((item) => routeIsActive(alias, item.href)) ?? PRIMARY_NAVIGATION[0];
 }
 export function navigationResults(query: string): readonly NavigationItem[] {

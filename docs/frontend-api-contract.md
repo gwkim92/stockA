@@ -297,3 +297,15 @@ FastAPI read-only server, deployment boundary, and pagination conventions are no
 - 기업/추천 `equity_research.generation`은 `mode` (`ai`/`fallback`/`unknown`), `structural_status`, `content_review_status`, `source_document_count`, `source_scope`를 추가한다. 필수 자료형 충족은 내용 검증이 아니며 원천 문서 연결은 주장별 입증이 아니다. 내용 검토 저장 기록이 없으면 `not_recorded`다.
 - 가격 `freshness_policy=calendar_age_within_7_days`와 `freshness_age_days`는 기존 7일 수집 시차 판정의 의미를 드러낸다. `fresh`는 실시간 가격 판정이 아니다. 명시적인 최신성 정보 없이 가격 행만 있으면 `unknown`이다.
 - 사이클·테마의 `features.market_breadth`, `features.valuation_score`는 각각 독립 지표다. 직접적인 재무 품질 측정이 없을 때 `fundamental_quality`는 null이며 다른 지표를 대신 넣지 않는다.
+
+## Stored recommendation outcome explorer (2026-09-11)
+
+`GET /api/recommendation-outcomes` is an additional live-only, authenticated read endpoint, version `recommendation-outcome-explorer-v1`. It reads all stored `performance.recommendation_outcome` measurements without requiring portfolio positions or attribution reports. The existing `/api/performance/outcomes` and its v0.1 DTO remain unchanged.
+
+Optional query parameters: `symbol` (case-insensitive exact code), `from_date`/`to_date` (inclusive recommendation dates), `horizon` (`30`, `90`, `180`, `365`, `other`), `benchmark` (exact case-insensitive code; `_missing` means NULL), `alpha` (`positive`, `negative`, `zero`, `missing`), `before` (`YYYY-MM-DD:outcome_id`), `through` (inclusive outcome ID ceiling), and `limit` (1–100, default 25). Duplicated/unknown parameters and malformed values return 400. Existing read-token and method restrictions apply. Query failures and fixture-only mode return 503 rather than fabricated empty results.
+
+The response carries `filters`, whole-filtered-scope `summary` counts and recommendation date bounds, global `benchmarks`, `rows`, and `pagination`. Rows contain stored returns, prices, benchmark, alpha, actual observation dates/days, nominal horizon, current recommendation metadata, and an optional latest matching recommendation evaluation snapshot. IDs are decimal strings. Missing numeric values remain NULL and zero remains zero. No mixed-horizon or mixed-benchmark return average is calculated.
+
+Rows are ordered by measurement end date descending, then outcome ID descending. Carry `next_cursor` as `before` and `through` on continuation requests to exclude newly inserted records, including backfills. Reload without both to include new records. This bounds insert visibility; it is not a historical transaction snapshot and does not freeze later corrections to existing rows. Summary counts span the complete filter scope at the selected ceiling, not just the page.
+
+The nominal horizon reuses the existing evaluation helper (30/90/180/365 days, ±7 days); actual dates and days remain visible and all other measurements remain queryable. Recommendation/thesis links refer to current stored records. `evaluation_snapshot` selects only the recommendation calibration family with matching source recommendation and outcome IDs. It is an evaluation-time preservation record, not an immutable recommendation-creation snapshot.
