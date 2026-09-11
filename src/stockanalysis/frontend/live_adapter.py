@@ -2465,10 +2465,14 @@ def _load_operating_data_profile_scheduler_status_for_data_health() -> dict[str,
     guard = _as_dict(payload.get("batch_runtime"))
     batch_runtime = {}
     if guard:
+        guard_status = guard.get("status")
         batch_runtime = {
-            "status": guard.get("status") if guard.get("status") in {"protected", "unprotected"} else "unknown",
+            "status": guard_status if isinstance(guard_status, str) and guard_status in {"protected", "unprotected"} else "unknown",
             "shared_limits_applied": guard.get("shared_limits_applied") is True,
+            "database_limits_applied": guard.get("database_limits_applied") is True,
         }
+        database_max = guard.get("database_memory_max_bytes")
+        batch_runtime["database_memory_max_bytes"] = database_max if isinstance(database_max, int) and 0 <= database_max < 10**15 else None
         for field in ("monitored_profile_count", "protected_profile_count", "attention_profile_count"):
             value = guard.get(field)
             batch_runtime[field] = value if isinstance(value, int) and 0 <= value <= len(timers) else 0

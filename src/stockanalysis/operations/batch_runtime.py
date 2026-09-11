@@ -128,6 +128,8 @@ def observe_profile(properties: str, progress_path: Path | None, *, now: float |
             progress = json.loads(raw)
             if not isinstance(progress, dict):
                 raise ValueError("Invalid progress")
+            if not isinstance(progress.get("status"), str):
+                raise ValueError("Invalid progress status")
             for key in ("started_monotonic", "step_started_monotonic", "timeout_seconds", "completed_steps"):
                 if not isinstance(progress.get(key), (float, int)) or not 0 <= progress[key] < 1e12:
                     raise ValueError("Invalid progress number")
@@ -161,7 +163,8 @@ def public_observation(value: object) -> dict[str, object]:
         return {}
     statuses = {"not_run", "not_installed", "awaiting_progress", "progress_missing", "running",
                 "stalled", "unit_failed", "failed", "interrupted", "succeeded", "invalid_progress"}
-    result = {"status": value.get("status") if value.get("status") in statuses else "invalid_progress"}
+    status = value.get("status")
+    result = {"status": status if isinstance(status, str) and status in statuses else "invalid_progress"}
     for key in ("resource_limits_applied", "attention_required"):
         result[key] = value.get(key) is True
     for key in ("memory_current_bytes", "memory_max_bytes", "step_elapsed_seconds", "completed_steps"):

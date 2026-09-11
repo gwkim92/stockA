@@ -139,6 +139,7 @@ class BatchObservationTests(unittest.TestCase):
         self.assertNotIn("secret-value", json.dumps(result))
         self.assertIsNone(result["memory_max_bytes"])
         self.assertFalse(result["attention_required"])
+        self.assertEqual(public_observation({"status": []})["status"], "invalid_progress")
 
     def test_profile_progress_records_stage_count_and_interruption(self):
         with tempfile.TemporaryDirectory() as repo, tempfile.TemporaryDirectory() as runtime:
@@ -156,6 +157,8 @@ class BatchObservationTests(unittest.TestCase):
 
     def test_scheduler_aggregates_limits_and_stalled_work(self):
         def command(argv):
+            if argv[0] == "docker":
+                return "3221225472 3221225472"
             if argv[1] == "is-active":
                 return "active"
             if argv[2] == "stockanalysis-batch.slice":
@@ -169,7 +172,12 @@ class BatchObservationTests(unittest.TestCase):
                 profile_ids=["research-maintenance"], runtime_root=root, command_runner=command)
             self.assertEqual(report["batch_runtime"]["status"], "protected")
             self.assertEqual(report["batch_runtime"]["attention_profile_count"], 1)
+            self.assertTrue(report["batch_runtime"]["database_limits_applied"])
             self.assertEqual(report["timers"][0]["runtime_guard"]["status"], "stalled")
+            drift = build_operating_data_profile_scheduler_status_report(profile_ids=["research-maintenance"],
+                runtime_root=root, command_runner=lambda argv: "0 0" if argv[0] == "docker" else command(argv))
+            self.assertEqual(drift["batch_runtime"]["status"], "unprotected")
+            self.assertFalse(drift["batch_runtime"]["database_limits_applied"])
 
     def test_api_guard_filters_private_fields_and_marks_old_report_stale(self):
         from stockanalysis.frontend.live_adapter import _load_operating_data_profile_scheduler_status_for_data_health
