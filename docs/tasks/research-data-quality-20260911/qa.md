@@ -24,4 +24,13 @@
 
 ## 운영 반영
 
-로컬 검사 완료. CI, 배포와 실제 운영 UI 결과는 수행 후 이 절에 추가한다. 로컬 preview가 운영 반영을 증명하지 않는다.
+- 최종 commit `2c2f44c96936bd8ed005e18e187a7d191f061f2a`의 [Web Product Quality 34565086520](https://github.com/gwkim92/stockA/actions/runs/34565086520) 전체 성공. notebook·평가 이력·홈·보유/성과·원문·기업·뉴스/테마 실제 브라우저 검사가 모두 통과했다. 접힌 상태의 안전하지 않은 링크 검사도 hidden DOM을 포함하도록 보강했다.
+- [Analysis Prompt Quality 34565086494](https://github.com/gwkim92/stockA/actions/runs/34565086494): Python 3.11/3.13, 실제 PostgreSQL cutoff 및 atomic 검사 모두 성공. [Evaluation History 34565086546](https://github.com/gwkim92/stockA/actions/runs/34565086546)도 성공.
+- [Linux artifact 34565112081](https://github.com/gwkim92/stockA/actions/runs/34565112081) 성공. BUILD_ID `HdpZ5RuqCgm8IBu4chCvN`, SHA-256 `e31c75d90d7d6e7f4ca249cdfa58c934e2b4b38e83b70dc82568aa29c2949425`.
+- [PR 58](https://github.com/gwkim92/stockA/pull/58) 병합 후 운영 develop `aa87112503426c30e18e0917b2b8fd52ae54ca87` 활성화. 개인 계정/인스턴스 확인, API ready=ok, 서비스 3개 active, 기존 timer 13개 복구. 기업 3개·추천1501·추천 성과·AI 설정 화면 모두 200.
+- 환경 파일 hash와 모델 설정 불변: revision2, gpt-5.6-terra, overrides 없음. migration·새 AI 호출 없음.
+- 운영 `verify_runtime.py`에서 artifact492/493/494의 정확한 hash와 보완 상태, 추천1501 연결, 미검토 SPY 분기를 확인했다. 수정 SELECT의 기간/계산 가능 지표 수는 로컬 대조와 같았다.
+- 위 읽기 검증 전후 9개 테이블의 전체 row hash 불변: 추천1358, 점수요소32593, 포지션515, benchmark구성612, outcome1233, 재무period4038, 원천수치17575, normalized921480, 보고서468. 증거 `verification.json`.
+- 운영 13309 Chrome: AAPL/NVDA/ARM 및 추천1501의 검토 상태 확인. AAPL 세부 열기, 390px 기업·추천 상세 넘침 없음. 최종 캡처 `production-aapl-desktop.png`, `production-aapl-review.png`, `production-aapl-mobile.png`, 검증 기록 `production-browser.json`. viewport 원복, 운영 AAPL 탭을 남겼다.
+
+보조 PostgreSQL CI artifact 다운로드 한 건은 자동 승인 검토의 사용량 한도로 거절돼 다시 다운로드하지 않았다. 기존 로컬 SQL 실행과 GitHub 완료 결과, CI watch 로그로 검증을 기록했다. 이후 사용자의 계속 진행 요청 아래 PR 병합·운영 반영 도구는 정상 승인되어 완료됐다.

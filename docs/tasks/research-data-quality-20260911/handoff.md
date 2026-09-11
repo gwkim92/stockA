@@ -6,7 +6,11 @@
 
 리서치의 연간 기간 선택 오류를 수정하고 비교군 미검증 범위를 입력에 추가했다. 세 보고서의 내용 hash에 검토 결과를 연결하여 기업 화면과 추천 상세에서 보완 항목·공식 링크를 보인다. 과거 보고서·재무 저장값·추천·benchmark·order 흐름은 유지한다. 신규 AI 호출은 없다.
 
-로컬 코드·실제 PostgreSQL·운영 DB 읽기·Chrome 검증은 완료했다. 원격 CI와 운영 반영은 진행 후 아래에 기록한다.
+로컬 코드·실제 PostgreSQL·운영 DB 읽기·Chrome 및 원격 CI를 모두 통과했다. [PR58](https://github.com/gwkim92/stockA/pull/58) 병합 commit `aa87112503426c30e18e0917b2b8fd52ae54ca87`를 운영에 반영했다. BUILD_ID `HdpZ5RuqCgm8IBu4chCvN`, artifact source `2c2f44c9`. CI 34565086520(전체 화면), 34565086494(Python/실제 PostgreSQL), 34565086546(평가 이력), 34565112081(Linux 빌드) 성공.
+
+운영 API/Chrome 13309에서 기업 3개와 추천1501의 검토 결과를 확인했다. 재무 입력은 NVDA2026-01-25 계산 가능9개, AAPL2025-09-27 12개, ARM2025-03-31 12개다. 읽기 검증 전후 9개 테이블 hash 불변, 환경/모델 설정 유지, timer13개 복구. 기존 보고서는 재생성하지 않았다. 검토/정규화 잔여 문제는 아래 작업에서 다룬다.
+
+배포 영수증·복구본은 운영 `/opt/stockanalysis/runtime/research-data-quality-20260911/`에 있다. `activation.json` 존재 시 활성화 스크립트를 재실행하지 않는다. 로컬 증거는 `output/research-data-quality-20260911/activation.log`, `verification.json`, `production-browser.json`과 `production-aapl-*.png`다.
 
 ## 이어갈 순서
 
@@ -19,4 +23,4 @@
 
 ## 작업 경계
 
-기존 다른 task 문서의 로컬 변경과 미추적 문서는 보존했다. 브랜치는 `fiture/research-data-quality-20260911`. 로컬 runtime/inventory/SEC 응답 스냅샷은 output에만 보관한다. 임시 PostgreSQL은 종료했고 Chrome 반응형 viewport는 원래 크기로 복구했다.
+기존 다른 task 문서의 로컬 변경과 미추적 문서는 보존했다. 구현 브랜치는 `fiture/research-data-quality-20260911`, 최종 인계는 `fiture/research-data-quality-evidence`에서 기록한다. 로컬 runtime/inventory/SEC/ALFRED 응답 스냅샷은 output에만 보관한다. 임시 PostgreSQL은 종료했고 Chrome 반응형 viewport는 원래 크기로 복구했다.
