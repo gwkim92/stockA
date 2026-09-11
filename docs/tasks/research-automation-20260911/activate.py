@@ -31,6 +31,7 @@ def identity():
 
 def main():
     expected=sys.argv[1]
+    prepare_only='--prepare' in sys.argv[2:]
     assert len(expected)==40 and all(c in '0123456789abcdef' for c in expected)
     ident=identity()
     os.umask(0o077); BASE.mkdir(exist_ok=True,mode=0o700)
@@ -39,7 +40,8 @@ def main():
     assert capture(['git','-C',str(APP),'branch','--show-current'])=='develop'
     assert not capture(['git','-C',str(APP),'status','--porcelain','--untracked-files=no'])
     previous=capture(['git','-C',str(APP),'rev-parse','HEAD'])
-    run(['git','-C',str(APP),'fetch','origin','develop'])
+    fetch_ref='refs/heads/fiture/research-automation' if prepare_only else 'develop'
+    run(['git','-C',str(APP),'fetch','origin',fetch_ref])
     assert capture(['git','-C',str(APP),'rev-parse','FETCH_HEAD'])==expected
     run(['git','-C',str(APP),'merge-base','--is-ancestor',previous,expected])
     run(['git','-C',str(APP),'diff','--exit-code',previous,expected,'--','db/migrations','pyproject.toml','apps/web/package.json','apps/web/package-lock.json'])
@@ -47,18 +49,24 @@ def main():
     env_paths=[BASE.parent/name for name in ('frontend-api.env','web.env','data-operations.env','ai-model-settings.sqlite3')]
     def hashes(): return {p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in env_paths}
     settings_before=hashes()
-    stage=BASE/'build';stage.mkdir()
-    archive=BASE/'web-source.tar'
-    run(['git','-C',str(APP),'archive','--output='+str(archive),expected,'apps/web'])
-    run(['tar','-xf',str(archive),'-C',str(stage)])
-    web=stage/'apps/web'
-    shutil.copytree(APP/'apps/web/node_modules',web/'node_modules',symlinks=True)
     sys.path.insert(0,str(APP/'src'))
-    from stockanalysis.operations.env_file import load_env_file_values
-    build_env=dict(os.environ);build_env.update(load_env_file_values(BASE.parent/'web.env'))
-    with (BASE/'build.log').open('w') as log:
-        run(['npm','run','build'],cwd=web,env=build_env,stdout=log,stderr=subprocess.STDOUT,timeout=900)
+    web_tree=capture(['git','-C',str(APP),'rev-parse',expected+':apps/web'])
+    if (BASE/'linux-build-manifest.json').exists():
+        artifact_manifest=json.loads((BASE/'linux-build-manifest.json').read_text())
+        assert artifact_manifest['web_tree']==web_tree,'Linux artifact source differs'
+        assert artifact_manifest['platform']=='linux/amd64','Unexpected artifact platform'
+        archive=BASE/'web-linux-next.tar.gz'
+        assert hashlib.sha256(archive.read_bytes()).hexdigest()==artifact_manifest['sha256']
+        web=BASE/'offhost-build';web.mkdir(exist_ok=True)
+        run(['tar','-xzf',str(archive),'-C',str(web)])
+    else:
+        raise RuntimeError('Unbounded on-host builds are disabled. Supply the verified Linux build artifact.')
     build_id=(web/'.next/BUILD_ID').read_text().strip()
+    assert build_id==artifact_manifest['build_id'],'Artifact build identifier differs'
+    if prepare_only:
+        assert settings_before==hashes()
+        print(json.dumps({'build_prepared':True,'build_id':build_id,'web_tree':web_tree,'running_commit':previous,'services_unchanged':True}))
+        return
     run(['git','-C',str(APP),'archive','--format=tar.gz','--output='+str(BASE/'previous-source.tar.gz'),previous])
     timers=[line.split()[0] for line in capture(['systemctl','list-units','--type=timer','--state=active','--plain','--no-legend','stockanalysis-*']).splitlines()]
     save('started.json',{'previous':previous,'expected':expected,'timers':timers,'identity':ident,'settings_hashes':settings_before})
