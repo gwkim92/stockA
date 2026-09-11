@@ -149,6 +149,9 @@ def run_research_maintenance(*, config: RuntimeConfig, as_of_date: date,
     root = Path(artifact_root).resolve() / "research-maintenance"
     try:
         with maintenance_lock(root):
+            # A prior coordinator cannot still own this same-host worker lock.
+            # Its child transaction is reconciled separately below.
+            db.execute_non_query(f"update ops.pipeline_run set status='failed', ended_at=now(), error_summary='maintenance_coordinator_interrupted' where pipeline_name={sql_literal(JOB_PIPELINE)} and status='running';")
             batch_id = _create_pipeline_run(db, pipeline_name=JOB_PIPELINE,
                 config_json={"policy": POLICY, "as_of_date": as_of_date.isoformat()})
             report["run_id"] = batch_id
@@ -225,7 +228,7 @@ def _run_locked(db, config, as_of_date, root, limit, report):
                 row.update(reconciled=True)
                 row.pop("error_code", None)
         time.sleep(0.25)
-    report["failed_count"] = sum(r["status"] in ("failed", "reconcile_pending") and not r.get("reconciled") for r in report["results"])
+    report["failed_count"] = sum(r["status"] == "failed" for r in report["results"])
     report["reconcile_pending_count"] = sum(r["status"] == "reconcile_pending" for r in report["results"])
     report["status"] = "attention" if report["failed_count"] or report["reconcile_pending_count"] else "completed"
     report["queue_counts_after"] = {state: 0 for state in ("due", "fresh", "retry_wait", "reconcile")}
