@@ -17,6 +17,7 @@ from stockanalysis.operations.artifact_runner import (
     redact_command_argv,
     run_data_operation_artifact_command,
 )
+from stockanalysis.operations.batch_runtime import BatchProgress
 from stockanalysis.operations.cadence import DATA_OPERATIONS_ARTIFACT_ROOT_ENV
 from stockanalysis.operations.env_file import merged_env_with_file
 from stockanalysis.operations.env_readiness import PORTFOLIO_POSITIONS_CSV_ENV
@@ -381,6 +382,7 @@ def build_operating_data_run_report(
     runner: ArtifactRunner = run_data_operation_artifact_command,
     executor: Any | None = None,
     generated_at: datetime | None = None,
+    _progress: BatchProgress | None = None,
 ) -> dict[str, object]:
     if timeout_seconds <= 0:
         raise ValueError("timeout_seconds must be positive")
@@ -573,6 +575,8 @@ def build_operating_data_run_report(
             )
         if step.get("skip_reason"):
             continue
+        if _progress is not None:
+            _progress.step(step_id)
         artifact_run = runner(
             job_id=str(step["artifact_job_id"]),
             artifact_root=artifact_root_path,
@@ -584,6 +588,8 @@ def build_operating_data_run_report(
         if artifact_run.get("status") != "succeeded" or int(artifact_run.get("exit_code", 1)) != 0:
             failed_step_count += 1
             break
+        if _progress is not None:
+            _progress.completed_step()
 
     report["artifact_runs"] = artifact_runs
     report["failed_step_count"] = failed_step_count

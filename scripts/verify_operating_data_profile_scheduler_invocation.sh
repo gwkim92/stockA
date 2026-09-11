@@ -99,7 +99,7 @@ import sys
 payload = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"))
 assert payload["scheduler_target"] == "systemd"
 assert payload["operating_data_run_execute"] is True
-assert payload["total_profile_count"] == 8
+assert payload["total_profile_count"] == 15
 assert payload["systemd_user"] == "ec2-user"
 assert payload["systemd_group"] == "ec2-user"
 assert payload["systemd_home"] == "/home/ec2-user"
@@ -143,11 +143,11 @@ import sys
 payload = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"))
 assert payload["report_name"] == "operating_data_profile_scheduler_status"
 assert payload["scheduler_type"] == "systemd"
-assert payload["timer_count"] == 8
+assert payload["timer_count"] == 15
 assert payload["install_status"] in {"not_installed", "partial", "installed"}
-assert payload["missing_timer_count"] + payload["inactive_timer_count"] + payload["active_timer_count"] == 8
+assert payload["missing_timer_count"] + payload["inactive_timer_count"] + payload["active_timer_count"] == 15
 assert "cross-asset-daily" in payload["expected_profiles"]
-assert payload["timers"][0]["profile_id"] == "market-universe-weekly"
+assert payload["timers"][0]["profile_id"] == "research-maintenance"
 assert "postgresql://" not in json.dumps(payload)
 print("operating data profile scheduler status report verification passed")
 PY

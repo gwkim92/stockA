@@ -60,7 +60,8 @@ assert report["run_status"] == "preview_not_executed"
 assert report["execute"] is False
 assert report["broker_submission_allowed"] is False
 assert report["scheduler_mutation_allowed"] is False
-assert "news-rss-ingest" == report["planned_steps"][0]["step_id"]
+step_ids = [step["step_id"] for step in report["planned_steps"]]
+assert step_ids.index("news-rss-ingest") < step_ids.index("news-rss-enrichment") < step_ids.index("news-ai-evidence")
 assert "market-price-daily" in [step["step_id"] for step in report["planned_steps"]]
 assert "portfolio-position-snapshot" in [step["step_id"] for step in report["planned_steps"]]
 assert "paper-validation-audit" in [step["step_id"] for step in report["planned_steps"]]

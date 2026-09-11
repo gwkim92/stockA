@@ -2411,6 +2411,7 @@ def _scheduler_activation_status(*, approval_gate: str, activation_allowed: bool
 
 
 def _load_operating_data_profile_scheduler_status_for_data_health() -> dict[str, object]:
+    from stockanalysis.operations.batch_runtime import public_observation
     report_path = os.getenv(OPERATING_DATA_PROFILE_SCHEDULER_STATUS_REPORT_ENV, "").strip()
     base = {
         "status": "not_configured",
@@ -2456,10 +2457,29 @@ def _load_operating_data_profile_scheduler_status_for_data_health() -> dict[str,
                 "active_state": str(item.get("active_state") or ""),
                 "next_elapse": str(item.get("next_elapse") or ""),
                 "last_result": str(item.get("last_result") or ""),
+                "runtime_guard": public_observation(item.get("runtime_guard")),
             }
         )
 
     install_status = str(payload.get("install_status") or "unknown")
+    guard = _as_dict(payload.get("batch_runtime"))
+    batch_runtime = {}
+    if guard:
+        batch_runtime = {
+            "status": guard.get("status") if guard.get("status") in {"protected", "unprotected"} else "unknown",
+            "shared_limits_applied": guard.get("shared_limits_applied") is True,
+        }
+        for field in ("monitored_profile_count", "protected_profile_count", "attention_profile_count"):
+            value = guard.get(field)
+            batch_runtime[field] = value if isinstance(value, int) and 0 <= value <= len(timers) else 0
+        try:
+            observed = datetime.fromisoformat(str(payload.get("generated_at", "")).replace("Z", "+00:00"))
+            age = (datetime.now(timezone.utc) - observed).total_seconds()
+            batch_runtime["observation_age_seconds"] = max(0, int(age))
+            if age > 180 or age < -60:
+                batch_runtime["status"] = "stale"
+        except (TypeError, ValueError):
+            batch_runtime["status"] = "stale"
     return {
         "status": str(payload.get("status") or install_status),
         "install_status": install_status,
@@ -2469,6 +2489,7 @@ def _load_operating_data_profile_scheduler_status_for_data_health() -> dict[str,
         "generated_at": str(payload.get("generated_at") or ""),
         "source": "operating_data_profile_scheduler_status_report",
         "timers": timers,
+        "batch_runtime": batch_runtime,
     }
 
 

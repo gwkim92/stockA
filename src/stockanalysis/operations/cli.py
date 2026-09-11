@@ -597,6 +597,7 @@ def build_parser() -> argparse.ArgumentParser:
     operating_data_profile_scheduler_status.add_argument("--job-name", default="stockanalysis-operating-data")
     operating_data_profile_scheduler_status.add_argument("--output")
     operating_data_profile_scheduler_status.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
+    operating_data_profile_scheduler_status.add_argument("--runtime-root")
     operating_data_profile_scheduler_status.set_defaults(handler=_handle_operating_data_profile_scheduler_status_report)
 
     server_scheduler_decision = subparsers.add_parser(
@@ -2225,7 +2226,8 @@ def _handle_operating_data_run(args: argparse.Namespace, *, stdout: TextIO) -> i
         if args.output
         else None
     )
-    report = build_operating_data_run_report(
+    from stockanalysis.operations.batch_runtime import run_profile_with_progress
+    report = run_profile_with_progress(build_operating_data_run_report,
         repo_root=args.repo_root,
         runtime_root=args.runtime_root,
         data_operations_env_file=args.data_operations_env_file,
@@ -2347,6 +2349,7 @@ def _handle_operating_data_profile_scheduler_invocation_plan(args: argparse.Name
 
 
 def _handle_operating_data_profile_scheduler_status_report(args: argparse.Namespace, *, stdout: TextIO) -> int:
+    from stockanalysis.operations.path_policy import ensure_repo_outside
     output_path = (
         resolve_output_path(
             args.output,
@@ -2360,6 +2363,8 @@ def _handle_operating_data_profile_scheduler_status_report(args: argparse.Namesp
     report = build_operating_data_profile_scheduler_status_report(
         profile_ids=tuple(args.profile_ids) if args.profile_ids else None,
         job_name=args.job_name,
+        runtime_root=(ensure_repo_outside(Path(args.runtime_root).expanduser().resolve(),
+            repo_root=args.repo_root, label="batch runtime root") if args.runtime_root else None),
     )
     write_json_report(report, output_path=output_path, stdout=stdout)
     return 0
