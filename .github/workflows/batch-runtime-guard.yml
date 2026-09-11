@@ -1,0 +1,60 @@
+name: Batch Runtime Guard
+
+on:
+  pull_request:
+    branches: [develop, main]
+    paths:
+      - 'src/stockanalysis/operations/batch_runtime.py'
+      - 'src/stockanalysis/operations/artifact_runner.py'
+      - 'src/stockanalysis/operations/operating_data*.py'
+      - 'src/stockanalysis/operations/cli.py'
+      - 'src/stockanalysis/frontend/live_adapter.py'
+      - 'tests/test_batch_runtime.py'
+      - 'tests/test_data_operations_artifact_runner.py'
+      - 'scripts/verify_operating_data_profile_scheduler_invocation.sh'
+      - 'scripts/verify_operating_data_orchestrator.sh'
+      - '.github/workflows/batch-runtime-guard.yml'
+  push:
+    branches: [develop]
+    paths:
+      - 'src/stockanalysis/operations/batch_runtime.py'
+      - 'src/stockanalysis/operations/artifact_runner.py'
+      - 'src/stockanalysis/operations/operating_data*.py'
+      - 'src/stockanalysis/operations/cli.py'
+      - 'src/stockanalysis/frontend/live_adapter.py'
+      - 'tests/test_batch_runtime.py'
+      - 'tests/test_data_operations_artifact_runner.py'
+      - 'scripts/verify_operating_data_profile_scheduler_invocation.sh'
+      - 'scripts/verify_operating_data_orchestrator.sh'
+      - '.github/workflows/batch-runtime-guard.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: batch-runtime-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  batch-runtime:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify child cleanup, monitoring, and API boundaries
+        env:
+          PYTHONPATH: src
+        run: >-
+          python -m unittest tests.test_batch_runtime tests.test_data_operations_artifact_runner
+          tests.test_operating_data_orchestrator tests.test_operating_data_profile_scheduler
+          tests.test_data_operations_cli tests.test_frontend_live_adapter
+      - name: Verify scheduler manifests
+        run: bash scripts/verify_operating_data_profile_scheduler_invocation.sh
+      - name: Verify orchestration boundary
+        run: bash scripts/verify_operating_data_orchestrator.sh

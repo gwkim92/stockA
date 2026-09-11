@@ -2,11 +2,16 @@ from __future__ import annotations
 
 import json
 import os
+import selectors
+import signal
 import subprocess
+import threading
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Mapping, Sequence
 from urllib.parse import urlsplit, urlunsplit
+from stockanalysis.operations.batch_runtime import atomic_json
 
 from stockanalysis.operations.cadence import (
     DATA_OPERATIONS_ARTIFACT_ROOT_ENV,
@@ -15,6 +20,12 @@ from stockanalysis.operations.cadence import (
 
 
 DEFAULT_TIMEOUT_SECONDS = 60 * 60
+MAX_OUTPUT_BYTES = 16 * 1024 * 1024  # per stream, written to disk incrementally
+
+
+class _BatchInterrupted(Exception):
+    """Do not use InterruptedError: selectors treats it as a retryable syscall."""
+
 SECRET_VALUE = "[REDACTED]"
 _SENSITIVE_FLAG_MARKERS = (
     "api-key",
@@ -57,33 +68,14 @@ def run_data_operation_artifact_command(
     stdout_json_path = run_dir / "stdout.json"
     metadata_path = run_dir / "metadata.json"
 
-    status = "succeeded"
-    timeout = False
-    try:
-        completed = subprocess.run(
-            command,
-            cwd=str(cwd) if cwd is not None else None,
-            env=dict(env) if env is not None else None,
-            capture_output=True,
-            text=True,
-            timeout=timeout_seconds,
-            check=False,
-        )
-        exit_code = completed.returncode
-        stdout = completed.stdout
-        stderr = completed.stderr
-        if exit_code != 0:
-            status = "failed"
-    except subprocess.TimeoutExpired as exc:
-        timeout = True
-        status = "timeout"
-        exit_code = 124
-        stdout = _timeout_output_to_text(exc.stdout)
-        stderr = _timeout_output_to_text(exc.stderr)
+    progress_path = run_dir / "progress.json"
+    atomic_json(progress_path, {"status": "running", "job_id": job.job_id,
+                               "started_at": _format_timestamp(started_at_value), "timeout_seconds": timeout_seconds})
+    status, exit_code = _capture_bounded_process(command, stdout_path, stderr_path,
+                                               env=env, cwd=cwd, timeout_seconds=timeout_seconds)
+    stdout = stdout_path.read_text(encoding="utf-8", errors="replace")
 
     completed_at_value = _coerce_utc(completed_at or datetime.now(timezone.utc))
-    stdout_path.write_text(stdout, encoding="utf-8")
-    stderr_path.write_text(stderr, encoding="utf-8")
     stdout_format = _write_stdout_json_if_possible(stdout, stdout_json_path)
 
     metadata = {
@@ -94,7 +86,8 @@ def run_data_operation_artifact_command(
         "cadence": job.cadence,
         "status": status,
         "exit_code": exit_code,
-        "timeout": timeout,
+        "timeout": status == "timeout",
+        "output_limit_bytes_per_stream": MAX_OUTPUT_BYTES,
         "timeout_seconds": timeout_seconds,
         "started_at": _format_timestamp(started_at_value),
         "ended_at": _format_timestamp(completed_at_value),
@@ -108,8 +101,90 @@ def run_data_operation_artifact_command(
         "stdout_format": stdout_format,
         "metadata_path": str(metadata_path),
     }
-    metadata_path.write_text(json.dumps(metadata, indent=2, sort_keys=True), encoding="utf-8")
+    atomic_json(metadata_path, metadata)
+    atomic_json(progress_path, {"status": status, "job_id": job.job_id,
+                               "ended_at": _format_timestamp(completed_at_value), "exit_code": exit_code})
     return metadata
+
+
+def _stop_process_group(process: subprocess.Popen) -> None:
+    # Batch children must not survive their owning command's timeout/cancellation.
+    # systemd KillMode=control-group additionally covers descendants that create a new session.
+    try:
+        if os.name == "posix":
+            os.killpg(process.pid, signal.SIGTERM)
+        else:
+            process.terminate()
+    except ProcessLookupError:
+        pass
+    try:
+        process.wait(timeout=1)
+    except subprocess.TimeoutExpired:
+        pass
+    try:
+        if os.name == "posix":
+            os.killpg(process.pid, signal.SIGKILL)
+        elif process.poll() is None:
+            process.kill()
+    except ProcessLookupError:
+        pass
+    process.wait(timeout=5)
+
+
+def _capture_bounded_process(command, stdout_path, stderr_path, *, env, cwd, timeout_seconds):
+    process = None
+    old_handler = None
+    def interrupted(signum, frame):
+        raise _BatchInterrupted("Batch runner terminated")
+    try:
+        if threading.current_thread() is threading.main_thread():
+            old_handler = signal.signal(signal.SIGTERM, interrupted)
+        with stdout_path.open("wb") as stdout_file, stderr_path.open("wb") as stderr_file:
+            try:
+                process = subprocess.Popen(command, cwd=str(cwd) if cwd is not None else None,
+                    env=dict(env) if env is not None else None, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                    start_new_session=os.name == "posix")
+            except OSError as exc:
+                stderr_file.write((type(exc).__name__ + ": command could not be started\n").encode())
+                return "failed", 127
+            deadline = time.monotonic() + timeout_seconds
+            with selectors.DefaultSelector() as selector:
+                selector.register(process.stdout, selectors.EVENT_READ, [stdout_file, 0])
+                selector.register(process.stderr, selectors.EVENT_READ, [stderr_file, 0])
+                while selector.get_map() or process.poll() is None:
+                    if time.monotonic() >= deadline:
+                        _stop_process_group(process)
+                        return "timeout", 124
+                    for key, _ in selector.select(timeout=min(.1, max(0, deadline - time.monotonic()))):
+                        chunk = os.read(key.fileobj.fileno(), 65536)
+                        if not chunk:
+                            selector.unregister(key.fileobj)
+                            continue
+                        output, size = key.data
+                        remaining = MAX_OUTPUT_BYTES - size
+                        output.write(chunk[:remaining])
+                        key.data[1] += min(remaining, len(chunk))
+                        if len(chunk) > remaining:
+                            _stop_process_group(process)
+                            return "output_limit", 125
+                code = process.wait()
+                return ("succeeded" if code == 0 else "failed"), code
+    except (_BatchInterrupted, KeyboardInterrupt):
+        if process is not None:
+            _stop_process_group(process)
+        return "interrupted", 143
+    except BaseException:
+        if process is not None:
+            _stop_process_group(process)
+        raise
+    finally:
+        if process is not None:
+            if process.stdout is not None:
+                process.stdout.close()
+            if process.stderr is not None:
+                process.stderr.close()
+        if old_handler is not None:
+            signal.signal(signal.SIGTERM, old_handler)
 
 
 def redact_command_argv(command_argv: Sequence[str]) -> list[str]:
@@ -156,7 +231,7 @@ def _create_run_dir(root: Path, *, job_id: str, started_at: datetime) -> Path:
     while candidate.exists():
         candidate = root / f"{base_name}-{suffix}"
         suffix += 1
-    candidate.mkdir(parents=True)
+    candidate.mkdir(parents=True, mode=0o700)
     return candidate
 
 

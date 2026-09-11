@@ -1,0 +1,18 @@
+{
+  "identity": {
+    "accountId": "115623963546",
+    "instanceId": "i-029d51b163fb07b61",
+    "region": "us-east-1"
+  },
+  "previous_commit": "6b019ff344b9f53cbb7b28caf0b949a90d883586",
+  "commit": "502eb6795dbcd328ea5a9b6bc6aa503be0061408",
+  "build_id": "WcwTXPpZJZtUkdFHyJ8-t",
+  "services_active": true,
+  "routes_200": true,
+  "settings_unchanged": true,
+  "schema_changed": false,
+  "previous_timers_restored": true,
+  "new_timer_active": true,
+  "resumed_stage": "install_generated_systemd_files_only",
+  "activated_at": "2026-09-11T09:03:35.025904+00:00"
+}

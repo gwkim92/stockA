@@ -1,0 +1,28 @@
+{
+  "account_id": "115623963546",
+  "region": "us-east-1",
+  "instance_id": "i-029d51b163fb07b61",
+  "previous_type": "t3.small",
+  "instance_type": "t3.large",
+  "previous_memory_gib": 2,
+  "memory_gib": 8,
+  "vcpus": 2,
+  "eip": "3.211.40.142",
+  "root_ebs": "vol-05dfffff20cdf8923",
+  "root_size_gib": 16,
+  "snapshot_id": "snap-0ee7a1fb382ee9555",
+  "snapshot_status": "completed",
+  "snapshot_progress": "100%",
+  "normal_stop": true,
+  "skip_os_shutdown": false,
+  "aws_console_rate_usd_per_hour": 0.0832,
+  "estimated_730h_compute_usd": 60.736,
+  "billing_excludes": [
+    "EBS",
+    "snapshot",
+    "IPv4",
+    "traffic",
+    "CPU surplus"
+  ],
+  "aws_changes_via": "authenticated Chrome console"
+}

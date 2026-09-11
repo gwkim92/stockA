@@ -1,3 +1,13 @@
+# 운영 완료 업데이트 — 2026-09-11 09:10 UTC
+
+PR #62/#63을 포함한 develop `502eb6795dbcd328ea5a9b6bc6aa503be0061408`를 복구한 t3.large에 외부 CI 결과물로 배포했다. research-maintenance 서비스 두 번 실행 parent 23865/23869, A/ADBE/ADI/ADSK/AEIS/ALAB 6기업 성공, backup_before 6개와 보호 DB fingerprint 불변을 확인했다. 큐는 fresh 9/due 23, 기존 타이머와 신규 timer 총 14개를 복원했다. 실제 Chrome data-health에서 재무 자료 자동 점검·갱신 성공 #23869를 확인했다.
+
+배포 manifest_record 필터와 검증 SQL ORDER BY 괄호 오류를 수정했다. 배포는 checkpoint에서 마지막 unit 설치만 재개했고, SQL 수정 후 수집을 다시 실행하지 않고 저장된 결과를 검증했다. 자세한 복구·검증·남은 범위는 `../runtime-resource-guard-20260911/handoff.md`와 `evidence/`를 따른다. 새 AI 실제 호출 및 원천에서 전문 분석으로 즉시 전파는 이번 검증 범위 밖이다.
+
+---
+
+## 이전 진행 기록 (당시 상태)
+
 # 인계
 
 브랜치: fiture/research-automation. 자동화 기능과 로컬/운영 읽기 검증을 구현했다. 배포와 실제 반복 실행 증거는 후속으로 추가한다.

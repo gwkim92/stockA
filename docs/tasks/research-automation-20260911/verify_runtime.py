@@ -40,7 +40,7 @@ def main():
         print(json.dumps({'baseline_saved':True,'selected_symbols':[r['primary_symbol'] for r in data['targets']]}));return
     assert hashes==data['protected_hashes'],'Protected data changed; inspect before retrying anything'
     rows=json.loads(db.execute_scalar(f"""select coalesce(jsonb_agg(jsonb_build_object('run_id',run_id,'status',status,'symbol',config_json->>'instrument_symbol',
-        'fact_count',config_json->'fact_count','period_policy',config_json->>'period_policy','before_image_present',config_json ? 'backup_before')) order by run_id),'[]')::text
+        'fact_count',config_json->'fact_count','period_policy',config_json->>'period_policy','before_image_present',config_json ? 'backup_before') order by run_id),'[]')::text
         from ops.pipeline_run where run_id>{data['before_run_id']} and pipeline_name='research_statement_refresh';"""))
     assert len(rows)==6 and all(r['status']=='succeeded' and r['before_image_present'] for r in rows),rows
     assert len({r['symbol'] for r in rows})==6,'Duplicate collection across consecutive cycles'

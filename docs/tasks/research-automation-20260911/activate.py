@@ -96,6 +96,8 @@ def main():
             execute=True,systemd_user='ec2-user',systemd_group='ec2-user',systemd_home='/home/ec2-user')
         save('manifest-plan.json',manifest)
         for file in manifest['profiles'][0]['manifest_file_previews']:
+            if file['kind']=='manifest_record':
+                continue
             source=Path(file['path'])
             assert source.suffix in ('.service','.timer') and source.name.startswith('stockanalysis-operating-data-research-maintenance.')
             run(['sudo','-n','install','-m','644',str(source),'/etc/systemd/system/'+source.name])

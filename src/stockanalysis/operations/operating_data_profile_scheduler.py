@@ -21,6 +21,9 @@ from stockanalysis.operations.path_policy import (
 )
 from stockanalysis.operations.local_runtime_status import DEFAULT_LOCAL_RUNTIME_ROOT
 from stockanalysis.operations.artifact_runner import redact_command_argv
+from stockanalysis.operations.batch_runtime import (
+    SLICE_NAME, SLICE_CONTENTS, UNIT_PROPERTIES, observe_profile, service_guard_lines,
+)
 
 
 DEFAULT_PROFILE_SCHEDULER_JOB_NAME = "stockanalysis-operating-data"
@@ -252,6 +255,11 @@ def build_operating_data_profile_scheduler_invocation_plan(
         "secrets_policy": "command_previews_and_paths_only_no_env_values",
         "manual_next_step": "server-scheduler-deployment-target-decision",
     }
+    report["shared_resource_manifests"] = []
+    if target == "systemd" and manifest_output_root_path is not None:
+        slice_path = manifest_output_root_path / SLICE_NAME
+        slice_path.write_text(SLICE_CONTENTS, encoding="utf-8")
+        report["shared_resource_manifests"] = [{"kind": "systemd_slice", "path": str(slice_path)}]
     _assert_secret_free(report)
     return report
 
@@ -309,6 +317,7 @@ def build_operating_data_profile_scheduler_status_report(
     job_name: str = DEFAULT_PROFILE_SCHEDULER_JOB_NAME,
     generated_at: datetime | None = None,
     command_runner: SystemCommandRunner | None = None,
+    runtime_root: str | Path | None = None,
 ) -> dict[str, object]:
     if not str(job_name).strip():
         raise ValueError("job_name must not be empty.")
@@ -338,6 +347,10 @@ def build_operating_data_profile_scheduler_status_report(
                 "last_result": command(("systemctl", "show", service_name, "-p", "Result", "--value")),
             }
         )
+        if runtime_root is not None:
+            properties = command(("systemctl", "show", service_name, "--property=" + UNIT_PROPERTIES))
+            timers[-1]["runtime_guard"] = observe_profile(
+                properties, Path(runtime_root) / "batch-progress" / (profile_id + ".json"))
 
     active_timer_count = sum(1 for timer in timers if timer["active_state"] == "active")
     timer_count = len(timers)
@@ -384,6 +397,25 @@ def build_operating_data_profile_scheduler_status_report(
         "timers": timers,
         "secrets_policy": "systemd_unit_names_and_status_only_no_env_values",
     }
+    if runtime_root is not None:
+        observed = [timer["runtime_guard"] for timer in timers if timer["active_state"] == "active"]
+        slice_properties = command(("systemctl", "show", SLICE_NAME, "--property=MemoryMax,CPUQuotaPerSecUSec"))
+        shared = dict(line.split("=", 1) for line in slice_properties.splitlines() if "=" in line)
+        shared_applied = shared.get("MemoryMax") == str(2 * 1024**3) and shared.get("CPUQuotaPerSecUSec") == "1s"
+        database = command(("docker", "inspect", "stockanalysis-postgres", "--format",
+                            "{{.HostConfig.Memory}} {{.HostConfig.MemorySwap}}" )).split()
+        database_max = int(database[0]) if len(database) == 2 and database[0].isdecimal() else None
+        database_applied = (database_max is not None and 0 < database_max <= 3 * 1024**3
+                            and database[1] == str(database_max))
+        report["batch_runtime"] = {
+            "monitored_profile_count": len(observed),
+            "protected_profile_count": sum(item["resource_limits_applied"] for item in observed),
+            "attention_profile_count": sum(item["attention_required"] for item in observed),
+            "shared_limits_applied": shared_applied,
+            "database_limits_applied": database_applied,
+            "database_memory_max_bytes": database_max,
+            "status": "protected" if observed and shared_applied and database_applied and all(item["resource_limits_applied"] for item in observed) else "unprotected",
+        }
     _assert_secret_free(report)
     return report
 
@@ -517,6 +549,7 @@ def _build_profile_scheduler_manifest_files(
                     + escaped_command
                     + '"\n'
                     "Restart=no\n"
+                    + service_guard_lines(profile_id)
                 ),
             )
         )

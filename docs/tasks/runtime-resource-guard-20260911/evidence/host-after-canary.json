@@ -1,0 +1,87 @@
+{
+  "observed_at": "2026-09-11T09:08:22.587667+00:00",
+  "identity": {
+    "accountId": "115623963546",
+    "instanceId": "i-029d51b163fb07b61",
+    "region": "us-east-1",
+    "instanceType": "t3.large"
+  },
+  "uptime": {
+    "exit_code": 0,
+    "stdout": " 09:08:22 up 8 min,  0 users,  load average: 0.27, 0.42, 0.22\n",
+    "stderr": ""
+  },
+  "memory": {
+    "exit_code": 0,
+    "stdout": "               total        used        free      shared  buff/cache   available\nMem:            7823         671        5856         140        1295        6774\nSwap:              0           0           0\n",
+    "stderr": ""
+  },
+  "disk": {
+    "exit_code": 0,
+    "stdout": "Filesystem      Size  Used Avail Use% Mounted on\n/dev/nvme0n1p1   16G   11G  5.4G  67% /\n/dev/nvme0n1p1   16G   11G  5.4G  67% /\n",
+    "stderr": ""
+  },
+  "inodes": {
+    "exit_code": 0,
+    "stdout": "Filesystem      Inodes  IUsed   IFree IUse% Mounted on\n/dev/nvme0n1p1 8382400 329258 8053142    4% /\n",
+    "stderr": ""
+  },
+  "vmstat": {
+    "exit_code": 0,
+    "stdout": "procs -----------memory---------- ---swap-- -----io---- -system-- ------cpu-----\n r  b   swpd   free   buff  cache   si   so    bi    bo   in   cs us sy id wa st\n 0  0      0 5997272   2168 1324432    0    0  1139   260  234  427 17  2 80  1  0\n 0  0      0 5997272   2168 1324432    0    0     0     0  194  271  0  0 100  0  0\n 0  0      0 5997272   2168 1324432    0    0     0     0  123  152  0  0 100  0  0\n",
+    "stderr": ""
+  },
+  "boot_history": {
+    "exit_code": 0,
+    "stdout": "IDX BOOT ID                          FIRST ENTRY                 LAST ENTRY\n -8 402d4c46d22b436b883e15184d2a5db4 Sat 2026-05-23 06:51:30 UTC Sun 2026-05-24 05:32:18 UTC\n -7 4db4750bb1d846869784e3203c91fc22 Mon 2026-05-25 05:27:19 UTC Tue 2026-06-23 09:01:02 UTC\n -6 f81a72dd028b40f39ba980f05060effd Tue 2026-06-23 09:05:37 UTC Tue 2026-06-23 09:31:17 UTC\n -5 42eaa72be4ee4ef98b0d9f03813e0ba5 Tue 2026-06-23 09:40:03 UTC Fri 2026-06-26 15:20:31 UTC\n -4 28911dca9a8a4c8ea3af5389e54948fb Fri 2026-06-26 15:29:57 UTC Fri 2026-06-26 15:31:00 UTC\n -3 308acd0f5d8a4a26a5710d0566319f61 Fri 2026-06-26 15:33:35 UTC Wed 2026-07-01 04:03:40 UTC\n -2 1fc6c2674a004128b0a14eb18c78fb8e Wed 2026-07-01 04:18:52 UTC Thu 2026-09-10 08:55:36 UTC\n -1 201c9786b2f94b32add5299e600374ff Thu 2026-09-10 09:02:21 UTC Fri 2026-09-11 08:45:12 UTC\n  0 3e0e123cecb7436aa1501117c97ac017 Fri 2026-09-11 09:00:11 UTC Fri 2026-09-11 09:08:22 UTC\n",
+    "stderr": ""
+  },
+  "active_profiles": {
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  "timers": {
+    "exit_code": 0,
+    "stdout": "NEXT                        LEFT                LAST                        PASSED            UNIT                                                                ACTIVATES\nFri 2026-09-11 09:21:12 UTC 12min left          Fri 2026-09-11 09:01:18 UTC 7min ago          stockanalysis-operating-data-scheduler-status.timer                 stockanalysis-operating-data-scheduler-status.service\nFri 2026-09-11 10:00:00 UTC 51min left          Fri 2026-09-11 08:29:56 UTC 38min ago         stockanalysis-operating-data-news-intraday.timer                    stockanalysis-operating-data-news-intraday.service\nFri 2026-09-11 10:20:00 UTC 1h 11min left       Fri 2026-09-11 09:03:34 UTC 4min 50s ago      stockanalysis-operating-data-research-maintenance.timer             stockanalysis-operating-data-research-maintenance.service\nFri 2026-09-11 12:45:00 UTC 3h 36min left       Thu 2026-09-10 12:45:53 UTC 20h ago           stockanalysis-operating-data-toss-reference-us-daily.timer          stockanalysis-operating-data-toss-reference-us-daily.service\nFri 2026-09-11 12:55:00 UTC 3h 46min left       Thu 2026-09-10 20:55:53 UTC 12h ago           stockanalysis-operating-data-toss-live-account-readonly.timer       stockanalysis-operating-data-toss-live-account-readonly.service\nFri 2026-09-11 13:40:00 UTC 4h 31min left       Thu 2026-09-10 19:40:14 UTC 13h ago           stockanalysis-operating-data-toss-priority-microdata-intraday.timer stockanalysis-operating-data-toss-priority-microdata-intraday.service\nFri 2026-09-11 22:20:00 UTC 13h left            Thu 2026-09-10 22:20:14 UTC 10h ago           stockanalysis-operating-data-toss-candles-us-shadow-daily.timer     stockanalysis-operating-data-toss-candles-us-shadow-daily.service\nFri 2026-09-11 22:35:00 UTC 13h left            Thu 2026-09-10 22:35:53 UTC 10h ago           stockanalysis-operating-data-market-daily.timer                     stockanalysis-operating-data-market-daily.service\nFri 2026-09-11 22:50:00 UTC 13h left            Thu 2026-09-10 22:50:14 UTC 10h ago           stockanalysis-operating-data-cross-asset-daily.timer                stockanalysis-operating-data-cross-asset-daily.service\nFri 2026-09-11 23:00:00 UTC 13h left            Thu 2026-09-10 23:00:53 UTC 10h ago           stockanalysis-operating-data-decision-daily.timer                   stockanalysis-operating-data-decision-daily.service\nMon 2026-09-14 11:00:00 UTC 3 days left         Mon 2026-09-07 11:00:16 UTC 3 days ago        stockanalysis-operating-data-market-universe-weekly.timer           stockanalysis-operating-data-market-universe-weekly.service\nMon 2026-09-14 11:30:00 UTC 3 days left         Mon 2026-09-07 11:30:16 UTC 3 days ago        stockanalysis-operating-data-macro-weekly.timer                     stockanalysis-operating-data-macro-weekly.service\nMon 2026-09-14 12:00:00 UTC 3 days left         Mon 2026-09-07 12:00:16 UTC 3 days ago        stockanalysis-operating-data-sec-filings-weekly.timer               stockanalysis-operating-data-sec-filings-weekly.service\nThu 2026-10-01 13:30:00 UTC 2 weeks 6 days left Tue 2026-09-01 13:30:16 UTC 1 week 2 days ago stockanalysis-operating-data-performance-monthly.timer              stockanalysis-operating-data-performance-monthly.service\n\n14 timers listed.\n",
+    "stderr": ""
+  },
+  "services": {
+    "exit_code": 0,
+    "stdout": "TimeoutStartUSec=1min 30s\nResult=success\nMemoryCurrent=87584768\nCPUUsageNSec=1982427000\nTasksCurrent=11\nCPUQuotaPerSecUSec=infinity\nMemoryHigh=infinity\nMemoryMax=infinity\nTasksMax=9293\nId=stockanalysis-frontend-api.service\nActiveState=active\nSubState=running\n\nTimeoutStartUSec=1min 30s\nResult=success\nMemoryCurrent=99676160\nCPUUsageNSec=5393406000\nTasksCurrent=22\nCPUQuotaPerSecUSec=infinity\nMemoryHigh=infinity\nMemoryMax=infinity\nTasksMax=9293\nId=stockanalysis-web.service\nActiveState=active\nSubState=running\n\nTimeoutStartUSec=1min 30s\nResult=success\nMemoryCurrent=70500352\nCPUUsageNSec=3303261000\nTasksCurrent=22\nCPUQuotaPerSecUSec=infinity\nMemoryHigh=infinity\nMemoryMax=infinity\nTasksMax=9293\nId=stockanalysis-web-public-13000.service\nActiveState=active\nSubState=running\n",
+    "stderr": ""
+  },
+  "database_usage": {
+    "exit_code": 0,
+    "stdout": "stockanalysis-postgres 570.3MiB / 7.64GiB 0.00% 10\n",
+    "stderr": ""
+  },
+  "running_commit": {
+    "exit_code": 0,
+    "stdout": "502eb6795dbcd328ea5a9b6bc6aa503be0061408\n",
+    "stderr": ""
+  },
+  "largest_processes": {
+    "exit_code": 0,
+    "stdout": "    PID    PPID COMMAND           RSS %CPU STAT\n   2730    2061 postgres        213456 1.8 Ss\n   3385    2061 postgres        209308 0.8 Ss\n   2975    2061 postgres        208620 0.9 Ss\n   2780    2061 postgres        174272 1.5 Ss\n   2711    2664 next-server (v1 129288 1.3 Sl\n   2718    2672 next-server (v1 108156 0.7 Sl\n   2663       1 python          106184 0.5 Ssl\n   1753       1 dockerd         91132  0.1 Ssl\n   2672       1 npm run start - 67356  0.1 Ssl\n   2664       1 npm run start - 67268  0.1 Ssl\n   1599       1 containerd      49604  0.1 Ssl\n    903       1 systemd-journal 36804  0.0 Ss\n   1928    1732 ssm-agent-worke 28416  0.0 Sl\n   2061    2036 postgres        26144  0.0 Ss\n   5265    5264 python          23712  2.6 Ss\n   2036       1 containerd-shim 19508  0.1 Sl\n   1732       1 amazon-ssm-agen 19000  0.0 Ssl\n      1       0 systemd         18424  0.5 Ss\n   2165    2061 postgres        18272  0.0 Ss",
+    "stderr": ""
+  },
+  "pressure_memory": "some avg10=0.00 avg60=0.00 avg300=0.00 total=0\nfull avg10=0.00 avg60=0.00 avg300=0.00 total=0\n",
+  "pressure_cpu": "some avg10=0.00 avg60=1.99 avg300=4.11 total=27724195\nfull avg10=0.00 avg60=0.00 avg300=0.00 total=0\n",
+  "pressure_io": "some avg10=0.04 avg60=0.06 avg300=0.48 total=6262726\nfull avg10=0.04 avg60=0.05 avg300=0.34 total=4341247\n",
+  "kernel_boot_0": {
+    "exit_code": 1,
+    "stdout": "-- No entries --\n",
+    "stderr": ""
+  },
+  "kernel_boot_-1": {
+    "exit_code": 1,
+    "stdout": "-- No entries --\n",
+    "stderr": ""
+  },
+  "build_log_present": true,
+  "build_log_bytes": 163,
+  "build_markers": [
+    "▲ Next.js 16.3.4 (Turbopack)"
+  ]
+}
