@@ -131,6 +131,8 @@ jobs:
         run: npx playwright test --config=playwright.readers.config.ts
       - name: Company and evidence browser verification
         run: npx playwright test --config=playwright.company.config.ts
+      - name: Research automation operations browser verification
+        run: npx playwright test --config=playwright.operations.config.ts
       - name: News triage and theme browser verification
         run: npx playwright test --config=playwright.signals.config.ts
       - name: Preserve browser and dependency evidence
@@ -148,6 +150,7 @@ jobs:
             apps/web/test-results/readers/
             apps/web/playwright-readers-report/
             apps/web/test-results/company/
+            apps/web/test-results/operations/
             apps/web/playwright-company-report/
             apps/web/test-results/signals/
             apps/web/playwright-signals-report/

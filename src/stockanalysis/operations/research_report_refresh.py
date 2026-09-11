@@ -46,7 +46,12 @@ def _queue_ctes(as_of_date: date, policy: str, symbol: str | None = None) -> str
         || s.period_policy || '|' || {sql_literal(policy)}, 'UTF8')), 'hex') as generation_key
     from tracked i left join lateral ({latest_source_sql('i.instrument_id')}) s on true
 ), queue as (
-    select s.*, previous.run_id as previous_claim_id, previous.status as previous_status,
+    select s.*, coalesce(pending.run_id, previous.run_id) as previous_claim_id,
+        coalesce(pending.status, previous.status) as previous_status,
+        previous.ended_at as previous_claim_ended_at,
+        case when previous.status='failed' and previous.config_json->'result_receipt'->>'outcome'='fallback'
+            then previous.ended_at + interval '24 hours' end as retry_after,
+        coalesce(pending.config_json,previous.config_json)->>'failure_code' as failure_code,
         case when s.source_run_id is null then 'waiting_for_source'
              when exists(select 1 from ops.pipeline_run pending where pending.pipeline_name='{PIPELINE}'
                 and pending.config_json->>'instrument_id'=s.instrument_id::text and pending.status='running') then 'reconcile'
@@ -71,6 +76,10 @@ def _queue_ctes(as_of_date: date, policy: str, symbol: str | None = None) -> str
              when previous.run_id is not null then 'attempt_recorded'
              else 'due' end as state
     from sources s left join lateral (
+        select r.run_id,r.status,r.config_json from ops.pipeline_run r where r.pipeline_name='{PIPELINE}'
+          and r.config_json->>'instrument_id'=s.instrument_id::text and r.status='running'
+        order by r.run_id desc limit 1
+    ) pending on true left join lateral (
         select r.run_id,r.status,r.ended_at,r.config_json from ops.pipeline_run r where r.pipeline_name='{PIPELINE}'
           and r.config_json->>'generation_key'=s.generation_key order by r.run_id desc limit 1
     ) previous on true

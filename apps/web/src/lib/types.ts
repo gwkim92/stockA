@@ -536,6 +536,7 @@ export type RecommendationWeightReviewReadinessSemanticsV2 = {
 };
 
 export type DataHealthData = {
+  research_refresh?: import("./research-refresh").ResearchRefreshStatus;
   overall_status: string;
   as_of_date: string;
   pipeline_runs: Array<{
