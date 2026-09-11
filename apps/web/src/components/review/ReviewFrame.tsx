@@ -36,7 +36,8 @@ export function ReviewFrame({ kind, result, children }: {
       </header>
       <nav className={styles.tabs} aria-label="보유와 성과">
         <Link href={`/portfolio/coverage?date=${result.requestedDate}`} aria-current={portfolio ? "page" : undefined}>보유 검토</Link>
-        <Link href={`/performance?date=${result.requestedDate}`} aria-current={!portfolio ? "page" : undefined}>판단 성과</Link>
+        <Link href="/performance/recommendations" prefetch={false}>전체 추천 성과</Link>
+        <Link href={`/performance?date=${result.requestedDate}`} aria-current={!portfolio ? "page" : undefined}>보유 성과귀속</Link>
         <Link href="/performance/evaluations" prefetch={false}>평가 이력</Link>
       </nav>
       <p className={styles.context}>

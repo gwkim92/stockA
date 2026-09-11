@@ -1,0 +1,35 @@
+async (page) => {
+ const checks={}; await page.getByRole("heading",{name:"추천별 측정 결과"}).waitFor(); await page.locator("details").filter({has:page.locator("form[aria-label=\"추천 성과 조회 조건\"]")}).locator("summary").click();
+ await page.getByLabel('종목 코드',{exact:true}).fill('aapl');
+ await page.getByLabel('추천일 시작',{exact:true}).fill('2026-05-21');
+ await page.getByLabel('추천일 종료',{exact:true}).fill('2026-08-11');
+ await page.getByLabel('관찰 구간',{exact:true}).selectOption('30');
+ await page.getByLabel('벤치마크',{exact:true}).selectOption('SPY');
+ await page.getByLabel('초과수익',{exact:true}).selectOption('positive');
+ await page.getByRole('button',{name:'결과 조회',exact:true}).click();
+ await page.waitForURL('**/performance/recommendations?symbol=aapl**');
+ await page.getByRole('heading',{name:'추천별 측정 결과'}).waitFor();
+ const rows=page.locator('article[aria-label$=성과]');
+ checks.filtered={url:page.url(),count:await rows.count(),labels:await rows.evaluateAll(es=>es.map(e=>e.getAttribute('aria-label'))),formSymbol:await page.getByLabel('종목 코드',{exact:true}).inputValue()};
+ if(!checks.filtered.count||checks.filtered.labels.some(s=>!s.startsWith('AAPL '))) throw Error('Wrong symbol results');
+ await page.getByRole('link',{name:'조건 초기화',exact:true}).click();
+ await page.waitForURL('**/performance/recommendations');
+ await page.getByRole('heading',{name:'추천별 측정 결과'}).waitFor();
+ checks.reset={symbol:await page.getByLabel('종목 코드',{exact:true}).inputValue(),horizon:await page.getByLabel('관찰 구간',{exact:true}).inputValue()};
+ if(checks.reset.symbol||checks.reset.horizon) throw Error('Filter reset failed');
+ const first=await rows.evaluateAll(es=>es.map(e=>e.getAttribute('aria-label')));
+ await page.getByRole('link',{name:'이전 측정 더 보기 →',exact:true}).click();
+ await page.waitForURL('**/performance/recommendations?before=**');
+ await page.getByRole('heading',{name:'추천별 측정 결과'}).waitFor();
+ const next=await rows.evaluateAll(es=>es.map(e=>e.getAttribute('aria-label')));
+ checks.paging={url:page.url(),count:next.length,overlap:next.filter(v=>first.includes(v)).length};
+ if(checks.paging.overlap||!next.length||!page.url().includes('through=')) throw Error('Paging failed');
+ await page.getByRole('link',{name:'처음 페이지 · 최신 기록',exact:true}).click();
+ await page.waitForURL('**/performance/recommendations');
+ await page.getByRole('heading',{name:'추천별 측정 결과'}).waitFor();
+ await page.setViewportSize({width:390,height:844});
+ await page.screenshot({path:'output/playwright/outcome-explorer-local-mobile.png',animations:'disabled'});
+ checks.mobile={overflow:await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),formWidth:await page.locator('form[aria-label="추천 성과 조회 조건"]').boundingBox()};
+ if(checks.mobile.overflow) throw Error('Mobile overflow');
+ return checks;
+}

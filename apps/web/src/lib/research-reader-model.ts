@@ -135,7 +135,7 @@ export function parseThesis(payload: unknown, requested: string): ThesisReaderDa
       summary: text(review.summary, "") || null, notes: text(review.change_notes, "") || null, next: recordedDate(review.next_review_date) },
     evidence: rows(data.evidence)?.map(row => {
       const item = evidence(row);
-      if (item.type === "performance_outcome" || item.id.startsWith("performance-outcome-")) return { ...item, href: `/performance?q=${encodeURIComponent(symbol)}`, action: "종목 성과 목록" };
+      if (item.type === "performance_outcome" || item.id.startsWith("performance-outcome-")) return { ...item, href: `/performance/recommendations?symbol=${encodeURIComponent(symbol)}`, action: "종목 성과 목록" };
       if (!(item.id.startsWith("event-") || item.id.startsWith("sec-event-") || item.id.startsWith("ai-evidence-"))) return { ...item, href: null, action: "상세 연결 미제공" };
       return item;
     }) ?? null,

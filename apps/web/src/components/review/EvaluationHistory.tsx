@@ -12,7 +12,7 @@ export function EvaluationHistory({ result, detail = false }: { result: Evaluati
     <span className={styles.eyebrow}>DECISION RECORD</span>
     <h1>{detail ? '평가 기록 비교' : '추천 평가 이력'}</h1>
     <p>{detail ? '평가 당시 저장한 판단과 지금의 자료를 나란히 확인합니다.' : '평가별로 저장된 추천 근거와 이후 확인된 성과를 살펴봅니다.'}</p>
-    <nav className={styles.nav} aria-label="평가 이력 탐색"><Link href="/performance">판단 성과</Link><Link href="/performance/evaluations" aria-current={!detail ? 'page' : undefined}>평가 이력</Link></nav>
+    <nav className={styles.nav} aria-label="평가 이력 탐색"><Link href="/performance/recommendations">전체 추천 성과</Link><Link href="/performance">보유 성과귀속</Link><Link href="/performance/evaluations" aria-current={!detail ? 'page' : undefined}>평가 이력</Link></nav>
     {!h ? <section role="status"><h2>{result.issue === 'invalid' ? '조회 주소를 확인해 주세요' : result.issue === 'not_found' ? '요청한 평가 기록이 없습니다' : '평가 기록을 불러오지 못했습니다'}</h2><p>다른 평가나 빈 결과로 대신 표시하지 않습니다.</p><Link href="/performance/evaluations">평가 목록 다시 조회</Link></section> : <>
       <div className={styles.note}><p>이 기록은 추천 생성 당시가 아닌 <strong>평가 실행 당시</strong> 저장한 자료입니다. 현재 자료와의 비교는 기록을 수정하지 않습니다.</p></div>
       {!detail ? <>

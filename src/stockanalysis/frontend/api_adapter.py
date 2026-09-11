@@ -89,6 +89,12 @@ def resolve_frontend_response(
     try:
         if source not in {"fixture", "live", "auto"}:
             raise FrontendApiAdapterError(f"Unsupported frontend API source: {source}", code="FrontendApiSourceInvalid")
+        from stockanalysis.frontend.recommendation_outcomes import API_PATH as OUTCOMES_PATH, resolve_recommendation_outcomes
+        if urlsplit(api_path).path == OUTCOMES_PATH:
+            try:
+                return resolve_recommendation_outcomes(api_path, source=source, config=config, executor=executor)
+            except EvaluationHistoryError as exc:
+                raise FrontendApiAdapterError(str(exc), code=exc.code) from exc
         from stockanalysis.frontend.recommendation_eval_comparison import is_evaluation_comparison_path, resolve_evaluation_comparison
         if is_evaluation_comparison_path(api_path):
             try:

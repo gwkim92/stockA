@@ -95,7 +95,7 @@ describe("safe and compatible source identities", () => {
   it("accepts only a same-resource safe API link", () => expect(safeApiLink("/api/theses/thesis-1", "theses")).toBe("/theses/thesis-1"));
   it("labels performance links as filtered lists, not an exact outcome view", () => {
     const input = thesis(); const data = parseThesis(input, input.data.thesis_id);
-    expect(data.evidence?.[1]).toMatchObject({ href: "/performance?q=AAPL", action: "종목 성과 목록" });
+    expect(data.evidence?.[1]).toMatchObject({ href: "/performance/recommendations?symbol=AAPL", action: "종목 성과 목록" });
   });
   it("literal excerpt search preserves content and order", () => {
     const input = source(), data = parseSource(input, input.data.document_id), before = JSON.stringify(data.excerpts);
