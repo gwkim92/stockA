@@ -1917,6 +1917,7 @@ def _build_planned_steps(
                     "-m",
                     "stockanalysis.operations.cli",
                     "portfolio-review-feedback-action-router-run",
+                    "--complete-follow-ups",
                     "--env-file",
                     str(env_file),
                     "--portfolio-name",

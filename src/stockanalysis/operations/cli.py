@@ -1434,6 +1434,8 @@ def build_parser() -> argparse.ArgumentParser:
     portfolio_review_feedback_action_router.add_argument("--portfolio-name", default=DEFAULT_PORTFOLIO_NAME)
     portfolio_review_feedback_action_router.add_argument("--as-of-date", required=True)
     portfolio_review_feedback_action_router.add_argument("--execute", action="store_true")
+    portfolio_review_feedback_action_router.add_argument("--complete-follow-ups", action="store_true",
+        help="Refresh cadence after each action and complete at most feedback and calibration in this run.")
     portfolio_review_feedback_action_router.add_argument("--dry-run", action="store_true")
     portfolio_review_feedback_action_router.add_argument("--output")
     portfolio_review_feedback_action_router.add_argument("--repo-root", default=str(DEFAULT_REPO_ROOT))
@@ -3270,8 +3272,10 @@ def _handle_portfolio_review_feedback_action_router_run(args: argparse.Namespace
         raise ValueError("--execute and --dry-run cannot be used together.")
     env_mapping = _load_optional_env_mapping(args.env_file, repo_root=args.repo_root)
     as_of_date = date.fromisoformat(args.as_of_date)
+    from stockanalysis.operations.portfolio_review_feedback_maintenance import run_portfolio_review_feedback_maintenance
+    runner = run_portfolio_review_feedback_maintenance if args.complete_follow_ups else run_portfolio_review_feedback_action_router
     with _temporary_environ(env_mapping):
-        report = run_portfolio_review_feedback_action_router(
+        report = runner(
             config=RuntimeConfig.from_env(),
             portfolio_name=args.portfolio_name,
             as_of_date=as_of_date,
@@ -3287,7 +3291,7 @@ def _handle_portfolio_review_feedback_action_router_run(args: argparse.Namespace
         write_json_report(report, output_path=output_path, stdout=stdout)
     else:
         print_json(report, stdout=stdout, sort_keys=False)
-    return 0
+    return 1 if report.get("status") == "attention_required" else 0
 
 
 def _handle_benchmark_composition_import_run(args: argparse.Namespace, *, stdout: TextIO) -> int:

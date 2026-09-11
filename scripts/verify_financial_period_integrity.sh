@@ -22,4 +22,6 @@ python3 -m unittest tests.test_sec_companyfacts tests.test_financial_period_inte
   tests.test_research_automation_postgres tests.test_equity_research_reporting \
   tests.test_equity_batch_isolation tests.test_operating_data_orchestrator \
   tests.test_operating_data_profile_scheduler tests.test_data_operations_cadence \
-  tests.test_research_source_refresh tests.test_research_source_refresh_postgres -v
+  tests.test_research_source_refresh tests.test_research_source_refresh_postgres \
+  tests.test_portfolio_review_feedback_cadence tests.test_portfolio_review_feedback_action_router \
+  tests.test_portfolio_review_feedback_maintenance -v
