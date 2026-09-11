@@ -3,6 +3,7 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import date
 import json
 import unittest
+from unittest.mock import patch
 from copy import deepcopy
 from dataclasses import replace
 from types import SimpleNamespace
@@ -19,6 +20,24 @@ from tests.test_equity_research_contract_v3 import response
 
 
 class SourceRefreshPostgresTests(unittest.TestCase):
+    def test_status_read_does_not_reconcile_or_call_model_and_keeps_pending_identity(self):
+        from stockanalysis.frontend.research_refresh_status import load_research_refresh_status
+        self.source()
+        self.reserve()
+        self.source(sha='b')
+        before = self.db.execute_scalar('select count(*) from ops.pipeline_run;')
+        with patch.object(refresh, 'inventory', return_value={'workloads': [
+                {'task': equity.DEFAULT_TASK_NAME, 'effective_model': 'test-model'}]}):
+            first = load_research_refresh_status(config=None, executor=self.db)
+            second = load_research_refresh_status(config=None, executor=self.db)
+        self.assertEqual(first['status'], 'attention_required', first)
+        pending = next(row for row in first['rows'] if row['symbol']=='TEST1')
+        self.assertEqual(pending['state'], 'reconcile')
+        self.assertIsNotNone(pending['claim_id'])
+        self.assertEqual(first['rows'], second['rows'])
+        self.assertEqual(self.db.execute_scalar('select count(*) from ops.pipeline_run;'), before)
+        self.assertEqual(self.db.execute_scalar('select count(*) from ai.model_invocation;'), '0')
+
     @classmethod
     def setUpClass(cls):
         pg_fixture.FinancialPeriodPostgresTests.setUpClass.__func__(cls)

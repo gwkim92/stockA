@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime, timezone
 import json
 from types import SimpleNamespace
 import unittest
@@ -9,11 +9,54 @@ from stockanalysis.ai.equity_research_batch import EquityResearchBatchError
 from stockanalysis.ai.research_source_version import public_freshness, same_version, validated_version
 from stockanalysis.ingest.sec.financial_periods import PERIOD_POLICY
 from stockanalysis.operations import research_report_refresh as refresh
+from stockanalysis.frontend.research_refresh_status import load_research_refresh_status
 from tests.test_equity_batch_isolation import BatchExecutor, run, provider
 from tests.test_equity_atomic_persistence import arguments
 
 DAY = date(2026, 9, 11)
 VERSION = {'source_run_id': 42, 'source_sha256': 'a' * 64, 'period_policy': PERIOD_POLICY}
+
+
+class RefreshVisibilityTests(unittest.TestCase):
+    def test_read_projection_uses_utc_day_and_hides_private_fields(self):
+        class DB:
+            def execute_scalar(self, sql):
+                self.sql = sql
+                return json.dumps({'daily_used': 6, 'daily_limit': 5, 'queue': [
+                    {'primary_symbol': 'AAPL', 'state': 'reconcile', 'previous_claim_id': 42,
+                     'source_sha256': 'private-hash', 'config_json': {'token': 'private-token'},
+                     'failure_code': 'private-error', 'ended_at': '2026-09-11T05:00:00Z'},
+                    {'primary_symbol': 'MSFT', 'state': 'due'}]})
+        db = DB()
+        with patch.object(refresh, 'inventory', return_value={'workloads': []}):
+            result = load_research_refresh_status(config=None, executor=db,
+                now=datetime.fromisoformat('2026-09-12T01:30:00+09:00'))
+        self.assertEqual(result['as_of_date'], '2026-09-11')
+        self.assertEqual(result['budget_resets_at'], '2026-09-12T00:00:00+00:00')
+        self.assertEqual(result['daily_remaining'], 0)
+        self.assertEqual(result['attention_count'], 1)
+        self.assertEqual(result['rows'][0]['claim_id'], 42)
+        self.assertNotIn('private-', json.dumps(result))
+        self.assertTrue(db.sql.startswith('-- research source refresh queue'))
+        self.assertNotIn('insert into', db.sql)
+        self.assertNotIn('pg_advisory_xact_lock', db.sql)
+
+    def test_unavailable_does_not_invent_zero_budget_or_clear_attention(self):
+        with patch('stockanalysis.frontend.research_refresh_status.run_research_report_refresh',
+                   side_effect=RuntimeError('private-db-url')):
+            result = load_research_refresh_status(config=None, executor=None)
+        self.assertEqual(result['status'], 'unavailable')
+        self.assertIsNone(result['daily_used'])
+        self.assertIsNone(result['total_count'])
+        self.assertIsNone(result['attention_count'])
+        self.assertNotIn('private-db-url', json.dumps(result))
+
+    def test_empty_queue_and_unknown_state_are_distinct(self):
+        for rows, expected in (([], 'loaded'), ([{'primary_symbol': 'AAPL', 'state': 'future_state'}], 'attention_required')):
+            with patch('stockanalysis.frontend.research_refresh_status.run_research_report_refresh',
+                       return_value={'daily_used': 0, 'daily_limit': 5, 'model_name': 'test-model', 'queue': rows}):
+                result = load_research_refresh_status(config=None, executor=None)
+            self.assertEqual(result['status'], expected)
 
 
 class SourceVersionTests(unittest.TestCase):

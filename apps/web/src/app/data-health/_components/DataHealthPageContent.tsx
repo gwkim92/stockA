@@ -4,6 +4,7 @@ import {
   DataHealthAutomationDetailSection,
 } from "@/components/operations/DataHealthAutomationDetailSection";
 import { DataHealthOverview } from "@/components/operations/DataHealthOverview";
+import { ResearchRefreshSection } from "@/components/operations/ResearchRefreshSection";
 import { DataHealthTossBrokerSection } from "@/components/operations/DataHealthTossBrokerSection";
 import { OperationsConsoleHeader } from "@/components/operations/OperationsConsoleHeader";
 import { PageDecisionMap } from "@/components/research/PageDecisionMap";
@@ -46,6 +47,8 @@ export function DataHealthPageContent({ model }: DataHealthPageContentProps) {
         triageBuckets={model.triageOverviewBuckets}
         triageStatus={model.gateTriageStatus}
       />
+
+      <ResearchRefreshSection data={model.data.research_refresh} />
 
       <DataHealthTossBrokerSection {...model.tossBrokerSection} />
 

@@ -15,6 +15,7 @@ from stockanalysis.ai.evidence_graph import render_instrument_evidence_neighborh
 from stockanalysis.ai.internal_rag import build_internal_rag_context_package
 from stockanalysis.performance.outcome_window import outcome_window_match_sql
 from stockanalysis.frontend.recommendation_boundary import recommendation_boundary
+from stockanalysis.frontend.research_refresh_status import load_research_refresh_status
 from stockanalysis.ingest.config import RuntimeConfig
 from stockanalysis.ingest.macro.sql import sql_date, sql_literal
 from stockanalysis.ingest.psql import PsqlCommandExecutor
@@ -1923,6 +1924,7 @@ def build_live_data_health_response(
             "as_of_date": str(state.get("as_of_date") or ""),
             "pipeline_runs": pipeline_runs,
             "research_maintenance": _as_dict(state.get("research_maintenance")),
+            "research_refresh": load_research_refresh_status(config=config, executor=executor),
             "scheduler": scheduler_status,
             "production_api_server": production_api_server,
             "auth_rbac": auth_rbac,

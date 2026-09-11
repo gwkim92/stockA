@@ -1,0 +1,30 @@
+import { test, expect } from '@playwright/test';
+test('queue reasons, exhausted budget, filters, navigation and responsive layout', async ({ page, request }, info) => {
+  await request.post('http://127.0.0.1:18773/__scenario', {data:{scenario:'mixed'}});
+  await page.goto('/data-health#research-refresh');
+  const section=page.locator('#research-refresh');
+  await expect(section.getByRole('heading', {name:'보고서 갱신 현황'})).toBeVisible();
+  await expect(section.getByText(/오늘 한도 소진/)).toBeVisible();
+  await expect(section.getByText(/중복 호출을 막고 저장 기록/)).toBeVisible();
+  await section.getByRole('combobox', {name:'상태',exact:true}).selectOption('waiting_for_source');
+  await expect(section.getByRole('link', {name:'EROK',exact:true})).toHaveAttribute('href','/stocks/EROK');
+  await expect(section.getByRole('link', {name:'AAPL',exact:true})).toHaveCount(0);
+  await section.getByLabel('기업 찾기').fill('missing');
+  await expect(section.getByText('조건에 맞는 기업이 없습니다.')).toBeVisible();
+  await section.getByLabel('기업 찾기').fill('');
+  await section.getByRole('combobox', {name:'상태',exact:true}).selectOption('all');
+  expect(await section.evaluate(el=>el.scrollWidth<=el.clientWidth)).toBe(true);
+  await expect(section.getByRole('link',{name:'AI 모델 설정 →'})).toHaveAttribute('href','/admin/ai-agents');
+  await section.screenshot({path:info.outputPath('research-refresh.png')});
+});
+test('failed read is not a zero queue and empty read is explicit', async ({page,request}) => {
+  await request.post('http://127.0.0.1:18773/__scenario',{data:{scenario:'unavailable'}});
+  await page.goto('/data-health#research-refresh');
+  const section=page.locator('#research-refresh');
+  await expect(section.getByRole('status')).toContainText('확인되지 않았습니다');
+  await expect(section.getByText('오늘 생성 한도 사용')).toHaveCount(0);
+  await request.post('http://127.0.0.1:18773/__scenario',{data:{scenario:'empty'}});
+  await page.reload();
+  await section.locator('summary').click();
+  await expect(section.getByText('현재 자동 갱신 대상 기업이 없습니다.')).toBeVisible();
+});

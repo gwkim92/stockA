@@ -1,0 +1,14 @@
+{
+  "security_group": "sg-0a2d52009e73a59e3",
+  "rule": "sgr-063f4cd0b185b7130",
+  "old_source": "14.32.108.166/32",
+  "new_source": "14.32.108.104/32",
+  "only_port": 22,
+  "account": "115623963546",
+  "inbound_rule_count_unchanged": 10,
+  "tunnel_url": "http://127.0.0.1:13309",
+  "launch_agent": "im.stocka.web-tunnel",
+  "process_restarted": true,
+  "http_status": 200,
+  "chrome_data_health_rendered": true
+}
