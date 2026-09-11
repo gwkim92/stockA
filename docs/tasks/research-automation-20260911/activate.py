@@ -44,7 +44,11 @@ def main():
     run(['git','-C',str(APP),'fetch','origin',fetch_ref])
     assert capture(['git','-C',str(APP),'rev-parse','FETCH_HEAD'])==expected
     run(['git','-C',str(APP),'merge-base','--is-ancestor',previous,expected])
-    run(['git','-C',str(APP),'diff','--exit-code',previous,expected,'--','db/migrations','pyproject.toml','apps/web/package.json','apps/web/package-lock.json'])
+    run(['git','-C',str(APP),'diff','--exit-code',previous,expected,'--','db/migrations','pyproject.toml','apps/web/package-lock.json'])
+    previous_package=json.loads(capture(['git','-C',str(APP),'show',previous+':apps/web/package.json']))
+    expected_package=json.loads(capture(['git','-C',str(APP),'show',expected+':apps/web/package.json']))
+    for key in ('dependencies','devDependencies','engines','type'):
+        assert previous_package.get(key)==expected_package.get(key),'Runtime dependencies or Node requirements changed'
     assert shutil.disk_usage(BASE).free>2_500_000_000
     env_paths=[BASE.parent/name for name in ('frontend-api.env','web.env','data-operations.env','ai-model-settings.sqlite3')]
     def hashes(): return {p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in env_paths}
@@ -55,8 +59,13 @@ def main():
         artifact_manifest=json.loads((BASE/'linux-build-manifest.json').read_text())
         assert artifact_manifest['web_tree']==web_tree,'Linux artifact source differs'
         assert artifact_manifest['platform']=='linux/amd64','Unexpected artifact platform'
-        archive=BASE/'web-linux-next.tar.gz'
+        archive_name=artifact_manifest.get('archive_name','web-linux-next.tar.gz')
+        assert archive_name in ('web-linux-next.tar.gz','web-runtime.tar.gz')
+        archive=BASE/archive_name
         assert hashlib.sha256(archive.read_bytes()).hexdigest()==artifact_manifest['sha256']
+        if 'package_lock_sha256' in artifact_manifest:
+            lock=subprocess.check_output(['git','-C',str(APP),'show',expected+':apps/web/package-lock.json'])
+            assert hashlib.sha256(lock).hexdigest()==artifact_manifest['package_lock_sha256']
         web=BASE/'offhost-build';web.mkdir(exist_ok=True)
         run(['tar','-xzf',str(archive),'-C',str(web)])
     else:
