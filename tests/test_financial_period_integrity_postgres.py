@@ -95,6 +95,13 @@ insert into ingest.data_source values (1,'sec_edgar');
             self.sql(sql.replace('commit;','select 1/0; commit;'))
         self.assertEqual(self.sql('select json_agg(t) from (select * from market.financial_metric_value order by period_id,metric_code) t;'),before)
 
+    def test_new_filing_does_not_retain_an_older_document_link(self):
+        self.sql("insert into ingest.source_document values (1,1,'filing-2024');")
+        self.import_facts(payload(Revenues=[fact()]))
+        self.assertEqual(self.sql('select source_document_id from market.financial_statement_period;'),'1')
+        self.import_facts(payload(Revenues=[fact(accn='new-filing',filed='2025-03-01')]))
+        self.assertEqual(self.sql('select source_document_id is null from market.financial_statement_period;'),'t')
+
     def test_cutoff_unknown_publication_and_symbol_isolation(self):
         self.import_facts(payload(Revenues=[fact()]),1)
         self.import_facts(payload(Revenues=[fact()]),4)

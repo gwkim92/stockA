@@ -507,6 +507,8 @@ def _render_companyfacts_upsert_chunk(
 ) -> str:
     run_literal = "null::bigint" if source_run_id is None else f"{source_run_id}::bigint"
     value_rows = ",\n        ".join(_render_companyfacts_value_tuple(record) for record in records)
+    document_update = ("excluded.source_document_id" if replace_statement else
+                       "coalesce(excluded.source_document_id, market.financial_statement_period.source_document_id)")
     # A validated complete statement replaces its supported metrics atomically;
     # otherwise a previously imported YTD cash flow survives the corrected import.
     cleanup = """,
@@ -617,7 +619,7 @@ upsert_periods as (
         report_date = excluded.report_date,
         currency_code = excluded.currency_code,
         is_audited = excluded.is_audited,
-        source_document_id = coalesce(excluded.source_document_id, market.financial_statement_period.source_document_id),
+        source_document_id = {document_update},
         source_run_id = excluded.source_run_id
     returning period_id, instrument_id, statement_scope, period_end
 ),
