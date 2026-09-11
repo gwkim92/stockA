@@ -30,6 +30,7 @@ export function SourcePeek({ documentId, label = "원천 발췌 읽기" }: { doc
         {state === "loading" && <p role="status">문서 발췌를 불러오는 중입니다.</p>}
         {state === "error" && <div role="status"><h3>원천을 불러오지 못했습니다</h3><p>문서가 없는 것으로 판단하지 않습니다. 목록의 선택과 검색은 유지됩니다.</p><button type="button" className={styles.textButton} onClick={open}>다시 시도</button></div>}
         {data && <><p className={styles.meta}>{data.publisher} · 공개일 {shortDate(data.filedAt, "미기록")} · 수집일 {shortDate(data.fetchedAt, "미기록")}</p><h3 className={styles.sourceTitle}>{data.koreanTitle ?? data.title}</h3>
+          {data.integrityNotice && <p role="status" className={styles.note}><strong>{data.integrityNotice}</strong></p>}
           <p className={styles.note}>API가 제공한 발췌·요약입니다. 기사 전문 또는 검증이 끝난 투자 근거를 뜻하지 않습니다.</p>
           {data.excerpts?.map(excerpt => <section className={styles.excerpt} key={excerpt.id}><h4>{excerpt.section}</h4><small>{excerpt.locator}</small><p>{excerpt.summary}</p></section>)}
           {!data.excerpts?.length && <p className={styles.empty}>{data.excerpts === null ? "발췌 목록 미제공" : "저장된 발췌가 없습니다."}</p>}

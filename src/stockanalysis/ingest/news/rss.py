@@ -6,6 +6,7 @@ import re
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
 from pathlib import Path
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 from xml.etree import ElementTree
 
 from stockanalysis.ingest.config import RuntimeConfig
@@ -108,7 +109,7 @@ def _parse_item(
         or _child_text(element, "date")
     )
     language = _clean_text(_child_text(element, "language")) or default_language
-    identity = guid or url or f"{title}|{published_at.isoformat() if published_at else ''}"
+    identity = _item_identity(guid=guid, url=url, title=title, published_at=published_at)
     external_document_id = _external_document_id(feed_name=feed_name, identity=identity)
     checksum = _checksum(
         "|".join(
@@ -202,6 +203,26 @@ def _parse_datetime(value: str | None) -> datetime | None:
 def _external_document_id(*, feed_name: str, identity: str) -> str:
     slug = re.sub(r"[^a-z0-9]+", "-", feed_name.lower()).strip("-") or "feed"
     return f"rss:{slug}:{_checksum(identity)[:24]}"
+
+
+def _item_identity(*, guid: str | None, url: str | None, title: str, published_at: datetime | None) -> str:
+    # Some syndicated feeds put only a tracking query in guid. It is shared by
+    # unrelated articles, so using it would overwrite their documents/events.
+    # Keep valid publisher IDs (and their existing database identities) intact.
+    if not guid or not guid.startswith(("?", "#", "&")):
+        return guid or url or f"{title}|{published_at.isoformat() if published_at else ''}"
+    if url:
+        try:
+            parts = urlsplit(url)
+        except ValueError:
+            parts = urlsplit("")
+        if parts.scheme in {"http", "https"} and parts.netloc:
+            query = urlencode([
+                (key, value) for key, value in parse_qsl(parts.query, keep_blank_values=True)
+                if key.lower() not in {"src", "yptr"} and not key.lower().startswith("utm_")
+            ])
+            return urlunsplit((parts.scheme, parts.netloc, parts.path, query, ""))
+    return f"{title}|{published_at.isoformat() if published_at else ''}"
 
 
 def _checksum(value: str) -> str:

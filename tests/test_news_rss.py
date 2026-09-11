@@ -40,6 +40,43 @@ class FakeExecutor:
 
 
 class NewsRssTests(unittest.TestCase):
+    def _parse_tracking_guid_item(self, *, title="Company news", url="https://example.com/article", guid="?src=A00220&yptr=yahoo"):
+        from xml.sax.saxutils import escape
+        return parse_news_rss_feed(
+            f"<rss><channel><item><title>{escape(title)}</title><link>{escape(url)}</link>"
+            f"<guid>{escape(guid)}</guid><pubDate>Thu, 10 Sep 2026 15:46:51 GMT</pubDate>"
+            "</item></channel></rss>",
+            feed_name="yahoo-finance-news", feed_url="https://finance.yahoo.com/news/rssindex",
+        ).items[0]
+
+    def test_tracking_only_guid_does_not_merge_unrelated_articles(self) -> None:
+        first = self._parse_tracking_guid_item(title="Apple product news", url="https://example.com/apple?src=A00220&yptr=yahoo")
+        second = self._parse_tracking_guid_item(title="Drone maker earnings", url="https://example.com/drone?src=A00220&yptr=yahoo")
+        self.assertNotEqual(first.external_document_id, second.external_document_id)
+
+    def test_tracking_only_guid_uses_stable_article_url(self) -> None:
+        first = self._parse_tracking_guid_item(url="https://example.com/article?id=42&src=A00220&yptr=yahoo&utm_source=rss#top")
+        second = self._parse_tracking_guid_item(url="https://example.com/article?id=42&src=changed&utm_source=another")
+        other = self._parse_tracking_guid_item(url="https://example.com/article?id=43")
+        self.assertEqual(first.external_document_id, second.external_document_id)
+        self.assertNotEqual(first.external_document_id, other.external_document_id)
+        self.assertIn("src=A00220", first.url)
+        self.assertEqual(first.guid, "?src=A00220&yptr=yahoo")
+
+    def test_fragment_guid_without_article_url_uses_title_and_date(self) -> None:
+        first = self._parse_tracking_guid_item(title="Apple product news", url="", guid="#rss")
+        second = self._parse_tracking_guid_item(title="Drone maker earnings", url="", guid="#rss")
+        self.assertNotEqual(first.external_document_id, second.external_document_id)
+
+    def test_valid_publisher_guid_retains_existing_identity(self) -> None:
+        import hashlib
+        item = self._parse_tracking_guid_item(guid="publisher-article-42")
+        self.assertEqual(item.external_document_id, "rss:yahoo-finance-news:" + hashlib.sha256(b"publisher-article-42").hexdigest()[:24])
+
+    def test_tracking_guid_with_malformed_url_does_not_abort_feed(self) -> None:
+        item = self._parse_tracking_guid_item(title="Fallback title", url="https://[invalid")
+        self.assertEqual(item.title, "Fallback title")
+
     def test_load_news_rss_sync_result_from_fixture(self) -> None:
         result = load_news_rss_sync_result(
             feed_name="fixture",

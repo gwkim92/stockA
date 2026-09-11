@@ -9,6 +9,16 @@ const thesis = () => example("thesis-detail");
 const today = "2026-09-05";
 afterEach(() => { vi.useRealTimers(); vi.unstubAllEnvs(); });
 describe("existing reader contracts", () => {
+  it("withholds conflicting translations and excerpts while preserving the source record", () => {
+    const input = source(); input.data.source_type = "news_rss_identity_conflict";
+    input.data.korean_title = "Old unrelated title"; input.data.korean_summary = "Old unrelated summary";
+    const before = JSON.stringify(input), data = parseSource(input, input.data.document_id);
+    expect(data.integrityNotice).toContain("분석 입력 제외");
+    expect(data.koreanTitle).toBeNull(); expect(data.koreanSummary).toBeNull();
+    expect(data.symbol).toBeNull(); expect(data.excerpts).toEqual([]);
+    expect(data.title).toBe(input.data.title); expect(data.evidence).toHaveLength(input.data.linked_evidence.length);
+    expect(JSON.stringify(input)).toBe(before);
+  });
   it("preserves original source text without guessing a topic", () => {
     const input = source(), before = JSON.stringify(input);
     const data = parseSource(input, input.data.document_id);
