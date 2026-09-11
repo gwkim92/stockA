@@ -99,7 +99,9 @@ def artifact_sql(executor):
 class BatchInputTests(unittest.TestCase):
     def oversized(self, symbol):
         data = context(symbol)
-        data['thesis']['summary'] = 'private-risk-' * 10000
+        # Required identity metadata cannot be dropped; long optional thesis
+        # records are now explicitly omitted by bounded source selection.
+        data['instrument']['name'] = 'private-risk-' * 10000
         return data
 
     def assert_counts(self, report):
@@ -224,7 +226,7 @@ class BatchInputTests(unittest.TestCase):
 
 class BatchProviderTests(unittest.TestCase):
     def test_primary_fallback_and_rejected_input_counts_do_not_overlap(self):
-        bad = context('MSFT'); bad['thesis']['summary'] = 'x' * 50000
+        bad = context('MSFT'); bad['instrument']['name'] = 'x' * 50000
         executor = BatchExecutor(inputs={'MSFT': bad}); seen = []
         with self.assertRaises(EquityResearchBatchError) as caught:
             run(executor, provider(seen, fail={'NVDA'}))
@@ -401,7 +403,7 @@ class BatchPlanningAndCallerTests(unittest.TestCase):
         self.assertEqual(seen, [])
 
     def test_dry_run_reports_rejected_context_and_still_previews_valid_symbols(self):
-        bad = context('NVDA'); bad['thesis']['summary'] = 'x' * 50000
+        bad = context('NVDA'); bad['instrument']['name'] = 'x' * 50000
         executor = BatchExecutor(inputs={'NVDA': bad})
         with self.assertRaises(EquityResearchBatchError) as caught:
             run(executor, provider([]), execute=False)
@@ -472,7 +474,7 @@ class BatchPlanningAndCallerTests(unittest.TestCase):
         self.assertFalse(any("status = 'succeeded'" in sql for sql in parent_executor.non_query_sql))
 
     def test_retry_of_only_failed_symbol_does_not_touch_prior_good_symbols(self):
-        bad=context('NVDA');bad['thesis']['summary']='x'*50000
+        bad=context('NVDA');bad['instrument']['name']='x'*50000
         executor=BatchExecutor(inputs={'NVDA':bad})
         with self.assertRaises(EquityResearchBatchError) as caught:
             run(executor,provider([]))

@@ -46,6 +46,14 @@ class DataOperationCadence:
 
 DATA_OPERATION_CADENCES: tuple[DataOperationCadence, ...] = (
     DataOperationCadence(
+        job_id="research-maintenance", pipeline_name="research_maintenance",
+        domain="research", cadence="intraday",
+        command_template="stockanalysis-operations research-maintenance-run --env-file <ENV> --as-of-date <YYYY-MM-DD> --artifact-root <RUNTIME>/research-automation-artifacts --execute",
+        expected_after_local="00:20, 06:20, 12:20, 18:20", stale_after_hours=12,
+        artifact_policy="same_host_backup_atomic_receipt_and_queue_summary",
+        required_env_groups=("database", "sec_identity"), data_health_dataset="market.financial_metric_normalized",
+    ),
+    DataOperationCadence(
         job_id="market-universe-weekly",
         pipeline_name="market_universe_bootstrap",
         domain="market",

@@ -1,5 +1,7 @@
 # Frontend API Contract
 
+2026-09-11 additive field: live `DataHealthResponse.research_maintenance` exposes the latest automatic financial maintenance run (`status`, `run_id`, `finished_at`, `as_of_date`, `queue_counts`, `results`, `refresh_days`, `retry_hours`, `max_companies_per_run`, `order_boundary`). Queue counts are the latest run's observation, not a live remaining-time guarantee. This field excludes private before-images and source payloads. The existing `pipeline_runs` list includes `research-maintenance`.
+
 이 문서는 Python/Postgres의 읽기 모델을 웹에 전달하는 API contract다. 현재 운영 API와 local fixture HTTP server가 있으며, 초기 examples는 저장된 계약 예시다. 운영 배포 상태는 최신 task handoff와 실제 조회로 확인한다. local fixture HTTP server는 `docs/frontend-fixture-server.md`에 정의되어 있다.
 
 ## Contract Version

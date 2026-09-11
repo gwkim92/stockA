@@ -86,32 +86,49 @@ def render_equity_research_symbol_lookup_sql(
         return f"""-- equity research symbol lookup
 with requested(symbol) as (
     values {values_sql}
-)
-select coalesce(json_agg(instrument.primary_symbol order by requested.symbol), '[]'::json)::text
-from requested
-join ref.instrument instrument on upper(instrument.primary_symbol) = requested.symbol
-where instrument.is_active = true
-limit {limit};"""
-    return f"""-- equity research symbol lookup
-with latest_batch as (
-    select batch.batch_id
-    from signal.recommendation_batch batch
-    where batch.as_of_date <= {sql_date(as_of_date)}
-    order by batch.as_of_date desc, batch.batch_id desc
-    limit 1
-),
-ranked as (
-    select
-        instrument.primary_symbol,
-        recommendation.rank_position
-    from latest_batch batch
-    join signal.recommendation recommendation on recommendation.batch_id = batch.batch_id
-    join ref.instrument instrument on instrument.instrument_id = recommendation.instrument_id
-    where recommendation.status = 'active'
-    order by recommendation.rank_position asc, instrument.primary_symbol asc
+), selected as (
+    select instrument.primary_symbol
+    from requested
+    join ref.instrument instrument on upper(instrument.primary_symbol) = requested.symbol
+    where instrument.is_active = true
+    order by requested.symbol
     limit {limit}
 )
-select coalesce(json_agg(primary_symbol order by rank_position, primary_symbol), '[]'::json)::text
+select coalesce(json_agg(primary_symbol order by primary_symbol), '[]'::json)::text from selected;"""
+    return f"""-- equity research symbol lookup
+with active_symbols as (
+    select instrument.instrument_id, instrument.primary_symbol, min(recommendation.rank_position) as rank_position
+    from signal.recommendation recommendation
+    join signal.recommendation_batch batch using(batch_id)
+    join ref.instrument instrument using(instrument_id)
+    where recommendation.status='active' and instrument.is_active
+      and batch.as_of_date <= {sql_date(as_of_date)}
+    group by instrument.instrument_id, instrument.primary_symbol
+),
+ranked as (
+    select symbol.primary_symbol, symbol.rank_position, last_report.as_of_date as last_report_date
+    from active_symbols symbol
+    left join lateral (
+        select artifact.as_of_date from research.equity_research_artifact artifact
+        where artifact.instrument_id=symbol.instrument_id
+          and artifact.artifact_type={sql_literal(ARTIFACT_TYPE)}
+          and artifact.provider='codex_oauth'
+          and artifact.as_of_date <= {sql_date(as_of_date)}
+        order by artifact.as_of_date desc limit 1
+    ) last_report on true
+    where last_report.as_of_date is null or last_report.as_of_date < {sql_date(as_of_date)}
+    order by last_report.as_of_date asc nulls first, symbol.rank_position, symbol.primary_symbol
+    -- Reserve the existing daily five-symbol allowance through pipeline input
+    -- manifests, including interrupted calls whose outcome is still unknown.
+    limit least({limit}, greatest(0, 5 - (
+        select coalesce(sum(jsonb_array_length(coalesce(r.config_json->'symbols','[]'::jsonb))),0)
+        from ops.pipeline_run r
+        where r.pipeline_name='equity_research_reporting'
+          and r.config_json->>'provider'='codex_oauth'
+          and r.config_json->>'as_of_date'={sql_literal(as_of_date.isoformat())}
+    )))
+)
+select coalesce(json_agg(primary_symbol order by last_report_date asc nulls first, rank_position, primary_symbol), '[]'::json)::text
 from ranked;"""
 
 
@@ -943,25 +960,28 @@ def _bounded_context_for_prompt(context: dict[str, object], *, max_context_chars
         "financial_metric_status_counts": context.get("financial_metric_status_counts"),
         "peer_relative": _limit_list(context.get("peer_relative"), 12),
         "valuations": _limit_list(context.get("valuations"), 6),
-        "recommendation": context.get("recommendation"),
+        "recommendation_records": [context["recommendation"]] if context.get("recommendation") else [],
         "fundamental_components": _limit_list(context.get("fundamental_components"), 8),
-        "thesis": context.get("thesis"),
+        "thesis_records": [context["thesis"]] if context.get("thesis") else [],
         "recent_events": _limit_list(context.get("recent_events"), 8),
         "cycle_summaries": _limit_list(context.get("cycle_summaries"), 8),
     }
     if "input_selection" in context:
         bounded["input_selection"] = context["input_selection"]
-    return select_source_records(
+    selected = select_source_records(
         bounded,
         record_paths=tuple((key,) for key in (
             "financial_metrics", "recent_events", "peer_relative", "valuations",
-            "fundamental_components", "cycle_summaries",
+            "fundamental_components", "cycle_summaries", "recommendation_records", "thesis_records",
         )),
         max_chars=max_context_chars,
         # A single nested valuation artifact must not crowd out the financial
         # facts, source events and counterevidence in an already oversized input.
         max_record_chars=max_context_chars // 4,
     )
+    selected["recommendation"] = next(iter(selected.pop("recommendation_records")), None)
+    selected["thesis"] = next(iter(selected.pop("thesis_records")), None)
+    return selected
 
 
 def _sanitize_output(output: EquityResearchOutput, *, context: dict[str, object]) -> EquityResearchOutput:

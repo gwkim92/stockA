@@ -1921,6 +1921,7 @@ def build_live_data_health_response(
             ),
             "as_of_date": str(state.get("as_of_date") or ""),
             "pipeline_runs": pipeline_runs,
+            "research_maintenance": _as_dict(state.get("research_maintenance")),
             "scheduler": scheduler_status,
             "production_api_server": production_api_server,
             "auth_rbac": auth_rbac,
@@ -6741,6 +6742,17 @@ select json_build_object(
         ),
         '[]'::json
     ),
+    'research_maintenance', coalesce((
+        select json_build_object(
+            'status', run.status, 'run_id', run.run_id, 'finished_at', run.ended_at,
+            'as_of_date', run.config_json->>'as_of_date',
+            'queue_counts', run.config_json->'queue_counts_after',
+            'results', run.config_json->'results',
+            'refresh_days', 7, 'retry_hours', 24, 'max_companies_per_run', 3,
+            'order_boundary', 'read_only_no_order'
+        ) from ops.pipeline_run run where run.pipeline_name='research_maintenance'
+        order by run.run_id desc limit 1
+    ), '{{}}'::json),
     'latest_artifact_root', '',
     'freshness',
     json_build_array(

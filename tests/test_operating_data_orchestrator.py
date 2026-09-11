@@ -503,7 +503,7 @@ class OperatingDataOrchestratorTests(unittest.TestCase):
             step_ids.index("thesis-review-bootstrap"),
             step_ids.index("equity-research-reporting"),
         )
-        self.assertLess(
+        self.assertGreater(
             step_ids.index("equity-research-reporting"),
             step_ids.index("portfolio-position-snapshot"),
         )

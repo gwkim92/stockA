@@ -18,4 +18,7 @@ export STOCKA_FINANCIAL_TEST_PSQL="$pg_bin/psql"
 export PYTHONPATH=src
 python3 -m unittest tests.test_sec_companyfacts tests.test_financial_period_integrity \
   tests.test_financial_period_integrity_postgres tests.test_professional_equity_analysis \
-  tests.test_professional_coverage_expansion -v
+  tests.test_professional_coverage_expansion tests.test_research_automation \
+  tests.test_research_automation_postgres tests.test_equity_research_reporting \
+  tests.test_equity_batch_isolation tests.test_operating_data_orchestrator \
+  tests.test_operating_data_profile_scheduler tests.test_data_operations_cadence -v

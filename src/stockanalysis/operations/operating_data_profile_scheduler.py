@@ -31,6 +31,7 @@ DEFAULT_PROFILE_CADENCE_SCHEDULES = {
     "monthly": "30 9 1 * *",
 }
 DEFAULT_PROFILE_SCHEDULES = {
+    "research-maintenance": "20 0,6,12,18 * * *",
     "market-universe-weekly": "0 7 * * 1",
     "sec-filings-weekly": "0 8 * * 1",
     "news-intraday": "0 0,2,4,6,8,10,12,14,16,18,20,22 * * *",
