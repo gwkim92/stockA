@@ -41,7 +41,7 @@
 - 운영 Chrome 기업/추천 상세/성과/data-health × desktop/mobile 8개 화면: 200, overflow false, pageerror 0. 원천 문서 40343 표시, 모바일 패널, Escape 닫기, 입력 문서 버튼으로 focus 복귀 확인.
 - 모델 화면에는 Codex 사용처 5개와 기본 Terra, 실제 CLI 선택 모델, 관리자 변경 UI가 표시된다. 이번 세션은 조회 전용이며 설정 저장을 실행하지 않았다.
 
-## 미완료 및 한계
+## 추가 승인 전 보류와 남은 한계
 
 - 실제 기업 리서치 명령은 실행 전 자동 승인 검토에서 payload/외부 목적지별 승인 부족으로 거절됐다. 전송 자료 사전 검사 후 같은 명령을 재검토 요청했으나 재거절됐다. 호출·생성 결과는 없다. 현재 화면은 기존 fallback이다. 구체적인 전송·저장 승인 질문에 대한 답변을 기다린다.
 - 전송 예정 3개 자료의 크기는 15,854/15,941/14,213자이며 계좌/보유 테이블을 포함하지 않는다. 인증값과 DB주소 패턴은 검출되지 않았다. 앱의 기존 추천/thesis는 포함한다. 검사 원본은 research-payload-preflight.json이다.
@@ -49,3 +49,18 @@
 - data-health open gates 8개가 남는다. 상세 목록과 다음 작업은 handoff.md를 따른다.
 
 운영 캡처와 기록은 output/playwright/purpose-fit-production-*.png, output/purpose-fit-recovery-20260911/에 보관했다. 소스·평가 기준을 추가 변경하지 않아 통과한 CI/전체 검사를 불필요하게 반복하지 않았다.
+
+## 실제 기업 리서치 완료 — 2026-09-11 00:15~00:16 UTC
+
+전송 자료·OpenAI Codex OAuth/Terra 목적지·운영 DB 저장을 명시한 재질문에 사용자가 “진행”으로 승인했다. 같은 research 명령이 승인돼 한 번 실행됐다. 이전 자동 승인 검토 보류는 해소됐다.
+
+- NVDA: run 23818 / invocation 41113 / artifact 492. AAPL: 23819 / 41114 / 493. ARM: 23820 / 41115 / 494.
+- 3건 모두 primary, 실제 모델 gpt-5.6-terra, 실패와 fallback 0건. receipt의 model_name과 운영 API의 artifact/model/generation이 일치한다.
+- API 3건 및 NVDA 추천 상세 확인. source_document_count 6/4/2, structural_status complete, content_review_status not_recorded. 생성과 내용 검증을 구분한다.
+- 모델 설정 revision 2, 기본 Terra와 overrides 없음 유지. 기업 리서치 최근 CLI 선택/actual_model Terra 성공 및 DB 호출 41115 확인.
+- research-verified.json: 기존 보호 데이터 보존 통과, 추천 성과 1,233/thesis 성과 746 유지.
+- Chrome 3개 기업 × desktop/mobile 6개 화면: 200, AI/모델 표시, overflow false, pageerror 0. 원천 12개 모두 200이며 발췌가 있다. ARM source-document-36751의 패널과 모바일/닫기 확인.
+- AAPL 입력의 event-19/source-document-22에서 영문 제목·번역·AAPL 연결 불일치를 추가 발견했다. 이번 호출의 입력 계층 문제이며 해당 이벤트는 생성 본문의 핵심 주장이나 촉매로 인용되지 않았다. 삭제·재분류·추가 생성 없이 후속 과제로 기록했다.
+- 상세 내용 검토 및 의미의 한계: research-review.md. 캡처: output/playwright/purpose-fit-ai-*.png. 검사 JSON과 원본은 output/purpose-fit-recovery-20260911/에 보관했다.
+
+이번 단계는 준비된 운영 명령과 기존 빌드를 사용했으며 소스·스키마·평가 기준을 변경하지 않았다. 이전 통과 CI를 유지하고 실제 실행·API·화면에 맞는 검증을 추가했다.

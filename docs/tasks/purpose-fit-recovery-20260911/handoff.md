@@ -1,6 +1,6 @@
-# 운영 반영·성과 복구 완료, 실제 기업 AI 호출 승인 대기
+# 운영 반영·성과 복구·기업 AI 표본 생성 완료
 
-2026-09-11 KST. PR #52 구현·CI·develop 통합 후, 사용자가 서비스 재시작을 포함한 운영 배포, 성과 1,009건 복구, NVDA/AAPL/ARM 실제 AI 리서치 3건 생성을 “진행”으로 승인했다. 배포와 성과 복구는 완료했다. 실제 리서치 호출은 아래 별도 자동 승인 검토 거절로 실행하지 못했다.
+2026-09-11 KST. PR #52 구현·CI·develop 통합과 운영 배포, 성과 1,009건 복구에 이어 NVDA/AAPL/ARM 실제 AI 리서치 3건을 생성·저장하고 운영 화면을 검증했다. 자동 승인 검토의 외부 전송 보류는 재무·뉴스·앱 생성 추천·투자 논리, OpenAI Codex OAuth/Terra 목적지, 생성 3건 및 운영 DB 저장을 명시한 질문에 사용자가 다시 “진행”으로 승인한 뒤 해소됐다.
 
 ## 배포 증거
 
@@ -41,20 +41,35 @@
 - AI 운영 화면에 Codex 작업 5개, 기본 Terra, CLI 선택 모델과 DB 이력, 관리자 잠금 해제 및 변경 UI가 표시된다. 현재 검증 세션은 조회 전용이며 모델 변경 저장은 이번 작업에서 실행하지 않았다.
 - 캡처: `output/playwright/purpose-fit-production-*.png`. API·실행 원본 및 검사 결과: `output/purpose-fit-recovery-20260911/`, `output/purpose-fit-20260911/recovered-*.json`.
 
-## 아직 해결되지 않은 점
+## 실제 기업 AI 생성 결과
 
-1. **실제 기업 리서치 3건은 미실행이다.** 자동 승인 검토가 내부 재무·뉴스·추천/thesis 자료를 OpenAI Codex OAuth로 전송하고 운영 DB에 저장하는 데 대한 payload/목적지별 승인이 부족하다는 이유로 명령 실행 전 거절했다. 전송 예정 자료를 서버 내부에서 읽기 전용 검사한 뒤 같은 명령을 근거와 함께 재검토 요청했으나 다시 거절됐다. 다른 경로로 우회하지 않았다.
-2. 선택 입력은 NVDA 15,854자, AAPL 15,941자, ARM 14,213자. 계좌/보유 테이블은 조회하지 않는다. private key/API key/AWS key/Bearer/DB주소 패턴은 검출되지 않았다. 공개 재무·뉴스뿐 아니라 앱 생성 추천·투자 논리도 포함한다. `research-payload-preflight.json`에 필드·목적지·prompt hash를 기록했다. 단순 패턴 검사가 모든 민감정보의 부재를 보증하는 것은 아니다.
-3. 사용자에게 해당 자료를 기존 OpenAI Codex OAuth의 gpt-5.6-terra로 전송해 3건을 만들고 운영 DB에 저장할지 명시한 확인을 요청했다. 답변이 필요하다. 승인 전까지 research 단계를 실행하지 않는다. 화면의 기존 대체 보고서는 실제 AI 성공 결과가 아니다.
-4. `/performance`의 2026-09-10/09-04 조회는 0행이다. 이 화면은 해당 종료일의 `performance.attribution_run`과 보유 스냅샷에 연결된 결과만 보여준다. 전체 추천 outcome backfill은 별도 귀속 보고서를 생성하지 않는다. 이를 투자 성과 0이나 추천 복구 실패로 해석하지 않는다. 귀속 보고서와 전체 추천 성과 탐색은 후속 과제다.
-5. `/api/data-health`는 여전히 `attention_required`, open gates 8개: alert_destination, data_operations_artifact_runner, live_ai_invocation_health_attention, benchmark_drift_quality_attention, portfolio_review_decision_history_attention, portfolio_review_decision_feedback_attention, portfolio_review_feedback_calibration_attention, portfolio_review_feedback_cadence_attention. 이번 작업은 이 항목을 임의 해제하지 않았다.
+기준일 2026-09-10을 유지했다. 2026-09-11 00:15~00:16 UTC 실제 호출이며 운영 정책은 기존 gpt-5.6-terra / revision 2다. 호출·소스 변경 없이 준비된 `recover_runtime.py research`를 한 번 실행했다.
 
-## 이어서 실행할 단계
+| 기업 | pipeline run | invocation | artifact | 입력 문서 |
+|---|---:|---:|---:|---:|
+| NVDA | 23818 | 41113 | 492 | 6 |
+| AAPL | 23819 | 41114 | 493 | 4 |
+| ARM | 23820 | 41115 | 494 | 2 |
 
-승인이 도착하면 현재 날짜·모델 설정·운영 commit과 기존 receipt/DB 이력을 먼저 확인한다. 아래 경로의 연구 phase는 시작 파일을 배치별로 남기므로 중단 후 무조건 반복하지 않는다. 이미 완료한 preflight/outcomes/activation은 재실행하지 않는다.
+- primary 3건, failed 0건, fallback 0건. 실제 결과 receipt와 DB/API model_name 모두 gpt-5.6-terra다. 요청 이름 `codex-cli-default`와 구분했다.
+- 세 기업 API의 generation.mode=ai, structural_status=complete, content_review_status=not_recorded. NVDA 추천 상세도 artifact 492를 반환한다.
+- 모델 설정 화면은 기업 리서치 최근 성공 Terra, invocation 41115를 표시한다. 기본 모델과 overrides는 변경하지 않았다.
+- research-verified.json에서 기존 추천·점수·포지션·벤치마크 및 기존 성과 행 보존 검사가 통과했다. 총 추천 성과 1,233개, thesis 성과 746개 유지.
+- Chrome 세 기업 × desktop/mobile 6개 화면: HTTP 200, 실제 AI·Terra 모델 표시, 가로 넘침 없음, pageerror 없음. 연결된 문서 12개는 모두 200/발췌 1개 이상. 새 ARM 원천 패널에서 2026-08-24 문서와 발췌, 모바일, 닫기를 확인했다.
+- 캡처 `output/playwright/purpose-fit-ai-{nvda,aapl,arm}-{desktop,mobile}.png`, ARM 원천 캡처, AI 설정 캡처. API 결과와 receipt/검증 JSON은 `output/purpose-fit-recovery-20260911/`와 `output/purpose-fit-20260911/research-*.json`에 보관했다.
 
-`PYTHONPATH=/opt/stockanalysis/app/src /opt/stockanalysis/venv/bin/python /opt/stockanalysis/runtime/purpose-fit-recovery-20260911/recover_runtime.py research`
+## 내용 검토와 남은 과제
 
-실제 생성은 NVDA/AAPL/ARM 각 1건이며 기존 Terra 설정을 사용한다. primary 성공·실제 CLI 선택 모델·DB 저장·fallback 0건과 기존 행 보존을 확인한다. 내용의 기업별 근거, 자료 누락, 관측 가능한 다음 조건을 검토하고 운영 API/Chrome 캡처를 갱신한다. 이전 결과 또는 fallback을 성공 증거로 사용하지 않는다.
+1. **생성 성공은 투자 판단의 정확성 검증이 아니다.** 3건 모두 원천 부족, 입력에서 제외한 범주, 현재 thesis가 불변 역사 기록이 아니라는 한계를 밝힌다. NVDA는 확인된 사업 촉매를 임의로 채우지 않아 0개이며, AAPL/ARM은 보도된 제품·사업 변화와 후속 확인 조건을 연결한다. 화면의 내용 검토 미기록을 임의 변경하지 않았다. 상세 표본 검토는 research-review.md를 따른다.
+2. **AAPL 원천 연결 불일치**: event-19/source-document-22의 영문 제목은 AeroVironment 드론 기사이나 한국어 번역은 다른 시장 뉴스이며 AAPL supportive 연결이 남아 있다. 읽기 전용 컨텍스트 재조회로 확인했다. 이번 AAPL 보고서는 해당 이벤트를 핵심 주장·촉매로 인용하지 않았지만 입력 문서 목록에는 포함된다. 원천 갱신 후 번역·이벤트·종목 연결의 일관성을 복구하는 후속 작업이 필요하다. 이 행을 삭제·재분류하거나 추가 AI 호출을 실행하지 않았다.
+3. 원천 재무 누락, 경제/테마 분류를 이용한 피어 비교군의 기업 적합성, RSS 제목 중심 근거, 데이터 시점과 현재 가격의 차이가 남는다. 이를 모델 생성만으로 해소했다고 보고하지 않는다.
+4. `/performance`의 2026-09-10/09-04 조회는 0행이다. 해당 종료일의 `performance.attribution_run`과 보유 스냅샷에 연결된 결과를 요구한다. 전체 추천 outcome backfill은 별도 귀속 보고서를 생성하지 않는다. 귀속 보고서와 전체 추천 성과 탐색은 후속 과제다.
+5. 00:14 UTC 이전 확인한 `/api/data-health`에는 open gates 8개가 있었다. 마지막 전체 gate snapshot은 이전 운영 검증 결과이며 이번 AI 성공으로 전체 gate 해소를 주장하지 않는다. 알림·보유 검토·귀속 보고서 등의 완료 여부는 별도로 확인해야 한다.
 
-네트워크 전송·운영 명령에는 독립 SSH 연결을 사용한다. 사용자 13309 터널과 대용량 전송을 공유하지 않는다. 기존 사용자 문서 변경은 보존했다. 임시 PostgreSQL 55487은 종료 상태다. 13321/18779는 이전 로컬 미리보기이며 운영 검증 증거로 쓰지 않았다.
+## 인계와 재실행 방지
+
+`activation.json`, `outcomes-verified.json`, `research-{NVDA,AAPL,ARM}.json`, `research-verified.json`이 존재한다. 완료한 activate/preflight/outcomes/research 단계를 다시 실행하지 않는다. 원격 검증 폴더는 `/opt/stockanalysis/runtime/purpose-fit-recovery-20260911/`다. 추가 기업이나 날짜의 AI 호출은 이번 3건에 포함하지 않는다.
+
+다음 우선순위는 원천 문서·번역·이벤트 연결 일관성, 재무 원천/피어 비교군의 적합성, 포트폴리오 귀속 보고서와 전체 추천 성과 탐색이다. 추천 weight·평가 기준·실거래 경계는 그대로 유지한다.
+
+네트워크 전송·운영 명령에는 독립 SSH 연결을 사용한다. 사용자 13309 터널과 대용량 전송을 공유하지 않는다. 기존 사용자 문서 변경은 보존했다. 임시 PostgreSQL 55487은 종료 상태다. 13321/18779는 이전 로컬 미리보기이며 이번 운영 검증 증거로 쓰지 않았다.
