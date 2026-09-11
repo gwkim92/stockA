@@ -1,0 +1,10 @@
+{
+  "verified": true,
+  "manifest": "/tmp/stocka-resource-guard-ci/web-runtime-800a327e97cd29efeb7be91248d8fbebffe9bd94/linux-build-manifest.json",
+  "archive": "/tmp/stocka-resource-guard-ci/web-runtime-800a327e97cd29efeb7be91248d8fbebffe9bd94/web-runtime.tar.gz",
+  "source_commit": "800a327e97cd29efeb7be91248d8fbebffe9bd94",
+  "web_tree": "1cc01b1944658ac6f7b85b73525a88b9fdb508e0",
+  "build_id": "WcwTXPpZJZtUkdFHyJ8-t",
+  "sha256": "89998f05d43e2528e05f1da0e1c71654cbde49fe5dfa34d9fb04f6f6b5f9f597",
+  "bytes": 3671147
+}

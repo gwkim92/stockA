@@ -1,0 +1,84 @@
+{
+  "verified_at": "2026-09-11T09:06:39.780816+00:00",
+  "parents": [
+    {
+      "run_id": 23865,
+      "status": "succeeded",
+      "queue_counts": {
+        "due": 26,
+        "fresh": 6,
+        "reconcile": 0,
+        "retry_wait": 0
+      }
+    },
+    {
+      "run_id": 23869,
+      "status": "succeeded",
+      "queue_counts": {
+        "due": 23,
+        "fresh": 9,
+        "reconcile": 0,
+        "retry_wait": 0
+      }
+    }
+  ],
+  "refreshes": [
+    {
+      "run_id": 23866,
+      "status": "succeeded",
+      "symbol": "A",
+      "fact_count": 269,
+      "period_policy": "sec-statement-duration-v2",
+      "before_image_present": true
+    },
+    {
+      "run_id": 23867,
+      "status": "succeeded",
+      "symbol": "ADBE",
+      "fact_count": 430,
+      "period_policy": "sec-statement-duration-v2",
+      "before_image_present": true
+    },
+    {
+      "run_id": 23868,
+      "status": "succeeded",
+      "symbol": "ADI",
+      "fact_count": 344,
+      "period_policy": "sec-statement-duration-v2",
+      "before_image_present": true
+    },
+    {
+      "run_id": 23870,
+      "status": "succeeded",
+      "symbol": "ADSK",
+      "fact_count": 382,
+      "period_policy": "sec-statement-duration-v2",
+      "before_image_present": true
+    },
+    {
+      "run_id": 23871,
+      "status": "succeeded",
+      "symbol": "AEIS",
+      "fact_count": 356,
+      "period_policy": "sec-statement-duration-v2",
+      "before_image_present": true
+    },
+    {
+      "run_id": 23872,
+      "status": "succeeded",
+      "symbol": "ALAB",
+      "fact_count": 106,
+      "period_policy": "sec-statement-duration-v2",
+      "before_image_present": true
+    }
+  ],
+  "two_cycles_no_duplicate": true,
+  "protected_data_unchanged": true,
+  "before_images_same_database": true,
+  "queue_counts": {
+    "due": 23,
+    "fresh": 9,
+    "retry_wait": 0,
+    "reconcile": 0
+  }
+}
