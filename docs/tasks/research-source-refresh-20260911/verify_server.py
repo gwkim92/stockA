@@ -52,8 +52,11 @@ def env_hashes():
 
 
 def api(path):
-    with urllib.request.urlopen('http://127.0.0.1:8787'+path, timeout=60) as response:
-        return json.load(response)
+    env = load_env_file_values(BASE.parent/'frontend-api.env')
+    request = urllib.request.Request('http://127.0.0.1:8787'+path,
+        headers={'Authorization': 'Bearer '+env['STOCKANALYSIS_FRONTEND_API_READ_TOKEN']})
+    with urllib.request.urlopen(request, timeout=60) as response:
+        return json.load(response)['data']
 
 
 def main():
