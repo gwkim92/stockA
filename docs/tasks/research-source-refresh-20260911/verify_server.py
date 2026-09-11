@@ -4,6 +4,7 @@ import hashlib
 import importlib.util
 import json
 import os
+import re
 from pathlib import Path
 import subprocess
 import sys
@@ -62,6 +63,13 @@ def main():
     identity = activation.identity()
     os.umask(0o077)
     BASE.mkdir(exist_ok=True, mode=0o700)
+    if '--restore-timers' in sys.argv:
+        checkpoint = BASE/'canary-started.json'
+        if checkpoint.exists():
+            timers = json.loads(checkpoint.read_text())['timers']
+            assert len(set(timers))==14 and all(re.fullmatch(r'stockanalysis-operating-data-[a-z-]+\.timer', item) for item in timers)
+            subprocess.run(['sudo', '-n', 'systemctl', 'start', *timers], check=True, timeout=90)
+        return
     os.environ.update(load_env_file_values(BASE.parent/'data-operations.env'))
     config = RuntimeConfig.from_env()
     db = PsqlCommandExecutor.from_config(config)

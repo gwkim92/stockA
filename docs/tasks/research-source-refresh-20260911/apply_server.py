@@ -5,7 +5,7 @@ import subprocess
 
 
 if __name__ == '__main__':
-    path = Path(__file__).resolve().parents[1] / 'research-automation-20260911/activate.py'
+    path = Path('/opt/stockanalysis/app/docs/tasks/research-automation-20260911/activate.py')
     spec = importlib.util.spec_from_file_location('activation', path)
     activation = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(activation)
