@@ -26,6 +26,10 @@
 
 현재 실행 목록에서 빠진 UNRATE/PCEPI/GDPC1과 10~20년 이력부터 추가하는 것이 우선이다. 발표시각·수정일·수집시각을 나눠 저장하며, 기존 백테스트의 데이터 분할이나 평가 기준은 별도 변경 없이 유지한다.
 
+기존 FRED 키로 UNRATE의 2024년 1~2월 관측값을 realtime=2024-03-08 및 2026-09-10으로 두 번 조회해 모두 HTTP 200을 확인했다. 이번 두 표본은 각각 3.7/3.9로 같았으므로 수정이 발생한 사례를 검증한 것은 아니다. 시점 지정 조회가 가능하다는 증거이며, DB 적재나 발표시각 복구는 아직 수행하지 않았다. `probe_alfred.py`, 로컬 `alfred-probe.json`에 기록했다.
+
+정치·규제 사건은 [Federal Register API](https://www.federalregister.gov/reader-aids/developer-resources/rest-api)와 [BIS 공식 발표](https://www.bis.gov/news-updates/search?content_type=All)로 보완할 수 있다. Federal Register는 키 없이 CSV/JSON을 제공하며 1994년 이후 문서 검색이 가능하다. 한 검색의 페이지 이동은 2,000건까지이므로 날짜로 나눠 수집한다. 제안 규칙·최종 규칙·발표일·시행일을 구분하고 공식 govinfo PDF까지 연결한다. 반도체 수출통제 발표가 있다는 사실과 개별 기업 매출에 미친 영향은 별도 검증한다. 이번에는 공식 접근 문서를 확인했으며 API의 운영 수집기는 설치하지 않았다.
+
 ## 3순위: ETF 공식 보유·비용·NAV
 
 [SSGA SPY](https://www.ssga.com/us/en/intermediary/etfs/state-street-spdr-sp-500-etf-trust-spy), [Invesco QQQ](https://www.invesco.com/qqq-etf/en/about.html), [iShares IVV](https://www.ishares.com/us/products/239726/ishares-core-sp-500-etf)는 공식 상품 정보와 보유내역 다운로드 경로가 있다. SSGA/Invesco는 이미 프로젝트에 수집기가 있으므로 신규 기능인 것처럼 다시 만들지 않고 갱신 상태·일별 보존·가중치 합·상위 편입 종목을 확인한다. QQQ 페이지의 보유 목록은 조사 도구에서 동적 로딩 실패가 있었으므로 페이지 접근만으로 해당 날짜 파일 수집 성공을 주장하지 않는다.

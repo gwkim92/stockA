@@ -8,6 +8,7 @@
 - 임시 PostgreSQL 17에서 기존 시간대/cutoff 회귀와 새 4개 SQL 시나리오 통과: 주식 수 날짜 제외, 실제 최신 기간의 결측 유지, 미래/미상 보고일 제외, 비교군 미검증 표시. 전용 DB의 transaction 안에서 fixture를 만들고 rollback했다. 전용 클러스터는 종료했다.
 - 수정된 실제 SELECT를 운영 DB에서 read-only로 실행: NVDA 2026-01-25, AAPL 2025-09-27, ARM 2025-03-31. 결과는 `corrected-contexts.json`에 보관.
 - 공식 SEC companyfacts NVDA/AAPL/ARM 모두 조회 성공. 새 AI 호출·운영 DB 쓰기 없음.
+- 기존 FRED 키로 UNRATE 2024-01/02의 두 vintage 조회 모두 200. 시점 지정 접근은 확인했지만 두 표본 값이 같아 수정 차이 사례까지 검증한 것은 아니다.
 
 ## 실제 Chrome
 

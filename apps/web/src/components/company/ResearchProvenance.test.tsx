@@ -25,6 +25,6 @@ describe('report source review', () => {
   it('rejects unsafe review URLs while retaining findings', () => {
     render(<ResearchProvenance research={{ ...research, content_review: { status: 'needs_source_correction', findings: [{ title: '문제', source_url: 'javascript:alert(1)' }] } }} />);
     expect(screen.getByText('문제')).toBeTruthy();
-    expect(screen.queryByRole('link')).toBeNull();
+    expect(screen.queryByRole('link', { hidden: true })).toBeNull();
   });
 });
