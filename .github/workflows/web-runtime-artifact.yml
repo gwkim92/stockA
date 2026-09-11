@@ -2,12 +2,19 @@ name: Web Runtime Artifact
 
 on:
   workflow_dispatch:
+  pull_request:
+    branches: [develop, main]
+    paths: ['apps/web/**', '.github/workflows/web-runtime-artifact.yml']
   push:
     branches: [develop]
-    paths: ['.github/workflows/web-runtime-artifact.yml']
+    paths: ['apps/web/**', '.github/workflows/web-runtime-artifact.yml']
 
 permissions:
   contents: read
+
+concurrency:
+  group: web-runtime-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
@@ -30,6 +37,7 @@ jobs:
       - name: Build and typecheck
         working-directory: apps/web
         run: |
+          npx vitest run tests/build-guard.test.mjs
           npm run build
           npm run typecheck
       - name: Package runtime without credentials or build cache
@@ -41,6 +49,24 @@ jobs:
           sha256sum apps/web/package-lock.json > web-runtime-artifact/PACKAGE_LOCK_SHA256
           cd web-runtime-artifact
           sha256sum web-runtime.tar.gz > SHA256SUMS
+      - name: Record artifact source and integrity manifest
+        run: |
+          python3 - <<'PY'
+          import hashlib, json, platform, subprocess
+          from pathlib import Path
+          assert platform.system() == 'Linux' and platform.machine() == 'x86_64'
+          root = Path('web-runtime-artifact')
+          manifest = {
+              'source_commit': subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip(),
+              'web_tree': subprocess.check_output(['git', 'rev-parse', 'HEAD:apps/web'], text=True).strip(),
+              'archive_name': 'web-runtime.tar.gz',
+              'sha256': hashlib.sha256((root/'web-runtime.tar.gz').read_bytes()).hexdigest(),
+              'package_lock_sha256': hashlib.sha256(Path('apps/web/package-lock.json').read_bytes()).hexdigest(),
+              'build_id': Path('apps/web/.next/BUILD_ID').read_text().strip(),
+              'platform': 'linux/amd64',
+          }
+          (root/'linux-build-manifest.json').write_text(json.dumps(manifest, indent=2)+'\n')
+          PY
       - uses: actions/upload-artifact@v4
         with:
           name: web-runtime-${{ github.sha }}
