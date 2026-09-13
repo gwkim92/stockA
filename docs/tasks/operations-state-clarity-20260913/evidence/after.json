@@ -1,0 +1,146 @@
+{
+  "at": "2026-09-13T08:31:03.014282+00:00",
+  "jobs": [
+    {
+      "pipeline_name": "tossinvest_readonly_sync",
+      "job_id": "toss-live-account-readonly",
+      "domain": "portfolio",
+      "cadence": "intraday",
+      "expected_after_local": "08:55, 12:55, 16:55",
+      "stale_after_hours": 8,
+      "artifact_policy": "stdout_json_stderr_log_and_toss_account_readonly_counts",
+      "latest_status": "succeeded",
+      "health_status": "scheduled_wait",
+      "latest_run_id": "pipeline-run-24013",
+      "finished_at": "2026-09-11T20:55:28.793304Z"
+    },
+    {
+      "pipeline_name": "tossinvest_market_data_sync",
+      "job_id": "toss-priority-microdata-intraday",
+      "domain": "market",
+      "cadence": "intraday",
+      "expected_after_local": "09:40, 12:40, 15:40",
+      "stale_after_hours": 8,
+      "artifact_policy": "stdout_json_stderr_log_and_toss_microdata_counts",
+      "latest_status": "succeeded",
+      "health_status": "scheduled_wait",
+      "latest_run_id": "pipeline-run-23999",
+      "finished_at": "2026-09-11T19:40:34.344116Z"
+    }
+  ],
+  "job_count": 43,
+  "feedback": {
+    "eval_run_id": "eval-run-1768",
+    "feedback_status": "has_contradictions",
+    "decision_count": 11,
+    "validated_count": 6,
+    "contradicted_count": 4,
+    "needs_more_data_count": 1
+  },
+  "unresolved": [
+    {
+      "decision_index": 5,
+      "decision_family": "benchmark_drift",
+      "symbol": "AMZN",
+      "decision_type": "needs_thesis_update",
+      "decision_label": "미보유 사유 확인",
+      "feedback_status": "needs_more_data",
+      "feedback_reason": "성과 outcome, thesis outcome, paper validation, 가격 변화 중 결정적인 후속 근거가 아직 부족하다.",
+      "feedback_display_label": "판단 보류",
+      "feedback_display_reason": "수치 근거는 있지만 저장된 평가에서 검증·반박을 확정하지 못했습니다. 자료 누락과 구분해 후속 성과를 관찰합니다.",
+      "source_decision": {
+        "priority": 5,
+        "severity": "watch",
+        "current_weight": 0.0,
+        "benchmark_weight": 0.04104394,
+        "active_weight": -0.04104394,
+        "related_recommendation_id": null,
+        "related_thesis_id": null,
+        "rationale": "AMZN는 포트폴리오 0.0%, 벤치마크 4.1%, 벤치마크 대비 괴리 -4.1%이다. 의도적 미보유인지 데이터/투자 논리 공백인지 검토한다."
+      },
+      "evidence": {
+        "recommendation_outcome": {
+          "outcome_id": "outcome-unknown",
+          "recommendation_id": "recommendation-unknown",
+          "measurement_end_date": "",
+          "horizon_days": 0,
+          "absolute_return_pct": null,
+          "alpha_pct": null,
+          "outcome_label": ""
+        },
+        "thesis": {
+          "thesis_id": "thesis-83",
+          "status": "active",
+          "title": "AMZN watch thesis via Technology Domain",
+          "conviction_score": 0.4869
+        },
+        "thesis_outcome": {
+          "outcome_id": "outcome-unknown",
+          "thesis_id": "thesis-unknown",
+          "measurement_end_date": "",
+          "holding_days": 0,
+          "absolute_return_pct": null,
+          "alpha_pct": null,
+          "success_grade": "",
+          "summary": ""
+        },
+        "price_evidence": {
+          "baseline_trade_date": "2026-05-22",
+          "baseline_adjusted_close": 266.32001,
+          "latest_trade_date": "2026-09-04",
+          "latest_adjusted_close": 258.51001,
+          "price_return_pct": -0.029326
+        },
+        "paper_validation": {
+          "paper_validation_run_id": "paper-validation-90",
+          "validation_date": "2026-09-11",
+          "status": "failed",
+          "conflict_count": 0,
+          "symbol_blocked": false,
+          "symbol_validated": false
+        }
+      },
+      "automatic_order_allowed": false,
+      "broker_submit_allowed": false,
+      "order_boundary": "read_only_no_order"
+    }
+  ],
+  "calibration": {
+    "eval_run_id": "eval-run-1771",
+    "calibration_status": "collect_more_feedback",
+    "mature_decision_count": 454,
+    "decision_count": 550,
+    "feedback_run_count": 50,
+    "weight_review_blocked": true,
+    "weight_review_block_reason": "누적 관찰 수 기준은 채웠지만 저장된 평가에 미확정 관찰 96건, 관찰 기간 미충족 0건이 남아 있습니다. 같은 결정의 반복 관찰이 포함된 수치이며, 항목별 판단 보류·수치 근거 부족을 확인해야 합니다."
+  },
+  "protected_evaluation_hash": "0bbff56ff5dfff1a2afa5bb41e3b1780",
+  "batch_runtime": {
+    "status": "protected",
+    "shared_limits_applied": true,
+    "database_limits_applied": true,
+    "database_memory_max_bytes": 3221225472,
+    "monitored_profile_count": 13,
+    "protected_profile_count": 13,
+    "attention_profile_count": 0,
+    "observation_age_seconds": 14
+  },
+  "artifact_runner": {
+    "status": "runner_evidence_available",
+    "attention_required": false,
+    "job_count": 43,
+    "artifact_policy_count": 43,
+    "latest_run_count": 43,
+    "failed_or_missing_count": 0,
+    "degraded_count": 0,
+    "profile_scheduler_installed": false,
+    "timer_count": 15,
+    "active_timer_count": 13,
+    "manual_smoke_status": "passed",
+    "local_worker_status": "completed",
+    "latest_artifact_root": "/opt/stockanalysis/artifacts/data-operations",
+    "order_boundary": "read_only_no_order",
+    "automatic_action_allowed": false,
+    "next_action": "artifact runner 실행 증거는 있다. profile scheduler 활성 상태를 확인해 반복 운영 증거를 보강한다."
+  }
+}

@@ -40,6 +40,8 @@ def main():
         assert calibration['weight_review_blocked'] is True
         assert '반복 관찰' in calibration['weight_review_block_reason']
         assert snapshot['batch_runtime']['attention_profile_count']==0
+        assert snapshot['batch_runtime']['monitored_profile_count']==13
+        assert snapshot['artifact_runner']['active_timer_count']==13
         assert snapshot['artifact_runner']['attention_required'] is False
         assert all(not row['automatic_order_allowed'] and not row['broker_submit_allowed'] and row['order_boundary']=='read_only_no_order' for row in feedback['latest_items'])
     (BASE/(mode+'.json')).write_text(json.dumps(snapshot,ensure_ascii=False,indent=2)+'\n')

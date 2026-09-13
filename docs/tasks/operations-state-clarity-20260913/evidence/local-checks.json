@@ -1,0 +1,8 @@
+{
+  "adapter_display_tests": 113,
+  "financial_automation_postgres_tests": 208,
+  "targeted_frontend_tests": 2,
+  "typecheck": "passed",
+  "browser": "browser.json",
+  "scope": "Same rendered web tree; query-cost change covered by real PostgreSQL and production EXPLAIN ANALYZE."
+}
