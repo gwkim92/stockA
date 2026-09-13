@@ -39,7 +39,7 @@ const fs=require('fs');
   await rows.first().scrollIntoViewIfNeeded();
   await page.screenshot({path:__dirname+'/evidence/scheduled-wait-'+name+'.png'});
   results.push({name,http:response.status(),amzn:await amzn.innerText(),scheduledWaits:texts,metrics,errors});
-  const coverage=await page.goto('http://127.0.0.1:13309/portfolio/coverage',{waitUntil:'networkidle'});
+  const coverage=await page.goto('http://127.0.0.1:13309/portfolio/coverage/details',{waitUntil:'networkidle'});
   await expect(page.locator('#portfolio-outcome-boundary')).toContainText('같은 결정을 여러 날짜에 평가한 기록');
   results[results.length-1].coverageHttp=coverage.status();
   await page.close();
