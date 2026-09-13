@@ -16,6 +16,7 @@ from pathlib import Path
 import time
 from uuid import uuid4
 
+from stockanalysis.ai.research_source_version import latest_source_sql
 from stockanalysis.ingest.config import RuntimeConfig
 from stockanalysis.ingest.macro.sql import sql_date, sql_literal
 from stockanalysis.ingest.market.universe import load_market_universe_records
@@ -57,17 +58,10 @@ with tracked as (
         where r.pipeline_name={sql_literal(PIPELINE)}
           and r.config_json->>'instrument_id'=t.instrument_id::text
         order by run_id desc limit 1) last_run on true
-    left join lateral (select ended_at from ops.pipeline_run r
-        where r.pipeline_name in ({sql_literal(PIPELINE)},'sec_companyfacts_upsert') and r.status='succeeded'
-          and r.config_json->>'instrument_id'=t.instrument_id::text
-          and r.config_json->>'period_policy'={sql_literal(PERIOD_POLICY)}
-          and (r.pipeline_name={sql_literal(PIPELINE)} or exists (
-              select 1 from market.financial_metric_normalized n
-              join ops.pipeline_run nr on nr.run_id=n.source_run_id
-              where n.instrument_id=t.instrument_id and nr.status='succeeded'
-                and nr.ended_at >= r.ended_at
-          ))
-        order by ended_at desc nulls last limit 1) last_good on true
+    -- Freshness must prove the same source version the report worker accepts.
+    -- A legacy upsert plus normalization has no atomic source receipt/hash;
+    -- treating it as fresh would leave reporting waiting for up to seven days.
+    left join lateral ({latest_source_sql('t.instrument_id')}) last_good on true
 )
 select coalesce(jsonb_agg(to_jsonb(q) order by last_success nulls first, last_attempt nulls first, primary_symbol),'[]'::jsonb)::text
 from queue q;"""
