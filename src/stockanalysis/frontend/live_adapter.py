@@ -5617,7 +5617,8 @@ with expected_jobs(
 data_health_local_clock as (
     select now() at time zone 'America/New_York' as local_now
 ),
-expected_jobs_with_due as (
+-- Compute schedule windows once per job, before joining historical runs.
+expected_jobs_with_due as materialized (
     select
         expected.*,
         case

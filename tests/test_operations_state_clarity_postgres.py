@@ -79,3 +79,19 @@ started_at timestamptz,ended_at timestamptz,config_json jsonb default '{}');''')
     def test_long_previous_slot_does_not_substitute_for_last_scheduled_run(self):
         self.run_record(started='2026-09-11 12:55-04',ended='2026-09-11 17:01-04')
         self.assertEqual(self.health()['health_status'], 'stale')
+
+    def test_schedule_generation_is_bounded_with_many_historical_runs(self):
+        self.sql("""insert into ops.pipeline_run
+select n,'succeeded','tossinvest_readonly_sync',
+'2026-09-11 16:55-04'::timestamptz,'2026-09-11 16:56-04'::timestamptz,'{}'
+from generate_series(1,2500) n;""")
+        query = render_frontend_data_health_state_sql().split(',\nselected_tossinvest_readonly_sync as (',1)[0]
+        query = query.replace('now()', "timestamptz '2026-09-13 04:00-04'")
+        plan = json.loads(self.sql('explain (analyze, verbose, format json) '+query+' select jsonb_agg(t) from latest_runs t;'))[0]['Plan']
+        def scans(node):
+            yield node
+            for child in node.get('Plans', []):
+                yield from scans(child)
+        loops = [n['Actual Loops'] for n in scans(plan) if n.get('Function Name')=='generate_series']
+        self.assertTrue(loops)
+        self.assertLessEqual(sum(loops),8, 'Schedule calculation must not scale with historical run count')
