@@ -240,6 +240,7 @@ const KOREAN_LABELS: Record<string, string> = {
   none: "없음",
   normal: "일반",
   not_configured: "미설정",
+  scheduled_wait: "다음 일정 대기",
   not_due: "아직 실행 대상 아님",
   not_installed: "미설치",
   not_requested: "아직 요청되지 않음",

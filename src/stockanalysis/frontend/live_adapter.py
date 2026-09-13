@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import math
 import os
 import re
 from dataclasses import dataclass
@@ -960,7 +961,7 @@ def _build_open_gate_details(
                     "severity": "low" if status == "insufficient_history" else "medium",
                     "status_label": "weight 변경 차단",
                     "summary": (
-                        f"성숙한 검토 표본 {mature_count}/{min_mature}개, "
+                        f"성숙한 누적 관찰 {mature_count}/{min_mature}건(같은 결정의 반복 관찰 포함), "
                         f"feedback {feedback_runs}/{min_feedback_runs}회.{wait_text}"
                     ),
                     "next_action": str(
@@ -5638,7 +5639,17 @@ expected_jobs_with_due as (
                     end
                 ) + expected.expected_after_local::time
             else null::timestamp
-        end::date as latest_due_date_local
+        end::date as latest_due_date_local,
+        case when expected.job_id in ('toss-live-account-readonly', 'toss-priority-microdata-intraday')
+            then (
+                select max(day::date + trim(slot)::time)
+                from generate_series(clock.local_now::date - 7, clock.local_now::date, interval '1 day') day
+                cross join unnest(string_to_array(expected.expected_after_local, ',')) slot
+                where extract(isodow from day)::integer between 1 and 5
+                  and day::date + trim(slot)::time <= clock.local_now
+            )
+            else null::timestamp
+        end as latest_intraday_due_local
     from expected_jobs expected
     cross join data_health_local_clock clock
 ),
@@ -5673,6 +5684,12 @@ latest_runs as (
             when run.status in ('started', 'running') then 'running'
             when run.ended_at is null then 'missing'
             when run.status = 'succeeded_with_fallback' then 'degraded'
+            when expected.latest_intraday_due_local is not null
+             and run.status = 'succeeded'
+             and (run.started_at at time zone 'America/New_York') >= expected.latest_intraday_due_local
+             and (run.ended_at at time zone 'America/New_York') >= expected.latest_intraday_due_local
+             and run.ended_at < now() - make_interval(hours => expected.stale_after_hours)
+                then 'scheduled_wait'
             when expected.latest_due_date_local is not null
              and run.status = 'succeeded'
              and (run.ended_at at time zone 'America/New_York')::date >= expected.latest_due_date_local
@@ -5682,6 +5699,11 @@ latest_runs as (
         end as health_status
     from expected_jobs_with_due expected
     left join ops.pipeline_run run on run.pipeline_name = expected.pipeline_name
+      and (expected.pipeline_name <> 'tossinvest_market_data_sync'
+           or (run.config_json->>'sync_mode' = 'microdata' and run.config_json->>'market_code' = 'US'))
+    -- This pipeline summary represents the priority intraday job, not daily candles.
+    where expected.pipeline_name <> 'tossinvest_market_data_sync'
+       or expected.job_id = 'toss-priority-microdata-intraday'
     order by expected.pipeline_name, run.started_at desc nulls last, run.run_id desc nulls last
 ),
 selected_tossinvest_readonly_sync as (
@@ -17338,8 +17360,17 @@ def _build_portfolio_review_feedback_calibration_payload(payload: dict[str, Any]
     elif feedback_run_gap > 0 or mature_decision_gap > 0:
         maturity_status = "insufficient_feedback_history"
         block_reason = (
-            f"성숙한 검토 표본 {mature_decision_count}/{min_mature_decisions}개, "
+            f"성숙한 누적 관찰 {mature_decision_count}/{min_mature_decisions}건(같은 결정의 반복 관찰 포함), "
             f"feedback 실행 {feedback_run_count}/{min_feedback_runs}회라서 아직 추천 weight 검토 근거로 쓰지 않는다."
+        )
+    elif calibration_status == "collect_more_feedback":
+        maturity_status = calibration_status
+        unresolved = int(_safe_number(payload.get("needs_more_data_count")) or 0)
+        too_early = int(_safe_number(payload.get("too_early_count")) or 0)
+        block_reason = (
+            f"누적 관찰 수 기준은 채웠지만 저장된 평가에 미확정 관찰 {unresolved}건, "
+            f"관찰 기간 미충족 {too_early}건이 남아 있습니다. "
+            "같은 결정의 반복 관찰이 포함된 수치이며, 항목별 판단 보류·수치 근거 부족을 확인해야 합니다."
         )
     elif calibration_status == "manual_review_ready":
         maturity_status = "manual_review_ready"
@@ -17735,6 +17766,30 @@ def _build_portfolio_review_feedback_action_router_payload(payload: dict[str, An
     }
 
 
+def _portfolio_feedback_display(item: Mapping[str, Any]) -> dict[str, str]:
+    """Explain stored evidence without reclassifying or persisting evaluation outcomes."""
+    if item.get("feedback_status") != "needs_more_data":
+        return {}
+    evidence = _as_dict(item.get("evidence"))
+    numeric_fields = {
+        "recommendation_outcome": ("alpha_pct", "absolute_return_pct"),
+        "thesis_outcome": ("alpha_pct", "absolute_return_pct"),
+        "price_evidence": ("price_return_pct",),
+    }
+    has_measurement = any(
+        (number := _safe_number(_as_dict(evidence.get(source)).get(field))) is not None and math.isfinite(number)
+        for source, fields in numeric_fields.items() for field in fields
+    )
+    if _as_dict(evidence.get("paper_validation")).get("symbol_blocked") is True:
+        return {"feedback_display_label": "가상 매매 검증 차단",
+                "feedback_display_reason": "저장된 가상 매매 검증에서 이 종목이 차단됐습니다. 원천·충돌 근거를 확인해야 하며 가격 수치만으로 해제하지 않습니다."}
+    if has_measurement:
+        return {"feedback_display_label": "판단 보류",
+                "feedback_display_reason": "수치 근거는 있지만 저장된 평가에서 검증·반박을 확정하지 못했습니다. 자료 누락과 구분해 후속 성과를 관찰합니다."}
+    return {"feedback_display_label": "수치 근거 부족",
+            "feedback_display_reason": "저장된 평가에 사용 가능한 수익률·초과수익·가격 변화 수치가 없습니다. 후속 성과 근거가 필요합니다."}
+
+
 def _build_portfolio_review_feedback_item_payload(item: dict[str, Any]) -> dict[str, Any]:
     source_decision = _as_dict(item.get("source_decision"))
     evidence = _as_dict(item.get("evidence"))
@@ -17751,6 +17806,7 @@ def _build_portfolio_review_feedback_item_payload(item: dict[str, Any]) -> dict[
         "decision_label": str(item.get("decision_label") or ""),
         "feedback_status": str(item.get("feedback_status") or ""),
         "feedback_reason": str(item.get("feedback_reason") or ""),
+        **_portfolio_feedback_display(item),
         "source_decision": {
             "priority": int(_safe_number(source_decision.get("priority")) or 0),
             "severity": str(source_decision.get("severity") or ""),

@@ -54,7 +54,7 @@ export function buildPortfolioReviewCalibrationCard(
 ): DataHealthDetailDecisionCard {
   return {
     body: portfolioReviewCalibration.status === "loaded"
-      ? `성숙 표본 ${portfolioReviewCalibration.mature_decision_count}/${portfolioReviewCalibration.min_mature_decisions}개, 사후평가 ${portfolioReviewCalibration.feedback_run_count}/${portfolioReviewCalibration.min_feedback_runs}회. ${portfolioReviewCalibration.estimated_maturity_date ? `예상 성숙일은 ${portfolioReviewCalibration.estimated_maturity_date}이다.` : operationCopy(portfolioReviewCalibration.weight_review_block_reason)}`
+      ? `성숙한 누적 관찰(동일 결정 반복 포함) ${portfolioReviewCalibration.mature_decision_count}/${portfolioReviewCalibration.min_mature_decisions}개, 사후평가 ${portfolioReviewCalibration.feedback_run_count}/${portfolioReviewCalibration.min_feedback_runs}회. ${portfolioReviewCalibration.estimated_maturity_date ? `예상 성숙일은 ${portfolioReviewCalibration.estimated_maturity_date}이다.` : operationCopy(portfolioReviewCalibration.weight_review_block_reason)}`
       : "단일 사후평가만으로 추천 산식 반영 비중을 바꾸지 않기 위해 누적평가가 필요하다.",
     cta: "신뢰도 보기",
     href: "#portfolio-review-calibration",

@@ -24,4 +24,5 @@ python3 -m unittest tests.test_sec_companyfacts tests.test_financial_period_inte
   tests.test_operating_data_profile_scheduler tests.test_data_operations_cadence \
   tests.test_research_source_refresh tests.test_research_source_refresh_postgres \
   tests.test_portfolio_review_feedback_cadence tests.test_portfolio_review_feedback_action_router \
-  tests.test_portfolio_review_feedback_maintenance -v
+  tests.test_portfolio_review_feedback_maintenance \
+  tests.test_operations_state_clarity tests.test_operations_state_clarity_postgres -v

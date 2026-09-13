@@ -31,6 +31,7 @@ export function DataHealthPortfolioReviewCalibrationSection({
 	          검토 결정은 최소 관찰 기간을 지난 뒤 실제 성과와 대조해야 한다. 이 섹션은 지금 추천 산식 변경이 왜
           막혀 있는지, 어떤 표본이 부족한지, 언제 다시 사후평가를 실행해야 하는지를 보여주는 읽기 전용 안전장치다.
         </p>
+        <p className="board-intro">누적 관찰에는 같은 결정을 여러 날짜에 평가한 기록이 포함됩니다. 서로 다른 투자 판단의 개수가 아닙니다.</p>
         <div className="status-rail compact-rail">
           <article className="rail-cell">
 	            <span>추천 산식 검토 상태</span>
@@ -51,11 +52,11 @@ export function DataHealthPortfolioReviewCalibrationSection({
 	            <small>부족 {portfolioReviewCalibration.feedback_run_gap}회 · {portfolioReviewCalibration.lookback_days || "기간 미확인"}일 관찰</small>
           </article>
           <article className="rail-cell">
-            <span>성숙한 판단</span>
+            <span>성숙한 누적 관찰</span>
             <strong>
               {portfolioReviewCalibration.mature_decision_count}/{portfolioReviewCalibration.min_mature_decisions}
             </strong>
-            <small>부족 {portfolioReviewCalibration.mature_decision_gap}개 · 전체 판단 {portfolioReviewCalibration.decision_count}개</small>
+            <small>부족 {portfolioReviewCalibration.mature_decision_gap}개 · 전체 관찰 {portfolioReviewCalibration.decision_count}개</small>
           </article>
           <article className="rail-cell">
             <span>예상 성숙일</span>
@@ -95,7 +96,7 @@ export function DataHealthPortfolioReviewCalibrationSection({
 	              <span>판단군</span>
               <strong>{koCode(summary.decision_family || "unknown")}</strong>
               <p>
-                전체 {summary.decision_count}개 · 성숙 {summary.mature_decision_count}개 · 반박{" "}
+                누적 관찰 {summary.decision_count}건 · 성숙 {summary.mature_decision_count}개 · 반박{" "}
                 {summary.contradicted_count}개 · 아직 이른 판단 {summary.too_early_count}개
               </p>
             </article>

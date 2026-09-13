@@ -148,9 +148,9 @@ export function DataHealthPortfolioReviewHistorySections({
             <small>{portfolioReviewFeedback.min_horizon_days}일 최소 관찰</small>
           </article>
           <article className="rail-cell">
-            <span>근거 부족</span>
+            <span>미확정 항목</span>
             <strong>{portfolioReviewFeedback.needs_more_data_count}</strong>
-	            <small>성과/가상 매매/가격 보강 필요</small>
+	            <small>항목별 판단 보류·수치 근거 부족 확인</small>
           </article>
           <article className="rail-cell rail-critical">
             <span>실거래 상태</span>
@@ -185,7 +185,7 @@ export function DataHealthPortfolioReviewHistorySections({
                     </td>
                     <td>
                       <span className={`risk-tag ${feedbackStatusClass(item.feedback_status)}`}>
-                        {koCode(item.feedback_status)}
+                        {item.feedback_display_label || koCode(item.feedback_status)}
                       </span>
 	                      <small>{item.evidence.recommendation_outcome.outcome_label || "성과 미측정"}</small>
                     </td>
@@ -199,7 +199,7 @@ export function DataHealthPortfolioReviewHistorySections({
                       </small>
                     </td>
                     <td>
-	                      <small>{operationCopy(koReason(item.feedback_reason))}</small>
+	                      <small>{operationCopy(koReason(item.feedback_display_reason || item.feedback_reason))}</small>
 	                      <small>{orderBoundaryCopy(item.order_boundary)} · {orderSubmitCopy(item.broker_submit_allowed)}</small>
                     </td>
                   </tr>
