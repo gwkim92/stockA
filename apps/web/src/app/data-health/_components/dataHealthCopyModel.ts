@@ -9,6 +9,8 @@ export function isRecord(value: unknown): value is AuditSampleRecord {
 export function statusRiskClass(value: string): "risk-low" | "risk-medium" | "risk-high" {
   if (
     value === "healthy"
+    || value === "ok"
+    || value === "scheduled_wait"
     || value === "succeeded"
     || value === "configured"
     || value === "not_due"

@@ -3086,6 +3086,8 @@ export type PortfolioReviewFeedbackItem = {
   decision_label: string;
   feedback_status: string;
   feedback_reason: string;
+  feedback_display_label?: string;
+  feedback_display_reason?: string;
   source_decision: {
     priority: number;
     severity: string;

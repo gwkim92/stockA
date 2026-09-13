@@ -14,6 +14,9 @@ export function runStateLabel(run: PipelineRun | null) {
   if (!run) {
     return "실행 이력 없음";
   }
+  if (run.latest_status === "succeeded" && run.health_status === "scheduled_wait") {
+    return "마지막 예정 실행 성공 · 다음 일정 대기";
+  }
   if (run.latest_status === "succeeded" && run.health_status === "ok") {
     return "최근 실행 성공";
   }
@@ -56,6 +59,9 @@ export function runQualityExplanation(run: PipelineRun | null) {
   }
   if (run.latest_status === "succeeded" && run.health_status === "ok") {
     return "최근 실행은 정상 범위다.";
+  }
+  if (run.health_status === "scheduled_wait") {
+    return "마지막 예정 실행이 성공했습니다. 미국 동부 시간의 다음 평일 실행을 기다리며, 데이터 시점은 완료 시각을 확인하세요.";
   }
   return "상태와 완료 시각을 기준으로 실행 로그 확인이 필요합니다.";
 }

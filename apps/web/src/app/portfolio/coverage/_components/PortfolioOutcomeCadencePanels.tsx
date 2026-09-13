@@ -44,6 +44,7 @@ export function PortfolioOutcomeCadencePanels({
           포트폴리오 비중 결정은 실제 성과 관찰 기간이 지난 뒤 평가합니다. 이 카드의 목적은 왜 아직 금지인지와
           다음 성숙 시점을 보여주는 것입니다.
         </p>
+        <p className="board-intro">누적 관찰에는 같은 결정을 여러 날짜에 평가한 기록이 포함됩니다. 서로 다른 투자 판단의 개수가 아닙니다.</p>
         <div className="status-rail compact-rail" aria-label="포트폴리오 결정 신뢰도 요약" style={{ marginBottom: "20px" }}>
           <article className="rail-cell">
             <span>사후평가 실행</span>
@@ -51,7 +52,7 @@ export function PortfolioOutcomeCadencePanels({
             <small>부족 {reviewCalibration.feedback_run_gap}회 · {reviewCalibration.lookback_days || "기간 미확인"}일 기준</small>
           </article>
           <article className="rail-cell">
-            <span>성숙한 결정</span>
+            <span>성숙한 누적 관찰</span>
             <strong>{reviewCalibration.mature_decision_count}/{reviewCalibration.min_mature_decisions}</strong>
             <small>부족 {reviewCalibration.mature_decision_gap}개 · 전체 {reviewCalibration.decision_count}개</small>
           </article>
@@ -88,7 +89,7 @@ export function PortfolioOutcomeCadencePanels({
                 <span className="risk-tag risk-medium">결정 유형</span>
                 <strong>{userFacingText(summary.decision_family || "unknown")}</strong>
                 <span>
-                  전체 {summary.decision_count}개 · 성숙 {summary.mature_decision_count}개 · 반박{" "}
+                  누적 관찰 {summary.decision_count}건 · 성숙 {summary.mature_decision_count}개 · 반박{" "}
                   {summary.contradicted_count}개
                 </span>
               </div>

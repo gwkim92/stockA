@@ -126,10 +126,10 @@ export function PortfolioDecisionFeedbackPanels({ reviewFeedback, reviewHistory 
               <div className="bento-list-item" key={`${item.decision_index}-${item.symbol}-${item.feedback_status}`}>
                 <div>
                   <span className={`risk-tag ${feedbackStatusClass(item.feedback_status)}`}>
-                    {userFacingText(item.feedback_status)}
+                    {item.feedback_display_label || userFacingText(item.feedback_status)}
                   </span>
                   <strong>{item.symbol} · {item.decision_label || userFacingText(item.decision_type)}</strong>
-                  <span>{userFacingText(item.feedback_reason)}</span>
+                  <span>{userFacingText(item.feedback_display_reason || item.feedback_reason)}</span>
                 </div>
                 <span style={{ color: "var(--text-secondary)", maxWidth: "520px" }}>
                   성과 {userFacingText(item.evidence.recommendation_outcome.outcome_label || "미측정")} · 초과수익{" "}
