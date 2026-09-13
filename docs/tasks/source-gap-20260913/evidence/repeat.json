@@ -1,0 +1,29 @@
+{
+  "pipeline_name": "research_maintenance",
+  "policy": "research-maintenance-v1",
+  "period_policy": "sec-statement-duration-v2",
+  "as_of_date": "2026-09-13",
+  "execute": true,
+  "results": [],
+  "order_boundary": "read_only_no_order",
+  "automatic_weight_change_allowed": false,
+  "refresh_days": 7,
+  "retry_hours": 24,
+  "limit": 3,
+  "run_id": 24324,
+  "queue_counts": {
+    "due": 0,
+    "fresh": 33,
+    "retry_wait": 0,
+    "reconcile": 0
+  },
+  "failed_count": 0,
+  "reconcile_pending_count": 0,
+  "status": "completed",
+  "queue_counts_after": {
+    "due": 0,
+    "fresh": 33,
+    "retry_wait": 0,
+    "reconcile": 0
+  }
+}

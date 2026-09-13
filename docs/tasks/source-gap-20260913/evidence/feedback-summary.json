@@ -1,0 +1,26 @@
+{
+  "calibration_eval_run_id": 1771,
+  "feedback_run_count": 50,
+  "observation_count": 96,
+  "by_symbol": {
+    "AMZN": 28,
+    "AAPL": 68
+  },
+  "date_ranges": {
+    "AMZN": {
+      "first": "2026-07-15",
+      "last": "2026-09-11",
+      "dates": 28
+    },
+    "AAPL": {
+      "first": "2026-07-03",
+      "last": "2026-09-07",
+      "dates": 34
+    }
+  },
+  "current_missing_symbol": "AMZN",
+  "current_price_is_present": true,
+  "preview_return_pct": -0.035822,
+  "existing_direction_threshold": 0.05,
+  "evaluation_criteria_changed": false
+}

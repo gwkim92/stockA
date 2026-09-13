@@ -1,0 +1,48 @@
+{
+  "pipeline_name": "research_maintenance",
+  "policy": "research-maintenance-v1",
+  "period_policy": "sec-statement-duration-v2",
+  "as_of_date": "2026-09-13",
+  "execute": true,
+  "results": [
+    {
+      "symbol": "AAPL",
+      "run_id": 24321,
+      "status": "succeeded",
+      "fact_count": 379
+    },
+    {
+      "symbol": "ARM",
+      "run_id": 24322,
+      "status": "succeeded",
+      "fact_count": 41
+    },
+    {
+      "symbol": "NVDA",
+      "run_id": 24323,
+      "status": "succeeded",
+      "fact_count": 400
+    }
+  ],
+  "order_boundary": "read_only_no_order",
+  "automatic_weight_change_allowed": false,
+  "refresh_days": 7,
+  "retry_hours": 24,
+  "limit": 3,
+  "run_id": 24320,
+  "queue_counts": {
+    "due": 3,
+    "fresh": 30,
+    "retry_wait": 0,
+    "reconcile": 0
+  },
+  "failed_count": 0,
+  "reconcile_pending_count": 0,
+  "status": "completed",
+  "queue_counts_after": {
+    "due": 0,
+    "fresh": 33,
+    "retry_wait": 0,
+    "reconcile": 0
+  }
+}

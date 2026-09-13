@@ -1,0 +1,99 @@
+{
+  "date": "2026-09-11",
+  "items": [
+    {
+      "symbol": "AMZN",
+      "evidence": {
+        "thesis": {
+          "title": "AMZN watch thesis via Technology Domain",
+          "status": "active",
+          "thesis_id": 83,
+          "conviction_score": 0.4869
+        },
+        "price_evidence": {
+          "price_return_pct": -0.029326,
+          "latest_trade_date": "2026-09-04",
+          "baseline_trade_date": "2026-05-22",
+          "latest_adjusted_close": 258.51001,
+          "baseline_adjusted_close": 266.32001
+        },
+        "thesis_outcome": {
+          "summary": "",
+          "alpha_pct": null,
+          "thesis_id": null,
+          "outcome_id": null,
+          "holding_days": null,
+          "success_grade": "",
+          "absolute_return_pct": null,
+          "measurement_end_date": ""
+        },
+        "paper_validation": {
+          "status": "failed",
+          "conflict_count": 0,
+          "symbol_blocked": false,
+          "validation_date": "2026-09-11",
+          "symbol_validated": false,
+          "recommendation_count": 24,
+          "approved_action_count": 0,
+          "paper_validation_run_id": 90
+        },
+        "recommendation_outcome": {
+          "alpha_pct": null,
+          "outcome_id": null,
+          "horizon_days": null,
+          "outcome_label": "",
+          "recommendation_id": null,
+          "absolute_return_pct": null,
+          "measurement_end_date": ""
+        }
+      },
+      "decision_type": "needs_thesis_update",
+      "decision_index": 5,
+      "decision_label": "미보유 사유 확인",
+      "order_boundary": "read_only_no_order",
+      "decision_family": "benchmark_drift",
+      "feedback_reason": "성과 outcome, thesis outcome, paper validation, 가격 변화 중 결정적인 후속 근거가 아직 부족하다.",
+      "feedback_status": "needs_more_data",
+      "source_decision": {
+        "priority": 5,
+        "severity": "watch",
+        "rationale": "AMZN는 포트폴리오 0.0%, 벤치마크 4.1%, 벤치마크 대비 괴리 -4.1%이다. 의도적 미보유인지 데이터/투자 논리 공백인지 검토한다.",
+        "active_weight": -0.04104394,
+        "current_weight": 0.0,
+        "benchmark_weight": 0.04104394,
+        "related_thesis_id": null,
+        "related_recommendation_id": null
+      },
+      "broker_submit_allowed": false,
+      "automatic_order_allowed": false
+    }
+  ],
+  "eval_run_id": 1768,
+  "price_coverage": [
+    {
+      "bars": 178,
+      "primary_symbol": "AAPL",
+      "latest_trade_date": "2026-09-11"
+    },
+    {
+      "bars": 178,
+      "primary_symbol": "AMZN",
+      "latest_trade_date": "2026-09-11"
+    },
+    {
+      "bars": 174,
+      "primary_symbol": "MSFT",
+      "latest_trade_date": "2026-09-04"
+    },
+    {
+      "bars": 174,
+      "primary_symbol": "NVDA",
+      "latest_trade_date": "2026-09-04"
+    },
+    {
+      "bars": 179,
+      "primary_symbol": "TSLA",
+      "latest_trade_date": "2026-09-04"
+    }
+  ]
+}
