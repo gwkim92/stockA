@@ -96,7 +96,7 @@ export function DataHealthPortfolioReviewCadenceSections({
               {recordLabel(portfolioReviewCadence.feedback.eval_run_id)} → {recordLabel(portfolioReviewCadence.calibration.eval_run_id)}
             </strong>
             <p>
-	              누적 사후평가 {portfolioReviewCadence.calibration.feedback_run_count}회 · 성숙 판단{" "}
+	              누적 사후평가 {portfolioReviewCadence.calibration.feedback_run_count}회 · 성숙한 누적 관찰{" "}
               {portfolioReviewCadence.calibration.mature_decision_count}개
             </p>
           </article>
