@@ -1,0 +1,418 @@
+{
+  "identity": {
+    "accountId": "115623963546",
+    "instanceId": "i-029d51b163fb07b61",
+    "region": "us-east-1"
+  },
+  "verified_at": "2026-09-13T06:54:51.020966+00:00",
+  "commit": "c13ffd43c5ef5caabddecc482fa317b5e59160fd",
+  "first": {
+    "pipeline_name": "research_maintenance",
+    "policy": "research-maintenance-v1",
+    "period_policy": "sec-statement-duration-v2",
+    "as_of_date": "2026-09-13",
+    "execute": true,
+    "results": [
+      {
+        "symbol": "AAPL",
+        "run_id": 24321,
+        "status": "succeeded",
+        "fact_count": 379
+      },
+      {
+        "symbol": "ARM",
+        "run_id": 24322,
+        "status": "succeeded",
+        "fact_count": 41
+      },
+      {
+        "symbol": "NVDA",
+        "run_id": 24323,
+        "status": "succeeded",
+        "fact_count": 400
+      }
+    ],
+    "order_boundary": "read_only_no_order",
+    "automatic_weight_change_allowed": false,
+    "refresh_days": 7,
+    "retry_hours": 24,
+    "limit": 3,
+    "run_id": 24320,
+    "queue_counts": {
+      "due": 3,
+      "fresh": 30,
+      "retry_wait": 0,
+      "reconcile": 0
+    },
+    "failed_count": 0,
+    "reconcile_pending_count": 0,
+    "status": "completed",
+    "queue_counts_after": {
+      "due": 0,
+      "fresh": 33,
+      "retry_wait": 0,
+      "reconcile": 0
+    }
+  },
+  "repeat": {
+    "pipeline_name": "research_maintenance",
+    "policy": "research-maintenance-v1",
+    "period_policy": "sec-statement-duration-v2",
+    "as_of_date": "2026-09-13",
+    "execute": true,
+    "results": [],
+    "order_boundary": "read_only_no_order",
+    "automatic_weight_change_allowed": false,
+    "refresh_days": 7,
+    "retry_hours": 24,
+    "limit": 3,
+    "run_id": 24324,
+    "queue_counts": {
+      "due": 0,
+      "fresh": 33,
+      "retry_wait": 0,
+      "reconcile": 0
+    },
+    "failed_count": 0,
+    "reconcile_pending_count": 0,
+    "status": "completed",
+    "queue_counts_after": {
+      "due": 0,
+      "fresh": 33,
+      "retry_wait": 0,
+      "reconcile": 0
+    }
+  },
+  "queue": {
+    "observed_at": "2026-09-13T06:54:47.119291+00:00",
+    "as_of_date": "2026-09-13",
+    "scope": "financial_source_only",
+    "read_only": true,
+    "maximum_calls_per_run": 1,
+    "budget_resets_at": "2026-09-14T00:00:00+00:00",
+    "status": "loaded",
+    "model_name": "gpt-5.6-terra",
+    "daily_used": 1,
+    "daily_limit": 5,
+    "daily_remaining": 4,
+    "counts": {
+      "current": 10,
+      "due": 23
+    },
+    "attention_count": 0,
+    "total_count": 33,
+    "rows": [
+      {
+        "symbol": "A",
+        "state": "current",
+        "source_run_id": 23866,
+        "source_collected_at": "2026-09-11T09:04:42.274375+00:00",
+        "claim_id": 23927,
+        "retry_after": null,
+        "failure_code": null
+      },
+      {
+        "symbol": "ADBE",
+        "state": "current",
+        "source_run_id": 23867,
+        "source_collected_at": "2026-09-11T09:04:43.932444+00:00",
+        "claim_id": 23956,
+        "retry_after": null,
+        "failure_code": null
+      },
+      {
+        "symbol": "ADI",
+        "state": "current",
+        "source_run_id": 23868,
+        "source_collected_at": "2026-09-11T09:04:45.703134+00:00",
+        "claim_id": 23982,
+        "retry_after": null,
+        "failure_code": null
+      },
+      {
+        "symbol": "ADSK",
+        "state": "current",
+        "source_run_id": 23870,
+        "source_collected_at": "2026-09-11T09:04:53.423984+00:00",
+        "claim_id": 24033,
+        "retry_after": null,
+        "failure_code": null
+      },
+      {
+        "symbol": "AEIS",
+        "state": "current",
+        "source_run_id": 23871,
+        "source_collected_at": "2026-09-11T09:04:55.324230+00:00",
+        "claim_id": 24086,
+        "retry_after": null,
+        "failure_code": null
+      },
+      {
+        "symbol": "ALAB",
+        "state": "current",
+        "source_run_id": 23872,
+        "source_collected_at": "2026-09-11T09:04:56.684469+00:00",
+        "claim_id": 24131,
+        "retry_after": null,
+        "failure_code": null
+      },
+      {
+        "symbol": "AMD",
+        "state": "current",
+        "source_run_id": 23887,
+        "source_collected_at": "2026-09-11T10:20:33.592924+00:00",
+        "claim_id": 24176,
+        "retry_after": null,
+        "failure_code": null
+      },
+      {
+        "symbol": "AVGO",
+        "state": "current",
+        "source_run_id": 23888,
+        "source_collected_at": "2026-09-11T10:20:34.955057+00:00",
+        "claim_id": 24221,
+        "retry_after": null,
+        "failure_code": null
+      },
+      {
+        "symbol": "BE",
+        "state": "current",
+        "source_run_id": 23889,
+        "source_collected_at": "2026-09-11T10:20:36.344636+00:00",
+        "claim_id": 24263,
+        "retry_after": null,
+        "failure_code": null
+      },
+      {
+        "symbol": "BMNR",
+        "state": "current",
+        "source_run_id": 23906,
+        "source_collected_at": "2026-09-11T13:02:11.413081+00:00",
+        "claim_id": 24305,
+        "retry_after": null,
+        "failure_code": null
+      },
+      {
+        "symbol": "COST",
+        "state": "due",
+        "source_run_id": 23907,
+        "source_collected_at": "2026-09-11T13:02:12.753391+00:00",
+        "claim_id": null,
+        "retry_after": null,
+        "failure_code": null
+      },
+      {
+        "symbol": "DG",
+        "state": "due",
+        "source_run_id": 23908,
+        "source_collected_at": "2026-09-11T13:02:14.413014+00:00",
+        "claim_id": null,
+        "retry_after": null,
+        "failure_code": null
+      },
+      {
+        "symbol": "DIS",
+        "state": "due",
+        "source_run_id": 23910,
+        "source_collected_at": "2026-09-11T13:02:25.023312+00:00",
+        "claim_id": null,
+        "retry_after": null,
+        "failure_code": null
+      },
+      {
+        "symbol": "ELF",
+        "state": "due",
+        "source_run_id": 23911,
+        "source_collected_at": "2026-09-11T13:02:27.183618+00:00",
+        "claim_id": null,
+        "retry_after": null,
+        "failure_code": null
+      },
+      {
+        "symbol": "EROK",
+        "state": "due",
+        "source_run_id": 23912,
+        "source_collected_at": "2026-09-11T13:02:28.714093+00:00",
+        "claim_id": null,
+        "retry_after": null,
+        "failure_code": null
+      },
+      {
+        "symbol": "AMZN",
+        "state": "due",
+        "source_run_id": 23979,
+        "source_collected_at": "2026-09-11T16:20:34.625615+00:00",
+        "claim_id": null,
+        "retry_after": null,
+        "failure_code": null
+      },
+      {
+        "symbol": "FANG",
+        "state": "due",
+        "source_run_id": 23980,
+        "source_collected_at": "2026-09-11T16:20:36.433536+00:00",
+        "claim_id": null,
+        "retry_after": null,
+        "failure_code": null
+      },
+      {
+        "symbol": "GILD",
+        "state": "due",
+        "source_run_id": 23981,
+        "source_collected_at": "2026-09-11T16:20:38.023426+00:00",
+        "claim_id": null,
+        "retry_after": null,
+        "failure_code": null
+      },
+      {
+        "symbol": "GOOG",
+        "state": "due",
+        "source_run_id": 24028,
+        "source_collected_at": "2026-09-11T22:20:35.556210+00:00",
+        "claim_id": null,
+        "retry_after": null,
+        "failure_code": null
+      },
+      {
+        "symbol": "GOOGL",
+        "state": "due",
+        "source_run_id": 24029,
+        "source_collected_at": "2026-09-11T22:20:36.945501+00:00",
+        "claim_id": null,
+        "retry_after": null,
+        "failure_code": null
+      },
+      {
+        "symbol": "INTU",
+        "state": "due",
+        "source_run_id": 24032,
+        "source_collected_at": "2026-09-11T22:20:38.664166+00:00",
+        "claim_id": null,
+        "retry_after": null,
+        "failure_code": null
+      },
+      {
+        "symbol": "LDOS",
+        "state": "due",
+        "source_run_id": 24128,
+        "source_collected_at": "2026-09-12T04:20:16.717279+00:00",
+        "claim_id": null,
+        "retry_after": null,
+        "failure_code": null
+      },
+      {
+        "symbol": "LLY",
+        "state": "due",
+        "source_run_id": 24129,
+        "source_collected_at": "2026-09-12T04:20:18.234540+00:00",
+        "claim_id": null,
+        "retry_after": null,
+        "failure_code": null
+      },
+      {
+        "symbol": "META",
+        "state": "due",
+        "source_run_id": 24130,
+        "source_collected_at": "2026-09-12T04:20:19.613779+00:00",
+        "claim_id": null,
+        "retry_after": null,
+        "failure_code": null
+      },
+      {
+        "symbol": "MSFT",
+        "state": "due",
+        "source_run_id": 24173,
+        "source_collected_at": "2026-09-12T10:20:34.773193+00:00",
+        "claim_id": null,
+        "retry_after": null,
+        "failure_code": null
+      },
+      {
+        "symbol": "QUBT",
+        "state": "due",
+        "source_run_id": 24174,
+        "source_collected_at": "2026-09-12T10:20:36.173369+00:00",
+        "claim_id": null,
+        "retry_after": null,
+        "failure_code": null
+      },
+      {
+        "symbol": "SPCX",
+        "state": "due",
+        "source_run_id": 24175,
+        "source_collected_at": "2026-09-12T10:20:37.283999+00:00",
+        "claim_id": null,
+        "retry_after": null,
+        "failure_code": null
+      },
+      {
+        "symbol": "TGT",
+        "state": "due",
+        "source_run_id": 24218,
+        "source_collected_at": "2026-09-12T16:20:34.923104+00:00",
+        "claim_id": null,
+        "retry_after": null,
+        "failure_code": null
+      },
+      {
+        "symbol": "TSLA",
+        "state": "due",
+        "source_run_id": 24219,
+        "source_collected_at": "2026-09-12T16:20:36.506483+00:00",
+        "claim_id": null,
+        "retry_after": null,
+        "failure_code": null
+      },
+      {
+        "symbol": "XOM",
+        "state": "due",
+        "source_run_id": 24220,
+        "source_collected_at": "2026-09-12T16:20:37.843073+00:00",
+        "claim_id": null,
+        "retry_after": null,
+        "failure_code": null
+      },
+      {
+        "symbol": "AAPL",
+        "state": "due",
+        "source_run_id": 24321,
+        "source_collected_at": "2026-09-13T06:54:01.996017+00:00",
+        "claim_id": null,
+        "retry_after": null,
+        "failure_code": null
+      },
+      {
+        "symbol": "ARM",
+        "state": "due",
+        "source_run_id": 24322,
+        "source_collected_at": "2026-09-13T06:54:03.352741+00:00",
+        "claim_id": null,
+        "retry_after": null,
+        "failure_code": null
+      },
+      {
+        "symbol": "NVDA",
+        "state": "due",
+        "source_run_id": 24323,
+        "source_collected_at": "2026-09-13T06:54:04.723213+00:00",
+        "claim_id": null,
+        "retry_after": null,
+        "failure_code": null
+      }
+    ]
+  },
+  "protected_table_hashes": {
+    "signal.recommendation": "8181c9b460fc87af3e8a22e5d9156e18",
+    "signal.recommendation_score_component": "08cb1583c409c01b80ab287b05dfd3e4",
+    "portfolio.position_snapshot": "c020d6ee88379f1b891716fddb1548d3",
+    "ref.benchmark_composition": "458d54d4c8e3c94340489bc893f6178d",
+    "performance.recommendation_outcome": "ffaa32be4502b847b266b7dfff15ecc3",
+    "research.equity_research_artifact": "4d7dd8a553582766d6f694fb6fb83532",
+    "other_periods": "e40fd4927b767247e7c16f26b4ead7cc",
+    "other_metrics": "b51103b05c87738385eff782da7a8a19",
+    "other_or_historical_normalized": "db94b68e5d706cec7b3ee98ec9e6494d"
+  },
+  "protected_tables_unchanged": true,
+  "model_settings_unchanged": true,
+  "ai_invocations_unchanged": "41740"
+}

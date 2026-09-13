@@ -1,0 +1,141 @@
+{
+  "commit": "c13ffd43c5ef5caabddecc482fa317b5e59160fd",
+  "batch_guard": {
+    "status": "protected",
+    "shared_limits_applied": true,
+    "database_limits_applied": true,
+    "database_memory_max_bytes": 3221225472,
+    "monitored_profile_count": 13,
+    "protected_profile_count": 13,
+    "attention_profile_count": 0,
+    "observation_age_seconds": 62
+  },
+  "timers": [
+    "stockanalysis-operating-data-cross-asset-daily.timer                loaded active waiting stockanalysis operating-data-profile schedule timer for cross-asset-daily",
+    "stockanalysis-operating-data-decision-daily.timer                   loaded active waiting stockanalysis operating-data-profile schedule timer for decision-daily",
+    "stockanalysis-operating-data-macro-weekly.timer                     loaded active waiting stockanalysis operating-data-profile schedule timer for macro-weekly",
+    "stockanalysis-operating-data-market-daily.timer                     loaded active waiting stockanalysis operating-data-profile schedule timer for market-daily",
+    "stockanalysis-operating-data-market-universe-weekly.timer           loaded active waiting stockanalysis operating-data-profile schedule timer for market-universe-weekly",
+    "stockanalysis-operating-data-news-intraday.timer                    loaded active waiting stockanalysis operating-data-profile schedule timer for news-intraday",
+    "stockanalysis-operating-data-performance-monthly.timer              loaded active waiting stockanalysis operating-data-profile schedule timer for performance-monthly",
+    "stockanalysis-operating-data-research-maintenance.timer             loaded active waiting stockanalysis operating-data-profile schedule timer for research-maintenance",
+    "stockanalysis-operating-data-scheduler-status.timer                 loaded active waiting Refresh StockAnalysis operating data scheduler status report",
+    "stockanalysis-operating-data-sec-filings-weekly.timer               loaded active waiting stockanalysis operating-data-profile schedule timer for sec-filings-weekly",
+    "stockanalysis-operating-data-toss-candles-us-shadow-daily.timer     loaded active waiting stockanalysis operating-data-profile schedule timer for toss-candles-us-shadow-daily",
+    "stockanalysis-operating-data-toss-live-account-readonly.timer       loaded active waiting stockanalysis operating-data-profile schedule timer for toss-live-account-readonly",
+    "stockanalysis-operating-data-toss-priority-microdata-intraday.timer loaded active waiting stockanalysis operating-data-profile schedule timer for toss-priority-microdata-intraday",
+    "stockanalysis-operating-data-toss-reference-us-daily.timer          loaded active waiting stockanalysis operating-data-profile schedule timer for toss-reference-us-daily"
+  ],
+  "queue": {
+    "current": 10,
+    "due": 23
+  },
+  "daily_used": 1,
+  "remaining_gates": [
+    {
+      "gate_id": "alert_destination",
+      "label": "알림 목적지",
+      "category": "operational_blocker",
+      "category_label": "운영 조건",
+      "severity": "medium",
+      "status_label": "외부 알림 미검증",
+      "summary": "ntfy 알림 테스트가 없거나 168시간 기준보다 오래됐다.",
+      "next_action": "알림 도달 테스트를 다시 실행해 최신 status artifact를 남긴다.",
+      "order_boundary": "read_only_no_order",
+      "automatic_action_allowed": false
+    },
+    {
+      "gate_id": "data_operations_artifact_runner",
+      "label": "데이터 실행 artifact",
+      "category": "operational_blocker",
+      "category_label": "운영 조건",
+      "severity": "medium",
+      "status_label": "실행 증거 확인 필요",
+      "summary": "artifact 정책 43/43개, 최신 실행 증거 43개.",
+      "next_action": "실패·누락·stale pipeline을 먼저 복구하고 해당 job artifact를 확인한다.",
+      "order_boundary": "read_only_no_order",
+      "automatic_action_allowed": false
+    },
+    {
+      "gate_id": "portfolio_review_decision_feedback_attention",
+      "label": "포트폴리오 검토 성과",
+      "category": "outcome_due",
+      "category_label": "성과 검증 필요",
+      "severity": "high",
+      "status_label": "검토 결과 대조 필요",
+      "summary": "포트폴리오 검토 결정 11개가 성과 대조 상태 has_contradictions로 남아 있다.",
+      "next_action": "contradicted 항목의 thesis, valuation, 포지션 크기 판단을 우선 재검토한다.",
+      "order_boundary": "read_only_no_order",
+      "automatic_action_allowed": false
+    },
+    {
+      "gate_id": "portfolio_review_feedback_calibration_attention",
+      "label": "검토 성과 표본",
+      "category": "outcome_wait",
+      "category_label": "성과 관찰 대기",
+      "severity": "medium",
+      "status_label": "weight 변경 차단",
+      "summary": "성숙한 검토 표본 454/10개, feedback 50/3회. 예상 성숙일 2026-06-24.",
+      "next_action": "검토 성과 누적평가 상태가 명확히 성숙하지 않아 추천 weight 검토를 막는다.",
+      "order_boundary": "read_only_no_order",
+      "automatic_action_allowed": false
+    },
+    {
+      "gate_id": "recommendation_outcome_maturity_attention",
+      "label": "추천 성과 측정창",
+      "category": "outcome_due",
+      "category_label": "성과 실행 필요",
+      "severity": "high",
+      "status_label": "성과 보정 실행 필요",
+      "summary": "다음 성과 측정일은 2026-09-14이다.",
+      "next_action": "성과 산출과 calibration을 지금 실행한다.",
+      "order_boundary": "read_only_no_order",
+      "automatic_action_allowed": false
+    },
+    {
+      "gate_id": "professional_source_gap_attention",
+      "label": "전문 분석 원천 한계",
+      "category": "source_limit",
+      "category_label": "원천 데이터 한계",
+      "severity": "high",
+      "status_label": "재무 원천 차단",
+      "summary": "원천 차단 종목 1개, 최고 우선순위 412.5.",
+      "next_action": "source_blocker_count가 있는 종목부터 원천 공시/CIK/무료 데이터 가능 여부를 확인한다.",
+      "order_boundary": "read_only_no_order",
+      "automatic_action_allowed": false
+    }
+  ],
+  "noncurrent_jobs": [
+    {
+      "pipeline_name": "tossinvest_readonly_sync",
+      "job_id": "toss-live-account-readonly",
+      "domain": "portfolio",
+      "cadence": "intraday",
+      "expected_after_local": "08:55, 12:55, 16:55",
+      "stale_after_hours": 8,
+      "artifact_policy": "stdout_json_stderr_log_and_toss_account_readonly_counts",
+      "latest_status": "succeeded",
+      "health_status": "stale",
+      "latest_run_id": "pipeline-run-24013",
+      "finished_at": "2026-09-11T20:55:28.793304Z"
+    },
+    {
+      "pipeline_name": "tossinvest_market_data_sync",
+      "job_id": "toss-priority-microdata-intraday",
+      "domain": "market",
+      "cadence": "intraday",
+      "expected_after_local": "09:40, 12:40, 15:40",
+      "stale_after_hours": 8,
+      "artifact_policy": "stdout_json_stderr_log_and_toss_microdata_counts",
+      "latest_status": "succeeded",
+      "health_status": "stale",
+      "latest_run_id": "pipeline-run-24030",
+      "finished_at": "2026-09-11T22:20:36.975015Z"
+    }
+  ],
+  "http": {
+    "8787": 200,
+    "3000": 200,
+    "13000": 200
+  }
+}
