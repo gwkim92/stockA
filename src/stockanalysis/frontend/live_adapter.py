@@ -17366,8 +17366,10 @@ def _build_portfolio_review_feedback_calibration_payload(payload: dict[str, Any]
     elif calibration_status == "collect_more_feedback":
         maturity_status = calibration_status
         unresolved = int(_safe_number(payload.get("needs_more_data_count")) or 0)
+        too_early = int(_safe_number(payload.get("too_early_count")) or 0)
         block_reason = (
-            f"누적 관찰 수 기준은 채웠지만 저장된 평가에 미확정 관찰 {unresolved}건이 남아 있습니다. "
+            f"누적 관찰 수 기준은 채웠지만 저장된 평가에 미확정 관찰 {unresolved}건, "
+            f"관찰 기간 미충족 {too_early}건이 남아 있습니다. "
             "같은 결정의 반복 관찰이 포함된 수치이며, 항목별 판단 보류·수치 근거 부족을 확인해야 합니다."
         )
     elif calibration_status == "manual_review_ready":

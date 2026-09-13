@@ -21,7 +21,7 @@ def main():
     feedback=health['portfolio_review_decision_feedback']
     calibration=health['portfolio_review_feedback_calibration']
     jobs=[row for row in health['pipeline_runs'] if row['job_id'] in ('toss-live-account-readonly','toss-priority-microdata-intraday')]
-    protected=db.execute_scalar("select md5(coalesce(string_agg(md5(to_jsonb(e)::text),',' order by eval_run_id),'')) from ai.eval_run e where eval_name in ('portfolio_review_decision_history','portfolio_review_decision_feedback','portfolio_review_feedback_calibration');")
+    protected=db.execute_scalar("select md5(coalesce(string_agg(md5(to_jsonb(e)::text),',' order by eval_run_id),'')) from ai.eval_run e where eval_name in ('portfolio_review_decision_history','portfolio_review_decision_outcome_feedback','portfolio_review_feedback_calibration');")
     snapshot=dict(at=datetime.now(timezone.utc).isoformat(),jobs=jobs,job_count=len(health['pipeline_runs']),
         feedback={k:feedback[k] for k in ('eval_run_id','feedback_status','decision_count','validated_count','contradicted_count','needs_more_data_count')},
         unresolved=[row for row in feedback['latest_items'] if row['feedback_status']=='needs_more_data'],

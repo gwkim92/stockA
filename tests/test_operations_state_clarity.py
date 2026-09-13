@@ -1,7 +1,7 @@
 from copy import deepcopy
 import unittest
 
-from stockanalysis.frontend.live_adapter import _build_portfolio_review_feedback_item_payload
+from stockanalysis.frontend.live_adapter import _build_portfolio_review_feedback_item_payload, _build_portfolio_review_feedback_calibration_payload
 
 
 class FeedbackDisplayTests(unittest.TestCase):
@@ -42,3 +42,11 @@ class FeedbackDisplayTests(unittest.TestCase):
             'feedback_status': 'needs_more_data', 'evidence': {
                 'price_evidence': {'price_return_pct': 0}, 'paper_validation': {'symbol_blocked': True}}})
         self.assertEqual(row['feedback_display_label'], '가상 매매 검증 차단')
+
+    def test_sufficient_counts_do_not_hide_immature_observations(self):
+        result = _build_portfolio_review_feedback_calibration_payload({
+            'status': 'loaded', 'calibration_status': 'collect_more_feedback',
+            'feedback_run_count': 50, 'min_feedback_runs': 3, 'mature_decision_count': 450,
+            'min_mature_decisions': 10, 'needs_more_data_count': 0, 'too_early_count': 5})
+        self.assertIn('관찰 기간 미충족 5건', result['weight_review_block_reason'])
+        self.assertTrue(result['weight_review_blocked'])
