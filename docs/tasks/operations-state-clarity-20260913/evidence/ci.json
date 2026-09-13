@@ -1,0 +1,18 @@
+{
+  "feature": {
+    "pr": 71,
+    "head": "b08037057c3be3f2bc8dbd15c2d1e4105d300012",
+    "checks": "5 passed",
+    "web_product_run": 34746923883,
+    "web_runtime_run": 34746923865
+  },
+  "query_cost": {
+    "pr": 72,
+    "head": "8382f70d",
+    "checks": "4 passed",
+    "web_product_run": 34747736773,
+    "financial_period_run": 34747736742,
+    "batch_runtime_run": 34747736729,
+    "evaluation_history_run": 34747736752
+  }
+}

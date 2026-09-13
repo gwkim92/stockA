@@ -1,0 +1,22 @@
+{
+  "before": {
+    "execution_ms": 1973.406,
+    "planning_ms": 39.376,
+    "jit_ms": 866.129
+  },
+  "after": {
+    "execution_ms": 15533.551,
+    "planning_ms": 40.788,
+    "jit_ms": 14560.06
+  },
+  "materialized": {
+    "execution_ms": 1994.21,
+    "planning_ms": 40.298,
+    "jit_ms": 887.34
+  },
+  "deployed": {
+    "execution_ms": 1946.488,
+    "planning_ms": 42.626,
+    "jit_ms": 872.342
+  }
+}

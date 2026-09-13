@@ -21,8 +21,10 @@ const fs=require('fs');
   await expect(calibration).toContainText('성숙한 누적 관찰');
   await expect(calibration).toContainText('454/10');
   await expect(calibration).toContainText('미확정 관찰 96건');
-  await calibration.scrollIntoViewIfNeeded();
-  await calibration.screenshot({path:__dirname+'/evidence/calibration-'+name+'.png'});
+  await calibration.evaluate(el=>el.scrollIntoView({block:'start',behavior:'instant'}));
+  await page.mouse.wheel(0,-80);
+  await page.waitForTimeout(150);
+  await page.screenshot({path:__dirname+'/evidence/calibration-'+name+'.png'});
   // Open the real disclosure controls to inspect the run history.
   for(const detail of await page.locator('details').all()){
    if(await detail.getAttribute('open')===null){
