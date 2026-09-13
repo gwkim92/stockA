@@ -10,6 +10,7 @@ from stockanalysis.ingest.sec.companyfacts import normalize_companyfacts_payload
 from stockanalysis.ingest.sec.models import SecFilingsSyncResult
 from stockanalysis.operations.research_maintenance import render_apply_sql, render_reconcile_sql, render_queue_sql
 from stockanalysis.ai.equity_research_reporting import render_equity_research_symbol_lookup_sql
+from stockanalysis.ai.research_source_version import latest_source_sql
 
 
 class ResearchAutomationPostgresTests(unittest.TestCase):
@@ -83,7 +84,7 @@ insert into signal.recommendation values(1,1,'active',1),(2,1,'active',2),(3,1,'
 
     def test_queue_policy_age_cooldown_and_fund_exclusion(self):
         self.sql('''update ops.pipeline_run set pipeline_name='research_statement_refresh',status='succeeded',ended_at=now(),
- config_json='{"instrument_id":1,"period_policy":"sec-statement-duration-v2"}' where run_id=1;
+ config_json=jsonb_build_object('instrument_id',1,'period_policy','sec-statement-duration-v2','source_sha256',repeat('a',64)) where run_id=1;
 update ops.pipeline_run set pipeline_name='research_statement_refresh',status='failed',config_json='{"instrument_id":2}' where run_id=2;
 update ops.pipeline_run set pipeline_name='sec_companyfacts_upsert',status='succeeded',ended_at=now(),
  config_json='{"instrument_id":3,"period_policy":"old-policy"}' where run_id=3;
@@ -92,6 +93,30 @@ update ref.instrument set instrument_type='etf' where instrument_id=4;''')
         self.assertEqual({r['primary_symbol']:r['state'] for r in rows},{'ARM':'fresh','AAPL':'retry_wait','NVDA':'due'})
         self.sql("update ops.pipeline_run set started_at=now()-interval '25 hours' where run_id=2; update ops.pipeline_run set ended_at=now()-interval '8 days' where run_id=1;")
         self.assertTrue(all(r['state']=='due' for r in json.loads(self.sql(render_queue_sql(as_of_date=date(2026,9,11))))))
+
+    def test_legacy_normalized_success_requires_report_compatible_source_receipt(self):
+        self.sql(self.apply_sql())
+        self.sql("""update ops.pipeline_run set pipeline_name='sec_companyfacts_upsert',
+            config_json=jsonb_build_object('instrument_id',1,'period_policy','sec-statement-duration-v2')
+            where run_id=1;""")
+        self.assertGreater(int(self.sql('select count(*) from market.financial_metric_normalized where instrument_id=1;')), 0)
+        def arm_state():
+            return next(row['state'] for row in json.loads(self.sql(render_queue_sql(as_of_date=date(2026,9,11))))
+                        if row['primary_symbol']=='ARM')
+        self.assertEqual(arm_state(), 'due')
+        self.assertEqual(self.sql('select count(*) from ('+latest_source_sql('1')+') s;'), '0')
+        # A claimed/failed collection still retains the existing no-replay/cooldown guards.
+        self.sql("""update ops.pipeline_run set pipeline_name='research_statement_refresh',
+            config_json=jsonb_build_object('instrument_id',1,'period_policy','sec-statement-duration-v2')
+            where run_id=2;""")
+        self.assertEqual(arm_state(), 'reconcile')
+        self.sql("update ops.pipeline_run set status='failed',ended_at=now() where run_id=2;")
+        self.assertEqual(arm_state(), 'retry_wait')
+        self.sql("update ops.pipeline_run set status='succeeded' where run_id=2;")
+        self.assertEqual(arm_state(), 'due')  # Success without source hash is not provenance.
+        self.sql("update ops.pipeline_run set config_json=config_json || jsonb_build_object('source_sha256',repeat('b',64)) where run_id=2;")
+        self.assertEqual(arm_state(), 'fresh')
+        self.assertEqual(self.sql('select source_run_id from ('+latest_source_sql('1')+') s;'), '2')
 
     def test_reporting_rotation_same_day_skip_and_budget_reservation(self):
         self.sql("insert into research.equity_research_artifact values(1,'2026-09-11','full_equity_research','codex_oauth'),(2,'2026-09-10','full_equity_research','codex_oauth'),(3,'2026-09-09','full_equity_research','codex_oauth');")
